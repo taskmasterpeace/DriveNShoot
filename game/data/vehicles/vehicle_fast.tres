@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DataVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/entities/vehicles/data_vehicle.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+vehicle_name = "Interceptor"
+vehicle_class = "sport"
+max_speed = 850.0
+acceleration = 1200.0
+braking = 1500.0
+max_speed_reverse = 250.0
+steering_angle = 3.0
+wheel_base = 65.0
+slip_speed = 450.0
+traction_grip = 12.0
+traction_slip = 2.0
+max_armor = 60
+fuel_capacity = 80.0
+ram_damage = 15
+weapon_slots = 2
+price = 2000
+repair_cost_multiplier = 1.5

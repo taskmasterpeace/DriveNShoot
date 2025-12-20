@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="DataVehicle" load_steps=3 format=3 uid="uid://motorcycle_card_001"]
+
+[ext_resource type="Script" path="res://game/entities/vehicles/data_vehicle.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/motorcycle/motorcycle_body.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_script")
+vehicle_name = "Motorcycle"
+vehicle_class = "motorcycle"
+icon = ExtResource("2_icon")
+max_speed = 800.0
+acceleration = 1200.0
+braking = 900.0
+max_speed_reverse = 200.0
+steering_angle = 3.5
+wheel_base = 40.0
+slip_speed = 400.0
+traction_grip = 8.0
+traction_slip = 1.5
+max_armor = 40
+fuel_capacity = 40.0
+ram_damage = 5
+weapon_slots = 0
+price = 2000
+repair_cost_multiplier = 0.5

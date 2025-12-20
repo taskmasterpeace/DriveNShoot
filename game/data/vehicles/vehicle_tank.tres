@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DataVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://game/entities/vehicles/data_vehicle.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+vehicle_name = "Behemoth"
+vehicle_class = "truck"
+max_speed = 450.0
+acceleration = 600.0
+braking = 900.0
+max_speed_reverse = 150.0
+steering_angle = 2.0
+wheel_base = 80.0
+slip_speed = 250.0
+traction_grip = 15.0
+traction_slip = 5.0
+max_armor = 200
+fuel_capacity = 150.0
+ram_damage = 50
+weapon_slots = 4
+price = 3500
+repair_cost_multiplier = 0.8

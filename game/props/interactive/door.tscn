@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://door_prop_001"]
+
+[ext_resource type="Script" path="res://game/props/interactive/door.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/truck/trailer.png" id="2_placeholder"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
+size = Vector2(64, 16)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 60.0
+
+[node name="Door" type="StaticBody2D"]
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_placeholder")
+hframes = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 64)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")
+
+[connection signal="body_entered" from="InteractionArea" to="." method="_on_interaction_area_body_entered"]

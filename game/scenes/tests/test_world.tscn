@@ -1,0 +1,45 @@
+[gd_scene load_steps=7 format=3 uid="uid://test_world_001"]
+
+[ext_resource type="Script" path="res://game/scripts/auto_loads/chunk_manager.gd" id="1_chunk_manager"]
+[ext_resource type="PackedScene" path="res://game/entities/player/player_entity.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://game/entities/vehicles/vehicle_entity.tscn" id="3_vehicle"]
+[ext_resource type="PackedScene" path="res://game/systems/farming/garden_plot.tscn" id="4_garden"]
+[ext_resource type="PackedScene" path="res://game/systems/security/security_camera.tscn" id="5_camera"]
+[ext_resource type="PackedScene" path="res://game/entities/animals/animal.tscn" id="6_animal"]
+
+[node name="TestWorld" type="Node2D"]
+
+[node name="ChunkManager" type="Node" parent="."]
+script = ExtResource("1_chunk_manager")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(500, 500)
+
+[node name="Vehicle_Sedan" parent="." instance=ExtResource("3_vehicle")]
+position = Vector2(800, 500)
+# Should verify data assignment in inspector manually
+
+[node name="GardenPlot" parent="." instance=ExtResource("4_garden")]
+position = Vector2(300, 600)
+
+[node name="SecurityCamera" parent="." instance=ExtResource("5_camera")]
+position = Vector2(800, 300)
+
+[node name="Animal_Wild" parent="." instance=ExtResource("6_animal")]
+position = Vector2(200, 200)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="CanvasLayer"]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 300.0
+offset_bottom = 200.0
+text = "TEST WORLD CONTROLS:
+WASD: Move
+Shift: Run (Drains Fatigue)
+Z: Prone (Dive if moving)
+E: Interact (Enter Car/Plant/Tame)
+Click: Shoot (if Weapon equipped)
+Binoculars: 'Use' item
+"

@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://security_camera_001"]
+
+[ext_resource type="Script" path="res://game/systems/security/security_camera.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/car/headlights_car.png" id="2_cone"]
+
+[node name="SecurityCamera" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="CameraBody" type="ColorRect" parent="."]
+offset_left = -10.0
+offset_top = -10.0
+offset_right = 10.0
+offset_bottom = 10.0
+color = Color(0.2, 0.2, 0.2, 1)
+
+[node name="DetectionArea" type="Area2D" parent="."]
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="DetectionArea"]
+polygon = PackedVector2Array(0, 0, 200, -100, 250, 0, 200, 100)
+
+[node name="ConeSprite" type="Sprite2D" parent="."]
+modulate = Color(1, 1, 1, 0.3)
+position = Vector2(120, 0)
+rotation = -1.5708
+scale = Vector2(2, 2)
+texture = ExtResource("2_cone")

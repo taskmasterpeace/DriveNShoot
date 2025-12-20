@@ -1,0 +1,183 @@
+class_name PursuerAI
+extends VehicleEntity
+
+enum State { SEEK, RAM, BLOCK, RESET_DISTANCE }
+enum BehaviorType { RAMMER, BLOCKER }
+
+@export var behavior_type: BehaviorType = BehaviorType.RAMMER
+
+var current_state: State = State.SEEK
+
+var player_target: Node2D
+var follow_distance: float = 260.0
+var ram_range: float = 250.0 # Distance to trigger RAM
+var block_distance: float = 400.0 # Distance AHEAD to block
+var road_center_x: float = 10000.0 # Updated road center approx
+var lane_width: float = 260.0
+
+var state_timer: float = 0.0
+var ram_duration: float = 0.6
+var stickiness_timer: float = 0.0
+var stickiness_timer: float = 0.0
+
+# Stats overrides
+var base_accel: float = 800.0
+
+func _ready() -> void:
+	super._ready()
+	# Disable Smoke (Pursuer doesn't break down same way)
+	if smoke_node:
+		smoke_node.queue_free()
+		smoke_node = null
+		
+	is_active = true # AI is always active
+	engine_power = base_accel
+	
+	# Find player
+	var players = get_tree().get_nodes_in_group("player")
+	if players.size() > 0:
+		player_target = players[0]
+		
+	collision_layer = 1 # Car Layer
+	collision_mask = 1 + 2 # Car + World
+
+func _physics_process(delta: float) -> void:
+	if not player_target:
+		# Try find player repeatedly or despawn?
+		var players = get_tree().get_nodes_in_group("player")
+		if players.size() > 0:
+			player_target = players[0]
+		else:
+			return
+			
+	_update_state(delta)
+	
+	super._physics_process(delta) # Handles physics movement using inputs set below
+
+func _update_state(delta: float) -> void:
+	# Calculate relative info
+	var dist_vector = player_target.global_position - global_position
+	var dist = dist_vector.length()
+	var forward_dot = transform.x.dot(dist_vector.normalized())
+	
+	# Anti-Sticky
+	if dist < 140.0:
+		stickiness_timer += delta
+	else:
+		stickiness_timer = max(0.0, stickiness_timer - delta)
+		
+	if stickiness_timer > 2.5:
+		current_state = State.RESET_DISTANCE
+		stickiness_timer = 0.0
+
+	# State Machine
+	match current_state:
+		State.SEEK:
+			if behavior_type == BehaviorType.BLOCKER:
+				_seek_block_position(dist_vector)
+				# If we are ahead of player and in lane, switch to BLOCK
+				if forward_dot < -0.5 and dist < 600.0: # Behind us
+					current_state = State.BLOCK
+			else:
+				_seek_behavior(dist_vector)
+				if dist < ram_range and forward_dot > 0.5: # Facing player and close
+					current_state = State.RAM
+					state_timer = 0.0
+		
+		State.BLOCK:
+			_block_behavior(dist_vector)
+			# If player gets ahead, switch to SEEK
+			if forward_dot > 0.0:
+				current_state = State.SEEK
+				
+		State.RAM:
+			_ram_behavior(dist_vector)
+			state_timer += delta
+			if state_timer > ram_duration:
+				current_state = State.SEEK
+				
+		State.RESET_DISTANCE:
+			_reset_behavior()
+			state_timer += delta
+			if state_timer > 0.8: # Short backoff
+				current_state = State.SEEK
+
+func _seek_behavior(dist_vector: Vector2) -> void:
+	# Throttle: Full unless we are ahead of player?
+	# Simple Seek: Drive towards player forward projected position?
+	# Actually, we want to be behind player.
+	# But MVP is "Seek Player".
+	
+	input_throttle = 1.0
+	input_braking = 0.0
+	
+	# Steering
+	# Steer towards player X, but stay on road
+	var target_x = clamp(player_target.global_position.x, road_center_x - lane_width, road_center_x + lane_width)
+	var steering_target = Vector2(target_x, player_target.global_position.y) 
+	
+	var steer_angle = get_angle_to(steering_target)
+	# Clamp angle
+	steer_angle = clamp(steer_angle, deg_to_rad(-steering_angle), deg_to_rad(steering_angle))
+	input_steering = steer_angle / deg_to_rad(steering_angle)
+
+func _ram_behavior(dist_vector: Vector2) -> void:
+	# Burst Accel
+	input_throttle = 1.0
+	input_braking = 0.0
+	
+	# Steer directly at player
+	var steer_angle = get_angle_to(player_target.global_position)
+	steer_angle = clamp(steer_angle, deg_to_rad(-steering_angle), deg_to_rad(steering_angle))
+	input_steering = steer_angle / deg_to_rad(steering_angle)
+
+func _seek_block_position(dist_vector: Vector2) -> void:
+	# Drive to position ahead of player
+	input_throttle = 1.0
+	input_braking = 0.0
+	
+	var target_pos = player_target.global_position + Vector2(0, -block_distance)
+	# Clamp X to road
+	target_pos.x = clamp(target_pos.x, road_center_x - lane_width, road_center_x + lane_width)
+	
+	var steer_angle = get_angle_to(target_pos)
+	steer_angle = clamp(steer_angle, deg_to_rad(-steering_angle), deg_to_rad(steering_angle))
+	input_steering = steer_angle / deg_to_rad(steering_angle)
+
+func _block_behavior(dist_vector: Vector2) -> void:
+	# We are ahead, try to stay ahead and match lane
+	var target_x = player_target.global_position.x
+	
+	# Brake checking?
+	var dist = dist_vector.length()
+	if dist < 200.0:
+		# Player is close behind -> Brake check!
+		input_throttle = 0.0
+		input_braking = 1.0
+	else:
+		# Maintain speed (slightly slower than player to force interaction?)
+		input_throttle = 0.6
+		input_braking = 0.0
+		
+	# Match X
+	var steering_target = Vector2(target_x, global_position.y - 100.0)
+	var steer_angle = get_angle_to(steering_target)
+	steer_angle = clamp(steer_angle, deg_to_rad(-steering_angle), deg_to_rad(steering_angle))
+	input_steering = steer_angle / deg_to_rad(steering_angle)
+
+func _reset_behavior() -> void:
+	# Back off
+	input_throttle = 0.0
+	input_braking = 0.5 # Slow down
+	# Steer away slightly?
+	input_steering = 0.2 if randf() > 0.5 else -0.2
+
+# Override get_input to do nothing (AI controls inputs directly above)
+func get_input():
+	pass
+
+# Pursuer Special Death
+func _die() -> void:
+	print("Pursuer Destroyed!")
+	# Spawn explosion?
+	queue_free()

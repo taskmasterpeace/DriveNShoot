@@ -1,0 +1,74 @@
+[gd_scene load_steps=2 format=3 uid="uid://help_overlay"]
+
+[ext_resource type="Script" path="res://game/scenes/ui/help_overlay.gd" id="1_help"]
+
+[node name="HelpOverlay" type="CanvasLayer"]
+process_mode = 3
+layer = 100
+visible = false
+script = ExtResource("1_help")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -200.0
+offset_right = 300.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 60.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 32
+text = "CONTROLS"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="RichTextLabel" type="RichTextLabel" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 40.0
+offset_top = 80.0
+offset_right = -40.0
+offset_bottom = -80.0
+grow_horizontal = 2
+grow_vertical = 2
+bbcode_enabled = true
+text = "[b]KEYBOARD[/b]
+WASD / Arrows: Movement / Drive
+E: Interact / Repair / Enter Car
+X: Extract (Hold when safe)
+Space: Handbrake (Car) / Jump (Foot)
+Shift: Sprint
+F1: Help
+
+[b]GAMEPAD[/b]
+Left Stick: Move / Steer
+Right Trigger (R2): Gas
+Left Trigger (L2): Brake / Reverse
+Square / X: Interact
+Circle / B: Extract
+Cross / A: Handbrake / Jump
+L3: Sprint"
+
+[node name="CloseLabel" type="Label" parent="Panel"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -40.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "Press F1 again to close"
+horizontal_alignment = 1

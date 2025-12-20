@@ -1,0 +1,42 @@
+[gd_scene load_steps=6 format=3 uid="uid://pursuer_blocker"]
+
+[ext_resource type="Script" path="res://game/entities/vehicles/pursuer_ai.gd" id="1_pursuer"]
+[ext_resource type="Texture2D" uid="uid://car_body_sport" path="res://game/entities/vehicles/sprites/car/car_body_sport.png" id="2_sprite"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(100, 50)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
+size = Vector2(90, 45)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 80.0
+
+[node name="PursuerBlocker" type="CharacterBody2D" groups=["vehicle", "enemy"]]
+collision_layer = 3
+collision_mask = 3
+script = ExtResource("1_pursuer")
+behavior_type = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0, 0, 1, 1)
+rotation = 1.5708
+scale = Vector2(0.8, 0.8)
+texture = ExtResource("2_sprite")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="HitBox" type="Area2D" parent="." groups=["hitbox"]]
+collision_layer = 5
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBox"]
+shape = SubResource("RectangleShape2D_hitbox")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")

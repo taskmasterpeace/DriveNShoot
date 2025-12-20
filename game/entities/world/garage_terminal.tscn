@@ -1,0 +1,36 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://game/entities/world/garage_terminal.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/car/car_body.png" id="2_sprite"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(80, 80)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interact"]
+radius = 100.0
+
+[node name="GarageTerminal" type="StaticBody2D" groups=["interactable"]]
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.3, 0.3, 0.4, 1)
+rotation = 1.5708
+texture = ExtResource("2_sprite")
+
+[node name="Label" type="Label" parent="."]
+offset_left = -33.0
+offset_top = -66.0
+offset_right = 34.0
+offset_bottom = -43.0
+text = "GARAGE"
+horizontal_alignment = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 1
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_interact")

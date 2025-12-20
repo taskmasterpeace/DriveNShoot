@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="DataVehicle" load_steps=3 format=3 uid="uid://sedan_card_001"]
+
+[ext_resource type="Script" path="res://game/entities/vehicles/data_vehicle.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/car/car_body.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_script")
+vehicle_name = "Sedan"
+vehicle_class = "sedan"
+icon = ExtResource("2_icon")
+max_speed = 600.0
+acceleration = 900.0
+braking = 1200.0
+max_speed_reverse = 200.0
+steering_angle = 2.5
+wheel_base = 70.0
+slip_speed = 350.0
+traction_grip = 10.0
+traction_slip = 3.0
+max_armor = 100
+fuel_capacity = 100.0
+ram_damage = 20
+weapon_slots = 2
+price = 5000
+repair_cost_multiplier = 1.0

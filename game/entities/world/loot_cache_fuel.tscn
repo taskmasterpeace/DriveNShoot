@@ -1,0 +1,46 @@
+[gd_scene load_steps=5 format=3 uid="uid://loot_cache_fuel"]
+
+[ext_resource type="Script" path="res://game/entities/world/loot_cache.gd" id="1_loot"]
+[ext_resource type="Texture2D" uid="uid://car_wheel" path="res://game/entities/vehicles/sprites/car/car_wheel.png" id="2_sprite"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(40, 40)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 80.0
+
+[sub_resource type="Gradient" id="Gradient_glow"]
+colors = PackedColorArray(1, 0.2, 0.2, 1, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_glow"]
+gradient = SubResource("Gradient_glow")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.8, 0.8)
+
+[node name="LootCacheFuel" type="StaticBody2D" groups=["interactable"]]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_loot")
+type = 1
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+modulate = Color(0.8, 0.1, 0.1, 1)
+scale = Vector2(2, 2)
+texture = ExtResource("2_sprite")
+
+[node name="Glow" type="PointLight2D" parent="."]
+color = Color(1, 0.2, 0.2, 1)
+energy = 1.5
+texture = SubResource("GradientTexture2D_glow")
+texture_scale = 3.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")

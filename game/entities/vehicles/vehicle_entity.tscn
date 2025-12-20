@@ -1,0 +1,44 @@
+[gd_scene load_steps=5 format=3 uid="uid://vehicle_entity_base"]
+
+[ext_resource type="Script" path="res://entities/vehicles/vehicle_entity.gd" id="1_vehicle"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(128, 64)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 100.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hitbox"]
+size = Vector2(120, 56)
+
+[node name="Vehicle" type="CharacterBody2D" groups=["vehicle"]]
+collision_layer = 3
+collision_mask = 1
+script = ExtResource("1_vehicle")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_body")
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")
+
+[node name="ExitMarker" type="Marker2D" parent="."]
+position = Vector2(0, 60)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+zoom = Vector2(0.75, 0.75)
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0
+
+[node name="HitBox" type="Area2D" parent="." groups=["hitbox"]]
+collision_layer = 5
+collision_mask = 6
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HitBox"]
+shape = SubResource("RectangleShape2D_hitbox")
