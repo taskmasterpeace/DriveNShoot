@@ -23,32 +23,30 @@ var upgrades_data = {
 	}
 }
 
-var upgrade_keys = ["kits", "reliability", "armor"]
+var upgrade_keys: Array[String] = ["kits", "reliability", "armor"]
 
-func _ready() -> void:
-	visible = false
-@onready var vehicles_button = $Panel/VehiclesButton
-const VEHICLE_SELECTOR_SCENE = preload("res://game/scenes/ui/vehicle_selector.tscn")
-var vehicle_selector_instance = null
+@onready var vehicles_button: Button = $Panel/VehiclesButton
+const VEHICLE_SELECTOR_SCENE: PackedScene = preload("res://game/scenes/ui/vehicle_selector.tscn")
+var vehicle_selector_instance: CanvasLayer = null
 
 func _ready() -> void:
 	visible = false
 	back_button.pressed.connect(func(): close())
-	
+
 	if has_node("Panel/VehiclesButton"):
 		vehicles_button = $Panel/VehiclesButton
 		vehicles_button.pressed.connect(_open_vehicles)
-	
+
 	for i in range(3):
-		var btn = cards[i].get_node("BuyButton")
-		btn.pressed.connect(func(): _buy(i))
-		
-	# Instantiate selector
+		var btn: Button = cards[i].get_node("BuyButton")
+		btn.pressed.connect(_buy.bind(i))
+
+	# Instantiate vehicle selector
 	vehicle_selector_instance = VEHICLE_SELECTOR_SCENE.instantiate()
 	add_child(vehicle_selector_instance)
 
 func _open_vehicles() -> void:
-    vehicle_selector_instance.open()
+	vehicle_selector_instance.open()
 
 func open() -> void:
 	visible = true
@@ -101,4 +99,3 @@ func _buy(index: int) -> void:
 	
 	if gs.try_buy_upgrade(key):
 		_update_ui()
-		print("Bought %s" % key)

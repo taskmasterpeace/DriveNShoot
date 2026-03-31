@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ifyjtdp0sbpl"
-path="res://.godot/imported/truck_wheel.png-1f270b2c7f33d513536b0ff34688d954.ctex"
+path="res://.godot/imported/truck_wheel.png-6e6c9785e98ef8d9312c6bf64118a454.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/truck/truck_wheel.png"
-dest_files=["res://.godot/imported/truck_wheel.png-1f270b2c7f33d513536b0ff34688d954.ctex"]
+source_file="res://entities/vehicles/sprites/truck/truck_wheel.png"
+dest_files=["res://.godot/imported/truck_wheel.png-6e6c9785e98ef8d9312c6bf64118a454.ctex"]
 
 [params]
 

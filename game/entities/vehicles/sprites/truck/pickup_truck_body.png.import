@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b6ki4fmdpgojg"
-path="res://.godot/imported/pickup_truck_body.png-2fabe4433fc5b1d7ad589475fbd49988.ctex"
+path="res://.godot/imported/pickup_truck_body.png-477c1e8a73e50021776010bf2fdd3892.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/truck/pickup_truck_body.png"
-dest_files=["res://.godot/imported/pickup_truck_body.png-2fabe4433fc5b1d7ad589475fbd49988.ctex"]
+source_file="res://entities/vehicles/sprites/truck/pickup_truck_body.png"
+dest_files=["res://.godot/imported/pickup_truck_body.png-477c1e8a73e50021776010bf2fdd3892.ctex"]
 
 [params]
 

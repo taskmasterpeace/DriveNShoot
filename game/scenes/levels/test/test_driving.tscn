@@ -1,8 +1,17 @@
-[gd_scene load_steps=8 format=3 uid="uid://test_driving_scene"]
+[gd_scene load_steps=14 format=3 uid="uid://dqav2yegjjerd"]
 
-[ext_resource type="Script" path="res://scenes/levels/test/test_driving.gd" id="1_script"]
-[ext_resource type="Script" path="res://scenes/levels/test/simple_player.gd" id="2_player"]
-[ext_resource type="Script" path="res://entities/vehicles/vehicle_entity.gd" id="3_vehicle"]
+[ext_resource type="Script" uid="uid://d1mbko6kt1tmx" path="res://scenes/levels/test/test_driving.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cqvmclwyada5t" path="res://scenes/levels/test/simple_player.gd" id="2_player"]
+[ext_resource type="Script" uid="uid://dxf1geixqei5n" path="res://entities/vehicles/vehicle_entity.gd" id="3_vehicle"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/player_muscle_car.png" id="4_player_car"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/raider_buggy.png" id="5_raider"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/sports_car.png" id="6_sports"]
+[ext_resource type="Resource" path="res://data/vehicles/vehicle_balanced.tres" id="7_balanced"]
+[ext_resource type="Resource" path="res://data/vehicles/vehicle_fast.tres" id="8_fast"]
+[ext_resource type="Resource" path="res://data/vehicles/vehicle_tank.tres" id="9_tank"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_walls"]
+size = Vector2(50, 200)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(32, 32)
@@ -12,9 +21,6 @@ size = Vector2(120, 60)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
 radius = 120.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_walls"]
-size = Vector2(50, 200)
 
 [node name="TestDriving" type="Node2D"]
 script = ExtResource("1_script")
@@ -58,7 +64,6 @@ color = Color(0.9, 0.8, 0.2, 1)
 
 [node name="Wall1" type="StaticBody2D" parent="Obstacles"]
 position = Vector2(300, -200)
-collision_layer = 1
 
 [node name="ColorRect" type="ColorRect" parent="Obstacles/Wall1"]
 offset_left = -25.0
@@ -72,7 +77,6 @@ shape = SubResource("RectangleShape2D_walls")
 
 [node name="Wall2" type="StaticBody2D" parent="Obstacles"]
 position = Vector2(-300, 100)
-collision_layer = 1
 
 [node name="ColorRect" type="ColorRect" parent="Obstacles/Wall2"]
 offset_left = -25.0
@@ -87,7 +91,6 @@ shape = SubResource("RectangleShape2D_walls")
 [node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
 position = Vector2(250, 0)
 collision_layer = 2
-collision_mask = 1
 script = ExtResource("2_player")
 
 [node name="Sprite2D" type="ColorRect" parent="Player"]
@@ -107,34 +110,13 @@ position_smoothing_speed = 10.0
 
 [node name="Vehicle" type="CharacterBody2D" parent="." groups=["vehicle"]]
 position = Vector2(0, 150)
+rotation = -1.5708
 collision_layer = 3
-collision_mask = 1
 script = ExtResource("3_vehicle")
-steering_angle = 15
-engine_power = 900
-friction = -55
-drag = -0.06
-braking = -450
-max_speed_reverse = 250
-slip_speed = 400
-traction_fast = 2.5
-traction_slow = 10
-handbrake_friction = -200
-handbrake_traction = 1.0
 
-[node name="Sprite2D" type="ColorRect" parent="Vehicle"]
-offset_left = -60.0
-offset_top = -30.0
-offset_right = 60.0
-offset_bottom = 30.0
-color = Color(0.8, 0.15, 0.15, 1)
-
-[node name="FrontIndicator" type="ColorRect" parent="Vehicle"]
-offset_left = 50.0
-offset_top = -20.0
-offset_right = 58.0
-offset_bottom = 20.0
-color = Color(0.95, 0.95, 0.3, 1)
+[node name="Sprite2D" type="Sprite2D" parent="Vehicle"]
+texture = ExtResource("4_player_car")
+flip_h = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle"]
 shape = SubResource("RectangleShape2D_vehicle")
@@ -146,22 +128,99 @@ collision_mask = 2
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle/InteractionArea"]
 shape = SubResource("CircleShape2D_interaction")
 
-[node name="ExitMarker" type="Marker2D" parent="Vehicle"]
-position = Vector2(0, 70)
+[node name="DriverEntryMarker" type="Marker2D" parent="Vehicle"]
+position = Vector2(-50, 0)
+
+[node name="PassengerEntryMarker" type="Marker2D" parent="Vehicle"]
+position = Vector2(50, 0)
+
+[node name="DriverExitMarker" type="Marker2D" parent="Vehicle"]
+position = Vector2(-50, 20)
 
 [node name="Camera2D" type="Camera2D" parent="Vehicle"]
 zoom = Vector2(0.7, 0.7)
 position_smoothing_enabled = true
-position_smoothing_speed = 5.0
+
+[node name="Vehicle_Tank" type="CharacterBody2D" parent="." groups=["vehicle"]]
+position = Vector2(-200, 150)
+rotation = -1.5708
+collision_layer = 3
+script = ExtResource("3_vehicle")
+engine_power = 600
+steering_angle = 12
+traction_slow = 15
+
+[node name="Sprite2D" type="Sprite2D" parent="Vehicle_Tank"]
+texture = ExtResource("5_raider")
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle_Tank"]
+shape = SubResource("RectangleShape2D_vehicle")
+
+[node name="InteractionArea" type="Area2D" parent="Vehicle_Tank"]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle_Tank/InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")
+
+[node name="DriverEntryMarker" type="Marker2D" parent="Vehicle_Tank"]
+position = Vector2(-50, 0)
+
+[node name="PassengerEntryMarker" type="Marker2D" parent="Vehicle_Tank"]
+position = Vector2(50, 0)
+
+[node name="DriverExitMarker" type="Marker2D" parent="Vehicle_Tank"]
+position = Vector2(-50, 20)
+
+[node name="Camera2D" type="Camera2D" parent="Vehicle_Tank"]
+zoom = Vector2(0.7, 0.7)
+position_smoothing_enabled = true
+
+[node name="Vehicle_Fast" type="CharacterBody2D" parent="." groups=["vehicle"]]
+position = Vector2(200, 150)
+rotation = -1.5708
+collision_layer = 3
+script = ExtResource("3_vehicle")
+engine_power = 1200
+steering_angle = 18
+traction_fast = 2.0
+
+[node name="Sprite2D" type="Sprite2D" parent="Vehicle_Fast"]
+texture = ExtResource("6_sports")
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle_Fast"]
+shape = SubResource("RectangleShape2D_vehicle")
+
+[node name="InteractionArea" type="Area2D" parent="Vehicle_Fast"]
+collision_layer = 4
+collision_mask = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Vehicle_Fast/InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")
+
+[node name="DriverEntryMarker" type="Marker2D" parent="Vehicle_Fast"]
+position = Vector2(-50, 0)
+
+[node name="PassengerEntryMarker" type="Marker2D" parent="Vehicle_Fast"]
+position = Vector2(50, 0)
+
+[node name="DriverExitMarker" type="Marker2D" parent="Vehicle_Fast"]
+position = Vector2(-50, 20)
+
+[node name="Camera2D" type="Camera2D" parent="Vehicle_Fast"]
+zoom = Vector2(0.7, 0.7)
+position_smoothing_enabled = true
 
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="Instructions" type="Label" parent="UI"]
 offset_left = 20.0
 offset_top = 20.0
-offset_right = 700.0
+offset_right = 800.0
 offset_bottom = 60.0
-text = "WASD = Walk | E = Enter Vehicle (get close to the red car first)"
+text = "WASD/Arrows = Walk & Drive | E = Enter/Exit Vehicle | Space = Handbrake | 3 Vehicles to Test!"
 
 [node name="SpeedLabel" type="Label" parent="UI"]
 offset_left = 20.0

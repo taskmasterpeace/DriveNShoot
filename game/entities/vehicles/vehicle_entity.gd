@@ -9,11 +9,25 @@ signal health_changed(hp: float, max_hp: float)
 signal vehicle_destroyed
 signal breakdown
 signal repaired
+signal passenger_entry_started(delay_seconds: float)
+signal passenger_entry_completed
 
 @export var max_hp: float = 100.0
 var hp: float = 100.0
 
+# Collision damage tuning
+@export_group("Collision Damage")
+@export var collision_speed_threshold: float = 300.0  ## Min speed (px/s) for impact damage
+@export var collision_damage_scale: float = 10.0  ## Divides excess speed to get damage
+@export var min_collision_damage: float = 5.0
+@export var max_collision_damage: float = 50.0
+@export var collision_damage_cooldown: float = 0.5  ## Seconds between damage ticks
 
+# Passenger entry tuning
+@export_group("Entry")
+@export var passenger_entry_delay: float = 1.75  ## Seconds to slide across seats
+
+@export_group("Physics")
 @export var steering_angle = 15  # Maximum angle for steering the car's wheels
 @export var engine_power = 900  # How much force the engine can apply for acceleration
 @export var friction = -55  # The friction coefficient that slows down the car
@@ -24,7 +38,7 @@ var hp: float = 100.0
 @export var traction_fast = 2.5  # Traction factor when the car is moving fast (affects control)
 @export var traction_slow = 10  # Traction factor when the car is moving slow (affects control)
 @export var handbrake_friction = -200  # Extra friction when handbrake is pulled
-@export var handbrake_traction = 1.0  # Low traction for drifting
+@export var handbrake_traction = 0.5  # Low traction for drifting
 
 var wheel_base = 65  # Distance between the front and back axle of the car
 var acceleration = Vector2.ZERO  # Current acceleration vector
@@ -40,13 +54,14 @@ var input_handbrake: bool = false
 var is_active: bool = false
 var current_driver: Node2D = null
 var current_mph: float = 0.0
+var is_passenger_delay_active: bool = false
+var entry_side: String = ""
+var _current_speed: float = 0.0  ## Cached velocity.length() per frame
+
+@onready var _camera: Camera2D = $Camera2D if has_node("Camera2D") else null
 
 @export var data: DataVehicle
 @export var sprite_node: Sprite2D
-
-func _ready() -> void:
-	if data:
-		load_data(data)
 
 func load_data(_data: DataVehicle) -> void:
 	data = _data
@@ -75,62 +90,89 @@ func _physics_process(delta: float) -> void:
 
 	velocity += acceleration * delta
 	apply_friction(delta)
-	velocity += acceleration * delta
-	apply_friction(delta)
 	move_and_slide()
+
+	# Cache speed once per frame (avoids repeated sqrt)
+	_current_speed = velocity.length()
 
 	# Check for high speed collisions
 	if get_slide_collision_count() > 0:
 		_check_collision_damage()
 
-
-	current_mph = velocity.length() / PIXELS_PER_MPH
+	current_mph = _current_speed / PIXELS_PER_MPH
 	speed_changed.emit(current_mph)
 
-	if has_node("Camera2D"):
-		$Camera2D.enabled = is_active
+	if _camera:
+		_camera.enabled = is_active
 
-func get_input():
+func _check_collision_damage() -> void:
+	# Prevent damage spam - cooldown between hits
+	var current_time: float = Time.get_ticks_msec() / 1000.0
+	if current_time - _last_damage_time < collision_damage_cooldown:
+		return
+	_last_damage_time = current_time
+
+	# Calculate damage based on cached collision speed
+	if _current_speed > collision_speed_threshold:
+		var damage: float = (_current_speed - collision_speed_threshold) / collision_damage_scale
+		damage = clamp(damage, min_collision_damage, max_collision_damage)
+		take_damage(damage)
+
+func get_input() -> void:
 	# If Player Driven
 	if current_driver:
+		# Block input during passenger entry delay
+		if is_passenger_delay_active:
+			input_steering = 0.0
+			input_throttle = 0.0
+			input_braking = 0.0
+			input_handbrake = false
+			return
+
 		# Exit vehicle
 		if Input.is_action_just_pressed("interact"):
 			exit_vehicle()
 			return
 
-		# Get steering input and translate it to an angle
-		input_steering = Input.get_axis("ui_left", "ui_right")
+		# Steering: Left stick X or WASD/Arrows
+		input_steering = Input.get_axis("move_left", "move_right")
+		# Handbrake: Space or Square (PS) / X (Xbox)
 		input_handbrake = Input.is_action_pressed("jump")
-		
-		# Analog Throttle/Brake support
-		input_throttle = Input.get_action_strength("ui_up")
-		input_braking = Input.get_action_strength("ui_down")
+
+		# Throttle: W/Up, Left stick up, or R2 trigger (analog)
+		input_throttle = Input.get_action_strength("move_up")
+		# Brake: S/Down, Left stick down, or L2 trigger (analog)
+		input_braking = Input.get_action_strength("move_down")
 	
-func apply_input():
+func apply_input() -> void:
 	steer_direction = input_steering * deg_to_rad(steering_angle)
 	_handbrake = input_handbrake
-	
+
+	# Apply throttle (forward or reverse)
 	if input_throttle > 0:
 		acceleration = transform.x * engine_power * input_throttle
-		
-	if input_braking > 0:
-		acceleration = transform.x * braking * input_braking
+	elif input_braking > 0:
+		# Reverse acceleration (braking handled in apply_friction)
+		acceleration = transform.x * -engine_power * input_braking * 0.5
 
-func apply_friction(delta):
-	# If there is no input and speed is very low, just stop to prevent endless sliding
-	if acceleration == Vector2.ZERO and velocity.length() < 50 and not _handbrake:
+func apply_friction(delta: float) -> void:
+	# If there is no input or very low input, and speed is very low, just stop to prevent sliding/vibration
+	if acceleration.length() < 100 and _current_speed < 50:
 		velocity = Vector2.ZERO
+		return
+
 	# Calculate friction force and air drag based on current velocity, and apply it
 	var current_friction = friction
 	if _handbrake:
 		current_friction += handbrake_friction
 	var friction_force = velocity * current_friction * delta
 	var drag_force = velocity * velocity.length() * drag * delta
+
 	# Add the forces to the acceleration
 	acceleration += drag_force + friction_force
 
-func calculate_steering(delta):
-	if velocity.length() < 5:
+func calculate_steering(delta: float) -> void:
+	if _current_speed < 5:
 		return
 
 	# Calculate the positions of the rear and front wheel
@@ -143,8 +185,8 @@ func calculate_steering(delta):
 	var new_heading = rear_wheel.direction_to(front_wheel)
 
 	# Choose the traction model based on the current speed
-	var traction = traction_slow
-	if velocity.length() > slip_speed:
+	var traction: float = traction_slow
+	if _current_speed > slip_speed:
 		traction = traction_fast
 	# Handbrake reduces traction for drifting
 	if _handbrake:
@@ -155,22 +197,68 @@ func calculate_steering(delta):
 
 	# If not braking (d > 0), adjust the car velocity smoothly towards the new heading
 	if d > 0:
-		velocity = velocity.lerp(new_heading * velocity.length(), traction * delta)
+		velocity = velocity.lerp(new_heading * _current_speed, traction * delta)
 
 	# If braking (d < 0), reverse the direction and limit the speed
 	if d < 0:
-		velocity = -new_heading * min(velocity.length(), max_speed_reverse)
+		velocity = -new_heading * min(_current_speed, max_speed_reverse)
 
-	# Smoothly rotate to new heading instead of snapping (fixes oscillation)
-	var target_rotation = new_heading.angle()
-	rotation = lerp_angle(rotation, target_rotation, 10.0 * delta)
+	# Set rotation directly to new heading (no lerp - prevents oscillation)
+	rotation = new_heading.angle()
 
-func enter_vehicle(driver: Node2D) -> void:
-	if is_active:
+func detect_entry_side(player_pos: Vector2) -> String:
+	var to_player = (player_pos - global_position).normalized()
+	var side_dot = to_player.dot(transform.y)
+
+	# Handle perpendicular approach (front/rear)
+	if abs(side_dot) < 0.1:
+		return "driver"
+
+	# transform.y points LEFT in Godot's local space
+	# Positive = left (driver's side), Negative = right (passenger's side)
+	return "driver" if side_dot > 0 else "passenger"
+
+func enter_vehicle(driver: Node2D, player_position: Vector2 = Vector2.ZERO) -> void:
+	if is_active or is_passenger_delay_active:
 		return
+
+	# Detect entry side
+	var player_pos: Vector2 = player_position if player_position != Vector2.ZERO else driver.global_position
+	entry_side = detect_entry_side(player_pos)
 	current_driver = driver
+
+	# Passenger side delay
+	if entry_side == "passenger":
+		is_passenger_delay_active = true
+		passenger_entry_started.emit(passenger_entry_delay)
+		play_passenger_entry_animation()
+		await get_tree().create_timer(passenger_entry_delay).timeout
+		# Guard against vehicle being freed or driver leaving during await
+		if not is_instance_valid(self):
+			return
+		if current_driver == null:
+			is_passenger_delay_active = false
+			return
+		is_passenger_delay_active = false
+		passenger_entry_completed.emit()
+
+	# Activate vehicle
 	is_active = true
 	driver_entered.emit(driver)
+
+func play_passenger_entry_animation() -> void:
+	var original_pos = position
+	var tween = create_tween()
+	tween.set_parallel(false)
+
+	# Rock back and forth 3 times
+	for i in range(3):
+		tween.tween_property(self, "position", original_pos + Vector2(2, -1), 0.15)
+		tween.tween_property(self, "position", original_pos + Vector2(-2, 1), 0.15)
+		tween.tween_property(self, "position", original_pos, 0.15)
+
+	# Ensure exact return to original position
+	tween.tween_callback(func(): position = original_pos)
 
 func exit_vehicle() -> void:
 	if not is_active or not current_driver:
@@ -181,9 +269,12 @@ func exit_vehicle() -> void:
 	driver_exited.emit(driver)
 
 func get_exit_position() -> Vector2:
-	if has_node("ExitMarker"):
-		return $ExitMarker.global_position
-	return global_position + Vector2(0, 80).rotated(rotation)
+	# Always exit on driver's side (left side of vehicle)
+	var exit_marker: Node2D = get_node_or_null("DriverExitMarker")
+	if exit_marker:
+		return exit_marker.global_position
+	# Fallback: calculate driver's side position
+	return global_position + Vector2(-50, 20).rotated(rotation)
 
 var _last_damage_time: float = 0.0
 var _last_mile_check: float = 0.0
@@ -240,7 +331,7 @@ func _roll_breakdown_chance() -> void:
 func break_down() -> void:
 	is_broken = true
 	breakdown.emit()
-	print("VEHICLE WENT CLUNK! SMOKE EVERYWHERE!")
+	# Visual/audio feedback handled by smoke_node and signals
 	# Reduce power
 	engine_power *= 0.1 
 	if smoke_node:
@@ -249,7 +340,6 @@ func break_down() -> void:
 func repair() -> void:
 	is_broken = false
 	repaired.emit()
-	print("Vehicle Repaired!")
 	
 	# Update cooldown tracker
 	if has_node("/root/GameState"):
@@ -282,7 +372,6 @@ func take_damage(amount: float) -> void:
 
 	hp -= amount
 	health_changed.emit(hp, max_hp)
-	print("Vehicle hit! HP: ", hp)
 	
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").add_heat(5, "Crash")
@@ -291,8 +380,6 @@ func take_damage(amount: float) -> void:
 		_die()
 
 func _die() -> void:
-	print("Vehicle Destroyed!")
 	vehicle_destroyed.emit()
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").fail_run("Wrecked")
-

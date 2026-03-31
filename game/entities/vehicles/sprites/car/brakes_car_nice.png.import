@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dthqcmv0sxaja"
-path="res://.godot/imported/brakes_car_nice.png-03b16f30e212012192ac0c5c80d3732f.ctex"
+path="res://.godot/imported/brakes_car_nice.png-0933392624aafe01b8aa354a0c8f7058.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/car/brakes_car_nice.png"
-dest_files=["res://.godot/imported/brakes_car_nice.png-03b16f30e212012192ac0c5c80d3732f.ctex"]
+source_file="res://entities/vehicles/sprites/car/brakes_car_nice.png"
+dest_files=["res://.godot/imported/brakes_car_nice.png-0933392624aafe01b8aa354a0c8f7058.ctex"]
 
 [params]
 

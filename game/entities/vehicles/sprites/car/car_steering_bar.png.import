@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://buh5fjes6he2"
-path="res://.godot/imported/car_steering_bar.png-0dfa0faf4e1b7beb65f9824eeb04944a.ctex"
+path="res://.godot/imported/car_steering_bar.png-d27dcbf8304ba400d32a9364f87ce3c4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/car/car_steering_bar.png"
-dest_files=["res://.godot/imported/car_steering_bar.png-0dfa0faf4e1b7beb65f9824eeb04944a.ctex"]
+source_file="res://entities/vehicles/sprites/car/car_steering_bar.png"
+dest_files=["res://.godot/imported/car_steering_bar.png-d27dcbf8304ba400d32a9364f87ce3c4.ctex"]
 
 [params]
 

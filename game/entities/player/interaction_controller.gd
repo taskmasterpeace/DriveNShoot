@@ -147,7 +147,6 @@ func enter_vehicle(vehicle: VehicleEntity) -> void:
 
 	vehicle.driver_exited.connect(_on_driver_exited, CONNECT_ONE_SHOT)
 	vehicle.enter_vehicle(player)
-	vehicle.enter_vehicle(player)
 	entered_vehicle.emit(vehicle)
 
 func _on_driver_exited(driver: Node2D) -> void:

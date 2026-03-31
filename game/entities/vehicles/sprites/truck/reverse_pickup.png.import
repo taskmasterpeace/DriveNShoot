@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://rx0vi6e6fyso"
-path="res://.godot/imported/reverse_pickup.png-5d29cfa048323725b0694f8d7e1d9e7b.ctex"
+path="res://.godot/imported/reverse_pickup.png-3fb19bdcbde35856c807da2d47f83365.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/truck/reverse_pickup.png"
-dest_files=["res://.godot/imported/reverse_pickup.png-5d29cfa048323725b0694f8d7e1d9e7b.ctex"]
+source_file="res://entities/vehicles/sprites/truck/reverse_pickup.png"
+dest_files=["res://.godot/imported/reverse_pickup.png-3fb19bdcbde35856c807da2d47f83365.ctex"]
 
 [params]
 

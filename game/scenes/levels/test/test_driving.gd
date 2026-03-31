@@ -1,5 +1,5 @@
 ## Test scene for vehicle driving mechanics.
-## Walk around with WASD, press E near the car to enter, drive with WASD, press E to exit.
+## Walk around with WASD/Arrows, press E near a car to enter, drive with WASD/Arrows, press E to exit.
 extends Node2D
 
 @onready var player: CharacterBody2D = $Player
@@ -70,6 +70,6 @@ func _on_vehicle_exited(_driver: Node2D) -> void:
 func _update_instructions() -> void:
 	if instructions_label:
 		if player_in_vehicle:
-			instructions_label.text = "WASD = Drive | E = Exit Vehicle | Space = Handbrake"
+			instructions_label.text = "WASD/Arrows/Stick = Drive | R2/L2 = Gas/Brake | Space/Square = Handbrake | E/X = Exit"
 		else:
-			instructions_label.text = "WASD = Walk | E = Enter Vehicle (get close to the red car)"
+			instructions_label.text = "WASD/Arrows/Stick = Walk | E/X = Enter Vehicle (get close to a car)"

@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dd2i4h0ik84iv"
-path="res://.godot/imported/reverse_armored_car.png-ed1bf1197277c1280dcc6cd994315b2f.ctex"
+path="res://.godot/imported/reverse_armored_car.png-7f0fc470922b9a3af162685abcc14aec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/military/reverse_armored_car.png"
-dest_files=["res://.godot/imported/reverse_armored_car.png-ed1bf1197277c1280dcc6cd994315b2f.ctex"]
+source_file="res://entities/vehicles/sprites/military/reverse_armored_car.png"
+dest_files=["res://.godot/imported/reverse_armored_car.png-7f0fc470922b9a3af162685abcc14aec.ctex"]
 
 [params]
 

@@ -18,7 +18,6 @@ var lane_width: float = 260.0
 var state_timer: float = 0.0
 var ram_duration: float = 0.6
 var stickiness_timer: float = 0.0
-var stickiness_timer: float = 0.0
 
 # Stats overrides
 var base_accel: float = 800.0
@@ -173,11 +172,10 @@ func _reset_behavior() -> void:
 	input_steering = 0.2 if randf() > 0.5 else -0.2
 
 # Override get_input to do nothing (AI controls inputs directly above)
-func get_input():
+func get_input() -> void:
 	pass
 
 # Pursuer Special Death
 func _die() -> void:
-	print("Pursuer Destroyed!")
-	# Spawn explosion?
+	vehicle_destroyed.emit()
 	queue_free()

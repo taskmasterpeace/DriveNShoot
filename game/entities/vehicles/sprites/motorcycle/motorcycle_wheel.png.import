@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://xjx27pmm1dt6"
-path="res://.godot/imported/motorcycle_wheel.png-194719b3e34aa9d12f945fe86d680ffc.ctex"
+path="res://.godot/imported/motorcycle_wheel.png-1674b68fbf097688bdaa797d887ab25e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/motorcycle/motorcycle_wheel.png"
-dest_files=["res://.godot/imported/motorcycle_wheel.png-194719b3e34aa9d12f945fe86d680ffc.ctex"]
+source_file="res://entities/vehicles/sprites/motorcycle/motorcycle_wheel.png"
+dest_files=["res://.godot/imported/motorcycle_wheel.png-1674b68fbf097688bdaa797d887ab25e.ctex"]
 
 [params]
 

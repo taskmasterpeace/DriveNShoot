@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cc7du1ik0uesh"
-path="res://.godot/imported/tankturret.png-8633977e174912bd9c50c2f61d68b204.ctex"
+path="res://.godot/imported/tankturret.png-e5da96b51e2c2205ed2ab2f331a2c3ec.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/military/tankturret.png"
-dest_files=["res://.godot/imported/tankturret.png-8633977e174912bd9c50c2f61d68b204.ctex"]
+source_file="res://entities/vehicles/sprites/military/tankturret.png"
+dest_files=["res://.godot/imported/tankturret.png-e5da96b51e2c2205ed2ab2f331a2c3ec.ctex"]
 
 [params]
 

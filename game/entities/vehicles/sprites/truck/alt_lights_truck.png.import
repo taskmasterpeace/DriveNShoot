@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d1yyhbk6npigt"
-path="res://.godot/imported/alt_lights_truck.png-bf3b64d41d2b3d087c88b3ebdea22b04.ctex"
+path="res://.godot/imported/alt_lights_truck.png-1fadb9e3bf83325b68cd503a521852a0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/truck/alt_lights_truck.png"
-dest_files=["res://.godot/imported/alt_lights_truck.png-bf3b64d41d2b3d087c88b3ebdea22b04.ctex"]
+source_file="res://entities/vehicles/sprites/truck/alt_lights_truck.png"
+dest_files=["res://.godot/imported/alt_lights_truck.png-1fadb9e3bf83325b68cd503a521852a0.ctex"]
 
 [params]
 

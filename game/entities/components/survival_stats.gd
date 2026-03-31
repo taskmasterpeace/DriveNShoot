@@ -53,15 +53,14 @@ func change_stat(stat_name: String, amount: float) -> void:
 			stat_changed.emit("thirst", thirst, max_thirst)
 			if thirst <= 0:
 				player_died.emit("dehydration")
+		"fatigue":
+			fatigue = clamp(fatigue + amount, 0.0, max_fatigue)
+			stat_changed.emit("fatigue", fatigue, max_fatigue)
 			if fatigue <= 0:
-				# Maybe just pass out instead of die?
-				pass
+				player_died.emit("exhaustion")
 		"stamina":
 			stamina = clamp(stamina + amount, 0.0, max_stamina)
 			stat_changed.emit("stamina", stamina, max_stamina)
-
-	if item_data.has("fatigue_restore"):
-		change_stat("fatigue", item_data.fatigue_restore)
 
 # Stamina Logic
 @export var max_stamina: float = 100.0

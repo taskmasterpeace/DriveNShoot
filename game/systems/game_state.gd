@@ -4,8 +4,8 @@ extends Node
 const UNITS_PER_MILE := 5000.0
 const HEAT_STEP_MILES := 0.2
 
-enum State { TOWN, RUN, EXTRACT }
-var current_state: State = State.TOWN
+enum RunPhase { TOWN, RUN, EXTRACT }
+var current_state: RunPhase = RunPhase.TOWN
 
 # Run stats
 var run_start_position: Vector2 = Vector2.ZERO
@@ -25,7 +25,7 @@ var reliability_tier: int = 0
 var armor_tier: int = 0
 
 # Signals
-signal state_changed(new_state: State)
+signal state_changed(new_state: RunPhase)
 signal run_started
 signal run_ended(distance_miles: float)
 signal distance_updated(miles: float)
@@ -84,10 +84,10 @@ func _ready() -> void:
 # ----- Run lifecycle -----
 
 func start_run() -> void:
-	if current_state == State.RUN:
+	if current_state == RunPhase.RUN:
 		return
 
-	current_state = State.RUN
+	current_state = RunPhase.RUN
 	run_start_position = Vector2.ZERO
 	max_forward_units = 0.0
 	current_run_miles = 0.0
@@ -99,7 +99,7 @@ func start_run() -> void:
 	# Track run start scrap for delta
 	run_start_scrap = scrap
 
-	state_changed.emit(State.RUN)
+	state_changed.emit(RunPhase.RUN)
 	run_started.emit()
 	heat_changed.emit(0)
 	heat_log_changed.emit(heat_log)
@@ -108,12 +108,12 @@ var run_start_scrap: int = 0
 signal run_finished(results: Dictionary)
 
 func fail_run(cause: String) -> void:
-	if current_state != State.RUN: return
+	if current_state != RunPhase.RUN: return
 	_end_run(cause)
 
 func _end_run(cause: String) -> void:
-	current_state = State.EXTRACT # Or FAILED state? Keeping simple for now
-	state_changed.emit(State.EXTRACT)
+	current_state = RunPhase.EXTRACT # Or FAILED state? Keeping simple for now
+	state_changed.emit(RunPhase.EXTRACT)
 	
 	if current_run_miles > best_miles and cause == "Extracted":
 		best_miles = current_run_miles
@@ -137,7 +137,7 @@ func set_run_start_position(pos: Vector2) -> void:
 	run_start_position = pos
 
 func update_distance(player_pos: Vector2) -> void:
-	if current_state != State.RUN:
+	if current_state != RunPhase.RUN:
 		return
 	if run_start_position == Vector2.ZERO:
 		# No distance tracking until start position is set properly.
@@ -158,7 +158,7 @@ func update_distance(player_pos: Vector2) -> void:
 		next_heat_mile_threshold += HEAT_STEP_MILES
 
 func extract() -> void:
-	if current_state != State.RUN:
+	if current_state != RunPhase.RUN:
 		return
 
 	# Bank miles only if >= 0.3 (Logic handled in _end_run or here? _end_run updates best if Extracted)
@@ -173,8 +173,8 @@ func extract() -> void:
 	_end_run("Extracted")
 
 func return_to_town() -> void:
-	current_state = State.TOWN
-	state_changed.emit(State.TOWN)
+	current_state = RunPhase.TOWN
+	state_changed.emit(RunPhase.TOWN)
 
 # ----- Heat / Scrap -----
 
@@ -208,9 +208,9 @@ func _check_unlocks() -> void:
 		vehicle_unlocked.emit("tank")
 
 func add_fragment(amount: int) -> void:
-    fragments += amount
-    fragments_changed.emit(fragments)
-    save_profile()
+	fragments += amount
+	fragments_changed.emit(fragments)
+	save_profile()
 
 # ----- Upgrades API -----
 
@@ -270,7 +270,6 @@ func try_buy_upgrade(type: String) -> bool:
 func select_vehicle(id: String) -> void:
 	if unlocked_vehicles.has(id):
 		selected_vehicle_id = id
-		vehicle_selected.emit(id)
 		vehicle_selected.emit(id)
 		save_profile()
 

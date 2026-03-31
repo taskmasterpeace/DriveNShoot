@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dcabag5d2172o"
-path="res://.godot/imported/headlights_car_nice.png-aac082c0ca3683e2a10e8d89c8e63014.ctex"
+path="res://.godot/imported/headlights_car_nice.png-96f24ce36ae55c810a8b266d9f7ebe5f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/car/headlights_car_nice.png"
-dest_files=["res://.godot/imported/headlights_car_nice.png-aac082c0ca3683e2a10e8d89c8e63014.ctex"]
+source_file="res://entities/vehicles/sprites/car/headlights_car_nice.png"
+dest_files=["res://.godot/imported/headlights_car_nice.png-96f24ce36ae55c810a8b266d9f7ebe5f.ctex"]
 
 [params]
 

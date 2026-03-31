@@ -1,0 +1,75 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash .claude/statusline.sh"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git rev-parse*)",
+      "Bash(ls *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(sudo *)",
+      "Bash(*>.env*)",
+      "Bash(cat *.env*)",
+      "Read(**/.env*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'echo \"\" && echo \"=== DIRECTORS PALETTE SESSION START ===\" && echo \"Branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo \"not a git repo\")\" && echo \"\" && CHANGES=$(git status --short 2>/dev/null | wc -l); if [ \"$CHANGES\" -gt 0 ]; then echo \"WARNING: $CHANGES uncommitted changes found!\"; git status --short | head -10; echo \"\"; echo \"COMMIT THESE BEFORE STARTING NEW WORK!\"; else echo \"Git status: Clean - no uncommitted changes\"; fi && echo \"==========================================\" && echo \"\"'"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/autonomous-loop.ps1"
+          },
+          {
+            "type": "command",
+            "command": "powershell -Command \"(New-Object Media.SoundPlayer 'C:\\Windows\\Media\\Windows Notify System Generic.wav').PlaySync()\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -Command \"[console]::beep(1200, 200); Start-Sleep -Milliseconds 100; [console]::beep(1200, 200)\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/validate-commit.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

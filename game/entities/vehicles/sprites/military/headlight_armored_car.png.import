@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5bjps34c1xyx"
-path="res://.godot/imported/headlight_armored_car.png-c62595734bd1587d0a0c789f375cee79.ctex"
+path="res://.godot/imported/headlight_armored_car.png-c47d844f60a7067860b82a5fe40dfa24.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/military/headlight_armored_car.png"
-dest_files=["res://.godot/imported/headlight_armored_car.png-c62595734bd1587d0a0c789f375cee79.ctex"]
+source_file="res://entities/vehicles/sprites/military/headlight_armored_car.png"
+dest_files=["res://.godot/imported/headlight_armored_car.png-c47d844f60a7067860b82a5fe40dfa24.ctex"]
 
 [params]
 

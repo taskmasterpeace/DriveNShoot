@@ -741,5 +741,4 @@ Vector2i(11, 11): {
 }
 }
 }
-terrain_set = -1
 terrain_mode = 1

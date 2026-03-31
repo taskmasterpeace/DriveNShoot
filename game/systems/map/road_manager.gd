@@ -16,22 +16,19 @@ var total_distance: float = 0.0
 const SEGMENT_PATH = "res://systems/map/road_segment.tscn"
 
 func _ready() -> void:
-    if segment_scenes.is_empty():
-        var base_scene = load(SEGMENT_PATH)
-        if base_scene:
-            segment_scenes.append(base_scene)
-    
-    # Locate player logic if not assigned
-    if not player:
-        var players = get_tree().get_nodes_in_group("player")
-        if players.size() > 0:
-            player = players[0]
-            
-	# Spawn initial road
-	# spawn_starting_road() # Now handled by start_run
-	
+	if segment_scenes.is_empty():
+		var base_scene: PackedScene = load(SEGMENT_PATH)
+		if base_scene:
+			segment_scenes.append(base_scene)
+
+	# Locate player if not assigned in editor
+	if not player:
+		var players: Array[Node] = get_tree().get_nodes_in_group("player")
+		if players.size() > 0:
+			player = players[0]
+
 	if has_node("/root/GameState"):
-		var gs = get_node("/root/GameState")
+		var gs: Node = get_node("/root/GameState")
 		gs.run_started.connect(_on_run_started)
 		gs.state_changed.connect(_on_state_changed)
 
@@ -84,9 +81,8 @@ func spawn_starting_road() -> void:
 		_spawn_segment()
 
 func _spawn_segment() -> void:
-	var scene = segment_scenes.pick_random()
-	var seg = scene.instantiate() as RoadSegment
-	var seg = scene.instantiate() as RoadSegment
+	var scene: PackedScene = segment_scenes.pick_random()
+	var seg: RoadSegment = scene.instantiate() as RoadSegment
 	add_child(seg)
 	seg.global_position = last_exit_position
 	last_exit_position = seg.get_exit_global_position()
@@ -110,8 +106,8 @@ func _despawn_segment() -> void:
 
 func _teleport_player_to_start() -> void:
 	if player:
-	if player:
 		player.global_position = Vector2(10000, 0) # Start of road
+		player.rotation = -PI / 2.0  # Face north (-Y) to align with road direction
 		if has_node("/root/GameState"):
 			get_node("/root/GameState").set_run_start_position(player.global_position)
 		

@@ -72,9 +72,6 @@ var is_hurting := false ## Set to true when the entity enters the on_hurt state,
 var is_blocked := false: ## True when blocks_detector is colliding.
 	get():
 		return blocks_detector.is_colliding() if blocks_detector != null else false
-var is_blocked := false: ## True when blocks_detector is colliding.
-	get():
-		return blocks_detector.is_colliding() if blocks_detector != null else false
 var is_falling := false ## Set to true when the entity enters the on_fall state, false when it leaves it.
 var is_prone := false:
 	set(value):
@@ -208,9 +205,7 @@ func move(direction: Vector2):
 		
 		# Calculate speed based on state
 		var final_speed = max_speed * speed_multiplier
-		
-		if is_prone:
-			final_speed *= prone_speed_multiplier
+
 		if is_prone:
 			final_speed *= prone_speed_multiplier
 		elif is_running:

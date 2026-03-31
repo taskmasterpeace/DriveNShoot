@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://lrhxil3pfo4f"
-path="res://.godot/imported/tanktrack.png-f566476ed5527bfc038af2a812e47d2f.ctex"
+path="res://.godot/imported/tanktrack.png-554ffac17ac20579405341c98de8c99f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/military/tanktrack.png"
-dest_files=["res://.godot/imported/tanktrack.png-f566476ed5527bfc038af2a812e47d2f.ctex"]
+source_file="res://entities/vehicles/sprites/military/tanktrack.png"
+dest_files=["res://.godot/imported/tanktrack.png-554ffac17ac20579405341c98de8c99f.ctex"]
 
 [params]
 

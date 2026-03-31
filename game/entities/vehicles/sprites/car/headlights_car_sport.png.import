@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://62st8asnkw36"
-path="res://.godot/imported/headlights_car_sport.png-cb55c4347b6af50b8a5e2fa1ff247ea2.ctex"
+path="res://.godot/imported/headlights_car_sport.png-9204c89e9e7ce2666e512964eea804c8.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/car/headlights_car_sport.png"
-dest_files=["res://.godot/imported/headlights_car_sport.png-cb55c4347b6af50b8a5e2fa1ff247ea2.ctex"]
+source_file="res://entities/vehicles/sprites/car/headlights_car_sport.png"
+dest_files=["res://.godot/imported/headlights_car_sport.png-9204c89e9e7ce2666e512964eea804c8.ctex"]
 
 [params]
 

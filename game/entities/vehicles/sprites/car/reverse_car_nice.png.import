@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://vbncvvr2nmpa"
-path="res://.godot/imported/reverse_car_nice.png-551a6fa7f763aefa2e059bc39f3c99b3.ctex"
+path="res://.godot/imported/reverse_car_nice.png-dc6dc7141aeb95f708edbebebd22dbcf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/car/reverse_car_nice.png"
-dest_files=["res://.godot/imported/reverse_car_nice.png-551a6fa7f763aefa2e059bc39f3c99b3.ctex"]
+source_file="res://entities/vehicles/sprites/car/reverse_car_nice.png"
+dest_files=["res://.godot/imported/reverse_car_nice.png-dc6dc7141aeb95f708edbebebd22dbcf.ctex"]
 
 [params]
 

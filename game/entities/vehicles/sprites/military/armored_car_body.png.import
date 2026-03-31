@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b0s4cdnuvtcsa"
-path="res://.godot/imported/armored_car_body.png-e343aa55fa6f439b0341b5642b2add69.ctex"
+path="res://.godot/imported/armored_car_body.png-861ffea3325fdb19ade20b24689f0b59.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Demo/Assets/military/armored_car_body.png"
-dest_files=["res://.godot/imported/armored_car_body.png-e343aa55fa6f439b0341b5642b2add69.ctex"]
+source_file="res://entities/vehicles/sprites/military/armored_car_body.png"
+dest_files=["res://.godot/imported/armored_car_body.png-861ffea3325fdb19ade20b24689f0b59.ctex"]
 
 [params]
 

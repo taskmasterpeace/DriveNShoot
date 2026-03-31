@@ -145,7 +145,6 @@ func receive_data(data):
 	if data:
 		global_position = data.position
 		facing = data.facing
-		facing = data.facing
 		if health_controller:
 			health_controller.hp = data.hp
 			health_controller.max_hp = data.max_hp

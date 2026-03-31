@@ -1,0 +1,67 @@
+# Autonomous Task Definition
+
+## Task: [TASK NAME HERE]
+
+**STATUS: IN_PROGRESS**
+<!-- Change to COMPLETE when done, PAUSED to stop the loop -->
+
+**MAX_ITERATIONS: 20**
+<!-- Safety limit - loop stops after this many iterations -->
+
+---
+
+## Objective
+
+[Describe what needs to be accomplished in 2-3 sentences]
+
+## Success Criteria
+
+When ALL of these are true, set STATUS: COMPLETE
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
+- [ ] Code compiles/runs without errors
+- [ ] Changes committed to git
+
+## Scope
+
+### Files to Modify
+- `path/to/file1.gd`
+- `path/to/file2.tscn`
+
+### Files to Create
+- `path/to/new/file.gd`
+
+### Do NOT Touch
+- `path/to/protected/file.gd`
+
+## Implementation Notes
+
+[Any specific patterns, conventions, or constraints to follow]
+
+Reference existing code in:
+- `entities/components/` for component patterns
+- `scripts/autoloads/` for singleton patterns
+
+## Progress Log
+
+<!-- Claude updates this as work progresses -->
+
+### Iteration 1
+- Started: [timestamp]
+- Actions: [what was done]
+- Remaining: [what's left]
+
+---
+
+## Emergency Stop
+
+If something goes wrong:
+1. Change STATUS to: PAUSED
+2. Or delete this TASK.md file
+3. Or press Ctrl+C in the terminal
+
+---
+
+*Template version 1.0 - CarWorld Autonomous Development*

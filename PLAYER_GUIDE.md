@@ -4,6 +4,8 @@ Welcome to the wastes. Your goal is simple: Drive as far as you can, scavenge wh
 
 ## 🎮 CONTROLS
 
+### Keyboard
+
 | Action | Key | Notes |
 | :--- | :--- | :--- |
 | **Steer** | `A / D` or `Left / Right` | Keep it on the blacktop. |
@@ -12,7 +14,26 @@ Welcome to the wastes. Your goal is simple: Drive as far as you can, scavenge wh
 | **Handbrake** | `Space` | Drifting helps avoid sudden wrecks. |
 | **Interact** | `E` | Enter/Exit vehicles. **Hold E** to Repair or Scavenge. |
 | **Extract** | `X` (Hold) | Ends the run and banks your miles/scrap. Only works if stopped. |
+| **Attack** | `Left Click` | Fire weapon (when equipped). |
+| **Sprint** | `Shift` | Run faster on foot. |
 | **Debug Overlay** | `F1` | View Heat, Miles, and Diagnostics. |
+
+### PlayStation / Xbox Controller
+
+| Action | PlayStation | Xbox | Notes |
+| :--- | :--- | :--- | :--- |
+| **Steer** | Left Stick | Left Stick | Analog steering. |
+| **Accelerate** | `R2` trigger | `RT` trigger | Analog throttle — feather for control. |
+| **Brake / Reverse** | `L2` trigger | `LT` trigger | Analog braking. |
+| **Handbrake** | `Square` | `X` | E-brake for drifting around wrecks. |
+| **Interact** | `Cross (X)` | `A` | Enter/Exit vehicles. Hold to Repair or Scavenge. |
+| **Extract** | `Triangle` (Hold) | `Y` (Hold) | Bank your run. Must be stopped. |
+| **Attack** | `R1` | `RB` | Fire weapon (when equipped). |
+| **Sprint** | `L3` (stick click) | `LS` (stick click) | Run faster on foot. |
+| **Inventory** | `D-Pad Up` | `D-Pad Up` | Open inventory. |
+| **Help** | `Share / Select` | `Back / View` | Toggle help overlay. |
+
+> **Tip:** You can also use the Left Stick for throttle/brake (push forward/back), but the triggers give much better analog control for precise driving.
 
 ---
 
