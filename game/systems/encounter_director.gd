@@ -3,6 +3,26 @@ extends Node
 
 const PURSUER_SCENE = preload("res://entities/vehicles/pursuer_vehicle.tscn")
 
+# Enemy sprite pool — randomly assigned to pursuers on spawn
+var enemy_textures: Array[Texture2D] = [
+	preload("res://entities/vehicles/sprites/enemy_gang_muscle.png"),
+	preload("res://entities/vehicles/sprites/enemy_wasteland_pickup.png"),
+	preload("res://entities/vehicles/sprites/enemy_military_humvee.png"),
+	preload("res://entities/vehicles/sprites/enemy_bandit_sedan.png"),
+	preload("res://entities/vehicles/sprites/enemy_road_captain.png"),
+	preload("res://entities/vehicles/sprites/enemy_nomad_bike.png"),
+]
+
+# Pickup sprite pool — randomly assigned to loot caches
+var pickup_textures: Array[Texture2D] = [
+	preload("res://entities/world/sprites/pickup_health.png"),
+	preload("res://entities/world/sprites/pickup_ammo.png"),
+	preload("res://entities/world/sprites/pickup_scrap.png"),
+	preload("res://entities/world/sprites/pickup_fuel.png"),
+	preload("res://entities/world/sprites/pickup_repair.png"),
+	preload("res://entities/world/sprites/pickup_armor.png"),
+]
+
 var pursuer_spawned_this_run: bool = false
 var player_speed_ok_timer: float = 0.0
 var run_started_mile: float = 0.0
@@ -81,6 +101,15 @@ func _spawn_loot(miles: float) -> void:
 	
 	var loot = LOOT_SCENE.instantiate()
 	loot.global_position = spawn_pos
+
+	# Randomly assign pickup sprite
+	if pickup_textures.size() > 0:
+		var tex: Texture2D = pickup_textures.pick_random()
+		var sprite: Sprite2D = loot.get_node_or_null("Sprite2D")
+		if sprite:
+			sprite.texture = tex
+			sprite.modulate = Color.WHITE  # Override brown tint from .tscn
+
 	player.get_parent().add_child(loot)
 
 
@@ -109,6 +138,14 @@ func spawn_pursuer() -> void:
 	
 	var pursuer = PURSUER_SCENE.instantiate()
 	pursuer.global_position = spawn_pos
+
+	# Randomly assign enemy sprite
+	if enemy_textures.size() > 0:
+		var tex: Texture2D = enemy_textures.pick_random()
+		var sprite: Sprite2D = pursuer.get_node_or_null("Sprite2D")
+		if sprite:
+			sprite.texture = tex
+
 	# Add to world
 	player.get_parent().add_child(pursuer)
 	

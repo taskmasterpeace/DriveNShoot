@@ -3,68 +3,36 @@
 extends Node2D
 
 @onready var player: CharacterBody2D = $Player
-@onready var vehicle: VehicleEntity = $Vehicle
-@onready var player_camera: Camera2D = $Player/Camera2D
 @onready var instructions_label: Label = $UI/Instructions
 @onready var speed_label: Label = $UI/SpeedLabel
 
 var player_in_vehicle: bool = false
+var active_vehicle: VehicleEntity = null
 
 func _ready() -> void:
-	# Connect vehicle signals
-	vehicle.driver_entered.connect(_on_vehicle_entered)
-	vehicle.driver_exited.connect(_on_vehicle_exited)
-
-	# Make sure player camera is active at start
-	player_camera.enabled = true
+	# Connect ALL vehicle signals so camera works when switching cars
+	for v: Node in get_tree().get_nodes_in_group("vehicle"):
+		if v is VehicleEntity:
+			v.driver_entered.connect(_on_any_vehicle_entered.bind(v))
+			v.driver_exited.connect(_on_any_vehicle_exited.bind(v))
 
 	_update_instructions()
 
 func _process(_delta: float) -> void:
-	# Update speed display
-	if player_in_vehicle:
-		var mph = int(vehicle.current_mph)
-		speed_label.text = "%d MPH" % mph
+	# Update speed display from whichever vehicle is active
+	if player_in_vehicle and active_vehicle:
+		speed_label.text = "%d MPH" % int(active_vehicle.current_mph)
 	else:
 		speed_label.text = ""
 
-	# Check for interact input when player is on foot
-	if not player_in_vehicle and Input.is_action_just_pressed("interact"):
-		_try_enter_vehicle()
-
-func _try_enter_vehicle() -> void:
-	# Check if player is close enough to vehicle
-	var distance = player.global_position.distance_to(vehicle.global_position)
-	if distance < 150.0:  # Entry distance
-		_enter_vehicle()
-
-func _enter_vehicle() -> void:
+func _on_any_vehicle_entered(_driver: Node2D, vehicle: VehicleEntity) -> void:
 	player_in_vehicle = true
-
-	# Disable player
-	player.visible = false
-	player.set_physics_process(false)
-	player.get_node("CollisionShape2D").disabled = true
-	player_camera.enabled = false
-
-	# Enable vehicle
-	vehicle.enter_vehicle(player)
-
+	active_vehicle = vehicle
 	_update_instructions()
 
-func _on_vehicle_entered(_driver: Node2D) -> void:
-	pass  # Already handled in _enter_vehicle
-
-func _on_vehicle_exited(_driver: Node2D) -> void:
+func _on_any_vehicle_exited(_driver: Node2D, vehicle: VehicleEntity) -> void:
 	player_in_vehicle = false
-
-	# Re-enable player at exit position
-	player.global_position = vehicle.get_exit_position()
-	player.visible = true
-	player.set_physics_process(true)
-	player.get_node("CollisionShape2D").disabled = false
-	player_camera.enabled = true
-
+	active_vehicle = null
 	_update_instructions()
 
 func _update_instructions() -> void:

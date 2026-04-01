@@ -30,15 +30,16 @@ var hp: float = 100.0
 @export_group("Physics")
 @export var steering_angle = 15  # Maximum angle for steering the car's wheels
 @export var engine_power = 900  # How much force the engine can apply for acceleration
-@export var friction = -55  # The friction coefficient that slows down the car
-@export var drag = -0.06  # Air drag coefficient that also slows down the car
+@export var max_speed = 600  # Top speed in pixels/s (prevents infinite acceleration)
+@export var friction = -150  # Ground friction — higher = more planted feel
+@export var drag = -0.12  # Air drag — higher = more resistance at speed
 @export var braking = -450  # Braking power when the brake input is applied
 @export var max_speed_reverse = 250  # Maximum speed limit in reverse
 @export var slip_speed = 400  # Speed above which the car's traction decreases (for drifting)
-@export var traction_fast = 2.5  # Traction factor when the car is moving fast (affects control)
-@export var traction_slow = 10  # Traction factor when the car is moving slow (affects control)
-@export var handbrake_friction = -200  # Extra friction when handbrake is pulled
-@export var handbrake_traction = 0.5  # Low traction for drifting
+@export var traction_fast = 6.0  # Traction at high speed — higher = more grip, less drift
+@export var traction_slow = 25.0  # Traction at low speed — higher = snappier steering response
+@export var handbrake_friction = -300  # Extra friction when handbrake is pulled
+@export var handbrake_traction = 0.8  # Low traction for drifting
 
 var wheel_base = 65  # Distance between the front and back axle of the car
 var acceleration = Vector2.ZERO  # Current acceleration vector
@@ -72,6 +73,7 @@ func load_data(_data: DataVehicle) -> void:
 	
 	engine_power = data.acceleration
 	braking = -data.braking # Braking is negative force
+	max_speed = data.max_speed
 	steering_angle = data.steering_angle
 	max_speed_reverse = data.max_speed_reverse
 	slip_speed = data.slip_speed
@@ -145,30 +147,33 @@ func get_input() -> void:
 		input_braking = Input.get_action_strength("move_down")
 	
 func apply_input() -> void:
-	steer_direction = input_steering * deg_to_rad(steering_angle)
+	# Reduce steering at high speed for stability (full steering below 40%, linear fade to 40% at top speed)
+	var speed_ratio: float = clampf(_current_speed / max_speed, 0.0, 1.0)
+	var steer_factor: float = lerpf(1.0, 0.4, speed_ratio)
+	steer_direction = input_steering * deg_to_rad(steering_angle) * steer_factor
 	_handbrake = input_handbrake
 
-	# Apply throttle (forward or reverse)
+	# Apply throttle only if below max speed
 	if input_throttle > 0:
-		acceleration = transform.x * engine_power * input_throttle
+		if _current_speed < max_speed:
+			acceleration = transform.x * engine_power * input_throttle
 	elif input_braking > 0:
-		# Reverse acceleration (braking handled in apply_friction)
 		acceleration = transform.x * -engine_power * input_braking * 0.5
 
 func apply_friction(delta: float) -> void:
-	# If there is no input or very low input, and speed is very low, just stop to prevent sliding/vibration
-	if acceleration.length() < 100 and _current_speed < 50:
-		velocity = Vector2.ZERO
+	# Stop cleanly at very low speed to prevent sliding/vibration
+	if acceleration.length() < 100 and _current_speed < 30:
+		velocity = velocity.move_toward(Vector2.ZERO, 200.0 * delta)
 		return
 
-	# Calculate friction force and air drag based on current velocity, and apply it
-	var current_friction = friction
+	# Ground friction — always opposes motion, gives planted feel
+	var current_friction: float = friction
 	if _handbrake:
 		current_friction += handbrake_friction
-	var friction_force = velocity * current_friction * delta
-	var drag_force = velocity * velocity.length() * drag * delta
+	var friction_force: Vector2 = velocity * current_friction * delta
+	# Air drag — increases with speed squared, natural top speed limiter
+	var drag_force: Vector2 = velocity * velocity.length() * drag * delta
 
-	# Add the forces to the acceleration
 	acceleration += drag_force + friction_force
 
 func calculate_steering(delta: float) -> void:

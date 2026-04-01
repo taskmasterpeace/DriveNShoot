@@ -47,6 +47,11 @@ func enter_vehicle(vehicle: Node2D) -> void:
 		vehicle.enter_vehicle(self, global_position)
 		current_vehicle = vehicle
 		visible = false
+		# Disable player camera so vehicle camera takes over
+		if has_node("Camera2D"):
+			$Camera2D.enabled = false
+		if get_node_or_null("CollisionShape2D"):
+			$CollisionShape2D.disabled = true
 
 func exit_vehicle() -> void:
 	if current_vehicle and current_vehicle.has_method("exit_vehicle"):
@@ -55,6 +60,11 @@ func exit_vehicle() -> void:
 		global_position = exit_pos
 		current_vehicle = null
 		visible = true
+		# Re-enable player camera
+		if has_node("Camera2D"):
+			$Camera2D.enabled = true
+		if get_node_or_null("CollisionShape2D"):
+			$CollisionShape2D.disabled = false
 
 func _on_vehicle_nearby(body: Node2D, vehicle: Node2D) -> void:
 	if body == self:
