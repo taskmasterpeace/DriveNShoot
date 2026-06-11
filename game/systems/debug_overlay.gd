@@ -7,7 +7,7 @@ func _ready() -> void:
 	visible = false
 	label = Label.new()
 	label.position = Vector2(20, 100)
-	label.theme_override_colors.font_color = Color.YELLOW
+	label.add_theme_color_override("font_color", Color.YELLOW)
 	add_child(label)
 
 func _input(event: InputEvent) -> void:
