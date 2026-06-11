@@ -14,11 +14,9 @@ var _line_idx: int = 0
 var dialogue_path: String = ""
 var dialogue_title: String = ""
 
-## When true, this NPC runs the town mission board: it hands out a bounty contract
-## ("wreck N pursuers") and reports progress / pays out on follow-up talks.
+## When true, this NPC runs the town mission board: it hands out a rotating contract from the
+## catalog (wreck pursuers / push deep) and reports progress / pays out on follow-up talks.
 var gives_contract: bool = false
-var contract_kills: int = 3
-var contract_reward: int = 60
 
 func _ready() -> void:
 	add_to_group("interactable")
@@ -80,13 +78,14 @@ func _handle_contract(player: Node) -> void:
 	var text: String = ""
 	if gs.has_active_contract():
 		var c: Dictionary = gs.active_contract
-		text = "%s: Bounty underway — %d/%d pursuers down. Keep hunting." % [npc_name, c["progress"], c["target"]]
+		text = "%s: Bounty underway — %s. Keep at it." % [npc_name, gs.contract_summary(c)]
 	elif not gs.active_contract.is_empty() and gs.active_contract.get("done", false):
 		gs.clear_finished_contract()
 		text = "%s: Solid work. Your reward's been wired. Come back for another." % npc_name
 	else:
-		gs.accept_contract("kills", contract_kills, contract_reward)
-		text = "%s: Contract — wreck %d pursuers out in the Deathlands. %d scrap when it's done." % [npc_name, contract_kills, contract_reward]
+		gs.offer_random_contract()
+		var c: Dictionary = gs.active_contract
+		text = "%s: Contract — %s. %d scrap when it's done." % [npc_name, gs.contract_offer_text(c), c["reward"]]
 	if player and player.has_method("notify_action"):
 		player.notify_action(text, 1.0)
 	elif player and player.has_method("show_warning"):

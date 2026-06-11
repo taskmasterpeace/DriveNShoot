@@ -187,6 +187,7 @@ func update_distance(player_pos: Vector2) -> void:
 	max_forward_units = forward_units
 	current_run_miles = max_forward_units / UNITS_PER_MILE
 	distance_updated.emit(current_run_miles)
+	set_contract_progress("distance", int(floor(current_run_miles))) # counts toward a distance bounty
 
 	# Heat ticks deterministically per 0.2 mi thresholds
 	while current_run_miles >= next_heat_mile_threshold:
@@ -357,6 +358,44 @@ func report_contract_progress(kind: String, amount: int = 1) -> void:
 		active_contract["done"] = true
 		add_scrap(active_contract["reward"], "Contract")
 	contract_changed.emit(active_contract)
+
+## Set progress to an absolute value for threshold goals (e.g. miles reached). Only advances,
+## never regresses, so a run reset doesn't undo a contract. Completes + pays out at target.
+func set_contract_progress(kind: String, value: int) -> void:
+	if not has_active_contract() or active_contract.get("kind") != kind:
+		return
+	if value <= int(active_contract["progress"]):
+		return
+	active_contract["progress"] = value
+	if active_contract["progress"] >= active_contract["target"]:
+		active_contract["done"] = true
+		add_scrap(active_contract["reward"], "Contract")
+	contract_changed.emit(active_contract)
+
+## Hand out a random contract from the catalog (the mission board's rotating jobs).
+func offer_random_contract() -> bool:
+	if has_active_contract():
+		return false
+	var pick: Dictionary = Const.CONTRACTS[randi() % Const.CONTRACTS.size()]
+	return accept_contract(pick["kind"], pick["target"], pick["reward"])
+
+## Short progress label for the HUD tracker, e.g. "2/3 pursuers".
+func contract_summary(c: Dictionary) -> String:
+	if c.is_empty():
+		return ""
+	match c.get("kind"):
+		"kills": return "%d/%d pursuers" % [c["progress"], c["target"]]
+		"distance": return "%d/%d miles deep" % [c["progress"], c["target"]]
+		"extract": return "%d/%d scrap banked" % [c["progress"], c["target"]]
+	return "%d/%d" % [c["progress"], c["target"]]
+
+## Briefing text for the contract-giver NPC when handing out the job.
+func contract_offer_text(c: Dictionary) -> String:
+	match c.get("kind"):
+		"kills": return "wreck %d pursuers out in the Deathlands" % c["target"]
+		"distance": return "push %d miles into the Deathlands in one run" % c["target"]
+		"extract": return "extract with %d scrap banked" % c["target"]
+	return "complete the job"
 
 func has_active_contract() -> bool:
 	return not active_contract.is_empty() and not active_contract.get("done", false)

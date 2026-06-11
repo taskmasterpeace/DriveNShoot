@@ -86,6 +86,25 @@ func _test_economy() -> void:
 	gs.clear_finished_contract()
 	_check("finished contract clears for re-offer", gs.active_contract.is_empty())
 
+	# Distance contract: threshold-style progress that only advances and pays out at target.
+	gs.active_contract = {}
+	gs.scrap = 100
+	gs.accept_contract("distance", 3, 70)
+	gs.set_contract_progress("distance", 2)
+	_check("distance contract advances", gs.active_contract["progress"] == 2 and gs.has_active_contract())
+	gs.set_contract_progress("distance", 1) # regress ignored
+	_check("distance progress never regresses", gs.active_contract["progress"] == 2)
+	gs.set_contract_progress("distance", 3)
+	_check("distance contract completes + pays", not gs.has_active_contract() and gs.scrap == 170)
+	gs.clear_finished_contract()
+
+	# Mission board rotates jobs: a random offer yields a known, valid kind.
+	gs.active_contract = {}
+	gs.offer_random_contract()
+	_check("random contract offered from catalog", gs.has_active_contract() and ["kills", "distance", "extract"].has(gs.active_contract.get("kind")))
+	_check("contract summary is non-empty", gs.contract_summary(gs.active_contract) != "")
+	gs.active_contract = {}
+
 	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
 	gs.start_run()
 	gs.set_run_start_position(Vector2(10000, 0))

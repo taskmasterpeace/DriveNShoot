@@ -133,7 +133,11 @@ func _on_contract_changed(contract: Dictionary) -> void:
 		label.text = "Bounty done! Collect reward"
 		label.modulate = Color(0.4, 1.0, 0.4) # green = ready to collect
 	else:
-		label.text = "Bounty: %d/%d pursuers" % [contract.get("progress", 0), contract.get("target", 0)]
+		var summary: String = contract.get("kind", "")
+		var gs = get_node_or_null("/root/GameState")
+		if gs:
+			summary = gs.contract_summary(contract)
+		label.text = "Bounty: %s" % summary
 		label.modulate = Color(1, 1, 1)
 
 func _on_player_action_updated(text: String, progress: float) -> void:

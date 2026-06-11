@@ -52,9 +52,7 @@ func _decorate() -> void:
 	var captain = _spawn_npc("Captain Vale", "res://entities/npcs/sprites/npc_guard.png", Vector2(0, -300),
 		["The Deathlands are crawling. I pay for thinned herds."])
 	if captain:
-		captain.gives_contract = true
-		captain.contract_kills = Const.CONTRACT_KILLS
-		captain.contract_reward = Const.CONTRACT_REWARD
+		captain.gives_contract = true # hands out rotating jobs from Const.CONTRACTS
 
 ## A solid building/prop: sprite + a collision box (block layer) sized from the texture, so the
 ## player drives and walks around it.
