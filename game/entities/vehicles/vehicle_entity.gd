@@ -46,6 +46,7 @@ var hp: float = 100.0
 @export var traction_slow = 25.0  # Traction at low speed — higher = snappier steering response
 @export var handbrake_friction = -160  # Extra friction when handbrake is pulled (lower = keeps speed in a power-slide)
 @export var handbrake_traction = 0.7  # Low traction for drifting (lower = looser, more dramatic slide)
+@export var skid_lateral_threshold = 130.0  # Sideways speed (px/s) at which the car leaves skid marks
 
 var wheel_base = 65  # Distance between the front and back axle of the car
 var acceleration = Vector2.ZERO  # Current acceleration vector
@@ -120,6 +121,8 @@ func _physics_process(delta: float) -> void:
 
 	# Cache speed once per frame (avoids repeated sqrt)
 	_current_speed = velocity.length()
+
+	_update_skid_marks()
 
 	# Check for high speed collisions
 	if get_slide_collision_count() > 0:
@@ -200,6 +203,33 @@ func _is_remote_simulated() -> bool:
 		return false
 	var nm = get_node("/root/NetworkManager")
 	return nm.is_active() and not nm.is_server()
+
+var _skid_line: Line2D = null
+
+## Lays down a fading tire trail while the car is sliding sideways or handbraking at speed.
+func _update_skid_marks() -> void:
+	var lateral: float = absf(velocity.dot(transform.y)) # sideways speed = how much it's sliding
+	var skidding: bool = _current_speed > 80.0 and (lateral > skid_lateral_threshold or _handbrake)
+	if skidding:
+		if _skid_line == null:
+			_skid_line = Line2D.new()
+			_skid_line.width = 5.0
+			_skid_line.default_color = Color(0.06, 0.06, 0.06, 0.45)
+			_skid_line.z_index = -8
+			if get_parent():
+				get_parent().add_child(_skid_line)
+		if is_instance_valid(_skid_line):
+			_skid_line.add_point(global_position)
+			if _skid_line.get_point_count() > 150:
+				_skid_line.remove_point(0)
+	elif _skid_line != null:
+		# Skid ended — let the trail linger, then fade and clean up.
+		if is_instance_valid(_skid_line):
+			var t: Tween = _skid_line.create_tween()
+			t.tween_interval(2.0)
+			t.tween_property(_skid_line, "modulate:a", 0.0, 1.5)
+			t.tween_callback(_skid_line.queue_free)
+		_skid_line = null
 
 ## Read the local player's drive input into the input fields (host's own vehicle; fires locally).
 func _read_local_drive_input() -> void:
