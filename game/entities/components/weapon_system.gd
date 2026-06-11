@@ -10,6 +10,8 @@ signal shot(ammo_in_magazine: int)
 signal reloaded(ammo_in_magazine: int)
 signal empty_magazine
 
+const MUZZLE_FLASH: Texture2D = preload("res://entities/projectiles/sprites/muzzle_flash.png")
+
 @export var weapon_data: DataWeapon
 @export var team: int = 0 ## Faction of whoever owns this weapon; forwarded to projectiles.
 
@@ -63,6 +65,7 @@ func shoot() -> void:
 
 	current_ammo -= 1
 	shot.emit(current_ammo)
+	_show_muzzle_flash()
 
 	if has_node("/root/CameraShaker"):
 		get_node("/root/CameraShaker").apply_shake(weapon_data.fire_shake)
@@ -83,6 +86,15 @@ func _spawn_projectile() -> void:
 
 	if projectile.has_method("setup"):
 		projectile.setup(shoot_direction, weapon_data.projectile_speed, weapon_data.power, weapon_data.knockback_force, team, source)
+
+## Brief muzzle flash at the barrel. Short-lived and self-freeing, so it stays bounded even
+## at high fire rates.
+func _show_muzzle_flash() -> void:
+	var flash: Sprite2D = Sprite2D.new()
+	flash.texture = MUZZLE_FLASH
+	flash.position = Vector2(20.0, 0.0) # forward of the muzzle
+	add_child(flash)
+	get_tree().create_timer(0.05).timeout.connect(flash.queue_free)
 
 func start_reload() -> void:
 	if is_reloading or not weapon_data or current_ammo == weapon_data.max_ammo:
