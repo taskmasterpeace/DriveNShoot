@@ -40,21 +40,34 @@ func _process(_delta: float) -> void:
 	if has_node("/root/GameState") and get_node("/root/GameState").current_state != 1: # 1 = RUN
 		return
 
+	# The road follows whatever the player is actually driving (the vehicle), not the hidden
+	# player node — otherwise distance never accrues while driving.
+	var track: Node2D = _tracked_node()
+	if not track:
+		return
+
 	# Update Distance
 	if has_node("/root/GameState"):
-		get_node("/root/GameState").update_distance(player.global_position)
-		
+		get_node("/root/GameState").update_distance(track.global_position)
+
 	# Check if we need to spawn new segments
-	var dist_to_end = player.global_position.distance_to(active_segments.back().get_exit_global_position())
-	
+	var dist_to_end = track.global_position.distance_to(active_segments.back().get_exit_global_position())
+
 	if dist_to_end < 3000.0:
 		_spawn_segment()
-		
+
 	# Despawn old segments
 	var first_seg = active_segments.front()
 	# Assuming moving North (-Y)
-	if player.global_position.y < first_seg.get_exit_global_position().y - 1000.0:
+	if track.global_position.y < first_seg.get_exit_global_position().y - 1000.0:
 		_despawn_segment()
+
+## The node the road follows: the active (driven) vehicle if any, else the on-foot player.
+func _tracked_node() -> Node2D:
+	for v in get_tree().get_nodes_in_group("vehicle"):
+		if v is VehicleEntity and v.is_active:
+			return v
+	return player
 
 func _on_run_started() -> void:
 	reset_road()
@@ -127,14 +140,19 @@ func _despawn_segment() -> void:
 	seg.queue_free()
 
 func _teleport_player_to_start() -> void:
-	if player:
-		player.global_position = Vector2(10000, 0) # Start of road
-		player.rotation = -PI / 2.0  # Face north (-Y) to align with road direction
+	# Move the driven vehicle (or the on-foot player) to the road origin so the run begins there.
+	var track: Node2D = _tracked_node()
+	if track:
+		track.global_position = Vector2(10000, 0) # Start of road
+		track.rotation = -PI / 2.0 # Face north (-Y) to align with road direction
 		if has_node("/root/GameState"):
-			get_node("/root/GameState").set_run_start_position(player.global_position)
+			get_node("/root/GameState").set_run_start_position(track.global_position)
 		
 func _teleport_player_to_town() -> void:
-	# Ideally find TownZone spawn point
+	# Eject the driver from any vehicle so they return to town on foot, then place them.
+	for v in get_tree().get_nodes_in_group("vehicle"):
+		if v is VehicleEntity and v.is_active:
+			v.exit_vehicle()
 	if player:
 		player.global_position = Vector2(0, 0) # Town Origin
 

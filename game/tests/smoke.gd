@@ -50,6 +50,13 @@ func _test_economy() -> void:
 	var bought: bool = gs.try_buy_upgrade("armor")
 	_check("upgrade spends scrap + raises tier", bought and gs.armor_tier == 1 and gs.scrap == 85)
 
+	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
+	gs.start_run()
+	gs.set_run_start_position(Vector2(10000, 0))
+	gs.update_distance(Vector2(10000, -5000)) # 5000 units north == 1 mile
+	_check("distance tracks forward movement", gs.current_run_miles >= 0.99)
+	gs.return_to_town()
+
 	# Restore the real profile.
 	gs.scrap = snap.scrap
 	gs.lifetime_scrap = snap.lifetime
