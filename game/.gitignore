@@ -1,0 +1,6 @@
+# Godot 4+ regenerable import/shader/editor cache — never commit this.
+.godot/
+
+# Export artifacts
+export_presets.cfg
+*.translation
