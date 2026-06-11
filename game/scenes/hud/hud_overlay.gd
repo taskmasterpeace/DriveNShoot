@@ -109,8 +109,14 @@ func update_kits(amount: int) -> void:
 		kit_label.text = "Kits: %d" % amount
 
 func _on_scrap_changed(delta: int, total: int) -> void:
-	if has_node("Control/ScrapLabel"):
-		get_node("Control/ScrapLabel").text = "Scrap: %d" % total
+	if not has_node("Control/ScrapLabel"):
+		return
+	var label: Label = get_node("Control/ScrapLabel")
+	var gs = get_node_or_null("/root/GameState")
+	if gs and gs.current_state == 1: # RUN — surface what you'd lose by dying
+		label.text = "Scrap: %d  (+%d at risk)" % [total, total - gs.run_start_scrap]
+	else:
+		label.text = "Scrap: %d" % total
 
 func _on_player_action_updated(text: String, progress: float) -> void:
 	if not action_panel: return
