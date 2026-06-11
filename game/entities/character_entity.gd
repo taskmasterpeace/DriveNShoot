@@ -12,6 +12,7 @@ extends CharacterBody2D
 @export var weapon: DataWeapon: set = _set_weapon ## The weapon equipped by the entity.
 @export var initial_facing: Direction ## The initial direction the entity will face when spawned.
 @export var survival_stats: SurvivalStats ## Component for hunger/thirst/fatigue.
+@export var team: int = 0 ## Faction: 0 = player/friendly, 1 = hostile. Used for projectile friendly-fire checks.
 
 @export_group("Movement")
 @export var max_speed = 300.0 ## The maximum speed the entity can reach while moving.

@@ -24,6 +24,7 @@ var base_accel: float = 800.0
 
 func _ready() -> void:
 	super._ready()
+	team = 1 # Hostile — player projectiles damage it, its projectiles damage the player.
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()

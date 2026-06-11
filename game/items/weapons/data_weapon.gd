@@ -11,3 +11,5 @@ extends DataItem
 @export var knockback_force: float = 200.0
 @export var max_ammo: int = 30
 @export var reload_time: float = 1.5
+@export var pellets: int = 1 ## Projectiles fired per shot (e.g. shotgun fires many).
+@export var fire_shake: float = 5.0 ## Camera shake applied to the shooter on each shot.

@@ -15,6 +15,10 @@ signal passenger_entry_completed
 @export var max_hp: float = 100.0
 var hp: float = 100.0
 
+## Faction: 0 = player/friendly, 1 = hostile. Used by projectiles for friendly-fire checks
+## and by multiplayer to distinguish player-owned vehicles.
+@export var team: int = 0
+
 # Collision damage tuning
 @export_group("Collision Damage")
 @export var collision_speed_threshold: float = 300.0  ## Min speed (px/s) for impact damage
