@@ -1,5 +1,29 @@
 # CarWorld Changelog
 
+## 2026-06-11 — Hardening & ecosystem completion (Phase 7.5, in-editor verified)
+
+The project was opened in Godot 4.5 and is now verified to compile, boot, and run. A headless
+test harness (`tools/smoke_test.sh`) drives **32 automated checks** — 28 system/economy smoke
+checks plus a 4-check full-run integration sim that starts a run, drives, and confirms the road
+streams, encounters escalate, and extraction works. All green; all scenes boot clean.
+
+Fixed (surfaced by the editor + tests):
+- Compile errors on first open: a pursuer `enum State` colliding with the global `class_name State`
+  (renamed to `AIState`); a `debugger.gd` invalid theme property access.
+- **Loop-breaking bugs** (the "track the player, not the vehicle" class): the road, encounter
+  director, and minimap all read the hidden/static player while driving — so runs never progressed,
+  encounters never spawned mid-drive, and the radar froze. All now track the active vehicle.
+- Combat pacing: encounters were one-per-run; now recurring and escalating with heat.
+- Loop completeness: the town respawns a vehicle on return; the run-start teleport and town-return
+  move/eject the vehicle correctly.
+- Robustness: deferred world-root spawns (chained explosions could fail on a busy root); a typed-
+  array crash on profile load.
+
+Added to the ecosystem:
+- **Extract-or-die stakes**: scrap earned in a run is forfeited on death, banked only on extraction.
+- **Arms dealer**: buy and equip weapons at the garage (5-gun catalog, persisted); your vehicle
+  mounts the equipped gun.
+
 ## 2026-06-11 — Autonomous combat & open-world pass (Phase 7)
 
 A large autonomous build session driven by `MASTER_PROMPT.md`. Added a full combat layer,
