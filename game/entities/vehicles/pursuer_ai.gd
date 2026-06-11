@@ -216,5 +216,6 @@ func get_input() -> void:
 
 # Pursuer Special Death
 func _die() -> void:
+	_spawn_death_explosion()
 	vehicle_destroyed.emit()
 	queue_free()

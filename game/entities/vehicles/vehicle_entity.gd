@@ -402,9 +402,20 @@ func take_damage(amount: float) -> void:
 		_die()
 
 func _die() -> void:
+	_spawn_death_explosion()
 	vehicle_destroyed.emit()
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").fail_run("Wrecked")
+
+## Blows up the vehicle on destruction — visual blast plus a splash that can chain into
+## nearby enemies. Uses this vehicle's team so it won't instantly fratricide allies.
+func _spawn_death_explosion() -> void:
+	if not is_inside_tree():
+		return
+	var ex: Explosion = Explosion.new()
+	get_tree().root.add_child(ex)
+	ex.global_position = global_position
+	ex.setup(170.0, 28, team, self)
 
 
 # --- Weapons ---------------------------------------------------------------
