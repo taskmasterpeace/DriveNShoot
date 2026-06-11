@@ -12,6 +12,7 @@ collision_mask = 7
 script = ExtResource("1_proj")
 life_time = 4.0
 impact_shake = 12.0
+explosion_radius = 150.0
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture = ExtResource("2_rocket")

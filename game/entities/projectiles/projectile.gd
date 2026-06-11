@@ -10,6 +10,7 @@ extends Area2D
 @export var hit_vehicles: bool = true
 @export var hit_characters: bool = true
 @export var impact_shake: float = 4.0 ## Camera shake applied when this projectile hits something.
+@export var explosion_radius: float = 0.0 ## >0 makes this projectile explode on impact (area damage).
 
 var velocity: Vector2 = Vector2.ZERO
 var damage: int = 0
@@ -41,6 +42,13 @@ func _on_body_entered(body: Node) -> void:
 	if "team" in body and body.team == team:
 		return
 
+	# Explosive rounds detonate (area damage) on any valid target or world geometry.
+	if explosion_radius > 0.0:
+		var is_target: bool = (hit_vehicles and body is VehicleEntity) or (hit_characters and body is CharacterEntity) or body is StaticBody2D or body is TileMapLayer
+		if is_target:
+			_explode()
+		return
+
 	if hit_vehicles and body is VehicleEntity:
 		body.take_damage(float(damage))
 		_impact()
@@ -66,4 +74,11 @@ func _damage_character(character: CharacterEntity) -> void:
 func _impact() -> void:
 	if impact_shake > 0.0 and has_node("/root/CameraShaker"):
 		get_node("/root/CameraShaker").apply_shake(impact_shake)
+	queue_free()
+
+func _explode() -> void:
+	var ex: Explosion = Explosion.new()
+	get_tree().root.add_child(ex)
+	ex.global_position = global_position
+	ex.setup(explosion_radius, damage, team, source)
 	queue_free()
