@@ -71,6 +71,19 @@ of each system and update entries instead of duplicating.
 - FALSE POSITIVE (verified fine, do not "fix"): interaction_controller.gd ~125-131 — the
   interact()/interact_with() calls ARE correctly nested inside `elif nearest.has_method("interact")`.
 
+### System 4 — Bandits, factions, convoys (STARTED) + combat polish
+- Enemy roster complete: RAMMER, BLOCKER, SHOOTER (mounts gun, holds range), SWARM (fast/fragile
+  pack with flanking escorts), TRANSPORT (armored hauler that cruises the road, doesn't chase,
+  320 hp, drops 3x loot). encounter_director: 25% of encounters spawn an oncoming CONVOY
+  (transport facing south + 2 shooter escorts).
+- Combat polish: Explosion (code-driven AoE, falloff splash to vehicles+characters, team-aware,
+  expanding sprite). Rockets (150px) and mines (130px) now explode; vehicles explode on death
+  (170px, can chain a player wreck into nearby enemies).
+- ALL UNVERIFIED in-editor (no Godot here). Self-reviewed key risks: CameraShaker is guarded by
+  has_node (it's not an autoload, so shake silently no-ops — safe); TRANSPORT rotation set before
+  add_child persists until it moves; explosion splash iterates a group snapshot so freeing during
+  iteration is safe. TODO: on-foot bandit patrols in ruins; faction/loot tiers; in-editor playtest.
+
 ## Verification of System 2 / enemy / minimap code (reviewed — these are FINE, do not "fix")
 
 - `FOOT_ZONE_SCRIPT.new()` in road_segment.gd is CORRECT: foot_zone.gd is a class/script (no .tscn),
