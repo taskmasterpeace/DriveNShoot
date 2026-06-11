@@ -1,5 +1,25 @@
 # CarWorld — Multiplayer Implementation Plan (up to 32 players)
 
+## STATUS (2026-06-11): core netcode protocol BUILT + verified cross-process
+
+`NetworkManager` autoload (`scripts/autoloads/network_manager.gd`) implements and `tools/net_test.sh`
+verifies (launching a real headless server + client) the full server-authoritative round-trip:
+- **Connection**: `host_server` / `join_server` over ENet (32 max). ✓
+- **Roster**: server-authoritative `players` dict (host + each peer). ✓
+- **Spawn handshake**: server RPCs each new client a spawn assignment (`_client_spawn`). ✓
+- **Input replication**: client `send_input` → server `submit_input` RPC stores per-peer input. ✓
+- **State sync**: server `broadcast_state` → client `receive_state` RPC applies the snapshot. ✓
+
+What remains is INTEGRATION (needs the editor for scene nodes / multi-instance visual test):
+- Wire `VehicleEntity`/`PlayerEntity` to read `NetworkManager.get_input_for(peer)` on the server
+  and apply `remote_states` on clients (interpolate using synced velocity).
+- Add a `MultiplayerSpawner` under the world to spawn a player node per peer at a town spawn.
+- Per-peer persistence + interest management (reuse RoadManager region streaming) for 32-scale.
+- Main menu host/join flow.
+
+---
+
+
 This is the concrete plan for System 5 from `MASTER_PROMPT.md`. It was NOT implemented in the
 combat/world session (a server-authoritative 32-player layer is a multi-week build and was not
 attempted without an editor to verify). This document grounds it in the actual codebase so the
