@@ -24,6 +24,7 @@ var pickup_textures: Array[Texture2D] = [
 ]
 
 var pursuer_spawned_this_run: bool = false
+var pursuer_pending: bool = false ## True once heat is high enough to queue a pursuer, waiting on the speed check.
 var player_speed_ok_timer: float = 0.0
 var run_started_mile: float = 0.0
 
@@ -138,6 +139,15 @@ func spawn_pursuer() -> void:
 	
 	var pursuer = PURSUER_SCENE.instantiate()
 	pursuer.global_position = spawn_pos
+
+	# Behavior variety (set before the node enters the tree so _ready mounts a gun for SHOOTERs).
+	var roll: float = randf()
+	if roll < 0.4:
+		pursuer.behavior_type = PursuerAI.BehaviorType.RAMMER
+	elif roll < 0.75:
+		pursuer.behavior_type = PursuerAI.BehaviorType.SHOOTER
+	else:
+		pursuer.behavior_type = PursuerAI.BehaviorType.BLOCKER
 
 	# Randomly assign enemy sprite
 	if enemy_textures.size() > 0:

@@ -2,9 +2,13 @@ class_name PursuerAI
 extends VehicleEntity
 
 enum State { SEEK, RAM, BLOCK, RESET_DISTANCE }
-enum BehaviorType { RAMMER, BLOCKER }
+enum BehaviorType { RAMMER, BLOCKER, SHOOTER }
+
+const SHOOTER_WEAPON: DataWeapon = preload("res://items/weapons/machine_gun.tres")
 
 @export var behavior_type: BehaviorType = BehaviorType.RAMMER
+@export var preferred_range: float = 360.0 ## SHOOTER: distance it tries to hold from the player.
+@export var fire_cone_degrees: float = 22.0 ## SHOOTER: fires only when roughly facing the player.
 
 var current_state: State = State.SEEK
 
@@ -25,6 +29,9 @@ var base_accel: float = 800.0
 func _ready() -> void:
 	super._ready()
 	team = 1 # Hostile — player projectiles damage it, its projectiles damage the player.
+	# SHOOTERs carry a forward-mounted gun and fire while keeping their distance.
+	if behavior_type == BehaviorType.SHOOTER and mounted_weapons.is_empty() and SHOOTER_WEAPON:
+		mount_weapon(SHOOTER_WEAPON, 0, 1)
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()
@@ -78,6 +85,8 @@ func _update_state(delta: float) -> void:
 				# If we are ahead of player and in lane, switch to BLOCK
 				if forward_dot < -0.5 and dist < 600.0: # Behind us
 					current_state = State.BLOCK
+			elif behavior_type == BehaviorType.SHOOTER:
+				_shooter_behavior(dist, forward_dot)
 			else:
 				_seek_behavior(dist_vector)
 				if dist < ram_range and forward_dot > 0.5: # Facing player and close
@@ -101,6 +110,27 @@ func _update_state(delta: float) -> void:
 			state_timer += delta
 			if state_timer > 0.8: # Short backoff
 				current_state = State.SEEK
+
+func _shooter_behavior(dist: float, forward_dot: float) -> void:
+	# Hold preferred range: close in if far, back off if too close, coast if in the pocket.
+	if dist > preferred_range * 1.2:
+		input_throttle = 1.0
+		input_braking = 0.0
+	elif dist < preferred_range * 0.7:
+		input_throttle = 0.0
+		input_braking = 1.0
+	else:
+		input_throttle = 0.4
+		input_braking = 0.0
+
+	# Steer to face the player so the forward-mounted gun lines up.
+	var steer_angle: float = get_angle_to(player_target.global_position)
+	steer_angle = clamp(steer_angle, deg_to_rad(-steering_angle), deg_to_rad(steering_angle))
+	input_steering = steer_angle / deg_to_rad(steering_angle)
+
+	# Fire when roughly facing the player and within engagement range.
+	if forward_dot > cos(deg_to_rad(fire_cone_degrees)) and dist < preferred_range * 1.6:
+		fire_weapons()
 
 func _seek_behavior(dist_vector: Vector2) -> void:
 	# Throttle: Full unless we are ahead of player?
