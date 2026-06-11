@@ -113,6 +113,22 @@ func submit_input(throttle: float, braking: float, steering: float, handbrake: b
 func get_input_for(id: int) -> Dictionary:
 	return peer_inputs.get(id, {})
 
+# --- State sync (server -> clients) ---
+
+var remote_states: Dictionary = {} ## Client-side cache of the latest server-authoritative state.
+signal state_synced
+
+## Called on the SERVER to push authoritative entity state to every client.
+func broadcast_state(states: Dictionary) -> void:
+	if multiplayer.is_server():
+		receive_state.rpc(states)
+
+## Runs on CLIENTS: replace the local view with the server's authoritative snapshot.
+@rpc("authority", "call_remote", "unreliable_ordered")
+func receive_state(states: Dictionary) -> void:
+	remote_states = states
+	state_synced.emit()
+
 func _on_connected_to_server() -> void:
 	joined_server.emit()
 

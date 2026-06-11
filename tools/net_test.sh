@@ -16,8 +16,12 @@ echo "===== CLIENT ====="; grep 'NET:' "$CLOG" || echo "(no client NET output)"
 echo "===== SERVER ====="; grep 'NET:' "$SLOG" || echo "(no server NET output)"
 
 RESULT=1
-# Pass = client got its spawn assignment, server roster=2, AND the server received replicated input.
-grep -q 'NET: spawned_as=' "$CLOG" && grep -q 'NET: players=2' "$SLOG" && grep -q 'NET: input throttle=1' "$SLOG" && RESULT=0
+# Pass = spawn assignment, server roster=2, server received input, AND client received synced state.
+grep -q 'NET: spawned_as=' "$CLOG" \
+  && grep -q 'NET: players=2' "$SLOG" \
+  && grep -q 'NET: input throttle=1' "$SLOG" \
+  && grep -q 'NET: state_synced' "$CLOG" \
+  && RESULT=0
 echo "===== NET TEST: $([ $RESULT -eq 0 ] && echo PASS || echo FAIL) ====="
 
 kill "$SPID" 2>/dev/null
