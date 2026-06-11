@@ -30,6 +30,7 @@ func _test_economy() -> void:
 		"unlocked": gs.unlocked_vehicles.duplicate(),
 		"owned": gs.owned_weapons.duplicate(), "equipped": gs.equipped_weapon_id,
 		"ec": gs.extraction_count,
+		"contract": gs.active_contract.duplicate(),
 	}
 	gs.extraction_count = 0
 
@@ -71,6 +72,20 @@ func _test_economy() -> void:
 	gs._check_unlocks()
 	_check("bike unlocks at milestone", gs.unlocked_vehicles.has("bike"))
 
+	# Town mission board: accept a bounty, report kills, complete + pay out.
+	gs.active_contract = {}
+	gs.scrap = 100
+	var taken: bool = gs.accept_contract("kills", 3, 60)
+	_check("contract accepted", taken and gs.has_active_contract())
+	_check("duplicate contract refused", not gs.accept_contract("kills", 3, 60))
+	gs.report_contract_progress("kills")
+	gs.report_contract_progress("kills")
+	_check("contract tracks progress, not yet done", gs.active_contract["progress"] == 2 and gs.has_active_contract())
+	gs.report_contract_progress("kills")
+	_check("contract completes + pays reward", not gs.has_active_contract() and gs.active_contract.get("done", false) and gs.scrap == 160)
+	gs.clear_finished_contract()
+	_check("finished contract clears for re-offer", gs.active_contract.is_empty())
+
 	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
 	gs.start_run()
 	gs.set_run_start_position(Vector2(10000, 0))
@@ -91,6 +106,7 @@ func _test_economy() -> void:
 	gs.owned_weapons = snap.owned
 	gs.equipped_weapon_id = snap.equipped
 	gs.extraction_count = snap.ec
+	gs.active_contract = snap.contract
 	gs.save_profile()
 
 func _spawn_world() -> void:

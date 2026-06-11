@@ -22,6 +22,10 @@ const TRANSITION = {
 	FADE_FROM_WHITE = "fade_from_white",
 }
 
+# Town mission board: default bounty contract handed out by the contract-giver NPC.
+const CONTRACT_KILLS := 3
+const CONTRACT_REWARD := 60
+
 const GROUP = {
 	PLAYER = "player",
 	ENEMY = "enemy",

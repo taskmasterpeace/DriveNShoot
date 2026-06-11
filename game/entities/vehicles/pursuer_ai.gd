@@ -263,6 +263,8 @@ func _die() -> void:
 		_drop_convoy_loot()
 	elif has_node("/root/GameState"):
 		get_node("/root/GameState").add_scrap(randi_range(8, 20)) # bounty for the kill
+	if has_node("/root/GameState"):
+		get_node("/root/GameState").report_contract_progress("kills") # counts toward town contracts
 	_spawn_death_explosion()
 	vehicle_destroyed.emit()
 	queue_free()

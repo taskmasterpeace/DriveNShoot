@@ -44,6 +44,13 @@ func _decorate() -> void:
 		["Engine trouble? The garage'll patch you up.", "Keep that armor topped off out there."])
 	_spawn_npc("Trader", "res://entities/npcs/sprites/npc_trader.png", Vector2(-180, -120),
 		["Scrap buys upgrades and guns. Bring me plenty.", "Word is the Road Captain runs the deep lanes."])
+	# Contract-giver (the mission board): hands out a bounty you fulfil out on the road.
+	var captain = _spawn_npc("Captain Vale", "res://entities/npcs/sprites/npc_guard.png", Vector2(0, -300),
+		["The Deathlands are crawling. I pay for thinned herds."])
+	if captain:
+		captain.gives_contract = true
+		captain.contract_kills = Const.CONTRACT_KILLS
+		captain.contract_reward = Const.CONTRACT_REWARD
 
 ## A solid building/prop: sprite + a collision box (block layer) sized from the texture, so the
 ## player drives and walks around it.
@@ -64,7 +71,7 @@ func _spawn_building(tex_path: String, pos: Vector2, collision_scale: float) -> 
 	body.add_child(col)
 	add_child(body)
 
-func _spawn_npc(npc_name: String, tex_path: String, pos: Vector2, lines: Array) -> void:
+func _spawn_npc(npc_name: String, tex_path: String, pos: Vector2, lines: Array) -> Node2D:
 	var npc = NPC_SCRIPT.new()
 	npc.npc_name = npc_name
 	npc.lines = lines
@@ -73,6 +80,7 @@ func _spawn_npc(npc_name: String, tex_path: String, pos: Vector2, lines: Array) 
 	spr.texture = load(tex_path)
 	npc.add_child(spr)
 	add_child(npc)
+	return npc
 
 func spawn_vehicle() -> void:
 	if current_vehicle:

@@ -335,6 +335,37 @@ func get_equipped_weapon() -> DataWeapon:
 		return load(entry["path"]) as DataWeapon
 	return null
 
+# ----- Contracts (town mission board) -----
+
+var active_contract: Dictionary = {} ## {kind, target, progress, reward, done}
+signal contract_changed(contract: Dictionary)
+
+## Take a contract if none is active. Returns false if one is already in progress.
+func accept_contract(kind: String, target: int, reward: int) -> bool:
+	if has_active_contract():
+		return false
+	active_contract = {"kind": kind, "target": target, "progress": 0, "reward": reward, "done": false}
+	contract_changed.emit(active_contract)
+	return true
+
+## Report progress toward the active contract (e.g. a pursuer kill). Completes + pays out at target.
+func report_contract_progress(kind: String, amount: int = 1) -> void:
+	if not has_active_contract() or active_contract.get("kind") != kind:
+		return
+	active_contract["progress"] += amount
+	if active_contract["progress"] >= active_contract["target"]:
+		active_contract["done"] = true
+		add_scrap(active_contract["reward"], "Contract")
+	contract_changed.emit(active_contract)
+
+func has_active_contract() -> bool:
+	return not active_contract.is_empty() and not active_contract.get("done", false)
+
+func clear_finished_contract() -> void:
+	if not active_contract.is_empty() and active_contract.get("done", false):
+		active_contract = {}
+		contract_changed.emit(active_contract)
+
 func select_vehicle(id: String) -> void:
 	if unlocked_vehicles.has(id):
 		selected_vehicle_id = id
