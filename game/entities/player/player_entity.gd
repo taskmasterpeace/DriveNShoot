@@ -11,6 +11,11 @@ var player_id: int = 1 ## A unique id that is assigned to the player on creation
 var equipped = 0 ## The id of the weapon equipped by the player.
 var repair_kits: int = 1
 var hud_instance: CanvasLayer
+var weapon_system: WeaponSystem ## On-foot ranged weapon, aimed at the cursor.
+var is_driving: bool = false ## True while the player is inside a vehicle (suppresses on-foot fire).
+
+## Ranged weapon the player carries on foot if none is otherwise equipped.
+@export var default_ranged_weapon: DataWeapon = preload("res://items/weapons/machine_gun.tres")
 
 
 signal kits_changed(amount: int)
@@ -22,13 +27,34 @@ const EXTRACT_TIME: float = 2.0
 
 func _process(delta: float) -> void:
 	super._process(delta) # If parent has process
-	
+
+	# On-foot ranged combat (suppressed while driving — the vehicle fires instead).
+	if not is_driving:
+		_handle_on_foot_combat()
+
 	# Extract Logic
 	if Input.is_action_pressed("extract"):
 		_process_extract(delta)
 	elif _extract_timer > 0.0:
 		_extract_timer = 0.0
 		action_updated.emit("", 0.0)
+
+## Aims the on-foot weapon at the cursor and fires while the attack button is held.
+func _handle_on_foot_combat() -> void:
+	if not weapon_system:
+		return
+	# Keep the weapon system synced with whatever ranged weapon is equipped.
+	if weapon and weapon.projectile_scene and weapon_system.weapon_data != weapon:
+		weapon_system.initialize(weapon)
+	if not weapon_system.weapon_data or not weapon_system.weapon_data.projectile_scene:
+		return # No ranged weapon — melee is handled by the attack state instead.
+
+	if Input.is_action_pressed("attack"):
+		var aim_dir: Vector2 = get_global_mouse_position() - global_position
+		if aim_dir.length() > 1.0:
+			weapon_system.global_rotation = aim_dir.angle()
+			facing = aim_dir.normalized()
+		weapon_system.try_shoot()
 
 func _process_extract(delta: float) -> void:
 	if velocity.length() > 50.0: # Must be effectively stopped
@@ -83,10 +109,16 @@ func _ready():
 	if not survival_stats:
 		survival_stats = get_node_or_null("SurvivalStats")
 	
-	var weapon_system = get_node_or_null("WeaponSystem")
-	if weapon_system and weapon:
-		weapon_system.initialize(weapon)
-		
+	weapon_system = get_node_or_null("WeaponSystem")
+	if weapon_system:
+		weapon_system.team = team
+		weapon_system.source = self
+		# Equip the held weapon if ranged, otherwise fall back to the default sidearm.
+		if weapon and weapon.projectile_scene:
+			weapon_system.initialize(weapon)
+		elif default_ranged_weapon:
+			weapon_system.initialize(default_ranged_weapon)
+
 	var hud_scene = load("res://scenes/hud/hud_overlay.tscn")
 	if hud_scene:
 		hud_instance = hud_scene.instantiate()
@@ -118,10 +150,12 @@ func _ready():
 
 
 func _on_entered_vehicle(vehicle: Node2D) -> void:
+	is_driving = true
 	if hud_instance and hud_instance.has_method("connect_vehicle"):
 		hud_instance.connect_vehicle(vehicle)
 
 func _on_exited_vehicle(vehicle: Node2D) -> void:
+	is_driving = false
 	if hud_instance and hud_instance.has_method("disconnect_vehicle"):
 		hud_instance.disconnect_vehicle()
 

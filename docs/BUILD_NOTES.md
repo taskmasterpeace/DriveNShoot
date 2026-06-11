@@ -79,10 +79,19 @@ of each system and update entries instead of duplicating.
       enemies trigger it) · flame.tscn (fire_trail, 0.45s short range).
   - Weapons in items/weapons/: machine_gun, shotgun (7 pellets/22°), rocket_launcher,
     flamethrower (2 pellets/0.05s), mine_dropper.
-- TODO next: mount weapons on VehicleEntity (plan: add `default_weapons: Array[DataWeapon]`
-  to DataVehicle, set in vehicle .tres; VehicleEntity spawns WeaponSystem children at _ready,
-  fires on `attack` input, aims forward = transform.x). Then on-foot aim+fire, ammo on HUD,
-  enemy shooter type.
+- DONE: vehicle weapon mounting (VehicleEntity._setup_weapons from data.default_weapon /
+  default_weapons; fire on `attack`; weapon_shot→HUD). All 3 vehicles armed. Committed.
+- DONE: enemy SHOOTER pursuer (holds range, faces player, fires); encounter_director spawns
+  RAMMER/SHOOTER/BLOCKER variety; fixed undeclared pursuer_pending compile error. Committed.
+- DONE: on-foot shooting in player_entity.gd — mouse-aimed, fires WeaponSystem child, syncs
+  to equipped weapon, default sidearm = machine_gun; is_driving suppresses it while driving;
+  ammo flows to HUD. Committed.
+- System 1 ESSENTIALLY COMPLETE (needs in-editor playtest). Known refinements (not blocking):
+  - On foot with a melee `weapon` (sword) still equipped, pressing attack may also trigger the
+    melee state while the gun fires — consider unifying ranged vs melee selection later.
+  - Rocket/explosion AoE not implemented (rockets are single-target); flamethrower is discrete
+    pellets not a continuous cone. Good enough for now; revisit in polish.
+  - Want a dedicated pistol .tres + sprite for the on-foot sidearm (reusing machine_gun now).
 
 #### Invented UID registry (REUSE these exact uids, do not regenerate — avoids collisions)
 - projectile.gd: uid://dalvnt2aygqgg (pre-existing)
