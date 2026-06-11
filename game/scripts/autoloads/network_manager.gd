@@ -11,8 +11,12 @@ signal connection_failed
 signal peer_joined(id: int)
 signal peer_left(id: int)
 signal session_ended
+signal player_registered(id: int)
+signal player_unregistered(id: int)
+signal spawned_as(id: int) ## Client-side: the server assigned us this peer id and told us to spawn.
 
 var peer: ENetMultiplayerPeer = null
+var players: Dictionary = {} ## peer_id -> info. Server-authoritative roster of connected players.
 
 func _ready() -> void:
 	# These multiplayer signals are global; wire them once.
@@ -31,6 +35,8 @@ func host_server(port: int = DEFAULT_PORT) -> bool:
 		peer = null
 		return false
 	multiplayer.multiplayer_peer = peer
+	players.clear()
+	players[1] = {"name": "Host"} # the server is player 1
 	server_started.emit()
 	return true
 
@@ -64,9 +70,25 @@ func local_id() -> int:
 # --- internal signal relays ---
 func _on_peer_connected(id: int) -> void:
 	peer_joined.emit(id)
+	# Server authoritatively registers the new player and tells them to spawn.
+	if multiplayer.is_server():
+		players[id] = {"name": "Player %d" % id}
+		player_registered.emit(id)
+		_client_spawn.rpc_id(id, id)
 
 func _on_peer_disconnected(id: int) -> void:
+	if multiplayer.is_server() and players.has(id):
+		players.erase(id)
+		player_unregistered.emit(id)
 	peer_left.emit(id)
+
+## Sent by the server to a freshly-connected client: "you are peer `my_id`, spawn yourself."
+@rpc("authority", "call_remote", "reliable")
+func _client_spawn(my_id: int) -> void:
+	spawned_as.emit(my_id)
+
+func player_count() -> int:
+	return players.size()
 
 func _on_connected_to_server() -> void:
 	joined_server.emit()

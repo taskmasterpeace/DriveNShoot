@@ -16,7 +16,8 @@ echo "===== CLIENT ====="; grep 'NET:' "$CLOG" || echo "(no client NET output)"
 echo "===== SERVER ====="; grep 'NET:' "$SLOG" || echo "(no server NET output)"
 
 RESULT=1
-grep -q 'NET: client_connected' "$CLOG" && grep -q 'NET: peer_joined' "$SLOG" && RESULT=0
+# Pass = client connected AND received its spawn assignment AND server roster shows 2 players.
+grep -q 'NET: spawned_as=' "$CLOG" && grep -q 'NET: players=2' "$SLOG" && RESULT=0
 echo "===== NET TEST: $([ $RESULT -eq 0 ] && echo PASS || echo FAIL) ====="
 
 kill "$SPID" 2>/dev/null
