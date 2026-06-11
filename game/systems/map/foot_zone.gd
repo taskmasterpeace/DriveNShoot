@@ -8,11 +8,13 @@ extends Node2D
 ## no .tscn needed.
 
 const LOOT_SCENE: PackedScene = preload("res://entities/world/loot_cache.tscn")
+const BANDIT_SCRIPT: GDScript = preload("res://entities/enemies/bandit.gd")
 const ROUGH_TERRAIN_BIT: int = 1 << 7 ## Collision layer 8 ("rough_terrain").
 
 @export var radius: float = 340.0
 @export var barrier_count: int = 28 ## Blocks forming the perimeter ring.
 @export var barrier_size: float = 80.0
+@export var guard_count: int = 2 ## On-foot bandits guarding the loot.
 @export var ground_color: Color = Color(0.17, 0.15, 0.13, 0.92)
 @export var rubble_color: Color = Color(0.32, 0.28, 0.24)
 
@@ -20,6 +22,7 @@ func _ready() -> void:
 	_build_ground()
 	_build_perimeter()
 	_spawn_interior_loot()
+	_spawn_guards()
 
 func _build_ground() -> void:
 	var ground: Polygon2D = Polygon2D.new()
@@ -62,3 +65,12 @@ func _spawn_interior_loot() -> void:
 	# Reward going in on foot with richer loot, if the cache supports a multiplier.
 	if "loot_multiplier" in loot:
 		loot.loot_multiplier = 2.0
+
+## On-foot bandits guarding the ruin — the player must fight them on foot for the loot.
+func _spawn_guards() -> void:
+	for i in guard_count:
+		var bandit: CharacterBody2D = BANDIT_SCRIPT.new()
+		var a: float = randf() * TAU
+		var d: float = randf_range(40.0, radius * 0.6)
+		bandit.position = Vector2(cos(a), sin(a)) * d
+		add_child(bandit)

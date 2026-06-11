@@ -59,6 +59,12 @@ func _on_body_entered(body: Node) -> void:
 		_impact()
 		return
 
+	# Generic damageable (e.g. the on-foot Bandit, which isn't a Vehicle/CharacterEntity).
+	if hit_characters and body.has_method("take_damage") and "team" in body:
+		body.take_damage(damage)
+		_impact()
+		return
+
 	# Hit static world geometry (walls, terrain on the block layer) — stop the round.
 	if body is StaticBody2D or body is TileMapLayer:
 		queue_free()

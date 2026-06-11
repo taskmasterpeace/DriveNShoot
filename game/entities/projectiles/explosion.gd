@@ -47,6 +47,8 @@ func _apply_splash() -> void:
 				n.take_damage(float(dmg))
 			elif n is CharacterEntity and n.health_controller:
 				n.health_controller.change_hp(-dmg, "Explosion")
+			elif n.has_method("take_damage"):
+				n.take_damage(dmg) # generic damageable (e.g. Bandit)
 
 func _play_visual() -> void:
 	var spr: Sprite2D = Sprite2D.new()
