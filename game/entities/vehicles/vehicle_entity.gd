@@ -421,9 +421,9 @@ func _spawn_death_explosion() -> void:
 	if not is_inside_tree():
 		return
 	var ex: Explosion = Explosion.new()
-	get_tree().root.add_child(ex)
 	ex.global_position = global_position
 	ex.setup(170.0, 28, team, self)
+	get_tree().root.add_child.call_deferred(ex)
 
 
 # --- Weapons ---------------------------------------------------------------

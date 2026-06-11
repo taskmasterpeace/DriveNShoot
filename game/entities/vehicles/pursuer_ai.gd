@@ -247,7 +247,7 @@ func _drop_convoy_loot() -> void:
 		return
 	for i in 3:
 		var loot = LOOT_SCENE.instantiate()
-		parent.add_child(loot)
 		loot.global_position = global_position + Vector2(randf_range(-90.0, 90.0), randf_range(-90.0, 90.0))
 		if "loot_multiplier" in loot:
 			loot.loot_multiplier = 2.5
+		parent.add_child.call_deferred(loot)

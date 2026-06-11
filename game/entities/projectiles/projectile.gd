@@ -84,7 +84,7 @@ func _impact() -> void:
 
 func _explode() -> void:
 	var ex: Explosion = Explosion.new()
-	get_tree().root.add_child(ex)
 	ex.global_position = global_position
 	ex.setup(explosion_radius, damage, team, source)
+	get_tree().root.add_child.call_deferred(ex)
 	queue_free()

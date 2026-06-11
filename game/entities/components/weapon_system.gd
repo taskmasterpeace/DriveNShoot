@@ -75,7 +75,6 @@ func shoot() -> void:
 
 func _spawn_projectile() -> void:
 	var projectile: Node = weapon_data.projectile_scene.instantiate()
-	get_tree().root.add_child(projectile)
 
 	var spread_rad: float = deg_to_rad(weapon_data.spread_degrees)
 	var random_angle: float = randf_range(-spread_rad / 2.0, spread_rad / 2.0)
@@ -86,6 +85,9 @@ func _spawn_projectile() -> void:
 
 	if projectile.has_method("setup"):
 		projectile.setup(shoot_direction, weapon_data.projectile_speed, weapon_data.power, weapon_data.knockback_force, team, source)
+
+	# Deferred so firing during another node's setup frame can't fail on a busy root.
+	get_tree().root.add_child.call_deferred(projectile)
 
 ## Brief muzzle flash at the barrel. Short-lived and self-freeing, so it stays bounded even
 ## at high fire rates.
