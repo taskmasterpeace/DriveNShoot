@@ -113,6 +113,7 @@ position = Vector2(0, 150)
 rotation = -1.5708
 collision_layer = 3
 script = ExtResource("3_vehicle")
+data = ExtResource("7_balanced")
 
 [node name="Sprite2D" type="Sprite2D" parent="Vehicle"]
 texture = ExtResource("4_player_car")
@@ -146,6 +147,7 @@ position = Vector2(-200, 150)
 rotation = -1.5708
 collision_layer = 3
 script = ExtResource("3_vehicle")
+data = ExtResource("9_tank")
 engine_power = 600
 steering_angle = 12
 traction_slow = 15
@@ -182,6 +184,7 @@ position = Vector2(200, 150)
 rotation = -1.5708
 collision_layer = 3
 script = ExtResource("3_vehicle")
+data = ExtResource("8_fast")
 engine_power = 1200
 steering_angle = 18
 traction_fast = 2.0
