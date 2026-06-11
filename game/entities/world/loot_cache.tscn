@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://loot_cache"]
 
 [ext_resource type="Script" path="res://entities/world/loot_cache.gd" id="1_loot"]
-[ext_resource type="Texture2D" uid="uid://car_wheel" path="res://entities/vehicles/sprites/car/car_wheel.png" id="2_sprite"]
+[ext_resource type="Texture2D" uid="uid://bjaygl6f7rbm5" path="res://entities/vehicles/sprites/car/car_wheel.png" id="2_sprite"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(40, 40)

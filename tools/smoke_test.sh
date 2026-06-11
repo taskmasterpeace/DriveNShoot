@@ -12,4 +12,15 @@ grep -iE 'ERROR|SCRIPT ERROR|Parse Error|Compile Error|null instance|Failed' "$O
   | grep -v '^SMOKE' \
   | grep -viE 'invalid UID|dialogue_manager|tile_bit_tools|non-existing editor theme|resources still in use|RID allocations|leaked at exit' \
   || echo "(none)"
+
+echo "===== FULL-RUN INTEGRATION SIM ====="
+SIM=$(mktemp)
+timeout 90 "$GODOT" --headless --path "$PROJ" res://tests/run_sim.tscn --quit-after 800 >"$SIM" 2>&1
+grep -E '^RUNSIM|RUN SIM' "$SIM" || echo "(no RUNSIM output — sim failed to load)"
+grep -iE 'ERROR|SCRIPT ERROR|Parse Error|Compile Error|null instance' "$SIM" \
+  | grep -viE 'invalid UID|dialogue_manager|tile_bit_tools|non-existing editor theme|resources still in use|RID allocations|leaked at exit|ObjectDB instances leaked' \
+  | grep -v 'RUN SIM' \
+  || echo "(no sim errors)"
+rm -f "$SIM"
+
 rm -f "$OUT"

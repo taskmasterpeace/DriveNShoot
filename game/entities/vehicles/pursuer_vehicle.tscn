@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://pursuer_vehicle"]
 
 [ext_resource type="Script" path="res://entities/vehicles/pursuer_ai.gd" id="1_pursuer"]
-[ext_resource type="Texture2D" uid="uid://car_body_sport" path="res://entities/vehicles/sprites/car/car_body_sport.png" id="2_sprite"]
+[ext_resource type="Texture2D" uid="uid://58dvkyxtf1b5" path="res://entities/vehicles/sprites/car/car_body_sport.png" id="2_sprite"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
 size = Vector2(100, 50)
