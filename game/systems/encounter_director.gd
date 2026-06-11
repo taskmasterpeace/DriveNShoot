@@ -137,7 +137,12 @@ func spawn_pursuer() -> void:
 	# Check player facing? 
 	# Lane offset?
 	spawn_pos.x += randf_range(-150, 150)
-	
+
+	# Sometimes the encounter is a convoy (armored hauler + escorts) instead of a lone pursuer.
+	if randf() < 0.25:
+		_spawn_convoy(player)
+		return
+
 	var pursuer = PURSUER_SCENE.instantiate()
 	pursuer.global_position = spawn_pos
 
@@ -177,6 +182,31 @@ func _assign_enemy_sprite(pursuer: Node) -> void:
 		var sprite: Sprite2D = pursuer.get_node_or_null("Sprite2D")
 		if sprite:
 			sprite.texture = tex
+
+## Spawns an oncoming convoy: an armored TRANSPORT (rich loot when downed) flanked by two
+## SHOOTER escorts, on the road ahead of the player so they meet head-on.
+func _spawn_convoy(player: Node2D) -> void:
+	var ahead: Vector2 = player.global_position + Vector2(0, -1800) # ahead = north (-Y)
+	ahead.x = 10000.0 # road center
+
+	var transport = PURSUER_SCENE.instantiate()
+	transport.behavior_type = PursuerAI.BehaviorType.TRANSPORT
+	transport.rotation = PI / 2.0 # face south, toward the oncoming player
+	transport.global_position = ahead
+	_assign_enemy_sprite(transport)
+	player.get_parent().add_child(transport)
+
+	for off in [-230.0, 230.0]:
+		var escort = PURSUER_SCENE.instantiate()
+		escort.behavior_type = PursuerAI.BehaviorType.SHOOTER
+		escort.global_position = ahead + Vector2(off, 160.0)
+		_assign_enemy_sprite(escort)
+		player.get_parent().add_child(escort)
+
+	if player.has_method("show_warning"):
+		player.show_warning("CONVOY AHEAD — take it down for loot!")
+	elif player.has_method("notify_action"):
+		player.notify_action("CONVOY AHEAD!", 1.0)
 
 ## Spawns two extra SWARM bikes flanking the lead bike.
 func _spawn_swarm_escorts(player: Node2D, lead_pos: Vector2) -> void:

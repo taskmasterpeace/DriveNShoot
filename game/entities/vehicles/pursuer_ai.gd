@@ -2,9 +2,10 @@ class_name PursuerAI
 extends VehicleEntity
 
 enum State { SEEK, RAM, BLOCK, RESET_DISTANCE }
-enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM }
+enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM, TRANSPORT }
 
 const SHOOTER_WEAPON: DataWeapon = preload("res://items/weapons/machine_gun.tres")
+const LOOT_SCENE: PackedScene = preload("res://entities/world/loot_cache.tscn")
 
 @export var behavior_type: BehaviorType = BehaviorType.RAMMER
 @export var preferred_range: float = 360.0 ## SHOOTER: distance it tries to hold from the player.
@@ -40,6 +41,12 @@ func _ready() -> void:
 		follow_distance = 130.0
 		ram_range = 220.0
 		scale = Vector2(0.7, 0.7)
+	# TRANSPORT: armored hauler that cruises the road (doesn't chase) with a big loot payload.
+	if behavior_type == BehaviorType.TRANSPORT:
+		max_hp = 320.0
+		hp = 320.0
+		base_accel = 520.0
+		scale = Vector2(1.3, 1.3)
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()
@@ -70,6 +77,9 @@ func _physics_process(delta: float) -> void:
 	super._physics_process(delta) # Handles physics movement using inputs set below
 
 func _update_state(delta: float) -> void:
+	if behavior_type == BehaviorType.TRANSPORT:
+		_transport_behavior()
+		return
 	# Calculate relative info
 	var dist_vector = player_target.global_position - global_position
 	var dist = dist_vector.length()
@@ -118,6 +128,12 @@ func _update_state(delta: float) -> void:
 			state_timer += delta
 			if state_timer > 0.8: # Short backoff
 				current_state = State.SEEK
+
+func _transport_behavior() -> void:
+	# Cruise straight ahead along its heading; the hauler doesn't chase, its escorts do.
+	input_throttle = 0.5
+	input_braking = 0.0
+	input_steering = 0.0
 
 func _shooter_behavior(dist: float, forward_dot: float) -> void:
 	# Hold preferred range: close in if far, back off if too close, coast if in the pocket.
@@ -216,6 +232,20 @@ func get_input() -> void:
 
 # Pursuer Special Death
 func _die() -> void:
+	if behavior_type == BehaviorType.TRANSPORT:
+		_drop_convoy_loot()
 	_spawn_death_explosion()
 	vehicle_destroyed.emit()
 	queue_free()
+
+## A downed transport spills a rich loot payload.
+func _drop_convoy_loot() -> void:
+	var parent: Node = get_parent()
+	if not parent:
+		return
+	for i in 3:
+		var loot = LOOT_SCENE.instantiate()
+		parent.add_child(loot)
+		loot.global_position = global_position + Vector2(randf_range(-90.0, 90.0), randf_range(-90.0, 90.0))
+		if "loot_multiplier" in loot:
+			loot.loot_multiplier = 2.5
