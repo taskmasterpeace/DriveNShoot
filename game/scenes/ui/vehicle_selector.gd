@@ -26,9 +26,9 @@ func _refresh_cards() -> void:
 	for child in container.get_children():
 		child.queue_free()
 		
-	var ids = ["balanced", "fast", "tank"]
-	var names = ["Scavenger", "Interceptor", "Behemoth"]
-	var reqs = ["Default", "Unlock: 2000 Scrap", "Unlock: 5000 Scrap"]
+	var ids = ["balanced", "bike", "fast", "tank"]
+	var names = ["Scavenger", "Nomad Bike", "Interceptor", "Behemoth"]
+	var reqs = ["Default", "Unlock: 1200 Scrap", "Unlock: 2000 Scrap", "Unlock: 5000 Scrap"]
 	
 	var gs = get_node("/root/GameState")
 	

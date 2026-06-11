@@ -65,6 +65,12 @@ func _test_economy() -> void:
 	gs.equip_weapon("shotgun")
 	_check("equip weapon", gs.equipped_weapon_id == "shotgun" and gs.get_equipped_weapon() != null)
 
+	# Vehicle unlock milestone: the bike unlocks at 1200 lifetime scrap.
+	gs.unlocked_vehicles = ["balanced"]
+	gs.lifetime_scrap = 1300
+	gs._check_unlocks()
+	_check("bike unlocks at milestone", gs.unlocked_vehicles.has("bike"))
+
 	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
 	gs.start_run()
 	gs.set_run_start_position(Vector2(10000, 0))
@@ -236,6 +242,12 @@ func _test_vehicle_systems() -> void:
 	v2.vehicle_destroyed.connect(func(): died[0] = true)
 	v2.take_damage(99999.0)
 	_check("vehicle death emits destroyed signal", died[0])
+
+	# Durability comes from the vehicle's armor rating — the bike is fragile.
+	var bike: VehicleEntity = load("res://entities/vehicles/vehicle_entity.tscn").instantiate()
+	bike.data = load("res://data/vehicles/vehicle_bike.tres")
+	add_child(bike)
+	_check("vehicle HP scales from armor (bike fragile)", bike.max_hp <= 60.0)
 
 ## Type-specific loot: scrap pickup banks scrap; every kind opens without error.
 func _test_loot_effects() -> void:

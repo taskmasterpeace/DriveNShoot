@@ -50,10 +50,11 @@ var extraction_count: int = 0 ## Successful extractions — drives the escalatin
 ## enemies and a sooner boss. Resets nothing — it's permanent meta-progression.
 func get_threat_level() -> int:
 	return mini(extraction_count, 10)
-var unlocked_vehicles: Array[String] = ["balanced"]
+var unlocked_vehicles: Array = ["balanced"] ## Untyped so ConfigFile load / array assignment doesn't fail typed coercion.
 var selected_vehicle_id: String = "balanced"
 
 # Unlock Milestones
+const UNLOCK_MILESTONE_BIKE = 1200
 const UNLOCK_MILESTONE_FAST = 2000
 const UNLOCK_MILESTONE_TANK = 5000
 
@@ -69,6 +70,7 @@ const HEAT_GAIN_CRASH = 5
 # Vehicle Resources
 const VEHICLE_DATA = {
 	"balanced": "res://data/vehicles/vehicle_balanced.tres",
+	"bike": "res://data/vehicles/vehicle_bike.tres",
 	"fast": "res://data/vehicles/vehicle_fast.tres",
 	"tank": "res://data/vehicles/vehicle_tank.tres"
 }
@@ -232,6 +234,10 @@ func add_scrap(amount: int, source: String = "Loot") -> void:
 	_check_unlocks()
 
 func _check_unlocks() -> void:
+	if lifetime_scrap >= UNLOCK_MILESTONE_BIKE and not unlocked_vehicles.has("bike"):
+		unlocked_vehicles.append("bike")
+		vehicle_unlocked.emit("bike")
+
 	if lifetime_scrap >= UNLOCK_MILESTONE_FAST and not unlocked_vehicles.has("fast"):
 		unlocked_vehicles.append("fast")
 		vehicle_unlocked.emit("fast")

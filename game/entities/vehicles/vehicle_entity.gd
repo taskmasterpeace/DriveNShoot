@@ -90,6 +90,12 @@ func load_data(_data: DataVehicle) -> void:
 	traction_fast = data.traction_slip
 	traction_slow = data.traction_grip
 
+	# Durability now comes from the vehicle's armor rating (tanks tanky, bikes fragile).
+	if data.max_armor > 0:
+		max_hp = float(data.max_armor)
+		hp = max_hp
+		health_changed.emit(hp, max_hp)
+
 const PIXELS_PER_MPH: float = 30.0
 
 func _physics_process(delta: float) -> void:
