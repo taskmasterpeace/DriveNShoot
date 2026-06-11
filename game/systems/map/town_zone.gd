@@ -42,8 +42,12 @@ func _decorate() -> void:
 
 	_spawn_npc("Mechanic", "res://entities/npcs/sprites/npc_mechanic.png", Vector2(180, -120),
 		["Engine trouble? The garage'll patch you up.", "Keep that armor topped off out there."])
-	_spawn_npc("Trader", "res://entities/npcs/sprites/npc_trader.png", Vector2(-180, -120),
+	var trader = _spawn_npc("Trader", "res://entities/npcs/sprites/npc_trader.png", Vector2(-180, -120),
 		["Scrap buys upgrades and guns. Bring me plenty.", "Word is the Road Captain runs the deep lanes."])
+	if trader:
+		# Branching DialogueManager conversation (falls back to the flavor lines above if unavailable).
+		trader.dialogue_path = "res://dialogues/trader.dialogue"
+		trader.dialogue_title = "trader"
 	# Contract-giver (the mission board): hands out a bounty you fulfil out on the road.
 	var captain = _spawn_npc("Captain Vale", "res://entities/npcs/sprites/npc_guard.png", Vector2(0, -300),
 		["The Deathlands are crawling. I pay for thinned herds."])

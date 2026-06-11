@@ -253,6 +253,11 @@ func _test_ui_scenes() -> void:
 				has_mp_handler = true
 	_check("start screen has multiplayer handler", has_mp_handler)
 
+	# DialogueManager branching conversation for the Trader compiles + loads as a DialogueResource.
+	var dlg = load("res://dialogues/trader.dialogue")
+	_check("trader dialogue resource loads", dlg != null and "titles" in dlg)
+	_check("trader dialogue has 'trader' title", dlg != null and dlg.titles.has("trader"))
+
 	# Town zone should spawn a starting vehicle on load.
 	var town_scene: PackedScene = load("res://systems/map/town_zone.tscn")
 	if town_scene:

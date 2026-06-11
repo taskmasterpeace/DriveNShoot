@@ -9,6 +9,11 @@ extends StaticBody2D
 var lines: Array = ["..."]
 var _line_idx: int = 0
 
+## Optional DialogueManager branching conversation. When set (and the addon + resource load),
+## talking opens a real choice-driven dialogue balloon; otherwise we fall back to cycling lines.
+var dialogue_path: String = ""
+var dialogue_title: String = ""
+
 ## When true, this NPC runs the town mission board: it hands out a bounty contract
 ## ("wreck N pursuers") and reports progress / pays out on follow-up talks.
 var gives_contract: bool = false
@@ -42,6 +47,8 @@ func interact_with(player: Node) -> void:
 	if gives_contract:
 		_handle_contract(player)
 		return
+	if dialogue_path != "" and _try_show_dialogue():
+		return
 	if lines.is_empty():
 		return
 	var line: String = lines[_line_idx % lines.size()]
@@ -52,6 +59,18 @@ func interact_with(player: Node) -> void:
 	elif player and player.has_method("show_warning"):
 		player.show_warning(text)
 	print(text)
+
+## Open a DialogueManager balloon for this NPC. Returns false (so we fall back to flavor lines)
+## if the addon is missing or the resource can't load — e.g. in a headless context.
+func _try_show_dialogue() -> bool:
+	var dm := get_node_or_null("/root/DialogueManager")
+	if not dm:
+		return false
+	var res = load(dialogue_path)
+	if not res:
+		return false
+	dm.show_dialogue_balloon(res, dialogue_title)
+	return true
 
 ## Mission board: offer a bounty, report progress, and acknowledge completion on follow-up talks.
 func _handle_contract(player: Node) -> void:

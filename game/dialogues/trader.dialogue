@@ -1,0 +1,18 @@
+~ trader
+
+Trader: Scrap's the only currency that matters out here. What do you need?
+- Tell me about the Deathlands
+	Trader: Lawless roads all the way to the horizon. The deeper you push, the meaner it gets.
+	Trader: Raiders, road captains, things that used to be people. Bring back scrap and I'll keep you rolling.
+	=> trader
+- Any work going?
+	Trader: Talk to Captain Vale by the tower. She pays bounties for thinning the herds.
+	=> trader
+- Who runs the deep lanes?
+	Trader: The Road Captain. Armored to the teeth and twice as mean. Wreck him and you'll eat for a month.
+	=> trader
+- Just browsing
+	Trader: Suit yourself. Scrap doesn't spend itself.
+	=> END
+
+=> END
