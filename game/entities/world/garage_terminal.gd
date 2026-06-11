@@ -19,8 +19,7 @@ func get_interaction_text() -> String:
 	return "Open Garage"
 
 func open_menu() -> void:
-    # We want a main menu for the garage now? Or just tab between Upgrades and Vehicles?
-    # For now, let's keep it simple: Upgrade Menu is default, maybe add a button THERE to switch?
-    # OR: Just open Upgrade Menu, and I'll add a "VEHICLES" button to the Upgrade Menu.
+	# Keep it simple: the Upgrade Menu is the garage's main screen and hosts the
+	# button to switch to vehicle selection.
 	if menu_instance:
 		menu_instance.open()

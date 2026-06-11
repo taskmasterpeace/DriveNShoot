@@ -35,7 +35,7 @@ func spawn_vehicle() -> void:
 	# Waiting for driver.
 
 func _on_gate_entered(body: Node2D) -> void:
-    if body.is_in_group("player"):
-        print("Player entered Start Gate -> triggering run.")
-        if has_node("/root/GameState"):
-            get_node("/root/GameState").start_run()
+	if body.is_in_group("player"):
+		print("Player entered Start Gate -> triggering run.")
+		if has_node("/root/GameState"):
+			get_node("/root/GameState").start_run()
