@@ -164,6 +164,22 @@ theme_override_font_sizes/font_size = 24
 text = "Scrap: 0"
 horizontal_alignment = 2
 
+[node name="ContractLabel" type="Label" parent="Control"]
+visible = false
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -260.0
+offset_top = 100.0
+offset_right = -20.0
+offset_bottom = 132.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 22
+text = "Bounty: 0/0"
+horizontal_alignment = 2
+
 [node name="HeatLabel" type="Label" parent="Control"]
 layout_mode = 1
 anchors_preset = 1

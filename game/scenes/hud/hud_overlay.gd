@@ -32,6 +32,8 @@ func setup(stats: SurvivalStats, weapons: WeaponSystem) -> void:
 		gs.distance_updated.connect(func(m): if miles_label: miles_label.text = "%.1f mi" % m)
 		gs.heat_changed.connect(_on_heat_changed)
 		gs.scrap_changed.connect(_on_scrap_changed)
+		gs.contract_changed.connect(_on_contract_changed)
+		_on_contract_changed(gs.active_contract) # reflect any contract already in progress
 	
 	if survival_stats:
 		survival_stats.stat_changed.connect(_on_stat_changed)
@@ -117,6 +119,22 @@ func _on_scrap_changed(delta: int, total: int) -> void:
 		label.text = "Scrap: %d  (+%d at risk)" % [total, total - gs.run_start_scrap]
 	else:
 		label.text = "Scrap: %d" % total
+
+## Persistent objective tracker for the town mission board. Hidden when no bounty is active.
+func _on_contract_changed(contract: Dictionary) -> void:
+	if not has_node("Control/ContractLabel"):
+		return
+	var label: Label = get_node("Control/ContractLabel")
+	if contract.is_empty():
+		label.visible = false
+		return
+	label.visible = true
+	if contract.get("done", false):
+		label.text = "Bounty done! Collect reward"
+		label.modulate = Color(0.4, 1.0, 0.4) # green = ready to collect
+	else:
+		label.text = "Bounty: %d/%d pursuers" % [contract.get("progress", 0), contract.get("target", 0)]
+		label.modulate = Color(1, 1, 1)
 
 func _on_player_action_updated(text: String, progress: float) -> void:
 	if not action_panel: return

@@ -235,6 +235,14 @@ func _test_ui_scenes() -> void:
 		holder.add_child(inst)
 		_check("instantiates " + path.get_file(), is_instance_valid(inst))
 
+		# HUD contract tracker shows/hides with the active bounty.
+		if path.ends_with("hud_overlay.tscn") and inst.has_method("_on_contract_changed"):
+			var clabel := inst.get_node_or_null("Control/ContractLabel")
+			inst._on_contract_changed({"kind": "kills", "target": 3, "progress": 1, "reward": 60, "done": false})
+			_check("HUD shows bounty tracker", clabel != null and clabel.visible and clabel.text.contains("1/3"))
+			inst._on_contract_changed({})
+			_check("HUD hides tracker with no bounty", clabel != null and not clabel.visible)
+
 	# Town zone should spawn a starting vehicle on load.
 	var town_scene: PackedScene = load("res://systems/map/town_zone.tscn")
 	if town_scene:
@@ -245,7 +253,12 @@ func _test_ui_scenes() -> void:
 		for c in town.get_children():
 			if c.has_method("interact_with") and "npc_name" in c:
 				npc_count += 1
-		_check("town has talkable NPCs", npc_count >= 2)
+		_check("town has talkable NPCs", npc_count >= 3)
+		var has_contract_giver: bool = false
+		for c in town.get_children():
+			if "gives_contract" in c and c.gives_contract:
+				has_contract_giver = true
+		_check("town has a contract-giver (mission board)", has_contract_giver)
 
 ## Breakdown/repair and the vehicle death path (destroyed signal + death explosion).
 func _test_vehicle_systems() -> void:
