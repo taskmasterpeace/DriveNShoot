@@ -239,12 +239,18 @@ func apply_input() -> void:
 	steer_direction = input_steering * deg_to_rad(steering_angle) * steer_factor
 	_handbrake = input_handbrake
 
-	# Apply throttle only if below max speed
+	# Throttle: build speed up to the cap.
 	if input_throttle > 0:
 		if _current_speed < max_speed:
 			acceleration = transform.x * engine_power * input_throttle
 	elif input_braking > 0:
-		acceleration = transform.x * -engine_power * input_braking * 0.5
+		# Brakes vs reverse: while rolling forward, brake hard against the direction of travel
+		# (punchy, uses the vehicle's braking stat). Once stopped, the brake becomes reverse.
+		var forward_vel: float = velocity.dot(transform.x)
+		if forward_vel > 40.0:
+			acceleration = -velocity.normalized() * absf(braking) * input_braking
+		elif _current_speed < max_speed_reverse:
+			acceleration = transform.x * -engine_power * input_braking * 0.55
 
 func apply_friction(delta: float) -> void:
 	# Stop cleanly at very low speed to prevent sliding/vibration
