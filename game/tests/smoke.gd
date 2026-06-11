@@ -189,6 +189,13 @@ func _test_ui_scenes() -> void:
 		holder.add_child(inst)
 		_check("instantiates " + path.get_file(), is_instance_valid(inst))
 
+	# Town zone should spawn a starting vehicle on load.
+	var town_scene: PackedScene = load("res://systems/map/town_zone.tscn")
+	if town_scene:
+		var town: Node = town_scene.instantiate()
+		holder.add_child(town)
+		_check("town spawns a vehicle", town.current_vehicle != null)
+
 func _check(label: String, cond: bool) -> void:
 	_results.append(("PASS " if cond else "FAIL ") + label)
 

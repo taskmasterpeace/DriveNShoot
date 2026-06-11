@@ -17,7 +17,10 @@ func _ready() -> void:
 		
 	spawn_vehicle()
 	if has_node("/root/GameState"):
-		get_node("/root/GameState").vehicle_selected.connect(func(_id): spawn_vehicle())
+		var gs := get_node("/root/GameState")
+		gs.vehicle_selected.connect(func(_id): spawn_vehicle())
+		# Respawn a fresh town vehicle whenever the player returns to town after a run.
+		gs.state_changed.connect(func(s): if s == 0: spawn_vehicle()) # 0 = TOWN
 
 func spawn_vehicle() -> void:
 	if current_vehicle:
