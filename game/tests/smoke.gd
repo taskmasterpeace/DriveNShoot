@@ -155,6 +155,7 @@ func _process(_delta: float) -> void:
 		_did_encounter_test = true
 		_test_encounter_spawn()
 		_test_ui_scenes()
+		_test_vehicle_systems()
 	if _frame == 40 and is_instance_valid(_vehicle):
 		# Projectiles should have been created and parented to the tree root.
 		_check("vehicle still valid mid-run", _vehicle.hp > 0)
@@ -195,6 +196,23 @@ func _test_ui_scenes() -> void:
 		var town: Node = town_scene.instantiate()
 		holder.add_child(town)
 		_check("town spawns a vehicle", town.current_vehicle != null)
+
+## Breakdown/repair and the vehicle death path (destroyed signal + death explosion).
+func _test_vehicle_systems() -> void:
+	if is_instance_valid(_vehicle):
+		var power_before: float = _vehicle.engine_power
+		_vehicle.break_down()
+		_check("vehicle breaks down (power drops)", _vehicle.is_broken and _vehicle.engine_power < power_before)
+		_vehicle.repair()
+		_check("vehicle repairs (power restored)", not _vehicle.is_broken and _vehicle.engine_power >= power_before)
+
+	var died: Array = [false]
+	var v2: VehicleEntity = load("res://entities/vehicles/vehicle_entity.tscn").instantiate()
+	v2.data = load("res://data/vehicles/vehicle_balanced.tres")
+	add_child(v2)
+	v2.vehicle_destroyed.connect(func(): died[0] = true)
+	v2.take_damage(99999.0)
+	_check("vehicle death emits destroyed signal", died[0])
 
 func _check(label: String, cond: bool) -> void:
 	_results.append(("PASS " if cond else "FAIL ") + label)
