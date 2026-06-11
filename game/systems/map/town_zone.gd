@@ -9,6 +9,7 @@ extends Node2D
 @onready var start_gate = $StartGate
 
 const VEHICLE_SCENE = preload("res://entities/vehicles/vehicle_entity.tscn")
+const NPC_SCRIPT = preload("res://entities/npcs/town_npc.gd")
 var current_vehicle: Node2D = null
 
 func _ready() -> void:
@@ -21,6 +22,46 @@ func _ready() -> void:
 		gs.vehicle_selected.connect(func(_id): spawn_vehicle())
 		# Respawn a fresh town vehicle whenever the player returns to town after a run.
 		gs.state_changed.connect(func(s): if s == 0: spawn_vehicle()) # 0 = TOWN
+
+	_decorate()
+
+## Populates the town with buildings, props, and talkable NPCs for visual life.
+func _decorate() -> void:
+	var buildings := [
+		["building_garage", Vector2(280, -160)],
+		["building_shop", Vector2(-320, -150)],
+		["building_gas_station", Vector2(360, 180)],
+		["building_bunker", Vector2(-360, 220)],
+		["building_guard_tower", Vector2(0, -470)],
+	]
+	for b in buildings:
+		var spr := Sprite2D.new()
+		spr.texture = load("res://entities/world/sprites/%s.png" % b[0])
+		spr.position = b[1]
+		spr.z_index = -2
+		add_child(spr)
+
+	for bp in [Vector2(-460, 0), Vector2(460, -60)]:
+		var bar := Sprite2D.new()
+		bar.texture = load("res://entities/world/sprites/prop_barricade.png")
+		bar.position = bp
+		bar.z_index = -1
+		add_child(bar)
+
+	_spawn_npc("Mechanic", "res://entities/npcs/sprites/npc_mechanic.png", Vector2(180, -120),
+		["Engine trouble? The garage'll patch you up.", "Keep that armor topped off out there."])
+	_spawn_npc("Trader", "res://entities/npcs/sprites/npc_trader.png", Vector2(-180, -120),
+		["Scrap buys upgrades and guns. Bring me plenty.", "Word is the Road Captain runs the deep lanes."])
+
+func _spawn_npc(npc_name: String, tex_path: String, pos: Vector2, lines: Array) -> void:
+	var npc = NPC_SCRIPT.new()
+	npc.npc_name = npc_name
+	npc.lines = lines
+	npc.position = pos
+	var spr := Sprite2D.new()
+	spr.texture = load(tex_path)
+	npc.add_child(spr)
+	add_child(npc)
 
 func spawn_vehicle() -> void:
 	if current_vehicle:

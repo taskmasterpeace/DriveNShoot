@@ -225,6 +225,11 @@ func _test_ui_scenes() -> void:
 		var town: Node = town_scene.instantiate()
 		holder.add_child(town)
 		_check("town spawns a vehicle", town.current_vehicle != null)
+		var npc_count: int = 0
+		for c in town.get_children():
+			if c.has_method("interact_with") and "npc_name" in c:
+				npc_count += 1
+		_check("town has talkable NPCs", npc_count >= 2)
 
 ## Breakdown/repair and the vehicle death path (destroyed signal + death explosion).
 func _test_vehicle_systems() -> void:
