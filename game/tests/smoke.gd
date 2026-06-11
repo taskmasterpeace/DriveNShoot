@@ -7,6 +7,7 @@ extends Node2D
 var _frame: int = 0
 var _results: Array[String] = []
 var _vehicle: VehicleEntity
+var _did_encounter_test: bool = false
 
 func _ready() -> void:
 	_test_economy()
@@ -137,11 +138,27 @@ func _spawn_world() -> void:
 
 func _process(_delta: float) -> void:
 	_frame += 1
+	# Run the encounter-director spawn test after _ready (so current_scene isn't busy).
+	if _frame == 5 and not _did_encounter_test:
+		_did_encounter_test = true
+		_test_encounter_spawn()
 	if _frame == 40 and is_instance_valid(_vehicle):
 		# Projectiles should have been created and parented to the tree root.
 		_check("vehicle still valid mid-run", _vehicle.hp > 0)
 	if _frame >= 80:
 		_finish()
+
+## Verifies the encounter director's spawn path tracks the active vehicle and parents into the
+## world without error. Run from _process so current_scene isn't mid-setup.
+func _test_encounter_spawn() -> void:
+	var dir: Node = load("res://systems/encounter_director.gd").new()
+	add_child(dir)
+	if is_instance_valid(_vehicle):
+		_vehicle.is_active = true # make _tracked_node pick the vehicle
+	var before: int = get_tree().get_nodes_in_group("enemy").size()
+	dir.spawn_pursuer()
+	var after: int = get_tree().get_nodes_in_group("enemy").size()
+	_check("encounter director spawns enemies", after > before)
 
 func _check(label: String, cond: bool) -> void:
 	_results.append(("PASS " if cond else "FAIL ") + label)
