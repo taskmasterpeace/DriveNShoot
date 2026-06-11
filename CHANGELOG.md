@@ -1,5 +1,30 @@
 # CarWorld Changelog
 
+## 2026-06-11 — Multiplayer netcode + GTA2 driving overhaul
+
+**Multiplayer (server-authoritative, built + verified headlessly via `tools/net_test.sh`):**
+- `NetworkManager` autoload: host/join over ENet (32 max), server-authoritative player roster,
+  spawn handshake, client→server input replication, and automatic ~20 Hz server→client state sync.
+- `VehicleEntity.network_peer_id`: the server drives each networked vehicle from the controlling
+  peer's replicated input; clients interpolate to the synced state. The host drives its own car
+  locally. Single-player path completely unchanged.
+- **Playable arena** (`scenes/mp/mp_arena.tscn`): launch two instances, **H** to host / **J** to
+  join 127.0.0.1, and drive together. The whole loop (input → server sim → state sync → render)
+  is verified cross-process.
+- The hard part of 32-player multiplayer is done at the protocol/entity level; remaining is scene
+  integration (a `MultiplayerSpawner` in the main world + a host/join menu). See `docs/MULTIPLAYER_PLAN.md`.
+
+**Driving feel (GTA2 arcade):**
+- Punchy, distinct braking that decelerates hard against travel direction using each vehicle's
+  brake stat (then reverses once stopped) — the brake stat was previously ignored.
+- Tuned for momentum: more coast/glide, handbrake power-slides that keep speed, drift that kicks
+  in sooner. Per-vehicle character: grippy Behemoth, balanced Scavenger, loose Interceptor/Bike.
+- **Skid marks**: fading tire trails laid down while sliding sideways or handbraking at speed.
+- Vehicle durability now comes from armor (Behemoth tanks, Bike is fragile); HP was previously
+  identical across all vehicles.
+
+
+
 ## 2026-06-11 — Hardening & ecosystem completion (Phase 7.5, in-editor verified)
 
 The project was opened in Godot 4.5 and is now verified to compile, boot, and run. A headless

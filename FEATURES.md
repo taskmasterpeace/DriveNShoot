@@ -97,3 +97,25 @@ driving. The minimap (top-right) shows the hostiles.
 Open `scenes/levels/world.tscn` (repaired this build). Spawn in town, enter the town's vehicle,
 drive through the start gate to begin a run down the wasteland road, fight pursuers, loot ruins
 on foot, and Hold X to extract.
+
+## 14. Driving Feel (GTA2 arcade — 2026-06-11)
+*   **Acceleration**: throttle applies engine force; velocity-squared drag gives a natural speed curve.
+*   **Momentum / coasting**: release the gas and friction + drag bleed speed off with real weight.
+*   **Brakes**: punchy deceleration against the direction of travel (uses each car's brake stat),
+    distinct from reverse (which engages only once stopped).
+*   **Skidding / drift**: traction drops at high speed and the handbrake (Space) cuts traction for
+    dramatic power-slides; **fading skid marks** are laid down while you slide.
+*   **Per-vehicle handling**: grippy Behemoth → balanced Scavenger → loose Interceptor/Bike. Vehicle
+    HP now scales from armor (the Behemoth tanks; the Bike is a glass cannon).
+
+## 15. Multiplayer (server-authoritative, foundation — 2026-06-11)
+*   **Netcode complete & tested**: host/join over ENet (up to 32), player roster, spawn handshake,
+    client→server input replication, and automatic ~20 Hz server→client state sync. Verified
+    cross-process by `tools/net_test.sh`.
+*   **Playable arena** (`scenes/mp/mp_arena.tscn`): launch two game instances, press **H** to host or
+    **J** to join (127.0.0.1), and drive together — the server simulates, clients render.
+*   Single-player is entirely unaffected. Remaining: a spawner in the main world + host/join menu.
+
+### Automated test harness
+*   `tools/smoke_test.sh` — 36 system/economy smoke checks + a 6-check full-run integration sim.
+*   `tools/net_test.sh` — cross-process multiplayer connection/sync test.
