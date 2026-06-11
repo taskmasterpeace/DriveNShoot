@@ -1,7 +1,7 @@
 class_name PursuerAI
 extends VehicleEntity
 
-enum State { SEEK, RAM, BLOCK, RESET_DISTANCE }
+enum AIState { SEEK, RAM, BLOCK, RESET_DISTANCE }
 enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM, TRANSPORT }
 
 const SHOOTER_WEAPON: DataWeapon = preload("res://items/weapons/machine_gun.tres")
@@ -11,7 +11,7 @@ const LOOT_SCENE: PackedScene = preload("res://entities/world/loot_cache.tscn")
 @export var preferred_range: float = 360.0 ## SHOOTER: distance it tries to hold from the player.
 @export var fire_cone_degrees: float = 22.0 ## SHOOTER: fires only when roughly facing the player.
 
-var current_state: State = State.SEEK
+var current_state: AIState = AIState.SEEK
 
 var player_target: Node2D
 var follow_distance: float = 260.0
@@ -92,42 +92,42 @@ func _update_state(delta: float) -> void:
 		stickiness_timer = max(0.0, stickiness_timer - delta)
 		
 	if stickiness_timer > 2.5:
-		current_state = State.RESET_DISTANCE
+		current_state = AIState.RESET_DISTANCE
 		stickiness_timer = 0.0
 
-	# State Machine
+	# AIState Machine
 	match current_state:
-		State.SEEK:
+		AIState.SEEK:
 			if behavior_type == BehaviorType.BLOCKER:
 				_seek_block_position(dist_vector)
 				# If we are ahead of player and in lane, switch to BLOCK
 				if forward_dot < -0.5 and dist < 600.0: # Behind us
-					current_state = State.BLOCK
+					current_state = AIState.BLOCK
 			elif behavior_type == BehaviorType.SHOOTER:
 				_shooter_behavior(dist, forward_dot)
 			else:
 				_seek_behavior(dist_vector)
 				if dist < ram_range and forward_dot > 0.5: # Facing player and close
-					current_state = State.RAM
+					current_state = AIState.RAM
 					state_timer = 0.0
 		
-		State.BLOCK:
+		AIState.BLOCK:
 			_block_behavior(dist_vector)
 			# If player gets ahead, switch to SEEK
 			if forward_dot > 0.0:
-				current_state = State.SEEK
+				current_state = AIState.SEEK
 				
-		State.RAM:
+		AIState.RAM:
 			_ram_behavior(dist_vector)
 			state_timer += delta
 			if state_timer > ram_duration:
-				current_state = State.SEEK
+				current_state = AIState.SEEK
 				
-		State.RESET_DISTANCE:
+		AIState.RESET_DISTANCE:
 			_reset_behavior()
 			state_timer += delta
 			if state_timer > 0.8: # Short backoff
-				current_state = State.SEEK
+				current_state = AIState.SEEK
 
 func _transport_behavior() -> void:
 	# Cruise straight ahead along its heading; the hauler doesn't chase, its escorts do.
