@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://deathlands_world_001"]
+[gd_scene load_steps=9 format=3 uid="uid://deathlands_world_001"]
 
 [ext_resource type="Script" path="res://systems/map/road_manager.gd" id="1_road"]
 [ext_resource type="Script" path="res://systems/encounter_director.gd" id="2_enc"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dfxvfxqwdnh48" path="res://entities/player/player.tscn" id="5_player"]
 [ext_resource type="PackedScene" uid="uid://help_overlay" path="res://scenes/ui/help_overlay.tscn" id="6_help"]
 [ext_resource type="PackedScene" path="res://scenes/ui/run_summary.tscn" id="7_summary"]
+[ext_resource type="Script" path="res://scenes/hud/minimap.gd" id="8_minimap"]
 
 [node name="World" type="Node2D"]
 
@@ -28,3 +29,8 @@ position = Vector2(0, 0)
 
 [node name="Player" parent="." instance=ExtResource("5_player") groups=["player"]]
 position = Vector2(512, 512)
+
+[node name="MinimapLayer" type="CanvasLayer" parent="."]
+
+[node name="Minimap" type="Control" parent="MinimapLayer"]
+script = ExtResource("8_minimap")
