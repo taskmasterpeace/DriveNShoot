@@ -11,6 +11,7 @@ var _gs
 var _results: Array[String] = []
 var _snap: Dictionary = {}
 var _done: bool = false
+var _ed: Node
 
 func _ready() -> void:
 	_gs = get_node_or_null("/root/GameState")
@@ -42,11 +43,12 @@ func _ready() -> void:
 
 	# Systems.
 	add_child(load("res://systems/map/road_manager.gd").new())
-	add_child(load("res://systems/encounter_director.gd").new())
+	_ed = load("res://systems/encounter_director.gd").new()
+	add_child(_ed)
 
-	# Start the run; bump heat so encounters become eligible quickly.
+	# Start the run; bump heat past the boss threshold so a full hot run is exercised.
 	_gs.start_run()
-	_gs.add_heat(30, "sim")
+	_gs.add_heat(55, "sim")
 
 func _process(_delta: float) -> void:
 	if _done:
@@ -66,6 +68,8 @@ func _finish() -> void:
 		_check("encounters spawned during run", get_tree().get_nodes_in_group("enemy").size() > 0)
 		# Outrun pursuers despawn, so the count stays bounded even over a long drive.
 		_check("enemy count stays bounded", get_tree().get_nodes_in_group("enemy").size() < 50)
+		# The Road Captain boss triggers in a hot run.
+		_check("boss triggered at high heat", is_instance_valid(_ed) and _ed.boss_spawned_this_run)
 		if is_instance_valid(_vehicle):
 			_vehicle.input_throttle = 0.0
 		_gs.extract()
