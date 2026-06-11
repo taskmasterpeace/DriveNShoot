@@ -35,7 +35,12 @@ func setup(miles: float, best: float, scrap_gain: int, cause: String = "Extracte
 		title_label.text = "RUN FAILED"
 		title_label.modulate = Color(1.0, 0.4, 0.4)
 		cause_label.text = "Killed by: %s" % cause
-		
+
+	# Surface the escalating threat level so the meta-progression is visible.
+	var gs = get_node_or_null("/root/GameState")
+	if gs:
+		cause_label.text += "   ·   Threat Lv %d" % gs.get_threat_level()
+
 	visible = true
 	get_tree().paused = true
 
