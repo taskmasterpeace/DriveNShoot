@@ -63,6 +63,8 @@ func _ready() -> void:
 	collision_layer = 1 # Car Layer
 	collision_mask = 1 + 2 + (1 << 7) # Car + World + rough_terrain (blocked from foot-only ruins)
 
+@export var despawn_distance: float = 4500.0 ## Far behind the player, despawn to keep counts bounded.
+
 func _physics_process(delta: float) -> void:
 	if not player_target:
 		# Try find player repeatedly or despawn?
@@ -72,8 +74,13 @@ func _physics_process(delta: float) -> void:
 		else:
 			return
 			
+	# Outrun pursuers eventually despawn so entity counts stay bounded over a long run.
+	if global_position.distance_to(player_target.global_position) > despawn_distance:
+		queue_free()
+		return
+
 	_update_state(delta)
-	
+
 	super._physics_process(delta) # Handles physics movement using inputs set below
 
 func _update_state(delta: float) -> void:

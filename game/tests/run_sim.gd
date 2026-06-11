@@ -64,6 +64,8 @@ func _finish() -> void:
 		_check("run reached RUN state", _gs.current_state == 1)
 		_check("distance accrued while driving", _gs.current_run_miles > 0.15)
 		_check("encounters spawned during run", get_tree().get_nodes_in_group("enemy").size() > 0)
+		# Outrun pursuers despawn, so the count stays bounded even over a long drive.
+		_check("enemy count stays bounded", get_tree().get_nodes_in_group("enemy").size() < 50)
 		if is_instance_valid(_vehicle):
 			_vehicle.input_throttle = 0.0
 		_gs.extract()
