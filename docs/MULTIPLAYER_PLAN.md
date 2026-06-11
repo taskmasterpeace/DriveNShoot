@@ -10,12 +10,17 @@ verifies (launching a real headless server + client) the full server-authoritati
 - **Input replication**: client `send_input` → server `submit_input` RPC stores per-peer input. ✓
 - **State sync**: server `broadcast_state` → client `receive_state` RPC applies the snapshot. ✓
 
-What remains is INTEGRATION (needs the editor for scene nodes / multi-instance visual test):
-- Wire `VehicleEntity`/`PlayerEntity` to read `NetworkManager.get_input_for(peer)` on the server
-  and apply `remote_states` on clients (interpolate using synced velocity).
-- Add a `MultiplayerSpawner` under the world to spawn a player node per peer at a town spawn.
+Also DONE (entity-level, verified cross-process by net_test):
+- `VehicleEntity.network_peer_id`: server drives networked vehicles from `get_input_for(peer)`;
+  clients interpolate to `remote_states` (owning client forwards local input). ✓
+- Server **auto-broadcasts** all networked vehicle states each ~3 frames (`NetworkManager._physics_process`). ✓
+
+The server-authoritative netcode is functionally COMPLETE and self-running. Remaining is SCENE
+INTEGRATION (needs the editor for scene nodes + multi-instance visual test):
+- Add a `MultiplayerSpawner` under the world to spawn a player vehicle per peer at a town spawn,
+  setting each one's `network_peer_id`.
+- Main-menu host/join flow + connecting it to load the world.
 - Per-peer persistence + interest management (reuse RoadManager region streaming) for 32-scale.
-- Main menu host/join flow.
 
 ---
 
