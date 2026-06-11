@@ -9,7 +9,58 @@ var _results: Array[String] = []
 var _vehicle: VehicleEntity
 
 func _ready() -> void:
+	_test_economy()
 	_spawn_world()
+
+## Exercises the town->run->extract->upgrade economy backbone. Snapshots and restores GameState
+## so it leaves the real save profile untouched.
+func _test_economy() -> void:
+	var gs = get_node_or_null("/root/GameState")
+	if not gs:
+		_check("GameState autoload present", false)
+		return
+	_check("GameState autoload present", true)
+
+	var snap := {
+		"scrap": gs.scrap, "lifetime": gs.lifetime_scrap, "armor": gs.armor_tier,
+		"kits": gs.kits_tier, "rel": gs.reliability_tier, "state": gs.current_state,
+		"miles": gs.current_run_miles, "best": gs.best_miles,
+		"unlocked": gs.unlocked_vehicles.duplicate(),
+	}
+
+	# Death forfeits scrap earned this run.
+	gs.scrap = 100
+	gs.start_run()
+	gs.add_scrap(50, "test")
+	_check("scrap rises during run", gs.scrap == 150)
+	gs.fail_run("Wrecked")
+	_check("death forfeits run scrap", gs.scrap == 100)
+
+	# Extraction banks scrap earned this run.
+	gs.return_to_town()
+	gs.start_run()
+	gs.add_scrap(40, "test")
+	gs.extract()
+	_check("extraction banks scrap", gs.scrap == 140)
+	gs.return_to_town()
+
+	# Buying an upgrade spends scrap and raises the tier.
+	gs.armor_tier = 0
+	gs.scrap = 100
+	var bought: bool = gs.try_buy_upgrade("armor")
+	_check("upgrade spends scrap + raises tier", bought and gs.armor_tier == 1 and gs.scrap == 85)
+
+	# Restore the real profile.
+	gs.scrap = snap.scrap
+	gs.lifetime_scrap = snap.lifetime
+	gs.armor_tier = snap.armor
+	gs.kits_tier = snap.kits
+	gs.reliability_tier = snap.rel
+	gs.current_state = snap.state
+	gs.current_run_miles = snap.miles
+	gs.best_miles = snap.best
+	gs.unlocked_vehicles = snap.unlocked
+	gs.save_profile()
 
 func _spawn_world() -> void:
 	# Player stand-in so AI / minimap can find a target.

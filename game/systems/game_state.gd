@@ -114,21 +114,33 @@ func fail_run(cause: String) -> void:
 func _end_run(cause: String) -> void:
 	current_state = RunPhase.EXTRACT # Or FAILED state? Keeping simple for now
 	state_changed.emit(RunPhase.EXTRACT)
-	
+
+	# Extract or Die: scrap earned this run is only banked on a successful extraction.
+	# Die in the Deathlands and you forfeit it (lifetime progress / unlocks are kept).
+	var earned: int = scrap - run_start_scrap
+	var banked: int = earned
+	if cause != "Extracted":
+		if earned > 0:
+			scrap = run_start_scrap
+			scrap_changed.emit(-earned, scrap)
+		banked = 0
+
 	if current_run_miles > best_miles and cause == "Extracted":
 		best_miles = current_run_miles
 		best_miles_changed.emit(best_miles)
-		
+
 	var results = {
 		"miles": current_run_miles,
 		"best": best_miles,
-		"scrap_delta": scrap - run_start_scrap,
+		"scrap_earned": earned,
+		"scrap_banked": banked,
+		"scrap_delta": banked,
 		"cause": cause
 	}
-	
+
 	run_ended.emit(current_run_miles) # Legacy support if needed
 	run_finished.emit(results)
-	
+
 	save_profile()
 	# Do NOT auto return to town. UI will handle it.
 
