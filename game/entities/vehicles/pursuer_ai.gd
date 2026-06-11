@@ -57,6 +57,14 @@ func _ready() -> void:
 		scale = Vector2(1.45, 1.45)
 		modulate = Color(1.2, 0.85, 0.85) # menacing tint
 		mount_weapon(BOSS_WEAPON, 0, 1)
+
+	# Threat escalation: each successful extraction makes pursuers tougher.
+	if has_node("/root/GameState"):
+		var threat: int = get_node("/root/GameState").get_threat_level()
+		if threat > 0:
+			var hp_scale: float = 1.0 + float(threat) * 0.12
+			max_hp *= hp_scale
+			hp = max_hp
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()

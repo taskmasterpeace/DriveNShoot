@@ -104,7 +104,8 @@ func _on_distance_updated(miles: float) -> void:
 	if not gs: return
 	var heat: int = gs.current_heat
 	if heat < 15: return # short grace period at the start of a run
-	var interval: float = clampf(base_encounter_interval - float(heat) * 0.008, 0.25, base_encounter_interval)
+	var threat: int = gs.get_threat_level()
+	var interval: float = clampf(base_encounter_interval - float(heat) * 0.008 - float(threat) * 0.025, 0.18, base_encounter_interval)
 	if not pursuer_pending and miles - last_pursuer_mile >= interval:
 		pursuer_pending = true
 

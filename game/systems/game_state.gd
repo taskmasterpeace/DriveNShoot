@@ -44,6 +44,12 @@ signal fragments_changed(total: int)
 # Vehicle Progression
 var lifetime_scrap: int = 0
 var fragments: int = 0
+var extraction_count: int = 0 ## Successful extractions — drives the escalating threat level.
+
+## Threat scales the Deathlands with each successful extraction (capped): tougher, more frequent
+## enemies and a sooner boss. Resets nothing — it's permanent meta-progression.
+func get_threat_level() -> int:
+	return mini(extraction_count, 10)
 var unlocked_vehicles: Array[String] = ["balanced"]
 var selected_vehicle_id: String = "balanced"
 
@@ -137,6 +143,9 @@ func _end_run(cause: String) -> void:
 			scrap = run_start_scrap
 			scrap_changed.emit(-earned, scrap)
 		banked = 0
+
+	if cause == "Extracted":
+		extraction_count += 1 # permanent threat escalation
 
 	if current_run_miles > best_miles and cause == "Extracted":
 		best_miles = current_run_miles
@@ -339,6 +348,7 @@ func save_profile() -> void:
 	config.set_value("Player", "scrap", scrap)
 	config.set_value("Player", "lifetime_scrap", lifetime_scrap)
 	config.set_value("Player", "fragments", fragments)
+	config.set_value("Player", "extraction_count", extraction_count)
 	config.set_value("Player", "best_miles", best_miles)
 	config.set_value("Player", "selected_vehicle", selected_vehicle_id)
 	config.set_value("Player", "unlocked", unlocked_vehicles)
@@ -361,6 +371,7 @@ func load_profile() -> void:
 	scrap = int(config.get_value("Player", "scrap", 0))
 	lifetime_scrap = int(config.get_value("Player", "lifetime_scrap", 0))
 	fragments = int(config.get_value("Player", "fragments", 0))
+	extraction_count = int(config.get_value("Player", "extraction_count", 0))
 	best_miles = float(config.get_value("Player", "best_miles", 0.0))
 	selected_vehicle_id = String(config.get_value("Player", "selected_vehicle", "balanced"))
 	unlocked_vehicles = config.get_value("Player", "unlocked", ["balanced"])

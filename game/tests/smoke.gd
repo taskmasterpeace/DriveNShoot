@@ -29,7 +29,9 @@ func _test_economy() -> void:
 		"miles": gs.current_run_miles, "best": gs.best_miles,
 		"unlocked": gs.unlocked_vehicles.duplicate(),
 		"owned": gs.owned_weapons.duplicate(), "equipped": gs.equipped_weapon_id,
+		"ec": gs.extraction_count,
 	}
+	gs.extraction_count = 0
 
 	# Death forfeits scrap earned this run.
 	gs.scrap = 100
@@ -45,6 +47,7 @@ func _test_economy() -> void:
 	gs.add_scrap(40, "test")
 	gs.extract()
 	_check("extraction banks scrap", gs.scrap == 140)
+	_check("extraction raises threat level", gs.extraction_count == 1 and gs.get_threat_level() == 1)
 	gs.return_to_town()
 
 	# Buying an upgrade spends scrap and raises the tier.
@@ -81,6 +84,7 @@ func _test_economy() -> void:
 	gs.unlocked_vehicles = snap.unlocked
 	gs.owned_weapons = snap.owned
 	gs.equipped_weapon_id = snap.equipped
+	gs.extraction_count = snap.ec
 	gs.save_profile()
 
 func _spawn_world() -> void:
