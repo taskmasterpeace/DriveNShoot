@@ -129,6 +129,26 @@ func receive_state(states: Dictionary) -> void:
 	remote_states = states
 	state_synced.emit()
 
+var sync_every_n_frames: int = 3 ## ~20 Hz at 60 fps.
+var _sync_tick: int = 0
+
+## On the SERVER, periodically snapshot every networked vehicle and broadcast it to clients.
+func _physics_process(_delta: float) -> void:
+	if not is_server() or players.is_empty():
+		return
+	_sync_tick += 1
+	if _sync_tick < sync_every_n_frames:
+		return
+	_sync_tick = 0
+	var states: Dictionary = {}
+	for v in get_tree().get_nodes_in_group("vehicle"):
+		if "network_peer_id" in v and v.network_peer_id > 0:
+			states[v.network_peer_id] = {
+				"x": v.global_position.x, "y": v.global_position.y, "rot": v.rotation, "hp": v.hp,
+			}
+	if not states.is_empty():
+		broadcast_state(states)
+
 func _on_connected_to_server() -> void:
 	joined_server.emit()
 

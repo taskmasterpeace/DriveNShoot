@@ -25,12 +25,17 @@ func _ready() -> void:
 			_server_vehicle.network_peer_id = id
 			_server_vehicle.data = load("res://data/vehicles/vehicle_balanced.tres")
 			add_child(_server_vehicle)
-			_server_vehicle.is_active = true)
+			_server_vehicle.is_active = true
+			# A second networked vehicle (a stand-in "other player", id 999) the server's auto-sync
+			# will broadcast for clients to render.
+			var ghost: Node = load("res://entities/vehicles/vehicle_entity.tscn").instantiate()
+			ghost.network_peer_id = 999
+			ghost.data = load("res://data/vehicles/vehicle_balanced.tres")
+			add_child(ghost)
+			ghost.global_position = Vector2(9000, -500))
 		nm.input_received.connect(func(id):
 			print("NET: input throttle=", nm.get_input_for(id).get("throttle", -1))
-			# Broadcast authoritative state, including a stand-in "other player" (id 999).
-			nm.broadcast_state({id: {"x": 10000.0, "y": -500.0, "hp": 88.0}, 999: {"x": 9000.0, "y": -500.0, "hp": 70.0}})
-			# After a few frames the networked vehicle should be driving from replicated input.
+			# Server auto-sync (NetworkManager._physics_process) broadcasts state; no manual call.
 			await get_tree().create_timer(0.15).timeout
 			if is_instance_valid(_server_vehicle):
 				print("NET: vehicle_throttle=", _server_vehicle.input_throttle))
