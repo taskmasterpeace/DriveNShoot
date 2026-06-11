@@ -19,7 +19,13 @@ func _ready() -> void:
 			v.driver_exited.connect(_on_any_vehicle_exited.bind(v))
 
 	_spawn_test_enemies()
+	_add_minimap()
 	_update_instructions()
+
+func _add_minimap() -> void:
+	var minimap: Minimap = Minimap.new()
+	$UI.add_child(minimap)
+	minimap.player = player
 
 ## Drops a couple of hostile vehicles into the arena so combat is demonstrable on launch:
 ## a rammer that charges and a shooter that keeps its distance and fires back.

@@ -5,6 +5,10 @@ enum CacheType { MIXED, FUEL, SCRAP }
 @export var type: CacheType = CacheType.MIXED
 var is_opened: bool = false
 @export var loot_amount: int = 1 # Repair Kits
+@export var loot_multiplier: float = 1.0 ## Scales scrap rewards; foot-only ruins set this >1.
+
+func _ready() -> void:
+	add_to_group("loot") # so the minimap and other systems can locate caches
 
 func get_interaction_text() -> String:
 	match type:
@@ -24,24 +28,24 @@ func open(player: Node2D) -> void:
 	
 	if type == CacheType.FUEL:
 		# Fake Fuel: Just scrap for now or special message
-		var amount = randi_range(20, 50)
+		var amount = int(randi_range(20, 50) * loot_multiplier)
 		if has_node("/root/GameState"):
 			get_node("/root/GameState").add_scrap(amount)
 		text = "Found Fuel! (+%d Scrap)" % amount
-		
+
 	elif type == CacheType.SCRAP:
-		var amount = randi_range(15, 40)
+		var amount = int(randi_range(15, 40) * loot_multiplier)
 		if has_node("/root/GameState"):
 			get_node("/root/GameState").add_scrap(amount)
 		text = "Found %d Scrap!" % amount
-		
+
 	else: # MIXED
 		if r < 0.6: # 60% Kit
 			if player.has_method("add_repair_kit"):
 				player.add_repair_kit(loot_amount)
 				text = "Found Repair Kit!"
 		elif r < 0.9: # 30% Scrap
-			var amount = randi_range(10, 30)
+			var amount = int(randi_range(10, 30) * loot_multiplier)
 			if has_node("/root/GameState"):
 				get_node("/root/GameState").add_scrap(amount)
 			text = "Found %d Scrap!" % amount
