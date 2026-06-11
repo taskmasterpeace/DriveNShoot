@@ -58,6 +58,19 @@ of each system and update entries instead of duplicating.
 - Also fixed: `player_entity.gd` `if hud_instance:` (always null) → `if hud_scene:` so the
   in-vehicle HUD actually instantiates.
 
+## Verification sweeps (this run)
+
+- Mixed tab/space indentation (GDScript compile error) found + fixed in 3 files: road_segment.gd,
+  garage_terminal.gd, town_zone.gd. Full sweep now CLEAN (awk check: no .gd mixes tab+space indent).
+- Broad compile/crash sweep: no remaining undeclared vars, bad preloads, or res://game/ refs.
+  Fixed debugger.gd `_toggle_screen_view` null-deref on `hp_bar` (debug toggle would crash if no
+  health-bar scene assigned).
+- TO REVISIT (lower priority, not yet fixed): SceneManager.gd ~line 216-228 "zelda" transition
+  tweens `outgoing_scene` which can be null → crash only if that transition type is used with a
+  null outgoing scene. Guard before use.
+- FALSE POSITIVE (verified fine, do not "fix"): interaction_controller.gd ~125-131 — the
+  interact()/interact_with() calls ARE correctly nested inside `elif nearest.has_method("interact")`.
+
 ## Team / faction convention (introduced this run)
 
 - Added `@export var team: int = 0` to both `VehicleEntity` and `CharacterEntity`.

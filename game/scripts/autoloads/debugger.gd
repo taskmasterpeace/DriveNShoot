@@ -37,7 +37,8 @@ func _set_player_ghost():
 func _toggle_screen_view():
 	for player: PlayerEntity in Globals.get_players():
 		player.visible = !player.visible
-		player.health_controller.hp_bar.visible = player.visible
+		if player.health_controller and player.health_controller.hp_bar:
+			player.health_controller.hp_bar.visible = player.visible
 
 ## Fully restore players health.
 func _restore_player_health():
