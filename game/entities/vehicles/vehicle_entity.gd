@@ -11,6 +11,8 @@ signal breakdown
 signal repaired
 signal passenger_entry_started(delay_seconds: float)
 signal passenger_entry_completed
+signal weapon_shot(ammo_in_magazine: int) ## Emitted when a mounted weapon fires (for HUD ammo).
+signal weapon_reloaded(ammo_in_magazine: int)
 
 @export var max_hp: float = 100.0
 var hp: float = 100.0
@@ -58,6 +60,9 @@ var input_handbrake: bool = false
 
 var is_active: bool = false
 var current_driver: Node2D = null
+var mounted_weapons: Array[WeaponSystem] = [] ## Weapon systems mounted on this vehicle.
+@export var weapon_mount_x: float = 36.0 ## Forward offset (local +x) where weapons mount.
+@export var weapon_mount_spread: float = 12.0 ## Lateral spacing between multiple mounts.
 var current_mph: float = 0.0
 var is_passenger_delay_active: bool = false
 var entry_side: String = ""
@@ -149,6 +154,10 @@ func get_input() -> void:
 		input_throttle = Input.get_action_strength("move_up")
 		# Brake: S/Down, Left stick down, or L2 trigger (analog)
 		input_braking = Input.get_action_strength("move_down")
+
+		# Fire forward-mounted weapons while the attack button is held.
+		if Input.is_action_pressed("attack"):
+			fire_weapons()
 	
 func apply_input() -> void:
 	# Reduce steering at high speed for stability (full steering below 40%, linear fade to 40% at top speed)
@@ -293,7 +302,8 @@ var smoke_node: CPUParticles2D
 func _ready() -> void:
 	if data:
 		load_data(data)
-	
+		_setup_weapons()
+
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").distance_updated.connect(_on_distance_updated)
 		
@@ -392,3 +402,48 @@ func _die() -> void:
 	vehicle_destroyed.emit()
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").fail_run("Wrecked")
+
+
+# --- Weapons ---------------------------------------------------------------
+
+## Builds the vehicle's weapon loadout from its data (default_weapon + default_weapons),
+## capped at weapon_slots. Each weapon mounts forward and fans out laterally.
+func _setup_weapons() -> void:
+	if not data:
+		return
+
+	var loadout: Array[DataWeapon] = []
+	if data.default_weapon:
+		loadout.append(data.default_weapon)
+	for w in data.default_weapons:
+		if w:
+			loadout.append(w)
+
+	var count: int = min(loadout.size(), data.weapon_slots)
+	for i in count:
+		mount_weapon(loadout[i], i, count)
+
+## Mounts a single weapon at index i of count, positioned forward and fanned laterally.
+func mount_weapon(weapon: DataWeapon, index: int, count: int) -> void:
+	var ws: WeaponSystem = WeaponSystem.new()
+	ws.weapon_data = weapon
+	ws.team = team
+	ws.source = self
+	var lateral: float = (float(index) - float(count - 1) / 2.0) * weapon_mount_spread
+	ws.position = Vector2(weapon_mount_x, lateral)
+	add_child(ws)
+	mounted_weapons.append(ws)
+	ws.shot.connect(func(ammo: int) -> void: weapon_shot.emit(ammo))
+	ws.reloaded.connect(func(ammo: int) -> void: weapon_reloaded.emit(ammo))
+
+## Fires all mounted weapons (respecting each weapon's own fire-rate cadence).
+func fire_weapons() -> void:
+	for ws in mounted_weapons:
+		ws.try_shoot()
+
+## Total ammo across mounted weapons (for HUD display).
+func get_total_ammo() -> int:
+	var total: int = 0
+	for ws in mounted_weapons:
+		total += ws.current_ammo
+	return total

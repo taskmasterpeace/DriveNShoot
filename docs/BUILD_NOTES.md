@@ -52,11 +52,27 @@ of each system and update entries instead of duplicating.
 ## System log
 
 ### System 1 — Weapons & combat (IN PROGRESS)
-- Started by hardening the combat foundation in pure GDScript (highest confidence without a
-  live editor): robust team-aware `projectile.gd` that damages BOTH vehicles and characters
-  correctly, plus `team` on the two base entity classes, plus `weapon_system.gd` fire-rate
-  gating + team/source forwarding + auto-reload.
-- TODO next: author `projectile.tscn` (Area2D + Sprite2D bullet + CollisionShape2D, mask =
-  block|character|body); author DataWeapon `.tres` for machine_gun/shotgun/rocket_launcher/
-  flamethrower/mine_dropper; mount weapon hardpoints on VehicleEntity using DataVehicle slot
-  count; on-foot aim+fire; ammo on HUD.
+- DONE: hardened combat foundation (team-aware projectile.gd damages vehicles + characters;
+  `team` on base classes; weapon_system.gd cadence/pellets/team/auto-reload). Committed.
+- DONE: 4 projectile scenes + 5 weapon .tres. Committed.
+  - Projectile scenes: all Area2D, collision_layer=0, collision_mask=7 (block|char|body).
+    - projectile.tscn (bullet, 3s) · rocket.tscn (rocket, 4s) · mine.tscn (mine, 25s, sits
+      still because weapon projectile_speed=0 → velocity 0; team check lets player drive away,
+      enemies trigger it) · flame.tscn (fire_trail, 0.45s short range).
+  - Weapons in items/weapons/: machine_gun, shotgun (7 pellets/22°), rocket_launcher,
+    flamethrower (2 pellets/0.05s), mine_dropper.
+- TODO next: mount weapons on VehicleEntity (plan: add `default_weapons: Array[DataWeapon]`
+  to DataVehicle, set in vehicle .tres; VehicleEntity spawns WeaponSystem children at _ready,
+  fires on `attack` input, aims forward = transform.x). Then on-foot aim+fire, ammo on HUD,
+  enemy shooter type.
+
+#### Invented UID registry (REUSE these exact uids, do not regenerate — avoids collisions)
+- projectile.gd: uid://dalvnt2aygqgg (pre-existing)
+- data_weapon.gd: uid://bc7pmqpgxatnh (pre-existing)
+- projectile.tscn: uid://bcwprojectilebul · rocket.tscn: uid://bcwprojectilerkt
+- mine.tscn: uid://bcwprojectilemin · flame.tscn: uid://bcwprojectileflm
+- machine_gun: uid://bcwwpnmachinegun · shotgun: uid://bcwwpnshotgun01
+- rocket_launcher: uid://bcwwpnrocket01 · flamethrower: uid://bcwwpnflame01
+- mine_dropper: uid://bcwwpnmine01
+- NOTE: textures referenced by path only (no .import files exist in this env); Godot will
+  import + assign uids on first editor open. Harmless warnings expected on first load.

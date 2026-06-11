@@ -28,6 +28,8 @@ extends Resource
 @export_group("Combat")
 @export var ram_damage: int = 20 ## Damage dealt when ramming
 @export var weapon_slots: int = 2 ## Number of weapon mount points
+@export var default_weapon: DataWeapon ## Primary weapon this vehicle spawns with.
+@export var default_weapons: Array[DataWeapon] = [] ## Extra weapons (e.g. assigned by the garage). Capped with default_weapon to weapon_slots.
 
 @export_group("Economy")
 @export var price: int = 5000
