@@ -4,6 +4,7 @@ extends Node
 ## Prints NET: lines and exits. Driven by tools/net_test.sh (launches a server + a client).
 
 var _server_vehicle: Node = null
+var _client_vehicle: Node = null
 
 func _ready() -> void:
 	var mode: String = OS.get_environment("CARWORLD_NET")
@@ -27,7 +28,8 @@ func _ready() -> void:
 			_server_vehicle.is_active = true)
 		nm.input_received.connect(func(id):
 			print("NET: input throttle=", nm.get_input_for(id).get("throttle", -1))
-			nm.broadcast_state({id: {"x": 10000.0, "y": -500.0, "hp": 88.0}})
+			# Broadcast authoritative state, including a stand-in "other player" (id 999).
+			nm.broadcast_state({id: {"x": 10000.0, "y": -500.0, "hp": 88.0}, 999: {"x": 9000.0, "y": -500.0, "hp": 70.0}})
 			# After a few frames the networked vehicle should be driving from replicated input.
 			await get_tree().create_timer(0.15).timeout
 			if is_instance_valid(_server_vehicle):
@@ -38,9 +40,18 @@ func _ready() -> void:
 		nm.state_synced.connect(func(): print("NET: state_synced keys=", nm.remote_states.size()))
 		nm.spawned_as.connect(func(id):
 			print("NET: spawned_as=", id)
+			# Render a remote player's vehicle (id 999) from synced state — should interpolate
+			# toward the server's position (y -500), proving client-side state application.
+			_client_vehicle = load("res://entities/vehicles/vehicle_entity.tscn").instantiate()
+			_client_vehicle.network_peer_id = 999
+			_client_vehicle.data = load("res://data/vehicles/vehicle_balanced.tres")
+			add_child(_client_vehicle)
+			_client_vehicle.global_position = Vector2(0, 0)
 			# Send a frame of input to the server to verify input replication.
 			nm.send_input(1.0, 0.0, 0.5, false, true)
 			await get_tree().create_timer(1.2).timeout
+			if is_instance_valid(_client_vehicle):
+				print("NET: client_state_applied=", _client_vehicle.global_position.y < -50.0)
 			get_tree().quit(0))
 		nm.connection_failed.connect(func():
 			print("NET: client_failed")

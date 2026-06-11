@@ -100,6 +100,14 @@ func load_data(_data: DataVehicle) -> void:
 const PIXELS_PER_MPH: float = 30.0
 
 func _physics_process(delta: float) -> void:
+	# On a client, networked vehicles render the server's authoritative state (the owning client
+	# also forwards its input). The server and single-player run the real simulation below.
+	if _is_remote_simulated():
+		if network_peer_id == get_node("/root/NetworkManager").local_id():
+			_read_and_send_input()
+		_apply_network_state(delta)
+		return
+
 	if is_active:
 		acceleration = Vector2.ZERO
 		get_input()
@@ -180,11 +188,36 @@ func get_input() -> void:
 		if Input.is_action_pressed("attack"):
 			fire_weapons()
 
-		# Multiplayer: the owning client forwards its input to the authoritative server.
-		if network_peer_id > 0 and has_node("/root/NetworkManager"):
-			var nm = get_node("/root/NetworkManager")
-			if nm.is_active() and not nm.is_server() and network_peer_id == nm.local_id():
-				nm.send_input(input_throttle, input_braking, input_steering, input_handbrake, Input.is_action_pressed("attack"))
+# --- Multiplayer client rendering ---
+
+## True on a CLIENT for a networked vehicle: it renders the server's state, doesn't simulate.
+func _is_remote_simulated() -> bool:
+	if network_peer_id <= 0 or not has_node("/root/NetworkManager"):
+		return false
+	var nm = get_node("/root/NetworkManager")
+	return nm.is_active() and not nm.is_server()
+
+## Owning client: read local input and forward it to the authoritative server.
+func _read_and_send_input() -> void:
+	input_steering = Input.get_axis("move_left", "move_right")
+	input_handbrake = Input.is_action_pressed("jump")
+	input_throttle = Input.get_action_strength("move_up")
+	input_braking = Input.get_action_strength("move_down")
+	get_node("/root/NetworkManager").send_input(input_throttle, input_braking, input_steering, input_handbrake, Input.is_action_pressed("attack"))
+
+## Client: smoothly interpolate to the server-authoritative position/rotation/hp.
+func _apply_network_state(delta: float) -> void:
+	var s: Dictionary = get_node("/root/NetworkManager").remote_states.get(network_peer_id, {})
+	if s.is_empty():
+		return
+	var t: float = clampf(delta * 12.0, 0.0, 1.0)
+	var target: Vector2 = Vector2(s.get("x", global_position.x), s.get("y", global_position.y))
+	global_position = global_position.lerp(target, t)
+	if s.has("rot"):
+		rotation = lerp_angle(rotation, s["rot"], t)
+	if s.has("hp"):
+		hp = s["hp"]
+		health_changed.emit(hp, max_hp)
 
 func apply_input() -> void:
 	# Reduce steering at high speed for stability (full steering below 40%, linear fade to 40% at top speed)

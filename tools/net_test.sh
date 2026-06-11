@@ -22,6 +22,7 @@ grep -q 'NET: spawned_as=' "$CLOG" \
   && grep -q 'NET: input throttle=1' "$SLOG" \
   && grep -q 'NET: state_synced' "$CLOG" \
   && grep -q 'NET: vehicle_throttle=1' "$SLOG" \
+  && grep -q 'NET: client_state_applied=true' "$CLOG" \
   && RESULT=0
 echo "===== NET TEST: $([ $RESULT -eq 0 ] && echo PASS || echo FAIL) ====="
 
