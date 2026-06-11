@@ -30,6 +30,7 @@ var pursuer_pending: bool = false ## True once an encounter is queued, waiting o
 var player_speed_ok_timer: float = 0.0
 var run_started_mile: float = 0.0
 var last_pursuer_mile: float = 0.0 ## Miles at the last pursuer spawn (recurring encounter cadence).
+var boss_spawned_this_run: bool = false ## Road Captain boss spawns once per run at high heat.
 @export var base_encounter_interval: float = 0.55 ## Miles between encounters at low heat; shrinks as heat rises.
 
 ## The node encounters track: the active (driven) vehicle, else the on-foot player.
@@ -80,6 +81,7 @@ func _on_distance_updated(miles: float) -> void:
 		run_started_mile = 0.0
 		last_loot_mile = 0.0 # Reset
 		last_pursuer_mile = 0.0
+		boss_spawned_this_run = false
 		return
 		
 	# Loot Spawning
@@ -96,6 +98,10 @@ func _on_distance_updated(miles: float) -> void:
 	var interval: float = clampf(base_encounter_interval - float(heat) * 0.008, 0.25, base_encounter_interval)
 	if not pursuer_pending and miles - last_pursuer_mile >= interval:
 		pursuer_pending = true
+
+	# The Road Captain (boss) shows up once, deep in a hot run, as the climax.
+	if heat >= 50 and not boss_spawned_this_run:
+		_spawn_boss()
 
 func _spawn_loot(miles: float) -> void:
 	last_loot_mile = miles + randf_range(0.0, 0.4) # Next spawn in 0.8 to 1.2 mi
@@ -167,6 +173,22 @@ func spawn_pursuer() -> void:
 		player.show_warning(warning_text)
 	elif player and player.has_method("notify_action"):
 		player.notify_action(warning_text, 1.0)
+
+## Spawns the Road Captain boss behind the player as a run's climax.
+func _spawn_boss() -> void:
+	boss_spawned_this_run = true
+	var track := _tracked_node()
+	if not track:
+		return
+	var boss = PURSUER_SCENE.instantiate()
+	boss.behavior_type = PursuerAI.BehaviorType.BOSS
+	boss.road_center_x = 10000.0
+	boss.global_position = track.global_position + Vector2(randf_range(-150.0, 150.0), 1400.0)
+	_assign_enemy_sprite(boss)
+	_world().add_child(boss)
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.has_method("show_warning"):
+		player.show_warning("ROAD CAPTAIN INCOMING — big bounty!")
 
 ## Randomly assigns one of the enemy sprite variants to a pursuer's Sprite2D.
 func _assign_enemy_sprite(pursuer: Node) -> void:

@@ -122,6 +122,14 @@ func _spawn_world() -> void:
 			e.global_position = Vector2(10000 + i * 70, -400)
 		_check("all pursuer types spawn", true)
 
+		# Boss (Road Captain): tanky + armed.
+		var boss: PursuerAI = pscene.instantiate()
+		boss.behavior_type = PursuerAI.BehaviorType.BOSS
+		add_child(boss)
+		boss.global_position = Vector2(10000, -900)
+		_check("boss has high HP", boss.max_hp >= 200)
+		_check("boss is armed", boss.mounted_weapons.size() > 0)
+
 	# On-foot bandit.
 	var bandit: CharacterBody2D = load("res://entities/enemies/bandit.gd").new()
 	add_child(bandit)

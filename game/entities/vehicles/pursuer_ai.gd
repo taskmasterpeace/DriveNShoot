@@ -2,9 +2,10 @@ class_name PursuerAI
 extends VehicleEntity
 
 enum AIState { SEEK, RAM, BLOCK, RESET_DISTANCE }
-enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM, TRANSPORT }
+enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM, TRANSPORT, BOSS }
 
 const SHOOTER_WEAPON: DataWeapon = preload("res://items/weapons/machine_gun.tres")
+const BOSS_WEAPON: DataWeapon = preload("res://items/weapons/shotgun.tres")
 const LOOT_SCENE: PackedScene = preload("res://entities/world/loot_cache.tscn")
 
 @export var behavior_type: BehaviorType = BehaviorType.RAMMER
@@ -47,6 +48,15 @@ func _ready() -> void:
 		hp = 320.0
 		base_accel = 520.0
 		scale = Vector2(1.3, 1.3)
+	# BOSS (Road Captain): tanky, heavily armed, aggressive — a run's climax with a big payout.
+	if behavior_type == BehaviorType.BOSS and mounted_weapons.is_empty() and BOSS_WEAPON:
+		max_hp = 280.0
+		hp = 280.0
+		base_accel = 760.0
+		preferred_range = 300.0
+		scale = Vector2(1.45, 1.45)
+		modulate = Color(1.2, 0.85, 0.85) # menacing tint
+		mount_weapon(BOSS_WEAPON, 0, 1)
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()
@@ -110,7 +120,7 @@ func _update_state(delta: float) -> void:
 				# If we are ahead of player and in lane, switch to BLOCK
 				if forward_dot < -0.5 and dist < 600.0: # Behind us
 					current_state = AIState.BLOCK
-			elif behavior_type == BehaviorType.SHOOTER:
+			elif behavior_type == BehaviorType.SHOOTER or behavior_type == BehaviorType.BOSS:
 				_shooter_behavior(dist, forward_dot)
 			else:
 				_seek_behavior(dist_vector)
@@ -239,7 +249,7 @@ func get_input() -> void:
 
 # Pursuer Special Death
 func _die() -> void:
-	if behavior_type == BehaviorType.TRANSPORT:
+	if behavior_type == BehaviorType.TRANSPORT or behavior_type == BehaviorType.BOSS:
 		_drop_convoy_loot()
 	elif has_node("/root/GameState"):
 		get_node("/root/GameState").add_scrap(randi_range(8, 20)) # bounty for the kill
