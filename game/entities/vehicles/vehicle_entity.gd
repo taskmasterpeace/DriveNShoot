@@ -397,9 +397,17 @@ func take_damage(amount: float) -> void:
 	
 	if has_node("/root/GameState"):
 		get_node("/root/GameState").add_heat(5, "Crash")
-	
+
 	if hp <= 0:
 		_die()
+	else:
+		_flash_hit()
+
+## Brief brighten-and-fade tint so taking a hit reads clearly.
+func _flash_hit() -> void:
+	modulate = Color(1.5, 0.7, 0.7)
+	var t: Tween = create_tween()
+	t.tween_property(self, "modulate", Color.WHITE, 0.18)
 
 func _die() -> void:
 	_spawn_death_explosion()
