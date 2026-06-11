@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DataWeapon" load_steps=4 format=3 uid="uid://bcwwpnmachinegun"]
+
+[ext_resource type="Script" uid="uid://bc7pmqpgxatnh" path="res://items/weapons/data_weapon.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://items/weapons/sprites/weapon_machine_gun.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://bcwprojectilebul" path="res://entities/projectiles/projectile.tscn" id="3_proj"]
+
+[resource]
+resource_name = "Machine Gun"
+script = ExtResource("1_script")
+power = 8
+speed = 0.12
+icon = ExtResource("2_icon")
+hide_from_inventory = false
+projectile_scene = ExtResource("3_proj")
+projectile_speed = 1100.0
+spread_degrees = 6.0
+knockback_force = 60.0
+max_ammo = 60
+reload_time = 2.2
+pellets = 1
+fire_shake = 3.0

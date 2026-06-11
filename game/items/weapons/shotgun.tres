@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DataWeapon" load_steps=4 format=3 uid="uid://bcwwpnshotgun01"]
+
+[ext_resource type="Script" uid="uid://bc7pmqpgxatnh" path="res://items/weapons/data_weapon.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://items/weapons/sprites/weapon_shotgun.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://bcwprojectilebul" path="res://entities/projectiles/projectile.tscn" id="3_proj"]
+
+[resource]
+resource_name = "Shotgun"
+script = ExtResource("1_script")
+power = 6
+speed = 0.7
+icon = ExtResource("2_icon")
+hide_from_inventory = false
+projectile_scene = ExtResource("3_proj")
+projectile_speed = 950.0
+spread_degrees = 22.0
+knockback_force = 140.0
+max_ammo = 8
+reload_time = 2.6
+pellets = 7
+fire_shake = 8.0

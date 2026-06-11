@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://bcwprojectilerkt"]
+
+[ext_resource type="Script" uid="uid://dalvnt2aygqgg" path="res://entities/projectiles/projectile.gd" id="1_proj"]
+[ext_resource type="Texture2D" path="res://entities/projectiles/sprites/rocket.png" id="2_rocket"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_rkt"]
+radius = 7.0
+
+[node name="Rocket" type="Area2D"]
+collision_layer = 0
+collision_mask = 7
+script = ExtResource("1_proj")
+life_time = 4.0
+impact_shake = 12.0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_rocket")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_rkt")

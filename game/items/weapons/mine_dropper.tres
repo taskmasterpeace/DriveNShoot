@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DataWeapon" load_steps=4 format=3 uid="uid://bcwwpnmine01"]
+
+[ext_resource type="Script" uid="uid://bc7pmqpgxatnh" path="res://items/weapons/data_weapon.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://items/weapons/sprites/weapon_mine_dropper.png" id="2_icon"]
+[ext_resource type="PackedScene" uid="uid://bcwprojectilemin" path="res://entities/projectiles/mine.tscn" id="3_proj"]
+
+[resource]
+resource_name = "Mine Dropper"
+script = ExtResource("1_script")
+power = 80
+speed = 0.6
+icon = ExtResource("2_icon")
+hide_from_inventory = false
+projectile_scene = ExtResource("3_proj")
+projectile_speed = 0.0
+spread_degrees = 0.0
+knockback_force = 220.0
+max_ammo = 6
+reload_time = 2.0
+pellets = 1
+fire_shake = 6.0
