@@ -124,9 +124,17 @@ of each system and update entries instead of duplicating.
   1+2+128.
 - DONE: RoadSegment now lays a wide wasteland backdrop (world_width 4200) + scattered rocks, and
   `maybe_spawn_foot_zone(chance)`; RoadManager spawns ruins more often past 0.5/1.0 mi.
-- TODO next: minimap/world-map on HUD; biome/theme variety per depth; verify world.tscn loads
-  (it references road_manager + town_zone, paths now fixed); consider widening drivable area off
-  the road. Then System 3 (towns/garages/economy).
+- DONE: REPAIRED world.tscn (the full town→run game scene). It was doubly broken: (1) ext
+  resources referenced by PATH inside ExtResource("res://…") instead of declared ids — a parse
+  error; (2) the Player was a bare CharacterBody2D missing all components player_entity.gd needs
+  (animation_tree etc.) → would crash on _ready. Rewrote header to declare all 7 ext_resources
+  with ids, and now INSTANCE the complete player.tscn (uid://dfxvfxqwdnh48, groups=["player"]).
+  RoadManager auto-finds the player via the "player" group; TownZone start gate triggers the run.
+  UNVERIFIED (no editor): main risk is player.tscn instancing cleanly (its res://game/ paths were
+  fixed earlier, so it should). world.tscn is NOT the main scene (test_driving.tscn is) — left
+  main_scene unchanged; user can open world.tscn to play the full loop.
+- TODO next: minimap/world-map on HUD; biome/theme variety; System 3 (towns/garages — upgrade
+  menu UI works now that its path is fixed; consider weapon-buying via GameState economy).
 
 #### Invented UID registry (REUSE these exact uids, do not regenerate — avoids collisions)
 - projectile.gd: uid://dalvnt2aygqgg (pre-existing)

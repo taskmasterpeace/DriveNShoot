@@ -1,37 +1,30 @@
-[gd_scene load_steps=3 format=3 uid="uid://deathlands_world_001"]
+[gd_scene load_steps=8 format=3 uid="uid://deathlands_world_001"]
 
-[ext_resource type="Script" path="res://entities/player/player_entity.gd" id="1_player"]
-[ext_resource type="Script" path="res://systems/map/road_manager.gd" id="2_road"]
-[ext_resource type="Texture2D" path="res://entities/player/chara-hero.png" id="3_sprite"]
-[ext_resource type="PackedScene" path="res://systems/map/town_zone.tscn" id="3_town"]
-
+[ext_resource type="Script" path="res://systems/map/road_manager.gd" id="1_road"]
+[ext_resource type="Script" path="res://systems/encounter_director.gd" id="2_enc"]
+[ext_resource type="Script" path="res://systems/debug_overlay.gd" id="3_dbg"]
+[ext_resource type="PackedScene" uid="uid://town_zone_base" path="res://systems/map/town_zone.tscn" id="4_town"]
+[ext_resource type="PackedScene" uid="uid://dfxvfxqwdnh48" path="res://entities/player/player.tscn" id="5_player"]
+[ext_resource type="PackedScene" uid="uid://help_overlay" path="res://scenes/ui/help_overlay.tscn" id="6_help"]
+[ext_resource type="PackedScene" path="res://scenes/ui/run_summary.tscn" id="7_summary"]
 
 [node name="World" type="Node2D"]
 
 [node name="EncounterDirector" type="Node" parent="."]
-script = ExtResource("res://systems/encounter_director.gd")
+script = ExtResource("2_enc")
 
 [node name="DebugOverlay" type="CanvasLayer" parent="."]
-script = ExtResource("res://systems/debug_overlay.gd")
+script = ExtResource("3_dbg")
 
-[node name="RunSummary" parent="." instance=ExtResource("res://scenes/ui/run_summary.tscn")]
+[node name="RunSummary" parent="." instance=ExtResource("7_summary")]
 
-[node name="HelpOverlay" parent="." instance=ExtResource("res://scenes/ui/help_overlay.tscn")]
+[node name="HelpOverlay" parent="." instance=ExtResource("6_help")]
 
 [node name="RoadManager" type="Node" parent="."]
-script = ExtResource("2_road")
+script = ExtResource("1_road")
 
-
-[node name="TownZone" parent="." instance=ExtResource("3_town")]
+[node name="TownZone" parent="." instance=ExtResource("4_town")]
 position = Vector2(0, 0)
 
-[node name="Player" type="CharacterBody2D" parent="." groups=["player"]]
+[node name="Player" parent="." instance=ExtResource("5_player") groups=["player"]]
 position = Vector2(512, 512)
-script = ExtResource("1_player")
-
-[node name="Sprite2D" type="Sprite2D" parent="Player"]
-texture = ExtResource("3_sprite")
-
-[node name="Camera2D" type="Camera2D" parent="Player"]
-current = true
-zoom = Vector2(0.8, 0.8)
