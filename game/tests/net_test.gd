@@ -3,6 +3,8 @@ extends Node
 ## Headless multiplayer connection test. Set env CARWORLD_NET=server to host, =client to join.
 ## Prints NET: lines and exits. Driven by tools/net_test.sh (launches a server + a client).
 
+var _server_vehicle: Node = null
+
 func _ready() -> void:
 	var mode: String = OS.get_environment("CARWORLD_NET")
 	var nm = get_node_or_null("/root/NetworkManager")
@@ -15,11 +17,21 @@ func _ready() -> void:
 		var ok: bool = nm.host_server()
 		print("NET: server_started=", ok)
 		nm.peer_joined.connect(func(id): print("NET: peer_joined=", id))
-		nm.player_registered.connect(func(_id): print("NET: players=", nm.player_count()))
+		nm.player_registered.connect(func(id):
+			print("NET: players=", nm.player_count())
+			# Spawn a server-side networked vehicle controlled by this peer.
+			_server_vehicle = load("res://entities/vehicles/vehicle_entity.tscn").instantiate()
+			_server_vehicle.network_peer_id = id
+			_server_vehicle.data = load("res://data/vehicles/vehicle_balanced.tres")
+			add_child(_server_vehicle)
+			_server_vehicle.is_active = true)
 		nm.input_received.connect(func(id):
 			print("NET: input throttle=", nm.get_input_for(id).get("throttle", -1))
-			# Server simulates and broadcasts authoritative state back to clients.
-			nm.broadcast_state({id: {"x": 10000.0, "y": -500.0, "hp": 88.0}}))
+			nm.broadcast_state({id: {"x": 10000.0, "y": -500.0, "hp": 88.0}})
+			# After a few frames the networked vehicle should be driving from replicated input.
+			await get_tree().create_timer(0.15).timeout
+			if is_instance_valid(_server_vehicle):
+				print("NET: vehicle_throttle=", _server_vehicle.input_throttle))
 		# Stay alive; --quit-after ends it.
 	elif mode == "client":
 		nm.joined_server.connect(func(): print("NET: client_connected"))

@@ -60,6 +60,7 @@ var input_handbrake: bool = false
 
 var is_active: bool = false
 var current_driver: Node2D = null
+@export var network_peer_id: int = 0 ## Multiplayer: the peer that controls this vehicle (0 = local/single-player).
 var mounted_weapons: Array[WeaponSystem] = [] ## Weapon systems mounted on this vehicle.
 @export var weapon_mount_x: float = 36.0 ## Forward offset (local +x) where weapons mount.
 @export var weapon_mount_spread: float = 12.0 ## Lateral spacing between multiple mounts.
@@ -136,6 +137,20 @@ func _check_collision_damage() -> void:
 		take_damage(damage)
 
 func get_input() -> void:
+	# Multiplayer: the authoritative server drives each networked vehicle from the controlling
+	# peer's replicated input (the owning client still reads local input below to forward it).
+	if network_peer_id > 0 and has_node("/root/NetworkManager"):
+		var nm = get_node("/root/NetworkManager")
+		if nm.is_active() and nm.is_server():
+			var inp: Dictionary = nm.get_input_for(network_peer_id)
+			input_throttle = inp.get("throttle", 0.0)
+			input_braking = inp.get("braking", 0.0)
+			input_steering = inp.get("steering", 0.0)
+			input_handbrake = inp.get("handbrake", false)
+			if inp.get("firing", false):
+				fire_weapons()
+			return
+
 	# If Player Driven
 	if current_driver:
 		# Block input during passenger entry delay
@@ -164,7 +179,13 @@ func get_input() -> void:
 		# Fire forward-mounted weapons while the attack button is held.
 		if Input.is_action_pressed("attack"):
 			fire_weapons()
-	
+
+		# Multiplayer: the owning client forwards its input to the authoritative server.
+		if network_peer_id > 0 and has_node("/root/NetworkManager"):
+			var nm = get_node("/root/NetworkManager")
+			if nm.is_active() and not nm.is_server() and network_peer_id == nm.local_id():
+				nm.send_input(input_throttle, input_braking, input_steering, input_handbrake, Input.is_action_pressed("attack"))
+
 func apply_input() -> void:
 	# Reduce steering at high speed for stability (full steering below 40%, linear fade to 40% at top speed)
 	var speed_ratio: float = clampf(_current_speed / max_speed, 0.0, 1.0)
