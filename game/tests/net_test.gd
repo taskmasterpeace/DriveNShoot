@@ -16,12 +16,14 @@ func _ready() -> void:
 		print("NET: server_started=", ok)
 		nm.peer_joined.connect(func(id): print("NET: peer_joined=", id))
 		nm.player_registered.connect(func(_id): print("NET: players=", nm.player_count()))
+		nm.input_received.connect(func(id): print("NET: input throttle=", nm.get_input_for(id).get("throttle", -1)))
 		# Stay alive; --quit-after ends it.
 	elif mode == "client":
 		nm.joined_server.connect(func(): print("NET: client_connected"))
 		nm.spawned_as.connect(func(id):
 			print("NET: spawned_as=", id)
-			# Stay connected briefly so the server registers the peer, then leave.
+			# Send a frame of input to the server to verify input replication.
+			nm.send_input(1.0, 0.0, 0.5, false, true)
 			await get_tree().create_timer(1.0).timeout
 			get_tree().quit(0))
 		nm.connection_failed.connect(func():

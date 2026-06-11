@@ -17,6 +17,9 @@ signal spawned_as(id: int) ## Client-side: the server assigned us this peer id a
 
 var peer: ENetMultiplayerPeer = null
 var players: Dictionary = {} ## peer_id -> info. Server-authoritative roster of connected players.
+var peer_inputs: Dictionary = {} ## peer_id -> latest input dict (server-authoritative). The server
+## simulates each player's vehicle from these.
+signal input_received(id: int)
 
 func _ready() -> void:
 	# These multiplayer signals are global; wire them once.
@@ -79,6 +82,7 @@ func _on_peer_connected(id: int) -> void:
 func _on_peer_disconnected(id: int) -> void:
 	if multiplayer.is_server() and players.has(id):
 		players.erase(id)
+		peer_inputs.erase(id)
 		player_unregistered.emit(id)
 	peer_left.emit(id)
 
@@ -89,6 +93,25 @@ func _client_spawn(my_id: int) -> void:
 
 func player_count() -> int:
 	return players.size()
+
+# --- Input replication (client -> server) ---
+
+## Called on the CLIENT each physics frame to send its vehicle input to the server.
+func send_input(throttle: float, braking: float, steering: float, handbrake: bool, firing: bool) -> void:
+	submit_input.rpc_id(1, throttle, braking, steering, handbrake, firing)
+
+## Runs on the SERVER: store the calling client's latest input. The sim reads it for that peer.
+@rpc("any_peer", "unreliable_ordered")
+func submit_input(throttle: float, braking: float, steering: float, handbrake: bool, firing: bool) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	peer_inputs[sender] = {
+		"throttle": throttle, "braking": braking, "steering": steering,
+		"handbrake": handbrake, "firing": firing,
+	}
+	input_received.emit(sender)
+
+func get_input_for(id: int) -> Dictionary:
+	return peer_inputs.get(id, {})
 
 func _on_connected_to_server() -> void:
 	joined_server.emit()
