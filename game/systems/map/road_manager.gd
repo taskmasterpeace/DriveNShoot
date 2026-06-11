@@ -83,11 +83,18 @@ func spawn_starting_road() -> void:
 func _spawn_segment() -> void:
 	var scene: PackedScene = segment_scenes.pick_random()
 	var seg: RoadSegment = scene.instantiate() as RoadSegment
+
+	# Theme the terrain by depth BEFORE the node enters the tree (its _ready paints terrain).
+	var theme_miles: float = 0.0
+	if has_node("/root/GameState"):
+		theme_miles = get_node("/root/GameState").current_run_miles
+	seg.terrain_color = _theme_for_miles(theme_miles)
+
 	add_child(seg)
 	seg.global_position = last_exit_position
 	last_exit_position = seg.get_exit_global_position()
 	active_segments.append(seg)
-	
+
 	# Difficulty Logic
 	if has_node("/root/GameState"):
 		var gs = get_node("/root/GameState")
@@ -105,6 +112,15 @@ func _spawn_segment() -> void:
 		elif miles > 0.5: foot_chance = 0.2
 		seg.maybe_spawn_foot_zone(foot_chance)
 
+
+## Wasteland biome tint by depth: rust desert → ashlands → toxic flats.
+func _theme_for_miles(miles: float) -> Color:
+	if miles < 0.5:
+		return Color(0.21, 0.18, 0.13) # rust desert
+	elif miles < 1.2:
+		return Color(0.16, 0.16, 0.17) # ashlands grey
+	else:
+		return Color(0.15, 0.18, 0.12) # toxic flats
 
 func _despawn_segment() -> void:
 	var seg = active_segments.pop_front()
