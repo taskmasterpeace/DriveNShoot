@@ -2,6 +2,8 @@ class_name StartScreen extends Control
 
 @export_file("*.tscn") var start_level = "" ## The level from which the game starts when starting a new game.
 
+const MP_ARENA_SCENE := "res://scenes/mp/mp_arena.tscn" ## Playable multiplayer arena (H=host, J=join).
+
 var user_prefs: UserPrefs
 
 @onready var newgame_button: Button = %NewGame
@@ -35,6 +37,10 @@ func _on_continue_button_up() -> void:
 
 func _on_settings_button_up() -> void:
 	Globals.open_settings_menu()
+
+func _on_multiplayer_button_up() -> void:
+	# Drop straight into the arena; it shows [H] Host / [J] Join on-screen.
+	SceneManager.swap_scenes(MP_ARENA_SCENE, get_tree().root, self, Const.TRANSITION.FADE_TO_WHITE)
 
 func _on_quit_button_up() -> void:
 	get_tree().quit()

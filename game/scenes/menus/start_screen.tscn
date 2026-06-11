@@ -1191,6 +1191,15 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_ng4jn")
 theme_override_styles/normal = SubResource("StyleBoxFlat_r03hu")
 text = "settings"
 
+[node name="Multiplayer" type="Button" parent="VBoxContainer/HBoxContainer/GridContainer"]
+custom_minimum_size = Vector2(150, 40)
+layout_mode = 2
+theme_override_fonts/font = SubResource("FontFile_licy4")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/hover = SubResource("StyleBoxFlat_ng4jn")
+theme_override_styles/normal = SubResource("StyleBoxFlat_r03hu")
+text = "multiplayer"
+
 [node name="Quit" type="Button" parent="VBoxContainer/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 40)
@@ -1221,4 +1230,5 @@ text = "version"
 [connection signal="button_up" from="VBoxContainer/HBoxContainer/GridContainer/NewGame" to="." method="_on_new_game_button_up"]
 [connection signal="button_up" from="VBoxContainer/HBoxContainer/GridContainer/Continue" to="." method="_on_continue_button_up"]
 [connection signal="button_up" from="VBoxContainer/HBoxContainer/GridContainer/Settings" to="." method="_on_settings_button_up"]
+[connection signal="button_up" from="VBoxContainer/HBoxContainer/GridContainer/Multiplayer" to="." method="_on_multiplayer_button_up"]
 [connection signal="button_up" from="VBoxContainer/HBoxContainer/GridContainer/Quit" to="." method="_on_quit_button_up"]

@@ -226,6 +226,7 @@ func _test_ui_scenes() -> void:
 	for path in [
 		"res://scenes/ui/upgrade_menu.tscn", "res://scenes/ui/vehicle_selector.tscn",
 		"res://scenes/ui/run_summary.tscn", "res://scenes/hud/hud_overlay.tscn",
+		"res://scenes/mp/mp_arena.tscn",
 	]:
 		var scene: PackedScene = load(path)
 		if not scene:
@@ -242,6 +243,15 @@ func _test_ui_scenes() -> void:
 			_check("HUD shows bounty tracker", clabel != null and clabel.visible and clabel.text.contains("1/3"))
 			inst._on_contract_changed({})
 			_check("HUD hides tracker with no bounty", clabel != null and not clabel.visible)
+
+	# Multiplayer is reachable from the menu: the start screen wires a handler that loads the arena.
+	var ss_script: GDScript = load("res://scripts/start_screen.gd")
+	var has_mp_handler: bool = false
+	if ss_script:
+		for m in ss_script.get_script_method_list():
+			if m.get("name", "") == "_on_multiplayer_button_up":
+				has_mp_handler = true
+	_check("start screen has multiplayer handler", has_mp_handler)
 
 	# Town zone should spawn a starting vehicle on load.
 	var town_scene: PackedScene = load("res://systems/map/town_zone.tscn")
