@@ -71,4 +71,6 @@ func take_damage(amount) -> void:
 	hp -= amount
 	modulate = Color(1.0, 0.6, 0.6) # brief hit flash tint
 	if hp <= 0.0:
+		if has_node("/root/GameState"):
+			get_node("/root/GameState").add_scrap(randi_range(5, 12))
 		queue_free()

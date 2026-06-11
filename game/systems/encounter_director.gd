@@ -36,7 +36,7 @@ func _ready() -> void:
 	# But we can check if GameState.current_run_miles < 0.1 to reset.
 
 func _process(delta: float) -> void:
-	var gs = get_node("/root/GameState")
+	var gs = get_node_or_null("/root/GameState")
 	if not gs or gs.current_state != 1: # Not RUN
 		player_speed_ok_timer = 0.0
 		return
