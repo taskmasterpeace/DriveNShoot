@@ -8,6 +8,7 @@ var _frame: int = 0
 var _results: Array[String] = []
 var _vehicle: VehicleEntity
 var _did_encounter_test: bool = false
+var _loot_before_drop: int = -1
 
 func _ready() -> void:
 	_test_economy()
@@ -165,6 +166,15 @@ func _process(_delta: float) -> void:
 		_test_ui_scenes()
 		_test_vehicle_systems()
 		_test_loot_effects()
+		# Kill a transport; its convoy loot drops via deferred add_child — checked later.
+		var t: PursuerAI = load("res://entities/vehicles/pursuer_vehicle.tscn").instantiate()
+		t.behavior_type = PursuerAI.BehaviorType.TRANSPORT
+		add_child(t)
+		t.global_position = Vector2(10000, 600)
+		_loot_before_drop = get_tree().get_nodes_in_group("loot").size()
+		t.take_damage(99999.0) # _die -> _drop_convoy_loot (deferred)
+	if _frame == 30 and _loot_before_drop >= 0:
+		_check("convoy/boss loot drops on death", get_tree().get_nodes_in_group("loot").size() > _loot_before_drop)
 	if _frame == 40 and is_instance_valid(_vehicle):
 		# Projectiles should have been created and parented to the tree root.
 		_check("vehicle still valid mid-run", _vehicle.hp > 0)

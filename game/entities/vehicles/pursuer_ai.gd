@@ -76,6 +76,8 @@ func _ready() -> void:
 @export var despawn_distance: float = 4500.0 ## Far behind the player, despawn to keep counts bounded.
 
 func _physics_process(delta: float) -> void:
+	if player_target and not is_instance_valid(player_target):
+		player_target = null # drop a freed reference
 	if not player_target:
 		# Try find player repeatedly or despawn?
 		var players = get_tree().get_nodes_in_group("player")

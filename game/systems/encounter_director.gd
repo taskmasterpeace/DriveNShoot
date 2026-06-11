@@ -46,10 +46,19 @@ func _world() -> Node:
 
 func _ready() -> void:
 	if has_node("/root/GameState"):
-		get_node("/root/GameState").distance_updated.connect(_on_distance_updated)
-	# Also need to listen for run reset?
-	# GameState doesn't emit "run_started" logic explicitly but has start_run.
-	# But we can check if GameState.current_run_miles < 0.1 to reset.
+		var gs := get_node("/root/GameState")
+		gs.distance_updated.connect(_on_distance_updated)
+		gs.run_started.connect(_on_run_started)
+
+## Reset all per-run encounter state at the start of every run (robust — doesn't depend on the
+## first distance update firing).
+func _on_run_started() -> void:
+	pursuer_pending = false
+	pursuer_spawned_this_run = false
+	boss_spawned_this_run = false
+	last_pursuer_mile = 0.0
+	last_loot_mile = 0.0
+	player_speed_ok_timer = 0.0
 
 func _process(delta: float) -> void:
 	var gs = get_node_or_null("/root/GameState")
