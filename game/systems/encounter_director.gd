@@ -143,26 +143,47 @@ func spawn_pursuer() -> void:
 
 	# Behavior variety (set before the node enters the tree so _ready mounts a gun for SHOOTERs).
 	var roll: float = randf()
-	if roll < 0.4:
+	var is_swarm: bool = false
+	if roll < 0.35:
 		pursuer.behavior_type = PursuerAI.BehaviorType.RAMMER
-	elif roll < 0.75:
+	elif roll < 0.6:
 		pursuer.behavior_type = PursuerAI.BehaviorType.SHOOTER
-	else:
+	elif roll < 0.8:
 		pursuer.behavior_type = PursuerAI.BehaviorType.BLOCKER
+	else:
+		pursuer.behavior_type = PursuerAI.BehaviorType.SWARM
+		is_swarm = true
 
-	# Randomly assign enemy sprite
+	_assign_enemy_sprite(pursuer)
+
+	# Add to world
+	player.get_parent().add_child(pursuer)
+
+	# A swarm pick brings a pack of flanking bikes.
+	if is_swarm:
+		_spawn_swarm_escorts(player, spawn_pos)
+
+	# Telegraph
+	var warning_text: String = "SWARM INBOUND!" if is_swarm else "PURSUER DETECTED!"
+	if player.has_method("show_warning"):
+		player.show_warning(warning_text)
+	elif player.has_method("notify_action"):
+		player.notify_action(warning_text, 1.0)
+
+## Randomly assigns one of the enemy sprite variants to a pursuer's Sprite2D.
+func _assign_enemy_sprite(pursuer: Node) -> void:
 	if enemy_textures.size() > 0:
 		var tex: Texture2D = enemy_textures.pick_random()
 		var sprite: Sprite2D = pursuer.get_node_or_null("Sprite2D")
 		if sprite:
 			sprite.texture = tex
 
-	# Add to world
-	player.get_parent().add_child(pursuer)
-	
-	# Telegraph
-	if player.has_method("show_warning"):
-		player.show_warning("PURSUER DETECTED!")
-	elif player.has_method("notify_action"):
-		player.notify_action("PURSUER DETECTED!", 1.0)
+## Spawns two extra SWARM bikes flanking the lead bike.
+func _spawn_swarm_escorts(player: Node2D, lead_pos: Vector2) -> void:
+	for offset in [-260.0, 260.0]:
+		var bike = PURSUER_SCENE.instantiate()
+		bike.behavior_type = PursuerAI.BehaviorType.SWARM
+		bike.global_position = lead_pos + Vector2(offset, randf_range(-120.0, 120.0))
+		_assign_enemy_sprite(bike)
+		player.get_parent().add_child(bike)
 

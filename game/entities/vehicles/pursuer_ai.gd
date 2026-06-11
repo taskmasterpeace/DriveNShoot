@@ -2,7 +2,7 @@ class_name PursuerAI
 extends VehicleEntity
 
 enum State { SEEK, RAM, BLOCK, RESET_DISTANCE }
-enum BehaviorType { RAMMER, BLOCKER, SHOOTER }
+enum BehaviorType { RAMMER, BLOCKER, SHOOTER, SWARM }
 
 const SHOOTER_WEAPON: DataWeapon = preload("res://items/weapons/machine_gun.tres")
 
@@ -32,6 +32,14 @@ func _ready() -> void:
 	# SHOOTERs carry a forward-mounted gun and fire while keeping their distance.
 	if behavior_type == BehaviorType.SHOOTER and mounted_weapons.is_empty() and SHOOTER_WEAPON:
 		mount_weapon(SHOOTER_WEAPON, 0, 1)
+	# SWARM: cheap, fast, fragile bikes that mob the player (uses RAMMER chase logic).
+	if behavior_type == BehaviorType.SWARM:
+		max_hp = 40.0
+		hp = 40.0
+		base_accel = 1150.0
+		follow_distance = 130.0
+		ram_range = 220.0
+		scale = Vector2(0.7, 0.7)
 	# Disable Smoke (Pursuer doesn't break down same way)
 	if smoke_node:
 		smoke_node.queue_free()
