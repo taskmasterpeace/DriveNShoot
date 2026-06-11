@@ -93,6 +93,28 @@ of each system and update entries instead of duplicating.
     pellets not a continuous cone. Good enough for now; revisit in polish.
   - Want a dedicated pistol .tres + sprite for the on-foot sidearm (reusing machine_gun now).
 
+### System 2 — Huge world & terrain (IN PROGRESS)
+- Correction to initial survey: `systems/map/road_manager.gd` DOES exist — there is a working
+  infinite-road streaming system (RoadManager spawns/despawns RoadSegment chunks as the player
+  drives north along the road at world x≈10000; difficulty-scaled wreck obstacle patterns).
+  Decision: EXTEND this coherently into an open themed wasteland rather than build a conflicting
+  grid world. The road remains the spine (pursuer/encounter lane logic depends on x≈10000).
+- Found + fixed: `road_segment.gd` mixed 4-space (`_ready`) and TAB (`spawn_obstacles`)
+  indentation — a GDScript compile error. This file/road system is only used by `world.tscn`
+  (not the main `test_driving.tscn`), so it likely never ran. Normalized `_ready` to tabs.
+  NOTE: `town_zone.gd` `_on_gate_entered` (lines ~38-41) ALSO uses spaces while the rest is
+  tabs — same latent bug, fix when touching that file.
+- DONE: collision layer 8 = `rough_terrain` (project.godot). FootZone (`systems/map/foot_zone.gd`,
+  code-generated, no .tscn) = ring of StaticBody2D barriers on rough_terrain. Vehicles mask
+  layer 8 (blocked); characters don't (walk through). Interior has a loot cache → "terrain that
+  requires walking." VehicleEntity._ready adds `collision_mask |= 1<<7`; PursuerAI mask now
+  1+2+128.
+- DONE: RoadSegment now lays a wide wasteland backdrop (world_width 4200) + scattered rocks, and
+  `maybe_spawn_foot_zone(chance)`; RoadManager spawns ruins more often past 0.5/1.0 mi.
+- TODO next: minimap/world-map on HUD; biome/theme variety per depth; verify world.tscn loads
+  (it references road_manager + town_zone, paths now fixed); consider widening drivable area off
+  the road. Then System 3 (towns/garages/economy).
+
 #### Invented UID registry (REUSE these exact uids, do not regenerate — avoids collisions)
 - projectile.gd: uid://dalvnt2aygqgg (pre-existing)
 - data_weapon.gd: uid://bc7pmqpgxatnh (pre-existing)

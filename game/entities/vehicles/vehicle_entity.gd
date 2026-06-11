@@ -300,6 +300,9 @@ var is_broken: bool = false
 var smoke_node: CPUParticles2D
 
 func _ready() -> void:
+	# Vehicles are blocked by rough_terrain (foot-only ruins); characters are not.
+	collision_mask |= 1 << 7
+
 	if data:
 		load_data(data)
 		_setup_weapons()

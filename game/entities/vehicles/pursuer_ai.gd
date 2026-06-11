@@ -46,7 +46,7 @@ func _ready() -> void:
 		player_target = players[0]
 		
 	collision_layer = 1 # Car Layer
-	collision_mask = 1 + 2 # Car + World
+	collision_mask = 1 + 2 + (1 << 7) # Car + World + rough_terrain (blocked from foot-only ruins)
 
 func _physics_process(delta: float) -> void:
 	if not player_target:

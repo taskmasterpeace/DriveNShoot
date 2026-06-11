@@ -99,6 +99,12 @@ func _spawn_segment() -> void:
 		
 		seg.spawn_obstacles(diff)
 
+		# Foot-only ruins appear more often the deeper you push into the Deathlands.
+		var foot_chance: float = 0.0
+		if miles > 1.0: foot_chance = 0.35
+		elif miles > 0.5: foot_chance = 0.2
+		seg.maybe_spawn_foot_zone(foot_chance)
+
 
 func _despawn_segment() -> void:
 	var seg = active_segments.pop_front()
