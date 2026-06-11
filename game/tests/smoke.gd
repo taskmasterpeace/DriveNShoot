@@ -27,6 +27,7 @@ func _test_economy() -> void:
 		"kits": gs.kits_tier, "rel": gs.reliability_tier, "state": gs.current_state,
 		"miles": gs.current_run_miles, "best": gs.best_miles,
 		"unlocked": gs.unlocked_vehicles.duplicate(),
+		"owned": gs.owned_weapons.duplicate(), "equipped": gs.equipped_weapon_id,
 	}
 
 	# Death forfeits scrap earned this run.
@@ -51,6 +52,15 @@ func _test_economy() -> void:
 	var bought: bool = gs.try_buy_upgrade("armor")
 	_check("upgrade spends scrap + raises tier", bought and gs.armor_tier == 1 and gs.scrap == 85)
 
+	# Weapon shop: buy and equip a gun.
+	gs.scrap = 200
+	gs.owned_weapons = ["machine_gun"]
+	gs.equipped_weapon_id = "machine_gun"
+	var wbought: bool = gs.try_buy_weapon("shotgun")
+	_check("buy weapon spends scrap + owns it", wbought and gs.owned_weapons.has("shotgun") and gs.scrap == 80)
+	gs.equip_weapon("shotgun")
+	_check("equip weapon", gs.equipped_weapon_id == "shotgun" and gs.get_equipped_weapon() != null)
+
 	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
 	gs.start_run()
 	gs.set_run_start_position(Vector2(10000, 0))
@@ -68,6 +78,8 @@ func _test_economy() -> void:
 	gs.current_run_miles = snap.miles
 	gs.best_miles = snap.best
 	gs.unlocked_vehicles = snap.unlocked
+	gs.owned_weapons = snap.owned
+	gs.equipped_weapon_id = snap.equipped
 	gs.save_profile()
 
 func _spawn_world() -> void:
@@ -142,6 +154,7 @@ func _process(_delta: float) -> void:
 	if _frame == 5 and not _did_encounter_test:
 		_did_encounter_test = true
 		_test_encounter_spawn()
+		_test_ui_scenes()
 	if _frame == 40 and is_instance_valid(_vehicle):
 		# Projectiles should have been created and parented to the tree root.
 		_check("vehicle still valid mid-run", _vehicle.hp > 0)
@@ -159,6 +172,22 @@ func _test_encounter_spawn() -> void:
 	dir.spawn_pursuer()
 	var after: int = get_tree().get_nodes_in_group("enemy").size()
 	_check("encounter director spawns enemies", after > before)
+
+## Instantiates the menu/HUD scenes so node-path mismatches surface as errors.
+func _test_ui_scenes() -> void:
+	var holder := CanvasLayer.new()
+	add_child(holder)
+	for path in [
+		"res://scenes/ui/upgrade_menu.tscn", "res://scenes/ui/vehicle_selector.tscn",
+		"res://scenes/ui/run_summary.tscn", "res://scenes/hud/hud_overlay.tscn",
+	]:
+		var scene: PackedScene = load(path)
+		if not scene:
+			_check("loads " + path.get_file(), false)
+			continue
+		var inst: Node = scene.instantiate()
+		holder.add_child(inst)
+		_check("instantiates " + path.get_file(), is_instance_valid(inst))
 
 func _check(label: String, cond: bool) -> void:
 	_results.append(("PASS " if cond else "FAIL ") + label)

@@ -28,6 +28,7 @@ var upgrade_keys: Array[String] = ["kits", "reliability", "armor"]
 @onready var vehicles_button: Button = $Panel/VehiclesButton
 const VEHICLE_SELECTOR_SCENE: PackedScene = preload("res://scenes/ui/vehicle_selector.tscn")
 var vehicle_selector_instance: CanvasLayer = null
+var weapon_shop: VBoxContainer = null
 
 func _ready() -> void:
 	visible = false
@@ -44,6 +45,59 @@ func _ready() -> void:
 	# Instantiate vehicle selector
 	vehicle_selector_instance = VEHICLE_SELECTOR_SCENE.instantiate()
 	add_child(vehicle_selector_instance)
+
+	_build_weapon_shop()
+
+## Builds the arms-dealer weapon list in code (buy / equip your vehicle's primary gun).
+func _build_weapon_shop() -> void:
+	var gs = get_node_or_null("/root/GameState")
+	if not gs or not has_node("Panel"):
+		return
+	weapon_shop = VBoxContainer.new()
+	weapon_shop.position = Vector2(40, 360)
+	weapon_shop.add_theme_constant_override("separation", 4)
+	$Panel.add_child(weapon_shop)
+
+	var title := Label.new()
+	title.text = "ARMS DEALER"
+	weapon_shop.add_child(title)
+
+	if not gs.weapons_changed.is_connected(_refresh_weapon_shop):
+		gs.weapons_changed.connect(_refresh_weapon_shop)
+	_refresh_weapon_shop()
+
+func _refresh_weapon_shop() -> void:
+	var gs = get_node_or_null("/root/GameState")
+	if not gs or not weapon_shop:
+		return
+	# Clear old rows, keep the title at index 0.
+	for i in range(weapon_shop.get_child_count() - 1, 0, -1):
+		weapon_shop.get_child(i).queue_free()
+
+	for id in gs.WEAPON_ORDER:
+		var entry = gs.WEAPON_CATALOG[id]
+		var btn := Button.new()
+		if gs.equipped_weapon_id == id:
+			btn.text = "%s — EQUIPPED" % entry["name"]
+			btn.disabled = true
+		elif gs.owned_weapons.has(id):
+			btn.text = "%s — EQUIP" % entry["name"]
+		else:
+			btn.text = "%s — BUY (%d)" % [entry["name"], entry["price"]]
+			btn.disabled = gs.scrap < entry["price"]
+		btn.pressed.connect(_on_weapon_pressed.bind(id))
+		weapon_shop.add_child(btn)
+
+func _on_weapon_pressed(id: String) -> void:
+	var gs = get_node_or_null("/root/GameState")
+	if not gs:
+		return
+	if gs.owned_weapons.has(id):
+		gs.equip_weapon(id)
+	else:
+		gs.try_buy_weapon(id)
+	_refresh_weapon_shop()
+	_update_ui()
 
 func _open_vehicles() -> void:
 	vehicle_selector_instance.open()

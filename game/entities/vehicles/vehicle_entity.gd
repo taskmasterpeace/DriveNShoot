@@ -435,10 +435,16 @@ func _setup_weapons() -> void:
 		return
 
 	var loadout: Array[DataWeapon] = []
-	if data.default_weapon:
+	# Player vehicles mount the weapon chosen in the garage; otherwise the data default.
+	var equipped: DataWeapon = null
+	if team == 0 and has_node("/root/GameState"):
+		equipped = get_node("/root/GameState").get_equipped_weapon()
+	if equipped:
+		loadout.append(equipped)
+	elif data.default_weapon:
 		loadout.append(data.default_weapon)
 	for w in data.default_weapons:
-		if w:
+		if w and not loadout.has(w):
 			loadout.append(w)
 
 	var count: int = min(loadout.size(), data.weapon_slots)

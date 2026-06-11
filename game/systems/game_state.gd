@@ -72,6 +72,19 @@ const COST_KITS = [15, 35, 70]
 const COST_RELIABILITY = [20, 45, 90]
 const COST_ARMOR = [15, 40, 85]
 
+# Weapons economy — buy guns at the garage, equip one as your vehicle's primary.
+const WEAPON_CATALOG := {
+	"machine_gun": {"name": "Machine Gun", "price": 0, "path": "res://items/weapons/machine_gun.tres"},
+	"shotgun": {"name": "Shotgun", "price": 120, "path": "res://items/weapons/shotgun.tres"},
+	"mine_dropper": {"name": "Mine Dropper", "price": 180, "path": "res://items/weapons/mine_dropper.tres"},
+	"flamethrower": {"name": "Flamethrower", "price": 220, "path": "res://items/weapons/flamethrower.tres"},
+	"rocket_launcher": {"name": "Rocket Launcher", "price": 350, "path": "res://items/weapons/rocket_launcher.tres"},
+}
+const WEAPON_ORDER := ["machine_gun", "shotgun", "mine_dropper", "flamethrower", "rocket_launcher"]
+var owned_weapons: Array = ["machine_gun"] ## Untyped so ConfigFile loads/array assignments don't fail typed coercion.
+var equipped_weapon_id: String = "machine_gun"
+signal weapons_changed()
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	load_profile()
@@ -279,6 +292,34 @@ func try_buy_upgrade(type: String) -> bool:
 		
 	return false
 
+## Buy a weapon if affordable and not already owned.
+func try_buy_weapon(id: String) -> bool:
+	if not WEAPON_CATALOG.has(id) or owned_weapons.has(id):
+		return false
+	var price: int = WEAPON_CATALOG[id]["price"]
+	if scrap < price:
+		return false
+	scrap -= price
+	scrap_changed.emit(-price, scrap)
+	owned_weapons.append(id)
+	weapons_changed.emit()
+	save_profile()
+	return true
+
+## Equip an owned weapon as the vehicle's primary.
+func equip_weapon(id: String) -> void:
+	if owned_weapons.has(id):
+		equipped_weapon_id = id
+		weapons_changed.emit()
+		save_profile()
+
+## The currently equipped weapon resource (mounted on the player's vehicle).
+func get_equipped_weapon() -> DataWeapon:
+	var entry = WEAPON_CATALOG.get(equipped_weapon_id)
+	if entry:
+		return load(entry["path"]) as DataWeapon
+	return null
+
 func select_vehicle(id: String) -> void:
 	if unlocked_vehicles.has(id):
 		selected_vehicle_id = id
@@ -301,7 +342,9 @@ func save_profile() -> void:
 	config.set_value("Player", "best_miles", best_miles)
 	config.set_value("Player", "selected_vehicle", selected_vehicle_id)
 	config.set_value("Player", "unlocked", unlocked_vehicles)
-	
+	config.set_value("Player", "owned_weapons", owned_weapons)
+	config.set_value("Player", "equipped_weapon", equipped_weapon_id)
+
 	config.set_value("Upgrades", "kits_tier", kits_tier)
 	config.set_value("Upgrades", "reliability_tier", reliability_tier)
 	config.set_value("Upgrades", "armor_tier", armor_tier)
@@ -321,6 +364,8 @@ func load_profile() -> void:
 	best_miles = float(config.get_value("Player", "best_miles", 0.0))
 	selected_vehicle_id = String(config.get_value("Player", "selected_vehicle", "balanced"))
 	unlocked_vehicles = config.get_value("Player", "unlocked", ["balanced"])
+	owned_weapons = config.get_value("Player", "owned_weapons", ["machine_gun"])
+	equipped_weapon_id = String(config.get_value("Player", "equipped_weapon", "machine_gun"))
 	
 	kits_tier = int(config.get_value("Upgrades", "kits_tier", 0))
 	reliability_tier = int(config.get_value("Upgrades", "reliability_tier", 0))
