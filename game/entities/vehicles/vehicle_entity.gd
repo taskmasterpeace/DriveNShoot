@@ -150,13 +150,17 @@ func get_input() -> void:
 	if network_peer_id > 0 and has_node("/root/NetworkManager"):
 		var nm = get_node("/root/NetworkManager")
 		if nm.is_active() and nm.is_server():
-			var inp: Dictionary = nm.get_input_for(network_peer_id)
-			input_throttle = inp.get("throttle", 0.0)
-			input_braking = inp.get("braking", 0.0)
-			input_steering = inp.get("steering", 0.0)
-			input_handbrake = inp.get("handbrake", false)
-			if inp.get("firing", false):
-				fire_weapons()
+			if network_peer_id == nm.local_id():
+				# The host is also a player — drive their own vehicle from local input.
+				_read_local_drive_input()
+			else:
+				var inp: Dictionary = nm.get_input_for(network_peer_id)
+				input_throttle = inp.get("throttle", 0.0)
+				input_braking = inp.get("braking", 0.0)
+				input_steering = inp.get("steering", 0.0)
+				input_handbrake = inp.get("handbrake", false)
+				if inp.get("firing", false):
+					fire_weapons()
 			return
 
 	# If Player Driven
@@ -196,6 +200,15 @@ func _is_remote_simulated() -> bool:
 		return false
 	var nm = get_node("/root/NetworkManager")
 	return nm.is_active() and not nm.is_server()
+
+## Read the local player's drive input into the input fields (host's own vehicle; fires locally).
+func _read_local_drive_input() -> void:
+	input_steering = Input.get_axis("move_left", "move_right")
+	input_handbrake = Input.is_action_pressed("jump")
+	input_throttle = Input.get_action_strength("move_up")
+	input_braking = Input.get_action_strength("move_down")
+	if Input.is_action_pressed("attack"):
+		fire_weapons()
 
 ## Owning client: read local input and forward it to the authoritative server.
 func _read_and_send_input() -> void:
