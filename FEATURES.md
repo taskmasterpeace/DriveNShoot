@@ -1,6 +1,12 @@
 # CarWorld Features Documentation
-**Date:** 2025-12-19
-**Version:** Phase 6 Alpha (Transitioning to Phase 7)
+**Date:** 2026-06-11
+**Version:** Phase 7 (Combat & Open Wasteland)
+
+> **Build update (2026-06-11 — autonomous combat/world pass):** Added a full weapon system
+> (vehicle-mounted + on-foot shooting), a SHOOTER enemy type, an open wasteland with foot-only
+> ruins ("terrain that requires walking"), and a minimap. Also repaired a large batch of latent
+> bugs that were silently breaking the garage, vehicle selector, HUD, and the full game scene
+> (`world.tscn`). See `docs/BUILD_NOTES.md` for the full log. New sections 11–13 below.
 
 ## 1. Core Gameplay Loop
 The game follows an extraction-based survival loop:
@@ -55,3 +61,39 @@ The game follows an extraction-based survival loop:
 *   **Tutorial Prompts:** Context-sensitive hints (e.g., "Hold E to Repair") spawn when needed.
 *   **Run Summary:** Detailed report screen after every run (Miles, Scrap, Cause of Death).
 *   **Help Overlay:** Press **F1** to see a full control mapping for Keyboard and Gamepad.
+
+## 11. Combat & Weapons (NEW — 2026-06-11)
+*   **Five weapons** (data-driven `.tres`, in `items/weapons/`):
+    *   **Machine Gun** — fast, light, slight spread; default vehicle + on-foot sidearm.
+    *   **Shotgun** — 7 spread pellets, heavy knockback, slow.
+    *   **Rocket Launcher** — high single-target damage, slow (Behemoth's default).
+    *   **Flamethrower** — rapid short-range pellets.
+    *   **Mine Dropper** — drops stationary mines that let you drive away but trigger on enemies.
+*   **Vehicle-mounted weapons:** vehicles mount their loadout forward and fire on the attack
+    button (LMB / RB) at each weapon's own fire rate. Ammo shows on the HUD.
+*   **On-foot shooting:** out of the vehicle, aim with the mouse and fire your sidearm.
+*   **Team/friendly-fire system:** projectiles damage both vehicles and characters, never hit
+    their own shooter or allies, and stop on walls/terrain. (Also the hook for future multiplayer.)
+*   **Enemy SHOOTER type:** a pursuer that holds its distance, faces you, and fires back.
+
+## 12. Open Wasteland & Foot-Only Ruins (NEW — 2026-06-11)
+*   **Wide wasteland:** the road is now flanked by an open dirt expanse with scattered rocks,
+    so the world reads as open terrain rather than a bare strip.
+*   **Foot-only ruins:** barrier rings (on a new `rough_terrain` collision layer) that vehicles
+    physically can't enter but your character walks straight through — the "terrain that requires
+    walking." Richer loot inside rewards leaving the car. They appear more often deeper in.
+
+## 13. Minimap (NEW — 2026-06-11)
+*   A top-right radar centred on the player, showing hostiles (red) and loot (yellow), clamped
+    to the rim when out of range.
+
+---
+### How to try the new combat (main scene)
+Open `scenes/levels/test/test_driving.tscn` and run. Two enemies spawn and chase you — a rammer
+and a shooter that fires back. Walk to a car (E to enter), then **hold LMB / RB to fire** while
+driving. The minimap (top-right) shows the hostiles.
+
+### To play the full town→run loop
+Open `scenes/levels/world.tscn` (repaired this build). Spawn in town, enter the town's vehicle,
+drive through the start gate to begin a run down the wasteland road, fight pursuers, loot ruins
+on foot, and Hold X to extract.
