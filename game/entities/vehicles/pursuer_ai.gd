@@ -27,8 +27,8 @@ var stickiness_timer: float = 0.0
 var base_accel: float = 800.0
 
 func _ready() -> void:
+	team = 1 # Hostile — set before super._ready() so any data-mounted weapons inherit it.
 	super._ready()
-	team = 1 # Hostile — player projectiles damage it, its projectiles damage the player.
 	# SHOOTERs carry a forward-mounted gun and fire while keeping their distance.
 	if behavior_type == BehaviorType.SHOOTER and mounted_weapons.is_empty() and SHOOTER_WEAPON:
 		mount_weapon(SHOOTER_WEAPON, 0, 1)

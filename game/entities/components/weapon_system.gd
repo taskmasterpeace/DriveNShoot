@@ -85,7 +85,7 @@ func _spawn_projectile() -> void:
 		projectile.setup(shoot_direction, weapon_data.projectile_speed, weapon_data.power, weapon_data.knockback_force, team, source)
 
 func start_reload() -> void:
-	if is_reloading or current_ammo == weapon_data.max_ammo:
+	if is_reloading or not weapon_data or current_ammo == weapon_data.max_ammo:
 		return
 	is_reloading = true
 	reload_timer.start(weapon_data.reload_time)

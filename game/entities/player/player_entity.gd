@@ -127,8 +127,8 @@ func _ready():
 			hud_instance.setup(survival_stats, weapon_system)
 		if hud_instance.has_method("update_kits"):
 			kits_changed.connect(hud_instance.update_kits)
-		if hud_instance.has_method("update_action"):
-			action_updated.connect(hud_instance.update_action)
+		if hud_instance.has_method("_on_player_action_updated"):
+			action_updated.connect(hud_instance._on_player_action_updated)
 		
 		var interaction_controller = get_node_or_null("InteractionController")
 		if interaction_controller and hud_instance.has_method("connect_interaction_controller"):

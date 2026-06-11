@@ -74,7 +74,8 @@ func _on_distance_updated(miles: float) -> void:
 	# Pursuer Logic
 	if pursuer_spawned_this_run: return
 	
-	var gs = get_node("/root/GameState")
+	var gs = get_node_or_null("/root/GameState")
+	if not gs: return
 	var heat = gs.current_heat
 	
 	# Guaranteed Spawn (Heat >= 40)
