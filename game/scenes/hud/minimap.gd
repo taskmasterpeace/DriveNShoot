@@ -31,18 +31,28 @@ func _draw() -> void:
 	draw_circle(center, r, Color(0.05, 0.06, 0.05, 0.65))
 	draw_arc(center, r, 0.0, TAU, 48, Color(0.45, 0.5, 0.45, 0.85), 2.0)
 
-	if not is_instance_valid(player):
-		player = get_tree().get_first_node_in_group("player")
-		if not is_instance_valid(player):
-			return
+	# Centre on whatever the player is actually controlling — the driven vehicle, or the
+	# on-foot player — so the radar stays useful while driving (the player node is static then).
+	var focus: Node2D = _focus_node()
+	if not is_instance_valid(focus):
+		return
 
-	var origin: Vector2 = player.global_position
-	draw_circle(center, 4.0, Color.WHITE) # player at centre
+	var origin: Vector2 = focus.global_position
+	draw_circle(center, 4.0, Color.WHITE) # you, at centre
 
 	for e in get_tree().get_nodes_in_group("enemy"):
 		_plot(e, origin, center, r, Color(0.9, 0.2, 0.2))
 	for l in get_tree().get_nodes_in_group("loot"):
 		_plot(l, origin, center, r, Color(0.95, 0.85, 0.2))
+
+## The node the radar centres on: the active vehicle if driving, else the on-foot player.
+func _focus_node() -> Node2D:
+	for v in get_tree().get_nodes_in_group("vehicle"):
+		if v is VehicleEntity and v.is_active:
+			return v
+	if is_instance_valid(player):
+		return player
+	return get_tree().get_first_node_in_group("player")
 
 func _plot(node: Object, origin: Vector2, center: Vector2, r: float, color: Color) -> void:
 	if not node is Node2D:
