@@ -71,6 +71,19 @@ of each system and update entries instead of duplicating.
 - FALSE POSITIVE (verified fine, do not "fix"): interaction_controller.gd ~125-131 — the
   interact()/interact_with() calls ARE correctly nested inside `elif nearest.has_method("interact")`.
 
+## Verification of System 2 / enemy / minimap code (reviewed — these are FINE, do not "fix")
+
+- `FOOT_ZONE_SCRIPT.new()` in road_segment.gd is CORRECT: foot_zone.gd is a class/script (no .tscn),
+  so `.new()` is right. `.instantiate()` is only for PackedScenes (loot_cache.tscn, which uses it).
+- minimap.gd `draw_arc(center, r, 0, TAU, 48, color, 2.0)` is the correct Godot 4.5 signature.
+  `get_tree().get_first_node_in_group()` is a real Godot 4 method.
+- pursuer_ai SWARM stat overrides (max_hp/hp/base_accel/scale) persist — nothing after them resets
+  them; `engine_power = base_accel` later picks up the new base_accel. `scale` on CharacterBody2D valid.
+- encounter_director GameState lookups are null-guarded and GameState is an always-present autoload.
+- world.tscn `[node ... instance=ExtResource("5_player") groups=["player"]]` is valid Godot 4 syntax.
+- A fresh-context verifier flagged all the above as suspect; each was checked against the real code
+  and the 4.5 API and confirmed correct. No changes made.
+
 ## Team / faction convention (introduced this run)
 
 - Added `@export var team: int = 0` to both `VehicleEntity` and `CharacterEntity`.

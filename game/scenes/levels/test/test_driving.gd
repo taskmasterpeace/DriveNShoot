@@ -38,6 +38,12 @@ func _spawn_test_enemies() -> void:
 	shooter.behavior_type = PursuerAI.BehaviorType.SHOOTER
 	_configure_test_enemy(shooter, Vector2(180, -750))
 
+	# A pair of swarm bikes to show the fast/fragile mob type.
+	for sx in [-360.0, 360.0]:
+		var bike: PursuerAI = PURSUER_SCENE.instantiate()
+		bike.behavior_type = PursuerAI.BehaviorType.SWARM
+		_configure_test_enemy(bike, Vector2(sx, -920.0))
+
 func _configure_test_enemy(enemy: PursuerAI, spawn_pos: Vector2) -> void:
 	# Free-roam chase in the open test arena (no road lane to clamp to).
 	enemy.road_center_x = 0.0
