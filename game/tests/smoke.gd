@@ -156,6 +156,7 @@ func _process(_delta: float) -> void:
 		_test_encounter_spawn()
 		_test_ui_scenes()
 		_test_vehicle_systems()
+		_test_loot_effects()
 	if _frame == 40 and is_instance_valid(_vehicle):
 		# Projectiles should have been created and parented to the tree root.
 		_check("vehicle still valid mid-run", _vehicle.hp > 0)
@@ -213,6 +214,29 @@ func _test_vehicle_systems() -> void:
 	v2.vehicle_destroyed.connect(func(): died[0] = true)
 	v2.take_damage(99999.0)
 	_check("vehicle death emits destroyed signal", died[0])
+
+## Type-specific loot: scrap pickup banks scrap; every kind opens without error.
+func _test_loot_effects() -> void:
+	var gs = get_node_or_null("/root/GameState")
+	var before: int = gs.scrap if gs else 0
+
+	var loot: Node = load("res://entities/world/loot_cache.tscn").instantiate()
+	add_child(loot)
+	loot.pickup_kind = "scrap"
+	loot.open(null)
+	_check("scrap pickup banks scrap", gs != null and gs.scrap > before)
+
+	var ok: bool = true
+	for kind in ["health", "ammo", "repair", "fuel", "armor", ""]:
+		var l: Node = load("res://entities/world/loot_cache.tscn").instantiate()
+		add_child(l)
+		l.pickup_kind = kind
+		l.open(null)
+	_check("all pickup kinds open without error", ok)
+
+	if gs:
+		gs.scrap = before # restore (scrap/fuel/armor added during the test)
+		gs.save_profile()
 
 func _check(label: String, cond: bool) -> void:
 	_results.append(("PASS " if cond else "FAIL ") + label)

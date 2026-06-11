@@ -22,6 +22,8 @@ var pickup_textures: Array[Texture2D] = [
 	preload("res://entities/world/sprites/pickup_repair.png"),
 	preload("res://entities/world/sprites/pickup_armor.png"),
 ]
+# Effect kind for each pickup, in the same order as pickup_textures.
+const PICKUP_KINDS := ["health", "ammo", "scrap", "fuel", "repair", "armor"]
 
 var pursuer_spawned_this_run: bool = false ## Informational (shown in debug overlay).
 var pursuer_pending: bool = false ## True once an encounter is queued, waiting on the speed check.
@@ -109,12 +111,13 @@ func _spawn_loot(miles: float) -> void:
 	var loot = LOOT_SCENE.instantiate()
 	loot.global_position = spawn_pos
 
-	# Randomly assign pickup sprite
+	# Assign a pickup type — the sprite and its effect (loot.pickup_kind) match.
 	if pickup_textures.size() > 0:
-		var tex: Texture2D = pickup_textures.pick_random()
+		var idx: int = randi() % pickup_textures.size()
+		loot.pickup_kind = PICKUP_KINDS[idx]
 		var sprite: Sprite2D = loot.get_node_or_null("Sprite2D")
 		if sprite:
-			sprite.texture = tex
+			sprite.texture = pickup_textures[idx]
 			sprite.modulate = Color.WHITE  # Override brown tint from .tscn
 
 	_world().add_child(loot)
