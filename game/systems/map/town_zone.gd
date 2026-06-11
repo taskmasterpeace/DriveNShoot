@@ -35,23 +35,34 @@ func _decorate() -> void:
 		["building_guard_tower", Vector2(0, -470)],
 	]
 	for b in buildings:
-		var spr := Sprite2D.new()
-		spr.texture = load("res://entities/world/sprites/%s.png" % b[0])
-		spr.position = b[1]
-		spr.z_index = -2
-		add_child(spr)
+		_spawn_building("res://entities/world/sprites/%s.png" % b[0], b[1], 0.8)
 
 	for bp in [Vector2(-460, 0), Vector2(460, -60)]:
-		var bar := Sprite2D.new()
-		bar.texture = load("res://entities/world/sprites/prop_barricade.png")
-		bar.position = bp
-		bar.z_index = -1
-		add_child(bar)
+		_spawn_building("res://entities/world/sprites/prop_barricade.png", bp, 0.7)
 
 	_spawn_npc("Mechanic", "res://entities/npcs/sprites/npc_mechanic.png", Vector2(180, -120),
 		["Engine trouble? The garage'll patch you up.", "Keep that armor topped off out there."])
 	_spawn_npc("Trader", "res://entities/npcs/sprites/npc_trader.png", Vector2(-180, -120),
 		["Scrap buys upgrades and guns. Bring me plenty.", "Word is the Road Captain runs the deep lanes."])
+
+## A solid building/prop: sprite + a collision box (block layer) sized from the texture, so the
+## player drives and walks around it.
+func _spawn_building(tex_path: String, pos: Vector2, collision_scale: float) -> void:
+	var body: StaticBody2D = StaticBody2D.new()
+	body.collision_layer = 1 # block
+	body.collision_mask = 0
+	body.position = pos
+	body.z_index = -2
+	var spr: Sprite2D = Sprite2D.new()
+	spr.texture = load(tex_path)
+	body.add_child(spr)
+	var col: CollisionShape2D = CollisionShape2D.new()
+	var rect: RectangleShape2D = RectangleShape2D.new()
+	var sz: Vector2 = spr.texture.get_size() if spr.texture else Vector2(80, 80)
+	rect.size = sz * collision_scale
+	col.shape = rect
+	body.add_child(col)
+	add_child(body)
 
 func _spawn_npc(npc_name: String, tex_path: String, pos: Vector2, lines: Array) -> void:
 	var npc = NPC_SCRIPT.new()
