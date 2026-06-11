@@ -1,0 +1,82 @@
+extends Node
+## NetworkManager — hosts/joins multiplayer sessions over ENet. Foundation for the 32-player
+## co-op/PvP vision (see docs/MULTIPLAYER_PLAN.md). Single-player ignores this entirely.
+
+const DEFAULT_PORT: int = 27015
+const MAX_PLAYERS: int = 32
+
+signal server_started
+signal joined_server
+signal connection_failed
+signal peer_joined(id: int)
+signal peer_left(id: int)
+signal session_ended
+
+var peer: ENetMultiplayerPeer = null
+
+func _ready() -> void:
+	# These multiplayer signals are global; wire them once.
+	multiplayer.peer_connected.connect(_on_peer_connected)
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	multiplayer.connected_to_server.connect(_on_connected_to_server)
+	multiplayer.connection_failed.connect(_on_connection_failed)
+	multiplayer.server_disconnected.connect(_on_server_disconnected)
+
+## Start hosting. Returns true on success.
+func host_server(port: int = DEFAULT_PORT) -> bool:
+	peer = ENetMultiplayerPeer.new()
+	var err: int = peer.create_server(port, MAX_PLAYERS)
+	if err != OK:
+		push_warning("NetworkManager: host failed (%d)" % err)
+		peer = null
+		return false
+	multiplayer.multiplayer_peer = peer
+	server_started.emit()
+	return true
+
+## Connect to a host. Returns true if the attempt started (success is async via joined_server).
+func join_server(address: String = "127.0.0.1", port: int = DEFAULT_PORT) -> bool:
+	peer = ENetMultiplayerPeer.new()
+	var err: int = peer.create_client(address, port)
+	if err != OK:
+		push_warning("NetworkManager: join failed (%d)" % err)
+		peer = null
+		return false
+	multiplayer.multiplayer_peer = peer
+	return true
+
+func disconnect_session() -> void:
+	if peer:
+		peer.close()
+		peer = null
+	multiplayer.multiplayer_peer = null
+	session_ended.emit()
+
+func is_active() -> bool:
+	return multiplayer.multiplayer_peer != null
+
+func is_server() -> bool:
+	return is_active() and multiplayer.is_server()
+
+func local_id() -> int:
+	return multiplayer.get_unique_id() if is_active() else 0
+
+# --- internal signal relays ---
+func _on_peer_connected(id: int) -> void:
+	peer_joined.emit(id)
+
+func _on_peer_disconnected(id: int) -> void:
+	peer_left.emit(id)
+
+func _on_connected_to_server() -> void:
+	joined_server.emit()
+
+func _on_connection_failed() -> void:
+	peer = null
+	multiplayer.multiplayer_peer = null
+	connection_failed.emit()
+
+func _on_server_disconnected() -> void:
+	peer = null
+	multiplayer.multiplayer_peer = null
+	session_ended.emit()
