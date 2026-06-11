@@ -37,15 +37,15 @@ var hp: float = 100.0
 @export var steering_angle = 15  # Maximum angle for steering the car's wheels
 @export var engine_power = 900  # How much force the engine can apply for acceleration
 @export var max_speed = 600  # Top speed in pixels/s (prevents infinite acceleration)
-@export var friction = -150  # Ground friction — higher = more planted feel
-@export var drag = -0.12  # Air drag — higher = more resistance at speed
+@export var friction = -130  # Ground friction — lower magnitude = more coast/momentum (GTA2 glide)
+@export var drag = -0.11  # Air drag — higher = more resistance at speed
 @export var braking = -450  # Braking power when the brake input is applied
 @export var max_speed_reverse = 250  # Maximum speed limit in reverse
 @export var slip_speed = 400  # Speed above which the car's traction decreases (for drifting)
 @export var traction_fast = 6.0  # Traction at high speed — higher = more grip, less drift
 @export var traction_slow = 25.0  # Traction at low speed — higher = snappier steering response
-@export var handbrake_friction = -300  # Extra friction when handbrake is pulled
-@export var handbrake_traction = 0.8  # Low traction for drifting
+@export var handbrake_friction = -160  # Extra friction when handbrake is pulled (lower = keeps speed in a power-slide)
+@export var handbrake_traction = 0.7  # Low traction for drifting (lower = looser, more dramatic slide)
 
 var wheel_base = 65  # Distance between the front and back axle of the car
 var acceleration = Vector2.ZERO  # Current acceleration vector
