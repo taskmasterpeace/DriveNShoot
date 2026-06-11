@@ -1,11 +1,11 @@
 [gd_scene load_steps=7 format=3 uid="uid://test_world_001"]
 
-[ext_resource type="Script" path="res://game/scripts/auto_loads/chunk_manager.gd" id="1_chunk_manager"]
-[ext_resource type="PackedScene" path="res://game/entities/player/player_entity.tscn" id="2_player"]
-[ext_resource type="PackedScene" path="res://game/entities/vehicles/vehicle_entity.tscn" id="3_vehicle"]
-[ext_resource type="PackedScene" path="res://game/systems/farming/garden_plot.tscn" id="4_garden"]
-[ext_resource type="PackedScene" path="res://game/systems/security/security_camera.tscn" id="5_camera"]
-[ext_resource type="PackedScene" path="res://game/entities/animals/animal.tscn" id="6_animal"]
+[ext_resource type="Script" path="res://scripts/auto_loads/chunk_manager.gd" id="1_chunk_manager"]
+[ext_resource type="PackedScene" path="res://entities/player/player_entity.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://entities/vehicles/vehicle_entity.tscn" id="3_vehicle"]
+[ext_resource type="PackedScene" path="res://systems/farming/garden_plot.tscn" id="4_garden"]
+[ext_resource type="PackedScene" path="res://systems/security/security_camera.tscn" id="5_camera"]
+[ext_resource type="PackedScene" path="res://entities/animals/animal.tscn" id="6_animal"]
 
 [node name="TestWorld" type="Node2D"]
 

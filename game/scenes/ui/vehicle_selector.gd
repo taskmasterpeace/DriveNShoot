@@ -4,7 +4,7 @@ extends CanvasLayer
 @onready var close_button = $Panel/CloseButton
 
 # Card Preset
-const CARD_SCENE = preload("res://game/scenes/ui/vehicle_card.tscn")
+const CARD_SCENE = preload("res://scenes/ui/vehicle_card.tscn")
 
 func _ready() -> void:
 	visible = false

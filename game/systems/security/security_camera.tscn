@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://security_camera_001"]
 
-[ext_resource type="Script" path="res://game/systems/security/security_camera.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/car/headlights_car.png" id="2_cone"]
+[ext_resource type="Script" path="res://systems/security/security_camera.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/car/headlights_car.png" id="2_cone"]
 
 [node name="SecurityCamera" type="Node2D"]
 script = ExtResource("1_script")

@@ -48,7 +48,10 @@ func _on_distance_updated(miles: float) -> void:
 func connect_vehicle(vehicle: VehicleEntity) -> void:
 	vehicle.health_changed.connect(_on_vehicle_health_changed)
 	vehicle.breakdown.connect(func(): show_tutorial("repair", "Hold E to repair (uses kit)"))
+	vehicle.weapon_shot.connect(_on_ammo_changed)
+	vehicle.weapon_reloaded.connect(_on_ammo_changed)
 	_on_vehicle_health_changed(vehicle.hp, vehicle.max_hp)
+	_on_ammo_changed(vehicle.get_total_ammo())
 
 func _on_vehicle_health_changed(hp: float, max_hp: float) -> void:
 	_update_bar(vehicle_hp_bar, hp, max_hp)

@@ -26,7 +26,7 @@ var upgrades_data = {
 var upgrade_keys: Array[String] = ["kits", "reliability", "armor"]
 
 @onready var vehicles_button: Button = $Panel/VehiclesButton
-const VEHICLE_SELECTOR_SCENE: PackedScene = preload("res://game/scenes/ui/vehicle_selector.tscn")
+const VEHICLE_SELECTOR_SCENE: PackedScene = preload("res://scenes/ui/vehicle_selector.tscn")
 var vehicle_selector_instance: CanvasLayer = null
 
 func _ready() -> void:

@@ -87,8 +87,8 @@ func _ready():
 	if weapon_system and weapon:
 		weapon_system.initialize(weapon)
 		
-	var hud_scene = load("res://game/scenes/hud/hud_overlay.tscn")
-	if hud_instance:
+	var hud_scene = load("res://scenes/hud/hud_overlay.tscn")
+	if hud_scene:
 		hud_instance = hud_scene.instantiate()
 		add_child(hud_instance)
 		if hud_instance.has_method("setup"):

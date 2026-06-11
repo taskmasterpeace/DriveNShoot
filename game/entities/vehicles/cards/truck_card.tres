@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="DataVehicle" load_steps=3 format=3 uid="uid://truck_card_001"]
 
-[ext_resource type="Script" path="res://game/entities/vehicles/data_vehicle.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/truck/truck_body.png" id="2_icon"]
+[ext_resource type="Script" path="res://entities/vehicles/data_vehicle.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/truck/truck_body.png" id="2_icon"]
 
 [resource]
 script = ExtResource("1_script")

@@ -19,10 +19,10 @@
 [ext_resource type="Script" uid="uid://b4jgftt0t4d1e" path="res://scripts/state_machine/states/state_impulse.gd" id="12_m3ydn"]
 [ext_resource type="Script" uid="uid://dd2m5xedjwd4m" path="res://scripts/state_machine/states/state_callable.gd" id="14_gx6sm"]
 [ext_resource type="PackedScene" uid="uid://05uhe60taf6a" path="res://components/inventory.tscn" id="15_gx6sm"]
-[ext_resource type="Script" path="res://game/entities/components/survival_stats.gd" id="16_stats"]
-[ext_resource type="Script" path="res://game/entities/components/weapon_system.gd" id="17_weap"]
-[ext_resource type="Script" path="res://game/items/tools/binoculars.gd" id="18_binoc"]
-[ext_resource type="Script" path="res://game/entities/player/interaction_controller.gd" id="19_interact"]
+[ext_resource type="Script" path="res://entities/components/survival_stats.gd" id="16_stats"]
+[ext_resource type="Script" path="res://entities/components/weapon_system.gd" id="17_weap"]
+[ext_resource type="Script" path="res://items/tools/binoculars.gd" id="18_binoc"]
+[ext_resource type="Script" path="res://entities/player/interaction_controller.gd" id="19_interact"]
 
 [sub_resource type="Resource" id="Resource_3wlsy"]
 script = ExtResource("3_yqrof")

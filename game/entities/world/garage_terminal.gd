@@ -5,7 +5,7 @@ extends StaticBody2D
 # But LootCache used specific class check.
 # We should update InteractionController to handle "GarageTerminal".
 
-const UPGRADE_MENU_SCENE = preload("res://game/scenes/ui/upgrade_menu.tscn")
+const UPGRADE_MENU_SCENE = preload("res://scenes/ui/upgrade_menu.tscn")
 var menu_instance = null
 
 func _ready() -> void:

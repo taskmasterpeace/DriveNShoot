@@ -62,9 +62,9 @@ const HEAT_GAIN_CRASH = 5
 
 # Vehicle Resources
 const VEHICLE_DATA = {
-	"balanced": "res://game/data/vehicles/vehicle_balanced.tres",
-	"fast": "res://game/data/vehicles/vehicle_fast.tres",
-	"tank": "res://game/data/vehicles/vehicle_tank.tres"
+	"balanced": "res://data/vehicles/vehicle_balanced.tres",
+	"fast": "res://data/vehicles/vehicle_fast.tres",
+	"tank": "res://data/vehicles/vehicle_tank.tres"
 }
 
 # Cost Tables (Public for UI if needed)

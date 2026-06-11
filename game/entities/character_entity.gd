@@ -296,7 +296,7 @@ func apply_knockback(force: Vector2) -> void:
 	velocity += force
 
 func spawn_floating_text(value: String, color: Color = Color.WHITE) -> void:
-	var text_scene = load("res://game/ui/floating_text.tscn")
+	var text_scene = load("res://ui/floating_text.tscn")
 	if text_scene:
 		var text_instance = text_scene.instantiate()
 		get_tree().root.add_child(text_instance)

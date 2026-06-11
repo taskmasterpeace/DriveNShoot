@@ -40,6 +40,24 @@ of each system and update entries instead of duplicating.
 - **Collision layers** (project.godot): 1=block(world), 2=character, 3=body(vehicles/moving),
   4=interaction, 5=hitbox_player, 6=hitbox_enemy, 7=hitbox_environment.
 
+## 🔴 CRITICAL: res:// root + the great path bug (fixed this run)
+
+- **`res://` = the `game/` folder** (project.godot lives at `game/project.godot`,
+  main_scene = `res://scenes/levels/test/test_driving.tscn`). There is NO `game/game/`.
+- The project was **restructured at some point** and left 27 files with stale
+  `res://game/...` paths that resolve to the nonexistent `game/game/...`. The `preload()`
+  ones (garage_terminal, upgrade_menu, vehicle_selector) were HARD COMPILE ERRORS — those
+  UI features were silently broken. Others (player.tscn, world.tscn, hud, cards, props)
+  had missing-dependency breakage.
+- **FIXED**: mass `res://game/` → `res://` across all .gd/.tscn/.tres (not the regenerable
+  `.godot/` cache). Verified zero remaining. When authoring any new file, ALWAYS use
+  `res://<path>` (e.g. `res://scenes/...`, `res://entities/...`) — NEVER `res://game/`.
+- Separate pre-existing breakage still present (NOT a res://game/ issue, fix later):
+  `world.tscn` references `res://systems/map/road_manager.gd` which does not exist;
+  `test_world.tscn` references `res://scripts/auto_loads/chunk_manager.gd` (verify it exists).
+- Also fixed: `player_entity.gd` `if hud_instance:` (always null) → `if hud_scene:` so the
+  in-vehicle HUD actually instantiates.
+
 ## Team / faction convention (introduced this run)
 
 - Added `@export var team: int = 0` to both `VehicleEntity` and `CharacterEntity`.

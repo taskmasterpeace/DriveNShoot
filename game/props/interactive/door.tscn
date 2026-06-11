@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://door_prop_001"]
 
-[ext_resource type="Script" path="res://game/props/interactive/door.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://game/entities/vehicles/sprites/truck/trailer.png" id="2_placeholder"]
+[ext_resource type="Script" path="res://props/interactive/door.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://entities/vehicles/sprites/truck/trailer.png" id="2_placeholder"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
 size = Vector2(64, 16)
