@@ -105,6 +105,27 @@ func _test_economy() -> void:
 	_check("contract summary is non-empty", gs.contract_summary(gs.active_contract) != "")
 	gs.active_contract = {}
 
+	# An accepted bounty survives a save/load round-trip (persists across quitting the game).
+	gs.active_contract = {"kind": "kills", "target": 5, "progress": 2, "reward": 80, "done": false}
+	gs.save_profile()
+	gs.active_contract = {} # simulate a fresh boot
+	gs.load_profile()
+	_check("active contract persists across save/load",
+		gs.active_contract.get("kind") == "kills" and int(gs.active_contract.get("progress", 0)) == 2 and int(gs.active_contract.get("target", 0)) == 5)
+
+	# Extract-haul contract: banking scrap on a successful extraction credits the bounty.
+	gs.active_contract = {}
+	gs.return_to_town()
+	gs.scrap = 100
+	gs.accept_contract("extract", 150, 90)
+	gs.start_run()
+	gs.add_scrap(150, "test") # earn 150 scrap this run
+	gs.extract()
+	_check("extract contract credits on extraction", gs.active_contract.get("done", false) and not gs.has_active_contract())
+	gs.return_to_town()
+	gs.clear_finished_contract()
+	gs.active_contract = {}
+
 	# Distance accrues as the tracked node (vehicle) moves north — the mechanic road_manager feeds.
 	gs.start_run()
 	gs.set_run_start_position(Vector2(10000, 0))

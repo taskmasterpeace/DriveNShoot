@@ -148,6 +148,7 @@ func _end_run(cause: String) -> void:
 
 	if cause == "Extracted":
 		extraction_count += 1 # permanent threat escalation
+		set_contract_progress("extract", earned) # scrap-haul bounty credits on a successful extraction
 
 	if current_run_miles > best_miles and cause == "Extracted":
 		best_miles = current_run_miles
@@ -434,6 +435,9 @@ func save_profile() -> void:
 	config.set_value("Upgrades", "kits_tier", kits_tier)
 	config.set_value("Upgrades", "reliability_tier", reliability_tier)
 	config.set_value("Upgrades", "armor_tier", armor_tier)
+
+	# Persist an accepted bounty so it survives quitting between runs.
+	config.set_value("Contracts", "active", active_contract)
 	var err := config.save(SAVE_PATH)
 	if err != OK:
 		push_warning("Save failed: %s" % err)
@@ -457,3 +461,7 @@ func load_profile() -> void:
 	kits_tier = int(config.get_value("Upgrades", "kits_tier", 0))
 	reliability_tier = int(config.get_value("Upgrades", "reliability_tier", 0))
 	armor_tier = int(config.get_value("Upgrades", "armor_tier", 0))
+
+	# Restore any in-progress bounty, then notify listeners (HUD tracker) to reflect it.
+	active_contract = config.get_value("Contracts", "active", {})
+	contract_changed.emit(active_contract)

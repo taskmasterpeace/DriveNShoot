@@ -26,6 +26,7 @@ const TRANSITION = {
 const CONTRACTS: Array = [
 	{"kind": "kills", "target": 3, "reward": 60},
 	{"kind": "distance", "target": 3, "reward": 70},
+	{"kind": "extract", "target": 150, "reward": 90},
 ]
 
 const GROUP = {
