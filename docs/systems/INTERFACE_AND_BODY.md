@@ -34,10 +34,19 @@ blood/rust — **no purple**, per house rules), emoji/glyph-forward so it reads 
 
 ---
 
-## 2. Body & Health System (Stage 3) — built on `DamageableComponent`
+## 2. Body & Health System (Stage 3) — built on `DamageableComponent` *(researched)*
 
-Project-Zomboid-grade, but leaner. The player body is a set of DamageableComponents (same class
-as car parts — multi-use principle) arranged as a **paper-doll**: head, torso, L/R arm, L/R leg.
+Project-Zomboid tension, Escape-from-Tarkov structure, leaner than both. The player body is
+**6 DamageableComponents** (research says steal EFT's 6–7, not PZ's 13, for a readable HUD):
+**Head, Torso, L Arm, R Arm, L Leg, R Leg** (+ optional Neck crit-slot). **Head/Torso → 0 = death;
+a limb → 0 = crippled, not dead** (destroyed leg = heavy slow, arm = shaky aim). Same class as car
+parts — multi-use principle.
+
+**⭐ The signature dread mechanic (near-free, adopt it): the HEALTH CAP.** Injuries lower your
+*maximum* HP, not just current — `max_hp = base - Σ(injury_severity)`. You win the fight but limp
+home at a 60% ceiling, so the **extraction drive back to town becomes the real gauntlet.** One
+clamp line; it's the emotional core of survival-extraction. Hit location is a **weighted table**
+(torso most likely), not per-limb hitboxes — cheap and reads fine top-down.
 
 ### 2.1 Injuries (localized, from a cause)
 | Injury | Cause | Effect | Treatment (gameplay) |
@@ -51,11 +60,19 @@ as car parts — multi-use principle) arranged as a **paper-doll**: head, torso,
 🤒 Cold/flu (slower, sneeze = noise), 🦠 Infection (untreated wound → fever → worse), ☢️ Radiation
 (from hot zones → CON drain), hunger/thirst/fatigue (tunable; gritty default ON but forgiving).
 
-### 2.3 Treatment = gameplay, not a button
-"What treating your arm looks like": open the Body Panel → click the injured part → available
-treatments show given your inventory + Medical skill → a **timed action** (you're vulnerable
-during it — the Zomboid tension, and the hook the dogs/ambush attach to). Bandage stops bleeding;
-splint restores limb function; disinfect gates infection; painkillers mask penalties temporarily.
+### 2.3 Treatment = gameplay, not a button *(PZ/EFT-proven UX)*
+"What treating your arm looks like": open the Body Panel (`H`) → **paper-doll + per-part status
+list**, parts **color-coded** (copy PZ literally): **flashing red** = untreated/needs action,
+**white** = bandaged/handled, **orange** = bandage dirty/replace it, blood-drop icon = bleeding,
+blacked-out = destroyed limb. → **click the injured part → a menu of only the valid treatments**
+(Bandage / Disinfect / Stitch / Splint / Painkiller) → a **timed, interruptible action** (you're
+vulnerable during it — the Zomboid tension, and the hook the dogs/ambush attach to).
+- Bandage stops light bleed; **heavy/deep wounds need Stitch (needle+thread)**; splint restores
+  limb function; disinfect gates infection; painkillers **mask** penalties without healing (risky
+  trade). **Self-treatment penalty:** treating your *own* arm is slower/weaker than a leg you can
+  see or an ally treating you — one multiplier, big flavor. Medical skill improves all of it.
+- Color-state does ~80% of the communication for near-zero art. Drive the panel purely off a
+  `part_state_changed` signal — never poll.
 
 ### 2.4 Permadeath
 Death ends the run (Deathlands stakes). Open thread (Stage 3 decision): what, if anything,
@@ -65,12 +82,22 @@ carries between runs — reputation? stash at a home base? a fresh character eac
 
 ## 3. Inventory & Containers (Stage 3) — one `Container` system, many uses
 
-- **Container** = a resource with slots + weight cap. The SAME class backs: **backpack**,
-  **car trunk** ("put stuff in your trunk"), world crates/cabinets, corpse loot, vendor stock.
-- **Model:** weight + slot hybrid (Zomboid-ish); encumbrance scales with STR; over-weight = slow.
-- **UX:** two-panel transfer (you ↔ container), drag/drop, quick-move, right-click context.
-- **Drop / place** ("ability to put stuff down"): drop from inventory into the world as a physical
-  item; place-mode for deployables (traps, campfire, drone, later fort pieces).
+- **Container** = a resource with a grid + weight cap. The SAME class backs: **backpack**,
+  **car trunk** ("put stuff in your trunk"), world crates/cabinets, corpse loot, vendor stock —
+  *the #1 ranked foundational system* (biggest reuse multiplier in the whole game).
+- **Model: grid + weight hybrid (EFT).** Items have W×H shapes → stowing is a spatial puzzle
+  (a 6×2 rifle vs a 1×1 can), plus a per-container weight cap; encumbrance scales with STR. Ship
+  weight-only first if time-boxed; the Container abstraction lets us add the grid later without
+  touching call sites. Godot's built-in `Control` drag-drop (`_get_drag_data`/`_can_drop_data`/
+  `_drop_data`) handles transfer natively.
+- **⭐ Cargo "insecurity" (Pacific Drive — perfect for a driving game, and we can beat the
+  reference):** overstuffed/loose loot enters an *insecure* state and **rough driving can fling it
+  out of the trunk and lose it.** Wire cargo-loss probability to our existing **speed / collision /
+  heat** signals — Pacific Drive only half-implemented this; we won't. Inventory ↔ driving, tied.
+- **UX:** two-panel transfer (you ↔ container), drag/drop, Take-All, Ctrl=one/Shift=stack, weight
+  bar, red-ghost invalid placement, right-click context (Use/Equip/Drop/Split).
+- **Drop / place** ("ability to put stuff down"): drop into the world as a physical item;
+  place-mode for deployables (traps, campfire, drone, later fort pieces).
 - **Equip slots:** head/body/hands/holster/back; quick-slots 1–4.
 
 ---
@@ -114,19 +141,53 @@ transcript; will land as `secondary_view.gd` + `SecondaryViewConfig` when Stage 
 
 ---
 
-## 6. Combat Feel (Stage 4)
+## 6. Combat Feel (Stage 4) *(researched — model chosen)*
 
 - **Aim = intent, accuracy = a cone.** The mouse marks where you *want* to hit; the shot lands
-  within a **spread cone** whose width is set by **Marksmanship skill**, stance, movement, and
-  weapon. Low skill = wide cone (you might miss the raider next to you); Grandmaster = near-laser.
-  *(Cone math + how to communicate it — reticle bloom, tracers — from research subagent.)*
-- **Visible projectiles** — you see rounds/tracers travel (ties to the Arsenal's PROJECTILE
-  behavior; hitscan guns still spawn a tracer for readability).
-- **Feedback:** reticle blooms with movement/recoil and tightens when steady; hit markers; the
-  cone is *shown* so imperfect aim feels fair, not broken.
+  within a **spread cone** set by **Marksmanship skill**, stance, movement, and weapon. Low skill =
+  wide cone (you might miss the raider next to you); Grandmaster = near-laser.
+- **Use BLOOM, not fixed spray patterns.** CS/Valorant-style learnable recoil patterns reward
+  muscle-memory drill and don't read from top-down — wrong for a skill-stat-driven RPG. Bloom
+  (Fortnite/Warframe) = each shot lands randomly in the cone; the cone **grows per shot** and
+  **recovers when you stop** → rewards pacing, and a *stat* governs it. **First shot from rest is
+  near-perfect** (aimed shots feel skillful, full-auto feels sloppy — the risk/reward).
+- **Top-down cone math is ONE random angle** (simpler than 3D): rotate the aim vector by a
+  triangular-distributed random angle within the current half-spread; **skill multiplies the whole
+  envelope** (novice ~1.6× → expert ~0.6×). Tune min ~0.5–2°, max ~8–15°; shotgun = wide fixed
+  cone + N pellets.
+- **Visible projectiles fly along the ROLLED vector, not the mouse line** — seeing a round go wide
+  teaches the cone better than any number. Hitscan guns still spawn a tracer for readability.
+  **Pool bullets** (per CLAUDE.md — no per-shot `instantiate`).
+- **Reticle = the cone made visible:** 4 arcs whose gap = current spread; blooms on fire/move,
+  tightens when steady → imperfect aim feels *fair*, not broken. Plus impact decals + part-based
+  blood (ties to §2).
 - Unified with vehicle weapons (one weapon system, `mount_type: handheld|vehicle`).
 
 ---
 
+## 7. Build order — foundational systems ranked by payoff *(researched)*
+
+Ranked by (reuse × survival-payoff ÷ effort). Build top-down when Stage 3/4 opens:
+
+| # | System | Why top-ranked | Effort |
+|---|---|---|---|
+| 1 | **Container abstraction** (one Resource) | powers backpack, **trunk**, loot, corpses, stash — biggest reuse multiplier; unlocks the whole loot/extraction loop | Med |
+| 2 | **Per-body-part HealthComponent + injury Resources** | heart of survival-permadeath; **6-part + health-cap** defines the feel | Med |
+| 3 | **Signal-driven status HUD** (paper-doll + bars + color states) | renders health/afflictions/weight/ammo off one signal bus; color does the talking | Low |
+| 4 | **Data-driven affliction/effect table** (`.tres` rows) | one tick-engine drives bleed/infection/rads/cold/pain *and* buffs; new status = one row | Low-Med |
+| 5 | **Waypoint / offscreen-indicator NavHUD** | one list + renderer for objectives/extraction/town/contracts/gadget; slots into existing bounty HUD | Low |
+| 6 | **Weapon spread/bloom component + pooled projectiles + reticle** | makes shooting feel skill-driven (~30 lines of cone math) | Med |
+| 7 | **Attributes + learn-by-doing skills** | low content cost, ties body/combat/driving/loot into one growth spine | Low-Med |
+
+**#1 and #2 are the twin pillars — everything hangs off the Container abstraction and the
+per-part HealthComponent.** Ship #3 alongside so both are legible.
+
+**Two signature mechanics that differentiate DRIVN (near-free, genre-perfect):** the **PZ health
+cap** (§2) and **Pacific Drive cargo insecurity** (§3) — both wire survival directly into the
+*drive*, which is our whole genre.
+
+---
+
 *Cross-refs: `STAGES.md` (order), `PROGRESSION.md` (Marksmanship/Medical skills),
-`loops/LOOP2_LIVING_CAR.md` (glyph HUD + arsenal this builds on), `ENGINE.md` (DamageableComponent).*
+`loops/LOOP2_LIVING_CAR.md` (glyph HUD + arsenal this builds on), `ENGINE.md` (DamageableComponent).
+Research transcripts (bulk-content, SecondaryView, body/combat) — 2026-07-04 subagents.*
