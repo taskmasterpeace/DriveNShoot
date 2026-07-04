@@ -66,28 +66,85 @@ static func box_visual(parent: Node3D, size: Vector3, pos: Vector3, color: Color
 	return mesh
 
 
+## True when a scatter position would land on a road or in town.
+static func _on_road(x: float, z: float) -> bool:
+	if absf(x) < 12.0:
+		return true # interstate corridor
+	if x > 15.0 and x < 170.0 and z < -240.0 and z > -370.0:
+		return true # Meridian town block + exit ramp area
+	return false
+
+
+## Sprinkles thousands of cheap detail instances so off-road driving has visual
+## anchors: olive scrub, gray rocks, darker dirt patches. MultiMesh = one draw call each.
+static func _scatter_detail(world: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 0xD817D  # deterministic world
+
+	var specs: Array = [
+		# [count, mesh size, color, y, max_tilt]
+		[2600, Vector3(0.7, 0.55, 0.7), Color(0.33, 0.36, 0.22), 0.25, 0.15],  # scrub
+		[1000, Vector3(0.9, 0.6, 0.8), Color(0.42, 0.40, 0.37), 0.2, 0.4],     # rocks
+		[800, Vector3(3.5, 0.03, 3.5), Color(0.44, 0.35, 0.23), 0.015, 0.0],   # dirt patches
+	]
+	for spec in specs:
+		var count: int = spec[0]
+		var size: Vector3 = spec[1]
+		var color: Color = spec[2]
+		var y: float = spec[3]
+		var tilt: float = spec[4]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		var mesh := BoxMesh.new()
+		mesh.size = size
+		mesh.material = material(color, 1.0)
+		mm.mesh = mesh
+		mm.instance_count = count
+		var placed := 0
+		var guard := 0
+		while placed < count and guard < count * 20:
+			guard += 1
+			var x := rng.randf_range(-1400.0, 1400.0)
+			var z := rng.randf_range(-1400.0, 1400.0)
+			if _on_road(x, z):
+				continue
+			var b := Basis(Vector3.UP, rng.randf_range(0.0, TAU))
+			if tilt > 0.0:
+				b = b.rotated(Vector3.RIGHT, rng.randf_range(-tilt, tilt))
+			b = b.scaled(Vector3.ONE * rng.randf_range(0.6, 1.7))
+			mm.set_instance_transform(placed, Transform3D(b, Vector3(x, y, z)))
+			placed += 1
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.add_child(mmi)
+
+
 ## Builds everything. Returns spawn info: { "car_spawns": Array[Transform3D], "house": ProtoHouse }
 static func build_world(root: Node3D) -> Dictionary:
 	var world := Node3D.new()
 	world.name = "World"
 	root.add_child(world)
 
-	# --- Ground: one huge desert slab -------------------------------------
+	# --- Ground: one huge desert slab (12 km — M2 replaces with streaming) ---
 	var ground := StaticBody3D.new()
 	ground.name = "Ground"
 	var gmesh := MeshInstance3D.new()
 	var gplane := PlaneMesh.new()
-	gplane.size = Vector2(1600, 1600)
+	gplane.size = Vector2(12000, 12000)
 	gmesh.mesh = gplane
 	gmesh.material_override = material(COL_GROUND, 1.0)
 	ground.add_child(gmesh)
 	var gshape := CollisionShape3D.new()
 	var gbox := BoxShape3D.new()
-	gbox.size = Vector3(1600, 1.0, 1600)
+	gbox.size = Vector3(12000, 1.0, 12000)
 	gshape.shape = gbox
 	gshape.position.y = -0.5
 	ground.add_child(gshape)
 	world.add_child(ground)
+
+	# --- Off-road ground detail: scrub, rocks, dirt patches (playtest bug #4) --
+	_scatter_detail(world)
 
 	# --- Interstate 9: north/south highway ---------------------------------
 	# Runs from z=+420 (spawn) to z=-420. Visual-only slabs sit on the ground.

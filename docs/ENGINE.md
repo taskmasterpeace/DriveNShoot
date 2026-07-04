@@ -36,8 +36,12 @@ top-down zoom camera, in/out of cars, enterable two-story building. 14/14 gamepl
 | 3 | **Character Core** | Stats, traits, actions (dive/throw/interact), inventory + equipment |
 | 4 | **Perception Engine** | Vision cone, lighting-aware clarity, room memory, binoculars v2 |
 | 5 | **Structure System** | Doors, locks, multi-floor interiors, stairs — later: player-built forts |
-| 6 | **AI & Life** | Animals (dogs/rodents/birds), human AI, drivers, convoys |
+| 6 | **AI & Life** | Animals (dogs/rodents/birds), taming, human AI, drivers, convoys |
 | 7 | **Netcode** | Server-authority port of existing ENet foundation + cone-based culling |
+| 8 | **Base, Automation & Agriculture** | Robotics/drones, construction/forts, farming, power grid — see `PROGRESSION.md` |
+
+**Companion docs:** `PROGRESSION.md` (skills/attributes/robotics/taming/farming — the RPG spine,
+"you are what you do", 700-pt cap), `loops/LOOP2_LIVING_CAR.md` (next loop design).
 
 ---
 
@@ -186,11 +190,12 @@ save/load (DataManager), dialogue (DialogueManager), garage/upgrades.
 
 ## 11. Known Bugs (from first hands-on playtest, 2026-07-04)
 
-1. ~~Stairs unclimbable~~ — ramp collision rotated backwards (`house.gd` `ramp.rotation.x`
-   sign). **M1, first item.**
-2. World edge: drove off the 1600 m ground slab and fell forever. **M1 temp fix, M2 real fix.**
-3. Binoculars: fixed-forward snap is useless. **M1 redesign (spec §5).**
-4. Off-road blindness: featureless desert gives no visual anchor. **M1 ground detail.**
+1. ~~Stairs unclimbable~~ — **FIXED M1** (ramp rotation sign; now walk-up sim-tested).
+2. ~~World edge fall~~ — **FIXED M1** (12 km ground + last-safe respawn; true streaming = next loop).
+3. ~~Binoculars useless~~ — **FIXED M1** (v2: mouse-aimed downrange, vignette, body-turn).
+4. ~~Off-road blindness~~ — **FIXED M1** (MultiMesh scrub/rock/dirt scatter).
+
+*M1 shipped 2026-07-04: 21/21 input-driven checks green (`proto3d/tests/m1_sim.tscn`).*
 
 ## 12. Genius-tier ideas (approved flavor, build when their pillar lands)
 

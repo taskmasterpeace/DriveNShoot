@@ -23,6 +23,12 @@ signal speed_changed(mph: float)
 var use_player_input: bool = true
 var is_active: bool = false
 
+## Locked cars need their key found somewhere in the world.
+var locked: bool = false
+var key_id: String = ""
+var key_display: String = "key"
+var display_name: String = "car"
+
 var input_throttle: float = 0.0
 var input_brake: float = 0.0
 var input_steer: float = 0.0  ## +1 = left
@@ -37,6 +43,7 @@ var _rear_wheels: Array[VehicleWheel3D] = []
 
 static func create(body_color: Color) -> ProtoCar3D:
 	var car := ProtoCar3D.new()
+	car.add_to_group("interactable")
 	car.mass = 900.0
 	car.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	car.center_of_mass = Vector3(0, -0.25, 0)
@@ -126,6 +133,33 @@ static func create(body_color: Color) -> ProtoCar3D:
 
 func facing() -> Vector3:
 	return -global_basis.z
+
+
+# --- Interactable contract (on-foot) ---------------------------------------
+
+func interact_position() -> Vector3:
+	return global_position
+
+
+func interact_prompt(main: Node) -> String:
+	if is_active:
+		return ""
+	if locked and not main.has_key(key_id):
+		return "LOCKED — need %s" % key_display
+	if locked:
+		return "E — Unlock %s (%s)" % [display_name, key_display]
+	return "E — Enter %s" % display_name
+
+
+func interact(main: Node) -> void:
+	if is_active:
+		return
+	if locked:
+		if main.has_key(key_id):
+			locked = false
+			main.notify("Unlocked the %s" % display_name)
+		return
+	main.enter_car(self)
 
 
 func _physics_process(delta: float) -> void:

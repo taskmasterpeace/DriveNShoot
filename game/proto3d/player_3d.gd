@@ -5,11 +5,23 @@ extends CharacterBody3D
 @export var walk_speed: float = 4.2
 @export var run_speed: float = 7.2
 @export var accel: float = 14.0
+@export var dive_speed: float = 9.5
+@export var dive_time: float = 0.35
+@export var getup_time: float = 0.75
+
+## Named FootState (not State) — a globally-registered class's own enum used as a typed
+## var trips GDScript's self-reference type check. Distinct name sidesteps it.
+enum FootState { NORMAL, DIVE, GETUP }
 
 var is_active: bool = false
 var facing_dir: Vector3 = Vector3.FORWARD
+var move_state: FootState = FootState.NORMAL
+## When set (binoculars), the body turns toward this even while standing still.
+var face_override: Vector3 = Vector3.ZERO
 
 var _visual: Node3D
+var _state_t: float = 0.0
+var _dive_dir: Vector3 = Vector3.FORWARD
 
 
 static func create() -> ProtoPlayer3D:
@@ -54,6 +66,29 @@ static func create() -> ProtoPlayer3D:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	_state_t += delta
+
+	match move_state:
+		FootState.DIVE:
+			# Committed: full lunge, no steering.
+			velocity.x = _dive_dir.x * dive_speed
+			velocity.z = _dive_dir.z * dive_speed
+			_visual.rotation.x = lerpf(_visual.rotation.x, -1.25, 10.0 * delta)
+			if _state_t >= dive_time:
+				move_state = FootState.GETUP
+				_state_t = 0.0
+			move_and_slide()
+			return
+		FootState.GETUP:
+			# On the ground, getting up — vulnerable, no input.
+			velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
+			velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
+			_visual.rotation.x = lerp_angle(_visual.rotation.x, 0.0, 6.0 * delta)
+			if _state_t >= getup_time:
+				move_state = FootState.NORMAL
+				_visual.rotation.x = 0.0
+			move_and_slide()
+			return
 
 	var move := Vector3.ZERO
 	if is_active:
@@ -62,6 +97,13 @@ func _physics_process(delta: float) -> void:
 		move = Vector3(x, 0, z)
 		if move.length_squared() > 1.0:
 			move = move.normalized()
+		# SPACE = dive (commit move: burst, then a get-up delay).
+		if Input.is_action_just_pressed("jump"):
+			_dive_dir = move.normalized() if move.length_squared() > 0.01 else facing_dir
+			move_state = FootState.DIVE
+			_state_t = 0.0
+			facing_dir = _dive_dir
+			return
 
 	var speed := run_speed if Input.is_key_pressed(KEY_SHIFT) else walk_speed
 	var target := move * speed
@@ -70,8 +112,10 @@ func _physics_process(delta: float) -> void:
 
 	if move.length_squared() > 0.01:
 		facing_dir = move.normalized()
-		var target_yaw := atan2(-facing_dir.x, -facing_dir.z)
-		_visual.rotation.y = lerp_angle(_visual.rotation.y, target_yaw, 12.0 * delta)
+	elif face_override.length_squared() > 0.01:
+		facing_dir = face_override.normalized()
+	var target_yaw := atan2(-facing_dir.x, -facing_dir.z)
+	_visual.rotation.y = lerp_angle(_visual.rotation.y, target_yaw, 12.0 * delta)
 
 	move_and_slide()
 

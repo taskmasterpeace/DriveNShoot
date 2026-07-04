@@ -11,6 +11,9 @@ const WALL_T := 0.3
 
 var tracked: Node3D = null ## Set by the main scene — the on-foot player to watch.
 
+var front_door: ProtoDoor
+var stash: ProtoStash
+
 var _roof: Node3D
 var _floor2_mat: StandardMaterial3D
 var _wall_color := Color(0.55, 0.50, 0.42)
@@ -39,6 +42,13 @@ func build() -> void:
 	var seg_r_x0 := door_x + door_w / 2.0
 	var seg_r_w := hw - seg_r_x0
 	_wall(Vector3(seg_r_w, FLOOR_H, WALL_T), Vector3(seg_r_x0 + seg_r_w / 2.0, FLOOR_H / 2.0, hd))
+	# Lintel above the door gap
+	_wall(Vector3(door_w, FLOOR_H - 2.6, WALL_T), Vector3(door_x, 2.6 + (FLOOR_H - 2.6) / 2.0, hd))
+
+	# The actual front door: hinged at the left edge of the gap.
+	front_door = ProtoDoor.create(door_w, 2.6, Color(0.34, 0.22, 0.13))
+	front_door.position = Vector3(door_x - door_w / 2.0, 0, hd)
+	add_child(front_door)
 	# Upstairs front: window gap 2.2 wide centered at x = 0.5 (look out over the street).
 	var win_x := 0.5
 	var win_w := 2.2
@@ -75,7 +85,9 @@ func build() -> void:
 	var ramp_len := sqrt(run * run + rise * rise)
 	var ramp := StaticBody3D.new()
 	ramp.position = Vector3(stair_x, rise / 2.0, (3.4 + -2.2) / 2.0)
-	ramp.rotation.x = -atan2(rise, run)
+	# +X rotation drops the +Z (door-side) end: bottom at the door, top at the back.
+	# (Was negative — the collision ramp ascended BACKWARD vs the visual steps. Playtest bug #1.)
+	ramp.rotation.x = atan2(rise, run)
 	var rshape := CollisionShape3D.new()
 	var rbox := BoxShape3D.new()
 	rbox.size = Vector3(1.6, 0.25, ramp_len)
@@ -94,14 +106,10 @@ func build() -> void:
 	# --- Roof: hides when you walk in ------------------------------------------
 	_roof = ProtoWorldBuilder.box_body(self, Vector3(WIDTH + 0.8, 0.25, DEPTH + 0.8), Vector3(0, FLOOR_H * 2.0 + 0.35, 0), Color(0.40, 0.26, 0.18))
 
-	# --- Upstairs loot: a glowing stash so going upstairs pays off -------------
-	var loot := MeshInstance3D.new()
-	var lbox := BoxMesh.new()
-	lbox.size = Vector3(0.9, 0.6, 0.6)
-	loot.mesh = lbox
-	loot.material_override = ProtoWorldBuilder.material(Color(0.95, 0.72, 0.15), 0.4, true)
-	loot.position = Vector3(-3.4, FLOOR_H + 0.5, -2.8)
-	add_child(loot)
+	# --- Upstairs loot: the stash holds the key to the car parked in town ------
+	stash = ProtoStash.create("duffel bag", "meridian_car_key", "the Meridian car key")
+	stash.position = Vector3(-3.4, FLOOR_H + 0.2, -2.8)
+	add_child(stash)
 	# Crate downstairs
 	ProtoWorldBuilder.box_body(self, Vector3(1.1, 1.1, 1.1), Vector3(3.6, 0.55, -3.2) * Vector3(-1, 1, 1), Color(0.45, 0.34, 0.20))
 

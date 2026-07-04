@@ -138,3 +138,18 @@ on foot, and Hold X to extract.
     `proto3d/tests/walkthrough_sim.tscn` (14 gameplay checks — drive, brake, exit, walk, re-enter,
     roof/floor logic, upstairs solidity). All green, headless.
 *   **Run it**: `Godot --path game res://proto3d/proto3d.tscn`
+
+## 17. M1 Feel Core — the 3D engine's first milestone (2026-07-04)
+*   **Stairs you can actually climb** — walk up to the safehouse's second floor (was a
+    reversed collision ramp; now proven by an input-driven test that presses W and checks height).
+*   **Interact prompt UI** — walk up to anything usable → an amber chip tells you ("E — Open
+    door", "LOCKED — need the Meridian car key", "E — Search duffel bag").
+*   **Doors + locks + a key loot loop** — the safehouse has a real swinging door; the sedan
+    parked in Meridian is locked, and its key is in the stash upstairs. Drive → loot → unlock.
+*   **Dive move** (SPACE on foot) — committed lunge + a vulnerable get-up delay.
+*   **Binoculars v2** — stay top-down, mouse pushes the view up to 90 m downrange, lens
+    vignette, your body turns to face where you're glassing.
+*   **GTA2 speed-zoom** — the camera pulls out the faster you drive.
+*   **No more falling off the map** — 12 km ground + "last safe spot" respawn.
+*   **Off-road ground detail** — thousands of scrub/rock/dirt instances so off-road has anchors.
+*   **Proof:** `res://proto3d/tests/m1_sim.tscn` — 21/21 input-driven checks (no teleport-cheats).
