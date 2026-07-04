@@ -68,11 +68,12 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 1.0
+	env.ambient_light_energy = 0.6
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.78, 0.70, 0.55)
-	env.fog_density = 0.0022
+	env.fog_density = 0.0006
+	env.fog_sky_affect = 0.3
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)

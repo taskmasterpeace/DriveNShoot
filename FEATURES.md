@@ -119,3 +119,22 @@ on foot, and Hold X to extract.
 ### Automated test harness
 *   `tools/smoke_test.sh` — 36 system/economy smoke checks + a 6-check full-run integration sim.
 *   `tools/net_test.sh` — cross-process multiplayer connection/sync test.
+
+## 16. PROTO-3D — the 3D dream slice (2026-07-04)
+*   **True 3D vehicle physics** (`proto3d/car_3d.gd`): `VehicleBody3D` raycast suspension, tire slip,
+    weight transfer — no more faked bicycle model. Measured by headless sim: 0-60 in 3.2 s, 76 mph
+    top speed, 60-0 in 45.7 m, controllable handbrake slides, never flips.
+*   **Top-down camera you can SEE with** (`proto3d/camera_rig.gd`): scroll-wheel zoom (close tilt →
+    high overview), velocity look-ahead, and **binoculars** (hold B / right-mouse) — narrow-FOV cone
+    that looks ~85 m downrange in your facing direction.
+*   **In/out of the car**: E to exit anywhere, walk on foot (WASD, SHIFT to run), E to enter any car
+    — there's a second car parked in town.
+*   **A place to drive TO**: Interstate 9 with dashes/shoulders/wrecks, green EXIT 9 sign, off-ramp
+    into the town of Meridian.
+*   **Enterable two-story safehouse** (`proto3d/house.gd`): walk in the door → roof hides (GTA
+    trick); second floor goes see-through while you're under it; stairs UP to a walkable second
+    floor with loot.
+*   **Proof harness**: `proto3d/tests/drive_sim.tscn` (physics metrics) and
+    `proto3d/tests/walkthrough_sim.tscn` (14 gameplay checks — drive, brake, exit, walk, re-enter,
+    roof/floor logic, upstairs solidity). All green, headless.
+*   **Run it**: `Godot --path game res://proto3d/proto3d.tscn`

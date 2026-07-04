@@ -6,7 +6,7 @@ extends Object
 
 static var _mat_cache: Dictionary = {}
 
-const COL_GROUND := Color(0.70, 0.58, 0.40)
+const COL_GROUND := Color(0.52, 0.42, 0.28)
 const COL_ROAD := Color(0.17, 0.16, 0.15)
 const COL_DASH := Color(0.85, 0.82, 0.70)
 const COL_SHOULDER := Color(0.78, 0.72, 0.55)
