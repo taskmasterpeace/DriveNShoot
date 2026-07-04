@@ -78,11 +78,45 @@ lone driver crossing empty wasteland lights up only the thin ribbon of chunks un
   and small-shard PvP; not a competitive shooter.
 - **Seamless handoff:** as you drive, chunks stream in/out of AoI; the server spins chunk sim
   **up/down at the boundary** — the streaming from Stage 5 with MP semantics.
+- **Dead reckoning fits driving *better* than shooters:** vehicles carry momentum and mostly-
+  continuous velocity, so linear extrapolation predicts a remote car's position well between packets
+  and across a seam (cars can't teleport-turn like an FPS player — the classic dead-reckoning
+  failure case). Buffer/reconcile the discontinuities: hard braking, collisions, drift.
 
-### 3.3 Scaling beyond one server (option, only if pop demands)
-**Region sharding:** different servers own different map regions; **handoff at borders** (seamless
-zone transfer, SpatialOS/seamless-MMO style). Not needed for co-op or a modest shard — flagged as
-the growth path so the chunk/AoI design doesn't have to change to get there.
+### 3.3 Scaling beyond one server — prior art → the chosen hybrid
+*(MMO world-partitioning research, 2026-07-04.)* A menu of proven models, and which we borrow:
+- **Hard zones** (WoW continents — a loading screen at the seam): **rejected.** A streamed country
+  can't have a loading screen every few miles.
+- **Seamless w/ overlap + proxy handoff** (**Asheron's Call** 1999 — fixed grid cells, dynamic load
+  balancing, *no* zoning; WoW *within* a continent): **the target pattern for server seams.** Adjacent
+  region-servers keep a **border overlap band** and exchange only boundary-relevant entities; as a
+  car crosses, the new server briefly runs a **ghost**, then **requests authority**, and the object
+  flips ghost↔authoritative. This is our chunk-handoff, one level up (chunk → region-server).
+- **Dynamic map copies for hotspots** (**GW2 megaserver**, **WoW sharding**): orthogonal population
+  tool. When a **town/arena** fills, spin up **parallel copies** and weight-place players (party/
+  guild/faction affinity) into the best one. For our crowded Baronies/arenas — **not** the open road.
+- **EVE single-shard + per-system node + Time Dilation:** partition by discrete cell (a "grid"),
+  one node per busy cell, and when a cell overloads, **slow the game clock (TiDi, floor 10%)** rather
+  than drop the sim. Our **extreme-density fallback** for a massive Barony siege — dilate that one
+  hot region instead of crashing it. (EVE absorbed **6,557 players in one system** this way.)
+- **Cautionary tale — Dual Universe** (fully continuous single shard, heavy per-object sim): degrades
+  hard in hotspots and is sensitive to client↔node distance. **Lesson: budget interest management +
+  per-region servers from day one;** never promise one continuous shard for everything.
+
+**Our hybrid ladder** (the chunk/AoI foundation never changes to climb it): chunk-grid + AoI on ONE
+server for co-op/small shards → **dynamic instanced copies** for town/arena hotspots (GW2 megaserver
+— proven, shippable) → **TiDi-style time-dilation** as the last-resort valve for a single overloaded
+siege → *(someday-maybe)* seamless region meshing.
+
+**⚠️ Reality check — why we design to AVOID true meshing.** Seamless **server meshing** (transferring
+live entity *authority* across servers at a boundary, imperceptibly, at scale) is the single hardest
+problem in the field. **Star Citizen spent ~10 years and $400M+**; *static* meshing (fixed
+server↔zone) only reached preview in **late 2024** (500/shard), and *dynamic* (density-reactive)
+meshing is **still unfinished**. **SpatialOS**, the reference middleware for it, was effectively
+wound down. The lesson is not "do meshing well" — it's **"don't build meshing at all."** Design so
+**dormant regions are near-free** (aggregate counts + timers, §3.6) and **hotspots are instanced
+copies** (both proven), and treat true meshing as a research someday, never a plan a small team
+commits to.
 
 ### 3.4 Godot 4.5 specifics
 - Foundation exists: the 2D game's `network_manager.gd` (**ENet**, input + state replication, 32
@@ -99,6 +133,71 @@ one thin ribbon of chunks and shares sim with nobody. Players naturally **cluste
 (where the living-world sim is worth paying for) and **disperse on the roads** (nearly free). The
 world can be country-sized precisely because the server never holds it all at once.
 
+### 3.6 Research-grounded specifics & numbers *(5 subagents, 2026-07-04)*
+
+**Simulation bubble = union of per-player radii.** Each player carries an active radius of chunks
+(load-ahead / unload-behind). The server's active set = **⋃ over players of chunks_within_radius(P)**,
+deduped — two cars 500 km apart make **two small bubbles**, not one continent. Cost ∝ players ×
+bubble, **not** world size. Keep the **simulate radius < load/draw radius** (Minecraft's split —
+ticking entities is costlier than drawing them; far road ahead is drawn but frozen until you near it).
+
+**The dormant world = aggregate counts, realized on approach (PZ's real trick).** PZ does *not*
+keep distant zombies as entities — a **cell** (300×300 tiles; 256² in B42) holds a **population
+count + timers**; a `VirtualZombieManager.createRealZombie` **materializes real entities only when a
+player approaches**, with anti-pop-in guards (won't respawn in loaded/recently-seen chunks —
+`RespawnUnseenHours` 16, `RespawnHours` 72) and metagame **migration** (hordes drift, chase noise up
+to 100 tiles). **We copy this for our PCAS T1–T5:** distant raider camps/traffic/NPCs are **counts +
+timers**, fast-forwarded and instantiated on approach. Empty server → **pause the clock**
+(PZ `PauseEmpty`).
+
+**⚠️ The country-scale killer: floating-point precision (Godot-specific, plan for it now).** Godot's
+`Vector3` is 32-bit float; for top-down 3D the safe range is only ~**[16 384; 32 768] units** before
+visible jitter — a country in meters blows past that. Two fixes: **(A)** a **`precision=double`**
+custom Godot build (upgrades to 64-bit; perf cost; must build editor + export templates), or **(B)**
+**floating-origin rebase** — keep authoritative positions as **doubles in world space**, and shift
+the root so the simulated region stays near (0,0,0). Rule either way: **chunk coords are integers,
+positions within a chunk are small/local.** MP caveat: floating origin complicates MP (each client
+rebases differently) → **the server must hold authoritative world-space doubles**. *This is a
+day-one architectural decision, not a late fix.*
+
+**Per-chunk persistence.** Save **only dirty (player-altered) chunks**, keyed by coordinate; the
+base world **regenerates deterministically from `hash(chunk, seed)`** (No Man's Sky) so it never
+touches disk. Storage: a single **SQLite** DB (`chunks(cx, cz, data BLOB, PRIMARY KEY(cx,cz))`, à la
+`VoxelStreamSQLite`) or Anvil-style region files. Saves are **async off-thread** — and **must be
+flushed on quit/extract** (they outlive the freed node — a real gotcha). World size is thus
+decoupled from both RAM and disk.
+
+**Client-authoritative vehicles — the concrete recipe.** Each client sims its own `VehicleBody3D`
+at a **fixed 60 Hz** physics tick and sends a **timestamped snapshot (pos, quat, linear + angular
+vel) at 20–30 Hz over an UNRELIABLE channel**. Remote cars are **interpolated ~100 ms in the past**;
+on packet loss, **dead-reckon** from velocity (caps ≤ 250 ms, then **blend** to the correction — no
+snap). Server **validates, doesn't simulate**: the key check is **position-delta-per-tick ≤ v_max·Δt**
+(kills teleport), plus speed/accel clamps, rate limits, and a coarse ground raycast (catches
+noclip/fly). "Trust but verify — bound the lie." **Co-op/PvE: fine. Competitive PvP: needs
+server-authoritative physics** (Rocket League runs deterministic server-auth at 120 Hz — the CPU
+cost we're avoiding).
+
+**Car-vs-car under dual client-authority has no perfect answer** — pick per context: **(A)** each
+car resolves the hit against the *ghost* of the other and moves only itself, re-syncing a few frames
+later (cheap, briefly divergent); **(B)** the **server arbitrates only actively-colliding pairs**
+(consistent, tiny server cost — the pragmatic hybrid); **(C)** aggressor-authoritative. Default:
+**soft/forgiving contact + server-arbitrate only score-relevant impacts.**
+
+**Godot interest management.** `MultiplayerSynchronizer` with **`public_visibility = false`** +
+**`set_visibility_for(peer, visible)`** / `add_visibility_filter` + `update_visibility()` streams
+each client only its AoI. **Critical caveat: only the *authority* peer's visibility is honored** — so
+the **server must hold authority** over synchronizers it filters. Built-in `MultiplayerSpawner`/
+`Synchronizer` suit scoped scenes; our AoI needs a **custom replicator** over the ENet donor. **Pool
+chunk nodes** (fresh instancing stutters).
+
+**Honest scaling reality (say it plainly).** A single server is CPU-bound and simulation is largely
+single-threaded — **spread-out players are the *worst* case** (each forces a separate loaded region).
+PZ's honest caps: **~32 comfortable, ~100 heroic** (B42 advises ~20). So: the **WORLD** is huge
+because dormant regions are near-free (counts + timers); **concurrent players per server** is the
+bounded resource → **shard/instance the hotspots** (towns/arenas), keep the roads cheap, and accept
+that "thousands online" means many servers/shards, not one process. This is a **specialist,
+multi-loop effort** — Stage 9, built only after the single-player world is real.
+
 ---
 
 ## 4. Build path
@@ -111,7 +210,8 @@ world can be country-sized precisely because the server never holds it all at on
 3. Acceptance: a cross-process test where two players in **different regions** cost the server
    ~one region each (assert no shared replication), then converge in a town and share one hot region.
 
-*Research notes: MP section grounded in PZ's cell/loaded-area model + standard MMO interest
-management + client-side-prediction/server-reconciliation for vehicles. Cross-refs: `STAGES.md`
-(5, 9), `WORLD_NPCS.md` (tiers/persistence), `ENGINE.md` (M2 world, M7 netcode), `CONTENT_PIPELINE.md`
-(seeded chunks).*
+*Research notes: MP section grounded in PZ's cell/loaded-area model + MMO world-partitioning prior
+art (Asheron's Call seamless grid handoff, GW2 megaserver dynamic copies, EVE per-system nodes +
+Time Dilation, Dual Universe's single-shard failure modes) + client-side-prediction / dead-reckoning
+for vehicles. Cross-refs: `STAGES.md` (5, 9), `WORLD_NPCS.md` (tiers/persistence), `ENGINE.md`
+(M2 world, M7 netcode), `CONTENT_PIPELINE.md` (seeded chunks).*
