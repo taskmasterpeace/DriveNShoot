@@ -27,9 +27,18 @@ blood/rust — **no purple**, per house rules), emoji/glyph-forward so it reads 
 - **World Map** (Stage 5) — country→state→local, fog-of-war.
 
 **In-world HUD (always on):**
-- **StatusGlyph strip** (the moodle system) — car parts 🔧🛞🔋⛽🛡️ when driving; player
-  afflictions 🤒(sick) 🩸(bleeding) 🦴(fracture) 🥶(cold) ☢️(rads) when on foot; buffs.
-- ❤️ health, stamina, 🔫 ammo (`mag/reserve`), 💥 cook-% (car on fire), interact prompts (M1).
+- **⭐ The MOODLE CORNER (top-right, PZ-style — BUILT 2026-07-04, user-locked design):**
+  regular emoji show how the character FEELS, large enough to read at a glance. **The emoji ARE
+  the meters — no bars.** Tiredness escalates 🥱→😓→😫 (replaced the stamina bar), stress
+  😟→😰→😱 (replaced the stress bar), 😊 when comforted (Cuddle dog + calm), and data rows for
+  🤧🤒🤮 sick · 🥴 drunk · 😵‍💫 high · 🤕 hurt · 🥶 cold · 😖 hungry via a one-call
+  `set_condition(id, tier)` API. Worst-tier moodles pulse. Adding a feeling = one table row.
+  **Rule going forward: any vital whose *feeling* can be read as a face becomes a moodle, not a
+  meter.** (Health ❤️ and ammo stay numeric — you count bullets; you *feel* tired.)
+- **Car dashboard** — part glyphs 🔧🛞🔋⛽🛡️ tinted by tier when driving (Stage 2); 💥 cook-%.
+- ❤️ health, 🔫 ammo (`mag/reserve`), interact prompts (M1), speed MPH.
+- **Character sheet rule (user spec):** the stats/skills screen ALSO speaks emoji — attributes,
+  skills, and current feelings shown with the same moodle glyphs, not sterile numbers alone.
 - **Navigation:** §4.
 
 ---

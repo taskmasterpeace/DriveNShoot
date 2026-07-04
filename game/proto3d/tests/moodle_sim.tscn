@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dmoodle01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/moodle_sim.gd" id="1_moo"]
+
+[node name="MoodleSim" type="Node"]
+script = ExtResource("1_moo")

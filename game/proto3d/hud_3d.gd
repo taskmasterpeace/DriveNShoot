@@ -10,16 +10,54 @@ var _prompt_label: Label
 var _keys_label: Label
 var _toast_label: Label
 var _vignette: ColorRect
-var _stamina_bg: ColorRect
-var _stamina_fill: ColorRect
-var _stress_fill: ColorRect
 var _toast_tween: Tween
+var _moodle_box: VBoxContainer
 
 ## Current interact prompt text ("" when hidden) — read by sim tests.
 var current_prompt: String = ""
 
+## Moodle system (PZ-style): id -> active tier (0 = hidden). Read by sim tests.
+var active_moodles: Dictionary = {}
+## External conditions (sick/drunk/high/hurt/cold...) set via set_condition().
+var _conditions: Dictionary = {}
+var _moodle_labels: Dictionary = {}
+
+## The moodle table — HOW YOUR CHARACTER FEELS, as regular emoticons (user spec:
+## PZ-style corner, the emoji IS the meter). tiers[0] unused; higher tier = worse.
+## Adding a feeling = adding a row. Order in this dict = display priority.
+const MOODLES: Dictionary = {
+	"stress": {"tiers": ["", "😟", "😰", "😱"]},
+	"tired": {"tiers": ["", "🥱", "😓", "😫"]},
+	"sick": {"tiers": ["", "🤧", "🤒", "🤮"]},
+	"drunk": {"tiers": ["", "🙂", "🥴", "🥴"]},
+	"high": {"tiers": ["", "😌", "😵‍💫", "😵"]},
+	"hurt": {"tiers": ["", "😣", "🤕", "😵"]},
+	"cold": {"tiers": ["", "🥶", "🥶", "🥶"]},
+	"hungry": {"tiers": ["", "😐", "😖", "😫"]},
+	"happy": {"tiers": ["", "🙂", "😊", "😄"]},
+}
+
 const AMBER := Color(0.96, 0.72, 0.2)
 const BONE := Color(0.92, 0.89, 0.82)
+
+## Windows color-emoji font for the moodles (default theme font has no emoji glyphs).
+static var _emoji_font: SystemFont = null
+
+static var _mixed_font: SystemFont = null
+
+static func emoji_font() -> SystemFont:
+	if _emoji_font == null:
+		_emoji_font = SystemFont.new()
+		_emoji_font.font_names = PackedStringArray(["Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji"])
+	return _emoji_font
+
+
+## Text font that can still draw emoji (for toasts/prompts that mix both).
+static func mixed_font() -> SystemFont:
+	if _mixed_font == null:
+		_mixed_font = SystemFont.new()
+		_mixed_font.font_names = PackedStringArray(["Segoe UI", "Segoe UI Emoji", "Noto Color Emoji"])
+	return _mixed_font
 
 const VIGNETTE_SHADER := "
 shader_type canvas_item;
@@ -73,36 +111,27 @@ static func create() -> ProtoHUD:
 	hud._help_label.offset_bottom = -18.0
 	hud.add_child(hud._help_label)
 
-	# Stamina / sprint meter (on foot) — just above the controls line.
-	hud._stamina_bg = ColorRect.new()
-	hud._stamina_bg.color = Color(0.10, 0.09, 0.07, 0.75)
-	hud._stamina_bg.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	hud._stamina_bg.offset_left = 28.0
-	hud._stamina_bg.offset_right = 210.0
-	hud._stamina_bg.offset_top = -66.0
-	hud._stamina_bg.offset_bottom = -54.0
-	hud._stamina_bg.visible = false
-	hud.add_child(hud._stamina_bg)
-	hud._stamina_fill = ColorRect.new()
-	hud._stamina_fill.color = AMBER
-	hud._stamina_fill.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	hud._stamina_fill.offset_left = 30.0
-	hud._stamina_fill.offset_right = 208.0
-	hud._stamina_fill.offset_top = -64.0
-	hud._stamina_fill.offset_bottom = -56.0
-	hud._stamina_fill.visible = false
-	hud.add_child(hud._stamina_fill)
-
-	# Stress bar (thin, blood-red, under stamina) — the mind has a meter too.
-	hud._stress_fill = ColorRect.new()
-	hud._stress_fill.color = Color(0.72, 0.15, 0.10, 0.9)
-	hud._stress_fill.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	hud._stress_fill.offset_left = 30.0
-	hud._stress_fill.offset_right = 208.0
-	hud._stress_fill.offset_top = -51.0
-	hud._stress_fill.offset_bottom = -47.0
-	hud._stress_fill.visible = false
-	hud.add_child(hud._stress_fill)
+	# Moodle column (PZ-style): top-right, under the key ring. The emoji ARE the
+	# meters — no bars. Large enough to read, not so large they shout (user spec).
+	hud._moodle_box = VBoxContainer.new()
+	hud._moodle_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	hud._moodle_box.offset_left = -96.0
+	hud._moodle_box.offset_right = -20.0
+	hud._moodle_box.offset_top = 56.0
+	hud._moodle_box.offset_bottom = 520.0
+	hud._moodle_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	hud._moodle_box.add_theme_constant_override("separation", 6)
+	hud.add_child(hud._moodle_box)
+	for id in MOODLES:
+		var lbl := Label.new()
+		lbl.add_theme_font_override("font", ProtoHUD.emoji_font())
+		lbl.add_theme_font_size_override("font_size", 42)
+		lbl.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.03))
+		lbl.add_theme_constant_override("outline_size", 8)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		lbl.visible = false
+		hud._moodle_box.add_child(lbl)
+		hud._moodle_labels[id] = lbl
 
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
@@ -146,6 +175,7 @@ static func create() -> ProtoHUD:
 
 	# Toast (center, fades)
 	hud._toast_label = Label.new()
+	hud._toast_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._toast_label.add_theme_font_size_override("font_size", 26)
 	hud._toast_label.add_theme_color_override("font_color", BONE)
 	hud._toast_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.03))
@@ -186,20 +216,44 @@ func set_speed(mph: float, driving: bool) -> void:
 	_speed_label.text = "%d MPH" % int(mph)
 
 
-func set_stress(cur: float, on_foot: bool) -> void:
-	_stress_fill.visible = on_foot and cur > 2.0
-	if _stress_fill.visible:
-		_stress_fill.offset_right = 30.0 + 178.0 * clampf(cur / 100.0, 0.0, 1.0)
+## The emoji ARE the meters. Called once per frame with the character's vitals;
+## derives moodle tiers, merges external conditions, renders the corner column.
+func set_vitals(stamina: float, max_stamina: float, stress: float, comfort_near: bool) -> void:
+	var tiers: Dictionary = {}
+	# Tired — replaces the stamina bar entirely (user call).
+	var sr: float = stamina / maxf(1.0, max_stamina)
+	tiers["tired"] = 3 if sr < 0.15 else (2 if sr < 0.35 else (1 if sr < 0.6 else 0))
+	# Stressed — replaces the stress bar.
+	tiers["stress"] = 3 if stress >= 80.0 else (2 if stress >= 55.0 else (1 if stress >= 30.0 else 0))
+	# Happy — a Cuddle dog nearby and a calm mind show as a FEELING, not a buff icon.
+	tiers["happy"] = 2 if (comfort_near and stress < 25.0) else 0
+	# External conditions (sick/drunk/high/hurt/cold/hungry) — set via set_condition().
+	for id in _conditions:
+		tiers[id] = _conditions[id]
+	_apply_moodles(tiers)
 
 
-func set_stamina(cur: float, maxv: float, on_foot: bool) -> void:
-	_stamina_bg.visible = on_foot
-	_stamina_fill.visible = on_foot
-	if not on_foot or maxv <= 0.0:
-		return
-	var ratio: float = clampf(cur / maxv, 0.0, 1.0)
-	_stamina_fill.offset_right = 30.0 + 178.0 * ratio
-	_stamina_fill.color = Color(0.85, 0.25, 0.12) if ratio < 0.3 else AMBER
+## Future/system hook: mark a condition (0 clears; 1-3 = severity). One call = one feeling.
+func set_condition(id: String, tier: int) -> void:
+	if tier <= 0:
+		_conditions.erase(id)
+	else:
+		_conditions[id] = clampi(tier, 1, 3)
+
+
+func _apply_moodles(tiers: Dictionary) -> void:
+	active_moodles = {}
+	for id in MOODLES:
+		var tier: int = tiers.get(id, 0)
+		var lbl: Label = _moodle_labels[id]
+		if tier <= 0:
+			lbl.visible = false
+			continue
+		active_moodles[id] = tier
+		lbl.text = MOODLES[id]["tiers"][tier]
+		lbl.visible = true
+		# Worst tier pulses gently so it catches the eye without a meter.
+		lbl.modulate.a = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.006) if tier >= 3 else 1.0
 
 
 func set_mode(driving: bool) -> void:

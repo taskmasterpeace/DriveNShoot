@@ -66,6 +66,8 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
-**2026-07-04:** Stage 0+1 SHIPPED (M1 21/21) · dogs live (11/11) + Stress vital · handbrake fix
-in verification · NEXT: Stage 2 The Living Car (`loops/LOOP2_LIVING_CAR.md` §8 acceptance) →
-then Stage 3 (Character/UI) per `STAGES.md`.
+**2026-07-04:** Stage 0+1 SHIPPED (M1 21/21) · dogs live (11/11) + Stress vital · handbrake fixed
+(102° drift, sim-proven) · **moodle corner live** (emoji ARE the meters — stamina/stress bars
+deleted; `set_condition()` API for sick/drunk/high/hurt/cold/hungry) · NEXT: Stage 2 The Living
+Car (`loops/LOOP2_LIVING_CAR.md` §8 acceptance) → then Stage 3 (Character/UI) per `STAGES.md`.
+Sims now: drive · walkthrough · m1 · dog · moodle.

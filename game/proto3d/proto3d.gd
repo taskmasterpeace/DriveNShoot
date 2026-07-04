@@ -163,7 +163,6 @@ func _physics_process(delta: float) -> void:
 		hud.set_speed(active_car.current_mph, true)
 	else:
 		hud.set_speed(0.0, false)
-	hud.set_stamina(player.stamina, player.max_stamina, mode == Mode.FOOT)
 
 	_update_stress(delta)
 	_update_interact_prompt()
@@ -182,13 +181,17 @@ func _update_stress(delta: float) -> void:
 				rise = 9.0
 				break
 	var calm := 3.0
+	var comfort_near := false
 	for d in dogs:
 		var aura: float = d.params()["calm_aura"]
 		if aura > 0.0 and is_instance_valid(d) and d.global_position.distance_to(player.global_position) < 5.0:
 			calm += aura
+			if aura >= 5.0:
+				comfort_near = true # a true Cuddle dog at your side
 	stress = clampf(stress + (rise - calm) * delta, 0.0, 100.0)
 	player.stamina_regen_mult = lerpf(1.0, 0.35, stress / 100.0)
-	hud.set_stress(stress, mode == Mode.FOOT)
+	# The moodle corner IS the meter display (PZ-style; user spec).
+	hud.set_vitals(player.stamina, player.max_stamina, stress, comfort_near)
 
 
 # --- Dog services (called by ProtoDog) ---------------------------------------
