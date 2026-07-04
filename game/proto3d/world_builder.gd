@@ -214,6 +214,18 @@ static func build_world(root: Node3D) -> Dictionary:
 	box_body(world, Vector3(1.2, 1.2, 1.2), Vector3(102, 0.6, -322), COL_CRATE)
 	box_body(world, Vector3(1.0, 1.0, 1.0), Vector3(103.4, 0.5, -321.2), COL_CRATE * 1.1)
 
+	# --- The kennel yard: four strays waiting for a scav (dogs spawn in main) --
+	var kennel_label := Label3D.new()
+	kennel_label.text = "STRAYS — E TO ADOPT"
+	kennel_label.font_size = 140
+	kennel_label.pixel_size = 0.005
+	kennel_label.modulate = Color(0.95, 0.75, 0.25)
+	kennel_label.position = Vector3(123, 3.2, -316)
+	kennel_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	world.add_child(kennel_label)
+	for post_pos in [Vector3(120.5, 0, -313.5), Vector3(125.5, 0, -313.5), Vector3(120.5, 0, -318.5), Vector3(125.5, 0, -318.5)]:
+		box_body(world, Vector3(0.2, 1.2, 0.2), post_pos + Vector3(0, 0.6, 0), Color(0.4, 0.3, 0.2))
+
 	# --- The safehouse: enterable, two floors --------------------------------
 	var house := ProtoHouse.new()
 	house.position = Vector3(110, 0, -325)

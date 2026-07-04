@@ -16,7 +16,8 @@ signal speed_changed(mph: float)
 @export var reverse_top_speed: float = 11.0
 @export var grip_front: float = 5.5   ## Higher = more planted (less slide). Worn/blown tires LOWER this.
 @export var grip_rear: float = 5.0    ## Baseline grip; the Tires component modifies it (see LOOP2 spec).
-@export var handbrake_grip_rear: float = 1.1  ## Kept low so the handbrake still breaks traction on purpose.
+@export var handbrake_grip_rear: float = 2.4  ## Slide grip — playtest bug: 1.1 spun the car a full 180.
+@export var handbrake_steer_mult: float = 0.55 ## Steering authority while sliding (full lock = spin).
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
@@ -180,8 +181,12 @@ func _physics_process(delta: float) -> void:
 		input_handbrake = Input.is_action_pressed("jump")
 
 	# Steering authority falls off with speed for stability, ramps in smoothly.
+	# While the handbrake is down, authority is trimmed too — full lock mid-slide
+	# whipped the car 180 (first-playtest bug); a drift should be steered, not spun.
 	var speed_ratio := clampf(absf(forward_speed) / top_speed, 0.0, 1.0)
 	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio)
+	if input_handbrake:
+		steer_limit *= handbrake_steer_mult
 	steering = move_toward(steering, input_steer * steer_limit, steer_speed * delta)
 
 	# Throttle / brake / reverse.

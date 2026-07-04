@@ -21,6 +21,13 @@ var house: ProtoHouse
 ## Key ring: key_id -> display name.
 var keys: Dictionary = {}
 
+## Dogs & the Stress vital (docs/systems/DOGS.md)
+var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
+var dogs: Array[ProtoDog] = []       ## adopted pack
+var stress: float = 0.0              ## 0-100; throttles stamina regen
+var last_dog_alert: Dictionary = {}  ## sim hook: {dog, behind, at}
+var last_dog_nose: Dictionary = {}   ## sim hook: {dog, stash}
+
 var _current_interactable: Node3D = null
 var _last_safe: Vector3 = Vector3(2.5, 1.2, 390)
 var _safe_timer: float = 0.0
@@ -56,6 +63,25 @@ func _ready() -> void:
 
 	hud = ProtoHUD.create()
 	add_child(hud)
+
+	# The kennel strays: one of each type, distinct breeds.
+	var kennel_specs: Array = [
+		[ProtoDog.DogType.SECURITY, "Brutus", "Shepherd", Vector3(121.5, 0.4, -315)],
+		[ProtoDog.DogType.HUNTER, "Scout", "Bloodhound", Vector3(124.5, 0.4, -315)],
+		[ProtoDog.DogType.COMPANION, "Lucky", "Mutt", Vector3(121.5, 0.4, -317.5)],
+		[ProtoDog.DogType.CUDDLE, "Biscuit", "Pocket", Vector3(124.5, 0.4, -317.5)],
+	]
+	for spec in kennel_specs:
+		var dog := ProtoDog.create(spec[0], spec[1], spec[2])
+		dog.position = spec[3]
+		add_child(dog)
+		all_dogs.append(dog)
+
+	# Lurkers: something out there for the dogs to smell.
+	for lpos in [Vector3(162, 0.4, -362), Vector3(14, 0.4, -110), Vector3(58, 0.4, -205)]:
+		var lurker := ProtoLurker.create()
+		lurker.position = lpos
+		add_child(lurker)
 
 	house.tracked = player
 	enter_car(cars[0])
@@ -99,6 +125,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_exit_car()
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
 			_current_interactable.call("interact", self)
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if (event as InputEventKey).keycode == KEY_C and not dogs.is_empty():
+			for d in dogs:
+				d.whistle()
+			hud.toast("*whistle* — the pack returns")
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -134,9 +165,52 @@ func _physics_process(delta: float) -> void:
 		hud.set_speed(0.0, false)
 	hud.set_stamina(player.stamina, player.max_stamina, mode == Mode.FOOT)
 
+	_update_stress(delta)
 	_update_interact_prompt()
 	_update_respawn(delta)
 	_update_location_label()
+
+
+## The Stress vital: threats wind you up, Cuddle dogs calm you down, and stress
+## throttles stamina regen (DOGS.md §2 — why comfort is a mechanic, not a skin).
+func _update_stress(delta: float) -> void:
+	var rise := 0.0
+	if mode == Mode.FOOT:
+		for node in get_tree().get_nodes_in_group("threat"):
+			var t := node as Node3D
+			if t and is_instance_valid(t) and t.global_position.distance_to(player.global_position) < 14.0:
+				rise = 9.0
+				break
+	var calm := 3.0
+	for d in dogs:
+		var aura: float = d.params()["calm_aura"]
+		if aura > 0.0 and is_instance_valid(d) and d.global_position.distance_to(player.global_position) < 5.0:
+			calm += aura
+	stress = clampf(stress + (rise - calm) * delta, 0.0, 100.0)
+	player.stamina_regen_mult = lerpf(1.0, 0.35, stress / 100.0)
+	hud.set_stress(stress, mode == Mode.FOOT)
+
+
+# --- Dog services (called by ProtoDog) ---------------------------------------
+
+func register_dog(dog: ProtoDog) -> void:
+	if not dogs.has(dog):
+		dogs.append(dog)
+
+
+func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
+	last_dog_alert = {"dog": dog.dog_name, "behind": behind, "at": Time.get_ticks_msec()}
+	var bark: String = dog.params()["bark"]
+	if behind:
+		hud.toast("🐕 %s %s — something's BEHIND you!" % [dog.dog_name, bark])
+	else:
+		hud.toast("🐕 %s %s — something's out there" % [dog.dog_name, bark])
+	stress = minf(100.0, stress + 6.0)
+
+
+func on_dog_nose(dog: ProtoDog, stash: Node3D) -> void:
+	last_dog_nose = {"dog": dog.dog_name, "stash": stash}
+	hud.toast("🐕 %s points — something's stashed nearby" % dog.dog_name)
 
 
 ## Finds the nearest interactable with a live prompt and shows its chip.

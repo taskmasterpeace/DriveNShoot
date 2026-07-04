@@ -27,6 +27,8 @@ var move_state: FootState = FootState.NORMAL
 var face_override: Vector3 = Vector3.ZERO
 
 var stamina: float = 100.0
+## Set by the Stress system (main scene): high stress = slow recovery.
+var stamina_regen_mult: float = 1.0
 var _was_running: bool = false
 
 var _visual: Node3D
@@ -37,6 +39,7 @@ var _dive_dir: Vector3 = Vector3.FORWARD
 
 static func create() -> ProtoPlayer3D:
 	var p := ProtoPlayer3D.new()
+	p.add_to_group("player")
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.35
@@ -127,7 +130,7 @@ func _physics_process(delta: float) -> void:
 	if running:
 		stamina = maxf(0.0, stamina - run_drain * delta)
 	else:
-		stamina = minf(max_stamina, stamina + stamina_regen * delta)
+		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * delta)
 
 	var speed := run_speed if running else walk_speed
 	var target := move * speed

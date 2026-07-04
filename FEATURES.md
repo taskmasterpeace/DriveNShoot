@@ -153,3 +153,20 @@ on foot, and Hold X to extract.
 *   **No more falling off the map** — 12 km ground + "last safe spot" respawn.
 *   **Off-road ground detail** — thousands of scrub/rock/dirt instances so off-road has anchors.
 *   **Proof:** `res://proto3d/tests/m1_sim.tscn` — 21/21 input-driven checks (no teleport-cheats).
+
+## 18. Dogs, Stress & the Lurkers (2026-07-04)
+*   **Four dog types, four jobs** (adopt at the Meridian kennel — "STRAYS, E TO ADOPT"):
+    **Brutus** (Security/Shepherd — huge threat radius, strongest BEHIND you),
+    **Scout** (Hunter/Bloodhound — points at stashes and caches by smell),
+    **Lucky** (Companion/Mutt — obeys instantly, calm presence),
+    **Biscuit** (Cuddle/Pocket — melts your Stress, caps panic).
+*   **The law of dogs:** a dog always knows what's behind you — growl alerts name the
+    direction ("something's BEHIND you!").
+*   **Commands:** E adopt · E stay/follow · **C whistles the whole pack to heel.**
+    Companion obeys instantly; others take a beat (personality).
+*   **The Stress vital** (thin red bar): being stalked winds you up; high stress slows
+    stamina recovery. A Cuddle dog nearby melts it — comfort is a build choice now.
+*   **Lurkers:** hooded silhouettes stalk the wasteland — they creep toward you and
+    FREEZE when you look at them. Your dog smells them first.
+*   **Handbrake fixed:** slides are drifts now (~100°), not a 180 spin-out.
+*   **Proof:** `proto3d/tests/dog_sim.tscn` — 11/11 input-driven checks.

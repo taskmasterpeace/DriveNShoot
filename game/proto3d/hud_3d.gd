@@ -12,6 +12,7 @@ var _toast_label: Label
 var _vignette: ColorRect
 var _stamina_bg: ColorRect
 var _stamina_fill: ColorRect
+var _stress_fill: ColorRect
 var _toast_tween: Tween
 
 ## Current interact prompt text ("" when hidden) — read by sim tests.
@@ -91,6 +92,17 @@ static func create() -> ProtoHUD:
 	hud._stamina_fill.offset_bottom = -56.0
 	hud._stamina_fill.visible = false
 	hud.add_child(hud._stamina_fill)
+
+	# Stress bar (thin, blood-red, under stamina) — the mind has a meter too.
+	hud._stress_fill = ColorRect.new()
+	hud._stress_fill.color = Color(0.72, 0.15, 0.10, 0.9)
+	hud._stress_fill.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hud._stress_fill.offset_left = 30.0
+	hud._stress_fill.offset_right = 208.0
+	hud._stress_fill.offset_top = -51.0
+	hud._stress_fill.offset_bottom = -47.0
+	hud._stress_fill.visible = false
+	hud.add_child(hud._stress_fill)
 
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
@@ -174,6 +186,12 @@ func set_speed(mph: float, driving: bool) -> void:
 	_speed_label.text = "%d MPH" % int(mph)
 
 
+func set_stress(cur: float, on_foot: bool) -> void:
+	_stress_fill.visible = on_foot and cur > 2.0
+	if _stress_fill.visible:
+		_stress_fill.offset_right = 30.0 + 178.0 * clampf(cur / 100.0, 0.0, 1.0)
+
+
 func set_stamina(cur: float, maxv: float, on_foot: bool) -> void:
 	_stamina_bg.visible = on_foot
 	_stamina_fill.visible = on_foot
@@ -188,7 +206,7 @@ func set_mode(driving: bool) -> void:
 	if driving:
 		_help_label.text = "W/S throttle+brake · A/D steer · SPACE handbrake · E get out · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
 	else:
-		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
+		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact/adopt · C whistle · SCROLL zoom · hold B binoculars"
 
 
 func set_binoculars(on: bool) -> void:
