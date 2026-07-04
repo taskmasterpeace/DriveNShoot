@@ -84,6 +84,7 @@ static func create() -> ProtoHUD:
 	hud.add_child(hud._speed_label)
 
 	hud._mode_label = Label.new()
+	hud._mode_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._mode_label.add_theme_font_size_override("font_size", 20)
 	hud._mode_label.add_theme_color_override("font_color", BONE)
 	hud._mode_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -103,6 +104,7 @@ static func create() -> ProtoHUD:
 	hud.add_child(hud._binoc_label)
 
 	hud._help_label = Label.new()
+	hud._help_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._help_label.add_theme_font_size_override("font_size", 15)
 	hud._help_label.add_theme_color_override("font_color", Color(BONE, 0.75))
 	hud._help_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -148,6 +150,7 @@ static func create() -> ProtoHUD:
 
 	# Interact prompt chip (center-bottom)
 	hud._prompt_label = Label.new()
+	hud._prompt_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._prompt_label.add_theme_font_size_override("font_size", 24)
 	hud._prompt_label.add_theme_color_override("font_color", AMBER)
 	hud._prompt_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.03))
@@ -163,6 +166,7 @@ static func create() -> ProtoHUD:
 
 	# Key ring (top-right)
 	hud._keys_label = Label.new()
+	hud._keys_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._keys_label.add_theme_font_size_override("font_size", 15)
 	hud._keys_label.add_theme_color_override("font_color", Color(BONE, 0.85))
 	hud._keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

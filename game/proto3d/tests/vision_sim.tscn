@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dvision01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/vision_sim.gd" id="1_vis"]
+
+[node name="VisionSim" type="Node"]
+script = ExtResource("1_vis")

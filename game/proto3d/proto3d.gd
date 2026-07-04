@@ -15,6 +15,7 @@ var player: ProtoPlayer3D
 var cars: Array[ProtoCar3D] = []
 var active_car: ProtoCar3D = null
 var cam_rig: ProtoCameraRig
+var vision_cone: ProtoVisionCone
 var hud: ProtoHUD
 var house: ProtoHouse
 
@@ -61,7 +62,11 @@ func _ready() -> void:
 	cam_rig = ProtoCameraRig.create()
 	add_child(cam_rig)
 
+	vision_cone = ProtoVisionCone.create()
+	add_child(vision_cone)
+
 	hud = ProtoHUD.create()
+	hud.layer = 2 # above the vision-cone dimmer
 	add_child(hud)
 
 	# The kennel strays: one of each type, distinct breeds.
@@ -165,9 +170,27 @@ func _physics_process(delta: float) -> void:
 		hud.set_speed(0.0, false)
 
 	_update_stress(delta)
+	_update_vision_cone(delta, binoc)
 	_update_interact_prompt()
 	_update_respawn(delta)
 	_update_location_label()
+
+
+## The perception cone: clear where you're looking, dim where you aren't.
+## Follows the body on foot, the car while driving, and your AIM while glassing.
+func _update_vision_cone(delta: float, binoc: bool) -> void:
+	var cam := get_viewport().get_camera_3d()
+	var body: Node3D = active_car if (mode == Mode.DRIVE and active_car) else player
+	if cam == null or body == null:
+		return
+	var facing: Vector3 = body.call("facing") if body.has_method("facing") else Vector3.FORWARD
+	var params: Array = ProtoVisionCone.MODE_DRIVE if mode == Mode.DRIVE else ProtoVisionCone.MODE_FOOT
+	if binoc:
+		params = ProtoVisionCone.MODE_BINOC
+		var aim := cam_rig.binocular_aim_dir()
+		if aim.length_squared() > 0.01:
+			facing = aim
+	vision_cone.update_cone(cam, body.global_position, facing, params, delta)
 
 
 ## The Stress vital: threats wind you up, Cuddle dogs calm you down, and stress
