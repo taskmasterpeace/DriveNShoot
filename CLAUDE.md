@@ -1,18 +1,46 @@
 # Claude AI Development Guide for CarWorld
 
-**Last Updated:** 2025-12-25
-**Project Status:** Phase 6 Alpha → Transitioning to Phase 7
+**Last Updated:** 2026-07-04
+**Project Status:** 🚨 PIVOTED TO 3D — DRIVN Engine (see `docs/ENGINE.md`)
 **AI Setup:** ✅ Complete (Godot MCP + Context7 + PixelLab)
+
+---
+
+## 🚨 THE PIVOT (2026-07-04) — READ FIRST
+
+The 2D sprite game hit its ceiling ("can't see, cars don't move right"). On 2026-07-04 we
+built `game/proto3d/` — a **Godot 3D** vertical slice with real `VehicleBody3D` physics,
+top-down zoom camera, binoculars, in/out of cars, and an enterable two-story safehouse.
+The user played it and confirmed: **this is the direction.**
+
+- **Mainline is now the 3D engine.** Master spec: `docs/ENGINE.md` (DRIVN Engine — 7 systems,
+  milestones M1–M7 with acceptance tests). Work happens as /goal loops per milestone.
+- **The 2D game is the systems donor**, not dead code: economy, contracts, heat,
+  save/load, dialogue, netcode all port into 3D.
+- **Vision:** Autoduel × GTA2-modern in the world of Deathlands. Compressed-country USA,
+  vision-cone perception (Project Zomboid-informed), data-driven everything — vehicles
+  from bicycles to 18-wheelers to tanks, dogs, doors, forts.
+- **Iron rule learned:** headless tests must exercise the REAL path (the stairs bug shipped
+  because the test teleported instead of walking). Every milestone ends with input-driven
+  sim proof + a hands-on build for the user.
+- Run the slice: `Godot --path game res://proto3d/proto3d.tscn` · physics proof:
+  `res://proto3d/tests/drive_sim.tscn` · gameplay proof: `res://proto3d/tests/walkthrough_sim.tscn`
+- **3D gotchas already paid for:** positive `engine_force` pushes +Z (forward drive needs
+  negative); new `class_name` scripts need a `--headless --import` pass before headless tests;
+  wheel damping = `k*2*sqrt(stiffness)` (k: 0.25 comp / 0.4 relax); Control nodes under
+  CanvasLayer need `offset_*` after anchors preset, never raw `position`.
 
 ---
 
 ## 🎯 Project Overview
 
-**CarWorld** is a top-down 2D vehicular combat game inspired by Autoduel (1985) and Car Wars. It's built in **Godot Engine 4.5+** using **GDScript**.
+**CarWorld** is a top-down vehicular combat + survival game inspired by Autoduel (1985),
+GTA2, and the Deathlands novels. Built in **Godot Engine 4.5+** using **GDScript** —
+now in **3D** (low-poly, top-down camera).
 
-**Genre:** Extraction-based survival with infinite procedural road generation
+**Genre:** Open-country survival — extraction roots, growing toward persistent multiplayer world
 **Setting:** Post-apocalyptic America, 2030+
-**Core Loop:** Town → Drive into Deathlands → Loot/Survive → Extract or Die → Upgrade
+**Core Loop:** Town → Drive the interstates → Exit anywhere → Loot/Survive on foot → Extract or Die → Upgrade
 
 ---
 
@@ -117,7 +145,12 @@ C:\git\carworld\
 
 ## 📋 Next Development Priorities
 
-### Immediate Tasks (Phase 7 Start)
+**⚠️ SUPERSEDED by `docs/ENGINE.md` milestones M1–M7.** Current priority: **M1 Feel Core**
+(stairs fix, interact-prompt UI, doors+locks, binoculars v2 mouse-aim, world-edge fix,
+off-road ground detail, dive). The Phase 7 list below is the OLD 2D plan, kept for
+reference while its systems get ported into 3D.
+
+### Immediate Tasks (Phase 7 Start — LEGACY 2D)
 
 1. **Weapon System Integration**
    - Add weapon mounting points to vehicles
@@ -290,7 +323,9 @@ existing encounter_director.gd spawn system"
 ## ⚠️ Important Notes
 
 ### Do NOT:
-- ❌ Use RigidBody2D for vehicles (we use CharacterBody2D with custom physics)
+- ❌ (3D/proto3d+) Fake vehicle physics — use `VehicleBody3D`; the bicycle-model era is over
+- ❌ (3D) Write headless tests that teleport past the mechanic under test — inputs only
+- ❌ (Legacy 2D only) Use RigidBody2D for vehicles (2D code uses CharacterBody2D with custom physics)
 - ❌ Create synchronous blocking code (use signals and async)
 - ❌ Hard-code values (use Constants or resource files)
 - ❌ Ignore the existing component system (extend it instead)

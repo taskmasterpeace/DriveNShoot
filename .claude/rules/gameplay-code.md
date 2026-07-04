@@ -11,7 +11,9 @@ paths:
 - NO direct references to UI/HUD code — use signals for cross-system communication
 - Every gameplay system must implement a clear interface
 - State machines must have explicit transition tables with documented states
-- Vehicles use CharacterBody2D with custom physics — NEVER RigidBody2D
+- 3D vehicles (proto3d/DRIVN engine) use VehicleBody3D — real physics, never faked kinematics
+- Legacy 2D vehicles use CharacterBody2D with custom physics — NEVER RigidBody2D
+- Headless tests drive mechanics with INPUTS, never teleports (see docs/ENGINE.md §0.3)
 - Follow the existing component pattern in entities/components/
 - Static typing on all variables, parameters, and return types
 
