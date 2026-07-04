@@ -30,6 +30,23 @@ var key_id: String = ""
 var key_display: String = "key"
 var display_name: String = "car"
 
+# --- The Living Car (LOOP2): 5-part anatomy + death spiral --------------------
+enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
+
+var components: Dictionary = {} ## id -> Damageable (engine/tires/battery/fuel_tank/chassis)
+var fuel: float = 100.0
+@export var fuel_drain_rate: float = 0.35 ## per second at full throttle
+var fire_state: FireState = FireState.OK
+var cook: float = 0.0 ## 0-100 while ON_FIRE — "it might blow, it might not"
+var dead: bool = false
+var salvaged: bool = false
+var _smoke: CPUParticles3D = null
+var _flames: CPUParticles3D = null
+var _spiral_rng := RandomNumberGenerator.new()
+
+const TIER_ENGINE_MULT: Array[float] = [1.0, 0.85, 0.5, 0.0]
+const TIER_GRIP_MULT: Array[float] = [1.0, 0.9, 0.68, 0.42]
+
 var input_throttle: float = 0.0
 var input_brake: float = 0.0
 var input_steer: float = 0.0  ## +1 = left
@@ -40,6 +57,9 @@ var forward_speed: float = 0.0
 
 var _front_wheels: Array[VehicleWheel3D] = []
 var _rear_wheels: Array[VehicleWheel3D] = []
+var _prev_vel: Vector3 = Vector3.ZERO
+var _prev_pos: Vector3 = Vector3.ZERO
+var _impact_cd: float = 0.0
 
 
 static func create(body_color: Color) -> ProtoCar3D:
@@ -92,6 +112,16 @@ static func create(body_color: Color) -> ProtoCar3D:
 		car.add_child(tail)
 
 	# Wheels: front pair steers, rear pair drives.
+	# The 5-part anatomy (Damageable = the same class body parts will use).
+	car.components = {
+		"engine": Damageable.new("engine", "🔧", 100.0),
+		"tires": Damageable.new("tires", "🛞", 100.0),
+		"battery": Damageable.new("battery", "🔋", 60.0),
+		"fuel_tank": Damageable.new("fuel_tank", "⛽", 80.0),
+		"chassis": Damageable.new("chassis", "🛡️", 100.0),
+	}
+	car._spiral_rng.randomize()
+
 	var wheel_specs: Array = [
 		[Vector3(-0.85, -0.15, -1.45), true, false],
 		[Vector3(0.85, -0.15, -1.45), true, false],
@@ -145,8 +175,10 @@ func interact_position() -> Vector3:
 func interact_prompt(main: Node) -> String:
 	if is_active:
 		return ""
+	if dead:
+		return "" if salvaged else "E — Salvage the burnt %s" % display_name
 	if locked and not main.has_key(key_id):
-		return "LOCKED — need %s" % key_display
+		return "HOLD E — Hotwire the %s" % display_name
 	if locked:
 		return "E — Unlock %s (%s)" % [display_name, key_display]
 	return "E — Enter %s" % display_name
@@ -154,6 +186,11 @@ func interact_prompt(main: Node) -> String:
 
 func interact(main: Node) -> void:
 	if is_active:
+		return
+	if dead:
+		if not salvaged:
+			salvaged = true
+			main.notify("Salvaged scrap from the burnt %s" % display_name)
 		return
 	if locked:
 		if main.has_key(key_id):
@@ -163,12 +200,148 @@ func interact(main: Node) -> void:
 	main.enter_car(self)
 
 
+func take_damage(amount: float) -> void:
+	if dead:
+		return
+	# Chassis takes the hit; hard hits can wound a random component too.
+	components["chassis"].damage(amount)
+	if amount > 8.0 and _spiral_rng.randf() < 0.45:
+		var ids: Array = ["engine", "tires", "battery", "fuel_tank"]
+		components[ids[_spiral_rng.randi() % ids.size()]].damage(amount * 0.6)
+
+
+# --- The death spiral: HEALTHY -> SMOKING -> ON FIRE -> cook -> HUSK (always burnt) ---
+
+func _update_death_spiral(delta: float) -> void:
+	if dead:
+		return
+	var chassis: Damageable = components["chassis"]
+	var breached: bool = components["fuel_tank"].tier() >= Damageable.Tier.CRITICAL
+	match fire_state:
+		FireState.OK:
+			if chassis.ratio() < 0.4:
+				fire_state = FireState.SMOKING
+				_ensure_smoke().emitting = true
+		FireState.SMOKING:
+			if chassis.ratio() < 0.15 or (breached and chassis.ratio() < 0.3):
+				fire_state = FireState.ON_FIRE
+				cook = 0.0
+				_ensure_flames().emitting = true
+			elif chassis.ratio() >= 0.4:
+				fire_state = FireState.OK
+				_ensure_smoke().emitting = false
+		FireState.ON_FIRE:
+			# The cook meter: it MIGHT blow early — every tick rolls against it.
+			cook += delta * (100.0 / (6.0 if breached else 9.5))
+			if cook >= 100.0 or _spiral_rng.randf() < (cook / 100.0) * delta * 0.5:
+				_explode()
+			elif chassis.ratio() <= 0.0:
+				_become_husk(false)
+		FireState.DESTROYED:
+			pass
+
+
+func _ensure_smoke() -> CPUParticles3D:
+	if _smoke == null:
+		_smoke = CPUParticles3D.new()
+		_smoke.amount = 24
+		_smoke.lifetime = 1.6
+		_smoke.mesh = BoxMesh.new()
+		(_smoke.mesh as BoxMesh).size = Vector3(0.25, 0.25, 0.25)
+		_smoke.direction = Vector3(0, 1, 0)
+		_smoke.initial_velocity_min = 1.5
+		_smoke.initial_velocity_max = 3.0
+		_smoke.gravity = Vector3(0, 1.0, 0)
+		_smoke.color = Color(0.25, 0.24, 0.23, 0.8)
+		_smoke.position = Vector3(0, 0.6, -1.2)
+		_smoke.emitting = false
+		add_child(_smoke)
+	return _smoke
+
+
+func _ensure_flames() -> CPUParticles3D:
+	if _flames == null:
+		_flames = CPUParticles3D.new()
+		_flames.amount = 40
+		_flames.lifetime = 0.7
+		_flames.mesh = BoxMesh.new()
+		(_flames.mesh as BoxMesh).size = Vector3(0.3, 0.3, 0.3)
+		_flames.direction = Vector3(0, 1, 0)
+		_flames.initial_velocity_min = 2.5
+		_flames.initial_velocity_max = 5.0
+		_flames.color = Color(1.0, 0.45, 0.08, 0.95)
+		_flames.position = Vector3(0, 0.7, -0.8)
+		_flames.emitting = false
+		add_child(_flames)
+	return _flames
+
+
+func _explode() -> void:
+	# Blast: shove and hurt what's nearby, then the husk. Always ends burnt.
+	for node in get_tree().get_nodes_in_group("threat"):
+		var n := node as Node3D
+		if n and is_instance_valid(n) and n.global_position.distance_to(global_position) < 9.0:
+			n.queue_free()
+	for node in get_tree().get_nodes_in_group("interactable"):
+		if node is ProtoCar3D and node != self:
+			var other := node as ProtoCar3D
+			if other.global_position.distance_to(global_position) < 8.0:
+				other.take_damage(40.0)
+	apply_central_impulse(Vector3(0, mass * 4.5, 0))
+	_become_husk(true)
+
+
+func _become_husk(_exploded: bool) -> void:
+	if dead:
+		return
+	dead = true
+	is_active = false
+	locked = false
+	fire_state = FireState.DESTROYED
+	cook = 0.0
+	if _flames:
+		_flames.emitting = false
+	_ensure_smoke().emitting = true # husks smolder
+	# Char every visual — no matter HOW it died, the wreck reads burnt (user law).
+	var charred := ProtoWorldBuilder.material(Color(0.09, 0.085, 0.08), 1.0)
+	for child in get_children():
+		if child is MeshInstance3D:
+			(child as MeshInstance3D).material_override = charred
+		elif child is VehicleWheel3D:
+			for sub in child.get_children():
+				if sub is MeshInstance3D:
+					(sub as MeshInstance3D).material_override = charred
+
+
+## Dashboard snapshot for the HUD (the car's moodles).
+func dashboard() -> Dictionary:
+	return {
+		"engine": components["engine"].tier(), "tires": components["tires"].tier(),
+		"battery": components["battery"].tier(), "fuel_tank": components["fuel_tank"].tier(),
+		"chassis": components["chassis"].tier(), "fuel": fuel,
+		"on_fire": fire_state == FireState.ON_FIRE, "cook": cook,
+		"smoking": fire_state == FireState.SMOKING,
+	}
+
+
 func _physics_process(delta: float) -> void:
 	forward_speed = linear_velocity.dot(-global_basis.z)
 	current_mph = absf(forward_speed) * 2.237
 	speed_changed.emit(current_mph)
 
-	if not is_active:
+	_update_death_spiral(delta)
+
+	# Impact damage: a hard velocity change in one tick = a crash (teleports excluded).
+	_impact_cd = maxf(0.0, _impact_cd - delta)
+	var moved := global_position.distance_to(_prev_pos)
+	var dv := (linear_velocity - _prev_vel).length()
+	if _impact_cd <= 0.0 and moved < 4.0 and dv > 9.0:
+		_impact_cd = 0.5
+		take_damage(clampf((dv - 9.0) * 1.5, 4.0, 45.0))
+	_prev_vel = linear_velocity
+	_prev_pos = global_position
+
+	if not is_active or dead:
 		engine_force = 0.0
 		brake = 3.0  # parking brake
 		steering = move_toward(steering, 0.0, steer_speed * delta)
@@ -192,20 +365,35 @@ func _physics_process(delta: float) -> void:
 	# Throttle / brake / reverse.
 	# NOTE: measured empirically via drive_sim — positive engine_force pushes +Z,
 	# so forward (-Z) drive needs a NEGATIVE engine force.
+	# THE LIVING CAR: the engine component scales power; fuel + battery gate it;
+	# tire condition scales grip (handling = baseline x condition — LOOP2 rule).
+	var engine_mult: float = TIER_ENGINE_MULT[components["engine"].tier()]
+	if fuel <= 0.0 or components["battery"].tier() == Damageable.Tier.BROKEN:
+		engine_mult = 0.0
+	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()]
+	for w in _front_wheels:
+		w.wheel_friction_slip = grip_front * grip_mult
+	var rear_base := handbrake_grip_rear if input_handbrake else grip_rear
+	for w in _rear_wheels:
+		w.wheel_friction_slip = rear_base * grip_mult
+
+	if input_throttle > 0.0 and engine_mult > 0.0:
+		fuel = maxf(0.0, fuel - fuel_drain_rate * input_throttle * delta)
+		# A breached tank bleeds extra while running.
+		if components["fuel_tank"].tier() >= Damageable.Tier.CRITICAL:
+			fuel = maxf(0.0, fuel - 1.2 * delta)
+
 	engine_force = 0.0
 	brake = 0.0
-	if input_throttle > 0.0 and forward_speed < top_speed:
+	if input_throttle > 0.0 and forward_speed < top_speed and engine_mult > 0.0:
 		# Taper force as speed climbs — punchy low end, natural top-speed plateau.
-		engine_force = -input_throttle * max_engine_force * lerpf(1.0, 0.45, speed_ratio)
+		engine_force = -input_throttle * max_engine_force * engine_mult * lerpf(1.0, 0.45, speed_ratio)
 	if input_brake > 0.0:
 		if forward_speed > 1.0:
 			brake = input_brake * max_brake
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
 
-	# Handbrake: kill rear grip + light brake = slides on demand.
-	var rear_grip := handbrake_grip_rear if input_handbrake else grip_rear
-	for w in _rear_wheels:
-		w.wheel_friction_slip = rear_grip
+	# Handbrake: light brake assist while sliding (grip handled above with tires).
 	if input_handbrake:
 		brake = maxf(brake, 6.0)

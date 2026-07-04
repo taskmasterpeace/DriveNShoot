@@ -66,8 +66,10 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
-**2026-07-04:** Stage 0+1 SHIPPED (M1 21/21) · dogs live (11/11) + Stress vital · handbrake fixed
-(102° drift, sim-proven) · **moodle corner live** (emoji ARE the meters — stamina/stress bars
-deleted; `set_condition()` API for sick/drunk/high/hurt/cold/hungry) · NEXT: Stage 2 The Living
-Car (`loops/LOOP2_LIVING_CAR.md` §8 acceptance) → then Stage 3 (Character/UI) per `STAGES.md`.
-Sims now: drive · walkthrough · m1 · dog · moodle.
+**2026-07-04 (cont):** Stage 0+1 SHIPPED (M1 21/21) · dogs (11/11) + Stress vital · moodle corner
+(9/9, meters deleted) · vision cone v1 (6/6) · **Stage 2 Living Car core LANDING:** Damageable
+component (multi-use), 5-part anatomy, tier→physics effects (engine power, tire grip, battery/fuel
+gate), impact damage, smoke→fire→cook→husk spiral (always burnt), salvage, fuel drain, dashboard
+glyphs 🔧🛞🔋⛽🛡️+💥, HOLD-E hotwire. Remaining Stage 2: arsenal (3 guns) + field repair.
+Sims: drive · walkthrough · m1 · dog · moodle · vision · car. NEXT after Stage 2: Stage 3
+(body/health paper-doll + containers/inventory — the twin pillars) per `STAGES.md`.

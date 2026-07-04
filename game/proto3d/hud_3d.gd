@@ -12,6 +12,17 @@ var _toast_label: Label
 var _vignette: ColorRect
 var _toast_tween: Tween
 var _moodle_box: VBoxContainer
+var _dash_box: HBoxContainer
+var _dash_labels: Dictionary = {}
+var _dash_fuel: Label
+var _dash_cook: Label
+
+const TIER_COLORS: Array[Color] = [
+	Color(0.92, 0.89, 0.82, 0.55), # GOOD — quiet
+	Color(0.96, 0.85, 0.25, 1.0),  # WORN — yellow
+	Color(0.98, 0.55, 0.15, 1.0),  # CRITICAL — orange
+	Color(0.95, 0.2, 0.12, 1.0),   # BROKEN — red
+]
 
 ## Current interact prompt text ("" when hidden) — read by sim tests.
 var current_prompt: String = ""
@@ -135,6 +146,35 @@ static func create() -> ProtoHUD:
 		hud._moodle_box.add_child(lbl)
 		hud._moodle_labels[id] = lbl
 
+	# Car dashboard (bottom-right, only while driving): the CAR's moodles —
+	# 🔧🛞🔋⛽🛡️ tinted by condition tier, fuel %, and the 💥 cook meter on fire.
+	hud._dash_box = HBoxContainer.new()
+	hud._dash_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	hud._dash_box.offset_left = -430.0
+	hud._dash_box.offset_right = -20.0
+	hud._dash_box.offset_top = -76.0
+	hud._dash_box.offset_bottom = -24.0
+	hud._dash_box.alignment = BoxContainer.ALIGNMENT_END
+	hud._dash_box.add_theme_constant_override("separation", 10)
+	hud._dash_box.visible = false
+	hud.add_child(hud._dash_box)
+	for part in ["engine", "tires", "battery", "fuel_tank", "chassis"]:
+		var pl := Label.new()
+		pl.add_theme_font_override("font", ProtoHUD.emoji_font())
+		pl.add_theme_font_size_override("font_size", 30)
+		hud._dash_box.add_child(pl)
+		hud._dash_labels[part] = pl
+	hud._dash_fuel = Label.new()
+	hud._dash_fuel.add_theme_font_override("font", ProtoHUD.mixed_font())
+	hud._dash_fuel.add_theme_font_size_override("font_size", 18)
+	hud._dash_fuel.add_theme_color_override("font_color", BONE)
+	hud._dash_box.add_child(hud._dash_fuel)
+	hud._dash_cook = Label.new()
+	hud._dash_cook.add_theme_font_override("font", ProtoHUD.mixed_font())
+	hud._dash_cook.add_theme_font_size_override("font_size", 24)
+	hud._dash_cook.add_theme_color_override("font_color", Color(0.98, 0.4, 0.1))
+	hud._dash_box.add_child(hud._dash_cook)
+
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
 	hud._vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -235,6 +275,27 @@ func set_vitals(stamina: float, max_stamina: float, stress: float, comfort_near:
 	for id in _conditions:
 		tiers[id] = _conditions[id]
 	_apply_moodles(tiers)
+
+
+const DASH_EMOJI := {"engine": "🔧", "tires": "🛞", "battery": "🔋", "fuel_tank": "⛽", "chassis": "🛡️"}
+
+## The car's dashboard: pass ProtoCar3D.dashboard() while driving, null to hide.
+func set_dashboard(d) -> void:
+	if d == null:
+		_dash_box.visible = false
+		return
+	_dash_box.visible = true
+	for part in _dash_labels:
+		var tier: int = d[part]
+		var lbl: Label = _dash_labels[part]
+		lbl.text = DASH_EMOJI[part]
+		lbl.modulate = TIER_COLORS[tier]
+	_dash_fuel.text = "%d%%" % int(d["fuel"])
+	if d["on_fire"]:
+		_dash_cook.text = "💥%d%%" % int(d["cook"])
+		_dash_cook.visible = true
+	else:
+		_dash_cook.visible = false
 
 
 ## Future/system hook: mark a condition (0 clears; 1-3 = severity). One call = one feeling.

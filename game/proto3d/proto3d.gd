@@ -166,12 +166,19 @@ func _physics_process(delta: float) -> void:
 
 	if mode == Mode.DRIVE and active_car:
 		hud.set_speed(active_car.current_mph, true)
+		hud.set_dashboard(active_car.dashboard())
+		# Riding a dead car is riding a coffin — throw the driver clear.
+		if active_car.dead:
+			hud.toast("The %s is GONE — get clear!" % active_car.display_name)
+			_exit_car()
 	else:
 		hud.set_speed(0.0, false)
+		hud.set_dashboard(null)
 
 	_update_stress(delta)
 	_update_vision_cone(delta, binoc)
 	_update_interact_prompt()
+	_update_hotwire(delta) # after the prompt poll — hotwire progress owns the chip while held
 	_update_respawn(delta)
 	_update_location_label()
 
@@ -191,6 +198,25 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		if aim.length_squared() > 0.01:
 			facing = aim
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta)
+
+
+var _hotwire_t: float = 0.0
+
+## Hold E next to a locked car (no key) to hotwire it — slow, and later: loud.
+func _update_hotwire(delta: float) -> void:
+	var target := _current_interactable as ProtoCar3D
+	var valid: bool = mode == Mode.FOOT and target != null and target.locked \
+		and not target.dead and not has_key(target.key_id)
+	if valid and Input.is_action_pressed("interact"):
+		_hotwire_t += delta
+		hud.show_prompt("HOTWIRING the %s... %d%%" % [target.display_name, int(_hotwire_t / 5.0 * 100.0)])
+		if _hotwire_t >= 5.0:
+			target.locked = false
+			_hotwire_t = 0.0
+			notify("Hotwired the %s" % target.display_name)
+			stress = minf(100.0, stress + 8.0) # nerves — and later, noise/heat
+	else:
+		_hotwire_t = 0.0
 
 
 ## The Stress vital: threats wind you up, Cuddle dogs calm you down, and stress

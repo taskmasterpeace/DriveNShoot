@@ -113,7 +113,7 @@ func _physics_process(delta: float) -> void:
 				_next()
 		8:
 			if phase_t > 0.5:
-				_check("locked car prompts LOCKED", main.hud.current_prompt.contains("LOCKED"))
+				_check("locked car prompts hotwire path", main.hud.current_prompt.contains("Hotwire"))
 				_tap_interact()
 				_next()
 		9:
