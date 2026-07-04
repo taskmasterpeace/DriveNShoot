@@ -314,9 +314,15 @@ func _apply_moodles(tiers: Dictionary) -> void:
 		if tier <= 0:
 			lbl.visible = false
 			continue
+		var was_hidden := not lbl.visible
 		active_moodles[id] = tier
 		lbl.text = MOODLES[id]["tiers"][tier]
 		lbl.visible = true
+		if was_hidden: # pop-in: feelings ANNOUNCE themselves
+			lbl.scale = Vector2(1.6, 1.6)
+			var tw := lbl.create_tween()
+			tw.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+			tw.tween_property(lbl, "scale", Vector2.ONE, 0.35)
 		# Worst tier pulses gently so it catches the eye without a meter.
 		lbl.modulate.a = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.006) if tier >= 3 else 1.0
 
@@ -326,6 +332,21 @@ func set_mode(driving: bool) -> void:
 		_help_label.text = "W/S throttle+brake · A/D steer · SPACE handbrake · E get out · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
 	else:
 		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact/adopt · C whistle · SCROLL zoom · hold B binoculars"
+
+
+var _flash: ColorRect = null
+
+## Red pain flash (crash wounds, hits) — one frame of hurt you FEEL.
+func flash_pain() -> void:
+	if _flash == null:
+		_flash = ColorRect.new()
+		_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_flash.color = Color(0.8, 0.1, 0.05, 0.0)
+		add_child(_flash)
+	_flash.color.a = 0.38
+	var tw := _flash.create_tween()
+	tw.tween_property(_flash, "color:a", 0.0, 0.5)
 
 
 func set_binoculars(on: bool) -> void:

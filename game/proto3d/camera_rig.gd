@@ -29,6 +29,13 @@ var _pos_smooth: Vector3
 var _look_smooth: Vector3
 var _binoc_was_on: bool = false
 var _binoc_view: Vector2 = Vector2.ZERO ## eased binocular_offset — this is what kills the snap
+var _trauma: float = 0.0 ## AAA juice: impact shake, decays fast, scales quadratically
+var _shake_rng := RandomNumberGenerator.new()
+
+
+## Kick the camera (crash, explosion, gunshot later). 0.3 = bump, 0.9 = explosion.
+func add_trauma(amount: float) -> void:
+	_trauma = clampf(_trauma + amount, 0.0, 1.0)
 
 
 static func create() -> ProtoCameraRig:
@@ -132,7 +139,14 @@ func _physics_process(delta: float) -> void:
 	var k := 1.0 - exp(-6.0 * delta)
 	_pos_smooth = _pos_smooth.lerp(_desired_position(), k)
 	_look_smooth = _look_smooth.lerp(look_point, 1.0 - exp(-8.0 * delta))
-	_cam.global_position = _pos_smooth
+	# Trauma shake: quadratic falloff so big hits SLAM and settle quick.
+	_trauma = maxf(0.0, _trauma - delta * 1.6)
+	var shake := _trauma * _trauma
+	var shake_off := Vector3(
+		_shake_rng.randf_range(-1.0, 1.0) * 0.9 * shake,
+		_shake_rng.randf_range(-1.0, 1.0) * 0.5 * shake,
+		_shake_rng.randf_range(-1.0, 1.0) * 0.9 * shake)
+	_cam.global_position = _pos_smooth + shake_off
 
 	var dir_to := (_look_smooth - _cam.global_position).normalized()
 	var up := Vector3.UP
@@ -140,5 +154,6 @@ func _physics_process(delta: float) -> void:
 		up = Vector3(0, 0, -1)
 	_cam.look_at(_look_smooth, up)
 
-	var fov_target := binocular_fov if binoculars else normal_fov
+	# Speed widens the lens a touch (AAA speed-feel), binoculars narrow it hard.
+	var fov_target := binocular_fov if binoculars else normal_fov + clampf(_target_velocity().length() * 0.22, 0.0, 7.0)
 	_cam.fov = lerpf(_cam.fov, fov_target, 1.0 - exp(-10.0 * delta))

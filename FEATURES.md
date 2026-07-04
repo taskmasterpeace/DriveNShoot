@@ -170,3 +170,22 @@ on foot, and Hold X to extract.
     FREEZE when you look at them. Your dog smells them first.
 *   **Handbrake fixed:** slides are drifts now (~100°), not a 180 spin-out.
 *   **Proof:** `proto3d/tests/dog_sim.tscn` — 11/11 input-driven checks.
+
+## 19. The Living Car + The Shared Interface (2026-07-04)
+*   **5-part car anatomy** — 🔧 engine, 🛞 tires, 🔋 battery, ⛽ fuel tank, 🛡️ chassis, each
+    GOOD→WORN→CRITICAL→BROKEN with real physics effects (broken engine won't drive; worn
+    tires lose grip; dry tank stalls you).
+*   **The death spiral** — smoke at 40%, FIRE at 15%, then the 💥 cook meter climbs and the
+    car might blow early. Bail out and watch it burn: every dead car becomes a charred husk
+    you can salvage for scrap. No matter how it dies, it ends burnt.
+*   **Dashboard** — the car's own moodles (bottom-right while driving) + fuel % + cook %.
+*   **Hotwire** — locked car, no key? HOLD E and sweat it out (5s).
+*   **ONE interface for everything** — the trunk of any car (stand at the rear), the chest in
+    the safehouse, and your backpack (TAB) all open the same two-panel loot screen. Click to
+    move items; USE to consume.
+*   **Crash wounds** — hard wrecks hurt the driver (🩸 → 🤕 moodle). Loot a bandage from a
+    trunk or chest and USE it to patch up. Meat settles your nerves.
+*   **Dog upgrades** — real breed variance (Bloodhound nose +40%, Border Collie instant obey,
+    Mastiff intimidation...), catch-up sprints, and a red ❗ floats over whatever your dog smells.
+*   **Vision cone, unmissable** — deeper cold dim outside your arc (foot/drive/binocular modes).
+*   **Proofs:** car_sim 14/14 · container_sim · dog_sim 12/12 · vision_sim 6/6.

@@ -49,7 +49,7 @@ func _physics_process(delta: float) -> void:
 		velocity += get_gravity() * delta
 
 	if _player == null or not is_instance_valid(_player):
-		_player = get_tree().get_first_node_in_group("player")
+		_player = get_tree().get_first_node_in_group("player3d")
 		move_and_slide()
 		return
 

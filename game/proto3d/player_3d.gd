@@ -39,7 +39,7 @@ var _dive_dir: Vector3 = Vector3.FORWARD
 
 static func create() -> ProtoPlayer3D:
 	var p := ProtoPlayer3D.new()
-	p.add_to_group("player")
+	p.add_to_group("player3d") # NOT "player" — the 2D autoloads type-grab that group
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.35

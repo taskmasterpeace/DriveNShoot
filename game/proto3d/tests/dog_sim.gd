@@ -39,6 +39,10 @@ func _tap_interact() -> void:
 	ev.action = "interact"
 	ev.pressed = true
 	Input.parse_input_event(ev)
+	var ev2 := InputEventAction.new()
+	ev2.action = "interact"
+	ev2.pressed = false
+	Input.parse_input_event(ev2)
 
 
 func _key(code: Key, down: bool) -> void:
@@ -155,6 +159,7 @@ func _physics_process(delta: float) -> void:
 		13:
 			if not main.last_dog_nose.is_empty():
 				_check("Hunter NOSE pings the safehouse stash", true)
+				_check("Bloodhound BREED boosts the nose (%.0f m > 30)" % _hun.params()["nose_radius"], _hun.params()["nose_radius"] > 30.0)
 				_next()
 			elif phase_t > 4.0:
 				_check("Hunter NOSE pings the safehouse stash", false)

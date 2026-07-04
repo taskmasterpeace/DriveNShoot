@@ -34,6 +34,7 @@ var display_name: String = "car"
 enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
 
 var components: Dictionary = {} ## id -> Damageable (engine/tires/battery/fuel_tank/chassis)
+var trunk: ProtoContainer = null ## every car is storage (Container pillar)
 var fuel: float = 100.0
 @export var fuel_drain_rate: float = 0.35 ## per second at full throttle
 var fire_state: FireState = FireState.OK
@@ -60,6 +61,7 @@ var _rear_wheels: Array[VehicleWheel3D] = []
 var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
+var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
 
 
 static func create(body_color: Color) -> ProtoCar3D:
@@ -121,6 +123,9 @@ static func create(body_color: Color) -> ProtoCar3D:
 		"chassis": Damageable.new("chassis", "🛡️", 100.0),
 	}
 	car._spiral_rng.randomize()
+	car.trunk = ProtoContainer.new("Trunk")
+	car.trunk.add("bandage", 1)
+	car.trunk.add("scrap", 2)
 
 	var wheel_specs: Array = [
 		[Vector3(-0.85, -0.15, -1.45), true, false],
@@ -172,6 +177,11 @@ func interact_position() -> Vector3:
 	return global_position
 
 
+func _at_trunk(main: Node) -> bool:
+	# Standing behind the car = trunk zone (rear is local +Z).
+	return to_local(main.player.global_position).z > 1.6
+
+
 func interact_prompt(main: Node) -> String:
 	if is_active:
 		return ""
@@ -181,6 +191,8 @@ func interact_prompt(main: Node) -> String:
 		return "HOLD E — Hotwire the %s" % display_name
 	if locked:
 		return "E — Unlock %s (%s)" % [display_name, key_display]
+	if _at_trunk(main):
+		return "E — Open trunk"
 	return "E — Enter %s" % display_name
 
 
@@ -190,12 +202,16 @@ func interact(main: Node) -> void:
 	if dead:
 		if not salvaged:
 			salvaged = true
+			main.backpack.add("scrap", 3)
 			main.notify("Salvaged scrap from the burnt %s" % display_name)
 		return
 	if locked:
 		if main.has_key(key_id):
 			locked = false
 			main.notify("Unlocked the %s" % display_name)
+		return
+	if _at_trunk(main):
+		main.open_container(trunk)
 		return
 	main.enter_car(self)
 
@@ -340,6 +356,24 @@ func _physics_process(delta: float) -> void:
 		take_damage(clampf((dv - 9.0) * 1.5, 4.0, 45.0))
 	_prev_vel = linear_velocity
 	_prev_pos = global_position
+
+	# Rolling dust: kick up wasteland behind the car at speed.
+	if _dust == null:
+		_dust = CPUParticles3D.new()
+		_dust.amount = 28
+		_dust.lifetime = 1.1
+		_dust.mesh = BoxMesh.new()
+		(_dust.mesh as BoxMesh).size = Vector3(0.22, 0.22, 0.22)
+		_dust.direction = Vector3(0, 0.6, 1)
+		_dust.spread = 25.0
+		_dust.initial_velocity_min = 1.0
+		_dust.initial_velocity_max = 2.5
+		_dust.gravity = Vector3(0, -2.0, 0)
+		_dust.color = Color(0.62, 0.52, 0.38, 0.5)
+		_dust.position = Vector3(0, -0.2, 2.1)
+		_dust.emitting = false
+		add_child(_dust)
+	_dust.emitting = not dead and absf(forward_speed) > 8.0
 
 	if not is_active or dead:
 		engine_force = 0.0

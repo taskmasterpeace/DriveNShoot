@@ -23,13 +23,15 @@ void fragment() {
 	float in_cone = 1.0 - smoothstep(half_angle * 0.80, half_angle * 1.06, ang);
 	float near = 1.0 - smoothstep(clear_radius * 0.65, clear_radius * 1.2, d);
 	float vis = max(in_cone, near);
-	COLOR = vec4(0.0, 0.0, 0.015, (1.0 - vis) * dim_amount);
+	// Cold, unmistakable dark outside the cone; deepens with distance from the apex.
+	float darkness = (1.0 - vis) * dim_amount * (0.75 + 0.25 * smoothstep(0.0, 0.6, d));
+	COLOR = vec4(0.01, 0.02, 0.045, darkness);
 }"
 
 ## Per-mode targets: [half_angle rad, clear_radius, dim]
-const MODE_FOOT := [1.22, 0.105, 0.55]   ## ~140° arc — PZ-style awareness
-const MODE_DRIVE := [1.48, 0.165, 0.42]  ## wider + bigger bubble from the cab
-const MODE_BINOC := [0.42, 0.06, 0.66]   ## narrow lens locked to your aim
+const MODE_FOOT := [1.22, 0.105, 0.68]   ## ~140° arc — PZ-style awareness
+const MODE_DRIVE := [1.48, 0.165, 0.55]  ## wider + bigger bubble from the cab
+const MODE_BINOC := [0.42, 0.06, 0.78]   ## narrow lens locked to your aim
 
 var _rect: ColorRect
 var _mat: ShaderMaterial

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dboxsim01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/container_sim.gd" id="1_box"]
+
+[node name="ContainerSim" type="Node"]
+script = ExtResource("1_box")

@@ -36,6 +36,23 @@ const TYPE_NAMES: Dictionary = {
 	DogType.COMPANION: "Companion", DogType.CUDDLE: "Cuddle",
 }
 
+## Breed variance UNDER each type (DOGS.md §3) — multipliers over the type's params.
+## Adding a breed = adding a row.
+const BREED_MODS: Dictionary = {
+	"Shepherd": {}, # the baseline guard
+	"Rottweiler": {"threat_radius": 0.8, "speed": 1.05}, # shorter nose, faster teeth (bite later)
+	"Mastiff": {"threat_radius": 1.15, "speed": 0.82}, # slow wall of intimidation
+	"Bloodhound": {"nose_radius": 1.4}, # THE nose
+	"Pointer": {"nose_radius": 1.0, "speed": 1.1}, # precise + quick
+	"Coyote-cross": {"nose_radius": 1.15, "threat_radius": 1.1}, # wild senses
+	"Lab": {"speed": 1.05},
+	"Border Collie": {"obey_delay": 0.0}, # the smartest — instant commands
+	"Mutt": {}, # lucky later
+	"Pocket": {"calm_aura": 1.25, "speed": 1.1}, # fastest calm
+	"Wheezer": {"calm_aura": 1.1, "speed": 0.8}, # snores; sleep bonus later
+	"Ratter": {"threat_radius": 1.2}, # jumpy — notices everything
+}
+
 var dog_type: DogType = DogType.COMPANION
 var dog_name: String = "Rex"
 var breed: String = "Shepherd"
@@ -56,13 +73,19 @@ var _obey_queue: Array = [] ## [ [time_left, state] ] — obedience delay per ty
 var _wag_t: float = 0.0
 
 
+var _params: Dictionary = {}
+
 static func create(type: DogType, name_in: String, breed_in: String) -> ProtoDog:
 	var d := ProtoDog.new()
 	d.dog_type = type
 	d.dog_name = name_in
 	d.breed = breed_in
 	d.add_to_group("interactable")
-	var p: Dictionary = TYPE_PARAMS[type]
+	# Type params + breed multipliers = this dog's actual senses.
+	d._params = TYPE_PARAMS[type].duplicate()
+	for key in BREED_MODS.get(breed_in, {}):
+		d._params[key] = d._params[key] * BREED_MODS[breed_in][key] if d._params[key] is float else BREED_MODS[breed_in][key]
+	var p: Dictionary = d._params
 	var s: float = p["scale"]
 	var body_color: Color = p["color"]
 
@@ -132,7 +155,7 @@ static func create(type: DogType, name_in: String, breed_in: String) -> ProtoDog
 
 
 func params() -> Dictionary:
-	return TYPE_PARAMS[dog_type]
+	return _params if not _params.is_empty() else TYPE_PARAMS[dog_type]
 
 
 func type_name() -> String:
@@ -238,7 +261,8 @@ func _do_follow(delta: float) -> void:
 	var to_heel := heel - global_position
 	to_heel.y = 0.0
 	var dist := to_heel.length()
-	var speed: float = p["speed"] if dist > 6.0 else p["speed"] * 0.55
+	# Catch-up sprint when left far behind; trot at heel.
+	var speed: float = p["speed"] * (1.35 if dist > 12.0 else (1.0 if dist > 6.0 else 0.55))
 	if dist > 0.6:
 		var dir := to_heel.normalized()
 		velocity.x = move_toward(velocity.x, dir.x * speed, 22.0 * delta)
@@ -278,11 +302,37 @@ func _sense(delta: float) -> void:
 				state = DogState.ALERT
 				_alert_t = 1.6
 				_threat_cooldown = 5.0
+				_mark_threat(t)
 				if main.has_method("on_dog_alert"):
 					main.on_dog_alert(self, t, behind)
 				break
 
+	_sense_nose()
+
+
+## The dog's senses become YOUR senses: a mark floats over what it smelled.
+func _mark_threat(t: Node3D) -> void:
+	var mark := Label3D.new()
+	mark.text = "❗"
+	mark.font = ProtoHUD.emoji_font()
+	mark.font_size = 220
+	mark.pixel_size = 0.006
+	mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	mark.modulate = Color(0.95, 0.3, 0.15)
+	mark.position = Vector3(0, 2.4, 0)
+	t.add_child(mark)
+	var tw := mark.create_tween()
+	tw.tween_interval(2.2)
+	tw.tween_property(mark, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(mark.queue_free)
+
+
+func _sense_nose() -> void:
 	# Hunter's nose: point out stashes that haven't been looted.
+	var p: Dictionary = params()
+	var main := _main
+	if main == null:
+		return
 	if p["nose_radius"] > 0.0:
 		for node in get_tree().get_nodes_in_group("interactable"):
 			if node is ProtoStash:

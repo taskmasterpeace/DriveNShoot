@@ -36,6 +36,10 @@ func _tap_interact() -> void:
 	ev.action = "interact"
 	ev.pressed = true
 	Input.parse_input_event(ev)
+	var ev2 := InputEventAction.new()
+	ev2.action = "interact"
+	ev2.pressed = false
+	Input.parse_input_event(ev2)
 
 
 func _key(code: Key, down: bool) -> void:

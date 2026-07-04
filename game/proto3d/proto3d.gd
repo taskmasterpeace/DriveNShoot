@@ -22,6 +22,11 @@ var house: ProtoHouse
 ## Key ring: key_id -> display name.
 var keys: Dictionary = {}
 
+## Inventory & the shared interface (Container pillar): pack + panel + wounds.
+var backpack: ProtoContainer = ProtoContainer.new("Backpack")
+var panel: ProtoContainerPanel = null
+var bleeding: int = 0 ## 0-3; crashes cause it, bandages cure it
+
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
 var dogs: Array[ProtoDog] = []       ## adopted pack
@@ -68,6 +73,15 @@ func _ready() -> void:
 	hud = ProtoHUD.create()
 	hud.layer = 2 # above the vision-cone dimmer
 	add_child(hud)
+
+	panel = ProtoContainerPanel.create(self)
+	add_child(panel)
+	backpack.add("jack", 5)
+
+	# A supply chest inside the safehouse — same interface as every trunk.
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8})
+	chest.position = Vector3(108.2, 0.05, -324.0)
+	add_child(chest)
 
 	# The kennel strays: one of each type, distinct breeds.
 	var kennel_specs: Array = [
@@ -126,15 +140,23 @@ func _build_environment() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
-		if mode == Mode.DRIVE:
+		if panel.is_open:
+			panel.close()
+		elif mode == Mode.DRIVE:
 			_exit_car()
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
 			_current_interactable.call("interact", self)
 	elif event is InputEventKey and event.pressed and not event.echo:
-		if (event as InputEventKey).keycode == KEY_C and not dogs.is_empty():
+		var kc := (event as InputEventKey).keycode
+		if kc == KEY_C and not dogs.is_empty():
 			for d in dogs:
 				d.whistle()
 			hud.toast("*whistle* — the pack returns")
+		elif kc == KEY_TAB:
+			if panel.is_open:
+				panel.close()
+			else:
+				panel.open(backpack, null) # just your pack
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -170,12 +192,15 @@ func _physics_process(delta: float) -> void:
 		# Riding a dead car is riding a coffin — throw the driver clear.
 		if active_car.dead:
 			hud.toast("The %s is GONE — get clear!" % active_car.display_name)
+			cam_rig.add_trauma(0.9)
+			hud.flash_pain()
 			_exit_car()
 	else:
 		hud.set_speed(0.0, false)
 		hud.set_dashboard(null)
 
 	_update_stress(delta)
+	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
 	_update_interact_prompt()
 	_update_hotwire(delta) # after the prompt poll — hotwire progress owns the chip while held
@@ -317,6 +342,56 @@ func _update_respawn(delta: float) -> void:
 		elif body is CharacterBody3D:
 			(body as CharacterBody3D).velocity = Vector3.ZERO
 		hud.toast("The wasteland spit you back out")
+
+
+# --- The shared interface: containers, items, wounds -------------------------
+
+## One call opens ANY container (trunk/chest/corpse) against your pack.
+func open_container(theirs: ProtoContainer) -> void:
+	panel.open(backpack, theirs)
+
+
+## Item effects (data → verb). Returns true if consumed.
+func use_item(id: String) -> bool:
+	match id:
+		"bandage":
+			if bleeding > 0:
+				bleeding = 0
+				hud.set_condition("hurt", 0)
+				notify("Bandaged the wound")
+				return true
+			notify("No wound to bandage")
+			return false
+		"meat":
+			stress = maxf(0.0, stress - 18.0)
+			notify("Ate — nerves settle")
+			return true
+	return false
+
+
+## Crashes wound the DRIVER too (bandage from any trunk/chest/pack).
+func give_bleeding(tier: int) -> void:
+	bleeding = clampi(maxi(bleeding, tier), 0, 3)
+	hud.set_condition("hurt", bleeding)
+	if tier > 0:
+		hud.toast("🩸 You're hurt — find a bandage")
+		stress = minf(100.0, stress + 10.0)
+
+
+var _last_chassis: float = -1.0
+
+func _watch_crash_wounds() -> void:
+	if mode != Mode.DRIVE or active_car == null or active_car.dead:
+		_last_chassis = -1.0
+		return
+	var c: float = active_car.components["chassis"].hp
+	if _last_chassis > 0.0 and _last_chassis - c > 15.0:
+		give_bleeding(1 if _last_chassis - c < 30.0 else 2)
+		hud.flash_pain()
+		cam_rig.add_trauma(0.55)
+	elif _last_chassis > 0.0 and _last_chassis - c > 5.0:
+		cam_rig.add_trauma(0.3) # every real hit bumps the camera
+	_last_chassis = c
 
 
 # --- Key ring / interactable services ---------------------------------------
