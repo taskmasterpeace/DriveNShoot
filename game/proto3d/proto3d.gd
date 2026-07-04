@@ -101,10 +101,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			_current_interactable.call("interact", self)
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
+		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
 		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
-			cam_rig.add_zoom(-ZOOM_STEP)
+			if cam_rig.binoculars:
+				cam_rig.add_binocular_zoom(0.25)
+			else:
+				cam_rig.add_zoom(-ZOOM_STEP)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			cam_rig.add_zoom(ZOOM_STEP)
+			if cam_rig.binoculars:
+				cam_rig.add_binocular_zoom(-0.25)
+			else:
+				cam_rig.add_zoom(ZOOM_STEP)
 
 
 func _physics_process(delta: float) -> void:
@@ -125,6 +132,7 @@ func _physics_process(delta: float) -> void:
 		hud.set_speed(active_car.current_mph, true)
 	else:
 		hud.set_speed(0.0, false)
+	hud.set_stamina(player.stamina, player.max_stamina, mode == Mode.FOOT)
 
 	_update_interact_prompt()
 	_update_respawn(delta)
@@ -225,9 +233,8 @@ func _exit_car() -> void:
 		return
 	mode = Mode.FOOT
 	active_car.is_active = false
-	# Step out on the driver's side (left = +X when forward is -Z... left is -X;
-	# use +X so you step out toward the shoulder, away from traffic).
-	var out_pos := active_car.global_position + active_car.global_basis.x * 2.3
+	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
+	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3
 	out_pos.y = active_car.global_position.y + 0.3
 	player.global_position = out_pos
 	player.velocity = Vector3.ZERO

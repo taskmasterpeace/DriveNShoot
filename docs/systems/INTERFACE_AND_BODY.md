@@ -78,6 +78,16 @@ vulnerable during it — the Zomboid tension, and the hook the dogs/ambush attac
 Death ends the run (Deathlands stakes). Open thread (Stage 3 decision): what, if anything,
 carries between runs — reputation? stash at a home base? a fresh character each time? *Flagged.*
 
+### 2.5 Stamina & Sprint *(prototyped in proto3d 2026-07-04)*
+A stamina vital gates exertion and **scales its outcomes** — the engine rule the designer asked
+for: *"slow stamina should have you get up slower — it needs to scale."*
+- **Sprint** (SHIFT) drains stamina; empty → forced walk until it recovers past a threshold (no
+  flicker); regenerates when not sprinting. Shown as a HUD meter.
+- **Dive** costs stamina, and the **get-up time scales with how gassed you are** (full = snappy,
+  empty ≈ 1.9× slower to your feet — vulnerable longer). The same "stamina scales the action"
+  rule will later govern reload, melee, and treatment speeds.
+- Sourced from CON (max/regen) + DEX (efficiency) per PROGRESSION.md; a core vital alongside ❤️.
+
 ---
 
 ## 3. Inventory & Containers (Stage 3) — one `Container` system, many uses

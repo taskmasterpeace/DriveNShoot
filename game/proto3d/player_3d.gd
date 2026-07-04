@@ -9,6 +9,13 @@ extends CharacterBody3D
 @export var dive_time: float = 0.35
 @export var getup_time: float = 0.75
 
+@export_group("Stamina")
+@export var max_stamina: float = 100.0
+@export var run_drain: float = 24.0      ## per second while sprinting
+@export var stamina_regen: float = 18.0  ## per second while not sprinting
+@export var run_threshold: float = 8.0   ## stamina needed to (re)start a sprint (no flicker)
+@export var dive_cost: float = 22.0
+
 ## Named FootState (not State) — a globally-registered class's own enum used as a typed
 ## var trips GDScript's self-reference type check. Distinct name sidesteps it.
 enum FootState { NORMAL, DIVE, GETUP }
@@ -19,8 +26,12 @@ var move_state: FootState = FootState.NORMAL
 ## When set (binoculars), the body turns toward this even while standing still.
 var face_override: Vector3 = Vector3.ZERO
 
+var stamina: float = 100.0
+var _was_running: bool = false
+
 var _visual: Node3D
 var _state_t: float = 0.0
+var _getup_dur: float = 0.75
 var _dive_dir: Vector3 = Vector3.FORWARD
 
 
@@ -84,7 +95,7 @@ func _physics_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
 			_visual.rotation.x = lerp_angle(_visual.rotation.x, 0.0, 6.0 * delta)
-			if _state_t >= getup_time:
+			if _state_t >= _getup_dur:
 				move_state = FootState.NORMAL
 				_visual.rotation.x = 0.0
 			move_and_slide()
@@ -103,9 +114,22 @@ func _physics_process(delta: float) -> void:
 			move_state = FootState.DIVE
 			_state_t = 0.0
 			facing_dir = _dive_dir
+			stamina = maxf(0.0, stamina - dive_cost)
+			# Get-up SCALES with stamina: gassed = slower to your feet (1.0x..1.9x, vulnerable longer).
+			_getup_dur = getup_time * lerpf(1.9, 1.0, clampf(stamina / max_stamina, 0.0, 1.0))
 			return
 
-	var speed := run_speed if Input.is_key_pressed(KEY_SHIFT) else walk_speed
+	# Sprint costs stamina; gassed → forced walk until it recovers past the threshold (no flicker).
+	var wants_run := Input.is_key_pressed(KEY_SHIFT) and move.length_squared() > 0.01
+	var can_run := stamina > (0.5 if _was_running else run_threshold)
+	var running := is_active and wants_run and can_run
+	_was_running = running
+	if running:
+		stamina = maxf(0.0, stamina - run_drain * delta)
+	else:
+		stamina = minf(max_stamina, stamina + stamina_regen * delta)
+
+	var speed := run_speed if running else walk_speed
 	var target := move * speed
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)

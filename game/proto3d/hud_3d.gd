@@ -10,6 +10,8 @@ var _prompt_label: Label
 var _keys_label: Label
 var _toast_label: Label
 var _vignette: ColorRect
+var _stamina_bg: ColorRect
+var _stamina_fill: ColorRect
 var _toast_tween: Tween
 
 ## Current interact prompt text ("" when hidden) — read by sim tests.
@@ -69,6 +71,26 @@ static func create() -> ProtoHUD:
 	hud._help_label.offset_top = -42.0
 	hud._help_label.offset_bottom = -18.0
 	hud.add_child(hud._help_label)
+
+	# Stamina / sprint meter (on foot) — just above the controls line.
+	hud._stamina_bg = ColorRect.new()
+	hud._stamina_bg.color = Color(0.10, 0.09, 0.07, 0.75)
+	hud._stamina_bg.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hud._stamina_bg.offset_left = 28.0
+	hud._stamina_bg.offset_right = 210.0
+	hud._stamina_bg.offset_top = -66.0
+	hud._stamina_bg.offset_bottom = -54.0
+	hud._stamina_bg.visible = false
+	hud.add_child(hud._stamina_bg)
+	hud._stamina_fill = ColorRect.new()
+	hud._stamina_fill.color = AMBER
+	hud._stamina_fill.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hud._stamina_fill.offset_left = 30.0
+	hud._stamina_fill.offset_right = 208.0
+	hud._stamina_fill.offset_top = -64.0
+	hud._stamina_fill.offset_bottom = -56.0
+	hud._stamina_fill.visible = false
+	hud.add_child(hud._stamina_fill)
 
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
@@ -152,11 +174,21 @@ func set_speed(mph: float, driving: bool) -> void:
 	_speed_label.text = "%d MPH" % int(mph)
 
 
+func set_stamina(cur: float, maxv: float, on_foot: bool) -> void:
+	_stamina_bg.visible = on_foot
+	_stamina_fill.visible = on_foot
+	if not on_foot or maxv <= 0.0:
+		return
+	var ratio: float = clampf(cur / maxv, 0.0, 1.0)
+	_stamina_fill.offset_right = 30.0 + 178.0 * ratio
+	_stamina_fill.color = Color(0.85, 0.25, 0.12) if ratio < 0.3 else AMBER
+
+
 func set_mode(driving: bool) -> void:
 	if driving:
-		_help_label.text = "W/S throttle+brake · A/D steer · SPACE handbrake · E get out · SCROLL zoom · hold B binoculars + mouse to aim"
+		_help_label.text = "W/S throttle+brake · A/D steer · SPACE handbrake · E get out · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
 	else:
-		_help_label.text = "WASD walk · SHIFT run · SPACE dive · E interact · SCROLL zoom · hold B binoculars + mouse to aim"
+		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
 
 
 func set_binoculars(on: bool) -> void:

@@ -56,6 +56,12 @@ and it's better than picking one:
 So the answer to "which tone" is **"yes, and the player chooses it by how they build."** That's
 the Auto Duel gene — your car *becomes* a personality.
 
+**Handling baseline (tuned in proto3d 2026-07-04):** there's a planted **grip baseline** — the car
+feels stuck to the road and only breaks loose on the handbrake. **Worn/blown tires LOWER grip from
+that baseline**, and Driving skill raises the ceiling. So "handling" = *baseline × tire condition ×
+skill*. (First hands-on playtest slid too much; baseline grip was raised — that baseline is exactly
+the number the 🛞 Tires component modifies as it degrades.)
+
 **What I think is missing from the brief** (add if these hit right):
 - **Audio is half the feel.** Engine pitch rising with RPM, the crunch on impact, the *whoomp*
   when it catches, tires screaming on the skid. We should budget a pass for this — it's cheap

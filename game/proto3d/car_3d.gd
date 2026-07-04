@@ -14,9 +14,9 @@ signal speed_changed(mph: float)
 @export var steer_speed: float = 5.0         ## How fast the wheel turns (rad/s)
 @export var top_speed: float = 34.0          ## m/s (~76 mph)
 @export var reverse_top_speed: float = 11.0
-@export var grip_front: float = 3.4
-@export var grip_rear: float = 3.2
-@export var handbrake_grip_rear: float = 1.1
+@export var grip_front: float = 5.5   ## Higher = more planted (less slide). Worn/blown tires LOWER this.
+@export var grip_rear: float = 5.0    ## Baseline grip; the Tires component modifies it (see LOOP2 spec).
+@export var handbrake_grip_rear: float = 1.1  ## Kept low so the handbrake still breaks traction on purpose.
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.

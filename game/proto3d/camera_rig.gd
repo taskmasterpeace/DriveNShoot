@@ -7,9 +7,11 @@ extends Node3D
 @export var min_height: float = 9.0
 @export var max_height: float = 58.0
 @export var normal_fov: float = 62.0
-@export var binocular_fov: float = 24.0
-@export var binocular_range: float = 90.0
-@export var binocular_sensitivity: float = 0.12 ## meters of aim per pixel of mouse
+@export var binocular_fov: float = 26.0 ## FOV at 1× magnification; zoom narrows it
+@export var binocular_range: float = 110.0
+@export var binocular_sensitivity: float = 0.11 ## meters of aim per pixel of mouse
+@export var binocular_zoom_min: float = 1.0
+@export var binocular_zoom_max: float = 3.2
 @export var lookahead_time: float = 0.55
 @export var lookahead_max: float = 16.0
 @export var speed_zoom_scale: float = 0.45 ## GTA2 trick: camera pulls out with speed
@@ -18,13 +20,15 @@ extends Node3D
 var target: Node3D = null
 var zoom_t: float = 0.45 ## 0 = close, 1 = far
 var binoculars: bool = false
-## Mouse-aimed binocular offset in world XZ (meters from the player), clamped to range.
+## Mouse-aimed binocular offset in world XZ (meters from the player), soft-clamped to range.
 var binocular_offset: Vector2 = Vector2.ZERO
+var binocular_zoom: float = 1.4 ## magnification; mouse wheel changes it while glassing
 
 var _cam: Camera3D
 var _pos_smooth: Vector3
 var _look_smooth: Vector3
 var _binoc_was_on: bool = false
+var _binoc_view: Vector2 = Vector2.ZERO ## eased binocular_offset — this is what kills the snap
 
 
 static func create() -> ProtoCameraRig:
@@ -38,6 +42,11 @@ static func create() -> ProtoCameraRig:
 
 func add_zoom(amount: float) -> void:
 	zoom_t = clampf(zoom_t + amount, 0.0, 1.0)
+
+
+## Mouse-wheel magnification while binoculars are raised (zoom the far view in/out).
+func add_binocular_zoom(amount: float) -> void:
+	binocular_zoom = clampf(binocular_zoom + amount, binocular_zoom_min, binocular_zoom_max)
 
 
 func snap_to_target() -> void:
@@ -60,7 +69,7 @@ func _desired_position() -> Vector3:
 	# Binoculars: the camera itself drifts partway toward where you're glassing,
 	# so the view genuinely travels downrange while staying top-down.
 	if binoculars:
-		base += Vector3(binocular_offset.x, 0, binocular_offset.y) * 0.75
+		base += Vector3(_binoc_view.x, 0, _binoc_view.y) * 0.7
 	return base
 
 
@@ -73,39 +82,45 @@ func _target_velocity() -> Vector3:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Binoculars v2: while glassing, the mouse pushes the aim point downrange.
+	# Binoculars v2: while glassing, the mouse pushes the aim point downrange. Higher magnification
+	# = finer aim (divide by zoom). Soft-clamped so hitting max range eases (that hard stop was the
+	# "snap" you felt); the _binoc_view easing in _physics_process smooths raise/lower/edge.
 	if binoculars and event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
-		binocular_offset += Vector2(mm.relative.x, mm.relative.y) * binocular_sensitivity
-		binocular_offset = binocular_offset.limit_length(binocular_range)
+		binocular_offset += Vector2(mm.relative.x, mm.relative.y) * (binocular_sensitivity / binocular_zoom)
+		if binocular_offset.length() > binocular_range:
+			binocular_offset = binocular_offset.normalized() * binocular_range
 
 
 ## Direction (world XZ) the binoculars are aimed — used to turn the body.
 func binocular_aim_dir() -> Vector3:
-	if binocular_offset.length_squared() < 4.0:
+	if _binoc_view.length_squared() < 4.0:
 		return Vector3.ZERO
-	return Vector3(binocular_offset.x, 0, binocular_offset.y).normalized()
+	return Vector3(_binoc_view.x, 0, _binoc_view.y).normalized()
 
 
 func _physics_process(delta: float) -> void:
 	if target == null:
 		return
 
-	# Raise/lower the binoculars: start aimed a bit ahead of your facing.
+	# Raise/lower: on raise, target a point a bit ahead of your facing; on lower, relax to zero.
+	# We never jump — _binoc_view eases toward the target below, so raise/lower/edge all glide.
 	if binoculars and not _binoc_was_on:
 		var start_dir: Vector3 = target.call("facing") if target.has_method("facing") else Vector3.FORWARD
 		start_dir.y = 0.0
-		if start_dir.length_squared() > 0.01:
-			var d := start_dir.normalized() * 20.0
-			binocular_offset = Vector2(d.x, d.z)
+		var d := (start_dir.normalized() if start_dir.length_squared() > 0.01 else Vector3.FORWARD) * 22.0
+		binocular_offset = Vector2(d.x, d.z)
 	elif not binoculars and _binoc_was_on:
 		binocular_offset = Vector2.ZERO
 	_binoc_was_on = binoculars
 
+	# Ease the actual view toward the raw mouse target — THIS kills the snap.
+	_binoc_view = _binoc_view.lerp(binocular_offset, 1.0 - exp(-7.0 * delta))
+
 	# Where should we look? Ahead of motion normally; where the mouse aims with binoculars.
 	var look_point: Vector3 = target.global_position
 	if binoculars:
-		look_point = target.global_position + Vector3(binocular_offset.x, 0, binocular_offset.y)
+		look_point = target.global_position + Vector3(_binoc_view.x, 0, _binoc_view.y)
 	else:
 		var vel := _target_velocity()
 		vel.y = 0.0
