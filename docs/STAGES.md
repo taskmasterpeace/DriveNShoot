@@ -19,6 +19,11 @@ its deep-dive spec. Stages ship as `/goal` loops — each ends **sim-proven + pl
   art-agnostic (mesh slots on data) so the choice is swappable.
 - **Camera:** top-down 3D with zoom + binocular scanning (shipped M1).
 - **Physics:** real `VehicleBody3D`; weight/feel emerges from what you build (shipped M1).
+- **Travel scale:** **24× compression** — a 4-hour real drive = ~10 game minutes; a country ≈ 2 hr
+  to cross, towns a few minutes apart (`systems/TRAVEL_AND_NETCODE.md`).
+- **North star:** the **retention pillars** in `DESIGN_PILLARS.md` are the tiebreaker — when two
+  designs compete, pick the one serving more pillars (reputation loop, player economy, territory,
+  sandbox skeleton, living pedestrians, no-P2W scarcity).
 
 ---
 
@@ -81,17 +86,20 @@ Make the fight feel like the fight in your head.
 - **Aim-cone shooting:** the mouse is *intent*; real accuracy is a **cone** set by Marksmanship
   (imperfect, improves with skill), with **visible projectiles/tracers** and reticle bloom.
 - On-foot + vehicle-mounted weapons unified (one weapon system, `mount_type`).
-- Melee, throwables (grenade arc + cook), the dive already in.
-- **Deep-dive:** `systems/INTERFACE_AND_BODY.md` (combat section). Uses: Skill(Marksmanship), Arsenal.
+- Melee (ammo-independent + stealth), throwables (grenade arc + cook), the dive already in.
+- **Deep-dive:** `systems/COMBAT_AND_GEAR.md` (melee/ranged/throwables/**car weapons**/loadout) +
+  `systems/INTERFACE_AND_BODY.md §6` (aim cone). Uses: Skill(Marksmanship), Arsenal, weapon_system.
 
 ### Stage 5 — World Core & the Content Pipeline *(answers "how do we make a big world / bulk content")*
 Stop falling off the map — because there's no edge, there's America.
 - **Chunk streaming:** infinite terrain + roads from a seed; per-chunk persistence (husks, loot).
-- **Compressed country:** state grid, welcome signs, road hierarchy, real exits, **world map UI**
-  with fog-of-war cartography; navigate by **landmark silhouettes**.
+- **Compressed country (24× — see `TRAVEL_AND_NETCODE.md`):** state grid, welcome signs, road
+  hierarchy, real exits, **world map UI** with fog-of-war cartography; navigate by **landmark
+  silhouettes**. Travel modes: continuous drive (default), long-haul cruise, costed fast-travel.
 - **Content pipeline (BULK CREATE):** blueprint authoring (towns/buildings as data), procedural
-  generation, AI-assisted asset/data pipelines. ← *research subagents feeding this section.*
-- **Deep-dive:** ENGINE.md §2 + `systems/CONTENT_PIPELINE.md` (from research). Uses: Blueprint.
+  generation, AI-assisted asset/data pipelines.
+- **Deep-dive:** `systems/TRAVEL_AND_NETCODE.md` (scale/travel) + `systems/CONTENT_PIPELINE.md` +
+  ENGINE.md §2. Uses: Blueprint, chunk streaming (which the MP AoI design reuses).
 
 ### Stage 6 — The Living World: NPCs, Factions & Society *(the PCAS system you designed)*
 The world remembers you.
@@ -119,9 +127,12 @@ The long tail that makes builds matter.
   **agriculture**, power grid, fusion battery. All plug into the Stage-3 Skill engine.
 - **Deep-dive:** PROGRESSION.md (§ Robotics/Taming/Agriculture/Base). Uses: Skill, Blueprint, Container.
 
-### Stage 9 — Multiplayer
-Port the working ENet server-authority (2D donor); **cone-culled replication** (binoculars &
-scouts become tactical; wallhacks impossible); co-op country drives → persistent shards later.
+### Stage 9 — Multiplayer *(PZ-style: big world, cheap server)*
+Port the working ENet server-authority (2D donor) into a **chunk-grid + Area-of-Interest** design:
+only chunks near players tick, each client hears only its AoI, **vehicles are client-authoritative
++ server-validated** (no heavy server physics), distant regions run tiered off-screen sim, chunks
+persist per-cell. Two players far apart cost ~one region each; they share sim only when they
+converge. Gunner seats = driver+gunner co-op. **Deep-dive:** `systems/TRAVEL_AND_NETCODE.md §3`.
 
 ### Stage 10 — Art Direction, Audio & Release Polish
 The **Art Range** experiment (flat low-poly vs textured low-poly vs AI/free 3D models — you pick
@@ -145,5 +156,6 @@ GDScript that lands in the stages above.
 - **Permadeath stakes vs. progression loss** — what carries over between runs, if anything
   (Stage 3 decision).
 
-*Companion docs: `ENGINE.md` (7→8 pillars), `PROGRESSION.md` (skills), `loops/LOOP2_LIVING_CAR.md`,
-`systems/INTERFACE_AND_BODY.md`, `systems/WORLD_NPCS.md`, `systems/CONTENT_PIPELINE.md`.*
+*Companion docs: `DESIGN_PILLARS.md` (north star), `ENGINE.md` (8 pillars), `PROGRESSION.md`
+(skills), `loops/LOOP2_LIVING_CAR.md`, `systems/INTERFACE_AND_BODY.md`, `systems/COMBAT_AND_GEAR.md`,
+`systems/WORLD_NPCS.md`, `systems/TRAVEL_AND_NETCODE.md`, `systems/CONTENT_PIPELINE.md`.*

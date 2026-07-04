@@ -40,8 +40,11 @@ top-down zoom camera, in/out of cars, enterable two-story building. 14/14 gamepl
 | 7 | **Netcode** | Server-authority port of existing ENet foundation + cone-based culling |
 | 8 | **Base, Automation & Agriculture** | Robotics/drones, construction/forts, farming, power grid — see `PROGRESSION.md` |
 
-**Companion docs:** `PROGRESSION.md` (skills/attributes/robotics/taming/farming — the RPG spine,
-"you are what you do", 700-pt cap), `loops/LOOP2_LIVING_CAR.md` (next loop design).
+**Companion docs:** `STAGES.md` (master build order), `DESIGN_PILLARS.md` (retention north star),
+`PROGRESSION.md` (skills/robotics/taming/farming — RPG spine, 700-pt cap),
+`loops/LOOP2_LIVING_CAR.md` (next loop), `systems/COMBAT_AND_GEAR.md`, `systems/INTERFACE_AND_BODY.md`,
+`systems/WORLD_NPCS.md`, `systems/TRAVEL_AND_NETCODE.md` (24× travel scale + PZ-style MP),
+`systems/CONTENT_PIPELINE.md`.
 
 ---
 
