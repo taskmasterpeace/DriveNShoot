@@ -113,10 +113,14 @@ func _physics_process(delta: float) -> void:
 		acceleration = Vector2.ZERO
 		get_input()
 		apply_input()
+		# Friction/drag must accumulate into `acceleration` BEFORE it's integrated into
+		# velocity below. Running it after the integration (or after the next-frame reset)
+		# silently discards every friction force — the car ends up with zero grip/drag and
+		# glides forever. Order matches the reference model: forces -> steering -> integrate.
+		apply_friction(delta)
 		calculate_steering(delta)
 
 	velocity += acceleration * delta
-	apply_friction(delta)
 	move_and_slide()
 
 	# Cache speed once per frame (avoids repeated sqrt)
