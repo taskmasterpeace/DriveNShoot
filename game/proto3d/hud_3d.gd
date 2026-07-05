@@ -46,6 +46,7 @@ const MOODLES: Dictionary = {
 	"cold": {"tiers": ["", "🥶", "🥶", "🥶"]},
 	"hungry": {"tiers": ["", "😐", "😖", "😫"]},
 	"happy": {"tiers": ["", "🙂", "😊", "😄"]},
+	"heavy": {"tiers": ["", "🎒", "🎒", "🐢"]},
 }
 
 const AMBER := Color(0.96, 0.72, 0.2)
@@ -394,6 +395,43 @@ func show_death(text: String) -> void:
 
 func death_shown() -> bool:
 	return _death_label != null and _death_label.visible
+
+
+# --- NavHUD: the "arrow stuff" — one waypoint, edge-pinned arrow + distance ----
+var _nav_arrow: Label = null
+var _nav_dir: Vector2 = Vector2.ZERO ## sim hook: screen-space dir to waypoint
+
+func update_nav(cam: Camera3D, from: Vector3, target: Vector3, label_txt: String) -> void:
+	if _nav_arrow == null:
+		_nav_arrow = Label.new()
+		_nav_arrow.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_nav_arrow.add_theme_font_size_override("font_size", 20)
+		_nav_arrow.add_theme_color_override("font_color", AMBER)
+		_nav_arrow.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.03))
+		_nav_arrow.add_theme_constant_override("outline_size", 8)
+		add_child(_nav_arrow)
+	if label_txt == "":
+		_nav_arrow.visible = false
+		_nav_dir = Vector2.ZERO
+		return
+	_nav_arrow.visible = true
+	var size: Vector2 = _nav_arrow.get_viewport().get_visible_rect().size
+	var sp := cam.unproject_position(target + Vector3(0, 1, 0))
+	var dist := from.distance_to(target)
+	var margin := 46.0
+	var rect := Rect2(Vector2(margin, margin), size - Vector2(margin * 2, margin * 2))
+	# Direction glyph from screen-space bearing (8-way arrow reads instantly).
+	var center := size * 0.5
+	_nav_dir = (sp - center).normalized() if (sp - center).length() > 1.0 else Vector2.ZERO
+	var arrows := ["→", "↘", "↓", "↙", "←", "↖", "↑", "↗"]
+	var idx := int(round(atan2(_nav_dir.y, _nav_dir.x) / (PI / 4.0))) % 8
+	var glyph: String = arrows[((idx % 8) + 8) % 8] if _nav_dir != Vector2.ZERO else "•"
+	_nav_arrow.text = "%s %s %dm" % [glyph, label_txt, int(dist)]
+	var pos := sp
+	if not rect.has_point(sp): # off-screen: clamp to the edge along the bearing
+		pos = center + _nav_dir * (minf(size.x, size.y) * 0.5 - margin)
+		pos = pos.clamp(rect.position, rect.position + rect.size)
+	_nav_arrow.position = pos - Vector2(40, 34)
 
 ## 🔫 mag/reserve — ammo stays NUMERIC (you count bullets; you feel tired).
 func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: bool) -> void:

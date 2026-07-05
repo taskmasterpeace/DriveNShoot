@@ -7,17 +7,24 @@ signal changed
 
 ## Item catalog (data — adding an item = a row). use_effect keys into main.use_item().
 const ITEMS: Dictionary = {
-	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false},
-	"bandage": {"name": "Bandage", "emoji": "🩹", "usable": true},
-	"meat": {"name": "Dried meat", "emoji": "🍖", "usable": true},
-	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false},
-	"pistol": {"name": "Pistol", "emoji": "🔫", "usable": true},
-	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "usable": true},
-	"pipe_rocket": {"name": "Pipe rocket launcher", "emoji": "🧨", "usable": true},
-	"9mm": {"name": "9mm rounds", "emoji": "•", "usable": false},
-	"12ga": {"name": "12ga shells", "emoji": "•", "usable": false},
-	"rocket": {"name": "Rocket", "emoji": "🚀", "usable": false},
+	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false, "w": 1.2},
+	"bandage": {"name": "Bandage", "emoji": "🩹", "usable": true, "w": 0.2},
+	"meat": {"name": "Dried meat", "emoji": "🍖", "usable": true, "w": 0.4},
+	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false, "w": 0.02},
+	"pistol": {"name": "Pistol", "emoji": "🔫", "usable": true, "w": 1.1},
+	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "usable": true, "w": 3.2},
+	"pipe_rocket": {"name": "Pipe rocket launcher", "emoji": "🧨", "usable": true, "w": 4.5},
+	"9mm": {"name": "9mm rounds", "emoji": "•", "usable": false, "w": 0.02},
+	"12ga": {"name": "12ga shells", "emoji": "•", "usable": false, "w": 0.05},
+	"rocket": {"name": "Rocket", "emoji": "🚀", "usable": false, "w": 1.5},
 }
+
+
+func total_weight() -> float:
+	var w := 0.0
+	for id in slots:
+		w += ITEMS.get(id, {"w": 0.5}).get("w", 0.5) * slots[id]
+	return w
 
 var label: String = "Container"
 var slots: Dictionary = {} ## item_id -> count

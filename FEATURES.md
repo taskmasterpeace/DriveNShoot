@@ -217,3 +217,10 @@ on foot, and Hold X to extract.
 *   **PERMADEATH** — head or torso destroyed, or hp at zero: the run ends. Death screen,
     R starts a new run. The Deathlands keep what they take.
 *   **Proof:** stage3_sim 12/12 · arsenal/container/m1 unregressed.
+
+## 22. Waypoints & Weight (2026-07-05)
+*   **N cycles waypoints** — SAFEHOUSE → KENNEL → YOUR CAR (never lose it again) → off.
+    An amber arrow + distance pins to the screen edge and tracks the target live.
+*   **Encumbrance** — items have weight; overload your pack past 32kg and you slow down
+    (🎒 moodle, 🐢 when badly overloaded). Strength will raise the cap (attributes hook).
+*   **Proof:** nav_sim 8/8 · stage3/moodle unregressed.

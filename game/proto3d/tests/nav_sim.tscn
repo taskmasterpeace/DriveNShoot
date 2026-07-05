@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dnavsim01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/nav_sim.gd" id="1_nav"]
+
+[node name="NavSim" type="Node"]
+script = ExtResource("1_nav")

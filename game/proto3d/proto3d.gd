@@ -38,6 +38,11 @@ var _wound_rng := RandomNumberGenerator.new()
 var _odometer: float = 0.0
 var _prev_car_pos: Vector3 = Vector3.ZERO
 
+## Navigation: N cycles points of interest; the HUD draws the arrow.
+const CARRY_CAP := 32.0 ## kg-ish; STR raises this later (attributes hook)
+var waypoints: Array = [] ## [name, Vector3-or-Node3D]
+var waypoint_idx: int = -1
+
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
 var dogs: Array[ProtoDog] = []       ## adopted pack
@@ -129,6 +134,8 @@ func _ready() -> void:
 		lurker.position = lpos
 		add_child(lurker)
 
+	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
+
 	house.tracked = player
 	enter_car(cars[0])
 	cam_rig.snap_to_target()
@@ -191,6 +198,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				reload_equipped()
 		elif kc == KEY_K:
 			hud.toggle_sheet(_sheet_text())
+		elif kc == KEY_N:
+			waypoint_idx = ((waypoint_idx + 2) % (waypoints.size() + 1)) - 1 # -1(off) -> 0 -> 1 -> 2 -> -1
+			if waypoint_idx >= 0:
+				hud.toast("📍 Waypoint: %s" % waypoints[waypoint_idx][0])
+			else:
+				hud.toast("📍 Waypoint off")
 		elif kc >= KEY_1 and kc <= KEY_3:
 			var idx := kc - KEY_1
 			if idx < weapons.size():
@@ -255,6 +268,22 @@ func _physics_process(delta: float) -> void:
 		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag, backpack.count(wpn.info()["ammo"]), mode == Mode.FOOT)
 	else:
 		hud.set_ammo("", "", 0, 0, false)
+
+	# Encumbrance: an overloaded pack slows your legs (STR raises the cap later).
+	var load := backpack.total_weight()
+	var over := load / CARRY_CAP
+	player.speed_mult = 1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)
+	hud.set_condition("heavy", 0 if over <= 1.0 else (3 if over > 1.5 else 1))
+
+	# Waypoint arrow
+	var cam := get_viewport().get_camera_3d()
+	var body_pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
+	if waypoint_idx >= 0 and cam:
+		var wp: Array = waypoints[waypoint_idx]
+		var tpos: Vector3 = wp[1].global_position if wp[1] is Node3D else wp[1]
+		hud.update_nav(cam, body_pos, tpos, wp[0])
+	else:
+		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
 
 	_update_stress(delta)
 	_watch_crash_wounds()

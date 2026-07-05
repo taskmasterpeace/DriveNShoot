@@ -29,6 +29,8 @@ var face_override: Vector3 = Vector3.ZERO
 var stamina: float = 100.0
 ## Set by the Stress system (main scene): high stress = slow recovery.
 var stamina_regen_mult: float = 1.0
+## Set by encumbrance (main scene): overloaded pack = slow legs.
+var speed_mult: float = 1.0
 var _was_running: bool = false
 
 var _visual: Node3D
@@ -132,7 +134,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * delta)
 
-	var speed := run_speed if running else walk_speed
+	var speed := (run_speed if running else walk_speed) * speed_mult
 	var target := move * speed
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
