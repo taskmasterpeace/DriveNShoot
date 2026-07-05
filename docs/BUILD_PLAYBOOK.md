@@ -66,6 +66,55 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+
+### ⭐ RESUME CHECKPOINT — 2026-07-05 (read THIS first; history below)
+Everything is committed & pushed (HEAD `84d2dff`). Codebase is `game/proto3d/` (the 3D mainline).
+Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
+`C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
+
+**SHIPPED & sim-proven (Stages 0–5 + extras), 19 test suites all green:**
+- **Drive/Living Car:** VehicleBody3D feel, handbrake drift (no spin), 5-part damage →
+  smoke→fire→cook→burnt-husk, salvage, fuel, dashboard glyphs, hotwire, hood-MG mount, flip
+  self-recovery. (car/drive/recover sims)
+- **On-foot/Combat:** walk/sprint(stamina)/dive, guns (pistol/shotgun/rocket, aim-cone + reticle
+  bloom, tracers), melee (wrench/machete, quiet), grenades, **two-way enemies claw back**,
+  **KNOCKDOWN + floating combat text**. (arsenal/stage4/fight sims)
+- **RPG spine:** skills-by-use (Mechanics/Driving/Marksmanship w/ real effects), 6-part body,
+  **HEALTH CAP**, character sheet (K), **permadeath** (R restarts). (stage3 sim)
+- **Body/Mind:** Stress vital, moodle EMOJI corner (meters deleted), bandage treatment, encumbrance.
+- **Dogs + METAWORLD:** 4 types + breeds, rear-smell, **whistle = 4-in-1** (tap heel/double
+  guard/triple seek/hold sic), dogs BITE, and the **hydrate/dehydrate metasystem** — guard a dog,
+  drive away (it dehydrates to a record), off-screen raid can kill it, drive back to find it gone.
+  (dog/dogmeta sims) → `metaworld.gd`, `METASYSTEM.md`.
+- **Perception v2:** world-meter cone (**zoom-independent**), true sight RANGE, binoculars extend
+  it, **eye-patch** halves a side, dog-alert reveal snapshot, **the FADE** (unseen things fade;
+  seen static things linger as a memory ghost), indoor cone clamps to the room. (cone/fade/vision sims)
+- **World:** seeded content streaming + **ground under the far states**, state lines, fog-of-war
+  map (M), waypoint arrows (N). Enterable safehouse: door/locks/keys, front-wall fades inside,
+  **stairs are now a SOLID RAMP w/ plateau top** you walk up & off. (stage5/m1/walkthrough sims)
+- **Audio:** fully synthesized (engine pitches w/ speed, guns, fire, barks) — zero asset files.
+- **Feel:** camera trauma-shake, pain flash, dust, moodle pop-in.
+
+**Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt · **C** whistle
+(tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet · **M** map ·
+**N** waypoint · **TAB** pack · **B** binoculars · LMB fire · scroll zoom.
+
+**TWO clean NEXT builds (user's choice):**
+1. **Stage 6 — Living World:** a Meridian TRADER (spend Jack), a Sec-Man BOUNTY job, a RESPECT
+   meter (town's opinion → prices/jobs). Plugs into the metaworld socket (`metaworld.offscreen_event`).
+   Per `STAGES.md` + `WORLD_NPCS.md` + task #19.
+2. **True perception occlusion (raycast LOS):** cone STOPS at walls, SEES through windows/doors.
+   The user explicitly wants this; keep it lean for scale. (The current cone is a screen dimmer +
+   indoor clamp only — no real wall/window awareness yet.)
+
+**Iron gotchas (paid for — don't re-pay):** sims must RELEASE tapped input actions; redirect sim
+output to files (piping `grep|head` on a LIVE sim buffers & HANGS); `var x := main.dyn_call()`
+can't type-infer (annotate it); any loop over `dogs[]` must `is_instance_valid` FIRST (dehydration
+frees them); stairs = smooth ramp + plateau, NEVER stepped boxes; test the REAL walk path, never
+teleport past the mechanic; new `class_name` scripts need a `--headless --import` before sims see them.
+
+---
+### History (newest first)
 **2026-07-05 (perception v2):** cone_sim 6/6 — cone is WORLD-METER based (zoom exploit dead:
 55.0m constant across zoom), true sight RANGE added (binoculars now mechanically matter, 120m),
 🏴‍☠️ eyepatch item halves the arc via character vision mults (traits/headgear hook LIVE), dog
