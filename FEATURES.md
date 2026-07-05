@@ -281,3 +281,12 @@ on foot, and Hold X to extract.
 *   **Dog snapshot** — when your dog alerts, a sight-bubble blooms where it smelled the
     threat: its senses literally become yours for a breath. Works for Hunter loot-pings too.
 *   **Proof:** cone_sim 6/6 · vision_sim 6/6 unregressed.
+
+## 28. No more falling off the earth + self-righting cars (2026-07-05)
+*   **The far states have a floor now** — the streamer lays ground under every chunk past the
+    old 6km slab edge. Drive to CALIFORNIA; the earth is there. (Proven: landed at y=0.7.)
+*   **Flipped cars right themselves** — land on your roof or side and after a couple of
+    seconds the car rolls back onto its wheels, facing the way you were. No more spin-forever.
+*   **Smarter respawn** — if you somehow still fall, you come back nudged *inward*, so a
+    rim-edge respawn can't dump you straight back over.
+*   **Proof:** recover_sim 3/3 · stage5 9/9 · drive metrics unchanged.

@@ -68,6 +68,26 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	add_child(chunk)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash("%d:%d:%d" % [WORLD_SEED, cx, cz])
+	# GROUND under the whole world: the authored slab ends at ±6 km, but the
+	# states run past it — chunks beyond the slab bring their own floor.
+	# (Playtest bug: drove to the far states and fell off the earth.)
+	if absf(center.x) > 5800.0 or absf(center.z) > 5800.0:
+		var g := StaticBody3D.new()
+		var gm := MeshInstance3D.new()
+		var plane := BoxMesh.new()
+		plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+		gm.mesh = plane
+		gm.material_override = ProtoWorldBuilder.material(Color(0.52, 0.42, 0.28), 1.0)
+		gm.position.y = -0.26
+		g.add_child(gm)
+		var gs := CollisionShape3D.new()
+		var gb := BoxShape3D.new()
+		gb.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+		gs.shape = gb
+		gs.position.y = -0.26
+		g.add_child(gs)
+		g.position = Vector3(center.x, 0, center.z)
+		chunk.add_child(g)
 	# Scatter (visual only)
 	for i in 26:
 		var pos := center + Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-60, 60))

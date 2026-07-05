@@ -589,12 +589,17 @@ func _update_respawn(delta: float) -> void:
 		_safe_timer = 0.0
 		_last_safe = body.global_position
 	if body.global_position.y < KILL_Y:
-		body.global_position = _last_safe + Vector3(0, 2.0, 0)
+		# Respawn NUDGED toward the world center so a rim-recorded safe spot
+		# can't dump you straight back over the edge (fall-loop bug).
+		var safe := _last_safe
+		var inward := -Vector3(safe.x, 0, safe.z).normalized() if safe.length() > 10.0 else Vector3.ZERO
+		safe += inward * 12.0 + Vector3(0, 2.0, 0)
 		if body is RigidBody3D:
 			(body as RigidBody3D).linear_velocity = Vector3.ZERO
 			(body as RigidBody3D).angular_velocity = Vector3.ZERO
-			body.global_transform = Transform3D(Basis.IDENTITY, _last_safe + Vector3(0, 2.0, 0))
+			body.global_transform = Transform3D(Basis.IDENTITY, safe)
 		elif body is CharacterBody3D:
+			body.global_position = safe
 			(body as CharacterBody3D).velocity = Vector3.ZERO
 		hud.toast("The wasteland spit you back out")
 

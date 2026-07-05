@@ -63,6 +63,7 @@ var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
 var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
+var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
 
 static func create(body_color: Color) -> ProtoCar3D:
@@ -347,6 +348,19 @@ func _physics_process(delta: float) -> void:
 	speed_changed.emit(current_mph)
 
 	_update_death_spiral(delta)
+
+	# Flip recovery: on the roof or side with no momentum, the car rights itself
+	# after a beat (playtest bug: landed inverted and spun forever).
+	if global_basis.y.dot(Vector3.UP) < 0.35 and linear_velocity.length() < 4.0:
+		_flipped_t += delta
+		if _flipped_t > 2.2:
+			_flipped_t = 0.0
+			var yaw := global_rotation.y
+			global_transform = Transform3D(Basis(Vector3.UP, yaw), global_position + Vector3(0, 1.6, 0))
+			linear_velocity = Vector3.ZERO
+			angular_velocity = Vector3.ZERO
+	else:
+		_flipped_t = 0.0
 
 	# Impact damage: a hard velocity change in one tick = a crash (teleports excluded).
 	_impact_cd = maxf(0.0, _impact_cd - delta)

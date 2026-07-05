@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3drcvsim01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/recover_sim.gd" id="1_rcv"]
+
+[node name="RecoverSim" type="Node"]
+script = ExtResource("1_rcv")
