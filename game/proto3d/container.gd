@@ -17,6 +17,9 @@ const ITEMS: Dictionary = {
 	"9mm": {"name": "9mm rounds", "emoji": "•", "usable": false, "w": 0.02},
 	"12ga": {"name": "12ga shells", "emoji": "•", "usable": false, "w": 0.05},
 	"rocket": {"name": "Rocket", "emoji": "🚀", "usable": false, "w": 1.5},
+	"wrench": {"name": "Wrench", "emoji": "🔧", "usable": true, "w": 1.4},
+	"machete": {"name": "Machete", "emoji": "🔪", "usable": true, "w": 1.1},
+	"grenade": {"name": "Grenade", "emoji": "💣", "usable": false, "w": 0.5},
 }
 
 

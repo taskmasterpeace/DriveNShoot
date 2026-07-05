@@ -35,6 +35,7 @@ enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
 
 var components: Dictionary = {} ## id -> Damageable (engine/tires/battery/fuel_tank/chassis)
 var trunk: ProtoContainer = null ## every car is storage (Container pillar)
+var mount_weapon: ProtoWeapon = null ## vehicle weapon mount (same system as handhelds)
 var fuel: float = 100.0
 @export var fuel_drain_rate: float = 0.35 ## per second at full throttle
 var fire_state: FireState = FireState.OK

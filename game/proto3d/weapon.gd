@@ -4,7 +4,7 @@
 class_name ProtoWeapon
 extends RefCounted
 
-enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE }
+enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
@@ -14,10 +14,20 @@ const WEAPONS: Dictionary = {
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
 		"speed": 20.0, "blast": 5.0},
+	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
+	# as the repair tool (multi-use). Machete hits harder.
+	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0},
+	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0},
+	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
+	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
 }
 
 var id: String
 var mag: int = 0
+var bloom: float = 0.0 ## grows per shot, decays at rest — the reticle shows it
 var _cd: float = 0.0
 
 
@@ -32,24 +42,54 @@ func info() -> Dictionary:
 
 func tick(delta: float) -> void:
 	_cd = maxf(0.0, _cd - delta)
+	bloom = maxf(0.0, bloom - delta * 1.8)
+
+
+func is_melee() -> bool:
+	return info()["behavior"] == Behavior.MELEE
 
 
 func can_fire() -> bool:
-	return mag > 0 and _cd <= 0.0
+	return (mag > 0 or is_melee()) and _cd <= 0.0
+
+
+## Effective spread right now (base × bloom × skill) — the reticle draws this.
+func current_spread(main: Node) -> float:
+	var skill_mult := 1.0
+	if "character" in main and main.character:
+		skill_mult = clampf(1.0 - 0.06 * main.character.level("marksmanship"), 0.5, 1.0)
+	return info()["spread_deg"] * (1.0 + bloom) * skill_mult
 
 
 ## Fires from the player toward aim_dir. Returns true if a shot happened.
 func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	if not can_fire():
 		return false
-	mag -= 1
-	_cd = info()["cooldown"]
 	var w := info()
-	# Marksmanship tightens the cone (skill = accuracy, per COMBAT_AND_GEAR).
-	var skill_mult := 1.0
-	if "character" in main and main.character:
-		skill_mult = clampf(1.0 - 0.06 * main.character.level("marksmanship"), 0.5, 1.0)
-	var sp: float = w["spread_deg"] * skill_mult
+	if is_melee():
+		# Stamina-gated swing, hits everything in the reach arc. QUIET.
+		if main.player.stamina < w["stamina"]:
+			return false
+		main.player.stamina -= w["stamina"]
+		_cd = w["cooldown"]
+		var hit_any := false
+		for node in main.get_tree().get_nodes_in_group("threat"):
+			var t := node as Node3D
+			if t == null or not is_instance_valid(t):
+				continue
+			var to_t: Vector3 = t.global_position - main.player.global_position
+			to_t.y = 0.0
+			if to_t.length() <= w["reach"] and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)):
+				if t.has_method("take_damage"):
+					t.take_damage(w["damage"])
+					hit_any = true
+		if hit_any and main.has_method("grant_xp"):
+			main.grant_xp("marksmanship", 1.0)
+		return true
+	mag -= 1
+	_cd = w["cooldown"]
+	var sp := current_spread(main)
+	bloom = minf(bloom + 0.45, 2.2) # each shot blooms the cone; rest recovers it
 	match w["behavior"]:
 		Behavior.HITSCAN:
 			_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
@@ -109,6 +149,42 @@ func _launch(main: Node, from: Vector3, dir: Vector3, w: Dictionary) -> void:
 	rocket.blast = w["blast"]
 	main.add_child(rocket)
 	rocket.global_position = from + dir * 1.2
+
+
+## Lobbed grenade: ballistic arc + fuse, blast via main.on_explosion.
+class ProtoGrenade:
+	extends Node3D
+	var vel: Vector3
+	var fuse: float = 1.6
+	var blast: float = 5.0
+	var damage: float = 55.0
+
+	func _ready() -> void:
+		var m := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.18, 0.18, 0.18)
+		m.mesh = box
+		m.material_override = ProtoWorldBuilder.material(Color(0.2, 0.28, 0.16), 0.6)
+		add_child(m)
+
+	func _physics_process(delta: float) -> void:
+		vel.y -= 12.0 * delta
+		global_position += vel * delta
+		if global_position.y < 0.15:
+			global_position.y = 0.15
+			vel = vel * 0.35
+			vel.y = 0.0
+		fuse -= delta
+		if fuse <= 0.0:
+			var main := get_parent()
+			for node in get_tree().get_nodes_in_group("threat"):
+				var t := node as Node3D
+				if t and is_instance_valid(t) and t.global_position.distance_to(global_position) < blast:
+					if t.has_method("take_damage"):
+						t.take_damage(damage)
+			if main.has_method("on_explosion"):
+				main.on_explosion(global_position)
+			queue_free()
 
 
 ## The flying pipe rocket: straight line, explodes on proximity or timeout.

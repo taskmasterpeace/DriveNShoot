@@ -224,3 +224,14 @@ on foot, and Hold X to extract.
 *   **Encumbrance** — items have weight; overload your pack past 32kg and you slow down
     (🎒 moodle, 🐢 when badly overloaded). Strength will raise the cap (attributes hook).
 *   **Proof:** nav_sim 8/8 · stage3/moodle unregressed.
+
+## 23. COMBAT DEPTH — Stage 4 (2026-07-05)
+*   **Melee** — 🔧 wrench (you start with it) and 🔪 machete (safehouse chest): stamina-gated
+    swings with reach + arc, and they're QUIET — no nerve spike, no gunshot. Ammo-free backbone.
+*   **💣 Grenades** — G lobs one at your cursor: real arc, bounce, fuse, blast (2 in the chest).
+*   **Reticle bloom** — the crosshair ticks at your cursor ARE your cone: rapid fire blooms
+    them wide, resting tightens them. Marksmanship shrinks the whole envelope.
+*   **🔫 THE HOOD MG** — the Scavenger mounts a machine gun. LMB while driving fires where
+    the car points (40-round belt, R reloads from your 9mm). First vehicle weapon — same
+    weapon system as the handhelds, proving the mount architecture.
+*   **Proof:** stage4_sim 9/9 · arsenal/m1 unregressed.

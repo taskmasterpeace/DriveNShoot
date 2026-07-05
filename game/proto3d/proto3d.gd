@@ -114,6 +114,11 @@ func _ready() -> void:
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
 	cars[1].trunk.add("rocket", 3)
+	# Stage 4: melee + throwables in the world; the Scavenger mounts a hood MG.
+	backpack.add("wrench", 1)
+	chest.container.add("machete", 1)
+	chest.container.add("grenade", 2)
+	cars[0].mount_weapon = ProtoWeapon.new("car_mg")
 
 	# The kennel strays: one of each type, distinct breeds.
 	var kennel_specs: Array = [
@@ -194,8 +199,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif kc == KEY_R:
 			if character.dead:
 				get_tree().reload_current_scene()
+			elif mode == Mode.DRIVE and active_car and active_car.mount_weapon:
+				_reload_mount()
 			else:
 				reload_equipped()
+		elif kc == KEY_G:
+			throw_grenade()
 		elif kc == KEY_K:
 			hud.toggle_sheet(_sheet_text())
 		elif kc == KEY_N:
@@ -211,8 +220,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				notify("Equipped the %s" % weapons[idx].info()["name"])
 	elif event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-		if mode == Mode.FOOT and not cam_rig.binoculars:
+		if panel.is_open or cam_rig.binoculars:
+			pass
+		elif mode == Mode.FOOT:
 			fire_equipped()
+		elif mode == Mode.DRIVE:
+			fire_mount()
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -265,9 +278,18 @@ func _physics_process(delta: float) -> void:
 	var wpn := current_weapon()
 	if wpn:
 		wpn.tick(delta)
-		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag, backpack.count(wpn.info()["ammo"]), mode == Mode.FOOT)
+	if mode == Mode.DRIVE and active_car and active_car.mount_weapon:
+		active_car.mount_weapon.tick(delta)
+		var mw: ProtoWeapon = active_car.mount_weapon
+		hud.set_ammo(mw.info()["emoji"], mw.info()["name"], mw.mag, backpack.count(mw.info()["ammo"]), true)
+		hud.update_reticle(mw.current_spread(self), get_viewport().get_mouse_position(), true)
+	elif wpn and mode == Mode.FOOT:
+		var is_m := wpn.is_melee()
+		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag if not is_m else 0, backpack.count(wpn.info()["ammo"]) if not is_m else 0, true)
+		hud.update_reticle(wpn.current_spread(self), get_viewport().get_mouse_position(), not is_m and not cam_rig.binoculars)
 	else:
 		hud.set_ammo("", "", 0, 0, false)
+		hud.update_reticle(0.0, Vector2.ZERO, false)
 
 	# Encumbrance: an overloaded pack slows your legs (STR raises the cap later).
 	var load := backpack.total_weight()
@@ -524,16 +546,45 @@ func fire_equipped() -> void:
 	var w := current_weapon()
 	if w == null or mode != Mode.FOOT or panel.is_open:
 		return
-	if w.mag <= 0:
+	if w.mag <= 0 and not w.is_melee():
 		notify("*click* — reload (R)")
 		return
 	var dir := aim_direction()
 	player.face_override = dir
 	player.facing_dir = dir
 	if w.fire(self, player.global_position + Vector3(0, 1.2, 0), dir):
-		cam_rig.add_trauma(0.18)
-		stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
-		audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+		if w.is_melee():
+			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
+		else:
+			cam_rig.add_trauma(0.18)
+			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
+			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+
+
+## G lobs a grenade toward the mouse (arc + fuse; blast reuses on_explosion).
+func throw_grenade() -> void:
+	if mode != Mode.FOOT or panel.is_open or not backpack.remove("grenade", 1):
+		return
+	var dir := aim_direction()
+	var g := ProtoWeapon.ProtoGrenade.new()
+	g.vel = dir * 9.0 + Vector3.UP * 5.0
+	add_child(g)
+	g.global_position = player.global_position + Vector3(0, 1.4, 0) + dir * 0.6
+	notify("Grenade out!")
+
+
+## The hood MG (vehicle mount): same weapon system, fires where the car points.
+func fire_mount() -> void:
+	if mode != Mode.DRIVE or active_car == null or active_car.dead or active_car.mount_weapon == null:
+		return
+	var w: ProtoWeapon = active_car.mount_weapon
+	if w.mag <= 0:
+		notify("*click* — MG dry, reload (R)")
+		return
+	var fwd := active_car.facing()
+	if w.fire(self, active_car.global_position + fwd * 2.6 + Vector3(0, 0.8, 0), fwd):
+		cam_rig.add_trauma(0.1)
+		audio.play_at("shot", active_car.global_position, -4.0, 1.3)
 
 
 func reload_equipped() -> void:
@@ -551,6 +602,19 @@ func reload_equipped() -> void:
 	w.mag += take
 	audio.play_ui("click", -4.0)
 	notify("Reloaded (+%d)" % take)
+
+
+func _reload_mount() -> void:
+	var w: ProtoWeapon = active_car.mount_weapon
+	var need: int = w.info()["mag_size"] - w.mag
+	var take: int = mini(need, backpack.count("9mm"))
+	if take <= 0:
+		notify("No 9mm for the MG")
+		return
+	backpack.remove("9mm", take)
+	w.mag += take
+	audio.play_ui("click", -4.0)
+	notify("MG reloaded (+%d)" % take)
 
 
 func on_explosion(pos: Vector3) -> void:

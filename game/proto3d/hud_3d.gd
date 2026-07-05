@@ -397,6 +397,32 @@ func death_shown() -> bool:
 	return _death_label != null and _death_label.visible
 
 
+# --- Reticle: the aim cone made visible (blooms per shot, tightens at rest) ----
+var _reticle: Node2D = null
+var _reticle_ticks: Array = []
+var reticle_gap: float = 0.0 ## sim hook
+
+func update_reticle(spread_deg: float, mouse: Vector2, show: bool) -> void:
+	if _reticle == null:
+		_reticle = Node2D.new()
+		add_child(_reticle)
+		for ang in [0.0, PI / 2, PI, PI * 1.5]:
+			var tick := ColorRect.new()
+			tick.color = AMBER
+			tick.size = Vector2(3, 9)
+			tick.rotation = ang
+			_reticle.add_child(tick)
+			_reticle_ticks.append(tick)
+	_reticle.visible = show
+	if not show:
+		return
+	_reticle.position = mouse
+	reticle_gap = 8.0 + spread_deg * 5.0
+	var dirs := [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
+	for i in 4:
+		(_reticle_ticks[i] as ColorRect).position = dirs[i] * reticle_gap - Vector2(1.5, 4.5)
+
+
 # --- NavHUD: the "arrow stuff" — one waypoint, edge-pinned arrow + distance ----
 var _nav_arrow: Label = null
 var _nav_dir: Vector2 = Vector2.ZERO ## sim hook: screen-space dir to waypoint
