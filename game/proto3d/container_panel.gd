@@ -13,6 +13,7 @@ var _root: PanelContainer
 var _title: Label
 var _left_box: VBoxContainer
 var _right_box: VBoxContainer
+var _load_label: Label
 
 
 static func create(main: Node) -> ProtoContainerPanel:
@@ -51,11 +52,18 @@ static func create(main: Node) -> ProtoContainerPanel:
 	p._left_box = p._make_col(cols, "YOU")
 	p._right_box = p._make_col(cols, "THEIRS")
 
+	p._load_label = Label.new()
+	p._load_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+	p._load_label.add_theme_font_size_override("font_size", 14)
+	p._load_label.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2))
+	p._load_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(p._load_label)
+
 	var hint := Label.new()
 	hint.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", Color(0.92, 0.89, 0.82, 0.7))
-	hint.text = "click item = move · USE = consume · TAB/E = close"
+	hint.text = "click = move · USE = consume · DROP = to ground · TAB/E = close"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(hint)
 	return p
@@ -122,12 +130,13 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 	var ids: Array = from.slots.keys()
 	ids.sort()
 	for id in ids:
-		var info: Dictionary = ProtoContainer.ITEMS.get(id, {"name": id, "emoji": "❔", "usable": false})
+		var info: Dictionary = ProtoContainer.ITEMS.get(id, {"name": id, "emoji": "❔", "usable": false, "w": 0.5})
 		var row := HBoxContainer.new()
 		box.add_child(row)
 		var btn := Button.new()
 		btn.add_theme_font_override("font", ProtoHUD.mixed_font())
-		btn.text = "%s %s ×%d" % [info["emoji"], info["name"], from.count(id)]
+		var n := from.count(id)
+		btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_move.bind(from, to, id))
 		row.add_child(btn)
@@ -137,6 +146,20 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 			use.text = "USE"
 			use.pressed.connect(_on_use.bind(from, id))
 			row.add_child(use)
+		if mine_side:
+			var drop := Button.new()
+			drop.add_theme_font_override("font", ProtoHUD.mixed_font())
+			drop.text = "DROP"
+			drop.pressed.connect(_on_drop.bind(from, id))
+			row.add_child(drop)
+	if mine_side and _load_label and from != null:
+		_load_label.text = "🎒 load %.1f / %.0f kg" % [from.total_weight(), 32.0]
+
+
+func _on_drop(from: ProtoContainer, id: String) -> void:
+	if _main and _main.has_method("drop_item") and _main.drop_item(id):
+		pass
+	_refresh()
 
 
 func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:

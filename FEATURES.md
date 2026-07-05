@@ -245,3 +245,11 @@ on foot, and Hold X to extract.
 *   **🗺️ The world map (M)** — fog-of-war cartography: only land you've actually crossed is
     drawn. Your trail, the interstate, POIs, and you.
 *   **Proof:** stage5_sim 9/9.
+
+## 25. Combat bites back + inventory management (2026-07-05)
+*   **Two-way combat** — lurkers now CLAW you when they reach you: a real body wound, bleeding,
+    a pain flash, camera kick, and a stress spike. On foot you're meat; the car cab protects you.
+*   **❤️ HP readout** — numeric HP / cap, bottom-left, pulses red when you're dying.
+*   **Inventory management** — every row shows item WEIGHT, the panel footer shows your total
+    load (🎒 x / 32 kg), and every item has a DROP button that spills it into a ground pile.
+*   **Proof:** fight_sim 7/7 · stage4/dog/container unregressed.

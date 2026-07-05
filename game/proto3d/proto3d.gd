@@ -315,6 +315,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
 
+	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
@@ -631,6 +632,40 @@ func on_explosion(pos: Vector3) -> void:
 	if player.global_position.distance_to(pos) < 7.0:
 		hud.flash_pain()
 		give_bleeding(1)
+
+
+## Drop an item at your feet — it lands in (or merges into) a ground pile.
+func drop_item(id: String) -> bool:
+	if not backpack.remove(id, 1):
+		return false
+	var pile: ProtoChest = null
+	for node in get_children():
+		if node is ProtoChest and node.container.label == "Dropped gear" \
+				and node.global_position.distance_to(player.global_position) < 2.5:
+			pile = node
+			break
+	if pile == null:
+		pile = ProtoChest.create("Dropped gear", {})
+		add_child(pile)
+		pile.global_position = player.global_position + player.facing() * 1.0
+	pile.container.add(id, 1)
+	audio.play_ui("blip", -12.0)
+	return true
+
+
+## A lurker's claw connects: body wound + bleed + fear. Combat is two-way now.
+func on_player_clawed(damage: float, _who: Node3D) -> void:
+	if character.dead or mode == Mode.DRIVE:
+		return # the cab protects you — ON FOOT you're meat
+	character.take_wound(character.random_part(_wound_rng), damage)
+	bleeding = clampi(maxi(bleeding, 1), 0, 3)
+	hud.set_condition("hurt", maxi(bleeding, 1))
+	hud.flash_pain()
+	cam_rig.add_trauma(0.35)
+	audio.play_at("hurt", player.global_position)
+	stress = minf(100.0, stress + 14.0)
+	if character.hp < 30.0:
+		hud.toast("❤️ %d — GET OUT OF THERE" % int(character.hp))
 
 
 ## Crashes wound the DRIVER too (bandage from any trunk/chest/pack).

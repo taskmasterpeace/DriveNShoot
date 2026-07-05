@@ -5,8 +5,11 @@ class_name ProtoLurker
 extends CharacterBody3D
 
 @export var stalk_range: float = 45.0
-@export var stop_distance: float = 5.0
+@export var stop_distance: float = 1.4 ## close enough to CLAW
 @export var stalk_speed: float = 2.6
+@export var claw_damage: float = 9.0
+@export var claw_cooldown: float = 1.3
+var _claw_cd: float = 0.0
 
 var _visual: Node3D
 var _player: Node3D = null
@@ -88,5 +91,15 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
+
+	# COMBAT IS TWO-WAY: in claw reach, it swipes — the wasteland bites back.
+	_claw_cd = maxf(0.0, _claw_cd - delta)
+	if not dead and _claw_cd <= 0.0 and dist <= stop_distance + 0.5:
+		var main := get_tree().current_scene
+		if main == null or not main.has_method("on_player_clawed"):
+			main = _player.get_parent() if _player else null
+		if main and main.has_method("on_player_clawed"):
+			_claw_cd = claw_cooldown
+			main.on_player_clawed(claw_damage, self)
 
 	move_and_slide()

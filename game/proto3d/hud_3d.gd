@@ -337,6 +337,26 @@ func set_mode(driving: bool) -> void:
 
 var _flash: ColorRect = null
 var _ammo_label: Label = null
+var _hp_label: Label = null
+
+## ❤️ HP / cap — numeric (you count blood like bullets when it's this scarce).
+func set_hp(hp: float, cap: float, show: bool) -> void:
+	if _hp_label == null:
+		_hp_label = Label.new()
+		_hp_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_hp_label.add_theme_font_size_override("font_size", 22)
+		_hp_label.add_theme_color_override("font_color", Color(0.9, 0.3, 0.2))
+		_hp_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.03))
+		_hp_label.add_theme_constant_override("outline_size", 8)
+		_hp_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_hp_label.offset_left = 28.0
+		_hp_label.offset_top = -166.0
+		_hp_label.offset_bottom = -138.0
+		add_child(_hp_label)
+	_hp_label.visible = show
+	if show:
+		_hp_label.text = "❤️ %d / %d" % [int(hp), int(cap)]
+		_hp_label.modulate.a = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008) if hp < 30.0 else 1.0
 var _sheet_panel: PanelContainer = null
 var _sheet_label: Label = null
 var _death_label: Label = null
