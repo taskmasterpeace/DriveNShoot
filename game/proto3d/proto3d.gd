@@ -232,6 +232,19 @@ var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
 
+## The night pack (howler.gd): deep night spawns hunters; dawn burns them off.
+## First-night grace is long so sims dipping into night stay deterministic.
+var howlers: Array = []
+var _pack_cd: float = 35.0
+
+## Timed reloads: swapping a mag is a COMMITMENT (fire is blocked meanwhile).
+var _reload_t: float = 0.0
+var _reload_wpn: ProtoWeapon = null
+
+## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
+var _recon_t: float = 0.0
+var _recon_entries: Array = []
+
 
 func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
@@ -316,6 +329,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			var idx := kc - KEY_1
 			if idx < weapons.size():
 				equipped = idx
+				_reload_t = 0.0 # switching abandons the mag swap
+				_reload_wpn = null
 				notify("Equipped the %s" % weapons[idx].info()["name"])
 	elif event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
@@ -437,11 +452,14 @@ func _physics_process(delta: float) -> void:
 	for c in cars:
 		if is_instance_valid(c):
 			c.set_headlights(daynight.is_dark())
+	_update_night_pack(delta)
+	_update_reload(delta)
 	_update_bounty()
 	_update_whistle(delta)
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
+	_update_recon_tags(binoc)
 	_update_interact_prompt()
 	_update_hotwire(delta) # after the prompt poll — hotwire progress owns the chip while held
 	_update_respawn(delta)
@@ -480,8 +498,12 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	# The raycast pass is HERE now: the LOS fan stops sight at walls and spills
 	# through doorways/windows — indoors or out. (Replaces the old flat "~5.5m
 	# indoors" clamp; the room's real shape is the clamp.)
-	# NIGHT is the other clamp: after dark you simply see LESS (daynight tax).
+	# NIGHT is the other clamp: after dark you simply see LESS — how much less is
+	# the MOON's call. HEADLIGHTS carve it back open: driving with the lamps on,
+	# the beam is your sight (this is why night driving works at all).
 	var range_mult := character.vision_range_mult * daynight.vision_mult()
+	if mode == Mode.DRIVE and active_car and active_car.headlights_on:
+		range_mult = maxf(range_mult, character.vision_range_mult * 0.85)
 	_refresh_sight_exclusions()
 	var reach: float = maxf(params[2] * clampf(range_mult, 0.12, 2.0), params[1])
 	var occl := _cast_sight_fan(body.global_position, reach)
@@ -490,6 +512,65 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	_percept_origin = body.global_position
 	_percept_facing = facing
 	_update_perception_fade(delta)
+
+
+# --- Recon: the binoculars NAME what they see (the distance problem, solved) ---
+
+func _update_recon_tags(binoc: bool) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if not binoc or cam == null:
+		if hud.recon_tag_count > 0:
+			hud.set_recon_tags(cam, [])
+		return
+	_recon_t -= get_physics_process_delta_time()
+	if _recon_t <= 0.0:
+		_recon_t = 0.12
+		_recon_entries = []
+		var origin: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+		var dir := cam_rig.binocular_aim_dir()
+		if dir.length_squared() < 0.01:
+			dir = player.aim_facing()
+		var half: float = ProtoVisionCone.MODE_BINOC[0] * character.vision_arc_mult
+		var reach: float = ProtoVisionCone.MODE_BINOC[2] * character.vision_range_mult * daynight.vision_mult()
+		var eye := origin + Vector3(0, 1.5, 0)
+		var found: Array = []
+		for g in ["threat", "proto_dog", "npc", "interactable"]:
+			for node in get_tree().get_nodes_in_group(g):
+				var e := node as Node3D
+				if e == null or not is_instance_valid(e) or e == player or e == active_car:
+					continue
+				var to := e.global_position - origin
+				to.y = 0.0
+				var d := to.length()
+				if d < 10.0 or d > reach:
+					continue # too close to need naming / beyond the glass
+				if dir.dot(to.normalized()) < cos(half):
+					continue
+				if sight_blocked(eye, e.global_position + Vector3(0, 0.9, 0)):
+					continue
+				found.append([d, e.global_position, "%s — %dm" % [_recon_name(e), int(d)]])
+		found.sort_custom(func(a, b): return a[0] < b[0])
+		for f in found.slice(0, 6):
+			_recon_entries.append([f[1], f[2]])
+	hud.set_recon_tags(cam, _recon_entries)
+
+
+func _recon_name(e: Node3D) -> String:
+	if e is ProtoHowler:
+		return "HOWLER"
+	if e is ProtoLurker:
+		return "LURKER"
+	if e is ProtoDog:
+		return (e as ProtoDog).dog_name.to_upper()
+	if e is ProtoNPC:
+		return (e as ProtoNPC).npc_name
+	if e is ProtoCar3D:
+		return (e as ProtoCar3D).display_name
+	if e is ProtoChest:
+		return (e as ProtoChest).container.label
+	if e is ProtoStash:
+		return "stash"
+	return "?"
 
 
 # --- LOS occlusion (the raycast pass): walls end sight, apertures let it through --
@@ -997,9 +1078,12 @@ func aim_point() -> Vector3:
 	var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
 	if aim_override.length_squared() > 0.01:
 		# Sim convention: a LONG override vector carries its own range (aim AT the
-		# target, converge there — like the mouse does); a unit vector = 25 m out.
+		# target, converge there — like the mouse does); a unit vector = 25 m out
+		# at CHEST height (the mouse plane's y=1.0 equivalent — keeps flat aims flat).
 		var d := aim_override.length()
-		return anchor + aim_override.normalized() * (d if d > 2.0 else 25.0)
+		if d > 2.0:
+			return anchor + aim_override
+		return anchor + aim_override.normalized() * 25.0 + Vector3(0, 1.0, 0)
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return anchor + player.facing() * 25.0
@@ -1023,18 +1107,18 @@ func aim_direction() -> Vector3:
 
 func fire_equipped() -> void:
 	var w := current_weapon()
-	if w == null or mode != Mode.FOOT or panel.is_open:
+	if w == null or mode != Mode.FOOT or panel.is_open or _reload_t > 0.0:
 		return
 	if w.mag <= 0 and not w.is_melee():
 		notify("*click* — reload (R)")
 		return
 	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
 	player.aim_now(aim_direction()) # orient arms/eyes at the intent
-	# The BULLET flies muzzle → aim point, so it lands exactly under the cursor
-	# (the muzzle sits in the right hand — center-based directions shot wide).
+	# The BULLET flies muzzle → aim point in FULL 3D: exactly under the cursor
+	# laterally AND angled to the target's height — low loping howlers taught us
+	# a hand-height horizontal ray flies right over short things.
 	var muzzle := player.muzzle_world()
 	var shot := aim_point() - muzzle
-	shot.y = 0.0
 	var dir := shot.normalized() if shot.length_squared() > 0.01 else player.aim_facing()
 	if w.fire(self, muzzle, dir):
 		if w.is_melee():
@@ -1062,7 +1146,7 @@ func throw_grenade() -> void:
 ## Shooting from the driver's seat: YOUR equipped gun, out the window, at the
 ## mouse (VEHICLES.md §6). Right-handed in a left seat — wasteland pragmatism.
 func fire_from_vehicle() -> void:
-	if mode != Mode.DRIVE or active_car == null or active_car.dead:
+	if mode != Mode.DRIVE or active_car == null or active_car.dead or _reload_t > 0.0:
 		return
 	var w := current_weapon()
 	if w == null:
@@ -1112,6 +1196,56 @@ func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 	audio.play_at("hurt", player.global_position)
 	stress = minf(100.0, stress + 18.0)
 	notify("💥 THROWN from the %s — the road ate %d hp" % [bike.display_name, int(dmg)])
+
+
+# --- The night pack -----------------------------------------------------------
+
+## A pack materializes out of the dark — the howl is your only warning.
+func spawn_howler_pack(origin: Vector3, count: int = 3) -> void:
+	for i in count:
+		var h := ProtoHowler.create(self)
+		add_child(h)
+		var ang := TAU * float(i) / float(count)
+		h.global_position = origin + Vector3(cos(ang), 0.0, sin(ang)) * 6.0 + Vector3(0, 0.4, 0)
+		howlers.append(h)
+	audio.play_at("howl", origin, 6.0)
+	hud.toast("🌙 Something HOWLS out in the dark")
+	stress = minf(100.0, stress + 10.0)
+
+
+func _update_night_pack(delta: float) -> void:
+	_pack_cd = maxf(0.0, _pack_cd - delta)
+	howlers = howlers.filter(func(h): return is_instance_valid(h))
+	if daynight.is_dark() and _pack_cd <= 0.0 and howlers.is_empty() and not character.dead:
+		_pack_cd = 90.0
+		var ang := _wound_rng.randf() * TAU
+		var base: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+		spawn_howler_pack(base + Vector3(cos(ang), 0.0, sin(ang)) * 45.0)
+
+
+# --- Timed reloads (combat feel: the mag swap is a commitment) ------------------
+
+func is_reloading() -> bool:
+	return _reload_t > 0.0
+
+
+func _update_reload(delta: float) -> void:
+	if _reload_t <= 0.0:
+		return
+	_reload_t -= delta
+	if _reload_t > 0.0:
+		return
+	var w := _reload_wpn
+	_reload_wpn = null
+	if w == null or not weapons.has(w):
+		return
+	var ammo_id: String = w.info()["ammo"]
+	var take: int = mini(w.info()["mag_size"] - w.mag, backpack.count(ammo_id))
+	if take > 0:
+		backpack.remove(ammo_id, take)
+		w.mag += take
+		audio.play_ui("click", -4.0, 0.8)
+		notify("Reloaded (+%d)" % take)
 
 
 # --- Doing stuff from the driver's seat ---------------------------------------
@@ -1170,20 +1304,21 @@ func fire_mount() -> void:
 
 
 func reload_equipped() -> void:
+	if _reload_t > 0.0:
+		return # already working the mag
 	var w := current_weapon()
-	if w == null:
+	if w == null or w.is_melee():
 		return
-	var ammo_id: String = w.info()["ammo"]
-	var need: int = w.info()["mag_size"] - w.mag
-	var have := backpack.count(ammo_id)
-	var take: int = mini(need, have)
-	if take <= 0:
-		notify("No %s left" % ammo_id)
+	if w.mag >= int(w.info()["mag_size"]):
 		return
-	backpack.remove(ammo_id, take)
-	w.mag += take
+	if backpack.count(w.info()["ammo"]) <= 0:
+		notify("No %s left" % w.info()["ammo"])
+		return
+	# The swap takes REAL time (per weapon); firing is blocked until it lands.
+	_reload_t = float(w.info().get("reload_s", 1.0))
+	_reload_wpn = w
 	audio.play_ui("click", -4.0)
-	notify("Reloaded (+%d)" % take)
+	notify("Reloading…")
 
 
 func _reload_mount() -> void:

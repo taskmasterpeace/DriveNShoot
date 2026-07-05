@@ -12,6 +12,9 @@ const WAIT_MULT := 60.0   ## hold T: an hour passes in ~2.5s
 var hour: float = 9.0 ## start mid-morning
 var day: int = 1
 var waiting: bool = false ## T held (sim hook)
+## THE MOON RUNS THE NIGHT (playtest law): how dark night gets is the moon's
+## call — full moon is a silver 0.72-sight night, new moon is 0.32 ink. 8-day cycle.
+var moon_phase: float = 0.55
 
 var _sun: DirectionalLight3D = null
 var _sky_mat: ProceduralSkyMaterial = null
@@ -35,6 +38,8 @@ func _physics_process(delta: float) -> void:
 	while hour >= 24.0:
 		hour -= 24.0
 		day += 1
+		# The lunar cycle turns: 8 days from new to full and back.
+		moon_phase = 0.5 - 0.5 * cos(TAU * float(day % 8) / 8.0)
 	_apply()
 
 
@@ -56,16 +61,28 @@ func is_dark() -> bool:
 	return daylight() <= 0.02 and _twilight() < 0.4
 
 
-## The perception engine's night tax: you SEE less after dark (0.55 deep night).
+## The perception engine's night tax — set by the MOON: full moon leaves you
+## 0.72 of your sight, new moon strips you to 0.32. Daylight restores 1.0.
 func vision_mult() -> float:
 	var brightness := maxf(daylight(), _twilight() * 0.6)
-	return lerpf(0.55, 1.0, clampf(brightness, 0.0, 1.0))
+	var night_floor := lerpf(0.32, 0.72, moon_phase)
+	return lerpf(night_floor, 1.0, clampf(brightness, 0.0, 1.0))
+
+
+func moon_icon() -> String:
+	if moon_phase < 0.2:
+		return "🌑"
+	if moon_phase < 0.45:
+		return "🌘"
+	if moon_phase < 0.75:
+		return "🌓"
+	return "🌕"
 
 
 func clock_text() -> String:
 	var h := int(hour)
 	var m := int((hour - float(h)) * 60.0)
-	var icon := "☀️" if not is_dark() else "🌙"
+	var icon := "☀️" if not is_dark() else moon_icon()
 	if hour > 18.0 and hour < 20.5:
 		icon = "🌆"
 	return "%s %02d:%02d" % [icon, h, m]
@@ -80,14 +97,21 @@ func _apply() -> void:
 	# The sun wheels overhead: rises east (6h), noon high, sets west (18h).
 	_sun.rotation_degrees.x = -lerpf(4.0, 62.0, dl)
 	_sun.rotation_degrees.y = -38.0 + (hour - 12.0) * 9.0
-	_sun.light_energy = maxf(0.03, bright * 1.25)
+	# Moonlight is the night's light source: a full moon silvers everything,
+	# a new moon leaves the headlights alone in the world.
+	_sun.light_energy = maxf(0.015 + 0.05 * moon_phase, bright * 1.25)
 	_sun.light_color = Color(1.0, 0.92, 0.78).lerp(Color(1.0, 0.6, 0.35), tw)
+	if bright < 0.05:
+		_sun.light_color = Color(0.72, 0.78, 0.95) # cold moon silver
 	if _env:
-		_env.ambient_light_energy = 0.08 + 0.52 * bright
+		_env.ambient_light_energy = 0.025 + 0.06 * moon_phase + 0.5 * bright
 		_env.fog_light_color = SKY_NIGHT[2].lerp(SKY_DUSK[2] if tw > 0.0 else SKY_DAY[2], bright)
 	if _sky_mat:
-		var top: Color = SKY_NIGHT[0].lerp(SKY_DUSK[0] if tw > 0.0 else SKY_DAY[0], bright)
-		var hor: Color = SKY_NIGHT[1].lerp(SKY_DUSK[1] if tw > 0.0 else SKY_DAY[1], bright)
+		var moonlit := 0.6 + 0.7 * moon_phase
+		var night_top: Color = SKY_NIGHT[0] * moonlit
+		var night_hor: Color = SKY_NIGHT[1] * moonlit
+		var top: Color = night_top.lerp(SKY_DUSK[0] if tw > 0.0 else SKY_DAY[0], bright)
+		var hor: Color = night_hor.lerp(SKY_DUSK[1] if tw > 0.0 else SKY_DAY[1], bright)
 		_sky_mat.sky_top_color = top
 		_sky_mat.sky_horizon_color = hor
 		_sky_mat.ground_horizon_color = hor

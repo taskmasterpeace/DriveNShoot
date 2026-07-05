@@ -489,6 +489,38 @@ func update_reticle(spread_deg: float, mouse: Vector2, show: bool, pinned: bool 
 		(_reticle_ticks[i] as ColorRect).color = tick_color
 
 
+# --- Recon tags: the binoculars NAME what they see (+ range) -------------------
+var _recon_labels: Array = []
+var recon_tag_count: int = 0 ## sim hook
+var recon_texts: Array = [] ## sim hook
+
+
+func set_recon_tags(cam: Camera3D, entries: Array) -> void:
+	if _recon_labels.is_empty():
+		for i in 6:
+			var l := Label.new()
+			l.add_theme_font_override("font", ProtoHUD.mixed_font())
+			l.add_theme_font_size_override("font_size", 13)
+			l.add_theme_color_override("font_color", AMBER)
+			l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+			l.add_theme_constant_override("outline_size", 4)
+			l.visible = false
+			add_child(l)
+			_recon_labels.append(l)
+	recon_tag_count = 0
+	recon_texts = []
+	for i in _recon_labels.size():
+		var l: Label = _recon_labels[i]
+		if cam != null and i < entries.size():
+			l.text = entries[i][1]
+			l.position = cam.unproject_position(entries[i][0] + Vector3(0, 2.0, 0)) + Vector2(12, -8)
+			l.visible = not cam.is_position_behind(entries[i][0])
+			recon_tag_count += 1
+			recon_texts.append(l.text)
+		else:
+			l.visible = false
+
+
 # --- NavHUD: the "arrow stuff" — one waypoint, edge-pinned arrow + distance ----
 var _nav_arrow: Label = null
 var _nav_dir: Vector2 = Vector2.ZERO ## sim hook: screen-space dir to waypoint

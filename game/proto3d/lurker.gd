@@ -32,11 +32,18 @@ func knock_down() -> void:
 
 var _hit_flash_t: float = 0.0
 var _flash_mat: StandardMaterial3D = null
+var _stun_t: float = 0.0
+
+
+func is_stunned() -> bool:
+	return _stun_t > 0.0
 
 
 func take_damage(amount: float) -> void:
 	if dead:
 		return
+	# Hits STAGGER — the stalk/claw stops dead for a beat (combat answers back).
+	_stun_t = minf(_stun_t + 0.3, 0.7)
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.8, 0), "-%d" % int(amount), Color(0.96, 0.86, 0.55), 110)
 	# HITS READ (playtest: "nothing shows they're taking damage"): the whole
 	# silhouette FLASHES hot for a beat and the thing staggers.
@@ -115,6 +122,14 @@ func _physics_process(delta: float) -> void:
 			for c in _visual.get_children():
 				if c is MeshInstance3D:
 					(c as MeshInstance3D).material_overlay = null
+
+	# Staggered by a hit: no legs, no claws until it recovers.
+	if _stun_t > 0.0:
+		_stun_t -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 16.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 16.0 * delta)
+		move_and_slide()
+		return
 
 	# Knocked down: helpless, no stalk, no claw, until it gets back up.
 	if knocked:

@@ -82,6 +82,10 @@ func _physics_process(delta: float) -> void:
 				main.backpack.add("9mm", 24)
 				main.use_item("pistol")
 				_check("pistol equips from item", main.current_weapon() != null and main.current_weapon().id == "pistol")
+				# Step CLEAR of the parked car first — your own ride is COVER now
+				# (3D shot lines clip the hull the old chest-high rays skimmed).
+				main.player.global_position = main.cars[0].global_position + Vector3(5.0, 0.3, 0)
+				main.player.velocity = Vector3.ZERO
 				main.aim_override = Vector3(1, 0, 0) # shoot east
 				_lurk = _spawn_lurker(Vector3(8, 0.4, 0))
 				_next()
@@ -125,7 +129,7 @@ func _physics_process(delta: float) -> void:
 				_key(KEY_R)
 				_next()
 		6:
-			if phase_t > 0.4:
+			if phase_t > 2.2: # reloads take REAL time now (shotgun 1.6s)
 				var w: ProtoWeapon = main.current_weapon()
 				_check("R reloads from backpack (mag %d)" % w.mag, w.mag > 0)
 				# rocket: two clustered lurkers, one boom

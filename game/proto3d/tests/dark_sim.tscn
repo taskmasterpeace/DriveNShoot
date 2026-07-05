@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3ddarksim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/dark_sim.gd" id="1_drk"]
+
+[node name="DarkSim" type="Node"]
+script = ExtResource("1_drk")

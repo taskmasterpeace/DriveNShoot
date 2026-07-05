@@ -8,12 +8,12 @@ enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
-		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0},
+		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
-		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0},
+		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6},
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
-		"speed": 20.0, "blast": 5.0},
+		"speed": 20.0, "blast": 5.0, "reload_s": 2.2},
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
@@ -28,6 +28,7 @@ const WEAPONS: Dictionary = {
 var id: String
 var mag: int = 0
 var bloom: float = 0.0 ## grows per shot, decays at rest — the reticle shows it
+var crit_chance: float = 0.15 ## the lucky shot: ×1.8, gold CRIT floater, sharp tick
 var _cd: float = 0.0
 
 
@@ -92,7 +93,10 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					ProtoFX.blood(main, t.global_position + Vector3(0, 1.1, 0))
 					if t.has_method("shove"):
 						t.shove(to_t.normalized(), w.get("shove", 2.5)) # steel carries weight — per-weapon
-					t.take_damage(w["damage"])
+					var crit := randf() < crit_chance
+					if crit:
+						ProtoFloater.pop(main, t.global_position + Vector3(0, 2.2, 0), "CRIT", Color(1.0, 0.8, 0.2), 150)
+					t.take_damage(w["damage"] * (1.8 if crit else 1.0))
 					hit_any = true
 					was_valid = is_instance_valid(t)
 					if "audio" in main and main.audio:
@@ -150,9 +154,12 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 			ProtoFX.blood(main, end)
 			if shove_power > 0.0 and col.has_method("shove"):
 				col.shove(dir, shove_power)
-			col.take_damage(dmg)
+			var crit := randf() < crit_chance
+			if crit:
+				ProtoFloater.pop(main, end + Vector3(0, 1.0, 0), "CRIT", Color(1.0, 0.8, 0.2), 150)
+			col.take_damage(dmg * (1.8 if crit else 1.0))
 			if "audio" in main and main.audio:
-				main.audio.play_ui("hitmark", -14.0)
+				main.audio.play_ui("hitmark", -12.0 if crit else -14.0, 1.5 if crit else 1.0)
 			if "hud" in main and main.hud:
 				main.hud.pulse_hit()
 			if main.has_method("grant_xp"):

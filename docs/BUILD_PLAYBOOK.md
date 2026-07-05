@@ -81,7 +81,17 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–6 slice + extras), 25 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–6 slice + extras), 26 test suites all green:**
+- **THE DARK IS REAL (dark_sim 16/16):** the **MOON runs the night** — vision floor lerps
+  0.32 (new moon, ink) → 0.72 (full, silver); phase icon in the clock (🌑🌘🌓🌕), 8-day cycle.
+  **HEADLIGHTS carve night open** while driving (cone floor 0.85 with lamps on — the beam IS
+  your sight). **THE HOWLER PACK** owns deep night: glowing-eyed pack hunters that CIRCLE at
+  the rim of your actual cone (moon-dependent!), CHARGE at 9.5 m/s, fear headlight beams, claw
+  hard, and BURN OFF at dawn — announced by a synth HOWL. Combat feel 2: **hits STAGGER**
+  (charges die mid-stride — lurkers too), **CRITS** ×1.8 (gold floater + sharp tick), **timed
+  reloads** (0.9–2.2 s, fire blocked, switch cancels). **Binoculars solved the distance
+  problem**: sweep speed scales with reach (far = fast), camera rides 0.85 downrange, and the
+  glass **NAMES what it sees with ranges** ("LURKER — 84m") through real LOS.
 - **DAY/NIGHT + THE PACK RIDES (life_sim 18/18):** `daynight.gd` — 24-min full day drives the
   sun/sky/fog, vehicles light their own HEADLAMPS at dark, the clock lives in the location bar
   (☀️/🌆/🌙 hh:mm), **night taxes your EYES** (cone range ×0.55 deep night — darkness is real
@@ -187,6 +197,22 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (the dark pass — moon/howlers/feel-2/recon):** dark_sim 16/16 ×3; battery 26/26.
+MOONLIGHT is the night dial (`daynight.moon_phase`, 8-day cycle → vision floor 0.32–0.72,
+moon-lit ambient/sky, phase icons). Headlights raise the driving cone floor to 0.85 — night
+driving works BECAUSE of the lamps. `howler.gd`: the night threat — packs circle at the RIM of
+the real vision cone (they read `last_range_m`: darker moon = closer teeth), charge 9.5 m/s,
+shy off headlight beams (`_in_headlights`), claw 12, stagger-on-hit, flee+despawn at dawn;
+spawner in main (howl synth, 35 s first-night grace so night-dipping sims stay clean). FEEL 2:
+stagger stuns lurkers+howlers (counterplay: shooting STOPS the charge), crits 15% ×1.8, timed
+reloads (`reload_s` per weapon, fire blocked, weapon-switch cancels). RECON: binocular sweep
+scales with distance, camera rides 0.85 downrange, `_update_recon_tags` names+ranges everything
+in the glass cone through real LOS (hud tag pool). THREE truths the sims taught: on-foot shots
+now fly the TRUE 3D line (hand-height horizontal rays flew over the low howlers), your own
+parked car is COVER (arsenal repositioned — rays into your own hull are real), and normalized
+3D sim-aims project their y-slope 25 m out (town aimed 6 m over Mercy's head — unnormalized
+converge-at-target is the convention). NEXT: Stage 6 deepening or Stage 4 finishers.
+
 **2026-07-05 (day/night + dogs ride along + seat verbs):** life_sim 18/18 ×4 deterministic;
 battery 25/25. `daynight.gd`: 24-min day, sun wheels/sky lerps (day/dusk/night presets), auto
 HEADLIGHTS per vehicle, clock in the location bar, **night cuts the vision cone to 0.55** (the

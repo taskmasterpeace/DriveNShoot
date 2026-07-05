@@ -143,10 +143,10 @@ func _physics_process(delta: float) -> void:
 				if main.mode == 0:
 					_check("no default hood MG on the Scavenger anymore", main.active_car.mount_weapon == null)
 					var fwd: Vector3 = main.active_car.facing()
-					# 7m, not 14: the test is "you CAN kill from the seat", not
+					# 6m, not 14: the test is "you CAN kill from the seat", not
 					# "pistol bloom at range" (that fight is legitimately hard).
-					_lurk = _spawn(fwd * 7.0 + Vector3(0, 0.4, 0))
-					_lurk.global_position = main.active_car.global_position + fwd * 7.0 + Vector3(0, 0.4, 0)
+					_lurk = _spawn(fwd * 6.0 + Vector3(0, 0.4, 0))
+					_lurk.global_position = main.active_car.global_position + fwd * 6.0 + Vector3(0, 0.4, 0)
 					main.aim_override = fwd # "mouse" on the lurker out the windshield
 					_mag0 = main.current_weapon().mag
 					_next()

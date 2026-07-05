@@ -173,7 +173,9 @@ func _physics_process(delta: float) -> void:
 				_place(Vector3(96.0, 0.35, -315.0))
 				_key(KEY_R) # top the mag first
 			elif is_instance_valid(_trader) and main.respect.infamy("meridian") < 60.0:
-				main.aim_override = (_trader.global_position + Vector3(0, 1.1, 0) - main.player.global_position).normalized()
+				# UNNORMALIZED: converge exactly at Mercy's chest (a normalized 3D
+				# vector projects its y-slope 25m out and shoots over her head).
+				main.aim_override = _trader.global_position + Vector3(0, 1.1, 0) - main.player.global_position
 				if phase_t > 0.5 and fmod(phase_t, 0.4) < delta:
 					_click()
 				if phase_t > 4.0:

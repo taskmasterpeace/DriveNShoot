@@ -60,6 +60,8 @@ static func _build_all() -> void:
 	streams["hitmark"] = _synth(0.045, func(t, p): return sin(t * 1900.0 * TAU) * exp(-p * 16.0) * 0.4)
 	# Car horn: a two-note blare (calls the pack, and later: heat)
 	streams["honk"] = _synth(0.5, func(t, p): return (signf(sin(t * 329.0 * TAU)) * 0.25 + signf(sin(t * 415.0 * TAU)) * 0.25) * minf(1.0, (1.0 - p) * 4.0))
+	# The HOWL — the night pack announcing itself (rising-falling wolf tone)
+	streams["howl"] = _synth(1.3, func(t, p): return sin(t * (380.0 + 320.0 * sin(p * PI)) * TAU) * (0.55 - 0.4 * absf(p - 0.4)) * exp(-p * 1.1))
 	# Engine loop: saw-ish hum (looped)
 	var eng := _synth(0.5, func(t, p): return (fmod(t * 65.0, 1.0) * 2.0 - 1.0) * 0.28 + sin(t * 32.5 * TAU) * 0.22)
 	eng.loop_mode = AudioStreamWAV.LOOP_FORWARD
@@ -97,12 +99,13 @@ func play_at(id: String, pos: Vector3, volume_db: float = 0.0, pitch: float = 1.
 
 
 ## Flat UI sound (toasts, clicks).
-func play_ui(id: String, volume_db: float = -8.0) -> void:
+func play_ui(id: String, volume_db: float = -8.0, pitch: float = 1.0) -> void:
 	if not streams.has(id):
 		return
 	ProtoAudio.play_count += 1
 	_ui_player.stream = streams[id]
 	_ui_player.volume_db = volume_db
+	_ui_player.pitch_scale = pitch
 	_ui_player.play()
 
 

@@ -77,7 +77,7 @@ func _desired_position() -> Vector3:
 	# Binoculars: the camera itself drifts partway toward where you're glassing,
 	# so the view genuinely travels downrange while staying top-down.
 	if binoculars:
-		base += Vector3(_binoc_view.x, 0, _binoc_view.y) * 0.7
+		base += Vector3(_binoc_view.x, 0, _binoc_view.y) * 0.85 # ride almost all the way downrange
 	return base
 
 
@@ -95,7 +95,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	# "snap" you felt); the _binoc_view easing in _physics_process smooths raise/lower/edge.
 	if binoculars and event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
-		binocular_offset += Vector2(mm.relative.x, mm.relative.y) * (binocular_sensitivity / binocular_zoom)
+		# THE DISTANCE FIX: sweep speed grows with how far out you're looking —
+		# near = surgeon, far = fast traverse (crossing 100 m no longer takes a
+		# desk of mousepad). Zoom still steadies the hand.
+		var far_scale := 1.0 + _binoc_view.length() / 28.0
+		binocular_offset += Vector2(mm.relative.x, mm.relative.y) * (binocular_sensitivity * far_scale / binocular_zoom)
 		if binocular_offset.length() > binocular_range:
 			binocular_offset = binocular_offset.normalized() * binocular_range
 

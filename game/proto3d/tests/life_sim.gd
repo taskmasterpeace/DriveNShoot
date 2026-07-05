@@ -92,7 +92,8 @@ func _physics_process(delta: float) -> void:
 				_check("2 AM is dark", main.daynight.is_dark())
 				_check("night taxes your EYES (cone %.0fm < 24)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m < 24.0)
 				_check("headlights come on at dark", main.cars[0].headlights_on)
-				_check("clock reads night (%s)" % main.daynight.clock_text(), main.daynight.clock_text().contains("🌙"))
+				# The night icon is the MOON PHASE now (🌑🌘🌓🌕) — assert "not daytime".
+				_check("clock reads night (%s)" % main.daynight.clock_text(), not main.daynight.clock_text().contains("☀️"))
 				_next()
 		3: # HOLD T TO WAIT: the clock sprints
 			if not _did:
