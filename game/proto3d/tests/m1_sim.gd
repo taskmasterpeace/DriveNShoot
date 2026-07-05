@@ -136,26 +136,28 @@ func _physics_process(delta: float) -> void:
 				_check("door swung open", main.house.front_door.is_open)
 				Input.action_press("move_up") # walk through the doorway
 				_next()
-		12:
+		12: # inside by the door — now WALK across to the ramp (the real path)
 			if phase_t > 2.0:
 				Input.action_release("move_up")
 				_check("walked THROUGH the door (roof hid)", not main.house._roof.visible)
-				# Stair base (setup teleport), then climb with inputs only
-				_place_player(main.house.global_position + Vector3(3.85, 0.4, 2.8))
+				_place_player(main.house.global_position + Vector3(-1.0, 0.5, 4.0))
+				Input.action_press("move_right") # head east along the front, toward the stairs
 				_next()
-		13:
-			if phase_t > 0.3:
-				Input.action_press("move_up")
+		13: # reach the ramp, then turn and climb
+			var lx: float = main.player.global_position.x - main.house.global_position.x
+			if lx > 3.3 or phase_t > 4.0:
+				Input.action_release("move_right")
+				Input.action_press("move_up") # climb the ramp (-Z)
 				_next()
 		14:
 			var py: float = main.player.global_position.y - main.house.global_position.y
 			if py > 2.9:
 				Input.action_release("move_up")
-				_check("CLIMBED the stairs by walking (y=%.2f)" % py, true)
+				_check("WALKED across the room and UP the ramp (y=%.2f)" % py, true)
 				_next()
-			elif phase_t > 5.0:
+			elif phase_t > 6.0:
 				Input.action_release("move_up")
-				_check("CLIMBED the stairs by walking (y=%.2f)" % py, false)
+				_check("WALKED across the room and UP the ramp (y=%.2f)" % py, false)
 				_next()
 		15: # stash upstairs
 			if phase_t > 0.4:

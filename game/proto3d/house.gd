@@ -79,30 +79,33 @@ func build() -> void:
 	# Landing slab at the top of the stairs: x [3.0, hw], z [-hd, -2.2].
 	_floor2_slab(Vector3(hw - 3.0, 0.2, -2.2 + hd), Vector3((3.0 + hw) / 2.0, slab_y, (-hd - 2.2) / 2.0))
 
-	# --- Stairs: ramp collision + step visuals, rising back-to-front gap -------
-	# Run from z=+3.4 (bottom, y=0) to z=-2.2 (top, y=FLOOR_H+0.2) in the east strip.
-	var stair_x := (3.0 + hw - WALL_T) / 2.0
-	var run := 3.4 - (-2.2)
+	# --- Stairs: a SOLID smooth RAMP you just walk up, with decorative treads on
+	# top. The stepped/thin-box collision was too fiddly to climb — playtest fix is
+	# literally "make it a ramp that looks like stairs." A wide triangular wedge
+	# (nothing to catch on) rising from the room floor to the landing. -------------
+	var stair_x := 3.6
+	var half_w := 1.1        # 2.2 m wide — easy to line up
+	var z_base := 4.0        # front / bottom (y=0), reachable from the room
+	var z_top := -2.4        # back / top — overlaps the landing so you step off flush
 	var rise := FLOOR_H + 0.2
-	var ramp_len := sqrt(run * run + rise * rise)
-	var ramp := StaticBody3D.new()
-	ramp.position = Vector3(stair_x, rise / 2.0, (3.4 + -2.2) / 2.0)
-	# +X rotation drops the +Z (door-side) end: bottom at the door, top at the back.
-	# (Was negative — the collision ramp ascended BACKWARD vs the visual steps. Playtest bug #1.)
-	ramp.rotation.x = atan2(rise, run)
-	var rshape := CollisionShape3D.new()
-	var rbox := BoxShape3D.new()
-	rbox.size = Vector3(1.6, 0.25, ramp_len)
-	rshape.shape = rbox
-	ramp.add_child(rshape)
-	add_child(ramp)
-	# Step visuals: 9 steps
-	# Thin TREADS riding the ramp line (the old full-height columns read as a wall).
-	var steps := 9
+	var wedge := StaticBody3D.new()
+	wedge.position = Vector3(stair_x, 0, 0)
+	var wshape := CollisionShape3D.new()
+	var hull := ConvexPolygonShape3D.new()
+	hull.points = PackedVector3Array([
+		Vector3(-half_w, 0.0, z_base), Vector3(-half_w, 0.0, z_top), Vector3(-half_w, rise, z_top),
+		Vector3(half_w, 0.0, z_base), Vector3(half_w, 0.0, z_top), Vector3(half_w, rise, z_top),
+	])
+	wshape.shape = hull
+	wedge.add_child(wshape)
+	add_child(wedge)
+	# Decorative treads riding the ramp surface — pure looks, no collision.
+	var steps := 10
 	for i in steps:
-		var t1 := float(i + 1) / float(steps)
-		var sz := 3.4 - (float(i) / float(steps)) * run - (run / float(steps)) / 2.0
-		ProtoWorldBuilder.box_visual(self, Vector3(1.6, 0.14, run / float(steps) + 0.04), Vector3(stair_x, t1 * rise - 0.07, sz), Color(0.42, 0.36, 0.28))
+		var tt := (float(i) + 0.5) / float(steps)
+		var sz := lerpf(z_base, z_top, tt)
+		var sy := lerpf(0.0, rise, tt)
+		ProtoWorldBuilder.box_visual(self, Vector3(2.2, 0.12, (z_base - z_top) / float(steps) + 0.06), Vector3(stair_x, sy + 0.03, sz), Color(0.42, 0.36, 0.28))
 
 	# --- Roof: hides when you walk in ------------------------------------------
 	_roof = ProtoWorldBuilder.box_body(self, Vector3(WIDTH + 0.8, 0.25, DEPTH + 0.8), Vector3(0, FLOOR_H * 2.0 + 0.35, 0), Color(0.40, 0.26, 0.18))

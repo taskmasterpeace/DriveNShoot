@@ -42,6 +42,9 @@ var _dive_dir: Vector3 = Vector3.FORWARD
 static func create() -> ProtoPlayer3D:
 	var p := ProtoPlayer3D.new()
 	p.add_to_group("player3d") # NOT "player" — the 2D autoloads type-grab that group
+	# Slope handling so ramps (stairs) are walkable and you stick to them.
+	p.floor_max_angle = deg_to_rad(50)
+	p.floor_snap_length = 0.6
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.35
