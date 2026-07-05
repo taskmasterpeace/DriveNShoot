@@ -66,6 +66,13 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+**2026-07-05 (perception v2):** cone_sim 6/6 — cone is WORLD-METER based (zoom exploit dead:
+55.0m constant across zoom), true sight RANGE added (binoculars now mechanically matter, 120m),
+🏴‍☠️ eyepatch item halves the arc via character vision mults (traits/headgear hook LIVE), dog
+alerts/nose REVEAL a bubble at the smelled spot (`vision_cone.reveal_at`). Sims: 17 suites.
+NEXT: **Stage 6 Living World** — trader + bounty + Respect v1, plugging the aggregate-sim
+engine into the metaworld socket (`metaworld.gd` offscreen_event is the plug point).
+
 **2026-07-05 (metasystem slice):** THE METAWORLD is proven (dogmeta_sim 11/11). Guarding dogs
 **dehydrate** to records when you leave the AoI bubble, an off-screen roll can wound/kill the
 record, and they **hydrate** back on return — come home to find it gone (`metaworld.gd`,
