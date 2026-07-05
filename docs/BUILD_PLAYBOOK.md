@@ -81,7 +81,17 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–6 slice + extras), 26 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–8 slices + extras), 28 test suites all green:**
+- **STAGE 7 — COMPANIONS + TAMING + THE SECOND WINDOW (stage7_sim 13/13):** hire **Sam the
+  Drifter** (40 jack, by the market) — follows dog-law, **FIGHTS with his own gun**, and
+  **SCOUTS** (his contacts ping your perception — "one perception engine, many sensors"); he
+  boards vehicles with the pack (one boarding law, animal or human). **TAMING rung 1:** stagger
+  a howler + meat ×3 → **FANG the Mutant Hound** joins the pack with every dog system free.
+  **SecondaryView:** ONE PiP module — **V** cycles 📡DOGCAM / 🪞REARVIEW / 🛸DRONE, modes
+  self-skip when their eye doesn't exist (scopes/radar/minimap bolt on later).
+- **STAGE 8 rung 1 — THE SCOUT DRONE (drone_sim 6/6):** 🛸 deploys from the pack (chest has
+  one; Mercy sells them at 55), patrols a ring overhead, PINGS threats into your perception,
+  Second Window rides its eye, battery death = it lands itself as a pickup.
 - **THE DARK IS REAL (dark_sim 16/16):** the **MOON runs the night** — vision floor lerps
   0.32 (new moon, ink) → 0.72 (full, silver); phase icon in the clock (🌑🌘🌓🌕), 8-day cycle.
   **HEADLIGHTS carve night open** while driving (cone floor 0.85 with lamps on — the beam IS
@@ -164,7 +174,8 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 **Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt/feed · **C**
 whistle (tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet ·
 **M** map · **N** waypoint · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
-**P** pet the dog · **T** hold to wait (clock sprints) · LMB fire · scroll zoom.
+**P** pet the dog · **T** hold to wait (clock sprints) · **V** Second Window (dogcam/rearview/
+drone) · LMB fire · scroll zoom.
 
 **TWO clean NEXT builds (user's choice):**
 1. **Stage 6 deepening:** ~~trader + bounty + Respect v1~~ → SHIPPED 2026-07-05 (town_sim).
@@ -197,6 +208,23 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (STAGE 7 + STAGE 8 rung 1 — companions/taming/second window/drone):** stage7_sim
+13/13 ×4, drone_sim 6/6; battery 28/28. **Companions**: `companion.gd` — Sam the Drifter (hire
+via `drifter` NPC archetype row, 40 jack): dog-law follow, his OWN hitscan vs threats (flash/
+blood/tracer FX), SCOUT callouts → `vision_cone.reveal_at` when he sees what you can't; boards
+vehicles before the dogs (humans call shotgun; same `dog_seats` pool). **Taming rung 1** on the
+howler: `interactable` while STUNNED only, meat ×3 (feeding refreshes the stagger) → replaced by
+a SECURITY ProtoDog "Fang / Mutant Hound" via the real adoption path. **SecondaryView**
+(`secondary_view.gd`): SubViewport PiP sharing the world; V cycles DOGCAM/REARVIEW/DRONE with
+availability self-skip. **Stage 8**: `drone.gd` — pack-deployed patrol ring, threat pings on the
+one perception channel, battery→self-landing pickup chest; ITEMS/PRICES rows. SIM-CRAFT truths
+re-paid: tap-then-teleport RACES the input flush (_exit_car overwrote the placement — always
+place AFTER the tap lands, next phase); daylight makes howlers FLEE (tame at night); charges
+legitimately BREAK on headlight beams (stage night duels in open dark); crits can one-shot a
+test subject (zero crit_chance for duels). NEXT: Stage 6 deepening (schedules/gossip), Stage 7
+full (loyalty, taming ladder, radar), Stage 8 forts/agriculture — or Stage 9 MP port (the ENet
+donor + AoI design in TRAVEL_AND_NETCODE §3; chunk streaming already fits it).
+
 **2026-07-05 (the dark pass — moon/howlers/feel-2/recon):** dark_sim 16/16 ×3; battery 26/26.
 MOONLIGHT is the night dial (`daynight.moon_phase`, 8-day cycle → vision floor 0.32–0.72,
 moon-lit ambient/sky, phase icons). Headlights raise the driving cone floor to 0.85 — night

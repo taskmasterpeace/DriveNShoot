@@ -120,20 +120,27 @@ The world remembers you.
 - **Deep-dive:** `systems/WORLD_NPCS.md`. Uses: Perception cone, Memory, Schedule, Blueprint.
 
 ### Stage 7 — Companions, Animals & the Second Window *(high-payoff foundational systems)*
-- **Companion system (big bang-for-buck):** dogs AND people follow, guard, fight, scout —
-  a companion extends your **perception cone** (a dog's nose = a mobile sensor). One system,
-  animal or human.
-- **Animals & taming:** dogs → mutant hounds → wolves → roach mounts → war beetles (PROGRESSION.md).
-- **The SecondaryView system** (multi-use viewport): **drone full-screen takeover**, scopes,
-  **electronic-sight radar with directional arrows**, minimap — one engine module, many uses.
-  ← *research subagent feeding this.*
-- **Deep-dive:** `systems/INTERFACE_AND_BODY.md` (SecondaryView) + WORLD_NPCS (companions).
+- ✅ **Slice SHIPPED 2026-07-05** (`proto3d/tests/stage7_sim.tscn` 13/13):
+  **Companions** — Sam the Drifter hires on (40 jack): follows (dog law), FIGHTS with his own
+  gun, and SCOUTS — contacts HE sees that you can't ping your perception (reveal). One boarding
+  law, animal or human: he climbs into vehicles with the pack.
+  **Taming rung 1** — stagger a howler, feed it meat ×3 → FANG the Mutant Hound joins the pack
+  (inherits every dog system: whistle, guard, ride-along, metaworld).
+  **SecondaryView** — one PiP module, V cycles 📡DOGCAM / 🪞REARVIEW / 🛸DRONE; modes self-skip
+  when their eye doesn't exist.
+- Remaining (full stage): companion permadeath/loyalty, deeper taming ladder (wolves → roach
+  mounts → war beetles), drone full-screen takeover, scopes, radar arrows, minimap on the SAME
+  module. **Deep-dive:** `systems/INTERFACE_AND_BODY.md` (SecondaryView) + WORLD_NPCS (companions).
 
 ### Stage 8 — Progression Content, Automation & Base Building
 The long tail that makes builds matter.
-- Combat mods & Armoring (Mad Max customization, load/class: Scout/Raider/Tank/Mule),
-  **robotics/drones** (Hotwire→Drone, 8 tiers), **construction/forts** (bus→bunker),
-  **agriculture**, power grid, fusion battery. All plug into the Stage-3 Skill engine.
+- ✅ **Robotics rung 1 SHIPPED 2026-07-05** (`proto3d/tests/drone_sim.tscn` 6/6): the SCOUT
+  DRONE — deploys from the pack (🛸 item, trader sells it, one in the safehouse chest), patrols
+  a ring overhead, PINGS threats into your perception (same channel as the dog's nose and Sam's
+  callouts — one perception engine, many sensors), Second Window rides its eye, and a dead
+  battery lands it as a pickup.
+- Remaining: combat mods & Armoring (Scout/Raider/Tank/Mule), drone tiers 2–8 (Hotwire→Drone
+  ladder), **construction/forts** (bus→bunker), **agriculture**, power grid, fusion battery.
 - **Deep-dive:** PROGRESSION.md (§ Robotics/Taming/Agriculture/Base). Uses: Skill, Blueprint, Container.
 
 ### Stage 9 — Multiplayer *(PZ-style: big world, cheap server)*

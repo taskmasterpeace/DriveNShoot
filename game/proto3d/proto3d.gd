@@ -167,7 +167,7 @@ func _ready() -> void:
 	# A supply chest inside the safehouse — same interface as every trunk.
 	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
-	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1})
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -209,7 +209,14 @@ func _ready() -> void:
 	var secman := ProtoNPC.create("secman")
 	secman.position = Vector3(104.0, 0.2, -314.0)
 	add_child(secman)
+	# Sam the Drifter waits by the market — 40 jack buys a gun that walks with you.
+	var drifter := ProtoNPC.create("drifter")
+	drifter.position = Vector3(97.0, 0.2, -312.5)
+	add_child(drifter)
 	respect.changed.connect(_on_respect_changed)
+
+	sview = ProtoSecondaryView.create()
+	add_child(sview)
 
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
@@ -244,6 +251,12 @@ var _reload_wpn: ProtoWeapon = null
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
 var _recon_entries: Array = []
+
+## STAGE 7: companions (people follow the same law as the pack) + the Second
+## Window. STAGE 8 rung 1: the scout drone.
+var companions: Array = []
+var sview: ProtoSecondaryView = null
+var drone: ProtoDrone = null
 
 
 func _build_environment() -> void:
@@ -306,6 +319,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_honk()
 		elif kc == KEY_P:
 			_pet_dog()
+		elif kc == KEY_V:
+			sview.cycle(self)
 		elif kc == KEY_R:
 			if character.dead:
 				get_tree().reload_current_scene()
@@ -454,6 +469,7 @@ func _physics_process(delta: float) -> void:
 			c.set_headlights(daynight.is_dark())
 	_update_night_pack(delta)
 	_update_reload(delta)
+	sview.update_view(self)
 	_update_bounty()
 	_update_whistle(delta)
 	_update_stress(delta)
@@ -556,6 +572,8 @@ func _update_recon_tags(binoc: bool) -> void:
 
 
 func _recon_name(e: Node3D) -> String:
+	if e is ProtoCompanion:
+		return "SAM (yours)"
 	if e is ProtoHowler:
 		return "HOWLER"
 	if e is ProtoLurker:
@@ -1045,6 +1063,18 @@ func use_item(id: String) -> bool:
 		equipped = weapons.size() - 1
 		notify("Equipped the %s (%s)" % [wpn.info()["name"], str(weapons.size())])
 		return true
+	if id == "drone":
+		# STAGE 8 rung 1 (Robotics): deploy the bird. It patrols overhead, pings
+		# threats into your perception, and lands as a pickup when the cell dies.
+		if drone != null and is_instance_valid(drone):
+			notify("The bird's already up (V to watch it)")
+			return false
+		drone = ProtoDrone.create(self, player.global_position)
+		add_child(drone)
+		drone.global_position = player.global_position + Vector3(0, 2.0, 0)
+		audio.play_ui("blip", -6.0)
+		notify("🛸 Drone up — it patrols and PINGS what it sees (V to ride its eye)")
+		return true
 	match id:
 		"bandage":
 			if bleeding > 0 or character.worst_part() != "" and character.body[character.worst_part()].ratio() < 1.0:
@@ -1196,6 +1226,22 @@ func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 	audio.play_at("hurt", player.global_position)
 	stress = minf(100.0, stress + 18.0)
 	notify("💥 THROWN from the %s — the road ate %d hp" % [bike.display_name, int(dmg)])
+
+
+# --- Stage 7: hiring a companion ------------------------------------------------
+
+## 40 jack: Sam stops being an NPC and becomes YOURS — follows, fights, scouts.
+func hire_companion(npc: ProtoNPC) -> void:
+	if not backpack.remove("jack", 40):
+		notify("Sam: 'Forty. I count fewer in that pack.'")
+		return
+	var c := ProtoCompanion.create(self)
+	add_child(c)
+	c.global_position = npc.global_position
+	companions.append(c)
+	npc.queue_free()
+	audio.play_ui("blip", -4.0)
+	notify("🧍 Sam shoulders his rifle: 'Where we headed?'")
 
 
 # --- The night pack -----------------------------------------------------------
@@ -1480,6 +1526,15 @@ func enter_car(car: ProtoCar3D) -> void:
 	# THE PACK RIDES ALONG: nearby dogs hop in, up to the class's dog_seats
 	# (van 4, car/pickup 2, buggy 1, bike none). Overflow holds the ground.
 	var seats: int = int(car.spec.get("dog_seats", 0))
+	# Humans call shotgun first (Stage 7: one boarding law, animal or human).
+	for c in companions:
+		if seats <= 0:
+			break
+		if is_instance_valid(c) and c.riding_in == null and not c.staying \
+				and c.global_position.distance_to(car.global_position) < 9.0:
+			c.board(car)
+			seats -= 1
+			notify("🧍 %s climbs in" % c.comp_name)
 	for d in dogs:
 		if seats <= 0:
 			break
@@ -1502,6 +1557,10 @@ func _unboard_dogs(car: ProtoCar3D) -> void:
 		if is_instance_valid(d) and d.riding_in == car:
 			i += 1
 			d.unboard(car.global_position + car.global_basis.x * (1.8 + 0.7 * i) + Vector3(0, 0.4, 0))
+	for c in companions:
+		if is_instance_valid(c) and c.riding_in == car:
+			i += 1
+			c.unboard(car.global_position + car.global_basis.x * (1.8 + 0.7 * i) + Vector3(0, 0.4, 0))
 
 
 func _exit_car() -> void:

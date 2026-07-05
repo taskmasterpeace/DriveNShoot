@@ -21,6 +21,7 @@ const ITEMS: Dictionary = {
 	"eyepatch": {"name": "Eye patch", "emoji": "🏴‍☠️", "usable": true, "w": 0.05},
 	"machete": {"name": "Machete", "emoji": "🔪", "usable": true, "w": 1.1},
 	"grenade": {"name": "Grenade", "emoji": "💣", "usable": false, "w": 0.5},
+	"drone": {"name": "Scout drone", "emoji": "🛸", "usable": true, "w": 3.0},
 }
 
 

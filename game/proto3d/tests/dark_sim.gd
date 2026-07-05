@@ -127,6 +127,9 @@ func _physics_process(delta: float) -> void:
 		3: # THE PACK: deep night + no grace = howlers, announced by the HOWL
 			if _step == 0:
 				_step = 1
+				# Step AWAY from the lit car first: charges legitimately BREAK on
+				# headlight beams (the mechanic), so the duel needs open dark.
+				_place(Vector3(60, 0.3, 340))
 				_sound0 = ProtoAudio.play_count
 				main._pack_cd = 0.0
 			elif main.howlers.size() >= 2:
@@ -152,12 +155,16 @@ func _physics_process(delta: float) -> void:
 				main.backpack.add("pistol", 1)
 				main.backpack.add("9mm", 36)
 				main.use_item("pistol")
-			elif is_instance_valid(_howler) and not _howler.is_stunned() and phase_t < 4.5:
+				main.current_weapon().crit_chance = 0.0 # a crit could one-shot the subject
+			elif is_instance_valid(_howler) and not _howler.is_stunned() and phase_t < 8.0:
 				main.aim_override = _howler.global_position + Vector3(0, 0.8, 0) - main.player.global_position
-				if fmod(phase_t, 0.4) < delta:
+				if _howler.state != ProtoHowler.HowlState.CHARGE:
+					_howler.force_charge() # shoot chargers, not distant orbiters
+				if _howler.global_position.distance_to(main.player.global_position) < 10.0 and fmod(phase_t, 0.4) < delta:
 					_click()
 			elif is_instance_valid(_howler) and _howler.is_stunned():
 				_check("a hit STAGGERS the charge (stunned)", true)
+				main.current_weapon().crit_chance = 0.15
 				_next()
 			else:
 				_check("a hit STAGGERS the charge", is_instance_valid(_howler) and _howler.is_stunned())

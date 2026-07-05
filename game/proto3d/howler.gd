@@ -30,10 +30,14 @@ var _flash_mat: StandardMaterial3D = null
 var _rng := RandomNumberGenerator.new()
 
 
+var tame_progress: int = 0 ## STAGE 7 taming rung 1: staggered + fed meat ×3 = YOURS
+
+
 static func create(main: Node) -> ProtoHowler:
 	var h := ProtoHowler.new()
 	h._main = main
 	h.add_to_group("threat")
+	h.add_to_group("interactable") # taming: E only works while it's STUNNED
 	h._rng.randomize()
 	h._orbit_sign = 1.0 if h._rng.randf() > 0.5 else -1.0
 	h._charge_cd = h._rng.randf_range(2.5, 6.0)
@@ -117,6 +121,41 @@ func knock_down() -> void:
 func force_charge() -> void:
 	state = HowlState.CHARGE
 	_charge_cd = 0.0
+
+
+# --- TAMING (Stage 7, PROGRESSION ladder: dogs → MUTANT HOUNDS → …) ------------
+## Only a STAGGERED howler can be approached; meat while it's down builds trust.
+
+func interact_position() -> Vector3:
+	return global_position
+
+
+func interact_prompt(main: Node) -> String:
+	if dead or not is_stunned():
+		return "" # you don't hand-feed a thing that's charging you
+	if main.backpack.count("meat") <= 0:
+		return "(it's down — MEAT could tame it)"
+	return "E — Offer meat (tamed %d/3)" % tame_progress
+
+
+func interact(main: Node) -> void:
+	if dead or not is_stunned() or not main.backpack.remove("meat", 1):
+		return
+	tame_progress += 1
+	_stun_t = maxf(_stun_t, 1.4) # eating keeps it down
+	if "audio" in main and main.audio:
+		main.audio.play_at("growl", global_position, -8.0, 1.3)
+	if tame_progress < 3:
+		main.notify("🍖 It tears the meat apart... and watches you (%d/3)" % tame_progress)
+		return
+	# TAMED: the howler becomes a MUTANT HOUND — a full pack dog. Every dog
+	# system (whistle, guard, ride-along, metaworld) is inherited for free.
+	var hound := ProtoDog.create(ProtoDog.DogType.SECURITY, "Fang", "Mutant Hound")
+	main.add_child(hound)
+	hound.global_position = global_position
+	hound.interact(main) # the adoption path — it joins the pack properly
+	main.notify("🐺 FANG the Mutant Hound is YOURS — the night just switched sides")
+	queue_free()
 
 
 func _physics_process(delta: float) -> void:

@@ -19,13 +19,18 @@ const ARCHETYPES: Dictionary = {
 		"greet": "Bridger: 'Got a lurker problem by the water point. 25 jack for its head.'",
 		"refuse": "Bridger: 'Meridian doesn't work with your kind. Walk away.'",
 		"stock": {}},
+	"drifter": {"name": "Sam", "title": "DRIFTER — 40 JACK", "role": "hire",
+		"color": Color(0.33, 0.38, 0.30),
+		"greet": "Sam: 'Forty jack and my gun walks where you walk.'",
+		"refuse": "Sam: 'I drift with anybody... except you.'",
+		"stock": {}},
 }
 
 ## Base prices (jack) — the Respect Ledger's price_mult scales them per faction.
 const PRICES: Dictionary = {
 	"bandage": 12, "meat": 6, "9mm": 1, "12ga": 2, "grenade": 18, "scrap": 4,
 	"wrench": 10, "machete": 25, "pistol": 40, "shotgun": 60, "rocket": 15,
-	"pipe_rocket": 75, "eyepatch": 8,
+	"pipe_rocket": 75, "eyepatch": 8, "drone": 55,
 }
 
 var archetype: String = "trader"
@@ -108,6 +113,8 @@ func interact_prompt(main: Node) -> String:
 	var a: Dictionary = ARCHETYPES[archetype]
 	if main.respect.standing(FACTION) == "SUSPECT":
 		return "E — 🚫 %s won't deal with you" % npc_name
+	if role == "hire":
+		return "E — Hire %s (40 jack — he FIGHTS and SCOUTS)" % npc_name
 	if role == "trade":
 		return "E — Trade with %s" % npc_name
 	# Sec-Man prompt follows the bounty state machine in main.
@@ -124,7 +131,9 @@ func interact(main: Node) -> void:
 	if main.respect.standing(FACTION) == "SUSPECT":
 		main.notify(ARCHETYPES[archetype]["refuse"])
 		return
-	if role == "trade":
+	if role == "hire":
+		main.hire_companion(self)
+	elif role == "trade":
 		main.notify(ARCHETYPES[archetype]["greet"])
 		main.open_trade(self)
 	else:
