@@ -49,7 +49,7 @@ func _physics_process(delta: float) -> void:
 		0: # settle
 			if phase_t > 0.5:
 				_check("boots in DRIVE mode", main.mode == 0)
-				_check("the FLEET spawned (2 scavengers + bike/van/buggy/semi + trailer = %d)" % main.cars.size(), main.cars.size() == 7)
+				_check("the FLEET spawned (2 scavengers + bike/van/buggy/pickup/semi + trailer = %d)" % main.cars.size(), main.cars.size() == 8)
 				_start_z = main.cars[0].global_position.z
 				Input.action_press("move_up")
 				_next()

@@ -32,6 +32,12 @@ const VEHICLES: Dictionary = {
 		"wheels": [[-0.8, -1.1, true, false, true, 0.42], [0.8, -1.1, true, false, true, 0.42],
 			[-0.8, 1.1, false, true, true, 0.42], [0.8, 1.1, false, true, true, 0.42]],
 		"trunk_max_w": 22.0, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
+	"pickup": {"name": "Rustler", "mass": 1250.0, "engine": 8200.0, "top": 30.0, "rev": 10.0,
+		"steer": [0.55, 0.15, 4.8], "tires": {"grip_f": 5.4, "grip_r": 5.0, "dirt_mult": 0.90, "name": "all-terrain"},
+		"chassis": Vector3(2.1, 1.0, 4.8), "hull": Vector3(2.05, 0.8, 4.7), "cabin": Vector3(1.9, 0.75, 1.6), "cabin_pos": Vector3(0, 0.95, -1.0),
+		"wheels": [[-0.88, -1.6, true, false, true, 0.44], [0.88, -1.6, true, false, true, 0.44],
+			[-0.88, 1.6, false, true, true, 0.44], [0.88, 1.6, false, true, true, 0.44]],
+		"trunk_max_w": 60.0, "wound_mult": 0.9, "tailpipe": Vector3(-0.7, 0.26, 2.35), "com_y": -0.4},
 	"van": {"name": "Boxer", "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
 		"steer": [0.5, 0.13, 4.0], "tires": {"grip_f": 5.6, "grip_r": 5.2, "dirt_mult": 0.68, "name": "highway"},
 		"chassis": Vector3(2.2, 1.5, 5.2), "hull": Vector3(2.2, 1.35, 5.2), "cabin": Vector3(2.0, 0.5, 1.4), "cabin_pos": Vector3(0, 1.05, -1.7),
@@ -127,6 +133,17 @@ var _spiral_rng := RandomNumberGenerator.new()
 
 const TIER_ENGINE_MULT: Array[float] = [1.0, 0.85, 0.5, 0.0]
 const TIER_GRIP_MULT: Array[float] = [1.0, 0.9, 0.68, 0.42]
+## Worn tires DRAG everywhere (rolling resistance of shredded rubber).
+const TIER_TIRE_DRAG: Array[float] = [1.0, 0.95, 0.8, 0.55]
+## Tires LOOK their tier from above: black → browned → gray → shredded rust.
+const TIER_TIRE_COLOR: Array[Color] = [Color(0.08, 0.08, 0.08), Color(0.22, 0.18, 0.13),
+	Color(0.42, 0.4, 0.38), Color(0.5, 0.28, 0.18)]
+
+var is_struggling: bool = false ## sim/HUD hook: bogged off-road or limping on bad tires
+var _tire_meshes: Array = []
+var _tire_look_tier: int = -1
+var _hull_mesh: MeshInstance3D = null
+var _shimmy_t: float = 0.0
 
 var input_throttle: float = 0.0
 var input_brake: float = 0.0
@@ -181,6 +198,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	hull.material_override = ProtoWorldBuilder.material(body_color, 0.55)
 	hull.position.y = 0.05 + maxf(0.0, (s["hull"].y - 0.55) * 0.5)
 	car.add_child(hull)
+	car._hull_mesh = hull
 
 	if s["cabin"] != Vector3.ZERO:
 		var cabin := MeshInstance3D.new()
@@ -251,6 +269,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 			if absf(w[0]) < 0.3:
 				tire.position.x = -w[0] # center the visual on the bike's spine
 			wheel.add_child(tire)
+			car._tire_meshes.append(tire)
 		car.add_child(wheel)
 		if w[2]:
 			car._front_wheels.append(wheel)
@@ -519,14 +538,21 @@ func _become_husk(_exploded: bool) -> void:
 					(sub as MeshInstance3D).material_override = charred
 
 
-## Dashboard snapshot for the HUD (the car's moodles).
+## Dashboard snapshot for the HUD (the car's moodles) — tiers AND ratios (the
+## bars), plus what the ground is doing to you right now.
 func dashboard() -> Dictionary:
 	return {
 		"engine": components["engine"].tier(), "tires": components["tires"].tier(),
 		"battery": components["battery"].tier(), "fuel_tank": components["fuel_tank"].tier(),
 		"chassis": components["chassis"].tier(), "fuel": fuel,
+		"ratios": {"engine": components["engine"].ratio(), "tires": components["tires"].ratio(),
+			"battery": components["battery"].ratio(), "fuel_tank": components["fuel_tank"].ratio(),
+			"chassis": components["chassis"].ratio()},
 		"on_fire": fire_state == FireState.ON_FIRE, "cook": cook,
 		"smoking": fire_state == FireState.SMOKING,
+		"surface": current_surface, "struggling": is_struggling,
+		"tire_name": spec["tires"]["name"], "drive_factor": offroad_factor(),
+		"name": display_name, "load": trunk.total_weight(), "load_max": trunk.max_weight,
 	}
 
 
@@ -580,10 +606,17 @@ func _physics_process(delta: float) -> void:
 		_dust.position = Vector3(0, -0.2, spec["chassis"].z / 2.0)
 		_dust.emitting = false
 		add_child(_dust)
-	# Dirt kicks up dust sooner and browner than asphalt (surface feel).
+	# Dirt kicks up dust sooner and browner than asphalt (surface feel). BOGGED
+	# vehicles churn double the dust in fat mud clumps — you SEE the struggle.
 	var dust_speed: float = SURFACE.get(current_surface, SURFACE["road"])["dust_speed"]
-	_dust.emitting = not dead and absf(forward_speed) > dust_speed
-	_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
+	_dust.emitting = not dead and absf(forward_speed) > (2.5 if is_struggling else dust_speed)
+	_dust.amount = 56 if is_struggling else 28
+	if is_struggling:
+		_dust.color = Color(0.45, 0.34, 0.2, 0.75)
+	else:
+		_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
+
+	_update_wear_visuals(delta)
 
 	if not is_active or dead:
 		engine_force = 0.0
@@ -601,10 +634,18 @@ func _physics_process(delta: float) -> void:
 		input_steer = Input.get_axis("move_right", "move_left")
 		input_handbrake = Input.is_action_pressed("jump")
 
+	# SURFACE × TIRES decide how this thing actually DRIVES (VEHICLES.md §2):
+	# off-road bogs you down through the tire's dirt worth, and shredded rubber
+	# drags everywhere. eff_top is the speed the drivetrain can really deliver.
+	current_surface = surface_override if surface_override != "" else _sample_surface()
+	var drive_factor := offroad_factor()
+	var eff_top: float = maxf(top_speed * drive_factor, 4.0)
+	is_struggling = input_throttle > 0.3 and drive_factor < 0.82 and not dead
+
 	# Steering authority falls off with speed for stability, ramps in smoothly.
 	# While the handbrake is down, authority is trimmed too — full lock mid-slide
 	# whipped the car 180 (first-playtest bug); a drift should be steered, not spun.
-	var speed_ratio := clampf(absf(forward_speed) / top_speed, 0.0, 1.0)
+	var speed_ratio := clampf(absf(forward_speed) / eff_top, 0.0, 1.0)
 	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio)
 	if input_handbrake:
 		steer_limit *= handbrake_steer_mult
@@ -620,7 +661,6 @@ func _physics_process(delta: float) -> void:
 		engine_mult = 0.0
 	# Grip = baseline × tire condition × SURFACE-through-the-TIRES: off-road worth
 	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2).
-	current_surface = surface_override if surface_override != "" else _sample_surface()
 	var surf_grip: float = 1.0 if current_surface == "road" else float(spec["tires"]["dirt_mult"])
 	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
@@ -637,9 +677,10 @@ func _physics_process(delta: float) -> void:
 
 	engine_force = 0.0
 	brake = 0.0
-	if input_throttle > 0.0 and forward_speed < top_speed and engine_mult > 0.0:
+	if input_throttle > 0.0 and forward_speed < eff_top and engine_mult > 0.0:
 		# Taper force as speed climbs — punchy low end, natural top-speed plateau.
-		engine_force = -input_throttle * max_engine_force * engine_mult * lerpf(1.0, 0.45, speed_ratio)
+		# Off-road/worn-tire drag lowers BOTH the ceiling and the punch.
+		engine_force = -input_throttle * max_engine_force * engine_mult * drive_factor * lerpf(1.0, 0.45, speed_ratio)
 	if input_brake > 0.0:
 		if forward_speed > 1.0:
 			brake = input_brake * max_brake
@@ -679,6 +720,33 @@ func _sample_surface() -> String:
 func surface_grip_mult() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
 	return 1.0 if s_name == "road" else float(spec["tires"]["dirt_mult"])
+
+
+## How much of this vehicle's drivetrain actually reaches the ground RIGHT NOW:
+## surface-through-the-tires × tire condition. 1.0 = full song; low = bogged/limping.
+func offroad_factor() -> float:
+	var s_name: String = surface_override if surface_override != "" else current_surface
+	var surf: float = 1.0 if s_name == "road" else clampf(float(spec["tires"]["dirt_mult"]), 0.5, 1.0)
+	return surf * TIER_TIRE_DRAG[components["tires"].tier()]
+
+
+## Wear you can SEE from straight above: tires recolor by condition tier, and at
+## CRITICAL the whole body develops a shimmy — the car itself says "I'm hurt."
+func _update_wear_visuals(delta: float) -> void:
+	var tier: int = components["tires"].tier()
+	if tier != _tire_look_tier:
+		_tire_look_tier = tier
+		var mat := ProtoWorldBuilder.material(TIER_TIRE_COLOR[tier], 1.0)
+		for t in _tire_meshes:
+			if is_instance_valid(t):
+				(t as MeshInstance3D).material_override = mat
+	if _hull_mesh == null or dead:
+		return
+	if tier >= Damageable.Tier.CRITICAL and absf(forward_speed) > 2.0:
+		_shimmy_t += delta * (14.0 if tier == Damageable.Tier.CRITICAL else 22.0)
+		_hull_mesh.rotation.z = sin(_shimmy_t) * 0.022
+	elif _hull_mesh.rotation.z != 0.0:
+		_hull_mesh.rotation.z = 0.0
 
 
 func skid_count() -> int:

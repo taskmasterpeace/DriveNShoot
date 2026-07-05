@@ -116,6 +116,7 @@ func _ready() -> void:
 		["motorcycle", Color(0.16, 0.16, 0.18), Vector3(98, 0.5, -288), 0.0],
 		["van", Color(0.5, 0.46, 0.38), Vector3(122, 0.5, -292), PI / 2.0],
 		["buggy", Color(0.66, 0.42, 0.14), Vector3(46, 0.5, -272), -0.6],
+		["pickup", Color(0.45, 0.2, 0.12), Vector3(70, 0.5, -300), 0.4], # the off-road truck, parked in the dirt
 		["semi", Color(0.24, 0.3, 0.42), Vector3(-11, 0.8, -150), 0.0],
 	]
 	for f in fleet:

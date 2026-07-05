@@ -12,6 +12,8 @@ var _toast_label: Label
 var _vignette: ColorRect
 var _toast_tween: Tween
 var _moodle_box: VBoxContainer
+var _dash_wrap: VBoxContainer
+var _dash_status: Label ## the useful line: vehicle · surface/struggle · cargo (sim hook)
 var _dash_box: HBoxContainer
 var _dash_labels: Dictionary = {}
 var _dash_fuel: Label
@@ -147,22 +149,32 @@ static func create() -> ProtoHUD:
 		hud._moodle_box.add_child(lbl)
 		hud._moodle_labels[id] = lbl
 
-	# Car dashboard (bottom-right, only while driving): the CAR's moodles —
-	# 🔧🛞🔋⛽🛡️ tinted by condition tier, fuel %, and the 💥 cook meter on fire.
+	# Car dashboard (bottom-right, only while driving) — the USEFUL version:
+	# a status line (which rig · what ground · cargo load) over the parts row,
+	# each part showing an actual ▮▮▮▱ condition bar, fuel as a bar, 💥 on fire.
+	hud._dash_wrap = VBoxContainer.new()
+	hud._dash_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	hud._dash_wrap.offset_left = -560.0
+	hud._dash_wrap.offset_right = -20.0
+	hud._dash_wrap.offset_top = -110.0
+	hud._dash_wrap.offset_bottom = -24.0
+	hud._dash_wrap.alignment = BoxContainer.ALIGNMENT_END
+	hud._dash_wrap.visible = false
+	hud.add_child(hud._dash_wrap)
+	hud._dash_status = Label.new()
+	hud._dash_status.add_theme_font_override("font", ProtoHUD.mixed_font())
+	hud._dash_status.add_theme_font_size_override("font_size", 15)
+	hud._dash_status.add_theme_color_override("font_color", BONE)
+	hud._dash_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hud._dash_wrap.add_child(hud._dash_status)
 	hud._dash_box = HBoxContainer.new()
-	hud._dash_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	hud._dash_box.offset_left = -430.0
-	hud._dash_box.offset_right = -20.0
-	hud._dash_box.offset_top = -76.0
-	hud._dash_box.offset_bottom = -24.0
 	hud._dash_box.alignment = BoxContainer.ALIGNMENT_END
 	hud._dash_box.add_theme_constant_override("separation", 10)
-	hud._dash_box.visible = false
-	hud.add_child(hud._dash_box)
+	hud._dash_wrap.add_child(hud._dash_box)
 	for part in ["engine", "tires", "battery", "fuel_tank", "chassis"]:
 		var pl := Label.new()
-		pl.add_theme_font_override("font", ProtoHUD.emoji_font())
-		pl.add_theme_font_size_override("font_size", 30)
+		pl.add_theme_font_override("font", ProtoHUD.mixed_font())
+		pl.add_theme_font_size_override("font_size", 20)
 		hud._dash_box.add_child(pl)
 		hud._dash_labels[part] = pl
 	hud._dash_fuel = Label.new()
@@ -280,24 +292,44 @@ func set_vitals(stamina: float, max_stamina: float, stress: float, comfort_near:
 
 const DASH_EMOJI := {"engine": "🔧", "tires": "🛞", "battery": "🔋", "fuel_tank": "⛽", "chassis": "🛡️"}
 
+## Four-segment condition bar — readable at a glance, no color-decoding needed.
+static func _bar(r: float) -> String:
+	var segs := clampi(int(ceil(r * 4.0 - 0.001)), 0, 4)
+	return "▮".repeat(segs) + "▱".repeat(4 - segs)
+
+
 ## The car's dashboard: pass ProtoCar3D.dashboard() while driving, null to hide.
 func set_dashboard(d) -> void:
 	if d == null:
-		_dash_box.visible = false
+		_dash_wrap.visible = false
 		return
-	_dash_box.visible = true
+	_dash_wrap.visible = true
+	var ratios: Dictionary = d.get("ratios", {})
 	for part in _dash_labels:
 		var tier: int = d[part]
 		var lbl: Label = _dash_labels[part]
-		lbl.text = DASH_EMOJI[part]
+		lbl.text = "%s%s" % [DASH_EMOJI[part], _bar(ratios.get(part, 1.0))]
 		lbl.modulate = TIER_COLORS[tier]
 	# LABELED (playtest: "I don't know what the percentage is") — the number is FUEL.
-	_dash_fuel.text = "FUEL %d%%" % int(d["fuel"])
+	_dash_fuel.text = "⛽FUEL %s %d%%" % [_bar(d["fuel"] / 100.0), int(d["fuel"])]
 	if d["on_fire"]:
 		_dash_cook.text = "💥BLOW %d%%" % int(d["cook"])
 		_dash_cook.visible = true
 	else:
 		_dash_cook.visible = false
+	# The status line: WHICH rig, WHAT ground is doing to you, WHAT you're hauling.
+	var bits: Array[String] = ["🚗 %s" % d.get("name", "car")]
+	if d.get("tires", 0) >= 2:
+		bits.append("🛞 TIRES SHOT — limping")
+	elif d.get("struggling", false):
+		bits.append("🐢 BOGGED — %s tires churning dirt" % d.get("tire_name", ""))
+	elif d.get("surface", "road") != "road":
+		bits.append("⛰️ DIRT — %s tires (%d%% drive)" % [d.get("tire_name", ""), int(d.get("drive_factor", 1.0) * 100.0)])
+	if d.get("load_max", 0.0) > 0.0:
+		bits.append("📦 %.0f/%.0f kg" % [d.get("load", 0.0), d.get("load_max", 0.0)])
+	_dash_status.text = "  ·  ".join(bits)
+	var alarmed: bool = d.get("struggling", false) or d.get("tires", 0) >= 2
+	_dash_status.add_theme_color_override("font_color", Color(0.98, 0.62, 0.2) if alarmed else BONE)
 
 
 ## Future/system hook: mark a condition (0 clears; 1-3 = severity). One call = one feeling.

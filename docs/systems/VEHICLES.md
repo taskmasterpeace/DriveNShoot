@@ -14,6 +14,7 @@ surfaces, and skid marks for every class.
 | 🏍️ | `motorcycle` — **Rat Bike** | fastest off the line, ~85 mph, slips through anything | **a crash THROWS YOU** — the bike has no cab; the rider eats the wound (×2.5) and tumbles down the road. Saddlebag holds almost nothing (10 kg). |
 | 🚗 | `scavenger` — **Scavenger** | the baseline all-rounder (the car we've always had) | master of nothing. 40 kg trunk. |
 | 🛻 | `buggy` — **Dustrunner** | light + **knobby tires: barely loses grip on dirt** (0.95 vs the car's 0.78) — the off-road king | fragile, small tank, 22 kg rack. On asphalt it's merely okay. |
+| 🛻 | `pickup` — **Rustler** | the honest OFF-ROAD truck: all-terrain tires (0.90), 60 kg bed, sits between car and van everywhere else | jack of the outback, master of neither road nor rock crawl. |
 | 🚐 | `van` — **Boxer** | the loot mule: **120 kg** cargo bay | slow, wallowy, wide — highway tires are AWFUL on dirt (0.68). |
 | 🚛 | `semi` — **Longhaul** + trailer | tows a **detachable TRAILER (400 kg)** — the "transport big stuff" answer; rams wrecks aside by sheer mass | takes forever to start and stop; jackknifing the trailer is the skill test. Cab alone holds 45 kg. |
 
@@ -24,8 +25,19 @@ buggy > van > semi.
 
 Every class carries a `tires` row: `{grip_f, grip_r, dirt_mult, name}`. Grip numbers feed the
 wheel friction (baseline × tire-damage tier × surface). `dirt_mult` is what the tire is WORTH
-off-road: knobby 0.95, street 0.78, highway 0.68. This is the hook tire LOOT upgrades later
-(swap tire rows, not vehicles).
+off-road: knobby 0.95, all-terrain 0.90, street 0.78, highway 0.68. This is the hook tire LOOT
+upgrades later (swap tire rows, not vehicles).
+
+**Tires change the DRIVE, not just the slide (2026-07-05):** `offroad_factor()` = surface-
+through-the-tires × tire-condition drag `[1.0, .95, .8, .55]`, and it scales BOTH effective top
+speed and engine punch. Sim-measured on dirt: van −31% top speed, pickup −9%, buggy −5%. Worn
+tires drag everywhere — CRITICAL tires cap the Scavenger at ~27 of 34 m/s on asphalt.
+
+**Wear/struggle you can SEE:** tires recolor by tier (black → browned → gray → shredded rust),
+CRITICAL+ gives the body a speed shimmy, and a BOGGED vehicle churns double dust in fat mud
+clumps. The dash says it in words: `⛰️ DIRT — knobby tires (95% drive)` · `🐢 BOGGED — highway
+tires churning dirt` · `🛞 TIRES SHOT — limping`, plus per-part ▮▮▮▱ bars, a fuel bar, and the
+rig name + `📦 load/max kg`.
 
 ## §3. Trunks — "the trunk thing"
 

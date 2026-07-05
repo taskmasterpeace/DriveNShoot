@@ -177,6 +177,16 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (surfaces drive the DRIVE + pickup + useful dash):** vehicles_sim 27/27; battery
+24/24. `offroad_factor()` = surface-through-tires × tire-condition drag now scales effective
+top speed AND engine punch (not just grip): dirt costs the van −31%, pickup −9%, buggy −5%
+(sim-measured, ORDER asserted). Worn tires drag everywhere (CRITICAL caps the Scavenger ~27/34
+on asphalt). **Rustler pickup** added (all-terrain 0.90, 60 kg bed) — slots between car and van
+on the accel ladder. WEAR/STRUGGLE IS VISIBLE: tires recolor by tier, CRITICAL+ body shimmy,
+BOGGED = double mud dust. DASH IS USEFUL: status line (rig name · DIRT/BOGGED/TIRES-SHOT chip
+with tire name + %drive · 📦 load/max kg) over per-part ▮▮▮▱ bars + fuel bar; sims assert the
+literal strings. NEXT unchanged: Stage 6 deepening or Stage 4 finishers.
+
 **2026-07-05 (combat feel — the juice layer):** combat_feel_sim 14/14 ×3 deterministic; battery
 24/24. `fx.gd` (ProtoFX): muzzle flash + brass casings + blood on flesh + DUST on world hits +
 visible swing arc + skull kill-pop — all self-freeing, all group-tagged (`fx_*`) so sims prove

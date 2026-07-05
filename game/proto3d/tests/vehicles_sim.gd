@@ -15,7 +15,14 @@ var failed: int = 0
 var _did: bool = false
 
 var _accel_times: Dictionary = {} ## vclass -> seconds to 15 m/s
-var _queue: Array = ["motorcycle", "buggy", "scavenger", "van", "semi"]
+var _queue: Array = ["motorcycle", "buggy", "scavenger", "pickup", "van", "semi"]
+var _road_top: Dictionary = {} ## "class_surface" -> top speed reached (surface phase)
+var _surf_queue: Array = []
+var _surf_car: ProtoCar3D = null
+var _surf_key: String = ""
+var _surf_top: float = 0.0
+var _shimmy_seen: bool = false
+var _hud: ProtoHUD = null
 var _car: ProtoCar3D = null
 var _bike: ProtoCar3D = null
 var _semi: ProtoCar3D = null
@@ -66,13 +73,13 @@ func _physics_process(delta: float) -> void:
 		0: # ACCELERATION LADDER: each class, full throttle, time to 15 m/s
 			if _car == null:
 				if _queue.is_empty():
-					var order: Array = ["motorcycle", "buggy", "scavenger", "van", "semi"]
+					var order: Array = ["motorcycle", "buggy", "scavenger", "pickup", "van", "semi"]
 					var ok := true
 					for i in range(order.size() - 1):
 						if _accel_times[order[i]] > _accel_times[order[i + 1]] + 0.01:
 							ok = false
-					_check("acceleration ladder holds: bike %.1fs < buggy %.1fs < car %.1fs < van %.1fs < semi %.1fs" %
-						[_accel_times["motorcycle"], _accel_times["buggy"], _accel_times["scavenger"], _accel_times["van"], _accel_times["semi"]], ok)
+					_check("accel ladder holds: bike %.1f < buggy %.1f < car %.1f < pickup %.1f < van %.1f < semi %.1f" %
+						[_accel_times["motorcycle"], _accel_times["buggy"], _accel_times["scavenger"], _accel_times["pickup"], _accel_times["van"], _accel_times["semi"]], ok)
 					_check("bike is QUICK (%.1fs to 15 m/s)" % _accel_times["motorcycle"], _accel_times["motorcycle"] < 2.2)
 					_check("semi is a SLUG (%.1fs to 15 m/s)" % _accel_times["semi"], _accel_times["semi"] > _accel_times["motorcycle"] * 1.8)
 					_next()
@@ -172,12 +179,89 @@ func _physics_process(delta: float) -> void:
 					_check("DROPPED trailer is left behind (gap grew to %.0fm)" % gap, gap > _hitch_gap0 + 8.0)
 					_check("trailer's 400kg tank rides with IT, not the rig", _trailer.trunk.max_weight == 400.0)
 					_next()
-		6:
+		6: # SURFACES CHANGE THE DRIVE: same pedal, different ground — through the TIRES
+			if not _did:
+				_did = true
+				_surf_queue = [["van", "road"], ["van", "dirt"], ["buggy", "road"], ["buggy", "dirt"],
+					["pickup", "road"], ["pickup", "dirt"]]
+			if _surf_car == null:
+				if _surf_queue.is_empty():
+					var van_drop: float = 1.0 - float(_road_top["van_dirt"]) / float(_road_top["van_road"])
+					var buggy_drop: float = 1.0 - float(_road_top["buggy_dirt"]) / float(_road_top["buggy_road"])
+					var pickup_drop: float = 1.0 - float(_road_top["pickup_dirt"]) / float(_road_top["pickup_road"])
+					_check("HIGHWAY van BOGS on dirt (top %.1f -> %.1f, -%d%%)" % [_road_top["van_road"], _road_top["van_dirt"], int(van_drop * 100)], van_drop > 0.15)
+					_check("KNOBBY buggy barely slows (-%d%%)" % int(buggy_drop * 100), buggy_drop < 0.10)
+					_check("ALL-TERRAIN pickup shrugs most of it off (-%d%%)" % int(pickup_drop * 100), pickup_drop < 0.15)
+					_check("tire ORDER survives into the drive: buggy < pickup < van drop", buggy_drop < pickup_drop and pickup_drop < van_drop)
+					_next()
+				else:
+					var run: Array = _surf_queue.pop_front()
+					_surf_car = _spawn(run[0], Vector3(300, 1.2, 0))
+					_surf_car.surface_override = run[1]
+					_surf_car.is_active = true
+					_surf_key = "%s_%s" % [run[0], run[1]]
+					_surf_top = 0.0
+					phase_t = 0.0
+			else:
+				_surf_car.input_throttle = 1.0
+				_surf_top = maxf(_surf_top, _surf_car.forward_speed)
+				if phase_t > 5.0:
+					_road_top[_surf_key] = _surf_top
+					_surf_car.queue_free()
+					_surf_car = null
+		7: # DEPLETED TIRES: slower, visibly recolored, the body SHIMMIES, the dash says LIMPING
+			if not _did:
+				_did = true
+				_car = _spawn("scavenger", Vector3(300, 1.2, 0))
+				_car.surface_override = "road"
+				_car.is_active = true
+				_car.components["tires"].damage(75.0) # 100 -> 25 = CRITICAL
+				_shimmy_seen = false
+				phase_t = 0.0
+			else:
+				_car.input_throttle = 1.0
+				if _car._hull_mesh and absf(_car._hull_mesh.rotation.z) > 0.005:
+					_shimmy_seen = true
+				if phase_t > 5.0:
+					_check("shot tires CAP the speed (%.1f m/s, healthy tops ~32+)" % _car.forward_speed, _car.forward_speed < 29.0 and _car.forward_speed > 18.0)
+					_check("tires LOOK the damage from above (recolored, tier %d)" % _car._tire_look_tier, _car._tire_look_tier == 2)
+					_check("the body SHIMMIES on shot tires", _shimmy_seen)
+					_check("the car reads as struggling (limp)", _car.is_struggling)
+					_hud = ProtoHUD.create()
+					add_child(_hud)
+					_hud.set_dashboard(_car.dashboard())
+					_check("dash says it PLAINLY: '%s'" % _hud._dash_status.text, _hud._dash_status.text.contains("TIRES SHOT"))
+					var tire_lbl: Label = _hud._dash_labels["tires"]
+					_check("dash parts show real BARS (%s)" % tire_lbl.text, tire_lbl.text.contains("▮") and tire_lbl.text.contains("▱"))
+					_car.queue_free()
+					_next()
+		8: # the dash tells you about the GROUND too: BOGGED when churning, DIRT chip when fine
+			if not _did:
+				_did = true
+				_car = _spawn("van", Vector3(300, 1.2, 0))
+				_car.surface_override = "dirt"
+				_car.is_active = true
+				phase_t = 0.0
+			else:
+				_car.input_throttle = 1.0
+				if phase_t > 0.6:
+					_hud.set_dashboard(_car.dashboard())
+					_check("highway van on dirt: dash says BOGGED ('%s')" % _hud._dash_status.text, _hud._dash_status.text.contains("BOGGED"))
+					var buggy := _spawn("buggy", Vector3(320, 1.2, 0))
+					buggy.surface_override = "dirt"
+					buggy.current_surface = "dirt"
+					_hud.set_dashboard(buggy.dashboard())
+					_check("knobby buggy on dirt: just the DIRT chip ('%s')" % _hud._dash_status.text, _hud._dash_status.text.contains("DIRT") and not _hud._dash_status.text.contains("BOGGED"))
+					_check("...and the dash names the rig + load", _hud._dash_status.text.contains("Dustrunner") and _hud._dash_status.text.contains("kg"))
+					buggy.queue_free()
+					_car.queue_free()
+					_next()
+		9:
 			print("VEH RESULTS: %d passed, %d failed" % [passed, failed])
 			print("VEH: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 			get_tree().quit(0 if failed == 0 else 1)
 
-	if t > 110.0:
+	if t > 170.0:
 		print("VEH: TIMEOUT in phase %d" % phase)
 		print("VEH RESULTS: %d passed, %d failed" % [passed, failed])
 		get_tree().quit(1)
