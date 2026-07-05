@@ -58,6 +58,8 @@ static func _build_all() -> void:
 	streams["thunk"] = _synth(0.14, func(t, p): return (sin(t * 95.0 * TAU) * 0.7 + rng.randf_range(-1, 1) * 0.3) * exp(-p * 10.0))
 	# Hit-marker: tiny dry tick — a confirmed round on flesh
 	streams["hitmark"] = _synth(0.045, func(t, p): return sin(t * 1900.0 * TAU) * exp(-p * 16.0) * 0.4)
+	# Car horn: a two-note blare (calls the pack, and later: heat)
+	streams["honk"] = _synth(0.5, func(t, p): return (signf(sin(t * 329.0 * TAU)) * 0.25 + signf(sin(t * 415.0 * TAU)) * 0.25) * minf(1.0, (1.0 - p) * 4.0))
 	# Engine loop: saw-ish hum (looped)
 	var eng := _synth(0.5, func(t, p): return (fmod(t * 65.0, 1.0) * 2.0 - 1.0) * 0.28 + sin(t * 32.5 * TAU) * 0.22)
 	eng.loop_mode = AudioStreamWAV.LOOP_FORWARD

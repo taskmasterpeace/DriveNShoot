@@ -18,32 +18,32 @@ const VEHICLES: Dictionary = {
 		"chassis": Vector3(2.0, 0.7, 4.4), "hull": Vector3(2.0, 0.55, 4.4), "cabin": Vector3(1.7, 0.5, 2.0), "cabin_pos": Vector3(0, 0.55, 0.25),
 		"wheels": [[-0.85, -1.45, true, false, true, 0.38], [0.85, -1.45, true, false, true, 0.38],
 			[-0.85, 1.45, false, true, true, 0.38], [0.85, 1.45, false, true, true, 0.38]],
-		"trunk_max_w": 40.0, "wound_mult": 1.0, "tailpipe": Vector3(-0.65, 0.22, 2.15), "com_y": -0.25},
+		"trunk_max_w": 40.0, "dog_seats": 2, "wound_mult": 1.0, "tailpipe": Vector3(-0.65, 0.22, 2.15), "com_y": -0.25},
 	"motorcycle": {"name": "Rat Bike", "mass": 260.0, "engine": 3400.0, "top": 38.0, "rev": 8.0,
 		"steer": [0.62, 0.2, 6.5], "tires": {"grip_f": 5.2, "grip_r": 4.6, "dirt_mult": 0.82, "name": "dual-sport"},
 		"chassis": Vector3(0.55, 0.6, 2.2), "hull": Vector3(0.34, 0.42, 1.9), "cabin": Vector3(0.3, 0.28, 0.7), "cabin_pos": Vector3(0, 0.62, 0.35),
 		# Physics rides 4 narrow-track wheels (self-standing trick); only the centered pair renders.
 		"wheels": [[-0.11, -0.8, true, false, false, 0.34], [0.11, -0.8, true, false, true, 0.34],
 			[-0.11, 0.8, false, true, false, 0.34], [0.11, 0.8, false, true, true, 0.34]],
-		"trunk_max_w": 10.0, "wound_mult": 2.5, "rider_exposed": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
+		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
 	"buggy": {"name": "Dustrunner", "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
 		"steer": [0.6, 0.2, 6.0], "tires": {"grip_f": 5.0, "grip_r": 4.6, "dirt_mult": 0.95, "name": "knobby"},
 		"chassis": Vector3(1.7, 0.6, 3.0), "hull": Vector3(1.6, 0.35, 2.9), "cabin": Vector3(1.2, 0.45, 1.2), "cabin_pos": Vector3(0, 0.5, 0.1),
 		"wheels": [[-0.8, -1.1, true, false, true, 0.42], [0.8, -1.1, true, false, true, 0.42],
 			[-0.8, 1.1, false, true, true, 0.42], [0.8, 1.1, false, true, true, 0.42]],
-		"trunk_max_w": 22.0, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
+		"trunk_max_w": 22.0, "dog_seats": 1, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
 	"pickup": {"name": "Rustler", "mass": 1250.0, "engine": 8200.0, "top": 30.0, "rev": 10.0,
 		"steer": [0.55, 0.15, 4.8], "tires": {"grip_f": 5.4, "grip_r": 5.0, "dirt_mult": 0.90, "name": "all-terrain"},
 		"chassis": Vector3(2.1, 1.0, 4.8), "hull": Vector3(2.05, 0.8, 4.7), "cabin": Vector3(1.9, 0.75, 1.6), "cabin_pos": Vector3(0, 0.95, -1.0),
 		"wheels": [[-0.88, -1.6, true, false, true, 0.44], [0.88, -1.6, true, false, true, 0.44],
 			[-0.88, 1.6, false, true, true, 0.44], [0.88, 1.6, false, true, true, 0.44]],
-		"trunk_max_w": 60.0, "wound_mult": 0.9, "tailpipe": Vector3(-0.7, 0.26, 2.35), "com_y": -0.4},
+		"trunk_max_w": 60.0, "dog_seats": 2, "wound_mult": 0.9, "tailpipe": Vector3(-0.7, 0.26, 2.35), "com_y": -0.4},
 	"van": {"name": "Boxer", "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
 		"steer": [0.5, 0.13, 4.0], "tires": {"grip_f": 5.6, "grip_r": 5.2, "dirt_mult": 0.68, "name": "highway"},
 		"chassis": Vector3(2.2, 1.5, 5.2), "hull": Vector3(2.2, 1.35, 5.2), "cabin": Vector3(2.0, 0.5, 1.4), "cabin_pos": Vector3(0, 1.05, -1.7),
 		"wheels": [[-0.9, -1.9, true, false, true, 0.4], [0.9, -1.9, true, false, true, 0.4],
 			[-0.9, 1.9, false, true, true, 0.4], [0.9, 1.9, false, true, true, 0.4]],
-		"trunk_max_w": 120.0, "wound_mult": 0.8, "tailpipe": Vector3(-0.78, 0.24, 2.55), "com_y": -0.45},
+		"trunk_max_w": 120.0, "dog_seats": 4, "wound_mult": 0.8, "tailpipe": Vector3(-0.78, 0.24, 2.55), "com_y": -0.45},
 	"semi": {"name": "Longhaul", "mass": 3800.0, "engine": 12000.0, "top": 25.0, "rev": 6.0,
 		"steer": [0.45, 0.1, 3.0], "tires": {"grip_f": 6.2, "grip_r": 5.8, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 1.9, 6.4), "hull": Vector3(2.35, 1.0, 6.2), "cabin": Vector3(2.3, 1.3, 2.2), "cabin_pos": Vector3(0, 1.55, -1.9),
@@ -52,13 +52,13 @@ const VEHICLES: Dictionary = {
 		"wheels": [[-0.95, -2.4, true, false, true, 0.45], [0.95, -2.4, true, false, true, 0.45],
 			[-0.95, 1.6, false, true, true, 0.45], [0.95, 1.6, false, true, true, 0.45],
 			[-0.95, 2.55, false, false, true, 0.45], [0.95, 2.55, false, false, true, 0.45]],
-		"trunk_max_w": 45.0, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
+		"trunk_max_w": 45.0, "dog_seats": 2, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
 	"trailer": {"name": "trailer", "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
 		"steer": [0.0, 0.0, 1.0], "tires": {"grip_f": 6.0, "grip_r": 6.0, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 2.2, 8.0), "hull": Vector3(2.35, 2.0, 7.9), "cabin": Vector3.ZERO, "cabin_pos": Vector3.ZERO,
 		"wheels": [[-0.95, 2.2, false, false, true, 0.45], [0.95, 2.2, false, false, true, 0.45],
 			[-0.95, 3.1, false, false, true, 0.45], [0.95, 3.1, false, false, true, 0.45]],
-		"trunk_max_w": 400.0, "wound_mult": 0.0, "tailpipe": Vector3.ZERO, "com_y": -0.7,
+		"trunk_max_w": 400.0, "dog_seats": 0, "wound_mult": 0.0, "tailpipe": Vector3.ZERO, "com_y": -0.7,
 		"free_rolling": true, "hitch_front_z": -3.95},
 }
 
@@ -113,6 +113,42 @@ var display_name: String = "car"
 ## Trailer coupling (semi + trailer only).
 var hitched_to: ProtoCar3D = null ## set on the TRAILER
 var _hitch_joint: Generic6DOFJoint3D = null
+
+## Headlights — auto at dark (main drives this off the day/night clock).
+var headlights_on: bool = false
+var _headlights: Array = []
+
+
+func set_headlights(on: bool) -> void:
+	if spec.get("cabin", Vector3.ZERO) == Vector3.ZERO or dead:
+		on = false
+	if on == headlights_on and not (_headlights.is_empty() and on):
+		return
+	headlights_on = on
+	if _headlights.is_empty() and on:
+		var xs: Array = [0.0] if vclass == "motorcycle" else [-spec["chassis"].x * 0.33, spec["chassis"].x * 0.33]
+		for lx in xs:
+			var lamp := SpotLight3D.new()
+			lamp.position = Vector3(lx, 0.55 + maxf(0.0, spec["chassis"].y - 0.7) * 0.5, -spec["chassis"].z / 2.0 + 0.1)
+			lamp.rotation_degrees.x = -8.0
+			lamp.spot_range = 24.0
+			lamp.spot_angle = 32.0
+			lamp.light_energy = 2.6
+			lamp.light_color = Color(1.0, 0.94, 0.75)
+			lamp.shadow_enabled = false
+			add_child(lamp)
+			_headlights.append(lamp)
+			var glow := MeshInstance3D.new()
+			var gm := BoxMesh.new()
+			gm.size = Vector3(0.22, 0.1, 0.06)
+			glow.mesh = gm
+			glow.material_override = ProtoWorldBuilder.material(Color(1.0, 0.95, 0.7), 0.2, true)
+			glow.position = lamp.position
+			add_child(glow)
+			_headlights.append(glow)
+	for l in _headlights:
+		if is_instance_valid(l):
+			(l as Node3D).visible = on
 
 # --- The Living Car (LOOP2): 5-part anatomy + death spiral --------------------
 enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }

@@ -63,6 +63,7 @@ var sic_target: Node3D = null
 var seek_target: Node3D = null
 var hp: float = 50.0
 var max_hp: float = 50.0
+var riding_in: ProtoCar3D = null ## the vehicle this dog is riding shotgun in
 
 var _owner_ref: Node3D = null
 var _main: Node = null ## the proto3d main scene (set at adoption) — sim-safe, no current_scene reliance
@@ -176,9 +177,11 @@ func interact_position() -> Vector3:
 	return global_position
 
 
-func interact_prompt(_main: Node) -> String:
+func interact_prompt(main: Node) -> String:
 	if not adopted:
 		return "E — Adopt %s (%s · %s)" % [dog_name, type_name(), breed]
+	if hp < max_hp - 5.0 and main.backpack.count("meat") > 0:
+		return "E — Feed %s (🍖 %d hp)" % [dog_name, int(minf(30.0, max_hp - hp))]
 	if state == DogState.STAY:
 		return "E — %s: Follow" % dog_name
 	return "E — %s: Stay" % dog_name
@@ -193,8 +196,33 @@ func interact(main: Node) -> void:
 		main.register_dog(self)
 		main.notify("%s the %s %s joins you" % [dog_name, breed, type_name()])
 		return
+	# A hurt dog eats first — meat heals the pack (improve-the-dogs pass).
+	if hp < max_hp - 5.0 and main.backpack.remove("meat", 1):
+		hp = minf(max_hp, hp + 30.0)
+		main.notify("🍖 %s wolfs it down (%d/%d hp)" % [dog_name, int(hp), int(max_hp)])
+		if "audio" in main and main.audio:
+			main.audio.play_at("bark", global_position, -10.0, 1.2)
+		return
 	# Toggle stay/follow (obedience delay is part of each type's identity)
 	_queue_state(DogState.FOLLOW if state == DogState.STAY else DogState.STAY)
+
+
+# --- Riding shotgun (the pack goes WITH you) ----------------------------------
+
+func board(car: ProtoCar3D) -> void:
+	riding_in = car
+	state = DogState.FOLLOW
+	visible = false
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func unboard(pos: Vector3) -> void:
+	riding_in = null
+	process_mode = Node.PROCESS_MODE_INHERIT
+	visible = true
+	global_position = pos
+	velocity = Vector3.ZERO
+	command_heel()
 
 
 ## Whistle: every adopted dog returns to heel.

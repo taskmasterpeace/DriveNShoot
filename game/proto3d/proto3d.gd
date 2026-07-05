@@ -227,6 +227,12 @@ func _ready() -> void:
 	cam_rig.snap_to_target()
 
 
+var daynight: ProtoDayNight = null
+var _sun: DirectionalLight3D = null
+var _env: Environment = null
+var _pet_cd: float = 0.0
+
+
 func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -38, 0)
@@ -235,6 +241,7 @@ func _build_environment() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 140.0
 	add_child(sun)
+	_sun = sun
 
 	var env := Environment.new()
 	var sky := Sky.new()
@@ -256,6 +263,11 @@ func _build_environment() -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	_env = env
+	# The clock: sun, sky, headlights, and the night's tax on your eyes.
+	daynight = ProtoDayNight.new()
+	add_child(daynight)
+	daynight.setup(_sun, _env)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -273,8 +285,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if kc == KEY_TAB:
 			if panel.is_open:
 				panel.close()
+			elif mode == Mode.DRIVE and active_car and not active_car.dead:
+				panel.open(backpack, active_car.trunk) # reach the trunk from the seat
 			else:
 				panel.open(backpack, null) # just your pack
+		elif kc == KEY_H:
+			_honk()
+		elif kc == KEY_P:
+			_pet_dog()
 		elif kc == KEY_R:
 			if character.dead:
 				get_tree().reload_current_scene()
@@ -412,6 +430,13 @@ func _physics_process(delta: float) -> void:
 
 	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
 	_crime_cd = maxf(0.0, _crime_cd - delta)
+	_pet_cd = maxf(0.0, _pet_cd - delta)
+	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
+	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
+	# Headlights answer the dark on their own.
+	for c in cars:
+		if is_instance_valid(c):
+			c.set_headlights(daynight.is_dark())
 	_update_bounty()
 	_update_whistle(delta)
 	_update_stress(delta)
@@ -455,7 +480,8 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	# The raycast pass is HERE now: the LOS fan stops sight at walls and spills
 	# through doorways/windows — indoors or out. (Replaces the old flat "~5.5m
 	# indoors" clamp; the room's real shape is the clamp.)
-	var range_mult := character.vision_range_mult
+	# NIGHT is the other clamp: after dark you simply see LESS (daynight tax).
+	var range_mult := character.vision_range_mult * daynight.vision_mult()
 	_refresh_sight_exclusions()
 	var reach: float = maxf(params[2] * clampf(range_mult, 0.12, 2.0), params[1])
 	var occl := _cast_sight_fan(body.global_position, reach)
@@ -646,7 +672,9 @@ func _update_stress(delta: float) -> void:
 		if not is_instance_valid(d): # dogs dehydrate now — always check first
 			continue
 		var aura: float = d.params()["calm_aura"]
-		if aura > 0.0 and d.global_position.distance_to(player.global_position) < 6.0:
+		# A dog riding shotgun is WITH you — its calm rides along (cab therapy).
+		if aura > 0.0 and (d.riding_in == active_car and d.riding_in != null \
+				or d.global_position.distance_to(player.global_position) < 6.0):
 			calm += aura
 			if aura >= 5.0:
 				comfort_near = true # a true Cuddle dog at your side
@@ -1063,6 +1091,7 @@ func fire_from_vehicle() -> void:
 func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 	if active_car != bike or mode != Mode.DRIVE or character.dead:
 		return
+	_unboard_dogs(bike)
 	var vel: Vector3 = bike.linear_velocity
 	mode = Mode.FOOT
 	bike.is_active = false
@@ -1083,6 +1112,47 @@ func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 	audio.play_at("hurt", player.global_position)
 	stress = minf(100.0, stress + 18.0)
 	notify("💥 THROWN from the %s — the road ate %d hp" % [bike.display_name, int(dmg)])
+
+
+# --- Doing stuff from the driver's seat ---------------------------------------
+
+## H — the HORN: every pack dog in earshot comes running to the vehicle.
+func _honk() -> void:
+	if mode != Mode.DRIVE or active_car == null or active_car.dead:
+		return
+	audio.play_at("honk", active_car.global_position, 2.0)
+	var called := 0
+	for d in dogs:
+		# A horn CARRIES — 55m of wasteland silence says come home.
+		if is_instance_valid(d) and d.riding_in == null \
+				and d.global_position.distance_to(active_car.global_position) < 55.0:
+			d.command_heel()
+			called += 1
+	notify("📯 HOOOONK — %s" % ("the pack comes running" if called > 0 else "the wasteland ignores you"))
+
+
+## P — pet the nearest dog (riding shotgun, or at your side on foot). Nerves settle.
+func _pet_dog() -> void:
+	if _pet_cd > 0.0 or character.dead:
+		return
+	var target: ProtoDog = null
+	for d in dogs:
+		if not is_instance_valid(d):
+			continue
+		if mode == Mode.DRIVE and d.riding_in == active_car and d.riding_in != null:
+			target = d
+			break
+		elif mode == Mode.FOOT and d.riding_in == null \
+				and d.global_position.distance_to(player.global_position) < 2.6:
+			target = d
+			break
+	if target == null:
+		return
+	_pet_cd = 4.0
+	var aura: float = target.params()["calm_aura"]
+	stress = maxf(0.0, stress - (18.0 if aura >= 5.0 else 10.0))
+	audio.play_at("bark", (active_car.global_position if mode == Mode.DRIVE and active_car else target.global_position), -10.0, 1.35)
+	notify("🐕 You scratch %s behind the ears — nerves settle" % target.dog_name)
 
 
 ## The hood MG (vehicle mount): same weapon system, fires where the car points.
@@ -1254,12 +1324,13 @@ func notify(text: String) -> void:
 
 func _update_location_label() -> void:
 	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	var clock := "%s · " % daynight.clock_text()
 	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
-		hud.set_location("MERIDIAN — POP. UNKNOWN")
+		hud.set_location(clock + "MERIDIAN — POP. UNKNOWN")
 	elif absf(pos.x) < 30.0:
-		hud.set_location("INTERSTATE 9 — %s" % stream.current_state(pos.x))
+		hud.set_location(clock + "INTERSTATE 9 — %s" % stream.current_state(pos.x))
 	else:
-		hud.set_location("DEATHLANDS — %s" % stream.current_state(pos.x))
+		hud.set_location(clock + "DEATHLANDS — %s" % stream.current_state(pos.x))
 
 
 func enter_car(car: ProtoCar3D) -> void:
@@ -1271,11 +1342,37 @@ func enter_car(car: ProtoCar3D) -> void:
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	cam_rig.target = car
 	hud.set_mode(true)
+	# THE PACK RIDES ALONG: nearby dogs hop in, up to the class's dog_seats
+	# (van 4, car/pickup 2, buggy 1, bike none). Overflow holds the ground.
+	var seats: int = int(car.spec.get("dog_seats", 0))
+	for d in dogs:
+		if seats <= 0:
+			break
+		# Only FOLLOWERS ride. A dog on GUARD/SIC/SEEK is WORKING — it holds its
+		# post (the metaworld's stay-behind loop depends on exactly that).
+		if is_instance_valid(d) and d.riding_in == null \
+				and d.state != ProtoDog.DogState.GUARD and d.state != ProtoDog.DogState.SIC \
+				and d.state != ProtoDog.DogState.SEEK \
+				and d.global_position.distance_to(car.global_position) < 9.0:
+			d.board(car)
+			seats -= 1
+			notify("🐕 %s hops in" % d.dog_name)
+
+
+func _unboard_dogs(car: ProtoCar3D) -> void:
+	if car == null:
+		return
+	var i := 0
+	for d in dogs:
+		if is_instance_valid(d) and d.riding_in == car:
+			i += 1
+			d.unboard(car.global_position + car.global_basis.x * (1.8 + 0.7 * i) + Vector3(0, 0.4, 0))
 
 
 func _exit_car() -> void:
 	if active_car == null:
 		return
+	_unboard_dogs(active_car)
 	mode = Mode.FOOT
 	active_car.is_active = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.

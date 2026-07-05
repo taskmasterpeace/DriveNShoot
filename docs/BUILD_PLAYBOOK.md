@@ -81,7 +81,16 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–6 slice + extras), 24 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–6 slice + extras), 25 test suites all green:**
+- **DAY/NIGHT + THE PACK RIDES (life_sim 18/18):** `daynight.gd` — 24-min full day drives the
+  sun/sky/fog, vehicles light their own HEADLAMPS at dark, the clock lives in the location bar
+  (☀️/🌆/🌙 hh:mm), **night taxes your EYES** (cone range ×0.55 deep night — darkness is real
+  danger), hold **T to WAIT** (clock sprints, world doesn't). DOGS: **followers auto-board when
+  you enter** (per-class `dog_seats`: van 4 / car+pickup 2 / buggy 1 / bike 0) and hop out with
+  you; **GUARD/SIC/SEEK dogs hold their post** (the metaworld stay-behind loop depends on it);
+  riding dog's calm aura works in the cab; **H = HORN** (55 m recall, pack comes running);
+  **P = pet** (stress −10, Cuddle −18); **feed a hurt dog meat** via E (+30 hp); **TAB in the
+  car opens the TRUNK** from the seat.
 - **COMBAT FEEL (the juice layer, `fx.gd`):** every action is ANSWERED. Melee: visible swing
   arc + forward LUNGE + whoosh, every connection = blood + THUNK + camera hit + per-weapon
   SHOVE (wrench 1.8 / machete 3.4). Guns: MUZZLE FLASH + ejected brass + recoil kick in the
@@ -142,9 +151,10 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 - **Audio:** fully synthesized (engine pitches w/ speed, guns, fire, barks) — zero asset files.
 - **Feel:** camera trauma-shake, pain flash, dust, moodle pop-in.
 
-**Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt · **C** whistle
-(tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet · **M** map ·
-**N** waypoint · **TAB** pack · **B** binoculars · LMB fire · scroll zoom.
+**Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt/feed · **C**
+whistle (tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet ·
+**M** map · **N** waypoint · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
+**P** pet the dog · **T** hold to wait (clock sprints) · LMB fire · scroll zoom.
 
 **TWO clean NEXT builds (user's choice):**
 1. **Stage 6 deepening:** ~~trader + bounty + Respect v1~~ → SHIPPED 2026-07-05 (town_sim).
@@ -177,6 +187,19 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (day/night + dogs ride along + seat verbs):** life_sim 18/18 ×4 deterministic;
+battery 25/25. `daynight.gd`: 24-min day, sun wheels/sky lerps (day/dusk/night presets), auto
+HEADLIGHTS per vehicle, clock in the location bar, **night cuts the vision cone to 0.55** (the
+perception engine finally fears the dark), hold-T wait (clock ×60, world untouched). DOGS ALL
+AROUND: `board/unboard` on ProtoDog + per-class `dog_seats`; followers hop in on enter_car and
+out on exit/eject; **working dogs (GUARD/SIC/SEEK) refuse the ride** — protects the metaworld
+dehydrate loop (dogmeta stayed green to prove it); riding calm aura; H horn = 55 m pack recall
+(+honk synth); P pet (stress relief, Cuddle double); E feeds meat to a hurt dog (+30 hp); TAB
+from the driver's seat opens the trunk. SIM-CRAFT gotchas re-paid: time-window taps fire ~6
+frames (use _step single-fire — town_sim's lesson, reintroduced and re-fixed); FOLLOWERS CHASE
+the player so pre-placed dog spots drift — stage sim actors at tap time, not phase entry.
+NEXT: Stage 6 deepening (NPC schedules now have a CLOCK to read!) or Stage 4 finishers.
+
 **2026-07-05 (surfaces drive the DRIVE + pickup + useful dash):** vehicles_sim 27/27; battery
 24/24. `offroad_factor()` = surface-through-tires × tire-condition drag now scales effective
 top speed AND engine punch (not just grip): dirt costs the van −31%, pickup −9%, buggy −5%
