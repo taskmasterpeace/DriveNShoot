@@ -66,6 +66,14 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+**2026-07-04 (Stage 3 core):** RPG spine SHIPPED (stage3_sim 12/12): ProtoCharacter — skills
+level by use (Mechanics→faster hotwire, Marksmanship→tighter spread, Driving→by miles), 6-part
+body on Damageable, **HEALTH CAP** (wounds drop max hp; bandage treats worst part), character
+sheet on **K**, **permadeath** (head/torso broken or hp 0 → death screen, R restarts). Sims now
+11: + stage3. REMAINING Stage 3: attributes (STR/DEX/INT/CON/LUCK hooks), navigation arrows/
+compass, encumbrance, drop-to-world; then Stage 4 (melee + throwables + reticle bloom UI + car
+mounts) per `STAGES.md`.
+
 **2026-07-04 (final):** **STAGE 2 COMPLETE.** Arsenal live (3 guns/3 behaviors, ammo-from-backpack,
 tracers, corpse loot), **ProtoAudio** synthesized soundscape (11 streams, engine pitch w/ speed,
 fire crackle — zero assets), containers polished (Take All, sorted, blips), dogs unstuck-logic.
