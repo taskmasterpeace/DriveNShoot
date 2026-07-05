@@ -42,6 +42,7 @@ var _prev_car_pos: Vector3 = Vector3.ZERO
 const CARRY_CAP := 32.0 ## kg-ish; STR raises this later (attributes hook)
 var waypoints: Array = [] ## [name, Vector3-or-Node3D]
 var waypoint_idx: int = -1
+var stream: ProtoWorldStream = null
 
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
@@ -141,6 +142,10 @@ func _ready() -> void:
 
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
+	stream = ProtoWorldStream.new()
+	add_child(stream)
+	stream.setup(waypoints)
+
 	house.tracked = player
 	enter_car(cars[0])
 	cam_rig.snap_to_target()
@@ -205,6 +210,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				reload_equipped()
 		elif kc == KEY_G:
 			throw_grenade()
+		elif kc == KEY_M:
+			stream.toggle_map()
 		elif kc == KEY_K:
 			hud.toggle_sheet(_sheet_text())
 		elif kc == KEY_N:
@@ -297,9 +304,10 @@ func _physics_process(delta: float) -> void:
 	player.speed_mult = 1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)
 	hud.set_condition("heavy", 0 if over <= 1.0 else (3 if over > 1.5 else 1))
 
-	# Waypoint arrow
+	# Waypoint arrow + world streaming
 	var cam := get_viewport().get_camera_3d()
 	var body_pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
+	stream.update_stream(body_pos, self)
 	if waypoint_idx >= 0 and cam:
 		var wp: Array = waypoints[waypoint_idx]
 		var tpos: Vector3 = wp[1].global_position if wp[1] is Node3D else wp[1]
@@ -705,10 +713,12 @@ func notify(text: String) -> void:
 
 func _update_location_label() -> void:
 	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
-	if pos.x > 35.0:
+	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
 		hud.set_location("MERIDIAN — POP. UNKNOWN")
+	elif absf(pos.x) < 30.0:
+		hud.set_location("INTERSTATE 9 — %s" % stream.current_state(pos.x))
 	else:
-		hud.set_location("DEATHLANDS — INTERSTATE 9")
+		hud.set_location("DEATHLANDS — %s" % stream.current_state(pos.x))
 
 
 func enter_car(car: ProtoCar3D) -> void:

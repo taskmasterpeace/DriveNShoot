@@ -235,3 +235,13 @@ on foot, and Hold X to extract.
     the car points (40-round belt, R reloads from your 9mm). First vehicle weapon — same
     weapon system as the handhelds, proving the mount architecture.
 *   **Proof:** stage4_sim 9/9 · arsenal/m1 unregressed.
+
+## 24. THE COUNTRY STREAMS — Stage 5 slice (2026-07-05)
+*   **Content streaming** — the wasteland generates itself in a ring around you from the world
+    seed: scrub, wrecks, prowling lurkers, and supply caches, loading ahead and unloading behind.
+    Same seed = same world, every run.
+*   **States** — drive east or west and cross real state lines: "🪧 WELCOME TO KANSAS."
+    The HUD names the state you're bleeding in.
+*   **🗺️ The world map (M)** — fog-of-war cartography: only land you've actually crossed is
+    drawn. Your trail, the interstate, POIs, and you.
+*   **Proof:** stage5_sim 9/9.
