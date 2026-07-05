@@ -18,6 +18,25 @@ signal speed_changed(mph: float)
 @export var grip_rear: float = 5.0    ## Baseline grip; the Tires component modifies it (see LOOP2 spec).
 @export var handbrake_grip_rear: float = 2.4  ## Slide grip — playtest bug: 1.1 spun the car a full 180.
 @export var handbrake_steer_mult: float = 0.55 ## Steering authority while sliding (full lock = spin).
+@export var handbrake_decel: float = 8.0      ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering; playtest: "didn't brake unless you turned").
+@export var handbrake_yaw_rate: float = 1.4   ## rad/s cap on drift rotation — the anti-180 (raw physics peaked at 6.5).
+@export var handbrake_yaw_damp: float = 18.0  ## counter-torque strength that arrests the spin at the cap / to straight
+
+@export_group("Surface")
+## Roads are visual-only slabs, so surface comes from ProtoWorldBuilder.surface_at(pos).
+## Each surface scales grip (dirt slides), dust, and skid-mark color. Data-driven per house rules.
+const SURFACE: Dictionary = {
+	"road": {"grip": 1.0, "dust_speed": 9.0, "skid": Color(0.05, 0.05, 0.06, 0.85)},
+	"dirt": {"grip": 0.78, "dust_speed": 4.5, "skid": Color(0.40, 0.32, 0.22, 0.6)},
+}
+var current_surface: String = "road"
+var surface_override: String = "" ## sims/tests force a surface without a world under the car
+
+const SKID_MAX := 160
+const SKID_STEP := 0.35 ## drop a mark every this many meters of slide
+const SKID_LIFE := 12.0
+var _skids: Array = []
+var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
@@ -171,6 +190,76 @@ static func create(body_color: Color) -> ProtoCar3D:
 
 func facing() -> Vector3:
 	return -global_basis.z
+
+
+# --- Surface + skid marks (2026-07-05 driving pass) --------------------------
+
+## Which surface the car sits on. Roads are visual-only, so the world tells us.
+func _sample_surface() -> String:
+	return ProtoWorldBuilder.surface_at(global_position)
+
+
+func surface_grip_mult() -> float:
+	var s: String = surface_override if surface_override != "" else current_surface
+	return SURFACE.get(s, SURFACE["road"])["grip"]
+
+
+func skid_count() -> int:
+	_skids = _skids.filter(func(m): return is_instance_valid(m))
+	return _skids.size()
+
+
+## Lay dark marks under the rear wheels while they're actually sliding — the
+## drift made visible. Distance-gated so a slide draws a continuous streak, not
+## a flood; pooled + faded so it never grows without bound.
+func _emit_skids() -> void:
+	if dead:
+		return
+	var world := get_parent()
+	if world == null:
+		return
+	var col: Color = SURFACE.get(current_surface, SURFACE["road"])["skid"]
+	for w in _rear_wheels:
+		if not w.is_in_contact():
+			_skid_last.erase(w)
+			continue
+		var sliding: bool = input_handbrake or w.get_skidinfo() < 0.6
+		if not sliding or absf(forward_speed) < 2.0:
+			continue
+		var cp: Vector3 = w.get_contact_point()
+		if _skid_last.has(w) and cp.distance_to(_skid_last[w]) < SKID_STEP:
+			continue
+		_skid_last[w] = cp
+		_drop_skid(world, cp, col)
+
+
+func _drop_skid(world: Node, pos: Vector3, col: Color) -> void:
+	var m := MeshInstance3D.new()
+	var q := BoxMesh.new()
+	q.size = Vector3(0.26, 0.02, 0.55)
+	m.mesh = q
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.roughness = 1.0
+	m.material_override = mat
+	world.add_child(m)
+	var vel := linear_velocity
+	vel.y = 0.0
+	m.global_position = pos + Vector3(0, 0.02, 0)
+	m.global_rotation.y = atan2(-vel.x, -vel.z) if vel.length() > 0.5 else global_rotation.y
+	_skids.append(m)
+	if _skids.size() > SKID_MAX:
+		var oldest = _skids.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+	# Linger, then fade out and free (self-managing decal).
+	var tw := m.create_tween()
+	tw.tween_interval(SKID_LIFE * 0.6)
+	tw.tween_property(mat, "albedo_color:a", 0.0, SKID_LIFE * 0.4)
+	tw.tween_callback(func() -> void:
+		_skids.erase(m)
+		m.queue_free())
 
 
 # --- Interactable contract (on-foot) ---------------------------------------
@@ -388,7 +477,10 @@ func _physics_process(delta: float) -> void:
 		_dust.position = Vector3(0, -0.2, 2.1)
 		_dust.emitting = false
 		add_child(_dust)
-	_dust.emitting = not dead and absf(forward_speed) > 8.0
+	# Dirt kicks up dust sooner and browner than asphalt (surface feel).
+	var dust_speed: float = SURFACE.get(current_surface, SURFACE["road"])["dust_speed"]
+	_dust.emitting = not dead and absf(forward_speed) > dust_speed
+	_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
 
 	if not is_active or dead:
 		engine_force = 0.0
@@ -419,7 +511,10 @@ func _physics_process(delta: float) -> void:
 	var engine_mult: float = TIER_ENGINE_MULT[components["engine"].tier()]
 	if fuel <= 0.0 or components["battery"].tier() == Damageable.Tier.BROKEN:
 		engine_mult = 0.0
-	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()]
+	# Grip = baseline × tire condition × SURFACE (dirt is looser than asphalt).
+	current_surface = surface_override if surface_override != "" else _sample_surface()
+	var surf_grip: float = SURFACE[current_surface]["grip"]
+	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
 		w.wheel_friction_slip = grip_front * grip_mult
 	var rear_base := handbrake_grip_rear if input_handbrake else grip_rear
@@ -443,6 +538,31 @@ func _physics_process(delta: float) -> void:
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
 
-	# Handbrake: light brake assist while sliding (grip handled above with tires).
+	# Handbrake, rebuilt (2026-07-05 driving pass). Two playtest bugs, one block:
+	#  1) "doesn't brake unless you turn" — it now applies REAL braking (was 6/40).
+	#  2) "turning does a full 180" — the rear-grip drop still SETS UP the slide, but
+	#     the yaw rate is CAPPED and DAMPED so a drift can't run away into a spin
+	#     (raw physics peaked at 6.5 rad/s → 272° in 3 s; capped it stays a drift).
+	# Straight (no steer) = brake + settle yaw to zero → you stop straight.
+	# Turning = a controlled, bounded drift; hold throttle too and you keep the slide.
 	if input_handbrake:
-		brake = maxf(brake, 6.0)
+		# Brake with a FORCE opposing motion, not the wheel `brake` (a strong wheel
+		# brake locks the fronts and steering dies → the car slid straight, 0 yaw) and
+		# not by overwriting velocity (that clobbers the wheels' own friction → no
+		# slide). A decel force cooperates with the solver: it slows the car HARD while
+		# the low-grip rear (above) still steps out into a real, steerable drift.
+		var vh := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+		if vh.length() > 1.0:
+			apply_central_force(-vh.normalized() * mass * handbrake_decel)
+		# Cap + settle the yaw so a drift stays a drift and never snaps into a 180.
+		# A direct `angular_velocity.y =` write fights the vehicle solver (it zeroed the
+		# drift), so we nudge with TORQUE: brake the spin only past the cap, and add a
+		# gentle counter-torque toward straight when you're not steering.
+		if absf(forward_speed) > 3.0:
+			var wy := angular_velocity.y
+			if absf(wy) > handbrake_yaw_rate:
+				apply_torque(Vector3(0.0, -(wy - signf(wy) * handbrake_yaw_rate) * mass * handbrake_yaw_damp, 0.0))
+			elif absf(input_steer) < 0.15:
+				apply_torque(Vector3(0.0, -wy * mass * handbrake_yaw_damp, 0.0))
+
+	_emit_skids()

@@ -120,6 +120,33 @@ static func _scatter_detail(world: Node3D) -> void:
 		world.add_child(mmi)
 
 
+## Road footprints (asphalt) — MIRRORS the visual slabs laid in build_world below
+## (roads are visual-only, no collision, so the car can't raycast them). Each entry:
+## [center_x, center_z, half_x, half_z, rot_y]. Streaming (Stage 5+) replaces this
+## with per-chunk surface data.
+const ROAD_RECTS: Array = [
+	[0.0, 0.0, 8.0, 430.0, 0.0],            # Interstate 9
+	[105.0, -290.0, 60.0, 5.0, 0.0],        # Meridian main street
+	[85.0, -300.0, 5.0, 45.0, 0.0],         # Meridian cross street
+	[30.0, -257.5, 4.5, 37.5, 0.774],       # Exit 9 ramp (atan2(44,45))
+]
+
+
+## The surface under a world point: "road" (asphalt — high grip) or "dirt"
+## (everything else — looser, dustier). Data-driven from ROAD_RECTS.
+static func surface_at(pos: Vector3) -> String:
+	for r in ROAD_RECTS:
+		var dx: float = pos.x - r[0]
+		var dz: float = pos.z - r[1]
+		var c: float = cos(-r[4])
+		var s: float = sin(-r[4])
+		var lx: float = dx * c - dz * s
+		var lz: float = dx * s + dz * c
+		if absf(lx) <= r[2] and absf(lz) <= r[3]:
+			return "road"
+	return "dirt"
+
+
 ## Builds everything. Returns spawn info: { "car_spawns": Array[Transform3D], "house": ProtoHouse }
 static func build_world(root: Node3D) -> Dictionary:
 	var world := Node3D.new()

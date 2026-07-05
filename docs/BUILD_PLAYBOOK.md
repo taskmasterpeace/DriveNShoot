@@ -51,14 +51,21 @@ godot-console = C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win6
 2. ~~World-edge fall~~ — fixed M1 (12 km + last-safe respawn); real fix = Stage 5 streaming.
 3. ~~Binoculars snap~~ — fixed (eased view + wheel magnification).
 4. ~~Wrong-side car exit~~ — fixed (driver's side).
-5. ~~Handbrake 180-spin~~ — fixed 2026-07-04 (slide grip 1.1→2.4 + steer trim 0.55); drive_sim
-   handbrake target: yaw 60–120° in 1.6 s, never flip.
-6. Grip baseline: user says "slides a little too much" even after first raise — watch on next
-   playtest; baseline is the number tire-damage modifies (LOOP2 §Handling baseline).
+5. ~~Handbrake 180-spin~~ — the 2026-07-04 "fix" (grip 2.4 + steer trim) did NOT hold: the old
+   drive_sim only checked a 1.6 s window (~99°) and never a longer hold, so a real 3 s hold still
+   whipped 272°, peak 6.5 rad/s. REAL fix 2026-07-05: brake with a decel FORCE (a wheel-brake
+   locks the fronts & kills steering) + a torque yaw-cap (peak now pinned ~2.0 rad/s). drive_sim
+   now tests straight-brake decel, a powered drift, AND a long hold.
+6. ~~Handbrake "doesn't brake unless you turn"~~ — fixed 2026-07-05: it applied only brake 6/40;
+   now a real handbrake_decel (8 m/s2) sheds speed whether you turn or not.
+7. Grip baseline "slides a little too much" — now per-surface (2026-07-05): road grip 1.0 / dirt
+   0.78; tune the SURFACE table + grip_rear. Dirt intentionally slides more.
 
 ## 5. Feel targets (sim-checked numbers)
 0-60: 3.0–5.5 s · top ~76 mph · 60-0: 40–50 m · steer @15 m/s: 90–130° in 2.5 s (no spin-out) ·
-handbrake: 60–120° in 1.6 s (drift, not a 180) · flips: NEVER · stairs walkable · dive lunge >2 m.
+handbrake STRAIGHT: sheds ≥8 m/s in 2 s & tracks straight · handbrake TURN: drifts ~50–120° in
+1.6 s · handbrake LONG hold: bounded, peak yaw ≤ ~2.2 rad/s (NEVER the raw 6.5 whip) · drifting
+lays skid marks · dirt grips < road · flips: NEVER · stairs walkable · dive lunge >2 m.
 
 ## 6. Vision guardrails (drift check before each commit)
 Gritty permadeath (PZ tone) · top-down 3D, readable at a glance · emoji/glyph HUD, amber/bone/
@@ -74,6 +81,11 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
 **SHIPPED & sim-proven (Stages 0–6 slice + extras), 22 test suites all green:**
+- **Driving pass (2026-07-05):** handbrake **brakes when held straight** (real decel force) and
+  **drifts in a controlled arc when you turn — no more 180 whip** (torque yaw-cap: peak 6.5→2.0
+  rad/s); **SKID MARKS** under sliding rear wheels (pooled, fade, surface-tinted); **SURFACES**
+  (road grips 1.0 / dirt 0.78, browner dust off-road) via `world_builder.surface_at`; the driving
+  cone **faces travel not the nose** (a drift no longer reads as "looking sideways"). (drive_sim 7/7)
 - **MERIDIAN LIVES (Stage 6 slice):** the **Respect Ledger** (esteem/infamy/notoriety per
   `WORLD_NPCS.md §6`), a TRADER whose shop IS the container panel (moves carry jack, prices =
   base × the town's opinion of you), a SEC-MAN **bounty chain** (offer → live mark + waypoint →
@@ -131,10 +143,27 @@ frees them); stairs = smooth ramp + plateau, NEVER stepped boxes; test the REAL 
 teleport past the mechanic; new `class_name` scripts need a `--headless --import` before sims see them;
 NEVER type a var that can hold a FREED instance (`var t: Node3D = bounty.get("target")` THROWS —
 use `Variant` + `is_instance_valid`); dogs charge in STRAIGHT lines — never place furniture/NPCs
-on a desire path (kennel→chest corridor trapped Lucky; the market moved across the street).
+on a desire path (kennel→chest corridor trapped Lucky; the market moved across the street);
+on a VehicleBody3D NEVER write `angular_velocity` directly to steer/limit it — it fights the
+wheel solver and ZEROES the drift; use `apply_torque`. A strong wheel `brake` LOCKS the front
+wheels and kills steering (a handbrake turn produced 0° yaw) — brake with a decel FORCE instead.
+And a bug can pass a sim that only checks a short window (the 180 hid past the old 1.6 s cutoff) —
+test the WORST case (long holds), not just the happy path.
 
 ---
 ### History (newest first)
+**2026-07-05 (driving pass — playtest fixes):** drive_sim 7/7, battery 22/22. Investigated the
+user's "handbrake doesn't brake unless you turn, and then it does a 180." Root causes (both
+found by reading + a reproduce sim): the handbrake applied only `brake=6/40` (barely braked) and
+NOTHING capped the yaw, so a hold past the old sim's 1.6 s window whipped **272°, peak 6.5 rad/s**.
+Fixes in `car_3d.gd`: brake with a **decel force** (a wheel-brake locks the fronts → kills steering,
+which had zeroed the drift) + a **torque yaw-cap** (peak pinned ~2.0 rad/s, straight holds settle
+to 0). Added **skid marks** (VehicleWheel3D.get_skidinfo/get_contact_point, pooled+faded+surface-
+tinted) and a **surface system** (`world_builder.surface_at` from road rects — roads are visual-
+only; road grip 1.0 / dirt 0.78 + browner dust). Driving cone now **faces velocity not the nose**
+(`proto3d.gd`) so a drift stops reading as "looking sideways." Two hard gotchas paid for (see iron
+list). STILL OPEN for the user: the on-foot look model (twin-stick vs the Look Arc) — needs his call.
+
 **2026-07-05 (Stage 6 slice — MERIDIAN LIVES):** town_sim 16/16; battery 22/22. **Respect
 Ledger** (`respect.gd`, WORLD_NPCS §6: esteem/infamy/notoriety, standing bands, price_mult),
 **ProtoNPC** (`npc.gd` — archetype = a DATA row: Mercy the TRADER, Bridger the SEC-MAN, both

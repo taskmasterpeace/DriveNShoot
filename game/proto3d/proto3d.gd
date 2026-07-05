@@ -394,6 +394,14 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		# ONE RULE governs sight and aim: the cone follows the GAZE (Look Arc) —
 		# relaxed, aiming, or glassing, sight_facing() is already the right vector.
 		facing = player.sight_facing()
+	elif mode == Mode.DRIVE and active_car:
+		# Look where you're GOING, not where the nose is pointed: in a drift the
+		# chassis yaws off travel, and facing the nose read as "looking sideways
+		# while driving straight" (playtest). Fall back to the nose when crawling.
+		var vel := active_car.linear_velocity
+		vel.y = 0.0
+		if vel.length() > 4.0:
+			facing = vel.normalized()
 	var params: Array = ProtoVisionCone.MODE_DRIVE if mode == Mode.DRIVE else ProtoVisionCone.MODE_FOOT
 	if binoc:
 		params = ProtoVisionCone.MODE_BINOC
