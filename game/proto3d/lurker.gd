@@ -54,11 +54,22 @@ func take_damage(amount: float) -> void:
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true
-		# Death leaves lootable remains — soft pile, never a car-denting crate.
+		# KILL PAYOFF: the skull pops, the remains drop (soft pile, never a
+		# car-denting crate).
+		ProtoFX.skull(get_parent(), global_position)
 		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 2}, false)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()
+
+
+## Force answered with motion: pellets and steel SHOVE the thing backward.
+func shove(dir: Vector3, power: float) -> void:
+	if dead:
+		return
+	var d := Vector3(dir.x, 0, dir.z)
+	if d.length_squared() > 0.01:
+		velocity += d.normalized() * power + Vector3(0, power * 0.25, 0)
 
 
 static func create() -> ProtoLurker:

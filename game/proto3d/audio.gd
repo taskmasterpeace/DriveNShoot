@@ -52,6 +52,12 @@ static func _build_all() -> void:
 	streams["blip"] = _synth(0.07, func(t, p): return sin(t * 880.0 * TAU) * exp(-p * 8.0) * 0.3)
 	# Door creak: descending squeak
 	streams["creak"] = _synth(0.4, func(t, p): return sin(t * (600.0 - 250.0 * p) * TAU + sin(t * 37.0) * 3.0) * 0.25 * exp(-p * 2.0))
+	# Melee whoosh: air ripped by a swing (noise swept down, quick)
+	streams["whoosh"] = _synth(0.16, func(_t, p): return rng.randf_range(-1, 1) * (0.5 - 0.5 * absf(p - 0.35)) * exp(-p * 4.0) * 0.7)
+	# Melee thunk: meat & bone (low sine knock + noise crack)
+	streams["thunk"] = _synth(0.14, func(t, p): return (sin(t * 95.0 * TAU) * 0.7 + rng.randf_range(-1, 1) * 0.3) * exp(-p * 10.0))
+	# Hit-marker: tiny dry tick — a confirmed round on flesh
+	streams["hitmark"] = _synth(0.045, func(t, p): return sin(t * 1900.0 * TAU) * exp(-p * 16.0) * 0.4)
 	# Engine loop: saw-ish hum (looped)
 	var eng := _synth(0.5, func(t, p): return (fmod(t * 65.0, 1.0) * 2.0 - 1.0) * 0.28 + sin(t * 32.5 * TAU) * 0.22)
 	eng.loop_mode = AudioStreamWAV.LOOP_FORWARD

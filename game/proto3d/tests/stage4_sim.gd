@@ -143,8 +143,10 @@ func _physics_process(delta: float) -> void:
 				if main.mode == 0:
 					_check("no default hood MG on the Scavenger anymore", main.active_car.mount_weapon == null)
 					var fwd: Vector3 = main.active_car.facing()
-					_lurk = _spawn(fwd * 14.0 + Vector3(0, 0.4, 0))
-					_lurk.global_position = main.active_car.global_position + fwd * 14.0 + Vector3(0, 0.4, 0)
+					# 7m, not 14: the test is "you CAN kill from the seat", not
+					# "pistol bloom at range" (that fight is legitimately hard).
+					_lurk = _spawn(fwd * 7.0 + Vector3(0, 0.4, 0))
+					_lurk.global_position = main.active_car.global_position + fwd * 7.0 + Vector3(0, 0.4, 0)
 					main.aim_override = fwd # "mouse" on the lurker out the windshield
 					_mag0 = main.current_weapon().mag
 					_next()
@@ -153,14 +155,19 @@ func _physics_process(delta: float) -> void:
 					phase = 9
 		8:
 			if phase_t > 0.3 and is_instance_valid(_lurk) and not _lurk.dead:
-				if is_instance_valid(_lurk):
-					main.aim_override = (_lurk.global_position - main.active_car.global_position).normalized()
-				_click() # YOUR OWN gun, out the driver's window
+				# UNNORMALIZED aim: converge at the lurker itself (mouse-equivalent).
+				main.aim_override = _lurk.global_position - main.active_car.global_position
+				if main.current_weapon().mag <= 0:
+					_key(KEY_R) # top up mid-fight like a person would
+				# PACED shots — mashing the trigger pins the bloom at max and
+				# nothing lands at range (that's the bloom system working).
+				elif fmod(phase_t, 0.55) < delta:
+					_click() # YOUR OWN gun, out the driver's window
 			elif (not is_instance_valid(_lurk)) or _lurk.dead:
 				_check("YOUR OWN GUN kills from the driver's seat (no mount needed)", true)
 				_check("...and it burned YOUR mag (%d < %d)" % [main.current_weapon().mag, _mag0], main.current_weapon().mag < _mag0)
 				_next()
-			if phase_t > 8.0:
+			if phase_t > 14.0:
 				_check("YOUR OWN GUN kills from the driver's seat (no mount needed)", false)
 				_next()
 		9:

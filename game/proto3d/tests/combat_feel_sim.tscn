@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dfeelsim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/combat_feel_sim.gd" id="1_feel"]
+
+[node name="CombatFeelSim" type="Node"]
+script = ExtResource("1_feel")

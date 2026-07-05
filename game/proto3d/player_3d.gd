@@ -122,6 +122,37 @@ static func create() -> ProtoPlayer3D:
 	return p
 
 
+var recoil_t: float = 0.0 ## sim hook — >0 while the gun is kicking
+
+
+## The gun KICKS in the hand: a sharp back-jab that resettles. Pure feel.
+func gun_recoil() -> void:
+	if _gun == null:
+		return
+	recoil_t = 0.12
+	var tw := _gun.create_tween()
+	tw.tween_property(_gun, "position:z", -0.36 + 0.11, 0.04).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_gun, "position:z", -0.36, 0.09).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(self, "recoil_t", 0.0, 0.09)
+
+
+## The swing made physical: the held weapon whips through an arc and resettles.
+func swing() -> void:
+	if _gun == null:
+		return
+	_gun.rotation.y = 0.9
+	var tw := _gun.create_tween()
+	tw.tween_property(_gun, "rotation:y", -0.9, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_gun, "rotation:y", 0.0, 0.12).set_ease(Tween.EASE_IN_OUT)
+
+
+## Melee commits: a short forward step INTO the swing (closes the last half-meter).
+func lunge(dir: Vector3) -> void:
+	var d := Vector3(dir.x, 0, dir.z)
+	if d.length_squared() > 0.01:
+		velocity += d.normalized() * 2.6
+
+
 ## World-space muzzle tip — rounds LEAVE THE GUN, not the chest (playtest law).
 func muzzle_world() -> Vector3:
 	if _gun and _gun.visible:

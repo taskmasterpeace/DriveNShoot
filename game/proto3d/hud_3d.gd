@@ -422,6 +422,12 @@ func death_shown() -> bool:
 var _reticle: Node2D = null
 var _reticle_ticks: Array = []
 var reticle_gap: float = 0.0 ## sim hook
+var hit_pulse_t: float = 0.0 ## sim hook — >0 right after a confirmed flesh hit
+
+
+## A round CONNECTED: the reticle pinches white for a heartbeat.
+func pulse_hit() -> void:
+	hit_pulse_t = 0.14
 
 func update_reticle(spread_deg: float, mouse: Vector2, show: bool, pinned: bool = false) -> void:
 	if _reticle == null:
@@ -439,9 +445,12 @@ func update_reticle(spread_deg: float, mouse: Vector2, show: bool, pinned: bool 
 		return
 	_reticle.position = mouse
 	reticle_gap = 8.0 + spread_deg * 5.0
-	# Hot ticks while the Look Arc pins the aim: the mouse wants more turn than the
-	# head has left — the body is still coming around, shots fly the arc edge.
-	var tick_color: Color = Color(1.0, 0.42, 0.28) if pinned else AMBER
+	# Hit pulse: a confirmed flesh hit pinches the reticle tight + white.
+	hit_pulse_t = maxf(0.0, hit_pulse_t - get_process_delta_time())
+	if hit_pulse_t > 0.0:
+		reticle_gap *= 0.55
+	# Hot ticks while your eyes lag the gun (firing where you can't fully see).
+	var tick_color: Color = Color(1.0, 1.0, 0.95) if hit_pulse_t > 0.0 else (Color(1.0, 0.42, 0.28) if pinned else AMBER)
 	var dirs := [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
 	for i in 4:
 		(_reticle_ticks[i] as ColorRect).position = dirs[i] * reticle_gap - Vector2(1.5, 4.5)

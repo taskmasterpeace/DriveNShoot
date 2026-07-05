@@ -960,23 +960,34 @@ func current_weapon() -> ProtoWeapon:
 	return weapons[equipped] if equipped >= 0 and equipped < weapons.size() else null
 
 
-## Where the player intends to shoot: mouse ray onto the aim plane (or sim override).
-## Anchored on whatever body you're IN — on foot that's you, driving it's the car.
-func aim_direction() -> Vector3:
-	if aim_override.length_squared() > 0.01:
-		return aim_override.normalized()
+## The world POINT under the cursor (mouse ray onto the aim plane; sims project
+## their override direction 25 m out). Bullets converge EXACTLY here — the gun
+## rides in the right hand, so firing along (point - muzzle) is what makes the
+## cursor honest at close range (muzzle-parallax bug, caught by combat_feel_sim).
+func aim_point() -> Vector3:
 	var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	if aim_override.length_squared() > 0.01:
+		# Sim convention: a LONG override vector carries its own range (aim AT the
+		# target, converge there — like the mouse does); a unit vector = 25 m out.
+		var d := aim_override.length()
+		return anchor + aim_override.normalized() * (d if d > 2.0 else 25.0)
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
-		return player.facing()
+		return anchor + player.facing() * 25.0
 	var mouse := get_viewport().get_mouse_position()
 	var from := cam.project_ray_origin(mouse)
 	var dir := cam.project_ray_normal(mouse)
 	if absf(dir.y) < 0.001:
-		return player.facing()
+		return anchor + player.facing() * 25.0
 	var t := (1.0 - from.y) / dir.y # intersect the y=1.0 aim plane
-	var point := from + dir * t
-	var out := point - anchor
+	return from + dir * t
+
+
+## Where the player intends to shoot, as a direction from the body's center
+## (orientation, cone, melee). Muzzle-true bullet paths use aim_point() instead.
+func aim_direction() -> Vector3:
+	var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	var out := aim_point() - anchor
 	out.y = 0.0
 	return out.normalized() if out.length_squared() > 0.01 else player.facing()
 
@@ -989,15 +1000,19 @@ func fire_equipped() -> void:
 		notify("*click* — reload (R)")
 		return
 	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
-	# The Look Arc gates the MUZZLE, not just the picture: the shot flies where the
-	# head can actually point this frame. Aiming behind you = the round goes out
-	# the arc edge while your body comes around. No instant back-shots. Ever.
-	var dir := player.aim_now(aim_direction())
-	if w.fire(self, player.muzzle_world(), dir):
+	player.aim_now(aim_direction()) # orient arms/eyes at the intent
+	# The BULLET flies muzzle → aim point, so it lands exactly under the cursor
+	# (the muzzle sits in the right hand — center-based directions shot wide).
+	var muzzle := player.muzzle_world()
+	var shot := aim_point() - muzzle
+	shot.y = 0.0
+	var dir := shot.normalized() if shot.length_squared() > 0.01 else player.aim_facing()
+	if w.fire(self, muzzle, dir):
 		if w.is_melee():
 			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
 		else:
-			cam_rig.add_trauma(0.18)
+			player.gun_recoil() # the kick you FEEL in the hand
+			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
 			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
 
@@ -1029,10 +1044,13 @@ func fire_from_vehicle() -> void:
 	if w.mag <= 0:
 		notify("*click* — reload (R)")
 		return
-	var dir := aim_direction()
 	var origin: Vector3 = active_car.global_position \
 		+ Vector3(0, active_car.spec["chassis"].y * 0.5 + 0.7, 0) \
 		- active_car.global_basis.x * 0.5 # the driver's window
+	# The FULL 3D line, not flattened: the window sits HIGH (semi cab higher yet) —
+	# a horizontal ray sails over heads. Shots angle DOWN to the aim point.
+	var shot := aim_point() - origin
+	var dir := shot.normalized() if shot.length_squared() > 0.01 else active_car.facing()
 	if w.fire(self, origin, dir):
 		cam_rig.add_trauma(0.15)
 		stress = minf(100.0, stress + 1.5)

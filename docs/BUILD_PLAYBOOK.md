@@ -81,7 +81,14 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–6 slice + extras), 23 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–6 slice + extras), 24 test suites all green:**
+- **COMBAT FEEL (the juice layer, `fx.gd`):** every action is ANSWERED. Melee: visible swing
+  arc + forward LUNGE + whoosh, every connection = blood + THUNK + camera hit + per-weapon
+  SHOVE (wrench 1.8 / machete 3.4). Guns: MUZZLE FLASH + ejected brass + recoil kick in the
+  hand + hit-pulse reticle (pinches white) + hitmark tick; world hits kick DUST at the impact
+  point; shotgun pellets carry shove; kills pop a SKULL. Bullets converge AT the cursor
+  (muzzle-parallax fixed — the sim caught rounds landing right of the aim); vehicle shots fly
+  the full 3D line (window height cleared heads). (combat_feel_sim 14/14)
 - **THE FLEET (VEHICLES.md):** five wildly different rides from ONE data table — Rat Bike
   (quickest, crashes THROW you ×2.5 wounds), Scavenger, Dustrunner buggy (knobby tires ~keep
   grip on dirt), Boxer van (120 kg bay), Longhaul semi + **detachable 400 kg TRAILER** (E at the
@@ -163,10 +170,26 @@ And a bug can pass a sim that only checks a short window (the 180 hid past the o
 test the WORST case (long holds), not just the happy path. `engine_force` applies PER TRACTION
 WHEEL (the semi's 4 drive wheels secretly doubled its power and broke the accel ladder — one
 drive axle per vehicle). Changing CPUParticles `amount` RESTARTS emission — quantize to buckets.
-`ClassName.has_method()` can't be called on the class itself (instances only).
+`ClassName.has_method()` can't be called on the class itself (instances only). `Damageable.damage()`
+clamps hp into [0, max_hp] — a sim raising hp must raise max_hp TOO or the first hit collapses it.
+Format-string args evaluate BEFORE a guarded condition (`"%.2f" % freed.x` throws even when the
+check is guarded) — sample values per-frame into locals; never format a possibly-freed ref.
 
 ---
 ### History (newest first)
+**2026-07-05 (combat feel — the juice layer):** combat_feel_sim 14/14 ×3 deterministic; battery
+24/24. `fx.gd` (ProtoFX): muzzle flash + brass casings + blood on flesh + DUST on world hits +
+visible swing arc + skull kill-pop — all self-freeing, all group-tagged (`fx_*`) so sims prove
+juice headless. Melee: LUNGE into the swing, whoosh/THUNK synths, per-weapon SHOVE data
+(wrench 1.8 / machete 3.4; pellets 1.4 each). Guns: recoil kick (`gun_recoil`), hit-pulse
+reticle (`hud.pulse_hit`), hitmark tick. TWO REAL BUGS the sim caught: (1) muzzle parallax —
+rounds left the right hand but aimed from body center, shooting wide of the cursor at close
+range → bullets now fly muzzle→`aim_point()` and converge AT the cursor (sims pass UNNORMALIZED
+overrides to converge at the target); (2) vehicle window shots were y-flattened at window
+height → sailed over heads → full 3D line now. Sim craft gotchas paid (iron list): Damageable
+clamps to max_hp; never format possibly-freed refs (evaluate-before-guard); pace sim trigger
+pulls or bloom pins wide. NEXT unchanged: Stage 6 deepening or Stage 4 finishers (molotov/cook).
+
 **2026-07-05 (THE FLEET + playtest batch):** vehicles_sim 14/14; battery 23/23. Five vehicles
 from ONE data table (`ProtoCar3D.VEHICLES` — a vehicle is a ROW): Rat Bike / Scavenger /
 Dustrunner buggy / Boxer van / Longhaul semi + detachable trailer (6DOF hitch: yaw ±80°, E

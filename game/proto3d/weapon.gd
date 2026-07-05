@@ -17,9 +17,9 @@ const WEAPONS: Dictionary = {
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35},
+		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8},
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25},
+		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
@@ -67,11 +67,18 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		return false
 	var w := info()
 	if is_melee():
-		# Stamina-gated swing, hits everything in the reach arc. QUIET.
+		# Stamina-gated swing, hits everything in the reach arc. QUIET (no heat/
+		# stress) — but never silent to the SENSES: you see the arc, feel the lunge,
+		# hear the whoosh, and every connection answers with blood + a thunk.
 		if main.player.stamina < w["stamina"]:
 			return false
 		main.player.stamina -= w["stamina"]
 		_cd = w["cooldown"]
+		ProtoFX.swing_arc(main.player, aim_dir, w["arc_deg"], w["reach"])
+		main.player.swing()
+		main.player.lunge(aim_dir)
+		if "audio" in main and main.audio:
+			main.audio.play_at("whoosh", main.player.global_position, -8.0)
 		var hit_any := false
 		for node in main.get_tree().get_nodes_in_group("threat"):
 			var t := node as Node3D
@@ -81,10 +88,19 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 			to_t.y = 0.0
 			if to_t.length() <= w["reach"] and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)):
 				if t.has_method("take_damage"):
+					var was_valid := true
+					ProtoFX.blood(main, t.global_position + Vector3(0, 1.1, 0))
+					if t.has_method("shove"):
+						t.shove(to_t.normalized(), w.get("shove", 2.5)) # steel carries weight — per-weapon
 					t.take_damage(w["damage"])
 					hit_any = true
+					was_valid = is_instance_valid(t)
+					if "audio" in main and main.audio:
+						main.audio.play_at("thunk", main.player.global_position + to_t, -2.0)
+					if "cam_rig" in main and main.cam_rig:
+						main.cam_rig.add_trauma(0.16) # the connection lands in your hands
 					# Melee HITS — chance to knock the target flat (feel the impact).
-					if t.has_method("knock_down") and randf() < w.get("knockdown", 0.3):
+					if was_valid and t.has_method("knock_down") and randf() < w.get("knockdown", 0.3):
 						t.knock_down()
 		if hit_any and main.has_method("grant_xp"):
 			main.grant_xp("marksmanship", 1.0)
@@ -93,12 +109,16 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	_cd = w["cooldown"]
 	var sp := current_spread(main)
 	bloom = minf(bloom + 0.45, 2.2) # each shot blooms the cone; rest recovers it
+	# Every trigger pull is ANSWERED: flash at the muzzle, brass off to the right.
+	ProtoFX.muzzle_flash(main, from, aim_dir)
+	ProtoFX.casing(main, from, aim_dir.cross(Vector3.UP).normalized() * -1.0)
 	match w["behavior"]:
 		Behavior.HITSCAN:
 			_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
 		Behavior.HITSCAN_MULTI:
+			# Pellets at close range carry SHOVE — a shotgun answer you can see.
 			for i in int(w["pellets"]):
-				_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
+				_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"], 1.4)
 		Behavior.PROJECTILE:
 			_launch(main, from, _spread(aim_dir, sp), w)
 	return true
@@ -110,7 +130,7 @@ func _spread(dir: Vector3, deg: float) -> Vector3:
 	return dir.rotated(Vector3.UP, t * deg_to_rad(deg))
 
 
-func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float) -> void:
+func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, shove_power: float = 0.0) -> void:
 	var space: PhysicsDirectSpaceState3D = main.player.get_world_3d().direct_space_state
 	var to := from + dir * rng
 	var q := PhysicsRayQueryParameters3D.create(from, to)
@@ -125,9 +145,21 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float) 
 		end = hit["position"]
 		var col = hit["collider"]
 		if col != null and col.has_method("take_damage"):
+			# FLESH: blood where the round lands, a dry tick in your ear, the
+			# reticle pinches — the game says "that one counted."
+			ProtoFX.blood(main, end)
+			if shove_power > 0.0 and col.has_method("shove"):
+				col.shove(dir, shove_power)
 			col.take_damage(dmg)
+			if "audio" in main and main.audio:
+				main.audio.play_ui("hitmark", -14.0)
+			if "hud" in main and main.hud:
+				main.hud.pulse_hit()
 			if main.has_method("grant_xp"):
 				main.grant_xp("marksmanship", 2.0) # hits teach; misses don't
+		else:
+			# THE WORLD: dust off the wall — even a miss tells you where it went.
+			ProtoFX.impact(main, end)
 	_tracer(main, from, end)
 
 
