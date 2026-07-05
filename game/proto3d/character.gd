@@ -29,9 +29,14 @@ var vision_range_mult: float = 1.0
 var eyepatch: bool = false
 
 
+## One eye covered = you lose that SIDE: the arc halves AND swings toward the
+## seeing eye (not a symmetric squeeze — playtest feedback).
+var vision_yaw_offset: float = 0.0
+
 func set_eyepatch(on: bool) -> void:
 	eyepatch = on
 	vision_arc_mult = 0.5 if on else 1.0
+	vision_yaw_offset = -0.55 if on else 0.0 # right eye patched: the right side goes dark
 
 
 func _init() -> void:

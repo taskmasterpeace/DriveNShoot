@@ -147,6 +147,12 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 			use.pressed.connect(_on_use.bind(from, id))
 			row.add_child(use)
 		if mine_side:
+			if to != null: # a trunk/chest is open — explicit STORE (playtest ask)
+				var store := Button.new()
+				store.add_theme_font_override("font", ProtoHUD.mixed_font())
+				store.text = "STORE ≫"
+				store.pressed.connect(_on_move.bind(from, to, id))
+				row.add_child(store)
 			var drop := Button.new()
 			drop.add_theme_font_override("font", ProtoHUD.mixed_font())
 			drop.text = "DROP"

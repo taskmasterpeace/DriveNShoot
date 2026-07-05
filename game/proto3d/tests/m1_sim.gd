@@ -196,7 +196,8 @@ func _physics_process(delta: float) -> void:
 		22: # world edge: throw the car off the map
 			if phase_t > 0.6:
 				_mark = main._last_safe
-				main.active_car.global_position = Vector3(6900, 4.0, 0)
+				# The far states have GROUND now — prove the net by dropping BELOW the world.
+				main.active_car.global_position = Vector3(6900, -40.0, 0)
 				main._safe_timer = -3.0 # don't let the fall get recorded as safe
 				_next()
 		23:

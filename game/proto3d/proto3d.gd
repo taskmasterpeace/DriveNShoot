@@ -354,8 +354,14 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		var aim := cam_rig.binocular_aim_dir()
 		if aim.length_squared() > 0.01:
 			facing = aim
+	elif character.vision_yaw_offset != 0.0:
+		facing = facing.rotated(Vector3.UP, character.vision_yaw_offset) # eye patch: lose a SIDE
+	# Indoors, walls end your sight — no x-raying the neighborhood through the house.
+	var range_mult := character.vision_range_mult
+	if mode == Mode.FOOT and house.tracked_inside:
+		range_mult *= 0.3
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
-		character.vision_arc_mult, character.vision_range_mult)
+		character.vision_arc_mult, range_mult)
 
 
 var _hotwire_t: float = 0.0

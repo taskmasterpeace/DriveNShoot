@@ -148,14 +148,14 @@ static func build_world(root: Node3D) -> Dictionary:
 
 	# --- Interstate 9: north/south highway ---------------------------------
 	# Runs from z=+420 (spawn) to z=-420. Visual-only slabs sit on the ground.
-	box_visual(world, Vector3(16, 0.04, 860), Vector3(0, 0.02, 0), COL_ROAD)
+	box_visual(world, Vector3(16, 0.04, 860), Vector3(0, 0.07, 0), COL_ROAD)
 	# Shoulder lines
-	box_visual(world, Vector3(0.35, 0.05, 860), Vector3(-7.2, 0.025, 0), COL_DASH)
-	box_visual(world, Vector3(0.35, 0.05, 860), Vector3(7.2, 0.025, 0), COL_DASH)
+	box_visual(world, Vector3(0.35, 0.05, 860), Vector3(-7.2, 0.11, 0), COL_DASH)
+	box_visual(world, Vector3(0.35, 0.05, 860), Vector3(7.2, 0.11, 0), COL_DASH)
 	# Center dashes
 	var z := -420.0
 	while z < 420.0:
-		box_visual(world, Vector3(0.4, 0.05, 3.2), Vector3(0, 0.03, z), COL_DASH)
+		box_visual(world, Vector3(0.4, 0.05, 3.2), Vector3(0, 0.12, z), COL_DASH)
 		z += 12.0
 
 	# --- Exit 9 ramp: peels off east toward Meridian ------------------------
@@ -163,12 +163,12 @@ static func build_world(root: Node3D) -> Dictionary:
 	var ramp_dir := Vector2(52.0 - 8.0, -280.0 + 235.0) # (44, -45)
 	var ramp_len := ramp_dir.length() + 12.0
 	var ramp_ang := atan2(ramp_dir.x, -ramp_dir.y) # rotation around Y for a Z-aligned box
-	box_visual(world, Vector3(9, 0.05, ramp_len), Vector3(30, 0.025, -257.5), COL_ROAD, ramp_ang)
+	box_visual(world, Vector3(9, 0.05, ramp_len), Vector3(30, 0.07, -257.5), COL_ROAD, ramp_ang)
 
 	# --- Meridian: street grid ---------------------------------------------
 	# Main street along X at z=-290, cross street along Z at x=85.
-	box_visual(world, Vector3(120, 0.05, 10), Vector3(105, 0.025, -290), COL_ROAD)
-	box_visual(world, Vector3(10, 0.05, 90), Vector3(85, 0.025, -300), COL_ROAD)
+	box_visual(world, Vector3(120, 0.05, 10), Vector3(105, 0.07, -290), COL_ROAD)
+	box_visual(world, Vector3(10, 0.05, 90), Vector3(85, 0.07, -300), COL_ROAD)
 
 	# --- Highway sign for the exit ------------------------------------------
 	var sign_root := Node3D.new()

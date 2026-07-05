@@ -14,7 +14,9 @@ var tracked: Node3D = null ## Set by the main scene — the on-foot player to wa
 var front_door: ProtoDoor
 var stash: ProtoStash
 
+var tracked_inside: bool = false ## read by main: clamps sight indoors (no x-ray walls)
 var _roof: Node3D
+var _front_mat: StandardMaterial3D = null ## front wall fades so you can SEE the stairs
 var _floor2_mat: StandardMaterial3D
 var _wall_color := Color(0.55, 0.50, 0.42)
 var _floor2_color := Color(0.48, 0.38, 0.26)
@@ -95,13 +97,12 @@ func build() -> void:
 	ramp.add_child(rshape)
 	add_child(ramp)
 	# Step visuals: 9 steps
+	# Thin TREADS riding the ramp line (the old full-height columns read as a wall).
 	var steps := 9
 	for i in steps:
-		var t0 := float(i) / float(steps)
 		var t1 := float(i + 1) / float(steps)
-		var sz := 3.4 - t0 * run - (run / float(steps)) / 2.0
-		var sy := t1 * rise
-		ProtoWorldBuilder.box_visual(self, Vector3(1.6, sy, run / float(steps)), Vector3(stair_x, sy / 2.0, sz), Color(0.42, 0.36, 0.28))
+		var sz := 3.4 - (float(i) / float(steps)) * run - (run / float(steps)) / 2.0
+		ProtoWorldBuilder.box_visual(self, Vector3(1.6, 0.14, run / float(steps) + 0.04), Vector3(stair_x, t1 * rise - 0.07, sz), Color(0.42, 0.36, 0.28))
 
 	# --- Roof: hides when you walk in ------------------------------------------
 	_roof = ProtoWorldBuilder.box_body(self, Vector3(WIDTH + 0.8, 0.25, DEPTH + 0.8), Vector3(0, FLOOR_H * 2.0 + 0.35, 0), Color(0.40, 0.26, 0.18))
@@ -124,7 +125,18 @@ func build() -> void:
 
 
 func _wall(size: Vector3, pos: Vector3) -> void:
-	ProtoWorldBuilder.box_body(self, size, pos, _wall_color)
+	var body := ProtoWorldBuilder.box_body(self, size, pos, _wall_color)
+	# Front (camera-side, +Z) walls share a fade material — transparent when
+	# you're inside, so the stairs by the front wall are actually visible.
+	if pos.z > DEPTH / 2.0 - 0.5:
+		if _front_mat == null:
+			_front_mat = StandardMaterial3D.new()
+			_front_mat.albedo_color = _wall_color
+			_front_mat.roughness = 0.9
+			_front_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		for child in body.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).material_override = _front_mat
 
 
 func _floor2_slab(size: Vector3, pos: Vector3) -> void:
@@ -145,8 +157,11 @@ func _physics_process(_delta: float) -> void:
 
 
 func _set_inside(inside: bool, tracked_y: float = 0.0) -> void:
+	tracked_inside = inside
 	if _roof:
 		_roof.visible = not inside
+	if _front_mat:
+		_front_mat.albedo_color.a = lerpf(_front_mat.albedo_color.a, 0.14 if inside else 1.0, 0.25)
 	if _floor2_mat:
 		var downstairs: bool = inside and tracked_y < FLOOR_H - 0.4
 		var target_a := 0.15 if downstairs else 1.0

@@ -41,6 +41,7 @@ func add_trauma(amount: float) -> void:
 static func create() -> ProtoCameraRig:
 	var rig := ProtoCameraRig.new()
 	rig._cam = Camera3D.new()
+	rig._cam.near = 0.5 # tighter depth range = no road shimmer at distance
 	rig._cam.far = 600.0
 	rig._cam.current = true
 	rig.add_child(rig._cam)
