@@ -85,10 +85,11 @@ The RPG spine + the screens to see it. **This is where the UI system is born.**
 Make the fight feel like the fight in your head.
 - **Aim-cone shooting:** the mouse is *intent*; real accuracy is a **cone** set by Marksmanship
   (imperfect, improves with skill), with **visible projectiles/tracers** and reticle bloom.
-- ✅ **Decoupled aim & locomotion (SHIPPED 2026-07-05):** feet/gaze/gun are three things; the
-  **Look Arc** (±60°) gates sight AND the muzzle — no instant back-shots; combat stance (slow,
-  no sprint, backpedal tax); circle-strafe/kiting/melee-where-you-look live.
-  → `systems/AIM_AND_LOCOMOTION.md` · proof `proto3d/tests/aim_sim.tscn` 21/21.
+- ✅ **Twin-stick aim & locomotion (SHIPPED 2026-07-05):** feet/arms/eyes are three things. The
+  **gun aims any direction instantly** (twin-stick — shoot behind you; look one way, walk the
+  other), the **eyes/cone turn at human speed** (the rear blind spot the dog covers). Firing
+  enters combat stance; melee-where-you-aim; circle-strafe; akimbo-ready.
+  → `systems/AIM_AND_LOCOMOTION.md` · proof `proto3d/tests/aim_sim.tscn` 15/15.
 - On-foot + vehicle-mounted weapons unified (one weapon system, `mount_type`).
 - Melee (ammo-independent + stealth), throwables (grenade arc + cook), the dive already in.
 - **Deep-dive:** `systems/COMBAT_AND_GEAR.md` (melee/ranged/throwables/**car weapons**/loadout) +

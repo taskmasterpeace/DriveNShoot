@@ -105,6 +105,7 @@ func _physics_process(delta: float) -> void:
 				_did = true
 				_place(Vector3(110.0, 0.35, -325.0)) # house center
 				main.player.snap_orientation(WEST)
+				main.aim_override = WEST # eyes ON the lurker — but a wall is between
 				_l2 = _spawn_lurker(Vector3(102.0, 0.4, -325.0), 25.0) # beyond the west wall
 			elif phase_t > 0.15 and _mark == Vector3.ZERO:
 				_mark = _l2.global_position
@@ -120,6 +121,7 @@ func _physics_process(delta: float) -> void:
 				_did = true
 				_place(Vector3(108.5, 0.35, -323.5)) # inside, looking out the open door
 				main.player.snap_orientation(SOUTH)
+				main.aim_override = SOUTH # eyes out the doorway
 				_l3 = _spawn_lurker(Vector3(108.5, 0.4, -316.5), 25.0) # outside, on the door axis
 			elif phase_t > 0.15 and _mark == Vector3.ZERO:
 				_mark = _l3.global_position

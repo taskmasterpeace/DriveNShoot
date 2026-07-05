@@ -306,11 +306,13 @@ func _physics_process(delta: float) -> void:
 	cam_rig.binoculars = binoc
 	hud.set_binoculars(binoc)
 	if mode == Mode.FOOT:
+		# TWIN-STICK: the arms/gun track the mouse ALWAYS — you no longer have to
+		# fire to look where you're pointing. Binoculars feed the same intent.
 		var bdir := cam_rig.binocular_aim_dir()
 		if binoc and bdir.length_squared() > 0.01:
 			player.set_aim_intent(bdir)
-		elif player.in_stance():
-			player.set_aim_intent(aim_direction()) # the gun keeps tracking the mouse between shots
+		elif not panel.is_open:
+			player.set_aim_intent(aim_direction())
 		else:
 			player.clear_aim_intent()
 
@@ -391,9 +393,9 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		return
 	var facing: Vector3 = body.call("facing") if body.has_method("facing") else Vector3.FORWARD
 	if mode == Mode.FOOT:
-		# ONE RULE governs sight and aim: the cone follows the GAZE (Look Arc) —
-		# relaxed, aiming, or glassing, sight_facing() is already the right vector.
-		facing = player.sight_facing()
+		# The cone follows your EYES (torso) — it lags the gun and keeps the rear
+		# blind spot. While glassing, it rides the aim so you see where you point.
+		facing = player.aim_facing() if binoc else player.sight_facing()
 	elif mode == Mode.DRIVE and active_car:
 		# Look where you're GOING, not where the nose is pointed: in a drift the
 		# chassis yaws off travel, and facing the nose read as "looking sideways

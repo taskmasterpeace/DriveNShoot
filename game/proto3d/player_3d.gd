@@ -1,10 +1,11 @@
 ## PROTO-3D on-foot player: capsule character, camera-relative WASD, gravity.
-## AIM & LOCOMOTION (docs/systems/AIM_AND_LOCOMOTION.md): feet, torso, and gaze
-## are THREE separate things. WASD drives velocity (screen-relative, never waits
-## on the body). The gaze (head/arms/gun + vision cone) follows aim intent
-## INSTANTLY — but only within max_look_yaw of the torso; past that limit the
-## torso is DRAGGED around at body_turn_rate while the gaze rides the arc edge.
-## Bullets fly where the GAZE points, so nothing snap-shoots a target behind it.
+## AIM & LOCOMOTION (docs/systems/AIM_AND_LOCOMOTION.md): feet, arms, and eyes are
+## THREE separate things (TWIN-STICK, Option A "free arms, human eyes"). WASD drives
+## velocity, screen-relative, never waiting on the body. The ARMS + gun snap to the
+## aim (mouse) INSTANTLY, any direction — bullets fly exactly there, even behind you.
+## The TORSO + EYES follow at a human turn rate, so the vision cone (carried by the
+## torso) can't instantly face behind you: you can shoot back there before you can
+## SEE back there — the gap the dog's rear-smell covers. Akimbo-ready (both arms aim).
 class_name ProtoPlayer3D
 extends CharacterBody3D
 
@@ -23,8 +24,8 @@ extends CharacterBody3D
 @export var dive_cost: float = 22.0
 
 @export_group("Aim & Look Arc")
-@export var max_look_yaw_deg: float = 60.0     ## the head only turns this far off the torso
-@export var body_turn_rate_deg: float = 220.0  ## torso drag speed when the head hits its limit
+@export var max_look_yaw_deg: float = 60.0     ## reserved (the blind spot now lives in the vision cone's own arc, not an aim clamp)
+@export var body_turn_rate_deg: float = 260.0  ## how fast the torso/eyes swing to follow the gun (the rear blind-spot window)
 @export var free_turn_rate_deg: float = 420.0  ## relaxed torso following the feet (quicker)
 @export var head_relax_rate_deg: float = 300.0 ## gaze settling home when no aim intent
 @export var stance_speed_mult: float = 0.7     ## aiming slows you
@@ -204,14 +205,14 @@ func _physics_process(delta: float) -> void:
 func _update_orientation(move: Vector3, delta: float) -> void:
 	if move.length_squared() > 0.01:
 		_move_yaw = _yaw_of(move.normalized())
-	var max_look := deg_to_rad(max_look_yaw_deg)
 	if _aim_intent.length_squared() > 0.01:
-		var desired := _yaw_of(_aim_intent)
-		var off := wrapf(desired - body_yaw, -PI, PI)
-		if absf(off) > max_look:
-			body_yaw = _rotate_yaw(body_yaw, desired, deg_to_rad(body_turn_rate_deg) * delta)
-			off = wrapf(desired - body_yaw, -PI, PI)
-		aim_yaw = body_yaw + clampf(off, -max_look, max_look)
+		# TWIN-STICK: the arms + gun snap to the aim (mouse) INSTANTLY, any direction —
+		# no arc clamp. The torso + eyes FOLLOW at a human turn rate, so your gun can
+		# already point behind you while your view (the cone, carried by the torso)
+		# is still coming around. You can shoot back there before you can SEE back
+		# there — which is exactly the gap the dog's rear-smell covers.
+		aim_yaw = _yaw_of(_aim_intent)
+		body_yaw = _rotate_yaw(body_yaw, aim_yaw, deg_to_rad(body_turn_rate_deg) * delta)
 	else:
 		if move.length_squared() > 0.01:
 			body_yaw = _rotate_yaw(body_yaw, _move_yaw, deg_to_rad(free_turn_rate_deg) * delta)
@@ -220,7 +221,7 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 	aim_yaw = wrapf(aim_yaw, -PI, PI)
 
 	_visual.rotation.y = body_yaw
-	_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+	_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI) # the top half aims — up to a full turn
 	var lower_target := wrapf(_move_yaw - body_yaw, -PI, PI) if move.length_squared() > 0.01 else 0.0
 	_lower.rotation.y = lerp_angle(_lower.rotation.y, lower_target, 12.0 * delta)
 
@@ -230,9 +231,16 @@ func facing() -> Vector3:
 	return _vec_of(body_yaw)
 
 
-## Gaze facing — where the head/gun point. The vision cone, the FADE, "is he
-## looking at me" checks, and EVERY muzzle read this one.
+## SIGHT facing — where your EYES point (the torso). The vision cone, the FADE,
+## and "is he looking at me?" read this: it turns at a human rate, so it lags the
+## gun and can't instantly face behind you (the blind spot the dog covers).
 func sight_facing() -> Vector3:
+	return _vec_of(body_yaw)
+
+
+## AIM facing — where the GUN/arms point. Snaps to the mouse instantly, any
+## direction (twin-stick). Every muzzle + the melee arc read this.
+func aim_facing() -> Vector3:
 	return _vec_of(aim_yaw)
 
 
@@ -257,26 +265,21 @@ func in_stance() -> bool:
 	return _stance_t > 0.0
 
 
-## Resolve an aim request through the Look Arc RIGHT NOW (the fire path). The
-## head snap is instant within the arc, so the FIRST shot of an exchange flies
-## where the head can actually point this frame — never past the arc edge.
+## Point the gun at a target RIGHT NOW (the fire path) and return that vector.
+## Twin-stick: the gun snaps to the mouse instantly, any direction — so the shot
+## flies exactly where you clicked, even directly behind you.
 func aim_now(desired: Vector3) -> Vector3:
 	set_aim_intent(desired)
 	if _aim_intent.length_squared() > 0.01:
-		var d := _yaw_of(_aim_intent)
-		var off := wrapf(d - body_yaw, -PI, PI)
-		var max_look := deg_to_rad(max_look_yaw_deg)
-		aim_yaw = body_yaw + clampf(off, -max_look, max_look)
+		aim_yaw = _yaw_of(_aim_intent)
 		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
-	return sight_facing()
+	return aim_facing()
 
 
-## HUD hook: true while the mouse asks for more turn than the head has left —
-## the torso is still coming around, and shots fly the arc edge meanwhile.
+## HUD hook: true while your EYES (torso) haven't caught up to where the GUN
+## points — you're firing somewhere you can't fully see yet (the reticle warms).
 func aim_pinned() -> bool:
-	if _aim_intent.length_squared() < 0.01:
-		return false
-	return absf(wrapf(_yaw_of(_aim_intent) - aim_yaw, -PI, PI)) > deg_to_rad(4.0)
+	return absf(wrapf(aim_yaw - body_yaw, -PI, PI)) > deg_to_rad(35.0)
 
 
 func set_armed(on: bool) -> void:

@@ -97,11 +97,13 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 - **On-foot/Combat:** walk/sprint(stamina)/dive, guns (pistol/shotgun/rocket, aim-cone + reticle
   bloom, tracers), melee (wrench/machete, quiet), grenades, **two-way enemies claw back**,
   **KNOCKDOWN + floating combat text**. (arsenal/stage4/fight sims)
-- **DECOUPLED AIM — the Look Arc:** feet/gaze/gun are three yaws; strafe & circle-strafe with
-  the gun trained; ±60° head arc, past it the body DRAGS at 220°/s — and the **muzzle obeys the
-  arc** (no instant back-shots; the round flies the arc edge while you turn). Combat stance
-  (×0.7 speed, no sprint, backpedal ×0.6, 2.5 s lull), cone/FADE/lurker-freeze/dog-behind all
-  read the GAZE, pinned-aim hot reticle, upper/lower body visual + gun bar. (aim_sim 21/21)
+- **TWIN-STICK AIM — "free arms, human eyes"** (2026-07-05 playtest pivot from the Look Arc):
+  feet/arms/eyes are three yaws. The **gun tracks the mouse ALWAYS & aims any direction instantly**
+  (you can shoot behind you — no shoot-to-look), while the **eyes/cone turn at a human rate** so
+  you can't SEE behind you instantly (the blind spot the dog covers). Look one way / walk the
+  other, circle-strafe, melee-where-you-aim, akimbo-ready. Firing (not aiming) enters combat
+  stance (×0.7, no sprint, backpedal ×0.6, 2.5 s lull); cone/FADE/lurker-freeze/dog-rear read the
+  EYES (`sight_facing`), muzzle reads the gun (`aim_facing`). (aim_sim 15/15)
   → `systems/AIM_AND_LOCOMOTION.md`
 - **RPG spine:** skills-by-use (Mechanics/Driving/Marksmanship w/ real effects), 6-part body,
   **HEALTH CAP**, character sheet (K), **permadeath** (R restarts). (stage3 sim)
@@ -152,6 +154,18 @@ test the WORST case (long holds), not just the happy path.
 
 ---
 ### History (newest first)
+**2026-07-05 (twin-stick aim — playtest pivot):** aim_sim rewritten 15/15, battery 22/22. The
+user playtested the Look Arc and wanted twin-stick ("you have to shoot to look; look one way walk
+the other; arms should turn, akimbo later"). Pivoted to **Option A "free arms, human eyes"**: the
+GUN (`aim_facing`) snaps to the mouse instantly, any direction — you can SHOOT behind you — fed
+every frame (no shoot-to-look); the EYES (`sight_facing` = torso) turn at ~260°/s so the vision
+cone can't instantly face behind → the blind spot moved from the gun to your eyes (dog still
+covers it). cone/FADE/lurker-freeze/dog-rear now read the EYES; the muzzle reads the gun.
+Akimbo-ready (both arms → `aim_yaw`). GOTCHA paid: making aim-intent always-on meant the
+perception sims' headless phantom-mouse hijacked facing — they now drive `aim_override` (like
+arsenal/aim sims). Doc `AIM_AND_LOCOMOTION.md` rewritten (§0 records the pivot). STILL OPEN for
+the user: player thirst/water (never built — offered), and an arms-only visual rig (v2).
+
 **2026-07-05 (driving pass — playtest fixes):** drive_sim 7/7, battery 22/22. Investigated the
 user's "handbrake doesn't brake unless you turn, and then it does a 180." Root causes (both
 found by reading + a reproduce sim): the handbrake applied only `brake=6/40` (barely braked) and

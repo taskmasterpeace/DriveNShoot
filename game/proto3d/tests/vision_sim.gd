@@ -57,16 +57,16 @@ func _physics_process(delta: float) -> void:
 				_check("DRIVING cone is wide (%.2f rad)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() > 1.38)
 				_tap_interact()
 				_next()
-		1: # on foot: normal cone; walk EAST so facing flips
+		1: # on foot: normal cone; AIM east (twin-stick: the cone follows your aim)
 			if phase_t > 2.0:
 				_check("FOOT cone narrows from drive (%.2f rad)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() < 1.32)
-				Input.action_press("move_right")
+				main.aim_override = Vector3(1, 0, 0) # aim EAST — the eyes/cone should swing to it
 				_next()
 		2:
 			if phase_t > 1.2:
-				Input.action_release("move_right")
 				var d: Vector2 = main.vision_cone.current_dir()
-				_check("cone FOLLOWS real facing (walked east: dir.x=%.2f)" % d.x, d.x > 0.8)
+				_check("cone FOLLOWS your aim (aimed east: dir.x=%.2f)" % d.x, d.x > 0.8)
+				main.aim_override = Vector3.ZERO
 				_key(KEY_B, true)
 				_next()
 		3: # binoculars: narrow lens
