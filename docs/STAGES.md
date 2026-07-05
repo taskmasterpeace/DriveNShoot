@@ -107,6 +107,10 @@ Stop falling off the map — because there's no edge, there's America.
 
 ### Stage 6 — The Living World: NPCs, Factions & Society *(the PCAS system you designed)*
 The world remembers you.
+- ✅ **First slice SHIPPED 2026-07-05:** Respect Ledger v1 (esteem/infamy/notoriety, §6 bands,
+  prices scale with standing), Mercy the TRADER (the container panel IS the shop), Bridger the
+  SEC-MAN (bounty chain: offer → mark → claim), crime → SUSPECT → the town closes up.
+  Proof: `proto3d/tests/town_sim.tscn` 16/16.
 - **Settlements:** Baronies (fortified city-states), Villes (small towns), the Wastelands,
   **Redoubts** (underground pre-dark tech + MAT-TRANS gates). **Jack** economy.
 - **Pedestrian tiers T1–T5** (Crowd Engine ↔ Living World Engine), **12 archetypes**

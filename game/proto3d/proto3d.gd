@@ -51,6 +51,13 @@ var stress: float = 0.0              ## 0-100; throttles stamina regen
 var last_dog_alert: Dictionary = {}  ## sim hook: {dog, behind, at}
 var last_dog_nose: Dictionary = {}   ## sim hook: {dog, stash}
 
+## Stage 6 slice: the Respect Ledger + town work (WORLD_NPCS.md §6 — the town
+## remembers you: esteem opens jobs and drops prices, infamy closes both).
+var respect: ProtoRespect = ProtoRespect.new()
+var bounty: Dictionary = {} ## {state: ""/open/filled, target, reward, giver, last_pos}
+var _crime_cd: float = 0.0
+var _last_standing: String = "NEUTRAL"
+
 ## The metaworld (METASYSTEM.md) + the 4-in-1 whistle button.
 var metaworld: ProtoMetaworld = null
 const WHISTLE_HOLD := 0.35
@@ -160,6 +167,19 @@ func _ready() -> void:
 		var lurker := ProtoLurker.create()
 		lurker.position = lpos
 		add_child(lurker)
+
+	# Stage 6 slice: MERIDIAN LIVES — a trader to spend jack at, a Sec-Man with
+	# work. The market sits ACROSS the street from the safehouse — deliberately
+	# clear of the kennel→chest corridor (dogs charge in straight lines; furniture
+	# on their desire path traps them — dogmeta taught us).
+	var trader := ProtoNPC.create("trader")
+	trader.position = Vector3(100.0, 0.2, -315.0)
+	add_child(trader)
+	ProtoWorldBuilder.box_body(self, Vector3(1.8, 0.9, 0.7), Vector3(100.0, 0.45, -316.2), Color(0.40, 0.30, 0.18))
+	var secman := ProtoNPC.create("secman")
+	secman.position = Vector3(104.0, 0.2, -314.0)
+	add_child(secman)
+	respect.changed.connect(_on_respect_changed)
 
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
@@ -350,6 +370,8 @@ func _physics_process(delta: float) -> void:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
 
 	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
+	_crime_cd = maxf(0.0, _crime_cd - delta)
+	_update_bounty()
 	_update_whistle(delta)
 	_update_stress(delta)
 	_watch_crash_wounds()
@@ -410,7 +432,7 @@ func _refresh_sight_exclusions() -> void:
 	for c in cars:
 		if is_instance_valid(c):
 			_sight_excl.append(c.get_rid())
-	for g in ["threat", "proto_dog"]:
+	for g in ["threat", "proto_dog", "npc"]:
 		for node in get_tree().get_nodes_in_group(g):
 			var b := node as PhysicsBody3D
 			if b and is_instance_valid(b):
@@ -769,6 +791,88 @@ func open_container(theirs: ProtoContainer) -> void:
 	panel.open(backpack, theirs)
 
 
+# --- Stage 6 slice: trade, bounties, crime (the town remembers) ---------------
+
+## Trading IS the container interface with jack flowing backward (§7 multi-use:
+## the same panel that loots a trunk is the shop).
+func open_trade(npc: ProtoNPC) -> void:
+	panel.open(backpack, npc.stock, npc)
+
+
+## price = archetype base × the ledger's opinion of you. Selling pays about
+## half, sweetened as the town trusts you more.
+func trade_price(id: String, selling: bool) -> int:
+	var base: int = ProtoNPC.PRICES.get(id, 3)
+	var mult: float = respect.price_mult(ProtoNPC.FACTION)
+	if selling:
+		return maxi(1, int(floor(base * 0.5 * (2.0 - mult))))
+	return maxi(1, int(ceil(base * mult)))
+
+
+## The Sec-Man's job chain: offer → live → claim. Standing gates it upstream
+## (a SUSPECT never even hears the offer — ProtoNPC.interact refuses first).
+func secman_talk(npc: ProtoNPC) -> void:
+	match bounty.get("state", ""):
+		"open":
+			notify("Bridger: 'It's still breathing. The jack waits.'")
+		"filled":
+			var reward: int = int(bounty.get("reward", 25))
+			backpack.add("jack", reward)
+			respect.add_esteem(ProtoNPC.FACTION, 20.0)
+			notify("Bridger: 'Clean work.' +%d jack — Meridian noticed." % reward)
+			bounty = {}
+			for i in range(waypoints.size() - 1, -1, -1):
+				if waypoints[i][0] == "BOUNTY":
+					waypoints.remove_at(i)
+			waypoint_idx = mini(waypoint_idx, waypoints.size() - 1)
+			audio.play_ui("blip", -2.0)
+		_:
+			var mark := ProtoLurker.create()
+			add_child(mark)
+			mark.global_position = Vector3(146.0, 0.4, -352.0) # the water point
+			bounty = {"state": "open", "target": mark, "reward": 25,
+				"giver": npc.npc_name, "last_pos": mark.global_position}
+			waypoints.append(["BOUNTY", mark])
+			notify(ProtoNPC.ARCHETYPES[npc.archetype]["greet"])
+			audio.play_ui("blip", -6.0)
+
+
+## The bounty tick: notice the kill the moment it happens; the waypoint keeps
+## pointing at where it FELL once the node is gone.
+func _update_bounty() -> void:
+	if bounty.get("state", "") != "open":
+		return
+	# UNTYPED on purpose: a freed instance can't be assigned to a typed Node3D
+	# (house gotcha) — is_instance_valid does the sorting.
+	var tgt: Variant = bounty.get("target")
+	if tgt != null and is_instance_valid(tgt) and not tgt.dead:
+		bounty["last_pos"] = tgt.global_position
+		return
+	bounty["state"] = "filled"
+	for wp in waypoints:
+		if wp[0] == "BOUNTY":
+			wp[1] = bounty.get("last_pos", player.global_position)
+	notify("🎯 Bounty filled — see Bridger for your jack")
+	grant_xp("marksmanship", 4.0)
+
+
+## A bullet into a townsperson: the ledger takes INFAMY, the town closes up.
+func on_npc_attacked(_npc: ProtoNPC, _dmg: float) -> void:
+	if _crime_cd > 0.0:
+		return # one crime per volley — a shotgun blast isn't six separate murders
+	_crime_cd = 1.0
+	respect.add_infamy(ProtoNPC.FACTION, 60.0)
+	stress = minf(100.0, stress + 12.0)
+	notify("🚨 Word spreads fast in Meridian")
+
+
+func _on_respect_changed(faction: String) -> void:
+	var s := respect.standing(faction)
+	if s != _last_standing:
+		_last_standing = s
+		hud.toast("🏛️ MERIDIAN now sees you as %s" % s)
+
+
 ## Item effects (data → verb). Returns true if consumed.
 func use_item(id: String) -> bool:
 	if id == "eyepatch":
@@ -981,6 +1085,8 @@ func _sheet_text() -> String:
 		lines.append("%s %-13s lv %d  (%d xp)" % [ProtoCharacter.SKILLS[id]["emoji"], ProtoCharacter.SKILLS[id]["name"], s["level"], int(s["xp"])])
 	lines.append("")
 	lines.append("🪙 Jack: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("jack"), str(bleeding), int(stress)])
+	lines.append("🏛️ MERIDIAN: %s  (esteem %d · infamy %d · notoriety %d)" % [respect.standing("meridian"),
+		int(respect.esteem("meridian")), int(respect.infamy("meridian")), int(respect.notoriety("meridian"))])
 	return "\n".join(lines)
 
 

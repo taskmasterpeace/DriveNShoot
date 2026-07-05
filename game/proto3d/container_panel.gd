@@ -8,6 +8,7 @@ var is_open: bool = false
 var _main: Node = null
 var _mine: ProtoContainer = null
 var _theirs: ProtoContainer = null
+var _merchant: Node = null ## set → this is a SHOP: moves cost/pay jack (Stage 6)
 
 var _root: PanelContainer
 var _title: Label
@@ -86,9 +87,11 @@ func _make_col(parent: Control, heading: String) -> VBoxContainer:
 
 
 ## Open with the player's pack and (optionally) another container (trunk/chest).
-func open(mine: ProtoContainer, theirs: ProtoContainer = null) -> void:
+## With a merchant, the SAME panel becomes the shop: item moves carry jack.
+func open(mine: ProtoContainer, theirs: ProtoContainer = null, merchant: Node = null) -> void:
 	_mine = mine
 	_theirs = theirs
+	_merchant = merchant
 	is_open = true
 	_root.visible = true
 	_refresh()
@@ -105,8 +108,8 @@ func _refresh() -> void:
 	_title.text = ("%s  ⇄  %s" % [_mine.label, _theirs.label]) if _theirs else _mine.label
 	_fill(_left_box, _mine, _theirs, true)
 	_fill(_right_box, _theirs, _mine, false)
-	# Take All (polish): sweep the whole container in one click.
-	if _theirs != null and not _theirs.slots.is_empty():
+	# Take All (polish): sweep the whole container in one click — NOT in a shop.
+	if _theirs != null and _merchant == null and not _theirs.slots.is_empty():
 		var take_all := Button.new()
 		take_all.add_theme_font_override("font", ProtoHUD.mixed_font())
 		take_all.text = "≪ TAKE ALL"
@@ -137,6 +140,8 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 		btn.add_theme_font_override("font", ProtoHUD.mixed_font())
 		var n := from.count(id)
 		btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
+		if _merchant != null and id != "jack" and _main and _main.has_method("trade_price"):
+			btn.text += "  🪙%d" % _main.trade_price(id, mine_side) # sell price on your side, buy on theirs
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_move.bind(from, to, id))
 		row.add_child(btn)
@@ -150,7 +155,7 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 			if to != null: # a trunk/chest is open — explicit STORE (playtest ask)
 				var store := Button.new()
 				store.add_theme_font_override("font", ProtoHUD.mixed_font())
-				store.text = "STORE ≫"
+				store.text = "SELL ≫" if _merchant != null else "STORE ≫"
 				store.pressed.connect(_on_move.bind(from, to, id))
 				row.add_child(store)
 			var drop := Button.new()
@@ -169,10 +174,34 @@ func _on_drop(from: ProtoContainer, id: String) -> void:
 
 
 func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:
-	if to != null:
-		from.transfer_to(to, id)
-		if _main and "audio" in _main and _main.audio:
-			_main.audio.play_ui("blip", -12.0)
+	if to == null:
+		_refresh()
+		return
+	# Shop mode: the move IS the transaction — jack flows the other way.
+	if _merchant != null and _main != null:
+		if id == "jack":
+			_refresh() # jack is the currency, not a good
+			return
+		var selling: bool = from == _mine
+		var price: int = _main.trade_price(id, selling)
+		if selling:
+			if from.transfer_to(to, id):
+				_mine.add("jack", price)
+		else:
+			if _mine.count("jack") < price:
+				if _main.has_method("notify"):
+					_main.notify("Not enough jack (%d needed)" % price)
+				_refresh()
+				return
+			if from.transfer_to(to, id):
+				_mine.remove("jack", price)
+		if "audio" in _main and _main.audio:
+			_main.audio.play_ui("click", -6.0)
+		_refresh()
+		return
+	from.transfer_to(to, id)
+	if _main and "audio" in _main and _main.audio:
+		_main.audio.play_ui("blip", -12.0)
 	_refresh()
 
 

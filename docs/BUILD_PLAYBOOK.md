@@ -73,7 +73,12 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–5 + extras), 21 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–6 slice + extras), 22 test suites all green:**
+- **MERIDIAN LIVES (Stage 6 slice):** the **Respect Ledger** (esteem/infamy/notoriety per
+  `WORLD_NPCS.md §6`), a TRADER whose shop IS the container panel (moves carry jack, prices =
+  base × the town's opinion of you), a SEC-MAN **bounty chain** (offer → live mark + waypoint →
+  claim pays jack + esteem → prices drop), and **CRIME**: shoot a townsperson → infamy → SUSPECT
+  → no trade, no work, gouged prices. K-sheet shows the ledger. (town_sim 16/16)
 - **Drive/Living Car:** VehicleBody3D feel, handbrake drift (no spin), 5-part damage →
   smoke→fire→cook→burnt-husk, salvage, fuel, dashboard glyphs, hotwire, hood-MG mount, flip
   self-recovery. (car/drive/recover sims)
@@ -111,9 +116,10 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 **N** waypoint · **TAB** pack · **B** binoculars · LMB fire · scroll zoom.
 
 **TWO clean NEXT builds (user's choice):**
-1. **Stage 6 — Living World:** a Meridian TRADER (spend Jack), a Sec-Man BOUNTY job, a RESPECT
-   meter (town's opinion → prices/jobs). Plugs into the metaworld socket (`metaworld.offscreen_event`).
-   Per `STAGES.md` + `WORLD_NPCS.md` + task #19.
+1. **Stage 6 deepening:** ~~trader + bounty + Respect v1~~ → SHIPPED 2026-07-05 (town_sim).
+   Next rungs per `WORLD_NPCS.md`: NPC daily schedules (dawn/dusk stall hours), trader stock
+   restock via the metaworld socket (`metaworld.offscreen_event`), gossip v0 (crime seen by ONE
+   npc spreads on a timer), Sec-Man turns HOSTILE at Suspect (not just refusal).
 2. **Stage 4 finishers:** grenade COOK (hold G — fuse runs in your hand), molotov (reuses the
    car-fire spiral), and NPC parity for the Look Arc (lurkers get a gaze + blind spot you can
    exploit — `AIM_AND_LOCOMOTION.md §9`). ~~Raycast LOS occlusion~~ → SHIPPED 2026-07-05 (los_sim).
@@ -122,10 +128,26 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 output to files (piping `grep|head` on a LIVE sim buffers & HANGS); `var x := main.dyn_call()`
 can't type-infer (annotate it); any loop over `dogs[]` must `is_instance_valid` FIRST (dehydration
 frees them); stairs = smooth ramp + plateau, NEVER stepped boxes; test the REAL walk path, never
-teleport past the mechanic; new `class_name` scripts need a `--headless --import` before sims see them.
+teleport past the mechanic; new `class_name` scripts need a `--headless --import` before sims see them;
+NEVER type a var that can hold a FREED instance (`var t: Node3D = bounty.get("target")` THROWS —
+use `Variant` + `is_instance_valid`); dogs charge in STRAIGHT lines — never place furniture/NPCs
+on a desire path (kennel→chest corridor trapped Lucky; the market moved across the street).
 
 ---
 ### History (newest first)
+**2026-07-05 (Stage 6 slice — MERIDIAN LIVES):** town_sim 16/16; battery 22/22. **Respect
+Ledger** (`respect.gd`, WORLD_NPCS §6: esteem/infamy/notoriety, standing bands, price_mult),
+**ProtoNPC** (`npc.gd` — archetype = a DATA row: Mercy the TRADER, Bridger the SEC-MAN, both
+hittable → CRIME), **the shop IS the container panel** (merchant mode: the move is the
+transaction, jack flows backward, TAKE-ALL hidden, SELL≫ labels, prices on rows), **bounty
+chain** (offer → live lurker mark + BOUNTY waypoint → kill detected the frame it happens →
+claim pays 25 jack + 20 esteem → bandage 12→11), **crime closes the town** (60 infamy →
+SUSPECT → Mercy refuses the shop, Bridger refuses work, prices gouge 12→17). Standing-change
+toasts + K-sheet ledger line. TWO paid-for gotchas entered the iron list: typed vars can't
+hold freed instances, and dog desire paths must stay clear of furniture (the market moved
+across the street after trapping Lucky mid-SEEK). NEXT: Stage 6 deepening (schedules, restock
+via metaworld, gossip v0, hostile Sec-Man) or Stage 4 finishers.
+
 **2026-07-05 (LOS occlusion):** WALLS END SIGHT (los_sim 9/9; battery 21/21). A 96-ray horizontal
 sight fan at eye height feeds the cone shader a 1D depth map (`occl_map`) — the lit area stops at
 walls/closed doors and spills through the door gap and the upstairs WINDOW; `main.sight_blocked()`
