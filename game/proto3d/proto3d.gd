@@ -366,10 +366,12 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 			facing = aim
 	elif character.vision_yaw_offset != 0.0:
 		facing = facing.rotated(Vector3.UP, character.vision_yaw_offset) # eye patch: lose a SIDE
-	# Indoors, walls end your sight — no x-raying the neighborhood through the house.
+	# Indoors, walls end your sight — clamp the cone to roughly the room so it
+	# doesn't bleed out past the walls (true per-wall/window occlusion = a later
+	# raycast pass; this keeps the lit cone inside the house).
 	var range_mult := character.vision_range_mult
 	if mode == Mode.FOOT and house.tracked_inside:
-		range_mult *= 0.3
+		range_mult = minf(range_mult, 5.5 / ProtoVisionCone.MODE_FOOT[2]) # ~5.5m indoors
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
 		character.vision_arc_mult, range_mult)
 	_percept_origin = body.global_position

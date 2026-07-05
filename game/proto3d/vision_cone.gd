@@ -95,8 +95,8 @@ func update_cone(cam: Camera3D, apex_world: Vector3, facing: Vector3, mode_param
 	# Smooth toward the mode's shape (scaled by character traits/gear).
 	var k := 1.0 - exp(-7.0 * delta)
 	_half = lerpf(_half, mode_params[0] * clampf(arc_mult, 0.15, 1.5), k)
-	_clear_m = lerpf(_clear_m, mode_params[1] * clampf(range_mult, 0.3, 2.0), k)
-	_range_m = lerpf(_range_m, mode_params[2] * clampf(range_mult, 0.3, 2.0), k)
+	_clear_m = lerpf(_clear_m, mode_params[1] * clampf(range_mult, 0.12, 2.0), k)
+	_range_m = lerpf(_range_m, mode_params[2] * clampf(range_mult, 0.12, 2.0), k)
 	_dim = lerpf(_dim, mode_params[3], k)
 	last_clear_m = _clear_m
 	last_range_m = _range_m

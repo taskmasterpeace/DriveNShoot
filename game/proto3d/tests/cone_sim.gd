@@ -114,7 +114,16 @@ func _physics_process(delta: float) -> void:
 			elif phase_t > 5.0:
 				_check("dog alert REVEALS the spot it smelled (snapshot)", false)
 				_next()
-		10:
+		10: # indoors, the cone clamps to the room (no bleed past the walls)
+			if phase_t > 0.4:
+				main.player.global_position = main.house.global_position + Vector3(0, 0.4, 0)
+				main.player.velocity = Vector3.ZERO
+				_next()
+		11:
+			if phase_t > 1.6:
+				_check("INDOORS the cone clamps to the room (%.0fm ≤ 8)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m <= 8.0)
+				_next()
+		12:
 			print("CONE RESULTS: %d passed, %d failed" % [passed, failed])
 			print("CONE: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 			get_tree().quit(0 if failed == 0 else 1)
