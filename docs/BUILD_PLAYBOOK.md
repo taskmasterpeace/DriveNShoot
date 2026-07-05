@@ -16,6 +16,7 @@ deep-dive doc. **Created:** 2026-07-04.
 | `loops/LOOP2_LIVING_CAR.md` | Stage 2 deep-dive (car damage/HUD/arsenal) |
 | `systems/INTERFACE_AND_BODY.md` | UI, body/injury, inventory, nav, SecondaryView, aim-cone |
 | `systems/COMBAT_AND_GEAR.md` | melee/ranged/throwables/car weapons/loadout |
+| `systems/AIM_AND_LOCOMOTION.md` | decoupled feet/gaze/gun, the Look Arc, combat stance |
 | `systems/EQUIPMENT_PAPERDOLL.md` | the 19-slot wearable item DB (verbatim user design) |
 | `systems/DOGS.md` | dog types/breeds/stress-morale |
 | `systems/WORLD_NPCS.md` | PCAS living world, factions, Respect Ledger |
@@ -29,7 +30,7 @@ deep-dive doc. **Created:** 2026-07-04.
    static typing, tabs, data-driven values, signals not UI-reach-ins.
 3. **Prove headless** — a sim in `proto3d/tests/` that presses INPUTS (iron rule: no teleporting
    past the mechanic under test; positioning teleports allowed).
-4. **Regress**: `drive_sim` + `m1_sim` + `dog_sim` + `walkthrough_sim` must stay green.
+4. **Regress**: `drive_sim` + `m1_sim` + `dog_sim` + `walkthrough_sim` + `aim_sim` must stay green.
    New `class_name`s need `--headless --path game --import` first.
 5. **Commit + push** (conventional message; no Co-Authored-By). Never >30 min uncommitted.
 6. **Surface**: update `FEATURES.md` (player-facing), the stage checklist in `STAGES.md`,
@@ -68,17 +69,23 @@ driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 
 ## 7. Current state pointer (update each session)
 
 ### ⭐ RESUME CHECKPOINT — 2026-07-05 (read THIS first; history below)
-Everything is committed & pushed (HEAD `84d2dff`). Codebase is `game/proto3d/` (the 3D mainline).
+Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–5 + extras), 19 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–5 + extras), 20 test suites all green:**
 - **Drive/Living Car:** VehicleBody3D feel, handbrake drift (no spin), 5-part damage →
   smoke→fire→cook→burnt-husk, salvage, fuel, dashboard glyphs, hotwire, hood-MG mount, flip
   self-recovery. (car/drive/recover sims)
 - **On-foot/Combat:** walk/sprint(stamina)/dive, guns (pistol/shotgun/rocket, aim-cone + reticle
   bloom, tracers), melee (wrench/machete, quiet), grenades, **two-way enemies claw back**,
   **KNOCKDOWN + floating combat text**. (arsenal/stage4/fight sims)
+- **DECOUPLED AIM — the Look Arc:** feet/gaze/gun are three yaws; strafe & circle-strafe with
+  the gun trained; ±60° head arc, past it the body DRAGS at 220°/s — and the **muzzle obeys the
+  arc** (no instant back-shots; the round flies the arc edge while you turn). Combat stance
+  (×0.7 speed, no sprint, backpedal ×0.6, 2.5 s lull), cone/FADE/lurker-freeze/dog-behind all
+  read the GAZE, pinned-aim hot reticle, upper/lower body visual + gun bar. (aim_sim 21/21)
+  → `systems/AIM_AND_LOCOMOTION.md`
 - **RPG spine:** skills-by-use (Mechanics/Driving/Marksmanship w/ real effects), 6-part body,
   **HEALTH CAP**, character sheet (K), **permadeath** (R restarts). (stage3 sim)
 - **Body/Mind:** Stress vital, moodle EMOJI corner (meters deleted), bandage treatment, encumbrance.
@@ -115,6 +122,18 @@ teleport past the mechanic; new `class_name` scripts need a `--headless --import
 
 ---
 ### History (newest first)
+**2026-07-05 (aim & locomotion):** THE DECOUPLE shipped (aim_sim 21/21; full battery 20/20):
+feet/gaze/gun are three yaws on the player; the **Look Arc** (±60°) gates sight AND the muzzle
+— fire/melee/grenade fly `aim_now()`'s CLAMPED gaze, so the first shot at a target behind you
+provably MISSES while the body drags around at 220°/s (measured 0.37 s vs 0.36 s analytic).
+Combat stance auto-enters on fire (×0.7 speed, sprint refused, backpedal ×0.6 continuous,
+2.5 s lull), binoculars ride the same gaze pipe (glassing behind you turns you), and
+cone/FADE/lurker-freeze/dog-behind ALL read `sight_facing()` — one rule for sight and aim.
+`face_override` + the per-click 180° body snap are DELETED. Visual: upper (head/gun, gaze) /
+lower (trunk, feet) split + armed gun bar + pinned-hot reticle ticks. Tunables `@export`ed
+(trait/helmet hooks documented). Doc: `systems/AIM_AND_LOCOMOTION.md`. NEXT unchanged:
+Stage 6 Living World (trader/bounty/Respect), or raycast-LOS cone occlusion.
+
 **2026-07-05 (perception v2):** cone_sim 6/6 — cone is WORLD-METER based (zoom exploit dead:
 55.0m constant across zoom), true sight RANGE added (binoculars now mechanically matter, 120m),
 🏴‍☠️ eyepatch item halves the arc via character vision mults (traits/headgear hook LIVE), dog

@@ -422,7 +422,7 @@ var _reticle: Node2D = null
 var _reticle_ticks: Array = []
 var reticle_gap: float = 0.0 ## sim hook
 
-func update_reticle(spread_deg: float, mouse: Vector2, show: bool) -> void:
+func update_reticle(spread_deg: float, mouse: Vector2, show: bool, pinned: bool = false) -> void:
 	if _reticle == null:
 		_reticle = Node2D.new()
 		add_child(_reticle)
@@ -438,9 +438,13 @@ func update_reticle(spread_deg: float, mouse: Vector2, show: bool) -> void:
 		return
 	_reticle.position = mouse
 	reticle_gap = 8.0 + spread_deg * 5.0
+	# Hot ticks while the Look Arc pins the aim: the mouse wants more turn than the
+	# head has left — the body is still coming around, shots fly the arc edge.
+	var tick_color: Color = Color(1.0, 0.42, 0.28) if pinned else AMBER
 	var dirs := [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]
 	for i in 4:
 		(_reticle_ticks[i] as ColorRect).position = dirs[i] * reticle_gap - Vector2(1.5, 4.5)
+		(_reticle_ticks[i] as ColorRect).color = tick_color
 
 
 # --- NavHUD: the "arrow stuff" — one waypoint, edge-pinned arrow + distance ----

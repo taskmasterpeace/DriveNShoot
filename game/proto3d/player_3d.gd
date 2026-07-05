@@ -1,4 +1,10 @@
 ## PROTO-3D on-foot player: capsule character, camera-relative WASD, gravity.
+## AIM & LOCOMOTION (docs/systems/AIM_AND_LOCOMOTION.md): feet, torso, and gaze
+## are THREE separate things. WASD drives velocity (screen-relative, never waits
+## on the body). The gaze (head/arms/gun + vision cone) follows aim intent
+## INSTANTLY — but only within max_look_yaw of the torso; past that limit the
+## torso is DRAGGED around at body_turn_rate while the gaze rides the arc edge.
+## Bullets fly where the GAZE points, so nothing snap-shoots a target behind it.
 class_name ProtoPlayer3D
 extends CharacterBody3D
 
@@ -16,15 +22,29 @@ extends CharacterBody3D
 @export var run_threshold: float = 8.0   ## stamina needed to (re)start a sprint (no flicker)
 @export var dive_cost: float = 22.0
 
+@export_group("Aim & Look Arc")
+@export var max_look_yaw_deg: float = 60.0     ## the head only turns this far off the torso
+@export var body_turn_rate_deg: float = 220.0  ## torso drag speed when the head hits its limit
+@export var free_turn_rate_deg: float = 420.0  ## relaxed torso following the feet (quicker)
+@export var head_relax_rate_deg: float = 300.0 ## gaze settling home when no aim intent
+@export var stance_speed_mult: float = 0.7     ## aiming slows you
+@export var backpedal_mult: float = 0.6        ## walking against your gaze, on top of stance
+@export var stance_lull: float = 2.5           ## seconds after the last shot before you relax
+
 ## Named FootState (not State) — a globally-registered class's own enum used as a typed
 ## var trips GDScript's self-reference type check. Distinct name sidesteps it.
 enum FootState { NORMAL, DIVE, GETUP }
 
 var is_active: bool = false
-var facing_dir: Vector3 = Vector3.FORWARD
 var move_state: FootState = FootState.NORMAL
-## When set (binoculars), the body turns toward this even while standing still.
-var face_override: Vector3 = Vector3.ZERO
+
+## The three yaws (radians; yaw 0 faces -Z). body = torso (the arc's anchor),
+## aim = gaze/gun, move = feet. Sticky _aim_intent drives aim; ZERO = relaxed.
+var body_yaw: float = 0.0
+var aim_yaw: float = 0.0
+var _move_yaw: float = 0.0
+var _aim_intent: Vector3 = Vector3.ZERO
+var _stance_t: float = 0.0
 
 var stamina: float = 100.0
 ## Set by the Stress system (main scene): high stress = slow recovery.
@@ -34,6 +54,9 @@ var speed_mult: float = 1.0
 var _was_running: bool = false
 
 var _visual: Node3D
+var _lower: Node3D
+var _upper: Node3D
+var _gun: MeshInstance3D
 var _state_t: float = 0.0
 var _getup_dur: float = 0.75
 var _dive_dir: Vector3 = Vector3.FORWARD
@@ -53,8 +76,11 @@ static func create() -> ProtoPlayer3D:
 	shape.position.y = 0.85
 	p.add_child(shape)
 
-	p._visual = Node3D.new()
+	p._visual = Node3D.new() # carries torso yaw (+ dive pitch); children carry offsets
 	p.add_child(p._visual)
+	# LOWER — the trunk/legs: yaws toward where the FEET are going.
+	p._lower = Node3D.new()
+	p._visual.add_child(p._lower)
 	var body := MeshInstance3D.new()
 	var bmesh := CapsuleMesh.new()
 	bmesh.radius = 0.32
@@ -62,8 +88,11 @@ static func create() -> ProtoPlayer3D:
 	body.mesh = bmesh
 	body.material_override = ProtoWorldBuilder.material(Color(0.55, 0.42, 0.28), 0.8)
 	body.position.y = 0.78
-	p._visual.add_child(body)
-	# Head + face hint so facing reads from above.
+	p._lower.add_child(body)
+	# UPPER — head + face hint + gun: yaws to the GAZE. The decouple made visible:
+	# from above, the head/gun stay trained while the capsule carries you sideways.
+	p._upper = Node3D.new()
+	p._visual.add_child(p._upper)
 	var head := MeshInstance3D.new()
 	var hmesh := SphereMesh.new()
 	hmesh.radius = 0.19
@@ -71,14 +100,23 @@ static func create() -> ProtoPlayer3D:
 	head.mesh = hmesh
 	head.material_override = ProtoWorldBuilder.material(Color(0.78, 0.6, 0.45), 0.9)
 	head.position.y = 1.66
-	p._visual.add_child(head)
+	p._upper.add_child(head)
 	var nose := MeshInstance3D.new()
 	var nmesh := BoxMesh.new()
 	nmesh.size = Vector3(0.08, 0.08, 0.12)
 	nose.mesh = nmesh
 	nose.material_override = ProtoWorldBuilder.material(Color(0.7, 0.5, 0.35), 0.9)
 	nose.position = Vector3(0, 1.66, -0.2)
-	p._visual.add_child(nose)
+	p._upper.add_child(nose)
+	# The carried gun: shows when armed, reads from straight above.
+	p._gun = MeshInstance3D.new()
+	var gmesh := BoxMesh.new()
+	gmesh.size = Vector3(0.07, 0.07, 0.62)
+	p._gun.mesh = gmesh
+	p._gun.material_override = ProtoWorldBuilder.material(Color(0.16, 0.16, 0.18), 0.4)
+	p._gun.position = Vector3(0.16, 1.34, -0.42)
+	p._gun.visible = false
+	p._upper.add_child(p._gun)
 	return p
 
 
@@ -86,12 +124,14 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	_state_t += delta
+	_stance_t = maxf(0.0, _stance_t - delta)
 
 	match move_state:
 		FootState.DIVE:
 			# Committed: full lunge, no steering.
 			velocity.x = _dive_dir.x * dive_speed
 			velocity.z = _dive_dir.z * dive_speed
+			_visual.rotation.y = body_yaw
 			_visual.rotation.x = lerpf(_visual.rotation.x, -1.25, 10.0 * delta)
 			if _state_t >= dive_time:
 				move_state = FootState.GETUP
@@ -118,19 +158,23 @@ func _physics_process(delta: float) -> void:
 			move = move.normalized()
 		# SPACE = dive (commit move: burst, then a get-up delay).
 		if Input.is_action_just_pressed("jump"):
-			_dive_dir = move.normalized() if move.length_squared() > 0.01 else facing_dir
+			_dive_dir = move.normalized() if move.length_squared() > 0.01 else facing()
 			move_state = FootState.DIVE
 			_state_t = 0.0
-			facing_dir = _dive_dir
+			# The lunge commits the whole body; the gaze re-clamps to the new arc next frame.
+			body_yaw = _yaw_of(_dive_dir)
+			_move_yaw = body_yaw
 			stamina = maxf(0.0, stamina - dive_cost)
 			# Get-up SCALES with stamina: gassed = slower to your feet (1.0x..1.9x, vulnerable longer).
 			_getup_dur = getup_time * lerpf(1.9, 1.0, clampf(stamina / max_stamina, 0.0, 1.0))
 			return
 
 	# Sprint costs stamina; gassed → forced walk until it recovers past the threshold (no flicker).
+	# A raised gun also forbids it: combat stance is walk-speed life.
+	var in_combat := in_stance()
 	var wants_run := Input.is_key_pressed(KEY_SHIFT) and move.length_squared() > 0.01
 	var can_run := stamina > (0.5 if _was_running else run_threshold)
-	var running := is_active and wants_run and can_run
+	var running := is_active and wants_run and can_run and not in_combat
 	_was_running = running
 	if running:
 		stamina = maxf(0.0, stamina - run_drain * delta)
@@ -138,19 +182,132 @@ func _physics_process(delta: float) -> void:
 		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * delta)
 
 	var speed := (run_speed if running else walk_speed) * speed_mult
+	if in_combat:
+		speed *= stance_speed_mult
+		# Backpedal falloff is CONTINUOUS on the move-vs-gaze angle (no speed pop):
+		# straight back = backpedal_mult, pure strafe or forward = full stance speed.
+		if move.length_squared() > 0.01:
+			var against := clampf(-sight_facing().dot(move.normalized()), 0.0, 1.0)
+			speed *= lerpf(1.0, backpedal_mult, against)
 	var target := move * speed
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
 
-	if move.length_squared() > 0.01:
-		facing_dir = move.normalized()
-	elif face_override.length_squared() > 0.01:
-		facing_dir = face_override.normalized()
-	var target_yaw := atan2(-facing_dir.x, -facing_dir.z)
-	_visual.rotation.y = lerp_angle(_visual.rotation.y, target_yaw, 12.0 * delta)
-
+	_update_orientation(move, delta)
 	move_and_slide()
 
 
+## The Look Arc (the keystone): with aim intent, the gaze snaps anywhere within
+## ±max_look_yaw of the torso — instantly. Past the limit, the TORSO turns at
+## body_turn_rate (a real, physical delay) while the gaze rides the arc edge.
+## Relaxed, the torso follows the feet and the gaze settles home (old behavior).
+func _update_orientation(move: Vector3, delta: float) -> void:
+	if move.length_squared() > 0.01:
+		_move_yaw = _yaw_of(move.normalized())
+	var max_look := deg_to_rad(max_look_yaw_deg)
+	if _aim_intent.length_squared() > 0.01:
+		var desired := _yaw_of(_aim_intent)
+		var off := wrapf(desired - body_yaw, -PI, PI)
+		if absf(off) > max_look:
+			body_yaw = _rotate_yaw(body_yaw, desired, deg_to_rad(body_turn_rate_deg) * delta)
+			off = wrapf(desired - body_yaw, -PI, PI)
+		aim_yaw = body_yaw + clampf(off, -max_look, max_look)
+	else:
+		if move.length_squared() > 0.01:
+			body_yaw = _rotate_yaw(body_yaw, _move_yaw, deg_to_rad(free_turn_rate_deg) * delta)
+		aim_yaw = _rotate_yaw(aim_yaw, body_yaw, deg_to_rad(head_relax_rate_deg) * delta)
+	body_yaw = wrapf(body_yaw, -PI, PI)
+	aim_yaw = wrapf(aim_yaw, -PI, PI)
+
+	_visual.rotation.y = body_yaw
+	_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+	var lower_target := wrapf(_move_yaw - body_yaw, -PI, PI) if move.length_squared() > 0.01 else 0.0
+	_lower.rotation.y = lerp_angle(_lower.rotation.y, lower_target, 12.0 * delta)
+
+
+## Torso facing — where the body points (drop positions, camera, the arc anchor).
 func facing() -> Vector3:
-	return facing_dir
+	return _vec_of(body_yaw)
+
+
+## Gaze facing — where the head/gun point. The vision cone, the FADE, "is he
+## looking at me" checks, and EVERY muzzle read this one.
+func sight_facing() -> Vector3:
+	return _vec_of(aim_yaw)
+
+
+## Sticky: keeps driving the gaze until cleared (main feeds it while aiming/glassing).
+func set_aim_intent(dir: Vector3) -> void:
+	var d := dir
+	d.y = 0.0
+	_aim_intent = d.normalized() if d.length_squared() > 0.0001 else Vector3.ZERO
+
+
+func clear_aim_intent() -> void:
+	_aim_intent = Vector3.ZERO
+
+
+## Combat stance: entered by firing/throwing, exits after a lull. Slow feet,
+## no sprint, slower backpedal — the plant-and-shoot vs move-and-spray choice.
+func enter_stance() -> void:
+	_stance_t = stance_lull
+
+
+func in_stance() -> bool:
+	return _stance_t > 0.0
+
+
+## Resolve an aim request through the Look Arc RIGHT NOW (the fire path). The
+## head snap is instant within the arc, so the FIRST shot of an exchange flies
+## where the head can actually point this frame — never past the arc edge.
+func aim_now(desired: Vector3) -> Vector3:
+	set_aim_intent(desired)
+	if _aim_intent.length_squared() > 0.01:
+		var d := _yaw_of(_aim_intent)
+		var off := wrapf(d - body_yaw, -PI, PI)
+		var max_look := deg_to_rad(max_look_yaw_deg)
+		aim_yaw = body_yaw + clampf(off, -max_look, max_look)
+		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+	return sight_facing()
+
+
+## HUD hook: true while the mouse asks for more turn than the head has left —
+## the torso is still coming around, and shots fly the arc edge meanwhile.
+func aim_pinned() -> bool:
+	if _aim_intent.length_squared() < 0.01:
+		return false
+	return absf(wrapf(_yaw_of(_aim_intent) - aim_yaw, -PI, PI)) > deg_to_rad(4.0)
+
+
+func set_armed(on: bool) -> void:
+	if _gun:
+		_gun.visible = on
+
+
+## Sim/debug only: point the whole body somewhere without walking there.
+## Gameplay code must never call this — turning is the mechanic.
+func snap_orientation(dir: Vector3) -> void:
+	var d := dir
+	d.y = 0.0
+	if d.length_squared() < 0.0001:
+		return
+	body_yaw = _yaw_of(d.normalized())
+	aim_yaw = body_yaw
+	_move_yaw = body_yaw
+	if _visual:
+		_visual.rotation.y = body_yaw
+	if _upper:
+		_upper.rotation.y = 0.0
+
+
+static func _yaw_of(v: Vector3) -> float:
+	return atan2(-v.x, -v.z)
+
+
+static func _vec_of(yaw: float) -> Vector3:
+	return Vector3(-sin(yaw), 0.0, -cos(yaw))
+
+
+static func _rotate_yaw(from: float, to: float, amount: float) -> float:
+	var d := wrapf(to - from, -PI, PI)
+	return from + clampf(d, -amount, amount)

@@ -279,12 +279,20 @@ func _physics_process(delta: float) -> void:
 	if Input.is_key_pressed(KEY_X):
 		cam_rig.add_zoom(0.02)
 
-	# Binoculars: hold B or right mouse. On foot, your body turns to follow the glass.
+	# Binoculars: hold B or right mouse. One gaze pipeline: glassing and gunfighting
+	# both feed AIM INTENT, and the Look Arc drags the body when the target is past
+	# the head's limit — you physically turn to glass or shoot behind you.
 	var binoc := Input.is_key_pressed(KEY_B) or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
 	cam_rig.binoculars = binoc
 	hud.set_binoculars(binoc)
 	if mode == Mode.FOOT:
-		player.face_override = cam_rig.binocular_aim_dir() if binoc else Vector3.ZERO
+		var bdir := cam_rig.binocular_aim_dir()
+		if binoc and bdir.length_squared() > 0.01:
+			player.set_aim_intent(bdir)
+		elif player.in_stance():
+			player.set_aim_intent(aim_direction()) # the gun keeps tracking the mouse between shots
+		else:
+			player.clear_aim_intent()
 
 	if mode == Mode.DRIVE and active_car:
 		hud.set_speed(active_car.current_mph, true)
@@ -309,6 +317,8 @@ func _physics_process(delta: float) -> void:
 	var wpn := current_weapon()
 	if wpn:
 		wpn.tick(delta)
+	if mode == Mode.FOOT:
+		player.set_armed(wpn != null)
 	if mode == Mode.DRIVE and active_car and active_car.mount_weapon:
 		active_car.mount_weapon.tick(delta)
 		var mw: ProtoWeapon = active_car.mount_weapon
@@ -317,7 +327,7 @@ func _physics_process(delta: float) -> void:
 	elif wpn and mode == Mode.FOOT:
 		var is_m := wpn.is_melee()
 		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag if not is_m else 0, backpack.count(wpn.info()["ammo"]) if not is_m else 0, true)
-		hud.update_reticle(wpn.current_spread(self), get_viewport().get_mouse_position(), not is_m and not cam_rig.binoculars)
+		hud.update_reticle(wpn.current_spread(self), get_viewport().get_mouse_position(), not is_m and not cam_rig.binoculars, player.aim_pinned())
 	else:
 		hud.set_ammo("", "", 0, 0, false)
 		hud.update_reticle(0.0, Vector2.ZERO, false)
@@ -358,12 +368,17 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	if cam == null or body == null:
 		return
 	var facing: Vector3 = body.call("facing") if body.has_method("facing") else Vector3.FORWARD
+	if mode == Mode.FOOT:
+		# ONE RULE governs sight and aim: the cone follows the GAZE (Look Arc) —
+		# relaxed, aiming, or glassing, sight_facing() is already the right vector.
+		facing = player.sight_facing()
 	var params: Array = ProtoVisionCone.MODE_DRIVE if mode == Mode.DRIVE else ProtoVisionCone.MODE_FOOT
 	if binoc:
 		params = ProtoVisionCone.MODE_BINOC
-		var aim := cam_rig.binocular_aim_dir()
-		if aim.length_squared() > 0.01:
-			facing = aim
+		if mode == Mode.DRIVE:
+			var aim := cam_rig.binocular_aim_dir()
+			if aim.length_squared() > 0.01:
+				facing = aim # glassing from the cab pans free (no neck sim in a car yet)
 	elif character.vision_yaw_offset != 0.0:
 		facing = facing.rotated(Vector3.UP, character.vision_yaw_offset) # eye patch: lose a SIDE
 	# Indoors, walls end your sight — clamp the cone to roughly the room so it
@@ -766,9 +781,11 @@ func fire_equipped() -> void:
 	if w.mag <= 0 and not w.is_melee():
 		notify("*click* — reload (R)")
 		return
-	var dir := aim_direction()
-	player.face_override = dir
-	player.facing_dir = dir
+	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
+	# The Look Arc gates the MUZZLE, not just the picture: the shot flies where the
+	# head can actually point this frame. Aiming behind you = the round goes out
+	# the arc edge while your body comes around. No instant back-shots. Ever.
+	var dir := player.aim_now(aim_direction())
 	if w.fire(self, player.global_position + Vector3(0, 1.2, 0), dir):
 		if w.is_melee():
 			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
@@ -782,7 +799,8 @@ func fire_equipped() -> void:
 func throw_grenade() -> void:
 	if mode != Mode.FOOT or panel.is_open or not backpack.remove("grenade", 1):
 		return
-	var dir := aim_direction()
+	player.enter_stance()
+	var dir := player.aim_now(aim_direction()) # your arms obey the same arc as the gun
 	var g := ProtoWeapon.ProtoGrenade.new()
 	g.vel = dir * 9.0 + Vector3.UP * 5.0
 	add_child(g)

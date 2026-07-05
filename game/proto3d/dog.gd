@@ -451,9 +451,11 @@ func _sense(delta: float) -> void:
 	if main == null:
 		return
 
-	# Threats — a dog ALWAYS knows what's behind you.
+	# Threats — a dog ALWAYS knows what's behind you. "Behind" means behind your
+	# GAZE (the Look Arc's blind spot), which is exactly what the dog covers.
 	if _threat_cooldown <= 0.0:
-		var facing: Vector3 = _owner_ref.call("facing") if _owner_ref.has_method("facing") else Vector3.FORWARD
+		var facing: Vector3 = _owner_ref.call("sight_facing") if _owner_ref.has_method("sight_facing") \
+			else (_owner_ref.call("facing") if _owner_ref.has_method("facing") else Vector3.FORWARD)
 		for node in get_tree().get_nodes_in_group("threat"):
 			var t := node as Node3D
 			if t == null or not is_instance_valid(t):

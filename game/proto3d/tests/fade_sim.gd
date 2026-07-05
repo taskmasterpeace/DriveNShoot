@@ -53,8 +53,7 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.5:
 				main.player.global_position = Vector3(40, 0.3, 200)
 				main.player.velocity = Vector3.ZERO
-				main.player.face_override = Vector3(0, 0, -1) # look NORTH (-Z)
-				main.player.facing_dir = Vector3(0, 0, -1)
+				main.player.snap_orientation(Vector3(0, 0, -1)) # look NORTH (-Z)
 				# lurker placed BEHIND (south, +Z) — out of sight
 				_lurk = ProtoLurker.create()
 				_lurk.stalk_range = 0.0
@@ -70,8 +69,7 @@ func _physics_process(delta: float) -> void:
 				_check("threat BEHIND you fades out (%.2f)" % _fade_of(_lurk), _fade_of(_lurk) > 0.5)
 				_check("chest you're looking at is solid (%.2f)" % _fade_of(_chest), _fade_of(_chest) < 0.2)
 				# now TURN to face the lurker (south)
-				main.player.face_override = Vector3(0, 0, 1)
-				main.player.facing_dir = Vector3(0, 0, 1)
+				main.player.snap_orientation(Vector3(0, 0, 1))
 				_next()
 		3:
 			if phase_t > 2.0:

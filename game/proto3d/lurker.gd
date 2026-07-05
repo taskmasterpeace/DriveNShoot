@@ -103,8 +103,9 @@ func _physics_process(delta: float) -> void:
 
 	var stalking := dist < stalk_range and dist > stop_distance
 	# Freeze when the player is looking at it (creepy) — only breaks eye contact stalks.
+	# Eye contact = the GAZE (Look Arc), not the torso: what the cone shows is what freezes it.
 	if stalking and _player.has_method("facing"):
-		var facing: Vector3 = _player.call("facing")
+		var facing: Vector3 = _player.call("sight_facing") if _player.has_method("sight_facing") else _player.call("facing")
 		if facing.dot(-to_p.normalized()) > 0.55 and dist < 30.0:
 			stalking = false
 
