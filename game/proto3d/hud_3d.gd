@@ -336,6 +336,64 @@ func set_mode(driving: bool) -> void:
 
 var _flash: ColorRect = null
 var _ammo_label: Label = null
+var _sheet_panel: PanelContainer = null
+var _sheet_label: Label = null
+var _death_label: Label = null
+
+## The character sheet (K): one styled panel, emoji-forward stats.
+func toggle_sheet(text: String) -> void:
+	if _sheet_panel == null:
+		_sheet_panel = PanelContainer.new()
+		_sheet_panel.set_anchors_preset(Control.PRESET_CENTER)
+		_sheet_panel.offset_left = -240.0
+		_sheet_panel.offset_right = 240.0
+		_sheet_panel.offset_top = -220.0
+		_sheet_panel.offset_bottom = 220.0
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.10, 0.09, 0.07, 0.94)
+		style.border_color = AMBER
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(6)
+		style.set_content_margin_all(18)
+		_sheet_panel.add_theme_stylebox_override("panel", style)
+		_sheet_label = Label.new()
+		_sheet_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_sheet_label.add_theme_font_size_override("font_size", 19)
+		_sheet_label.add_theme_color_override("font_color", BONE)
+		_sheet_panel.add_child(_sheet_label)
+		add_child(_sheet_panel)
+		_sheet_panel.visible = false
+	_sheet_panel.visible = not _sheet_panel.visible
+	if _sheet_panel.visible:
+		_sheet_label.text = text
+
+func sheet_open() -> bool:
+	return _sheet_panel != null and _sheet_panel.visible
+
+## Permadeath screen — the run is over.
+func show_death(text: String) -> void:
+	if _death_label == null:
+		var shade := ColorRect.new()
+		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		shade.color = Color(0.05, 0.02, 0.02, 0.82)
+		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(shade)
+		_death_label = Label.new()
+		_death_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_death_label.add_theme_font_size_override("font_size", 34)
+		_death_label.add_theme_color_override("font_color", Color(0.9, 0.2, 0.12))
+		_death_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_death_label.set_anchors_preset(Control.PRESET_CENTER)
+		_death_label.offset_left = -420.0
+		_death_label.offset_right = 420.0
+		_death_label.offset_top = -70.0
+		_death_label.offset_bottom = 70.0
+		add_child(_death_label)
+	_death_label.text = text
+	_death_label.visible = true
+
+func death_shown() -> bool:
+	return _death_label != null and _death_label.visible
 
 ## 🔫 mag/reserve — ammo stays NUMERIC (you count bullets; you feel tired).
 func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: bool) -> void:

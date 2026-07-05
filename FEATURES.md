@@ -203,3 +203,17 @@ on foot, and Hold X to extract.
 *   **Inventory polish** — TAKE ALL button, sorted items, transfer blips.
 *   **Dog polish** — unstuck logic (they flow around posts now instead of pushing).
 *   **Proofs:** arsenal_sim 8/8 · audio_sim 5/5 · dog_sim 12/12 — full suite green.
+
+## 21. THE RPG SPINE — skills, body, permadeath (2026-07-04)
+*   **Skills level BY USE** (the UO way): 🔧 Mechanics (hotwiring/salvage — makes hotwires
+    FASTER), 🎯 Marksmanship (landing hits — TIGHTENS your spread), 🚗 Driving (earns by the
+    mile). Level-ups toast on screen. One engine — every future skill is a data row.
+*   **The 6-part body** — head/torso/arms/legs, each a real damageable part. Crash wounds land
+    on a specific limb.
+*   **THE HEALTH CAP** — injuries lower your MAXIMUM hp. You survive the wreck but limp home
+    fragile; the drive back is the real gauntlet. Bandaging treats the part and the cap recovers.
+*   **The character sheet (K)** — HP/cap, every body part's condition, skill levels + xp,
+    jack, stress. Emoji-forward, one glance.
+*   **PERMADEATH** — head or torso destroyed, or hp at zero: the run ends. Death screen,
+    R starts a new run. The Deathlands keep what they take.
+*   **Proof:** stage3_sim 12/12 · arsenal/container/m1 unregressed.

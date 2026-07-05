@@ -32,6 +32,12 @@ var weapons: Array = []
 var equipped: int = -1
 var aim_override: Vector3 = Vector3.ZERO ## sims set this (headless has no real mouse)
 
+## Stage 3: the RPG spine — skills by use, 6-part body, health cap, permadeath.
+var character: ProtoCharacter = ProtoCharacter.new()
+var _wound_rng := RandomNumberGenerator.new()
+var _odometer: float = 0.0
+var _prev_car_pos: Vector3 = Vector3.ZERO
+
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
 var dogs: Array[ProtoDog] = []       ## adopted pack
@@ -85,6 +91,11 @@ func _ready() -> void:
 
 	audio = ProtoAudio.new()
 	add_child(audio)
+	_wound_rng.randomize()
+	character.leveled.connect(func(id: String, lvl: int) -> void:
+		hud.toast("⬆️ %s %s reached level %d" % [ProtoCharacter.SKILLS[id]["emoji"], ProtoCharacter.SKILLS[id]["name"], lvl])
+		audio.play_ui("blip", -4.0))
+	character.died.connect(_on_death)
 
 	panel = ProtoContainerPanel.create(self)
 	add_child(panel)
@@ -174,7 +185,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			else:
 				panel.open(backpack, null) # just your pack
 		elif kc == KEY_R:
-			reload_equipped()
+			if character.dead:
+				get_tree().reload_current_scene()
+			else:
+				reload_equipped()
+		elif kc == KEY_K:
+			hud.toggle_sheet(_sheet_text())
 		elif kc >= KEY_1 and kc <= KEY_3:
 			var idx := kc - KEY_1
 			if idx < weapons.size():
@@ -216,6 +232,12 @@ func _physics_process(delta: float) -> void:
 	if mode == Mode.DRIVE and active_car:
 		hud.set_speed(active_car.current_mph, true)
 		hud.set_dashboard(active_car.dashboard())
+		# Driving skill grows with miles, not menus.
+		_odometer += active_car.global_position.distance_to(_prev_car_pos) if _prev_car_pos != Vector3.ZERO else 0.0
+		_prev_car_pos = active_car.global_position
+		if _odometer > 150.0:
+			_odometer = 0.0
+			grant_xp("driving", 2.0)
 		# Riding a dead car is riding a coffin — throw the driver clear.
 		if active_car.dead:
 			hud.toast("The %s is GONE — get clear!" % active_car.display_name)
@@ -267,13 +289,15 @@ func _update_hotwire(delta: float) -> void:
 	var target := _current_interactable as ProtoCar3D
 	var valid: bool = mode == Mode.FOOT and target != null and target.locked \
 		and not target.dead and not has_key(target.key_id)
+	var dur := _hotwire_duration() # Mechanics skill speeds this up
 	if valid and Input.is_action_pressed("interact"):
 		_hotwire_t += delta
-		hud.show_prompt("HOTWIRING the %s... %d%%" % [target.display_name, int(_hotwire_t / 5.0 * 100.0)])
-		if _hotwire_t >= 5.0:
+		hud.show_prompt("HOTWIRING the %s... %d%%" % [target.display_name, int(_hotwire_t / dur * 100.0)])
+		if _hotwire_t >= dur:
 			target.locked = false
 			_hotwire_t = 0.0
 			notify("Hotwired the %s" % target.display_name)
+			grant_xp("mechanics", 12.0)
 			stress = minf(100.0, stress + 8.0) # nerves — and later, noise/heat
 	else:
 		_hotwire_t = 0.0
@@ -425,10 +449,13 @@ func use_item(id: String) -> bool:
 		return true
 	match id:
 		"bandage":
-			if bleeding > 0:
+			if bleeding > 0 or character.worst_part() != "" and character.body[character.worst_part()].ratio() < 1.0:
 				bleeding = 0
 				hud.set_condition("hurt", 0)
-				notify("Bandaged the wound")
+				var part := character.worst_part()
+				if part != "":
+					character.treat(part, 30.0) # treatment = the part recovers, the CAP comes back
+				notify("Bandaged the %s (cap %d)" % [part.replace("_", " "), int(character.hp_cap())])
 				return true
 			notify("No wound to bandage")
 			return false
@@ -510,9 +537,45 @@ func give_bleeding(tier: int) -> void:
 	bleeding = clampi(maxi(bleeding, tier), 0, 3)
 	hud.set_condition("hurt", bleeding)
 	if tier > 0:
+		# The wound lands on a real body part; the HEALTH CAP drops with it.
+		character.take_wound(character.random_part(_wound_rng), 8.0 + 8.0 * tier)
 		audio.play_at("hurt", player.global_position, -2.0)
-		hud.toast("🩸 You're hurt — find a bandage")
+		hud.toast("🩸 You're hurt (cap %d) — find a bandage" % int(character.hp_cap()))
 		stress = minf(100.0, stress + 10.0)
+
+
+func grant_xp(id: String, amount: float) -> void:
+	character.add_xp(id, amount)
+
+
+## The character sheet (K) — stats speak emoji, per the moodle law.
+func _sheet_text() -> String:
+	var lines: Array[String] = []
+	lines.append("❤️ HP %d / %d (cap)" % [int(character.hp), int(character.hp_cap())])
+	lines.append("")
+	var tier_txt: Array = ["GOOD", "WORN", "CRITICAL", "BROKEN"]
+	for part in ProtoCharacter.PART_NAMES:
+		var d: Damageable = character.body[part]
+		lines.append("%s %-7s %s" % [d.emoji, part.replace("_", " "), tier_txt[d.tier()]])
+	lines.append("")
+	for id in ProtoCharacter.SKILLS:
+		var s: Dictionary = character.skills[id]
+		lines.append("%s %-13s lv %d  (%d xp)" % [ProtoCharacter.SKILLS[id]["emoji"], ProtoCharacter.SKILLS[id]["name"], s["level"], int(s["xp"])])
+	lines.append("")
+	lines.append("🪙 Jack: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("jack"), str(bleeding), int(stress)])
+	return "\n".join(lines)
+
+
+func _hotwire_duration() -> float:
+	return maxf(2.5, 5.0 - 0.5 * character.level("mechanics"))
+
+
+func _on_death() -> void:
+	player.is_active = false
+	if active_car:
+		active_car.is_active = false
+	hud.show_death("YOU DIED — the Deathlands keep what they take.\nPress R to start a new run.")
+	cam_rig.add_trauma(1.0)
 
 
 var _last_chassis: float = -1.0

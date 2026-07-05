@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3drpgsim01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/stage3_sim.gd" id="1_rpg"]
+
+[node name="Stage3Sim" type="Node"]
+script = ExtResource("1_rpg")

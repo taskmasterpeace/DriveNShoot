@@ -45,14 +45,19 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	mag -= 1
 	_cd = info()["cooldown"]
 	var w := info()
+	# Marksmanship tightens the cone (skill = accuracy, per COMBAT_AND_GEAR).
+	var skill_mult := 1.0
+	if "character" in main and main.character:
+		skill_mult = clampf(1.0 - 0.06 * main.character.level("marksmanship"), 0.5, 1.0)
+	var sp: float = w["spread_deg"] * skill_mult
 	match w["behavior"]:
 		Behavior.HITSCAN:
-			_ray_shot(main, from, _spread(aim_dir, w["spread_deg"]), w["range"], w["damage"])
+			_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
 		Behavior.HITSCAN_MULTI:
 			for i in int(w["pellets"]):
-				_ray_shot(main, from, _spread(aim_dir, w["spread_deg"]), w["range"], w["damage"])
+				_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
 		Behavior.PROJECTILE:
-			_launch(main, from, _spread(aim_dir, w["spread_deg"]), w)
+			_launch(main, from, _spread(aim_dir, sp), w)
 	return true
 
 
@@ -74,6 +79,8 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float) 
 		var col = hit["collider"]
 		if col != null and col.has_method("take_damage"):
 			col.take_damage(dmg)
+			if main.has_method("grant_xp"):
+				main.grant_xp("marksmanship", 2.0) # hits teach; misses don't
 	_tracer(main, from, end)
 
 
