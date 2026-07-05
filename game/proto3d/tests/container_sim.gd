@@ -78,7 +78,7 @@ func _physics_process(delta: float) -> void:
 				_next()
 		3: # panel opens on the trunk
 			if phase_t > 0.4:
-				_check("the ONE panel opens (trunk)", main.panel.is_open and main.panel._theirs != null and main.panel._theirs.label == "Trunk")
+				_check("the ONE panel opens (trunk)", main.panel.is_open and main.panel._theirs != null and main.panel._theirs.label.contains("cargo"))
 				# take the bandage (click-equivalent)
 				main.panel._on_move(main.panel._theirs, main.panel._mine, "bandage")
 				_check("looted bandage into backpack", main.backpack.count("bandage") == 1)

@@ -5,9 +5,14 @@ extends StaticBody3D
 var container: ProtoContainer = ProtoContainer.new("Chest")
 
 
-static func create(label: String, loot: Dictionary) -> ProtoChest:
+## solid=false → loot piles/corpses: visible + lootable but NO collision, so
+## driving over one never dents the car (playtest: "I hit the crate, I take damage").
+static func create(label: String, loot: Dictionary, solid: bool = true) -> ProtoChest:
 	var c := ProtoChest.new()
 	c.add_to_group("interactable")
+	if not solid:
+		c.collision_layer = 0
+		c.collision_mask = 0
 	c.container.label = label
 	for id in loot:
 		c.container.add(id, loot[id])

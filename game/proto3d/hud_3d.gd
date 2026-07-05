@@ -291,9 +291,10 @@ func set_dashboard(d) -> void:
 		var lbl: Label = _dash_labels[part]
 		lbl.text = DASH_EMOJI[part]
 		lbl.modulate = TIER_COLORS[tier]
-	_dash_fuel.text = "%d%%" % int(d["fuel"])
+	# LABELED (playtest: "I don't know what the percentage is") — the number is FUEL.
+	_dash_fuel.text = "FUEL %d%%" % int(d["fuel"])
 	if d["on_fire"]:
-		_dash_cook.text = "💥%d%%" % int(d["cook"])
+		_dash_cook.text = "💥BLOW %d%%" % int(d["cook"])
 		_dash_cook.visible = true
 	else:
 		_dash_cook.visible = false

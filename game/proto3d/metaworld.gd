@@ -59,7 +59,7 @@ func hydrate(rec: Dictionary) -> void:
 	records.erase(rec)
 	if rec.get("killed", false):
 		# Come home to find it gone — just the collar in the dirt.
-		var remains := ProtoChest.create("%s's remains" % rec["name"], {"meat": 1})
+		var remains := ProtoChest.create("%s's remains" % rec["name"], {"meat": 1}, false)
 		main.add_child(remains)
 		remains.global_position = rec["pos"]
 		come_home.emit("You find %s's collar in the dirt. It held the spot — and paid for it." % rec["name"])

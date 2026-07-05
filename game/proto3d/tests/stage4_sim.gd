@@ -10,6 +10,7 @@ var failed := 0
 var _lurk: ProtoLurker
 var _base_spread := 0.0
 var _stress0 := 0.0
+var _mag0: int = 0
 
 
 func _ready() -> void:
@@ -126,7 +127,8 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 2.2:
 				var w: ProtoWeapon = main.current_weapon()
 				_check("rest recovers the cone (%.1f)" % w.current_spread(main), w.current_spread(main) < _base_spread * 1.15)
-				# hood MG: clear battlefield corpses (loot is grabby by design), stand at the door
+				# Shoot-from-the-car test (the hood MG default is GONE — VEHICLES.md §6):
+				# clear battlefield corpses (loot is grabby by design), stand at the door
 				for node in main.get_children():
 					if node is ProtoChest and node.container.label == "Corpse":
 						node.queue_free()
@@ -139,22 +141,27 @@ func _physics_process(delta: float) -> void:
 				_tap_interact() # enter the Scavenger from the door
 			if phase_t > 0.9:
 				if main.mode == 0:
+					_check("no default hood MG on the Scavenger anymore", main.active_car.mount_weapon == null)
 					var fwd: Vector3 = main.active_car.facing()
 					_lurk = _spawn(fwd * 14.0 + Vector3(0, 0.4, 0))
 					_lurk.global_position = main.active_car.global_position + fwd * 14.0 + Vector3(0, 0.4, 0)
+					main.aim_override = fwd # "mouse" on the lurker out the windshield
+					_mag0 = main.current_weapon().mag
 					_next()
 				elif phase_t > 3.0:
-					_check("re-entered the car for the MG test", false)
+					_check("re-entered the car for the shoot-from-car test", false)
 					phase = 9
 		8:
 			if phase_t > 0.3 and is_instance_valid(_lurk) and not _lurk.dead:
-				_click() # hood MG fires where the car points
+				if is_instance_valid(_lurk):
+					main.aim_override = (_lurk.global_position - main.active_car.global_position).normalized()
+				_click() # YOUR OWN gun, out the driver's window
 			elif (not is_instance_valid(_lurk)) or _lurk.dead:
-				_check("HOOD MG (mounted weapon) kills from the driver's seat", true)
-				_check("MG has its own mag (%d/40)" % main.active_car.mount_weapon.mag, main.active_car.mount_weapon.mag < 40)
+				_check("YOUR OWN GUN kills from the driver's seat (no mount needed)", true)
+				_check("...and it burned YOUR mag (%d < %d)" % [main.current_weapon().mag, _mag0], main.current_weapon().mag < _mag0)
 				_next()
 			if phase_t > 8.0:
-				_check("HOOD MG (mounted weapon) kills from the driver's seat", false)
+				_check("YOUR OWN GUN kills from the driver's seat (no mount needed)", false)
 				_next()
 		9:
 			print("CBT RESULTS: %d passed, %d failed" % [passed, failed])

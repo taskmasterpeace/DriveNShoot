@@ -109,16 +109,36 @@ static func create() -> ProtoPlayer3D:
 	nose.material_override = ProtoWorldBuilder.material(Color(0.7, 0.5, 0.35), 0.9)
 	nose.position = Vector3(0, 1.66, -0.2)
 	p._upper.add_child(nose)
-	# The carried gun: shows when armed, reads from straight above.
+	# The carried gun: HELD IN THE RIGHT HAND (playtest: "a hand holds it, not the
+	# shoulder") — offset right and at arm height, reads from straight above.
 	p._gun = MeshInstance3D.new()
 	var gmesh := BoxMesh.new()
 	gmesh.size = Vector3(0.07, 0.07, 0.62)
 	p._gun.mesh = gmesh
 	p._gun.material_override = ProtoWorldBuilder.material(Color(0.16, 0.16, 0.18), 0.4)
-	p._gun.position = Vector3(0.16, 1.34, -0.42)
+	p._gun.position = Vector3(0.30, 1.12, -0.36)
 	p._gun.visible = false
 	p._upper.add_child(p._gun)
 	return p
+
+
+## World-space muzzle tip — rounds LEAVE THE GUN, not the chest (playtest law).
+func muzzle_world() -> Vector3:
+	if _gun and _gun.visible:
+		return _gun.global_position - _gun.global_basis.z * 0.34
+	return global_position + Vector3(0, 1.2, 0)
+
+
+## Thrown from a vehicle: commit a dive-tumble along the throw velocity.
+## You don't spring up from a highside — the get-up runs long.
+func tumble(vel: Vector3) -> void:
+	var dir := Vector3(vel.x, 0, vel.z)
+	_dive_dir = dir.normalized() if dir.length() > 0.5 else facing()
+	snap_orientation(_dive_dir)
+	velocity = vel
+	move_state = FootState.DIVE
+	_state_t = 0.0
+	_getup_dur = getup_time * 1.6
 
 
 func _physics_process(delta: float) -> void:

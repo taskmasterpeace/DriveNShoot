@@ -105,7 +105,10 @@ func close() -> void:
 func _refresh() -> void:
 	if not is_open:
 		return
-	_title.text = ("%s  ⇄  %s" % [_mine.label, _theirs.label]) if _theirs else _mine.label
+	var their_label: String = _theirs.label if _theirs else ""
+	if _theirs and _theirs.max_weight > 0.0:
+		their_label += "  (%.0f / %.0f kg)" % [_theirs.total_weight(), _theirs.max_weight]
+	_title.text = ("%s  ⇄  %s" % [_mine.label, their_label]) if _theirs else _mine.label
 	_fill(_left_box, _mine, _theirs, true)
 	_fill(_right_box, _theirs, _mine, false)
 	# Take All (polish): sweep the whole container in one click — NOT in a shop.
@@ -199,8 +202,10 @@ func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:
 			_main.audio.play_ui("click", -6.0)
 		_refresh()
 		return
-	from.transfer_to(to, id)
-	if _main and "audio" in _main and _main.audio:
+	if not from.transfer_to(to, id):
+		if _main and _main.has_method("notify") and not to.has_room(id):
+			_main.notify("%s is FULL (%.0f kg max) — bring a bigger vehicle" % [to.label, to.max_weight])
+	elif _main and "audio" in _main and _main.audio:
 		_main.audio.play_ui("blip", -12.0)
 	_refresh()
 

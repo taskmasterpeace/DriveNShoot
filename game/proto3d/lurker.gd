@@ -30,15 +30,32 @@ func knock_down() -> void:
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 2.1, 0), "KNOCKDOWN!", Color(1.0, 0.82, 0.2), 150)
 
 
+var _hit_flash_t: float = 0.0
+var _flash_mat: StandardMaterial3D = null
+
+
 func take_damage(amount: float) -> void:
 	if dead:
 		return
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.8, 0), "-%d" % int(amount), Color(0.96, 0.86, 0.55), 110)
+	# HITS READ (playtest: "nothing shows they're taking damage"): the whole
+	# silhouette FLASHES hot for a beat and the thing staggers.
+	if _flash_mat == null:
+		_flash_mat = StandardMaterial3D.new()
+		_flash_mat.albedo_color = Color(1.0, 0.9, 0.8)
+		_flash_mat.emission_enabled = true
+		_flash_mat.emission = Color(1.0, 0.55, 0.35)
+		_flash_mat.emission_energy_multiplier = 2.4
+	_hit_flash_t = 0.12
+	for c in _visual.get_children():
+		if c is MeshInstance3D:
+			(c as MeshInstance3D).material_overlay = _flash_mat
+	velocity.y += 1.6 # the stagger hop
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true
-		# Death leaves lootable remains — the Container serves corpses too.
-		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 2})
+		# Death leaves lootable remains — soft pile, never a car-denting crate.
+		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 2}, false)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()
@@ -79,6 +96,14 @@ static func create() -> ProtoLurker:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+
+	# Hit flash decays and clears (runs on every path, knocked included).
+	if _hit_flash_t > 0.0:
+		_hit_flash_t -= delta
+		if _hit_flash_t <= 0.0 and _visual:
+			for c in _visual.get_children():
+				if c is MeshInstance3D:
+					(c as MeshInstance3D).material_overlay = null
 
 	# Knocked down: helpless, no stalk, no claw, until it gets back up.
 	if knocked:

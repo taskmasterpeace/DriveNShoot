@@ -1,10 +1,60 @@
-## PROTO-3D car: real raycast-suspension vehicle physics (VehicleBody3D).
-## No faked bicycle model — suspension, tire slip, and weight transfer are simulated.
-## Forward is -Z. Built entirely from code via ProtoCar3D.create().
+## PROTO-3D vehicle: real raycast-suspension physics (VehicleBody3D).
+## A vehicle is a ROW in VEHICLES (docs/systems/VEHICLES.md) — adding one = adding
+## data, never new code. Same 5-part anatomy, death spiral, trunk, surfaces and
+## skid marks for every class, from the Rat Bike to the Longhaul's trailer.
+## Forward is -Z. Built entirely from code via ProtoCar3D.create(vclass, color).
 class_name ProtoCar3D
 extends VehicleBody3D
 
 signal speed_changed(mph: float)
+## A bike has no cab: a hard crash THROWS the rider (main handles the tumble).
+signal rider_thrown(dv: float)
+
+## The Fleet — five wildly different classes + the towed trailer (VEHICLES.md §1).
+## wheels rows: [x, z, steer, traction, visible, radius]
+const VEHICLES: Dictionary = {
+	"scavenger": {"name": "Scavenger", "mass": 900.0, "engine": 6500.0, "top": 34.0, "rev": 11.0,
+		"steer": [0.55, 0.16, 5.0], "tires": {"grip_f": 5.5, "grip_r": 5.0, "dirt_mult": 0.78, "name": "street"},
+		"chassis": Vector3(2.0, 0.7, 4.4), "hull": Vector3(2.0, 0.55, 4.4), "cabin": Vector3(1.7, 0.5, 2.0), "cabin_pos": Vector3(0, 0.55, 0.25),
+		"wheels": [[-0.85, -1.45, true, false, true, 0.38], [0.85, -1.45, true, false, true, 0.38],
+			[-0.85, 1.45, false, true, true, 0.38], [0.85, 1.45, false, true, true, 0.38]],
+		"trunk_max_w": 40.0, "wound_mult": 1.0, "tailpipe": Vector3(-0.65, 0.22, 2.15), "com_y": -0.25},
+	"motorcycle": {"name": "Rat Bike", "mass": 260.0, "engine": 3400.0, "top": 38.0, "rev": 8.0,
+		"steer": [0.62, 0.2, 6.5], "tires": {"grip_f": 5.2, "grip_r": 4.6, "dirt_mult": 0.82, "name": "dual-sport"},
+		"chassis": Vector3(0.55, 0.6, 2.2), "hull": Vector3(0.34, 0.42, 1.9), "cabin": Vector3(0.3, 0.28, 0.7), "cabin_pos": Vector3(0, 0.62, 0.35),
+		# Physics rides 4 narrow-track wheels (self-standing trick); only the centered pair renders.
+		"wheels": [[-0.11, -0.8, true, false, false, 0.34], [0.11, -0.8, true, false, true, 0.34],
+			[-0.11, 0.8, false, true, false, 0.34], [0.11, 0.8, false, true, true, 0.34]],
+		"trunk_max_w": 10.0, "wound_mult": 2.5, "rider_exposed": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
+	"buggy": {"name": "Dustrunner", "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
+		"steer": [0.6, 0.2, 6.0], "tires": {"grip_f": 5.0, "grip_r": 4.6, "dirt_mult": 0.95, "name": "knobby"},
+		"chassis": Vector3(1.7, 0.6, 3.0), "hull": Vector3(1.6, 0.35, 2.9), "cabin": Vector3(1.2, 0.45, 1.2), "cabin_pos": Vector3(0, 0.5, 0.1),
+		"wheels": [[-0.8, -1.1, true, false, true, 0.42], [0.8, -1.1, true, false, true, 0.42],
+			[-0.8, 1.1, false, true, true, 0.42], [0.8, 1.1, false, true, true, 0.42]],
+		"trunk_max_w": 22.0, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
+	"van": {"name": "Boxer", "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
+		"steer": [0.5, 0.13, 4.0], "tires": {"grip_f": 5.6, "grip_r": 5.2, "dirt_mult": 0.68, "name": "highway"},
+		"chassis": Vector3(2.2, 1.5, 5.2), "hull": Vector3(2.2, 1.35, 5.2), "cabin": Vector3(2.0, 0.5, 1.4), "cabin_pos": Vector3(0, 1.05, -1.7),
+		"wheels": [[-0.9, -1.9, true, false, true, 0.4], [0.9, -1.9, true, false, true, 0.4],
+			[-0.9, 1.9, false, true, true, 0.4], [0.9, 1.9, false, true, true, 0.4]],
+		"trunk_max_w": 120.0, "wound_mult": 0.8, "tailpipe": Vector3(-0.78, 0.24, 2.55), "com_y": -0.45},
+	"semi": {"name": "Longhaul", "mass": 3800.0, "engine": 12000.0, "top": 25.0, "rev": 6.0,
+		"steer": [0.45, 0.1, 3.0], "tires": {"grip_f": 6.2, "grip_r": 5.8, "dirt_mult": 0.7, "name": "rig"},
+		"chassis": Vector3(2.4, 1.9, 6.4), "hull": Vector3(2.35, 1.0, 6.2), "cabin": Vector3(2.3, 1.3, 2.2), "cabin_pos": Vector3(0, 1.55, -1.9),
+		# ONE drive axle (Godot applies engine_force per traction wheel — 4 traction
+		# wheels secretly doubled the rig's power and broke the accel ladder).
+		"wheels": [[-0.95, -2.4, true, false, true, 0.45], [0.95, -2.4, true, false, true, 0.45],
+			[-0.95, 1.6, false, true, true, 0.45], [0.95, 1.6, false, true, true, 0.45],
+			[-0.95, 2.55, false, false, true, 0.45], [0.95, 2.55, false, false, true, 0.45]],
+		"trunk_max_w": 45.0, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
+	"trailer": {"name": "trailer", "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
+		"steer": [0.0, 0.0, 1.0], "tires": {"grip_f": 6.0, "grip_r": 6.0, "dirt_mult": 0.7, "name": "rig"},
+		"chassis": Vector3(2.4, 2.2, 8.0), "hull": Vector3(2.35, 2.0, 7.9), "cabin": Vector3.ZERO, "cabin_pos": Vector3.ZERO,
+		"wheels": [[-0.95, 2.2, false, false, true, 0.45], [0.95, 2.2, false, false, true, 0.45],
+			[-0.95, 3.1, false, false, true, 0.45], [0.95, 3.1, false, false, true, 0.45]],
+		"trunk_max_w": 400.0, "wound_mult": 0.0, "tailpipe": Vector3.ZERO, "com_y": -0.7,
+		"free_rolling": true, "hitch_front_z": -3.95},
+}
 
 @export_group("Drive Feel")
 @export var max_engine_force: float = 6500.0
@@ -24,10 +74,11 @@ signal speed_changed(mph: float)
 
 @export_group("Surface")
 ## Roads are visual-only slabs, so surface comes from ProtoWorldBuilder.surface_at(pos).
-## Each surface scales grip (dirt slides), dust, and skid-mark color. Data-driven per house rules.
+## Dust + skid color per surface; GRIP off-road comes from the TIRES (dirt_mult —
+## knobby buggy 0.95 vs highway van 0.68: the variation lever, VEHICLES.md §2).
 const SURFACE: Dictionary = {
-	"road": {"grip": 1.0, "dust_speed": 9.0, "skid": Color(0.05, 0.05, 0.06, 0.85)},
-	"dirt": {"grip": 0.78, "dust_speed": 4.5, "skid": Color(0.40, 0.32, 0.22, 0.6)},
+	"road": {"dust_speed": 9.0, "skid": Color(0.05, 0.05, 0.06, 0.85)},
+	"dirt": {"dust_speed": 4.5, "skid": Color(0.40, 0.32, 0.22, 0.6)},
 }
 var current_surface: String = "road"
 var surface_override: String = "" ## sims/tests force a surface without a world under the car
@@ -43,18 +94,26 @@ var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
 var use_player_input: bool = true
 var is_active: bool = false
 
+## Which VEHICLES row this is.
+var vclass: String = "scavenger"
+var spec: Dictionary = {}
+
 ## Locked cars need their key found somewhere in the world.
 var locked: bool = false
 var key_id: String = ""
 var key_display: String = "key"
 var display_name: String = "car"
 
+## Trailer coupling (semi + trailer only).
+var hitched_to: ProtoCar3D = null ## set on the TRAILER
+var _hitch_joint: Generic6DOFJoint3D = null
+
 # --- The Living Car (LOOP2): 5-part anatomy + death spiral --------------------
 enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
 
 var components: Dictionary = {} ## id -> Damageable (engine/tires/battery/fuel_tank/chassis)
 var trunk: ProtoContainer = null ## every car is storage (Container pillar)
-var mount_weapon: ProtoWeapon = null ## vehicle weapon mount (same system as handhelds)
+var mount_weapon: ProtoWeapon = null ## vehicle weapon mount (system kept; no default gun — VEHICLES.md §6)
 var fuel: float = 100.0
 @export var fuel_drain_rate: float = 0.35 ## per second at full throttle
 var fire_state: FireState = FireState.OK
@@ -62,6 +121,7 @@ var cook: float = 0.0 ## 0-100 while ON_FIRE — "it might blow, it might not"
 var dead: bool = false
 var salvaged: bool = false
 var _smoke: CPUParticles3D = null
+var _smoke_bucket: int = -1
 var _flames: CPUParticles3D = null
 var _spiral_rng := RandomNumberGenerator.new()
 
@@ -85,57 +145,71 @@ var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
 
-static func create(body_color: Color) -> ProtoCar3D:
+static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	var car := ProtoCar3D.new()
+	var s: Dictionary = VEHICLES[vclass_in]
+	car.vclass = vclass_in
+	car.spec = s
+	car.display_name = s["name"]
 	car.add_to_group("interactable")
-	car.mass = 900.0
+	car.mass = s["mass"]
 	car.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	car.center_of_mass = Vector3(0, -0.25, 0)
+	car.center_of_mass = Vector3(0, s["com_y"], 0)
+	# Drive feel from the row
+	car.max_engine_force = s["engine"]
+	car.top_speed = s["top"]
+	car.reverse_top_speed = s["rev"]
+	car.max_steer = s["steer"][0]
+	car.high_speed_steer = s["steer"][1]
+	car.steer_speed = s["steer"][2]
+	car.grip_front = s["tires"]["grip_f"]
+	car.grip_rear = s["tires"]["grip_r"]
 
 	# Chassis collision
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(2.0, 0.7, 4.4)
+	box.size = s["chassis"]
 	shape.shape = box
+	shape.position.y = maxf(0.0, (s["chassis"].y - 0.7) * 0.5) # tall classes sit their box higher
 	car.add_child(shape)
 
 	# Body visuals: hull + cabin + windshield hint so you can read the facing.
 	var hull := MeshInstance3D.new()
 	var hull_mesh := BoxMesh.new()
-	hull_mesh.size = Vector3(2.0, 0.55, 4.4)
+	hull_mesh.size = s["hull"]
 	hull.mesh = hull_mesh
 	hull.material_override = ProtoWorldBuilder.material(body_color, 0.55)
-	hull.position.y = 0.05
+	hull.position.y = 0.05 + maxf(0.0, (s["hull"].y - 0.55) * 0.5)
 	car.add_child(hull)
 
-	var cabin := MeshInstance3D.new()
-	var cabin_mesh := BoxMesh.new()
-	cabin_mesh.size = Vector3(1.7, 0.5, 2.0)
-	cabin.mesh = cabin_mesh
-	cabin.material_override = ProtoWorldBuilder.material(body_color * 0.75, 0.5)
-	cabin.position = Vector3(0, 0.55, 0.25)
-	car.add_child(cabin)
-
-	var windshield := MeshInstance3D.new()
-	var ws_mesh := BoxMesh.new()
-	ws_mesh.size = Vector3(1.55, 0.42, 0.12)
-	windshield.mesh = ws_mesh
-	windshield.material_override = ProtoWorldBuilder.material(Color(0.15, 0.2, 0.25), 0.2)
-	windshield.position = Vector3(0, 0.55, -0.8)
-	car.add_child(windshield)
+	if s["cabin"] != Vector3.ZERO:
+		var cabin := MeshInstance3D.new()
+		var cabin_mesh := BoxMesh.new()
+		cabin_mesh.size = s["cabin"]
+		cabin.mesh = cabin_mesh
+		cabin.material_override = ProtoWorldBuilder.material(body_color * 0.75, 0.5)
+		cabin.position = s["cabin_pos"]
+		car.add_child(cabin)
+		var windshield := MeshInstance3D.new()
+		var ws_mesh := BoxMesh.new()
+		ws_mesh.size = Vector3(s["cabin"].x * 0.9, s["cabin"].y * 0.85, 0.12)
+		windshield.mesh = ws_mesh
+		windshield.material_override = ProtoWorldBuilder.material(Color(0.15, 0.2, 0.25), 0.2)
+		windshield.position = s["cabin_pos"] + Vector3(0, 0, -s["cabin"].z / 2.0 - 0.05)
+		car.add_child(windshield)
 
 	# Tail lights (emissive) — helps read facing from top-down.
-	for tx in [-0.7, 0.7]:
-		var tail := MeshInstance3D.new()
-		var tmesh := BoxMesh.new()
-		tmesh.size = Vector3(0.35, 0.15, 0.08)
-		tail.mesh = tmesh
-		tail.material_override = ProtoWorldBuilder.material(Color(0.9, 0.1, 0.08), 0.4, true)
-		tail.position = Vector3(tx, 0.2, 2.2)
-		car.add_child(tail)
+	if s["cabin"] != Vector3.ZERO:
+		for tx in [-s["chassis"].x * 0.35, s["chassis"].x * 0.35]:
+			var tail := MeshInstance3D.new()
+			var tmesh := BoxMesh.new()
+			tmesh.size = Vector3(0.35, 0.15, 0.08)
+			tail.mesh = tmesh
+			tail.material_override = ProtoWorldBuilder.material(Color(0.9, 0.1, 0.08), 0.4, true)
+			tail.position = Vector3(tx, 0.2, s["chassis"].z / 2.0)
+			car.add_child(tail)
 
-	# Wheels: front pair steers, rear pair drives.
-	# The 5-part anatomy (Damageable = the same class body parts will use).
+	# The 5-part anatomy (Damageable = the same class body parts use).
 	car.components = {
 		"engine": Damageable.new("engine", "🔧", 100.0),
 		"tires": Damageable.new("tires", "🛞", 100.0),
@@ -144,40 +218,41 @@ static func create(body_color: Color) -> ProtoCar3D:
 		"chassis": Damageable.new("chassis", "🛡️", 100.0),
 	}
 	car._spiral_rng.randomize()
-	car.trunk = ProtoContainer.new("Trunk")
-	car.trunk.add("bandage", 1)
-	car.trunk.add("scrap", 2)
+	# THE TRUNK THING (VEHICLES.md §3): capacity is the class identity —
+	# saddlebag 10 kg, van 120, trailer 400. transfer_to enforces it.
+	car.trunk = ProtoContainer.new("%s cargo" % s["name"], s["trunk_max_w"])
+	if vclass_in == "scavenger":
+		car.trunk.add("bandage", 1)
+		car.trunk.add("scrap", 2)
 
-	var wheel_specs: Array = [
-		[Vector3(-0.85, -0.15, -1.45), true, false],
-		[Vector3(0.85, -0.15, -1.45), true, false],
-		[Vector3(-0.85, -0.15, 1.45), false, true],
-		[Vector3(0.85, -0.15, 1.45), false, true],
-	]
-	for spec in wheel_specs:
+	# Wheels from the row: [x, z, steer, traction, visible, radius]
+	for w in s["wheels"]:
 		var wheel := VehicleWheel3D.new()
-		wheel.position = spec[0]
-		wheel.use_as_steering = spec[1]
-		wheel.use_as_traction = spec[2]
-		wheel.wheel_radius = 0.38
+		wheel.position = Vector3(w[0], -0.15, w[1])
+		wheel.use_as_steering = w[2]
+		wheel.use_as_traction = w[3]
+		wheel.wheel_radius = w[5]
 		wheel.wheel_rest_length = 0.22
 		wheel.suspension_travel = 0.25
 		wheel.suspension_stiffness = 45.0
-		wheel.suspension_max_force = 12000.0
+		wheel.suspension_max_force = 12000.0 * maxf(1.0, s["mass"] / 900.0)
 		wheel.damping_compression = 0.25 * 2.0 * sqrt(45.0)
 		wheel.damping_relaxation = 0.4 * 2.0 * sqrt(45.0)
 		wheel.wheel_roll_influence = 0.05
-		var tire := MeshInstance3D.new()
-		var tmesh := CylinderMesh.new()
-		tmesh.top_radius = 0.38
-		tmesh.bottom_radius = 0.38
-		tmesh.height = 0.3
-		tire.mesh = tmesh
-		tire.material_override = ProtoWorldBuilder.material(Color(0.08, 0.08, 0.08), 1.0)
-		tire.rotation_degrees.z = 90.0
-		wheel.add_child(tire)
+		if w[4]: # visible — bikes render only the centered pair of their stability wheels
+			var tire := MeshInstance3D.new()
+			var tmesh := CylinderMesh.new()
+			tmesh.top_radius = w[5]
+			tmesh.bottom_radius = w[5]
+			tmesh.height = 0.3 if absf(w[0]) > 0.3 else 0.22
+			tire.mesh = tmesh
+			tire.material_override = ProtoWorldBuilder.material(Color(0.08, 0.08, 0.08), 1.0)
+			tire.rotation_degrees.z = 90.0
+			if absf(w[0]) < 0.3:
+				tire.position.x = -w[0] # center the visual on the bike's spine
+			wheel.add_child(tire)
 		car.add_child(wheel)
-		if spec[1]:
+		if w[2]:
 			car._front_wheels.append(wheel)
 		else:
 			car._rear_wheels.append(wheel)
@@ -192,74 +267,42 @@ func facing() -> Vector3:
 	return -global_basis.z
 
 
-# --- Surface + skid marks (2026-07-05 driving pass) --------------------------
+# --- Trailer coupling (VEHICLES.md §4) ----------------------------------------
 
-## Which surface the car sits on. Roads are visual-only, so the world tells us.
-func _sample_surface() -> String:
-	return ProtoWorldBuilder.surface_at(global_position)
-
-
-func surface_grip_mult() -> float:
-	var s: String = surface_override if surface_override != "" else current_surface
-	return SURFACE.get(s, SURFACE["road"])["grip"]
+func hitch_world() -> Vector3:
+	if spec.has("hitch_z"):
+		return to_global(Vector3(0, 0.5, spec["hitch_z"]))
+	if spec.has("hitch_front_z"):
+		return to_global(Vector3(0, 0.5, spec["hitch_front_z"]))
+	return global_position
 
 
-func skid_count() -> int:
-	_skids = _skids.filter(func(m): return is_instance_valid(m))
-	return _skids.size()
-
-
-## Lay dark marks under the rear wheels while they're actually sliding — the
-## drift made visible. Distance-gated so a slide draws a continuous streak, not
-## a flood; pooled + faded so it never grows without bound.
-func _emit_skids() -> void:
-	if dead:
+## Couple a trailer to a tractor with a yaw-free joint: linear locked, yaw ±80°,
+## pitch/roll a few soft degrees — it articulates like a real rig.
+static func couple(tractor: ProtoCar3D, trailer: ProtoCar3D) -> void:
+	if trailer.hitched_to != null:
 		return
-	var world := get_parent()
-	if world == null:
-		return
-	var col: Color = SURFACE.get(current_surface, SURFACE["road"])["skid"]
-	for w in _rear_wheels:
-		if not w.is_in_contact():
-			_skid_last.erase(w)
-			continue
-		var sliding: bool = input_handbrake or w.get_skidinfo() < 0.6
-		if not sliding or absf(forward_speed) < 2.0:
-			continue
-		var cp: Vector3 = w.get_contact_point()
-		if _skid_last.has(w) and cp.distance_to(_skid_last[w]) < SKID_STEP:
-			continue
-		_skid_last[w] = cp
-		_drop_skid(world, cp, col)
+	var j := Generic6DOFJoint3D.new()
+	tractor.get_parent().add_child(j)
+	j.global_position = tractor.hitch_world()
+	j.node_a = tractor.get_path()
+	j.node_b = trailer.get_path()
+	for axis in ["x", "y", "z"]:
+		j.set("angular_limit_%s/enabled" % axis, true)
+	j.set("angular_limit_y/upper_angle", deg_to_rad(80.0))
+	j.set("angular_limit_y/lower_angle", deg_to_rad(-80.0))
+	for axis in ["x", "z"]:
+		j.set("angular_limit_%s/upper_angle" % axis, deg_to_rad(6.0))
+		j.set("angular_limit_%s/lower_angle" % axis, deg_to_rad(-6.0))
+	trailer.hitched_to = tractor
+	trailer._hitch_joint = j
 
 
-func _drop_skid(world: Node, pos: Vector3, col: Color) -> void:
-	var m := MeshInstance3D.new()
-	var q := BoxMesh.new()
-	q.size = Vector3(0.26, 0.02, 0.55)
-	m.mesh = q
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = col
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.roughness = 1.0
-	m.material_override = mat
-	world.add_child(m)
-	var vel := linear_velocity
-	vel.y = 0.0
-	m.global_position = pos + Vector3(0, 0.02, 0)
-	m.global_rotation.y = atan2(-vel.x, -vel.z) if vel.length() > 0.5 else global_rotation.y
-	_skids.append(m)
-	if _skids.size() > SKID_MAX:
-		var oldest = _skids.pop_front()
-		if is_instance_valid(oldest):
-			oldest.queue_free()
-	# Linger, then fade out and free (self-managing decal).
-	var tw := m.create_tween()
-	tw.tween_interval(SKID_LIFE * 0.6)
-	tw.tween_property(mat, "albedo_color:a", 0.0, SKID_LIFE * 0.4)
-	tw.tween_callback(func() -> void:
-		_skids.erase(m)
-		m.queue_free())
+func uncouple() -> void:
+	if _hitch_joint and is_instance_valid(_hitch_joint):
+		_hitch_joint.queue_free()
+	_hitch_joint = null
+	hitched_to = null
 
 
 # --- Interactable contract (on-foot) ---------------------------------------
@@ -269,8 +312,8 @@ func interact_position() -> Vector3:
 
 
 func _at_trunk(main: Node) -> bool:
-	# Standing behind the car = trunk zone (rear is local +Z).
-	return to_local(main.player.global_position).z > 1.6
+	# Standing behind the vehicle = trunk zone (rear is local +Z).
+	return to_local(main.player.global_position).z > spec["chassis"].z * 0.32
 
 
 func interact_prompt(main: Node) -> String:
@@ -278,6 +321,14 @@ func interact_prompt(main: Node) -> String:
 		return ""
 	if dead:
 		return "" if salvaged else "E — Salvage the burnt %s" % display_name
+	if vclass == "trailer":
+		# The trailer is cargo, not a cab: front = hitch business, rear = the tank.
+		if to_local(main.player.global_position).z < -2.4:
+			if hitched_to != null:
+				return "E — Drop the trailer"
+			var rig := _nearest_hitch_rig()
+			return "E — Hitch to the %s" % rig.display_name if rig else "(back a rig's hitch up to couple)"
+		return "E — Open trailer (%d kg tank)" % int(trunk.max_weight)
 	if locked and not main.has_key(key_id):
 		return "HOLD E — Hotwire the %s" % display_name
 	if locked:
@@ -296,6 +347,22 @@ func interact(main: Node) -> void:
 			main.backpack.add("scrap", 3)
 			main.notify("Salvaged scrap from the burnt %s" % display_name)
 		return
+	if vclass == "trailer":
+		if to_local(main.player.global_position).z < -2.4:
+			if hitched_to != null:
+				var rig_name := hitched_to.display_name
+				uncouple()
+				main.notify("Dropped the trailer off the %s" % rig_name)
+			else:
+				var rig := _nearest_hitch_rig()
+				if rig:
+					ProtoCar3D.couple(rig, self)
+					main.notify("Coupled the trailer to the %s" % rig.display_name)
+				else:
+					main.notify("No rig's hitch in reach — back the %s up to it" % VEHICLES["semi"]["name"])
+		else:
+			main.open_container(trunk)
+		return
 	if locked:
 		if main.has_key(key_id):
 			locked = false
@@ -305,6 +372,16 @@ func interact(main: Node) -> void:
 		main.open_container(trunk)
 		return
 	main.enter_car(self)
+
+
+func _nearest_hitch_rig() -> ProtoCar3D:
+	var my_hitch := hitch_world()
+	for node in get_tree().get_nodes_in_group("interactable"):
+		if node is ProtoCar3D and node != self and (node as ProtoCar3D).spec.has("hitch_z"):
+			var rig := node as ProtoCar3D
+			if not rig.dead and rig.hitch_world().distance_to(my_hitch) < 2.6:
+				return rig
+	return null
 
 
 func take_damage(amount: float) -> void:
@@ -328,7 +405,6 @@ func _update_death_spiral(delta: float) -> void:
 		FireState.OK:
 			if chassis.ratio() < 0.4:
 				fire_state = FireState.SMOKING
-				_ensure_smoke().emitting = true
 		FireState.SMOKING:
 			if chassis.ratio() < 0.15 or (breached and chassis.ratio() < 0.3):
 				fire_state = FireState.ON_FIRE
@@ -336,7 +412,6 @@ func _update_death_spiral(delta: float) -> void:
 				_ensure_flames().emitting = true
 			elif chassis.ratio() >= 0.4:
 				fire_state = FireState.OK
-				_ensure_smoke().emitting = false
 		FireState.ON_FIRE:
 			# The cook meter: it MIGHT blow early — every tick rolls against it.
 			cook += delta * (100.0 / (6.0 if breached else 9.5))
@@ -348,19 +423,43 @@ func _update_death_spiral(delta: float) -> void:
 			pass
 
 
+## DAMAGE YOU CAN SEE (playtest law): exhaust smoke IS the health bar — it starts
+## at chassis 70%, thickens and darkens as damage grows, and pours from the
+## TAILPIPE (per-class position), not the hood. Fire still burns at the engine.
+func _update_damage_smoke() -> void:
+	if spec.get("tailpipe", Vector3.ZERO) == Vector3.ZERO:
+		return
+	var sm := _ensure_smoke()
+	if dead:
+		return # husk smolder is handled by _become_husk
+	var ratio: float = components["chassis"].ratio()
+	var sev := clampf(1.0 - ratio / 0.7, 0.0, 1.0)
+	sm.emitting = sev > 0.0
+	if not sm.emitting:
+		_smoke_bucket = -1
+		return
+	# Quantize severity — changing CPUParticles amount restarts emission, so only
+	# touch it when the bucket actually moves.
+	var bucket := clampi(int(sev * 4.0), 0, 3)
+	if bucket != _smoke_bucket:
+		_smoke_bucket = bucket
+		sm.amount = [10, 20, 32, 44][bucket]
+	sm.color = Color(0.30, 0.29, 0.28, 0.7).lerp(Color(0.07, 0.07, 0.07, 0.92), sev)
+
+
 func _ensure_smoke() -> CPUParticles3D:
 	if _smoke == null:
 		_smoke = CPUParticles3D.new()
-		_smoke.amount = 24
+		_smoke.amount = 10
 		_smoke.lifetime = 1.6
 		_smoke.mesh = BoxMesh.new()
-		(_smoke.mesh as BoxMesh).size = Vector3(0.25, 0.25, 0.25)
+		(_smoke.mesh as BoxMesh).size = Vector3(0.22, 0.22, 0.22)
 		_smoke.direction = Vector3(0, 1, 0)
 		_smoke.initial_velocity_min = 1.5
 		_smoke.initial_velocity_max = 3.0
 		_smoke.gravity = Vector3(0, 1.0, 0)
 		_smoke.color = Color(0.25, 0.24, 0.23, 0.8)
-		_smoke.position = Vector3(0, 0.6, -1.2)
+		_smoke.position = spec.get("tailpipe", Vector3(0, 0.6, 1.2))
 		_smoke.emitting = false
 		add_child(_smoke)
 	return _smoke
@@ -437,6 +536,7 @@ func _physics_process(delta: float) -> void:
 	speed_changed.emit(current_mph)
 
 	_update_death_spiral(delta)
+	_update_damage_smoke()
 
 	# Flip recovery: on the roof or side with no momentum, the car rights itself
 	# after a beat (playtest bug: landed inverted and spun forever).
@@ -458,10 +558,13 @@ func _physics_process(delta: float) -> void:
 	if _impact_cd <= 0.0 and moved < 4.0 and dv > 9.0:
 		_impact_cd = 0.5
 		take_damage(clampf((dv - 9.0) * 1.5, 4.0, 45.0))
+		# No cab, no mercy: a hard hit on an exposed ride THROWS the rider.
+		if spec.get("rider_exposed", false) and is_active and dv > 8.0:
+			rider_thrown.emit(dv)
 	_prev_vel = linear_velocity
 	_prev_pos = global_position
 
-	# Rolling dust: kick up wasteland behind the car at speed.
+	# Rolling dust: kick up wasteland behind the vehicle at speed.
 	if _dust == null:
 		_dust = CPUParticles3D.new()
 		_dust.amount = 28
@@ -474,7 +577,7 @@ func _physics_process(delta: float) -> void:
 		_dust.initial_velocity_max = 2.5
 		_dust.gravity = Vector3(0, -2.0, 0)
 		_dust.color = Color(0.62, 0.52, 0.38, 0.5)
-		_dust.position = Vector3(0, -0.2, 2.1)
+		_dust.position = Vector3(0, -0.2, spec["chassis"].z / 2.0)
 		_dust.emitting = false
 		add_child(_dust)
 	# Dirt kicks up dust sooner and browner than asphalt (surface feel).
@@ -484,8 +587,12 @@ func _physics_process(delta: float) -> void:
 
 	if not is_active or dead:
 		engine_force = 0.0
-		brake = 3.0  # parking brake
+		# A towed trailer must ROLL; everything else gets a parking brake.
+		brake = 0.4 if spec.get("free_rolling", false) else 3.0
 		steering = move_toward(steering, 0.0, steer_speed * delta)
+		# Surface still matters while towed (trailer wheels follow the tractor).
+		if spec.get("free_rolling", false):
+			current_surface = surface_override if surface_override != "" else _sample_surface()
 		return
 
 	if use_player_input:
@@ -511,9 +618,10 @@ func _physics_process(delta: float) -> void:
 	var engine_mult: float = TIER_ENGINE_MULT[components["engine"].tier()]
 	if fuel <= 0.0 or components["battery"].tier() == Damageable.Tier.BROKEN:
 		engine_mult = 0.0
-	# Grip = baseline × tire condition × SURFACE (dirt is looser than asphalt).
+	# Grip = baseline × tire condition × SURFACE-through-the-TIRES: off-road worth
+	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2).
 	current_surface = surface_override if surface_override != "" else _sample_surface()
-	var surf_grip: float = SURFACE[current_surface]["grip"]
+	var surf_grip: float = 1.0 if current_surface == "road" else float(spec["tires"]["dirt_mult"])
 	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
 		w.wheel_friction_slip = grip_front * grip_mult
@@ -538,13 +646,6 @@ func _physics_process(delta: float) -> void:
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
 
-	# Handbrake, rebuilt (2026-07-05 driving pass). Two playtest bugs, one block:
-	#  1) "doesn't brake unless you turn" — it now applies REAL braking (was 6/40).
-	#  2) "turning does a full 180" — the rear-grip drop still SETS UP the slide, but
-	#     the yaw rate is CAPPED and DAMPED so a drift can't run away into a spin
-	#     (raw physics peaked at 6.5 rad/s → 272° in 3 s; capped it stays a drift).
-	# Straight (no steer) = brake + settle yaw to zero → you stop straight.
-	# Turning = a controlled, bounded drift; hold throttle too and you keep the slide.
 	if input_handbrake:
 		# Brake with a FORCE opposing motion, not the wheel `brake` (a strong wheel
 		# brake locks the fronts and steering dies → the car slid straight, 0 yaw) and
@@ -566,3 +667,73 @@ func _physics_process(delta: float) -> void:
 				apply_torque(Vector3(0.0, -wy * mass * handbrake_yaw_damp, 0.0))
 
 	_emit_skids()
+
+
+# --- Surface + skid marks (2026-07-05 driving pass) --------------------------
+
+## Which surface the vehicle sits on. Roads are visual-only, so the world tells us.
+func _sample_surface() -> String:
+	return ProtoWorldBuilder.surface_at(global_position)
+
+
+func surface_grip_mult() -> float:
+	var s_name: String = surface_override if surface_override != "" else current_surface
+	return 1.0 if s_name == "road" else float(spec["tires"]["dirt_mult"])
+
+
+func skid_count() -> int:
+	_skids = _skids.filter(func(m): return is_instance_valid(m))
+	return _skids.size()
+
+
+## Lay dark marks under the rear wheels while they're actually sliding — the
+## drift made visible. Distance-gated so a slide draws a continuous streak, not
+## a flood; pooled + faded so it never grows without bound.
+func _emit_skids() -> void:
+	if dead:
+		return
+	var world := get_parent()
+	if world == null:
+		return
+	var col: Color = SURFACE.get(current_surface, SURFACE["road"])["skid"]
+	for w in _rear_wheels:
+		if not w.is_in_contact():
+			_skid_last.erase(w)
+			continue
+		var sliding: bool = input_handbrake or w.get_skidinfo() < 0.6
+		if not sliding or absf(forward_speed) < 2.0:
+			continue
+		var cp: Vector3 = w.get_contact_point()
+		if _skid_last.has(w) and cp.distance_to(_skid_last[w]) < SKID_STEP:
+			continue
+		_skid_last[w] = cp
+		_drop_skid(world, cp, col)
+
+
+func _drop_skid(world: Node, pos: Vector3, col: Color) -> void:
+	var m := MeshInstance3D.new()
+	var q := BoxMesh.new()
+	q.size = Vector3(0.26, 0.02, 0.55)
+	m.mesh = q
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = col
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.roughness = 1.0
+	m.material_override = mat
+	world.add_child(m)
+	var vel := linear_velocity
+	vel.y = 0.0
+	m.global_position = pos + Vector3(0, 0.02, 0)
+	m.global_rotation.y = atan2(-vel.x, -vel.z) if vel.length() > 0.5 else global_rotation.y
+	_skids.append(m)
+	if _skids.size() > SKID_MAX:
+		var oldest = _skids.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+	# Linger, then fade out and free (self-managing decal).
+	var tw := m.create_tween()
+	tw.tween_interval(SKID_LIFE * 0.6)
+	tw.tween_property(mat, "albedo_color:a", 0.0, SKID_LIFE * 0.4)
+	tw.tween_callback(func() -> void:
+		_skids.erase(m)
+		m.queue_free())

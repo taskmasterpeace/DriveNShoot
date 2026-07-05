@@ -58,7 +58,7 @@ func _ready() -> void:
 	ground.add_child(shape)
 	add_child(ground)
 
-	car = ProtoCar3D.create(Color(0.6, 0.2, 0.1))
+	car = ProtoCar3D.create("scavenger", Color(0.6, 0.2, 0.1))
 	car.position = Vector3(0, 1.2, 0)
 	car.use_player_input = false
 	car.is_active = true

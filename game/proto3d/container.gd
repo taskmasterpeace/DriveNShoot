@@ -32,10 +32,22 @@ func total_weight() -> float:
 
 var label: String = "Container"
 var slots: Dictionary = {} ## item_id -> count
+## Hard capacity in kg (0 = unlimited). Trunks use this — a saddlebag holds 10 kg,
+## a trailer 400 (VEHICLES.md §3). The backpack stays uncapped (soft encumbrance).
+var max_weight: float = 0.0
 
 
-func _init(label_in: String = "Container") -> void:
+func _init(label_in: String = "Container", max_weight_in: float = 0.0) -> void:
 	label = label_in
+	max_weight = max_weight_in
+
+
+## Room for `count` of `id`? (0 cap = always.)
+func has_room(id: String, count_in: int = 1) -> bool:
+	if max_weight <= 0.0:
+		return true
+	var w: float = ITEMS.get(id, {"w": 0.5}).get("w", 0.5)
+	return total_weight() + w * count_in <= max_weight + 0.001
 
 
 func add(id: String, count: int = 1) -> void:
@@ -58,6 +70,8 @@ func count(id: String) -> int:
 
 
 func transfer_to(other: ProtoContainer, id: String, count_in: int = 1) -> bool:
+	if not other.has_room(id, count_in):
+		return false # trunk's full — big loads need big vehicles
 	if remove(id, count_in):
 		other.add(id, count_in)
 		return true

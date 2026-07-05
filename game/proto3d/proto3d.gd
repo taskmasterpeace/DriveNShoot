@@ -70,7 +70,9 @@ var _wh_gap: float = 0.0
 var last_whistle: String = "" ## sim hook
 
 var audio: ProtoAudio = null
-var _engine_loop: AudioStreamPlayer3D = null
+## YOUR engine is non-positional: camera zoom must never silence the machine
+## under you (playtest). World sounds (fire, other cars later) stay 3D.
+var _engine_loop: AudioStreamPlayer = null
 var _fire_loop: AudioStreamPlayer3D = null
 
 var _current_interactable: Node3D = null
@@ -97,7 +99,7 @@ func _ready() -> void:
 	var colors: Array[Color] = [Color(0.62, 0.18, 0.12), Color(0.24, 0.32, 0.24)]
 	var spawns: Array[Transform3D] = info["car_spawns"]
 	for i in spawns.size():
-		var car := ProtoCar3D.create(colors[i % colors.size()])
+		var car := ProtoCar3D.create("scavenger", colors[i % colors.size()])
 		car.transform = spawns[i]
 		add_child(car)
 		cars.append(car)
@@ -107,6 +109,32 @@ func _ready() -> void:
 	cars[1].locked = true
 	cars[1].key_id = "meridian_car_key"
 	cars[1].key_display = "the Meridian car key"
+
+	# THE FLEET (VEHICLES.md §8): five wildly different rides scattered where
+	# you'll actually meet them. Every one is just a data row.
+	var fleet: Array = [
+		["motorcycle", Color(0.16, 0.16, 0.18), Vector3(98, 0.5, -288), 0.0],
+		["van", Color(0.5, 0.46, 0.38), Vector3(122, 0.5, -292), PI / 2.0],
+		["buggy", Color(0.66, 0.42, 0.14), Vector3(46, 0.5, -272), -0.6],
+		["semi", Color(0.24, 0.3, 0.42), Vector3(-11, 0.8, -150), 0.0],
+	]
+	for f in fleet:
+		var v := ProtoCar3D.create(f[0], f[1])
+		v.position = f[2]
+		v.rotation.y = f[3]
+		add_child(v)
+		cars.append(v)
+		if f[0] == "motorcycle":
+			v.rider_thrown.connect(_on_rider_thrown.bind(v))
+		elif f[0] == "semi":
+			# The Longhaul spawns with its trailer already coupled, pointing north.
+			var trailer := ProtoCar3D.create("trailer", Color(0.55, 0.53, 0.5))
+			trailer.position = f[2] + Vector3(0, 0, 7.3)
+			trailer.rotation.y = f[3]
+			add_child(trailer)
+			cars.append(trailer)
+			ProtoCar3D.couple(v, trailer)
+			trailer.trunk.add("scrap", 12) # something heavy already riding it
 
 	# Player starts driving car 0 on the interstate.
 	player = ProtoPlayer3D.create()
@@ -143,11 +171,12 @@ func _ready() -> void:
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
 	cars[1].trunk.add("rocket", 3)
-	# Stage 4: melee + throwables in the world; the Scavenger mounts a hood MG.
+	# Stage 4: melee + throwables in the world. The hood MG default is GONE
+	# (playtest): in a vehicle you fire YOUR OWN gun out the window (LMB).
+	# The mount SYSTEM stays in code for a later build.
 	backpack.add("wrench", 1)
 	chest.container.add("machete", 1)
 	chest.container.add("grenade", 2)
-	cars[0].mount_weapon = ProtoWeapon.new("car_mg")
 
 	# The kennel strays: one of each type, distinct breeds.
 	var kennel_specs: Array = [
@@ -276,7 +305,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif mode == Mode.FOOT:
 			fire_equipped()
 		elif mode == Mode.DRIVE:
-			fire_mount()
+			# Mounts are optional hardware now; by default you shoot YOUR gun.
+			if active_car and active_car.mount_weapon:
+				fire_mount()
+			else:
+				fire_from_vehicle()
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -346,6 +379,11 @@ func _physics_process(delta: float) -> void:
 		var mw: ProtoWeapon = active_car.mount_weapon
 		hud.set_ammo(mw.info()["emoji"], mw.info()["name"], mw.mag, backpack.count(mw.info()["ammo"]), true)
 		hud.update_reticle(mw.current_spread(self), get_viewport().get_mouse_position(), true)
+	elif wpn and mode == Mode.DRIVE:
+		# Your own iron rides with you: ammo + reticle stay live behind the wheel.
+		var is_md := wpn.is_melee()
+		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag if not is_md else 0, backpack.count(wpn.info()["ammo"]) if not is_md else 0, true)
+		hud.update_reticle(wpn.current_spread(self), get_viewport().get_mouse_position(), not is_md)
 	elif wpn and mode == Mode.FOOT:
 		var is_m := wpn.is_melee()
 		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag if not is_m else 0, backpack.count(wpn.info()["ammo"]) if not is_m else 0, true)
@@ -572,11 +610,9 @@ func _update_hotwire(delta: float) -> void:
 ## Engine hum pitches with speed; fire crackle rides any burning car.
 func _update_audio_loops() -> void:
 	if mode == Mode.DRIVE and active_car and not active_car.dead:
-		if _engine_loop == null or not is_instance_valid(_engine_loop) or _engine_loop.get_parent() != active_car:
-			if _engine_loop and is_instance_valid(_engine_loop):
-				_engine_loop.queue_free()
-			_engine_loop = audio.attach_loop("engine", active_car, -10.0)
-		_engine_loop.pitch_scale = 0.75 + clampf(absf(active_car.forward_speed) / active_car.top_speed, 0.0, 1.0) * 1.5
+		if _engine_loop == null or not is_instance_valid(_engine_loop):
+			_engine_loop = audio.attach_flat_loop("engine", -10.0)
+		_engine_loop.pitch_scale = 0.75 + clampf(absf(active_car.forward_speed) / maxf(active_car.top_speed, 1.0), 0.0, 1.0) * 1.5
 	elif _engine_loop and is_instance_valid(_engine_loop):
 		_engine_loop.queue_free()
 		_engine_loop = null
@@ -925,9 +961,11 @@ func current_weapon() -> ProtoWeapon:
 
 
 ## Where the player intends to shoot: mouse ray onto the aim plane (or sim override).
+## Anchored on whatever body you're IN — on foot that's you, driving it's the car.
 func aim_direction() -> Vector3:
 	if aim_override.length_squared() > 0.01:
 		return aim_override.normalized()
+	var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return player.facing()
@@ -938,7 +976,7 @@ func aim_direction() -> Vector3:
 		return player.facing()
 	var t := (1.0 - from.y) / dir.y # intersect the y=1.0 aim plane
 	var point := from + dir * t
-	var out := point - player.global_position
+	var out := point - anchor
 	out.y = 0.0
 	return out.normalized() if out.length_squared() > 0.01 else player.facing()
 
@@ -955,7 +993,7 @@ func fire_equipped() -> void:
 	# head can actually point this frame. Aiming behind you = the round goes out
 	# the arc edge while your body comes around. No instant back-shots. Ever.
 	var dir := player.aim_now(aim_direction())
-	if w.fire(self, player.global_position + Vector3(0, 1.2, 0), dir):
+	if w.fire(self, player.muzzle_world(), dir):
 		if w.is_melee():
 			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
 		else:
@@ -975,6 +1013,57 @@ func throw_grenade() -> void:
 	add_child(g)
 	g.global_position = player.global_position + Vector3(0, 1.4, 0) + dir * 0.6
 	notify("Grenade out!")
+
+
+## Shooting from the driver's seat: YOUR equipped gun, out the window, at the
+## mouse (VEHICLES.md §6). Right-handed in a left seat — wasteland pragmatism.
+func fire_from_vehicle() -> void:
+	if mode != Mode.DRIVE or active_car == null or active_car.dead:
+		return
+	var w := current_weapon()
+	if w == null:
+		return
+	if w.is_melee():
+		notify("Can't swing steel from the driver's seat")
+		return
+	if w.mag <= 0:
+		notify("*click* — reload (R)")
+		return
+	var dir := aim_direction()
+	var origin: Vector3 = active_car.global_position \
+		+ Vector3(0, active_car.spec["chassis"].y * 0.5 + 0.7, 0) \
+		- active_car.global_basis.x * 0.5 # the driver's window
+	if w.fire(self, origin, dir):
+		cam_rig.add_trauma(0.15)
+		stress = minf(100.0, stress + 1.5)
+		audio.play_at("shotgun" if w.id == "shotgun" else "shot", active_car.global_position)
+
+
+## A bike has no cab: the crash THROWS you. You leave the saddle with the bike's
+## momentum, tumble (dive state), and take the wound the cab would have eaten.
+func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
+	if active_car != bike or mode != Mode.DRIVE or character.dead:
+		return
+	var vel: Vector3 = bike.linear_velocity
+	mode = Mode.FOOT
+	bike.is_active = false
+	active_car = null
+	player.global_position = bike.global_position + Vector3(0, 1.1, 0) - bike.global_basis.x * 1.4
+	player.process_mode = Node.PROCESS_MODE_INHERIT
+	player.visible = true
+	player.is_active = true
+	player.tumble(vel * 0.75) # airborne meat: dive-tumble along the bike's momentum
+	cam_rig.target = player
+	hud.set_mode(false)
+	# The wound the cab would have eaten, scaled by class (bike wound_mult 2.5).
+	var dmg: float = clampf(dv * 1.6, 8.0, 40.0) * bike.spec.get("wound_mult", 1.0)
+	character.take_wound(character.random_part(_wound_rng), dmg)
+	give_bleeding(2)
+	hud.flash_pain()
+	cam_rig.add_trauma(0.9)
+	audio.play_at("hurt", player.global_position)
+	stress = minf(100.0, stress + 18.0)
+	notify("💥 THROWN from the %s — the road ate %d hp" % [bike.display_name, int(dmg)])
 
 
 ## The hood MG (vehicle mount): same weapon system, fires where the car points.
@@ -1040,7 +1129,7 @@ func drop_item(id: String) -> bool:
 			pile = node
 			break
 	if pile == null:
-		pile = ProtoChest.create("Dropped gear", {})
+		pile = ProtoChest.create("Dropped gear", {}, false) # loot piles never dent a car
 		add_child(pile)
 		pile.global_position = player.global_position + player.facing() * 1.0
 	pile.container.add(id, 1)

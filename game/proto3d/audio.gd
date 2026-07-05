@@ -107,3 +107,14 @@ func attach_loop(id: String, owner: Node3D, volume_db: float = -6.0) -> AudioStr
 	owner.add_child(p)
 	p.play()
 	return p
+
+
+## Non-positional loop for YOUR OWN machine — the camera zooming out must never
+## silence the engine under you (playtest). Caller frees it when done.
+func attach_flat_loop(id: String, volume_db: float = -10.0) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.stream = streams[id]
+	p.volume_db = volume_db
+	add_child(p)
+	p.play()
+	return p

@@ -16,7 +16,8 @@ deep-dive doc. **Created:** 2026-07-04.
 | `loops/LOOP2_LIVING_CAR.md` | Stage 2 deep-dive (car damage/HUD/arsenal) |
 | `systems/INTERFACE_AND_BODY.md` | UI, body/injury, inventory, nav, SecondaryView, aim-cone |
 | `systems/COMBAT_AND_GEAR.md` | melee/ranged/throwables/car weapons/loadout |
-| `systems/AIM_AND_LOCOMOTION.md` | decoupled feet/gaze/gun, the Look Arc, combat stance |
+| `systems/AIM_AND_LOCOMOTION.md` | twin-stick aim (free arms / human eyes), combat stance |
+| `systems/VEHICLES.md` | the 5-vehicle fleet, tires-as-data, trunk caps, the trailer |
 | `systems/EQUIPMENT_PAPERDOLL.md` | the 19-slot wearable item DB (verbatim user design) |
 | `systems/DOGS.md` | dog types/breeds/stress-morale |
 | `systems/WORLD_NPCS.md` | PCAS living world, factions, Respect Ledger |
@@ -80,7 +81,16 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–6 slice + extras), 22 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–6 slice + extras), 23 test suites all green:**
+- **THE FLEET (VEHICLES.md):** five wildly different rides from ONE data table — Rat Bike
+  (quickest, crashes THROW you ×2.5 wounds), Scavenger, Dustrunner buggy (knobby tires ~keep
+  grip on dirt), Boxer van (120 kg bay), Longhaul semi + **detachable 400 kg TRAILER** (E at the
+  hitch drops/couples). Trunks have hard kg CAPS (saddlebag 10 → trailer 400; panel shows x/y kg
+  and refuses). Tires are data (grip + dirt_mult per class). Smoke = the HEALTH BAR (damage-
+  scaled, pours from the per-class TAILPIPE). No default hood MG — **LMB fires YOUR gun from
+  the driver's window**; rounds leave the handheld's MUZZLE on foot (gun sits in the right
+  hand). Lurkers FLASH + stagger on hits; corpse/loot piles never dent a car; dash says
+  "FUEL n%"; your engine loop is zoom-proof (non-positional). (vehicles_sim 14/14)
 - **Driving pass (2026-07-05):** handbrake **brakes when held straight** (real decel force) and
   **drifts in a controlled arc when you turn — no more 180 whip** (torque yaw-cap: peak 6.5→2.0
   rad/s); **SKID MARKS** under sliding rear wheels (pooled, fade, surface-tinted); **SURFACES**
@@ -150,10 +160,29 @@ on a VehicleBody3D NEVER write `angular_velocity` directly to steer/limit it —
 wheel solver and ZEROES the drift; use `apply_torque`. A strong wheel `brake` LOCKS the front
 wheels and kills steering (a handbrake turn produced 0° yaw) — brake with a decel FORCE instead.
 And a bug can pass a sim that only checks a short window (the 180 hid past the old 1.6 s cutoff) —
-test the WORST case (long holds), not just the happy path.
+test the WORST case (long holds), not just the happy path. `engine_force` applies PER TRACTION
+WHEEL (the semi's 4 drive wheels secretly doubled its power and broke the accel ladder — one
+drive axle per vehicle). Changing CPUParticles `amount` RESTARTS emission — quantize to buckets.
+`ClassName.has_method()` can't be called on the class itself (instances only).
 
 ---
 ### History (newest first)
+**2026-07-05 (THE FLEET + playtest batch):** vehicles_sim 14/14; battery 23/23. Five vehicles
+from ONE data table (`ProtoCar3D.VEHICLES` — a vehicle is a ROW): Rat Bike / Scavenger /
+Dustrunner buggy / Boxer van / Longhaul semi + detachable trailer (6DOF hitch: yaw ±80°, E
+drops/couples, 400 kg tank rides with it). Accel ladder sim-enforced (bike 1.0 s → semi 3.8 s
+to 15 m/s). Tires = data rows: dirt worth per tire (knobby 0.95 / street 0.78 / highway 0.68).
+Trunk kg CAPS via `ProtoContainer.max_weight` (+panel x/y kg + refusal toast). Bike crashes
+emit `rider_thrown` → main tumbles the player out with the bike's momentum + ×2.5 wounds.
+Playtest batch in the same pass: damage-scaled TAILPIPE smoke (smoke IS the health bar), gun
+held in the RIGHT HAND + rounds leave `muzzle_world()`, hood-MG default deleted → LMB fires
+YOUR gun from the driver's window (`fire_from_vehicle`, `aim_direction` anchors on the car,
+ray excludes your own ride), lurker hit-FLASH + stagger, corpse/loot chests collisionless
+(`ProtoChest.create(..., solid=false)`), dash labeled "FUEL n%", engine loop non-positional
+(zoom can't silence it). GOTCHAS paid (iron list): engine_force is PER traction wheel;
+CPUParticles amount change restarts emission; Class.has_method() needs an instance.
+NEXT unchanged: Stage 6 deepening or Stage 4 finishers; sedan → its own VEHICLES row someday.
+
 **2026-07-05 (twin-stick aim — playtest pivot):** aim_sim rewritten 15/15, battery 22/22. The
 user playtested the Look Arc and wanted twin-stick ("you have to shoot to look; look one way walk
 the other; arms should turn, akimbo later"). Pivoted to **Option A "free arms, human eyes"**: the

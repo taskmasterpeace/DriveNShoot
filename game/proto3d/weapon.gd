@@ -114,7 +114,11 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float) 
 	var space: PhysicsDirectSpaceState3D = main.player.get_world_3d().direct_space_state
 	var to := from + dir * rng
 	var q := PhysicsRayQueryParameters3D.create(from, to)
-	q.exclude = [main.player.get_rid()]
+	var excl: Array[RID] = [main.player.get_rid()]
+	# Shooting from a vehicle: don't shoot your own ride in the back of the head.
+	if "active_car" in main and main.active_car != null and is_instance_valid(main.active_car):
+		excl.append((main.active_car as PhysicsBody3D).get_rid())
+	q.exclude = excl
 	var hit: Dictionary = space.intersect_ray(q)
 	var end := to
 	if not hit.is_empty():
