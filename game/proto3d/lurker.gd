@@ -107,7 +107,13 @@ func _physics_process(delta: float) -> void:
 	if stalking and _player.has_method("facing"):
 		var facing: Vector3 = _player.call("sight_facing") if _player.has_method("sight_facing") else _player.call("facing")
 		if facing.dot(-to_p.normalized()) > 0.55 and dist < 30.0:
-			stalking = false
+			# ...but a stare through a WALL freezes nothing — eye contact needs LOS.
+			var m: Node = get_tree().current_scene
+			if m == null or not m.has_method("sight_blocked"):
+				m = _player.get_parent()
+			if m == null or not m.has_method("sight_blocked") \
+					or not m.sight_blocked(_player.global_position + Vector3(0, 1.5, 0), global_position + Vector3(0, 0.9, 0)):
+				stalking = false
 
 	if stalking:
 		var dir := to_p.normalized()

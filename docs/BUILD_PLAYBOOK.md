@@ -73,7 +73,7 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–5 + extras), 20 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–5 + extras), 21 test suites all green:**
 - **Drive/Living Car:** VehicleBody3D feel, handbrake drift (no spin), 5-part damage →
   smoke→fire→cook→burnt-husk, salvage, fuel, dashboard glyphs, hotwire, hood-MG mount, flip
   self-recovery. (car/drive/recover sims)
@@ -93,9 +93,13 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
   guard/triple seek/hold sic), dogs BITE, and the **hydrate/dehydrate metasystem** — guard a dog,
   drive away (it dehydrates to a record), off-screen raid can kill it, drive back to find it gone.
   (dog/dogmeta sims) → `metaworld.gd`, `METASYSTEM.md`.
-- **Perception v2:** world-meter cone (**zoom-independent**), true sight RANGE, binoculars extend
-  it, **eye-patch** halves a side, dog-alert reveal snapshot, **the FADE** (unseen things fade;
-  seen static things linger as a memory ghost), indoor cone clamps to the room. (cone/fade/vision sims)
+- **Perception v2 + TRUE LOS OCCLUSION:** world-meter cone (**zoom-independent**), true sight
+  RANGE, binoculars extend it, **eye-patch** halves a side, dog-alert reveal snapshot, **the FADE**
+  (unseen things fade; seen static things linger as a memory ghost) — and now a **96-ray sight
+  fan**: the lit cone STOPS at walls and closed doors, SPILLS through doorways/windows, gates the
+  FADE + the lurker's freeze (`main.sight_blocked`), bodies never block (only world statics do),
+  and the old flat indoor clamp is DELETED. Dog reveals still pierce walls — smell beats sight.
+  (cone/fade/vision/los sims)
 - **World:** seeded content streaming + **ground under the far states**, state lines, fog-of-war
   map (M), waypoint arrows (N). Enterable safehouse: door/locks/keys, front-wall fades inside,
   **stairs are now a SOLID RAMP w/ plateau top** you walk up & off. (stage5/m1/walkthrough sims)
@@ -110,9 +114,9 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 1. **Stage 6 — Living World:** a Meridian TRADER (spend Jack), a Sec-Man BOUNTY job, a RESPECT
    meter (town's opinion → prices/jobs). Plugs into the metaworld socket (`metaworld.offscreen_event`).
    Per `STAGES.md` + `WORLD_NPCS.md` + task #19.
-2. **True perception occlusion (raycast LOS):** cone STOPS at walls, SEES through windows/doors.
-   The user explicitly wants this; keep it lean for scale. (The current cone is a screen dimmer +
-   indoor clamp only — no real wall/window awareness yet.)
+2. **Stage 4 finishers:** grenade COOK (hold G — fuse runs in your hand), molotov (reuses the
+   car-fire spiral), and NPC parity for the Look Arc (lurkers get a gaze + blind spot you can
+   exploit — `AIM_AND_LOCOMOTION.md §9`). ~~Raycast LOS occlusion~~ → SHIPPED 2026-07-05 (los_sim).
 
 **Iron gotchas (paid for — don't re-pay):** sims must RELEASE tapped input actions; redirect sim
 output to files (piping `grep|head` on a LIVE sim buffers & HANGS); `var x := main.dyn_call()`
@@ -122,6 +126,17 @@ teleport past the mechanic; new `class_name` scripts need a `--headless --import
 
 ---
 ### History (newest first)
+**2026-07-05 (LOS occlusion):** WALLS END SIGHT (los_sim 9/9; battery 21/21). A 96-ray horizontal
+sight fan at eye height feeds the cone shader a 1D depth map (`occl_map`) — the lit area stops at
+walls/closed doors and spills through the door gap and the upstairs WINDOW; `main.sight_blocked()`
+gates the FADE per entity and the lurker's freeze-on-eye-contact (your stare can't freeze what a
+wall hides — sim-proven both ways through the actual door, opened by E). Dynamic bodies never
+block (bodies aren't walls; sim dummies excluded via the threat group); dog reveals PIERCE walls
+by design (smell). The flat "~5.5m indoors" clamp is DELETED — the room's real shape is the clamp
+(cone_sim asserts range survives + 4/4 wall dirs stop short). Eye plane at +1.5 m means crates
+don't block sight but the stair ramp does — fine at this fidelity. NEXT: Stage 6 Living World,
+or Stage 4 finishers (grenade cook / molotov / NPC Look-Arc parity).
+
 **2026-07-05 (aim & locomotion):** THE DECOUPLE shipped (aim_sim 21/21; full battery 20/20):
 feet/gaze/gun are three yaws on the player; the **Look Arc** (±60°) gates sight AND the muzzle
 — fire/melee/grenade fly `aim_now()`'s CLAMPED gaze, so the first shot at a target behind you

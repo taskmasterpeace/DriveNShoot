@@ -381,17 +381,69 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 				facing = aim # glassing from the cab pans free (no neck sim in a car yet)
 	elif character.vision_yaw_offset != 0.0:
 		facing = facing.rotated(Vector3.UP, character.vision_yaw_offset) # eye patch: lose a SIDE
-	# Indoors, walls end your sight — clamp the cone to roughly the room so it
-	# doesn't bleed out past the walls (true per-wall/window occlusion = a later
-	# raycast pass; this keeps the lit cone inside the house).
+	# The raycast pass is HERE now: the LOS fan stops sight at walls and spills
+	# through doorways/windows — indoors or out. (Replaces the old flat "~5.5m
+	# indoors" clamp; the room's real shape is the clamp.)
 	var range_mult := character.vision_range_mult
-	if mode == Mode.FOOT and house.tracked_inside:
-		range_mult = minf(range_mult, 5.5 / ProtoVisionCone.MODE_FOOT[2]) # ~5.5m indoors
+	_refresh_sight_exclusions()
+	var reach: float = maxf(params[2] * clampf(range_mult, 0.12, 2.0), params[1])
+	var occl := _cast_sight_fan(body.global_position, reach)
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
-		character.vision_arc_mult, range_mult)
+		character.vision_arc_mult, range_mult, occl)
 	_percept_origin = body.global_position
 	_percept_facing = facing
 	_update_perception_fade(delta)
+
+
+# --- LOS occlusion (the raycast pass): walls end sight, apertures let it through --
+
+const SIGHT_RAYS := 96
+var _sight_excl: Array[RID] = []
+
+
+## Bodies that never BLOCK sight — you, cars, dogs, threats. Bodies aren't walls;
+## only world statics (walls, closed doors, terrain) end a sight ray.
+func _refresh_sight_exclusions() -> void:
+	_sight_excl.clear()
+	if player:
+		_sight_excl.append(player.get_rid())
+	for c in cars:
+		if is_instance_valid(c):
+			_sight_excl.append(c.get_rid())
+	for g in ["threat", "proto_dog"]:
+		for node in get_tree().get_nodes_in_group(g):
+			var b := node as PhysicsBody3D
+			if b and is_instance_valid(b):
+				_sight_excl.append(b.get_rid())
+
+
+## TRUE if world geometry (a wall, a closed door) stands between two points.
+## The FADE asks it per entity; the lurker asks it before freezing ("can he
+## actually SEE me?"). Uses the exclusion list refreshed each physics frame.
+func sight_blocked(from_eye: Vector3, to_eye: Vector3) -> bool:
+	var space: PhysicsDirectSpaceState3D = player.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(from_eye, to_eye)
+	q.exclude = _sight_excl
+	return not space.intersect_ray(q).is_empty()
+
+
+## The sight fan: SIGHT_RAYS horizontal rays at eye height, full 360° starting
+## at -PI. Each entry = meters until a wall (or `reach`). Feeds the cone
+## shader's 1D depth map and occl_range_at() queries. Rays start inside your
+## own capsule — hit_from_inside is off by default, and dynamics are excluded.
+func _cast_sight_fan(apex: Vector3, reach: float) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(SIGHT_RAYS)
+	var space: PhysicsDirectSpaceState3D = player.get_world_3d().direct_space_state
+	var eye := apex + Vector3(0, 1.5, 0)
+	for i in SIGHT_RAYS:
+		var ang := -PI + (float(i) + 0.5) / float(SIGHT_RAYS) * TAU
+		var dir := Vector3(cos(ang), 0, sin(ang))
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + dir * reach)
+		q.exclude = _sight_excl
+		var hit: Dictionary = space.intersect_ray(q)
+		out[i] = clampf((hit["position"] as Vector3).distance_to(eye), 0.4, reach) if not hit.is_empty() else reach
+	return out
 
 
 ## Things outside your sight fade out; static things you've seen linger as a ghost.
@@ -417,7 +469,10 @@ func _update_perception_fade(delta: float) -> void:
 				var d := to.length()
 				if d > 100.0:
 					continue
-				var is_seen: bool = d < near_m or (d < range_m and fdir.dot(to.normalized()) > cos_half)
+				var in_shape: bool = d < near_m or (d < range_m and fdir.dot(to.normalized()) > cos_half)
+				# Walls end sight: cone membership means nothing without LOS.
+				var is_seen: bool = in_shape and not sight_blocked(
+					_percept_origin + Vector3(0, 1.5, 0), e.global_position + Vector3(0, 0.9, 0))
 				if is_seen:
 					_seen_ids[e.get_instance_id()] = true
 				var dynamic: bool = e is ProtoLurker or e is ProtoDog

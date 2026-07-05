@@ -121,7 +121,15 @@ func _physics_process(delta: float) -> void:
 				_next()
 		11:
 			if phase_t > 1.6:
-				_check("INDOORS the cone clamps to the room (%.0fm ≤ 8)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m <= 8.0)
+				# The flat indoor clamp is gone — true LOS occlusion replaced it:
+				# range stays honest, and the WALLS are what end your sight.
+				_check("indoor flat clamp is DEAD — true range survives (%.0fm)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m > 20.0)
+				var walls := 0
+				for dirv in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
+					var r: float = main.vision_cone.occl_range_at(dirv)
+					if r >= 0.0 and r <= 7.0:
+						walls += 1
+				_check("...because SIGHT STOPS AT THE WALLS (LOS fan: %d/4 dirs short)" % walls, walls >= 3)
 				_next()
 		12:
 			print("CONE RESULTS: %d passed, %d failed" % [passed, failed])
