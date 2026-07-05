@@ -11,6 +11,12 @@ const ITEMS: Dictionary = {
 	"bandage": {"name": "Bandage", "emoji": "🩹", "usable": true},
 	"meat": {"name": "Dried meat", "emoji": "🍖", "usable": true},
 	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false},
+	"pistol": {"name": "Pistol", "emoji": "🔫", "usable": true},
+	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "usable": true},
+	"pipe_rocket": {"name": "Pipe rocket launcher", "emoji": "🧨", "usable": true},
+	"9mm": {"name": "9mm rounds", "emoji": "•", "usable": false},
+	"12ga": {"name": "12ga shells", "emoji": "•", "usable": false},
+	"rocket": {"name": "Rocket", "emoji": "🚀", "usable": false},
 }
 
 var label: String = "Container"

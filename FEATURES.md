@@ -189,3 +189,17 @@ on foot, and Hold X to extract.
     Mastiff intimidation...), catch-up sprints, and a red ❗ floats over whatever your dog smells.
 *   **Vision cone, unmissable** — deeper cold dim outside your arc (foot/drive/binocular modes).
 *   **Proofs:** car_sim 14/14 · container_sim · dog_sim 12/12 · vision_sim 6/6.
+
+## 20. THE ARSENAL + SOUND (2026-07-04)
+*   **Three guns, three behaviors** — 🔫 Pistol (hitscan, in the safehouse stash), 🔫 Pump
+    shotgun (6-pellet spread, in the safehouse chest), 🧨 Pipe rocket (flying projectile +
+    blast, in the SEDAN'S TRUNK — the key/hotwire chase pays off in firepower).
+*   **LMB fires where the mouse points** (spread cone — visible tracers fly the real vector),
+    **R reloads from your backpack ammo**, **1-3 switches guns**. Dry mag *clicks*.
+*   **Kills leave corpses you can loot** — same panel as trunks and chests.
+*   **SOUND** — synthesized from pure math, zero asset files: engine hum that rises with your
+    speed, gunshots, shotgun boom, explosions, dog barks and growls, hurt grunts, door creaks,
+    UI blips, and fire crackle on burning cars.
+*   **Inventory polish** — TAKE ALL button, sorted items, transfer blips.
+*   **Dog polish** — unstuck logic (they flow around posts now instead of pushing).
+*   **Proofs:** arsenal_sim 8/8 · audio_sim 5/5 · dog_sim 12/12 — full suite green.

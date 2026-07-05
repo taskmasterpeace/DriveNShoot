@@ -10,6 +10,21 @@ extends CharacterBody3D
 
 var _visual: Node3D
 var _player: Node3D = null
+var body: Damageable = Damageable.new("body", "💀", 40.0)
+var dead: bool = false
+
+
+func take_damage(amount: float) -> void:
+	if dead:
+		return
+	body.damage(amount)
+	if body.hp <= 0.0:
+		dead = true
+		# Death leaves lootable remains — the Container serves corpses too.
+		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 2})
+		get_parent().add_child(corpse)
+		corpse.global_position = global_position
+		queue_free()
 
 
 static func create() -> ProtoLurker:

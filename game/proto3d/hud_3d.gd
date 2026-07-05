@@ -335,6 +335,25 @@ func set_mode(driving: bool) -> void:
 
 
 var _flash: ColorRect = null
+var _ammo_label: Label = null
+
+## 🔫 mag/reserve — ammo stays NUMERIC (you count bullets; you feel tired).
+func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: bool) -> void:
+	if _ammo_label == null:
+		_ammo_label = Label.new()
+		_ammo_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_ammo_label.add_theme_font_size_override("font_size", 22)
+		_ammo_label.add_theme_color_override("font_color", AMBER)
+		_ammo_label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.03))
+		_ammo_label.add_theme_constant_override("outline_size", 8)
+		_ammo_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_ammo_label.offset_left = 28.0
+		_ammo_label.offset_top = -132.0
+		_ammo_label.offset_bottom = -104.0
+		add_child(_ammo_label)
+	_ammo_label.visible = show
+	if show:
+		_ammo_label.text = "%s %s  %d / %d" % [emoji, name_txt, mag, reserve]
 
 ## Red pain flash (crash wounds, hits) — one frame of hurt you FEEL.
 func flash_pain() -> void:

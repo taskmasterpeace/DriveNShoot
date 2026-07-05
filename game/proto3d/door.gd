@@ -67,6 +67,8 @@ func interact(main: Node) -> void:
 			main.notify("Unlocked with %s" % key_display)
 		return
 	is_open = not is_open
+	if "audio" in main and main.audio:
+		main.audio.play_at("creak", global_position, -6.0)
 	if _tween and _tween.is_valid():
 		_tween.kill()
 	_tween = create_tween()

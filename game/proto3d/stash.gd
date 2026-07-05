@@ -40,6 +40,7 @@ func interact(main: Node) -> void:
 	taken = true
 	if gives_key_id != "":
 		main.give_key(gives_key_id, gives_key_display)
-	else:
-		main.notify("Searched the %s" % display_name)
+	main.backpack.add("pistol", 1)
+	main.backpack.add("9mm", 24)
+	main.notify("Found a pistol and a box of 9mm in the %s" % display_name)
 	visible = false

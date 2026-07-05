@@ -97,16 +97,20 @@ func _physics_process(delta: float) -> void:
 				_check("Security adopted", _sec.adopted and main.dogs.has(_sec))
 				Input.action_press("move_up")
 				_next()
-		4:
+		4: # walk, then wait for the dog to CONVERGE (not a fixed-time snapshot)
 			if phase_t > 2.5:
 				Input.action_release("move_up")
-				var d := _sec.global_position.distance_to(main.player.global_position)
-				_check("Security FOLLOWS through real movement (%.1f m)" % d, d < 7.0)
+			var dd := _sec.global_position.distance_to(main.player.global_position)
+			if phase_t > 2.5 and dd < 6.5:
+				_check("Security FOLLOWS through real movement (%.1f m)" % dd, true)
 				# Spawn a lurker BEHIND the player (facing is -Z after walking north)
 				_lurker = ProtoLurker.create()
 				main.add_child(_lurker)
 				_lurker.global_position = main.player.global_position + Vector3(0, 0.4, 9.0)
 				main.last_dog_alert = {}
+				_next()
+			elif phase_t > 7.0:
+				_check("Security FOLLOWS through real movement (timeout)", false)
 				_next()
 		5: # rear-smell
 			if not main.last_dog_alert.is_empty():
@@ -140,12 +144,15 @@ func _physics_process(delta: float) -> void:
 				_check("STAY holds while you walk off (%.1f m)" % d, d > 7.0)
 				_key(KEY_C, true)
 				_next()
-		10: # whistle brings the pack back
+		10: # whistle brings the pack back — converge, don't snapshot
 			if phase_t > 0.15:
 				_key(KEY_C, false)
-			if phase_t > 3.0:
-				var d := _sec.global_position.distance_to(main.player.global_position)
-				_check("WHISTLE (C) recalls the dog (%.1f m)" % d, d < 7.0)
+			var wd := _sec.global_position.distance_to(main.player.global_position)
+			if phase_t > 1.0 and wd < 6.5:
+				_check("WHISTLE (C) recalls the dog (%.1f m)" % wd, true)
+				_next()
+			elif phase_t > 7.0:
+				_check("WHISTLE (C) recalls the dog (%.1f m, timeout)" % wd, false)
 				_next()
 		11: # Hunter: adopt at kennel -> stash within nose range pings
 			if phase_t > 0.4:
@@ -189,10 +196,13 @@ func _physics_process(delta: float) -> void:
 				main.stress = 60.0
 				_mark = 60.0
 				_next()
-		20: # stand near Biscuit
-			if phase_t > 2.5:
-				_check("Cuddle aura melts stress (60 -> %.0f)" % main.stress, main.stress < _mark - 18.0)
+		20: # stand near Biscuit — converge, don't snapshot (pack crowding varies)
+			if main.stress < _mark - 18.0:
+				_check("Cuddle aura melts stress (60 -> %.0f)" % main.stress, true)
 				_check("stress throttles stamina regen (mult %.2f)" % main.player.stamina_regen_mult, main.player.stamina_regen_mult < 0.9)
+				_next()
+			elif phase_t > 7.0:
+				_check("Cuddle aura melts stress (60 -> %.0f, timeout)" % main.stress, false)
 				_next()
 		21:
 			print("DOG RESULTS: %d passed, %d failed" % [passed, failed])

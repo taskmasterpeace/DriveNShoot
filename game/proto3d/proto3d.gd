@@ -27,12 +27,21 @@ var backpack: ProtoContainer = ProtoContainer.new("Backpack")
 var panel: ProtoContainerPanel = null
 var bleeding: int = 0 ## 0-3; crashes cause it, bandages cure it
 
+## The Arsenal: owned guns + equipped index. Ammo lives in the backpack.
+var weapons: Array = []
+var equipped: int = -1
+var aim_override: Vector3 = Vector3.ZERO ## sims set this (headless has no real mouse)
+
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
 var dogs: Array[ProtoDog] = []       ## adopted pack
 var stress: float = 0.0              ## 0-100; throttles stamina regen
 var last_dog_alert: Dictionary = {}  ## sim hook: {dog, behind, at}
 var last_dog_nose: Dictionary = {}   ## sim hook: {dog, stash}
+
+var audio: ProtoAudio = null
+var _engine_loop: AudioStreamPlayer3D = null
+var _fire_loop: AudioStreamPlayer3D = null
 
 var _current_interactable: Node3D = null
 var _last_safe: Vector3 = Vector3(2.5, 1.2, 390)
@@ -74,14 +83,21 @@ func _ready() -> void:
 	hud.layer = 2 # above the vision-cone dimmer
 	add_child(hud)
 
+	audio = ProtoAudio.new()
+	add_child(audio)
+
 	panel = ProtoContainerPanel.create(self)
 	add_child(panel)
 	backpack.add("jack", 5)
 
 	# A supply chest inside the safehouse — same interface as every trunk.
-	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8})
+	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
+	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
+	cars[1].trunk.add("pipe_rocket", 1)
+	cars[1].trunk.add("rocket", 3)
 
 	# The kennel strays: one of each type, distinct breeds.
 	var kennel_specs: Array = [
@@ -157,6 +173,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.close()
 			else:
 				panel.open(backpack, null) # just your pack
+		elif kc == KEY_R:
+			reload_equipped()
+		elif kc >= KEY_1 and kc <= KEY_3:
+			var idx := kc - KEY_1
+			if idx < weapons.size():
+				equipped = idx
+				notify("Equipped the %s" % weapons[idx].info()["name"])
+	elif event is InputEventMouseButton and event.pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		if mode == Mode.FOOT and not cam_rig.binoculars:
+			fire_equipped()
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -198,6 +225,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		hud.set_speed(0.0, false)
 		hud.set_dashboard(null)
+
+	_update_audio_loops()
+	var wpn := current_weapon()
+	if wpn:
+		wpn.tick(delta)
+		hud.set_ammo(wpn.info()["emoji"], wpn.info()["name"], wpn.mag, backpack.count(wpn.info()["ammo"]), mode == Mode.FOOT)
+	else:
+		hud.set_ammo("", "", 0, 0, false)
 
 	_update_stress(delta)
 	_watch_crash_wounds()
@@ -244,6 +279,30 @@ func _update_hotwire(delta: float) -> void:
 		_hotwire_t = 0.0
 
 
+## Engine hum pitches with speed; fire crackle rides any burning car.
+func _update_audio_loops() -> void:
+	if mode == Mode.DRIVE and active_car and not active_car.dead:
+		if _engine_loop == null or not is_instance_valid(_engine_loop) or _engine_loop.get_parent() != active_car:
+			if _engine_loop and is_instance_valid(_engine_loop):
+				_engine_loop.queue_free()
+			_engine_loop = audio.attach_loop("engine", active_car, -10.0)
+		_engine_loop.pitch_scale = 0.75 + clampf(absf(active_car.forward_speed) / active_car.top_speed, 0.0, 1.0) * 1.5
+	elif _engine_loop and is_instance_valid(_engine_loop):
+		_engine_loop.queue_free()
+		_engine_loop = null
+	# Fire crackle on whatever car is burning near you
+	var burning: ProtoCar3D = null
+	for c in cars:
+		if is_instance_valid(c) and c.fire_state == ProtoCar3D.FireState.ON_FIRE:
+			burning = c
+			break
+	if burning and (_fire_loop == null or not is_instance_valid(_fire_loop)):
+		_fire_loop = audio.attach_loop("fire", burning, -4.0)
+	elif burning == null and _fire_loop and is_instance_valid(_fire_loop):
+		_fire_loop.queue_free()
+		_fire_loop = null
+
+
 ## The Stress vital: threats wind you up, Cuddle dogs calm you down, and stress
 ## throttles stamina regen (DOGS.md §2 — why comfort is a mechanic, not a skin).
 func _update_stress(delta: float) -> void:
@@ -258,7 +317,7 @@ func _update_stress(delta: float) -> void:
 	var comfort_near := false
 	for d in dogs:
 		var aura: float = d.params()["calm_aura"]
-		if aura > 0.0 and is_instance_valid(d) and d.global_position.distance_to(player.global_position) < 5.0:
+		if aura > 0.0 and is_instance_valid(d) and d.global_position.distance_to(player.global_position) < 6.0:
 			calm += aura
 			if aura >= 5.0:
 				comfort_near = true # a true Cuddle dog at your side
@@ -278,6 +337,7 @@ func register_dog(dog: ProtoDog) -> void:
 func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
 	last_dog_alert = {"dog": dog.dog_name, "behind": behind, "at": Time.get_ticks_msec()}
 	var bark: String = dog.params()["bark"]
+	audio.play_at("growl" if dog.dog_type == ProtoDog.DogType.SECURITY else "bark", dog.global_position)
 	if behind:
 		hud.toast("🐕 %s %s — something's BEHIND you!" % [dog.dog_name, bark])
 	else:
@@ -353,6 +413,16 @@ func open_container(theirs: ProtoContainer) -> void:
 
 ## Item effects (data → verb). Returns true if consumed.
 func use_item(id: String) -> bool:
+	if ProtoWeapon.WEAPONS.has(id):
+		for w in weapons:
+			if w.id == id:
+				notify("Already carrying the %s" % w.info()["name"])
+				return false
+		var wpn := ProtoWeapon.new(id)
+		weapons.append(wpn)
+		equipped = weapons.size() - 1
+		notify("Equipped the %s (%s)" % [wpn.info()["name"], str(weapons.size())])
+		return true
 	match id:
 		"bandage":
 			if bleeding > 0:
@@ -369,11 +439,78 @@ func use_item(id: String) -> bool:
 	return false
 
 
+# --- Firing (COMBAT_AND_GEAR: aim is intent, shots fly the rolled vector) -----
+
+func current_weapon() -> ProtoWeapon:
+	return weapons[equipped] if equipped >= 0 and equipped < weapons.size() else null
+
+
+## Where the player intends to shoot: mouse ray onto the aim plane (or sim override).
+func aim_direction() -> Vector3:
+	if aim_override.length_squared() > 0.01:
+		return aim_override.normalized()
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return player.facing()
+	var mouse := get_viewport().get_mouse_position()
+	var from := cam.project_ray_origin(mouse)
+	var dir := cam.project_ray_normal(mouse)
+	if absf(dir.y) < 0.001:
+		return player.facing()
+	var t := (1.0 - from.y) / dir.y # intersect the y=1.0 aim plane
+	var point := from + dir * t
+	var out := point - player.global_position
+	out.y = 0.0
+	return out.normalized() if out.length_squared() > 0.01 else player.facing()
+
+
+func fire_equipped() -> void:
+	var w := current_weapon()
+	if w == null or mode != Mode.FOOT or panel.is_open:
+		return
+	if w.mag <= 0:
+		notify("*click* — reload (R)")
+		return
+	var dir := aim_direction()
+	player.face_override = dir
+	player.facing_dir = dir
+	if w.fire(self, player.global_position + Vector3(0, 1.2, 0), dir):
+		cam_rig.add_trauma(0.18)
+		stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
+		audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+
+
+func reload_equipped() -> void:
+	var w := current_weapon()
+	if w == null:
+		return
+	var ammo_id: String = w.info()["ammo"]
+	var need: int = w.info()["mag_size"] - w.mag
+	var have := backpack.count(ammo_id)
+	var take: int = mini(need, have)
+	if take <= 0:
+		notify("No %s left" % ammo_id)
+		return
+	backpack.remove(ammo_id, take)
+	w.mag += take
+	audio.play_ui("click", -4.0)
+	notify("Reloaded (+%d)" % take)
+
+
+func on_explosion(pos: Vector3) -> void:
+	cam_rig.add_trauma(0.7)
+	audio.play_at("explosion", pos, 4.0)
+	if player.global_position.distance_to(pos) < 7.0:
+		hud.flash_pain()
+		give_bleeding(1)
+
+
 ## Crashes wound the DRIVER too (bandage from any trunk/chest/pack).
 func give_bleeding(tier: int) -> void:
 	bleeding = clampi(maxi(bleeding, tier), 0, 3)
 	hud.set_condition("hurt", bleeding)
 	if tier > 0:
+		audio.play_at("hurt", player.global_position, -2.0)
 		hud.toast("🩸 You're hurt — find a bandage")
 		stress = minf(100.0, stress + 10.0)
 

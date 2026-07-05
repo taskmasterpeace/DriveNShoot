@@ -71,6 +71,7 @@ var _threat_cooldown: float = 0.0
 var _pinged_stashes: Array = []
 var _obey_queue: Array = [] ## [ [time_left, state] ] — obedience delay per type
 var _wag_t: float = 0.0
+var _stuck_t: float = 0.0
 
 
 var _params: Dictionary = {}
@@ -265,6 +266,17 @@ func _do_follow(delta: float) -> void:
 	var speed: float = p["speed"] * (1.35 if dist > 12.0 else (1.0 if dist > 6.0 else 0.55))
 	if dist > 0.6:
 		var dir := to_heel.normalized()
+		# Unstuck: pinned against a post/wall while trying to move → sidestep and
+		# re-pick the heel angle (dogs flow around obstacles instead of pushing).
+		if velocity.length() < 0.6 and dist > 2.0:
+			_stuck_t += delta
+			if _stuck_t > 0.35:
+				_stuck_t = 0.0
+				_follow_angle = randf() * TAU
+				var side := Vector3(-dir.z, 0, dir.x) * (1.0 if randf() > 0.5 else -1.0)
+				velocity += side * p["speed"] * 0.8
+		else:
+			_stuck_t = 0.0
 		velocity.x = move_toward(velocity.x, dir.x * speed, 22.0 * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, 22.0 * delta)
 		var yaw := atan2(-dir.x, -dir.z)

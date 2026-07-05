@@ -97,6 +97,21 @@ func _refresh() -> void:
 	_title.text = ("%s  ⇄  %s" % [_mine.label, _theirs.label]) if _theirs else _mine.label
 	_fill(_left_box, _mine, _theirs, true)
 	_fill(_right_box, _theirs, _mine, false)
+	# Take All (polish): sweep the whole container in one click.
+	if _theirs != null and not _theirs.slots.is_empty():
+		var take_all := Button.new()
+		take_all.add_theme_font_override("font", ProtoHUD.mixed_font())
+		take_all.text = "≪ TAKE ALL"
+		take_all.pressed.connect(_on_take_all)
+		_right_box.add_child(take_all)
+
+
+func _on_take_all() -> void:
+	for id in _theirs.slots.keys().duplicate():
+		_theirs.transfer_to(_mine, id, _theirs.count(id))
+	if _main and "audio" in _main and _main.audio:
+		_main.audio.play_ui("blip")
+	_refresh()
 
 
 func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_side: bool) -> void:
@@ -104,7 +119,9 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 		child.queue_free()
 	if from == null:
 		return
-	for id in from.slots:
+	var ids: Array = from.slots.keys()
+	ids.sort()
+	for id in ids:
 		var info: Dictionary = ProtoContainer.ITEMS.get(id, {"name": id, "emoji": "❔", "usable": false})
 		var row := HBoxContainer.new()
 		box.add_child(row)
@@ -125,6 +142,8 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:
 	if to != null:
 		from.transfer_to(to, id)
+		if _main and "audio" in _main and _main.audio:
+			_main.audio.play_ui("blip", -12.0)
 	_refresh()
 
 
