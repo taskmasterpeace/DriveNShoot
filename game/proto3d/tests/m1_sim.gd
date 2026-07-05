@@ -152,57 +152,67 @@ func _physics_process(delta: float) -> void:
 		14:
 			var py: float = main.player.global_position.y - main.house.global_position.y
 			if py > 2.9:
-				Input.action_release("move_up")
 				_check("WALKED across the room and UP the ramp (y=%.2f)" % py, true)
-				_next()
+				_next() # keep move_up held — now walk OFF the top onto the landing
 			elif phase_t > 6.0:
 				Input.action_release("move_up")
 				_check("WALKED across the room and UP the ramp (y=%.2f)" % py, false)
+				phase = 16
+		15: # step off the top of the ramp onto the second floor (was blocked)
+			var lz: float = main.player.global_position.z - main.house.global_position.z
+			var py2: float = main.player.global_position.y - main.house.global_position.y
+			if lz < -2.6 and py2 > 2.9:
+				Input.action_release("move_up")
+				_check("stepped OFF the top onto the landing (z=%.1f y=%.2f)" % [lz, py2], true)
 				_next()
-		15: # stash upstairs
+			elif phase_t > 4.0:
+				Input.action_release("move_up")
+				_check("stepped OFF the top onto the landing (z=%.1f y=%.2f)" % [lz, py2], false)
+				_next()
+		16: # stash upstairs
 			if phase_t > 0.4:
 				_place_player(main.house.global_position + Vector3(-2.6, 3.6, -2.3))
 				_next()
-		16:
+		17:
 			if phase_t > 0.5:
 				_check("stash prompts search", main.hud.current_prompt.contains("Search"))
 				_tap_interact()
 				_next()
-		17:
+		18:
 			if phase_t > 0.4:
 				_check("got the Meridian car key", main.has_key("meridian_car_key"))
 				_check("stash consumed", main.house.stash.taken and not main.house.stash.visible)
 				_place_player(Vector3(95, 0.4, -281.5))
 				_next()
-		18: # unlock, then enter
+		19: # unlock, then enter
 			if phase_t > 0.5:
 				_check("prompt now offers unlock", main.hud.current_prompt.contains("Unlock"))
 				_tap_interact()
 				_next()
-		19:
+		20:
 			if phase_t > 0.4:
 				_check("sedan unlocked", not main.cars[1].locked)
 				_tap_interact()
 				_next()
-		20:
+		21:
 			if phase_t > 0.4:
 				_check("driving the sedan", main.mode == 0 and main.active_car == main.cars[1])
 				Input.action_press("move_up")
 				_next()
-		21: # GTA2 speed zoom
+		22: # GTA2 speed zoom
 			if phase_t > 3.5:
 				var cam_h: float = main.cam_rig._cam.global_position.y - main.active_car.global_position.y
 				_check("camera pulls out with speed (h=%.0f m @ %.0f mph)" % [cam_h, main.active_car.current_mph], cam_h > 34.0 and main.active_car.current_mph > 25.0)
 				Input.action_release("move_up")
 				_next()
-		22: # world edge: throw the car off the map
+		23: # world edge: throw the car off the map
 			if phase_t > 0.6:
 				_mark = main._last_safe
 				# The far states have GROUND now — prove the net by dropping BELOW the world.
 				main.active_car.global_position = Vector3(6900, -40.0, 0)
 				main._safe_timer = -3.0 # don't let the fall get recorded as safe
 				_next()
-		23:
+		24:
 			var back: bool = main.active_car.global_position.distance_to(_mark) < 40.0 and main.active_car.global_position.y > -4.0
 			if back and phase_t > 1.0:
 				_check("fell off the world, respawned at last safe spot", true)
@@ -210,7 +220,7 @@ func _physics_process(delta: float) -> void:
 			elif phase_t > 6.0:
 				_check("fell off the world, respawned at last safe spot (pos %s)" % str(main.active_car.global_position), false)
 				_next()
-		24:
+		25:
 			print("M1 RESULTS: %d passed, %d failed" % [passed, failed])
 			print("M1: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 			get_tree().quit(0 if failed == 0 else 1)

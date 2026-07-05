@@ -86,26 +86,29 @@ func build() -> void:
 	var stair_x := 3.6
 	var half_w := 1.1        # 2.2 m wide — easy to line up
 	var z_base := 4.0        # front / bottom (y=0), reachable from the room
-	var z_top := -2.4        # back / top — overlaps the landing so you step off flush
-	var rise := FLOOR_H + 0.2
+	var z_ramp_top := -2.0   # where the slope reaches full height
+	var z_back := -3.4       # a flat PLATEAU continues under the landing so there's
+	var rise := FLOOR_H + 0.2 # no lip to step over at the top (playtest: stuck up top)
 	var wedge := StaticBody3D.new()
 	wedge.position = Vector3(stair_x, 0, 0)
 	var wshape := CollisionShape3D.new()
 	var hull := ConvexPolygonShape3D.new()
 	hull.points = PackedVector3Array([
-		Vector3(-half_w, 0.0, z_base), Vector3(-half_w, 0.0, z_top), Vector3(-half_w, rise, z_top),
-		Vector3(half_w, 0.0, z_base), Vector3(half_w, 0.0, z_top), Vector3(half_w, rise, z_top),
+		Vector3(-half_w, 0.0, z_base), Vector3(-half_w, 0.0, z_back),
+		Vector3(-half_w, rise, z_back), Vector3(-half_w, rise, z_ramp_top),
+		Vector3(half_w, 0.0, z_base), Vector3(half_w, 0.0, z_back),
+		Vector3(half_w, rise, z_back), Vector3(half_w, rise, z_ramp_top),
 	])
 	wshape.shape = hull
 	wedge.add_child(wshape)
 	add_child(wedge)
-	# Decorative treads riding the ramp surface — pure looks, no collision.
-	var steps := 10
+	# Decorative treads on the sloped part only (the plateau IS the landing edge).
+	var steps := 9
 	for i in steps:
 		var tt := (float(i) + 0.5) / float(steps)
-		var sz := lerpf(z_base, z_top, tt)
+		var sz := lerpf(z_base, z_ramp_top, tt)
 		var sy := lerpf(0.0, rise, tt)
-		ProtoWorldBuilder.box_visual(self, Vector3(2.2, 0.12, (z_base - z_top) / float(steps) + 0.06), Vector3(stair_x, sy + 0.03, sz), Color(0.42, 0.36, 0.28))
+		ProtoWorldBuilder.box_visual(self, Vector3(2.2, 0.12, (z_base - z_ramp_top) / float(steps) + 0.06), Vector3(stair_x, sy + 0.03, sz), Color(0.42, 0.36, 0.28))
 
 	# --- Roof: hides when you walk in ------------------------------------------
 	_roof = ProtoWorldBuilder.box_body(self, Vector3(WIDTH + 0.8, 0.25, DEPTH + 0.8), Vector3(0, FLOOR_H * 2.0 + 0.35, 0), Color(0.40, 0.26, 0.18))

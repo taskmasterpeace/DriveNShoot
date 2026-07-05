@@ -290,3 +290,13 @@ on foot, and Hold X to extract.
 *   **Smarter respawn** — if you somehow still fall, you come back nudged *inward*, so a
     rim-edge respawn can't dump you straight back over.
 *   **Proof:** recover_sim 3/3 · stage5 9/9 · drive metrics unchanged.
+
+## 29. Off the stairs + the perception FADE (2026-07-05)
+*   **Stairs: fixed for real** — the ramp now has a flat plateau at the top that merges into
+    the second floor, so there's no lip to catch on. Walk up and straight off onto the landing.
+    (Test now walks in the door, across the room, up, AND off the top — reached the landing.)
+*   **The FADE (the "little memory")** — things you're NOT looking at fade out: a threat behind
+    you goes nearly invisible until you turn to face it, then it fades back in. And static things
+    you've already seen (chests, parked cars) linger as a faint **memory GHOST** instead of
+    vanishing — so you remember where they were. Throttled to stay cheap.
+*   **Proof:** m1 22/22 · fade_sim 4/4.

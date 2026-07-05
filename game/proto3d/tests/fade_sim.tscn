@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dfadesim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/fade_sim.gd" id="1_fade"]
+
+[node name="FadeSim" type="Node"]
+script = ExtResource("1_fade")

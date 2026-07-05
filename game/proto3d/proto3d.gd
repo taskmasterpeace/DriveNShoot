@@ -70,6 +70,16 @@ var _current_interactable: Node3D = null
 var _last_safe: Vector3 = Vector3(2.5, 1.2, 390)
 var _safe_timer: float = 0.0
 
+## Perception FADE (PZ-style): things outside your sight fade out; static things
+## you've already seen stay a faint "memory" ghost. See METASYSTEM/ENGINE §5.
+var _percept_origin: Vector3 = Vector3.ZERO
+var _percept_facing: Vector3 = Vector3.FORWARD
+var _fade_recompute_t: float = 0.0
+var _fade_target: Dictionary = {}   ## entity -> target transparency
+var _fade_cur: Dictionary = {}      ## entity -> current transparency
+var _fade_meshes: Dictionary = {}   ## entity -> Array[MeshInstance3D] (cached)
+var _seen_ids: Dictionary = {}      ## instance_id -> true (the "memory")
+
 
 func _ready() -> void:
 	_build_environment()
@@ -362,6 +372,76 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		range_mult *= 0.3
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
 		character.vision_arc_mult, range_mult)
+	_percept_origin = body.global_position
+	_percept_facing = facing
+	_update_perception_fade(delta)
+
+
+## Things outside your sight fade out; static things you've seen linger as a ghost.
+func _update_perception_fade(delta: float) -> void:
+	_fade_recompute_t -= delta
+	if _fade_recompute_t <= 0.0:
+		_fade_recompute_t = 0.09 # recompute membership ~11 Hz; lerp every frame
+		var half: float = vision_cone.current_half_angle()
+		var range_m: float = maxf(vision_cone.last_range_m, 8.0)
+		var near_m: float = maxf(vision_cone.last_clear_m, 4.0)
+		var cos_half: float = cos(half)
+		var fdir := _percept_facing
+		fdir.y = 0.0
+		fdir = fdir.normalized() if fdir.length_squared() > 0.01 else Vector3.FORWARD
+		var seen: Dictionary = {}
+		for g in ["threat", "proto_dog", "interactable"]:
+			for node in get_tree().get_nodes_in_group(g):
+				var e := node as Node3D
+				if e == null or not is_instance_valid(e) or e == player or e == active_car:
+					continue
+				var to := e.global_position - _percept_origin
+				to.y = 0.0
+				var d := to.length()
+				if d > 100.0:
+					continue
+				var is_seen: bool = d < near_m or (d < range_m and fdir.dot(to.normalized()) > cos_half)
+				if is_seen:
+					_seen_ids[e.get_instance_id()] = true
+				var dynamic: bool = e is ProtoLurker or e is ProtoDog
+				var remembered: bool = _seen_ids.has(e.get_instance_id())
+				# seen -> solid; unseen dynamic -> nearly gone; unseen static-you've-seen -> ghost.
+				_fade_target[e] = 0.0 if is_seen else (0.88 if dynamic else (0.5 if remembered else 0.9))
+				seen[e] = true
+		# forget entities that left range/freed
+		for e in _fade_target.keys():
+			if not seen.has(e) or not is_instance_valid(e):
+				_fade_target.erase(e)
+				_fade_cur.erase(e)
+				_fade_meshes.erase(e)
+
+	# Lerp every frame (cheap) toward the target and apply.
+	var k := 1.0 - exp(-9.0 * delta)
+	for e in _fade_target.keys():
+		if not is_instance_valid(e):
+			continue
+		var cur: float = _fade_cur.get(e, 0.0)
+		cur = lerpf(cur, _fade_target[e], k)
+		_fade_cur[e] = cur
+		_apply_transparency(e, cur)
+
+
+func _apply_transparency(e: Node3D, t: float) -> void:
+	var meshes: Array = _fade_meshes.get(e, [])
+	if meshes.is_empty():
+		_collect_meshes(e, meshes)
+		_fade_meshes[e] = meshes
+	for m in meshes:
+		if is_instance_valid(m):
+			(m as MeshInstance3D).transparency = t
+
+
+func _collect_meshes(n: Node, out: Array) -> void:
+	for c in n.get_children():
+		if c is MeshInstance3D:
+			out.append(c)
+		if c.get_child_count() > 0:
+			_collect_meshes(c, out)
 
 
 var _hotwire_t: float = 0.0
