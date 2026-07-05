@@ -253,3 +253,16 @@ on foot, and Hold X to extract.
 *   **Inventory management** — every row shows item WEIGHT, the panel footer shows your total
     load (🎒 x / 32 kg), and every item has a DROP button that spills it into a ground pile.
 *   **Proof:** fight_sim 7/7 · stage4/dog/container unregressed.
+
+## 26. THE METAWORLD + the whistle button + combat impact (2026-07-05)
+*   **One whistle button, four commands** — tap = heel, double-tap = GUARD here, triple = SEEK
+    (go find loot), hold = SIC (attack). One key, four jobs.
+*   **Dogs bite now** — Sic and Guard dogs chase and maul threats; a Security dog can knock an
+    enemy flat.
+*   **The metaworld (the big one)** — a dog you leave on **Guard** keeps existing when you drive
+    away: it collapses to a data record (no CPU cost), an off-screen raid can wound or kill it,
+    and when you drive back it comes alive again — or **you come home to find its collar in the
+    dirt.** This is the same engine that will run the whole living world and multiplayer.
+*   **Combat impact** — floating combat text: damage numbers rise off enemies, melee/bite hits
+    can knock them flat with a big **KNOCKDOWN!**, and you see red numbers when you get hurt.
+*   **Proof:** dogmeta_sim 11/11 · full suite green (dog/stage4/fight/arsenal/m1/container).

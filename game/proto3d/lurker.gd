@@ -15,11 +15,25 @@ var _visual: Node3D
 var _player: Node3D = null
 var body: Damageable = Damageable.new("body", "💀", 40.0)
 var dead: bool = false
+var knocked: bool = false
+var _knock_t: float = 0.0
+
+
+## Knocked flat — can't move or attack, floating word, gets up after a beat.
+func knock_down() -> void:
+	if dead:
+		return
+	knocked = true
+	_knock_t = 1.6
+	if _visual:
+		_visual.rotation.x = -1.35
+	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 2.1, 0), "KNOCKDOWN!", Color(1.0, 0.82, 0.2), 150)
 
 
 func take_damage(amount: float) -> void:
 	if dead:
 		return
+	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.8, 0), "-%d" % int(amount), Color(0.96, 0.86, 0.55), 110)
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true
@@ -65,6 +79,18 @@ static func create() -> ProtoLurker:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+
+	# Knocked down: helpless, no stalk, no claw, until it gets back up.
+	if knocked:
+		_knock_t -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 14.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 14.0 * delta)
+		if _knock_t <= 0.0:
+			knocked = false
+			if _visual:
+				_visual.rotation.x = 0.0
+		move_and_slide()
+		return
 
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player3d")

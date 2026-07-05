@@ -51,6 +51,17 @@ var stress: float = 0.0              ## 0-100; throttles stamina regen
 var last_dog_alert: Dictionary = {}  ## sim hook: {dog, behind, at}
 var last_dog_nose: Dictionary = {}   ## sim hook: {dog, stash}
 
+## The metaworld (METASYSTEM.md) + the 4-in-1 whistle button.
+var metaworld: ProtoMetaworld = null
+const WHISTLE_HOLD := 0.35
+const WHISTLE_TAPWIN := 0.32
+var _wh_down: bool = false
+var _wh_down_t: float = 0.0
+var _wh_hold_fired: bool = false
+var _wh_taps: int = 0
+var _wh_gap: float = 0.0
+var last_whistle: String = "" ## sim hook
+
 var audio: ProtoAudio = null
 var _engine_loop: AudioStreamPlayer3D = null
 var _fire_loop: AudioStreamPlayer3D = null
@@ -146,6 +157,11 @@ func _ready() -> void:
 	add_child(stream)
 	stream.setup(waypoints)
 
+	metaworld = ProtoMetaworld.new()
+	add_child(metaworld)
+	metaworld.setup(self)
+	metaworld.come_home.connect(func(text: String) -> void: hud.toast(text))
+
 	house.tracked = player
 	enter_car(cars[0])
 	cam_rig.snap_to_target()
@@ -190,13 +206,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_exit_car()
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
 			_current_interactable.call("interact", self)
+	elif event is InputEventKey and (event as InputEventKey).keycode == KEY_C and not (event as InputEventKey).echo:
+		_whistle_input((event as InputEventKey).pressed)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		var kc := (event as InputEventKey).keycode
-		if kc == KEY_C and not dogs.is_empty():
-			for d in dogs:
-				d.whistle()
-			hud.toast("*whistle* — the pack returns")
-		elif kc == KEY_TAB:
+		if kc == KEY_TAB:
 			if panel.is_open:
 				panel.close()
 			else:
@@ -316,6 +330,7 @@ func _physics_process(delta: float) -> void:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
 
 	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
+	_update_whistle(delta)
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
@@ -400,8 +415,10 @@ func _update_stress(delta: float) -> void:
 	var calm := 3.0
 	var comfort_near := false
 	for d in dogs:
+		if not is_instance_valid(d): # dogs dehydrate now — always check first
+			continue
 		var aura: float = d.params()["calm_aura"]
-		if aura > 0.0 and is_instance_valid(d) and d.global_position.distance_to(player.global_position) < 6.0:
+		if aura > 0.0 and d.global_position.distance_to(player.global_position) < 6.0:
 			calm += aura
 			if aura >= 5.0:
 				comfort_near = true # a true Cuddle dog at your side
@@ -414,8 +431,96 @@ func _update_stress(delta: float) -> void:
 # --- Dog services (called by ProtoDog) ---------------------------------------
 
 func register_dog(dog: ProtoDog) -> void:
+	for i in range(dogs.size() - 1, -1, -1):
+		if not is_instance_valid(dogs[i]):
+			dogs.remove_at(i)
 	if not dogs.has(dog):
 		dogs.append(dog)
+
+
+func _whistle_input(pressed: bool) -> void:
+	if pressed:
+		if not _wh_down:
+			_wh_down = true
+			_wh_down_t = 0.0
+			_wh_hold_fired = false
+	elif _wh_down:
+		_wh_down = false
+		if not _wh_hold_fired:
+			_wh_taps += 1
+			_wh_gap = 0.0
+
+
+## One button, four whistles: tap = heel, double = guard, triple = seek, hold = sic.
+func _update_whistle(delta: float) -> void:
+	if _wh_down:
+		_wh_down_t += delta
+		if _wh_down_t >= WHISTLE_HOLD and not _wh_hold_fired:
+			_wh_hold_fired = true
+			_dog_command("sic")
+	elif _wh_taps > 0:
+		_wh_gap += delta
+		if _wh_gap >= WHISTLE_TAPWIN:
+			match _wh_taps:
+				1: _dog_command("heel")
+				2: _dog_command("guard")
+				_: _dog_command("seek")
+			_wh_taps = 0
+
+
+func _dog_command(cmd: String) -> void:
+	last_whistle = cmd
+	if dogs.is_empty():
+		return
+	match cmd:
+		"heel":
+			for d in dogs:
+				if is_instance_valid(d): d.command_heel()
+			hud.toast("🐕 *whistle* — heel!")
+		"guard":
+			for d in dogs:
+				if is_instance_valid(d): d.command_guard(player.global_position)
+			hud.toast("🐕 *whistle-whistle* — GUARD this spot!")
+		"seek":
+			var loot := _nearest_loot()
+			for d in dogs:
+				if is_instance_valid(d): d.command_seek(loot)
+			hud.toast("🐕 *whistle ×3* — go find it!" if loot else "🐕 *whistle ×3* — nothing to sniff out")
+		"sic":
+			var threat := _nearest_threat()
+			for d in dogs:
+				if is_instance_valid(d): d.command_sic(threat)
+			hud.toast("🐕 *loooong whistle* — SIC 'EM!" if threat else "🐕 *long whistle* — no target near")
+
+
+func _nearest_threat() -> Node3D:
+	var best: Node3D = null
+	var bd: float = 60.0
+	for node in get_tree().get_nodes_in_group("threat"):
+		var t := node as Node3D
+		if t and is_instance_valid(t):
+			var dd := t.global_position.distance_to(player.global_position)
+			if dd < bd:
+				bd = dd
+				best = t
+	return best
+
+
+func _nearest_loot() -> Node3D:
+	var best: Node3D = null
+	var bd: float = 90.0
+	for node in get_tree().get_nodes_in_group("interactable"):
+		if not (node is ProtoStash or node is ProtoChest):
+			continue
+		if node is ProtoStash and (node as ProtoStash).taken:
+			continue
+		var np := node as Node3D
+		if is_instance_valid(np):
+			var dd := np.global_position.distance_to(player.global_position)
+			if dd < bd:
+				bd = dd
+				best = np
+	return best
 
 
 func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
@@ -658,6 +763,7 @@ func on_player_clawed(damage: float, _who: Node3D) -> void:
 	if character.dead or mode == Mode.DRIVE:
 		return # the cab protects you — ON FOOT you're meat
 	character.take_wound(character.random_part(_wound_rng), damage)
+	ProtoFloater.pop(self, player.global_position + Vector3(0, 1.8, 0), "-%d" % int(damage), Color(0.95, 0.35, 0.25), 110)
 	bleeding = clampi(maxi(bleeding, 1), 0, 3)
 	hud.set_condition("hurt", maxi(bleeding, 1))
 	hud.flash_pain()

@@ -17,9 +17,9 @@ const WEAPONS: Dictionary = {
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0},
+		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35},
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0},
+		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
@@ -83,6 +83,9 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 				if t.has_method("take_damage"):
 					t.take_damage(w["damage"])
 					hit_any = true
+					# Melee HITS — chance to knock the target flat (feel the impact).
+					if t.has_method("knock_down") and randf() < w.get("knockdown", 0.3):
+						t.knock_down()
 		if hit_any and main.has_method("grant_xp"):
 			main.grant_xp("marksmanship", 1.0)
 		return true

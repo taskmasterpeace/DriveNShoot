@@ -66,6 +66,16 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+**2026-07-05 (metasystem slice):** THE METAWORLD is proven (dogmeta_sim 11/11). Guarding dogs
+**dehydrate** to records when you leave the AoI bubble, an off-screen roll can wound/kill the
+record, and they **hydrate** back on return — come home to find it gone (`metaworld.gd`,
+`METASYSTEM.md`). Same engine feeds Stage 6 NPCs + netcode. Also: **whistle = 4-in-1 button**
+(tap heel / double guard / triple seek / hold sic), **dog commands** Guard/Sic/Seek + dogs now
+BITE (knockdown chance), **combat impact** = floating text (`floater.gd`) + KNOCKDOWN on melee/bite.
+GOTCHA: any loop over `dogs[]` MUST `is_instance_valid` FIRST (dogs get freed by dehydration).
+NEXT: Stage 6 Living World (trader + bounty + Respect) plugs the aggregate-sim engine into the
+metaworld socket; OR the cone-fix pass (zoom-independent cone, eye-patch trait, dog snapshot).
+
 **2026-07-05: STAGE 3 COMPLETE** (12 sims green, + nav_sim 8/8): RPG spine (skills-by-use w/
 effects, 6-part body, HEALTH CAP, K sheet, permadeath+R-restart) + waypoint arrow (N cycles
 Safehouse/Kennel/Your-Car) + encumbrance (weights, 🎒/🐢 moodle, CARRY_CAP = STR hook).

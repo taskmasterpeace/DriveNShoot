@@ -5,29 +5,29 @@ class_name ProtoDog
 extends CharacterBody3D
 
 enum DogType { SECURITY, HUNTER, COMPANION, CUDDLE }
-enum DogState { STRAY, FOLLOW, STAY, ALERT }
+enum DogState { STRAY, FOLLOW, STAY, ALERT, GUARD, SIC, SEEK }
 
 ## Per-type tuning: [follow_dist, run_speed, threat_radius, rear_bonus, nose_radius, calm_aura, size, color]
 const TYPE_PARAMS: Dictionary = {
 	DogType.SECURITY: {
 		"follow_dist": 3.2, "speed": 8.0, "threat_radius": 26.0, "rear_mult": 1.5,
 		"nose_radius": 0.0, "calm_aura": 0.0, "scale": 1.15, "color": Color(0.32, 0.26, 0.18),
-		"obey_delay": 0.5, "bark": "GROWLS",
+		"obey_delay": 0.5, "bark": "GROWLS", "bite": 16.0, "bite_kd": 0.45,
 	},
 	DogType.HUNTER: {
 		"follow_dist": 4.5, "speed": 8.5, "threat_radius": 14.0, "rear_mult": 1.2,
 		"nose_radius": 24.0, "calm_aura": 0.0, "scale": 1.0, "color": Color(0.55, 0.42, 0.25),
-		"obey_delay": 0.6, "bark": "points",
+		"obey_delay": 0.6, "bark": "points", "bite": 9.0, "bite_kd": 0.2,
 	},
 	DogType.COMPANION: {
 		"follow_dist": 2.6, "speed": 8.0, "threat_radius": 16.0, "rear_mult": 1.2,
 		"nose_radius": 10.0, "calm_aura": 2.0, "scale": 1.0, "color": Color(0.72, 0.6, 0.4),
-		"obey_delay": 0.0, "bark": "barks",
+		"obey_delay": 0.0, "bark": "barks", "bite": 12.0, "bite_kd": 0.25,
 	},
 	DogType.CUDDLE: {
 		"follow_dist": 1.8, "speed": 7.0, "threat_radius": 8.0, "rear_mult": 1.1,
 		"nose_radius": 0.0, "calm_aura": 9.0, "scale": 0.62, "color": Color(0.82, 0.74, 0.62),
-		"obey_delay": 0.8, "bark": "grumbles",
+		"obey_delay": 0.8, "bark": "grumbles", "bite": 0.0, "bite_kd": 0.0,
 	},
 }
 
@@ -58,6 +58,11 @@ var dog_name: String = "Rex"
 var breed: String = "Shepherd"
 var adopted: bool = false
 var state: DogState = DogState.STRAY
+var guard_pos: Vector3 = Vector3.ZERO
+var sic_target: Node3D = null
+var seek_target: Node3D = null
+var hp: float = 50.0
+var max_hp: float = 50.0
 
 var _owner_ref: Node3D = null
 var _main: Node = null ## the proto3d main scene (set at adoption) — sim-safe, no current_scene reliance
@@ -72,6 +77,7 @@ var _pinged_stashes: Array = []
 var _obey_queue: Array = [] ## [ [time_left, state] ] — obedience delay per type
 var _wag_t: float = 0.0
 var _stuck_t: float = 0.0
+var _bite_cd: float = 0.0
 
 
 var _params: Dictionary = {}
@@ -82,6 +88,7 @@ static func create(type: DogType, name_in: String, breed_in: String) -> ProtoDog
 	d.dog_name = name_in
 	d.breed = breed_in
 	d.add_to_group("interactable")
+	d.add_to_group("proto_dog")
 	# Type params + breed multipliers = this dog's actual senses.
 	d._params = TYPE_PARAMS[type].duplicate()
 	for key in BREED_MODS.get(breed_in, {}):
@@ -196,6 +203,58 @@ func whistle() -> void:
 		_queue_state(DogState.FOLLOW)
 
 
+# --- Command verbs (whistle patterns + the metasystem) ---------------------
+
+func command_heel() -> void:
+	if adopted:
+		_queue_state(DogState.FOLLOW)
+
+
+func command_guard(pos: Vector3) -> void:
+	if adopted:
+		guard_pos = pos
+		_queue_state(DogState.GUARD)
+
+
+func command_sic(target: Node3D) -> void:
+	if adopted and target != null:
+		sic_target = target
+		_queue_state(DogState.SIC)
+
+
+func command_seek(target: Node3D) -> void:
+	if adopted and target != null:
+		seek_target = target
+		_queue_state(DogState.SEEK)
+
+
+func take_damage(amount: float) -> void:
+	hp = maxf(0.0, hp - amount)
+	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.4, 0), "-%d" % int(amount), Color(0.9, 0.5, 0.4), 90)
+	if hp <= 0.0:
+		if _main and _main.has_method("notify"):
+			_main.notify("%s went down." % dog_name)
+		queue_free()
+
+
+## Metasystem: collapse to a data record, and rebuild from one.
+func to_record() -> Dictionary:
+	return {"type": dog_type, "name": dog_name, "breed": breed,
+		"pos": global_position, "guard_pos": guard_pos, "hp": hp,
+		"wounded": false, "killed": false}
+
+
+static func from_record(rec: Dictionary, main_in: Node) -> ProtoDog:
+	var d := ProtoDog.create(rec["type"], rec["name"], rec["breed"])
+	d.adopted = true
+	d._main = main_in
+	d._owner_ref = main_in.player
+	d.guard_pos = rec["guard_pos"]
+	d.hp = rec.get("hp", 50.0)
+	d.state = DogState.GUARD
+	return d
+
+
 func _queue_state(s: DogState) -> void:
 	var delay: float = params()["obey_delay"]
 	if delay <= 0.0:
@@ -219,6 +278,7 @@ func _physics_process(delta: float) -> void:
 			qi += 1
 
 	_threat_cooldown = maxf(0.0, _threat_cooldown - delta)
+	_bite_cd = maxf(0.0, _bite_cd - delta)
 	match state:
 		DogState.STRAY:
 			velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta)
@@ -239,6 +299,15 @@ func _physics_process(delta: float) -> void:
 			_alert_t -= delta
 			if _alert_t <= 0.0:
 				state = DogState.FOLLOW if adopted else DogState.STRAY
+			_sense(delta)
+		DogState.GUARD:
+			_do_guard(delta)
+		DogState.SIC:
+			if not _chase_and_bite(sic_target, delta):
+				sic_target = null
+				state = DogState.FOLLOW if adopted else DogState.STRAY
+		DogState.SEEK:
+			_do_seek(delta)
 
 	# Tail wag: friendly types wag while following; everyone wags when close to owner.
 	_wag_t += delta * 9.0
@@ -284,6 +353,91 @@ func _do_follow(delta: float) -> void:
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
+
+
+func _do_guard(delta: float) -> void:
+	var p: Dictionary = params()
+	var spd: float = p["speed"]
+	var threat := _nearest_threat_near(guard_pos, p["threat_radius"])
+	if threat:
+		_chase_and_bite(threat, delta)
+		return
+	var to_post := guard_pos - global_position
+	to_post.y = 0.0
+	if to_post.length() > 1.5:
+		var dir := to_post.normalized()
+		velocity.x = move_toward(velocity.x, dir.x * spd, 20.0 * delta)
+		velocity.z = move_toward(velocity.z, dir.z * spd, 20.0 * delta)
+		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 10.0 * delta)
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 16.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 16.0 * delta)
+
+
+func _do_seek(delta: float) -> void:
+	if seek_target == null or not is_instance_valid(seek_target) \
+			or (seek_target is ProtoStash and (seek_target as ProtoStash).taken):
+		state = DogState.FOLLOW if adopted else DogState.STRAY
+		return
+	var p: Dictionary = params()
+	var spd: float = p["speed"]
+	var to_s := seek_target.global_position - global_position
+	to_s.y = 0.0
+	if to_s.length() > 1.8:
+		var dir := to_s.normalized()
+		velocity.x = move_toward(velocity.x, dir.x * spd, 20.0 * delta)
+		velocity.z = move_toward(velocity.z, dir.z * spd, 20.0 * delta)
+		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 10.0 * delta)
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 16.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 16.0 * delta)
+
+
+## Chase a target and bite when in reach. Returns false if the target is gone.
+func _chase_and_bite(target: Node3D, delta: float) -> bool:
+	if target == null or not is_instance_valid(target) or target.get("dead") == true:
+		return false
+	var p: Dictionary = params()
+	var spd: float = p["speed"]
+	var to_t := target.global_position - global_position
+	to_t.y = 0.0
+	if to_t.length() > 1.5:
+		var dir := to_t.normalized()
+		velocity.x = move_toward(velocity.x, dir.x * spd, 22.0 * delta)
+		velocity.z = move_toward(velocity.z, dir.z * spd, 22.0 * delta)
+		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 12.0 * delta)
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
+		_bite(target)
+	return true
+
+
+func _bite(target: Node3D) -> void:
+	if _bite_cd > 0.0:
+		return
+	var p: Dictionary = params()
+	var dmg: float = p.get("bite", 0.0)
+	if dmg <= 0.0:
+		return
+	_bite_cd = 0.8
+	if target.has_method("take_damage"):
+		target.take_damage(dmg)
+	if target.has_method("knock_down") and randf() < float(p.get("bite_kd", 0.0)):
+		target.knock_down()
+
+
+func _nearest_threat_near(pos: Vector3, radius: float) -> Node3D:
+	var best: Node3D = null
+	var bd: float = radius
+	for node in get_tree().get_nodes_in_group("threat"):
+		var t := node as Node3D
+		if t and is_instance_valid(t):
+			var dd := t.global_position.distance_to(pos)
+			if dd < bd:
+				bd = dd
+				best = t
+	return best
 
 
 ## The law of dogs: scan for threats (rear arc counts extra) and stashes (Hunter).
