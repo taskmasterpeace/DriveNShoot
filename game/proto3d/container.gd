@@ -18,6 +18,7 @@ const ITEMS: Dictionary = {
 	"12ga": {"name": "12ga shells", "emoji": "•", "usable": false, "w": 0.05},
 	"rocket": {"name": "Rocket", "emoji": "🚀", "usable": false, "w": 1.5},
 	"wrench": {"name": "Wrench", "emoji": "🔧", "usable": true, "w": 1.4},
+	"eyepatch": {"name": "Eye patch", "emoji": "🏴‍☠️", "usable": true, "w": 0.05},
 	"machete": {"name": "Machete", "emoji": "🔪", "usable": true, "w": 1.1},
 	"grenade": {"name": "Grenade", "emoji": "💣", "usable": false, "w": 0.5},
 }

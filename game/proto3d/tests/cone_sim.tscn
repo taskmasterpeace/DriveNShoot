@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dconesim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/cone_sim.gd" id="1_cone"]
+
+[node name="ConeSim" type="Node"]
+script = ExtResource("1_cone")

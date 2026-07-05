@@ -266,3 +266,18 @@ on foot, and Hold X to extract.
 *   **Combat impact** — floating combat text: damage numbers rise off enemies, melee/bite hits
     can knock them flat with a big **KNOCKDOWN!**, and you see red numbers when you get hurt.
 *   **Proof:** dogmeta_sim 11/11 · full suite green (dog/stage4/fight/arsenal/m1/container).
+
+## 27. PERCEPTION v2 — your eyes, not the camera's (2026-07-05)
+*   **The zoom exploit is dead** — sight is measured in WORLD METERS now. Zoom the camera
+    all the way out and you see the same 36m your character sees; the dark just scales with
+    it. (Proven: 55.0m -> 55.0m across full zoom while the screen circle scaled 5x.)
+*   **True sight RANGE** — even inside your arc, the world dims beyond what your character
+    can actually see. Which means…
+*   **Binoculars finally MATTER** — they extend your true sight to 120m in a narrow lens.
+    Before, zoom could fake it; now glassing is the only way to see far.
+*   **🏴‍☠️ The eye patch** — wear it (safehouse chest, USE to toggle) and your arc halves:
+    one eye, half the world. First proof that traits/gear reshape perception — Eagle-Eyed,
+    helmets, and headgear all plug into the same two dials.
+*   **Dog snapshot** — when your dog alerts, a sight-bubble blooms where it smelled the
+    threat: its senses literally become yours for a breath. Works for Hunter loot-pings too.
+*   **Proof:** cone_sim 6/6 · vision_sim 6/6 unregressed.

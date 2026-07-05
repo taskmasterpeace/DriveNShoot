@@ -22,6 +22,17 @@ var body: Dictionary = {}   ## part -> Damageable
 var hp: float = 100.0
 var dead: bool = false
 
+## Perception traits/gear (INTERFACE_AND_BODY: headgear trades protection vs cone).
+## Eye patch: one eye = half the arc. Eagle-eyed traits raise these later.
+var vision_arc_mult: float = 1.0
+var vision_range_mult: float = 1.0
+var eyepatch: bool = false
+
+
+func set_eyepatch(on: bool) -> void:
+	eyepatch = on
+	vision_arc_mult = 0.5 if on else 1.0
+
 
 func _init() -> void:
 	for id in SKILLS:

@@ -121,7 +121,7 @@ func _ready() -> void:
 	# A supply chest inside the safehouse — same interface as every trunk.
 	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
-	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10})
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -354,7 +354,8 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		var aim := cam_rig.binocular_aim_dir()
 		if aim.length_squared() > 0.01:
 			facing = aim
-	vision_cone.update_cone(cam, body.global_position, facing, params, delta)
+	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
+		character.vision_arc_mult, character.vision_range_mult)
 
 
 var _hotwire_t: float = 0.0
@@ -525,6 +526,9 @@ func _nearest_loot() -> Node3D:
 
 func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
 	last_dog_alert = {"dog": dog.dog_name, "behind": behind, "at": Time.get_ticks_msec()}
+	# The dog's senses become YOURS: a snapshot bubble where it smelled the threat.
+	if _threat and is_instance_valid(_threat):
+		vision_cone.reveal_at(_threat.global_position)
 	var bark: String = dog.params()["bark"]
 	audio.play_at("growl" if dog.dog_type == ProtoDog.DogType.SECURITY else "bark", dog.global_position)
 	if behind:
@@ -536,6 +540,8 @@ func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
 
 func on_dog_nose(dog: ProtoDog, stash: Node3D) -> void:
 	last_dog_nose = {"dog": dog.dog_name, "stash": stash}
+	if stash and is_instance_valid(stash):
+		vision_cone.reveal_at(stash.global_position)
 	hud.toast("🐕 %s points — something's stashed nearby" % dog.dog_name)
 
 
@@ -602,6 +608,10 @@ func open_container(theirs: ProtoContainer) -> void:
 
 ## Item effects (data → verb). Returns true if consumed.
 func use_item(id: String) -> bool:
+	if id == "eyepatch":
+		character.set_eyepatch(not character.eyepatch)
+		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
+		return false # toggles; never consumed
 	if ProtoWeapon.WEAPONS.has(id):
 		for w in weapons:
 			if w.id == id:
