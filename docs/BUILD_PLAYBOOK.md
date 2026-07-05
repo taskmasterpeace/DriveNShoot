@@ -66,6 +66,15 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+**2026-07-04 (final):** **STAGE 2 COMPLETE.** Arsenal live (3 guns/3 behaviors, ammo-from-backpack,
+tracers, corpse loot), **ProtoAudio** synthesized soundscape (11 streams, engine pitch w/ speed,
+fire crackle — zero assets), containers polished (Take All, sorted, blips), dogs unstuck-logic.
+Suite (10 sims) all green: m1 21 · dog 12 · car 14 · moodle 9 · vision 6 · container 11 · walk 14
+· arsenal 8 · audio 5 · drive in-band. GOTCHAS: pipe `grep|head` on live sims BUFFERS AND HANGS —
+always redirect sims to files; `var x := main.dyn_call()` can't infer (type it); convergence
+checks > time snapshots. NEXT: **Stage 3** — progression engine (skill xp→thresholds) + body
+paper-doll (6-part, health-cap) + character sheet, per `STAGES.md` + `INTERFACE_AND_BODY.md`.
+
 **2026-07-04 (cont):** Stage 0+1 SHIPPED (M1 21/21) · dogs (11/11) + Stress vital · moodle corner
 (9/9, meters deleted) · vision cone v1 (6/6) · **Stage 2 Living Car core LANDING:** Damageable
 component (multi-use), 5-part anatomy, tier→physics effects (engine power, tire grip, battery/fuel
