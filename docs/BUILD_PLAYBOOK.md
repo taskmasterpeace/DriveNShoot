@@ -66,6 +66,13 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+**2026-07-05: STAGE 3 COMPLETE** (12 sims green, + nav_sim 8/8): RPG spine (skills-by-use w/
+effects, 6-part body, HEALTH CAP, K sheet, permadeath+R-restart) + waypoint arrow (N cycles
+Safehouse/Kennel/Your-Car) + encumbrance (weights, 🎒/🐢 moodle, CARRY_CAP = STR hook).
+NEXT: **Stage 4 Combat Depth** — melee (light/heavy, stamina-gated, quiet vs guns), throwables
+(grenade arc + molotov reusing car-fire), reticle bloom UI, then car weapon mounts (M3 bridge) —
+per `COMBAT_AND_GEAR.md`. After: Stage 5 world streaming (the big one).
+
 **2026-07-04 (Stage 3 core):** RPG spine SHIPPED (stage3_sim 12/12): ProtoCharacter — skills
 level by use (Mechanics→faster hotwire, Marksmanship→tighter spread, Driving→by miles), 6-part
 body on Damageable, **HEALTH CAP** (wounds drop max hp; bandage treats worst part), character
