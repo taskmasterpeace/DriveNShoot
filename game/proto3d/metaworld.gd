@@ -73,13 +73,27 @@ func hydrate(rec: Dictionary) -> void:
 
 
 ## The single stubbed off-screen roll (deterministic hook for sims via force_raid).
+## HOME MATTERS now: walls thin the odds for anything guarding inside the ring.
 func offscreen_event(rec: Dictionary) -> void:
-	if _rng.randf() < 0.4:
+	var chance := 0.4
+	if _at_home(rec):
+		chance = 0.4 / (1.0 + float(main.homebase.walls_tier())) # walls III = a quarter the raids
+	if _rng.randf() < chance:
 		force_raid(rec, 30.0)
 
 
 func force_raid(rec: Dictionary, dmg: float) -> void:
 	rec["hp"] = rec.get("hp", 50.0) - dmg
 	rec["wounded"] = true
+	# The KENNEL upgrade holds the line: a home dog gets hurt, never taken.
+	if _at_home(rec) and main.homebase.owned.has("kennel"):
+		rec["hp"] = maxf(8.0, rec["hp"])
 	if rec["hp"] <= 0.0:
 		rec["killed"] = true
+
+
+func _at_home(rec: Dictionary) -> bool:
+	if main == null or not ("homebase" in main) or main.homebase == null:
+		return false
+	var p: Vector3 = rec.get("pos", Vector3.ZERO)
+	return Vector2(p.x, p.z).distance_to(Vector2(ProtoHomebase.HOME.x, ProtoHomebase.HOME.z)) < ProtoHomebase.HOME_R + 15.0

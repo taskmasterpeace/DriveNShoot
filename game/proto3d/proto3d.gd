@@ -266,6 +266,7 @@ var radio: ProtoRadio = null
 var carousel: ProtoCarousel = null
 var events: ProtoEvents = null
 var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
+var homebase: ProtoHomebase = null
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -337,6 +338,9 @@ func _build_environment() -> void:
 	# The calendar has plans (daily/weekly events) + the rulers read your ledger.
 	events = ProtoEvents.create(self)
 	add_child(events)
+	# HOME: the build board by the safehouse door — scrap's sink, the base game.
+	homebase = ProtoHomebase.create(self)
+	add_child(homebase)
 	if FileAccess.file_exists("res://data/rulers.json"):
 		var rj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/rulers.json"))
 		if rj is Dictionary:
