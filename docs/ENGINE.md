@@ -1,5 +1,7 @@
 # DRIVN Engine — Master Specification
 
+> ⚠️ **STATUS is not authoritative here — see [docs/HANDOFF.md §2](HANDOFF.md) for what is actually built vs. designed.** This spec describes the *intended* engine; parts of it (tanks/treads, the turret mount) are over-claimed as done. Read for vision, not for state.
+
 **Codename:** DRIVN (working name — from the repo, DriveNShoot; rename anytime)
 **Vision:** *Autoduel × GTA2-modern, in the DIVIDED STATES OF AMERICA* (lore bible: `DIVIDED_STATES.md`). A top-down 3D open-country
 survival engine: drive across a compressed America, pull off any exit, get out of the car,

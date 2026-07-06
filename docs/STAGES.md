@@ -1,5 +1,7 @@
 # DRIVN — The Stages (master build plan, beginning → end)
 
+> ⚠️ **This roadmap LAGS the code — see [docs/HANDOFF.md §2](HANDOFF.md) for the real state.** Several stages marked *future/unclear* here (living car, body/health, aim-cone) are substantially BUILT. Trust HANDOFF §2 for status; this doc for the *shape* of the plan.
+
 **Status:** LIVING ROADMAP · **Created:** 2026-07-04
 **This is the one document** that orders the whole build, start to finish. Each stage links to
 its deep-dive spec. Stages ship as `/goal` loops — each ends **sim-proven + playable**.

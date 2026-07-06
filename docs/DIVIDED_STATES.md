@@ -1,5 +1,7 @@
 # THE DIVIDED STATES OF AMERICA — Lore Bible
 
+> ⚠️ **Lore ≠ shipped features — see [docs/HANDOFF.md §2](HANDOFF.md).** This bible promises 50 distinct rulers, a Carousel key-economy and misjump risk; the code has ~14 `rulers.json` rows and a border-standing slice. Read for world *fiction*, not for implemented systems. *(The code-rename section IS done — that sweep shipped.)*
+
 **Last Updated:** 2026-07-06 · **Status:** canon reference. Keep it terse — this is a table, not a novel.
 
 ---
