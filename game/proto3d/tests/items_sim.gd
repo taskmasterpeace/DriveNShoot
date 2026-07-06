@@ -70,6 +70,9 @@ func _physics_process(delta: float) -> void:
 					if not items.has(lid):
 						all_real = false
 				_check("every rolled item is a real catalog row (%s)" % str(rollA.keys()), all_real and not rollA.is_empty())
+				# PRICES read-back: field_ration is priced ONLY in data/prices.json now.
+				_check("a JSON price folded in (field_ration = 6 scrip from prices.json)",
+					ProtoNPC.PRICES.get("field_ration", -1) == 6)
 				_check("Mercy actually stocks the new goods", ProtoNPC.ARCHETYPES["trader"]["stock"].has("medkit")
 					and ProtoNPC.ARCHETYPES["trader"]["stock"].has("jerry_can"))
 				_next()

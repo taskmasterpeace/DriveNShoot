@@ -32,16 +32,37 @@ const ARCHETYPES: Dictionary = {
 }
 
 ## Base prices (scrip) — the Respect Ledger's price_mult scales them per faction.
-const PRICES: Dictionary = {
+# Code floor; data/prices.json folds ADDITIVELY on top via ensure_prices() (same
+# spine pattern as ProtoContainer.ITEMS). A JSON row prices a new item without code.
+static var PRICES: Dictionary = {
 	"bandage": 12, "meat": 6, "9mm": 1, "12ga": 2, "grenade": 18, "scrap": 4,
 	"wrench": 10, "machete": 25, "axe": 35, "bat": 20, "pistol": 40, "shotgun": 60, "rocket": 15,
 	"pipe_rocket": 75, "eyepatch": 8, "drone": 55,
 	"medkit": 30, "painkillers": 10, "water": 5, "coffee": 7, "canned_food": 8,
 	"whiskey": 14, "jerry_can": 22, "car_parts": 28, "tire_kit": 16,
 	"duct_tape": 6, "flare": 5, "map_fragment": 20,
-	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2, "field_ration": 6, # field_ration: added the data-driven way (items.json row)
+	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2,
 	"targeting_core": 200, "mount_schematic": 120, # priced so Mercy CAN — selling Cheyenne's brain is your funeral
 }
+
+static var _prices_folded: bool = false
+## Data-spine read-back for PRICES (roadmap #3, NPC slice): fold data/prices.json
+## additively onto the code floor. A JSON {id, price} row prices a new item with no
+## code. Existing ids are left alone (code authoritative). Idempotent, boot-time.
+static func ensure_prices() -> void:
+	if _prices_folded:
+		return
+	_prices_folded = true
+	var path := "res://data/prices.json"
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	for row in (parsed as Dictionary).get("prices", []):
+		var pid: String = String((row as Dictionary).get("id", ""))
+		if pid != "" and not PRICES.has(pid):
+			PRICES[pid] = int((row as Dictionary).get("price", 0))
 
 var archetype: String = "trader"
 var npc_name: String = ""
