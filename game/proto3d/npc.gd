@@ -129,6 +129,18 @@ func _physics_process(delta: float) -> void:
 ## Each archetype ACTS ITS PART by overlaying character on the base rig.
 func _act_overlay(delta: float) -> void:
 	_act_t += delta
+	# The town DRAWS on a suspect: security stops scanning and SIGHTS you the
+	# moment the ledger marks you. Redemption (standing back to neutral) relaxes it.
+	if archetype == "secman":
+		var m := get_tree().current_scene
+		if m == null or not ("respect" in m):
+			m = get_parent()
+		if m != null and "respect" in m and m.respect != null:
+			var base_act: String = ARCHETYPES[archetype]["act"]
+			act = "aim_crouch" if m.respect.standing(FACTION) == "SUSPECT" else base_act
+			if act == base_act and _crouched:
+				_crouched = false
+				_puppet.position.y = 0.0
 	match act:
 		"gesture":
 			# A trader talks with his hands: the free arm lifts in a slow, repeating gesture.
@@ -187,6 +199,21 @@ func interact_prompt(main: Node) -> String:
 			return "E — Ask %s about WORK" % npc_name
 
 
+## The town REMEMBERS (goal: standing visibly changes the place): greetings warm
+## with your name, and the MARKET GROWS — each earned tier unlocks stock that
+## stays unlocked. Prices already ride the ledger (price_mult); this is the part
+## you can SEE.
+const TIER_STOCK: Dictionary = {
+	"TRUSTED": {"medkit": 2, "grenade": 3, "coffee": 3, "car_parts": 1},
+	"HERO": {"pipe_rocket": 1, "rocket": 3, "power_cell": 2, "drone": 1},
+}
+const TIER_GREET: Dictionary = {
+	"TRUSTED": "Mercy: 'There you are. Kept the good shelf stocked for you.'",
+	"HERO": "Mercy: 'The hero of Meridian shops FREE— …kidding. But look at the back room.'",
+}
+var _stocked_tiers: Dictionary = {}
+
+
 func interact(main: Node) -> void:
 	if main.respect.standing(FACTION) == "SUSPECT":
 		main.notify(ARCHETYPES[archetype]["refuse"])
@@ -194,7 +221,13 @@ func interact(main: Node) -> void:
 	if role == "hire":
 		main.hire_companion(self)
 	elif role == "trade":
-		main.notify(ARCHETYPES[archetype]["greet"])
+		var st: String = main.respect.standing(FACTION)
+		main.notify(TIER_GREET.get(st, ARCHETYPES[archetype]["greet"]))
+		if TIER_STOCK.has(st) and not _stocked_tiers.has(st):
+			_stocked_tiers[st] = true
+			for id in TIER_STOCK[st]:
+				stock.add(id, TIER_STOCK[st][id])
+			main.notify("🏪 The market GREW — %s earned Mercy's %s shelf" % [main.respect.standing(FACTION), st])
 		main.open_trade(self)
 	else:
 		main.secman_talk(self)

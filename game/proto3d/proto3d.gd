@@ -260,6 +260,9 @@ func _ready() -> void:
 
 
 var daynight: ProtoDayNight = null
+var weather: ProtoWeather = null
+var radio: ProtoRadio = null
+var carousel: ProtoCarousel = null
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -320,6 +323,14 @@ func _build_environment() -> void:
 	daynight = ProtoDayNight.new()
 	add_child(daynight)
 	daynight.setup(_sun, _env)
+	# The SKY has opinions too: dust/rain/heat tax sight, grip, and the engine.
+	weather = ProtoWeather.create(self)
+	add_child(weather)
+	# The AIRWAVES (Y to scan) and THE CAROUSEL (the ring under the bases).
+	radio = ProtoRadio.create(self)
+	add_child(radio)
+	carousel = ProtoCarousel.create(self)
+	add_child(carousel)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -341,6 +352,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.open(backpack, active_car.trunk) # reach the trunk from the seat
 			else:
 				panel.open(backpack, null) # just your pack
+		elif kc == KEY_Y:
+			radio.scan() # sweep the dial — the wasteland talks if you listen
 		elif kc == KEY_F10:
 			# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
 			if devmode == null:
@@ -562,9 +575,11 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	# NIGHT is the other clamp: after dark you simply see LESS — how much less is
 	# the MOON's call. HEADLIGHTS carve it back open: driving with the lamps on,
 	# the beam is your sight (this is why night driving works at all).
-	var range_mult := character.vision_range_mult * daynight.vision_mult()
+	# WEATHER is the third clamp: a dust storm strips even noon down to arm's
+	# length — and headlights can't carve through dust like they carve night.
+	var range_mult := character.vision_range_mult * daynight.vision_mult() * weather.vision_mult()
 	if mode == Mode.DRIVE and active_car and active_car.headlights_on:
-		range_mult = maxf(range_mult, character.vision_range_mult * 0.85)
+		range_mult = maxf(range_mult, character.vision_range_mult * 0.85 * weather.vision_mult())
 	_refresh_sight_exclusions()
 	var reach: float = maxf(params[2] * clampf(range_mult, 0.12, 2.0), params[1])
 	var occl := _cast_sight_fan(body.global_position, reach)
@@ -592,7 +607,7 @@ func _update_recon_tags(binoc: bool) -> void:
 		if dir.length_squared() < 0.01:
 			dir = player.aim_facing()
 		var half: float = ProtoVisionCone.MODE_BINOC[0] * character.vision_arc_mult
-		var reach: float = ProtoVisionCone.MODE_BINOC[2] * character.vision_range_mult * daynight.vision_mult()
+		var reach: float = ProtoVisionCone.MODE_BINOC[2] * character.vision_range_mult * daynight.vision_mult() * weather.vision_mult()
 		var eye := origin + Vector3(0, 1.5, 0)
 		var found: Array = []
 		for g in ["threat", "proto_dog", "npc", "interactable"]:
@@ -1973,6 +1988,8 @@ func notify(text: String) -> void:
 func _update_location_label() -> void:
 	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
 	var clock := "%s · " % daynight.clock_text()
+	if weather != null and weather.state != "clear":
+		clock = "%s %s · %s" % [weather.icon(), weather.label(), clock] # the sky leads the headline
 	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
 		hud.set_location(clock + "MERIDIAN — POP. UNKNOWN")
 		return

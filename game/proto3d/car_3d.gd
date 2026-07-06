@@ -737,10 +737,10 @@ func _physics_process(delta: float) -> void:
 	var surf_grip: float = surface_grip_mult()
 	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
-		w.wheel_friction_slip = grip_front * grip_mult
+		w.wheel_friction_slip = grip_front * grip_mult * ProtoWeather.grip_now # rain kills grip (weather law)
 	var rear_base := handbrake_grip_rear if input_handbrake else grip_rear
 	for w in _rear_wheels:
-		w.wheel_friction_slip = rear_base * grip_mult
+		w.wheel_friction_slip = rear_base * grip_mult * ProtoWeather.grip_now
 
 	if input_throttle > 0.0 and engine_mult > 0.0:
 		fuel = maxf(0.0, fuel - fuel_drain_rate * input_throttle * delta)

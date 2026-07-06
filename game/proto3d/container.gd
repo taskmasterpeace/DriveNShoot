@@ -38,6 +38,7 @@ const ITEMS: Dictionary = {
 	"map_fragment": {"name": "Map fragment", "emoji": "🗺️", "usable": true, "w": 0.1, "cat": "tool", "desc": "Somebody's road knowledge — marks a town on YOUR map."},
 	"eyepatch": {"name": "Eye patch", "emoji": "🏴‍☠️", "usable": true, "w": 0.05, "cat": "tool", "desc": "One eye, half the arc. Looks great."},
 	"drone": {"name": "Scout drone", "emoji": "🛸", "usable": true, "w": 3.0, "cat": "tool", "desc": "USE deploys the bird — it patrols and pings threats."},
+	"power_cell": {"name": "Power cell", "emoji": "🔋", "usable": false, "w": 0.4, "cat": "tool", "desc": "Mil-spec charge brick. The Carousel drinks one per jump."},
 	# -- loot --
 	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false, "w": 1.2, "cat": "loot", "desc": "The wasteland's raw material."},
 	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false, "w": 0.02, "cat": "loot", "desc": "What passes for money out here."},
