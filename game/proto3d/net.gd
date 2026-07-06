@@ -107,22 +107,71 @@ func tick(delta: float) -> void:
 	if _sync_t < 1.0 / SYNC_HZ:
 		return
 	_sync_t = 0.0
+	push_state.rpc(local_state())
+	# The HOST owns the shared world: it streams the enemies so every client
+	# fights the SAME howler pack, not its own private copy.
+	if is_server():
+		var es: Array = _main.net_enemy_states()
+		if not es.is_empty() or _last_enemy_count > 0:
+			_last_enemy_count = es.size()
+			sync_enemies.rpc(es)
+
+
+var _last_enemy_count: int = 0
+
+
+## MY body this frame — on foot OR at the wheel. A driving peer syncs the CAR
+## (class + transform) so the others see a real rig on the road, not a body
+## frozen where it parked. Stamped with a monotonic seq for interpolation.
+func local_state() -> Dictionary:
+	_seq += 1
 	var p: ProtoPlayer3D = _main.player
-	var st := {"pos": [p.global_position.x, p.global_position.y, p.global_position.z],
-		"byaw": p.body_yaw, "ayaw": p.aim_yaw, "hurt": p.hurt,
-		"armed": p._gun != null and p._gun.visible}
-	push_state.rpc(st)
+	var st := {"seq": _seq, "hurt": p.hurt}
+	if _main.mode == _main.Mode.DRIVE and _main.active_car != null and is_instance_valid(_main.active_car):
+		var c: ProtoCar3D = _main.active_car
+		st["drive"] = true
+		st["vclass"] = c.vclass
+		st["pos"] = [c.global_position.x, c.global_position.y, c.global_position.z]
+		st["byaw"] = c.global_rotation.y
+	else:
+		st["drive"] = false
+		st["pos"] = [p.global_position.x, p.global_position.y, p.global_position.z]
+		st["byaw"] = p.body_yaw
+		st["ayaw"] = p.aim_yaw
+		st["armed"] = p._gun != null and p._gun.visible
+	return st
+
+var _seq: int = 0
 
 
 ## Any client → everyone: here is my body this frame. (The sender's id is implicit.)
 @rpc("any_peer", "unreliable_ordered", "call_remote")
 func push_state(st: Dictionary) -> void:
-	var from: int = multiplayer.get_remote_sender_id()
-	ingest_state(from, st)
+	ingest_state(multiplayer.get_remote_sender_id(), st)
+
+
+## Host → clients: the authoritative enemy roster (id → {kind, pos, byaw, hp}).
+@rpc("authority", "unreliable_ordered", "call_remote")
+func sync_enemies(states: Array) -> void:
+	if _main.has_method("net_apply_enemies"):
+		_main.net_apply_enemies(states)
 
 
 ## Apply a peer's state (also the seam sims drive directly, no socket needed).
 func ingest_state(from: int, st: Dictionary) -> void:
+	# INTERPOLATION BUFFER: keep the last two states per peer + a wall-clock stamp
+	# so the body plays motion BETWEEN snapshots instead of snapping to the newest
+	# (kills the 20 Hz rubber-band). Out-of-order packets are dropped by seq.
+	var buf: Array = peer_buffer.get(from, [])
+	if not buf.is_empty() and int(st.get("seq", 0)) <= int(buf[-1].get("seq", 0)):
+		return # stale/duplicate
+	buf.append(st)
+	while buf.size() > 3:
+		buf.pop_front()
+	peer_buffer[from] = buf
 	peer_state[from] = st
 	if _main.has_method("net_apply_peer"):
 		_main.net_apply_peer(from, st)
+
+
+var peer_buffer: Dictionary = {} ## peer_id -> [recent states] for interpolation

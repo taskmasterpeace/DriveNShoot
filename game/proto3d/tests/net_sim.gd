@@ -82,6 +82,44 @@ func _ready() -> void:
 	# --- The transport API is sane (host/join don't exist yet, offline) ---------
 	_check("ProtoNet reports offline before connect", not main.net.online and main.net.my_id() == 1)
 
+	# --- NETCODE v2: a DRIVING peer syncs a real CAR ----------------------------
+	var carpos: Vector3 = main.player.global_position + Vector3(60, 1, 0)
+	main.net_apply_peer(3, {"drive": true, "vclass": "pickup",
+		"pos": [carpos.x, carpos.y, carpos.z], "byaw": 0.7, "seq": 1})
+	await get_tree().physics_frame
+	var rcar: ProtoCar3D = main.remote_cars.get(3)
+	_check("a driving peer shows a REAL rig on the road (pickup)", rcar != null and rcar.vclass == "pickup")
+	_check("…and their on-foot body HIDES while driving", not main.remote_players[3].visible)
+	# Step out of the car → the rig despawns, the body returns.
+	main.net_apply_peer(3, {"drive": false, "pos": [carpos.x, 0.5, carpos.z], "byaw": 0.0, "ayaw": 0.0, "seq": 2})
+	await get_tree().physics_frame
+	_check("stepping out despawns the rig, shows the body", not main.remote_cars.has(3) and main.remote_players[3].visible)
+
+	# --- INTERPOLATION: out-of-order packets are dropped by seq -----------------
+	main.net.ingest_state(3, {"drive": false, "pos": [999, 0, 999], "seq": 10})
+	var far: Vector3 = main.remote_players[3].global_position
+	main.net.ingest_state(3, {"drive": false, "pos": [0, 0, 0], "seq": 5}) # stale — must be ignored
+	_check("stale/out-of-order packets are DROPPED (seq guard)",
+		main.net.peer_state[3]["seq"] == 10 and main.net.peer_buffer[3].size() <= 3)
+
+	# --- HOST-AUTHORITATIVE ENEMIES: one owner, shared pack ---------------------
+	# As the host would: enemy states stream out.
+	main.daynight.hour = 0.0
+	main.spawn_howler_pack(main.player.global_position + Vector3(20, 0, 0), 2)
+	await get_tree().physics_frame
+	var states: Array = main.net_enemy_states()
+	_check("the host STREAMS its enemies (%d)" % states.size(), states.size() >= 2)
+	# As a client would: apply the stream → ghosts appear, no local AI needed.
+	main.enemy_ghosts.clear()
+	main.net_apply_enemies(states)
+	await get_tree().physics_frame
+	_check("a client renders the SAME pack as GHOSTS (%d)" % main.enemy_ghosts.size(), main.enemy_ghosts.size() == states.size())
+	# The host says one died → the client's ghost is culled.
+	states.pop_back()
+	main.net_apply_enemies(states)
+	await get_tree().physics_frame
+	_check("a killed enemy's ghost is CULLED on the clients", main.enemy_ghosts.size() == states.size())
+
 	Engine.time_scale = 1.0
 	print("NET RESULTS: %d passed, %d failed" % [passed, failed])
 	print("NET: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

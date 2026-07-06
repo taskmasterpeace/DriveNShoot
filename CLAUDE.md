@@ -45,7 +45,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Respect | `respect.gd` | per-faction/state ledger → prices, standing, refusals, market growth |
 | Character | `character.gd` | 10 skills level-by-doing; 6-part paper-doll; hp cap; wound taxes |
 | Save/load | `save_game()` (F5/F9) | one file: player/dogs/ring/home/ledger/clock/circuit |
-| Multiplayer | `net.gd` (F7 host/F8 join) | ENet co-op: remote players are real combatants, client-authoritative state sync ~20Hz; net_loopback.sh = live 2-process proof |
+| Multiplayer | `net.gd` (F7/F8) | ENet co-op: remote players+VEHICLES sync (client-authoritative 20Hz, seq-interpolated), HOST-authoritative enemies (clients ghost, suppress own sim); net_loopback.sh live proof |
 | Audio/VO | `audio.gd` + `tools/soundforge/` | 57 SFX + 11 TTS lines in 4 LOCKED voices (`voices.json` — never change a voice_id) |
 
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)

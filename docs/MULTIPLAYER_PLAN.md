@@ -3,8 +3,11 @@
 > **STATUS 2026-07-06: 3D CO-OP SLICE LIVE.** `game/proto3d/net.gd` (ProtoNet): ENet host/join
 > (F7/F8), remote players spawn as real `combatant` bodies, client-authoritative state sync ~20Hz.
 > Proven: `net_sim` (seams, in-process) + `tools/net_loopback.sh` (two live ENet processes connect).
-> Remaining: vehicle-state sync, host-authoritative enemy/ring replication, interest management,
-> a main-menu host/join flow. The 2D NetworkManager below is the prior-art reference.
+> v2 (2026-07-06): VEHICLE sync (driving peers show a real rig), snapshot INTERPOLATION
+> (seq-guarded 2-3 state buffer, no rubber-band), HOST-AUTHORITATIVE enemies (host streams
+> the pack, clients ghost it + suppress their own director) — `net_sim` 16 checks.
+> Remaining: interest management (AoI) for 32-scale, host-authoritative ring/world, a
+> main-menu host/join flow. The 2D NetworkManager below is the prior-art reference.
 
 ## STATUS (2026-06-11): core netcode protocol BUILT + verified cross-process
 

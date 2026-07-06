@@ -562,7 +562,8 @@ func _physics_process(delta: float) -> void:
 	for c in cars:
 		if is_instance_valid(c):
 			c.set_headlights(daynight.is_dark())
-	_update_night_pack(delta)
+	if not net_is_client(): # a client's threats come from the host, not its own director
+		_update_night_pack(delta)
 	_update_skill_trickle(delta)
 	_update_reload(delta)
 	sview.update_view(self)
@@ -1722,6 +1723,8 @@ func hire_companion(npc: ProtoNPC) -> void:
 
 ## A pack materializes out of the dark — the howl is your only warning.
 func spawn_howler_pack(origin: Vector3, count: int = 3) -> void:
+	if net_is_client():
+		return # the HOST owns the pack — a client sees it as ghosts, never spawns its own
 	for i in count:
 		var h := ProtoHowler.create(self)
 		add_child(h)
@@ -2214,6 +2217,14 @@ func reload_content() -> Dictionary:
 # through the one damage law. -----------------------------------------------------
 var net: ProtoNet = null
 var remote_players: Dictionary = {} ## peer_id -> ProtoPlayer3D
+var remote_cars: Dictionary = {}    ## peer_id -> ProtoCar3D (a peer at the wheel)
+var enemy_ghosts: Dictionary = {}   ## host enemy instance_id -> ghost body (on clients)
+
+
+## True on a CLIENT (online, not the host) — it must NOT sim its own enemies/world;
+## the host is authoritative and streams them. Offline/host both run the world.
+func net_is_client() -> bool:
+	return net != null and net.online and not net.is_server()
 
 
 func _ensure_net() -> void:
@@ -2243,7 +2254,9 @@ func _net_despawn_peer(id: int) -> void:
 		remote_players.erase(id)
 
 
-## Net → world: a peer's latest body state. Late joiners spawn on first sight.
+## Net → world: a peer's latest body state. A DRIVING peer shows a real rig on
+## the road (its on-foot body hides); an on-foot peer shows the body (its car,
+## if any, despawns). Late joiners spawn on first sight.
 func net_apply_peer(id: int, st: Dictionary) -> void:
 	if not remote_players.has(id):
 		_net_spawn_peer(id)
@@ -2251,9 +2264,85 @@ func net_apply_peer(id: int, st: Dictionary) -> void:
 	if body == null or not is_instance_valid(body):
 		return
 	var p: Array = st.get("pos", [0, 0, 0])
-	body.apply_remote_state(Vector3(float(p[0]), float(p[1]), float(p[2])),
-		float(st.get("byaw", 0.0)), float(st.get("ayaw", 0.0)), float(st.get("hurt", 0.0)))
-	body.set_armed(bool(st.get("armed", false)))
+	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
+	if bool(st.get("drive", false)):
+		# The peer is at the wheel: drive a REMOTE car; park their body inside it.
+		var car: ProtoCar3D = remote_cars.get(id)
+		if car == null or not is_instance_valid(car) or car.vclass != String(st.get("vclass", "scavenger")):
+			if car != null and is_instance_valid(car):
+				car.queue_free()
+			car = ProtoCar3D.create(String(st.get("vclass", "scavenger")), Color(0.3, 0.4, 0.55))
+			car.use_player_input = false
+			car.set_physics_process(false) # it's a puppet — the driver's client owns the physics
+			add_child(car)
+			remote_cars[id] = car
+		car.global_position = car.global_position.lerp(pos, 0.35)
+		car.global_rotation.y = lerp_angle(car.global_rotation.y, float(st.get("byaw", 0.0)), 0.35)
+		body.visible = false
+		body.global_position = pos
+	else:
+		if remote_cars.has(id) and is_instance_valid(remote_cars[id]):
+			remote_cars[id].queue_free()
+			remote_cars.erase(id)
+		body.visible = true
+		body.apply_remote_state(pos, float(st.get("byaw", 0.0)),
+			float(st.get("ayaw", 0.0)), float(st.get("hurt", 0.0)))
+		body.set_armed(bool(st.get("armed", false)))
+
+
+# --- HOST-AUTHORITATIVE ENEMIES: the host owns the howlers + lurkers so every
+# client fights the SAME pack. The host streams their transforms; clients render
+# GHOSTS and suppress their own enemy sim (net_is_client gates the spawners). ----
+
+func net_enemy_states() -> Array:
+	var out: Array = []
+	for grp in ["threat"]:
+		for e in get_tree().get_nodes_in_group(grp):
+			if e is Node3D and is_instance_valid(e) and not (e is ProtoPlayer3D) \
+					and not (e is ProtoCompanion) and not e.is_in_group("net_ghost"):
+				var kind := "lurker"
+				if e is ProtoHowler:
+					kind = "howler"
+				out.append({"id": e.get_instance_id(), "kind": kind,
+					"pos": [e.global_position.x, e.global_position.y, e.global_position.z],
+					"byaw": (e as Node3D).rotation.y})
+	return out
+
+
+func net_apply_enemies(states: Array) -> void:
+	var seen: Dictionary = {}
+	for s in states:
+		var eid: int = int(s["id"])
+		seen[eid] = true
+		var g: Node3D = enemy_ghosts.get(eid)
+		if g == null or not is_instance_valid(g):
+			g = _make_enemy_ghost(String(s.get("kind", "lurker")))
+			add_child(g)
+			enemy_ghosts[eid] = g
+		var p: Array = s["pos"]
+		g.global_position = g.global_position.lerp(Vector3(float(p[0]), float(p[1]), float(p[2])), 0.4)
+		g.rotation.y = float(s.get("byaw", 0.0))
+	for eid in enemy_ghosts.keys():
+		if not seen.has(eid): # the host says it's gone (killed / despawned)
+			if is_instance_valid(enemy_ghosts[eid]):
+				enemy_ghosts[eid].queue_free()
+			enemy_ghosts.erase(eid)
+
+
+## A lightweight visual stand-in for a host-owned enemy (clients don't sim AI).
+func _make_enemy_ghost(kind: String) -> Node3D:
+	var n := StaticBody3D.new()
+	n.add_to_group("net_ghost")
+	var mesh := MeshInstance3D.new()
+	var bm := CapsuleMesh.new()
+	bm.radius = 0.34
+	bm.height = 1.5
+	mesh.mesh = bm
+	mesh.material_override = ProtoWorldBuilder.material(
+		Color(0.16, 0.13, 0.11) if kind == "howler" else Color(0.12, 0.11, 0.10), 1.0)
+	mesh.position.y = 0.75
+	n.add_child(mesh)
+	return n
 
 
 # --- SAVE / LOAD (the biggest missing single-player feature — player_record was
