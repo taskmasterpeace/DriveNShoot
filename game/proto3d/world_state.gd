@@ -31,6 +31,17 @@ static var LAWS: Dictionary = {
 }
 static var _laws_folded := false
 
+## Display names for the factions that can hold a state (the briefing reads these).
+const FACTION_NAMES: Dictionary = {
+	"free_counties": "the Free Counties",
+	"broadcast_church": "the Broadcast Church",
+	"corporate_corridor": "the Corporate Corridor",
+	"federal_remnant": "the Federal Remnant",
+}
+
+static func faction_name(id: String) -> String:
+	return String(FACTION_NAMES.get(id, id))
+
 ## Fold data/law_profiles.json onto the code floor, once. New ids only (floor wins).
 static func ensure_laws() -> void:
 	if _laws_folded:

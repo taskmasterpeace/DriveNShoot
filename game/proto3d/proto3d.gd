@@ -374,6 +374,12 @@ func _build_environment() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# THE RETURN BRIEFING owns the screen first: any key/click steps you into the day.
+	if hud != null and hud.briefing_shown():
+		if (event is InputEventKey and event.pressed and not event.echo) \
+			or (event is InputEventMouseButton and event.pressed):
+			dismiss_briefing()
+		return
 	if menu_open:
 		return # the title menu owns the input until you pick a door
 	if event.is_action_pressed("interact"):
@@ -2630,20 +2636,53 @@ func load_game() -> bool:
 ## changed before stepping outside — days passed, who took what, what's now contraband in
 ## your kit, and the bulletins the world queued. Text-first (the fallback floor: always works).
 func _show_return_briefing(digest: Dictionary) -> void:
+	var days := int(digest.get("days", 0))
 	var took := String(digest.get("took_state", ""))
-	notify("🏠 %d DAYS PASSED — you wake in the safehouse. The world moved without you." % int(digest.get("days", 0)))
+	var lines: Array = []
+	lines.append("━━━  STATE OF THE STATE  ━━━")
+	lines.append("")
+	lines.append("%d DAYS PASSED. You wake in the safehouse — the world moved without you." % days)
 	if took != "":
 		var law: Dictionary = ProtoWorldState.LAWS.get(String(digest.get("new_law", "")), {})
-		notify("📺 %s IS UNDER NEW LAW — %s. %s" % [took, law.get("name", "occupation"), law.get("blurb", "")])
+		var boss := ProtoWorldState.faction_name(world_state.controller_of(took))
+		lines.append("")
+		lines.append("HOME STATE:  %s" % took)
+		lines.append("CONTROL:  %s" % boss.to_upper())
+		lines.append("NEW LAW:  %s" % String(law.get("name", "occupation")))
+		lines.append("   %s" % String(law.get("blurb", "")))
 		var flags: Array = world_state.player_contraband(took)
 		if not flags.is_empty():
-			notify("⚠️ %d item(s) in your kit are now CONTRABAND in %s: %s" % [flags.size(), took, ", ".join(flags)])
-	for b in world_state.broadcast_queue: # drain the queued bulletins through the radio seam
+			lines.append("")
+			lines.append("⚠  CONTRABAND IN YOUR KIT (%d) — hide it or lose it at a checkpoint:" % flags.size())
+			for f in flags:
+				var meta: Dictionary = ProtoContainer.ITEMS.get(String(f), {})
+				lines.append("   • %s" % String(meta.get("name", f)))
+	# The bulletins the world queued while you were gone (also still on the radio dial).
+	var bulletins: Array = []
+	for b in world_state.broadcast_queue:
 		if not bool(b.get("heard", false)):
-			notify("📻 %s" % String(b.get("text", "")))
-			b["heard"] = true
+			bulletins.append(String(b.get("text", "")))
+	if not bulletins.is_empty():
+		lines.append("")
+		lines.append("📻  ON THE AIR:")
+		for t in bulletins:
+			lines.append("   • %s" % t)
+	lines.append("")
+	lines.append("[ E or any key — step into the day ]")
+	hud.show_briefing("\n".join(lines))
+	menu_open = true # swallow gameplay input while the wake-up screen is up (same gate as the title)
+	notify("🏠 %d DAYS PASSED — check the briefing before you step outside" % days)
 	if "audio" in self and audio != null:
 		audio.play_ui("vo_radio_war", -4.0) # the DJ calls it through the static
+
+
+## Dismiss the return briefing (E or any key): closes the screen, hands input back, and
+## drains the bulletins to the radio dial so you can still hear them later.
+func dismiss_briefing() -> void:
+	hud.hide_briefing()
+	menu_open = false
+	for b in world_state.broadcast_queue:
+		b["heard"] = true # you've read them at home; the dial won't re-interrupt for these
 
 
 func apply_save(data: Dictionary) -> void:

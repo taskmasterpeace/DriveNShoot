@@ -74,6 +74,22 @@ func _ready() -> void:
 	_check("the player woke SAFE inside the safehouse (not arrested/killed)",
 		not main.player.dead_vis and main.player.global_position.distance_to(main.SAFEHOUSE) < 6.0)
 
+	# --- the RETURN BRIEFING is a real SCREEN (surface every system) + dismiss on input --
+	_check("the State-of-the-State briefing panel is on screen after load",
+		main.hud.briefing_shown())
+	_check("the briefing swallows gameplay input while it's up (menu_open gate)",
+		main.menu_open == true)
+	Input.action_press("interact") # E — step into the day (REAL input, not a teleport)
+	Input.action_release("interact")
+	var evk := InputEventKey.new()
+	evk.keycode = KEY_E
+	evk.pressed = true
+	Input.parse_input_event(evk)
+	for _i in 6:
+		await get_tree().process_frame
+	_check("any key DISMISSES the briefing and hands input back",
+		not main.hud.briefing_shown() and main.menu_open == false)
+
 	# --- determinism: same gap + same seed => same result --------------------------------
 	var w2 := ProtoWorldState.create(main)
 	var d1: Dictionary = w2.run_offline_catchup(4, 12345)

@@ -509,6 +509,66 @@ func death_shown() -> bool:
 	return _death_label != null and _death_label.visible
 
 
+# --- THE RETURN BRIEFING (Living World): the "State of the State" wake-up screen ---
+## You come home after days away and read what changed BEFORE you step outside — days
+## passed, who took what, what's now contraband in your kit, what's on the air. A framed,
+## scrolling panel over a shade (the death-screen + sheet pattern). Dismiss with E/any key.
+var _brief_shade: ColorRect = null
+var _brief_panel: Panel = null
+var _brief_label: Label = null
+
+func show_briefing(body: String) -> void:
+	if _brief_panel == null:
+		_brief_shade = ColorRect.new()
+		_brief_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_brief_shade.color = Color(0.03, 0.03, 0.05, 0.86)
+		_brief_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_brief_shade)
+		var vp := get_viewport().get_visible_rect().size
+		var w: float = minf(640.0, vp.x - 80.0)
+		var h: float = minf(560.0, vp.y - 80.0)
+		_brief_panel = Panel.new() # fixed rect, never grows off-screen
+		_brief_panel.set_anchors_preset(Control.PRESET_CENTER)
+		_brief_panel.offset_left = -w * 0.5
+		_brief_panel.offset_right = w * 0.5
+		_brief_panel.offset_top = -h * 0.5
+		_brief_panel.offset_bottom = h * 0.5
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.09, 0.08, 0.06, 0.96)
+		style.border_color = AMBER
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(6)
+		_brief_panel.add_theme_stylebox_override("panel", style)
+		var scroll := ScrollContainer.new()
+		scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scroll.offset_left = 20.0
+		scroll.offset_top = 20.0
+		scroll.offset_right = -20.0
+		scroll.offset_bottom = -20.0
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_brief_panel.add_child(scroll)
+		_brief_label = Label.new()
+		_brief_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_brief_label.add_theme_font_size_override("font_size", 18)
+		_brief_label.add_theme_color_override("font_color", BONE)
+		_brief_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_brief_label.custom_minimum_size = Vector2(w - 56.0, 0)
+		scroll.add_child(_brief_label)
+		add_child(_brief_panel)
+	_brief_label.text = body
+	_brief_shade.visible = true
+	_brief_panel.visible = true
+
+func hide_briefing() -> void:
+	if _brief_panel != null:
+		_brief_panel.visible = false
+	if _brief_shade != null:
+		_brief_shade.visible = false
+
+func briefing_shown() -> bool:
+	return _brief_panel != null and _brief_panel.visible
+
+
 # --- Reticle: the aim cone made visible (blooms per shot, tightens at rest) ----
 var _reticle: Node2D = null
 var _reticle_ticks: Array = []
