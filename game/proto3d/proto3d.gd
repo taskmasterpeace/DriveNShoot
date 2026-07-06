@@ -107,6 +107,7 @@ func _ready() -> void:
 	DrivnData.ensure() # THE DATA SPINE: fold data/vehicles.json into the fleet before anything spawns
 	ProtoContainer.ensure_items() # …and data/items.json onto the item catalog (a new item = a ROW)
 	ProtoNPC.ensure_prices() # …and data/prices.json onto the price list
+	ProtoNPC.ensure_archetypes() # …and data/npcs.json archetypes (mechanic/medic hires)
 	_build_environment()
 	var info: Dictionary = ProtoWorldBuilder.build_world(self)
 	house = info["house"]

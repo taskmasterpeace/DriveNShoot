@@ -8,7 +8,11 @@ extends CharacterBody3D
 const FACTION := "meridian"
 
 ## Archetype rows: adding an NPC type = adding a row (behavior keys, not code).
-const ARCHETYPES: Dictionary = {
+# Code floor; data/npcs.json → "archetypes" folds ADDITIVELY on top via
+# ensure_archetypes() (same spine pattern as ITEMS/PRICES). A JSON row is a new
+# hireable/tradeable NPC template with no code — this is how mechanic/medic (Hazel/
+# Mercer, whose CREW rows already exist) become real archetypes.
+static var ARCHETYPES: Dictionary = {
 	# look = a ProtoPuppet.SURVIVORS row (the same rig, a different body); act = how
 	# this NPC "acts its part" through STATE — trader gestures, guard scans, drifter idles.
 	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade", "look": "trader", "act": "gesture",
@@ -44,6 +48,39 @@ static var PRICES: Dictionary = {
 	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2,
 	"targeting_core": 200, "mount_schematic": 120, # priced so Mercy CAN — selling Cheyenne's brain is your funeral
 }
+
+static var _archetypes_folded: bool = false
+## Data-spine read-back for NPC ARCHETYPES (roadmap #3, NPC slice): fold the
+## "archetypes" array in data/npcs.json additively onto the code floor. A JSON row is
+## a full NPC template (name/title/role/look/act/color[r,g,b]/greet/refuse/stock);
+## missing fields default. New ids only (code authoritative). Boot-time, idempotent.
+static func ensure_archetypes() -> void:
+	if _archetypes_folded:
+		return
+	_archetypes_folded = true
+	var path := "res://data/npcs.json"
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	for row in (parsed as Dictionary).get("archetypes", []):
+		var aid: String = String((row as Dictionary).get("id", ""))
+		if aid == "" or ARCHETYPES.has(aid):
+			continue
+		var col: Array = (row as Dictionary).get("color", [0.5, 0.5, 0.5])
+		ARCHETYPES[aid] = {
+			"name": String(row.get("name", aid.capitalize())),
+			"title": String(row.get("title", aid.to_upper())),
+			"role": String(row.get("role", "trade")),
+			"look": String(row.get("look", "drifter")),
+			"act": String(row.get("act", "idle")),
+			"color": Color(float(col[0]), float(col[1]), float(col[2])),
+			"greet": String(row.get("greet", "'...'")),
+			"refuse": String(row.get("refuse", "'Not you.'")),
+			"stock": (row.get("stock", {}) as Dictionary),
+		}
+
 
 static var _prices_folded: bool = false
 ## Data-spine read-back for PRICES (roadmap #3, NPC slice): fold data/prices.json

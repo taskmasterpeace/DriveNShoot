@@ -35,6 +35,12 @@ func _ready() -> void:
 	main.companions.append(sam)
 	_check("the crew are ROWS (%d in the book)" % ProtoCompanion.CREW.size(), ProtoCompanion.CREW.size() >= 3)
 	_check("Sam wears the PUPPET (iron out — he's the gunner)", sam.puppet != null and sam.puppet.gun.visible)
+	# NPC ARCHETYPE read-back: mechanic/medic hires exist now (folded from npcs.json) —
+	# the audit's dead hire branches are live (Hazel/Mercer had CREW rows but no archetype).
+	_check("mechanic + medic archetypes folded in from data/npcs.json",
+		ProtoNPC.ARCHETYPES.has("mechanic") and ProtoNPC.ARCHETYPES.has("medic")
+		and String(ProtoNPC.ARCHETYPES["mechanic"]["name"]) == "Hazel"
+		and String(ProtoNPC.ARCHETYPES["medic"]["role"]) == "hire")
 
 	# --- FOLLOW (the dog law, human-shaped) ---------------------------------------
 	main.player.global_position += Vector3(14, 0, 0)

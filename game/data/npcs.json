@@ -4,5 +4,16 @@
     {"id": "trader_meridian", "name": "Trader", "look": "trader", "faction": "MERIDIAN", "role": "trader", "stock_loot_table": "trader_stock"},
     {"id": "secman_bridger", "name": "Bridger", "look": "guard", "faction": "MERIDIAN", "role": "secman"},
     {"id": "drifter", "name": "Drifter", "look": "drifter", "faction": "NEUTRAL", "role": "civilian"}
+  ],
+  "_archetypes_comment": "Full NPC templates folded onto ProtoNPC.ARCHETYPES at boot. These add the mechanic/medic hires (Hazel/Mercer) whose CREW rows already existed but had no archetype to be hired FROM.",
+  "archetypes": [
+    {"id": "mechanic", "name": "Hazel", "title": "MECHANIC — 60 SCRIP", "role": "hire", "look": "drifter", "act": "idle",
+      "color": [0.40, 0.36, 0.30],
+      "greet": "Hazel: 'Sixty scrip and your rig stops dying on you.'",
+      "refuse": "Hazel: 'I fix rigs, not whatever mess you are.'", "stock": {}},
+    {"id": "medic", "name": "Mercer", "title": "MEDIC — 60 SCRIP", "role": "hire", "look": "drifter", "act": "idle",
+      "color": [0.30, 0.42, 0.40],
+      "greet": "Mercer: 'Sixty scrip. I keep you breathing; you keep me alive.'",
+      "refuse": "Mercer: 'My kit's not for you.'", "stock": {}}
   ]
 }
