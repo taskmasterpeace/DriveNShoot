@@ -94,7 +94,7 @@ func _button(text: String, cb: Callable) -> void:
 # --- The doors (also called directly by menu_sim) -------------------------------
 
 func new_game() -> void:
-	_main.notify("🚗 The road starts here. Drive.")
+	_main.begin_new_game() # arms THE FIRST RUN (drive → pull over → scavenge → home)
 	dismiss()
 
 

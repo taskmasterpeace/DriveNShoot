@@ -610,5 +610,21 @@ func set_circuit(level: int, beats: Dictionary) -> void:
 	_circuit_label.text = "🏁 THE CIRCUIT %d   %s" % [level, pips]
 
 
+## THE FIRST RUN: one guiding line under the circuit pips. Empty string hides it.
+var _objective_label: Label = null
+func set_objective(text: String) -> void:
+	if _objective_label == null:
+		_objective_label = Label.new()
+		_objective_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_objective_label.add_theme_font_size_override("font_size", 15)
+		_objective_label.add_theme_color_override("font_color", Color(0.86, 0.86, 0.8))
+		_objective_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		_objective_label.add_theme_constant_override("outline_size", 4)
+		_objective_label.position = Vector2(22, 74)
+		add_child(_objective_label)
+	_objective_label.text = text
+	_objective_label.visible = not text.is_empty()
+
+
 func set_location(text: String) -> void:
 	_mode_label.text = text

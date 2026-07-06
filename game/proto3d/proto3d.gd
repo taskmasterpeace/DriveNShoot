@@ -181,6 +181,8 @@ func _ready() -> void:
 
 	audio = ProtoAudio.new()
 	add_child(audio)
+	objectives = ProtoObjectives.create(self)
+	add_child(objectives)
 	_wound_rng.randomize()
 	character.leveled.connect(func(id: String, lvl: int) -> void:
 		# COMPELLING = the level-up tells you exactly what you just got.
@@ -278,6 +280,7 @@ var carousel: ProtoCarousel = null
 var events: ProtoEvents = null
 var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
 var homebase: ProtoHomebase = null
+var objectives: ProtoObjectives = null ## THE FIRST RUN onboarding thread (armed by begin_new_game)
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -472,6 +475,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if objectives != null:
+		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# Zoom fallback keys (no wheel on some setups)
 	if Input.is_key_pressed(KEY_Z):
 		cam_rig.add_zoom(-0.02)
@@ -2379,6 +2384,14 @@ func _garage_records() -> Dictionary:
  ## var_to_str format: Color/Vector3 round-trip natively (JSON strings them)
 
 
+## NEW GAME (from the front door): you're already spawned driving — this just
+## hands you the first goal. THE FIRST RUN teaches THE CIRCUIT then bows out.
+func begin_new_game() -> void:
+	notify("🚗 The road starts here. Follow the wheel.")
+	if objectives != null:
+		objectives.arm()
+
+
 func save_game() -> Dictionary:
 	var dogs_out: Array = []
 	for d in get_tree().get_nodes_in_group("proto_dog"): # the group never lies (arrays can)
@@ -2397,6 +2410,7 @@ func save_game() -> Dictionary:
 		"sieges": _siege_records(),
 		"homebase": homebase.owned.keys(),
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
+		"objectives": objectives.to_record() if objectives != null else {},
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
@@ -2448,6 +2462,8 @@ func apply_save(data: Dictionary) -> void:
 	for k in circuit_beats:
 		circuit_beats[k] = bool(b.get(k, false))
 	hud.set_circuit(circuit_level, circuit_beats)
+	if objectives != null:
+		objectives.from_record(data.get("objectives", {}))
 	visited_states.clear()
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true
