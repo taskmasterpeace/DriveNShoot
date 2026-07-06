@@ -85,7 +85,24 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–8 slices + extras), 31 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–8 slices + extras), 36 test suites all green:**
+- **THE PROCEDURAL PUPPET (2026-07-06, 6 rungs, puppet/quad/npc_act/char/combat_rig sims):**
+  ONE rig of box limbs driven by `sin()` off STATE — the "build the puppet once, feed it
+  rows" pillar, end to end. `puppet.gd` (biped): torso/head/2 arms/2 legs, legs stride +
+  alternate off speed, free arm counter-swings, idle breathing, lean into turns, aim arm
+  trained on the gaze (armed) / swinging (not), hurt slump, death flop; handedness mirrors
+  the gun hand, a limp drags a leg, a blind eye renders dark. The PLAYER wears it (was a
+  capsule). **Looks are DATA** (`SURVIVORS` rows: scav/drifter/raider/trader/guard/waif/
+  old_timer). **Grips are the WEAPON's** (`hand_pose` per row: pistol low / shotgun shoulder
+  / rocket hoisted; two-handers pull the free hand across). `quadruped.gd` (dogs + howlers):
+  diagonal-pair trot, head dips to sniff, and **the TAIL = the morale readout** (happy wags
+  fast+wide, scared tucks — `ProtoDog.morale()`). **NPCs act their part** on the same rig via
+  an `act` (trader gestures, guard scans, drifter idles; pace/aim_crouch ready). **Character
+  creation (J)** — pick body/handed/blind-eye/bad-leg; the picks flow into the puppet AND the
+  stats (cone narrows, legs slow). **Combat lands on the rig** — shot kicks the aim arm,
+  hits rock the body (biped flinch) / jolt the animal (quad flinch), death flops. (Lurker is
+  the one holdout — still its bespoke capsule + freeze/stagger; a ProtoPuppet retrofit is a
+  clean follow-up.)
 - **THE PACK IS A KIT (items_sim 17/17, 2026-07-05):** catalog 15→27 items, every row
   cat+desc+price (data discipline sim-enforced). New: ⛑️ medkit (treats EVERY part),
   💊 painkillers, 💧 canteen (stamina), ☕ coffee, 🥃 whiskey (stress −30, torso pays),
@@ -209,7 +226,7 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 **Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt/feed · **C**
 whistle (tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet ·
 **M** map (local → country ATLAS; click a town to SET COURSE, open ground to MARK) · **N** waypoint ·
-**F** plant 🏠 HOME · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
+**F** plant 🏠 HOME · **J** character creation · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
 **P** pet the dog · **T** hold to wait (clock sprints) · **V** Second Window (dogcam/rearview/
 drone) · LMB fire · scroll zoom.
 
