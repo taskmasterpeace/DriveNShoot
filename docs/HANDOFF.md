@@ -15,16 +15,16 @@
 > - **The one real red is fixed:** `dog_sim` rear-smell (test staged the threat behind *movement*, not *gaze*) + the Companion-obey flake hardened. `voices.json` "jack"→"scrip" closed.
 > - **Roadmap #3 — data-spine read-back (items slice): DONE.** `ProtoContainer.ITEMS` is now a static var; `ensure_items()` folds `data/items.json` *additively* onto the code floor at boot — a JSON row with a new id is a real in-game item (dogfooded with `field_ration`), existing ids stay code-authoritative so stale JSON can't corrupt them. `items_sim`. **"A new item = a ROW" is true now** (for items).
 > - **Roadmap #3 — loot read-back: DONE.** `ProtoContainer.roll_loot(table_id, rng)` reads `data/loot_tables.json` (seeded-deterministic); the radio distress cache now rolls its contents from data instead of a hardcoded dict. `items_sim`. (Loot tables verified 0 broken refs.)
-> - **Roadmap #3 — PRICES read-back: DONE.** `ProtoNPC.PRICES` is a static var; `ensure_prices()` folds `data/prices.json` additively (created it; moved `field_ration`'s price into it). **#3 is now COMPLETE across items + loot + prices** — item, drop, *and* price are all data rows.
+> - **Roadmap #3 — FULLY COMPLETE across all four spine surfaces:** items (`items.json`), loot (`loot_tables.json` rolling), prices (`prices.json`), and **NPC archetypes** (`npcs.json` → `ensure_archetypes()`, which also un-deadened the mechanic/medic hire branches by adding Hazel/Mercer archetypes). Every surface is an additive fold on a code floor; "a new item/price/loot/NPC = a ROW" is true. `items_sim`/`crew_sim`.
+> - **Roadmap #6 — misfire coverage added** (`misfire_sim`, standalone): a CRITICAL engine coughs + a wounded chassis wanders. With crit (`melee_sim`) and camera-trauma (`feel_sim`), the substantive combat-feel/drivable-damage gaps are closed.
 > - **Roadmap #4 — toll + family: DONE (#4 COMPLETE).** Driving onto a toll road bills its scrip once on entry (pay if you can; if short, the running family marks you with stress — no hard gate); `family` read for flavor. All four road rows are now *felt*. `road_sim`.
 > - **Roadmap #6 — crit + camera-trauma coverage: DONE.** `melee_sim` asserts a crit lands ×1.8; `feel_sim` asserts trauma spikes, shakes the camera off its mark, and decays. The two biggest combat-feel coverage holes closed.
-> - **Consciously DEFERRED (done-condition #1 sign-off):**
->   - **NPC `ARCHETYPES` read-back** — `npcs.json` is thin (no greet/work/hire lines or stock); folding behavior+dialogue needs a richer schema. PRICES (the tractable half) is done.
+> - **Consciously DEFERRED (done-condition #1 sign-off) — the only things left:**
 >   - **#8 lurker→puppet** — NOT a bounded change: bespoke cloaked crawler → humanoid puppet changes its silhouette + needs a new look-row + flash/animate rewiring, regression risk across `threat_sim`/`dark_sim`, zero player value. Focused session.
->   - **#6 remainder** (get-up-stamina/misfire/timer assertions) — marginal test-only adds on systems that visibly work (misfire WARN is already asserted in `visibility_sim`).
->   - **§2c/§2d pillars** — weeks each; **do not start** (§7).
+>   - **#6 get-up-stamina micro-assertion** — a one-line lerp, visibly correct; fragile to test (needs two dive cycles) for near-zero value.
+>   - **§2c/§2d pillars** (700-pt tree, robotics/farming, faction families, 19-slot gear, hover/rail/boat, host-authoritative MP, procedural exit-towns) — **weeks each; do not start** (§7). This is where new *content/scope* lives; the *engine* to support it is now honest and data-driven.
 >
-> **Net:** roadmap #1–#6 and #8 are all substantively CLOSED. What remains is a thin-data-source fold, a risky no-player-value refactor, marginal test polish, or the pillars we agreed to hold.
+> **Net:** roadmap #1–#6 and #8 are CLOSED (`#3` and `#4` fully). Everything that could be built cleanly and safely against the current codebase is done + sim-proven. What remains is one risky no-player-value refactor and the multi-week pillars — both correctly deferred.
 
 ---
 
