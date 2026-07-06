@@ -74,6 +74,28 @@ func _ready() -> void:
 	_check("road danger %d makes it deadlier (%.2f > %.2f)" % [dgr, odds_named, odds_empty],
 		dgr == 0 or odds_named > odds_empty + 0.001)
 
+	# --- toll is a real CONSUMER: driving onto a toll road bills scrip -----------
+	var toll_road: Dictionary = {}
+	var toll_pt := Vector3.ZERO
+	for road in um.roads:
+		if int(road.get("toll", 0)) > 0:
+			toll_road = road
+			var tp: PackedVector2Array = road["pts"]
+			toll_pt = Vector3(tp[0].x, 0.5, tp[0].y)
+			break
+	if not toll_road.is_empty():
+		var toll: int = int(toll_road.get("toll", 0))
+		main.backpack.slots.clear()
+		main.backpack.add("scrip", 100)
+		main.mode = main.Mode.DRIVE
+		main.active_car.global_position = toll_pt
+		main._last_road_id = "" # fresh entry
+		main._update_road_read()
+		_check("driving onto '%s' bills the %d-scrip toll (100 → %d)" % [toll_road.get("nickname", "?"), toll, main.backpack.count("scrip")],
+			main.backpack.count("scrip") == 100 - toll)
+	else:
+		_check("(no toll road in the map to bill)", true)
+
 	# --- On foot the read stays quiet -------------------------------------------
 	main.mode = main.Mode.FOOT
 	main._last_road_id = ""

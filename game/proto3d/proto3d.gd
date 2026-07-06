@@ -2779,7 +2779,7 @@ func spawn_road_ambush() -> void:
 ## PILLAR 1 (WORLD_PILLARS.md) — roads are CHARACTERS. Drive onto a named road and
 ## it greets you like a welcome sign: nickname, danger read, toll. `danger` is now a
 ## real CONSUMER — it scales ambush_odds() (a danger-3 road spawns pirates ~2× as
-## often). Remaining unconsumed rows: `toll` (bill it at a checkpoint) + `family`.
+## often); `toll`+`family` are consumed too (bill_toll on entry). All road rows FELT.
 var _last_road_id: String = ""
 func _update_road_read() -> void:
 	if mode != Mode.DRIVE or active_car == null:
@@ -2801,6 +2801,21 @@ func _update_road_read() -> void:
 	if toll > 0:
 		line += "   toll %d scrip" % toll
 	notify(line)
+	if toll > 0:
+		bill_toll(toll, String(r.get("family", "")))
+
+
+## A toll road bills you ONCE on entry (the road-read latches per road). Pay if you
+## can; if you're short, the family that runs the stretch marks you (stress) instead
+## of a hard gate. `toll` + `family` rows are now CONSUMED.
+func bill_toll(amount: int, family: String) -> void:
+	var who: String = family.capitalize().replace("_", " ") if family != "" else "the road"
+	if backpack.count("scrip") >= amount:
+		backpack.remove("scrip", amount)
+		notify("🪙 Toll paid — %d scrip to %s." % [amount, who])
+	else:
+		stress = minf(100.0, stress + 8.0)
+		notify("🚧 Couldn't pay the toll — %s marks you for it." % who)
 
 
 ## The ambush dice read the WORLD (Pillar 1 — roads are CHARACTERS): night favors
