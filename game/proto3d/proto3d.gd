@@ -184,6 +184,7 @@ func _ready() -> void:
 	add_child(audio)
 	objectives = ProtoObjectives.create(self)
 	add_child(objectives)
+	_spawn_signs()
 	_wound_rng.randomize()
 	character.leveled.connect(func(id: String, lvl: int) -> void:
 		# COMPELLING = the level-up tells you exactly what you just got.
@@ -484,6 +485,7 @@ func _physics_process(delta: float) -> void:
 	player.input_locked = panel.is_open
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
+	_update_signs()
 	# Zoom fallback keys (no wheel on some setups)
 	if Input.is_key_pressed(KEY_Z):
 		cam_rig.add_zoom(-0.02)
@@ -2802,6 +2804,50 @@ func ambush_odds() -> float:
 	var road: Dictionary = stream.usmap.road_near(active_car.global_position, 60.0)
 	odds *= 1.0 + 0.35 * float(int(road.get("danger", 0))) # the road's reputation is real
 	return odds
+
+
+## SIGNS FOR THE ILLITERATE: seed a few around the safehouse/market. Data rows —
+## more become a ROW per placement. The symbol says "words here"; reading needs the
+## sight cone.
+var signs: Array = []
+func _spawn_signs() -> void:
+	var rows: Array = [
+		[Vector3(112, 0, -327), "SAFEHOUSE — home. Bed inside, stash by the door."],
+		[Vector3(118, 0, -322), "MARKET AHEAD → trade scrip for what the road takes."],
+		[Vector3(104, 0, -318), "KEEP OUT. The dogs don't ask twice."],
+	]
+	for r in rows:
+		var sign := ProtoSign.create(String(r[1]))
+		sign.position = r[0]
+		add_child(sign)
+		signs.append(sign)
+
+
+## Each frame: a sign is READABLE when it sits inside your sight cone and within
+## reading range. Symbol always shows; the words surface only when you LOOK.
+const SIGN_READ_RANGE := 14.0
+func _update_signs() -> void:
+	if signs.is_empty():
+		return
+	var eye: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
+	var gaze: Vector3 = player.sight_facing()
+	var half: float = vision_cone.current_half_angle() if vision_cone != null else 1.0
+	var cos_half: float = cos(half)
+	var read_any := false
+	for s in signs:
+		if not (s is ProtoSign) or not is_instance_valid(s):
+			continue
+		var to_s: Vector3 = s.global_position - eye
+		to_s.y = 0.0
+		var d: float = to_s.length()
+		var in_cone: bool = d < SIGN_READ_RANGE and d > 0.1 and gaze.dot(to_s.normalized()) > cos_half
+		s.set_readable(in_cone)
+		read_any = read_any or in_cone
+	if read_any and not _sign_reading:
+		audio.play_ui("blip", -14.0)
+	_sign_reading = read_any
+
+var _sign_reading: bool = false
 
 
 func _update_pirates(delta: float) -> void:
