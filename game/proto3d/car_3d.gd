@@ -114,6 +114,7 @@ var _misfire_t: float = 0.0
 var _misfire_cd: float = 3.0
 var misfiring: bool = false   ## sim/HUD hook
 var steer_slop: float = 0.0   ## sim hook — chassis wander amplitude
+var _misfire_warned: bool = false
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
@@ -759,8 +760,15 @@ func _physics_process(delta: float) -> void:
 			_misfire_cd = _spiral_rng.randf_range(1.8, 4.2)
 			_misfire_t = 0.45
 			var mm := get_tree().current_scene
+			if mm == null or not mm.has_method("notify"):
+				mm = get_parent() # sims wrap main in a harness — the parent IS main
 			if mm != null and "audio" in mm and mm.audio:
 				mm.audio.play_at("metal_debris", global_position, -8.0, 1.5)
+			# Surface the CAUSE once — a mystery stutter reads as a bug, a named
+			# one reads as a repair job (car_parts fix it).
+			if not _misfire_warned and mm != null and mm.has_method("notify"):
+				_misfire_warned = true
+				mm.notify("🔧 %s's ENGINE is coughing — salvaged car parts will fix it" % display_name)
 	_misfire_t = maxf(0.0, _misfire_t - delta)
 	misfiring = _misfire_t > 0.0
 	if misfiring:

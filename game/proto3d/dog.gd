@@ -166,9 +166,10 @@ func interact_prompt(main: Node) -> String:
 		return "E — Adopt %s (%s · %s)" % [dog_name, type_name(), breed]
 	if hp < max_hp - 5.0 and main.backpack.count("meat") > 0:
 		return "E — Feed %s (🍖 %d hp)" % [dog_name, int(minf(30.0, max_hp - hp))]
+	# The bond is VISIBLE at a glance — the prompt wears the tier.
 	if state == DogState.STAY:
-		return "E — %s: Follow" % dog_name
-	return "E — %s: Stay" % dog_name
+		return "E — %s (%s): Follow" % [dog_name, BOND_TIERS[bond_tier()]]
+	return "E — %s (%s): Stay" % [dog_name, BOND_TIERS[bond_tier()]]
 
 
 func interact(main: Node) -> void:

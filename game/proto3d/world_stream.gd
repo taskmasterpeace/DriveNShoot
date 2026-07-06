@@ -618,6 +618,17 @@ func _draw_country() -> void:
 		_map_canvas.draw_circle(p2, 2.5 if t["kind"] == "city" else 1.8, Color(0.96, 0.72, 0.2))
 		if String(t.get("landmark", "")) != "" or t.get("authored", false):
 			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(4, 3), t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.89, 0.82))
+	# THE CAROUSEL LAYER (surfacing pass): every gate on the atlas — teal + ringed
+	# when LIT (yours, permanently), dark sockets when dormant. The map literally
+	# lights up as your network grows — the retention picture, drawn.
+	if _main != null and "carousel" in _main and _main.carousel != null:
+		for b in _main.carousel.data.get("bases", []):
+			var gp := org + (Vector2(float(b["pos"][0]), float(b["pos"][1])) - bounds.position) * px
+			var lit: bool = _main.carousel.active.get(b["id"], false)
+			_map_canvas.draw_circle(gp, 3.0, Color(0.3, 0.85, 0.75) if lit else Color(0.22, 0.30, 0.31))
+			if lit:
+				_map_canvas.draw_arc(gp, 5.5, 0.0, TAU, 14, Color(0.3, 0.85, 0.75), 1.2)
+				_map_canvas.draw_string(ThemeDB.fallback_font, gp + Vector2(6, 3), String(b["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.55, 0.9, 0.82))
 	# Your waypoints (HOME 🏠, the set course 🧭, and the base POIs) ride on the
 	# atlas too — with the SELECTED one ringed so a fresh pick reads instantly.
 	var sel: int = _main.waypoint_idx if _main != null else -1

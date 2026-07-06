@@ -363,9 +363,9 @@ func _apply_moodles(tiers: Dictionary) -> void:
 
 func set_mode(driving: bool) -> void:
 	if driving:
-		_help_label.text = "W/S throttle+brake · A/D steer · SPACE handbrake · E get out · SCROLL zoom · hold B binoculars (mouse aim + wheel magnify)"
+		_help_label.text = "W/S throttle · A/D steer · SPACE handbrake · E out · TAB trunk · Y radio · M map · K sheet · hold B binoculars"
 	else:
-		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact/adopt · C whistle · SCROLL zoom · hold B binoculars"
+		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact · C whistle ×1-4 · Y radio · TAB pack · M map · K sheet · T wait · hold B binocs"
 
 
 var _flash: ColorRect = null

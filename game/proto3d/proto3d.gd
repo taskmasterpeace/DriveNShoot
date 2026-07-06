@@ -1977,6 +1977,64 @@ func _sheet_text() -> String:
 	lines.append("🪙 Jack: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("jack"), str(bleeding), int(stress)])
 	lines.append("🏛️ MERIDIAN: %s  (esteem %d · infamy %d · notoriety %d)" % [respect.standing("meridian"),
 		int(respect.esteem("meridian")), int(respect.infamy("meridian")), int(respect.notoriety("meridian"))])
+
+	# ————— THE WORLD (surfacing pass: everything running behind your back) —————
+	lines.append("")
+	lines.append("————— THE CIRCUIT (the loop) —————")
+	var pips := ""
+	for k2 in ["scavenge", "upgrade", "push", "node"]:
+		pips += "● " if circuit_beats[k2] else "○ "
+	lines.append("🏁 lap %d: %s— scavenge a cache · buy gear · enter a new state · light a gate" % [circuit_level, pips])
+
+	lines.append("")
+	lines.append("————— THE DIVIDED STATES —————")
+	for st in visited_states:
+		var ru := ruler_of(st)
+		var icon := "⚔️" if respect.standing(st) == "SUSPECT" else ("👑" if respect.standing(st) in ["TRUSTED", "HERO"] else "🪧")
+		lines.append("%s %s — %s (%s)" % [icon, st, String(ru["ruler"]), respect.standing(st)])
+	if events != null:
+		lines.append("📅 today: %s%s" % ["quiet roads" if events.today_event in ["", "quiet"] else events.today_event,
+			("  ·  ⚔️ WAR IN " + events.war_state) if events.war_state != "" else ""])
+	if weather != null and weather.state != "clear":
+		lines.append("%s %s — sight ×%.2f · grip ×%.2f" % [weather.icon(), weather.label(), weather.vision_mult(), ProtoWeather.grip_now])
+
+	lines.append("")
+	lines.append("————— THE PACK —————")
+	var any_dog := false
+	for ad in all_dogs:
+		if ad is ProtoDog and is_instance_valid(ad) and ad.adopted:
+			any_dog = true
+			lines.append("🐕 %s (%s) — %s · saved ×%d · last fed day %d" % [ad.dog_name, ad.breed,
+				ad.BOND_TIERS[ad.bond_tier()], ad.times_saved, ad.last_fed_day])
+	if not any_dog:
+		lines.append("(no pack yet — the kennel is by the safehouse)")
+	lines.append("🐕‍🦺 whistle (C): ×1 heel · ×2 guard · ×3 seek · hold SIC · ×4 SHIELD (soulbound only)")
+	for f in fallen_dogs:
+		lines.append("🕯️ %s (%s · %s) — gone, not forgotten" % [f["name"], f["breed"], f["bond"]])
+
+	lines.append("")
+	lines.append("————— THE CAROUSEL —————")
+	if carousel != null:
+		var lit: Array = carousel.active.keys()
+		if lit.is_empty():
+			lines.append("🎠 0 / %d nodes — find a base, haul POWER to the ring, hold the SPIN-UP" % carousel.data.get("bases", []).size())
+		else:
+			lines.append("🎠 %d / %d nodes LIT: %s (jump costs a 🔋 power cell)" % [lit.size(), carousel.data.get("bases", []).size(), ", ".join(lit)])
+
+	var taxes: Array = []
+	if character.limp_side() != "":
+		taxes.append("🦵 limping — speed ×%.2f" % character.wound_leg_mult())
+	if character.aim_wobble() > 0.0:
+		taxes.append("🎯 arm wobble — spread +%d%%" % int(character.aim_wobble() * 220))
+	if character.head_clarity() < 1.0:
+		taxes.append("🧠 blurred sight ×%.2f" % character.head_clarity())
+	if character.wound_stamina_mult() < 1.0:
+		taxes.append("🫁 winded — stamina regen ×%.2f" % character.wound_stamina_mult())
+	if not taxes.is_empty():
+		lines.append("")
+		lines.append("————— WOUND TAXES (treat to clear) —————")
+		for tx in taxes:
+			lines.append(tx)
 	return "\n".join(lines)
 
 
