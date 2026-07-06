@@ -224,6 +224,9 @@ func _ready() -> void:
 	sview = ProtoSecondaryView.create()
 	add_child(sview)
 
+	char_create = ProtoCharCreate.create(self)
+	add_child(char_create)
+
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
 	# The macro map (DEATHLANDS USA) feeds streaming, surfaces, and the HUD.
@@ -264,6 +267,7 @@ var _recon_entries: Array = []
 ## Window. STAGE 8 rung 1: the scout drone.
 var companions: Array = []
 var sview: ProtoSecondaryView = null
+var char_create: ProtoCharCreate = null
 var drone: ProtoDrone = null
 
 
@@ -342,6 +346,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			stream.toggle_map()
 		elif kc == KEY_F:
 			set_home()
+		elif kc == KEY_J:
+			char_create.toggle()
 		elif kc == KEY_K:
 			hud.toggle_sheet(_sheet_text())
 		elif kc == KEY_N:
@@ -1024,6 +1030,22 @@ func secman_talk(npc: ProtoNPC) -> void:
 			waypoints.append(["BOUNTY", mark])
 			notify(ProtoNPC.ARCHETYPES[npc.archetype]["greet"])
 			audio.play_ui("blip", -6.0)
+
+
+## CHARACTER CREATION (J): the chosen row flows into BOTH the body and the stats —
+## the puppet is rebuilt left/right-handed with a blind eye and a limp, and the same
+## picks narrow the vision cone and slow the legs. You author who you are.
+func apply_character(c: Dictionary) -> void:
+	var look: Dictionary = ProtoPuppet.look(c.get("look", "scav"))
+	look["handed"] = c.get("handed", "right")
+	look["blind_eye"] = c.get("blind_eye", "")
+	look["limp"] = c.get("bad_leg", "")
+	player.rebuild_puppet(look)
+	_last_pose_id = "∅" # force the equipped weapon's hand pose to re-apply next frame
+	# The same choices are STAT hooks, not just looks.
+	character.set_blind_eye(c.get("blind_eye", ""))
+	player.leg_mult = 0.72 if String(c.get("bad_leg", "")) != "" else 1.0
+	notify("🧬 You are who you are now.")
 
 
 ## HOME BEACON (F): plant a home wherever you're standing or driving. It becomes

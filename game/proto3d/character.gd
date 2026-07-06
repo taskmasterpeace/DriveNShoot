@@ -39,6 +39,14 @@ func set_eyepatch(on: bool) -> void:
 	vision_yaw_offset = -0.55 if on else 0.0 # right eye patched: the right side goes dark
 
 
+## Blind in one eye (character creation): the same cone penalty as the patch, but the
+## dark side follows the chosen eye. "" = both eyes good.
+func set_blind_eye(side: String) -> void:
+	eyepatch = side != ""
+	vision_arc_mult = 0.5 if eyepatch else 1.0
+	vision_yaw_offset = -0.55 if side == "r" else (0.55 if side == "l" else 0.0)
+
+
 func _init() -> void:
 	for id in SKILLS:
 		skills[id] = {"xp": 0.0, "level": 0}

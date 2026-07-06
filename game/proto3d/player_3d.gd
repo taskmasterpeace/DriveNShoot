@@ -52,6 +52,8 @@ var stamina: float = 100.0
 var stamina_regen_mult: float = 1.0
 ## Set by encumbrance (main scene): overloaded pack = slow legs.
 var speed_mult: float = 1.0
+## Set by a bad leg (character creation): a permanent drag on the legs.
+var leg_mult: float = 1.0
 var _was_running: bool = false
 
 var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
@@ -203,7 +205,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * delta)
 
-	var speed := (run_speed if running else walk_speed) * speed_mult
+	var speed := (run_speed if running else walk_speed) * speed_mult * leg_mult
 	if in_combat:
 		speed *= stance_speed_mult
 		# Backpedal falloff is CONTINUOUS on the move-vs-gaze angle (no speed pop):
@@ -314,6 +316,22 @@ func aim_pinned() -> bool:
 func set_armed(on: bool) -> void:
 	if _gun:
 		_gun.visible = on
+
+
+## Character creation rebuilds the body live: free the old rig, build the chosen one,
+## re-link the pivots + gun and restore the armed state. The player becomes the row.
+func rebuild_puppet(appearance_in: Dictionary) -> void:
+	appearance = appearance_in
+	var was_armed: bool = _gun != null and _gun.visible
+	if is_instance_valid(_visual):
+		_visual.queue_free()
+	puppet = ProtoPuppet.create(appearance)
+	_visual = puppet
+	add_child(_visual)
+	_lower = puppet.legs_pivot
+	_upper = puppet.aim_arm
+	_gun = puppet.gun
+	set_armed(was_armed)
 
 
 ## Sim/debug only: point the whole body somewhere without walking there.
