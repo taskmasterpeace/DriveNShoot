@@ -1,4 +1,4 @@
-## Proof for HOME BASE: the ladder buys with scrap/jack, walls RISE (and thin the
+## Proof for HOME BASE: the ladder buys with scrap/scrip, walls RISE (and thin the
 ## metaworld's raid odds), the garage + kennel earn on the game clock, the
 ## workbench is scrap's sink, and the bed sleeps you to dawn.
 ## Run: godot --headless --path game res://proto3d/tests/homebase_sim.tscn
@@ -33,7 +33,7 @@ func _ready() -> void:
 	hb.interact(main) # broke — refused
 	_check("no scrap = no walls (the sink pulls you OUT to scavenge)", hb.walls_tier() == 0)
 	main.backpack.add("scrap", 80)
-	main.backpack.add("jack", 150)
+	main.backpack.add("scrip", 150)
 	main.backpack.add("car_parts", 1)
 	for _i in 7:
 		hb.interact(main)

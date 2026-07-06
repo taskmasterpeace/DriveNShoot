@@ -120,15 +120,13 @@ Real geography, warped by the fracture. Rulers deliberately varied — no two st
 | **Pre-dark** (before the apocalypse) | **Pre-Fracture** / **the Old Union** | "The dark" was Deathlands' nuke event; ours is a fracture/cascade, so the adjective changes with it. |
 | **Sec-man / Sec-boss** | *kept (generic)* | Generic "security" contraction, not Deathlands-exclusive; safe to keep. |
 
-### Code identifiers to migrate later (OUT OF SCOPE for this goal — noted only)
+### Code identifier migration — ✅ DONE (2026-07-06)
 
-These live in `game/` and are **not** touched here (code renames are risky; do them in a dedicated pass):
-
-- `game/proto3d/container.gd` — item id **`"jack"`** (the currency row) → rename to `"scrip"` and update every reference below.
-- `game/proto3d/container_panel.gd`, `proto3d.gd`, `devmode.gd`, `npc.gd`, `lurker.gd`, `howler.gd`,
-  `tests/devmode_sim.gd`, `tests/items_sim.gd` — all reference the `"jack"` id and player-facing "jack" strings.
-- `game/proto3d/usmap.gd` and `game/data/usmap.json` — town `"kind": "ville"` → `"holdout"`.
-- `game/proto3d/npc.gd` / dialogue — "40 JACK", "Jack talks", etc. player-facing copy → "Scrip".
-- `game/dialogues/trader.dialogue` — trader lines referencing jack.
-
-Do the code sweep as its own goal so tests (`items_sim`, `devmode_sim`, `town_sim`) can be re-run green after the id rename.
+The sweep shipped: item id `"jack"` → `"scrip"` engine-wide (code, data rows, tests,
+player-facing copy — "40 SCRIP", "Scrip talks"), town `"kind": "ville"` → `"holdout"`
+(usmap.json + usmap.gd default + MapForge tools; proper names like Nashville/Jacksonville
+untouched), and every last "Deathlands" string → "the Divided States" (HUD location line,
+map name, tools, docs). **Old saves migrate on load** — `proto3d.migrate_item_ids()` walks
+restored containers (backpack + garage trunks), jack→scrip additive, no coin lost; proven
+in `save_sim`. The legacy 2D game (incl. `trader.dialogue`) is quarantined in `legacy-2d/`
+and deliberately keeps the old tongue.

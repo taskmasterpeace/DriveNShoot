@@ -238,7 +238,7 @@
       "category": "loot",
       "desc": "What passes for money out here.",
       "emoji": "🪙",
-      "id": "jack",
+      "id": "scrip",
       "name": "Jack (coin)",
       "usable": false,
       "weight": 0.02

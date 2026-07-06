@@ -103,7 +103,7 @@ static func create() -> ProtoHUD:
 	hud._mode_label.add_theme_color_override("font_color", BONE)
 	hud._mode_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	hud._mode_label.position = Vector2(28, 20)
-	hud._mode_label.text = "DEATHLANDS — INTERSTATE 9"
+	hud._mode_label.text = "DIVIDED STATES — INTERSTATE 9"
 	hud.add_child(hud._mode_label)
 
 	hud._binoc_label = Label.new()

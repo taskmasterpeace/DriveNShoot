@@ -59,14 +59,14 @@ func _ready() -> void:
 		await get_tree().physics_frame # queue_free clears at frame end
 	_check("NEW GAME dismisses and hands you the wheel", not main.menu_open and not is_instance_valid(m2))
 
-	main.backpack.add("jack", 123)
+	main.backpack.add("scrip", 123)
 	main.save_game()
-	main.backpack.remove("jack", main.backpack.count("jack")) # wipe
+	main.backpack.remove("scrip", main.backpack.count("scrip")) # wipe
 	var m3 := ProtoMenu.create(main)
 	main.add_child(m3)
 	main.menu_open = true
 	m3.continue_game()
-	_check("CONTINUE loads the save (jack %d back)" % main.backpack.count("jack"), main.backpack.count("jack") >= 123)
+	_check("CONTINUE loads the save (scrip %d back)" % main.backpack.count("scrip"), main.backpack.count("scrip") >= 123)
 
 	var m4 := ProtoMenu.create(main)
 	main.add_child(m4)

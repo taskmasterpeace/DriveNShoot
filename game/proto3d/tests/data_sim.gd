@@ -24,10 +24,10 @@ func _ready() -> void:
 	_check("DrivnItem builds", DrivnItem.from_dict({"id": "i", "w": 1.2}).weight == 1.2)
 	_check("DrivnBuilding builds", DrivnBuilding.from_dict({"id": "b", "floors": 2}).floors == 2)
 	_check("DrivnNPC builds", DrivnNPC.from_dict({"id": "n", "role": "trader"}).role == "trader")
-	var lt := DrivnLootTable.from_dict({"id": "l", "entries": [{"item": "jack", "min": 3, "max": 3, "weight": 1.0}]})
+	var lt := DrivnLootTable.from_dict({"id": "l", "entries": [{"item": "scrip", "min": 3, "max": 3, "weight": 1.0}]})
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1
-	_check("DrivnLootTable.roll yields valid items", lt.roll(rng).get("jack", 0) == 3)
+	_check("DrivnLootTable.roll yields valid items", lt.roll(rng).get("scrip", 0) == 3)
 
 	# --- The library folds the JSON catalog into the engine ------------------
 	DrivnData.ensure()

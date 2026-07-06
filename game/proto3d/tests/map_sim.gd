@@ -1,4 +1,4 @@
-## Headless proof for the DEATHLANDS USA macro map (Stage 5 v2, 60× scale law).
+## Headless proof for the DIVIDED STATES USA macro map (Stage 5 v2, 60× scale law).
 ## Verifies the data (grid/states/roads/towns), the geography anchors (Vegas is
 ## in NEVADA, Miami in FLORIDA...), water as a surface, interstates materializing
 ## as drivable asphalt under streaming — and then DRIVES a real car (inputs only)
@@ -52,7 +52,7 @@ func _town_pos3(id: String) -> Vector3:
 
 
 func _ready() -> void:
-	print("SIM: start (DEATHLANDS USA macro map)")
+	print("SIM: start (DIVIDED STATES USA macro map)")
 	usmap = ProtoUSMap.get_default()
 	ProtoWorldBuilder.usmap = usmap
 	ProtoWorldBuilder.extra_road_rects.clear()

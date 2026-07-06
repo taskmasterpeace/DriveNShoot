@@ -12,19 +12,19 @@ const TICK_HOURS := 0.5
 
 ## The ladder — bought in order; each rung makes the next one make sense.
 const UPGRADES: Array = [
-	{"id": "walls1", "name": "WALLS I", "cost": {"scrap": 6, "jack": 10}, "desc": "raiders think twice"},
-	{"id": "garage", "name": "GARAGE", "cost": {"scrap": 8, "jack": 15, "car_parts": 1}, "desc": "parked rigs self-repair"},
-	{"id": "kennel", "name": "KENNEL UPGRADE", "cost": {"scrap": 6, "jack": 10}, "desc": "home dogs heal — raids can't take them"},
-	{"id": "workbench", "name": "WORKBENCH", "cost": {"scrap": 10, "jack": 20}, "desc": "craft bandages, ammo, power cells"},
-	{"id": "bed", "name": "BED", "cost": {"scrap": 4, "jack": 8}, "desc": "sleep to dawn, drop the day's weight"},
-	{"id": "walls2", "name": "WALLS II", "cost": {"scrap": 12, "jack": 20}, "desc": "raiders need a reason"},
-	{"id": "walls3", "name": "WALLS III", "cost": {"scrap": 20, "jack": 35}, "desc": "raiders go elsewhere"},
+	{"id": "walls1", "name": "WALLS I", "cost": {"scrap": 6, "scrip": 10}, "desc": "raiders think twice"},
+	{"id": "garage", "name": "GARAGE", "cost": {"scrap": 8, "scrip": 15, "car_parts": 1}, "desc": "parked rigs self-repair"},
+	{"id": "kennel", "name": "KENNEL UPGRADE", "cost": {"scrap": 6, "scrip": 10}, "desc": "home dogs heal — raids can't take them"},
+	{"id": "workbench", "name": "WORKBENCH", "cost": {"scrap": 10, "scrip": 20}, "desc": "craft bandages, ammo, power cells"},
+	{"id": "bed", "name": "BED", "cost": {"scrap": 4, "scrip": 8}, "desc": "sleep to dawn, drop the day's weight"},
+	{"id": "walls2", "name": "WALLS II", "cost": {"scrap": 12, "scrip": 20}, "desc": "raiders need a reason"},
+	{"id": "walls3", "name": "WALLS III", "cost": {"scrap": 20, "scrip": 35}, "desc": "raiders go elsewhere"},
 ]
 ## The workbench recipes — first affordable crafts (E again for the next).
 const RECIPES: Array = [
 	{"makes": "bandage", "count": 1, "cost": {"scrap": 2}},
 	{"makes": "9mm", "count": 10, "cost": {"scrap": 3}},
-	{"makes": "power_cell", "count": 1, "cost": {"scrap": 8, "jack": 5}},
+	{"makes": "power_cell", "count": 1, "cost": {"scrap": 8, "scrip": 5}},
 ]
 
 var owned: Dictionary = {} ## id -> true

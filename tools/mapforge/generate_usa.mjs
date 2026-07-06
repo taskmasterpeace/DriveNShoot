@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MapForge — DEATHLANDS USA generator.
+// MapForge — DIVIDED STATES USA generator.
 // Builds game/data/usmap.json: the macro map of the compressed United States that
 // BOTH the game (ProtoUSMap) and the MapForge editor/API read and write.
 //
@@ -122,8 +122,8 @@ const TOWNS_T = [
 	["denver", "DENVER", 10.4, 6.6, "city", null],
 	["albuquerque", "ALBUQUERQUE", 9.5, 9.8, "city", null],
 	["elpaso", "EL PASO", 9.6, 12.2, "city", null],
-	["billings", "BILLINGS", 8.5, 2.3, "ville", null],
-	["cheyenne", "CHEYENNE", 10.4, 5.6, "ville", null],
+	["billings", "BILLINGS", 8.5, 2.3, "holdout", null],
+	["cheyenne", "CHEYENNE", 10.4, 5.6, "holdout", null],
 	["minneapolis", "MINNEAPOLIS", 16.4, 2.8, "city", null],
 	["omaha", "OMAHA", 15.0, 5.5, "city", null],
 	["kansascity", "KANSAS CITY", 15.8, 7.0, "city", null],
@@ -136,7 +136,7 @@ const TOWNS_T = [
 	["neworleans", "NEW ORLEANS", 18.1, 13.5, "city", null],
 	["chicago", "CHICAGO", 19.4, 5.0, "city", null],
 	["detroit", "DETROIT", 21.8, 4.7, "city", null],
-	["cincinnati", "CINCINNATI", 20.9, 7.0, "ville", null],
+	["cincinnati", "CINCINNATI", 20.9, 7.0, "holdout", null],
 	["nashville", "NASHVILLE", 19.8, 9.1, "city", null],
 	["atlanta", "ATLANTA", 21.0, 10.8, "city", null],
 	["jacksonville", "JACKSONVILLE", 22.4, 13.3, "city", null],
@@ -263,11 +263,11 @@ const towns = TOWNS_T.map(([id, name, c, r, kind, landmark]) => {
 	return { id, name, pos: [x, z], kind, ...(landmark ? { landmark } : {}) };
 });
 // The hand-built starter town keeps its authored world position.
-towns.push({ id: "meridian", name: "MERIDIAN", pos: [110, -325], kind: "ville", authored: true });
+towns.push({ id: "meridian", name: "MERIDIAN", pos: [110, -325], kind: "holdout", authored: true });
 
 const usmap = {
 	version: 1,
-	name: "DEATHLANDS USA",
+	name: "DIVIDED STATES USA",
 	generated: "2026-07-05 by tools/mapforge/generate_usa.mjs",
 	compression: 60,
 	cell_m: CELL_M,

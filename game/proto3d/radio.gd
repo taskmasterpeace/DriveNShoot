@@ -75,7 +75,7 @@ func _deliver(id: String) -> void:
 			# A real place with real stakes: a cache, and the reason it's unclaimed.
 			var ang := rng.randf() * TAU
 			var pos := origin + Vector3(cos(ang), 0, sin(ang)) * rng.randf_range(250.0, 500.0)
-			var c := ProtoChest.create("Distress cache", {"medkit": 1, "9mm": 24, "jack": 15, "flare": 2})
+			var c := ProtoChest.create("Distress cache", {"medkit": 1, "9mm": 24, "scrip": 15, "flare": 2})
 			_main.add_child(c)
 			c.global_position = Vector3(pos.x, 0.05, pos.z)
 			for i in 2:

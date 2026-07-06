@@ -88,8 +88,8 @@ func _ready() -> void:
 	var before_w: int = main.weapons.size()
 	dev._give_arsenal()
 	_check("arsenal: guns equipped (%d → %d)" % [before_w, main.weapons.size()], main.weapons.size() > before_w)
-	dev._give({"jack": 100})
-	_check("give: jack lands in the pack", main.backpack.count("jack") >= 100)
+	dev._give({"scrip": 100})
+	_check("give: scrip lands in the pack", main.backpack.count("scrip") >= 100)
 
 	# --- Heal: wounds close, stress clears -------------------------------------
 	main.character.take_wound("l_arm", 30.0)

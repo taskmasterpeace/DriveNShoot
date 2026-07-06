@@ -30,7 +30,7 @@ func _ready() -> void:
 	# Load the pack so the toll has something to take.
 	main.backpack.slots.clear()
 	main.backpack.add("scrap", 10)
-	main.backpack.add("jack", 10)
+	main.backpack.add("scrip", 10)
 
 	# --- Die while driving ------------------------------------------------------
 	main.mode = main.Mode.DRIVE
@@ -49,7 +49,7 @@ func _ready() -> void:
 	_check("death screen gone", not main.hud.death_shown())
 	_check("deaths counter ticked to 1", main.deaths == 1)
 	_check("the toll took a cut of scrap (10 → 6)", main.backpack.count("scrap") == 6)
-	_check("the toll took a cut of scrip (10 → 7)", main.backpack.count("jack") == 7)
+	_check("the toll took a cut of scrip (10 → 7)", main.backpack.count("scrip") == 7)
 
 	# --- The world persisted (not a reload) -------------------------------------
 	_check("the car still exists in the world", is_instance_valid(main.cars[0]))

@@ -56,25 +56,25 @@ func _ready() -> void:
 		await get_tree().physics_frame
 
 	# --- 2) player_record → wipe → restore -------------------------------------
-	main.backpack.add("jack", 55)
+	main.backpack.add("scrip", 55)
 	main.use_item("wrench") # equip steel (already in the pack at boot)
 	main.character.take_wound("l_arm", 30.0)
 	var before_arm: float = main.character.body["l_arm"].hp
-	var before_jack: int = main.backpack.count("jack")
+	var before_jack: int = main.backpack.count("scrip")
 	var before_w: int = main.weapons.size()
 	var rec: Dictionary = main.player_record()
-	_check("record captures pack/arsenal/wounds", rec["backpack"].get("jack", 0) == before_jack
+	_check("record captures pack/arsenal/wounds", rec["backpack"].get("scrip", 0) == before_jack
 		and rec["weapons"].size() == before_w and rec["character"]["parts"]["l_arm"] == before_arm)
 
 	# WIPE: spend, heal, disarm, walk away — then restore the snapshot.
-	main.backpack.remove("jack", before_jack)
+	main.backpack.remove("scrip", before_jack)
 	main.character.treat("l_arm", 100.0)
 	main.weapons.clear()
 	main.equipped = -1
 	pl.global_position += Vector3(25, 0, 25)
 	main.player_restore(rec)
 	await get_tree().physics_frame
-	_check("restore: the jack is back (%d)" % main.backpack.count("jack"), main.backpack.count("jack") == before_jack)
+	_check("restore: the scrip is back (%d)" % main.backpack.count("scrip"), main.backpack.count("scrip") == before_jack)
 	_check("restore: the wound is back (l_arm %.0f)" % main.character.body["l_arm"].hp,
 		absf(main.character.body["l_arm"].hp - before_arm) < 0.01)
 	_check("restore: the arsenal is back (%d guns)" % main.weapons.size(), main.weapons.size() == before_w)

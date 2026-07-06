@@ -244,7 +244,7 @@ static func build_world(root: Node3D) -> Dictionary:
 		box_body(world, fsize, fpos + Vector3(0, fsize.y / 2.0, 0), fcol)
 		box_body(world, Vector3(fsize.x + 0.6, 0.3, fsize.z + 0.6), fpos + Vector3(0, fsize.y + 0.15, 0), COL_ROOF)
 
-	# --- Wrecks along the highway shoulder (Deathlands flavor) --------------
+	# --- Wrecks along the highway shoulder (Divided States flavor) --------------
 	var wrecks: Array = [
 		[Vector3(-10.5, 0, 160), 0.4], [Vector3(11, 0, 40), -0.8],
 		[Vector3(-11.5, 0, -90), 2.2], [Vector3(10.2, 0, -300), 1.1],

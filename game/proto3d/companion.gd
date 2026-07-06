@@ -19,9 +19,9 @@ const SCOUT_CD := 4.0
 ## walking beside you. Adding a crew member = adding a row.
 const CREW: Dictionary = {
 	"sam": {"name": "Sam", "title": "GUNNER", "look": "drifter", "job": "gunner",
-		"hire_cost": 40, "gear": {"9mm": 20, "jack": 5}},
+		"hire_cost": 40, "gear": {"9mm": 20, "scrip": 5}},
 	"hazel": {"name": "Hazel", "title": "MECHANIC", "look": "scav", "job": "mechanic",
-		"hire_cost": 60, "gear": {"car_parts": 1, "duct_tape": 2, "jack": 8}},
+		"hire_cost": 60, "gear": {"car_parts": 1, "duct_tape": 2, "scrip": 8}},
 	"mercer": {"name": "Doc Mercer", "title": "MEDIC", "look": "old_timer", "job": "medic",
 		"hire_cost": 60, "gear": {"bandage": 3, "medkit": 1}},
 }

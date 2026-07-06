@@ -293,7 +293,7 @@ class ProtoGate:
 					"purge":
 						return "🎠 %s: PURGE the base — %d occupier%s still breathing" % [row["name"], _living_occupiers(), "s" if _living_occupiers() != 1 else ""]
 					"codes":
-						return "E — 🎠 %s: LAUNCH CODES — %s standing earns them, or %d jack buys them" % [row["name"], "TRUSTED", _codes_price()]
+						return "E — 🎠 %s: LAUNCH CODES — %s standing earns them, or %d scrip buys them" % [row["name"], "TRUSTED", _codes_price()]
 					"power":
 						var need: Dictionary = row.get("power_need", {"item": "jerry_can", "count": 1})
 						return "E — 🎠 %s: socket power (%d/%d %s)" % [row["name"], fed, int(need["count"]), String(need["item"])]
@@ -313,16 +313,16 @@ class ProtoGate:
 						main.notify("🎠 The room won't boot with %d occupiers breathing — CLEAR IT" % _living_occupiers())
 					"codes":
 						# Three doors to the codes (CAROUSEL.md): standing EARNS them,
-						# jack BUYS them, and purging the state's troops... is rude.
+						# scrip BUYS them, and purging the state's troops... is rude.
 						var st: String = String(row.get("state", ""))
 						if main.respect.standing(st) in ["TRUSTED", "HERO"]:
 							objectives_left.erase("codes")
 							main.notify("🎠 %s vouches for you — the LAUNCH CODES are yours" % String(main.ruler_of(st)["ruler"]))
-						elif main.backpack.remove("jack", _codes_price()):
+						elif main.backpack.remove("scrip", _codes_price()):
 							objectives_left.erase("codes")
-							main.notify("🎠 The codes cost %d jack. Wired. Nobody asks where they came from." % _codes_price())
+							main.notify("🎠 The codes cost %d scrip. Wired. Nobody asks where they came from." % _codes_price())
 						else:
-							main.notify("🎠 CODES: earn %s's trust, or bring %d jack" % [st, _codes_price()])
+							main.notify("🎠 CODES: earn %s's trust, or bring %d scrip" % [st, _codes_price()])
 							return
 						_try_spinup(main)
 					"power":

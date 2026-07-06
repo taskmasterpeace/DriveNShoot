@@ -466,7 +466,7 @@ func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenera
 
 
 ## A macro town materializes: welcome sign, husk blocks, a stash — and its
-## LANDMARK if it has one (you navigate the Deathlands by silhouettes).
+## LANDMARK if it has one (you navigate the Divided States by silhouettes).
 func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> void:
 	var tp: Vector2 = t["pos"]
 	var base := Vector3(tp.x, 0, tp.y)
@@ -578,7 +578,7 @@ func _draw_local() -> void:
 			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(7, 4), poi[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.92, 0.89, 0.82))
 	# You
 	_map_canvas.draw_circle(center, 5.0, Color(0.9, 0.25, 0.12))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DEATHLANDS — %s   (M again: the atlas)" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DIVIDED STATES — %s   (M again: the atlas)" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 
 
 ## Screen⇄world mapping for the atlas (shared by draw + click). world XZ →

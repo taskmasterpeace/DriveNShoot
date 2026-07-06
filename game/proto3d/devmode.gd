@@ -94,7 +94,7 @@ static func create(main: Node) -> ProtoDevMode:
 	d._title(v, "🎁 give / fix", 12)
 	d._row(v, [
 		["Arsenal", func() -> void: d._give_arsenal()],
-		["100 jack", func() -> void: d._give({"jack": 100})],
+		["100 scrip", func() -> void: d._give({"scrip": 100})],
 		["Meds", func() -> void: d._give({"bandage": 4, "medkit": 2, "painkillers": 2})],
 		["Fuel+parts", func() -> void: d._give({"jerry_can": 2, "car_parts": 2, "tire_kit": 1, "duct_tape": 2})],
 	])
@@ -178,7 +178,7 @@ func _spawn_dog() -> void:
 
 func _spawn_chest() -> void:
 	var c := ProtoChest.create("Dev cache", {"bandage": 2, "meat": 2, "12ga": 8,
-		"9mm": 30, "jack": 20, "water": 1, "scrap": 4})
+		"9mm": 30, "scrip": 20, "water": 1, "scrap": 4})
 	_main.add_child(c)
 	c.global_position = _spawn_at()
 

@@ -109,7 +109,7 @@ func _ready() -> void:
 		t += get_physics_process_delta_time()
 	_check("the chaser CLOSES on a standing target (%.0fm → %.0fm)" % [d0, chaser.global_position.distance_to(main.active_car.global_position)],
 		chaser.global_position.distance_to(main.active_car.global_position) < d0 * 0.55)
-	_check("their trunks make it WORTH the fight", chaser.trunk.count("jack") > 0)
+	_check("their trunks make it WORTH the fight", chaser.trunk.count("scrip") > 0)
 	# Outrun resolution: stage the distance, the chase breaks off.
 	main.active_car.global_position += main.active_car.facing() * -500.0
 	for _i in 5:

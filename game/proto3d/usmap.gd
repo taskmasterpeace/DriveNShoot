@@ -1,4 +1,4 @@
-## The DEATHLANDS USA macro map — the single source of truth for the compressed
+## The DIVIDED STATES USA macro map — the single source of truth for the compressed
 ## country (60×: 4 real hours of driving = 4 in-game minutes; 150×85 cells of
 ## 500 m = 75×42.5 km). Generated/edited by MapForge (tools/mapforge — editor,
 ## REST API, and generator all read/write the SAME res://data/usmap.json), and
@@ -11,7 +11,7 @@ const PATH := "res://data/usmap.json"
 static var _instance: ProtoUSMap = null
 
 var ok: bool = false
-var map_name: String = "DEATHLANDS USA"
+var map_name: String = "DIVIDED STATES USA"
 var compression: int = 60
 var cell_m: float = 500.0
 var offset: Vector2 = Vector2(-60000, -20500)
@@ -67,7 +67,7 @@ func load_file(path: String) -> bool:
 	for t in d.get("towns", []):
 		towns.append({"id": t["id"], "name": t["name"],
 			"pos": Vector2(float(t["pos"][0]), float(t["pos"][1])),
-			"kind": t.get("kind", "ville"), "landmark": t.get("landmark", ""),
+			"kind": t.get("kind", "holdout"), "landmark": t.get("landmark", ""),
 			"authored": t.get("authored", false)})
 	placements.clear()
 	for p in d.get("placements", []):

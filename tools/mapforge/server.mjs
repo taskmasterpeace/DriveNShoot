@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// MapForge — the DEATHLANDS USA map editor + REST API.
+// MapForge — the DIVIDED STATES USA map editor + REST API.
 // One source of truth: game/data/usmap.json (the same file the game loads).
 // The browser editor AND any AI agent (via curl/fetch) read and write the map
 // through the same endpoints. Every mutation saves to disk immediately.
@@ -73,7 +73,7 @@ const cellToWorld = (x, z) => [
 ];
 
 const HELP = {
-	name: "MapForge API — read, build, and expand the DEATHLANDS USA map",
+	name: "MapForge API — read, build, and expand the DIVIDED STATES USA map",
 	file: "game/data/usmap.json (saved on every mutation; the game loads it at boot)",
 	coordinates: {
 		cell: "x: 0..w-1 (west→east), z: 0..h-1 (north→south)",
@@ -104,7 +104,7 @@ const HELP = {
 	examples: [
 		`curl localhost:${PORT}/api/cell?x=120\\&z=40`,
 		`curl -X POST localhost:${PORT}/api/paint -d '{"biome":"forest","rect":[100,38,110,44]}'`,
-		`curl -X POST localhost:${PORT}/api/towns -d '{"id":"newville","name":"NEW VILLE","pos":[-2000,5000],"kind":"ville"}'`,
+		`curl -X POST localhost:${PORT}/api/towns -d '{"id":"newville","name":"NEW VILLE","pos":[-2000,5000],"kind":"holdout"}'`,
 	],
 	guardrails: [
 		"keep cell (120,40) region VIRGINIA forest — the authored Meridian/I-9 zone lives at world (-60..220, -440..460)",
@@ -237,7 +237,7 @@ const server = createServer(async (req, res) => {
 			if (!body.id || !body.name || !Array.isArray(body.pos))
 				return json(res, 400, { error: "need id, name, pos:[wx,wz]" });
 			map.towns = map.towns.filter((t) => t.id !== body.id);
-			map.towns.push({ id: body.id, name: body.name, pos: body.pos, kind: body.kind || "ville", ...(body.landmark ? { landmark: body.landmark } : {}) });
+			map.towns.push({ id: body.id, name: body.name, pos: body.pos, kind: body.kind || "holdout", ...(body.landmark ? { landmark: body.landmark } : {}) });
 			save();
 			return json(res, 200, { ok: true, towns: map.towns.length });
 		}

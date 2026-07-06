@@ -68,11 +68,11 @@ func _ready() -> void:
 	_check("an enemy HUNTS the remote player (closed to %.1fm)" % chased, chased < 30.0)
 
 	# --- Join-in-progress: the snapshot round-trips ------------------------------
-	main.backpack.add("jack", 42)
+	main.backpack.add("scrip", 42)
 	main.use_item("wrench")
 	var snap: Dictionary = main.player_record()
 	_check("the JOIN SNAPSHOT carries pack + arsenal (what a server hands a joiner)",
-		snap["backpack"].get("jack", 0) >= 42 and snap["weapons"].size() >= 1)
+		snap["backpack"].get("scrip", 0) >= 42 and snap["weapons"].size() >= 1)
 
 	# --- A peer drops → the body is gone ----------------------------------------
 	main._net_despawn_peer(2)

@@ -8,7 +8,7 @@ var is_open: bool = false
 var _main: Node = null
 var _mine: ProtoContainer = null
 var _theirs: ProtoContainer = null
-var _merchant: Node = null ## set → this is a SHOP: moves cost/pay jack (Stage 6)
+var _merchant: Node = null ## set → this is a SHOP: moves cost/pay scrip (Stage 6)
 
 var _root: PanelContainer
 var _title: Label
@@ -87,7 +87,7 @@ func _make_col(parent: Control, heading: String) -> VBoxContainer:
 
 
 ## Open with the player's pack and (optionally) another container (trunk/chest).
-## With a merchant, the SAME panel becomes the shop: item moves carry jack.
+## With a merchant, the SAME panel becomes the shop: item moves carry scrip.
 func open(mine: ProtoContainer, theirs: ProtoContainer = null, merchant: Node = null) -> void:
 	_mine = mine
 	_theirs = theirs
@@ -161,7 +161,7 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 			var n := from.count(id)
 			btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
 			btn.tooltip_text = String(info.get("desc", ""))
-			if _merchant != null and id != "jack" and _main and _main.has_method("trade_price"):
+			if _merchant != null and id != "scrip" and _main and _main.has_method("trade_price"):
 				btn.text += "  🪙%d" % _main.trade_price(id, mine_side) # sell price on your side, buy on theirs
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.pressed.connect(_on_move.bind(from, to, id))
@@ -205,24 +205,24 @@ func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:
 	if to == null:
 		_refresh()
 		return
-	# Shop mode: the move IS the transaction — jack flows the other way.
+	# Shop mode: the move IS the transaction — scrip flows the other way.
 	if _merchant != null and _main != null:
-		if id == "jack":
-			_refresh() # jack is the currency, not a good
+		if id == "scrip":
+			_refresh() # scrip is the currency, not a good
 			return
 		var selling: bool = from == _mine
 		var price: int = _main.trade_price(id, selling)
 		if selling:
 			if from.transfer_to(to, id):
-				_mine.add("jack", price)
+				_mine.add("scrip", price)
 		else:
-			if _mine.count("jack") < price:
+			if _mine.count("scrip") < price:
 				if _main.has_method("notify"):
-					_main.notify("Not enough jack (%d needed)" % price)
+					_main.notify("Not enough scrip (%d needed)" % price)
 				_refresh()
 				return
 			if from.transfer_to(to, id):
-				_mine.remove("jack", price)
+				_mine.remove("scrip", price)
 				if _main and _main.has_method("circuit_beat"):
 					_main.circuit_beat("upgrade") # buying gear IS the upgrade beat
 		if "audio" in _main and _main.audio:

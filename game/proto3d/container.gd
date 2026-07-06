@@ -45,7 +45,7 @@ const ITEMS: Dictionary = {
 	"mount_schematic": {"name": "Mount schematic", "emoji": "📐", "usable": false, "w": 0.2, "cat": "tool", "desc": "Fort Hood's gift: how to bolt a gun to a rig. (The mount system awaits it.)"},
 	# -- loot --
 	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false, "w": 1.2, "cat": "loot", "desc": "The wasteland's raw material."},
-	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false, "w": 0.02, "cat": "loot", "desc": "What passes for money out here."},
+	"scrip": {"name": "Scrip (coin)", "emoji": "🪙", "usable": false, "w": 0.02, "cat": "loot", "desc": "What passes for money out here."},
 }
 
 ## Panel grouping order (container_panel renders headers in this order).

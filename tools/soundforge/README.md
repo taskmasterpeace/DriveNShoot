@@ -1,6 +1,6 @@
 # SoundForge — the game's sound department
 
-Every sound effect in DEATHLANDS is generated from a **text prompt** via the
+Every sound effect in the DIVIDED STATES is generated from a **text prompt** via the
 ElevenLabs sound-generation API, driven by one file: **`manifest.json`**. That
 manifest is the customization surface — a sound designer (human or AI) works
 here, never in engine code.

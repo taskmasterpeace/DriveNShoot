@@ -1,6 +1,6 @@
 ## STAGE 7 proof — Companions, Animals & the Second Window:
 ## TAME a staggered howler with meat (→ Fang the Mutant Hound joins the PACK),
-## HIRE Sam the Drifter (40 jack — follows, FIGHTS with his own gun, SCOUTS:
+## HIRE Sam the Drifter (40 scrip — follows, FIGHTS with his own gun, SCOUTS:
 ## what he sees that you can't pings your perception), and the SecondaryView
 ## module cycles DOGCAM / REARVIEW on V. Inputs drive it; teleports stage only.
 ## Run: godot --headless --path game res://proto3d/tests/stage7_sim.tscn
@@ -136,20 +136,20 @@ func _physics_process(delta: float) -> void:
 				_check("...and the wild thing is GONE (tamed, not killed)", not is_instance_valid(_howler) or _howler == null)
 				_fangs = main.dogs.size()
 				_next()
-		2: # HIRE: 40 jack buys Sam — a gun that walks with you
+		2: # HIRE: 40 scrip buys Sam — a gun that walks with you
 			if _step == 0:
 				_step = 1
 				main.daynight.hour = 12.0 # back to daylight — the tame is done
-				main.backpack.add("jack", 50)
-				_jack0 = main.backpack.count("jack")
+				main.backpack.add("scrip", 50)
+				_jack0 = main.backpack.count("scrip")
 				_place(Vector3(97.0, 0.35, -311.0)) # at the Drifter
 			elif _step == 1 and phase_t > 0.5:
 				_step = 2
 				_tap_interact()
 			elif _step == 2 and phase_t > 1.0:
-				_check("40 jack HIRES Sam (companion joined)", main.companions.size() == 1)
-				_check("...and the jack changed hands (%d -> %d)" % [_jack0, main.backpack.count("jack")],
-					main.backpack.count("jack") == _jack0 - 40)
+				_check("40 scrip HIRES Sam (companion joined)", main.companions.size() == 1)
+				_check("...and the scrip changed hands (%d -> %d)" % [_jack0, main.backpack.count("scrip")],
+					main.backpack.count("scrip") == _jack0 - 40)
 				_next()
 		3: # FOLLOW: he walks where you walk (one law, animal or human)
 			if _step == 0:

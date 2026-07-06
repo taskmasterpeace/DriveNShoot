@@ -194,12 +194,12 @@ func _ready() -> void:
 
 	panel = ProtoContainerPanel.create(self)
 	add_child(panel)
-	backpack.add("jack", 5)
+	backpack.add("scrip", 5)
 
 	# A supply chest inside the safehouse — same interface as every trunk.
 	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
-	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
 		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
@@ -231,7 +231,7 @@ func _ready() -> void:
 		lurker.position = lpos
 		add_child(lurker)
 
-	# Stage 6 slice: MERIDIAN LIVES — a trader to spend jack at, a Sec-Man with
+	# Stage 6 slice: MERIDIAN LIVES — a trader to spend scrip at, a Sec-Man with
 	# work. The market sits ACROSS the street from the safehouse — deliberately
 	# clear of the kennel→chest corridor (dogs charge in straight lines; furniture
 	# on their desire path traps them — dogmeta taught us).
@@ -242,7 +242,7 @@ func _ready() -> void:
 	var secman := ProtoNPC.create("secman")
 	secman.position = Vector3(104.0, 0.2, -314.0)
 	add_child(secman)
-	# Sam the Drifter waits by the market — 40 jack buys a gun that walks with you.
+	# Sam the Drifter waits by the market — 40 scrip buys a gun that walks with you.
 	var drifter := ProtoNPC.create("drifter")
 	drifter.position = Vector3(97.0, 0.2, -312.5)
 	add_child(drifter)
@@ -256,7 +256,7 @@ func _ready() -> void:
 
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
-	# The macro map (DEATHLANDS USA) feeds streaming, surfaces, and the HUD.
+	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
 	stream = ProtoWorldStream.new()
 	add_child(stream)
@@ -1220,7 +1220,7 @@ func player_restore(rec: Dictionary) -> void:
 		player.rebuild_puppet(rec["appearance"])
 		_last_pose_id = "∅" # re-apply the equipped weapon's grip next frame
 	character.from_record(rec.get("character", {}))
-	backpack.slots = (rec.get("backpack", {}) as Dictionary).duplicate()
+	backpack.slots = migrate_item_ids((rec.get("backpack", {}) as Dictionary).duplicate())
 	backpack.changed.emit()
 	weapons.clear()
 	for wr in rec.get("weapons", []):
@@ -1239,7 +1239,7 @@ func open_container(theirs: ProtoContainer) -> void:
 
 # --- Stage 6 slice: trade, bounties, crime (the town remembers) ---------------
 
-## Trading IS the container interface with jack flowing backward (§7 multi-use:
+## Trading IS the container interface with scrip flowing backward (§7 multi-use:
 ## the same panel that loots a trunk is the shop).
 func open_trade(npc: ProtoNPC) -> void:
 	panel.open(backpack, npc.stock, npc)
@@ -1260,12 +1260,12 @@ func trade_price(id: String, selling: bool) -> int:
 func secman_talk(npc: ProtoNPC) -> void:
 	match bounty.get("state", ""):
 		"open":
-			notify("Bridger: 'It's still breathing. The jack waits.'")
+			notify("Bridger: 'It's still breathing. The scrip waits.'")
 		"filled":
 			var reward: int = int(bounty.get("reward", 25))
-			backpack.add("jack", reward)
+			backpack.add("scrip", reward)
 			respect.add_esteem(ProtoNPC.FACTION, 20.0)
-			notify("Bridger: 'Clean work.' +%d jack — Meridian noticed." % reward)
+			notify("Bridger: 'Clean work.' +%d scrip — Meridian noticed." % reward)
 			audio.play_at("vo_bridger_clean", npc.global_position, 2.0)
 			bounty = {}
 			for i in range(waypoints.size() - 1, -1, -1):
@@ -1345,7 +1345,7 @@ func _update_bounty() -> void:
 	for wp in waypoints:
 		if wp[0] == "BOUNTY":
 			wp[1] = bounty.get("last_pos", player.global_position)
-	notify("🎯 Bounty filled — see Bridger for your jack")
+	notify("🎯 Bounty filled — see Bridger for your scrip")
 	grant_xp("marksmanship", 4.0)
 
 
@@ -1721,12 +1721,12 @@ func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 
 # --- Stage 7: hiring a companion ------------------------------------------------
 
-## 40 jack: Sam stops being an NPC and becomes YOURS — follows, fights, scouts.
+## 40 scrip: Sam stops being an NPC and becomes YOURS — follows, fights, scouts.
 func hire_companion(npc: ProtoNPC) -> void:
 	# The NPC's archetype names the CREW row — new hires are rows, not code.
 	var cid: String = {"drifter": "sam", "mechanic": "hazel", "medic": "mercer"}.get(npc.archetype, "sam")
 	var cost: int = ProtoCompanion.CREW[cid]["hire_cost"]
-	if not backpack.remove("jack", cost):
+	if not backpack.remove("scrip", cost):
 		notify("%s: '%d. I count fewer in that pack.'" % [ProtoCompanion.CREW[cid]["name"], cost])
 		return
 	var c := ProtoCompanion.create(self, cid)
@@ -2046,7 +2046,7 @@ func _sheet_text() -> String:
 			row["name"], lvl, bar, character.skill_effect_line(id)])
 		lines.append("      ↳ %s · next lv: %s" % [row["how"], row["gain"]])
 	lines.append("")
-	lines.append("🪙 Jack: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("jack"), str(bleeding), int(stress)])
+	lines.append("🪙 Scrip: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("scrip"), str(bleeding), int(stress)])
 	lines.append("🏛️ MERIDIAN: %s  (esteem %d · infamy %d · notoriety %d)" % [respect.standing("meridian"),
 		int(respect.esteem("meridian")), int(respect.infamy("meridian")), int(respect.notoriety("meridian"))])
 
@@ -2136,11 +2136,11 @@ func respawn_at_home() -> void:
 	character.revive()
 	# The toll: the wasteland scavenges a cut of what you were carrying.
 	var lost_scrap: int = int(backpack.count("scrap") * 0.4)
-	var lost_jack: int = int(backpack.count("jack") * 0.3)
+	var lost_jack: int = int(backpack.count("scrip") * 0.3)
 	if lost_scrap > 0:
 		backpack.remove("scrap", lost_scrap)
 	if lost_jack > 0:
-		backpack.remove("jack", lost_jack)
+		backpack.remove("scrip", lost_jack)
 	# Wake on foot at the safehouse door; leave the car (and its cargo) behind.
 	mode = Mode.FOOT
 	active_car = null
@@ -2221,8 +2221,8 @@ func on_state_entered(state: String) -> void:
 			bounty_hunted = false
 			if not _welcomed_states.has(state):
 				_welcomed_states[state] = true
-				backpack.add("jack", 15)
-				notify("👑 %s SENDS A HERO'S WELCOME — an escort's purse rides with you (+15 jack)" % String(r["ruler"]).to_upper())
+				backpack.add("scrip", 15)
+				notify("👑 %s SENDS A HERO'S WELCOME — an escort's purse rides with you (+15 scrip)" % String(r["ruler"]).to_upper())
 		_:
 			bounty_hunted = false
 			notify("🪧 %s territory — %s watches these roads" % [state, String(r["ruler"])])
@@ -2435,6 +2435,15 @@ func point_home_waypoint() -> void:
 			return
 
 
+## OLD SAVES speak the old tongue: the 2026-07-06 lore rename (jack→scrip) walks
+## any restored container through this. One-way, additive — no coin is ever lost.
+static func migrate_item_ids(slots: Dictionary) -> Dictionary:
+	if slots.has("jack"):
+		slots["scrip"] = int(slots.get("scrip", 0)) + int(slots["jack"])
+		slots.erase("jack")
+	return slots
+
+
 ## NEW GAME (from the front door): you're already spawned driving — this just
 ## hands you the first goal. THE FIRST RUN teaches THE CIRCUIT then bows out.
 func begin_new_game() -> void:
@@ -2501,7 +2510,11 @@ func apply_save(data: Dictionary) -> void:
 	var gj: Dictionary = data.get("garages", {})
 	for gid in gj:
 		if carousel.gates.has(String(gid)):
-			carousel.gates[String(gid)].garage = (gj[gid] as Array).duplicate(true)
+			var recs: Array = (gj[gid] as Array).duplicate(true)
+			for r in recs: # old-save trunks speak the old tongue too
+				if r is Dictionary and r.has("trunk"):
+					r["trunk"] = migrate_item_ids(r["trunk"])
+			carousel.gates[String(gid)].garage = recs
 	for sid in data.get("sieges", {}):
 		if carousel.gates.has(String(sid)):
 			var g = carousel.gates[String(sid)]
@@ -2638,13 +2651,13 @@ func spawn_road_ambush() -> void:
 		b.global_position = block_at + side * (i * 5.5 - 2.75) + Vector3(0, 1.0, 0)
 		b.global_rotation.y = atan2(-fwd.x, -fwd.z) + (1.15 if i == 0 else -1.15)
 		b.trunk.add("9mm", 20)
-		b.trunk.add("jack", 10 + i * 8)
+		b.trunk.add("scrip", 10 + i * 8)
 		b.trunk.add("scrap", 3)
 	# THE MIRROR: a chaser drops in behind, wearing the chase brain.
 	var ch := ProtoCar3D.create("buggy", Color(0.28, 0.1, 0.08))
 	add_child(ch)
 	ch.global_position = active_car.global_position - fwd * 70.0 + Vector3(0, 1.0, 0)
-	ch.trunk.add("jack", 25)
+	ch.trunk.add("scrip", 25)
 	ch.trunk.add("12ga", 8)
 	var ai := ProtoAutopilot.attach(ch)
 	ai.target_node = active_car
@@ -2772,7 +2785,7 @@ func _update_location_label() -> void:
 		if not road.is_empty():
 			hud.set_location(clock + "%s — %s" % [road["id"], stream.current_state(pos)])
 			return
-	hud.set_location(clock + "DEATHLANDS — %s" % stream.current_state(pos))
+	hud.set_location(clock + "DIVIDED STATES — %s" % stream.current_state(pos))
 
 
 func enter_car(car: ProtoCar3D) -> void:

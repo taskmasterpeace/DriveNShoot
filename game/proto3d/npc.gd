@@ -13,7 +13,7 @@ const ARCHETYPES: Dictionary = {
 	# this NPC "acts its part" through STATE — trader gestures, guard scans, drifter idles.
 	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade", "look": "trader", "act": "gesture",
 		"color": Color(0.72, 0.55, 0.28),
-		"greet": "Mercy: 'Jack talks. What are you buying?'",
+		"greet": "Mercy: 'Scrip talks. What are you buying?'",
 		"refuse": "Mercy: 'Not to you. Not after what you did.'",
 		"stock": {"bandage": 4, "meat": 3, "9mm": 30, "12ga": 12, "grenade": 2,
 			"medkit": 1, "water": 3, "coffee": 2, "canned_food": 3, "whiskey": 2,
@@ -21,17 +21,17 @@ const ARCHETYPES: Dictionary = {
 			"flare": 4, "map_fragment": 2, "painkillers": 2}},
 	"secman": {"name": "Bridger", "title": "SEC-MAN", "role": "bounty", "look": "guard", "act": "scan",
 		"color": Color(0.30, 0.40, 0.55),
-		"greet": "Bridger: 'Got a lurker problem by the water point. 25 jack for its head.'",
+		"greet": "Bridger: 'Got a lurker problem by the water point. 25 scrip for its head.'",
 		"refuse": "Bridger: 'Meridian doesn't work with your kind. Walk away.'",
 		"stock": {}},
-	"drifter": {"name": "Sam", "title": "DRIFTER — 40 JACK", "role": "hire", "look": "drifter", "act": "idle",
+	"drifter": {"name": "Sam", "title": "DRIFTER — 40 SCRIP", "role": "hire", "look": "drifter", "act": "idle",
 		"color": Color(0.33, 0.38, 0.30),
-		"greet": "Sam: 'Forty jack and my gun walks where you walk.'",
+		"greet": "Sam: 'Forty scrip and my gun walks where you walk.'",
 		"refuse": "Sam: 'I drift with anybody... except you.'",
 		"stock": {}},
 }
 
-## Base prices (jack) — the Respect Ledger's price_mult scales them per faction.
+## Base prices (scrip) — the Respect Ledger's price_mult scales them per faction.
 const PRICES: Dictionary = {
 	"bandage": 12, "meat": 6, "9mm": 1, "12ga": 2, "grenade": 18, "scrap": 4,
 	"wrench": 10, "machete": 25, "pistol": 40, "shotgun": 60, "rocket": 15,
@@ -236,7 +236,7 @@ func interact_prompt(main: Node) -> String:
 	if main.respect.standing(FACTION) == "SUSPECT":
 		return "E — 🚫 %s won't deal with you" % npc_name
 	if role == "hire":
-		return "E — Hire %s (40 jack — he FIGHTS and SCOUTS)" % npc_name
+		return "E — Hire %s (40 scrip — he FIGHTS and SCOUTS)" % npc_name
 	if role == "trade":
 		return "E — Trade with %s" % npc_name
 	# Sec-Man prompt follows the bounty state machine in main.
@@ -244,7 +244,7 @@ func interact_prompt(main: Node) -> String:
 		"open":
 			return "E — Bounty is LIVE — bring its head"
 		"filled":
-			return "E — Claim bounty (%d jack)" % int(main.bounty.get("reward", 25))
+			return "E — Claim bounty (%d scrip)" % int(main.bounty.get("reward", 25))
 		_:
 			return "E — Ask %s about WORK" % npc_name
 

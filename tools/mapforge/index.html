@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MAPFORGE — DEATHLANDS USA</title>
+<title>MAPFORGE — DIVIDED STATES USA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 	:root {
@@ -48,7 +48,7 @@
 <body>
 <header>
 	<h1>MAPFORGE</h1>
-	<span class="sub" id="mapname">DEATHLANDS USA · 60× · 75×42.5 km</span>
+	<span class="sub" id="mapname">DIVIDED STATES USA · 60× · 75×42.5 km</span>
 	<a href="/api/help" target="_blank">API — for humans &amp; AIs</a>
 </header>
 <main>
@@ -332,7 +332,7 @@ cv.addEventListener("mousedown", async (ev) => {
 		const name = prompt("Town name (empty = cancel):");
 		if (!name) return;
 		const id = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-		const t = { id, name: name.toUpperCase(), pos: [meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m], kind: "ville" };
+		const t = { id, name: name.toUpperCase(), pos: [meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m], kind: "holdout" };
 		await api("/api/towns", { method: "POST", body: JSON.stringify(t) });
 		towns = await api("/api/towns"); savedFlash(`${t.name} founded`); draw();
 	} else if (tool === "inspect") {

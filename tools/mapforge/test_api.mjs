@@ -74,7 +74,7 @@ try {
 	check("DELETE /api/roads removes it", delRoad.removed === 1);
 
 	// towns: add near a world point, query finds it
-	await api("/api/towns", { method: "POST", body: JSON.stringify({ id: "testville", name: "TESTVILLE", pos: [-30000, 4000], kind: "ville" }) });
+	await api("/api/towns", { method: "POST", body: JSON.stringify({ id: "testville", name: "TESTVILLE", pos: [-30000, 4000], kind: "holdout" }) });
 	const query = (await api("/api/query?wx=-30000&wz=4000&r=3000")).body;
 	check("query finds the founded town within radius", query.towns.some((t) => t.id === "testville"));
 	check("query names the ground it stands on", typeof query.here.biome === "string" && query.here.state !== undefined);

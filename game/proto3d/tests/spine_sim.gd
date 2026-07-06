@@ -48,9 +48,9 @@ func _ready() -> void:
 	main.on_state_entered("KENTUCKY")
 	_check("a SUSPECT border-crossing posts BOUNTY HUNTERS", main.bounty_hunted)
 	main.respect.add_esteem("NEVADA", 300.0)
-	var jack0: int = main.backpack.count("jack")
+	var jack0: int = main.backpack.count("scrip")
 	main.on_state_entered("NEVADA")
-	_check("a TRUSTED name gets the ruler's WELCOME (+jack)", main.backpack.count("jack") > jack0 and not main.bounty_hunted)
+	_check("a TRUSTED name gets the ruler's WELCOME (+scrip)", main.backpack.count("scrip") > jack0 and not main.bounty_hunted)
 	_check("…and entering states banked the PUSH beat", main.circuit_beats["push"])
 
 	# --- WORLD EVENTS: deterministic off the day ---------------------------------

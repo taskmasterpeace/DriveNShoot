@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 				for id in items:
 					if not items[id].has("cat") or String(items[id].get("desc", "")) == "":
 						complete = false
-					if id != "jack" and not ProtoNPC.PRICES.has(id):
+					if id != "scrip" and not ProtoNPC.PRICES.has(id):
 						priced = false
 				_check("every item has a category + a tooltip desc", complete)
 				_check("every tradeable item has a PRICE (Mercy can stock anything)", priced)

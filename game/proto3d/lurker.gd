@@ -64,7 +64,7 @@ func take_damage(amount: float) -> void:
 		# KILL PAYOFF: the skull pops, the remains drop (soft pile, never a
 		# car-denting crate).
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 2}, false)
+		var corpse := ProtoChest.create("Corpse", {"meat": 1, "scrip": 2}, false)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()

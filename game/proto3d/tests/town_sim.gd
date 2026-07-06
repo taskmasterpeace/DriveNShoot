@@ -1,6 +1,6 @@
 ## Stage 6 slice proof — MERIDIAN LIVES (WORLD_NPCS.md §6): buy/sell at the
-## trader through the SAME container panel (jack flows backward), take a Sec-Man
-## bounty, kill the mark, claim the jack, watch esteem drop prices — then commit
+## trader through the SAME container panel (scrip flows backward), take a Sec-Man
+## bounty, kill the mark, claim the scrip, watch esteem drop prices — then commit
 ## a CRIME and watch the town close up (SUSPECT: no trade, no work, gouged prices).
 ## Inputs only for interactions; positioning teleports = stage-setting (allowed).
 ## Run: godot --headless --path game res://proto3d/tests/town_sim.tscn
@@ -97,7 +97,7 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.4:
 				_find_npcs()
 				_check("Meridian has a trader and a Sec-Man", _trader != null and _secman != null)
-				main.backpack.add("jack", 60)
+				main.backpack.add("scrip", 60)
 				main.backpack.add("scrap", 3)
 				main.backpack.add("pistol", 1)
 				main.backpack.add("9mm", 24)
@@ -106,16 +106,16 @@ func _physics_process(delta: float) -> void:
 				main.player.snap_orientation(Vector3(0, 0, 1)) # face Mercy over the counter
 				_tap_interact()
 				_next()
-		2: # BUY and SELL through the one panel — jack flows backward
+		2: # BUY and SELL through the one panel — scrip flows backward
 			if phase_t > 0.5 and not _did:
 				_did = true
 				_check("E on the trader opens the SHOP (same panel)", main.panel.is_open and main.panel._merchant != null)
-				_jack0 = main.backpack.count("jack")
+				_jack0 = main.backpack.count("scrip")
 				main.panel._on_move(main.panel._theirs, main.panel._mine, "bandage") # BUY
-				_check("BUY: bandage arrives, 12 jack leaves (%d -> %d)" % [_jack0, main.backpack.count("jack")],
-					main.backpack.count("bandage") == 1 and main.backpack.count("jack") == _jack0 - 12)
+				_check("BUY: bandage arrives, 12 scrip leaves (%d -> %d)" % [_jack0, main.backpack.count("scrip")],
+					main.backpack.count("bandage") == 1 and main.backpack.count("scrip") == _jack0 - 12)
 				main.panel._on_move(main.panel._mine, main.panel._theirs, "scrap") # SELL
-				_check("SELL: scrap to the stall, +2 jack", main.backpack.count("jack") == _jack0 - 10
+				_check("SELL: scrap to the stall, +2 scrip", main.backpack.count("scrip") == _jack0 - 10
 					and _trader.stock.count("scrap") == 1 and main.backpack.count("scrap") == 2)
 				_tap_interact() # close the panel
 			elif _did and phase_t > 0.8:
@@ -138,7 +138,7 @@ func _physics_process(delta: float) -> void:
 			var tgt: Variant = main.bounty.get("target") # untyped: may be freed
 			if main.bounty.get("state", "") == "filled":
 				_check("kill detected the moment it happens (bounty FILLED)", true)
-				_jack_preclaim = main.backpack.count("jack")
+				_jack_preclaim = main.backpack.count("scrip")
 				_place(Vector3(104.0, 0.35, -315.8)) # back to Bridger
 				_next()
 			elif tgt != null and is_instance_valid(tgt) and not tgt.dead:
@@ -148,21 +148,21 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 8.0:
 				_check("kill detected the moment it happens (bounty FILLED)", false)
 				_next()
-		6: # claim: jack + esteem, waypoint gone, prices soften
+		6: # claim: scrip + esteem, waypoint gone, prices soften
 			if not _did:
 				_did = true # settle a beat at Bridger
 			elif not _did2 and phase_t > 0.5:
 				_did2 = true
 				_tap_interact() # exactly ONE tap — a second would re-offer a fresh bounty
-			elif _did2 and main.backpack.count("jack") == _jack_preclaim + 25:
-				_check("claim pays +25 jack", true)
+			elif _did2 and main.backpack.count("scrip") == _jack_preclaim + 25:
+				_check("claim pays +25 scrip", true)
 				_check("Meridian NOTICED (esteem 20)", main.respect.esteem("meridian") >= 20.0)
 				_check("bounty cleared + waypoint removed", main.bounty.is_empty() and main.waypoints.size() == 3)
-				_check("esteem talks: bandage 12 -> %d jack" % main.trade_price("bandage", false),
+				_check("esteem talks: bandage 12 -> %d scrip" % main.trade_price("bandage", false),
 					main.trade_price("bandage", false) == 11)
 				_next()
 			elif phase_t > 4.0:
-				_check("claim pays +25 jack", false)
+				_check("claim pays +25 scrip", false)
 				_next()
 		7: # CRIME: put a bullet in the trader — the ledger takes infamy
 			if not _did:
@@ -186,7 +186,7 @@ func _physics_process(delta: float) -> void:
 					main.respect.infamy("meridian") >= 60.0)
 				_check("standing flips to SUSPECT (net %.0f)" % main.respect.net("meridian"),
 					main.respect.standing("meridian") == "SUSPECT")
-				_check("infamy gouges: bandage now %d jack" % main.trade_price("bandage", false),
+				_check("infamy gouges: bandage now %d scrip" % main.trade_price("bandage", false),
 					main.trade_price("bandage", false) >= 16)
 				_next()
 		8: # the town closes up: no trade, no work (each step fires exactly once)

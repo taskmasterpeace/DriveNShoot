@@ -1,4 +1,4 @@
-# MapForge — the DEATHLANDS USA map editor & API
+# MapForge — the DIVIDED STATES USA map editor & API
 
 One source of truth: **`game/data/usmap.json`** — the same file the game loads at boot
 (`ProtoUSMap`), the browser editor paints, and this REST API mutates. Every mutation
@@ -52,9 +52,9 @@ curl "localhost:8899/api/query?wx=110&wz=-325&r=5000"
 # Grow a forest along a stretch of I-70
 curl -X POST localhost:8899/api/paint -d '{"biome":"forest","rect":[60,33,70,36]}'
 
-# Found a ville with a landmark on the map
+# Found a holdout with a landmark on the map
 curl -X POST localhost:8899/api/towns \
-  -d '{"id":"deadwater","name":"DEADWATER","pos":[-21000,-4000],"kind":"ville","landmark":"THE SUNK SILO"}'
+  -d '{"id":"deadwater","name":"DEADWATER","pos":[-21000,-4000],"kind":"holdout","landmark":"THE SUNK SILO"}'
 
 # Lay a new state route
 curl -X POST localhost:8899/api/roads -d '{"id":"US-50","kind":"route","pts":[[-45000,-2000],[-30000,1500],[-18000,900]]}'

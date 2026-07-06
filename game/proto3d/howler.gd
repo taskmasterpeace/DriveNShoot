@@ -114,7 +114,7 @@ func take_damage(amount: float) -> void:
 	if body.hp <= 0.0:
 		dead = true
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoChest.create("Corpse", {"meat": 1, "jack": 3}, false)
+		var corpse := ProtoChest.create("Corpse", {"meat": 1, "scrip": 3}, false)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()

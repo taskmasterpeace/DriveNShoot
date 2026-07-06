@@ -77,7 +77,7 @@ func _ready() -> void:
 	main.panel.close()
 	_check("the MARKET GREW (%d → %d lines)" % [stock_before, trader.stock.slots.size()],
 		trader.stock.slots.size() > stock_before)
-	_check("prices remember you (%d → %d jack)" % [price_neutral, main.trade_price("bandage", false)],
+	_check("prices remember you (%d → %d scrip)" % [price_neutral, main.trade_price("bandage", false)],
 		main.trade_price("bandage", false) < price_neutral)
 	# …and a SUSPECT gets the town's other face.
 	main.respect.add_infamy(ProtoNPC.FACTION, 500.0)

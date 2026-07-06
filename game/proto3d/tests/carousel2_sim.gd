@@ -43,10 +43,10 @@ func _ready() -> void:
 	# --- CODES: earned, or bought ------------------------------------------------
 	var norfolk: Variant = crsl.gates["norfolk_yard"] # objectives: ["codes"]
 	norfolk.interact(main) # broke and unknown → refused
-	_check("no standing + no jack = NO CODES", "codes" in norfolk.objectives_left and norfolk.state == "dormant")
-	main.backpack.add("jack", 60)
+	_check("no standing + no scrip = NO CODES", "codes" in norfolk.objectives_left and norfolk.state == "dormant")
+	main.backpack.add("scrip", 60)
 	norfolk.interact(main) # buys them (nobody asks where they came from)
-	_check("jack BUYS the codes → the boot begins", not ("codes" in norfolk.objectives_left) and norfolk.state == "spinup")
+	_check("scrip BUYS the codes → the boot begins", not ("codes" in norfolk.objectives_left) and norfolk.state == "spinup")
 
 	# --- PURGE: the room must be cleared ------------------------------------------
 	var benning: Variant = crsl.gates["fort_benning"] # raider_garrison, ["purge"], diff 3
