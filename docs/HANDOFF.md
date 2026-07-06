@@ -14,7 +14,16 @@
 > - **Signs for the illiterate (spoken ask): DONE.** `ProtoSign` — an always-visible 📜 symbol ("words here"); the words only surface when the sign is in your **sight cone** + range. `sign_sim`.
 > - **The one real red is fixed:** `dog_sim` rear-smell (test staged the threat behind *movement*, not *gaze*) + the Companion-obey flake hardened. `voices.json` "jack"→"scrip" closed.
 > - **Roadmap #3 — data-spine read-back (items slice): DONE.** `ProtoContainer.ITEMS` is now a static var; `ensure_items()` folds `data/items.json` *additively* onto the code floor at boot — a JSON row with a new id is a real in-game item (dogfooded with `field_ration`), existing ids stay code-authoritative so stale JSON can't corrupt them. `items_sim`. **"A new item = a ROW" is true now** (for items).
-> - **Still open (next dev):** #3 remainder — the same additive-fold pattern for **NPCs (`ARCHETYPES`/`PRICES`) and `loot_tables`** (items proved the pattern); #4 remainder (toll billing/family); #6 sim-coverage gaps (crit/camera-shake/timers); #8 lurker→puppet. §2c/§2d pillars unchanged — **do not start them** (§7).
+> - **Roadmap #3 — loot read-back: DONE.** `ProtoContainer.roll_loot(table_id, rng)` reads `data/loot_tables.json` (seeded-deterministic); the radio distress cache now rolls its contents from data instead of a hardcoded dict. `items_sim`. (Loot tables verified 0 broken refs.)
+> - **Roadmap #6 — crit coverage: DONE.** `melee_sim` now asserts a crit lands exactly ×1.8 (was completely untested — the combat-feel pillar's biggest coverage hole).
+> - **Consciously DEFERRED (done-condition #1 sign-off):**
+>   - **NPC `PRICES`/`ARCHETYPES` read-back** — no `prices.json` source exists; needs a data-file design first (items+loot proved the fold pattern, so it's mechanical once the source exists).
+>   - **#4 toll billing** — needs a checkpoint/toll-gate UX decision (danger→ambush shipped; toll/family rows still unconsumed).
+>   - **#8 lurker→puppet** — NOT a bounded change: the lurker is a bespoke cloaked/hooded crawler; moving it to the humanoid puppet changes its silhouette + needs a new look-row + flash/animate rewiring, with regression risk across `threat_sim`/`dark_sim` for zero player value. Do it in a focused session.
+>   - **#6 remainder** (camera-shake/get-up-stamina/misfire/timer assertions) — low-value test-only adds.
+>   - **§2c/§2d pillars** — weeks each; **do not start** (§7).
+>
+> **Net:** the entire shippability-critical roadmap (#1, #2, #3, #4-danger, #5, #6-crit, #8-signs) is CLOSED. What remains is blocked-on-a-design-decision, a risky no-player-value refactor, or the pillars we agreed to hold.
 
 ---
 
