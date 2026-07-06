@@ -593,5 +593,22 @@ func set_binoculars(on: bool) -> void:
 	_vignette.visible = on
 
 
+## THE CIRCUIT tracker (goal #16 — the payoff you can SEE): four pips under the
+## headline, filling as the loop's beats land. ●●○○ is a promise, ●●●● pays.
+var _circuit_label: Label = null
+func set_circuit(level: int, beats: Dictionary) -> void:
+	if _circuit_label == null:
+		_circuit_label = Label.new()
+		_circuit_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_circuit_label.add_theme_font_size_override("font_size", 15)
+		_circuit_label.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2))
+		_circuit_label.position = Vector2(22, 52)
+		add_child(_circuit_label)
+	var pips := ""
+	for k in ["scavenge", "upgrade", "push", "node"]:
+		pips += "●" if beats.get(k, false) else "○"
+	_circuit_label.text = "🏁 THE CIRCUIT %d   %s" % [level, pips]
+
+
 func set_location(text: String) -> void:
 	_mode_label.text = text

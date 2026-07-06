@@ -158,6 +158,10 @@ func interact_position() -> Vector3:
 
 
 func interact_prompt(main: Node) -> String:
+	if downed:
+		if main.backpack.count("bandage") > 0:
+			return "E — 🩹 STABILIZE %s (%ds left)" % [dog_name, int(_bleed_out_t)]
+		return "🆘 %s is bleeding out (%ds) — NO BANDAGE" % [dog_name, int(_bleed_out_t)]
 	if not adopted:
 		return "E — Adopt %s (%s · %s)" % [dog_name, type_name(), breed]
 	if hp < max_hp - 5.0 and main.backpack.count("meat") > 0:
@@ -168,12 +172,19 @@ func interact_prompt(main: Node) -> String:
 
 
 func interact(main: Node) -> void:
+	if downed:
+		if main.backpack.remove("bandage", 1):
+			_stabilize(main)
+		else:
+			main.notify("You press your hands to the wound. It's not enough. FIND A BANDAGE.")
+		return
 	if not adopted:
 		adopted = true
 		_main = main
 		_owner_ref = main.player
 		_queue_state(DogState.FOLLOW)
 		main.register_dog(self)
+		add_bond(10.0, main) # taking one in is where it starts
 		if main.has_method("grant_xp"):
 			main.grant_xp("kinship", 8.0) # ⭐ taking one in IS the skill
 		main.notify("%s the %s %s joins you" % [dog_name, breed, type_name()])
@@ -181,6 +192,7 @@ func interact(main: Node) -> void:
 	# A hurt dog eats first — meat heals the pack (improve-the-dogs pass).
 	if hp < max_hp - 5.0 and main.backpack.remove("meat", 1):
 		hp = minf(max_hp, hp + 30.0)
+		add_bond(8.0, main)
 		if main.has_method("grant_xp"):
 			main.grant_xp("kinship", 3.0) # ⭐ feeding builds the bond
 		main.notify("🍖 %s wolfs it down (%d/%d hp)" % [dog_name, int(hp), int(max_hp)])
@@ -240,7 +252,33 @@ func command_seek(target: Node3D) -> void:
 		_queue_state(DogState.SEEK)
 
 
+# --- THE BOND + PERMADEATH (goal #13 — the emotional signature) ----------------
+## Every dog remembers who you are TO IT. Petting, feeding, adoption, and
+## carrying it back from the brink all deepen it; the bond pays in obedience and
+## the will to stay. And when a dog goes down it goes DOWN — 45 seconds to reach
+## it with a bandage, or it's GONE: a grave, a collar in your pack, a name on
+## the memorial. Permadeath with a face.
+var bond: float = 0.0
+var downed: bool = false
+var _bleed_out_t: float = 0.0
+const BOND_TIERS: Array = ["STRAY", "COMPANION", "PARTNER", "SOULBOUND"]
+
+
+func bond_tier() -> int:
+	return 3 if bond >= 80.0 else (2 if bond >= 45.0 else (1 if bond >= 15.0 else 0))
+
+
+func add_bond(amount: float, main: Node = null) -> void:
+	var t0 := bond_tier()
+	bond = clampf(bond + amount, 0.0, 100.0)
+	if bond_tier() > t0 and main != null and main.has_method("notify"):
+		main.notify("💞 %s is your %s now" % [dog_name, BOND_TIERS[bond_tier()]])
+
+
 func take_damage(amount: float) -> void:
+	if downed:
+		_bleed_out_t = maxf(0.0, _bleed_out_t - 8.0) # kicking a downed dog shortens its clock
+		return
 	hp = maxf(0.0, hp - amount)
 	if _quad:
 		_quad.flinch() # the hit reads on the body
@@ -248,15 +286,53 @@ func take_damage(amount: float) -> void:
 		_main.audio.play_at("dog_whine", global_position, -8.0)
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.4, 0), "-%d" % int(amount), Color(0.9, 0.5, 0.4), 90)
 	if hp <= 0.0:
+		downed = true
+		_bleed_out_t = 45.0
+		if _quad:
+			_quad.rotation.z = 1.35 # on its side, breathing shallow
 		if _main and _main.has_method("notify"):
-			_main.notify("%s went down." % dog_name)
-		queue_free()
+			_main.notify("🆘 %s IS DOWN — 45 seconds. RUN. (a bandage saves %s)" % [dog_name, dog_name])
+
+
+## The bandage save: you carried it back from the brink — it never forgets.
+func _stabilize(main: Node) -> void:
+	downed = false
+	hp = 30.0
+	if _quad:
+		_quad.rotation.z = 0.0
+	add_bond(15.0, main)
+	if main.has_method("grant_xp"):
+		main.grant_xp("first_aid", 6.0)
+	main.notify("🩹 %s is back on its feet — it looks at you differently now" % dog_name)
+
+
+## The other ending. A grave, a collar, a name. The pack feels it. So do you.
+func _die_forever() -> void:
+	if _main != null:
+		var grave := MeshInstance3D.new()
+		var gm := BoxMesh.new()
+		gm.size = Vector3(0.5, 0.9, 0.18)
+		grave.mesh = gm
+		grave.material_override = ProtoWorldBuilder.material(Color(0.32, 0.30, 0.27), 0.9)
+		_main.add_child(grave)
+		grave.global_position = global_position + Vector3(0, 0.45, 0)
+		if adopted:
+			_main.backpack.add("dog_collar", 1)
+			_main.stress = minf(100.0, _main.stress + 25.0)
+			if "fallen_dogs" in _main:
+				_main.fallen_dogs.append({"name": dog_name, "breed": breed, "bond": BOND_TIERS[bond_tier()]})
+			_main.notify("☠️ %s (%s · %s) IS GONE. You keep the collar. The road is heavier now." % [dog_name, breed, BOND_TIERS[bond_tier()]])
+			if "audio" in _main and _main.audio:
+				_main.audio.play_at("dog_whine", global_position, -2.0, 0.7) # the pack answers
+		else:
+			_main.notify("A stray went still out there.")
+	queue_free()
 
 
 ## Metasystem: collapse to a data record, and rebuild from one.
 func to_record() -> Dictionary:
 	return {"type": dog_type, "name": dog_name, "breed": breed,
-		"pos": global_position, "guard_pos": guard_pos, "hp": hp,
+		"pos": global_position, "guard_pos": guard_pos, "hp": hp, "bond": bond,
 		"wounded": false, "killed": false}
 
 
@@ -267,6 +343,7 @@ static func from_record(rec: Dictionary, main_in: Node) -> ProtoDog:
 	d._owner_ref = main_in.player
 	d.guard_pos = rec["guard_pos"]
 	d.hp = rec.get("hp", 50.0)
+	d.bond = float(rec.get("bond", 0.0)) # the bond survives the record
 	d.state = DogState.GUARD
 	return d
 
@@ -276,6 +353,7 @@ func _queue_state(s: DogState) -> void:
 	# ⭐ KINSHIP: a bonded handler's commands land faster — the pack TRUSTS you.
 	if _main and "character" in _main and _main.character:
 		delay *= _main.character.kinship_obey_mult()
+	delay *= 1.0 - 0.12 * bond_tier() # THIS dog's bond: a SOULBOUND barely needs the word
 	if delay <= 0.03:
 		state = s # instant obedience (Companion's signature; high Kinship earns it for all)
 	else:
@@ -285,6 +363,16 @@ func _queue_state(s: DogState) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+
+	# DOWN: no legs, no senses — just a clock and shallow breathing. Reach it.
+	if downed:
+		_bleed_out_t -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 20.0 * delta)
+		move_and_slide()
+		if _bleed_out_t <= 0.0:
+			_die_forever()
+		return
 
 	# Obedience delay queue
 	var qi := 0

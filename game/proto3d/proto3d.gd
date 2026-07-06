@@ -166,6 +166,7 @@ func _ready() -> void:
 	hud = ProtoHUD.create()
 	hud.layer = 2 # above the vision-cone dimmer
 	add_child(hud)
+	hud.set_circuit(circuit_level, circuit_beats) # the loop is on screen from minute one
 
 	audio = ProtoAudio.new()
 	add_child(audio)
@@ -1751,6 +1752,7 @@ func _pet_dog() -> void:
 		return
 	_pet_cd = 4.0
 	grant_xp("kinship", 2.0) # ⭐ the bond is built one scratch at a time
+	target.add_bond(4.0, self) # …and THIS dog remembers it was yours
 	var aura: float = target.params()["calm_aura"]
 	stress = maxf(0.0, stress - (18.0 if aura >= 5.0 else 10.0))
 	audio.play_at("bark", (active_car.global_position if mode == Mode.DRIVE and active_car else target.global_position), -10.0, 1.35)
@@ -1987,6 +1989,7 @@ var _last_chassis: float = -1.0
 var circuit_level: int = 1
 var circuit_beats: Dictionary = {"scavenge": false, "upgrade": false, "push": false, "node": false}
 var visited_states: Dictionary = {}
+var fallen_dogs: Array = [] ## the memorial — every adopted dog that didn't make it
 
 
 func circuit_beat(kind: String) -> void:
@@ -1995,6 +1998,7 @@ func circuit_beat(kind: String) -> void:
 	circuit_beats[kind] = true
 	var done: int = circuit_beats.values().count(true)
 	notify("🏁 THE CIRCUIT %d: %s ✓ (%d/4)" % [circuit_level, kind.to_upper(), done])
+	hud.set_circuit(circuit_level, circuit_beats)
 	if done >= 4:
 		_cycle_complete()
 
@@ -2011,6 +2015,7 @@ func _cycle_complete() -> void:
 		circuit_beats[k] = false
 	audio.play_ui("blip", 0.0, 0.5)
 	hud.toast("🏁 CIRCUIT COMPLETE — you got STRONGER (lv %d: every skill fed, wounds knit, +1 cell for the ring)" % circuit_level)
+	hud.set_circuit(circuit_level, circuit_beats)
 
 
 # --- THE DIVIDED STATES REACT (goal: the lore bible becomes mechanics) ----------

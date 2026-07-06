@@ -109,6 +109,12 @@ var _skids: Array = []
 var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
 var _skid_snd_cd: float = 0.0   ## screech cooldown — one cry per slide, not a siren
 
+## DRIVABLE DAMAGE (goal: the wound is in your HANDS, not just on the dash).
+var _misfire_t: float = 0.0
+var _misfire_cd: float = 3.0
+var misfiring: bool = false   ## sim/HUD hook
+var steer_slop: float = 0.0   ## sim hook — chassis wander amplitude
+
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
 var use_player_input: bool = true
@@ -486,6 +492,10 @@ func _update_death_spiral(delta: float) -> void:
 		return
 	var chassis: Damageable = components["chassis"]
 	var breached: bool = components["fuel_tank"].tier() >= Damageable.Tier.CRITICAL
+	# FUEL LEAK (drivable damage): a breached tank BLEEDS — the gauge falls while
+	# you argue with the map. Patch it or watch the range die.
+	if breached and fuel > 0.0:
+		fuel = maxf(0.0, fuel - 0.5 * delta)
 	match fire_state:
 		FireState.OK:
 			if chassis.ratio() < 0.4:
@@ -722,6 +732,16 @@ func _physics_process(delta: float) -> void:
 	if input_handbrake:
 		steer_limit *= handbrake_steer_mult
 	steering = move_toward(steering, input_steer * steer_limit, steer_speed * driver_control * delta)
+	# CHASSIS SLOP (drivable damage): a bent frame won't track true — at speed the
+	# wheel WANDERS and you correct constantly. Worn = a shimmy; critical = a fight.
+	steer_slop = 0.0
+	var ch_tier: int = components["chassis"].tier()
+	if ch_tier >= Damageable.Tier.CRITICAL:
+		steer_slop = 0.10
+	elif ch_tier == Damageable.Tier.WORN:
+		steer_slop = 0.03
+	if steer_slop > 0.0 and absf(forward_speed) > 4.0:
+		steering += sin(Time.get_ticks_msec() * 0.0023) * steer_slop * clampf(absf(forward_speed) / top_speed, 0.3, 1.0)
 
 	# Throttle / brake / reverse.
 	# NOTE: measured empirically via drive_sim — positive engine_force pushes +Z,
@@ -731,6 +751,26 @@ func _physics_process(delta: float) -> void:
 	var engine_mult: float = TIER_ENGINE_MULT[components["engine"].tier()]
 	if fuel <= 0.0 or components["battery"].tier() == Damageable.Tier.BROKEN:
 		engine_mult = 0.0
+	# MISFIRE (drivable damage): a critical engine CUTS OUT in coughs — power dies
+	# for a breath, the exhaust pops, you lurch. The repair loop sells the cure.
+	if components["engine"].tier() >= Damageable.Tier.CRITICAL and not dead:
+		_misfire_cd -= delta
+		if _misfire_cd <= 0.0:
+			_misfire_cd = _spiral_rng.randf_range(1.8, 4.2)
+			_misfire_t = 0.45
+			var mm := get_tree().current_scene
+			if mm != null and "audio" in mm and mm.audio:
+				mm.audio.play_at("metal_debris", global_position, -8.0, 1.5)
+	_misfire_t = maxf(0.0, _misfire_t - delta)
+	misfiring = _misfire_t > 0.0
+	if misfiring:
+		engine_mult *= 0.12
+	# BATTERY FLICKER (drivable damage): a dying battery can't hold the beams —
+	# night driving on a bad battery is driving by strobe.
+	if headlights_on and components["battery"].tier() >= Damageable.Tier.CRITICAL:
+		for hl in _headlights:
+			if hl is SpotLight3D:
+				(hl as SpotLight3D).light_energy = 4.0 * (0.2 + 0.8 * float(_spiral_rng.randf() > 0.25))
 	# Grip = baseline × tire condition × SURFACE-through-the-TIRES: off-road worth
 	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2);
 	# water halves it again (surface_grip_mult).
