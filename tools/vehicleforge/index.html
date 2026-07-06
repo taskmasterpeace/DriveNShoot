@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VEHICLE FORGE — DRIVN FLEET</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+	:root {
+		--ink:#14110c; --panel:#1d1913; --panel2:#262017; --bone:#e8e0cf; --dim:#9a8f78;
+		--amber:#f0b429; --rust:#8a4a2b; --blood:#c0392b; --line:#3a3226; --steel:#5a6b6a; --good:#4caf6a;
+	}
+	* { margin:0; padding:0; box-sizing:border-box; }
+	body { background:var(--ink); color:var(--bone); font:14px/1.45 ui-monospace,"Cascadia Mono",Consolas,monospace; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+	header { display:flex; align-items:baseline; gap:16px; padding:10px 16px; border-bottom:2px solid var(--rust); background:var(--panel); }
+	header h1 { font-size:18px; letter-spacing:3px; color:var(--amber); font-weight:700; }
+	header .sub { color:var(--dim); font-size:12px; letter-spacing:1px; }
+	header a { color:var(--amber); margin-left:auto; text-decoration:none; border:1px solid var(--line); padding:3px 10px; }
+	header a:hover { background:var(--panel2); }
+	main { flex:1; display:flex; min-height:0; }
+	#roster { width:210px; background:var(--panel); border-right:1px solid var(--line); overflow-y:auto; flex-shrink:0; }
+	#roster h2 { font-size:11px; letter-spacing:2px; color:var(--dim); padding:10px 12px 6px; text-transform:uppercase; }
+	.vrow { padding:8px 12px; cursor:pointer; border-left:3px solid transparent; display:flex; justify-content:space-between; gap:6px; }
+	.vrow:hover { background:var(--panel2); }
+	.vrow.on { border-left-color:var(--amber); background:var(--panel2); }
+	.vrow b { color:var(--bone); font-weight:600; }
+	.vrow .fam { color:var(--dim); font-size:11px; }
+	.vrow .arm { font-size:11px; }
+	#new { margin:8px 12px; }
+	button, select, input { background:var(--panel2); color:var(--bone); border:1px solid var(--line); padding:5px 9px; font:inherit; font-size:12px; }
+	button { cursor:pointer; } button:hover { border-color:var(--amber); }
+	input[type=range] { accent-color:var(--amber); height:4px; }
+	button.danger:hover { border-color:var(--blood); color:var(--blood); }
+	#editor { flex:1; overflow-y:auto; padding:16px 20px; }
+	#compare { width:340px; background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding:12px; flex-shrink:0; }
+	.ehead { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+	.ehead input.name { font-size:20px; letter-spacing:1px; color:var(--amber); background:transparent; border:none; border-bottom:1px solid var(--line); font-weight:700; width:260px; }
+	.ehead .id { color:var(--dim); font-size:12px; }
+	.sec { margin-bottom:18px; }
+	.sec h3 { font-size:11px; letter-spacing:2px; color:var(--dim); border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:10px; text-transform:uppercase; }
+	/* ARMOR — front and center: three big gauges */
+	.armor { display:flex; gap:18px; align-items:flex-end; }
+	.gauge { flex:1; text-align:center; }
+	.gauge .bar { height:120px; background:var(--ink); border:1px solid var(--line); position:relative; display:flex; align-items:flex-end; overflow:hidden; }
+	.gauge .fill { width:100%; transition:height .15s, background .15s; }
+	.gauge .val { font-size:22px; font-weight:700; margin-top:4px; }
+	.gauge label { display:block; font-size:11px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+	.gauge input[type=range] { width:100%; margin-top:6px; }
+	.armorrating { text-align:center; font-size:12px; color:var(--dim); margin-top:8px; }
+	.armorrating b { color:var(--amber); font-size:16px; }
+	/* stat sliders */
+	.stat { display:grid; grid-template-columns:130px 1fr 78px; align-items:center; gap:10px; margin-bottom:7px; }
+	.stat label { font-size:12px; color:var(--dim); }
+	.stat input[type=range] { width:100%; }
+	.stat input[type=number] { width:100%; text-align:right; }
+	.stat .unit { color:var(--dim); font-size:11px; }
+	.grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+	/* compare */
+	#compare h2 { font-size:11px; letter-spacing:2px; color:var(--dim); text-transform:uppercase; margin-bottom:8px; }
+	.cmpsel { width:100%; margin-bottom:10px; }
+	.crow { margin-bottom:9px; }
+	.crow .lbl { display:flex; justify-content:space-between; font-size:11px; color:var(--dim); }
+	.crow .lbl b { color:var(--bone); }
+	.cbar { height:10px; background:var(--ink); border:1px solid var(--line); margin-top:2px; }
+	.cbar i { display:block; height:100%; background:var(--steel); }
+	.cbar i.me { background:var(--amber); }
+	#saved { color:var(--amber); font-size:12px; }
+	footer { display:flex; gap:16px; padding:7px 16px; background:var(--panel); border-top:1px solid var(--line); font-size:12px; color:var(--dim); }
+	footer b { color:var(--bone); }
+</style>
+</head>
+<body>
+<header>
+	<h1>VEHICLE FORGE</h1>
+	<span class="sub" id="mapname">DRIVN FLEET · data-driven · edit → relaunch</span>
+	<a href="/api/help" target="_blank">API — for humans &amp; AIs</a>
+</header>
+<main>
+	<div id="roster">
+		<h2>Fleet</h2>
+		<div id="vlist"></div>
+		<button id="new">+ NEW VEHICLE</button>
+	</div>
+	<div id="editor"><div style="color:var(--dim);margin-top:40px;text-align:center">Select a vehicle to tune.</div></div>
+	<div id="compare">
+		<h2>Compare fleet</h2>
+		<select id="cmpsel" class="cmpsel">
+			<option value="armor_rating">Armor rating</option>
+			<option value="engine_force">Engine force</option>
+			<option value="top_speed">Top speed</option>
+			<option value="power_to_weight">Power / weight</option>
+			<option value="trunk_volume">Cargo (kg)</option>
+			<option value="mass">Mass</option>
+		</select>
+		<div id="cmpbars"></div>
+	</div>
+</main>
+<footer>
+	<span id="info">—</span>
+	<span id="saved" style="margin-left:auto"></span>
+</footer>
+<script>
+let fleet = [], arche = [], families = [], sel = null, cmpKey = "armor_rating";
+const $ = (s) => document.querySelector(s);
+async function api(path, opts) { const r = await fetch(path, opts); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+function flash(m) { const el = $("#saved"); el.textContent = m; clearTimeout(el._t); el._t = setTimeout(() => el.textContent = "", 1600); }
+const armorColor = (v) => `hsl(${Math.round(v * 1.2)} 65% 45%)`; // 0=red → 100=green (no purple: hue 0..120)
+const metric = (v, k) => k === "armor_rating" ? (v.armor.front + v.armor.rear + v.armor.side) / 3
+	: k === "power_to_weight" ? v.engine_force / v.mass : v[k];
+
+async function load() {
+	const a = await api("/api/archetypes"); arche = a.archetypes; families = a.families;
+	fleet = await api("/api/vehicles");
+	renderRoster(); renderCompare();
+	if (!sel && fleet.length) selectVehicle(fleet[0].id);
+	$("#info").innerHTML = `<b>${fleet.length}</b> vehicles · source <b>game/data/vehicles.json</b> · the game folds these into the fleet at boot`;
+}
+function renderRoster() {
+	const list = $("#vlist"); list.innerHTML = "";
+	fleet.slice().sort((a, b) => a.family.localeCompare(b.family) || a.name.localeCompare(b.name)).forEach((v) => {
+		const rating = Math.round(metric(v, "armor_rating"));
+		const d = document.createElement("div");
+		d.className = "vrow" + (v.id === sel ? " on" : "");
+		d.innerHTML = `<span><b>${v.name}</b><br><span class="fam">${v.family}</span></span><span class="arm" style="color:${armorColor(rating)}">🛡 ${rating}</span>`;
+		d.onclick = () => selectVehicle(v.id);
+		list.appendChild(d);
+	});
+}
+function selectVehicle(id) { sel = id; renderRoster(); renderEditor(); renderCompare(); }
+
+function slider(label, key, min, max, step, unit) {
+	const v = current(); const val = key.split(".").reduce((o, k) => o[k], v);
+	return `<div class="stat"><label>${label}</label>
+		<input type="range" min="${min}" max="${max}" step="${step}" value="${val}" data-k="${key}" class="sl">
+		<input type="number" min="${min}" max="${max}" step="${step}" value="${val}" data-k="${key}" class="nm"><span class="unit">${unit || ""}</span></div>`;
+}
+const current = () => fleet.find((v) => v.id === sel);
+function renderEditor() {
+	const v = current(); if (!v) return;
+	const ed = $("#editor");
+	ed.innerHTML = `
+	<div class="ehead">
+		<input class="name" value="${v.name}" data-k="name">
+		<span class="id">#${v.id}</span>
+		<select data-k="family">${families.map((f) => `<option ${f === v.family ? "selected" : ""}>${f}</option>`).join("")}</select>
+		<select data-k="archetype" title="body chassis">${arche.map((a) => `<option ${a === v.archetype ? "selected" : ""}>${a}</option>`).join("")}</select>
+		<button class="danger" id="del">DELETE</button>
+	</div>
+	<div class="sec"><h3>Armor — where the fight lands</h3>
+		<div class="armor">
+			${["front", "rear", "side"].map((f) => `
+			<div class="gauge">
+				<div class="bar"><div class="fill" id="af-${f}" style="height:${v.armor[f]}%;background:${armorColor(v.armor[f])}"></div></div>
+				<div class="val" id="av-${f}" style="color:${armorColor(v.armor[f])}">${v.armor[f]}</div>
+				<label>${f}</label>
+				<input type="range" min="0" max="100" step="1" value="${v.armor[f]}" data-k="armor.${f}" class="sl armr">
+			</div>`).join("")}
+		</div>
+		<div class="armorrating">FLEET ARMOR RATING <b id="arating">${Math.round(metric(v, "armor_rating"))}</b> / 100</div>
+	</div>
+	<div class="sec"><h3>Drivetrain</h3>
+		${slider("Mass", "mass", 200, 4000, 10, "kg")}
+		${slider("Engine force", "engine_force", 0, 14000, 100, "N")}
+		${slider("Top speed", "top_speed", 0, 45, 1, "m/s")}
+		${slider("Reverse top", "reverse_top", 0, 15, 1, "m/s")}
+	</div>
+	<div class="sec"><h3>Tires / grip</h3><div class="grid3">
+		${slider("Grip front", "tire_grip.front", 3, 8, 0.1, "")}
+		${slider("Grip rear", "tire_grip.rear", 3, 8, 0.1, "")}
+		${slider("Off-road", "tire_grip.dirt", 0.4, 1.0, 0.01, "×")}
+	</div></div>
+	<div class="sec"><h3>Cargo &amp; crew</h3><div class="grid3">
+		${slider("Trunk", "trunk_volume", 0, 400, 5, "kg")}
+		${slider("Passengers", "passenger_seats", 0, 6, 1, "")}
+		${slider("Dog seats", "dog_seats", 0, 6, 1, "")}
+	</div>
+	${slider("Rider exposure", "wound_mult", 0, 3, 0.1, "×")}</div>`;
+	// wire inputs — every change PATCHes the row and persists to vehicles.json
+	ed.querySelectorAll("input,select").forEach((el) => {
+		const ev = el.tagName === "SELECT" ? "change" : "input";
+		el.addEventListener(ev, () => onEdit(el.dataset.k, el.value, el));
+	});
+	$("#del").onclick = deleteVehicle;
+}
+let _saveT = null;
+function onEdit(key, raw, el) {
+	const v = current();
+	const val = (el.type === "range" || el.type === "number") ? Number(raw) : raw;
+	// mirror range<->number and set nested key locally for instant feedback
+	const parts = key.split("."); let o = v; for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]]; o[parts[parts.length - 1]] = val;
+	document.querySelectorAll(`[data-k="${key}"]`).forEach((x) => { if (x !== el && "value" in x) x.value = val; });
+	if (key.startsWith("armor.")) {
+		const f = key.split(".")[1];
+		$(`#af-${f}`).style.height = val + "%"; $(`#af-${f}`).style.background = armorColor(val);
+		$(`#av-${f}`).textContent = val; $(`#av-${f}`).style.color = armorColor(val);
+		$("#arating").textContent = Math.round(metric(v, "armor_rating"));
+	}
+	renderRoster(); renderCompare();
+	clearTimeout(_saveT);
+	_saveT = setTimeout(async () => {
+		const patch = {}; // send the changed top-level field (with nested object whole)
+		const top = parts[0]; patch[top] = v[top];
+		try { await api(`/api/vehicle?id=${encodeURIComponent(v.id)}`, { method: "PATCH", body: JSON.stringify(patch) }); flash(`${v.name} saved`); }
+		catch (e) { flash("save failed: " + e.message); }
+	}, 250);
+}
+async function deleteVehicle() {
+	const v = current(); if (!confirm(`Delete ${v.name}?`)) return;
+	await api(`/api/vehicles?id=${encodeURIComponent(v.id)}`, { method: "DELETE" });
+	sel = null; await load(); flash(`${v.name} deleted`);
+}
+$("#new").onclick = async () => {
+	const name = prompt("New vehicle name:"); if (!name) return;
+	const id = name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+	const row = { id, name: name.toUpperCase(), archetype: "pickup", family: "truck",
+		mass: 1300, engine_force: 8000, top_speed: 30, reverse_top: 10,
+		tire_grip: { front: 5.4, rear: 5.0, dirt: 0.85 }, trunk_volume: 60, passenger_seats: 2, dog_seats: 2,
+		armor: { front: 50, rear: 40, side: 40 }, wound_mult: 0.9, mounts: [] };
+	await api("/api/vehicles", { method: "POST", body: JSON.stringify(row) });
+	await load(); selectVehicle(id); flash(`${row.name} forged`);
+};
+function renderCompare() {
+	cmpKey = $("#cmpsel").value;
+	const vals = fleet.map((v) => ({ v, m: metric(v, cmpKey) }));
+	const max = Math.max(1, ...vals.map((x) => x.m));
+	vals.sort((a, b) => b.m - a.m);
+	$("#cmpbars").innerHTML = vals.map(({ v, m }) => `
+		<div class="crow"><div class="lbl"><b${v.id === sel ? ' style="color:var(--amber)"' : ""}>${v.name}</b><span>${Math.round(m * (cmpKey === "power_to_weight" ? 100 : 1)) / (cmpKey === "power_to_weight" ? 100 : 1)}</span></div>
+		<div class="cbar"><i class="${v.id === sel ? "me" : ""}" style="width:${Math.round(m / max * 100)}%"></i></div></div>`).join("");
+}
+$("#cmpsel").onchange = renderCompare;
+load();
+</script>
+</body>
+</html>
