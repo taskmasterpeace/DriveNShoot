@@ -61,6 +61,19 @@ func _ready() -> void:
 	main._update_road_read() # same road, same frame-ish
 	_check("staying on the road does NOT re-toast", main.hud._toast_label.text == "")
 
+	# --- danger is a real CONSUMER: it scales the ambush odds -------------------
+	# On the named (danger>0) road, ambush_odds() beats a danger-0 baseline.
+	var dgr: int = int(named.get("danger", 0))
+	main.daynight.hour = 12.0 # daytime baseline (remove night bonus noise)
+	main.bounty_hunted = false
+	main.active_car.global_position = on_pt
+	var odds_named: float = main.ambush_odds()
+	# a point far from any road (danger 0)
+	main.active_car.global_position = Vector3(90000, 0.5, 90000)
+	var odds_empty: float = main.ambush_odds()
+	_check("road danger %d makes it deadlier (%.2f > %.2f)" % [dgr, odds_named, odds_empty],
+		dgr == 0 or odds_named > odds_empty + 0.001)
+
 	# --- On foot the read stays quiet -------------------------------------------
 	main.mode = main.Mode.FOOT
 	main._last_road_id = ""

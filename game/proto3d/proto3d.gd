@@ -2751,9 +2751,9 @@ func spawn_road_ambush() -> void:
 
 
 ## PILLAR 1 (WORLD_PILLARS.md) — roads are CHARACTERS. Drive onto a named road and
-## it greets you like a welcome sign: its nickname, danger read, and toll. The data
-## rows (danger/family/nickname/toll) ride usmap road_near; consumers (ambush
-## weighting, toll billing, atlas color) are the next dev's P3 slice — this is the READ.
+## it greets you like a welcome sign: nickname, danger read, toll. `danger` is now a
+## real CONSUMER — it scales ambush_odds() (a danger-3 road spawns pirates ~2× as
+## often). Remaining unconsumed rows: `toll` (bill it at a checkpoint) + `family`.
 var _last_road_id: String = ""
 func _update_road_read() -> void:
 	if mode != Mode.DRIVE or active_car == null:
@@ -2777,18 +2777,27 @@ func _update_road_read() -> void:
 	notify(line)
 
 
+## The ambush dice read the WORLD (Pillar 1 — roads are CHARACTERS): night favors
+## them, a posted BOUNTY doubles them, a state AT WAR triples them — and the ROAD'S
+## OWN danger row scales it, so THE CRIMSON MILE (danger 3) earns its name.
+func ambush_odds() -> float:
+	var odds := (0.55 if daynight.is_dark() else 0.3) * (2.0 if bounty_hunted else 1.0)
+	if active_car == null or not is_instance_valid(active_car):
+		return odds
+	if events != null:
+		odds *= events.pirate_mult(stream.current_state(active_car.global_position))
+	var road: Dictionary = stream.usmap.road_near(active_car.global_position, 60.0)
+	odds *= 1.0 + 0.35 * float(int(road.get("danger", 0))) # the road's reputation is real
+	return odds
+
+
 func _update_pirates(delta: float) -> void:
 	# The road rolls the dice while you drive fast on asphalt — night doubles it.
 	_ambush_cd -= delta
 	if _ambush_cd <= 0.0 and mode == Mode.DRIVE and active_car != null \
 			and absf(active_car.forward_speed) > 14.0 and active_car.current_surface == "road":
 		_ambush_cd = randf_range(180.0, 320.0)
-		# The dice read the WORLD: night favors them, a posted BOUNTY doubles them,
-		# a state AT WAR triples them. Your ledger follows you onto the asphalt.
-		var odds := (0.55 if daynight.is_dark() else 0.3) * (2.0 if bounty_hunted else 1.0)
-		if events != null:
-			odds *= events.pirate_mult(stream.current_state(active_car.global_position))
-		if randf() < minf(odds, 0.95):
+		if randf() < minf(ambush_odds(), 0.95):
 			spawn_road_ambush()
 	# Resolution: dead = loot on the shoulder; outrun = they break off.
 	for i in range(pirates.size() - 1, -1, -1):
