@@ -22,12 +22,12 @@ config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [autoload]
 
-Globals="*res://scripts/autoloads/Globals.gd"
-SceneManager="*res://scripts/autoloads/SceneManager.gd"
-DataManager="*res://scripts/autoloads/DataManager.gd"
-Debugger="*res://scripts/autoloads/debugger.gd"
-GameState="*res://systems/game_state.gd"
-NetworkManager="*res://scripts/autoloads/network_manager.gd"
+# The legacy 2D game's game-specific autoloads were removed 2026-07-06. They ran in
+# EVERY scene incl. the 3D mainline; Debugger's global F2 hotkey fade-swapped the
+# LIVE 3D game into the old 2D start_screen mid-play (the "I hit a button and it
+# loaded another game" bug). proto3d depends on none of them. Recover from git if
+# the legacy 2D scenes are ever revived.
+# (DialogueManager kept — it's a reusable addon, not the 2D game.)
 DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 
 [dialogue_manager]
@@ -44,7 +44,7 @@ window/stretch/mode="canvas_items"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg", "res://addons/godot_mcp/plugin.cfg", "res://addons/tile_bit_tools/plugin.cfg")
+enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg", "res://addons/godot_mcp/plugin.cfg")
 
 [filesystem]
 
