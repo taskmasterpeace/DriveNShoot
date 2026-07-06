@@ -91,6 +91,7 @@ var _slump: float = 0.0
 var crouch_target: float = 0.0
 var _crouch: float = 0.0
 var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
+var _kick_t: float = 0.0       ## >0 while a KICK tween owns the right hip
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
 var _dead_blend: float = 0.0
@@ -225,22 +226,27 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		limp_l = 0.4
 	elif appearance["limp"] == "r":
 		limp_r = 0.4
+	_kick_t = maxf(0.0, _kick_t - delta)
 	var swing_l := sin(_phase) * amp
 	var swing_r := sin(_phase + PI) * amp
 	hip_l.rotation.x = swing_l * limp_l
-	hip_r.rotation.x = swing_r * limp_r
+	if _kick_t <= 0.0: # a live KICK tween owns the right hip
+		hip_r.rotation.x = swing_r * limp_r
 	# The bad leg stays a touch stiff/bent (a hitch you can read).
 	if appearance["limp"] == "l":
 		hip_l.rotation.x = maxf(hip_l.rotation.x, -0.12)
-	elif appearance["limp"] == "r":
+	elif appearance["limp"] == "r" and _kick_t <= 0.0:
 		hip_r.rotation.x = maxf(hip_r.rotation.x, -0.12)
 	# CROUCH: both hips fold forward — the legs coil under the lowered body.
 	if _crouch > 0.001:
 		hip_l.rotation.x -= 0.55 * _crouch
-		hip_r.rotation.x -= 0.55 * _crouch
+		if _kick_t <= 0.0:
+			hip_r.rotation.x -= 0.55 * _crouch
 
-	# FREE ARM swings opposite the gun-side leg (natural counter-swing).
-	free_arm.rotation.x = -swing_r * 0.85
+	# FREE ARM swings opposite the gun-side leg (natural counter-swing) — unless
+	# a punch tween owns it (the off-hand jab of the combo).
+	if _swing_t <= 0.0:
+		free_arm.rotation.x = -swing_r * 0.85
 
 	# AIM ARM — its YAW is set by the caller (points at the gaze). The SHOULDER
 	# does the vertical, pivoting at the joint: a raised gun holds level with a
@@ -365,6 +371,34 @@ func swing() -> void:
 	tw.chain().tween_property(shoulder, "rotation:y", 0.0, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(shoulder, "rotation:x", ARM_HANG if not raised else 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
 	tw.parallel().tween_property(gun, "rotation:y", 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
+
+
+## UNARMED (MOVESET.txt): the JAB — a straight, fast hand that snaps out and
+## returns. Alternates arms on the combo beat so a flurry reads as boxing.
+func punch(beat: int) -> void:
+	if shoulder == null:
+		return
+	_swing_t = 0.22
+	var off_hand := beat % 2 == 0
+	var jab_arm: Node3D = free_arm if off_hand else shoulder
+	var tw := create_tween()
+	tw.tween_property(jab_arm, "rotation:x", -1.45, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(jab_arm, "rotation:x", 0.0 if off_hand else ARM_HANG, 0.15).set_ease(Tween.EASE_IN_OUT)
+
+
+## The KICK (Martial Arts 2+, the combo's finisher beat): the leg snaps out
+## horizontal while the torso leans away — a roundhouse you can read from above.
+func kick() -> void:
+	if hip_r == null:
+		return
+	_swing_t = 0.3
+	_kick_t = 0.3
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(hip_r, "rotation:x", -1.5, 0.08).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(torso, "rotation:x", -0.25, 0.08).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_property(hip_r, "rotation:x", 0.0, 0.2).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(torso, "rotation:x", 0.0, 0.2).set_ease(Tween.EASE_IN_OUT)
 
 
 ## True while the melee tween owns the arm (the caller keeps the yaw on the aim).

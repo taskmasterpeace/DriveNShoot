@@ -28,6 +28,9 @@ const SKILLS: Dictionary = {
 	"melee": {"name": "Melee", "emoji": "🔪", "star": false,
 		"gain": "+6%/lv damage, -5%/lv stamina cost, +2%/lv knockdown",
 		"how": "levels by connected swings"},
+	"martial_arts": {"name": "Martial Arts", "emoji": "🥋", "star": false,
+		"gain": "+7%/lv unarmed damage; lv2 KICKS, lv4 THROWS, lv6 FINISHERS",
+		"how": "levels by unarmed strikes, shoves, tackles"},
 	"endurance": {"name": "Endurance", "emoji": "🏃", "star": false,
 		"gain": "+6/lv max stamina, +5%/lv recovery",
 		"how": "levels by sprinting and diving"},
@@ -152,6 +155,12 @@ func melee_dmg_mult() -> float:
 	return 1.0 + 0.06 * minf(level("melee"), 10)
 
 
+## Martial Arts: the empty-hand ladder. Damage scales here; the KICK (lv2),
+## THROW (lv4) and FINISHER (lv6) gates read level("martial_arts") directly.
+func unarmed_dmg_mult() -> float:
+	return 1.0 + 0.07 * minf(level("martial_arts"), 10)
+
+
 func melee_stam_mult() -> float:
 	return maxf(0.5, 1.0 - 0.05 * level("melee"))
 
@@ -206,6 +215,12 @@ func skill_effect_line(id: String) -> String:
 		"mechanics": return "repairs ×%.2f · +%d salvage" % [repair_mult(), salvage_bonus()]
 		"marksmanship": return "crit +%d%% · reload ×%.2f" % [int(crit_bonus() * 100), reload_mult()]
 		"melee": return "dmg ×%.2f · stam ×%.2f" % [melee_dmg_mult(), melee_stam_mult()]
+		"martial_arts":
+			var gates: Array = []
+			if level("martial_arts") >= 2: gates.append("KICKS")
+			if level("martial_arts") >= 4: gates.append("THROWS")
+			if level("martial_arts") >= 6: gates.append("FINISHERS")
+			return "unarmed ×%.2f%s" % [unarmed_dmg_mult(), (" · " + " ".join(gates)) if not gates.is_empty() else ""]
 		"endurance": return "stamina %d · regen ×%.2f" % [int(stamina_max()), stamina_regen_mult()]
 		"strength": return "carry %.0fkg · shove ×%.2f" % [carry_cap(), shove_mult()]
 		"stealth": return "seen at ×%.2f range" % stealth_detect_mult()

@@ -211,6 +211,17 @@ func swing() -> void:
 		puppet.swing()
 
 
+## The unarmed strikes made physical (the fists/shove rows call these like swing()).
+func punch(beat: int) -> void:
+	if puppet:
+		puppet.punch(beat)
+
+
+func kick() -> void:
+	if puppet:
+		puppet.kick()
+
+
 ## Melee commits: a short forward step INTO the swing (closes the last half-meter).
 func lunge(dir: Vector3) -> void:
 	var d := Vector3(dir.x, 0, dir.z)

@@ -302,6 +302,16 @@ var _pack_cd: float = 35.0
 var _reload_t: float = 0.0
 var _reload_wpn: ProtoWeapon = null
 
+## UNARMED (MOVESET.txt): empty hands are never empty. One button, three reads —
+## TAP = the punch combo, HOLD = a shove that makes space, SPRINT+tap = a TACKLE
+## that floors them. Two standing rows, one instance each; MARTIAL ARTS grows all.
+var fists: ProtoWeapon = ProtoWeapon.new("fists")
+var palm: ProtoWeapon = ProtoWeapon.new("shove_palm")
+var _fist_pressed: bool = false
+var _fist_hold: float = 0.0
+const SHOVE_HOLD := 0.28
+var _tackle_t: float = 0.0
+
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
 var _recon_entries: Array = []
@@ -470,13 +480,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		if panel.is_open or cam_rig.binoculars or stream.map_open():
 			pass # a click on the open map sets your course, it doesn't fire your gun
 		elif mode == Mode.FOOT:
-			fire_equipped()
+			if current_weapon() == null:
+				_unarmed_press() # empty hands: tap punch · hold shove · sprint tackle
+			else:
+				fire_equipped()
 		elif mode == Mode.DRIVE:
 			# Mounts are optional hardware now; by default you shoot YOUR gun.
 			if active_car and active_car.mount_weapon:
 				fire_mount()
 			else:
 				fire_from_vehicle()
+	elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_unarmed_release() # a quick release = the TAP (punch); held past the beat = shove
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -547,6 +563,15 @@ func _physics_process(delta: float) -> void:
 	var wpn := current_weapon()
 	if wpn:
 		wpn.tick(delta)
+	# The unarmed rows are ALWAYS live (cooldowns + the combo window decay).
+	fists.tick(delta)
+	palm.tick(delta)
+	_update_tackle(delta)
+	if _fist_pressed:
+		_fist_hold += delta
+		if _fist_hold >= SHOVE_HOLD:
+			_fist_pressed = false
+			_fire_unarmed(palm) # the HOLD read: shove — make space
 	if mode == Mode.FOOT:
 		player.set_armed(wpn != null)
 		_apply_hand_pose(wpn)
@@ -1691,6 +1716,91 @@ func fire_equipped() -> void:
 			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
 			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+
+
+# --- UNARMED (MOVESET.txt): tap punch · hold shove · sprint-tackle ------------
+
+func _unarmed_press() -> void:
+	if panel.is_open or _reload_t > 0.0:
+		return
+	if player.sprinting() and _tackle_t <= 0.0:
+		_tackle() # sprint + strike = the bull-rush
+		return
+	_fist_pressed = true
+	_fist_hold = 0.0
+
+
+func _unarmed_release() -> void:
+	if not _fist_pressed:
+		return
+	_fist_pressed = false
+	if _fist_hold < SHOVE_HOLD:
+		_fire_unarmed(fists) # the TAP: jab → jab → cross/kick
+
+
+## Fire one of the standing unarmed rows through the ONE melee law.
+func _fire_unarmed(w: ProtoWeapon) -> void:
+	if mode != Mode.FOOT or panel.is_open or _reload_t > 0.0:
+		return
+	player.enter_stance()
+	player.aim_now(aim_direction())
+	if w.fire(self, player.muzzle_world(), aim_direction()):
+		cam_rig.add_trauma(0.08) # quiet, like all melee — no heat, no nerve spike
+
+
+## THE TACKLE: a gap-closer that ends in a KNOCKDOWN — THEY hit the ground, you
+## stay up. The down window is yours (finish it or blow past). Stamina-gated.
+func _tackle() -> void:
+	if player.stamina < 10.0:
+		return
+	player.stamina -= 10.0
+	_tackle_t = 0.45
+	var dir := player.velocity
+	dir.y = 0.0
+	dir = dir.normalized() if dir.length() > 1.0 else player.facing()
+	player.velocity += dir * 7.5 # the rush — carried by your own sprint
+	player.enter_stance()
+	if player.has_method("punch"):
+		player.punch(1)
+	if audio:
+		audio.play_at("whoosh", player.global_position, -8.0)
+
+
+## The rush window: first body you reach goes DOWN (combatant ∪ threat, wall-law).
+func _update_tackle(delta: float) -> void:
+	if _tackle_t <= 0.0:
+		return
+	_tackle_t -= delta
+	var fwd := player.velocity
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length_squared() > 0.5 else player.facing()
+	var targets: Array = get_tree().get_nodes_in_group("combatant").duplicate()
+	for th in get_tree().get_nodes_in_group("threat"):
+		if not targets.has(th):
+			targets.append(th)
+	for node in targets:
+		var t := node as Node3D
+		if t == null or not is_instance_valid(t) or t == player:
+			continue
+		var to_t := t.global_position - player.global_position
+		to_t.y = 0.0
+		if to_t.length() <= 1.7 and fwd.dot(to_t.normalized()) > 0.3 \
+				and ProtoWeapon.melee_clear(player, t) and t.has_method("take_damage"):
+			var mult: float = character.unarmed_dmg_mult() if character else 1.0
+			if t.has_method("shove"):
+				t.shove(to_t.normalized(), 5.0 * (character.shove_mult() if character else 1.0))
+			if t.has_method("knock_down"):
+				t.knock_down() # the point of the move: THEY eat the floor
+			t.take_damage(10.0 * mult)
+			ProtoFX.blood(self, t.global_position + Vector3(0, 1.0, 0))
+			ProtoFloater.pop(self, t.global_position + Vector3(0, 2.1, 0), "TACKLED", Color(0.95, 0.8, 0.35), 130)
+			if audio:
+				audio.play_at("thunk", t.global_position, -2.0)
+			cam_rig.add_trauma(0.2)
+			grant_xp("martial_arts", 2.0)
+			grant_xp("strength", 1.0)
+			_tackle_t = 0.0
+			return
 
 
 ## G lobs a grenade toward the mouse (arc + fuse; blast reuses on_explosion).

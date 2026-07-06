@@ -42,6 +42,19 @@ const WEAPONS: Dictionary = {
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
+	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
+	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
+	# SPRINT+tap = the tackle (proto3d). "xp" routes the teach to MARTIAL ARTS.
+	"fists": {"name": "Fists", "emoji": "👊", "behavior": Behavior.MELEE, "damage": 8.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.32, "spread_deg": 0.0, "reach": 1.9, "arc_deg": 70.0,
+		"stamina": 5.0, "knockdown": 0.08, "shove": 1.2, "xp": "martial_arts", "hit_sfx": "thunk",
+		"hand_pose": {"offset": Vector3(0.0, -0.04, 0.0), "two_handed": false}},
+	# The SHOVE: create-space, not damage — peel a howler off you, clear a door.
+	# At Martial Arts 4+ a shove at grapple range becomes a THROW (guaranteed floor).
+	"shove_palm": {"name": "Shove", "emoji": "🖐️", "behavior": Behavior.MELEE, "damage": 2.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.55, "spread_deg": 0.0, "reach": 2.0, "arc_deg": 95.0,
+		"stamina": 6.0, "knockdown": 0.15, "shove": 6.0, "xp": "martial_arts",
+		"hand_pose": {"offset": Vector3(0.0, -0.04, 0.0), "two_handed": false}},
 }
 
 var id: String
@@ -49,6 +62,10 @@ var mag: int = 0
 var bloom: float = 0.0 ## grows per shot, decays at rest — the reticle shows it
 var crit_chance: float = 0.15 ## the lucky shot: ×1.8, gold CRIT floater, sharp tick
 var _cd: float = 0.0
+## THE COMBO (fists only): landed-strike counter; idles out after 1.2s so a
+## flurry chains jab→jab→finisher but a lone poke is always a jab.
+var _combo: int = 0
+var _combo_t: float = 0.0
 
 
 func _init(id_in: String) -> void:
@@ -63,6 +80,9 @@ func info() -> Dictionary:
 func tick(delta: float) -> void:
 	_cd = maxf(0.0, _cd - delta)
 	bloom = maxf(0.0, bloom - delta * 1.8)
+	_combo_t = maxf(0.0, _combo_t - delta)
+	if _combo_t <= 0.0:
+		_combo = 0
 
 
 func is_melee() -> bool:
@@ -123,15 +143,49 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		# carries the shove. One skill for every swung thing (PZ's six → 1).
 		var ch: Variant = main.character if "character" in main else null
 		var stam_cost: float = w["stamina"] * (ch.melee_stam_mult() if ch else 1.0)
-		var dmg_mult: float = ch.melee_dmg_mult() if ch else 1.0
+		# MARTIAL ARTS vs MELEE: fists/shove teach + scale by their own skill
+		# (the "xp" row field); every swung THING stays on the one melee skill.
+		var xp_skill := String(w.get("xp", "melee"))
+		var ma: int = (ch.level("martial_arts") if ch else 0)
+		var dmg_mult: float = 1.0
+		if ch:
+			dmg_mult = ch.unarmed_dmg_mult() if xp_skill == "martial_arts" else ch.melee_dmg_mult()
 		var kd_bonus: float = ch.melee_kd_bonus() if ch else 0.0
 		var shove_m: float = ch.shove_mult() if ch else 1.0
 		if main.player.stamina < stam_cost:
 			return false
 		main.player.stamina -= stam_cost
 		_cd = w["cooldown"]
-		ProtoFX.swing_arc(main.player, aim_dir, w["arc_deg"], w["reach"])
-		main.player.swing()
+		# Per-swing values — the fists COMBO rewrites them on its finisher beat.
+		var dmg_base: float = w["damage"]
+		var shove_base: float = w.get("shove", 2.5)
+		var kd_base: float = w.get("knockdown", 0.3)
+		var reach: float = w["reach"]
+		var beat_is_kick := false
+		if id == "fists":
+			# jab → jab → FINISHER: a bare cross, or with KICKS (Martial Arts 2+)
+			# a roundhouse — more damage, more reach, a real shove behind it.
+			_combo = (_combo + 1) if _combo_t > 0.0 else 1
+			_combo_t = 1.2
+			if _combo % 3 == 0:
+				if ma >= 2:
+					beat_is_kick = true
+					dmg_base *= 2.2
+					shove_base = 4.5
+					kd_base += 0.3
+					reach += 0.3
+				else:
+					dmg_base *= 1.5
+		ProtoFX.swing_arc(main.player, aim_dir, w["arc_deg"], reach)
+		if id == "fists" and main.player.has_method("punch"):
+			if beat_is_kick:
+				main.player.kick()
+			else:
+				main.player.punch(_combo)
+		elif id == "shove_palm" and main.player.has_method("punch"):
+			main.player.punch(0) # the palm reads as one straight hand
+		else:
+			main.player.swing()
 		main.player.lunge(aim_dir)
 		if "audio" in main and main.audio:
 			main.audio.play_at("whoosh", main.player.global_position, -8.0)
@@ -148,17 +202,32 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 				continue
 			var to_t: Vector3 = t.global_position - main.player.global_position
 			to_t.y = 0.0
-			if to_t.length() <= w["reach"] and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)) \
+			if to_t.length() <= reach and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)) \
 					and melee_clear(main.player, t):
 				if t.has_method("take_damage"):
 					var was_valid := true
+					var dmg := dmg_base
+					var shove_pow := shove_base
+					var kd := kd_base
+					# THROWS (Martial Arts 4+): a shove at grapple range isn't a
+					# push — it's a hip toss: guaranteed floor, half again the shove.
+					if id == "shove_palm" and ma >= 4 and to_t.length() < 1.4:
+						kd = 1.0
+						shove_pow *= 1.5
+						ProtoFloater.pop(main, t.global_position + Vector3(0, 2.0, 0), "THROWN", Color(0.95, 0.8, 0.35), 130)
+					# FINISHERS (Martial Arts 6+): a punch on a DOWNED body lands ×3
+					# (the tackle's down window becomes ground-and-pound).
+					var stun_v: Variant = t.get("_stun_t")
+					if id == "fists" and ma >= 6 and stun_v is float and float(stun_v) > 0.0:
+						dmg *= 3.0
+						ProtoFloater.pop(main, t.global_position + Vector3(0, 1.6, 0), "FINISHER", Color(1.0, 0.45, 0.2), 140)
 					ProtoFX.blood(main, t.global_position + Vector3(0, 1.1, 0))
 					if t.has_method("shove"):
-						t.shove(to_t.normalized(), w.get("shove", 2.5) * shove_m) # steel × STRENGTH
+						t.shove(to_t.normalized(), shove_pow * shove_m) # steel × STRENGTH
 					var crit := randf() < current_crit(main)
 					if crit:
 						ProtoFloater.pop(main, t.global_position + Vector3(0, 2.2, 0), "CRIT", Color(1.0, 0.8, 0.2), 150)
-					t.take_damage(w["damage"] * dmg_mult * (1.8 if crit else 1.0))
+					t.take_damage(dmg * dmg_mult * (1.8 if crit else 1.0))
 					hit_any = true
 					was_valid = is_instance_valid(t)
 					# THE WOW: a killing CRIT holds the world's breath (slow-mo read).
@@ -169,10 +238,10 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					if "cam_rig" in main and main.cam_rig:
 						main.cam_rig.add_trauma(0.16) # the connection lands in your hands
 					# Melee HITS — chance to knock the target flat (feel the impact).
-					if was_valid and t.has_method("knock_down") and randf() < w.get("knockdown", 0.3) + kd_bonus:
+					if was_valid and t.has_method("knock_down") and randf() < kd + kd_bonus:
 						t.knock_down()
 		if hit_any and main.has_method("grant_xp"):
-			main.grant_xp("melee", 1.5)     # swings teach the swing...
+			main.grant_xp(xp_skill, 1.5)    # swings teach the swing (or the ART)...
 			main.grant_xp("strength", 0.4)  # ...and the shove behind it
 		return true
 	mag -= 1
