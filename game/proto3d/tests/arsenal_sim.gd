@@ -57,6 +57,8 @@ func _key(code: Key) -> void:
 
 func _spawn_lurker(offset: Vector3) -> ProtoLurker:
 	var l := ProtoLurker.create()
+	# The lurker is on the SHARED PUPPET RIG now (was the last bespoke enemy).
+	_check("the lurker rides the shared puppet rig", l._puppet is ProtoPuppet)
 	l.stalk_range = 0.0 # stand still for the range test
 	main.add_child(l)
 	l.global_position = main.player.global_position + offset

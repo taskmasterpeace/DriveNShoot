@@ -12,6 +12,7 @@ extends CharacterBody3D
 var _claw_cd: float = 0.0
 
 var _visual: Node3D
+var _puppet: ProtoPuppet = null
 var _player: Node3D = null
 var body: Damageable = Damageable.new("body", "💀", 40.0)
 var dead: bool = false
@@ -54,9 +55,7 @@ func take_damage(amount: float) -> void:
 		_flash_mat.emission = Color(1.0, 0.55, 0.35)
 		_flash_mat.emission_energy_multiplier = 2.4
 	_hit_flash_t = 0.12
-	for c in _visual.get_children():
-		if c is MeshInstance3D:
-			(c as MeshInstance3D).material_overlay = _flash_mat
+	_flash_all(_visual, _flash_mat) # recurse: the rig nests its meshes in part pivots
 	velocity.y += 1.6 # the stagger hop
 	body.damage(amount)
 	if body.hp <= 0.0:
@@ -68,6 +67,15 @@ func take_damage(amount: float) -> void:
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()
+
+
+## Overlay a material on EVERY mesh in the rig (nested in part pivots) — or clear
+## it with null. The whole hooded silhouette flashes hot on a hit.
+func _flash_all(node: Node, mat: Material) -> void:
+	if node is MeshInstance3D:
+		(node as MeshInstance3D).material_overlay = mat
+	for c in node.get_children():
+		_flash_all(c, mat)
 
 
 ## Force answered with motion: pellets and steel SHOVE the thing backward.
@@ -91,24 +99,23 @@ static func create() -> ProtoLurker:
 	shape.position.y = 0.8
 	l.add_child(shape)
 
-	l._visual = Node3D.new()
+	# ON THE SHARED RIG now (was a bespoke cloak+hood Node3D): the one puppet, fed a
+	# black "lurker" look, animated each frame. The distinctive HOOD rides the head.
+	l._puppet = ProtoPuppet.create(ProtoPuppet.look("lurker"))
+	l._visual = l._puppet
 	l.add_child(l._visual)
-	var cloak := MeshInstance3D.new()
-	var cm := CapsuleMesh.new()
-	cm.radius = 0.34
-	cm.height = 1.5
-	cloak.mesh = cm
-	cloak.material_override = ProtoWorldBuilder.material(Color(0.12, 0.11, 0.10), 1.0)
-	cloak.position.y = 0.75
-	l._visual.add_child(cloak)
 	var hood := MeshInstance3D.new()
 	var hm := SphereMesh.new()
-	hm.radius = 0.2
-	hm.height = 0.4
+	hm.radius = 0.24
+	hm.height = 0.46
 	hood.mesh = hm
 	hood.material_override = ProtoWorldBuilder.material(Color(0.09, 0.08, 0.08), 1.0)
-	hood.position.y = 1.6
-	l._visual.add_child(hood)
+	hood.position.y = 0.08 # sits over the puppet's head node
+	if l._puppet.neck != null:
+		l._puppet.neck.add_child(hood)
+	else:
+		hood.position.y = 1.65
+		l._puppet.add_child(hood)
 	return l
 
 
@@ -120,9 +127,13 @@ func _physics_process(delta: float) -> void:
 	if _hit_flash_t > 0.0:
 		_hit_flash_t -= delta
 		if _hit_flash_t <= 0.0 and _visual:
-			for c in _visual.get_children():
-				if c is MeshInstance3D:
-					(c as MeshInstance3D).material_overlay = null
+			_flash_all(_visual, null)
+
+	# Drive the SHARED RIG: the puppet strides off its own speed (facing is already
+	# handled by the stalk logic below, which yaws _visual toward the target).
+	if _puppet != null:
+		var spd := Vector2(velocity.x, velocity.z).length()
+		_puppet.animate(delta, spd, 0.0, false, 0.0, dead)
 
 	# Staggered by a hit: no legs, no claws until it recovers.
 	if _stun_t > 0.0:

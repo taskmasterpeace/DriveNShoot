@@ -39,6 +39,9 @@ const SURVIVORS: Dictionary = {
 	"guard": {"torso": Vector3(0.54, 0.74, 0.32), "cloth": Color(0.3, 0.34, 0.4), "pants": Color(0.24, 0.26, 0.3), "hat": Color(0.22, 0.24, 0.28), "gait": 1.0, "height": 1.04},
 	"waif": {"torso": Vector3(0.44, 0.66, 0.26), "cloth": Color(0.5, 0.5, 0.44), "pants": Color(0.34, 0.34, 0.3), "gait": 1.1, "height": 0.92},
 	"old_timer": {"cloth": Color(0.44, 0.42, 0.4), "pants": Color(0.3, 0.3, 0.3), "hat": Color(0.4, 0.38, 0.34), "gait": 0.75, "limp": "l", "height": 0.98},
+	# The LURKER on the shared rig: all-black, hooded (a hood mesh rides the head), a
+	# slow prowl. The last enemy pulled off its bespoke mesh onto the one puppet.
+	"lurker": {"torso": Vector3(0.5, 0.72, 0.3), "cloth": Color(0.12, 0.11, 0.10), "pants": Color(0.10, 0.09, 0.09), "skin": Color(0.14, 0.13, 0.12), "hat": Color(0.09, 0.08, 0.08), "gait": 0.8, "height": 1.02},
 }
 
 
