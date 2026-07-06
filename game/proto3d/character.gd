@@ -240,6 +240,31 @@ func treat(part: String, amount: float) -> void:
 	hp = clampf(hp, 0.0, hp_cap())
 
 
+# --- Serialization (PvP prep — the dog pattern): saves, join-in-progress
+# snapshots, and respawn loadouts all ride these two functions. -----------------
+
+func to_record() -> Dictionary:
+	var parts: Dictionary = {}
+	for p in body:
+		parts[p] = body[p].hp
+	var sk: Dictionary = {}
+	for id in skills:
+		sk[id] = {"xp": skills[id]["xp"], "level": skills[id]["level"]}
+	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead}
+
+
+func from_record(rec: Dictionary) -> void:
+	for p in rec.get("parts", {}):
+		if body.has(p):
+			body[p].hp = clampf(float(rec["parts"][p]), 0.0, body[p].max_hp)
+	for id in rec.get("skills", {}):
+		if skills.has(id):
+			skills[id]["xp"] = float(rec["skills"][id]["xp"])
+			skills[id]["level"] = int(rec["skills"][id]["level"])
+	dead = bool(rec.get("dead", false))
+	hp = clampf(float(rec.get("hp", 100.0)), 0.0, hp_cap())
+
+
 func worst_part() -> String:
 	var worst := ""
 	var worst_r := 1.1

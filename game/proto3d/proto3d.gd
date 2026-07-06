@@ -1104,6 +1104,37 @@ func _update_respawn(delta: float) -> void:
 		hud.toast("The wasteland spit you back out")
 
 
+# --- PvP prep (the dog pattern, scaled up): ONE snapshot of everything that IS
+# "the player" — saves, join-in-progress handoffs, and respawn loadouts all read
+# the same two functions. ------------------------------------------------------
+
+func player_record() -> Dictionary:
+	var w_out: Array = []
+	for w in weapons:
+		w_out.append({"id": w.id, "mag": w.mag})
+	return {"pos": [player.global_position.x, player.global_position.y, player.global_position.z],
+		"appearance": player.appearance.duplicate(true), "character": character.to_record(),
+		"backpack": backpack.slots.duplicate(), "weapons": w_out, "equipped": equipped}
+
+
+func player_restore(rec: Dictionary) -> void:
+	var p: Array = rec.get("pos", [0.0, 1.0, 0.0])
+	player.global_position = Vector3(float(p[0]), float(p[1]), float(p[2]))
+	player.velocity = Vector3.ZERO
+	if rec.has("appearance") and not (rec["appearance"] as Dictionary).is_empty():
+		player.rebuild_puppet(rec["appearance"])
+		_last_pose_id = "∅" # re-apply the equipped weapon's grip next frame
+	character.from_record(rec.get("character", {}))
+	backpack.slots = (rec.get("backpack", {}) as Dictionary).duplicate()
+	backpack.changed.emit()
+	weapons.clear()
+	for wr in rec.get("weapons", []):
+		var wpn := ProtoWeapon.new(String(wr["id"]))
+		wpn.mag = int(wr.get("mag", 0))
+		weapons.append(wpn)
+	equipped = clampi(int(rec.get("equipped", -1)), -1, weapons.size() - 1)
+
+
 # --- The shared interface: containers, items, wounds -------------------------
 
 ## One call opens ANY container (trunk/chest/corpse) against your pack.

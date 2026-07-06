@@ -39,6 +39,26 @@ enum FootState { NORMAL, DIVE, GETUP }
 var is_active: bool = false
 var move_state: FootState = FootState.NORMAL
 
+## INPUT PACKETS (PvP prep — the cars already live this way): the body consumes a
+## STRUCT, never the keyboard. gather_input() is the ONLY place that touches
+## Input; a remote player, a replay, or a bot is the same body fed a different
+## dict. Set use_player_input=false and write `packet` directly (sims/bots/net).
+var use_player_input: bool = true
+var packet: Dictionary = {"move": Vector3.ZERO, "dive": false, "sprint": false}
+
+
+static func empty_packet() -> Dictionary:
+	return {"move": Vector3.ZERO, "dive": false, "sprint": false}
+
+
+## Keyboard/gamepad → one packet. The single hardware touchpoint on foot.
+func gather_input() -> Dictionary:
+	return {
+		"move": Vector3(Input.get_axis("move_left", "move_right"), 0, -Input.get_axis("move_down", "move_up")),
+		"dive": Input.is_action_just_pressed("jump"),
+		"sprint": Input.is_key_pressed(KEY_SHIFT),
+	}
+
 ## The three yaws (radians; yaw 0 faces -Z). body = torso (the arc's anchor),
 ## aim = gaze/gun, move = feet. Sticky _aim_intent drives aim; ZERO = relaxed.
 var body_yaw: float = 0.0
@@ -194,15 +214,17 @@ func _physics_process(delta: float) -> void:
 			move_and_slide()
 			return
 
+	# The packet is the truth; hardware only fills it for an active LOCAL player.
+	if use_player_input:
+		packet = gather_input() if is_active else empty_packet()
 	var move := Vector3.ZERO
 	if is_active:
-		var x := Input.get_axis("move_left", "move_right")
-		var z := -Input.get_axis("move_down", "move_up")
-		move = Vector3(x, 0, z)
+		move = packet.get("move", Vector3.ZERO)
+		move.y = 0.0
 		if move.length_squared() > 1.0:
 			move = move.normalized()
 		# SPACE = dive (commit move: burst, then a get-up delay).
-		if Input.is_action_just_pressed("jump"):
+		if packet.get("dive", false):
 			_dive_dir = move.normalized() if move.length_squared() > 0.01 else facing()
 			move_state = FootState.DIVE
 			_state_t = 0.0
@@ -217,7 +239,7 @@ func _physics_process(delta: float) -> void:
 	# Sprint costs stamina; gassed → forced walk until it recovers past the threshold (no flicker).
 	# A raised gun also forbids it: combat stance is walk-speed life.
 	var in_combat := in_stance()
-	var wants_run := Input.is_key_pressed(KEY_SHIFT) and move.length_squared() > 0.01
+	var wants_run: bool = packet.get("sprint", false) and move.length_squared() > 0.01
 	var can_run := stamina > (0.5 if _was_running else run_threshold)
 	var running := is_active and wants_run and can_run and not in_combat
 	_was_running = running
