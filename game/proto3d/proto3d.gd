@@ -216,6 +216,7 @@ func _ready() -> void:
 	backpack.add("wrench", 1)
 	chest.container.add("machete", 1)
 	chest.container.add("bat", 1)   # the launcher — knock a howler clean off you
+	chest.container.add("mine", 2)  # deployables: plant one on a chokepoint
 	chest.container.add("grenade", 2)
 
 	# The kennel strays: one of each type, distinct breeds.
@@ -1397,6 +1398,15 @@ func use_item(id: String) -> bool:
 	if id == "cooked_meal":
 		stress = maxf(0.0, stress - 12.0)
 		notify("🍲 Hot food off your own stove. The road feels shorter.")
+		return true
+	if id == "mine":
+		# DEPLOYABLE: plant it at your feet (or just behind the rig if driving).
+		var m := ProtoMine.create(self)
+		add_child(m)
+		var at: Vector3 = (active_car.global_position - active_car.facing() * 2.5) if mode == Mode.DRIVE and active_car else (player.global_position + player.facing() * 1.0)
+		m.global_position = Vector3(at.x, 0.05, at.z)
+		audio.play_ui("blip", -6.0)
+		notify("💣 Mine planted — it arms in a second. Don't be the first one back.")
 		return true
 	if id == "mount_schematic":
 		# Fort Hood's gift, USED: bolt a hood MG to your rig. Activates the whole

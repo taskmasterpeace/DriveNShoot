@@ -45,7 +45,7 @@ static var PRICES: Dictionary = {
 	"medkit": 30, "painkillers": 10, "water": 5, "coffee": 7, "canned_food": 8,
 	"whiskey": 14, "jerry_can": 22, "car_parts": 28, "tire_kit": 16,
 	"duct_tape": 6, "flare": 5, "map_fragment": 20,
-	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2,
+	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2, "mine": 30,
 	"targeting_core": 200, "mount_schematic": 120, # priced so Mercy CAN — selling Cheyenne's brain is your funeral
 }
 

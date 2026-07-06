@@ -19,6 +19,7 @@ static var ITEMS: Dictionary = {
 	"wrench": {"name": "Wrench", "emoji": "🔧", "usable": true, "w": 1.4, "cat": "weapon", "desc": "Quiet, heavy, honest. USE equips it."},
 	"machete": {"name": "Machete", "emoji": "🔪", "usable": true, "w": 1.1, "cat": "weapon", "desc": "Quiet and mean. USE equips it."},
 	"axe": {"name": "Fire axe", "emoji": "🪓", "usable": true, "w": 2.6, "cat": "weapon", "desc": "Two hands, one chop. Puts things DOWN. USE equips it."},
+	"mine": {"name": "Proximity mine", "emoji": "💣", "usable": true, "w": 1.6, "cat": "tool", "desc": "USE to plant it. Arms after a beat; the next thing that isn't you loses its legs."},
 	"bat": {"name": "Baseball bat", "emoji": "🏏", "usable": true, "w": 1.3, "cat": "weapon", "desc": "Long, fast, and it LAUNCHES. Home-run a howler. USE equips it."},
 	"grenade": {"name": "Grenade", "emoji": "💣", "usable": false, "w": 0.5, "cat": "weapon", "desc": "Throw with G."},
 	# -- ammo --
