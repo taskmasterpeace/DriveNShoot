@@ -144,6 +144,11 @@ func jump(from_id: String) -> bool:
 	_main.player.global_position = Vector3(float(p[0]) + 4.0, 0.5, float(p[1]) + 4.0)
 	_main.player.velocity = Vector3.ZERO
 	_main.stress = minf(100.0, _main.stress + float(jr.get("sickness_stress", 25)))
+	# JUMP SICKNESS you can SEE (CAROUSEL.md): white tear → teal afterimage + shake.
+	if _main.hud != null:
+		_main.hud.jump_flash()
+	if _main.cam_rig != null:
+		_main.cam_rig.add_trauma(0.8)
 	_main.audio.play_ui("blip", -2.0, 0.6)
 	_main.notify("🎠 The ring SPINS — %s. Your rig is three states behind you." % dest["name"])
 	_deliver_garage(to_id)

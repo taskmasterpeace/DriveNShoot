@@ -464,6 +464,41 @@ func show_death(text: String) -> void:
 	_death_label.text = text
 	_death_label.visible = true
 
+# --- Jump sickness (Carousel): the ring TEARS you across the country ------------
+## White-out that decays through a sick teal afterimage (~1.6s). GL-compat friendly:
+## a driven ColorRect, no shader. jump_flash_active() is the sim hook.
+var _jump_flash: ColorRect = null
+var _jump_t: float = 0.0
+
+func jump_flash() -> void:
+	if _jump_flash == null:
+		_jump_flash = ColorRect.new()
+		_jump_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_jump_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_jump_flash)
+	_jump_t = 1.6
+	_jump_flash.color = Color(1, 1, 1, 0.95)
+	_jump_flash.visible = true
+
+
+func jump_flash_active() -> bool:
+	return _jump_t > 0.0
+
+
+func _process(delta: float) -> void:
+	if _jump_t <= 0.0:
+		return
+	_jump_t = maxf(0.0, _jump_t - delta)
+	var k := _jump_t / 1.6 # 1 → 0
+	# White tear → sick carousel teal → gone. The nausea reads without a shader.
+	if k > 0.72:
+		_jump_flash.color = Color(1, 1, 1, (k - 0.72) / 0.28 * 0.95)
+	else:
+		_jump_flash.color = Color(0.45, 0.85, 0.72, k / 0.72 * 0.4)
+	if _jump_t <= 0.0:
+		_jump_flash.visible = false
+
+
 func hide_death() -> void:
 	if _death_label != null:
 		_death_label.visible = false

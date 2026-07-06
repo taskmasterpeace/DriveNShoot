@@ -70,6 +70,7 @@ func _ready() -> void:
 	_check("a cell burned (%d → %d)" % [cells0, main.backpack.count("power_cell")],
 		main.backpack.count("power_cell") == cells0 - 1)
 	_check("you arrive SICK (stress %.0f → %.0f)" % [stress0, main.stress], main.stress > stress0 + 10.0)
+	_check("the jump SICKNESS is on screen (white-tear flash live)", main.hud.jump_flash_active())
 
 	# No second door beyond these two: jumping from norfolk lands back at bellamy (the PAIR loops).
 	main.backpack.add("power_cell", 1)
