@@ -18,6 +18,8 @@ Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours 
 
 ## 🕹 Controls (current)
 
+**Front door:** a real launch opens on the DRIVN title (`menu.gd`, ProtoMenu) — NEW GAME / CONTINUE (save-gated) / HOST / JOIN(IP) / QUIT. `main.menu_open` swallows gameplay input while up; sims skip it (they run proto3d under a harness, so it checks `current_scene == self`).
+
 WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: driver taps out; passenger taps out / **holds to take the wheel**) · **C whistle ×1 heel ×2 guard ×3 seek hold SIC ×4 SHIELD** · **Y radio scan** · TAB pack/trunk · **K character sheet** (narrates every system) · **M map/atlas** (Carousel layer) · T wait · B binoculars · V views · G grenade · R reload/restart · H horn · P pet · J character creation · F home beacon · N waypoints · **F5/F9 save · F7 host · F8 join** · **F10 DEV MODE** (time/teleport/spawn/give/heal + FORGE live-reload)
 
 ## 🧩 The systems (all live, all sim-proven)
