@@ -172,6 +172,13 @@ func _ready() -> void:
 	add_child(hud)
 	hud.set_circuit(circuit_level, circuit_beats) # the loop is on screen from minute one
 
+	# THE FRONT DOOR: a title menu, but ONLY on a real launch — sims instantiate
+	# this scene under a harness (current_scene != self), so they skip it.
+	if get_tree().current_scene == self:
+		menu_open = true
+		var m := ProtoMenu.create(self)
+		add_child(m)
+
 	audio = ProtoAudio.new()
 	add_child(audio)
 	_wound_rng.randomize()
@@ -352,6 +359,8 @@ func _build_environment() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if menu_open:
+		return # the title menu owns the input until you pick a door
 	if event.is_action_pressed("interact"):
 		if panel.is_open:
 			panel.close()
@@ -2216,6 +2225,7 @@ func reload_content() -> Dictionary:
 # group — it moves, it fights, enemies hunt it. Co-op first; PvP already works
 # through the one damage law. -----------------------------------------------------
 var net: ProtoNet = null
+var menu_open: bool = false ## the title menu is up — gameplay input waits
 var remote_players: Dictionary = {} ## peer_id -> ProtoPlayer3D
 var remote_cars: Dictionary = {}    ## peer_id -> ProtoCar3D (a peer at the wheel)
 var enemy_ghosts: Dictionary = {}   ## host enemy instance_id -> ghost body (on clients)
