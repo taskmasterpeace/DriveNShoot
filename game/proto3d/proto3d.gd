@@ -263,6 +263,8 @@ var daynight: ProtoDayNight = null
 var weather: ProtoWeather = null
 var radio: ProtoRadio = null
 var carousel: ProtoCarousel = null
+var events: ProtoEvents = null
+var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -331,6 +333,13 @@ func _build_environment() -> void:
 	add_child(radio)
 	carousel = ProtoCarousel.create(self)
 	add_child(carousel)
+	# The calendar has plans (daily/weekly events) + the rulers read your ledger.
+	events = ProtoEvents.create(self)
+	add_child(events)
+	if FileAccess.file_exists("res://data/rulers.json"):
+		var rj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/rulers.json"))
+		if rj is Dictionary:
+			rulers = rj
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -1794,7 +1803,15 @@ func _reload_mount() -> void:
 
 
 func on_explosion(pos: Vector3) -> void:
-	cam_rig.add_trauma(0.7)
+	cam_rig.add_trauma(1.0) # THE WOW: a rocket hit KICKS the camera, hard
+	# …and the blast HANGS for a heartbeat (micro slow-mo, real-time restore).
+	if not _cine_lock:
+		_cine_lock = true
+		var prev := Engine.time_scale
+		Engine.time_scale = prev * 0.5
+		get_tree().create_timer(0.15, true, false, true).timeout.connect(func() -> void:
+			Engine.time_scale = prev
+			_cine_lock = false)
 	audio.play_at("explosion", pos, 4.0)
 	if player.global_position.distance_to(pos) < 7.0:
 		hud.flash_pain()
@@ -1965,6 +1982,107 @@ func _on_death() -> void:
 
 var _last_chassis: float = -1.0
 
+# --- THE CIRCUIT (goal: name the loop; end each cycle with an "I got stronger"
+# beat): SCAVENGE → UPGRADE → PUSH DEEPER → LIGHT A NODE. All four = the payoff.
+var circuit_level: int = 1
+var circuit_beats: Dictionary = {"scavenge": false, "upgrade": false, "push": false, "node": false}
+var visited_states: Dictionary = {}
+
+
+func circuit_beat(kind: String) -> void:
+	if not circuit_beats.has(kind) or circuit_beats[kind]:
+		return
+	circuit_beats[kind] = true
+	var done: int = circuit_beats.values().count(true)
+	notify("🏁 THE CIRCUIT %d: %s ✓ (%d/4)" % [circuit_level, kind.to_upper(), done])
+	if done >= 4:
+		_cycle_complete()
+
+
+## The "I got stronger" beat — unmistakable, earned, and it primes the NEXT lap.
+func _cycle_complete() -> void:
+	circuit_level += 1
+	for id in ProtoCharacter.SKILLS:
+		grant_xp(id, 20.0)
+	character.treat(character.worst_part(), 30.0)
+	stress = maxf(0.0, stress - 40.0)
+	backpack.add("power_cell", 1)
+	for k in circuit_beats:
+		circuit_beats[k] = false
+	audio.play_ui("blip", 0.0, 0.5)
+	hud.toast("🏁 CIRCUIT COMPLETE — you got STRONGER (lv %d: every skill fed, wounds knit, +1 cell for the ring)" % circuit_level)
+
+
+# --- THE DIVIDED STATES REACT (goal: the lore bible becomes mechanics) ----------
+## Crossing a border, its RULER reads your ledger: a SUSPECT gets hunters on the
+## roads, a TRUSTED name gets the ruler's welcome, everyone else gets watched.
+var bounty_hunted: bool = false
+var _welcomed_states: Dictionary = {}
+
+
+func ruler_of(state: String) -> Dictionary:
+	return (rulers.get("states", {}) as Dictionary).get(state,
+		rulers.get("default", {"ruler": "the local Baron", "title": "BARON", "attitude": 1.0}))
+
+
+func on_state_entered(state: String) -> void:
+	if not visited_states.has(state):
+		visited_states[state] = true
+		if visited_states.size() > 1: # home turf isn't a push
+			circuit_beat("push")
+	var r := ruler_of(state)
+	match respect.standing(state):
+		"SUSPECT":
+			bounty_hunted = true
+			notify("⚔️ %s HAS POSTED A BOUNTY ON YOU — hunters run %s's roads" % [String(r["ruler"]).to_upper(), state])
+		"TRUSTED", "HERO":
+			bounty_hunted = false
+			if not _welcomed_states.has(state):
+				_welcomed_states[state] = true
+				backpack.add("jack", 15)
+				notify("👑 %s SENDS A HERO'S WELCOME — an escort's purse rides with you (+15 jack)" % String(r["ruler"]).to_upper())
+		_:
+			bounty_hunted = false
+			notify("🪧 %s territory — %s watches these roads" % [state, String(r["ruler"])])
+	if events != null and events.war_state == state:
+		notify("⚔️ …and you just drove INTO the war")
+
+
+# --- THE WOW: cinematic combat reads --------------------------------------------
+## A killing crit lands in SLOW MOTION — a third of a real second where the world
+## holds its breath. Restores the PREVIOUS time scale (sims run hot; never stomp).
+var _cine_lock: bool = false
+
+
+func cinematic_kill(pos: Vector3) -> void:
+	if _cine_lock:
+		return
+	_cine_lock = true
+	var prev := Engine.time_scale
+	Engine.time_scale = prev * 0.22
+	cam_rig.add_trauma(0.35)
+	audio.play_at("thunk", pos, 2.0, 0.6)
+	var t := get_tree().create_timer(0.35, true, false, true) # real-time: ignores the slow-mo it made
+	t.timeout.connect(func() -> void:
+		Engine.time_scale = prev
+		_cine_lock = false)
+
+
+# --- THE PIPELINE IS A FEATURE (goal: the game visibly grows) --------------------
+## Re-fold data/vehicles.json and reload the map LIVE: tune in VehicleForge or
+## MapForge, press one dev-mode button, the running world updates. This is the
+## modding surface arriving early.
+func reload_content() -> Dictionary:
+	DrivnData.vehicles.clear()
+	DrivnData._loaded = false
+	DrivnData.ensure()
+	var map_ok := false
+	if stream != null and stream.usmap != null:
+		map_ok = stream.usmap.load_file(ProtoUSMap.PATH)
+	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
+	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
+
+
 # --- ROAD PIRATES (goal: the vehicular half of the promise) --------------------
 ## An ambush is a SET-PIECE: two rigs thrown across the road ahead, one hungry
 ## engine in your mirror. The chaser runs the SAME autopilot the Proving Grounds
@@ -2010,7 +2128,12 @@ func _update_pirates(delta: float) -> void:
 	if _ambush_cd <= 0.0 and mode == Mode.DRIVE and active_car != null \
 			and absf(active_car.forward_speed) > 14.0 and active_car.current_surface == "road":
 		_ambush_cd = randf_range(180.0, 320.0)
-		if randf() < (0.55 if daynight.is_dark() else 0.3):
+		# The dice read the WORLD: night favors them, a posted BOUNTY doubles them,
+		# a state AT WAR triples them. Your ledger follows you onto the asphalt.
+		var odds := (0.55 if daynight.is_dark() else 0.3) * (2.0 if bounty_hunted else 1.0)
+		if events != null:
+			odds *= events.pirate_mult(stream.current_state(active_car.global_position))
+		if randf() < minf(odds, 0.95):
 			spawn_road_ambush()
 	# Resolution: dead = loot on the shoulder; outrun = they break off.
 	for i in range(pirates.size() - 1, -1, -1):

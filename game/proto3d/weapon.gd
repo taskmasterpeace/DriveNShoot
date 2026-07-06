@@ -145,6 +145,9 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					t.take_damage(w["damage"] * dmg_mult * (1.8 if crit else 1.0))
 					hit_any = true
 					was_valid = is_instance_valid(t)
+					# THE WOW: a killing CRIT holds the world's breath (slow-mo read).
+					if crit and (not was_valid or t.get("dead") == true) and main.has_method("cinematic_kill"):
+						main.cinematic_kill(main.player.global_position)
 					if "audio" in main and main.audio:
 						main.audio.play_at("thunk", main.player.global_position + to_t, -2.0)
 					if "cam_rig" in main and main.cam_rig:

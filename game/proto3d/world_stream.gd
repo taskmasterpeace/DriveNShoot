@@ -101,6 +101,8 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 	if st != last_state:
 		if last_state != "" and main.has_method("notify"):
 			main.notify("🪧 WELCOME TO %s" % st)
+			if main.has_method("on_state_entered"):
+				main.on_state_entered(st) # the ruler reads your ledger at the border
 		last_state = st
 	# Keep the open map live so the you-dot and your markers track as you move.
 	if map_open():

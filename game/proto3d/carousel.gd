@@ -219,3 +219,5 @@ class ProtoGate:
 				m.add_child(c)
 				c.global_position = global_position + Vector3(-3.5, 0.05, 2.5)
 			m.notify("🎠 %s IS LIT — the node is yours, permanently" % row["name"])
+			if m.has_method("circuit_beat"):
+				m.circuit_beat("node") # THE CIRCUIT's capstone beat

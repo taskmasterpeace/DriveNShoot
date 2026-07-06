@@ -1,0 +1,20 @@
+{
+  "_comment": "The DIVIDED STATES' rulers as MECHANICS (goal: the lore bible stops being flavor). One row per state the slice reacts to; `default` covers the rest. attitude: how fast this ruler takes offense (infamy multiplier on crimes committed in-state).",
+  "default": {"ruler": "the local Baron", "title": "BARON", "attitude": 1.0},
+  "states": {
+    "VIRGINIA": {"ruler": "Bridger's Council", "title": "COUNCIL", "attitude": 1.0},
+    "NORTH CAROLINA": {"ruler": "King Sawyer", "title": "KING", "attitude": 1.2},
+    "GEORGIA": {"ruler": "CEO Marrow of the Peach Combine", "title": "CEO", "attitude": 0.8},
+    "KENTUCKY": {"ruler": "the Knox Warlord", "title": "WARLORD", "attitude": 1.5},
+    "TENNESSEE": {"ruler": "the Opry Queen", "title": "QUEEN", "attitude": 0.9},
+    "TEXAS": {"ruler": "President-General Hood", "title": "PRESIDENT", "attitude": 1.3},
+    "NEVADA": {"ruler": "the House — Vegas's last pit boss", "title": "CEO", "attitude": 0.7},
+    "WASHINGTON": {"ruler": "the Sound Admiralty", "title": "ADMIRAL", "attitude": 1.0},
+    "COLORADO": {"ruler": "the Mountain Prophet", "title": "PROPHET", "attitude": 1.4},
+    "KANSAS": {"ruler": "Chief Quartermaster Vale", "title": "CHIEF", "attitude": 1.1},
+    "CALIFORNIA": {"ruler": "the Solar King", "title": "KING", "attitude": 1.0},
+    "FLORIDA": {"ruler": "Admiral of the Reef Fleet", "title": "ADMIRAL", "attitude": 0.9},
+    "NEW YORK": {"ruler": "the Broker of the Five Boroughs", "title": "CEO", "attitude": 1.2},
+    "ILLINOIS": {"ruler": "the Rail Baron of Chicago", "title": "BARON", "attitude": 1.1}
+  }
+}

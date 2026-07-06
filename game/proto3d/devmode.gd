@@ -99,6 +99,11 @@ static func create(main: Node) -> ProtoDevMode:
 		["Fuel+parts", func() -> void: d._give({"jerry_can": 2, "car_parts": 2, "tire_kit": 1, "duct_tape": 2})],
 	])
 	d._row(v, [["❤️ Heal me full", func() -> void: d._heal()]])
+
+	# --- THE LIVING PIPELINE: tune in VehicleForge/MapForge → one press → the
+	# running world wears the new data. The modding surface, arrived early.
+	d._title(v, "🔧 forge (live content)", 12)
+	d._row(v, [["Reload vehicles + map", func() -> void: d._main.reload_content()]])
 	return d
 
 

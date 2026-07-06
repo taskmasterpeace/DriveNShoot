@@ -223,6 +223,8 @@ func _on_move(from: ProtoContainer, to: ProtoContainer, id: String) -> void:
 				return
 			if from.transfer_to(to, id):
 				_mine.remove("jack", price)
+				if _main and _main.has_method("circuit_beat"):
+					_main.circuit_beat("upgrade") # buying gear IS the upgrade beat
 		if "audio" in _main and _main.audio:
 			_main.audio.play_ui("click", -6.0)
 		_refresh()

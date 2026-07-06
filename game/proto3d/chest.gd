@@ -55,6 +55,8 @@ func interact(main: Node) -> void:
 		_scav_done = true
 		if main.has_method("grant_xp"):
 			main.grant_xp("scavenging", 3.0)
+		if main.has_method("circuit_beat"):
+			main.circuit_beat("scavenge") # THE CIRCUIT's first beat
 		if "character" in main and main.character:
 			var bonus: int = main.character.scavenge_bonus()
 			if bonus > 0 and not container.slots.is_empty():
