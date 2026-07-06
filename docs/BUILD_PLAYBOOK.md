@@ -85,7 +85,23 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–8 slices + extras), 36 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–8 slices + extras), 38 test suites all green:**
+- **THE SKILL TREE (skills_sim 19/19, 2026-07-06):** 10 skills, every one a REAL effect,
+  leveled by DOING (UO-style). ⭐ **Driving** (control scales steering + tightens the drift
+  spin-cap via `car.driver_control`; +top) and ⭐ **Kinship** (faster obedience, braver pack
+  morale, taming 3→2→1 meat at lv3/lv6, longer horn recall; levels by pet/feed/adopt/tame)
+  are the signatures. Mechanics (+repairs ×, salvage bonus), Marksmanship (+crit, −reload),
+  Melee (one skill: +dmg, −stamina, +kd; swings teach it), Endurance (+stamina tank/regen;
+  sprint/dive teach), Strength (`carry_cap()` = 32+2.5/lv LIVE in encumbrance+panel; shove ×),
+  Stealth (threats notice at ×0.95/lv while WALKING — `player.noise_mult()`; sprint spoils),
+  Scavenging (chests teach; bonus finds; wider fragment reveals), First Aid (treatments ×;
+  meds teach). All effect math in `character.gd` helpers (clamped). The **K sheet IS the
+  tree** (⭐ first, xp bars, live effect line, how-it-levels, next-level pitch) and every
+  level-up toast names what you just got.
+- **SOUNDFORGE (audio_sim, 2026-07-06):** every sound is a REAL ElevenLabs sample now —
+  `tools/soundforge/manifest.json` (prompt per sound) + `generate.mjs` (re-roll any id) +
+  README (the customization loop, agent-safe). audio.gd: file tier overrides synth fallback,
+  16/16 generated + committed. API key in gitignored `.env` — NEVER commit it.
 - **THE PROCEDURAL PUPPET (2026-07-06, 6 rungs, puppet/quad/npc_act/char/combat_rig sims):**
   ONE rig of box limbs driven by `sin()` off STATE — the "build the puppet once, feed it
   rows" pillar, end to end. `puppet.gd` (biped): torso/head/2 arms/2 legs, legs stride +
