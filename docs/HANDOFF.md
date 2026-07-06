@@ -10,10 +10,10 @@
 > - **Roadmap #1 — persistence holes: CLOSED.** All five leaks save/load and are asserted in `save_sim`: **hunger, weather, active war, hired crew, metaworld dog-records**.
 > - **Roadmap #2 — drift + versioning: DONE.** One `ProtoMain.SAFEHOUSE` anchor replaces four drifting literals; the save carries a `version` field.
 > - **Roadmap #4 — road-row consumer (partial): the `danger` row now scales `ambush_odds()`** — a danger-3 road spawns pirates ~2× as often (`road_sim`). *Toll + family still unconsumed.*
-> - **Roadmap #5 — vehicle mount attach: DONE.** The `mount_schematic` item, USED at the wheel, bolts a `car_mg` on and activates the whole dead-gated fire/reload path (`mount_sim`). *Car-takes-combat-damage still open.*
-> - **The one real red is fixed:** `dog_sim` rear-smell (test staged the threat behind *movement*, not *gaze*) + the Companion-obey flake hardened. **Suite is now honestly ~68/69** (only `dive_sim` remains a load-flake, passes solo).
-> - **Landmines closed:** `voices.json` no longer says "jack".
-> - **Still open (next dev):** roadmap #3 (data-spine read-back for items/NPCs/loot — the big one), #4 remainder (toll/family), #5 remainder (car takes hostile damage), #6 (sim-coverage gaps: crit/camera-shake/timers), #8 (lurker→puppet, signs-for-illiterate). §2c/§2d pillars unchanged — **do not start them** (§7).
+> - **Roadmap #5 — vehicle mounts + car combat damage: DONE.** `mount_schematic` USE bolts a `car_mg` on (activates the dead-gated fire path, `mount_sim`); and driving no longer makes the cab invincible — a claw mauls the **rig** through its 5-part damage while the driver stays shielded, and **vehicle armor is now real** (blunts the hit; was inert metadata). `car_combat_sim`.
+> - **Signs for the illiterate (spoken ask): DONE.** `ProtoSign` — an always-visible 📜 symbol ("words here"); the words only surface when the sign is in your **sight cone** + range. `sign_sim`.
+> - **The one real red is fixed:** `dog_sim` rear-smell (test staged the threat behind *movement*, not *gaze*) + the Companion-obey flake hardened. `voices.json` "jack"→"scrip" closed.
+> - **Still open (next dev):** roadmap **#3 data-spine read-back** for items/NPCs/loot — *the big one, and now the top priority* (makes "a new item = a row" true); #4 remainder (toll billing/family); #6 sim-coverage gaps (crit/camera-shake/timers); #8 lurker→puppet. §2c/§2d pillars unchanged — **do not start them** (§7).
 
 ---
 
