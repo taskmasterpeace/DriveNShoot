@@ -15,7 +15,7 @@ const WEAPONS: Dictionary = {
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
 		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
-		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6,
+		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
 		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true}}, # both hands, at the shoulder
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
@@ -188,7 +188,7 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		Behavior.HITSCAN_MULTI:
 			# Pellets at close range carry SHOVE — a shotgun answer you can see.
 			for i in int(w["pellets"]):
-				_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"], 1.4)
+				_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"], float(w.get("shove", 1.4)))
 		Behavior.PROJECTILE:
 			_launch(main, from, _spread(aim_dir, sp), w)
 	return true
@@ -289,13 +289,9 @@ class ProtoGrenade:
 		fuse -= delta
 		if fuse <= 0.0:
 			var main := get_parent()
-			for node in get_tree().get_nodes_in_group("threat"):
-				var t := node as Node3D
-				if t and is_instance_valid(t) and t.global_position.distance_to(global_position) < blast:
-					if t.has_method("take_damage"):
-						t.take_damage(damage)
+			# ONE blast law: damage + knockback + knockdown routed through main.
 			if main.has_method("on_explosion"):
-				main.on_explosion(global_position)
+				main.on_explosion(global_position, damage, blast)
 			queue_free()
 
 
@@ -331,11 +327,7 @@ class ProtoRocket:
 			_boom(main)
 
 	func _boom(main: Node) -> void:
-		for node in get_tree().get_nodes_in_group("threat"):
-			var t := node as Node3D
-			if t and is_instance_valid(t) and t.global_position.distance_to(global_position) < blast:
-				if t.has_method("take_damage"):
-					t.take_damage(damage)
+		# ONE blast law: damage + knockback + knockdown routed through main.
 		if main.has_method("on_explosion"):
-			main.on_explosion(global_position)
+			main.on_explosion(global_position, damage, blast)
 		queue_free()

@@ -1889,7 +1889,7 @@ func _reload_mount() -> void:
 	notify("MG reloaded (+%d)" % take)
 
 
-func on_explosion(pos: Vector3) -> void:
+func on_explosion(pos: Vector3, damage: float = 0.0, blast: float = 0.0) -> void:
 	cam_rig.add_trauma(1.0) # THE WOW: a rocket hit KICKS the camera, hard
 	# …and the blast HANGS for a heartbeat (micro slow-mo, real-time restore).
 	if not _cine_lock:
@@ -1900,6 +1900,30 @@ func on_explosion(pos: Vector3) -> void:
 			Engine.time_scale = prev
 			_cine_lock = false)
 	audio.play_at("explosion", pos, 4.0)
+	# THE SHOCKWAVE (playtest: explosions should THROW things). Radial damage +
+	# knockback + a flat-out chance, falling off with distance, on the ONE DAMAGE
+	# LAW group (combatant ∪ threat) so pirates and howlers both feel it.
+	if blast > 0.0:
+		var seen: Array = get_tree().get_nodes_in_group("combatant").duplicate()
+		for th in get_tree().get_nodes_in_group("threat"):
+			if not seen.has(th):
+				seen.append(th)
+		for node in seen:
+			var t := node as Node3D
+			if t == null or not is_instance_valid(t) or t == player:
+				continue
+			var d: float = t.global_position.distance_to(pos)
+			if d >= blast:
+				continue
+			var falloff: float = 1.0 - d / blast # 1 at ground zero → 0 at the rim
+			if t.has_method("take_damage"):
+				t.take_damage(damage) # full lethality in the radius (unchanged); KNOCKBACK is what falls off
+			if t.has_method("shove"):
+				var away: Vector3 = (t.global_position - pos)
+				away.y = 0.0
+				t.shove(away.normalized() if away.length() > 0.01 else player.facing(), 9.0 * falloff)
+			if falloff > 0.4 and t.has_method("knock_down"):
+				t.knock_down()
 	if player.global_position.distance_to(pos) < 7.0:
 		hud.flash_pain()
 		give_bleeding(1)
