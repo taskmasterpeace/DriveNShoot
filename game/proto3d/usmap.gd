@@ -61,7 +61,12 @@ func load_file(path: String) -> bool:
 		var pts := PackedVector2Array()
 		for p in r["pts"]:
 			pts.append(Vector2(float(p[0]), float(p[1])))
-		roads.append({"id": r["id"], "kind": r.get("kind", "interstate"), "pts": pts})
+		# PILLAR 1 (WORLD_PILLARS.md): a road is a CHARACTER — danger, patrol
+		# family, a nickname the world greets you with, and a toll if it bills.
+		roads.append({"id": r["id"], "kind": r.get("kind", "interstate"), "pts": pts,
+			"danger": int(r.get("danger", 1 if String(r.get("kind", "interstate")) == "interstate" else 0)),
+			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
+			"toll": int(r.get("toll", 0))})
 	rivers = d.get("rivers", [])
 	towns.clear()
 	for t in d.get("towns", []):
@@ -126,7 +131,9 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 			var d := _seg_dist(p, pts[i], pts[i + 1])
 			if d < best_d:
 				best_d = d
-				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1]}
+				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
+					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0))}
 	return best
 
 

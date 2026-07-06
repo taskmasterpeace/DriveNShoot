@@ -591,6 +591,7 @@ func _physics_process(delta: float) -> void:
 	_update_whistle(delta)
 	_update_soundscape(delta)
 	_update_pirates(delta)
+	_update_road_read()
 	_update_traffic(delta)
 	if net != null and net.online:
 		net.tick(delta) # broadcast my body ~20 Hz to the other players
@@ -2682,6 +2683,33 @@ func spawn_road_ambush() -> void:
 	audio.play_at("howl", ch.global_position, 2.0, 1.4) # a war-whoop off the wind
 	hud.toast("🏴 ROAD PIRATES — headlights in your mirror, steel across the road")
 	stress = minf(100.0, stress + 14.0)
+
+
+## PILLAR 1 (WORLD_PILLARS.md) — roads are CHARACTERS. Drive onto a named road and
+## it greets you like a welcome sign: its nickname, danger read, and toll. The data
+## rows (danger/family/nickname/toll) ride usmap road_near; consumers (ambush
+## weighting, toll billing, atlas color) are the next dev's P3 slice — this is the READ.
+var _last_road_id: String = ""
+func _update_road_read() -> void:
+	if mode != Mode.DRIVE or active_car == null:
+		return
+	var r: Dictionary = stream.usmap.road_near(active_car.global_position, 55.0)
+	var rid: String = String(r.get("id", ""))
+	if rid == "" or rid == _last_road_id:
+		if rid == "":
+			_last_road_id = ""
+		return
+	_last_road_id = rid
+	var nick: String = String(r.get("nickname", ""))
+	if nick == "":
+		return
+	var dgr: int = int(r.get("danger", 0))
+	var bar := "▰".repeat(dgr) + "▱".repeat(3 - dgr)
+	var toll: int = int(r.get("toll", 0))
+	var line := "🛣️ %s   danger %s" % [nick, bar]
+	if toll > 0:
+		line += "   toll %d scrip" % toll
+	notify(line)
 
 
 func _update_pirates(delta: float) -> void:
