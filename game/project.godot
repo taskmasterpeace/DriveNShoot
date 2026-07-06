@@ -17,7 +17,7 @@ tile_bit_tools/output/show_user_messages=false
 config/name="CarWorld"
 config/version="0.1.0"
 config/tags=PackedStringArray("template")
-run/main_scene="res://scenes/levels/test/test_driving.tscn"
+run/main_scene="res://proto3d/proto3d.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 
 [autoload]
