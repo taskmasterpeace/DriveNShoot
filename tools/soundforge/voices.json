@@ -1,0 +1,45 @@
+{
+	"_readme": "Character voice manifest for voices.mjs. THE ONE RULE: never change a character's voice_id — every line a character ever speaks must come from the same voice. Add lines freely; add characters by picking an UNUSED stock voice (GET /v1/voices).",
+	"model_id": "eleven_multilingual_v2",
+	"characters": {
+		"mercy": {
+			"voice": "PCgMfo8q0fvOQUj6tUox",
+			"voice_name": "Madison",
+			"voice_desc": "weathered woman ~50, dry wit, southern rasp — Madison ('wise old lady - mother, grandma, aunt': older American female, wise/dry, closest stock match to a trader who has seen everything)",
+			"lines": {
+				"greet": "Jack talks. What are you buying?",
+				"trusted": "There you are. Kept the good shelf stocked for you.",
+				"refuse": "Not to you. Not after what you did."
+			}
+		},
+		"bridger": {
+			"voice": "pqHfZKP75CvOlQylNhV4",
+			"voice_name": "Bill",
+			"voice_desc": "gravelly older man, tired authority — Bill ('Wise, Mature, Balanced': old American male, crisp and worn, reads like a security chief who is done arguing)",
+			"lines": {
+				"work": "Got a lurker problem by the water point. Twenty-five jack for its head.",
+				"refuse": "Meridian doesn't work with your kind. Walk away.",
+				"clean": "Clean work. Meridian noticed."
+			}
+		},
+		"sam": {
+			"voice": "bIHbv24MWmeRgasZH58o",
+			"voice_name": "Will",
+			"voice_desc": "laconic younger man, flat calm — Will ('Relaxed Optimist': young American male, chill/level delivery, right for a hired gun who never raises his voice)",
+			"lines": {
+				"hire": "Forty jack and my gun walks where you walk.",
+				"contact": "Contact! On me!",
+				"wheel": "Your wheel. I'll watch the mirrors."
+			}
+		},
+		"radio": {
+			"voice": "N2lVS1w4EtoT3dr4eOWO",
+			"voice_name": "Callum",
+			"voice_desc": "wasteland DJ, mid-Atlantic AM-radio crackle energy — Callum ('Husky Trickster': middle-aged character/animation voice, husky and theatrical, the showman-through-static sound)",
+			"lines": {
+				"blood_moon": "Blood moon tonight, children. The dark comes all the way down.",
+				"war": "War in the heartland. Keep your tank full and your dog close."
+			}
+		}
+	}
+}
