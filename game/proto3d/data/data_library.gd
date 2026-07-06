@@ -79,6 +79,8 @@ static func _fold_into_engine(row: DrivnVehicle) -> void:
 	spec["passenger_seats"] = row.passenger_seats
 	spec["armor"] = {"front": row.armor_front, "rear": row.armor_rear, "side": row.armor_side}
 	spec["mounts"] = row.mounts
+	for k in row.extra: # open schema: camper, seats, … flow straight onto the spec
+		spec[k] = row.extra[k]
 
 
 ## Tool/compare hook: the fleet as sorted DrivnVehicle rows (ensure() first).

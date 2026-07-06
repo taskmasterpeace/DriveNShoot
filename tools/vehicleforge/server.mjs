@@ -11,6 +11,7 @@
 // Zero dependencies. No purple.
 
 import { createServer } from "node:http";
+import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,11 +40,17 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // Normalize + validate a row (defaults mirror DrivnVehicle.from_dict). Returns the
 // clean row or throws a message the UI/agent can show.
+const KNOWN = ["id", "name", "archetype", "family", "mass", "engine_force", "top_speed",
+	"reverse_top", "tire_grip", "trunk_volume", "passenger_seats", "dog_seats", "armor",
+	"wound_mult", "mounts"];
+
 function normalize(v) {
 	if (!v || !v.id) throw "need an id";
 	if (v.archetype && !ARCHETYPES.includes(v.archetype)) throw `unknown archetype '${v.archetype}' (valid: ${ARCHETYPES.join(", ")})`;
 	const g = v.tire_grip || {}, a = v.armor || {};
-	return {
+	// OPEN SCHEMA: unknown keys (camper, seats, …) pass through untouched.
+	const extra = Object.fromEntries(Object.entries(v).filter(([k]) => !KNOWN.includes(k)));
+	return { ...extra, ...{
 		id: String(v.id), name: String(v.name || v.id), archetype: String(v.archetype || v.id),
 		family: FAMILIES.includes(v.family) ? v.family : "car",
 		mass: num(v.mass, 1000), engine_force: num(v.engine_force, 6500),
@@ -53,7 +60,7 @@ function normalize(v) {
 		dog_seats: Math.round(num(v.dog_seats, 0)),
 		armor: { front: clamp(num(a.front, 40), 0, 100), rear: clamp(num(a.rear, 30), 0, 100), side: clamp(num(a.side, 30), 0, 100) },
 		wound_mult: num(v.wound_mult, 1.0), mounts: Array.isArray(v.mounts) ? v.mounts : [],
-	};
+	} };
 }
 
 const HELP = {
@@ -118,6 +125,21 @@ const server = createServer(async (req, res) => {
 			let row; try { row = normalize(merged); } catch (e) { return json(res, 400, { error: String(e) }); }
 			doc.vehicles = doc.vehicles.map((v) => (v.id === row.id ? row : v)); save();
 			return json(res, 200, { ok: true, row });
+		}
+		// --- PROVING GROUNDS integration ---
+		if (url.pathname === "/api/laptimes") {
+			const p = join(ROOT, "game", "data", "laptimes.json");
+			if (!existsSync(p)) return json(res, 200, { laps: {} });
+			return json(res, 200, JSON.parse(readFileSync(p, "utf8")));
+		}
+		if (url.pathname === "/api/testdrive" && req.method === "POST") {
+			if (!byId(body.id)) return json(res, 404, { error: `no vehicle '${body.id}'` });
+			const godot = process.env.GODOT_EXE || "C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64.exe";
+			if (!existsSync(godot)) return json(res, 400, { error: `Godot not found at ${godot} — set GODOT_EXE` });
+			const child = spawn(godot, ["--path", join(ROOT, "game"), "res://proto3d/track/track.tscn", "--", `vehicle=${body.id}`],
+				{ detached: true, stdio: "ignore" });
+			child.unref();
+			return json(res, 200, { ok: true, launched: body.id, track: "proving grounds" });
 		}
 		if (url.pathname === "/api/vehicles" && req.method === "DELETE") {
 			const n = doc.vehicles.length;

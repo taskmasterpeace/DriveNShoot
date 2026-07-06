@@ -90,6 +90,7 @@
 			<option value="power_to_weight">Power / weight</option>
 			<option value="trunk_volume">Cargo (kg)</option>
 			<option value="mass">Mass</option>
+			<option value="best_lap">Best lap (Proving Grounds)</option>
 		</select>
 		<div id="cmpbars"></div>
 	</div>
@@ -99,17 +100,19 @@
 	<span id="saved" style="margin-left:auto"></span>
 </footer>
 <script>
-let fleet = [], arche = [], families = [], sel = null, cmpKey = "armor_rating";
+let fleet = [], arche = [], families = [], sel = null, cmpKey = "armor_rating", laptimes = {};
 const $ = (s) => document.querySelector(s);
 async function api(path, opts) { const r = await fetch(path, opts); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
 function flash(m) { const el = $("#saved"); el.textContent = m; clearTimeout(el._t); el._t = setTimeout(() => el.textContent = "", 1600); }
 const armorColor = (v) => `hsl(${Math.round(v * 1.2)} 65% 45%)`; // 0=red → 100=green (no purple: hue 0..120)
 const metric = (v, k) => k === "armor_rating" ? (v.armor.front + v.armor.rear + v.armor.side) / 3
-	: k === "power_to_weight" ? v.engine_force / v.mass : v[k];
+	: k === "power_to_weight" ? v.engine_force / v.mass
+	: k === "best_lap" ? (laptimes[v.id] || 0) : v[k];
 
 async function load() {
 	const a = await api("/api/archetypes"); arche = a.archetypes; families = a.families;
 	fleet = await api("/api/vehicles");
+	try { laptimes = (await api("/api/laptimes")).laps || {}; } catch { laptimes = {}; }
 	renderRoster(); renderCompare();
 	if (!sel && fleet.length) selectVehicle(fleet[0].id);
 	$("#info").innerHTML = `<b>${fleet.length}</b> vehicles · source <b>game/data/vehicles.json</b> · the game folds these into the fleet at boot`;
@@ -143,6 +146,7 @@ function renderEditor() {
 		<span class="id">#${v.id}</span>
 		<select data-k="family">${families.map((f) => `<option ${f === v.family ? "selected" : ""}>${f}</option>`).join("")}</select>
 		<select data-k="archetype" title="body chassis">${arche.map((a) => `<option ${a === v.archetype ? "selected" : ""}>${a}</option>`).join("")}</select>
+		<button id="testdrive" title="Launch the Proving Grounds with this rig — lap the circuit, race your ghost (G), sic the chase AI (C)">🏁 TEST DRIVE</button>
 		<button class="danger" id="del">DELETE</button>
 	</div>
 	<div class="sec"><h3>Armor — where the fight lands</h3>
@@ -180,6 +184,10 @@ function renderEditor() {
 		el.addEventListener(ev, () => onEdit(el.dataset.k, el.value, el));
 	});
 	$("#del").onclick = deleteVehicle;
+	$("#testdrive").onclick = async () => {
+		try { await api("/api/testdrive", { method: "POST", body: JSON.stringify({ id: v.id }) }); flash(`${v.name} → Proving Grounds`); }
+		catch (e) { flash("launch failed: " + e.message); }
+	};
 }
 let _saveT = null;
 function onEdit(key, raw, el) {
@@ -220,12 +228,16 @@ $("#new").onclick = async () => {
 };
 function renderCompare() {
 	cmpKey = $("#cmpsel").value;
-	const vals = fleet.map((v) => ({ v, m: metric(v, cmpKey) }));
+	const lower = cmpKey === "best_lap"; // lap time: lower is better; untimed rigs sink
+	let vals = fleet.map((v) => ({ v, m: metric(v, cmpKey) }));
+	if (lower) vals = vals.filter((x) => x.m > 0);
 	const max = Math.max(1, ...vals.map((x) => x.m));
-	vals.sort((a, b) => b.m - a.m);
-	$("#cmpbars").innerHTML = vals.map(({ v, m }) => `
-		<div class="crow"><div class="lbl"><b${v.id === sel ? ' style="color:var(--amber)"' : ""}>${v.name}</b><span>${Math.round(m * (cmpKey === "power_to_weight" ? 100 : 1)) / (cmpKey === "power_to_weight" ? 100 : 1)}</span></div>
-		<div class="cbar"><i class="${v.id === sel ? "me" : ""}" style="width:${Math.round(m / max * 100)}%"></i></div></div>`).join("");
+	const min = Math.min(...vals.map((x) => x.m), max);
+	vals.sort((a, b) => lower ? a.m - b.m : b.m - a.m);
+	$("#cmpbars").innerHTML = (vals.length ? vals.map(({ v, m }) => `
+		<div class="crow"><div class="lbl"><b${v.id === sel ? ' style="color:var(--amber)"' : ""}>${v.name}</b><span>${lower ? m.toFixed(2) + "s" : Math.round(m * (cmpKey === "power_to_weight" ? 100 : 1)) / (cmpKey === "power_to_weight" ? 100 : 1)}</span></div>
+		<div class="cbar"><i class="${v.id === sel ? "me" : ""}" style="width:${Math.round((lower ? min / m : m / max) * 100)}%"></i></div></div>`).join("")
+		: `<div style="color:var(--dim);font-size:12px">No lap times yet — 🏁 TEST DRIVE a rig and set one.</div>`);
 }
 $("#cmpsel").onchange = renderCompare;
 load();

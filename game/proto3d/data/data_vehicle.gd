@@ -43,6 +43,14 @@ extends Resource
 ## SYSTEM exists in ProtoCar3D; this is the data side (which rigs can bolt a gun).
 @export var mounts: Array = []
 
+## OPEN SCHEMA: unknown row keys (camper, seats, …) ride through untouched so a
+## new engine flag never needs a schema change — the row stays the truth.
+@export var extra: Dictionary = {}
+
+const KNOWN_KEYS: Array = ["id", "name", "archetype", "family", "mass", "engine_force",
+	"top_speed", "reverse_top", "tire_grip", "trunk_volume", "passenger_seats",
+	"dog_seats", "armor", "wound_mult", "mounts"]
+
 
 ## Build a DrivnVehicle from a plain JSON dict (the stamper + loader both use this).
 static func from_dict(d: Dictionary) -> DrivnVehicle:
@@ -68,6 +76,9 @@ static func from_dict(d: Dictionary) -> DrivnVehicle:
 	v.armor_side = float(armor.get("side", 30.0))
 	v.wound_mult = float(d.get("wound_mult", 1.0))
 	v.mounts = d.get("mounts", [])
+	for k in d:
+		if not (k in KNOWN_KEYS):
+			v.extra[k] = d[k]
 	return v
 
 
@@ -78,7 +89,7 @@ func armor_rating() -> float:
 
 ## Round-trip back to a plain dict (the tool exports this to JSON).
 func to_dict() -> Dictionary:
-	return {
+	var out := {
 		"id": id, "name": name, "archetype": archetype, "family": family,
 		"mass": mass, "engine_force": engine_force, "top_speed": top_speed, "reverse_top": reverse_top,
 		"tire_grip": {"front": tire_grip_front, "rear": tire_grip_rear, "dirt": tire_grip_dirt},
@@ -86,3 +97,6 @@ func to_dict() -> Dictionary:
 		"armor": {"front": armor_front, "rear": armor_rear, "side": armor_side},
 		"wound_mult": wound_mult, "mounts": mounts,
 	}
+	for k in extra:
+		out[k] = extra[k]
+	return out

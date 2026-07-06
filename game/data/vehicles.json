@@ -61,6 +61,21 @@
       "mounts": [{"id": "bed", "pos": [0, 0.95, 1.7], "arc_deg": 270}]
     },
     {
+      "id": "rv", "name": "Homestead", "archetype": "van", "family": "van",
+      "mass": 2400.0, "engine_force": 7800.0, "top_speed": 24.0, "reverse_top": 8.0,
+      "tire_grip": {"front": 5.6, "rear": 5.2, "dirt": 0.65},
+      "trunk_volume": 160.0, "passenger_seats": 4, "dog_seats": 4,
+      "armor": {"front": 35, "rear": 30, "side": 30}, "wound_mult": 0.7,
+      "camper": true,
+      "seats": [
+        {"pos": [0.5, 1.1, -2.0], "type": "cab"},
+        {"pos": [-0.5, 1.1, -2.0], "type": "shotgun"},
+        {"pos": [0.6, 1.1, 0.5], "type": "cabin"},
+        {"pos": [-0.6, 1.1, 0.5], "type": "cabin"}
+      ],
+      "mounts": []
+    },
+    {
       "id": "suv", "name": "Bulwark", "archetype": "van", "family": "suv",
       "mass": 1600.0, "engine_force": 8000.0, "top_speed": 33.0, "reverse_top": 11.0,
       "tire_grip": {"front": 5.5, "rear": 5.2, "dirt": 0.82},
