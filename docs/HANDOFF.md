@@ -21,8 +21,65 @@
 > - **Roadmap #6 — crit + camera-trauma coverage: DONE.** `melee_sim` asserts a crit lands ×1.8; `feel_sim` asserts trauma spikes, shakes the camera off its mark, and decays. The two biggest combat-feel coverage holes closed.
 > - **#8 lurker→puppet: DONE.** The last bespoke enemy now rides the shared `ProtoPuppet` (data-driven all-black "lurker" look; strides via `animate()`; its hood preserved on the rig's head; hit-flash recursed). **No enemy is bespoke anymore** — every fighter is the one sin()-driven rig fed a row. `arsenal_sim` asserts it; threat/dark/dogmeta/melee_wall/items/town/life/combat_feel all green.
 > - **#6 get-up-stamina: DONE** (`getup_sim`) — a gassed shootdodge keeps you down ×1.9 longer. **All of #6 is now asserted** (crit, camera-trauma, misfire, get-up).
+> - **Deployables pillar rung 1 — the PROXIMITY MINE: DONE** (`ProtoMine`, `mine_sim` 6/6). USE plants it; it arms after a beat (planting-safe, never trips on you); the first enemy in its ring detonates it through the one blast law. First proven rung of the P5 deployables ladder.
 >
-> **The ONLY thing left is the §2c/§2d pillars** (700-pt skill tree, robotics/farming, faction families, 19-slot gear, hover/rail/boat, host-authoritative MP, procedural exit-towns) — **weeks each; do NOT start** (§7). These are new *scope*, not fixes; the engine to support them is now honest and data-driven. Every other backlog + spoken item is built + sim-proven.
+> **PIVOT (owner directive, 2026-07-06) → the whole roadmap below is superseded by §0.** The owner reviewed four new design specs (now banked in `docs/design/`) and set the next major arc: **THE LIVING WORLD — the "Four Days Later: Florida Under New Law" slice.** The retirement-era "do NOT start the pillars" discipline (§3/§7) is lifted *for this arc only* — Florida is now the greenlit build. The pending equipment-paperdoll rung (an ad-hoc `worn_armor` field) was **parked/reverted** — it will be built properly from the full 19-slot spec (`docs/design/EQUIPMENT_PAPERDOLL.md`) later, not as a one-off. **Start at §0.**
+
+---
+
+## 0. THE NEXT ARC — THE LIVING WORLD (owner directive, 2026-07-06) 🌎
+
+**This section is the current marching order. It supersedes the reined-in roadmap in §3.**
+
+The owner delivered four design specs (banked verbatim in **`docs/design/`**) and chose the next major feature. It is **not** robots, AI video, consoles, or cloning. It is the one slice that proves the whole vision:
+
+> ### 🎯 THE FLORIDA SLICE — *"Four Days Later: Florida Under New Law"*
+> The player lives in Florida for its gun laws. They don't play for four days. On return, the save simulates those days: a religious faction has taken Florida, the **laws changed** (guns now contraband), and the player **wakes safe inside their safehouse** — not punished — and learns what happened from **radio/TV/phone** before deciding to hide, smuggle, fight, or flee.
+>
+> **The spine of the whole arc, in one sentence:** *the world keeps moving while the player is gone, and technology (radio/TV/phone/drones) is how they observe it, survive it, and manipulate it.*
+
+### The four specs (all now in-repo)
+
+| Doc | What it covers | Priority in this arc |
+|---|---|---|
+| **`docs/design/LIVING_WORLD_DSOA.md`** | Offline catch-up, state control + law profiles, safehouse briefing, broadcasts, drones, crime/jail, cloning, military bases, seats, mobile companion. **The master spec.** | **P0 — build first** |
+| **`docs/design/CINEMA_MEDIA_LAYER.md`** | Diegetic media: safehouse TV, drive-in, media registry, news-from-world-state. Feeds the "TV briefing" beat. | P1 — dovetails with broadcast |
+| **`docs/design/COOP_PVP_MOBILE.md`** | Tonight co-op/PvP fun pass (partner arrow, name tags, respawn-at-partner, PvP opt-in, bounty) + phone-as-drone companion + AI-collapse lore keystone. | P2 — parallel track, low-code |
+| **`docs/design/EQUIPMENT_PAPERDOLL.md`** | The full 19-slot wearable inventory (6 armor / 7 clothing / 6 accessory), T1–T5, set bonuses. Fills §2c's "19-slot paperdoll" pillar. | P3 — build from this spec, not ad-hoc |
+
+### The build order (from LIVING_WORLD_DSOA §20 + §25, sequenced for our engine)
+
+The whole arc is gated on **one non-negotiable foundation the owner's spec repeats loudly: the save must persist the new world state.** We just closed the old persistence leaks (see banner) — do not reopen that wound by adding offline progression that resets. Add these save keys first: `last_played_at_utc`, `world_state_version`, `state_control`, `active_laws`, `active_events`, `resolved_events`, `broadcast_queue`.
+
+**Phase 0 — EventDirector + Offline Catch-Up** *(the heart; build first)*
+1. Add `last_played_at_utc` + `world_state_version` to the save (`save_game()`/`load` in `proto3d.gd`).
+2. New `EventDirector` node that **wraps the existing `events.gd` `roll_daily`** (don't replace it — the deterministic daily roll already exists; make it the offline tick).
+3. Deterministic offline catch-up: on load, if `gap_hours ≥ threshold`, roll up to `MAX_OFFLINE_DAYS` (cap at 7) of events into an `OfflineDigest`. Same save + same gap + same seed ⇒ same result.
+4. A **Return Briefing** screen (reuse the modal/panel pattern from the container/sheet UI) that shows: days passed, new controller, new laws, contraband flags, nearby patrols. **No arrest inside the safehouse** (fairness rule).
+5. `offline_catchup_sim`: set `last_played_at` 4 days ago + a seed that guarantees the Florida takeover → assert controller changes, law changes, briefing appears, gun becomes contraband, **player not arrested at home**, broadcast queued.
+
+**Phase 1 — State Control + Law Profiles + Contraband**
+6. `data/law_profiles.json` rows — start with exactly **two**: `free_counties_law` (guns legal) and `faith_occupation_law` (guns contraband, curfew). Fold them additively like `items.json` (the read-back spine is now proven — reuse `ensure_*` pattern).
+7. `state_control` map (state → controlling faction) on world state; a state takeover swaps the law profile.
+8. `legal_tag` contraband tags on items/weapons; an inventory+trunk contraband check that fires **on being seen/searched**, not on possession.
+9. `law_profile_sim`: same gun legal under Free Counties, contraband under Faith Occupation; safehouse possession does not punish.
+
+**Phase 2 — Broadcast: radio / TV / phone briefing**
+10. Expand `radio.gd` into (or wrap it with) a `BroadcastSystem`; add a **TV interactable** in the safehouse (this is where `CINEMA_MEDIA_LAYER.md`'s MediaRegistry + `ProtoTV` slot in).
+11. Template-driven broadcast content with a **hard fallback stack**: text bulletin → pre-written TTS line → static card → (optional, never-blocking) AI video. The game must never wait on AI video.
+12. `broadcast_fallback_sim`: event outcome makes a broadcast; text always exists; missing audio/video does not crash.
+
+**That is the Minimum Viable Slice.** If it's fun, expand into drones (Phase 3), crime/bodies (Phase 4), jail (Phase 5), cloning (Phase 6), seats/co-op/PvP (the `COOP_PVP_MOBILE.md` track), then the paperdoll and everything else. **If it's not fun, no amount of robots/consoles/clones saves it** — so prove Florida first (the specs are emphatic about this; see LIVING_WORLD_DSOA §24, §26 "Cut List").
+
+### The lore keystone to thread through it (from COOP_PVP_MOBILE.md)
+**AI caused the collapse of the Divided States.** Drones, robots, Carousel tech, radio propaganda, and the phone uplink are all remnants of a national logistics/security AI that "optimized" the country into controllable territories. Put one line of this in a drone boot screen / radio glitch / Carousel terminal so the tech reads as *one world*, not random gadgets. (This also unifies with the existing Carousel "flesh not steel" framing.)
+
+### What to do RIGHT NOW (first session, concrete)
+1. Read `docs/design/LIVING_WORLD_DSOA.md` §4, §20 (Phase 0), §21.1, §24.
+2. Grep `save_game`/`load_game` in `proto3d.gd`; add the seven world-state save keys + `last_played_at_utc`. Prove the round-trip in `save_sim` first — **persistence before progression.**
+3. Build `EventDirector` around `events.gd`'s existing `roll_daily`; write `offline_catchup_sim` to the acceptance criteria in §21.1 **before** wiring the briefing UI (iron rule: real path, sim-proven).
+4. Only then build the Return Briefing screen and the two law profiles.
+5. Commit each phase with its sim green; push to `origin main`.
 
 ---
 
