@@ -220,6 +220,8 @@ func _ready() -> void:
 
 	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
+	# The macro map (DEATHLANDS USA) feeds streaming, surfaces, and the HUD.
+	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
 	stream = ProtoWorldStream.new()
 	add_child(stream)
 	stream.setup(waypoints)
@@ -1508,10 +1510,18 @@ func _update_location_label() -> void:
 	var clock := "%s · " % daynight.clock_text()
 	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
 		hud.set_location(clock + "MERIDIAN — POP. UNKNOWN")
-	elif absf(pos.x) < 30.0:
-		hud.set_location(clock + "INTERSTATE 9 — %s" % stream.current_state(pos.x))
-	else:
-		hud.set_location(clock + "DEATHLANDS — %s" % stream.current_state(pos.x))
+		return
+	if absf(pos.x) < 30.0 and absf(pos.z) < 450.0:
+		hud.set_location(clock + "INTERSTATE 9 — %s" % stream.current_state(pos))
+		return
+	# On a macro interstate, the road names itself (I-70 — KANSAS).
+	var um: ProtoUSMap = ProtoWorldBuilder.usmap
+	if um != null and um.ok:
+		var road := um.road_near(pos, 20.0)
+		if not road.is_empty():
+			hud.set_location(clock + "%s — %s" % [road["id"], stream.current_state(pos)])
+			return
+	hud.set_location(clock + "DEATHLANDS — %s" % stream.current_state(pos))
 
 
 func enter_car(car: ProtoCar3D) -> void:

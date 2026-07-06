@@ -122,8 +122,8 @@ static func _scatter_detail(world: Node3D) -> void:
 
 ## Road footprints (asphalt) — MIRRORS the visual slabs laid in build_world below
 ## (roads are visual-only, no collision, so the car can't raycast them). Each entry:
-## [center_x, center_z, half_x, half_z, rot_y]. Streaming (Stage 5+) replaces this
-## with per-chunk surface data.
+## [center_x, center_z, half_x, half_z, rot_y]. Streamed chunks ADD their own
+## rects (materialized interstates, city streets) into extra_road_rects.
 const ROAD_RECTS: Array = [
 	[0.0, 0.0, 8.0, 430.0, 0.0],            # Interstate 9
 	[105.0, -290.0, 60.0, 5.0, 0.0],        # Meridian main street
@@ -131,20 +131,37 @@ const ROAD_RECTS: Array = [
 	[30.0, -257.5, 4.5, 37.5, 0.774],       # Exit 9 ramp (atan2(44,45))
 ]
 
+## Per-chunk road surface rects, registered/unregistered by ProtoWorldStream
+## as interstates + city streets materialize: "cx,cz" -> Array of rect rows.
+static var extra_road_rects: Dictionary = {}
 
-## The surface under a world point: "road" (asphalt — high grip) or "dirt"
-## (everything else — looser, dustier). Data-driven from ROAD_RECTS.
+## The macro map (set at boot by proto3d): water/ocean biomes read as "water".
+static var usmap: ProtoUSMap = null
+
+
+## The surface under a world point: "road" (asphalt — high grip), "water"
+## (lakes/rivers/ocean — bogs everything; bridges are road and WIN), or "dirt".
 static func surface_at(pos: Vector3) -> String:
 	for r in ROAD_RECTS:
-		var dx: float = pos.x - r[0]
-		var dz: float = pos.z - r[1]
-		var c: float = cos(-r[4])
-		var s: float = sin(-r[4])
-		var lx: float = dx * c - dz * s
-		var lz: float = dx * s + dz * c
-		if absf(lx) <= r[2] and absf(lz) <= r[3]:
+		if _in_rect(pos, r):
 			return "road"
+	for rects in extra_road_rects.values():
+		for r in rects:
+			if _in_rect(pos, r):
+				return "road"
+	if usmap != null and usmap.ok:
+		var biome := usmap.biome_at(pos)
+		if biome == "water" or biome == "ocean":
+			return "water"
 	return "dirt"
+
+
+static func _in_rect(pos: Vector3, r: Array) -> bool:
+	var dx: float = pos.x - r[0]
+	var dz: float = pos.z - r[1]
+	var c: float = cos(-r[4])
+	var s: float = sin(-r[4])
+	return absf(dx * c - dz * s) <= r[2] and absf(dx * s + dz * c) <= r[3]
 
 
 ## Builds everything. Returns spawn info: { "car_spawns": Array[Transform3D], "house": ProtoHouse }

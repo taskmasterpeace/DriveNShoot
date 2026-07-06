@@ -55,9 +55,11 @@ Autoduel (1985) faked it: cities were nodes, highways were abstract line-segment
 them, and a **map screen** sold the illusion of the Northeast US. We do the modern version —
 **continuous compressed geography**:
 
-- **Scale:** roughly 1:200 — the continental US becomes a ~30 × 15 km playable landmass.
-  A state is 1–3 km of real driving; crossing the country is a 20–40 minute road trip
-  with fuel/breakdown/ambush pressure (that's the game).
+- **Scale (60× law, shipped 2026-07-05):** 4 real hours of driving = 4 real minutes — the
+  continental US is a **75 × 42.5 km** playable landmass (`data/usmap.json`, 150×85 cells of
+  500 m). A state is a few km of real driving; crossing the country is a ~45-minute road trip
+  with fuel/breakdown/ambush pressure (that's the game). Authored/edited via **MapForge**
+  (`tools/mapforge` — editor + AI-facing REST API).
 - **States are real:** a state grid with borders and welcome signs ("WELCOME TO VIRGINIA —
   THE DEAD COMMONWEALTH"). The HUD location line (already working in proto3d) says state +
   road. Drive east long enough and you WILL hit the Atlantic.

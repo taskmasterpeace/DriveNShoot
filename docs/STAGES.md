@@ -19,8 +19,9 @@ its deep-dive spec. Stages ship as `/goal` loops — each ends **sim-proven + pl
   art-agnostic (mesh slots on data) so the choice is swappable.
 - **Camera:** top-down 3D with zoom + binocular scanning (shipped M1).
 - **Physics:** real `VehicleBody3D`; weight/feel emerges from what you build (shipped M1).
-- **Travel scale:** **24× compression** — a 4-hour real drive = ~10 game minutes; a country ≈ 2 hr
-  to cross, towns a few minutes apart (`systems/TRAVEL_AND_NETCODE.md`).
+- **Travel scale:** **60× compression** (re-set 2026-07-05; was 24×) — a 4-hour real drive =
+  **4 real minutes**; the country ≈ 45 min to cross, towns ~a minute apart
+  (`systems/TRAVEL_AND_NETCODE.md`). Shipped as `data/usmap.json` + MapForge.
 - **North star:** the **retention pillars** in `DESIGN_PILLARS.md` are the tiebreaker — when two
   designs compete, pick the one serving more pillars (reputation loop, player economy, territory,
   sandbox skeleton, living pedestrians, no-P2W scarcity).
@@ -97,12 +98,19 @@ Make the fight feel like the fight in your head.
 
 ### Stage 5 — World Core & the Content Pipeline *(answers "how do we make a big world / bulk content")*
 Stop falling off the map — because there's no edge, there's America.
-- **Chunk streaming:** infinite terrain + roads from a seed; per-chunk persistence (husks, loot).
-- **Compressed country (24× — see `TRAVEL_AND_NETCODE.md`):** state grid, welcome signs, road
-  hierarchy, real exits, **world map UI** with fog-of-war cartography; navigate by **landmark
-  silhouettes**. Travel modes: continuous drive (default), long-haul cruise, costed fast-travel.
-- **Content pipeline (BULK CREATE):** blueprint authoring (towns/buildings as data), procedural
-  generation, AI-assisted asset/data pipelines.
+- ✅ **THE COMPRESSED USA SHIPPED 2026-07-05 (map_sim 31/31):** the whole country as DATA —
+  `game/data/usmap.json` (60×: 150×85 cells of 500 m = 75×42.5 km; biome grid with farmland/
+  forest/desert/plains/swamp/mountains/lake-country BY REGION like the real America, 48 Voronoi
+  states with welcome-sign lines, 10 real interstates that MATERIALIZE as drivable asphalt with
+  bridges over rivers, 37 town anchors with landmarks — the Dead Strip, the Rusted Arch, the
+  Drowned Monuments). Neighborhoods + small woods hug the highways. Water BOGS cars (cross at
+  bridges). M cycles local fog-of-war → the **country atlas**.
+- ✅ **MapForge (the content pipeline's front door):** `tools/mapforge/` — canvas editor + a
+  **REST API designed for AI agents** to read/build/expand the map (`API.md`, `/api/help`);
+  one source of truth shared with the game. API smoke test: `test_api.mjs` 15/15.
+- Remaining: per-chunk persistence (husks/loot deltas), interstate EXITS as generated towns,
+  road hierarchy below interstates, long-haul cruise + costed fast-travel, landmark silhouettes
+  at range, floating-origin/double-precision decision before MP (far-west float eps ~7 mm).
 - **Deep-dive:** `systems/TRAVEL_AND_NETCODE.md` (scale/travel) + `systems/CONTENT_PIPELINE.md` +
   ENGINE.md §2. Uses: Blueprint, chunk streaming (which the MP AoI design reuses).
 

@@ -94,6 +94,7 @@ const VEHICLES: Dictionary = {
 const SURFACE: Dictionary = {
 	"road": {"dust_speed": 9.0, "skid": Color(0.05, 0.05, 0.06, 0.85)},
 	"dirt": {"dust_speed": 4.5, "skid": Color(0.40, 0.32, 0.22, 0.6)},
+	"water": {"dust_speed": 2.0, "skid": Color(0.25, 0.38, 0.42, 0.5)},
 }
 var current_surface: String = "road"
 var surface_override: String = "" ## sims/tests force a surface without a world under the car
@@ -711,8 +712,9 @@ func _physics_process(delta: float) -> void:
 	if fuel <= 0.0 or components["battery"].tier() == Damageable.Tier.BROKEN:
 		engine_mult = 0.0
 	# Grip = baseline × tire condition × SURFACE-through-the-TIRES: off-road worth
-	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2).
-	var surf_grip: float = 1.0 if current_surface == "road" else float(spec["tires"]["dirt_mult"])
+	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2);
+	# water halves it again (surface_grip_mult).
+	var surf_grip: float = surface_grip_mult()
 	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
 		w.wheel_friction_slip = grip_front * grip_mult
@@ -805,7 +807,11 @@ func _sample_surface() -> String:
 
 func surface_grip_mult() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
-	return 1.0 if s_name == "road" else float(spec["tires"]["dirt_mult"])
+	if s_name == "road":
+		return 1.0
+	if s_name == "water":
+		return float(spec["tires"]["dirt_mult"]) * 0.5 # slick — lakes/rivers are not roads
+	return float(spec["tires"]["dirt_mult"])
 
 
 ## How much of this vehicle's drivetrain actually reaches the ground RIGHT NOW:
@@ -813,6 +819,8 @@ func surface_grip_mult() -> float:
 func offroad_factor() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
 	var surf: float = 1.0 if s_name == "road" else clampf(float(spec["tires"]["dirt_mult"]), 0.5, 1.0)
+	if s_name == "water":
+		surf *= 0.34 # fording a river BOGS you — cross at the bridges
 	return surf * TIER_TIRE_DRAG[components["tires"].tier()]
 
 

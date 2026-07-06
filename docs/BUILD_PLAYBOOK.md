@@ -85,7 +85,19 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–8 slices + extras), 28 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–8 slices + extras), 30 test suites all green:**
+- **STAGE 5 v2 — THE COMPRESSED USA (map_sim 31/31, 2026-07-05):** the country is DATA:
+  `game/data/usmap.json` — **60× scale law** (4 real h = 4 real min; 150×85 cells of 500 m =
+  75×42.5 km), regional biomes like real America (farmland belts, forests, desert SW, Rockies,
+  lake country, gulf swamp), 48 Voronoi states (real WELCOME lines), 10 interstates that
+  **materialize as drivable asphalt** under streaming (bridges over rivers — water BOGS cars,
+  offroad_factor ×0.34), neighborhoods + small woods near highways, town anchors w/ landmarks
+  (Dead Strip / Rusted Arch / Drowned Monuments), M cycles fog-of-war → **country atlas**.
+  **MapForge** (`tools/mapforge/`): generator + canvas editor + **AI-facing REST API**
+  (`node tools/mapforge/server.mjs` → :8899; `API.md`; smoke test `test_api.mjs` 15/15) —
+  ONE source of truth (`usmap.json`) for the game, the editor, and any AI agent.
+- **THE RAT BIKE STANDS (bike_sim 8/8, 2026-07-05):** two_wheel upright PD (rider/kickstand,
+  leans into corners, torque-only per the iron rule) — the mount-and-tip-over bug is dead.
 - **STAGE 7 — COMPANIONS + TAMING + THE SECOND WINDOW (stage7_sim 13/13):** hire **Sam the
   Drifter** (40 jack, by the market) — follows dog-law, **FIGHTS with his own gun**, and
   **SCOUTS** (his contacts ping your perception — "one perception engine, many sensors"); he
@@ -212,6 +224,23 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (STAGE 5 v2 — the compressed USA + MapForge + the bike stands):** map_sim 31/31,
+stage5_sim 10/10 (updated for real states + 3-press map cycle), bike_sim 8/8 (new), regression
+battery green (m1/walkthrough/drive/vehicles/dog/town/life/aim), clean headless boot. Scale law
+re-set by the user: **24× → 60×** (4 real hours = 4 real minutes) — docs updated (TRAVEL §1,
+STAGES, ENGINE §2.1). New: `usmap.gd` (ProtoUSMap — biome/state/road/town queries over
+`data/usmap.json`), world_stream v2 (biome chunks: trees w/ solid trunks, crop rows + barns,
+mountain rocks, swamp pools, urban ruin blocks w/ street rects; interstates clipped per-chunk
+into slabs + `ProtoWorldBuilder.extra_road_rects`; bridges over water; neighborhoods/copses
+near roads; town stamps + landmarks; country atlas), surface "water" (grip ×0.5, drive ×0.34),
+HUD names the interstate you're on (I-70 — KANSAS). MapForge: `generate_usa.mjs` (hand-authored
+30×17 USA template ×5 upscale w/ seeded noise, Voronoi states, rivers rasterized, roadside
+woods), `server.mjs` + `index.html` (paint/roads/towns/inspect, wasteland UI), `test_api.mjs`
+15/15, `API.md`. GOTCHAS re-paid: time-window sim taps fire ~6 frames (single-fire flags!);
+`var x := arr[i]` can't infer from untyped arrays. NEW FLAG: far-west coords reach |x|≈60 km
+(float eps ~7 mm) — fine solo, but the floating-origin/double decision (TRAVEL §3.6) must land
+before Stage 9 MP. NEXT: exits→generated towns, per-chunk persistence, or Stage 6 deepening.
+
 **2026-07-05 (STAGE 7 + STAGE 8 rung 1 — companions/taming/second window/drone):** stage7_sim
 13/13 ×4, drone_sim 6/6; battery 28/28. **Companions**: `companion.gd` — Sam the Drifter (hire
 via `drifter` NPC archetype row, 40 jack): dog-law follow, his OWN hitscan vs threats (flash/

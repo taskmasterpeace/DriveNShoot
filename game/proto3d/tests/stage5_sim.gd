@@ -62,7 +62,9 @@ func _physics_process(delta: float) -> void:
 						has_content = true
 						break
 				_check("chunks carry CONTENT (scatter/wrecks/caches)", has_content)
-				_check("state read: %s" % main.stream.current_state(1200.0), main.stream.current_state(1200.0) != main.stream.current_state(0.0))
+				# Real geography now: states are km wide — compare Virginia to the far interior.
+				_check("state read: %s vs %s" % [main.stream.current_state(0.0), main.stream.current_state(-40000.0)],
+					main.stream.current_state(-40000.0) != main.stream.current_state(0.0))
 				_next()
 		2: # unloading keeps the set bounded
 			if phase_t > 0.5:
@@ -86,9 +88,15 @@ func _physics_process(delta: float) -> void:
 				_next()
 		6:
 			if phase_t > 0.3:
-				_check("M closes it", not main.stream.map_open())
+				# M cycles local → the COUNTRY ATLAS → closed (Stage 5 v2).
+				_check("second M shows the country atlas (still open)", main.stream.map_open())
+				_key(KEY_M)
 				_next()
 		7:
+			if phase_t > 0.3:
+				_check("third M closes it", not main.stream.map_open())
+				_next()
+		8:
 			print("WLD RESULTS: %d passed, %d failed" % [passed, failed])
 			print("WLD: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 			get_tree().quit(0 if failed == 0 else 1)
