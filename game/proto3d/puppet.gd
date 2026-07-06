@@ -85,6 +85,11 @@ var _t: float = 0.0
 var _phase: float = 0.0
 var _lean: float = 0.0
 var _slump: float = 0.0
+## CROUCH (the moveset's one new stance): the caller sets crouch_target (0 stand,
+## 1 full crouch); the blend eases so the rig SINKS instead of popping. Lowers the
+## torso/head, folds the hips, shortens the stride — a coiled, quiet silhouette.
+var crouch_target: float = 0.0
+var _crouch: float = 0.0
 var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
@@ -207,10 +212,11 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 
 	var moving := speed > 0.35
 	var gait: float = float(appearance["gait"])
+	_crouch = move_toward(_crouch, clampf(crouch_target, 0.0, 1.0), delta * 5.0)
 	# Cadence rises with speed; frozen when standing (so we don't drift the phase).
 	if moving:
 		_phase += (2.0 + speed * 1.15) * gait * delta
-	var amp := clampf(speed / 7.0, 0.0, 1.0) * 0.6 * (1.0 - hurt * 0.4)
+	var amp := clampf(speed / 7.0, 0.0, 1.0) * 0.6 * (1.0 - hurt * 0.4) * (1.0 - _crouch * 0.45)
 
 	# LEGS — alternate. A limp shortens and hitches one leg.
 	var limp_l := 1.0
@@ -228,6 +234,10 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		hip_l.rotation.x = maxf(hip_l.rotation.x, -0.12)
 	elif appearance["limp"] == "r":
 		hip_r.rotation.x = maxf(hip_r.rotation.x, -0.12)
+	# CROUCH: both hips fold forward — the legs coil under the lowered body.
+	if _crouch > 0.001:
+		hip_l.rotation.x -= 0.55 * _crouch
+		hip_r.rotation.x -= 0.55 * _crouch
 
 	# FREE ARM swings opposite the gun-side leg (natural counter-swing).
 	free_arm.rotation.x = -swing_r * 0.85
@@ -251,19 +261,20 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		hand.rotation.x = lerpf(hand.rotation.x, 0.0 if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
 
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.
+	# A crouch SINKS the whole column (torso + head ride down together).
 	var breath := sin(_t * 1.8) * (0.02 if not moving else 0.0)
 	var step_bob := absf(sin(_phase)) * amp * 0.12
-	torso.position.y = 1.05 + breath + step_bob
-	neck.position.y = 1.44 + breath + step_bob
+	torso.position.y = 1.05 + breath + step_bob - 0.34 * _crouch
+	neck.position.y = 1.44 + breath + step_bob - 0.5 * _crouch
 
 	# LEAN into turns (+ a slight forward lean at speed), and SLUMP when hurt.
 	var lean_target := clampf(-turn_rate * 0.22, -0.35, 0.35)
 	_lean = lerp(_lean, lean_target, clampf(9.0 * delta, 0.0, 1.0))
 	_slump = lerp(_slump, hurt * 0.3, clampf(4.0 * delta, 0.0, 1.0))
 	torso.rotation.z = _lean
-	torso.rotation.x = speed * 0.02 + _slump
+	torso.rotation.x = speed * 0.02 + _slump + 0.3 * _crouch # crouch leans you over your knees
 	neck.rotation.z = _lean * 0.5
-	neck.rotation.x = -_slump * 0.5 # head stays up a bit even when slumping
+	neck.rotation.x = -_slump * 0.5 - 0.18 * _crouch # head stays up, scanning, even low
 
 	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the
 	# aim arm up (recoil). Both are impulses that decay — the fight lands ON the rig.

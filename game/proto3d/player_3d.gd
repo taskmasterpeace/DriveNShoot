@@ -18,6 +18,16 @@ extends CharacterBody3D
 ## that takes control away is the opposite of a dodge. Crash tumbles override this.
 @export var getup_time: float = 0.35
 
+@export_group("Crouch & Slide")
+## THE ONE NEW KEY of the moveset (hold CTRL): one low stance — smaller, quieter,
+## slower. Feeds the stealth read (noise_mult) and shrinks the capsule under gaps.
+@export var crouch_speed: float = 2.4
+@export var slide_speed: float = 8.8   ## sprint + tap CTRL converts speed into a slide
+@export var slide_time: float = 0.55
+@export var slide_cost: float = 6.0
+## Crouched you read smaller and quieter: detection × this (stacks with Stealth).
+const CROUCH_DETECT := 0.55
+
 @export_group("Stamina")
 @export var max_stamina: float = 100.0
 @export var run_drain: float = 24.0      ## per second while sprinting
@@ -36,7 +46,7 @@ extends CharacterBody3D
 
 ## Named FootState (not State) — a globally-registered class's own enum used as a typed
 ## var trips GDScript's self-reference type check. Distinct name sidesteps it.
-enum FootState { NORMAL, DIVE, GETUP }
+enum FootState { NORMAL, DIVE, GETUP, SLIDE }
 
 var is_active: bool = false
 var input_locked: bool = false ## true while a modal panel (container/loot) is open — feet freeze
@@ -47,11 +57,11 @@ var move_state: FootState = FootState.NORMAL
 ## Input; a remote player, a replay, or a bot is the same body fed a different
 ## dict. Set use_player_input=false and write `packet` directly (sims/bots/net).
 var use_player_input: bool = true
-var packet: Dictionary = {"move": Vector3.ZERO, "dive": false, "sprint": false}
+var packet: Dictionary = {"move": Vector3.ZERO, "dive": false, "sprint": false, "crouch": false}
 
 
 static func empty_packet() -> Dictionary:
-	return {"move": Vector3.ZERO, "dive": false, "sprint": false}
+	return {"move": Vector3.ZERO, "dive": false, "sprint": false, "crouch": false}
 
 
 ## Keyboard/gamepad → one packet. The single hardware touchpoint on foot.
@@ -60,6 +70,7 @@ func gather_input() -> Dictionary:
 		"move": Vector3(Input.get_axis("move_left", "move_right"), 0, -Input.get_axis("move_down", "move_up")),
 		"dive": Input.is_action_just_pressed("jump"),
 		"sprint": Input.is_key_pressed(KEY_SHIFT),
+		"crouch": Input.is_key_pressed(KEY_CTRL),
 	}
 
 ## The three yaws (radians; yaw 0 faces -Z). body = torso (the arc's anchor),
@@ -87,8 +98,17 @@ var stealth_base: float = 1.0
 
 
 func noise_mult() -> float:
-	return 1.0 if _was_running else stealth_base
+	if _was_running:
+		return 1.0 # sprinting spoils it — you're loud however skilled
+	return stealth_base * (CROUCH_DETECT if crouching else 1.0)
 var _was_running: bool = false
+
+## THE CROUCH (hold CTRL): one low stance. True only in NORMAL footing on the
+## floor — the dive/getup own their own silhouette. Slide counts as low too.
+var crouching: bool = false
+var _crouch_held_prev: bool = false
+var _cap: CapsuleShape3D = null
+var _cap_node: CollisionShape3D = null
 
 
 ## Am I sprinting right now? (soundscape hook: breath + louder feet)
@@ -138,6 +158,8 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPlayer3D:
 	shape.shape = cap
 	shape.position.y = 0.85
 	p.add_child(shape)
+	p._cap = cap
+	p._cap_node = shape # crouch/slide shrink the capsule (fit under low gaps)
 
 	# THE PUPPET (puppet.gd): a rig of box limbs driven by sin() off state. It IS the
 	# visual root — the player yaws it to the body and pitches it for the dive; the rig
@@ -250,9 +272,23 @@ func _physics_process(delta: float) -> void:
 			velocity.z = _dive_dir.z * dive_speed
 			_visual.rotation.x = lerpf(_visual.rotation.x, -1.25, 10.0 * delta)
 			_update_aim_only(delta)
+			_apply_stance()
 			if _state_t >= dive_time:
 				move_state = FootState.GETUP
 				_state_t = 0.0
+			move_and_slide()
+			return
+		FootState.SLIDE:
+			# SPRINT → tap CTRL: the run converts into a LOW burst — under a gap,
+			# into cover. Committed like the dive but on your feet the whole way,
+			# and it ENDS crouched (hold CTRL to stay low). Aim stays free.
+			var k := 1.0 - clampf(_state_t / slide_time, 0.0, 1.0)
+			velocity.x = _dive_dir.x * slide_speed * k
+			velocity.z = _dive_dir.z * slide_speed * k
+			_update_aim_only(delta)
+			_apply_stance()
+			if _state_t >= slide_time:
+				move_state = FootState.NORMAL
 			move_and_slide()
 			return
 		FootState.GETUP:
@@ -263,6 +299,7 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
 			_visual.rotation.x = lerp_angle(_visual.rotation.x, 0.0, 6.0 * delta)
 			_update_aim_only(delta)
+			_apply_stance()
 			var cancel := false
 			if _getup_cancelable and _state_t >= GETUP_LOCK and is_active and not input_locked:
 				var mv: Vector3 = (gather_input() if use_player_input else packet).get("move", Vector3.ZERO)
@@ -286,6 +323,7 @@ func _physics_process(delta: float) -> void:
 			move = move.normalized()
 		# SPACE = dive (commit move: burst, then a get-up delay).
 		if packet.get("dive", false):
+			crouching = false # the dive owns the silhouette from here
 			_dive_dir = move.normalized() if move.length_squared() > 0.01 else facing()
 			move_state = FootState.DIVE
 			_state_t = 0.0
@@ -299,10 +337,27 @@ func _physics_process(delta: float) -> void:
 			dove.emit(dive_time)
 			return
 
+	# CROUCH (hold CTRL): one low stance — smaller, quieter, slower. Tapped at a
+	# SPRINT it converts the speed into a SLIDE instead of a stop.
+	var crouch_held: bool = is_active and bool(packet.get("crouch", false)) and is_on_floor()
+	var crouch_tapped := crouch_held and not _crouch_held_prev
+	_crouch_held_prev = crouch_held
+	if crouch_tapped and _was_running and move.length_squared() > 0.01 and stamina >= slide_cost:
+		_dive_dir = move.normalized()
+		move_state = FootState.SLIDE
+		_state_t = 0.0
+		stamina = maxf(0.0, stamina - slide_cost)
+		crouching = true # the slide ends low; release CTRL to stand
+		body_yaw = _yaw_of(_dive_dir)
+		_move_yaw = body_yaw
+		_apply_stance()
+		return
+	crouching = crouch_held
+
 	# Sprint costs stamina; gassed → forced walk until it recovers past the threshold (no flicker).
-	# A raised gun also forbids it: combat stance is walk-speed life.
+	# A raised gun also forbids it: combat stance is walk-speed life. So does a crouch.
 	var in_combat := in_stance()
-	var wants_run: bool = packet.get("sprint", false) and move.length_squared() > 0.01
+	var wants_run: bool = packet.get("sprint", false) and move.length_squared() > 0.01 and not crouching
 	var can_run := stamina > (0.5 if _was_running else run_threshold)
 	var running := is_active and wants_run and can_run and not in_combat
 	_was_running = running
@@ -311,7 +366,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * endurance_regen * wound_regen_mult * delta)
 
-	var speed := (run_speed if running else walk_speed) * speed_mult * leg_mult
+	var speed := (run_speed if running else (crouch_speed if crouching else walk_speed)) * speed_mult * leg_mult
 	if in_combat:
 		speed *= stance_speed_mult
 		# Backpedal falloff is CONTINUOUS on the move-vs-gaze angle (no speed pop):
@@ -323,8 +378,22 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, target.x, accel * delta)
 	velocity.z = move_toward(velocity.z, target.z, accel * delta)
 
+	_apply_stance()
 	_update_orientation(move, delta)
 	move_and_slide()
+
+
+## The one place the LOW state becomes physical: the capsule shrinks (fits low
+## gaps) and the rig sinks. Crouch and slide read as low; everything else stands.
+func _apply_stance() -> void:
+	var low := crouching or move_state == FootState.SLIDE
+	if _cap != null:
+		var h := 1.05 if low else 1.7
+		if not is_equal_approx(_cap.height, h):
+			_cap.height = h
+			_cap_node.position.y = h * 0.5
+	if puppet:
+		puppet.crouch_target = 1.0 if low else 0.0
 
 
 ## THE SHOOTDODGE's aim half: mid-air and prone the body is COMMITTED but the gun
