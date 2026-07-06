@@ -32,6 +32,44 @@
     {"id": "engine", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
       "prompt": "Old V8 car engine idling steadily, seamless loop, constant rpm, throaty rumble, no fade in or out, mechanical, worn muscle car"},
     {"id": "fire", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
-      "prompt": "Vehicle fire burning steadily, crackling flames with occasional pops, seamless loop, no fade in or out"}
+      "prompt": "Vehicle fire burning steadily, crackling flames with occasional pops, seamless loop, no fade in or out"},
+
+    {"id": "whistle_short", "duration_seconds": 1.0, "prompt_influence": 0.55,
+      "prompt": "Single sharp human finger whistle, one quick piercing rising chirp, commanding a dog, dry outdoor air, short, no reverb"},
+    {"id": "whistle_double", "duration_seconds": 1.5, "prompt_influence": 0.55,
+      "prompt": "Two-tone human come-here whistle, low note then high note, wheet-wheeoo, calling a dog over, outdoors, dry, no reverb"},
+    {"id": "whistle_long", "duration_seconds": 2.2, "prompt_influence": 0.55,
+      "prompt": "Long sustained human attention whistle, single loud piercing note held steady then falling off at the end, finger whistle, outdoors, dry"},
+
+    {"id": "footstep_dirt", "duration_seconds": 0.5, "prompt_influence": 0.6,
+      "prompt": "Single soft boot footstep on packed dirt, dull crunch, no reverb, dry, quiet, foley"},
+    {"id": "footstep_asphalt", "duration_seconds": 0.5, "prompt_influence": 0.6,
+      "prompt": "Single boot footstep on asphalt road, hard flat scuff, no reverb, dry, foley"},
+    {"id": "footstep_grass", "duration_seconds": 0.5, "prompt_influence": 0.6,
+      "prompt": "Single soft footstep on dry grass, gentle swish rustle under a boot, no reverb, dry, quiet, foley"},
+    {"id": "footstep_wood", "duration_seconds": 0.5, "prompt_influence": 0.6,
+      "prompt": "Single boot footstep on old wooden floorboard, hollow knock with a faint creak, interior, dry, no reverb, foley"},
+
+    {"id": "amb_desert", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Desert wind ambience, dry steady wind blowing over open sand and sparse scrub, constant airy texture, no gusts or swells, seamless loop, no fade in or out, no music"},
+    {"id": "amb_plains", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Open grassland plains ambience, light steady breeze through tall dry grass with sparse daytime insects chirping evenly, seamless loop, no fade in or out, no music"},
+    {"id": "amb_forest", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Forest ambience, gentle steady wind through leaves with occasional distant songbirds, even texture, seamless loop, no fade in or out, no music"},
+    {"id": "amb_town", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Distant small town murmur, faint indistinct human voices and occasional far-off metal clank, heard from far away, muffled and low, steady even texture, seamless loop, no fade in or out, no music"},
+    {"id": "amb_night", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Night ambience, steady crickets chirping evenly with a faint cool breeze, calm, constant texture, seamless loop, no fade in or out, no music"},
+
+    {"id": "breath_sprint", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Exhausted male breathing hard while running, steady rhythmic panting, even pace, no words, seamless loop, no fade in or out"},
+    {"id": "car_door", "duration_seconds": 1.0, "prompt_influence": 0.55,
+      "prompt": "Old car door slamming shut, single heavy metallic clunk with a rattle, rusty worn vehicle, outdoors, dry, short"},
+    {"id": "skid", "duration_seconds": 1.3, "prompt_influence": 0.55,
+      "prompt": "Car tires screeching in a hard skid on asphalt, single short rubber squeal, dry, no music"},
+    {"id": "dog_whine", "duration_seconds": 1.2, "prompt_influence": 0.5,
+      "prompt": "Sad dog whine, single short high-pitched whimper, medium-large dog, close, quiet"},
+    {"id": "dive", "duration_seconds": 0.9, "prompt_influence": 0.55,
+      "prompt": "Human body diving and rolling once on dirt ground, cloth rustle and a dull ground thud, single tumble, dry, no reverb, foley"}
   ]
 }

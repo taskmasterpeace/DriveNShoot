@@ -10,7 +10,11 @@ extends Node
 const RATE := 22050
 const SFX_DIR := "res://assets/sfx"
 ## Sounds that must LOOP when loaded from files (synth versions set their own).
-const LOOPED: Array = ["engine", "fire"]
+const LOOPED: Array = [
+	"engine", "fire",
+	"amb_desert", "amb_plains", "amb_forest", "amb_town", "amb_night",
+	"breath_sprint",
+]
 
 static var streams: Dictionary = {}
 static var from_files: int = 0 ## how many streams came from SoundForge (sim/debug hook)
@@ -79,9 +83,19 @@ static func _build_all() -> void:
 	fire.loop_end = int(0.6 * RATE)
 	streams["fire"] = fire
 
-	# --- Tier 1: SoundForge samples override the synths where they exist. ------
+	# --- Tier 1: SoundForge samples override the synths where they exist, ------
+	# and manifest-only sounds (no synth fallback) load straight from the dir:
+	# scan SFX_DIR so a new id needs only a file, never engine code.
 	from_files = 0
+	var ids: Dictionary = {}
 	for id in streams.keys():
+		ids[id] = true
+	var dir := DirAccess.open(SFX_DIR)
+	if dir:
+		for f in dir.get_files():
+			if f.ends_with(".mp3") or f.ends_with(".mp3.import"):
+				ids[f.trim_suffix(".import").trim_suffix(".mp3")] = true
+	for id in ids.keys():
 		var path := "%s/%s.mp3" % [SFX_DIR, id]
 		if not ResourceLoader.exists(path):
 			continue
