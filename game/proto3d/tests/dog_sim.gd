@@ -103,10 +103,16 @@ func _physics_process(delta: float) -> void:
 			var dd := _sec.global_position.distance_to(main.player.global_position)
 			if phase_t > 2.5 and dd < 6.5:
 				_check("Security FOLLOWS through real movement (%.1f m)" % dd, true)
-				# Spawn a lurker BEHIND the player (facing is -Z after walking north)
+				# Spawn a lurker BEHIND the player's GAZE — sight_facing() follows the
+				# aim (twin-stick), NOT movement, so we can't assume -Z; place it
+				# opposite the actual gaze so it's genuinely in the blind spot the dog covers.
 				_lurker = ProtoLurker.create()
 				main.add_child(_lurker)
-				_lurker.global_position = main.player.global_position + Vector3(0, 0.4, 9.0)
+				var _behind: Vector3 = -main.player.sight_facing()
+				_behind.y = 0.0
+				if _behind.length() < 0.1:
+					_behind = Vector3(0, 0, 1)
+				_lurker.global_position = main.player.global_position + _behind.normalized() * 9.0 + Vector3(0, 0.4, 0)
 				main.last_dog_alert = {}
 				_next()
 			elif phase_t > 7.0:
@@ -180,8 +186,11 @@ func _physics_process(delta: float) -> void:
 				_tap_interact()
 				_next()
 		16:
-			if phase_t > 0.15: # near-instant
-				_check("Companion obeys INSTANTLY (state=FOLLOW at %.2fs)" % phase_t, _com.state == ProtoDog.DogState.FOLLOW)
+			if _com.state == ProtoDog.DogState.FOLLOW: # converge, not snapshot (load-robust)
+				_check("Companion obeys INSTANTLY (state=FOLLOW at %.2fs)" % phase_t, true)
+				_next()
+			elif phase_t > 0.6: # still well under a delayed dog's ~0.85s
+				_check("Companion obeys INSTANTLY (timeout at %.2fs)" % phase_t, false)
 				_next()
 		17: # Cuddle: calm aura drains stress; stress throttles stamina regen
 			if phase_t > 0.4:
