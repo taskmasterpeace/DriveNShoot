@@ -68,7 +68,7 @@ var riding_in: ProtoCar3D = null ## the vehicle this dog is riding shotgun in
 var _owner_ref: Node3D = null
 var _main: Node = null ## the proto3d main scene (set at adoption) — sim-safe, no current_scene reliance
 var _visual: Node3D
-var _tail: MeshInstance3D
+var _quad: ProtoQuadruped = null
 var _follow_angle: float = 0.0 ## personal heel offset so dogs don't stack
 var _alert_t: float = 0.0
 var _alert_face: Vector3 = Vector3.ZERO
@@ -106,61 +106,35 @@ static func create(type: DogType, name_in: String, breed_in: String) -> ProtoDog
 	shape.position.y = 0.4 * s
 	d.add_child(shape)
 
-	d._visual = Node3D.new()
+	# THE FOUR-LEGGED PUPPET (quadruped.gd): box parts driven by sin() off speed,
+	# and the tail wags/tucks off MORALE. The rig IS the visual root — yawing it
+	# (as the AI already does) turns the whole dog.
+	d._quad = ProtoQuadruped.create({"scale": s, "color": body_color})
+	d._visual = d._quad
 	d.add_child(d._visual)
-	# Body
-	var body := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.34, 0.32, 0.8) * s
-	body.mesh = bm
-	body.material_override = ProtoWorldBuilder.material(body_color, 0.9)
-	body.position.y = 0.42 * s
-	d._visual.add_child(body)
-	# Head + snout
-	var head := MeshInstance3D.new()
-	var hm := BoxMesh.new()
-	hm.size = Vector3(0.26, 0.24, 0.26) * s
-	head.mesh = hm
-	head.material_override = ProtoWorldBuilder.material(body_color * 1.1, 0.9)
-	head.position = Vector3(0, 0.62, -0.45) * s
-	d._visual.add_child(head)
-	var snout := MeshInstance3D.new()
-	var sm := BoxMesh.new()
-	sm.size = Vector3(0.12, 0.1, 0.16) * s
-	snout.mesh = sm
-	snout.material_override = ProtoWorldBuilder.material(body_color * 0.7, 0.9)
-	snout.position = Vector3(0, 0.56, -0.63) * s
-	d._visual.add_child(snout)
-	# Ears
-	for ex in [-0.08, 0.08]:
-		var ear := MeshInstance3D.new()
-		var em := BoxMesh.new()
-		em.size = Vector3(0.06, 0.12, 0.04) * s
-		ear.mesh = em
-		ear.material_override = ProtoWorldBuilder.material(body_color * 0.8, 0.9)
-		ear.position = Vector3(ex * s, 0.78 * s, -0.45 * s)
-		d._visual.add_child(ear)
-	# Tail (wags)
-	d._tail = MeshInstance3D.new()
-	var tm := BoxMesh.new()
-	tm.size = Vector3(0.06, 0.06, 0.3) * s
-	d._tail.mesh = tm
-	d._tail.material_override = ProtoWorldBuilder.material(body_color * 0.9, 0.9)
-	d._tail.position = Vector3(0, 0.55, 0.5) * s
-	d._visual.add_child(d._tail)
-	# Legs
-	for lx in [-0.12, 0.12]:
-		for lz in [-0.28, 0.28]:
-			var leg := MeshInstance3D.new()
-			var lm := BoxMesh.new()
-			lm.size = Vector3(0.08, 0.28, 0.08) * s
-			leg.mesh = lm
-			leg.material_override = ProtoWorldBuilder.material(body_color * 0.75, 0.9)
-			leg.position = Vector3(lx * s, 0.14 * s, lz * s)
-			d._visual.add_child(leg)
 
 	d._follow_angle = randf() * TAU
 	return d
+
+
+## Morale 0..1 (the tail's readout): high near your owner and calm, low when hurt
+## or a threat is close. Cuddle dogs are sunnier; a spooked dog just got scared.
+func morale() -> float:
+	var m := 0.55
+	if _near_owner(4.0):
+		m += 0.25
+	m += (hp / max_hp - 0.5) * 0.5     # hurt lowers it
+	if _alert_t > 0.0:
+		m -= 0.25                        # recently spooked
+	var nearest := 999.0
+	for n in get_tree().get_nodes_in_group("threat"):
+		if n is Node3D and is_instance_valid(n):
+			nearest = minf(nearest, global_position.distance_to((n as Node3D).global_position))
+	if nearest < 12.0:
+		m -= (1.0 - nearest / 12.0) * 0.6 # a close threat = fear
+	if dog_type == DogType.CUDDLE:
+		m += 0.15
+	return clampf(m, 0.0, 1.0)
 
 
 func params() -> Dictionary:
@@ -337,10 +311,9 @@ func _physics_process(delta: float) -> void:
 		DogState.SEEK:
 			_do_seek(delta)
 
-	# Tail wag: friendly types wag while following; everyone wags when close to owner.
-	_wag_t += delta * 9.0
-	if _tail and (dog_type == DogType.CUDDLE or dog_type == DogType.COMPANION or _near_owner(3.0)):
-		_tail.rotation.y = sin(_wag_t) * 0.6
+	# The rig reads STATE: legs run off speed, the tail wags/tucks off MORALE.
+	if _quad:
+		_quad.animate(delta, velocity.length(), morale())
 
 	move_and_slide()
 

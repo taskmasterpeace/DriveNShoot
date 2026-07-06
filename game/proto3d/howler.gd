@@ -25,6 +25,7 @@ var _orbit_sign: float = 1.0
 var _player: Node3D = null
 var _main: Node = null
 var _visual: Node3D
+var _quad: ProtoQuadruped = null
 var _hit_flash_t: float = 0.0
 var _flash_mat: StandardMaterial3D = null
 var _rng := RandomNumberGenerator.new()
@@ -48,27 +49,22 @@ static func create(main: Node) -> ProtoHowler:
 	shape.shape = cap
 	shape.position.y = 0.55
 	h.add_child(shape)
-	h._visual = Node3D.new()
+	# The FOUR-LEGGED PUPPET (quadruped.gd), night-predator build: big, dark, and
+	# TAILLESS (a howler doesn't wag — it hunts). Its legs lope off its charge speed.
+	h._quad = ProtoQuadruped.create({"scale": 1.35, "color": Color(0.16, 0.13, 0.11), "tail": 0.0})
+	h._visual = h._quad
 	h.add_child(h._visual)
-	var torso := MeshInstance3D.new()
-	var tm := CapsuleMesh.new()
-	tm.radius = 0.3
-	tm.height = 1.0
-	torso.mesh = tm
-	torso.material_override = ProtoWorldBuilder.material(Color(0.16, 0.13, 0.11), 1.0)
-	torso.position.y = 0.5
-	torso.rotation_degrees.x = 68.0 # low, loping silhouette
-	h._visual.add_child(torso)
-	# The EYES — two hot points, the only thing night shows you until it's close.
+	# The EYES — two hot points on the head, the only thing night shows you until
+	# it's close. They ride the neck (which dips as it lopes), still glowing.
 	for ex in [-0.08, 0.08]:
 		var eye := MeshInstance3D.new()
 		var em := SphereMesh.new()
-		em.radius = 0.035
-		em.height = 0.07
+		em.radius = 0.05
+		em.height = 0.1
 		eye.mesh = em
 		eye.material_override = ProtoWorldBuilder.material(Color(1.0, 0.75, 0.2), 0.1, true)
-		eye.position = Vector3(ex, 0.72, -0.42)
-		h._visual.add_child(eye)
+		eye.position = Vector3(ex, 0.08, -0.22)
+		h._quad.neck.add_child(eye)
 	return h
 
 
@@ -233,12 +229,20 @@ func _physics_process(delta: float) -> void:
 			state = HowlState.CIRCLE
 			_charge_cd = _rng.randf_range(2.0, 4.5)
 
+	_animate_rig(delta)
 	move_and_slide()
 
 
 func _face(dir: Vector3, delta: float) -> void:
 	if dir.length_squared() > 0.01 and _visual:
 		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 9.0 * delta)
+
+
+## The rig lopes off the charge speed (low aggressive morale — no happy wag on a
+## night-hunter; it has no tail anyway). Called on the active paths, frozen while stunned.
+func _animate_rig(delta: float) -> void:
+	if _quad:
+		_quad.animate(delta, velocity.length(), 0.3)
 
 
 ## Inside any lights-on vehicle's forward beam within 20m? Howlers won't cross it.
