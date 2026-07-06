@@ -1,0 +1,9 @@
+{
+  "_comment": "Authored structures for the placement layer (Goal 2). footprint = [w,d] metres.",
+  "buildings": [
+    {"id": "safehouse", "name": "Safehouse", "footprint": [10, 12], "floors": 2, "enterable": true, "door_locked": false, "loot_table": "chest_common"},
+    {"id": "market_stall", "name": "Market Stall", "footprint": [4, 3], "floors": 1, "enterable": false, "loot_table": ""},
+    {"id": "ruined_house", "name": "Ruined House", "footprint": [8, 8], "floors": 1, "enterable": true, "door_locked": true, "key_id": "house_key", "loot_table": "corpse"},
+    {"id": "gas_station", "name": "Gas Station", "footprint": [14, 10], "floors": 1, "enterable": true, "door_locked": false, "loot_table": "chest_common"}
+  ]
+}

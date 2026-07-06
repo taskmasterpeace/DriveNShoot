@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_q1g4m"]
+
+[resource]
+script = ExtResource("1_q1g4m")
+id = "jerry_can"
+name = "Jerry can (fuel)"
+emoji = "🛢️"
+weight = 6.0
+category = "tool"
+usable = true
+desc = "+40 fuel into a rig within reach."

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_k5qko"]
+
+[resource]
+script = ExtResource("1_k5qko")
+id = "scavenger"
+name = "Scavenger"
+archetype = "scavenger"
+mass = 900.0
+top_speed = 34.0
+tire_grip_dirt = 0.78
+passenger_seats = 2
+dog_seats = 2

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_1ailp"]
+
+[resource]
+script = ExtResource("1_1ailp")
+id = "canned_food"
+name = "Canned beans"
+emoji = "🥫"
+category = "food"
+usable = true
+desc = "A hot meal: worst wound +10, stress −10."

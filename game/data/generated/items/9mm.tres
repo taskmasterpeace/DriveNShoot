@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_q3ypp"]
+
+[resource]
+script = ExtResource("1_q3ypp")
+id = "9mm"
+name = "9mm rounds"
+emoji = "•"
+weight = 0.02
+category = "ammo"
+desc = "Feeds the pistol."

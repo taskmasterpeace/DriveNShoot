@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_c0kdr"]
+
+[resource]
+script = ExtResource("1_c0kdr")
+id = "pickup"
+name = "Rustler"
+archetype = "pickup"
+family = "truck"
+mass = 1250.0
+engine_force = 8200.0
+top_speed = 30.0
+reverse_top = 10.0
+tire_grip_front = 5.4
+tire_grip_dirt = 0.9
+trunk_volume = 60.0
+passenger_seats = 2
+dog_seats = 2
+armor_front = 45.0
+armor_rear = 35.0
+armor_side = 35.0
+wound_mult = 0.9
+mounts = [{
+"arc_deg": 270.0,
+"id": "bed",
+"pos": [0.0, 0.9, 1.6]
+}]

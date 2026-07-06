@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_7j6p0"]
+
+[resource]
+script = ExtResource("1_7j6p0")
+id = "wrench"
+name = "Wrench"
+emoji = "🔧"
+weight = 1.4
+category = "weapon"
+usable = true
+desc = "Quiet, heavy, honest. USE equips it."

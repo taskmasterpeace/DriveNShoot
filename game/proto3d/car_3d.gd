@@ -12,7 +12,10 @@ signal rider_thrown(dv: float)
 
 ## The Fleet — five wildly different classes + the towed trailer (VEHICLES.md §1).
 ## wheels rows: [x, z, steer, traction, visible, radius]
-const VEHICLES: Dictionary = {
+## NOTE: a `static var` (not `const`) so the DATA SPINE (DrivnData, MASTER_PLAN
+## Goal 1) can overlay tunable stats from data/vehicles.json and MATERIALIZE new
+## vehicles from an archetype at load — new rigs are pure data, no code here.
+static var VEHICLES: Dictionary = {
 	"scavenger": {"name": "Scavenger", "mass": 900.0, "engine": 6500.0, "top": 34.0, "rev": 11.0,
 		"steer": [0.55, 0.16, 5.0], "tires": {"grip_f": 5.5, "grip_r": 5.0, "dirt_mult": 0.78, "name": "street"},
 		"chassis": Vector3(2.0, 0.7, 4.4), "hull": Vector3(2.0, 0.55, 4.4), "cabin": Vector3(1.7, 0.5, 2.0), "cabin_pos": Vector3(0, 0.55, 0.25),
@@ -219,6 +222,9 @@ var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
 
+## NOTE: DrivnData.ensure() (the data-spine overlay) is primed once at bootstrap —
+## proto3d._ready() and the sims call it — NOT here, so car_3d carries no dependency
+## on DrivnData (a parse cycle would break DrivnVehicle's static methods).
 static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	var car := ProtoCar3D.new()
 	var s: Dictionary = VEHICLES[vclass_in]

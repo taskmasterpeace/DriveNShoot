@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_2wbjm"]
+
+[resource]
+script = ExtResource("1_2wbjm")
+id = "medkit"
+name = "Field medkit"
+emoji = "⛑️"
+weight = 1.8
+category = "med"
+usable = true
+desc = "The real thing: stops bleeding, treats EVERY part (+25)."

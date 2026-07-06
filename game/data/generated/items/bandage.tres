@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_ewkiw"]
+
+[resource]
+script = ExtResource("1_ewkiw")
+id = "bandage"
+name = "Bandage"
+emoji = "🩹"
+weight = 0.2
+category = "med"
+usable = true
+desc = "Stops bleeding, treats the worst wound (+30)."

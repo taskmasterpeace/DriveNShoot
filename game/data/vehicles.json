@@ -1,0 +1,72 @@
+{
+  "_comment": "THE FLEET as pure data (MASTER_PLAN Goal 1). Edit stats here (or via Vehicle Forge) — no code. `archetype` = which ProtoCar3D.VEHICLES body to build from; rows whose id is NOT a built-in are materialized from their archetype at load, proving new vehicles are pure data. Existing rows overlay their tunable stats onto the engine defaults.",
+  "vehicles": [
+    {
+      "id": "scavenger", "name": "Scavenger", "archetype": "scavenger", "family": "car",
+      "mass": 900.0, "engine_force": 6500.0, "top_speed": 34.0, "reverse_top": 11.0,
+      "tire_grip": {"front": 5.5, "rear": 5.0, "dirt": 0.78},
+      "trunk_volume": 40.0, "passenger_seats": 2, "dog_seats": 2,
+      "armor": {"front": 40, "rear": 30, "side": 30}, "wound_mult": 1.0, "mounts": []
+    },
+    {
+      "id": "motorcycle", "name": "Rat Bike", "archetype": "motorcycle", "family": "bike",
+      "mass": 260.0, "engine_force": 3400.0, "top_speed": 38.0, "reverse_top": 8.0,
+      "tire_grip": {"front": 5.2, "rear": 4.6, "dirt": 0.82},
+      "trunk_volume": 10.0, "passenger_seats": 1, "dog_seats": 0,
+      "armor": {"front": 5, "rear": 5, "side": 5}, "wound_mult": 2.5, "mounts": []
+    },
+    {
+      "id": "buggy", "name": "Dustrunner", "archetype": "buggy", "family": "car",
+      "mass": 620.0, "engine_force": 5200.0, "top_speed": 31.0, "reverse_top": 10.0,
+      "tire_grip": {"front": 5.0, "rear": 4.6, "dirt": 0.95},
+      "trunk_volume": 22.0, "passenger_seats": 1, "dog_seats": 1,
+      "armor": {"front": 25, "rear": 20, "side": 20}, "wound_mult": 1.4,
+      "mounts": [{"id": "roll_cage", "pos": [0, 1.0, 0], "arc_deg": 360}]
+    },
+    {
+      "id": "pickup", "name": "Rustler", "archetype": "pickup", "family": "truck",
+      "mass": 1250.0, "engine_force": 8200.0, "top_speed": 30.0, "reverse_top": 10.0,
+      "tire_grip": {"front": 5.4, "rear": 5.0, "dirt": 0.90},
+      "trunk_volume": 60.0, "passenger_seats": 2, "dog_seats": 2,
+      "armor": {"front": 45, "rear": 35, "side": 35}, "wound_mult": 0.9,
+      "mounts": [{"id": "bed", "pos": [0, 0.9, 1.6], "arc_deg": 270}]
+    },
+    {
+      "id": "van", "name": "Boxer", "archetype": "van", "family": "van",
+      "mass": 1700.0, "engine_force": 7200.0, "top_speed": 27.0, "reverse_top": 9.0,
+      "tire_grip": {"front": 5.6, "rear": 5.2, "dirt": 0.68},
+      "trunk_volume": 120.0, "passenger_seats": 3, "dog_seats": 4,
+      "armor": {"front": 55, "rear": 50, "side": 45}, "wound_mult": 0.8, "mounts": []
+    },
+    {
+      "id": "semi", "name": "Longhaul", "archetype": "semi", "family": "rig",
+      "mass": 3800.0, "engine_force": 12000.0, "top_speed": 25.0, "reverse_top": 6.0,
+      "tire_grip": {"front": 6.2, "rear": 5.8, "dirt": 0.7},
+      "trunk_volume": 45.0, "passenger_seats": 1, "dog_seats": 2,
+      "armor": {"front": 80, "rear": 60, "side": 60}, "wound_mult": 0.4, "mounts": []
+    },
+    {
+      "id": "trailer", "name": "trailer", "archetype": "trailer", "family": "rig",
+      "mass": 2200.0, "engine_force": 0.0, "top_speed": 0.0, "reverse_top": 0.0,
+      "tire_grip": {"front": 6.0, "rear": 6.0, "dirt": 0.7},
+      "trunk_volume": 400.0, "passenger_seats": 0, "dog_seats": 0,
+      "armor": {"front": 30, "rear": 30, "side": 30}, "wound_mult": 0.0, "mounts": []
+    },
+    {
+      "id": "pickup_truck", "name": "Warhauler", "archetype": "pickup", "family": "truck",
+      "mass": 1450.0, "engine_force": 8600.0, "top_speed": 31.0, "reverse_top": 10.0,
+      "tire_grip": {"front": 5.5, "rear": 5.1, "dirt": 0.88},
+      "trunk_volume": 70.0, "passenger_seats": 2, "dog_seats": 2,
+      "armor": {"front": 60, "rear": 45, "side": 45}, "wound_mult": 0.75,
+      "mounts": [{"id": "bed", "pos": [0, 0.95, 1.7], "arc_deg": 270}]
+    },
+    {
+      "id": "suv", "name": "Bulwark", "archetype": "van", "family": "suv",
+      "mass": 1600.0, "engine_force": 8000.0, "top_speed": 33.0, "reverse_top": 11.0,
+      "tire_grip": {"front": 5.5, "rear": 5.2, "dirt": 0.82},
+      "trunk_volume": 90.0, "passenger_seats": 4, "dog_seats": 3,
+      "armor": {"front": 55, "rear": 45, "side": 50}, "wound_mult": 0.8,
+      "mounts": [{"id": "roof", "pos": [0, 1.5, 0], "arc_deg": 360}]
+    }
+  ]
+}

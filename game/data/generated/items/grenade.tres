@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_0b5di"]
+
+[resource]
+script = ExtResource("1_0b5di")
+id = "grenade"
+name = "Grenade"
+emoji = "💣"
+category = "weapon"
+desc = "Throw with G."

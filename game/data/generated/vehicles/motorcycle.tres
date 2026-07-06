@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_uehah"]
+
+[resource]
+script = ExtResource("1_uehah")
+id = "motorcycle"
+name = "Rat Bike"
+archetype = "motorcycle"
+family = "bike"
+mass = 260.0
+engine_force = 3400.0
+top_speed = 38.0
+reverse_top = 8.0
+tire_grip_front = 5.2
+tire_grip_rear = 4.6
+tire_grip_dirt = 0.82
+trunk_volume = 10.0
+armor_front = 5.0
+armor_rear = 5.0
+armor_side = 5.0
+wound_mult = 2.5

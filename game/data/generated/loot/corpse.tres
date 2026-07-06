@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="DrivnLootTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_loot_table.gd" id="1_rhvx2"]
+
+[resource]
+script = ExtResource("1_rhvx2")
+id = "corpse"
+name = "Corpse"
+entries = [{
+"item": "jack",
+"max": 6.0,
+"min": 1.0,
+"weight": 0.8
+}, {
+"item": "9mm",
+"max": 12.0,
+"min": 3.0,
+"weight": 0.5
+}, {
+"item": "bandage",
+"max": 1.0,
+"min": 1.0,
+"weight": 0.4
+}]

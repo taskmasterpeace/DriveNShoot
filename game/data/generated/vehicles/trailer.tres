@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_phayf"]
+
+[resource]
+script = ExtResource("1_phayf")
+id = "trailer"
+name = "trailer"
+archetype = "trailer"
+family = "rig"
+mass = 2200.0
+engine_force = 0.0
+top_speed = 0.0
+reverse_top = 0.0
+tire_grip_front = 6.0
+tire_grip_rear = 6.0
+tire_grip_dirt = 0.7
+trunk_volume = 400.0
+passenger_seats = 0
+armor_front = 30.0
+wound_mult = 0.0

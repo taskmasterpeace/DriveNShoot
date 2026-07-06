@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_vvd1n"]
+
+[resource]
+script = ExtResource("1_vvd1n")
+id = "scrap"
+name = "Scrap metal"
+emoji = "🔩"
+weight = 1.2
+desc = "The wasteland's raw material."

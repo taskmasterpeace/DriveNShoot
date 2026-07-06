@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_ik15p"]
+
+[resource]
+script = ExtResource("1_ik15p")
+id = "water"
+name = "Canteen"
+emoji = "💧"
+weight = 0.8
+category = "food"
+usable = true
+desc = "Cold and clean. Refills your stamina, stress −6."

@@ -1,0 +1,22 @@
+{
+  "_comment": "Weighted drop tables. weight<1 = chance to appear at all; min/max = count.",
+  "loot_tables": [
+    {"id": "chest_common", "name": "Common Cache", "entries": [
+      {"item": "bandage", "min": 1, "max": 2, "weight": 0.9},
+      {"item": "jack", "min": 4, "max": 12, "weight": 1.0},
+      {"item": "meat", "min": 1, "max": 2, "weight": 0.7},
+      {"item": "scrap", "min": 1, "max": 3, "weight": 0.6}
+    ]},
+    {"id": "corpse", "name": "Corpse", "entries": [
+      {"item": "jack", "min": 1, "max": 6, "weight": 0.8},
+      {"item": "9mm", "min": 3, "max": 12, "weight": 0.5},
+      {"item": "bandage", "min": 1, "max": 1, "weight": 0.4}
+    ]},
+    {"id": "trader_stock", "name": "Trader Stock", "entries": [
+      {"item": "medkit", "min": 1, "max": 2, "weight": 1.0},
+      {"item": "12ga", "min": 8, "max": 20, "weight": 1.0},
+      {"item": "jerry_can", "min": 1, "max": 2, "weight": 1.0},
+      {"item": "car_parts", "min": 1, "max": 1, "weight": 1.0}
+    ]}
+  ]
+}

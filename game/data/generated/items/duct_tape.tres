@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_xqpg5"]
+
+[resource]
+script = ExtResource("1_xqpg5")
+id = "duct_tape"
+name = "Duct tape"
+emoji = "🧷"
+weight = 0.3
+category = "tool"
+usable = true
+desc = "Holds a chassis together (+12). Briefly."

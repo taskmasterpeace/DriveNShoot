@@ -1,0 +1,8 @@
+{
+  "_comment": "Town population as data (WORLD_NPCS). look = ProtoPuppet.SURVIVORS key.",
+  "npcs": [
+    {"id": "trader_meridian", "name": "Trader", "look": "trader", "faction": "MERIDIAN", "role": "trader", "stock_loot_table": "trader_stock"},
+    {"id": "secman_bridger", "name": "Bridger", "look": "guard", "faction": "MERIDIAN", "role": "secman"},
+    {"id": "drifter", "name": "Drifter", "look": "drifter", "faction": "NEUTRAL", "role": "civilian"}
+  ]
+}

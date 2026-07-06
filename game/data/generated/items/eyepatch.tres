@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_8tl1e"]
+
+[resource]
+script = ExtResource("1_8tl1e")
+id = "eyepatch"
+name = "Eye patch"
+emoji = "🏴‍☠️"
+weight = 0.05
+category = "tool"
+usable = true
+desc = "One eye, half the arc. Looks great."

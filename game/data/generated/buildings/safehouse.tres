@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DrivnBuilding" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_building.gd" id="1_80xxl"]
+
+[resource]
+script = ExtResource("1_80xxl")
+id = "safehouse"
+name = "Safehouse"
+footprint = Vector2(10, 12)
+floors = 2
+loot_table = "chest_common"

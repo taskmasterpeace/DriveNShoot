@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_qvgt5"]
+
+[resource]
+script = ExtResource("1_qvgt5")
+id = "suv"
+name = "Bulwark"
+archetype = "van"
+family = "suv"
+mass = 1600.0
+engine_force = 8000.0
+top_speed = 33.0
+tire_grip_rear = 5.2
+tire_grip_dirt = 0.82
+trunk_volume = 90.0
+passenger_seats = 4
+dog_seats = 3
+armor_front = 55.0
+armor_rear = 45.0
+armor_side = 50.0
+wound_mult = 0.8
+mounts = [{
+"arc_deg": 360.0,
+"id": "roof",
+"pos": [0.0, 1.5, 0.0]
+}]

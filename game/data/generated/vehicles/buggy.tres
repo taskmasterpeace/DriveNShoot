@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_c7cbb"]
+
+[resource]
+script = ExtResource("1_c7cbb")
+id = "buggy"
+name = "Dustrunner"
+archetype = "buggy"
+mass = 620.0
+engine_force = 5200.0
+top_speed = 31.0
+reverse_top = 10.0
+tire_grip_front = 5.0
+tire_grip_rear = 4.6
+tire_grip_dirt = 0.95
+trunk_volume = 22.0
+dog_seats = 1
+armor_front = 25.0
+armor_rear = 20.0
+armor_side = 20.0
+wound_mult = 1.4
+mounts = [{
+"arc_deg": 360.0,
+"id": "roll_cage",
+"pos": [0.0, 1.0, 0.0]
+}]

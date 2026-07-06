@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_iqeui"]
+
+[resource]
+script = ExtResource("1_iqeui")
+id = "jack"
+name = "Jack (coin)"
+emoji = "🪙"
+weight = 0.02
+desc = "What passes for money out here."

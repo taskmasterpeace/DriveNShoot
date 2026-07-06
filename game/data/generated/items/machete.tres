@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_7nteq"]
+
+[resource]
+script = ExtResource("1_7nteq")
+id = "machete"
+name = "Machete"
+emoji = "🔪"
+weight = 1.1
+category = "weapon"
+usable = true
+desc = "Quiet and mean. USE equips it."

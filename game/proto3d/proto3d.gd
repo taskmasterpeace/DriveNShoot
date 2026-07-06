@@ -104,6 +104,7 @@ var _seen_ids: Dictionary = {}      ## instance_id -> true (the "memory")
 
 
 func _ready() -> void:
+	DrivnData.ensure() # THE DATA SPINE: fold data/vehicles.json into the fleet before anything spawns
 	_build_environment()
 	var info: Dictionary = ProtoWorldBuilder.build_world(self)
 	house = info["house"]

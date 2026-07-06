@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DrivnLootTable" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_loot_table.gd" id="1_16ru4"]
+
+[resource]
+script = ExtResource("1_16ru4")
+id = "trader_stock"
+name = "Trader Stock"
+entries = [{
+"item": "medkit",
+"max": 2.0,
+"min": 1.0,
+"weight": 1.0
+}, {
+"item": "12ga",
+"max": 20.0,
+"min": 8.0,
+"weight": 1.0
+}, {
+"item": "jerry_can",
+"max": 2.0,
+"min": 1.0,
+"weight": 1.0
+}, {
+"item": "car_parts",
+"max": 1.0,
+"min": 1.0,
+"weight": 1.0
+}]

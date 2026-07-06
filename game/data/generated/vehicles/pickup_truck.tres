@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_17ky0"]
+
+[resource]
+script = ExtResource("1_17ky0")
+id = "pickup_truck"
+name = "Warhauler"
+archetype = "pickup"
+family = "truck"
+mass = 1450.0
+engine_force = 8600.0
+top_speed = 31.0
+reverse_top = 10.0
+tire_grip_rear = 5.1
+tire_grip_dirt = 0.88
+trunk_volume = 70.0
+passenger_seats = 2
+dog_seats = 2
+armor_front = 60.0
+armor_rear = 45.0
+armor_side = 45.0
+wound_mult = 0.75
+mounts = [{
+"arc_deg": 270.0,
+"id": "bed",
+"pos": [0.0, 0.95, 1.7]
+}]

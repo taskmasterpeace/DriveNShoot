@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_bkyvf"]
+
+[resource]
+script = ExtResource("1_bkyvf")
+id = "car_parts"
+name = "Salvaged car parts"
+emoji = "⚙️"
+weight = 3.5
+category = "tool"
+usable = true
+desc = "Field-repairs a rig's worst component (+35)."

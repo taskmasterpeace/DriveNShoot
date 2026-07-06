@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DrivnBuilding" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_building.gd" id="1_2t0en"]
+
+[resource]
+script = ExtResource("1_2t0en")
+id = "market_stall"
+name = "Market Stall"
+footprint = Vector2(4, 3)
+enterable = false

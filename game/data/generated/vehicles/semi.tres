@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="DrivnVehicle" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_vehicle.gd" id="1_v36a2"]
+
+[resource]
+script = ExtResource("1_v36a2")
+id = "semi"
+name = "Longhaul"
+archetype = "semi"
+family = "rig"
+mass = 3800.0
+engine_force = 12000.0
+top_speed = 25.0
+reverse_top = 6.0
+tire_grip_front = 6.2
+tire_grip_rear = 5.8
+tire_grip_dirt = 0.7
+trunk_volume = 45.0
+dog_seats = 2
+armor_front = 80.0
+armor_rear = 60.0
+armor_side = 60.0
+wound_mult = 0.4

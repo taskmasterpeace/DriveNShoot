@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_idcm1"]
+
+[resource]
+script = ExtResource("1_idcm1")
+id = "coffee"
+name = "Trail coffee"
+emoji = "☕"
+weight = 0.3
+category = "food"
+usable = true
+desc = "Stamina +40 and the shakes settle (−15 stress)."

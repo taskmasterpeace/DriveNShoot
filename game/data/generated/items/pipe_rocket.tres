@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_cxii7"]
+
+[resource]
+script = ExtResource("1_cxii7")
+id = "pipe_rocket"
+name = "Pipe rocket launcher"
+emoji = "🧨"
+weight = 4.5
+category = "weapon"
+usable = true
+desc = "For things with wheels. USE equips it."

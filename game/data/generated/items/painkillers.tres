@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DrivnItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/data/data_item.gd" id="1_wjxiv"]
+
+[resource]
+script = ExtResource("1_wjxiv")
+id = "painkillers"
+name = "Painkillers"
+emoji = "💊"
+weight = 0.15
+category = "med"
+usable = true
+desc = "Takes the edge off — worst wound +12, nerves −8."
