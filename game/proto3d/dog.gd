@@ -208,20 +208,45 @@ func interact(main: Node) -> void:
 
 # --- Riding shotgun (the pack goes WITH you) ----------------------------------
 
-func board(car: ProtoCar3D) -> void:
+## SEAT ANCHORS (RV_PLAN): a rider is PARENTED to a seat on the rig — visible,
+## physics off, tail in the wind. A bed anchor shows; a cab/enclosed anchor
+## hides (you can't see into the cab). The dog in the truck bed is the poster.
+func board(car: ProtoCar3D, anchor: Vector3 = Vector3.INF, seat_type: String = "cab") -> void:
 	riding_in = car
 	state = DogState.FOLLOW
-	visible = false
-	process_mode = Node.PROCESS_MODE_DISABLED
+	set_physics_process(false)
+	for c in get_children():
+		if c is CollisionShape3D:
+			(c as CollisionShape3D).disabled = true
+	if anchor != Vector3.INF:
+		reparent(car)
+		position = anchor
+		rotation = Vector3.ZERO
+		visible = seat_type == "bed" # ride the bed = seen; ride the cab = hidden
+	else:
+		visible = false
 
 
 func unboard(pos: Vector3) -> void:
 	riding_in = null
+	if get_parent() != null and get_parent() is ProtoCar3D:
+		reparent(_main)
+	set_physics_process(true)
+	for c in get_children():
+		if c is CollisionShape3D:
+			(c as CollisionShape3D).disabled = false
 	process_mode = Node.PROCESS_MODE_INHERIT
 	visible = true
 	global_position = pos
 	velocity = Vector3.ZERO
 	command_heel()
+
+
+## Tail in the wind: a bed-riding dog is parented (physics off), so drive its
+## rig here — the wag reads its morale even at 60 mph. (The poster shot.)
+func _process(delta: float) -> void:
+	if riding_in != null and is_instance_valid(riding_in) and visible and _quad != null:
+		_quad.animate(delta, 0.0, clampf(0.6 + 0.4 * (hp / max_hp), 0.0, 1.0))
 
 
 ## Whistle: every adopted dog returns to heel.

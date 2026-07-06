@@ -125,14 +125,30 @@ func _die_to_chest() -> void:
 
 # --- Riding shotgun (same law as the pack) -------------------------------------
 
-func board(car: ProtoCar3D) -> void:
+## SEAT ANCHORS: the gunner rides a bed anchor VISIBLE and KEEPS FIRING — Sam in
+## the truck bed, iron up, is the Mad Max poster. Cab seats hide.
+func board(car: ProtoCar3D, anchor: Vector3 = Vector3.INF, seat_type: String = "cab") -> void:
 	riding_in = car
-	visible = false
-	process_mode = Node.PROCESS_MODE_DISABLED
+	for c in get_children():
+		if c is CollisionShape3D:
+			(c as CollisionShape3D).disabled = true
+	if anchor != Vector3.INF:
+		reparent(car)
+		position = anchor
+		rotation = Vector3.ZERO
+		visible = seat_type == "bed"
+	else:
+		visible = false
+		process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func unboard(pos: Vector3) -> void:
 	riding_in = null
+	if get_parent() != null and get_parent() is ProtoCar3D:
+		reparent(_main)
+	for c in get_children():
+		if c is CollisionShape3D:
+			(c as CollisionShape3D).disabled = false
 	process_mode = Node.PROCESS_MODE_INHERIT
 	visible = true
 	global_position = pos
@@ -159,6 +175,18 @@ func _physics_process(delta: float) -> void:
 	var player: Node3D = _main.player if _main and "player" in _main else null
 	if player == null or not is_instance_valid(player):
 		move_and_slide()
+		return
+
+	# RIDING A BED ANCHOR: parented to the rig, no legs — but the iron stays LIVE.
+	# Sam fires from the truck bed as it drives (his whole fight brain, from a seat).
+	if riding_in != null and is_instance_valid(riding_in):
+		if visible and puppet:
+			puppet.animate(delta, 0.0, 0.0, job == "gunner", 1.0 - hp / max_hp, false)
+		var bed_target := _nearest_threat() if job == "gunner" else null
+		if bed_target != null and _fire_cd <= 0.0:
+			_fire_cd = FIRE_CD
+			_face(bed_target.global_position - global_position, delta)
+			_fire_at(bed_target)
 		return
 
 	# THE JOB ENGINE: every half game-hour standing with you, the hire EARNS it

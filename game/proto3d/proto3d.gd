@@ -2550,16 +2550,27 @@ func enter_car(car: ProtoCar3D) -> void:
 	hud.set_mode(true)
 	# THE PACK RIDES ALONG: nearby dogs hop in, up to the class's dog_seats
 	# (van 4, car/pickup 2, buggy 1, bike none). Overflow holds the ground.
+	# SEAT ANCHORS: bed seats show the rider (Sam gunning from the truck bed, the
+	# dog with its tail in the wind); overflow past the anchors rides hidden.
 	var seats: int = int(car.spec.get("dog_seats", 0))
+	var bed_seats: Array = []
+	for s in car.spec.get("seats", []):
+		if String(s.get("type", "cab")) == "bed":
+			var sp: Array = s["pos"]
+			bed_seats.append(Vector3(float(sp[0]), float(sp[1]), float(sp[2])))
+	var bi := 0
 	# Humans call shotgun first (Stage 7: one boarding law, animal or human).
 	for c in companions:
 		if seats <= 0:
 			break
 		if is_instance_valid(c) and c.riding_in == null and not c.staying \
 				and c.global_position.distance_to(car.global_position) < 9.0:
-			c.board(car)
+			if bi < bed_seats.size():
+				c.board(car, bed_seats[bi], "bed"); bi += 1
+			else:
+				c.board(car)
 			seats -= 1
-			notify("🧍 %s climbs in" % c.comp_name)
+			notify("🧍 %s climbs %s" % [c.comp_name, "into the bed, gun up" if bi <= bed_seats.size() and bi > 0 else "in"])
 	for d in dogs:
 		if seats <= 0:
 			break
@@ -2569,9 +2580,12 @@ func enter_car(car: ProtoCar3D) -> void:
 				and d.state != ProtoDog.DogState.GUARD and d.state != ProtoDog.DogState.SIC \
 				and d.state != ProtoDog.DogState.SEEK \
 				and d.global_position.distance_to(car.global_position) < 9.0:
-			d.board(car)
+			if bi < bed_seats.size():
+				d.board(car, bed_seats[bi], "bed"); bi += 1
+			else:
+				d.board(car)
 			seats -= 1
-			notify("🐕 %s hops in" % d.dog_name)
+			notify("🐕 %s hops %s" % [d.dog_name, "in the bed" if bi <= bed_seats.size() and bi > 0 else "in"])
 
 
 func _unboard_dogs(car: ProtoCar3D) -> void:
