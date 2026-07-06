@@ -25,7 +25,7 @@ const VEHICLES: Dictionary = {
 		# Physics rides 4 narrow-track wheels (self-standing trick); only the centered pair renders.
 		"wheels": [[-0.11, -0.8, true, false, false, 0.34], [0.11, -0.8, true, false, true, 0.34],
 			[-0.11, 0.8, false, true, false, 0.34], [0.11, 0.8, false, true, true, 0.34]],
-		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
+		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "two_wheel": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
 	"buggy": {"name": "Dustrunner", "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
 		"steer": [0.6, 0.2, 6.0], "tires": {"grip_f": 5.0, "grip_r": 4.6, "dirt_mult": 0.95, "name": "knobby"},
 		"chassis": Vector3(1.7, 0.6, 3.0), "hull": Vector3(1.6, 0.35, 2.9), "cabin": Vector3(1.2, 0.45, 1.2), "cabin_pos": Vector3(0, 0.5, 0.1),
@@ -77,6 +77,15 @@ const VEHICLES: Dictionary = {
 @export var handbrake_decel: float = 8.0      ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering; playtest: "didn't brake unless you turned").
 @export var handbrake_yaw_rate: float = 1.4   ## rad/s cap on drift rotation — the anti-180 (raw physics peaked at 6.5).
 @export var handbrake_yaw_damp: float = 18.0  ## counter-torque strength that arrests the spin at the cap / to straight
+
+@export_group("Two-Wheel Balance")
+## The invisible RIDER (or kickstand) that holds a two_wheel row upright — playtest
+## bug: the Rat Bike tipped over the moment you sat on it and nothing righted it.
+## PD gains: kp = spring toward the target lean, kd = damping on the roll rate.
+@export var upright_kp: float = 95.0
+@export var upright_kd: float = 24.0
+@export var upright_parked_mult: float = 2.6 ## kickstand: parked/slow = this much stiffer
+@export var max_lean: float = 0.17           ## rad a ridden bike lays into a corner
 
 @export_group("Surface")
 ## Roads are visual-only slabs, so surface comes from ProtoWorldBuilder.surface_at(pos).
@@ -613,6 +622,12 @@ func _physics_process(delta: float) -> void:
 	else:
 		_flipped_t = 0.0
 
+	# TWO-WHEEL BALANCE: bikes get the rider's balance / a kickstand, whether
+	# ridden or parked. Torque only (iron rule: a direct angular_velocity write
+	# fights the wheel solver). Airborne bikes tumble free — drama stays.
+	if spec.get("two_wheel", false):
+		_apply_upright()
+
 	# Impact damage: a hard velocity change in one tick = a crash (teleports excluded).
 	_impact_cd = maxf(0.0, _impact_cd - delta)
 	var moved := global_position.distance_to(_prev_pos)
@@ -744,6 +759,41 @@ func _physics_process(delta: float) -> void:
 				apply_torque(Vector3(0.0, -wy * mass * handbrake_yaw_damp, 0.0))
 
 	_emit_skids()
+
+
+## Hold a two-wheeler up: PD torque about the forward (roll) axis. Lean is the
+## RIGHT axis's rise above horizontal (asin of x·UP — positive = leaning LEFT);
+## rotating +θ about forward LOWERS the right axis, so the control acceleration
+## about forward is kp*(lean - target) - kd*roll_rate. Ridden at speed the bike
+## lays INTO the corner (target follows steer); parked it stands dead upright.
+func _apply_upright() -> void:
+	var grounded := false
+	for w in _front_wheels + _rear_wheels:
+		if w.is_in_contact():
+			grounded = true
+			break
+	if not grounded:
+		return
+	var fwd := -global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.01:
+		return
+	fwd = fwd.normalized()
+	var lean := asin(clampf(global_basis.x.dot(Vector3.UP), -1.0, 1.0))
+	var roll_rate := angular_velocity.dot(fwd)
+	var target := 0.0
+	if is_active and not dead:
+		var speed_ratio := clampf(absf(forward_speed) / maxf(top_speed, 1.0), 0.0, 1.0)
+		target = clampf(input_steer * max_lean * speed_ratio, -max_lean, max_lean)
+	var kp := upright_kp
+	var kd := upright_kd
+	if absf(forward_speed) < 2.0:
+		kp *= upright_parked_mult
+		kd *= upright_parked_mult
+	# Authority must beat the worst toppling moment: ~5g of tire grip at the COM
+	# height (~5.9 kN·m on the Rat Bike). Cap 70 rad/s² × mass × 0.35 clears it.
+	var accel := clampf(kp * (lean - target) - kd * roll_rate, -70.0, 70.0)
+	apply_torque(fwd * accel * mass * 0.35)
 
 
 # --- Surface + skid marks (2026-07-05 driving pass) --------------------------

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3dbikesim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/bike_sim.gd" id="1_sim"]
+
+[node name="BikeSim" type="Node3D"]
+script = ExtResource("1_sim")

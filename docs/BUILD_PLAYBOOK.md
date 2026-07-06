@@ -61,6 +61,10 @@ godot-console = C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win6
    now a real handbrake_decel (8 m/s2) sheds speed whether you turn or not.
 7. Grip baseline "slides a little too much" — now per-surface (2026-07-05): road grip 1.0 / dirt
    0.78; tune the SURFACE table + grip_rear. Dirt intentionally slides more.
+8. ~~Motorcycle tips over the moment you mount it~~ — fixed 2026-07-05: two_wheel rows get an
+   upright PD torque about the roll axis (`_apply_upright` in car_3d.gd — the invisible rider;
+   parked = stiffer kickstand; leans into corners, authority sized to beat ~5g of tire grip).
+   Proof: `bike_sim` 8/8 (park/mount/ride/swerve/stop/dismount, inputs only).
 
 ## 5. Feel targets (sim-checked numbers)
 0-60: 3.0–5.5 s · top ~76 mph · 60-0: 40–50 m · steer @15 m/s: 90–130° in 2.5 s (no spin-out) ·
