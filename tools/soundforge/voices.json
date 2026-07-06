@@ -7,7 +7,7 @@
 			"voice_name": "Madison",
 			"voice_desc": "weathered woman ~50, dry wit, southern rasp — Madison ('wise old lady - mother, grandma, aunt': older American female, wise/dry, closest stock match to a trader who has seen everything)",
 			"lines": {
-				"greet": "Jack talks. What are you buying?",
+				"greet": "Scrip talks. What are you buying?",
 				"trusted": "There you are. Kept the good shelf stocked for you.",
 				"refuse": "Not to you. Not after what you did."
 			}
@@ -17,7 +17,7 @@
 			"voice_name": "Bill",
 			"voice_desc": "gravelly older man, tired authority — Bill ('Wise, Mature, Balanced': old American male, crisp and worn, reads like a security chief who is done arguing)",
 			"lines": {
-				"work": "Got a lurker problem by the water point. Twenty-five jack for its head.",
+				"work": "Got a lurker problem by the water point. Twenty-five scrip for its head.",
 				"refuse": "Meridian doesn't work with your kind. Walk away.",
 				"clean": "Clean work. Meridian noticed."
 			}
@@ -27,7 +27,7 @@
 			"voice_name": "Will",
 			"voice_desc": "laconic younger man, flat calm — Will ('Relaxed Optimist': young American male, chill/level delivery, right for a hired gun who never raises his voice)",
 			"lines": {
-				"hire": "Forty jack and my gun walks where you walk.",
+				"hire": "Forty scrip and my gun walks where you walk.",
 				"contact": "Contact! On me!",
 				"wheel": "Your wheel. I'll watch the mirrors."
 			}

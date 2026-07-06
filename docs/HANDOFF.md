@@ -5,6 +5,14 @@
 
 > **Read this first, then `CLAUDE.md` (how to work) and `docs/ENGINE.md` (the vision).** This document supersedes the *status* claims in the other docs — several of them over-claim (see §9).
 
+> ### ✅ Progress since the audit (2026-07-06, post-handoff)
+> The retiring dev kept going down the roadmap before fully stepping away:
+> - **Roadmap #1 — persistence holes: CLOSED.** All five leaks now save/load and are asserted in `save_sim`: **hunger, weather, active war, hired crew, metaworld dog-records**. (§2b's persistence rows are resolved.)
+> - **Roadmap #2 — drift + versioning: DONE.** One `ProtoMain.SAFEHOUSE` anchor replaces four drifting literals; the save carries a `version` field.
+> - **The one real red is fixed:** `dog_sim` rear-smell (was a test staging the threat behind *movement* instead of *gaze*) + the Companion-obey flake hardened. **Suite is now honestly ~67/68** (only `dive_sim` remains a load-flake, passes solo).
+> - **Landmines closed:** `voices.json` no longer says "jack" (a `--force` TTS re-roll won't speak the pre-rename currency).
+> - **Still open (next dev):** roadmap #3 (data-spine read-back for items/NPCs/loot), #4 (road-row consumers), #5 (mounts attach + car combat damage), #6 (remaining sim-coverage gaps), #8 (lurker→puppet, signs). §2c/§2d unchanged.
+
 ---
 
 ## 1. TL;DR — the honest state of the game
