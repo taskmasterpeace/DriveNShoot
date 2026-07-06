@@ -50,6 +50,16 @@ func scan() -> void:
 	_cd = SCAN_CD
 	if _main.audio:
 		_main.audio.play_ui("click", -10.0)
+	# THE LIVING WORLD: an EMERGENCY BULLETIN cuts through the static FIRST — the world
+	# still announcing a state takeover / new law on the dial after the fact. Text-first
+	# (the fallback floor: a missing TTS/video never blocks the bulletin). One per sweep.
+	if "world_state" in _main and _main.world_state != null:
+		for b in _main.world_state.broadcast_queue:
+			if not bool(b.get("heard", false)):
+				b["heard"] = true
+				last_signal = "bulletin"
+				_main.notify("📻 ⚠️ EMERGENCY BULLETIN — %s" % String(b.get("text", "")))
+				return
 	var dark: bool = _main.daynight.is_dark()
 	if rng.randf() < (0.35 if dark else 0.5):
 		_main.notify("📻 …static…")
