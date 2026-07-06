@@ -19,12 +19,10 @@
 > - **Roadmap #6 — misfire coverage added** (`misfire_sim`, standalone): a CRITICAL engine coughs + a wounded chassis wanders. With crit (`melee_sim`) and camera-trauma (`feel_sim`), the substantive combat-feel/drivable-damage gaps are closed.
 > - **Roadmap #4 — toll + family: DONE (#4 COMPLETE).** Driving onto a toll road bills its scrip once on entry (pay if you can; if short, the running family marks you with stress — no hard gate); `family` read for flavor. All four road rows are now *felt*. `road_sim`.
 > - **Roadmap #6 — crit + camera-trauma coverage: DONE.** `melee_sim` asserts a crit lands ×1.8; `feel_sim` asserts trauma spikes, shakes the camera off its mark, and decays. The two biggest combat-feel coverage holes closed.
-> - **Consciously DEFERRED (done-condition #1 sign-off) — the only things left:**
->   - **#8 lurker→puppet** — NOT a bounded change: bespoke cloaked crawler → humanoid puppet changes its silhouette + needs a new look-row + flash/animate rewiring, regression risk across `threat_sim`/`dark_sim`, zero player value. Focused session.
->   - **#6 get-up-stamina micro-assertion** — a one-line lerp, visibly correct; fragile to test (needs two dive cycles) for near-zero value.
->   - **§2c/§2d pillars** (700-pt tree, robotics/farming, faction families, 19-slot gear, hover/rail/boat, host-authoritative MP, procedural exit-towns) — **weeks each; do not start** (§7). This is where new *content/scope* lives; the *engine* to support it is now honest and data-driven.
+> - **#8 lurker→puppet: DONE.** The last bespoke enemy now rides the shared `ProtoPuppet` (data-driven all-black "lurker" look; strides via `animate()`; its hood preserved on the rig's head; hit-flash recursed). **No enemy is bespoke anymore** — every fighter is the one sin()-driven rig fed a row. `arsenal_sim` asserts it; threat/dark/dogmeta/melee_wall/items/town/life/combat_feel all green.
+> - **#6 get-up-stamina: DONE** (`getup_sim`) — a gassed shootdodge keeps you down ×1.9 longer. **All of #6 is now asserted** (crit, camera-trauma, misfire, get-up).
 >
-> **Net:** roadmap #1–#6 and #8 are CLOSED (`#3` and `#4` fully). Everything that could be built cleanly and safely against the current codebase is done + sim-proven. What remains is one risky no-player-value refactor and the multi-week pillars — both correctly deferred.
+> **The ONLY thing left is the §2c/§2d pillars** (700-pt skill tree, robotics/farming, faction families, 19-slot gear, hover/rail/boat, host-authoritative MP, procedural exit-towns) — **weeks each; do NOT start** (§7). These are new *scope*, not fixes; the engine to support them is now honest and data-driven. Every other backlog + spoken item is built + sim-proven.
 
 ---
 
