@@ -1393,6 +1393,19 @@ func use_item(id: String) -> bool:
 		stress = maxf(0.0, stress - 12.0)
 		notify("🍲 Hot food off your own stove. The road feels shorter.")
 		return true
+	if id == "mount_schematic":
+		# Fort Hood's gift, USED: bolt a hood MG to your rig. Activates the whole
+		# existing mount fire/reload path (LMB fires it, R reloads from 9mm).
+		if mode != Mode.DRIVE or active_car == null or active_car.dead:
+			notify("📐 Bolt a mount to a RIG — get behind the wheel first")
+			return false
+		if active_car.mount_weapon != null:
+			notify("📐 This rig already carries a mount")
+			return false
+		active_car.mount_weapon = ProtoWeapon.new("car_mg")
+		audio.play_ui("blip", -3.0)
+		notify("🔩 Hood MG bolted to the %s — LMB fires it, R reloads (9mm)" % active_car.display_name)
+		return true
 	if id == "drone":
 		# STAGE 8 rung 1 (Robotics): deploy the bird. It patrols overhead, pings
 		# threats into your perception, and lands as a pickup when the cell dies.
