@@ -515,6 +515,7 @@ func _physics_process(delta: float) -> void:
 	# full health cap you are (a wounded survivor moves wounded).
 	player.hurt = clampf(1.0 - character.hp_cap() / 100.0, 0.0, 1.0)
 	player.dead_vis = character.dead
+	_sync_wound_effects()
 	_crime_cd = maxf(0.0, _crime_cd - delta)
 	_pet_cd = maxf(0.0, _pet_cd - delta)
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
@@ -530,6 +531,7 @@ func _physics_process(delta: float) -> void:
 	_update_bounty()
 	_update_whistle(delta)
 	_update_soundscape(delta)
+	_update_pirates(delta)
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
@@ -577,7 +579,7 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	# the beam is your sight (this is why night driving works at all).
 	# WEATHER is the third clamp: a dust storm strips even noon down to arm's
 	# length — and headlights can't carve through dust like they carve night.
-	var range_mult := character.vision_range_mult * daynight.vision_mult() * weather.vision_mult()
+	var range_mult := character.vision_range_mult * daynight.vision_mult() * weather.vision_mult() * character.head_clarity()
 	if mode == Mode.DRIVE and active_car and active_car.headlights_on:
 		range_mult = maxf(range_mult, character.vision_range_mult * 0.85 * weather.vision_mult())
 	_refresh_sight_exclusions()
@@ -1215,7 +1217,7 @@ func apply_character(c: Dictionary) -> void:
 	_last_pose_id = "∅" # force the equipped weapon's hand pose to re-apply next frame
 	# The same choices are STAT hooks, not just looks.
 	character.set_blind_eye(c.get("blind_eye", ""))
-	player.leg_mult = 0.72 if String(c.get("bad_leg", "")) != "" else 1.0
+	created_limp = String(c.get("bad_leg", "")) # _sync_wound_effects folds it into leg_mult live
 	notify("🧬 You are who you are now.")
 
 
@@ -1655,6 +1657,14 @@ func spawn_howler_pack(origin: Vector3, count: int = 3) -> void:
 		add_child(h)
 		var ang := TAU * float(i) / float(count)
 		h.global_position = origin + Vector3(cos(ang), 0.0, sin(ang)) * 6.0 + Vector3(0, 0.4, 0)
+		# THE PACK HAS ROLES: a big pack brings a SCREAMER (the conductor — kill it
+		# first), a charger (impatient teeth), and circlers who take their turn.
+		if i == 0 and count >= 3:
+			h.set_role("screamer")
+		elif i <= 1:
+			h.set_role("charger")
+		else:
+			h.set_role("circler")
 		howlers.append(h)
 	audio.play_at("howl", origin, 6.0)
 	hud.toast("🌙 Something HOWLS out in the dark")
@@ -1954,6 +1964,100 @@ func _on_death() -> void:
 
 
 var _last_chassis: float = -1.0
+
+# --- ROAD PIRATES (goal: the vehicular half of the promise) --------------------
+## An ambush is a SET-PIECE: two rigs thrown across the road ahead, one hungry
+## engine in your mirror. The chaser runs the SAME autopilot the Proving Grounds
+## built — ramming you is just "arrive_dist 0". Their trunks make it worth the
+## fight; outrunning them is always on the table.
+var pirates: Array = [] ## live chase cars
+var _ambush_cd: float = 150.0 ## first window opens ~2.5 min in; then every 3+ min
+
+
+func spawn_road_ambush() -> void:
+	if mode != Mode.DRIVE or active_car == null:
+		return
+	var fwd: Vector3 = active_car.facing()
+	var side := Vector3(fwd.z, 0, -fwd.x)
+	# THE WALL: two dead rigs thrown across the lane ahead.
+	var block_at := active_car.global_position + fwd * 210.0
+	for i in 2:
+		var b := ProtoCar3D.create(["pickup", "van"][i], Color(0.16, 0.14, 0.13))
+		add_child(b)
+		b.global_position = block_at + side * (i * 5.5 - 2.75) + Vector3(0, 1.0, 0)
+		b.global_rotation.y = atan2(-fwd.x, -fwd.z) + (1.15 if i == 0 else -1.15)
+		b.trunk.add("9mm", 20)
+		b.trunk.add("jack", 10 + i * 8)
+		b.trunk.add("scrap", 3)
+	# THE MIRROR: a chaser drops in behind, wearing the chase brain.
+	var ch := ProtoCar3D.create("buggy", Color(0.28, 0.1, 0.08))
+	add_child(ch)
+	ch.global_position = active_car.global_position - fwd * 70.0 + Vector3(0, 1.0, 0)
+	ch.trunk.add("jack", 25)
+	ch.trunk.add("12ga", 8)
+	var ai := ProtoAutopilot.attach(ch)
+	ai.target_node = active_car
+	ai.arrive_dist = 0.0 # never brake for the target — the ARRIVAL is the ram
+	pirates.append(ch)
+	audio.play_at("howl", ch.global_position, 2.0, 1.4) # a war-whoop off the wind
+	hud.toast("🏴 ROAD PIRATES — headlights in your mirror, steel across the road")
+	stress = minf(100.0, stress + 14.0)
+
+
+func _update_pirates(delta: float) -> void:
+	# The road rolls the dice while you drive fast on asphalt — night doubles it.
+	_ambush_cd -= delta
+	if _ambush_cd <= 0.0 and mode == Mode.DRIVE and active_car != null \
+			and absf(active_car.forward_speed) > 14.0 and active_car.current_surface == "road":
+		_ambush_cd = randf_range(180.0, 320.0)
+		if randf() < (0.55 if daynight.is_dark() else 0.3):
+			spawn_road_ambush()
+	# Resolution: dead = loot on the shoulder; outrun = they break off.
+	for i in range(pirates.size() - 1, -1, -1):
+		var p: ProtoCar3D = pirates[i]
+		if not is_instance_valid(p):
+			pirates.remove_at(i)
+			continue
+		if p.dead:
+			pirates.remove_at(i)
+			notify("🏴 The chaser's DONE — its trunk rides the shoulder now")
+			continue
+		var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+		if p.global_position.distance_to(anchor) > 380.0:
+			for c in p.get_children():
+				if c is ProtoAutopilot:
+					c.queue_free()
+			p.is_active = false
+			p.input_throttle = 0.0
+			pirates.remove_at(i)
+			notify("🏴 You LOST them — the mirror's empty")
+
+
+## WOUNDS READ (goal): the paper-doll becomes the body's BEHAVIOR, live —
+## a shot leg limps the rig and slows you, a shot arm shakes the barrel (spread
+## already pays via current_spread), a cracked head narrows the cone, a broken
+## torso empties your lungs. Heal, and the body straightens back out.
+var created_limp: String = "" ## character-creation's permanent bad leg
+var _limp_announced: String = "∅"
+func _sync_wound_effects() -> void:
+	# LEGS → the limp you can SEE + the speed you can FEEL.
+	var wound_limp := character.limp_side()
+	var eff_limp := wound_limp if wound_limp != "" else created_limp
+	if player.puppet and player.puppet.appearance.get("limp", "") != eff_limp:
+		player.puppet.appearance["limp"] = eff_limp
+	player.leg_mult = (0.72 if created_limp != "" else 1.0) * character.wound_leg_mult()
+	if wound_limp != _limp_announced:
+		if wound_limp != "" and _limp_announced == "∅" or wound_limp != "" and _limp_announced == "":
+			notify("🦵 Your leg gives — you LIMP now. The car is further than it was.")
+		elif wound_limp == "" and _limp_announced != "" and _limp_announced != "∅":
+			notify("🦵 The leg holds again")
+		_limp_announced = wound_limp
+	# ARMS → the rig's gun hand won't sit still (spread tax lives in the weapon).
+	if player.puppet:
+		player.puppet.aim_wobble = character.aim_wobble()
+	# TORSO → stamina regen tax (stress already throttles; wounds stack on it).
+	player.wound_regen_mult = character.wound_stamina_mult()
+
 
 func _watch_crash_wounds() -> void:
 	if mode != Mode.DRIVE or active_car == null or active_car.dead:

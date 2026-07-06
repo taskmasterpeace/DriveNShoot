@@ -86,9 +86,11 @@ func can_fire() -> bool:
 ## Effective spread right now (base × bloom × skill) — the reticle draws this.
 func current_spread(main: Node) -> float:
 	var skill_mult := 1.0
+	var wobble := 0.0
 	if "character" in main and main.character:
 		skill_mult = clampf(1.0 - 0.06 * main.character.level("marksmanship"), 0.5, 1.0)
-	return info()["spread_deg"] * (1.0 + bloom) * skill_mult
+		wobble = main.character.aim_wobble() # a shot arm can't hold the barrel still
+	return info()["spread_deg"] * (1.0 + bloom) * skill_mult * (1.0 + wobble * 2.2)
 
 
 ## Crit chance right now: base + Marksmanship (the lucky shot gets less lucky).

@@ -76,6 +76,8 @@ var speed_mult: float = 1.0
 var leg_mult: float = 1.0
 ## Endurance skill: multiplies stamina recovery on top of the stress throttle.
 var endurance_regen: float = 1.0
+## A broken torso empties the lungs — the wound system's stamina tax.
+var wound_regen_mult: float = 1.0
 ## Stealth skill: how far threats notice you while WALKING (1.0 = unskilled).
 ## Sprinting spoils it — noise_mult() blends back to 1 when you run.
 var stealth_base: float = 1.0
@@ -246,7 +248,7 @@ func _physics_process(delta: float) -> void:
 	if running:
 		stamina = maxf(0.0, stamina - run_drain * delta)
 	else:
-		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * endurance_regen * delta)
+		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * endurance_regen * wound_regen_mult * delta)
 
 	var speed := (run_speed if running else walk_speed) * speed_mult * leg_mult
 	if in_combat:

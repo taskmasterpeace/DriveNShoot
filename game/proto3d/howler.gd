@@ -8,6 +8,20 @@ extends CharacterBody3D
 
 enum HowlState { CIRCLE, CHARGE, FLEE }
 
+## THE PACK BRAIN (goal: give the pack roles and night gets genuinely scary):
+## - circler: the baseline — rides the rim of your sight, takes its turn.
+## - charger: impatient teeth — charges sooner, from further, a hair faster.
+## - screamer: never charges. It SCREAMS: reinforcements answer, and every
+##   packmate's patience snaps at once (a coordinated rush). Kill it FIRST.
+const ROLES: Dictionary = {
+	"circler": {"charge_cd": [2.5, 6.0], "charge_range": 50.0, "speed_mult": 1.0, "scale": 1.0},
+	"charger": {"charge_cd": [0.8, 2.2], "charge_range": 62.0, "speed_mult": 1.15, "scale": 0.95},
+	"screamer": {"charge_cd": [999.0, 999.0], "charge_range": 0.0, "speed_mult": 0.9, "scale": 1.18},
+}
+var role: String = "circler"
+var _scream_cd: float = 6.0
+var _screams_left: int = 2
+
 @export var circle_speed: float = 5.0
 @export var charge_speed: float = 9.5
 @export var claw_damage: float = 12.0
@@ -210,18 +224,27 @@ func _physics_process(delta: float) -> void:
 		HowlState.CIRCLE:
 			# Ride the RIM of what the player can actually see — the real cone
 			# range (the moon sets it). Dark night = tight circle = close teeth.
+			# A SCREAMER hangs a few meters further out — conducting, not biting.
 			var ring := 15.0
 			if _main and "vision_cone" in _main and _main.vision_cone:
 				ring = clampf(_main.vision_cone.last_range_m + 3.0, 10.0, 42.0)
+			if role == "screamer":
+				ring += 8.0
 			var radial := dist - ring
 			var tangent := Vector3(dir.z, 0, -dir.x) * _orbit_sign
 			var move_dir := (tangent + dir * clampf(radial * 0.25, -1.0, 1.0)).normalized()
-			velocity.x = move_dir.x * circle_speed
-			velocity.z = move_dir.z * circle_speed
+			var spd := circle_speed * float(ROLES[role]["speed_mult"])
+			velocity.x = move_dir.x * spd
+			velocity.z = move_dir.z * spd
 			_face(dir, delta)
 			_charge_cd -= delta
-			if _charge_cd <= 0.0 and dist < 50.0:
-				state = HowlState.CHARGE
+			if _charge_cd <= 0.0 and dist < float(ROLES[role]["charge_range"]):
+				_begin_charge()
+			# THE SCREAM: reinforcements + every packmate's patience snaps at once.
+			if role == "screamer":
+				_scream_cd -= delta
+				if _scream_cd <= 0.0 and _screams_left > 0 and dist < 55.0:
+					_scream()
 		HowlState.CHARGE:
 			# Headlight-shy: charging INTO a lit beam breaks the run.
 			if _in_headlights():
@@ -229,8 +252,9 @@ func _physics_process(delta: float) -> void:
 				_charge_cd = _rng.randf_range(2.0, 4.0)
 				_orbit_sign *= -1.0
 			else:
-				velocity.x = dir.x * charge_speed
-				velocity.z = dir.z * charge_speed
+				var cspd := charge_speed * float(ROLES[role]["speed_mult"])
+				velocity.x = dir.x * cspd
+				velocity.z = dir.z * cspd
 				_face(dir, delta)
 
 	# Teeth: same two-way law as the lurker's claw — and never through a wall.
@@ -270,3 +294,45 @@ func _in_headlights() -> bool:
 		if rel.length() < 20.0 and (c as ProtoCar3D).facing().dot(rel.normalized()) > 0.55:
 			return true
 	return false
+
+
+# --- The pack brain's hands ----------------------------------------------------
+
+## Take a role (the spawner deals them): scale reads at a glance — the big one
+## conducting from the back IS the screamer. Kill it first.
+func set_role(role_in: String) -> void:
+	role = role_in
+	add_to_group("night_pack")
+	var r: Array = ROLES[role]["charge_cd"]
+	_charge_cd = _rng.randf_range(r[0], r[1])
+	scale = Vector3.ONE * float(ROLES[role]["scale"])
+
+
+## Entering a charge RIPPLES: packmates nearby lose patience — attacks overlap
+## instead of queueing politely. This is what makes four feel like a PACK.
+func _begin_charge() -> void:
+	state = HowlState.CHARGE
+	for node in get_tree().get_nodes_in_group("night_pack"):
+		var h := node as ProtoHowler
+		if h != null and h != self and not h.dead and h.role != "screamer" \
+				and h.global_position.distance_to(global_position) < 45.0:
+			h._charge_cd = minf(h._charge_cd, 0.6)
+
+
+## THE SCREAM: the night answers. Two more howlers join, and the whole pack's
+## patience snaps NOW. Twice per screamer — then it's just a big coward.
+func _scream() -> void:
+	_screams_left -= 1
+	_scream_cd = _rng.randf_range(11.0, 16.0)
+	if _main == null:
+		return
+	if "audio" in _main and _main.audio:
+		_main.audio.play_at("howl", global_position, 8.0, 0.8)
+	if _main.has_method("spawn_howler_pack"):
+		_main.spawn_howler_pack(global_position + Vector3(12, 0, 8), 2)
+	for node in get_tree().get_nodes_in_group("night_pack"):
+		var h := node as ProtoHowler
+		if h != null and h != self and not h.dead and h.role != "screamer":
+			h._charge_cd = 0.0
+	if _main.has_method("notify"):
+		_main.notify("🌙 The big one SCREAMS — and the dark answers")

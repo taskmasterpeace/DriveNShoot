@@ -240,6 +240,52 @@ func treat(part: String, amount: float) -> void:
 	hp = clampf(hp, 0.0, hp_cap())
 
 
+# --- WOUNDS READ (goal: injuries with real downstream cost). Damage becomes
+# BEHAVIOR: a bad leg limps you, a bad arm wobbles your gun, a cracked head
+# narrows the world, a broken torso empties your lungs faster. -------------------
+
+## Which leg drives the limp ("" = both legs walk). Worse leg below 55% = a limp.
+func limp_side() -> String:
+	var ll: float = body["l_leg"].ratio()
+	var rl: float = body["r_leg"].ratio()
+	if minf(ll, rl) >= 0.55:
+		return ""
+	return "l" if ll <= rl else "r"
+
+
+## Speed tax from the legs: healthy 1.0 → shot-up 0.55 (you LIMP toward the car).
+func wound_leg_mult() -> float:
+	var worst: float = minf(body["l_leg"].ratio(), body["r_leg"].ratio())
+	if worst >= 0.55:
+		return 1.0
+	return lerpf(0.55, 1.0, worst / 0.55)
+
+
+## Aim wobble from the arms: 0 = steady, 1 = the barrel won't sit still.
+## (Multiplies weapon spread AND shakes the rig's gun arm.)
+func aim_wobble() -> float:
+	var worst: float = minf(body["l_arm"].ratio(), body["r_arm"].ratio())
+	if worst >= 0.6:
+		return 0.0
+	return clampf(1.0 - worst / 0.6, 0.0, 1.0)
+
+
+## A cracked head narrows the world (multiplies the vision cone's range).
+func head_clarity() -> float:
+	var r: float = body["head"].ratio()
+	if r >= 0.7:
+		return 1.0
+	return lerpf(0.55, 1.0, r / 0.7)
+
+
+## A broken torso empties your lungs: stamina regen tax (1.0 healthy → 0.45).
+func wound_stamina_mult() -> float:
+	var r: float = body["torso"].ratio()
+	if r >= 0.6:
+		return 1.0
+	return lerpf(0.45, 1.0, r / 0.6)
+
+
 # --- Serialization (PvP prep — the dog pattern): saves, join-in-progress
 # snapshots, and respawn loadouts all ride these two functions. -----------------
 

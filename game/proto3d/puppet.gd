@@ -64,6 +64,10 @@ var hand: Node3D
 var _hat: MeshInstance3D
 var _pack: MeshInstance3D
 
+## A wounded arm can't hold the barrel still: 0 = steady, 1 = full shake.
+## (Set live by the wound system; the spread tax lives in the weapon.)
+var aim_wobble: float = 0.0
+
 ## Does the weapon arm hold level and track the gaze? TRUE for guns (twin-stick:
 ## the raised iron IS the aim read). Melee sets it FALSE — steel is CARRIED low
 ## and only comes up in the swing (playtest: the always-raised wrench floated).
@@ -233,7 +237,10 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	_swing_t = maxf(0.0, _swing_t - delta)
 	if _swing_t <= 0.0:
 		var hold := raised and armed and gun.visible
-		var pose_target := sin(_t * 2.0) * 0.02 if hold else ARM_HANG - swing_l * 0.55
+		# The steady-arm bob — plus the WOUND SHAKE: two off-phase sines that
+		# won't settle, exactly like a torn muscle fighting the weight.
+		var wobble := (sin(_t * 13.7) * 0.05 + sin(_t * 7.3) * 0.04) * aim_wobble
+		var pose_target := (sin(_t * 2.0) * 0.02 + wobble) if hold else ARM_HANG - swing_l * 0.55
 		# One smoothed write: raise/lower transitions blend and the post-swing
 		# hand-off can't pop (the lerp eats the mismatch in a few frames).
 		shoulder.rotation.x = lerpf(shoulder.rotation.x, pose_target, clampf(12.0 * delta, 0.0, 1.0))
