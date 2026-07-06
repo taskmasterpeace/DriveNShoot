@@ -12,7 +12,8 @@ const SFX_DIR := "res://assets/sfx"
 ## Sounds that must LOOP when loaded from files (synth versions set their own).
 const LOOPED: Array = [
 	"engine", "fire",
-	"amb_desert", "amb_plains", "amb_forest", "amb_town", "amb_night",
+	"engine_motorcycle", "engine_diesel", "engine_muscle",
+	"amb_desert", "amb_plains", "amb_forest", "amb_town", "amb_night", "amb_wind",
 	"breath_sprint",
 ]
 

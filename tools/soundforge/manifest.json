@@ -70,6 +70,37 @@
     {"id": "dog_whine", "duration_seconds": 1.2, "prompt_influence": 0.5,
       "prompt": "Sad dog whine, single short high-pitched whimper, medium-large dog, close, quiet"},
     {"id": "dive", "duration_seconds": 0.9, "prompt_influence": 0.55,
-      "prompt": "Human body diving and rolling once on dirt ground, cloth rustle and a dull ground thud, single tumble, dry, no reverb, foley"}
+      "prompt": "Human body diving and rolling once on dirt ground, cloth rustle and a dull ground thud, single tumble, dry, no reverb, foley"},
+
+    {"id": "engine_motorcycle", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Small single-cylinder motorcycle engine idling, high buzzy rapid put-put putter, constant rpm, thin and raspy, seamless loop, no fade in or out, no swells"},
+    {"id": "engine_diesel", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Big diesel truck engine idling, low slow chugging clatter, deep steady rumble with a knocking beat, constant rpm, seamless loop, no fade in or out, no swells"},
+    {"id": "engine_muscle", "duration_seconds": 4.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Big American V8 muscle engine idling, throaty burbling lope with a deep rumble, constant rpm, worn but powerful, seamless loop, no fade in or out, no swells"},
+
+    {"id": "impact_crunch", "duration_seconds": 1.2, "prompt_influence": 0.55,
+      "prompt": "Heavy car crash, two metal car bodies colliding hard, loud metallic crunch and crumple with glass tinkle and a low thud, single impact, dry, no music, foley"},
+    {"id": "tire_scream", "duration_seconds": 3.0, "prompt_influence": 0.55,
+      "prompt": "Long sustained car tire screech on asphalt, rubber squealing continuously through a hard cornering skid, steady high squeal, dry, no music"},
+    {"id": "fire_whoomp", "duration_seconds": 1.6, "prompt_influence": 0.5,
+      "prompt": "Gout of fire igniting, sudden fuel whoomp as flames burst outward with a soft low roar, single ignition, dry, no music, foley"},
+
+    {"id": "ui_click", "duration_seconds": 0.5, "prompt_influence": 0.6,
+      "prompt": "Crisp menu UI click, single clean digital tick with a tiny high snap, dry, short, interface navigation"},
+    {"id": "ui_confirm", "duration_seconds": 0.7, "prompt_influence": 0.55,
+      "prompt": "Positive menu confirm chime, short pleasant two-note rising blip, clean and bright, interface accept, dry, no reverb"},
+    {"id": "ui_cancel", "duration_seconds": 0.6, "prompt_influence": 0.55,
+      "prompt": "Negative menu cancel buzz, short low descending error tone, dull dry buzz, interface reject, no reverb"},
+
+    {"id": "amb_wind", "duration_seconds": 12.0, "prompt_influence": 0.45, "loop": true,
+      "prompt": "Desolate wasteland wind, steady lonely wind gusting evenly across empty ruins with a faint hollow moan, bleak and constant, no gusts or swells, seamless loop, no fade in or out, no music"},
+
+    {"id": "glass_break", "duration_seconds": 1.0, "prompt_influence": 0.55,
+      "prompt": "Car window shattering, single sharp glass smash with shards scattering and tinkling to the ground, dry, no reverb, foley"},
+    {"id": "metal_debris", "duration_seconds": 1.2, "prompt_influence": 0.5,
+      "prompt": "Scattered metal car debris settling, bits of scrap metal and a hubcap clattering and rolling to a stop on asphalt, dry, no music, foley"},
+    {"id": "engine_start", "duration_seconds": 2.2, "prompt_influence": 0.5,
+      "prompt": "Old car engine starting, starter motor cranking a few times then catching and rumbling to an idle, worn vehicle, dry, no music, foley"}
   ]
 }
