@@ -91,6 +91,8 @@ func take_damage(amount: float) -> void:
 	for c in _visual.get_children():
 		if c is MeshInstance3D:
 			(c as MeshInstance3D).material_overlay = _flash_mat
+	if _quad:
+		_quad.flinch() # the whole body jolts — the hit lands on the rig
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true

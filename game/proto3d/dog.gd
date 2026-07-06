@@ -232,6 +232,8 @@ func command_seek(target: Node3D) -> void:
 
 func take_damage(amount: float) -> void:
 	hp = maxf(0.0, hp - amount)
+	if _quad:
+		_quad.flinch() # the hit reads on the body
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.4, 0), "-%d" % int(amount), Color(0.9, 0.5, 0.4), 90)
 	if hp <= 0.0:
 		if _main and _main.has_method("notify"):

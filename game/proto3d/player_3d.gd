@@ -108,8 +108,15 @@ func gun_recoil() -> void:
 		return
 	recoil_t = 0.12
 	puppet.gun_recoil()
+	puppet.recoil() # the arm kicks up too — the shot lands in the whole rig
 	var tw := create_tween()
 	tw.tween_property(self, "recoil_t", 0.0, 0.13)
+
+
+## A hit reaction: rock the body away from the blow (world_dir points at the attacker).
+func flinch(world_dir: Vector3) -> void:
+	if puppet:
+		puppet.flinch(world_dir)
 
 
 ## The swing made physical: the held weapon whips through an arc and resettles.

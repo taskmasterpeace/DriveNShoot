@@ -24,6 +24,7 @@ var legs: Array[Node3D] = [] ## [FL, FR, BL, BR]
 var _t: float = 0.0
 var _phase: float = 0.0
 var _tuck: float = 0.0
+var _flinch: float = 0.0 ## hit reaction — the whole animal jolts
 
 
 static func create(params_in: Dictionary = {}) -> ProtoQuadruped:
@@ -104,8 +105,11 @@ func animate(delta: float, speed: float, morale: float) -> void:
 	var sniff := (-0.25 + sin(_t * 3.0) * 0.12) if speed < 1.5 else 0.0
 	neck.rotation.x = lerp(neck.rotation.x, sniff, clampf(6.0 * delta, 0.0, 1.0))
 
-	# Body lilt with the gait.
-	body.position.y = 0.42 * s + absf(sin(_phase)) * amp * 0.06
+	# Body lilt with the gait — plus a HIT JOLT (Rung 6): a struck animal flinches up
+	# and hunches, so every hit reads on the body, not just a health bar.
+	_flinch = maxf(0.0, _flinch - delta * 6.0)
+	body.position.y = 0.42 * s + absf(sin(_phase)) * amp * 0.06 + _flinch * 0.12 * s
+	body.rotation.x = _flinch * 0.4
 
 	# THE TAIL = THE READOUT. Happy → fast wide wag. Scared → tuck it under.
 	if tail_pivot:
@@ -114,3 +118,8 @@ func animate(delta: float, speed: float, morale: float) -> void:
 		var wag_amp := lerpf(0.12, 0.7, morale) * (1.0 - _tuck)
 		tail_pivot.rotation.x = -_tuck * 1.2               # tucked down + under when afraid
 		tail_pivot.rotation.y = sin(_t * wag_speed) * wag_amp
+
+
+## A hit reaction — the animal jolts. Decays fast.
+func flinch() -> void:
+	_flinch = 1.0

@@ -70,6 +70,9 @@ var _slump: float = 0.0
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
 var _dead_blend: float = 0.0
+var _flinch: float = 0.0       ## hit reaction — the body rocks away from the blow
+var _flinch_side: float = 0.0
+var _recoil: float = 0.0       ## the aim arm kicks up on each shot
 
 
 static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
@@ -224,6 +227,29 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	torso.rotation.x = speed * 0.02 + _slump
 	neck.rotation.z = _lean * 0.5
 	neck.rotation.x = -_slump * 0.5 # head stays up a bit even when slumping
+
+	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the
+	# aim arm up (recoil). Both are impulses that decay — the fight lands ON the rig.
+	_flinch = maxf(0.0, _flinch - delta * 5.0)
+	_recoil = maxf(0.0, _recoil - delta * 9.0)
+	if _flinch > 0.0:
+		torso.rotation.x += _flinch * 0.5
+		torso.rotation.z += _flinch_side * _flinch * 0.28
+		neck.rotation.x += _flinch * 0.3
+	if _recoil > 0.0 and gun.visible:
+		aim_arm.rotation.x -= _recoil * 0.4
+
+
+## A hit reaction: rock away from the direction the blow came from (world dir toward
+## the attacker). Decays fast — a jolt, not a pose.
+func flinch(world_dir: Vector3) -> void:
+	_flinch = 1.0
+	_flinch_side = signf(global_basis.x.dot(world_dir))
+
+
+## The shot's kick, read on the arm (paired with the gun's own z-jab).
+func recoil() -> void:
+	_recoil = 1.0
 
 
 ## A body that has fallen: torso back and down, limbs limp. Blended in over ~0.3s.

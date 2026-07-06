@@ -1633,6 +1633,14 @@ func on_player_clawed(damage: float, _who: Node3D) -> void:
 	if character.dead or mode == Mode.DRIVE:
 		return # the cab protects you — ON FOOT you're meat
 	character.take_wound(character.random_part(_wound_rng), damage)
+	# The blow ROCKS the body (Rung 6): flinch away from where the claw came from.
+	var from_dir := player.facing()
+	if _who and is_instance_valid(_who):
+		var d: Vector3 = player.global_position - (_who as Node3D).global_position
+		d.y = 0.0
+		if d.length_squared() > 0.01:
+			from_dir = -d.normalized() # toward the attacker
+	player.flinch(from_dir)
 	ProtoFloater.pop(self, player.global_position + Vector3(0, 1.8, 0), "-%d" % int(damage), Color(0.95, 0.35, 0.25), 110)
 	bleeding = clampi(maxi(bleeding, 1), 0, 3)
 	hud.set_condition("hurt", maxi(bleeding, 1))
