@@ -13,7 +13,10 @@ const ARCHETYPES: Dictionary = {
 		"color": Color(0.72, 0.55, 0.28),
 		"greet": "Mercy: 'Jack talks. What are you buying?'",
 		"refuse": "Mercy: 'Not to you. Not after what you did.'",
-		"stock": {"bandage": 4, "meat": 3, "9mm": 30, "12ga": 12, "grenade": 2}},
+		"stock": {"bandage": 4, "meat": 3, "9mm": 30, "12ga": 12, "grenade": 2,
+			"medkit": 1, "water": 3, "coffee": 2, "canned_food": 3, "whiskey": 2,
+			"jerry_can": 2, "car_parts": 1, "tire_kit": 2, "duct_tape": 3,
+			"flare": 4, "map_fragment": 2, "painkillers": 2}},
 	"secman": {"name": "Bridger", "title": "SEC-MAN", "role": "bounty",
 		"color": Color(0.30, 0.40, 0.55),
 		"greet": "Bridger: 'Got a lurker problem by the water point. 25 jack for its head.'",
@@ -31,6 +34,9 @@ const PRICES: Dictionary = {
 	"bandage": 12, "meat": 6, "9mm": 1, "12ga": 2, "grenade": 18, "scrap": 4,
 	"wrench": 10, "machete": 25, "pistol": 40, "shotgun": 60, "rocket": 15,
 	"pipe_rocket": 75, "eyepatch": 8, "drone": 55,
+	"medkit": 30, "painkillers": 10, "water": 5, "coffee": 7, "canned_food": 8,
+	"whiskey": 14, "jerry_can": 22, "car_parts": 28, "tire_kit": 16,
+	"duct_tape": 6, "flare": 5, "map_fragment": 20,
 }
 
 var archetype: String = "trader"

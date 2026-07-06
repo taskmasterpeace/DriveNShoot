@@ -167,7 +167,8 @@ func _ready() -> void:
 	# A supply chest inside the safehouse — same interface as every trunk.
 	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
-	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1})
+	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "jack": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
+		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -1089,11 +1090,149 @@ func use_item(id: String) -> bool:
 				return true
 			notify("No wound to bandage")
 			return false
+		"medkit":
+			bleeding = 0
+			hud.set_condition("hurt", 0)
+			for part in character.body:
+				character.treat(part, 25.0)
+			notify("⛑️ Patched up head to toe (cap %d)" % int(character.hp_cap()))
+			return true
+		"painkillers":
+			var part := character.worst_part()
+			if part != "":
+				character.treat(part, 12.0)
+			stress = maxf(0.0, stress - 8.0)
+			notify("💊 The edge comes off")
+			return true
 		"meat":
 			stress = maxf(0.0, stress - 18.0)
 			notify("Ate — nerves settle")
 			return true
+		"canned_food":
+			var part := character.worst_part()
+			if part != "":
+				character.treat(part, 10.0)
+			stress = maxf(0.0, stress - 10.0)
+			notify("🥫 A hot meal. Things feel possible")
+			return true
+		"water":
+			player.stamina = player.max_stamina
+			stress = maxf(0.0, stress - 6.0)
+			notify("💧 Cold and clean — legs come back")
+			return true
+		"coffee":
+			player.stamina = minf(player.max_stamina, player.stamina + 40.0)
+			stress = maxf(0.0, stress - 15.0)
+			notify("☕ Awake now")
+			return true
+		"whiskey":
+			stress = maxf(0.0, stress - 30.0)
+			character.body["torso"].damage(4.0)
+			notify("🥃 Warm all the way down. The liver objects")
+			return true
+		"jerry_can":
+			var rig := _rig_in_reach()
+			if rig == null:
+				notify("No rig in reach for the fuel")
+				return false
+			rig.fuel = minf(100.0, rig.fuel + 40.0)
+			notify("🛢️ Fueled the %s (%d%%)" % [rig.display_name, int(rig.fuel)])
+			return true
+		"car_parts":
+			var rig := _rig_in_reach()
+			if rig == null:
+				notify("No rig in reach to fix")
+				return false
+			var worst := ""
+			var worst_r := 1.1
+			for cid in rig.components:
+				if rig.components[cid].ratio() < worst_r:
+					worst_r = rig.components[cid].ratio()
+					worst = cid
+			if worst == "" or worst_r >= 1.0:
+				notify("The %s doesn't need parts" % rig.display_name)
+				return false
+			rig.components[worst].restore(35.0)
+			character.add_xp("mechanics", 14.0)
+			notify("⚙️ Rebuilt the %s's %s" % [rig.display_name, worst.replace("_", " ")])
+			return true
+		"tire_kit":
+			var rig := _rig_in_reach()
+			if rig == null:
+				notify("No rig in reach to fix")
+				return false
+			if rig.components["tires"].ratio() >= 1.0:
+				notify("Those tires are fine")
+				return false
+			rig.components["tires"].restore(50.0)
+			character.add_xp("mechanics", 8.0)
+			notify("🛞 Patched the %s's rubber" % rig.display_name)
+			return true
+		"duct_tape":
+			var rig := _rig_in_reach()
+			if rig == null:
+				notify("No rig in reach to tape")
+				return false
+			rig.components["chassis"].restore(12.0)
+			notify("🧷 Taped. It'll hold. Probably")
+			return true
+		"flare":
+			var flare := Node3D.new()
+			flare.add_to_group("flare_light")
+			var lamp := OmniLight3D.new()
+			lamp.light_color = Color(1.0, 0.28, 0.12)
+			lamp.light_energy = 3.4
+			lamp.omni_range = 22.0
+			flare.add_child(lamp)
+			var core := MeshInstance3D.new()
+			var cm := BoxMesh.new()
+			cm.size = Vector3(0.12, 0.1, 0.12)
+			core.mesh = cm
+			core.material_override = ProtoWorldBuilder.material(Color(1.0, 0.3, 0.12), 0.2, true)
+			flare.add_child(core)
+			add_child(flare)
+			flare.global_position = player.global_position + player.facing() * 1.2 + Vector3(0, 0.1, 0)
+			var timer := get_tree().create_timer(30.0)
+			timer.timeout.connect(func() -> void:
+				if is_instance_valid(flare):
+					flare.queue_free())
+			notify("🚨 Flare down — 30 seconds of light")
+			return true
+		"map_fragment":
+			var um: ProtoUSMap = ProtoWorldBuilder.usmap
+			if um == null or not um.ok or um.towns.is_empty():
+				notify("The fragment is illegible")
+				return false
+			var town: Dictionary = um.towns[randi() % um.towns.size()]
+			var tp: Vector2 = town["pos"]
+			var ccx := int(floor(tp.x / ProtoWorldStream.CHUNK))
+			var ccz := int(floor(tp.y / ProtoWorldStream.CHUNK))
+			for dx in range(-3, 4):
+				for dz in range(-3, 4):
+					stream.visited["%d,%d" % [ccx + dx, ccz + dz]] = \
+						Vector2((ccx + dx + 0.5) * ProtoWorldStream.CHUNK, (ccz + dz + 0.5) * ProtoWorldStream.CHUNK)
+			notify("🗺️ %s marked on your map (M)" % town["name"])
+			return true
 	return false
+
+
+## The rig your hands can reach: the one you're driving, or the nearest live
+## vehicle within a wrench's walk (fuel/parts/tape route through this).
+func _rig_in_reach() -> ProtoCar3D:
+	if mode == Mode.DRIVE and active_car != null:
+		return active_car
+	var best: ProtoCar3D = null
+	var best_d := 10.0
+	for node in get_tree().get_nodes_in_group("interactable"):
+		if node is ProtoCar3D:
+			var car := node as ProtoCar3D
+			if car.dead or car.vclass == "trailer":
+				continue
+			var d := car.global_position.distance_to(player.global_position)
+			if d < best_d:
+				best_d = d
+				best = car
+	return best
 
 
 # --- Firing (COMBAT_AND_GEAR: aim is intent, shots fly the rolled vector) -----

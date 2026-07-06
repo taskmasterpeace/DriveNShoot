@@ -243,7 +243,22 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		chunk.add_child(l)
 		l.position = center + Vector3(rng.randf_range(-50, 50), 0.4, rng.randf_range(-50, 50))
 	if rng.randf() < 0.12:
-		var c := ProtoChest.create("Cache", {"scrap": rng.randi_range(1, 3), "9mm": rng.randi_range(4, 10), "bandage": 1 if rng.randf() < 0.5 else 0})
+		var cache: Dictionary = {"scrap": rng.randi_range(1, 3), "9mm": rng.randi_range(4, 10), "bandage": 1 if rng.randf() < 0.5 else 0}
+		# The land flavors the loot: farms feed you, ruins tool you up, the road provides.
+		match biome:
+			"farmland":
+				cache["canned_food"] = rng.randi_range(1, 2)
+				if rng.randf() < 0.3:
+					cache["water"] = 1
+			"urban":
+				if rng.randf() < 0.4:
+					cache[["duct_tape", "painkillers", "map_fragment"][rng.randi() % 3]] = 1
+			_:
+				if rng.randf() < 0.25:
+					cache[["water", "coffee", "flare", "tire_kit", "whiskey"][rng.randi() % 5]] = 1
+		if near_road and rng.randf() < 0.25:
+			cache["jerry_can"] = 1
+		var c := ProtoChest.create("Cache", cache)
 		chunk.add_child(c)
 		c.position = center + Vector3(rng.randf_range(-45, 45), 0.05, rng.randf_range(-45, 45))
 	return chunk

@@ -85,7 +85,16 @@ Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
 Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for headless/sims:
 `C:\Users\taskm\Downloads\projects\Godot\Godot_v4.5.1-stable_win64_console.exe`.
 
-**SHIPPED & sim-proven (Stages 0–8 slices + extras), 30 test suites all green:**
+**SHIPPED & sim-proven (Stages 0–8 slices + extras), 31 test suites all green:**
+- **THE PACK IS A KIT (items_sim 17/17, 2026-07-05):** catalog 15→27 items, every row
+  cat+desc+price (data discipline sim-enforced). New: ⛑️ medkit (treats EVERY part),
+  💊 painkillers, 💧 canteen (stamina), ☕ coffee, 🥃 whiskey (stress −30, torso pays),
+  🥫 beans, 🛢️ jerry can (+40 fuel to a rig in reach), ⚙️ car parts (field-rebuild worst
+  component, +Mechanics xp), 🛞 tire kit, 🧷 duct tape, 🚨 flare (30 s of light at night),
+  🗺️ map fragment (marks a random town's chunks on YOUR fog map — cartography loot v0).
+  Panel QoL: **category headers** (WEAPONS/AMMO/MEDS/FOOD/TOOLS/LOOT), tooltips on every
+  row, load line reads real CARRY_CAP and flags 🐢 OVERLOADED in red. Mercy stocks the
+  goods; biome-flavored caches (farms feed you, ruins tool you, roadside = jerry cans).
 - **STAGE 5 v2 — THE COMPRESSED USA (map_sim 31/31, 2026-07-05):** the country is DATA:
   `game/data/usmap.json` — **60× scale law** (4 real h = 4 real min; 150×85 cells of 500 m =
   75×42.5 km), regional biomes like real America (farmland belts, forests, desert SW, Rockies,
@@ -224,6 +233,14 @@ check is guarded) — sample values per-frame into locals; never format a possib
 
 ---
 ### History (newest first)
+**2026-07-05 (inventory expansion + panel QoL):** items_sim 17/17 ×1; container/town/
+walkthrough/stage3/drone/stage7/map all green after. 12 new items wired through EXISTING
+systems (fuel, car Damageable.restore, character.treat, stress, stamina, a timed
+OmniLight, stream.visited) — `_rig_in_reach()` (active car or nearest live rig ≤10 m)
+powers the garage-in-a-bag trio. Panel groups by `cat` with headers + tooltips (`desc`)
++ honest CARRY_CAP load line. Catalog/price/stock integrity is sim-enforced (every item
+has cat+desc+PRICES row). NEXT unchanged: exits→towns, per-chunk persistence, Stage 6.
+
 **2026-07-05 (STAGE 5 v2 — the compressed USA + MapForge + the bike stands):** map_sim 31/31,
 stage5_sim 10/10 (updated for real states + 3-press map cycle), bike_sim 8/8 (new), regression
 battery green (m1/walkthrough/drive/vehicles/dog/town/life/aim), clean headless boot. Scale law

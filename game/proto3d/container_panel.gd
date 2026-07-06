@@ -133,41 +133,64 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 		child.queue_free()
 	if from == null:
 		return
-	var ids: Array = from.slots.keys()
-	ids.sort()
-	for id in ids:
-		var info: Dictionary = ProtoContainer.ITEMS.get(id, {"name": id, "emoji": "❔", "usable": false, "w": 0.5})
-		var row := HBoxContainer.new()
-		box.add_child(row)
-		var btn := Button.new()
-		btn.add_theme_font_override("font", ProtoHUD.mixed_font())
-		var n := from.count(id)
-		btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
-		if _merchant != null and id != "jack" and _main and _main.has_method("trade_price"):
-			btn.text += "  🪙%d" % _main.trade_price(id, mine_side) # sell price on your side, buy on theirs
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.pressed.connect(_on_move.bind(from, to, id))
-		row.add_child(btn)
-		if mine_side and info["usable"]:
-			var use := Button.new()
-			use.add_theme_font_override("font", ProtoHUD.mixed_font())
-			use.text = "USE"
-			use.pressed.connect(_on_use.bind(from, id))
-			row.add_child(use)
-		if mine_side:
-			if to != null: # a trunk/chest is open — explicit STORE (playtest ask)
-				var store := Button.new()
-				store.add_theme_font_override("font", ProtoHUD.mixed_font())
-				store.text = "SELL ≫" if _merchant != null else "STORE ≫"
-				store.pressed.connect(_on_move.bind(from, to, id))
-				row.add_child(store)
-			var drop := Button.new()
-			drop.add_theme_font_override("font", ProtoHUD.mixed_font())
-			drop.text = "DROP"
-			drop.pressed.connect(_on_drop.bind(from, id))
-			row.add_child(drop)
+	# Group by category (weapons → ammo → meds → food → tools → loot) with headers —
+	# a full pack reads like a kit list, not a junk drawer.
+	var by_cat: Dictionary = {}
+	for id in from.slots.keys():
+		var cat: String = ProtoContainer.ITEMS.get(id, {}).get("cat", "loot")
+		if not by_cat.has(cat):
+			by_cat[cat] = []
+		by_cat[cat].append(id)
+	for cat in ProtoContainer.CAT_ORDER:
+		if not by_cat.has(cat):
+			continue
+		var header := Label.new()
+		header.add_theme_font_override("font", ProtoHUD.mixed_font())
+		header.add_theme_font_size_override("font_size", 12)
+		header.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2, 0.85))
+		header.text = "— %s —" % ProtoContainer.CAT_LABEL.get(cat, cat.to_upper())
+		box.add_child(header)
+		var ids: Array = by_cat[cat]
+		ids.sort()
+		for id in ids:
+			var info: Dictionary = ProtoContainer.ITEMS.get(id, {"name": id, "emoji": "❔", "usable": false, "w": 0.5})
+			var row := HBoxContainer.new()
+			box.add_child(row)
+			var btn := Button.new()
+			btn.add_theme_font_override("font", ProtoHUD.mixed_font())
+			var n := from.count(id)
+			btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
+			btn.tooltip_text = String(info.get("desc", ""))
+			if _merchant != null and id != "jack" and _main and _main.has_method("trade_price"):
+				btn.text += "  🪙%d" % _main.trade_price(id, mine_side) # sell price on your side, buy on theirs
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.pressed.connect(_on_move.bind(from, to, id))
+			row.add_child(btn)
+			if mine_side and info["usable"]:
+				var use := Button.new()
+				use.add_theme_font_override("font", ProtoHUD.mixed_font())
+				use.text = "USE"
+				use.tooltip_text = String(info.get("desc", ""))
+				use.pressed.connect(_on_use.bind(from, id))
+				row.add_child(use)
+			if mine_side:
+				if to != null: # a trunk/chest is open — explicit STORE (playtest ask)
+					var store := Button.new()
+					store.add_theme_font_override("font", ProtoHUD.mixed_font())
+					store.text = "SELL ≫" if _merchant != null else "STORE ≫"
+					store.pressed.connect(_on_move.bind(from, to, id))
+					row.add_child(store)
+				var drop := Button.new()
+				drop.add_theme_font_override("font", ProtoHUD.mixed_font())
+				drop.text = "DROP"
+				drop.pressed.connect(_on_drop.bind(from, id))
+				row.add_child(drop)
 	if mine_side and _load_label and from != null:
-		_load_label.text = "🎒 load %.1f / %.0f kg" % [from.total_weight(), 32.0]
+		var cap: float = _main.CARRY_CAP if (_main != null and "CARRY_CAP" in _main) else 32.0
+		var load := from.total_weight()
+		_load_label.text = "🎒 load %.1f / %.0f kg%s" % [load, cap, "  — 🐢 OVERLOADED" if load > cap else ""]
+		_load_label.add_theme_color_override("font_color",
+			Color(0.9, 0.3, 0.2) if load > cap else Color(0.96, 0.72, 0.2))
 
 
 func _on_drop(from: ProtoContainer, id: String) -> void:
