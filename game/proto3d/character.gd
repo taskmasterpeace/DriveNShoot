@@ -332,7 +332,7 @@ func to_record() -> Dictionary:
 	var sk: Dictionary = {}
 	for id in skills:
 		sk[id] = {"xp": skills[id]["xp"], "level": skills[id]["level"]}
-	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead}
+	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead, "hunger": hunger}
 
 
 func from_record(rec: Dictionary) -> void:
@@ -345,6 +345,7 @@ func from_record(rec: Dictionary) -> void:
 			skills[id]["level"] = int(rec["skills"][id]["level"])
 	dead = bool(rec.get("dead", false))
 	hp = clampf(float(rec.get("hp", 100.0)), 0.0, hp_cap())
+	hunger = clampf(float(rec.get("hunger", 100.0)), 0.0, 100.0) # was leaking — starving loaded back full
 
 
 func worst_part() -> String:

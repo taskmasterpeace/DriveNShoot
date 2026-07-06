@@ -63,6 +63,15 @@ func force(state_in: String, duration: float = 0.0) -> void:
 		_main.notify("%s %s — the sky turns on you" % [icon(), label()])
 
 
+## Silent restore from a save — set the sky back without the "turns on you" toast.
+func restore(state_in: String) -> void:
+	if not STATES.has(state_in):
+		return
+	state = state_in
+	ProtoWeather.grip_now = STATES[state]["grip"]
+	_t = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	_t += delta
 	ProtoWeather.grip_now = STATES[state]["grip"]

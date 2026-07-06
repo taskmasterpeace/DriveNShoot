@@ -2514,6 +2514,8 @@ func save_game() -> Dictionary:
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"objectives": objectives.to_record() if objectives != null else {},
 		"deaths": deaths,
+		"weather": weather.state if weather != null else "clear",
+		"event": {"today": events.today_event, "war": events.war_state} if events != null else {},
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
@@ -2572,6 +2574,12 @@ func apply_save(data: Dictionary) -> void:
 	if objectives != null:
 		objectives.from_record(data.get("objectives", {}))
 	deaths = int(data.get("deaths", 0))
+	if weather != null and data.has("weather"):
+		weather.restore(String(data["weather"])) # the sky you saved under
+	if events != null:
+		var ev: Dictionary = data.get("event", {})
+		events.today_event = String(ev.get("today", ""))
+		events.war_state = String(ev.get("war", "")) # an active war survives the reload
 	visited_states.clear()
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true

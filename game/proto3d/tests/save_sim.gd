@@ -50,6 +50,11 @@ func _ready() -> void:
 	main.character.take_wound("l_arm", 30.0)
 	main.character.hp = main.character.hp_cap()
 	var arm0: float = main.character.body["l_arm"].hp
+	# The formerly-LEAKING world state (HANDOFF §2b): hunger, weather, an active war.
+	main.character.hunger = 37.0
+	main.weather.force("dust", 999.0)
+	main.events.today_event = "state_at_war"
+	main.events.war_state = "TEXAS"
 
 	# --- SAVE, then WRECK everything -------------------------------------------------
 	main.save_game()
@@ -85,6 +90,10 @@ func _ready() -> void:
 	_check("the wound came back too (l_arm %.0f — saves don't heal you)" % main.character.body["l_arm"].hp,
 		absf(main.character.body["l_arm"].hp - arm0) < 0.01)
 	_check("THE CIRCUIT came back (scavenge ✓)", main.circuit_beats["scavenge"])
+	# The leaks are plugged: hunger, weather, and the war all survive the reload.
+	_check("HUNGER came back (%.0f — no longer loads full)" % main.character.hunger, absf(main.character.hunger - 37.0) < 0.5)
+	_check("the WEATHER came back (dust, not clear)", main.weather.state == "dust")
+	_check("the WAR came back (%s)" % main.events.war_state, main.events.war_state == "TEXAS" and main.events.today_event == "state_at_war")
 	main.load_game() # double-load: no duplicate benches/dogs
 	for _i in 3:
 		await get_tree().physics_frame # queue_free clears at frame end
