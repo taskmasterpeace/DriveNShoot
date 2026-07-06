@@ -2525,6 +2525,7 @@ func save_game() -> Dictionary:
 		"weather": weather.state if weather != null else "clear",
 		"event": {"today": events.today_event, "war": events.war_state} if events != null else {},
 		"crew": _crew_records(),
+		"metaworld": metaworld.records.duplicate(true) if metaworld != null else [],
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
@@ -2589,6 +2590,8 @@ func apply_save(data: Dictionary) -> void:
 		var ev: Dictionary = data.get("event", {})
 		events.today_event = String(ev.get("today", ""))
 		events.war_state = String(ev.get("war", "")) # an active war survives the reload
+	if metaworld != null:
+		metaworld.records = (data.get("metaworld", []) as Array).duplicate(true) # a dog left GUARDING off-screen persists
 	visited_states.clear()
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true

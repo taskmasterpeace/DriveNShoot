@@ -61,6 +61,12 @@ func _ready() -> void:
 	sam.global_position = main.player.global_position + Vector3(3, 0.2, 0)
 	sam.hp = 44.0
 	main.companions.append(sam)
+	# METAWORLD: a dog dehydrated off-screen (left guarding) — its record must persist.
+	var ghost := ProtoDog.create(ProtoDog.DogType.SECURITY, "Ghost", "Shepherd")
+	main.add_child(ghost)
+	ghost.adopted = true
+	main.metaworld.dehydrate(ghost)
+	var meta0: int = main.metaworld.records.size()
 
 	# --- SAVE, then WRECK everything -------------------------------------------------
 	main.save_game()
@@ -107,6 +113,8 @@ func _ready() -> void:
 			sam_back = c
 	_check("the CREW came back (Sam re-hired, %.0f hp)" % (sam_back.hp if sam_back else -1.0),
 		sam_back != null and absf(sam_back.hp - 44.0) < 0.5 and main.companions.size() == 1)
+	_check("the METAWORLD record came back (%d off-screen dog)" % main.metaworld.records.size(),
+		main.metaworld.records.size() == meta0 and meta0 >= 1)
 	main.load_game() # double-load: no duplicate benches/dogs
 	for _i in 3:
 		await get_tree().physics_frame # queue_free clears at frame end
