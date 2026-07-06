@@ -5,3 +5,4 @@ unity/
 # Secrets — never commit API keys
 .env
 tools/soundforge/.env
+game/data/laptimes.json
