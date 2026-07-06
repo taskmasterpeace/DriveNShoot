@@ -2062,6 +2062,8 @@ func _sheet_text() -> String:
 			lines.append("🎠 0 / %d nodes — find a base, haul POWER to the ring, hold the SPIN-UP" % carousel.data.get("bases", []).size())
 		else:
 			lines.append("🎠 %d / %d nodes LIT: %s (jump costs a 🔋 power cell)" % [lit.size(), carousel.data.get("bases", []).size(), ", ".join(lit)])
+		for sid in carousel.any_under_siege():
+			lines.append("⚠️ %s UNDER SIEGE — reach it by DAY %d or lose it" % [carousel.base_row(sid)["name"], carousel.gates[sid].siege_deadline_day])
 
 	var taxes: Array = []
 	if character.limp_side() != "":
@@ -2205,6 +2207,14 @@ func reload_content() -> Dictionary:
 const SAVE_PATH := "user://drivn.save"
 
 
+func _siege_records() -> Dictionary:
+	var out: Dictionary = {}
+	for gid in carousel.gates:
+		if carousel.gates[gid].under_siege:
+			out[gid] = carousel.gates[gid].siege_deadline_day
+	return out
+
+
 func _garage_records() -> Dictionary:
 	var out: Dictionary = {}
 	for gid in carousel.gates:
@@ -2229,6 +2239,7 @@ func save_game() -> Dictionary:
 		"respect": respect.ledger.duplicate(true),
 		"carousel": carousel.active.keys(),
 		"garages": _garage_records(),
+		"sieges": _siege_records(),
 		"homebase": homebase.owned.keys(),
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"visited": visited_states.keys(),
@@ -2270,6 +2281,11 @@ func apply_save(data: Dictionary) -> void:
 	for gid in gj:
 		if carousel.gates.has(String(gid)):
 			carousel.gates[String(gid)].garage = (gj[gid] as Array).duplicate(true)
+	for sid in data.get("sieges", {}):
+		if carousel.gates.has(String(sid)):
+			var g = carousel.gates[String(sid)]
+			g.begin_siege(1)
+			g.siege_deadline_day = int(data["sieges"][sid])
 	homebase.restore(data.get("homebase", []))
 	var circ: Dictionary = data.get("circuit", {})
 	circuit_level = int(circ.get("level", 1))

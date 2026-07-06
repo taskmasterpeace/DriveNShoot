@@ -625,7 +625,10 @@ func _draw_country() -> void:
 		for b in _main.carousel.data.get("bases", []):
 			var gp := org + (Vector2(float(b["pos"][0]), float(b["pos"][1])) - bounds.position) * px
 			var lit: bool = _main.carousel.active.get(b["id"], false)
-			_map_canvas.draw_circle(gp, 3.0, Color(0.3, 0.85, 0.75) if lit else Color(0.22, 0.30, 0.31))
+			var sieged: bool = _main.carousel.gates.has(b["id"]) and _main.carousel.gates[b["id"]].under_siege
+			_map_canvas.draw_circle(gp, 3.0, Color(0.95, 0.2, 0.12) if sieged else (Color(0.3, 0.85, 0.75) if lit else Color(0.22, 0.30, 0.31)))
+			if sieged: # a fat alarm ring — you see the node in trouble from across the country
+				_map_canvas.draw_arc(gp, 7.0, 0.0, TAU, 16, Color(0.95, 0.2, 0.12), 2.0)
 			if lit:
 				_map_canvas.draw_arc(gp, 5.5, 0.0, TAU, 14, Color(0.3, 0.85, 0.75), 1.2)
 				_map_canvas.draw_string(ThemeDB.fallback_font, gp + Vector2(6, 3), String(b["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.55, 0.9, 0.82))

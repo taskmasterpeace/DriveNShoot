@@ -28,6 +28,11 @@ func _physics_process(_delta: float) -> void:
 
 ## Deterministic: hash(day) picks. Sims call this directly with a chosen day.
 func roll_daily(day: int) -> String:
+	# RING EVENTS ride the calendar too: every few days the ring bites back and
+	# one of your lit nodes comes under SIEGE (never your first — that's home).
+	if _main.carousel != null and day % 4 == 0 and _main.carousel.any_under_siege().is_empty():
+		_main.carousel.rng.seed = hash("siege:%d" % day)
+		_main.carousel.besiege_random(2)
 	# The WEEKLY beat: every 7th day a state goes to WAR.
 	if day % 7 == 0:
 		war_state = WAR_STATES[hash(day) % WAR_STATES.size()]

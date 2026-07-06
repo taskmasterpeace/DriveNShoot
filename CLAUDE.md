@@ -35,7 +35,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Weather | `weather.gd` | dust kills the cone, rain kills grip, heat cooks engines — biome-weighted |
 | Day/night | `daynight.gd` | 24-min days, moon = night floor, T-wait sprint, `dev_mult` |
 | Radio | `radio.gd` | Y scans: distress caches, trade runs, howler warnings, lore; night-weighted |
-| Carousel | `carousel.gd` + `data/carousel.json` | 10 DUNGEON bases (occupiers wake on approach); power/codes/purge ladder; PAIR→ROULETTE→THE DIAL; NODE GARAGES (jump stores/delivers rigs); flesh not steel |
+| Carousel | `carousel.gd` + `data/carousel.json` | 10 DUNGEON bases (occupiers wake on approach); power/codes/purge ladder; PAIR→ROULETTE→THE DIAL; NODE GARAGES; RING EVENTS (nodes besieged — relieve or lose); flesh not steel |
 | Events | `events.gd` | deterministic daily roll: caravan / blood moon / STATE AT WAR (weekly) |
 | Rulers | `data/rulers.json` | states react to standing at the border: bounty hunters vs hero's welcome |
 | THE CIRCUIT | `proto3d.gd` | the named loop: scavenge→upgrade→push→node; HUD pips; cycle payoff |
@@ -58,7 +58,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 ## ✅ Testing (the iron rule)
 
 **Headless sims must exercise the REAL path — inputs, never teleports** (staging positions is the documented exception).
-58 sims in `game/proto3d/tests/` (full suite green). Run one:
+59 sims in `game/proto3d/tests/` (full suite green). Run one:
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```

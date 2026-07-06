@@ -98,6 +98,28 @@ func pick_destination(from_id: String) -> String:
 	return actives[rng.randi() % actives.size()]
 
 
+## RING EVENTS: besiege a lit node (never one already under siege). Your FIRST
+## node is a safe haven — the ring only bites once you've built a network.
+func besiege_random(days: int) -> String:
+	var lit: Array = []
+	for id in active:
+		if active[id] and gates.has(id) and not gates[id].under_siege:
+			lit.append(id)
+	if lit.size() < 2:
+		return ""
+	var target: String = lit[rng.randi() % lit.size()]
+	gates[target].begin_siege(days)
+	return target
+
+
+func any_under_siege() -> Array:
+	var out: Array = []
+	for id in gates:
+		if gates[id].under_siege:
+			out.append(id)
+	return out
+
+
 ## The JUMP: flesh, not steel. Costs cells, lands with jump sickness. The car —
 ## and everything in its trunk — stays exactly where you left it.
 func jump(from_id: String) -> bool:
@@ -194,6 +216,11 @@ class ProtoGate:
 	var occupiers: Array = []
 	var _spawned: bool = false
 	var garage: Array = [] ## stored rig records (jump-out parks, jump-in delivers)
+	## RING EVENTS: a lit node the world wants back. Relieve it in time or it goes
+	## dormant — the Carousel is not a trophy shelf, it's a front line.
+	var under_siege: bool = false
+	var siege_deadline_day: int = 0
+	var siege_attackers: Array = []
 
 	static func create(c: ProtoCarousel, row_in: Dictionary) -> ProtoGate:
 		var g := ProtoGate.new()
@@ -238,11 +265,13 @@ class ProtoGate:
 
 	func refresh_visual() -> void:
 		var col := Color(0.25, 0.28, 0.3) # dormant: dead metal
-		if state == "spinup":
+		if under_siege:
+			col = Color(0.95, 0.2, 0.12) # SIEGE: alarm red
+		elif state == "spinup":
 			col = Color(0.95, 0.55, 0.15) # boot: burning amber
 		elif state == "active":
 			col = Color(0.3, 0.85, 0.75) # live: carousel teal
-		_ring.material_override = ProtoWorldBuilder.material(col, 0.4, state != "dormant")
+		_ring.material_override = ProtoWorldBuilder.material(col, 0.4, state != "dormant" or under_siege)
 
 	func interact_position() -> Vector3:
 		return global_position
@@ -341,12 +370,65 @@ class ProtoGate:
 		main.notify("🎠 %s SPINS UP — every ear in the county just turned this way" % row["name"])
 		main.spawn_howler_pack(global_position + Vector3(30, 0, 30), 2)
 
+	## Begin a SIEGE: attackers ring the gate, a game-day clock starts. Reach it
+	## and clear them to relieve it; let the clock run out and the node falls.
+	func begin_siege(days: int) -> void:
+		if state != "active" or under_siege:
+			return
+		under_siege = true
+		siege_deadline_day = carousel._main.daynight.day + days
+		refresh_visual()
+		var m: Node = carousel._main
+		var atk := 3
+		siege_attackers.clear()
+		var before: int = m.howlers.size()
+		m.spawn_howler_pack(global_position + Vector3(24, 0, 18), atk)
+		for i in range(before, m.howlers.size()):
+			siege_attackers.append(m.howlers[i])
+		m.notify("📻 ⚠️ %s IS UNDER SIEGE — reach it by DAY %d or the node falls" % [row["name"], siege_deadline_day])
+		if "audio" in m and m.audio:
+			m.audio.play_ui("vo_radio_war", -4.0)
+
+
+	func _living_attackers() -> int:
+		var n := 0
+		for a in siege_attackers:
+			if a != null and is_instance_valid(a) and not a.get("dead"):
+				n += 1
+		return n
+
+
+	func _lose_node() -> void:
+		under_siege = false
+		state = "dormant"
+		fed = 0
+		_spawned = false
+		objectives_left = (row.get("objectives", ["power"]) as Array).duplicate()
+		carousel.active.erase(row["id"])
+		refresh_visual()
+		var m: Node = carousel._main
+		m.stress = minf(100.0, m.stress + 30.0)
+		m.notify("🎠💀 %s HAS FALLEN — the ring goes dark there. Take it back." % row["name"])
+
+
 	## THE APPROACH: get within 130 m of a dormant base and its OCCUPIER wakes up.
 	func _physics_process(delta: float) -> void:
 		if not _spawned and state == "dormant" and carousel._main != null \
 				and carousel._main.player != null \
 				and global_position.distance_to(carousel._main.player.global_position) < 130.0:
 			_spawn_occupation(carousel._main)
+		# SIEGE resolution: relieved when you reach the gate and the attackers are
+		# down; lost when the deadline passes with the node still surrounded.
+		if under_siege:
+			var pl: Node3D = carousel._main.player
+			var here: bool = pl != null and pl.global_position.distance_to(global_position) < 60.0
+			if here and _living_attackers() == 0:
+				under_siege = false
+				siege_attackers.clear()
+				refresh_visual()
+				carousel._main.notify("🎠 %s RELIEVED — you held the line. The node stays yours." % row["name"])
+			elif carousel._main.daynight.day >= siege_deadline_day:
+				_lose_node()
 		if state != "spinup":
 			return
 		_spin_t -= delta
