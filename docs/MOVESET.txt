@@ -1,0 +1,69 @@
+SPEC A — THE MOVESET (what your body & your dogs can do)
+Design law for DRIVN: every movement verb must feed an existing system (the sight cone, cover, vehicles, co-op, loot, stamina) — not just be an animation. You already have dive/shootdodge, sprint, handbrake, seat-boarding, binoculars.
+
+KEYBINDING PRINCIPLE (decided)
+The keyboard is already near-full, and the real constraint isn't free keys — it's cognitive load. Nobody wants to memorize a pile of new binds. So new verbs are CONTEXTUAL or AUTOMATIC wherever possible: one key does the right thing based on what you're near (you already do this with C tap-counts and E driver/passenger). Only ONE new dedicated key in the whole plan: CTRL (crouch). Everything else stacks onto keys you already press.
+Camera note: DRIVN is top-down 3D — verbs borrowed from over-the-shoulder cover shooters (lean/peek) lose most of their value from above, so they're cut, not parked.
+Evade: no separate roll. The existing SPACE dive is your one evade — and it doubles as your prone entry (dive → land low).
+
+THE LIVE SET (build these — cheap, each rides an existing system)
+Verb	Binding	Feeds which system	Effort
+Crouch (one low stance)	HOLD CTRL	smaller silhouette + quieter → the vision cone sees you later; this IS the old "prone" merged in (the dive already gives a prone landing)	M
+Slide	SHIFT-sprint → tap CTRL	free once crouch exists; slide into cover / under a low gap	S
+Punch / strike (unarmed base)	TAP melee (empty hands)	your basic attack, does damage — jab→jab→cross; grows via the Martial Arts skill below	S
+Shove / push	HOLD melee	knockback, create space (peel a howler off you, clear a doorway) — utility, low damage	S
+Sprint-tackle	SHIFT + melee	a gap-closer that ends in a KNOCKDOWN — THEY hit the ground, you stay up; opens a stomp/finish window	S–M
+Grab & drag	HOLD E on a downed buddy / body / loot crate	co-op revive + looting	M
+Wade / swim (one water state)	AUTOMATIC by depth — no key	the map's water + grip; shallow = slow wade, deep = swim/drown — adds real terrain stakes	M
+
+UNARMED & MARTIAL ARTS (a skill, not just a verb)
+Punch is the floor. The ceiling is a MARTIAL ARTS skill in the level-by-doing set (character.gd's skills) — the more you fight bare-handed, the more the kit opens. Every unlock is a procedural-rig motion (arcs + params), so it's a clean MotionForge job list. Feeds combat + the skill system + Respect (beating people with your hands is its own reputation).
+Tier 1 (start)	Punch combo — jab → jab → cross.
+Tier 2	Kicks — front kick + roundhouse fold into the combo; more damage, more reach.
+Tier 3	Throws & disarms — grab an enemy and throw them (into others / off a ledge / down = knockdown); rip a weapon out of their hands.
+Tier 4	Counters & finishers — parry an incoming melee into a counter; ground-and-pound / finisher on a downed enemy (pairs with the tackle's down window).
+All of it rides the ONE melee button (tap punch / hold shove / sprint tackle) — leveling changes what those inputs DO, not how many keys you press.
+
+Quadruped verbs (your dogs) — ZERO new keys (they ride the C command stack + AI autonomy)
+Dogs are the emotional core. The rig is procedural, so each of these is an arc + a leg/tail pose param, not a keyframe clip.
+Verb	Trigger	Feeds
+JUMP (do this first)	AUTOMATIC — the dog leaps a gap / over a fence / into the moving truck bed whenever it's following you and hits one	your "quadrupeds need to jump" ask; the single best "I love my dog" moment you can add
+POUNCE / lunge bite	it's what SIC already does at range — a leaping-tackle animation, not a new command	combat reads; the threat system
+DIG	contextual prompt near buried loot / a grave with a Hunter dog	you already have DogGrave + bury
+SCRAMBLE / CRAWL / SWIM	AI autonomy — the dog follows you through low gaps and across water on its own	scouting; the nose; the water terrain
+
+PARKED (good ideas, but each needs a system we haven't built — revisit later)
+- Mantle / climb onto a roof — needs roof-standable geometry + the roof-as-perch / drone-launchpad system. Park until roofs are a place you go.
+- Board the moving rig — needs catch-a-moving-vehicle handling on top of the bed seat-anchors. Park until we want the "hang off the back and lay down fire" co-op beat.
+- Vault / hood-slide — traversal polish; no system depends on it. Backlog.
+Why parked ≠ dead: each stays contextual/automatic when it comes back (sprint at a ledge → climb; sprint at a moving bed → grab on). No keys are reserved now.
+
+SPEC B — MOTIONFORGE (the character/animation editor)
+The key realization that makes this actually work: DRIVN's animation is procedural — a sin()-driven box rig (ProtoPuppet / the quadruped) fed parameter rows (stride, arm-swing, lean, head-dip-for-sniff, limp asymmetry, flinch, death-flop). It is not keyframed clips. That changes everything:
+
+AI-edit-by-description is genuinely feasible here — the AI edits a small set of named numbers with clear meaning (amplitude, frequency, phase, offset, part), not keyframes. It can even diagnose ("front legs too stiff = leg-swing amplitude too low").
+You never load the game — a standalone scene loads just the rig on a treadmill and plays the chosen motion, looping.
+It's the next Forge — same proven pattern as VehicleForge (:8898) / MapForge (:8899) / SoundForge: a web UI + REST API + live hot-reload into the engine.
+What it is
+A standalone tool: pick a rig (player puppet, or any creature — dog breeds, howler, lurker, motorist), pick a motion (idle / walk / run / sprint / sniff / alert / limp / flinch / death-flop / dog-jump / pounce / punch / kick / throw), and watch it loop on a turntable + treadmill with an orbit camera and a before/after split while you edit. No walking around the game to find an animal — you just watch this one thing.
+
+The three edit modes (your exact asks)
+Sliders & curves — direct human tuning: drag the tail-wag amplitude, the stride length, the sniff dip depth, the limp severity.
+Visual nudge — grab a part in the 3D view and move it to set its rest pose / pivot / the offset the sin() oscillates around. This is your "if I have to help with rigging by moving something visually" — and for a procedural rig it's setting an offset, which is tractable, not full IK rigging.
+Describe-it (AI via API) — "the sniff should dip the head lower and slower" · "the run looks buggy — front legs too stiff, loosen them" · "make the roundhouse chamber higher before it extends." The AI calls the MotionForge REST API, patches the exact params, live-reloads, and you watch it change in seconds. Approve → it saves to the row.
+The API (matches your Forge pattern)
+GET /rigs · GET /motions · GET /rig/:id/motion/:m (current params)
+POST /rig/:id/motion/:m — patch params (the human/slider path)
+POST /describe — natural language → param diff (the AI endpoint; returns the change + a one-line rationale so you see why)
+WebSocket live-reload into the preview (and into a running game if one's open — you already have the FORGE live-reload button).
+The data model
+Motions are ROWS (motions.json or a per-creature motion profile) the engine reads at runtime. Editing a motion = editing a row = hot-reloads — same data-spine + live-reload you already have for vehicles. So "a new creature's walk" = a row, and "fix the buggy sniff" = a patched row, no rebuild.
+
+The buggy-animation loop (your scenario, concretely)
+See a bad walk → describe it or nudge it → AI patches the row via the API → live-reload → you eyeball it on the treadmill → approve → saved. Zero game loads, zero walking around. And a bonus: "generate a new motion from a description" ("a wounded crawl," "an exhausted stagger," "a spinning back kick") = the AI authors a fresh param set from scratch.
+
+Honest limits (so nobody's surprised)
+Procedural rigs have a fidelity ceiling — they won't match hand-keyframed AAA animation, but they're AI-editable, consistent, and infinitely tweakable by description, which is the trade DRIVN already chose (the box-puppet-fed-by-rows philosophy).
+If you ever want true keyframed clips, that's a separate Blender/glTF pipeline — MotionForge is for the procedural rig you have. (You could add glTF import later as a third motion type, but don't start there.)
+Why the two specs are one idea
+Spec A's new verbs each need a motion — and MotionForge (Spec B) is exactly how you'd author and de-bug those motions without loading the game or walking around. Build the editor and the moveset gets cheaper; build the moveset and the editor has a clear first job list: the live set (crouch, slide, punch, shove, sprint-tackle) plus the Martial Arts unlocks (kicks, throws, counters, finishers) and the dog verbs (jump, pounce, dig). The parked verbs (mantle, board-rig, vault) get their motions when their systems land.
