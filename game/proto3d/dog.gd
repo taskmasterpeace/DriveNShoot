@@ -244,6 +244,8 @@ func take_damage(amount: float) -> void:
 	hp = maxf(0.0, hp - amount)
 	if _quad:
 		_quad.flinch() # the hit reads on the body
+	if _main and "audio" in _main and _main.audio:
+		_main.audio.play_at("dog_whine", global_position, -8.0)
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.4, 0), "-%d" % int(amount), Color(0.9, 0.5, 0.4), 90)
 	if hp <= 0.0:
 		if _main and _main.has_method("notify"):

@@ -65,6 +65,11 @@ func noise_mult() -> float:
 	return 1.0 if _was_running else stealth_base
 var _was_running: bool = false
 
+
+## Am I sprinting right now? (soundscape hook: breath + louder feet)
+func sprinting() -> bool:
+	return _was_running
+
 var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
 var puppet: ProtoPuppet = null
 var _visual: Node3D

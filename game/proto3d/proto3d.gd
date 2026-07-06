@@ -75,6 +75,14 @@ var _wh_gap: float = 0.0
 var last_whistle: String = "" ## sim hook
 
 var audio: ProtoAudio = null
+## The SOUNDSCAPE (SoundForge wiring): feet on real surfaces, breath when you're
+## gassed, and an ambient bed that follows the biome and the clock.
+var _step_dist: float = 0.0
+var _snd_foot_state: ProtoPlayer3D.FootState = ProtoPlayer3D.FootState.NORMAL
+var _breath: AudioStreamPlayer = null
+var _amb: AudioStreamPlayer = null
+var _amb_id: String = ""
+var _amb_poll: float = 0.0
 ## YOUR engine is non-positional: camera zoom must never silence the machine
 ## under you (playtest). World sounds (fire, other cars later) stay 3D.
 var _engine_loop: AudioStreamPlayer = null
@@ -507,6 +515,7 @@ func _physics_process(delta: float) -> void:
 	sview.update_view(self)
 	_update_bounty()
 	_update_whistle(delta)
+	_update_soundscape(delta)
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
@@ -858,8 +867,100 @@ func _update_whistle(delta: float) -> void:
 			_wh_taps = 0
 
 
+## THE SOUNDSCAPE: dive thump on the commit, feet that speak the surface under
+## them, breath when you're gassed, and one ambient bed that follows biome+clock.
+func _update_soundscape(delta: float) -> void:
+	if audio == null or player == null:
+		return
+	# DIVE lands once, on the state transition.
+	if player.move_state != _snd_foot_state:
+		if player.move_state == ProtoPlayer3D.FootState.DIVE:
+			audio.play_at("dive", player.global_position, -10.0)
+		_snd_foot_state = player.move_state
+
+	# FOOTSTEPS: distance-driven (cadence tracks real speed); the surface picks
+	# the voice. Sprinting feet are louder — stealth already models the noise.
+	if mode == Mode.FOOT and player.is_on_floor() and player.move_state == ProtoPlayer3D.FootState.NORMAL:
+		var hspeed := Vector2(player.velocity.x, player.velocity.z).length()
+		if hspeed > 0.6:
+			_step_dist += hspeed * delta
+			if _step_dist >= 1.55:
+				_step_dist = 0.0
+				audio.play_at("footstep_" + _step_surface(), player.global_position,
+					-12.0 if player.sprinting() else -17.0)
+		else:
+			_step_dist = 0.0
+
+	# SPRINT BREATH: a private loop while running or badly gassed; fades out after.
+	var winded: bool = mode == Mode.FOOT \
+		and (player.sprinting() or player.stamina < player.max_stamina * 0.22)
+	if winded and _breath == null:
+		_breath = audio.attach_flat_loop("breath_sprint", -16.0)
+	elif not winded and _breath != null:
+		var old_b := _breath
+		_breath = null
+		var twb := old_b.create_tween()
+		twb.tween_property(old_b, "volume_db", -44.0, 0.7)
+		twb.tween_callback(old_b.queue_free)
+
+	# AMBIENT BED: crickets at night, murmur in town, the biome's voice elsewhere.
+	# Polled every few seconds; beds crossfade so the world never hard-cuts.
+	_amb_poll -= delta
+	if _amb_poll <= 0.0:
+		_amb_poll = 4.0
+		var want := _ambient_bed()
+		if want != _amb_id:
+			_amb_id = want
+			if _amb != null:
+				var old_a := _amb
+				_amb = null
+				var twa := old_a.create_tween()
+				twa.tween_property(old_a, "volume_db", -50.0, 1.4)
+				twa.tween_callback(old_a.queue_free)
+			if want != "":
+				_amb = audio.attach_flat_loop(want, -50.0)
+				var twi := _amb.create_tween()
+				twi.tween_property(_amb, "volume_db", -22.0, 1.8)
+
+
+## Which bed the moment calls for: night owns the dark, town owns Meridian,
+## the biome owns the rest.
+func _ambient_bed() -> String:
+	if daynight != null and daynight.is_dark():
+		return "amb_night"
+	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
+		return "amb_town" # Meridian's box (same rect the location label reads)
+	var biome: String = stream.biome_at(pos) if stream != null else "scrub"
+	match biome:
+		"desert": return "amb_desert"
+		"forest", "swamp": return "amb_forest"
+		"urban": return "amb_town"
+		_: return "amb_plains"
+
+
+## What's under your boots: interiors are wood, registered road rects asphalt,
+## the green biomes grass, and the wasteland default is dirt.
+func _step_surface() -> String:
+	if house != null and house.tracked_inside:
+		return "wood"
+	var pos := player.global_position
+	if ProtoWorldBuilder.surface_at(pos) == "road":
+		return "asphalt"
+	var biome: String = stream.biome_at(pos) if stream != null else "scrub"
+	if biome in ["forest", "plains", "farmland", "swamp"]:
+		return "grass"
+	return "dirt"
+
+
 func _dog_command(cmd: String) -> void:
 	last_whistle = cmd
+	# The whistle is YOURS — it sounds whether or not a dog is listening.
+	match cmd:
+		"heel": audio.play_ui("whistle_short", -6.0)
+		"guard": audio.play_ui("whistle_double", -6.0)
+		"seek": audio.play_ui("whistle_double", -6.0, 1.15) # same call, higher — "go find"
+		"sic": audio.play_ui("whistle_long", -6.0)
 	if dogs.is_empty():
 		return
 	match cmd:
@@ -1860,6 +1961,7 @@ func enter_car(car: ProtoCar3D) -> void:
 	mode = Mode.DRIVE
 	active_car = car
 	car.is_active = true
+	audio.play_at("car_door", car.global_position, -6.0)
 	# ⭐ Your DRIVING rides with you into any seat.
 	car.driver_control = character.drive_control()
 	car.driver_top = character.drive_top_mult()
@@ -1912,6 +2014,7 @@ func _exit_car() -> void:
 	if active_car == null:
 		return
 	_unboard_dogs(active_car)
+	audio.play_at("car_door", active_car.global_position, -6.0)
 	mode = Mode.FOOT
 	active_car.is_active = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.

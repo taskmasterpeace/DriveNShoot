@@ -104,6 +104,7 @@ const SKID_STEP := 0.35 ## drop a mark every this many meters of slide
 const SKID_LIFE := 12.0
 var _skids: Array = []
 var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
+var _skid_snd_cd: float = 0.0   ## screech cooldown — one cry per slide, not a siren
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
@@ -883,6 +884,14 @@ func _emit_skids() -> void:
 		if not sliding or absf(forward_speed) < 2.0:
 			continue
 		var cp: Vector3 = w.get_contact_point()
+		# The slide SPEAKS on asphalt (rubber screech, cooldown-gated); dirt hisses
+		# by not screeching at all — the surface is information.
+		_skid_snd_cd = maxf(0.0, _skid_snd_cd - get_physics_process_delta_time())
+		if _skid_snd_cd <= 0.0 and current_surface == "road" and absf(forward_speed) > 6.0:
+			_skid_snd_cd = 1.3
+			var m := get_tree().current_scene
+			if m != null and "audio" in m and m.audio:
+				m.audio.play_at("skid", global_position, -7.0)
 		if _skid_last.has(w) and cp.distance_to(_skid_last[w]) < SKID_STEP:
 			continue
 		_skid_last[w] = cp
