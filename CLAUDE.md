@@ -14,7 +14,7 @@ Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours 
 - **res:// = `game/`** (never `res://game/`). Godot exe:
   `C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64.exe` (+ `_console.exe` for headless).
 - **Run the game:** `Godot --path game res://proto3d/proto3d.tscn`
-- **Legacy 2D game** (`game/scenes`, `game/entities`, …) is the systems donor — docs in `docs/legacy-2d/`. Don't build on it.
+- **Legacy 2D game is QUARANTINED** in `legacy-2d/` at the repo root (2026-07-06) — OUTSIDE res://, so it can never load, launch, or hijack input again (it once F2-swapped a live playtest into the 2D start screen). Reference only; docs in `docs/legacy-2d/`. res:// now holds ONLY `addons/ assets/ data/ proto3d/`.
 
 ## 🕹 Controls (current)
 
