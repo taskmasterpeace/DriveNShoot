@@ -242,6 +242,15 @@
       "name": "Jack (coin)",
       "usable": false,
       "weight": 0.02
+    },
+    {
+      "category": "food",
+      "desc": "A tin of pre-Collapse field rations. USE to eat — dense fuel for the road.",
+      "emoji": "🥫",
+      "id": "field_ration",
+      "name": "Field ration",
+      "usable": true,
+      "weight": 0.5
     }
   ]
 }

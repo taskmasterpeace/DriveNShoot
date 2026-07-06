@@ -7,7 +7,11 @@ signal changed
 
 ## Item catalog (data — adding an item = a row). use_effect keys into main.use_item().
 ## cat groups the panel (CAT_ORDER below); desc is the tooltip in every container.
-const ITEMS: Dictionary = {
+# THE CODE CATALOG is the authoritative FLOOR (these 30+ items always exist). At
+# startup, data/items.json folds ADDITIVELY on top via ensure_items() — a JSON row
+# with a NEW id appears in-game (so "a new item = a ROW" is true), but a JSON row
+# reusing an existing id is ignored (code wins — stale JSON can never corrupt these).
+static var ITEMS: Dictionary = {
 	# -- weapons --
 	"pistol": {"name": "Pistol", "emoji": "🔫", "usable": true, "w": 1.1, "cat": "weapon", "desc": "9mm sidearm. USE equips it."},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "usable": true, "w": 3.2, "cat": "weapon", "desc": "Doors, howlers, arguments. USE equips it."},
@@ -49,6 +53,37 @@ const ITEMS: Dictionary = {
 	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false, "w": 1.2, "cat": "loot", "desc": "The wasteland's raw material."},
 	"scrip": {"name": "Scrip (coin)", "emoji": "🪙", "usable": false, "w": 0.02, "cat": "loot", "desc": "What passes for money out here."},
 }
+
+static var _items_folded: bool = false
+
+## THE DATA-SPINE READ-BACK for items (roadmap #3): fold data/items.json ADDITIVELY
+## onto the code floor. New JSON ids become real items ("a new item = a ROW"); ids
+## already in code are left untouched (authoritative). Call once at boot. Field map:
+## JSON category→cat, weight→w. Idempotent.
+static func ensure_items() -> void:
+	if _items_folded:
+		return
+	_items_folded = true
+	var path := "res://data/items.json"
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	for row in (parsed as Dictionary).get("items", []):
+		if not (row is Dictionary):
+			continue
+		var iid: String = String((row as Dictionary).get("id", ""))
+		if iid == "" or ITEMS.has(iid):
+			continue # code is the floor; JSON only ADDS new rows
+		ITEMS[iid] = {
+			"name": String(row.get("name", iid)),
+			"emoji": String(row.get("emoji", "❔")),
+			"usable": bool(row.get("usable", false)),
+			"w": float(row.get("weight", 0.5)),
+			"cat": String(row.get("category", "loot")),
+			"desc": String(row.get("desc", "")),
+		}
 
 ## Panel grouping order (container_panel renders headers in this order).
 const CAT_ORDER: Array = ["weapon", "ammo", "med", "food", "tool", "loot"]

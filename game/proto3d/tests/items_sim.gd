@@ -51,6 +51,13 @@ func _physics_process(delta: float) -> void:
 						priced = false
 				_check("every item has a category + a tooltip desc", complete)
 				_check("every tradeable item has a PRICE (Mercy can stock anything)", priced)
+				# THE DATA-SPINE READ-BACK (roadmap #3): 'field_ration' exists ONLY in
+				# data/items.json — its presence proves a JSON row becomes a real item.
+				_check("a JSON-only row folded in ('field_ration' from items.json)",
+					items.has("field_ration") and String(items["field_ration"].get("cat", "")) == "food" and bool(items["field_ration"].get("usable", false)))
+				# …and the code floor is authoritative — JSON can't corrupt an existing id.
+				_check("code stays the floor (pistol still weapon, 1.1kg)",
+					String(items["pistol"]["cat"]) == "weapon" and absf(float(items["pistol"]["w"]) - 1.1) < 0.01)
 				_check("Mercy actually stocks the new goods", ProtoNPC.ARCHETYPES["trader"]["stock"].has("medkit")
 					and ProtoNPC.ARCHETYPES["trader"]["stock"].has("jerry_can"))
 				_next()
