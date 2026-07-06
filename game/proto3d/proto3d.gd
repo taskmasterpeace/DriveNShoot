@@ -285,6 +285,7 @@ var weather: ProtoWeather = null
 var radio: ProtoRadio = null
 var carousel: ProtoCarousel = null
 var events: ProtoEvents = null
+var world_state: ProtoWorldState = null ## THE LIVING WORLD: state control + law profiles + offline catch-up
 var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
 var homebase: ProtoHomebase = null
 var objectives: ProtoObjectives = null ## THE FIRST RUN onboarding thread (armed by begin_new_game)
@@ -359,6 +360,10 @@ func _build_environment() -> void:
 	# The calendar has plans (daily/weekly events) + the rulers read your ledger.
 	events = ProtoEvents.create(self)
 	add_child(events)
+	# THE LIVING WORLD: the map is politically alive — states have controllers + law
+	# profiles, and a state can FALL while you're gone (offline catch-up on load).
+	world_state = ProtoWorldState.create(self)
+	add_child(world_state)
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
@@ -2573,6 +2578,18 @@ func save_game() -> Dictionary:
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
 	}
+	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
+	# "now" so the next load can size the absence and run offline catch-up.
+	var now_utc := int(Time.get_unix_time_from_system())
+	if world_state != null:
+		world_state.last_played_utc = now_utc
+		data["world"] = {
+			"version": ProtoWorldState.WORLD_VERSION,
+			"state_control": world_state.state_control.duplicate(true),
+			"active_laws": world_state.active_laws.duplicate(true),
+			"broadcast_queue": world_state.broadcast_queue.duplicate(true),
+		}
+	data["last_played_utc"] = now_utc
 	data["version"] = SAVE_VERSION
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(var_to_str(data))
@@ -2591,7 +2608,33 @@ func load_game() -> bool:
 		return false
 	apply_save(data)
 	notify("💾 LOADED — day %d. The road remembers." % daynight.day)
+	# THE LIVING WORLD: the world kept moving while you were gone. Size the absence and,
+	# if it crossed the threshold, run offline catch-up + wake to the return briefing.
+	if world_state != null:
+		var digest: Dictionary = world_state.catchup_on_load(int(Time.get_unix_time_from_system()))
+		if not digest.is_empty() and int(digest.get("days", 0)) > 0:
+			_show_return_briefing(digest)
 	return true
+
+
+## THE RETURN BRIEFING (LIVING_WORLD_DSOA §4.4): you wake SAFE at home and learn what
+## changed before stepping outside — days passed, who took what, what's now contraband in
+## your kit, and the bulletins the world queued. Text-first (the fallback floor: always works).
+func _show_return_briefing(digest: Dictionary) -> void:
+	var took := String(digest.get("took_state", ""))
+	notify("🏠 %d DAYS PASSED — you wake in the safehouse. The world moved without you." % int(digest.get("days", 0)))
+	if took != "":
+		var law: Dictionary = ProtoWorldState.LAWS.get(String(digest.get("new_law", "")), {})
+		notify("📺 %s IS UNDER NEW LAW — %s. %s" % [took, law.get("name", "occupation"), law.get("blurb", "")])
+		var flags: Array = world_state.player_contraband(took)
+		if not flags.is_empty():
+			notify("⚠️ %d item(s) in your kit are now CONTRABAND in %s: %s" % [flags.size(), took, ", ".join(flags)])
+	for b in world_state.broadcast_queue: # drain the queued bulletins through the radio seam
+		if not bool(b.get("heard", false)):
+			notify("📻 %s" % String(b.get("text", "")))
+			b["heard"] = true
+	if "audio" in self and audio != null:
+		audio.play_ui("vo_radio_war", -4.0) # the DJ calls it through the static
 
 
 func apply_save(data: Dictionary) -> void:
@@ -2636,6 +2679,12 @@ func apply_save(data: Dictionary) -> void:
 		events.war_state = String(ev.get("war", "")) # an active war survives the reload
 	if metaworld != null:
 		metaworld.records = (data.get("metaworld", []) as Array).duplicate(true) # a dog left GUARDING off-screen persists
+	if world_state != null: # THE LIVING WORLD: whose states, whose laws, what the world was broadcasting
+		var ws: Dictionary = data.get("world", {})
+		world_state.state_control = (ws.get("state_control", {}) as Dictionary).duplicate(true)
+		world_state.active_laws = (ws.get("active_laws", {}) as Dictionary).duplicate(true)
+		world_state.broadcast_queue = (ws.get("broadcast_queue", []) as Array).duplicate(true)
+		world_state.last_played_utc = int(data.get("last_played_utc", 0))
 	visited_states.clear()
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true

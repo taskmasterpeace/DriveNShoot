@@ -1,0 +1,19 @@
+{
+  "_note": "THE LIVING WORLD law profiles (docs/design/LIVING_WORLD_DSOA.md §6). Folded ADDITIVELY onto the code floor in world_state.gd — free_counties_law + faith_occupation_law live in code (the slice depends on them); NEW ids here become real laws. A new law = a ROW.",
+  "corporate_corridor_law": {
+    "name": "Corporate Corridor Law",
+    "controller": "corporate_corridor",
+    "guns": "licensed",
+    "curfew": false,
+    "contraband": ["pipe_rocket"],
+    "blurb": "Guns legal for licensed security or paying customers. Drones tracked. Debt replaces jail. Clean roads, brutal repossession."
+  },
+  "federal_checkpoint_law": {
+    "name": "Federal Remnant Checkpoint Law",
+    "controller": "federal_remnant",
+    "guns": "registered",
+    "curfew": true,
+    "contraband": ["pipe_rocket", "armed_drone"],
+    "blurb": "Strict IDs and checkpoints. Gun registration enforced. Heavy patrols. Drones illegal near bases."
+  }
+}
