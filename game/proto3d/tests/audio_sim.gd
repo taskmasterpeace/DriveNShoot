@@ -34,9 +34,21 @@ func _physics_process(delta: float) -> void:
 	match phase:
 		0:
 			if phase_t > 0.8:
-				_check("all streams synthesized (%d)" % ProtoAudio.streams.size(), ProtoAudio.streams.size() >= 10)
-				var eng: AudioStreamWAV = ProtoAudio.streams.get("engine")
-				_check("engine stream loops", eng != null and eng.loop_mode == AudioStreamWAV.LOOP_FORWARD)
+				_check("all streams built (%d)" % ProtoAudio.streams.size(), ProtoAudio.streams.size() >= 10)
+				# SoundForge tier: every mp3 in assets/sfx must have loaded over its synth.
+				var disk := 0
+				var dir := DirAccess.open("res://assets/sfx")
+				if dir:
+					for f in dir.get_files():
+						if f.ends_with(".mp3"):
+							disk += 1
+				_check("SoundForge samples loaded (%d files → %d streams)" % [disk, ProtoAudio.from_files],
+					ProtoAudio.from_files == disk)
+				# The engine loop must LOOP whichever tier provided it (WAV synth or MP3 file).
+				var eng: Variant = ProtoAudio.streams.get("engine")
+				var loops: bool = (eng is AudioStreamWAV and eng.loop_mode == AudioStreamWAV.LOOP_FORWARD) \
+					or (eng is AudioStreamMP3 and eng.loop)
+				_check("engine stream loops (%s)" % eng.get_class(), eng != null and loops)
 				_check("engine hum attached while driving", main._engine_loop != null and main._engine_loop.playing)
 				_pitch0 = main._engine_loop.pitch_scale
 				main.cars[0].use_player_input = false

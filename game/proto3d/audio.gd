@@ -1,13 +1,19 @@
-## PROTO-3D AudioManager: every sound is SYNTHESIZED at boot (pure math, zero
-## asset files) into AudioStreamWAV buffers. Positional one-shots are pooled;
-## loops (engine, fire) attach to their owners. Infra first — real samples can
-## replace any entry later without touching call sites.
+## PROTO-3D AudioManager. Two tiers, zero call-site changes:
+## 1. REAL SAMPLES from SoundForge (tools/soundforge — ElevenLabs-generated,
+##    prompt-customizable per sound) load from res://assets/sfx/<id>.mp3 first.
+## 2. SYNTH FALLBACK — any sound with no file keeps its original synthesized
+##    buffer, so the game never depends on assets existing.
+## Positional one-shots are pooled; loops (engine, fire) attach to their owners.
 class_name ProtoAudio
 extends Node
 
 const RATE := 22050
+const SFX_DIR := "res://assets/sfx"
+## Sounds that must LOOP when loaded from files (synth versions set their own).
+const LOOPED: Array = ["engine", "fire"]
 
 static var streams: Dictionary = {}
+static var from_files: int = 0 ## how many streams came from SoundForge (sim/debug hook)
 static var play_count: int = 0 ## sim hook
 
 var _ui_player: AudioStreamPlayer
@@ -72,6 +78,20 @@ static func _build_all() -> void:
 	fire.loop_mode = AudioStreamWAV.LOOP_FORWARD
 	fire.loop_end = int(0.6 * RATE)
 	streams["fire"] = fire
+
+	# --- Tier 1: SoundForge samples override the synths where they exist. ------
+	from_files = 0
+	for id in streams.keys():
+		var path := "%s/%s.mp3" % [SFX_DIR, id]
+		if not ResourceLoader.exists(path):
+			continue
+		var mp3: AudioStreamMP3 = load(path)
+		if mp3 == null:
+			continue
+		if id in LOOPED:
+			mp3.loop = true
+		streams[id] = mp3
+		from_files += 1
 
 
 func _ready() -> void:
