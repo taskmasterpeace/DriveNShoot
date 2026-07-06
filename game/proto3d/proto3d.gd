@@ -352,9 +352,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		if panel.is_open:
 			panel.close()
 		elif mode == Mode.DRIVE:
-			_exit_car()
+			if passenger_of_ai:
+				# PASSENGER seat: E is TAP-vs-HOLD — tap = get out, HOLD = slide
+				# over and TAKE THE WHEEL. (The driver's E stays instant.)
+				_e_down = true
+				_e_t = 0.0
+			else:
+				_exit_car()
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
 			_current_interactable.call("interact", self)
+	elif event.is_action_released("interact") and _e_down:
+		_e_down = false
+		if _e_t < 0.4 and mode == Mode.DRIVE:
+			_exit_car()
 	elif event is InputEventKey and (event as InputEventKey).keycode == KEY_C and not (event as InputEventKey).echo:
 		_whistle_input((event as InputEventKey).pressed)
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -546,6 +556,14 @@ func _physics_process(delta: float) -> void:
 	_update_whistle(delta)
 	_update_soundscape(delta)
 	_update_pirates(delta)
+	_update_traffic(delta)
+	# The E-hold clock (tap = out, hold = take the wheel from the passenger seat).
+	if _e_down:
+		_e_t += delta
+		if _e_t >= 0.5:
+			_e_down = false
+			if passenger_of_ai:
+				take_wheel()
 	_update_stress(delta)
 	_watch_crash_wounds()
 	_update_vision_cone(delta, binoc)
@@ -1212,6 +1230,7 @@ func secman_talk(npc: ProtoNPC) -> void:
 			backpack.add("jack", reward)
 			respect.add_esteem(ProtoNPC.FACTION, 20.0)
 			notify("Bridger: 'Clean work.' +%d jack — Meridian noticed." % reward)
+			audio.play_at("vo_bridger_clean", npc.global_position, 2.0)
 			bounty = {}
 			for i in range(waypoints.size() - 1, -1, -1):
 				if waypoints[i][0] == "BOUNTY":
@@ -2163,6 +2182,73 @@ func reload_content() -> Dictionary:
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
 
 
+# --- RIDING SHOTGUN (goal: NPCs drive; you can be the passenger) ----------------
+var passenger_of_ai: bool = false
+var _e_down: bool = false
+var _e_t: float = 0.0
+var motorists: Array = []
+var _traffic_cd: float = 60.0
+
+
+func enter_passenger(car: ProtoCar3D) -> void:
+	mode = Mode.DRIVE
+	active_car = car
+	passenger_of_ai = true
+	audio.play_at("car_door", car.global_position, -6.0)
+	player.is_active = false
+	player.visible = false
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var who: String = car.ai_driver.moto_name if (car.ai_driver != null and "moto_name" in car.ai_driver) else "the driver"
+	notify("🚗 You ride shotgun with %s — E out · HOLD E to take the wheel" % who)
+
+
+## HOLD E from the passenger seat: the brain lets go, the wheel is yours.
+func take_wheel() -> void:
+	if not passenger_of_ai or active_car == null:
+		return
+	passenger_of_ai = false
+	if active_car.ai_driver != null and active_car.ai_driver.has_method("yield_wheel"):
+		active_car.ai_driver.yield_wheel()
+	active_car.ai_driver = null
+	active_car.use_player_input = true
+	enter_car(active_car) # the real entry: skill mods, HUD, the seat is YOURS
+	notify("🫱 You slide over and take the wheel")
+
+
+## AMBIENT TRAFFIC: now and then, somebody up the road gets in a car and DRIVES —
+## city to city, on the highway's own bones. The world moves without you.
+func _update_traffic(delta: float) -> void:
+	_traffic_cd -= delta
+	if _traffic_cd > 0.0:
+		return
+	_traffic_cd = randf_range(150.0, 280.0)
+	motorists = motorists.filter(func(m): return is_instance_valid(m))
+	if motorists.size() >= 2 or stream == null or stream.usmap == null or not stream.usmap.ok:
+		return
+	var anchor: Vector3 = active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	var near: Dictionary = stream.usmap.road_near(anchor, 600.0)
+	if near.is_empty():
+		return
+	var a: Vector2 = near["a"]
+	var spawn := Vector3(a.x, 0.0, a.y)
+	if spawn.distance_to(anchor) < 70.0:
+		spawn += Vector3(0, 0, 90)
+	var trip_car := ProtoCar3D.create(["scavenger", "pickup", "van"][randi() % 3], Color(0.4, 0.42, 0.45).lightened(randf() * 0.15))
+	add_child(trip_car)
+	trip_car.global_position = spawn + Vector3(9, 1.0, 0)
+	cars.append(trip_car)
+	var town: Dictionary = stream.usmap.towns[randi() % stream.usmap.towns.size()]
+	var m := ProtoMotorist.create(self, trip_car,
+		Vector3((town["pos"] as Vector2).x, 0, (town["pos"] as Vector2).y),
+		["drifter", "scav", "trader"][randi() % 3],
+		["Dee", "Marlow", "Quinn", "Ester", "Roy"][randi() % 5])
+	add_child(m)
+	m.global_position = spawn + Vector3(4, 0.3, 4)
+	motorists.append(m)
+	if anchor.distance_to(spawn) < 240.0:
+		notify("🚗 Somebody up the road is getting on the move — headed for %s" % town["name"])
+
+
 # --- ROAD PIRATES (goal: the vehicular half of the promise) --------------------
 ## An ambush is a SET-PIECE: two rigs thrown across the road ahead, one hungry
 ## engine in your mirror. The chaser runs the SAME autopilot the Proving Grounds
@@ -2372,7 +2458,9 @@ func _exit_car() -> void:
 	_unboard_dogs(active_car)
 	audio.play_at("car_door", active_car.global_position, -6.0)
 	mode = Mode.FOOT
-	active_car.is_active = false
+	if active_car.ai_driver == null:
+		active_car.is_active = false # an AI-driven ride keeps ROLLING — you just got off
+	passenger_of_ai = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
 	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3
 	out_pos.y = active_car.global_position.y + 0.3

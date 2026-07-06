@@ -12,6 +12,22 @@ var target_pos: Vector3 = Vector3.ZERO ## …or drive to a fixed point
 var arrive_dist: float = 6.0       ## how close counts as "there"
 var aggression: float = 1.0        ## throttle scale (a cautious driver < 1)
 
+## ROUTES (NPC motorists): a list of waypoints — the highway's own polyline —
+## consumed in order. While a route runs, it OWNS the target; route_done() and
+## the car is wherever the road was going.
+var route: Array = [] ## Vector3s
+var route_i: int = 0
+const ROUTE_PASS := 24.0 ## waypoint pass radius (roads are 13m slabs — stay loose)
+
+
+func set_route(pts: Array) -> void:
+	route = pts
+	route_i = 0
+
+
+func route_done() -> bool:
+	return not route.is_empty() and route_i >= route.size()
+
 var _whisker_hit: Array = [false, false, false] ## L, C, R (sim/debug readout)
 var _stuck_t: float = 0.0    ## seconds of full-throttle-going-nowhere
 var _reverse_t: float = 0.0  ## >0 → backing out of a wedge (steer mirrored)
@@ -32,6 +48,8 @@ static func attach(car_in: ProtoCar3D) -> ProtoAutopilot:
 
 
 func target() -> Vector3:
+	if not route.is_empty() and route_i < route.size():
+		return route[route_i]
 	return target_node.global_position if (target_node != null and is_instance_valid(target_node)) else target_pos
 
 
@@ -59,7 +77,23 @@ func _physics_process(delta: float) -> void:
 	var to_t := target() - car.global_position
 	to_t.y = 0.0
 	var dist := to_t.length()
-	if dist < arrive_dist:
+	# Route waypoints PASS (loose radius, no braking); only the final point ARRIVES.
+	if not route.is_empty() and route_i < route.size():
+		if dist < (ROUTE_PASS if route_i < route.size() - 1 else maxf(arrive_dist, 8.0)):
+			route_i += 1
+			if route_done():
+				car.input_throttle = 0.0
+				car.input_brake = 1.0
+				return
+			to_t = target() - car.global_position
+			to_t.y = 0.0
+			dist = to_t.length()
+	elif dist < arrive_dist:
+		car.input_throttle = 0.0
+		car.input_brake = 1.0
+		car.input_steer = 0.0
+		return
+	if route_done():
 		car.input_throttle = 0.0
 		car.input_brake = 1.0
 		car.input_steer = 0.0

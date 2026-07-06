@@ -187,6 +187,7 @@ enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
 var components: Dictionary = {} ## id -> Damageable (engine/tires/battery/fuel_tank/chassis)
 var trunk: ProtoContainer = null ## every car is storage (Container pillar)
 var mount_weapon: ProtoWeapon = null ## vehicle weapon mount (system kept; no default gun — VEHICLES.md §6)
+var ai_driver: Node = null ## a MOTORIST at the wheel (the player can ride shotgun — E)
 var fuel: float = 100.0
 @export var fuel_drain_rate: float = 0.35 ## per second at full throttle
 var fire_state: FireState = FireState.OK
@@ -429,6 +430,9 @@ func interact_prompt(main: Node) -> String:
 
 func interact(main: Node) -> void:
 	if is_active:
+		# Somebody's DRIVING: flag them down and ride shotgun (hold E = the wheel).
+		if ai_driver != null and main.has_method("enter_passenger"):
+			main.enter_passenger(self)
 		return
 	if dead:
 		if not salvaged:

@@ -99,9 +99,57 @@ static func create(arch: String) -> ProtoNPC:
 	return n
 
 
+## CONTEXTUAL BARKS (goal: NPCs that notice the world). One line every ~30s when
+## you're close — and the line reads the SITUATION: the storm, the war, your
+## limp, your dog, the posters with your face. Rows, in priority order.
+const BARKS: Array = [
+	{"when": "dust", "line": "Dust like this? Park it or lose it."},
+	{"when": "rain", "line": "Grip goes first in the wet. Then the ditch."},
+	{"when": "blood_moon", "line": "Big dark tonight. Stay near the lights."},
+	{"when": "war", "line": "Roads out east are all teeth this week."},
+	{"when": "bounty", "line": "…ain't you the one from the posters?"},
+	{"when": "limping", "line": "That leg needs a medkit, not more miles."},
+	{"when": "night", "line": "They circle the edge of what you can see. Remember that."},
+	{"when": "dog", "line": "Good dog you got there. Keep it fed."},
+	{"when": "carousel", "line": "Heard a ring lit up under one of the old bases. Government iron still turning."},
+	{"when": "default", "line": "Keep the tank half full. Always."},
+]
+var _bark_cd: float = 10.0
+
+
+func _pick_bark(m: Node) -> String:
+	for b in BARKS:
+		var hit := false
+		match String(b["when"]):
+			"dust": hit = "weather" in m and m.weather != null and m.weather.state == "dust"
+			"rain": hit = "weather" in m and m.weather != null and m.weather.state == "rain"
+			"blood_moon": hit = "events" in m and m.events != null and m.events.today_event == "blood_moon"
+			"war": hit = "events" in m and m.events != null and m.events.war_state != ""
+			"bounty": hit = "bounty_hunted" in m and m.bounty_hunted
+			"limping": hit = "character" in m and m.character != null and m.character.limp_side() != ""
+			"night": hit = "daynight" in m and m.daynight != null and m.daynight.is_dark()
+			"dog": hit = "dogs" in m and m.dogs.size() > 0
+			"carousel": hit = "carousel" in m and m.carousel != null and m.carousel.active.size() > 0
+			_: hit = true
+		if hit:
+			return b["line"]
+	return BARKS[-1]["line"]
+
+
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	# The bark tick: near, alive, and paying attention to YOUR situation.
+	_bark_cd -= delta
+	if _bark_cd <= 0.0:
+		_bark_cd = randf_range(28.0, 48.0)
+		var m := get_tree().current_scene
+		if m == null or not m.has_method("notify"):
+			m = get_parent()
+		if m != null and m.has_method("notify") and "player" in m and m.player != null \
+				and global_position.distance_to(m.player.global_position) < 9.0 \
+				and m.respect.standing(FACTION) != "SUSPECT":
+			m.notify("%s: '%s'" % [npc_name, _pick_bark(m)])
 	else:
 		# The "pace" act walks a short patrol; every other act stands still.
 		if act == "pace":
@@ -214,15 +262,26 @@ const TIER_GREET: Dictionary = {
 var _stocked_tiers: Dictionary = {}
 
 
+## The VOICE: consistent per-character TTS (tools/soundforge/voices.json) — the
+## line you read is the line you HEAR, in the same throat every time.
+func _vo(main: Node, suffix: String) -> void:
+	var ch: String = {"trader": "mercy", "secman": "bridger", "drifter": "sam"}.get(archetype, "")
+	if ch != "" and "audio" in main and main.audio:
+		main.audio.play_at("vo_%s_%s" % [ch, suffix], global_position, 2.0)
+
+
 func interact(main: Node) -> void:
 	if main.respect.standing(FACTION) == "SUSPECT":
 		main.notify(ARCHETYPES[archetype]["refuse"])
+		_vo(main, "refuse")
 		return
 	if role == "hire":
+		_vo(main, "hire")
 		main.hire_companion(self)
 	elif role == "trade":
 		var st: String = main.respect.standing(FACTION)
 		main.notify(TIER_GREET.get(st, ARCHETYPES[archetype]["greet"]))
+		_vo(main, "trusted" if st in ["TRUSTED", "HERO"] else "greet")
 		if TIER_STOCK.has(st) and not _stocked_tiers.has(st):
 			_stocked_tiers[st] = true
 			for id in TIER_STOCK[st]:

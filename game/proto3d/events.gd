@@ -33,6 +33,8 @@ func roll_daily(day: int) -> String:
 		war_state = WAR_STATES[hash(day) % WAR_STATES.size()]
 		today_event = "state_at_war"
 		_main.notify("📻 ⚔️ WAR IN %s — the %s's roads run thick with pirates this week" % [war_state, war_state])
+		if "audio" in _main and _main.audio:
+			_main.audio.play_ui("vo_radio_war", -4.0)
 		return today_event
 	match hash(day) % 3:
 		0:
@@ -42,6 +44,8 @@ func roll_daily(day: int) -> String:
 			today_event = "blood_moon"
 			_main.daynight.moon_phase = 0.04 # tonight the floor drops out
 			_main.notify("🌘 BLOOD MOON tonight — the dark comes all the way down. Pack light, drive fast.")
+			if "audio" in _main and _main.audio:
+				_main.audio.play_ui("vo_radio_blood_moon", -4.0) # the DJ calls it through the static
 		_:
 			today_event = "quiet"
 			war_state = "" if day % 7 != 0 else war_state

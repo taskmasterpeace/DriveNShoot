@@ -207,6 +207,8 @@ func _physics_process(delta: float) -> void:
 				_scout_cd = SCOUT_CD
 				_main.vision_cone.reveal_at(target.global_position)
 				_main.notify("🧭 %s: 'Contact! On me!'" % comp_name)
+				if crew_id == "sam" and "audio" in _main and _main.audio:
+					_main.audio.play_at("vo_sam_contact", global_position, 3.0)
 
 	move_and_slide()
 
