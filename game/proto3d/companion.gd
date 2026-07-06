@@ -13,21 +13,45 @@ const FIRE_CD := 1.15
 const GUN_DAMAGE := 12.0
 const SCOUT_CD := 4.0
 
+## THE CREW as DATA ROWS (goal: a crew you can hire, work, and LOSE). Jobs map
+## to APIs that already exist: gunner = the fight law below, mechanic = timed
+## component restore on a nearby rig, medic = timed character.treat() when he's
+## walking beside you. Adding a crew member = adding a row.
+const CREW: Dictionary = {
+	"sam": {"name": "Sam", "title": "GUNNER", "look": "drifter", "job": "gunner",
+		"hire_cost": 40, "gear": {"9mm": 20, "jack": 5}},
+	"hazel": {"name": "Hazel", "title": "MECHANIC", "look": "scav", "job": "mechanic",
+		"hire_cost": 60, "gear": {"car_parts": 1, "duct_tape": 2, "jack": 8}},
+	"mercer": {"name": "Doc Mercer", "title": "MEDIC", "look": "old_timer", "job": "medic",
+		"hire_cost": 60, "gear": {"bandage": 3, "medkit": 1}},
+}
+const JOB_HOURS := 0.5 ## a job tick every half a game-hour (T-wait/dev clock honor it)
+
+var crew_id: String = "sam"
 var comp_name: String = "Sam"
+var job: String = "gunner"
 var staying: bool = false
 var riding_in: ProtoCar3D = null
 var hp: float = 70.0
 var max_hp: float = 70.0
+var dead: bool = false
 
 var _main: Node = null
 var _fire_cd: float = 0.0
 var _scout_cd: float = 0.0
 var _visual: Node3D
 var _gun_mesh: MeshInstance3D
+var puppet: ProtoPuppet = null
+var _dead_t: float = 0.0
+var _last_job_hour: float = -1.0
 
 
-static func create(main: Node) -> ProtoCompanion:
+static func create(main: Node, crew_id_in: String = "sam") -> ProtoCompanion:
 	var c := ProtoCompanion.new()
+	var row: Dictionary = CREW.get(crew_id_in, CREW["sam"])
+	c.crew_id = crew_id_in
+	c.comp_name = row["name"]
+	c.job = row["job"]
 	c._main = main
 	c.add_to_group("interactable")
 	c.add_to_group("npc") # sight rays pass him; FADE treats him as a person
@@ -38,39 +62,21 @@ static func create(main: Node) -> ProtoCompanion:
 	shape.shape = cap
 	shape.position.y = 0.85
 	c.add_child(shape)
-	c._visual = Node3D.new()
+	# THE PUPPET (no more capsule-person): the same rig as everyone — flinch,
+	# recoil, and the death flop come free from the rig work.
+	c.puppet = ProtoPuppet.create(ProtoPuppet.look(row["look"]))
+	c._visual = c.puppet
 	c.add_child(c._visual)
-	var body := MeshInstance3D.new()
-	var bm := CapsuleMesh.new()
-	bm.radius = 0.32
-	bm.height = 1.5
-	body.mesh = bm
-	body.material_override = ProtoWorldBuilder.material(Color(0.33, 0.38, 0.3), 0.85)
-	body.position.y = 0.78
-	c._visual.add_child(body)
-	var head := MeshInstance3D.new()
-	var hm := SphereMesh.new()
-	hm.radius = 0.18
-	hm.height = 0.36
-	head.mesh = hm
-	head.material_override = ProtoWorldBuilder.material(Color(0.72, 0.55, 0.4), 0.9)
-	head.position.y = 1.64
-	c._visual.add_child(head)
-	c._gun_mesh = MeshInstance3D.new()
-	var gm := BoxMesh.new()
-	gm.size = Vector3(0.06, 0.06, 0.5)
-	c._gun_mesh.mesh = gm
-	c._gun_mesh.material_override = ProtoWorldBuilder.material(Color(0.15, 0.15, 0.17), 0.4)
-	c._gun_mesh.position = Vector3(0.26, 1.1, -0.3)
-	c._visual.add_child(c._gun_mesh)
+	c.puppet.set_armed(c.job == "gunner") # only the gunner walks iron-out
+	c._gun_mesh = c.puppet.gun
 	var tag := Label3D.new()
-	tag.text = "SAM\nDRIFTER"
+	tag.text = "%s\n%s" % [String(row["name"]).to_upper(), row["title"]]
 	tag.font_size = 84
 	tag.pixel_size = 0.0042
 	tag.modulate = Color(0.7, 0.85, 0.7)
 	tag.position = Vector3(0, 2.3, 0)
 	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	c._visual.add_child(tag)
+	c.add_child(tag)
 	return c
 
 
@@ -87,9 +93,33 @@ func interact(m: Node) -> void:
 	m.notify("%s %s" % [comp_name, "holds this spot" if staying else "falls in behind you"])
 
 
+## MORTAL now (goal: a crew you can LOSE is the point). The rig flops, the gear
+## drops as a corpse chest, and the road gets heavier.
 func take_damage(amount: float) -> void:
-	hp = maxf(1.0, hp - amount) # companions don't die in this slice (Stage 7 full adds it)
+	if dead:
+		return
+	hp -= amount
+	if puppet:
+		puppet.flinch(-global_basis.z)
 	ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.9, 0), "-%d" % int(amount), Color(0.9, 0.6, 0.4), 100)
+	if hp <= 0.0:
+		dead = true
+		_dead_t = 1.6 # the flop plays before the world moves on
+		if _main != null:
+			_main.stress = minf(100.0, _main.stress + 20.0)
+			if "fallen_dogs" in _main:
+				_main.fallen_dogs.append({"name": comp_name, "breed": CREW[crew_id]["title"], "bond": "CREW"})
+			_main.notify("☠️ %s IS DEAD. You hired them. The road collected." % comp_name.to_upper())
+
+
+func _die_to_chest() -> void:
+	var gear: Dictionary = (CREW[crew_id].get("gear", {}) as Dictionary).duplicate()
+	var corpse := ProtoChest.create("%s's body" % comp_name, gear, false)
+	get_parent().add_child(corpse)
+	corpse.global_position = global_position
+	if _main != null and "companions" in _main:
+		_main.companions.erase(self)
+	queue_free()
 
 
 # --- Riding shotgun (same law as the pack) -------------------------------------
@@ -111,6 +141,17 @@ func unboard(pos: Vector3) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	# DEAD: the rig flops (the same read as everyone), then the gear hits the dirt.
+	if dead:
+		if puppet:
+			puppet.animate(delta, 0.0, 0.0, false, 1.0, true)
+		velocity.x = 0.0
+		velocity.z = 0.0
+		move_and_slide()
+		_dead_t -= delta
+		if _dead_t <= 0.0:
+			_die_to_chest()
+		return
 	_fire_cd = maxf(0.0, _fire_cd - delta)
 	_scout_cd = maxf(0.0, _scout_cd - delta)
 
@@ -118,6 +159,16 @@ func _physics_process(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		move_and_slide()
 		return
+
+	# THE JOB ENGINE: every half game-hour standing with you, the hire EARNS it
+	# (T-wait and the dev clock honor game time, so camp days do real work).
+	if "daynight" in _main and _main.daynight != null:
+		var hr: float = _main.daynight.hour + float(_main.daynight.day) * 24.0
+		if _last_job_hour < 0.0:
+			_last_job_hour = hr
+		elif hr - _last_job_hour >= JOB_HOURS:
+			_last_job_hour = hr
+			_do_job()
 
 	# FOLLOW (dog law: keep the distance, run to close it)
 	if not staying:
@@ -135,8 +186,13 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, 12.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 12.0 * delta)
 
-	# FIGHT: his own iron answers the nearest threat in range with clear LOS.
-	var target := _nearest_threat()
+	# The rig lives: stride, breathe, slump as hp falls.
+	if puppet:
+		puppet.animate(delta, Vector2(velocity.x, velocity.z).length(), 0.0,
+			job == "gunner", 1.0 - hp / max_hp, false)
+
+	# FIGHT: the GUNNER's iron answers the nearest threat (a medic keeps walking).
+	var target := _nearest_threat() if job == "gunner" else null
 	if target != null:
 		var tdir := target.global_position - global_position
 		tdir.y = 0.0
@@ -184,6 +240,9 @@ func _fire_at(target: Node3D) -> void:
 	q.exclude = [get_rid()] + ([(_main.player as PhysicsBody3D).get_rid()] if _main and _main.player else [])
 	var hit: Dictionary = space.intersect_ray(q)
 	ProtoFX.muzzle_flash(_main if _main else get_parent(), muzzle, aim.normalized())
+	if puppet:
+		puppet.recoil()
+		puppet.gun_recoil() # the shot lands on the rig, same as the player's
 	if _main and "audio" in _main and _main.audio:
 		_main.audio.play_at("shot", global_position, -6.0, 1.1)
 	if not hit.is_empty():
@@ -193,6 +252,41 @@ func _fire_at(target: Node3D) -> void:
 			col.take_damage(GUN_DAMAGE)
 		else:
 			ProtoFX.impact(_main if _main else get_parent(), hit["position"])
+
+
+## THE JOBS — each is one existing call on a timer. The hire earns its keep.
+func _do_job() -> void:
+	match job:
+		"mechanic":
+			# Works the WORST component of the nearest rig in reach — parked at
+			# camp overnight, you wake to a healthier fleet.
+			var best: ProtoCar3D = null
+			var bd := 14.0
+			for car in _main.cars:
+				if car is ProtoCar3D and is_instance_valid(car) and not car.dead:
+					var dd: float = car.global_position.distance_to(global_position)
+					if dd < bd:
+						bd = dd
+						best = car
+			if best != null:
+				var worst: Damageable = null
+				for k in best.components:
+					if worst == null or best.components[k].ratio() < worst.ratio():
+						worst = best.components[k]
+				if worst != null and worst.ratio() < 1.0:
+					worst.restore(9.0)
+					_main.notify("🔧 %s works the %s's %s (%d%%)" % [comp_name, best.display_name, worst.id, int(worst.ratio() * 100)])
+		"medic":
+			# Field medicine on the move: your worst part, patched as you walk.
+			var pl: Node3D = _main.player
+			if pl != null and pl.global_position.distance_to(global_position) < 10.0:
+				var ch: ProtoCharacter = _main.character
+				var wp: String = ch.worst_part()
+				if ch.body[wp].ratio() < 1.0:
+					ch.treat(wp, 6.0)
+					_main.notify("🩹 %s patches your %s as you walk (%d%%)" % [comp_name, wp.replace("_", " "), int(ch.body[wp].ratio() * 100)])
+		_:
+			pass # the gunner's job IS the fight law below
 
 
 ## Can the PLAYER's cone see this threat right now? (angle + range + LOS)

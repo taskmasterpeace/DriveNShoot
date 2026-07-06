@@ -83,10 +83,11 @@ func _ready() -> void:
 	# --- DRIVABLE DAMAGE ------------------------------------------------------------
 	var car: ProtoCar3D = main.cars[0]
 	main.enter_car(car)
+	# NOTE: chassis-critical + breached tank = the ON_FIRE spiral — the car can
+	# EXPLODE before the first cough (flaked twice). Keep the tank healthy while
+	# reading misfire+slop; bleed-test the tank afterwards on a mended frame.
 	car.components["engine"].hp = car.components["engine"].max_hp * 0.2 # CRITICAL
 	car.components["chassis"].hp = car.components["chassis"].max_hp * 0.2
-	car.components["fuel_tank"].hp = car.components["fuel_tank"].max_hp * 0.1
-	var fuel0: float = car.fuel
 	# (idle, parked: full throttle drove a 20hp-chassis car into town and it DIED
 	# before the misfire clock — the coughs don't need motion, just a bad engine)
 	var saw_misfire := false
@@ -99,6 +100,13 @@ func _ready() -> void:
 		saw_slop = saw_slop or car.steer_slop > 0.05
 	_check("a critical engine MISFIRES — power dies in coughs", saw_misfire)
 	_check("a bent chassis WANDERS the wheel (slop %.2f)" % car.steer_slop, saw_slop)
+	car.components["chassis"].hp = car.components["chassis"].max_hp # mend the frame (no fire)
+	car.components["fuel_tank"].hp = car.components["fuel_tank"].max_hp * 0.1 # breach the tank
+	var fuel0: float = car.fuel
+	var tb := 0.0
+	while tb < 4.0:
+		await get_tree().physics_frame
+		tb += get_physics_process_delta_time()
 	_check("a breached tank BLEEDS fuel (%.1f → %.1f)" % [fuel0, car.fuel], car.fuel < fuel0 - 0.5)
 
 	# --- THE VISIBLE PAYOFF -----------------------------------------------------------

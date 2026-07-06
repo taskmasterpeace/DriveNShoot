@@ -1656,16 +1656,19 @@ func _on_rider_thrown(dv: float, bike: ProtoCar3D) -> void:
 
 ## 40 jack: Sam stops being an NPC and becomes YOURS — follows, fights, scouts.
 func hire_companion(npc: ProtoNPC) -> void:
-	if not backpack.remove("jack", 40):
-		notify("Sam: 'Forty. I count fewer in that pack.'")
+	# The NPC's archetype names the CREW row — new hires are rows, not code.
+	var cid: String = {"drifter": "sam", "mechanic": "hazel", "medic": "mercer"}.get(npc.archetype, "sam")
+	var cost: int = ProtoCompanion.CREW[cid]["hire_cost"]
+	if not backpack.remove("jack", cost):
+		notify("%s: '%d. I count fewer in that pack.'" % [ProtoCompanion.CREW[cid]["name"], cost])
 		return
-	var c := ProtoCompanion.create(self)
+	var c := ProtoCompanion.create(self, cid)
 	add_child(c)
 	c.global_position = npc.global_position
 	companions.append(c)
 	npc.queue_free()
 	audio.play_ui("blip", -4.0)
-	notify("🧍 Sam shoulders his rifle: 'Where we headed?'")
+	notify("🧍 %s shoulders the load: 'Where we headed?'" % ProtoCompanion.CREW[cid]["name"])
 
 
 # --- The night pack -----------------------------------------------------------
