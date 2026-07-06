@@ -240,6 +240,33 @@ func treat(part: String, amount: float) -> void:
 	hp = clampf(hp, 0.0, hp_cap())
 
 
+# --- HUNGER (RV_PLAN rung 1: without the need, the RV is a slow van) ------------
+## 100 = fed, 0 = starving. Drains ~2.8/game-hour (full → empty in a day and a
+## half). Food gives it back (food_val on the item rows); low hunger empties
+## your lungs the way a broken torso does.
+var hunger: float = 100.0
+
+
+func eat(food_val: float) -> void:
+	hunger = clampf(hunger + food_val, 0.0, 100.0)
+
+
+func hunger_tick(game_hours: float) -> void:
+	hunger = maxf(0.0, hunger - 2.8 * game_hours)
+
+
+## The tax: fed 1.0 → starving 0.5 stamina regen.
+func hunger_stamina_mult() -> float:
+	if hunger >= 30.0:
+		return 1.0
+	return lerpf(0.5, 1.0, hunger / 30.0)
+
+
+## Moodle tier for the HUD (0 none … 3 starving).
+func hunger_tier() -> int:
+	return 3 if hunger <= 8.0 else (2 if hunger <= 18.0 else (1 if hunger <= 32.0 else 0))
+
+
 # --- WOUNDS READ (goal: injuries with real downstream cost). Damage becomes
 # BEHAVIOR: a bad leg limps you, a bad arm wobbles your gun, a cracked head
 # narrows the world, a broken torso empties your lungs faster. -------------------

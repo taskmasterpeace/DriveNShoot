@@ -1340,6 +1340,10 @@ func _on_respect_changed(faction: String) -> void:
 
 ## Item effects (data → verb). Returns true if consumed.
 func use_item(id: String) -> bool:
+	# HUNGER: any row with food_val FEEDS you (generic — the rows rule).
+	var fv: float = float(ProtoContainer.ITEMS.get(id, {}).get("food_val", 0))
+	if fv > 0.0:
+		character.eat(fv)
 	if id == "eyepatch":
 		character.set_eyepatch(not character.eyepatch)
 		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
@@ -1353,6 +1357,10 @@ func use_item(id: String) -> bool:
 		weapons.append(wpn)
 		equipped = weapons.size() - 1
 		notify("Equipped the %s (%s)" % [wpn.info()["name"], str(weapons.size())])
+		return true
+	if id == "cooked_meal":
+		stress = maxf(0.0, stress - 12.0)
+		notify("🍲 Hot food off your own stove. The road feels shorter.")
 		return true
 	if id == "drone":
 		# STAGE 8 rung 1 (Robotics): deploy the bird. It patrols overhead, pings
@@ -2331,6 +2339,12 @@ func take_wheel() -> void:
 ## AMBIENT TRAFFIC: now and then, somebody up the road gets in a car and DRIVES —
 ## city to city, on the highway's own bones. The world moves without you.
 func _update_traffic(delta: float) -> void:
+	# CAMPERS carry their kit: any camper rig without one grows one (the RV law).
+	for car in cars:
+		if car is ProtoCar3D and is_instance_valid(car) and not car.dead 				and car.spec.get("camper", false) and not car.has_meta("camp_kit"):
+			car.set_meta("camp_kit", true)
+			var ck := ProtoCamp.create(self, car)
+			add_child(ck)
 	_traffic_cd -= delta
 	if _traffic_cd > 0.0:
 		return
@@ -2440,6 +2454,7 @@ func _update_pirates(delta: float) -> void:
 ## already pays via current_spread), a cracked head narrows the cone, a broken
 ## torso empties your lungs. Heal, and the body straightens back out.
 var created_limp: String = "" ## character-creation's permanent bad leg
+var _last_hunger_hr: float = -1.0
 var _limp_announced: String = "∅"
 func _sync_wound_effects() -> void:
 	# LEGS → the limp you can SEE + the speed you can FEEL.
@@ -2457,8 +2472,16 @@ func _sync_wound_effects() -> void:
 	# ARMS → the rig's gun hand won't sit still (spread tax lives in the weapon).
 	if player.puppet:
 		player.puppet.aim_wobble = character.aim_wobble()
-	# TORSO → stamina regen tax (stress already throttles; wounds stack on it).
-	player.wound_regen_mult = character.wound_stamina_mult()
+	# TORSO + HUNGER → stamina regen tax (stress already throttles; these stack).
+	player.wound_regen_mult = character.wound_stamina_mult() * character.hunger_stamina_mult()
+	# HUNGER drains on the game clock; the belly reports to the moodle column.
+	var hhr: float = daynight.hour + float(daynight.day) * 24.0
+	if _last_hunger_hr < 0.0:
+		_last_hunger_hr = hhr
+	elif hhr > _last_hunger_hr:
+		character.hunger_tick(hhr - _last_hunger_hr)
+		_last_hunger_hr = hhr
+	hud.set_condition("hungry", character.hunger_tier())
 
 
 func _watch_crash_wounds() -> void:

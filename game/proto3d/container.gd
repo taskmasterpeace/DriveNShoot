@@ -24,11 +24,12 @@ const ITEMS: Dictionary = {
 	"medkit": {"name": "Field medkit", "emoji": "⛑️", "usable": true, "w": 1.8, "cat": "med", "desc": "The real thing: stops bleeding, treats EVERY part (+25)."},
 	"painkillers": {"name": "Painkillers", "emoji": "💊", "usable": true, "w": 0.15, "cat": "med", "desc": "Takes the edge off — worst wound +12, nerves −8."},
 	# -- food & drink --
-	"meat": {"name": "Dried meat", "emoji": "🍖", "usable": true, "w": 0.4, "cat": "food", "desc": "Settles the nerves (−18 stress). Dogs love it (E to feed)."},
-	"canned_food": {"name": "Canned beans", "emoji": "🥫", "usable": true, "w": 0.5, "cat": "food", "desc": "A hot meal: worst wound +10, stress −10."},
-	"water": {"name": "Canteen", "emoji": "💧", "usable": true, "w": 0.8, "cat": "food", "desc": "Cold and clean. Refills your stamina, stress −6."},
-	"coffee": {"name": "Trail coffee", "emoji": "☕", "usable": true, "w": 0.3, "cat": "food", "desc": "Stamina +40 and the shakes settle (−15 stress)."},
-	"whiskey": {"name": "Rotgut whiskey", "emoji": "🥃", "usable": true, "w": 0.9, "cat": "food", "desc": "Stress −30. Your torso pays a little (−4)."},
+	"meat": {"name": "Dried meat", "emoji": "🍖", "usable": true, "w": 0.4, "cat": "food", "food_val": 22, "desc": "Settles the nerves (−18 stress) and the stomach. Dogs love it (E to feed)."},
+	"canned_food": {"name": "Canned beans", "emoji": "🥫", "usable": true, "w": 0.5, "cat": "food", "food_val": 35, "desc": "A hot meal: worst wound +10, stress −10, belly full."},
+	"water": {"name": "Canteen", "emoji": "💧", "usable": true, "w": 0.8, "cat": "food", "food_val": 5, "desc": "Cold and clean. Refills your stamina, stress −6."},
+	"coffee": {"name": "Trail coffee", "emoji": "☕", "usable": true, "w": 0.3, "cat": "food", "food_val": 4, "desc": "Stamina +40 and the shakes settle (−15 stress)."},
+	"whiskey": {"name": "Rotgut whiskey", "emoji": "🥃", "usable": true, "w": 0.9, "cat": "food", "food_val": 6, "desc": "Stress −30. Your torso pays a little (−4)."},
+	"cooked_meal": {"name": "Camp-stove meal", "emoji": "🍲", "usable": true, "w": 0.6, "cat": "food", "food_val": 60, "desc": "Hot food off your own stove. The road feels shorter after (−12 stress)."},
 	# -- tools & gear --
 	"jerry_can": {"name": "Jerry can (fuel)", "emoji": "🛢️", "usable": true, "w": 6.0, "cat": "tool", "desc": "+40 fuel into a rig within reach."},
 	"car_parts": {"name": "Salvaged car parts", "emoji": "⚙️", "usable": true, "w": 3.5, "cat": "tool", "desc": "Field-repairs a rig's worst component (+35)."},
