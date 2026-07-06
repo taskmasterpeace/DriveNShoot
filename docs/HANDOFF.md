@@ -31,6 +31,14 @@
 
 **This section is the current marching order. It supersedes the reined-in roadmap in §3.**
 
+> ### ✅ SHIPPED (2026-07-06) — the Florida MVS is BUILT, all three phases sim-proven
+> The next dev doesn't start this arc from zero — the minimum-viable slice is **done and green**:
+> - **Phase 0 — offline catch-up + the takeover.** `ProtoWorldState` (`world_state.gd`) owns `state_control` + `active_laws` + the EVENT DIRECTOR catch-up. Save carries `last_played_utc` + a `world` block; on load, if the absence crosses 12 h, catch-up rolls ≤7 days deterministically and at the 4-day mark **Florida falls to the Faith Bloc** → law flips → you wake SAFE at home to a return briefing (never arrested at home). Law profiles fold additively from `data/law_profiles.json` (a new law = a ROW). `offline_catchup_sim` **13/13**.
+> - **Phase 1 — the law you can SEE.** `on_state_entered` announces the controlling faction + law when you cross into occupied territory and warns when your kit is contraband there — a risk, never an instant punishment. `law_profile_sim` **8/8** (same gun legal under Free Counties, contraband under the Faith Bloc).
+> - **Phase 2 — broadcasts on the dial.** A queued EMERGENCY BULLETIN cuts through the radio static on the next Y-scan (text-first fallback floor; drains the queue). `broadcast_fallback_sim` **8/8**.
+>
+> **What's NOT done yet in the arc:** a graphical Return-Briefing *panel* (today it speaks through toasts + radio — the STATE is all there, the dedicated "State of the State" screen isn't), and everything Phase 3+ (drones, crime/bodies, jail, cloning, seats, media/TV, co-op/PvP, paperdoll). **Next up:** either the briefing panel (small, high-visibility) or Phase 3 scout drone. See the build order below.
+
 The owner delivered four design specs (banked verbatim in **`docs/design/`**) and chose the next major feature. It is **not** robots, AI video, consoles, or cloning. It is the one slice that proves the whole vision:
 
 > ### 🎯 THE FLORIDA SLICE — *"Four Days Later: Florida Under New Law"*
