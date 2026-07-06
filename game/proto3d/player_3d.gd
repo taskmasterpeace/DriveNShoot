@@ -260,7 +260,14 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 	aim_yaw = wrapf(aim_yaw, -PI, PI)
 
 	_visual.rotation.y = body_yaw
-	_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI) # the top half aims — up to a full turn
+	# The ARM only yaws to the gaze when the read is honest: a raised gun (twin-
+	# stick pillar — bullets fly at the mouse) or mid-swing. A carried melee /
+	# empty hand relaxes home instead of scissoring ahead of the body (playtest:
+	# "the right arm moves before anything else").
+	if puppet == null or puppet.arm_tracks_gaze():
+		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI) # the top half aims — up to a full turn
+	else:
+		_upper.rotation.y = lerp_angle(_upper.rotation.y, 0.0, clampf(10.0 * delta, 0.0, 1.0))
 	var lower_target := wrapf(_move_yaw - body_yaw, -PI, PI) if move.length_squared() > 0.01 else 0.0
 	_lower.rotation.y = lerp_angle(_lower.rotation.y, lower_target, 12.0 * delta)
 

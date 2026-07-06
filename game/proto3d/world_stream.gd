@@ -482,6 +482,7 @@ func toggle_map() -> void:
 		_map_layer.add_child(_map_panel)
 		_map_canvas = Control.new()
 		_map_canvas.custom_minimum_size = Vector2(600, 480)
+		_map_canvas.clip_contents = true # roads at map scale run for kilometers — nothing draws past the frame (playtest: "lines outside the map")
 		_map_canvas.mouse_filter = Control.MOUSE_FILTER_STOP # the atlas is clickable
 		_map_canvas.draw.connect(_draw_map)
 		_map_canvas.gui_input.connect(_on_map_input)
@@ -519,13 +520,17 @@ func _draw_local() -> void:
 	# The interstate (you know the road you're on)
 	_map_canvas.draw_line(center + Vector2(0 - _map_player.x, -430 - _map_player.z) * scale,
 		center + Vector2(0 - _map_player.x, 430 - _map_player.z) * scale, Color(0.55, 0.5, 0.42), 2.0)
-	# Macro roads within view
+	# Macro roads within view (clip_contents hides the rest; this cull just
+	# keeps country-length polylines out of the draw list entirely)
 	if usmap != null and usmap.ok:
+		var view := Rect2(Vector2.ZERO, size).grow(40.0)
 		for road in usmap.roads:
 			var pts: PackedVector2Array = road["pts"]
 			for i in range(pts.size() - 1):
-				_map_canvas.draw_line(center + (pts[i] - Vector2(_map_player.x, _map_player.z)) * scale,
-					center + (pts[i + 1] - Vector2(_map_player.x, _map_player.z)) * scale, Color(0.55, 0.5, 0.42), 2.0)
+				var pa := center + (pts[i] - Vector2(_map_player.x, _map_player.z)) * scale
+				var pb := center + (pts[i + 1] - Vector2(_map_player.x, _map_player.z)) * scale
+				if view.has_point(pa) or view.has_point(pb):
+					_map_canvas.draw_line(pa, pb, Color(0.55, 0.5, 0.42), 2.0)
 	# POIs
 	for poi in _pois:
 		var tpos: Vector3 = poi[1].global_position if poi[1] is Node3D else poi[1]

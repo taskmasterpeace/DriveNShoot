@@ -98,12 +98,15 @@ static func create(type: DogType, name_in: String, breed_in: String) -> ProtoDog
 	var s: float = p["scale"]
 	var body_color: Color = p["color"]
 
+	# The capsule covers the HEAD's reach (~0.6 forward), not just the body: the
+	# visual yaws while this body doesn't, so only a round shape can keep the
+	# muzzle out of walls in every facing (playtest: "heads stick through walls").
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.28 * s
-	cap.height = 0.7 * s
+	cap.radius = 0.5 * s
+	cap.height = 1.0 * s
 	shape.shape = cap
-	shape.position.y = 0.4 * s
+	shape.position.y = 0.42 * s
 	d.add_child(shape)
 
 	# THE FOUR-LEGGED PUPPET (quadruped.gd): box parts driven by sin() off speed,
@@ -429,6 +432,8 @@ func _chase_and_bite(target: Node3D, delta: float) -> bool:
 func _bite(target: Node3D) -> void:
 	if _bite_cd > 0.0:
 		return
+	if not ProtoWeapon.melee_clear(self, target):
+		return # a wall between = no teeth (the melee law)
 	var p: Dictionary = params()
 	var dmg: float = p.get("bite", 0.0)
 	if dmg <= 0.0:

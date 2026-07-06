@@ -146,10 +146,14 @@ func set_headlights(on: bool) -> void:
 		for lx in xs:
 			var lamp := SpotLight3D.new()
 			lamp.position = Vector3(lx, 0.55 + maxf(0.0, spec["chassis"].y - 0.7) * 0.5, -spec["chassis"].z / 2.0 + 0.1)
-			lamp.rotation_degrees.x = -8.0
-			lamp.spot_range = 24.0
-			lamp.spot_angle = 32.0
-			lamp.light_energy = 2.6
+			# Flat, long throw (playtest: "we need to see 2-3x further down the street") —
+			# a shallow tilt + soft attenuation carries the beam instead of dumping it
+			# into the tarmac two car-lengths out.
+			lamp.rotation_degrees.x = -4.0
+			lamp.spot_range = 65.0
+			lamp.spot_angle = 30.0
+			lamp.spot_attenuation = 0.7
+			lamp.light_energy = 4.0
 			lamp.light_color = Color(1.0, 0.94, 0.75)
 			lamp.shadow_enabled = false
 			add_child(lamp)

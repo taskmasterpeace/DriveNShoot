@@ -59,6 +59,26 @@ func is_melee() -> bool:
 	return info()["behavior"] == Behavior.MELEE
 
 
+## The melee LAW (playtest: "I can hit them through the wall — they can hit me"):
+## no teeth or steel through geometry, in EITHER direction. One chest-height ray,
+## both bodies excluded — anything solid between means no hit. Every melee path
+## (player swing, dog bite, howler claw, lurker claw) asks this first.
+static func melee_clear(a: Node3D, b: Node3D) -> bool:
+	if a == null or b == null:
+		return false
+	var space: PhysicsDirectSpaceState3D = a.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(
+		a.global_position + Vector3(0, 0.7, 0),
+		b.global_position + Vector3(0, 0.7, 0))
+	var excl: Array[RID] = []
+	if a is CollisionObject3D:
+		excl.append((a as CollisionObject3D).get_rid())
+	if b is CollisionObject3D:
+		excl.append((b as CollisionObject3D).get_rid())
+	q.exclude = excl
+	return space.intersect_ray(q).is_empty()
+
+
 func can_fire() -> bool:
 	return (mag > 0 or is_melee()) and _cd <= 0.0
 
@@ -110,7 +130,8 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 				continue
 			var to_t: Vector3 = t.global_position - main.player.global_position
 			to_t.y = 0.0
-			if to_t.length() <= w["reach"] and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)):
+			if to_t.length() <= w["reach"] and aim_dir.dot(to_t.normalized()) > cos(deg_to_rad(w["arc_deg"] / 2.0)) \
+					and melee_clear(main.player, t):
 				if t.has_method("take_damage"):
 					var was_valid := true
 					ProtoFX.blood(main, t.global_position + Vector3(0, 1.1, 0))

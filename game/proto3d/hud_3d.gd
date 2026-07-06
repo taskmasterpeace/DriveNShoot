@@ -40,7 +40,7 @@ var _moodle_labels: Dictionary = {}
 ## Adding a feeling = adding a row. Order in this dict = display priority.
 const MOODLES: Dictionary = {
 	"stress": {"tiers": ["", "😟", "😰", "😱"]},
-	"tired": {"tiers": ["", "🥱", "😓", "😫"]},
+	"tired": {"tiers": ["", "😮‍💨", "🥵", "😫"]}, # WINDED, not sleepy (playtest: 🥱 read as a yawn)
 	"sick": {"tiers": ["", "🤧", "🤒", "🤮"]},
 	"drunk": {"tiers": ["", "🙂", "🥴", "🥴"]},
 	"high": {"tiers": ["", "😌", "😵‍💫", "😵"]},

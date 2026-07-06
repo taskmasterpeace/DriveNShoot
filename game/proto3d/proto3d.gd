@@ -25,6 +25,7 @@ var keys: Dictionary = {}
 ## Inventory & the shared interface (Container pillar): pack + panel + wounds.
 var backpack: ProtoContainer = ProtoContainer.new("Backpack")
 var panel: ProtoContainerPanel = null
+var devmode: ProtoDevMode = null ## F10 — the in-game test environment
 var bleeding: int = 0 ## 0-3; crashes cause it, bandages cure it
 
 ## The Arsenal: owned guns + equipped index. Ammo lives in the backpack.
@@ -331,6 +332,13 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.open(backpack, active_car.trunk) # reach the trunk from the seat
 			else:
 				panel.open(backpack, null) # just your pack
+		elif kc == KEY_F10:
+			# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
+			if devmode == null:
+				devmode = ProtoDevMode.create(self)
+				add_child(devmode)
+			else:
+				devmode.toggle()
 		elif kc == KEY_H:
 			_honk()
 		elif kc == KEY_P:
@@ -905,7 +913,14 @@ func _nearest_loot() -> Node3D:
 	return best
 
 
+## A dog's warning only reaches you within EARSHOT (playtest: a dog across the
+## map kept pinging the HUD). Past this it barks at the wasteland, not at you.
+const DOG_EARSHOT: float = 25.0
+
+
 func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
+	if dog.global_position.distance_to(player.global_position) > DOG_EARSHOT:
+		return
 	last_dog_alert = {"dog": dog.dog_name, "behind": behind, "at": Time.get_ticks_msec()}
 	# The dog's senses become YOURS: a snapshot bubble where it smelled the threat.
 	if _threat and is_instance_valid(_threat):
@@ -920,6 +935,8 @@ func on_dog_alert(dog: ProtoDog, _threat: Node3D, behind: bool) -> void:
 
 
 func on_dog_nose(dog: ProtoDog, stash: Node3D) -> void:
+	if dog.global_position.distance_to(player.global_position) > DOG_EARSHOT:
+		return # its find, not your toast — walk with the dog if you want the nose
 	last_dog_nose = {"dog": dog.dog_name, "stash": stash}
 	if stash and is_instance_valid(stash):
 		vision_cone.reveal_at(stash.global_position)
@@ -1328,9 +1345,13 @@ func _apply_hand_pose(wpn: ProtoWeapon) -> void:
 	_last_pose_id = id
 	if wpn == null:
 		player.puppet.set_hand_pose(Vector3.ZERO, false)
+		player.puppet.raised = true
 		return
 	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
 	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
+	# Guns ride raised (the twin-stick aim read); steel is CARRIED — the arm hangs
+	# and only comes up in the swing (playtest: the always-raised wrench floated).
+	player.puppet.raised = not wpn.is_melee()
 
 
 ## The world POINT under the cursor (mouse ray onto the aim plane; sims project

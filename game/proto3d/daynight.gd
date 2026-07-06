@@ -12,6 +12,7 @@ const WAIT_MULT := 60.0   ## hold T: an hour passes in ~2.5s
 var hour: float = 9.0 ## start mid-morning
 var day: int = 1
 var waiting: bool = false ## T held (sim hook)
+var dev_mult: float = 1.0 ## DEV MODE's fast clock (×1/×10/×60) — testing nights shouldn't take one
 ## THE MOON RUNS THE NIGHT (playtest law): how dark night gets is the moon's
 ## call — full moon is a silver 0.72-sight night, new moon is 0.32 ink. 8-day cycle.
 var moon_phase: float = 0.55
@@ -33,7 +34,7 @@ func setup(sun: DirectionalLight3D, env: Environment) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var speed := WAIT_MULT if waiting else 1.0
+	var speed := WAIT_MULT if waiting else dev_mult
 	hour += delta * (24.0 / (DAY_MINUTES * 60.0)) * speed
 	while hour >= 24.0:
 		hour -= 24.0
@@ -85,7 +86,7 @@ func clock_text() -> String:
 	var icon := "☀️" if not is_dark() else moon_icon()
 	if hour > 18.0 and hour < 20.5:
 		icon = "🌆"
-	return "%s %02d:%02d" % [icon, h, m]
+	return "%s %02d:%02d · DAY %d" % [icon, h, m, day] # the day count makes time legible (playtest ask)
 
 
 func _apply() -> void:

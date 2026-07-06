@@ -142,7 +142,7 @@ func _act_overlay(delta: float) -> void:
 			if not _crouched:
 				_crouched = true
 				_puppet.position.y = -0.28
-			_puppet.aim_arm.rotation.x = 0.0
+			_puppet.shoulder.rotation.x = 0.0 # sighting down the barrel — arm level at the joint
 		_:
 			# idle: the base breathing/lean is enough; add a tiny weight shift.
 			_puppet.torso.rotation.z = sin(_act_t * 0.5) * 0.04

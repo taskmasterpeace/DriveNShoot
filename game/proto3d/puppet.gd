@@ -9,7 +9,7 @@
 ##   torso · neck→head(+eyes,+optional patch,+optional hat) · optional backpack
 ##   legs_pivot → hip_l/hip_r → leg boxes (stride)
 ##   free_arm shoulder → arm box (swings opposite its leg)
-##   aim_arm (the old "_upper": caller yaws it to the gaze) → gun_arm + hand → gun
+##   aim_arm (the old "_upper": caller yaws it to the gaze) → shoulder → arm + hand → gun
 class_name ProtoPuppet
 extends Node3D
 
@@ -58,15 +58,27 @@ var hip_l: Node3D
 var hip_r: Node3D
 var free_arm: Node3D
 var aim_arm: Node3D      ## the caller yaws this to the gaze (old "_upper")
+var shoulder: Node3D     ## the REAL joint: raises/hangs/swings the gun arm (playtest: no more feet-orbit float)
 var gun: MeshInstance3D
 var hand: Node3D
 var _hat: MeshInstance3D
 var _pack: MeshInstance3D
 
+## Does the weapon arm hold level and track the gaze? TRUE for guns (twin-stick:
+## the raised iron IS the aim read). Melee sets it FALSE — steel is CARRIED low
+## and only comes up in the swing (playtest: the always-raised wrench floated).
+var raised: bool = true
+
+## How far down the arm hangs when relaxed (rad about the shoulder; 0 = level).
+const ARM_HANG: float = -0.95
+## Carried-weapon tilt: the hand rolls so a carried wrench lies along the leg.
+const HAND_CARRY: float = -0.6
+
 var _t: float = 0.0
 var _phase: float = 0.0
 var _lean: float = 0.0
 var _slump: float = 0.0
+var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
 var _dead_blend: float = 0.0
@@ -129,16 +141,23 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.add_child(p.free_arm)
 
 	# --- Aim arm (the gun side; the caller yaws it to the gaze) ------------
+	# aim_arm = the YAW pivot (body center, so a full-turn aim stays symmetric).
+	# shoulder = the REAL joint inside it: everything hangs off the shoulder so
+	# raising/hanging/swinging pivots there — NOT orbiting the feet (the old bug:
+	# rotation.x at the root swung the arm on a 1.2 m arc around the body).
 	p.aim_arm = Node3D.new()
 	p.add_child(p.aim_arm)
 	var hand_x := 0.29 * right
+	p.shoulder = Node3D.new()
+	p.shoulder.position = Vector3(hand_x, 1.4, 0)
+	p.aim_arm.add_child(p.shoulder)
 	# upper arm reaching from the shoulder forward toward the hand
-	var arm_box := _box(Vector3(0.14, 0.5, 0.14), Vector3(hand_x, 1.28, -0.14), cloth)
-	p.aim_arm.add_child(arm_box)
+	var arm_box := _box(Vector3(0.14, 0.5, 0.14), Vector3(0, -0.12, -0.14), cloth)
+	p.shoulder.add_child(arm_box)
 	p.hand = Node3D.new()
-	p.hand.position = Vector3(hand_x, 1.12, -0.36)
+	p.hand.position = Vector3(0, -0.28, -0.36)
 	p._gun_rest = p.hand.position
-	p.aim_arm.add_child(p.hand)
+	p.shoulder.add_child(p.hand)
 	p.gun = _box(Vector3(0.07, 0.07, 0.62), Vector3.ZERO, Color(0.16, 0.16, 0.18))
 	p.gun.visible = false
 	p.hand.add_child(p.gun)
@@ -206,12 +225,20 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# FREE ARM swings opposite the gun-side leg (natural counter-swing).
 	free_arm.rotation.x = -swing_r * 0.85
 
-	# AIM ARM — its YAW is set by the caller (points at the gaze). We add the
-	# vertical: unarmed it swings with the gait; armed it holds level with a tiny bob.
-	if armed and gun.visible:
-		aim_arm.rotation.x = sin(_t * 2.0) * 0.02
-	else:
-		aim_arm.rotation.x = -swing_l * 0.85
+	# AIM ARM — its YAW is set by the caller (points at the gaze). The SHOULDER
+	# does the vertical, pivoting at the joint: a raised gun holds level with a
+	# tiny bob; relaxed (unarmed OR carried melee) it hangs at the side and
+	# counter-swings with the gait like a real arm. A live melee swing owns the
+	# joint (tween) — we keep our hands off until it lands.
+	_swing_t = maxf(0.0, _swing_t - delta)
+	if _swing_t <= 0.0:
+		var hold := raised and armed and gun.visible
+		var pose_target := sin(_t * 2.0) * 0.02 if hold else ARM_HANG - swing_l * 0.55
+		# One smoothed write: raise/lower transitions blend and the post-swing
+		# hand-off can't pop (the lerp eats the mismatch in a few frames).
+		shoulder.rotation.x = lerpf(shoulder.rotation.x, pose_target, clampf(12.0 * delta, 0.0, 1.0))
+		shoulder.rotation.y = move_toward(shoulder.rotation.y, 0.0, 8.0 * delta)
+		hand.rotation.x = lerpf(hand.rotation.x, 0.0 if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
 
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.
 	var breath := sin(_t * 1.8) * (0.02 if not moving else 0.0)
@@ -236,8 +263,8 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		torso.rotation.x += _flinch * 0.5
 		torso.rotation.z += _flinch_side * _flinch * 0.28
 		neck.rotation.x += _flinch * 0.3
-	if _recoil > 0.0 and gun.visible:
-		aim_arm.rotation.x -= _recoil * 0.4
+	if _recoil > 0.0 and gun.visible and _swing_t <= 0.0:
+		shoulder.rotation.x += _recoil * 0.4 # positive at the shoulder = the hand kicks UP
 
 
 ## A hit reaction: rock away from the direction the blow came from (world dir toward
@@ -261,7 +288,8 @@ func _pose_dead() -> void:
 	hip_l.rotation.x = lerp(hip_l.rotation.x, -0.5, b)
 	hip_r.rotation.x = lerp(hip_r.rotation.x, 0.4, b)
 	free_arm.rotation.x = lerp(free_arm.rotation.x, 1.1, b)
-	aim_arm.rotation.x = lerp(aim_arm.rotation.x, 1.1, b)
+	shoulder.rotation.x = lerp(shoulder.rotation.x, 1.1, b) # arm flung overhead in the sprawl
+	shoulder.rotation.y = lerp(shoulder.rotation.y, 0.0, b)
 
 
 # --- Weapon hand poses (Rung 2 hook — the pose is the WEAPON's property) ------
@@ -293,13 +321,40 @@ func gun_recoil() -> void:
 	tw.tween_property(gun, "position:z", 0.0, 0.09).set_ease(Tween.EASE_IN_OUT)
 
 
+## The melee swing, on the WHOLE ARM (playtest: the old version wiggled the weapon
+## in a frozen hand — "horrible"). Windup coils the arm back behind the shoulder,
+## the slash whips it across the body with the blade leading, the follow-through
+## settles home. While it runs the tween owns the shoulder; animate() waits.
 func swing() -> void:
-	if gun == null:
+	if gun == null or shoulder == null:
 		return
-	gun.rotation.y = 0.9
-	var tw := gun.create_tween()
-	tw.tween_property(gun, "rotation:y", -0.9, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(gun, "rotation:y", 0.0, 0.12).set_ease(Tween.EASE_IN_OUT)
+	_swing_t = 0.37
+	var hs := handed_sign
+	var tw := create_tween()
+	tw.set_parallel(true)
+	# WINDUP: arm coils back to the weapon side and lifts (negative yaw = the gun side)
+	tw.tween_property(shoulder, "rotation:y", -1.0 * hs, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(shoulder, "rotation:x", 0.35, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(gun, "rotation:y", 0.7 * hs, 0.08).set_ease(Tween.EASE_OUT)
+	# THE SLASH: whip across the arc (matches the ~100° hit arc), slight downward bite
+	tw.chain().tween_property(shoulder, "rotation:y", 0.95 * hs, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(shoulder, "rotation:x", -0.15, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(gun, "rotation:y", -0.7 * hs, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# FOLLOW-THROUGH: everything home; animate()'s smoothed write takes over after
+	tw.chain().tween_property(shoulder, "rotation:y", 0.0, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(shoulder, "rotation:x", ARM_HANG if not raised else 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(gun, "rotation:y", 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
+
+
+## True while the melee tween owns the arm (the caller keeps the yaw on the aim).
+func is_swinging() -> bool:
+	return _swing_t > 0.0
+
+
+## Should the arm YAW track the gaze this frame? Guns always (twin-stick pillar);
+## melee/unarmed only mid-swing — otherwise the arm relaxes home with the body.
+func arm_tracks_gaze() -> bool:
+	return _swing_t > 0.0 or (raised and gun.visible)
 
 
 ## World-space muzzle tip — rounds LEAVE THE GUN barrel.

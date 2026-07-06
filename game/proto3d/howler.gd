@@ -42,10 +42,12 @@ static func create(main: Node) -> ProtoHowler:
 	h._rng.randomize()
 	h._orbit_sign = 1.0 if h._rng.randf() > 0.5 else -1.0
 	h._charge_cd = h._rng.randf_range(2.5, 6.0)
+	# Round shape sized to the head's reach — the visual yaws, the body doesn't,
+	# so only radius keeps the snout out of walls (same law as the dog).
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
-	cap.radius = 0.3
-	cap.height = 1.1
+	cap.radius = 0.55
+	cap.height = 1.2
 	shape.shape = cap
 	shape.position.y = 0.55
 	h.add_child(shape)
@@ -231,9 +233,9 @@ func _physics_process(delta: float) -> void:
 				velocity.z = dir.z * charge_speed
 				_face(dir, delta)
 
-	# Teeth: same two-way law as the lurker's claw.
+	# Teeth: same two-way law as the lurker's claw — and never through a wall.
 	_claw_cd = maxf(0.0, _claw_cd - delta)
-	if not dead and _claw_cd <= 0.0 and dist <= 1.7:
+	if not dead and _claw_cd <= 0.0 and dist <= 1.7 and ProtoWeapon.melee_clear(self, _player):
 		if _main and _main.has_method("on_player_clawed"):
 			_claw_cd = claw_cooldown
 			_main.on_player_clawed(claw_damage, self)

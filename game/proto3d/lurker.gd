@@ -181,8 +181,9 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
 
 	# COMBAT IS TWO-WAY: in claw reach, it swipes — the wasteland bites back.
+	# (But never through a wall: the melee law cuts both ways.)
 	_claw_cd = maxf(0.0, _claw_cd - delta)
-	if not dead and _claw_cd <= 0.0 and dist <= stop_distance + 0.5:
+	if not dead and _claw_cd <= 0.0 and dist <= stop_distance + 0.5 and ProtoWeapon.melee_clear(self, _player):
 		var main := get_tree().current_scene
 		if main == null or not main.has_method("on_player_clawed"):
 			main = _player.get_parent() if _player else null

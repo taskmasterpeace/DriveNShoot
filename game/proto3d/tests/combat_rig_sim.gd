@@ -34,13 +34,13 @@ func _ready() -> void:
 	# settle
 	for _i in 20:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
-	var rest_arm: float = p.aim_arm.rotation.x
+	var rest_arm: float = p.shoulder.rotation.x
 	p.recoil()
 	var kick := 0.0
 	for _i in 12:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
-		kick = minf(kick, p.aim_arm.rotation.x - rest_arm) # recoil pushes it NEGATIVE (up)
-	_check("a shot KICKS the aim arm up (Δ %.3f, want <-0.1)" % kick, kick < -0.1)
+		kick = maxf(kick, p.shoulder.rotation.x - rest_arm) # at the shoulder joint, UP is POSITIVE
+	_check("a shot KICKS the aim arm up (Δ %.3f, want >0.1)" % kick, kick > 0.1)
 
 	# --- BIPED: a hit rocks the body back (flinch) ---------------------------
 	var f := ProtoPuppet.create({})
@@ -65,6 +65,32 @@ func _ready() -> void:
 	for _i in 60:
 		corpse.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, true)
 	_check("DEATH flops the rig (torso %.2f, want <-0.5)" % corpse.torso.rotation.x, corpse.torso.rotation.x < -0.5)
+
+	# --- BIPED: a melee swing whips the WHOLE ARM ----------------------------
+	# Regression: the old swing wiggled the weapon in a frozen hand (playtest:
+	# "horrible"). Real frames (await) so the swing tween actually advances.
+	var sw := ProtoPuppet.create({})
+	add_child(sw)
+	sw.raised = false # steel is carried, not aimed
+	sw.set_armed(true)
+	# Warm the frame clock: the first headless frame can be >100 ms, which would
+	# swallow the 80 ms windup before the first sample.
+	for _i in 5:
+		await get_tree().process_frame
+	sw.swing()
+	var yaw_lo := 0.0
+	var yaw_hi := 0.0
+	# Time-budgeted, on the ENGINE's delta: the swing tween advances in real
+	# frames, so the sim must march the same clock (headless frames run fast).
+	var t := 0.0
+	while t < 0.6:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		sw.animate(dt, 0.0, 0.0, true, 0.0, false)
+		yaw_lo = minf(yaw_lo, sw.shoulder.rotation.y)
+		yaw_hi = maxf(yaw_hi, sw.shoulder.rotation.y)
+	_check("a melee SWING whips the whole arm (yaw sweep %.2f rad, want >1.2)" % (yaw_hi - yaw_lo), (yaw_hi - yaw_lo) > 1.2)
 
 	# --- QUADRUPED: a hit jolts the animal -----------------------------------
 	var q := ProtoQuadruped.create({})

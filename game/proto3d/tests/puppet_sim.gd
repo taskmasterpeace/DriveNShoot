@@ -65,10 +65,17 @@ func _ready() -> void:
 	_check("legs REST when idle (sweep %.3f, want <0.1)" % (idle_legs[1] - idle_legs[0]), (idle_legs[1] - idle_legs[0]) < 0.1)
 
 	# --- ARMED holds the aim arm level; UNARMED it swings --------------------
+	# (the vertical lives on the SHOULDER joint now — aim_arm is pure yaw.
+	#  Raise/lower is a smoothed transition, so SETTLE into each stance before
+	#  measuring: we're testing the hold, not the blend.)
 	p.set_armed(true)
-	var armed_arm := _sweep(p, 120, 6.0, 0.0, true, 0.0, false, func(): return p.aim_arm.rotation.x)
+	for _i in 90:
+		p.animate(1.0 / 60.0, 6.0, 0.0, true, 0.0, false)
+	var armed_arm := _sweep(p, 120, 6.0, 0.0, true, 0.0, false, func(): return p.shoulder.rotation.x)
 	p.set_armed(false)
-	var free_aim := _sweep(p, 120, 6.0, 0.0, false, 0.0, false, func(): return p.aim_arm.rotation.x)
+	for _i in 90:
+		p.animate(1.0 / 60.0, 6.0, 0.0, false, 0.0, false)
+	var free_aim := _sweep(p, 120, 6.0, 0.0, false, 0.0, false, func(): return p.shoulder.rotation.x)
 	_check("ARMED = gun arm steady, UNARMED = it swings (armed %.2f < unarmed %.2f)" % [armed_arm[1] - armed_arm[0], free_aim[1] - free_aim[0]],
 		(armed_arm[1] - armed_arm[0]) < (free_aim[1] - free_aim[0]) and (armed_arm[1] - armed_arm[0]) < 0.15)
 
@@ -112,8 +119,9 @@ func _ready() -> void:
 	var lefty := ProtoPuppet.create({"handed": "left"})
 	add_child(righty)
 	add_child(lefty)
-	_check("handedness MIRRORS the hand (R x %.2f vs L x %.2f)" % [righty.hand.position.x, lefty.hand.position.x],
-		signf(righty.hand.position.x) != signf(lefty.hand.position.x))
+	# (the mirror lives on the SHOULDER joint now; the hand rides at its origin)
+	_check("handedness MIRRORS the hand (R x %.2f vs L x %.2f)" % [righty.shoulder.position.x, lefty.shoulder.position.x],
+		signf(righty.shoulder.position.x) != signf(lefty.shoulder.position.x))
 
 	# --- Rung 2: weapons carry their own HAND POSE ---------------------------
 	var poser := ProtoPuppet.create({})
