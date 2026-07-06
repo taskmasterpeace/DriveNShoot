@@ -133,7 +133,14 @@ func interact_prompt(main: Node) -> String:
 		return "" # you don't hand-feed a thing that's charging you
 	if main.backpack.count("meat") <= 0:
 		return "(it's down — MEAT could tame it)"
-	return "E — Offer meat (tamed %d/3)" % tame_progress
+	return "E — Offer meat (tamed %d/%d)" % [tame_progress, _meat_needed(main)]
+
+
+## ⭐ KINSHIP shortens the taming ladder: 3 meat unskilled → 2 at lv3 → 1 at lv6.
+func _meat_needed(main: Node) -> int:
+	if "character" in main and main.character:
+		return main.character.tame_meat_needed()
+	return 3
 
 
 func interact(main: Node) -> void:
@@ -143,8 +150,10 @@ func interact(main: Node) -> void:
 	_stun_t = maxf(_stun_t, 1.4) # eating keeps it down
 	if "audio" in main and main.audio:
 		main.audio.play_at("growl", global_position, -8.0, 1.3)
-	if tame_progress < 3:
-		main.notify("🍖 It tears the meat apart... and watches you (%d/3)" % tame_progress)
+	if main.has_method("grant_xp"):
+		main.grant_xp("kinship", 10.0) # ⭐ taming a night-hunter is the deepest bond work there is
+	if tame_progress < _meat_needed(main):
+		main.notify("🍖 It tears the meat apart... and watches you (%d/%d)" % [tame_progress, _meat_needed(main)])
 		return
 	# TAMED: the howler becomes a MUTANT HOUND — a full pack dog. Every dog
 	# system (whistle, guard, ride-along, metaworld) is inherited for free.

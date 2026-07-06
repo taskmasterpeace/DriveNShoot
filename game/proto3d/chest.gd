@@ -3,6 +3,7 @@ class_name ProtoChest
 extends StaticBody3D
 
 var container: ProtoContainer = ProtoContainer.new("Chest")
+var _scav_done: bool = false ## first open teaches Scavenging + skilled eyes find extras
 
 
 ## solid=false → loot piles/corpses: visible + lootable but NO collision, so
@@ -48,4 +49,15 @@ func interact_prompt(_main: Node) -> String:
 
 
 func interact(main: Node) -> void:
+	# SCAVENGING: the first crack of any container teaches the road; skilled eyes
+	# find what an amateur misses (bonus scrap tucked in the corners).
+	if not _scav_done:
+		_scav_done = true
+		if main.has_method("grant_xp"):
+			main.grant_xp("scavenging", 3.0)
+		if "character" in main and main.character:
+			var bonus: int = main.character.scavenge_bonus()
+			if bonus > 0 and not container.slots.is_empty():
+				container.add("scrap", bonus)
+				main.notify("🔦 Your eye catches extra salvage (+%d scrap)" % bonus)
 	main.open_container(container)

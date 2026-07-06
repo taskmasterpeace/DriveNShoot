@@ -45,7 +45,7 @@ func _physics_process(delta: float) -> void:
 	match phase:
 		0:
 			if phase_t > 0.8:
-				_check("character spine exists (6 parts, 3 skills)", main.character.body.size() == 6 and main.character.skills.size() == 3)
+				_check("character spine exists (6 parts, the 10-skill tree)", main.character.body.size() == 6 and main.character.skills.size() == 10)
 				# Skill engine: xp -> level -> real effect
 				main.grant_xp("mechanics", 200.0)
 				_check("xp levels Mechanics (lv %d)" % main.character.level("mechanics"), main.character.level("mechanics") >= 2)

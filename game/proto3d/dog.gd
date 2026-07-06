@@ -134,6 +134,9 @@ func morale() -> float:
 		m -= (1.0 - nearest / 12.0) * 0.6 # a close threat = fear
 	if dog_type == DogType.CUDDLE:
 		m += 0.15
+	# ⭐ KINSHIP: a bonded pack stands braver beside you.
+	if _main and "character" in _main and _main.character:
+		m += _main.character.kinship_morale_bonus()
 	return clampf(m, 0.0, 1.0)
 
 
@@ -168,11 +171,15 @@ func interact(main: Node) -> void:
 		_owner_ref = main.player
 		_queue_state(DogState.FOLLOW)
 		main.register_dog(self)
+		if main.has_method("grant_xp"):
+			main.grant_xp("kinship", 8.0) # ⭐ taking one in IS the skill
 		main.notify("%s the %s %s joins you" % [dog_name, breed, type_name()])
 		return
 	# A hurt dog eats first — meat heals the pack (improve-the-dogs pass).
 	if hp < max_hp - 5.0 and main.backpack.remove("meat", 1):
 		hp = minf(max_hp, hp + 30.0)
+		if main.has_method("grant_xp"):
+			main.grant_xp("kinship", 3.0) # ⭐ feeding builds the bond
 		main.notify("🍖 %s wolfs it down (%d/%d hp)" % [dog_name, int(hp), int(max_hp)])
 		if "audio" in main and main.audio:
 			main.audio.play_at("bark", global_position, -10.0, 1.2)
@@ -261,8 +268,11 @@ static func from_record(rec: Dictionary, main_in: Node) -> ProtoDog:
 
 func _queue_state(s: DogState) -> void:
 	var delay: float = params()["obey_delay"]
-	if delay <= 0.0:
-		state = s # Companion: instant obedience — its signature
+	# ⭐ KINSHIP: a bonded handler's commands land faster — the pack TRUSTS you.
+	if _main and "character" in _main and _main.character:
+		delay *= _main.character.kinship_obey_mult()
+	if delay <= 0.03:
+		state = s # instant obedience (Companion's signature; high Kinship earns it for all)
 	else:
 		_obey_queue.append([delay, s])
 

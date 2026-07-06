@@ -186,7 +186,9 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 				drop.pressed.connect(_on_drop.bind(from, id))
 				row.add_child(drop)
 	if mine_side and _load_label and from != null:
-		var cap: float = _main.CARRY_CAP if (_main != null and "CARRY_CAP" in _main) else 32.0
+		var cap: float = 32.0
+		if _main != null and "character" in _main and _main.character:
+			cap = _main.character.carry_cap() # STRENGTH raises it — the panel tells the truth
 		var load := from.total_weight()
 		_load_label.text = "🎒 load %.1f / %.0f kg%s" % [load, cap, "  — 🐢 OVERLOADED" if load > cap else ""]
 		_load_label.add_theme_color_override("font_color",

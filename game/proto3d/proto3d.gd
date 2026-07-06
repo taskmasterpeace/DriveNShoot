@@ -161,8 +161,11 @@ func _ready() -> void:
 	add_child(audio)
 	_wound_rng.randomize()
 	character.leveled.connect(func(id: String, lvl: int) -> void:
-		hud.toast("⬆️ %s %s reached level %d" % [ProtoCharacter.SKILLS[id]["emoji"], ProtoCharacter.SKILLS[id]["name"], lvl])
-		audio.play_ui("blip", -4.0))
+		# COMPELLING = the level-up tells you exactly what you just got.
+		var row: Dictionary = ProtoCharacter.SKILLS[id]
+		hud.toast("⬆️ %s %s lv %d — now: %s" % [row["emoji"], row["name"], lvl, character.skill_effect_line(id)])
+		audio.play_ui("blip", -4.0)
+		_apply_skill_effects())
 	character.died.connect(_on_death)
 
 	panel = ProtoContainerPanel.create(self)
@@ -241,6 +244,7 @@ func _ready() -> void:
 	metaworld.come_home.connect(func(text: String) -> void: hud.toast(text))
 
 	house.tracked = player
+	_apply_skill_effects()
 	enter_car(cars[0])
 	cam_rig.snap_to_target()
 
@@ -458,9 +462,10 @@ func _physics_process(delta: float) -> void:
 		hud.set_ammo("", "", 0, 0, false)
 		hud.update_reticle(0.0, Vector2.ZERO, false)
 
-	# Encumbrance: an overloaded pack slows your legs (STR raises the cap later).
+	# Encumbrance: an overloaded pack slows your legs — STRENGTH raises the cap
+	# (the promised hook, now live: carry_cap() = 32 + 2.5/lv).
 	var load := backpack.total_weight()
-	var over := load / CARRY_CAP
+	var over := load / character.carry_cap()
 	player.speed_mult = 1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)
 	hud.set_condition("heavy", 0 if over <= 1.0 else (3 if over > 1.5 else 1))
 
@@ -489,6 +494,7 @@ func _physics_process(delta: float) -> void:
 		if is_instance_valid(c):
 			c.set_headlights(daynight.is_dark())
 	_update_night_pack(delta)
+	_update_skill_trickle(delta)
 	_update_reload(delta)
 	sview.update_view(self)
 	_update_bounty()
@@ -1149,7 +1155,8 @@ func use_item(id: String) -> bool:
 				hud.set_condition("hurt", 0)
 				var part := character.worst_part()
 				if part != "":
-					character.treat(part, 30.0) # treatment = the part recovers, the CAP comes back
+					character.treat(part, 30.0 * character.heal_mult()) # First Aid: skilled hands heal harder
+				grant_xp("first_aid", 4.0)
 				notify("Bandaged the %s (cap %d)" % [part.replace("_", " "), int(character.hp_cap())])
 				return true
 			notify("No wound to bandage")
@@ -1158,14 +1165,16 @@ func use_item(id: String) -> bool:
 			bleeding = 0
 			hud.set_condition("hurt", 0)
 			for part in character.body:
-				character.treat(part, 25.0)
+				character.treat(part, 25.0 * character.heal_mult())
+			grant_xp("first_aid", 6.0)
 			notify("⛑️ Patched up head to toe (cap %d)" % int(character.hp_cap()))
 			return true
 		"painkillers":
 			var part := character.worst_part()
 			if part != "":
-				character.treat(part, 12.0)
+				character.treat(part, 12.0 * character.heal_mult())
 			stress = maxf(0.0, stress - 8.0)
+			grant_xp("first_aid", 2.0)
 			notify("💊 The edge comes off")
 			return true
 		"meat":
@@ -1216,7 +1225,7 @@ func use_item(id: String) -> bool:
 			if worst == "" or worst_r >= 1.0:
 				notify("The %s doesn't need parts" % rig.display_name)
 				return false
-			rig.components[worst].restore(35.0)
+			rig.components[worst].restore(35.0 * character.repair_mult()) # Mechanics: parts go further
 			character.add_xp("mechanics", 14.0)
 			notify("⚙️ Rebuilt the %s's %s" % [rig.display_name, worst.replace("_", " ")])
 			return true
@@ -1228,7 +1237,7 @@ func use_item(id: String) -> bool:
 			if rig.components["tires"].ratio() >= 1.0:
 				notify("Those tires are fine")
 				return false
-			rig.components["tires"].restore(50.0)
+			rig.components["tires"].restore(50.0 * character.repair_mult())
 			character.add_xp("mechanics", 8.0)
 			notify("🛞 Patched the %s's rubber" % rig.display_name)
 			return true
@@ -1237,7 +1246,8 @@ func use_item(id: String) -> bool:
 			if rig == null:
 				notify("No rig in reach to tape")
 				return false
-			rig.components["chassis"].restore(12.0)
+			rig.components["chassis"].restore(12.0 * character.repair_mult())
+			character.add_xp("mechanics", 3.0)
 			notify("🧷 Taped. It'll hold. Probably")
 			return true
 		"flare":
@@ -1271,10 +1281,12 @@ func use_item(id: String) -> bool:
 			var tp: Vector2 = town["pos"]
 			var ccx := int(floor(tp.x / ProtoWorldStream.CHUNK))
 			var ccz := int(floor(tp.y / ProtoWorldStream.CHUNK))
-			for dx in range(-3, 4):
-				for dz in range(-3, 4):
+			var r: int = character.fragment_reveal_radius() # Scavenging reads the land wider
+			for dx in range(-r, r + 1):
+				for dz in range(-r, r + 1):
 					stream.visited["%d,%d" % [ccx + dx, ccz + dz]] = \
 						Vector2((ccx + dx + 0.5) * ProtoWorldStream.CHUNK, (ccz + dz + 0.5) * ProtoWorldStream.CHUNK)
+			grant_xp("scavenging", 4.0)
 			notify("🗺️ %s marked on your map (M)" % town["name"])
 			return true
 	return false
@@ -1524,9 +1536,9 @@ func _honk() -> void:
 	audio.play_at("honk", active_car.global_position, 2.0)
 	var called := 0
 	for d in dogs:
-		# A horn CARRIES — 55m of wasteland silence says come home.
+		# A horn CARRIES — and a bonded pack (⭐ Kinship) hears it farther out.
 		if is_instance_valid(d) and d.riding_in == null \
-				and d.global_position.distance_to(active_car.global_position) < 55.0:
+				and d.global_position.distance_to(active_car.global_position) < character.horn_recall_radius():
 			d.command_heel()
 			called += 1
 	notify("📯 HOOOONK — %s" % ("the pack comes running" if called > 0 else "the wasteland ignores you"))
@@ -1550,6 +1562,7 @@ func _pet_dog() -> void:
 	if target == null:
 		return
 	_pet_cd = 4.0
+	grant_xp("kinship", 2.0) # ⭐ the bond is built one scratch at a time
 	var aura: float = target.params()["calm_aura"]
 	stress = maxf(0.0, stress - (18.0 if aura >= 5.0 else 10.0))
 	audio.play_at("bark", (active_car.global_position if mode == Mode.DRIVE and active_car else target.global_position), -10.0, 1.35)
@@ -1582,7 +1595,7 @@ func reload_equipped() -> void:
 		notify("No %s left" % w.info()["ammo"])
 		return
 	# The swap takes REAL time (per weapon); firing is blocked until it lands.
-	_reload_t = float(w.info().get("reload_s", 1.0))
+	_reload_t = float(w.info().get("reload_s", 1.0)) * character.reload_mult() # Marksmanship folds reload in
 	_reload_wpn = w
 	audio.play_ui("click", -4.0)
 	notify("Reloading…")
@@ -1668,6 +1681,56 @@ func grant_xp(id: String, amount: float) -> void:
 	character.add_xp(id, amount)
 
 
+## Push the passive skill effects into their carriers (on boot + every level-up):
+## Endurance grows the stamina tank, Driving rides the active car, Stealth arms
+## the body's noise profile. Everything else is read live at its call site.
+func _apply_skill_effects() -> void:
+	player.max_stamina = character.stamina_max()
+	player.endurance_regen = character.stamina_regen_mult()
+	player.stealth_base = character.stealth_detect_mult()
+	if active_car:
+		active_car.driver_control = character.drive_control()
+		active_car.driver_top = character.drive_top_mult()
+
+
+## XP-BY-USE trickles (the quiet skills level by doing, not by menus):
+## sprinting teaches Endurance, hauling heavy teaches Strength, moving quiet
+## near something that could kill you teaches Stealth.
+var _trickle_t: Dictionary = {"endurance": 0.0, "strength": 0.0, "stealth": 0.0}
+var _prev_foot_state: int = 0
+func _update_skill_trickle(delta: float) -> void:
+	if mode != Mode.FOOT or character.dead:
+		return
+	# A committed dive is endurance work too.
+	if player.move_state != _prev_foot_state:
+		if player.move_state == ProtoPlayer3D.FootState.DIVE:
+			grant_xp("endurance", 1.5)
+		_prev_foot_state = player.move_state
+	if player._was_running:
+		_trickle_t["endurance"] += delta
+		if _trickle_t["endurance"] >= 3.0:
+			_trickle_t["endurance"] = 0.0
+			grant_xp("endurance", 1.0)
+	var moving := player.velocity.length() > 1.0
+	if moving and backpack.total_weight() > character.carry_cap() * 0.85:
+		_trickle_t["strength"] += delta
+		if _trickle_t["strength"] >= 4.0:
+			_trickle_t["strength"] = 0.0
+			grant_xp("strength", 1.0)
+	if moving and not player._was_running:
+		var near_threat := false
+		for n in get_tree().get_nodes_in_group("threat"):
+			if n is Node3D and is_instance_valid(n) \
+					and (n as Node3D).global_position.distance_to(player.global_position) < 16.0:
+				near_threat = true
+				break
+		if near_threat:
+			_trickle_t["stealth"] += delta
+			if _trickle_t["stealth"] >= 3.0:
+				_trickle_t["stealth"] = 0.0
+				grant_xp("stealth", 1.0)
+
+
 ## The character sheet (K) — stats speak emoji, per the moodle law.
 func _sheet_text() -> String:
 	var lines: Array[String] = []
@@ -1678,9 +1741,30 @@ func _sheet_text() -> String:
 		var d: Damageable = character.body[part]
 		lines.append("%s %-7s %s" % [d.emoji, part.replace("_", " "), tier_txt[d.tier()]])
 	lines.append("")
+	# THE SKILL TREE: ⭐ signatures first, then the rest. Every line shows the
+	# level, an xp bar to the NEXT level, what the skill DOES for you right now,
+	# and how it levels — the sheet sells the climb.
+	lines.append("————— SKILLS (level by DOING) —————")
+	var ordered: Array = []
 	for id in ProtoCharacter.SKILLS:
+		if ProtoCharacter.SKILLS[id].get("star", false):
+			ordered.append(id)
+	for id in ProtoCharacter.SKILLS:
+		if not ProtoCharacter.SKILLS[id].get("star", false):
+			ordered.append(id)
+	for id in ordered:
+		var row: Dictionary = ProtoCharacter.SKILLS[id]
 		var s: Dictionary = character.skills[id]
-		lines.append("%s %-13s lv %d  (%d xp)" % [ProtoCharacter.SKILLS[id]["emoji"], ProtoCharacter.SKILLS[id]["name"], s["level"], int(s["xp"])])
+		var lvl: int = s["level"]
+		var xp_now: float = s["xp"] - 40.0 * lvl * lvl
+		var xp_need: float = 40.0 * (lvl + 1) * (lvl + 1) - 40.0 * lvl * lvl
+		var fill := int(clampf(xp_now / xp_need, 0.0, 1.0) * 6.0)
+		var bar := ""
+		for i in 6:
+			bar += "▮" if i < fill else "▱"
+		lines.append("%s %s %-12s lv %d %s  %s" % [row["emoji"], "⭐" if row.get("star", false) else " ",
+			row["name"], lvl, bar, character.skill_effect_line(id)])
+		lines.append("      ↳ %s · next lv: %s" % [row["how"], row["gain"]])
 	lines.append("")
 	lines.append("🪙 Jack: %d   🩸 bleeding: %s   😰 stress: %d" % [backpack.count("jack"), str(bleeding), int(stress)])
 	lines.append("🏛️ MERIDIAN: %s  (esteem %d · infamy %d · notoriety %d)" % [respect.standing("meridian"),
@@ -1755,6 +1839,9 @@ func enter_car(car: ProtoCar3D) -> void:
 	mode = Mode.DRIVE
 	active_car = car
 	car.is_active = true
+	# ⭐ Your DRIVING rides with you into any seat.
+	car.driver_control = character.drive_control()
+	car.driver_top = character.drive_top_mult()
 	player.is_active = false
 	player.visible = false
 	player.process_mode = Node.PROCESS_MODE_DISABLED

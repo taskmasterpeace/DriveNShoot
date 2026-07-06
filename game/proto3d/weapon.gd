@@ -71,6 +71,13 @@ func current_spread(main: Node) -> float:
 	return info()["spread_deg"] * (1.0 + bloom) * skill_mult
 
 
+## Crit chance right now: base + Marksmanship (the lucky shot gets less lucky).
+func current_crit(main: Node) -> float:
+	if "character" in main and main.character:
+		return crit_chance + main.character.crit_bonus()
+	return crit_chance
+
+
 ## Fires from the player toward aim_dir. Returns true if a shot happened.
 func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	if not can_fire():
@@ -80,9 +87,16 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		# Stamina-gated swing, hits everything in the reach arc. QUIET (no heat/
 		# stress) — but never silent to the SENSES: you see the arc, feel the lunge,
 		# hear the whoosh, and every connection answers with blood + a thunk.
-		if main.player.stamina < w["stamina"]:
+		# THE MELEE SKILL: cheaper swings, harder hits, more knockdown; STRENGTH
+		# carries the shove. One skill for every swung thing (PZ's six → 1).
+		var ch: Variant = main.character if "character" in main else null
+		var stam_cost: float = w["stamina"] * (ch.melee_stam_mult() if ch else 1.0)
+		var dmg_mult: float = ch.melee_dmg_mult() if ch else 1.0
+		var kd_bonus: float = ch.melee_kd_bonus() if ch else 0.0
+		var shove_m: float = ch.shove_mult() if ch else 1.0
+		if main.player.stamina < stam_cost:
 			return false
-		main.player.stamina -= w["stamina"]
+		main.player.stamina -= stam_cost
 		_cd = w["cooldown"]
 		ProtoFX.swing_arc(main.player, aim_dir, w["arc_deg"], w["reach"])
 		main.player.swing()
@@ -101,11 +115,11 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					var was_valid := true
 					ProtoFX.blood(main, t.global_position + Vector3(0, 1.1, 0))
 					if t.has_method("shove"):
-						t.shove(to_t.normalized(), w.get("shove", 2.5)) # steel carries weight — per-weapon
-					var crit := randf() < crit_chance
+						t.shove(to_t.normalized(), w.get("shove", 2.5) * shove_m) # steel × STRENGTH
+					var crit := randf() < current_crit(main)
 					if crit:
 						ProtoFloater.pop(main, t.global_position + Vector3(0, 2.2, 0), "CRIT", Color(1.0, 0.8, 0.2), 150)
-					t.take_damage(w["damage"] * (1.8 if crit else 1.0))
+					t.take_damage(w["damage"] * dmg_mult * (1.8 if crit else 1.0))
 					hit_any = true
 					was_valid = is_instance_valid(t)
 					if "audio" in main and main.audio:
@@ -113,10 +127,11 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					if "cam_rig" in main and main.cam_rig:
 						main.cam_rig.add_trauma(0.16) # the connection lands in your hands
 					# Melee HITS — chance to knock the target flat (feel the impact).
-					if was_valid and t.has_method("knock_down") and randf() < w.get("knockdown", 0.3):
+					if was_valid and t.has_method("knock_down") and randf() < w.get("knockdown", 0.3) + kd_bonus:
 						t.knock_down()
 		if hit_any and main.has_method("grant_xp"):
-			main.grant_xp("marksmanship", 1.0)
+			main.grant_xp("melee", 1.5)     # swings teach the swing...
+			main.grant_xp("strength", 0.4)  # ...and the shove behind it
 		return true
 	mag -= 1
 	_cd = w["cooldown"]
@@ -163,7 +178,7 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 			ProtoFX.blood(main, end)
 			if shove_power > 0.0 and col.has_method("shove"):
 				col.shove(dir, shove_power)
-			var crit := randf() < crit_chance
+			var crit := randf() < current_crit(main)
 			if crit:
 				ProtoFloater.pop(main, end + Vector3(0, 1.0, 0), "CRIT", Color(1.0, 0.8, 0.2), 150)
 			col.take_damage(dmg * (1.8 if crit else 1.0))

@@ -152,7 +152,11 @@ func _physics_process(delta: float) -> void:
 	to_p.y = 0.0
 	var dist := to_p.length()
 
-	var stalking := dist < stalk_range and dist > stop_distance
+	# STEALTH: a quiet walker gets noticed later (sprinting spoils the discount).
+	var eff_stalk := stalk_range
+	if _player.has_method("noise_mult"):
+		eff_stalk *= _player.call("noise_mult")
+	var stalking := dist < eff_stalk and dist > stop_distance
 	# Freeze when the player is looking at it (creepy) — only breaks eye contact stalks.
 	# Eye contact = the GAZE (Look Arc), not the torso: what the cone shows is what freezes it.
 	if stalking and _player.has_method("facing"):

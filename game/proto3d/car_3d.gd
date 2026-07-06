@@ -110,6 +110,12 @@ var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
 var use_player_input: bool = true
 var is_active: bool = false
 
+## ⭐ THE DRIVING SKILL made physical (set by main on enter + level-up): control
+## scales steering authority + drift settle and TIGHTENS the spin cap; top nudges
+## the ceiling. 1.0 = unskilled; the sim-checked feel targets are the floor.
+var driver_control: float = 1.0
+var driver_top: float = 1.0
+
 ## Which VEHICLES row this is.
 var vclass: String = "scavenger"
 var spec: Dictionary = {}
@@ -409,8 +415,11 @@ func interact(main: Node) -> void:
 	if dead:
 		if not salvaged:
 			salvaged = true
-			main.backpack.add("scrap", 3)
-			main.notify("Salvaged scrap from the burnt %s" % display_name)
+			var bonus: int = main.character.salvage_bonus() if "character" in main else 0
+			main.backpack.add("scrap", 3 + bonus) # Mechanics strips a wreck cleaner
+			main.notify("Salvaged scrap from the burnt %s%s" % [display_name, " (+%d skill)" % bonus if bonus > 0 else ""])
+			if main.has_method("grant_xp"):
+				main.grant_xp("mechanics", 4.0)
 		return
 	if vclass == "trailer":
 		if to_local(main.player.global_position).z < -2.4:
@@ -691,7 +700,7 @@ func _physics_process(delta: float) -> void:
 	# drags everywhere. eff_top is the speed the drivetrain can really deliver.
 	current_surface = surface_override if surface_override != "" else _sample_surface()
 	var drive_factor := offroad_factor()
-	var eff_top: float = maxf(top_speed * drive_factor, 4.0)
+	var eff_top: float = maxf(top_speed * drive_factor * driver_top, 4.0)
 	is_struggling = input_throttle > 0.3 and drive_factor < 0.82 and not dead
 
 	# Steering authority falls off with speed for stability, ramps in smoothly.
@@ -701,7 +710,7 @@ func _physics_process(delta: float) -> void:
 	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio)
 	if input_handbrake:
 		steer_limit *= handbrake_steer_mult
-	steering = move_toward(steering, input_steer * steer_limit, steer_speed * delta)
+	steering = move_toward(steering, input_steer * steer_limit, steer_speed * driver_control * delta)
 
 	# Throttle / brake / reverse.
 	# NOTE: measured empirically via drive_sim — positive engine_force pushes +Z,
@@ -754,11 +763,15 @@ func _physics_process(delta: float) -> void:
 		# drift), so we nudge with TORQUE: brake the spin only past the cap, and add a
 		# gentle counter-torque toward straight when you're not steering.
 		if absf(forward_speed) > 3.0:
+			# A skilled driver's drift is TIGHTER: the cap shrinks and the settle
+			# torque grows with driver_control — less spin, exactly the skill's pitch.
+			var yaw_cap := handbrake_yaw_rate / driver_control
+			var yaw_damp := handbrake_yaw_damp * driver_control
 			var wy := angular_velocity.y
-			if absf(wy) > handbrake_yaw_rate:
-				apply_torque(Vector3(0.0, -(wy - signf(wy) * handbrake_yaw_rate) * mass * handbrake_yaw_damp, 0.0))
+			if absf(wy) > yaw_cap:
+				apply_torque(Vector3(0.0, -(wy - signf(wy) * yaw_cap) * mass * yaw_damp, 0.0))
 			elif absf(input_steer) < 0.15:
-				apply_torque(Vector3(0.0, -wy * mass * handbrake_yaw_damp, 0.0))
+				apply_torque(Vector3(0.0, -wy * mass * yaw_damp, 0.0))
 
 	_emit_skids()
 

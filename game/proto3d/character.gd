@@ -7,11 +7,42 @@ extends RefCounted
 signal leveled(skill_id: String, level: int)
 signal died
 
-## Skill rows (data): xp thresholds are quadratic — level = floor(sqrt(xp/40)).
+## THE SKILL TREE (10 skills, every one wired to a REAL effect — see the effect
+## helpers below; nothing here is a dead stat). Skills level BY USE (UO-style,
+## PROGRESSION.md): xp thresholds are quadratic — level = floor(sqrt(xp/40)).
+## ⭐ Driving and ⭐ Kinship are the signatures — the car and the dog ARE the game.
+## "gain" is the per-level pitch the sheet + level-up toast show.
 const SKILLS: Dictionary = {
-	"mechanics": {"name": "Mechanics", "emoji": "🔧"},
-	"driving": {"name": "Driving", "emoji": "🚗"},
-	"marksmanship": {"name": "Marksmanship", "emoji": "🎯"},
+	"driving": {"name": "Driving", "emoji": "🚗", "star": true,
+		"gain": "+5%/lv handling & drift control, less spin, +1%/lv top speed",
+		"how": "levels by miles driven"},
+	"kinship": {"name": "Kinship", "emoji": "🐕", "star": true,
+		"gain": "-12%/lv command delay, braver pack, cheaper taming (lv3/lv6), +4m/lv horn recall",
+		"how": "levels by petting, feeding, adopting, taming"},
+	"mechanics": {"name": "Mechanics", "emoji": "🔧", "star": false,
+		"gain": "-0.5s/lv hotwire, +8%/lv part repairs, +1 salvage scrap every 2 lv",
+		"how": "levels by hotwiring, repairs, salvage"},
+	"marksmanship": {"name": "Marksmanship", "emoji": "🎯", "star": false,
+		"gain": "-6%/lv spread, +1%/lv crit, -4%/lv reload time",
+		"how": "levels by landed shots"},
+	"melee": {"name": "Melee", "emoji": "🔪", "star": false,
+		"gain": "+6%/lv damage, -5%/lv stamina cost, +2%/lv knockdown",
+		"how": "levels by connected swings"},
+	"endurance": {"name": "Endurance", "emoji": "🏃", "star": false,
+		"gain": "+6/lv max stamina, +5%/lv recovery",
+		"how": "levels by sprinting and diving"},
+	"strength": {"name": "Strength", "emoji": "💪", "star": false,
+		"gain": "+2.5kg/lv carry cap, +6%/lv melee shove",
+		"how": "levels by hauling heavy and shoving"},
+	"stealth": {"name": "Stealth", "emoji": "🤫", "star": false,
+		"gain": "-5%/lv detection range while on foot (sprinting spoils it)",
+		"how": "levels by moving quiet near threats"},
+	"scavenging": {"name": "Scavenging", "emoji": "🔦", "star": false,
+		"gain": "bonus finds in caches, +1 chunk map-fragment reveal every 3 lv",
+		"how": "levels by opening caches, reading maps"},
+	"first_aid": {"name": "First Aid", "emoji": "🩹", "star": false,
+		"gain": "+8%/lv treatment from bandages, medkits, pills",
+		"how": "levels by treating wounds"},
 }
 
 const PART_NAMES: Array = ["head", "torso", "l_arm", "r_arm", "l_leg", "r_leg"]
@@ -67,6 +98,120 @@ func add_xp(id: String, amount: float) -> void:
 
 func level(id: String) -> int:
 	return skills.get(id, {"level": 0})["level"]
+
+
+# --- THE EFFECTS (one place, every consumer calls these) ----------------------
+# Each is clamped so runaway grinding can't break the sim-checked feel targets.
+
+## ⭐ Driving: steering authority + drift settle scale up; the spin cap tightens.
+func drive_control() -> float:
+	return 1.0 + 0.05 * minf(level("driving"), 10)
+
+
+func drive_top_mult() -> float:
+	return 1.0 + 0.01 * minf(level("driving"), 8)
+
+
+## ⭐ Kinship: the pack answers faster, stands braver, tames cheaper, hears farther.
+func kinship_obey_mult() -> float:
+	return maxf(0.3, 1.0 - 0.12 * level("kinship"))
+
+
+func kinship_morale_bonus() -> float:
+	return minf(0.3, 0.04 * level("kinship"))
+
+
+func tame_meat_needed() -> int:
+	return 3 - (1 if level("kinship") >= 3 else 0) - (1 if level("kinship") >= 6 else 0)
+
+
+func horn_recall_radius() -> float:
+	return 55.0 + 4.0 * minf(level("kinship"), 10)
+
+
+## Mechanics: repairs restore more (hotwire time lives in main._hotwire_duration).
+func repair_mult() -> float:
+	return 1.0 + 0.08 * minf(level("mechanics"), 10)
+
+
+func salvage_bonus() -> int:
+	return int(level("mechanics") / 2.0)
+
+
+## Marksmanship: crit + reload ride the same skill as the cone (already wired).
+func crit_bonus() -> float:
+	return 0.01 * minf(level("marksmanship"), 15)
+
+
+func reload_mult() -> float:
+	return maxf(0.6, 1.0 - 0.04 * level("marksmanship"))
+
+
+## Melee: one skill for every swung thing.
+func melee_dmg_mult() -> float:
+	return 1.0 + 0.06 * minf(level("melee"), 10)
+
+
+func melee_stam_mult() -> float:
+	return maxf(0.5, 1.0 - 0.05 * level("melee"))
+
+
+func melee_kd_bonus() -> float:
+	return 0.02 * minf(level("melee"), 10)
+
+
+## Endurance: the tank grows and refills faster.
+func stamina_max() -> float:
+	return 100.0 + 6.0 * minf(level("endurance"), 12)
+
+
+func stamina_regen_mult() -> float:
+	return 1.0 + 0.05 * minf(level("endurance"), 10)
+
+
+## Strength: the CARRY_CAP hook made real + shove.
+func carry_cap() -> float:
+	return 32.0 + 2.5 * minf(level("strength"), 12)
+
+
+func shove_mult() -> float:
+	return 1.0 + 0.06 * minf(level("strength"), 10)
+
+
+## Stealth: threats notice you later (walking; sprinting spoils it — the player
+## body carries the blended value as noise_mult).
+func stealth_detect_mult() -> float:
+	return maxf(0.5, 1.0 - 0.05 * level("stealth"))
+
+
+## Scavenging: caches give more; fragments reveal wider.
+func scavenge_bonus() -> int:
+	return int(level("scavenging") / 2.0)
+
+
+func fragment_reveal_radius() -> int:
+	return 3 + int(level("scavenging") / 3.0)
+
+
+## First Aid: every treatment lands harder.
+func heal_mult() -> float:
+	return 1.0 + 0.08 * minf(level("first_aid"), 10)
+
+
+## The sheet's one-line CURRENT effect readout per skill (compelling = concrete).
+func skill_effect_line(id: String) -> String:
+	match id:
+		"driving": return "handling ×%.2f · top ×%.2f" % [drive_control(), drive_top_mult()]
+		"kinship": return "obey ×%.2f · tame %d🍖 · horn %dm" % [kinship_obey_mult(), tame_meat_needed(), int(horn_recall_radius())]
+		"mechanics": return "repairs ×%.2f · +%d salvage" % [repair_mult(), salvage_bonus()]
+		"marksmanship": return "crit +%d%% · reload ×%.2f" % [int(crit_bonus() * 100), reload_mult()]
+		"melee": return "dmg ×%.2f · stam ×%.2f" % [melee_dmg_mult(), melee_stam_mult()]
+		"endurance": return "stamina %d · regen ×%.2f" % [int(stamina_max()), stamina_regen_mult()]
+		"strength": return "carry %.0fkg · shove ×%.2f" % [carry_cap(), shove_mult()]
+		"stealth": return "seen at ×%.2f range" % stealth_detect_mult()
+		"scavenging": return "+%d cache finds · reveal %d" % [scavenge_bonus(), fragment_reveal_radius()]
+		"first_aid": return "treatment ×%.2f" % heal_mult()
+	return ""
 
 
 ## The health CAP: every wound lowers your ceiling (PZ dread, one clamp line).
