@@ -126,7 +126,13 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		if "audio" in main and main.audio:
 			main.audio.play_at("whoosh", main.player.global_position, -8.0)
 		var hit_any := false
-		for node in main.get_tree().get_nodes_in_group("combatant"): # the ONE damage law
+		# Melee targets = combatant UNION threat: any hostile is meleeable
+		# however it's tagged (the ONE DAMAGE LAW). Self excluded below.
+		var targets_m: Array = main.get_tree().get_nodes_in_group("combatant").duplicate()
+		for th in main.get_tree().get_nodes_in_group("threat"):
+			if not targets_m.has(th):
+				targets_m.append(th)
+		for node in targets_m:
 			var t := node as Node3D
 			if t == null or not is_instance_valid(t) or t == main.player:
 				continue

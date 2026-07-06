@@ -29,7 +29,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Dogs | `dog.gd` | 4 types × breeds; per-dog BOND (STRAY→SOULBOUND); down→bandage save or grave+collar+memorial; metaworld records |
 | Crew | `companion.gd` | CREW rows (gunner/mechanic/medic), game-hour job ticks, MORTAL (corpse chest) |
 | Motorists/traffic | `motorist.gd`, `track/autopilot.gd` | NPCs drive interstates city-to-city; ambient traffic; player rides shotgun; SEAT ANCHORS (`seats` rows) show riders |
-| Combat | `weapon.gd` | data rows; melee wall-law (`melee_clear`); crit-kill slow-mo; wounds tax speed/aim/vision/lungs |
+| Combat | `weapon.gd` | data rows; melee scans combatant∪threat; wall-law (`melee_clear`); crit-kill slow-mo; wound taxes |
 | Threats | `howler.gd`, `lurker.gd` | pack ROLES (circler/charger/SCREAMER summons), headlight fear, stagger; road pirates (`_update_pirates`) |
 | World | `world_stream.gd`, `usmap.gd` | streamed chunks off `data/usmap.json`; authored placements; biomes; states |
 | Weather | `weather.gd` | dust kills the cone, rain kills grip, heat cooks engines — biome-weighted |
@@ -58,7 +58,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 ## ✅ Testing (the iron rule)
 
 **Headless sims must exercise the REAL path — inputs, never teleports** (staging positions is the documented exception).
-58 sims in `game/proto3d/tests/`. Run one:
+58 sims in `game/proto3d/tests/` (full suite green). Run one:
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
@@ -75,6 +75,7 @@ Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `
 - Kill zombie `*_console.exe` processes if a headless run hangs a port/lock.
 - `DataVehicle`/`DataItem` class names are TAKEN by legacy 2D code — the spine uses `Drivn*`.
 - Dictionary element access needs explicit types (`var x: float = dict["k"]`) or the parser fails.
+- Retargeting a group (e.g. `threat`→`combatant`) can orphan test dummies — melee scans the UNION so any hostile is meleeable however tagged.
 
 ## 📏 House rules
 
