@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/tests/law_profile_sim.gd" id="1"]
+
+[node name="LawProfileSim" type="Node"]
+script = ExtResource("1")

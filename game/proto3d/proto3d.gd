@@ -2298,6 +2298,15 @@ func on_state_entered(state: String) -> void:
 			notify("🪧 %s territory — %s watches these roads" % [state, String(r["ruler"])])
 	if events != null and events.war_state == state:
 		notify("⚔️ …and you just drove INTO the war")
+	# THE LIVING WORLD: a state line can now be a LAW line. If a faction holds this state,
+	# announce its law — and if your kit is contraband here, warn you. A risk you can SEE,
+	# not a punishment: possession only flags you if you're seen or searched.
+	if world_state != null and world_state.controller_of(state) != "free_counties":
+		var law: Dictionary = world_state.law_for(state)
+		notify("🪧 %s is under %s — %s" % [state, law.get("name", "occupation"), law.get("blurb", "")])
+		var flags: Array = world_state.player_contraband(state)
+		if not flags.is_empty():
+			notify("⚠️ CONTRABAND in %s: %s — keep it out of sight at checkpoints" % [state, ", ".join(flags)])
 
 
 # --- THE WOW: cinematic combat reads --------------------------------------------
