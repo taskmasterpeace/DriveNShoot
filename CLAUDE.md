@@ -18,7 +18,7 @@ Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours 
 
 ## 🕹 Controls (current)
 
-**Front door:** a real launch opens on the DRIVN title (`menu.gd`, ProtoMenu) — NEW GAME / CONTINUE (save-gated) / HOST / JOIN(IP) / QUIT. `main.menu_open` swallows gameplay input while up; sims skip it (they run proto3d under a harness, so it checks `current_scene == self`).
+**Front door:** a real launch opens on the DRIVN title (`menu.gd`, ProtoMenu) — NEW GAME / CONTINUE (save-gated) / HOST / JOIN(IP) / QUIT. `main.menu_open` swallows gameplay input while up; sims skip it (they run proto3d under a harness, so it checks `current_scene == self`). NEW GAME arms **THE FIRST RUN** (`objectives.gd`) — a guided drive→pull-over→scavenge→home chain that teaches THE CIRCUIT then retires; a veteran never sees it.
 
 WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: driver taps out; passenger taps out / **holds to take the wheel**) · **C whistle ×1 heel ×2 guard ×3 seek hold SIC ×4 SHIELD** · **Y radio scan** · TAB pack/trunk · **K character sheet** (narrates every system) · **M map/atlas** (Carousel layer) · T wait · B binoculars · V views · G grenade · R reload/restart · H horn · P pet · J character creation · F home beacon · N waypoints · **F5/F9 save · F7 host · F8 join** · **F10 DEV MODE** (time/teleport/spawn/give/heal + FORGE live-reload)
 
@@ -41,6 +41,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Events | `events.gd` | deterministic daily roll: caravan / blood moon / STATE AT WAR (weekly) |
 | Rulers | `data/rulers.json` | states react to standing at the border: bounty hunters vs hero's welcome |
 | THE CIRCUIT | `proto3d.gd` | the named loop: scavenge→upgrade→push→node; HUD pips; cycle payoff |
+| First run | `objectives.gd` | NEW-GAME-only onboarding chain: data-row beats that complete on REAL state (drove 60m / out of car / pack grew / at home), one HUD line, then retires; in the save |
 | Home base | `homebase.gd` | build board: walls I-III (thin metaworld raids), garage, kennel, workbench, bed |
 | RV / camp | `camp.gd` + `character.hunger` | camper rigs grow a camp kit (bed/stove/light); hunger drains on the clock, food_val feeds |
 | Metaworld | `metaworld.gd` | off-screen records (dogs) roll raids vs walls; come_home narratives |
