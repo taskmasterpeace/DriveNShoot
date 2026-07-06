@@ -191,14 +191,25 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
   and the old flat indoor clamp is DELETED. Dog reveals still pierce walls — smell beats sight.
   (cone/fade/vision/los sims)
 - **World:** seeded content streaming + **ground under the far states**, state lines, fog-of-war
-  map (M), waypoint arrows (N). Enterable safehouse: door/locks/keys, front-wall fades inside,
-  **stairs are now a SOLID RAMP w/ plateau top** you walk up & off. (stage5/m1/walkthrough sims)
+  map (M: local → country ATLAS), waypoint arrows (N). Enterable safehouse: door/locks/keys,
+  front-wall fades inside, **stairs are now a SOLID RAMP w/ plateau top** you walk up & off.
+  (stage5/m1/walkthrough sims)
+- **PLAYER NAVIGATION (map_nav_sim 12/12, 2026-07-05, first cut):** the atlas is now
+  **CLICKABLE** — click a town → 🧭 SET COURSE (one course at a time, selected on the spot so
+  the N arrow points there when you close the map); click open ground → drops a MARK. Press **F**
+  to plant a 🏠 **HOME** beacon wherever you're standing/driving (a second F moves it, never
+  duplicates) — steer back anytime with N. Both ride on the atlas (selected one ringed green) and
+  the local map; the open map redraws live (you-dot tracks). Wiring: `main.set_home()` /
+  `main.set_map_course()`, `stream._on_map_input` over a shared `_country_transform()`. NOT yet
+  saved across restarts, distances still in meters, no compass — those are the next nav rungs from
+  the coach-feature panel (roadside mileage signs · compass ribbon · miles · buyable radar/paper map).
 - **Audio:** fully synthesized (engine pitches w/ speed, guns, fire, barks) — zero asset files.
 - **Feel:** camera trauma-shake, pain flash, dust, moodle pop-in.
 
 **Controls:** WASD move · SHIFT sprint · SPACE dive/handbrake · E interact/adopt/feed · **C**
 whistle (tap/2/3/hold) · **G** grenade · **R** reload/restart · **1-3** guns · **K** sheet ·
-**M** map · **N** waypoint · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
+**M** map (local → country ATLAS; click a town to SET COURSE, open ground to MARK) · **N** waypoint ·
+**F** plant 🏠 HOME · **TAB** pack (in a car: the TRUNK) · **B** binoculars · **H** horn ·
 **P** pet the dog · **T** hold to wait (clock sprints) · **V** Second Window (dogcam/rearview/
 drone) · LMB fire · scroll zoom.
 

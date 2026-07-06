@@ -38,11 +38,15 @@ var _wound_rng := RandomNumberGenerator.new()
 var _odometer: float = 0.0
 var _prev_car_pos: Vector3 = Vector3.ZERO
 
-## Navigation: N cycles points of interest; the HUD draws the arrow.
+## Navigation: N cycles points of interest; the HUD draws the arrow. You can
+## also PICK a destination off the atlas (click a town) and plant a HOME beacon
+## (F) anywhere you decide to live — both land in the same waypoints list.
 const CARRY_CAP := 32.0 ## kg-ish; STR raises this later (attributes hook)
 var waypoints: Array = [] ## [name, Vector3-or-Node3D]
 var waypoint_idx: int = -1
 var stream: ProtoWorldStream = null
+const HOME_KEY := "🏠 HOME"
+const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
 ## Dogs & the Stress vital (docs/systems/DOGS.md)
 var all_dogs: Array[ProtoDog] = []   ## every dog in the world (strays included)
@@ -225,7 +229,7 @@ func _ready() -> void:
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
 	stream = ProtoWorldStream.new()
 	add_child(stream)
-	stream.setup(waypoints)
+	stream.setup(waypoints, self)
 
 	metaworld = ProtoMetaworld.new()
 	add_child(metaworld)
@@ -335,6 +339,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			throw_grenade()
 		elif kc == KEY_M:
 			stream.toggle_map()
+		elif kc == KEY_F:
+			set_home()
 		elif kc == KEY_K:
 			hud.toggle_sheet(_sheet_text())
 		elif kc == KEY_N:
@@ -352,8 +358,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				notify("Equipped the %s" % weapons[idx].info()["name"])
 	elif event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
-		if panel.is_open or cam_rig.binoculars:
-			pass
+		if panel.is_open or cam_rig.binoculars or stream.map_open():
+			pass # a click on the open map sets your course, it doesn't fire your gun
 		elif mode == Mode.FOOT:
 			fire_equipped()
 		elif mode == Mode.DRIVE:
@@ -1012,6 +1018,36 @@ func secman_talk(npc: ProtoNPC) -> void:
 			waypoints.append(["BOUNTY", mark])
 			notify(ProtoNPC.ARCHETYPES[npc.archetype]["greet"])
 			audio.play_ui("blip", -6.0)
+
+
+## HOME BEACON (F): plant a home wherever you're standing or driving. It becomes
+## a waypoint you can always steer back to (N) and a 🏠 mark on both maps —
+## "your favorite neighborhood," even if that's the middle of nowhere.
+func set_home() -> void:
+	var pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
+	pos.y = 0.0
+	for wp in waypoints:
+		if wp[0] == HOME_KEY:
+			wp[1] = pos
+			notify("🏠 Home moved here")
+			return
+	waypoints.append([HOME_KEY, pos])
+	notify("🏠 Home planted — press N to steer back anytime")
+
+
+## MAP-PICKED COURSE: click a town (or any spot) on the atlas → a single course
+## waypoint, selected on the spot so the arrow points there the moment you close
+## the map. Only ever one course at a time (a new pick replaces the old).
+func set_map_course(label: String, pos: Vector3) -> void:
+	pos.y = 0.0
+	# Drop any existing course first (identity = the compass prefix).
+	for i in range(waypoints.size() - 1, -1, -1):
+		if String(waypoints[i][0]).begins_with(COURSE_PREFIX):
+			waypoints.remove_at(i)
+	waypoints.append([COURSE_PREFIX + label, pos])
+	waypoint_idx = waypoints.size() - 1
+	hud.toast("🧭 Course set: %s" % label)
+	audio.play_ui("blip", -4.0)
 
 
 ## The bounty tick: notice the kill the moment it happens; the waypoint keeps

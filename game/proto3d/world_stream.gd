@@ -49,10 +49,12 @@ var _map_canvas: Control = null
 var _map_player: Vector3 = Vector3.ZERO
 var _map_mode: int = 0 ## 1 = local (fog-of-war), 2 = country atlas
 var _pois: Array = []
+var _main: Node = null ## the game root — the atlas calls back to set a course
 
 
-func setup(pois: Array) -> void:
+func setup(pois: Array, main_ref: Node = null) -> void:
 	_pois = pois
+	_main = main_ref
 	if usmap == null:
 		usmap = ProtoUSMap.get_default()
 
@@ -100,6 +102,9 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 		if last_state != "" and main.has_method("notify"):
 			main.notify("🪧 WELCOME TO %s" % st)
 		last_state = st
+	# Keep the open map live so the you-dot and your markers track as you move.
+	if map_open():
+		_map_canvas.queue_redraw()
 
 
 func _spawn_chunk(cx: int, cz: int) -> Node3D:
@@ -477,7 +482,9 @@ func toggle_map() -> void:
 		_map_layer.add_child(_map_panel)
 		_map_canvas = Control.new()
 		_map_canvas.custom_minimum_size = Vector2(600, 480)
+		_map_canvas.mouse_filter = Control.MOUSE_FILTER_STOP # the atlas is clickable
 		_map_canvas.draw.connect(_draw_map)
+		_map_canvas.gui_input.connect(_on_map_input)
 		_map_panel.add_child(_map_canvas)
 		_map_layer.visible = false
 	_map_mode = (_map_mode + 1) % 3
@@ -531,12 +538,23 @@ func _draw_local() -> void:
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DEATHLANDS — %s   (M again: the atlas)" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 
 
-## The country atlas: the whole compressed USA — biomes, interstates, towns, you.
-func _draw_country() -> void:
+## Screen⇄world mapping for the atlas (shared by draw + click). world XZ →
+## screen: org + (worldXZ - bounds.position) * px. Inverse in _on_map_input.
+func _country_transform() -> Dictionary:
 	var size: Vector2 = _map_canvas.size
 	var bounds := usmap.world_bounds()
 	var px := minf(size.x / bounds.size.x, size.y / bounds.size.y)
 	var org := (size - bounds.size * px) * 0.5 # letterbox the country in the panel
+	return {"org": org, "px": px, "bounds": bounds}
+
+
+## The country atlas: the whole compressed USA — biomes, interstates, towns, you.
+func _draw_country() -> void:
+	var size: Vector2 = _map_canvas.size
+	var xf := _country_transform()
+	var org: Vector2 = xf["org"]
+	var px: float = xf["px"]
+	var bounds: Rect2 = xf["bounds"]
 	var step := 2 # draw every 2nd cell — plenty at this panel size
 	var cpx := usmap.cell_m * px * step
 	for cz in range(0, usmap.h, step):
@@ -557,6 +575,52 @@ func _draw_country() -> void:
 		_map_canvas.draw_circle(p2, 2.5 if t["kind"] == "city" else 1.8, Color(0.96, 0.72, 0.2))
 		if String(t.get("landmark", "")) != "" or t.get("authored", false):
 			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(4, 3), t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.89, 0.82))
+	# Your waypoints (HOME 🏠, the set course 🧭, and the base POIs) ride on the
+	# atlas too — with the SELECTED one ringed so a fresh pick reads instantly.
+	var sel: int = _main.waypoint_idx if _main != null else -1
+	for i in _pois.size():
+		var poi: Array = _pois[i]
+		var raw: Variant = poi[1]
+		var wpos: Vector3 = raw.global_position if (raw is Node3D and is_instance_valid(raw)) else (raw if raw is Vector3 else Vector3.ZERO)
+		var mp := org + (Vector2(wpos.x, wpos.z) - bounds.position) * px
+		var picked: bool = i == sel
+		_map_canvas.draw_circle(mp, 5.0 if picked else 3.0, Color(0.4, 0.85, 0.4) if picked else Color(0.96, 0.86, 0.55))
+		if picked:
+			_map_canvas.draw_arc(mp, 9.0, 0.0, TAU, 20, Color(0.4, 0.85, 0.4), 1.5)
+		_map_canvas.draw_string(ThemeDB.fallback_font, mp + Vector2(6, 3), String(poi[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.95, 0.8))
 	var you := org + (Vector2(_map_player.x, _map_player.z) - bounds.position) * px
 	_map_canvas.draw_circle(you, 4.0, Color(0.9, 0.25, 0.12))
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "%s — %s" % [usmap.map_name, last_state], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), "click a town to SET COURSE · click open ground to drop a mark · F in the world plants 🏠 HOME",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.78, 0.6))
+
+
+## Click the atlas to set your course: nearest town within reach wins, else drop
+## a plain mark where you clicked. Routes back to main.set_map_course.
+func _on_map_input(event: InputEvent) -> void:
+	if _map_mode != 2 or _main == null or usmap == null or not usmap.ok:
+		return
+	if not (event is InputEventMouseButton and event.pressed \
+			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
+		return
+	var xf := _country_transform()
+	var org: Vector2 = xf["org"]
+	var px: float = xf["px"]
+	var bounds: Rect2 = xf["bounds"]
+	var click: Vector2 = (event as InputEventMouseButton).position
+	# Nearest town within 14 px of the click gets the course; otherwise a mark.
+	var best: Dictionary = {}
+	var best_d := 14.0
+	for t in usmap.towns:
+		var sp := org + ((t["pos"] as Vector2) - bounds.position) * px
+		var d := sp.distance_to(click)
+		if d < best_d:
+			best_d = d
+			best = t
+	if not best.is_empty():
+		var tp: Vector2 = best["pos"]
+		_main.set_map_course(String(best["name"]), Vector3(tp.x, 0.0, tp.y))
+	else:
+		var world := (click - org) / px + bounds.position
+		_main.set_map_course("MARK", Vector3(world.x, 0.0, world.y))
+	_map_canvas.queue_redraw()
