@@ -1,5 +1,9 @@
 # THE CAROUSEL — earned fast-travel as the meta-game
 
+> **STATUS 2026-07-06: BUILT (rungs 1-5).** Gates, occupier dungeons, power/codes/purge,
+> THE PAIR / ROULETTE / DIAL, uniques. Proofs: `carousel_sim` + `carousel2_sim`.
+> Remaining from this doc: per-node garages, ring events, jump-sickness visual blur.
+
 **Fantasy:** Project CAROUSEL — the government's continuity network: gate rings under military
 bases, still humming. The states divided; the ring still turns. Every ruler wants it; nobody
 holds the whole loop. You can.

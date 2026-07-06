@@ -35,7 +35,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Weather | `weather.gd` | dust kills the cone, rain kills grip, heat cooks engines — biome-weighted |
 | Day/night | `daynight.gd` | 24-min days, moon = night floor, T-wait sprint, `dev_mult` |
 | Radio | `radio.gd` | Y scans: distress caches, trade runs, howler warnings, lore; night-weighted |
-| Carousel | `carousel.gd` + `data/carousel.json` | 10 gate stations; power→SPIN-UP defense→node yours; jump = flesh not steel (cell + sickness) |
+| Carousel | `carousel.gd` + `data/carousel.json` | 10 DUNGEON bases (occupiers wake on approach); power/codes/purge ladder; PAIR→ROULETTE→THE DIAL; flesh not steel |
 | Events | `events.gd` | deterministic daily roll: caravan / blood moon / STATE AT WAR (weekly) |
 | Rulers | `data/rulers.json` | states react to standing at the border: bounty hunters vs hero's welcome |
 | THE CIRCUIT | `proto3d.gd` | the named loop: scavenge→upgrade→push→node; HUD pips; cycle payoff |
@@ -43,7 +43,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Metaworld | `metaworld.gd` | off-screen records (dogs) roll raids vs walls; come_home narratives |
 | Respect | `respect.gd` | per-faction/state ledger → prices, standing, refusals, market growth |
 | Character | `character.gd` | 10 skills level-by-doing; 6-part paper-doll; hp cap; wound taxes |
-| Save/net prep | `player_record()` | input packets + full player serialization (PvP prep 1+3 done; #2 damage-law OPEN) |
+| Save/net prep | `player_record()` | input packets + player serialization + ONE DAMAGE LAW (combatant group) — all 3 PvP preps DONE |
 | Audio/VO | `audio.gd` + `tools/soundforge/` | 57 SFX + 11 TTS lines in 4 LOCKED voices (`voices.json` — never change a voice_id) |
 
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)
@@ -57,11 +57,11 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 ## ✅ Testing (the iron rule)
 
 **Headless sims must exercise the REAL path — inputs, never teleports** (staging positions is the documented exception).
-53 sims in `game/proto3d/tests/`. Run one:
+54 sims in `game/proto3d/tests/`. Run one:
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
-Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `visibility_sim`, `data_sim`, `track_sim`.
+Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `visibility_sim`, `data_sim`, `track_sim`.
 
 ### Paid-for gotchas (do not re-pay)
 - New `class_name` scripts need `--headless --path game --import` before headless runs.
