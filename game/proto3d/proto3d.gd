@@ -160,6 +160,7 @@ func _ready() -> void:
 	# calls take_damage; the signal routes it into the wound system here.
 	player.damaged.connect(func(amount: float, attacker: Node3D) -> void:
 		on_player_clawed(amount, attacker))
+	player.dove.connect(dive_dilation) # the shootdodge's 0.6× air
 
 	cam_rig = ProtoCameraRig.create()
 	add_child(cam_rig)
@@ -2234,6 +2235,21 @@ func on_state_entered(state: String) -> void:
 ## A killing crit lands in SLOW MOTION — a third of a real second where the world
 ## holds its breath. Restores the PREVIOUS time scale (sims run hot; never stomp).
 var _cine_lock: bool = false
+
+
+## THE SHOOTDODGE's juice: the air goes 0.6× while you fly. Same contract as
+## cinematic_kill — store the PREVIOUS scale, restore the PREVIOUS scale, share
+## the one lock so the two slow-mos can never stack or fight (sims run hot).
+func dive_dilation(air_game_s: float) -> void:
+	if _cine_lock:
+		return
+	_cine_lock = true
+	var prev := Engine.time_scale
+	Engine.time_scale = prev * 0.6
+	var t := get_tree().create_timer(air_game_s / 0.6, true, false, true) # real time
+	t.timeout.connect(func() -> void:
+		Engine.time_scale = prev
+		_cine_lock = false)
 
 
 func cinematic_kill(pos: Vector3) -> void:

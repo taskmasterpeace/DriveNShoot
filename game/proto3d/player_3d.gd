@@ -14,7 +14,9 @@ extends CharacterBody3D
 @export var accel: float = 14.0
 @export var dive_speed: float = 9.5
 @export var dive_time: float = 0.35
-@export var getup_time: float = 0.75
+## THE SHOOTDODGE (Max Payne contract): recovery is FAST and cancelable — a dodge
+## that takes control away is the opposite of a dodge. Crash tumbles override this.
+@export var getup_time: float = 0.35
 
 @export_group("Stamina")
 @export var max_stamina: float = 100.0
@@ -108,8 +110,13 @@ var _lower: Node3D
 var _upper: Node3D
 var _gun: MeshInstance3D
 var _state_t: float = 0.0
-var _getup_dur: float = 0.75
+var _getup_dur: float = 0.35
 var _dive_dir: Vector3 = Vector3.FORWARD
+## A PLAYER dive springs back up on any movement key (past a tiny 0.15s beat);
+## being THROWN from a vehicle does not — you got wrecked, that one's not a dodge.
+var _getup_cancelable: bool = true
+const GETUP_LOCK := 0.15
+signal dove(air_time: float) ## main hooks the juice (0.6× air dilation) here
 var _prev_body_yaw: float = 0.0
 ## Set by main each frame from the character's injuries / death — drives slump + flop.
 var hurt: float = 0.0
@@ -205,7 +212,8 @@ func tumble(vel: Vector3) -> void:
 	velocity = vel
 	move_state = FootState.DIVE
 	_state_t = 0.0
-	_getup_dur = getup_time * 1.6
+	_getup_dur = 1.2 # the old heavy highside recovery — kept heavy on purpose
+	_getup_cancelable = false
 
 
 ## A REMOTE body: smoothly chase the last network state; drive the rig off the
@@ -235,22 +243,31 @@ func _physics_process(delta: float) -> void:
 
 	match move_state:
 		FootState.DIVE:
-			# Committed: full lunge, no steering.
+			# THE SHOOTDODGE: the BODY is committed (full lunge, no steering) but
+			# the GUN is free — the mouse keeps the arm, bullets keep flying,
+			# any direction, the whole flight.
 			velocity.x = _dive_dir.x * dive_speed
 			velocity.z = _dive_dir.z * dive_speed
-			_visual.rotation.y = body_yaw
 			_visual.rotation.x = lerpf(_visual.rotation.x, -1.25, 10.0 * delta)
+			_update_aim_only(delta)
 			if _state_t >= dive_time:
 				move_state = FootState.GETUP
 				_state_t = 0.0
 			move_and_slide()
 			return
 		FootState.GETUP:
-			# On the ground, getting up — vulnerable, no input.
+			# Prone beat — you can STILL aim and fire from the ground. A movement
+			# key past the tiny lock rolls you to your feet immediately (player
+			# dives only; a vehicle highside keeps its long, uncancelable get-up).
 			velocity.x = move_toward(velocity.x, 0.0, 18.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
 			_visual.rotation.x = lerp_angle(_visual.rotation.x, 0.0, 6.0 * delta)
-			if _state_t >= _getup_dur:
+			_update_aim_only(delta)
+			var cancel := false
+			if _getup_cancelable and _state_t >= GETUP_LOCK and is_active and not input_locked:
+				var mv: Vector3 = (gather_input() if use_player_input else packet).get("move", Vector3.ZERO)
+				cancel = mv.length_squared() > 0.01
+			if cancel or _state_t >= _getup_dur:
 				move_state = FootState.NORMAL
 				_visual.rotation.x = 0.0
 			move_and_slide()
@@ -278,6 +295,8 @@ func _physics_process(delta: float) -> void:
 			stamina = maxf(0.0, stamina - dive_cost)
 			# Get-up SCALES with stamina: gassed = slower to your feet (1.0x..1.9x, vulnerable longer).
 			_getup_dur = getup_time * lerpf(1.9, 1.0, clampf(stamina / max_stamina, 0.0, 1.0))
+			_getup_cancelable = true # a chosen dodge springs back up; a highside doesn't
+			dove.emit(dive_time)
 			return
 
 	# Sprint costs stamina; gassed → forced walk until it recovers past the threshold (no flicker).
@@ -306,6 +325,20 @@ func _physics_process(delta: float) -> void:
 
 	_update_orientation(move, delta)
 	move_and_slide()
+
+
+## THE SHOOTDODGE's aim half: mid-air and prone the body is COMMITTED but the gun
+## is FREE — the mouse keeps driving the arm (any direction, independent of the
+## dive line) and the puppet keeps its armed pose. hspeed 0 so the legs trail
+## instead of sprinting through the air.
+func _update_aim_only(delta: float) -> void:
+	if _aim_intent.length_squared() > 0.01:
+		aim_yaw = wrapf(_yaw_of(_aim_intent), -PI, PI)
+	_visual.rotation.y = body_yaw
+	if puppet == null or puppet.arm_tracks_gaze():
+		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+	if puppet:
+		puppet.animate(delta, 0.0, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
 
 
 ## The Look Arc (the keystone): with aim intent, the gaze snaps anywhere within
