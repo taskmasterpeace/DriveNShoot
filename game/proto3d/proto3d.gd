@@ -891,7 +891,8 @@ func _update_whistle(delta: float) -> void:
 			match _wh_taps:
 				1: _dog_command("heel")
 				2: _dog_command("guard")
-				_: _dog_command("seek")
+				3: _dog_command("seek")
+				_: _dog_command("shield") # C×4 — the SOULBOUND-only 5th command
 			_wh_taps = 0
 
 
@@ -1010,6 +1011,15 @@ func _dog_command(cmd: String) -> void:
 			for d in dogs:
 				if is_instance_valid(d): d.command_sic(threat)
 			hud.toast("🐕 *loooong whistle* — SIC 'EM!" if threat else "🐕 *long whistle* — no target near")
+		"shield":
+			# The 5th command is EARNED: only a SOULBOUND partner answers it.
+			var any := false
+			for d in dogs:
+				if is_instance_valid(d) and d.command_shield():
+					any = true
+			audio.play_ui("whistle_long", -6.0, 1.25)
+			hud.toast("🐕 *four sharp* — SHIELD! Your partner locks to your hip" if any
+				else "🐕 *four sharp* — …only a SOULBOUND partner answers that call")
 
 
 func _nearest_threat() -> Node3D:

@@ -123,3 +123,35 @@ func animate(delta: float, speed: float, morale: float) -> void:
 ## A hit reaction — the animal jolts. Decays fast.
 func flinch() -> void:
 	_flinch = 1.0
+
+
+# --- The FLOP (mirrors the biped's _pose_dead): a body that has fallen ---------
+var _flopped: bool = false
+var _pre_flop_y: float = 0.0
+
+
+func pose_dead() -> void:
+	if _flopped:
+		return
+	_flopped = true
+	_pre_flop_y = body.position.y
+	body.rotation.z = 1.45
+	body.position.y = _pre_flop_y * 0.55
+	if neck:
+		neck.rotation.x = 0.6
+	for l in legs:
+		l.rotation.x = 0.35
+	if tail_pivot:
+		tail_pivot.rotation.y = 0.0 # the tail goes still — that's the read
+
+
+func unpose_dead() -> void:
+	if not _flopped:
+		return
+	_flopped = false
+	body.rotation.z = 0.0
+	body.position.y = _pre_flop_y
+	if neck:
+		neck.rotation.x = 0.0
+	for l in legs:
+		l.rotation.x = 0.0

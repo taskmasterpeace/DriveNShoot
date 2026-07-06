@@ -40,14 +40,26 @@ func _ready() -> void:
 	_check("feeding a hurt dog DEEPENS it (%.0f — %s)" % [d.bond, d.BOND_TIERS[d.bond_tier()]],
 		d.bond >= 18.0 and d.bond_tier() >= 1)
 
+	# --- BOND EFFECTS: the heel tightens, the 5th command is EARNED ---------------
+	_check("a bonded heel walks CLOSER (×%.2f)" % d.follow_mult(), d.follow_mult() < 1.0)
+	_check("SHIELD refuses a mere companion", not d.command_shield())
+	d.bond = 85.0 # (staging: months of scratches)
+	_check("a SOULBOUND partner answers SHIELD", d.command_shield() and d.shielding)
+	main.player.global_position += Vector3(10, 0, 0)
+	for _i in 10:
+		await get_tree().physics_frame
+	_check("the shield ring RIDES YOUR HIP (%.1fm off)" % d.guard_pos.distance_to(main.player.global_position),
+		d.guard_pos.distance_to(main.player.global_position) < 2.0)
+	_check("memory: the record knows the last meal (day %d)" % d.last_fed_day, d.to_record().has("last_fed_day"))
+
 	# --- PERMADEATH, act 1: the save ----------------------------------------------
 	d.take_damage(999.0)
 	_check("a downed dog is DOWN, not gone (%.0fs clock)" % d._bleed_out_t, d.downed and is_instance_valid(d))
 	main.backpack.add("bandage", 1)
 	var bond_before: float = d.bond
 	d.interact(main) # the bandage save
-	_check("a bandage CARRIES IT BACK — and it never forgets (+%.0f bond)" % (d.bond - bond_before),
-		not d.downed and d.hp > 0.0 and d.bond > bond_before)
+	_check("a bandage CARRIES IT BACK — and it never forgets (+%.0f bond, saves=%d)" % [d.bond - bond_before, d.times_saved],
+		not d.downed and d.hp > 0.0 and d.bond > bond_before and d.times_saved == 1)
 
 	# --- PERMADEATH, act 2: the grave ----------------------------------------------
 	d.take_damage(999.0)
@@ -55,8 +67,18 @@ func _ready() -> void:
 	for _i in 30:
 		await get_tree().physics_frame
 	_check("no bandage in time = GONE for real", not is_instance_valid(d))
-	_check("you keep the COLLAR", main.backpack.count("dog_collar") >= 1)
+	var remains: ProtoChest = null
+	var grave: Variant = null
+	for n in main.get_children():
+		if n is ProtoChest and (n as ProtoChest).container.count("dog_collar") > 0:
+			remains = n
+		if n is ProtoDog.DogGrave:
+			grave = n
+	_check("the REMAINS hold the collar — yours to face or leave", remains != null)
 	_check("the MEMORIAL remembers the name", main.fallen_dogs.size() == 1 and main.fallen_dogs[0]["name"] == "Ghost")
+	main.stress = 60.0
+	grave.interact(main)
+	_check("BURYING it proper lightens the road (stress 60 → %.0f)" % main.stress, main.stress <= 40.0 and grave.buried)
 
 	# --- DRIVABLE DAMAGE ------------------------------------------------------------
 	var car: ProtoCar3D = main.cars[0]

@@ -193,6 +193,8 @@ func interact(main: Node) -> void:
 	if hp < max_hp - 5.0 and main.backpack.remove("meat", 1):
 		hp = minf(max_hp, hp + 30.0)
 		add_bond(8.0, main)
+		if "daynight" in main and main.daynight:
+			last_fed_day = main.daynight.day
 		if main.has_method("grant_xp"):
 			main.grant_xp("kinship", 3.0) # ⭐ feeding builds the bond
 		main.notify("🍖 %s wolfs it down (%d/%d hp)" % [dog_name, int(hp), int(max_hp)])
@@ -230,24 +232,28 @@ func whistle() -> void:
 # --- Command verbs (whistle patterns + the metasystem) ---------------------
 
 func command_heel() -> void:
+	shielding = false
 	if adopted:
 		_queue_state(DogState.FOLLOW)
 
 
 func command_guard(pos: Vector3) -> void:
 	if adopted:
+		shielding = false # a POSTED guard stands its ground; SHIELD moves with you
 		guard_pos = pos
 		_queue_state(DogState.GUARD)
 
 
 func command_sic(target: Node3D) -> void:
 	if adopted and target != null:
+		shielding = false
 		sic_target = target
 		_queue_state(DogState.SIC)
 
 
 func command_seek(target: Node3D) -> void:
 	if adopted and target != null:
+		shielding = false
 		seek_target = target
 		_queue_state(DogState.SEEK)
 
@@ -262,6 +268,27 @@ var bond: float = 0.0
 var downed: bool = false
 var _bleed_out_t: float = 0.0
 const BOND_TIERS: Array = ["STRAY", "COMPANION", "PARTNER", "SOULBOUND"]
+## MEMORY LINES — the record remembers what you did and didn't do.
+var times_saved: int = 0
+var last_fed_day: int = 1
+var _nag_day: int = 0
+## SHIELD (the 5th command, SOULBOUND-only): the dog locks to your hip and the
+## guard ring MOVES with you — earned, not bought.
+var shielding: bool = false
+
+
+## Bond tightens the heel: a SOULBOUND partner walks in your shadow.
+func follow_mult() -> float:
+	return 1.0 - 0.12 * bond_tier()
+
+
+func command_shield() -> bool:
+	if bond_tier() < 3:
+		return false
+	shielding = true
+	_queue_state(DogState.GUARD)
+	guard_pos = _owner_ref.global_position if _owner_ref else global_position
+	return true
 
 
 func bond_tier() -> int:
@@ -289,39 +316,44 @@ func take_damage(amount: float) -> void:
 		downed = true
 		_bleed_out_t = 45.0
 		if _quad:
-			_quad.rotation.z = 1.35 # on its side, breathing shallow
+			_quad.pose_dead() # the FLOP — the tail goes still, and you feel it
 		if _main and _main.has_method("notify"):
 			_main.notify("🆘 %s IS DOWN — 45 seconds. RUN. (a bandage saves %s)" % [dog_name, dog_name])
 
 
 ## The bandage save: you carried it back from the brink — it never forgets.
+## And YOU remember: times_saved is a number you'll quote out loud.
 func _stabilize(main: Node) -> void:
 	downed = false
 	hp = 30.0
+	times_saved += 1
 	if _quad:
-		_quad.rotation.z = 0.0
+		_quad.unpose_dead()
 	add_bond(15.0, main)
 	if main.has_method("grant_xp"):
 		main.grant_xp("first_aid", 6.0)
-	main.notify("🩹 %s is back on its feet — it looks at you differently now" % dog_name)
+	if times_saved > 1:
+		main.notify("🩹 %s is up — that's %d times you've pulled %s back" % [dog_name, times_saved, dog_name])
+	else:
+		main.notify("🩹 %s is back on its feet — it looks at you differently now" % dog_name)
 
 
-## The other ending. A grave, a collar, a name. The pack feels it. So do you.
+## The other ending. A GRAVE you can bury, the REMAINS with a collar you'll
+## carry, a name on the memorial. The pack feels it. So do you.
 func _die_forever() -> void:
 	if _main != null:
-		var grave := MeshInstance3D.new()
-		var gm := BoxMesh.new()
-		gm.size = Vector3(0.5, 0.9, 0.18)
-		grave.mesh = gm
-		grave.material_override = ProtoWorldBuilder.material(Color(0.32, 0.30, 0.27), 0.9)
+		var grave := DogGrave.create(dog_name, BOND_TIERS[bond_tier()])
 		_main.add_child(grave)
-		grave.global_position = global_position + Vector3(0, 0.45, 0)
+		grave.global_position = global_position + Vector3(1.2, 0, 0)
 		if adopted:
-			_main.backpack.add("dog_collar", 1)
+			# The keepsake is LOOTABLE, not automatic — you choose to carry it.
+			var remains := ProtoChest.create("%s's remains" % dog_name, {"dog_collar": 1}, false)
+			_main.add_child(remains)
+			remains.global_position = global_position
 			_main.stress = minf(100.0, _main.stress + 25.0)
 			if "fallen_dogs" in _main:
-				_main.fallen_dogs.append({"name": dog_name, "breed": breed, "bond": BOND_TIERS[bond_tier()]})
-			_main.notify("☠️ %s (%s · %s) IS GONE. You keep the collar. The road is heavier now." % [dog_name, breed, BOND_TIERS[bond_tier()]])
+				_main.fallen_dogs.append({"name": dog_name, "breed": breed, "bond": BOND_TIERS[bond_tier()], "saves": times_saved})
+			_main.notify("☠️ %s (%s · %s) IS GONE. The collar is there if you can face it." % [dog_name, breed, BOND_TIERS[bond_tier()]])
 			if "audio" in _main and _main.audio:
 				_main.audio.play_at("dog_whine", global_position, -2.0, 0.7) # the pack answers
 		else:
@@ -329,10 +361,50 @@ func _die_forever() -> void:
 	queue_free()
 
 
+## The grave — E to BURY it proper. One act, once: the road gets lighter.
+class DogGrave:
+	extends StaticBody3D
+	var dog_name: String = ""
+	var bond_name: String = ""
+	var buried: bool = false
+	var _marker: MeshInstance3D = null
+
+	static func create(name_in: String, bond_in: String) -> DogGrave:
+		var g := DogGrave.new()
+		g.dog_name = name_in
+		g.bond_name = bond_in
+		g.add_to_group("interactable")
+		g._marker = MeshInstance3D.new()
+		var gm := BoxMesh.new()
+		gm.size = Vector3(0.5, 0.9, 0.18)
+		g._marker.mesh = gm
+		g._marker.material_override = ProtoWorldBuilder.material(Color(0.32, 0.30, 0.27), 0.9)
+		g._marker.position.y = 0.45
+		g.add_child(g._marker)
+		return g
+
+	func interact_position() -> Vector3:
+		return global_position
+
+	func interact_prompt(_main_in: Node) -> String:
+		return "" if buried else "E — Bury %s proper" % dog_name
+
+	func interact(main: Node) -> void:
+		if buried:
+			return
+		buried = true
+		_marker.material_override = ProtoWorldBuilder.material(Color(0.45, 0.40, 0.32), 0.8)
+		main.stress = maxf(0.0, main.stress - 20.0)
+		if main.has_method("grant_xp"):
+			main.grant_xp("kinship", 6.0)
+		main.notify("⚰️ You bury %s proper (%s). The road feels a little lighter." % [dog_name, bond_name])
+
+
 ## Metasystem: collapse to a data record, and rebuild from one.
 func to_record() -> Dictionary:
 	return {"type": dog_type, "name": dog_name, "breed": breed,
 		"pos": global_position, "guard_pos": guard_pos, "hp": hp, "bond": bond,
+		"times_saved": times_saved, "last_fed_day": last_fed_day,
 		"wounded": false, "killed": false}
 
 
@@ -344,6 +416,8 @@ static func from_record(rec: Dictionary, main_in: Node) -> ProtoDog:
 	d.guard_pos = rec["guard_pos"]
 	d.hp = rec.get("hp", 50.0)
 	d.bond = float(rec.get("bond", 0.0)) # the bond survives the record
+	d.times_saved = int(rec.get("times_saved", 0))
+	d.last_fed_day = int(rec.get("last_fed_day", 1))
 	d.state = DogState.GUARD
 	return d
 
@@ -386,6 +460,14 @@ func _physics_process(delta: float) -> void:
 
 	_threat_cooldown = maxf(0.0, _threat_cooldown - delta)
 	_bite_cd = maxf(0.0, _bite_cd - delta)
+
+	# MEMORY LINE: a dog that hasn't eaten says so — once a day, when you're close
+	# enough to hear it (the nag is a nudge, not a siren).
+	if adopted and _main != null and "daynight" in _main and _main.daynight != null:
+		var today: int = _main.daynight.day
+		if today - last_fed_day >= 2 and today != _nag_day and _near_owner(20.0):
+			_nag_day = today
+			_main.notify("🍖 %s hasn't eaten since Day %d — it doesn't complain. That's worse." % [dog_name, last_fed_day])
 	match state:
 		DogState.STRAY:
 			velocity.x = move_toward(velocity.x, 0.0, 10.0 * delta)
@@ -433,7 +515,7 @@ func _do_follow(delta: float) -> void:
 		return
 	var p: Dictionary = params()
 	var heel: Vector3 = _owner_ref.global_position \
-		+ Vector3(cos(_follow_angle), 0, sin(_follow_angle)) * p["follow_dist"]
+		+ Vector3(cos(_follow_angle), 0, sin(_follow_angle)) * p["follow_dist"] * follow_mult()
 	var to_heel := heel - global_position
 	to_heel.y = 0.0
 	var dist := to_heel.length()
@@ -462,6 +544,9 @@ func _do_follow(delta: float) -> void:
 
 
 func _do_guard(delta: float) -> void:
+	# SHIELD: the guard ring rides YOUR hip — the post is wherever you are.
+	if shielding and _owner_ref != null and is_instance_valid(_owner_ref):
+		guard_pos = _owner_ref.global_position
 	var p: Dictionary = params()
 	var spd: float = p["speed"]
 	var threat := _nearest_threat_near(guard_pos, p["threat_radius"])
