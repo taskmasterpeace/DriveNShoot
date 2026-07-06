@@ -28,7 +28,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Vehicles | `car_3d.gd` + `data/vehicles.json` | VehicleBody3D; 10 rigs as DATA (DrivnData folds JSON→engine); 5-part damage you FEEL (misfire/slop/flicker/leak) |
 | Dogs | `dog.gd` | 4 types × breeds; per-dog BOND (STRAY→SOULBOUND); down→bandage save or grave+collar+memorial; metaworld records |
 | Crew | `companion.gd` | CREW rows (gunner/mechanic/medic), game-hour job ticks, MORTAL (corpse chest) |
-| Motorists/traffic | `motorist.gd`, `track/autopilot.gd` | NPCs drive interstates city-to-city (route = road polyline); ambient traffic; player rides shotgun |
+| Motorists/traffic | `motorist.gd`, `track/autopilot.gd` | NPCs drive interstates city-to-city; ambient traffic; player rides shotgun; SEAT ANCHORS (`seats` rows) show riders |
 | Combat | `weapon.gd` | data rows; melee wall-law (`melee_clear`); crit-kill slow-mo; wounds tax speed/aim/vision/lungs |
 | Threats | `howler.gd`, `lurker.gd` | pack ROLES (circler/charger/SCREAMER summons), headlight fear, stagger; road pirates (`_update_pirates`) |
 | World | `world_stream.gd`, `usmap.gd` | streamed chunks off `data/usmap.json`; authored placements; biomes; states |
@@ -40,6 +40,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Rulers | `data/rulers.json` | states react to standing at the border: bounty hunters vs hero's welcome |
 | THE CIRCUIT | `proto3d.gd` | the named loop: scavenge→upgrade→push→node; HUD pips; cycle payoff |
 | Home base | `homebase.gd` | build board: walls I-III (thin metaworld raids), garage, kennel, workbench, bed |
+| RV / camp | `camp.gd` + `character.hunger` | camper rigs grow a camp kit (bed/stove/light); hunger drains on the clock, food_val feeds |
 | Metaworld | `metaworld.gd` | off-screen records (dogs) roll raids vs walls; come_home narratives |
 | Respect | `respect.gd` | per-faction/state ledger → prices, standing, refusals, market growth |
 | Character | `character.gd` | 10 skills level-by-doing; 6-part paper-doll; hp cap; wound taxes |
@@ -57,11 +58,11 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 ## ✅ Testing (the iron rule)
 
 **Headless sims must exercise the REAL path — inputs, never teleports** (staging positions is the documented exception).
-56 sims in `game/proto3d/tests/`. Run one:
+58 sims in `game/proto3d/tests/`. Run one:
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
-Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `visibility_sim`, `data_sim`, `track_sim`.
+Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `garage_sim`, `rv_camp_sim`, `visibility_sim`, `data_sim`, `track_sim`.
 
 ### Paid-for gotchas (do not re-pay)
 - New `class_name` scripts need `--headless --path game --import` before headless runs.
