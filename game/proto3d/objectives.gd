@@ -24,7 +24,7 @@ const BEATS: Array = [
 	{"id": "drive", "text": "▸ DRIVE — hold W. Follow the interstate.", "kind": "drove"},
 	{"id": "pull_over", "text": "▸ PULL OVER — press E to step out of the car.", "kind": "on_foot"},
 	{"id": "scavenge", "text": "▸ SCAVENGE — grab something. Loot is scrip and survival.", "kind": "looted"},
-	{"id": "go_home", "text": "▸ GO HOME — carry it to the safehouse (⌂ marker).", "kind": "at_home"},
+	{"id": "go_home", "text": "▸ GO HOME — follow the ⌂ arrow back to the safehouse.", "kind": "at_home"},
 ]
 
 var _main: Node = null
@@ -67,6 +67,9 @@ func _enter_beat() -> void:
 			_drive_from = _car_pos()
 		"looted":
 			_loot_baseline = _bp_total()
+		"at_home":
+			if _main.has_method("point_home_waypoint"):
+				_main.point_home_waypoint() # light the ⌂ arrow so there's a marker to follow
 	if _main.hud != null:
 		_main.hud.set_objective(String(beat["text"]))
 

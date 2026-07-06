@@ -390,31 +390,48 @@ func set_hp(hp: float, cap: float, show: bool) -> void:
 	if show:
 		_hp_label.text = "❤️ %d / %d" % [int(hp), int(cap)]
 		_hp_label.modulate.a = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008) if hp < 30.0 else 1.0
-var _sheet_panel: PanelContainer = null
+var _sheet_panel: Panel = null
 var _sheet_label: Label = null
 var _death_label: Label = null
 
-## The character sheet (K): one styled panel, emoji-forward stats.
+## The character sheet (K): one FIXED, screen-centered panel that SCROLLS. It
+## narrates every system, so the text is long — a content-sized panel grew down
+## and off the bottom of the screen (playtest: "K opens at the bottom-left").
+## A fixed Panel + inner ScrollContainer keeps it centered and bounded no matter
+## how much it says.
 func toggle_sheet(text: String) -> void:
 	if _sheet_panel == null:
-		_sheet_panel = PanelContainer.new()
+		var vp := get_viewport().get_visible_rect().size
+		var w: float = minf(540.0, vp.x - 80.0)
+		var h: float = minf(640.0, vp.y - 80.0)
+		_sheet_panel = Panel.new() # Panel, NOT PanelContainer — a fixed rect, never grows to content
 		_sheet_panel.set_anchors_preset(Control.PRESET_CENTER)
-		_sheet_panel.offset_left = -240.0
-		_sheet_panel.offset_right = 240.0
-		_sheet_panel.offset_top = -220.0
-		_sheet_panel.offset_bottom = 220.0
+		_sheet_panel.offset_left = -w * 0.5
+		_sheet_panel.offset_right = w * 0.5
+		_sheet_panel.offset_top = -h * 0.5
+		_sheet_panel.offset_bottom = h * 0.5
 		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0.10, 0.09, 0.07, 0.94)
 		style.border_color = AMBER
 		style.set_border_width_all(2)
 		style.set_corner_radius_all(6)
-		style.set_content_margin_all(18)
 		_sheet_panel.add_theme_stylebox_override("panel", style)
+		var scroll := ScrollContainer.new()
+		scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scroll.offset_left = 18.0
+		scroll.offset_top = 18.0
+		scroll.offset_right = -18.0
+		scroll.offset_bottom = -18.0
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_sheet_panel.add_child(scroll)
 		_sheet_label = Label.new()
 		_sheet_label.add_theme_font_override("font", ProtoHUD.mixed_font())
-		_sheet_label.add_theme_font_size_override("font_size", 19)
+		_sheet_label.add_theme_font_size_override("font_size", 18)
 		_sheet_label.add_theme_color_override("font_color", BONE)
-		_sheet_panel.add_child(_sheet_label)
+		_sheet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_sheet_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_sheet_label.custom_minimum_size = Vector2(w - 52.0, 0)
+		scroll.add_child(_sheet_label)
 		add_child(_sheet_panel)
 		_sheet_panel.visible = false
 	_sheet_panel.visible = not _sheet_panel.visible

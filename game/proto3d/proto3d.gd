@@ -477,6 +477,9 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
+	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
+	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
+	player.input_locked = panel.is_open
 	# Zoom fallback keys (no wheel on some setups)
 	if Input.is_key_pressed(KEY_Z):
 		cam_rig.add_zoom(-0.02)
@@ -2417,6 +2420,17 @@ func _garage_records() -> Dictionary:
 			out[gid] = carousel.gates[gid].garage.duplicate(true)
 	return out
  ## var_to_str format: Color/Vector3 round-trip natively (JSON strings them)
+
+
+## THE FIRST RUN's GO-HOME beat calls this: light the SAFEHOUSE waypoint so the
+## ⌂ arrow actually appears on screen (the beat told you to follow a marker that
+## was never turned on — and never taught the N key). Now it just shows up.
+func point_home_waypoint() -> void:
+	for i in waypoints.size():
+		if waypoints[i][0] == "SAFEHOUSE":
+			waypoint_idx = i
+			hud.toast("📍 Follow the ⌂ arrow to the safehouse  (N cycles waypoints)")
+			return
 
 
 ## NEW GAME (from the front door): you're already spawned driving — this just

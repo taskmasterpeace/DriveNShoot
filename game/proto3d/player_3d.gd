@@ -37,6 +37,7 @@ extends CharacterBody3D
 enum FootState { NORMAL, DIVE, GETUP }
 
 var is_active: bool = false
+var input_locked: bool = false ## true while a modal panel (container/loot) is open — feet freeze
 var move_state: FootState = FootState.NORMAL
 
 ## INPUT PACKETS (PvP prep — the cars already live this way): the body consumes a
@@ -256,8 +257,10 @@ func _physics_process(delta: float) -> void:
 			return
 
 	# The packet is the truth; hardware only fills it for an active LOCAL player.
+	# input_locked freezes the feet while a modal UI (a container/loot panel) is up —
+	# otherwise WASD walks you off while the panel stays glued to the screen.
 	if use_player_input:
-		packet = gather_input() if is_active else empty_packet()
+		packet = gather_input() if (is_active and not input_locked) else empty_packet()
 	var move := Vector3.ZERO
 	if is_active:
 		move = packet.get("move", Vector3.ZERO)

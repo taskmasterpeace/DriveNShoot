@@ -58,6 +58,15 @@ func _ready() -> void:
 	o.tick(0.3)
 	_check("scavenged → advance to GO HOME", o.index == 3)
 
+	# GO HOME must light a REAL on-screen marker (the beat used to point at nothing).
+	var wp_ok: bool = main.waypoint_idx >= 0 and String(main.waypoints[main.waypoint_idx][0]) == "SAFEHOUSE"
+	_check("GO HOME lights the ⌂ safehouse waypoint (arrow shows)", wp_ok)
+
+	# A modal container panel FREEZES the feet (walk-away-with-it-open bug): the
+	# lock lives on player.input_locked and defaults off, proto3d drives it from
+	# panel.is_open each frame.
+	_check("player exposes input_locked, defaults off", "input_locked" in main.player and not main.player.input_locked)
+
 	# --- Beat 3: AT HOME → the whole arc retires --------------------------------
 	main.player.global_position = ProtoObjectives.HOME
 	o.tick(0.3)
