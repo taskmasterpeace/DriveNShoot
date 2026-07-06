@@ -13,7 +13,8 @@
 > - **Roadmap #5 — vehicle mounts + car combat damage: DONE.** `mount_schematic` USE bolts a `car_mg` on (activates the dead-gated fire path, `mount_sim`); and driving no longer makes the cab invincible — a claw mauls the **rig** through its 5-part damage while the driver stays shielded, and **vehicle armor is now real** (blunts the hit; was inert metadata). `car_combat_sim`.
 > - **Signs for the illiterate (spoken ask): DONE.** `ProtoSign` — an always-visible 📜 symbol ("words here"); the words only surface when the sign is in your **sight cone** + range. `sign_sim`.
 > - **The one real red is fixed:** `dog_sim` rear-smell (test staged the threat behind *movement*, not *gaze*) + the Companion-obey flake hardened. `voices.json` "jack"→"scrip" closed.
-> - **Still open (next dev):** roadmap **#3 data-spine read-back** for items/NPCs/loot — *the big one, and now the top priority* (makes "a new item = a row" true); #4 remainder (toll billing/family); #6 sim-coverage gaps (crit/camera-shake/timers); #8 lurker→puppet. §2c/§2d pillars unchanged — **do not start them** (§7).
+> - **Roadmap #3 — data-spine read-back (items slice): DONE.** `ProtoContainer.ITEMS` is now a static var; `ensure_items()` folds `data/items.json` *additively* onto the code floor at boot — a JSON row with a new id is a real in-game item (dogfooded with `field_ration`), existing ids stay code-authoritative so stale JSON can't corrupt them. `items_sim`. **"A new item = a ROW" is true now** (for items).
+> - **Still open (next dev):** #3 remainder — the same additive-fold pattern for **NPCs (`ARCHETYPES`/`PRICES`) and `loot_tables`** (items proved the pattern); #4 remainder (toll billing/family); #6 sim-coverage gaps (crit/camera-shake/timers); #8 lurker→puppet. §2c/§2d pillars unchanged — **do not start them** (§7).
 
 ---
 
