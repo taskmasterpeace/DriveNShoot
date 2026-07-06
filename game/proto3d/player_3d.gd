@@ -54,6 +54,8 @@ var stamina_regen_mult: float = 1.0
 var speed_mult: float = 1.0
 var _was_running: bool = false
 
+var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
+var puppet: ProtoPuppet = null
 var _visual: Node3D
 var _lower: Node3D
 var _upper: Node3D
@@ -61,10 +63,15 @@ var _gun: MeshInstance3D
 var _state_t: float = 0.0
 var _getup_dur: float = 0.75
 var _dive_dir: Vector3 = Vector3.FORWARD
+var _prev_body_yaw: float = 0.0
+## Set by main each frame from the character's injuries / death — drives slump + flop.
+var hurt: float = 0.0
+var dead_vis: bool = false
 
 
-static func create() -> ProtoPlayer3D:
+static func create(appearance_in: Dictionary = {}) -> ProtoPlayer3D:
 	var p := ProtoPlayer3D.new()
+	p.appearance = appearance_in
 	p.add_to_group("player3d") # NOT "player" — the 2D autoloads type-grab that group
 	# Slope handling so ramps (stairs) are walkable and you stick to them.
 	p.floor_max_angle = deg_to_rad(50)
@@ -77,48 +84,16 @@ static func create() -> ProtoPlayer3D:
 	shape.position.y = 0.85
 	p.add_child(shape)
 
-	p._visual = Node3D.new() # carries torso yaw (+ dive pitch); children carry offsets
+	# THE PUPPET (puppet.gd): a rig of box limbs driven by sin() off state. It IS the
+	# visual root — the player yaws it to the body and pitches it for the dive; the rig
+	# animates its own legs/arms/breathing. aim_arm (old _upper) yaws to the gaze;
+	# legs_pivot (old _lower) yaws toward the feet; gun rides the hand.
+	p.puppet = ProtoPuppet.create(p.appearance)
+	p._visual = p.puppet
 	p.add_child(p._visual)
-	# LOWER — the trunk/legs: yaws toward where the FEET are going.
-	p._lower = Node3D.new()
-	p._visual.add_child(p._lower)
-	var body := MeshInstance3D.new()
-	var bmesh := CapsuleMesh.new()
-	bmesh.radius = 0.32
-	bmesh.height = 1.5
-	body.mesh = bmesh
-	body.material_override = ProtoWorldBuilder.material(Color(0.55, 0.42, 0.28), 0.8)
-	body.position.y = 0.78
-	p._lower.add_child(body)
-	# UPPER — head + face hint + gun: yaws to the GAZE. The decouple made visible:
-	# from above, the head/gun stay trained while the capsule carries you sideways.
-	p._upper = Node3D.new()
-	p._visual.add_child(p._upper)
-	var head := MeshInstance3D.new()
-	var hmesh := SphereMesh.new()
-	hmesh.radius = 0.19
-	hmesh.height = 0.38
-	head.mesh = hmesh
-	head.material_override = ProtoWorldBuilder.material(Color(0.78, 0.6, 0.45), 0.9)
-	head.position.y = 1.66
-	p._upper.add_child(head)
-	var nose := MeshInstance3D.new()
-	var nmesh := BoxMesh.new()
-	nmesh.size = Vector3(0.08, 0.08, 0.12)
-	nose.mesh = nmesh
-	nose.material_override = ProtoWorldBuilder.material(Color(0.7, 0.5, 0.35), 0.9)
-	nose.position = Vector3(0, 1.66, -0.2)
-	p._upper.add_child(nose)
-	# The carried gun: HELD IN THE RIGHT HAND (playtest: "a hand holds it, not the
-	# shoulder") — offset right and at arm height, reads from straight above.
-	p._gun = MeshInstance3D.new()
-	var gmesh := BoxMesh.new()
-	gmesh.size = Vector3(0.07, 0.07, 0.62)
-	p._gun.mesh = gmesh
-	p._gun.material_override = ProtoWorldBuilder.material(Color(0.16, 0.16, 0.18), 0.4)
-	p._gun.position = Vector3(0.30, 1.12, -0.36)
-	p._gun.visible = false
-	p._upper.add_child(p._gun)
+	p._lower = p.puppet.legs_pivot
+	p._upper = p.puppet.aim_arm
+	p._gun = p.puppet.gun
 	return p
 
 
@@ -127,23 +102,18 @@ var recoil_t: float = 0.0 ## sim hook — >0 while the gun is kicking
 
 ## The gun KICKS in the hand: a sharp back-jab that resettles. Pure feel.
 func gun_recoil() -> void:
-	if _gun == null:
+	if puppet == null:
 		return
 	recoil_t = 0.12
-	var tw := _gun.create_tween()
-	tw.tween_property(_gun, "position:z", -0.36 + 0.11, 0.04).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_gun, "position:z", -0.36, 0.09).set_ease(Tween.EASE_IN_OUT)
-	tw.parallel().tween_property(self, "recoil_t", 0.0, 0.09)
+	puppet.gun_recoil()
+	var tw := create_tween()
+	tw.tween_property(self, "recoil_t", 0.0, 0.13)
 
 
 ## The swing made physical: the held weapon whips through an arc and resettles.
 func swing() -> void:
-	if _gun == null:
-		return
-	_gun.rotation.y = 0.9
-	var tw := _gun.create_tween()
-	tw.tween_property(_gun, "rotation:y", -0.9, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_gun, "rotation:y", 0.0, 0.12).set_ease(Tween.EASE_IN_OUT)
+	if puppet:
+		puppet.swing()
 
 
 ## Melee commits: a short forward step INTO the swing (closes the last half-meter).
@@ -155,8 +125,8 @@ func lunge(dir: Vector3) -> void:
 
 ## World-space muzzle tip — rounds LEAVE THE GUN, not the chest (playtest law).
 func muzzle_world() -> Vector3:
-	if _gun and _gun.visible:
-		return _gun.global_position - _gun.global_basis.z * 0.34
+	if puppet:
+		return puppet.muzzle_world()
 	return global_position + Vector3(0, 1.2, 0)
 
 
@@ -275,6 +245,14 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 	_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI) # the top half aims — up to a full turn
 	var lower_target := wrapf(_move_yaw - body_yaw, -PI, PI) if move.length_squared() > 0.01 else 0.0
 	_lower.rotation.y = lerp_angle(_lower.rotation.y, lower_target, 12.0 * delta)
+
+	# Drive the PUPPET off state: speed → stride + arm swing, body-yaw change → lean,
+	# gun visible → armed pose, hurt → slump, dead → flop. The rig turns state into life.
+	if puppet:
+		var turn_rate := wrapf(body_yaw - _prev_body_yaw, -PI, PI) / maxf(delta, 0.0001)
+		_prev_body_yaw = body_yaw
+		var hspeed := Vector2(velocity.x, velocity.z).length()
+		puppet.animate(delta, hspeed, turn_rate, _gun != null and _gun.visible, hurt, dead_vis)
 
 
 ## Torso facing — where the body points (drop positions, camera, the arc anchor).

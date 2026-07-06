@@ -468,6 +468,10 @@ func _physics_process(delta: float) -> void:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
 
 	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
+	# Feed the puppet: injuries slump the body, death flops it. hurt = how far below a
+	# full health cap you are (a wounded survivor moves wounded).
+	player.hurt = clampf(1.0 - character.hp_cap() / 100.0, 0.0, 1.0)
+	player.dead_vis = character.dead
 	_crime_cd = maxf(0.0, _crime_cd - delta)
 	_pet_cd = maxf(0.0, _pet_cd - delta)
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
