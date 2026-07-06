@@ -1,5 +1,11 @@
 # CarWorld — Multiplayer Implementation Plan (up to 32 players)
 
+> **STATUS 2026-07-06: 3D CO-OP SLICE LIVE.** `game/proto3d/net.gd` (ProtoNet): ENet host/join
+> (F7/F8), remote players spawn as real `combatant` bodies, client-authoritative state sync ~20Hz.
+> Proven: `net_sim` (seams, in-process) + `tools/net_loopback.sh` (two live ENet processes connect).
+> Remaining: vehicle-state sync, host-authoritative enemy/ring replication, interest management,
+> a main-menu host/join flow. The 2D NetworkManager below is the prior-art reference.
+
 ## STATUS (2026-06-11): core netcode protocol BUILT + verified cross-process
 
 `NetworkManager` autoload (`scripts/autoloads/network_manager.gd`) implements and `tools/net_test.sh`

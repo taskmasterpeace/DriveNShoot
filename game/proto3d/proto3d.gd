@@ -386,6 +386,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			save_game()
 		elif kc == KEY_F9:
 			load_game()
+		elif kc == KEY_F7:
+			_ensure_net()
+			net.host()
+		elif kc == KEY_F8:
+			_ensure_net()
+			net.join()
 		elif kc == KEY_F10:
 			# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
 			if devmode == null:
@@ -565,6 +571,8 @@ func _physics_process(delta: float) -> void:
 	_update_soundscape(delta)
 	_update_pirates(delta)
 	_update_traffic(delta)
+	if net != null and net.online:
+		net.tick(delta) # broadcast my body ~20 Hz to the other players
 	# The E-hold clock (tap = out, hold = take the wheel from the passenger seat).
 	if _e_down:
 		_e_t += delta
@@ -2198,6 +2206,54 @@ func reload_content() -> Dictionary:
 		map_ok = stream.usmap.load_file(ProtoUSMap.PATH)
 	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
+
+
+# --- MULTIPLAYER (docs/MULTIPLAYER_PLAN): the whole build was aimed here. F7
+# hosts, F8 joins 127.0.0.1. Each remote human is a real body in the combatant
+# group — it moves, it fights, enemies hunt it. Co-op first; PvP already works
+# through the one damage law. -----------------------------------------------------
+var net: ProtoNet = null
+var remote_players: Dictionary = {} ## peer_id -> ProtoPlayer3D
+
+
+func _ensure_net() -> void:
+	if net == null:
+		net = ProtoNet.create(self)
+		add_child(net)
+		net.peer_joined.connect(_net_spawn_peer)
+		net.peer_left.connect(_net_despawn_peer)
+
+
+func _net_spawn_peer(id: int) -> void:
+	if remote_players.has(id):
+		return
+	var body := ProtoPlayer3D.create(ProtoPuppet.look("drifter"))
+	body.is_remote = true
+	body.peer_id = id
+	body.name = "RemotePlayer_%d" % id
+	add_child(body)
+	body.global_position = player.global_position + Vector3(3, 0, 0)
+	remote_players[id] = body
+
+
+func _net_despawn_peer(id: int) -> void:
+	if remote_players.has(id):
+		if is_instance_valid(remote_players[id]):
+			remote_players[id].queue_free()
+		remote_players.erase(id)
+
+
+## Net → world: a peer's latest body state. Late joiners spawn on first sight.
+func net_apply_peer(id: int, st: Dictionary) -> void:
+	if not remote_players.has(id):
+		_net_spawn_peer(id)
+	var body: ProtoPlayer3D = remote_players.get(id)
+	if body == null or not is_instance_valid(body):
+		return
+	var p: Array = st.get("pos", [0, 0, 0])
+	body.apply_remote_state(Vector3(float(p[0]), float(p[1]), float(p[2])),
+		float(st.get("byaw", 0.0)), float(st.get("ayaw", 0.0)), float(st.get("hurt", 0.0)))
+	body.set_armed(bool(st.get("armed", false)))
 
 
 # --- SAVE / LOAD (the biggest missing single-player feature — player_record was

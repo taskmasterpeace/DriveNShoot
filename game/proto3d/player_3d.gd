@@ -92,6 +92,14 @@ var _was_running: bool = false
 func sprinting() -> bool:
 	return _was_running
 
+## MULTIPLAYER: a REMOTE player is another human's body, driven by network state,
+## not by input or local physics. It still takes damage (the one damage law) and
+## enemies still hunt it (the combatant group) — it's a real body, just puppeted
+## from afar. peer_id names whose it is.
+var is_remote: bool = false
+var peer_id: int = 0
+var _remote_target: Vector3 = Vector3.ZERO
+
 var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
 var puppet: ProtoPuppet = null
 var _visual: Node3D
@@ -199,7 +207,26 @@ func tumble(vel: Vector3) -> void:
 	_getup_dur = getup_time * 1.6
 
 
+## A REMOTE body: smoothly chase the last network state; drive the rig off the
+## motion so it strides/aims like a local player, no local input or collisions.
+func apply_remote_state(pos: Vector3, body_yaw_in: float, aim_yaw_in: float, hurt_in: float) -> void:
+	_remote_target = pos
+	body_yaw = body_yaw_in
+	aim_yaw = aim_yaw_in
+	hurt = hurt_in
+
+
 func _physics_process(delta: float) -> void:
+	if is_remote:
+		# Lerp toward the last received position; the rig reads the motion.
+		var prev := global_position
+		global_position = global_position.lerp(_remote_target, clampf(12.0 * delta, 0.0, 1.0))
+		var hspeed := (global_position - prev).length() / maxf(delta, 0.0001)
+		_visual.rotation.y = body_yaw
+		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+		if puppet:
+			puppet.animate(delta, hspeed, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
+		return
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	_state_t += delta

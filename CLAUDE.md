@@ -18,7 +18,7 @@ Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours 
 
 ## 🕹 Controls (current)
 
-WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: driver taps out; passenger taps out / **holds to take the wheel**) · **C whistle ×1 heel ×2 guard ×3 seek hold SIC ×4 SHIELD** · **Y radio scan** · TAB pack/trunk · **K character sheet** (narrates every system) · **M map/atlas** (Carousel layer) · T wait · B binoculars · V views · G grenade · R reload/restart · H horn · P pet · J character creation · F home beacon · N cycle waypoints · **F5/F9 save/load** · **F10 DEV MODE** (time/teleport/spawn/give/heal + FORGE live-reload)
+WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: driver taps out; passenger taps out / **holds to take the wheel**) · **C whistle ×1 heel ×2 guard ×3 seek hold SIC ×4 SHIELD** · **Y radio scan** · TAB pack/trunk · **K character sheet** (narrates every system) · **M map/atlas** (Carousel layer) · T wait · B binoculars · V views · G grenade · R reload/restart · H horn · P pet · J character creation · F home beacon · N waypoints · **F5/F9 save · F7 host · F8 join** · **F10 DEV MODE** (time/teleport/spawn/give/heal + FORGE live-reload)
 
 ## 🧩 The systems (all live, all sim-proven)
 
@@ -44,7 +44,8 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 | Metaworld | `metaworld.gd` | off-screen records (dogs) roll raids vs walls; come_home narratives |
 | Respect | `respect.gd` | per-faction/state ledger → prices, standing, refusals, market growth |
 | Character | `character.gd` | 10 skills level-by-doing; 6-part paper-doll; hp cap; wound taxes |
-| Save/load + net prep | `save_game()` (F5/F9) | one file: player/dogs/ring/home/ledger/clock/circuit; input packets + ONE DAMAGE LAW — PvP-ready |
+| Save/load | `save_game()` (F5/F9) | one file: player/dogs/ring/home/ledger/clock/circuit |
+| Multiplayer | `net.gd` (F7 host/F8 join) | ENet co-op: remote players are real combatants, client-authoritative state sync ~20Hz; net_loopback.sh = live 2-process proof |
 | Audio/VO | `audio.gd` + `tools/soundforge/` | 57 SFX + 11 TTS lines in 4 LOCKED voices (`voices.json` — never change a voice_id) |
 
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)
@@ -58,7 +59,7 @@ WASD move · SHIFT sprint · SPACE dive/handbrake · **E interact** (in car: dri
 ## ✅ Testing (the iron rule)
 
 **Headless sims must exercise the REAL path — inputs, never teleports** (staging positions is the documented exception).
-59 sims in `game/proto3d/tests/` (full suite green). Run one:
+60 sims + net_loopback.sh (full suite green). Run one:
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
