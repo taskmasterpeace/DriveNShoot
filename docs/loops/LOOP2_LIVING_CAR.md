@@ -234,8 +234,8 @@ can mix:
    expensive, reserved for the handful of places that carry the world.
 
 **Navigation without GPS = landmark silhouettes.** Each region gets 1–3 distinctive skyline
-shapes visible from far (your binoculars matter here). That's how Deathlands-style "keep driving
-west and you'll hit water" becomes legible — you steer by the arch on the horizon, not a minimap.
+shapes visible from far (your binoculars matter here). That's how the "keep driving
+west and you'll hit water" fantasy becomes legible — you steer by the arch on the horizon, not a minimap.
 
 **This loop does NOT build streaming** (that's the next loop). It's documented here because you
 asked, and because the damage/husk-persistence design above is built to *fit* the chunk model

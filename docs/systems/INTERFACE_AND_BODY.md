@@ -84,7 +84,7 @@ vulnerable during it — the Zomboid tension, and the hook the dogs/ambush attac
   `part_state_changed` signal — never poll.
 
 ### 2.4 Permadeath
-Death ends the run (Deathlands stakes). Open thread (Stage 3 decision): what, if anything,
+Death ends the run (wasteland stakes). Open thread (Stage 3 decision): what, if anything,
 carries between runs — reputation? stash at a home base? a fresh character each time? *Flagged.*
 
 ### 2.5 Stamina & Sprint *(prototyped in proto3d 2026-07-04)*

@@ -4,7 +4,7 @@
 **This is the one document** that orders the whole build, start to finish. Each stage links to
 its deep-dive spec. Stages ship as `/goal` loops — each ends **sim-proven + playable**.
 
-> **Working title in fiction:** *DeathWheels* / the world is the **Deathlands**.
+> **Working title in fiction:** *DeathWheels* / the world is the **Divided States of America** (see `DIVIDED_STATES.md`).
 > **The pitch:** Autoduel × GTA2 × Mad Max × Project Zomboid — a gritty, top-down 3D,
 > **permadeath** survival-driving RPG across a compressed post-apocalyptic America.
 
@@ -120,8 +120,8 @@ The world remembers you.
   prices scale with standing), Mercy the TRADER (the container panel IS the shop), Bridger the
   SEC-MAN (bounty chain: offer → mark → claim), crime → SUSPECT → the town closes up.
   Proof: `proto3d/tests/town_sim.tscn` 16/16.
-- **Settlements:** Baronies (fortified city-states), Villes (small towns), the Wastelands,
-  **Redoubts** (underground pre-dark tech + MAT-TRANS gates). **Jack** economy.
+- **Settlements:** Baronies (fortified city-states), Holdouts (small towns), the Wastelands,
+  **Carousel Stations** (underground pre-Fracture tech + the Carousel teleport network). **Scrip** economy.
 - **Pedestrian tiers T1–T5** (Crowd Engine ↔ Living World Engine), **12 archetypes**
   (Scavver…Cannie), **memory + gossip network**, daily schedules, off-screen simulation.
 - **Faction Respect Ledger** (Esteem/Infamy/Notoriety) — GTA2 "Respect Is Everything" × UO.
@@ -129,7 +129,7 @@ The world remembers you.
 
 ### Stage 7 — Companions, Animals & the Second Window *(high-payoff foundational systems)*
 - ✅ **Slice SHIPPED 2026-07-05** (`proto3d/tests/stage7_sim.tscn` 13/13):
-  **Companions** — Sam the Drifter hires on (40 jack): follows (dog law), FIGHTS with his own
+  **Companions** — Sam the Drifter hires on (40 scrip): follows (dog law), FIGHTS with his own
   gun, and SCOUTS — contacts HE sees that you can't ping your perception (reveal). One boarding
   law, animal or human: he climbs into vehicles with the pack.
   **Taming rung 1** — stagger a howler, feed it meat ×3 → FANG the Mutant Hound joins the pack

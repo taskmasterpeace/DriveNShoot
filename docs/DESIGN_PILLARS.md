@@ -21,7 +21,7 @@ respect.** Every activity must feed INTO or OUT OF the **Respect Ledger** (`WORL
   a `respect_delta` per faction. A **content-lint check fails** any activity with an all-zero
   ledger effect. *If a player grinds 4 hours with unchanged standing, that's a lint bug, not a
   balance tweak.*
-- **Spend sinks:** Esteem *buys* things (vendor access, shelter, contracts, Redoubt codes) so
+- **Spend sinks:** Esteem *buys* things (vendor access, shelter, contracts, Carousel access keys) so
   reputation is a currency you drain, not just a number that climbs.
 - **Visible feedback:** the Respect Ledger is always on the HUD; every gain/loss toasts with the
   reason ("+12 Steele — caravan delivered"). The loop is legible second-to-second.
@@ -58,7 +58,7 @@ GTA Online stays playable because "pick up and deliver" is the skeleton under th
 the **Auto Duel triangle: Courier ↔ Arena ↔ Faction Contract.**
 
 **Enforcing mechanisms:**
-- **The onboarding triangle** is always available and always pays Respect + Jack: **Courier** (drive
+- **The onboarding triangle** is always available and always pays Respect + Scrip: **Courier** (drive
   cargo A→B, escort/raid), **Arena** (fight for purse + rep), **Faction Contract** (bounties,
   defense, sabotage). New players have a clear path in from minute one.
 - **Layered depth:** veterans get the political meta-game (territory, vendor empires, alliances) on
@@ -81,7 +81,7 @@ UO housing was the most valuable thing in the game — not because it cost money
 **scarce relative to the playerbase** and fought over *in-game.*
 
 **Enforcing mechanisms:**
-- **Hard-capped scarcity, in-world:** prime Barony **vendor slots**, **Redoubt access codes**, rare
+- **Hard-capped scarcity, in-world:** prime Barony **vendor slots**, **Carousel access keys**, rare
   **White Coat schematics**, home/fort plots — limited in number, won and lost through play, never
   purchasable. Scarcity relative to players = things worth scheming over = community.
 - **Monetization guardrail (locked):** **no pay-to-win, ever.** If the game ever monetizes, it is
@@ -96,7 +96,7 @@ UO housing was the most valuable thing in the game — not because it cost money
   economy/contracts donor. Pillars 2,4.
 - **Onboarding triangle (Courier/Arena/Contract)** → contracts system (2D donor) grown into Stage 6.
   Pillar 4.
-- **Scarcity systems (vendor slots, Redoubt codes, schematics, plots)** → Stage 8 + MP (Stage 9).
+- **Scarcity systems (vendor slots, Carousel access keys, schematics, plots)** → Stage 8 + MP (Stage 9).
   Pillar 6.
 - **The Respect-Delta lint + content-lint** → part of the Content Pipeline (`CONTENT_PIPELINE.md`).
   Enforces Pillar 1 mechanically.

@@ -5,7 +5,7 @@
 
 ***
 ## Overview
-The character body uses a 19-slot paperdoll system derived from Ultima Online's equipment architecture. Every slot accepts exactly one item. No slot can be left in an invalid state — each defaults to a "bare" state with no modifier. Items are tiered T1 through T5, with T1 being common wasteland junk and T5 being faction-crafted or Redoubt-recovered pre-dark technology. **No hard numbers are used** — all bonuses are expressed as general stat modifiers to keep the feel gritty and relative rather than clinical.[^1][^3][^5][^6]
+The character body uses a 19-slot paperdoll system derived from Ultima Online's equipment architecture. Every slot accepts exactly one item. No slot can be left in an invalid state — each defaults to a "bare" state with no modifier. Items are tiered T1 through T5, with T1 being common wasteland junk and T5 being faction-crafted or Carousel-Station-recovered pre-Fracture technology. **No hard numbers are used** — all bonuses are expressed as general stat modifiers to keep the feel gritty and relative rather than clinical.[^1][^3][^5][^6]
 
 Slots are divided into three categories:
 - **Armor Slots (6)** — Damage reduction, radiation resistance, environmental protection
@@ -32,11 +32,11 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Bare Head | — | No modifier | Default state |
 | Rag Wrap | T1 | Negligible protection | Torn cloth; found in every ruin |
 | Scavver Hood | T1 | No protection | Cloth wrap; offers concealment from dust only |
-| Leather Cap | T1 | Slight head armor | Basic Ville craftwork |
+| Leather Cap | T1 | Slight head armor | Basic Holdout craftwork |
 | Bandana | T1 | Slight Rad resist | Common; found everywhere[^3] |
 | Scavver Skullcap | T1 | Slight head armor, slight Rad resist | Improvised from salvaged padding |
 | Work Goggles | T2 | Moderate eye protection, dust resist | Found in garages and workshops |
-| Combat Goggles | T2 | Moderate visibility boost at night | Mil-surplus; pre-dark find |
+| Combat Goggles | T2 | Moderate visibility boost at night | Mil-surplus; pre-Fracture find |
 | Gas Mask (cracked) | T2 | Moderate Rad resist, moderate airborne toxin resist | Cracked filter; reduced effectiveness |
 | Sec-Man Helmet | T2 | Moderate head armor, faction ID tag | Looted from Barony Steele Sec-Men |
 | Armored Bandana | T2 | Moderate head armor, slight Rad resist | Cloth wrap reinforced with metal plates |
@@ -44,7 +44,7 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Full Gas Mask | T3 | Strong Rad resist, full toxin resist | Requires Gas Mask Filters in inventory[^7] |
 | Riot Helm | T3 | Strong head armor, moderate blunt resist | Police surplus; found in dead precincts |
 | Rust Prophet Skull Mask | T3 | Moderate head armor, strong faction ID (Rust Prophets) | Cult ceremonial; intimidates civilians |
-| Combat Helmet (Mil-Spec) | T4 | Very strong head armor, moderate all-resist | Pre-dark military; rare Redoubt find[^1] |
+| Combat Helmet (Mil-Spec) | T4 | Very strong head armor, moderate all-resist | Pre-Fracture military; rare Carousel-Station find[^1] |
 | Arena Champion Visor | T4 | Strong head armor, strong vehicle-combat visibility | Arena faction reward; cosmetically distinct |
 | White Coat Cranial Shield | T5 | Maximum head armor, strong Rad resist, intelligence buff | Crafted by White Coat faction NPCs[^7] |
 | Barony Steele Warlord Helm | T5 | Maximum head armor, faction prestige aura | Unique faction reward; visible to all players |
@@ -64,7 +64,7 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Gorget (Leather) | T3 | Strong bleed resist, moderate head armor boost | Proper throat guard; artisan crafted |
 | Rad Seal Collar | T3 | Strong Rad resist, integrates with Gas Mask | Designed to seal under full Gas Mask slot[^7] |
 | Tactical Neck Wrap | T3 | Moderate all physical resist, slight stealth | Black mil-surplus wrap; reduces silhouette |
-| Gorget (Mil-Spec) | T4 | Very strong bleed resist, strong slash resist | Pre-dark throat armor; Redoubt find |
+| Gorget (Mil-Spec) | T4 | Very strong bleed resist, strong slash resist | Pre-Fracture throat armor; Carousel-Station find |
 | White Coat Bio-Collar | T4 | Strong Rad resist, moderate poison resist, intelligence buff | White Coat faction craft; biosensor embedded |
 | Barony Commander Gorget | T5 | Maximum bleed resist, faction command aura boost | Faction reward; boosts nearby NPC Esteem reaction |
 
@@ -83,7 +83,7 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Rad Suit Torso | T3 | Slight chest armor, very strong Rad resist | Required for Hot Spot zone traversal[^7] |
 | Rust Prophet Robe | T3 | Slight armor, strong Rust Prophet faction ID, slight fear aura | Cult garb; worn over armor |
 | Battle Plate (Torso) | T4 | Very strong chest armor, slight movement penalty | Heavy scrap-forged plate; slow but tough |
-| Mil-Spec Body Armor | T4 | Very strong chest armor, strong toxin resist | Pre-dark find; Redoubt loot[^1][^3] |
+| Mil-Spec Body Armor | T4 | Very strong chest armor, strong toxin resist | Pre-Fracture find; Carousel-Station loot[^1][^3] |
 | Composite Combat Shell | T5 | Maximum chest armor, strong all-resist | White Coat faction; requires Composite recipe |
 | Barony Steele Marshal Coat | T5 | Very strong chest armor, faction command aura, strong prestige | Unique; faction political reward tier |
 | Mutie Carapace Chest | T5 | Strong chest armor, strong Unbound faction ID, radiation absorption | Grown from mutant bio-material; unique to Unbound path |
@@ -102,7 +102,7 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Driving Arm Guards | T3 | Moderate melee defense, moderate vehicle handling | Articulated for driving movement |
 | Rad Suit Arms | T3 | Slight melee defense, strong Rad resist | Pairs with Rad Suit Torso for full bonus |
 | Arena Arm Guards | T3 | Moderate melee defense, strong arena prestige ID | Arena faction cosmetic reward |
-| Mil-Spec Arm Guards | T4 | Very strong melee defense, moderate all-resist | Pre-dark; Redoubt find[^1] |
+| Mil-Spec Arm Guards | T4 | Very strong melee defense, moderate all-resist | Pre-Fracture; Carousel-Station find[^1] |
 | White Coat Articulated Bracers | T4 | Moderate melee defense, strong crafting quality buff | Precision movement assist |
 | Composite Vambrace | T5 | Maximum arm armor, moderate all physical resist | White Coat faction; Composite recipe required |
 
@@ -113,14 +113,14 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Bare Hands | — | No modifier | Default |
 | Work Gloves | T1 | Slight crafting speed | Cloth work gloves |
 | Leather Gloves | T1 | Slight grip boost | Standard scavver find |
-| Driving Gloves | T2 | Moderate vehicle handling | Pre-dark driving accessory |
+| Driving Gloves | T2 | Moderate vehicle handling | Pre-Fracture driving accessory |
 | Combat Gloves | T2 | Slight unarmed damage, slight grip | Padded knuckle gloves |
 | Mechanic Wraps | T2 | Strong repair speed | Cloth wraps used by mechanics |
 | Tac Gloves | T3 | Moderate grip, moderate ranged accuracy from vehicle | Tacticool fingerless style |
 | Gauntlets (Light) | T3 | Moderate unarmed damage, moderate hand armor | Leather-and-metal hybrid |
 | Gauntlets (Heavy) | T4 | Strong unarmed damage, slight reload speed penalty | Full metal fist; heavy and slow |
 | White Coat Lab Gloves | T4 | Strong crafting quality, strong poison crafting | Chemical-resistant; White Coat faction gear |
-| Electro-Gauntlets | T5 | Strong unarmed damage, stun proc on hit | Pre-dark White Coat weapon; rare Redoubt find[^1] |
+| Electro-Gauntlets | T5 | Strong unarmed damage, stun proc on hit | Pre-Fracture White Coat weapon; rare Carousel-Station find[^1] |
 | Arena Spiked Gauntlets | T5 | Maximum unarmed damage, bleed proc on hit | Arena champion reward; illegal outside Arena District |
 
 ***
@@ -137,7 +137,7 @@ Armor types span five material tiers: Cloth/Scrap, Leather, Reinforced Leather, 
 | Sec-Man Leg Guards | T3 | Strong leg protection, faction ID | Looted Barony Steele gear |
 | Rad Suit Legs | T3 | Slight leg protection, strong Rad resist | Full Rad Suit set bonus when combined[^7] |
 | Battle Plate (Legs) | T4 | Very strong leg protection, slight movement penalty | Heavy scrap-forged; slow but tough |
-| Mil-Spec Leg Armor | T4 | Very strong leg protection, moderate all-resist | Pre-dark Redoubt find[^1] |
+| Mil-Spec Leg Armor | T4 | Very strong leg protection, moderate all-resist | Pre-Fracture Carousel-Station find[^1] |
 | Composite Greaves | T5 | Maximum leg protection, strong movement | White Coat faction; Composite recipe |
 | Mutie Scale Legs | T5 | Strong leg protection, strong Rad resist, Unbound faction ID | Mutant-scale material; Unbound faction craft |
 
@@ -168,7 +168,7 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Long Duster (Reinforced) | T3 | Moderate weather resist, moderate stealth | Long coat with sewn-in padding |
 | Barony Steele Officer Coat | T3 | Moderate weather resist, strong Barony Steele ID | Looted or awarded; NPC Sec-Men react more favorably |
 | Ghillie Poncho | T3 | Strong stealth outdoors, slight movement penalty | Wasteland camouflage; reduces pedestrian detection range |
-| Mil-Spec Field Jacket | T4 | Strong weather resist, moderate all-environment resist | Pre-dark military surplus[^3] |
+| Mil-Spec Field Jacket | T4 | Strong weather resist, moderate all-environment resist | Pre-Fracture military surplus[^3] |
 | White Coat Research Coat | T4 | Moderate weather resist, strong White Coat faction ID, crafting buff | The iconic lab coat; worn with pride |
 | Composite Assault Cloak | T5 | Strong weather and environmental resist, moderate stealth | White Coat faction craft; adaptive insulation |
 | Warlord's Mantle | T5 | Strong all-environment resist, maximum faction prestige aura | Unique political reward; recognized world-wide |
@@ -179,12 +179,12 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 |------|------|-------------|-----------|
 | Bare Chest | — | No modifier | Default |
 | Torn Undershirt | T1 | No bonus | Starting item |
-| Cotton Shirt | T1 | Slight comfort (fatigue resist) | Common Ville craftwork |
+| Cotton Shirt | T1 | Slight comfort (fatigue resist) | Common Holdout craftwork |
 | Thermal Undershirt | T2 | Moderate cold resist | Useful in northern zone travel |
 | Flex Armor Base | T2 | Slight all physical resist | Thin armor layer; worn under chest slot |
 | Trauma Plate Insert | T3 | Moderate torso damage reduction, pairs with Chest slot | Slipped between shirt and armor vest |
 | Rad-Lined Undershirt | T3 | Strong Rad resist, pairs with Rad Suit Torso for full bonus | Lead-fiber lining[^7] |
-| Mil-Spec Base Layer | T4 | Moderate all-resist, moderate fatigue resist | Pre-dark thermal-regulation fabric |
+| Mil-Spec Base Layer | T4 | Moderate all-resist, moderate fatigue resist | Pre-Fracture thermal-regulation fabric |
 | Bio-Weave Underlayer | T5 | Strong all-resist, moderate health regen rate | White Coat faction; living fiber technology |
 
 ***
@@ -199,7 +199,7 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Sec-Man Duty Belt | T2 | Moderate carry weight, faction ID (Barony) | Looted from Sec-Men; has cuff hook |
 | Tactical Rig Belt | T3 | Strong carry weight, two extra quick-slots | MOLLE-style; modular attachment points |
 | Melee Loop Belt | T3 | Moderate carry weight, slight draw speed for blades | Scabbard loops and dagger hooks |
-| Mil-Spec Belt | T4 | Strong carry weight, strong quick-slot access | Pre-dark issue; D-ring mounts |
+| Mil-Spec Belt | T4 | Strong carry weight, strong quick-slot access | Pre-Fracture issue; D-ring mounts |
 | White Coat Tool Belt | T4 | Strong carry weight, strong crafting tool access speed | Specialized loops for White Coat instruments |
 | Arena Champion Belt | T5 | Strong carry weight, arena prestige ID | Award item; cosmetically unique buckle |
 
@@ -210,13 +210,13 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Bare Feet | — | Slight rough terrain penalty | Default |
 | Rags/Wrappings | T1 | Negligible foot protection | Tied cloth; found anywhere |
 | Scavver Sandals | T1 | Minimal terrain penalty reduction | Cut from tire rubber |
-| Work Boots | T1 | Slight foot protection, slight terrain traversal | Standard Ville labor wear |
+| Work Boots | T1 | Slight foot protection, slight terrain traversal | Standard Holdout labor wear |
 | Combat Boots | T2 | Moderate foot protection, moderate terrain traversal | Common scavver find |
 | Road Rat Riding Boots | T2 | Moderate foot protection, strong vehicle mounting speed | Built for motorcycle/car entry[^2] |
 | Rad Boots | T2 | Slight foot protection, strong Rad resist | Sealed at ankle; required for some Hot Spots[^7] |
 | Tactical Boots | T3 | Strong foot protection, strong terrain traversal, slight stealth | Thick sole; rubber-dampened steps |
 | Driving Boots | T3 | Moderate foot protection, strong vehicle pedal response | Thin sole for precision pedal control |
-| Mil-Spec Jump Boots | T4 | Very strong foot protection, strong terrain traversal | Pre-dark paratrooper issue[^3] |
+| Mil-Spec Jump Boots | T4 | Very strong foot protection, strong terrain traversal | Pre-Fracture paratrooper issue[^3] |
 | White Coat Enviro-Boots | T4 | Strong foot protection, strong Rad resist, chemical resist | Sealed and insulated; White Coat faction |
 | Composite Sprint Boots | T5 | Maximum foot protection, strong movement speed, strong Rad resist | White Coat faction; articulated sole |
 
@@ -225,14 +225,14 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Item | Tier | Stat Benefit | Lore Notes |
 |------|------|-------------|-----------|
 | No Sash | — | No modifier | Default |
-| Cloth Sash | T1 | Negligible; purely cosmetic | Ville fashion; faction color optional |
+| Cloth Sash | T1 | Negligible; purely cosmetic | Holdout fashion; faction color optional |
 | Scav Bandolier | T1 | Slight ammo carry | Leather strap with shell loops |
 | Ammo Bandolier | T2 | Moderate ammo carry, slight reload speed | Cross-chest strap; common scavver gear |
 | Faction Sash | T2 | Strong faction ID signal, slight NPC reaction boost | Each faction has a color/symbol variant |
 | Grenade Rig | T3 | Moderate explosive carry, strong grenade draw speed | Chest rig for thrown explosives |
 | Dual Bandolier | T3 | Strong ammo carry, moderate reload speed | Two crossed straps; heavy load out |
 | Medic Rig | T3 | Moderate ammo carry, strong medical item access speed | White cross marking; NPCs treat medics differently |
-| Mil-Spec Chest Rig | T4 | Strong ammo carry, strong explosive carry, moderate reload speed | Pre-dark MOLLE chest rig[^1] |
+| Mil-Spec Chest Rig | T4 | Strong ammo carry, strong explosive carry, moderate reload speed | Pre-Fracture MOLLE chest rig[^1] |
 | White Coat Sample Harness | T4 | Strong chemical carry, strong crafting access | Vials and tool slots for White Coat faction |
 | Warlord Sash | T5 | Strong faction prestige ID, slight all-combat buff near allies | Unique political item; visible to all players |
 
@@ -251,7 +251,7 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Tactical Half-Mask | T3 | Moderate toxin resist, moderate NPC anonymity | Ballistic half-mask; obscures identity |
 | Arena War Mask | T3 | Strong intimidation, strong arena prestige ID | Ceremonial combat mask; arena culture item |
 | Rad Rebreather | T3 | Strong airborne Rad resist, moderate toxin resist | Pairs with Full Gas Mask for complete coverage |
-| Mil-Spec Half-Respirator | T4 | Very strong toxin resist, moderate Rad resist | Pre-dark CBRN half-mask[^1] |
+| Mil-Spec Half-Respirator | T4 | Very strong toxin resist, moderate Rad resist | Pre-Fracture CBRN half-mask[^1] |
 | White Coat Biosensor Mask | T4 | Strong toxin resist, strong chemical detection (alerts to traps) | White Coat faction crafted |
 | Warlord Face Guard | T5 | Strong intimidation aura, maximum NPC recognition (fame instead of anonymity) | Unique faction reward; opposite of stealth |
 
@@ -267,7 +267,7 @@ Clothing slots sit under or over armor. They provide social signaling, environme
 | Frame Pack | T3 | Strong carry weight, no movement penalty | Rigid frame distributes load |
 | Medic Pack | T3 | Moderate carry weight, strong medical crafting access | Red cross back panel; NPCs identify as medic |
 | Armored Saddlebag | T3 | Moderate carry weight, strong vehicle attachment speed | Designed to hook onto vehicle exterior |
-| Mil-Spec Field Pack | T4 | Very strong carry weight, moderate movement, organized slot system | Pre-dark ALICE pack[^1] |
+| Mil-Spec Field Pack | T4 | Very strong carry weight, moderate movement, organized slot system | Pre-Fracture ALICE pack[^1] |
 | White Coat Research Pack | T4 | Strong carry weight, strong crafting station access, mobile lab slot | Portable White Coat equipment rig |
 | Composite Assault Pack | T5 | Maximum carry weight, no movement penalty, built-in armor backing | White Coat faction; hardened shell |
 
@@ -293,13 +293,13 @@ Accessory slots provide passive stat modifications, faction signaling, and utili
 | No Earring | — | No modifier | Default |
 | Bone Stud | T1 | Slight Unbound faction ID | Carved from wasteland bone; primitive |
 | Wire Loop | T1 | Negligible; cosmetic | Twisted salvage wire |
-| Brass Ring (Earring) | T1 | Slight Jack carry bonus (barter recognition) | Traders notice wealth signals |
+| Brass Ring (Earring) | T1 | Slight Scrip carry bonus (barter recognition) | Traders notice wealth signals |
 | Faction Tag (Clipped) | T2 | Moderate faction ID signal for chosen faction | Stamped metal; worn by faction members |
 | Comm Bead (Single) | T2 | Slight short-range communication boost | Rudimentary wireless earpiece |
 | Sec-Man Comm Piece | T3 | Moderate comms range, Barony Steele faction ID | Looted from Sec-Men; Barony frequency |
 | Scavver Lucky Charm (Ear) | T3 | Slight loot quality boost | Superstition with mild systemic effect |
 | Rad Dosimeter Clip | T3 | Real-time radiation level display, moderate Rad awareness | Worn on ear; audio ping in Hot Spots[^7] |
-| Mil-Spec Comms Earpiece | T4 | Strong comms range, party coordination buff | Pre-dark encrypted channel device[^1] |
+| Mil-Spec Comms Earpiece | T4 | Strong comms range, party coordination buff | Pre-Fracture encrypted channel device[^1] |
 | White Coat Neural Stud | T4 | Moderate intelligence buff, strong crafting complexity unlock | Bio-embedded; White Coat faction only |
 | Warlord Faction Sigils (Pair) | T5 | Maximum faction prestige ID, strong NPC command aura | Paired set; both slots required for full effect |
 
@@ -319,7 +319,7 @@ Accessory slots provide passive stat modifications, faction signaling, and utili
 | Brass Knuckle Ring | T3 | Moderate unarmed damage, slight bleed proc | One-finger brass knuckle |
 | Trader's Ring | T3 | Moderate vendor price reduction, moderate barter speed | Recognized by Traders as a deal-maker signal |
 | Rad Shielding Band | T3 | Strong Rad resist | Dense composite; White Coat basic item |
-| Mil-Spec Tactical Band | T4 | Moderate all-combat stat buff | Pre-dark biometric ring; reads pulse, adjusts grip[^1] |
+| Mil-Spec Tactical Band | T4 | Moderate all-combat stat buff | Pre-Fracture biometric ring; reads pulse, adjusts grip[^1] |
 | White Coat Data Ring | T4 | Strong intelligence buff, crafting recipe memory expansion | Stores extra recipe slots |
 | Warlord's Signet (Pair) | T5 | Maximum faction prestige, strong intimidation to neutral NPCs | Political item; stacks with Warlord Sash |
 
@@ -330,7 +330,7 @@ Accessory slots provide passive stat modifications, faction signaling, and utili
 | No Talisman | — | No modifier | Default |
 | Lucky Rabbit's Foot | T1 | Slight loot quality | Classic superstition |
 | Bone Token | T1 | Slight Unbound faction ID, slight fear aura | Mutie cultural item |
-| Ville Charm | T1 | Slight NPC positive reaction in home Ville | Locally made; only works in origin zone |
+| Holdout Charm | T1 | Slight NPC positive reaction in home Holdout | Locally made; only works in origin zone |
 | Trader's Scale Medallion | T2 | Moderate vendor price reduction | Merchants guild recognition token |
 | Rust Prophet Eye | T2 | Moderate Rust Prophet faction ID, slight fear to civilians | Cult eye symbol; civilians react nervously |
 | Arena Medal | T2 | Moderate Arena District prestige | Awarded for arena participation |
@@ -340,7 +340,7 @@ Accessory slots provide passive stat modifications, faction signaling, and utili
 | Faction Champion Token | T4 | Strong faction prestige for chosen faction, moderate all-stat buff | Awarded by T5 faction NPCs for major contracts |
 | White Coat Resonance Core | T4 | Strong intelligence buff, strong crafting complexity, moderate Rad resist | Experimental science token |
 | Warlord's Skull Pendant | T5 | Maximum intimidation aura, strong faction prestige | Unique; recognizable world-wide as political item |
-| Redoubt Keystone | T5 | Access to Tier 5 Redoubt zones, strong all-stat buff | Pre-dark MAT-TRANS auth token[^1]; extremely rare |
+| Carousel Keystone | T5 | Access to Tier 5 Carousel-Station zones, strong all-stat buff | Pre-Fracture Carousel auth token[^1]; extremely rare |
 
 ***
 ### 3.5 Bracelet Slot — Full Item List
@@ -356,7 +356,7 @@ Accessory slots provide passive stat modifications, faction signaling, and utili
 | Faction Loyalty Band | T3 | Strong faction ID, moderate Esteem reaction from faction NPCs | Faction-specific design; woven or stamped |
 | Combat Brace | T3 | Moderate melee accuracy, moderate unarmed damage | Wrist stabilization for striking |
 | Pulse Monitor Band | T3 | Moderate health awareness, slight health regen rate | Monitors vital signs; alerts to bleed/poison |
-| Mil-Spec Data Cuff | T4 | Strong crafting bonus, strong vehicle interface speed | Pre-dark tactical wrist computer[^1] |
+| Mil-Spec Data Cuff | T4 | Strong crafting bonus, strong vehicle interface speed | Pre-Fracture tactical wrist computer[^1] |
 | White Coat Bio-Cuff | T4 | Strong poison crafting, strong medical quality | Measures chemical composition in real time |
 | Warlord's Command Cuff | T5 | Strong faction aura boost, strong NPC command range | Political item; NPCs within range respond to commands faster |
 

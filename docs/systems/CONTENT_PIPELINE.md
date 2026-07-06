@@ -83,4 +83,4 @@ via ComfyUI) · Blender Decimate + glTF export · existing `tools/pixellab_gen.j
 `tools/smoke_test.sh` (extend for content-lint).
 
 *Cross-refs: `STAGES.md` (Stage 5), `ENGINE.md` §2 (world core), `WORLD_NPCS.md` (blueprints
-stamp Baronies/Villes).*
+stamp Baronies/Holdouts).*

@@ -1,7 +1,7 @@
 # DRIVN — Combat & Gear (melee, ranged, throwables, car weapons, loadout)
 
 **Status:** DESIGN · **Created:** 2026-07-04 · **Primary stages:** 4 (Combat), 3 (Gear), M3 (car mounts)
-**Tone:** gritty, permadeath, **ammo is scarce** (Deathlands: wealth ≈ bullets owned). You avoid
+**Tone:** gritty, permadeath, **ammo is scarce** (in the Divided States, wealth ≈ bullets owned). You avoid
 as often as you fight; every shot costs a resource you had to scavenge.
 
 ---

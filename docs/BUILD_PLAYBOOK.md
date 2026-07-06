@@ -141,7 +141,7 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
 - **THE RAT BIKE STANDS (bike_sim 8/8, 2026-07-05):** two_wheel upright PD (rider/kickstand,
   leans into corners, torque-only per the iron rule) — the mount-and-tip-over bug is dead.
 - **STAGE 7 — COMPANIONS + TAMING + THE SECOND WINDOW (stage7_sim 13/13):** hire **Sam the
-  Drifter** (40 jack, by the market) — follows dog-law, **FIGHTS with his own gun**, and
+  Drifter** (40 scrip, by the market) — follows dog-law, **FIGHTS with his own gun**, and
   **SCOUTS** (his contacts ping your perception — "one perception engine, many sensors"); he
   boards vehicles with the pack (one boarding law, animal or human). **TAMING rung 1:** stagger
   a howler + meat ×3 → **FANG the Mutant Hound** joins the pack with every dog system free.
@@ -191,9 +191,9 @@ Run the game: `<godot> --path game res://proto3d/proto3d.tscn`. Console exe for 
   (road grips 1.0 / dirt 0.78, browner dust off-road) via `world_builder.surface_at`; the driving
   cone **faces travel not the nose** (a drift no longer reads as "looking sideways"). (drive_sim 7/7)
 - **MERIDIAN LIVES (Stage 6 slice):** the **Respect Ledger** (esteem/infamy/notoriety per
-  `WORLD_NPCS.md §6`), a TRADER whose shop IS the container panel (moves carry jack, prices =
+  `WORLD_NPCS.md §6`), a TRADER whose shop IS the container panel (moves carry scrip, prices =
   base × the town's opinion of you), a SEC-MAN **bounty chain** (offer → live mark + waypoint →
-  claim pays jack + esteem → prices drop), and **CRIME**: shoot a townsperson → infamy → SUSPECT
+  claim pays scrip + esteem → prices drop), and **CRIME**: shoot a townsperson → infamy → SUSPECT
   → no trade, no work, gouged prices. K-sheet shows the ledger. (town_sim 16/16)
 - **Drive/Living Car:** VehicleBody3D feel, handbrake drift (no spin), 5-part damage →
   smoke→fire→cook→burnt-husk, salvage, fuel, dashboard glyphs, hotwire, hood-MG mount, flip
@@ -304,7 +304,7 @@ before Stage 9 MP. NEXT: exits→generated towns, per-chunk persistence, or Stag
 
 **2026-07-05 (STAGE 7 + STAGE 8 rung 1 — companions/taming/second window/drone):** stage7_sim
 13/13 ×4, drone_sim 6/6; battery 28/28. **Companions**: `companion.gd` — Sam the Drifter (hire
-via `drifter` NPC archetype row, 40 jack): dog-law follow, his OWN hitscan vs threats (flash/
+via `drifter` NPC archetype row, 40 scrip): dog-law follow, his OWN hitscan vs threats (flash/
 blood/tracer FX), SCOUT callouts → `vision_cone.reveal_at` when he sees what you can't; boards
 vehicles before the dogs (humans call shotgun; same `dog_seats` pool). **Taming rung 1** on the
 howler: `interactable` while STUNNED only, meat ×3 (feeding refreshes the stagger) → replaced by
@@ -415,9 +415,9 @@ list). STILL OPEN for the user: the on-foot look model (twin-stick vs the Look A
 Ledger** (`respect.gd`, WORLD_NPCS §6: esteem/infamy/notoriety, standing bands, price_mult),
 **ProtoNPC** (`npc.gd` — archetype = a DATA row: Mercy the TRADER, Bridger the SEC-MAN, both
 hittable → CRIME), **the shop IS the container panel** (merchant mode: the move is the
-transaction, jack flows backward, TAKE-ALL hidden, SELL≫ labels, prices on rows), **bounty
+transaction, scrip flows backward, TAKE-ALL hidden, SELL≫ labels, prices on rows), **bounty
 chain** (offer → live lurker mark + BOUNTY waypoint → kill detected the frame it happens →
-claim pays 25 jack + 20 esteem → bandage 12→11), **crime closes the town** (60 infamy →
+claim pays 25 scrip + 20 esteem → bandage 12→11), **crime closes the town** (60 infamy →
 SUSPECT → Mercy refuses the shop, Bridger refuses work, prices gouge 12→17). Standing-change
 toasts + K-sheet ledger line. TWO paid-for gotchas entered the iron list: typed vars can't
 hold freed instances, and dog desire paths must stay clear of furniture (the market moved

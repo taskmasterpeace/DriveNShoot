@@ -2,7 +2,7 @@
 
 **Status:** DESIGN (deep-future — Stage 6) · **Created:** 2026-07-04 · **Source:** user design 2026-07-04
 **Pedestrian Classification & Adaptive Simulation.** Tone: gritty, permadeath. Influences:
-Deathlands (setting), GTA2 "Respect Is Everything" (social loop), Project Zomboid (off-screen NPC
+Divided States (setting), GTA2 "Respect Is Everything" (social loop), Project Zomboid (off-screen NPC
 sim + memory), Ultima Online (schedules + reputation duality).
 
 > **Honest scope:** this is the most ambitious pillar and a genuine "deep thought" area — the
@@ -17,11 +17,11 @@ sim + memory), Ultima Online (schedules + reputation duality).
 | Place | What | Role |
 |---|---|---|
 | **Baronies** | Fortified city-states, 100–1,000+, ruled by powerful/deranged Barons | major hubs, zoned like GTA2 (Commercial/Residential/Industrial) |
-| **Villes** | Small towns, 10–100, under a sec-boss or council | minor hubs, trade, shelter |
+| **Holdouts** | Small towns, 10–100, under a sec-boss or council | minor hubs, trade, shelter |
 | **The Wastelands** | Open highways, dead cities, acid-rain badlands | between settlements — the drive |
-| **Redoubts** | Pre-dark underground facilities: rare tech, weapons, **MAT-TRANS gates** | dungeons + fast-travel network |
+| **Carousel Stations** | Pre-Fracture underground bases: rare tech, weapons, **the Carousel teleport** | dungeons + fast-travel network (see `DIVIDED_STATES.md`) |
 
-**Economy:** **Jack** — stamped soft-metal currency, exchange rates favor the issuing Barony.
+**Economy:** **Scrip** — stamped soft-metal currency, exchange rates favor the issuing Barony.
 Military tech + ammunition are the most valued goods; wealth ≈ "bullets owned."
 **Zoning (GTA2 model):** each Barony's zones determine which archetypes spawn, which patrols
 operate, and what economy is present.
@@ -48,12 +48,12 @@ makes "a living world" run without simulating thousands of full agents.
 
 ## 3. The Twelve Archetypes (behavior/economy/threat)
 
-**Civil (Villes & Baronies):** Scavver (junk trader, skittish) · Trader (core economy node) ·
-Sec-Man (law/bounties, hostile if rep<0) · Ville Worker (crafter/skill trainer) · White Coat
-(pre-dark tech, upgrades/Redoubt lore) · Gaudy (performer/info broker/spy — the disinfo vector).
+**Civil (Holdouts & Baronies):** Scavver (junk trader, skittish) · Trader (core economy node) ·
+Sec-Man (law/bounties, hostile if rep<0) · Holdout Worker (crafter/skill trainer) · White Coat
+(pre-Fracture tech, upgrades/Carousel-Station lore) · Gaudy (performer/info broker/spy — the disinfo vector).
 
 **Wasteland (outside walls):** Road Rat (nomad, vehicle parts) · Mutie (mutated, rare reagents,
-ostracized) · War-Boy (Barony raider, hostile, drops jack/weapons) · Pilgrim (long-range cargo,
+ostracized) · War-Boy (Barony raider, hostile, drops scrip/weapons) · Pilgrim (long-range cargo,
 escort quests) · Drifter (factionless, hirable — **companion candidate**) · Cannie (cannibal,
 always hostile, drops meat/gear).
 
@@ -99,7 +99,7 @@ and become **discoverable content** — arrive to find the aftermath; survivors 
 Per-faction score on the HUD, three pools:
 | Pool | From | Effect |
 |---|---|---|
-| **Esteem** | contracts, protecting caravans, donating jack | opens missions, lowers prices, unlocks shelter |
+| **Esteem** | contracts, protecting caravans, donating scrip | opens missions, lowers prices, unlocks shelter |
 | **Infamy** | killing members, robbing, failed contracts | closes missions, raises prices, bounties |
 | **Notoriety** | \|all actions\| combined | how *known* you are (fame + infamy both build it) |
 
@@ -112,8 +112,8 @@ one faction costs it with rivals — GTA2 rule.)
 
 ## 7. How this hangs on the engine (multi-use payoffs)
 - **Perception cone** (shared w/ player + MP culling) = NPC awareness + what they can witness/remember.
-- **Blueprint system** = Baronies/Villes stamped from town templates (Stage 5 pipeline).
-- **Container + economy** = Trader stock, Jack, vendor loops (ports 2D economy donor).
+- **Blueprint system** = Baronies/Holdouts stamped from town templates (Stage 5 pipeline).
+- **Container + economy** = Trader stock, Scrip, vendor loops (ports 2D economy donor).
 - **Companion system** (Stage 7) = recruiting Drifters/Road Rats/tamed animals off this same
   archetype/behavior spine.
 - **Dialogue** = ports the 2D DialogueManager donor.
