@@ -66,7 +66,7 @@ func is_dark() -> bool:
 ## 0.72 of your sight, new moon strips you to 0.32. Daylight restores 1.0.
 func vision_mult() -> float:
 	var brightness := maxf(daylight(), _twilight() * 0.6)
-	var night_floor := lerpf(0.32, 0.72, moon_phase)
+	var night_floor := lerpf(0.4, 0.75, moon_phase) # raised: new moon = tense, not blind
 	return lerpf(night_floor, 1.0, clampf(brightness, 0.0, 1.0))
 
 
@@ -99,13 +99,15 @@ func _apply() -> void:
 	_sun.rotation_degrees.x = -lerpf(4.0, 62.0, dl)
 	_sun.rotation_degrees.y = -38.0 + (hour - 12.0) * 9.0
 	# Moonlight is the night's light source: a full moon silvers everything,
-	# a new moon leaves the headlights alone in the world.
-	_sun.light_energy = maxf(0.015 + 0.05 * moon_phase, bright * 1.25)
+	# a new moon leaves the headlights (almost) alone in the world. FLOOR RAISED
+	# (playtest, twice): new moon read as pitch black — night should be MOODY,
+	# never BLIND. You always keep a sliver of starlight.
+	_sun.light_energy = maxf(0.055 + 0.075 * moon_phase, bright * 1.25)
 	_sun.light_color = Color(1.0, 0.92, 0.78).lerp(Color(1.0, 0.6, 0.35), tw)
 	if bright < 0.05:
 		_sun.light_color = Color(0.72, 0.78, 0.95) # cold moon silver
 	if _env:
-		_env.ambient_light_energy = 0.025 + 0.06 * moon_phase + 0.5 * bright
+		_env.ambient_light_energy = 0.06 + 0.085 * moon_phase + 0.5 * bright
 		_env.fog_light_color = SKY_NIGHT[2].lerp(SKY_DUSK[2] if tw > 0.0 else SKY_DAY[2], bright)
 	if _sky_mat:
 		var moonlit := 0.6 + 0.7 * moon_phase

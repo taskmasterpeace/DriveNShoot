@@ -19,6 +19,11 @@ extends Node3D
 
 var target: Node3D = null
 var zoom_t: float = 0.45 ## 0 = close, 1 = far
+## THE POKÉMON FIX: on foot the near-vertical camera flattened the 3D world into
+## 2D tiles (playtest: "this looks like Pokémon"). When main sets on_foot, the rig
+## drops lower and swings back to a ~50° pitch — walking reads as REAL 3D. Driving
+## keeps the GTA2 top-down pull-out (that's the signature there).
+var on_foot: bool = false
 var binoculars: bool = false
 ## Mouse-aimed binocular offset in world XZ (meters from the player), soft-clamped to range.
 var binocular_offset: Vector2 = Vector2.ZERO
@@ -73,6 +78,11 @@ func _desired_position() -> Vector3:
 	# Always keep a little southward offset so the camera is never perfectly
 	# vertical (look_at degenerates) and close zoom gets a GTA-modern tilt.
 	var back := lerpf(7.0, 4.5, zoom_t)
+	if on_foot:
+		# ~50° pitch at EVERY zoom (back scales with height): buildings get faces,
+		# the puppet gets a silhouette, grass stops reading as a tile sheet.
+		height = lerpf(7.0, 34.0, zoom_t)
+		back = maxf(6.0, height * 0.82)
 	var base := target.global_position + Vector3(0, height, back)
 	# Binoculars: the camera itself drifts partway toward where you're glassing,
 	# so the view genuinely travels downrange while staying top-down.

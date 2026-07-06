@@ -480,6 +480,8 @@ func _physics_process(delta: float) -> void:
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	player.input_locked = panel.is_open
+	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
+	cam_rig.on_foot = mode == Mode.FOOT
 	# Zoom fallback keys (no wheel on some setups)
 	if Input.is_key_pressed(KEY_Z):
 		cam_rig.add_zoom(-0.02)
