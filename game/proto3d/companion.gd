@@ -94,6 +94,12 @@ func interact(m: Node) -> void:
 	m.notify("%s %s" % [comp_name, "holds this spot" if staying else "falls in behind you"])
 
 
+## Save row: which crew member, how hurt, where standing. Rebuilt via create().
+func to_record() -> Dictionary:
+	return {"crew_id": crew_id, "hp": hp,
+		"pos": [global_position.x, global_position.y, global_position.z]}
+
+
 ## MORTAL now (goal: a crew you can LOSE is the point). The rig flops, the gear
 ## drops as a corpse chest, and the road gets heavier.
 func take_damage(amount: float) -> void:

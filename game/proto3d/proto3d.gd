@@ -2457,6 +2457,14 @@ func _siege_records() -> Dictionary:
 	return out
 
 
+func _crew_records() -> Array:
+	var out: Array = []
+	for c in companions:
+		if c is ProtoCompanion and is_instance_valid(c) and not c.dead:
+			out.append(c.to_record())
+	return out
+
+
 func _garage_records() -> Dictionary:
 	var out: Dictionary = {}
 	for gid in carousel.gates:
@@ -2516,6 +2524,7 @@ func save_game() -> Dictionary:
 		"deaths": deaths,
 		"weather": weather.state if weather != null else "clear",
 		"event": {"today": events.today_event, "war": events.war_state} if events != null else {},
+		"crew": _crew_records(),
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
@@ -2604,6 +2613,20 @@ func apply_save(data: Dictionary) -> void:
 		nd.state = ProtoDog.DogState.FOLLOW
 		all_dogs.append(nd)
 		register_dog(nd)
+	# THE CREW: clear the live roster, rebuild each hire from its row (was leaking —
+	# a hired gunner vanished on load while his death-memorial persisted).
+	for c in companions:
+		if c is ProtoCompanion and is_instance_valid(c):
+			c.queue_free()
+	companions.clear()
+	for cr in data.get("crew", []):
+		var crd: Dictionary = cr as Dictionary
+		var comp := ProtoCompanion.create(self, String(crd.get("crew_id", "sam")))
+		add_child(comp)
+		var cp: Array = crd.get("pos", [110, 0.2, -320])
+		comp.global_position = Vector3(float(cp[0]), float(cp[1]), float(cp[2]))
+		comp.hp = float(crd.get("hp", 70.0))
+		companions.append(comp)
 
 
 # --- RIDING SHOTGUN (goal: NPCs drive; you can be the passenger) ----------------

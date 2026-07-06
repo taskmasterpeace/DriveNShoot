@@ -55,6 +55,12 @@ func _ready() -> void:
 	main.weather.force("dust", 999.0)
 	main.events.today_event = "state_at_war"
 	main.events.war_state = "TEXAS"
+	# CREW: hire one, hurt him a little — he must survive the reload (was vanishing).
+	var sam := ProtoCompanion.create(main, "sam")
+	main.add_child(sam)
+	sam.global_position = main.player.global_position + Vector3(3, 0.2, 0)
+	sam.hp = 44.0
+	main.companions.append(sam)
 
 	# --- SAVE, then WRECK everything -------------------------------------------------
 	main.save_game()
@@ -94,6 +100,13 @@ func _ready() -> void:
 	_check("HUNGER came back (%.0f — no longer loads full)" % main.character.hunger, absf(main.character.hunger - 37.0) < 0.5)
 	_check("the WEATHER came back (dust, not clear)", main.weather.state == "dust")
 	_check("the WAR came back (%s)" % main.events.war_state, main.events.war_state == "TEXAS" and main.events.today_event == "state_at_war")
+	# THE CREW came back — one Sam, hurt as saved (44 hp), not a fresh full hire.
+	var sam_back: ProtoCompanion = null
+	for c in main.companions:
+		if c is ProtoCompanion and (c as ProtoCompanion).crew_id == "sam":
+			sam_back = c
+	_check("the CREW came back (Sam re-hired, %.0f hp)" % (sam_back.hp if sam_back else -1.0),
+		sam_back != null and absf(sam_back.hp - 44.0) < 0.5 and main.companions.size() == 1)
 	main.load_game() # double-load: no duplicate benches/dogs
 	for _i in 3:
 		await get_tree().physics_frame # queue_free clears at frame end
