@@ -419,7 +419,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			sview.cycle(self)
 		elif kc == KEY_R:
 			if character.dead:
-				get_tree().reload_current_scene()
+				respawn_at_home() # soft respawn — the world persists, only you reset
 			elif mode == Mode.DRIVE and active_car and active_car.mount_weapon:
 				_reload_mount()
 			else:
@@ -2111,12 +2111,47 @@ func _hotwire_duration() -> float:
 	return maxf(2.5, 5.0 - 0.5 * character.level("mechanics"))
 
 
+var deaths: int = 0
+
 func _on_death() -> void:
 	player.is_active = false
+	player.dead_vis = true
 	if active_car:
 		active_car.is_active = false
-	hud.show_death("YOU DIED — the Deathlands keep what they take.\nPress R to start a new run.")
+	# The WORLD persists (this is not permadeath — that's reserved for the dogs).
+	# You black out and wake at the safehouse; the wasteland takes a cut.
+	hud.show_death("YOU WENT DOWN — the Divided States take their cut.\nPress R to wake at the safehouse.")
 	cam_rig.add_trauma(1.0)
+
+
+## Soft respawn: you come to on the safehouse cot, mended, but lighter. Your rig
+## stays where it died — go get it. Dogs, lit nodes, respect, the clock: all persist.
+func respawn_at_home() -> void:
+	deaths += 1
+	character.revive()
+	# The toll: the wasteland scavenges a cut of what you were carrying.
+	var lost_scrap: int = int(backpack.count("scrap") * 0.4)
+	var lost_jack: int = int(backpack.count("jack") * 0.3)
+	if lost_scrap > 0:
+		backpack.remove("scrap", lost_scrap)
+	if lost_jack > 0:
+		backpack.remove("jack", lost_jack)
+	# Wake on foot at the safehouse door; leave the car (and its cargo) behind.
+	mode = Mode.FOOT
+	active_car = null
+	player.is_active = true
+	player.dead_vis = false
+	player.global_position = Vector3(110, 0.3, -322)
+	if cam_rig != null:
+		cam_rig.target = player
+	hud.hide_death()
+	hud.set_circuit(circuit_level, circuit_beats)
+	var toll := ""
+	if lost_scrap > 0 or lost_jack > 0:
+		toll = " Lost %d scrap, %d scrip." % [lost_scrap, lost_jack]
+	notify("🩹 You came to on the safehouse cot.%s Your rig's still out there." % toll)
+	if audio != null:
+		audio.play_ui("blip", -2.0)
 
 
 var _last_chassis: float = -1.0
@@ -2411,6 +2446,7 @@ func save_game() -> Dictionary:
 		"homebase": homebase.owned.keys(),
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"objectives": objectives.to_record() if objectives != null else {},
+		"deaths": deaths,
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
@@ -2464,6 +2500,7 @@ func apply_save(data: Dictionary) -> void:
 	hud.set_circuit(circuit_level, circuit_beats)
 	if objectives != null:
 		objectives.from_record(data.get("objectives", {}))
+	deaths = int(data.get("deaths", 0))
 	visited_states.clear()
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true

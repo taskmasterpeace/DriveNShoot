@@ -234,6 +234,15 @@ func take_wound(part: String, amount: float) -> void:
 		died.emit()
 
 
+## Back from the brink — the safehouse cot patches you whole. Clears death, mends
+## every part, refills hp. The world outside kept turning; only YOU reset.
+func revive() -> void:
+	dead = false
+	for p in PART_NAMES:
+		body[p].restore(9999.0)
+	hp = hp_cap()
+
+
 ## Treatment restores part condition (bandage/splint route through here).
 func treat(part: String, amount: float) -> void:
 	body[part].restore(amount)

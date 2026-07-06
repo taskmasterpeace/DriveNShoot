@@ -424,14 +424,15 @@ func toggle_sheet(text: String) -> void:
 func sheet_open() -> bool:
 	return _sheet_panel != null and _sheet_panel.visible
 
-## Permadeath screen — the run is over.
+## Death screen — you went down. R wakes you at the safehouse (soft respawn).
+var _death_shade: ColorRect = null
 func show_death(text: String) -> void:
 	if _death_label == null:
-		var shade := ColorRect.new()
-		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
-		shade.color = Color(0.05, 0.02, 0.02, 0.82)
-		shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(shade)
+		_death_shade = ColorRect.new()
+		_death_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_death_shade.color = Color(0.05, 0.02, 0.02, 0.82)
+		_death_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_death_shade)
 		_death_label = Label.new()
 		_death_label.add_theme_font_override("font", ProtoHUD.mixed_font())
 		_death_label.add_theme_font_size_override("font_size", 34)
@@ -445,6 +446,12 @@ func show_death(text: String) -> void:
 		add_child(_death_label)
 	_death_label.text = text
 	_death_label.visible = true
+
+func hide_death() -> void:
+	if _death_label != null:
+		_death_label.visible = false
+	if _death_shade != null:
+		_death_shade.visible = false
 
 func death_shown() -> bool:
 	return _death_label != null and _death_label.visible
