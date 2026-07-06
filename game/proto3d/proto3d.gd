@@ -156,6 +156,10 @@ func _ready() -> void:
 	player = ProtoPlayer3D.create(ProtoPuppet.look("scav"))
 	player.position = Vector3(6, 0.2, 388)
 	add_child(player)
+	# ONE DAMAGE LAW: the player is an ordinary body — everything that hurts him
+	# calls take_damage; the signal routes it into the wound system here.
+	player.damaged.connect(func(amount: float, attacker: Node3D) -> void:
+		on_player_clawed(amount, attacker))
 
 	cam_rig = ProtoCameraRig.create()
 	add_child(cam_rig)

@@ -55,6 +55,7 @@ static func create(main: Node, crew_id_in: String = "sam") -> ProtoCompanion:
 	c._main = main
 	c.add_to_group("interactable")
 	c.add_to_group("npc") # sight rays pass him; FADE treats him as a person
+	c.add_to_group("combatant") # crew live under the one damage law (friendly fire is real)
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.33

@@ -81,6 +81,25 @@ func _ready() -> void:
 	_check("restore: the body stands where it stood",
 		pl.global_position.distance_to(Vector3(rec["pos"][0], rec["pos"][1], rec["pos"][2])) < 1.0)
 
+	# --- 3) ONE DAMAGE LAW: the player is an ordinary body ----------------------
+	var hp0: float = main.character.hp
+	main.player.take_damage(12.0, null) # the same door a claw uses
+	_check("the player takes damage through the ONE door (hp %.0f → %.0f)" % [hp0, main.character.hp],
+		main.character.hp < hp0)
+	# THE PVP CONTRACT: two player bodies in one world — one swings, one bleeds.
+	var body2 := ProtoPlayer3D.create()
+	main.add_child(body2)
+	body2.global_position = pl.global_position + pl.aim_facing() * 1.5
+	var body2_hits: Array = []
+	body2.damaged.connect(func(a: float, _atk: Node3D) -> void: body2_hits.append(a))
+	var wrench := ProtoWeapon.new("wrench")
+	pl.stamina = 100.0
+	var hp_before_swing: float = main.character.hp
+	wrench.fire(main, pl.global_position, pl.aim_facing())
+	_check("PVP CONTRACT: one player body SWINGS, the other BLEEDS (%d hits)" % body2_hits.size(),
+		body2_hits.size() >= 1)
+	_check("…and the attacker never hits HIMSELF", is_equal_approx(main.character.hp, hp_before_swing))
+
 	print("PVP RESULTS: %d passed, %d failed" % [passed, failed])
 	print("PVP: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)

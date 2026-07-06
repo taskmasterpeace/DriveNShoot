@@ -126,9 +126,9 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		if "audio" in main and main.audio:
 			main.audio.play_at("whoosh", main.player.global_position, -8.0)
 		var hit_any := false
-		for node in main.get_tree().get_nodes_in_group("threat"):
+		for node in main.get_tree().get_nodes_in_group("combatant"): # the ONE damage law
 			var t := node as Node3D
-			if t == null or not is_instance_valid(t):
+			if t == null or not is_instance_valid(t) or t == main.player:
 				continue
 			var to_t: Vector3 = t.global_position - main.player.global_position
 			to_t.y = 0.0

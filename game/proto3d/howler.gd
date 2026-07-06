@@ -52,6 +52,7 @@ static func create(main: Node) -> ProtoHowler:
 	var h := ProtoHowler.new()
 	h._main = main
 	h.add_to_group("threat")
+	h.add_to_group("combatant")
 	h.add_to_group("interactable") # taming: E only works while it's STUNNED
 	h._rng.randomize()
 	h._orbit_sign = 1.0 if h._rng.randf() > 0.5 else -1.0
@@ -260,9 +261,9 @@ func _physics_process(delta: float) -> void:
 	# Teeth: same two-way law as the lurker's claw — and never through a wall.
 	_claw_cd = maxf(0.0, _claw_cd - delta)
 	if not dead and _claw_cd <= 0.0 and dist <= 1.7 and ProtoWeapon.melee_clear(self, _player):
-		if _main and _main.has_method("on_player_clawed"):
+		if _player.has_method("take_damage"):
 			_claw_cd = claw_cooldown
-			_main.on_player_clawed(claw_damage, self)
+			_player.take_damage(claw_damage, self) # the ONE damage law
 			state = HowlState.CIRCLE
 			_charge_cd = _rng.randf_range(2.0, 4.5)
 

@@ -82,6 +82,7 @@ func shove(dir: Vector3, power: float) -> void:
 static func create() -> ProtoLurker:
 	var l := ProtoLurker.new()
 	l.add_to_group("threat")
+	l.add_to_group("combatant")
 	var shape := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.32
@@ -184,11 +185,8 @@ func _physics_process(delta: float) -> void:
 	# (But never through a wall: the melee law cuts both ways.)
 	_claw_cd = maxf(0.0, _claw_cd - delta)
 	if not dead and _claw_cd <= 0.0 and dist <= stop_distance + 0.5 and ProtoWeapon.melee_clear(self, _player):
-		var main := get_tree().current_scene
-		if main == null or not main.has_method("on_player_clawed"):
-			main = _player.get_parent() if _player else null
-		if main and main.has_method("on_player_clawed"):
+		if _player != null and _player.has_method("take_damage"):
 			_claw_cd = claw_cooldown
-			main.on_player_clawed(claw_damage, self)
+			_player.take_damage(claw_damage, self) # the ONE damage law
 
 	move_and_slide()

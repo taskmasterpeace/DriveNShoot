@@ -111,6 +111,7 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPlayer3D:
 	var p := ProtoPlayer3D.new()
 	p.appearance = appearance_in
 	p.add_to_group("player3d") # NOT "player" — the 2D autoloads type-grab that group
+	p.add_to_group("combatant") # the ONE damage law: every body that fights is here
 	# Slope handling so ramps (stairs) are walkable and you stick to them.
 	p.floor_max_angle = deg_to_rad(50)
 	p.floor_snap_length = 0.6
@@ -153,6 +154,17 @@ func gun_recoil() -> void:
 func flinch(world_dir: Vector3) -> void:
 	if puppet:
 		puppet.flinch(world_dir)
+
+
+## ONE DAMAGE LAW (PvP prep 2): the player is an ORDINARY BODY — anything that
+## can hurt a threat hurts him through the same door. Claws, bullets, melee
+## arcs, a second player's iron: all call take_damage; main routes it into the
+## wound system via the signal. The special-case era is over.
+signal damaged(amount: float, attacker: Node3D)
+
+
+func take_damage(amount: float, attacker: Node3D = null) -> void:
+	damaged.emit(amount, attacker)
 
 
 ## The swing made physical: the held weapon whips through an arc and resettles.
