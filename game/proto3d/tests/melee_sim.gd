@@ -61,6 +61,38 @@ func _ready() -> void:
 	else:
 		_check("the bat LAUNCHED it (target already down)", true)
 
+	# --- CRIT lands ×1.8 (was untested — HANDOFF combat-feel coverage gap) -------
+	main.daynight.hour = 0.0 # keep the target howlers alive
+	for _i in 2:
+		await get_tree().physics_frame
+	# crit forced OFF (crit_chance below any bonus → never)
+	var hoff := ProtoHowler.create(main); main.add_child(hoff)
+	hoff.global_position = main.player.global_position + Vector3(0, 0, -1.8)
+	for _i in 3:
+		await get_tree().physics_frame
+	hoff.body.max_hp = 500.0
+	hoff.body.hp = 500.0 # high so it survives to be measured
+	eq.crit_chance = -2.0
+	eq._cd = 0.0
+	eq.fire(main, main.player.global_position, Vector3(0, 0, -1))
+	for _i in 3:
+		await get_tree().physics_frame
+	var dmg_off: float = 500.0 - hoff.body.hp
+	# crit forced ON
+	var hon := ProtoHowler.create(main); main.add_child(hon)
+	hon.global_position = main.player.global_position + Vector3(0, 0, -1.8)
+	for _i in 3:
+		await get_tree().physics_frame
+	hon.body.max_hp = 500.0
+	hon.body.hp = 500.0
+	eq.crit_chance = 2.0
+	eq._cd = 0.0
+	eq.fire(main, main.player.global_position, Vector3(0, 0, -1))
+	for _i in 3:
+		await get_tree().physics_frame
+	var dmg_on: float = 500.0 - hon.body.hp
+	_check("a CRIT hits harder ×~1.8 (off %.1f → on %.1f)" % [dmg_off, dmg_on], dmg_off > 0.1 and dmg_on > dmg_off * 1.5)
+
 	print("MEL RESULTS: %d passed, %d failed" % [passed, failed])
 	print("MEL: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)
