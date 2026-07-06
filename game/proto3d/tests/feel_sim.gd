@@ -68,6 +68,24 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	_check("full moon is brighter than new moon", sun.light_energy > 0.1)
 
+	# --- CAMERA TRAUMA rises on a hit and DECAYS (was untested — combat juice) ---
+	main.cam_rig.add_trauma(1.0)
+	_check("a hit spikes camera trauma (%.2f)" % main.cam_rig._trauma, main.cam_rig._trauma > 0.8)
+	# the shake displaces the camera while trauma is high
+	main.cam_rig.snap_to_target()
+	var settled: Vector3 = main.cam_rig._cam.global_position
+	await get_tree().physics_frame
+	var shaken: bool = false
+	for _i in 5:
+		await get_tree().physics_frame
+		if main.cam_rig._cam.global_position.distance_to(settled) > 0.05:
+			shaken = true
+	_check("trauma SHAKES the camera off its mark", shaken)
+	# …and it decays back to calm within ~1s
+	for _i in 70:
+		await get_tree().physics_frame
+	_check("trauma DECAYS back to calm (%.2f → ~0)" % main.cam_rig._trauma, main.cam_rig._trauma < 0.05)
+
 	print("FEEL RESULTS: %d passed, %d failed" % [passed, failed])
 	print("FEEL: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)
