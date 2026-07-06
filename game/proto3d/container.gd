@@ -85,6 +85,42 @@ static func ensure_items() -> void:
 			"desc": String(row.get("desc", "")),
 		}
 
+
+static var _loot_tables: Dictionary = {} ## id -> [entries], from data/loot_tables.json
+static var _loot_loaded: bool = false
+static func _ensure_loot() -> void:
+	if _loot_loaded:
+		return
+	_loot_loaded = true
+	var p := "res://data/loot_tables.json"
+	if not FileAccess.file_exists(p):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))
+	if parsed is Dictionary:
+		for t in (parsed as Dictionary).get("loot_tables", []):
+			_loot_tables[String((t as Dictionary).get("id", ""))] = (t as Dictionary).get("entries", [])
+
+
+## THE DATA-SPINE READ-BACK for loot (roadmap #3): roll a data/loot_tables.json table
+## into {item_id: count}. weight = chance the entry appears; min/max = how many. Pass a
+## seeded RNG for deterministic sims. Unknown table → empty (caller can fall back).
+static func roll_loot(table_id: String, rng: RandomNumberGenerator) -> Dictionary:
+	_ensure_loot()
+	var out: Dictionary = {}
+	for e in _loot_tables.get(table_id, []):
+		if rng.randf() <= float((e as Dictionary).get("weight", 1.0)):
+			var lo: int = int((e as Dictionary).get("min", 1))
+			var hi: int = int((e as Dictionary).get("max", 1))
+			var n: int = lo + (rng.randi() % maxi(1, hi - lo + 1))
+			if n > 0:
+				out[String((e as Dictionary)["item"])] = n
+	return out
+
+
+static func has_loot_table(table_id: String) -> bool:
+	_ensure_loot()
+	return _loot_tables.has(table_id)
+
 ## Panel grouping order (container_panel renders headers in this order).
 const CAT_ORDER: Array = ["weapon", "ammo", "med", "food", "tool", "loot"]
 const CAT_LABEL: Dictionary = {"weapon": "WEAPONS", "ammo": "AMMO", "med": "MEDS",

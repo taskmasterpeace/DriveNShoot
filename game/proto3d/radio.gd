@@ -75,7 +75,11 @@ func _deliver(id: String) -> void:
 			# A real place with real stakes: a cache, and the reason it's unclaimed.
 			var ang := rng.randf() * TAU
 			var pos := origin + Vector3(cos(ang), 0, sin(ang)) * rng.randf_range(250.0, 500.0)
-			var c := ProtoChest.create("Distress cache", {"medkit": 1, "9mm": 24, "scrip": 15, "flare": 2})
+			# Loot ROLLED from data (loot_tables.json chest_common) + a guaranteed
+			# medkit so the run out here is always worth it. A data row, not a literal.
+			var drop: Dictionary = ProtoContainer.roll_loot("chest_common", rng)
+			drop["medkit"] = int(drop.get("medkit", 0)) + 1
+			var c := ProtoChest.create("Distress cache", drop)
 			_main.add_child(c)
 			c.global_position = Vector3(pos.x, 0.05, pos.z)
 			for i in 2:

@@ -58,6 +58,18 @@ func _physics_process(delta: float) -> void:
 				# …and the code floor is authoritative — JSON can't corrupt an existing id.
 				_check("code stays the floor (pistol still weapon, 1.1kg)",
 					String(items["pistol"]["cat"]) == "weapon" and absf(float(items["pistol"]["w"]) - 1.1) < 0.01)
+				# LOOT read-back: chests can ROLL from data/loot_tables.json (was hardcoded).
+				_check("loot table 'chest_common' loads from data", ProtoContainer.has_loot_table("chest_common"))
+				var rngA := RandomNumberGenerator.new(); rngA.seed = 42
+				var rngB := RandomNumberGenerator.new(); rngB.seed = 42
+				var rollA: Dictionary = ProtoContainer.roll_loot("chest_common", rngA)
+				var rollB: Dictionary = ProtoContainer.roll_loot("chest_common", rngB)
+				_check("a seeded loot roll is DETERMINISTIC", rollA == rollB)
+				var all_real := true
+				for lid in rollA:
+					if not items.has(lid):
+						all_real = false
+				_check("every rolled item is a real catalog row (%s)" % str(rollA.keys()), all_real and not rollA.is_empty())
 				_check("Mercy actually stocks the new goods", ProtoNPC.ARCHETYPES["trader"]["stock"].has("medkit")
 					and ProtoNPC.ARCHETYPES["trader"]["stock"].has("jerry_can"))
 				_next()
