@@ -2194,7 +2194,16 @@ func reload_content() -> Dictionary:
 # built for exactly this). F5 writes ONE JSON, F9 restores it: the player (pos,
 # wounds, skills, pack, arsenal), the pack (per-dog bond + memory), the ring
 # (lit nodes), the home (upgrades re-raised), the ledger, the clock, THE CIRCUIT.
-const SAVE_PATH := "user://drivn.save" ## var_to_str format: Color/Vector3 round-trip natively (JSON strings them)
+const SAVE_PATH := "user://drivn.save"
+
+
+func _garage_records() -> Dictionary:
+	var out: Dictionary = {}
+	for gid in carousel.gates:
+		if not carousel.gates[gid].garage.is_empty():
+			out[gid] = carousel.gates[gid].garage.duplicate(true)
+	return out
+ ## var_to_str format: Color/Vector3 round-trip natively (JSON strings them)
 
 
 func save_game() -> Dictionary:
@@ -2211,6 +2220,7 @@ func save_game() -> Dictionary:
 		"stress": stress, "bleeding": bleeding,
 		"respect": respect.ledger.duplicate(true),
 		"carousel": carousel.active.keys(),
+		"garages": _garage_records(),
 		"homebase": homebase.owned.keys(),
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"visited": visited_states.keys(),
@@ -2248,6 +2258,10 @@ func apply_save(data: Dictionary) -> void:
 	respect.ledger = (data.get("respect", {}) as Dictionary).duplicate(true)
 	for id in data.get("carousel", []):
 		carousel.set_active(String(id))
+	var gj: Dictionary = data.get("garages", {})
+	for gid in gj:
+		if carousel.gates.has(String(gid)):
+			carousel.gates[String(gid)].garage = (gj[gid] as Array).duplicate(true)
 	homebase.restore(data.get("homebase", []))
 	var circ: Dictionary = data.get("circuit", {})
 	circuit_level = int(circ.get("level", 1))

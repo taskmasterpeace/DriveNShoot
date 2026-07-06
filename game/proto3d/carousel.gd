@@ -112,6 +112,11 @@ func jump(from_id: String) -> bool:
 		_main.notify("🎠 The gate wants %d power cell%s — it doesn't run on hope" % [need, "s" if need > 1 else ""])
 		return false
 	_main.backpack.remove(cell, need)
+	# THE GARAGE (the killer wrinkle): the gate takes flesh — but the NODE keeps
+	# your rig. Jump OUT: a rig parked at the gate is STORED (up to the row's
+	# slots). Jump IN: everything stored there rolls out to meet you. Ferry a
+	# bike to a node the long way ONCE and you've got wheels there forever.
+	_store_nearby_rig(from_id)
 	var dest: Dictionary = base_row(to_id)
 	var p: Array = dest["pos"]
 	_main.player.global_position = Vector3(float(p[0]) + 4.0, 0.5, float(p[1]) + 4.0)
@@ -119,7 +124,56 @@ func jump(from_id: String) -> bool:
 	_main.stress = minf(100.0, _main.stress + float(jr.get("sickness_stress", 25)))
 	_main.audio.play_ui("blip", -2.0, 0.6)
 	_main.notify("🎠 The ring SPINS — %s. Your rig is three states behind you." % dest["name"])
+	_deliver_garage(to_id)
 	return true
+
+
+func _store_nearby_rig(gate_id: String) -> void:
+	var g: Variant = gates.get(gate_id)
+	if g == null:
+		return
+	var slots: int = int(g.row.get("garage_slots", 1))
+	if g.garage.size() >= slots:
+		return
+	var best: ProtoCar3D = null
+	var bd := 25.0
+	for car in _main.cars:
+		if car is ProtoCar3D and is_instance_valid(car) and not car.dead \
+				and car.ai_driver == null and car.vclass != "trailer" \
+				and car.global_position.distance_to(g.global_position) < bd:
+			bd = car.global_position.distance_to(g.global_position)
+			best = car
+	if best == null:
+		return
+	var comps: Dictionary = {}
+	for k in best.components:
+		comps[k] = best.components[k].hp
+	g.garage.append({"vclass": best.vclass, "fuel": best.fuel,
+		"components": comps, "trunk": best.trunk.slots.duplicate()})
+	_main.cars.erase(best)
+	best.queue_free()
+	_main.notify("🅿️ Your %s rolls into %s's garage (%d/%d slots) — it'll wait" % [best.display_name, g.row["name"], g.garage.size(), slots])
+
+
+func _deliver_garage(gate_id: String) -> void:
+	var g: Variant = gates.get(gate_id)
+	if g == null or g.garage.is_empty():
+		return
+	var i := 0
+	for rec in g.garage:
+		var car := ProtoCar3D.create(String(rec["vclass"]), Color(0.5, 0.45, 0.4))
+		_main.add_child(car)
+		car.global_position = g.global_position + Vector3(8.0 + 4.0 * i, 1.0, -6.0)
+		car.fuel = float(rec.get("fuel", 60.0))
+		var comps: Dictionary = rec.get("components", {})
+		for k in comps:
+			if car.components.has(k):
+				car.components[k].hp = float(comps[k])
+		car.trunk.slots = (rec.get("trunk", {}) as Dictionary).duplicate()
+		_main.cars.append(car)
+		i += 1
+	_main.notify("🅿️ The garage delivers: %d rig%s waiting where you left %s" % [g.garage.size(), "s" if g.garage.size() != 1 else "", "them" if g.garage.size() != 1 else "it"])
+	g.garage.clear()
 
 
 ## One gate station in the world: platform, ring, terminal. An interactable with
@@ -139,6 +193,7 @@ class ProtoGate:
 	var objectives_left: Array = []
 	var occupiers: Array = []
 	var _spawned: bool = false
+	var garage: Array = [] ## stored rig records (jump-out parks, jump-in delivers)
 
 	static func create(c: ProtoCarousel, row_in: Dictionary) -> ProtoGate:
 		var g := ProtoGate.new()
