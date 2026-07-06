@@ -40,6 +40,8 @@ const ITEMS: Dictionary = {
 	"drone": {"name": "Scout drone", "emoji": "🛸", "usable": true, "w": 3.0, "cat": "tool", "desc": "USE deploys the bird — it patrols and pings threats."},
 	"power_cell": {"name": "Power cell", "emoji": "🔋", "usable": false, "w": 0.4, "cat": "tool", "desc": "Mil-spec charge brick. The Carousel drinks one per jump."},
 	"dog_collar": {"name": "Old collar", "emoji": "🐕", "usable": false, "w": 0.1, "cat": "loot", "desc": "A name worn smooth by your thumb. You carry it anyway."},
+	"targeting_core": {"name": "Targeting core", "emoji": "🎛️", "usable": false, "w": 1.2, "cat": "tool", "desc": "Cheyenne's brain. With this, the Carousel jumps where YOUR map course points — THE DIAL."},
+	"mount_schematic": {"name": "Mount schematic", "emoji": "📐", "usable": false, "w": 0.2, "cat": "tool", "desc": "Fort Hood's gift: how to bolt a gun to a rig. (The mount system awaits it.)"},
 	# -- loot --
 	"scrap": {"name": "Scrap metal", "emoji": "🔩", "usable": false, "w": 1.2, "cat": "loot", "desc": "The wasteland's raw material."},
 	"jack": {"name": "Jack (coin)", "emoji": "🪙", "usable": false, "w": 0.02, "cat": "loot", "desc": "What passes for money out here."},

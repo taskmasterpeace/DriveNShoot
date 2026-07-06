@@ -66,10 +66,42 @@ func next_active(from_id: String) -> String:
 	return ""
 
 
+var rng := RandomNumberGenerator.new() ## the ROULETTE's dice (sims seed it)
+
+
+## THE THREE TIERS (the carousel pun is the mechanic):
+## - THE PAIR: two doors → point-to-point.
+## - THE ROULETTE: 3+ doors and a fried targeting computer → the RING chooses.
+## - THE DIAL: carry Cheyenne's targeting core, and your MAP COURSE aims the
+##   jump — click a lit gate on the atlas, then step through.
+func pick_destination(from_id: String) -> String:
+	var actives: Array = []
+	for id in active:
+		if id != from_id and active[id]:
+			actives.append(id)
+	if actives.is_empty():
+		return ""
+	# THE DIAL: the map IS the dial — a set course near a lit gate picks the door.
+	if _main.backpack.count("targeting_core") > 0:
+		for wp in _main.waypoints:
+			var wpos: Vector3 = (wp[1] as Node3D).global_position if wp[1] is Node3D else wp[1]
+			for id2 in actives:
+				var g: Variant = gates.get(id2)
+				if g != null and is_instance_valid(g) \
+						and Vector2(wpos.x, wpos.z).distance_to(Vector2(g.global_position.x, g.global_position.z)) < 200.0:
+					_main.notify("🎛️ THE DIAL reads your course — destination LOCKED")
+					return id2
+	if actives.size() == 1:
+		return actives[0] # THE PAIR
+	# THE ROULETTE: the computer's fried. Step in. Find out.
+	_main.notify("🎰 The targeting computer is FRIED — the ring CHOOSES (find Cheyenne's core for the Dial)")
+	return actives[rng.randi() % actives.size()]
+
+
 ## The JUMP: flesh, not steel. Costs cells, lands with jump sickness. The car —
 ## and everything in its trunk — stays exactly where you left it.
 func jump(from_id: String) -> bool:
-	var to_id := next_active(from_id)
+	var to_id := pick_destination(from_id)
 	if to_id == "":
 		_main.notify("🎠 The ring needs a SECOND door — light another base")
 		return false
@@ -102,11 +134,17 @@ class ProtoGate:
 	var _spin_t: float = 0.0
 	var _waves_left: int = 0
 	var _ring: MeshInstance3D = null
+	## THE DUNGEON (rung 4): the row's objectives gate the boot; the OCCUPIER
+	## force spawns when you get close — every base is an encounter, not a button.
+	var objectives_left: Array = []
+	var occupiers: Array = []
+	var _spawned: bool = false
 
 	static func create(c: ProtoCarousel, row_in: Dictionary) -> ProtoGate:
 		var g := ProtoGate.new()
 		g.carousel = c
 		g.row = row_in
+		g.objectives_left = (row_in.get("objectives", ["power"]) as Array).duplicate()
 		g.add_to_group("interactable")
 		g.add_to_group("carousel_gate")
 		var p: Array = row_in["pos"]
@@ -161,8 +199,17 @@ class ProtoGate:
 			"spinup":
 				return "— THE RING IS SPINNING UP — HOLD THE ROOM —"
 			_:
-				var need: Dictionary = row.get("power_need", {"item": "jerry_can", "count": 1})
-				return "E — 🎠 %s: socket power (%d/%d %s)" % [row["name"], fed, int(need["count"]), String(need["item"])]
+				_refresh_purge(main)
+				match _next_objective():
+					"purge":
+						return "🎠 %s: PURGE the base — %d occupier%s still breathing" % [row["name"], _living_occupiers(), "s" if _living_occupiers() != 1 else ""]
+					"codes":
+						return "E — 🎠 %s: LAUNCH CODES — %s standing earns them, or %d jack buys them" % [row["name"], "TRUSTED", _codes_price()]
+					"power":
+						var need: Dictionary = row.get("power_need", {"item": "jerry_can", "count": 1})
+						return "E — 🎠 %s: socket power (%d/%d %s)" % [row["name"], fed, int(need["count"]), String(need["item"])]
+					_:
+						return "E — 🎠 %s: begin the SPIN-UP" % row["name"]
 
 	func interact(main: Node) -> void:
 		match state:
@@ -171,16 +218,64 @@ class ProtoGate:
 			"spinup":
 				main.notify("🎠 It's booting — keep it alive")
 			_:
-				var need: Dictionary = row.get("power_need", {"item": "jerry_can", "count": 1})
-				if not main.backpack.remove(String(need["item"]), 1):
-					main.notify("🎠 The socket wants %s — you're empty" % String(need["item"]))
-					return
-				fed += 1
-				main.audio.play_ui("click", -6.0)
-				if fed >= int(need["count"]):
-					_begin_spinup(main)
-				else:
-					main.notify("🎠 Power at %d/%d — it hums a little louder" % [fed, int(need["count"])])
+				_refresh_purge(main)
+				match _next_objective():
+					"purge":
+						main.notify("🎠 The room won't boot with %d occupiers breathing — CLEAR IT" % _living_occupiers())
+					"codes":
+						# Three doors to the codes (CAROUSEL.md): standing EARNS them,
+						# jack BUYS them, and purging the state's troops... is rude.
+						var st: String = String(row.get("state", ""))
+						if main.respect.standing(st) in ["TRUSTED", "HERO"]:
+							objectives_left.erase("codes")
+							main.notify("🎠 %s vouches for you — the LAUNCH CODES are yours" % String(main.ruler_of(st)["ruler"]))
+						elif main.backpack.remove("jack", _codes_price()):
+							objectives_left.erase("codes")
+							main.notify("🎠 The codes cost %d jack. Wired. Nobody asks where they came from." % _codes_price())
+						else:
+							main.notify("🎠 CODES: earn %s's trust, or bring %d jack" % [st, _codes_price()])
+							return
+						_try_spinup(main)
+					"power":
+						var need: Dictionary = row.get("power_need", {"item": "jerry_can", "count": 1})
+						if not main.backpack.remove(String(need["item"]), 1):
+							main.notify("🎠 The socket wants %s — you're empty" % String(need["item"]))
+							return
+						fed += 1
+						main.audio.play_ui("click", -6.0)
+						if fed >= int(need["count"]):
+							objectives_left.erase("power")
+							_try_spinup(main)
+						else:
+							main.notify("🎠 Power at %d/%d — it hums a little louder" % [fed, int(need["count"])])
+					_:
+						_try_spinup(main)
+
+	func _codes_price() -> int:
+		return 20 + 10 * int(row.get("difficulty", 1))
+
+	func _next_objective() -> String:
+		return String(objectives_left.front()) if not objectives_left.is_empty() else ""
+
+	func _living_occupiers() -> int:
+		var n := 0
+		for o in occupiers:
+			if o != null and is_instance_valid(o) and not o.get("dead"):
+				n += 1
+		return n
+
+	## PURGE clears itself the moment the last occupier drops.
+	func _refresh_purge(main: Node) -> void:
+		if "purge" in objectives_left and _spawned and _living_occupiers() == 0:
+			objectives_left.erase("purge")
+			main.notify("🎠 %s is CLEARED — the room is yours to boot" % row["name"])
+
+	func _try_spinup(main: Node) -> void:
+		_refresh_purge(main)
+		if objectives_left.is_empty():
+			_begin_spinup(main)
+		else:
+			main.notify("🎠 Still owed: %s" % ", ".join(objectives_left))
 
 	## SPIN-UP: loud, bright, ~12s a wave. Survive it and the node is yours.
 	func _begin_spinup(main: Node) -> void:
@@ -191,7 +286,12 @@ class ProtoGate:
 		main.notify("🎠 %s SPINS UP — every ear in the county just turned this way" % row["name"])
 		main.spawn_howler_pack(global_position + Vector3(30, 0, 30), 2)
 
+	## THE APPROACH: get within 130 m of a dormant base and its OCCUPIER wakes up.
 	func _physics_process(delta: float) -> void:
+		if not _spawned and state == "dormant" and carousel._main != null \
+				and carousel._main.player != null \
+				and global_position.distance_to(carousel._main.player.global_position) < 130.0:
+			_spawn_occupation(carousel._main)
 		if state != "spinup":
 			return
 		_spin_t -= delta
@@ -213,11 +313,51 @@ class ProtoGate:
 		var m: Node = carousel._main # never current_scene — sims wrap main in a harness
 		if m and m.has_method("notify"):
 			# The reward chest materializes at the live gate — the room pays out.
-			var reward: Dictionary = (row.get("reward", {}) as Dictionary).get("items", {})
+			# The UNIQUE rides in it too (Cheyenne's targeting core = THE DIAL).
+			var reward: Dictionary = ((row.get("reward", {}) as Dictionary).get("items", {}) as Dictionary).duplicate()
+			var unique: String = String((row.get("reward", {}) as Dictionary).get("unique", ""))
+			if unique != "":
+				reward[unique] = 1
 			if not reward.is_empty():
 				var c := ProtoChest.create("%s cache" % row["name"], reward)
 				m.add_child(c)
 				c.global_position = global_position + Vector3(-3.5, 0.05, 2.5)
-			m.notify("🎠 %s IS LIT — the node is yours, permanently" % row["name"])
+			m.notify("🎠 %s IS LIT — the node is yours, permanently%s" % [row["name"],
+				(" · the cache holds the %s" % unique.replace("_", " ").to_upper()) if unique != "" else ""])
 			if m.has_method("circuit_beat"):
 				m.circuit_beat("node") # THE CIRCUIT's capstone beat
+
+
+	## THE OCCUPATION (the row decides who holds the room):
+	## howler_warren = teeth in the dark · raider/ruler garrisons = lurker troops
+	## (a RULER's troops STAND DOWN for a TRUSTED name — respect is a key) ·
+	## automated = nobody home, just locks. Plus wreck cover: the APPROACH reads
+	## like a place that was fought over before you got there.
+	func _spawn_occupation(m: Node) -> void:
+		_spawned = true
+		var diff: int = int(row.get("difficulty", 1))
+		# Wreck ring — cover on the way in, every base.
+		for i in 3 + diff:
+			var ang := TAU * float(i) / float(3 + diff) + 0.4
+			ProtoWorldBuilder.box_body(m, Vector3(2.2, 1.1, 4.4),
+				global_position + Vector3(cos(ang), 0, sin(ang)) * (24.0 + 4.0 * (i % 3)) + Vector3(0, 0.55, 0),
+				Color(0.24, 0.2, 0.17))
+		match String(row.get("occupier", "dormant")):
+			"howler_warren":
+				var before: int = m.howlers.size()
+				m.spawn_howler_pack(global_position + Vector3(20, 0, 12), 1 + diff)
+				for i2 in range(before, m.howlers.size()):
+					occupiers.append(m.howlers[i2])
+			"raider_garrison", "ruler_troops":
+				var st: String = String(row.get("state", ""))
+				if String(row["occupier"]) == "ruler_troops" and m.respect.standing(st) in ["TRUSTED", "HERO"]:
+					m.notify("🎠 The %s's troops read your face — and STAND DOWN. Respect is a key." % String(m.ruler_of(st)["ruler"]))
+					objectives_left.erase("purge") # nobody to purge; they let you work
+					return
+				for i3 in 1 + diff:
+					var l := ProtoLurker.create()
+					m.add_child(l)
+					l.global_position = global_position + Vector3(10.0 + 3.0 * i3, 0.4, -8.0 + 5.0 * i3)
+					occupiers.append(l)
+			_:
+				pass # automated: the locks are the fight
