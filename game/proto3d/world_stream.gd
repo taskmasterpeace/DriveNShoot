@@ -117,6 +117,13 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	rng.seed = hash("%d:%d:%d" % [WORLD_SEED, cx, cz])
 	var key := "%d,%d" % [cx, cz]
 
+	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b): pinned structures drop in FIRST,
+	# before any biome-based early-out (a landmark can sit on a bridge or a coast).
+	if usmap != null and usmap.ok:
+		var phalf := CHUNK * 0.5
+		for p in usmap.placements_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
+			_spawn_placement(chunk, p)
+
 	var biome := biome_at(center)
 	var wet := biome == "water" or biome == "ocean"
 
@@ -267,6 +274,35 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		chunk.add_child(c)
 		c.position = center + Vector3(rng.randf_range(-45, 45), 0.05, rng.randf_range(-45, 45))
 	return chunk
+
+
+## Build one authored structure (a placeholder massing box, sized by building type)
+## at its exact world position, tagged so systems + tests can find it.
+const PLACEMENT_SIZE: Dictionary = {
+	"safehouse": Vector3(10, 6, 12), "gas_station": Vector3(14, 4, 10),
+	"ruined_house": Vector3(8, 4, 8), "market_stall": Vector3(4, 3, 3),
+}
+func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
+	var size: Vector3 = PLACEMENT_SIZE.get(p["building"], Vector3(8, 4, 8))
+	var body := StaticBody3D.new()
+	body.add_to_group("placement")
+	body.set_meta("building", p["building"])
+	body.set_meta("placement_id", p["id"])
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mesh.mesh = bm
+	mesh.material_override = ProtoWorldBuilder.material(Color(0.40, 0.36, 0.30), 0.75)
+	mesh.position.y = size.y * 0.5
+	body.add_child(mesh)
+	var shape := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = size
+	shape.shape = bs
+	shape.position.y = size.y * 0.5
+	body.add_child(shape)
+	chunk.add_child(body)
+	body.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
 
 
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.

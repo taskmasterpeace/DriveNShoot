@@ -24,8 +24,40 @@ if (!existsSync(MAP_PATH)) {
 	process.exit(1);
 }
 let map = JSON.parse(readFileSync(MAP_PATH, "utf8"));
+// MapForge v2 (Goal 2): the AUTHORED-PLACEMENT layer — specific structures pinned
+// at exact world coordinates while biomes stay procedural around them. Back-fill
+// the array on old maps so every endpoint can rely on it.
+if (!Array.isArray(map.placements)) map.placements = [];
 
 const save = () => writeFileSync(MAP_PATH, JSON.stringify(map));
+
+// Town-template stamper (Goal 2c): a named cluster of placements dropped around a
+// point in one call — the primitive that turns "a dot on the map" into a place.
+// d = [dx, dz] metres from the anchor. Keep these buildable-anywhere and small.
+const TEMPLATES = {
+	waystation: [ { building: "gas_station", d: [0, 0] }, { building: "market_stall", d: [16, 6] } ],
+	hamlet: [ { building: "ruined_house", d: [-14, -8] }, { building: "ruined_house", d: [12, -10] },
+		{ building: "safehouse", d: [0, 12] }, { building: "market_stall", d: [18, 4] } ],
+	outpost: [ { building: "safehouse", d: [0, 0] }, { building: "gas_station", d: [-20, 8] } ],
+};
+
+// The nearest point on ANY interstate to a world point → {roadId, point, dist}.
+function nearestInterstate(px, pz) {
+	let best = null, bestD = Infinity;
+	for (const r of map.roads) {
+		if (r.kind && r.kind !== "interstate") continue; // exits/ramps don't spawn exits
+		for (let i = 0; i + 1 < r.pts.length; i++) {
+			const a = r.pts[i], b = r.pts[i + 1];
+			const abx = b[0] - a[0], abz = b[1] - a[1];
+			const l2 = abx * abx + abz * abz || 1e-4;
+			const t = Math.max(0, Math.min(1, ((px - a[0]) * abx + (pz - a[1]) * abz) / l2));
+			const q = [a[0] + abx * t, a[1] + abz * t];
+			const d = Math.hypot(px - q[0], pz - q[1]);
+			if (d < bestD) { bestD = d; best = { roadId: r.id, point: q, dist: d }; }
+		}
+	}
+	return best;
+}
 const inGrid = (x, z) => x >= 0 && x < map.w && z >= 0 && z < map.h;
 const setCell = (layer, x, z, ch) => {
 	const rows = layer === "states" ? map.states_grid : map.grid;
@@ -63,6 +95,11 @@ const HELP = {
 		"POST /api/towns       {id, name, pos: [wx,wz], kind?, landmark?} → add or replace a town",
 		"DELETE /api/towns?id=vegas             → remove a town",
 		"GET  /api/query?wx=&wz=&r=2000         → everything within r meters of a world point",
+		"GET  /api/placements                   -> all authored structure placements",
+		"POST /api/placements  {id?, building, pos:[wx,wz], rot?} -> pin a structure (biomes stay procedural around it)",
+		"DELETE /api/placements?id=safehouse-1  -> remove a placement",
+		"POST /api/exit        {town} or {pos:[wx,wz], name?} -> auto-build an OFF-RAMP from the nearest interstate to a town/point (kind:'exit')",
+		"POST /api/stamp_template {template, town} or {template, pos, name?} -> drop a cluster of placements (templates: waystation|hamlet|outpost)",
 	],
 	examples: [
 		`curl localhost:${PORT}/api/cell?x=120\\&z=40`,
@@ -219,6 +256,67 @@ const server = createServer(async (req, res) => {
 			);
 			return json(res, 200, { here, radius_m: r, towns, roads: roads.map((x) => x.id) });
 		}
+		// ---- authored placements (Goal 2b) ----
+		if (url.pathname === "/api/placements" && req.method === "GET") return json(res, 200, map.placements);
+		if (url.pathname === "/api/placements" && req.method === "POST") {
+			if (!body.building || !Array.isArray(body.pos))
+				return json(res, 400, { error: "need building and pos:[wx,wz]" });
+			const id = body.id || `${body.building}-${map.placements.length + 1}`;
+			map.placements = map.placements.filter((p) => p.id !== id);
+			map.placements.push({ id, building: body.building, pos: body.pos, rot: Number(body.rot || 0) });
+			save();
+			return json(res, 200, { ok: true, id, placements: map.placements.length });
+		}
+		if (url.pathname === "/api/placements" && req.method === "DELETE") {
+			const n = map.placements.length;
+			map.placements = map.placements.filter((p) => p.id !== q.get("id"));
+			save();
+			return json(res, 200, { removed: n - map.placements.length });
+		}
+
+		// ---- auto off-ramp: connect a town to the interstate (Goal 2a, PROOF CASE) ----
+		if (url.pathname === "/api/exit" && req.method === "POST") {
+			let pos = body.pos, label = body.name;
+			if (body.town) {
+				const t = map.towns.find((x) => x.id === body.town);
+				if (!t) return json(res, 400, { error: `no town '${body.town}'` });
+				pos = t.pos; label = label || t.id;
+			}
+			if (!Array.isArray(pos)) return json(res, 400, { error: "need town or pos:[wx,wz]" });
+			const near = nearestInterstate(pos[0], pos[1]);
+			if (!near) return json(res, 400, { error: "no interstate on the map to branch from" });
+			const id = `EXIT-${(label || "ramp").toString().toLowerCase().replace(/[^a-z0-9]/g, "")}`;
+			// The ramp runs FROM the interstate TO the town — road_near() then reaches the town.
+			const ramp = { id, kind: "exit", pts: [near.point, pos] };
+			map.roads = map.roads.filter((r) => r.id !== id);
+			map.roads.push(ramp);
+			save();
+			return json(res, 200, { ok: true, ramp, from_interstate: near.roadId, length_m: Math.round(near.dist) });
+		}
+
+		// ---- town-template stamper (Goal 2c) ----
+		if (url.pathname === "/api/stamp_template" && req.method === "POST") {
+			const tpl = TEMPLATES[body.template];
+			if (!tpl) return json(res, 400, { error: `unknown template '${body.template}'`, templates: Object.keys(TEMPLATES) });
+			let anchor = body.pos, name = body.name;
+			if (body.town) {
+				const t = map.towns.find((x) => x.id === body.town);
+				if (!t) return json(res, 400, { error: `no town '${body.town}'` });
+				anchor = t.pos; name = name || t.id;
+			}
+			if (!Array.isArray(anchor)) return json(res, 400, { error: "need town or pos:[wx,wz]" });
+			const stamped = [];
+			tpl.forEach((slot, i) => {
+				const p = { id: `${name || "tpl"}-${slot.building}-${i}`, building: slot.building,
+					pos: [anchor[0] + slot.d[0], anchor[1] + slot.d[1]], rot: 0 };
+				map.placements = map.placements.filter((x) => x.id !== p.id);
+				map.placements.push(p);
+				stamped.push(p);
+			});
+			save();
+			return json(res, 200, { ok: true, template: body.template, stamped });
+		}
+
 		json(res, 404, { error: "no such endpoint", help: "/api/help" });
 	} catch (e) {
 		json(res, 500, { error: String(e) });

@@ -24,6 +24,7 @@ var states_grid: PackedStringArray = []
 var roads: Array = []             ## [{id, kind, pts: PackedVector2Array (world m)}]
 var rivers: Array = []
 var towns: Array = []             ## [{id, name, pos: Vector2, kind, landmark?}]
+var placements: Array = []        ## AUTHORED LAYER (MapForge v2): [{id, building, pos: Vector2, rot}]
 
 
 static func get_default() -> ProtoUSMap:
@@ -68,8 +69,23 @@ func load_file(path: String) -> bool:
 			"pos": Vector2(float(t["pos"][0]), float(t["pos"][1])),
 			"kind": t.get("kind", "ville"), "landmark": t.get("landmark", ""),
 			"authored": t.get("authored", false)})
+	placements.clear()
+	for p in d.get("placements", []):
+		placements.append({"id": p.get("id", ""), "building": p.get("building", ""),
+			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0))})
 	ok = w > 0 and h > 0 and grid.size() == h
 	return ok
+
+
+## Authored placements whose world position falls inside a chunk's box (world m).
+## The streamer calls this per chunk so pinned structures appear at exact coords
+## while the biome scatter around them stays procedural.
+func placements_in(rect: Rect2) -> Array:
+	var out: Array = []
+	for p in placements:
+		if rect.has_point(p["pos"]):
+			out.append(p)
+	return out
 
 
 func cell_of(x: float, z: float) -> Vector2i:

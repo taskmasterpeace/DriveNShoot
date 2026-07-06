@@ -69,3 +69,14 @@ curl -X POST localhost:8899/api/roads -d '{"id":"US-50","kind":"route","pts":[[-
   refine; the generator is the way to start over.
 - Proof in-engine: `res://proto3d/tests/map_sim.tscn` (data anchors + a real input-driven
   drive across a biome border). Run it after big map surgery.
+
+## MapForge v2 (authored layer, exits, templates)
+
+- `GET /api/placements` — all authored structure placements.
+- `POST /api/placements` `{id?, building, pos:[wx,wz], rot?}` — pin a structure at exact
+  coordinates. Biomes stay procedural around it; the game spawns it from the placement layer.
+- `DELETE /api/placements?id=…` — remove a placement.
+- `POST /api/exit` `{town}` or `{pos:[wx,wz], name?}` — auto-build an OFF-RAMP (kind `exit`)
+  from the nearest interstate to a town/point, connecting it to the network.
+- `POST /api/stamp_template` `{template, town}` or `{template, pos, name?}` — drop a named
+  cluster of placements. Templates: `waystation`, `hamlet`, `outpost`.

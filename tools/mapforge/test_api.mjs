@@ -80,6 +80,25 @@ try {
 	check("query names the ground it stands on", typeof query.here.biome === "string" && query.here.state !== undefined);
 	const delTown = (await api("/api/towns?id=testville", { method: "DELETE" })).body;
 	check("DELETE /api/towns removes it", delTown.removed === 1);
+
+	// --- MapForge v2 (Goal 2): placements, auto-exit, template stamp ---------
+	const place = await api("/api/placements", { method: "POST", body: JSON.stringify({ building: "gas_station", pos: [8000, 8000], id: "test-place" }) });
+	check("POST /api/placements pins a structure", place.status === 200 && place.body.ok);
+	const places = (await api("/api/placements")).body;
+	check("the placement is in the authored layer", places.some((p) => p.id === "test-place"));
+	const delPlace = (await api("/api/placements?id=test-place", { method: "DELETE" })).body;
+	check("DELETE /api/placements removes it", delPlace.removed === 1);
+
+	// PROOF CASE: an off-ramp connects Meridian to the nearest interstate.
+	const exit = await api("/api/exit", { method: "POST", body: JSON.stringify({ town: "meridian" }) });
+	check("POST /api/exit builds an off-ramp from an interstate", exit.status === 200 && exit.body.ramp.kind === "exit");
+	const afterExit = (await api("/api/cell?wx=110&wz=-325")).body;
+	check(`Meridian now reaches a road (${afterExit.nearest_road?.dist_m} m, was 1252)`, afterExit.nearest_road && afterExit.nearest_road.dist_m < 50);
+
+	const stamp = await api("/api/stamp_template", { method: "POST", body: JSON.stringify({ template: "waystation", pos: [-20000, 6000], name: "teststamp" }) });
+	check("POST /api/stamp_template drops a cluster", stamp.status === 200 && stamp.body.stamped.length >= 2);
+	const badTpl = await api("/api/stamp_template", { method: "POST", body: JSON.stringify({ template: "nope", pos: [0, 0] }) });
+	check("unknown template is refused with the list", badTpl.status === 400 && Array.isArray(badTpl.body.templates));
 } catch (e) {
 	failed++;
 	console.log(`API: FAIL - exception: ${e}`);

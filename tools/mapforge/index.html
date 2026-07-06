@@ -59,6 +59,7 @@
 				<button id="t-paint" class="on">PAINT</button>
 				<button id="t-road">ROAD</button>
 				<button id="t-town">TOWN</button>
+				<button id="t-place">PLACE</button>
 				<button id="t-inspect">INSPECT</button>
 			</div>
 			<div class="hint" id="toolhint">Drag to paint. <kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd> brush.</div>
@@ -107,6 +108,25 @@
 			<div class="hint">Pick a road above (it lights up on the map). With the ROAD tool, each click drops the next point. UNDO PT removes the last one.</div>
 		</div>
 		<div class="sec">
+			<h2>Authored structures</h2>
+			<select id="buildingsel" style="width:100%">
+				<option>safehouse</option><option>gas_station</option>
+				<option>ruined_house</option><option>market_stall</option>
+			</select>
+			<div class="hint">With the PLACE tool, click to PIN this structure at exact coords — biomes stay procedural around it.</div>
+		</div>
+		<div class="sec">
+			<h2>Exits &amp; templates</h2>
+			<div class="row">
+				<button id="do-exit">AUTO-EXIT</button>
+				<button id="do-stamp">STAMP</button>
+			</div>
+			<select id="tplsel" style="width:100%;margin-top:6px">
+				<option>waystation</option><option>hamlet</option><option>outpost</option>
+			</select>
+			<div class="hint">AUTO-EXIT builds an off-ramp from the nearest interstate to the town you name. STAMP drops the chosen template at your last click.</div>
+		</div>
+		<div class="sec">
 			<h2>Reload</h2>
 			<button id="reload">RE-READ FROM DISK</button>
 			<div class="hint">Every edit saves straight into game/data/usmap.json — restart the game to drive it.</div>
@@ -139,7 +159,8 @@ const BIOME_INFO = {
 	swamp: "Water pools + trees + brush. More lurkers lurk here than anywhere.",
 	urban: "Ruined city blocks with streets you can drive, husks for cover, tool caches.",
 };
-let meta = null, rows = [], states = [], roads = [], towns = [];
+let meta = null, rows = [], states = [], roads = [], towns = [], placements = [];
+let lastWorld = null; // last clicked world [wx,wz] — AUTO-EXIT / STAMP anchor here
 let tool = "paint", biome = "forest", brush = 1, painting = false, stroke = [];
 let showStates = true, showRoads = true, showTowns = true;
 let PX = 8, basePX = 8, zoom = 1;
@@ -163,6 +184,7 @@ async function load() {
 	states = (await api("/api/grid?layer=states")).rows;
 	roads = await api("/api/roads");
 	towns = await api("/api/towns");
+	placements = await api("/api/placements");
 	document.getElementById("mapname").textContent =
 		`${meta.name} · ${meta.compression}× · ${meta.world_km[0]}×${meta.world_km[1]} km · ${meta.w}×${meta.h} cells of ${meta.cell_m} m`;
 	basePX = Math.max(4, Math.floor(Math.min((innerWidth - 280) / meta.w, (innerHeight - 130) / meta.h)));
@@ -263,6 +285,14 @@ function draw() {
 			ctx.fillText(t.name, px + 6, pz + 3);
 		}
 	}
+	// Authored structures — teal squares so they read distinctly from towns/roads.
+	for (const p of placements) {
+		const [px, pz] = w2p(p.pos[0], p.pos[1]);
+		const s = Math.max(4, PX * 0.6);
+		ctx.fillStyle = "#37b2a0"; ctx.strokeStyle = "#0a2b27"; ctx.lineWidth = 1;
+		ctx.fillRect(px - s / 2, pz - s / 2, s, s); ctx.strokeRect(px - s / 2, pz - s / 2, s, s);
+		if (PX >= 6) { ctx.fillStyle = "#bfeee6"; ctx.font = "9px ui-monospace, monospace"; ctx.fillText(p.building, px + s, pz + 3); }
+	}
 }
 function cellAt(ev) {
 	const r = cv.getBoundingClientRect();
@@ -281,9 +311,16 @@ function paintAt(x, z) {
 		}
 	draw();
 }
+const cellToWorld = (x, z) => [meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m];
 cv.addEventListener("mousedown", async (ev) => {
 	const [x, z] = cellAt(ev);
+	lastWorld = cellToWorld(x, z); // every click updates the AUTO-EXIT / STAMP anchor
 	if (tool === "paint") { painting = true; stroke = []; paintAt(x, z); }
+	else if (tool === "place") {
+		const building = document.getElementById("buildingsel").value;
+		await api("/api/placements", { method: "POST", body: JSON.stringify({ building, pos: lastWorld }) });
+		placements = await api("/api/placements"); savedFlash(`${building} pinned`); draw();
+	}
 	else if (tool === "road") {
 		const id = document.getElementById("roadsel").value;
 		const r = roads.find(r => r.id === id);
@@ -337,14 +374,14 @@ addEventListener("mouseup", async () => {
 		savedFlash(`${stroke.length} cells → disk`);
 	}
 });
-for (const [id, t] of [["t-paint", "paint"], ["t-road", "road"], ["t-town", "town"], ["t-inspect", "inspect"]])
+for (const [id, t] of [["t-paint", "paint"], ["t-road", "road"], ["t-town", "town"], ["t-place", "place"], ["t-inspect", "inspect"]])
 	document.getElementById(id).onclick = () => {
 		tool = t;
 		document.querySelectorAll("#side .sec:first-child button").forEach(b => b.classList.remove("on"));
 		document.getElementById(id).classList.add("on");
 		document.getElementById("toolhint").textContent = {
 			paint: "Drag to paint. 1/3/5/9 brush.", road: "Click the map to drop the next road point.",
-			town: "Click to found a town.", inspect: "Click a cell for the full readout.",
+			town: "Click to found a town.", place: "Click to pin the selected structure.", inspect: "Click a cell for the full readout.",
 		}[t];
 		if (t !== "paint") brushEl.style.display = "none";
 		roadStatus();
@@ -381,6 +418,23 @@ document.getElementById("road-del").onclick = async () => {
 	if (!id || !confirm(`Delete ${id}?`)) return;
 	await api(`/api/roads?id=${encodeURIComponent(id)}`, { method: "DELETE" });
 	roads = await api("/api/roads"); buildRoadSel(); savedFlash(`${id} deleted`); draw(); roadStatus();
+};
+document.getElementById("do-exit").onclick = async () => {
+	const town = prompt("Build an off-ramp to which town? (town id)", towns[0]?.id || "");
+	if (!town) return;
+	try {
+		const r = await api("/api/exit", { method: "POST", body: JSON.stringify({ town }) });
+		roads = await api("/api/roads"); buildRoadSel();
+		savedFlash(`ramp from ${r.from_interstate} (${r.length_m} m)`); draw();
+	} catch (e) { savedFlash("exit failed: " + e.message); }
+};
+document.getElementById("do-stamp").onclick = async () => {
+	if (!lastWorld) return savedFlash("click the map first to set the anchor");
+	const template = document.getElementById("tplsel").value;
+	const name = prompt("Name this place (used for placement ids):", "spot") || "spot";
+	const r = await api("/api/stamp_template", { method: "POST", body: JSON.stringify({ template, pos: lastWorld, name }) });
+	placements = await api("/api/placements");
+	savedFlash(`${template}: ${r.stamped.length} structures stamped`); draw();
 };
 document.getElementById("reload").onclick = load;
 load();
