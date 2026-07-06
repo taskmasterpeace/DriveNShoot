@@ -31,6 +31,36 @@ var owned: Dictionary = {} ## id -> true
 var _main: Node = null
 var _last_hour: float = -1.0
 var _walls_node: Node3D = null
+var _bench_ref: Node = null
+var _bed_ref: Node = null
+
+
+## Save/load: re-own the list and re-raise everything physical (no duplicates).
+func restore(ids: Array) -> void:
+	for id in ids:
+		owned[String(id)] = true
+	if walls_tier() > 0:
+		_raise_walls()
+	if owned.has("workbench") and _bench_ref == null:
+		_spawn_bench()
+	if owned.has("bed") and _bed_ref == null:
+		_spawn_bed()
+
+
+func _spawn_bench() -> void:
+	var wb := Workbench.new()
+	wb.home = self
+	_main.add_child(wb)
+	wb.global_position = HOME + Vector3(-4.0, 0.0, 4.0)
+	_bench_ref = wb
+
+
+func _spawn_bed() -> void:
+	var bed := Bed.new()
+	bed.home = self
+	_main.add_child(bed)
+	bed.global_position = HOME + Vector3(-3.5, 0.0, -4.0)
+	_bed_ref = bed
 
 
 static func create(main: Node) -> ProtoHomebase:
@@ -118,15 +148,9 @@ func interact(main: Node) -> void:
 		"walls1", "walls2", "walls3":
 			_raise_walls()
 		"workbench":
-			var wb := Workbench.new()
-			wb.home = self
-			main.add_child(wb)
-			wb.global_position = HOME + Vector3(-4.0, 0.0, 4.0)
+			_spawn_bench()
 		"bed":
-			var bed := Bed.new()
-			bed.home = self
-			main.add_child(bed)
-			bed.global_position = HOME + Vector3(-3.5, 0.0, -4.0)
+			_spawn_bed()
 
 
 ## Walls you can SEE: a ring of posts that thickens with each tier.

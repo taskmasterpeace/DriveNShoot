@@ -382,6 +382,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				panel.open(backpack, null) # just your pack
 		elif kc == KEY_Y:
 			radio.scan() # sweep the dial — the wasteland talks if you listen
+		elif kc == KEY_F5:
+			save_game()
+		elif kc == KEY_F9:
+			load_game()
 		elif kc == KEY_F10:
 			# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
 			if devmode == null:
@@ -2184,6 +2188,97 @@ func reload_content() -> Dictionary:
 		map_ok = stream.usmap.load_file(ProtoUSMap.PATH)
 	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
+
+
+# --- SAVE / LOAD (the biggest missing single-player feature — player_record was
+# built for exactly this). F5 writes ONE JSON, F9 restores it: the player (pos,
+# wounds, skills, pack, arsenal), the pack (per-dog bond + memory), the ring
+# (lit nodes), the home (upgrades re-raised), the ledger, the clock, THE CIRCUIT.
+const SAVE_PATH := "user://drivn.save" ## var_to_str format: Color/Vector3 round-trip natively (JSON strings them)
+
+
+func save_game() -> Dictionary:
+	var dogs_out: Array = []
+	for d in get_tree().get_nodes_in_group("proto_dog"): # the group never lies (arrays can)
+		if d is ProtoDog and is_instance_valid(d) and d.adopted and not d.downed:
+			var r: Dictionary = d.to_record()
+			r["pos"] = [d.global_position.x, d.global_position.y, d.global_position.z]
+			r["guard_pos"] = [d.guard_pos.x, d.guard_pos.y, d.guard_pos.z]
+			dogs_out.append(r)
+	var data := {
+		"player": player_record(),
+		"clock": {"day": daynight.day, "hour": daynight.hour, "moon": daynight.moon_phase},
+		"stress": stress, "bleeding": bleeding,
+		"respect": respect.ledger.duplicate(true),
+		"carousel": carousel.active.keys(),
+		"homebase": homebase.owned.keys(),
+		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
+		"visited": visited_states.keys(),
+		"fallen": fallen_dogs.duplicate(true),
+		"dogs": dogs_out,
+	}
+	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	f.store_string(var_to_str(data))
+	f.close()
+	notify("💾 SAVED — day %d · %s · %d dogs · %d nodes lit" % [daynight.day, daynight.clock_text(), dogs_out.size(), carousel.active.size()])
+	return data
+
+
+func load_game() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		notify("💾 No save on disk yet — F5 writes one")
+		return false
+	var data: Variant = str_to_var(FileAccess.get_file_as_string(SAVE_PATH))
+	if not (data is Dictionary):
+		notify("💾 The save is corrupt — the wasteland ate it")
+		return false
+	apply_save(data)
+	notify("💾 LOADED — day %d. The road remembers." % daynight.day)
+	return true
+
+
+func apply_save(data: Dictionary) -> void:
+	player_restore(data.get("player", {}))
+	var ck: Dictionary = data.get("clock", {})
+	daynight.day = int(ck.get("day", 1))
+	daynight.hour = float(ck.get("hour", 9.0))
+	daynight.moon_phase = float(ck.get("moon", 0.55))
+	stress = float(data.get("stress", 0.0))
+	bleeding = int(data.get("bleeding", 0))
+	respect.ledger = (data.get("respect", {}) as Dictionary).duplicate(true)
+	for id in data.get("carousel", []):
+		carousel.set_active(String(id))
+	homebase.restore(data.get("homebase", []))
+	var circ: Dictionary = data.get("circuit", {})
+	circuit_level = int(circ.get("level", 1))
+	var b: Dictionary = circ.get("beats", {})
+	for k in circuit_beats:
+		circuit_beats[k] = bool(b.get(k, false))
+	hud.set_circuit(circuit_level, circuit_beats)
+	visited_states.clear()
+	for st in data.get("visited", []):
+		visited_states[String(st)] = true
+	fallen_dogs = (data.get("fallen", []) as Array).duplicate(true)
+	# The pack: clear the live dogs, rebuild each from its record (bond and all).
+	for d in get_tree().get_nodes_in_group("proto_dog"):
+		if d is ProtoDog and is_instance_valid(d) and d.adopted:
+			d.remove_from_group("proto_dog") # freed next frame — never double-counted
+			d.queue_free()
+	dogs.clear()
+	all_dogs = all_dogs.filter(func(x): return x is ProtoDog and is_instance_valid(x) and not x.adopted)
+	for rec in data.get("dogs", []):
+		var r2: Dictionary = (rec as Dictionary).duplicate()
+		r2["type"] = int(r2.get("type", 0))
+		var p: Array = r2.get("pos", [0, 0, 0])
+		r2["pos"] = Vector3(float(p[0]), float(p[1]), float(p[2]))
+		var gp: Array = r2.get("guard_pos", [0, 0, 0])
+		r2["guard_pos"] = Vector3(float(gp[0]), float(gp[1]), float(gp[2]))
+		var nd := ProtoDog.from_record(r2, self)
+		add_child(nd)
+		nd.global_position = r2["pos"]
+		nd.state = ProtoDog.DogState.FOLLOW
+		all_dogs.append(nd)
+		register_dog(nd)
 
 
 # --- RIDING SHOTGUN (goal: NPCs drive; you can be the passenger) ----------------
