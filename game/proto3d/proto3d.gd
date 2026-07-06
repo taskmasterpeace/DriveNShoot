@@ -1965,8 +1965,18 @@ func drop_item(id: String) -> bool:
 
 ## A lurker's claw connects: body wound + bleed + fear. Combat is two-way now.
 func on_player_clawed(damage: float, _who: Node3D) -> void:
-	if character.dead or mode == Mode.DRIVE:
-		return # the cab protects you — ON FOOT you're meat
+	if character.dead:
+		return
+	if mode == Mode.DRIVE and active_car != null and is_instance_valid(active_car) and not active_car.dead:
+		# The cab shields YOU — but the beast mauls the RIG (armor blunts it inside
+		# take_damage). You CAN be torn up in your ride now; drive off or it dies.
+		active_car.take_damage(damage)
+		cam_rig.add_trauma(0.28)
+		ProtoFloater.pop(self, active_car.global_position + Vector3(0, 1.6, 0), "-%d" % int(damage), Color(0.9, 0.55, 0.2), 100)
+		audio.play_at("thunk", active_car.global_position, -3.0)
+		if active_car.components["chassis"].ratio() < 0.3:
+			hud.toast("🚗 the rig's coming apart — shake them or it's scrap")
+		return
 	character.take_wound(character.random_part(_wound_rng), damage)
 	# The blow ROCKS the body (Rung 6): flinch away from where the claw came from.
 	var from_dir := player.facing()

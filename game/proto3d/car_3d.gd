@@ -129,6 +129,7 @@ var driver_top: float = 1.0
 
 ## Which VEHICLES row this is.
 var vclass: String = "scavenger"
+var armor: float = 30.0 ## 0-100; blunts incoming combat damage (was inert metadata — now real)
 var spec: Dictionary = {}
 
 ## Locked cars need their key found somewhere in the world.
@@ -245,6 +246,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	car.center_of_mass = Vector3(0, s["com_y"], 0)
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
+	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt
 	car.top_speed = s["top"]
 	car.reverse_top_speed = s["rev"]
 	car.max_steer = s["steer"][0]
@@ -483,11 +485,13 @@ func _nearest_hitch_rig() -> ProtoCar3D:
 func take_damage(amount: float) -> void:
 	if dead:
 		return
+	# ARMOR is real now: it blunts the hit (armor 100 → ~28% gets through, floor 0.25).
+	var got: float = amount * clampf(1.0 - armor / 140.0, 0.25, 1.0)
 	# Chassis takes the hit; hard hits can wound a random component too.
-	components["chassis"].damage(amount)
-	if amount > 8.0 and _spiral_rng.randf() < 0.45:
+	components["chassis"].damage(got)
+	if got > 8.0 and _spiral_rng.randf() < 0.45:
 		var ids: Array = ["engine", "tires", "battery", "fuel_tank"]
-		components[ids[_spiral_rng.randi() % ids.size()]].damage(amount * 0.6)
+		components[ids[_spiral_rng.randi() % ids.size()]].damage(got * 0.6)
 
 
 # --- The death spiral: HEALTHY -> SMOKING -> ON FIRE -> cook -> HUSK (always burnt) ---
