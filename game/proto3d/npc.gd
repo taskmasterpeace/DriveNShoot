@@ -9,7 +9,9 @@ const FACTION := "meridian"
 
 ## Archetype rows: adding an NPC type = adding a row (behavior keys, not code).
 const ARCHETYPES: Dictionary = {
-	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade",
+	# look = a ProtoPuppet.SURVIVORS row (the same rig, a different body); act = how
+	# this NPC "acts its part" through STATE — trader gestures, guard scans, drifter idles.
+	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade", "look": "trader", "act": "gesture",
 		"color": Color(0.72, 0.55, 0.28),
 		"greet": "Mercy: 'Jack talks. What are you buying?'",
 		"refuse": "Mercy: 'Not to you. Not after what you did.'",
@@ -17,12 +19,12 @@ const ARCHETYPES: Dictionary = {
 			"medkit": 1, "water": 3, "coffee": 2, "canned_food": 3, "whiskey": 2,
 			"jerry_can": 2, "car_parts": 1, "tire_kit": 2, "duct_tape": 3,
 			"flare": 4, "map_fragment": 2, "painkillers": 2}},
-	"secman": {"name": "Bridger", "title": "SEC-MAN", "role": "bounty",
+	"secman": {"name": "Bridger", "title": "SEC-MAN", "role": "bounty", "look": "guard", "act": "scan",
 		"color": Color(0.30, 0.40, 0.55),
 		"greet": "Bridger: 'Got a lurker problem by the water point. 25 jack for its head.'",
 		"refuse": "Bridger: 'Meridian doesn't work with your kind. Walk away.'",
 		"stock": {}},
-	"drifter": {"name": "Sam", "title": "DRIFTER — 40 JACK", "role": "hire",
+	"drifter": {"name": "Sam", "title": "DRIFTER — 40 JACK", "role": "hire", "look": "drifter", "act": "idle",
 		"color": Color(0.33, 0.38, 0.30),
 		"greet": "Sam: 'Forty jack and my gun walks where you walk.'",
 		"refuse": "Sam: 'I drift with anybody... except you.'",
@@ -42,10 +44,17 @@ const PRICES: Dictionary = {
 var archetype: String = "trader"
 var npc_name: String = ""
 var role: String = "trade"
+var act: String = "idle" ## how this NPC acts its part: gesture/scan/pace/aim_crouch/idle
 var stock: ProtoContainer = null
 var hp: float = 60.0
 var _visual: Node3D
+var _puppet: ProtoPuppet = null
 var _hurt_flash: float = 0.0
+var _act_t: float = 0.0
+var _prev_yaw: float = 0.0
+var _patrol_anchor: Vector3 = Vector3.INF ## lazily set on first tick (pace)
+var _patrol_sign: float = 1.0
+var _crouched: bool = false
 
 
 static func create(arch: String) -> ProtoNPC:
@@ -54,6 +63,7 @@ static func create(arch: String) -> ProtoNPC:
 	var a: Dictionary = ARCHETYPES[arch]
 	n.npc_name = a["name"]
 	n.role = a["role"]
+	n.act = a.get("act", "idle")
 	n.add_to_group("interactable")
 	n.add_to_group("npc") # sight fan excludes NPCs — bodies aren't walls
 	n.stock = ProtoContainer.new("%s's stall" % a["name"])
@@ -68,24 +78,16 @@ static func create(arch: String) -> ProtoNPC:
 	shape.position.y = 0.85
 	n.add_child(shape)
 
-	n._visual = Node3D.new()
+	# The SAME puppet the player wears — just a different look row and, each frame, a
+	# different STATE. An NPC "acting its part" is not extra code, it's the rig fed data.
+	var look: Dictionary = ProtoPuppet.look(a.get("look", ""))
+	if not look.has("cloth"):
+		look["cloth"] = a["color"] # fall back to the archetype's signature color
+	n._puppet = ProtoPuppet.create(look)
+	n._visual = n._puppet
 	n.add_child(n._visual)
-	var body := MeshInstance3D.new()
-	var bmesh := CapsuleMesh.new()
-	bmesh.radius = 0.33
-	bmesh.height = 1.5
-	body.mesh = bmesh
-	body.material_override = ProtoWorldBuilder.material(a["color"], 0.85)
-	body.position.y = 0.78
-	n._visual.add_child(body)
-	var head := MeshInstance3D.new()
-	var hmesh := SphereMesh.new()
-	hmesh.radius = 0.18
-	hmesh.height = 0.36
-	head.mesh = hmesh
-	head.material_override = ProtoWorldBuilder.material(Color(0.80, 0.62, 0.47), 0.9)
-	head.position.y = 1.64
-	n._visual.add_child(head)
+	if n.act == "aim_crouch":
+		n._puppet.set_armed(true)
 	var tag := Label3D.new()
 	tag.text = "%s\n%s" % [a["name"], a["title"]]
 	tag.font_size = 96
@@ -101,14 +103,66 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
-		velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
+		# The "pace" act walks a short patrol; every other act stands still.
+		if act == "pace":
+			_do_pace(delta)
+		else:
+			velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
+			velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
 	move_and_slide()
+
+	# THE RIG READS STATE: base gait/breathing off velocity, then the act overlays its
+	# character (a gesture, a scan, a crouch) on top. Same puppet, different behavior.
+	if _puppet:
+		var turn_rate := wrapf(_visual.rotation.y - _prev_yaw, -PI, PI) / maxf(delta, 0.0001)
+		_prev_yaw = _visual.rotation.y
+		_puppet.animate(delta, velocity.length(), turn_rate, act == "aim_crouch", 0.0, false)
+		_act_overlay(delta)
+
 	if _hurt_flash > 0.0:
 		_hurt_flash = maxf(0.0, _hurt_flash - delta)
 		_visual.rotation.z = sin(_hurt_flash * 40.0) * 0.12
 	elif _visual.rotation.z != 0.0:
 		_visual.rotation.z = 0.0
+
+
+## Each archetype ACTS ITS PART by overlaying character on the base rig.
+func _act_overlay(delta: float) -> void:
+	_act_t += delta
+	match act:
+		"gesture":
+			# A trader talks with his hands: the free arm lifts in a slow, repeating gesture.
+			var g := maxf(0.0, sin(_act_t * 0.9))
+			_puppet.free_arm.rotation.x = -g * 1.1
+		"scan":
+			# A guard watches the road: the whole body sweeps side to side (a ~6 s beat).
+			_visual.rotation.y = sin(_act_t * 1.1) * 0.6
+		"aim_crouch":
+			# A bandit sights down the barrel, crouched and small.
+			if not _crouched:
+				_crouched = true
+				_puppet.position.y = -0.28
+			_puppet.aim_arm.rotation.x = 0.0
+		_:
+			# idle: the base breathing/lean is enough; add a tiny weight shift.
+			_puppet.torso.rotation.z = sin(_act_t * 0.5) * 0.04
+
+
+## Walk between the spawn anchor and a point a couple metres to the side, turning to
+## face the way you're going. A guard on his beat — proven in sim, off the town NPCs.
+func _do_pace(delta: float) -> void:
+	if _patrol_anchor == Vector3.INF:
+		_patrol_anchor = global_position
+	var target := _patrol_anchor + Vector3(2.0 * _patrol_sign, 0, 0)
+	var to_t := target - global_position
+	to_t.y = 0.0
+	if to_t.length() < 0.35:
+		_patrol_sign *= -1.0
+	else:
+		var dir := to_t.normalized()
+		velocity.x = move_toward(velocity.x, dir.x * 1.6, 8.0 * delta)
+		velocity.z = move_toward(velocity.z, dir.z * 1.6, 8.0 * delta)
+		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 8.0 * delta)
 
 
 func interact_position() -> Vector3:
