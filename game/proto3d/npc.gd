@@ -34,7 +34,7 @@ const ARCHETYPES: Dictionary = {
 ## Base prices (scrip) — the Respect Ledger's price_mult scales them per faction.
 const PRICES: Dictionary = {
 	"bandage": 12, "meat": 6, "9mm": 1, "12ga": 2, "grenade": 18, "scrap": 4,
-	"wrench": 10, "machete": 25, "pistol": 40, "shotgun": 60, "rocket": 15,
+	"wrench": 10, "machete": 25, "axe": 35, "bat": 20, "pistol": 40, "shotgun": 60, "rocket": 15,
 	"pipe_rocket": 75, "eyepatch": 8, "drone": 55,
 	"medkit": 30, "painkillers": 10, "water": 5, "coffee": 7, "canned_food": 8,
 	"whiskey": 14, "jerry_can": 22, "car_parts": 28, "tire_kit": 16,

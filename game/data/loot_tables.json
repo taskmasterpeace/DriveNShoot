@@ -17,6 +17,11 @@
       {"item": "12ga", "min": 8, "max": 20, "weight": 1.0},
       {"item": "jerry_can", "min": 1, "max": 2, "weight": 1.0},
       {"item": "car_parts", "min": 1, "max": 1, "weight": 1.0}
+    ]},
+    {"id": "cache_rare", "name": "Rare Cache", "entries": [
+      {"item": "axe", "min": 1, "max": 1, "weight": 0.35},
+      {"item": "bat", "min": 1, "max": 1, "weight": 0.35},
+      {"item": "medkit", "min": 1, "max": 1, "weight": 0.5}
     ]}
   ]
 }

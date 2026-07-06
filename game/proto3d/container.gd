@@ -14,6 +14,8 @@ const ITEMS: Dictionary = {
 	"pipe_rocket": {"name": "Pipe rocket launcher", "emoji": "🧨", "usable": true, "w": 4.5, "cat": "weapon", "desc": "For things with wheels. USE equips it."},
 	"wrench": {"name": "Wrench", "emoji": "🔧", "usable": true, "w": 1.4, "cat": "weapon", "desc": "Quiet, heavy, honest. USE equips it."},
 	"machete": {"name": "Machete", "emoji": "🔪", "usable": true, "w": 1.1, "cat": "weapon", "desc": "Quiet and mean. USE equips it."},
+	"axe": {"name": "Fire axe", "emoji": "🪓", "usable": true, "w": 2.6, "cat": "weapon", "desc": "Two hands, one chop. Puts things DOWN. USE equips it."},
+	"bat": {"name": "Baseball bat", "emoji": "🏏", "usable": true, "w": 1.3, "cat": "weapon", "desc": "Long, fast, and it LAUNCHES. Home-run a howler. USE equips it."},
 	"grenade": {"name": "Grenade", "emoji": "💣", "usable": false, "w": 0.5, "cat": "weapon", "desc": "Throw with G."},
 	# -- ammo --
 	"9mm": {"name": "9mm rounds", "emoji": "•", "usable": false, "w": 0.02, "cat": "ammo", "desc": "Feeds the pistol."},

@@ -29,6 +29,16 @@ const WEAPONS: Dictionary = {
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4,
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
+	# The AXE — slow, two-handed, a committed CHOP: biggest single hit, and it puts
+	# them on the ground (knockdown) more than it launches them. Punishes a miss.
+	"axe": {"name": "Fire axe", "emoji": "🪓", "behavior": Behavior.MELEE, "damage": 34.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.9, "spread_deg": 0.0, "reach": 2.5, "arc_deg": 62.0, "stamina": 16.0, "knockdown": 0.55, "shove": 3.0, "hit_sfx": "impact_crunch",
+		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true}},
+	# The BASEBALL BAT — the KNOCKBACK king: long reach, wide arc, fast-ish, and it
+	# LAUNCHES (huge shove). Home-run a howler off you. Lower raw damage, all impact.
+	"bat": {"name": "Baseball bat", "emoji": "🏏", "behavior": Behavior.MELEE, "damage": 18.0,
+		"mag_size": 0, "ammo": "", "cooldown": 0.6, "spread_deg": 0.0, "reach": 2.8, "arc_deg": 95.0, "stamina": 10.0, "knockdown": 0.45, "shove": 7.0, "hit_sfx": "thunk",
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
@@ -155,7 +165,7 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					if crit and (not was_valid or t.get("dead") == true) and main.has_method("cinematic_kill"):
 						main.cinematic_kill(main.player.global_position)
 					if "audio" in main and main.audio:
-						main.audio.play_at("thunk", main.player.global_position + to_t, -2.0)
+						main.audio.play_at(String(w.get("hit_sfx", "thunk")), main.player.global_position + to_t, -2.0)
 					if "cam_rig" in main and main.cam_rig:
 						main.cam_rig.add_trauma(0.16) # the connection lands in your hands
 					# Melee HITS — chance to knock the target flat (feel the impact).

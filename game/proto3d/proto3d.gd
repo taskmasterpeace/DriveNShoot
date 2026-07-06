@@ -211,6 +211,7 @@ func _ready() -> void:
 	# The mount SYSTEM stays in code for a later build.
 	backpack.add("wrench", 1)
 	chest.container.add("machete", 1)
+	chest.container.add("bat", 1)   # the launcher — knock a howler clean off you
 	chest.container.add("grenade", 2)
 
 	# The kennel strays: one of each type, distinct breeds.
