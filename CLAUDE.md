@@ -94,5 +94,5 @@ Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `
 ## 📚 Doc map
 
 - `docs/ENGINE.md` — master spec · `docs/STAGES.md` — roadmap · `docs/MASTER_PLAN.md` — the toolification plan (done)
-- `docs/DIVIDED_STATES.md` — lore bible (rulers, THE CAROUSEL) · `docs/CAROUSEL.md` + `docs/RV_PLAN.md` — next big builds
+- `docs/DIVIDED_STATES.md` — lore bible (rulers, THE CAROUSEL) · `docs/WORLD_PILLARS.md` — the five world pillars + eight laws (what the game is ABOUT; P3 = Pillars 1+2+5, road rows first) · `docs/CAROUSEL.md` + `docs/RV_PLAN.md` — next big builds
 - `docs/systems/*` — per-system design · `docs/legacy-2d/` — the old 2D game's docs · `docs/setup/` — MCP/editor setup
