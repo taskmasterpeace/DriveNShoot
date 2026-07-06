@@ -67,7 +67,7 @@ static func create(main: Node) -> ProtoDevMode:
 	go.text = "GO"
 	go.pressed.connect(func() -> void: d._teleport_town())
 	trow.add_child(go)
-	d._row(v, [["Safehouse", func() -> void: d._teleport(Vector3(108, 0.5, -320))]])
+	d._row(v, [["Safehouse", func() -> void: d._teleport(d._main.SAFEHOUSE + Vector3(0, 0.5, 0))]])
 
 	# --- SPAWN (lands ~6 m ahead of you) --------------------------------------
 	d._title(v, "👾 spawn (ahead of you)", 12)

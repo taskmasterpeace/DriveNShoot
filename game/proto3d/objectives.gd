@@ -15,7 +15,7 @@ extends Node
 signal advanced(index: int, text: String)
 
 ## The safehouse door, matching the SAFEHOUSE waypoint in proto3d._ready().
-const HOME := Vector3(110, 0, -325)
+const HOME := Vector3(110, 0, -323) ## keep synced with ProtoMain.SAFEHOUSE (the one door anchor)
 const DRIVE_DIST := 40.0   ## meters down the road before "you're driving" clears
 const HOME_RADIUS := 16.0  ## how close to the safehouse counts as "home"
 

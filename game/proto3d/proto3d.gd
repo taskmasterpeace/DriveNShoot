@@ -256,7 +256,7 @@ func _ready() -> void:
 	char_create = ProtoCharCreate.create(self)
 	add_child(char_create)
 
-	waypoints = [["SAFEHOUSE", Vector3(110, 0, -325)], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
+	waypoints = [["SAFEHOUSE", SAFEHOUSE], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
@@ -2173,7 +2173,7 @@ func respawn_at_home() -> void:
 	active_car = null
 	player.is_active = true
 	player.dead_vis = false
-	player.global_position = Vector3(110, 0.3, -322)
+	player.global_position = SAFEHOUSE + Vector3(0, 0.3, 0)
 	if cam_rig != null:
 		cam_rig.target = player
 	hud.hide_death()
@@ -2447,6 +2447,11 @@ func _make_enemy_ghost(kind: String) -> Node3D:
 # wounds, skills, pack, arsenal), the pack (per-dog bond + memory), the ring
 # (lit nodes), the home (upgrades re-raised), the ledger, the clock, THE CIRCUIT.
 const SAVE_PATH := "user://drivn.save"
+const SAVE_VERSION := 1 ## bump when the save shape changes; load tolerates older via .get() defaults
+## THE ONE safehouse anchor (the door / respawn / go-home / dev-teleport all read this).
+## Was four hand-synced literals that drifted (HANDOFF §2 low-confidence). homebase.HOME
+## is a DIFFERENT anchor on purpose — the build-footprint center, ~3 m off, same building.
+const SAFEHOUSE := Vector3(110, 0, -323)
 
 
 func _siege_records() -> Dictionary:
@@ -2530,6 +2535,7 @@ func save_game() -> Dictionary:
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
 	}
+	data["version"] = SAVE_VERSION
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(var_to_str(data))
 	f.close()

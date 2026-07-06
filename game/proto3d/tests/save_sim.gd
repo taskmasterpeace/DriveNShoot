@@ -115,6 +115,12 @@ func _ready() -> void:
 		sam_back != null and absf(sam_back.hp - 44.0) < 0.5 and main.companions.size() == 1)
 	_check("the METAWORLD record came back (%d off-screen dog)" % main.metaworld.records.size(),
 		main.metaworld.records.size() == meta0 and meta0 >= 1)
+	# The save carries a VERSION (future-proofs schema changes) and the safehouse
+	# is now ONE anchor (respawn + go-home agree within the go-home radius).
+	var rec_v: Dictionary = main.save_game()
+	_check("the save is versioned (v%d)" % int(rec_v.get("version", -1)), int(rec_v.get("version", -1)) == main.SAVE_VERSION)
+	_check("respawn + go-home share ONE safehouse anchor",
+		(main.SAFEHOUSE + Vector3(0, 0.3, 0)).distance_to(ProtoObjectives.HOME) < ProtoObjectives.HOME_RADIUS)
 	main.load_game() # double-load: no duplicate benches/dogs
 	for _i in 3:
 		await get_tree().physics_frame # queue_free clears at frame end
