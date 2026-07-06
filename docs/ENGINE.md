@@ -1,7 +1,7 @@
 # DRIVN Engine — Master Specification
 
 **Codename:** DRIVN (working name — from the repo, DriveNShoot; rename anytime)
-**Vision:** *Autoduel × GTA2-modern, in the world of Deathlands.* A top-down 3D open-country
+**Vision:** *Autoduel × GTA2-modern, in the DIVIDED STATES OF AMERICA* (lore bible: `DIVIDED_STATES.md`). A top-down 3D open-country
 survival engine: drive across a compressed America, pull off any exit, get out of the car,
 kick in a door, go upstairs, loot, whistle for your dog, and get back on the interstate.
 **Host engine:** Godot 4.5 (3D, `VehicleBody3D` physics, GL Compatibility renderer)
@@ -178,6 +178,12 @@ data resources) so the choice is swappable.
 ---
 
 ## 10. Milestones (each = one /goal loop, each ends drivable + sim-proven)
+
+> **STATUS (2026-07-06): M1–M7 all ✅ SHIPPED and sim-proven.** The compressed USA (M2),
+> vehicle framework (M3), character core (M4), perception (M5), AI/life (M6) and ENet co-op
+> netcode (M7) are committed and green. This table is now the historical record of how the
+> engine was built, not a to-do list — live status lives in `STAGES.md` and the `CLAUDE.md`
+> systems table.
 
 | M | Name | Ships | Acceptance (headless + hands-on) |
 |---|------|-------|----------------------------------|
