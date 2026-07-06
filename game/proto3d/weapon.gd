@@ -6,20 +6,29 @@ extends RefCounted
 
 enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 
+# hand_pose = how the PUPPET holds this weapon (the pose is the weapon's property,
+# not the person's — same rig, different grip). offset moves the gun hand from its
+# rest; two_handed pulls the free hand across to a fore-grip. (offset.x is mirrored
+# for left-handers by the puppet.)
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
-		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9},
+		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
+		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
-		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6},
+		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6,
+		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true}}, # both hands, at the shoulder
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
-		"speed": 20.0, "blast": 5.0, "reload_s": 2.2},
+		"speed": 20.0, "blast": 5.0, "reload_s": 2.2,
+		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true}}, # hoisted ONTO the shoulder
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8},
+		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8,
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4},
+		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4,
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},

@@ -141,8 +141,9 @@ func _ready() -> void:
 			ProtoCar3D.couple(v, trailer)
 			trailer.trunk.add("scrap", 12) # something heavy already riding it
 
-	# Player starts driving car 0 on the interstate.
-	player = ProtoPlayer3D.create()
+	# Player starts driving car 0 on the interstate. His LOOK is a data row — a
+	# scavenger by default; character creation (Rung 5) will let you author it.
+	player = ProtoPlayer3D.create(ProtoPuppet.look("scav"))
 	player.position = Vector3(6, 0.2, 388)
 	add_child(player)
 
@@ -432,6 +433,7 @@ func _physics_process(delta: float) -> void:
 		wpn.tick(delta)
 	if mode == Mode.FOOT:
 		player.set_armed(wpn != null)
+		_apply_hand_pose(wpn)
 	if mode == Mode.DRIVE and active_car and active_car.mount_weapon:
 		active_car.mount_weapon.tick(delta)
 		var mw: ProtoWeapon = active_car.mount_weapon
@@ -1279,6 +1281,22 @@ func _rig_in_reach() -> ProtoCar3D:
 
 func current_weapon() -> ProtoWeapon:
 	return weapons[equipped] if equipped >= 0 and equipped < weapons.size() else null
+
+
+## Pose the hands to the equipped weapon (the grip is the WEAPON's property).
+## Only on change — cheap, and a pistol-low vs shotgun-shoulder vs rocket-on-shoulder
+## read is instant.
+var _last_pose_id: String = "∅"
+func _apply_hand_pose(wpn: ProtoWeapon) -> void:
+	var id: String = wpn.id if wpn else ""
+	if id == _last_pose_id or player.puppet == null:
+		return
+	_last_pose_id = id
+	if wpn == null:
+		player.puppet.set_hand_pose(Vector3.ZERO, false)
+		return
+	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
+	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
 
 
 ## The world POINT under the cursor (mouse ray onto the aim plane; sims project

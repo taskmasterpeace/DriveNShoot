@@ -115,8 +115,35 @@ func _ready() -> void:
 	_check("handedness MIRRORS the hand (R x %.2f vs L x %.2f)" % [righty.hand.position.x, lefty.hand.position.x],
 		signf(righty.hand.position.x) != signf(lefty.hand.position.x))
 
+	# --- Rung 2: weapons carry their own HAND POSE ---------------------------
+	var poser := ProtoPuppet.create({})
+	add_child(poser)
+	poser.set_hand_pose(ProtoWeapon.WEAPONS["pistol"]["hand_pose"]["offset"], false)
+	var pistol_hand: Vector3 = poser.hand.position
+	var pistol_freearm: float = poser.free_arm.position.x
+	poser.set_hand_pose(ProtoWeapon.WEAPONS["shotgun"]["hand_pose"]["offset"], true)
+	var shotgun_hand: Vector3 = poser.hand.position
+	var shotgun_freearm: float = poser.free_arm.position.x
+	poser.set_hand_pose(ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"]["offset"], true)
+	var rocket_hand: Vector3 = poser.hand.position
+	_check("each weapon poses the hand DIFFERENTLY (pistol %.2f / shotgun %.2f / rocket %.2f y)" % [pistol_hand.y, shotgun_hand.y, rocket_hand.y],
+		pistol_hand != shotgun_hand and shotgun_hand != rocket_hand and rocket_hand.y > shotgun_hand.y and shotgun_hand.y > pistol_hand.y)
+	_check("a two-handed longarm brings the free hand ACROSS (1-hand x %.2f → 2-hand x %.2f)" % [pistol_freearm, shotgun_freearm],
+		signf(pistol_freearm) != signf(shotgun_freearm) or absf(shotgun_freearm) < absf(pistol_freearm))
+
+	# --- Rung 2: 50 survivors from ROWS (look = data) ------------------------
+	var scav := ProtoPuppet.create(ProtoPuppet.look("scav"))
+	var raider := ProtoPuppet.create(ProtoPuppet.look("raider"))
+	var oldtimer := ProtoPuppet.create(ProtoPuppet.look("old_timer"))
+	add_child(scav)
+	add_child(raider)
+	add_child(oldtimer)
+	_check("a SURVIVOR row changes the body (scav has a backpack, raider is bigger)",
+		scav._pack != null and raider.appearance["torso"].x > scav.appearance["torso"].x)
+	_check("the old-timer row carries a LIMP straight into the gait", oldtimer.appearance["limp"] == "l")
+
 	# --- The PLAYER wears the puppet -----------------------------------------
-	var player := ProtoPlayer3D.create({})
+	var player := ProtoPlayer3D.create(ProtoPuppet.look("scav"))
 	add_child(player)
 	_check("the player is built ON the puppet", player.puppet != null and player.puppet == player._visual)
 	player.set_armed(true)

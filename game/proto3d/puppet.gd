@@ -28,6 +28,24 @@ const DEFAULT: Dictionary = {
 	"limp": "",                              ## "" | "l" | "r" — that leg drags
 }
 
+## The proof of the pillar: 50 survivors from ONE rig by feeding it ROWS. Each is a
+## partial override of DEFAULT — add a look = add a row, never touch code. These
+## double as NPC bodies (Rung 4) and character-creation presets (Rung 5).
+const SURVIVORS: Dictionary = {
+	"scav": {"cloth": Color(0.5, 0.44, 0.3), "pants": Color(0.32, 0.3, 0.26), "backpack": true, "gait": 1.0},
+	"drifter": {"cloth": Color(0.4, 0.36, 0.34), "pants": Color(0.28, 0.26, 0.24), "hat": Color(0.3, 0.26, 0.18), "gait": 0.9},
+	"raider": {"torso": Vector3(0.56, 0.74, 0.32), "cloth": Color(0.35, 0.2, 0.16), "pants": Color(0.22, 0.2, 0.18), "gait": 1.15, "height": 1.06},
+	"trader": {"cloth": Color(0.55, 0.45, 0.2), "pants": Color(0.3, 0.28, 0.22), "hat": Color(0.5, 0.42, 0.22), "gait": 0.85},
+	"guard": {"torso": Vector3(0.54, 0.74, 0.32), "cloth": Color(0.3, 0.34, 0.4), "pants": Color(0.24, 0.26, 0.3), "hat": Color(0.22, 0.24, 0.28), "gait": 1.0, "height": 1.04},
+	"waif": {"torso": Vector3(0.44, 0.66, 0.26), "cloth": Color(0.5, 0.5, 0.44), "pants": Color(0.34, 0.34, 0.3), "gait": 1.1, "height": 0.92},
+	"old_timer": {"cloth": Color(0.44, 0.42, 0.4), "pants": Color(0.3, 0.3, 0.3), "hat": Color(0.4, 0.38, 0.34), "gait": 0.75, "limp": "l", "height": 0.98},
+}
+
+
+static func look(name_in: String) -> Dictionary:
+	return SURVIVORS.get(name_in, {}).duplicate(true)
+
+
 var appearance: Dictionary = {}
 var handed_sign: float = 1.0 ## +1 gun on the right (local -X? see below), -1 on the left
 
