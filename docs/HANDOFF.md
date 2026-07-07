@@ -93,9 +93,9 @@
 >    zone tags, noise ecology, spawn suppression) is now COMMITTED AND GREEN, and its
 >    prerequisite (terrain relief) shipped. Contracts: `docs/design/POPULATION_WAR.md` +
 >    `WAR_AI_RESEARCH.md`. This is the queue's head.
-> 2. **THE CORRIDOR PASS** — execute `docs/design/MAP_POLISH_PLAN.md` (~46 exits, 14 named
->    towns, Alligator Alley + Maple Hill) through MapForge's API. Every exit placed becomes
->    a live traffic destination automatically (ProtoTraffic reads exits as connections).
+> 2. **THE SECOND CORRIDOR PASS** — the five remaining interstates (I-70/I-5/I-35/I-25/
+>    I-80) get their exits/towns via the same `tools/mapforge/corridor_pass.mjs` (extend
+>    its CORRIDORS table; the laws are already encoded). MAP_POLISH's first five shipped.
 > 3. **DRIVE-BY COMBAT** (`docs/design/DRIVE_BY_COMBAT.md`) — seat-arc shooting from cars;
 >    the horse already proved the seat-arc pattern.
 > 4. **EQUIPMENT PAPERDOLL** (`docs/design/EQUIPMENT_PAPERDOLL.md`) — 19 slots; rig v2's
