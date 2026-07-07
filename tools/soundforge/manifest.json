@@ -50,6 +50,18 @@
       "prompt": "Single pump-action shotgun blast, heavy and punchy, close range, gritty, short mechanical pump chk-chk at the end"
     },
     {
+      "id": "shot_rocket",
+      "duration_seconds": 1.8,
+      "prompt_influence": 0.5,
+      "prompt": "Improvised shoulder-fired rocket launcher firing once: deep hollow pneumatic THOOMP launch from a metal pipe tube, rocket motor igniting with a rough whoosh receding into the distance, gritty scrap-built weapon, close perspective, dry, no explosion at the end"
+    },
+    {
+      "id": "shot_mg",
+      "duration_seconds": 0.7,
+      "prompt_influence": 0.55,
+      "prompt": "Single heavy vehicle-mounted machine gun shot, deep concussive .30 caliber report with a hard metallic bolt clack, punchy low-end crack, very short tail, close, dry, no reverb wash, no burst"
+    },
+    {
       "id": "explosion",
       "duration_seconds": 2.2,
       "prompt_influence": 0.5,

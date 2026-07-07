@@ -37,7 +37,7 @@ const WEAPONS: Dictionary = {
 			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, 0.0)}}, # both hands, at the shoulder
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
-		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot", "hit_stop": true,
+		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
 		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
 			"grip_l": Vector3(0.0, -0.05, -0.12)}}, # hoisted ONTO the shoulder, free hand steadies the tube
@@ -61,7 +61,7 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
-		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot", "hit_stop": false,
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
 		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
 	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
 	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
