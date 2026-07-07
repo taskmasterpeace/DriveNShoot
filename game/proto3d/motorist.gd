@@ -80,8 +80,16 @@ static func plan_route(usmap: ProtoUSMap, from: Vector3, dest_in: Vector3) -> Ar
 	var step := 1 if best_exit_i > start_i else -1
 	var i3 := start_i
 	while i3 != best_exit_i:
+		var prev := i3
 		i3 += step
-		out.append(Vector3(pts[i3].x, 0, pts[i3].y))
+		# RIGHT-HAND LANE (ROAD_TRAFFIC_OVERHAUL.md §3.5): waypoints offset to the
+		# innermost right-hand lane of the travel direction, off the same geometry
+		# law the streamer paints — a motorist no longer drives the centerline
+		# into oncoming traffic (or into a divided road's median barrier).
+		var d := (pts[i3] - pts[prev]).normalized()
+		var right := Vector2(-d.y, d.x)
+		var off := right * ProtoUSMap.lane_offset(road, 0)
+		out.append(Vector3(pts[i3].x + off.x, 0, pts[i3].y + off.y))
 	out.append(dest_in)
 	return out
 

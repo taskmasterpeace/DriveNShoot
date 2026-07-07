@@ -1,0 +1,4 @@
+{
+  "_comment": "TRAFFIC rows — tuned overrides for the ambient traffic system (ROAD_TRAFFIC_OVERHAUL.md). The engine folds these over its code-floor stock at boot; F10 FORGE re-folds live. Knobs: budget, spawn_r_min/max, despawn_r, headway_s, min_gap_m, speed_lanes_2/4/6, speed_jitter, exit_take_chance, merge_chance, promote_cap, maintain_s, honk_brake_mps2. Numbers only; only listed knobs change.",
+  "traffic": {}
+}

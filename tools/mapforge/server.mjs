@@ -295,10 +295,15 @@ const server = createServer(async (req, res) => {
 			// road's points must never strip its identity (the old handler did).
 			const prev = map.roads.find((r) => r.id === body.id) || {};
 			map.roads = map.roads.filter((r) => r.id !== body.id);
+			// ROAD OVERHAUL: lanes (6/4/2) + divided are part of a road's CHARACTER
+			// too — preserved on edit, same law as danger/nickname/toll.
+			const kind = body.kind ?? prev.kind ?? "interstate";
+			const lanes = body.lanes ?? prev.lanes ?? (kind === "interstate" ? 4 : 2);
 			map.roads.push({
-				id: body.id, kind: body.kind ?? prev.kind ?? "interstate", pts: body.pts,
+				id: body.id, kind, pts: body.pts,
 				danger: body.danger ?? prev.danger ?? 0, family: body.family ?? prev.family ?? "",
 				nickname: body.nickname ?? prev.nickname ?? "", ...(body.toll ?? prev.toll ? { toll: body.toll ?? prev.toll } : {}),
+				lanes, divided: body.divided ?? prev.divided ?? lanes >= 6,
 			});
 			save();
 			return json(res, 200, { ok: true, roads: map.roads.length });

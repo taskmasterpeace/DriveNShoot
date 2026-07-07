@@ -46,6 +46,7 @@ const CARRY_CAP := 32.0 ## kg-ish; STR raises this later (attributes hook)
 var waypoints: Array = [] ## [name, Vector3-or-Node3D]
 var waypoint_idx: int = -1
 var stream: ProtoWorldStream = null
+var traffic: ProtoTraffic = null ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -321,6 +322,11 @@ func _ready() -> void:
 	stream = ProtoWorldStream.new()
 	add_child(stream)
 	stream.setup(waypoints, self)
+
+	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
+	# road polylines — right-hand lanes, following, exits, promote-on-touch.
+	traffic = ProtoTraffic.create(self, stream.usmap)
+	add_child(traffic)
 
 	metaworld = ProtoMetaworld.new()
 	add_child(metaworld)
@@ -3158,7 +3164,10 @@ func reload_content() -> Dictionary:
 	ProtoPuppet.ensure_motions()
 	ProtoQuadruped._motion_folded = false
 	ProtoQuadruped.ensure_motions()
-	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
+	# Traffic knobs ride the same door (data/traffic.json — density, speeds, exits).
+	ProtoTraffic._folded = false
+	ProtoTraffic.ensure_rows()
+	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion+traffic rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
 
 
