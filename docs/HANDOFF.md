@@ -1,5 +1,47 @@
 # DRIVN — Engineering Handoff
 
+> ## ⏭ NEXT SESSION QUEUE (2026-07-07 marathon handoff — READ FIRST)
+>
+> The 2026-07-07 session shipped ~20 sim-proven arcs on `main` (split-screen drone piloting
+> + the dog's eye, corpses/roadkill/decay, gadgets + charge law, pixel-art skins, terrain
+> relief v1, streaming load budget, radio dial + TV volume, the in-game LIBRARY manuals,
+> car entry/ignition ladder, PILOTING skill, carousel portal wired to real jumps, inventory
+> addon + items.json bridge, sound map…). Three things are deliberately PARKED, in priority
+> order:
+>
+> **1. PUPPET RIG V2 — greenlit, contract banked, build parked mid-Phase-1.**
+> - The contract: `docs/design/PUPPET_RIG_V2.md` (owner: "no knee, no elbow, no forearm" —
+>   shotgun grips / katana swings / real punches / different kicks). Fully specified down
+>   to follow-through constants and the 2-bone IK formula.
+> - **~80% of Phase 1 sits UNVERIFIED on branch `wip/puppet-v2-phase1`** (segmented limbs,
+>   follow-through rows, two-hand fore-grip pose, dead-pose limb bends, strike JOINT_AXIS
+>   grown to 9). Still missing there: `motion_stage.gd` AUTHOR_JOINTS 1–9 + `_author_joint_map`
+>   new entries + `KEY_6..9` handling, a `rig_v2_sim`, and — critically — **ZERO sims have
+>   been run against it.** THE GATE: the whole puppet suite green untouched (crouch_sim's
+>   no-kiss law, unarmed/strike/strike_author/motion/motion_stage/char/dogverb, spine).
+> - Next session: start here. Either finish + gate the WIP branch or restart clean from the
+>   contract — do NOT merge without the full gate. Watch crouch_sim hardest: new calf/forearm
+>   boxes must never sit coplanar with their parents (cross-sections already step down +
+>   0.02 insets on the branch, but it is UNPROVEN).
+>
+> **2. REPO INTEGRITY — stranded prior-session files (a fresh clone may not parse).**
+> - UNTRACKED but referenced by committed code: `game/proto3d/population.gd` (+`.uid`,
+>   `data/population_targets.json`) — `proto3d.gd`/`howler.gd`/`lurker.gd` call
+>   `main.population.*`; `game/proto3d/horse.gd` (+`horses.json`); their sims
+>   (`population_cell_sim`, `horse_sim`, `noise_sim`, `safehouse_spawn_suppression_sim`,
+>   `dashboard_sim`, `gunfeel_sim`, `radio_positional_sim`, `voice_sim`, `car_upgrade_sim`);
+>   `docs/design/MAP_POLISH_PLAN.md`; a tvshow poster `.import`.
+> - **Known problem:** `population_cell_sim` HANGS headless (>240s, zero output — likely an
+>   await stall at boot). Triage before committing: run each stranded sim individually,
+>   commit what's green, fix or quarantine what hangs.
+> - This is also the foundation for arc 3 — population cells already exist in that file.
+>
+> **3. POPULATION + WAR — the big living-world arc (specs banked, build not started).**
+> - `docs/design/POPULATION_WAR.md` + `WAR_AI_RESEARCH.md` are the contracts. Do it AFTER
+>   terrain relief (DONE ✅ 2026-07-07) and after #2 lands the population foundation.
+>
+> Say **"go puppet v2"** (or `/goal` it) to start #1.
+
 **Written:** 2026-07-06, at the end of a long build session, as a retirement hand-off.
 **Verified by:** a fan-out audit of 23 subagents (16 code-subsystem auditors + 6 doc auditors + 1 synthesizer) cross-checked against a full headless sim run. Everything below is grounded in the actual code, not memory — where it isn't, it's flagged **[low-confidence]**.
 
