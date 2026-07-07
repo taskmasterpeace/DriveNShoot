@@ -394,6 +394,7 @@ var media_panel: ProtoMediaPanel = null
 var newsroom: ProtoNewsroom = null
 var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
+var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
 var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
@@ -478,6 +479,10 @@ func _build_environment() -> void:
 	# THE RADIO FACE (control_gallery goal): a frequency dial with preset stations. O opens it.
 	radio_dial = ProtoRadioDial.create(music)
 	add_child(radio_dial)
+	# THE SKILL TREE (control/skill goal): a visual mastery tree, perks light as you level
+	# by doing. U opens it; the K text sheet (world atlas) stays exactly as it was.
+	skill_tree = ProtoSkillTree.create(self, character)
+	add_child(skill_tree)
 	var tv := ProtoTV.create()
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
@@ -674,6 +679,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		char_create.toggle()
 	elif event.is_action_pressed("drivn_sheet"):
 		hud.toggle_sheet(_sheet_text())
+	elif event.is_action_pressed("drivn_skill_tree"):
+		skill_tree.toggle() # the visual mastery tree — perks light as skills level by doing
 	elif event.is_action_pressed("drivn_waypoints"):
 		waypoint_idx = ((waypoint_idx + 2) % (waypoints.size() + 1)) - 1 # -1(off) -> 0 -> 1 -> 2 -> -1
 		if waypoint_idx >= 0:
@@ -722,7 +729,8 @@ func _physics_process(delta: float) -> void:
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
-		or (radio_dial != null and radio_dial.is_open)
+		or (radio_dial != null and radio_dial.is_open) \
+		or (skill_tree != null and skill_tree.is_open)
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()

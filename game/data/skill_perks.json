@@ -1,0 +1,32 @@
+{
+  "_comment": "SKILL TREE perk nodes (goal — idea from Michael-Jalloh/SkillEditor, MIT, adapted to DRIVN's LEVEL-BY-DOING model: nodes UNLOCK when the skill's level reaches `level`, EARNED by use — never spent). One branch per skill (ids match ProtoCharacter.SKILLS). The martial_arts nodes are REAL code gates (lv2 kicks / lv4 throws / lv6 finishers, weapon.gd); kinship lv3/lv6 taming, mechanics/scavenging step gates, and per-level effects are the live character.gd formulas — the rest surface those milestones. ProtoSkillTree renders this; add a node = a row here, no code.",
+  "perks": {
+    "driving":      [{"level": 1, "name": "Steady Hands", "desc": "+5%/lv handling, tighter drift, less spin"},
+                     {"level": 4, "name": "Drift Master", "desc": "spin control holds through a powered slide"},
+                     {"level": 8, "name": "Redline", "desc": "the top-speed bonus keeps climbing (+1%/lv)"}],
+    "kinship":      [{"level": 1, "name": "Bond", "desc": "-12%/lv command delay, braver pack"},
+                     {"level": 3, "name": "Whisperer", "desc": "cheaper taming — strays come easier"},
+                     {"level": 6, "name": "Pack Alpha", "desc": "cheaper taming again + longer horn recall"}],
+    "mechanics":    [{"level": 1, "name": "Wrench", "desc": "+8%/lv part repairs"},
+                     {"level": 2, "name": "Salvager", "desc": "+1 salvage scrap every 2 levels"},
+                     {"level": 5, "name": "Fast Hands", "desc": "hotwires drop by -0.5s/lv"}],
+    "marksmanship": [{"level": 1, "name": "Steady Aim", "desc": "-6%/lv spread"},
+                     {"level": 3, "name": "Deadeye", "desc": "+1%/lv crit chance starts to bite"},
+                     {"level": 6, "name": "Quickload", "desc": "-4%/lv reload time"}],
+    "melee":        [{"level": 1, "name": "Cleaver", "desc": "+6%/lv damage, -5%/lv stamina"},
+                     {"level": 4, "name": "Bonebreaker", "desc": "+2%/lv knockdown lands them on the ground"}],
+    "martial_arts": [{"level": 2, "name": "KICKS", "desc": "the combo finisher becomes a roundhouse kick"},
+                     {"level": 4, "name": "THROWS", "desc": "a shove at grapple range is a guaranteed hip toss"},
+                     {"level": 6, "name": "FINISHERS", "desc": "a punch on a downed body lands x3 — ground & pound"}],
+    "endurance":    [{"level": 1, "name": "Wind", "desc": "+6/lv max stamina"},
+                     {"level": 5, "name": "Second Wind", "desc": "+5%/lv stamina recovery"}],
+    "strength":     [{"level": 1, "name": "Packhorse", "desc": "+2.5kg/lv carry capacity"},
+                     {"level": 4, "name": "Bruiser", "desc": "+6%/lv melee shove — throw them further"}],
+    "stealth":      [{"level": 1, "name": "Soft Step", "desc": "-5%/lv detection range on foot"},
+                     {"level": 5, "name": "Ghost", "desc": "creep the edge of a threat's cone unseen"}],
+    "scavenging":   [{"level": 1, "name": "Scrounger", "desc": "bonus finds in caches"},
+                     {"level": 3, "name": "Cartographer", "desc": "+1 chunk map-fragment reveal every 3 levels"}],
+    "first_aid":    [{"level": 1, "name": "Field Dressing", "desc": "+8%/lv healing from bandages, medkits, pills"},
+                     {"level": 5, "name": "Medic", "desc": "wounds close fast under a skilled hand"}]
+  }
+}
