@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>THE FORGE — DRIVN editor hub</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚒</text></svg>">
+<style>
+  :root{
+    --bg: oklch(0.16 0.012 60);
+    --panel: oklch(0.20 0.014 60);
+    --line: oklch(0.32 0.02 60);
+    --ink: oklch(0.93 0.01 80);
+    --mut: oklch(0.68 0.03 70);
+    --amber: oklch(0.72 0.17 70);
+    --amber-hot: oklch(0.8 0.17 75);
+    --red: oklch(0.62 0.2 25);
+    --green: oklch(0.7 0.17 145);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:Inter,system-ui,Segoe UI,sans-serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:1rem;
+    padding:.5rem 1rem; background:var(--panel);
+    border-bottom:2px solid var(--line); flex:0 0 auto;
+  }
+  .logo{font-weight:700; letter-spacing:-0.025em; font-size:1.05rem; white-space:nowrap}
+  .logo b{color:var(--amber)}
+  nav{display:flex; gap:.4rem; flex:1 1 auto}
+  nav button{
+    appearance:none; border:1px solid var(--line); background:transparent;
+    color:var(--mut); font:inherit; font-weight:600; font-size:.85rem;
+    padding:.4rem .9rem; border-radius:999px; cursor:pointer;
+    display:flex; align-items:center; gap:.45rem; transition:all .2s;
+  }
+  nav button:hover{color:var(--ink); border-color:var(--amber)}
+  nav button.active{background:var(--amber); border-color:var(--amber); color:oklch(0.18 0.02 60)}
+  nav button.dead{opacity:.45; cursor:default}
+  .dot{width:.5rem; height:.5rem; border-radius:50%; background:var(--mut); flex:0 0 auto}
+  .dot.up{background:var(--green)} .dot.down{background:var(--red)}
+  nav button.active .dot.up{background:oklch(0.3 0.1 145)}
+  .helpbtn{
+    appearance:none; border:1px solid var(--line); background:transparent; color:var(--amber);
+    font:inherit; font-weight:700; font-size:.85rem; padding:.4rem .8rem; border-radius:.625rem;
+    cursor:pointer; transition:all .2s;
+  }
+  .helpbtn:hover{background:var(--amber); color:oklch(0.18 0.02 60)}
+  main{flex:1 1 auto; position:relative}
+  iframe{
+    position:absolute; inset:0; width:100%; height:100%;
+    border:0; background:var(--bg); display:none;
+  }
+  iframe.show{display:block}
+  .offline{
+    position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:.75rem; text-align:center; padding:2rem;
+  }
+  .offline.show{display:flex}
+  .offline h2{font-size:1.4rem; letter-spacing:-0.025em}
+  .offline p{color:var(--mut); max-width:34rem; line-height:1.5}
+  .offline .retry{margin-top:.5rem}
+  /* help drawer */
+  #help{
+    position:absolute; top:0; right:0; bottom:0; width:min(30rem,90%);
+    background:var(--panel); border-left:2px solid var(--amber);
+    transform:translateX(102%); transition:transform .25s ease; overflow-y:auto;
+    padding:1.5rem; z-index:10; box-shadow:-8px 0 30px rgb(0 0 0 / .5);
+  }
+  #help.open{transform:none}
+  #help h2{color:var(--amber); letter-spacing:-0.025em; font-size:1.2rem; margin-bottom:.25rem}
+  #help .sub{color:var(--mut); font-size:.85rem; margin-bottom:1rem}
+  #help section{margin-bottom:1.25rem}
+  #help h3{font-size:.95rem; margin-bottom:.4rem}
+  #help ul{list-style:none}
+  #help li{
+    color:var(--mut); font-size:.85rem; line-height:1.55; padding-left:1.1rem; position:relative; margin-bottom:.35rem;
+  }
+  #help li::before{content:"▸"; color:var(--amber); position:absolute; left:0}
+  #help kbd{
+    background:var(--bg); border:1px solid var(--line); border-radius:.3rem;
+    padding:.05rem .35rem; font-size:.75rem; color:var(--ink);
+  }
+  #help .close{position:absolute; top:1rem; right:1rem}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚒ THE <b>FORGE</b> <span style="color:var(--mut);font-weight:400;font-size:.8rem">· one hub, every DRIVN editor</span></div>
+  <nav id="tabs"></nav>
+  <button class="helpbtn" id="helpToggle">? HOW TO USE</button>
+</header>
+<main id="main">
+  <div class="offline" id="offline">
+    <h2 id="offTitle">Tool is waking up…</h2>
+    <p id="offMsg">Give it a second — the hub starts every editor for you. If this doesn't come up, its server crashed; check the console window.</p>
+    <button class="helpbtn retry" onclick="retry()">RETRY</button>
+  </div>
+  <aside id="help"><button class="helpbtn close" onclick="toggleHelp(false)">✕ CLOSE</button><div id="helpBody"></div></aside>
+</main>
+<script>
+const TOOLS = [
+  {
+    id:"map", label:"MAP", port:8899, title:"MapForge", sub:"the USA itself — biomes, roads, exits, towns, placements",
+    help:[
+      ["What it edits", [
+        "The whole 150×85 compressed USA: <b>game/data/usmap.json</b>.",
+        "Biome painting, road drawing (edits PRESERVE road character), city/town placement.",
+        "<b>EXIT NODES</b>: click a highway to place an exit — pick archetype + tier, ramps are auto-built, numbering per-highway (that's your I-95_X1 MERIDIAN).",
+        "<b>STRUCTURE CATALOG</b>: create building profiles as rows. Creating ≠ placing — place them on the map after.",
+      ]],
+      ["Golden rules", [
+        "SAVE in the tool, then in the game press <kbd>F10</kbd> (DEV MODE → FORGE reload) to see it live — no restart.",
+        "Roads first, then exits, then structures at the exits. That's the build order that keeps the world coherent.",
+        "Scale law: 60× — 4 real hours of driving = 4 in-game minutes. Keep towns near exits or nobody finds them.",
+      ]],
+    ]
+  },
+  {
+    id:"media", label:"MEDIA", port:8897, title:"MediaForge", sub:"movies, TV reels, radio stations — drop files, get game content",
+    help:[
+      ["Videos (any MP4 — even your 360p one)", [
+        "Drop an MP4 into the tool (or tell Claude where it is). It converts to the game format (.ogv), makes a poster + a manifest ROW automatically.",
+        "Rows land on: safehouse TV, the drive-in, found-media pickups, public screens.",
+        "In-game: walk to the safehouse TV and interact — time passes while you watch, progress saves.",
+      ]],
+      ["Music & radio stations", [
+        "Any folder under <b>game/media/music/radio/</b> IS a station — the folder name is the station name.",
+        "Loose MP3s in the radio root = the FREEWAVE station. MP3s need zero conversion.",
+        "The STATIONS panel here can create stations too (CREATE button).",
+        "In-game: <kbd>O</kbd> radio power · <kbd>L</kbd> next station · <kbd>,</kbd>/<kbd>.</kbd> volume.",
+      ]],
+    ]
+  },
+  {
+    id:"vehicles", label:"VEHICLES", port:8898, title:"VehicleForge", sub:"the fleet — every rig is a data row",
+    help:[
+      ["What it edits", [
+        "<b>game/data/vehicles.json</b> — 10+ rigs, each 100% data: speed, grip, armor, fuel, seats, mounts.",
+        "Armor-forward editor: the 5 damage parts (engine/tires/chassis/tank/lights) you FEEL in-game.",
+        "TEST DRIVE any rig on the proving track straight from the editor; best-lap compare shows if your tune is faster.",
+      ]],
+      ["Golden rules", [
+        "A new vehicle is a ROW, never code. Copy an existing rig, rename, tweak.",
+        "After saving: <kbd>F10</kbd> in the game re-folds vehicle data live.",
+        "Want the ELECTRIC car? Ask Claude — battery/charge is a new field set on the row schema.",
+      ]],
+    ]
+  },
+  {
+    id:"motion", label:"MOTION", port:8896, title:"MotionForge", sub:"how every body moves — walk, swing, punch, kick",
+    help:[
+      ["What it edits", [
+        "Procedural-motion ROWS (<b>data/motions.json</b>) that overlay the code's stock values.",
+        "<b>MELEE row is live</b>: 15 params — windup/slash/settle timings + angles, punch snap/reach, kick height/lean. This is where we fix the arm swing you hate.",
+        "Describe-it box: type what you want ('heavier windup, snappier slash') and it turns words into slider moves.",
+      ]],
+      ["Golden rules", [
+        "Use the treadmill STAGE to preview: <kbd>M</kbd>/<kbd>P</kbd>/<kbd>K</kbd> preview strikes, <kbd>W</kbd> weapon-in-hand.",
+        "Save the row, then <kbd>F10</kbd> in the running game — motion re-folds live, no restart.",
+        "Small moves: ±10% on one slider at a time beats dragging five sliders at once.",
+      ]],
+    ]
+  },
+];
+
+const tabsEl = document.getElementById("tabs");
+const mainEl = document.getElementById("main");
+const offEl  = document.getElementById("offline");
+let current = localStorage.getItem("forge.tab") || "map";
+
+for (const t of TOOLS) {
+  const b = document.createElement("button");
+  b.id = "tab-" + t.id;
+  b.innerHTML = `<span class="dot" id="dot-${t.id}"></span>${t.label}`;
+  b.onclick = () => show(t.id);
+  tabsEl.appendChild(b);
+  const f = document.createElement("iframe");
+  f.id = "frame-" + t.id;
+  f.src = "http://localhost:" + t.port + "/";
+  mainEl.insertBefore(f, offEl);
+}
+
+function tool(id){ return TOOLS.find(t => t.id === id); }
+
+function show(id){
+  current = id; localStorage.setItem("forge.tab", id);
+  for (const t of TOOLS) {
+    document.getElementById("tab-" + t.id).classList.toggle("active", t.id === id);
+    document.getElementById("frame-" + t.id).classList.toggle("show", t.id === id && t.up !== false);
+  }
+  offEl.classList.toggle("show", tool(id).up === false);
+  if (tool(id).up === false) {
+    document.getElementById("offTitle").textContent = tool(id).title + " isn't answering";
+  }
+  renderHelp();
+}
+
+function retry(){
+  const t = tool(current);
+  document.getElementById("frame-" + t.id).src = "http://localhost:" + t.port + "/";
+  refreshStatus();
+}
+
+async function refreshStatus(){
+  try {
+    const r = await fetch("/api/status");
+    const s = await r.json();
+    for (const t of TOOLS) {
+      t.up = !!s[t.id];
+      const d = document.getElementById("dot-" + t.id);
+      d.classList.toggle("up", t.up);
+      d.classList.toggle("down", !t.up);
+    }
+    show(current);
+  } catch(e) { /* hub itself unreachable; leave dots gray */ }
+}
+
+/* help drawer */
+const helpEl = document.getElementById("help");
+function toggleHelp(open){ helpEl.classList.toggle("open", open); }
+document.getElementById("helpToggle").onclick = () => toggleHelp(!helpEl.classList.contains("open"));
+function renderHelp(){
+  const t = tool(current);
+  document.getElementById("helpBody").innerHTML =
+    `<h2>${t.title}</h2><div class="sub">${t.sub}</div>` +
+    t.help.map(([h, items]) =>
+      `<section><h3>${h}</h3><ul>${items.map(i => `<li>${i}</li>`).join("")}</ul></section>`
+    ).join("") +
+    `<section><h3>Everywhere</h3><ul>
+      <li>Every tool writes DATA ROWS — the game folds them in with <kbd>F10</kbd>, no restart.</li>
+      <li>Close this console window = every editor stops. Double-click <b>EDITOR.bat</b> to bring it all back.</li>
+      <li>Stuck? Tell Claude what you tried — every panel here also has a matching API he can drive for you.</li>
+    </ul></section>`;
+}
+
+show(current);
+refreshStatus();
+setInterval(refreshStatus, 5000);
+</script>
+</body>
+</html>

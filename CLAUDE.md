@@ -1,6 +1,6 @@
 # Claude AI Development Guide for CarWorld / DRIVN
 
-**Last Updated:** 2026-07-06
+**Last Updated:** 2026-07-07
 **Project Status:** 🚗 3D mainline (`game/proto3d/`) — deep vertical slice, all systems live
 **Master spec:** `docs/ENGINE.md` · **Vision:** Autoduel × GTA2 in the DIVIDED STATES OF AMERICA (`docs/DIVIDED_STATES.md`)
 
@@ -13,7 +13,8 @@ Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours 
 
 - **res:// = `game/`** (never `res://game/`). Godot exe:
   `C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64.exe` (+ `_console.exe` for headless).
-- **Run the game:** `Godot --path game res://proto3d/proto3d.tscn`
+- **Run the game:** double-click **`PLAY.bat`** (repo root) — or `Godot --path game res://proto3d/proto3d.tscn`
+- **Run the editors:** double-click **`EDITOR.bat`** — THE FORGE hub (:8900) starts/adopts every forge in one tabbed UI
 - **Legacy 2D game is QUARANTINED** in `legacy-2d/` at the repo root (2026-07-06) — OUTSIDE res://, so it can never load, launch, or hijack input again (it once F2-swapped a live playtest into the 2D start screen). Reference only; docs in `docs/legacy-2d/`. res:// now holds ONLY `addons/ assets/ data/ proto3d/`.
 
 ## 🕹 Controls (current)
@@ -62,6 +63,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)
 
+- **⚒ THE FORGE hub** `EDITOR.bat` / `node tools/forge/server.mjs` (:8900) — ONE command: starts (or ADOPTS, if already running) Map+Media+Vehicle+Motion forges, tabbed UI + per-tool "HOW TO USE" drawer + live health dots; children keep their own ports so every existing URL/API still works
 - **VehicleForge** `node tools/vehicleforge/server.mjs` (:8898) — fleet editor, armor-forward, TEST DRIVE, best-lap compare
 - **MapForge v3** `node tools/mapforge/server.mjs` (:8899) — biomes, roads (character-preserving edits), **EXIT NODES** (spec §5: click-to-place w/ archetype+tier, auto off/return ramps, per-highway numbering, canvas diamonds + list), **STRUCTURE CATALOG** (spec §7 rows, §9 JOB-rule validation — created ≠ placed), authored placements, town templates
 - **SoundForge** `tools/soundforge/` — `generate.mjs` (ElevenLabs SFX), `voices.mjs` (TTS, consistent voices)
