@@ -1,0 +1,22 @@
+{
+  "_comment": "POPULATION CELLS (docs/design/POPULATION_WAR.md §3.1): desired population by zone_tag, folded ADDITIVELY onto ProtoPopulation's code floor via ensure_targets() (same spine pattern as ProtoNPC.ensure_archetypes/ensure_prices — a JSON row here adds/overrides a zone_tag's desired mix with no code). Groups: civilian/worker/threat/law/faction_troops (the owner-named five). 'defaults' holds every timer/fraction knob so nothing is hardcoded in population.gd — WAR_AI_RESEARCH.md §1.2's PZ timers, converted to OUR 24-minute in-game day (see comments per knob).",
+  "defaults": {
+    "_refill_unseen_hours_comment": "POPULATION_WAR.md §3.1 rule 2 / §4 formula worked example: 2.0 game-clock hours before a cleared cell is eligible to refill again. (PZ's RespawnUnseenHours default is 16 REAL hours over a much larger world; POPULATION_WAR.md's own formula example uses 2.0 for our compressed cell grid, not a straight unit port — see report.)",
+    "refill_unseen_hours": 2.0,
+    "_refill_step_comment": "POPULATION_WAR.md §3.1: 'a cell's group G refills by +1 (never a burst)' and §8 acceptance: 'not a burst to full desired population in one tick'. This is a LITERAL COUNT per eligible unseen-cycle, not PZ's 10%-of-desired fractional RespawnMultiplier (which rounds to 0 forever at our small desired_pop values, e.g. floor(0.1*3)=0) — POPULATION_WAR.md's own rule text and acceptance criteria are the authority here.",
+    "refill_step": 1,
+    "min_spawn_dist_m": 45.0,
+    "max_materialized_per_group": 4,
+    "safe_bubble_m": 18.0,
+    "render_distance_m": 300.0
+  },
+  "targets": {
+    "thick_forest":       {"civilian": 0, "worker": 0, "threat": 3, "law": 0, "faction_troops": 0},
+    "house_field":        {"civilian": 2, "worker": 1, "threat": 1, "law": 0, "faction_troops": 0},
+    "road_shoulder":      {"civilian": 1, "worker": 0, "threat": 2, "law": 0, "faction_troops": 0},
+    "suburbs":            {"civilian": 4, "worker": 1, "threat": 1, "law": 1, "faction_troops": 0},
+    "industrial":         {"civilian": 0, "worker": 3, "threat": 1, "law": 1, "faction_troops": 0},
+    "military_perimeter": {"civilian": 0, "worker": 0, "threat": 2, "law": 0, "faction_troops": 4},
+    "war_front":          {"civilian": 0, "worker": 0, "threat": 0, "law": 0, "faction_troops": 8}
+  }
+}
