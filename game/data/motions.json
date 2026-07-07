@@ -1,0 +1,4 @@
+{
+  "_comment": "MotionForge rows — tuned overrides for the procedural sin() rigs. The engine folds these over its stock literals at boot (additive: only listed params change). Edit at http://localhost:8896 or via the REST API (GET /api/help).",
+  "rigs": {}
+}
