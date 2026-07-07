@@ -2078,7 +2078,8 @@ func _apply_hand_pose(wpn: ProtoWeapon) -> void:
 		player.puppet.raised = true
 		return
 	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
-	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
+	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
 	# Guns ride raised (the twin-stick aim read); steel is CARRIED — the arm hangs
 	# and only comes up in the swing (playtest: the always-raised wrench floated).
 	player.puppet.raised = not wpn.is_melee()
