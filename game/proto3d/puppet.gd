@@ -85,12 +85,21 @@ static var MOTION: Dictionary = {
 		"kick_out_s": 0.07, "kick_height": 1.5, "kick_back_s": 0.18, "kick_lean": 0.25},
 }
 static var _motion_folded: bool = false
+## The pristine code floor, captured before the FIRST fold — every re-fold starts
+## from here, so DELETING a row in motions.json actually reverts the live value
+## (the old additive-only refold could never un-apply an override until restart —
+## the one red motion_stage_sim documented as "restore-timing edge" was this).
+static var _motion_stock: Dictionary = {}
 
 
 static func ensure_motions() -> void:
 	if _motion_folded:
 		return
 	_motion_folded = true
+	if _motion_stock.is_empty():
+		_motion_stock = MOTION.duplicate(true)
+	else:
+		MOTION = _motion_stock.duplicate(true)
 	fold_motion_file("puppet", MOTION)
 
 
