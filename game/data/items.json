@@ -227,6 +227,69 @@
     },
     {
       "category": "tool",
+      "desc": "USE to read. Gears, gas and the handbrake — the road, explained.",
+      "emoji": "🚗",
+      "id": "book_driving",
+      "name": "Driver's Handbook",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. Crouching, punching, and not drowning.",
+      "emoji": "🏃",
+      "id": "book_onfoot",
+      "name": "Manual: On Foot",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. Whistles, bonds, and the dog's eye.",
+      "emoji": "🐕",
+      "id": "book_dogs",
+      "name": "Manual: The Pack",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. The safehouse, the clock, and going down.",
+      "emoji": "🏠",
+      "id": "book_home",
+      "name": "Manual: Home & Survival",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. Drones, cameras, and voices in the static.",
+      "emoji": "🛸",
+      "id": "book_gadgets",
+      "name": "Manual: Gadgets & Signals",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. Ten gates, one countdown, THE DIAL.",
+      "emoji": "🎠",
+      "id": "book_carousel",
+      "name": "Manual: The Carousel",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
+      "desc": "USE to read. Rulers, respect, and the night.",
+      "emoji": "🪧",
+      "id": "book_states",
+      "name": "Manual: The Divided States",
+      "usable": true,
+      "weight": 0.3
+    },
+    {
+      "category": "tool",
       "desc": "Somebody's road knowledge — marks a town on YOUR map.",
       "emoji": "🗺️",
       "id": "map_fragment",

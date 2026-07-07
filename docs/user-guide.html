@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<!-- Navigable user-guide shell. Rendered by user-guide-builder/scripts/render-guide.mjs from a
+     markdown guide + docs/brand.json. Self-contained; filtering/scrollspy are progressive JS. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRIVN — User Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d0c0a;
+    --surface:#13171e;
+    --border:#232a33;
+    --border-soft:#1b212a;
+    --text:#e7edf3;
+    --muted:#90a0b0;
+    --heading:#f7efdd;
+    --brand:#f5b81a;
+    --accent:#ebe3d1;
+    --accent-ink:#9fd0e8;
+    --grid:rgba(255,255,255,.025);
+    --radius:14px;
+    --maxw:72rem;
+    --sidebar-w:17rem;
+    --font-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+    --font-body:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px;line-height:1.7;
+    -webkit-font-smoothing:antialiased;letter-spacing:-0.006em;
+    background-image:
+      radial-gradient(110% 50% at 50% -10%, color-mix(in oklab,var(--brand) 14%, transparent), transparent 60%),
+      linear-gradient(var(--grid) 1px,transparent 1px),
+      linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:auto,34px 34px,34px 34px;}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  .layout{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:var(--sidebar-w) minmax(0,1fr);gap:2.5rem;padding:0 1.4rem}
+  .toc-toggle{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+  /* ---------------- sidebar ---------------- */
+  .sidebar{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:1.6rem 0 2rem;
+    scrollbar-width:thin}
+  .brand{display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem}
+  .brand .logo{width:1.7rem;height:1.7rem;border-radius:7px;background:var(--brand);display:grid;place-items:center;
+    color:#fff;font-family:var(--font-display);font-weight:700;font-size:.95rem;flex:none}
+  .brand .name{font-family:var(--font-display);font-weight:700;color:var(--heading);font-size:1.05rem;letter-spacing:-0.02em}
+  .ver{display:inline-block;font-family:var(--font-mono);font-size:.72rem;color:var(--brand);
+    border:1px solid color-mix(in oklab,var(--brand) 40%,var(--border));border-radius:6px;padding:.06rem .4rem;margin:.5rem 0 1rem;
+    background:color-mix(in oklab,var(--brand) 10%,transparent)}
+  .toc-search{width:100%;font:inherit;font-size:.85rem;color:var(--text);background:var(--surface);
+    border:1px solid var(--border);border-radius:9px;padding:.5rem .7rem;margin-bottom:.9rem;outline:none}
+  .toc-search:focus{border-color:var(--brand)}
+  .toc-search::placeholder{color:var(--muted)}
+  .toc{display:block}
+  .toc a{display:block;color:var(--muted);font-size:.86rem;padding:.27rem .65rem;border-left:2px solid transparent;
+    border-radius:0 6px 6px 0;text-decoration:none;transition:color .15s,border-color .15s,background .15s}
+  .toc a:hover{color:var(--text);background:var(--surface)}
+  .toc a.lvl3{padding-left:1.5rem;font-size:.81rem}
+  .toc a.active{color:var(--heading);border-left-color:var(--brand);background:color-mix(in oklab,var(--brand) 10%,transparent)}
+  .toc-label{display:none}
+
+  /* ---------------- content ---------------- */
+  .content{padding:2.4rem 0 5rem;min-width:0}
+  .content :where(h1,h2,h3,h4){font-family:var(--font-display);color:var(--heading);letter-spacing:-0.025em;line-height:1.15;scroll-margin-top:1.2rem}
+  .content h1{font-size:clamp(2rem,5vw,2.7rem);margin:0 0 .3rem}
+  .content h2{font-size:1.5rem;margin:2.8rem 0 1rem;padding-top:1.6rem;border-top:1px solid var(--border-soft)}
+  .content h3{font-size:1.14rem;margin:1.8rem 0 .6rem;color:var(--heading)}
+  .content h4{font-size:1rem;margin:1.3rem 0 .4rem;color:var(--text)}
+  .content p{margin:.85rem 0;color:var(--text)}
+  .content strong{color:var(--heading);font-weight:700}
+  .content a{color:var(--brand)}
+  .content ul,.content ol{margin:.8rem 0;padding-left:1.3rem;color:var(--text)}
+  .content li{margin:.34rem 0}
+  .content li::marker{color:var(--muted)}
+  .content code{font-family:var(--font-mono);font-size:.84em;background:var(--surface);border:1px solid var(--border-soft);
+    border-radius:5px;padding:.08em .35em;color:var(--accent-ink)}
+  .content pre{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:1rem 1.1rem;overflow:auto;margin:1.1rem 0}
+  .content pre code{background:none;border:0;padding:0;color:var(--text);font-size:.85rem;line-height:1.6}
+  .content blockquote{margin:1.1rem 0;padding:.7rem 1.1rem;border-left:3px solid var(--brand);
+    background:color-mix(in oklab,var(--brand) 7%,transparent);border-radius:0 9px 9px 0;color:var(--muted)}
+  .content blockquote p{margin:.2rem 0}
+  .content hr{border:0;border-top:1px solid var(--border-soft);margin:2rem 0}
+  .content img{max-width:100%;height:auto;border:1px solid var(--border);border-radius:11px;margin:1rem 0;display:block}
+  .table-wrap{overflow-x:auto;margin:1.1rem 0;border:1px solid var(--border);border-radius:11px}
+  .content table{border-collapse:collapse;width:100%;font-size:.9rem}
+  .content th,.content td{text-align:left;padding:.6rem .85rem;border-bottom:1px solid var(--border-soft);vertical-align:top}
+  .content thead th{background:var(--surface);color:var(--heading);font-weight:600;font-family:var(--font-body);
+    position:sticky;top:0;white-space:nowrap}
+  .content tbody tr:last-child td{border-bottom:0}
+  .content tbody tr:hover{background:color-mix(in oklab,var(--brand) 5%,transparent)}
+
+  .hero-tag{color:var(--muted);font-size:1.05rem;margin:.1rem 0 0}
+  .foot{margin-top:3rem;padding-top:1.4rem;border-top:1px solid var(--border-soft);color:var(--muted);font-size:.82rem}
+  .foot .mono{font-family:var(--font-mono)}
+
+  /* ---------------- responsive ---------------- */
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr;gap:0}
+    .sidebar{position:static;height:auto;padding:1.4rem 0 .4rem;border-bottom:1px solid var(--border-soft)}
+    .toc-label{display:flex;align-items:center;justify-content:space-between;cursor:pointer;color:var(--heading);
+      font-weight:600;font-size:.92rem;padding:.5rem 0;font-family:var(--font-body)}
+    .toc-label .chev{transition:transform .2s;color:var(--muted)}
+    .toc,.toc-search{display:none}
+    #toc-toggle:checked ~ .sidebar .toc,#toc-toggle:checked ~ .sidebar .toc-search{display:block}
+    #toc-toggle:checked ~ .sidebar .toc-label .chev{transform:rotate(180deg)}
+    .content{padding:1.4rem 0 4rem}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <input type="checkbox" id="toc-toggle" class="toc-toggle">
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">D</span><span class="name">DRIVN</span></div>
+    <span class="ver">v0.13.0</span>
+    <label for="toc-toggle" class="toc-label">On this page <span class="chev">▾</span></label>
+    <input type="search" class="toc-search" placeholder="Filter sections…" aria-label="Filter sections">
+    <nav class="toc" aria-label="Table of contents">
+      <a class="" href="#quick-start-your-first-ten-minutes">Quick Start — your first ten minutes</a>
+      <a class="" href="#who-this-is-for">Who this is for</a>
+      <a class="" href="#the-seven-manuals">The Seven Manuals</a>
+      <a class="lvl3" href="#drivers-handbook">🚗 Driver's Handbook</a>
+      <a class="lvl3" href="#on-foot-the-moveset">🏃 On Foot: The Moveset</a>
+      <a class="lvl3" href="#the-pack-dogs">🐕 The Pack: Dogs</a>
+      <a class="lvl3" href="#home-survival">🏠 Home &amp; Survival</a>
+      <a class="lvl3" href="#gadgets-signals">🛸 Gadgets &amp; Signals</a>
+      <a class="lvl3" href="#the-carousel">🎠 The Carousel</a>
+      <a class="lvl3" href="#the-divided-states">🪧 The Divided States</a>
+      <a class="" href="#controls-at-a-glance">Controls at a glance</a>
+      <a class="" href="#troubleshooting">Troubleshooting</a>
+      <a class="" href="#known-gaps-honest-list">Known Gaps (honest list)</a>
+      <a class="" href="#documentation-maintenance-notes">Documentation Maintenance Notes</a>
+    </nav>
+  </aside>
+  <main class="content">
+<h1 id="drivn-players-guide">DRIVN — Player's Guide</h1>
+<p><strong>Current as of v0.13.0</strong> · updated 2026-07-07</p>
+<blockquote>See <a href="SHIPPING-LOG.md">what's new</a> for changes since the last version.</blockquote>
+<p>Top-down vehicular survival across a compressed United States. This is the <strong>player's</strong> guide — the same seven manuals that sit on the bookshelf inside your safehouse (walk up, press <strong>E — 📚 read the MANUALS</strong>). Every key named here is the <em>default</em>; <strong>F11</strong> rebinds anything, keyboard and pad both.</p>
+<p>[SCREENSHOT: library-shelf]</p>
+<h2 id="quick-start-your-first-ten-minutes">Quick Start — your first ten minutes</h2>
+<ol><li><strong>PLAY.bat</strong> → the DRIVN title → <strong>NEW GAME</strong>. THE FIRST RUN guides you: drive, pull over, scavenge, get home. Do what the single HUD line says.</li><li>You start near <strong>Meridian</strong> and the two-story <strong>safehouse</strong> — it's yours. The supply chest inside has food, meds, a shotgun, gadgets, and <em>Manual: Home &amp; Survival</em>.</li><li>Take the car (<strong>E</strong> at the door), drive the interstate (<strong>W/A/S/D</strong>, <strong>SPACE</strong> handbrake), and follow the CIRCUIT pips on the HUD: scavenge → upgrade → push → node.</li><li><strong>F5</strong> saves. If you go down, you wake at the safehouse — lighter. Your dogs are the only permadeath in this game. Protect them.</li></ol>
+<h2 id="who-this-is-for">Who this is for</h2>
+<p>One player (or a co-op partner — <strong>F7</strong> host / <strong>F8</strong> join, PvP rules on <strong>F6</strong>). No roles, no accounts: your save file is the world.</p>
+<h2 id="the-seven-manuals">The Seven Manuals</h2>
+<p>The full instruction set lives <strong>in the game</strong> as books — on the safehouse shelf and as findable items you read from the pack (<strong>TAB</strong>, then USE). The same content, chapter by chapter:</p>
+<h3 id="drivers-handbook">🚗 Driver's Handbook</h3>
+<p><strong>E</strong> enters any rig. <strong>W</strong> gas · <strong>S</strong> brake/reverse · <strong>A/D</strong> steer · <strong>SPACE</strong> handbrake (at speed: a controlled drift; the yaw is capped so you never snap a 180). Standing on the gas from a stop lights a <strong>burnout</strong>. Every vehicle has <strong>five parts you feel failing</strong> — engine (misfires), tires (slop), battery (flicker), fuel tank (leak), chassis — repaired with salvaged car parts / tire kits. Jerry cans pour +40 fuel. Dirt is slower than asphalt and your <strong>tires</strong> decide by how much. In heavy states (Colorado…) the far wilderness genuinely <strong>rolls</strong> — you feel grades through the suspension. Race boards run checkpoint races against your own ghost. [SCREENSHOT: driving-drift]</p>
+<h3 id="on-foot-the-moveset">🏃 On Foot: The Moveset</h3>
+<p><strong>SHIFT</strong> sprint · <strong>CTRL</strong> hold-crouch (×0.55 noise; sprint+tap = <strong>slide</strong>) · <strong>SPACE</strong> dive. Water: wade → swim → drown if stamina dies. <strong>LMB</strong> tap = punch (jab-jab-cross combo), hold = shove, sprint+tap = tackle. <strong>Martial Arts</strong> levels by doing: lv2 KICKS, lv4 THROWS, lv6 FINISHERS — watch them light up in the skill tree (<strong>U</strong>). <strong>`</strong> cycles weapons, <strong>R</strong> reloads, <strong>G</strong> grenade, <strong>B</strong> binoculars. Kills leave <strong>bodies you loot with E</strong> (no crates); bodies decay, picked-clean ones faster. Cars kill pedestrians — including you. [SCREENSHOT: unarmed-combo]</p>
+<h3 id="the-pack-dogs">🐕 The Pack: Dogs</h3>
+<p><strong>E</strong> adopts a stray, <strong>P</strong> pets, feed with meat. Bond: STRAY → COMPANION → PARTNER → SOULBOUND (the prompt wears the tier). <strong>C whistles</strong>: ×1 heel · ×2 guard · ×3 seek · hold SIC · ×4 SHIELD (SOULBOUND only). Dogs jump fences, pounce on SIC, Hunters dig buried caches. <strong>THE DOG'S EYE</strong>: a PARTNER+ dog sent seeking carries a split-screen view — the tighter the bond, the farther it ranges before the screen splits. Dogs are <strong>mortal</strong>: bandage a downed dog in time, or dig a grave and keep the collar. [SCREENSHOT: dog-eye-split]</p>
+<h3 id="home-survival">🏠 Home &amp; Survival</h3>
+<p>The safehouse: supply chest, corner <strong>TV</strong> (E to watch, arrows = channels, slider = volume), <strong>drone dock</strong> and <strong>build board</strong> by the door (scrap → walls I–III, garage, kennel, workbench, bed), kennel across the street. A day is 24 real minutes; the <strong>moon</strong> sets how dark night gets; <strong>T</strong> waits. <strong>Hunger</strong> drains on the clock — eat. Wounds tax six body parts (limp, shaky aim); bandage the worst or medkit everything. <strong>F5/F9</strong> save/load. Going down = wake at home, minus a cut of scrap/scrip; the rig stays where it fell. <strong>K</strong> = the world sheet · <strong>U</strong> = skill tree · <strong>M</strong> = map · <strong>F</strong> = home beacon.</p>
+<h3 id="gadgets-signals">🛸 Gadgets &amp; Signals</h3>
+<p><strong>Drone</strong>: USE deploys a patrol scout; USE again to <strong>take the stick</strong> — your body stands still and the <strong>screen splits</strong> as you fly (<strong>WASD</strong>). You can't power off mid-air: <strong>E</strong> lands it; if you're attacked it hovers and you snap back. Docks recharge in a <strong>quarter of a day</strong> (T-wait counts). The military <strong>Humvee</strong> carries a drone bay on its deck. <strong>Surveillance camera</strong>: plant it; <strong>V</strong> cycles the corner window to its feed. <strong>Motion sensor</strong>: pings from where it stands. <strong>Walkie-talkie</strong>: key it — movement bleeds through the static with a compass direction. <strong>O</strong> opens the <strong>radio dial</strong> — drag across the FM band, stations lock, static hisses between; <strong>Y</strong> scans for distress calls. [SCREENSHOT: radio-dial]</p>
+<h3 id="the-carousel">🎠 The Carousel</h3>
+<p>Ten buried gates. Approach one and its <strong>occupiers wake</strong>. The terminal names the price: <strong>purge</strong> / <strong>launch codes</strong> (earned or bought) / <strong>power</strong> (jerry cans, power cells). Then the <strong>spin-up</strong> — loud, waves come — hold the room until the ring burns teal. An active gate grows a <strong>portal</strong>: activate it and the computer counts you down — <em>ten, nine, eight…</em> — then <strong>THE DIAL rolls</strong> and you're across the country. Lit nodes get besieged; relieve them or they go dark. Cheyenne's <strong>targeting core</strong> makes the jump follow your map course. [SCREENSHOT: carousel-portal]</p>
+<h3 id="the-divided-states">🪧 The Divided States</h3>
+<p>The USA at 60:1 — hours of highway in minutes. Every state has a <strong>ruler</strong> who reads your ledger at the border: welcomes or bounty hunters. <strong>Respect</strong> is per-faction/state and moves prices and standing. THE CIRCUIT (scavenge → upgrade → push → node) is the loop; radio (<strong>Y</strong>) feeds it. Night is dangerous <em>because you can't see</em> — howlers hunt in role-based packs (circlers, chargers, a SCREAMER that calls more), lurkers wait indoors. Headlights and flares scare what the dark sends.</p>
+<h2 id="controls-at-a-glance">Controls at a glance</h2>
+<div class="table-wrap"><table><thead><tr><th>Key</th><th>Verb</th><th>Key</th><th>Verb</th></tr></thead><tbody><tr><td>WASD</td><td>move / steer</td><td>E</td><td>interact / enter / loot</td></tr><tr><td>SHIFT</td><td>sprint</td><td>CTRL</td><td>crouch (sprint+tap slide)</td></tr><tr><td>SPACE</td><td>dive / handbrake</td><td>LMB</td><td>fire / punch / shove</td></tr><tr><td>C</td><td>dog whistle (×1–×4, hold)</td><td>P</td><td>pet the dog</td></tr><tr><td>TAB</td><td>pack / trunk</td><td>M</td><td>map · N waypoints</td></tr><tr><td>K</td><td>character sheet</td><td>U</td><td>skill tree</td></tr><tr><td>Y</td><td>radio scan</td><td>O</td><td>radio dial</td></tr><tr><td>V</td><td>corner window (rearview/drone/cams)</td><td>B</td><td>binoculars</td></tr><tr><td>T</td><td>wait</td><td>F</td><td>home beacon</td></tr><tr><td>F5 / F9</td><td>save / load</td><td>F11</td><td>rebind everything</td></tr><tr><td>F6 / F7 / F8</td><td>PvP rules / host / join</td><td>F10</td><td>dev mode</td></tr></tbody></table></div>
+<p>Full pad support: left stick move, right stick aim, RT fire/gas, and every panel closes on ✕ / Esc / pad-B.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<ul><li><strong>"I hit a button and another game loaded"</strong> — fixed for good: the legacy 2D game is quarantined outside the project. If a menu swallows input, Esc backs out of any panel.</li><li><strong>The drone won't relaunch</strong> — the dock charges a quarter of a day. The prompt shows the %; <strong>T</strong>-waiting speeds the clock and the charge with it.</li><li><strong>"My dog won't kick down a door"</strong> — dogs jump and dig, doors are yours.</li><li><strong>Night is too dark</strong> — that's the moon's call (8-day cycle). Headlights, flares, or wait.</li><li><strong>A manual is missing from the shelf</strong> — all seven also exist as pack items; the starter chest has <em>Home &amp; Survival</em>.</li></ul>
+<h2 id="known-gaps-honest-list">Known Gaps (honest list)</h2>
+<ul><li>The project window says <strong>DRIVN v0.14.0</strong> while <code>docs/VERSION</code> (this guide's anchor) reads <strong>0.13.0</strong> — the next shipping-log pass should reconcile them.</li><li>The <strong>Humvee</strong> exists with its drone bay but isn't placed in the world (the military AI arc is deliberately deferred); spawn it via F10 dev mode.</li><li><strong>Population/war</strong> systems are partially present in the tree and not yet player-visible.</li><li>Screenshots in this guide are placeholders (<code>[SCREENSHOT: …]</code>) until a capture pass runs.</li></ul>
+<h2 id="documentation-maintenance-notes">Documentation Maintenance Notes</h2>
+<ul><li><strong>v0.13.0 · 2026-07-07</strong> — Guide created. Source of truth: <code>game/data/books.json</code> (the 7 in-game manuals; <code>library_sim</code> 14/14 keeps items↔books consistent), plus <code>data/input_bindings.json</code> for every key name and the session's shipped systems (split-screen drone piloting, dog's eye, corpses/roadkill, gadgets, radio dial, TV volume, carousel portal, terrain relief, pixel-art skins). Assumption: default binds. Changed in this pass: initial creation, in-game LIBRARY shipped alongside.</li></ul>
+    <div class="foot">DRIVN user guide · <span class="mono">v0.13.0</span> · updated 2026-07-07</div>
+  </main>
+</div>
+<script>
+  (function(){
+    var links=[].slice.call(document.querySelectorAll('.toc a'));
+    var search=document.querySelector('.toc-search');
+    if(search){search.addEventListener('input',function(){
+      var q=search.value.toLowerCase();
+      links.forEach(function(a){a.style.display=a.textContent.toLowerCase().indexOf(q)>-1?'':'none';});
+    });}
+    var ids=links.map(function(a){return a.getAttribute('href').slice(1);});
+    function spy(){
+      var cur=ids[0];
+      for(var i=0;i<ids.length;i++){
+        var el=document.getElementById(ids[i]);
+        if(el && el.getBoundingClientRect().top<=120) cur=ids[i];
+      }
+      links.forEach(function(a){a.classList.toggle('active',a.getAttribute('href').slice(1)===cur);});
+    }
+    document.addEventListener('scroll',spy,{passive:true});
+    window.addEventListener('resize',spy);
+    spy();
+  })();
+</script>
+</body>
+</html>

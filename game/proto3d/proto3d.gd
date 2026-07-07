@@ -243,7 +243,7 @@ func _ready() -> void:
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
 	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
 		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1,
-		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2})
+		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -396,6 +396,7 @@ var newsroom: ProtoNewsroom = null
 var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
+var book_panel: ProtoBookPanel = null ## THE LIBRARY — the in-game manuals (bookshelf / book items)
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var last_walkie_report: String = "" ## sim hook: the walkie-talkie's last chatter line
@@ -487,6 +488,12 @@ func _build_environment() -> void:
 	# by doing. U opens it; the K text sheet (world atlas) stays exactly as it was.
 	skill_tree = ProtoSkillTree.create(self, character)
 	add_child(skill_tree)
+	# THE LIBRARY (ship-guide): the manuals live IN the world — a bookshelf by the TV.
+	book_panel = ProtoBookPanel.create(self)
+	add_child(book_panel)
+	var shelf := ProtoBookshelf.create(self)
+	add_child(shelf)
+	shelf.global_position = SAFEHOUSE + Vector3(-3.8, 0, -0.6)
 	var tv := ProtoTV.create()
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
@@ -746,7 +753,8 @@ func _physics_process(delta: float) -> void:
 		or (controls_panel != null and controls_panel.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
 		or (radio_dial != null and radio_dial.is_open) \
-		or (skill_tree != null and skill_tree.is_open)
+		or (skill_tree != null and skill_tree.is_open) \
+		or (book_panel != null and book_panel.is_open)
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
@@ -1728,6 +1736,12 @@ func use_item(id: String) -> bool:
 		stress = maxf(0.0, stress - 12.0)
 		notify("🍲 Hot food off your own stove. The road feels shorter.")
 		return true
+	if id.begins_with("book_"):
+		# THE LIBRARY: a manual is an ITEM too — found on the road, read from the pack.
+		if book_panel != null and not ProtoBookPanel.book_by_id(id).is_empty():
+			book_panel.open_book(id)
+			return true
+		return false
 	if id == "surveil_cam":
 		# GADGET: plant a camera facing the way you stand — it feeds the V-window (CAMS).
 		var sc := ProtoSurveilCam.create(self, Vector3.ZERO, player.facing())

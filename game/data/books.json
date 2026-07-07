@@ -1,0 +1,75 @@
+{
+  "_comment": "THE LIBRARY (ship-guide goal): the user guide INSIDE the game — every book a focused instruction manual, every book a ROW. ProtoBookPanel renders these; the safehouse BOOKSHELF opens the library; book_* items (items.json) open a single book from the pack. Pages are plain text, ~10 short lines each, bind names written as the DEFAULT keys (F11 rebinds).",
+  "books": [
+    {
+      "id": "book_driving",
+      "title": "DRIVER'S HANDBOOK",
+      "emoji": "🚗",
+      "pages": [
+        "GETTING MOVING\n\nWalk to any rig and press E to take the wheel.\nW is the gas, S the brake/reverse, A/D steer.\nSPACE is the HANDBRAKE — at speed it breaks the rear loose into a controlled drift.\nStand on the gas from a standstill and the wheels light up in a BURNOUT.\nE steps back out. A passenger can HOLD E to slide over and take the wheel.",
+        "THE FIVE PARTS\n\nEvery rig has an ENGINE, TIRES, BATTERY, FUEL TANK and CHASSIS — and you FEEL each one fail:\nengine misfires, steering slop, flickering lights, a leaking tank.\nSalvaged CAR PARTS repair the worst component. A TIRE KIT patches rubber.\nA breached tank plus a critical chassis is a fire spiral — get OUT.\nWrecks always burn to a husk. Nothing drives home from that.",
+        "FUEL & THE ROAD\n\nThe gauge drains as you drive; a JERRY CAN pours +40 fuel into a rig within reach.\nDirt is slower than asphalt — tires decide how much (knobby buggy barely cares, highway van suffers).\nWeather matters: rain kills grip, dust kills the headlight cone, heat cooks engines.\nIn the far wilderness the land ROLLS — heavy states like Colorado are real climbs.\nRACING: find a race board, cycle a course with E, and beat your own ghost."
+      ]
+    },
+    {
+      "id": "book_onfoot",
+      "title": "ON FOOT: THE MOVESET",
+      "emoji": "🏃",
+      "pages": [
+        "MOVING\n\nWASD moves, SHIFT sprints (stamina), CTRL holds a CROUCH — quiet, small, ×0.55 noise.\nSprint + tap CTRL = a SLIDE. SPACE is the combat DIVE.\nWalk into water and you wade, then swim. Stamina gone mid-swim is how people drown.\nB raises the binoculars. T waits (the clock sprints while you hold still).",
+        "UNARMED\n\nLMB tap throws a PUNCH — taps chain into a jab-jab-cross COMBO.\nHold LMB to SHOVE. Sprint + tap = a TACKLE that puts them on the ground.\nMARTIAL ARTS levels by doing: lv2 the finisher becomes a KICK, lv4 a shove at\ngrapple range is a THROW, lv6 punching a downed body is a FINISHER (×3).\nPress U to see the whole skill tree light up as you earn it.",
+        "ARMED\n\n` cycles weapons; 1/2/3 jump to a slot. R reloads. G throws a grenade.\nRight-stick or mouse aims; melee respects walls — no cutting through brick.\nEvery kill leaves a BODY, not a crate: walk up, E loots the corpse.\nBodies rot away — a picked-clean one goes fast. Cars are weapons too:\nanything on the road can be run down. Including you."
+      ]
+    },
+    {
+      "id": "book_dogs",
+      "title": "THE PACK: DOGS",
+      "emoji": "🐕",
+      "pages": [
+        "TAKING ONE IN\n\nStrays roam the wastes. E adopts one; P pets it (do this often — the BOND is real).\nFeed it dried meat with E. The bond climbs STRAY → COMPANION → PARTNER → SOULBOUND,\nand the prompt wears the tier so you always know where you stand.\nKINSHIP (your skill) makes every command land faster and taming cheaper.",
+        "THE WHISTLE (C)\n\n×1 HEEL — come to me.  ×2 GUARD — hold this spot.\n×3 SEEK — sniff out the nearest cache (Hunters can DIG buried ones).\nHOLD — SIC: take something down.  ×4 SHIELD — SOULBOUND only: locks to your hip.\nDogs JUMP fences on their own and POUNCE when sicced.",
+        "THE DOG'S EYE\n\nSend a PARTNER or SOULBOUND dog seeking and it CARRIES YOUR EYE:\nthe screen splits as it ranges out — you on one side, the dog's ground on the other.\nThe tighter the bond, the farther it ranges before the split (SOULBOUND sees farthest).\nThe eye folds shut when the dog comes off the search.\n\nDOGS ARE MORTAL. Down beside one with a bandage in time, or you dig a grave,\nkeep the collar, and the kennel wall remembers the name."
+      ]
+    },
+    {
+      "id": "book_home",
+      "title": "HOME & SURVIVAL",
+      "emoji": "🏠",
+      "pages": [
+        "THE SAFEHOUSE\n\nMeridian's two-story house is yours: supply chest inside, TV in the corner,\ndrone dock and BUILD BOARD by the door, kennel across the street.\nThe build board spends scrap: WALLS I–III (raids test them), garage, kennel,\nworkbench, bed. F drops a beacon pointing home. M is the map; N cycles waypoints.",
+        "THE CLOCK & THE BODY\n\nA full day passes in 24 real minutes; the moon decides how dark night gets.\nHUNGER drains on the clock — meat, cans, camp-stove meals fix it. Water and\ncoffee refill stamina; whiskey trades stress for a little torso.\nWounds land on six body parts and TAX you: a bad leg limps, a bad arm shakes your aim.\nBandages patch the worst; a medkit treats everything.",
+        "SAVING & GOING DOWN\n\nF5 quick-saves, F9 loads. One file carries the world: dogs, home, ledger, clock.\nGoing down is NOT the end: you wake at the safehouse, mended — but the\nwasteland takes a cut of scrap and scrip, and your rig stays where it fell.\nDogs are the permadeath. Guard them like it.\nK opens the character sheet — the whole world, narrated. U is the skill tree."
+      ]
+    },
+    {
+      "id": "book_gadgets",
+      "title": "GADGETS & SIGNALS",
+      "emoji": "🛸",
+      "pages": [
+        "THE DRONE\n\nUSE a scout drone from your pack (TAB) and it patrols overhead, pinging threats.\nUse it AGAIN to TAKE THE STICK: your body stands still while you fly with WASD —\nand the screen SPLITS as the bird ranges out. You can't switch it off mid-air;\nE brings it in to LAND. Attacked while flying? It HOVERS and you snap back.\nDocks recharge a drone in a QUARTER OF A DAY — or T-wait the charge away.\nThe military's HUMVEE carries its own drone bay on the deck.",
+        "EYES & EARS\n\nSURVEILLANCE CAMERA: plant it watching a road; V cycles the corner window\nto its feed (plant several — V steps camera to camera). E packs it up.\nMOTION SENSOR: plant it on an approach; it PINGS you when anything crosses.\nWALKIE-TALKIE: key it and LISTEN — movement bleeds through the static\nwith a compass direction. Dead air means you're alone. Mostly.",
+        "RADIO & TV\n\nO opens the RADIO: drag the dial across the FM band — stations lock, static\nhisses between them; preset chips jump straight to a frequency. L is next-station,\ncomma/period the volume. Y SCANS the airwaves for distress calls and warnings.\nThe safehouse TV: E to sit down, arrows change channels, the slider sets volume.\nFive channels broadcast — films, trailers, the EBS when the world turns."
+      ]
+    },
+    {
+      "id": "book_carousel",
+      "title": "THE CAROUSEL",
+      "emoji": "🎠",
+      "pages": [
+        "WHAT IT IS\n\nTen buried military gates ring the country — THE CAROUSEL. A lit gate JUMPS you\nacross the map. The catch: every gate is a DUNGEON first. Get close and its\nOCCUPIERS wake up. The terminal names the price: PURGE the squatters,\nbuy or earn LAUNCH CODES, socket POWER (jerry cans, power cells).",
+        "THE SPIN-UP\n\nPay the price and the ring starts to SPIN — loud. Waves come to shut it down.\nHold the room until the ring burns teal: the gate is ACTIVE, a reward chest\nmaterializes, and a PORTAL grows on the platform.\nActivate the portal and the computer counts you down — ten, nine, eight —\nthen THE DIAL rolls and you're somewhere else. E at the terminal jumps quietly too.",
+        "KEEPING IT\n\nLit nodes get BESIEGED — relieve them before the deadline or they go dark.\nNODE GARAGES: a rig parked at a gate travels with the network.\nWith Cheyenne's TARGETING CORE the dial stops being roulette:\nthe jump follows YOUR map course. That's the endgame of the ring."
+      ]
+    },
+    {
+      "id": "book_states",
+      "title": "THE DIVIDED STATES",
+      "emoji": "🪧",
+      "pages": [
+        "THE COUNTRY\n\nThe USA, compressed 60:1 — four hours of real driving crosses it in four minutes.\nEvery state has a RULER and the border reads your ledger: heroes get welcomes,\nproblems get BOUNTY HUNTERS. Welcome signs tell you whose law you're under.\nRESPECT is per-faction and per-state: prices, standing, and refusals all move with it.",
+        "THE CIRCUIT\n\nThe loop that keeps you alive: SCAVENGE a cache → UPGRADE at the workbench →\nPUSH farther out → light a NODE. The HUD pips track the cycle; finishing one pays.\nY catches radio: distress caches, trade runs, howler warnings.\nWeekly, somewhere, a STATE GOES TO WAR — the map is not decoration.",
+        "THE NIGHT\n\nNight shrinks what you can see — that's the danger, not a number.\nHOWLERS hunt in packs with roles: circlers pin you, chargers come straight,\na SCREAMER calls more. Headlights scare them; so do flares.\nLURKERS wait indoors. The walkie hears them moving before you see them.\nRespect the dark or feed it."
+      ]
+    }
+  ]
+}

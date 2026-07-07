@@ -1,0 +1,6 @@
+{
+  "name": "DRIVN",
+  "tagline": "Autoduel × GTA2 in the Divided States of America",
+  "colors": { "bg": "#0d0c0a", "brand": "#f5b81a", "accent": "#ebe3d1", "heading": "#f7efdd" },
+  "fonts": { "display": "Bricolage Grotesque", "body": "Hanken Grotesk", "mono": "JetBrains Mono" }
+}
