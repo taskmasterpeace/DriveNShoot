@@ -137,6 +137,15 @@ func _rebuild() -> void:
 		kb.add_theme_font_override("font", ProtoHUD.mixed_font())
 		kb.add_theme_font_size_override("font_size", 13)
 		kb.custom_minimum_size = Vector2(180, 0)
+		# Show a prompt GLYPH for the primary key when art exists (MIT icon set); the
+		# glyph replaces the text for a single bind, sits beside it for a combo, and
+		# a keyless/art-less bind (Comma, pad-only) just keeps its text.
+		var kicon := ProtoKeyIcons.first_texture(row.get("keys_raw", []))
+		if kicon != null:
+			kb.icon = kicon
+			kb.add_theme_constant_override("icon_max_width", 26)
+			if (row.get("keys_raw", []) as Array).size() <= 1:
+				kb.text = ""
 		var id := String(row["id"])
 		kb.pressed.connect(func() -> void: _begin_capture(id, "keys", kb))
 		h.add_child(kb)

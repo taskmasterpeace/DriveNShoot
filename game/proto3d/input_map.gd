@@ -238,5 +238,9 @@ static func rows_for_panel() -> Array:
 		out.append({"id": row["id"], "label": row.get("label", row["id"]),
 			"group": row.get("group", "OTHER"),
 			"keys_pretty": " + ".join(kp) if not kp.is_empty() else "—",
-			"pad_pretty": " + ".join(pp) if not pp.is_empty() else "—"})
+			"pad_pretty": " + ".join(pp) if not pp.is_empty() else "—",
+			# Raw descriptors too, so the panel can show a glyph icon for the primary
+			# bind (ProtoKeyIcons) and fall back to keys_pretty when there's no art.
+			"keys_raw": (row.get("keys", []) as Array).duplicate(),
+			"pad_raw": (row.get("pad", []) as Array).duplicate()})
 	return out
