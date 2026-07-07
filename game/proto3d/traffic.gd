@@ -36,6 +36,7 @@ static var TRAFFIC: Dictionary = {
 	"honk_brake_mps2": 6.0,  # a brake harder than this earns you a horn
 	"vanish_r_min": 240.0,   # NEVER dissolve inside this of the player — arrivals PARK instead
 	"trip_chance": 1.0,      # share of ambient spawns given a DESTINATION exit ahead (owner: every car is going somewhere)
+	"convoy_chance": 0.25,   # share of ambient spawns that are CONVOYS (BANDIT_CONVOY_ECOSYSTEM.md §3.1 v1)
 }
 static var _folded: bool = false
 
@@ -90,6 +91,11 @@ class TrafficAgent extends AnimatableBody3D:
 	## through-traffic riding to the region's far end (also a destination).
 	var dest_exit_id: String = ""
 	var arrived: bool = false ## reached its destination but can't resolve yet (promote cap, in view)
+	## CONVOYS (BANDIT_CONVOY_ECOSYSTEM.md §3.1 v1): a shared id makes 2-3 agents
+	## ONE STORY — same destination, tight column, and touching any member makes
+	## the whole convoy real. cargo names the loot the trucks actually haul.
+	var convoy_id: String = ""
+	var cargo: String = ""
 
 	func take_damage(amount: float) -> void:
 		if traffic != null:
@@ -402,6 +408,11 @@ func _maintain() -> void:
 				picks.append(String(e["id"]))
 		if not picks.is_empty():
 			tag.dest_exit_id = picks[rng.randi() % picks.size()]
+	# A CONVOY (§3.1 v1): grow the spawn into a 2-3 truck column hauling cargo.
+	if ag != null and rng.randf() < float(TRAFFIC["convoy_chance"]):
+		var lead := ag as TrafficAgent
+		var cargo: String = ["produce", "diesel", "scrap"][rng.randi() % 3]
+		spawn_convoy_behind(lead, rng.randi_range(1, 2), cargo)
 
 
 ## A point on the road inside the spawn ring: project the anchor, walk ±arc.
@@ -535,7 +546,7 @@ func _arrive(ag: TrafficAgent) -> void:
 ## the trip is over. At cap: in view the agent stalls (a stopped car the cull
 ## collects later), off-view it dissolves — never a physics storm, never a
 ## visible vanish.
-func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false) -> void:
+func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false, chain: bool = true) -> void:
 	if not is_instance_valid(ag) or not agents.has(ag):
 		return
 	if _promoted.size() >= int(TRAFFIC["promote_cap"]) or main == null:
@@ -549,7 +560,7 @@ func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false) -> void:
 		return
 	var tag := ag as TrafficAgent
 	var road := _road(tag.road_id)
-	var car := ProtoCar3D.create(["scavenger", "pickup", "van"][rng.randi() % 3], tag.tint)
+	var car := ProtoCar3D.create("van" if tag.convoy_id != "" else ["scavenger", "pickup", "van"][rng.randi() % 3], tag.tint)
 	main.add_child(car)
 	car.global_position = ag.global_position + Vector3(0, 0.35, 0)
 	car.rotation.y = ag.rotation.y
@@ -576,7 +587,24 @@ func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false) -> void:
 		var off := right * (float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 4.0)
 		route.append(Vector3(here.x + d.x * 80.0 + off.x, 0, here.y + d.y * 80.0 + off.y))
 		pilot.set_route(route)
+	# THE CARGO (§3.1): a convoy truck hauls its row in the trunk — rob the road.
+	if tag.cargo != "" and car.trunk != null:
+		match tag.cargo:
+			"produce":
+				car.trunk.add("meat", 4)
+			"diesel":
+				car.trunk.add("jerry_can", 2)
+			"scrap":
+				car.trunk.add("scrap", 5)
+	# A CONVOY IS ONE STORY: touching any member makes the near neighbors real too.
+	var cid := tag.convoy_id
+	var origin := ag.global_position
 	despawn_agent(ag)
+	if chain and cid != "":
+		for other in agents.duplicate():
+			var ot := other as TrafficAgent
+			if ot.convoy_id == cid and is_instance_valid(other) and other.global_position.distance_to(origin) < 90.0:
+				promote(other, 0.0, parked, false)
 
 
 # --- Sim/tool accessors ----------------------------------------------------------
@@ -597,6 +625,42 @@ func agent_road(ag: Node3D) -> String:
 ## Give an agent a DESTINATION exit (sims, convoys, events): it leaves there.
 func set_agent_trip(ag: Node3D, exit_id: String) -> void:
 	(ag as TrafficAgent).dest_exit_id = exit_id
+
+
+## CONVOYS v1 (BANDIT_CONVOY_ECOSYSTEM.md §3.1): grow a lead agent into a
+## column — followers spawn tight behind on the same lane, share the lead's
+## destination and cargo, and the following law keeps the column together.
+## Returns the whole convoy (lead first). The bandit director's future prey.
+func spawn_convoy_behind(lead: TrafficAgent, followers: int, cargo: String) -> Array:
+	var out: Array = [lead]
+	lead.convoy_id = "convoy_%d" % lead.get_instance_id()
+	lead.cargo = cargo
+	_size_as_truck(lead)
+	for k in followers:
+		var f := spawn_agent(lead.road_id, lead.seg_i, lead.s_ab - (k + 1) * 16.0 * float(lead.dir), lead.lane, lead.dir)
+		if f == null:
+			continue
+		var ft := f as TrafficAgent
+		ft.convoy_id = lead.convoy_id
+		ft.cargo = cargo
+		ft.dest_exit_id = lead.dest_exit_id
+		ft.cruise = lead.cruise # a column holds ONE speed
+		ft.speed = lead.speed
+		_size_as_truck(ft)
+		out.append(ft)
+	return out
+
+
+## A convoy vehicle reads as a HAULER: longer, taller, boxier than a sedan.
+func _size_as_truck(ag: TrafficAgent) -> void:
+	for c in ag.get_children():
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is BoxMesh:
+			var bm := (c as MeshInstance3D).mesh as BoxMesh
+			if bm.size.z > 3.0: # the body box
+				bm.size = Vector3(2.3, 1.3, 6.6)
+				(c as MeshInstance3D).position.y = 0.15
+		elif c is CollisionShape3D and (c as CollisionShape3D).shape is BoxShape3D:
+			((c as CollisionShape3D).shape as BoxShape3D).size = Vector3(2.3, 1.5, 6.6)
 
 
 # --- Internals -------------------------------------------------------------------

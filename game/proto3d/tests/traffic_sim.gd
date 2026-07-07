@@ -273,6 +273,38 @@ func _ready() -> void:
 	_check("...and resolved at the destination (city-to-city, proven end to end)",
 		not traffic.agents.has(tripper))
 
+	# === 8. CONVOYS v1 (BANDIT_CONVOY_ECOSYSTEM.md §3.1, Acceptance 1) ============
+	traffic._promoted.clear()
+	ProtoTraffic.TRAFFIC["promote_cap"] = 5.0
+	main.active_car.global_position = Vector3(1875.0, 1.0, -1375.0) # back in view of the column
+	var lead: Node3D = traffic.spawn_agent("I-95", 3, 300.0, 0, 1)
+	traffic.set_agent_trip(lead, "I-95_X1")
+	var column: Array = traffic.spawn_convoy_behind(lead, 2, "scrap")
+	_check("a convoy is a 2-3 truck COLUMN (got %d)" % column.size(), column.size() == 3)
+	var shared := true
+	for cm in column:
+		if traffic.agent_road(cm) != "I-95" or (cm as Node3D).get("dest_exit_id") != "I-95_X1" \
+				or (cm as Node3D).get("convoy_id") == "":
+			shared = false
+	_check("...sharing ONE destination and ONE convoy id", shared)
+	for _i in 60:
+		traffic._tick(0.05)
+	var gap01: float = (column[0] as Node3D).global_position.distance_to((column[1] as Node3D).global_position)
+	var gap12: float = (column[1] as Node3D).global_position.distance_to((column[2] as Node3D).global_position)
+	_check("the column HOLDS together on the move (gaps %.0fm/%.0fm, both 6-40m)" % [gap01, gap12],
+		gap01 > 6.0 and gap01 < 40.0 and gap12 > 6.0 and gap12 < 40.0)
+	var cars_before2: int = main.cars.size()
+	(column[0] as Node3D).take_damage(10.0)
+	await get_tree().process_frame
+	_check("touching ONE truck makes the WHOLE CONVOY real (+3 cars, got +%d)" % (main.cars.size() - cars_before2),
+		main.cars.size() == cars_before2 + 3)
+	var hauls_cargo := false
+	for ci in range(cars_before2, main.cars.size()):
+		var trunk: ProtoContainer = main.cars[ci].trunk
+		if trunk != null and trunk.count("scrap") >= 5:
+			hauls_cargo = true
+	_check("...and the trucks HAUL their cargo row (scrap in a trunk)", hauls_cargo)
+
 	print("TRAFFIC RESULTS: %d passed, %d failed" % [passed, failed])
 	print("TRAFFIC: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)
