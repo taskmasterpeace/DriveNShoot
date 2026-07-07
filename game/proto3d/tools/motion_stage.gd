@@ -25,6 +25,22 @@
 ## Keys: 1/2/3 speed · C crouch · A airborne pose · D dig pose · R force re-fold
 ## (on top of the automatic poll) · M/P/K strike previews · W item cycle ·
 ## WASD/arrows move-heading · mouse aim · RMB-drag orbit · wheel zoom.
+##
+## STRIKE POSE AUTHORING (docs/design/POSE_TO_POSE_STRIKES.md, §Authoring Flow):
+## TAB toggles AUTHOR MODE — a non-programmer poses the box man joint by joint,
+## captures 3-4 keyframes into a strike row, times them, marks the ONE contact
+## pose, and saves straight into data/strikes.json (read-modify-write, same
+## fold convention as motions.json) — all without leaving the stage window.
+## While in author mode the puppet's normal animate() call is SKIPPED entirely
+## (legs/breathing pause too) and the 5 posable joints are driven directly from
+## the author's live pose buffer instead — the simplest, most reliable
+## ownership gate: a frozen mannequin you pose, not a moving target. G cycles
+## which strike row is being edited (existing rows import their real saved
+## poses first, never start blank); 1-5 select a joint; Q/E nudge it ±0.05rad
+## (SHIFT = x3); C captures, U undoes; ,/. pick which captured pose is being
+## edited; [/] and ;/' adjust that pose's ease_ms/hold_ms; X marks it the
+## (exclusive) contact pose; ENTER saves; SPACE previews the working row
+## through a real ProtoStrikePlayer; ESC exits back to normal stage behavior.
 ## Run: godot --path game res://proto3d/tools/motion_stage.tscn
 extends Node3D
 
@@ -84,6 +100,41 @@ var _move_heading: Vector3 = Vector3.ZERO
 var _prev_puppet_yaw: float = 0.0
 const HEADING_TURN_RATE_DEG: float = 320.0 ## how fast the BODY swings to face the WASD heading
 
+# --- STRIKE POSE AUTHORING (docs/design/POSE_TO_POSE_STRIKES.md) -------------
+const STRIKES_PATH: String = "res://data/strikes.json"
+## The rows a non-programmer can dial through with G. The real, already-shipped
+## rows come first (importing their true saved poses — never blank); trailing
+## slots are reserved blank-start ids for brand-new strikes (spec: "shove had
+## no procedural row before... it's the one row that legitimately starts
+## blank" generalizes to any custom id past the shipped six).
+const AUTHOR_ROW_IDS: Array[String] = [
+	"punch_1", "punch_2", "punch_3", "kick", "shove", "weapon_swing",
+	"new_custom_1", "new_custom_2", "new_custom_3",
+]
+const JOINT_NUDGE_STEP: float = 0.05     ## rad, per Q/E tap
+const JOINT_NUDGE_SHIFT_MULT: float = 3.0
+const TIMING_STEP_MS: float = 20.0       ## per [/]/;/' tap
+## joint index (1-5) -> the exact name ProtoStrikePlayer.JOINT_AXIS/JOINT_NAMES use.
+const AUTHOR_JOINTS: Array[String] = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick"]
+
+var _author_mode: bool = false
+var _author_row_id: String = "punch_1"
+var _author_row_idx: int = 0
+## Array[Dictionary] — each shaped exactly like a strikes.json pose entry
+## ({"name","joints","ease_ms","hold_ms","ease_curve","contact"}) so SAVE never
+## needs to reshape anything, only splice this array into the file's row.
+var _author_poses: Array = []
+## The LIVE posing buffer while freezing the puppet — torso_twist etc -> float,
+## the values actually written onto the joints every author-mode frame.
+var _author_joint_values: Dictionary = {}
+var _author_selected_joint: int = 0   ## index into AUTHOR_JOINTS
+var _author_selected_pose: int = -1   ## index into _author_poses (,/. moves it); -1 = none captured yet
+## The ProtoStrikePlayer this stage owns for author-mode PREVIEW (SPACE) only —
+## entirely separate from the puppet's real M/P/K preview keys, which keep
+## working unchanged whether author mode is on or off.
+var _author_player: ProtoStrikePlayer = null
+var _author_previewing: bool = false
+
 
 func _ready() -> void:
 	# Floor, light — a stage, not a world.
@@ -127,7 +178,14 @@ func _ready() -> void:
 	_last_mtime = FileAccess.get_modified_time(MOTIONS_PATH)
 	_last_sig = _motions_file_sig()
 	_set_item(0)
-	print("MOTION STAGE — mouse aims · RMB-drag orbits · wheel zooms · WASD/arrows move-heading · W item cycle · M/P/K strikes · motions.json auto-refolds live.")
+
+	_author_player = ProtoStrikePlayer.new()
+	add_child(_author_player)
+	_author_player.setup(_author_joint_map(), Callable())
+	_author_player.finished.connect(_on_author_preview_finished)
+	_load_author_row(_author_row_idx)
+
+	print("MOTION STAGE — mouse aims · RMB-drag orbits · wheel zooms · WASD/arrows move-heading · W item cycle · M/P/K strikes · TAB strike-pose authoring · motions.json auto-refolds live.")
 
 
 func _build_ui() -> void:
@@ -165,13 +223,28 @@ func _build_ui() -> void:
 
 
 func _legend_text() -> String:
+	if _author_mode:
+		return _author_legend_text()
 	return "MOTION STAGE\n" \
 		+ "1/2/3  speed\nC  crouch · A  air pose · D  dig pose\n" \
 		+ "M  swing · P  punch · K  kick\n" \
 		+ "W  cycle held item\n" \
 		+ "WASD / arrows  move-heading (mouse keeps aiming)\n" \
 		+ "mouse  aim · RMB-drag  orbit camera · wheel  zoom\n" \
-		+ "R  force re-fold (motions.json also auto-refolds live)"
+		+ "R  force re-fold (motions.json also auto-refolds live)\n" \
+		+ "TAB  enter STRIKE POSE AUTHORING"
+
+
+## STRIKE POSE AUTHORING legend — Q/E chosen over +/- (spec: "pick what feels
+## obvious"): +/- shares a key with = on most boards and reads ambiguously
+## against the SHIFT-x3 modifier, where SHIFT+Q/E is unambiguous.
+func _author_legend_text() -> String:
+	return "STRIKE POSE AUTHORING — editing '%s' (G cycles row)\n" % _author_row_id \
+		+ "1-5 select joint · Q/E nudge -+0.05rad (SHIFT x3)\n" \
+		+ "C capture pose · U undo capture\n" \
+		+ ", / .  select captured pose to edit\n" \
+		+ "[ / ]  ease_ms -+20 · ; / '  hold_ms -+20 · X  toggle CONTACT (exclusive)\n" \
+		+ "ENTER save to strikes.json · SPACE preview · ESC exit authoring"
 
 
 func _toast(text: String) -> void:
@@ -208,6 +281,22 @@ func _current_item_label() -> String:
 
 func _process(delta: float) -> void:
 	_poll_motions_file(delta)
+	_legend_label.text = _legend_text() # cheap; mode/row/joint selection changes it often
+
+	if _author_mode:
+		# FREEZE: the puppet holds the posed values — animate()'s gait/breathing
+		# is skipped entirely rather than partially fought, the simplest reliable
+		# ownership gate (spec allows this: "the puppet holds the posed values
+		# while in author mode"). The quadruped rig is untouched either way.
+		_write_author_joints()
+		if _author_previewing:
+			_author_player._process(delta)
+		quad.air_target = 1.0 if air else 0.0
+		quad.dig_target = 1.0 if dig else 0.0
+		quad.animate(delta, 0.0, 0.85)
+		_readout_label.text = _author_readout_text()
+		return
+
 	_update_mouse_aim()
 	_update_move_heading()
 	_animate_puppet(delta)
@@ -359,7 +448,22 @@ func _unhandled_input(event: InputEvent) -> void:
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	match (event as InputEventKey).keycode:
+	var key: int = (event as InputEventKey).keycode
+	var shift: bool = (event as InputEventKey).shift_pressed
+
+	# TAB toggles author mode from EITHER side — checked before the mode branch
+	# so it always works regardless of which key-set is currently live.
+	if key == KEY_TAB:
+		_set_author_mode(not _author_mode)
+		return
+	if _author_mode:
+		if key == KEY_ESCAPE:
+			_set_author_mode(false)
+			return
+		_author_input(key, shift)
+		return
+
+	match key:
 		KEY_1: speed = 1.2
 		KEY_2: speed = 3.0
 		KEY_3: speed = 6.5
@@ -424,3 +528,309 @@ func _poll_motions_file(delta: float) -> void:
 	_last_sig = sig
 	_force_refold()
 	_toast("⟳ MOTIONS RELOADED")
+
+
+# ============================================================================
+# STRIKE POSE AUTHORING (docs/design/POSE_TO_POSE_STRIKES.md, §Authoring Flow)
+# ============================================================================
+
+## The SAME joint dict shape strike_sim.gd proves against the real rig —
+## torso_twist/torso_lean both point at puppet.torso (twist=Y, lean=X),
+## shoulder_yaw/shoulder_pitch both at puppet.shoulder, hip_kick at hip_r.
+## This stage never reaches past ProtoStrikePlayer.JOINT_AXIS to decide which
+## axis a name means — that table is strike_player.gd's, called here, not
+## duplicated.
+func _author_joint_map() -> Dictionary:
+	return {
+		"torso_twist": puppet.torso, "torso_lean": puppet.torso,
+		"shoulder_yaw": puppet.shoulder, "shoulder_pitch": puppet.shoulder,
+		"hip_kick": puppet.hip_r,
+	}
+
+
+func _set_author_mode(on: bool) -> void:
+	if on == _author_mode:
+		return
+	_author_mode = on
+	if on:
+		_author_previewing = false
+		if _author_player.is_playing():
+			_author_player.cancel()
+		_author_player.rebind_rest() # capture whatever pose the puppet is standing in as rest
+		# Seed the LIVE posing buffer from the row's own poses (last-captured
+		# values), or rest if the row hasn't captured anything yet — never a
+		# jarring snap to zero on entry.
+		_author_joint_values = _current_or_rest_joint_values()
+		_toast("AUTHOR MODE — editing '%s'" % _author_row_id)
+	else:
+		if _author_player.is_playing():
+			_author_player.cancel()
+		_author_previewing = false
+		_toast("author mode OFF")
+
+
+func _current_or_rest_joint_values() -> Dictionary:
+	var out: Dictionary = {}
+	for jn in AUTHOR_JOINTS:
+		out[jn] = 0.0
+	if _author_selected_pose >= 0 and _author_selected_pose < _author_poses.size():
+		var pose: Dictionary = _author_poses[_author_selected_pose]
+		var joints: Dictionary = pose.get("joints", {})
+		for jn in joints:
+			if out.has(String(jn)):
+				out[String(jn)] = float(joints[jn])
+	return out
+
+
+## Writes the live posing buffer straight onto the puppet's real joints —
+## called every author-mode frame instead of puppet.animate(), the ownership
+## gate: a frozen mannequin, not a fight over who owns the axis this frame.
+func _write_author_joints() -> void:
+	var jm := _author_joint_map()
+	for jn in AUTHOR_JOINTS:
+		var node_v: Variant = jm.get(jn, null)
+		if node_v == null:
+			continue
+		var node: Node3D = node_v as Node3D
+		var axis: String = ProtoStrikePlayer.JOINT_AXIS[jn]
+		var v: float = float(_author_joint_values.get(jn, 0.0))
+		if axis == "rotation:y":
+			node.rotation.y = v
+		else:
+			node.rotation.x = v
+
+
+## Loads AUTHOR_ROW_IDS[idx] for editing. Existing rows IMPORT their real
+## poses (from the already-folded ProtoStrikePlayer.STRIKES, which already
+## carries any strikes.json overlay) — never start blank on an existing row,
+## per spec. Reserved "new_custom_N" ids that aren't in STRIKES start empty.
+func _load_author_row(idx: int) -> void:
+	_author_row_idx = wrapi(idx, 0, AUTHOR_ROW_IDS.size())
+	_author_row_id = AUTHOR_ROW_IDS[_author_row_idx]
+	_author_poses = []
+	if ProtoStrikePlayer.STRIKES.has(_author_row_id):
+		var row: Dictionary = ProtoStrikePlayer.STRIKES[_author_row_id]
+		var poses_v: Variant = row.get("poses", [])
+		if poses_v is Array:
+			_author_poses = (poses_v as Array).duplicate(true)
+	_author_selected_pose = _author_poses.size() - 1 if not _author_poses.is_empty() else -1
+	_author_joint_values = _current_or_rest_joint_values()
+
+
+## Dispatch table for author-mode keys — kept as one match, mirroring the
+## normal-mode _input() style above, so the two modes read as siblings.
+func _author_input(key: int, shift: bool) -> void:
+	match key:
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
+			_author_selected_joint = key - KEY_1
+			_toast("JOINT: %s" % AUTHOR_JOINTS[_author_selected_joint])
+		KEY_Q:
+			_nudge_selected_joint(-JOINT_NUDGE_STEP * (JOINT_NUDGE_SHIFT_MULT if shift else 1.0))
+		KEY_E:
+			_nudge_selected_joint(JOINT_NUDGE_STEP * (JOINT_NUDGE_SHIFT_MULT if shift else 1.0))
+		KEY_C:
+			_capture_pose()
+		KEY_U:
+			_undo_capture()
+		KEY_COMMA:
+			_select_pose(_author_selected_pose - 1)
+		KEY_PERIOD:
+			_select_pose(_author_selected_pose + 1)
+		KEY_BRACKETLEFT:
+			_adjust_timing("ease_ms", -TIMING_STEP_MS)
+		KEY_BRACKETRIGHT:
+			_adjust_timing("ease_ms", TIMING_STEP_MS)
+		KEY_SEMICOLON:
+			_adjust_timing("hold_ms", -TIMING_STEP_MS)
+		KEY_APOSTROPHE:
+			_adjust_timing("hold_ms", TIMING_STEP_MS)
+		KEY_X:
+			_toggle_contact()
+		KEY_G:
+			_load_author_row(_author_row_idx + 1)
+			_toast("ROW: %s (%d captured pose%s)" % [_author_row_id, _author_poses.size(), "" if _author_poses.size() == 1 else "s"])
+		KEY_ENTER, KEY_KP_ENTER:
+			_save_author_row()
+		KEY_SPACE:
+			_preview_author_row()
+
+
+func _nudge_selected_joint(delta_rad: float) -> void:
+	var jn: String = AUTHOR_JOINTS[_author_selected_joint]
+	_author_joint_values[jn] = float(_author_joint_values.get(jn, 0.0)) + delta_rad
+
+
+## Captures the CURRENT 5-axis pose as the NEXT keyframe. A pose is a PARTIAL
+## per the schema (an omitted joint holds the previous pose's value) but the
+## author-mode buffer already tracks all 5 live, so the capture writes the
+## full 5-axis dict — harmless (identical joints across poses collapse to a
+## no-op ease) and keeps the round-trip trivially exact for the sim.
+func _capture_pose() -> void:
+	var pose: Dictionary = {
+		"name": "pose_%d" % (_author_poses.size() + 1),
+		"joints": _author_joint_values.duplicate(),
+		"ease_ms": 80.0, "hold_ms": 20.0, "ease_curve": ProtoStrikePlayer.EASE_OUT,
+		"contact": false,
+	}
+	_author_poses.append(pose)
+	_author_selected_pose = _author_poses.size() - 1
+	_toast("POSE %d/%d CAPTURED" % [_author_poses.size(), maxi(_author_poses.size(), 4)])
+
+
+func _undo_capture() -> void:
+	if _author_poses.is_empty():
+		_toast("nothing to undo")
+		return
+	_author_poses.pop_back()
+	_author_selected_pose = _author_poses.size() - 1
+	_toast("UNDO — %d pose%s left" % [_author_poses.size(), "" if _author_poses.size() == 1 else "s"])
+
+
+func _select_pose(idx: int) -> void:
+	if _author_poses.is_empty():
+		return
+	_author_selected_pose = wrapi(idx, 0, _author_poses.size())
+	_toast("EDITING pose %d/%d" % [_author_selected_pose + 1, _author_poses.size()])
+
+
+func _adjust_timing(field: String, delta_ms: float) -> void:
+	if _author_selected_pose < 0 or _author_selected_pose >= _author_poses.size():
+		_toast("capture a pose first")
+		return
+	var pose: Dictionary = _author_poses[_author_selected_pose]
+	pose[field] = maxf(0.0, float(pose.get(field, 0.0)) + delta_ms)
+	_toast("pose %d %s = %.0fms" % [_author_selected_pose + 1, field, float(pose[field])])
+
+
+## Exactly one contact:true per row (spec, non-negotiable) — setting one
+## CLEARS every other, enforced here at edit time, not just at save time.
+func _toggle_contact() -> void:
+	if _author_selected_pose < 0 or _author_selected_pose >= _author_poses.size():
+		_toast("capture a pose first")
+		return
+	var pose: Dictionary = _author_poses[_author_selected_pose]
+	var now_on: bool = not bool(pose.get("contact", false))
+	for i in _author_poses.size():
+		(_author_poses[i] as Dictionary)["contact"] = false
+	pose["contact"] = now_on
+	_toast("pose %d CONTACT: %s" % [_author_selected_pose + 1, "ON" if now_on else "off"])
+
+
+## READ-MODIFY-WRITE: loads strikes.json (or the code-floor schema if the
+## file doesn't exist yet), splices in ONLY this row, writes the whole file
+## back — every other row survives byte-for-byte in shape (same convention
+## MotionForge already uses for motions.json). Rejects the save if no pose
+## carries contact:true OR more than one does (spec: exactly one,
+## non-negotiable) so a broken row can never reach disk.
+func _save_author_row() -> void:
+	var contact_count := 0
+	for pose_v in _author_poses:
+		if bool((pose_v as Dictionary).get("contact", false)):
+			contact_count += 1
+	if _author_poses.is_empty():
+		_toast("SAVE REFUSED — capture at least one pose")
+		return
+	if contact_count != 1:
+		_toast("SAVE REFUSED — exactly ONE contact pose required (has %d)" % contact_count)
+		return
+
+	var doc: Dictionary = {}
+	if FileAccess.file_exists(STRIKES_PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(STRIKES_PATH))
+		if parsed is Dictionary:
+			doc = parsed as Dictionary
+	if not doc.has("strikes") or not (doc["strikes"] is Dictionary):
+		doc["strikes"] = {}
+	var rows: Dictionary = doc["strikes"]
+
+	# Preserve req_skill/cancel_window_ms/chain_next off whatever the row
+	# already carried (folded STRIKES, which already includes any prior JSON
+	# overlay) — author mode edits POSES only, never invents gate/combo data.
+	var prior: Dictionary = ProtoStrikePlayer.STRIKES.get(_author_row_id, {})
+	var req_skill: Dictionary = (prior.get("req_skill", {"id": "", "level": 0}) as Dictionary).duplicate(true)
+	var cancel_window_ms: float = float(prior.get("cancel_window_ms", 250.0))
+	var chain_next: String = String(prior.get("chain_next", ""))
+
+	rows[_author_row_id] = {
+		"poses": _author_poses.duplicate(true),
+		"req_skill": req_skill,
+		"cancel_window_ms": cancel_window_ms,
+		"chain_next": chain_next,
+	}
+	if not doc.has("_comment"):
+		doc["_comment"] = "POSE-TO-POSE STRIKES — authored live from the motion stage (TAB author mode)."
+
+	var wf := FileAccess.open(STRIKES_PATH, FileAccess.WRITE)
+	wf.store_string(JSON.stringify(doc, "  "))
+	wf.close()
+
+	# Same law as _force_refold(): the write must be visible through the ONE
+	# fold path immediately, not just on next launch, so SAVE-then-PREVIEW in
+	# the same session (and the sim) sees the new poses.
+	ProtoStrikePlayer._folded = false
+	ProtoStrikePlayer.ensure_strikes()
+	_toast("SAVED '%s' (%d poses) -> strikes.json" % [_author_row_id, _author_poses.size()])
+
+
+## SPACE: plays the WORKING (possibly unsaved) row through a real
+## ProtoStrikePlayer on the stage puppet — setup() with the identical joint
+## dict prescribed by the wiring note (torso under two keys, etc). Author
+## input keeps working during preview (Q/E would fight it) except while it's
+## actually mid-swing the joints are strike_player-owned; ESC/TAB still exit
+## cleanly (cancel() first).
+func _preview_author_row() -> void:
+	if _author_poses.is_empty():
+		_toast("nothing captured to preview")
+		return
+	var contact_count := 0
+	for pose_v in _author_poses:
+		if bool((pose_v as Dictionary).get("contact", false)):
+			contact_count += 1
+	if contact_count != 1:
+		_toast("PREVIEW NEEDS exactly one CONTACT pose (has %d)" % contact_count)
+		return
+	# Play the WORKING poses directly (not necessarily saved yet) by staging
+	# them into a throwaway id on the player's own STRIKES table, exactly the
+	# additive-fold shape the player already expects — no parallel play path.
+	var scratch_id := "__author_preview__"
+	ProtoStrikePlayer.STRIKES[scratch_id] = {
+		"poses": _author_poses.duplicate(true),
+		"req_skill": {"id": "", "level": 0}, "cancel_window_ms": 0.0, "chain_next": "",
+	}
+	_author_player.setup(_author_joint_map(), Callable())
+	_author_previewing = _author_player.play(scratch_id)
+	if _author_previewing:
+		_toast("PREVIEW '%s'" % _author_row_id)
+	else:
+		_toast("preview failed to start")
+
+
+func _on_author_preview_finished() -> void:
+	_author_previewing = false
+	# Snap the live posing buffer back to whatever the row's poses currently
+	# hold selected, so continued authoring (Q/E, capture) resumes from a
+	# known state rather than wherever the strike player's last frame left it.
+	_author_joint_values = _current_or_rest_joint_values()
+
+
+## Owner-readable status block while in author mode: which row, which joint
+## and its value, how many poses captured, which is selected and its timing/
+## contact state.
+func _author_readout_text() -> String:
+	var jn: String = AUTHOR_JOINTS[_author_selected_joint]
+	var jv: float = float(_author_joint_values.get(jn, 0.0))
+	var lines: Array[String] = []
+	lines.append("ROW: %s   POSES CAPTURED: %d" % [_author_row_id, _author_poses.size()])
+	lines.append("JOINT %d/5 [%s] = %.3f rad" % [_author_selected_joint + 1, jn, jv])
+	if _author_poses.is_empty():
+		lines.append("(no poses captured yet — C to capture)")
+	else:
+		for i in _author_poses.size():
+			var p: Dictionary = _author_poses[i]
+			var marker := ">" if i == _author_selected_pose else " "
+			var contact_tag := " [CONTACT]" if bool(p.get("contact", false)) else ""
+			lines.append("%s pose %d: ease %.0fms hold %.0fms%s" % [
+				marker, i + 1, float(p.get("ease_ms", 0.0)), float(p.get("hold_ms", 0.0)), contact_tag])
+	if _author_previewing:
+		lines.append("[PREVIEWING...]")
+	return "\n".join(lines)
