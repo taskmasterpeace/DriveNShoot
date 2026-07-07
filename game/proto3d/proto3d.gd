@@ -87,6 +87,41 @@ var _amb_poll: float = 0.0
 ## under you (playtest). World sounds (fire, other cars later) stay 3D.
 var _engine_loop: AudioStreamPlayer = null
 var _fire_loop: AudioStreamPlayer3D = null
+var _engine_noise_cd: float = 0.0   ## throttling the engine's own noise EVENT (not the sound)
+var _music_noise_cd: float = 0.0    ## the radio's periodic noise EVENT while it plays
+
+## THE NOISE LAYER (spawn-ecology foundation — owner ask: "the radio needs to
+## sound like it's coming out of the car" + volume/radius must matter to threats).
+## A short pruned log of loud EVENTS (radio, engine roar, horn, later: gunfire,
+## TV). Nothing PUSHES to a listener — threats POLL noises_in(their_pos). Kept
+## general on purpose: other systems (media_panel/tv, migration ecology) call
+## emit_noise() too, behind a has_method guard.
+var _noise_log: Array[Dictionary] = []
+const NOISE_TTL_MS := 8000.0 ## ~8s memory, then an event ages out
+
+## Any system can report a loud moment here. radius_m is how far it CARRIES,
+## not how far it's "loud" — a howler within radius_m of pos can hear it.
+func emit_noise(pos: Vector3, radius_m: float, kind: String = "misc") -> void:
+	_noise_log.append({"pos": pos, "radius": radius_m, "kind": kind, "time": Time.get_ticks_msec()})
+	_prune_noise()
+
+
+## Every live event whose radius still reaches `pos` — a howler calls this with
+## its OWN position to ask "what can I hear from here right now?".
+func noises_in(pos: Vector3) -> Array:
+	_prune_noise()
+	var out: Array = []
+	for n in _noise_log:
+		if (n["pos"] as Vector3).distance_to(pos) <= float(n["radius"]):
+			out.append(n)
+	return out
+
+
+func _prune_noise() -> void:
+	var now := float(Time.get_ticks_msec())
+	if _noise_log.is_empty():
+		return
+	_noise_log = _noise_log.filter(func(n: Dictionary) -> bool: return now - float(n["time"]) < NOISE_TTL_MS)
 
 var _current_interactable: Node3D = null
 var _last_safe: Vector3 = Vector3(2.5, 1.2, 390)
@@ -303,6 +338,13 @@ var _pack_cd: float = 35.0
 ## Timed reloads: swapping a mag is a COMMITMENT (fire is blocked meanwhile).
 var _reload_t: float = 0.0
 var _reload_wpn: ProtoWeapon = null
+## GUNFEEL PASS #4: the reload is staged into two audible beats WITHOUT
+## changing total reload_s — "reload_drop" plays at the start (reload_equipped),
+## "reload_insert" plays once the countdown crosses RELOAD_INSERT_PCT of the
+## total, the existing finish click (chamber) is untouched.
+const RELOAD_INSERT_PCT: float = 0.6
+var _reload_total: float = 0.0
+var _reload_insert_done: bool = false
 
 ## UNARMED (MOVESET.txt): empty hands are never empty. One button, three reads —
 ## TAP = the punch combo, HOLD = a shove that makes space, SPRINT+tap = a TACKLE
@@ -442,6 +484,12 @@ func _build_environment() -> void:
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
+	# DEV EXAMPLE — THE CAROUSEL PORTAL (docs/design/CAROUSEL_PORTAL.md). NOT wired to
+	# the bases/jump yet (owner's call): one live instance out front of the safehouse so
+	# you can walk up, press E, and hear the computer count you down 10→1 as it winds up.
+	var carousel_portal := ProtoCarouselPortal.create(self)
+	add_child(carousel_portal)
+	carousel_portal.global_position = SAFEHOUSE + Vector3(9.0, 0, 5.0)
 	if FileAccess.file_exists("res://data/rulers.json"):
 		var rj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/rulers.json"))
 		if rj is Dictionary:
@@ -535,13 +583,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_radio_power"):
 		# THE CAR STEREO (owner ask): O flips the power. A powered station keeps
 		# playing track after track — named stations are FOLDERS of mp3s.
+		# CAR_UI_REQUIREMENTS P0-2: COMPACT toast confirming the action already
+		# taken (via notify() == hud.toast()) — no track name, no persistent label;
+		# distinct from radio.gd's Y-scan discovery sentence.
 		if music.toggle_power():
-			notify("📻 ON — %s (vol %d%%) · L next station · ,/. volume" % [music.station_name(), music.volume_pct])
+			notify("📻 %s — ON" % music.station_name())
 		else:
-			notify("📻 radio OFF")
+			notify("📻 OFF")
 	elif event.is_action_pressed("drivn_radio_station"):
 		if music.next_station():
-			notify("📻 %s%s" % [music.station_name(), "" if music.power_on else " (radio is OFF — O to power)"])
+			notify("📻 %s" % music.station_name())
 		else:
 			notify("📻 …no stations. Drop mp3s in game/media/music/radio/<station_name>/")
 	elif event.is_action_pressed("drivn_radio_vol_down"):
@@ -689,13 +740,13 @@ func _physics_process(delta: float) -> void:
 		hud.set_speed(0.0, false)
 		hud.set_dashboard(null)
 
-	_update_audio_loops()
+	_update_audio_loops(delta)
 	var wpn := current_weapon()
 	if wpn:
-		wpn.tick(delta)
+		wpn.tick(delta, self) # main threaded through for the pump-chain beats (GUNFEEL PASS)
 	# The unarmed rows are ALWAYS live (cooldowns + the combo window decay).
-	fists.tick(delta)
-	palm.tick(delta)
+	fists.tick(delta, self)
+	palm.tick(delta, self)
 	_update_tackle(delta)
 	_update_drag(delta)
 	_update_water(delta)
@@ -708,7 +759,7 @@ func _physics_process(delta: float) -> void:
 		player.set_armed(wpn != null)
 		_apply_hand_pose(wpn)
 	if mode == Mode.DRIVE and active_car and active_car.mount_weapon:
-		active_car.mount_weapon.tick(delta)
+		active_car.mount_weapon.tick(delta, self)
 		var mw: ProtoWeapon = active_car.mount_weapon
 		hud.set_ammo(mw.info()["emoji"], mw.info()["name"], mw.mag, backpack.count(mw.info()["ammo"]), true)
 		hud.update_reticle(mw.current_spread(self), get_viewport().get_mouse_position(), true)
@@ -1046,14 +1097,42 @@ func _update_hotwire(delta: float) -> void:
 
 
 ## Engine hum pitches with speed; fire crackle rides any burning car.
-func _update_audio_loops() -> void:
+func _update_audio_loops(delta: float) -> void:
 	if mode == Mode.DRIVE and active_car and not active_car.dead:
 		if _engine_loop == null or not is_instance_valid(_engine_loop):
 			_engine_loop = audio.attach_flat_loop("engine", -10.0)
 		_engine_loop.pitch_scale = 0.75 + clampf(absf(active_car.forward_speed) / maxf(active_car.top_speed, 1.0), 0.0, 1.0) * 1.5
+		# THE ENGINE ROARS (owner ask — noise must matter): hard throttle is a
+		# migration-worthy event, independent of the hum's own volume/pitch.
+		_engine_noise_cd -= delta
+		if active_car.input_throttle > 0.5 and _engine_noise_cd <= 0.0:
+			_engine_noise_cd = 1.0
+			emit_noise(active_car.global_position, 40.0, "engine")
 	elif _engine_loop and is_instance_valid(_engine_loop):
 		_engine_loop.queue_free()
 		_engine_loop = null
+	# THE CAR RADIO IS POSITIONAL (owner ask): the music emitter rides whatever
+	# body is carrying it — the active car if you're at the wheel/nearby, else
+	# the player on foot (a carried radio). Its own noise EVENT fires on a slow
+	# clock so a loud station is a standing beacon, not a one-shot ping.
+	if music != null:
+		var carrier: Node3D = active_car if (active_car and not active_car.dead) else player
+		music.attach_to(carrier)
+		# IN THE CAB vs OUTSIDE (P0-3 muffle): driver AND a passenger riding along
+		# (passenger_of_ai) are both "in the cab" — same condition that keeps the
+		# engine loop alive above. The instant you're out (_exit_car already nulls
+		# active_car), the muffle engages within this same frame — no separate poll.
+		music.set_interior(mode == Mode.DRIVE and active_car != null and not active_car.dead)
+		# DEAD BATTERY = SILENCE, not static (car_3d.gd owns the component; this is
+		# a read-only poll of the SAME gate headlights already use).
+		var battery_dead := active_car != null and is_instance_valid(active_car) \
+			and "components" in active_car and (active_car.components as Dictionary).has("battery") \
+			and (active_car.components["battery"] as Damageable).tier() == Damageable.Tier.BROKEN
+		music.set_powered(not (active_car != null and battery_dead))
+		_music_noise_cd -= delta
+		if music.is_playing() and music.power_on and _music_noise_cd <= 0.0:
+			_music_noise_cd = 2.0
+			emit_noise(carrier.global_position, lerpf(0.0, 90.0, float(music.volume_pct) / 100.0), "radio")
 	# Fire crackle on whatever car is burning near you
 	var burning: ProtoCar3D = null
 	for c in cars:
@@ -1571,9 +1650,10 @@ func use_item(id: String) -> bool:
 		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
 		return false # toggles; never consumed
 	if ProtoWeapon.WEAPONS.has(id):
-		for w in weapons:
-			if w.id == id:
-				notify("Already carrying the %s" % w.info()["name"])
+		# Already own it? USING a gun you carry means DRAW it — switch, don't refuse.
+		for i in weapons.size():
+			if weapons[i].id == id:
+				_equip_slot(i)
 				return false
 		var wpn := ProtoWeapon.new(id)
 		weapons.append(wpn)
@@ -1850,6 +1930,7 @@ func fire_equipped() -> void:
 		notify("🫧 Your hands are keeping you afloat")
 		return
 	if w.mag <= 0 and not w.is_melee():
+		audio.play_ui("click", -2.0) # GUNFEEL #3: dry-fire is HEARD, not just read
 		notify("*click* — reload (R)")
 		return
 	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
@@ -1867,7 +1948,9 @@ func fire_equipped() -> void:
 			player.gun_recoil() # the kick you FEEL in the hand
 			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
-			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+			# GUNFEEL #2: fire_sfx is a ROW now (was id=="shotgun" ternary) — the
+			# .get fallback keeps every existing row's sound identical by default.
+			audio.play_at(String(w.info().get("fire_sfx", "shot")), player.global_position)
 
 
 # --- THE MEDIA LAYER (docs/cinema.md): the TV, the catalog, the collection ----
@@ -2148,6 +2231,7 @@ func fire_from_vehicle() -> void:
 		notify("Can't swing steel from the driver's seat")
 		return
 	if w.mag <= 0:
+		audio.play_ui("click", -2.0) # GUNFEEL #3: dry-fire is HEARD, not just read
 		notify("*click* — reload (R)")
 		return
 	var origin: Vector3 = active_car.global_position \
@@ -2158,9 +2242,14 @@ func fire_from_vehicle() -> void:
 	var shot := aim_point() - origin
 	var dir := shot.normalized() if shot.length_squared() > 0.01 else active_car.facing()
 	if w.fire(self, origin, dir):
-		cam_rig.add_trauma(0.15)
+		# GUNFEEL #7: the same on-foot juice, from the window — flash + brass
+		# PARENTED TO THE CAR (global_position resolves through the parent
+		# transform every frame, so both ride the car's motion for their life).
+		ProtoFX.muzzle_flash(active_car, origin, dir)
+		ProtoFX.casing(active_car, origin, dir.cross(Vector3.UP).normalized() * -1.0)
+		cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18) # same per-weapon table as on-foot (:1935)
 		stress = minf(100.0, stress + 1.5)
-		audio.play_at("shotgun" if w.id == "shotgun" else "shot", active_car.global_position)
+		audio.play_at(String(w.info().get("fire_sfx", "shot")), active_car.global_position)
 
 
 ## A bike has no cab: the crash THROWS you. You leave the saddle with the bike's
@@ -2255,6 +2344,12 @@ func _update_reload(delta: float) -> void:
 	if _reload_t <= 0.0:
 		return
 	_reload_t -= delta
+	# BEAT 2: once we've crossed RELOAD_INSERT_PCT of the total (elapsed, not
+	# remaining), the fresh mag seats — fires exactly once per reload.
+	if not _reload_insert_done and _reload_total > 0.0 \
+			and (_reload_total - _reload_t) >= _reload_total * RELOAD_INSERT_PCT:
+		_reload_insert_done = true
+		audio.play_at("reload_insert", player.global_position, -4.0)
 	if _reload_t > 0.0:
 		return
 	var w := _reload_wpn
@@ -2277,6 +2372,7 @@ func _honk() -> void:
 	if mode != Mode.DRIVE or active_car == null or active_car.dead:
 		return
 	audio.play_at("honk", active_car.global_position, 2.0)
+	emit_noise(active_car.global_position, 70.0, "horn") # a migration trigger, same as the spec
 	var called := 0
 	for d in dogs:
 		# A horn CARRIES — and a bonded pack (⭐ Kinship) hears it farther out.
@@ -2322,12 +2418,18 @@ func fire_mount() -> void:
 		return
 	var w: ProtoWeapon = active_car.mount_weapon
 	if w.mag <= 0:
+		audio.play_ui("click", -2.0) # GUNFEEL #3: dry-fire is HEARD, not just read
 		notify("*click* — MG dry, reload (R)")
 		return
 	var fwd := active_car.facing()
-	if w.fire(self, active_car.global_position + fwd * 2.6 + Vector3(0, 0.8, 0), fwd):
+	var origin := active_car.global_position + fwd * 2.6 + Vector3(0, 0.8, 0)
+	if w.fire(self, origin, fwd):
+		# GUNFEEL #7: the hood MG gets the same flash+brass, parented to the car
+		# (mount trauma stays as-is — this weapon's own 0.1 is untouched).
+		ProtoFX.muzzle_flash(active_car, origin, fwd)
+		ProtoFX.casing(active_car, origin, fwd.cross(Vector3.UP).normalized() * -1.0)
 		cam_rig.add_trauma(0.1)
-		audio.play_at("shot", active_car.global_position, -4.0, 1.3)
+		audio.play_at(String(w.info().get("fire_sfx", "shot")), active_car.global_position, -4.0, 1.3)
 
 
 func reload_equipped() -> void:
@@ -2343,8 +2445,10 @@ func reload_equipped() -> void:
 		return
 	# The swap takes REAL time (per weapon); firing is blocked until it lands.
 	_reload_t = float(w.info().get("reload_s", 1.0)) * character.reload_mult() # Marksmanship folds reload in
+	_reload_total = _reload_t
+	_reload_insert_done = false
 	_reload_wpn = w
-	audio.play_ui("click", -4.0)
+	audio.play_at("reload_drop", player.global_position, -4.0) # BEAT 1: the spent mag hits the floor
 	notify("Reloading…")
 
 
@@ -2791,6 +2895,29 @@ func cinematic_kill(pos: Vector3) -> void:
 	cam_rig.add_trauma(0.35)
 	audio.play_at("thunk", pos, 2.0, 0.6)
 	var t := get_tree().create_timer(0.35, true, false, true) # real-time: ignores the slow-mo it made
+	t.timeout.connect(func() -> void:
+		Engine.time_scale = prev
+		_cine_lock = false)
+
+
+## GUNFEEL PASS #5: HIT-STOP — a landed NON-kill hit dips time briefly so the
+## connection reads, on any weapon row with "hit_stop" true (playtest dial —
+## melee/shotgun/rocket true, rapid-fire pistol/car_mg false: see weapon.gd).
+## Same lock/restore contract as cinematic_kill/dive_dilation: skip entirely
+## if a cinematic already owns the lock (a killing crit is BIGGER and better-
+## tuned — hit-stop must never fight it), and restore the EXACT previous
+## scale (never assume 1.0 — sims stage time_scale != 1.0 to prove this).
+const HIT_STOP_SCALE: float = 0.75
+const HIT_STOP_S: float = 0.06 ## real-time; ~50-70ms spec band, chosen midpoint
+
+
+func hit_stop() -> void:
+	if _cine_lock:
+		return
+	_cine_lock = true
+	var prev := Engine.time_scale
+	Engine.time_scale = prev * HIT_STOP_SCALE
+	var t := get_tree().create_timer(HIT_STOP_S, true, false, true) # real time, ignores its own dip
 	t.timeout.connect(func() -> void:
 		Engine.time_scale = prev
 		_cine_lock = false)
