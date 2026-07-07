@@ -92,8 +92,14 @@ static func descriptor_to_event(d: String) -> InputEvent:
 	var parts := d.split(":")
 	match parts[0]:
 		"key":
-			var name := parts[1].to_upper()
-			var code: Key = KEY_ALIASES.get(name, OS.find_keycode_from_string(parts[1].capitalize()))
+			# Resolution order matters: aliases, then the RAW name ("F6", "W",
+			# "QuoteLeft" — find_keycode wants Godot's exact form), then a
+			# capitalized fallback. NEVER capitalize() first: "F6" → "F 6" (!).
+			var code: Key = KEY_ALIASES.get(parts[1].to_upper(), KEY_NONE)
+			if code == KEY_NONE:
+				code = OS.find_keycode_from_string(parts[1])
+			if code == KEY_NONE:
+				code = OS.find_keycode_from_string(parts[1].capitalize())
 			if code == KEY_NONE:
 				push_warning("InputMap: unknown key '%s'" % d)
 				return null
