@@ -2,5 +2,6 @@
 .godot/
 
 # Export artifacts
-export_presets.cfg
+# export_presets.cfg is TRACKED on purpose: it holds no secrets (codesign off) and
+# BUILD.bat + docs/SHIPPING.md depend on it. Re-ignore it if signing creds ever land.
 *.translation

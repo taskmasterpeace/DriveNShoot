@@ -1,9 +1,19 @@
 {
-  "_comment": "PUBLIC-SCREEN CHANNELS (docs/cinema.md Phase 5). A screen tunes the most specific matching row: faction beats state beats the open feed. categories = what it may pull off the media manifest. A new channel = a ROW (ProtoPublicScreen.ensure_channels folds additively; the open_air floor lives in code).",
+  "_comment": "PUBLIC-SCREEN CHANNELS (docs/cinema.md Phase 5). A screen tunes the most specific matching row: faction beats state beats the open feed. categories = what it may pull off the media manifest. A new channel = a ROW (ProtoPublicScreen.ensure_channels folds additively; the open_air floor lives in code). Rows flagged \"tv\": true are the SAFEHOUSE TV's channel lineup (ProtoPublicScreen.tv_channels()) — tune() (ambient wall screens) skips them so they never leak onto a bar TV by accident.",
   "channels": [
     {"id": "faith_voice", "state": "", "faction": "broadcast_church", "categories": ["clips"],
      "_note": "the occupier's propaganda loop — clips only, wherever the Faith Bloc holds"},
     {"id": "meridian_market", "state": "MISSISSIPPI", "faction": "", "categories": ["trailers", "clips"],
-     "_note": "the market screen's mixed feed for the home state"}
+     "_note": "the market screen's mixed feed for the home state"},
+    {"id": "channel_48stars", "tv": true, "channel_num": 3, "name": "48 STARS", "state": "", "faction": "", "categories": ["film"],
+     "_note": "the safehouse TV's movie channel — features off the manifest"},
+    {"id": "channel_freewave_tv", "tv": true, "channel_num": 5, "name": "FREEWAVE TV", "state": "", "faction": "", "categories": ["musicvideo", "clips"],
+     "_note": "music videos + clips — the TV side of the FREEWAVE name (radio has its own dial)"},
+    {"id": "channel_rebroadcast", "tv": true, "channel_num": 7, "name": "REBROADCAST", "state": "", "faction": "", "categories": ["tvshow"],
+     "_note": "TV show episodes, rerun style"},
+    {"id": "channel_the_lot", "tv": true, "channel_num": 9, "name": "THE LOT", "state": "", "faction": "", "categories": ["trailers", "clips"],
+     "_note": "trailers + clips — the drive-in's channel, brought home"},
+    {"id": "channel_ebs", "tv": true, "ebs": true, "channel_num": 13, "name": "EBS — EMERGENCY BROADCAST", "state": "", "faction": "", "categories": [],
+     "_note": "no categories — pulls the newsroom's queued tv bulletin instead (see ProtoNewsroom); STAND BY card when the queue is quiet"}
   ]
 }

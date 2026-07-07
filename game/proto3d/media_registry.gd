@@ -7,7 +7,7 @@ class_name ProtoMediaRegistry
 extends RefCounted
 
 const MANIFEST := "res://data/media_manifest.json"
-const CATEGORIES: Array = ["film", "tvshow", "trailers", "clips"]
+const CATEGORIES: Array = ["film", "tvshow", "trailers", "clips", "musicvideo"]
 
 var rows: Dictionary = {}     ## id -> manifest row
 var order: Array = []         ## manifest order (stable listings)

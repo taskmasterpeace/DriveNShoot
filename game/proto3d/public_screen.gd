@@ -100,6 +100,8 @@ func tune() -> void:
 	var best: Dictionary = {}
 	var best_score := -1
 	for c in CHANNELS:
+		if bool(c.get("tv", false)):
+			continue # SAFEHOUSE TV lineup only — never leaks onto an ambient wall screen
 		var want_state := String(c.get("state", ""))
 		var want_fac := String(c.get("faction", ""))
 		if want_state != "" and want_state != my_state:
@@ -111,6 +113,19 @@ func tune() -> void:
 			best_score = score
 			best = c
 	channel = best
+
+
+## The SAFEHOUSE TV's channel lineup: every row flagged "tv": true, in channel_num
+## order (CH 3, 5, 7, 9, 13). ProtoMediaPanel owns the current index; this stays
+## pure data - safe to call every frame or once at open.
+static func tv_channels() -> Array:
+	ensure_channels()
+	var out: Array = []
+	for c in CHANNELS:
+		if bool(c.get("tv", false)):
+			out.append(c)
+	out.sort_custom(func(a, b): return int(a.get("channel_num", 0)) < int(b.get("channel_num", 0)))
+	return out
 
 
 ## The loop: everything the registry has in my channel's categories, in order.

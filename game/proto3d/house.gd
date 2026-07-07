@@ -169,6 +169,12 @@ func _wall(size: Vector3, pos: Vector3) -> void:
 		for child in body.get_children():
 			if child is MeshInstance3D:
 				(child as MeshInstance3D).material_override = _front_mat
+	else:
+		# PIXEL SKIN the solid walls — bone concrete (goal "pixel art, brought into 3D",
+		# safehouse block first). Front walls keep the fade material so the stairs show.
+		for child in body.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).material_override = ProtoWorldBuilder.material_skin("wall", 1.0)
 
 
 func _floor2_slab(size: Vector3, pos: Vector3) -> void:

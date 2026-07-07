@@ -170,7 +170,7 @@
 	<span id="saved"></span>
 </footer>
 <script>
-const CATS = ["film", "tvshow", "trailers", "clips"];
+const CATS = ["film", "tvshow", "trailers", "clips", "musicvideo"];
 const UNLOCKS = ["always_available", "found_dvd", "found_tape", "found_reel", "quest_reward", "regional_channel", "world_event"];
 let media = [], scan = { sources: [], music: {} }, converting = false, pollT = null;
 const $ = (s) => document.querySelector(s);
@@ -190,7 +190,7 @@ async function load() {
 function renderLibrary() {
 	const lib = $("#library");
 	if (!media.length) {
-		lib.innerHTML = `<div class="empty">No media rows yet.<br><br>Drop an MP4 into game/media/film|tvshow|trailers|clips and CONVERT it —<br>or hit ▚ GENERATE TEST CLIP to prove the pipeline right now.</div>`;
+		lib.innerHTML = `<div class="empty">No media rows yet.<br><br>Drop an MP4 into game/media/film|tvshow|trailers|clips|musicvideo and CONVERT it —<br>or hit ▚ GENERATE TEST CLIP to prove the pipeline right now.</div>`;
 		return;
 	}
 	lib.innerHTML = CATS.map((cat) => {
@@ -256,7 +256,7 @@ function renderScan() {
 		<div class="f">${esc(s.file)}</div>
 		<div class="s">${s.size_mb} MB · id → ${esc(s.suggested_id)}</div>
 		<div class="go">
-			<select id="cat-${i}" title="Which shelf it files under — film / tvshow / trailers / clips">${CATS.map((c) => `<option ${c === s.category ? "selected" : ""}>${c}</option>`).join("")}</select>
+			<select id="cat-${i}" title="Which shelf it files under — film / tvshow / trailers / clips / musicvideo (safehouse TV CH 5 FREEWAVE TV)">${CATS.map((c) => `<option ${c === s.category ? "selected" : ""}>${c}</option>`).join("")}</select>
 			<button data-i="${i}" class="conv" title="Convert to .ogv (the game's video format), grab a poster, measure the runtime, and add it to the library">⚙ CONVERT → .OGV</button>
 		</div>
 	</div>`).join("");
