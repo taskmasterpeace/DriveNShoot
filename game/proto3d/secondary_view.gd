@@ -1,16 +1,18 @@
 ## STAGE 7 — the SECOND WINDOW (SecondaryView, the multi-use viewport):
 ## ONE picture-in-picture module, many eyes. V cycles what it shows:
-##   📡 DOGCAM  — ride a pack dog's back (the mobile sensor made visible)
 ##   🪞 REARVIEW — behind your vehicle while driving
 ##   🛸 DRONE   — straight down from the scout drone
 ## Modes self-skip when their eye doesn't exist. Scopes/radar/minimap later
 ## bolt onto the SAME module (STAGES.md multi-use table).
+## (DOGCAM retired 2026-07-07 — the owner repurposed that screen real estate
+## for full-screen binoculars; ride-a-dog's-back is gone, not just hidden.)
 class_name ProtoSecondaryView
 extends CanvasLayer
 
-enum SVMode { OFF, DOGCAM, REARVIEW, DRONE }
+enum SVMode { OFF, REARVIEW, DRONE, CAMS }
 
 var mode: SVMode = SVMode.OFF
+var _cam_idx: int = 0 ## which placed surveillance camera CAMS mode is watching
 var _frame: PanelContainer
 var _label: Label
 var _viewport: SubViewport
@@ -59,49 +61,56 @@ func cam_global() -> Vector3:
 	return _cam.global_position
 
 
-## V — cycle to the next mode that actually has an eye to look through.
+## V — cycle to the next mode that actually has an eye to look through. Inside CAMS,
+## each press steps to the NEXT placed camera before moving on past the last one.
 func cycle(main: Node) -> void:
+	if mode == SVMode.CAMS and _cam_idx + 1 < _cams(main).size():
+		_cam_idx += 1
+		if "audio" in main and main.audio:
+			main.audio.play_ui("blip", -10.0)
+		return
 	for _i in 4:
 		mode = ((mode + 1) % 4) as SVMode
 		if _available(main, mode):
 			break
+	if mode == SVMode.CAMS:
+		_cam_idx = 0
 	_frame.visible = mode != SVMode.OFF
 	if "audio" in main and main.audio:
 		main.audio.play_ui("blip", -10.0)
+
+
+## The live placed surveillance cameras (invalid entries pruned).
+func _cams(main: Node) -> Array:
+	if not ("surveil_cams" in main):
+		return []
+	var out: Array = []
+	for c in main.surveil_cams:
+		if c != null and is_instance_valid(c):
+			out.append(c)
+	return out
 
 
 func _available(main: Node, m: SVMode) -> bool:
 	match m:
 		SVMode.OFF:
 			return true
-		SVMode.DOGCAM:
-			return _first_dog(main) != null
 		SVMode.REARVIEW:
 			return main.mode == 0 and main.active_car != null # DRIVE
 		SVMode.DRONE:
 			return "drone" in main and main.drone != null and is_instance_valid(main.drone)
+		SVMode.CAMS:
+			return not _cams(main).is_empty()
 	return false
-
-
-func _first_dog(main: Node) -> ProtoDog:
-	for d in main.dogs:
-		if is_instance_valid(d) and d.riding_in == null:
-			return d
-	return null
 
 
 func update_view(main: Node) -> void:
 	if mode == SVMode.OFF:
 		return
 	if not _available(main, mode):
-		cycle(main) # the eye vanished (dog boarded, drone died) — move on
+		cycle(main) # the eye vanished (drone died) — move on
 		return
 	match mode:
-		SVMode.DOGCAM:
-			var d := _first_dog(main)
-			_cam.global_position = d.global_position + Vector3(0, 14.0, 5.0)
-			_cam.look_at(d.global_position + Vector3(0, 0.5, 0), Vector3.UP)
-			_label.text = "📡 DOGCAM — %s" % d.dog_name
 		SVMode.REARVIEW:
 			var car: ProtoCar3D = main.active_car
 			_cam.global_position = car.global_position + car.global_basis.z * 4.5 + Vector3(0, 3.2, 0)
@@ -112,3 +121,10 @@ func update_view(main: Node) -> void:
 			_cam.global_position = dr.global_position + Vector3(0, 0.6, 0.01)
 			_cam.look_at(dr.global_position - Vector3(0, 8.0, 0), Vector3(0, 0, -1))
 			_label.text = "🛸 DRONE — batt %d%%" % int(main.drone.battery_pct())
+		SVMode.CAMS:
+			var cams := _cams(main)
+			_cam_idx = clampi(_cam_idx, 0, cams.size() - 1)
+			var sc: ProtoSurveilCam = cams[_cam_idx]
+			_cam.global_position = sc.cam_position()
+			_cam.look_at(sc.cam_target(), Vector3.UP)
+			_label.text = "📹 CAM %d/%d — REC" % [_cam_idx + 1, cams.size()]

@@ -6,7 +6,13 @@
 class_name ProtoDroneDock
 extends Node3D
 
-var charging: bool = false ## just landed — a beat before relaunch
+## THE CHARGE LAW (owner, 2026-07-07): a drone must CHARGE a QUARTER OF THE DAY between
+## flights. The day is 24 real minutes (ProtoDayNight.DAY_MINUTES), so a quarter = 360
+## game-scaled seconds — and the charge runs on the GAME clock, so T-waiting the night
+## away (or the dev fast-clock) charges the bird too. Patience or time, pick one.
+const CHARGE_SECONDS := 360.0
+
+var charging: bool = false ## docked and charging — relaunch when full
 var flights: int = 0
 var _main: Node = null
 var _charge_t: float = 0.0
@@ -41,11 +47,17 @@ func interact_prompt(main: Node) -> String:
 	if "drone" in main and main.drone != null and is_instance_valid(main.drone):
 		return "🛸 The bird is OUT (battery %d%%)" % int((main.drone as ProtoDrone).battery_pct())
 	if charging:
-		return "🛸 Dock recharging…"
+		return "🛸 Recharging… %d%% (a quarter of the day, or T-wait it away)" % int(charge_pct())
 	return "E — 🛸 Launch the SCOUT (flies your course, marks hazards, comes home)"
 
 
+func charge_pct() -> float:
+	return clampf((CHARGE_SECONDS - _charge_t) / CHARGE_SECONDS * 100.0, 0.0, 100.0)
+
+
 func interact(main: Node) -> void:
+	if _main == null:
+		_main = main # a vehicle-mounted bay is built before main exists — adopt on first use
 	if charging or ("drone" in main and main.drone != null and is_instance_valid(main.drone)):
 		return
 	# The route: your COURSE pin if you set one (the 🧭 waypoint), else straight
@@ -70,7 +82,7 @@ func interact(main: Node) -> void:
 ## The bird is home: charge a beat, ready again. Reusable — a dock, not a vending machine.
 func dock_drone(bird: ProtoDrone) -> void:
 	charging = true
-	_charge_t = 4.0
+	_charge_t = CHARGE_SECONDS # THE CHARGE LAW: a quarter of the day before the next flight
 	if _main != null:
 		if _main.has_method("notify"):
 			_main.notify("🛸 The bird is HOME — %d hazard%s marked this flight." % [bird.marks, "" if bird.marks == 1 else "s"])
@@ -81,6 +93,11 @@ func dock_drone(bird: ProtoDrone) -> void:
 
 func _physics_process(delta: float) -> void:
 	if charging:
-		_charge_t -= delta
+		# The charge rides the GAME clock: waiting (T) or the dev fast-clock charge it too.
+		var speed := 1.0
+		if _main != null and "daynight" in _main and _main.daynight != null:
+			var dn: ProtoDayNight = _main.daynight
+			speed = ProtoDayNight.WAIT_MULT if dn.waiting else dn.dev_mult
+		_charge_t -= delta * speed
 		if _charge_t <= 0.0:
 			charging = false

@@ -56,6 +56,17 @@ static var VEHICLES: Dictionary = {
 			[-0.95, 1.6, false, true, true, 0.45], [0.95, 1.6, false, true, true, 0.45],
 			[-0.95, 2.55, false, false, true, 0.45], [0.95, 2.55, false, false, true, 0.45]],
 		"trunk_max_w": 45.0, "dog_seats": 2, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
+	# THE HUMVEE (gadgets goal): the military's ride — heavy, armored, planted, and it
+	# carries its OWN DRONE BAY on the rear deck (a mounted ProtoDroneDock: launch a route
+	# scout from the truck, quarter-day recharge law and all). The military AI that drives
+	# these in anger is deliberately NOT built yet (owner: "we're not ready") — the rig is.
+	"humvee": {"name": "Humvee", "aero_drag": 0.55, "mass": 2600.0, "engine": 9800.0, "top": 29.0, "rev": 9.0,
+		"steer": [0.5, 0.14, 4.4], "tires": {"grip_f": 5.8, "grip_r": 5.4, "dirt_mult": 0.92, "name": "run-flat"},
+		"chassis": Vector3(2.3, 1.1, 4.9), "hull": Vector3(2.25, 0.9, 4.8), "cabin": Vector3(2.0, 0.6, 2.2), "cabin_pos": Vector3(0, 1.05, -0.3),
+		"wheels": [[-0.95, -1.6, true, false, true, 0.46], [0.95, -1.6, true, false, true, 0.46],
+			[-0.95, 1.6, false, true, true, 0.46], [0.95, 1.6, false, true, true, 0.46]],
+		"trunk_max_w": 70.0, "dog_seats": 2, "wound_mult": 0.6, "tailpipe": Vector3(-0.75, 0.3, 2.4), "com_y": -0.45,
+		"armor": {"front": 55.0}, "drone_bay": true},
 	"trailer": {"name": "trailer", "aero_drag": 0.60, "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
 		"steer": [0.0, 0.0, 1.0], "tires": {"grip_f": 6.0, "grip_r": 6.0, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 2.2, 8.0), "hull": Vector3(2.35, 2.0, 7.9), "cabin": Vector3.ZERO, "cabin_pos": Vector3.ZERO,
@@ -395,6 +406,14 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	car.grip_front = s["tires"]["grip_f"]
 	car.grip_rear = s["tires"]["grip_r"]
 	car.aero_drag = float(s.get("aero_drag", 0.0)) # 0 unless the row opts in (see @export)
+	# DRONE BAY (gadgets goal): a row with drone_bay mounts a REAL ProtoDroneDock on the
+	# rear deck — same launch/route/recover/quarter-day-charge as the safehouse pad. The
+	# dock adopts `main` on first interact (it's built before main exists).
+	if bool(s.get("drone_bay", false)):
+		var bay := ProtoDroneDock.create(null)
+		bay.position = Vector3(0, s["chassis"].y + 0.15, s["chassis"].z * 0.28)
+		bay.scale = Vector3(0.8, 0.8, 0.8)
+		car.add_child(bay)
 
 	# Chassis collision
 	var shape := CollisionShape3D.new()

@@ -100,8 +100,14 @@ func _ready() -> void:
 	_check("the bird came HOME to the dock (recharging)", came_home and dock.flights == 1)
 
 	# --- A bird under fire is LOST ----------------------------------------------
+	# THE CHARGE LAW: the dock now charges a QUARTER OF THE DAY (360 game-seconds) — the
+	# sim sprints the game clock through it (the charge rides daynight's dev_mult), same
+	# trick a player uses by T-waiting. Restore the clock after.
+	var prev_mult: float = main.daynight.dev_mult
+	main.daynight.dev_mult = 120.0
 	for _i in 260:
-		await get_tree().physics_frame # let the dock finish charging
+		await get_tree().physics_frame # ~4.3s × 120 ≈ 520 game-s — past the 360s charge
+	main.daynight.dev_mult = prev_mult
 	await _e()
 	_check("the dock relaunches after charging", main.drone != null and is_instance_valid(main.drone))
 	if main.drone != null:

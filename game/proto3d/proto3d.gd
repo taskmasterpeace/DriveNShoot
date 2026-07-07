@@ -242,7 +242,8 @@ func _ready() -> void:
 	# The shotgun lives here; the stash upstairs holds the pistol; rockets ride
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
 	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
-		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1})
+		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1,
+		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -395,6 +396,8 @@ var newsroom: ProtoNewsroom = null
 var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
+var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
+var last_walkie_report: String = "" ## sim hook: the walkie-talkie's last chatter line
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
 var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
@@ -1700,6 +1703,48 @@ func use_item(id: String) -> bool:
 	if id == "cooked_meal":
 		stress = maxf(0.0, stress - 12.0)
 		notify("🍲 Hot food off your own stove. The road feels shorter.")
+		return true
+	if id == "surveil_cam":
+		# GADGET: plant a camera facing the way you stand — it feeds the V-window (CAMS).
+		var sc := ProtoSurveilCam.create(self, Vector3.ZERO, player.facing())
+		add_child(sc)
+		var cam_at: Vector3 = player.global_position + player.facing() * 1.2
+		sc.global_position = Vector3(cam_at.x, 0.0, cam_at.z)
+		audio.play_ui("blip", -6.0)
+		notify("📹 Camera planted — V cycles to its feed. E packs it back up.")
+		return true
+	if id == "motion_sensor":
+		# GADGET: the wasteland's cheapest guard dog — pings when a threat crosses it.
+		var ms := ProtoMotionSensor.create(self, Vector3.ZERO)
+		add_child(ms)
+		var ms_at: Vector3 = player.global_position + player.facing() * 1.2
+		ms.global_position = Vector3(ms_at.x, 0.0, ms_at.z)
+		audio.play_ui("blip", -6.0)
+		notify("📡 Motion sensor armed — it'll ping you when something crosses it.")
+		return true
+	if id == "walkie":
+		# GADGET: key the walkie and LISTEN — nearby movement bleeds through the static.
+		# Reveals the nearest threat and reports the direction. Never leaves your pack.
+		audio.play_ui("blip", -8.0)
+		var nearest: Node3D = null
+		var best := 90.0
+		for node in get_tree().get_nodes_in_group("threat"):
+			var t := node as Node3D
+			if t == null or not is_instance_valid(t) or t is StaticBody3D:
+				continue
+			var d := t.global_position.distance_to(player.global_position)
+			if d < best:
+				best = d
+				nearest = t
+		if nearest != null:
+			var to := nearest.global_position - player.global_position
+			var dir := "north" if to.z < -absf(to.x) else ("south" if to.z > absf(to.x) else ("east" if to.x > 0.0 else "west"))
+			vision_cone.reveal_at(nearest.global_position)
+			last_walkie_report = "chatter puts movement %s, ~%dm out" % [dir, int(best)]
+			notify("🎙 …kzzt… %s …kzzt…" % last_walkie_report)
+		else:
+			last_walkie_report = "dead air"
+			notify("🎙 …kzzt… dead air. Nothing moving close.")
 		return true
 	if id == "mine":
 		# DEPLOYABLE: plant it at your feet (or just behind the rig if driving).

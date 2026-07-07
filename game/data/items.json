@@ -200,6 +200,33 @@
     },
     {
       "category": "tool",
+      "desc": "Salvaged FEDNET eye. Plant it watching a road; V cycles to its feed.",
+      "emoji": "📹",
+      "id": "surveil_cam",
+      "name": "Surveillance camera",
+      "usable": true,
+      "weight": 1.4
+    },
+    {
+      "category": "tool",
+      "desc": "Key it and LISTEN — movement bleeds through the static.",
+      "emoji": "🎙️",
+      "id": "walkie",
+      "name": "Walkie-talkie",
+      "usable": true,
+      "weight": 0.6
+    },
+    {
+      "category": "tool",
+      "desc": "Pings you when something crosses it. The cheapest guard dog alive.",
+      "emoji": "📡",
+      "id": "motion_sensor",
+      "name": "Motion sensor",
+      "usable": true,
+      "weight": 0.9
+    },
+    {
+      "category": "tool",
       "desc": "Somebody's road knowledge — marks a town on YOUR map.",
       "emoji": "🗺️",
       "id": "map_fragment",
