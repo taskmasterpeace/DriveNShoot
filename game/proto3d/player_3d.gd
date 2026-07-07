@@ -184,12 +184,18 @@ var recoil_t: float = 0.0 ## sim hook — >0 while the gun is kicking
 
 
 ## The gun KICKS in the hand: a sharp back-jab that resettles. Pure feel.
-func gun_recoil() -> void:
+## RIG V2 PHASE 3: pass the weapon's `recoil` row + the character's STRENGTH and
+## the kick becomes DATA (spring layer, stagger threshold); an empty row falls
+## back to the stock parameterless kick (companions/NPCs keep that door).
+func gun_recoil(recoil_row: Dictionary = {}, strength_level: int = 0) -> void:
 	if puppet == null:
 		return
 	recoil_t = 0.12
 	puppet.gun_recoil()
-	puppet.recoil() # the arm kicks up too — the shot lands in the whole rig
+	if recoil_row.is_empty():
+		puppet.recoil() # the arm kicks up too — the shot lands in the whole rig
+	else:
+		puppet.recoil_kick(recoil_row, strength_level)
 	var tw := create_tween()
 	tw.tween_property(self, "recoil_t", 0.0, 0.13)
 

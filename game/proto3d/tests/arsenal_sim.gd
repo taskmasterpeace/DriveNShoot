@@ -102,9 +102,11 @@ func _physics_process(delta: float) -> void:
 				_next()
 		3: # corpse is lootable (Container serves the dead)
 			if phase_t > 0.6:
-				var corpse: ProtoChest = null
+				# CORPSES-not-crates (747db4e): remains are ProtoCorpse BODIES now —
+				# the ProtoChest check went stale the night that arc shipped.
+				var corpse: ProtoCorpse = null
 				for node in main.get_children():
-					if node is ProtoChest and node.container.label == "Corpse":
+					if node is ProtoCorpse and node.container.label == "Corpse":
 						corpse = node
 						break
 				_check("kill leaves a lootable CORPSE", corpse != null and corpse.container.count("meat") >= 1)

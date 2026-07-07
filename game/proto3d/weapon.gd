@@ -10,50 +10,71 @@ enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 # not the person's — same rig, different grip). offset moves the gun hand from its
 # rest; two_handed pulls the free hand across to a fore-grip. (offset.x is mirrored
 # for left-handers by the puppet.)
+# GUNFEEL PASS row fields (data, never code — playtest flips rows): "fire_sfx"
+# names the shot sound (was a hardcoded id==... ternary at the call sites);
+# "pump_sfx" is the post-shot chamber sound (shotgun only today — any future
+# pump weapon is just a row with this set); "hit_stop" is the on-hit micro-
+# freeze dial — true dips time briefly on a landed non-kill hit so the
+# connection reads; rapid-fire guns (pistol, car_mg) default false since a
+# steady judder at a 0.32s/0.13s cooldown reads as stutter, not impact.
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
+		"fire_sfx": "shot", "hit_stop": false,
+		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
+		# body when the scaled kick crosses stagger_threshold. Strength eats all of it.
+		"recoil": {"kick_pitch": 0.09, "torso_jolt": 0.04, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
-		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true}}, # both hands, at the shoulder
+		"fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
+		# 12ga at strength 0 = 0.38 >= 0.3: the WEAK get rocked; at strength 8 the
+		# scaled 0.20 stays under — the strong eat it with the arm. The fantasy, as data.
+		"recoil": {"kick_pitch": 0.38, "torso_jolt": 0.15, "stagger_threshold": 0.3},
+		# RIG V2 grips (gun-mesh-local): grip_r seats the stock behind the trigger
+		# palm; grip_l is the forend point the free hand 2-bone-IK plants on.
+		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true,
+			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, 0.0)}}, # both hands, at the shoulder
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
-		"speed": 20.0, "blast": 5.0, "reload_s": 2.2,
-		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true}}, # hoisted ONTO the shoulder
+		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot", "hit_stop": true,
+		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
+		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
+			"grip_l": Vector3(0.0, -0.05, -0.12)}}, # hoisted ONTO the shoulder, free hand steadies the tube
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8,
+		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8, "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4,
+		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4, "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
 	# The AXE — slow, two-handed, a committed CHOP: biggest single hit, and it puts
 	# them on the ground (knockdown) more than it launches them. Punishes a miss.
 	"axe": {"name": "Fire axe", "emoji": "🪓", "behavior": Behavior.MELEE, "damage": 34.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.9, "spread_deg": 0.0, "reach": 2.5, "arc_deg": 62.0, "stamina": 16.0, "knockdown": 0.55, "shove": 3.0, "hit_sfx": "impact_crunch",
+		"mag_size": 0, "ammo": "", "cooldown": 0.9, "spread_deg": 0.0, "reach": 2.5, "arc_deg": 62.0, "stamina": 16.0, "knockdown": 0.55, "shove": 3.0, "hit_sfx": "impact_crunch", "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true}},
 	# The BASEBALL BAT — the KNOCKBACK king: long reach, wide arc, fast-ish, and it
 	# LAUNCHES (huge shove). Home-run a howler off you. Lower raw damage, all impact.
 	"bat": {"name": "Baseball bat", "emoji": "🏏", "behavior": Behavior.MELEE, "damage": 18.0,
-		"mag_size": 0, "ammo": "", "cooldown": 0.6, "spread_deg": 0.0, "reach": 2.8, "arc_deg": 95.0, "stamina": 10.0, "knockdown": 0.45, "shove": 7.0, "hit_sfx": "thunk",
+		"mag_size": 0, "ammo": "", "cooldown": 0.6, "spread_deg": 0.0, "reach": 2.8, "arc_deg": 95.0, "stamina": 10.0, "knockdown": 0.45, "shove": 7.0, "hit_sfx": "thunk", "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
-		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0},
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot", "hit_stop": false,
+		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
 	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
 	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
 	# SPRINT+tap = the tackle (proto3d). "xp" routes the teach to MARTIAL ARTS.
 	"fists": {"name": "Fists", "emoji": "👊", "behavior": Behavior.MELEE, "damage": 8.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.32, "spread_deg": 0.0, "reach": 1.9, "arc_deg": 70.0,
-		"stamina": 5.0, "knockdown": 0.08, "shove": 1.2, "xp": "martial_arts", "hit_sfx": "thunk",
+		"stamina": 5.0, "knockdown": 0.08, "shove": 1.2, "xp": "martial_arts", "hit_sfx": "thunk", "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.0, -0.04, 0.0), "two_handed": false}},
 	# The SHOVE: create-space, not damage — peel a howler off you, clear a door.
 	# At Martial Arts 4+ a shove at grapple range becomes a THROW (guaranteed floor).
 	"shove_palm": {"name": "Shove", "emoji": "🖐️", "behavior": Behavior.MELEE, "damage": 2.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.55, "spread_deg": 0.0, "reach": 2.0, "arc_deg": 95.0,
-		"stamina": 6.0, "knockdown": 0.15, "shove": 6.0, "xp": "martial_arts",
+		"stamina": 6.0, "knockdown": 0.15, "shove": 6.0, "xp": "martial_arts", "hit_stop": true,
 		"hand_pose": {"offset": Vector3(0.0, -0.04, 0.0), "two_handed": false}},
 }
 
@@ -67,6 +88,15 @@ var _cd: float = 0.0
 var _combo: int = 0
 var _combo_t: float = 0.0
 
+## THE PUMP CHAIN (GUNFEEL PASS #1): firing is already locked by cooldown —
+## these two scheduled beats make it SOUND like why. Counting DOWN from the
+## fire-time offsets so they land at fixed points inside the cooldown however
+## the frame timing lands; both self-clear (< 0.0 = already fired/idle).
+const PUMP_AT_S: float = 0.35   ## pump chambers a beat after the blast
+const SHELL_DROP_AT_S: float = 0.55 ## the spent hull hits the floor a beat after that
+var _pump_t: float = -1.0
+var _shell_drop_t: float = -1.0
+
 
 func _init(id_in: String) -> void:
 	id = id_in
@@ -77,12 +107,42 @@ func info() -> Dictionary:
 	return WEAPONS[id]
 
 
-func tick(delta: float) -> void:
+## main is optional (bare `tick(delta)` stays legal for anything that never
+## needs the pump chain — e.g. a weapon row with no "pump_sfx" never schedules
+## it, and the beats are no-ops without a main to play them through).
+func tick(delta: float, main: Node = null) -> void:
 	_cd = maxf(0.0, _cd - delta)
 	bloom = maxf(0.0, bloom - delta * 1.8)
 	_combo_t = maxf(0.0, _combo_t - delta)
 	if _combo_t <= 0.0:
 		_combo = 0
+	if _pump_t > 0.0:
+		_pump_t -= delta
+		if _pump_t <= 0.0 and main != null and "audio" in main and main.audio:
+			main.audio.play_at(String(info().get("pump_sfx", "")), _pump_origin(main), -3.0)
+	if _shell_drop_t > 0.0:
+		_shell_drop_t -= delta
+		if _shell_drop_t <= 0.0 and main != null and "audio" in main and main.audio:
+			main.audio.play_at("shell_drop", _pump_origin(main), -6.0)
+
+
+## Where the pump/shell-drop beats sound from: the active car in DRIVE (mount
+## or window fire), else the player — same anchor the fire call sites already
+## use for their own audio.play_at.
+func _pump_origin(main: Node) -> Vector3:
+	if "mode" in main and main.mode == main.Mode.DRIVE and "active_car" in main and main.active_car != null:
+		return main.active_car.global_position
+	return main.player.global_position if "player" in main and main.player else Vector3.ZERO
+
+
+## Arms the pump chain right after a shot — a no-op for any row without a
+## "pump_sfx" (only the shotgun has one today; any future pump weapon is
+## just a row with this field set).
+func _arm_pump_chain() -> void:
+	if String(info().get("pump_sfx", "")) == "":
+		return
+	_pump_t = PUMP_AT_S
+	_shell_drop_t = SHELL_DROP_AT_S
 
 
 func is_melee() -> bool:
@@ -230,13 +290,20 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					t.take_damage(dmg * dmg_mult * (1.8 if crit else 1.0))
 					hit_any = true
 					was_valid = is_instance_valid(t)
+					var target_killed: bool = (not was_valid) or t.get("dead") == true
 					# THE WOW: a killing CRIT holds the world's breath (slow-mo read).
-					if crit and (not was_valid or t.get("dead") == true) and main.has_method("cinematic_kill"):
+					if crit and target_killed and main.has_method("cinematic_kill"):
 						main.cinematic_kill(main.player.global_position)
 					if "audio" in main and main.audio:
 						main.audio.play_at(String(w.get("hit_sfx", "thunk")), main.player.global_position + to_t, -2.0)
 					if "cam_rig" in main and main.cam_rig:
 						main.cam_rig.add_trauma(0.16) # the connection lands in your hands
+					# GUNFEEL #5: HIT-STOP on a landed NON-kill swing, row-gated
+					# (melee weapons default true). A kill already got its own
+					# (bigger) slow-mo above — shared _cine_lock means they never
+					# both fire for the same swing.
+					if not target_killed and bool(w.get("hit_stop", false)) and main.has_method("hit_stop"):
+						main.hit_stop()
 					# Melee HITS — chance to knock the target flat (feel the impact).
 					if was_valid and t.has_method("knock_down") and randf() < kd + kd_bonus:
 						t.knock_down()
@@ -246,6 +313,7 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		return true
 	mag -= 1
 	_cd = w["cooldown"]
+	_arm_pump_chain() # GUNFEEL #1: schedules pump+shell_drop mid-cooldown (no-op sans "pump_sfx")
 	var sp := current_spread(main)
 	bloom = minf(bloom + 0.45, 2.2) # each shot blooms the cone; rest recovers it
 	# Every trigger pull is ANSWERED: flash at the muzzle, brass off to the right.
@@ -283,7 +351,8 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 	if not hit.is_empty():
 		end = hit["position"]
 		var col = hit["collider"]
-		if col != null and col.has_method("take_damage"):
+		var is_car := col is ProtoCar3D
+		if col != null and col.has_method("take_damage") and not is_car:
 			# FLESH: blood where the round lands, a dry tick in your ear, the
 			# reticle pinches — the game says "that one counted."
 			ProtoFX.blood(main, end)
@@ -299,10 +368,36 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 				main.hud.pulse_hit()
 			if main.has_method("grant_xp"):
 				main.grant_xp("marksmanship", 2.0) # hits teach; misses don't
-		else:
-			# THE WORLD: dust off the wall — even a miss tells you where it went.
+			# GUNFEEL #5: HIT-STOP on a landed NON-kill hit, row-gated (playtest
+			# dial). A kill routes through cinematic_kill's bigger slow-mo instead
+			# — the shared _cine_lock means the two can never stack or fight.
+			var killed: bool = (not is_instance_valid(col)) or col.get("dead") == true
+			if not killed and bool(info().get("hit_stop", false)) and main.has_method("hit_stop"):
+				main.hit_stop()
+		elif is_car:
+			# METAL: a shot car keeps its EXISTING chassis damage (armor formula
+			# lives on ProtoCar3D.take_damage — untouched), it just answers with
+			# the right FX/sound instead of blood (GUNFEEL #6 per-surface).
+			col.take_damage(dmg)
 			ProtoFX.impact(main, end)
+			if "audio" in main and main.audio:
+				main.audio.play_at("impact_metal", end, -6.0)
+		else:
+			# THE WORLD: dust off the wall/ground — even a miss tells you where
+			# it went. GUNFEEL #6: pick wood vs dirt by what's actually there.
+			ProtoFX.impact(main, end)
+			if "audio" in main and main.audio:
+				main.audio.play_at(_surface_sfx(col), end, -6.0)
 	_tracer(main, from, end)
+
+
+## GUNFEEL #6: what a round hit, by COLLIDER — wood (a placed structure shell —
+## future-proofed for when world placement lands them) or the ground/default.
+## Flesh and metal (cars) are resolved above and never reach here.
+func _surface_sfx(col: Object) -> String:
+	if col is Node and (col as Node).is_in_group("structure"):
+		return "impact_wood"
+	return "impact_dirt"
 
 
 ## Visible round: shots fly the ROLLED vector, so misses are legible.

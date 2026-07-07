@@ -66,7 +66,15 @@ static var MOTION: Dictionary = {
 		"hip_fold_max": 0.40,     # was a hardcoded 0.55 inline — trimmed + promoted to a row
 		"hip_drop_frac": 0.50,    # the hip JOINT sinks this fraction of the torso's own drop
 		"hip_joint_gap": 0.03,    # small fixed clearance between the joint and the hip box's rest attach
-		"torso_scale_min": 0.81}, # torso compresses (scale.y) toward this at full crouch — the spine curls
+		"torso_scale_min": 0.81,  # torso compresses (scale.y) toward this at full crouch — the spine curls
+		# RIG V2 FOLLOW-THROUGH (PUPPET_RIG_V2.md): the new elbows/knees ride their
+		# parents as fractions — every old animation instantly reads alive, no keyframes.
+		"knee_follow": 0.55,      # knee bends this fraction of the stride's lift
+		"knee_phase": 0.45,       # rad ahead of the hip — the calf trails the thigh
+		"knee_rest": 0.06,        # a hair of standing bend (locked knees read robotic)
+		"crouch_knee": 0.55,      # extra knee coil at full crouch — the low silhouette
+		"elbow_follow": 0.35,     # elbow bends this fraction of the arm's swing
+		"elbow_rest": 0.14},      # arms never hang truly straight
 	# THE MELEE READ (owner: "the swing is horrible") — every timing + angle is a
 	# ROW now, tunable live in MotionForge. Stock = the retuned SNAPPY version:
 	# short coil, tight whip, fast settle — a strike, not a twirl.
@@ -75,14 +83,28 @@ static var MOTION: Dictionary = {
 		"settle_s": 0.12,
 		"punch_out_s": 0.05, "punch_reach": 1.45, "punch_back_s": 0.12,
 		"kick_out_s": 0.07, "kick_height": 1.5, "kick_back_s": 0.18, "kick_lean": 0.25},
+	# RIG V2 PHASE 3 (PUPPET_RIG_V2.md §4): the recoil SPRING is rows too. k/c per
+	# the spec's spring-damper (c raised from the spec's sketch ~14 to meet its own
+	# acceptance number: settled <= 250ms); strength_eat = how much muscle eats the
+	# kick (kick x (1 - level x eat)) — a belt-rank of recoil control is a NUMBER.
+	"recoil": {"k": 180.0, "c": 22.0, "strength_eat": 0.06},
 }
 static var _motion_folded: bool = false
+## The pristine code floor, captured before the FIRST fold — every re-fold starts
+## from here, so DELETING a row in motions.json actually reverts the live value
+## (the old additive-only refold could never un-apply an override until restart —
+## the one red motion_stage_sim documented as "restore-timing edge" was this).
+static var _motion_stock: Dictionary = {}
 
 
 static func ensure_motions() -> void:
 	if _motion_folded:
 		return
 	_motion_folded = true
+	if _motion_stock.is_empty():
+		_motion_stock = MOTION.duplicate(true)
+	else:
+		MOTION = _motion_stock.duplicate(true)
 	fold_motion_file("puppet", MOTION)
 
 
@@ -126,6 +148,17 @@ var aim_arm: Node3D      ## the caller yaws this to the gaze (old "_upper")
 var shoulder: Node3D     ## the REAL joint: raises/hangs/swings the gun arm (playtest: no more feet-orbit float)
 var gun: MeshInstance3D
 var hand: Node3D
+## RIG V2 (PUPPET_RIG_V2.md — "no knee, no elbow, no forearm" fixed): segmented limbs.
+## Every new joint is a CHILD of an existing pivot, so every old name (shoulder, free_arm,
+## hip_l/r) keeps driving its whole limb — the alias law. Follow-through in animate()
+## bends these as fractions of their parents, so every old animation instantly reads better.
+var elbow_r: Node3D      ## inside the gun arm (under shoulder) — the forearm hinge
+var elbow_l: Node3D      ## inside the free arm
+var hand_l: Node3D       ## the free hand's anchor (the two-hand fore-grip lands here)
+var knee_l: Node3D
+var knee_r: Node3D
+var foot_l: Node3D
+var foot_r: Node3D
 var _hat: MeshInstance3D
 var _pack: MeshInstance3D
 
@@ -140,6 +173,11 @@ var raised: bool = true
 
 ## How far down the arm hangs when relaxed (rad about the shoulder; 0 = level).
 const ARM_HANG: float = -0.95
+## Free-arm segment lengths (shoulder→elbow, elbow→hand) — the 2-bone IK's a and b.
+## create() builds the joints from these same numbers so the solve can never drift
+## from the geometry.
+const FREE_UPPER_LEN: float = 0.30
+const FREE_FORE_LEN: float = 0.30
 ## Carried-weapon tilt: the hand rolls so a carried wrench lies along the leg.
 const HAND_CARRY: float = -0.6
 
@@ -156,10 +194,26 @@ var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
 var _kick_t: float = 0.0       ## >0 while a KICK tween owns the right hip
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
+var _two_handed: bool = false ## longarm: the free hand rides the fore-grip (RIG V2)
+## RIG V2 PHASE 2 (PUPPET_RIG_V2.md §3): per-weapon GRIP POINTS, local to the gun
+## mesh. grip_l = where the free hand PLANTS (2-bone IK); grip_r = where the gun
+## sits in the trigger palm (the gun re-seats by -grip_r). ZERO grip_l = no row
+## data -> the legacy posed hold (never a silent misreach).
+var _grip_l: Vector3 = Vector3.ZERO
+var _gun_seat: Vector3 = Vector3.ZERO ## gun.position at rest (recoil returns HERE, not 0)
 var _dead_blend: float = 0.0
 var _flinch: float = 0.0       ## hit reaction — the body rocks away from the blow
 var _flinch_side: float = 0.0
-var _recoil: float = 0.0       ## the aim arm kicks up on each shot
+## RIG V2 PHASE 3: recoil is an ADDITIVE spring-damper layer (x = the joint offset,
+## v = its velocity; constants ride the MOTION["recoil"] row). Arm = the aim
+## shoulder's pitch; torso = the whole-body rock past the stagger threshold.
+var _recoil_arm_x: float = 0.0
+var _recoil_arm_v: float = 0.0
+var _recoil_arm_applied: float = 0.0 ## last frame's added offset — peeled off before the
+## pose write so the shoulder's smoothing lerp never FEEDS ON the layer (additive
+## means additive: without this the lerp compounds the kick ~2.5x its authored rad)
+var _recoil_torso_x: float = 0.0
+var _recoil_torso_v: float = 0.0
 
 
 static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
@@ -203,25 +257,42 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 		p._pack = _box(Vector3(0.34, 0.5, 0.22), Vector3(0, 1.05, 0.22), Color(0.28, 0.24, 0.18))
 		p.add_child(p._pack)
 
-	# --- Legs (hip pivots; boxes hang DOWN so the pivot swings the stride) --
+	# --- Legs (RIG V2: hip → THIGH → knee → CALF → foot; the hip pivot still swings
+	# the whole limb, so every old animation drives it unchanged — the alias law).
+	# Cross-sections STEP DOWN segment to segment and each lower box insets 0.02 from
+	# its joint, so no two faces ever sit coplanar (the crouch-shimmer no-kiss law).
 	p.legs_pivot = Node3D.new()
 	p.add_child(p.legs_pivot)
-	var leg_size := Vector3(0.17, 0.7, 0.19)
-	p.hip_l = _limb_pivot(Vector3(-0.14, 0.78, 0), leg_size, pants)
-	p.hip_r = _limb_pivot(Vector3(0.14, 0.78, 0), leg_size, pants)
+	var thigh_size := Vector3(0.17, 0.38, 0.19)
+	var calf_size := Vector3(0.14, 0.34, 0.16)
+	p.hip_l = _limb_pivot(Vector3(-0.14, 0.78, 0), thigh_size, pants)
+	p.hip_r = _limb_pivot(Vector3(0.14, 0.78, 0), thigh_size, pants)
 	p.legs_pivot.add_child(p.hip_l)
 	p.legs_pivot.add_child(p.hip_r)
-	# CROUCH no-kiss fix: the leg box is _limb_pivot's sole child — grab it so the
-	# animator can nudge its local Y by hip_joint_gap (a small fixed clearance the
-	# box's rest attach never had: it sits flush with the joint by construction).
-	p._hip_box_rest_y = -leg_size.y * 0.5
+	p.knee_l = _joint_under(p.hip_l, Vector3(0, -0.36, 0))
+	p.knee_r = _joint_under(p.hip_r, Vector3(0, -0.36, 0))
+	var boot := Color(pants.r * 0.6, pants.g * 0.6, pants.b * 0.6)
+	for kn in [p.knee_l, p.knee_r]:
+		kn.add_child(_box(calf_size, Vector3(0, -0.19, 0), pants))
+	p.foot_l = _joint_under(p.knee_l, Vector3(0, -0.36, 0))
+	p.foot_r = _joint_under(p.knee_r, Vector3(0, -0.36, 0))
+	for ft in [p.foot_l, p.foot_r]:
+		ft.add_child(_box(Vector3(0.15, 0.07, 0.26), Vector3(0, -0.035, -0.05), boot))
+	# CROUCH no-kiss fix: the THIGH box is _limb_pivot's sole mesh child — grab it so
+	# the animator can nudge its local Y by hip_joint_gap (same law as before).
+	p._hip_box_rest_y = -thigh_size.y * 0.5
 	p._hip_l_box = p.hip_l.get_child(0) as MeshInstance3D
 	p._hip_r_box = p.hip_r.get_child(0) as MeshInstance3D
 
-	# --- Free arm (the non-gun side; swings with the gait) -----------------
+	# --- Free arm (RIG V2: upper → elbow → forearm → hand_l; the free_arm pivot still
+	# swings the whole limb). The HAND anchor is where a two-hand fore-grip lands.
 	var free_x := -0.29 * right # opposite the gun hand
-	p.free_arm = _limb_pivot(Vector3(free_x, 1.4, 0), Vector3(0.14, 0.6, 0.14), cloth)
+	p.free_arm = _limb_pivot(Vector3(free_x, 1.4, 0), Vector3(0.14, 0.32, 0.14), cloth)
 	p.add_child(p.free_arm)
+	p.elbow_l = _joint_under(p.free_arm, Vector3(0, -FREE_UPPER_LEN, 0))
+	p.elbow_l.add_child(_box(Vector3(0.12, 0.28, 0.12), Vector3(0, -0.16, 0), cloth))
+	p.hand_l = _joint_under(p.elbow_l, Vector3(0, -FREE_FORE_LEN, 0))
+	p.hand_l.add_child(_box(Vector3(0.09, 0.09, 0.09), Vector3.ZERO, skin))
 
 	# --- Aim arm (the gun side; the caller yaws it to the gaze) ------------
 	# aim_arm = the YAW pivot (body center, so a full-turn aim stays symmetric).
@@ -234,13 +305,20 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.shoulder = Node3D.new()
 	p.shoulder.position = Vector3(hand_x, 1.4, 0)
 	p.aim_arm.add_child(p.shoulder)
-	# upper arm reaching from the shoulder forward toward the hand
-	var arm_box := _box(Vector3(0.14, 0.5, 0.14), Vector3(0, -0.12, -0.14), cloth)
+	# RIG V2 gun arm: UPPER (shoulder→elbow) + FOREARM (elbow→hand) along the same
+	# reach line the old single box took. The HAND now rides the ELBOW — its net rest
+	# spot is identical (0,-0.28,-0.36 from the shoulder), so gun/muzzle/recoil math
+	# and set_hand_pose all read exactly as before (the alias law, joint by joint).
+	var arm_box := _box(Vector3(0.14, 0.28, 0.14), Vector3(0, -0.07, -0.09), cloth)
 	p.shoulder.add_child(arm_box)
+	p.elbow_r = Node3D.new()
+	p.elbow_r.position = Vector3(0, -0.14, -0.18)
+	p.shoulder.add_child(p.elbow_r)
+	p.elbow_r.add_child(_box(Vector3(0.12, 0.26, 0.12), Vector3(0, -0.06, -0.08), cloth))
 	p.hand = Node3D.new()
-	p.hand.position = Vector3(0, -0.28, -0.36)
+	p.hand.position = Vector3(0, -0.14, -0.18) # elbow-local; shoulder-net = the old rest
 	p._gun_rest = p.hand.position
-	p.shoulder.add_child(p.hand)
+	p.elbow_r.add_child(p.hand)
 	p.gun = _box(Vector3(0.07, 0.07, 0.62), Vector3.ZERO, Color(0.16, 0.16, 0.18))
 	p.gun.visible = false
 	p.hand.add_child(p.gun)
@@ -265,6 +343,14 @@ static func _limb_pivot(joint: Vector3, size: Vector3, color: Color) -> Node3D:
 	var box := _box(size, Vector3(0, -size.y * 0.5, 0), color)
 	pivot.add_child(box)
 	return pivot
+
+
+## RIG V2: a bare child joint (elbow/knee/foot) at an offset inside its parent limb.
+static func _joint_under(parent: Node3D, at: Vector3) -> Node3D:
+	var j := Node3D.new()
+	j.position = at
+	parent.add_child(j)
+	return j
 
 
 # --- The animator: one function, all the life -------------------------------
@@ -315,16 +401,55 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		if _kick_t <= 0.0:
 			hip_r.rotation.x -= hip_fold * _crouch
 
+	# RIG V2 KNEES: the calf trails the thigh a beat behind (follow-through), never
+	# locks straight, and COILS at full crouch — the single biggest look upgrade.
+	# Positive-only bend: a knee is a hinge, it only folds one way.
+	var kf: float = float(mg["knee_follow"])
+	var kr: float = float(mg["knee_rest"])
+	var kph: float = float(mg["knee_phase"])
+	var crouch_knee: float = float(mg["crouch_knee"]) * _crouch
+	knee_l.rotation.x = kr + crouch_knee + kf * maxf(0.0, sin(_phase + kph)) * amp * limp_l
+	if _kick_t <= 0.0:
+		knee_r.rotation.x = kr + crouch_knee + kf * maxf(0.0, sin(_phase + PI + kph)) * amp * limp_r
+	# Feet stay roughly level with the ground under the bend.
+	foot_l.rotation.x = -(knee_l.rotation.x + hip_l.rotation.x) * 0.5
+	foot_r.rotation.x = -(knee_r.rotation.x + hip_r.rotation.x) * 0.5
+
 	# FREE ARM swings opposite the gun-side leg (natural counter-swing) — unless
 	# a punch tween owns it (the off-hand jab of the combo).
+	var ef: float = float(mg["elbow_follow"])
+	var er: float = float(mg["elbow_rest"])
 	if _swing_t <= 0.0:
-		free_arm.rotation.x = -swing_r * float(mg["arm_swing"])
+		if _two_handed and raised and armed and gun.visible:
+			if _grip_l.is_zero_approx():
+				# RIG V2 TWO-HAND GRIP, legacy posed hold (a row with no grip point):
+				# the free arm comes UP AND ACROSS to the fore-grip — reach from the
+				# shoulder, elbow closing the distance. Never a silent misreach.
+				free_arm.rotation.x = lerpf(free_arm.rotation.x, -1.22, clampf(10.0 * delta, 0.0, 1.0))
+				elbow_l.rotation.x = lerpf(elbow_l.rotation.x, -0.42, clampf(10.0 * delta, 0.0, 1.0))
+				free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
+				free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
+			else:
+				# RIG V2 PHASE 2: the free hand PLANTS on the weapon's grip point —
+				# closed-form 2-bone IK, tracking the live aim chain every frame.
+				_solve_foregrip_ik(delta)
+		else:
+			free_arm.rotation.x = -swing_r * float(mg["arm_swing"])
+			# RIG V2 ELBOW: bends INTO the swing (forward = negative), never hyperextends.
+			elbow_l.rotation.x = -(er + ef * maxf(0.0, free_arm.rotation.x))
+			# Any IK residue on the off axes relaxes home (one-hand rows swing FREE).
+			free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
+			free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
 
 	# AIM ARM — its YAW is set by the caller (points at the gaze). The SHOULDER
 	# does the vertical, pivoting at the joint: a raised gun holds level with a
 	# tiny bob; relaxed (unarmed OR carried melee) it hangs at the side and
 	# counter-swings with the gait like a real arm. A live melee swing owns the
 	# joint (tween) — we keep our hands off until it lands.
+	# (First: peel off last frame's recoil offset so the smoothing lerp below
+	# reads the clean base pose, never pose+spring.)
+	shoulder.rotation.x -= _recoil_arm_applied
+	_recoil_arm_applied = 0.0
 	_swing_t = maxf(0.0, _swing_t - delta)
 	if _swing_t <= 0.0:
 		var hold := raised and armed and gun.visible
@@ -337,6 +462,10 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		shoulder.rotation.x = lerpf(shoulder.rotation.x, pose_target, clampf(12.0 * delta, 0.0, 1.0))
 		shoulder.rotation.y = move_toward(shoulder.rotation.y, 0.0, 8.0 * delta)
 		hand.rotation.x = lerpf(hand.rotation.x, 0.0 if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
+		# RIG V2 ELBOW (gun side): a RAISED iron aims down a straight arm; a hanging
+		# arm keeps a natural bend that deepens as it swings back with the gait.
+		var elbow_target := 0.0 if hold else -(er + ef * maxf(0.0, shoulder.rotation.x - ARM_HANG) * 0.6)
+		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, elbow_target, clampf(10.0 * delta, 0.0, 1.0))
 
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.
 	# A crouch SINKS the whole column (torso + head ride down together).
@@ -377,13 +506,76 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the
 	# aim arm up (recoil). Both are impulses that decay — the fight lands ON the rig.
 	_flinch = maxf(0.0, _flinch - delta * 5.0)
-	_recoil = maxf(0.0, _recoil - delta * 9.0)
 	if _flinch > 0.0:
 		torso.rotation.x += _flinch * 0.5
 		torso.rotation.z += _flinch_side * _flinch * 0.28
 		neck.rotation.x += _flinch * 0.3
-	if _recoil > 0.0 and gun.visible and _swing_t <= 0.0:
-		shoulder.rotation.x += _recoil * 0.4 # positive at the shoulder = the hand kicks UP
+	# RIG V2 PHASE 3: the recoil SPRING (v += (-k·x - c·v)·dt; x += v·dt), an
+	# additive layer on top of whatever pose the frame already wrote — it stacks
+	# with walking and aiming by construction, exactly like strikes do.
+	var rr: Dictionary = MOTION["recoil"]
+	var rk: float = float(rr["k"])
+	var rc: float = float(rr["c"])
+	_recoil_arm_v += (-rk * _recoil_arm_x - rc * _recoil_arm_v) * delta
+	_recoil_arm_x += _recoil_arm_v * delta
+	_recoil_torso_v += (-rk * _recoil_torso_x - rc * _recoil_torso_v) * delta
+	_recoil_torso_x += _recoil_torso_v * delta
+	if absf(_recoil_arm_x) > 0.0005 and gun.visible and _swing_t <= 0.0:
+		shoulder.rotation.x += _recoil_arm_x # positive at the shoulder = the hand kicks UP
+		_recoil_arm_applied = _recoil_arm_x
+	if absf(_recoil_torso_x) > 0.0005:
+		torso.rotation.x += _recoil_torso_x # the blast rocks the whole body back
+		neck.rotation.x += _recoil_torso_x * 0.5
+
+
+## RIG V2 PHASE 2 (PUPPET_RIG_V2.md §3 + Formulas): the 2-BONE IK. An elbow is a
+## hinge, so the whole solve is law-of-cosines — two acos and a cross product per
+## frame, no solver library, ever. The grip target is composed down the LIVE local
+## chain (aim_arm→shoulder→elbow→hand→gun), so the hold tracks the twin-stick yaw
+## for free. A target beyond reach clamps to full extension (never NaN, never a
+## stretched limb); the writes lerp so the hand SETTLES onto the grip, no pop.
+func _solve_foregrip_ik(delta: float) -> void:
+	# The grip point, gun-local -> puppet-root-local (x mirrored for left-handers).
+	var grip_local := Vector3(_grip_l.x * handed_sign, _grip_l.y, _grip_l.z)
+	var target: Vector3 = aim_arm.transform * (shoulder.transform * (elbow_r.transform
+		* (hand.transform * (gun.transform * grip_local))))
+	var s := free_arm.position
+	var v := target - s
+	var a := FREE_UPPER_LEN
+	var b := FREE_FORE_LEN
+	var d := clampf(v.length(), 0.02, a + b - 0.002)
+	var dir := v.normalized()
+	# Interior angles (law of cosines); clampf eats the degenerate cases.
+	var alpha := acos(clampf((a * a + d * d - b * b) / (2.0 * a * d), -1.0, 1.0))
+	# Hinge axis: perpendicular to the reach line. Of the two mirror solutions,
+	# take the one that hangs the ELBOW LOWER — the natural read for a fore-grip
+	# (and every hold this rig makes: elbows point down, not out at the sky).
+	var up_ref := Vector3.UP if absf(dir.dot(Vector3.UP)) < 0.98 else Vector3.FORWARD
+	var h := dir.cross(up_ref).normalized()
+	var upper_a := dir.rotated(h, alpha)
+	var upper_b := dir.rotated(h, -alpha)
+	var upper_dir := upper_a if upper_a.y <= upper_b.y else upper_b
+	# The upper arm's basis: local -Y runs down the segment, local X is the hinge.
+	var bx := h
+	var by := -upper_dir
+	var bz := bx.cross(by).normalized()
+	bx = by.cross(bz).normalized()
+	var upper_basis := Basis(bx, by, bz).orthonormalized()
+	var eul := upper_basis.get_euler()
+	# The elbow is a PURE X hinge by construction (the forearm's target direction
+	# lies in the upper basis' Y-Z plane, both being perpendicular to the hinge).
+	var elbow_pos := s + upper_dir * a
+	var f_local := upper_basis.inverse() * ((target - elbow_pos).normalized())
+	var gamma := atan2(-f_local.z, -f_local.y)
+	# Sanity rails: acos/atan2 on clamped inputs can't NaN, but a zero-length
+	# cross (aim straight up) could — bail to the last pose for a frame.
+	if is_nan(eul.x) or is_nan(gamma):
+		return
+	var k := clampf(10.0 * delta, 0.0, 1.0)
+	free_arm.rotation.x = lerp_angle(free_arm.rotation.x, eul.x, k)
+	free_arm.rotation.y = lerp_angle(free_arm.rotation.y, eul.y, k)
+	free_arm.rotation.z = lerp_angle(free_arm.rotation.z, eul.z, k)
+	elbow_l.rotation.x = lerp_angle(elbow_l.rotation.x, gamma, k)
 
 
 ## A hit reaction: rock away from the direction the blow came from (world dir toward
@@ -393,9 +585,25 @@ func flinch(world_dir: Vector3) -> void:
 	_flinch_side = signf(global_basis.x.dot(world_dir))
 
 
-## The shot's kick, read on the arm (paired with the gun's own z-jab).
+## RIG V2 PHASE 3 (PUPPET_RIG_V2.md §4): RECOIL AS DATA. row = the weapon's
+## `recoil` block (kick_pitch / torso_jolt / stagger_threshold, all rad); the
+## character's STRENGTH eats it: kick x (1 - level x strength_eat) — a weak
+## character gets thrown, a strong one barely moves, and past the stagger
+## threshold the whole TORSO rocks, not just the arm. Impulse lands on the
+## spring's x (x0 = the scaled kick); the spring in animate() does the rest.
+func recoil_kick(row: Dictionary, strength_level: int = 0) -> void:
+	var rr: Dictionary = MOTION["recoil"]
+	var eat := maxf(0.1, 1.0 - float(strength_level) * float(rr["strength_eat"]))
+	var kick := float(row.get("kick_pitch", 0.4)) * eat
+	_recoil_arm_x += kick
+	if kick >= float(row.get("stagger_threshold", 999.0)):
+		_recoil_torso_x -= float(row.get("torso_jolt", 0.0)) * eat # negative pitch = rocked BACK
+
+
+## The shot's kick, read on the arm (paired with the gun's own z-jab) — the
+## parameterless door companions/NPCs still use: a stock kick, no stagger.
 func recoil() -> void:
-	_recoil = 1.0
+	recoil_kick({"kick_pitch": 0.4, "stagger_threshold": 999.0}, 0)
 
 
 ## A body that has fallen: torso back and down, limbs limp. Blended in over ~0.3s.
@@ -409,16 +617,30 @@ func _pose_dead() -> void:
 	free_arm.rotation.x = lerp(free_arm.rotation.x, 1.1, b)
 	shoulder.rotation.x = lerp(shoulder.rotation.x, 1.1, b) # arm flung overhead in the sprawl
 	shoulder.rotation.y = lerp(shoulder.rotation.y, 0.0, b)
+	# RIG V2: the sprawl bends real knees and elbows now — a body, not a plank.
+	knee_l.rotation.x = lerp(knee_l.rotation.x, 0.8, b)
+	knee_r.rotation.x = lerp(knee_r.rotation.x, 0.3, b)
+	elbow_l.rotation.x = lerp(elbow_l.rotation.x, -0.5, b)
+	elbow_r.rotation.x = lerp(elbow_r.rotation.x, -0.35, b)
 
 
 # --- Weapon hand poses (Rung 2 hook — the pose is the WEAPON's property) ------
 
 ## Per-weapon hand offset + a two-hand hint. Moves where the gun sits in the hand;
 ## the free arm can be pulled up to "support" a long gun. Called when the weapon changes.
-func set_hand_pose(offset: Vector3, two_handed: bool) -> void:
+## RIG V2 PHASE 2: grip_l (gun-local) is where the FREE hand plants via 2-bone IK —
+## ZERO means "no grip row", falling back to the legacy posed hold. grip_r seats the
+## gun in the trigger palm by its own grip point (gun.position = -grip_r), so a
+## shotgun's stock rides behind the hand while muzzle math keeps reading the mesh.
+func set_hand_pose(offset: Vector3, two_handed: bool, grip_l: Vector3 = Vector3.ZERO, grip_r: Vector3 = Vector3.ZERO) -> void:
 	_hand_offset = offset
+	_two_handed = two_handed
+	_grip_l = grip_l
+	_gun_seat = Vector3(-grip_r.x * handed_sign, -grip_r.y, -grip_r.z)
+	gun.position = _gun_seat
 	hand.position = _gun_rest + Vector3(offset.x * handed_sign, offset.y, offset.z)
-	# Two-handed longarms bring the free hand across to the fore-grip.
+	# Two-handed longarms bring the free hand across to the fore-grip (RIG V2: animate()
+	# then RAISES that arm onto the gun — reach + elbow, a hold the old rig couldn't make).
 	if two_handed:
 		free_arm.position.x = 0.12 * handed_sign
 	else:
@@ -436,8 +658,10 @@ func gun_recoil() -> void:
 	if gun == null:
 		return
 	var tw := gun.create_tween()
-	tw.tween_property(gun, "position:z", 0.12, 0.04).set_ease(Tween.EASE_OUT)
-	tw.tween_property(gun, "position:z", 0.0, 0.09).set_ease(Tween.EASE_IN_OUT)
+	# The jab is RELATIVE to the seat (grip_r re-seats the gun — recoil must return
+	# it there, not to a hardcoded zero that would un-seat a gripped longarm).
+	tw.tween_property(gun, "position:z", _gun_seat.z + 0.12, 0.04).set_ease(Tween.EASE_OUT)
+	tw.tween_property(gun, "position:z", _gun_seat.z, 0.09).set_ease(Tween.EASE_IN_OUT)
 
 
 ## The melee swing, on the WHOLE ARM — driven entirely by the "melee" MOTION row

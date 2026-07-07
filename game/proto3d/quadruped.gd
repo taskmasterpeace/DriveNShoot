@@ -24,12 +24,17 @@ static var MOTION: Dictionary = {
 	"dig": {"scrape_hz": 18.0, "scrape_amp": 0.55, "head_down": 0.4},
 }
 static var _motion_folded: bool = false
+static var _motion_stock: Dictionary = {} ## pristine floor — refolds start here (same law as ProtoPuppet)
 
 
 static func ensure_motions() -> void:
 	if _motion_folded:
 		return
 	_motion_folded = true
+	if _motion_stock.is_empty():
+		_motion_stock = MOTION.duplicate(true)
+	else:
+		MOTION = _motion_stock.duplicate(true)
 	ProtoPuppet.fold_motion_file("quadruped", MOTION)
 
 var params: Dictionary = {}

@@ -24,6 +24,7 @@
 ##
 ## Keys: 1/2/3 speed · C crouch · A airborne pose · D dig pose · R force re-fold
 ## (on top of the automatic poll) · M/P/K strike previews · W item cycle ·
+## F recoil kick off the held row (SHIFT+F = strength 8 — watch muscle eat it) ·
 ## WASD/arrows move-heading · mouse aim · RMB-drag orbit · wheel zoom.
 ##
 ## STRIKE POSE AUTHORING (docs/design/POSE_TO_POSE_STRIKES.md, §Authoring Flow):
@@ -36,7 +37,8 @@
 ## the author's live pose buffer instead — the simplest, most reliable
 ## ownership gate: a frozen mannequin you pose, not a moving target. G cycles
 ## which strike row is being edited (existing rows import their real saved
-## poses first, never start blank); 1-5 select a joint; Q/E nudge it ±0.05rad
+## poses first, never start blank); 1-9 select a joint (6-9 = the RIG V2
+## elbows/knees); Q/E nudge it ±0.05rad
 ## (SHIFT = x3); C captures, U undoes; ,/. pick which captured pose is being
 ## edited; [/] and ;/' adjust that pose's ease_ms/hold_ms; X marks it the
 ## (exclusive) contact pose; ENTER saves; SPACE previews the working row
@@ -114,8 +116,11 @@ const AUTHOR_ROW_IDS: Array[String] = [
 const JOINT_NUDGE_STEP: float = 0.05     ## rad, per Q/E tap
 const JOINT_NUDGE_SHIFT_MULT: float = 3.0
 const TIMING_STEP_MS: float = 20.0       ## per [/]/;/' tap
-## joint index (1-5) -> the exact name ProtoStrikePlayer.JOINT_AXIS/JOINT_NAMES use.
-const AUTHOR_JOINTS: Array[String] = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick"]
+## joint index (1-9) -> the exact name ProtoStrikePlayer.JOINT_AXIS/JOINT_NAMES use.
+## RIG V2 (PUPPET_RIG_V2.md): the four new hinges are authorable — same order as
+## ProtoStrikePlayer.JOINT_NAMES so the two lists never drift apart silently.
+const AUTHOR_JOINTS: Array[String] = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
+	"elbow_r", "elbow_l", "knee_r", "knee_l"]
 
 var _author_mode: bool = false
 var _author_row_id: String = "punch_1"
@@ -228,7 +233,7 @@ func _legend_text() -> String:
 	return "MOTION STAGE\n" \
 		+ "1/2/3  speed\nC  crouch · A  air pose · D  dig pose\n" \
 		+ "M  swing · P  punch · K  kick\n" \
-		+ "W  cycle held item\n" \
+		+ "W  cycle held item · F  recoil kick (SHIFT+F = strength 8)\n" \
 		+ "WASD / arrows  move-heading (mouse keeps aiming)\n" \
 		+ "mouse  aim · RMB-drag  orbit camera · wheel  zoom\n" \
 		+ "R  force re-fold (motions.json also auto-refolds live)\n" \
@@ -240,7 +245,7 @@ func _legend_text() -> String:
 ## against the SHIFT-x3 modifier, where SHIFT+Q/E is unambiguous.
 func _author_legend_text() -> String:
 	return "STRIKE POSE AUTHORING — editing '%s' (G cycles row)\n" % _author_row_id \
-		+ "1-5 select joint · Q/E nudge -+0.05rad (SHIFT x3)\n" \
+		+ "1-9 select joint (6-9 = elbows/knees) · Q/E nudge -+0.05rad (SHIFT x3)\n" \
 		+ "C capture pose · U undo capture\n" \
 		+ ", / .  select captured pose to edit\n" \
 		+ "[ / ]  ease_ms -+20 · ; / '  hold_ms -+20 · X  toggle CONTACT (exclusive)\n" \
@@ -267,7 +272,8 @@ func _set_item(idx: int) -> void:
 	var info: Dictionary = ProtoWeapon.WEAPONS.get(id, {})
 	var is_melee: bool = info.get("behavior", ProtoWeapon.Behavior.MELEE) == ProtoWeapon.Behavior.MELEE
 	var pose: Dictionary = info.get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
-	puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
+	puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
 	# fists carries no visible gun mesh at all — bare hands, never "armed".
 	_armed = id != "fists"
 	puppet.set_armed(_armed)
@@ -481,6 +487,18 @@ func _input(event: InputEvent) -> void:
 			# ("switching held items... how are his hands with the shotgun").
 			_set_item(_item_idx + 1)
 			_toast("ITEM: %s" % _current_item_label())
+		KEY_F:
+			# RIG V2 PHASE 3 preview: fire the HELD row's recoil kick — F at strength 0
+			# (the weak get rocked), SHIFT+F at strength 8 (muscle eats it). The tuner
+			# watches the contrast live while MotionForge's recoil row folds in.
+			var row: Dictionary = (ProtoWeapon.WEAPONS.get(ITEM_IDS[_item_idx], {}) as Dictionary).get("recoil", {})
+			if row.is_empty():
+				_toast("no recoil row on %s" % _current_item_label())
+			else:
+				var strength := 8 if shift else 0
+				puppet.recoil_kick(row, strength)
+				puppet.gun_recoil()
+				_toast("RECOIL %s @ strength %d" % [_current_item_label(), strength])
 		KEY_R:
 			_force_refold()
 			_toast("⟳ MOTIONS RELOADED (manual)")
@@ -545,6 +563,9 @@ func _author_joint_map() -> Dictionary:
 		"torso_twist": puppet.torso, "torso_lean": puppet.torso,
 		"shoulder_yaw": puppet.shoulder, "shoulder_pitch": puppet.shoulder,
 		"hip_kick": puppet.hip_r,
+		# RIG V2: the segmented hinges (all rotation:x per JOINT_AXIS).
+		"elbow_r": puppet.elbow_r, "elbow_l": puppet.elbow_l,
+		"knee_r": puppet.knee_r, "knee_l": puppet.knee_l,
 	}
 
 
@@ -621,7 +642,7 @@ func _load_author_row(idx: int) -> void:
 ## normal-mode _input() style above, so the two modes read as siblings.
 func _author_input(key: int, shift: bool) -> void:
 	match key:
-		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5:
+		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9:
 			_author_selected_joint = key - KEY_1
 			_toast("JOINT: %s" % AUTHOR_JOINTS[_author_selected_joint])
 		KEY_Q:
@@ -821,7 +842,7 @@ func _author_readout_text() -> String:
 	var jv: float = float(_author_joint_values.get(jn, 0.0))
 	var lines: Array[String] = []
 	lines.append("ROW: %s   POSES CAPTURED: %d" % [_author_row_id, _author_poses.size()])
-	lines.append("JOINT %d/5 [%s] = %.3f rad" % [_author_selected_joint + 1, jn, jv])
+	lines.append("JOINT %d/9 [%s] = %.3f rad" % [_author_selected_joint + 1, jn, jv])
 	if _author_poses.is_empty():
 		lines.append("(no poses captured yet — C to capture)")
 	else:

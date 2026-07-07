@@ -2078,7 +2078,8 @@ func _apply_hand_pose(wpn: ProtoWeapon) -> void:
 		player.puppet.raised = true
 		return
 	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
-	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
+	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
 	# Guns ride raised (the twin-stick aim read); steel is CARRIED — the arm hangs
 	# and only comes up in the swing (playtest: the always-raised wrench floated).
 	player.puppet.raised = not wpn.is_melee()
@@ -2142,7 +2143,8 @@ func fire_equipped() -> void:
 		if w.is_melee():
 			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
 		else:
-			player.gun_recoil() # the kick you FEEL in the hand
+			# RIG V2 PHASE 3: the kick you FEEL — the weapon's recoil ROW, eaten by muscle
+			player.gun_recoil(w.info().get("recoil", {}), character.level("strength"))
 			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
 			# GUNFEEL #2: fire_sfx is a ROW now (was id=="shotgun" ternary) — the
