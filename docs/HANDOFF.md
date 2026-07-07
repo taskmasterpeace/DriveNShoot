@@ -1,13 +1,114 @@
 # DRIVN — Engineering Handoff
 
-> ## ⏭ NEXT SESSION QUEUE (2026-07-07 marathon handoff — READ FIRST)
+> ## ⏭ NEXT SESSION QUEUE (updated 2026-07-07 EVENING — READ FIRST)
 >
-> The 2026-07-07 session shipped ~20 sim-proven arcs on `main` (split-screen drone piloting
+> ### STATE OF THE GAME (evaluated 2026-07-07 evening, full-suite run)
+> The 3D mainline is a deep, coherent vertical slice with **every major system live and
+> sim-proven**: the segmented puppet (rig v2: knees/elbows/IK grips/recoil-as-data), real
+> 6/4/2-lane divided highways with ambient traffic that promotes to physics on touch,
+> exits as the world's connective tissue, population cells + noise ecology (the war
+> foundation), horses with ride-and-shoot seat arcs, the full media layer (safehouse TV
+> lineup CH 3/5/7/9/13, drive-in, public screens, radio music), proximity voice over
+> ENet co-op, the Florida living-world MVS (offline catch-up → law flip → briefing),
+> and the complete data spine (items/loot/prices/NPCs/vehicles/motions/strikes/traffic
+> all = ROWS). **The repo is finally self-consistent: a fresh clone parses and the
+> working tree is clean** — every stranded file from the marathon was adopted with a
+> fresh green proof or root-cause-fixed this evening.
+> **Evaluation (this evening):** ~50 sims run fresh across every touched system, ALL
+> GREEN (traffic 34, gator/corridor 15, tv 19, road_lane 26, world/save/npc_drive/
+> population/drive/media/net all green — receipts in the commit messages). A formal
+> single-pass sweep of all 143 sims is the one thing left un-run (the runner is
+> /tmp/run_suite.sh-style, one sim at a time — never concurrently: parallel sims race
+> each other's user:// and data backups).
+>
+> ### ✅ COMPLETED TODAY (2026-07-07, the three sessions after the marathon)
+> - **PUPPET RIG V2** — Phases 1–3 + dev tools, merged 06f32fb (details in 1. below).
+> - **ROAD & TRAFFIC OVERHAUL** — owner directive, f75b0eb + 482a9e0 (details in 1b. below).
+> - **REPO INTEGRITY (old queue #2) — CLOSED.** All stranded work adopted with proofs run
+>   fresh: gunfeel 37 · voice 23 · car_upgrade 43 · skins 13 · dashboard 26 (two sim bugs
+>   root-caused: runaway full-throttle car + daytime boot force-killing the headlight
+>   flicker gate) · horse 29×3 (mount-input + spread-vs-one-shot flakes fixed) ·
+>   population_cell 23 · safehouse_spawn_suppression 10 (its .tscn had never been created)
+>   · noise 8 · radio_positional 19 · net/voice 16 · TV lineup + media (15/12/10/6/9) ·
+>   homebase 11. **The "population_cell_sim HANGS" diagnosis was WRONG** — it and the
+>   other two "hangs" were PARSE ERRORS (untyped-inference + stubs not extending Node)
+>   in sims that had never actually been run; headless presents a script that fails to
+>   load as an eternal idle. Two fleet-authored checks also contradicted the code's own
+>   documented design (first-touch refill is a ONE-SHOT; "sedan" isn't a fleet id) — the
+>   code was right, the checks were fixed.
+> - **Binoculars sim added** (7/7): the thin-rim contract + real hold-B path (the stranded
+>   hud work referenced a `binocular_sim` that didn't exist).
+> - **Docs audit:** Sky3D evaluation deleted (verdict banked: DON'T adopt — our day/night
+>   is complete and gameplay-wired; revisit only for a cosmetic-sky pass) + the stale
+>   `docs/systems/EQUIPMENT_PAPERDOLL.md` duplicate removed (`docs/design/` copy is
+>   canonical). Everything else is a code-referenced living contract or an unbuilt spec.
+>
+> ### 🎮 THINGS TO PLAYTEST (owner: DO → EXPECT, in one drive)
+> 1. **Restart the game** (the running instance predates today's merges).
+> 2. Drive onto **I-95**: expect a real six-lane — twin carriageways, white lane strips,
+>    a concrete median you cannot cross (find an exit), oncoming traffic safely across it.
+> 3. **Sit in a lane**: traffic should stack up behind you and honk. **Ram one**: it
+>    becomes a real car (spins, damageable, stealable). **Shoot one**: same.
+> 4. Take **I-35** west: expect a humble 2-lane with a double-yellow and oncoming
+>    headlights in the other lane.
+> 5. Hold a **shotgun**: both hands ON the gun (forend grip). Fire at strength 0 vs a
+>    leveled character: the kick visibly differs; the weak get torso-rocked.
+> 6. **CTRL-crouch and stride**: knees bend, elbows swing — the box-man moved from
+>    "shrugging" to "moving" (rig v2's whole point).
+> 7. Find the **horse** (spawns off `horses.json`): E mounts, WASD rides, fire from the
+>    saddle — front seat sweeps ~120° forward, and a passenger can cover the rear.
+> 8. At night with a **battered battery**: headlights strobe (drive-by-strobe read).
+>    Dashboard (in-car) confirms each part's tier live.
+> 9. **B binoculars**: thin rim now, not a black tunnel — ≥85% of the frame stays clear.
+> 10. Safehouse **TV**: channel through CH 3/5/7/9/13 (48 STARS / FREEWAVE TV /
+>     REBROADCAST…), ambient wall screens never show the TV lineup.
+> 11. **F7/F8 co-op**: proximity VOICE — a nearby friend is audible from their body.
+> 12. **MotionForge (:8896)**: drag `knee_follow` while walking on the stage — the single
+>     biggest look dial; F on the stage fires the held weapon's recoil (SHIFT+F = strong).
+>
+> ### ✅ ALSO COMPLETED (2026-07-07 late evening, owner's live-playtest session)
+> - **TRAFFIC P0s** (45abd7a): highway-only spawns, ramps stop at the compound edge (the
+>   dirt-driving bug), arrivals PARK in view (never vanish), agents stop behind ANY car,
+>   every car has a TRIP (destination exit). City-to-city proven end to end in sim.
+> - **THE TV IS A REAL SET** (e098d49): AIR CLOCK (channels broadcast whether you watch
+>   or not — tune in mid-program), COUCH MODE (E off fullscreen keeps it playing on the
+>   physical set; ✕ is the off switch), time runs 1:1 while watching (fast-forward
+>   removed), drive-in screen 20x11.
+> - **THE CORRIDOR PASS** (21d6fd4): MAP_POLISH_PLAN executed — 46 exits on 5 corridors
+>   (variety + risk laws), 13 purposed towns, Maple Hill spur + radio breadcrumb,
+>   Alligator Alley swamp band + THE GATOR (ambush/lunge/recover, gator_sim 15/15),
+>   farmhouse/kennel catalog rows, swamp population row. corridor_pass.mjs stays in-repo
+>   for the remaining five corridors.
+> - **CONVOYS v1 + THE BANDIT CONTRACT** (08d0f3b): 2-3 truck columns hauling real cargo
+>   between towns (touch one, the whole convoy gets real; rob the trunk);
+>   `docs/design/BANDIT_CONVOY_ECOSYSTEM.md` banks the full predator ecosystem (gang
+>   WATCH/STALK/STRIKE director, checkpoints via the toll law, bandit drones, Southwest
+>   regional strength) with sims named per criterion.
+>
+> ### ⏭ WHAT TO WORK ON NEXT (in order)
+> 0. **BANDIT ECOSYSTEM rungs 2+** (`BANDIT_CONVOY_ECOSYSTEM.md` §8.2-8.7): the gang
+>    director, checkpoints, regional strength rows, bandit drones. The prey (convoys)
+>    and the terrain (corridors, chokepoints) are live — build the predators.
+> 1. **POPULATION + WAR** — the big living-world arc. Its foundation (population.gd cells,
+>    zone tags, noise ecology, spawn suppression) is now COMMITTED AND GREEN, and its
+>    prerequisite (terrain relief) shipped. Contracts: `docs/design/POPULATION_WAR.md` +
+>    `WAR_AI_RESEARCH.md`. This is the queue's head.
+> 2. **THE CORRIDOR PASS** — execute `docs/design/MAP_POLISH_PLAN.md` (~46 exits, 14 named
+>    towns, Alligator Alley + Maple Hill) through MapForge's API. Every exit placed becomes
+>    a live traffic destination automatically (ProtoTraffic reads exits as connections).
+> 3. **DRIVE-BY COMBAT** (`docs/design/DRIVE_BY_COMBAT.md`) — seat-arc shooting from cars;
+>    the horse already proved the seat-arc pattern.
+> 4. **EQUIPMENT PAPERDOLL** (`docs/design/EQUIPMENT_PAPERDOLL.md`) — 19 slots; rig v2's
+>    named segments are the attachment points (swords on backs, backpacks — build not buy).
+> 5. Living World remaining rungs: crime/bodies → jail → cloning → multi-passenger seats.
+>
+> ### The shipped ledger (kept for context)
+> The 2026-07-07 marathon shipped ~20 sim-proven arcs on `main` (split-screen drone piloting
 > + the dog's eye, corpses/roadkill/decay, gadgets + charge law, pixel-art skins, terrain
 > relief v1, streaming load budget, radio dial + TV volume, the in-game LIBRARY manuals,
 > car entry/ignition ladder, PILOTING skill, carousel portal wired to real jumps, inventory
-> addon + items.json bridge, sound map…). Three things are deliberately PARKED, in priority
-> order:
+> addon + items.json bridge, sound map…). The evening sessions then closed all three parked
+> items below:
 >
 > **1. PUPPET RIG V2 — ✅ SHIPPED COMPLETE (2026-07-07, merged 06f32fb): Phases 1–3 + dev tools.**
 > - Phase 1 finished from the WIP branch and GATED: stage author keys 1–9, joint map,
@@ -55,26 +156,14 @@
 > - **Natural next rungs:** MAP_POLISH_PLAN's ~46 exits become live traffic destinations the
 >   day they land; lane-change/overtake AI; traffic density by daynight/state occupation.
 >
-> **2. REPO INTEGRITY — stranded prior-session files (a fresh clone may not parse).**
-> - UNTRACKED but referenced by committed code: `game/proto3d/population.gd` (+`.uid`,
->   `data/population_targets.json`) — `proto3d.gd`/`howler.gd`/`lurker.gd` call
->   `main.population.*`; `game/proto3d/horse.gd` (+`horses.json`); their sims
->   (`population_cell_sim`, `horse_sim`, `noise_sim`, `safehouse_spawn_suppression_sim`,
->   `dashboard_sim`, `radio_positional_sim`, `voice_sim`, `car_upgrade_sim`);
->   `docs/design/MAP_POLISH_PLAN.md`; a tvshow poster `.import`.
->   *(The GUNFEEL slice — weapon.gd rows + gunfeel_sim 37/37 — was adopted 2026-07-07
->   during the rig v2 arc; also still uncommitted-tracked: hud_3d/net/house/media edits
->   belonging to the dashboard/voice/media stranded arcs.)*
-> - **Known problem:** `population_cell_sim` HANGS headless (>240s, zero output — likely an
->   await stall at boot). Triage before committing: run each stranded sim individually,
->   commit what's green, fix or quarantine what hangs.
-> - This is also the foundation for arc 3 — population cells already exist in that file.
+> **2. REPO INTEGRITY — ✅ CLOSED (2026-07-07 evening).** Every stranded file adopted with
+> a fresh green proof (see COMPLETED TODAY above); the working tree is clean; a fresh
+> clone parses. The "hangs" were parse errors in never-run sims, now fixed.
 >
-> **3. POPULATION + WAR — the big living-world arc (specs banked, build not started).**
-> - `docs/design/POPULATION_WAR.md` + `WAR_AI_RESEARCH.md` are the contracts. Do it AFTER
->   terrain relief (DONE ✅ 2026-07-07) and after #2 lands the population foundation.
->
-> Say **"go puppet v2"** (or `/goal` it) to start #1.
+> **3. POPULATION + WAR — the big living-world arc: NOW UNBLOCKED, next in queue.**
+> - `docs/design/POPULATION_WAR.md` + `WAR_AI_RESEARCH.md` are the contracts. Both former
+>   prerequisites are DONE: terrain relief (2026-07-07) and the population foundation
+>   (population.gd + targets + 4 sims, committed 2026-07-07 evening).
 
 **Written:** 2026-07-06, at the end of a long build session, as a retirement hand-off.
 **Verified by:** a fan-out audit of 23 subagents (16 code-subsystem auditors + 6 doc auditors + 1 synthesizer) cross-checked against a full headless sim run. Everything below is grounded in the actual code, not memory — where it isn't, it's flagged **[low-confidence]**.
