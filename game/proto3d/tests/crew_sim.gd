@@ -88,11 +88,11 @@ func _ready() -> void:
 	_check("no more immortal capsules — the hire DIES", sam.dead)
 	for _i in 60:
 		await get_tree().physics_frame
-	var corpse: ProtoChest = null
+	var corpse: ProtoCorpse = null
 	for n in main.get_children():
-		if n is ProtoChest and (n as ProtoChest).container.label.contains("Sam"):
+		if n is ProtoCorpse and (n as ProtoCorpse).container.label.contains("Sam"):
 			corpse = n
-	_check("the gear drops as a CORPSE CHEST", corpse != null and corpse.container.count("9mm") > 0)
+	_check("the gear drops on the BODY (loot the corpse, no crate)", corpse != null and corpse.container.count("9mm") > 0)
 	_check("the memorial carries the name", main.fallen_dogs.size() == fallen0 + 1)
 	_check("the roster let him go", not main.companions.has(sam))
 

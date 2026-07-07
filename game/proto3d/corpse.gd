@@ -1,0 +1,115 @@
+## THE CORPSE (goal: no more loot crates on a kill — loot the BODY). When a character dies
+## it leaves a ragdolling, lootable, DECAYING body instead of a wooden chest. Reuses the
+## exact loot plumbing every container uses (a ProtoContainer + open_container), so looting
+## a body is the same verb as opening a trunk. A car can fling one (launch). No collision
+## (like the old loot piles) so you never dent your ride on a body.
+##
+## Ragdoll here = a lightweight, deterministic box FLOP (launch arc + tumble → land → lie
+## flat), not a per-limb physics rig — right for our box actors and sim-testable.
+class_name ProtoCorpse
+extends Node3D
+
+const GRAVITY := 20.0
+const REST_Y := 0.22            ## torso-centre height once it's lying down
+const DECAY_SECONDS := 90.0     ## a looted/heavy body lingers ~1.5 min…
+const EMPTY_DECAY_SECONDS := 32.0 ## …a picked-clean one goes sooner (how it makes sense)
+const FADE_SECONDS := 6.0
+
+var container: ProtoContainer
+var _scav_done := false
+var _age := 0.0
+var _grounded := false
+var _vel := Vector3.ZERO
+var _spin := Vector3.ZERO
+var _mats: Array[StandardMaterial3D] = []   ## per-corpse (own) mats, so fading one doesn't fade the world
+var _fading := false
+
+
+## label: the body's name ("Raider's body"). loot: {item_id: count}. tint: skin/clothing.
+## launch: initial velocity (a car hit / blast flings it; melee/gunshot → a small flop).
+static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.45, 0.36), launch: Vector3 = Vector3.ZERO) -> ProtoCorpse:
+	var c := ProtoCorpse.new()
+	c.add_to_group("interactable")
+	c.add_to_group("corpse")
+	c.container = ProtoContainer.new(label)
+	for id in loot:
+		c.container.add(id, loot[id])
+
+	# The body: a torso + head box, flat-shaded (clean actor look), tinted. Own materials.
+	c._box(Vector3(0.5, 0.55, 0.28), Vector3(0, 0.35, 0), tint)
+	c._box(Vector3(0.26, 0.26, 0.26), Vector3(0, 0.72, 0), tint * 1.08)
+
+	# The flop: launch + a tumble spin biased by the launch (a hard hit spins harder).
+	c._vel = launch if launch != Vector3.ZERO else Vector3(0, 2.2, 0)
+	var mag := launch.length()
+	c._spin = Vector3(2.5 + mag * 0.35, 1.5, 1.0 + mag * 0.2)
+	return c
+
+
+func _box(size: Vector3, pos: Vector3, color: Color) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mi.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.9
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA   # so it can FADE on decay
+	mi.material_override = mat
+	mi.position = pos
+	_mats.append(mat)
+	add_child(mi)
+
+
+# --- Interactable contract (loot the body once it's settled) -------------------------
+
+func interact_position() -> Vector3:
+	return global_position
+
+
+func interact_prompt(_main: Node) -> String:
+	if not _grounded or _fading:
+		return ""   # can't loot a body mid-flight, or one crumbling to dust
+	return "E — loot %s" % container.label.to_lower()
+
+
+func interact(main: Node) -> void:
+	# Same scavenging beat as any container — looting a body IS scavenging.
+	if not _scav_done:
+		_scav_done = true
+		if main.has_method("grant_xp"):
+			main.grant_xp("scavenging", 3.0)
+		if main.has_method("circuit_beat"):
+			main.circuit_beat("scavenge")
+	main.open_container(container)
+
+
+# --- Flop + decay --------------------------------------------------------------------
+
+func _physics_process(delta: float) -> void:
+	if not _grounded:
+		_vel.y -= GRAVITY * delta
+		global_position += _vel * delta
+		rotation += _spin * delta
+		if global_position.y <= REST_Y:
+			_land()
+	_age += delta
+	var life := EMPTY_DECAY_SECONDS if container.slots.is_empty() else DECAY_SECONDS
+	if _age >= life:
+		_fade(delta, life)
+
+
+func _land() -> void:
+	_grounded = true
+	global_position.y = REST_Y
+	# Settle into a lying pose: flat on the ground, keeping a random facing yaw.
+	rotation = Vector3(PI * 0.5, rotation.y, 0.0)
+
+
+func _fade(delta: float, life: float) -> void:
+	_fading = true
+	var a := clampf(1.0 - (_age - life) / FADE_SECONDS, 0.0, 1.0)
+	for m in _mats:
+		m.albedo_color.a = a
+	if a <= 0.0:
+		queue_free()

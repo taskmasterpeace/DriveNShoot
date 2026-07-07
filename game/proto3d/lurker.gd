@@ -9,6 +9,7 @@ extends CharacterBody3D
 @export var stalk_speed: float = 2.6
 @export var claw_damage: float = 9.0
 @export var claw_cooldown: float = 1.3
+var hit_launch: Vector3 = Vector3.ZERO ## a car sets this before a fatal hit → the corpse is FLUNG
 var _claw_cd: float = 0.0
 
 var _visual: Node3D
@@ -60,10 +61,19 @@ func take_damage(amount: float) -> void:
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true
+		# POPULATION_WAR.md §3.2: death-removal fires FIRST (before queue_free/
+		# unload can bank it back) — a no-op for any lurker not spawned by the
+		# population ledger (has_meta guards it), so every bespoke lurker spawn
+		# in the codebase today is completely unaffected.
+		var m: Node = get_tree().current_scene
+		if m == null or not ("population" in m):
+			m = get_parent()
+		if m != null and "population" in m and m.population != null:
+			m.population.on_actor_removed(self)
 		# KILL PAYOFF: the skull pops, the remains drop (soft pile, never a
 		# car-denting crate).
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoChest.create("Corpse", {"meat": 1, "scrip": 2}, false)
+		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 2}, Color(0.46, 0.44, 0.4), hit_launch)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()

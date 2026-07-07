@@ -18,6 +18,7 @@ const ROLES: Dictionary = {
 	"charger": {"charge_cd": [0.8, 2.2], "charge_range": 62.0, "speed_mult": 1.15, "scale": 0.95},
 	"screamer": {"charge_cd": [999.0, 999.0], "charge_range": 0.0, "speed_mult": 0.9, "scale": 1.18},
 }
+var hit_launch: Vector3 = Vector3.ZERO ## a car sets this before a fatal hit → the corpse is FLUNG
 var role: String = "circler"
 var _scream_cd: float = 6.0
 var _screams_left: int = 2
@@ -113,8 +114,14 @@ func take_damage(amount: float) -> void:
 	body.damage(amount)
 	if body.hp <= 0.0:
 		dead = true
+		# POPULATION_WAR.md §3.2: death-removal fires FIRST (before queue_free/
+		# unload can bank it back) — a no-op for any howler not spawned by the
+		# population ledger (has_meta guards it), so bespoke packs (spawn_howler_pack
+		# et al) are completely unaffected.
+		if _main != null and "population" in _main and _main.population != null:
+			_main.population.on_actor_removed(self)
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoChest.create("Corpse", {"meat": 1, "scrip": 3}, false)
+		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 3}, Color(0.5, 0.42, 0.36), hit_launch)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()
@@ -234,6 +241,22 @@ func _physics_process(delta: float) -> void:
 			var radial := dist - ring
 			var tangent := Vector3(dir.z, 0, -dir.x) * _orbit_sign
 			var move_dir := (tangent + dir * clampf(radial * 0.25, -1.0, 1.0)).normalized()
+			# THE PACK HEARS (owner ask): a loud radio/engine/horn pulls a circling
+			# howler off its orbit to INVESTIGATE — close on the noise itself, not
+			# the player. Get within normal sight/charge range of the PLAYER on the
+			# way in and the existing charge check below just takes over — no new
+			# state needed. Loud+repeated noise re-pulls it every tick on its own.
+			if _main and _main.has_method("noises_in"):
+				var heard: Array = _main.noises_in(global_position)
+				if not heard.is_empty():
+					var loudest: Dictionary = heard[0]
+					for n in heard:
+						if float(n["radius"]) > float(loudest["radius"]):
+							loudest = n
+					var to_noise: Vector3 = (loudest["pos"] as Vector3) - global_position
+					to_noise.y = 0.0
+					if to_noise.length_squared() > 1.0:
+						move_dir = to_noise.normalized()
 			var spd := circle_speed * float(ROLES[role]["speed_mult"])
 			velocity.x = move_dir.x * spd
 			velocity.z = move_dir.z * spd

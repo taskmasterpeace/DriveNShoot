@@ -27,6 +27,7 @@ const CREW: Dictionary = {
 }
 const JOB_HOURS := 0.5 ## a job tick every half a game-hour (T-wait/dev clock honor it)
 
+var hit_launch: Vector3 = Vector3.ZERO ## a car sets this before a fatal hit → the corpse is FLUNG
 var crew_id: String = "sam"
 var comp_name: String = "Sam"
 var job: String = "gunner"
@@ -121,7 +122,7 @@ func take_damage(amount: float) -> void:
 
 func _die_to_chest() -> void:
 	var gear: Dictionary = (CREW[crew_id].get("gear", {}) as Dictionary).duplicate()
-	var corpse := ProtoChest.create("%s's body" % comp_name, gear, false)
+	var corpse := ProtoCorpse.create("%s's body" % comp_name, gear, Color(0.55, 0.48, 0.4), hit_launch)
 	get_parent().add_child(corpse)
 	corpse.global_position = global_position
 	if _main != null and "companions" in _main:

@@ -219,6 +219,12 @@ var _wheel_base_radius: Array = [] ## float, the row's un-punctured radius per w
 var use_player_input: bool = true
 var is_active: bool = false
 
+## ROADKILL (goal: any character can be hit by a vehicle). A moving car mauls characters
+## it drives into — scaled by speed, flinging the corpse in your direction. A player car
+## never runs over its own driver; an AI car CAN run over the player.
+const ROADKILL_MIN_SPEED := 5.0   ## m/s — below this it's a bump, not a maiming
+var _roadkill_cd: Dictionary = {} ## victim -> cooldown, so one pass = one hit
+
 ## ⭐ THE DRIVING SKILL made physical (set by main on enter + level-up): control
 ## scales steering authority + drift settle and TIGHTENS the spin cap; top nudges
 ## the ceiling. 1.0 = unskilled; the sim-checked feel targets are the floor.
@@ -886,6 +892,42 @@ func _explode() -> void:
 	_become_husk(true)
 
 
+## Maul characters the car drives into (goal: no more untouchable pedestrians). Damage
+## scales with speed; a kill is FLUNG in the car's direction (hit_launch → ProtoCorpse) and
+## the car feels the thud. A player's car never hits its own driver; an AI car can hit you.
+func _roadkill(delta: float) -> void:
+	for k in _roadkill_cd.keys():
+		_roadkill_cd[k] -= delta
+		if not is_instance_valid(k) or float(_roadkill_cd[k]) <= 0.0:
+			_roadkill_cd.erase(k)
+	var speed := linear_velocity.length()
+	if speed < ROADKILL_MIN_SPEED:
+		return
+	var reach: float = spec["chassis"].z * 0.5 + 0.9
+	var seen: Dictionary = {}
+	for group in ["threat", "combatant", "npc", "motorist"]:
+		for node in get_tree().get_nodes_in_group(group):
+			var n := node as Node3D
+			if n == null or not is_instance_valid(n) or seen.has(n):
+				continue
+			seen[n] = true
+			if n == self or n == ai_driver or _roadkill_cd.has(n):
+				continue
+			if use_player_input and n is ProtoPlayer3D:
+				continue                                  # your own ride won't run you over
+			if n is ProtoCar3D or not n.has_method("take_damage"):
+				continue
+			var to: Vector3 = n.global_position - global_position
+			to.y = 0.0
+			if to.length() > reach:
+				continue
+			if "hit_launch" in n:                          # a corpse gets flung the way you're going
+				n.set("hit_launch", linear_velocity * 0.55 + Vector3(0, 3.2, 0))
+			n.take_damage(clampf((speed - ROADKILL_MIN_SPEED) * 5.0, 10.0, 90.0))
+			_roadkill_cd[n] = 0.8
+			apply_central_impulse(-linear_velocity.normalized() * mass * 0.12)  # the felt thud
+
+
 func _become_husk(_exploded: bool) -> void:
 	if dead:
 		return
@@ -933,6 +975,8 @@ func _physics_process(delta: float) -> void:
 
 	_update_death_spiral(delta)
 	_update_damage_smoke()
+	if not dead and (is_active or ai_driver != null):
+		_roadkill(delta)
 
 	# Flip recovery: on the roof or side with no momentum, the car rights itself
 	# after a beat (playtest bug: landed inverted and spun forever).
