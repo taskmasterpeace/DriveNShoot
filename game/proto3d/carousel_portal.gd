@@ -24,6 +24,9 @@ const RESET_AFTER: float = 2.6
 
 var display_name: String = "CAROUSEL PORTAL"
 var portal_scale: float = 0.7
+## When set, FIRING executes this (the REAL carousel jump) instead of the dev announce —
+## the gates wire it to carousel.jump(row_id) (docs/design/CAROUSEL_PORTAL.md).
+var jump_action: Callable = Callable()
 
 var _main: Node = null
 var _state: State = State.IDLE
@@ -139,9 +142,13 @@ func _fire() -> void:
 	_play("explosion")
 	_ramp(1.0)
 	# ── THE JUMP HOOK ─────────────────────────────────────────────────────────────
-	# When wired to the Carousel (docs/design/CAROUSEL_PORTAL.md), THIS is where a live
-	# gate would call carousel.jump(row["id"]). Dev build stops here on purpose.
-	_notify("PORTAL ONLINE — (dev example; the Carousel jump is not wired to bases yet)")
+	# Wired at a live gate: the countdown ends and THE DIAL rolls — the real
+	# carousel.jump(). The safehouse dev example keeps the announce-only behavior.
+	if jump_action.is_valid():
+		_notify("PORTAL ONLINE — THE DIAL ROLLS.")
+		jump_action.call()
+	else:
+		_notify("PORTAL ONLINE — (dev example; not wired to a gate)")
 	fired.emit()
 
 

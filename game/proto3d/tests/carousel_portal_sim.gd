@@ -81,7 +81,7 @@ func _ready() -> void:
 	_check("state is FIRING after zero", portal._state == ProtoCarouselPortal.State.FIRING)
 	_check("fire plays portal_go + portal_charge", "portal_go" in main.audio.log and "portal_charge" in main.audio.log)
 	_check("fire prompt is blank (not re-activatable mid-fire)", portal.interact_prompt(main) == "")
-	_check("dev build did NOT jump — announced instead", main.notes.any(func(t): return "not wired to bases" in String(t)))
+	_check("dev build did NOT jump — announced instead", main.notes.any(func(t): return "not wired to a gate" in String(t)))
 
 	# Interacting again mid-sequence is a no-op (can't re-arm a live portal).
 	var log_len := main.audio.log.size()
@@ -92,6 +92,21 @@ func _ready() -> void:
 	portal.advance(ProtoCarouselPortal.RESET_AFTER + 0.1)
 	_check("resets to IDLE after the fire window", portal._state == ProtoCarouselPortal.State.IDLE)
 	_check("re-armable after reset", portal.interact_prompt(main) == "E — ACTIVATE PORTAL")
+
+	# --- WIRED TO THE RING (goal ②): a gate-mounted portal fires the REAL jump. ---
+	var main2 := StubMain.new()
+	add_child(main2)
+	var wired := ProtoCarouselPortal.create(main2)
+	add_child(wired)
+	var jumped := {"n": 0}
+	wired.jump_action = func() -> void: jumped["n"] += 1
+	wired.interact(main2)
+	for _i in 10:
+		wired.advance(1.0)
+	_check("a WIRED portal executes the jump at zero", int(jumped["n"]) == 1)
+	_check("wired fire announces THE DIAL, not the dev line", main2.notes.any(func(t): return "THE DIAL" in String(t)))
+	wired.advance(ProtoCarouselPortal.RESET_AFTER + 0.1)
+	_check("wired portal resets for the next jump", wired._state == ProtoCarouselPortal.State.IDLE)
 
 	print("PORTAL: DONE — %d passed, %d failed" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)

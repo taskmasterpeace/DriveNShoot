@@ -226,6 +226,9 @@ class ProtoGate:
 	var under_siege: bool = false
 	var siege_deadline_day: int = 0
 	var siege_attackers: Array = []
+	## THE PORTAL (docs/design/CAROUSEL_PORTAL.md): a live gate grows a countdown portal
+	## on the platform — activate it, the computer counts you down, THE DIAL rolls.
+	var portal: ProtoCarouselPortal = null
 
 	static func create(c: ProtoCarousel, row_in: Dictionary) -> ProtoGate:
 		var g := ProtoGate.new()
@@ -403,6 +406,24 @@ class ProtoGate:
 		return n
 
 
+	## A live gate wears the countdown portal (docs/design/CAROUSEL_PORTAL.md): E arms it,
+	## the computer counts 10→1, and the FIRE executes the REAL roulette jump — the same
+	## carousel.jump() the terminal's E offers (which stays, as the quiet parity path).
+	func _mount_portal() -> void:
+		if portal != null and is_instance_valid(portal):
+			return
+		portal = ProtoCarouselPortal.create(carousel._main)
+		portal.jump_action = func() -> void: carousel.jump(row["id"])
+		add_child(portal)
+		portal.position = Vector3(0, 0.4, -2.2) # on the platform, clear of the terminal
+
+
+	func _clear_portal() -> void:
+		if portal != null and is_instance_valid(portal):
+			portal.queue_free()
+		portal = null
+
+
 	func _lose_node() -> void:
 		under_siege = false
 		state = "dormant"
@@ -410,6 +431,7 @@ class ProtoGate:
 		_spawned = false
 		objectives_left = (row.get("objectives", ["power"]) as Array).duplicate()
 		carousel.active.erase(row["id"])
+		_clear_portal() # a dark gate has no portal
 		refresh_visual()
 		var m: Node = carousel._main
 		m.stress = minf(100.0, m.stress + 30.0)
@@ -452,6 +474,7 @@ class ProtoGate:
 		state = "active"
 		refresh_visual()
 		carousel.active[row["id"]] = true
+		_mount_portal()
 		var m: Node = carousel._main # never current_scene — sims wrap main in a harness
 		if m and m.has_method("notify"):
 			# The reward chest materializes at the live gate — the room pays out.
