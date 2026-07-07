@@ -104,6 +104,7 @@ var _seen_ids: Dictionary = {}      ## instance_id -> true (the "memory")
 
 
 func _ready() -> void:
+	ProtoInputMap.ensure() # THE BINDINGS ARE ROWS: keys+mouse+PAD fold before any input is read
 	DrivnData.ensure() # THE DATA SPINE: fold data/vehicles.json into the fleet before anything spawns
 	ProtoContainer.ensure_items() # …and data/items.json onto the item catalog (a new item = a ROW)
 	ProtoNPC.ensure_prices() # …and data/prices.json onto the price list
@@ -162,7 +163,8 @@ func _ready() -> void:
 	# ONE DAMAGE LAW: the player is an ordinary body — everything that hurts him
 	# calls take_damage; the signal routes it into the wound system here.
 	player.damaged.connect(func(amount: float, attacker: Node3D) -> void:
-		on_player_clawed(amount, attacker))
+		on_player_clawed(amount, attacker)
+		pad_rumble(0.5, clampf(amount / 25.0, 0.2, 1.0), 0.25)) # the hit lands in your HANDS
 	player.dove.connect(dive_dilation) # the shootdodge's 0.6× air
 
 	cam_rig = ProtoCameraRig.create()
@@ -312,6 +314,14 @@ var _fist_hold: float = 0.0
 const SHOVE_HOLD := 0.28
 var _tackle_t: float = 0.0
 
+## THE PAD (controller arc): right stick aims (twin-stick — feeds the same
+## aim_override the sims use), triggers swap jobs by mode (FOOT: RT fire · DRIVE:
+## RT gas, LT brake), and hits RUMBLE in your hands. All bindings are ROWS.
+var _fire_down: bool = false          ## latch: a trigger's repeat events fire once
+var _pad_aiming: bool = false         ## right stick currently owns the aim
+var _pad_prev_drive: bool = false     ## for the trigger job-swap on mode change
+var controls_panel: Node = null       ## the rebind UI (F11 / menu)
+
 ## GRAB & DRAG (MOVESET.txt): hold E on a chest/body = haul it behind you (slow,
 ## heavy, teaches STRENGTH); tap E keeps its old meaning (open). E again drops it.
 var _grab_down: bool = false
@@ -447,6 +457,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if menu_open:
 		return # the title menu owns the input until you pick a door
+	if controls_panel != null and controls_panel.is_open:
+		# The rebind panel owns the hardware while it's up — except its own toggle
+		# (and never mid-capture: the key you press is the key you MEANT to bind).
+		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
+			toggle_controls_panel()
+		return
 	if event.is_action_pressed("interact"):
 		if panel.is_open:
 			panel.close()
@@ -479,88 +495,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			_grab_down = false
 			if _grab_t < 0.35 and is_instance_valid(_current_interactable) and _current_interactable is ProtoChest:
 				_current_interactable.call("interact", self) # the TAP: open it
-	elif event is InputEventKey and (event as InputEventKey).keycode == KEY_C and not (event as InputEventKey).echo:
-		_whistle_input((event as InputEventKey).pressed)
-	elif event is InputEventKey and event.pressed and not event.echo:
-		var kc := (event as InputEventKey).keycode
-		if kc == KEY_TAB:
-			if panel.is_open:
-				panel.close()
-			elif media_panel != null and media_panel.is_open:
-				media_panel.close()
-			elif mode == Mode.DRIVE and active_car and not active_car.dead:
-				panel.open(backpack, active_car.trunk) # reach the trunk from the seat
-			else:
-				panel.open(backpack, null) # just your pack
-		elif kc == KEY_Y:
-			radio.scan() # sweep the dial — the wasteland talks if you listen
-		elif kc == KEY_F5:
-			save_game()
-		elif kc == KEY_F9:
-			load_game()
-		elif kc == KEY_F7:
-			_ensure_net()
-			net.host()
-		elif kc == KEY_F8:
-			_ensure_net()
-			net.join()
-		elif kc == KEY_F10:
-			# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
-			if devmode == null:
-				devmode = ProtoDevMode.create(self)
-				add_child(devmode)
-			else:
-				devmode.toggle()
-		elif kc == KEY_H:
-			_honk()
-		elif kc == KEY_F6:
-			# PVP RULES (fun pass): F6 cycles peace → duel → ffa. In a session the
-			# HOST owns the rules; solo you can still read the three states.
-			if net != null and net.online and not net.is_server():
-				notify("⚔️ Only the HOST sets the PvP rules")
-			else:
-				var order: Array = ["peace", "duel", "ffa"]
-				pvp_mode = order[(order.find(pvp_mode) + 1) % order.size()]
-				if net != null:
-					net.send_pvp_mode(pvp_mode)
-				notify("⚔️ PvP: %s" % pvp_label())
-				_refresh_peer_tags()
-		elif kc == KEY_P:
-			_pet_dog()
-		elif kc == KEY_V:
-			sview.cycle(self)
-		elif kc == KEY_R:
-			if character.dead:
-				respawn_at_home() # soft respawn — the world persists, only you reset
-			elif mode == Mode.DRIVE and active_car and active_car.mount_weapon:
-				_reload_mount()
-			else:
-				reload_equipped()
-		elif kc == KEY_G:
-			throw_grenade()
-		elif kc == KEY_M:
-			stream.toggle_map()
-		elif kc == KEY_F:
-			set_home()
-		elif kc == KEY_J:
-			char_create.toggle()
-		elif kc == KEY_K:
-			hud.toggle_sheet(_sheet_text())
-		elif kc == KEY_N:
-			waypoint_idx = ((waypoint_idx + 2) % (waypoints.size() + 1)) - 1 # -1(off) -> 0 -> 1 -> 2 -> -1
-			if waypoint_idx >= 0:
-				hud.toast("📍 Waypoint: %s" % waypoints[waypoint_idx][0])
-			else:
-				hud.toast("📍 Waypoint off")
-		elif kc >= KEY_1 and kc <= KEY_3:
-			var idx := kc - KEY_1
-			if idx < weapons.size():
-				equipped = idx
-				_reload_t = 0.0 # switching abandons the mag swap
-				_reload_wpn = null
-				notify("Equipped the %s" % weapons[idx].info()["name"])
-	elif event is InputEventMouseButton and event.pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+	# THE ACTION CHAIN (controller arc): every verb is an ACTION — the same elif
+	# fires from its key, its mouse button, OR its pad binding (input_bindings.json
+	# rows; rebind in the CONTROLS panel, F11). PS pads read as the same buttons.
+	elif event.is_action_pressed("drivn_whistle"):
+		_whistle_input(true)
+	elif event.is_action_released("drivn_whistle"):
+		_whistle_input(false)
+	elif event.is_action_pressed("drivn_fire") and not _fire_down:
+		# ONE fire verb, any hardware (LMB, RT, a rebind). The latch eats the
+		# trigger's repeated motion events; RT in DRIVE is the GAS, not the gun.
+		_fire_down = true
 		if panel.is_open or cam_rig.binoculars or stream.map_open():
 			pass # a click on the open map sets your course, it doesn't fire your gun
 		elif mode == Mode.FOOT:
@@ -568,15 +513,95 @@ func _unhandled_input(event: InputEvent) -> void:
 				_unarmed_press() # empty hands: tap punch · hold shove · sprint tackle
 			else:
 				fire_equipped()
-		elif mode == Mode.DRIVE:
-			# Mounts are optional hardware now; by default you shoot YOUR gun.
-			if active_car and active_car.mount_weapon:
-				fire_mount()
-			else:
-				fire_from_vehicle()
-	elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed \
-			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		elif mode == Mode.DRIVE and not (event is InputEventJoypadMotion):
+			_fire_from_seat()
+	elif event.is_action_released("drivn_fire"):
+		_fire_down = false
 		_unarmed_release() # a quick release = the TAP (punch); held past the beat = shove
+	elif event.is_action_pressed("drivn_fire_drive"):
+		if mode == Mode.DRIVE:
+			_fire_from_seat() # LB / L1 — the wheel-hand trigger
+	elif event.is_action_pressed("drivn_pack"):
+		if panel.is_open:
+			panel.close()
+		elif media_panel != null and media_panel.is_open:
+			media_panel.close()
+		elif mode == Mode.DRIVE and active_car and not active_car.dead:
+			panel.open(backpack, active_car.trunk) # reach the trunk from the seat
+		else:
+			panel.open(backpack, null) # just your pack
+	elif event.is_action_pressed("drivn_radio"):
+		radio.scan() # sweep the dial — the wasteland talks if you listen
+	elif event.is_action_pressed("drivn_save"):
+		save_game()
+	elif event.is_action_pressed("drivn_load"):
+		load_game()
+	elif event.is_action_pressed("drivn_host"):
+		_ensure_net()
+		net.host()
+	elif event.is_action_pressed("drivn_join"):
+		_ensure_net()
+		net.join()
+	elif event.is_action_pressed("drivn_devmode"):
+		# DEV MODE — the in-game test environment (built lazily; a tool, not a menu)
+		if devmode == null:
+			devmode = ProtoDevMode.create(self)
+			add_child(devmode)
+		else:
+			devmode.toggle()
+	elif event.is_action_pressed("drivn_controls"):
+		toggle_controls_panel()
+	elif event.is_action_pressed("drivn_horn"):
+		_honk()
+	elif event.is_action_pressed("drivn_pvp"):
+		# PVP RULES (fun pass): cycles peace → duel → ffa. In a session the
+		# HOST owns the rules; solo you can still read the three states.
+		if net != null and net.online and not net.is_server():
+			notify("⚔️ Only the HOST sets the PvP rules")
+		else:
+			var order: Array = ["peace", "duel", "ffa"]
+			pvp_mode = order[(order.find(pvp_mode) + 1) % order.size()]
+			if net != null:
+				net.send_pvp_mode(pvp_mode)
+			notify("⚔️ PvP: %s" % pvp_label())
+			_refresh_peer_tags()
+	elif event.is_action_pressed("drivn_pet"):
+		_pet_dog()
+	elif event.is_action_pressed("drivn_views"):
+		sview.cycle(self)
+	elif event.is_action_pressed("drivn_reload"):
+		if character.dead:
+			respawn_at_home() # soft respawn — the world persists, only you reset
+		elif mode == Mode.DRIVE and active_car and active_car.mount_weapon:
+			_reload_mount()
+		else:
+			reload_equipped()
+	elif event.is_action_pressed("drivn_grenade"):
+		throw_grenade()
+	elif event.is_action_pressed("drivn_map"):
+		stream.toggle_map()
+	elif event.is_action_pressed("drivn_beacon"):
+		set_home()
+	elif event.is_action_pressed("drivn_char_create"):
+		char_create.toggle()
+	elif event.is_action_pressed("drivn_sheet"):
+		hud.toggle_sheet(_sheet_text())
+	elif event.is_action_pressed("drivn_waypoints"):
+		waypoint_idx = ((waypoint_idx + 2) % (waypoints.size() + 1)) - 1 # -1(off) -> 0 -> 1 -> 2 -> -1
+		if waypoint_idx >= 0:
+			hud.toast("📍 Waypoint: %s" % waypoints[waypoint_idx][0])
+		else:
+			hud.toast("📍 Waypoint off")
+	elif event.is_action_pressed("drivn_weapon_next"):
+		# RB / R1: cycle the arsenal without a number row (the pad's slot picker).
+		if not weapons.is_empty():
+			_equip_slot((equipped + 1) % weapons.size())
+	elif event.is_action_pressed("drivn_weapon_1"):
+		_equip_slot(0)
+	elif event.is_action_pressed("drivn_weapon_2"):
+		_equip_slot(1)
+	elif event.is_action_pressed("drivn_weapon_3"):
+		_equip_slot(2)
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
 		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
@@ -598,20 +623,22 @@ func _physics_process(delta: float) -> void:
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	# The TV is modal the same way — you sit down to watch.
-	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open)
+	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
+		or (controls_panel != null and controls_panel.is_open)
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
-	# Zoom fallback keys (no wheel on some setups)
-	if Input.is_key_pressed(KEY_Z):
+	_update_pad(delta) # the second stick + mode-aware triggers + rumble decay
+	# Zoom fallback keys (no wheel on some setups) — rebindable actions now.
+	if Input.is_action_pressed("drivn_zoom_in"):
 		cam_rig.add_zoom(-0.02)
-	if Input.is_key_pressed(KEY_X):
+	if Input.is_action_pressed("drivn_zoom_out"):
 		cam_rig.add_zoom(0.02)
 
-	# Binoculars: hold B or right mouse. One gaze pipeline: glassing and gunfighting
-	# both feed AIM INTENT, and the Look Arc drags the body when the target is past
-	# the head's limit — you physically turn to glass or shoot behind you.
-	var binoc := Input.is_key_pressed(KEY_B) or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+	# Binoculars: hold B, right mouse, or R3 — one ACTION, any hardware. One gaze
+	# pipeline: glassing and gunfighting both feed AIM INTENT, and the Look Arc
+	# drags the body when the target is past the head's limit.
+	var binoc := Input.is_action_pressed("drivn_binoculars")
 	cam_rig.binoculars = binoc
 	hud.set_binoculars(binoc)
 	if mode == Mode.FOOT:
@@ -1925,6 +1952,71 @@ func _drop_drag() -> void:
 	_dragging = null
 
 
+# --- THE PAD DRIVER (controller arc) -------------------------------------------
+
+## Per-frame pad work: the RIGHT STICK is the second half of twin-stick (it owns
+## aim_override while deflected — the exact seam the sims aim with), and the
+## TRIGGERS swap jobs when you take the wheel (RT gas / LT brake, GTA-style).
+func _update_pad(_delta: float) -> void:
+	var driving := mode == Mode.DRIVE
+	if driving != _pad_prev_drive:
+		_pad_prev_drive = driving
+		_swap_drive_triggers(driving)
+	# Right-stick aim: deflected = it owns the reticle; released = the mouse resumes.
+	var av := Vector3(Input.get_axis("drivn_aim_left", "drivn_aim_right"), 0,
+		-Input.get_axis("drivn_aim_down", "drivn_aim_up"))
+	if av.length() > 0.25:
+		aim_override = av.normalized() # a UNIT vector = 25 m out (the aim_point law)
+		_pad_aiming = true
+	elif _pad_aiming:
+		_pad_aiming = false
+		aim_override = Vector3.ZERO # hand the reticle back to the mouse
+
+
+## Entering the cab, the triggers become PEDALS (RT throttle, LT brake — the
+## car already drinks move_up/move_down strengths); on foot they're weapons again.
+func _swap_drive_triggers(on: bool) -> void:
+	for pair in [["move_up", "axis:rt"], ["move_down", "axis:lt"]]:
+		var action := String(pair[0])
+		for e in InputMap.action_get_events(action):
+			if e is InputEventJoypadMotion and ((e as InputEventJoypadMotion).axis == JOY_AXIS_TRIGGER_RIGHT \
+					or (e as InputEventJoypadMotion).axis == JOY_AXIS_TRIGGER_LEFT):
+				InputMap.action_erase_event(action, e)
+		if on:
+			InputMap.action_add_event(action, ProtoInputMap.descriptor_to_event(String(pair[1])))
+
+
+## RUMBLE: the hit lands in your hands. Every connected pad shakes (co-op couch).
+func pad_rumble(weak: float, strong: float, dur: float = 0.2) -> void:
+	for dev in Input.get_connected_joypads():
+		Input.start_joy_vibration(dev, weak, strong, dur)
+
+
+## The one drive-fire door (mount if bolted, else your own iron out the window).
+func _fire_from_seat() -> void:
+	if active_car and active_car.mount_weapon:
+		fire_mount()
+	else:
+		fire_from_vehicle()
+
+
+func _equip_slot(idx: int) -> void:
+	if idx < 0 or idx >= weapons.size():
+		return
+	equipped = idx
+	_reload_t = 0.0 # switching abandons the mag swap
+	_reload_wpn = null
+	notify("Equipped the %s" % weapons[idx].info()["name"])
+
+
+func toggle_controls_panel() -> void:
+	if controls_panel == null:
+		controls_panel = ProtoControlsPanel.create(self)
+		add_child(controls_panel)
+	else:
+		controls_panel.toggle()
+
+
 # --- UNARMED (MOVESET.txt): tap punch · hold shove · sprint-tackle ------------
 
 func _unarmed_press() -> void:
@@ -2253,6 +2345,7 @@ func _reload_mount() -> void:
 
 func on_explosion(pos: Vector3, damage: float = 0.0, blast: float = 0.0) -> void:
 	cam_rig.add_trauma(1.0) # THE WOW: a rocket hit KICKS the camera, hard
+	pad_rumble(0.9, 1.0, 0.45) # …and the pad in your hands
 	# …and the blast HANGS for a heartbeat (micro slow-mo, real-time restore).
 	if not _cine_lock:
 		_cine_lock = true

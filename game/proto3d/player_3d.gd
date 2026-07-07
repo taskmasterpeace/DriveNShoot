@@ -65,12 +65,15 @@ static func empty_packet() -> Dictionary:
 
 
 ## Keyboard/gamepad → one packet. The single hardware touchpoint on foot.
+## Every field is an ACTION now (input_bindings.json rows): the left stick rides
+## the same move axes as WASD, L3 sprints, B/circle crouches — and every one of
+## them is rebindable in the CONTROLS panel.
 func gather_input() -> Dictionary:
 	return {
 		"move": Vector3(Input.get_axis("move_left", "move_right"), 0, -Input.get_axis("move_down", "move_up")),
 		"dive": Input.is_action_just_pressed("jump"),
-		"sprint": Input.is_key_pressed(KEY_SHIFT),
-		"crouch": Input.is_key_pressed(KEY_CTRL),
+		"sprint": Input.is_action_pressed("drivn_sprint"),
+		"crouch": Input.is_action_pressed("drivn_crouch"),
 	}
 
 ## The three yaws (radians; yaw 0 faces -Z). body = torso (the arc's anchor),

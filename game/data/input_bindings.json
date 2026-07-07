@@ -1,0 +1,51 @@
+{
+  "_comment": "THE INPUT MAP AS ROWS — every verb is an action with KEY and PAD bindings (edit here or in the in-game CONTROLS panel; user://input_overrides.json wins). Descriptors: key:<NAME> (Godot key name: E, SHIFT, CTRL, SPACE, TAB, F5, KP_1…) · mouse:left/right/middle · joy:a/b/x/y/lb/rb/l3/r3/start/back/dpad_up/dpad_down/dpad_left/dpad_right · axis:rt/lt (triggers) · axis:lx/ly/rx/ry:+/- (stick directions). PS2-family pads read the same rows (cross=a, circle=b, square=x, triangle=y). Existing engine actions (move_*, jump, interact) keep their ids — rows here EXTEND them with pad events and let the panel rebind their keys.",
+  "actions": [
+    {"id": "move_up",    "label": "Move north",  "group": "MOVE", "keys": ["key:W"], "pad": ["axis:ly:-"]},
+    {"id": "move_down",  "label": "Move south",  "group": "MOVE", "keys": ["key:S"], "pad": ["axis:ly:+"]},
+    {"id": "move_left",  "label": "Move west",   "group": "MOVE", "keys": ["key:A"], "pad": ["axis:lx:-"]},
+    {"id": "move_right", "label": "Move east",   "group": "MOVE", "keys": ["key:D"], "pad": ["axis:lx:+"]},
+    {"id": "drivn_aim_up",    "label": "Aim north (stick)", "group": "MOVE", "keys": [], "pad": ["axis:ry:-"]},
+    {"id": "drivn_aim_down",  "label": "Aim south (stick)", "group": "MOVE", "keys": [], "pad": ["axis:ry:+"]},
+    {"id": "drivn_aim_left",  "label": "Aim west (stick)",  "group": "MOVE", "keys": [], "pad": ["axis:rx:-"]},
+    {"id": "drivn_aim_right", "label": "Aim east (stick)",  "group": "MOVE", "keys": [], "pad": ["axis:rx:+"]},
+
+    {"id": "jump",          "label": "Dive / handbrake",        "group": "ON FOOT", "keys": ["key:SPACE"], "pad": ["joy:a"]},
+    {"id": "drivn_sprint",  "label": "Sprint",                  "group": "ON FOOT", "keys": ["key:SHIFT"], "pad": ["joy:l3"]},
+    {"id": "drivn_crouch",  "label": "Crouch (hold; slide at sprint)", "group": "ON FOOT", "keys": ["key:CTRL"], "pad": ["joy:b"]},
+    {"id": "drivn_fire",    "label": "Fire / punch (tap) / shove (hold)", "group": "ON FOOT", "keys": ["mouse:left"], "pad": ["axis:rt"]},
+    {"id": "drivn_reload",  "label": "Reload",                  "group": "ON FOOT", "keys": ["key:R"], "pad": ["joy:x"]},
+    {"id": "interact",      "label": "Interact (hold to drag / take wheel)", "group": "ON FOOT", "keys": ["key:E"], "pad": ["joy:y"]},
+    {"id": "drivn_whistle", "label": "Dog whistle (tap chords)", "group": "ON FOOT", "keys": ["key:C"], "pad": ["joy:lb"]},
+    {"id": "drivn_grenade", "label": "Grenade",                 "group": "ON FOOT", "keys": ["key:G"], "pad": ["axis:lt"]},
+    {"id": "drivn_binoculars", "label": "Binoculars",           "group": "ON FOOT", "keys": ["key:B", "mouse:right"], "pad": ["joy:r3"]},
+    {"id": "drivn_zoom_in",  "label": "Zoom in (held)",          "group": "WORLD", "keys": ["key:Z"], "pad": []},
+    {"id": "drivn_zoom_out", "label": "Zoom out (held)",         "group": "WORLD", "keys": ["key:X"], "pad": []},
+    {"id": "drivn_weapon_next", "label": "Next weapon",         "group": "ON FOOT", "keys": ["key:QUOTELEFT"], "pad": ["joy:rb"]},
+    {"id": "drivn_weapon_1", "label": "Weapon slot 1",          "group": "ON FOOT", "keys": ["key:1"], "pad": []},
+    {"id": "drivn_weapon_2", "label": "Weapon slot 2",          "group": "ON FOOT", "keys": ["key:2"], "pad": []},
+    {"id": "drivn_weapon_3", "label": "Weapon slot 3",          "group": "ON FOOT", "keys": ["key:3"], "pad": []},
+
+    {"id": "drivn_horn",   "label": "Horn (drive)",             "group": "DRIVING", "keys": ["key:H"], "pad": ["joy:l3"]},
+    {"id": "drivn_fire_drive", "label": "Fire from the wheel",  "group": "DRIVING", "keys": ["mouse:left"], "pad": ["joy:lb"]},
+
+    {"id": "drivn_radio",  "label": "Radio scan",               "group": "WORLD", "keys": ["key:Y"], "pad": ["joy:dpad_up"]},
+    {"id": "drivn_pack",   "label": "Pack / trunk",             "group": "WORLD", "keys": ["key:TAB"], "pad": ["joy:dpad_down"]},
+    {"id": "drivn_map",    "label": "Map / atlas",              "group": "WORLD", "keys": ["key:M"], "pad": ["joy:start"]},
+    {"id": "drivn_sheet",  "label": "Character sheet",          "group": "WORLD", "keys": ["key:K"], "pad": ["joy:dpad_right"]},
+    {"id": "drivn_views",  "label": "Second window views",      "group": "WORLD", "keys": ["key:V"], "pad": ["joy:dpad_left"]},
+    {"id": "drivn_wait",   "label": "Wait (hold)",              "group": "WORLD", "keys": ["key:T"], "pad": ["joy:back"]},
+    {"id": "drivn_waypoints", "label": "Cycle waypoints",       "group": "WORLD", "keys": ["key:N"], "pad": []},
+    {"id": "drivn_pet",    "label": "Pet the dog",              "group": "WORLD", "keys": ["key:P"], "pad": []},
+    {"id": "drivn_beacon", "label": "Home beacon",              "group": "WORLD", "keys": ["key:F"], "pad": []},
+    {"id": "drivn_char_create", "label": "Character creation",  "group": "WORLD", "keys": ["key:J"], "pad": []},
+
+    {"id": "drivn_save",   "label": "Quick save",               "group": "SYSTEM", "keys": ["key:F5"], "pad": []},
+    {"id": "drivn_load",   "label": "Quick load",               "group": "SYSTEM", "keys": ["key:F9"], "pad": []},
+    {"id": "drivn_pvp",    "label": "PvP rules",                "group": "SYSTEM", "keys": ["key:F6"], "pad": []},
+    {"id": "drivn_host",   "label": "Host co-op",               "group": "SYSTEM", "keys": ["key:F7"], "pad": []},
+    {"id": "drivn_join",   "label": "Join co-op",               "group": "SYSTEM", "keys": ["key:F8"], "pad": []},
+    {"id": "drivn_devmode", "label": "Dev mode",                "group": "SYSTEM", "keys": ["key:F10"], "pad": []},
+    {"id": "drivn_controls", "label": "Controls panel",         "group": "SYSTEM", "keys": ["key:F11"], "pad": []}
+  ]
+}
