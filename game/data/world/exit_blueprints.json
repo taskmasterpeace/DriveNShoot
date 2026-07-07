@@ -1,0 +1,26 @@
+{
+  "_comment": "EXIT BLUEPRINTS (DRIVN_World_Structures spec §5): the archetype rows every exit node references. tier_default = the community tier this exit usually leads to; structures_hint = what the PLACEMENT phase will spawn later (buildings are NOT placed yet — owner's order: roads first); sign_style shapes the highway sign read.",
+  "exit_archetypes": [
+    {"id": "service", "name": "Service Exit", "tier_default": "T1", "danger": 1,
+     "service_tags": ["fuel", "food", "rest"], "sign_style": "services",
+     "structures_hint": ["gas_station_small", "diner_roadside", "motel_strip"]},
+    {"id": "neighborhood", "name": "Neighborhood Exit", "tier_default": "T2", "danger": 1,
+     "service_tags": ["shelter", "scavenge"], "sign_style": "local",
+     "structures_hint": ["house_small", "market_general", "church_small"]},
+    {"id": "county_seat", "name": "County Seat Exit", "tier_default": "T3", "danger": 2,
+     "service_tags": ["law", "jobs", "medical", "market"], "sign_style": "town",
+     "structures_hint": ["police_station", "clinic_small", "courthouse", "market_general", "auto_shop"]},
+    {"id": "industrial", "name": "Industrial Exit", "tier_default": "T2", "danger": 2,
+     "service_tags": ["parts", "repair", "scrap"], "sign_style": "industrial",
+     "structures_hint": ["warehouse", "junkyard", "auto_shop"]},
+    {"id": "metro", "name": "Metro Exit", "tier_default": "T4", "danger": 3,
+     "service_tags": ["city", "law", "medical", "market", "transit"], "sign_style": "metro",
+     "structures_hint": ["monument_plaza", "courthouse", "police_station", "clinic_small", "radio_station"]},
+    {"id": "military_spur", "name": "Military Spur", "tier_default": "special", "danger": 5,
+     "service_tags": ["restricted"], "sign_style": "warning",
+     "structures_hint": ["checkpoint_road", "military_base_shell"]},
+    {"id": "dead", "name": "Dead Exit", "tier_default": "T1", "danger": 4,
+     "service_tags": ["unknown"], "sign_style": "faded",
+     "structures_hint": []}
+  ]
+}

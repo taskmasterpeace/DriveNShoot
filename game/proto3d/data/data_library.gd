@@ -8,10 +8,45 @@ class_name DrivnData
 extends RefCounted
 
 const VEHICLES_JSON := "res://data/vehicles.json"
+const STRUCTURES_JSON := "res://data/world/structure_profiles.json"
 
 ## id -> DrivnVehicle (the authored rows; tools + compare view read these).
 static var vehicles: Dictionary = {}
 static var _loaded: bool = false
+
+## id -> DrivnStructure (the WORLD-STRUCTURES spec §7 rows; MapForge's STRUCTURES
+## tab writes the JSON, the shell builder materializes them ON DEMAND — nothing
+## world-places them yet: roads + exits get arranged first).
+static var structures: Dictionary = {}
+static var structure_warnings: Array = [] ## sim/tool hook: every row problem found
+static var _structures_loaded: bool = false
+
+
+static func ensure_structures() -> void:
+	if _structures_loaded:
+		return
+	_structures_loaded = true
+	structure_warnings.clear()
+	if not FileAccess.file_exists(STRUCTURES_JSON):
+		structure_warnings.append("no %s — the catalog is empty (MapForge :8899 creates it)" % STRUCTURES_JSON)
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(STRUCTURES_JSON))
+	if not (parsed is Dictionary) or not (parsed as Dictionary).has("structures"):
+		structure_warnings.append("%s malformed — expected {structures:[...]}" % STRUCTURES_JSON)
+		return
+	for d in (parsed as Dictionary)["structures"]:
+		if not (d is Dictionary):
+			continue
+		var row := DrivnStructure.from_dict(d)
+		if row.id == "":
+			structure_warnings.append("a structure row with no id was skipped")
+			continue
+		if structures.has(row.id):
+			structure_warnings.append("duplicate structure id '%s' skipped" % row.id)
+			continue
+		for problem in row.validate():
+			structure_warnings.append("%s: %s" % [row.id, problem])
+		structures[row.id] = row
 
 
 ## Idempotent — safe to call from every ProtoCar3D.create(). First call does the
