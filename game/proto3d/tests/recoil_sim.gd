@@ -127,6 +127,36 @@ func _ready() -> void:
 		kick = maxf(kick, legacy.shoulder.rotation.x - rest)
 	_check("the parameterless recoil() still kicks the arm up (Δ %.3f > 0.1)" % kick, kick > 0.1)
 
+	# === 7. THE DEV TOOL: the motion stage previews the kick (F / SHIFT+F) ========
+	# A tuner on the treadmill fires the HELD row's kick at strength 0 (F) or 8
+	# (SHIFT+F) and watches the weak/strong contrast live — real key events.
+	var packed: PackedScene = load("res://proto3d/tools/motion_stage.tscn")
+	var stage: Node3D = packed.instantiate()
+	add_child(stage)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	stage._set_item(2) # the shotgun row — the kick with the story
+	var ev := InputEventKey.new()
+	ev.keycode = KEY_F
+	ev.pressed = true
+	stage._input(ev)
+	await get_tree().process_frame
+	var weak_stage_kick: float = stage.puppet._recoil_arm_x
+	_check("F on the stage fires the HELD row's kick at strength 0 (%.2f rad)" % weak_stage_kick,
+		weak_stage_kick > 0.3)
+	for _i in 90:
+		stage.puppet.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
+	var ev2 := InputEventKey.new()
+	ev2.keycode = KEY_F
+	ev2.pressed = true
+	ev2.shift_pressed = true
+	stage._input(ev2)
+	await get_tree().process_frame
+	var strong_stage_kick: float = stage.puppet._recoil_arm_x
+	_check("SHIFT+F fires it at strength 8 — visibly smaller (%.2f < %.2f x 0.65)" %
+		[strong_stage_kick, weak_stage_kick],
+		strong_stage_kick > 0.0 and strong_stage_kick < weak_stage_kick * 0.65)
+
 	print("RECOIL RESULTS: %d passed, %d failed" % [passed, failed])
 	_finish(0 if failed == 0 else 1)
 

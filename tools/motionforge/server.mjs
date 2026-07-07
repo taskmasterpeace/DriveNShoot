@@ -31,7 +31,13 @@ const ID_RE = /^[a-z0-9_]+$/;
 const DEFAULTS = {
 	puppet: {
 		gait: { cadence_base: 2.0, cadence_speed: 1.15, stride_amp: 0.6, arm_swing: 0.85,
-			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34 },
+			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34,
+			// crouch no-kiss rows (the shimmer fix) — were engine-only, now sliders too
+			hip_fold_max: 0.40, hip_drop_frac: 0.50, hip_joint_gap: 0.03, torso_scale_min: 0.81,
+			// RIG V2 follow-through: elbows/knees ride their parents as fractions.
+			// knee_follow is the single biggest look upgrade — tune it FIRST.
+			knee_follow: 0.55, knee_phase: 0.45, knee_rest: 0.06, crouch_knee: 0.55,
+			elbow_follow: 0.35, elbow_rest: 0.14 },
 		// THE MELEE READ — swing/punch/kick timings + angles, fully tunable
 		// (press M / P / K on the treadmill stage to preview each strike).
 		melee: { windup_s: 0.06, windup_yaw: 0.7, windup_lift: 0.25,
@@ -39,6 +45,10 @@ const DEFAULTS = {
 			settle_s: 0.12,
 			punch_out_s: 0.05, punch_reach: 1.45, punch_back_s: 0.12,
 			kick_out_s: 0.07, kick_height: 1.5, kick_back_s: 0.18, kick_lean: 0.25 },
+		// RIG V2 PHASE 3: the recoil SPRING (F / SHIFT+F on the stage previews the
+		// kick at strength 0 / 8). k = stiffness, c = damping (settle feel),
+		// strength_eat = how much each STRENGTH level shaves off the kick.
+		recoil: { k: 180.0, c: 22.0, strength_eat: 0.06 },
 	},
 	quadruped: {
 		gait: { cadence_base: 3.0, cadence_speed: 1.4, stride_amp: 0.5, sniff_depth: 0.25,

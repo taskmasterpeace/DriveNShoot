@@ -24,6 +24,7 @@
 ##
 ## Keys: 1/2/3 speed · C crouch · A airborne pose · D dig pose · R force re-fold
 ## (on top of the automatic poll) · M/P/K strike previews · W item cycle ·
+## F recoil kick off the held row (SHIFT+F = strength 8 — watch muscle eat it) ·
 ## WASD/arrows move-heading · mouse aim · RMB-drag orbit · wheel zoom.
 ##
 ## STRIKE POSE AUTHORING (docs/design/POSE_TO_POSE_STRIKES.md, §Authoring Flow):
@@ -232,7 +233,7 @@ func _legend_text() -> String:
 	return "MOTION STAGE\n" \
 		+ "1/2/3  speed\nC  crouch · A  air pose · D  dig pose\n" \
 		+ "M  swing · P  punch · K  kick\n" \
-		+ "W  cycle held item\n" \
+		+ "W  cycle held item · F  recoil kick (SHIFT+F = strength 8)\n" \
 		+ "WASD / arrows  move-heading (mouse keeps aiming)\n" \
 		+ "mouse  aim · RMB-drag  orbit camera · wheel  zoom\n" \
 		+ "R  force re-fold (motions.json also auto-refolds live)\n" \
@@ -486,6 +487,18 @@ func _input(event: InputEvent) -> void:
 			# ("switching held items... how are his hands with the shotgun").
 			_set_item(_item_idx + 1)
 			_toast("ITEM: %s" % _current_item_label())
+		KEY_F:
+			# RIG V2 PHASE 3 preview: fire the HELD row's recoil kick — F at strength 0
+			# (the weak get rocked), SHIFT+F at strength 8 (muscle eats it). The tuner
+			# watches the contrast live while MotionForge's recoil row folds in.
+			var row: Dictionary = (ProtoWeapon.WEAPONS.get(ITEM_IDS[_item_idx], {}) as Dictionary).get("recoil", {})
+			if row.is_empty():
+				_toast("no recoil row on %s" % _current_item_label())
+			else:
+				var strength := 8 if shift else 0
+				puppet.recoil_kick(row, strength)
+				puppet.gun_recoil()
+				_toast("RECOIL %s @ strength %d" % [_current_item_label(), strength])
 		KEY_R:
 			_force_refold()
 			_toast("⟳ MOTIONS RELOADED (manual)")
