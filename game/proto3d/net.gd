@@ -25,11 +25,21 @@ var _sync_t: float = 0.0
 ## peer_id -> {pos, byaw, ayaw, hurt, armed} last-known state (for late spawns + lerp).
 var peer_state: Dictionary = {}
 
+## PROXIMITY VOICE (owner goal): one ProtoVoice runs locally — it captures MY
+## mic + owns RX playback for every remote peer. Created when a session starts
+## (host or client), torn down on leave(). A body's speaker attaches/detaches
+## off this SAME peer_joined/peer_left pair proto3d.gd's remote bodies use —
+## deferred one frame so _net_spawn_peer (in _main) has already made the body
+## by the time we go looking for it (no assumption about listener order).
+var voice: ProtoVoice = null
+
 
 static func create(main: Node) -> ProtoNet:
 	var n := ProtoNet.new()
 	n._main = main
 	n.name = "ProtoNet"
+	n.peer_joined.connect(n._on_voice_peer_joined)
+	n.peer_left.connect(n._on_voice_peer_left)
 	return n
 
 
@@ -52,6 +62,7 @@ func host(port: int = PORT) -> bool:
 	multiplayer.multiplayer_peer = peer
 	_wire_signals()
 	online = true
+	_ensure_local_voice()
 	_main.notify("🌐 HOSTING on :%d — friends can JOIN your IP. You are player 1." % port)
 	return true
 
@@ -66,6 +77,7 @@ func join(ip: String = "127.0.0.1", port: int = PORT) -> bool:
 	_wire_signals()
 	multiplayer.connected_to_server.connect(func() -> void:
 		online = true
+		_ensure_local_voice()
 		_main.notify("🌐 CONNECTED — you're in the wasteland with %d others" % peer_state.size()))
 	multiplayer.connection_failed.connect(func() -> void:
 		_main.notify("🌐 Could not reach the host"))
@@ -78,6 +90,7 @@ func leave() -> void:
 	multiplayer.multiplayer_peer = null
 	online = false
 	peer_state.clear()
+	_teardown_local_voice()
 
 
 func _wire_signals() -> void:
@@ -229,3 +242,61 @@ func sync_pvp(mode: String) -> void:
 func send_pvp_mode(mode: String) -> void:
 	if is_server():
 		sync_pvp.rpc(mode)
+
+
+# --- PROXIMITY VOICE CHAT: capture -> VAD -> unreliable frames -> per-peer -----
+# 3D playback (docs owner goal). ONE ProtoVoice runs locally per session: it
+# captures MY mic and hosts RX for every remote peer. tx_sink hands captured
+# frames straight to the broadcast RPC below — voice.gd never touches the net.
+
+func _ensure_local_voice() -> void:
+	if voice != null and is_instance_valid(voice):
+		return
+	voice = ProtoVoice.create()
+	add_child(voice)
+	voice.tx_sink = Callable(self, "_on_local_voice_frame")
+	# Late joiners already in remote_players (a client connecting into a room
+	# that's mid-session) get a speaker retroactively — not just future joins.
+	for id in _main.remote_players:
+		var body: Node = _main.remote_players[id]
+		if body is Node3D and is_instance_valid(body):
+			voice.attach_speaker(id, body)
+
+
+func _teardown_local_voice() -> void:
+	if voice != null and is_instance_valid(voice):
+		voice.queue_free()
+	voice = null
+
+
+func _on_local_voice_frame(seq: int, pcm: PackedByteArray) -> void:
+	if online and multiplayer.has_multiplayer_peer():
+		voice_frame.rpc(seq, ProtoVoice.pack_frame(seq, pcm))
+
+
+## Any client -> everyone: a talk-frame from the sender's mic. Unreliable — a
+## dropped voice packet is just a dropped syllable, never worth a resend.
+@rpc("any_peer", "unreliable", "call_remote")
+func voice_frame(_seq: int, data: PackedByteArray) -> void:
+	if voice != null and is_instance_valid(voice):
+		voice.rx(multiplayer.get_remote_sender_id(), data)
+
+
+## peer_joined/peer_left fire the same frame _net_spawn_peer/_net_despawn_peer
+## (in _main) run on — deferred one call so the remote body already exists by
+## the time we look it up (no assumption about which listener runs first).
+func _on_voice_peer_joined(id: int) -> void:
+	call_deferred("_attach_voice_for_peer", id)
+
+
+func _attach_voice_for_peer(id: int) -> void:
+	if voice == null or not is_instance_valid(voice):
+		return
+	var body: Node = _main.remote_players.get(id)
+	if body is Node3D and is_instance_valid(body):
+		voice.attach_speaker(id, body)
+
+
+func _on_voice_peer_left(id: int) -> void:
+	if voice != null and is_instance_valid(voice):
+		voice.detach_speaker(id)
