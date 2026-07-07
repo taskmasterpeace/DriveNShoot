@@ -326,6 +326,14 @@ var water_state: String = "" ## "" | "wade" | "swim"
 var _drown_warned: bool = false
 const WATER_PROBE_M := 6.0
 
+## THE MEDIA LAYER (docs/cinema.md): catalog + TV panel + press desk + music.
+var media_registry: ProtoMediaRegistry = null
+var media_panel: ProtoMediaPanel = null
+var newsroom: ProtoNewsroom = null
+var music: ProtoMusic = null
+var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
+var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
+
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
 var _recon_entries: Array = []
@@ -388,6 +396,19 @@ func _build_environment() -> void:
 	# profiles, and a state can FALL while you're gone (offline catch-up on load).
 	world_state = ProtoWorldState.create(self)
 	add_child(world_state)
+	# THE MEDIA LAYER (docs/cinema.md): the catalog, the safehouse TV's panel, the
+	# press desk, and the music shelf. MediaForge (:8897) fills the folders; the
+	# engine only reads rows. A bare catalog is fine — the TV just says so.
+	media_registry = ProtoMediaRegistry.load_manifest()
+	media_panel = ProtoMediaPanel.create(self)
+	add_child(media_panel)
+	newsroom = ProtoNewsroom.create(self)
+	music = ProtoMusic.create(self)
+	add_child(music)
+	var tv := ProtoTV.create()
+	add_child(tv)
+	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
+	tv.rotation.y = 0.7 # angled at the room
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
@@ -409,6 +430,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		if panel.is_open:
 			panel.close()
+		elif media_panel != null and media_panel.is_open:
+			media_panel.close() # E turns the set off
 		elif mode == Mode.DRIVE:
 			if passenger_of_ai:
 				# PASSENGER seat: E is TAP-vs-HOLD — tap = get out, HOLD = slide
@@ -443,6 +466,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if kc == KEY_TAB:
 			if panel.is_open:
 				panel.close()
+			elif media_panel != null and media_panel.is_open:
+				media_panel.close()
 			elif mode == Mode.DRIVE and active_car and not active_car.dead:
 				panel.open(backpack, active_car.trunk) # reach the trunk from the seat
 			else:
@@ -540,7 +565,8 @@ func _physics_process(delta: float) -> void:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
-	player.input_locked = panel.is_open
+	# The TV is modal the same way — you sit down to watch.
+	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open)
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
@@ -651,7 +677,10 @@ func _physics_process(delta: float) -> void:
 	_crime_cd = maxf(0.0, _crime_cd - delta)
 	_pet_cd = maxf(0.0, _pet_cd - delta)
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
-	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
+	# T waits on purpose; a ROLLING REEL waits for you (time passes while you watch —
+	# the TV is downtime, and downtime costs daylight. docs/cinema.md Phase 2).
+	daynight.waiting = (Input.is_key_pressed(KEY_T) and not panel.is_open) \
+		or (media_panel != null and media_panel.playing())
 	# Headlights answer the dark on their own.
 	for c in cars:
 		if is_instance_valid(c):
@@ -1752,6 +1781,30 @@ func fire_equipped() -> void:
 			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
 
 
+# --- THE MEDIA LAYER (docs/cinema.md): the TV, the catalog, the collection ----
+
+## The TV's E lands here: news on the ticker, then the shelf.
+func open_media_panel() -> void:
+	if media_panel == null:
+		return
+	if newsroom != null:
+		media_panel.set_ticker(newsroom.latest_tv_line())
+	media_panel.open()
+
+
+func mark_media_watched(id: String) -> void:
+	media_watched[id] = true
+
+
+## A found DVD/tape/reel lands here (Phase 4): the collection GROWS.
+func unlock_media(id: String, how: String = "") -> void:
+	if media_unlocked.has(id) or media_registry == null:
+		return
+	media_unlocked[id] = true
+	var title := String(media_registry.get_media(id).get("title", id))
+	notify("📼 NEW ON THE SHELF — %s%s" % [title, (" (" + how + ")") if how != "" else ""])
+
+
 # --- WATER ON FOOT (MOVESET.txt): wade the edges, swim the open, drown empty --
 
 func _update_water(delta: float) -> void:
@@ -2813,6 +2866,8 @@ func save_game() -> Dictionary:
 		"visited": visited_states.keys(),
 		"fallen": fallen_dogs.duplicate(true),
 		"dogs": dogs_out,
+		# THE SHELF (docs/cinema.md Phase 4): what you've found and what you've watched.
+		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -2958,6 +3013,14 @@ func apply_save(data: Dictionary) -> void:
 	for st in data.get("visited", []):
 		visited_states[String(st)] = true
 	fallen_dogs = (data.get("fallen", []) as Array).duplicate(true)
+	# THE SHELF persists: found reels stay found, watched stays watched.
+	var med: Dictionary = data.get("media", {})
+	media_unlocked.clear()
+	for mid in med.get("unlocked", []):
+		media_unlocked[String(mid)] = true
+	media_watched.clear()
+	for mid in med.get("watched", []):
+		media_watched[String(mid)] = true
 	# The pack: clear the live dogs, rebuild each from its record (bond and all).
 	for d in get_tree().get_nodes_in_group("proto_dog"):
 		if d is ProtoDog and is_instance_valid(d) and d.adopted:

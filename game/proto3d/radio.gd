@@ -55,7 +55,9 @@ func scan() -> void:
 	# (the fallback floor: a missing TTS/video never blocks the bulletin). One per sweep.
 	if "world_state" in _main and _main.world_state != null:
 		for b in _main.world_state.broadcast_queue:
-			if not bool(b.get("heard", false)):
+			# TV bulletins belong to the SET's lower-third — the dial only drains
+			# its own medium (otherwise the radio eats the television's news).
+			if not bool(b.get("heard", false)) and String(b.get("medium", "radio")) != "tv":
 				b["heard"] = true
 				last_signal = "bulletin"
 				_main.notify("📻 ⚠️ EMERGENCY BULLETIN — %s" % String(b.get("text", "")))
