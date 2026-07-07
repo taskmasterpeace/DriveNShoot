@@ -36,6 +36,25 @@
 >   Marketplace "attachment/socket" assets target Skeleton3D + BoneAttachment3D humanoid
 >   rigs, which this game deliberately doesn't use.
 >
+> **1b. ROAD & TRAFFIC OVERHAUL — ✅ SHIPPED (2026-07-07, f75b0eb + 482a9e0), owner directive.**
+> - Contract: `docs/design/ROAD_TRAFFIC_OVERHAUL.md`. Lanes (6/4/2) + `divided` are ROAD ROWS;
+>   ONE geometry law (`ProtoUSMap.road_geometry`/`lane_offset`) feeds streamer paint, grip
+>   rects, traffic, and motorist routes. Divided = twin carriageways + a PHYSICAL median
+>   barrier; all nearby roads materialize per chunk (the ramp-displaces-interstate bug is
+>   dead). Real map: I-95/90/80 six divided · I-70/40/10/75 four divided · I-5 four undivided
+>   · I-35/25 two-lane.
+> - `ProtoTraffic` (`traffic.gd`): ambient lane-followers on the road polylines — right-hand
+>   law, car-following, player-as-phantom-leader (traffic brakes behind you + honks), EXITS
+>   as the only connections (take ramp → location → despawn; merges enter at ramp mouths),
+>   spawn band + budget, and PROMOTION: bumper/bullet turns an agent into a real ProtoCar3D
+>   (matched velocity, forwarded damage, stealable, capped). Knobs = `data/traffic.json`
+>   rows (F10 refolds). Gotcha paid: `AnimatableBody3D.sync_to_physics` defaults TRUE and
+>   silently blocks placement.
+> - `road_lane_sim` 26/26 · `traffic_sim` 21/21 · regressions green (road 9, npc_drive 11,
+>   drive 7, world 11, save 20, roadkill 7). MapForge `/api/roads` preserves lanes/divided.
+> - **Natural next rungs:** MAP_POLISH_PLAN's ~46 exits become live traffic destinations the
+>   day they land; lane-change/overtake AI; traffic density by daynight/state occupation.
+>
 > **2. REPO INTEGRITY — stranded prior-session files (a fresh clone may not parse).**
 > - UNTRACKED but referenced by committed code: `game/proto3d/population.gd` (+`.uid`,
 >   `data/population_targets.json`) — `proto3d.gd`/`howler.gd`/`lurker.gd` call

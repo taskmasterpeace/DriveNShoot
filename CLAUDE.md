@@ -33,10 +33,10 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 | Vehicles | `car_3d.gd` + `data/vehicles.json` | VehicleBody3D; 10 rigs as DATA (DrivnData folds JSON→engine); 5-part damage you FEEL (misfire/slop/flicker/leak) |
 | Dogs | `dog.gd` | 4 types × breeds; per-dog BOND (STRAY→SOULBOUND); down→bandage save or grave+collar+memorial; metaworld records |
 | Crew | `companion.gd` | CREW rows (gunner/mechanic/medic), game-hour job ticks, MORTAL (corpse chest) |
-| Motorists/traffic | `motorist.gd`, `track/autopilot.gd` | NPCs drive interstates city-to-city; ambient traffic; player rides shotgun; SEAT ANCHORS (`seats` rows) show riders |
+| Motorists/traffic | `motorist.gd`, `track/autopilot.gd`, `traffic.gd` | NPCs drive interstates city-to-city (right-hand-lane routes); player rides shotgun; SEAT ANCHORS (`seats` rows) show riders; **ProtoTraffic (2026-07-07)**: ambient lane-followers on the road polylines — following, exits-to-locations, spawn band, PROMOTE to real ProtoCar3D on bumper/bullet; knobs = `data/traffic.json` rows |
 | Combat | `weapon.gd` | data rows; melee scans combatant∪threat; wall-law (`melee_clear`); crit-kill slow-mo; wound taxes |
 | Threats | `howler.gd`, `lurker.gd` | pack ROLES (circler/charger/SCREAMER summons), headlight fear, stagger; road pirates (`_update_pirates`) |
-| World | `world_stream.gd`, `usmap.gd` | streamed chunks off `data/usmap.json`; authored placements; biomes; states |
+| World | `world_stream.gd`, `usmap.gd` | streamed chunks off `data/usmap.json`; authored placements; biomes; states; **ROADS ARE ROWS (2026-07-07)**: lanes 6/4/2 + `divided` per road; twin carriageways + physical median barrier; ONE geometry law (`ProtoUSMap.road_geometry`) shared by paint/grip/traffic; all nearby roads materialize per chunk |
 | Weather | `weather.gd` | dust kills the cone, rain kills grip, heat cooks engines — biome-weighted |
 | Day/night | `daynight.gd` | 24-min days, moon = night floor, T-wait sprint, `dev_mult` |
 | Radio | `radio.gd` | Y scans: distress caches, trade runs, howler warnings, lore; night-weighted |
@@ -79,7 +79,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
-Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `garage_sim`, `rv_camp_sim`, `visibility_sim`, `data_sim`, `track_sim` — plus the 2026-07-06 arc: `crouch_sim`, `unarmed_sim`, `drag_sim`, `water_sim`, `dogverb_sim`, `motion_sim`, `media_registry_sim`, `tv_sim`, `unlock_media_sim`, `drive_in_sim`, `news_media_sim`, `music_sim`, `drone_scout_sim`, `coop_fun_sim` — plus the RIG V2 trio (2026-07-07): `rig_v2_sim`, `grip_ik_sim`, `recoil_sim` (+ adopted `gunfeel_sim`).
+Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `garage_sim`, `rv_camp_sim`, `visibility_sim`, `data_sim`, `track_sim` — plus the 2026-07-06 arc: `crouch_sim`, `unarmed_sim`, `drag_sim`, `water_sim`, `dogverb_sim`, `motion_sim`, `media_registry_sim`, `tv_sim`, `unlock_media_sim`, `drive_in_sim`, `news_media_sim`, `music_sim`, `drone_scout_sim`, `coop_fun_sim` — plus the RIG V2 trio (2026-07-07): `rig_v2_sim`, `grip_ik_sim`, `recoil_sim` (+ adopted `gunfeel_sim`) — plus the road/traffic pair: `road_lane_sim`, `traffic_sim`.
 
 ### Paid-for gotchas (do not re-pay)
 - New `class_name` scripts need `--headless --path game --import` before headless runs.
