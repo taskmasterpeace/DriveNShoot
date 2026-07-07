@@ -34,6 +34,8 @@ static var TRAFFIC: Dictionary = {
 	"promote_cap": 5.0,      # max simultaneous promoted physics cars
 	"maintain_s": 1.2,       # seconds between spawn/cull passes
 	"honk_brake_mps2": 6.0,  # a brake harder than this earns you a horn
+	"vanish_r_min": 240.0,   # NEVER dissolve inside this of the player — arrivals PARK instead
+	"trip_chance": 1.0,      # share of ambient spawns given a DESTINATION exit ahead (owner: every car is going somewhere)
 }
 static var _folded: bool = false
 
@@ -83,6 +85,11 @@ class TrafficAgent extends AnimatableBody3D:
 	var cruise: float = 20.0
 	var tint: Color = Color(0.5, 0.5, 0.5)
 	var _exit_rolled: String = "" ## last exit id already decided on (roll once each)
+	## THE TRIP (owner: "vehicles trying to go somewhere"): the exit this car is
+	## HEADED FOR. It leaves the highway there — dice never enter into it. "" =
+	## through-traffic riding to the region's far end (also a destination).
+	var dest_exit_id: String = ""
+	var arrived: bool = false ## reached its destination but can't resolve yet (promote cap, in view)
 
 	func take_damage(amount: float) -> void:
 		if traffic != null:
@@ -155,7 +162,7 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 	if leader != null:
 		lead_arc = _travel_arc(leader)
 		lead_speed = leader.speed
-	var pcar: Node3D = _player_car_on(ag)
+	var pcar: Node3D = _car_ahead(ag)
 	if pcar != null:
 		var parc := _car_travel_arc(ag, pcar)
 		if parc < lead_arc and parc > _travel_arc(ag):
@@ -188,18 +195,26 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		var seg_len := a2.distance_to(b2)
 		if ag.s_ab > seg_len and ag.dir > 0:
 			if ag.seg_i + 1 >= pts.size() - 1:
-				despawn_agent(ag) # the road ended under it — gone where it was going
+				_arrive(ag) # the road ended under it — it got where it was going
 				return
 			ag.s_ab -= seg_len
 			ag.seg_i += 1
 		elif ag.s_ab < 0.0 and ag.dir < 0:
 			if ag.seg_i <= 0:
-				despawn_agent(ag)
+				_arrive(ag)
 				return
 			ag.seg_i -= 1
 			ag.s_ab += pts[ag.seg_i].distance_to(pts[ag.seg_i + 1])
 		else:
 			break
+	# HAND-BUILT LAND IS A DESTINATION, NOT A ROAD (the dirt-driving bug): a ramp
+	# whose polyline runs into the authored compound ends AT its edge — the agent
+	# arrives there, it never drives through the safehouse on dirt.
+	if String(road["kind"]) == "exit":
+		var nxt := _centerline_point(ag, road)
+		if ProtoWorldStream.AUTHORED.grow(8.0).has_point(nxt):
+			_arrive(ag)
+			return
 	_place(ag, road)
 
 
@@ -220,27 +235,48 @@ func _place(ag: TrafficAgent, road: Dictionary) -> void:
 	ag.rotation.y = atan2(-heading.x, -heading.y) # -Z forward, same as every rig here
 
 
-## The player's active car, if it is ON this agent's road near its lane side.
-func _player_car_on(ag: TrafficAgent) -> Node3D:
-	if main == null or not ("active_car" in main) or main.active_car == null:
-		return null
-	var car: Node3D = main.active_car
-	if not is_instance_valid(car):
-		return null
-	if car.global_position.distance_to(ag.global_position) > 90.0:
+## The agent's centerline point (2D) — where its lane math anchors this frame.
+func _centerline_point(ag: TrafficAgent, road: Dictionary) -> Vector2:
+	var pts: PackedVector2Array = road["pts"]
+	var a2: Vector2 = pts[ag.seg_i]
+	var d := (pts[ag.seg_i + 1] - a2).normalized()
+	return a2 + d * ag.s_ab
+
+
+## ANY real car sitting on this agent's road-side within range is a blocker —
+## the player's, a parked promotion, a wreck (owner bug: an agent ghosted through
+## a PARKED rig; the old check only ever looked at the active car). Nearest ahead
+## wins; the caller projects it as the lane leader.
+func _car_ahead(ag: TrafficAgent) -> Node3D:
+	if main == null or not ("cars" in main):
 		return null
 	var road := _road(ag.road_id)
 	var pts: PackedVector2Array = road["pts"]
 	var a2: Vector2 = pts[ag.seg_i]
 	var b2: Vector2 = pts[ag.seg_i + 1]
-	var cp := Vector2(car.global_position.x, car.global_position.z)
-	if ProtoUSMap._seg_dist(cp, a2, b2) > float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 2.0:
-		return null
-	# same side of the median as this agent's lane?
 	var d := (b2 - a2).normalized()
-	var lat := (cp - a2).dot(Vector2(-d.y, d.x)) # + = RIGHT of a->b (the one convention)
-	var my_side := 1.0 if ag.dir > 0 else -1.0   # dir +1 rides right of a->b = positive lat
-	return car if signf(lat) == signf(my_side) or absf(lat) < 1.5 else null
+	var half_w := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 2.0
+	var my_side := 1.0 if ag.dir > 0 else -1.0 # dir +1 rides right of a->b = positive lat
+	var my_arc := _travel_arc(ag)
+	var best: Node3D = null
+	var best_arc := 1e18
+	for c in main.cars:
+		if not (c is Node3D) or not is_instance_valid(c):
+			continue
+		var car := c as Node3D
+		if car.global_position.distance_to(ag.global_position) > 90.0:
+			continue
+		var cp := Vector2(car.global_position.x, car.global_position.z)
+		if ProtoUSMap._seg_dist(cp, a2, b2) > half_w:
+			continue
+		var lat := (cp - a2).dot(Vector2(-d.y, d.x)) # + = RIGHT of a->b (the one convention)
+		if signf(lat) != signf(my_side) and absf(lat) >= 1.5:
+			continue
+		var carc := _car_travel_arc(ag, car)
+		if carc > my_arc and carc < best_arc:
+			best_arc = carc
+			best = car
+	return best
 
 
 ## The car's position as a travel-arc on this agent's road (phantom leader math).
@@ -258,7 +294,8 @@ func _car_travel_arc(ag: TrafficAgent, car: Node3D) -> float:
 
 ## EXITS ARE THE CONNECTIONS: near an exit anchor on this road, roll ONCE; on a
 ## take, transfer to the ramp polyline (right-side departures only) and ride it
-## to the location — despawn at its end (handled by the normal end-of-road law).
+## to the location — arrive at its end (the normal end-of-road law). A TRIP
+## agent doesn't roll dice: it leaves at ITS destination exit, and only there.
 func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 	for e in usmap.exits:
 		if String(e["highway_id"]) != ag.road_id or String(e["id"]) == ag._exit_rolled:
@@ -267,6 +304,8 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 		if Vector2(ag.global_position.x, ag.global_position.z).distance_to(epos) > EXIT_TRIGGER_M:
 			continue
 		ag._exit_rolled = String(e["id"]) # rolled — never re-rolled on the same pass
+		if ag.dest_exit_id != "" and String(e["id"]) != ag.dest_exit_id:
+			continue # not MY exit — a car with somewhere to be doesn't wander off
 		var ramp := _ramp_for(e)
 		if ramp.is_empty():
 			continue
@@ -278,8 +317,8 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 		var d := (pts[ag.seg_i + 1] - pts[ag.seg_i]).normalized() * float(ag.dir)
 		if away.dot(Vector2(-d.y, d.x)) < 0.1: # the ramp must depart the RIGHT of travel
 			continue
-		if rng.randf() > float(TRAFFIC["exit_take_chance"]):
-			continue
+		if ag.dest_exit_id == "" and rng.randf() > float(TRAFFIC["exit_take_chance"]):
+			continue # destination-less drifters still roll the old dice
 		ag.road_id = String(ramp["id"])
 		ag.lane = 0
 		ag.cruise = minf(ag.cruise, float(TRAFFIC["speed_lanes_2"]))
@@ -322,7 +361,12 @@ func _maintain() -> void:
 	if agents.size() >= budget:
 		return
 	# One spawn attempt per pass — fills over a few seconds, never a wall of cars.
-	var candidates: Array = usmap.roads_near(anchor, float(TRAFFIC["spawn_r_max"]) + 150.0)
+	# INTERSTATES ONLY (owner P0: "traffic only drives on the highway") — ambient
+	# flow never materializes on a ramp or spur; ramps are reached by TRIPS.
+	var candidates: Array = []
+	for c0 in usmap.roads_near(anchor, float(TRAFFIC["spawn_r_max"]) + 150.0):
+		if String(c0["kind"]) == "interstate":
+			candidates.append(c0)
 	if candidates.is_empty():
 		return
 	var weights := 0.0
@@ -340,8 +384,24 @@ func _maintain() -> void:
 	if spot.is_empty():
 		return
 	var per_side := int(ProtoUSMap.road_geometry(road)["per_side"])
-	spawn_agent(String(road["id"]), int(spot["seg"]), float(spot["s_ab"]),
+	var ag := spawn_agent(String(road["id"]), int(spot["seg"]), float(spot["s_ab"]),
 		rng.randi_range(0, per_side - 1), 1 if rng.randf() < 0.5 else -1)
+	# THE TRIP (owner: every car is trying to GO somewhere): pick an exit AHEAD in
+	# its travel direction as the destination. None ahead = through-traffic bound
+	# for the region's far end — also a destination, not a wanderer.
+	if ag != null and rng.randf() < float(TRAFFIC["trip_chance"]):
+		var tag := ag as TrafficAgent
+		var my_arc := _travel_arc(tag)
+		var picks: Array = []
+		for e in usmap.exits:
+			if String(e["highway_id"]) != tag.road_id:
+				continue
+			var ea := _arc_of(road, e["pos"])
+			var earc: float = float(ea["arc"]) if tag.dir > 0 else (float(_cum(road)[_cum(road).size() - 1]) - float(ea["arc"]))
+			if earc > my_arc + 60.0:
+				picks.append(String(e["id"]))
+		if not picks.is_empty():
+			tag.dest_exit_id = picks[rng.randi() % picks.size()]
 
 
 ## A point on the road inside the spawn ring: project the anchor, walk ±arc.
@@ -451,14 +511,41 @@ func despawn_agent(ag: Node3D) -> void:
 		ag.queue_free()
 
 
+## THE ARRIVAL LAW (owner P0: cars "disappearing out of nowhere"): a car that
+## reaches its destination IN VIEW becomes a real PARKED car right there — it
+## pulled over at the end of its trip. Off-view, it dissolves like it always
+## did. If the promote cap is full, it stalls in place (a stopped car) and the
+## distance cull collects it once the player moves on.
+func _arrive(ag: TrafficAgent) -> void:
+	var near_player := ag.global_position.distance_to(_anchor()) < float(TRAFFIC["vanish_r_min"])
+	if not near_player:
+		despawn_agent(ag)
+		return
+	if _promoted.size() >= int(TRAFFIC["promote_cap"]) or main == null:
+		ag.arrived = true
+		ag.speed = 0.0
+		ag.cruise = 0.0
+		return
+	promote(ag, 0.0, true)
+
+
 ## THE PROMOTION LAW: the touched agent becomes a REAL car in place — matched
 ## velocity, forwarded damage, a short autopilot route that continues its lane
-## then pulls over. At cap, the touch just dissolves the agent (never a storm).
-func promote(ag: Node3D, dmg: float = 0.0) -> void:
+## then pulls over. parked=true (an ARRIVAL): it stops right here, engine off —
+## the trip is over. At cap: in view the agent stalls (a stopped car the cull
+## collects later), off-view it dissolves — never a physics storm, never a
+## visible vanish.
+func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false) -> void:
 	if not is_instance_valid(ag) or not agents.has(ag):
 		return
 	if _promoted.size() >= int(TRAFFIC["promote_cap"]) or main == null:
-		despawn_agent(ag)
+		var tag0 := ag as TrafficAgent
+		if is_instance_valid(ag) and ag.global_position.distance_to(_anchor()) < float(TRAFFIC["vanish_r_min"]):
+			tag0.arrived = true
+			tag0.speed = 0.0
+			tag0.cruise = 0.0
+		else:
+			despawn_agent(ag)
 		return
 	var tag := ag as TrafficAgent
 	var road := _road(tag.road_id)
@@ -467,14 +554,15 @@ func promote(ag: Node3D, dmg: float = 0.0) -> void:
 	car.global_position = ag.global_position + Vector3(0, 0.35, 0)
 	car.rotation.y = ag.rotation.y
 	var heading := -car.global_basis.z
-	car.linear_velocity = heading * tag.speed
+	car.linear_velocity = heading * (0.0 if parked else tag.speed)
 	if "cars" in main:
 		main.cars.append(car)
 	if dmg > 0.0:
 		car.take_damage(dmg)
 	_promoted.append(car)
-	# it keeps driving its lane a beat, then pulls over — a person, not a statue
-	if not road.is_empty() and not car.dead:
+	# a TOUCHED car keeps driving its lane a beat, then pulls over — a person,
+	# not a statue. A PARKED arrival just sits: it got where it was going.
+	if not parked and not road.is_empty() and not car.dead:
 		var pilot := ProtoAutopilot.attach(car)
 		pilot.aggression = 0.7
 		pilot.arrive_dist = 7.0
@@ -504,6 +592,11 @@ func agent_speed(ag: Node3D) -> float:
 
 func agent_road(ag: Node3D) -> String:
 	return (ag as TrafficAgent).road_id
+
+
+## Give an agent a DESTINATION exit (sims, convoys, events): it leaves there.
+func set_agent_trip(ag: Node3D, exit_id: String) -> void:
+	(ag as TrafficAgent).dest_exit_id = exit_id
 
 
 # --- Internals -------------------------------------------------------------------

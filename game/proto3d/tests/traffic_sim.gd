@@ -163,6 +163,116 @@ func _ready() -> void:
 	_check("agents beyond the band are CULLED when the player leaves (%d left)" % traffic.agents.size(),
 		traffic.agents.size() == 0 or _all_near(traffic, main.player.global_position, 600.0))
 
+	# === 7. PLAYTEST P0s (owner, 2026-07-07 evening): highway-only, no ghosts, ===
+	# === no vanishing in view, and every car is GOING SOMEWHERE ==================
+	ProtoTraffic.TRAFFIC["budget"] = 0.0
+	ProtoTraffic.TRAFFIC["despawn_r"] = 999999.0
+	for a in traffic.agents.duplicate():
+		traffic.despawn_agent(a)
+
+	# 7a. Ambient spawns are INTERSTATE-ONLY (the junction chunk sees the ramp too —
+	# a spawn must never land on it).
+	main.active_car.global_position = Vector3(1216.0, 1.0, 320.0) # the ramp junction
+	ProtoTraffic.TRAFFIC["budget"] = 6.0
+	ProtoTraffic.TRAFFIC["despawn_r"] = 550.0
+	for _i in 80:
+		traffic._tick(0.1)
+	var all_interstate := true
+	for a2 in traffic.agents:
+		if String(traffic._road(traffic.agent_road(a2)).get("kind", "")) != "interstate":
+			all_interstate = false
+	_check("ambient spawns land on INTERSTATES only, never a ramp (%d agents)" % traffic.agents.size(),
+		traffic.agents.size() > 0 and all_interstate)
+	ProtoTraffic.TRAFFIC["budget"] = 0.0
+	ProtoTraffic.TRAFFIC["despawn_r"] = 999999.0
+	for a3 in traffic.agents.duplicate():
+		traffic.despawn_agent(a3)
+
+	# 7b. A ramp agent NEVER drives into hand-built land: the Meridian ramp ends
+	# inside the safehouse compound — the agent must ARRIVE at the AUTHORED edge.
+	# Player staged FAR: arrival off-view = despawn, and no position ever inside.
+	main.active_car.global_position = Vector3(-20000.0, 1.0, -8000.0)
+	var ramper: Node3D = traffic.spawn_agent("EXIT-meridian", 0, 0.0, 0, 1)
+	traffic.set_agent_speed(ramper, 25.0)
+	var entered_authored := false
+	for _i in 800:
+		traffic._tick(0.1)
+		if not traffic.agents.has(ramper):
+			break
+		var p2 := Vector2(ramper.global_position.x, ramper.global_position.z)
+		if ProtoWorldStream.AUTHORED.has_point(p2):
+			entered_authored = true
+	_check("the ramp agent NEVER enters the hand-built compound (the dirt-driving bug)",
+		not entered_authored)
+	_check("...and it resolved off-view (despawned at the boundary)", not traffic.agents.has(ramper))
+
+	# 7c. IN VIEW an arrival never vanishes — it becomes a real PARKED car.
+	main.active_car.global_position = Vector3(340.0, 1.0, -180.0) # near the compound edge, in view of the ramp mouth
+	var cars_n: int = main.cars.size()
+	traffic._promoted.clear() # free the promote cap for the arrival
+	var ramper2: Node3D = traffic.spawn_agent("EXIT-meridian", 0, 0.0, 0, 1)
+	traffic.set_agent_speed(ramper2, 25.0)
+	for _i in 800:
+		traffic._tick(0.1)
+		if not traffic.agents.has(ramper2):
+			break
+	_check("an arrival IN VIEW promotes to a real PARKED car, never a vanish",
+		main.cars.size() == cars_n + 1)
+	var arrival_car: Node3D = null
+	if main.cars.size() > cars_n:
+		arrival_car = main.cars[-1]
+		_check("...stationary at the compound's edge, outside hand-built land",
+			not ProtoWorldStream.AUTHORED.has_point(Vector2(arrival_car.global_position.x, arrival_car.global_position.z)))
+
+	# 7d. Agents stop behind ANY real car — a PARKED rig in the lane, not just the
+	# player's active one (the ghosting-through-the-red-car bug).
+	var blocker := ProtoCar3D.create("pickup", Color(0.7, 0.2, 0.2))
+	main.add_child(blocker)
+	main.cars.append(blocker)
+	var seg_a2 := Vector2(2250, -2500)
+	var seg_d2 := (Vector2(1500, -250) - seg_a2).normalized()
+	var lane_off := Vector2(-seg_d2.y, seg_d2.x) * ProtoUSMap.lane_offset(traffic._road("I-95"), 0)
+	var block_pt := seg_a2 + seg_d2 * 700.0 + lane_off
+	blocker.global_position = Vector3(block_pt.x, 0.6, block_pt.y)
+	var chaser2: Node3D = traffic.spawn_agent("I-95", 3, 560.0, 0, 1)
+	traffic.set_agent_speed(chaser2, 24.0)
+	var min_gap2 := 999.0
+	for _i in 200:
+		traffic._tick(0.05)
+		if traffic.agents.has(chaser2):
+			min_gap2 = minf(min_gap2, chaser2.global_position.distance_to(blocker.global_position))
+	_check("an agent STOPS behind a PARKED rig in its lane (min gap %.1fm >= 4)" % min_gap2,
+		min_gap2 >= 4.0)
+	traffic.despawn_agent(chaser2)
+	main.cars.erase(blocker)
+	blocker.queue_free()
+
+	# 7e. EVERY ambient car has a TRIP: spawn far up I-95 with the Meridian exit as
+	# its DESTINATION and exit_take_chance 0 — the trip overrides the dice, it rides
+	# the highway down and leaves at ITS exit ("they're trying to go somewhere").
+	ProtoTraffic.TRAFFIC["exit_take_chance"] = 0.0
+	main.active_car.global_position = Vector3(-20000.0, 1.0, -8000.0) # off-view: the arrival resolves by despawn
+	# Clear 7c's parked arrival off the single-lane ramp first — the trip agent
+	# correctly QUEUES behind any car on its road (that's 7d's law working), and
+	# a permanent roadblock would stall this proof forever.
+	if arrival_car != null and is_instance_valid(arrival_car):
+		main.cars.erase(arrival_car)
+		arrival_car.queue_free()
+	await get_tree().process_frame
+	var tripper: Node3D = traffic.spawn_agent("I-95", 3, 100.0, 0, 1)
+	traffic.set_agent_trip(tripper, "I-95_X1")
+	traffic.set_agent_speed(tripper, 30.0)
+	var trip_took_ramp := false
+	for _i in 2400: # ~2.9km of highway + 1.25km of ramp at 2-lane cruise
+		traffic._tick(0.1)
+		if not traffic.agents.has(tripper):
+			break
+		if traffic.agent_road(tripper) == "EXIT-meridian":
+			trip_took_ramp = true
+	_check("a TRIP agent leaves at ITS destination exit even at exit_take_chance 0", trip_took_ramp)
+	_check("...and resolved at the destination (city-to-city, proven end to end)",
+		not traffic.agents.has(tripper))
+
 	print("TRAFFIC RESULTS: %d passed, %d failed" % [passed, failed])
 	print("TRAFFIC: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)
