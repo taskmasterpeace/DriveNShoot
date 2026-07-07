@@ -1,0 +1,14 @@
+{
+  "name": "mediaforge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MEDIAFORGE - the DRIVN media ingest forge. MP4 in, Theora .ogv + poster + manifest row out. The ONE forge allowed a dependency (ffmpeg-static bundles the encoder).",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  }
+}
