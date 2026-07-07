@@ -4051,7 +4051,11 @@ func _update_location_label() -> void:
 	if um != null and um.ok:
 		var road := um.road_near(pos, 20.0)
 		if not road.is_empty():
-			hud.set_location(clock + "%s — %s" % [road["id"], stream.current_state(pos)])
+			# UX: the road introduces itself by NAME — "I-80 · THE GAUNTLET — WYOMING"
+			# beats a bare id (the nickname rows are the lore, put them where eyes live).
+			var nick := String(road.get("nickname", ""))
+			var road_line: String = "%s · %s" % [road["id"], nick] if nick != "" else String(road["id"])
+			hud.set_location(clock + "%s — %s" % [road_line, stream.current_state(pos)])
 			return
 	hud.set_location(clock + "DIVIDED STATES — %s" % stream.current_state(pos))
 

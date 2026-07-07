@@ -163,6 +163,7 @@ func _tick(delta: float) -> void:
 		# hover off the player's shoulder — the buzz IS the warning
 		var hover := anchor + Vector3(9.0, 13.0, 7.0)
 		drone.global_position = drone.global_position.lerp(hover, clampf(1.2 * delta, 0.0, 1.0))
+	_update_threat_chip(anchor)
 	# --- WATCH: the road remembers you (sightings ledger) ------------------------
 	if g["gstate"] == GangState.COOLDOWN:
 		if now >= float(g["cool_until_h"]):
@@ -196,6 +197,20 @@ func _tick(delta: float) -> void:
 ## THE CHECKPOINT KIT (bible §9 + contract §3.2): barriers across YOUR side of
 ## the road ahead, one squeeze gap, cones, a toll sign. Pay at the line or the
 ## crew takes it out of your hide (the pirate law answers a refusal).
+## THE THREAT CHIP: standing road threats live on the HUD, not in a fading
+## toast — you always know when an eye is on you or a barricade stands ahead.
+func _update_threat_chip(anchor: Vector3) -> void:
+	if main == null or not ("hud" in main) or main.hud == null or not main.hud.has_method("set_threat"):
+		return
+	var bits: Array[String] = []
+	if drone != null and is_instance_valid(drone):
+		bits.append("🛸 SHADOWED — a drone is counting your cargo (shoot it)")
+	if checkpoint != null and is_instance_valid(checkpoint) and checkpoint.get_child_count() > 0:
+		var kit_pos := (checkpoint.get_child(0) as Node3D).global_position
+		bits.append("🚧 CHECKPOINT %dm — %d scrip or a fight" % [int(anchor.distance_to(kit_pos)), checkpoint_toll])
+	main.hud.set_threat("   ".join(bits))
+
+
 func _raise_checkpoint(anchor: Vector3, state: String, s: int) -> void:
 	if main.stream.usmap == null or not main.stream.usmap.ok:
 		return

@@ -852,3 +852,22 @@ func set_objective(text: String) -> void:
 
 func set_location(text: String) -> void:
 	_mode_label.text = text
+
+
+## THE THREAT CHIP (UI language: badge chip for the ONE piece of state worth
+## calling out): a persistent line for standing road threats — a drone shadowing
+## you, a checkpoint ahead — that a fading toast can't carry. "" hides it.
+var _threat_label: Label = null
+func set_threat(text: String) -> void:
+	if _threat_label == null:
+		_threat_label = Label.new()
+		_threat_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_threat_label.add_theme_font_size_override("font_size", 15)
+		_threat_label.add_theme_color_override("font_color", Color(0.98, 0.55, 0.15)) # CRITICAL orange — act soon
+		_threat_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+		_threat_label.add_theme_constant_override("shadow_offset_x", 1)
+		_threat_label.add_theme_constant_override("shadow_offset_y", 1)
+		_threat_label.position = Vector2(28, 46) # right under the mode/location line
+		add_child(_threat_label)
+	_threat_label.text = text
+	_threat_label.visible = text != ""

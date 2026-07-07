@@ -883,6 +883,32 @@ func map_open() -> bool:
 	return _map_layer != null and _map_layer.visible
 
 
+## MAP STYLE LAW (UI language: hierarchy you can read at a glance): interstates
+## draw heavy, backroads thin and dim, exit ramps stay off the atlas (noise at
+## country scale — they live on the LOCAL map instead). Testable data, then draw.
+static func atlas_road_style(kind: String) -> Dictionary:
+	match kind:
+		"interstate":
+			return {"width": 2.2, "color": Color(0.68, 0.60, 0.44), "atlas": true}
+		"backroad":
+			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": true}
+		_:
+			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": false} # ramps: local only
+
+
+## The atlas' EXITS layer as data: T2/T3 get names, T1s are quiet dots — 88
+## exits must read as a network, not a rash.
+func atlas_exit_markers() -> Array:
+	var out: Array = []
+	if usmap == null or not usmap.ok:
+		return out
+	for e in usmap.exits:
+		var tier := String(e.get("community_tier", "T1"))
+		out.append({"pos": e["pos"], "tier": tier,
+			"label": String(e.get("name", "")) if tier != "T1" else ""})
+	return out
+
+
 func _draw_map() -> void:
 	if _map_mode == 2:
 		_draw_country()
@@ -908,12 +934,20 @@ func _draw_local() -> void:
 	if usmap != null and usmap.ok:
 		var view := Rect2(Vector2.ZERO, size).grow(40.0)
 		for road in usmap.roads:
+			var style := atlas_road_style(String(road["kind"]))
 			var pts: PackedVector2Array = road["pts"]
 			for i in range(pts.size() - 1):
 				var pa := center + (pts[i] - Vector2(_map_player.x, _map_player.z)) * scale
 				var pb := center + (pts[i + 1] - Vector2(_map_player.x, _map_player.z)) * scale
 				if view.has_point(pa) or view.has_point(pb):
-					_map_canvas.draw_line(pa, pb, Color(0.55, 0.5, 0.42), 2.0)
+					_map_canvas.draw_line(pa, pb, style["color"], maxf(1.2, float(style["width"])))
+		# EXITS in view, NAMED — the "what's my next exit" read, right on the local map.
+		for e in usmap.exits:
+			var ep2 := center + ((e["pos"] as Vector2) - Vector2(_map_player.x, _map_player.z)) * scale
+			if Rect2(Vector2.ZERO, size).has_point(ep2):
+				_map_canvas.draw_rect(Rect2(ep2 - Vector2(3, 3), Vector2(6, 6)), Color(0.96, 0.72, 0.2))
+				_map_canvas.draw_string(ThemeDB.fallback_font, ep2 + Vector2(6, 4), String(e.get("name", "")),
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82))
 	# POIs
 	for poi in _pois:
 		var tpos: Vector3 = poi[1].global_position if poi[1] is Node3D else poi[1]
@@ -954,10 +988,23 @@ func _draw_country() -> void:
 			var p := org + (Vector2(cx, cz) * usmap.cell_m + usmap.offset - bounds.position) * px
 			_map_canvas.draw_rect(Rect2(p, Vector2(cpx + 0.5, cpx + 0.5)), MAP_BIOME.get(biome, Color(0.3, 0.3, 0.3)))
 	for road in usmap.roads:
+		var style := atlas_road_style(String(road["kind"]))
+		if not bool(style["atlas"]):
+			continue # ramps live on the LOCAL map, not the country picture
 		var pts: PackedVector2Array = road["pts"]
 		for i in range(pts.size() - 1):
 			_map_canvas.draw_line(org + (pts[i] - bounds.position) * px, org + (pts[i + 1] - bounds.position) * px,
-				Color(0.62, 0.55, 0.42), 1.5)
+				style["color"], float(style["width"]))
+	# THE EXITS LAYER: every valve on the network — named where it matters.
+	for mk in atlas_exit_markers():
+		var ep := org + ((mk["pos"] as Vector2) - bounds.position) * px
+		var tier := String(mk["tier"])
+		var r := 2.4 if tier == "T3" else (1.9 if tier == "T2" else 1.1)
+		var col := Color(0.96, 0.72, 0.2) if tier != "T1" else Color(0.62, 0.55, 0.42)
+		_map_canvas.draw_rect(Rect2(ep - Vector2(r, r), Vector2(r * 2, r * 2)), col) # the DIAMOND read, cheap
+		if String(mk["label"]) != "":
+			_map_canvas.draw_string(ThemeDB.fallback_font, ep + Vector2(4, -2), String(mk["label"]),
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.92, 0.89, 0.82, 0.85))
 	for t in usmap.towns:
 		var p2 := org + ((t["pos"] as Vector2) - bounds.position) * px
 		_map_canvas.draw_circle(p2, 2.5 if t["kind"] == "city" else 1.8, Color(0.96, 0.72, 0.2))
