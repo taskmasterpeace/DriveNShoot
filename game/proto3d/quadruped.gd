@@ -14,6 +14,24 @@ const DEFAULT: Dictionary = {
 	"ears": true,
 }
 
+## MOTIONFORGE rows (MOVESET.txt SPEC B): stock here, data/motions.json overlays.
+## gait = the trot · leap = jump/pounce flight · dig = the paws-to-work scrape.
+static var MOTION: Dictionary = {
+	"gait": {"cadence_base": 3.0, "cadence_speed": 1.4, "stride_amp": 0.5,
+		"sniff_depth": 0.25, "sniff_wobble": 0.12, "body_lilt": 0.06,
+		"wag_speed_lo": 4.0, "wag_speed_hi": 16.0, "wag_amp_lo": 0.12, "wag_amp_hi": 0.7},
+	"leap": {"launch_h": 7.2, "tuck_front": 0.9, "tuck_hind": 0.8, "head_up": 0.35},
+	"dig": {"scrape_hz": 18.0, "scrape_amp": 0.55, "head_down": 0.4},
+}
+static var _motion_folded: bool = false
+
+
+static func ensure_motions() -> void:
+	if _motion_folded:
+		return
+	_motion_folded = true
+	ProtoPuppet.fold_motion_file("quadruped", MOTION)
+
 var params: Dictionary = {}
 var body: MeshInstance3D
 var neck: Node3D
@@ -35,6 +53,7 @@ var _dig: float = 0.0
 
 
 static func create(params_in: Dictionary = {}) -> ProtoQuadruped:
+	ensure_motions() # rows before the first stride
 	var q := ProtoQuadruped.new()
 	var p := DEFAULT.duplicate(true)
 	for k in params_in:
@@ -95,10 +114,11 @@ static func _box(size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
 func animate(delta: float, speed: float, morale: float) -> void:
 	_t += delta
 	var s: float = float(params["scale"])
+	var mg: Dictionary = MOTION["gait"] # the ROW (MotionForge tunes it live)
 	var moving := speed > 0.4
 	if moving:
-		_phase += (3.0 + speed * 1.4) * delta
-	var amp := clampf(speed / 8.0, 0.0, 1.0) * 0.5
+		_phase += (float(mg["cadence_base"]) + speed * float(mg["cadence_speed"])) * delta
+	var amp := clampf(speed / 8.0, 0.0, 1.0) * float(mg["stride_amp"])
 
 	# Diagonal-pair gait (FL+BR together, FR+BL together) — a real trot read.
 	var a := sin(_phase) * amp
@@ -109,34 +129,38 @@ func animate(delta: float, speed: float, morale: float) -> void:
 	legs[2].rotation.x = b  # BL
 
 	# AIRBORNE: the leap pose overrides the trot — front legs REACH, hinds trail.
+	var ml: Dictionary = MOTION["leap"]
 	_air = move_toward(_air, clampf(air_target, 0.0, 1.0), delta * 7.0)
 	if _air > 0.01:
-		legs[0].rotation.x = lerpf(legs[0].rotation.x, -0.9, _air)
-		legs[1].rotation.x = lerpf(legs[1].rotation.x, -0.9, _air)
-		legs[2].rotation.x = lerpf(legs[2].rotation.x, 0.8, _air)
-		legs[3].rotation.x = lerpf(legs[3].rotation.x, 0.8, _air)
+		legs[0].rotation.x = lerpf(legs[0].rotation.x, -float(ml["tuck_front"]), _air)
+		legs[1].rotation.x = lerpf(legs[1].rotation.x, -float(ml["tuck_front"]), _air)
+		legs[2].rotation.x = lerpf(legs[2].rotation.x, float(ml["tuck_hind"]), _air)
+		legs[3].rotation.x = lerpf(legs[3].rotation.x, float(ml["tuck_hind"]), _air)
 
 	# DIG: one front paw SCRAPES fast while the body plants (dirt flies).
+	var md: Dictionary = MOTION["dig"]
 	_dig = move_toward(_dig, clampf(dig_target, 0.0, 1.0), delta * 7.0)
 	if _dig > 0.01:
-		legs[0].rotation.x = lerpf(legs[0].rotation.x, -0.5 + sin(_t * 18.0) * 0.55, _dig)
+		legs[0].rotation.x = lerpf(legs[0].rotation.x,
+			-0.5 + sin(_t * float(md["scrape_hz"])) * float(md["scrape_amp"]), _dig)
 
 	# Head DIPS to sniff when slow/idle; rides level at speed. A dig buries the
 	# nose in the ground; a leap carries it high.
-	var sniff := (-0.25 + sin(_t * 3.0) * 0.12) if speed < 1.5 else 0.0
-	neck.rotation.x = lerp(neck.rotation.x, sniff - 0.4 * _dig + 0.35 * _air, clampf(6.0 * delta, 0.0, 1.0))
+	var sniff := (-float(mg["sniff_depth"]) + sin(_t * 3.0) * float(mg["sniff_wobble"])) if speed < 1.5 else 0.0
+	neck.rotation.x = lerp(neck.rotation.x,
+		sniff - float(md["head_down"]) * _dig + float(ml["head_up"]) * _air, clampf(6.0 * delta, 0.0, 1.0))
 
 	# Body lilt with the gait — plus a HIT JOLT (Rung 6): a struck animal flinches up
 	# and hunches, so every hit reads on the body, not just a health bar.
 	_flinch = maxf(0.0, _flinch - delta * 6.0)
-	body.position.y = 0.42 * s + absf(sin(_phase)) * amp * 0.06 + _flinch * 0.12 * s
+	body.position.y = 0.42 * s + absf(sin(_phase)) * amp * float(mg["body_lilt"]) + _flinch * 0.12 * s
 	body.rotation.x = _flinch * 0.4
 
 	# THE TAIL = THE READOUT. Happy → fast wide wag. Scared → tuck it under.
 	if tail_pivot:
 		_tuck = lerp(_tuck, clampf((0.4 - morale) / 0.4, 0.0, 1.0), clampf(6.0 * delta, 0.0, 1.0))
-		var wag_speed := lerpf(4.0, 16.0, morale)
-		var wag_amp := lerpf(0.12, 0.7, morale) * (1.0 - _tuck)
+		var wag_speed := lerpf(float(mg["wag_speed_lo"]), float(mg["wag_speed_hi"]), morale)
+		var wag_amp := lerpf(float(mg["wag_amp_lo"]), float(mg["wag_amp_hi"]), morale) * (1.0 - _tuck)
 		tail_pivot.rotation.x = -_tuck * 1.2               # tucked down + under when afraid
 		tail_pivot.rotation.y = sin(_t * wag_speed) * wag_amp
 

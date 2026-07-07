@@ -579,7 +579,7 @@ func _do_follow(delta: float) -> void:
 		# and your heel — fence, crate, truck bed — and the dog LEAPS it instead
 		# of pinballing. Knee ray blocked + head-height ray clear = jumpable.
 		if is_on_floor() and _jump_cd <= 0.0 and velocity.length() > 1.0 and _leap_blocked(dir):
-			velocity.y = 7.2
+			velocity.y = float(ProtoQuadruped.MOTION["leap"]["launch_h"]) # a MotionForge row
 			velocity.x = dir.x * maxf(speed, 6.0)
 			velocity.z = dir.z * maxf(speed, 6.0)
 			_jump_cd = 0.9

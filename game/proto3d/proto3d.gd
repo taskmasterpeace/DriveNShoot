@@ -2576,7 +2576,13 @@ func reload_content() -> Dictionary:
 	var map_ok := false
 	if stream != null and stream.usmap != null:
 		map_ok = stream.usmap.load_file(ProtoUSMap.PATH)
-	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
+	# MOTIONFORGE live loop: re-fold motions.json so a browser tweak lands on the
+	# NEXT stride of every rig already walking (statics — no respawn needed).
+	ProtoPuppet._motion_folded = false
+	ProtoPuppet.ensure_motions()
+	ProtoQuadruped._motion_folded = false
+	ProtoQuadruped.ensure_motions()
+	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
 
 

@@ -49,6 +49,47 @@ static func look(name_in: String) -> Dictionary:
 	return SURVIVORS.get(name_in, {}).duplicate(true)
 
 
+## MOTIONFORGE (MOVESET.txt SPEC B): the animator's magic numbers are ROWS.
+## Stock values live HERE (code is floor); game/data/motions.json — written by
+## MotionForge (:8896) — overlays them param-by-param at boot. Tune a walk in the
+## browser, F10-FORGE reload, watch it change. No keyframes, no rebuilds.
+static var MOTION: Dictionary = {
+	"gait": {"cadence_base": 2.0, "cadence_speed": 1.15, "stride_amp": 0.6,
+		"arm_swing": 0.85, "step_bob": 0.12, "breath_amp": 0.02, "lean_turn": 0.22,
+		"crouch_drop": 0.34},
+}
+static var _motion_folded: bool = false
+
+
+static func ensure_motions() -> void:
+	if _motion_folded:
+		return
+	_motion_folded = true
+	fold_motion_file("puppet", MOTION)
+
+
+## The one fold: data overrides stock, number by number, unknown motions welcome.
+## Shared by the quadruped (and any future rig) — same law as ensure_items().
+static func fold_motion_file(rig: String, into: Dictionary, path: String = "res://data/motions.json") -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	var rigs: Dictionary = (parsed as Dictionary).get("rigs", {})
+	var rig_rows: Dictionary = rigs.get(rig, {})
+	for m in rig_rows:
+		var row_v: Variant = rig_rows[m]
+		if not (row_v is Dictionary):
+			continue
+		if not into.has(String(m)):
+			into[String(m)] = {}
+		for k in (row_v as Dictionary):
+			var val: Variant = (row_v as Dictionary)[k]
+			if val is float or val is int:
+				(into[String(m)] as Dictionary)[String(k)] = float(val)
+
+
 var appearance: Dictionary = {}
 var handed_sign: float = 1.0 ## +1 gun on the right (local -X? see below), -1 on the left
 
@@ -101,6 +142,7 @@ var _recoil: float = 0.0       ## the aim arm kicks up on each shot
 
 
 static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
+	ensure_motions() # the rig reads ROWS — fold the data before the first stride
 	var p := ProtoPuppet.new()
 	var a := DEFAULT.duplicate(true)
 	for k in appearance_in:
@@ -213,11 +255,12 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 
 	var moving := speed > 0.35
 	var gait: float = float(appearance["gait"])
+	var mg: Dictionary = MOTION["gait"] # the ROW (MotionForge tunes it live)
 	_crouch = move_toward(_crouch, clampf(crouch_target, 0.0, 1.0), delta * 5.0)
 	# Cadence rises with speed; frozen when standing (so we don't drift the phase).
 	if moving:
-		_phase += (2.0 + speed * 1.15) * gait * delta
-	var amp := clampf(speed / 7.0, 0.0, 1.0) * 0.6 * (1.0 - hurt * 0.4) * (1.0 - _crouch * 0.45)
+		_phase += (float(mg["cadence_base"]) + speed * float(mg["cadence_speed"])) * gait * delta
+	var amp := clampf(speed / 7.0, 0.0, 1.0) * float(mg["stride_amp"]) * (1.0 - hurt * 0.4) * (1.0 - _crouch * 0.45)
 
 	# LEGS — alternate. A limp shortens and hitches one leg.
 	var limp_l := 1.0
@@ -246,7 +289,7 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# FREE ARM swings opposite the gun-side leg (natural counter-swing) — unless
 	# a punch tween owns it (the off-hand jab of the combo).
 	if _swing_t <= 0.0:
-		free_arm.rotation.x = -swing_r * 0.85
+		free_arm.rotation.x = -swing_r * float(mg["arm_swing"])
 
 	# AIM ARM — its YAW is set by the caller (points at the gaze). The SHOULDER
 	# does the vertical, pivoting at the joint: a raised gun holds level with a
@@ -268,13 +311,14 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.
 	# A crouch SINKS the whole column (torso + head ride down together).
-	var breath := sin(_t * 1.8) * (0.02 if not moving else 0.0)
-	var step_bob := absf(sin(_phase)) * amp * 0.12
-	torso.position.y = 1.05 + breath + step_bob - 0.34 * _crouch
-	neck.position.y = 1.44 + breath + step_bob - 0.5 * _crouch
+	var breath := sin(_t * 1.8) * (float(mg["breath_amp"]) if not moving else 0.0)
+	var step_bob := absf(sin(_phase)) * amp * float(mg["step_bob"])
+	var drop: float = float(mg["crouch_drop"]) * _crouch
+	torso.position.y = 1.05 + breath + step_bob - drop
+	neck.position.y = 1.44 + breath + step_bob - drop * 1.47
 
 	# LEAN into turns (+ a slight forward lean at speed), and SLUMP when hurt.
-	var lean_target := clampf(-turn_rate * 0.22, -0.35, 0.35)
+	var lean_target := clampf(-turn_rate * float(mg["lean_turn"]), -0.35, 0.35)
 	_lean = lerp(_lean, lean_target, clampf(9.0 * delta, 0.0, 1.0))
 	_slump = lerp(_slump, hurt * 0.3, clampf(4.0 * delta, 0.0, 1.0))
 	torso.rotation.z = _lean
