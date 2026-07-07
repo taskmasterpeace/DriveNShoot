@@ -22,6 +22,7 @@ const ROUTE_RANGE := 220.0  ## how far out the signal holds
 
 var battery: float = BATTERY_MAX
 var mode: DroneMode = DroneMode.PATROL
+var piloted: bool = false ## while true, ProtoDronePilot owns the bird — autonomy stands down
 var hp: float = 12.0
 var marks: int = 0 ## hazards marked this flight (the report card)
 var _route_target: Vector3 = Vector3.ZERO
@@ -100,6 +101,8 @@ func take_damage(amount: float, _attacker: Node3D = null) -> void:
 func _physics_process(delta: float) -> void:
 	if _rotor:
 		_rotor.rotation.y += 22.0 * delta
+	if piloted:
+		return # you're flying it — the pilot owns position, altitude and shutoff
 	match mode:
 		DroneMode.PATROL:
 			# Patrol the ring over the deploy point.

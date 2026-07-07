@@ -294,6 +294,16 @@ func _ready() -> void:
 
 	sview = ProtoSecondaryView.create()
 	add_child(sview)
+	# The dynamic split-screen + the drone-pilot state machine (dormant until you fly one).
+	split_view = ProtoSplitView.create()
+	add_child(split_view)
+	drone_pilot = ProtoDronePilot.new()
+	add_child(drone_pilot)
+	drone_pilot.shut_off.connect(func() -> void:
+		split_view.deactivate()
+		if drone != null and is_instance_valid(drone):
+			drone.piloted = false # hand the bird back to its own autonomy
+		notify("🛸 Drone off — you have your body back."))
 
 	char_create = ProtoCharCreate.create(self)
 	add_child(char_create)
@@ -399,6 +409,10 @@ var companions: Array = []
 var sview: ProtoSecondaryView = null
 var char_create: ProtoCharCreate = null
 var drone: ProtoDrone = null
+## DRONE PILOTING + dynamic split-screen (docs/design/DYNAMIC_SPLIT_DRONE.md). Both are
+## additive and dormant until you turn a drone on — default off, zero impact on normal play.
+var split_view: ProtoSplitView = null
+var drone_pilot: ProtoDronePilot = null
 
 
 func _build_environment() -> void:
@@ -512,6 +526,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			toggle_controls_panel()
 		return
 	if event.is_action_pressed("interact"):
+		# Piloting a drone? Interact brings it in — you can't just switch it off in the air,
+		# so this starts a landing; it shuts off (and frees you) once it's down.
+		if drone_pilot != null and drone_pilot.is_active():
+			drone_pilot.request_off()
+			return
 		if panel.is_open:
 			panel.close()
 		elif media_panel != null and media_panel.is_open:
@@ -689,11 +708,20 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
+	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
+	# drone with your move keys and update the flight. All dormant unless a session is live.
+	if drone_pilot != null and drone_pilot.is_active():
+		drone_pilot.update(delta)
+		if drone_pilot.body_immobile():
+			drone_pilot.pilot_input(Vector3(
+				Input.get_axis("move_left", "move_right"), 0.0,
+				Input.get_axis("move_up", "move_down")))
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
-	# The TV is modal the same way — you sit down to watch.
+	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
-		or (controls_panel != null and controls_panel.is_open)
+		or (controls_panel != null and controls_panel.is_open) \
+		or (drone_pilot != null and drone_pilot.body_immobile())
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
@@ -1690,13 +1718,19 @@ func use_item(id: String) -> bool:
 		# STAGE 8 rung 1 (Robotics): deploy the bird. It patrols overhead, pings
 		# threats into your perception, and lands as a pickup when the cell dies.
 		if drone != null and is_instance_valid(drone):
-			notify("The bird's already up (V to watch it)")
+			# The bird's already up → TAKE THE STICK: fly it yourself (body immobile, the
+			# screen splits as it ranges out — docs/design/DYNAMIC_SPLIT_DRONE.md).
+			if drone_pilot != null and not drone_pilot.is_active():
+				drone.piloted = true
+				enter_drone_pilot(drone)
+				return true
+			notify("The bird's already up")
 			return false
 		drone = ProtoDrone.create(self, player.global_position)
 		add_child(drone)
 		drone.global_position = player.global_position + Vector3(0, 2.0, 0)
 		audio.play_ui("blip", -6.0)
-		notify("🛸 Drone up — it patrols and PINGS what it sees (V to ride its eye)")
+		notify("🛸 Drone up — it patrols and PINGS what it sees. Use the drone again to TAKE THE STICK.")
 		return true
 	match id:
 		"bandage":
@@ -2526,9 +2560,22 @@ func drop_item(id: String) -> bool:
 
 
 ## A lurker's claw connects: body wound + bleed + fear. Combat is two-way now.
+## Turn a drone ON and fly it: starts the pilot session and raises the dynamic split view
+## (your body = view 1, the drone = view 2; it auto-splits as the bird ranges out).
+func enter_drone_pilot(d: Node3D) -> void:
+	if drone_pilot == null or split_view == null or d == null:
+		return
+	if drone_pilot.start(d):
+		split_view.activate(player, d)
+		notify("🛸 PILOTING — fly it with your move keys; the screen SPLITS as it ranges. Interact to bring it in and land.")
+
+
 func on_player_clawed(damage: float, _who: Node3D) -> void:
 	if character.dead:
 		return
+	# Hit while piloting a drone? Your immobile body must bail — the bird hovers, you fight.
+	if drone_pilot != null and drone_pilot.body_immobile():
+		drone_pilot.on_attacked()
 	if mode == Mode.DRIVE and active_car != null and is_instance_valid(active_car) and not active_car.dead:
 		# The cab shields YOU — but the beast mauls the RIG (armor blunts it inside
 		# take_damage). You CAN be torn up in your ride now; drive off or it dies.
