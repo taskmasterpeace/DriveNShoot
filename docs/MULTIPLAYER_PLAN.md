@@ -6,8 +6,13 @@
 > v2 (2026-07-06): VEHICLE sync (driving peers show a real rig), snapshot INTERPOLATION
 > (seq-guarded 2-3 state buffer, no rubber-band), HOST-AUTHORITATIVE enemies (host streams
 > the pack, clients ghost it + suppress their own director) — `net_sim` 16 checks.
-> Remaining: interest management (AoI) for 32-scale, host-authoritative ring/world, a
-> main-menu host/join flow. The 2D NetworkManager below is the prior-art reference.
+> v3 (2026-07-06): the menu HOST/JOIN(IP) flow SHIPPED (`menu.gd`, `menu_sim`), plus the
+> co-op/PvP fun pass — name tags, partner arrow, respawn-at-partner, F6 peace/duel/ffa,
+> safehouse bubble, victim-authoritative PvP damage (`coop_fun_sim` 16/16).
+> Remaining: interest management (AoI) for 32-scale, host-authoritative hit resolution/world,
+> per-peer persistence. Everything below this banner is the LEGACY 2D plan (that codebase is
+> quarantined in `legacy-2d/`) — prior-art reference only; the AoI/architecture design to build
+> against is `systems/TRAVEL_AND_NETCODE.md §3`.
 
 ## STATUS (2026-06-11): core netcode protocol BUILT + verified cross-process
 

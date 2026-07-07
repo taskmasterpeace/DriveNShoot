@@ -37,10 +37,10 @@ for AI agents to read/build/expand the map; see `tools/mapforge/API.md`). The ga
 it via `ProtoUSMap` (streaming biomes/roads/towns, real state lines, water surfaces, the
 country atlas on M). Proof: `res://proto3d/tests/map_sim.tscn`.
 
-**Relationship to the world clock:** the day/night clock runs at **~12×** (2 real hr = 24 game hr,
-per `WORLD_NPCS.md`). Combined: **10 min of driving passes ~2 game-hours** (you watch dusk fall on a
-long haul), and a **~2-hour cross-country drive = ~1 full game day.** Two independent dials
-(distance 24×, clock 12×) that together make a trip feel like a *journey*, not a loading screen.
+**Relationship to the world clock:** the *shipped* clock is a **24-minute full day** (`daynight.gd` —
+60×; this doc's original 12× clock and `WORLD_NPCS.md`'s "2 real hr = 24 game hr" predate it).
+Combined with 60× distance: a long haul still watches dusk fall. Two independent dials
+(distance 60×, clock 60×) that together make a trip feel like a *journey*, not a loading screen.
 
 ## 2. How Travel Actually Happens (three modes)
 
@@ -210,7 +210,7 @@ multi-loop effort** — Stage 9, built only after the single-player world is rea
 ---
 
 ## 4. Build path
-1. **Stage 5** — single-player chunk streaming + the 24× compressed geography + world map. (No edge.)
+1. **Stage 5** — single-player chunk streaming + the 60× compressed geography + world map. (No edge.)
 2. **Stage 9 netcode**, on top of streaming:
    - (a) Port the ENet donor → **AoI chunk replication** (interest grid, per-peer visibility).
    - (b) **Client-authoritative vehicles + server reconciliation** (validate, don't simulate).

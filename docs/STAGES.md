@@ -67,7 +67,7 @@ The car becomes a character that dies dramatically; the screen tells you your st
 - 5-part vehicle damage (🔧🛞🔋⛽🛡️), death spiral smoke→fire→cook→**burnt husk** (persists as
   cover/salvage), **glyph HUD** (health/ammo/car), data-driven **arsenal** (3 sample guns,
   shared ammo), hotwire + loud forced-entry.
-- **Deep-dive:** `loops/LOOP2_LIVING_CAR.md`. Uses: DamageableComponent, StatusGlyph, Container(trunk stub).
+- **Deep-dive:** the Living-Car loop plan (shipped, retired 2026-07-07 — see the `CLAUDE.md` vehicles row / HANDOFF §2a). Uses: DamageableComponent, StatusGlyph, Container(trunk stub).
 
 ### Stage 3 — Character Core & The Interface *(absorbs the "you never spec'd UI" gap)*
 The RPG spine + the screens to see it. **This is where the UI system is born.**
@@ -183,5 +183,5 @@ GDScript that lands in the stages above.
   (Stage 3 decision).
 
 *Companion docs: `DESIGN_PILLARS.md` (north star), `ENGINE.md` (8 pillars), `PROGRESSION.md`
-(skills), `loops/LOOP2_LIVING_CAR.md`, `systems/INTERFACE_AND_BODY.md`, `systems/COMBAT_AND_GEAR.md`,
+(skills), `systems/INTERFACE_AND_BODY.md`, `systems/COMBAT_AND_GEAR.md`,
 `systems/WORLD_NPCS.md`, `systems/TRAVEL_AND_NETCODE.md`, `systems/CONTENT_PIPELINE.md`.*

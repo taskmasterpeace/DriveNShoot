@@ -79,5 +79,5 @@ Built on the **chassis + modules** system (LOOP2/M3): the chassis exposes **moun
 loot · **caliber ammo** = shared across many guns · **DamageableComponent** = body + car + walls ·
 **Molotov fire** = reuses car-fire burn · **turret-AI** = robotics tier reused as a passenger.
 
-*Cross-refs: `INTERFACE_AND_BODY.md` (aim cone, inventory UI, stamina), `loops/LOOP2_LIVING_CAR.md`
-(arsenal + car damage), `PROGRESSION.md` (Marksmanship/Heavy Weapons/Mechanics), `STAGES.md`.*
+*Cross-refs: `INTERFACE_AND_BODY.md` (aim cone, inventory UI, stamina), the shipped Living-Car systems
+(arsenal + car damage — see `CLAUDE.md` vehicles/combat rows), `PROGRESSION.md` (Marksmanship/Heavy Weapons/Mechanics), `STAGES.md`.*

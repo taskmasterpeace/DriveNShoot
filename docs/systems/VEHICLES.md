@@ -1,5 +1,7 @@
 # DRIVN — The Fleet (5 wildly different vehicles)
 
+> ⚠️ **STATUS: see [docs/HANDOFF.md §2](../HANDOFF.md)** for built-vs-designed truth. Since this doc: the fleet is **10 rows** in `data/vehicles.json` (+ pickup_truck, RV camper, SUV, trailer), **mounts returned** (§6 is stale — a `mount_schematic` bolts a `car_mg` on, `mount_sim`), **vehicle armor is real** and the rig takes hostile combat damage (`car_combat_sim`). Tanks/treads (§9) remain unbuilt.
+
 **Status:** ✅ v1 SHIPPED in `game/proto3d/` (2026-07-05) · **Proof:** `tests/vehicles_sim.tscn`
 **Law:** a vehicle is a ROW in `ProtoCar3D.VEHICLES` — adding one = adding data, never new code
 (ENGINE.md: "bicycles to 18-wheelers to tanks"). Same 5-part anatomy, death spiral, trunk,

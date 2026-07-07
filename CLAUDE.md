@@ -56,7 +56,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 | Co-op/PvP pass | `net.gd` + `proto3d.gd` | partner NAME TAGS + follow-arrow waypoint, respawn-at-partner, co-op bed rig, net horn pings; F6 peace/duel/ffa, SAFEHOUSE BUBBLE, victim-authoritative PvP damage, kill toast + session bounty on the tag |
 | The moveset | `player_3d.gd`, `weapon.gd` | CTRL crouch/slide (noise ×0.55, low capsule); fists/shove WEAPON ROWS + MARTIAL ARTS skill; sprint-tackle knockdown; hold-E drag; auto wade/swim/drown off the real map |
 | Dog verbs | `dog.gd`, `buried_cache.gd` | auto-JUMP (fences/gaps, leap row), POUNCE on SIC, Hunter DIG on ProtoBuriedCache → loot_tables |
-| Media layer | `media_registry.gd` `tv.gd` `media_panel.gd` `drive_in.gd` `media_pickup.gd` `public_screen.gd` `newsroom.gd` `music.gd` | docs/cinema.md COMPLETE: manifest rows → safehouse TV (time passes, save persists) · drive-in (trailers→feature) · found_* pickups · channel-row public screens + event-clip preempts · Newsroom (takeover→TV, bounty→radio) · radio mp3 music stations |
+| Media layer | `media_registry.gd` `tv.gd` `media_panel.gd` `drive_in.gd` `media_pickup.gd` `public_screen.gd` `newsroom.gd` `music.gd` | the cinema plan COMPLETE (design contract: docs/design/CINEMA_MEDIA_LAYER.md): manifest rows → safehouse TV (time passes, save persists) · drive-in (trailers→feature) · found_* pickups · channel-row public screens + event-clip preempts · Newsroom (takeover→TV, bounty→radio) · radio mp3 music stations |
 | Scout drone | `drone.gd`, `drone_dock.gd` | safehouse dock → ROUTE SCOUT flies your course (body stays home), 🛸 map marks, returns/recharges, shoot-down-able; AI-collapse boot line |
 | Input map | `input_map.gd`, `controls_panel.gd` + `data/input_bindings.json` | every verb = an ACTION row (key+mouse+pad on one action); twin-stick pad driver (right stick → aim_override, trigger job-swap at the wheel, rumble); F11 press-to-capture rebinds persist to user:// |
 | Audio/VO | `audio.gd` + `tools/soundforge/` | 57 SFX + 11 TTS lines in 4 LOCKED voices (`voices.json` — never change a voice_id) |
@@ -105,6 +105,8 @@ Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `
 
 ## 📚 Doc map
 
-- `docs/ENGINE.md` — master spec · `docs/STAGES.md` — roadmap · `docs/MASTER_PLAN.md` — the toolification plan (done)
-- `docs/DIVIDED_STATES.md` — lore bible (rulers, THE CAROUSEL) · `docs/WORLD_PILLARS.md` — the five world pillars + eight laws (what the game is ABOUT; P3 = Pillars 1+2+5, road rows first) · `docs/CAROUSEL.md` + `docs/RV_PLAN.md` — next big builds
-- `docs/systems/*` — per-system design · `docs/legacy-2d/` — the old 2D game's docs · `docs/setup/` — MCP/editor setup
+- `docs/HANDOFF.md` — **the authoritative have-vs-should** (read first) · `docs/ENGINE.md` — master spec · `docs/STAGES.md` — roadmap
+- `docs/DIVIDED_STATES.md` — lore bible (rulers, THE CAROUSEL) · `docs/WORLD_PILLARS.md` — the five world pillars + eight laws (what the game is ABOUT; P3 = Pillars 1+2+5, road rows first)
+- `docs/design/*` — the ACTIVE goal contracts (Living World, drive-by, strikes, loot/NPC/wanted/spawn, population war, car UI, UI language, paperdoll, co-op/PvP) · `docs/systems/*` — per-system design · `docs/PLAYTEST_GUIDE.md` — the DO→EXPECT script
+- `docs/legacy-2d/` — the old 2D game's docs (quarantined reference; incl. its BUILD_NOTES journal) · `docs/setup/` — MCP/editor setup
+- *(Retired 2026-07-07 doc audit — shipped plans deleted, in git history: MASTER_PLAN, cinema, MOVESET, CAROUSEL, RV_PLAN, UI_UX_PLAN, LOOP2_LIVING_CAR.)*

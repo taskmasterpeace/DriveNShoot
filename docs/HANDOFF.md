@@ -41,9 +41,9 @@
 > **What's NOT done yet in the arc:** everything Phase 3+ (scout drone, crime/bodies, jail, cloning, multi-passenger seats, media/TV registry, co-op/PvP fun pass, 19-slot paperdoll). The Florida MVS itself — offline catch-up → law → briefing screen → radio bulletin — is **complete and green**. **Next up:** Phase 3 scout drone (`drone_scout_sim`, §21.4) or the low-code co-op/PvP track. See the build order below.
 >
 > ### ✅ SECOND FIRING (2026-07-06, the moveset+media autonomous arc) — five more rungs SHIPPED, all sim-proven + committed
-> - **THE MOVESET (docs/MOVESET.txt) — COMPLETE.** One new key (hold-CTRL crouch; sprint+tap = slide), the UNARMED KIT (tap punch combo / hold shove / sprint-TACKLE + an 11th level-by-doing skill **MARTIAL ARTS**: lv2 kicks, lv4 throws, lv6 finishers), GRAB & DRAG (hold E on chests/bodies), WATER on foot (auto wade/swim/drown off the real map), and the DOG VERBS (auto-JUMP over fences, POUNCE on SIC, Hunter DIG on `ProtoBuriedCache` → loot_tables). Sims: crouch/unarmed/drag/water/dogverb (60+ checks).
+> - **THE MOVESET (plan doc since retired, 2026-07-07) — COMPLETE.** One new key (hold-CTRL crouch; sprint+tap = slide), the UNARMED KIT (tap punch combo / hold shove / sprint-TACKLE + an 11th level-by-doing skill **MARTIAL ARTS**: lv2 kicks, lv4 throws, lv6 finishers), GRAB & DRAG (hold E on chests/bodies), WATER on foot (auto wade/swim/drown off the real map), and the DOG VERBS (auto-JUMP over fences, POUNCE on SIC, Hunter DIG on `ProtoBuriedCache` → loot_tables). Sims: crouch/unarmed/drag/water/dogverb (60+ checks).
 > - **MOTIONFORGE (:8896) — the 4th Forge, tool + engine.** Puppet/quadruped animator literals lifted into **MOTION rows** (stock in code, `data/motions.json` overlays; F10 FORGE re-folds live); REST + describe-it endpoint; treadmill stage `res://proto3d/tools/motion_stage.tscn`; `motion_sim`.
-> - **THE MEDIA LAYER (docs/cinema.md) — COMPLETE, ALL PHASES.** MediaForge (:8897, MP4→Theora+poster+manifest rows via bundled ffmpeg-static; test-reel/test-music generators) · `ProtoMediaRegistry` · safehouse TV + 80% panel (time passes, watched/unlocked in the save) · DRIVE-IN (trailers→feature off rows, leave-stops) · DVD/tape/reel pickups seeded from `found_*` rows · PUBLIC SCREENS tuned by `data/media_channels.json` (faction>state>open), world-event clips preempt · Newsroom (takeover→TV, bounty→radio, weather→wire) · radio MUSIC stations off `game/media/music/radio/` (runtime mp3, no import). Sims: media_registry/tv/unlock_media/drive_in/news_media/music/broadcast_fallback.
+> - **THE MEDIA LAYER (cinema plan since retired; the design contract lives at `docs/design/CINEMA_MEDIA_LAYER.md`) — COMPLETE, ALL PHASES.** MediaForge (:8897, MP4→Theora+poster+manifest rows via bundled ffmpeg-static; test-reel/test-music generators) · `ProtoMediaRegistry` · safehouse TV + 80% panel (time passes, watched/unlocked in the save) · DRIVE-IN (trailers→feature off rows, leave-stops) · DVD/tape/reel pickups seeded from `found_*` rows · PUBLIC SCREENS tuned by `data/media_channels.json` (faction>state>open), world-event clips preempt · Newsroom (takeover→TV, bounty→radio, weather→wire) · radio MUSIC stations off `game/media/music/radio/` (runtime mp3, no import). Sims: media_registry/tv/unlock_media/drive_in/news_media/music/broadcast_fallback.
 > - **LIVING WORLD Phase 3 — SCOUT DRONE: DONE.** Safehouse **drone dock** launches a ROUTE SCOUT along your course (body stays home), marks hazards as the 🛸 map waypoint, returns/docks/recharges, can be SHOT DOWN and lost (wreck). AI-collapse lore keystone in the drone boot line + the dial. `drone_scout_sim` 11/11.
 > - **CO-OP/PVP FUN PASS — DONE** (top-5 + top-5 tonight rows): partner name tags + follow-waypoint arrow, respawn-at-partner, co-op bed rig, net horn pings; F6 peace/duel/ffa (host-authoritative), safehouse bubble, victim-authoritative PvP damage + kill toast + session bounty on the tag. `coop_fun_sim` 16/16.
 > - **Remaining on the ladder (the NEXT arc):** crime/bodies → jail → cloning → multi-passenger seats → the 19-slot paperdoll (build from `docs/design/EQUIPMENT_PAPERDOLL.md`). Each is a multi-day system — do them one rung at a time, sim-first, same as everything above.
@@ -125,7 +125,7 @@ Grouped; each has at least one sim that asserts the behavior (not just that code
 - **World & map:** macro map from `usmap.json` (150×85 @500 m, 48 states); cell/biome/state anchors; `road_near` + **road CHARACTER rows** (danger/family/nickname/toll) + welcome-sign READ; chunk streaming; interstate→asphalt; surface→grip; biome-driven scatter; state-line announcements; two-level world map (M) fog + atlas click-to-course; placement layer at exact coords.
 - **NPCs & life:** town archetypes on the puppet rig; act overlays (gesture/scan/pace/aim-crouch); trade economy (scrip flow); esteem/infamy price scaling; **Sec-Man bounty chain**; crime→SUSPECT closure; contextual barks; **motorists drive city-to-city**; route planning; passenger seat + take-the-wheel.
 - **Weather/day-night:** moon night-floor (never blind); headlights/pack-spawn consumers; 4-state weather with taxes (dust→vision, rain→grip, heat→engine cook).
-- **Dogs:** 4 types × 12 breeds; adopt/bond/register; follow/stay w/ per-type obedience; **rear-smell** alert*; Hunter nose-ping; Cuddle calm-aura→stress→stamina; **BOND tiers**; **SHIELD** (SOULBOUND-gated); **PERMADEATH** (bleed-out→bandage-save or grave+collar+memorial); buryable grave; whistle 4-in-1; SIC bite w/ wall-law; **metaworld** dehydrate/hydrate + come-home. *(*rear-smell has a real failing assertion — see §8.)*
+- **Dogs:** 4 types × 12 breeds; adopt/bond/register; follow/stay w/ per-type obedience; **rear-smell** alert*; Hunter nose-ping; Cuddle calm-aura→stress→stamina; **BOND tiers**; **SHIELD** (SOULBOUND-gated); **PERMADEATH** (bleed-out→bandage-save or grave+collar+memorial); buryable grave; whistle 4-in-1; SIC bite w/ wall-law; **metaworld** dehydrate/hydrate + come-home. *(*the rear-smell red is FIXED — see §8; `dog_sim` 12/12.)*
 - **Crew:** data rows on the puppet; hire w/ scrip; follow; mechanic/medic/gunner jobs on the game clock; **mortality** (corpse chest + memorial); scout reveal; riding shotgun + gunning from the moving bed.
 - **Character:** 10 skills level-by-doing w/ real effect helpers consumed at real call sites; 6-part body paper-doll; **wounds become behavior** (limp/aim-wobble/narrowed cone/stamina tax); **revive + soft respawn** (safehouse, toll, rig left, deaths++); hunger spine; perception traits; procedural puppet sin()-rig; respect ledger price_mult + standing gates.
 - **UI/meta:** front-door menu (save-gated); **THE FIRST RUN** onboarding (retires itself); death screen; jump-sickness flash; moodle column; character sheet (K); one container/loot/trade panel (modal input-lock); DEV MODE (F10); secondary-view PiP (DOGCAM/REARVIEW/DRONE); **save one-file round-trip**; jack→scrip migration on load; **THE CIRCUIT** loop (4 idempotent beats + payoff); border reactions; deterministic daily world-events; two-tier audio (mp3 override + synth fallback); **Drivn* data spine** (vehicle fold) + expanded 34-item inventory.
@@ -189,7 +189,7 @@ From the synthesizer, lightly edited. **Ranked. Respect the scope discipline in 
 3. **QUICK WIN — Wire the data-spine read-back for items/NPCs/loot** (read `items.json`/npcs/loot_tables like the game already reads `vehicles.json`) and regenerate the stale `items.json`/.tres. Makes "a new item = a ROW" true instead of a lie; unlocks all future content authoring.
 4. **MEDIUM — Ship the road-row CONSUMERS** (bill tolls, weight ambush by danger, wire family). The READ is done; this is your stated P3 priority; turns dead-but-authored data into felt gameplay cheaply.
 5. **MEDIUM — Finish the mount attach path** (assign `mount_weapon` from the `mounts` array + one loot/equip entry) and let the car body take hostile combat damage. Both are your P5 asks; the firing code already exists; "you can't be shot in your ride" undercuts the core fantasy.
-6. **MEDIUM — Harden the flaky sims** and add the missing assertions (crit, camera trauma, get-up stamina, misfire/battery, timer-driven traffic/pirate/respawn). Combat-feel is the AAA pillar; its juice currently rides untested timing-sensitive tests. **Start with the real dog_sim red (§8).**
+6. **MEDIUM — Harden the flaky sims** and add the missing assertions (crit, camera trauma, get-up stamina, misfire/battery, timer-driven traffic/pirate/respawn). Combat-feel is the AAA pillar; its juice currently rides untested timing-sensitive tests. *(Since done: the dog_sim red is FIXED — §8 — and the crit/trauma/misfire/get-up assertions landed per the banner.)*
 7. **SCOPE DISCIPLINE — Do NOT start the big designed pillars** (700-pt tree, robotics/farming/base, paperdoll, faction families, 50-ruler content, hover/rail/boat, AoI/host-auth MP, RV pocket-instance, procedural exit-towns). Weeks each. Polishing and truthfully persisting what exists reads as *more* shippable than another half-wired system.
 8. **SMALL — lurker→puppet refactor and signs-for-illiterate** as bounded one-offs; both are your asks, self-contained, each closes a gap without opening a pillar.
 9. **PROCESS — Reconcile the docs with reality** (§9). A new dev decides from these docs; stale status is itself a shipping risk.
@@ -244,24 +244,24 @@ From the synthesizer, lightly edited. **Ranked. Respect the scope discipline in 
 
 ## 7. The test suite
 
-**~68 headless sims** (+ `net_host`/`net_client` for the 2-process loopback). A full sequential run today is **~66/68 green**, with:
+**~104 headless sims** (+ `net_host`/`net_client` for the 2-process loopback). **The last FULL clean run was 71/71 green** (2026-07-07). Since that run the suite grew again: `strike_sim` **38/38**, `strike_author_sim` **37/37**, `data_sim` **19/19**, and `motion_stage_sim` **12/13** (documented baseline — a known restore-flake on its last check).
 
 - **`dive_sim`** — a **load-flake**: fails only under heavy concurrent CPU (its dive/fire timing windows stretch); passes clean when run alone. Harden by gating on frames, not seconds.
-- **`dog_sim`** — a **REAL red** (see §8), not a flake.
+- ~~**`dog_sim`** — a REAL red~~ — **FIXED** (commit `2787e64`, see §8): `dog_sim` 12/12 + `dogverb_sim` 11/11 verified 2026-07-07.
 - Historically flaky under back-to-back load: `dark_sim`, `dogmeta_sim`, `stage4_sim`, `combat_feel_sim` — all pass solo. (Open task: harden.)
 
-**Coverage gaps (systems with working code but NO sim):** crit (x1.8 + cinematic trigger), camera trauma/shake, camera look-ahead/FOV-widen, get-up stamina scaling, misfire/battery-strobe, car-mg mount fire path, and the timer-driven `_update_traffic`/`_update_pirates`/`KEY_R`-respawn cadences (sims call helpers directly, never drive the timers).
+**Coverage gaps (systems with working code but NO sim):** camera look-ahead/FOV-widen, and the timer-driven `_update_traffic`/`_update_pirates`/`KEY_R`-respawn cadences (sims call helpers directly, never drive the timers). *(The crit / camera-trauma / get-up / misfire / mount-fire gaps have since been closed — `melee_sim`, `feel_sim`, `getup_sim`, `misfire_sim`, `mount_sim`, per the banner.)*
 
-**[low-confidence, important]** Every "sim asserts X" in this doc and in `CLAUDE.md` came from the auditors *reading assert lines*, not observing a green pass. `CLAUDE.md` says "full-suite green"; that is **optimistic** — the honest number is ~66/68 with one real red.
+**[historical caveat]** Every "sim asserts X" in the original audit came from auditors *reading assert lines*, not observing a green pass — that caveat produced §8. It has since been discharged: a full clean 71/71 run was observed and the one real red was fixed. Keep the suspicion for future "shipped" claims: run, don't read.
 
 ---
 
-## 8. KNOWN RED: `dog_sim` rear-smell (fix this first when hardening)
+## 8. RESOLVED: the `dog_sim` rear-smell red (fixed in `2787e64`)
 
-- **Symptom:** `dog_sim` fails at `rear-smell: dog alerted, flagged BEHIND` — **consistently, even run alone/quiet.** Not a flake.
-- **Root cause (traced):** `on_dog_alert` (proto3d.gd:1121) correctly stores `{"behind": behind}`, and the Security dog's `threat_radius` (26, ×1.5 rear) easily reaches the 9 m test spawn — so the dog *does* alert. The failure is that **`behind` computes `false`**: `dog._sense` (dog.gd) tests `player.sight_facing().dot(to_threat) < -0.25`, and after the sim walks the player north and releases input, `sight_facing()` (the *gaze*, not movement) is **not −Z** as the test assumes, so the lurker spawned at +Z isn't "behind the gaze."
-- **So it's one of:** (a) `sight_facing()` relaxation changed (the shootdodge/camera/aim work is the likely culprit — this test predates it), or (b) the test's assumption about post-walk facing is now wrong. **Confirm which before fixing** — print `player.sight_facing()` at phase 5. If the *design* intent ("a dog always knows what's behind your GAZE") is right and the code regressed, fix `sight_facing`; if the test is over-assuming, stage the gaze explicitly.
-- **Why it matters beyond one test:** it's the concrete proof of the auditor's #1 caveat — "shipped" was read, not run. Treat the whole flaky set with that suspicion.
+- **Symptom (historical):** `dog_sim` failed at `rear-smell: dog alerted, flagged BEHIND` — consistently, even run alone/quiet. Not a flake.
+- **Root cause (confirmed — it was (b)):** the dog *did* alert; `behind` computed `false` because `dog._sense` reads the **gaze** (`player.sight_facing()`), and the test had staged the threat behind the player's *movement*, not the gaze — post-walk facing wasn't the −Z the test assumed.
+- **The fix (`2787e64` — "dog_sim green: rear-smell staged behind the GAZE, obey check converges"):** the test now stages the gaze explicitly (the design intent — *a dog always knows what's behind your GAZE* — was right; the code hadn't regressed), and the Companion-obey flake converges instead of racing a fixed window. **Verified 2026-07-07: `dog_sim` 12/12 + `dogverb_sim` 11/11.**
+- **The lesson stands:** this was the concrete proof of the auditor's #1 caveat — "shipped" was read, not run. Keep treating flaky sims with that suspicion.
 
 ---
 
@@ -270,11 +270,11 @@ From the synthesizer, lightly edited. **Ranked. Respect the scope discipline in 
 The status fields in the design docs are **stale relative to the mainline**. A new dev must not treat them as ground truth:
 
 - **`STAGES.md`** marks Stage 2/3/4 (living car, body/health, aim-cone) as *future/unclear* — but they're substantially **BUILT**. The roadmap lags the code.
-- **`ENGINE.md` / `VEHICLES.md`** list tanks/treads and the turret mount as *done* — but **mounts are dead-gated** and no tread locomotion exists. Over-claim.
+- **`ENGINE.md` / `VEHICLES.md`** list tanks/treads and the turret mount as *done* — **no tread locomotion exists** (tanks remain unbuilt). *(The mount half has since SHIPPED — `mount_schematic` bolts a `car_mg` on, `mount_sim`/`car_combat_sim` — so only the tanks/treads over-claim remains.)*
 - **`DIVIDED_STATES.md`** promises 50 distinct rulers + Carousel key-economy + misjump — the code has ~14 `rulers.json` rows and none of the key/misjump systems. Massive over-promise vs the shipped state-reaction slice. *(Its code-rename section, however, is now correctly marked done — that sweep shipped.)*
 - **Trust, in order:** this HANDOFF (§2) → `CLAUDE.md` systems table → the sims themselves → then the design docs (for *intent*, not *status*).
 
-**Recommended process fix (roadmap #9):** add a one-line "STATUS: see docs/HANDOFF.md §2" banner to the top of STAGES/ENGINE/VEHICLES/DIVIDED_STATES so no one is misled.
+**Recommended process fix (roadmap #9): ✅ DONE (2026-07-07)** — STAGES/ENGINE/DIVIDED_STATES/VEHICLES all carry the "see HANDOFF §2" banner, and the finished one-shot plan docs (MASTER_PLAN, cinema, MOVESET, CAROUSEL, RV_PLAN, UI_UX_PLAN, LOOP2) were retired in the 2026-07-07 doc audit (git history preserves them).
 
 ---
 
@@ -293,8 +293,8 @@ Bounded starting points so the next dev doesn't have to re-derive the seams:
 
 ## 11. Numbers & pointers
 
-- **199 commits**, single `main` branch, pushed to `origin`.
-- **~68 sims**, 118 proven systems, ~44 GDScript files in `game/proto3d/`.
+- **280+ commits**, single `main` branch, pushed to `origin`.
+- **~104 sims**, 118+ proven systems, ~44 GDScript files in `game/proto3d/`.
 - **Master vision:** `docs/ENGINE.md`. **Pillars:** `docs/WORLD_PILLARS.md`. **Lore:** `docs/DIVIDED_STATES.md`. **Per-system design:** `docs/systems/*`. **This gap analysis is the source of truth for STATUS.**
 - **Open tasks at handoff:** harden the flaky/red sims (start with §8), the P3 road-row consumers, and everything in §2b/§2d above.
 

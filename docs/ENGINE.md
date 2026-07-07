@@ -1,6 +1,6 @@
 # DRIVN Engine — Master Specification
 
-> ⚠️ **STATUS is not authoritative here — see [docs/HANDOFF.md §2](HANDOFF.md) for what is actually built vs. designed.** This spec describes the *intended* engine; parts of it (tanks/treads, the turret mount) are over-claimed as done. Read for vision, not for state.
+> ⚠️ **STATUS is not authoritative here — see [docs/HANDOFF.md §2](HANDOFF.md) for what is actually built vs. designed.** This spec describes the *intended* engine; tanks/treads remain over-claimed as done (no tread locomotion exists — the weapon-mount half has since shipped: `mount_sim`). Read for vision, not for state.
 
 **Codename:** DRIVN (working name — from the repo, DriveNShoot; rename anytime)
 **Vision:** *Autoduel × GTA2-modern, in the DIVIDED STATES OF AMERICA* (lore bible: `DIVIDED_STATES.md`). A top-down 3D open-country
@@ -44,9 +44,9 @@ top-down zoom camera, in/out of cars, enterable two-story building. 14/14 gamepl
 
 **Companion docs:** `STAGES.md` (master build order), `DESIGN_PILLARS.md` (retention north star),
 `PROGRESSION.md` (skills/robotics/taming/farming — RPG spine, 700-pt cap),
-`loops/LOOP2_LIVING_CAR.md` (next loop), `systems/COMBAT_AND_GEAR.md`, `systems/INTERFACE_AND_BODY.md`,
-`systems/WORLD_NPCS.md`, `systems/TRAVEL_AND_NETCODE.md` (24× travel scale + PZ-style MP),
-`systems/CONTENT_PIPELINE.md`.
+`systems/COMBAT_AND_GEAR.md`, `systems/INTERFACE_AND_BODY.md`,
+`systems/WORLD_NPCS.md`, `systems/TRAVEL_AND_NETCODE.md` (60× travel scale + PZ-style MP),
+`systems/CONTENT_PIPELINE.md`. *(The Living-Car loop plan shipped and was retired 2026-07-07.)*
 
 ---
 

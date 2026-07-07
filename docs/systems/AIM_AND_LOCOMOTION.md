@@ -112,7 +112,7 @@ vision cone's arc. **Netcode:** orientation is two yaws, ~2 bytes/tick (`TRAVEL_
   would turn the *arms* hard and keep the head nearer the torso (less "owl neck" on a 180 flick).
 - **Akimbo:** the model is ready; needs a second weapon slot + dual muzzles reading `aim_yaw`.
 - **NPC parity:** give lurkers/NPCs the same eyes-lag so you can flank their blind spot.
-- **Gamepad:** right-stick maps straight onto the aim pipe; aim-assist = a snap on `set_aim_intent`.
+- ~~**Gamepad:** right-stick maps straight onto the aim pipe~~ — **SHIPPED 2026-07-06** (`input_map.gd` twin-stick pad driver → `aim_override`; `pad_sim`). Aim-assist snap remains open.
 
 ---
 **In one line:** the gun is twin-stick-instant and the eyes are human-slow — so you can shoot

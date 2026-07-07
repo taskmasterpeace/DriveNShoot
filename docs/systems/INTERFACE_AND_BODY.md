@@ -208,5 +208,5 @@ cap** (§2) and **Pacific Drive cargo insecurity** (§3) — both wire survival 
 ---
 
 *Cross-refs: `STAGES.md` (order), `PROGRESSION.md` (Marksmanship/Medical skills),
-`loops/LOOP2_LIVING_CAR.md` (glyph HUD + arsenal this builds on), `ENGINE.md` (DamageableComponent).
+the shipped Living-Car systems (glyph HUD + arsenal this builds on), `ENGINE.md` (DamageableComponent).
 Research transcripts (bulk-content, SecondaryView, body/combat) — 2026-07-04 subagents.*

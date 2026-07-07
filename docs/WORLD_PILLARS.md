@@ -1,6 +1,6 @@
 # WORLD PILLARS — The Divided States, Locked In
 
-**Status:** DESIGN (banked from side-chat brief, 2026-07-06)
+**Status:** DESIGN (banked from side-chat brief, 2026-07-06) · *Progress since: Law 1's road-row delta SHIPPED (danger→ambush odds, toll billing, family read — `road_sim`); Law 2's law-profile slice SHIPPED (`data/law_profiles.json`, `law_profile_sim` — the seven FAMILIES themselves remain unbuilt). See HANDOFF §0 banner.*
 **Reads with:** `DESIGN_PILLARS.md` (retention pillars — the *why players stay*), `DIVIDED_STATES.md` (the lore bible), `STAGES.md` (the build roadmap). This doc is the **world pillars** — what the game is ABOUT. Everything ships against these five.
 
 House law respected throughout: the world persists; dogs permadie; player death takes a toll and leaves evidence; everything is a ROW; every rung lands with a headless sim.

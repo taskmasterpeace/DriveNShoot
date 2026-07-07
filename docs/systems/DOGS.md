@@ -1,6 +1,6 @@
 # DRIVN — Dogs (the Companion System's first species)
 
-**Status:** DESIGN + PROTO BUILT (2026-07-04) · **Stages:** proto now → full framework Stage 7, taming M6
+**Status:** DESIGN + BUILT DEEP (2026-07-04 proto; far surpassed since — bond tiers, PERMADEATH/graves, SHIELD, metaworld records, JUMP/POUNCE/DIG verbs all shipped: see the `CLAUDE.md` dogs row + HANDOFF §2a) · **Stages:** proto now → full framework Stage 7, taming M6
 **The law of dogs:** *a dog always knows what's behind you.* Every dog covers the blind spot the
 top-down vision cone can't — that's why a dog is never cosmetic in DRIVN.
 

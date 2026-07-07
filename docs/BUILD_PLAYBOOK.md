@@ -13,7 +13,6 @@ deep-dive doc. **Created:** 2026-07-04.
 | `STAGES.md` ⭐ | build ORDER — beginning→end master map |
 | `DESIGN_PILLARS.md` | tiebreaker — when designs compete, more pillars wins |
 | `ENGINE.md` | the 8 engine pillars + milestone acceptance |
-| `loops/LOOP2_LIVING_CAR.md` | Stage 2 deep-dive (car damage/HUD/arsenal) |
 | `systems/INTERFACE_AND_BODY.md` | UI, body/injury, inventory, nav, SecondaryView, aim-cone |
 | `systems/COMBAT_AND_GEAR.md` | melee/ranged/throwables/car weapons/loadout |
 | `systems/AIM_AND_LOCOMOTION.md` | twin-stick aim (free arms / human eyes), combat stance |
@@ -79,6 +78,8 @@ components (ask "what are its 3 uses?") · inputs-only sims · the drive is the 
 driving skippable-by-default · every activity feeds the Respect Ledger (Pillar 1) once factions land.
 
 ## 7. Current state pointer (update each session)
+
+> ⚠️ **This checkpoint is HISTORICAL (last updated 2026-07-05).** Current truth lives in `HANDOFF.md` (§0 banner + §2) and the `CLAUDE.md` systems table — the suite has since grown to ~104 sims, death is a soft respawn (not R-restart permadeath), and everything below the line is a build journal, not status.
 
 ### ⭐ RESUME CHECKPOINT — 2026-07-05 (read THIS first; history below)
 Everything is committed. Codebase is `game/proto3d/` (the 3D mainline).
