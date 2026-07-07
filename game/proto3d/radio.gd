@@ -15,6 +15,9 @@ const SIGNALS: Array = [
 	{"id": "trader", "weight": 0.25, "night_mult": 0.8},
 	{"id": "howlers", "weight": 0.2, "night_mult": 2.0},
 	{"id": "lore", "weight": 0.25, "night_mult": 1.0},
+	# MUSIC STATIONS (owner ask): somebody out there still runs a transmitter.
+	# Plays a real mp3 off game/media/music/radio/ — drop a file, it's on the air.
+	{"id": "music", "weight": 0.28, "night_mult": 1.3},
 ]
 const LORE: Array = [
 	"…the Solar King's men burn diesel like the old world never ended…",
@@ -116,3 +119,11 @@ func _deliver(id: String) -> void:
 			_main.notify("📻 '…pack moving near your grid — LIGHTS OUT…' — you know where they are. They don't know you heard.")
 		"lore":
 			_main.notify("📻 %s" % LORE[rng.randi() % LORE.size()])
+		"music":
+			# A live station: real music off the owner's shelf. An empty shelf
+			# reads as static (the world is quiet, never broken).
+			if "music" in _main and _main.music != null and _main.music.play_random():
+				_main.notify("📻 ♪ …a STATION, actually playing music… (%s)" % _main.music.now_playing)
+			else:
+				last_signal = "static"
+				_main.notify("📻 …static…")
