@@ -29,8 +29,11 @@ func _ready() -> void:
 	_test_remove_and_count()
 	_test_move_swap_merge()
 	_test_full_and_nonstacking()
+	_test_split()
+	_test_serialize_roundtrip()
 	_test_tres_load()
 	await _test_ui_binding()
+	await _test_ui_split_and_tooltip()
 
 	print("INV: DONE — %d passed, %d failed" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)
@@ -127,6 +130,76 @@ func _test_full_and_nonstacking() -> void:
 	_check("add 3 non-stacking returns 1 leftover", inv.add_item(wrench, 3) == 1)
 	_check("two separate 1-stacks made", inv.get_count(0) == 1 and inv.get_count(1) == 1)
 	_check("non-stacking inventory reads full", inv.is_full())
+
+
+func _test_split() -> void:
+	var potion := _make("potion", 10)
+	var inv := Inventory.new(4)
+	inv.slots[0] = {"item": potion, "count": 8}
+	_check("split 3 off an 8-stack succeeds", inv.split_slot(0, 3))
+	_check("source reduced to 5", inv.get_count(0) == 5)
+	_check("split landed 3 in the first empty slot", inv.get_count(1) == 3 and inv.get_item(1) == potion)
+	_check("split total conserved (5+3==8)", inv.count_of(potion) == 8)
+	# Guards.
+	_check("can't split the WHOLE stack (that's a move)", not inv.split_slot(0, 5))
+	_check("can't split 0", not inv.split_slot(0, 0))
+	# Fill the inventory, then a split with no empty slot must fail.
+	inv.slots[2] = {"item": potion, "count": 1}
+	inv.slots[3] = {"item": potion, "count": 1}
+	_check("split fails with no empty slot", not inv.split_slot(0, 2))
+
+
+func _test_serialize_roundtrip() -> void:
+	var potion := _make("potion", 10)
+	var ammo := _make("ammo", 99)
+	var registry := {"potion": potion, "ammo": ammo}
+
+	var inv := Inventory.new(5)
+	inv.add_item(potion, 7)      # 7 in one slot
+	inv.add_item(ammo, 40)
+	var data := inv.serialize()
+	_check("serialize records the size", int(data["size"]) == 5)
+	_check("serialize stores id+count per filled slot", String((data["slots"][0] as Dictionary)["id"]) == "potion")
+
+	var restored := Inventory.deserialize(data, func(id: String) -> InventoryItem: return registry.get(id))
+	_check("deserialize restores size", restored.size == 5)
+	_check("deserialize restores potion count", restored.count_of(potion) == 7)
+	_check("deserialize restores ammo count", restored.count_of(ammo) == 40)
+	_check("deserialize preserves the item identity", restored.get_item(0) == potion)
+
+	# An id the resolver can't map is dropped, not a crash.
+	var bad := {"size": 2, "slots": [{"id": "ghost", "count": 3}, {}]}
+	var partial := Inventory.deserialize(bad, func(id: String) -> InventoryItem: return registry.get(id))
+	_check("unresolved id drops to empty (no crash)", partial.is_slot_empty(0))
+
+
+func _test_ui_split_and_tooltip() -> void:
+	var potion := _make("potion", 10)
+	var inv := Inventory.new(4)
+	inv.slots[0] = {"item": potion, "count": 8}
+
+	var ui := InventoryUI.new()
+	add_child(ui)
+	ui.set_inventory(inv)
+	await get_tree().process_frame
+
+	_check("UI owns a tooltip + split selector", ui._tooltip != null and ui._selector != null)
+
+	# Hover feedback: show over a filled slot, hide over empty.
+	ui.show_tooltip(0)
+	_check("tooltip shows over a filled slot", ui._tooltip.visible)
+	ui.show_tooltip(1)
+	_check("tooltip hides over an empty slot", not ui._tooltip.visible)
+
+	# Split flow: request opens the dialog; confirming performs the split via the model.
+	ui.request_split(0)
+	_check("split dialog opens on request", ui._selector.visible)
+	ui._selector.confirmed.emit(3)
+	await get_tree().process_frame
+	_check("confirming the dialog split 3 off (source now 5)", inv.get_count(0) == 5)
+	_check("the split 3 landed in an empty slot", inv.get_count(1) == 3)
+
+	ui.queue_free()
 
 
 func _test_tres_load() -> void:

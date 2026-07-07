@@ -14,11 +14,18 @@ $InventoryUI.set_inventory(inventory)
 - **Slot-based inventory** with configurable size
 - **Stacking** with per-item max stack
 - **Drag & drop** — move, swap, and merge stacks out of the box
+- **Stack split** — shift-click a stack → a slider dialog peels off any amount
+- **Hover tooltips** — name, count, description on mouseover
+- **Save / load** — `serialize()` / `deserialize()` round-trip to plain data
 - **Resource-driven items** (`.tres`) — design them in the editor Inspector
 - **UI included** — or drive your own view from the signals
 - **Signals:** `inventory_changed`, `item_added(item, count)`, `full`
-- **No autoload, no dependencies, ~250 lines**, fully commented
+- **No autoload, no dependencies**, fully commented
 - Works in **Godot 4.3 → 4.6** (built/verified on 4.5)
+
+> Stack-split, tooltips, and the save/load pattern are adapted from the MIT-licensed
+> [Oen44/Godot-Inventory](https://github.com/Oen44/Godot-Inventory) (the ARPG affix /
+> equipment / vendor layers were intentionally left out — this stays a lean core).
 
 ## Files
 
@@ -59,8 +66,19 @@ $InventoryUI.set_inventory(inventory)
 | `count_of(item)` | `int` | Total across all slots. |
 | `is_full()` | `bool` | True only when every slot is a maxed stack. |
 | `move_slot(from, to)` | `bool` changed | Move to empty · merge same item (overflow stays) · swap different items. This is what drag & drop calls. |
+| `split_slot(from, take)` | `bool` split | Peel `take` units into the first empty slot (the shift-click dialog calls this). |
+| `serialize()` | `Dictionary` | Plain-data snapshot (`{size, slots:[{id,count}]}`) for saving. Items need an `id`. |
+| `Inventory.deserialize(data, resolver)` | `Inventory` | Rebuild from `serialize()`. `resolver` is `Callable(id) -> InventoryItem`; unresolved ids drop to empty. |
 | `get_item(i)` / `get_count(i)` / `is_slot_empty(i)` | — | Read a slot without touching its internal shape. |
 | `clear()` | — | Empties everything. |
+
+`InventoryUI` exports `enable_tooltips` and `enable_split` (both on by default). Save/load:
+
+```gdscript
+var data := inventory.serialize()                     # -> Dictionary, JSON-friendly
+# ...later...
+var restored := Inventory.deserialize(data, func(id): return ITEMS.get(id))
+```
 
 ### Signals
 

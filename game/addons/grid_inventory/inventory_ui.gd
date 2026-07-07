@@ -27,15 +27,62 @@ extends Control
 ## Gap between cells.
 @export var separation: int = 4
 
+## Hover a filled cell → show its name/count/description.
+@export var enable_tooltips: bool = true
+## Shift-click a stack of >1 → open the split dialog.
+@export var enable_split: bool = true
+
 var inventory: Inventory = null
 
 var _grid: GridContainer
 var _cells: Array[InventorySlotUI] = []
+var _tooltip: InventoryTooltip
+var _selector: InventoryQuantitySelector
 
 
 func _ready() -> void:
 	if _grid == null:
 		_build_grid()
+	_ensure_helpers()
+
+
+## Lazily build the shared tooltip + split dialog (once).
+func _ensure_helpers() -> void:
+	if _tooltip == null:
+		_tooltip = InventoryTooltip.new()
+		add_child(_tooltip)
+	if _selector == null:
+		_selector = InventoryQuantitySelector.new()
+		add_child(_selector)
+
+
+## A slot calls this on hover (index -1 / empty hides the tooltip).
+func show_tooltip(index: int) -> void:
+	if not enable_tooltips or _tooltip == null or inventory == null:
+		return
+	if index < 0 or inventory.is_slot_empty(index):
+		_tooltip.hide_tip()
+		return
+	_tooltip.show_item(inventory.get_item(index), inventory.get_count(index), get_global_mouse_position())
+
+
+func hide_tooltip() -> void:
+	if _tooltip != null:
+		_tooltip.hide_tip()
+
+
+## A slot calls this on Shift-click: pop the split dialog for a stack of >1 and, on
+## confirm, split the chosen amount into the first empty slot.
+func request_split(index: int) -> void:
+	if not enable_split or _selector == null or inventory == null or inventory.is_slot_empty(index):
+		return
+	if inventory.get_count(index) <= 1:
+		return
+	_ensure_helpers()
+	for c in _selector.confirmed.get_connections():   # one live handler at a time
+		_selector.confirmed.disconnect(c["callable"])
+	_selector.confirmed.connect(func(amount: int) -> void: inventory.split_slot(index, amount))
+	_selector.open(inventory.get_count(index), get_global_mouse_position())
 
 
 func _build_grid() -> void:

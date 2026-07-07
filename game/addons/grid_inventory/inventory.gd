@@ -178,6 +178,58 @@ func move_slot(from: int, to: int) -> bool:
 	return true
 
 
+## Splits `take` units out of slot `from` into the first EMPTY slot as a new stack
+## (the "take some, leave the rest" move — reference: Oen44's QuantitySelector). Returns
+## true if it split. Refuses if take is < 1, >= the stack's count (that's just a move),
+## or there's no empty slot. Emits inventory_changed on success.
+func split_slot(from: int, take: int) -> bool:
+	if not _valid(from) or is_slot_empty(from) or take < 1 or take >= get_count(from):
+		return false
+	var dest := -1
+	for i in size:
+		if is_slot_empty(i):
+			dest = i
+			break
+	if dest == -1:
+		return false
+	var item := get_item(from)
+	_place(dest, item, take)
+	_place(from, item, get_count(from) - take)
+	inventory_changed.emit()
+	return true
+
+
+## A plain-data snapshot for saving: {"size", "slots":[{} | {"id","count"}]}. Items are
+## stored by their InventoryItem.id — an item with an EMPTY id can't be restored (it has
+## no stable handle), so give persisted items an id. Pairs with deserialize().
+func serialize() -> Dictionary:
+	var out_slots: Array = []
+	for i in size:
+		if is_slot_empty(i):
+			out_slots.append({})
+		else:
+			out_slots.append({"id": String(get_item(i).id), "count": get_count(i)})
+	return {"size": size, "slots": out_slots}
+
+
+## Rebuilds an Inventory from serialize()'s data. `resolver` is Callable(id: String) ->
+## InventoryItem (e.g. a lookup into your item table / a preloaded .tres map); a slot
+## whose id doesn't resolve is dropped (left empty), never a crash. Static so load is a
+## one-liner: `var inv := Inventory.deserialize(data, func(id): return ITEMS.get(id))`.
+static func deserialize(data: Dictionary, resolver: Callable) -> Inventory:
+	var inv := Inventory.new(int(data.get("size", 0)))
+	var saved: Array = data.get("slots", [])
+	for i in mini(inv.size, saved.size()):
+		var slot_v: Variant = saved[i]
+		if not (slot_v is Dictionary) or (slot_v as Dictionary).is_empty():
+			continue
+		var slot: Dictionary = slot_v
+		var item_v: Variant = resolver.call(String(slot.get("id", ""))) if resolver.is_valid() else null
+		if item_v is InventoryItem:
+			inv._place(i, item_v as InventoryItem, int(slot.get("count", 1)))
+	return inv
+
+
 ## Empties every slot.
 func clear() -> void:
 	for i in size:

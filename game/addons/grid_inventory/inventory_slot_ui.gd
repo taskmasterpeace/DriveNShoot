@@ -15,6 +15,10 @@ var _name: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_entered.connect(func() -> void:
+		if _grid != null: _grid.show_tooltip(index))
+	mouse_exited.connect(func() -> void:
+		if _grid != null: _grid.hide_tooltip())
 
 	_icon = TextureRect.new()
 	_icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -45,6 +49,16 @@ func _ready() -> void:
 func bind(grid: InventoryUI, slot_index: int) -> void:
 	_grid = grid
 	index = slot_index
+
+
+## Shift + left-click a stack of >1 → the split dialog (a plain click still starts a
+## drag via _get_drag_data; only the shift-modified press is intercepted here).
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and mb.shift_pressed and _grid != null:
+			_grid.request_split(index)
+			accept_event()
 
 
 ## Refreshes visuals from the model. Safe to call before _ready (nodes lazy-guarded).
