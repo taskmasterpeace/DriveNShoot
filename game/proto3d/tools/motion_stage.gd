@@ -271,7 +271,8 @@ func _set_item(idx: int) -> void:
 	var info: Dictionary = ProtoWeapon.WEAPONS.get(id, {})
 	var is_melee: bool = info.get("behavior", ProtoWeapon.Behavior.MELEE) == ProtoWeapon.Behavior.MELEE
 	var pose: Dictionary = info.get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
-	puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false))
+	puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
 	# fists carries no visible gun mesh at all — bare hands, never "armed".
 	_armed = id != "fists"
 	puppet.set_armed(_armed)
