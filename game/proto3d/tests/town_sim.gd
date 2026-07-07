@@ -131,7 +131,8 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.4:
 				_check("bounty OFFERED: a mark is live at the water point", main.bounty.get("state", "") == "open"
 					and is_instance_valid(main.bounty.get("target")))
-				_check("BOUNTY waypoint added (N can cycle to it)", main.waypoints.size() == 4)
+				_check("BOUNTY waypoint added (N can cycle to it)",
+					main.waypoints.any(func(w): return String(w[0]) == "BOUNTY"))
 				_place(Vector3(138.0, 0.35, -352.0)) # 8m west of the mark
 				_next()
 		5: # kill the mark (combat path: aim intent + clicks, Look Arc and all)
@@ -157,7 +158,8 @@ func _physics_process(delta: float) -> void:
 			elif _did2 and main.backpack.count("scrip") == _jack_preclaim + 25:
 				_check("claim pays +25 scrip", true)
 				_check("Meridian NOTICED (esteem 20)", main.respect.esteem("meridian") >= 20.0)
-				_check("bounty cleared + waypoint removed", main.bounty.is_empty() and main.waypoints.size() == 3)
+				_check("bounty cleared + waypoint removed", main.bounty.is_empty()
+					and not main.waypoints.any(func(w): return String(w[0]) == "BOUNTY"))
 				_check("esteem talks: bandage 12 -> %d scrip" % main.trade_price("bandage", false),
 					main.trade_price("bandage", false) == 11)
 				_next()

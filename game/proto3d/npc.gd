@@ -47,6 +47,13 @@ static var PRICES: Dictionary = {
 	"duct_tape": 6, "flare": 5, "map_fragment": 20,
 	"cooked_meal": 9, "power_cell": 25, "dog_collar": 2, "mine": 30,
 	"targeting_core": 200, "mount_schematic": 120, # priced so Mercy CAN — selling Cheyenne's brain is your funeral
+	# The 2026-07-07 arcs' items, priced (they shipped without rows — items_sim
+	# was red on the "Mercy can stock anything" law until these landed):
+	"surveil_cam": 45, "walkie": 30, "motion_sensor": 35, "lockpick": 15,
+	"book_driving": 25, "book_onfoot": 25, "book_dogs": 25, "book_home": 25,
+	"book_gadgets": 25, "book_carousel": 40, "book_states": 30,
+	"clothes": 12, "gun_oil": 18,
+	"confiscation_notice": 1, "case_file": 8, # law paper is nearly worthless — but tradeable
 }
 
 static var _archetypes_folded: bool = false

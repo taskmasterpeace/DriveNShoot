@@ -44,13 +44,16 @@ func _physics_process(delta: float) -> void:
 				_check("catalog grew to a real arsenal (%d items, want >=27)" % items.size(), items.size() >= 27)
 				var complete := true
 				var priced := true
+				var unpriced: Array = []
 				for id in items:
 					if not items[id].has("cat") or String(items[id].get("desc", "")) == "":
 						complete = false
 					if id != "scrip" and not ProtoNPC.PRICES.has(id):
 						priced = false
+						unpriced.append(String(id))
 				_check("every item has a category + a tooltip desc", complete)
-				_check("every tradeable item has a PRICE (Mercy can stock anything)", priced)
+				_check("every tradeable item has a PRICE (Mercy can stock anything)%s" %
+					("" if priced else " — MISSING: %s" % [unpriced]), priced)
 				# THE DATA-SPINE READ-BACK (roadmap #3): 'field_ration' exists ONLY in
 				# data/items.json — its presence proves a JSON row becomes a real item.
 				_check("a JSON-only row folded in ('field_ration' from items.json)",

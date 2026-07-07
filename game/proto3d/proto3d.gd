@@ -315,7 +315,8 @@ func _ready() -> void:
 	char_create = ProtoCharCreate.create(self)
 	add_child(char_create)
 
-	waypoints = [["SAFEHOUSE", SAFEHOUSE], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]]]
+	waypoints = [["SAFEHOUSE", SAFEHOUSE], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]],
+		["⚒ TEST GROUNDS", ProtoTestGrounds.ORIGIN]] # the try-everything field (south of home)
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
@@ -417,6 +418,7 @@ var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
 var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
 var public_screen: ProtoPublicScreen = null ## the bar set on the cross street
 var drone_dock: ProtoDroneDock = null ## the helipad by the safehouse door
+var test_grounds: ProtoTestGrounds = null ## ⚒ the labeled try-everything field (south of home)
 
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
@@ -532,6 +534,11 @@ func _build_environment() -> void:
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
+	# ⚒ THE TEST GROUNDS (owner: "everything there for me to test, named useful"):
+	# the labeled fairground on the south field — motor pool, armory, supply,
+	# range, stable, gator pen, dig spot, and signs to what can't move here.
+	test_grounds = ProtoTestGrounds.create(self)
+	add_child(test_grounds)
 	# DEV EXAMPLE — THE CAROUSEL PORTAL (docs/design/CAROUSEL_PORTAL.md). NOT wired to
 	# the bases/jump yet (owner's call): one live instance out front of the safehouse so
 	# you can walk up, press E, and hear the computer count you down 10→1 as it winds up.
