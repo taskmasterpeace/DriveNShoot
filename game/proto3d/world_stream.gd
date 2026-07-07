@@ -48,6 +48,12 @@ var population: ProtoPopulation = null
 
 var loaded: Dictionary = {} ## "cx,cz" -> Node3D
 var visited: Dictionary = {} ## "cx,cz" -> Vector2 (chunk center) — the map's fog-of-war
+## STREAMING BUDGET (mined from LittleFernStudio/Chunk-Loader, MIT — its queued
+## _process_load_queue): steady-state driving spawns at most this many chunks per frame
+## from a nearest-first queue, so crossing a chunk boundary no longer builds a whole new
+## ROW in one frame (the hitch). Tunable; 3 clears a 7-wide edge in ~3 frames.
+const LOAD_BUDGET := 3
+var _load_queue: Array = [] ## pending chunk coords (Vector2i), drained nearest-first
 var last_state: String = ""
 
 var _map_layer: CanvasLayer = null
@@ -90,13 +96,23 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 	_map_player = body_pos
 	var ccx := int(floor(body_pos.x / CHUNK))
 	var ccz := int(floor(body_pos.z / CHUNK))
-	# Load ring
-	for dx in range(-RING, RING + 1):
-		for dz in range(-RING, RING + 1):
-			var key := "%d,%d" % [ccx + dx, ccz + dz]
-			if not loaded.has(key):
-				loaded[key] = _spawn_chunk(ccx + dx, ccz + dz)
-				visited[key] = Vector2((ccx + dx + 0.5) * CHUNK, (ccz + dz + 0.5) * CHUNK)
+	# LOAD (Chunk-Loader mine): a FRESH arrival (spawn/teleport — no ground loaded under
+	# you) fills the whole ring NOW; you need the floor immediately and can't hide a hitch
+	# you asked for by teleporting. Steady-state driving instead ENQUEUES the new edge and
+	# spawns at most LOAD_BUDGET/frame, nearest first — killing the boundary-cross spike
+	# (a whole new row of chunks used to materialize in one frame).
+	if not loaded.has("%d,%d" % [ccx, ccz]):
+		_load_queue.clear()
+		for dx in range(-RING, RING + 1):
+			for dz in range(-RING, RING + 1):
+				_spawn_at(ccx + dx, ccz + dz)
+	else:
+		for dx in range(-RING, RING + 1):
+			for dz in range(-RING, RING + 1):
+				var c := Vector2i(ccx + dx, ccz + dz)
+				if not loaded.has("%d,%d" % [c.x, c.y]) and not (c in _load_queue):
+					_load_queue.append(c)
+		_drain_load_queue(body_pos, ccx, ccz)
 	# Unload beyond ring+1
 	for key in loaded.keys().duplicate():
 		var parts: PackedStringArray = key.split(",")
@@ -117,6 +133,43 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 	# Keep the open map live so the you-dot and your markers track as you move.
 	if map_open():
 		_map_canvas.queue_redraw()
+
+
+## Build one chunk and register it in loaded + the fog-of-war visited set. Idempotent.
+func _spawn_at(cx: int, cz: int) -> void:
+	var key := "%d,%d" % [cx, cz]
+	if loaded.has(key):
+		return
+	loaded[key] = _spawn_chunk(cx, cz)
+	visited[key] = Vector2((cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK)
+
+
+## Spawn up to LOAD_BUDGET queued chunks this frame, nearest to the player first, after
+## dropping any that became stale (already loaded, or fell outside the load ring because
+## the player kept moving). The heart of the Chunk-Loader mine.
+func _drain_load_queue(body_pos: Vector3, ccx: int, ccz: int) -> void:
+	if _load_queue.is_empty():
+		return
+	var kept: Array = []
+	for c in _load_queue:
+		if loaded.has("%d,%d" % [c.x, c.y]):
+			continue
+		if absi(c.x - ccx) > RING or absi(c.y - ccz) > RING:
+			continue
+		kept.append(c)
+	_load_queue = kept
+	var p := Vector2(body_pos.x, body_pos.z)
+	_load_queue.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		return _chunk_center(a).distance_squared_to(p) < _chunk_center(b).distance_squared_to(p))
+	var built := 0
+	while built < LOAD_BUDGET and not _load_queue.is_empty():
+		var c: Vector2i = _load_queue.pop_front()
+		_spawn_at(c.x, c.y)
+		built += 1
+
+
+func _chunk_center(c: Vector2i) -> Vector2:
+	return Vector2((c.x + 0.5) * CHUNK, (c.y + 0.5) * CHUNK)
 
 
 ## THE INSTANTIATION BRIDGE's unload half (§3.2): before a chunk is freed, any
