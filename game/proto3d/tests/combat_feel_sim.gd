@@ -133,12 +133,14 @@ func _physics_process(delta: float) -> void:
 				main.backpack.add("pistol", 1)
 				main.backpack.add("9mm", 24)
 				main.use_item("pistol")
-			elif not _pulse_seen and phase_t < 1.4 and is_instance_valid(_lurk):
+			elif not _pulse_seen and phase_t < 2.4 and is_instance_valid(_lurk):
 				# keep squeezing (cooldown-gated) until one registers — spread is spread.
 				# UNNORMALIZED aim = converge AT the target (the mouse-equivalent).
+				# (window widened 1.4->2.4s: at 4 deg spread a ~4-shot window flaked
+				# ~1-in-3 headless; ~7 shots makes a miss-streak astronomically rare)
 				main.aim_override = _lurk.global_position - main.player.global_position
 				_click()
-			elif phase_t > 1.5:
+			elif phase_t > 2.5:
 				_check("MUZZLE FLASH answers the trigger", _seen["fx_flash"] >= 1)
 				_check("brass ejects (casing)", _seen["fx_casing"] >= 1)
 				_check("the gun KICKS in the hand (recoil)", _recoil_seen)
@@ -188,8 +190,10 @@ func _physics_process(delta: float) -> void:
 			else:
 				_check("kill pops the SKULL payoff", _skull_ever)
 				var corpse_found := false
+				# CORPSES-not-crates (747db4e): remains are a ProtoCorpse BODY now, not a
+				# wooden ProtoChest — this check went stale the night that arc shipped.
 				for node in main.get_children():
-					if node is ProtoChest and node.container.label == "Corpse":
+					if node is ProtoCorpse and node.container.label == "Corpse":
 						corpse_found = true
 				_check("...and the remains drop where it fell", corpse_found)
 				_next()

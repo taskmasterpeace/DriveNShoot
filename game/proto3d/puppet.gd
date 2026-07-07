@@ -83,6 +83,11 @@ static var MOTION: Dictionary = {
 		"settle_s": 0.12,
 		"punch_out_s": 0.05, "punch_reach": 1.45, "punch_back_s": 0.12,
 		"kick_out_s": 0.07, "kick_height": 1.5, "kick_back_s": 0.18, "kick_lean": 0.25},
+	# RIG V2 PHASE 3 (PUPPET_RIG_V2.md §4): the recoil SPRING is rows too. k/c per
+	# the spec's spring-damper (c raised from the spec's sketch ~14 to meet its own
+	# acceptance number: settled <= 250ms); strength_eat = how much muscle eats the
+	# kick (kick x (1 - level x eat)) — a belt-rank of recoil control is a NUMBER.
+	"recoil": {"k": 180.0, "c": 22.0, "strength_eat": 0.06},
 }
 static var _motion_folded: bool = false
 ## The pristine code floor, captured before the FIRST fold — every re-fold starts
@@ -199,7 +204,16 @@ var _gun_seat: Vector3 = Vector3.ZERO ## gun.position at rest (recoil returns HE
 var _dead_blend: float = 0.0
 var _flinch: float = 0.0       ## hit reaction — the body rocks away from the blow
 var _flinch_side: float = 0.0
-var _recoil: float = 0.0       ## the aim arm kicks up on each shot
+## RIG V2 PHASE 3: recoil is an ADDITIVE spring-damper layer (x = the joint offset,
+## v = its velocity; constants ride the MOTION["recoil"] row). Arm = the aim
+## shoulder's pitch; torso = the whole-body rock past the stagger threshold.
+var _recoil_arm_x: float = 0.0
+var _recoil_arm_v: float = 0.0
+var _recoil_arm_applied: float = 0.0 ## last frame's added offset — peeled off before the
+## pose write so the shoulder's smoothing lerp never FEEDS ON the layer (additive
+## means additive: without this the lerp compounds the kick ~2.5x its authored rad)
+var _recoil_torso_x: float = 0.0
+var _recoil_torso_v: float = 0.0
 
 
 static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
@@ -432,6 +446,10 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# tiny bob; relaxed (unarmed OR carried melee) it hangs at the side and
 	# counter-swings with the gait like a real arm. A live melee swing owns the
 	# joint (tween) — we keep our hands off until it lands.
+	# (First: peel off last frame's recoil offset so the smoothing lerp below
+	# reads the clean base pose, never pose+spring.)
+	shoulder.rotation.x -= _recoil_arm_applied
+	_recoil_arm_applied = 0.0
 	_swing_t = maxf(0.0, _swing_t - delta)
 	if _swing_t <= 0.0:
 		var hold := raised and armed and gun.visible
@@ -488,13 +506,26 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the
 	# aim arm up (recoil). Both are impulses that decay — the fight lands ON the rig.
 	_flinch = maxf(0.0, _flinch - delta * 5.0)
-	_recoil = maxf(0.0, _recoil - delta * 9.0)
 	if _flinch > 0.0:
 		torso.rotation.x += _flinch * 0.5
 		torso.rotation.z += _flinch_side * _flinch * 0.28
 		neck.rotation.x += _flinch * 0.3
-	if _recoil > 0.0 and gun.visible and _swing_t <= 0.0:
-		shoulder.rotation.x += _recoil * 0.4 # positive at the shoulder = the hand kicks UP
+	# RIG V2 PHASE 3: the recoil SPRING (v += (-k·x - c·v)·dt; x += v·dt), an
+	# additive layer on top of whatever pose the frame already wrote — it stacks
+	# with walking and aiming by construction, exactly like strikes do.
+	var rr: Dictionary = MOTION["recoil"]
+	var rk: float = float(rr["k"])
+	var rc: float = float(rr["c"])
+	_recoil_arm_v += (-rk * _recoil_arm_x - rc * _recoil_arm_v) * delta
+	_recoil_arm_x += _recoil_arm_v * delta
+	_recoil_torso_v += (-rk * _recoil_torso_x - rc * _recoil_torso_v) * delta
+	_recoil_torso_x += _recoil_torso_v * delta
+	if absf(_recoil_arm_x) > 0.0005 and gun.visible and _swing_t <= 0.0:
+		shoulder.rotation.x += _recoil_arm_x # positive at the shoulder = the hand kicks UP
+		_recoil_arm_applied = _recoil_arm_x
+	if absf(_recoil_torso_x) > 0.0005:
+		torso.rotation.x += _recoil_torso_x # the blast rocks the whole body back
+		neck.rotation.x += _recoil_torso_x * 0.5
 
 
 ## RIG V2 PHASE 2 (PUPPET_RIG_V2.md §3 + Formulas): the 2-BONE IK. An elbow is a
@@ -554,9 +585,25 @@ func flinch(world_dir: Vector3) -> void:
 	_flinch_side = signf(global_basis.x.dot(world_dir))
 
 
-## The shot's kick, read on the arm (paired with the gun's own z-jab).
+## RIG V2 PHASE 3 (PUPPET_RIG_V2.md §4): RECOIL AS DATA. row = the weapon's
+## `recoil` block (kick_pitch / torso_jolt / stagger_threshold, all rad); the
+## character's STRENGTH eats it: kick x (1 - level x strength_eat) — a weak
+## character gets thrown, a strong one barely moves, and past the stagger
+## threshold the whole TORSO rocks, not just the arm. Impulse lands on the
+## spring's x (x0 = the scaled kick); the spring in animate() does the rest.
+func recoil_kick(row: Dictionary, strength_level: int = 0) -> void:
+	var rr: Dictionary = MOTION["recoil"]
+	var eat := maxf(0.1, 1.0 - float(strength_level) * float(rr["strength_eat"]))
+	var kick := float(row.get("kick_pitch", 0.4)) * eat
+	_recoil_arm_x += kick
+	if kick >= float(row.get("stagger_threshold", 999.0)):
+		_recoil_torso_x -= float(row.get("torso_jolt", 0.0)) * eat # negative pitch = rocked BACK
+
+
+## The shot's kick, read on the arm (paired with the gun's own z-jab) — the
+## parameterless door companions/NPCs still use: a stock kick, no stagger.
 func recoil() -> void:
-	_recoil = 1.0
+	recoil_kick({"kick_pitch": 0.4, "stagger_threshold": 999.0}, 0)
 
 
 ## A body that has fallen: torso back and down, limbs limp. Blended in over ~0.3s.

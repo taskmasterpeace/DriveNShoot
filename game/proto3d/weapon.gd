@@ -21,10 +21,16 @@ const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
 		"fire_sfx": "shot", "hit_stop": false,
+		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
+		# body when the scaled kick crosses stagger_threshold. Strength eats all of it.
+		"recoil": {"kick_pitch": 0.09, "torso_jolt": 0.04, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
 		"fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
+		# 12ga at strength 0 = 0.38 >= 0.3: the WEAK get rocked; at strength 8 the
+		# scaled 0.20 stays under — the strong eat it with the arm. The fantasy, as data.
+		"recoil": {"kick_pitch": 0.38, "torso_jolt": 0.15, "stagger_threshold": 0.3},
 		# RIG V2 grips (gun-mesh-local): grip_r seats the stock behind the trigger
 		# palm; grip_l is the forend point the free hand 2-bone-IK plants on.
 		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true,
@@ -32,6 +38,7 @@ const WEAPONS: Dictionary = {
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
 		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot", "hit_stop": true,
+		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
 			"grip_l": Vector3(0.0, -0.05, -0.12)}}, # hoisted ONTO the shoulder, free hand steadies the tube
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
@@ -54,7 +61,8 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
-		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot", "hit_stop": false},
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot", "hit_stop": false,
+		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
 	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
 	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
 	# SPRINT+tap = the tackle (proto3d). "xp" routes the teach to MARTIAL ARTS.
