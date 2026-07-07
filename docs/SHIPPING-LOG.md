@@ -1,6 +1,23 @@
 # 📣 DRIVN — What's New
 
-Built in public · shipping daily · v0.9.0
+Built in public · shipping daily · v0.10.0
+
+## v0.10.0 — July 6, 2026 — The Cinema Update
+*The wasteland got screens: a TV in your safehouse, a drive-in off the highway, and a world that broadcasts its own news.*
+
+### 🆕 New
+- **The safehouse TV.** Walk up, press E, and watch your own film catalog inside the game — films, shows, trailers, clips. Time passes while a reel rolls (downtime costs daylight, on purpose).
+- **The drive-in theater.** A real lot off the Meridian road with a glowing screen you can see from the highway. Fire up the projector and it runs trailers before the feature — drive off mid-show and it stops for you.
+- **Films as loot.** DVDs, tapes, and reels lie in the world; take one and that exact film unlocks on your shelf, forever (it's in the save). Locked films scatter their own pickups at the drive-in — drop a new film into MediaForge and its tape appears in the world.
+- **Public screens with channels.** Bar TVs run loops nobody chose, tuned by data rows — when a faction takes the state, the screen retunes to their propaganda feed. Breaking news cuts into the loop.
+- **The world reports itself.** A state falls → the TV says so. A bounty lands on your head → the radio says so. A dust wall rolls in → it's on the wire. Two channels, two screens, one world.
+
+### ✨ Improved
+- The radio and the TV each drain their own news — the dial can't eat the television's bulletins.
+
+*Everything above is sim-proven: 6 new test scenarios, 60+ checks, all green.*
+
+---
 
 ## v0.9.0 — July 6, 2026 — The Moveset + the Media Forges
 *Your body learned to fight bare-handed, your dog learned to jump, and the game grew a film studio pipeline.*
