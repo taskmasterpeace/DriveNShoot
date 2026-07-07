@@ -28,8 +28,72 @@ let map = JSON.parse(readFileSync(MAP_PATH, "utf8"));
 // at exact world coordinates while biomes stay procedural around them. Back-fill
 // the array on old maps so every endpoint can rely on it.
 if (!Array.isArray(map.placements)) map.placements = [];
+// WORLD-STRUCTURES spec (§5): EXIT NODES — the content sockets on the highways.
+// A node anchors ON the interstate, owns its off-ramp (and optional return ramp)
+// roads, and carries the decision data (tier/archetype/services/risk).
+if (!Array.isArray(map.exits)) map.exits = [];
 
 const save = () => writeFileSync(MAP_PATH, JSON.stringify(map));
+
+// --- The STRUCTURE CATALOG (spec §7) + EXIT BLUEPRINTS (spec §5) ------------------
+const STRUCT_PATH = process.env.STRUCTURES_PATH || join(ROOT, "game", "data", "world", "structure_profiles.json");
+const BLUEPRINT_PATH = join(ROOT, "game", "data", "world", "exit_blueprints.json");
+let structDoc = existsSync(STRUCT_PATH)
+	? JSON.parse(readFileSync(STRUCT_PATH, "utf8"))
+	: { _comment: "STRUCTURE PROFILES — created by MapForge", structures: [] };
+if (!Array.isArray(structDoc.structures)) structDoc.structures = [];
+const saveStructures = () => writeFileSync(STRUCT_PATH, JSON.stringify(structDoc, null, 2) + "\n");
+const blueprints = existsSync(BLUEPRINT_PATH)
+	? JSON.parse(readFileSync(BLUEPRINT_PATH, "utf8")).exit_archetypes || []
+	: [];
+const FOOTPRINTS = ["small_rect", "medium_rect", "large_rect", "compound", "landmark"];
+
+// Mirror of the engine's DrivnStructure.validate() — the row must be LAWFUL.
+function validateStructure(s) {
+	const bad = [];
+	if (!s.id || !/^[a-z][a-z0-9_]*$/.test(s.id)) bad.push("id must be snake_case");
+	if (!s.display_name) bad.push("display_name required");
+	if (!s.sign_glyph) bad.push("sign_glyph required (§18)");
+	if (!Array.isArray(s.allowed_tiers) || !s.allowed_tiers.length) bad.push("allowed_tiers required");
+	if (!Array.isArray(s.districts) || !s.districts.length) bad.push("districts required");
+	if (!FOOTPRINTS.includes(s.footprint)) bad.push(`footprint must be one of ${FOOTPRINTS.join("|")}`);
+	if (!Array.isArray(s.footprint_m) || s.footprint_m.length < 2 || s.footprint_m[0] < 2 || s.footprint_m[1] < 2)
+		bad.push("footprint_m must be [w>=2, d>=2] metres");
+	const jobs = (s.loot_table || "") !== "" || (s.npc_jobs || []).length || (s.law_hooks || []).length || (s.event_hooks || []).length;
+	if (!jobs) bad.push("no JOB: needs loot_table, npc_jobs, law_hooks, or event_hooks (§9 multi-use rule)");
+	return bad;
+}
+
+// Walk `dist` metres along a road's polyline from its nearest point to `from`.
+// Returns a world point — where the RETURN RAMP rejoins the highway.
+function pointAlong(road, from, dist) {
+	// find the segment + t of the closest point
+	let segI = 0, segT = 0, bestD = Infinity;
+	for (let i = 0; i + 1 < road.pts.length; i++) {
+		const a = road.pts[i], b = road.pts[i + 1];
+		const abx = b[0] - a[0], abz = b[1] - a[1];
+		const l2 = abx * abx + abz * abz || 1e-4;
+		const t = Math.max(0, Math.min(1, ((from[0] - a[0]) * abx + (from[1] - a[1]) * abz) / l2));
+		const q = [a[0] + abx * t, a[1] + abz * t];
+		const d = Math.hypot(from[0] - q[0], from[1] - q[1]);
+		if (d < bestD) { bestD = d; segI = i; segT = t; }
+	}
+	// walk forward from (segI, segT)
+	let remaining = dist;
+	let i = segI, t = segT;
+	while (i + 1 < road.pts.length) {
+		const a = road.pts[i], b = road.pts[i + 1];
+		const segLen = Math.hypot(b[0] - a[0], b[1] - a[1]);
+		const left = segLen * (1 - t);
+		if (remaining <= left || i + 2 >= road.pts.length) {
+			const nt = Math.min(1, t + remaining / (segLen || 1e-4));
+			return [a[0] + (b[0] - a[0]) * nt, a[1] + (b[1] - a[1]) * nt];
+		}
+		remaining -= left;
+		i++; t = 0;
+	}
+	return road.pts[road.pts.length - 1];
+}
 
 // Town-template stamper (Goal 2c): a named cluster of placements dropped around a
 // point in one call — the primitive that turns "a dot on the map" into a place.
@@ -98,8 +162,14 @@ const HELP = {
 		"GET  /api/placements                   -> all authored structure placements",
 		"POST /api/placements  {id?, building, pos:[wx,wz], rot?} -> pin a structure (biomes stay procedural around it)",
 		"DELETE /api/placements?id=safehouse-1  -> remove a placement",
-		"POST /api/exit        {town} or {pos:[wx,wz], name?} -> auto-build an OFF-RAMP from the nearest interstate to a town/point (kind:'exit')",
+		"POST /api/exit        {town} or {pos:[wx,wz], name?} -> auto-build an OFF-RAMP from the nearest interstate to a town/point (kind:'exit') [v1 — prefer /api/exits]",
 		"POST /api/stamp_template {template, town} or {template, pos, name?} -> drop a cluster of placements (templates: waystation|hamlet|outpost)",
+		"GET  /api/exits                        -> EXIT NODES (spec §5) + archetype blueprints",
+		"POST /api/exits       {dest:[wx,wz] or town, name?, archetype?, highway_id?, community_tier?, has_return_ramp?} -> create an exit node: anchors on the highway, builds off-ramp (+ return ramp), numbers itself",
+		"DELETE /api/exits?id=I-95_X1           -> remove the node AND its ramp roads",
+		"GET  /api/structures                   -> the STRUCTURE CATALOG (spec §7 rows; created, not placed)",
+		"POST /api/structures  {full row}       -> add/replace a structure profile (validated: the §9 JOB rule)",
+		"DELETE /api/structures?id=gas_station_small -> remove a profile row",
 	],
 	examples: [
 		`curl localhost:${PORT}/api/cell?x=120\\&z=40`,
@@ -221,8 +291,15 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/roads" && req.method === "POST") {
 			if (!body.id || !Array.isArray(body.pts) || body.pts.length < 2)
 				return json(res, 400, { error: "need id and pts:[[wx,wz],...] (>=2)" });
+			// PRESERVE THE ROAD'S CHARACTER (danger/family/nickname/toll): editing a
+			// road's points must never strip its identity (the old handler did).
+			const prev = map.roads.find((r) => r.id === body.id) || {};
 			map.roads = map.roads.filter((r) => r.id !== body.id);
-			map.roads.push({ id: body.id, kind: body.kind || "interstate", pts: body.pts });
+			map.roads.push({
+				id: body.id, kind: body.kind ?? prev.kind ?? "interstate", pts: body.pts,
+				danger: body.danger ?? prev.danger ?? 0, family: body.family ?? prev.family ?? "",
+				nickname: body.nickname ?? prev.nickname ?? "", ...(body.toll ?? prev.toll ? { toll: body.toll ?? prev.toll } : {}),
+			});
 			save();
 			return json(res, 200, { ok: true, roads: map.roads.length });
 		}
@@ -272,6 +349,109 @@ const server = createServer(async (req, res) => {
 			map.placements = map.placements.filter((p) => p.id !== q.get("id"));
 			save();
 			return json(res, 200, { removed: n - map.placements.length });
+		}
+
+		// ---- EXIT NODES (spec §5): the content sockets the owner ARRANGES ----------
+		if (url.pathname === "/api/exits" && req.method === "GET")
+			return json(res, 200, { exits: map.exits, archetypes: blueprints });
+		if (url.pathname === "/api/exits" && req.method === "POST") {
+			// Accept {dest:[wx,wz]} or {town:"id"}; the node ANCHORS on the nearest
+			// interstate (or the named highway) and builds its own ramp roads.
+			let dest = body.dest || body.pos, label = body.name;
+			if (body.town) {
+				const t = map.towns.find((x) => x.id === body.town);
+				if (!t) return json(res, 400, { error: `no town '${body.town}'` });
+				dest = t.pos; label = label || t.name;
+			}
+			if (!Array.isArray(dest)) return json(res, 400, { error: "need dest:[wx,wz] (or town)" });
+			const arch = blueprints.find((a) => a.id === (body.archetype || "service"));
+			if (!arch) return json(res, 400, { error: `unknown archetype '${body.archetype}'`, archetypes: blueprints.map((a) => a.id) });
+			let near = null;
+			if (body.highway_id) {
+				const road = map.roads.find((r) => r.id === body.highway_id);
+				if (!road) return json(res, 400, { error: `no highway '${body.highway_id}'` });
+				let bestD = Infinity;
+				for (let i = 0; i + 1 < road.pts.length; i++) {
+					const a = road.pts[i], b = road.pts[i + 1];
+					const abx = b[0] - a[0], abz = b[1] - a[1];
+					const l2 = abx * abx + abz * abz || 1e-4;
+					const t = Math.max(0, Math.min(1, ((dest[0] - a[0]) * abx + (dest[1] - a[1]) * abz) / l2));
+					const q = [a[0] + abx * t, a[1] + abz * t];
+					const d = Math.hypot(dest[0] - q[0], dest[1] - q[1]);
+					if (d < bestD) { bestD = d; near = { roadId: road.id, point: q, dist: d }; }
+				}
+			} else near = nearestInterstate(dest[0], dest[1]);
+			if (!near) return json(res, 400, { error: "no interstate to anchor on" });
+			const highway = near.roadId;
+			const number = body.exit_number ?? (map.exits.filter((e) => e.highway_id === highway).length + 1);
+			const exid = body.id || `${highway}_X${number}`;
+			const name = label || `${arch.name} ${number}`;
+			const wantReturn = body.has_return_ramp !== false; // default: a real interchange
+			// The ramps are ROADS (kind 'exit') — the game's road pipeline already
+			// materializes and road_near()s them. The node OWNS their ids.
+			const rampIds = [];
+			const offId = `${exid}-off`;
+			map.roads = map.roads.filter((r) => r.id !== offId);
+			map.roads.push({ id: offId, kind: "exit", pts: [near.point, dest], danger: arch.danger ?? 1, family: "", nickname: "" });
+			rampIds.push(offId);
+			if (wantReturn) {
+				const onId = `${exid}-on`;
+				const rejoin = pointAlong(map.roads.find((r) => r.id === highway), near.point, Number(body.return_gap_m || 180));
+				map.roads = map.roads.filter((r) => r.id !== onId);
+				map.roads.push({ id: onId, kind: "exit", pts: [dest, rejoin], danger: arch.danger ?? 1, family: "", nickname: "" });
+				rampIds.push(onId);
+			}
+			const node = {
+				id: exid, highway_id: highway, exit_number: number, name,
+				archetype: arch.id, community_tier: body.community_tier || arch.tier_default,
+				service_tags: body.service_tags || arch.service_tags || [],
+				risk_rating: body.risk_rating ?? arch.danger ?? 1,
+				has_return_ramp: wantReturn, known_to_player: body.known_to_player ?? true,
+				pos: near.point.map((v) => Math.round(v * 100) / 100), dest, ramp_ids: rampIds,
+			};
+			map.exits = map.exits.filter((e) => e.id !== exid);
+			map.exits.push(node);
+			save();
+			return json(res, 200, { ok: true, exit: node, ramp_length_m: Math.round(near.dist) });
+		}
+		if (url.pathname === "/api/exits" && req.method === "DELETE") {
+			const ex = map.exits.find((e) => e.id === q.get("id"));
+			if (!ex) return json(res, 404, { error: `no exit '${q.get("id")}'` });
+			map.exits = map.exits.filter((e) => e.id !== ex.id);
+			map.roads = map.roads.filter((r) => !(ex.ramp_ids || []).includes(r.id)); // the ramps go with it
+			save();
+			return json(res, 200, { removed: ex.id, ramps_removed: (ex.ramp_ids || []).length });
+		}
+
+		// ---- STRUCTURE CATALOG (spec §7): the owner CREATES buildings here ---------
+		// (created ≠ placed — placement waits until the roads are arranged.)
+		if (url.pathname === "/api/structures" && req.method === "GET")
+			return json(res, 200, { structures: structDoc.structures, footprints: FOOTPRINTS });
+		if (url.pathname === "/api/structures" && req.method === "POST") {
+			const s = {
+				id: body.id, category: body.category || "service", display_name: body.display_name || "",
+				sign_glyph: body.sign_glyph || "", allowed_tiers: body.allowed_tiers || [],
+				districts: body.districts || [], footprint: body.footprint || "small_rect",
+				footprint_m: body.footprint_m || [10, 8], floors: Number(body.floors || 1),
+				enterable: body.enterable !== false, entrances: body.entrances || [],
+				interior_template: body.interior_template || "none", loot_table: body.loot_table || "",
+				npc_jobs: body.npc_jobs || [], law_hooks: body.law_hooks || [],
+				event_hooks: body.event_hooks || [], faction_overrides: body.faction_overrides || [],
+				power_required: !!body.power_required, can_be_safehouse: !!body.can_be_safehouse,
+				danger: Number(body.danger || 1),
+			};
+			const bad = validateStructure(s);
+			if (bad.length) return json(res, 400, { error: "row is not lawful", problems: bad });
+			structDoc.structures = structDoc.structures.filter((x) => x.id !== s.id);
+			structDoc.structures.push(s);
+			saveStructures();
+			return json(res, 200, { ok: true, structure: s, total: structDoc.structures.length });
+		}
+		if (url.pathname === "/api/structures" && req.method === "DELETE") {
+			const n = structDoc.structures.length;
+			structDoc.structures = structDoc.structures.filter((x) => x.id !== q.get("id"));
+			saveStructures();
+			return json(res, 200, { removed: n - structDoc.structures.length });
 		}
 
 		// ---- auto off-ramp: connect a town to the interstate (Goal 2a, PROOF CASE) ----

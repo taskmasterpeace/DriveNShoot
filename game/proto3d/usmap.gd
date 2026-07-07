@@ -25,6 +25,10 @@ var roads: Array = []             ## [{id, kind, pts: PackedVector2Array (world 
 var rivers: Array = []
 var towns: Array = []             ## [{id, name, pos: Vector2, kind, landmark?}]
 var placements: Array = []        ## AUTHORED LAYER (MapForge v2): [{id, building, pos: Vector2, rot}]
+## EXIT NODES (World_Structures spec §5): the content sockets on the highways.
+## [{id, highway_id, exit_number, name, archetype, community_tier, service_tags,
+##   risk_rating, has_return_ramp, pos: Vector2 (ON the highway), dest: Vector2}]
+var exits: Array = []
 
 
 static func get_default() -> ProtoUSMap:
@@ -78,6 +82,19 @@ func load_file(path: String) -> bool:
 	for p in d.get("placements", []):
 		placements.append({"id": p.get("id", ""), "building": p.get("building", ""),
 			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0))})
+	exits.clear()
+	for e in d.get("exits", []):
+		if not (e is Dictionary) or not (e as Dictionary).has("pos"):
+			continue
+		exits.append({"id": String(e.get("id", "")), "highway_id": String(e.get("highway_id", "")),
+			"exit_number": int(e.get("exit_number", 0)), "name": String(e.get("name", "")),
+			"archetype": String(e.get("archetype", "service")),
+			"community_tier": String(e.get("community_tier", "T1")),
+			"service_tags": (e.get("service_tags", []) as Array).duplicate(),
+			"risk_rating": int(e.get("risk_rating", 1)),
+			"has_return_ramp": bool(e.get("has_return_ramp", false)),
+			"pos": Vector2(float(e["pos"][0]), float(e["pos"][1])),
+			"dest": Vector2(float(e.get("dest", e["pos"])[0]), float(e.get("dest", e["pos"])[1]))})
 	ok = w > 0 and h > 0 and grid.size() == h
 	return ok
 
@@ -90,6 +107,16 @@ func placements_in(rect: Rect2) -> Array:
 	for p in placements:
 		if rect.has_point(p["pos"]):
 			out.append(p)
+	return out
+
+
+## Exit NODES whose highway anchor falls inside a chunk's box — the streamer
+## raises each one's EXIT SIGN there (spec §18: every exit needs a highway sign).
+func exits_in(rect: Rect2) -> Array:
+	var out: Array = []
+	for e in exits:
+		if rect.has_point(e["pos"]):
+			out.append(e)
 	return out
 
 

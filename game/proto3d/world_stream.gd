@@ -125,6 +125,11 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		var phalf := CHUNK * 0.5
 		for p in usmap.placements_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
 			_spawn_placement(chunk, p)
+		# EXIT NODES (World_Structures §5/§18): every exit raises its HIGHWAY SIGN
+		# at the ramp mouth — the read that turns a drive into a DECISION. (The
+		# ramps themselves are exit-kind ROADS; the road pass materializes those.)
+		for e in usmap.exits_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
+			_spawn_exit_sign(chunk, e)
 
 	var biome := biome_at(center)
 	var wet := biome == "water" or biome == "ocean"
@@ -305,6 +310,27 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 	body.add_child(shape)
 	chunk.add_child(body)
 	body.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
+
+
+## THE EXIT SIGN (World_Structures §18: every exit needs a highway sign): the
+## big green read at the ramp mouth — number, name, tier — plus the archetype's
+## glyph always visible. This is what makes an exit a DECISION at 60 mph.
+func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
+	var glyphs: Dictionary = {"service": "⛽", "neighborhood": "🏘️", "county_seat": "⚖️",
+		"industrial": "🏭", "metro": "🌆", "military_spur": "☢️", "dead": "🚫"}
+	var glyph: String = glyphs.get(String(e.get("archetype", "service")), "🛣️")
+	var label := "EXIT %d — %s (%s)" % [int(e.get("exit_number", 0)),
+		String(e.get("name", "")).to_upper(), String(e.get("community_tier", "T1"))]
+	var sign := ProtoSign.create(label, glyph)
+	sign.add_to_group("exit_sign")
+	sign.set_meta("exit_id", e.get("id", ""))
+	chunk.add_child(sign)
+	# Stand it at the ramp mouth, offset toward the exit's DESTINATION side so it
+	# reads as "this way off" instead of standing in the traffic lane.
+	var pos: Vector2 = e["pos"]
+	var toward: Vector2 = (e["dest"] as Vector2) - pos
+	var side := toward.normalized() * 9.0 if toward.length() > 1.0 else Vector2(9, 0)
+	sign.global_position = Vector3(pos.x + side.x, 0.0, pos.y + side.y)
 
 
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
