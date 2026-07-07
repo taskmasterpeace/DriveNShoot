@@ -90,6 +90,25 @@
 >   WATCH/STALK/STRIKE director, checkpoints via the toll law, bandit drones, Southwest
 >   regional strength) with sims named per criterion.
 >
+> ### ✅ THE FRONTIER + LORE PASS (2026-07-08 early, owner goals: "improve the highway
+> system… follow the docs" + "design and build this" — the AI Collapse Lore Bible)
+> - **docs/LORE_BIBLE.md is CANON now** (owner-authored, banked verbatim): the continuity
+>   AI, the Lake-Space, Machine Cant, the Carousel as experiment engine, 11 years after
+>   Black Week, the Trials, faction doctrine, exit types, jurisdictional wanted.
+> - **THE WESTERN CORRIDORS** (d550be2): 41 more exits (I-70/I-5/I-35/I-25/I-80 — 88
+>   map-wide), SAN PERDIDO metro on the Produce Line, TOLLKEEP + THE GAUNTLET's dead
+>   exits for the Crimson Road, CHICAGO crowned (BLACK BEANIE CROWN + identity buildings).
+> - **BACKROADS**: a new road KIND — five winding 2-lane town-to-town shortcuts ambient
+>   traffic ignores. **EAST≠WEST terrain laws**: eastern deep forest = 34 solid trunks/
+>   chunk at 2m spacing (bikes/horses thread, cars CANNOT), west stays open (8), roadside
+>   shoulders always cleared; deep mountains stack 7-10 real ridge rocks; WILD MUSTANGS
+>   graze western plains (9%/chunk deep west). 7 bible lines ride the radio dial.
+>   frontier_sim 15/15 + 9-suite regression green.
+> - **THE INFECTED TRIALS contract banked** (`docs/design/INFECTED_TRIALS.md`):
+>   Shamblers/Sprinters/Echoes/Choir-Touched as puppet-rig rows on the noise layer +
+>   population cells, herd composition math, choir auras at Carousel sites, dog-fear
+>   tell, 7 named acceptance sims. THE bible's big unbuilt system — build next.
+>
 > ### ⏭ WHAT TO WORK ON NEXT (in order)
 > 0. **BANDIT ECOSYSTEM rungs 2+** (`BANDIT_CONVOY_ECOSYSTEM.md` §8.2-8.7): the gang
 >    director, checkpoints, regional strength rows, bandit drones. The prey (convoys)
