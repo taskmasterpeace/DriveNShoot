@@ -20,6 +20,7 @@ const SIGNALS: Array = [
 	{"id": "music", "weight": 0.28, "night_mult": 1.3},
 ]
 const LORE: Array = [
+	"…heard the Bone Road's got a turn nobody marks. Maple Hill, they call it. Good people, if you find it…", # the §3.4 breadcrumb (MAP_POLISH_PLAN)
 	"…the Solar King's men burn diesel like the old world never ended…",
 	"…Carousel ring lit up over Norfolk last night — flesh only, they say, steel stays…",
 	"…Cheyenne Mountain answers no hails. The machines hold the codes now…",

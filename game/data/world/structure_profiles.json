@@ -1,140 +1,845 @@
 {
   "_comment": "STRUCTURE PROFILES (DRIVN_World_Structures spec §7-8): every building is a ROW with a JOB — loot, NPC work, law, events, shelter. Created here, NOT world-placed yet (owner's order: roads+exits first). footprint_m = [w,d] metres; footprint names map to spec §18 shell sizes. sign_glyph = the read-from-the-road identity (§18: every structure type needs a glyph). Edit via MapForge STRUCTURES tab (:8899) — the engine folds additively (code floor, data adds).",
   "structures": [
-    {"id": "gas_station_small", "category": "service", "display_name": "Gas Station", "sign_glyph": "⛽",
-     "allowed_tiers": ["T1", "T2", "T3", "T4"], "districts": ["commercial_strip", "roadside"],
-     "footprint": "small_rect", "footprint_m": [12, 9], "floors": 1, "enterable": true,
-     "entrances": ["front", "rear_optional"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["clerk", "mechanic_rumor"],
-     "law_hooks": ["fuel_tax", "contraband_check_optional"], "event_hooks": ["ambush", "distress_call", "fuel_shortage"],
-     "faction_overrides": ["paint", "guards", "prices"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "market_general", "category": "commercial", "display_name": "General Store", "sign_glyph": "🛒",
-     "allowed_tiers": ["T1", "T2", "T3", "T4"], "districts": ["commercial_strip"],
-     "footprint": "small_rect", "footprint_m": [10, 8], "floors": 1, "enterable": true,
-     "entrances": ["front"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["clerk", "trader"],
-     "law_hooks": ["price_by_respect"], "event_hooks": ["robbery", "rumor"],
-     "faction_overrides": ["prices", "restricted_items"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "diner_roadside", "category": "commercial", "display_name": "Diner", "sign_glyph": "🍳",
-     "allowed_tiers": ["T1", "T2", "T3", "T4"], "districts": ["commercial_strip", "roadside"],
-     "footprint": "medium_rect", "footprint_m": [14, 9], "floors": 1, "enterable": true,
-     "entrances": ["front", "kitchen_rear"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["cook", "informant", "drifter"],
-     "law_hooks": [], "event_hooks": ["rumor", "job_offer", "faction_gossip"],
-     "faction_overrides": ["paint", "menu_prices"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "motel_strip", "category": "commercial", "display_name": "Motel", "sign_glyph": "🛏️",
-     "allowed_tiers": ["T1", "T2", "T3"], "districts": ["commercial_strip", "roadside"],
-     "footprint": "medium_rect", "footprint_m": [22, 8], "floors": 1, "enterable": true,
-     "entrances": ["office", "room_doors"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["owner", "guest"],
-     "law_hooks": [], "event_hooks": ["ambush", "body_discovery", "stash"],
-     "faction_overrides": ["guards"], "power_required": false, "can_be_safehouse": true, "danger": 2},
-
-    {"id": "house_small", "category": "residential", "display_name": "House", "sign_glyph": "🏠",
-     "allowed_tiers": ["T2", "T3", "T4"], "districts": ["residential", "rural_edge"],
-     "footprint": "small_rect", "footprint_m": [10, 12], "floors": 1, "enterable": true,
-     "entrances": ["front", "rear"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["resident", "dog_owner"],
-     "law_hooks": ["burglary_witness"], "event_hooks": ["dog", "evidence", "trap"],
-     "faction_overrides": [], "power_required": false, "can_be_safehouse": true, "danger": 1},
-
-    {"id": "police_station", "category": "civic_law", "display_name": "Police Station", "sign_glyph": "🚔",
-     "allowed_tiers": ["T3", "T4"], "districts": ["civic_center"],
-     "footprint": "medium_rect", "footprint_m": [16, 12], "floors": 1, "enterable": true,
-     "entrances": ["front", "impound_gate"], "interior_template": "none",
-     "loot_table": "cache_rare", "npc_jobs": ["sheriff", "deputy", "jailer"],
-     "law_hooks": ["wanted_system", "arrest", "evidence_room", "impound"], "event_hooks": ["jailbreak", "warrant_posted"],
-     "faction_overrides": ["enforcement_style", "guards"], "power_required": true, "can_be_safehouse": false, "danger": 3},
-
-    {"id": "clinic_small", "category": "medical", "display_name": "Clinic", "sign_glyph": "🩺",
-     "allowed_tiers": ["T2", "T3", "T4"], "districts": ["medical", "civic_center"],
-     "footprint": "small_rect", "footprint_m": [12, 10], "floors": 1, "enterable": true,
-     "entrances": ["front", "ambulance_bay"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["medic", "patient"],
-     "law_hooks": [], "event_hooks": ["rescue_job", "medicine_shortage"],
-     "faction_overrides": ["prices"], "power_required": true, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "courthouse", "category": "civic_law", "display_name": "Courthouse", "sign_glyph": "⚖️",
-     "allowed_tiers": ["T3", "T4"], "districts": ["civic_center", "monument_zone"],
-     "footprint": "large_rect", "footprint_m": [20, 16], "floors": 2, "enterable": true,
-     "entrances": ["front_steps", "records_side"], "interior_template": "none",
-     "loot_table": "cache_rare", "npc_jobs": ["judge", "clerk", "bailiff"],
-     "law_hooks": ["warrants", "trials", "law_changes", "records"], "event_hooks": ["ruler_announcement", "trial"],
-     "faction_overrides": ["legitimacy_symbol", "flags"], "power_required": true, "can_be_safehouse": false, "danger": 2},
-
-    {"id": "auto_shop", "category": "industrial_service", "display_name": "Auto Shop", "sign_glyph": "🔧",
-     "allowed_tiers": ["T2", "T3", "T4"], "districts": ["industrial", "commercial_strip"],
-     "footprint": "medium_rect", "footprint_m": [15, 12], "floors": 1, "enterable": true,
-     "entrances": ["bay_doors", "office"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["mechanic", "apprentice"],
-     "law_hooks": [], "event_hooks": ["vehicle_job", "parts_shipment"],
-     "faction_overrides": ["prices"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "junkyard", "category": "industrial", "display_name": "Junkyard", "sign_glyph": "🗑️",
-     "allowed_tiers": ["T2", "T3"], "districts": ["industrial", "rural_edge"],
-     "footprint": "compound", "footprint_m": [30, 24], "floors": 1, "enterable": false,
-     "entrances": ["gate"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["scrapper", "guard_dog"],
-     "law_hooks": [], "event_hooks": ["hidden_vehicle", "ambush"],
-     "faction_overrides": ["guards"], "power_required": false, "can_be_safehouse": false, "danger": 2},
-
-    {"id": "warehouse", "category": "industrial", "display_name": "Warehouse", "sign_glyph": "📦",
-     "allowed_tiers": ["T2", "T3", "T4"], "districts": ["industrial"],
-     "footprint": "large_rect", "footprint_m": [24, 16], "floors": 1, "enterable": true,
-     "entrances": ["loading_dock", "side_door"], "interior_template": "none",
-     "loot_table": "cache_rare", "npc_jobs": ["worker", "raider"],
-     "law_hooks": [], "event_hooks": ["faction_stash", "bulk_loot"],
-     "faction_overrides": ["owner_faction"], "power_required": false, "can_be_safehouse": false, "danger": 2},
-
-    {"id": "church_small", "category": "civic_faction", "display_name": "Church", "sign_glyph": "⛪",
-     "allowed_tiers": ["T2", "T3", "T4"], "districts": ["residential", "civic_center"],
-     "footprint": "medium_rect", "footprint_m": [12, 18], "floors": 1, "enterable": true,
-     "entrances": ["front"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["preacher", "refugee"],
-     "law_hooks": ["sanctuary_or_law_center_by_faction"], "event_hooks": ["sermon", "food_distribution", "hidden_basement"],
-     "faction_overrides": ["faction_identity", "propaganda"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "monument_plaza", "category": "monument", "display_name": "Monument", "sign_glyph": "🗽",
-     "allowed_tiers": ["T4"], "districts": ["monument_zone"],
-     "footprint": "landmark", "footprint_m": [18, 18], "floors": 1, "enterable": false,
-     "entrances": [], "interior_template": "none",
-     "loot_table": "", "npc_jobs": ["pilgrim"],
-     "law_hooks": ["occupation_symbol"], "event_hooks": ["faction_rally", "takeover_visual", "lore"],
-     "faction_overrides": ["flags", "banners"], "power_required": false, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "checkpoint_road", "category": "law_military", "display_name": "Checkpoint", "sign_glyph": "🚧",
-     "allowed_tiers": ["T1", "T2", "T3", "T4"], "districts": ["roadside", "restricted"],
-     "footprint": "small_rect", "footprint_m": [8, 6], "floors": 1, "enterable": false,
-     "entrances": ["search_lane"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["soldier", "police"],
-     "law_hooks": ["contraband_search", "toll", "arrest"], "event_hooks": ["faction_border", "id_check"],
-     "faction_overrides": ["enforcement_style", "guards"], "power_required": false, "can_be_safehouse": false, "danger": 3},
-
-    {"id": "military_base_shell", "category": "restricted", "display_name": "Military Base", "sign_glyph": "☢️",
-     "allowed_tiers": ["special"], "districts": ["restricted"],
-     "footprint": "compound", "footprint_m": [60, 45], "floors": 1, "enterable": false,
-     "entrances": ["main_gate"], "interior_template": "none",
-     "loot_table": "cache_rare", "npc_jobs": ["soldier", "hunter_dog", "drone"],
-     "law_hooks": ["restricted_zone", "alarm"], "event_hooks": ["discovery", "gate_fight", "armory_raid"],
-     "faction_overrides": ["controlling_faction"], "power_required": true, "can_be_safehouse": false, "danger": 5},
-
-    {"id": "drive_in_theater", "category": "media", "display_name": "Drive-In", "sign_glyph": "🎞️",
-     "allowed_tiers": ["T2", "T3"], "districts": ["roadside", "commercial_strip"],
-     "footprint": "compound", "footprint_m": [40, 30], "floors": 1, "enterable": false,
-     "entrances": ["lot_gate"], "interior_template": "none",
-     "loot_table": "", "npc_jobs": ["projectionist"],
-     "law_hooks": [], "event_hooks": ["show_night", "media_pickup"],
-     "faction_overrides": ["screen_channel"], "power_required": true, "can_be_safehouse": false, "danger": 1},
-
-    {"id": "radio_station", "category": "media", "display_name": "Radio Station", "sign_glyph": "📻",
-     "allowed_tiers": ["T3", "T4"], "districts": ["civic_center", "industrial"],
-     "footprint": "medium_rect", "footprint_m": [12, 10], "floors": 1, "enterable": true,
-     "entrances": ["front"], "interior_template": "none",
-     "loot_table": "chest_common", "npc_jobs": ["broadcaster", "propagandist"],
-     "law_hooks": ["faction_broadcast"], "event_hooks": ["news", "world_events", "weather"],
-     "faction_overrides": ["station_owner"], "power_required": true, "can_be_safehouse": false, "danger": 2}
+    {
+      "id": "gas_station_small",
+      "category": "service",
+      "display_name": "Gas Station",
+      "sign_glyph": "⛽",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "commercial_strip",
+        "roadside"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        12,
+        9
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front",
+        "rear_optional"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "clerk",
+        "mechanic_rumor"
+      ],
+      "law_hooks": [
+        "fuel_tax",
+        "contraband_check_optional"
+      ],
+      "event_hooks": [
+        "ambush",
+        "distress_call",
+        "fuel_shortage"
+      ],
+      "faction_overrides": [
+        "paint",
+        "guards",
+        "prices"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "market_general",
+      "category": "commercial",
+      "display_name": "General Store",
+      "sign_glyph": "🛒",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "commercial_strip"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        10,
+        8
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "clerk",
+        "trader"
+      ],
+      "law_hooks": [
+        "price_by_respect"
+      ],
+      "event_hooks": [
+        "robbery",
+        "rumor"
+      ],
+      "faction_overrides": [
+        "prices",
+        "restricted_items"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "diner_roadside",
+      "category": "commercial",
+      "display_name": "Diner",
+      "sign_glyph": "🍳",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "commercial_strip",
+        "roadside"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        14,
+        9
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front",
+        "kitchen_rear"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "cook",
+        "informant",
+        "drifter"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "rumor",
+        "job_offer",
+        "faction_gossip"
+      ],
+      "faction_overrides": [
+        "paint",
+        "menu_prices"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "motel_strip",
+      "category": "commercial",
+      "display_name": "Motel",
+      "sign_glyph": "🛏️",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "districts": [
+        "commercial_strip",
+        "roadside"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        22,
+        8
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "office",
+        "room_doors"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "owner",
+        "guest"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "ambush",
+        "body_discovery",
+        "stash"
+      ],
+      "faction_overrides": [
+        "guards"
+      ],
+      "power_required": false,
+      "can_be_safehouse": true,
+      "danger": 2
+    },
+    {
+      "id": "house_small",
+      "category": "residential",
+      "display_name": "House",
+      "sign_glyph": "🏠",
+      "allowed_tiers": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "residential",
+        "rural_edge"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        10,
+        12
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front",
+        "rear"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "resident",
+        "dog_owner"
+      ],
+      "law_hooks": [
+        "burglary_witness"
+      ],
+      "event_hooks": [
+        "dog",
+        "evidence",
+        "trap"
+      ],
+      "faction_overrides": [],
+      "power_required": false,
+      "can_be_safehouse": true,
+      "danger": 1
+    },
+    {
+      "id": "police_station",
+      "category": "civic_law",
+      "display_name": "Police Station",
+      "sign_glyph": "🚔",
+      "allowed_tiers": [
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "civic_center"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        16,
+        12
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front",
+        "impound_gate"
+      ],
+      "interior_template": "none",
+      "loot_table": "cache_rare",
+      "npc_jobs": [
+        "sheriff",
+        "deputy",
+        "jailer"
+      ],
+      "law_hooks": [
+        "wanted_system",
+        "arrest",
+        "evidence_room",
+        "impound"
+      ],
+      "event_hooks": [
+        "jailbreak",
+        "warrant_posted"
+      ],
+      "faction_overrides": [
+        "enforcement_style",
+        "guards"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 3
+    },
+    {
+      "id": "clinic_small",
+      "category": "medical",
+      "display_name": "Clinic",
+      "sign_glyph": "🩺",
+      "allowed_tiers": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "medical",
+        "civic_center"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        12,
+        10
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front",
+        "ambulance_bay"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "medic",
+        "patient"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "rescue_job",
+        "medicine_shortage"
+      ],
+      "faction_overrides": [
+        "prices"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "courthouse",
+      "category": "civic_law",
+      "display_name": "Courthouse",
+      "sign_glyph": "⚖️",
+      "allowed_tiers": [
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "civic_center",
+        "monument_zone"
+      ],
+      "footprint": "large_rect",
+      "footprint_m": [
+        20,
+        16
+      ],
+      "floors": 2,
+      "enterable": true,
+      "entrances": [
+        "front_steps",
+        "records_side"
+      ],
+      "interior_template": "none",
+      "loot_table": "cache_rare",
+      "npc_jobs": [
+        "judge",
+        "clerk",
+        "bailiff"
+      ],
+      "law_hooks": [
+        "warrants",
+        "trials",
+        "law_changes",
+        "records"
+      ],
+      "event_hooks": [
+        "ruler_announcement",
+        "trial"
+      ],
+      "faction_overrides": [
+        "legitimacy_symbol",
+        "flags"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 2
+    },
+    {
+      "id": "auto_shop",
+      "category": "industrial_service",
+      "display_name": "Auto Shop",
+      "sign_glyph": "🔧",
+      "allowed_tiers": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "industrial",
+        "commercial_strip"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        15,
+        12
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "bay_doors",
+        "office"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "mechanic",
+        "apprentice"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "vehicle_job",
+        "parts_shipment"
+      ],
+      "faction_overrides": [
+        "prices"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "junkyard",
+      "category": "industrial",
+      "display_name": "Junkyard",
+      "sign_glyph": "🗑️",
+      "allowed_tiers": [
+        "T2",
+        "T3"
+      ],
+      "districts": [
+        "industrial",
+        "rural_edge"
+      ],
+      "footprint": "compound",
+      "footprint_m": [
+        30,
+        24
+      ],
+      "floors": 1,
+      "enterable": false,
+      "entrances": [
+        "gate"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "scrapper",
+        "guard_dog"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "hidden_vehicle",
+        "ambush"
+      ],
+      "faction_overrides": [
+        "guards"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 2
+    },
+    {
+      "id": "warehouse",
+      "category": "industrial",
+      "display_name": "Warehouse",
+      "sign_glyph": "📦",
+      "allowed_tiers": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "industrial"
+      ],
+      "footprint": "large_rect",
+      "footprint_m": [
+        24,
+        16
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "loading_dock",
+        "side_door"
+      ],
+      "interior_template": "none",
+      "loot_table": "cache_rare",
+      "npc_jobs": [
+        "worker",
+        "raider"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "faction_stash",
+        "bulk_loot"
+      ],
+      "faction_overrides": [
+        "owner_faction"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 2
+    },
+    {
+      "id": "church_small",
+      "category": "civic_faction",
+      "display_name": "Church",
+      "sign_glyph": "⛪",
+      "allowed_tiers": [
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "residential",
+        "civic_center"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        12,
+        18
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "preacher",
+        "refugee"
+      ],
+      "law_hooks": [
+        "sanctuary_or_law_center_by_faction"
+      ],
+      "event_hooks": [
+        "sermon",
+        "food_distribution",
+        "hidden_basement"
+      ],
+      "faction_overrides": [
+        "faction_identity",
+        "propaganda"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "monument_plaza",
+      "category": "monument",
+      "display_name": "Monument",
+      "sign_glyph": "🗽",
+      "allowed_tiers": [
+        "T4"
+      ],
+      "districts": [
+        "monument_zone"
+      ],
+      "footprint": "landmark",
+      "footprint_m": [
+        18,
+        18
+      ],
+      "floors": 1,
+      "enterable": false,
+      "entrances": [],
+      "interior_template": "none",
+      "loot_table": "",
+      "npc_jobs": [
+        "pilgrim"
+      ],
+      "law_hooks": [
+        "occupation_symbol"
+      ],
+      "event_hooks": [
+        "faction_rally",
+        "takeover_visual",
+        "lore"
+      ],
+      "faction_overrides": [
+        "flags",
+        "banners"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "checkpoint_road",
+      "category": "law_military",
+      "display_name": "Checkpoint",
+      "sign_glyph": "🚧",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "roadside",
+        "restricted"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        8,
+        6
+      ],
+      "floors": 1,
+      "enterable": false,
+      "entrances": [
+        "search_lane"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "soldier",
+        "police"
+      ],
+      "law_hooks": [
+        "contraband_search",
+        "toll",
+        "arrest"
+      ],
+      "event_hooks": [
+        "faction_border",
+        "id_check"
+      ],
+      "faction_overrides": [
+        "enforcement_style",
+        "guards"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 3
+    },
+    {
+      "id": "military_base_shell",
+      "category": "restricted",
+      "display_name": "Military Base",
+      "sign_glyph": "☢️",
+      "allowed_tiers": [
+        "special"
+      ],
+      "districts": [
+        "restricted"
+      ],
+      "footprint": "compound",
+      "footprint_m": [
+        60,
+        45
+      ],
+      "floors": 1,
+      "enterable": false,
+      "entrances": [
+        "main_gate"
+      ],
+      "interior_template": "none",
+      "loot_table": "cache_rare",
+      "npc_jobs": [
+        "soldier",
+        "hunter_dog",
+        "drone"
+      ],
+      "law_hooks": [
+        "restricted_zone",
+        "alarm"
+      ],
+      "event_hooks": [
+        "discovery",
+        "gate_fight",
+        "armory_raid"
+      ],
+      "faction_overrides": [
+        "controlling_faction"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 5
+    },
+    {
+      "id": "drive_in_theater",
+      "category": "media",
+      "display_name": "Drive-In",
+      "sign_glyph": "🎞️",
+      "allowed_tiers": [
+        "T2",
+        "T3"
+      ],
+      "districts": [
+        "roadside",
+        "commercial_strip"
+      ],
+      "footprint": "compound",
+      "footprint_m": [
+        40,
+        30
+      ],
+      "floors": 1,
+      "enterable": false,
+      "entrances": [
+        "lot_gate"
+      ],
+      "interior_template": "none",
+      "loot_table": "",
+      "npc_jobs": [
+        "projectionist"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "show_night",
+        "media_pickup"
+      ],
+      "faction_overrides": [
+        "screen_channel"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "radio_station",
+      "category": "media",
+      "display_name": "Radio Station",
+      "sign_glyph": "📻",
+      "allowed_tiers": [
+        "T3",
+        "T4"
+      ],
+      "districts": [
+        "civic_center",
+        "industrial"
+      ],
+      "footprint": "medium_rect",
+      "footprint_m": [
+        12,
+        10
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "broadcaster",
+        "propagandist"
+      ],
+      "law_hooks": [
+        "faction_broadcast"
+      ],
+      "event_hooks": [
+        "news",
+        "world_events",
+        "weather"
+      ],
+      "faction_overrides": [
+        "station_owner"
+      ],
+      "power_required": true,
+      "can_be_safehouse": false,
+      "danger": 2
+    },
+    {
+      "id": "farmhouse_field",
+      "category": "agriculture",
+      "display_name": "Farmhouse & Field",
+      "sign_glyph": "🌽",
+      "allowed_tiers": [
+        "T1",
+        "T2",
+        "T3"
+      ],
+      "districts": [
+        "outskirts",
+        "roadside"
+      ],
+      "footprint": "large_rect",
+      "footprint_m": [
+        22,
+        16
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "farmer",
+        "hand"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "harvest",
+        "raid"
+      ],
+      "faction_overrides": [
+        "prices"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    },
+    {
+      "id": "kennel_small",
+      "category": "service",
+      "display_name": "Kennel",
+      "sign_glyph": "🐕",
+      "allowed_tiers": [
+        "T1",
+        "T2"
+      ],
+      "districts": [
+        "outskirts",
+        "roadside"
+      ],
+      "footprint": "small_rect",
+      "footprint_m": [
+        10,
+        8
+      ],
+      "floors": 1,
+      "enterable": true,
+      "entrances": [
+        "front"
+      ],
+      "interior_template": "none",
+      "loot_table": "chest_common",
+      "npc_jobs": [
+        "breeder"
+      ],
+      "law_hooks": [],
+      "event_hooks": [
+        "stray",
+        "adoption"
+      ],
+      "faction_overrides": [
+        "prices"
+      ],
+      "power_required": false,
+      "can_be_safehouse": false,
+      "danger": 1
+    }
   ]
 }

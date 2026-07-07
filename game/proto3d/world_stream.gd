@@ -376,6 +376,16 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					center + Vector3(rng.randf_range(-50, 50), 0.04, rng.randf_range(-50, 50)), Color(0.14, 0.22, 0.20))
 			_trees(chunk, center, rng, 14, road)
 			_scatter(chunk, center, rng, 12, Color(0.3, 0.33, 0.2))
+			# THE GATOR (MAP_POLISH_PLAN §3.3): a stationary ambush at the water's
+			# edge — deterministic per chunk, PLACED before the player arrives
+			# (never popped into view), excluded from population current_pop.
+			if rng.randf() < 0.22 and near_road:
+				var gator := ProtoGator.create()
+				chunk.add_child(gator)
+				var side2 := Vector2(rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized()
+				var gd := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + rng.randf_range(8.0, 16.0)
+				gator.position = Vector3(center.x + side2.x * gd, 0.15, center.z + side2.y * gd)
+				gator.rotation.y = rng.randf_range(0, TAU)
 		"urban":
 			_stamp_ruined_block(chunk, center, rng, key)
 
