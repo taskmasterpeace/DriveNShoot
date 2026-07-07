@@ -138,6 +138,115 @@
           "weight": 0.5
         }
       ]
+    },
+    {
+      "_comment": "LOOT_NPC_PRODUCTION_WANTED_SPAWN.md §14 Phase 1 — furniture tables, one per furniture_defs.json row. entries carry an optional 'tags' array (additive to the schema: ProtoContainer.roll_loot/DrivnLootTable.roll ignore unknown keys, so these stay compatible with every existing reader). loot_resolver.gd reads tags to apply building-type weight multipliers and law overrides (a 'weapon' tag under a guns-banned law can be replaced with confiscation_notice). A literal 'empty' item entry is headroom the resolver drops on read — it exists so the weights read honestly in the JSON (spec §5.2).",
+      "id": "furniture_fridge",
+      "name": "Fridge",
+      "entries": [
+        { "item": "canned_food", "min": 1, "max": 3, "weight": 0.8, "tags": ["food"] },
+        { "item": "water", "min": 1, "max": 2, "weight": 0.7, "tags": ["food"] },
+        { "item": "meat", "min": 1, "max": 2, "weight": 0.4, "tags": ["food"] },
+        { "item": "painkillers", "min": 1, "max": 1, "weight": 0.1, "tags": ["med"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.3, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_kitchen_cabinet",
+      "name": "Kitchen cabinet",
+      "entries": [
+        { "item": "canned_food", "min": 1, "max": 3, "weight": 0.75, "tags": ["food"] },
+        { "item": "coffee", "min": 1, "max": 1, "weight": 0.3, "tags": ["food"] },
+        { "item": "duct_tape", "min": 1, "max": 1, "weight": 0.2, "tags": ["tool"] },
+        { "item": "flare", "min": 1, "max": 1, "weight": 0.1, "tags": ["tool"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.35, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_medicine_cabinet",
+      "name": "Medicine cabinet",
+      "entries": [
+        { "item": "painkillers", "min": 1, "max": 2, "weight": 0.7, "tags": ["med"] },
+        { "item": "bandage", "min": 1, "max": 2, "weight": 0.65, "tags": ["med"] },
+        { "item": "medkit", "min": 1, "max": 1, "weight": 0.15, "tags": ["med"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.3, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_closet",
+      "name": "Closet",
+      "entries": [
+        { "item": "clothes", "min": 1, "max": 2, "weight": 0.8, "tags": ["clothes"] },
+        { "item": "scrip", "min": 2, "max": 10, "weight": 0.25, "tags": ["cash"] },
+        { "item": "eyepatch", "min": 1, "max": 1, "weight": 0.03, "tags": [] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.3, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_desk",
+      "name": "Desk",
+      "entries": [
+        { "item": "case_file", "min": 1, "max": 1, "weight": 0.45, "tags": ["documents"] },
+        { "item": "map_fragment", "min": 1, "max": 1, "weight": 0.15, "tags": ["documents"] },
+        { "item": "scrip", "min": 2, "max": 8, "weight": 0.4, "tags": ["cash"] },
+        { "item": "9mm", "min": 4, "max": 12, "weight": 0.2, "tags": ["ammo", "weapon"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.3, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_cash_register",
+      "name": "Cash register",
+      "entries": [
+        { "item": "scrip", "min": 6, "max": 24, "weight": 0.85, "tags": ["cash"] },
+        { "item": "map_fragment", "min": 1, "max": 1, "weight": 0.1, "tags": ["documents"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.2, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_tool_rack",
+      "name": "Tool rack",
+      "entries": [
+        { "item": "car_parts", "min": 1, "max": 1, "weight": 0.55, "tags": ["tool"] },
+        { "item": "tire_kit", "min": 1, "max": 1, "weight": 0.3, "tags": ["tool"] },
+        { "item": "jerry_can", "min": 1, "max": 1, "weight": 0.3, "tags": ["tool"] },
+        { "item": "duct_tape", "min": 1, "max": 2, "weight": 0.5, "tags": ["tool"] },
+        { "item": "scrap", "min": 1, "max": 4, "weight": 0.6, "tags": ["loot"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.25, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_gun_safe",
+      "name": "Gun safe",
+      "entries": [
+        { "item": "pistol", "min": 1, "max": 1, "weight": 0.5, "tags": ["weapon"] },
+        { "item": "shotgun", "min": 1, "max": 1, "weight": 0.3, "tags": ["weapon"] },
+        { "item": "9mm", "min": 5, "max": 40, "weight": 0.7, "tags": ["ammo", "weapon"] },
+        { "item": "12ga", "min": 2, "max": 16, "weight": 0.45, "tags": ["ammo", "weapon"] },
+        { "item": "gun_oil", "min": 1, "max": 2, "weight": 0.35, "tags": ["weapon"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.15, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_warehouse_crate",
+      "name": "Warehouse crate",
+      "entries": [
+        { "item": "scrap", "min": 2, "max": 8, "weight": 0.65, "tags": ["loot"] },
+        { "item": "canned_food", "min": 2, "max": 6, "weight": 0.5, "tags": ["food"] },
+        { "item": "car_parts", "min": 1, "max": 2, "weight": 0.35, "tags": ["tool"] },
+        { "item": "jerry_can", "min": 1, "max": 2, "weight": 0.3, "tags": ["tool"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.2, "tags": [] }
+      ]
+    },
+    {
+      "id": "furniture_police_locker",
+      "name": "Police locker",
+      "entries": [
+        { "item": "9mm", "min": 6, "max": 24, "weight": 0.6, "tags": ["ammo", "weapon"] },
+        { "item": "pistol", "min": 1, "max": 1, "weight": 0.25, "tags": ["weapon"] },
+        { "item": "bandage", "min": 1, "max": 2, "weight": 0.4, "tags": ["med"] },
+        { "item": "case_file", "min": 1, "max": 1, "weight": 0.3, "tags": ["documents"] },
+        { "item": "empty", "min": 1, "max": 1, "weight": 0.25, "tags": [] }
+      ]
     }
   ]
 }

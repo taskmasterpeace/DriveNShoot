@@ -1,0 +1,61 @@
+{
+  "_note": "LOOT_NPC_PRODUCTION_WANTED_SPAWN.md §4.1 — building ROLE rows. furniture_set references furniture_defs.json ids; loot_flavor is a human-readable tag the resolver's building-type modifier keys off of (weight_mult below). A new building type = a ROW, never a code branch.",
+  "building_types": [
+    {
+      "id": "house",
+      "role": "shelter, food, personal loot",
+      "furniture_set": ["fridge", "kitchen_cabinet", "medicine_cabinet", "closet", "desk"],
+      "loot_flavor": "food, clothes, medicine, small cash, tools",
+      "npc_use": "civilians sleep, hide, gossip",
+      "weight_mult": {}
+    },
+    {
+      "id": "farmhouse",
+      "role": "rural shelter, production node",
+      "furniture_set": ["fridge", "kitchen_cabinet", "tool_rack", "closet", "gun_safe"],
+      "loot_flavor": "food, seeds, tools, fuel, shotgun chance",
+      "npc_use": "farmers, guards, family",
+      "weight_mult": { "food": 1.4, "tool": 1.3 }
+    },
+    {
+      "id": "gas_station",
+      "role": "fuel, road info, ambush risk",
+      "furniture_set": ["cash_register", "kitchen_cabinet", "tool_rack"],
+      "loot_flavor": "fuel cans, snacks, maps, parts, cash",
+      "npc_use": "clerk, travelers, raiders",
+      "weight_mult": { "tool": 1.2, "cash": 1.2 }
+    },
+    {
+      "id": "police_station",
+      "role": "law, weapons, evidence",
+      "furniture_set": ["police_locker", "gun_safe", "desk"],
+      "loot_flavor": "ammo, guns, armor, records, keys",
+      "npc_use": "cops, prisoners, bounty contacts",
+      "weight_mult": { "weapon": 1.5, "ammo": 1.4 }
+    },
+    {
+      "id": "clinic",
+      "role": "healing, medicine",
+      "furniture_set": ["medicine_cabinet", "desk", "closet"],
+      "loot_flavor": "meds, bandages, antibiotics, tools",
+      "npc_use": "doctors, wounded, desperate NPCs",
+      "weight_mult": { "med": 1.6 }
+    },
+    {
+      "id": "church",
+      "role": "ideology, refuge, faction law",
+      "furniture_set": ["kitchen_cabinet", "desk", "closet"],
+      "loot_flavor": "food, books, relics, donations",
+      "npc_use": "priest, cult, refugees",
+      "weight_mult": { "food": 1.2, "cash": 0.8 }
+    },
+    {
+      "id": "warehouse",
+      "role": "storage, shipments",
+      "furniture_set": ["warehouse_crate", "tool_rack"],
+      "loot_flavor": "bulk goods, parts, cargo manifests",
+      "npc_use": "workers, guards, drivers",
+      "weight_mult": { "tool": 1.3, "loot": 1.3 }
+    }
+  ]
+}

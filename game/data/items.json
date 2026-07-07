@@ -251,6 +251,42 @@
       "name": "Field ration",
       "usable": true,
       "weight": 0.5
+    },
+    {
+      "category": "loot",
+      "desc": "Someone's spare shirt and jeans. Worth a trade, warms nobody twice.",
+      "emoji": "👕",
+      "id": "clothes",
+      "name": "Clothes",
+      "usable": false,
+      "weight": 0.6
+    },
+    {
+      "category": "tool",
+      "desc": "Keeps a firearm from seizing up. Feeds a gun-cleaning kit.",
+      "emoji": "🛢️",
+      "id": "gun_oil",
+      "name": "Gun oil",
+      "usable": false,
+      "weight": 0.1
+    },
+    {
+      "category": "loot",
+      "desc": "A stamped slip where your gun used to be. The law took it, not a thief.",
+      "emoji": "📄",
+      "id": "confiscation_notice",
+      "name": "Confiscation notice",
+      "usable": false,
+      "weight": 0.02
+    },
+    {
+      "category": "loot",
+      "desc": "Someone's paperwork — a name, a date, a reason to be curious.",
+      "emoji": "📁",
+      "id": "case_file",
+      "name": "Case file",
+      "usable": false,
+      "weight": 0.2
     }
   ]
 }

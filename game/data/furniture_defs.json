@@ -1,0 +1,95 @@
+{
+  "_note": "LOOT_NPC_PRODUCTION_WANTED_SPAWN.md §14 Phase 1 — the 10 MVP containers. box = procedural box aesthetic (size [w,h,d] meters + hex color) built by furniture.gd; loot_table refs a row in loot_tables.json; requires is a simple gate stub ({} = open freely, {\"locked\": true, \"scavenging\": N} = needs that skill level — no lockpick mechanic exists yet, this is the stub the spec calls for); law_sensitivity flags what kind of law override can touch this furniture's rolls (\"none\" | \"guns\" | \"evidence\"). A new container type = a ROW.",
+  "furniture": [
+    {
+      "id": "fridge",
+      "name": "Fridge",
+      "box": { "size": [0.85, 1.6, 0.75], "color": "#d8d8d0" },
+      "tags": ["kitchen", "food", "cold"],
+      "loot_table": "furniture_fridge",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "kitchen_cabinet",
+      "name": "Kitchen cabinet",
+      "box": { "size": [0.9, 1.0, 0.4], "color": "#a9764f" },
+      "tags": ["kitchen", "food", "storage"],
+      "loot_table": "furniture_kitchen_cabinet",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "medicine_cabinet",
+      "name": "Medicine cabinet",
+      "box": { "size": [0.5, 0.6, 0.2], "color": "#e6e6e6" },
+      "tags": ["bathroom", "med"],
+      "loot_table": "furniture_medicine_cabinet",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "closet",
+      "name": "Closet",
+      "box": { "size": [1.0, 1.9, 0.55], "color": "#6b5642" },
+      "tags": ["bedroom", "clothes", "storage"],
+      "loot_table": "furniture_closet",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "desk",
+      "name": "Desk",
+      "box": { "size": [1.2, 0.75, 0.6], "color": "#5b4630" },
+      "tags": ["office", "documents", "cash"],
+      "loot_table": "furniture_desk",
+      "requires": {},
+      "law_sensitivity": "evidence"
+    },
+    {
+      "id": "cash_register",
+      "name": "Cash register",
+      "box": { "size": [0.5, 0.45, 0.4], "color": "#3d3d3d" },
+      "tags": ["shop", "cash"],
+      "loot_table": "furniture_cash_register",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "tool_rack",
+      "name": "Tool rack",
+      "box": { "size": [1.4, 1.2, 0.3], "color": "#8a8a8a" },
+      "tags": ["garage", "tool"],
+      "loot_table": "furniture_tool_rack",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "gun_safe",
+      "name": "Gun safe",
+      "box": { "size": [0.7, 1.5, 0.6], "color": "#2a2a2a" },
+      "tags": ["weapon", "locked", "restricted"],
+      "loot_table": "furniture_gun_safe",
+      "requires": { "locked": true, "scavenging": 2 },
+      "law_sensitivity": "guns"
+    },
+    {
+      "id": "warehouse_crate",
+      "name": "Warehouse crate",
+      "box": { "size": [1.1, 1.1, 1.1], "color": "#7a5c33" },
+      "tags": ["industrial", "bulk", "loot"],
+      "loot_table": "furniture_warehouse_crate",
+      "requires": {},
+      "law_sensitivity": "none"
+    },
+    {
+      "id": "police_locker",
+      "name": "Police locker",
+      "box": { "size": [0.65, 1.8, 0.55], "color": "#33465c" },
+      "tags": ["police", "weapon", "restricted"],
+      "loot_table": "furniture_police_locker",
+      "requires": { "locked": true, "scavenging": 1 },
+      "law_sensitivity": "guns"
+    }
+  ]
+}

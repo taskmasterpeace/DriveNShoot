@@ -275,6 +275,13 @@ static func build_world(root: Node3D) -> Dictionary:
 	house.position = Vector3(110, 0, -325)
 	world.add_child(house)
 	house.build()
+	# THE FURNISHER: building_types.json's furniture_set made real, right after the
+	# structure exists (root IS main here — build_world(root) is called as
+	# ProtoWorldBuilder.build_world(self) from proto3d.gd's _ready()). Placement is
+	# eager and needs no live world_state; the loot layers (building weight_mult +
+	# law override) resolve lazily on first interact(), by which point main.stream
+	# exists — see furniture.gd's _state_id_at().
+	house.furnish_interior(root)
 	var house_label := Label3D.new()
 	house_label.text = "SAFEHOUSE"
 	house_label.font_size = 180
