@@ -34,6 +34,47 @@ func _walk_distance(p: ProtoPlayer3D, frames: int) -> float:
 	return from.distance_to(p.global_position)
 
 
+## THE NO-KISS-ZONE CHECK (the crouch z-fight fix's own proof): a box's WORLD AABB,
+## built from its live global_transform — the puppet's real, running geometry, not
+## a theoretical recompute. Reads the MeshInstance3D's BoxMesh half-extents (works
+## for any box in the rig) and sweeps all 8 corners through the actual transform.
+func _world_aabb(box: MeshInstance3D) -> AABB:
+	var bm := box.mesh as BoxMesh
+	var half: Vector3 = bm.size * 0.5
+	var xform := box.global_transform
+	var lo := Vector3.INF
+	var hi := -Vector3.INF
+	for sx in [-1.0, 1.0]:
+		for sy in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				var corner := xform * (Vector3(sx, sy, sz) * half)
+				lo = lo.min(corner)
+				hi = hi.max(corner)
+	return AABB(lo, hi - lo)
+
+
+## The NO-KISS-ZONE criterion the owner set (coordinator-verified against the
+## standing-pose proof: 0.09m of stable overlap reads FINE — interpenetration per
+## se doesn't shimmer, NEAR-COPLANAR faces do). Two world AABBs on one axis (Y, the
+## vertical column where the torso/hip fight lives) are SAFE if they're either
+## clearly separated (> sep_eps) or deep-stable (overlap > deep_eps); the shallow
+## band between is the danger zone real z-fighting lives in.
+func _no_kiss_y(a: AABB, b: AABB, sep_eps: float = 0.015, deep_eps: float = 0.05) -> Dictionary:
+	# signed gap on Y: positive = separated by that much; negative = overlapping by |gap|
+	var a_bottom: float = a.position.y
+	var a_top: float = a.position.y + a.size.y
+	var b_bottom: float = b.position.y
+	var b_top: float = b.position.y + b.size.y
+	# overlap along Y (both boxes also need X/Z overlap to be a REAL 3D intersection;
+	# we check that too so a merely-adjacent-in-Y-but-offset-sideways pair isn't flagged)
+	var x_overlap: float = minf(a.position.x + a.size.x, b.position.x + b.size.x) - maxf(a.position.x, b.position.x)
+	var z_overlap: float = minf(a.position.z + a.size.z, b.position.z + b.size.z) - maxf(a.position.z, b.position.z)
+	var y_gap: float = a_bottom - b_top if a_bottom > b_bottom else b_bottom - a_top
+	var shares_footprint: bool = x_overlap > 0.0 and z_overlap > 0.0
+	var safe: bool = (not shares_footprint) or y_gap > sep_eps or y_gap < -deep_eps
+	return {"safe": safe, "y_gap": y_gap, "x_overlap": x_overlap, "z_overlap": z_overlap}
+
+
 func _ready() -> void:
 	print("CROUCH: start")
 	get_tree().create_timer(60.0).timeout.connect(func() -> void:
@@ -68,6 +109,26 @@ func _ready() -> void:
 	_check("crouched you read QUIETER (noise ×%.2f)" % p.noise_mult(),
 		p.noise_mult() < p.stealth_base * 0.6 + 0.001)
 	_check("the rig visibly SINKS (blend %.2f)" % p.puppet._crouch, p.puppet._crouch > 0.4)
+
+	# --- 2b. THE NO-KISS-ZONE FIX (owner: crouch "looks crazy/horrible... blurry" —
+	# the torso box was sweeping 0.51m deep into the hip boxes at full crouch, a
+	# math-verified z-fight). Hold at full crouch a few more frames (the blend eases
+	# in over ~0.2s) then read the REAL, live puppet transforms — no teleporting.
+	for _i in 10:
+		await get_tree().physics_frame
+	_check("crouch blend reached near-full (%.2f)" % p.puppet._crouch, p.puppet._crouch > 0.9)
+	var torso_box := p.puppet.torso
+	var hip_l_box := p.puppet._hip_l_box
+	var hip_r_box := p.puppet._hip_r_box
+	var torso_aabb := _world_aabb(torso_box)
+	var hip_l_aabb := _world_aabb(hip_l_box)
+	var hip_r_aabb := _world_aabb(hip_r_box)
+	var vs_l := _no_kiss_y(torso_aabb, hip_l_aabb)
+	var vs_r := _no_kiss_y(torso_aabb, hip_r_aabb)
+	_check("full crouch: torso/hip_l stay OUT of the kiss zone (y_gap %.4f, footprint x∩%.3f z∩%.3f)"
+		% [vs_l["y_gap"], vs_l["x_overlap"], vs_l["z_overlap"]], vs_l["safe"])
+	_check("full crouch: torso/hip_r stay OUT of the kiss zone (y_gap %.4f, footprint x∩%.3f z∩%.3f)"
+		% [vs_r["y_gap"], vs_r["x_overlap"], vs_r["z_overlap"]], vs_r["safe"])
 
 	# --- 3. Release = stand back up -------------------------------------------
 	_key(KEY_CTRL, false)

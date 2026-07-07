@@ -56,7 +56,17 @@ static func look(name_in: String) -> Dictionary:
 static var MOTION: Dictionary = {
 	"gait": {"cadence_base": 2.0, "cadence_speed": 1.15, "stride_amp": 0.6,
 		"arm_swing": 0.85, "step_bob": 0.12, "breath_amp": 0.02, "lean_turn": 0.22,
-		"crouch_drop": 0.34},
+		"crouch_drop": 0.34,
+		# CROUCH NO-KISS FIX (owner: "looks crazy/horrible... blurry" — the torso and
+		# hip boxes were z-fighting at full crouch, math-verified 0.51m AABB overlap).
+		# The fix is NOT to chase zero overlap (standing already rests 0.09m deep and
+		# reads fine — interpenetration alone doesn't shimmer, NEAR-COPLANAR faces do).
+		# Instead every pose must stay OUT of the shallow "kiss zone": either clearly
+		# separated or deep-stable (>0.05m overlap). Three levers, all ROWS:
+		"hip_fold_max": 0.40,     # was a hardcoded 0.55 inline — trimmed + promoted to a row
+		"hip_drop_frac": 0.50,    # the hip JOINT sinks this fraction of the torso's own drop
+		"hip_joint_gap": 0.03,    # small fixed clearance between the joint and the hip box's rest attach
+		"torso_scale_min": 0.81}, # torso compresses (scale.y) toward this at full crouch — the spine curls
 	# THE MELEE READ (owner: "the swing is horrible") — every timing + angle is a
 	# ROW now, tunable live in MotionForge. Stock = the retuned SNAPPY version:
 	# short coil, tight whip, fast settle — a strike, not a twirl.
@@ -105,9 +115,12 @@ var handed_sign: float = 1.0 ## +1 gun on the right (local -X? see below), -1 on
 var torso: MeshInstance3D
 var neck: Node3D
 var head: MeshInstance3D
-var legs_pivot: Node3D   ## the caller yaws this for feet-vs-body (old "_lower")
+var legs_pivot: Node3D   ## the caller yaws this for feet-vs-body (old "_lower"); ALSO the crouch drop joint
 var hip_l: Node3D
 var hip_r: Node3D
+var _hip_l_box: MeshInstance3D ## the leg mesh itself — the CROUCH no-kiss gap nudges its local Y
+var _hip_r_box: MeshInstance3D
+var _hip_box_rest_y: float = 0.0 ## the box's stock local Y offset from its pivot (before any gap)
 var free_arm: Node3D
 var aim_arm: Node3D      ## the caller yaws this to the gaze (old "_upper")
 var shoulder: Node3D     ## the REAL joint: raises/hangs/swings the gun arm (playtest: no more feet-orbit float)
@@ -193,10 +206,17 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# --- Legs (hip pivots; boxes hang DOWN so the pivot swings the stride) --
 	p.legs_pivot = Node3D.new()
 	p.add_child(p.legs_pivot)
-	p.hip_l = _limb_pivot(Vector3(-0.14, 0.78, 0), Vector3(0.17, 0.7, 0.19), pants)
-	p.hip_r = _limb_pivot(Vector3(0.14, 0.78, 0), Vector3(0.17, 0.7, 0.19), pants)
+	var leg_size := Vector3(0.17, 0.7, 0.19)
+	p.hip_l = _limb_pivot(Vector3(-0.14, 0.78, 0), leg_size, pants)
+	p.hip_r = _limb_pivot(Vector3(0.14, 0.78, 0), leg_size, pants)
 	p.legs_pivot.add_child(p.hip_l)
 	p.legs_pivot.add_child(p.hip_r)
+	# CROUCH no-kiss fix: the leg box is _limb_pivot's sole child — grab it so the
+	# animator can nudge its local Y by hip_joint_gap (a small fixed clearance the
+	# box's rest attach never had: it sits flush with the joint by construction).
+	p._hip_box_rest_y = -leg_size.y * 0.5
+	p._hip_l_box = p.hip_l.get_child(0) as MeshInstance3D
+	p._hip_r_box = p.hip_r.get_child(0) as MeshInstance3D
 
 	# --- Free arm (the non-gun side; swings with the gait) -----------------
 	var free_x := -0.29 * right # opposite the gun hand
@@ -290,9 +310,10 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		hip_r.rotation.x = maxf(hip_r.rotation.x, -0.12)
 	# CROUCH: both hips fold forward — the legs coil under the lowered body.
 	if _crouch > 0.001:
-		hip_l.rotation.x -= 0.55 * _crouch
+		var hip_fold: float = float(mg["hip_fold_max"])
+		hip_l.rotation.x -= hip_fold * _crouch
 		if _kick_t <= 0.0:
-			hip_r.rotation.x -= 0.55 * _crouch
+			hip_r.rotation.x -= hip_fold * _crouch
 
 	# FREE ARM swings opposite the gun-side leg (natural counter-swing) — unless
 	# a punch tween owns it (the off-hand jab of the combo).
@@ -324,6 +345,25 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	var drop: float = float(mg["crouch_drop"]) * _crouch
 	torso.position.y = 1.05 + breath + step_bob - drop
 	neck.position.y = 1.44 + breath + step_bob - drop * 1.47
+	# CROUCH NO-KISS FIX: at full crouch the torso's dropped+pitched bottom face swept
+	# 0.51m deep into the hip box (a fixed, math-verified overlap — the hip box's TOP
+	# always sits flush with its joint by construction, at any fold angle). Rather than
+	# chase zero intersection (proven WRONG: standing already rests 0.09m deep and reads
+	# fine — coplanar/near-touching faces shimmer, deep overlap does not), three levers
+	# keep every pose either clearly separated or safely deep (verified by crouch_sim):
+	#  1) the hip JOINT itself sinks a fraction of the torso's drop (legs_pivot, both
+	#     hips move together — no per-leg asymmetry, no knees lifting oddly)
+	#  2) the torso itself COMPRESSES (scale.y) toward a hunkered, coiled spine — this
+	#     also directly shrinks the torso's own reach toward the hips
+	#  3) a small fixed clearance between each hip joint and its box's rest attach
+	legs_pivot.position.y = -float(mg["hip_drop_frac"]) * drop
+	var torso_scale_min: float = float(mg["torso_scale_min"])
+	torso.scale.y = 1.0 - (1.0 - torso_scale_min) * _crouch
+	var hip_gap: float = float(mg["hip_joint_gap"]) * _crouch
+	if _hip_l_box:
+		_hip_l_box.position.y = _hip_box_rest_y - hip_gap
+	if _hip_r_box:
+		_hip_r_box.position.y = _hip_box_rest_y - hip_gap
 
 	# LEAN into turns (+ a slight forward lean at speed), and SLUMP when hurt.
 	var lean_target := clampf(-turn_rate * float(mg["lean_turn"]), -0.35, 0.35)
