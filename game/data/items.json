@@ -227,6 +227,15 @@
     },
     {
       "category": "tool",
+      "desc": "Opens locked doors the quiet way. Hold E at a locked car.",
+      "emoji": "🔓",
+      "id": "lockpick",
+      "name": "Lockpick",
+      "usable": false,
+      "weight": 0.1
+    },
+    {
+      "category": "tool",
       "desc": "USE to read. Gears, gas and the handbrake — the road, explained.",
       "emoji": "🚗",
       "id": "book_driving",

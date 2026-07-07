@@ -121,17 +121,19 @@ func _physics_process(delta: float) -> void:
 				_next()
 		11:
 			if phase_t > 0.5:
-				_check("no key -> hotwire prompt", main.hud.current_prompt.contains("Hotwire"))
+				# THE ENTRY LADDER (2026-07-07): the door offers the SMASH (or a quiet
+				# pick with a lockpick); hot-wiring moved to the WHEEL (car_entry_sim).
+				_check("no key -> the door offers the SMASH", main.hud.current_prompt.contains("smash"))
 				Input.action_press("interact")
 				_next()
 		12: # hold it
 			if not main.cars[1].locked:
 				Input.action_release("interact")
-				_check("HELD E hotwires the sedan (%.1fs)" % phase_t, phase_t > 3.0)
+				_check("HELD E smashes into the sedan (glass scar)", main.cars[1].window_broken)
 				_next()
 			elif phase_t > 8.0:
 				Input.action_release("interact")
-				_check("HELD E hotwires the sedan", false)
+				_check("HELD E smashes into the sedan", false)
 				_next()
 		13:
 			print("CAR RESULTS: %d passed, %d failed" % [passed, failed])

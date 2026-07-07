@@ -251,6 +251,16 @@ var spec: Dictionary = {}
 var locked: bool = false
 var key_id: String = ""
 var key_display: String = "key"
+## THE IGNITION (goal: engine start/stop): the engine is a STATE now, not a given.
+## Cars built by code default engine_on=true (sims/AI unchanged); PLAYER entry turns the
+## key — first throttle CRANKS (engine_start beat), a CRITICAL battery just clicks, and
+## no key means hot-wiring at the wheel first (main drives that). Exit kills the engine.
+signal engine_started
+var engine_on: bool = true
+var ignition: String = "key"   ## "key" | "hotwire" | "none" — set by main on player entry
+var window_broken: bool = false ## the smash-entry scar (cosmetic flag, honest history)
+var _crank_t: float = 0.0
+var _click_cd: float = 0.0
 var display_name: String = "car"
 
 ## Trailer coupling (semi + trailer only).
@@ -659,7 +669,10 @@ func interact_prompt(main: Node) -> String:
 			return "E — Hitch to the %s" % rig.display_name if rig else "(back a rig's hitch up to couple)"
 		return "E — Open trailer (%d kg tank)" % int(trunk.max_weight)
 	if locked and not main.has_key(key_id):
-		return "HOLD E — Hotwire the %s" % display_name
+		# THE ENTRY LADDER (goal): quiet with a pick, loud with a fist.
+		if "backpack" in main and main.backpack.count("lockpick") > 0:
+			return "HOLD E — 🔓 pick the lock (quiet)"
+		return "HOLD E — 🥊 smash the glass (LOUD)"
 	if locked:
 		return "E — Unlock %s (%s)" % [display_name, key_display]
 	if _at_trunk(main):
@@ -1189,15 +1202,39 @@ func _physics_process(delta: float) -> void:
 
 	engine_force = 0.0
 	brake = 0.0
-	if input_throttle > 0.0 and forward_speed < eff_top and engine_mult > 0.0:
+	# THE IGNITION: a dead engine pushes nothing. Wanting to move CRANKS it — half a
+	# second with a live battery, a dry CLICK with a critical one. No key? main runs the
+	# hot-wire at the wheel before ignition reads anything but "none".
+	if not engine_on:
+		_click_cd = maxf(0.0, _click_cd - delta)
+		if is_active and ignition != "none" and (input_throttle > 0.0 or input_brake > 0.0):
+			if components["battery"].tier() >= Damageable.Tier.CRITICAL:
+				_crank_t = 0.0
+				if _click_cd <= 0.0:
+					_click_cd = 1.2
+					if is_inside_tree():
+						var m := get_tree().current_scene
+						if m and m.has_method("notify"):
+							m.notify("🔋 click. Dead battery — it needs CAR PARTS.")
+			else:
+				_crank_t += delta
+				if _crank_t >= 0.5:
+					_crank_t = 0.0
+					engine_on = true
+					engine_started.emit()
+		else:
+			_crank_t = 0.0
+	if engine_on and input_throttle > 0.0 and forward_speed < eff_top and engine_mult > 0.0:
 		# Taper force as speed climbs — punchy low end, natural top-speed plateau.
 		# Off-road/worn-tire drag lowers BOTH the ceiling and the punch.
 		engine_force = -input_throttle * max_engine_force * engine_mult * drive_factor * lerpf(1.0, 0.45, speed_ratio)
-	if input_brake > 0.0:
+	if engine_on and input_brake > 0.0:
 		if forward_speed > 1.0:
 			brake = input_brake * max_brake
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
+	elif not engine_on and input_brake > 0.0 and forward_speed > 1.0:
+		brake = input_brake * max_brake # brakes don't need a motor
 
 	# AERODYNAMIC DRAG — a v² force opposing horizontal motion (Ander2211 ref, MIT).
 	# Additive: no-op when aero_drag == 0. Applied every frame incl. coasting.

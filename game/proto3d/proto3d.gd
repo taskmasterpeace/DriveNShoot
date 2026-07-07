@@ -243,7 +243,7 @@ func _ready() -> void:
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
 	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
 		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1,
-		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1})
+		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1, "lockpick": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -762,6 +762,23 @@ func _physics_process(delta: float) -> void:
 		elif not is_instance_valid(eye_dog) or _dog_eye_grace <= 0.0:
 			split_view.deactivate()
 			split_view.max_separation = 22.0
+	# THE WHEEL HOT-WIRE (goal — we already had hot-wiring; now it lives where it belongs):
+	# seated in a keyed car you don't own, holding the GAS works the wires — Mechanics
+	# speeds it — then the crank takes over. Progress rides the prompt chip.
+	if mode == Mode.DRIVE and active_car != null and not active_car.dead \
+			and not active_car.engine_on and active_car.ignition == "none":
+		if Input.get_action_strength("move_up") > 0.2:
+			_wire_t += delta
+			var dur := _hotwire_duration()
+			hud.show_prompt("🔌 HOT-WIRING the %s... %d%%" % [active_car.display_name, int(_wire_t / dur * 100.0)])
+			if _wire_t >= dur:
+				_wire_t = 0.0
+				active_car.ignition = "hotwire"
+				notify("🔌 Wires kissed — now CRANK it (hold the gas).")
+				grant_xp("mechanics", 12.0)
+				stress = minf(100.0, stress + 8.0)
+		else:
+			_wire_t = 0.0
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
@@ -1153,29 +1170,56 @@ func _collect_meshes(n: Node, out: Array) -> void:
 
 
 var _hotwire_t: float = 0.0
+var _wire_t: float = 0.0 ## the WHEEL hot-wire's own clock (the door hold-E owns _hotwire_t)
 
-## Hold E next to a locked car (no key) to hotwire it — slow, and later: loud.
+## THE ENTRY LADDER (goal — locks/picking/glass): hold E on a locked car and you either
+## PICK the lock (lockpick in the pack: quiet, Mechanics-scaled, the pick survives) or
+## SMASH THE GLASS with a fist (no pick: 0.6s, glass everywhere, a 55m noise the night
+## hears). Hot-wiring is no longer a door trick — it happens AT THE WHEEL (see the
+## drive block): a smashed-into car still needs wiring before it cranks.
+const SMASH_S := 0.6
+const GLASS_NOISE_M := 55.0
+
 func _update_hotwire(delta: float) -> void:
 	var target := _current_interactable as ProtoCar3D
 	var valid: bool = mode == Mode.FOOT and target != null and target.locked \
 		and not target.dead and not has_key(target.key_id)
-	var dur := _hotwire_duration() # Mechanics skill speeds this up
-	if valid and Input.is_action_pressed("interact"):
-		_hotwire_t += delta
-		hud.show_prompt("HOTWIRING the %s... %d%%" % [target.display_name, int(_hotwire_t / dur * 100.0)])
-		if _hotwire_t >= dur:
-			target.locked = false
-			_hotwire_t = 0.0
-			notify("Hotwired the %s" % target.display_name)
-			grant_xp("mechanics", 12.0)
-			stress = minf(100.0, stress + 8.0) # nerves — and later, noise/heat
-	else:
+	if not (valid and Input.is_action_pressed("interact")):
 		_hotwire_t = 0.0
+		return
+	var picking: bool = backpack.count("lockpick") > 0
+	var dur: float = _hotwire_duration() if picking else SMASH_S
+	_hotwire_t += delta
+	hud.show_prompt("%s the %s... %d%%" % ["🔓 PICKING" if picking else "🥊 SMASHING",
+		target.display_name, int(_hotwire_t / dur * 100.0)])
+	if _hotwire_t < dur:
+		return
+	_hotwire_t = 0.0
+	target.locked = false
+	if picking:
+		audio.play_at("click", target.global_position, -4.0)
+		emit_noise(target.global_position, 6.0, "pick")
+		notify("🔓 Picked the %s's lock — quiet as you like." % target.display_name)
+		grant_xp("mechanics", 12.0)
+	else:
+		target.window_broken = true
+		audio.play_at("glass_break", target.global_position, -2.0)
+		emit_noise(target.global_position, GLASS_NOISE_M, "glass")
+		notify("🥊 Glass everywhere — the %s is open, and the night HEARD it." % target.display_name)
+		stress = minf(100.0, stress + 6.0)
+		grant_xp("strength", 2.0)
 
 
-## Engine hum pitches with speed; fire crackle rides any burning car.
+## The crank caught — the engine barks awake (start/stop law: you HEAR the state change).
+func _on_engine_started(car: ProtoCar3D) -> void:
+	audio.play_at("engine_start", car.global_position, -4.0)
+	emit_noise(car.global_position, 30.0, "engine")
+
+
+## Engine hum pitches with speed; fire crackle rides any burning car — a RUNNING engine
+## only (ignition law: a dead motor is silent).
 func _update_audio_loops(delta: float) -> void:
-	if mode == Mode.DRIVE and active_car and not active_car.dead:
+	if mode == Mode.DRIVE and active_car and not active_car.dead and active_car.engine_on:
 		if _engine_loop == null or not is_instance_valid(_engine_loop):
 			_engine_loop = audio.attach_flat_loop("engine", -10.0)
 		_engine_loop.pitch_scale = 0.75 + clampf(absf(active_car.forward_speed) / maxf(active_car.top_speed, 1.0), 0.0, 1.0) * 1.5
@@ -3975,6 +4019,13 @@ func enter_car(car: ProtoCar3D) -> void:
 	active_car = car
 	car.is_active = true
 	audio.play_at("car_door", car.global_position, -6.0)
+	# THE IGNITION (goal): sitting down doesn't start anything. Keyless junkers and your
+	# own keys turn over on the first throttle; a keyed car you broke into needs the
+	# WHEEL HOT-WIRE first. The crank beat plays when the engine actually catches.
+	car.engine_on = false
+	car.ignition = "key" if (car.key_id == "" or has_key(car.key_id)) else "none"
+	if not car.engine_started.is_connected(_on_engine_started):
+		car.engine_started.connect(_on_engine_started.bind(car))
 	# ⭐ Your DRIVING rides with you into any seat.
 	car.driver_control = character.drive_control()
 	car.driver_top = character.drive_top_mult()
@@ -4045,6 +4096,7 @@ func _exit_car() -> void:
 	mode = Mode.FOOT
 	if active_car.ai_driver == null:
 		active_car.is_active = false # an AI-driven ride keeps ROLLING — you just got off
+		active_car.engine_on = false # ...and the ENGINE DIES with the door (start/stop law)
 	passenger_of_ai = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
 	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3
