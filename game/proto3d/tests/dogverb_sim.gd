@@ -88,10 +88,13 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	rex.interact(main) # the real adoption path (E on the dog)
 	_check("Rex joins the pack", rex.adopted)
+	# Stage the HEEL deterministically on the player's far side (the dog's own
+	# heel angle is random) — the fence must be CROSSED, not settled behind.
+	rex._follow_angle = PI * 1.5
 	_fence(p.global_position + Vector3(0, 0, 3.0)) # a fence across the lane
 	var flew := false
 	var crossed := false
-	for _i in 300:
+	for _i in 420:
 		await get_tree().physics_frame
 		if not rex.is_on_floor():
 			flew = true
@@ -119,10 +122,14 @@ func _ready() -> void:
 	_check("SIC LAUNCHES a pounce (airborne)", pounced)
 	_check("the pounce carries the TEETH in (bite landed)", bit)
 	foe.queue_free()
-	rex.command_heel()
+	rex.queue_free() # phase over — one dog, one job, no cross-dog noise
 	await get_tree().physics_frame
 
 	# --- 3. DIG: a Hunter unearths packed earth --------------------------------
+	# Open desert, far from Meridian's furniture: no stray stash can hog the
+	# nose's ping loop, nothing else in the interactable ring.
+	p.global_position = Vector3(300, 0.35, 700)
+	p.velocity = Vector3.ZERO
 	var belle: ProtoDog = ProtoDog.create(ProtoDog.DogType.HUNTER, "Belle", "Bloodhound")
 	main.add_child(belle)
 	belle.global_position = p.global_position + Vector3(-4, 0, 0)

@@ -1,4 +1,6 @@
 SPEC A — THE MOVESET (what your body & your dogs can do)
+STATUS (2026-07-06): ✅ THE LIVE SET IS SHIPPED — all sim-proven on real inputs:
+crouch+slide (crouch_sim 14/14) · punch/shove/tackle + MARTIAL ARTS skill w/ kick/throw/finisher gates (unarmed_sim 14/14) · grab&drag (drag_sim 12/12) · water wade/swim/drown (water_sim 12/12) · dog JUMP/POUNCE/DIG (dogverb_sim 11/11). Parked verbs remain parked.
 Design law for DRIVN: every movement verb must feed an existing system (the sight cone, cover, vehicles, co-op, loot, stamina) — not just be an animation. You already have dive/shootdodge, sprint, handbrake, seat-boarding, binoculars.
 
 KEYBINDING PRINCIPLE (decided)
