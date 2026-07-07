@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DRIVN — What's New</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* ===== THEME: DRIVN house palette — ink / bone / amber. No purple, ever. ===== */
+  :root{
+    --bg:#14110c; --bg-2:#171410; --surface:#1d1913; --surface-2:#231e16;
+    --border:#332b1e; --border-soft:#2a2418;
+    --text:#e8e0cf; --muted:#a89a80; --heading:#f5efdd;
+    --brand:#f0b429;            /* amber — links, spine, glow */
+    --accent:#e2703a;           /* rust — momentum numbers */
+    --new:#f0b429; --improved:#9fb069; --fixed:#3fb950; --security:#56b4d4;
+    --grid:rgba(240,180,41,.03);
+    --font-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+    --font-body:"Hanken Grotesk",ui-sans-serif,system-ui,sans-serif;
+    --font-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",monospace;
+    --radius:14px; --maxw:50rem;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; color:var(--text); background:var(--bg);
+    font-family:var(--font-body); font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; letter-spacing:-0.006em;
+    background-image:
+      radial-gradient(120% 70% at 50% -8%, color-mix(in oklab, var(--brand) 14%, transparent), transparent 62%),
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size:auto, 34px 34px, 34px 34px;
+    min-height:100vh;
+  }
+  .filter-state{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  .wrap{position:relative;z-index:1;max-width:var(--maxw);margin:0 auto;padding:clamp(2.2rem,6vw,4.5rem) 1.35rem 4rem}
+  .eyebrow{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
+    font-size:.72rem;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--brand)}
+  .eyebrow::before{content:"";width:1.6rem;height:1px;background:var(--brand);opacity:.7}
+  .title{font-family:var(--font-display);font-weight:700;color:var(--heading);
+    font-size:clamp(2.1rem,6vw,3.4rem);line-height:1.02;letter-spacing:-0.03em;margin:.7rem 0 .5rem}
+  .title em{font-style:normal;color:var(--brand)}
+  .tagline{color:var(--muted);font-size:1.06rem;margin:0;max-width:34rem}
+  .momentum{display:flex;flex-wrap:wrap;gap:0;margin:2rem 0 .5rem;
+    border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);overflow:hidden}
+  .stat{flex:1 1 8rem;padding:1.05rem 1.25rem;border-right:1px solid var(--border-soft)}
+  .stat:last-child{border-right:0}
+  .stat .n{font-family:var(--font-mono);font-weight:600;font-size:1.5rem;color:var(--accent);line-height:1}
+  .stat .l{display:block;margin-top:.35rem;font-size:.74rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+  .filters{display:flex;flex-wrap:wrap;gap:.5rem;margin:2.4rem 0 2rem;position:sticky;top:0;
+    padding:.85rem 0;z-index:5;background:linear-gradient(var(--bg) 72%,transparent)}
+  .chip{display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;user-select:none;
+    font-size:.85rem;font-weight:600;color:var(--muted);padding:.4rem .8rem;border-radius:999px;
+    border:1px solid var(--border);background:var(--surface);transition:all .18s ease}
+  .chip:hover{color:var(--text);border-color:color-mix(in oklab,var(--brand) 40%,var(--border))}
+  .chip .ct{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);
+    background:var(--bg-2);border-radius:999px;padding:.05rem .4rem;min-width:1.5rem;text-align:center}
+  .chip .dot{width:.5rem;height:.5rem;border-radius:50%}
+  .dot.new{background:var(--new)} .dot.improved{background:var(--improved)}
+  .dot.fixed{background:var(--fixed)} .dot.security{background:var(--security)}
+  #cat-all:checked      ~ .wrap .chip[for=cat-all],
+  #cat-new:checked      ~ .wrap .chip[for=cat-new],
+  #cat-improved:checked ~ .wrap .chip[for=cat-improved],
+  #cat-fixed:checked    ~ .wrap .chip[for=cat-fixed],
+  #cat-security:checked ~ .wrap .chip[for=cat-security]{
+    color:var(--heading);border-color:var(--brand);
+    background:color-mix(in oklab,var(--brand) 16%, var(--surface));box-shadow:0 0 0 1px color-mix(in oklab,var(--brand) 30%,transparent)}
+  .timeline{position:relative;padding-left:1.9rem}
+  .timeline::before{content:"";position:absolute;left:.42rem;top:.4rem;bottom:.4rem;width:2px;
+    background:linear-gradient(var(--brand),color-mix(in oklab,var(--brand) 8%,transparent))}
+  .release{position:relative;margin-bottom:2.6rem;animation:rise .6s cubic-bezier(.2,.7,.3,1) both;
+    animation-delay:calc(var(--i,0) * 80ms)}
+  .release::before{content:"";position:absolute;left:-1.66rem;top:.5rem;width:.85rem;height:.85rem;border-radius:50%;
+    background:var(--bg);border:2px solid var(--brand);box-shadow:0 0 0 4px color-mix(in oklab,var(--brand) 14%,transparent)}
+  .rel-head{display:flex;align-items:center;flex-wrap:wrap;gap:.6rem .75rem;margin-bottom:.2rem}
+  .vtag{font-family:var(--font-mono);font-weight:600;font-size:.86rem;color:var(--brand);
+    border:1px solid color-mix(in oklab,var(--brand) 45%,var(--border));border-radius:7px;padding:.12rem .5rem;
+    background:color-mix(in oklab,var(--brand) 10%,transparent)}
+  .rel-head time{font-family:var(--font-mono);font-size:.78rem;color:var(--muted)}
+  .rel-name{font-family:var(--font-display);font-weight:600;color:var(--heading);font-size:1.18rem;letter-spacing:-0.02em}
+  .rel-theme{color:var(--muted);font-style:italic;margin:.1rem 0 1rem;font-size:.96rem}
+  .changes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.6rem}
+  .change{display:grid;grid-template-columns:auto 1fr;gap:.85rem;align-items:start;
+    background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--c);border-radius:11px;
+    padding:.85rem 1rem;transition:transform .18s ease,border-color .18s ease,background .18s ease}
+  .change:hover{transform:translateX(3px);background:var(--surface-2);
+    border-color:color-mix(in oklab,var(--c) 55%,var(--border))}
+  .change--new{--c:var(--new)} .change--improved{--c:var(--improved)}
+  .change--fixed{--c:var(--fixed)} .change--security{--c:var(--security)}
+  .badge{font-family:var(--font-mono);font-size:.64rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--c);background:color-mix(in oklab,var(--c) 16%,transparent);
+    border:1px solid color-mix(in oklab,var(--c) 35%,transparent);border-radius:6px;padding:.2rem .42rem;margin-top:.12rem;white-space:nowrap}
+  .change h3{margin:0;font-size:.99rem;font-weight:700;color:var(--heading);letter-spacing:-0.01em}
+  .change p{margin:.2rem 0 0;font-size:.92rem;color:var(--muted)}
+  #cat-new:checked      ~ .wrap .change:not(.change--new),
+  #cat-improved:checked ~ .wrap .change:not(.change--improved),
+  #cat-fixed:checked    ~ .wrap .change:not(.change--fixed),
+  #cat-security:checked ~ .wrap .change:not(.change--security){display:none}
+  #cat-new:checked      ~ .wrap .release:not(:has(.change--new)),
+  #cat-improved:checked ~ .wrap .release:not(:has(.change--improved)),
+  #cat-fixed:checked    ~ .wrap .release:not(:has(.change--fixed)),
+  #cat-security:checked ~ .wrap .release:not(:has(.change--security)){display:none}
+  .foot{margin-top:1rem;padding-top:1.6rem;border-top:1px solid var(--border-soft);
+    display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem;color:var(--muted);font-size:.85rem}
+  .foot a{color:var(--brand);text-decoration:none}
+  .foot a:hover{text-decoration:underline}
+  .foot .mono{font-family:var(--font-mono)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion:reduce){.release{animation:none}*{scroll-behavior:auto}}
+  @media (max-width:480px){.stat{flex-basis:50%;border-bottom:1px solid var(--border-soft)}}
+</style>
+</head>
+<body>
+  <input class="filter-state" type="radio" name="cat" id="cat-all" checked>
+  <input class="filter-state" type="radio" name="cat" id="cat-new">
+  <input class="filter-state" type="radio" name="cat" id="cat-improved">
+  <input class="filter-state" type="radio" name="cat" id="cat-fixed">
+  <input class="filter-state" type="radio" name="cat" id="cat-security">
+
+  <main class="wrap">
+    <header class="masthead">
+      <span class="eyebrow">Shipping Log</span>
+      <h1 class="title">What's new in <em>DRIVN</em></h1>
+      <p class="tagline">Top-down vehicular survival across the Divided States — built in public, every feature sim-proven before it ships.</p>
+
+      <div class="momentum">
+        <div class="stat"><span class="n">3</span><span class="l">Releases</span></div>
+        <div class="stat"><span class="n">20</span><span class="l">Updates shipped</span></div>
+        <div class="stat"><span class="n">~95</span><span class="l">Test scenarios green</span></div>
+        <div class="stat"><span class="n">Today</span><span class="l">Last shipped</span></div>
+      </div>
+    </header>
+
+    <nav class="filters" aria-label="Filter by category">
+      <label class="chip" for="cat-all">All <span class="ct">20</span></label>
+      <label class="chip" for="cat-new"><span class="dot new"></span>New <span class="ct">15</span></label>
+      <label class="chip" for="cat-improved"><span class="dot improved"></span>Improved <span class="ct">4</span></label>
+      <label class="chip" for="cat-fixed"><span class="dot fixed"></span>Fixed <span class="ct">1</span></label>
+    </nav>
+
+    <section class="timeline">
+      <!-- RELEASES:START -->
+      <article class="release" style="--i:0">
+        <div class="rel-head">
+          <span class="vtag">v0.11.0</span>
+          <time datetime="2026-07-06">2026-07-06</time>
+          <span class="rel-name">The Remote Eye &amp; The Fun Pass</span>
+        </div>
+        <p class="rel-theme">The world changed while you were gone? Send the bird before you send yourself — and bring a friend.</p>
+        <ul class="changes">
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>The scout drone flies your route while you stay home.</h3>
+            <p>A dock by the safehouse door launches it along your map course. It marks hazards on your map, comes home to charge — and it can be shot down and lost out there.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Co-op that keeps you together.</h3>
+            <p>Name tags over your partner, an arrow that always points to them, respawn beside them instead of across the map, a bed rig parked and waiting, and horns that carry over the wire.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>PvP with rules you can read.</h3>
+            <p>Peace, duel, or free-for-all — one key cycles it. The safehouse yard is holy ground, kills post a bounty everyone can see on your tag, and your machine decides what hurts you.</p></div></li>
+          <li class="change change--improved"><span class="badge">Improved</span>
+            <div><h3>Every walk, wag, and leap is now live-tunable data.</h3>
+            <p>The animator's numbers moved into rows the MotionForge editor drives — tweak in the browser, reload in-game, watch the stride change.</p></div></li>
+        </ul>
+      </article>
+
+      <article class="release" style="--i:1">
+        <div class="rel-head">
+          <span class="vtag">v0.10.0</span>
+          <time datetime="2026-07-06">2026-07-06</time>
+          <span class="rel-name">The Cinema Update</span>
+        </div>
+        <p class="rel-theme">The wasteland got screens: a TV in your safehouse, a drive-in off the highway, and a world that broadcasts its own news.</p>
+        <ul class="changes">
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>The safehouse TV.</h3>
+            <p>Press E and watch your own film catalog inside the game. Time passes while a reel rolls — downtime costs daylight, on purpose.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>The drive-in theater.</h3>
+            <p>A glowing screen off the Meridian road. Fire the projector: trailers first, then the feature. Drive off mid-show and it stops for you.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Films as loot.</h3>
+            <p>DVDs, tapes, and reels lie in the world — take one and that exact film unlocks on your shelf, forever. New films scatter their own pickups automatically.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Public screens with channels.</h3>
+            <p>Bar TVs run loops nobody chose. When a faction takes the state, the screen retunes to their feed — and breaking news cuts in.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>The world reports itself.</h3>
+            <p>A state falls → the TV says so. A bounty lands on your head → the radio says so. Two channels, two screens, one world.</p></div></li>
+          <li class="change change--improved"><span class="badge">Improved</span>
+            <div><h3>The radio and TV each drain their own news.</h3>
+            <p>The dial can't eat the television's bulletins anymore — each screen airs its own.</p></div></li>
+        </ul>
+      </article>
+
+      <article class="release" style="--i:2">
+        <div class="rel-head">
+          <span class="vtag">v0.9.0</span>
+          <time datetime="2026-07-06">2026-07-06</time>
+          <span class="rel-name">The Moveset + The Media Forges</span>
+        </div>
+        <p class="rel-theme">Your body learned to fight bare-handed, your dog learned to jump, and the game grew a film-studio pipeline.</p>
+        <ul class="changes">
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Hold CTRL to crouch — one new key, a whole stealth layer.</h3>
+            <p>You read smaller and quieter, fit under low gaps, and tapping it at a sprint converts your speed into a slide.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Empty hands are a weapon.</h3>
+            <p>Tap to punch a real combo, hold to shove space open, strike at a sprint to tackle someone flat — and the new Martial Arts skill unlocks kicks, throws, and ground finishers as you use it.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Drag bodies and crates where you need them.</h3>
+            <p>Hold E to haul — slow, heavy, and it builds Strength.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Water is real terrain.</h3>
+            <p>Wade the shallows, swim the open — it drains your lungs and takes your hands off your weapons. Empty lungs and the water starts taking you.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>Your dogs got their verbs.</h3>
+            <p>They leap fences to stay at your heel, attacks become flying pounces, and Hunters smell buried caches and dig them up.</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>MotionForge — animation as sliders and sentences.</h3>
+            <p>Every gait in the game is editable numbers in a web tool — or just type "make the sniff deeper and slower."</p></div></li>
+          <li class="change change--new"><span class="badge">New</span>
+            <div><h3>MediaForge — drop MP4s, get in-game media.</h3>
+            <p>One click converts your films to the engine's format with a poster and runtime, ready for the TV and the drive-in. MP3 folders feed the radio.</p></div></li>
+          <li class="change change--improved"><span class="badge">Improved</span>
+            <div><h3>The whole movement kit reads as one body.</h3>
+            <p>Sprint, combat stance, the dive, and the new low stance all respect each other.</p></div></li>
+          <li class="change change--fixed"><span class="badge">Fixed</span>
+            <div><h3>Dogs no longer panic over vanished targets.</h3>
+            <p>An attack order on a target that died mid-chase used to spam errors every frame. It doesn't anymore.</p></div></li>
+        </ul>
+      </article>
+      <!-- RELEASES:END -->
+    </section>
+
+    <footer class="foot">
+      <span>Built in public · <span class="mono">v0.11.0</span> · updated 2026-07-06</span>
+      <a href="SHIPPING-LOG.md">View the full log →</a>
+    </footer>
+  </main>
+</body>
+</html>

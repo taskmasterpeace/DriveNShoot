@@ -1,6 +1,19 @@
 # 📣 DRIVN — What's New
 
-Built in public · shipping daily · v0.10.0
+Built in public · shipping daily · v0.11.0
+
+## v0.11.0 — July 6, 2026 — The Remote Eye & The Fun Pass
+*The world changed while you were gone? Send the bird before you send yourself — and bring a friend.*
+
+### 🆕 New
+- **The scout drone flies your route while you stay home.** A dock by the safehouse door launches it along your map course; it marks hazards on your map (the 🛸 waypoint), comes home to recharge — and it can be shot down and lost out there. Every launch boots with a fragment of the AI that broke the country.
+- **Co-op that keeps you together.** Name tags over your partner, an arrow that always points to them, respawn beside them instead of across the map, a bed rig parked by the safehouse for the drive-and-shoot fantasy, and horns that carry over the wire.
+- **PvP with rules you can read.** One key cycles peace → duel → free-for-all. The safehouse yard is holy ground (no spawn camping), kills post a bounty everyone sees on your tag, and your own machine decides what's allowed to hurt you.
+
+### ✨ Improved
+- **Every walk, wag, and leap is live-tunable data.** The animator's numbers now live in rows the MotionForge editor drives — tweak in the browser, hit reload in-game, watch the stride change on the next step.
+
+---
 
 ## v0.10.0 — July 6, 2026 — The Cinema Update
 *The wasteland got screens: a TV in your safehouse, a drive-in off the highway, and a world that broadcasts its own news.*
