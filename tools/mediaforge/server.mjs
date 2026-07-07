@@ -246,6 +246,8 @@ const HELP = {
 		"POST   /api/convert {file,category,title?,id?} -> encode to .ogv + poster + upsert row (file is relative to game/media; responds when done — poll /api/jobs meanwhile)",
 		"POST   /api/testclip                  -> generate the 12s synthetic DRIVN TEST REEL into clips/test_pattern + row",
 		"POST   /api/testmusic                 -> generate test mp3s into music/radio + music/game",
+		"GET    /api/stations                  -> NAMED RADIO STATIONS (each subfolder of music/radio = a station; loose root mp3s = FREEWAVE)",
+		"POST   /api/stations {name}           -> create a station folder (name slugs to snake_case; drop mp3s in it and it's on the dial)",
 		"GET    /api/jobs                      -> in-memory job log (progress % + ffmpeg stderr tail)",
 		"PATCH  /api/media?id=X {fields}       -> edit row fields (title, series, season, episode, unlock_type, unlock_region, screen_context, priority, requires_pack)",
 		"DELETE /api/media?id=X                -> remove the row (files stay on disk)",
@@ -357,6 +359,32 @@ const server = createServer(async (req, res) => {
 				job.status = "failed"; job.error = String(e); job.finished = new Date().toISOString();
 				return json(res, 500, { error: String(e), job: job.job });
 			} finally { busy = false; }
+		}
+
+		// ---- NAMED RADIO STATIONS (owner ask): a folder of mp3s = a station -----
+		if (url.pathname === "/api/stations" && req.method === "GET") {
+			const radio = join(MEDIA, "music", "radio");
+			const out = [];
+			for (const e of readdirSync(radio, { withFileTypes: true })) {
+				if (!e.isDirectory()) continue;
+				const tracks = readdirSync(join(radio, e.name)).filter((f) => f.endsWith(".mp3"));
+				out.push({ id: e.name, name: e.name.replace(/_/g, " ").toUpperCase(),
+					dir: `game/media/music/radio/${e.name}`, tracks: tracks.length, files: tracks });
+			}
+			const loose = readdirSync(radio).filter((f) => f.endsWith(".mp3"));
+			if (loose.length) out.push({ id: "freewave", name: "FREEWAVE (loose root mp3s)",
+				dir: "game/media/music/radio", tracks: loose.length, files: loose });
+			return json(res, 200, { stations: out });
+		}
+		if (url.pathname === "/api/stations" && req.method === "POST") {
+			const raw = String(body.name || "").trim();
+			if (!raw) return json(res, 400, { error: "need name (e.g. 'Chicago Radio')" });
+			const slug = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+			if (!slug) return json(res, 400, { error: "name slugs to nothing — use letters/numbers" });
+			const dir = join(MEDIA, "music", "radio", slug);
+			mkdirSync(dir, { recursive: true });
+			return json(res, 200, { ok: true, id: slug, name: slug.replace(/_/g, " ").toUpperCase(),
+				dir: `game/media/music/radio/${slug}`, note: "drop mp3s in the folder — it's on the dial next launch (L cycles stations, O powers the set)" });
 		}
 
 		if (url.pathname === "/api/media" && req.method === "PATCH") {

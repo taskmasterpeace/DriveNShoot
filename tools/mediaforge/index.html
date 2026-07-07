@@ -84,6 +84,12 @@
 			<div style="height:6px"></div>
 			<button class="big" id="testmusic" title="two synthetic beds → music/radio + music/game — proves the music folders">♪ GENERATE TEST MUSIC</button>
 		</div>
+		<h2 class="bar">Radio stations (a folder of mp3s = a station)</h2>
+		<div class="pad" id="stationlist"></div>
+		<div class="pad" style="display:flex;gap:6px">
+			<input id="stationname" placeholder="new station name (e.g. Chicago Radio)" style="flex:1">
+			<button class="big" id="stationmake" style="flex:0 0 auto">+ CREATE</button>
+		</div>
 		<h2 class="bar">Music folders (mp3, no conversion needed)</h2>
 		<div class="pad" id="musiclist"></div>
 		<h2 class="bar">Job log</h2>
@@ -111,7 +117,7 @@ const fmtRT = (s) => !s ? "—" : s >= 3600 ? `${Math.floor(s/3600)}h${String(Ma
 async function load() {
 	const [m, s] = await Promise.all([api("/api/media"), api("/api/scan")]);
 	media = m.media; scan = s;
-	renderLibrary(); renderScan(); renderMusic();
+	renderLibrary(); renderScan(); renderMusic(); renderStations();
 	const enc = media.filter((x) => x.encoded_exists).length;
 	$("#info").innerHTML = `<b>${media.length}</b> rows (<b>${enc}</b> encoded) · source <b>game/data/media_manifest.json</b>`;
 }
@@ -201,6 +207,27 @@ function renderMusic() {
 	}).join("");
 	el.innerHTML = html;
 }
+
+// ---- NAMED RADIO STATIONS: a folder of mp3s = a station on the in-game dial ----
+async function renderStations() {
+	const el = $("#stationlist");
+	try {
+		const r = await api("/api/stations");
+		el.innerHTML = r.stations.map((s) =>
+			`<div class="mus"><b>📻 ${esc(s.name)}</b><span>${s.tracks} track${s.tracks === 1 ? "" : "s"} · ${esc(s.dir)}</span></div>`).join("")
+			|| `<div class="mus">— no stations — create one below, drop mp3s in its folder</div>`;
+	} catch (e) { el.innerHTML = `<div class="mus failed">${esc(e.message)}</div>`; }
+}
+$("#stationmake").onclick = async () => {
+	const name = $("#stationname").value.trim();
+	if (!name) return flash("name the station first");
+	try {
+		const r = await api("/api/stations", { method: "POST", body: JSON.stringify({ name }) });
+		flash(`📻 ${r.name} created — drop mp3s in ${r.dir}`);
+		$("#stationname").value = "";
+		renderStations();
+	} catch (e) { flash("FAILED: " + e.message); }
+};
 
 // ---- jobs: poll while a conversion runs, paint progress + stderr tail ----
 function startPolling() {

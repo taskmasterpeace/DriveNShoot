@@ -30,6 +30,10 @@
     {"id": "drivn_fire_drive", "label": "Fire from the wheel",  "group": "DRIVING", "keys": ["mouse:left"], "pad": ["joy:lb"]},
 
     {"id": "drivn_radio",  "label": "Radio scan",               "group": "WORLD", "keys": ["key:Y"], "pad": ["joy:dpad_up"]},
+    {"id": "drivn_radio_power",   "label": "Radio power on/off", "group": "WORLD", "keys": ["key:O"], "pad": []},
+    {"id": "drivn_radio_station", "label": "Radio next station", "group": "WORLD", "keys": ["key:L"], "pad": []},
+    {"id": "drivn_radio_vol_down", "label": "Radio volume down", "group": "WORLD", "keys": ["key:Comma"], "pad": []},
+    {"id": "drivn_radio_vol_up",   "label": "Radio volume up",   "group": "WORLD", "keys": ["key:Period"], "pad": []},
     {"id": "drivn_pack",   "label": "Pack / trunk",             "group": "WORLD", "keys": ["key:TAB"], "pad": ["joy:dpad_down"]},
     {"id": "drivn_map",    "label": "Map / atlas",              "group": "WORLD", "keys": ["key:M"], "pad": ["joy:start"]},
     {"id": "drivn_sheet",  "label": "Character sheet",          "group": "WORLD", "keys": ["key:K"], "pad": ["joy:dpad_right"]},

@@ -532,6 +532,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			panel.open(backpack, null) # just your pack
 	elif event.is_action_pressed("drivn_radio"):
 		radio.scan() # sweep the dial — the wasteland talks if you listen
+	elif event.is_action_pressed("drivn_radio_power"):
+		# THE CAR STEREO (owner ask): O flips the power. A powered station keeps
+		# playing track after track — named stations are FOLDERS of mp3s.
+		if music.toggle_power():
+			notify("📻 ON — %s (vol %d%%) · L next station · ,/. volume" % [music.station_name(), music.volume_pct])
+		else:
+			notify("📻 radio OFF")
+	elif event.is_action_pressed("drivn_radio_station"):
+		if music.next_station():
+			notify("📻 %s%s" % [music.station_name(), "" if music.power_on else " (radio is OFF — O to power)"])
+		else:
+			notify("📻 …no stations. Drop mp3s in game/media/music/radio/<station_name>/")
+	elif event.is_action_pressed("drivn_radio_vol_down"):
+		music.set_volume_pct(music.volume_pct - 10)
+		notify("📻 volume %d%%" % music.volume_pct)
+	elif event.is_action_pressed("drivn_radio_vol_up"):
+		music.set_volume_pct(music.volume_pct + 10)
+		notify("📻 volume %d%%" % music.volume_pct)
 	elif event.is_action_pressed("drivn_save"):
 		save_game()
 	elif event.is_action_pressed("drivn_load"):
