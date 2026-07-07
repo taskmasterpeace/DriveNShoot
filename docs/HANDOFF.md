@@ -44,6 +44,11 @@
 >   canonical). Everything else is a code-referenced living contract or an unbuilt spec.
 >
 > ### 🎮 THINGS TO PLAYTEST (owner: DO → EXPECT, in one drive)
+> 0. **⚒ THE TEST GROUNDS (new, 8b2c3c0):** N-waypoint to it (south field, out the
+>    safehouse door past the interstate). Everything below is STAGED there with signs:
+>    every rig in the MOTOR POOL, the full ARMORY + SUPPLY, the RANGE's self-healing
+>    dummies, the STABLE, the walled GATOR PEN, the HUNTER DIG SPOT, and direction
+>    signs to I-95's traffic/convoys, the TV, and Meridian.
 > 1. **Restart the game** (the running instance predates today's merges).
 > 2. Drive onto **I-95**: expect a real six-lane — twin carriageways, white lane strips,
 >    a concrete median you cannot cross (find an exit), oncoming traffic safely across it.
