@@ -63,6 +63,10 @@ func _ready() -> void:
 
 	# --- Phase 5: channel rows tune a public screen --------------------------------
 	var scr: ProtoPublicScreen = main.public_screen
+	# REGRESSION (the "emergency tone" bug): an ambient wall TV's video audio is
+	# NON-positional — unmuted it blares the loop across the whole map. It MUST
+	# stay muted (visual ambience only).
+	_check("the ambient public screen is MUTED (no map-wide blare)", scr._video.volume_db < -40.0)
 	_check("channel rows FOLDED from data (faith_voice is a row)",
 		ProtoPublicScreen.CHANNELS.any(func(c): return String(c.get("id", "")) == "faith_voice"))
 	scr.tune()

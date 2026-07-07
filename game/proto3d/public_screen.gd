@@ -67,6 +67,11 @@ static func create(main: Node) -> ProtoPublicScreen:
 	s._video = VideoStreamPlayer.new()
 	s._video.expand = true
 	s._video.size = Vector2(256, 144)
+	# AMBIENT = VISUAL ONLY. A VideoStreamPlayer's audio is NON-positional, so an
+	# always-on wall TV would blare across the whole compressed map (the "emergency
+	# tone" bug — the test reel is a 440 Hz sine). Muted: you SEE the screen glow,
+	# you don't hear it map-wide. (Audible bar TVs later = positional-audio work.)
+	s._video.volume_db = -80.0
 	s._viewport.add_child(s._video)
 	s._video.finished.connect(s._next)
 	var screen := MeshInstance3D.new()
