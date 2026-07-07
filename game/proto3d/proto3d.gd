@@ -901,6 +901,9 @@ func _physics_process(delta: float) -> void:
 
 	# Waypoint arrow + world streaming
 	var cam := get_viewport().get_camera_3d()
+	# THE VISIBLE RIDER (rider_exposed rigs): saddle pin + riding pose + live aim arm.
+	if mode == Mode.DRIVE and active_car != null and not character.dead and bool(active_car.spec.get("rider_exposed", false)):
+		_pose_exposed_rider(delta)
 	var body_pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
 	stream.update_stream(body_pos, self)
 	if waypoint_idx >= 0 and cam:
@@ -2450,6 +2453,8 @@ func fire_from_vehicle() -> void:
 	var origin: Vector3 = active_car.global_position \
 		+ Vector3(0, active_car.spec["chassis"].y * 0.5 + 0.7, 0) \
 		- active_car.global_basis.x * 0.5 # the driver's window
+	if bool(active_car.spec.get("rider_exposed", false)):
+		origin = player.muzzle_world() # THE VISIBLE RIDER: the shot leaves the gun you can SEE
 	# The FULL 3D line, not flattened: the window sits HIGH (semi cab higher yet) —
 	# a horizontal ray sails over heads. Shots angle DOWN to the aim point.
 	var shot := aim_point() - origin
@@ -4059,8 +4064,17 @@ func enter_car(car: ProtoCar3D) -> void:
 	car.driver_control = character.drive_control()
 	car.driver_top = character.drive_top_mult()
 	player.is_active = false
-	player.visible = false
+	# THE VISIBLE RIDER (owner: "I want to SEE a model on the motorcycle — we
+	# need the arm for aiming"): an EXPOSED rig (rider_exposed row) keeps the
+	# puppet in the saddle — visible, pinned, aim arm live (_pose_exposed_rider
+	# runs it per frame). Roofed cabs still hide the driver (no read through a
+	# roof). Colliders drop either way so the ghost body never blocks the rig.
+	var exposed := bool(car.spec.get("rider_exposed", false))
+	player.visible = exposed
 	player.process_mode = Node.PROCESS_MODE_DISABLED
+	for pc in player.get_children():
+		if pc is CollisionShape3D:
+			(pc as CollisionShape3D).disabled = true
 	cam_rig.target = car
 	hud.set_mode(true)
 	# THE PACK RIDES ALONG: nearby dogs hop in, up to the class's dog_seats
@@ -4117,6 +4131,31 @@ func _unboard_dogs(car: ProtoCar3D) -> void:
 			c.unboard(car.global_position + car.global_basis.x * (1.8 + 0.7 * i) + Vector3(0, 0.4, 0))
 
 
+## THE VISIBLE RIDER's frame (owner: the arm must AIM): pin the body to the
+## saddle, pose it riding, and keep the aim arm on the mouse while armed — the
+## same twin-stick law the walker lives by, read from the seat of a motorcycle.
+func _pose_exposed_rider(delta: float) -> void:
+	if active_car == null or player.puppet == null:
+		return
+	var seat: Vector3 = active_car.global_transform * Vector3(0, float(active_car.spec["chassis"].y) * 0.5 + 0.32, 0.12)
+	player.global_position = seat
+	var wpn := current_weapon()
+	var armed := wpn != null and not wpn.is_melee()
+	player.set_armed(armed)
+	_apply_hand_pose(wpn)
+	player.puppet.raised = armed
+	player.puppet.rotation.y = wrapf(active_car.rotation.y - player.rotation.y, -PI, PI)
+	player.puppet.pose_riding(delta, armed)
+	if armed:
+		var to_aim: Vector3 = aim_point() - player.puppet.global_position
+		to_aim.y = 0.0
+		if to_aim.length_squared() > 0.01:
+			player.puppet.aim_arm.rotation.y = wrapf(
+				ProtoPlayer3D._yaw_of(to_aim.normalized()) - player.puppet.global_rotation.y, -PI, PI)
+	else:
+		player.puppet.aim_arm.rotation.y = move_toward(player.puppet.aim_arm.rotation.y, 0.0, 8.0 * delta)
+
+
 func _exit_car() -> void:
 	if active_car == null:
 		return
@@ -4132,6 +4171,9 @@ func _exit_car() -> void:
 	out_pos.y = active_car.global_position.y + 0.3
 	player.global_position = out_pos
 	player.velocity = Vector3.ZERO
+	for pc in player.get_children():
+		if pc is CollisionShape3D:
+			(pc as CollisionShape3D).disabled = false # the walker gets his body back
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.visible = true
 	player.is_active = true

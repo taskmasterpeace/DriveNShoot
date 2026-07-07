@@ -606,6 +606,38 @@ func recoil() -> void:
 	recoil_kick({"kick_pitch": 0.4, "stagger_threshold": 999.0}, 0)
 
 
+## THE SADDLE POSE (owner: "see a model on the motorcycle — we need the arm for
+## aiming"): rider_exposed rigs pose the puppet ON the seat every frame — hips
+## folded, knees gripping the tank, the free hand on the bar. Armed, the gun
+## arm holds LEVEL and the caller yaws aim_arm at the mouse (the twin-stick law,
+## from the saddle); unarmed, both hands ride the bars. Direct writes — while
+## mounted, animate() never runs, so there is no ownership fight.
+func pose_riding(delta: float, armed_aim: bool) -> void:
+	var k := clampf(10.0 * delta, 0.0, 1.0)
+	hip_l.rotation.x = lerpf(hip_l.rotation.x, -1.2, k)
+	hip_r.rotation.x = lerpf(hip_r.rotation.x, -1.2, k)
+	knee_l.rotation.x = lerpf(knee_l.rotation.x, 1.35, k)
+	knee_r.rotation.x = lerpf(knee_r.rotation.x, 1.35, k)
+	foot_l.rotation.x = lerpf(foot_l.rotation.x, -0.15, k)
+	foot_r.rotation.x = lerpf(foot_r.rotation.x, -0.15, k)
+	torso.rotation.x = lerpf(torso.rotation.x, 0.30, k) # leaned into the bars
+	torso.rotation.z = lerpf(torso.rotation.z, 0.0, k)
+	neck.rotation.x = lerpf(neck.rotation.x, -0.22, k)  # eyes up the road
+	free_arm.rotation.x = lerpf(free_arm.rotation.x, -0.95, k) # the bar hand
+	free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
+	free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
+	elbow_l.rotation.x = lerpf(elbow_l.rotation.x, -0.5, k)
+	if armed_aim:
+		shoulder.rotation.x = lerpf(shoulder.rotation.x, 0.0, k) # level iron
+		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, 0.0, k)
+		hand.rotation.x = lerpf(hand.rotation.x, 0.0, k)
+	else:
+		shoulder.rotation.y = move_toward(shoulder.rotation.y, 0.0, 6.0 * delta)
+		shoulder.rotation.x = lerpf(shoulder.rotation.x, -0.95, k) # the other bar
+		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, -0.5, k)
+		hand.rotation.x = lerpf(hand.rotation.x, HAND_CARRY, k)
+
+
 ## A body that has fallen: torso back and down, limbs limp. Blended in over ~0.3s.
 func _pose_dead() -> void:
 	var b := _dead_blend
