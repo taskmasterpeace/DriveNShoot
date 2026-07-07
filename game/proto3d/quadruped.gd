@@ -25,6 +25,13 @@ var _t: float = 0.0
 var _phase: float = 0.0
 var _tuck: float = 0.0
 var _flinch: float = 0.0 ## hit reaction — the whole animal jolts
+## AIRBORNE (MOVESET.txt JUMP/POUNCE): 1 = mid-leap — front legs REACH, hinds
+## trail, head up. The dog sets air_target off is_on_floor(); the blend eases.
+var air_target: float = 0.0
+var _air: float = 0.0
+## DIG: 1 = paws to work — head to the ground, a front leg scraping fast.
+var dig_target: float = 0.0
+var _dig: float = 0.0
 
 
 static func create(params_in: Dictionary = {}) -> ProtoQuadruped:
@@ -101,9 +108,23 @@ func animate(delta: float, speed: float, morale: float) -> void:
 	legs[1].rotation.x = b  # FR
 	legs[2].rotation.x = b  # BL
 
-	# Head DIPS to sniff when slow/idle; rides level at speed.
+	# AIRBORNE: the leap pose overrides the trot — front legs REACH, hinds trail.
+	_air = move_toward(_air, clampf(air_target, 0.0, 1.0), delta * 7.0)
+	if _air > 0.01:
+		legs[0].rotation.x = lerpf(legs[0].rotation.x, -0.9, _air)
+		legs[1].rotation.x = lerpf(legs[1].rotation.x, -0.9, _air)
+		legs[2].rotation.x = lerpf(legs[2].rotation.x, 0.8, _air)
+		legs[3].rotation.x = lerpf(legs[3].rotation.x, 0.8, _air)
+
+	# DIG: one front paw SCRAPES fast while the body plants (dirt flies).
+	_dig = move_toward(_dig, clampf(dig_target, 0.0, 1.0), delta * 7.0)
+	if _dig > 0.01:
+		legs[0].rotation.x = lerpf(legs[0].rotation.x, -0.5 + sin(_t * 18.0) * 0.55, _dig)
+
+	# Head DIPS to sniff when slow/idle; rides level at speed. A dig buries the
+	# nose in the ground; a leap carries it high.
 	var sniff := (-0.25 + sin(_t * 3.0) * 0.12) if speed < 1.5 else 0.0
-	neck.rotation.x = lerp(neck.rotation.x, sniff, clampf(6.0 * delta, 0.0, 1.0))
+	neck.rotation.x = lerp(neck.rotation.x, sniff - 0.4 * _dig + 0.35 * _air, clampf(6.0 * delta, 0.0, 1.0))
 
 	# Body lilt with the gait — plus a HIT JOLT (Rung 6): a struck animal flinches up
 	# and hunches, so every hit reads on the body, not just a health bar.

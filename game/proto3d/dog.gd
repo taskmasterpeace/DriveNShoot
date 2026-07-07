@@ -5,7 +5,7 @@ class_name ProtoDog
 extends CharacterBody3D
 
 enum DogType { SECURITY, HUNTER, COMPANION, CUDDLE }
-enum DogState { STRAY, FOLLOW, STAY, ALERT, GUARD, SIC, SEEK }
+enum DogState { STRAY, FOLLOW, STAY, ALERT, GUARD, SIC, SEEK, DIG }
 
 ## Per-type tuning: [follow_dist, run_speed, threat_radius, rear_bonus, nose_radius, calm_aura, size, color]
 const TYPE_PARAMS: Dictionary = {
@@ -75,6 +75,12 @@ var _alert_face: Vector3 = Vector3.ZERO
 var _scan_t: float = 0.0
 var _threat_cooldown: float = 0.0
 var _pinged_stashes: Array = []
+## MOVESET.txt verbs: the auto-JUMP cooldown, the POUNCE launch cooldown, and
+## the DIG job (a Hunter unearthing a buried cache).
+var _jump_cd: float = 0.0
+var _pounce_cd: float = 0.0
+var _dig_target: ProtoBuriedCache = null
+var _dig_t: float = 0.0
 var _obey_queue: Array = [] ## [ [time_left, state] ] — obedience delay per type
 var _wag_t: float = 0.0
 var _stuck_t: float = 0.0
@@ -486,6 +492,8 @@ func _physics_process(delta: float) -> void:
 
 	_threat_cooldown = maxf(0.0, _threat_cooldown - delta)
 	_bite_cd = maxf(0.0, _bite_cd - delta)
+	_jump_cd = maxf(0.0, _jump_cd - delta)
+	_pounce_cd = maxf(0.0, _pounce_cd - delta)
 
 	# MEMORY LINE: a dog that hasn't eaten says so — once a day, when you're close
 	# enough to hear it (the nag is a nudge, not a siren).
@@ -518,14 +526,21 @@ func _physics_process(delta: float) -> void:
 		DogState.GUARD:
 			_do_guard(delta)
 		DogState.SIC:
-			if not _chase_and_bite(sic_target, delta):
+			# Guard BEFORE the typed call: a freed target (howler burned off, foe
+			# despawned) would bounce off the Node3D parameter check every frame.
+			if sic_target == null or not is_instance_valid(sic_target) \
+					or not _chase_and_bite(sic_target, delta):
 				sic_target = null
 				state = DogState.FOLLOW if adopted else DogState.STRAY
 		DogState.SEEK:
 			_do_seek(delta)
+		DogState.DIG:
+			_do_dig(delta)
 
-	# The rig reads STATE: legs run off speed, the tail wags/tucks off MORALE.
+	# The rig reads STATE: legs run off speed, the tail wags/tucks off MORALE —
+	# and a body off the floor flies the LEAP pose (jump/pounce read from above).
 	if _quad:
+		_quad.air_target = 0.0 if is_on_floor() else 1.0
 		_quad.animate(delta, velocity.length(), morale())
 
 	move_and_slide()
@@ -560,6 +575,14 @@ func _do_follow(delta: float) -> void:
 				velocity += side * p["speed"] * 0.8
 		else:
 			_stuck_t = 0.0
+		# AUTO-JUMP (MOVESET.txt, the money moment): a low thing between the dog
+		# and your heel — fence, crate, truck bed — and the dog LEAPS it instead
+		# of pinballing. Knee ray blocked + head-height ray clear = jumpable.
+		if is_on_floor() and _jump_cd <= 0.0 and velocity.length() > 1.0 and _leap_blocked(dir):
+			velocity.y = 7.2
+			velocity.x = dir.x * maxf(speed, 6.0)
+			velocity.z = dir.z * maxf(speed, 6.0)
+			_jump_cd = 0.9
 		velocity.x = move_toward(velocity.x, dir.x * speed, 22.0 * delta)
 		velocity.z = move_toward(velocity.z, dir.z * speed, 22.0 * delta)
 		var yaw := atan2(-dir.x, -dir.z)
@@ -618,8 +641,15 @@ func _chase_and_bite(target: Node3D, delta: float) -> bool:
 	var spd: float = p["speed"]
 	var to_t := target.global_position - global_position
 	to_t.y = 0.0
-	if to_t.length() > 1.5:
+	var d := to_t.length()
+	if d > 1.5:
 		var dir := to_t.normalized()
+		# POUNCE (MOVESET.txt): inside the launch window SIC leaves the GROUND —
+		# a leaping tackle that carries the teeth in. The read the pack fears.
+		if d < 3.6 and is_on_floor() and _pounce_cd <= 0.0 and ProtoWeapon.melee_clear(self, target):
+			velocity = dir * maxf(spd * 1.1, 8.0)
+			velocity.y = 5.2
+			_pounce_cd = 2.2
 		velocity.x = move_toward(velocity.x, dir.x * spd, 22.0 * delta)
 		velocity.z = move_toward(velocity.z, dir.z * spd, 22.0 * delta)
 		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 12.0 * delta)
@@ -628,6 +658,54 @@ func _chase_and_bite(target: Node3D, delta: float) -> bool:
 		velocity.z = move_toward(velocity.z, 0.0, 18.0 * delta)
 		_bite(target)
 	return true
+
+
+## Is there a LOW obstacle between the dog and where it's going — something a
+## real dog would clear in a bound? Knee ray hits, head-height ray doesn't.
+func _leap_blocked(dir: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	var from := global_position + Vector3(0, 0.25, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * 1.6)
+	q.exclude = [get_rid()]
+	if space.intersect_ray(q).is_empty():
+		return false
+	var high := global_position + Vector3(0, 1.15, 0)
+	var q2 := PhysicsRayQueryParameters3D.create(high, high + dir * 2.4)
+	q2.exclude = [get_rid()]
+	return space.intersect_ray(q2).is_empty()
+
+
+## THE DIG (MOVESET.txt): a Hunter walks to the packed earth its nose flagged,
+## plants, and PAWS IT OPEN — the buried cache becomes loot on the ground.
+func _do_dig(delta: float) -> void:
+	if _dig_target == null or not is_instance_valid(_dig_target) or _dig_target.taken:
+		_dig_target = null
+		_dig_t = 0.0
+		if _quad:
+			_quad.dig_target = 0.0
+		state = DogState.FOLLOW if adopted else DogState.STRAY
+		return
+	var to_t := _dig_target.global_position - global_position
+	to_t.y = 0.0
+	if to_t.length() > 1.1:
+		var dir := to_t.normalized()
+		var p: Dictionary = params()
+		velocity.x = move_toward(velocity.x, dir.x * float(p["speed"]) * 0.8, 22.0 * delta)
+		velocity.z = move_toward(velocity.z, dir.z * float(p["speed"]) * 0.8, 22.0 * delta)
+		_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.z), 10.0 * delta)
+		return
+	velocity.x = move_toward(velocity.x, 0.0, 20.0 * delta)
+	velocity.z = move_toward(velocity.z, 0.0, 20.0 * delta)
+	if _quad:
+		_quad.dig_target = 1.0 # paws to work — dirt flies
+	_dig_t += delta
+	if _dig_t >= 2.2:
+		_dig_t = 0.0
+		if _quad:
+			_quad.dig_target = 0.0
+		_dig_target.unearth(_main, self)
+		_dig_target = null
+		state = DogState.FOLLOW if adopted else DogState.STRAY
 
 
 func _bite(target: Node3D) -> void:
@@ -734,4 +812,17 @@ func _sense_nose() -> void:
 					_alert_t = 1.6
 					if main.has_method("on_dog_nose"):
 						main.on_dog_nose(self, stash)
+					break
+			elif node is ProtoBuriedCache:
+				# THE DIG (MOVESET.txt): packed earth only a digger can open —
+				# the nose flags it, then the dog goes and PAWS IT OUT itself.
+				var cache := node as ProtoBuriedCache
+				if cache.taken or _pinged_stashes.has(cache):
+					continue
+				if global_position.distance_to(cache.global_position) <= p["nose_radius"]:
+					_pinged_stashes.append(cache)
+					_dig_target = cache
+					_queue_state(DogState.DIG)
+					if main.has_method("notify"):
+						main.notify("🐾 %s smells something UNDER the dirt — it starts digging!" % dog_name)
 					break
