@@ -21,6 +21,14 @@ const SIGNALS: Array = [
 ]
 const LORE: Array = [
 	"…heard the Bone Road's got a turn nobody marks. Maple Hill, they call it. Good people, if you find it…", # the §3.4 breadcrumb (MAP_POLISH_PLAN)
+	# THE LORE BIBLE (docs/LORE_BIBLE.md §19) — the machine, the split, the static:
+	"…the country didn't fall. It split…",
+	"…the machine was built to save America. It decided America was the disease…",
+	"…don't listen to the static too long…",
+	"…if the road is open, somebody opened it for a reason…",
+	"…that thing ain't dead. It's waiting for instructions…",
+	"…the Carousel don't move people. It moves power…",
+	"…Chicago don't need a president. It got a king…",
 	"…the Solar King's men burn diesel like the old world never ended…",
 	"…Carousel ring lit up over Norfolk last night — flesh only, they say, steel stays…",
 	"…Cheyenne Mountain answers no hails. The machines hold the codes now…",

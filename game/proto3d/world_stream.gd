@@ -339,7 +339,25 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	# --- Biome content --------------------------------------------------------
 	match biome:
 		"forest":
-			_trees(chunk, center, rng, 52 if near_road else 40, road)
+			# THE FRONTIER LAW (owner + lore bible): eastern forest is DENSE and
+			# collidable — deep woods off the road are car-proof but a horse or a
+			# motorcycle threads the trunks (solid gaps >= ~1.5m clear the bike's
+			# 0.9m bars, never a 1.9m+ car). The west stays open country. Roads
+			# always keep their cleared shoulders — the road is the way through.
+			var deep := road.is_empty() or float(road.get("dist", 999.0)) > 140.0
+			var east_x := center.x > -10000.0
+			var mid_x := center.x > -35000.0 and not east_x
+			var solid := 5
+			var visual := 52 if near_road else 40
+			if deep and east_x:
+				solid = 34
+				visual = 72
+			elif deep and mid_x:
+				solid = 16
+				visual = 52
+			elif deep:
+				solid = 8
+			_trees(chunk, center, rng, visual, road, solid)
 		"farmland":
 			_crops(chunk, center, rng)
 			if rng.randf() < 0.14:
@@ -354,6 +372,19 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				_trees(chunk, center, rng, 3, road)
 			if near_road and rng.randf() < 0.35:
 				_trees(chunk, center, rng, 9, road) # a small roadside copse
+			# WILD HORSES (frontier goal + the animal-location tune): mustang
+			# country is the WEST — open plains chunks graze a catchable horse
+			# (E mounts; same rig as the stable's). East keeps them rare.
+			var horse_p := 0.09 if center.x < -35000.0 else (0.05 if center.x < -10000.0 else 0.025)
+			if rng.randf() < horse_p:
+				var wild := ProtoHorse.create("mustang" if center.x < -10000.0 else "draft")
+				chunk.add_child(wild)
+				wild.set_meta("wild_horse", true)
+				var hoff := Vector3(rng.randf_range(-45, 45), 0.3, rng.randf_range(-45, 45))
+				if road.is_empty() or ProtoUSMap._seg_dist(Vector2(center.x + hoff.x, center.z + hoff.z), road["a"], road["b"]) > float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 8.0:
+					wild.position = center + hoff
+				else:
+					wild.position = center + Vector3(0, 0.3, 55)
 		"scrub":
 			_scatter(chunk, center, rng, 26, Color(0.33, 0.36, 0.22))
 		"desert":
@@ -362,13 +393,18 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				ProtoWorldBuilder.box_visual(chunk, Vector3(3.5, 0.03, 3.5),
 					center + Vector3(rng.randf_range(-55, 55), 0.015, rng.randf_range(-55, 55)), Color(0.55, 0.44, 0.27))
 		"mountains":
-			for i in rng.randi_range(3, 5):
-				var rpos := center + Vector3(rng.randf_range(-52, 52), 0, rng.randf_range(-52, 52))
+			# THE RIDGE LAW (frontier goal): deep mountains (no road near) stack
+			# REAL rock — a wall of outcrops cars cannot cross; horses and bikes
+			# pick between them; the road through is the only easy line.
+			var deep_mtn := road.is_empty() or float(road.get("dist", 999.0)) > 140.0
+			for i in rng.randi_range(7, 10) if deep_mtn else rng.randi_range(3, 5):
+				var rpos := center + Vector3(rng.randf_range(-56, 56), 0, rng.randf_range(-56, 56))
 				if _on_new_road(rpos, key):
 					continue
-				var rh := rng.randf_range(2.2, 5.5)
-				ProtoWorldBuilder.box_body(chunk, Vector3(rng.randf_range(4, 9), rh, rng.randf_range(4, 9)),
+				var rh := rng.randf_range(2.2, 5.5) * (1.5 if deep_mtn else 1.0)
+				var rock := ProtoWorldBuilder.box_body(chunk, Vector3(rng.randf_range(4, 11), rh, rng.randf_range(4, 11)),
 					rpos + Vector3(0, rh * 0.5 - 0.4, 0), Color(0.46, 0.44, 0.42), rng.randf_range(0, TAU))
+				rock.set_meta("ridge_rock", true)
 			_scatter(chunk, center, rng, 14, Color(0.42, 0.40, 0.37))
 		"swamp":
 			for i in 4:
@@ -643,7 +679,7 @@ func _on_new_road(pos: Vector3, key: String) -> bool:
 
 ## A stand of trees: MultiMesh trunks + canopies (cheap), a few SOLID trunks
 ## (forests are obstacles), all kept off the asphalt.
-func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, road: Dictionary) -> void:
+func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, road: Dictionary, solid_count: int = 5) -> void:
 	var spots: Array[Vector3] = []
 	var guard := 0
 	while spots.size() < count and guard < count * 8:
@@ -681,9 +717,23 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk.add_child(mmi)
 	chunk.add_to_group("biome_trees")
-	# A few trunks are REAL — you cannot drive through a forest at full song.
-	for i in mini(5, spots.size()):
-		ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 3.0, 0.5), spots[i] + Vector3(0, 1.5, 0), Color(0.30, 0.22, 0.14))
+	# REAL trunks — you cannot drive through a forest at full song. Dense woods
+	# (the frontier law) plant MANY, spaced so a bike/horse threads (centers
+	# >= 2.0m apart = ~1.5m clear gaps) and a car cannot. Tagged for sims.
+	var solids: Array[Vector3] = []
+	for i in spots.size():
+		if solids.size() >= solid_count:
+			break
+		var ok := true
+		for sp in solids:
+			if sp.distance_to(spots[i]) < 2.0:
+				ok = false
+				break
+		if not ok:
+			continue
+		solids.append(spots[i])
+		var trunk := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 3.0, 0.5), spots[i] + Vector3(0, 1.5, 0), Color(0.30, 0.22, 0.14))
+		trunk.set_meta("dense_trunk", true)
 
 
 ## Crop rows: farmland reads as WORKED LAND from the driver's seat.

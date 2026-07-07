@@ -30,6 +30,12 @@ const T1_NAMES = {
 	"I-40": ["BONE ROAD FUEL", "DUST ROW", "QUARRY GATE", "THE SUNKEN RAMP", "WAGON WHEEL STOP", "PINE FLATS", "SMELTER SPUR", "CROSSTIE REST"],
 	"I-10": ["FURNACE MILE 9", "THE SAND TRAP", "BORDER WELLS", "HEAT SHIMMER PUMPS", "CACTUS ROW", "LAST SHADE"],
 	"I-90": ["COLD MILE ONE", "SNOW FENCE ROWS", "THE DRIFT", "SIGNAL BLUFF", "PRAIRIE SIDING", "FROSTLINE FUEL", "THE LONG QUIET"],
+
+	"I-70": ["TOLL PLAZA NINE", "LEDGER FUEL", "THE AUDIT STOP", "REPO FLATS", "CONTRACT ROW", "TERMINAL WEST"],
+	"I-5": ["ORCHARD GATE", "CANNERY SIDING", "GREEN MILE", "THE COLD CHAIN", "PICKER'S REST", "FOG LINE"],
+	"I-35": ["DUST MILE", "THE EMPTY QUARTER", "WINDMILL STOP", "COYOTE CROSSING", "THE LONG FENCE"],
+	"I-25": ["HIGH PLAINS FUEL", "THE DIVIDE", "ANTELOPE GATE", "THIN AIR STOP"],
+	"I-80": ["THE FIRST WRECK", "BURNT AXLE", "THE RUNNING LINE", "DEADMAN'S MERGE", "THE LAST STRAIGHT", "GAUNTLET FUEL"],
 };
 
 const CORRIDORS = {
@@ -89,6 +95,61 @@ const CORRIDORS = {
 		{ f: 0.80, arch: "industrial", tier: "T2", name: "GRAIN SCALE SIDING" },
 		{ f: 0.90, arch: "dead", tier: "T1" },
 	],
+	// THE WESTERN PASS (frontier goal + lore bible): the east is settled and
+	// watched; the west is long, thin, and mean. Corporate ledgers on I-70,
+	// the Produce Line's port metro on I-5, two honest 2-lane country roads,
+	// and THE GAUNTLET (the Crimson Road's home turf) on I-80.
+	"I-70": [
+		{ f: 0.10, arch: "service", tier: "T1" },
+		{ f: 0.20, arch: "industrial", tier: "T1" },
+		{ f: 0.30, arch: "neighborhood", tier: "T2", name: "REPO YARDS", town: "repo-yards", purpose: "salvage" },
+		{ f: 0.40, arch: "dead", tier: "T1" },
+		{ f: 0.50, arch: "service", tier: "T1" },
+		{ f: 0.60, arch: "county_seat", tier: "T3", name: "THE CLEARINGHOUSE", town: "the-clearinghouse", purpose: "law" },
+		{ f: 0.72, arch: "industrial", tier: "T1" },
+		{ f: 0.82, arch: "neighborhood", tier: "T1" },
+		{ f: 0.90, arch: "dead", tier: "T1" },
+	],
+	"I-5": [
+		{ f: 0.10, arch: "service", tier: "T1" },
+		{ f: 0.20, arch: "neighborhood", tier: "T2", name: "CANNERY ROW", town: "cannery-row", purpose: "farm" },
+		{ f: 0.30, arch: "industrial", tier: "T1" },
+		{ f: 0.40, arch: "service", tier: "T1" },
+		{ f: 0.52, arch: "metro", tier: "T3", name: "SAN PERDIDO", town: "san-perdido", purpose: "metro" },
+		{ f: 0.62, arch: "neighborhood", tier: "T1" },
+		{ f: 0.72, arch: "dead", tier: "T1" },
+		{ f: 0.82, arch: "service", tier: "T2", name: "THE GREENGATE", town: "the-greengate", purpose: "market" },
+		{ f: 0.90, arch: "industrial", tier: "T1" },
+	],
+	"I-35": [
+		{ f: 0.12, arch: "service", tier: "T1" },
+		{ f: 0.25, arch: "dead", tier: "T1" },
+		{ f: 0.38, arch: "neighborhood", tier: "T2", name: "DUSTCROSS", town: "dustcross", purpose: "market" },
+		{ f: 0.52, arch: "service", tier: "T1" },
+		{ f: 0.65, arch: "industrial", tier: "T1" },
+		{ f: 0.78, arch: "neighborhood", tier: "T1" },
+		{ f: 0.90, arch: "dead", tier: "T1" },
+	],
+	"I-25": [
+		{ f: 0.15, arch: "service", tier: "T1" },
+		{ f: 0.30, arch: "neighborhood", tier: "T1" },
+		{ f: 0.45, arch: "dead", tier: "T1" },
+		{ f: 0.60, arch: "service", tier: "T2", name: "HIGH LONESOME", town: "high-lonesome", purpose: "fuel" },
+		{ f: 0.75, arch: "industrial", tier: "T1" },
+		{ f: 0.88, arch: "neighborhood", tier: "T1" },
+	],
+	"I-80": [
+		{ f: 0.08, arch: "dead", tier: "T1" },
+		{ f: 0.16, arch: "service", tier: "T1" },
+		{ f: 0.25, arch: "industrial", tier: "T2", name: "CHOPLINE", town: "chopline", purpose: "salvage" },
+		{ f: 0.34, arch: "dead", tier: "T1" },
+		{ f: 0.43, arch: "service", tier: "T1" },
+		{ f: 0.52, arch: "military_spur", tier: "T1", name: "SILO GATE" },
+		{ f: 0.62, arch: "neighborhood", tier: "T1" },
+		{ f: 0.72, arch: "county_seat", tier: "T3", name: "TOLLKEEP", town: "tollkeep", purpose: "law" },
+		{ f: 0.82, arch: "dead", tier: "T1" },
+		{ f: 0.90, arch: "service", tier: "T1" },
+	],
 };
 
 // Phase D building sets by purpose (§3.2 table; ids must exist in the catalog).
@@ -104,6 +165,9 @@ const PURPOSE_BUILDINGS = {
 	wharf: ["courthouse", "market_general", "warehouse"],
 	railyard: ["junkyard", "auto_shop", "police_station"],
 	maple: ["junkyard", "auto_shop", "farmhouse_field", "market_general", "house_small", "house_small"],
+
+	metro: ["courthouse", "police_station", "market_general", "motel_strip", "diner_roadside", "warehouse", "house_small", "house_small"],
+	crown: ["courthouse", "police_station", "market_general", "motel_strip", "church_small", "house_small", "house_small"],
 };
 
 const arcOf = (pts) => {
@@ -253,6 +317,65 @@ async function main() {
 		await post("/api/paint", { biome: "swamp", cells: cellList });
 		console.log(`ALLIGATOR ALLEY: ${cellList.length} cells painted swamp`);
 	}
+
+	// --- THE CROWN (lore bible: TruFoe's Chicago) — a CITY beside Rail Yard Seven,
+	// identity buildings per the bible's major-city list. Not a new exit: the
+	// I-90 T3 already anchors it; the city is the destination it feeds.
+	const townsLive = await get("/api/towns");
+	const railYard = townPos["rail-yard-seven"] || townsLive.find((t) => t.id === "rail-yard-seven");
+	if (railYard && !townsLive.some((t) => t.id === "chicago")) {
+		const ry = railYard.pos;
+		townPos["chicago"] = { pos: [ry[0] + 620, ry[1] - 380], name: "CHICAGO — BLACK BEANIE CROWN", purpose: "crown", tier: "T3" };
+	}
+	// (Rebuild the town/placement loop for any late additions like the Crown.)
+	for (const [id, t] of Object.entries(townPos)) {
+		if (id !== "chicago") continue;
+		await post("/api/towns", { id, name: t.name, pos: t.pos, kind: "holdout" });
+		placedTowns++;
+		await post("/api/stamp_template", { template: "hamlet", pos: t.pos, name: t.name }).catch(() => {});
+		const set = PURPOSE_BUILDINGS[t.purpose] || [];
+		let k = 0;
+		for (const b of set) {
+			if (!catalogIds.has(b)) continue;
+			const ang = (k / Math.max(1, set.length)) * Math.PI * 2;
+			await post("/api/placements", { building: b,
+				pos: [Math.round(t.pos[0] + Math.cos(ang) * 65), Math.round(t.pos[1] + Math.sin(ang) * 65)],
+				rot: Math.round(((ang + Math.PI) % (Math.PI * 2)) * 100) / 100 });
+			placedBuildings++;
+			k++;
+		}
+	}
+
+	// --- BACKROADS & SHORTCUTS (frontier goal): 2-lane country links between
+	// communities on DIFFERENT highways — the drifter's shortcuts, off the
+	// interstates' watched lanes. Winding on purpose; ambient traffic ignores
+	// them (interstate-only) — these belong to the player, horses, and bikes.
+	const backPairs = [
+		["rosewood", "fairweather-cross", "BR-piedmont"],
+		["hollowpoint", "braggs-shadow", "BR-hollow-run"],
+		["quartermasters-rest", "tollkeep", "BR-quartermaster-cut"],
+		["dustcross", "high-lonesome", "BR-dust-lonesome"],
+		["cannery-row", "san-perdido", "BR-orchard-lane"],
+	];
+	const townsNow = await get("/api/towns");
+	const posOf = (id) => (townPos[id] ? townPos[id].pos : (townsNow.find((t) => t.id === id) || {}).pos);
+	const roadsNow = await get("/api/roads");
+	let backroads = 0;
+	for (const [a, b, id] of backPairs) {
+		const pa = posOf(a), pb = posOf(b);
+		if (!pa || !pb || roadsNow.some((r) => r.id === id)) continue;
+		const d = [pb[0] - pa[0], pb[1] - pa[1]];
+		const len = Math.hypot(d[0], d[1]);
+		const n = [-d[1] / len, d[0] / len];
+		const pts = [pa,
+			[Math.round(pa[0] + d[0] * 0.25 + n[0] * len * 0.07), Math.round(pa[1] + d[1] * 0.25 + n[1] * len * 0.07)],
+			[Math.round(pa[0] + d[0] * 0.5 - n[0] * len * 0.05), Math.round(pa[1] + d[1] * 0.5 - n[1] * len * 0.05)],
+			[Math.round(pa[0] + d[0] * 0.75 + n[0] * len * 0.06), Math.round(pa[1] + d[1] * 0.75 + n[1] * len * 0.06)],
+			pb];
+		await post("/api/roads", { id, kind: "backroad", pts, danger: 2, nickname: "BACKROAD" });
+		backroads++;
+	}
+	console.log("BACKROADS: " + backroads + " country links laid");
 
 	console.log(`\nCORRIDOR PASS COMPLETE: ${placedExits} exits, ${placedTowns} towns, ${placedBuildings} purpose buildings.`);
 }
