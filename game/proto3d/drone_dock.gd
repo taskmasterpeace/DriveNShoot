@@ -1,0 +1,86 @@
+## THE SAFEHOUSE DRONE DOCK (LIVING_WORLD_DSOA Phase 3): the helipad by the
+## door. E launches a ROUTE SCOUT along your map course (or straight up the
+## nearest road if no course is set) — the bird flies out, MARKS hazards on the
+## map, and comes home to charge. Your body never leaves the couch: this is how
+## you check the streets after the world changed without you.
+class_name ProtoDroneDock
+extends Node3D
+
+var charging: bool = false ## just landed — a beat before relaunch
+var flights: int = 0
+var _main: Node = null
+var _charge_t: float = 0.0
+
+
+static func create(main: Node) -> ProtoDroneDock:
+	var d := ProtoDroneDock.new()
+	d._main = main
+	d.add_to_group("interactable")
+	var pad := MeshInstance3D.new()
+	var pm := BoxMesh.new()
+	pm.size = Vector3(1.6, 0.12, 1.6)
+	pad.mesh = pm
+	pad.material_override = ProtoWorldBuilder.material(Color(0.22, 0.24, 0.26), 0.8)
+	pad.position.y = 0.06
+	d.add_child(pad)
+	var mark := MeshInstance3D.new()
+	var mm := BoxMesh.new()
+	mm.size = Vector3(0.9, 0.02, 0.14)
+	mark.mesh = mm
+	mark.material_override = ProtoWorldBuilder.material(Color(0.96, 0.72, 0.2), 0.5, true)
+	mark.position.y = 0.13
+	d.add_child(mark)
+	return d
+
+
+func interact_position() -> Vector3:
+	return global_position
+
+
+func interact_prompt(main: Node) -> String:
+	if "drone" in main and main.drone != null and is_instance_valid(main.drone):
+		return "🛸 The bird is OUT (battery %d%%)" % int((main.drone as ProtoDrone).battery_pct())
+	if charging:
+		return "🛸 Dock recharging…"
+	return "E — 🛸 Launch the SCOUT (flies your course, marks hazards, comes home)"
+
+
+func interact(main: Node) -> void:
+	if charging or ("drone" in main and main.drone != null and is_instance_valid(main.drone)):
+		return
+	# The route: your COURSE pin if you set one (the 🧭 waypoint), else straight
+	# up the road north — the bird always has somewhere to look.
+	var target: Vector3 = global_position + Vector3(0, 0, -120.0)
+	if "waypoints" in main:
+		for wp in main.waypoints:
+			if String(wp[0]).begins_with(String(main.COURSE_PREFIX)) and wp[1] is Vector3:
+				target = wp[1]
+				break
+	var bird := ProtoDrone.launch_route(main, self, target)
+	main.add_child(bird)
+	bird.global_position = global_position + Vector3(0, 1.0, 0)
+	main.drone = bird
+	flights += 1
+	if main.has_method("notify"):
+		# The boot line is the LORE keystone: every drone still runs the old
+		# national AI's firmware — the thing that carved the states up.
+		main.notify("🛸 [BOOT: FEDNET-OPTIMIZER v9 — REQUESTS SUSPENDED] Scout away — it flies the route, you keep the couch.")
+
+
+## The bird is home: charge a beat, ready again. Reusable — a dock, not a vending machine.
+func dock_drone(bird: ProtoDrone) -> void:
+	charging = true
+	_charge_t = 4.0
+	if _main != null:
+		if _main.has_method("notify"):
+			_main.notify("🛸 The bird is HOME — %d hazard%s marked this flight." % [bird.marks, "" if bird.marks == 1 else "s"])
+		if "drone" in _main:
+			_main.drone = null
+	bird.queue_free()
+
+
+func _physics_process(delta: float) -> void:
+	if charging:
+		_charge_t -= delta
+		if _charge_t <= 0.0:
+			charging = false

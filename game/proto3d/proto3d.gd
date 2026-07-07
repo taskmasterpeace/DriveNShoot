@@ -335,6 +335,7 @@ var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
 var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
 var public_screen: ProtoPublicScreen = null ## the bar set on the cross street
+var drone_dock: ProtoDroneDock = null ## the helipad by the safehouse door
 
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
@@ -423,6 +424,11 @@ func _build_environment() -> void:
 	add_child(public_screen)
 	public_screen.global_position = Vector3(82, 0, -297)
 	public_screen.power_on()
+	# THE DRONE DOCK by the safehouse door (LIVING_WORLD Phase 3): launch a route
+	# scout without your body leaving home — the remote eye of the return loop.
+	drone_dock = ProtoDroneDock.create(self)
+	add_child(drone_dock)
+	drone_dock.global_position = SAFEHOUSE + Vector3(3.0, 0, -3.5)
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
@@ -1437,6 +1443,18 @@ func set_home() -> void:
 ## MAP-PICKED COURSE: click a town (or any spot) on the atlas → a single course
 ## waypoint, selected on the spot so the arrow points there the moment you close
 ## the map. Only ever one course at a time (a new pick replaces the old).
+## The DRONE's report lands on the map (LIVING_WORLD Phase 3): one 🛸 HAZARD
+## waypoint, always the freshest mark — N cycles to it like any other pin.
+func mark_hazard(pos: Vector3) -> void:
+	pos.y = 0.0
+	for i in range(waypoints.size() - 1, -1, -1):
+		if String(waypoints[i][0]).begins_with("🛸 HAZARD"):
+			waypoints.remove_at(i)
+			waypoint_idx = mini(waypoint_idx, waypoints.size() - 1)
+	waypoints.append(["🛸 HAZARD (drone mark)", pos])
+	hud.toast("🛸 Hazard MARKED on the map")
+
+
 func set_map_course(label: String, pos: Vector3) -> void:
 	pos.y = 0.0
 	# Drop any existing course first (identity = the compass prefix).

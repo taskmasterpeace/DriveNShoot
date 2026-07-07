@@ -25,6 +25,10 @@ const LORE: Array = [
 	"…Cheyenne Mountain answers no hails. The machines hold the codes now…",
 	"…scrip's only paper. Meridian honors it. Most holdouts honor iron…",
 	"…if the dust rolls in, park it. Your eyes go before your tires do…",
+	# THE KEYSTONE (COOP_PVP_MOBILE lore): the collapse wasn't bombs — it was
+	# LOGISTICS. One national AI "optimized" the country into territories. Every
+	# drone, ring, and relay still speaks its protocol. One world, one ghost.
+	"…same handshake on every band, coast to coast. The optimizer never went dark. It just stopped taking requests…",
 ]
 
 var _main: Node = null
