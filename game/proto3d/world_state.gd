@@ -163,6 +163,11 @@ func _apply_takeover(state: String, faction: String, law_id: String, digest: Dic
 	queue_broadcast("radio",
 		"%s: %s reports %s is under new law. All unlicensed firearms must be surrendered. Curfew begins at dusk." % [voice, voice, state],
 		digest)
+	# THE TV SAYS SO TOO (cinema.md Phase 6): the set's lower-third carries the
+	# takeover — the same news through the second screen, drained by the SET.
+	queue_broadcast("tv",
+		"%s UNDER NEW LAW — %s. Unlicensed firearms now contraband. Checkpoint activity rising." % [state.to_upper(), faction],
+		digest)
 
 
 ## Queue a diegetic bulletin. Text-first ALWAYS works (the fallback stack's floor — a missing

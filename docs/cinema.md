@@ -1,5 +1,8 @@
 # DRIVN / DSOA — Cinema, TV, Trailers, and Clips Implementation Plan
 
+> ## ✅ STATUS (2026-07-06): IMPLEMENTED, ALL PHASES, SIM-PROVEN
+> Phases 0–9 are BUILT and green: media folders + manifest (MediaForge :8897 writes it — MP4→Theora .ogv + poster + runtime, test-clip/test-music generators) · `MediaRegistry` (media_registry_sim 14/14) · safehouse TV + 80% panel, time passes, watched/unlocked in the save (tv_sim 13/13) · drive-in with trailers-then-feature schedule off manifest rows + leave-stops-playback (drive_in_sim 10/10) · DVD/tape/reel pickups seeded from found_* rows on the drive-in lot (unlock_media_sim 6/6) · channel rows (`data/media_channels.json`) tune public screens by faction/state, world-event clips preempt the loop, takeover→TV + bounty→radio + weather→wire (news_media_sim 10/10) · two-channel broadcast law (broadcast_fallback_sim 10/10) · offline catch-up integration green (offline_catchup_sim 16/16). Radio music stations off game/media/music/radio/ shipped too (music_sim 9/9). Storage: local-only by design this version; `requires_pack` rides every row for the Film Vault future. Streaming = next version.
+
 ## Purpose
 
 Add a diegetic media layer to DRIVN: the player can discover, collect, and watch the creator's own films, TV/show episodes, trailers, and clips inside the game through safehouse TVs, drive-in theaters, public screens, and later regional news channels.

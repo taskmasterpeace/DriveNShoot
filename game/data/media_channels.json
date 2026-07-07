@@ -1,0 +1,9 @@
+{
+  "_comment": "PUBLIC-SCREEN CHANNELS (docs/cinema.md Phase 5). A screen tunes the most specific matching row: faction beats state beats the open feed. categories = what it may pull off the media manifest. A new channel = a ROW (ProtoPublicScreen.ensure_channels folds additively; the open_air floor lives in code).",
+  "channels": [
+    {"id": "faith_voice", "state": "", "faction": "broadcast_church", "categories": ["clips"],
+     "_note": "the occupier's propaganda loop — clips only, wherever the Faith Bloc holds"},
+    {"id": "meridian_market", "state": "MISSISSIPPI", "faction": "", "categories": ["trailers", "clips"],
+     "_note": "the market screen's mixed feed for the home state"}
+  ]
+}

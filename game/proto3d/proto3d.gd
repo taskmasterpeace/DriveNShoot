@@ -333,6 +333,8 @@ var newsroom: ProtoNewsroom = null
 var music: ProtoMusic = null
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
+var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
+var public_screen: ProtoPublicScreen = null ## the bar set on the cross street
 
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
@@ -409,6 +411,18 @@ func _build_environment() -> void:
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
 	tv.rotation.y = 0.7 # angled at the room
+	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
+	# faces the parking rows; locked found_* reels scatter on the lot (Phase 4).
+	drive_in = ProtoDriveIn.create(self)
+	add_child(drive_in)
+	drive_in.global_position = Vector3(60, 0, -240)
+	drive_in.seed_pickups()
+	# A PUBLIC SCREEN on the Meridian cross street (cinema.md Phase 5): a loop
+	# nobody chose, tuned by channel rows; world-event clips cut in.
+	public_screen = ProtoPublicScreen.create(self)
+	add_child(public_screen)
+	public_screen.global_position = Vector3(82, 0, -297)
+	public_screen.power_on()
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)

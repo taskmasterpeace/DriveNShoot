@@ -51,9 +51,13 @@ func _ready() -> void:
 	# never eat the television's news.
 	main.radio._cd = 0.0
 	var radio_unheard_before: int = 0
+	var tv_unheard_before: int = 0
 	for b in ws.broadcast_queue:
-		if not bool(b.get("heard", false)) and String(b.get("medium", "radio")) != "tv":
-			radio_unheard_before += 1
+		if not bool(b.get("heard", false)):
+			if String(b.get("medium", "radio")) == "tv":
+				tv_unheard_before += 1
+			else:
+				radio_unheard_before += 1
 	main.radio.scan()
 	var radio_unheard_after: int = 0
 	var tv_unheard: int = 0
@@ -65,7 +69,7 @@ func _ready() -> void:
 				radio_unheard_after += 1
 	_check("each scan drains at most one RADIO bulletin (no infinite re-report)",
 		radio_unheard_after == max(0, radio_unheard_before - 1))
-	_check("the radio does NOT eat the television's news", tv_unheard == 1)
+	_check("the radio does NOT eat the television's news", tv_unheard == tv_unheard_before and tv_unheard >= 1)
 	# The SET airs it: opening the TV shows the lower-third and marks it heard.
 	main.open_media_panel()
 	var aired := false
