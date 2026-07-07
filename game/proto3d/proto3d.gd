@@ -393,6 +393,7 @@ var media_registry: ProtoMediaRegistry = null
 var media_panel: ProtoMediaPanel = null
 var newsroom: ProtoNewsroom = null
 var music: ProtoMusic = null
+var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
 var drive_in: ProtoDriveIn = null   ## the lot off the Meridian road
@@ -474,6 +475,9 @@ func _build_environment() -> void:
 	newsroom = ProtoNewsroom.create(self)
 	music = ProtoMusic.create(self)
 	add_child(music)
+	# THE RADIO FACE (control_gallery goal): a frequency dial with preset stations. O opens it.
+	radio_dial = ProtoRadioDial.create(music)
+	add_child(radio_dial)
 	var tv := ProtoTV.create()
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
@@ -600,15 +604,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_radio"):
 		radio.scan() # sweep the dial — the wasteland talks if you listen
 	elif event.is_action_pressed("drivn_radio_power"):
-		# THE CAR STEREO (owner ask): O flips the power. A powered station keeps
-		# playing track after track — named stations are FOLDERS of mp3s.
-		# CAR_UI_REQUIREMENTS P0-2: COMPACT toast confirming the action already
-		# taken (via notify() == hud.toast()) — no track name, no persistent label;
-		# distinct from radio.gd's Y-scan discovery sentence.
-		if music.toggle_power():
-			notify("📻 %s — ON" % music.station_name())
-		else:
-			notify("📻 OFF")
+		# THE RADIO FACE (control_gallery goal): O opens the DIAL — sweep the FREQUENCY to a
+		# preset station, flip power, set volume, all from the panel. (The old bare O=power
+		# toast is now the dial's POWER button; the station/volume keys L / , / . still work.)
+		if radio_dial != null:
+			radio_dial.toggle()
 	elif event.is_action_pressed("drivn_radio_station"):
 		if music.next_station():
 			notify("📻 %s" % music.station_name())
@@ -721,7 +721,8 @@ func _physics_process(delta: float) -> void:
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
-		or (drone_pilot != null and drone_pilot.body_immobile())
+		or (drone_pilot != null and drone_pilot.body_immobile()) \
+		or (radio_dial != null and radio_dial.is_open)
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
