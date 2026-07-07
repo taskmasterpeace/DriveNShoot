@@ -57,6 +57,14 @@ static var MOTION: Dictionary = {
 	"gait": {"cadence_base": 2.0, "cadence_speed": 1.15, "stride_amp": 0.6,
 		"arm_swing": 0.85, "step_bob": 0.12, "breath_amp": 0.02, "lean_turn": 0.22,
 		"crouch_drop": 0.34},
+	# THE MELEE READ (owner: "the swing is horrible") — every timing + angle is a
+	# ROW now, tunable live in MotionForge. Stock = the retuned SNAPPY version:
+	# short coil, tight whip, fast settle — a strike, not a twirl.
+	"melee": {"windup_s": 0.06, "windup_yaw": 0.7, "windup_lift": 0.25,
+		"slash_s": 0.1, "slash_yaw": 0.85, "slash_dip": 0.15, "gun_twist": 0.45,
+		"settle_s": 0.12,
+		"punch_out_s": 0.05, "punch_reach": 1.45, "punch_back_s": 0.12,
+		"kick_out_s": 0.07, "kick_height": 1.5, "kick_back_s": 0.18, "kick_lean": 0.25},
 }
 static var _motion_folded: bool = false
 
@@ -392,57 +400,70 @@ func gun_recoil() -> void:
 	tw.tween_property(gun, "position:z", 0.0, 0.09).set_ease(Tween.EASE_IN_OUT)
 
 
-## The melee swing, on the WHOLE ARM (playtest: the old version wiggled the weapon
-## in a frozen hand — "horrible"). Windup coils the arm back behind the shoulder,
-## the slash whips it across the body with the blade leading, the follow-through
-## settles home. While it runs the tween owns the shoulder; animate() waits.
+## The melee swing, on the WHOLE ARM — driven entirely by the "melee" MOTION row
+## (MotionForge tunes it live; the old hardcoded version was untunable and read
+## as a floaty twirl). Windup COILS short, the slash WHIPS tight with the blade
+## leading, the settle is quick. While it runs the tween owns the shoulder.
 func swing() -> void:
 	if gun == null or shoulder == null:
 		return
-	_swing_t = 0.37
+	var m: Dictionary = MOTION["melee"]
+	var windup_s: float = float(m["windup_s"])
+	var slash_s: float = float(m["slash_s"])
+	var settle_s: float = float(m["settle_s"])
+	_swing_t = windup_s + slash_s + settle_s
 	var hs := handed_sign
+	var twist: float = float(m["gun_twist"])
 	var tw := create_tween()
 	tw.set_parallel(true)
-	# WINDUP: arm coils back to the weapon side and lifts (negative yaw = the gun side)
-	tw.tween_property(shoulder, "rotation:y", -1.0 * hs, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(shoulder, "rotation:x", 0.35, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(gun, "rotation:y", 0.7 * hs, 0.08).set_ease(Tween.EASE_OUT)
-	# THE SLASH: whip across the arc (matches the ~100° hit arc), slight downward bite
-	tw.chain().tween_property(shoulder, "rotation:y", 0.95 * hs, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(shoulder, "rotation:x", -0.15, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(gun, "rotation:y", -0.7 * hs, 0.13).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	# FOLLOW-THROUGH: everything home; animate()'s smoothed write takes over after
-	tw.chain().tween_property(shoulder, "rotation:y", 0.0, 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-	tw.parallel().tween_property(shoulder, "rotation:x", ARM_HANG if not raised else 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
-	tw.parallel().tween_property(gun, "rotation:y", 0.0, 0.16).set_ease(Tween.EASE_IN_OUT)
+	# WINDUP: a short coil back to the weapon side (negative yaw = the gun side)
+	tw.tween_property(shoulder, "rotation:y", -float(m["windup_yaw"]) * hs, windup_s).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(shoulder, "rotation:x", float(m["windup_lift"]), windup_s).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(gun, "rotation:y", twist * hs, windup_s).set_ease(Tween.EASE_OUT)
+	# THE SLASH: whip across the hit arc with a downward bite
+	tw.chain().tween_property(shoulder, "rotation:y", float(m["slash_yaw"]) * hs, slash_s).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(shoulder, "rotation:x", -float(m["slash_dip"]), slash_s).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(gun, "rotation:y", -twist * hs, slash_s).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# SETTLE: quick, everything home; animate()'s smoothed write takes over after
+	tw.chain().tween_property(shoulder, "rotation:y", 0.0, settle_s).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(shoulder, "rotation:x", ARM_HANG if not raised else 0.0, settle_s).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(gun, "rotation:y", 0.0, settle_s).set_ease(Tween.EASE_IN_OUT)
 
 
 ## UNARMED (MOVESET.txt): the JAB — a straight, fast hand that snaps out and
 ## returns. Alternates arms on the combo beat so a flurry reads as boxing.
+## Timings/reach ride the "melee" MOTION row (MotionForge-tunable).
 func punch(beat: int) -> void:
 	if shoulder == null:
 		return
-	_swing_t = 0.22
+	var m: Dictionary = MOTION["melee"]
+	var out_s: float = float(m["punch_out_s"])
+	var back_s: float = float(m["punch_back_s"])
+	_swing_t = out_s + back_s + 0.03
 	var off_hand := beat % 2 == 0
 	var jab_arm: Node3D = free_arm if off_hand else shoulder
 	var tw := create_tween()
-	tw.tween_property(jab_arm, "rotation:x", -1.45, 0.06).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(jab_arm, "rotation:x", 0.0 if off_hand else ARM_HANG, 0.15).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(jab_arm, "rotation:x", -float(m["punch_reach"]), out_s).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(jab_arm, "rotation:x", 0.0 if off_hand else ARM_HANG, back_s).set_ease(Tween.EASE_IN_OUT)
 
 
 ## The KICK (Martial Arts 2+, the combo's finisher beat): the leg snaps out
 ## horizontal while the torso leans away — a roundhouse you can read from above.
+## Rides the "melee" MOTION row.
 func kick() -> void:
 	if hip_r == null:
 		return
-	_swing_t = 0.3
-	_kick_t = 0.3
+	var m: Dictionary = MOTION["melee"]
+	var out_s: float = float(m["kick_out_s"])
+	var back_s: float = float(m["kick_back_s"])
+	_swing_t = out_s + back_s + 0.03
+	_kick_t = _swing_t
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(hip_r, "rotation:x", -1.5, 0.08).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_property(torso, "rotation:x", -0.25, 0.08).set_ease(Tween.EASE_OUT)
-	tw.chain().tween_property(hip_r, "rotation:x", 0.0, 0.2).set_ease(Tween.EASE_IN_OUT)
-	tw.parallel().tween_property(torso, "rotation:x", 0.0, 0.2).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(hip_r, "rotation:x", -float(m["kick_height"]), out_s).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(torso, "rotation:x", -float(m["kick_lean"]), out_s).set_ease(Tween.EASE_OUT)
+	tw.chain().tween_property(hip_r, "rotation:x", 0.0, back_s).set_ease(Tween.EASE_IN_OUT)
+	tw.parallel().tween_property(torso, "rotation:x", 0.0, back_s).set_ease(Tween.EASE_IN_OUT)
 
 
 ## True while the melee tween owns the arm (the caller keeps the yaw on the aim).

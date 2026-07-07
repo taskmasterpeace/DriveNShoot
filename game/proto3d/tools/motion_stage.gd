@@ -11,6 +11,8 @@ var speed: float = 3.0
 var crouched: bool = false
 var air: bool = false
 var dig: bool = false
+var _armed: bool = false
+var _punch_beat: int = 0
 
 
 func _ready() -> void:
@@ -45,7 +47,13 @@ func _ready() -> void:
 		l.position = Vector3(pair[0], 2.4, 0)
 		l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		add_child(l)
-	print("MOTION STAGE — 1/2/3 speed · C crouch · A air · D dig · R re-fold motions.json")
+	var hint := Label3D.new()
+	hint.text = "1/2/3 speed · C crouch · A air · D dig\nM SWING · P PUNCH · K KICK · W weapon · R re-fold rows"
+	hint.font_size = 22
+	hint.position = Vector3(0, 3.1, 0)
+	hint.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	add_child(hint)
+	print("MOTION STAGE — 1/2/3 speed · C crouch · A air · D dig · M swing · P punch · K kick · W weapon · R re-fold motions.json")
 
 
 func _process(delta: float) -> void:
@@ -66,6 +74,16 @@ func _input(event: InputEvent) -> void:
 		KEY_C: crouched = not crouched
 		KEY_A: air = not air
 		KEY_D: dig = not dig
+		KEY_M: puppet.swing()      # THE MELEE READ — tune it at :8896, press M, judge
+		KEY_P:
+			_punch_beat += 1
+			puppet.punch(_punch_beat)
+		KEY_K: puppet.kick()
+		KEY_W:
+			# Weapon in hand (carried low, melee-style) so the swing READS.
+			_armed = not _armed
+			puppet.set_armed(_armed)
+			puppet.raised = false
 		KEY_R:
 			ProtoPuppet._motion_folded = false
 			ProtoPuppet.ensure_motions()

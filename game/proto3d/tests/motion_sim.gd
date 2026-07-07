@@ -83,6 +83,28 @@ func _ready() -> void:
 	_check("the leap row is live for dog.gd (launch_h %.1f)" % float(ProtoQuadruped.MOTION["leap"]["launch_h"]),
 		float(ProtoQuadruped.MOTION["leap"]["launch_h"]) > 1.0)
 
+	# --- 4b. THE MELEE is rows now (the owner's all-night fix, made tunable) -----
+	_check("the melee row exists with the full strike surface",
+		(ProtoPuppet.MOTION["melee"] as Dictionary).has_all(["windup_s", "slash_s", "settle_s",
+			"punch_out_s", "punch_reach", "kick_out_s", "kick_height"]))
+	var mm: Dictionary = ProtoPuppet.MOTION["melee"]
+	var was: Array = [mm["windup_s"], mm["slash_s"], mm["settle_s"]]
+	mm["windup_s"] = 0.2
+	mm["slash_s"] = 0.3
+	mm["settle_s"] = 0.4
+	p.swing()
+	_check("the SWING reads its rows (swing owns the arm %.2fs = the row sum)" % p._swing_t,
+		is_equal_approx(p._swing_t, 0.9))
+	mm["windup_s"] = was[0]
+	mm["slash_s"] = was[1]
+	mm["settle_s"] = was[2]
+	mm["punch_out_s"] = 0.5
+	mm["punch_back_s"] = 0.5
+	p.punch(1)
+	_check("the PUNCH reads its rows (%.2fs)" % p._swing_t, p._swing_t > 1.0)
+	mm["punch_out_s"] = 0.05
+	mm["punch_back_s"] = 0.12
+
 	# --- 5. The REAL data file folds clean (empty rigs = pure stock) ------------
 	_check("real motions.json folds without breaking stock",
 		is_equal_approx(float(ProtoPuppet.MOTION["gait"]["cadence_base"]), 2.0)

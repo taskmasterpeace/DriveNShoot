@@ -32,6 +32,13 @@ const DEFAULTS = {
 	puppet: {
 		gait: { cadence_base: 2.0, cadence_speed: 1.15, stride_amp: 0.6, arm_swing: 0.85,
 			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34 },
+		// THE MELEE READ — swing/punch/kick timings + angles, fully tunable
+		// (press M / P / K on the treadmill stage to preview each strike).
+		melee: { windup_s: 0.06, windup_yaw: 0.7, windup_lift: 0.25,
+			slash_s: 0.1, slash_yaw: 0.85, slash_dip: 0.15, gun_twist: 0.45,
+			settle_s: 0.12,
+			punch_out_s: 0.05, punch_reach: 1.45, punch_back_s: 0.12,
+			kick_out_s: 0.07, kick_height: 1.5, kick_back_s: 0.18, kick_lean: 0.25 },
 	},
 	quadruped: {
 		gait: { cadence_base: 3.0, cadence_speed: 1.4, stride_amp: 0.5, sniff_depth: 0.25,
