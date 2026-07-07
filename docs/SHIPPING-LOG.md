@@ -1,6 +1,25 @@
 # 📣 DRIVN — What's New
 
-Built in public · shipping daily · v0.12.0
+Built in public · shipping daily · v0.13.0
+
+## v0.13.0 — July 6, 2026 — Pick Up a Controller
+*Full gamepad support and a rebind panel — every button and every key is yours to change.*
+
+### 🆕 New
+- **Play the whole game on a controller.** Xbox pads, PlayStation pads (a PS2 pad through a USB adapter reads the same): left stick moves and steers, right stick aims — true twin-stick — RT fires (tap to punch, hold to shove, just like the mouse), A dives, B crouches, D-pad works the radio, pack, views, and character sheet, RB cycles weapons, and the triggers become real pedals the moment you take the wheel.
+- **Rebind everything.** F11 (or the title menu's CONTROLS button) opens the controls panel: click any binding, press the new key or button, done. Keyboard and pad each have their own column, PS button names shown beside Xbox ones, and one button resets everything to stock. Your rebinds survive restarts.
+- **Rumble.** Take a hit or stand near a blast and the pad answers in your hands.
+- **The title menu speaks controller** — D-pad up and down, press to choose, no mouse required.
+
+### ✨ Improved
+- Every binding is now data — the same rows drive the keyboard, the mouse, and the pad, so nothing can drift out of sync.
+
+### 🐛 Fixed
+- Function-key bindings (F5 save, F6 PvP, F10 dev mode) resolving to nothing in the new binding system.
+
+*Sim-proven: 30 new checks across two test scenarios, full suite green.*
+
+---
 
 ## v0.12.0 — July 6, 2026 — The World Editor: Exits & The Building Catalog
 *Highways became decisions, and every building in America became an editable row.*
