@@ -1,0 +1,5 @@
+{
+  "_comment": "BANDIT REGIONS \u2014 per-state gang strength 0-5 (BANDIT_CONVOY_ECOSYSTEM.md 3.4; the Southwest is their kingdom, occupied Florida fields none) + tuning knobs. Folds additively over the code floor at boot; F10 refolds.",
+  "regions": {},
+  "tuning": {}
+}

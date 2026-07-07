@@ -46,7 +46,8 @@ const CARRY_CAP := 32.0 ## kg-ish; STR raises this later (attributes hook)
 var waypoints: Array = [] ## [name, Vector3-or-Node3D]
 var waypoint_idx: int = -1
 var stream: ProtoWorldStream = null
-var traffic: ProtoTraffic = null ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
+var traffic: ProtoTraffic = null
+var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.md) ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -328,6 +329,11 @@ func _ready() -> void:
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.
 	traffic = ProtoTraffic.create(self, stream.usmap)
 	add_child(traffic)
+
+	# THE BANDIT DIRECTOR (BANDIT_CONVOY_ECOSYSTEM.md): gangs watch their roads,
+	# raise checkpoints, fly drones — strongest in the Southwest.
+	bandits = ProtoBandits.create(self)
+	add_child(bandits)
 
 	metaworld = ProtoMetaworld.new()
 	add_child(metaworld)
@@ -3180,6 +3186,8 @@ func reload_content() -> Dictionary:
 	# Traffic knobs ride the same door (data/traffic.json — density, speeds, exits).
 	ProtoTraffic._folded = false
 	ProtoTraffic.ensure_rows()
+	ProtoBandits._folded = false
+	ProtoBandits.ensure_rows()
 	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion+traffic rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
 
