@@ -39,6 +39,13 @@ const MAP_BIOME: Dictionary = {
 
 var usmap: ProtoUSMap = null
 
+## THE INSTANTIATION BRIDGE (docs/design/POPULATION_WAR.md §3.2): optional —
+## null (or population_targets.json absent/empty, which leaves every cell's
+## desired_pop at all-zero) means every spawn call below behaves EXACTLY as it
+## did before this system existed: pure hash-roll, parity mode, §4's
+## backward-compat law. Set by setup() when main carries a population ledger.
+var population: ProtoPopulation = null
+
 var loaded: Dictionary = {} ## "cx,cz" -> Node3D
 var visited: Dictionary = {} ## "cx,cz" -> Vector2 (chunk center) — the map's fog-of-war
 var last_state: String = ""
@@ -57,6 +64,8 @@ func setup(pois: Array, main_ref: Node = null) -> void:
 	_main = main_ref
 	if usmap == null:
 		usmap = ProtoUSMap.get_default()
+	if main_ref != null and "population" in main_ref and main_ref.population != null:
+		population = main_ref.population
 
 
 ## Which state a world position is in (the macro map's Voronoi states; the old
@@ -93,6 +102,7 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 		var parts: PackedStringArray = key.split(",")
 		if absi(int(parts[0]) - ccx) > RING + 1 or absi(int(parts[1]) - ccz) > RING + 1:
 			if loaded[key] != null and is_instance_valid(loaded[key]):
+				_bank_chunk_survivors(loaded[key])
 				loaded[key].queue_free()
 			loaded.erase(key)
 			ProtoWorldBuilder.extra_road_rects.erase(key)
@@ -107,6 +117,23 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 	# Keep the open map live so the you-dot and your markers track as you move.
 	if map_open():
 		_map_canvas.queue_redraw()
+
+
+## THE INSTANTIATION BRIDGE's unload half (§3.2): before a chunk is freed, any
+## SURVIVING ledger-tagged actor banks back into its cell's current_pop. A dead
+## actor never reaches here still tagged — its death handler (ProtoHowler/
+## ProtoLurker's take_damage, the moment it sets dead=true) already called
+## ProtoPopulation.on_actor_removed() and cleared the meta tag first, so this
+## walk only ever finds the living (§3.2: "death-removal always fires first").
+func _bank_chunk_survivors(chunk: Node) -> void:
+	if population == null:
+		return
+	for child in chunk.get_children():
+		if child.is_in_group("pop_ledger") and child.has_meta("pop_cell") and child.has_meta("pop_group"):
+			population.bank(String(child.get_meta("pop_cell")), String(child.get_meta("pop_group")))
+			child.remove_meta("pop_cell")
+			child.remove_meta("pop_group")
+			child.remove_from_group("pop_ledger")
 
 
 func _spawn_chunk(cx: int, cz: int) -> Node3D:
@@ -142,7 +169,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		var plane := BoxMesh.new()
 		plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
 		gm.mesh = plane
-		gm.material_override = ProtoWorldBuilder.material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+		gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
 		gm.position.y = -0.26 - (0.22 if wet else 0.0) # water sits a hair lower
 		g.add_child(gm)
 		var gs := CollisionShape3D.new()
@@ -154,7 +181,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		g.position = Vector3(center.x, 0, center.z)
 		chunk.add_child(g)
 	elif biome != "scrub" and biome != "desert":
-		ProtoWorldBuilder.box_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
+		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
 			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))
 
 	# --- The interstate materializes: nearest macro road clipped to this chunk
@@ -280,7 +307,67 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		var c := ProtoChest.create("Cache", cache)
 		chunk.add_child(c)
 		c.position = center + Vector3(rng.randf_range(-45, 45), 0.05, rng.randf_range(-45, 45))
+
+	# --- THE INSTANTIATION BRIDGE (POPULATION_WAR.md §3.2) ---------------------
+	# ADDITIVE to every hash-roll above (parity mode: population==null changes
+	# nothing here at all — §4 backward-compat). When a ledger is wired in, this
+	# chunk also spends whatever counts its parent 500m cell has BANKED, using
+	# the exact same spawner calls this file already makes elsewhere.
+	if population != null:
+		_materialize_population(chunk, center)
 	return chunk
+
+
+## Spend this chunk's parent cell's banked counts into real actors — budgeted
+## by the ledger, never a fresh hash-roll. Each spawn is tagged with the
+## POPULATION cell key (the 500m ledger grid, NOT this chunk's 128m key — the
+## two grids are deliberately different resolutions, POPULATION_WAR.md §3.1) so
+## death/unload can find its way back to the count it came from (§3.2's bridge).
+func _materialize_population(chunk: Node3D, center: Vector3) -> void:
+	var budget: Dictionary = population.materialize_budget(center)
+	if budget.is_empty():
+		return
+	var pop_key := population.cell_key(center)
+	var players: Array = population._live_players()
+	for group in budget.keys():
+		var want := int(budget[group])
+		var spent := 0
+		var guard := 0
+		while spent < want and guard < want * 6: # a handful of tries per unit before deferring
+			guard += 1
+			var cand := center + Vector3(randf_range(-58, 58), 0.0, randf_range(-58, 58))
+			if not population.safe_to_spawn(cand, players):
+				continue
+			var actor: Node = _spawn_pop_actor(String(group), cand)
+			if actor == null:
+				break # no spawner for this group yet — bank the rest, don't loop forever
+			chunk.add_child(actor)
+			actor.global_position = cand + Vector3(0, 0.4, 0)
+			actor.set_meta("pop_cell", pop_key)
+			actor.set_meta("pop_group", String(group))
+			actor.add_to_group("pop_ledger")
+			spent += 1
+		if spent < want:
+			population.return_unspent(center, String(group), want - spent) # deferred, not lost
+
+
+## group -> the concrete actor this bridge spawns for it, using the EXACT
+## existing spawner calls already in this file/codebase (never a new one).
+## "" groups this bridge doesn't materialize yet (faction_troops — P1/§3.4's
+## ProtoSquad, out of this ticket's scope) simply bank forever, which is correct:
+## counts-not-instances means nothing is lost by a group having no renderer yet.
+func _spawn_pop_actor(group: String, _pos: Vector3) -> Node:
+	match group:
+		"threat":
+			return ProtoLurker.create()
+		"civilian":
+			return ProtoNPC.create("drifter")
+		"worker":
+			return ProtoNPC.create("trader")
+		"law":
+			return ProtoNPC.create("secman")
+		_:
+			return null
 
 
 ## Build one authored structure (a placeholder massing box, sized by building type)

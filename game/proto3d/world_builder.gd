@@ -33,6 +33,93 @@ static func material(color: Color, rough: float = 0.9, emissive: bool = false) -
 	return mat
 
 
+## --- TEXTURED TERRAIN (goal: "improve terrain in every biome — adds texture") ------
+## Native, GL-Compatibility-safe ground texturing — the idea cherry-picked from the
+## terrain addons (Terrain3D/LiteTerrain) WITHOUT their GDExtension/renderer baggage or
+## their fixed single-mesh model (we stream a 60× continent). One shared procedural
+## noise set (mottle albedo + a normal map for lit micro-relief), triplanar world-mapped
+## so it never stretches across our differently-sized ground slabs, tinted per biome.
+static var _ground_detail: NoiseTexture2D = null
+static var _ground_normal: NoiseTexture2D = null
+
+
+## Grayscale multi-octave mottle. Multiplies the biome tint (kept bright, 0.72–1.0, so
+## the biome still reads) → ground stops being a flat color and gains grain + patches.
+static func ground_detail_texture() -> Texture2D:
+	if _ground_detail != null:
+		return _ground_detail
+	var n := FastNoiseLite.new()
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.035
+	n.fractal_type = FastNoiseLite.FRACTAL_FBM
+	n.fractal_octaves = 5
+	var t := NoiseTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.seamless = true
+	t.noise = n
+	var g := Gradient.new()
+	g.set_color(0, Color(0.72, 0.72, 0.72))
+	g.set_color(1, Color(1.0, 1.0, 1.0))
+	t.color_ramp = g
+	_ground_detail = t
+	return t
+
+
+## Normal map from a finer octave of the same style — gives the ground lit micro-relief
+## (bumps catch the sun/headlights) with zero extra geometry or collision.
+static func ground_normal_texture() -> Texture2D:
+	if _ground_normal != null:
+		return _ground_normal
+	var n := FastNoiseLite.new()
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.05
+	n.fractal_type = FastNoiseLite.FRACTAL_FBM
+	n.fractal_octaves = 4
+	var t := NoiseTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.seamless = true
+	t.as_normal_map = true
+	t.bump_strength = 2.5
+	t.noise = n
+	_ground_normal = t
+	return t
+
+
+## A ground/terrain material: the biome tint, textured. Separate from material() so only
+## TERRAIN gets grain — boxes/houses stay clean. Cached per color like material().
+static func ground_material(color: Color, rough: float = 0.95) -> StandardMaterial3D:
+	var key := "grd_" + color.to_html()
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.albedo_texture = ground_detail_texture()
+	mat.uv1_triplanar = true                    # world-space → no stretch across slabs
+	mat.uv1_scale = Vector3(0.11, 0.11, 0.11)   # ~9 m per tile at gameplay zoom
+	mat.roughness = rough
+	mat.normal_enabled = true
+	mat.normal_texture = ground_normal_texture()
+	mat.normal_scale = 0.7
+	_mat_cache[key] = mat
+	return mat
+
+
+## Visual-only ground quad (biome tint layer over the slab) — box_visual with the
+## textured ground_material instead of the flat one.
+static func ground_visual(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	mesh.mesh = bm
+	mesh.material_override = ground_material(color)
+	mesh.position = pos
+	mesh.rotation.y = rot_y
+	parent.add_child(mesh)
+	return mesh
+
+
 ## Solid box with collision (StaticBody3D + mesh + shape).
 static func box_body(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -177,7 +264,7 @@ static func build_world(root: Node3D) -> Dictionary:
 	var gplane := PlaneMesh.new()
 	gplane.size = Vector2(12000, 12000)
 	gmesh.mesh = gplane
-	gmesh.material_override = material(COL_GROUND, 1.0)
+	gmesh.material_override = ground_material(COL_GROUND, 1.0) # textured terrain, not flat color
 	ground.add_child(gmesh)
 	var gshape := CollisionShape3D.new()
 	var gbox := BoxShape3D.new()
