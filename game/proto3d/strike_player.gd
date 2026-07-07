@@ -34,8 +34,15 @@ const JOINT_AXIS: Dictionary = {
 	"shoulder_yaw": "rotation:y",
 	"shoulder_pitch": "rotation:x",
 	"hip_kick": "rotation:x",
+	# RIG V2 (PUPPET_RIG_V2.md): the new hinges are authorable — a katana swing can
+	# whip the elbow, a kick can snap the knee. Old rows keep playing untouched.
+	"elbow_r": "rotation:x",
+	"elbow_l": "rotation:x",
+	"knee_r": "rotation:x",
+	"knee_l": "rotation:x",
 }
-const JOINT_NAMES: Array = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick"]
+const JOINT_NAMES: Array = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
+	"elbow_r", "elbow_l", "knee_r", "knee_l"]
 
 ## Code-floor seed rows (mirrors data/strikes.json day one exactly — the fold below
 ## overlays any JSON edit on top, same additive law as ProtoPuppet.MOTION/motions.json).
