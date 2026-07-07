@@ -175,7 +175,11 @@ func _tick(delta: float) -> void:
 	if drone != null and is_instance_valid(drone):
 		rate *= float(TUNING["drone_mult"])
 	var dh := delta / 60.0 # one game hour = 60 real seconds (the 24-min-day law)
-	g["sightings"] = float(g["sightings"]) + rate * float(s) * dh
+	# BALANCE LAW (2026-07-08): strength lives in the THRESHOLD and the drone —
+	# multiplying the accrual by it too made pacing scale with strength SQUARED
+	# (Arizona committed 9 real seconds after you crossed the line). Now: AZ ~45s
+	# of watched driving per encounter + the cooldown; Virginia ~6 minutes.
+	g["sightings"] = float(g["sightings"]) + rate * dh
 	# --- COMMIT: strength >=3 raises the KIT; weaker crews hit and run -----------
 	if float(g["sightings"]) >= float(TUNING["threshold_base"]) / float(s):
 		g["gstate"] = GangState.COOLDOWN

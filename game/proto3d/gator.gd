@@ -97,7 +97,7 @@ func _physics_process(delta: float) -> void:
 			_lunge_t -= delta
 			_quad.air_target = 1.0 # the leap pose, driven fast and flat
 			_quad.animate(delta, 8.0, 1.0)
-			velocity = _lunge_dir * (LUNGE_R * 2.0 / LUNGE_TIME)
+			velocity = _lunge_dir * (LUNGE_R * 1.5 / LUNGE_TIME) # 1.5x the ring: carry-through, never a teleport past the telegraph (balance 2026-07-08)
 			move_and_slide()
 			if not _bit:
 				_try_bite()

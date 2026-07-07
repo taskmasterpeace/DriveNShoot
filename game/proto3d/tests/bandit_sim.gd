@@ -132,8 +132,9 @@ func _ready() -> void:
 			main.pirates.size() > pirates0)
 
 	# === 6. THE REGIONAL LAW: NM commits >=3x faster than VA ======================
-	var t_strong: float = float(ProtoBandits.TUNING["threshold_base"]) / (5.0 * float(ProtoBandits.TUNING["sight_drive"]) * 5.0)
-	var t_weak: float = float(ProtoBandits.TUNING["threshold_base"]) / (1.0 * float(ProtoBandits.TUNING["sight_drive"]) * 1.0)
+	# time-to-commit = (base/strength) / rate; strong states also fly the drone eye.
+	var t_strong: float = (float(ProtoBandits.TUNING["threshold_base"]) / 5.0) 		/ (float(ProtoBandits.TUNING["sight_drive"]) * float(ProtoBandits.TUNING["drone_mult"]))
+	var t_weak: float = (float(ProtoBandits.TUNING["threshold_base"]) / 1.0) / float(ProtoBandits.TUNING["sight_drive"])
 	_check("a strength-5 state commits %.0fx faster than strength-1 (>=3x, the contract's bar)" % (t_weak / t_strong),
 		t_weak / t_strong >= 3.0)
 

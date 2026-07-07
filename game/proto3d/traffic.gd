@@ -36,7 +36,7 @@ static var TRAFFIC: Dictionary = {
 	"honk_brake_mps2": 6.0,  # a brake harder than this earns you a horn
 	"vanish_r_min": 240.0,   # NEVER dissolve inside this of the player — arrivals PARK instead
 	"trip_chance": 1.0,      # share of ambient spawns given a DESTINATION exit ahead (owner: every car is going somewhere)
-	"convoy_chance": 0.25,   # share of ambient spawns that are CONVOYS (BANDIT_CONVOY_ECOSYSTEM.md §3.1 v1)
+	"convoy_chance": 0.18,   # share of ambient spawns that are CONVOYS (balance 2026-07-08: 0.25 read as a parade)
 }
 static var _folded: bool = false
 
