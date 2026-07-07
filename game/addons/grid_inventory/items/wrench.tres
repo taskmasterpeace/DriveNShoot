@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="InventoryItem" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/grid_inventory/inventory_item.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = &"wrench"
+display_name = "Wrench"
+max_stack = 1
+description = "A tool. Does not stack."
