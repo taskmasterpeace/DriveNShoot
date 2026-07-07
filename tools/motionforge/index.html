@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>MOTION FORGE — DRIVN RIGS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
 <style>
 	:root {
 		--ink:#14110c; --panel:#1d1913; --panel2:#262017; --bone:#e8e0cf; --dim:#9a8f78;
@@ -21,8 +22,16 @@
 	button { cursor:pointer; } button:hover { border-color:var(--amber); }
 	button.danger:hover { border-color:var(--blood); color:var(--blood); }
 	input[type=range] { accent-color:var(--amber); height:4px; padding:0; }
+	/* the can't-reach-the-server banner (the page still shows stock sliders under it) */
+	#warn { display:none; align-items:center; gap:12px; padding:8px 16px; background:#2b1a10; border-bottom:1px solid var(--blood); color:var(--amber); font-size:12px; }
+	#warn.show { display:flex; }
+	#warn b { color:var(--bone); }
+	#warn button { border-color:var(--amber); flex-shrink:0; }
+	#warn .auto { color:var(--dim); }
 	/* left — rigs & motions */
 	#roster { width:210px; background:var(--panel); border-right:1px solid var(--line); overflow-y:auto; flex-shrink:0; }
+	#roster .pick { padding:12px 12px 2px; color:var(--amber); font-size:12px; letter-spacing:2px; font-weight:700; }
+	#roster .picksub { padding:0 12px 8px; color:var(--dim); font-size:11px; border-bottom:1px solid var(--line); }
 	#roster h2 { font-size:11px; letter-spacing:2px; color:var(--dim); padding:12px 12px 4px; text-transform:uppercase; }
 	.mrow { padding:7px 12px 7px 22px; cursor:pointer; border-left:3px solid transparent; display:flex; justify-content:space-between; align-items:baseline; }
 	.mrow:hover { background:var(--panel2); }
@@ -32,14 +41,20 @@
 	.mrow .stockmark { color:var(--dim); font-size:11px; }
 	/* center — the param editor */
 	#editor { flex:1; overflow-y:auto; padding:16px 20px; }
-	.ehead { display:flex; align-items:baseline; gap:12px; margin-bottom:6px; }
+	.ehead { display:flex; align-items:baseline; gap:12px; margin-bottom:4px; }
 	.ehead h2 { font-size:20px; letter-spacing:1px; color:var(--amber); font-weight:700; }
 	.ehead .rig { color:var(--dim); font-size:12px; }
-	.ehead button { margin-left:auto; }
-	.ehint { color:var(--dim); font-size:12px; margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:8px; }
+	.ehead .sp { flex:1; }
+	#savebtn { background:var(--amber); color:var(--ink); border-color:var(--amber); font-weight:700; letter-spacing:2px; font-size:14px; padding:8px 24px; }
+	#savebtn:hover { background:#ffc94d; }
+	#savebtn.dirty::after { content:" ●"; }
+	.eblurb { color:var(--bone); font-size:12px; margin-bottom:6px; }
+	.ehint { color:var(--dim); font-size:12px; margin-bottom:10px; border-bottom:1px solid var(--line); padding-bottom:8px; }
 	.ehint b { color:var(--bone); }
-	.stat { display:grid; grid-template-columns:150px 1fr 84px 90px; align-items:center; gap:10px; margin-bottom:8px; }
+	.grp h3 { font-size:11px; letter-spacing:2px; color:var(--amber); text-transform:uppercase; border-bottom:1px solid var(--line); padding-bottom:4px; margin:14px 0 10px; }
+	.stat { display:grid; grid-template-columns:190px 1fr 84px 90px; align-items:center; gap:10px; margin-bottom:8px; }
 	.stat label { font-size:12px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; }
+	.stat label .pid { display:block; font-size:10px; opacity:.65; }
 	.stat.tuned label { color:var(--bone); }
 	.stat.tuned label::before { content:"● "; color:var(--amber); }
 	.stat input[type=range] { width:100%; }
@@ -73,9 +88,10 @@
 	<span class="sub">DRIVN RIGS · procedural sin()-rig rows · tune → FORGE reload</span>
 	<a href="/api/help" target="_blank">API — for humans &amp; AIs</a>
 </header>
+<div id="warn">⚠ <span><b>Can't reach the MotionForge server</b> — showing the STOCK numbers so every slider is still visible. Changes won't save until it's back (the FORGE hub usually revives it in seconds).</span><button id="warnretry">RETRY NOW</button><span class="auto">auto-retrying…</span></div>
 <main>
 	<div id="roster"></div>
-	<div id="editor"><div style="color:var(--dim);margin-top:40px;text-align:center">Select a motion to tune.</div></div>
+	<div id="editor"><div style="color:var(--dim);margin-top:40px;text-align:center">Loading motions…</div></div>
 	<div id="describe">
 		<h2>Describe it</h2>
 		<div id="dctx">patches <b id="dtarget">—</b></div>
@@ -86,31 +102,133 @@
 </main>
 <footer>
 	<span id="info">—</span>
-	<span>Live preview: run the game (<b>F10 → FORGE reload</b>) or the treadmill scene <b>res://proto3d/tools/motion_stage.tscn</b></span>
+	<span>Flow: pick a motion → drag sliders → <b>SAVE</b> → in the game press <b>F10</b> (FORGE reload). Preview stage: <b>res://proto3d/tools/motion_stage.tscn</b> (M/P/K strikes, W weapon)</span>
 	<span id="saved"></span>
 </footer>
 <script>
 let rigs = {}, defaults = {}, sel = null, cur = null; // cur = {rig, motion, params, tuned, stock}
 const $ = (s) => document.querySelector(s);
 async function api(path, opts) { const r = await fetch(path, opts); const j = await r.json(); if (!r.ok) { const e = new Error(j.error || r.status); e.body = j; throw e; } return j; }
-function flash(m) { const el = $("#saved"); el.textContent = m; clearTimeout(el._t); el._t = setTimeout(() => el.textContent = "", 1600); }
+function flash(m) { const el = $("#saved"); el.textContent = m; clearTimeout(el._t); el._t = setTimeout(() => el.textContent = "", 2400); }
 const fmt = (v) => (Math.round(v * 10000) / 10000).toString();
 
+// ---------------------------------------------------------------------------
+// STOCK SEED — a parity copy of the server's DEFAULTS (see server.mjs). Used
+// ONLY when the server can't answer, so a fresh visitor ALWAYS gets sliders
+// (stock numbers) instead of a dead page. Saving still needs the server.
+// ---------------------------------------------------------------------------
+const STOCK_SEED = {
+	puppet: {
+		gait: { cadence_base: 2.0, cadence_speed: 1.15, stride_amp: 0.6, arm_swing: 0.85,
+			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34 },
+		melee: { windup_s: 0.06, windup_yaw: 0.7, windup_lift: 0.25,
+			slash_s: 0.1, slash_yaw: 0.85, slash_dip: 0.15, gun_twist: 0.45,
+			settle_s: 0.12,
+			punch_out_s: 0.05, punch_reach: 1.45, punch_back_s: 0.12,
+			kick_out_s: 0.07, kick_height: 1.5, kick_back_s: 0.18, kick_lean: 0.25 },
+	},
+	quadruped: {
+		gait: { cadence_base: 3.0, cadence_speed: 1.4, stride_amp: 0.5, sniff_depth: 0.25,
+			sniff_wobble: 0.12, body_lilt: 0.06, wag_speed_lo: 4.0, wag_speed_hi: 16.0,
+			wag_amp_lo: 0.12, wag_amp_hi: 0.7 },
+		leap: { launch_h: 7.2, tuck_front: 0.9, tuck_hind: 0.8, head_up: 0.35 },
+		dig: { scrape_hz: 18.0, scrape_amp: 0.55, head_down: 0.4 },
+	},
+};
+
+// Plain-English slider labels (the param id stays visible underneath for the API-minded).
+const LABELS = {
+	cadence_base: "Step rate (base)", cadence_speed: "Step rate per speed", stride_amp: "Leg swing size",
+	arm_swing: "Arm pump", step_bob: "Body bounce", breath_amp: "Breathing (idle)",
+	lean_turn: "Lean into turns", crouch_drop: "Crouch depth",
+	windup_s: "Windup time (s)", windup_yaw: "Windup twist", windup_lift: "Windup arm lift",
+	slash_s: "Slash time (s)", slash_yaw: "Slash arc", slash_dip: "Slash dip",
+	gun_twist: "Gun-hand twirl", settle_s: "Settle time (s)",
+	punch_out_s: "Punch snap-out (s)", punch_reach: "Punch reach", punch_back_s: "Punch return (s)",
+	kick_out_s: "Kick snap-out (s)", kick_height: "Kick height", kick_back_s: "Kick return (s)", kick_lean: "Kick body lean",
+	sniff_depth: "Sniff depth", sniff_wobble: "Sniff wobble", body_lilt: "Body sway",
+	wag_speed_lo: "Tail wag speed (calm)", wag_speed_hi: "Tail wag speed (happy)",
+	wag_amp_lo: "Tail wag width (calm)", wag_amp_hi: "Tail wag width (happy)",
+	launch_h: "Jump power", tuck_front: "Front-leg tuck", tuck_hind: "Hind-leg tuck", head_up: "Head lift",
+	scrape_hz: "Scrape speed", scrape_amp: "Scrape size", head_down: "Head down",
+};
+// Slider groups — ordered; a param lands in the first group whose pattern matches, else TUNING.
+const GROUP_RULES = [
+	["The swing", /^(windup_|slash_|settle_|gun_)/],
+	["The punch", /^punch_/],
+	["The kick", /^kick_/],
+	["Step & pace", /^(cadence_|stride_|step_)/],
+	["Sniff & tail", /^(sniff_|wag_)/],
+	["The leap", /^(launch_|tuck_|head_up)/],
+	["The dig", /^(scrape_|head_down)/],
+	["Arms & body", /^(arm_|lean_|breath_|crouch_|body_)/],
+];
+const groupOf = (n) => { const g = GROUP_RULES.find((r) => r[1].test(n)); return g ? g[0] : "Tuning"; };
+const BLURBS = {
+	"puppet/gait": "How people walk, run and SPRINT — leg swing, arm pump, bounce. Faster movement reads the same row harder.",
+	"puppet/melee": "The strikes — swing / punch / kick. Preview on the stage: M, P, K (W = weapon in hand).",
+	"quadruped/gait": "How dogs trot — stride, sniff, tail wag.",
+	"quadruped/leap": "The dog's jump over fences and gaps.",
+	"quadruped/dig": "The Hunter's dig on buried caches.",
+};
+
+// ---------------------------------------------------------------------------
+// Bootstrap that cannot die: any fetch failure falls back to the STOCK SEED
+// (sliders always render), shows the banner, and auto-retries the server.
+// ---------------------------------------------------------------------------
+let offline = false, _retryT = null;
+function seedRigs() {
+	const out = {};
+	for (const r of Object.keys(STOCK_SEED)) out[r] = { motions: Object.keys(STOCK_SEED[r]).sort(), tuned: [] };
+	return out;
+}
+function setOffline(x) {
+	offline = x;
+	$("#warn").classList.toggle("show", x);
+	if (x && !_retryT) _retryT = setInterval(async () => {
+		try {
+			await api("/api/rigs");
+			clearInterval(_retryT); _retryT = null;
+			await load(true);
+			if (Object.keys(pending).length) saveNow(); // push edits made while offline
+		} catch (e) { /* still down — keep trying */ }
+	}, 2500);
+	if (!x && _retryT) { clearInterval(_retryT); _retryT = null; }
+}
+$("#warnretry").onclick = () => load(true);
+
+// The row the tool opens on: MELEE if any rig has it (that's the one being tuned
+// this week), else the first motion of the first rig.
+function defaultSel() {
+	const names = Object.keys(rigs).sort();
+	if (rigs.puppet && rigs.puppet.motions.includes("melee")) return { rig: "puppet", motion: "melee" };
+	for (const r of names) if (rigs[r].motions.includes("melee")) return { rig: r, motion: "melee" };
+	const r0 = rigs.puppet ? "puppet" : names[0];
+	return r0 && rigs[r0].motions.length ? { rig: r0, motion: rigs[r0].motions[0] } : null;
+}
+
 async function load(keepSel) {
-	rigs = (await api("/api/rigs")).rigs;
-	defaults = await api("/api/defaults");
-	renderRoster();
-	if (!keepSel || !sel) {
-		const first = rigs.puppet ? { rig: "puppet", motion: rigs.puppet.motions[0] } : null;
-		const r0 = Object.keys(rigs)[0];
-		sel = first || (r0 ? { rig: r0, motion: rigs[r0].motions[0] } : null);
+	let ok = true;
+	try {
+		rigs = (await api("/api/rigs")).rigs || {};
+		defaults = await api("/api/defaults");
+		if (!Object.keys(rigs).length) { rigs = seedRigs(); defaults = STOCK_SEED; } // empty index → still show stock
+	} catch (e) {
+		ok = false;
+		rigs = seedRigs(); defaults = STOCK_SEED;
 	}
+	setOffline(!ok);
+	renderRoster();
+	const valid = sel && rigs[sel.rig] && rigs[sel.rig].motions.includes(sel.motion);
+	if (!keepSel || !valid) sel = defaultSel();
 	if (sel) await select(sel.rig, sel.motion);
 	const nrigs = Object.keys(rigs).length, nmot = Object.values(rigs).reduce((a, r) => a + r.motions.length, 0);
 	$("#info").innerHTML = `<b>${nrigs}</b> rigs · <b>${nmot}</b> motions · source <b>game/data/motions.json</b> (overrides over engine stock)`;
 }
 function renderRoster() {
 	const el = $("#roster"); el.innerHTML = "";
+	const t = document.createElement("div"); t.className = "pick"; t.textContent = "PICK A MOTION"; el.appendChild(t);
+	const ts = document.createElement("div"); ts.className = "picksub"; ts.textContent = "click a row — its sliders open"; el.appendChild(ts);
 	for (const rid of Object.keys(rigs).sort()) {
 		const h = document.createElement("h2"); h.textContent = rid; el.appendChild(h);
 		for (const m of rigs[rid].motions) {
@@ -124,9 +242,19 @@ function renderRoster() {
 	}
 }
 async function select(rig, motion) {
+	const sameRow = sel && sel.rig === rig && sel.motion === motion;
+	if (!sameRow) pending = {};
 	sel = { rig, motion };
-	cur = await api(`/api/rig?id=${encodeURIComponent(rig)}&motion=${encodeURIComponent(motion)}`);
-	renderRoster(); renderEditor();
+	try {
+		cur = await api(`/api/rig?id=${encodeURIComponent(rig)}&motion=${encodeURIComponent(motion)}`);
+		setOffline(false);
+	} catch (e) { // server down or unknown row → seed from stock so sliders still render
+		const stock = (defaults[rig] && defaults[rig][motion]) || (STOCK_SEED[rig] && STOCK_SEED[rig][motion]) || {};
+		cur = { rig, motion, params: { ...stock }, tuned: {}, stock: { ...stock } };
+		if (e instanceof TypeError || !e.body) setOffline(true); // network-level failure only
+	}
+	for (const k of Object.keys(pending)) cur.params[k] = pending[k]; // unsaved edits survive a reload
+	renderRoster(); renderEditor(); updateSaveBtn();
 	$("#dtarget").textContent = `${rig} / ${motion}`;
 }
 function bounds(stock, curv) { // slider range sized off the stock (or current) value
@@ -139,48 +267,84 @@ function renderEditor() {
 	const ed = $("#editor");
 	const names = Object.keys(cur.params).sort((a, b) => a.localeCompare(b));
 	const hasStock = Object.keys(cur.stock).length > 0;
-	ed.innerHTML = `
-	<div class="ehead">
-		<h2>${cur.motion}</h2><span class="rig">rig: ${cur.rig}</span>
-		<button id="reset" class="danger" title="DELETE the tuned row — every param back to the engine's stock literal">↺ RESET TO STOCK</button>
-	</div>
-	<div class="ehint">${hasStock ? `ghosted number = <b>stock</b> (the engine literal); ● = tuned override in motions.json` : `no engine stock for this motion — all params are tuned rows`}</div>
-	${names.map((n) => {
+	// bucket the params into ordered plain-English groups
+	const buckets = new Map();
+	for (const n of names) { const g = groupOf(n); if (!buckets.has(g)) buckets.set(g, []); buckets.get(g).push(n); }
+	const order = GROUP_RULES.map((r) => r[0]).concat(["Tuning"]).filter((g) => buckets.has(g));
+	const row = (n) => {
 		const v = cur.params[n], st = cur.stock[n];
-		const tuned = n in cur.tuned;
+		const tuned = n in cur.tuned || n in pending;
 		const b = bounds(st, v);
 		return `<div class="stat${tuned ? " tuned" : ""}" id="row-${n}">
-			<label title="${n}">${n}</label>
+			<label title="${n}">${LABELS[n] || n}<span class="pid">${n}</span></label>
 			<input type="range" min="${b.min}" max="${b.max}" step="${b.step}" value="${v}" data-k="${n}">
 			<input type="number" step="${b.step}" value="${v}" data-k="${n}">
 			<span class="stock">${st !== undefined ? "stock " + fmt(st) : "no stock"}</span>
 		</div>`;
-	}).join("")}`;
+	};
+	const blurb = BLURBS[`${cur.rig}/${cur.motion}`];
+	ed.innerHTML = `
+	<div class="ehead">
+		<h2>${cur.motion}</h2><span class="rig">rig: ${cur.rig}</span><span class="sp"></span>
+		<button id="savebtn" title="Write the tuned row to game/data/motions.json now">SAVE</button>
+		<button id="reset" class="danger" title="DELETE the tuned row — every param back to the engine's stock literal">↺ RESET TO STOCK</button>
+	</div>
+	${blurb ? `<div class="eblurb">${blurb}</div>` : ""}
+	<div class="ehint">Drag a slider — it auto-saves; <b>SAVE</b> forces it now. ${hasStock ? `ghosted number = <b>stock</b> (the engine literal); ● = tuned override in motions.json` : `no engine stock for this motion — all params are tuned rows`}. In the game press <b>F10</b> to see it.</div>
+	${order.map((g) => `<div class="grp"><h3>${g}</h3>${buckets.get(g).map(row).join("")}</div>`).join("")}`;
 	ed.querySelectorAll("input").forEach((el) => el.addEventListener("input", () => onEdit(el.dataset.k, el.value, el)));
 	$("#reset").onclick = resetMotion;
+	$("#savebtn").onclick = saveNow;
 }
-let _saveT = null;
+// ---------------------------------------------------------------------------
+// Saving: edits pool in `pending` (so dragging several sliders can't drop one),
+// auto-flush 400ms after the last touch; the big SAVE button flushes instantly.
+// ---------------------------------------------------------------------------
+let pending = {}, saving = false, _saveT = null;
+function updateSaveBtn() {
+	const b = $("#savebtn"); if (!b) return;
+	const n = Object.keys(pending).length;
+	b.classList.toggle("dirty", n > 0);
+	b.textContent = saving ? "SAVING…" : "SAVE";
+}
 function onEdit(key, raw, el) {
 	const val = Number(raw);
 	if (!Number.isFinite(val)) return;
 	cur.params[key] = val;
+	pending[key] = val;
 	document.querySelectorAll(`[data-k="${key}"]`).forEach((x) => { if (x !== el) x.value = val; });
 	$(`#row-${key}`).classList.add("tuned");
+	updateSaveBtn();
 	clearTimeout(_saveT);
-	_saveT = setTimeout(async () => {
-		try {
-			cur = await api(`/api/rig?id=${encodeURIComponent(cur.rig)}&motion=${encodeURIComponent(cur.motion)}`,
-				{ method: "PATCH", body: JSON.stringify({ [key]: val }) });
-			flash(`${cur.rig}/${cur.motion} saved`);
-			rigs = (await api("/api/rigs")).rigs; renderRoster();
-		} catch (e) { flash("save failed: " + e.message); }
-	}, 250);
+	_saveT = setTimeout(saveNow, 400);
+}
+async function saveNow() {
+	clearTimeout(_saveT);
+	if (!cur) return;
+	const batch = { ...pending };
+	if (!Object.keys(batch).length) { flash("all changes saved ✓"); return; }
+	saving = true; updateSaveBtn();
+	try {
+		cur = await api(`/api/rig?id=${encodeURIComponent(cur.rig)}&motion=${encodeURIComponent(cur.motion)}`,
+			{ method: "PATCH", body: JSON.stringify(batch) });
+		for (const k of Object.keys(batch)) if (pending[k] === batch[k]) delete pending[k];
+		for (const k of Object.keys(pending)) cur.params[k] = pending[k];
+		setOffline(false);
+		flash(`${cur.rig}/${cur.motion} saved ✓ → motions.json (F10 in-game)`);
+		try { rigs = (await api("/api/rigs")).rigs; renderRoster(); } catch (e) {}
+	} catch (e) {
+		flash("SAVE FAILED: " + e.message + " — your numbers are kept, hit SAVE to retry");
+		if (e instanceof TypeError || !e.body) setOffline(true);
+	} finally { saving = false; updateSaveBtn(); }
 }
 async function resetMotion() {
 	if (!confirm(`Reset ${cur.rig}/${cur.motion} to stock? (clears the tuned row)`)) return;
-	await api(`/api/rig?id=${encodeURIComponent(cur.rig)}&motion=${encodeURIComponent(cur.motion)}`, { method: "DELETE" });
-	flash(`${cur.rig}/${cur.motion} → stock`);
-	await load(true);
+	try {
+		await api(`/api/rig?id=${encodeURIComponent(cur.rig)}&motion=${encodeURIComponent(cur.motion)}`, { method: "DELETE" });
+		pending = {};
+		flash(`${cur.rig}/${cur.motion} → stock`);
+		await load(true);
+	} catch (e) { flash("reset failed: " + e.message); }
 }
 $("#dapply").onclick = async () => {
 	const text = $("#dtext").value.trim();
