@@ -27,6 +27,9 @@
     "scavenging":   [{"level": 1, "name": "Scrounger", "desc": "bonus finds in caches"},
                      {"level": 3, "name": "Cartographer", "desc": "+1 chunk map-fragment reveal every 3 levels"}],
     "first_aid":    [{"level": 1, "name": "Field Dressing", "desc": "+8%/lv healing from bandages, medkits, pills"},
-                     {"level": 5, "name": "Medic", "desc": "wounds close fast under a skilled hand"}]
+                     {"level": 5, "name": "Medic", "desc": "wounds close fast under a skilled hand"}],
+    "piloting":     [{"level": 1, "name": "Steady Stick", "desc": "+5%/lv drone speed under your hand"},
+                     {"level": 3, "name": "Efficient Draw", "desc": "-4%/lv battery drain while you fly"},
+                     {"level": 6, "name": "Long Lease", "desc": "the signal holds farther out before the screen splits"}]
   }
 }

@@ -46,6 +46,9 @@ const SKILLS: Dictionary = {
 	"first_aid": {"name": "First Aid", "emoji": "🩹", "star": false,
 		"gain": "+8%/lv treatment from bandages, medkits, pills",
 		"how": "levels by treating wounds"},
+	"piloting": {"name": "Piloting", "emoji": "🛸", "star": false,
+		"gain": "+5%/lv drone speed, -4%/lv battery drain, +1.5m/lv signal before the split",
+		"how": "levels by flying drones (stick time + clean landings)"},
 }
 
 const PART_NAMES: Array = ["head", "torso", "l_arm", "r_arm", "l_leg", "r_leg"]
@@ -107,6 +110,21 @@ func level(id: String) -> int:
 # Each is clamped so runaway grinding can't break the sim-checked feel targets.
 
 ## ⭐ Driving: steering authority + drift settle scale up; the spin cap tightens.
+## 🛸 PILOTING (goal: flying a drone is a SKILL): a practiced hand flies faster…
+func pilot_speed_mult() -> float:
+	return 1.0 + 0.05 * minf(level("piloting"), 10)
+
+
+## …wastes less charge…
+func pilot_drain_mult() -> float:
+	return 1.0 - 0.04 * minf(level("piloting"), 10)
+
+
+## …and holds a clean signal farther out before the screen has to split.
+func pilot_signal_m() -> float:
+	return 22.0 + 1.5 * minf(level("piloting"), 10)
+
+
 func drive_control() -> float:
 	return 1.0 + 0.05 * minf(level("driving"), 10)
 

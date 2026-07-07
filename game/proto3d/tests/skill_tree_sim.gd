@@ -26,7 +26,7 @@ func _labels(node: Node, out: Array) -> void:
 func _ready() -> void:
 	# --- The perk data: a branch for every skill; martial_arts carries the REAL gates. ---
 	var perks := ProtoSkillTree.perks()
-	_check("perks load for all 11 skills", perks.size() == 11)
+	_check("perks load for all 12 skills", perks.size() == 12)
 	var ma: Array = perks.get("martial_arts", [])
 	_check("martial_arts has KICKS@2 / THROWS@4 / FINISHERS@6",
 		ma.size() == 3 and int(ma[0]["level"]) == 2 and int(ma[1]["level"]) == 4 and int(ma[2]["level"]) == 6
@@ -48,7 +48,7 @@ func _ready() -> void:
 
 	# --- The tree renders a branch per skill. ---
 	tree.open()
-	_check("the tree shows a branch per skill (11)", tree._list.get_child_count() == 11)
+	_check("the tree shows a branch per skill (12)", tree._list.get_child_count() == 12)
 
 	# --- Nodes are LOCKED until the level is earned. ---
 	var lv0: Array = []

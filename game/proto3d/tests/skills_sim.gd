@@ -41,7 +41,7 @@ func _physics_process(delta: float) -> void:
 		0:
 			if phase_t > 0.6:
 				var ch: ProtoCharacter = main.character
-				_check("the tree is 11 skills (10 + MARTIAL ARTS, MOVESET.txt)", ProtoCharacter.SKILLS.size() == 11)
+				_check("the tree is 12 skills (10 + MARTIAL ARTS + PILOTING)", ProtoCharacter.SKILLS.size() == 12)
 				var stars := 0
 				for id in ProtoCharacter.SKILLS:
 					if ProtoCharacter.SKILLS[id].get("star", false):

@@ -26,6 +26,10 @@ signal shut_off()               ## fully landed + off — body has control again
 var state: PState = PState.OFF
 var drone: Node3D = null
 var _move: Vector3 = Vector3.ZERO   ## desired horizontal pilot input this frame
+## 🛸 PILOTING skill (goal): main sets these from the character on takeoff — a practiced
+## hand flies faster and wastes less charge. 1.0 = unskilled.
+var speed_mult: float = 1.0
+var drain_mult: float = 1.0
 
 
 ## Your body is locked in place ONLY while you're actively flying.
@@ -94,14 +98,14 @@ func update(delta: float) -> void:
 	# when piloted) — and an empty battery brings the bird DOWN, never a vanish mid-air.
 	if state == PState.FLYING or state == PState.HOVER:
 		if "battery" in drone:
-			drone.set("battery", maxf(0.0, float(drone.get("battery")) - delta))
+			drone.set("battery", maxf(0.0, float(drone.get("battery")) - delta * drain_mult))
 			if float(drone.get("battery")) <= 0.0:
 				_goto(PState.LANDING)
 	var p := drone.global_position
 	match state:
 		PState.FLYING:
 			if _move.length() > 0.01:
-				p += _move.normalized() * FLY_SPEED * delta
+				p += _move.normalized() * FLY_SPEED * speed_mult * delta
 			p.y = lerpf(p.y, FLY_H, 1.0 - exp(-4.0 * delta))
 		PState.HOVER:
 			p.y = lerpf(p.y, FLY_H, 1.0 - exp(-4.0 * delta))   # holds the sky, no drift

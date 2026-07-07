@@ -308,6 +308,7 @@ func _ready() -> void:
 			# rotors still) and its patrol re-anchors HERE for when you next send it up.
 			drone.parked = true
 			drone._anchor = drone.global_position
+		grant_xp("piloting", 6.0) # a landing you walk away from — the skill's payday
 		notify("🛸 Drone off — you have your body back. E near the bird packs it up."))
 
 	char_create = ProtoCharCreate.create(self)
@@ -736,9 +737,13 @@ func _physics_process(delta: float) -> void:
 	if drone_pilot != null and drone_pilot.is_active():
 		drone_pilot.update(delta)
 		if drone_pilot.body_immobile():
-			drone_pilot.pilot_input(Vector3(
+			var stick := Vector3(
 				Input.get_axis("move_left", "move_right"), 0.0,
-				Input.get_axis("move_up", "move_down")))
+				Input.get_axis("move_up", "move_down"))
+			drone_pilot.pilot_input(stick)
+			# 🛸 PILOTING levels by DOING: stick time — actual steering, never AFK hover.
+			if stick.length() > 0.1:
+				grant_xp("piloting", delta * 1.5)
 		# QoL: low-battery warnings while you fly — 20% heads-up, 10% means turn back NOW.
 		if drone != null and is_instance_valid(drone):
 			var bp: float = drone.battery_pct()
@@ -2725,6 +2730,11 @@ func enter_drone_pilot(d: Node3D) -> void:
 		return
 	if drone_pilot.start(d):
 		_drone_warned = 0 # fresh flight, fresh battery warnings
+		# 🛸 PILOTING pays out: a practiced hand flies faster, sips the battery, and
+		# holds a clean signal farther before the screen splits.
+		drone_pilot.speed_mult = character.pilot_speed_mult()
+		drone_pilot.drain_mult = character.pilot_drain_mult()
+		split_view.max_separation = character.pilot_signal_m()
 		split_view.activate(player, d)
 		notify("🛸 PILOTING — fly it with your move keys; the screen SPLITS as it ranges. Interact to bring it in and land.")
 
