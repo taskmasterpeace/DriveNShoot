@@ -16,38 +16,38 @@ signal rider_thrown(dv: float)
 ## Goal 1) can overlay tunable stats from data/vehicles.json and MATERIALIZE new
 ## vehicles from an archetype at load — new rigs are pure data, no code here.
 static var VEHICLES: Dictionary = {
-	"scavenger": {"name": "Scavenger", "mass": 900.0, "engine": 6500.0, "top": 34.0, "rev": 11.0,
+	"scavenger": {"name": "Scavenger", "aero_drag": 0.30, "mass": 900.0, "engine": 6500.0, "top": 34.0, "rev": 11.0,
 		"steer": [0.55, 0.16, 5.0], "tires": {"grip_f": 5.5, "grip_r": 5.0, "dirt_mult": 0.78, "name": "street"},
 		"chassis": Vector3(2.0, 0.7, 4.4), "hull": Vector3(2.0, 0.55, 4.4), "cabin": Vector3(1.7, 0.5, 2.0), "cabin_pos": Vector3(0, 0.55, 0.25),
 		"wheels": [[-0.85, -1.45, true, false, true, 0.38], [0.85, -1.45, true, false, true, 0.38],
 			[-0.85, 1.45, false, true, true, 0.38], [0.85, 1.45, false, true, true, 0.38]],
 		"trunk_max_w": 40.0, "dog_seats": 2, "wound_mult": 1.0, "tailpipe": Vector3(-0.65, 0.22, 2.15), "com_y": -0.25},
-	"motorcycle": {"name": "Rat Bike", "mass": 260.0, "engine": 3400.0, "top": 38.0, "rev": 8.0,
+	"motorcycle": {"name": "Rat Bike", "aero_drag": 0.15, "mass": 260.0, "engine": 3400.0, "top": 38.0, "rev": 8.0,
 		"steer": [0.62, 0.2, 6.5], "tires": {"grip_f": 5.2, "grip_r": 4.6, "dirt_mult": 0.82, "name": "dual-sport"},
 		"chassis": Vector3(0.55, 0.6, 2.2), "hull": Vector3(0.34, 0.42, 1.9), "cabin": Vector3(0.3, 0.28, 0.7), "cabin_pos": Vector3(0, 0.62, 0.35),
 		# Physics rides 4 narrow-track wheels (self-standing trick); only the centered pair renders.
 		"wheels": [[-0.11, -0.8, true, false, false, 0.34], [0.11, -0.8, true, false, true, 0.34],
 			[-0.11, 0.8, false, true, false, 0.34], [0.11, 0.8, false, true, true, 0.34]],
 		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "two_wheel": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
-	"buggy": {"name": "Dustrunner", "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
+	"buggy": {"name": "Dustrunner", "aero_drag": 0.30, "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
 		"steer": [0.6, 0.2, 6.0], "tires": {"grip_f": 5.0, "grip_r": 4.6, "dirt_mult": 0.95, "name": "knobby"},
 		"chassis": Vector3(1.7, 0.6, 3.0), "hull": Vector3(1.6, 0.35, 2.9), "cabin": Vector3(1.2, 0.45, 1.2), "cabin_pos": Vector3(0, 0.5, 0.1),
 		"wheels": [[-0.8, -1.1, true, false, true, 0.42], [0.8, -1.1, true, false, true, 0.42],
 			[-0.8, 1.1, false, true, true, 0.42], [0.8, 1.1, false, true, true, 0.42]],
 		"trunk_max_w": 22.0, "dog_seats": 1, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
-	"pickup": {"name": "Rustler", "mass": 1250.0, "engine": 8200.0, "top": 30.0, "rev": 10.0,
+	"pickup": {"name": "Rustler", "aero_drag": 0.40, "mass": 1250.0, "engine": 8200.0, "top": 30.0, "rev": 10.0,
 		"steer": [0.55, 0.15, 4.8], "tires": {"grip_f": 5.4, "grip_r": 5.0, "dirt_mult": 0.90, "name": "all-terrain"},
 		"chassis": Vector3(2.1, 1.0, 4.8), "hull": Vector3(2.05, 0.8, 4.7), "cabin": Vector3(1.9, 0.75, 1.6), "cabin_pos": Vector3(0, 0.95, -1.0),
 		"wheels": [[-0.88, -1.6, true, false, true, 0.44], [0.88, -1.6, true, false, true, 0.44],
 			[-0.88, 1.6, false, true, true, 0.44], [0.88, 1.6, false, true, true, 0.44]],
 		"trunk_max_w": 60.0, "dog_seats": 2, "wound_mult": 0.9, "tailpipe": Vector3(-0.7, 0.26, 2.35), "com_y": -0.4},
-	"van": {"name": "Boxer", "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
+	"van": {"name": "Boxer", "aero_drag": 0.50, "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
 		"steer": [0.5, 0.13, 4.0], "tires": {"grip_f": 5.6, "grip_r": 5.2, "dirt_mult": 0.68, "name": "highway"},
 		"chassis": Vector3(2.2, 1.5, 5.2), "hull": Vector3(2.2, 1.35, 5.2), "cabin": Vector3(2.0, 0.5, 1.4), "cabin_pos": Vector3(0, 1.05, -1.7),
 		"wheels": [[-0.9, -1.9, true, false, true, 0.4], [0.9, -1.9, true, false, true, 0.4],
 			[-0.9, 1.9, false, true, true, 0.4], [0.9, 1.9, false, true, true, 0.4]],
 		"trunk_max_w": 120.0, "dog_seats": 4, "wound_mult": 0.8, "tailpipe": Vector3(-0.78, 0.24, 2.55), "com_y": -0.45},
-	"semi": {"name": "Longhaul", "mass": 3800.0, "engine": 12000.0, "top": 25.0, "rev": 6.0,
+	"semi": {"name": "Longhaul", "aero_drag": 1.00, "mass": 3800.0, "engine": 12000.0, "top": 25.0, "rev": 6.0,
 		"steer": [0.45, 0.1, 3.0], "tires": {"grip_f": 6.2, "grip_r": 5.8, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 1.9, 6.4), "hull": Vector3(2.35, 1.0, 6.2), "cabin": Vector3(2.3, 1.3, 2.2), "cabin_pos": Vector3(0, 1.55, -1.9),
 		# ONE drive axle (Godot applies engine_force per traction wheel — 4 traction
@@ -56,7 +56,7 @@ static var VEHICLES: Dictionary = {
 			[-0.95, 1.6, false, true, true, 0.45], [0.95, 1.6, false, true, true, 0.45],
 			[-0.95, 2.55, false, false, true, 0.45], [0.95, 2.55, false, false, true, 0.45]],
 		"trunk_max_w": 45.0, "dog_seats": 2, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
-	"trailer": {"name": "trailer", "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
+	"trailer": {"name": "trailer", "aero_drag": 0.60, "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
 		"steer": [0.0, 0.0, 1.0], "tires": {"grip_f": 6.0, "grip_r": 6.0, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 2.2, 8.0), "hull": Vector3(2.35, 2.0, 7.9), "cabin": Vector3.ZERO, "cabin_pos": Vector3.ZERO,
 		"wheels": [[-0.95, 2.2, false, false, true, 0.45], [0.95, 2.2, false, false, true, 0.45],
@@ -70,7 +70,12 @@ static var VEHICLES: Dictionary = {
 @export var max_brake: float = 40.0
 @export var max_steer: float = 0.55          ## Radians at standstill
 @export var high_speed_steer: float = 0.16   ## Radians at top speed
-@export var steer_speed: float = 5.0         ## How fast the wheel turns (rad/s)
+@export var steer_speed: float = 5.0         ## How fast the wheel turns TOWARD input (rad/s)
+## TWO-RATE STEERING (owner ask 2026-07-07): "the wheel should snap back straight
+## faster than it winds up" — centering uses this instead of steer_speed whenever
+## input_steer is ~neutral. Defaults 1.6x steer_speed (row-tunable via a row's
+## `steer_return_mult`, folded in create() — a raw override wins if a row sets it).
+@export var steer_return_speed: float = 8.0
 @export var top_speed: float = 34.0          ## m/s (~76 mph)
 @export var reverse_top_speed: float = 11.0
 @export var grip_front: float = 5.5   ## Higher = more planted (less slide). Worn/blown tires LOWER this.
@@ -80,6 +85,21 @@ static var VEHICLES: Dictionary = {
 @export var handbrake_decel: float = 8.0      ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering; playtest: "didn't brake unless you turned").
 @export var handbrake_yaw_rate: float = 1.4   ## rad/s cap on drift rotation — the anti-180 (raw physics peaked at 6.5).
 @export var handbrake_yaw_damp: float = 18.0  ## counter-torque strength that arrests the spin at the cap / to straight
+
+## BURNOUT (owner ask 2026-07-07): stand on the gas from a standstill and the
+## drive wheels light up instead of hooking up. Row-tunable (a row can drop
+## `burnout_slip` lower for a peaky muscle-car feel, or raise `burnout_speed_max`
+## for a longer light-up on a heavy rig).
+@export var burnout_slip: float = 0.55      ## rear grip multiplier while burning out (1.0 = no effect)
+@export var burnout_speed_max: float = 6.0  ## m/s — burnout clears once forward speed passes this
+
+## AERODYNAMIC DRAG (learned from Ander2211/Vehicle-Controller, MIT — its process_drag()).
+## A resistive force ∝ speed², opposing horizontal motion. Where the engine-force taper
+## only caps the PUSH near top speed, drag also bites when you COAST — lift off at speed
+## and the car slows on its own, and a boxy rig (van/semi) feels draggier than a bike.
+## Row-tunable (vehicles.json → spec["aero_drag"]); 0.0 = OFF (old behavior exactly, so
+## it's purely additive — an un-set row drives identically to before). Units: N per (m/s)².
+@export var aero_drag: float = 0.0
 
 @export_group("Two-Wheel Balance")
 ## The invisible RIDER (or kickstand) that holds a two_wheel row upright — playtest
@@ -102,12 +122,75 @@ const SURFACE: Dictionary = {
 var current_surface: String = "road"
 var surface_override: String = "" ## sims/tests force a surface without a world under the car
 
+## LIGHTS (owner ask 2026-07-07): "it's too dark out there" — a car-anchored NIGHT
+## HALO for spill light, plus BRAKE-GLOW / REVERSE-WHITE states on the tail boxes.
+## Engine defaults here; a row's `lights` sub-dict (vehicles.json → DrivnVehicle.extra
+## → spec["lights"]) OVERLAYS these key-by-key (deep merge — a row supplying only
+## `halo.range` must not blank out `brake`/`reverse`).
+const LIGHTS_DEFAULT: Dictionary = {
+	"halo": {"range": 9.0, "energy": 1.2, "color": Color(1.0, 0.82, 0.55)},
+	"brake": {"energy_mult": 3.0, "glow_energy": 0.9},
+	"reverse": {"energy": 0.7},
+}
+## Base tail-light color (the glow's OFF/idle state — `brake.energy_mult` multiplies
+## the emission energy up from here when the pedal or handbrake is down).
+const TAIL_COLOR := Color(0.9, 0.1, 0.08)
+const REVERSE_COLOR := Color(0.92, 0.92, 0.88)
+
+## WINDOWS (owner ask 2026-07-07): tinted glass, consistent across the fleet —
+## dark cool grey-blue, a little metallic so it catches light like real safety
+## glass. A row may override with `window_tint: [r, g, b]` (open schema, folds
+## through DrivnVehicle.extra same as `lights`); two_wheel rigs (no cabin glass
+## worth reading at this scale) skip windows entirely.
+const WINDOW_TINT_DEFAULT := Color(0.10, 0.14, 0.19)
+const WINDOW_METALLIC := 0.35
+const WINDOW_ROUGH := 0.15
+
+
+## Deep-merge a row's partial `lights` override onto the engine defaults so a JSON
+## row can tune ONE sub-key (e.g. just halo.range) without dropping its siblings.
+static func _merged_lights(row_lights: Dictionary) -> Dictionary:
+	var out: Dictionary = LIGHTS_DEFAULT.duplicate(true)
+	for group in row_lights:
+		if not (group in out):
+			out[group] = {}
+		var dst: Dictionary = out[group]
+		var src: Variant = row_lights[group]
+		if src is Dictionary:
+			for k in (src as Dictionary):
+				dst[k] = (src as Dictionary)[k]
+		out[group] = dst
+	return out
+
+## Window glass is never runtime-mutated (unlike the tail, which brake-glow
+## brightens live), so it's safe — and cheap — to share ONE material per tint
+## across every car wearing it, same law as ProtoWorldBuilder's own _mat_cache.
+static var _window_mat_cache: Dictionary = {}
+
+
+static func _window_material(tint: Color) -> StandardMaterial3D:
+	var key := tint.to_html()
+	if _window_mat_cache.has(key):
+		return _window_mat_cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = tint
+	mat.roughness = WINDOW_ROUGH
+	mat.metallic = WINDOW_METALLIC
+	_window_mat_cache[key] = mat
+	return mat
+
 const SKID_MAX := 160
 const SKID_STEP := 0.35 ## drop a mark every this many meters of slide
 const SKID_LIFE := 12.0
 var _skids: Array = []
 var _skid_last: Dictionary = {} ## VehicleWheel3D -> last drop position
-var _skid_snd_cd: float = 0.0   ## screech cooldown — one cry per slide, not a siren
+## SKID LOOP (owner ask 2026-07-07): replaces the old 1.3s-cooldown one-shot with
+## a CONTINUOUS tyre-screech player — starts the instant any wheel slips, stops
+## the instant grip returns, no retriggering gap. Lazily attached (most cars in
+## a sim never slide) via ProtoAudio.attach_loop, reusing the banked tire_scream
+## stream (audio.gd's file-scan already discovers it; LOOPED marks it looping).
+var _skid_player: AudioStreamPlayer3D = null
+var is_skidding: bool = false ## sim/HUD hook — true exactly while the loop plays
 
 ## DRIVABLE DAMAGE (goal: the wound is in your HANDS, not just on the dash).
 var _misfire_t: float = 0.0
@@ -115,6 +198,21 @@ var _misfire_cd: float = 3.0
 var misfiring: bool = false   ## sim/HUD hook
 var steer_slop: float = 0.0   ## sim hook — chassis wander amplitude
 var _misfire_warned: bool = false
+
+## BURNOUT (owner ask 2026-07-07): full throttle from a near-standstill lights
+## the drive wheels up instead of hooking up — a skid-loop moment + a little
+## yaw wiggle, same drivable-damage-you-FEEL philosophy as misfire/steer_slop.
+var is_burnout: bool = false   ## sim/HUD hook
+
+## TIRE PUNCTURE — the 6th damage part (owner ask 2026-07-07): per-wheel flags,
+## sized to _front_wheels + _rear_wheels once create() builds them. A flat wheel
+## renders SMALLER (radius x0.75), drags on that corner's grip, and the whole
+## rig loses top speed while any wheel is flat — round-trips via snapshot_damage.
+const PUNCTURE_RADIUS_MULT := 0.75
+const PUNCTURE_GRIP_MULT := 0.35
+const PUNCTURE_TOP_SPEED_MULT := 0.72 ## applied ONCE regardless of how many wheels are flat
+var _punctured: Array = []       ## bool, index-aligned with _all_wheels()
+var _wheel_base_radius: Array = [] ## float, the row's un-punctured radius per wheel (for restore)
 
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
@@ -145,6 +243,22 @@ var _hitch_joint: Generic6DOFJoint3D = null
 ## Headlights — auto at dark (main drives this off the day/night clock).
 var headlights_on: bool = false
 var _headlights: Array = []
+
+## NIGHT HALO (owner ask 2026-07-07): "just outside the cone it's pitch black" —
+## one soft OmniLight3D anchored to the body, ON exactly when headlights are on.
+## Spill light, not a second sun: modest range/energy from the row, no shadow (perf).
+var _halo: OmniLight3D = null
+
+## TAIL / BRAKE / REVERSE (owner ask 2026-07-07): each tail box gets its OWN
+## duplicated material (NEVER the shared _mat_cache one — mutating that would
+## brighten every car on the map wearing the same body color) so brake-glow is
+## per-instance. Reverse adds a white glow box PLUS a real backward SpotLight3D
+## that only lights up while actually reversing (+Z is backward in this engine).
+var _tail_mats: Array = []      ## StandardMaterial3D, one per tail box, duplicated
+var _reverse_glows: Array = []  ## MeshInstance3D, one per tail box (white box)
+var _reverse_light: SpotLight3D = null
+var _brake_light: OmniLight3D = null ## lazily built — most cars never brake in a sim
+var _was_reversing: bool = false ## sim/dashboard hook
 
 
 func set_headlights(on: bool) -> void:
@@ -178,9 +292,20 @@ func set_headlights(on: bool) -> void:
 			glow.position = lamp.position
 			add_child(glow)
 			_headlights.append(glow)
+	if _halo == null and on:
+		var halo_row: Dictionary = (spec.get("lights", LIGHTS_DEFAULT) as Dictionary).get("halo", LIGHTS_DEFAULT["halo"])
+		_halo = OmniLight3D.new()
+		_halo.position = Vector3(0, 0.6 + maxf(0.0, spec.get("chassis", Vector3.ZERO).y - 0.7) * 0.5, 0)
+		_halo.omni_range = float(halo_row.get("range", 9.0))
+		_halo.light_energy = float(halo_row.get("energy", 1.2))
+		_halo.light_color = halo_row.get("color", Color(1.0, 0.82, 0.55))
+		_halo.shadow_enabled = false
+		add_child(_halo)
 	for l in _headlights:
 		if is_instance_valid(l):
 			(l as Node3D).visible = on
+	if _halo != null and is_instance_valid(_halo):
+		_halo.visible = on
 
 # --- The Living Car (LOOP2): 5-part anatomy + death spiral --------------------
 enum FireState { OK, SMOKING, ON_FIRE, DESTROYED }
@@ -224,6 +349,12 @@ var forward_speed: float = 0.0
 
 var _front_wheels: Array[VehicleWheel3D] = []
 var _rear_wheels: Array[VehicleWheel3D] = []
+## PUNCTURE index space: creation-order, ONE entry per row wheel — puncture_tire(idx)
+## addresses THIS list (not _front_wheels/_rear_wheels, which split by steering and
+## aren't index-aligned with the row). _tire_mesh_by_wheel is null where w[4]=false
+## (a bike's invisible stability wheel has nothing to visually shrink).
+var _all_wheels: Array[VehicleWheel3D] = []
+var _tire_mesh_by_wheel: Array = []
 var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
@@ -247,6 +378,9 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
 	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt
+	# LIGHTS: fold once onto the shared class spec (idempotent — same law as the rest
+	# of this dict) so a row's partial override survives deep-merged against defaults.
+	s["lights"] = _merged_lights(s.get("lights", {}) as Dictionary)
 	car.top_speed = s["top"]
 	car.reverse_top_speed = s["rev"]
 	car.max_steer = s["steer"][0]
@@ -254,6 +388,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	car.steer_speed = s["steer"][2]
 	car.grip_front = s["tires"]["grip_f"]
 	car.grip_rear = s["tires"]["grip_r"]
+	car.aero_drag = float(s.get("aero_drag", 0.0)) # 0 unless the row opts in (see @export)
 
 	# Chassis collision
 	var shape := CollisionShape3D.new()
@@ -281,24 +416,94 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		cabin.material_override = ProtoWorldBuilder.material(body_color * 0.75, 0.5)
 		cabin.position = s["cabin_pos"]
 		car.add_child(cabin)
-		var windshield := MeshInstance3D.new()
-		var ws_mesh := BoxMesh.new()
-		ws_mesh.size = Vector3(s["cabin"].x * 0.9, s["cabin"].y * 0.85, 0.12)
-		windshield.mesh = ws_mesh
-		windshield.material_override = ProtoWorldBuilder.material(Color(0.15, 0.2, 0.25), 0.2)
-		windshield.position = s["cabin_pos"] + Vector3(0, 0, -s["cabin"].z / 2.0 - 0.05)
-		car.add_child(windshield)
 
-	# Tail lights (emissive) — helps read facing from top-down.
+		# WINDOWS (owner ask 2026-07-07): a two_wheel rig has no cabin glass worth
+		# reading top-down (it's a fairing, not a windshield) — data-driven skip,
+		# same flag the balance/upright code already reads off the row.
+		if not s.get("two_wheel", false):
+			var tint_raw: Variant = s.get("window_tint", null)
+			var tint: Color = Color(tint_raw[0], tint_raw[1], tint_raw[2]) if tint_raw is Array and (tint_raw as Array).size() >= 3 else WINDOW_TINT_DEFAULT
+			var glass := _window_material(tint)
+			# FRONT (-Z, facing() direction — verified against the headlight/steering
+			# convention, not assumed): the windshield the driver actually looks through.
+			var windshield := MeshInstance3D.new()
+			var ws_mesh := BoxMesh.new()
+			ws_mesh.size = Vector3(s["cabin"].x * 0.9, s["cabin"].y * 0.85, 0.12)
+			windshield.mesh = ws_mesh
+			windshield.material_override = glass
+			windshield.position = s["cabin_pos"] + Vector3(0, 0, -s["cabin"].z / 2.0 - 0.05)
+			car.add_child(windshield)
+			# REAR glass — the back window, opposite face.
+			var rear_glass := MeshInstance3D.new()
+			var rg_mesh := BoxMesh.new()
+			rg_mesh.size = Vector3(s["cabin"].x * 0.85, s["cabin"].y * 0.75, 0.1)
+			rear_glass.mesh = rg_mesh
+			rear_glass.material_override = glass
+			rear_glass.position = s["cabin_pos"] + Vector3(0, 0, s["cabin"].z / 2.0 + 0.05)
+			car.add_child(rear_glass)
+			# SIDE windows — thin flat panes on the cabin's left/right faces, top-down
+			# readable (a sliver, not a full door-height sheet).
+			for sx in [-1.0, 1.0]:
+				var side := MeshInstance3D.new()
+				var sd_mesh := BoxMesh.new()
+				sd_mesh.size = Vector3(0.08, s["cabin"].y * 0.6, s["cabin"].z * 0.7)
+				side.mesh = sd_mesh
+				side.material_override = glass
+				side.position = s["cabin_pos"] + Vector3(sx * (s["cabin"].x / 2.0 + 0.04), 0, 0)
+				car.add_child(side)
+
+	# Tail lights (emissive) — helps read facing from top-down. Each box gets its
+	# OWN duplicated material (never the shared _mat_cache — brake-glow brightens
+	# THIS car only) plus a reverse-white glow box, both driven live in _physics_process.
 	if s["cabin"] != Vector3.ZERO:
 		for tx in [-s["chassis"].x * 0.35, s["chassis"].x * 0.35]:
 			var tail := MeshInstance3D.new()
 			var tmesh := BoxMesh.new()
 			tmesh.size = Vector3(0.35, 0.15, 0.08)
 			tail.mesh = tmesh
-			tail.material_override = ProtoWorldBuilder.material(Color(0.9, 0.1, 0.08), 0.4, true)
+			var tail_mat := StandardMaterial3D.new()
+			tail_mat.albedo_color = TAIL_COLOR
+			tail_mat.roughness = 0.4
+			tail_mat.emission_enabled = true
+			tail_mat.emission = TAIL_COLOR
+			tail_mat.emission_energy_multiplier = 1.4 # idle glow, same base the old shared mat used
+			tail.material_override = tail_mat
 			tail.position = Vector3(tx, 0.2, s["chassis"].z / 2.0)
 			car.add_child(tail)
+			car._tail_mats.append(tail_mat)
+
+			var rev := MeshInstance3D.new()
+			var rmesh := BoxMesh.new()
+			rmesh.size = Vector3(0.16, 0.1, 0.06)
+			rev.mesh = rmesh
+			var rev_mat := StandardMaterial3D.new()
+			rev_mat.albedo_color = REVERSE_COLOR
+			rev_mat.roughness = 0.3
+			rev_mat.emission_enabled = true
+			rev_mat.emission = REVERSE_COLOR
+			rev_mat.emission_energy_multiplier = 0.0 # OFF until actually reversing
+			rev.material_override = rev_mat
+			rev.position = Vector3(tx, 0.2, s["chassis"].z / 2.0 + 0.05)
+			car.add_child(rev)
+			car._reverse_glows.append(rev)
+
+		# REVERSE-B (owner ask, decided): a real backward-facing SpotLight3D that
+		# lights the ground behind the car — built here (not lazily like the halo)
+		# because reversing can happen in broad daylight, not just after dark.
+		# +Z IS BACKWARD in this engine (positive engine_force pushes +Z; facing()
+		# is -Z), so the light sits on the rear face and points further +Z.
+		var rev_row: Dictionary = (s.get("lights", LIGHTS_DEFAULT) as Dictionary).get("reverse", LIGHTS_DEFAULT["reverse"])
+		var rlamp := SpotLight3D.new()
+		rlamp.position = Vector3(0, 0.35, s["chassis"].z / 2.0 + 0.1)
+		rlamp.rotation_degrees.y = 180.0 # spot's default -Z aim, flipped to point +Z (backward)
+		rlamp.spot_range = float(rev_row.get("range", 8.0))
+		rlamp.spot_angle = 40.0
+		rlamp.spot_attenuation = 1.0
+		rlamp.light_energy = 0.0 # OFF until actually reversing — _physics_process reads
+		rlamp.light_color = REVERSE_COLOR # the row's `reverse.energy` live each frame
+		rlamp.shadow_enabled = false
+		car.add_child(rlamp)
+		car._reverse_light = rlamp
 
 	# The 5-part anatomy (Damageable = the same class body parts use).
 	car.components = {
@@ -330,6 +535,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		wheel.damping_compression = 0.25 * 2.0 * sqrt(45.0)
 		wheel.damping_relaxation = 0.4 * 2.0 * sqrt(45.0)
 		wheel.wheel_roll_influence = 0.05
+		var tire_mesh_for_this_wheel: MeshInstance3D = null
 		if w[4]: # visible — bikes render only the centered pair of their stability wheels
 			var tire := MeshInstance3D.new()
 			var tmesh := CylinderMesh.new()
@@ -343,11 +549,17 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 				tire.position.x = -w[0] # center the visual on the bike's spine
 			wheel.add_child(tire)
 			car._tire_meshes.append(tire)
+			tire_mesh_for_this_wheel = tire
 		car.add_child(wheel)
 		if w[2]:
 			car._front_wheels.append(wheel)
 		else:
 			car._rear_wheels.append(wheel)
+		# PUNCTURE bookkeeping — creation-order, one slot per row wheel.
+		car._all_wheels.append(wheel)
+		car._tire_mesh_by_wheel.append(tire_mesh_for_this_wheel)
+		car._punctured.append(false)
+		car._wheel_base_radius.append(float(w[5]))
 	for w in car._front_wheels:
 		w.wheel_friction_slip = car.grip_front
 	for w in car._rear_wheels:
@@ -492,6 +704,79 @@ func take_damage(amount: float) -> void:
 	if got > 8.0 and _spiral_rng.randf() < 0.45:
 		var ids: Array = ["engine", "tires", "battery", "fuel_tank"]
 		components[ids[_spiral_rng.randi() % ids.size()]].damage(got * 0.6)
+
+
+# --- TIRE PUNCTURE: the 6th damage part (owner ask 2026-07-07) ---------------
+
+## Flat a specific wheel by ROW index (0-based, matching the vehicle row's
+## `wheels` array — the same index space _all_wheels was built in). Shrinks the
+## wheel's rendered + physical radius, drags that corner's grip, and the whole
+## rig eats a top-speed penalty (see _physics_process) while ANY wheel is flat.
+func puncture_tire(idx: int) -> void:
+	if idx < 0 or idx >= _all_wheels.size() or bool(_punctured[idx]):
+		return
+	_punctured[idx] = true
+	var wheel: VehicleWheel3D = _all_wheels[idx]
+	if is_instance_valid(wheel):
+		wheel.wheel_radius = _wheel_base_radius[idx] * PUNCTURE_RADIUS_MULT
+	var mesh: MeshInstance3D = _tire_mesh_by_wheel[idx]
+	if mesh != null and is_instance_valid(mesh):
+		mesh.scale = Vector3.ONE * PUNCTURE_RADIUS_MULT
+
+
+## Repair a flat (the mechanics loop's future hook — snapshot/restore already
+## proves the round trip; this is the inverse of puncture_tire for symmetry).
+func repair_puncture(idx: int) -> void:
+	if idx < 0 or idx >= _all_wheels.size() or not bool(_punctured[idx]):
+		return
+	_punctured[idx] = false
+	var wheel: VehicleWheel3D = _all_wheels[idx]
+	if is_instance_valid(wheel):
+		wheel.wheel_radius = _wheel_base_radius[idx]
+	var mesh: MeshInstance3D = _tire_mesh_by_wheel[idx]
+	if mesh != null and is_instance_valid(mesh):
+		mesh.scale = Vector3.ONE
+
+
+func any_punctured() -> bool:
+	for p in _punctured:
+		if bool(p):
+			return true
+	return false
+
+
+# --- Damage snapshot/restore (round-trip proof — no per-car save exists yet; -----
+# this is the self-contained hook the future save-integration work can call into).
+
+## All 6 damage parts + fuel + fire state as a plain, JSON/var_to_str-safe dict.
+func snapshot_damage() -> Dictionary:
+	var comp_hp := {}
+	for cid in components:
+		comp_hp[cid] = (components[cid] as Damageable).hp
+	return {
+		"components": comp_hp,
+		"punctured": _punctured.duplicate(),
+		"fuel": fuel,
+		"fire_state": fire_state,
+		"cook": cook,
+	}
+
+
+## Inverse of snapshot_damage — round-trips hp/punctures/fuel/fire exactly.
+func restore_damage(d: Dictionary) -> void:
+	var comp_hp: Dictionary = d.get("components", {})
+	for cid in comp_hp:
+		if components.has(cid):
+			(components[cid] as Damageable).hp = float(comp_hp[cid])
+	var punct: Array = d.get("punctured", [])
+	for i in range(mini(punct.size(), _all_wheels.size())):
+		if bool(punct[i]) and not bool(_punctured[i]):
+			puncture_tire(i)
+		elif not bool(punct[i]) and bool(_punctured[i]):
+			repair_puncture(i)
+	fuel = float(d.get("fuel", fuel))
+	fire_state = int(d.get("fire_state", fire_state)) as FireState
+	cook = float(d.get("cook", cook))
 
 
 # --- The death spiral: HEALTHY -> SMOKING -> ON FIRE -> cook -> HUSK (always burnt) ---
@@ -713,7 +998,9 @@ func _physics_process(delta: float) -> void:
 		engine_force = 0.0
 		# A towed trailer must ROLL; everything else gets a parking brake.
 		brake = 0.4 if spec.get("free_rolling", false) else 3.0
-		steering = move_toward(steering, 0.0, steer_speed * delta)
+		# TWO-RATE STEERING: parked/idle always CENTERS (target is always 0), so
+		# it always takes the faster return rate.
+		steering = move_toward(steering, 0.0, steer_return_speed * delta)
 		# Surface still matters while towed (trailer wheels follow the tractor).
 		if spec.get("free_rolling", false):
 			current_surface = surface_override if surface_override != "" else _sample_surface()
@@ -730,7 +1017,10 @@ func _physics_process(delta: float) -> void:
 	# drags everywhere. eff_top is the speed the drivetrain can really deliver.
 	current_surface = surface_override if surface_override != "" else _sample_surface()
 	var drive_factor := offroad_factor()
-	var eff_top: float = maxf(top_speed * drive_factor * driver_top, 4.0)
+	# TIRE PUNCTURE: any flat wheel taxes the top speed ONCE (not stacked per flat —
+	# you're limping either way), same lever the row already uses for drive_factor.
+	var punct_top_mult := PUNCTURE_TOP_SPEED_MULT if any_punctured() else 1.0
+	var eff_top: float = maxf(top_speed * drive_factor * driver_top * punct_top_mult, 4.0)
 	is_struggling = input_throttle > 0.3 and drive_factor < 0.82 and not dead
 
 	# Steering authority falls off with speed for stability, ramps in smoothly.
@@ -740,7 +1030,13 @@ func _physics_process(delta: float) -> void:
 	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio)
 	if input_handbrake:
 		steer_limit *= handbrake_steer_mult
-	steering = move_toward(steering, input_steer * steer_limit, steer_speed * driver_control * delta)
+	# TWO-RATE STEERING (owner ask 2026-07-07): centering back toward straight is
+	# FASTER than winding the wheel up — the target's magnitude shrinking (toward
+	# 0) vs growing/holding is the tell, so a direction-reversal through center
+	# also gets the snappy rate, not just a literal release-to-neutral.
+	var steer_target := input_steer * steer_limit
+	var rate := steer_return_speed if absf(steer_target) < absf(steering) else steer_speed
+	steering = move_toward(steering, steer_target, rate * driver_control * delta)
 	# CHASSIS SLOP (drivable damage): a bent frame won't track true — at speed the
 	# wheel WANDERS and you correct constantly. Worn = a shimmy; critical = a fight.
 	steer_slop = 0.0
@@ -782,21 +1078,45 @@ func _physics_process(delta: float) -> void:
 	if misfiring:
 		engine_mult *= 0.12
 	# BATTERY FLICKER (drivable damage): a dying battery can't hold the beams —
-	# night driving on a bad battery is driving by strobe.
+	# night driving on a bad battery is driving by strobe. The HALO is spill off the
+	# same beams, so it strobes on the same roll — one flicker, not two out of phase.
 	if headlights_on and components["battery"].tier() >= Damageable.Tier.CRITICAL:
+		var strobe := 0.2 + 0.8 * float(_spiral_rng.randf() > 0.25)
 		for hl in _headlights:
 			if hl is SpotLight3D:
-				(hl as SpotLight3D).light_energy = 4.0 * (0.2 + 0.8 * float(_spiral_rng.randf() > 0.25))
+				(hl as SpotLight3D).light_energy = 4.0 * strobe
+		if _halo != null and is_instance_valid(_halo):
+			var halo_row: Dictionary = (spec.get("lights", LIGHTS_DEFAULT) as Dictionary).get("halo", LIGHTS_DEFAULT["halo"])
+			_halo.light_energy = float(halo_row.get("energy", 1.2)) * strobe
+	# BURNOUT (owner ask 2026-07-07): full throttle from near a standstill lights
+	# the drive wheels up — a temporary grip drop on the rear (traction) wheels
+	# plus the skid loop (see _emit_skids) and a little yaw wiggle so it READS as
+	# a burnout, not just a sluggish launch. Clears once speed climbs past the row's
+	# burnout_speed_max — a real launch, not a permanent debuff.
+	is_burnout = input_throttle > 0.95 and absf(forward_speed) < burnout_speed_max and not dead
+	if is_burnout:
+		# Torque-only wiggle (same iron rule as the drift settle above — a direct
+		# angular_velocity write fights the wheel solver): a small sine-driven yaw
+		# nudge that reads as "fighting for traction," never enough to spin out.
+		apply_torque(Vector3(0, sin(Time.get_ticks_msec() * 0.02) * mass * 2.2, 0))
+
 	# Grip = baseline × tire condition × SURFACE-through-the-TIRES: off-road worth
 	# is the tire's dirt_mult (knobby 0.95 … highway 0.68 — VEHICLES.md §2);
 	# water halves it again (surface_grip_mult).
 	var surf_grip: float = surface_grip_mult()
 	var grip_mult: float = TIER_GRIP_MULT[components["tires"].tier()] * surf_grip
 	for w in _front_wheels:
-		w.wheel_friction_slip = grip_front * grip_mult * ProtoWeather.grip_now # rain kills grip (weather law)
+		# TIRE PUNCTURE: a flat corner drags regardless of which axle it's on.
+		var f_idx := _all_wheels.find(w)
+		var f_punct_mult := PUNCTURE_GRIP_MULT if (f_idx >= 0 and bool(_punctured[f_idx])) else 1.0
+		w.wheel_friction_slip = grip_front * grip_mult * ProtoWeather.grip_now * f_punct_mult # rain kills grip (weather law)
 	var rear_base := handbrake_grip_rear if input_handbrake else grip_rear
+	if is_burnout:
+		rear_base *= burnout_slip
 	for w in _rear_wheels:
-		w.wheel_friction_slip = rear_base * grip_mult * ProtoWeather.grip_now
+		var r_idx := _all_wheels.find(w)
+		var r_punct_mult := PUNCTURE_GRIP_MULT if (r_idx >= 0 and bool(_punctured[r_idx])) else 1.0
+		w.wheel_friction_slip = rear_base * grip_mult * ProtoWeather.grip_now * r_punct_mult
 
 	if input_throttle > 0.0 and engine_mult > 0.0:
 		fuel = maxf(0.0, fuel - fuel_drain_rate * input_throttle * delta)
@@ -815,6 +1135,11 @@ func _physics_process(delta: float) -> void:
 			brake = input_brake * max_brake
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
+
+	# AERODYNAMIC DRAG — a v² force opposing horizontal motion (Ander2211 ref, MIT).
+	# Additive: no-op when aero_drag == 0. Applied every frame incl. coasting.
+	if aero_drag > 0.0:
+		apply_central_force(aero_force(linear_velocity))
 
 	if input_handbrake:
 		# Brake with a FORCE opposing motion, not the wheel `brake` (a strong wheel
@@ -840,7 +1165,21 @@ func _physics_process(delta: float) -> void:
 			elif absf(input_steer) < 0.15:
 				apply_torque(Vector3(0.0, -wy * mass * yaw_damp, 0.0))
 
+	_update_tail_lights()
 	_emit_skids()
+
+
+## The aerodynamic drag force for a given velocity: magnitude aero_drag·|v_h|²,
+## directed against horizontal motion (Y ignored — gravity/suspension own that).
+## Pulled out as a pure function so a headless sim can assert the formula exactly
+## without spinning up the physics world. Below a dead-zone speed it's zero (no
+## jitter forces on a near-parked car).
+func aero_force(vel: Vector3) -> Vector3:
+	var vh := Vector3(vel.x, 0.0, vel.z)
+	var sp := vh.length()
+	if aero_drag <= 0.0 or sp < 0.5:
+		return Vector3.ZERO
+	return -vh.normalized() * aero_drag * sp * sp
 
 
 ## Hold a two-wheeler up: PD torque about the forward (roll) axis. Lean is the
@@ -928,12 +1267,57 @@ func skid_count() -> int:
 	return _skids.size()
 
 
+## BRAKE GLOW + REVERSE (owner ask 2026-07-07): tail emission jumps on the pedal
+## or handbrake (each tail box's OWN duplicated material — never the shared
+## _mat_cache one), and the white reverse box + backward SpotLight3D come on
+## ONLY while actually reversing (moving backward, not just holding the input
+## at a standstill — a stalled reverse-throttle shouldn't light the ground up).
+func _update_tail_lights() -> void:
+	if dead or _tail_mats.is_empty():
+		return
+	var light_row: Dictionary = spec.get("lights", LIGHTS_DEFAULT) as Dictionary
+	var brake_row: Dictionary = light_row.get("brake", LIGHTS_DEFAULT["brake"])
+	var braking := input_brake > 0.0 or input_handbrake
+	var glow_energy: float = float(brake_row.get("glow_energy", 0.9))
+	var target_mult: float = float(brake_row.get("energy_mult", 3.0)) if braking else 1.0
+	for m in _tail_mats:
+		if m is StandardMaterial3D:
+			(m as StandardMaterial3D).emission_energy_multiplier = 1.4 * target_mult
+	# A soft red pulse rides along with the glow — subtle, not a strobe.
+	if braking and _brake_light == null:
+		_brake_light = OmniLight3D.new()
+		_brake_light.position = Vector3(0, 0.2, spec.get("chassis", Vector3.ZERO).z / 2.0 + 0.1)
+		_brake_light.omni_range = 3.0
+		_brake_light.light_color = TAIL_COLOR
+		_brake_light.shadow_enabled = false
+		add_child(_brake_light)
+	if _brake_light != null and is_instance_valid(_brake_light):
+		_brake_light.visible = braking
+		if braking:
+			_brake_light.light_energy = glow_energy * (0.85 + 0.15 * sin(Time.get_ticks_msec() * 0.012))
+
+	# REVERSING = actually moving backward (+Z), not just holding the pedal at a
+	# standstill — a stalled reverse-throttle attempt shouldn't light the ground.
+	var reversing := is_active and forward_speed < -0.3
+	_was_reversing = reversing
+	var reverse_row: Dictionary = light_row.get("reverse", LIGHTS_DEFAULT["reverse"])
+	var rev_energy: float = float(reverse_row.get("energy", 0.7)) if reversing else 0.0
+	for g in _reverse_glows:
+		if g is MeshInstance3D and is_instance_valid(g):
+			var gm := (g as MeshInstance3D).material_override
+			if gm is StandardMaterial3D:
+				(gm as StandardMaterial3D).emission_energy_multiplier = rev_energy * 2.0
+	if _reverse_light != null and is_instance_valid(_reverse_light):
+		_reverse_light.light_energy = rev_energy
+
+
 ## Lay dark marks under the rear wheels while they're actually sliding — the
 ## drift made visible. Distance-gated so a slide draws a continuous streak, not
 ## a flood; pooled + faded so it never grows without bound.
 func _emit_skids() -> void:
 	if dead:
 		return
+	_update_skid_loop()
 	var world := get_parent()
 	if world == null:
 		return
@@ -946,18 +1330,35 @@ func _emit_skids() -> void:
 		if not sliding or absf(forward_speed) < 2.0:
 			continue
 		var cp: Vector3 = w.get_contact_point()
-		# The slide SPEAKS on asphalt (rubber screech, cooldown-gated); dirt hisses
-		# by not screeching at all — the surface is information.
-		_skid_snd_cd = maxf(0.0, _skid_snd_cd - get_physics_process_delta_time())
-		if _skid_snd_cd <= 0.0 and current_surface == "road" and absf(forward_speed) > 6.0:
-			_skid_snd_cd = 1.3
-			var m := get_tree().current_scene
-			if m != null and "audio" in m and m.audio:
-				m.audio.play_at("skid", global_position, -7.0)
 		if _skid_last.has(w) and cp.distance_to(_skid_last[w]) < SKID_STEP:
 			continue
 		_skid_last[w] = cp
 		_drop_skid(world, cp, col)
+
+
+## THE SKID LOOP (owner ask 2026-07-07): a CAR-LEVEL condition (any wheel
+## slipping, or an active handbrake drift) computed ONCE per tick — not per-wheel
+## like the decal drop above — drives ONE continuous screech player. Starts the
+## instant grip breaks, stops the instant it returns; no cooldown gap to retrigger.
+func _update_skid_loop() -> void:
+	var any_slip := false
+	for w in _all_wheels:
+		if is_instance_valid(w) and w.is_in_contact() and w.get_skidinfo() < 0.85:
+			any_slip = true
+			break
+	var drifting := input_handbrake and absf(forward_speed) > 2.0
+	is_skidding = (any_slip and absf(forward_speed) > 3.0) or drifting or is_burnout
+	if is_skidding and _skid_player == null:
+		var m := get_tree().current_scene
+		if m == null or not ("audio" in m):
+			m = get_parent() # sims wrap main in a harness — the parent IS main
+		if m != null and "audio" in m and m.audio:
+			_skid_player = (m.audio as ProtoAudio).attach_loop("tire_scream", self, -9.0)
+	if _skid_player != null and is_instance_valid(_skid_player):
+		if is_skidding and not _skid_player.playing:
+			_skid_player.play()
+		elif not is_skidding and _skid_player.playing:
+			_skid_player.stop()
 
 
 func _drop_skid(world: Node, pos: Vector3, col: Color) -> void:
