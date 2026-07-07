@@ -303,8 +303,12 @@ func _ready() -> void:
 	drone_pilot.shut_off.connect(func() -> void:
 		split_view.deactivate()
 		if drone != null and is_instance_valid(drone):
-			drone.piloted = false # hand the bird back to its own autonomy
-		notify("🛸 Drone off — you have your body back."))
+			drone.piloted = false
+			# QoL: a pilot-landed bird PARKS where you set it down (grabbable with E,
+			# rotors still) and its patrol re-anchors HERE for when you next send it up.
+			drone.parked = true
+			drone._anchor = drone.global_position
+		notify("🛸 Drone off — you have your body back. E near the bird packs it up."))
 
 	char_create = ProtoCharCreate.create(self)
 	add_child(char_create)
@@ -399,6 +403,7 @@ var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K 
 var book_panel: ProtoBookPanel = null ## THE LIBRARY — the in-game manuals (bookshelf / book items)
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
+var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
 var last_walkie_report: String = "" ## sim hook: the walkie-talkie's last chatter line
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
@@ -734,6 +739,17 @@ func _physics_process(delta: float) -> void:
 			drone_pilot.pilot_input(Vector3(
 				Input.get_axis("move_left", "move_right"), 0.0,
 				Input.get_axis("move_up", "move_down")))
+		# QoL: low-battery warnings while you fly — 20% heads-up, 10% means turn back NOW.
+		if drone != null and is_instance_valid(drone):
+			var bp: float = drone.battery_pct()
+			if bp <= 10.0 and _drone_warned < 2:
+				_drone_warned = 2
+				audio.play_ui("sensor_ping", -4.0)
+				notify("🛸 BATTERY 10%% — it comes DOWN when it dies. Turn back.")
+			elif bp <= 20.0 and _drone_warned < 1:
+				_drone_warned = 1
+				audio.play_ui("blip", -6.0)
+				notify("🛸 Battery 20%% — think about heading home.")
 	# THE DOG'S EYE winds down with the search: when the seeking dog comes off SEEK (found
 	# it / recalled / died) the split folds back to one view and the default range returns.
 	# A short grace covers the obey delay — command_seek QUEUES the state, so the eye must
@@ -1476,6 +1492,11 @@ func on_dog_nose(dog: ProtoDog, stash: Node3D) -> void:
 ## Finds the nearest interactable with a live prompt and shows its chip.
 func _update_interact_prompt() -> void:
 	_current_interactable = null
+	# PILOTING owns the prompt line (QoL): the controls + the live battery, always visible.
+	if drone_pilot != null and drone_pilot.body_immobile():
+		var b: String = (" · batt %d%%" % int(drone.battery_pct())) if (drone != null and is_instance_valid(drone)) else ""
+		hud.show_prompt("🛸 PILOTING — move keys fly · E brings it in to LAND%s" % b)
+		return
 	if mode == Mode.DRIVE:
 		if active_car and active_car.current_mph < 8.0:
 			hud.show_prompt("E — Get out")
@@ -1814,6 +1835,7 @@ func use_item(id: String) -> bool:
 			# screen splits as it ranges out — docs/design/DYNAMIC_SPLIT_DRONE.md).
 			if drone_pilot != null and not drone_pilot.is_active():
 				drone.piloted = true
+				drone.parked = false # off the ground — the stick is yours
 				enter_drone_pilot(drone)
 				return true
 			notify("The bird's already up")
@@ -2658,6 +2680,7 @@ func enter_drone_pilot(d: Node3D) -> void:
 	if drone_pilot == null or split_view == null or d == null:
 		return
 	if drone_pilot.start(d):
+		_drone_warned = 0 # fresh flight, fresh battery warnings
 		split_view.activate(player, d)
 		notify("🛸 PILOTING — fly it with your move keys; the screen SPLITS as it ranges. Interact to bring it in and land.")
 

@@ -23,6 +23,7 @@ const ROUTE_RANGE := 220.0  ## how far out the signal holds
 var battery: float = BATTERY_MAX
 var mode: DroneMode = DroneMode.PATROL
 var piloted: bool = false ## while true, ProtoDronePilot owns the bird — autonomy stands down
+var parked: bool = false  ## landed by the pilot: stays DOWN (grabbable) until re-taken
 var hp: float = 12.0
 var marks: int = 0 ## hazards marked this flight (the report card)
 var _route_target: Vector3 = Vector3.ZERO
@@ -85,6 +86,34 @@ func battery_pct() -> float:
 	return battery / BATTERY_MAX * 100.0
 
 
+## On the ground and idle — close enough to grab (QoL: a landed bird is retrievable).
+func landed() -> bool:
+	return parked or (not piloted and global_position.y < 1.0)
+
+
+# --- Interactable contract (QoL): E packs up a LANDED drone back into the pack. -----
+func interact_position() -> Vector3:
+	return global_position
+
+
+func interact_prompt(_main: Node) -> String:
+	return "E — 🛸 pack up the drone" if landed() else ""
+
+
+func interact(main: Node) -> void:
+	if not landed():
+		return
+	if "backpack" in main and main.backpack != null:
+		main.backpack.add("drone", 1)
+	if "audio" in main and main.audio != null:
+		main.audio.play_ui("camera_click", -6.0)
+	if "drone" in main and main.drone == self:
+		main.drone = null
+	if main.has_method("notify"):
+		main.notify("🛸 Bird packed up")
+	queue_free()
+
+
 ## Shot down = LOST: a wreck where it fell, salvage for whoever walks there.
 func take_damage(amount: float, _attacker: Node3D = null) -> void:
 	hp -= amount
@@ -103,10 +132,12 @@ func take_damage(amount: float, _attacker: Node3D = null) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if parked:
+		return # set down by the pilot — rotors still, grabbable, waiting for the stick
 	if _rotor:
 		_rotor.rotation.y += 22.0 * delta
 	if piloted:
-		return # you're flying it — the pilot owns position, altitude and shutoff
+		return # you're flying it — the pilot owns position, altitude, battery and shutoff
 	match mode:
 		DroneMode.PATROL:
 			# Patrol the ring over the deploy point.

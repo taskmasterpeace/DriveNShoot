@@ -90,6 +90,13 @@ func update(delta: float) -> void:
 		if state != PState.OFF:
 			_finish_off()
 		return
+	# QoL: the battery keeps draining while YOU fly it (the drone's own tick stands down
+	# when piloted) — and an empty battery brings the bird DOWN, never a vanish mid-air.
+	if state == PState.FLYING or state == PState.HOVER:
+		if "battery" in drone:
+			drone.set("battery", maxf(0.0, float(drone.get("battery")) - delta))
+			if float(drone.get("battery")) <= 0.0:
+				_goto(PState.LANDING)
 	var p := drone.global_position
 	match state:
 		PState.FLYING:
