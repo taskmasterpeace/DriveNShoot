@@ -67,10 +67,16 @@ func load_file(path: String) -> bool:
 			pts.append(Vector2(float(p[0]), float(p[1])))
 		# PILLAR 1 (WORLD_PILLARS.md): a road is a CHARACTER — danger, patrol
 		# family, a nickname the world greets you with, and a toll if it bills.
-		roads.append({"id": r["id"], "kind": r.get("kind", "interstate"), "pts": pts,
-			"danger": int(r.get("danger", 1 if String(r.get("kind", "interstate")) == "interstate" else 0)),
+		# ROAD OVERHAUL (ROAD_TRAFFIC_OVERHAUL.md §3.1): lanes + median division
+		# are ROWS too. Defaults: interstate 4 / exit 2; divided iff lanes >= 6
+		# (a six-lane without a median is a death trap) — both overridable per row.
+		var kind := String(r.get("kind", "interstate"))
+		var lanes := int(r.get("lanes", 4 if kind == "interstate" else 2))
+		roads.append({"id": r["id"], "kind": kind, "pts": pts,
+			"danger": int(r.get("danger", 1 if kind == "interstate" else 0)),
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
-			"toll": int(r.get("toll", 0))})
+			"toll": int(r.get("toll", 0)),
+			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
 	rivers = d.get("rivers", [])
 	towns.clear()
 	for t in d.get("towns", []):
@@ -146,6 +152,37 @@ func state_at(pos: Vector3) -> String:
 	return state_legend.get(states_grid[c.y][c.x], "")
 
 
+## THE ONE GEOMETRY LAW (ROAD_TRAFFIC_OVERHAUL.md §3.2): every consumer of lane
+## math — the streamer's slabs, the traffic system's offsets, the autopilot's
+## lane-keeping, grip registration — reads THIS, so the painted road and the
+## driven road can never disagree.
+const LANE_W: float = 3.6
+const SHOULDER_W: float = 1.0
+const MEDIAN_W: float = 2.4
+
+
+static func road_geometry(road: Dictionary) -> Dictionary:
+	var lanes := int(road.get("lanes", 4))
+	var divided := bool(road.get("divided", lanes >= 6))
+	var per_side := maxi(1, lanes / 2)
+	if divided:
+		var carriage := per_side * LANE_W + 1.6
+		return {"lanes": lanes, "per_side": per_side, "divided": true,
+			"carriage_w": carriage, "median_w": MEDIAN_W,
+			"width": 2.0 * carriage + MEDIAN_W, "center_gap": MEDIAN_W * 0.5 + 0.8}
+	return {"lanes": lanes, "per_side": per_side, "divided": false,
+		"carriage_w": lanes * LANE_W + 2.0 * SHOULDER_W, "median_w": 0.0,
+		"width": lanes * LANE_W + 2.0 * SHOULDER_W, "center_gap": 0.0}
+
+
+## Lateral distance from the centerline to the CENTER of lane N (0 = innermost),
+## on the right-hand side of travel. The traffic system mirrors the sign by
+## direction; this is pure magnitude.
+static func lane_offset(road: Dictionary, lane: int) -> float:
+	var g := road_geometry(road)
+	return float(g["center_gap"]) + (float(lane) + 0.5) * LANE_W
+
+
 ## Nearest interstate within max_d meters of a world point (2D). Returns {} or
 ## {id, kind, dist, a, b} — a/b are the closest segment's endpoints (world m).
 func road_near(pos: Vector3, max_d: float) -> Dictionary:
@@ -160,8 +197,33 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 				best_d = d
 				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
-					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0))}
+					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 	return best
+
+
+## EVERY road within max_d of a point — one entry per road, each with its own
+## closest segment (the junction fix: an exit ramp must not displace its own
+## interstate in the chunk that hosts them both).
+func roads_near(pos: Vector3, max_d: float) -> Array:
+	var p := Vector2(pos.x, pos.z)
+	var out: Array = []
+	for road in roads:
+		var pts: PackedVector2Array = road["pts"]
+		var best_d := max_d
+		var best_i := -1
+		for i in range(pts.size() - 1):
+			var d := _seg_dist(p, pts[i], pts[i + 1])
+			if d < best_d:
+				best_d = d
+				best_i = i
+		if best_i >= 0:
+			out.append({"id": road["id"], "kind": road["kind"], "dist": best_d,
+				"a": pts[best_i], "b": pts[best_i + 1],
+				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
+	return out
 
 
 func town_near(pos: Vector3, r: float) -> Dictionary:

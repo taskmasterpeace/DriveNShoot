@@ -19,7 +19,7 @@ const SLAB := 5800.0 ## the authored 12 km ground slab's half-size — beyond it
 ## Fallback bands if the map file is missing (pre-usmap behavior).
 const STATES: Array = ["VIRGINIA", "KENTUCKY", "MISSOURI", "KANSAS", "COLORADO", "UTAH", "NEVADA", "CALIFORNIA"]
 
-const ROAD_W := 13.0 ## interstate slab width (m)
+# (ROAD_W retired 2026-07-07: width is the ROW's — ProtoUSMap.road_geometry, the one law.)
 
 const BIOME_GROUND: Dictionary = {
 	"forest": Color(0.30, 0.34, 0.20), "farmland": Color(0.55, 0.48, 0.26),
@@ -305,36 +305,16 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
 			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))
 
-	# --- The interstate materializes: nearest macro road clipped to this chunk
-	# becomes real asphalt + a registered surface rect (drivable grip). Over
-	# water it rides a BRIDGE deck — rivers are crossable where roads cross them.
+	# --- The roads materialize (ROAD_TRAFFIC_OVERHAUL.md §3.3): EVERY macro road
+	# near this chunk becomes real asphalt to its ROW's geometry — lanes, median
+	# division, honest grip width. Plural is the junction fix: an exit ramp used
+	# to displace the very interstate it merges with (nearest-only). Over water
+	# a road rides a BRIDGE deck — rivers are crossable where roads cross them.
 	var road: Dictionary = {}
 	if usmap != null and usmap.ok:
-		road = usmap.road_near(center, 220.0)
-	if not road.is_empty():
-		var seg := _clip_segment_to_chunk(road["a"], road["b"], center)
-		if not seg.is_empty():
-			var a: Vector2 = seg[0]
-			var b: Vector2 = seg[1]
-			var mid := (a + b) * 0.5
-			var dir := b - a
-			var seg_len := dir.length()
-			if seg_len > 4.0:
-				var rot := atan2(dir.x, -dir.y) # Z-aligned slab → world yaw
-				var y := 0.09 if wet else 0.07
-				ProtoWorldBuilder.box_visual(chunk, Vector3(ROAD_W, 0.05, seg_len + 6.0),
-					Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
-				ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
-					Vector3(mid.x, y + 0.02, mid.y), ProtoWorldBuilder.COL_DASH, rot)
-				if wet: # bridge rails
-					var side := Vector2(dir.y, -dir.x).normalized() * (ROAD_W * 0.5 + 0.4)
-					for sgn in [1.0, -1.0]:
-						ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
-							Vector3(mid.x + side.x * sgn, 0.5, mid.y + side.y * sgn),
-							Color(0.35, 0.33, 0.30), rot)
-				var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
-				rects.append([mid.x, mid.y, ROAD_W * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot])
-				ProtoWorldBuilder.extra_road_rects[key] = rects
+		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
+		for row in usmap.roads_near(center, 220.0):
+			_build_road_stretch(chunk, center, row, key, wet)
 
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
@@ -541,6 +521,75 @@ func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
 	sign.global_position = Vector3(pos.x + side.x, 0.0, pos.y + side.y)
 
 
+## ONE road row's stretch through this chunk: slab(s) to the row's geometry law,
+## lane markings, a PHYSICAL median barrier when divided, bridge rails when wet,
+## and the grip rect at the row's real width. Every piece is meta-tagged with
+## the road id (road_slab / road_center / road_lane / road_barrier) so sims and
+## tools can read the built world without guessing at colors.
+func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: String, wet: bool) -> void:
+	var seg := _clip_segment_to_chunk(row["a"], row["b"], center)
+	if seg.is_empty():
+		return
+	var a: Vector2 = seg[0]
+	var b: Vector2 = seg[1]
+	var mid := (a + b) * 0.5
+	var dir := b - a
+	var seg_len := dir.length()
+	if seg_len <= 4.0:
+		return
+	var rid := String(row["id"])
+	var g := ProtoUSMap.road_geometry(row)
+	var rot := atan2(dir.x, -dir.y) # Z-aligned slab → world yaw
+	var perp := Vector2(dir.y, -dir.x).normalized()
+	# Deterministic per-id lift (≤24mm) so overlapping slabs at junctions never
+	# z-fight — two roads through one chunk each keep their own plane.
+	var y := (0.09 if wet else 0.07) + float(absi(hash(rid)) % 5) * 0.004
+	if bool(g["divided"]):
+		# TWIN CARRIAGEWAYS around the median gap, each with its own lane strips.
+		var carriage_w := float(g["carriage_w"])
+		var half_gap := float(g["median_w"]) * 0.5 + carriage_w * 0.5
+		for sgn: float in [1.0, -1.0]:
+			var off: Vector2 = perp * half_gap * sgn
+			var slab := ProtoWorldBuilder.box_visual(chunk, Vector3(carriage_w, 0.05, seg_len + 6.0),
+				Vector3(mid.x + off.x, y, mid.y + off.y), ProtoWorldBuilder.COL_ROAD, rot)
+			slab.set_meta("road_slab", rid)
+			for k in range(1, int(g["per_side"])):
+				var lat: float = (float(g["center_gap"]) + k * ProtoUSMap.LANE_W) * sgn
+				var strip := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
+					Vector3(mid.x + perp.x * lat, y + 0.02, mid.y + perp.y * lat),
+					ProtoWorldBuilder.COL_DASH, rot)
+				strip.set_meta("road_lane", rid)
+		# THE MEDIAN BARRIER — a real body: crossing a divided highway means an
+		# exit or a chunk-seam gap (which reads as an expansion joint), on purpose.
+		var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, seg_len),
+			Vector3(mid.x, 0.4 + (0.02 if wet else 0.0), mid.y), Color(0.44, 0.43, 0.41), rot)
+		bar.set_meta("road_barrier", rid)
+	else:
+		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
+			Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+		slab2.set_meta("road_slab", rid)
+		# Double-yellow center: two-way traffic shares this slab.
+		var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
+			Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
+		cl.set_meta("road_center", rid)
+		for side_sgn: float in [1.0, -1.0]:
+			for k2 in range(1, int(g["per_side"])):
+				var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
+				var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
+					Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
+					ProtoWorldBuilder.COL_DASH, rot)
+				strip2.set_meta("road_lane", rid)
+	if wet: # bridge rails at the row's real edge
+		var rail_lat := float(g["width"]) * 0.5 + 0.4
+		for sgn2: float in [1.0, -1.0]:
+			ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
+				Vector3(mid.x + perp.x * rail_lat * sgn2, 0.5, mid.y + perp.y * rail_lat * sgn2),
+				Color(0.35, 0.33, 0.30), rot)
+	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
+	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot])
+	ProtoWorldBuilder.extra_road_rects[key] = rects
+
+
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
 func _clip_segment_to_chunk(a: Vector2, b: Vector2, center: Vector3) -> Array:
 	var half := CHUNK * 0.5 + 6.0
@@ -591,7 +640,8 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 		guard += 1
 		var p := center + Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-60, 60))
 		if not road.is_empty():
-			if ProtoUSMap._seg_dist(Vector2(p.x, p.z), road["a"], road["b"]) < ROAD_W * 0.5 + 3.0:
+			# Clearance follows the ROW's real width (a 6-lane clears further than a 2-lane).
+			if ProtoUSMap._seg_dist(Vector2(p.x, p.z), road["a"], road["b"]) < float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 3.0:
 				continue
 		spots.append(p)
 	if spots.is_empty():
@@ -663,7 +713,8 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 	var b: Vector2 = road["b"]
 	var dir := (b - a).normalized()
 	var side := Vector2(dir.y, -dir.x) * (1.0 if rng.randf() < 0.5 else -1.0)
-	var base2 := Vector2(center.x, center.z) + side * (ROAD_W * 0.5 + rng.randf_range(14.0, 22.0))
+	var half_w := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 # setback off the ROW's real edge
+	var base2 := Vector2(center.x, center.z) + side * (half_w + rng.randf_range(14.0, 22.0))
 	var n := rng.randi_range(4, 6)
 	for i in n:
 		var hpos2 := base2 + dir * ((i - n / 2.0) * rng.randf_range(11.0, 14.0)) + side * rng.randf_range(-3, 5)
@@ -674,7 +725,7 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 		ProtoWorldBuilder.box_body(chunk, Vector3(hsize.x + 0.6, 0.3, hsize.z + 0.6), hpos + Vector3(0, hsize.y + 0.15, 0), ProtoWorldBuilder.COL_ROOF, atan2(side.x, -side.y))
 		# driveway
 		ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.03, (base2 - Vector2(center.x, center.z)).length()),
-			Vector3(lerpf(hpos2.x, center.x + side.x * ROAD_W * 0.5, 0.5), 0.05, lerpf(hpos2.y, center.z + side.y * ROAD_W * 0.5, 0.5)),
+			Vector3(lerpf(hpos2.x, center.x + side.x * half_w, 0.5), 0.05, lerpf(hpos2.y, center.z + side.y * half_w, 0.5)),
 			Color(0.36, 0.32, 0.26), atan2(side.x, -side.y))
 	chunk.add_to_group("biome_neighborhood")
 
