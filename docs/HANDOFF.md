@@ -110,9 +110,12 @@
 >   tell, 7 named acceptance sims. THE bible's big unbuilt system — build next.
 >
 > ### ⏭ WHAT TO WORK ON NEXT (in order)
-> 0. **BANDIT ECOSYSTEM rungs 2+** (`BANDIT_CONVOY_ECOSYSTEM.md` §8.2-8.7): the gang
->    director, checkpoints, regional strength rows, bandit drones. The prey (convoys)
->    and the terrain (corridors, chokepoints) are live — build the predators.
+> 0. ~~BANDIT ECOSYSTEM rungs 2-5~~ **✅ SHIPPED (060482d)**: ProtoBandits gang director
+>    (WATCH ledger → checkpoint kit / hit-and-run), shadow drones (shoot = scrap + a
+>    day of gang blindness), regional strength rows (Southwest 5, occupied FL 0),
+>    data/bandit_regions.json. bandit_sim 18/18. REMAINING rungs: v2 scheduled convoys
+>    off production (LOOT_NPC §8), gang camps as placed lootables, faction-skinned kits
+>    (Faith contraband search reusing the same machinery), INFECTED (INFECTED_TRIALS.md).
 > 1. **POPULATION + WAR** — the big living-world arc. Its foundation (population.gd cells,
 >    zone tags, noise ecology, spawn suppression) is now COMMITTED AND GREEN, and its
 >    prerequisite (terrain relief) shipped. Contracts: `docs/design/POPULATION_WAR.md` +
