@@ -1783,12 +1783,20 @@ func fire_equipped() -> void:
 
 # --- THE MEDIA LAYER (docs/cinema.md): the TV, the catalog, the collection ----
 
-## The TV's E lands here: news on the ticker, then the shelf.
+## The TV's E lands here: news on the ticker, then the shelf. Airing a TV
+## bulletin marks it HEARD (one showing each — the set drains its own medium,
+## exactly as the radio drains the dial's).
 func open_media_panel() -> void:
 	if media_panel == null:
 		return
 	if newsroom != null:
-		media_panel.set_ticker(newsroom.latest_tv_line())
+		var line := newsroom.latest_tv_line()
+		media_panel.set_ticker(line)
+		if line != "" and world_state != null:
+			for b in world_state.broadcast_queue:
+				if String(b.get("medium", "")) == "tv" and not bool(b.get("heard", false)):
+					b["heard"] = true
+					break
 	media_panel.open()
 
 

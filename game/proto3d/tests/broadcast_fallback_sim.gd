@@ -46,19 +46,34 @@ func _ready() -> void:
 	main.radio.scan()
 	_check("Y-scan delivers a BULLETIN first (cuts through the static)", main.radio.last_signal == "bulletin")
 	_check("the delivered bulletin is now marked HEARD", bool(ws.broadcast_queue[0].get("heard", false)))
-	# a second scan should NOT re-deliver the same one (drains the queue)
+	# THE TWO-CHANNEL LAW (cinema.md Phase 6): the dial drains RADIO bulletins;
+	# tv-medium bulletins belong to the SET's lower-third. A radio scan must
+	# never eat the television's news.
 	main.radio._cd = 0.0
-	var unheard_before: int = 0
+	var radio_unheard_before: int = 0
 	for b in ws.broadcast_queue:
-		if not bool(b.get("heard", false)):
-			unheard_before += 1
+		if not bool(b.get("heard", false)) and String(b.get("medium", "radio")) != "tv":
+			radio_unheard_before += 1
 	main.radio.scan()
-	var unheard_after: int = 0
+	var radio_unheard_after: int = 0
+	var tv_unheard: int = 0
 	for b in ws.broadcast_queue:
 		if not bool(b.get("heard", false)):
-			unheard_after += 1
-	_check("each scan drains at most one bulletin (no infinite re-report)",
-		unheard_after == max(0, unheard_before - 1))
+			if String(b.get("medium", "radio")) == "tv":
+				tv_unheard += 1
+			else:
+				radio_unheard_after += 1
+	_check("each scan drains at most one RADIO bulletin (no infinite re-report)",
+		radio_unheard_after == max(0, radio_unheard_before - 1))
+	_check("the radio does NOT eat the television's news", tv_unheard == 1)
+	# The SET airs it: opening the TV shows the lower-third and marks it heard.
+	main.open_media_panel()
+	var aired := false
+	for b in ws.broadcast_queue:
+		if String(b.get("medium", "")) == "tv" and bool(b.get("heard", false)):
+			aired = true
+	_check("opening the TV AIRS the tv bulletin (marks it heard)", aired)
+	main.media_panel.close()
 
 	print("BCAST RESULTS: %d passed, %d failed" % [passed, failed])
 	print("BCAST: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
