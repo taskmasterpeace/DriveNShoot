@@ -6,3 +6,6 @@ unity/
 .env
 tools/soundforge/.env
 game/data/laptimes.json
+
+# packaged builds (BUILD.bat output) - never commit exes
+build/
