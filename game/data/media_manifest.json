@@ -21,6 +21,85 @@
       ],
       "priority": 1,
       "requires_pack": false
+    },
+    {
+      "id": "unclean_2013",
+      "category": "film",
+      "title": "Unclean (2013)",
+      "series": "",
+      "season": null,
+      "episode": null,
+      "runtime_seconds": 545.46,
+      "encoded_path": "res://media/film/unclean_2013/unclean_2013.ogv",
+      "poster_path": "res://media/film/unclean_2013/poster.png",
+      "source_file": "unclean_2013.mp4",
+      "unlock_type": "always_available",
+      "unlock_region": "",
+      "screen_context": [
+        "safehouse_tv",
+        "drive_in"
+      ],
+      "priority": 1,
+      "requires_pack": false
+    },
+    {
+      "id": "familiar_stranger_2015",
+      "category": "film",
+      "title": "Familiar Stranger (2015)",
+      "series": "",
+      "season": null,
+      "episode": null,
+      "runtime_seconds": 470.04,
+      "encoded_path": "res://media/film/familiar_stranger_2015/familiar_stranger_2015.ogv",
+      "poster_path": "res://media/film/familiar_stranger_2015/poster.png",
+      "source_file": "familiar_stranger_2015.mp4",
+      "unlock_type": "always_available",
+      "unlock_region": "",
+      "screen_context": [
+        "safehouse_tv",
+        "drive_in"
+      ],
+      "priority": 1,
+      "requires_pack": false
+    },
+    {
+      "id": "cof_enemies_teaser",
+      "category": "trailers",
+      "title": "Consequences of Failure - Enemies",
+      "series": "",
+      "season": null,
+      "episode": null,
+      "runtime_seconds": 97.85,
+      "encoded_path": "res://media/trailers/cof_enemies_teaser/cof_enemies_teaser.ogv",
+      "poster_path": "res://media/trailers/cof_enemies_teaser/poster.png",
+      "source_file": "cof_enemies_teaser.mp4",
+      "unlock_type": "always_available",
+      "unlock_region": "",
+      "screen_context": [
+        "safehouse_tv",
+        "drive_in"
+      ],
+      "priority": 1,
+      "requires_pack": false
+    },
+    {
+      "id": "its_voice_s01e01",
+      "category": "tvshow",
+      "title": "Its Voice - S01E01",
+      "series": "Its Voice",
+      "season": 1,
+      "episode": 1,
+      "runtime_seconds": 1332.52,
+      "encoded_path": "res://media/tvshow/its_voice_s01e01/its_voice_s01e01.ogv",
+      "poster_path": "res://media/tvshow/its_voice_s01e01/poster.png",
+      "source_file": "its_voice_s01e01.mp4",
+      "unlock_type": "always_available",
+      "unlock_region": "",
+      "screen_context": [
+        "safehouse_tv"
+      ],
+      "priority": 1,
+      "requires_pack": false
     }
   ]
 }
