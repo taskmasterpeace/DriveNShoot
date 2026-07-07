@@ -1,13 +1,22 @@
 ## THE GHOST — record a lap, race it back. Samples {x, z, yaw} at a fixed rate
-## while you drive; the best lap per vehicle persists to res://data/ghosts/ so
-## the TOOLS can see them and any session can race any rig's best line. The ghost
-## body is a translucent shell with NO collision — and it doubles as the moving
-## target for chase-AI tests (the navigation groundwork).
+## while you drive; the best lap per vehicle persists so the TOOLS can see them
+## and any session can race any rig's best line. The ghost body is a translucent
+## shell with NO collision — and it doubles as the moving target for chase-AI
+## tests (the navigation groundwork).
+##
+## STORAGE PATH is now a per-instance parameter (`dir`), default unchanged
+## (res://data/ghosts — the Proving Grounds track and the TOOLS both still read
+## that exact path, untouched). A RACE variant in the shared world sets `dir`
+## to its own user://ghosts/ folder before recording (res:// is read-only in an
+## export — the training track's res:// default is kept on purpose as the
+## documented legacy path, not silently migrated).
 class_name ProtoTrackGhost
 extends Node3D
 
-const DIR := "res://data/ghosts"
+const DEFAULT_DIR := "res://data/ghosts"
 const DT := 0.05 ## sample every 50 ms (20 Hz — smooth enough, tiny on disk)
+
+var dir: String = DEFAULT_DIR ## set before start_recording()/load_ghost() to redirect storage
 
 # --- recording ---
 var rec_samples: Array = []
@@ -22,13 +31,16 @@ var playing: bool = false
 var _shell: Node3D = null
 
 
-static func path_for(vehicle_id: String) -> String:
-	return "%s/%s.json" % [DIR, vehicle_id]
+## Static, with an explicit dir — unchanged call shape for existing callers
+## (track_sim.gd calls this exactly as `ProtoTrackGhost.path_for("scavenger")`
+## and keeps working: the default arg reproduces today's res://data/ghosts path).
+static func path_for(vehicle_id: String, storage_dir: String = DEFAULT_DIR) -> String:
+	return "%s/%s.json" % [storage_dir, vehicle_id]
 
 
-static func available() -> Array:
+static func available(storage_dir: String = DEFAULT_DIR) -> Array:
 	var out: Array = []
-	var d := DirAccess.open(DIR)
+	var d := DirAccess.open(storage_dir)
 	if d:
 		for f in d.get_files():
 			if f.ends_with(".json"):
@@ -57,8 +69,8 @@ func record(delta: float, body: Node3D) -> void:
 ## Persist the finished lap as this vehicle's ghost (caller decides if it's best).
 func save_recording(vehicle_id: String, lap_time: float) -> void:
 	recording = false
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DIR))
-	var f := FileAccess.open(path_for(vehicle_id), FileAccess.WRITE)
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	var f := FileAccess.open(path_for(vehicle_id, dir), FileAccess.WRITE)
 	f.store_string(JSON.stringify({"vehicle": vehicle_id, "time": lap_time, "dt": DT,
 		"samples": rec_samples}))
 	f.close()
@@ -67,7 +79,7 @@ func save_recording(vehicle_id: String, lap_time: float) -> void:
 # --- PLAYBACK side -----------------------------------------------------------
 
 func load_ghost(vehicle_id: String) -> bool:
-	var p := path_for(vehicle_id)
+	var p := path_for(vehicle_id, dir)
 	if not FileAccess.file_exists(p):
 		return false
 	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(p))

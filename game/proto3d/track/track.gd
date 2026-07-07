@@ -6,12 +6,22 @@
 ## Lap times persist to res://data/laptimes.json — VehicleForge reads them, so the
 ## compare panel shows real on-track results next to the paper stats.
 ##
+## RACING v0 refactor: the ring's checkpoint/lap bookkeeping is now
+## ProtoRaceController (race_controller.gd) — the SAME generic engine a race
+## board in the shared world uses. This scene is the standalone half of that
+## split: a track that never leaves this little world, vs. a race board that
+## times a lap on the real road without ever switching scenes. `laps_done`,
+## `best_time`, `next_cp`, `_cps` etc. below are now thin proxies onto the
+## controller so every existing call site (this file's own HUD/input, and
+## track_sim.gd's regression) reads exactly as it did before the split.
+##
 ## Run:  Godot --path game res://proto3d/track/track.tscn -- vehicle=suv
-## Keys: 1-9 pick a rig · G race the ghost · C chase-AI on the ghost · R reset · ESC quit
+## Keys: 1-9 pick a rig · G race the ghost · C chase-AI on the ghost · R reset · ESC return to DRIVN
 class_name ProtoTrack
 extends Node3D
 
-const LAPTIMES := "res://data/laptimes.json"
+const LAPTIMES := "res://data/laptimes.json" ## legacy res:// path — see the note on race_controller.gd's user:// choice
+const MAIN_SCENE := "res://proto3d/proto3d.tscn"
 ## The circuit (world m). A rounded ring; scale shrinks it for fast headless sims.
 const POINTS: Array = [
 	Vector3(0, 0, 80), Vector3(60, 0, 80), Vector3(110, 0, 40), Vector3(110, 0, -40),
@@ -27,11 +37,7 @@ var ghost: ProtoTrackGhost = null
 var chaser: ProtoCar3D = null
 var chaser_ai: ProtoAutopilot = null
 
-var lap_t: float = 0.0
-var next_cp: int = 1 ## index into _cps; 0 is start/finish
-var laps_done: int = 0
-var best_time: float = 0.0
-var last_time: float = 0.0
+var race: ProtoRaceController = null ## the engine now doing the checkpoint/lap bookkeeping
 var _cps: Array = []
 var _cam: Camera3D = null
 var _hud: Label = null
@@ -117,53 +123,59 @@ func spawn_vehicle(id: String) -> void:
 	_reset_to_line()
 
 
+## Builds this track's ring as a race ROW (the same shape a races.json row
+## takes) and hands it to a fresh ProtoRaceController — the ring's own laps
+## count is unbounded (this is a practice track, not a finish line), so we
+## re-arm the controller every lap rather than let it stop at a lap count.
+func _make_ring_controller() -> ProtoRaceController:
+	var row: Dictionary = {"id": "proving_grounds", "name": "Proving Grounds",
+		"checkpoints": _cps, "laps": 999999, "check_r": CHECK_R * maxf(track_scale, 0.6)}
+	var r := ProtoRaceController.create(row, car)
+	add_child(r)
+	r.lap_done.connect(_on_lap_done)
+	return r
+
+
 func _reset_to_line() -> void:
 	var dir: Vector3 = (_cps[1] - _cps[0]).normalized()
 	car.global_position = _cps[0] + Vector3(0, 0.8, 0)
 	car.global_rotation.y = atan2(-dir.x, -dir.z)
 	car.linear_velocity = Vector3.ZERO
 	car.angular_velocity = Vector3.ZERO
-	lap_t = 0.0
-	next_cp = 1
+	if race != null and is_instance_valid(race):
+		race.queue_free()
+	race = _make_ring_controller()
+	race.start(vehicle_id)
 	ghost.start_recording()
 	if ghost.playing or ghost.samples.size() > 1:
 		ghost.start_playback()
 
 
 func _physics_process(delta: float) -> void:
-	if car == null:
+	if car == null or race == null:
 		return
-	lap_t += delta
 	ghost.record(delta, car)
 	ghost.advance(delta)
-	# Ordered checkpoints — no corner cutting counts.
-	var target: Vector3 = _cps[next_cp % _cps.size()]
-	var d := car.global_position * Vector3(1, 0, 1) - target * Vector3(1, 0, 1)
-	if d.length() < CHECK_R * maxf(track_scale, 0.6):
-		next_cp += 1
-		if next_cp > _cps.size(): # all gates + back through start = a LAP
-			_lap_done()
+	race.tick(delta)
 	if _hud:
-		_hud.text = "%s  ·  LAP %.2fs  ·  best %s  ·  cp %d/%d%s\n1-9 rig · G ghost · C chase AI · R reset" % [
-			ProtoCar3D.VEHICLES[vehicle_id]["name"], lap_t,
+		_hud.text = "%s  ·  LAP %.2fs  ·  best %s  ·  cp %d/%d%s\n1-9 rig · G ghost · C chase AI · R reset · ESC return" % [
+			ProtoCar3D.VEHICLES[vehicle_id]["name"], race.lap_t,
 			("%.2fs" % best_time) if best_time > 0.0 else "—",
-			next_cp - 1, _cps.size(),
+			race.next_cp - 1, _cps.size(),
 			("  ·  Δghost %.1fm" % car.global_position.distance_to(ghost.ghost_body().global_position)) if ghost.playing else ""]
 
 
-func _lap_done() -> void:
-	last_time = lap_t
-	laps_done += 1
-	if best_time <= 0.0 or lap_t < best_time:
-		best_time = lap_t
-		ghost.save_recording(vehicle_id, best_time) # the ghost IS your best line
+## A ring lap doesn't RACE-FINISH (laps is effectively infinite) — this is the
+## practice track's own "best lap" bookkeeping, same behavior as before the
+## split: the ghost IS your best line, and VehicleForge's laptimes.json still
+## gets the legacy write (a deliberate res:// exception — see race_controller.gd).
+func _on_lap_done(lap_time: float) -> void:
+	last_time = lap_time # public-field parity: track_sim.gd reads this directly
+	if best_time <= 0.0 or lap_time < best_time:
+		best_time = lap_time
+		ghost.save_recording(vehicle_id, best_time)
 		ghost.load_ghost(vehicle_id)
 		_write_laptime()
-	lap_t = 0.0
-	next_cp = 1
-	ghost.start_recording()
-	if ghost.samples.size() > 1:
-		ghost.start_playback()
 
 
 ## Lap times persist where the TOOLS look: best per vehicle, one JSON.
@@ -210,7 +222,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif kc == KEY_C:
 		spawn_chaser()
 	elif kc == KEY_ESCAPE:
-		get_tree().quit()
+		# FIX (RACING v0): ESC used to hard-quit the whole game — a training-
+		# ground key eating the entire process is a bug, not a feature. It now
+		# RETURNS to the DRIVN front door cleanly; the menu offers CONTINUE off
+		# the last save. Deliberately NOT trying to preserve this scene's live
+		# state (lap in progress, chosen rig) across the swap — that's a much
+		# bigger persistence question (a session snapshot) than an ESC handler
+		# should silently take on; noted here rather than half-solved.
+		get_tree().change_scene_to_file(MAIN_SCENE)
 	elif kc >= KEY_1 and kc <= KEY_9:
 		var fleet := DrivnData.fleet().filter(func(v): return v.id != "trailer")
 		var idx := kc - KEY_1
@@ -237,3 +256,19 @@ func _build_camera_hud() -> void:
 	_hud.add_theme_font_size_override("font_size", 18)
 	_hud.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2))
 	layer.add_child(_hud)
+
+
+# --- Proxies onto the ProtoRaceController: track_sim.gd (and any other caller)
+# reads these exactly as it did before the engine was extracted — this scene's
+# OWN observable behavior is unchanged; only its internals moved.
+
+var best_time: float = 0.0
+var last_time: float = 0.0
+
+
+var laps_done: int:
+	get: return race.laps_done if race != null else 0
+
+
+var next_cp: int:
+	get: return race.next_cp if race != null else 1
