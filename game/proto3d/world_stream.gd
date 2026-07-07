@@ -140,8 +140,68 @@ func _spawn_at(cx: int, cz: int) -> void:
 	var key := "%d,%d" % [cx, cz]
 	if loaded.has(key):
 		return
-	loaded[key] = _spawn_chunk(cx, cz)
+	var ch := _spawn_chunk(cx, cz)
+	if ch != null and ch.has_meta("relief"):
+		_drape_chunk(ch) # scatter/wrecks/caches sit ON the rolled land, not inside it
+	loaded[key] = ch
 	visited[key] = Vector2((cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK)
+
+
+## A RELIEF floor: a subdivided plane displaced by the shared ground_y field (both sides
+## of a seam sample the same function → edges match), skinned like the flat floors, with
+## a HeightMapShape3D collider (cheap, purpose-built — the doc's law: never a trimesh).
+func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
+	const N := 16                       # cells per side → 17×17 height samples
+	var size := CHUNK + 2.0
+	var step := size / N
+	var body := StaticBody3D.new()
+	body.position = Vector3(center.x, 0, center.z)
+
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(size, size)
+	pm.subdivide_width = N - 1
+	pm.subdivide_depth = N - 1
+	var arrays: Array = pm.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	for i in verts.size():
+		verts[i].y = ProtoWorldBuilder.ground_y(center.x + verts[i].x, center.z + verts[i].z)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var st := SurfaceTool.new()
+	st.create_from(am, 0)
+	st.generate_normals() # displaced slopes need real normals to light correctly
+	var gm := MeshInstance3D.new()
+	gm.mesh = st.commit()
+	gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+	body.add_child(gm)
+
+	var hshape := HeightMapShape3D.new()
+	hshape.map_width = N + 1
+	hshape.map_depth = N + 1
+	var data := PackedFloat32Array()
+	data.resize((N + 1) * (N + 1))
+	for zz in N + 1:
+		for xx in N + 1:
+			var wx := center.x - size * 0.5 + xx * step
+			var wz := center.z - size * 0.5 + zz * step
+			data[zz * (N + 1) + xx] = ProtoWorldBuilder.ground_y(wx, wz)
+	hshape.map_data = data
+	var cs := CollisionShape3D.new()
+	cs.shape = hshape
+	cs.scale = Vector3(step, 1.0, step) # heightmap cells are 1 unit — stretch to the grid
+	body.add_child(cs)
+	body.set_meta("relief_floor", true)
+	return body
+
+
+## THE DRAPE: lift a relief chunk's content onto the land. Road-adjacent pieces move ~0
+## by construction (relief fades to zero near asphalt), pure-wilderness scatter rides up.
+func _drape_chunk(chunk: Node3D) -> void:
+	for child in chunk.get_children():
+		if child is Node3D and not child.has_meta("relief_floor"):
+			var c := child as Node3D
+			c.position.y += ProtoWorldBuilder.ground_y(c.position.x, c.position.z)
 
 
 ## Spawn up to LOAD_BUDGET queued chunks this frame, nearest to the player first, after
@@ -217,22 +277,30 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	# --- Ground. Beyond the authored slab a chunk brings its own floor (in its
 	# biome's color); inside the slab, non-desert biomes lay a tint quad on top.
 	if absf(center.x) > SLAB or absf(center.z) > SLAB:
-		var g := StaticBody3D.new()
-		var gm := MeshInstance3D.new()
-		var plane := BoxMesh.new()
-		plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
-		gm.mesh = plane
-		gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
-		gm.position.y = -0.26 - (0.22 if wet else 0.0) # water sits a hair lower
-		g.add_child(gm)
-		var gs := CollisionShape3D.new()
-		var gb := BoxShape3D.new()
-		gb.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
-		gs.shape = gb
-		gs.position.y = gm.position.y
-		g.add_child(gs)
-		g.position = Vector3(center.x, 0, center.z)
-		chunk.add_child(g)
+		# TERRAIN RELIEF (wilderness-only, docs/design/TERRAIN_RELIEF.md): where the
+		# state's relief knob says the land rolls — and no road/town needs it flat —
+		# the chunk floor is a DISPLACED mesh over ground_y with a HeightMapShape3D
+		# collider (never a trimesh). Everywhere else: the flat slab, byte-identical.
+		if not wet and ProtoWorldBuilder.relief_at(center.x, center.z) > 0.02:
+			chunk.add_child(_relief_floor(center, biome))
+			chunk.set_meta("relief", true)
+		else:
+			var g := StaticBody3D.new()
+			var gm := MeshInstance3D.new()
+			var plane := BoxMesh.new()
+			plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			gm.mesh = plane
+			gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+			gm.position.y = -0.26 - (0.22 if wet else 0.0) # water sits a hair lower
+			g.add_child(gm)
+			var gs := CollisionShape3D.new()
+			var gb := BoxShape3D.new()
+			gb.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			gs.shape = gb
+			gs.position.y = gm.position.y
+			g.add_child(gs)
+			g.position = Vector3(center.x, 0, center.z)
+			chunk.add_child(g)
 	elif biome != "scrub" and biome != "desert":
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
 			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))

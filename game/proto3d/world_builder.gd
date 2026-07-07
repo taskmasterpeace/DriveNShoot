@@ -33,6 +33,127 @@ static func material(color: Color, rough: float = 0.9, emissive: bool = false) -
 	return mat
 
 
+## --- TERRAIN RELIEF (goal: docs/design/TERRAIN_RELIEF.md — wilderness-only v1) --------
+## One shared, deterministic height field: ground_y(x,z) = fbm(x,z)² × relief_at(x,z) ×
+## RELIEF_MAX_M. relief_at is DATA (per-state, a row away from usmap.json/MapForge later)
+## and fades to ZERO near roads, towns, water, and where there's no map — so the streamed
+## asphalt, town ruins, and the whole authored core stay exactly where they are. Both
+## sides of a chunk seam sample the SAME function → no stitching, no cracks.
+const RELIEF_MAX_M := 24.0    ## vertical exaggeration at 1:60 (doc range 20–80)
+const RELIEF_FREQ := 0.0035   ## hills every ~300 m — broad ranges, not moguls
+const ROAD_FLAT_M := 90.0     ## dead flat within this of a road…
+const ROAD_FADE_M := 90.0     ## …then relief fades in over this
+const TOWN_FLAT_M := 150.0
+const TOWN_FADE_M := 110.0
+## Per-STATE relief (0 = Florida-flat … 1 = Colorado). A dict IS the data row (v1);
+## graduating it to a usmap.json field + a MapForge painter is the banked follow-up.
+const STATE_RELIEF: Dictionary = {
+	"COLORADO": 1.0, "UTAH": 0.8, "NEVADA": 0.6, "CALIFORNIA": 0.5,
+	"KENTUCKY": 0.35, "VIRGINIA": 0.3, "MISSOURI": 0.15, "KANSAS": 0.05,
+}
+static var _relief_noise: FastNoiseLite = null
+
+
+## How mountainous the world is HERE, 0..1. Zero without a map, on water, near roads
+## and towns (the wilderness-only law), else the state's relief knob.
+static func relief_at(x: float, z: float) -> float:
+	if usmap == null or not usmap.ok:
+		return 0.0
+	var pos := Vector3(x, 0, z)
+	var biome: String = usmap.biome_at(pos)
+	if biome == "water" or biome == "ocean":
+		return 0.0
+	var base := float(STATE_RELIEF.get(usmap.state_at(pos), 0.2))
+	if base <= 0.0:
+		return 0.0
+	var road: Dictionary = usmap.road_near(pos, ROAD_FLAT_M + ROAD_FADE_M + 40.0)
+	if not road.is_empty():
+		var d := float(road.get("dist", 9999.0))
+		if d < ROAD_FLAT_M:
+			return 0.0
+		base *= clampf((d - ROAD_FLAT_M) / ROAD_FADE_M, 0.0, 1.0)
+	var town: Dictionary = usmap.town_near(pos, TOWN_FLAT_M + TOWN_FADE_M + 40.0)
+	if not town.is_empty():
+		var td := Vector2(x, z).distance_to(town["pos"] as Vector2)
+		if td < TOWN_FLAT_M:
+			return 0.0
+		base *= clampf((td - TOWN_FLAT_M) / TOWN_FADE_M, 0.0, 1.0)
+	return clampf(base, 0.0, 1.0)
+
+
+## THE height field — deterministic (world-seeded noise), continuous, cheap. n² biases
+## the land toward broad valleys with occasional ridges, so driving stays drivable.
+static func ground_y(x: float, z: float) -> float:
+	var r := relief_at(x, z)
+	if r <= 0.001:
+		return 0.0
+	if _relief_noise == null:
+		_relief_noise = FastNoiseLite.new()
+		_relief_noise.seed = 0xD817D # THE world seed — same land for every run and peer
+		_relief_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		_relief_noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+		_relief_noise.fractal_octaves = 4
+		_relief_noise.frequency = RELIEF_FREQ
+	var n := (_relief_noise.get_noise_2d(x, z) + 1.0) * 0.5
+	return n * n * r * RELIEF_MAX_M
+
+
+## --- PIXEL ART IN 3D (goal: "pixel art, brought into 3D") ----------------------------
+## A pixel-art SKIN on chunky geometry: crisp NEAREST-filtered tiles at a constant density
+## (the TEXEL-PER-METER law — same discipline as the 60× scale law). Triplanar world-mapping
+## means one texture tile always spans `tile_meters` in WORLD space, so a wall and a road
+## read at the same pixel density no matter their mesh size. Actors (box-puppets) keep the
+## flat material() so they stay clean against the busy textured ground — that contrast is
+## the whole trick. A skin is just a Texture2D, so a data row naming one is on-brand.
+static var _skins: Dictionary = {}   ## name -> Texture2D, loaded from assets/skins/
+const SKIN_DIR := "res://assets/skins"
+
+
+## The pixel skin registry: assets/skins/<name>.png → SKINS["<name>"]. Lazy-scanned once.
+static func skins() -> Dictionary:
+	if not _skins.is_empty():
+		return _skins
+	var d := DirAccess.open(SKIN_DIR)
+	if d != null:
+		for f in d.get_files():
+			if f.ends_with(".png"):
+				var path := "%s/%s" % [SKIN_DIR, f]
+				var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+				if tex != null:
+					_skins[f.trim_suffix(".png")] = tex
+	return _skins
+
+
+static func skin(name: String) -> Texture2D:
+	return skins().get(name, null)
+
+
+## A pixel-skin material: NEAREST-filtered (crisp, not blurry) + triplanar at 1/tile_meters
+## so every surface shares one texel density. Cached per (texture, tile_meters). Falls back
+## to a flat color when the skin is missing so the world never renders untextured-black.
+static func material_textured(tex: Texture2D, tile_meters: float = 1.0, fallback: Color = COL_GROUND, rough: float = 0.95) -> StandardMaterial3D:
+	if tex == null:
+		return material(fallback, rough)
+	var key := "px_%s_%.3f" % [tex.resource_path, tile_meters]
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST   # crisp pixels — the whole look
+	mat.uv1_triplanar = true                                     # world-space → constant texel density
+	var s := 1.0 / maxf(0.01, tile_meters)
+	mat.uv1_scale = Vector3(s, s, s)
+	mat.roughness = rough
+	_mat_cache[key] = mat
+	return mat
+
+
+## Skin a mesh by SKIN NAME (the data-row form: a row names its skin). tile_meters honors
+## the texel law; a missing skin falls back to the flat color.
+static func material_skin(skin_name: String, tile_meters: float = 1.0, fallback: Color = COL_GROUND) -> StandardMaterial3D:
+	return material_textured(skin(skin_name), tile_meters, fallback)
+
+
 ## --- TEXTURED TERRAIN (goal: "improve terrain in every biome — adds texture") ------
 ## Native, GL-Compatibility-safe ground texturing — the idea cherry-picked from the
 ## terrain addons (Terrain3D/LiteTerrain) WITHOUT their GDExtension/renderer baggage or
