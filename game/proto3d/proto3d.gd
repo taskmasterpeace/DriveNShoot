@@ -513,6 +513,18 @@ func _unhandled_input(event: InputEvent) -> void:
 				devmode.toggle()
 		elif kc == KEY_H:
 			_honk()
+		elif kc == KEY_F6:
+			# PVP RULES (fun pass): F6 cycles peace → duel → ffa. In a session the
+			# HOST owns the rules; solo you can still read the three states.
+			if net != null and net.online and not net.is_server():
+				notify("⚔️ Only the HOST sets the PvP rules")
+			else:
+				var order: Array = ["peace", "duel", "ffa"]
+				pvp_mode = order[(order.find(pvp_mode) + 1) % order.size()]
+				if net != null:
+					net.send_pvp_mode(pvp_mode)
+				notify("⚔️ PvP: %s" % pvp_label())
+				_refresh_peer_tags()
 		elif kc == KEY_P:
 			_pet_dog()
 		elif kc == KEY_V:
@@ -2163,6 +2175,9 @@ func _honk() -> void:
 			d.command_heel()
 			called += 1
 	notify("📯 HOOOONK — %s" % ("the pack comes running" if called > 0 else "the wasteland ignores you"))
+	# The horn CARRIES over the net (fun pass): comedy and navigation in one.
+	if net != null and net.online:
+		net.send_horn_ping()
 
 
 ## P — pet the nearest dog (riding shotgun, or at your side on foot). Nerves settle.
@@ -2526,11 +2541,23 @@ func respawn_at_home() -> void:
 	if lost_jack > 0:
 		backpack.remove("scrip", lost_jack)
 	# Wake on foot at the safehouse door; leave the car (and its cargo) behind.
+	# CO-OP (fun pass): if a PARTNER is out there, you come to BESIDE THEM —
+	# death keeps the duo together instead of a cross-map drive of shame.
 	mode = Mode.FOOT
 	active_car = null
 	player.is_active = true
 	player.dead_vis = false
-	player.global_position = SAFEHOUSE + Vector3(0, 0.3, 0)
+	var woke_at_partner := false
+	if net != null and net.online:
+		for id in remote_players:
+			var buddy: ProtoPlayer3D = remote_players[id]
+			if is_instance_valid(buddy):
+				player.global_position = buddy.global_position + Vector3(2.5, 0.3, 0)
+				woke_at_partner = true
+				notify("🤝 Your partner dragged you back to your feet.")
+				break
+	if not woke_at_partner:
+		player.global_position = SAFEHOUSE + Vector3(0, 0.3, 0)
 	if cam_rig != null:
 		cam_rig.target = player
 	hud.hide_death()
@@ -2689,6 +2716,16 @@ var remote_players: Dictionary = {} ## peer_id -> ProtoPlayer3D
 var remote_cars: Dictionary = {}    ## peer_id -> ProtoCar3D (a peer at the wheel)
 var enemy_ghosts: Dictionary = {}   ## host enemy instance_id -> ghost body (on clients)
 
+## PVP RULES (COOP_PVP_MOBILE Track B): readable, OPT-IN, consequence-bearing.
+## peace = co-op only · duel = damage on, kills read as DUELS · ffa = open season.
+## Either way the SAFEHOUSE BUBBLE is holy ground (no spawn camping). F6 cycles
+## (host-authoritative in a session); kills post a session BOUNTY on the killer.
+var pvp_mode: String = "peace"
+var pvp_bounties: Dictionary = {} ## peer_id -> scrip on their head (session ledger)
+var _coop_truck: ProtoCar3D = null
+var _pvp_rng := RandomNumberGenerator.new()
+const SAFE_BUBBLE_M := 18.0
+
 
 ## True on a CLIENT (online, not the host) — it must NOT sim its own enemies/world;
 ## the host is authoritative and streams them. Offline/host both run the world.
@@ -2714,6 +2751,26 @@ func _net_spawn_peer(id: int) -> void:
 	add_child(body)
 	body.global_position = player.global_position + Vector3(3, 0, 0)
 	remote_players[id] = body
+	# NAME TAG (fun pass): P<id> floats over the body — no more shooting your friend.
+	var tag := Label3D.new()
+	tag.name = "NameTag"
+	tag.text = "P%d" % id
+	tag.font_size = 64
+	tag.pixel_size = 0.01
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.modulate = Color(0.96, 0.72, 0.2)
+	tag.position = Vector3(0, 2.3, 0)
+	body.add_child(tag)
+	# PARTNER ARROW: a waypoint that FOLLOWS the body (N cycles to your buddy).
+	waypoints.append(["🤝 PARTNER P%d" % id, body])
+	# The PvP wire: my iron landing on this body may carry over the net (gated).
+	body.damaged.connect(func(amount: float, _attacker: Node3D) -> void:
+		_on_remote_player_damaged(id, amount))
+	# THE CO-OP TRUCK (host, first friend in): a bed rig waits by the safehouse —
+	# one drives, one rides the BED. The whole fantasy, parked.
+	if net != null and net.is_server() and _coop_truck == null:
+		_spawn_coop_truck()
+	_refresh_peer_tags()
 
 
 func _net_despawn_peer(id: int) -> void:
@@ -2721,6 +2778,95 @@ func _net_despawn_peer(id: int) -> void:
 		if is_instance_valid(remote_players[id]):
 			remote_players[id].queue_free()
 		remote_players.erase(id)
+	# Drop the partner arrow with the partner.
+	for i in range(waypoints.size() - 1, -1, -1):
+		if String(waypoints[i][0]) == "🤝 PARTNER P%d" % id:
+			waypoints.remove_at(i)
+	waypoint_idx = mini(waypoint_idx, waypoints.size() - 1)
+
+
+## THE FUN-PASS SURFACE (Track A+B): tags, rules, bounties, the truck, the horn.
+
+func _spawn_coop_truck() -> void:
+	_coop_truck = ProtoCar3D.create("pickup_truck", Color(0.5, 0.35, 0.2))
+	add_child(_coop_truck)
+	_coop_truck.global_position = SAFEHOUSE + Vector3(8, 0.5, 2)
+	notify("🛻 A bed rig waits by the safehouse — one DRIVES, one rides the BED.")
+
+
+func pvp_label() -> String:
+	match pvp_mode:
+		"peace": return "PEACE — no player damage"
+		"duel": return "DUEL — damage ON, kills read as duels"
+	return "FREE-FOR-ALL — open season outside the safehouse bubble"
+
+
+func in_safe_bubble(pos: Vector3) -> bool:
+	return pos.distance_to(SAFEHOUSE) < SAFE_BUBBLE_M
+
+
+## May MY hit hurt this remote body right now? The opt-in + the holy ground.
+func pvp_allowed(victim: Node3D) -> bool:
+	if pvp_mode == "peace" or victim == null or not is_instance_valid(victim):
+		return false
+	if in_safe_bubble(victim.global_position) or in_safe_bubble(player.global_position):
+		return false
+	return true
+
+
+func _on_remote_player_damaged(peer_id: int, amount: float) -> void:
+	var body: ProtoPlayer3D = remote_players.get(peer_id)
+	if body == null or not pvp_allowed(body):
+		return
+	net.send_pvp_hit(peer_id, amount)
+
+
+func net_set_pvp(mode: String) -> void:
+	pvp_mode = mode
+	notify("⚔️ HOST sets the rules — %s" % pvp_label())
+	_refresh_peer_tags()
+
+
+## The victim's machine applies the hit through the ONE damage law (a random
+## part, like any real blow) — and reports its own death to the room.
+func net_pvp_hit(from_peer: int, amount: float) -> void:
+	if pvp_mode == "peace" or in_safe_bubble(player.global_position):
+		return # my law, my ground: foul packets can't hurt me at home
+	character.take_wound(character.random_part(_pvp_rng), amount)
+	notify("⚔️ TAKING FIRE from Player %d!" % from_peer)
+	if character.dead:
+		net.send_pvp_death(from_peer)
+		net_pvp_death(net.my_id() if net != null else 0, from_peer)
+
+
+## Everyone reads the consequence: the toast names the rules, the killer wears
+## a BOUNTY the whole room can see (the tag goes red with a price).
+func net_pvp_death(victim_peer: int, killer_peer: int) -> void:
+	pvp_bounties[killer_peer] = int(pvp_bounties.get(killer_peer, 0)) + 40
+	var line := "DUEL SETTLED" if pvp_mode == "duel" else "MURDER ON THE OPEN ROAD"
+	notify("☠️ %s — Player %d downed Player %d. Bounty on P%d: %d scrip." \
+		% [line, killer_peer, victim_peer, killer_peer, int(pvp_bounties[killer_peer])])
+	_refresh_peer_tags()
+
+
+func net_horn_ping(from_peer: int, pos: Vector3) -> void:
+	vision_cone.reveal_at(pos)
+	if audio != null:
+		audio.play_at("honk", pos, -4.0)
+	notify("📯 Player %d leans on the horn — over THERE." % from_peer)
+
+
+func _refresh_peer_tags() -> void:
+	for id in remote_players:
+		var body: ProtoPlayer3D = remote_players[id]
+		if not is_instance_valid(body):
+			continue
+		var tag := body.get_node_or_null("NameTag") as Label3D
+		if tag == null:
+			continue
+		var bounty := int(pvp_bounties.get(id, 0))
+		tag.text = "P%d" % id + ((" · ☠️%d" % bounty) if bounty > 0 else "")
+		tag.modulate = Color(0.95, 0.25, 0.15) if (pvp_mode != "peace" or bounty > 0) else Color(0.96, 0.72, 0.2)
 
 
 ## Net → world: a peer's latest body state. A DRIVING peer shows a real rig on

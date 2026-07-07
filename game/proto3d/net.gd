@@ -34,11 +34,11 @@ static func create(main: Node) -> ProtoNet:
 
 
 func is_server() -> bool:
-	return online and multiplayer.is_server()
+	return online and multiplayer.has_multiplayer_peer() and multiplayer.is_server()
 
 
 func my_id() -> int:
-	return multiplayer.get_unique_id() if online else 1
+	return multiplayer.get_unique_id() if (online and multiplayer.has_multiplayer_peer()) else 1
 
 
 # --- Connect --------------------------------------------------------------------
@@ -175,3 +175,57 @@ func ingest_state(from: int, st: Dictionary) -> void:
 
 
 var peer_buffer: Dictionary = {} ## peer_id -> [recent states] for interpolation
+
+
+# --- THE FUN PASS (COOP_PVP_MOBILE Track A+B): horn pings, PvP rules ------------
+# Send helpers are GUARDED so sims can drive the receive handlers directly
+# (the ingest_state pattern) without a socket. net_loopback proves the wire.
+
+## Comedy AND navigation: the horn carries over the net (a friend is honking).
+@rpc("any_peer", "reliable", "call_remote")
+func horn_ping(pos: Array) -> void:
+	if _main.has_method("net_horn_ping"):
+		_main.net_horn_ping(multiplayer.get_remote_sender_id(), Vector3(pos[0], pos[1], pos[2]))
+
+
+func send_horn_ping() -> void:
+	if online and multiplayer.has_multiplayer_peer():
+		var p: Vector3 = _main.player.global_position
+		horn_ping.rpc([p.x, p.y, p.z])
+
+
+## PvP: MY machine saw MY iron land on YOUR body — you take it under YOUR law
+## (the victim's machine applies or refuses; late/foul packets can't hurt at home).
+@rpc("any_peer", "reliable", "call_remote")
+func pvp_hit(amount: float) -> void:
+	if _main.has_method("net_pvp_hit"):
+		_main.net_pvp_hit(multiplayer.get_remote_sender_id(), amount)
+
+
+func send_pvp_hit(victim_peer: int, amount: float) -> void:
+	if online and multiplayer.has_multiplayer_peer():
+		pvp_hit.rpc_id(victim_peer, amount)
+
+
+## PvP: I died to killer_id — the whole room reads the consequence.
+@rpc("any_peer", "reliable", "call_remote")
+func pvp_death(killer_id: int) -> void:
+	if _main.has_method("net_pvp_death"):
+		_main.net_pvp_death(multiplayer.get_remote_sender_id(), killer_id)
+
+
+func send_pvp_death(killer_id: int) -> void:
+	if online and multiplayer.has_multiplayer_peer():
+		pvp_death.rpc(killer_id)
+
+
+## The HOST sets the session's PvP rules; every peer reads the same law.
+@rpc("authority", "reliable", "call_remote")
+func sync_pvp(mode: String) -> void:
+	if _main.has_method("net_set_pvp"):
+		_main.net_set_pvp(mode)
+
+
+func send_pvp_mode(mode: String) -> void:
+	if is_server():
+		sync_pvp.rpc(mode)
