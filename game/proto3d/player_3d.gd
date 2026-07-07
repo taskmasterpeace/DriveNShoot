@@ -95,6 +95,9 @@ var wound_regen_mult: float = 1.0
 ## Stealth skill: how far threats notice you while WALKING (1.0 = unskilled).
 ## Sprinting spoils it — noise_mult() blends back to 1 when you run.
 var stealth_base: float = 1.0
+## Set by main's water system: true while SWIMMING — regen stops, the tank BLEEDS
+## (your lungs are the fuel gauge; empty = drowning, main takes the torso).
+var swimming: bool = false
 
 
 func noise_mult() -> float:
@@ -374,6 +377,8 @@ func _physics_process(delta: float) -> void:
 	_was_running = running
 	if running:
 		stamina = maxf(0.0, stamina - run_drain * delta)
+	elif swimming:
+		stamina = maxf(0.0, stamina - 6.0 * delta) # the swim tax: no rest in open water
 	else:
 		stamina = minf(max_stamina, stamina + stamina_regen * stamina_regen_mult * endurance_regen * wound_regen_mult * delta)
 

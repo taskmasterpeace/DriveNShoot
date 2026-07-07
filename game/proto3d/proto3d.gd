@@ -319,6 +319,13 @@ var _grab_t: float = 0.0
 var _dragging: Node3D = null
 var _drag_xp_m: float = 0.0
 
+## WATER ON FOOT (MOVESET.txt): one AUTOMATIC state by depth — no key. Water
+## within a stride of dry land is a WADE (slow); open water is a SWIM (slower,
+## lungs draining, hands busy — no shooting); an empty tank starts DROWNING.
+var water_state: String = "" ## "" | "wade" | "swim"
+var _drown_warned: bool = false
+const WATER_PROBE_M := 6.0
+
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
 var _recon_entries: Array = []
@@ -588,6 +595,7 @@ func _physics_process(delta: float) -> void:
 	palm.tick(delta)
 	_update_tackle(delta)
 	_update_drag(delta)
+	_update_water(delta)
 	if _fist_pressed:
 		_fist_hold += delta
 		if _fist_hold >= SHOVE_HOLD:
@@ -619,7 +627,8 @@ func _physics_process(delta: float) -> void:
 	var load := backpack.total_weight()
 	var over := load / character.carry_cap()
 	player.speed_mult = (1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)) \
-		* (0.55 if _dragging != null else 1.0) # a hauled body is heavy on your heels
+		* (0.55 if _dragging != null else 1.0) \
+		* (0.55 if water_state == "wade" else (0.45 if water_state == "swim" else 1.0))
 	hud.set_condition("heavy", 0 if over <= 1.0 else (3 if over > 1.5 else 1))
 
 	# Waypoint arrow + world streaming
@@ -1719,6 +1728,9 @@ func fire_equipped() -> void:
 	var w := current_weapon()
 	if w == null or mode != Mode.FOOT or panel.is_open or _reload_t > 0.0:
 		return
+	if water_state == "swim":
+		notify("🫧 Your hands are keeping you afloat")
+		return
 	if w.mag <= 0 and not w.is_melee():
 		notify("*click* — reload (R)")
 		return
@@ -1738,6 +1750,41 @@ func fire_equipped() -> void:
 			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
 			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+
+
+# --- WATER ON FOOT (MOVESET.txt): wade the edges, swim the open, drown empty --
+
+func _update_water(delta: float) -> void:
+	var prev := water_state
+	if mode != Mode.FOOT or player == null:
+		water_state = ""
+	elif ProtoWorldBuilder.surface_at(player.global_position) != "water":
+		water_state = ""
+	else:
+		# DEPTH by shore probe: dry ground within a stride = you can still stand.
+		var here := player.global_position
+		var deep := true
+		for off in [Vector3(WATER_PROBE_M, 0, 0), Vector3(-WATER_PROBE_M, 0, 0),
+				Vector3(0, 0, WATER_PROBE_M), Vector3(0, 0, -WATER_PROBE_M)]:
+			if ProtoWorldBuilder.surface_at(here + off) != "water":
+				deep = false
+				break
+		water_state = "swim" if deep else "wade"
+	if water_state != prev:
+		if water_state == "swim":
+			notify("🌊 Deep water — you're SWIMMING. Watch your lungs.")
+		elif water_state == "wade":
+			notify("🌊 Wading — slow going.")
+	player.swimming = water_state == "swim" # the tank bleeds in the player's own loop
+	if water_state != "swim":
+		_drown_warned = false
+		return
+	# Empty lungs = the water starts taking (the torso pays first).
+	if player.stamina <= 0.0 and character != null and not character.dead:
+		character.take_wound("torso", 3.5 * delta)
+		if not _drown_warned:
+			_drown_warned = true
+			notify("🫧 YOU'RE DROWNING — get to land!")
 
 
 # --- GRAB & DRAG (MOVESET.txt): haul a body/crate to where it's needed --------
@@ -1777,6 +1824,9 @@ func _drop_drag() -> void:
 
 func _unarmed_press() -> void:
 	if panel.is_open or _reload_t > 0.0:
+		return
+	if water_state == "swim":
+		notify("🫧 Your hands are keeping you afloat")
 		return
 	if player.sprinting() and _tackle_t <= 0.0:
 		_tackle() # sprint + strike = the bull-rush
