@@ -397,6 +397,7 @@ var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
+var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var last_walkie_report: String = "" ## sim hook: the walkie-talkie's last chatter line
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
@@ -726,6 +727,18 @@ func _physics_process(delta: float) -> void:
 			drone_pilot.pilot_input(Vector3(
 				Input.get_axis("move_left", "move_right"), 0.0,
 				Input.get_axis("move_up", "move_down")))
+	# THE DOG'S EYE winds down with the search: when the seeking dog comes off SEEK (found
+	# it / recalled / died) the split folds back to one view and the default range returns.
+	# A short grace covers the obey delay — command_seek QUEUES the state, so the eye must
+	# not fold in the beat between the whistle and the dog actually turning to seek.
+	if split_view != null and split_view.active and split_view._remote is ProtoDog:
+		var eye_dog := split_view._remote as ProtoDog
+		_dog_eye_grace = maxf(0.0, _dog_eye_grace - delta)
+		if is_instance_valid(eye_dog) and eye_dog.state == ProtoDog.DogState.SEEK:
+			_dog_eye_grace = 0.0 # the seek landed — from here, leaving SEEK folds the eye
+		elif not is_instance_valid(eye_dog) or _dog_eye_grace <= 0.0:
+			split_view.deactivate()
+			split_view.max_separation = 22.0
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
@@ -1365,6 +1378,17 @@ func _dog_command(cmd: String) -> void:
 			for d in dogs:
 				if is_instance_valid(d): d.command_seek(loot)
 			hud.toast("🐕 *whistle ×3* — go find it!" if loot else "🐕 *whistle ×3* — nothing to sniff out")
+			# THE DOG'S EYE (dynamic-split goal): a PARTNER+ dog on a seek carries the
+			# split view — the tighter the bond, the farther it ranges before the screen
+			# splits (docs/design/DYNAMIC_SPLIT_DRONE.md §Future). SOULBOUND sees farthest.
+			if loot != null and split_view != null and not split_view.active:
+				for d in dogs:
+					if is_instance_valid(d) and d.bond_tier() >= 2: # PARTNER or SOULBOUND
+						split_view.max_separation = 30.0 if d.bond_tier() == 2 else 45.0
+						split_view.activate(player, d)
+						_dog_eye_grace = 3.0 # ride out the obey delay before SEEK lands
+						notify("👁 %s carries your eye — the screen splits as the search ranges out" % d.dog_name)
+						break
 		"sic":
 			var threat := _nearest_threat()
 			for d in dogs:
