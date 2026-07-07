@@ -73,14 +73,36 @@ static func mixed_font() -> SystemFont:
 		_mixed_font.font_names = PackedStringArray(["Segoe UI", "Segoe UI Emoji", "Noto Color Emoji"])
 	return _mixed_font
 
+## THE FULL-SCREEN BINOCULARS (owner ask, 2026-07-07): the old vignette filled
+## most of the frame with black — this one is a THIN RIM. Two independent bands,
+## both maxed out only right at the frame's true edge, taken together (max, not
+## added) so they never stack into something heavier than either alone:
+##   RIM  — the four corners only (oval radial falloff, matches the old shape)
+##   LENS — a hairline top/bottom curve (the "looking through glass" cue)
+## VIGNETTE_MASK_CLEAR_PCT is the measured screen fraction left fully/near-clear
+## (alpha < 0.05) at these constants — the sim asserts against it directly since
+## a headless run can't read shader pixels back.
+const VIGNETTE_RIM_START: float = 1.25   ## d at which the corner rim begins
+const VIGNETTE_RIM_END: float = 1.68     ## d at the true corner (max darkness here)
+const VIGNETTE_RIM_MAX_ALPHA: float = 0.55
+const VIGNETTE_LENS_START: float = 0.95  ## |v-0.5|*2 at which top/bottom shading begins
+const VIGNETTE_LENS_END: float = 1.0
+const VIGNETTE_LENS_MAX_ALPHA: float = 0.22
+const VIGNETTE_MASK_CLEAR_PCT: float = 0.86 ## measured (scripts/vignette_calc*.js) — ≥85% clear
+
+## NOTE: literals below MUST mirror the VIGNETTE_* consts above (a %-formatted
+## string is not a valid const expression — the consts exist for sims to assert).
 const VIGNETTE_SHADER := "
 shader_type canvas_item;
 void fragment() {
 	vec2 c = UV - vec2(0.5);
 	c.x *= 1.35; // slightly oval, like lenses
 	float d = length(c) * 2.0;
-	float a = smoothstep(0.55, 1.02, d);
-	COLOR = vec4(0.0, 0.0, 0.0, a * 0.92);
+	float rim = smoothstep(1.25, 1.68, d) * 0.55;
+	float vy = abs(UV.y - 0.5) * 2.0;
+	float lens = smoothstep(0.95, 1.00, vy) * 0.22;
+	float a = max(rim, lens);
+	COLOR = vec4(0.0, 0.0, 0.0, a);
 }"
 
 
@@ -298,7 +320,66 @@ static func _bar(r: float) -> String:
 	return "▮".repeat(segs) + "▱".repeat(4 - segs)
 
 
+## Sim hook (P0-1, CAR_UI_REQUIREMENTS.md): read back a rendered part-bar's text
+## without scraping Label internals — "" if the part isn't a dash row.
+func dash_part_text(part: String) -> String:
+	return (_dash_labels[part] as Label).text if _dash_labels.has(part) else ""
+
+
+## Sim hook: the rendered fuel/charge readout (P1-4 EV branch shares this slot).
+func dash_fuel_text() -> String:
+	return _dash_fuel.text
+
+
+## Sim hook: the rendered status line (occupant clause, P1-2, lands here).
+func dash_status_text() -> String:
+	return _dash_status.text
+
+
+## P1-3 (CAR_UI_REQUIREMENTS.md, GPS/tablet device gate — spec hooks only, not
+## greenlit): a small glyph beside the location strip, shown ONLY when the
+## dashboard dict carries a gps_tier key. Absent key = hidden = today's behavior
+## (see set_dashboard's call below). "full" also hides it (nothing to flag when
+## the device is maxed out); "none" reads 🚫; anything else (e.g. a future
+## "basic") reads 📡. Own Label so _mode_label's text contract (set_location)
+## stays untouched.
+var _gps_label: Label = null
+
+func set_gps_tier(tier: String) -> void:
+	if _gps_label == null:
+		_gps_label = Label.new()
+		_gps_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_gps_label.add_theme_font_size_override("font_size", 18)
+		_gps_label.add_theme_color_override("font_color", AMBER)
+		_gps_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_gps_label.position = Vector2(28, 48)
+		add_child(_gps_label)
+	if tier == "" or tier == "full":
+		_gps_label.visible = false
+		return
+	_gps_label.text = "🚫" if tier == "none" else "📡"
+	_gps_label.visible = true
+
+## Sim hook: is the GPS glyph currently shown, and which glyph.
+func gps_glyph_shown() -> bool:
+	return _gps_label != null and _gps_label.visible
+
+func gps_glyph_text() -> String:
+	return _gps_label.text if _gps_label != null else ""
+
+
 ## The car's dashboard: pass ProtoCar3D.dashboard() while driving, null to hide.
+## Dict-key contract for producers not yet built (documented, not wired, per
+## CAR_UI_REQUIREMENTS.md P1-2/P1-3/P1-4 — every key below is read with .get()
+## and a gas-car-safe default, so a dict missing them renders EXACTLY as today):
+##   occupants_h  (int, riders/crew excluding the driver)  — P1-2 roster count
+##   occupants_d  (int, dogs aboard)                       — P1-2 roster count
+##   powertrain   (String "gas" | "electric")               — P1-4 EV branch gate
+##   charge_pct   (float 0-100, mirrors "fuel"'s convention) — P1-4, only read if electric
+##   max_range_mi (float, full-charge range in miles)        — P1-4 range estimate
+##   solar_active (bool)                                     — P1-4 ☀️ trickle badge
+##   charge_state (String "DRAINING"|"IDLE"|"CHARGING")      — P1-4, default IDLE
+##   gps_tier     (String "full"|"none"|<other>, absent=hidden) — P1-3 glyph
 func set_dashboard(d) -> void:
 	if d == null:
 		_dash_wrap.visible = false
@@ -310,8 +391,18 @@ func set_dashboard(d) -> void:
 		var lbl: Label = _dash_labels[part]
 		lbl.text = "%s%s" % [DASH_EMOJI[part], _bar(ratios.get(part, 1.0))]
 		lbl.modulate = TIER_COLORS[tier]
-	# LABELED (playtest: "I don't know what the percentage is") — the number is FUEL.
-	_dash_fuel.text = "⛽FUEL %s %d%%" % [_bar(d["fuel"] / 100.0), int(d["fuel"])]
+	# P1-4 (EV row, dormant until a vehicles.json row sets powertrain=="electric"):
+	# the SAME bar widget, SAME dash slot — never both fuel and charge at once.
+	if String(d.get("powertrain", "gas")) == "electric":
+		var charge_pct: float = float(d.get("charge_pct", 100.0))
+		var max_range: float = float(d.get("max_range_mi", 0.0))
+		var range_mi: int = int(charge_pct * max_range / 100.0)
+		var state: String = String(d.get("charge_state", "IDLE"))
+		var badge: String = " ☀️" if bool(d.get("solar_active", false)) else ""
+		_dash_fuel.text = "🔋CHARGE %s %d%% ~%dmi %s%s" % [_bar(charge_pct / 100.0), int(charge_pct), range_mi, state, badge]
+	else:
+		# LABELED (playtest: "I don't know what the percentage is") — the number is FUEL.
+		_dash_fuel.text = "⛽FUEL %s %d%%" % [_bar(d["fuel"] / 100.0), int(d["fuel"])]
 	if d["on_fire"]:
 		_dash_cook.text = "💥BLOW %d%%" % int(d["cook"])
 		_dash_cook.visible = true
@@ -327,9 +418,23 @@ func set_dashboard(d) -> void:
 		bits.append("⛰️ DIRT — %s tires (%d%% drive)" % [d.get("tire_name", ""), int(d.get("drive_factor", 1.0) * 100.0)])
 	if d.get("load_max", 0.0) > 0.0:
 		bits.append("📦 %.0f/%.0f kg" % [d.get("load", 0.0), d.get("load_max", 0.0)])
+	# P1-2 (occupant roster, dormant until car/proto3d wires seat counts in): a
+	# compact count clause, no names — the physical rig + boarding toast own names.
+	var occ_h: int = int(d.get("occupants_h", 0))
+	var occ_d: int = int(d.get("occupants_d", 0))
+	if occ_h > 0 or occ_d > 0:
+		var occ_bits: Array[String] = []
+		if occ_h > 0:
+			occ_bits.append("🧍×%d" % occ_h)
+		if occ_d > 0:
+			occ_bits.append("🐕×%d" % occ_d)
+		bits.append(" ".join(occ_bits))
 	_dash_status.text = "  ·  ".join(bits)
 	var alarmed: bool = d.get("struggling", false) or d.get("tires", 0) >= 2
 	_dash_status.add_theme_color_override("font_color", Color(0.98, 0.62, 0.2) if alarmed else BONE)
+	# P1-3 (GPS glyph, dormant until proto3d wires a device-tier check onto the
+	# car dict): absent key → set_gps_tier("") → hidden, zero behavior change.
+	set_gps_tier(String(d.get("gps_tier", "")))
 
 
 ## Future/system hook: mark a condition (0 clears; 1-3 = severity). One call = one feeling.

@@ -2,7 +2,9 @@
 ## TAME a staggered howler with meat (→ Fang the Mutant Hound joins the PACK),
 ## HIRE Sam the Drifter (40 scrip — follows, FIGHTS with his own gun, SCOUTS:
 ## what he sees that you can't pings your perception), and the SecondaryView
-## module cycles DOGCAM / REARVIEW on V. Inputs drive it; teleports stage only.
+## module cycles REARVIEW/DRONE on V (DOGCAM retired 2026-07-07 — that screen
+## real estate is now full-screen binoculars; binocular_sim covers that arc).
+## Inputs drive it; teleports stage only.
 ## Run: godot --headless --path game res://proto3d/tests/stage7_sim.tscn
 extends Node
 
@@ -182,25 +184,17 @@ func _physics_process(delta: float) -> void:
 			elif phase_t > 8.0:
 				_check("Sam FIGHTS (lurker untouched after 8s)", false)
 				_next()
-		5: # THE SECOND WINDOW: V → DOGCAM rides Fang's back
+		5: # THE SECOND WINDOW: DOGCAM is retired — V on foot (no car, no drone,
+			# a tamed dog IS present) must self-skip every mode and land on OFF.
+			# This is the direct proof the eye is gone, not just hidden behind Fang.
 			if _step == 0:
 				_step = 1
 				_tap_key(KEY_V)
 			elif _step == 1 and phase_t > 0.4:
-				_step = 2
-				_check("V opens the Second Window on DOGCAM", main.sview.mode == ProtoSecondaryView.SVMode.DOGCAM)
-				var d0: ProtoDog = null
-				for d in main.dogs:
-					if is_instance_valid(d) and d.riding_in == null:
-						d0 = d
-						break
-				_check("...its eye rides the dog (%.0fm off)" % (main.sview.cam_global().distance_to(d0.global_position) if d0 else 999.0),
-					d0 != null and main.sview.cam_global().distance_to(d0.global_position) < 20.0)
-				_tap_key(KEY_V) # cycle on — rearview/drone unavailable on foot → OFF
-			elif _step == 2 and phase_t > 0.9:
-				_check("modes SELF-SKIP when their eye doesn't exist (back to OFF)", main.sview.mode == ProtoSecondaryView.SVMode.OFF)
+				_check("DOGCAM is GONE: V on foot (dog present, no car/drone) self-skips to OFF",
+					main.sview.mode == ProtoSecondaryView.SVMode.OFF)
 				_next()
-		6: # REARVIEW while driving (the pack + Sam board; dogcam self-skips)
+		6: # REARVIEW while driving (the pack + Sam board)
 			if _step == 0:
 				_step = 1
 				# Stage the whole crew at the car (the walk from Meridian is not the test).
