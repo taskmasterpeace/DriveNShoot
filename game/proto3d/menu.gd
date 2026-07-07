@@ -9,9 +9,17 @@ extends CanvasLayer
 var _main: Node = null
 var _root: Control = null
 var _ip_field: LineEdit = null
+var _options_panel: ProtoOptionsPanel = null ## lazily created, owned by the menu
 
 
 static func create(main: Node) -> ProtoMenu:
+	# Boot-time settings apply (QA blocker fix, owner ask 2026-07-07): a saved
+	# fullscreen/vsync/volume choice must be live before the player sees the
+	# title, not just from inside the OPTIONS panel. Static — no panel needed.
+	# (In-game alternative, if a pause-menu hook ever lands: call this same
+	# line from proto3d.gd's _ready() instead/also — see options_panel.gd's
+	# own header comment for the exact one-line hook.)
+	ProtoOptionsPanel.apply_saved()
 	var m := ProtoMenu.new()
 	m._main = main
 	m.layer = 8 # above everything
@@ -57,6 +65,7 @@ func _build() -> void:
 		_button("↻  CONTINUE", continue_game)
 	_button("🌐  HOST CO-OP", host_game)
 	_button("🎮  CONTROLS", func() -> void: _main.toggle_controls_panel())
+	_button("⚙  OPTIONS", func() -> void: open_options())
 	var jrow := HBoxContainer.new()
 	jrow.add_theme_constant_override("separation", 6)
 	_root.add_child(jrow)
@@ -118,6 +127,15 @@ func join_game() -> void:
 	_main._ensure_net()
 	_main.net.join(_ip_field.text if _ip_field != null else "127.0.0.1")
 	dismiss()
+
+
+## OPTIONS does NOT dismiss the menu underneath it (matches how CONTROLS
+## coexists with the title) — the panel returns you to the menu on close.
+func open_options() -> void:
+	if _options_panel == null:
+		_options_panel = ProtoOptionsPanel.create(_main)
+		_main.add_child(_options_panel)
+	_options_panel.open()
 
 
 func dismiss() -> void:
