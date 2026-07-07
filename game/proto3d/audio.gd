@@ -15,13 +15,40 @@ const LOOPED: Array = [
 	"engine_motorcycle", "engine_diesel", "engine_muscle",
 	"amb_desert", "amb_plains", "amb_forest", "amb_town", "amb_night", "amb_wind",
 	"breath_sprint",
+	"tire_scream", ## THE SKID LOOP (owner ask 2026-07-07): continuous, not a cry
+	"drone_hum",   ## the quadcopter's rotor buzz rides the bird (sound-map pass)
 ]
+
+## AUDIO BUSES (owner ask 2026-07-07): idempotently created under Master so the
+## engine hum and tyre screech each get their own fader — one bus name per
+## stream id, checked in attach_loop/attach_flat_loop so a call site routes by
+## id alone (it never needs to know a bus exists).
+const BUS_FOR_STREAM: Dictionary = {
+	"engine": "Engine", "engine_motorcycle": "Engine", "engine_diesel": "Engine", "engine_muscle": "Engine",
+	"tire_scream": "Tires",
+}
+static var _buses_ready: bool = false
 
 static var streams: Dictionary = {}
 static var from_files: int = 0 ## how many streams came from SoundForge (sim/debug hook)
 static var play_count: int = 0 ## sim hook
 
 var _ui_player: AudioStreamPlayer
+
+
+## Idempotent — safe to call every _ready(). Creates "Engine" + "Tires" under
+## Master if they don't already exist (a re-run / a second AudioManager in a
+## sim harness must not duplicate them).
+static func ensure_buses() -> void:
+	if _buses_ready:
+		return
+	_buses_ready = true
+	for bus_name in ["Engine", "Tires"]:
+		if AudioServer.get_bus_index(bus_name) == -1:
+			var idx := AudioServer.bus_count
+			AudioServer.add_bus(idx)
+			AudioServer.set_bus_name(idx, bus_name)
+			AudioServer.set_bus_send(idx, "Master")
 
 
 static func _synth(dur: float, gen: Callable) -> AudioStreamWAV:
@@ -111,6 +138,7 @@ static func _build_all() -> void:
 
 func _ready() -> void:
 	ProtoAudio._build_all()
+	ProtoAudio.ensure_buses()
 	_ui_player = AudioStreamPlayer.new()
 	add_child(_ui_player)
 
@@ -144,12 +172,16 @@ func play_ui(id: String, volume_db: float = -8.0, pitch: float = 1.0) -> void:
 	_ui_player.play()
 
 
-## Attach a looped stream to an owner (engine hum, fire crackle). Returns the player.
+## Attach a looped stream to an owner (engine hum, fire crackle, tyre screech).
+## Returns the player. Routes onto its BUS_FOR_STREAM bus by id, if one exists —
+## a call site (car_3d's skid loop, proto3d's engine loop) never names a bus.
 func attach_loop(id: String, owner: Node3D, volume_db: float = -6.0) -> AudioStreamPlayer3D:
 	var p := AudioStreamPlayer3D.new()
 	p.stream = streams[id]
 	p.volume_db = volume_db
 	p.max_distance = 70.0
+	if BUS_FOR_STREAM.has(id):
+		p.bus = BUS_FOR_STREAM[id]
 	owner.add_child(p)
 	p.play()
 	return p
@@ -161,6 +193,8 @@ func attach_flat_loop(id: String, volume_db: float = -10.0) -> AudioStreamPlayer
 	var p := AudioStreamPlayer.new()
 	p.stream = streams[id]
 	p.volume_db = volume_db
+	if BUS_FOR_STREAM.has(id):
+		p.bus = BUS_FOR_STREAM[id]
 	add_child(p)
 	p.play()
 	return p

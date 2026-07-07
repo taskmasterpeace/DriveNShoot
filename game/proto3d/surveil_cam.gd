@@ -79,6 +79,8 @@ func interact(main: Node) -> void:
 		main.surveil_cams.erase(self)
 	if "backpack" in main and main.backpack != null:
 		main.backpack.add("surveil_cam", 1)
+	if "audio" in main and main.audio != null:
+		main.audio.play_ui("camera_click", -6.0)
 	if main.has_method("notify"):
 		main.notify("📹 Camera packed up")
 	queue_free()

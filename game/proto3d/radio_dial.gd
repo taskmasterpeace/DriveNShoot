@@ -14,6 +14,7 @@ const DIM := Color(0.55, 0.52, 0.46)
 var is_open: bool = false
 
 var _music: ProtoMusic = null
+var _was_locked: bool = true ## edge detector: play static once when the dial LEAVES a station
 var _root: PanelContainer
 var _freq_slider: HSlider
 var _readout: Label
@@ -152,12 +153,20 @@ func _rebuild_presets() -> void:
 		_presets.add_child(b)
 
 
-## Dial moved — tune to the nearest preset (or static) and update the readout.
+## Dial moved — tune to the nearest preset (or static) and update the readout. The SOUND
+## of tuning (sound-map pass): leaving a station hisses radio_static once; locking a new
+## one clicks — edges only, so dragging the slider isn't a machine gun.
 func _on_tune() -> void:
 	if _music == null:
 		return
 	var f: float = _freq_slider.value
-	_music.tune_to_frequency(f)
+	var idx := _music.tune_to_frequency(f)
+	var locked := idx >= 0
+	if locked != _was_locked:
+		var au: Variant = _music._main.audio if (_music._main != null and "audio" in _music._main) else null
+		if au != null:
+			au.play_ui("radio_static" if not locked else "blip", -10.0)
+	_was_locked = locked
 	_refresh_readout(f)
 
 

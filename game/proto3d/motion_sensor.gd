@@ -69,7 +69,7 @@ func _trip(t: Node3D) -> void:
 		if "vision_cone" in _main and _main.vision_cone != null:
 			_main.vision_cone.reveal_at(t.global_position)   # the sensor's eye becomes yours
 		if "audio" in _main and _main.audio != null:
-			_main.audio.play_ui("blip", -6.0)
+			_main.audio.play_at("sensor_ping", global_position, -2.0) # the beep comes FROM the sensor
 		if _main.has_method("notify"):
 			_main.notify("📡 MOTION — the sensor tripped. Something's moving out there.")
 

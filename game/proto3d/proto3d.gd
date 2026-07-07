@@ -1710,7 +1710,7 @@ func use_item(id: String) -> bool:
 		add_child(sc)
 		var cam_at: Vector3 = player.global_position + player.facing() * 1.2
 		sc.global_position = Vector3(cam_at.x, 0.0, cam_at.z)
-		audio.play_ui("blip", -6.0)
+		audio.play_ui("camera_click", -6.0)
 		notify("📹 Camera planted — V cycles to its feed. E packs it back up.")
 		return true
 	if id == "motion_sensor":
@@ -1719,13 +1719,13 @@ func use_item(id: String) -> bool:
 		add_child(ms)
 		var ms_at: Vector3 = player.global_position + player.facing() * 1.2
 		ms.global_position = Vector3(ms_at.x, 0.0, ms_at.z)
-		audio.play_ui("blip", -6.0)
+		audio.play_ui("camera_click", -6.0)
 		notify("📡 Motion sensor armed — it'll ping you when something crosses it.")
 		return true
 	if id == "walkie":
 		# GADGET: key the walkie and LISTEN — nearby movement bleeds through the static.
 		# Reveals the nearest threat and reports the direction. Never leaves your pack.
-		audio.play_ui("blip", -8.0)
+		audio.play_ui("walkie_squelch", -8.0)
 		var nearest: Node3D = null
 		var best := 90.0
 		for node in get_tree().get_nodes_in_group("threat"):

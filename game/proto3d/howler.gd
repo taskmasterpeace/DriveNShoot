@@ -121,7 +121,7 @@ func take_damage(amount: float) -> void:
 		if _main != null and "population" in _main and _main.population != null:
 			_main.population.on_actor_removed(self)
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 3}, Color(0.5, 0.42, 0.36), hit_launch)
+		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 3}, Color(0.5, 0.42, 0.36), hit_launch, _main)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()

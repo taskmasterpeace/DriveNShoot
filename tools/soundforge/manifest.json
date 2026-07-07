@@ -2,6 +2,42 @@
   "_readme": "SoundForge manifest \u2014 THE customization surface. Each entry is one game sound (id must match ProtoAudio's stream id). To customize a sound: edit its prompt here, then run `node tools/soundforge/generate.mjs <id> --force` and re-import. The game loads game/assets/sfx/<id>.mp3 when it exists, else falls back to the synthesized version. Full workflow: tools/soundforge/README.md",
   "sounds": [
     {
+      "id": "walkie_squelch",
+      "duration_seconds": 1.2,
+      "prompt_influence": 0.55,
+      "prompt": "Walkie-talkie key-up squelch: short radio static burst, click, brief white-noise crackle, then silence — handheld two-way radio, dry, close"
+    },
+    {
+      "id": "radio_static",
+      "duration_seconds": 1.5,
+      "prompt_influence": 0.5,
+      "prompt": "FM radio tuning static between stations, hissing white noise with faint warbling sweep, analog receiver, no music, no voices"
+    },
+    {
+      "id": "sensor_ping",
+      "duration_seconds": 0.8,
+      "prompt_influence": 0.6,
+      "prompt": "Electronic motion detector alert: two quick high-pitched digital beeps, small device speaker, urgent but tiny, dry"
+    },
+    {
+      "id": "drone_hum",
+      "duration_seconds": 3.0,
+      "prompt_influence": 0.5,
+      "prompt": "Small quadcopter drone hovering: steady four-rotor buzz hum, constant pitch, seamless loop, no wind, no doppler"
+    },
+    {
+      "id": "body_thud",
+      "duration_seconds": 0.8,
+      "prompt_influence": 0.55,
+      "prompt": "Heavy body falling onto packed dirt: dull soft thud with a slight cloth rustle, no bone crack, close, dry"
+    },
+    {
+      "id": "camera_click",
+      "duration_seconds": 0.7,
+      "prompt_influence": 0.6,
+      "prompt": "Surveillance camera mounting click: one firm plastic-metal latch snap plus a tiny servo whir, small device, close, dry"
+    },
+    {
       "id": "shot",
       "duration_seconds": 1.0,
       "prompt_influence": 0.55,

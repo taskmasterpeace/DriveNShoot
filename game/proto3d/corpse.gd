@@ -23,12 +23,15 @@ var _vel := Vector3.ZERO
 var _spin := Vector3.ZERO
 var _mats: Array[StandardMaterial3D] = []   ## per-corpse (own) mats, so fading one doesn't fade the world
 var _fading := false
+var _main: Node = null                      ## optional — the landing THUD plays through it
 
 
 ## label: the body's name ("Raider's body"). loot: {item_id: count}. tint: skin/clothing.
 ## launch: initial velocity (a car hit / blast flings it; melee/gunshot → a small flop).
-static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.45, 0.36), launch: Vector3 = Vector3.ZERO) -> ProtoCorpse:
+## main (optional): lets the body THUD when it lands (sound-map pass).
+static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.45, 0.36), launch: Vector3 = Vector3.ZERO, main: Node = null) -> ProtoCorpse:
 	var c := ProtoCorpse.new()
+	c._main = main
 	c.add_to_group("interactable")
 	c.add_to_group("corpse")
 	c.container = ProtoContainer.new(label)
@@ -104,6 +107,9 @@ func _land() -> void:
 	global_position.y = REST_Y
 	# Settle into a lying pose: flat on the ground, keeping a random facing yaw.
 	rotation = Vector3(PI * 0.5, rotation.y, 0.0)
+	# The body hits the dirt — you HEAR the weight (sound-map pass).
+	if _main != null and "audio" in _main and _main.audio != null:
+		_main.audio.play_at("body_thud", global_position, -2.0)
 
 
 func _fade(delta: float, life: float) -> void:

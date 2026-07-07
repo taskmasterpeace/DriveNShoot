@@ -60,6 +60,10 @@ static func create(main: Node, deploy_pos: Vector3) -> ProtoDrone:
 	eye.position.y = -0.09
 	d.add_child(eye)
 	d.add_to_group("combatant") # a body in the world: it CAN be shot down (lost)
+	# The rotor HUM rides the bird (sound-map pass): a positional loop, so you hear the
+	# drone approach/leave and can find your own scout by ear.
+	if main != null and "audio" in main and main.audio != null:
+		main.audio.attach_loop("drone_hum", d, -14.0)
 	return d
 
 
