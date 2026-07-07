@@ -9,28 +9,43 @@
 > addon + items.json bridge, sound map…). Three things are deliberately PARKED, in priority
 > order:
 >
-> **1. PUPPET RIG V2 — greenlit, contract banked, build parked mid-Phase-1.**
-> - The contract: `docs/design/PUPPET_RIG_V2.md` (owner: "no knee, no elbow, no forearm" —
->   shotgun grips / katana swings / real punches / different kicks). Fully specified down
->   to follow-through constants and the 2-bone IK formula.
-> - **~80% of Phase 1 sits UNVERIFIED on branch `wip/puppet-v2-phase1`** (segmented limbs,
->   follow-through rows, two-hand fore-grip pose, dead-pose limb bends, strike JOINT_AXIS
->   grown to 9). Still missing there: `motion_stage.gd` AUTHOR_JOINTS 1–9 + `_author_joint_map`
->   new entries + `KEY_6..9` handling, a `rig_v2_sim`, and — critically — **ZERO sims have
->   been run against it.** THE GATE: the whole puppet suite green untouched (crouch_sim's
->   no-kiss law, unarmed/strike/strike_author/motion/motion_stage/char/dogverb, spine).
-> - Next session: start here. Either finish + gate the WIP branch or restart clean from the
->   contract — do NOT merge without the full gate. Watch crouch_sim hardest: new calf/forearm
->   boxes must never sit coplanar with their parents (cross-sections already step down +
->   0.02 insets on the branch, but it is UNPROVEN).
+> **1. PUPPET RIG V2 — ✅ SHIPPED COMPLETE (2026-07-07, merged 06f32fb): Phases 1–3 + dev tools.**
+> - Phase 1 finished from the WIP branch and GATED: stage author keys 1–9, joint map,
+>   `rig_v2_sim` (35 checks). crouch_sim's no-kiss law survived the segment boxes 17/17
+>   (knee_rest > 0 doubles as the coplanar-face guard — asserted).
+> - Phase 2: two-hand GRIPS — `grip_l`/`grip_r` per WEAPONS row, closed-form 2-bone IK
+>   plants the free hand ON the forend through the live aim chain (`grip_ik_sim` 16/16:
+>   plant 0.002 m, tracks aim yaw, lefty mirrored, unreachable clamps straight, no NaN).
+> - Phase 3: RECOIL AS DATA — `recoil` row per weapon + a `MOTION["recoil"]` spring row
+>   (k/c/strength_eat); kick × (1 − strength×0.06); past stagger_threshold the WEAK
+>   character's whole torso rocks (`recoil_sim` 14/14: ratio 1.92, settle ≤250 ms).
+> - Dev tools: MotionForge DEFAULTS re-mirrored (follow-through + crouch no-kiss + recoil
+>   rows are all sliders now); stage F/SHIFT+F previews the held row's kick at strength
+>   0/8; ensure_motions() re-folds RESET to stock first, so deleting a motions.json row
+>   reverts live (was the long-red motion_stage_sim check mislabeled "restore-timing
+>   edge" in 425f137 — 13/13 now).
+> - Fixed en route: combat_feel_sim + arsenal_sim had been red/flaky since 747db4e (stale
+>   ProtoChest-vs-ProtoCorpse remains checks + the pistol phase reusing a crit-killable
+>   mark) — both stable green. The GUNFEEL slice of queue #2 (weapon.gd rows +
+>   gunfeel_sim 37/37) was adopted en route too. Phase 4 (shoes/face quad) = later content pass.
+> - **Equipment mounts (owner ask 2026-07-07): swords-on-backs / backpacks = ATTACHMENT
+>   POINTS on the box rig, build not buy.** The rig already proves the pattern (backpack
+>   box, hat, gun-in-hand); the full 19-slot system is banked in
+>   `docs/design/EQUIPMENT_PAPERDOLL.md` — a wearable = a box parented to a named segment
+>   (sheathed sword = a thin box on the torso's back, swapped to the hand on wield).
+>   Marketplace "attachment/socket" assets target Skeleton3D + BoneAttachment3D humanoid
+>   rigs, which this game deliberately doesn't use.
 >
 > **2. REPO INTEGRITY — stranded prior-session files (a fresh clone may not parse).**
 > - UNTRACKED but referenced by committed code: `game/proto3d/population.gd` (+`.uid`,
 >   `data/population_targets.json`) — `proto3d.gd`/`howler.gd`/`lurker.gd` call
 >   `main.population.*`; `game/proto3d/horse.gd` (+`horses.json`); their sims
 >   (`population_cell_sim`, `horse_sim`, `noise_sim`, `safehouse_spawn_suppression_sim`,
->   `dashboard_sim`, `gunfeel_sim`, `radio_positional_sim`, `voice_sim`, `car_upgrade_sim`);
+>   `dashboard_sim`, `radio_positional_sim`, `voice_sim`, `car_upgrade_sim`);
 >   `docs/design/MAP_POLISH_PLAN.md`; a tvshow poster `.import`.
+>   *(The GUNFEEL slice — weapon.gd rows + gunfeel_sim 37/37 — was adopted 2026-07-07
+>   during the rig v2 arc; also still uncommitted-tracked: hud_3d/net/house/media edits
+>   belonging to the dashboard/voice/media stranded arcs.)*
 > - **Known problem:** `population_cell_sim` HANGS headless (>240s, zero output — likely an
 >   await stall at boot). Triage before committing: run each stranded sim individually,
 >   commit what's green, fix or quarantine what hangs.

@@ -29,7 +29,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 
 | System | File(s) | The one-liner |
 |---|---|---|
-| Puppet rig | `puppet.gd`, `quadruped.gd` | ONE sin()-driven box rig: players/NPCs/crew (rows), dogs/howlers; shoulder joint, wound wobble, death flop |
+| Puppet rig | `puppet.gd`, `quadruped.gd` | ONE sin()-driven box rig, **V2**: segmented limbs (knees/elbows/feet; alias law — old names drive whole limbs), follow-through MOTION rows, two-hand grips via 2-bone IK (`grip_l`/`grip_r` weapon rows), recoil-as-data spring (strength eats the kick, stagger rocks the torso); wound wobble, bent-limb death sprawl |
 | Vehicles | `car_3d.gd` + `data/vehicles.json` | VehicleBody3D; 10 rigs as DATA (DrivnData folds JSON→engine); 5-part damage you FEEL (misfire/slop/flicker/leak) |
 | Dogs | `dog.gd` | 4 types × breeds; per-dog BOND (STRAY→SOULBOUND); down→bandage save or grave+collar+memorial; metaworld records |
 | Crew | `companion.gd` | CREW rows (gunner/mechanic/medic), game-hour job ticks, MORTAL (corpse chest) |
@@ -79,7 +79,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 ```
 Godot_console --headless --path game res://proto3d/tests/<name>.tscn
 ```
-Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `garage_sim`, `rv_camp_sim`, `visibility_sim`, `data_sim`, `track_sim` — plus the 2026-07-06 arc: `crouch_sim`, `unarmed_sim`, `drag_sim`, `water_sim`, `dogverb_sim`, `motion_sim`, `media_registry_sim`, `tv_sim`, `unlock_media_sim`, `drive_in_sim`, `news_media_sim`, `music_sim`, `drone_scout_sim`, `coop_fun_sim`.
+Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `homebase_sim`, `npc_drive_sim`, `carousel_sim`, `carousel2_sim`, `pvp_prep_sim`, `save_sim`, `garage_sim`, `rv_camp_sim`, `visibility_sim`, `data_sim`, `track_sim` — plus the 2026-07-06 arc: `crouch_sim`, `unarmed_sim`, `drag_sim`, `water_sim`, `dogverb_sim`, `motion_sim`, `media_registry_sim`, `tv_sim`, `unlock_media_sim`, `drive_in_sim`, `news_media_sim`, `music_sim`, `drone_scout_sim`, `coop_fun_sim` — plus the RIG V2 trio (2026-07-07): `rig_v2_sim`, `grip_ik_sim`, `recoil_sim` (+ adopted `gunfeel_sim`).
 
 ### Paid-for gotchas (do not re-pay)
 - New `class_name` scripts need `--headless --path game --import` before headless runs.
