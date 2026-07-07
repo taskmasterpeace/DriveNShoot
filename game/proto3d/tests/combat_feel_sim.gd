@@ -133,6 +133,11 @@ func _physics_process(delta: float) -> void:
 				main.backpack.add("pistol", 1)
 				main.backpack.add("9mm", 24)
 				main.use_item("pistol")
+				# A FRESH mark: the machete phase's lurker can die to a crit roll —
+				# reusing it made this phase silently squeeze at nothing (the flake).
+				if is_instance_valid(_lurk):
+					_lurk.queue_free()
+				_lurk = _spawn_lurker(main.player.global_position + EAST * 2.0 + Vector3(0, 0.4, 0), 300.0)
 			elif not _pulse_seen and phase_t < 2.4 and is_instance_valid(_lurk):
 				# keep squeezing (cooldown-gated) until one registers — spread is spread.
 				# UNNORMALIZED aim = converge AT the target (the mouse-equivalent).
