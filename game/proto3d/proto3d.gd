@@ -312,6 +312,13 @@ var _fist_hold: float = 0.0
 const SHOVE_HOLD := 0.28
 var _tackle_t: float = 0.0
 
+## GRAB & DRAG (MOVESET.txt): hold E on a chest/body = haul it behind you (slow,
+## heavy, teaches STRENGTH); tap E keeps its old meaning (open). E again drops it.
+var _grab_down: bool = false
+var _grab_t: float = 0.0
+var _dragging: Node3D = null
+var _drag_xp_m: float = 0.0
+
 ## Recon tags (binoculars name what they see) — cached scan, refreshed ~8 Hz.
 var _recon_t: float = 0.0
 var _recon_entries: Array = []
@@ -403,12 +410,25 @@ func _unhandled_input(event: InputEvent) -> void:
 				_e_t = 0.0
 			else:
 				_exit_car()
+		elif _dragging != null:
+			_drop_drag() # E while hauling = set it down
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
-			_current_interactable.call("interact", self)
-	elif event.is_action_released("interact") and _e_down:
-		_e_down = false
-		if _e_t < 0.4 and mode == Mode.DRIVE:
-			_exit_car()
+			if _current_interactable is ProtoChest:
+				# GRAB & DRAG (MOVESET.txt): E on a chest/body is TAP-vs-HOLD —
+				# tap = open it, HOLD = grab it and haul it somewhere better.
+				_grab_down = true
+				_grab_t = 0.0
+			else:
+				_current_interactable.call("interact", self)
+	elif event.is_action_released("interact"):
+		if _e_down:
+			_e_down = false
+			if _e_t < 0.4 and mode == Mode.DRIVE:
+				_exit_car()
+		if _grab_down:
+			_grab_down = false
+			if _grab_t < 0.35 and is_instance_valid(_current_interactable) and _current_interactable is ProtoChest:
+				_current_interactable.call("interact", self) # the TAP: open it
 	elif event is InputEventKey and (event as InputEventKey).keycode == KEY_C and not (event as InputEventKey).echo:
 		_whistle_input((event as InputEventKey).pressed)
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -567,6 +587,7 @@ func _physics_process(delta: float) -> void:
 	fists.tick(delta)
 	palm.tick(delta)
 	_update_tackle(delta)
+	_update_drag(delta)
 	if _fist_pressed:
 		_fist_hold += delta
 		if _fist_hold >= SHOVE_HOLD:
@@ -597,7 +618,8 @@ func _physics_process(delta: float) -> void:
 	# (the promised hook, now live: carry_cap() = 32 + 2.5/lv).
 	var load := backpack.total_weight()
 	var over := load / character.carry_cap()
-	player.speed_mult = 1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)
+	player.speed_mult = (1.0 if over <= 1.0 else maxf(0.45, 1.0 - (over - 1.0) * 0.8)) \
+		* (0.55 if _dragging != null else 1.0) # a hauled body is heavy on your heels
 	hud.set_condition("heavy", 0 if over <= 1.0 else (3 if over > 1.5 else 1))
 
 	# Waypoint arrow + world streaming
@@ -1716,6 +1738,39 @@ func fire_equipped() -> void:
 			cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18)
 			stress = minf(100.0, stress + 1.5) # gunfire frays nerves (and heat, later)
 			audio.play_at("shotgun" if w.id == "shotgun" else "shot", player.global_position)
+
+
+# --- GRAB & DRAG (MOVESET.txt): haul a body/crate to where it's needed --------
+
+func _update_drag(delta: float) -> void:
+	if _grab_down:
+		_grab_t += delta
+		if _grab_t >= 0.35:
+			_grab_down = false
+			if _current_interactable is ProtoChest and mode == Mode.FOOT:
+				_dragging = _current_interactable
+				notify("🫳 Dragging %s — E to set it down" % (_dragging as ProtoChest).container.label.to_lower())
+	if _dragging == null:
+		return
+	if not is_instance_valid(_dragging) or mode != Mode.FOOT or panel.is_open:
+		_dragging = null
+		return
+	# The haul: it trails your back at arm's length, heavy on your heels.
+	var tow := player.global_position - player.facing() * 1.3
+	var prev := _dragging.global_position
+	var next := prev.lerp(Vector3(tow.x, prev.y, tow.z), clampf(8.0 * delta, 0.0, 1.0))
+	_dragging.global_position = next
+	# Hauling heavy TEACHES (strength "levels by hauling"): a point every 8 dragged meters.
+	_drag_xp_m += prev.distance_to(next)
+	if _drag_xp_m >= 8.0:
+		_drag_xp_m = 0.0
+		grant_xp("strength", 1.0)
+
+
+func _drop_drag() -> void:
+	if _dragging != null:
+		notify("You set it down.")
+	_dragging = null
 
 
 # --- UNARMED (MOVESET.txt): tap punch · hold shove · sprint-tackle ------------

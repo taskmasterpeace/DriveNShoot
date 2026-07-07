@@ -45,7 +45,7 @@ func interact_position() -> Vector3:
 
 
 func interact_prompt(_main: Node) -> String:
-	return "E — Open %s" % container.label.to_lower()
+	return "E — Open %s · hold E to DRAG" % container.label.to_lower()
 
 
 func interact(main: Node) -> void:
