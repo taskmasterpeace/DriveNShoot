@@ -46,7 +46,9 @@ var _static_t: float = 0.0
 var _ebs_card: PanelContainer
 var _ebs_label: Label
 var _dead_air_card: PanelContainer
-var _channel_loop_idx: Dictionary = {} ## channel id -> loop position (per-channel, like ProtoPublicScreen._loop_idx)
+## THE SET (owner 2026-07-07): the physical TV this panel is the fullscreen view
+## OF. Close the panel mid-reel and the picture keeps rolling on the set itself.
+var tv_set: Node = null
 
 
 static func create(main: Node) -> ProtoMediaPanel:
@@ -143,7 +145,7 @@ static func create(main: Node) -> ProtoMediaPanel:
 	p._close_btn.add_theme_font_size_override("font_size", 18)
 	p._close_btn.add_theme_color_override("font_color", Color(0.9, 0.4, 0.3))
 	p._close_btn.tooltip_text = "Close (E / Esc / B)"
-	p._close_btn.pressed.connect(func() -> void: p.close())
+	p._close_btn.pressed.connect(func() -> void: p.power_off()) # ✕ = the OFF switch; E/Esc = to the couch
 	header.add_child(p._close_btn)
 
 	# --- CHANNEL UP/DOWN hint row -------------------------------------------------
@@ -255,7 +257,7 @@ static func create(main: Node) -> ProtoMediaPanel:
 	p._status.add_theme_font_override("font", ProtoHUD.mixed_font())
 	p._status.add_theme_font_size_override("font_size", 13)
 	p._status.add_theme_color_override("font_color", DIM)
-	p._status.text = "[E] off · ◀▶ change channel · time passes while it plays"
+	p._status.text = "[E] to the couch — keeps playing on the set · [✕] power off · ◀▶ channel"
 	p._channel_view.add_child(p._status)
 
 	# The GUIDE view — YOUR OWN TAPES only (found_dvd/found_tape/found_reel/
@@ -355,11 +357,26 @@ func open() -> void:
 	showing_guide = false
 	_channel_view.visible = true
 	_guide_view.visible = false
+	if tv_set != null and tv_set.has_method("set_off"):
+		tv_set.set_off() # fullscreen takes the picture back from the set
 	_tune_and_roll(false) # no static burst on first power-up
 	refresh()
 
 
+## E / back out: TO THE COUCH (owner 2026-07-07) — the panel hides but a rolling
+## reel KEEPS PLAYING on the physical set. Walk around, do your stove-and-pack
+## chores with the game on; E the set again for fullscreen. ✕/power_off stops it.
 func close() -> void:
+	is_open = false
+	visible = false
+	if _video.stream != null and _video.is_playing() and tv_set != null and tv_set.has_method("set_live"):
+		tv_set.set_live(_video.get_video_texture())
+	else:
+		power_off()
+
+
+## The actual OFF switch (✕ button): dead screen, warm amber idle glow back.
+func power_off() -> void:
 	stop()
 	is_open = false
 	visible = false
@@ -371,11 +388,18 @@ func stop() -> void:
 	_video.stream = null
 	now_playing_id = ""
 	_now_label.text = "…"
+	if tv_set != null and tv_set.has_method("set_off"):
+		tv_set.set_off()
 
 
-## Is a reel actually rolling? (main ORs this into daynight.waiting — time passes.)
+## Is a reel rolling FULLSCREEN? (Sims + the input lock read this.)
 func playing() -> bool:
 	return is_open and _video.stream != null and _video.is_playing()
+
+
+## Is the reel rolling ON THE SET (panel closed, picture on the television)?
+func set_playing() -> bool:
+	return not is_open and _video.stream != null and _video.is_playing()
 
 
 ## Flip a GUIDE category tab (the shelf of YOUR OWN TAPES, filtered further below).
@@ -468,8 +492,39 @@ func _channel_playlist(c: Dictionary) -> Array:
 	return out
 
 
-## Roll the current channel's playlist at its stored position — sequential
-## auto-advance (v1; clock-derived "already mid-episode" tuning is a later pass).
+## THE AIR CLOCK (owner: "it should feel like it's already been on air"). A
+## channel BROADCASTS whether anyone watches or not: the schedule is a pure
+## function of the world clock, so tuning in lands you mid-program, tuning
+## away and back later finds the broadcast exactly where it should be. One
+## game hour = 60 real seconds of air time — the same 1:1 the 24-min day gives
+## real playback, so the offset stays consistent while you actually watch.
+## Per-channel hash phase keeps the lineups unsynchronized.
+func _air_slot(cid: String, list: Array) -> Dictionary:
+	var reg := _registry()
+	var runtimes: Array = []
+	var total := 0.0
+	for id in list:
+		var rt: float = maxf(10.0, float(reg.get_media(String(id)).get("runtime_seconds", 60.0)))
+		runtimes.append(rt)
+		total += rt
+	var day := 0.0
+	var hour := 12.0
+	if _main != null and "daynight" in _main and _main.daynight != null:
+		day = float(_main.daynight.day)
+		hour = float(_main.daynight.hour)
+	var air := (day * 24.0 + hour) * 60.0 + float(absi(hash(cid)) % 997)
+	var t := fmod(air, total)
+	for i in list.size():
+		if t < float(runtimes[i]):
+			return {"idx": i, "offset": t}
+		t -= float(runtimes[i])
+	return {"idx": 0, "offset": 0.0}
+
+
+## Roll whatever the AIR CLOCK says this channel is showing RIGHT NOW, from the
+## middle of the program (seek where the stream supports it — Theora rewinds to
+## 0 on unsupported seeks, in which case the schedule still cuts programs over
+## at the right times, which is most of the "it was already on" read).
 func _roll_channel(c: Dictionary) -> void:
 	var cid := String(c.get("id", ""))
 	var list := _channel_playlist(c)
@@ -481,8 +536,8 @@ func _roll_channel(c: Dictionary) -> void:
 			_video.stop()
 		_video.stream = null
 		return
-	var idx: int = int(_channel_loop_idx.get(cid, 0)) % list.size()
-	var id: String = list[idx]
+	var slot := _air_slot(cid, list)
+	var id: String = list[int(slot["idx"])]
 	var reg := _registry()
 	var stream := reg.open_stream(id)
 	if stream == null:
@@ -490,6 +545,8 @@ func _roll_channel(c: Dictionary) -> void:
 		return
 	_video.stream = stream
 	_video.play()
+	if float(slot["offset"]) > 1.0:
+		_video.stream_position = float(slot["offset"])
 	now_playing_id = id
 	_now_label.text = "NOW ON %s — %s" % [String(c.get("name", cid)), String(reg.get_media(id).get("title", id))]
 	if _main.has_method("mark_media_watched"):
@@ -497,16 +554,12 @@ func _roll_channel(c: Dictionary) -> void:
 
 
 func _on_channel_finished() -> void:
-	if not is_open or showing_guide:
+	if showing_guide or (not is_open and not set_playing()):
 		return
 	var c := current_channel()
 	if bool(c.get("ebs", false)):
 		return
-	var cid := String(c.get("id", ""))
-	var list := _channel_playlist(c)
-	if not list.is_empty():
-		_channel_loop_idx[cid] = (int(_channel_loop_idx.get(cid, 0)) + 1) % list.size()
-	_roll_channel(c)
+	_roll_channel(c) # the AIR CLOCK already advanced to the next program
 
 
 ## CH 13 — EBS: the newsroom's queued tv bulletin, full-screen, no reel required.

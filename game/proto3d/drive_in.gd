@@ -30,19 +30,21 @@ static func create(main: Node) -> ProtoDriveIn:
 
 	# THE SCREEN — a monolith you can see from the road. Video renders into a
 	# SubViewport; its texture skins the front face (unshaded: it GLOWS at night).
+	# Scaled up 2026-07-07 (owner: "the drive-in screen has to be bigger") —
+	# a 20m monolith that reads like a real ozoner's tower, not a billboard.
 	var back := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = Vector3(13.0, 7.0, 0.5)
+	bm.size = Vector3(20.0, 11.0, 0.6)
 	back.mesh = bm
 	back.material_override = ProtoWorldBuilder.material(Color(0.16, 0.15, 0.13), 0.95)
-	back.position = Vector3(0, 4.5, 0)
+	back.position = Vector3(0, 7.0, 0)
 	d.add_child(back)
 	var legs_m := MeshInstance3D.new()
 	var lm := BoxMesh.new()
-	lm.size = Vector3(11.0, 1.6, 0.3)
+	lm.size = Vector3(17.0, 2.4, 0.4)
 	legs_m.mesh = lm
 	legs_m.material_override = ProtoWorldBuilder.material(Color(0.3, 0.26, 0.2), 0.9)
-	legs_m.position = Vector3(0, 0.8, 0)
+	legs_m.position = Vector3(0, 1.2, 0)
 	d.add_child(legs_m)
 
 	d._viewport = SubViewport.new()
@@ -57,14 +59,14 @@ static func create(main: Node) -> ProtoDriveIn:
 
 	d._screen = MeshInstance3D.new()
 	var sm := QuadMesh.new()
-	sm.size = Vector2(12.0, 6.4)
+	sm.size = Vector2(18.6, 10.2)
 	d._screen.mesh = sm
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_color = Color(0.05, 0.05, 0.05)
 	mat.albedo_texture = d._viewport.get_texture()
 	d._screen.material_override = mat
-	d._screen.position = Vector3(0, 4.5, 0.27) # the front face (+Z toward the lot)
+	d._screen.position = Vector3(0, 7.0, 0.32) # the front face (+Z toward the lot)
 	d.add_child(d._screen)
 
 	# The projector post — the E you walk up to.

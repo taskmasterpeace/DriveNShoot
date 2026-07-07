@@ -68,20 +68,69 @@ func _ready() -> void:
 		main.media_panel.playing() and main.media_panel.now_playing_id == "test_pattern")
 	_check("watching MARKS it watched", main.media_watched.has("test_pattern"))
 
-	# --- TIME PASSES while it plays (downtime costs daylight) -------------------
+	# --- TIME RUNS 1:1 while it plays (owner 2026-07-07: the old fast-forward
+	# was "absurd" — a broadcast is real time; the AIR CLOCK keeps schedules honest)
 	var h0: float = main.daynight.hour
 	for _i in 60:
 		await get_tree().physics_frame
 	var dh_watching: float = main.daynight.hour - h0
-	main.media_panel.stop()
+	# --- THE COUCH (owner): E-closing mid-reel keeps it playing ON THE SET ------
+	main.media_panel.close()
 	for _i in 4:
 		await get_tree().physics_frame
+	_check("closing the panel mid-reel keeps it rolling ON THE SET (couch mode)",
+		main.media_panel.set_playing())
+	var tv_node: Node = main.media_panel.tv_set
+	_check("...and the SET's screen carries the live picture", tv_node != null and tv_node.is_live())
+	_check("...prompt now offers FULLSCREEN", String(tv_node.interact_prompt(main)).contains("FULLSCREEN"))
+	main.media_panel.power_off()
+	for _i in 4:
+		await get_tree().physics_frame
+	_check("power OFF stops the set and restores the idle glow",
+		not main.media_panel.set_playing() and not tv_node.is_live())
 	var h1: float = main.daynight.hour
 	for _i in 60:
 		await get_tree().physics_frame
 	var dh_idle: float = main.daynight.hour - h1
-	_check("time SPRINTS while the reel rolls (Δ%.3fh vs idle Δ%.3fh)" % [dh_watching, dh_idle],
-		dh_watching > dh_idle * 3.0 and dh_watching > 0.0)
+	_check("time runs 1:1 while the reel rolls — NO fast-forward (Δ%.3fh vs idle Δ%.3fh)" % [dh_watching, dh_idle],
+		absf(dh_watching - dh_idle) < 0.006)
+
+	# --- THE AIR CLOCK: a channel is a BROADCAST — the schedule is a pure function
+	# of the world clock (same clock = same program+offset; advance the clock past
+	# the program's runtime = the NEXT program is on).
+	var ch: Dictionary = {"id": "air_test", "categories": ["clips"]}
+	var plist: Array = main.media_panel._channel_playlist(ch)
+	if plist.size() >= 1:
+		var slot_a: Dictionary = main.media_panel._air_slot("air_test", plist)
+		var slot_b: Dictionary = main.media_panel._air_slot("air_test", plist)
+		_check("AIR CLOCK is deterministic (same clock -> same slot)",
+			int(slot_a["idx"]) == int(slot_b["idx"]) and absf(float(slot_a["offset"]) - float(slot_b["offset"])) < 0.01)
+		var day0: float = float(main.daynight.day)
+		var hour0: float = float(main.daynight.hour)
+		main.daynight.day += 3
+		main.daynight.hour += 0.21 # +3d0.21h — never a clean multiple of a clip's runtime
+		var slot_c: Dictionary = main.media_panel._air_slot("air_test", plist)
+		main.daynight.day = day0
+		main.daynight.hour = hour0
+		# The law itself: the broadcast advanced by EXACTLY the elapsed air time
+		# (mod the cycle) — one game hour = 60s of air. (A same-slot alias with a
+		# short cycle is legal; the arithmetic still has to line up.)
+		var reg2: RefCounted = main.media_registry
+		var cycle := 0.0
+		for id2 in plist:
+			cycle += maxf(10.0, float(reg2.get_media(String(id2)).get("runtime_seconds", 60.0)))
+		var air_delta := (3.0 * 24.0 + 0.21) * 60.0
+		var arc_a := 0.0
+		for i2 in int(slot_a["idx"]):
+			arc_a += maxf(10.0, float(reg2.get_media(String(plist[i2])).get("runtime_seconds", 60.0)))
+		arc_a += float(slot_a["offset"])
+		var arc_c := 0.0
+		for i3 in int(slot_c["idx"]):
+			arc_c += maxf(10.0, float(reg2.get_media(String(plist[i3])).get("runtime_seconds", 60.0)))
+		arc_c += float(slot_c["offset"])
+		var expect := fmod(arc_a + air_delta, cycle)
+		_check("...and the broadcast MOVED ON by exactly the elapsed air time (%.1fs vs %.1fs expected)" % [arc_c, expect],
+			absf(arc_c - expect) < 0.1)
 
 	# --- The save REMEMBERS the shelf -------------------------------------------
 	var snap: Dictionary = main.save_game()
@@ -89,10 +138,14 @@ func _ready() -> void:
 	main.apply_save(snap)
 	_check("watched PERSISTS through save/load", main.media_watched.has("test_pattern"))
 
-	# --- E turns the set off; the room comes back --------------------------------
+	# --- E reopens FULLSCREEN; E again = THE COUCH (panel away, feet back) -------
 	await _e()
-	_check("E turns the set off", not main.media_panel.is_open)
+	_check("E at the set reopens FULLSCREEN", main.media_panel.is_open)
+	await _e()
+	_check("E again lands on the couch (panel away — ✕ is the only OFF switch)",
+		not main.media_panel.is_open)
 	_check("the feet come back", not p.input_locked)
+	main.media_panel.power_off()
 
 	print("TV RESULTS: %d passed, %d failed" % [passed, failed])
 	print("TV: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

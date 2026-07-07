@@ -510,6 +510,8 @@ func _build_environment() -> void:
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
 	tv.rotation.y = 0.7 # angled at the room
+	if media_panel != null:
+		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
 	# faces the parking rows; locked found_* reels scatter on the lot (Phase 4).
 	drive_in = ProtoDriveIn.create(self)
@@ -910,10 +912,9 @@ func _physics_process(delta: float) -> void:
 	_crime_cd = maxf(0.0, _crime_cd - delta)
 	_pet_cd = maxf(0.0, _pet_cd - delta)
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
-	# T waits on purpose; a ROLLING REEL waits for you (time passes while you watch —
-	# the TV is downtime, and downtime costs daylight. docs/cinema.md Phase 2).
-	daynight.waiting = (Input.is_key_pressed(KEY_T) and not panel.is_open) \
-		or (media_panel != null and media_panel.playing())
+	# The TV no longer fast-forwards time (owner 2026-07-07: "that's absurd") —
+	# a broadcast runs at 1:1 and the AIR CLOCK keeps the schedule honest.
+	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
 	# Headlights answer the dark on their own.
 	for c in cars:
 		if is_instance_valid(c):
