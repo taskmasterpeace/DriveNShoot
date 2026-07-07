@@ -60,7 +60,7 @@ WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap = SLIDE)** · SPAC
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)
 
 - **VehicleForge** `node tools/vehicleforge/server.mjs` (:8898) — fleet editor, armor-forward, TEST DRIVE, best-lap compare
-- **MapForge v2** `node tools/mapforge/server.mjs` (:8899) — biomes, roads, EXITS, authored placements, town templates
+- **MapForge v3** `node tools/mapforge/server.mjs` (:8899) — biomes, roads (character-preserving edits), **EXIT NODES** (spec §5: click-to-place w/ archetype+tier, auto off/return ramps, per-highway numbering, canvas diamonds + list), **STRUCTURE CATALOG** (spec §7 rows, §9 JOB-rule validation — created ≠ placed), authored placements, town templates
 - **SoundForge** `tools/soundforge/` — `generate.mjs` (ElevenLabs SFX), `voices.mjs` (TTS, consistent voices)
 - **MotionForge** `node tools/motionforge/server.mjs` (:8896) — procedural-motion ROWS (`data/motions.json` overlays code stock), sliders + describe-it NL endpoint; treadmill stage `res://proto3d/tools/motion_stage.tscn`
 - **MediaForge** `node tools/mediaforge/server.mjs` (:8897; `npm i` once for ffmpeg-static) — drop MP4s → Theora .ogv + poster + runtime → manifest ROW; test-reel/test-music generators; music mp3 shelves in `game/media/music/`

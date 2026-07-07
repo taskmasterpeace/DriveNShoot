@@ -1,6 +1,22 @@
 # 📣 DRIVN — What's New
 
-Built in public · shipping daily · v0.11.0
+Built in public · shipping daily · v0.12.0
+
+## v0.12.0 — July 6, 2026 — The World Editor: Exits & The Building Catalog
+*Highways became decisions, and every building in America became an editable row.*
+
+### 🆕 New
+- **Exits are real.** Highways now carry numbered exit nodes — click the map in the editor, pick what kind of exit it is (service stop, neighborhood, county seat, industrial, metro, military spur, or a dead one), and the game grows the off-ramp, the return ramp, and a big highway sign you can read at speed: "EXIT 1 — MERIDIAN (T3)". The first one is live on I-95.
+- **A building catalog you edit like a spreadsheet with taste.** Seventeen structure types — gas stations to courthouses to military base shells — each defined by what it DOES (loot, jobs, law, events), not just how it looks. Every building must earn its place: the editor refuses rows with no job. Created, deliberately not placed — the roads get arranged first.
+- **The editor grew two tools.** An EXIT tool (click, name it, build it — diamonds and ramp lines draw on the map) and a STRUCTURES panel (create and edit building rows with validation that talks back).
+
+### ✨ Improved
+- Editing a road's shape no longer erases its soul — nicknames, danger ratings, and tolls now survive every edit. THE CRIMSON MILE stays THE CRIMSON MILE.
+- Typing in editor forms no longer flips your brush size mid-word.
+
+*Everything sim-proven: 32 new checks green, all world regressions green.*
+
+---
 
 ## v0.11.0 — July 6, 2026 — The Remote Eye & The Fun Pass
 *The world changed while you were gone? Send the bird before you send yourself — and bring a friend.*

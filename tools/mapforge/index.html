@@ -43,6 +43,27 @@
 	#brush { position: fixed; pointer-events: none; border: 2px solid var(--amber); box-shadow: 0 0 0 1px #000a inset, 0 0 6px #000a; display: none; z-index: 5; }
 	#roadstatus { font-size: 11px; color: var(--amber); margin-top: 6px; min-height: 14px; }
 	.swatches .sw { position: relative; }
+	input[type=text], input[type=number] { background: var(--panel2); color: var(--bone); border: 1px solid var(--line); padding: 4px 6px; font: inherit; font-size: 12px; width: 100%; }
+	input[type=text]:focus, input[type=number]:focus, select:focus { outline: none; border-color: var(--amber); }
+	input[type=checkbox] { accent-color: var(--amber); }
+	.form label { display: block; font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; margin-top: 6px; }
+	.form label.chk { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--bone); font-size: 11px; cursor: pointer; }
+	.pair { display: flex; gap: 6px; }
+	.pair label { flex: 1; }
+	#exitlist, #structlist { max-height: 170px; overflow-y: auto; border: 1px solid var(--line); background: var(--ink); }
+	.exitrow { display: flex; align-items: center; gap: 6px; padding: 3px 5px; font-size: 11px; border-bottom: 1px solid var(--line); }
+	.exitrow:last-child { border-bottom: 0; }
+	.exitrow span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.exitrow button { padding: 0 5px; font-size: 11px; line-height: 16px; flex-shrink: 0; }
+	.structrow { padding: 3px 6px; font-size: 11px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.structrow:hover { background: var(--panel2); }
+	.structrow.on { border-color: var(--amber); background: var(--panel2); }
+	.sec h2.fold { cursor: pointer; user-select: none; }
+	.sec h2.fold:hover { color: var(--bone); }
+	#sproblems { color: var(--blood); font-size: 11px; margin-top: 6px; white-space: pre-wrap; }
+	#exitdlg { position: fixed; z-index: 9; display: none; width: 256px; background: var(--panel); border: 1px solid var(--rust); box-shadow: 0 0 0 2px #000a, 0 14px 50px #000d; padding: 10px 12px 12px; }
+	#exitdlg h3 { font-size: 12px; letter-spacing: 2px; color: var(--amber); }
+	#exitdlg .hint { margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -60,6 +81,7 @@
 				<button id="t-road">ROAD</button>
 				<button id="t-town">TOWN</button>
 				<button id="t-place">PLACE</button>
+				<button id="t-exit">EXIT</button>
 				<button id="t-inspect">INSPECT</button>
 			</div>
 			<div class="hint" id="toolhint">Drag to paint. <kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd> brush.</div>
@@ -108,6 +130,11 @@
 			<div class="hint">Pick a road above (it lights up on the map). With the ROAD tool, each click drops the next point. UNDO PT removes the last one.</div>
 		</div>
 		<div class="sec">
+			<h2 id="exithdr">Exit nodes</h2>
+			<div id="exitlist"></div>
+			<div class="hint">With the EXIT tool, click where the exit should LEAD — the node anchors itself on the nearest interstate and builds its own ramps. Deleting a node takes its ramps with it.</div>
+		</div>
+		<div class="sec">
 			<h2>Authored structures</h2>
 			<select id="buildingsel" style="width:100%">
 				<option>safehouse</option><option>gas_station</option>
@@ -124,7 +151,50 @@
 			<select id="tplsel" style="width:100%;margin-top:6px">
 				<option>waystation</option><option>hamlet</option><option>outpost</option>
 			</select>
-			<div class="hint">AUTO-EXIT builds an off-ramp from the nearest interstate to the town you name. STAMP drops the chosen template at your last click.</div>
+			<div class="hint">AUTO-EXIT (v1) builds a bare ramp to a named town — the EXIT tool supersedes it. STAMP drops the chosen template at your last click.</div>
+		</div>
+		<div class="sec">
+			<h2 id="structfold" class="fold">▸ Structure catalog</h2>
+			<div id="structbody" style="display:none">
+				<div class="hint" style="margin:0 0 6px">Created ≠ placed — buildings go in the world after the roads are arranged.</div>
+				<div id="structlist"></div>
+				<div class="row" style="margin-top:6px">
+					<button id="s-new">NEW</button>
+					<button id="s-save">SAVE</button>
+					<button id="s-del" class="danger">DELETE</button>
+				</div>
+				<div id="sproblems"></div>
+				<div id="sform" class="form">
+					<label>id (snake_case)<input type="text" id="s-id" placeholder="gas_station_small"></label>
+					<label>display name<input type="text" id="s-display_name" placeholder="Gas Station"></label>
+					<div class="pair">
+						<label>sign glyph<input type="text" id="s-sign_glyph" placeholder="⛽"></label>
+						<label>category<input type="text" id="s-category" placeholder="service"></label>
+					</div>
+					<label>allowed tiers (comma)<input type="text" id="s-allowed_tiers" placeholder="T1, T2, T3, T4"></label>
+					<label>districts (comma)<input type="text" id="s-districts" placeholder="commercial_strip, roadside"></label>
+					<label>footprint<select id="s-footprint" style="width:100%"></select></label>
+					<div class="pair">
+						<label>width m<input type="number" id="s-fw" min="2" value="10"></label>
+						<label>depth m<input type="number" id="s-fd" min="2" value="8"></label>
+					</div>
+					<div class="pair">
+						<label>floors<input type="number" id="s-floors" min="1" value="1"></label>
+						<label>danger 0–5<input type="number" id="s-danger" min="0" max="5" value="1"></label>
+					</div>
+					<label class="chk"><input type="checkbox" id="s-enterable" checked> enterable</label>
+					<label>entrances (comma)<input type="text" id="s-entrances" placeholder="front, rear_optional"></label>
+					<label>interior template<input type="text" id="s-interior_template" value="none"></label>
+					<label>loot table<input type="text" id="s-loot_table" placeholder="chest_common"></label>
+					<label>npc jobs (comma)<input type="text" id="s-npc_jobs" placeholder="clerk, trader"></label>
+					<label>law hooks (comma)<input type="text" id="s-law_hooks" placeholder="fuel_tax"></label>
+					<label>event hooks (comma)<input type="text" id="s-event_hooks" placeholder="ambush, rumor"></label>
+					<label>faction overrides (comma)<input type="text" id="s-faction_overrides" placeholder="paint, guards, prices"></label>
+					<label class="chk"><input type="checkbox" id="s-power_required"> power required</label>
+					<label class="chk"><input type="checkbox" id="s-can_be_safehouse"> can be safehouse</label>
+				</div>
+				<div class="hint">The JOB rule (§9): a building must bring at least one of loot table / npc jobs / law hooks / event hooks.</div>
+			</div>
 		</div>
 		<div class="sec">
 			<h2>Reload</h2>
@@ -134,6 +204,17 @@
 	</div>
 	<div id="wrap"><canvas id="cv"></canvas></div>
 	<div id="brush"></div>
+	<div id="exitdlg" class="form">
+		<h3>NEW EXIT NODE</h3>
+		<div class="hint" id="exitanchor">—</div>
+		<label>name (blank = archetype default)<input type="text" id="exitname" placeholder="MERIDIAN"></label>
+		<label>archetype<select id="exitarch" style="width:100%"></select></label>
+		<label class="chk"><input type="checkbox" id="exitreturn" checked> return ramp (full interchange)</label>
+		<div class="row" style="margin-top:10px">
+			<button id="exitgo">BUILD EXIT</button>
+			<button id="exitcancel">CANCEL</button>
+		</div>
+	</div>
 </main>
 <footer>
 	<span id="pos">—</span>
@@ -160,6 +241,9 @@ const BIOME_INFO = {
 	urban: "Ruined city blocks with streets you can drive, husks for cover, tool caches.",
 };
 let meta = null, rows = [], states = [], roads = [], towns = [], placements = [];
+let exits = [], archetypes = [], structures = [], footprints = []; // spec §5 nodes + §7 catalog
+let exitDest = null; // pending EXIT-tool destination [wx,wz] while the dialog is up
+let selStructId = null, structOpen = false;
 let lastWorld = null; // last clicked world [wx,wz] — AUTO-EXIT / STAMP anchor here
 let tool = "paint", biome = "forest", brush = 1, painting = false, stroke = [];
 let showStates = true, showRoads = true, showTowns = true;
@@ -185,10 +269,12 @@ async function load() {
 	roads = await api("/api/roads");
 	towns = await api("/api/towns");
 	placements = await api("/api/placements");
+	({ exits, archetypes } = await api("/api/exits"));
+	({ structures, footprints } = await api("/api/structures"));
 	document.getElementById("mapname").textContent =
 		`${meta.name} · ${meta.compression}× · ${meta.world_km[0]}×${meta.world_km[1]} km · ${meta.w}×${meta.h} cells of ${meta.cell_m} m`;
 	basePX = Math.max(4, Math.floor(Math.min((innerWidth - 280) / meta.w, (innerHeight - 130) / meta.h)));
-	buildPalette(); buildRoadSel(); applyZoom(); roadStatus();
+	buildPalette(); buildRoadSel(); buildExitArch(); buildExitList(); buildFootprintSel(); buildStructList(); applyZoom(); roadStatus();
 }
 function applyZoom() {
 	PX = Math.max(2, Math.round(basePX * zoom));
@@ -251,7 +337,9 @@ function draw() {
 		// Unselected roads: dim & thin. Selected: bright & thick so you always know which one you're editing.
 		for (const r of roads) {
 			if (r.id === selId || r.pts.length < 2) continue;
-			ctx.strokeStyle = "#7a6f4e"; ctx.lineWidth = Math.max(1, PX * 0.16);
+			const ramp = r.kind === "exit"; // ramps read dimmer + thinner than interstates
+			ctx.strokeStyle = ramp ? "#5a5138" : "#7a6f4e";
+			ctx.lineWidth = Math.max(1, PX * (ramp ? 0.09 : 0.16));
 			ctx.beginPath();
 			r.pts.forEach((p, i) => { const [px, pz] = w2p(p[0], p[1]); i ? ctx.lineTo(px, pz) : ctx.moveTo(px, pz); });
 			ctx.stroke();
@@ -274,6 +362,22 @@ function draw() {
 				ctx.fillText(String(i + 1), px, pz + 0.5);
 				ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 			});
+		}
+		// EXIT NODES (spec §5): amber diamond ON the highway, a thin tie to the destination.
+		for (const e of exits) {
+			const [px, pz] = w2p(e.pos[0], e.pos[1]);
+			const [qx, qz] = w2p(e.dest[0], e.dest[1]);
+			ctx.strokeStyle = "rgba(240,180,41,.45)"; ctx.lineWidth = 1;
+			ctx.beginPath(); ctx.moveTo(px, pz); ctx.lineTo(qx, qz); ctx.stroke();
+			const dr = Math.max(4, PX * 0.45);
+			ctx.fillStyle = "#f0b429"; ctx.strokeStyle = "#14110c"; ctx.lineWidth = 1;
+			ctx.beginPath();
+			ctx.moveTo(px, pz - dr); ctx.lineTo(px + dr, pz); ctx.lineTo(px, pz + dr); ctx.lineTo(px - dr, pz);
+			ctx.closePath(); ctx.fill(); ctx.stroke();
+			if (PX >= 5) {
+				ctx.fillStyle = "#f0b429"; ctx.font = `${Math.max(8, Math.round(PX * 0.9))}px ui-monospace, monospace`;
+				ctx.fillText(`X${e.exit_number} ${e.name}`, px + dr + 3, pz + 3);
+			}
 		}
 	}
 	if (showTowns) {
@@ -321,6 +425,7 @@ cv.addEventListener("mousedown", async (ev) => {
 		await api("/api/placements", { method: "POST", body: JSON.stringify({ building, pos: lastWorld }) });
 		placements = await api("/api/placements"); savedFlash(`${building} pinned`); draw();
 	}
+	else if (tool === "exit") { exitDest = lastWorld; openExitDlg(ev); }
 	else if (tool === "road") {
 		const id = document.getElementById("roadsel").value;
 		const r = roads.find(r => r.id === id);
@@ -374,23 +479,30 @@ addEventListener("mouseup", async () => {
 		savedFlash(`${stroke.length} cells → disk`);
 	}
 });
-for (const [id, t] of [["t-paint", "paint"], ["t-road", "road"], ["t-town", "town"], ["t-place", "place"], ["t-inspect", "inspect"]])
+for (const [id, t] of [["t-paint", "paint"], ["t-road", "road"], ["t-town", "town"], ["t-place", "place"], ["t-exit", "exit"], ["t-inspect", "inspect"]])
 	document.getElementById(id).onclick = () => {
 		tool = t;
 		document.querySelectorAll("#side .sec:first-child button").forEach(b => b.classList.remove("on"));
 		document.getElementById(id).classList.add("on");
 		document.getElementById("toolhint").textContent = {
 			paint: "Drag to paint. 1/3/5/9 brush.", road: "Click the map to drop the next road point.",
-			town: "Click to found a town.", place: "Click to pin the selected structure.", inspect: "Click a cell for the full readout.",
+			town: "Click to found a town.", place: "Click to pin the selected structure.",
+			exit: "Click where the exit should LEAD — ramps build from the nearest interstate.",
+			inspect: "Click a cell for the full readout.",
 		}[t];
 		if (t !== "paint") brushEl.style.display = "none";
+		if (t !== "exit") closeExitDlg();
 		roadStatus();
 	};
 document.querySelectorAll(".brush").forEach(b => b.onclick = () => {
 	brush = Number(b.dataset.b);
 	document.querySelectorAll(".brush").forEach(x => x.classList.remove("on")); b.classList.add("on");
 });
-addEventListener("keydown", (e) => { if ("1359".includes(e.key)) document.querySelector(`.brush[data-b="${e.key}"]`)?.click(); });
+addEventListener("keydown", (e) => {
+	if (e.key === "Escape") return closeExitDlg();
+	if (e.target.matches("input, select, textarea")) return; // typing in a form, not brushing
+	if ("1359".includes(e.key)) document.querySelector(`.brush[data-b="${e.key}"]`)?.click();
+});
 for (const [id, fn] of [["l-states", v => showStates = v], ["l-roads", v => showRoads = v], ["l-towns", v => showTowns = v]])
 	document.getElementById(id).onclick = (ev) => { ev.target.classList.toggle("on"); fn(ev.target.classList.contains("on")); draw(); };
 document.getElementById("zoom-in").onclick = () => setZoom(zoom * 1.25);
@@ -435,6 +547,172 @@ document.getElementById("do-stamp").onclick = async () => {
 	const r = await api("/api/stamp_template", { method: "POST", body: JSON.stringify({ template, pos: lastWorld, name }) });
 	placements = await api("/api/placements");
 	savedFlash(`${template}: ${r.stamped.length} structures stamped`); draw();
+};
+// ---- EXIT NODES (spec §5): the content sockets the owner arranges ----
+function nearestInterstateJS(wx, wz) { // mirror of the server's anchor pick — preview only
+	let best = null, bestD = Infinity;
+	for (const r of roads) {
+		if (r.kind && r.kind !== "interstate") continue;
+		for (let i = 0; i + 1 < r.pts.length; i++) {
+			const a = r.pts[i], b = r.pts[i + 1];
+			const abx = b[0] - a[0], abz = b[1] - a[1];
+			const l2 = abx * abx + abz * abz || 1e-4;
+			const t = Math.max(0, Math.min(1, ((wx - a[0]) * abx + (wz - a[1]) * abz) / l2));
+			const d = Math.hypot(wx - (a[0] + abx * t), wz - (a[1] + abz * t));
+			if (d < bestD) { bestD = d; best = r.id; }
+		}
+	}
+	return best ? { id: best, dist: Math.round(bestD) } : null;
+}
+function buildExitArch() {
+	const sel = document.getElementById("exitarch");
+	const keep = sel.value;
+	sel.innerHTML = archetypes.map(a => `<option value="${a.id}">${a.id} · ${a.tier_default} · danger ${a.danger}</option>`).join("");
+	sel.value = archetypes.some(a => a.id === keep) ? keep
+		: (archetypes.some(a => a.id === "service") ? "service" : (archetypes[0]?.id ?? ""));
+}
+function buildExitList() {
+	document.getElementById("exithdr").textContent = `Exit nodes (${exits.length})`;
+	const el = document.getElementById("exitlist");
+	el.innerHTML = "";
+	if (!exits.length) { el.innerHTML = `<div class="hint" style="padding:4px 6px;margin:0">none yet — use the EXIT tool</div>`; return; }
+	for (const e of exits) {
+		const row = document.createElement("div");
+		row.className = "exitrow";
+		const label = document.createElement("span");
+		label.textContent = `${e.highway_id} X${e.exit_number} · ${e.name} · ${e.community_tier} ${e.archetype}`;
+		label.title = `${e.id} — ${(e.service_tags || []).join("/") || "no services"} · risk ${e.risk_rating}${e.has_return_ramp ? " · return ramp" : ""}`;
+		const del = document.createElement("button");
+		del.className = "danger";
+		del.textContent = "✕";
+		del.title = `delete ${e.id} and its ramps`;
+		del.onclick = async () => {
+			if (!confirm(`Delete ${e.id} (${e.name}) and its ramp roads?`)) return;
+			await api(`/api/exits?id=${encodeURIComponent(e.id)}`, { method: "DELETE" });
+			roads = await api("/api/roads");
+			({ exits, archetypes } = await api("/api/exits"));
+			buildRoadSel(); buildExitList(); savedFlash(`${e.id} gone (ramps too)`); draw();
+		};
+		row.append(label, del);
+		el.appendChild(row);
+	}
+}
+function openExitDlg(ev) {
+	const near = nearestInterstateJS(exitDest[0], exitDest[1]);
+	document.getElementById("exitanchor").textContent = near
+		? `dest ${Math.round(exitDest[0])}, ${Math.round(exitDest[1])} m · anchors on ${near.id} (~${near.dist} m ramp)`
+		: "no interstate on the map — the server will refuse this";
+	const dlg = document.getElementById("exitdlg");
+	dlg.style.display = "block";
+	dlg.style.left = Math.max(8, Math.min(ev.clientX + 14, innerWidth - 290)) + "px";
+	dlg.style.top = Math.max(8, Math.min(ev.clientY + 10, innerHeight - 300)) + "px";
+	const name = document.getElementById("exitname");
+	name.value = "";
+	setTimeout(() => name.focus(), 0); // after the canvas mousedown's default focus change
+}
+function closeExitDlg() { document.getElementById("exitdlg").style.display = "none"; exitDest = null; }
+document.getElementById("exitcancel").onclick = closeExitDlg;
+document.getElementById("exitname").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("exitgo").click(); });
+document.getElementById("exitgo").onclick = async () => {
+	if (!exitDest) return closeExitDlg();
+	const name = document.getElementById("exitname").value.trim();
+	const payload = {
+		dest: exitDest,
+		archetype: document.getElementById("exitarch").value,
+		has_return_ramp: document.getElementById("exitreturn").checked,
+	};
+	if (name) payload.name = name.toUpperCase();
+	try {
+		const r = await api("/api/exits", { method: "POST", body: JSON.stringify(payload) });
+		roads = await api("/api/roads");
+		({ exits, archetypes } = await api("/api/exits"));
+		buildRoadSel(); buildExitList();
+		savedFlash(`${r.exit.id} · ${r.exit.name} (${r.ramp_length_m} m ramp)`);
+		closeExitDlg(); draw();
+	} catch (e) { savedFlash("exit failed: " + e.message); }
+};
+
+// ---- STRUCTURE CATALOG (spec §7): buildings are CREATED here, placed later ----
+const S_TEXT = ["id", "display_name", "sign_glyph", "category", "loot_table", "interior_template"];
+const S_CSV = ["allowed_tiers", "districts", "entrances", "npc_jobs", "law_hooks", "event_hooks", "faction_overrides"];
+const S_BOOL = ["enterable", "power_required", "can_be_safehouse"];
+const sEl = (k) => document.getElementById("s-" + k);
+function buildFootprintSel() {
+	sEl("footprint").innerHTML = footprints.map(f => `<option>${f}</option>`).join("");
+}
+function structLine(s) {
+	const t = s.allowed_tiers || [], fm = s.footprint_m || [];
+	const tiers = t.length > 1 ? `${t[0]}-${t[t.length - 1]}` : (t[0] || "?");
+	return `${s.sign_glyph || "▪"} ${s.display_name || s.id} · ${s.category} · ${tiers} · ${fm[0] ?? "?"}×${fm[1] ?? "?"}m`;
+}
+function buildStructList() {
+	document.getElementById("structfold").textContent = `${structOpen ? "▾" : "▸"} Structure catalog (${structures.length})`;
+	const el = document.getElementById("structlist");
+	el.innerHTML = "";
+	for (const s of structures) {
+		const d = document.createElement("div");
+		d.className = "structrow" + (s.id === selStructId ? " on" : "");
+		d.textContent = structLine(s);
+		d.title = s.id;
+		d.onclick = () => { selStructId = s.id; loadStructForm(s); buildStructList(); };
+		el.appendChild(d);
+	}
+}
+function loadStructForm(s) {
+	for (const k of S_TEXT) sEl(k).value = s[k] ?? "";
+	for (const k of S_CSV) sEl(k).value = (s[k] || []).join(", ");
+	for (const k of S_BOOL) sEl(k).checked = !!s[k];
+	sEl("footprint").value = s.footprint || "small_rect";
+	sEl("fw").value = s.footprint_m?.[0] ?? 10;
+	sEl("fd").value = s.footprint_m?.[1] ?? 8;
+	sEl("floors").value = s.floors ?? 1;
+	sEl("danger").value = s.danger ?? 1;
+	showProblems([]);
+}
+function serializeStructForm() { // exactly the row POST /api/structures expects
+	const s = {};
+	for (const k of S_TEXT) s[k] = sEl(k).value.trim();
+	for (const k of S_CSV) s[k] = sEl(k).value.split(",").map(x => x.trim()).filter(Boolean);
+	for (const k of S_BOOL) s[k] = sEl(k).checked;
+	s.footprint = sEl("footprint").value;
+	s.footprint_m = [Number(sEl("fw").value), Number(sEl("fd").value)];
+	s.floors = Number(sEl("floors").value);
+	s.danger = Number(sEl("danger").value);
+	return s;
+}
+function showProblems(list) {
+	document.getElementById("sproblems").textContent = list.length ? "NOT LAWFUL:\n· " + list.join("\n· ") : "";
+}
+document.getElementById("structfold").onclick = () => {
+	structOpen = !structOpen;
+	document.getElementById("structbody").style.display = structOpen ? "block" : "none";
+	buildStructList();
+};
+document.getElementById("s-new").onclick = () => {
+	selStructId = null;
+	loadStructForm({ footprint: footprints[0] || "small_rect", footprint_m: [10, 8], floors: 1, danger: 1, enterable: true, interior_template: "none" });
+	buildStructList();
+	sEl("id").focus();
+};
+document.getElementById("s-save").onclick = async () => {
+	const s = serializeStructForm();
+	// raw fetch, not api(): a 400 carries the {problems:[...]} list we surface in red
+	const r = await fetch("/api/structures", { method: "POST", body: JSON.stringify(s) });
+	const j = await r.json();
+	if (!r.ok) return showProblems(j.problems || [j.error || String(r.status)]);
+	selStructId = j.structure.id;
+	({ structures, footprints } = await api("/api/structures"));
+	buildStructList(); showProblems([]);
+	savedFlash(`${j.structure.id} → catalog (${j.total} rows)`);
+};
+document.getElementById("s-del").onclick = async () => {
+	const id = sEl("id").value.trim();
+	if (!id) return savedFlash("no structure loaded");
+	if (!confirm(`Delete structure profile '${id}' from the catalog?`)) return;
+	await api(`/api/structures?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+	if (selStructId === id) selStructId = null;
+	({ structures, footprints } = await api("/api/structures"));
+	buildStructList(); savedFlash(`${id} removed`);
 };
 document.getElementById("reload").onclick = load;
 load();
