@@ -60,11 +60,17 @@ func _ready() -> void:
 	add_child(p)
 	var stock_amp := _puppet_amp(p)
 	_check("stock stride swings the legs (%.2f rad)" % stock_amp, stock_amp > 0.3)
-	var was_stride: float = float(ProtoPuppet.MOTION["gait"]["stride_amp"])
-	ProtoPuppet.MOTION["gait"]["stride_amp"] = 0.06
+	# ANIMATION_FIX_PACK §4.2: the hip swing amplitude is SOLVED from a_walk_max/a_run_max
+	# now (the anti-skate solve replaced the old stride_amp, which is vestigial). Shrink
+	# BOTH amplitude rows and the legs swing small — the row still DRIVES the rig.
+	var was_walk: float = float(ProtoPuppet.MOTION["gait"]["a_walk_max"])
+	var was_run: float = float(ProtoPuppet.MOTION["gait"]["a_run_max"])
+	ProtoPuppet.MOTION["gait"]["a_walk_max"] = 0.06
+	ProtoPuppet.MOTION["gait"]["a_run_max"] = 0.06
 	var tuned_amp := _puppet_amp(p)
-	ProtoPuppet.MOTION["gait"]["stride_amp"] = was_stride
-	_check("shrinking the ROW shrinks the STRIDE (%.2f → %.2f)" % [stock_amp, tuned_amp],
+	ProtoPuppet.MOTION["gait"]["a_walk_max"] = was_walk
+	ProtoPuppet.MOTION["gait"]["a_run_max"] = was_run
+	_check("shrinking the amplitude ROWS shrinks the STRIDE (%.2f → %.2f)" % [stock_amp, tuned_amp],
 		tuned_amp < stock_amp * 0.4)
 
 	# --- 3. The rows DRIVE the quadruped ----------------------------------------

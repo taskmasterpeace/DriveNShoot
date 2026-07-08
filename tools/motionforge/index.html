@@ -120,7 +120,16 @@ const fmt = (v) => (Math.round(v * 10000) / 10000).toString();
 const STOCK_SEED = {
 	puppet: {
 		gait: { cadence_base: 2.0, cadence_speed: 1.15, stride_amp: 0.6, arm_swing: 0.85,
-			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34 },
+			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34,
+			hip_fold_max: 0.70, hip_drop_frac: 0.50, hip_joint_gap: 0.03, torso_scale_min: 0.81,
+			knee_follow: 0.55, knee_phase: 0.45, knee_rest: 0.06, crouch_knee: 1.30,
+			elbow_follow: 0.35, elbow_rest: 0.14,
+			// ANIMATION_FIX_PACK §3.3/§4.2: walk/run to the reference strip (anti-skate + run form)
+			a_walk_max: 0.62, a_run_max: 0.85, leg_eff: 0.92, cadence_mult: 1.0,
+			walk_speed_ref: 4.2, run_blend_lo: 4.0, run_blend_hi: 7.2,
+			column_bob: 0.045, head_stabilize: 0.5, run_lean: 0.22, elbow_pump: 1.5,
+			knee_lift_run: 0.6, ankle_push: 0.5,
+			turn_twist: 0.34, turn_bank: 0.30 },
 		melee: { windup_s: 0.06, windup_yaw: 0.7, windup_lift: 0.25,
 			slash_s: 0.1, slash_yaw: 0.85, slash_dip: 0.15, gun_twist: 0.45,
 			settle_s: 0.12,
@@ -139,8 +148,17 @@ const STOCK_SEED = {
 // Plain-English slider labels (the param id stays visible underneath for the API-minded).
 const LABELS = {
 	cadence_base: "Step rate (base)", cadence_speed: "Step rate per speed", stride_amp: "Leg swing size",
-	arm_swing: "Arm pump", step_bob: "Body bounce", breath_amp: "Breathing (idle)",
+	arm_swing: "Arm pump", step_bob: "Body bounce (legacy)", breath_amp: "Breathing (idle)",
 	lean_turn: "Lean into turns", crouch_drop: "Crouch depth",
+	hip_fold_max: "Crouch hip fold", hip_drop_frac: "Crouch pelvis drop", hip_joint_gap: "Crouch hip clearance",
+	torso_scale_min: "Crouch spine curl", knee_follow: "Knee follow-through", knee_phase: "Knee trail phase",
+	knee_rest: "Knee standing bend", crouch_knee: "Crouch knee coil", elbow_follow: "Elbow follow-through",
+	elbow_rest: "Elbow standing bend",
+	a_walk_max: "Stride size (walk)", a_run_max: "Stride size (run)", leg_eff: "Effective leg length",
+	cadence_mult: "Cadence feel", walk_speed_ref: "Walk speed ref", run_blend_lo: "Run form start (m/s)",
+	run_blend_hi: "Run form full (m/s)", column_bob: "Whole-body bounce", head_stabilize: "Head steadiness",
+	run_lean: "Run forward lean", elbow_pump: "Run elbow lock (~90°)", knee_lift_run: "Run knee lift",
+	ankle_push: "Run heel-up push", turn_twist: "Turn chest lead", turn_bank: "Turn bank",
 	windup_s: "Windup time (s)", windup_yaw: "Windup twist", windup_lift: "Windup arm lift",
 	slash_s: "Slash time (s)", slash_yaw: "Slash arc", slash_dip: "Slash dip",
 	gun_twist: "Gun-hand twirl", settle_s: "Settle time (s)",
