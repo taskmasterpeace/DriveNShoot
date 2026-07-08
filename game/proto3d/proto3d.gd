@@ -2103,6 +2103,10 @@ func _apply_hand_pose(wpn: ProtoWeapon) -> void:
 	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
 	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
 		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+	# THE SILHOUETTE (weapons-as-data): rebuild the held mesh so a pistol reads as
+	# a pistol, a shotgun as a shotgun — the shape is the WEAPON's property, a row.
+	var shp: Dictionary = ProtoWeapon.shape(id)
+	player.puppet.set_weapon_mesh(shp.get("parts", []), shp.get("muzzle_z", 0.34))
 	# Guns ride raised (the twin-stick aim read); steel is CARRIED — the arm hangs
 	# and only comes up in the swing (playtest: the always-raised wrench floated).
 	player.puppet.raised = not wpn.is_melee()

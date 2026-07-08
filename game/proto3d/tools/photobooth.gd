@@ -63,10 +63,58 @@ func _ready() -> void:
 	_cam = Camera3D.new()
 	_sv.add_child(_cam)
 
+	await _contact_sheet()
 	await _run()
 	await _turn_sweep()
 	print("PHOTOBOOTH: done")
 	get_tree().quit(0)
+
+
+## THE CONTACT SHEET (owner 2026-07-08: "we need a way to iterate faster… all
+## the weapons and their grips figured out"). Every weapon held, in ONE image, in
+## a grid — tweak a SHAPE row in weapon.gd, re-run, read one picture, see them all.
+func _contact_sheet() -> void:
+	var order: Array = ["pistol", "shotgun", "pipe_rocket", "wrench", "machete", "axe", "bat"]
+	var cols := 3
+	var tile := 320
+	var rows := int(ceil(float(order.size()) / cols))
+	var sheet := Image.create(cols * tile, rows * tile, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color(0.13, 0.14, 0.16, 1.0))
+	print("PHOTOBOOTH: contact-sheet grid (row-major): %s" % str(order))
+
+	_cam.position = Vector3(1.5, 1.35, 2.1)
+	_cam.look_at(Vector3(0.0, 1.15, -0.05), Vector3.UP)
+	for i in order.size():
+		var id: String = order[i]
+		var puppet := ProtoPuppet.create({})
+		_sv.add_child(puppet)
+		var w: Dictionary = ProtoWeapon.WEAPONS[id]
+		var pose: Dictionary = w.get("hand_pose", {})
+		puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+			pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+		var shp: Dictionary = ProtoWeapon.shape(id)
+		puppet.set_weapon_mesh(shp.get("parts", []), shp.get("muzzle_z", 0.34))
+		puppet.raised = true # force the hold up so the silhouette reads (even melee)
+		puppet.set_armed(true)
+		for _f in 60:
+			puppet.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
+			puppet.aim_arm.rotation.y = -0.5 # angle the weapon toward the camera
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img := _sv.get_texture().get_image()
+		img.resize(tile, tile, Image.INTERPOLATE_LANCZOS)
+		if img.get_format() != sheet.get_format():
+			img.convert(sheet.get_format())
+		var col := i % cols
+		var row := i / cols
+		sheet.blit_rect(img, Rect2i(0, 0, tile, tile), Vector2i(col * tile, row * tile))
+		puppet.queue_free()
+		await get_tree().process_frame
+	var path := "%s/_CONTACT_SHEET.png" % OUT
+	var err := sheet.save_png(path)
+	print("PHOTOBOOTH: %s  (%s)" % [path, "ok" if err == OK else "ERR %d" % err])
 
 
 ## THE DOORKNOB TEST (owner 2026-07-08: "the torso rotates like a doorknob, not

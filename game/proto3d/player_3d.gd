@@ -134,7 +134,7 @@ var puppet: ProtoPuppet = null
 var _visual: Node3D
 var _lower: Node3D
 var _upper: Node3D
-var _gun: MeshInstance3D
+var _gun: Node3D ## the puppet's held-weapon container (box parts rebuilt per weapon)
 var _state_t: float = 0.0
 var _getup_dur: float = 0.35
 var _dive_dir: Vector3 = Vector3.FORWARD

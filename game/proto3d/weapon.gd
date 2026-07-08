@@ -78,6 +78,65 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(0.0, -0.04, 0.0), "two_handed": false}},
 }
 
+## THE WEAPON SHAPES (weapons-as-data 2026-07-08 goal: "all weapons should look
+## like their counterparts"). Each is a silhouette built from box PARTS, in
+## gun-local space: the GRIP is the origin, −Z is the muzzle/blade forward, +Y is
+## up. ProtoPuppet.set_weapon_mesh rebuilds the held mesh from this when a weapon
+## is equipped; "muzzle_z" is where the barrel tip sits (rounds leave there). Melee
+## rows need no muzzle. TUNE THESE LIVE with the photobooth contact sheet — one
+## place, one render, every weapon in one picture.
+const GUNMETAL := Color(0.15, 0.15, 0.17)
+const DARKSTEEL := Color(0.09, 0.09, 0.10)
+const BRIGHTSTEEL := Color(0.62, 0.64, 0.68)
+const WOOD := Color(0.34, 0.22, 0.11)
+const MILGREEN := Color(0.28, 0.30, 0.20)
+static var SHAPES: Dictionary = {
+	# PISTOL — a slide over a grip. Short, unmistakable.
+	"pistol": {"muzzle_z": 0.26, "parts": [
+		{"size": Vector3(0.055, 0.075, 0.26), "pos": Vector3(0, 0.03, -0.10), "color": GUNMETAL},
+		{"size": Vector3(0.05, 0.15, 0.075), "pos": Vector3(0, -0.07, 0.02), "color": DARKSTEEL},
+	]},
+	# PUMP SHOTGUN — long barrel, pump under it, receiver, a wood stock kicked back.
+	"shotgun": {"muzzle_z": 0.55, "parts": [
+		{"size": Vector3(0.05, 0.055, 0.5), "pos": Vector3(0, 0.035, -0.30), "color": GUNMETAL},
+		{"size": Vector3(0.06, 0.06, 0.14), "pos": Vector3(0, -0.02, -0.22), "color": DARKSTEEL},
+		{"size": Vector3(0.065, 0.10, 0.18), "pos": Vector3(0, 0.0, -0.02), "color": GUNMETAL},
+		{"size": Vector3(0.045, 0.11, 0.22), "pos": Vector3(0, -0.05, 0.16), "color": WOOD, "rot": Vector3(0.18, 0, 0)},
+	]},
+	# PIPE ROCKET — a fat scrap tube on the shoulder, a grip and a bent sight.
+	"pipe_rocket": {"muzzle_z": 0.52, "parts": [
+		{"size": Vector3(0.135, 0.135, 0.64), "pos": Vector3(0, 0.05, -0.18), "color": MILGREEN},
+		{"size": Vector3(0.05, 0.12, 0.075), "pos": Vector3(0, -0.07, 0.06), "color": DARKSTEEL},
+		{"size": Vector3(0.02, 0.07, 0.03), "pos": Vector3(0, 0.15, -0.02), "color": DARKSTEEL},
+	]},
+	# WRENCH — a steel handle with a boxy open head.
+	"wrench": {"muzzle_z": 0.34, "parts": [
+		{"size": Vector3(0.035, 0.04, 0.34), "pos": Vector3(0, 0, -0.13), "color": BRIGHTSTEEL},
+		{"size": Vector3(0.11, 0.045, 0.09), "pos": Vector3(0, 0, -0.31), "color": BRIGHTSTEEL},
+	]},
+	# MACHETE — a short handle and a long flat bright blade.
+	"machete": {"muzzle_z": 0.34, "parts": [
+		{"size": Vector3(0.04, 0.055, 0.15), "pos": Vector3(0, 0, 0.05), "color": DARKSTEEL},
+		{"size": Vector3(0.016, 0.12, 0.42), "pos": Vector3(0, 0.02, -0.22), "color": BRIGHTSTEEL},
+	]},
+	# FIRE AXE — a long haft, a steel bit head near the top.
+	"axe": {"muzzle_z": 0.34, "parts": [
+		{"size": Vector3(0.04, 0.04, 0.52), "pos": Vector3(0, 0, -0.06), "color": WOOD},
+		{"size": Vector3(0.15, 0.12, 0.05), "pos": Vector3(0.03, 0.02, -0.30), "color": BRIGHTSTEEL},
+	]},
+	# BASEBALL BAT — a thin handle swelling to a wood barrel.
+	"bat": {"muzzle_z": 0.34, "parts": [
+		{"size": Vector3(0.035, 0.035, 0.16), "pos": Vector3(0, 0, 0.10), "color": Color(0.28, 0.19, 0.10)},
+		{"size": Vector3(0.06, 0.06, 0.46), "pos": Vector3(0, 0, -0.18), "color": Color(0.54, 0.38, 0.20)},
+	]},
+}
+
+
+## The held-weapon silhouette for an id: {parts, muzzle_z}, or empty (unarmed /
+## the fallback stub). The puppet reads this on equip.
+static func shape(weapon_id: String) -> Dictionary:
+	return SHAPES.get(weapon_id, {})
+
 var id: String
 var mag: int = 0
 var bloom: float = 0.0 ## grows per shot, decays at rest — the reticle shows it

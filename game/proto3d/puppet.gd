@@ -152,7 +152,8 @@ var _hip_box_rest_y: float = 0.0 ## the box's stock local Y offset from its pivo
 var free_arm: Node3D
 var aim_arm: Node3D      ## the caller yaws this to the gaze (old "_upper")
 var shoulder: Node3D     ## the REAL joint: raises/hangs/swings the gun arm (playtest: no more feet-orbit float)
-var gun: MeshInstance3D
+var gun: Node3D ## the held-weapon CONTAINER; box children built per-weapon from a SHAPE spec
+var _muzzle_z: float = 0.34 ## barrel-tip distance forward of the grip (per weapon)
 var hand: Node3D
 ## RIG V2 (PUPPET_RIG_V2.md — "no knee, no elbow, no forearm" fixed): segmented limbs.
 ## Every new joint is a CHILD of an existing pivot, so every old name (shoulder, free_arm,
@@ -199,6 +200,10 @@ var crouch_target: float = 0.0
 var _crouch: float = 0.0
 var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
 var _kick_t: float = 0.0       ## >0 while a KICK tween owns the right hip
+## Fallback held-weapon silhouette (a plain barrel) until a weapon sets its shape.
+const DEFAULT_WEAPON_PARTS: Array = [
+	{"size": Vector3(0.06, 0.06, 0.5), "pos": Vector3(0, 0, -0.16), "color": Color(0.16, 0.16, 0.18)},
+]
 var _gun_rest: Vector3 = Vector3(0.0, 1.12, -0.36)
 var _hand_offset: Vector3 = Vector3.ZERO ## per-weapon hand pose (set_hand_pose)
 var _two_handed: bool = false ## longarm: the free hand rides the fore-grip (RIG V2)
@@ -326,9 +331,15 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.hand.position = Vector3(0, -0.14, -0.18) # elbow-local; shoulder-net = the old rest
 	p._gun_rest = p.hand.position
 	p.elbow_r.add_child(p.hand)
-	p.gun = _box(Vector3(0.07, 0.07, 0.62), Vector3.ZERO, Color(0.16, 0.16, 0.18))
+	# The held-weapon node is a CONTAINER now (RIG: weapons-as-data 2026-07-08):
+	# its box children are rebuilt per weapon from a SHAPE spec so a pistol reads
+	# as a pistol and a shotgun as a shotgun — not one stick for everything. The
+	# node ORIGIN stays the grip point (grip_r seats it, recoil tweens it, the
+	# muzzle reads _muzzle_z forward), so all the existing hold/aim math is intact.
+	p.gun = Node3D.new()
 	p.gun.visible = false
 	p.hand.add_child(p.gun)
+	p._build_weapon_mesh(DEFAULT_WEAPON_PARTS) # a plain stub until a weapon sets its shape
 	return p
 
 
@@ -789,8 +800,34 @@ func arm_tracks_gaze() -> bool:
 	return _swing_t > 0.0 or (raised and gun.visible)
 
 
-## World-space muzzle tip — rounds LEAVE THE GUN barrel.
+## World-space muzzle tip — rounds LEAVE THE GUN barrel. The tip distance is the
+## weapon's own (a long shotgun reaches further than a pistol), set with the shape.
 func muzzle_world() -> Vector3:
 	if gun and gun.visible:
-		return gun.global_position - gun.global_basis.z * 0.34
+		return gun.global_position - gun.global_basis.z * _muzzle_z
 	return global_position + Vector3(0, 1.2, 0)
+
+
+## THE WEAPON SHAPE (weapons-as-data 2026-07-08): rebuild the held mesh from a
+## list of box PARTS so every weapon looks like its counterpart. Each part is a
+## row {size, pos, color, rot?} in gun-local space: -Z is the muzzle/blade
+## forward, +Y up, origin = the grip. muzzle_z is where the barrel tip sits.
+## Called when the weapon changes (proto3d._apply_hand_pose). Empty = the stub.
+func set_weapon_mesh(parts: Array, muzzle_z: float = 0.34) -> void:
+	_muzzle_z = maxf(0.05, muzzle_z)
+	_build_weapon_mesh(parts if not parts.is_empty() else DEFAULT_WEAPON_PARTS)
+
+
+func _build_weapon_mesh(parts: Array) -> void:
+	if gun == null:
+		return
+	for c in gun.get_children():
+		gun.remove_child(c) # immediate detach so a re-read sees only the new parts
+		c.queue_free()
+	for part in parts:
+		var box := _box(part.get("size", Vector3(0.06, 0.06, 0.3)),
+			part.get("pos", Vector3.ZERO), part.get("color", Color(0.16, 0.16, 0.18)))
+		var r: Vector3 = part.get("rot", Vector3.ZERO)
+		if r != Vector3.ZERO:
+			box.rotation = r
+		gun.add_child(box)
