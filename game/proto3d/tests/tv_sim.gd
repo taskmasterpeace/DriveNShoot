@@ -82,6 +82,13 @@ func _ready() -> void:
 		main.media_panel.set_playing())
 	var tv_node: Node = main.media_panel.tv_set
 	_check("...and the SET's screen carries the live picture", tv_node != null and tv_node.is_live())
+	# Regression (playtest 2026-07-08: "I hear it but I don't SEE it on the TV"):
+	# a hidden VideoStreamPlayer decodes AUDIO but freezes its texture. Couch mode
+	# must keep the video DECODING — visible in the tree — or the set is a still frame.
+	_check("...the couch video keeps DECODING (visible in tree, live frames not frozen)",
+		main.media_panel._video.is_playing() and main.media_panel._video.is_visible_in_tree())
+	_check("...but the fullscreen CHROME is gone (no fullscreen takeover)",
+		main.media_panel.visible and not main.media_panel._root.visible)
 	_check("...prompt now offers FULLSCREEN", String(tv_node.interact_prompt(main)).contains("FULLSCREEN"))
 	main.media_panel.power_off()
 	for _i in 4:

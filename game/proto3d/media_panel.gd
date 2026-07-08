@@ -36,6 +36,7 @@ var _tabs: HBoxContainer
 var _list_scroll: ScrollContainer
 var _list: VBoxContainer
 var _video: VideoStreamPlayer
+var _screen_stack: Control ## the bezel's screen area — the video's fullscreen home
 var _vol_slider: HSlider
 var _now_label: Label
 var _status: Label
@@ -185,6 +186,7 @@ static func create(main: Node) -> ProtoMediaPanel:
 	screen_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	screen_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame.add_child(screen_stack)
+	p._screen_stack = screen_stack
 
 	p._video = VideoStreamPlayer.new()
 	p._video.expand = true
@@ -354,6 +356,8 @@ func _registry() -> ProtoMediaRegistry:
 func open() -> void:
 	is_open = true
 	visible = true
+	_root.visible = true
+	_restore_video_fullscreen() # bring the picture back off the couch-sliver into the bezel
 	showing_guide = false
 	_channel_view.visible = true
 	_guide_view.visible = false
@@ -363,15 +367,50 @@ func open() -> void:
 	refresh()
 
 
+## Fullscreen: the video fills the bezel's screen area again (undo the couch sliver).
+func _restore_video_fullscreen() -> void:
+	if _video.get_parent() != _screen_stack:
+		# Reparenting exits/re-enters the tree, which STOPS the player — save the
+		# playhead and resume so the reel doesn't restart from the top.
+		var resume_at := _video.stream_position
+		var had_stream := _video.stream != null
+		_video.get_parent().remove_child(_video)
+		_screen_stack.add_child(_video)
+		_screen_stack.move_child(_video, 0) # behind the DEAD AIR / EBS / static cards
+		if had_stream:
+			_video.play()
+			_video.stream_position = resume_at
+	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_video.modulate = Color.WHITE
+
+
 ## E / back out: TO THE COUCH (owner 2026-07-07) — the panel hides but a rolling
 ## reel KEEPS PLAYING on the physical set. Walk around, do your stove-and-pack
 ## chores with the game on; E the set again for fullscreen. ✕/power_off stops it.
 func close() -> void:
 	is_open = false
-	visible = false
 	if _video.stream != null and _video.is_playing() and tv_set != null and tv_set.has_method("set_live"):
+		# TO THE COUCH. A hidden VideoStreamPlayer decodes audio but FREEZES its
+		# texture (playtest 2026-07-08: "I hear it but don't see it on the TV").
+		# So keep the layer alive and the video DECODING — reparented to a 1px
+		# sliver in the corner, visible-in-tree (full-res frames still decode) but
+		# imperceptible — and hide only the bezel chrome. The set shows live frames.
+		visible = true
+		_root.visible = false
+		if _video.get_parent() != self:
+			# Exiting the tree stops the player — save the playhead and resume so
+			# the couch picks up exactly where fullscreen left off (no restart).
+			var resume_at := _video.stream_position
+			_video.get_parent().remove_child(_video)
+			add_child(_video)
+			_video.play()
+			_video.stream_position = resume_at
+		_video.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_video.position = Vector2.ZERO
+		_video.size = Vector2(1, 1)
 		tv_set.set_live(_video.get_video_texture())
 	else:
+		visible = false
 		power_off()
 
 
@@ -547,6 +586,10 @@ func _roll_channel(c: Dictionary) -> void:
 	_video.play()
 	if float(slot["offset"]) > 1.0:
 		_video.stream_position = float(slot["offset"])
+	# On the couch, a channel auto-advance swaps the stream — re-hand the NEW
+	# texture to the set so it doesn't cling to the last reel's final frame.
+	if not is_open and tv_set != null and tv_set.has_method("set_live"):
+		tv_set.set_live(_video.get_video_texture())
 	now_playing_id = id
 	_now_label.text = "NOW ON %s — %s" % [String(c.get("name", cid)), String(reg.get_media(id).get("title", id))]
 	if _main.has_method("mark_media_watched"):
