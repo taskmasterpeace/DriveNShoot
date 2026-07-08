@@ -183,7 +183,12 @@ func attach_loop(id: String, owner: Node3D, volume_db: float = -6.0) -> AudioStr
 	if BUS_FOR_STREAM.has(id):
 		p.bus = BUS_FOR_STREAM[id]
 	owner.add_child(p)
-	p.play()
+	if p.is_inside_tree():
+		p.play()
+	else:
+		# A factory attaching sound before its owner is parented (drone.create) —
+		# playback needs the tree, so the loop starts the moment the owner enters.
+		p.tree_entered.connect(p.play, CONNECT_ONE_SHOT)
 	return p
 
 

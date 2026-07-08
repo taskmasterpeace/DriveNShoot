@@ -78,6 +78,15 @@ func _ready() -> void:
 	await _e()
 	_check("E LAUNCHES the scout", main.drone != null and is_instance_valid(main.drone))
 	_check("it flies the ROUTE (mode OUT)", main.drone != null and main.drone.mode == ProtoDrone.DroneMode.ROUTE_OUT)
+	# Regression (playtest log 2026-07-07 22:46): create() attaches the rotor hum
+	# BEFORE the dock parents the bird — the play() failed out-of-tree and the
+	# scout flew SILENT. The hum must be live the moment the bird is airborne.
+	var hum_playing := false
+	if main.drone != null:
+		for hc in main.drone.get_children():
+			if hc is AudioStreamPlayer3D and (hc as AudioStreamPlayer3D).playing:
+				hum_playing = true
+	_check("the rotor HUM rides the bird from launch (no silent scout)", hum_playing)
 	var batt0: float = main.drone.battery if main.drone != null else 0.0
 	var flew_out := false
 	var hazard_marked := false
