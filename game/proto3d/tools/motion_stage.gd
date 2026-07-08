@@ -121,11 +121,13 @@ const TIMING_STEP_MS: float = 20.0       ## per [/]/;/' tap
 ## ProtoStrikePlayer.JOINT_NAMES so the two lists never drift apart silently.
 ## FULL BODY (owner 2026-07-08): keys 1-9 still select the first nine; every joint
 ## past that is reachable by LEFT-DRAGGING the part (the drag pick finds it by
-## screen position, no number key needed). Mirrors ProtoStrikePlayer.JOINT_NAMES.
+## screen position, no number key needed). Mirrors ProtoStrikePlayer.JOINT_NAMES —
+## now the complete MANNEQUIN set incl. the waist swivel and the knuckle hinges.
 const AUTHOR_JOINTS: Array[String] = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
 	"elbow_r", "elbow_l", "knee_r", "knee_l",
 	"head_yaw", "head_pitch", "free_shoulder_yaw", "free_shoulder_pitch",
-	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch"]
+	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch",
+	"waist_twist", "waist_lean", "fingers_r", "fingers_l"]
 
 var _author_mode: bool = false
 var _author_row_id: String = "punch_1"
@@ -667,6 +669,9 @@ func _author_joint_map() -> Dictionary:
 		"wrist_r": puppet.hand, "wrist_l": puppet.hand_l,
 		"ankle_r": puppet.foot_r, "ankle_l": puppet.foot_l,
 		"hip_l_pitch": puppet.hip_l,
+		# THE MANNEQUIN SET: the lower-spine swivel + the knuckle hinges.
+		"waist_twist": puppet.waist, "waist_lean": puppet.waist,
+		"fingers_r": puppet.fingers_r, "fingers_l": puppet.fingers_l,
 	}
 
 

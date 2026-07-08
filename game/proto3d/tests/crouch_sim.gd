@@ -117,9 +117,11 @@ func _ready() -> void:
 	for _i in 10:
 		await get_tree().physics_frame
 	_check("crouch blend reached near-full (%.2f)" % p.puppet._crouch, p.puppet._crouch > 0.9)
-	var torso_box := p.puppet.torso
-	var hip_l_box := p.puppet._hip_l_box
-	var hip_r_box := p.puppet._hip_r_box
+	# p.puppet is typed Node3D (either puppet drops in); cast to read the box rig.
+	var pup := p.puppet as ProtoPuppet
+	var torso_box: MeshInstance3D = pup.torso
+	var hip_l_box: MeshInstance3D = pup._hip_l_box
+	var hip_r_box: MeshInstance3D = pup._hip_r_box
 	var torso_aabb := _world_aabb(torso_box)
 	var hip_l_aabb := _world_aabb(hip_l_box)
 	var hip_r_aabb := _world_aabb(hip_r_box)

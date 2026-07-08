@@ -54,11 +54,19 @@ const JOINT_AXIS: Dictionary = {
 	"ankle_r": "rotation:x",
 	"ankle_l": "rotation:x",
 	"hip_l_pitch": "rotation:x",
+	# THE MANNEQUIN SET (owner 2026-07-08, the reference image): the lower-spine
+	# swivel (waist) and the knuckle hinges (the hands open and close). Append-only,
+	# as ever — old rows never named these, so they hold rest.
+	"waist_twist": "rotation:y",
+	"waist_lean": "rotation:x",
+	"fingers_r": "rotation:x",
+	"fingers_l": "rotation:x",
 }
 const JOINT_NAMES: Array = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
 	"elbow_r", "elbow_l", "knee_r", "knee_l",
 	"head_yaw", "head_pitch", "free_shoulder_yaw", "free_shoulder_pitch",
-	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch"]
+	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch",
+	"waist_twist", "waist_lean", "fingers_r", "fingers_l"]
 
 ## Code-floor seed rows (mirrors data/strikes.json day one exactly — the fold below
 ## overlays any JSON edit on top, same additive law as ProtoPuppet.MOTION/motions.json).

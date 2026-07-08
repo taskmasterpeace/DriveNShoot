@@ -51,12 +51,21 @@ func _ready() -> void:
 	# resolve against the rig the game actually ships. -------------------------
 	var puppet := ProtoPuppet.create({})
 	add_child(puppet)
+	# The FULL mannequin joint set the game/editor inject (owner 2026-07-08): the
+	# re-authored strikes reach the elbows/knees/off-shoulder, so the sim must hand
+	# the player every joint a row can name — the proof it resolves against the real rig.
 	var joints: Dictionary = {
-		"torso_twist": puppet.torso,
-		"torso_lean": puppet.torso,
-		"shoulder_yaw": puppet.shoulder,
-		"shoulder_pitch": puppet.shoulder,
+		"torso_twist": puppet.torso, "torso_lean": puppet.torso,
+		"shoulder_yaw": puppet.shoulder, "shoulder_pitch": puppet.shoulder,
 		"hip_kick": puppet.hip_r,
+		"elbow_r": puppet.elbow_r, "elbow_l": puppet.elbow_l,
+		"knee_r": puppet.knee_r, "knee_l": puppet.knee_l,
+		"head_yaw": puppet.neck, "head_pitch": puppet.neck,
+		"free_shoulder_yaw": puppet.free_arm, "free_shoulder_pitch": puppet.free_arm,
+		"wrist_r": puppet.hand, "wrist_l": puppet.hand_l,
+		"ankle_r": puppet.foot_r, "ankle_l": puppet.foot_l, "hip_l_pitch": puppet.hip_l,
+		"waist_twist": puppet.waist, "waist_lean": puppet.waist,
+		"fingers_r": puppet.fingers_r, "fingers_l": puppet.fingers_l,
 	}
 	for jn in joints:
 		_check("puppet exposes the '%s' joint" % jn, joints[jn] != null and is_instance_valid(joints[jn]))

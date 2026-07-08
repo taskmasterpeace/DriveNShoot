@@ -56,12 +56,13 @@ func _ready() -> void:
 		and p.knee_r != null and p.knee_r.get_parent() == p.hip_r
 		and p.foot_l != null and p.foot_l.get_parent() == p.knee_l
 		and p.foot_r != null and p.foot_r.get_parent() == p.knee_r)
-	# The load-bearing back-compat number: the HAND's shoulder-net rest must be the
-	# old single-box rig's (0, -0.28, -0.36) — gun/muzzle/set_hand_pose math holds.
+	# THE MANNEQUIN REST (2026-07-08, the definitive reference): both arms hang
+	# STRAIGHT — the wrist's shoulder-net rest is (0, -(upper+fore), 0). The aim is
+	# a ROTATION in animate() now, never baked into geometry.
 	var net_rest: Vector3 = p.elbow_r.position + p.hand.position
-	_check("net gun-hand rest is the old (0,-0.28,-0.36) exactly (%.3f,%.3f,%.3f)" %
-		[net_rest.x, net_rest.y, net_rest.z],
-		net_rest.is_equal_approx(Vector3(0.0, -0.28, -0.36)))
+	_check("net gun-hand rest hangs straight (0,%.2f,0) (got %.3f,%.3f,%.3f)" %
+		[-(ProtoPuppet.FREE_UPPER_LEN + ProtoPuppet.FREE_FORE_LEN), net_rest.x, net_rest.y, net_rest.z],
+		net_rest.is_equal_approx(Vector3(0.0, -(ProtoPuppet.FREE_UPPER_LEN + ProtoPuppet.FREE_FORE_LEN), 0.0)))
 	_check("_gun_rest matches the hand's elbow-local rest", p._gun_rest.is_equal_approx(p.hand.position))
 
 	# === 2. THE ALIAS LAW: the old shoulder pivot still swings the WHOLE arm =====
@@ -92,8 +93,11 @@ func _ready() -> void:
 		elbow_l_max = maxf(elbow_l_max, p.elbow_l.rotation.x)
 	_check("striding BENDS the knee past rest (max %.2f rad)" % knee_max, knee_max > kr + 0.05)
 	_check("the knee is a one-way hinge (min %.3f never below zero)" % knee_min, knee_min >= -0.001)
-	_check("the free elbow bends INTO the swing (min %.2f rad)" % elbow_l_min, elbow_l_min < -0.2)
-	_check("the free elbow never hyperextends (max %.3f <= 0)" % elbow_l_max, elbow_l_max <= 0.001)
+	# THE SIGN LAW (2026-07-08): + = a hanging limb swings FORWARD; an elbow is a
+	# one-way hinge that only folds forward, so the stride bend is POSITIVE now.
+	var elrest: float = float(mg["elbow_rest"])
+	_check("the free elbow bends INTO the swing (max %.2f rad > rest)" % elbow_l_max, elbow_l_max > elrest + 0.1)
+	_check("the free elbow never hyperextends backward (min %.3f >= 0)" % elbow_l_min, elbow_l_min >= -0.001)
 
 	# === 4. A RAISED GUN aims down a STRAIGHT arm (elbow ~0) ======================
 	p.set_armed(true)
@@ -127,14 +131,14 @@ func _ready() -> void:
 		is_equal_approx(p.free_arm.position.x, 0.12))
 	for _i in 90:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
-	_check("the free arm RAISES onto the fore-grip (%.2f rad, wants ~-1.22)" % p.free_arm.rotation.x,
-		p.free_arm.rotation.x < -1.0)
-	_check("the free elbow CLOSES the hold (%.2f rad, wants ~-0.42)" % p.elbow_l.rotation.x,
-		absf(p.elbow_l.rotation.x - (-0.42)) < 0.12)
+	_check("the free arm RAISES onto the fore-grip (%.2f rad, wants ~+1.05 — forward)" % p.free_arm.rotation.x,
+		p.free_arm.rotation.x > 0.9)
+	_check("the free elbow CLOSES the hold (%.2f rad, wants ~+0.42)" % p.elbow_l.rotation.x,
+		absf(p.elbow_l.rotation.x - 0.42) < 0.12)
 	var pistol_pose: Dictionary = ProtoWeapon.WEAPONS["pistol"]["hand_pose"]
 	p.set_hand_pose(pistol_pose["offset"], bool(pistol_pose["two_handed"]))
-	_check("a one-hand row returns the free arm home (x=%.2f)" % p.free_arm.position.x,
-		is_equal_approx(p.free_arm.position.x, -0.29))
+	_check("a one-hand row returns the free arm home (x=%.2f, the build-scaled shoulder)" % p.free_arm.position.x,
+		is_equal_approx(p.free_arm.position.x, -p._sh_x))
 	p.set_armed(false)
 
 	# === 7. THE DEAD SPRAWL bends real knees and elbows now =======================
@@ -145,8 +149,8 @@ func _ready() -> void:
 	_check("dead pose bends the knees ASYMMETRICALLY (a sprawl, not a plank: r %.2f != l %.2f)" %
 		[p.knee_r.rotation.x, p.knee_l.rotation.x],
 		absf(p.knee_r.rotation.x - p.knee_l.rotation.x) > 0.2)
-	_check("dead pose bends both elbows (l %.2f, r %.2f)" % [p.elbow_l.rotation.x, p.elbow_r.rotation.x],
-		p.elbow_l.rotation.x < -0.3 and p.elbow_r.rotation.x < -0.2)
+	_check("dead pose bends both elbows (l %.2f, r %.2f — forward, the one-way hinge)" % [p.elbow_l.rotation.x, p.elbow_r.rotation.x],
+		p.elbow_l.rotation.x > 0.3 and p.elbow_r.rotation.x > 0.2)
 
 	# === 8. NO-KISS: cross-sections STEP DOWN segment to segment ==================
 	var thigh_box := p.hip_l.get_child(0) as MeshInstance3D
@@ -161,11 +165,14 @@ func _ready() -> void:
 	_check("the forearm steps down from the upper arm",
 		(fore_box.mesh as BoxMesh).size.x < (upper_box.mesh as BoxMesh).size.x)
 
-	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew to 9, then to the
-	# FULL BODY = 18 for drag-to-pose: +head/off-shoulder/wrists/ankles/left-hip) ===
-	_check("JOINT_NAMES is the full-body set (18) with the original 9 as the prefix",
-		ProtoStrikePlayer.JOINT_NAMES.size() == 18
+	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew 9 → 18 → 22: the
+	# MANNEQUIN set adds the waist swivel + the knuckle hinges) =====================
+	_check("JOINT_NAMES is the mannequin set (22) with the original 9 as the prefix",
+		ProtoStrikePlayer.JOINT_NAMES.size() == 22
 		and ProtoStrikePlayer.JOINT_NAMES.slice(0, 9) == ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick", "elbow_r", "elbow_l", "knee_r", "knee_l"])
+	_check("the waist swivel + knuckle hinges are authorable",
+		ProtoStrikePlayer.JOINT_AXIS.has("waist_twist") and ProtoStrikePlayer.JOINT_AXIS.has("waist_lean")
+		and ProtoStrikePlayer.JOINT_AXIS.has("fingers_r") and ProtoStrikePlayer.JOINT_AXIS.has("fingers_l"))
 	_check("the full-body joints are authorable (head/off-shoulder/wrists/ankles/left-hip)",
 		ProtoStrikePlayer.JOINT_AXIS.has("head_yaw") and ProtoStrikePlayer.JOINT_AXIS.has("free_shoulder_pitch")
 		and ProtoStrikePlayer.JOINT_AXIS.has("wrist_l") and ProtoStrikePlayer.JOINT_AXIS.has("ankle_r")
@@ -207,7 +214,7 @@ func _ready() -> void:
 	add_child(stage)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check("stage AUTHOR_JOINTS is the full-body set (18), keys 1-9 = the first nine", stage.AUTHOR_JOINTS.size() == 18)
+	_check("stage AUTHOR_JOINTS is the mannequin set (22), keys 1-9 = the first nine", stage.AUTHOR_JOINTS.size() == 22)
 	var jm: Dictionary = stage._author_joint_map()
 	_check("every AUTHOR_JOINT maps to a real puppet node (full body wired)",
 		stage.AUTHOR_JOINTS.all(func(jn: String) -> bool: return jm.get(jn, null) is Node3D))
@@ -264,8 +271,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check("aiming bends the elbow to the horizontal-forearm angle (%.2f ~= %.2f)" %
 		[ag.elbow_r.rotation.x, ProtoPuppet.AIM_ELBOW], absf(ag.elbow_r.rotation.x - ProtoPuppet.AIM_ELBOW) < 0.2)
-	_check("the hand COUNTERS so the gun stays level (hand.x %.2f ~= -%.2f)" %
-		[ag.hand.rotation.x, ProtoPuppet.AIM_ELBOW], absf(ag.hand.rotation.x + ProtoPuppet.AIM_ELBOW) < 0.2)
+	_check("the hand COUNTERS the whole raised chain so the gun stays level (hand.x %.2f ~= -%.2f)" %
+		[ag.hand.rotation.x, ProtoPuppet.AIM_RAISE + ProtoPuppet.AIM_ELBOW],
+		absf(ag.hand.rotation.x + (ProtoPuppet.AIM_RAISE + ProtoPuppet.AIM_ELBOW)) < 0.2)
 	var elbow_z: float = (ag.elbow_r as Node3D).global_position.z
 	var hand_z: float = (ag.hand as Node3D).global_position.z
 	_check("the arm EXTENDS forward — hand ahead of the elbow (%.2f < %.2f)" % [hand_z, elbow_z],
