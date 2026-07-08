@@ -11,7 +11,8 @@
       "Bash(grep -vE '\\\\.\\(import|cfg|res|bin|tres|png|json\\)$')",
       "Bash(xargs wc:*)",
       "Bash(/tmp/carworld_analysis.txt:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(ls -la \"C:/Users/taskm/Downloads/exported-model.glb\" \"C:/Users/taskm/Downloads/exported-model \\(1\\).glb\" 2>&1)"
     ]
   }
 }
