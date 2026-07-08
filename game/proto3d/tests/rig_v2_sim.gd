@@ -269,6 +269,13 @@ func _ready() -> void:
 		if c is MeshInstance3D:
 			fist += 1
 	_check("a FIST mesh grips the gun (a rectangle, not a bare pivot)", fist >= 1)
+	# JOINT CONNECTORS (owner 2026-07-08: "everything connected through a SQUARE —
+	# every joint"): each pivot carries a bridging cube so a bent limb never gaps.
+	var has_conn := func(j: Node3D) -> bool:
+		return j.get_child_count() > 0 and j.get_child(j.get_child_count() - 1) is MeshInstance3D
+	_check("every joint carries a connector cube (shoulder/elbow/hip/knee bridged)",
+		has_conn.call(ag.shoulder) and has_conn.call(ag.elbow_r)
+		and has_conn.call(ag.hip_l) and has_conn.call(ag.knee_l))
 	ag.queue_free()
 
 	# === THE DOORKNOB FIX (owner 2026-07-08: "it turns like a doorknob, not a =====

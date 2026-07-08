@@ -350,7 +350,29 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.gun.visible = false
 	p.hand.add_child(p.gun)
 	p._build_weapon_mesh(DEFAULT_WEAPON_PARTS) # a plain stub until a weapon sets its shape
+
+	# --- JOINT CONNECTORS (owner 2026-07-08: "everything should be connected
+	# through a SQUARE — every joint"). A small box centered at each pivot bridges
+	# its two segments, so a bent elbow/knee/shoulder reads as one connected limb
+	# instead of two boxes gapping apart. Centered ON the pivot, so no rotation
+	# ever opens the seam. Added LAST so earlier get_child(0) segment grabs hold.
+	_joint_ball(p.shoulder, 0.15, cloth)   # gun-arm shoulder (also bridges to the torso)
+	_joint_ball(p.elbow_r, 0.14, cloth)    # gun-arm elbow — the one that gapped when aiming
+	_joint_ball(p.free_arm, 0.15, cloth)   # free-arm shoulder
+	_joint_ball(p.elbow_l, 0.13, cloth)    # free-arm elbow
+	_joint_ball(p.hip_l, 0.18, pants)
+	_joint_ball(p.hip_r, 0.18, pants)
+	_joint_ball(p.knee_l, 0.16, pants)
+	_joint_ball(p.knee_r, 0.16, pants)
 	return p
+
+
+## A JOINT CONNECTOR: a cube centered on a pivot so its two segments read as
+## joined however the joint bends (owner 2026-07-08). Kept a hair bigger than the
+## thinner segment so the seam is always covered.
+static func _joint_ball(joint: Node3D, size: float, color: Color) -> void:
+	if joint != null:
+		joint.add_child(_box(Vector3(size, size, size), Vector3.ZERO, color))
 
 
 static func _box(size: Vector3, pos: Vector3, color: Color) -> MeshInstance3D:
