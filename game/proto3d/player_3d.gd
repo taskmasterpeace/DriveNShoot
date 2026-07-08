@@ -130,7 +130,12 @@ var peer_id: int = 0
 var _remote_target: Vector3 = Vector3.ZERO
 
 var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
-var puppet: ProtoPuppet = null
+## THE BODY. Was always the procedural box ProtoPuppet; now can be the authored
+## ProtoSkelPuppet (the GLB humanoid). Typed Node3D so either drops in — both
+## expose aim_arm/legs_pivot/gun + animate/set_hand_pose/set_armed/muzzle_world/…
+## Flip USE_SKEL_PUPPET to swap the player's on-screen body (owner: all-humanoids).
+static var USE_SKEL_PUPPET: bool = true
+var puppet: Node3D = null
 var _visual: Node3D
 var _lower: Node3D
 var _upper: Node3D
@@ -171,7 +176,7 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPlayer3D:
 	# visual root — the player yaws it to the body and pitches it for the dive; the rig
 	# animates its own legs/arms/breathing. aim_arm (old _upper) yaws to the gaze;
 	# legs_pivot (old _lower) yaws toward the feet; gun rides the hand.
-	p.puppet = ProtoPuppet.create(p.appearance)
+	p.puppet = ProtoSkelPuppet.create(p.appearance) if USE_SKEL_PUPPET else ProtoPuppet.create(p.appearance)
 	p._visual = p.puppet
 	p.add_child(p._visual)
 	p._lower = p.puppet.legs_pivot
@@ -546,7 +551,7 @@ func rebuild_puppet(appearance_in: Dictionary) -> void:
 	var was_armed: bool = _gun != null and _gun.visible
 	if is_instance_valid(_visual):
 		_visual.queue_free()
-	puppet = ProtoPuppet.create(appearance)
+	puppet = ProtoSkelPuppet.create(appearance) if USE_SKEL_PUPPET else ProtoPuppet.create(appearance)
 	_visual = puppet
 	add_child(_visual)
 	_lower = puppet.legs_pivot

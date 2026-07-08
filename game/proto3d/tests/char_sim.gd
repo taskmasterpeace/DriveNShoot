@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 				_next()
 		1:
 			if phase_t > 0.3:
-				var pup: ProtoPuppet = main.player.puppet
+				var pup: Node3D = main.player.puppet # either puppet type (box or skel)
 				_check("the body was REBUILT (new rig instance)", pup.get_instance_id() != old_puppet_id)
 				_check("the puppet is LEFT-HANDED (sign %.0f, appearance %s)" % [pup.handed_sign, pup.appearance["handed"]],
 					pup.appearance["handed"] == "left" and pup.handed_sign < 0.0)

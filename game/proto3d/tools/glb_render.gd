@@ -28,13 +28,15 @@ func _ready() -> void:
 	sv.add_child(floor_mesh)
 
 	var p := ProtoSkelPuppet.create({})
-	sv.add_child(p)
-	for _f in 6:
+	sv.add_child(p) # placed at origin, EXACTLY like player_3d adds it (no drop)
+	for _f in 4:
 		await get_tree().process_frame
-	# drop feet to floor
+	# Run the animated idle the way the game does, so this matches in-game.
+	for _f in 40:
+		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
+		await get_tree().process_frame
 	var aabb := _combined_aabb(p)
-	p.position.y -= aabb.position.y
-	print("GLB_RENDER: standing size=%.2v (feet at %.2f)" % [aabb.size, aabb.position.y])
+	print("GLB_RENDER: in-place size=%.2v feet_y=%.3f (want ~0)" % [aabb.size, aabb.position.y])
 
 	var cam := Camera3D.new()
 	sv.add_child(cam)

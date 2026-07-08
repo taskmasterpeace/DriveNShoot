@@ -41,7 +41,7 @@ var _main: Node = null
 var _fire_cd: float = 0.0
 var _scout_cd: float = 0.0
 var _visual: Node3D
-var _gun_mesh: MeshInstance3D
+var _gun_mesh: Node3D ## the puppet's held-weapon container (Node3D since weapons-as-data)
 var puppet: ProtoPuppet = null
 var _dead_t: float = 0.0
 var _last_job_hour: float = -1.0
