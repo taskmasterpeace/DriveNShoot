@@ -187,6 +187,12 @@ const FREE_UPPER_LEN: float = 0.30
 const FREE_FORE_LEN: float = 0.30
 ## Carried-weapon tilt: the hand rolls so a carried wrench lies along the leg.
 const HAND_CARRY: float = -0.6
+## AIMING A GUN (owner 2026-07-08, the "forearm should be HORIZONTAL" fix): while
+## a raised gun is held, the elbow bends so the FOREARM lies horizontal, in line
+## with the barrel — an extended point, not a vertical forearm with the gun jutting
+## off it. The hand counter-rotates by the same amount so the gun stays level and
+## the muzzle keeps pointing where you aim.
+const AIM_ELBOW: float = 1.5
 
 var _t: float = 0.0
 var _phase: float = 0.0
@@ -331,6 +337,10 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.hand.position = Vector3(0, -0.14, -0.18) # elbow-local; shoulder-net = the old rest
 	p._gun_rest = p.hand.position
 	p.elbow_r.add_child(p.hand)
+	# THE FIST (owner 2026-07-08: "add a little rectangle for the hand"): a small
+	# skin box gripping the weapon — longer front-to-back than a lone cube, so it
+	# reads as a hand wrapped around the grip, not a floating block.
+	p.hand.add_child(_box(Vector3(0.065, 0.08, 0.11), Vector3(0, 0, 0.02), skin))
 	# The held-weapon node is a CONTAINER now (RIG: weapons-as-data 2026-07-08):
 	# its box children are rebuilt per weapon from a SHAPE spec so a pistol reads
 	# as a pistol and a shotgun as a shotgun — not one stick for everything. The
@@ -479,10 +489,12 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		# hand-off can't pop (the lerp eats the mismatch in a few frames).
 		shoulder.rotation.x = lerpf(shoulder.rotation.x, pose_target, clampf(12.0 * delta, 0.0, 1.0))
 		shoulder.rotation.y = move_toward(shoulder.rotation.y, 0.0, 8.0 * delta)
-		hand.rotation.x = lerpf(hand.rotation.x, 0.0 if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
-		# RIG V2 ELBOW (gun side): a RAISED iron aims down a straight arm; a hanging
-		# arm keeps a natural bend that deepens as it swings back with the gait.
-		var elbow_target := 0.0 if hold else -(er + ef * maxf(0.0, shoulder.rotation.x - ARM_HANG) * 0.6)
+		# A RAISED GUN bends the elbow so the FOREARM lies HORIZONTAL in line with
+		# the barrel (the "forearm should be horizontal" fix); the hand counter-
+		# rotates the same amount so the gun stays level and the muzzle keeps aim.
+		# A carried melee / empty hand rolls to HAND_CARRY as before.
+		hand.rotation.x = lerpf(hand.rotation.x, -AIM_ELBOW if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
+		var elbow_target := AIM_ELBOW if hold else -(er + ef * maxf(0.0, shoulder.rotation.x - ARM_HANG) * 0.6)
 		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, elbow_target, clampf(10.0 * delta, 0.0, 1.0))
 
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.

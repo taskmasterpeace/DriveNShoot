@@ -100,8 +100,10 @@ func _ready() -> void:
 	p.raised = true
 	for _i in 60:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
-	_check("holding a raised gun straightens the gun-arm elbow (%.3f rad)" % p.elbow_r.rotation.x,
-		absf(p.elbow_r.rotation.x) < 0.06)
+	# Holding a raised gun now BENDS the elbow so the forearm is horizontal (the
+	# 2026-07-08 "forearm should be horizontal" fix — the old law wanted it straight).
+	_check("holding a raised gun bends the elbow for a horizontal forearm (%.3f rad ~= %.2f)" % [p.elbow_r.rotation.x, ProtoPuppet.AIM_ELBOW],
+		absf(p.elbow_r.rotation.x - ProtoPuppet.AIM_ELBOW) < 0.06)
 	p.set_armed(false)
 
 	# === 5. CROUCH COILS the knees (the low silhouette) ===========================
@@ -237,6 +239,37 @@ func _ready() -> void:
 	_press(KEY_TAB)
 	await get_tree().process_frame
 	_check("TAB exits author mode clean", not stage._author_mode)
+
+	# === THE AIM ARM (owner 2026-07-08: "the forearm should be HORIZONTAL, in ====
+	# line with the gun — and add a rectangle for the hand"): a raised gun bends
+	# the elbow forward and counter-rotates the hand, so the forearm extends
+	# horizontally and the barrel stays level, with a fist mesh gripping it.
+	var ag := ProtoPuppet.create({})
+	add_child(ag)
+	var pistol_pose2: Dictionary = ProtoWeapon.WEAPONS["pistol"]["hand_pose"]
+	ag.set_hand_pose(pistol_pose2["offset"], bool(pistol_pose2["two_handed"]))
+	ag.set_armed(true)
+	ag.raised = true
+	for _i in 90:
+		ag.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
+	await get_tree().process_frame
+	_check("aiming bends the elbow to the horizontal-forearm angle (%.2f ~= %.2f)" %
+		[ag.elbow_r.rotation.x, ProtoPuppet.AIM_ELBOW], absf(ag.elbow_r.rotation.x - ProtoPuppet.AIM_ELBOW) < 0.2)
+	_check("the hand COUNTERS so the gun stays level (hand.x %.2f ~= -%.2f)" %
+		[ag.hand.rotation.x, ProtoPuppet.AIM_ELBOW], absf(ag.hand.rotation.x + ProtoPuppet.AIM_ELBOW) < 0.2)
+	var elbow_z: float = (ag.elbow_r as Node3D).global_position.z
+	var hand_z: float = (ag.hand as Node3D).global_position.z
+	_check("the arm EXTENDS forward — hand ahead of the elbow (%.2f < %.2f)" % [hand_z, elbow_z],
+		hand_z < elbow_z - 0.05)
+	var gun_y: float = (ag.gun as Node3D).global_position.y
+	var muzzle_y: float = ag.muzzle_world().y
+	_check("the barrel holds LEVEL (muzzle %.2f ~= grip %.2f)" % [muzzle_y, gun_y], absf(muzzle_y - gun_y) < 0.15)
+	var fist := 0
+	for c in ag.hand.get_children():
+		if c is MeshInstance3D:
+			fist += 1
+	_check("a FIST mesh grips the gun (a rectangle, not a bare pivot)", fist >= 1)
+	ag.queue_free()
 
 	# === THE DOORKNOB FIX (owner 2026-07-08: "it turns like a doorknob, not a =====
 	# torso"): a fresh rig fed a steady body turn TWISTS THE CHEST into it (spine
