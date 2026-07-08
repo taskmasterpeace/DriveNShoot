@@ -49,6 +49,26 @@ left-drag a part) and nameable in a `strikes.json` pose row. See
 `ProtoStrikePlayer.JOINT_NAMES` (the single source of truth, mirrored by the
 stage's `AUTHOR_JOINTS`).
 
+## THE SHOULDER LAW + THE GROUND LAW (ANIMATION_FIX_PACK, 2026-07-08)
+
+Two laws were added to `animate()` after the first playtest of this body — see
+`docs/design/ANIMATION_FIX_PACK.md` (EXECUTED):
+
+- **THE SHOULDER LAW:** the arm roots (`free_arm`, `shoulder`) are part of the CHEST.
+  Every frame they ride `torso.position.y + _sh_above_chest · torso.scale.y` — so a
+  crouch, a dead collapse, and the breath all carry the shoulders with the torso, never
+  leaving them floating at the standing height. Height only (aim yaw preserves Y).
+- **THE GROUND LAW:** a crouch is a FOLD, never a sink. After the pelvis drops,
+  `_lowest_sole_y()` re-plants the deepest sole at y=0 — boots stay on the dirt. The knee
+  coil (`crouch_knee`) is deep enough that the plant barely moves `legs_pivot`, so the
+  no-kiss geometry holds.
+
+Locomotion also gained the **anti-skate stride solve** (cadence solved from speed — no
+foot-skate) and **run form** (lean / ~90° pumping elbows / high knee / heel-up) to the
+reference strip's RUN panel, and two-hand holds gained a **support-shoulder blade** so the
+free hand reaches the fore-grip from its own (anatomical) shoulder — no more "both arms
+from one socket."
+
 ## THE SIGN LAW (paid-for — the "wrong-way arms" bug was signs)
 
 The puppet faces its **local −Z**. **Positive `rotation.x` swings a hanging limb

@@ -1,6 +1,17 @@
 # THE BODY IN MOTION — the animation fix pack
 
-**Status:** SPEC (owner playtest 2026-07-08, the mannequin body's first night out).
+**Status:** ✅ EXECUTED 2026-07-08 (Tasks 1–6 + tooling/docs). All six defects fixed on the
+one rig, sim-gated and eyeballed via `render_body`. Commits: shoulder law, ground law,
+walk/run, strike wire-in, bat swing, two-hand grips, MotionForge mirror (on `main`).
+Sims green: crouch 21 · run_form 12 (NEW) · rig_v2 50 · grip_ik 18 · gunfeel 37 (pistol
+byte-unchanged) · strike 63 · unarmed 14 · combat_feel 15 · motion 13 · spine/signature 17.
+**One deferred item (D7):** contact-timed melee DAMAGE (damage still lands synchronously
+this pass; the strike VISUAL + white-plank kill shipped). Deferring damage to the contact
+pose breaks the ~6-frame combat sims (howler/threat/pvp/unarmed) and is the POSE_TO_POSE
+goal's Phase-3 follow-up — do it with a combat-sim sweep, not here.
+*(Original spec below, kept as the record.)*
+
+**Was:** SPEC (owner playtest 2026-07-08, the mannequin body's first night out).
 **Scope:** `puppet.gd` · `player_3d.gd` · `weapon.gd` · `fx.gd` · `strike_player.gd` · `data/strikes.json` · `data/motions.json` · MotionForge.
 **Reference:** the owner's annotated mannequin sheet (the same image behind `BODY_RIG_REFERENCE.md`) — specifically its **HUMAN MOVEMENTS REFERENCE** strip (IDLE / WALK / RUN / JUMP, green arrows = direction of movement). **That strip is the motion bar for walk and run.** JUMP is out of scope (DRIVN's dive/slide own that slot).
 **Owner verdicts this spec answers:** crouch shoulders stay up · crouch sinks through the ground · running looks bad from the side · melee/machete is "a little white line" · shotgun/pipe-rocket arms come out of the same shoulder · **the pistol is GOOD — protect it** · bat needs a real baseball swing.

@@ -2,8 +2,17 @@
 
 **Status:** Phase 1 (runtime core, `strike_player.gd`) SHIPPED — commit fa058f5, strike_sim
 38/38. Phase 2 (in-stage pose authoring, `motion_stage.gd` TAB mode) SHIPPED — commit
-59a6d21, strike_author_sim 37/37. **Phase 3 (combat wire-in + the strike editor, this
-arc) — SPEC BELOW, in build (2026-07-07).** **Owner decision (2026-07-07):** locomotion
+59a6d21, strike_author_sim 37/37. **Phase 3 (combat wire-in) — PARTIALLY SHIPPED 2026-07-08
+via `docs/design/ANIMATION_FIX_PACK.md` Task 4:** `ProtoStrikePlayer` is now wired into
+combat — `puppet.play_strike(id, contact_cb)` drives `strikes.json` rows on the real joints
+(the melee VISUAL), `weapon.fire()` maps each melee weapon to its row (fists→punch_1/2/3,
+finisher→kick, shove→shove, bat→bat_swing, else→weapon_swing), and `ProtoFX.swing_arc` (the
+white-plank) is DELETED. The code-floor `STRIKES` was re-seeded to sign-law parity (D6).
+**Still open:** contact-timed DAMAGE (damage lands synchronously for now — the `contact_cb`
+one-shot machinery is in place; deferring damage to the contact pose needs a combat-sim
+sweep because the ~6-frame sims check damage right after the click) and the on-screen strike
+EDITOR panel / dummy TEST loop (still keyboard-authored via `motion_stage.gd` TAB). *(Was:
+SPEC BELOW, in build (2026-07-07).)* **Owner decision (2026-07-07):** locomotion
 (walk/run/idle/crouch/sprint) STAYS procedural sliders — small, elegant, sine-driven, keep
 it. STRIKES (punch combo, kick, shove, weapon swing) MOVE to pose-to-pose, the
 Overgrowth/David Rosen model. A sine wave is smooth by nature; a punch needs SNAP. You
