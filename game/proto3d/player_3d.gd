@@ -130,11 +130,14 @@ var peer_id: int = 0
 var _remote_target: Vector3 = Vector3.ZERO
 
 var appearance: Dictionary = {} ## survivor look row (set before create(); character creation feeds it)
-## THE BODY. Was always the procedural box ProtoPuppet; now can be the authored
-## ProtoSkelPuppet (the GLB humanoid). Typed Node3D so either drops in — both
-## expose aim_arm/legs_pivot/gun + animate/set_hand_pose/set_armed/muzzle_world/…
-## Flip USE_SKEL_PUPPET to swap the player's on-screen body (owner: all-humanoids).
-static var USE_SKEL_PUPPET: bool = true
+## THE BODY. The procedural box ProtoPuppet — segmented BLOCKS (hip→THIGH→knee→CALF
+## →foot), driven by state, and it does EVERYTHING (sprint, attack, crouch, stop,
+## death) with no clip dependency. This is the working body (owner 2026-07-08: the
+## GLB models both failed live — the low-poly one looked wrong, the Mesh2Motion one
+## never stopped walking / didn't attack / fell through the world). ProtoSkelPuppet
+## (the authored GLB) is kept behind the flag for later, once it can do all of the
+## above. Both expose the same interface, so this is a one-line swap.
+static var USE_SKEL_PUPPET: bool = false
 var puppet: Node3D = null
 var _visual: Node3D
 var _lower: Node3D
