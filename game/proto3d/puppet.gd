@@ -81,6 +81,24 @@ static var MOTION: Dictionary = {
 		"crouch_knee": 1.30,      # ANIMATION_FIX_PACK §4.1: deepened 0.55->1.30 so the knees coil enough to LIFT the feet to the planted crouch depth (the deep bend also re-opens the torso/thigh no-kiss gap)
 		"elbow_follow": 0.35,     # elbow bends this fraction of the arm's swing
 		"elbow_rest": 0.14,       # arms never hang truly straight
+		# WALK/RUN TO THE REFERENCE STRIP (ANIMATION_FIX_PACK §3.3, §4.2). The old fixed
+		# cadence let the feet cover only ~1.8m/s of a 4.2m/s walk — a 2.3x moonwalk from
+		# the side. Now the stride AMPLITUDE + CADENCE are SOLVED from speed so the feet
+		# match the ground, and RUN form (lean, ~90deg pumping elbows, high knee, heel-up
+		# trail leg) blends in with speed. Every knob a row, live in MotionForge.
+		"a_walk_max": 0.62,       # hip swing amplitude (rad) at walk speed
+		"a_run_max": 0.85,        # hip swing amplitude (rad) at full sprint
+		"leg_eff": 0.92,          # effective leg length fraction (knee-bend allowance) in the stride solve
+		"cadence_mult": 1.0,      # feel knob on the solved cadence (1.0 = pure anti-skate)
+		"walk_speed_ref": 4.2,    # speed the stride amplitude reaches full (low-speed taper below it)
+		"run_blend_lo": 4.0,      # run form starts blending in above this speed (m/s)
+		"run_blend_hi": 7.2,      # ...and is full sprint form here (matches player run_speed)
+		"column_bob": 0.045,      # whole-body vertical bounce per step (pelvis+spine together, 2 bumps/cycle)
+		"head_stabilize": 0.5,    # fraction of the bob the neck counters — eyes level while the body works
+		"run_lean": 0.22,         # extra forward trunk pitch (rad) at full sprint — the reference's drive
+		"elbow_pump": 1.5,        # locked elbow bend (rad, ~90deg) at sprint; the swing moves to the shoulders
+		"knee_lift_run": 0.6,     # extra swing-leg knee drive (rad) at sprint — the high front knee
+		"ankle_push": 0.5,        # trail-leg plantarflex (rad) on push-off — the heel-up back leg
 		# TORSO TWIST (owner 2026-07-08: "it turns like a DOORKNOB, not like a
 		# torso"). A turn is led by the CHEST — the shoulder line twists about the
 		# spine while the legs (legs_pivot) track the feet: real shoulder-hip
@@ -215,6 +233,9 @@ const AIM_ELBOW: float = 0.37
 ## 2-bone IK reads them as its a and b, so the solve can never drift from geometry.
 const FREE_UPPER_LEN: float = 0.30
 const FREE_FORE_LEN: float = 0.28
+## Leg length hip→sole (thigh 0.42 + calf 0.38 + foot ≈ 0.10), the anti-skate stride
+## solve's L (ANIMATION_FIX_PACK §4.2): step length = 2·leg_eff·L·sin(amplitude).
+const LEG_LEN: float = 0.90
 ## Carried-weapon tilt: the hand rolls so a carried wrench lies along the leg.
 const HAND_CARRY: float = -0.6
 ## THE HANDS (owner: "the opening and closing of the hands"): the fingers block
@@ -512,10 +533,23 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	var gait: float = float(appearance["gait"])
 	var mg: Dictionary = MOTION["gait"] # the ROW (MotionForge tunes it live)
 	_crouch = move_toward(_crouch, clampf(crouch_target, 0.0, 1.0), delta * 5.0)
-	# Cadence rises with speed; frozen when standing (so we don't drift the phase).
+	# ANTI-SKATE STRIDE SOLVE + RUN BLEND (ANIMATION_FIX_PACK §3.3, §4.2): the hip swing
+	# AMPLITUDE and the CADENCE are SOLVED from speed so the stance foot's ground speed
+	# equals the body speed — no more side-view moonwalk (the old fixed cadence covered
+	# ~1.8m/s of a 4.2m/s walk). run_blend ramps in the sprint form (lean/elbows/knees).
+	var run_blend: float = clampf((speed - float(mg["run_blend_lo"]))
+		/ maxf(0.01, float(mg["run_blend_hi"]) - float(mg["run_blend_lo"])), 0.0, 1.0)
+	var speed_amp: float = clampf(speed / maxf(0.5, float(mg["walk_speed_ref"])), 0.0, 1.0)
+	# Amplitude tapers at low speed for a natural short-stepped creep; because the cadence
+	# re-solves FROM this amplitude below, tapering it never reintroduces skate.
+	var amp := lerpf(float(mg["a_walk_max"]), float(mg["a_run_max"]), run_blend) \
+		* speed_amp * (1.0 - hurt * 0.4) * (1.0 - _crouch * 0.45)
+	# Cadence ω = π·v / step_length, step_length = 2·(leg_eff·L)·sin(amp): a full half-
+	# cycle plants the foot exactly one step of ground, so feet ≠ moonwalk at any speed.
 	if moving:
-		_phase += (float(mg["cadence_base"]) + speed * float(mg["cadence_speed"])) * gait * delta
-	var amp := clampf(speed / 7.0, 0.0, 1.0) * float(mg["stride_amp"]) * (1.0 - hurt * 0.4) * (1.0 - _crouch * 0.45)
+		var leg_eff: float = float(mg["leg_eff"]) * LEG_LEN
+		var step_len: float = maxf(0.08, 2.0 * leg_eff * sin(maxf(0.02, amp)))
+		_phase += (PI * speed / step_len) * float(mg["cadence_mult"]) * gait * delta
 
 	# LEGS — alternate. A limp shortens and hitches one leg.
 	var limp_l := 1.0
@@ -549,12 +583,17 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	var kr: float = float(mg["knee_rest"])
 	var kph: float = float(mg["knee_phase"])
 	var crouch_knee: float = float(mg["crouch_knee"]) * _crouch
-	knee_l.rotation.x = kr + crouch_knee + kf * maxf(0.0, sin(_phase + kph)) * amp * limp_l
+	# RUN FORM (ANIMATION_FIX_PACK §3.3): the swing knee drives HIGH at sprint (the
+	# reference strip's high front knee) — extra lift on top of the stride follow-through.
+	var klr: float = float(mg["knee_lift_run"]) * run_blend
+	knee_l.rotation.x = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + kph)) * limp_l
 	if _kick_t <= 0.0:
-		knee_r.rotation.x = kr + crouch_knee + kf * maxf(0.0, sin(_phase + PI + kph)) * amp * limp_r
-	# Feet stay roughly level with the ground under the bend.
-	foot_l.rotation.x = -(knee_l.rotation.x + hip_l.rotation.x) * 0.5
-	foot_r.rotation.x = -(knee_r.rotation.x + hip_r.rotation.x) * 0.5
+		knee_r.rotation.x = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + PI + kph)) * limp_r
+	# Feet stay roughly level with the ground under the bend; at sprint the TRAIL leg
+	# plantar-flexes on push-off (the reference's heel-up back foot).
+	var apush: float = float(mg["ankle_push"]) * run_blend
+	foot_l.rotation.x = -(knee_l.rotation.x + hip_l.rotation.x) * 0.5 + apush * maxf(0.0, -sin(_phase))
+	foot_r.rotation.x = -(knee_r.rotation.x + hip_r.rotation.x) * 0.5 + apush * maxf(0.0, -sin(_phase + PI))
 
 	# FREE ARM — natural gait law: each arm counter-swings OPPOSITE its own side's
 	# leg (left arm back when the left leg strides forward). Unless a punch tween
@@ -578,8 +617,11 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 			# The free arm is the LEFT arm when right-handed — oppose the LEFT leg.
 			var free_own: float = swing_l if handed_sign > 0.0 else swing_r
 			free_arm.rotation.x = -free_own * float(mg["arm_swing"])
-			# The elbow bends INTO a forward carry (+, a hinge only folds one way).
-			elbow_l.rotation.x = er + ef * maxf(0.0, free_arm.rotation.x)
+			# RUN FORM (§3.3): at sprint the elbow LOCKS to ~90° (the reference's pumping
+			# arms — the drive moves to the shoulder swing); at walk it bends gently into a
+			# forward carry. Clamped >= 0 — a one-way hinge only folds forward.
+			var arm_lock: float = smoothstep(0.55, 0.9, run_blend)
+			elbow_l.rotation.x = maxf(0.0, lerpf(er + ef * maxf(0.0, free_arm.rotation.x), float(mg["elbow_pump"]), arm_lock))
 			# Any IK residue on the off axes relaxes home (one-hand rows swing FREE).
 			free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
 			free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
@@ -613,7 +655,11 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		# the tool along the leg (HAND_CARRY).
 		hand.rotation.x = lerpf(hand.rotation.x, -(AIM_RAISE + AIM_ELBOW) if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
 		var elbow_target := AIM_ELBOW if hold else er + ef * maxf(0.0, shoulder.rotation.x) * 0.6
-		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, elbow_target, clampf(10.0 * delta, 0.0, 1.0))
+		# RUN FORM (§3.3): the gun-side elbow pumps to ~90° when running UNARMED, matching
+		# the free arm; a raised gun keeps its aim pose (no lock).
+		if not hold:
+			elbow_target = lerpf(elbow_target, float(mg["elbow_pump"]), smoothstep(0.55, 0.9, run_blend))
+		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, maxf(0.0, elbow_target), clampf(10.0 * delta, 0.0, 1.0))
 
 	# THE HANDS (owner: "the opening and closing of the hands"): fingers curl shut
 	# around a held weapon, relax half-open otherwise; a melee tween owns them
@@ -627,16 +673,21 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# BREATHING + step BOB: idle = slow chest rise; moving = a small vertical lilt.
 	# A crouch SINKS the whole column (torso + head ride down together).
 	var breath := sin(_t * 1.8) * (float(mg["breath_amp"]) if not moving else 0.0)
-	var step_bob := absf(sin(_phase)) * amp * float(mg["step_bob"])
+	# WHOLE-BODY BOB (ANIMATION_FIX_PACK §3.3): the pelvis AND the spine bounce TOGETHER
+	# (the old bob moved only the upper body — a torso bouncing on static legs), 2 bumps
+	# per stride cycle (|sin| period π), scaled up with speed for the reference's running
+	# lilt. The neck counters a fraction (head_stabilize) so the eyes stay level.
+	var body_bob := absf(sin(_phase)) * float(mg["column_bob"]) \
+		* clampf(speed / maxf(0.5, float(mg["walk_speed_ref"])), 0.0, 1.4)
 	var drop: float = float(mg["crouch_drop"]) * _crouch
 	# The whole SPINE COLUMN rides together off the rests captured at create() —
 	# never hardcoded heights (the old 1.05/1.44 literals fought rebuilt geometry).
 	# The waist sinks a touch less (0.9) so its box stays tucked DEEP into the
 	# compressing chest; the neck sinks more (1.3) so the head tucks low — both
 	# keep every piece out of the no-kiss shimmer band at any crouch depth.
-	torso.position.y = _chest_rest_y + breath + step_bob - drop
-	waist.position.y = _waist_rest_y + (breath + step_bob) * 0.6 - drop * 0.9
-	neck.position.y = _neck_rest_y + breath + step_bob - drop * 1.3
+	torso.position.y = _chest_rest_y + breath + body_bob - drop
+	waist.position.y = _waist_rest_y + breath + body_bob * 0.85 - drop * 0.9
+	neck.position.y = _neck_rest_y + breath + body_bob * (1.0 - float(mg["head_stabilize"])) - drop * 1.3
 	# CROUCH NO-KISS FIX: at full crouch the torso's dropped+pitched bottom face swept
 	# 0.51m deep into the hip box (a fixed, math-verified overlap — the hip box's TOP
 	# always sits flush with its joint by construction, at any fold angle). Rather than
@@ -654,12 +705,15 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# back exactly enough to plant it at y=0. The retuned knee coil (crouch_knee) lifts
 	# the feet enough that at full crouch this correction is ~0, so the no-kiss geometry
 	# is the same tuned drop as before — just with boots on the dirt, not under it.
-	legs_pivot.position.y = -float(mg["hip_drop_frac"]) * drop
+	# The pelvis rides the whole-body bob while walking/running (with the spine — one
+	# bouncing unit, no torso-on-static-legs); a crouch overrides it with the plant.
+	legs_pivot.position.y = -float(mg["hip_drop_frac"]) * drop + body_bob
 	if _crouch > 0.001:
-		# Plant the lowest sole EXACTLY at y=0. The retuned knee coil (crouch_knee)
-		# lifts the feet enough that this barely nudges legs_pivot, so the tuned no-kiss
-		# drop (pelvis low, away from the torso) is preserved — boots on the dirt, not
-		# under it (D2) and not floating.
+		# Plant the lowest sole EXACTLY at y=0 (crouch governs pelvis height, no bounce).
+		# The retuned knee coil (crouch_knee) lifts the feet enough that this barely nudges
+		# legs_pivot, so the tuned no-kiss drop (pelvis low, away from the torso) is
+		# preserved — boots on the dirt, not under it (D2) and not floating.
+		legs_pivot.position.y = -float(mg["hip_drop_frac"]) * drop
 		legs_pivot.position.y -= _lowest_sole_y()
 	var torso_scale_min: float = float(mg["torso_scale_min"])
 	torso.scale.y = 1.0 - (1.0 - torso_scale_min) * _crouch
@@ -680,17 +734,21 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# separation falls out for free.
 	var twist_target := clampf(turn_rate * float(mg["turn_twist"]), -0.55, 0.55)
 	_twist = lerp(_twist, twist_target, clampf(7.0 * delta, 0.0, 1.0))
+	# RUN LEAN (ANIMATION_FIX_PACK §3.3): the trunk drives FORWARD at sprint (the
+	# reference strip's leaned-in run), on top of the tiny always-on speed lean.
+	var fwd_lean: float = speed * 0.02 + float(mg["run_lean"]) * run_blend
 	torso.rotation.z = _lean
 	torso.rotation.y = _twist
-	torso.rotation.x = speed * 0.02 + _slump + 0.3 * _crouch # crouch leans you over your knees
+	torso.rotation.x = fwd_lean + _slump + 0.3 * _crouch # crouch leans you over your knees
 	# The WAIST carries roughly half the chest's lean/twist — the lower-spine
 	# swivel makes the midriff a spine segment, not a rigid plank under the chest.
 	waist.rotation.z = _lean * 0.5
 	waist.rotation.y = _twist * 0.45
-	waist.rotation.x = (speed * 0.02 + _slump) * 0.5 + 0.2 * _crouch
+	waist.rotation.x = (fwd_lean + _slump) * 0.5 + 0.2 * _crouch
 	neck.rotation.z = _lean * 0.5
 	neck.rotation.y = -_twist * 0.5 # the head stays truer to the aim than the leading chest
-	neck.rotation.x = -_slump * 0.5 - 0.18 * _crouch # head stays up, scanning, even low
+	# The head stays UP even as the trunk leans into the run (eyes up the road / on the aim).
+	neck.rotation.x = -_slump * 0.5 - 0.18 * _crouch - fwd_lean * 0.6
 
 	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the
 	# aim arm up (recoil). Both are impulses that decay — the fight lands ON the rig.
