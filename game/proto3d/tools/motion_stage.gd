@@ -119,8 +119,13 @@ const TIMING_STEP_MS: float = 20.0       ## per [/]/;/' tap
 ## joint index (1-9) -> the exact name ProtoStrikePlayer.JOINT_AXIS/JOINT_NAMES use.
 ## RIG V2 (PUPPET_RIG_V2.md): the four new hinges are authorable — same order as
 ## ProtoStrikePlayer.JOINT_NAMES so the two lists never drift apart silently.
+## FULL BODY (owner 2026-07-08): keys 1-9 still select the first nine; every joint
+## past that is reachable by LEFT-DRAGGING the part (the drag pick finds it by
+## screen position, no number key needed). Mirrors ProtoStrikePlayer.JOINT_NAMES.
 const AUTHOR_JOINTS: Array[String] = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
-	"elbow_r", "elbow_l", "knee_r", "knee_l"]
+	"elbow_r", "elbow_l", "knee_r", "knee_l",
+	"head_yaw", "head_pitch", "free_shoulder_yaw", "free_shoulder_pitch",
+	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch"]
 
 var _author_mode: bool = false
 var _author_row_id: String = "punch_1"
@@ -656,6 +661,12 @@ func _author_joint_map() -> Dictionary:
 		# RIG V2: the segmented hinges (all rotation:x per JOINT_AXIS).
 		"elbow_r": puppet.elbow_r, "elbow_l": puppet.elbow_l,
 		"knee_r": puppet.knee_r, "knee_l": puppet.knee_l,
+		# FULL BODY (owner 2026-07-08): head, off-shoulder, wrists, ankles, left hip.
+		"head_yaw": puppet.neck, "head_pitch": puppet.neck,
+		"free_shoulder_yaw": puppet.free_arm, "free_shoulder_pitch": puppet.free_arm,
+		"wrist_r": puppet.hand, "wrist_l": puppet.hand_l,
+		"ankle_r": puppet.foot_r, "ankle_l": puppet.foot_l,
+		"hip_l_pitch": puppet.hip_l,
 	}
 
 

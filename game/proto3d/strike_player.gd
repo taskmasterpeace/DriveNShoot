@@ -40,9 +40,25 @@ const JOINT_AXIS: Dictionary = {
 	"elbow_l": "rotation:x",
 	"knee_r": "rotation:x",
 	"knee_l": "rotation:x",
+	# FULL-BODY POSING (owner 2026-07-08: "manipulate the arms... the joints aren't
+	# all there"). Append-only — existing rows never named these, so they default to
+	# rest and every shipped strike plays byte-identical. Now the whole body is
+	# authorable/draggable: head, the FREE (off) shoulder, both wrists, both ankles,
+	# and the left hip as its own joint (hip_kick stays the RIGHT hip for back-compat).
+	"head_yaw": "rotation:y",
+	"head_pitch": "rotation:x",
+	"free_shoulder_yaw": "rotation:y",
+	"free_shoulder_pitch": "rotation:x",
+	"wrist_r": "rotation:x",
+	"wrist_l": "rotation:x",
+	"ankle_r": "rotation:x",
+	"ankle_l": "rotation:x",
+	"hip_l_pitch": "rotation:x",
 }
 const JOINT_NAMES: Array = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
-	"elbow_r", "elbow_l", "knee_r", "knee_l"]
+	"elbow_r", "elbow_l", "knee_r", "knee_l",
+	"head_yaw", "head_pitch", "free_shoulder_yaw", "free_shoulder_pitch",
+	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch"]
 
 ## Code-floor seed rows (mirrors data/strikes.json day one exactly — the fold below
 ## overlays any JSON edit on top, same additive law as ProtoPuppet.MOTION/motions.json).

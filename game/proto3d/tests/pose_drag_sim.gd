@@ -101,6 +101,27 @@ func _run() -> void:
 	_check("↔ drag moved torso_twist", absf(float(stage._author_joint_values["torso_twist"]) - (twist0 + 60 * stage.DRAG_SENS)) < 0.001)
 	_lmb(tscreen, false)
 
+	# --- 3b) FULL BODY: the parts that had NO joint before are now draggable ------
+	# Each: click the part, drag, confirm the mapped joint moved. (owner: "trying to
+	# manipulate the arms and the joints aren't all there" — now they are.)
+	for tc in [
+		{"node": stage.puppet.free_arm, "x": "free_shoulder_pitch", "y": "free_shoulder_yaw", "label": "LEFT shoulder"},
+		{"node": stage.puppet.hand_l, "x": "wrist_l", "y": "", "label": "left wrist"},
+		{"node": stage.puppet.foot_r, "x": "ankle_r", "y": "", "label": "right ankle"},
+		{"node": stage.puppet.neck, "x": "head_pitch", "y": "head_yaw", "label": "head"},
+		{"node": stage.puppet.hip_l, "x": "hip_l_pitch", "y": "", "label": "LEFT hip"},
+	]:
+		var node: Node3D = tc["node"]
+		var sp: Vector2 = stage._cam.unproject_position(node.global_position)
+		_lmb(sp, true)
+		var grabbed: bool = stage._drag_active and stage._drag_node == node
+		var xj: String = tc["x"]
+		var b: float = float(stage._author_joint_values.get(xj, 0.0))
+		_drag(Vector2(0, 50))
+		var moved: bool = absf(float(stage._author_joint_values.get(xj, 0.0)) - (b + 50 * stage.DRAG_SENS)) < 0.001
+		_lmb(sp, false)
+		_check("%s is draggable now (grab + bend %s)" % [tc["label"], xj], grabbed and moved)
+
 	# --- 4) The dragged pose feeds the EXISTING capture/save pipeline ------------
 	var poses_before: int = stage._author_poses.size()
 	_key(KEY_C) # capture

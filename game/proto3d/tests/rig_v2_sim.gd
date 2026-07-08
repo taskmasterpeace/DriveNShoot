@@ -161,8 +161,15 @@ func _ready() -> void:
 	_check("the forearm steps down from the upper arm",
 		(fore_box.mesh as BoxMesh).size.x < (upper_box.mesh as BoxMesh).size.x)
 
-	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew to 9) ===============
-	_check("ProtoStrikePlayer.JOINT_NAMES carries all 9", ProtoStrikePlayer.JOINT_NAMES.size() == 9)
+	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew to 9, then to the
+	# FULL BODY = 18 for drag-to-pose: +head/off-shoulder/wrists/ankles/left-hip) ===
+	_check("JOINT_NAMES is the full-body set (18) with the original 9 as the prefix",
+		ProtoStrikePlayer.JOINT_NAMES.size() == 18
+		and ProtoStrikePlayer.JOINT_NAMES.slice(0, 9) == ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick", "elbow_r", "elbow_l", "knee_r", "knee_l"])
+	_check("the full-body joints are authorable (head/off-shoulder/wrists/ankles/left-hip)",
+		ProtoStrikePlayer.JOINT_AXIS.has("head_yaw") and ProtoStrikePlayer.JOINT_AXIS.has("free_shoulder_pitch")
+		and ProtoStrikePlayer.JOINT_AXIS.has("wrist_l") and ProtoStrikePlayer.JOINT_AXIS.has("ankle_r")
+		and ProtoStrikePlayer.JOINT_AXIS.has("hip_l_pitch"))
 	_check("the four new hinges are authorable joints",
 		ProtoStrikePlayer.JOINT_AXIS.has("elbow_r") and ProtoStrikePlayer.JOINT_AXIS.has("elbow_l")
 		and ProtoStrikePlayer.JOINT_AXIS.has("knee_r") and ProtoStrikePlayer.JOINT_AXIS.has("knee_l"))
@@ -200,8 +207,10 @@ func _ready() -> void:
 	add_child(stage)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check("stage AUTHOR_JOINTS grew to 9", stage.AUTHOR_JOINTS.size() == 9)
+	_check("stage AUTHOR_JOINTS is the full-body set (18), keys 1-9 = the first nine", stage.AUTHOR_JOINTS.size() == 18)
 	var jm: Dictionary = stage._author_joint_map()
+	_check("every AUTHOR_JOINT maps to a real puppet node (full body wired)",
+		stage.AUTHOR_JOINTS.all(func(jn: String) -> bool: return jm.get(jn, null) is Node3D))
 	var map_ok := true
 	for jn in ["elbow_r", "elbow_l", "knee_r", "knee_l"]:
 		if not (jm.get(jn, null) is Node3D):
