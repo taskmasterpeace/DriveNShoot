@@ -135,11 +135,6 @@ var appearance: Dictionary = {} ## survivor look row (set before create(); chara
 ## expose aim_arm/legs_pivot/gun + animate/set_hand_pose/set_armed/muzzle_world/…
 ## Flip USE_SKEL_PUPPET to swap the player's on-screen body (owner: all-humanoids).
 static var USE_SKEL_PUPPET: bool = true
-## THE ANIMATED BODY (owner 2026-07-08: "we switch to animation clips"). When on,
-## the player is the Mesh2Motion-rigged humanoid driven by REAL clips
-## (ProtoAnimPuppet) — takes precedence over USE_SKEL_PUPPET. Same interface, so
-## the whole game drives it unchanged.
-static var USE_ANIM_PUPPET: bool = true
 var puppet: Node3D = null
 var _visual: Node3D
 var _lower: Node3D
@@ -181,7 +176,7 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPlayer3D:
 	# visual root — the player yaws it to the body and pitches it for the dive; the rig
 	# animates its own legs/arms/breathing. aim_arm (old _upper) yaws to the gaze;
 	# legs_pivot (old _lower) yaws toward the feet; gun rides the hand.
-	p.puppet = _make_body(p.appearance)
+	p.puppet = ProtoSkelPuppet.create(p.appearance) if USE_SKEL_PUPPET else ProtoPuppet.create(p.appearance)
 	p._visual = p.puppet
 	p.add_child(p._visual)
 	p._lower = p.puppet.legs_pivot
@@ -549,17 +544,6 @@ func set_armed(on: bool) -> void:
 		_gun.visible = on
 
 
-## ONE place picks the body: the clip-driven ProtoAnimPuppet (real Mesh2Motion
-## animation) wins, then the authored ProtoSkelPuppet, then the box ProtoPuppet.
-## All three expose the same interface, so callers never branch.
-static func _make_body(appearance: Dictionary) -> Node3D:
-	if USE_ANIM_PUPPET:
-		return ProtoAnimPuppet.create(appearance)
-	if USE_SKEL_PUPPET:
-		return ProtoSkelPuppet.create(appearance)
-	return ProtoPuppet.create(appearance)
-
-
 ## Character creation rebuilds the body live: free the old rig, build the chosen one,
 ## re-link the pivots + gun and restore the armed state. The player becomes the row.
 func rebuild_puppet(appearance_in: Dictionary) -> void:
@@ -567,7 +551,7 @@ func rebuild_puppet(appearance_in: Dictionary) -> void:
 	var was_armed: bool = _gun != null and _gun.visible
 	if is_instance_valid(_visual):
 		_visual.queue_free()
-	puppet = _make_body(appearance)
+	puppet = ProtoSkelPuppet.create(appearance) if USE_SKEL_PUPPET else ProtoPuppet.create(appearance)
 	_visual = puppet
 	add_child(_visual)
 	_lower = puppet.legs_pivot
