@@ -140,6 +140,19 @@ var _author_selected_pose: int = -1   ## index into _author_poses (,/. moves it)
 var _author_player: ProtoStrikePlayer = null
 var _author_previewing: bool = false
 
+# --- DRAG-TO-POSE (owner 2026-07-08: "build a little editor to drag stuff around
+# and put it EXACTLY where it's supposed to be, then fine-tune"). Author mode +
+# LEFT-DRAG a body part to rotate its joint(s) live — writes the SAME
+# _author_joint_values buffer the keyboard nudge does, so C-capture / ENTER-save
+# are unchanged. Pick = nearest authorable part to the click (screen space);
+# vertical drag works the X axis (bend/pitch/lean), horizontal the Y (twist/yaw).
+const DRAG_SENS: float = 0.006      ## rad per pixel of mouse travel
+const DRAG_PICK_PX: float = 140.0   ## click must land within this of a part to grab it
+var _drag_active: bool = false
+var _drag_node: Node3D = null
+var _drag_x_joint: String = ""      ## the authorable joint on _drag_node that rotates about X ("" = none)
+var _drag_y_joint: String = ""      ## …about Y
+
 
 func _ready() -> void:
 	# Floor, light — a stage, not a world.
@@ -245,6 +258,7 @@ func _legend_text() -> String:
 ## against the SHIFT-x3 modifier, where SHIFT+Q/E is unambiguous.
 func _author_legend_text() -> String:
 	return "STRIKE POSE AUTHORING — editing '%s' (G cycles row)\n" % _author_row_id \
+		+ "LEFT-DRAG a body part to pose it (↕ bend/pitch · ↔ twist/yaw)\n" \
 		+ "1-9 select joint (6-9 = elbows/knees) · Q/E nudge -+0.05rad (SHIFT x3)\n" \
 		+ "C capture pose · U undo capture\n" \
 		+ ", / .  select captured pose to edit\n" \
@@ -436,6 +450,13 @@ func _update_orbit_camera() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
+		# AUTHOR MODE: LEFT button grabs the nearest body part to drag-pose it.
+		if mb.button_index == MOUSE_BUTTON_LEFT and _author_mode:
+			if mb.pressed:
+				_begin_author_drag(mb.position)
+			else:
+				_end_author_drag()
+			return
 		if mb.button_index == MOUSE_BUTTON_RIGHT:
 			_rmb_down = mb.pressed
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
@@ -444,11 +465,80 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
 			_orbit_dist = clampf(_orbit_dist + ORBIT_ZOOM_STEP, ORBIT_DIST_MIN, ORBIT_DIST_MAX)
 			_update_orbit_camera()
-	elif event is InputEventMouseMotion and _rmb_down:
+	elif event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
-		_orbit_yaw -= mm.relative.x * ORBIT_SENS
-		_orbit_pitch = clampf(_orbit_pitch - mm.relative.y * ORBIT_SENS, -1.3, 0.35)
-		_update_orbit_camera()
+		# Drag-pose wins over orbit while a part is grabbed (author mode only).
+		if _drag_active:
+			_author_drag_motion(mm.relative)
+		elif _rmb_down:
+			_orbit_yaw -= mm.relative.x * ORBIT_SENS
+			_orbit_pitch = clampf(_orbit_pitch - mm.relative.y * ORBIT_SENS, -1.3, 0.35)
+			_update_orbit_camera()
+
+
+## GRAB: pick the authorable part nearest the click (screen space) and latch it
+## for dragging. Two joints can share one node (torso twist+lean, shoulder
+## yaw+pitch) — we grab the NODE and remember its X/Y joints so a single drag can
+## work both axes at once (drag around = pose it around).
+func _begin_author_drag(mouse: Vector2) -> bool:
+	if _cam == null:
+		return false
+	var jm := _author_joint_map()
+	var best_node: Node3D = null
+	var best_d := DRAG_PICK_PX
+	for jn in AUTHOR_JOINTS:
+		var node := jm.get(jn, null) as Node3D
+		if node == null or _cam.is_position_behind(node.global_position):
+			continue
+		var sp := _cam.unproject_position(node.global_position)
+		var d := sp.distance_to(mouse)
+		if d < best_d:
+			best_d = d
+			best_node = node
+	if best_node == null:
+		_toast("no part under the cursor — click closer to a joint")
+		return false
+	_drag_node = best_node
+	_drag_x_joint = ""
+	_drag_y_joint = ""
+	for jn in AUTHOR_JOINTS:
+		if jm.get(jn, null) == best_node:
+			if String(ProtoStrikePlayer.JOINT_AXIS.get(jn, "rotation:x")) == "rotation:y":
+				_drag_y_joint = jn
+			else:
+				_drag_x_joint = jn
+	# Point the readout/selected-joint at what we grabbed (prefer the bend axis).
+	var lead := _drag_x_joint if _drag_x_joint != "" else _drag_y_joint
+	_author_selected_joint = maxi(0, AUTHOR_JOINTS.find(lead))
+	_drag_active = true
+	_toast("GRABBED %s — drag to pose (Q/E fine-tune, C capture)" % _drag_label())
+	return true
+
+
+func _end_author_drag() -> void:
+	if _drag_active:
+		_toast("set %s" % _drag_label())
+	_drag_active = false
+	_drag_node = null
+
+
+## DRAG: vertical mouse → the X-axis joint (bend/pitch/lean), horizontal → the
+## Y-axis joint (twist/yaw). Writes the author buffer; _write_author_joints()
+## puts it on the real rig the same frame, so it moves under the cursor live.
+func _author_drag_motion(rel: Vector2) -> void:
+	if _drag_x_joint != "":
+		_author_joint_values[_drag_x_joint] = float(_author_joint_values.get(_drag_x_joint, 0.0)) + rel.y * DRAG_SENS
+	if _drag_y_joint != "":
+		_author_joint_values[_drag_y_joint] = float(_author_joint_values.get(_drag_y_joint, 0.0)) + rel.x * DRAG_SENS
+
+
+func _drag_label() -> String:
+	var parts: Array[String] = []
+	if _drag_x_joint != "":
+		parts.append(_drag_x_joint)
+	if _drag_y_joint != "":
+		parts.append(_drag_y_joint)
+	return "+".join(parts) if not parts.is_empty() else "?"
 
 
 func _input(event: InputEvent) -> void:

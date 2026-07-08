@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cposedragsim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/pose_drag_sim.gd" id="1"]
+
+[node name="PoseDragSim" type="Node"]
+script = ExtResource("1")
