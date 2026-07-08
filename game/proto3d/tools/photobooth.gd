@@ -64,8 +64,39 @@ func _ready() -> void:
 	_sv.add_child(_cam)
 
 	await _run()
+	await _turn_sweep()
 	print("PHOTOBOOTH: done")
 	get_tree().quit(0)
+
+
+## THE DOORKNOB TEST (owner 2026-07-08: "the torso rotates like a doorknob, not
+## like a torso"). Render the armed puppet turning through a yaw arc from a fixed
+## front camera — a rigid vertical box spinning flat about its center IS a
+## doorknob; a torso banks and twists into the turn. Re-run after the rig fix.
+func _turn_sweep() -> void:
+	_cam.position = Vector3(0.0, 1.3, 3.4)
+	_cam.look_at(Vector3(0, 1.05, 0), Vector3.UP)
+	var puppet := ProtoPuppet.create({})
+	_sv.add_child(puppet)
+	var w: Dictionary = ProtoWeapon.WEAPONS["pistol"]
+	var pose: Dictionary = w.get("hand_pose", {})
+	puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+	puppet.raised = true
+	puppet.set_armed(true)
+	for deg in [0, 30, 60, 90]:
+		puppet.rotation.y = deg_to_rad(deg)
+		for _f in 30:
+			puppet.animate(1.0 / 60.0, 0.0, deg_to_rad(60.0), true, 0.0, false) # turn_rate feeds the lean
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img := _sv.get_texture().get_image()
+		var path := "%s/turn_%02d.png" % [OUT, deg]
+		var err := img.save_png(path)
+		print("PHOTOBOOTH: %s  (%s)" % [path, "ok" if err == OK else "ERR %d" % err])
+	puppet.queue_free()
 
 
 func _run() -> void:

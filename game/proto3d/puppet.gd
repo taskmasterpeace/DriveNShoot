@@ -74,7 +74,13 @@ static var MOTION: Dictionary = {
 		"knee_rest": 0.06,        # a hair of standing bend (locked knees read robotic)
 		"crouch_knee": 0.55,      # extra knee coil at full crouch — the low silhouette
 		"elbow_follow": 0.35,     # elbow bends this fraction of the arm's swing
-		"elbow_rest": 0.14},      # arms never hang truly straight
+		"elbow_rest": 0.14,       # arms never hang truly straight
+		# TORSO TWIST (owner 2026-07-08: "it turns like a DOORKNOB, not like a
+		# torso"). A turn is led by the CHEST — the shoulder line twists about the
+		# spine while the legs (legs_pivot) track the feet: real shoulder-hip
+		# separation, not a rigid column spun flat about its center.
+		"turn_twist": 0.34,       # rad of chest lead per rad/s of body turn
+		"turn_bank": 0.30},       # rad of roll INTO the turn per rad/s (the lean, strengthened)
 	# THE MELEE READ (owner: "the swing is horrible") — every timing + angle is a
 	# ROW now, tunable live in MotionForge. Stock = the retuned SNAPPY version:
 	# short coil, tight whip, fast settle — a strike, not a twirl.
@@ -184,6 +190,7 @@ const HAND_CARRY: float = -0.6
 var _t: float = 0.0
 var _phase: float = 0.0
 var _lean: float = 0.0
+var _twist: float = 0.0 ## smoothed chest-lead into a turn (the doorknob fix)
 var _slump: float = 0.0
 ## CROUCH (the moveset's one new stance): the caller sets crouch_target (0 stand,
 ## 1 full crouch); the blend eases so the rig SINKS instead of popping. Lowers the
@@ -495,12 +502,21 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		_hip_r_box.position.y = _hip_box_rest_y - hip_gap
 
 	# LEAN into turns (+ a slight forward lean at speed), and SLUMP when hurt.
-	var lean_target := clampf(-turn_rate * float(mg["lean_turn"]), -0.35, 0.35)
+	var lean_target := clampf(-turn_rate * float(mg["turn_bank"]), -0.35, 0.35)
 	_lean = lerp(_lean, lean_target, clampf(9.0 * delta, 0.0, 1.0))
 	_slump = lerp(_slump, hurt * 0.3, clampf(4.0 * delta, 0.0, 1.0))
+	# THE DOORKNOB FIX (owner 2026-07-08): the chest LEADS the turn — a spine
+	# twist about Y — so the torso reads as a torso, not a rigid box spun flat.
+	# aim_arm is a SIBLING of the torso (not a child), so this never touches aim;
+	# the legs (legs_pivot) track the feet on the caller's side → shoulder-hip
+	# separation falls out for free.
+	var twist_target := clampf(turn_rate * float(mg["turn_twist"]), -0.55, 0.55)
+	_twist = lerp(_twist, twist_target, clampf(7.0 * delta, 0.0, 1.0))
 	torso.rotation.z = _lean
+	torso.rotation.y = _twist
 	torso.rotation.x = speed * 0.02 + _slump + 0.3 * _crouch # crouch leans you over your knees
 	neck.rotation.z = _lean * 0.5
+	neck.rotation.y = -_twist * 0.5 # the head stays truer to the aim than the leading chest
 	neck.rotation.x = -_slump * 0.5 - 0.18 * _crouch # head stays up, scanning, even low
 
 	# COMBAT READS (Rung 6): a hit ROCKS the body back (flinch), a shot KICKS the

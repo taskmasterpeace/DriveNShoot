@@ -80,9 +80,17 @@ func _make_col(parent: Control, heading: String) -> VBoxContainer:
 	h.add_theme_color_override("font_color", Color(0.92, 0.89, 0.82))
 	h.text = heading
 	wrap.add_child(h)
+	# A full pack (the Test Grounds SUPPLY chest is 20+ rows) overran the panel and
+	# spilled off the bottom of the screen (playtest 2026-07-08). Scroll inside a
+	# bounded column instead: the panel never grows past its own frame.
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrap.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	wrap.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	return box
 
 

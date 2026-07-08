@@ -37,7 +37,10 @@ const DEFAULTS = {
 			// RIG V2 follow-through: elbows/knees ride their parents as fractions.
 			// knee_follow is the single biggest look upgrade — tune it FIRST.
 			knee_follow: 0.55, knee_phase: 0.45, knee_rest: 0.06, crouch_knee: 0.55,
-			elbow_follow: 0.35, elbow_rest: 0.14 },
+			elbow_follow: 0.35, elbow_rest: 0.14,
+			// THE DOORKNOB FIX (2026-07-08): the chest LEADS a turn (spine twist) +
+			// banks into it — real body english instead of a rigid flat yaw.
+			turn_twist: 0.34, turn_bank: 0.30 },
 		// THE MELEE READ — swing/punch/kick timings + angles, fully tunable
 		// (press M / P / K on the treadmill stage to preview each strike).
 		melee: { windup_s: 0.06, windup_yaw: 0.7, windup_lift: 0.25,

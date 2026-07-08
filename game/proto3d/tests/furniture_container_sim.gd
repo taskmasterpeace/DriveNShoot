@@ -63,6 +63,25 @@ func _ready() -> void:
 
 	_check("REAL E opens the panel on the fridge's container",
 		main.panel.is_open and main.panel._theirs == _fridge.container)
+	# OVERFLOW REGRESSION (playtest 2026-07-08: a 20+ item chest ran off the bottom
+	# of the screen). Each column's item list lives inside a ScrollContainer, so a
+	# long pack scrolls within the panel instead of spilling past the frame.
+	_check("the pack column scrolls inside the panel (no off-screen spill)",
+		main.panel._left_box.get_parent() is ScrollContainer)
+	_check("the chest column scrolls too",
+		main.panel._right_box.get_parent() is ScrollContainer)
+	# Fill with MANY DISTINCT rows (one of every catalogued item) and confirm the
+	# list now wants more height than its bounded view — it genuinely scrolls
+	# instead of spilling off the bottom of the screen.
+	for id in ProtoContainer.ITEMS.keys():
+		_fridge.container.add(String(id), 1)
+	main.panel._refresh()
+	for _i in 3:
+		await get_tree().process_frame
+	var scroll := main.panel._right_box.get_parent() as ScrollContainer
+	_check("a full chest overflows INTO the scroll (content %dpx > view %dpx)" %
+		[int(main.panel._right_box.size.y), int(scroll.size.y)],
+		main.panel._right_box.size.y > scroll.size.y)
 	var first_hash: int = _fridge.container.slots.duplicate().hash()
 	_check("loot is PRESENT after first open (%d slot(s))" % _fridge.container.slots.size(),
 		not _fridge.container.slots.is_empty())

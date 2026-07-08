@@ -238,6 +238,28 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check("TAB exits author mode clean", not stage._author_mode)
 
+	# === THE DOORKNOB FIX (owner 2026-07-08: "it turns like a doorknob, not a =====
+	# torso"): a fresh rig fed a steady body turn TWISTS THE CHEST into it (spine
+	# lead) while the hips are left to the caller's leg-tracker — shoulder-hip
+	# separation, not a rigid column spun flat about its vertical center.
+	var dk := ProtoPuppet.create({})
+	add_child(dk)
+	for _i in 40:
+		dk.animate(1.0 / 60.0, 2.0, 1.0, false, 0.0, false) # turning one way (+turn_rate)
+	var dk_twist := dk.torso.rotation.y
+	_check("a turn twists the CHEST into it (torso.y=%.2f rad, not a rigid doorknob)" % dk_twist,
+		absf(dk_twist) > 0.1)
+	_check("...animate leaves the HIPS to the leg-tracker (legs_pivot.y=%.3f)" % dk.legs_pivot.rotation.y,
+		is_equal_approx(dk.legs_pivot.rotation.y, 0.0))
+	_check("...the head stays truer to aim than the leading chest (|neck.y|=%.2f < |torso.y|=%.2f)" %
+		[absf(dk.neck.rotation.y), absf(dk_twist)],
+		absf(dk.neck.rotation.y) < absf(dk_twist) and absf(dk.neck.rotation.y) > 0.0)
+	for _i in 80:
+		dk.animate(1.0 / 60.0, 2.0, -1.0, false, 0.0, false) # reverse the turn
+	_check("the twist REVERSES with the turn (%.2f -> %.2f)" % [dk_twist, dk.torso.rotation.y],
+		signf(dk.torso.rotation.y) != signf(dk_twist))
+	dk.queue_free()
+
 	print("RIG_V2 RESULTS: %d passed, %d failed" % [passed, failed])
 	_finish(0 if failed == 0 else 1)
 
