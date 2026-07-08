@@ -63,11 +63,65 @@ func _ready() -> void:
 	_cam = Camera3D.new()
 	_sv.add_child(_cam)
 
+	await _game_view()
 	await _contact_sheet()
 	await _run()
 	await _turn_sweep()
 	print("PHOTOBOOTH: done")
 	get_tree().quit(0)
+
+
+## THE GAME VIEW (owner 2026-07-08: the model "looks crazy" in-game while the
+## side renders looked fine — because the game camera is ~50° TOP-DOWN from
+## behind, camera_rig.gd:84, not the side. Judge the rig the way the PLAYER sees
+## it.) Renders the UNARMED idle (the "no gun in hand" state) and the pistol hold
+## from the real game angle, into one before/after strip.
+func _game_view() -> void:
+	# ~50° pitch, behind (+Z) and above — the on-foot rig's angle, framed TIGHT
+	# on the body so the silhouette reads the way the player judges it.
+	_cam.position = Vector3(0.0, 2.75, 1.65)
+	_cam.look_at(Vector3(0.0, 0.92, 0.0), Vector3.UP)
+	var poses: Array = [
+		{"id": "", "label": "unarmed", "aim": false},
+		{"id": "pistol", "label": "pistol", "aim": true},
+	]
+	var tile := 460
+	var strip := Image.create(tile * poses.size(), tile, false, Image.FORMAT_RGBA8)
+	strip.fill(Color(0.13, 0.14, 0.16, 1.0))
+	for i in poses.size():
+		var pd: Dictionary = poses[i]
+		var puppet := ProtoPuppet.create({})
+		_sv.add_child(puppet)
+		var armed: bool = pd["aim"]
+		if pd["id"] == "":
+			puppet.set_hand_pose(Vector3.ZERO, false)
+			puppet.raised = false # fists hang — the real idle
+		else:
+			var w: Dictionary = ProtoWeapon.WEAPONS[pd["id"]]
+			var pose: Dictionary = w.get("hand_pose", {})
+			puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
+				pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+			var shp: Dictionary = ProtoWeapon.shape(pd["id"])
+			puppet.set_weapon_mesh(shp.get("parts", []), shp.get("muzzle_z", 0.34))
+			puppet.raised = true
+			puppet.set_armed(true)
+		for _f in 70:
+			puppet.animate(1.0 / 60.0, 0.0, 0.0, armed, 0.0, false)
+			if armed:
+				puppet.aim_arm.rotation.y = -0.35
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		var img := _sv.get_texture().get_image()
+		img.resize(tile, tile, Image.INTERPOLATE_LANCZOS)
+		if img.get_format() != strip.get_format():
+			img.convert(strip.get_format())
+		strip.blit_rect(img, Rect2i(0, 0, tile, tile), Vector2i(i * tile, 0))
+		puppet.queue_free()
+		await get_tree().process_frame
+	var path := "%s/_GAME_VIEW.png" % OUT
+	print("PHOTOBOOTH: game-view strip (unarmed | pistol): %s  (%s)" % [path, "ok" if strip.save_png(path) == OK else "ERR"])
 
 
 ## THE CONTACT SHEET (owner 2026-07-08: "we need a way to iterate faster… all

@@ -258,7 +258,9 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	p.neck = Node3D.new()
 	p.neck.position = Vector3(0, 1.44, 0)
 	p.add_child(p.neck)
-	p.head = _box(Vector3(0.34, 0.34, 0.32), Vector3(0, 0.19, 0), skin)
+	# A smaller head: the old 0.34 cube was ~19% of body height (real is ~13%), so
+	# from the game's steep top-down it read as a bobble-head (playtest 2026-07-08).
+	p.head = _box(Vector3(0.29, 0.30, 0.28), Vector3(0, 0.17, 0), skin)
 	p.neck.add_child(p.head)
 	# Eyes read facing from above; a patched eye goes dark.
 	for side in [-1.0, 1.0]:
@@ -356,14 +358,16 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# its two segments, so a bent elbow/knee/shoulder reads as one connected limb
 	# instead of two boxes gapping apart. Centered ON the pivot, so no rotation
 	# ever opens the seam. Added LAST so earlier get_child(0) segment grabs hold.
-	_joint_ball(p.shoulder, 0.15, cloth)   # gun-arm shoulder (also bridges to the torso)
-	_joint_ball(p.elbow_r, 0.14, cloth)    # gun-arm elbow — the one that gapped when aiming
-	_joint_ball(p.free_arm, 0.15, cloth)   # free-arm shoulder
-	_joint_ball(p.elbow_l, 0.13, cloth)    # free-arm elbow
-	_joint_ball(p.hip_l, 0.18, pants)
-	_joint_ball(p.hip_r, 0.18, pants)
-	_joint_ball(p.knee_l, 0.16, pants)
-	_joint_ball(p.knee_r, 0.16, pants)
+	# Sized to MATCH the thinner adjacent segment, never exceed it — from the game's
+	# steep top-down the old oversized cubes protruded and read as lumps (playtest).
+	_joint_ball(p.shoulder, 0.13, cloth)   # gun-arm shoulder (also bridges to the torso)
+	_joint_ball(p.elbow_r, 0.115, cloth)   # gun-arm elbow — the one that gapped when aiming
+	_joint_ball(p.free_arm, 0.13, cloth)   # free-arm shoulder
+	_joint_ball(p.elbow_l, 0.115, cloth)   # free-arm elbow
+	_joint_ball(p.hip_l, 0.15, pants)
+	_joint_ball(p.hip_r, 0.15, pants)
+	_joint_ball(p.knee_l, 0.135, pants)
+	_joint_ball(p.knee_r, 0.135, pants)
 	return p
 
 
