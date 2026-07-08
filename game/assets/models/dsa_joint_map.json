@@ -1,0 +1,285 @@
+{
+  "model": "Divided States of America - low-poly T-pose block rig",
+  "coordinate_system": {
+    "up": "Z",
+    "front": "-Y",
+    "units": "generic game units"
+  },
+  "notes": [
+    "The GLB includes named skeleton joints and rigid 100% vertex weights per blocky body segment.",
+    "Use the guide GLB if you want visible joint and bone markers; use the rigged GLB for cleaner import.",
+    "The pistol accessory is weighted to R_Hand."
+  ],
+  "joints": [
+    {
+      "index": 0,
+      "name": "Root",
+      "parent": null,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "index": 1,
+      "name": "Pelvis",
+      "parent": "Root",
+      "position": [
+        0.0,
+        0.0,
+        1.32
+      ]
+    },
+    {
+      "index": 2,
+      "name": "Spine_01",
+      "parent": "Pelvis",
+      "position": [
+        0.0,
+        0.0,
+        1.58
+      ]
+    },
+    {
+      "index": 3,
+      "name": "Spine_02",
+      "parent": "Spine_01",
+      "position": [
+        0.0,
+        0.0,
+        1.9
+      ]
+    },
+    {
+      "index": 4,
+      "name": "Chest",
+      "parent": "Spine_02",
+      "position": [
+        0.0,
+        0.0,
+        2.2
+      ]
+    },
+    {
+      "index": 5,
+      "name": "Neck",
+      "parent": "Chest",
+      "position": [
+        0.0,
+        0.0,
+        2.44
+      ]
+    },
+    {
+      "index": 6,
+      "name": "Head",
+      "parent": "Neck",
+      "position": [
+        0.0,
+        0.0,
+        2.72
+      ]
+    },
+    {
+      "index": 7,
+      "name": "L_Clavicle",
+      "parent": "Chest",
+      "position": [
+        -0.36,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 8,
+      "name": "L_Shoulder",
+      "parent": "L_Clavicle",
+      "position": [
+        -0.63,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 9,
+      "name": "L_Elbow",
+      "parent": "L_Shoulder",
+      "position": [
+        -1.25,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 10,
+      "name": "L_Wrist",
+      "parent": "L_Elbow",
+      "position": [
+        -1.83,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 11,
+      "name": "L_Hand",
+      "parent": "L_Wrist",
+      "position": [
+        -2.04,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 12,
+      "name": "R_Clavicle",
+      "parent": "Chest",
+      "position": [
+        0.36,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 13,
+      "name": "R_Shoulder",
+      "parent": "R_Clavicle",
+      "position": [
+        0.63,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 14,
+      "name": "R_Elbow",
+      "parent": "R_Shoulder",
+      "position": [
+        1.25,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 15,
+      "name": "R_Wrist",
+      "parent": "R_Elbow",
+      "position": [
+        1.83,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 16,
+      "name": "R_Hand",
+      "parent": "R_Wrist",
+      "position": [
+        2.04,
+        0.0,
+        2.28
+      ]
+    },
+    {
+      "index": 17,
+      "name": "L_Hip",
+      "parent": "Pelvis",
+      "position": [
+        -0.26,
+        0.0,
+        1.28
+      ]
+    },
+    {
+      "index": 18,
+      "name": "L_Knee",
+      "parent": "L_Hip",
+      "position": [
+        -0.26,
+        0.0,
+        0.78
+      ]
+    },
+    {
+      "index": 19,
+      "name": "L_Ankle",
+      "parent": "L_Knee",
+      "position": [
+        -0.26,
+        0.0,
+        0.22
+      ]
+    },
+    {
+      "index": 20,
+      "name": "L_Ball",
+      "parent": "L_Ankle",
+      "position": [
+        -0.26,
+        -0.18,
+        0.08
+      ]
+    },
+    {
+      "index": 21,
+      "name": "L_Toe",
+      "parent": "L_Ball",
+      "position": [
+        -0.26,
+        -0.4,
+        0.08
+      ]
+    },
+    {
+      "index": 22,
+      "name": "R_Hip",
+      "parent": "Pelvis",
+      "position": [
+        0.26,
+        0.0,
+        1.28
+      ]
+    },
+    {
+      "index": 23,
+      "name": "R_Knee",
+      "parent": "R_Hip",
+      "position": [
+        0.26,
+        0.0,
+        0.78
+      ]
+    },
+    {
+      "index": 24,
+      "name": "R_Ankle",
+      "parent": "R_Knee",
+      "position": [
+        0.26,
+        0.0,
+        0.22
+      ]
+    },
+    {
+      "index": 25,
+      "name": "R_Ball",
+      "parent": "R_Ankle",
+      "position": [
+        0.26,
+        -0.18,
+        0.08
+      ]
+    },
+    {
+      "index": 26,
+      "name": "R_Toe",
+      "parent": "R_Ball",
+      "position": [
+        0.26,
+        -0.4,
+        0.08
+      ]
+    }
+  ]
+}
