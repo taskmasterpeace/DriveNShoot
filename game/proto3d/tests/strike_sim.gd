@@ -74,6 +74,13 @@ func _ready() -> void:
 	# joint it names present in the injected dict. --------------------------------
 	var ids: Array = ["punch_1", "punch_2", "punch_3", "kick", "shove", "weapon_swing"]
 	_check("strikes.json/floor folds all 6 rows", ids.all(func(i): return ProtoStrikePlayer.STRIKES.has(i)))
+	# ANIMATION_FIX_PACK D6: the code-FLOOR seed carried pre-mannequin INVERTED signs
+	# (contact shoulder_pitch -1.45) while strikes.json was re-authored to the SIGN LAW
+	# (+1.5). Re-seeded to match, so a missing/corrupt strikes.json can never play every
+	# strike backwards. A punch's contact must extend the arm FORWARD (positive pitch).
+	var p1c: Dictionary = (ProtoStrikePlayer.STRIKES["punch_1"]["poses"][1] as Dictionary)["joints"]
+	_check("D6 sign parity: punch_1 contact extends FORWARD (shoulder_pitch %.2f > 0)" % float(p1c["shoulder_pitch"]),
+		float(p1c["shoulder_pitch"]) > 0.0)
 	for id in ids:
 		var row: Dictionary = ProtoStrikePlayer.STRIKES[id]
 		var poses: Array = row["poses"]

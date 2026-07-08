@@ -249,6 +249,23 @@ func current_crit(main: Node) -> float:
 	return crit_chance
 
 
+## POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4): map a melee weapon + combo beat to
+## its strikes.json row id. The fists combo cycles punch_1/2/3 (the finisher beat is a
+## kick when Martial Arts unlocked it); the bat has its own authored swing; every other
+## swung thing shares the generic weapon_swing. An unknown id => play_strike returns
+## false and fire() falls back to the legacy tween.
+func _strike_id_for(weapon_id: String, combo: int, is_kick: bool) -> String:
+	match weapon_id:
+		"fists":
+			return "kick" if is_kick else "punch_" + str(((combo - 1) % 3) + 1)
+		"shove_palm":
+			return "shove"
+		"bat":
+			return "bat_swing"
+		_:
+			return "weapon_swing"
+
+
 ## Fires from the player toward aim_dir. Returns true if a shot happened.
 func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	if not can_fire():
@@ -295,16 +312,23 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 					reach += 0.3
 				else:
 					dmg_base *= 1.5
-		ProtoFX.swing_arc(main.player, aim_dir, w["arc_deg"], reach)
-		if id == "fists" and main.player.has_method("punch"):
-			if beat_is_kick:
-				main.player.kick()
-			else:
-				main.player.punch(_combo)
-		elif id == "shove_palm" and main.player.has_method("punch"):
-			main.player.punch(0) # the palm reads as one straight hand
-		else:
-			main.player.swing()
+		# POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4): the melee READ is now a
+		# strikes.json key-pose row on the real joints — snap, not a floaty tween — and
+		# the white-plank arc is RETIRED (owner: "a little white line that sticks out of
+		# the character... I don't like that"). The swing reads on the arm + weapon mesh;
+		# fall back to the legacy tween only if the row id is unknown (never a freeze).
+		var strike_id := _strike_id_for(id, _combo, beat_is_kick)
+		var played: bool = main.player.has_method("play_strike") and main.player.play_strike(strike_id)
+		if not played:
+			if id == "fists" and main.player.has_method("punch"):
+				if beat_is_kick:
+					main.player.kick()
+				else:
+					main.player.punch(_combo)
+			elif id == "shove_palm" and main.player.has_method("punch"):
+				main.player.punch(0) # the palm reads as one straight hand
+			elif main.player.has_method("swing"):
+				main.player.swing()
 		main.player.lunge(aim_dir)
 		if "audio" in main and main.audio:
 			main.audio.play_at("whoosh", main.player.global_position, -8.0)

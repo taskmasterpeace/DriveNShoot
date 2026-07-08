@@ -27,6 +27,7 @@ var _px: float = 0.0
 var _lx: float = 0.0
 var _lx_max: float = -99999.0 ## shove tracking: max x seen while the target lived
 var _skull_ever: bool = false ## kill payoff seen at ANY point (never reset)
+var _melee_struck: bool = false ## ANIMATION_FIX_PACK §3.4: the pose-to-pose strike played during the melee phase
 
 
 func _ready() -> void:
@@ -92,6 +93,10 @@ func _physics_process(delta: float) -> void:
 	# Accumulate: juice is fast — count it the frame it exists.
 	for k in FX_KINDS:
 		_seen[k] = maxi(_seen.get(k, 0), get_tree().get_nodes_in_group(k).size())
+	# ANIMATION_FIX_PACK §3.4: the melee read is the pose-to-pose STRIKE now (no white
+	# plank) — catch it while it plays (the strike finishes before the phase check).
+	if phase == 1 and main.player and main.player.has_method("is_striking") and main.player.is_striking():
+		_melee_struck = true
 	if get_tree().get_nodes_in_group("fx_skull").size() > 0:
 		_skull_ever = true
 	if main.player and main.player.recoil_t > 0.0:
@@ -119,7 +124,12 @@ func _physics_process(delta: float) -> void:
 				_lx = _lurk.global_position.x
 				_click()
 			elif phase_t > 0.5:
-				_check("the SWING is visible (arc blade spawned)", _seen["fx_swing"] >= 1)
+				# ANIMATION_FIX_PACK §3.4 (D4): the white-plank arc is RETIRED — the swing
+				# reads on the BODY (the pose-to-pose strike whips the arm + weapon mesh),
+				# so NO fx_swing node spawns, and the strike played.
+				_check("no white-plank arc — the swing reads on the body (fx_swing %d == 0)" % _seen["fx_swing"],
+					_seen["fx_swing"] == 0)
+				_check("the melee STRIKE played (pose-to-pose, not the floating line)", _melee_struck)
 				_check("melee LUNGES you into it (%.2fm forward)" % (main.player.global_position.x - _px),
 					main.player.global_position.x - _px > 0.15)
 				_check("the hit bleeds (blood burst)", _seen["fx_blood"] >= 1)

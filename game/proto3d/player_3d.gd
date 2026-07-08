@@ -242,6 +242,18 @@ func kick() -> void:
 		puppet.kick()
 
 
+## POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4): play a strikes.json row on the
+## puppet, damage resolving on the CONTACT pose via contact_cb. Returns false on an
+## unknown id so weapon.gd can fall back to the legacy tween (punch/kick/swing).
+func play_strike(id: String, contact_cb: Callable = Callable()) -> bool:
+	return puppet.play_strike(id, contact_cb) if puppet else false
+
+
+## True while a pose-to-pose strike owns the rig (weapon.gd gates the aim/lunge on it).
+func is_striking() -> bool:
+	return puppet != null and puppet.is_striking()
+
+
 ## Melee commits: a short forward step INTO the swing (closes the last half-meter).
 func lunge(dir: Vector3) -> void:
 	var d := Vector3(dir.x, 0, dir.z)

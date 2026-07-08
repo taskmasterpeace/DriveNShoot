@@ -256,6 +256,12 @@ var crouch_target: float = 0.0
 var _crouch: float = 0.0
 var _swing_t: float = 0.0      ## >0 while a melee swing tween OWNS the shoulder
 var _kick_t: float = 0.0       ## >0 while a KICK tween owns the right hip
+## POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4, wiring note strike_player.gd:365):
+## the melee read is now a ProtoStrikePlayer driving strikes.json key-poses on the real
+## joints, not the old sine tween — snap not shrug, and damage lands on the CONTACT pose.
+## Advanced on animate()'s clock (set_process(false)) so headless sims step it too.
+var _strike: ProtoStrikePlayer = null
+var _strike_contact_cb: Callable = Callable() ## one-shot: fired on the contact pose, cleared on the next play (cancel-safe)
 ## Fallback held-weapon silhouette (a plain barrel) until a weapon sets its shape.
 const DEFAULT_WEAPON_PARTS: Array = [
 	{"size": Vector3(0.06, 0.06, 0.5), "pos": Vector3(0, 0, -0.16), "color": Color(0.16, 0.16, 0.18)},
@@ -463,6 +469,17 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# ABOVE the chest center from the REAL built geometry (never a literal), so a
 	# crouched/dead chest carries the shoulders down with it in animate().
 	p._sh_above_chest = p.free_arm.position.y - p._chest_rest_y
+
+	# POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4): the melee player. It drives the
+	# joint NAMES it's handed to their strikes.json key-poses; animate() advances it and
+	# lets its writes override for the strike's duration (is_striking()). set_process
+	# false — animate() steps it on its own delta (deterministic for headless sims).
+	p._strike = ProtoStrikePlayer.new()
+	p._strike.name = "StrikePlayer"
+	p._strike.set_process(false)
+	p.add_child(p._strike)
+	p._strike.setup(p._strike_joint_map(), Callable())
+	p._strike.contact.connect(p._on_strike_contact)
 	return p
 
 
@@ -780,6 +797,13 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# be. Fixes the crouch "shoulders don't go down with you" disconnect (D1).
 	_seat_shoulders()
 
+	# POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4): advance the strike LAST so its
+	# key-pose joint writes OVERRIDE this frame's locomotion/aim for the joints it owns
+	# (a partial pose — untouched joints keep their walk/aim values). One clock: the
+	# player advances on animate()'s delta, so a headless sim steps it identically.
+	if _strike != null and _strike.is_playing():
+		_strike._process(delta)
+
 
 ## THE SHOULDER LAW (ANIMATION_FIX_PACK §3.1): both arm roots ride the chest's LIVE
 ## height — down with a crouch/dead collapse (× the compressing scale.y), up with the
@@ -1081,15 +1105,65 @@ func kick() -> void:
 	tw.parallel().tween_property(torso, "rotation:x", 0.0, back_s).set_ease(Tween.EASE_IN_OUT)
 
 
-## True while the melee tween owns the arm (the caller keeps the yaw on the aim).
+## True while the melee tween OR the pose-to-pose strike owns the arm (the caller
+## keeps the yaw on the aim so the swing arc lands where you're pointing).
 func is_swinging() -> bool:
-	return _swing_t > 0.0
+	return _swing_t > 0.0 or is_striking()
 
 
 ## Should the arm YAW track the gaze this frame? Guns always (twin-stick pillar);
-## melee/unarmed only mid-swing — otherwise the arm relaxes home with the body.
+## melee/unarmed only mid-swing/mid-strike — else the arm relaxes home with the body.
 func arm_tracks_gaze() -> bool:
-	return _swing_t > 0.0 or (raised and gun.visible)
+	return _swing_t > 0.0 or is_striking() or (raised and gun.visible)
+
+
+# --- POSE-TO-POSE STRIKES (ANIMATION_FIX_PACK §3.4, wiring note strike_player.gd) -----
+
+## The joint NAMES a strike may drive -> the real puppet nodes. Mirrors
+## ProtoStrikePlayer.JOINT_AXIS (two names may share a node — e.g. torso_twist=Y,
+## torso_lean=X on `torso`). This is the ONLY place the puppet hands its internals to
+## the strike player; a row naming a joint absent here is skipped with a warning.
+func _strike_joint_map() -> Dictionary:
+	return {
+		"torso_twist": torso, "torso_lean": torso,
+		"shoulder_yaw": shoulder, "shoulder_pitch": shoulder,
+		"hip_kick": hip_r,
+		"elbow_r": elbow_r, "elbow_l": elbow_l,
+		"knee_r": knee_r, "knee_l": knee_l,
+		"head_yaw": neck, "head_pitch": neck,
+		"free_shoulder_yaw": free_arm, "free_shoulder_pitch": free_arm,
+		"wrist_r": hand, "wrist_l": hand_l,
+		"ankle_r": foot_r, "ankle_l": foot_l,
+		"hip_l_pitch": hip_l,
+		"waist_twist": waist, "waist_lean": waist,
+		"fingers_r": fingers_r, "fingers_l": fingers_l,
+	}
+
+
+## Play a strikes.json row by id. rebind_rest() first so the strike eases FROM the
+## body's live pose and back to it (no pop). contact_cb (optional) fires ONCE on the
+## contact pose — the caller passes its damage resolution here so the hit lands when
+## the arm is OUT, not at the click. Returns false if the row is unknown (caller falls
+## back to the legacy tween). Replacing the cb on a new play makes a canceled strike
+## drop its pending hit (never a stale fire on the next strike).
+func play_strike(id: String, contact_cb: Callable = Callable()) -> bool:
+	if _strike == null:
+		return false
+	_strike.rebind_rest()
+	_strike_contact_cb = contact_cb
+	return _strike.play(id)
+
+
+## True while a strike is mid-play (ownership gate, mirrors is_swinging's old _swing_t).
+func is_striking() -> bool:
+	return _strike != null and _strike.is_playing()
+
+
+## Fired by the strike player on its CONTACT pose — run the pending hit exactly once.
+func _on_strike_contact() -> void:
+	if _strike_contact_cb.is_valid():
+		_strike_contact_cb.call()
+	_strike_contact_cb = Callable()
 
 
 ## World-space muzzle tip — rounds LEAVE THE GUN barrel. The tip distance is the
