@@ -69,7 +69,7 @@ static var MOTION: Dictionary = {
 		# reads fine — interpenetration alone doesn't shimmer, NEAR-COPLANAR faces do).
 		# Instead every pose must stay OUT of the shallow "kiss zone": either clearly
 		# separated or deep-stable (>0.05m overlap). Three levers, all ROWS:
-		"hip_fold_max": 0.40,     # was a hardcoded 0.55 inline — trimmed + promoted to a row
+		"hip_fold_max": 0.70,     # ANIMATION_FIX_PACK §4.1: deepened 0.40->0.70 so the crouch FOLDS (feet plant at the full pelvis drop) instead of sinking the leg tree through the floor
 		"hip_drop_frac": 0.50,    # the hip JOINT sinks this fraction of the torso's own drop
 		"hip_joint_gap": 0.03,    # small fixed clearance between the joint and the hip box's rest attach
 		"torso_scale_min": 0.81,  # torso compresses (scale.y) toward this at full crouch — the spine curls
@@ -78,7 +78,7 @@ static var MOTION: Dictionary = {
 		"knee_follow": 0.55,      # knee bends this fraction of the stride's lift
 		"knee_phase": 0.45,       # rad ahead of the hip — the calf trails the thigh
 		"knee_rest": 0.06,        # a hair of standing bend (locked knees read robotic)
-		"crouch_knee": 0.55,      # extra knee coil at full crouch — the low silhouette
+		"crouch_knee": 1.30,      # ANIMATION_FIX_PACK §4.1: deepened 0.55->1.30 so the knees coil enough to LIFT the feet to the planted crouch depth (the deep bend also re-opens the torso/thigh no-kiss gap)
 		"elbow_follow": 0.35,     # elbow bends this fraction of the arm's swing
 		"elbow_rest": 0.14,       # arms never hang truly straight
 		# TORSO TWIST (owner 2026-07-08: "it turns like a DOORKNOB, not like a
@@ -648,7 +648,19 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	#  2) the torso itself COMPRESSES (scale.y) toward a hunkered, coiled spine — this
 	#     also directly shrinks the torso's own reach toward the hips
 	#  3) a small fixed clearance between each hip joint and its box's rest attach
+	# GROUND LAW (ANIMATION_FIX_PACK §3.2, D2): the pelvis sinks for the crouch, but the
+	# feet must stay PLANTED. Sink legs_pivot by the pelvis-drop target, then — crouch
+	# only — if the deepest sole would punch through the floor, LIFT the whole leg tree
+	# back exactly enough to plant it at y=0. The retuned knee coil (crouch_knee) lifts
+	# the feet enough that at full crouch this correction is ~0, so the no-kiss geometry
+	# is the same tuned drop as before — just with boots on the dirt, not under it.
 	legs_pivot.position.y = -float(mg["hip_drop_frac"]) * drop
+	if _crouch > 0.001:
+		# Plant the lowest sole EXACTLY at y=0. The retuned knee coil (crouch_knee)
+		# lifts the feet enough that this barely nudges legs_pivot, so the tuned no-kiss
+		# drop (pelvis low, away from the torso) is preserved — boots on the dirt, not
+		# under it (D2) and not floating.
+		legs_pivot.position.y -= _lowest_sole_y()
 	var torso_scale_min: float = float(mg["torso_scale_min"])
 	torso.scale.y = 1.0 - (1.0 - torso_scale_min) * _crouch
 	var hip_gap: float = float(mg["hip_joint_gap"]) * _crouch
@@ -723,6 +735,27 @@ func _seat_shoulders() -> void:
 	var sh_y: float = torso.position.y + _sh_above_chest * torso.scale.y
 	free_arm.position.y = sh_y
 	shoulder.position.y = sh_y
+
+
+## GROUND LAW (ANIMATION_FIX_PACK §3.2): the lowest foot-sole Y in the puppet's OWN
+## root-local frame, read off the LIVE transforms (scale-corrected via the root inverse)
+## so the crouch plant can guarantee the soles never punch through the floor (D2: owner
+## "when you crouch it goes through the ground"). Cheap — two boxes, crouch only.
+func _lowest_sole_y() -> float:
+	if foot_l == null or foot_r == null:
+		return 0.0
+	var inv := global_transform.affine_inverse()
+	var lo := 1000.0
+	for ft in [foot_l, foot_r]:
+		if ft.get_child_count() == 0:
+			continue
+		var box := ft.get_child(0) as MeshInstance3D # the foot box (added before the connector)
+		if box == null or not (box.mesh is BoxMesh):
+			continue
+		var half_h: float = (box.mesh as BoxMesh).size.y * 0.5
+		var sole_world: Vector3 = box.global_transform * Vector3(0.0, -half_h, 0.0)
+		lo = minf(lo, (inv * sole_world).y)
+	return lo
 
 
 ## RIG V2 PHASE 2 (PUPPET_RIG_V2.md §3 + Formulas): the 2-BONE IK. An elbow is a

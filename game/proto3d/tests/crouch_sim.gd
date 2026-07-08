@@ -145,6 +145,16 @@ func _ready() -> void:
 	_check("full crouch: the shoulders actually SANK from the standing 1.40 (y %.3f < 1.20)" % pup.shoulder.position.y,
 		pup.shoulder.position.y < 1.20)
 
+	# --- 2d. THE GROUND LAW (ANIMATION_FIX_PACK §3.2, defect D2: owner "when you crouch
+	# it goes through the ground"). The old code sank the whole leg tree ~0.17m, putting
+	# the SOLES under the floor. Now the crouch is a fold that keeps the boots planted:
+	# the lowest sole (read off the live transforms, root-local) never dips below 0.
+	var stand_sole: float = pup._lowest_sole_y()
+	print("CROUCH: diag full-crouch sole=%.3f legs_pivot=%.3f torso.y=%.3f" %
+		[stand_sole, pup.legs_pivot.position.y, pup.torso.position.y])
+	_check("full crouch: the soles stay PLANTED, not through the floor (lowest sole %.3f >= -0.02)" % stand_sole,
+		stand_sole >= -0.02)
+
 	# --- 3. Release = stand back up -------------------------------------------
 	_key(KEY_CTRL, false)
 	for _i in 8:
