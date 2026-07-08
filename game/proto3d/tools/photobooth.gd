@@ -77,9 +77,9 @@ func _ready() -> void:
 ## it.) Renders the UNARMED idle (the "no gun in hand" state) and the pistol hold
 ## from the real game angle, into one before/after strip.
 func _game_view() -> void:
-	# ~50° pitch, behind (+Z) and above — the on-foot rig's angle, framed TIGHT
-	# on the body so the silhouette reads the way the player judges it.
-	_cam.position = Vector3(0.0, 2.75, 1.65)
+	# ~41° pitch, behind (+Z) and above — MATCHES the on-foot rig (camera_rig.gd:
+	# back = height * 1.15 → atan2(1,1.15) ≈ 41°), framed tight on the body.
+	_cam.position = Vector3(0.0, 2.45, 2.05)
 	_cam.look_at(Vector3(0.0, 0.92, 0.0), Vector3.UP)
 	var poses: Array = [
 		{"id": "", "label": "unarmed", "aim": false},

@@ -79,10 +79,12 @@ func _desired_position() -> Vector3:
 	# vertical (look_at degenerates) and close zoom gets a GTA-modern tilt.
 	var back := lerpf(7.0, 4.5, zoom_t)
 	if on_foot:
-		# ~50° pitch at EVERY zoom (back scales with height): buildings get faces,
-		# the puppet gets a silhouette, grass stops reading as a tile sheet.
+		# ~41° pitch (owner 2026-07-08: flatten toward the behind-the-back 3/4 look —
+		# more of the body reads, the puppet stops looking squat from straight above).
+		# back scales with height so the angle holds at every zoom; buildings get
+		# faces, the puppet gets a real silhouette, grass stops reading as tiles.
 		height = lerpf(7.0, 34.0, zoom_t)
-		back = maxf(6.0, height * 0.82)
+		back = maxf(6.0, height * 1.15)
 	var base := target.global_position + Vector3(0, height, back)
 	# Binoculars: the camera itself drifts partway toward where you're glassing,
 	# so the view genuinely travels downrange while staying top-down.

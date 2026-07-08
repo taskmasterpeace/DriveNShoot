@@ -253,6 +253,15 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# --- Torso -------------------------------------------------------------
 	p.torso = _box(tsz, Vector3(0, 1.05, 0), cloth)
 	p.add_child(p.torso)
+	# BEVELED SHOULDERS (owner 2026-07-08: "look at these SHAPES" — image 1's sloped
+	# shoulder line): an angled pad each side, sloping from the neck down toward the
+	# arm, so the torso top reads as shoulders instead of a flat plank. Children of
+	# the torso, so they ride its lean + doorknob twist as one piece. Torso-local:
+	# center 1.05, so y here is meters above the torso center.
+	for sh_side in [-1.0, 1.0]:
+		var shoulder_pad := _box(Vector3(0.26, 0.13, tsz.z), Vector3(sh_side * 0.15, tsz.y * 0.5 - 0.05, 0), cloth)
+		shoulder_pad.rotation.z = -sh_side * 0.42 # the OUTER edge dips toward the arm
+		p.torso.add_child(shoulder_pad)
 
 	# --- Neck + head (+ eyes, optional patch, optional hat) ----------------
 	p.neck = Node3D.new()
