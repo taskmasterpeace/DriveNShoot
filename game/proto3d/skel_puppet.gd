@@ -45,10 +45,19 @@ var _swing_t: float = 0.0
 
 static func create(_appearance: Dictionary = {}) -> ProtoSkelPuppet:
 	var p := ProtoSkelPuppet.new()
+	# FACING FIX (owner: "facing the wrong way than the mouse"): Rx(-90) stands the
+	# Z-up model but leaves its front at +Z (backward). Put it under an ORIENT node
+	# turned 180° about Y so the front faces -Z (Godot forward) and body_yaw aims it
+	# AT the mouse. The 180° lives on a PARENT node — it never touches bone poses
+	# (a combined basis on the body itself corrupted the arms).
+	var orient := Node3D.new()
+	orient.name = "Orient"
+	orient.rotation.y = PI
+	p.add_child(orient)
 	var body := (load(GLB) as PackedScene).instantiate()
 	body.name = "Body"
-	body.rotation = Vector3(deg_to_rad(-90.0), 0.0, 0.0) # authored Z-up → Godot Y-up
-	p.add_child(body)
+	body.rotation = Vector3(deg_to_rad(-90.0), 0.0, 0.0)
+	orient.add_child(body)
 	p.skel = p._find_skel(body)
 	if p.skel != null:
 		for i in p.skel.get_bone_count():
@@ -102,44 +111,34 @@ func animate(delta: float, speed: float, _turn_rate: float, armed: bool, _hurt: 
 		_pose_add("Spine_02", Vector3(1, 0, 0), sin(_t * 1.8) * 0.015)
 
 
-## Neutral standing: both arms hang at the sides (+ a little walk swing).
-func _idle_pose(speed: float = 0.0) -> void:
-	var moving := speed > 0.15
-	if moving:
-		_phase += 0.016 * (6.0 + speed * 0.4)
-	var sw := (sin(_phase) if moving else 0.0) * clampf(0.15 + speed * 0.04, 0.0, 0.5)
-	# arms hang (about Z) and swing fore/aft (about Y) with the gait
-	_bpose("R_Shoulder", Basis(Vector3(0, 0, 1), -ARM_DOWN) * Basis(Vector3(0, 1, 0), sw))
-	_bpose("L_Shoulder", Basis(Vector3(0, 0, 1), ARM_DOWN) * Basis(Vector3(0, 1, 0), -sw))
-	# legs stride (hips fore/aft about Y; a light knee bend on the forward leg)
-	_bpose("R_Hip", Basis(Vector3(0, 1, 0), sw * 1.1))
-	_bpose("L_Hip", Basis(Vector3(0, 1, 0), -sw * 1.1))
-	_bpose("R_Knee", Basis(Vector3(0, 1, 0), maxf(0.0, sw) * 1.2))
-	_bpose("L_Knee", Basis(Vector3(0, 1, 0), maxf(0.0, -sw) * 1.2))
-
-
-## Aim: the RIGHT arm comes forward and level; the gaze yaw (aim_arm.rotation.y)
-## swings the whole arm about the body so the gun points where you aim.
-func _aim_pose() -> void:
-	var yaw := aim_arm.rotation.y if aim_arm != null else 0.0
-	# Shoulder: down (Z) then forward (Y) to bring the arm to a horizontal point,
-	# then the gaze yaw carries it around.
-	_bpose("R_Shoulder", Basis(Vector3(0, 1, 0), yaw) * Basis(Vector3(0, 0, 1), -1.35) * Basis(Vector3(0, 1, 0), 1.35))
-	_bpose("R_Elbow", Basis(Vector3(0, 1, 0), 0.15))
-	_bpose("L_Shoulder", Basis(Vector3(0, 0, 1), ARM_DOWN))
+## HOLDING STATE (2026-07-08): the procedural walk/aim looked broken (splayed
+## feet, steering-wheel arms) — until real animation CLIPS land, just stand
+## CLEAN: arms at the sides, legs straight, a faint breath. Facing is the root's
+## job (body_yaw), so it points at the mouse. No flailing.
+func _idle_pose(_speed: float = 0.0) -> void:
+	# With the facing flip, arms hang DOWN about the Y axis (solved by pose_probe).
+	_bpose("R_Shoulder", Basis(Vector3(0, 1, 0), 2.0))
+	_bpose("L_Shoulder", Basis(Vector3(0, 1, 0), -2.0))
+	_bpose("R_Elbow", Basis())
 	_bpose("R_Hip", Basis()); _bpose("L_Hip", Basis())
 	_bpose("R_Knee", Basis()); _bpose("L_Knee", Basis())
+
+
+## Aiming a gun: for now, the same clean stand (a proper aim CLIP replaces this).
+## The body already faces the mouse; a broken arm-extend read worse than calm.
+func _aim_pose() -> void:
+	_idle_pose()
 
 
 ## GLASSING (owner 2026-07-08): the right hand comes to the face like holding
 ## binoculars — a silhouette other players read instantly. Upper arm raises
 ## forward-up, the elbow folds hard so the hand lands at the eyes.
 func _binocular_pose() -> void:
-	# Solved for hand-at-face (pose_probe): upper arm forward + up + across the
-	# body, elbow folded hard — the hand lands ~0.33 m from the head (the eyes).
-	_bpose("R_Shoulder", Basis(Vector3(1, 0, 0), -1.8) * Basis(Vector3(0, 1, 0), 0.5) * Basis(Vector3(0, 0, 1), 0.6))
-	_bpose("R_Elbow", Basis(Vector3(0, 1, 0), 2.8))
-	_bpose("L_Shoulder", Basis(Vector3(0, 0, 1), ARM_DOWN)) # off hand stays down (a one-hand read)
+	# Solved for hand-at-face WITH the facing flip (pose_probe): the hand lands
+	# ~0.07 m from the head — right at the eyes.
+	_bpose("R_Shoulder", Basis(Vector3(1, 0, 0), -0.5) * Basis(Vector3(0, 1, 0), 2.0) * Basis(Vector3(0, 0, 1), -2.0))
+	_bpose("R_Elbow", Basis(Vector3(0, 1, 0), 2.2))
+	_bpose("L_Shoulder", Basis(Vector3(0, 1, 0), -2.0)) # off hand hangs (flip-correct arms-down)
 	_bpose("R_Hip", Basis()); _bpose("L_Hip", Basis())
 	_bpose("R_Knee", Basis()); _bpose("L_Knee", Basis())
 

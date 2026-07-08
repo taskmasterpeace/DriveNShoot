@@ -32,7 +32,7 @@ func _ready() -> void:
 	for _f in 4:
 		await get_tree().process_frame
 	# Run the animated BINOCULAR pose (owner vision goal) so we can see the glassing read.
-	p.binoculars = true
+	p.binoculars = false
 	for _f in 40:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame
