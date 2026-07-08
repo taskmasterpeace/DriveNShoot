@@ -217,6 +217,32 @@ func _ready() -> void:
 	_advance(sp5, int(ceil((_row_duration_ms("weapon_swing") / 1000.0) / (1.0 / 60.0))) + 10)
 	_check("weapon_swing visits all 4 poses in order", swing_reached == [0, 1, 2, 3])
 
+	# --- THE BASEBALL BAT SWING (ANIMATION_FIX_PACK §3.6, the goal's named ask): a
+	# 4-pose load -> contact -> follow-through -> settle, one contact, under the bat's
+	# 0.6s cooldown, driving both hands (fingers curl) and the whole coil (waist twist).
+	_check("bat_swing folds from strikes.json", ProtoStrikePlayer.STRIKES.has("bat_swing"))
+	var bat_row: Dictionary = ProtoStrikePlayer.STRIKES["bat_swing"]
+	_check("bat_swing authored with 4 poses (load/contact/follow/settle)", (bat_row["poses"] as Array).size() == 4)
+	var bat_dur: float = _row_duration_ms("bat_swing")
+	_check("bat_swing plays end-to-end under 650ms (%.0fms)" % bat_dur, bat_dur <= 650.0)
+	var sp6 := ProtoStrikePlayer.new()
+	add_child(sp6)
+	sp6.setup(joints, skill_check)
+	var bat_reached: Array = []
+	var bat_contacts := {"n": 0}
+	sp6.pose_reached.connect(func(i: int) -> void: bat_reached.append(i))
+	sp6.contact.connect(func() -> void: bat_contacts["n"] += 1)
+	_check("play(bat_swing) starts", sp6.play("bat_swing"))
+	_advance(sp6, int(ceil((bat_dur / 1000.0) / (1.0 / 60.0))) + 12)
+	_check("bat_swing visits all 4 poses in order", bat_reached == [0, 1, 2, 3])
+	_check("bat_swing fires CONTACT exactly once (%d)" % int(bat_contacts["n"]), int(bat_contacts["n"]) == 1)
+	# The coil is REAL — the load winds the waist/torso away, the contact whips them through.
+	_check("bat_swing coils the waist then uncoils it (load %.2f -> contact %.2f, sign flips)" %
+		[float((bat_row["poses"][0]["joints"] as Dictionary)["waist_twist"]),
+		float((bat_row["poses"][1]["joints"] as Dictionary)["waist_twist"])],
+		signf(float((bat_row["poses"][0]["joints"] as Dictionary)["waist_twist"]))
+		!= signf(float((bat_row["poses"][1]["joints"] as Dictionary)["waist_twist"])))
+
 	print("STRIKE RESULTS: %d passed, %d failed" % [passed, failed])
 	print("STRIKE: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	Engine.time_scale = _prior_time_scale
