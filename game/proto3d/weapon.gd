@@ -34,13 +34,18 @@ const WEAPONS: Dictionary = {
 		# RIG V2 grips (gun-mesh-local): grip_r seats the stock behind the trigger
 		# palm; grip_l is the forend point the free hand 2-bone-IK plants on.
 		"hand_pose": {"offset": Vector3(-0.08, 0.16, -0.06), "two_handed": true,
-			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, 0.0)}}, # both hands, at the shoulder
+			# ANIMATION_FIX_PACK §3.5.2 (D5): grip_l moved ONTO the pump (SHAPES pump sits
+			# at z ~-0.22) — the old (0,-0.02,0.0) sat INSIDE the trigger hand, so the IK
+			# planted the support hand on top of the gun hand ("both arms same shoulder").
+			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, -0.20)}}, # support hand on the FOREND
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
 		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
 		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
-			"grip_l": Vector3(0.0, -0.05, -0.12)}}, # hoisted ONTO the shoulder, free hand steadies the tube
+			# ANIMATION_FIX_PACK §3.5.2 (D5): support hand UNDER the tube, ahead of the
+			# shoulder (the tube spans z -0.5..0.14) — was -0.12 (barely off the trigger hand).
+			"grip_l": Vector3(0.0, -0.12, -0.30)}}, # free hand steadies the tube forward
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,

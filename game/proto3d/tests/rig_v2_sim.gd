@@ -122,19 +122,28 @@ func _ready() -> void:
 	for _i in 90:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
 
-	# === 6. THE TWO-HAND FORE-GRIP (the shotgun fix) ==============================
+	# === 6. THE TWO-HAND FORE-GRIP (ANIMATION_FIX_PACK §3.5, D5: "both arms go to the
+	# same shoulder"). The old rig TELEPORTED the support shoulder to the gun side (+0.12)
+	# so both arms grew from one socket. Now the support shoulder stays ANATOMICAL and the
+	# free hand reaches the fore-grip by ROTATION (blade + IK, proven in grip_ik_sim). This
+	# 2-arg call has no grip row, so it takes the legacy POSED hold — either way the
+	# shoulders must be two distinct sockets. ===================================
 	var shotgun_pose: Dictionary = ProtoWeapon.WEAPONS["shotgun"]["hand_pose"]
 	p.set_hand_pose(shotgun_pose["offset"], bool(shotgun_pose["two_handed"]))
 	p.set_armed(true)
 	p.raised = true
-	_check("two_handed pulls the free-arm SHOULDER across toward the gun side (x=%.2f)" % p.free_arm.position.x,
-		is_equal_approx(p.free_arm.position.x, 0.12))
+	_check("two_handed keeps the support shoulder ANATOMICAL, NOT teleported to the gun side (x=%.2f ~ -sh_x)" % p.free_arm.position.x,
+		is_equal_approx(p.free_arm.position.x, -p._sh_x))
+	_check("the two shoulders are DISTINCT sockets (support %.2f vs gun %.2f, > 0.4 apart)" % [p.free_arm.position.x, p.shoulder.position.x],
+		absf(p.free_arm.position.x - p.shoulder.position.x) > 0.4)
 	for _i in 90:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 	_check("the free arm RAISES onto the fore-grip (%.2f rad, wants ~+1.05 — forward)" % p.free_arm.rotation.x,
 		p.free_arm.rotation.x > 0.9)
 	_check("the free elbow CLOSES the hold (%.2f rad, wants ~+0.42)" % p.elbow_l.rotation.x,
 		absf(p.elbow_l.rotation.x - 0.42) < 0.12)
+	_check("...and the support shoulder is STILL anatomical after the hold settles (x=%.2f)" % p.free_arm.position.x,
+		is_equal_approx(p.free_arm.position.x, -p._sh_x))
 	var pistol_pose: Dictionary = ProtoWeapon.WEAPONS["pistol"]["hand_pose"]
 	p.set_hand_pose(pistol_pose["offset"], bool(pistol_pose["two_handed"]))
 	_check("a one-hand row returns the free arm home (x=%.2f, the build-scaled shoulder)" % p.free_arm.position.x,

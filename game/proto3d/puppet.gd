@@ -236,6 +236,12 @@ const FREE_FORE_LEN: float = 0.28
 ## Leg length hip→sole (thigh 0.42 + calf 0.38 + foot ≈ 0.10), the anti-skate stride
 ## solve's L (ANIMATION_FIX_PACK §4.2): step length = 2·leg_eff·L·sin(amplitude).
 const LEG_LEN: float = 0.90
+## Two-hand hold blade (ANIMATION_FIX_PACK §3.5): while gripping a longarm two-handed,
+## the SUPPORT shoulder blades FORWARD (toward -Z) and a touch inward so the free hand
+## can actually reach the fore-grip from the anatomical left shoulder (~0.72m away raw,
+## beyond the 0.58m arm) — the geometry that makes a real two-hand stance, not a reach
+## across the body. Position blade, not a chest yaw (which would rotate with the aim).
+const BLADE_MAX: float = 0.35 ## how far the support shoulder may lean toward the grip (a real blade, not a detached slide — beyond this the hand honestly can't reach and the IK clamps straight)
 ## Carried-weapon tilt: the hand rolls so a carried wrench lies along the leg.
 const HAND_CARRY: float = -0.6
 ## THE HANDS (owner: "the opening and closing of the hands"): the fingers block
@@ -627,6 +633,29 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 				free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
 				free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
 			else:
+				# ANIMATION_FIX_PACK §3.5 (D5): BLADE the support shoulder toward the GRIP
+				# so the free hand can REACH it (from the anatomical left shoulder the forend
+				# is ~0.72m > the 0.58m arm). Slide the shoulder in x/z along the line to the
+				# LIVE grip until it sits a comfortable bent-elbow reach away — so the hand
+				# plants with a bent elbow AND tracks a twin-stick turn (the grip target is
+				# the aim chain). Height stays the shoulder law's; the gun aim is untouched.
+				var bk := clampf(10.0 * delta, 0.0, 1.0)
+				var grip_t := _foregrip_target()
+				var reach := FREE_UPPER_LEN + FREE_FORE_LEN
+				var dy: float = grip_t.y - free_arm.position.y
+				var h_want: float = sqrt(maxf(0.04, reach * reach * 0.72 - dy * dy)) # ~0.85·reach in 3D
+				var anat_x: float = -_sh_x * handed_sign
+				var flat := Vector2(grip_t.x - anat_x, grip_t.z) # from anatomical shoulder to grip, in x/z
+				var bx := anat_x
+				var bz := 0.0
+				if flat.length() > h_want:
+					# Cap the lean: a shoulder blades, it doesn't detach and chase a grip
+					# across the room (an absurd/unreachable grip must still clamp straight).
+					var move: Vector2 = flat.normalized() * minf(flat.length() - h_want, BLADE_MAX)
+					bx = anat_x + move.x
+					bz = move.y
+				free_arm.position.x = lerpf(free_arm.position.x, bx, bk)
+				free_arm.position.z = lerpf(free_arm.position.z, bz, bk)
 				# RIG V2 PHASE 2: the free hand PLANTS on the weapon's grip point —
 				# closed-form 2-bone IK, tracking the live aim chain every frame.
 				_solve_foregrip_ik(delta)
@@ -639,9 +668,12 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 			# forward carry. Clamped >= 0 — a one-way hinge only folds forward.
 			var arm_lock: float = smoothstep(0.55, 0.9, run_blend)
 			elbow_l.rotation.x = maxf(0.0, lerpf(er + ef * maxf(0.0, free_arm.rotation.x), float(mg["elbow_pump"]), arm_lock))
-			# Any IK residue on the off axes relaxes home (one-hand rows swing FREE).
+			# Any IK residue on the off axes relaxes home (one-hand rows swing FREE); the
+			# support-shoulder BLADE (two-hand only) also relaxes back to the anatomical rest.
 			free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.0, 6.0 * delta)
 			free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
+			free_arm.position.x = lerpf(free_arm.position.x, -_sh_x * handed_sign, clampf(8.0 * delta, 0.0, 1.0))
+			free_arm.position.z = lerpf(free_arm.position.z, 0.0, clampf(8.0 * delta, 0.0, 1.0))
 
 	# AIM ARM — its YAW is set by the caller (points at the gaze). The SHOULDER
 	# does the vertical, pivoting at the joint: a raised gun holds level with a
@@ -846,11 +878,18 @@ func _lowest_sole_y() -> float:
 ## chain (aim_arm→shoulder→elbow→hand→gun), so the hold tracks the twin-stick yaw
 ## for free. A target beyond reach clamps to full extension (never NaN, never a
 ## stretched limb); the writes lerp so the hand SETTLES onto the grip, no pop.
+## The fore-grip point in puppet-ROOT-local space, composed down the LIVE aim chain
+## (aim_arm→shoulder→elbow→hand→gun). Shared by the support-shoulder blade (§3.5) and
+## the 2-bone IK so both aim at the exact same target. x mirrored for left-handers.
+func _foregrip_target() -> Vector3:
+	var grip_local := Vector3(_grip_l.x * handed_sign, _grip_l.y, _grip_l.z)
+	return aim_arm.transform * (shoulder.transform * (elbow_r.transform
+		* (hand.transform * (gun.transform * grip_local))))
+
+
 func _solve_foregrip_ik(delta: float) -> void:
 	# The grip point, gun-local -> puppet-root-local (x mirrored for left-handers).
-	var grip_local := Vector3(_grip_l.x * handed_sign, _grip_l.y, _grip_l.z)
-	var target: Vector3 = aim_arm.transform * (shoulder.transform * (elbow_r.transform
-		* (hand.transform * (gun.transform * grip_local))))
+	var target: Vector3 = _foregrip_target()
 	var s := free_arm.position
 	var v := target - s
 	var a := FREE_UPPER_LEN
@@ -1004,12 +1043,13 @@ func set_hand_pose(offset: Vector3, two_handed: bool, grip_l: Vector3 = Vector3.
 	_gun_seat = Vector3(-grip_r.x * handed_sign, -grip_r.y, -grip_r.z)
 	gun.position = _gun_seat
 	hand.position = _gun_rest + Vector3(offset.x * handed_sign, offset.y, offset.z)
-	# Two-handed longarms bring the free hand across to the fore-grip (RIG V2: animate()
-	# then RAISES that arm onto the gun — reach + elbow, a hold the old rig couldn't make).
-	if two_handed:
-		free_arm.position.x = 0.12 * handed_sign
-	else:
-		free_arm.position.x = -_sh_x * handed_sign # home = the build-scaled shoulder
+	# ANIMATION_FIX_PACK §3.5.1 (D5, the "both arms grow from one shoulder" bug): an arm
+	# root's lateral home is ANATOMY, never a prop mount. The old code TELEPORTED the free
+	# shoulder to +0.12 (the gun side) for two-handers — so the support arm literally grew
+	# out of the trigger-side chest. Both hands reach a two-hand hold with ROTATION now
+	# (animate() blades the free shoulder FORWARD toward the fore-grip and the 2-bone IK
+	# plants the hand on it). Seat both arm roots where they belong.
+	free_arm.position.x = -_sh_x * handed_sign
 
 
 # --- Held-weapon feel (delegated by the player) -----------------------------

@@ -47,6 +47,19 @@ func _ready() -> void:
 	_check("the pipe rocket row carries a grip_l too",
 		(ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"] as Dictionary).has("grip_l"))
 	_check("the pistol row does NOT (one hand, unchanged)", not pistol_pose.has("grip_l"))
+	# ANIMATION_FIX_PACK §3.5.2 DATA GUARD (D5): EVERY two-hand GUN must carry a NONZERO
+	# grip_l — a zero grip silently drops the support hand to the legacy posed hold (the
+	# "both arms grow from one shoulder" look the owner flagged). Melee two-handers
+	# (bat/axe) carry low with no fore-grip, so they're exempt.
+	for wid in ProtoWeapon.WEAPONS:
+		var w: Dictionary = ProtoWeapon.WEAPONS[wid]
+		var hp: Dictionary = w.get("hand_pose", {})
+		var is_gun: bool = int(w.get("behavior", -1)) in [
+			int(ProtoWeapon.Behavior.HITSCAN), int(ProtoWeapon.Behavior.HITSCAN_MULTI), int(ProtoWeapon.Behavior.PROJECTILE)]
+		if is_gun and bool(hp.get("two_handed", false)):
+			var g: Vector3 = hp.get("grip_l", Vector3.ZERO)
+			_check("two-hand gun '%s' carries a NONZERO grip_l %s (no silent one-shoulder hold)" % [wid, g],
+				not g.is_zero_approx())
 
 	var p := ProtoPuppet.create({})
 	add_child(p)
