@@ -95,15 +95,18 @@ func _ready() -> void:
 	p.set_hand_pose(pistol_pose["offset"], false)
 	_settle(p, 90)
 	_check("a one-hand row returns the free arm home (x=%.2f)" % p.free_arm.position.x,
-		is_equal_approx(p.free_arm.position.x, -0.29))
+		is_equal_approx(p.free_arm.position.x, -p._sh_x))
 	_check("one-hand: the free arm swings free again (no IK residue on yaw/roll: %.3f/%.3f)" %
 		[p.free_arm.rotation.y, p.free_arm.rotation.z],
 		absf(p.free_arm.rotation.y) < 0.15 and absf(p.free_arm.rotation.z) < 0.15)
 	p.set_hand_pose(shotgun_pose["offset"], true) # 2-arg legacy call — no grip handed over
 	_settle(p, 120)
+	# SIGN LAW (022a3d1): the posed fore-grip RAISES the free arm FORWARD (+, toward -Z)
+	# and closes the elbow — puppet.gd:560-561 lerp to 1.05 / 0.42. (This check was left
+	# on the pre-sign-law negative values when the mannequin rig landed — fixed here.)
 	_check("a two-hander WITHOUT a grip still takes the legacy posed hold (arm %.2f, elbow %.2f)" %
 		[p.free_arm.rotation.x, p.elbow_l.rotation.x],
-		p.free_arm.rotation.x < -1.0 and absf(p.elbow_l.rotation.x - (-0.42)) < 0.12)
+		p.free_arm.rotation.x > 0.9 and absf(p.elbow_l.rotation.x - 0.42) < 0.12)
 
 	# === 6. grip_r: the gun can sit IN the hand by its own grip point ==============
 	var grip_r: Vector3 = shotgun_pose.get("grip_r", Vector3.ZERO)

@@ -132,6 +132,19 @@ func _ready() -> void:
 	_check("full crouch: torso/hip_r stay OUT of the kiss zone (y_gap %.4f, footprint x∩%.3f z∩%.3f)"
 		% [vs_r["y_gap"], vs_r["x_overlap"], vs_r["z_overlap"]], vs_r["safe"])
 
+	# --- 2c. THE SHOULDER LAW (ANIMATION_FIX_PACK §3.1, defect D1: owner "the shoulders
+	# don't go down with you… don't connect"). Before the fix the arm roots were pinned
+	# at the standing 1.40 while the chest dropped to ~0.94 — the shoulders floated above
+	# the tucked head. Now both roots ride the LIVE chest height every frame.
+	var sh_expect: float = pup.torso.position.y + pup._sh_above_chest * pup.torso.scale.y
+	_check("full crouch: the GUN shoulder rides the chest (y %.3f, chest+%.3f)" %
+		[pup.shoulder.position.y, pup._sh_above_chest * pup.torso.scale.y],
+		absf(pup.shoulder.position.y - sh_expect) < 0.002)
+	_check("full crouch: the FREE shoulder rides the chest too (y %.3f)" % pup.free_arm.position.y,
+		absf(pup.free_arm.position.y - sh_expect) < 0.002)
+	_check("full crouch: the shoulders actually SANK from the standing 1.40 (y %.3f < 1.20)" % pup.shoulder.position.y,
+		pup.shoulder.position.y < 1.20)
+
 	# --- 3. Release = stand back up -------------------------------------------
 	_key(KEY_CTRL, false)
 	for _i in 8:

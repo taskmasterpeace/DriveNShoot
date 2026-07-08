@@ -159,6 +159,10 @@ var _chest_rest_y: float = 1.28
 var _waist_rest_y: float = 1.00
 var _neck_rest_y: float = 1.42
 var _sh_x: float = 0.275     ## shoulder lateral offset (build-scaled at create)
+## ANIMATION_FIX_PACK §3.1 (THE SHOULDER LAW): how far the arm roots rest ABOVE the
+## chest center, captured at create() so animate() can ride the shoulders DOWN with a
+## crouching/dead chest instead of leaving them floating at the standing height (D1).
+var _sh_above_chest: float = 0.12
 var legs_pivot: Node3D   ## the caller yaws this for feet-vs-body (old "_lower"); ALSO the crouch drop joint
 var hip_l: Node3D
 var hip_r: Node3D
@@ -433,6 +437,11 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	_joint_ball(p.knee_r, 0.13 * lm, pants)
 	_joint_ball(p.foot_l, 0.105 * lm, boot)     # ankle hinges (the riser blocks)
 	_joint_ball(p.foot_r, 0.105 * lm, boot)
+
+	# ANIMATION_FIX_PACK §3.1 (THE SHOULDER LAW): capture how far the arm roots rest
+	# ABOVE the chest center from the REAL built geometry (never a literal), so a
+	# crouched/dead chest carries the shoulders down with it in animate().
+	p._sh_above_chest = p.free_arm.position.y - p._chest_rest_y
 	return p
 
 
@@ -695,6 +704,26 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		torso.rotation.x += _recoil_torso_x # the blast rocks the whole body back
 		neck.rotation.x += _recoil_torso_x * 0.5
 
+	# THE SHOULDER LAW (ANIMATION_FIX_PACK §3.1): LAST write — seat the arm roots on the
+	# chest AFTER everything else the frame moved (breath, step bob, crouch drop, lean,
+	# flinch, recoil), so the shoulders can never float where the standing chest used to
+	# be. Fixes the crouch "shoulders don't go down with you" disconnect (D1).
+	_seat_shoulders()
+
+
+## THE SHOULDER LAW (ANIMATION_FIX_PACK §3.1): both arm roots ride the chest's LIVE
+## height — down with a crouch/dead collapse (× the compressing scale.y), up with the
+## breath — so the shoulders are always ON the torso. HEIGHT only: aim_arm's caller-
+## owned yaw preserves Y, so the twin-stick gun direction is untouched (the lateral x
+## stays anatomy/set_hand_pose; the forward-pitch shift is deferred — on the gun
+## shoulder it would rotate with the aim, and D1 is purely the vertical disconnect).
+func _seat_shoulders() -> void:
+	if torso == null or free_arm == null or shoulder == null:
+		return
+	var sh_y: float = torso.position.y + _sh_above_chest * torso.scale.y
+	free_arm.position.y = sh_y
+	shoulder.position.y = sh_y
+
 
 ## RIG V2 PHASE 2 (PUPPET_RIG_V2.md §3 + Formulas): the 2-BONE IK. An elbow is a
 ## hinge, so the whole solve is law-of-cosines — two acos and a cross product per
@@ -838,6 +867,11 @@ func _pose_dead() -> void:
 		fingers_r.rotation.x = lerp(fingers_r.rotation.x, 0.08, b)
 	if fingers_l != null:
 		fingers_l.rotation.x = lerp(fingers_l.rotation.x, 0.08, b)
+	# THE SHOULDER LAW (ANIMATION_FIX_PACK §3.1): a corpse's chest collapses to y≈0.35 —
+	# seat the arm roots on it here too, because animate() early-returns after this on a
+	# fully-dead body (so its end-of-frame _seat_shoulders() never runs). Without this the
+	# dead arms hang in the air where the standing chest used to be.
+	_seat_shoulders()
 
 
 # --- Weapon hand poses (Rung 2 hook — the pose is the WEAPON's property) ------
