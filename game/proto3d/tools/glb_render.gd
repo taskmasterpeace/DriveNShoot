@@ -31,7 +31,8 @@ func _ready() -> void:
 	sv.add_child(p) # placed at origin, EXACTLY like player_3d adds it (no drop)
 	for _f in 4:
 		await get_tree().process_frame
-	# Run the animated idle the way the game does, so this matches in-game.
+	# Run the animated BINOCULAR pose (owner vision goal) so we can see the glassing read.
+	p.binoculars = true
 	for _f in 40:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame

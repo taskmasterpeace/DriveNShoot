@@ -23,6 +23,7 @@ var aim_arm: Node3D          ## proxy: the caller yaws this to the gaze; animate
 var legs_pivot: Node3D       ## proxy: the caller yaws this for feet-vs-body
 var gun: Node3D              ## held-weapon container, rides the R_Hand bone
 var raised: bool = false     ## a gun is up (twin-stick aim read)
+var binoculars: bool = false ## glassing — the hand comes to the face (owner: others READ it)
 var crouch_target: float = 0.0
 var aim_wobble: float = 0.0  ## wound shake the game feeds in (steady-arm degrades)
 var appearance: Dictionary = {} ## the look row (limp/handed/colors); the game reads + tweaks it
@@ -87,7 +88,9 @@ func animate(delta: float, speed: float, _turn_rate: float, armed: bool, _hurt: 
 		return
 	var aiming := raised and armed and gun != null and gun.visible
 	if _swing_t <= 0.0:
-		if aiming:
+		if binoculars:
+			_binocular_pose()
+		elif aiming:
 			_aim_pose()
 		else:
 			_idle_pose(speed)
@@ -124,6 +127,19 @@ func _aim_pose() -> void:
 	_bpose("R_Shoulder", Basis(Vector3(0, 1, 0), yaw) * Basis(Vector3(0, 0, 1), -1.35) * Basis(Vector3(0, 1, 0), 1.35))
 	_bpose("R_Elbow", Basis(Vector3(0, 1, 0), 0.15))
 	_bpose("L_Shoulder", Basis(Vector3(0, 0, 1), ARM_DOWN))
+	_bpose("R_Hip", Basis()); _bpose("L_Hip", Basis())
+	_bpose("R_Knee", Basis()); _bpose("L_Knee", Basis())
+
+
+## GLASSING (owner 2026-07-08): the right hand comes to the face like holding
+## binoculars — a silhouette other players read instantly. Upper arm raises
+## forward-up, the elbow folds hard so the hand lands at the eyes.
+func _binocular_pose() -> void:
+	# Solved for hand-at-face (pose_probe): upper arm forward + up + across the
+	# body, elbow folded hard — the hand lands ~0.33 m from the head (the eyes).
+	_bpose("R_Shoulder", Basis(Vector3(1, 0, 0), -1.8) * Basis(Vector3(0, 1, 0), 0.5) * Basis(Vector3(0, 0, 1), 0.6))
+	_bpose("R_Elbow", Basis(Vector3(0, 1, 0), 2.8))
+	_bpose("L_Shoulder", Basis(Vector3(0, 0, 1), ARM_DOWN)) # off hand stays down (a one-hand read)
 	_bpose("R_Hip", Basis()); _bpose("L_Hip", Basis())
 	_bpose("R_Knee", Basis()); _bpose("L_Knee", Basis())
 

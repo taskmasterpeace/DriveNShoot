@@ -830,6 +830,10 @@ func _physics_process(delta: float) -> void:
 	var binoc := Input.is_action_pressed("drivn_binoculars")
 	cam_rig.binoculars = binoc
 	hud.set_binoculars(binoc)
+	# The BODY reads it too — the hand comes to the face so other players know
+	# you're glassing (owner 2026-07-08). Both puppet types carry the flag.
+	if player != null and player.puppet != null and "binoculars" in player.puppet:
+		player.puppet.binoculars = binoc
 	if mode == Mode.FOOT:
 		# TWIN-STICK: the arms/gun track the mouse ALWAYS — you no longer have to
 		# fire to look where you're pointing. Binoculars feed the same intent.
@@ -988,10 +992,15 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	var params: Array = ProtoVisionCone.MODE_DRIVE if mode == Mode.DRIVE else ProtoVisionCone.MODE_FOOT
 	if binoc:
 		params = ProtoVisionCone.MODE_BINOC
-		if mode == Mode.DRIVE:
-			var aim := cam_rig.binocular_aim_dir()
-			if aim.length_squared() > 0.01:
-				facing = aim # glassing from the cab pans free (no neck sim in a car yet)
+		# Glassing points WHERE THE MOUSE POINTS — on foot or in the cab (owner
+		# 2026-07-08: "wherever you put your mouse, that's where you're looking").
+		# The mouse feeds binocular_aim_dir; fall back to the body's aim (sims +
+		# pad glassing) so the cone always tracks where you intend to look.
+		var aim := cam_rig.binocular_aim_dir()
+		if aim.length_squared() < 0.01:
+			aim = aim_direction()
+		if aim.length_squared() > 0.01:
+			facing = aim
 	elif character.vision_yaw_offset != 0.0:
 		facing = facing.rotated(Vector3.UP, character.vision_yaw_offset) # eye patch: lose a SIDE
 	# The raycast pass is HERE now: the LOS fan stops sight at walls and spills

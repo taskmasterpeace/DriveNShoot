@@ -8,7 +8,7 @@ extends Node3D
 @export var max_height: float = 58.0
 @export var normal_fov: float = 62.0
 @export var binocular_fov: float = 26.0 ## FOV at 1× magnification; zoom narrows it
-@export var binocular_range: float = 110.0
+@export var binocular_range: float = 240.0 ## how far the view travels to the mouse (owner: "see EVERYWHERE you point")
 @export var binocular_sensitivity: float = 0.11 ## meters of aim per pixel of mouse
 @export var binocular_zoom_min: float = 1.0
 @export var binocular_zoom_max: float = 3.2

@@ -51,9 +51,12 @@ void fragment() {
 }"
 
 ## Per-mode targets IN WORLD METERS: [half_angle rad, clear_radius_m, view_range_m, dim]
-const MODE_FOOT := [1.22, 5.5, 36.0, 0.68]   ## ~140° arc, PZ awareness bubble
-const MODE_DRIVE := [1.48, 9.0, 55.0, 0.55]  ## wider + farther from the cab
-const MODE_BINOC := [0.42, 4.0, 120.0, 0.78] ## narrow lens — binoculars EXTEND true sight
+## view_range is HOW FAR you see in your look direction (world meters). Owner
+## 2026-07-08: "look a direction, see to the HORIZON that way" — on foot the
+## forward cone now reaches far; binoculars reach much farther still.
+const MODE_FOOT := [1.22, 5.5, 100.0, 0.68]  ## ~140° arc; a long forward sightline
+const MODE_DRIVE := [1.48, 9.0, 70.0, 0.55]  ## wider + farther from the cab
+const MODE_BINOC := [0.42, 4.0, 240.0, 0.78] ## narrow lens — the horizon, wherever you glass
 
 var _rect: ColorRect
 var _mat: ShaderMaterial
