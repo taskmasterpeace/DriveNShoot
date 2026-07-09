@@ -979,11 +979,12 @@ func recoil() -> void:
 ## mounted, animate() never runs, so there is no ownership fight.
 func pose_riding(delta: float, armed_aim: bool) -> void:
 	var k := clampf(10.0 * delta, 0.0, 1.0)
-	# Thighs FORWARD onto the seat (+, the sign law), calves folded back down.
+	# Thighs FORWARD onto the seat (+, the sign law); calves fold BACK along the tank
+	# (the KNEE LAW — negative; ANIMATION_FIX_PACK_2, as the comment always intended).
 	hip_l.rotation.x = lerpf(hip_l.rotation.x, 1.15, k)
 	hip_r.rotation.x = lerpf(hip_r.rotation.x, 1.15, k)
-	knee_l.rotation.x = lerpf(knee_l.rotation.x, 1.35, k)
-	knee_r.rotation.x = lerpf(knee_r.rotation.x, 1.35, k)
+	knee_l.rotation.x = lerpf(knee_l.rotation.x, -1.35, k)
+	knee_r.rotation.x = lerpf(knee_r.rotation.x, -1.35, k)
 	foot_l.rotation.x = lerpf(foot_l.rotation.x, -0.15, k)
 	foot_r.rotation.x = lerpf(foot_r.rotation.x, -0.15, k)
 	torso.rotation.x = lerpf(torso.rotation.x, 0.30, k) # leaned into the bars
@@ -1024,10 +1025,10 @@ func _pose_dead() -> void:
 	free_arm.rotation.x = lerp(free_arm.rotation.x, 1.1, b)
 	shoulder.rotation.x = lerp(shoulder.rotation.x, 1.1, b) # arm flung overhead in the sprawl
 	shoulder.rotation.y = lerp(shoulder.rotation.y, 0.0, b)
-	# The sprawl bends real knees and elbows — a body, not a plank. Elbows are
-	# hinges: they only fold FORWARD (+, the sign law).
-	knee_l.rotation.x = lerp(knee_l.rotation.x, 0.8, b)
-	knee_r.rotation.x = lerp(knee_r.rotation.x, 0.3, b)
+	# The sprawl bends real knees and elbows — a body, not a plank. Elbows fold FORWARD
+	# (+); knees fold BACK (the KNEE LAW — negative, calves under; ANIMATION_FIX_PACK_2).
+	knee_l.rotation.x = lerp(knee_l.rotation.x, -0.8, b)
+	knee_r.rotation.x = lerp(knee_r.rotation.x, -0.3, b)
 	elbow_l.rotation.x = lerp(elbow_l.rotation.x, 0.5, b)
 	elbow_r.rotation.x = lerp(elbow_r.rotation.x, 0.35, b)
 	# Dead hands fall OPEN — the grip lets go of the world.

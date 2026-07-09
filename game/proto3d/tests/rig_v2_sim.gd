@@ -156,8 +156,8 @@ func _ready() -> void:
 	# === 7. THE DEAD SPRAWL bends real knees and elbows now =======================
 	for _i in 150:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, true)
-	_check("dead pose bends the left knee (%.2f rad, wants ~0.8)" % p.knee_l.rotation.x,
-		p.knee_l.rotation.x > 0.5)
+	_check("dead pose folds the left knee BACK (%.2f rad, wants ~-0.8 — the knee law)" % p.knee_l.rotation.x,
+		p.knee_l.rotation.x < -0.5)
 	_check("dead pose bends the knees ASYMMETRICALLY (a sprawl, not a plank: r %.2f != l %.2f)" %
 		[p.knee_r.rotation.x, p.knee_l.rotation.x],
 		absf(p.knee_r.rotation.x - p.knee_l.rotation.x) > 0.2)

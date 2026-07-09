@@ -99,9 +99,9 @@ static var STRIKES: Dictionary = {
 	},
 	"kick": {
 		"poses": [
-			{"name": "anticipation", "joints": {"torso_lean": 0.1, "hip_kick": -0.35, "knee_r": 0.9}, "ease_ms": 70.0, "hold_ms": 25.0, "ease_curve": "out", "contact": false},
-			{"name": "contact", "joints": {"torso_lean": -0.25, "hip_kick": 1.45, "knee_r": 0.1}, "ease_ms": 70.0, "hold_ms": 50.0, "ease_curve": "out", "contact": true},
-			{"name": "recovery", "joints": {"torso_lean": 0.0, "hip_kick": 0.0, "knee_r": 0.06}, "ease_ms": 180.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
+			{"name": "anticipation", "joints": {"torso_lean": 0.1, "hip_kick": -0.35, "knee_r": -0.9}, "ease_ms": 70.0, "hold_ms": 25.0, "ease_curve": "out", "contact": false},
+			{"name": "contact", "joints": {"torso_lean": -0.25, "hip_kick": 1.45, "knee_r": -0.1}, "ease_ms": 70.0, "hold_ms": 50.0, "ease_curve": "out", "contact": true},
+			{"name": "recovery", "joints": {"torso_lean": 0.0, "hip_kick": 0.0, "knee_r": -0.06}, "ease_ms": 180.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
 		],
 		"req_skill": {"id": "martial_arts", "level": 2}, "cancel_window_ms": 250.0, "chain_next": "",
 	},
@@ -124,10 +124,10 @@ static var STRIKES: Dictionary = {
 	},
 	"bat_swing": {
 		"poses": [
-			{"name": "load", "joints": {"torso_twist": -0.55, "waist_twist": -0.3, "shoulder_yaw": -0.9, "shoulder_pitch": 0.9, "elbow_r": 0.5, "wrist_r": -0.3, "free_shoulder_yaw": -0.5, "free_shoulder_pitch": 0.75, "elbow_l": 0.95, "head_yaw": 0.5, "knee_r": 0.18, "fingers_r": 1.35, "fingers_l": 1.35}, "ease_ms": 110.0, "hold_ms": 45.0, "ease_curve": "out", "contact": false},
-			{"name": "contact", "joints": {"torso_twist": 0.6, "waist_twist": 0.35, "shoulder_yaw": 0.55, "shoulder_pitch": 1.15, "elbow_r": 0.1, "wrist_r": 0.0, "free_shoulder_yaw": 0.3, "free_shoulder_pitch": 1.05, "elbow_l": 0.2, "head_yaw": 0.0, "knee_r": 0.06}, "ease_ms": 80.0, "hold_ms": 30.0, "ease_curve": "out", "contact": true},
+			{"name": "load", "joints": {"torso_twist": -0.55, "waist_twist": -0.3, "shoulder_yaw": -0.9, "shoulder_pitch": 0.9, "elbow_r": 0.5, "wrist_r": -0.3, "free_shoulder_yaw": -0.5, "free_shoulder_pitch": 0.75, "elbow_l": 0.95, "head_yaw": 0.5, "knee_r": -0.18, "fingers_r": 1.35, "fingers_l": 1.35}, "ease_ms": 110.0, "hold_ms": 45.0, "ease_curve": "out", "contact": false},
+			{"name": "contact", "joints": {"torso_twist": 0.6, "waist_twist": 0.35, "shoulder_yaw": 0.55, "shoulder_pitch": 1.15, "elbow_r": 0.1, "wrist_r": 0.0, "free_shoulder_yaw": 0.3, "free_shoulder_pitch": 1.05, "elbow_l": 0.2, "head_yaw": 0.0, "knee_r": -0.06}, "ease_ms": 80.0, "hold_ms": 30.0, "ease_curve": "out", "contact": true},
 			{"name": "follow_through", "joints": {"torso_twist": 0.95, "shoulder_yaw": 1.15, "shoulder_pitch": 1.3, "wrist_r": -0.4, "free_shoulder_pitch": 0.85}, "ease_ms": 70.0, "hold_ms": 25.0, "ease_curve": "out", "contact": false},
-			{"name": "settle", "joints": {"torso_twist": 0.0, "waist_twist": 0.0, "shoulder_yaw": 0.0, "shoulder_pitch": 0.0, "elbow_r": 0.14, "wrist_r": 0.0, "free_shoulder_yaw": 0.0, "free_shoulder_pitch": 0.0, "elbow_l": 0.14, "head_yaw": 0.0, "knee_r": 0.06, "fingers_r": 0.22, "fingers_l": 0.22}, "ease_ms": 160.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
+			{"name": "settle", "joints": {"torso_twist": 0.0, "waist_twist": 0.0, "shoulder_yaw": 0.0, "shoulder_pitch": 0.0, "elbow_r": 0.14, "wrist_r": 0.0, "free_shoulder_yaw": 0.0, "free_shoulder_pitch": 0.0, "elbow_l": 0.14, "head_yaw": 0.0, "knee_r": -0.06, "fingers_r": 0.22, "fingers_l": 0.22}, "ease_ms": 160.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
 		],
 		"req_skill": {"id": "", "level": 0}, "cancel_window_ms": 200.0, "chain_next": "",
 	},
