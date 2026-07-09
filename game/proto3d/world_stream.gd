@@ -822,6 +822,71 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)
 	ProtoWorldBuilder.extra_road_rects[key] = rects
 
+	# THE CORRIDOR BAND (M4a — "reads as Florida in a screenshot"): fences,
+	# utility poles, verge, field patches along the majors. Deterministic per
+	# stretch; drapes on ground_y so relief never floats a pole. Budget-aware:
+	# ONE fence-rail body + a few pole bodies per stretch, the rest visuals.
+	if not wet and kind_band(row) and seg_len > 40.0:
+		var brng := RandomNumberGenerator.new()
+		brng.seed = hash("%s|%s" % [rid, key])
+		var biome_b := biome_at(Vector3(mid.x, 0, mid.y))
+		var pole_side: float = 1.0 if (absi(hash(rid)) % 2 == 0) else -1.0
+		var band_lat := float(g["width"]) * 0.5
+		# verge: the mowed strip beside the shoulder — green in the wet SE, tan out west
+		var verge_col := Color(0.34, 0.42, 0.24) if biome_b in ["swamp", "farmland", "forest", "plains"] else Color(0.52, 0.46, 0.32)
+		for vsgn: float in [1.0, -1.0]:
+			var verge := ProtoWorldBuilder.box_visual(chunk, Vector3(5.0, 0.02, seg_len),
+				Vector3(mid.x + perp.x * (band_lat + 3.2) * vsgn, 0.015, mid.y + perp.y * (band_lat + 3.2) * vsgn), verge_col, rot)
+			verge.set_meta("road_verge", rid)
+		# utility poles: one side, ~55 m apart, draped on ground_y
+		var n_poles := int(seg_len / 55.0)
+		for pi in range(n_poles):
+			var pt := a + dir * ((float(pi) + 0.5) / maxf(float(n_poles), 1.0)) + perp * (band_lat + 9.0) * pole_side
+			var gy := ProtoWorldBuilder.ground_y(pt.x, pt.y)
+			var pole := ProtoWorldBuilder.box_body(chunk, Vector3(0.28, 8.0, 0.28),
+				Vector3(pt.x, gy + 4.0, pt.y), Color(0.30, 0.24, 0.18), rot)
+			pole.set_meta("roadside_pole", rid)
+			var cross := MeshInstance3D.new()
+			var cm := BoxMesh.new()
+			cm.size = Vector3(2.4, 0.16, 0.16)
+			cross.mesh = cm
+			cross.material_override = ProtoWorldBuilder.material(Color(0.30, 0.24, 0.18))
+			cross.position = Vector3(0, 3.4, 0)
+			pole.add_child(cross)
+		# the field fence: ONE thin rail body + visual posts, field side only
+		var fence_side := -pole_side
+		var frail_mid := mid + perp * (band_lat + 14.0) * fence_side
+		var fgy := ProtoWorldBuilder.ground_y(frail_mid.x, frail_mid.y)
+		var rail := ProtoWorldBuilder.box_body(chunk, Vector3(0.08, 1.1, seg_len),
+			Vector3(frail_mid.x, fgy + 0.62, frail_mid.y), Color(0.38, 0.32, 0.24), rot)
+		rail.set_meta("roadside_fence", rid)
+		var n_posts := int(seg_len / 12.0)
+		for fi in range(n_posts):
+			var fp := a + dir * ((float(fi) + 0.5) / maxf(float(n_posts), 1.0)) + perp * (band_lat + 14.0) * fence_side
+			var fy := ProtoWorldBuilder.ground_y(fp.x, fp.y)
+			ProtoWorldBuilder.box_visual(chunk, Vector3(0.14, 1.2, 0.14),
+				Vector3(fp.x, fy + 0.6, fp.y), Color(0.33, 0.27, 0.2), rot)
+		# field patches: the crop-quilt read beyond the fence (farm country only)
+		if biome_b in ["farmland", "plains"] and brng.randf() < 0.7:
+			var fpc := a + dir * brng.randf_range(0.3, 0.7) + perp * (band_lat + 46.0) * fence_side
+			var patch_col := Color(0.36, 0.44, 0.22) if brng.randf() < 0.5 else Color(0.58, 0.5, 0.28)
+			var patch := ProtoWorldBuilder.box_visual(chunk, Vector3(brng.randf_range(34, 58), 0.02, brng.randf_range(44, 70)),
+				Vector3(fpc.x, 0.012, fpc.y), patch_col, rot)
+			patch.set_meta("field_patch", rid)
+		# guardrail where the land rolls (relief chunks) — the shoulder's promise
+		if chunk.has_meta("relief"):
+			for gsgn: float in [1.0, -1.0]:
+				var gr := ProtoWorldBuilder.box_body(chunk, Vector3(0.25, 0.55, seg_len),
+					Vector3(mid.x + perp.x * (band_lat + 0.9) * gsgn, 0.35, mid.y + perp.y * (band_lat + 0.9) * gsgn),
+					Color(0.55, 0.54, 0.5), rot)
+				gr.set_meta("road_guardrail", rid)
+
+
+## Which road kinds get the M4a corridor band (majors only — a dirt spur with
+## utility poles would be a lie).
+static func kind_band(row: Dictionary) -> bool:
+	return String(row.get("kind", "")) in ["interstate", "us_route", "state_road"]
+
 
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
 func _clip_segment_to_chunk(a: Vector2, b: Vector2, center: Vector3) -> Array:
