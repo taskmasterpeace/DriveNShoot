@@ -69,16 +69,16 @@ static var MOTION: Dictionary = {
 		# reads fine — interpenetration alone doesn't shimmer, NEAR-COPLANAR faces do).
 		# Instead every pose must stay OUT of the shallow "kiss zone": either clearly
 		# separated or deep-stable (>0.05m overlap). Three levers, all ROWS:
-		"hip_fold_max": 0.70,     # ANIMATION_FIX_PACK §4.1: deepened 0.40->0.70 so the crouch FOLDS (feet plant at the full pelvis drop) instead of sinking the leg tree through the floor
+		"hip_fold_max": 0.98,     # ANIMATION_FIX_PACK_2 §4: the SQUAT — thighs pitch FORWARD this much (magnitude; code signs it +), knees travel over the toes AND sweep up INTO the leaning chest so the torso/thigh overlap is DEEP-stable (no-kiss law) not a shallow shimmer. (was 0.70 backward = the stool-sit)
 		"hip_drop_frac": 0.50,    # the hip JOINT sinks this fraction of the torso's own drop
-		"hip_joint_gap": 0.03,    # small fixed clearance between the joint and the hip box's rest attach
-		"torso_scale_min": 0.81,  # torso compresses (scale.y) toward this at full crouch — the spine curls
+		"hip_joint_gap": 0.11,    # ANIMATION_FIX_PACK_2 §5: clearance dropping the thigh box off its hip joint — with the SQUAT's forward thighs this pulls the thigh AABB clear of the leaning-chest's bottom (torso/thigh SEPARATE, out of the shimmer band). (was 0.03; the hip connector ball covers the small resulting seam)
+		"torso_scale_min": 0.72,  # ANIMATION_FIX_PACK_2 §5: torso compresses (scale.y) toward this at full crouch — deeper curl (was 0.81) both hunkers the squat AND raises the chest bottom clear of the forward thighs (no-kiss)
 		# RIG V2 FOLLOW-THROUGH (PUPPET_RIG_V2.md): the new elbows/knees ride their
 		# parents as fractions — every old animation instantly reads alive, no keyframes.
 		"knee_follow": 0.55,      # knee bends this fraction of the stride's lift
 		"knee_phase": 0.45,       # rad ahead of the hip — the calf trails the thigh
 		"knee_rest": 0.06,        # a hair of standing bend (locked knees read robotic)
-		"crouch_knee": 1.30,      # ANIMATION_FIX_PACK §4.1: deepened 0.55->1.30 so the knees coil enough to LIFT the feet to the planted crouch depth (the deep bend also re-opens the torso/thigh no-kiss gap)
+		"crouch_knee": 1.00,      # ANIMATION_FIX_PACK_2 §4: knee flexion MAGNITUDE at full squat (code signs it NEGATIVE — calf folds back); pairs with hip_fold 0.85 to keep shins near-vertical, heels planted (was 1.30)
 		"elbow_follow": 0.35,     # elbow bends this fraction of the arm's swing
 		"elbow_rest": 0.14,       # arms never hang truly straight
 		# WALK/RUN TO THE REFERENCE STRIP (ANIMATION_FIX_PACK §3.3, §4.2). The old fixed
@@ -88,7 +88,7 @@ static var MOTION: Dictionary = {
 		# trail leg) blends in with speed. Every knob a row, live in MotionForge.
 		"a_walk_max": 0.62,       # hip swing amplitude (rad) at walk speed
 		"a_run_max": 0.85,        # hip swing amplitude (rad) at full sprint
-		"leg_eff": 0.92,          # effective leg length fraction (knee-bend allowance) in the stride solve
+		"leg_eff": 0.75,          # effective leg length fraction in the stride solve — RE-CAL'd for the KNEE LAW (ANIMATION_FIX_PACK_2): a knee that folds BACK during swing pulls the foot in, so the real ground stride is ~75% of the straight-leg reach (was 0.92 for the old forward-fold)
 		"cadence_mult": 1.0,      # feel knob on the solved cadence (1.0 = pure anti-skate)
 		"walk_speed_ref": 4.2,    # speed the stride amplitude reaches full (low-speed taper below it)
 		"run_blend_lo": 4.0,      # run form starts blending in above this speed (m/s)
@@ -592,26 +592,33 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		hip_l.rotation.x = maxf(hip_l.rotation.x, -0.12)
 	elif appearance["limp"] == "r" and _kick_t <= 0.0:
 		hip_r.rotation.x = maxf(hip_r.rotation.x, -0.12)
-	# CROUCH: both hips fold forward — the legs coil under the lowered body.
+	# CROUCH → A REAL SQUAT (ANIMATION_FIX_PACK_2 §3.3, D9): the thighs pitch FORWARD (+,
+	# the sign law — knees travel out OVER the toes), the knees fold back (the knee law
+	# below), heels planted. The old code SUBTRACTED here (thighs BACKWARD) against its own
+	# comment, which with forward-folding calves gave the Z-shaped stool-sit the owner saw.
 	if _crouch > 0.001:
 		var hip_fold: float = float(mg["hip_fold_max"])
-		hip_l.rotation.x -= hip_fold * _crouch
+		hip_l.rotation.x += hip_fold * _crouch
 		if _kick_t <= 0.0:
-			hip_r.rotation.x -= hip_fold * _crouch
+			hip_r.rotation.x += hip_fold * _crouch
 
-	# RIG V2 KNEES: the calf trails the thigh a beat behind (follow-through), never
-	# locks straight, and COILS at full crouch — the single biggest look upgrade.
-	# Positive-only bend: a knee is a hinge, it only folds one way.
+	# THE KNEE LAW (ANIMATION_FIX_PACK_2 §3.1, D8): a knee is the ELBOW'S MIRROR — the calf
+	# folds BACKWARD (heel toward the butt), which is NEGATIVE under the sign law (+ = a
+	# hanging limb forward; the elbow's forward-fold is right, the knee is its mirror). The
+	# rows stay POSITIVE MAGNITUDES (how much); the anatomical sign is applied HERE (which
+	# way) — so a MotionForge save can never re-invert a knee. Flexion is one-way NEGATIVE.
 	var kf: float = float(mg["knee_follow"])
 	var kr: float = float(mg["knee_rest"])
 	var kph: float = float(mg["knee_phase"])
 	var crouch_knee: float = float(mg["crouch_knee"]) * _crouch
 	# RUN FORM (ANIMATION_FIX_PACK §3.3): the swing knee drives HIGH at sprint (the
-	# reference strip's high front knee) — extra lift on top of the stride follow-through.
+	# reference strip's high front knee) — extra flexion on top of the stride follow-through.
 	var klr: float = float(mg["knee_lift_run"]) * run_blend
-	knee_l.rotation.x = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + kph)) * limp_l
+	var knee_flex_l: float = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + kph)) * limp_l
+	knee_l.rotation.x = -knee_flex_l
 	if _kick_t <= 0.0:
-		knee_r.rotation.x = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + PI + kph)) * limp_r
+		var knee_flex_r: float = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + PI + kph)) * limp_r
+		knee_r.rotation.x = -knee_flex_r
 	# Feet stay roughly level with the ground under the bend; at sprint the TRAIL leg
 	# plantar-flexes on push-off (the reference's heel-up back foot).
 	var apush: float = float(mg["ankle_push"]) * run_blend
@@ -788,7 +795,7 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	var fwd_lean: float = speed * 0.02 + float(mg["run_lean"]) * run_blend
 	torso.rotation.z = _lean
 	torso.rotation.y = _twist
-	torso.rotation.x = fwd_lean + _slump + 0.3 * _crouch # crouch leans you over your knees
+	torso.rotation.x = fwd_lean + _slump + 0.22 * _crouch # crouch leans you over your knees (ANIMATION_FIX_PACK_2: trimmed 0.3->0.22 so the chest-front doesn't overhang the SQUAT's forward thighs into the no-kiss shimmer band)
 	# The WAIST carries roughly half the chest's lean/twist — the lower-spine
 	# swivel makes the midriff a spine segment, not a rigid plank under the chest.
 	waist.rotation.z = _lean * 0.5

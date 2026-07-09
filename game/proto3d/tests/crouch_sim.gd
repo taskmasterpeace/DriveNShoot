@@ -155,6 +155,24 @@ func _ready() -> void:
 	_check("full crouch: the soles stay PLANTED, not through the floor (lowest sole %.3f >= -0.02)" % stand_sole,
 		stand_sole >= -0.02)
 
+	# --- 2e. THE REAL SQUAT (ANIMATION_FIX_PACK_2 §8.3, defect D9: owner "the crouching
+	# doesn't look real"). The old pose was a Z-shaped stool-sit — thighs BACK, shins
+	# forward. A real squat drives the KNEES FORWARD over the toes (thighs forward, shins
+	# near-vertical). Measure the knee joint ahead of the hip joint in the puppet's own
+	# facing frame (forward = -Z). This is the guard against regressing to the stool-sit.
+	# Measure in LEGS_PIVOT's frame (where the thigh fold is defined + where -Z is the
+	# feet-walk facing) — the puppet ROOT frame misses legs_pivot's own yaw.
+	var lp := pup.legs_pivot
+	var hipL := lp.to_local(pup.hip_l.global_position)
+	var kneeL := lp.to_local(pup.knee_l.global_position)
+	var kneeR := lp.to_local(pup.knee_r.global_position)
+	var hipR := lp.to_local(pup.hip_r.global_position)
+	var knee_fwd_l: float = hipL.z - kneeL.z # forward = -Z → knee ahead of hip is positive
+	var knee_fwd_r: float = hipR.z - kneeR.z
+	print("CROUCH: diag squat knee_fwd L=%.3f R=%.3f" % [knee_fwd_l, knee_fwd_r])
+	_check("full crouch: the knees travel FORWARD over the toes (L %.2fm, R %.2fm ahead of the hips, wants >=0.20)" % [knee_fwd_l, knee_fwd_r],
+		knee_fwd_l >= 0.20 and knee_fwd_r >= 0.20)
+
 	# --- 3. Release = stand back up -------------------------------------------
 	_key(KEY_CTRL, false)
 	for _i in 8:

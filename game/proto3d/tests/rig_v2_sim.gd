@@ -91,8 +91,11 @@ func _ready() -> void:
 		knee_max = maxf(knee_max, p.knee_l.rotation.x)
 		elbow_l_min = minf(elbow_l_min, p.elbow_l.rotation.x)
 		elbow_l_max = maxf(elbow_l_max, p.elbow_l.rotation.x)
-	_check("striding BENDS the knee past rest (max %.2f rad)" % knee_max, knee_max > kr + 0.05)
-	_check("the knee is a one-way hinge (min %.3f never below zero)" % knee_min, knee_min >= -0.001)
+	# THE KNEE LAW (ANIMATION_FIX_PACK_2): a knee is the elbow's MIRROR — the calf folds
+	# BACKWARD (heel toward the butt) = NEGATIVE under the sign law. Stride flexion is
+	# one-way NEGATIVE now (the old asserts codified the wrong direction — the bird leg).
+	_check("striding BENDS the knee past rest (min %.2f rad, back)" % knee_min, knee_min < -(kr + 0.05))
+	_check("the knee is a one-way hinge, folding BACK only (max %.3f never above zero)" % knee_max, knee_max <= 0.001)
 	# THE SIGN LAW (2026-07-08): + = a hanging limb swings FORWARD; an elbow is a
 	# one-way hinge that only folds forward, so the stride bend is POSITIVE now.
 	var elrest: float = float(mg["elbow_rest"])
@@ -115,9 +118,9 @@ func _ready() -> void:
 	p.crouch_target = 1.0
 	for _i in 120:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
-	_check("full crouch coils the knee by ~crouch_knee (%.2f rad, row says %.2f)" %
+	_check("full crouch coils the knee BACK by ~crouch_knee (%.2f rad, row mag %.2f)" %
 		[p.knee_l.rotation.x, kr + crouch_knee],
-		p.knee_l.rotation.x > kr + crouch_knee * 0.8)
+		p.knee_l.rotation.x < -(kr + crouch_knee * 0.8))
 	p.crouch_target = 0.0
 	for _i in 90:
 		p.animate(1.0 / 60.0, 0.0, 0.0, false, 0.0, false)
