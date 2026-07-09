@@ -338,6 +338,15 @@ const server = createServer(async (req, res) => {
 			);
 			return json(res, 200, { here, radius_m: r, towns, roads: roads.map((x) => x.id) });
 		}
+		// ---- THE JUNCTION BAKE (AMERICAN_ROAD M1, rulings 0.2-0.5) ----
+		if (url.pathname === "/api/junctions/bake" && req.method === "POST") {
+			const { bakeJunctions } = await import("./bake_junctions.mjs");
+			const { junctions, lint } = bakeJunctions(map);
+			save();
+			return json(res, 200, { ok: true, junctions: junctions.length, lint });
+		}
+		if (url.pathname === "/api/junctions" && req.method === "GET")
+			return json(res, 200, map.junctions || []);
 		// ---- authored placements (Goal 2b) ----
 		if (url.pathname === "/api/placements" && req.method === "GET") return json(res, 200, map.placements);
 		if (url.pathname === "/api/placements" && req.method === "POST") {

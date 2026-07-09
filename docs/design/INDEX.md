@@ -8,7 +8,7 @@
 
 | Spec | Owns | Status | V1 gate / first slice | Hard deps |
 |---|---|---|---|---|
-| **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | BANKED | **M0 wire+rows (~2-3 d)** → M1 junction+exit geometry | GROUND_INTEGRITY (cherry-pick, main) |
+| **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | **M0 SHIPPED** (92fbd87: materialize wire + migrations + FLORIDA relief 0.0 + MapForge validation; placement_wire/structure_data green) → M1 EXECUTING | M1 junction+exit geometry | GROUND_INTEGRITY (cherry-pick, main) |
 | **THE_BUILDING_BOOK** | canonical catalog, interiors law, mission schema, MULTI-USE law, strategies | BANKED | M0 materialize wire; M3c mission fields | AMERICAN_ROAD milestones |
 | **NAVIGATION** | the journey law (walk/drive/fly), tiers, walk graph, failure ladder — **+§9 cold-start spec** (schemas, v0 graph algo, park/door machines, steering port map, sim staging) | BANKED | NAV-P1 walk (wife→church through a door); first hot file `nav/steering.gd` | road_graph (M1) for P2 drive |
 | **THE_FAMILY_EMPIRE** | extort/own→city→capital, collectors, family/wife/kids, dates+school, revenge | BANKED | **THE HOLLOWPOINT SLICE** (E1/F1) | **P0** (below), M3c, NAV-P1 |
@@ -27,12 +27,21 @@
 **PARKED:** MT (ambient traffic returns — owner-gated) · portal interiors (until proven; howler den
 P3) · family MP sync · mountains option C (roads that climb).
 
-## THE SHARED P0 (the one workorder everything queues behind)
+## THE SHARED P0 — ✅ SHIPPED 2026-07-09 (commit 81d8757)
 
-**Wire `ProtoPopulation` into proto3d.gd + fix the hanging `population_cell_sim`.** Owned by the
-FAMILY_EMPIRE arc; cited by ECOSYSTEM (its own iron first step), EMPIRE (cells = territory), and the
-towns work. `world_stream.gd` is the hot file — published touch order: **P0 → AMERICAN_ROAD M-work →
-NAV-P2's dehydrate hook.** Never two milestones inside it at once.
+**ProtoPopulation is WIRED** (boot + stream bridge + hourly tick + mark_seen + save/load) and
+`population_cell_sim` runs 23/23 (the "hang" was a missing `--headless --import` pass — the
+class_names were never registered). New `population_wire_sim` 9/9 proves the wired path;
+save/world/threat suites green. The three arcs that queued behind this (ECOSYSTEM, EMPIRE, towns)
+are unblocked. `world_stream.gd` touch order continues: **AMERICAN_ROAD M-work → NAV-P2's
+dehydrate hook.** Never two milestones inside it at once.
+
+**MERIDIAN = THE PROVING GROUND — ✅ SHIPPED 2026-07-09 (b5a8e0e, owner order "all the testing
+elements"):** 23 placements cover the spec web's testing set (diner/bar/jeweler/restaurant/school/
+church/police/clinic/clone_wing/vat/fight_pit/derby_bowl/grandstand/drone_ring/auto/junkyard/
+warehouse/radio/motel/market/gas/houses×2), all data rows through ProtoStructureBuilder (its first
+world consumer). `meridian_town_sim` 32/32 (presence, AUTHORED bounds, no overlaps, real door-gap
+rays, signs, loot, metas).
 
 ## The recommended implementation order (the owner's "what should we start on")
 

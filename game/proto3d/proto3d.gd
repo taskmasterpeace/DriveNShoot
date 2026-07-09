@@ -49,6 +49,7 @@ var stream: ProtoWorldStream = null
 var traffic: ProtoTraffic = null
 var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.md) ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
 var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.md P0 — counts above the chunks; lurker/howler death paths already call it)
+var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AMERICAN_ROAD M1; atlas/GPS consumer only until MT)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -1781,6 +1782,16 @@ func set_map_course(label: String, pos: Vector3) -> void:
 	waypoint_idx = waypoints.size() - 1
 	hud.toast("🧭 Course set: %s" % label)
 	audio.play_ui("blip", -4.0)
+	# THE GPS READOUT (AMERICAN_ROAD M1 — road_graph's sanctioned consumer per
+	# 0.16: addresses before traffic). Fastest route off the baked junctions.
+	if road_graph == null and stream != null and stream.usmap != null and stream.usmap.ok:
+		road_graph = ProtoRoadGraph.build(stream.usmap)
+	if road_graph != null and player != null:
+		var rt := road_graph.route(Vector2(player.global_position.x, player.global_position.z),
+			Vector2(pos.x, pos.z))
+		if not rt.is_empty() and not (rt["roads"] as Array).is_empty():
+			hud.toast("🛣 via %s — ~%d min" % [String(rt["text"]),
+				maxi(1, int(ceil(float(rt["time_s"]) / 60.0)))])
 
 
 ## The bounty tick: notice the kill the moment it happens; the waypoint keeps
