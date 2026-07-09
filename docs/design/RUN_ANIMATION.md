@@ -1,9 +1,9 @@
 # THE RUN — running that reads from the driver's seat
 
 **Status:** SPEC (owner ask 2026-07-08 evening, after the fix-pack playtest).
-**BLOCKED BY `ANIMATION_FIX_PACK_2.md` (2026-07-08 late):** the owner's next playtest
-caught the leg chain hinging anatomically backwards (knees fold forward). Fix the legs
-first — never tune this pack's shoulder-hip counter-rotation on top of mirrored knees.
+**UNBLOCKED 2026-07-08:** `ANIMATION_FIX_PACK_2.md` shipped (the knee law + real squat) —
+the legs hinge correctly now, so this top-down counter-rotation pass is clear to build on
+a solid base. Still SPEC (not yet built).
 **Base (already SHIPPED, `ANIMATION_FIX_PACK.md` §3.3):** the anti-skate stride solve (feet match the ground at any speed — skate <2%, was a 2.3× moonwalk), whole-body bounce, run lean, ~90° elbow pump, knee lift, heel-up push-off — proven side-on against the mannequin sheet's HUMAN MOVEMENTS REFERENCE strip (`run_form_sim` 12/12, `render_body` BODY_run_side).
 **This spec:** the run's remaining gap is **the camera it's actually watched from.** DRIVN is played top-down (`camera_rig.gd`); from above, the strongest running tell isn't the leg silhouette — it's the **shoulder line working against the hips**. Today the chest's yaw carries only turn-lead and two-hand blading; it never swings with the stride, so a sprinting body reads stiff from the game camera even though the side view is right.
 

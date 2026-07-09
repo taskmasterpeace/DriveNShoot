@@ -1,8 +1,18 @@
 # THE LEGS ARE WRONG — animation fix pack 2 (the knee law + the real squat)
 
-**Status:** SPEC — owner playtest 2026-07-08 late: *"the crouching doesn't look real"* and
+**Status:** ✅ EXECUTED 2026-07-08 (all 6 tasks). The leg flexion signs are anatomy's now:
+knees fold BACK, the crouch is a real forward-knee squat, push-off plantarflexes. Verified
+by sim + GPU render (run has no bird-leg — front foot clears toe-up, back foot pushes
+toe-down; crouch knees measure 0.30–0.39 m forward of the hips). Sims green: run_form 15
+(NEW knee/ankle asserts) · rig_v2 50 · crouch 22 (NEW squat-silhouette guard) · strike 63 ·
+unarmed 14 · gunfeel 37 (pistol byte-unchanged) · grip_ik 18. Retune landed as the spec's
+budgeted no-kiss iteration (hip_fold 0.98, hip_joint_gap 0.11, torso_scale_min 0.72, crouch
+lean 0.22, leg_eff 0.75 for the shorter back-folding stride, ankle_push 0.7 to override the
+sole-level counter). Rows stayed positive MAGNITUDES; the engine owns the sign.
+*(Original spec below, kept as the record.)*
+
+**Was:** SPEC — owner playtest 2026-07-08 late: *"the crouching doesn't look real"* and
 *"the running is bending the leg in an odd direction — the knee doesn't bend like that."*
-**Directive: spec only. Do NOT implement in this pass.**
 **Scope:** `puppet.gd` · `data/strikes.json` · `tests/rig_v2_sim.gd` · `tests/run_form_sim.gd` · `tests/crouch_sim.gd` · `tools/render_body.gd` · MotionForge row docs.
 **Ordering law:** this pack lands **before** `RUN_ANIMATION.md` executes — never tune the
 top-down counter-rotation pass on top of legs that hinge backwards.

@@ -9,8 +9,8 @@
 ---
 
 ## 1 · Movement & the body
-1. **Sprint** — hold SHIFT while moving. EXPECT: faster, stamina bar drains, refills at rest.
-2. **Crouch** — hold CTRL. EXPECT: you sink low, move slow. Enemies should notice you later (sneak past a howler at night if you're brave).
+1. **Sprint** — hold SHIFT while moving; watch from the side (V for views). EXPECT: a real run — leaned forward, arms bent pumping, the swing knee folds BACK (heel toward the butt, never a forward-hinged bird leg), the back foot pushes off toe-down while the front foot lifts its toe to clear. Feet don't skate.
+2. **Crouch** — hold CTRL, look from the side. EXPECT: a real squat — knees drive FORWARD over the toes, hips sink low and back, boots stay flat on the ground (never through it), shoulders hunch down with you. NOT a stiff stool-sit. Enemies notice you later (sneak past a howler at night if you're brave).
 3. **Slide** — sprint, then TAP CTRL mid-run. EXPECT: a low slide that carries a few meters and ends crouched while you keep holding CTRL.
 4. **Dive** — SPACE while moving. EXPECT: Max-Payne dive, you can still aim/fire mid-air, quick get-up (slower when your stamina's gassed).
 5. **Water** — walk into a lake/river edge (F10 teleport near water is fastest). EXPECT: shallow = slow wade; deep = swimming, stamina drains, you CAN'T punch/shoot; run out of stamina and you start drowning (torso damage). Get out = everything recovers.
