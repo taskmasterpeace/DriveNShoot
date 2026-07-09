@@ -31,6 +31,47 @@ func _settle(p: ProtoPuppet, frames: int) -> void:
 		p.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 
 
+func _foregrip_case(body_type: String, handed: String, weapon_id: String, crouched: bool) -> Dictionary:
+	var pose: Dictionary = ProtoWeapon.WEAPONS[weapon_id]["hand_pose"]
+	var p := ProtoPuppet.create({"body_type": body_type, "handed": handed})
+	add_child(p)
+	p.set_hand_pose(pose["offset"], true, pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+	p.set_armed(true)
+	p.raised = true
+	p.crouch_target = 1.0 if crouched else 0.0
+	_settle(p, 150)
+	var grip_l: Vector3 = pose.get("grip_l", Vector3.ZERO)
+	var target := _grip_world(p, grip_l)
+	var reach: float = (p._upper_len + p._fore_len) * p.scale.x
+	var target_dist: float = target.distance_to(p.free_arm.global_position)
+	var hand_reach: float = p.hand_l.global_position.distance_to(p.free_arm.global_position)
+	var miss: float = p.hand_l.global_position.distance_to(target)
+	var support_axis: Vector3 = p.elbow_l.global_position - p.free_arm.global_position
+	var gun_axis: Vector3 = p.elbow_r.global_position - p.shoulder.global_position
+	var axis_sep: float = rad_to_deg(support_axis.normalized().angle_to(gun_axis.normalized()))
+	var anat_x: float = -p._sh_x * p.handed_sign
+	var shoulder_dist: float = p.free_arm.global_position.distance_to(p.shoulder.global_position)
+	var shoulder_min: float = p._sh_x * 2.0 * p.scale.x * 0.95
+	var result := {
+		"label": "%s/%s/%s/%s" % [body_type, handed, weapon_id, "crouch" if crouched else "stand"],
+		"socket_ok": absf(p.free_arm.position.x - anat_x) < 0.004 and absf(p.free_arm.position.z) < 0.004,
+		"socket_x": p.free_arm.position.x,
+		"socket_z": p.free_arm.position.z,
+		"anat_x": anat_x,
+		"distinct_sockets": shoulder_dist >= shoulder_min,
+		"elbows_down": p.elbow_l.global_position.y < p.free_arm.global_position.y - 0.02
+			and p.elbow_r.global_position.y < p.shoulder.global_position.y - 0.02,
+		"axis_sep": axis_sep,
+		"miss": miss,
+		"reachable": target_dist <= reach - 0.02,
+		"hand_reach": hand_reach,
+		"reach": reach,
+		"elbow": p.elbow_l.rotation.x,
+	}
+	p.queue_free()
+	return result
+
+
 func _ready() -> void:
 	print("GRIP_IK: start")
 	_prev_time_scale = Engine.time_scale
@@ -147,6 +188,30 @@ func _ready() -> void:
 	var l_miss := lefty.hand_l.global_position.distance_to(l_target)
 	_check("a LEFT-handed puppet plants its free (right) hand on the grip too (%.3fm off)" % l_miss,
 		l_miss < 0.06)
+
+	# === 8. MATRIX: grip holds never steal the support shoulder socket ============
+	# This is the owner's actual regression: a two-hand hold may blade the chest and
+	# solve the arm, but the free arm must still grow from its own shoulder on every
+	# body profile and handedness. Small bodies may honestly clamp if a long gun is
+	# out of reach; they may not detach the shoulder to fake the reach.
+	var body_types: Array[String] = ["adult", "woman", "teen", "kid", "stocky"]
+	for body_type in body_types:
+		for handed in ["right", "left"]:
+			for weapon_id in ["shotgun", "pipe_rocket"]:
+				for crouched in [false, true]:
+					var c := _foregrip_case(body_type, handed, weapon_id, crouched)
+					_check("%s support shoulder stays on its anatomical socket (x %.3f ~= %.3f, z %.3f)" %
+						[c["label"], c["socket_x"], c["anat_x"], c["socket_z"]], bool(c["socket_ok"]))
+					_check("%s keeps two distinct shoulder sockets" % c["label"], bool(c["distinct_sockets"]))
+					_check("%s upper arms separate instead of stacking (%.0f deg)" %
+						[c["label"], c["axis_sep"]], float(c["axis_sep"]) >= 25.0)
+					_check("%s elbows hang below their shoulder roots" % c["label"], bool(c["elbows_down"]))
+					if bool(c["reachable"]):
+						_check("%s reachable foregrip plants the hand (%.3fm off)" %
+							[c["label"], c["miss"]], float(c["miss"]) < 0.05 and absf(float(c["elbow"])) > 0.25)
+					else:
+						_check("%s unreachable foregrip clamps without stretching (hand %.3fm / reach %.3fm)" %
+							[c["label"], c["hand_reach"], c["reach"]], float(c["hand_reach"]) <= float(c["reach"]) + 0.015)
 
 	print("GRIP_IK RESULTS: %d passed, %d failed" % [passed, failed])
 	_finish(0 if failed == 0 else 1)
