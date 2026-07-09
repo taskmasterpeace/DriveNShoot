@@ -9,6 +9,7 @@ extends Node
 
 const EAST := Vector3(1, 0, 0)
 const NORTH := Vector3(0, 0, -1)
+const SOUTH := Vector3(0, 0, 1)
 
 var lab: Node = null
 var phase: int = 0
@@ -69,8 +70,16 @@ func _physics_process(delta: float) -> void:
 					and lab.has_method("camera_behind_dot") \
 					and lab.has_method("camera_height") \
 					and lab.has_method("player_position") \
-					and lab.has_method("last_speed")
+					and lab.has_method("last_speed") \
+					and lab.has_method("upper_lower_delta_deg") \
+					and lab.has_method("max_twist_deg") \
+					and lab.has_method("feet_facing") \
+					and lab.has_method("upper_facing") \
+					and lab.has_method("footwork_label")
 				_check("camera lab exposes test hooks", api_ok)
+				if not api_ok:
+					_finish()
+					return
 				lab.call("set_test_zoom", 0.62)
 				lab.set("_test_aim_active", false)
 				lab.set("_test_move_active", false)
@@ -91,10 +100,34 @@ func _physics_process(delta: float) -> void:
 				_check("fixed mouse beside player does not spin the facing (min dot %.2f)" % _mouse_min_dot,
 					_mouse_min_dot > 0.92)
 				lab.call("reset_test_pose", Vector3.ZERO)
+				lab.call("set_test_aim_dir", NORTH)
+				lab.call("reset_test_pose", Vector3.ZERO)
+				lab.call("set_test_aim_dir", SOUTH)
+				_next()
+		2:
+			if phase_t > 0.25:
+				var delta_deg := float(lab.call("upper_lower_delta_deg"))
+				var max_deg := float(lab.call("max_twist_deg"))
+				_check("upper body clamps at the waist limit (%.1f <= %.1f)" % [absf(delta_deg), max_deg],
+					absf(delta_deg) <= max_deg + 3.0)
+				_check("feet do not snap 180 instantly when aim goes behind (dot south %.2f)" % (lab.call("feet_facing") as Vector3).dot(SOUTH),
+					(lab.call("feet_facing") as Vector3).dot(SOUTH) < 0.65)
+				_next()
+		3:
+			if phase_t > 1.2:
+				var feet: Vector3 = lab.call("feet_facing")
+				var upper: Vector3 = lab.call("upper_facing")
+				_check("holding rear aim pivots the feet around (feet south %.2f)" % feet.dot(SOUTH),
+					feet.dot(SOUTH) > 0.78)
+				_check("upper body still points where the mouse asked (upper south %.2f)" % upper.dot(SOUTH),
+					upper.dot(SOUTH) > 0.92)
+				_check("waist stays bounded while feet catch up (%.1f deg)" % float(lab.call("upper_lower_delta_deg")),
+					absf(float(lab.call("upper_lower_delta_deg"))) <= float(lab.call("max_twist_deg")) + 3.0)
+				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", EAST)
 				lab.call("set_test_zoom", 1.0)
 				_next()
-		2:
+		4:
 			if phase_t > 0.55:
 				_check("camera sits opposite the mouse/facing vector (dot %.2f)" % float(lab.call("camera_behind_dot")),
 					float(lab.call("camera_behind_dot")) > 0.82)
@@ -102,7 +135,7 @@ func _physics_process(delta: float) -> void:
 					float(lab.call("camera_height")) > 18.0)
 				lab.call("set_test_zoom", 0.0)
 				_next()
-		3:
+		5:
 			if phase_t > 0.55:
 				_check("close zoom drops toward third-person height (height %.1f)" % float(lab.call("camera_height")),
 					float(lab.call("camera_height")) < 8.0)
@@ -111,7 +144,7 @@ func _physics_process(delta: float) -> void:
 				lab.call("set_test_move", Vector2(0, 1), true)
 				_p0 = lab.call("player_position")
 				_next()
-		4:
+		6:
 			if phase_t > 1.0:
 				var p1: Vector3 = lab.call("player_position")
 				_forward_dist = (p1 - _p0).dot(EAST)
@@ -122,15 +155,17 @@ func _physics_process(delta: float) -> void:
 				lab.call("set_test_move", Vector2(0, -1), true)
 				_p0 = lab.call("player_position")
 				_next()
-		5:
+		7:
 			if phase_t > 1.0:
 				var p2: Vector3 = lab.call("player_position")
 				var back_dist := maxf(0.0, -(p2 - _p0).dot(EAST))
 				_check("backward sprint is clamped to backpedal pace (%.1fm < forward %.1fm)" % [back_dist, _forward_dist],
 					back_dist < _forward_dist * 0.6 and float(lab.call("last_speed")) < 3.8)
+				_check("the lab labels backward movement as backpedal footwork (%s)" % String(lab.call("footwork_label")),
+					String(lab.call("footwork_label")) == "BACKPEDAL")
 				lab.call("set_test_move", Vector2.ZERO, false)
 				_next()
-		6:
+		8:
 			_finish()
 
 	if total_t > 12.0:

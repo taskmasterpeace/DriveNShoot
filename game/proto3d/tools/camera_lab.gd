@@ -9,7 +9,9 @@ const CLOSE_BACK := 6.4
 const FAR_BACK := 11.0
 const CLOSE_FOV := 72.0
 const FAR_FOV := 58.0
-const TURN_RATE_DEG := 720.0
+const FEET_TURN_RATE_DEG := 420.0
+const FEET_CATCHUP_RATE_DEG := 560.0
+const MAX_TWIST_DEG := 82.0
 const WALK_SPEED := 3.9
 const RUN_SPEED := 7.2
 const BACKPEDAL_SPEED := 2.4
@@ -24,9 +26,11 @@ var _aim_marker: MeshInstance3D
 var _aim_dir := Vector3(0, 0, -1)
 var _cam_dir := Vector3(0, 0, -1)
 var _body_yaw: float = 0.0
+var _upper_yaw: float = 0.0
 var _prev_yaw: float = 0.0
 var _zoom_t: float = 0.78
 var _last_speed: float = 0.0
+var _footwork := "IDLE"
 
 var _test_aim_active: bool = false
 var _test_move_active: bool = false
@@ -63,8 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_aim_from_mouse()
-	var target_yaw := _yaw_of(_aim_dir)
-	_body_yaw = _rotate_yaw(_body_yaw, target_yaw, deg_to_rad(TURN_RATE_DEG) * delta)
+	_update_split_turn(delta)
 	_player.rotation.y = _body_yaw
 
 	var move_input := _read_move_input()
@@ -79,6 +82,7 @@ func _physics_process(delta: float) -> void:
 		var turn_rate := wrapf(_body_yaw - _prev_yaw, -PI, PI) / maxf(delta, 0.0001)
 		_prev_yaw = _body_yaw
 		_puppet.call("animate", delta, _last_speed, turn_rate, false, 0.0, false)
+	_apply_upper_body_pose()
 
 	_update_camera(delta, false)
 	_update_markers()
@@ -221,6 +225,7 @@ func _sprint_pressed() -> bool:
 
 func _movement_vector(input: Vector2) -> Vector3:
 	if input.length_squared() < 0.0001:
+		_footwork = "IDLE"
 		return Vector3.ZERO
 	var fwd := _vec_of(_body_yaw)
 	var right := Vector3(-fwd.z, 0, fwd.x)
@@ -232,11 +237,51 @@ func _movement_vector(input: Vector2) -> Vector3:
 	var speed := WALK_SPEED
 	if input.y > 0.72 and absf(input.x) < 0.38 and _sprint_pressed():
 		speed = RUN_SPEED
+		_footwork = "RUN"
 	elif input.y < -0.05:
 		speed = BACKPEDAL_SPEED
+		_footwork = "BACKPEDAL"
 	elif absf(input.x) > 0.05:
 		speed = STRAFE_SPEED
+		_footwork = "SIDE-STEP"
+	else:
+		_footwork = "WALK"
 	return world * speed
+
+
+func _update_split_turn(delta: float) -> void:
+	var target_yaw := _yaw_of(_aim_dir)
+	var max_twist := deg_to_rad(MAX_TWIST_DEG)
+	var raw_delta := wrapf(target_yaw - _body_yaw, -PI, PI)
+	var turn_rate := deg_to_rad(FEET_TURN_RATE_DEG)
+	if absf(raw_delta) > max_twist:
+		var edge_feet_yaw := target_yaw - signf(raw_delta) * max_twist
+		turn_rate = deg_to_rad(FEET_CATCHUP_RATE_DEG)
+		_body_yaw = _rotate_yaw(_body_yaw, edge_feet_yaw, turn_rate * delta)
+	elif absf(raw_delta) > deg_to_rad(8.0):
+		_body_yaw = _rotate_yaw(_body_yaw, target_yaw, turn_rate * 0.55 * delta)
+	_body_yaw = wrapf(_body_yaw, -PI, PI)
+
+	var clamped_delta := clampf(wrapf(target_yaw - _body_yaw, -PI, PI), -max_twist, max_twist)
+	_upper_yaw = wrapf(_body_yaw + clamped_delta, -PI, PI)
+
+
+func _apply_upper_body_pose() -> void:
+	if _puppet == null:
+		return
+	var twist := wrapf(_upper_yaw - _body_yaw, -PI, PI)
+	var torso := _puppet.get("torso") as Node3D
+	if torso != null:
+		torso.rotation.y += twist * 0.45
+	var waist := _puppet.get("waist") as Node3D
+	if waist != null:
+		waist.rotation.y += twist * 0.25
+	var neck := _puppet.get("neck") as Node3D
+	if neck != null:
+		neck.rotation.y += twist * 0.25
+	var aim_arm := _puppet.get("aim_arm") as Node3D
+	if aim_arm != null:
+		aim_arm.rotation.y = twist
 
 
 func _update_aim_from_mouse() -> void:
@@ -281,7 +326,7 @@ func _update_label() -> void:
 	if _label == null:
 		return
 	var mode := "THIRD" if _zoom_t < 0.25 else ("GTA2" if _zoom_t > 0.65 else "CHASE")
-	_label.text = "CAMERA LAB  %s\nWASD move  |  Mouse around body turns facing\nShift sprint only when moving forward  |  Wheel zoom  |  V toggle  |  R reset\nspeed %.1f m/s  zoom %.2f" % [mode, _last_speed, _zoom_t]
+	_label.text = "CAMERA LAB  %s\nMouse aims upper body; feet pivot when waist hits %.0f deg\nW run/walk  S backpedal  A/D side-step  |  Wheel zoom  |  V toggle  |  R reset\n%s  speed %.1f m/s  twist %.0f deg  zoom %.2f" % [mode, MAX_TWIST_DEG, _footwork, _last_speed, upper_lower_delta_deg(), _zoom_t]
 
 
 static func _yaw_of(v: Vector3) -> float:
@@ -320,9 +365,11 @@ func reset_test_pose(pos: Vector3) -> void:
 	_player.global_position = pos
 	_player.velocity = Vector3.ZERO
 	_body_yaw = _yaw_of(_aim_dir)
+	_upper_yaw = _body_yaw
 	_prev_yaw = _body_yaw
 	_cam_dir = _aim_dir.normalized()
 	_last_speed = 0.0
+	_footwork = "IDLE"
 	_update_camera(1.0 / 60.0, true)
 
 
@@ -344,3 +391,23 @@ func player_position() -> Vector3:
 
 func last_speed() -> float:
 	return _last_speed
+
+
+func upper_lower_delta_deg() -> float:
+	return rad_to_deg(wrapf(_upper_yaw - _body_yaw, -PI, PI))
+
+
+func max_twist_deg() -> float:
+	return MAX_TWIST_DEG
+
+
+func feet_facing() -> Vector3:
+	return _vec_of(_body_yaw)
+
+
+func upper_facing() -> Vector3:
+	return _vec_of(_upper_yaw)
+
+
+func footwork_label() -> String:
+	return _footwork
