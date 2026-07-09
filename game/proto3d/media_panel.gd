@@ -36,6 +36,8 @@ var _tabs: HBoxContainer
 var _list_scroll: ScrollContainer
 var _list: VBoxContainer
 var _video: VideoStreamPlayer
+var _vp: SubViewport          ## the ALWAYS-LIVE render target the video plays into (see create())
+var _screen_tex: TextureRect  ## the bezel's fullscreen view OF the viewport
 var _screen_stack: Control ## the bezel's screen area — the video's fullscreen home
 var _vol_slider: HSlider
 var _now_label: Label
@@ -188,10 +190,28 @@ static func create(main: Node) -> ProtoMediaPanel:
 	frame.add_child(screen_stack)
 	p._screen_stack = screen_stack
 
+	# THE ALWAYS-LIVE PIPELINE (TV fix 2026-07-08, matching drive_in/public_screen): the
+	# video plays INSIDE a SubViewport that renders EVERY frame (UPDATE_ALWAYS), so its
+	# ViewportTexture is a live picture whether or not this 2D panel is on screen. The TV
+	# mesh skins that texture (couch mode = the show plays ON the model); the fullscreen
+	# bezel shows the SAME viewport via a TextureRect. No reparent, no 1px-corner sliver,
+	# no texture freeze (the old get_video_texture()-off-a-hidden-player path).
+	p._vp = SubViewport.new()
+	p._vp.size = Vector2i(640, 360)
+	p._vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	p._vp.transparent_bg = false
+	p.add_child(p._vp)
 	p._video = VideoStreamPlayer.new()
 	p._video.expand = true
 	p._video.set_anchors_preset(Control.PRESET_FULL_RECT)
-	screen_stack.add_child(p._video)
+	p._vp.add_child(p._video)
+	# The fullscreen view of that viewport, in the bezel's screen area.
+	p._screen_tex = TextureRect.new()
+	p._screen_tex.texture = p._vp.get_texture()
+	p._screen_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	p._screen_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	p._screen_tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	screen_stack.add_child(p._screen_tex)
 
 	p._dead_air_card = PanelContainer.new()
 	p._dead_air_card.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -357,31 +377,30 @@ func open() -> void:
 	is_open = true
 	visible = true
 	_root.visible = true
-	_restore_video_fullscreen() # bring the picture back off the couch-sliver into the bezel
+	_restore_video_fullscreen() # show the bezel's view of the live viewport
 	showing_guide = false
 	_channel_view.visible = true
 	_guide_view.visible = false
-	if tv_set != null and tv_set.has_method("set_off"):
-		tv_set.set_off() # fullscreen takes the picture back from the set
 	_tune_and_roll(false) # no static burst on first power-up
+	_go_live() # the set stays live through fullscreen AND the couch — seamless either way
 	refresh()
 
 
-## Fullscreen: the video fills the bezel's screen area again (undo the couch sliver).
+## Fullscreen: show the bezel's TextureRect view of the always-live viewport. The video
+## never leaves the SubViewport now, so there is nothing to reparent (the old couch
+## sliver is gone) — just make sure the fullscreen view is showing.
 func _restore_video_fullscreen() -> void:
-	if _video.get_parent() != _screen_stack:
-		# Reparenting exits/re-enters the tree, which STOPS the player — save the
-		# playhead and resume so the reel doesn't restart from the top.
-		var resume_at := _video.stream_position
-		var had_stream := _video.stream != null
-		_video.get_parent().remove_child(_video)
-		_screen_stack.add_child(_video)
-		_screen_stack.move_child(_video, 0) # behind the DEAD AIR / EBS / static cards
-		if had_stream:
-			_video.play()
-			_video.stream_position = resume_at
-	_video.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_video.modulate = Color.WHITE
+	if _screen_tex != null:
+		_screen_tex.visible = true
+		_screen_tex.modulate = Color.WHITE
+
+
+## Bind the TV mesh to the always-live viewport texture. Idempotent — the viewport
+## texture reference is stable across streams (it's the render target, not the frame),
+## so one call keeps the set live forever; power_off() takes it back to the amber idle.
+func _go_live() -> void:
+	if tv_set != null and tv_set.has_method("set_live") and _vp != null and _video.stream != null:
+		tv_set.set_live(_vp.get_texture())
 
 
 ## E / back out: TO THE COUCH (owner 2026-07-07) — the panel hides but a rolling
@@ -390,25 +409,14 @@ func _restore_video_fullscreen() -> void:
 func close() -> void:
 	is_open = false
 	if _video.stream != null and _video.is_playing() and tv_set != null and tv_set.has_method("set_live"):
-		# TO THE COUCH. A hidden VideoStreamPlayer decodes audio but FREEZES its
-		# texture (playtest 2026-07-08: "I hear it but don't see it on the TV").
-		# So keep the layer alive and the video DECODING — reparented to a 1px
-		# sliver in the corner, visible-in-tree (full-res frames still decode) but
-		# imperceptible — and hide only the bezel chrome. The set shows live frames.
+		# TO THE COUCH: hide only the fullscreen chrome. The video keeps rolling inside
+		# the always-live SubViewport (UPDATE_ALWAYS), so it plays ON THE TV MESH with no
+		# reparent and no 1px sliver — the picture can't freeze the way the old
+		# get_video_texture()-off-a-hidden-player path did (2026-07-08: "I hear it but
+		# don't see it on the TV"). The CanvasLayer stays alive so the viewport keeps rendering.
 		visible = true
 		_root.visible = false
-		if _video.get_parent() != self:
-			# Exiting the tree stops the player — save the playhead and resume so
-			# the couch picks up exactly where fullscreen left off (no restart).
-			var resume_at := _video.stream_position
-			_video.get_parent().remove_child(_video)
-			add_child(_video)
-			_video.play()
-			_video.stream_position = resume_at
-		_video.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		_video.position = Vector2.ZERO
-		_video.size = Vector2(1, 1)
-		tv_set.set_live(_video.get_video_texture())
+		_go_live()
 	else:
 		visible = false
 		power_off()
@@ -586,10 +594,10 @@ func _roll_channel(c: Dictionary) -> void:
 	_video.play()
 	if float(slot["offset"]) > 1.0:
 		_video.stream_position = float(slot["offset"])
-	# On the couch, a channel auto-advance swaps the stream — re-hand the NEW
-	# texture to the set so it doesn't cling to the last reel's final frame.
-	if not is_open and tv_set != null and tv_set.has_method("set_live"):
-		tv_set.set_live(_video.get_video_texture())
+	# A stream just started — keep the set bound to the live viewport (idempotent; the
+	# viewport texture is stable across the stream swap, so this never clings to the last
+	# reel's final frame the way the old direct-video-texture path could).
+	_go_live()
 	now_playing_id = id
 	_now_label.text = "NOW ON %s — %s" % [String(c.get("name", cid)), String(reg.get_media(id).get("title", id))]
 	if _main.has_method("mark_media_watched"):

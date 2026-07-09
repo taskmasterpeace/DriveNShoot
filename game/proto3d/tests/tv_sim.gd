@@ -82,11 +82,18 @@ func _ready() -> void:
 		main.media_panel.set_playing())
 	var tv_node: Node = main.media_panel.tv_set
 	_check("...and the SET's screen carries the live picture", tv_node != null and tv_node.is_live())
-	# Regression (playtest 2026-07-08: "I hear it but I don't SEE it on the TV"):
-	# a hidden VideoStreamPlayer decodes AUDIO but freezes its texture. Couch mode
-	# must keep the video DECODING — visible in the tree — or the set is a still frame.
-	_check("...the couch video keeps DECODING (visible in tree, live frames not frozen)",
-		main.media_panel._video.is_playing() and main.media_panel._video.is_visible_in_tree())
+	# TV FIX (2026-07-08, owner replay of "I hear it but I don't SEE it on the TV"): the
+	# picture is now a SubViewport(UPDATE_ALWAYS) ViewportTexture — it re-renders EVERY
+	# frame whether or not the 2D panel is on screen, so the set is never a frozen frame
+	# (the old get_video_texture()-off-a-1px-hidden-player path). Verify the real pipeline,
+	# not just that a material got assigned (the false-green the old check let through).
+	var vp: SubViewport = main.media_panel._vp
+	_check("the panel drives an ALWAYS-render SubViewport (not a hidden video player)",
+		vp != null and vp.render_target_update_mode == SubViewport.UPDATE_ALWAYS)
+	_check("...the video plays INSIDE that viewport", main.media_panel._video.get_parent() == vp)
+	_check("...the SET's screen texture IS that live viewport (the wiring is real, end to end)",
+		tv_node._live_material != null and tv_node._live_material.albedo_texture == vp.get_texture())
+	_check("...the couch reel keeps PLAYING (audio + always-live frames)", main.media_panel._video.is_playing())
 	_check("...but the fullscreen CHROME is gone (no fullscreen takeover)",
 		main.media_panel.visible and not main.media_panel._root.visible)
 	_check("...prompt now offers FULLSCREEN", String(tv_node.interact_prompt(main)).contains("FULLSCREEN"))
