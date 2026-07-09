@@ -593,9 +593,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif _dragging != null:
 			_drop_drag() # E while hauling = set it down
 		elif _current_interactable and player.move_state == ProtoPlayer3D.FootState.NORMAL:
-			if _current_interactable is ProtoChest:
-				# GRAB & DRAG (MOVESET.txt): E on a chest/body is TAP-vs-HOLD —
-				# tap = open it, HOLD = grab it and haul it somewhere better.
+			if _is_draggable(_current_interactable):
+				# GRAB & DRAG (MOVESET.txt): E on a chest/body/FURNITURE is TAP-vs-HOLD —
+				# tap = use it (open / watch), HOLD = grab it and reposition it.
 				_grab_down = true
 				_grab_t = 0.0
 			else:
@@ -607,8 +607,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_exit_car()
 		if _grab_down:
 			_grab_down = false
-			if _grab_t < 0.35 and is_instance_valid(_current_interactable) and _current_interactable is ProtoChest:
-				_current_interactable.call("interact", self) # the TAP: open it
+			if _grab_t < 0.35 and _is_draggable(_current_interactable):
+				_current_interactable.call("interact", self) # the TAP: open it / watch it
 	# THE ACTION CHAIN (controller arc): every verb is an ACTION — the same elif
 	# fires from its key, its mouse button, OR its pad binding (input_bindings.json
 	# rows; rebind in the CONTROLS panel, F11). PS pads read as the same buttons.
@@ -2257,14 +2257,21 @@ func _update_water(delta: float) -> void:
 
 # --- GRAB & DRAG (MOVESET.txt): haul a body/crate to where it's needed --------
 
+## What HOLD-E can pick up: a chest/body, or anything tagged "furniture" (the TV, and
+## whatever furniture joins the group next). Null-safe so the interactable checks stay one-liners.
+func _is_draggable(node: Object) -> bool:
+	return node != null and (node is ProtoChest or (node is Node and (node as Node).is_in_group("furniture")))
+
+
 func _update_drag(delta: float) -> void:
 	if _grab_down:
 		_grab_t += delta
 		if _grab_t >= 0.35:
 			_grab_down = false
-			if _current_interactable is ProtoChest and mode == Mode.FOOT:
+			if _is_draggable(_current_interactable) and mode == Mode.FOOT:
 				_dragging = _current_interactable
-				notify("🫳 Dragging %s — E to set it down" % (_dragging as ProtoChest).container.label.to_lower())
+				var _dl: String = (_dragging as ProtoChest).container.label.to_lower() if _dragging is ProtoChest else "the furniture"
+				notify("🫳 Dragging %s — E to set it down" % _dl)
 	if _dragging == null:
 		return
 	if not is_instance_valid(_dragging) or mode != Mode.FOOT or panel.is_open:
@@ -2286,6 +2293,34 @@ func _drop_drag() -> void:
 	if _dragging != null:
 		notify("You set it down.")
 	_dragging = null
+
+
+## FURNITURE DRAG persistence (prototype): every "furniture" node that carries a
+## furniture_id banks its spot (x,y,z + yaw). A StaticBody's collider is a child, so
+## moving the node moved the collision with it — nothing to re-bake (the game has no
+## navmesh; actors path by whiskers). Keyed by id so adding furniture never renumbers.
+func _furniture_records() -> Dictionary:
+	var out: Dictionary = {}
+	for n in get_tree().get_nodes_in_group("furniture"):
+		if n is Node3D and n.has_meta("furniture_id"):
+			var fp: Vector3 = (n as Node3D).global_position
+			out[String(n.get_meta("furniture_id"))] = [fp.x, fp.y, fp.z, (n as Node3D).rotation.y]
+	return out
+
+
+func _furniture_load(recs: Dictionary) -> void:
+	if recs.is_empty():
+		return
+	for n in get_tree().get_nodes_in_group("furniture"):
+		if not (n is Node3D and n.has_meta("furniture_id")):
+			continue
+		var fid := String(n.get_meta("furniture_id"))
+		if recs.has(fid):
+			var a: Array = recs[fid]
+			if a.size() >= 3:
+				(n as Node3D).global_position = Vector3(float(a[0]), float(a[1]), float(a[2]))
+			if a.size() >= 4:
+				(n as Node3D).rotation.y = float(a[3])
 
 
 # --- THE PAD DRIVER (controller arc) -------------------------------------------
@@ -3553,6 +3588,9 @@ func save_game() -> Dictionary:
 		"dogs": dogs_out,
 		# THE SHELF (docs/cinema.md Phase 4): what you've found and what you've watched.
 		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
+		# FURNITURE DRAG (prototype 2026-07-08): where you've dragged the TV (and any
+		# future furniture) — keyed by furniture_id so a moved set stays moved on reload.
+		"furniture": _furniture_records(),
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -3671,6 +3709,7 @@ func apply_save(data: Dictionary) -> void:
 			g.begin_siege(1)
 			g.siege_deadline_day = int(data["sieges"][sid])
 	homebase.restore(data.get("homebase", []))
+	_furniture_load(data.get("furniture", {}))
 	var circ: Dictionary = data.get("circuit", {})
 	circuit_level = int(circ.get("level", 1))
 	var b: Dictionary = circ.get("beats", {})

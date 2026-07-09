@@ -14,6 +14,11 @@ var _live_material: StandardMaterial3D = null
 static func create() -> ProtoTV:
 	var tv := ProtoTV.new()
 	tv.add_to_group("interactable")
+	# FURNITURE DRAG (prototype 2026-07-08): anything in "furniture" gets the chest's
+	# TAP-vs-HOLD — tap E to use it, HOLD E to grab and reposition it (proto3d._update_drag);
+	# its spot persists in the save. The furniture_id names it for that save slot.
+	tv.add_to_group("furniture")
+	tv.set_meta("furniture_id", "tv")
 	# The cabinet — a dark box on short legs, screen angled at the room.
 	var body := MeshInstance3D.new()
 	var bm := BoxMesh.new()
@@ -77,11 +82,11 @@ func interact_position() -> Vector3:
 
 func interact_prompt(main: Node) -> String:
 	if is_live():
-		return "E — 📺 Watch FULLSCREEN (playing on the set)"
+		return "E — 📺 Watch FULLSCREEN (playing on the set) · hold E to move"
 	var n: int = 0
 	if "media_registry" in main and main.media_registry != null:
 		n = main.media_registry.rows.size()
-	return "E — 📺 Watch the TV (%d in the catalog)" % n
+	return "E — 📺 Watch the TV (%d in the catalog) · hold E to move" % n
 
 
 func interact(main: Node) -> void:

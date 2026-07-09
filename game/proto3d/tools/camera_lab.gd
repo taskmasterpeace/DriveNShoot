@@ -25,6 +25,7 @@ var _torso_square: MeshInstance3D
 var _torso_nose: MeshInstance3D
 var _survivor_model: Node3D
 var _survivor_upper: Node3D
+var _buggy_model: Node3D
 var _truck_model: Node3D
 var _cam: Camera3D
 var _label: Label
@@ -169,6 +170,8 @@ func _build_player() -> void:
 	_torso_square.add_child(_torso_nose)
 	_survivor_model = _build_block_survivor()
 	_player.add_child(_survivor_model)
+	_buggy_model = _build_block_buggy()
+	_player.add_child(_buggy_model)
 	_truck_model = _build_block_truck()
 	_player.add_child(_truck_model)
 	_apply_visual_model()
@@ -342,6 +345,43 @@ func _build_block_truck() -> Node3D:
 	return root
 
 
+func _build_block_buggy() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockBuggy"
+	root.position.y = 0.10
+	root.scale = Vector3(0.68, 0.68, 0.68)
+	var blue := Color(0.04, 0.24, 0.68)
+	var dark := Color(0.08, 0.08, 0.08)
+	var metal := Color(0.18, 0.18, 0.16)
+	var glass := Color(0.14, 0.21, 0.23)
+	_block(root, "chassis_l", Vector3(-0.32, 0.12, -0.05), Vector3(0.14, 0.18, 2.45), metal)
+	_block(root, "chassis_r", Vector3(0.32, 0.12, -0.05), Vector3(0.14, 0.18, 2.45), metal)
+	_block(root, "front_cross", Vector3(0, 0.17, -1.05), Vector3(0.92, 0.16, 0.14), metal)
+	_block(root, "rear_cross", Vector3(0, 0.17, 1.02), Vector3(0.88, 0.16, 0.14), metal)
+	_block(root, "nose", Vector3(0, 0.48, -0.78), Vector3(1.02, 0.28, 0.78), blue, Vector3(deg_to_rad(-6), 0, 0))
+	_block(root, "cockpit_floor", Vector3(0, 0.38, 0.18), Vector3(0.90, 0.16, 0.72), metal)
+	_block(root, "seat", Vector3(0, 0.67, 0.18), Vector3(0.38, 0.38, 0.34), dark)
+	_block(root, "dash", Vector3(0, 0.72, -0.28), Vector3(0.58, 0.22, 0.16), dark)
+	_block(root, "windshield_bar", Vector3(0, 1.06, -0.34), Vector3(0.86, 0.10, 0.10), metal)
+	_block(root, "roll_front", Vector3(0, 1.25, -0.18), Vector3(0.92, 0.12, 0.12), metal)
+	_block(root, "roll_rear", Vector3(0, 1.24, 0.62), Vector3(0.82, 0.12, 0.12), metal)
+	_block(root, "roll_l", Vector3(-0.46, 0.96, 0.20), Vector3(0.12, 0.12, 1.05), metal, Vector3(deg_to_rad(18), 0, 0))
+	_block(root, "roll_r", Vector3(0.46, 0.96, 0.20), Vector3(0.12, 0.12, 1.05), metal, Vector3(deg_to_rad(18), 0, 0))
+	_block(root, "side_l", Vector3(-0.58, 0.53, 0.15), Vector3(0.12, 0.34, 0.86), blue)
+	_block(root, "side_r", Vector3(0.58, 0.53, 0.15), Vector3(0.12, 0.34, 0.86), blue)
+	_block(root, "rear_engine", Vector3(0, 0.55, 0.94), Vector3(0.86, 0.30, 0.46), dark)
+	_block(root, "engine_vent", Vector3(0, 0.76, 0.97), Vector3(0.54, 0.08, 0.36), metal)
+	_block(root, "front_bumper", Vector3(0, 0.35, -1.30), Vector3(1.12, 0.18, 0.16), metal)
+	_block(root, "headlight_l", Vector3(-0.31, 0.56, -1.16), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_block(root, "headlight_r", Vector3(0.31, 0.56, -1.16), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_block(root, "tiny_windshield", Vector3(0, 0.91, -0.43), Vector3(0.58, 0.24, 0.05), glass, Vector3(deg_to_rad(-14), 0, 0))
+	_wheel(root, "wheel_fl", Vector3(-0.70, 0.23, -0.78))
+	_wheel(root, "wheel_fr", Vector3(0.70, 0.23, -0.78))
+	_wheel(root, "wheel_rl", Vector3(-0.72, 0.25, 0.82))
+	_wheel(root, "wheel_rr", Vector3(0.72, 0.25, 0.82))
+	return root
+
+
 func _set_square_visible(value: bool) -> void:
 	if _body_square != null:
 		_body_square.visible = value
@@ -353,12 +393,14 @@ func _apply_visual_model() -> void:
 	_set_square_visible(_active_model_name == "squares")
 	if _survivor_model != null:
 		_survivor_model.visible = _active_model_name == "survivor"
+	if _buggy_model != null:
+		_buggy_model.visible = _active_model_name == "buggy"
 	if _truck_model != null:
 		_truck_model.visible = _active_model_name == "truck"
 
 
 func cycle_visual_model() -> void:
-	var names := PackedStringArray(["squares", "survivor", "truck"])
+	var names := PackedStringArray(["squares", "survivor", "buggy", "truck"])
 	var idx := names.find(_active_model_name)
 	idx = 0 if idx < 0 else (idx + 1) % names.size()
 	set_visual_model(names[idx])
@@ -366,7 +408,7 @@ func cycle_visual_model() -> void:
 
 func set_visual_model(name: String) -> bool:
 	var next := name.to_lower()
-	if not PackedStringArray(["squares", "survivor", "truck"]).has(next):
+	if not PackedStringArray(["squares", "survivor", "buggy", "truck"]).has(next):
 		return false
 	_active_model_name = next
 	_apply_visual_model()
@@ -378,7 +420,7 @@ func active_model_name() -> String:
 
 
 func visual_model_names() -> String:
-	return "squares,survivor,truck"
+	return "squares,survivor,buggy,truck"
 
 
 func _mesh_count(root: Node) -> int:
@@ -394,13 +436,15 @@ func style_part_count(name: String) -> int:
 			return _mesh_count(_body_square) + _mesh_count(_torso_square)
 		"survivor":
 			return _mesh_count(_survivor_model)
+		"buggy":
+			return _mesh_count(_buggy_model)
 		"truck":
 			return _mesh_count(_truck_model)
 	return 0
 
 
 func style_summary() -> String:
-	return "modular low-poly exterior-first block models with a simple interior budget for vehicles."
+	return "modular low-poly survivor, buggy, and exterior-first truck block models with a simple interior budget for vehicles."
 
 
 func _read_move_input() -> Vector2:

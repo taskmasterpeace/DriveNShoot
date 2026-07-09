@@ -122,18 +122,22 @@ func _physics_process(delta: float) -> void:
 				_check("recommended controls name mouse/keyboard and PlayStation-style sticks",
 					controls.contains("Mouse") and controls.contains("Left stick") and controls.contains("Right stick") and controls.contains("L3"))
 				var model_names := String(lab.call("visual_model_names"))
-				_check("camera lab has low-poly style modes", model_names.contains("squares") and model_names.contains("survivor") and model_names.contains("truck"))
+				_check("camera lab has low-poly style modes", model_names.contains("squares") and model_names.contains("survivor") and model_names.contains("truck") and model_names.contains("buggy"))
 				lab.call("set_visual_model", "survivor")
 				_check("block survivor mode is active", String(lab.call("active_model_name")) == "survivor")
 				_check("block survivor is modular but cheap (%d parts)" % int(lab.call("style_part_count", "survivor")),
 					int(lab.call("style_part_count", "survivor")) >= 12 and int(lab.call("style_part_count", "survivor")) <= 36)
+				lab.call("set_visual_model", "buggy")
+				_check("block buggy mode is active", String(lab.call("active_model_name")) == "buggy")
+				_check("block buggy is open-cage and cheap (%d parts)" % int(lab.call("style_part_count", "buggy")),
+					int(lab.call("style_part_count", "buggy")) >= 18 and int(lab.call("style_part_count", "buggy")) <= 56)
 				lab.call("set_visual_model", "truck")
 				_check("block truck mode is active", String(lab.call("active_model_name")) == "truck")
 				_check("block truck is modular exterior-first (%d parts)" % int(lab.call("style_part_count", "truck")),
 					int(lab.call("style_part_count", "truck")) >= 18 and int(lab.call("style_part_count", "truck")) <= 72)
 				var summary := String(lab.call("style_summary"))
-				_check("style summary names modular low-poly exterior and simple interior",
-					summary.contains("modular") and summary.contains("low-poly") and summary.contains("simple interior"))
+				_check("style summary names modular low-poly buggy/exterior and simple interior",
+					summary.contains("modular") and summary.contains("low-poly") and summary.contains("simple interior") and summary.contains("buggy"))
 				lab.call("set_visual_model", "squares")
 				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", NORTH)
