@@ -4116,13 +4116,17 @@ func _sync_wound_effects() -> void:
 	if player.puppet:
 		player.puppet.aim_wobble = character.aim_wobble()
 	# TORSO + HUNGER → stamina regen tax (stress already throttles; these stack).
-	player.wound_regen_mult = character.wound_stamina_mult() * character.hunger_stamina_mult()
-	# HUNGER drains on the game clock; the belly reports to the moodle column.
+	# BITE FEVER (THE_INFECTED §3.6): the body burns fighting it — regen ×0.75.
 	var hhr: float = daynight.hour + float(daynight.day) * 24.0
+	var fevered: bool = character.fever_active(hhr)
+	player.wound_regen_mult = character.wound_stamina_mult() * character.hunger_stamina_mult() \
+		* (float(ProtoInfected.fever_row.get("stam_mult", 0.75)) if fevered else 1.0)
+	# HUNGER drains on the game clock; the belly reports to the moodle column.
 	if _last_hunger_hr < 0.0:
 		_last_hunger_hr = hhr
 	elif hhr > _last_hunger_hr:
-		character.hunger_tick(hhr - _last_hunger_hr)
+		# fever tax: hunger drains ×1.3 while it runs (+0.84/gh over the 2.8 base)
+		character.hunger_tick((hhr - _last_hunger_hr) * (float(ProtoInfected.fever_row.get("hunger_mult", 1.3)) if fevered else 1.0))
 		_last_hunger_hr = hhr
 	hud.set_condition("hungry", character.hunger_tier())
 	# POPULATION LEDGER: presence stamps the player's cell (the unseen-refill

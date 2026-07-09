@@ -16,6 +16,13 @@ const EMPTY_DECAY_SECONDS := 32.0 ## …a picked-clean one goes sooner (how it m
 const FADE_SECONDS := 6.0
 
 var container: ProtoContainer
+## THE SHARED ECOSYSTEM FIELDS (one corpse.gd edit serves both arcs — LWE's
+## +heat/indoors/gnawed booking and THE_INFECTED's infection float): heat feeds
+## scavenger pressure, infection feeds F-IP and the corpse-flies tell.
+var infection := 0.0 ## 0..1 — infected bodies spawn 1.0
+var heat := 1.0      ## fresh-kill scavenger draw, decays with the body
+var indoors := false
+var gnawed := false
 var _scav_done := false
 var _age := 0.0
 var _grounded := false

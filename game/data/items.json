@@ -1,391 +1,399 @@
 {
-  "items": [
-    {
-      "category": "weapon",
-      "desc": "9mm sidearm. USE equips it.",
-      "emoji": "🔫",
-      "id": "pistol",
-      "name": "Pistol",
-      "usable": true,
-      "weight": 1.1
-    },
-    {
-      "category": "weapon",
-      "desc": "Doors, howlers, arguments. USE equips it.",
-      "emoji": "🔫",
-      "id": "shotgun",
-      "name": "Pump shotgun",
-      "usable": true,
-      "weight": 3.2
-    },
-    {
-      "category": "weapon",
-      "desc": "For things with wheels. USE equips it.",
-      "emoji": "🧨",
-      "id": "pipe_rocket",
-      "name": "Pipe rocket launcher",
-      "usable": true,
-      "weight": 4.5
-    },
-    {
-      "category": "weapon",
-      "desc": "Quiet, heavy, honest. USE equips it.",
-      "emoji": "🔧",
-      "id": "wrench",
-      "name": "Wrench",
-      "usable": true,
-      "weight": 1.4
-    },
-    {
-      "category": "weapon",
-      "desc": "Quiet and mean. USE equips it.",
-      "emoji": "🔪",
-      "id": "machete",
-      "name": "Machete",
-      "usable": true,
-      "weight": 1.1
-    },
-    {
-      "category": "weapon",
-      "desc": "Throw with G.",
-      "emoji": "💣",
-      "id": "grenade",
-      "name": "Grenade",
-      "usable": false,
-      "weight": 0.5
-    },
-    {
-      "category": "ammo",
-      "desc": "Feeds the pistol.",
-      "emoji": "•",
-      "id": "9mm",
-      "name": "9mm rounds",
-      "usable": false,
-      "weight": 0.02
-    },
-    {
-      "category": "ammo",
-      "desc": "Feeds the shotgun.",
-      "emoji": "•",
-      "id": "12ga",
-      "name": "12ga shells",
-      "usable": false,
-      "weight": 0.05
-    },
-    {
-      "category": "ammo",
-      "desc": "Feeds the pipe launcher.",
-      "emoji": "🚀",
-      "id": "rocket",
-      "name": "Rocket",
-      "usable": false,
-      "weight": 1.5
-    },
-    {
-      "category": "med",
-      "desc": "Stops bleeding, treats the worst wound (+30).",
-      "emoji": "🩹",
-      "id": "bandage",
-      "name": "Bandage",
-      "usable": true,
-      "weight": 0.2
-    },
-    {
-      "category": "med",
-      "desc": "The real thing: stops bleeding, treats EVERY part (+25).",
-      "emoji": "⛑️",
-      "id": "medkit",
-      "name": "Field medkit",
-      "usable": true,
-      "weight": 1.8
-    },
-    {
-      "category": "med",
-      "desc": "Takes the edge off — worst wound +12, nerves −8.",
-      "emoji": "💊",
-      "id": "painkillers",
-      "name": "Painkillers",
-      "usable": true,
-      "weight": 0.15
-    },
-    {
-      "category": "food",
-      "desc": "Settles the nerves (−18 stress). Dogs love it (E to feed).",
-      "emoji": "🍖",
-      "id": "meat",
-      "name": "Dried meat",
-      "usable": true,
-      "weight": 0.4
-    },
-    {
-      "category": "food",
-      "desc": "A hot meal: worst wound +10, stress −10.",
-      "emoji": "🥫",
-      "id": "canned_food",
-      "name": "Canned beans",
-      "usable": true,
-      "weight": 0.5
-    },
-    {
-      "category": "food",
-      "desc": "Cold and clean. Refills your stamina, stress −6.",
-      "emoji": "💧",
-      "id": "water",
-      "name": "Canteen",
-      "usable": true,
-      "weight": 0.8
-    },
-    {
-      "category": "food",
-      "desc": "Stamina +40 and the shakes settle (−15 stress).",
-      "emoji": "☕",
-      "id": "coffee",
-      "name": "Trail coffee",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "food",
-      "desc": "Stress −30. Your torso pays a little (−4).",
-      "emoji": "🥃",
-      "id": "whiskey",
-      "name": "Rotgut whiskey",
-      "usable": true,
-      "weight": 0.9
-    },
-    {
-      "category": "tool",
-      "desc": "+40 fuel into a rig within reach.",
-      "emoji": "🛢️",
-      "id": "jerry_can",
-      "name": "Jerry can (fuel)",
-      "usable": true,
-      "weight": 6.0
-    },
-    {
-      "category": "tool",
-      "desc": "Field-repairs a rig's worst component (+35).",
-      "emoji": "⚙️",
-      "id": "car_parts",
-      "name": "Salvaged car parts",
-      "usable": true,
-      "weight": 3.5
-    },
-    {
-      "category": "tool",
-      "desc": "Patches a rig's tires (+50).",
-      "emoji": "🛞",
-      "id": "tire_kit",
-      "name": "Tire patch kit",
-      "usable": true,
-      "weight": 1.2
-    },
-    {
-      "category": "tool",
-      "desc": "Holds a chassis together (+12). Briefly.",
-      "emoji": "🧷",
-      "id": "duct_tape",
-      "name": "Duct tape",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "30 seconds of burning red light. The dark blinks first.",
-      "emoji": "🚨",
-      "id": "flare",
-      "name": "Road flare",
-      "usable": true,
-      "weight": 0.4
-    },
-    {
-      "category": "tool",
-      "desc": "Salvaged FEDNET eye. Plant it watching a road; V cycles to its feed.",
-      "emoji": "📹",
-      "id": "surveil_cam",
-      "name": "Surveillance camera",
-      "usable": true,
-      "weight": 1.4
-    },
-    {
-      "category": "tool",
-      "desc": "Key it and LISTEN — movement bleeds through the static.",
-      "emoji": "🎙️",
-      "id": "walkie",
-      "name": "Walkie-talkie",
-      "usable": true,
-      "weight": 0.6
-    },
-    {
-      "category": "tool",
-      "desc": "Pings you when something crosses it. The cheapest guard dog alive.",
-      "emoji": "📡",
-      "id": "motion_sensor",
-      "name": "Motion sensor",
-      "usable": true,
-      "weight": 0.9
-    },
-    {
-      "category": "tool",
-      "desc": "Opens locked doors the quiet way. Hold E at a locked car.",
-      "emoji": "🔓",
-      "id": "lockpick",
-      "name": "Lockpick",
-      "usable": false,
-      "weight": 0.1
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Gears, gas and the handbrake — the road, explained.",
-      "emoji": "🚗",
-      "id": "book_driving",
-      "name": "Driver's Handbook",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Crouching, punching, and not drowning.",
-      "emoji": "🏃",
-      "id": "book_onfoot",
-      "name": "Manual: On Foot",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Whistles, bonds, and the dog's eye.",
-      "emoji": "🐕",
-      "id": "book_dogs",
-      "name": "Manual: The Pack",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. The safehouse, the clock, and going down.",
-      "emoji": "🏠",
-      "id": "book_home",
-      "name": "Manual: Home & Survival",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Drones, cameras, and voices in the static.",
-      "emoji": "🛸",
-      "id": "book_gadgets",
-      "name": "Manual: Gadgets & Signals",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Ten gates, one countdown, THE DIAL.",
-      "emoji": "🎠",
-      "id": "book_carousel",
-      "name": "Manual: The Carousel",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "USE to read. Rulers, respect, and the night.",
-      "emoji": "🪧",
-      "id": "book_states",
-      "name": "Manual: The Divided States",
-      "usable": true,
-      "weight": 0.3
-    },
-    {
-      "category": "tool",
-      "desc": "Somebody's road knowledge — marks a town on YOUR map.",
-      "emoji": "🗺️",
-      "id": "map_fragment",
-      "name": "Map fragment",
-      "usable": true,
-      "weight": 0.1
-    },
-    {
-      "category": "tool",
-      "desc": "One eye, half the arc. Looks great.",
-      "emoji": "🏴‍☠️",
-      "id": "eyepatch",
-      "name": "Eye patch",
-      "usable": true,
-      "weight": 0.05
-    },
-    {
-      "category": "tool",
-      "desc": "USE deploys the bird — it patrols and pings threats.",
-      "emoji": "🛸",
-      "id": "drone",
-      "name": "Scout drone",
-      "usable": true,
-      "weight": 3.0
-    },
-    {
-      "category": "loot",
-      "desc": "The wasteland's raw material.",
-      "emoji": "🔩",
-      "id": "scrap",
-      "name": "Scrap metal",
-      "usable": false,
-      "weight": 1.2
-    },
-    {
-      "category": "loot",
-      "desc": "What passes for money out here.",
-      "emoji": "🪙",
-      "id": "scrip",
-      "name": "Jack (coin)",
-      "usable": false,
-      "weight": 0.02
-    },
-    {
-      "category": "food",
-      "desc": "A tin of pre-Collapse field rations. USE to eat — dense fuel for the road.",
-      "emoji": "🥫",
-      "id": "field_ration",
-      "name": "Field ration",
-      "usable": true,
-      "weight": 0.5
-    },
-    {
-      "category": "loot",
-      "desc": "Someone's spare shirt and jeans. Worth a trade, warms nobody twice.",
-      "emoji": "👕",
-      "id": "clothes",
-      "name": "Clothes",
-      "usable": false,
-      "weight": 0.6
-    },
-    {
-      "category": "tool",
-      "desc": "Keeps a firearm from seizing up. Feeds a gun-cleaning kit.",
-      "emoji": "🛢️",
-      "id": "gun_oil",
-      "name": "Gun oil",
-      "usable": false,
-      "weight": 0.1
-    },
-    {
-      "category": "loot",
-      "desc": "A stamped slip where your gun used to be. The law took it, not a thief.",
-      "emoji": "📄",
-      "id": "confiscation_notice",
-      "name": "Confiscation notice",
-      "usable": false,
-      "weight": 0.02
-    },
-    {
-      "category": "loot",
-      "desc": "Someone's paperwork — a name, a date, a reason to be curious.",
-      "emoji": "📁",
-      "id": "case_file",
-      "name": "Case file",
-      "usable": false,
-      "weight": 0.2
-    }
-  ]
+ "items": [
+  {
+   "category": "weapon",
+   "desc": "9mm sidearm. USE equips it.",
+   "emoji": "\ud83d\udd2b",
+   "id": "pistol",
+   "name": "Pistol",
+   "usable": true,
+   "weight": 1.1
+  },
+  {
+   "category": "weapon",
+   "desc": "Doors, howlers, arguments. USE equips it.",
+   "emoji": "\ud83d\udd2b",
+   "id": "shotgun",
+   "name": "Pump shotgun",
+   "usable": true,
+   "weight": 3.2
+  },
+  {
+   "category": "weapon",
+   "desc": "For things with wheels. USE equips it.",
+   "emoji": "\ud83e\udde8",
+   "id": "pipe_rocket",
+   "name": "Pipe rocket launcher",
+   "usable": true,
+   "weight": 4.5
+  },
+  {
+   "category": "weapon",
+   "desc": "Quiet, heavy, honest. USE equips it.",
+   "emoji": "\ud83d\udd27",
+   "id": "wrench",
+   "name": "Wrench",
+   "usable": true,
+   "weight": 1.4
+  },
+  {
+   "category": "weapon",
+   "desc": "Quiet and mean. USE equips it.",
+   "emoji": "\ud83d\udd2a",
+   "id": "machete",
+   "name": "Machete",
+   "usable": true,
+   "weight": 1.1
+  },
+  {
+   "category": "weapon",
+   "desc": "Throw with G.",
+   "emoji": "\ud83d\udca3",
+   "id": "grenade",
+   "name": "Grenade",
+   "usable": false,
+   "weight": 0.5
+  },
+  {
+   "category": "ammo",
+   "desc": "Feeds the pistol.",
+   "emoji": "\u2022",
+   "id": "9mm",
+   "name": "9mm rounds",
+   "usable": false,
+   "weight": 0.02
+  },
+  {
+   "category": "ammo",
+   "desc": "Feeds the shotgun.",
+   "emoji": "\u2022",
+   "id": "12ga",
+   "name": "12ga shells",
+   "usable": false,
+   "weight": 0.05
+  },
+  {
+   "category": "ammo",
+   "desc": "Feeds the pipe launcher.",
+   "emoji": "\ud83d\ude80",
+   "id": "rocket",
+   "name": "Rocket",
+   "usable": false,
+   "weight": 1.5
+  },
+  {
+   "category": "med",
+   "desc": "Stops bleeding, treats the worst wound (+30).",
+   "emoji": "\ud83e\ude79",
+   "id": "bandage",
+   "name": "Bandage",
+   "usable": true,
+   "weight": 0.2
+  },
+  {
+   "category": "med",
+   "desc": "The real thing: stops bleeding, treats EVERY part (+25).",
+   "emoji": "\u26d1\ufe0f",
+   "id": "medkit",
+   "name": "Field medkit",
+   "usable": true,
+   "weight": 1.8
+  },
+  {
+   "category": "med",
+   "desc": "Takes the edge off \u2014 worst wound +12, nerves \u22128.",
+   "emoji": "\ud83d\udc8a",
+   "id": "painkillers",
+   "name": "Painkillers",
+   "usable": true,
+   "weight": 0.15
+  },
+  {
+   "category": "food",
+   "desc": "Settles the nerves (\u221218 stress). Dogs love it (E to feed).",
+   "emoji": "\ud83c\udf56",
+   "id": "meat",
+   "name": "Dried meat",
+   "usable": true,
+   "weight": 0.4
+  },
+  {
+   "category": "food",
+   "desc": "A hot meal: worst wound +10, stress \u221210.",
+   "emoji": "\ud83e\udd6b",
+   "id": "canned_food",
+   "name": "Canned beans",
+   "usable": true,
+   "weight": 0.5
+  },
+  {
+   "category": "food",
+   "desc": "Cold and clean. Refills your stamina, stress \u22126.",
+   "emoji": "\ud83d\udca7",
+   "id": "water",
+   "name": "Canteen",
+   "usable": true,
+   "weight": 0.8
+  },
+  {
+   "category": "food",
+   "desc": "Stamina +40 and the shakes settle (\u221215 stress).",
+   "emoji": "\u2615",
+   "id": "coffee",
+   "name": "Trail coffee",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "food",
+   "desc": "Stress \u221230. Your torso pays a little (\u22124).",
+   "emoji": "\ud83e\udd43",
+   "id": "whiskey",
+   "name": "Rotgut whiskey",
+   "usable": true,
+   "weight": 0.9
+  },
+  {
+   "category": "tool",
+   "desc": "+40 fuel into a rig within reach.",
+   "emoji": "\ud83d\udee2\ufe0f",
+   "id": "jerry_can",
+   "name": "Jerry can (fuel)",
+   "usable": true,
+   "weight": 6.0
+  },
+  {
+   "category": "tool",
+   "desc": "Field-repairs a rig's worst component (+35).",
+   "emoji": "\u2699\ufe0f",
+   "id": "car_parts",
+   "name": "Salvaged car parts",
+   "usable": true,
+   "weight": 3.5
+  },
+  {
+   "category": "tool",
+   "desc": "Patches a rig's tires (+50).",
+   "emoji": "\ud83d\udede",
+   "id": "tire_kit",
+   "name": "Tire patch kit",
+   "usable": true,
+   "weight": 1.2
+  },
+  {
+   "category": "tool",
+   "desc": "Holds a chassis together (+12). Briefly.",
+   "emoji": "\ud83e\uddf7",
+   "id": "duct_tape",
+   "name": "Duct tape",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "30 seconds of burning red light. The dark blinks first.",
+   "emoji": "\ud83d\udea8",
+   "id": "flare",
+   "name": "Road flare",
+   "usable": true,
+   "weight": 0.4
+  },
+  {
+   "category": "tool",
+   "desc": "Salvaged FEDNET eye. Plant it watching a road; V cycles to its feed.",
+   "emoji": "\ud83d\udcf9",
+   "id": "surveil_cam",
+   "name": "Surveillance camera",
+   "usable": true,
+   "weight": 1.4
+  },
+  {
+   "category": "tool",
+   "desc": "Key it and LISTEN \u2014 movement bleeds through the static.",
+   "emoji": "\ud83c\udf99\ufe0f",
+   "id": "walkie",
+   "name": "Walkie-talkie",
+   "usable": true,
+   "weight": 0.6
+  },
+  {
+   "category": "tool",
+   "desc": "Pings you when something crosses it. The cheapest guard dog alive.",
+   "emoji": "\ud83d\udce1",
+   "id": "motion_sensor",
+   "name": "Motion sensor",
+   "usable": true,
+   "weight": 0.9
+  },
+  {
+   "category": "tool",
+   "desc": "Opens locked doors the quiet way. Hold E at a locked car.",
+   "emoji": "\ud83d\udd13",
+   "id": "lockpick",
+   "name": "Lockpick",
+   "usable": false,
+   "weight": 0.1
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Gears, gas and the handbrake \u2014 the road, explained.",
+   "emoji": "\ud83d\ude97",
+   "id": "book_driving",
+   "name": "Driver's Handbook",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Crouching, punching, and not drowning.",
+   "emoji": "\ud83c\udfc3",
+   "id": "book_onfoot",
+   "name": "Manual: On Foot",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Whistles, bonds, and the dog's eye.",
+   "emoji": "\ud83d\udc15",
+   "id": "book_dogs",
+   "name": "Manual: The Pack",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. The safehouse, the clock, and going down.",
+   "emoji": "\ud83c\udfe0",
+   "id": "book_home",
+   "name": "Manual: Home & Survival",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Drones, cameras, and voices in the static.",
+   "emoji": "\ud83d\udef8",
+   "id": "book_gadgets",
+   "name": "Manual: Gadgets & Signals",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Ten gates, one countdown, THE DIAL.",
+   "emoji": "\ud83c\udfa0",
+   "id": "book_carousel",
+   "name": "Manual: The Carousel",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "USE to read. Rulers, respect, and the night.",
+   "emoji": "\ud83e\udea7",
+   "id": "book_states",
+   "name": "Manual: The Divided States",
+   "usable": true,
+   "weight": 0.3
+  },
+  {
+   "category": "tool",
+   "desc": "Somebody's road knowledge \u2014 marks a town on YOUR map.",
+   "emoji": "\ud83d\uddfa\ufe0f",
+   "id": "map_fragment",
+   "name": "Map fragment",
+   "usable": true,
+   "weight": 0.1
+  },
+  {
+   "category": "tool",
+   "desc": "One eye, half the arc. Looks great.",
+   "emoji": "\ud83c\udff4\u200d\u2620\ufe0f",
+   "id": "eyepatch",
+   "name": "Eye patch",
+   "usable": true,
+   "weight": 0.05
+  },
+  {
+   "category": "tool",
+   "desc": "USE deploys the bird \u2014 it patrols and pings threats.",
+   "emoji": "\ud83d\udef8",
+   "id": "drone",
+   "name": "Scout drone",
+   "usable": true,
+   "weight": 3.0
+  },
+  {
+   "category": "loot",
+   "desc": "The wasteland's raw material.",
+   "emoji": "\ud83d\udd29",
+   "id": "scrap",
+   "name": "Scrap metal",
+   "usable": false,
+   "weight": 1.2
+  },
+  {
+   "category": "loot",
+   "desc": "What passes for money out here.",
+   "emoji": "\ud83e\ude99",
+   "id": "scrip",
+   "name": "Jack (coin)",
+   "usable": false,
+   "weight": 0.02
+  },
+  {
+   "category": "food",
+   "desc": "A tin of pre-Collapse field rations. USE to eat \u2014 dense fuel for the road.",
+   "emoji": "\ud83e\udd6b",
+   "id": "field_ration",
+   "name": "Field ration",
+   "usable": true,
+   "weight": 0.5
+  },
+  {
+   "category": "loot",
+   "desc": "Someone's spare shirt and jeans. Worth a trade, warms nobody twice.",
+   "emoji": "\ud83d\udc55",
+   "id": "clothes",
+   "name": "Clothes",
+   "usable": false,
+   "weight": 0.6
+  },
+  {
+   "category": "tool",
+   "desc": "Keeps a firearm from seizing up. Feeds a gun-cleaning kit.",
+   "emoji": "\ud83d\udee2\ufe0f",
+   "id": "gun_oil",
+   "name": "Gun oil",
+   "usable": false,
+   "weight": 0.1
+  },
+  {
+   "category": "loot",
+   "desc": "A stamped slip where your gun used to be. The law took it, not a thief.",
+   "emoji": "\ud83d\udcc4",
+   "id": "confiscation_notice",
+   "name": "Confiscation notice",
+   "usable": false,
+   "weight": 0.02
+  },
+  {
+   "category": "loot",
+   "desc": "Someone's paperwork \u2014 a name, a date, a reason to be curious.",
+   "emoji": "\ud83d\udcc1",
+   "id": "case_file",
+   "name": "Case file",
+   "usable": false,
+   "weight": 0.2
+  },
+  {
+   "id": "antibiotics",
+   "name": "Antibiotics",
+   "emoji": "\ud83d\udc8a",
+   "weight": 0.2,
+   "value": 18,
+   "desc": "A sealed course. With a full night in a bed, it breaks BITE FEVER \u2014 nothing else does."
+  }
+ ]
 }

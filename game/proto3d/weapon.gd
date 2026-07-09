@@ -372,6 +372,11 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 		return true
 	mag -= 1
 	_cd = w["cooldown"]
+	# THE GUNFIRE EMITTER (THE_INFECTED 0.14, shared booking with LWE): EVERY
+	# shooter announces — player, enforcer, pirate, hood MG, net ghost. The
+	# infected are pure noises_in consumers; herd-vs-faction proxy war is real.
+	if main != null and main.has_method("emit_noise"):
+		main.emit_noise(from, 60.0, "gunfire")
 	_arm_pump_chain() # GUNFEEL #1: schedules pump+shell_drop mid-cooldown (no-op sans "pump_sfx")
 	var sp := current_spread(main)
 	bloom = minf(bloom + 0.45, 2.2) # each shot blooms the cone; rest recovers it
