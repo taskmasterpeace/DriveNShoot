@@ -24,6 +24,7 @@
 | GROUND_INTEGRITY / TERRAIN_RELIEF | floors, void net, relief | **M2 SHIPPED** (5be6ad4: void net + floor-first + CCD/2m + 5-point sampling + real decks; ground_integrity_sim 9/9) / relief M8 | — | — |
 | ANIMATION packs / RUN / GROUND | rig fixes | partly SHIPPED | per their docs | — |
 | BANDIT_CONVOY / POPULATION_WAR / SECURITY_LADDER / LOOT_NPC | convoys, cells, wanted | BANKED / partly shipped | per their docs | P0 (cells) |
+| **THE_MAPMAKERS_EYE** | the world-craft PROCESS (owner ask 2026-07-09 "think like a map maker — what's missing"): 10 ranked gaps — conformance sweep, promise audit (RAIL YARD SEVEN has no rails), spawn-to-fun budgets, the Map Walk, orientation ladder, breadcrumbs, beat spacing, paper-first, one legend, rebake chain | **BANKED — OWNER EVALUATING** (adopt nothing until he rules; recommended first bite = gaps 1+2+4) | `map_conformance_sim` + MapForge lint panel + the Map Walk script | rides MapForge, autopilot, PLAYTEST_GUIDE; feeds AMERICAN_ROAD M2 its worklist |
 
 **PARKED:** MT (ambient traffic returns — owner-gated) · portal interiors (until proven; howler den
 P3) · family MP sync · mountains option C (roads that climb).
