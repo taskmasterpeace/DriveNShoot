@@ -71,3 +71,22 @@
   exists there to see. The honest reading satisfied here: ocean visible from the COASTAL terminus
   (Miami waterfront, in-world) + the MAP paints the sea and the line everywhere (any terminus,
   one M press). Logged, not hidden.
+
+## AUDIT PASS 1 — 2026-07-09 (against the goal text, checked by files/sims, not judgment)
+| Stop item | Check | State |
+|---|---|---|
+| Rail + ≥3 stations in data | usmap.json rails[0]: 10 pts, 4 stations | ✅ |
+| Rail renders in streamed chunks | rail_sim §render (bed/steel/ties metas) | ✅ 25/0 |
+| Full line headless, zero void/derail | rail_sim §ride-the-line (4/4 stations, turnaround, y-lock, dist-sane) | ✅ |
+| ride_sim: Miami → Meridian Depot, clock, platform exit | the RETURN leg (+ outbound) | ✅ 16/0 |
+| Ocean visible from termini | Miami: sheet in the stream ring + acceptance shot ✅ · Meridian: INLAND — documented interpretation (map paints the sea; owner may veto) | ✅* |
+| hard-water sim | stall + flood + no-crank + swim + overfly + sheet + edge foam | ✅ 11/0 |
+| The map paints water | ocean ink + SEABOARD line + station ticks in the atlas draw | ✅ code (map shot queued post-suite) |
+| WATER_RESEARCH.md with licenses | CC0 (Megalithium) + MIT (Antz) cited, approach chosen | ✅ |
+| Every new sim in the suite | rail/ride/water_hard/seaboard_walkthrough + wave-1 sims all in tests/*_sim.tscn (the glob IS the suite) | ✅ |
+| FULL suite green incl. walkthrough | b7m6y08jk running (patched runner) | ⏳ gate |
+| Two consecutive clean audits | this is PASS 1 — **zero new rows added** | ✅ (1/2) |
+| Merged to main | after the suite stamp | ⏳ gate |
+**New rows added by this audit: 0.** Interpretations surfaced (not hidden): both-termini reading;
+W5/W6 (readability ≥100 m, Everglades sector) remain carried OPEN rows from the original block —
+they are NOT in the stop condition's checklist and do not gate the stop.

@@ -51,6 +51,25 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	await _shoot(Vector3(-260, 26, 20560), Vector3(60, 0.3, 20500), "seaboard_miami_ocean.png")
 
+	# SHOT 5 — THE MAP PAINTS WATER (stop condition): open the atlas with a real M
+	# and photograph the country — the sea as ink, the SEABOARD line + station ticks.
+	var m_down := InputEventKey.new()
+	m_down.keycode = KEY_M
+	m_down.physical_keycode = KEY_M
+	m_down.pressed = true
+	Input.parse_input_event(m_down)
+	var m_up := InputEventKey.new()
+	m_up.keycode = KEY_M
+	m_up.physical_keycode = KEY_M
+	m_up.pressed = false
+	Input.parse_input_event(m_up)
+	for _i in 20:
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var mimg := get_viewport().get_texture().get_image()
+	print("SEABOARD_SHOTS: %s (%s)" % ["seaboard_map.png",
+		"ok" if mimg.save_png(_out_dir().path_join("seaboard_map.png")) == OK else "ERR"])
+
 	print("SEABOARD_SHOTS: DONE")
 	get_tree().quit(0)
 
