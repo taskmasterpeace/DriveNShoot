@@ -23,6 +23,10 @@ var grid: PackedStringArray = []
 var states_grid: PackedStringArray = []
 var roads: Array = []             ## [{id, kind, pts: PackedVector2Array (world m)}]
 var rivers: Array = []
+## THE SEABOARD LINE (2026-07-09): rail rows — the road-row idiom, its own collection so
+## road machinery (lanes/junctions/traffic) never iterates them.
+## [{id, name, kind:"rail", pts: PackedVector2Array, stations:[{id, name, pos: Vector2, town_id}]}]
+var rails: Array = []
 var towns: Array = []             ## [{id, name, pos: Vector2, kind, landmark?}]
 var placements: Array = []        ## AUTHORED LAYER (MapForge v2): [{id, building, pos: Vector2, rot}]
 ## EXIT NODES (World_Structures spec §5): the content sockets on the highways.
@@ -82,6 +86,18 @@ func load_file(path: String) -> bool:
 			"leads_to": (r.get("leads_to", {}) as Dictionary).duplicate(), # dirt spurs: the payload law (0.19)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
 	rivers = d.get("rivers", [])
+	rails.clear()
+	for rr in d.get("rails", []):
+		var rpts := PackedVector2Array()
+		for p in rr["pts"]:
+			rpts.append(Vector2(float(p[0]), float(p[1])))
+		var sts: Array = []
+		for s in rr.get("stations", []):
+			sts.append({"id": String(s.get("id", "")), "name": String(s.get("name", "")),
+				"pos": Vector2(float(s["pos"][0]), float(s["pos"][1])),
+				"town_id": String(s.get("town_id", ""))})
+		rails.append({"id": String(rr.get("id", "")), "name": String(rr.get("name", "")),
+			"kind": "rail", "pts": rpts, "stations": sts})
 	towns.clear()
 	for t in d.get("towns", []):
 		towns.append({"id": t["id"], "name": t["name"],

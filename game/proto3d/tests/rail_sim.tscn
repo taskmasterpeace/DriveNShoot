@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://drailsim0709aa"]
+
+[ext_resource type="Script" path="res://proto3d/tests/rail_sim.gd" id="1_sim"]
+
+[node name="RailSim" type="Node"]
+script = ExtResource("1_sim")
