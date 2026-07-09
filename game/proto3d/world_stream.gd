@@ -310,6 +310,10 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
 			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))
 
+	# --- THE WATER'S EDGE (SEABOARD W2): the sea gets a SURFACE ------------------
+	if wet:
+		_build_water_sheet(chunk, center)
+
 	# --- The roads materialize (ROAD_TRAFFIC_OVERHAUL.md §3.3): EVERY macro road
 	# near this chunk becomes real asphalt to its ROW's geometry — lanes, median
 	# division, honest grip width. Plural is the junction fix: an exit ramp used
@@ -655,6 +659,44 @@ func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
 ## and the grip rect at the row's real width. Every piece is meta-tagged with
 ## the road id (road_slab / road_center / road_lane / road_barrier) so sims and
 ## tools can read the built world without guessing at colors.
+## THE WATER SHEET (SEABOARD W2): the sea's surface — one chunk-sized quad wearing
+## the researched shader (two-tone banding + bob + object-wake foam; licenses cited
+## in water.gdshader per WATER_RESEARCH.md). Painted EDGE-FOAM strips mark every
+## chunk edge that borders LAND — the shoreline's ≥100 m readability signal,
+## deterministic geometry a headless sim can assert (never a depth-trick promise).
+## The wet floor sits at −0.23 (GROUND_INTEGRITY); the sheet rides at +0.32 —
+## 0.55 m of visible water: hoods sink, boots wade, the read is immediate.
+const WATER_SHEET_Y := 0.32
+static var _water_mat: ShaderMaterial = null
+func _build_water_sheet(chunk: Node3D, center: Vector3) -> void:
+	if _water_mat == null:
+		var sh := load("res://proto3d/water.gdshader") as Shader
+		if sh == null:
+			return
+		_water_mat = ShaderMaterial.new()
+		_water_mat.shader = sh
+	var mi := MeshInstance3D.new()
+	var qm := PlaneMesh.new()
+	qm.size = Vector2(CHUNK, CHUNK)
+	mi.mesh = qm
+	mi.material_override = _water_mat
+	mi.position = center + Vector3(0, WATER_SHEET_Y, 0)
+	mi.set_meta("water_sheet", true)
+	chunk.add_child(mi)
+	# EDGE FOAM: the surf line wherever this water chunk touches land.
+	for side in 4:
+		var dirv: Vector2 = [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)][side]
+		var nb := biome_at(Vector3(center.x + dirv.x * CHUNK, 0, center.z + dirv.y * CHUNK))
+		if nb == "water" or nb == "ocean":
+			continue
+		var along_z := dirv.x != 0.0 # edge runs along Z when the neighbor is east/west
+		var strip := ProtoWorldBuilder.box_visual(chunk,
+			Vector3(2.2 if along_z else CHUNK, 0.05, CHUNK if along_z else 2.2),
+			center + Vector3(dirv.x * (CHUNK * 0.5 - 1.1), WATER_SHEET_Y + 0.03, dirv.y * (CHUNK * 0.5 - 1.1)),
+			Color(0.92, 0.94, 0.90), 0.0)
+		strip.set_meta("water_foam_edge", true)
+
+
 ## THE SEABOARD LINE (R2): one rail stretch through this chunk — the gravel BED
 ## (paint, not a body: the roads-are-paint law), TWIN STEEL at standard-gauge read
 ## (±0.72 m), and a MultiMesh of TIES every 2.4 m — the top-down rhythm that says

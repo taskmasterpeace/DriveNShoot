@@ -44,6 +44,13 @@ func _ready() -> void:
 	# aimed ALONG the right-of-way so the ribbon + steel carry the frame).
 	await _shoot(Vector3(280, 32, -318), Vector3(460, 0.3, -292), "seaboard_line.png")
 
+	# SHOT 4 — MIAMI CENTRAL, the waterfront terminus: the OCEAN off the platform
+	# (the stop condition's "ocean visible from the terminus"). Stream there first.
+	main.player.global_position = Vector3(-160, 0.4, 20505)
+	for _i in 90:
+		await get_tree().physics_frame
+	await _shoot(Vector3(-260, 26, 20560), Vector3(60, 0.3, 20500), "seaboard_miami_ocean.png")
+
 	print("SEABOARD_SHOTS: DONE")
 	get_tree().quit(0)
 

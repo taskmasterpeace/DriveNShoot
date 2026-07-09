@@ -99,6 +99,32 @@ func _ready() -> void:
 		pxz.distance_to(mc) < 15.0)
 	_check("your body is yours again", main.player.visible and main.player.is_active)
 
+	# --- THE RETURN (the stop condition's literal direction: board at MIAMI →
+	# arrive at MERIDIAN DEPOT, clock advanced, exit lands on the platform) --------
+	train.dwell = 9999.0 # hold the doors while we walk to the post
+	main.backpack.add("scrip", 10)
+	var miami_stop: Node3D = _stop_for(3)
+	_check("Miami Central has its stop post", miami_stop != null)
+	main.player.global_position = miami_stop.global_position + Vector3(1.0, 0.35, 0.6)
+	for _i in 8:
+		await get_tree().physics_frame
+	await _tap(KEY_E)
+	_check("E at MIAMI boards the return run", main.riding_train)
+	var hour1: float = main.daynight.hour
+	var day1: int = main.daynight.day
+	for _leg in 3:
+		await _tap(KEY_T)
+		for _i in 4:
+			await get_tree().physics_frame
+	_check("three skips home end at MERIDIAN DEPOT", train.dwelling_station() == 0)
+	var back_h: float = float(main.daynight.day - day1) * 24.0 + main.daynight.hour - hour1
+	_check("the return PAID the clock too (%.1f h)" % back_h, back_h > 8.0)
+	await _tap(KEY_E)
+	var dep: Vector2 = train.stations[0]["pos"]
+	var pxz2 := Vector2(main.player.global_position.x, main.player.global_position.z)
+	_check("you stand on the DEPOT platform (%.1f m)" % pxz2.distance_to(dep),
+		not main.riding_train and pxz2.distance_to(dep) < 15.0)
+
 	Engine.time_scale = _prev_ts
 	print("RIDE RESULTS: %d passed, %d failed" % [passed, failed])
 	print("RIDE: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

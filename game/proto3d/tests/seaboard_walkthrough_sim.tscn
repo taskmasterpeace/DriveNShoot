@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dseabwalk0709aa"]
+
+[ext_resource type="Script" path="res://proto3d/tests/seaboard_walkthrough_sim.gd" id="1_sim"]
+
+[node name="SeaboardWalkthroughSim" type="Node"]
+script = ExtResource("1_sim")

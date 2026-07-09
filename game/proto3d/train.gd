@@ -171,6 +171,11 @@ func next_station_index() -> int:
 func skip_to_next_station() -> float:
 	var nxt := next_station_index()
 	if nxt < 0:
+		# END OF THE LINE (ride_sim's return-leg catch): the timed turnaround lives in
+		# _depart, but a SKIP is a departure too — the shuttle turns for home here.
+		dir_sign = -dir_sign
+		nxt = next_station_index()
+	if nxt < 0:
 		return 0.0
 	var leg := absf(float(stations[nxt]["mark"]) - dist)
 	_arrive(nxt)

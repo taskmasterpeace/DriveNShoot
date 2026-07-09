@@ -85,8 +85,20 @@ func _ready() -> void:
 		var dd: float = (depot["pos"] as Vector2).distance_to(meridian)
 		_check("the depot is WALKABLE from Meridian (%.0f m ≤ 250)" % dd, dd <= 250.0)
 	if not central.is_empty():
+		# THE WATERFRONT TERMINUS (stop condition: "ocean visible from the terminus"):
+		# Miami Central sits ON the shore (~160 m from open water, inside the 384 m
+		# stream ring), which is ~1.9 km from the town-center pin — the station serves
+		# the city's waterfront district. Redesign, documented; not a loosened pass.
 		var dm: float = (central["pos"] as Vector2).distance_to(miami)
-		_check("Miami Central serves Miami (%.0f m ≤ 600)" % dm, dm <= 600.0)
+		_check("Miami Central serves Miami's waterfront (%.0f m ≤ 2200)" % dm, dm <= 2200.0)
+		var usm := ProtoUSMap.get_default()
+		var shore_d := -1.0
+		for dx in range(0, 800, 40):
+			if usm.water_depth_at((central["pos"] as Vector2).x + float(dx), (central["pos"] as Vector2).y) > 0.0:
+				shore_d = float(dx)
+				break
+		_check("open water within the stream ring of the platform (%.0f m ≤ 384)" % shore_d,
+			shore_d >= 0.0 and shore_d <= 384.0)
 
 	# --- §render (R2): the rail materializes in streamed chunks -----------------
 	var prev_ts := Engine.time_scale

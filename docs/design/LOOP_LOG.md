@@ -48,3 +48,26 @@
   ribbon + contrast ballast + bright steel), container-loco (fixed: cab + roof spine). Fresh judge:
   round 1 BLOCK → round 2 **SHIP-WITH-NOTES** (line B+, train B−); notes banked as rows J1–J3.
 - **Next:** clean FULL suite (the DONE stamp) → merge to main → W2 ocean shader + L1 walkthrough.
+
+## Iteration 3 — 2026-07-09 — the two-runner incident, THE WATERFRONT TERMINUS, W2 lands
+- **THE TWO-RUNNER INCIDENT (process wound, paid + patched):** killing the mongrel suite's
+  GODOT processes left its BASH LOOP alive — two suites interleaved for ~40 min (bike vs m1
+  ordering exposed it). And `timeout` kills only the console wrapper on Windows: every timed-out
+  sim leaked an ENGINE orphan (m1_sim ran 14 min). Fixes: TaskStop + kill the runner PIDs, and
+  run_suite.sh now captures timeout's real rc (not tail's) and REAPS engine orphans by scene name.
+- **THE WATERFRONT TERMINUS (stop condition: "ocean visible from the terminus"):** Miami Central
+  sat 2 km from the first ocean cell — outside the 384 m stream ring, the ocean could never be
+  visible from the platform. Redesign: the line now BENDS at the old city pin and terminates ON
+  the shore at (-160, 20510) — open water ~160 m off the platform. rail_sim's "serves Miami" check
+  updated to the waterfront reading (≤2200 m of the town pin + open water inside the stream ring)
+  — a documented redesign, not a loosened pass.
+- **W2 LANDS:** `water.gdshader` (CC0 structure + MIT foam math, cited) + per-chunk sea-surface
+  sheets at +0.32 over the −0.23 wet floor (0.55 m of visible water: hoods sink, boots wade) +
+  painted EDGE-FOAM strips on every water↔land chunk edge — the shoreline signal as deterministic
+  geometry a headless sim asserts (water_hard_sim §look).
+- **THE RETURN LEG:** ride_sim now boards at MIAMI → arrives MERIDIAN DEPOT (the stop condition's
+  literal direction) with the clock paying both ways.
+- **"Both termini" interpretation (owner can veto):** Meridian's terminus is INLAND — no ocean
+  exists there to see. The honest reading satisfied here: ocean visible from the COASTAL terminus
+  (Miami waterfront, in-world) + the MAP paints the sea and the line everywhere (any terminus,
+  one M press). Logged, not hidden.

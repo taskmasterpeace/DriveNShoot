@@ -84,6 +84,22 @@ func _ready() -> void:
 	_check("the player SWIMS where the car drowned (state '%s')" % main.water_state,
 		main.water_state == "swim")
 
+	# --- §look (W2): the sea has a SURFACE + a surf line where it meets land -----
+	# The player stands at the shore (streamed above) — scan the streamed chunks.
+	var sheet := false
+	var foam := false
+	var stack: Array = [main.stream]
+	while not stack.is_empty():
+		var nd: Node = stack.pop_back()
+		if nd.has_meta("water_sheet"):
+			sheet = true
+		if nd.has_meta("water_foam_edge"):
+			foam = true
+		for c in nd.get_children():
+			stack.push_back(c)
+	_check("the WATER SHEET streams over the sea", sheet)
+	_check("EDGE FOAM marks the shoreline", foam)
+
 	# --- §overfly: the drone holds the sky over the sea ------------------------
 	main.player.global_position = Vector3(6, 0.35, 388) # back on land — swim tax off
 	for _i in 10:
