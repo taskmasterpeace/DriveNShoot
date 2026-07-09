@@ -34,10 +34,10 @@ STOP+report · world_stream conflict → STOP+ask.
 | J1 | Judge note (round 2): track visibly UNDER the parked consist at the depot (spur short + shadow-side camera hid it) | R | OPEN | reshoot from the gameplay camera; extend depot ballast read |
 | J2 | Judge note: line's FAR read decays to a thread — LOD widening/brightening at distance | R | OPEN | far-read acceptance shot |
 | J3 | Pre-existing warts logged: "freed instance 'is'" spam in proto3d boot · the giant vertical light band near the safehouse (home beacon?) in depot shots | — | OPEN | identify + fix or explain in an audit pass |
-| F1 | THE FUEL ACCORD — THE PUMP: gas stations SELL fuel for scrip (prices row; E at the pump fills the rig). Jerry cans go RARE in loot tables (the pump is the economy's sink). | F (owner add 2026-07-09) | OPEN | `fuel_accord_sim` §buy: fill drains scrip, tank rises; jerry weights down in data |
-| F2 | THE FUEL ACCORD — THE ENFORCERS: 2 Accord guards (security_forces row, neutral colors) posted at every gas_station_small; violence inside the pump ring → they ENGAGE + max wanted heat with ALL factions | F | OPEN | `fuel_accord_sim` §law: attack in ring → enforcers hostile + all-faction heat |
-| F3 | THE FUEL ACCORD — THE SIGN: diegetic "FUEL ACCORD GROUND — ALL FLAGS WELCOME" at the ring (readable_sign law) | F | OPEN | sign present + readable at every dressed station |
-| F4 | THE FUEL ACCORD — THE TRUCE RING: bandit + ecology directors treat the ring as a NO-STRIKE zone | F | OPEN | `fuel_accord_sim` §truce: a bandit STRIKE defers inside the ring |
+| F1 | THE FUEL ACCORD — THE PUMP: gas stations SELL fuel for scrip (prices row; E at the pump fills the rig). Jerry cans go RARE in loot tables (the pump is the economy's sink). | F (owner add 2026-07-09) | **PROVEN** (fuel_accord_sim 15/0) | `fuel_accord_sim` §buy: fill drains scrip, tank rises; jerry weights down in data |
+| F2 | THE FUEL ACCORD — THE ENFORCERS: 2 Accord guards (security_forces row, neutral colors) posted at every gas_station_small; violence inside the pump ring → they ENGAGE + max wanted heat with ALL factions | F | **PROVEN** (15/0) | `fuel_accord_sim` §law: attack in ring → enforcers hostile + all-faction heat |
+| F3 | THE FUEL ACCORD — THE SIGN: diegetic "FUEL ACCORD GROUND — ALL FLAGS WELCOME" at the ring (readable_sign law) | F | **PROVEN** (15/0) | sign present + readable at every dressed station |
+| F4 | THE FUEL ACCORD — THE TRUCE RING: bandit + ecology directors treat the ring as a NO-STRIKE zone | F | **PROVEN** (defer held + commits off-ring, 15/0) | `fuel_accord_sim` §truce: a bandit STRIKE defers inside the ring |
 
 **Audit trail:** audits at iterations 3, 6, 9… against the goal text; two CONSECUTIVE clean audits
 (zero new rows) + full suite green + merged to main = STOP CONDITION.
