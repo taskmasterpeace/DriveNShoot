@@ -8,7 +8,7 @@
 
 | Spec | Owns | Status | V1 gate / first slice | Hard deps |
 |---|---|---|---|---|
-| **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | **M0–M3 SHIPPED** (92fbd87 wire · 4737f94+761f60d+1811888 M1 junctions/gaps/yaw-bug/exit-peel · 5be6ad4 M2 ground integrity · 978c8c8 ADDRESS LAW Meridian=EXIT 9 · 3291bb3 two-tier towns, husk ring dead) → **M3b/M4a next** | M3b network fill + dirt layer; M4a corridor kit | — |
+| **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | **M0–M4a SHIPPED** (92fbd87 wire · M1 junctions/gaps/yaw-bug/exit-peel · 5be6ad4 M2 integrity · 978c8c8 Meridian=EXIT 9 · 3291bb3 two-tier towns · 1e9a194 M3b network fill+dirt layer · 4730500 M4a corridor kit) → **M4b/M5 next** | M4b mile markers/shields; M5 interiors (ProtoInteriorSkin) | — |
 | **THE_BUILDING_BOOK** | canonical catalog, interiors law, mission schema, MULTI-USE law, strategies | BANKED | M0 materialize wire; M3c mission fields | AMERICAN_ROAD milestones |
 | **NAVIGATION** | the journey law (walk/drive/fly), tiers, walk graph, failure ladder — **+§9 cold-start spec** (schemas, v0 graph algo, park/door machines, steering port map, sim staging) | BANKED | NAV-P1 walk (wife→church through a door); first hot file `nav/steering.gd` | road_graph (M1) for P2 drive |
 | **THE_FAMILY_EMPIRE** | extort/own→city→capital, collectors, family/wife/kids, dates+school, revenge | BANKED | **THE HOLLOWPOINT SLICE** (E1/F1) | **P0** (below), M3c, NAV-P1 |
