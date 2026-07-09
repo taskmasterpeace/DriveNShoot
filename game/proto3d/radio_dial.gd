@@ -23,6 +23,7 @@ var _presets: HBoxContainer
 var _power: CheckButton
 var _vol: HSlider
 var _face: ProtoRadioFace = null
+var _radio_id: String = "analog"
 
 
 static func create(music: ProtoMusic) -> ProtoRadioDial:
@@ -54,6 +55,12 @@ static func create(music: ProtoMusic) -> ProtoRadioDial:
 	title.add_theme_color_override("font_color", AMBER)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
+	var styleb := Button.new()
+	styleb.text = "STYLE"
+	styleb.add_theme_font_override("font", ProtoHUD.mixed_font())
+	styleb.add_theme_color_override("font_color", AMBER)
+	styleb.pressed.connect(func() -> void: rd.cycle_radio())
+	head.add_child(styleb)
 	var x := Button.new()
 	x.text = "✕"
 	x.add_theme_color_override("font_color", Color(0.9, 0.4, 0.3))
@@ -63,7 +70,7 @@ static func create(music: ProtoMusic) -> ProtoRadioDial:
 
 	# THE FACEPLATE (pixel-art): the generated radio face + its code-driven tuning
 	# pointer and LCD display text (ProtoRadioFace). A missing PNG hides it cleanly.
-	rd._face = ProtoRadioFace.create(400.0)
+	rd._face = ProtoRadioFace.create(rd._radio_id, 400.0)
 	v.add_child(rd._face)
 
 	# The big frequency readout.
@@ -143,6 +150,30 @@ func close() -> void:
 func toggle() -> void:
 	if is_open: close()
 	else: open()
+
+
+## Swap the faceplate to another radio face (rebuilds it in place).
+func set_radio(id: String) -> void:
+	if _face == null or id == _radio_id:
+		return
+	var parent := _face.get_parent()
+	var idx := _face.get_index()
+	_face.queue_free()
+	_radio_id = id
+	_face = ProtoRadioFace.create(id, 400.0)
+	parent.add_child(_face)
+	parent.move_child(_face, idx)
+	if _music != null:
+		_refresh_readout(_music.current_frequency())
+
+
+## Cycle to the next radio face in data/radios.json (the STYLE button).
+func cycle_radio() -> void:
+	var all := ProtoRadioFace.ids()
+	if all.is_empty():
+		return
+	var i: int = all.find(_radio_id)
+	set_radio(String(all[(i + 1) % all.size()]))
 
 
 ## Rebuild the preset chips from the live station list.

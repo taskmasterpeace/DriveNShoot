@@ -1,0 +1,11 @@
+{
+  "_comment": "THE RADIO FACES — each is a pixel faceplate PNG with EMPTY dynamic zones; the code drives them (proto3d/radio_face.gd). type 'analog' = a tuning pointer slides the FM scale ('scale' rect: x0/x1 span, y top, h height, all fractions of the shown face) plus the display text; type 'digital' = display text only ('win' rect), no pointer. The moving/live parts are NEVER baked into the art (same law as the speedo needle). Adding a radio = drop a PNG + a row.",
+  "radios": [
+    {"id": "analog",    "png": "res://assets/ui/radio/faceplate.png", "type": "analog",  "w": 640, "h": 360,
+      "scale": {"x0": 0.245, "x1": 0.765, "y": 0.24, "h": 0.11}, "win": {"x": 0.24, "y": 0.40, "w": 0.52, "h": 0.18}},
+    {"id": "digi_scan", "png": "res://assets/ui/radio/digi_scan.png", "type": "digital", "w": 217, "h": 60,
+      "win": {"x": 0.27, "y": 0.30, "w": 0.40, "h": 0.38}},
+    {"id": "digi_vol",  "png": "res://assets/ui/radio/digi_vol.png",  "type": "digital", "w": 209, "h": 57,
+      "win": {"x": 0.26, "y": 0.20, "w": 0.46, "h": 0.60}}
+  ]
+}

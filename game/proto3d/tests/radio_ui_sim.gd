@@ -96,4 +96,19 @@ func _ready() -> void:
 	# 4) power routes into music state (no playback: empty shelf-safe, we set idx not play).
 	_check("radio starts powered off", not music.power_on)
 
+	# 6) THE RADIO FLEET (owner ask: analog AND digital faces) — data/radios.json.
+	_check("3+ radio faces in the fleet", ProtoRadioFace.ids().size() >= 3)
+	var rids: Array[String] = ["analog", "digi_scan", "digi_vol"]
+	for rid in rids:
+		_check("radio face '%s' texture loads" % rid, ProtoRadioFace.texture(rid) is Texture2D)
+	_check("default face is analog (has a pointer)", dial._face.is_analog())
+	dial.set_radio("digi_scan")
+	_check("STYLE swaps to the digital face", dial._radio_id == "digi_scan")
+	_check("digital face has a dial", dial._face.has_dial())
+	_check("digital face is not analog (no scale pointer)", not dial._face.is_analog())
+	dial._face.set_state(98.0, ProtoMusic.BAND_LO, ProtoMusic.BAND_HI, "98.0 FM", true)
+	_check("digital face keeps its pointer hidden", not dial._face._pointer.visible)
+	dial.cycle_radio()
+	_check("cycle advances to the next face", dial._radio_id != "digi_scan")
+
 	_finish()
