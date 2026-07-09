@@ -11,6 +11,7 @@ const EAST := Vector3(1, 0, 0)
 const NORTH := Vector3(0, 0, -1)
 const SOUTH := Vector3(0, 0, 1)
 const AIM_INSIDE_LIMIT := Vector3(0.94, 0, -0.34)
+const FLEET_IDS := ["scavenger", "motorcycle", "buggy", "pickup", "van", "semi", "trailer", "pickup_truck", "rv", "suv"]
 
 var lab: Node = null
 var phase: int = 0
@@ -127,6 +128,15 @@ func _physics_process(delta: float) -> void:
 				_check("block survivor mode is active", String(lab.call("active_model_name")) == "survivor")
 				_check("block survivor is modular but cheap (%d parts)" % int(lab.call("style_part_count", "survivor")),
 					int(lab.call("style_part_count", "survivor")) >= 12 and int(lab.call("style_part_count", "survivor")) <= 36)
+				var all_fleet_modes := true
+				for fleet_id in FLEET_IDS:
+					all_fleet_modes = all_fleet_modes and model_names.contains(fleet_id)
+				_check("camera lab exposes every vehicle row as a model mode", all_fleet_modes)
+				for fleet_id in FLEET_IDS:
+					lab.call("set_visual_model", fleet_id)
+					var count := int(lab.call("style_part_count", fleet_id))
+					_check("fleet model '%s' is active and cheap (%d parts)" % [fleet_id, count],
+						String(lab.call("active_model_name")) == fleet_id and count >= 8 and count <= 72)
 				lab.call("set_visual_model", "buggy")
 				_check("block buggy mode is active", String(lab.call("active_model_name")) == "buggy")
 				_check("block buggy is open-cage and cheap (%d parts)" % int(lab.call("style_part_count", "buggy")),

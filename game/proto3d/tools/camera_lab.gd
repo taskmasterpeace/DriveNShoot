@@ -17,6 +17,7 @@ const WALK_SPEED := 3.9
 const RUN_SPEED := 7.2
 const BACKPEDAL_SPEED := 2.4
 const STRAFE_SPEED := 3.2
+const VEHICLE_MODE_NAMES := ["scavenger", "motorcycle", "buggy", "pickup", "van", "semi", "trailer", "pickup_truck", "rv", "suv"]
 
 var _player: CharacterBody3D
 var _body_square: MeshInstance3D
@@ -27,6 +28,7 @@ var _survivor_model: Node3D
 var _survivor_upper: Node3D
 var _buggy_model: Node3D
 var _truck_model: Node3D
+var _vehicle_models: Dictionary = {}
 var _cam: Camera3D
 var _label: Label
 var _selector_marker: MeshInstance3D
@@ -170,9 +172,13 @@ func _build_player() -> void:
 	_torso_square.add_child(_torso_nose)
 	_survivor_model = _build_block_survivor()
 	_player.add_child(_survivor_model)
-	_buggy_model = _build_block_buggy()
-	_player.add_child(_buggy_model)
-	_truck_model = _build_block_truck()
+	for vehicle_id in VEHICLE_MODE_NAMES:
+		var model := _build_vehicle_model(vehicle_id)
+		_vehicle_models[vehicle_id] = model
+		_player.add_child(model)
+	_buggy_model = _vehicle_models["buggy"] as Node3D
+	_truck_model = _build_vehicle_model("pickup")
+	_truck_model.name = "BlockTruckAlias"
 	_player.add_child(_truck_model)
 	_apply_visual_model()
 
@@ -382,6 +388,215 @@ func _build_block_buggy() -> Node3D:
 	return root
 
 
+func _build_vehicle_model(vehicle_id: String) -> Node3D:
+	match vehicle_id:
+		"motorcycle":
+			return _build_motorcycle_model()
+		"buggy":
+			return _build_block_buggy()
+		"pickup":
+			return _build_block_truck()
+		"pickup_truck":
+			return _build_war_pickup_model()
+		"van":
+			return _build_van_model()
+		"semi":
+			return _build_semi_model()
+		"trailer":
+			return _build_trailer_model()
+		"rv":
+			return _build_rv_model()
+		"suv":
+			return _build_suv_model()
+		_:
+			return _build_scavenger_model()
+
+
+func _build_motorcycle_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockMotorcycle"
+	root.position.y = 0.12
+	root.scale = Vector3(0.82, 0.82, 0.82)
+	var red := Color(0.52, 0.12, 0.08)
+	var metal := Color(0.16, 0.16, 0.15)
+	var dark := Color(0.07, 0.07, 0.07)
+	_block(root, "spine", Vector3(0, 0.48, 0), Vector3(0.16, 0.16, 1.62), metal)
+	_block(root, "tank", Vector3(0, 0.68, -0.28), Vector3(0.42, 0.28, 0.62), red, Vector3(deg_to_rad(-4), 0, 0))
+	_block(root, "seat", Vector3(0, 0.66, 0.36), Vector3(0.38, 0.16, 0.58), dark)
+	_block(root, "rear_fender", Vector3(0, 0.64, 0.86), Vector3(0.36, 0.12, 0.42), red, Vector3(deg_to_rad(10), 0, 0))
+	_block(root, "fork_l", Vector3(-0.12, 0.56, -0.86), Vector3(0.06, 0.52, 0.08), metal, Vector3(deg_to_rad(-14), 0, 0))
+	_block(root, "fork_r", Vector3(0.12, 0.56, -0.86), Vector3(0.06, 0.52, 0.08), metal, Vector3(deg_to_rad(-14), 0, 0))
+	_block(root, "handlebar", Vector3(0, 0.96, -0.78), Vector3(0.70, 0.06, 0.08), metal)
+	_block(root, "headlight", Vector3(0, 0.72, -1.02), Vector3(0.22, 0.18, 0.08), Color(0.95, 0.84, 0.55))
+	_block(root, "exhaust", Vector3(0.25, 0.38, 0.54), Vector3(0.08, 0.08, 0.92), metal, Vector3(deg_to_rad(8), 0, 0))
+	_wheel(root, "front_wheel", Vector3(0, 0.24, -1.02))
+	_wheel(root, "rear_wheel", Vector3(0, 0.24, 1.02))
+	return root
+
+
+func _build_scavenger_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockScavenger"
+	root.position.y = 0.10
+	root.scale = Vector3(0.70, 0.70, 0.70)
+	var rust := Color(0.42, 0.21, 0.10)
+	var tan := Color(0.36, 0.31, 0.23)
+	var metal := Color(0.18, 0.18, 0.16)
+	var glass := Color(0.12, 0.18, 0.20)
+	_block(root, "frame_l", Vector3(-0.42, 0.13, 0), Vector3(0.12, 0.16, 2.90), metal)
+	_block(root, "frame_r", Vector3(0.42, 0.13, 0), Vector3(0.12, 0.16, 2.90), metal)
+	_block(root, "hull", Vector3(0, 0.50, 0.08), Vector3(1.30, 0.38, 2.36), rust)
+	_block(root, "hood", Vector3(0, 0.65, -0.92), Vector3(1.18, 0.24, 0.88), tan, Vector3(deg_to_rad(-5), 0, 0))
+	_block(root, "cabin", Vector3(0, 0.94, -0.04), Vector3(1.05, 0.58, 0.82), rust)
+	_block(root, "windshield", Vector3(0, 1.08, -0.52), Vector3(0.82, 0.28, 0.06), glass, Vector3(deg_to_rad(-13), 0, 0))
+	_block(root, "trunk", Vector3(0, 0.68, 0.98), Vector3(1.06, 0.26, 0.72), tan)
+	_block(root, "front_plate", Vector3(0, 0.51, -1.34), Vector3(1.08, 0.26, 0.08), metal)
+	_block(root, "rear_plate", Vector3(0, 0.48, 1.36), Vector3(1.02, 0.20, 0.10), metal)
+	_block(root, "roof_load", Vector3(0, 1.34, -0.02), Vector3(0.72, 0.16, 0.58), metal)
+	_block(root, "headlight_l", Vector3(-0.34, 0.58, -1.39), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_block(root, "headlight_r", Vector3(0.34, 0.58, -1.39), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_wheel(root, "wheel_fl", Vector3(-0.72, 0.24, -0.94))
+	_wheel(root, "wheel_fr", Vector3(0.72, 0.24, -0.94))
+	_wheel(root, "wheel_rl", Vector3(-0.72, 0.24, 0.98))
+	_wheel(root, "wheel_rr", Vector3(0.72, 0.24, 0.98))
+	return root
+
+
+func _build_war_pickup_model() -> Node3D:
+	var root := _build_block_truck()
+	root.name = "BlockWarPickup"
+	root.scale = Vector3(0.75, 0.75, 0.75)
+	var metal := Color(0.16, 0.16, 0.15)
+	var crate := Color(0.42, 0.27, 0.13)
+	_block(root, "brush_guard_l", Vector3(-0.46, 0.52, -1.62), Vector3(0.10, 0.42, 0.08), metal)
+	_block(root, "brush_guard_r", Vector3(0.46, 0.52, -1.62), Vector3(0.10, 0.42, 0.08), metal)
+	_block(root, "brush_guard_mid", Vector3(0, 0.72, -1.64), Vector3(0.88, 0.10, 0.08), metal)
+	_block(root, "bed_crate_l", Vector3(-0.28, 0.92, 0.82), Vector3(0.34, 0.34, 0.40), crate)
+	_block(root, "bed_crate_r", Vector3(0.28, 0.92, 0.98), Vector3(0.34, 0.34, 0.40), crate)
+	_block(root, "roof_lights", Vector3(0, 1.56, -0.36), Vector3(0.64, 0.12, 0.12), metal)
+	_block(root, "mount_stub", Vector3(0, 1.08, 0.72), Vector3(0.18, 0.30, 0.18), metal)
+	return root
+
+
+func _build_van_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockVan"
+	root.position.y = 0.12
+	root.scale = Vector3(0.66, 0.66, 0.66)
+	var body := Color(0.18, 0.31, 0.46)
+	var dark := Color(0.08, 0.08, 0.08)
+	var metal := Color(0.18, 0.18, 0.16)
+	var glass := Color(0.12, 0.18, 0.20)
+	_block(root, "frame", Vector3(0, 0.15, 0), Vector3(1.38, 0.18, 3.34), metal)
+	_block(root, "body", Vector3(0, 0.86, 0.12), Vector3(1.44, 1.12, 2.90), body)
+	_block(root, "nose", Vector3(0, 0.64, -1.50), Vector3(1.34, 0.46, 0.62), body, Vector3(deg_to_rad(-5), 0, 0))
+	_block(root, "windshield", Vector3(0, 1.14, -1.18), Vector3(1.04, 0.42, 0.06), glass, Vector3(deg_to_rad(-12), 0, 0))
+	_block(root, "side_window_l", Vector3(-0.74, 1.12, -0.28), Vector3(0.06, 0.32, 0.78), glass)
+	_block(root, "side_window_r", Vector3(0.74, 1.12, -0.28), Vector3(0.06, 0.32, 0.78), glass)
+	_block(root, "rear_doors", Vector3(0, 0.88, 1.62), Vector3(1.28, 0.86, 0.08), body)
+	_block(root, "front_bumper", Vector3(0, 0.42, -1.84), Vector3(1.34, 0.18, 0.12), metal)
+	_block(root, "rear_bumper", Vector3(0, 0.40, 1.86), Vector3(1.30, 0.18, 0.12), metal)
+	_block(root, "roof_rack", Vector3(0, 1.52, 0.04), Vector3(1.10, 0.10, 1.70), metal)
+	_block(root, "headlight_l", Vector3(-0.40, 0.64, -1.86), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_block(root, "headlight_r", Vector3(0.40, 0.64, -1.86), Vector3(0.16, 0.16, 0.06), Color(0.95, 0.84, 0.55))
+	_wheel(root, "wheel_fl", Vector3(-0.78, 0.24, -1.16))
+	_wheel(root, "wheel_fr", Vector3(0.78, 0.24, -1.16))
+	_wheel(root, "wheel_rl", Vector3(-0.78, 0.24, 1.18))
+	_wheel(root, "wheel_rr", Vector3(0.78, 0.24, 1.18))
+	return root
+
+
+func _build_rv_model() -> Node3D:
+	var root := _build_van_model()
+	root.name = "BlockRV"
+	root.scale = Vector3(0.70, 0.70, 0.70)
+	var cream := Color(0.62, 0.55, 0.43)
+	var dark := Color(0.08, 0.08, 0.08)
+	var glass := Color(0.12, 0.18, 0.20)
+	_block(root, "camper_top", Vector3(0, 1.58, 0.24), Vector3(1.50, 0.34, 2.38), cream)
+	_block(root, "side_window_l2", Vector3(-0.78, 1.18, 0.76), Vector3(0.06, 0.30, 0.54), glass)
+	_block(root, "side_window_r2", Vector3(0.78, 1.18, 0.76), Vector3(0.06, 0.30, 0.54), glass)
+	_block(root, "awning", Vector3(-0.88, 1.34, 0.12), Vector3(0.10, 0.10, 1.60), dark)
+	_block(root, "roof_vent", Vector3(0.34, 1.82, -0.22), Vector3(0.32, 0.10, 0.32), dark)
+	return root
+
+
+func _build_suv_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockSUV"
+	root.position.y = 0.10
+	root.scale = Vector3(0.70, 0.70, 0.70)
+	var olive := Color(0.24, 0.31, 0.20)
+	var metal := Color(0.16, 0.16, 0.15)
+	var glass := Color(0.12, 0.18, 0.20)
+	_block(root, "frame", Vector3(0, 0.15, 0), Vector3(1.34, 0.18, 2.92), metal)
+	_block(root, "body", Vector3(0, 0.70, 0.12), Vector3(1.42, 0.62, 2.34), olive)
+	_block(root, "hood", Vector3(0, 0.78, -1.12), Vector3(1.30, 0.28, 0.70), olive, Vector3(deg_to_rad(-4), 0, 0))
+	_block(root, "cabin", Vector3(0, 1.12, -0.04), Vector3(1.22, 0.66, 1.18), olive)
+	_block(root, "rear_cabin", Vector3(0, 1.03, 0.86), Vector3(1.22, 0.56, 0.86), olive)
+	_block(root, "windshield", Vector3(0, 1.20, -0.70), Vector3(0.98, 0.34, 0.06), glass, Vector3(deg_to_rad(-13), 0, 0))
+	_block(root, "roof_rack", Vector3(0, 1.52, 0.18), Vector3(1.06, 0.10, 1.34), metal)
+	_block(root, "drone_bay", Vector3(0, 1.62, 0.60), Vector3(0.62, 0.12, 0.38), metal)
+	_block(root, "front_bumper", Vector3(0, 0.44, -1.54), Vector3(1.36, 0.22, 0.14), metal)
+	_block(root, "rear_bumper", Vector3(0, 0.42, 1.48), Vector3(1.24, 0.18, 0.14), metal)
+	_wheel(root, "wheel_fl", Vector3(-0.78, 0.24, -0.98))
+	_wheel(root, "wheel_fr", Vector3(0.78, 0.24, -0.98))
+	_wheel(root, "wheel_rl", Vector3(-0.78, 0.24, 1.02))
+	_wheel(root, "wheel_rr", Vector3(0.78, 0.24, 1.02))
+	return root
+
+
+func _build_semi_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockSemi"
+	root.position.y = 0.12
+	root.scale = Vector3(0.62, 0.62, 0.62)
+	var body := Color(0.47, 0.11, 0.08)
+	var metal := Color(0.17, 0.17, 0.15)
+	var glass := Color(0.12, 0.18, 0.20)
+	_block(root, "long_frame_l", Vector3(-0.48, 0.16, 0.38), Vector3(0.14, 0.18, 3.80), metal)
+	_block(root, "long_frame_r", Vector3(0.48, 0.16, 0.38), Vector3(0.14, 0.18, 3.80), metal)
+	_block(root, "hood", Vector3(0, 0.70, -1.42), Vector3(1.44, 0.46, 1.24), body, Vector3(deg_to_rad(-4), 0, 0))
+	_block(root, "cab", Vector3(0, 1.20, -0.44), Vector3(1.48, 1.12, 1.10), body)
+	_block(root, "windshield", Vector3(0, 1.45, -1.04), Vector3(1.08, 0.42, 0.06), glass, Vector3(deg_to_rad(-12), 0, 0))
+	_block(root, "fifth_wheel", Vector3(0, 0.56, 1.04), Vector3(1.00, 0.16, 0.70), metal)
+	_block(root, "front_bumper", Vector3(0, 0.52, -2.14), Vector3(1.54, 0.22, 0.14), metal)
+	_block(root, "grille", Vector3(0, 0.78, -2.08), Vector3(1.10, 0.42, 0.08), metal)
+	_block(root, "stack_l", Vector3(-0.82, 1.52, -0.14), Vector3(0.12, 1.26, 0.12), metal)
+	_block(root, "stack_r", Vector3(0.82, 1.52, -0.14), Vector3(0.12, 1.26, 0.12), metal)
+	_wheel(root, "wheel_fl", Vector3(-0.88, 0.25, -1.58))
+	_wheel(root, "wheel_fr", Vector3(0.88, 0.25, -1.58))
+	_wheel(root, "wheel_ml", Vector3(-0.88, 0.25, 0.98))
+	_wheel(root, "wheel_mr", Vector3(0.88, 0.25, 0.98))
+	_wheel(root, "wheel_rl", Vector3(-0.88, 0.25, 1.66))
+	_wheel(root, "wheel_rr", Vector3(0.88, 0.25, 1.66))
+	return root
+
+
+func _build_trailer_model() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockTrailer"
+	root.position.y = 0.12
+	root.scale = Vector3(0.58, 0.58, 0.58)
+	var body := Color(0.42, 0.42, 0.38)
+	var metal := Color(0.16, 0.16, 0.15)
+	_block(root, "box", Vector3(0, 1.10, 0.42), Vector3(1.70, 1.52, 4.60), body)
+	_block(root, "front_panel", Vector3(0, 1.10, -1.94), Vector3(1.76, 1.50, 0.10), metal)
+	_block(root, "rear_doors", Vector3(0, 1.10, 2.78), Vector3(1.76, 1.44, 0.12), body)
+	_block(root, "frame_l", Vector3(-0.62, 0.24, 0.42), Vector3(0.12, 0.16, 4.90), metal)
+	_block(root, "frame_r", Vector3(0.62, 0.24, 0.42), Vector3(0.12, 0.16, 4.90), metal)
+	_block(root, "hitch", Vector3(0, 0.38, -2.46), Vector3(0.34, 0.14, 0.90), metal)
+	_block(root, "landing_l", Vector3(-0.42, 0.56, -1.60), Vector3(0.10, 0.82, 0.10), metal)
+	_block(root, "landing_r", Vector3(0.42, 0.56, -1.60), Vector3(0.10, 0.82, 0.10), metal)
+	_block(root, "side_rail_l", Vector3(-0.90, 1.76, 0.42), Vector3(0.08, 0.08, 4.26), metal)
+	_block(root, "side_rail_r", Vector3(0.90, 1.76, 0.42), Vector3(0.08, 0.08, 4.26), metal)
+	_wheel(root, "wheel_l1", Vector3(-0.88, 0.25, 1.42))
+	_wheel(root, "wheel_r1", Vector3(0.88, 0.25, 1.42))
+	_wheel(root, "wheel_l2", Vector3(-0.88, 0.25, 2.06))
+	_wheel(root, "wheel_r2", Vector3(0.88, 0.25, 2.06))
+	return root
+
+
 func _set_square_visible(value: bool) -> void:
 	if _body_square != null:
 		_body_square.visible = value
@@ -393,14 +608,24 @@ func _apply_visual_model() -> void:
 	_set_square_visible(_active_model_name == "squares")
 	if _survivor_model != null:
 		_survivor_model.visible = _active_model_name == "survivor"
-	if _buggy_model != null:
-		_buggy_model.visible = _active_model_name == "buggy"
+	for id in _vehicle_models:
+		var model := _vehicle_models[id] as Node3D
+		if model != null:
+			model.visible = String(id) == _active_model_name
 	if _truck_model != null:
 		_truck_model.visible = _active_model_name == "truck"
 
 
+func _visual_model_list() -> PackedStringArray:
+	var names := PackedStringArray(["squares", "survivor"])
+	for vehicle_id in VEHICLE_MODE_NAMES:
+		names.append(vehicle_id)
+	names.append("truck")
+	return names
+
+
 func cycle_visual_model() -> void:
-	var names := PackedStringArray(["squares", "survivor", "buggy", "truck"])
+	var names := _visual_model_list()
 	var idx := names.find(_active_model_name)
 	idx = 0 if idx < 0 else (idx + 1) % names.size()
 	set_visual_model(names[idx])
@@ -408,7 +633,7 @@ func cycle_visual_model() -> void:
 
 func set_visual_model(name: String) -> bool:
 	var next := name.to_lower()
-	if not PackedStringArray(["squares", "survivor", "buggy", "truck"]).has(next):
+	if not _visual_model_list().has(next):
 		return false
 	_active_model_name = next
 	_apply_visual_model()
@@ -420,10 +645,12 @@ func active_model_name() -> String:
 
 
 func visual_model_names() -> String:
-	return "squares,survivor,buggy,truck"
+	return ",".join(_visual_model_list())
 
 
 func _mesh_count(root: Node) -> int:
+	if root == null:
+		return 0
 	var count := 1 if root is MeshInstance3D else 0
 	for child in root.get_children():
 		count += _mesh_count(child)
@@ -431,20 +658,21 @@ func _mesh_count(root: Node) -> int:
 
 
 func style_part_count(name: String) -> int:
-	match name.to_lower():
+	var key := name.to_lower()
+	if _vehicle_models.has(key):
+		return _mesh_count(_vehicle_models[key] as Node)
+	match key:
 		"squares":
 			return _mesh_count(_body_square) + _mesh_count(_torso_square)
 		"survivor":
 			return _mesh_count(_survivor_model)
-		"buggy":
-			return _mesh_count(_buggy_model)
 		"truck":
 			return _mesh_count(_truck_model)
 	return 0
 
 
 func style_summary() -> String:
-	return "modular low-poly survivor, buggy, and exterior-first truck block models with a simple interior budget for vehicles."
+	return "modular low-poly survivor and full fleet vehicle block models: scavenger, motorcycle, buggy, pickup, van, semi, trailer, pickup_truck, rv, suv, with simple interior budgets."
 
 
 func _read_move_input() -> Vector2:
