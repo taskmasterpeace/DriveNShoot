@@ -10,6 +10,50 @@ extends Node
 
 const PATH := "res://data/carousel.json"
 
+## THE CHOIR REGISTRY (THE_INFECTED.md 0.13 — ONE registry; LWE's nest sites
+## read these SAME rows): a base is an anchor when its row sets choir_r > 0 or
+## hosts a congregation (code-floor radius 650). Zones are the machine's
+## geography — purging the herd never lifts the silence (0.4, §20).
+static var _choir_cache: Array = []
+static var _choir_loaded := false
+
+
+static func choir_anchors() -> Array:
+	if _choir_loaded:
+		return _choir_cache
+	_choir_loaded = true
+	_choir_cache = []
+	if FileAccess.file_exists(PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PATH))
+		if parsed is Dictionary:
+			for b in (parsed as Dictionary).get("bases", []):
+				var br: Dictionary = b
+				var r := float(br.get("choir_r", 0.0))
+				if r <= 0.0 and String(br.get("occupier", "")) == "choir_congregation":
+					r = 650.0
+				if r > 0.0:
+					_choir_cache.append({"id": String(br.get("id", "")),
+						"pos": Vector2(float(br["pos"][0]), float(br["pos"][1])), "r": r})
+	return _choir_cache
+
+
+static func choir_zone_at(pos: Vector3) -> bool:
+	for a in choir_anchors():
+		if (a["pos"] as Vector2).distance_to(Vector2(pos.x, pos.z)) <= float(a["r"]):
+			return true
+	return false
+
+
+## F-IP's anchor term: MAX over anchors, never sum (two overlapping anchors
+## never double the silence).
+static func choir_anchor_prox(pos: Vector3) -> float:
+	var best := 0.0
+	for a in choir_anchors():
+		var d: float = (a["pos"] as Vector2).distance_to(Vector2(pos.x, pos.z))
+		best = maxf(best, clampf(1.0 - d / float(a["r"]), 0.0, 1.0))
+	return best
+
+
 var _main: Node = null
 var data: Dictionary = {}
 var gates: Dictionary = {} ## base_id -> ProtoGate
@@ -524,5 +568,16 @@ class ProtoGate:
 					m.add_child(l)
 					l.global_position = global_position + Vector3(10.0 + 3.0 * i3, 0.4, -8.0 + 5.0 * i3)
 					occupiers.append(l)
+			"choir_congregation":
+				# THE FIRST CHOIR (THE_INFECTED I1): a shambler herd holds the
+				# ground, standing, murmuring. Purging kills BODIES — the anchor
+				# and its silence STAY (0.4; never explain why, §20).
+				for i4 in 6 + diff * 3:
+					var inf := ProtoInfected.create("shambler")
+					m.add_child(inf)
+					var ang4 := TAU * float(i4) / float(6 + diff * 3)
+					var rr := 8.0 + 3.0 * float(i4 % 3)
+					inf.global_position = global_position + Vector3(cos(ang4) * rr, 0.4, sin(ang4) * rr)
+					occupiers.append(inf)
 			_:
 				pass # automated: the locks are the fight

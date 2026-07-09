@@ -18,6 +18,9 @@ const SIGNALS: Array = [
 	# MUSIC STATIONS (owner ask): somebody out there still runs a transmitter.
 	# Plays a real mp3 off game/media/music/radio/ — drop a file, it's on the air.
 	{"id": "music", "weight": 0.28, "night_mult": 1.3},
+	# THE HERD WARNING (THE_INFECTED 0.15 — the howlers-row clone; never "infected"
+	# as an id, don't overload the group name): reveals the walking ground.
+	{"id": "herd_warning", "weight": 0.18, "night_mult": 1.4},
 ]
 const LORE: Array = [
 	"…heard the Bone Road's got a turn nobody marks. Maple Hill, they call it. Good people, if you find it…", # the §3.4 breadcrumb (MAP_POLISH_PLAN)
@@ -66,6 +69,14 @@ func scan() -> void:
 	_cd = SCAN_CD
 	if _main.audio:
 		_main.audio.play_ui("click", -10.0)
+	# THE DIAL BLEEDS (THE_INFECTED 0.9 — the driver's guaranteed read): inside
+	# a Choir zone the machine language OWNS the band — music, signals, all of
+	# it dissolves into EBS fragments and nullspeech. Canon: the zone IS where
+	# the signal is loud (never explain further, §20).
+	if "player" in _main and _main.player != null and ProtoCarousel.choir_zone_at(_main.player.global_position):
+		last_signal = "choir_bleed"
+		_main.notify("📻 —EE-EEH— …zip code four-oh— …remain in— —EE— …the band is EATEN here…")
+		return
 	# THE LIVING WORLD: an EMERGENCY BULLETIN cuts through the static FIRST — the world
 	# still announcing a state takeover / new law on the dial after the fact. Text-first
 	# (the fallback floor: a missing TTS/video never blocks the bulletin). One per sweep.
@@ -130,6 +141,16 @@ func _deliver(id: String) -> void:
 			_main.vision_cone.reveal_at(hpos)
 			_main.spawn_howler_pack(hpos, 2)
 			_main.notify("📻 '…pack moving near your grid — LIGHTS OUT…' — you know where they are. They don't know you heard.")
+		"herd_warning":
+			# the street register, §20-safe: warn, reveal, never explain
+			var ang5 := rng.randf() * TAU
+			var wpos := origin + Vector3(cos(ang5), 0, sin(ang5)) * rng.randf_range(180.0, 320.0)
+			_main.vision_cone.reveal_at(wpos)
+			for i5 in 4:
+				var s5 := ProtoInfected.create("shambler")
+				_main.add_child(s5)
+				s5.global_position = wpos + Vector3(2.0 * float(i5), 0.4, 1.5 * float(i5 % 2))
+			_main.notify("📻 '…herd crossed the county line at dusk. Forty head. Kill your engine and let the river talk…'")
 		"lore":
 			_main.notify("📻 %s" % LORE[rng.randi() % LORE.size()])
 		"music":

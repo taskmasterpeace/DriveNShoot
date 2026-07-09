@@ -1513,9 +1513,14 @@ func _update_soundscape(delta: float) -> void:
 ## Which bed the moment calls for: night owns the dark, town owns Meridian,
 ## the biome owns the rest.
 func _ambient_bed() -> String:
+	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	# THE CHOIR SUPPRESSION (THE_INFECTED §3.3 / LWE): inside a Choir zone the
+	# wildlife bed DIES — the deepest silence in the game is a place. Never
+	# explain why (§20).
+	if ProtoCarousel.choir_zone_at(pos):
+		return ""
 	if daynight != null and daynight.is_dark():
 		return "amb_night"
-	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
 	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
 		return "amb_town" # Meridian's box (same rect the location label reads)
 	var biome: String = stream.biome_at(pos) if stream != null else "scrub"

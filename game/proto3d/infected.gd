@@ -34,6 +34,29 @@ var _target: Vector3 = Vector3.ZERO
 var _has_target := false
 
 
+# --- F-IP: THE ONE infection_pressure FORMULA (THE_INFECTED 0.2 — LWE §3.2's
+# amended derivation): a stateless ANCHOR FLOOR plus a dt-scaled decaying
+# accumulator HARD-CAPPED at 0.55 — corpse-farming can thin the birds but can
+# NEVER mint total silence; NO-BIRDS stays a PLACE. Banks per-base until the
+# population cells wire the eco dict (I2). ------------------------------------
+const IP_K_ANCHOR := 0.7
+const IP_D_CORPSE := 0.10
+const IP_K_HERD := 0.08
+const IP_DECAY := 0.02
+const IP_DYN_CAP := 0.55
+
+
+static func ip_dyn_tick(dyn: float, corpse_infection_bodies: float, herd_n: int, dt_gh: float) -> float:
+	dyn += IP_D_CORPSE * corpse_infection_bodies
+	dyn += IP_K_HERD * (float(herd_n) / 40.0) * dt_gh
+	dyn -= dyn * IP_DECAY * dt_gh
+	return clampf(dyn, 0.0, IP_DYN_CAP)
+
+
+static func ip_at(pos: Vector3, dyn: float) -> float:
+	return clampf(IP_K_ANCHOR * ProtoCarousel.choir_anchor_prox(pos) + dyn, 0.0, 1.0)
+
+
 static func ensure_rows() -> void:
 	if _loaded:
 		return
