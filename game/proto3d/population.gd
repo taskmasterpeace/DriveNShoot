@@ -132,6 +132,16 @@ func _new_cell(key: String, pos: Vector3) -> Dictionary:
 		"last_noise_time": 0.0,
 		"last_cleared_time": -1.0,
 		"protected": _is_protected(pos),
+		# THE ECO DICT (LIVING_WOUND_ECOSYSTEM §3.2 — P1 subset of the ten):
+		# the sector's living floats. Everything alive starts LOW ("recovering,
+		# not returned"); water_rot seeds from the biome (swamps start damp).
+		"eco": {
+			"food_avail": 0.45,
+			"prey_density": 0.15,
+			"predator_pressure": 0.1,
+			"corpse_heat": 0.0,
+			"water_rot": 0.55 if String(usmap.biome_at(pos) if (usmap != null and usmap.ok) else "") == "swamp" else 0.25,
+		},
 	}
 	log.append("bootstrap %s zone=%s protected=%s" % [key, zone, row["protected"]])
 	return row

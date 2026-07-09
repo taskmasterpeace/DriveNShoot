@@ -52,6 +52,7 @@ var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.
 var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AMERICAN_ROAD M1; atlas/GPS consumer only until MT)
 var journeys: ProtoJourneys = null ## the NAV director (NAVIGATION.md P1 — walk domain; DRIVE/records at P2)
 var cloning: ProtoCloning = null ## the chair + the memory law (CLONING.md C1)
+var ecology: ProtoEcology = null ## the sector pressure loop (LWE P1 eco core)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -340,6 +341,10 @@ func _ready() -> void:
 	# CLONING C1 (CLONING.md): the chair, the memory law, the journal.
 	cloning = ProtoCloning.create(self)
 	add_child(cloning)
+	# THE ECOLOGY DIRECTOR (LIVING_WOUND_ECOSYSTEM P1): the pressure loop on
+	# the cells' eco floats — plants/prey/predators/corpse heat, seasons-aware.
+	ecology = ProtoEcology.create(self)
+	add_child(ecology)
 
 	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.

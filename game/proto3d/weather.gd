@@ -275,7 +275,9 @@ func _hour_tick(hours: int) -> void:
 					"vel": vel, "ttl_h": float(TTL_H.get(String(kk), 4.0)) * rng.randf_range(0.8, 1.3),
 					"age_h": 0.0})
 				break
-	# W-WET: rain wets the population cells it actually covers (MUD reads this)
+	# W-WET: rain wets the population cells it actually covers (MUD + the
+	# ecosystem read this). Lives in eco.water_rot now (LWE §3.2) — the plain
+	# water_rot key is kept in sync for MUD's shipped consumer.
 	if _main != null and "population" in _main and _main.population != null:
 		for key in _main.population.cells:
 			var row: Dictionary = _main.population.cells[key]
@@ -283,9 +285,12 @@ func _hour_tick(hours: int) -> void:
 			var um2: ProtoUSMap = _main.population.usmap
 			var c2: Vector2 = um2.cell_center(Vector2i(int(parts[0]), int(parts[1]))) if (um2 != null and um2.ok) else Vector2.ZERO
 			var i_rain := intensity_at(Vector3(c2.x, 0, c2.y), "rain")
-			var rot := float(row.get("water_rot", WET_BASE))
+			var eco: Dictionary = row.get("eco", {})
+			var rot := float(eco.get("water_rot", row.get("water_rot", WET_BASE)))
 			if i_rain > 0.0:
 				rot = minf(1.0, rot + K_WET * i_rain * float(hours))
 			else:
 				rot = move_toward(rot, WET_BASE, WET_REVERT * float(hours))
 			row["water_rot"] = rot
+			if not eco.is_empty():
+				eco["water_rot"] = rot

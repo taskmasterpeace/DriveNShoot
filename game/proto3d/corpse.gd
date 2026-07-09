@@ -23,6 +23,7 @@ var infection := 0.0 ## 0..1 — infected bodies spawn 1.0
 var heat := 1.0      ## fresh-kill scavenger draw, decays with the body
 var indoors := false
 var gnawed := false
+var _eco_deposited := false ## the sector deposit fires exactly once
 var _scav_done := false
 var _age := 0.0
 var _grounded := false
@@ -97,6 +98,12 @@ func interact(main: Node) -> void:
 # --- Flop + decay --------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	# THE SECTOR DEPOSIT (LWE — no free lunch): a body's heat draws the cell,
+	# once, the frame it exists in the world. Infection rides for F-IP (I2).
+	if not _eco_deposited:
+		_eco_deposited = true
+		if _main != null and "ecology" in _main and _main.ecology != null:
+			_main.ecology.deposit_corpse(global_position, heat, infection)
 	if not _grounded:
 		_vel.y -= GRAVITY * delta
 		global_position += _vel * delta
