@@ -45,6 +45,26 @@ func _check(name: String, ok: bool) -> void:
 		print("CAMERA_LAB_SIM: FAIL - %s" % name)
 
 
+func _vehicle_visual_target_size(vehicle_id: String) -> Vector3:
+	DrivnData.ensure()
+	var spec: Dictionary = ProtoCar3D.VEHICLES[vehicle_id]
+	var chassis: Vector3 = spec["chassis"]
+	var half_x := chassis.x * 0.5
+	var half_z := chassis.z * 0.5
+	var wheels: Array = spec.get("wheels", [])
+	for wheel in wheels:
+		var w: Array = wheel
+		var visible := true if w.size() < 5 else bool(w[4])
+		if not visible:
+			continue
+		var wx := absf(float(w[0]))
+		var wz := absf(float(w[1]))
+		var radius := float(w[5]) if w.size() > 5 else 0.35
+		half_x = maxf(half_x, wx + radius)
+		half_z = maxf(half_z, wz + radius)
+	return Vector3(half_x * 2.0, chassis.y, half_z * 2.0)
+
+
 func _next() -> void:
 	phase += 1
 	phase_t = 0.0
@@ -93,6 +113,7 @@ func _physics_process(delta: float) -> void:
 					and lab.has_method("set_visual_model") \
 					and lab.has_method("active_model_name") \
 					and lab.has_method("style_part_count") \
+					and lab.has_method("style_size") \
 					and lab.has_method("style_summary")
 				_check("camera lab exposes test hooks", api_ok)
 				if not api_ok:
@@ -137,6 +158,11 @@ func _physics_process(delta: float) -> void:
 					var count := int(lab.call("style_part_count", fleet_id))
 					_check("fleet model '%s' is active and cheap (%d parts)" % [fleet_id, count],
 						String(lab.call("active_model_name")) == fleet_id and count >= 8 and count <= 72)
+					var size: Vector3 = lab.call("style_size", fleet_id)
+					var target := _vehicle_visual_target_size(fleet_id)
+					var scale_ok := absf(size.x - target.x) <= 0.35 and absf(size.z - target.z) <= 0.45
+					_check("fleet model '%s' matches live vehicle scale (got %.1fx%.1f, want %.1fx%.1f)" %
+						[fleet_id, size.x, size.z, target.x, target.z], scale_ok)
 				lab.call("set_visual_model", "buggy")
 				_check("block buggy mode is active", String(lab.call("active_model_name")) == "buggy")
 				_check("block buggy is open-cage and cheap (%d parts)" % int(lab.call("style_part_count", "buggy")),

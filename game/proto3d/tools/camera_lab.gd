@@ -53,6 +53,7 @@ var _test_sprint: bool = false
 
 func _ready() -> void:
 	ProtoInputMap.ensure()
+	DrivnData.ensure()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_world()
 	_build_player()
@@ -389,27 +390,63 @@ func _build_block_buggy() -> Node3D:
 
 
 func _build_vehicle_model(vehicle_id: String) -> Node3D:
+	var model: Node3D
 	match vehicle_id:
 		"motorcycle":
-			return _build_motorcycle_model()
+			model = _build_motorcycle_model()
 		"buggy":
-			return _build_block_buggy()
+			model = _build_block_buggy()
 		"pickup":
-			return _build_block_truck()
+			model = _build_block_truck()
 		"pickup_truck":
-			return _build_war_pickup_model()
+			model = _build_war_pickup_model()
 		"van":
-			return _build_van_model()
+			model = _build_van_model()
 		"semi":
-			return _build_semi_model()
+			model = _build_semi_model()
 		"trailer":
-			return _build_trailer_model()
+			model = _build_trailer_model()
 		"rv":
-			return _build_rv_model()
+			model = _build_rv_model()
 		"suv":
-			return _build_suv_model()
+			model = _build_suv_model()
 		_:
-			return _build_scavenger_model()
+			model = _build_scavenger_model()
+	return _scale_vehicle_model_to_live_footprint(vehicle_id, model)
+
+
+func _scale_vehicle_model_to_live_footprint(vehicle_id: String, model: Node3D) -> Node3D:
+	var current := _style_size_for_model(model)
+	var target := _vehicle_visual_target_size(vehicle_id)
+	if current.x > 0.001 and target.x > 0.001:
+		model.scale.x *= target.x / current.x
+	if current.z > 0.001 and target.z > 0.001:
+		model.scale.z *= target.z / current.z
+	return model
+
+
+func _vehicle_visual_target_size(vehicle_id: String) -> Vector3:
+	var key := vehicle_id
+	if key == "truck":
+		key = "pickup"
+	if not ProtoCar3D.VEHICLES.has(key):
+		return Vector3.ZERO
+	var spec: Dictionary = ProtoCar3D.VEHICLES[key]
+	var chassis: Vector3 = spec["chassis"]
+	var half_x := chassis.x * 0.5
+	var half_z := chassis.z * 0.5
+	var wheels: Array = spec.get("wheels", [])
+	for wheel in wheels:
+		var w: Array = wheel
+		var visible := true if w.size() < 5 else bool(w[4])
+		if not visible:
+			continue
+		var wx := absf(float(w[0]))
+		var wz := absf(float(w[1]))
+		var radius := float(w[5]) if w.size() > 5 else 0.35
+		half_x = maxf(half_x, wx + radius)
+		half_z = maxf(half_z, wz + radius)
+	return Vector3(half_x * 2.0, chassis.y, half_z * 2.0)
 
 
 func _build_motorcycle_model() -> Node3D:
@@ -657,6 +694,39 @@ func _mesh_count(root: Node) -> int:
 	return count
 
 
+func _style_size_for_model(root: Node3D) -> Vector3:
+	if root == null:
+		return Vector3.ZERO
+	var state := [false, AABB()]
+	_accumulate_model_bounds(root, root.transform, state)
+	if not bool(state[0]):
+		return Vector3.ZERO
+	var bounds: AABB = state[1]
+	return bounds.size
+
+
+func _accumulate_model_bounds(node: Node, xform: Transform3D, state: Array) -> void:
+	if node is MeshInstance3D:
+		var mesh_node := node as MeshInstance3D
+		var aabb := mesh_node.get_aabb()
+		for i in range(8):
+			_merge_bound_point(xform * aabb.get_endpoint(i), state)
+	for child in node.get_children():
+		if child is Node3D:
+			var child_3d := child as Node3D
+			_accumulate_model_bounds(child, xform * child_3d.transform, state)
+
+
+func _merge_bound_point(point: Vector3, state: Array) -> void:
+	var point_box := AABB(point, Vector3.ZERO)
+	if bool(state[0]):
+		var bounds: AABB = state[1]
+		state[1] = bounds.merge(point_box)
+	else:
+		state[0] = true
+		state[1] = point_box
+
+
 func style_part_count(name: String) -> int:
 	var key := name.to_lower()
 	if _vehicle_models.has(key):
@@ -669,6 +739,20 @@ func style_part_count(name: String) -> int:
 		"truck":
 			return _mesh_count(_truck_model)
 	return 0
+
+
+func style_size(name: String) -> Vector3:
+	var key := name.to_lower()
+	if _vehicle_models.has(key):
+		return _style_size_for_model(_vehicle_models[key] as Node3D)
+	match key:
+		"squares":
+			return _style_size_for_model(_body_square)
+		"survivor":
+			return _style_size_for_model(_survivor_model)
+		"truck":
+			return _style_size_for_model(_truck_model)
+	return Vector3.ZERO
 
 
 func style_summary() -> String:
