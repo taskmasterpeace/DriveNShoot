@@ -53,6 +53,7 @@ var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AME
 var journeys: ProtoJourneys = null ## the NAV director (NAVIGATION.md P1 — walk domain; DRIVE/records at P2)
 var cloning: ProtoCloning = null ## the chair + the memory law (CLONING.md C1)
 var ecology: ProtoEcology = null ## the sector pressure loop (LWE P1 eco core)
+var empire: ProtoEmpire = null ## the pitch/take/heat ledger (FAMILY_EMPIRE E1)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -345,6 +346,9 @@ func _ready() -> void:
 	# the cells' eco floats — plants/prey/predators/corpse heat, seasons-aware.
 	ecology = ProtoEcology.create(self)
 	add_child(ecology)
+	# THE FAMILY EMPIRE E1 (THE_FAMILY_EMPIRE.md): the pitch, the take, the heat.
+	empire = ProtoEmpire.create(self)
+	add_child(empire)
 
 	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.
@@ -3689,6 +3693,8 @@ func save_game() -> Dictionary:
 		"population": population.serialize() if population != null else {},
 		# THE CHAIR (CLONING C1): the backup + the journal survive everything.
 		"cloning": cloning.serialize() if cloning != null else {},
+		# THE EMPIRE LEDGER (FAMILY_EMPIRE 0.1): ownership lives ONLY here.
+		"empire": empire.serialize() if empire != null else {},
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -3796,6 +3802,8 @@ func apply_save(data: Dictionary) -> void:
 		_last_pop_hr = -1.0 # re-anchor the hourly tick to the restored clock
 	if cloning != null:
 		cloning.restore(data.get("cloning", {})) # the backup + journal survive the file too
+	if empire != null:
+		empire.restore(data.get("empire", {})) # the pitch ledger rides too
 	for id in data.get("carousel", []):
 		carousel.set_active(String(id))
 	var gj: Dictionary = data.get("garages", {})
