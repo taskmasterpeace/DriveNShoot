@@ -22,6 +22,7 @@ var _station_label: Label
 var _presets: HBoxContainer
 var _power: CheckButton
 var _vol: HSlider
+var _face: ProtoRadioFace = null
 
 
 static func create(music: ProtoMusic) -> ProtoRadioDial:
@@ -59,6 +60,11 @@ static func create(music: ProtoMusic) -> ProtoRadioDial:
 	x.pressed.connect(func() -> void: rd.close())
 	head.add_child(x)
 	v.add_child(head)
+
+	# THE FACEPLATE (pixel-art): the generated radio face + its code-driven tuning
+	# pointer and LCD display text (ProtoRadioFace). A missing PNG hides it cleanly.
+	rd._face = ProtoRadioFace.create(400.0)
+	v.add_child(rd._face)
 
 	# The big frequency readout.
 	rd._readout = Label.new()
@@ -112,6 +118,8 @@ static func create(music: ProtoMusic) -> ProtoRadioDial:
 	ctl.add_child(rd._vol)
 	v.add_child(ctl)
 
+	if rd._face != null:
+		rd._readout.visible = false # the face's LCD window shows the frequency now
 	rd._root.visible = false
 	return rd
 
@@ -148,6 +156,7 @@ func _rebuild_presets() -> void:
 		b.text = "%.1f" % float(pr["freq"])
 		b.tooltip_text = String(pr["name"])
 		b.add_theme_font_override("font", ProtoHUD.mixed_font())
+		b.add_theme_color_override("font_color", AMBER)
 		var f: float = float(pr["freq"])
 		b.pressed.connect(func() -> void: _freq_slider.value = f)   # snaps the dial → tunes
 		_presets.add_child(b)
@@ -177,6 +186,8 @@ func _refresh_readout(freq: float) -> void:
 		return
 	var idx := _music.tune_to_frequency(freq)   # -1 when between stations
 	_station_label.text = ("♫ " + _music.station_name()) if idx >= 0 else "— static —"
+	if _face != null:
+		_face.set_state(freq, ProtoMusic.BAND_LO, ProtoMusic.BAND_HI, "%.1f FM" % freq, _music.power_on)
 
 
 func _set_power(on: bool) -> void:
