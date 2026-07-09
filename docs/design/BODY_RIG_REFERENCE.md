@@ -73,8 +73,16 @@ from one socket."
 
 The puppet faces its **local −Z**. **Positive `rotation.x` swings a hanging limb
 FORWARD** (toward −Z). Every pose is authored to this: a punch at contact is
-`shoulder_pitch ≈ +1.5` (arm extended at the target); a knee/elbow only folds
-forward (positive); a relaxed arm is 0 (hangs straight by geometry).
+`shoulder_pitch ≈ +1.5` (arm extended at the target); a relaxed arm is 0 (hangs
+straight by geometry).
+
+**⚠ THE KNEE COROLLARY (2026-07-08, owner playtest — see `ANIMATION_FIX_PACK_2.md`):**
+the sign law tells you which way is FORWARD, not which way a joint FLEXES. An **elbow
+flexes forward (+)**; a **knee flexes BACKWARD (−)** — it is the elbow's mirror; ankle
+push-off is plantarflex (−), swing clearance dorsiflex (+). The original "a knee/elbow
+only folds forward (positive)" wording applied the elbow's direction to the knee and
+produced the bird-leg run + stool-sit crouch. The sheet's JOINT MOVEMENT GUIDE (KNEE
+panel) is the tiebreaker for any future direction dispute.
 
 ## THE BUILD PARAMETER — skinny → normal → heavy
 

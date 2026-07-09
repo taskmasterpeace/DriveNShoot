@@ -12,6 +12,10 @@ goal's Phase-3 follow-up — do it with a combat-sim sweep, not here.
 **Follow-up spec (2026-07-08 evening):** `RUN_ANIMATION.md` — the run's TOP-DOWN read
 (stride shoulder-hip counter-rotation, armed-carry asymmetry, camera-truth acceptance);
 this pack's §3.3 side-view form is its shipped base.
+**Correction pass (2026-07-08 late, owner playtest):** `ANIMATION_FIX_PACK_2.md` — the
+LEG CHAIN's flexion signs are anatomically mirrored (knees fold forward = bird leg;
+crouch hips fold backward = stool-sit; push-off ankle dorsiflexes). This pack's knee-lift
+amplified it. Fix pack 2 is THE KNEE LAW + THE REAL SQUAT and lands before RUN_ANIMATION.
 *(Original spec below, kept as the record.)*
 
 **Was:** SPEC (owner playtest 2026-07-08, the mannequin body's first night out).
