@@ -21,7 +21,8 @@ var _player: CharacterBody3D
 var _puppet: Node3D
 var _cam: Camera3D
 var _label: Label
-var _aim_marker: MeshInstance3D
+var _selector_marker: MeshInstance3D
+var _vision_marker: MeshInstance3D
 
 var _aim_dir := Vector3(0, 0, -1)
 var _cam_dir := Vector3(0, 0, -1)
@@ -127,14 +128,12 @@ func _build_world() -> void:
 		box.material_override = _mat(Color(0.34, 0.30, 0.23), 0.8)
 		add_child(box)
 
-	_aim_marker = MeshInstance3D.new()
-	var marker := CylinderMesh.new()
-	marker.top_radius = 0.16
-	marker.bottom_radius = 0.16
-	marker.height = 0.08
-	_aim_marker.mesh = marker
-	_aim_marker.material_override = _mat(Color(0.95, 0.72, 0.22), 0.45)
-	add_child(_aim_marker)
+	_selector_marker = _dot_marker(Color(0.95, 0.72, 0.22), 0.18)
+	_selector_marker.name = "SelectorDot"
+	add_child(_selector_marker)
+	_vision_marker = _dot_marker(Color(0.20, 0.58, 1.0), 0.14)
+	_vision_marker.name = "VisionDot"
+	add_child(_vision_marker)
 
 
 func _build_player() -> void:
@@ -203,6 +202,17 @@ func _mat(color: Color, roughness: float) -> StandardMaterial3D:
 	return m
 
 
+func _dot_marker(color: Color, radius: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = radius
+	cyl.bottom_radius = radius
+	cyl.height = 0.08
+	m.mesh = cyl
+	m.material_override = _mat(color, 0.45)
+	return m
+
+
 func _read_move_input() -> Vector2:
 	if _test_move_active:
 		return _test_move.limit_length(1.0)
@@ -258,8 +268,6 @@ func _update_split_turn(delta: float) -> void:
 		var edge_feet_yaw := target_yaw - signf(raw_delta) * max_twist
 		turn_rate = deg_to_rad(FEET_CATCHUP_RATE_DEG)
 		_body_yaw = _rotate_yaw(_body_yaw, edge_feet_yaw, turn_rate * delta)
-	elif absf(raw_delta) > deg_to_rad(8.0):
-		_body_yaw = _rotate_yaw(_body_yaw, target_yaw, turn_rate * 0.55 * delta)
 	_body_yaw = wrapf(_body_yaw, -PI, PI)
 
 	var clamped_delta := clampf(wrapf(target_yaw - _body_yaw, -PI, PI), -max_twist, max_twist)
@@ -304,7 +312,8 @@ func _update_aim_from_mouse() -> void:
 
 func _update_camera(delta: float, snap: bool) -> void:
 	var k := 1.0 if snap else 1.0 - exp(-8.0 * delta)
-	_cam_dir = _cam_dir.slerp(_aim_dir, k) if _cam_dir.length_squared() > 0.01 else _aim_dir
+	var feet_dir := _vec_of(_body_yaw)
+	_cam_dir = _cam_dir.slerp(feet_dir, k) if _cam_dir.length_squared() > 0.01 else feet_dir
 	_cam_dir = _cam_dir.normalized()
 	var height := lerpf(CLOSE_HEIGHT, FAR_HEIGHT, _zoom_t)
 	var back := lerpf(CLOSE_BACK, FAR_BACK, _zoom_t)
@@ -317,9 +326,10 @@ func _update_camera(delta: float, snap: bool) -> void:
 
 
 func _update_markers() -> void:
-	if _aim_marker == null:
-		return
-	_aim_marker.global_position = _player.global_position + _aim_dir * 4.0 + Vector3(0, 0.06, 0)
+	if _selector_marker != null:
+		_selector_marker.global_position = _player.global_position + _aim_dir * 4.0 + Vector3(0, 0.06, 0)
+	if _vision_marker != null:
+		_vision_marker.global_position = _player.global_position + _vec_of(_body_yaw) * 2.35 + Vector3(0, 0.08, 0)
 
 
 func _update_label() -> void:
@@ -367,7 +377,7 @@ func reset_test_pose(pos: Vector3) -> void:
 	_body_yaw = _yaw_of(_aim_dir)
 	_upper_yaw = _body_yaw
 	_prev_yaw = _body_yaw
-	_cam_dir = _aim_dir.normalized()
+	_cam_dir = _vec_of(_body_yaw)
 	_last_speed = 0.0
 	_footwork = "IDLE"
 	_update_camera(1.0 / 60.0, true)
@@ -379,6 +389,14 @@ func camera_behind_dot() -> float:
 	if to_cam.length_squared() < 0.001:
 		return 0.0
 	return to_cam.normalized().dot(-_aim_dir.normalized())
+
+
+func camera_behind_feet_dot() -> float:
+	var to_cam := _cam.global_position - _player.global_position
+	to_cam.y = 0.0
+	if to_cam.length_squared() < 0.001:
+		return 0.0
+	return to_cam.normalized().dot(-_vec_of(_body_yaw))
 
 
 func camera_height() -> float:
@@ -411,3 +429,31 @@ func upper_facing() -> Vector3:
 
 func footwork_label() -> String:
 	return _footwork
+
+
+func selector_dot_visible() -> bool:
+	return _selector_marker != null and _selector_marker.visible
+
+
+func vision_dot_visible() -> bool:
+	return _vision_marker != null and _vision_marker.visible
+
+
+func selector_dot_alignment() -> float:
+	if _selector_marker == null:
+		return 0.0
+	var d := _selector_marker.global_position - _player.global_position
+	d.y = 0.0
+	if d.length_squared() < 0.001:
+		return 0.0
+	return d.normalized().dot(_aim_dir.normalized())
+
+
+func vision_dot_alignment() -> float:
+	if _vision_marker == null:
+		return 0.0
+	var d := _vision_marker.global_position - _player.global_position
+	d.y = 0.0
+	if d.length_squared() < 0.001:
+		return 0.0
+	return d.normalized().dot(_vec_of(_body_yaw))

@@ -10,6 +10,7 @@ extends Node
 const EAST := Vector3(1, 0, 0)
 const NORTH := Vector3(0, 0, -1)
 const SOUTH := Vector3(0, 0, 1)
+const AIM_INSIDE_LIMIT := Vector3(0.94, 0, -0.34)
 
 var lab: Node = null
 var phase: int = 0
@@ -75,7 +76,12 @@ func _physics_process(delta: float) -> void:
 					and lab.has_method("max_twist_deg") \
 					and lab.has_method("feet_facing") \
 					and lab.has_method("upper_facing") \
-					and lab.has_method("footwork_label")
+					and lab.has_method("footwork_label") \
+					and lab.has_method("camera_behind_feet_dot") \
+					and lab.has_method("selector_dot_visible") \
+					and lab.has_method("vision_dot_visible") \
+					and lab.has_method("selector_dot_alignment") \
+					and lab.has_method("vision_dot_alignment")
 				_check("camera lab exposes test hooks", api_ok)
 				if not api_ok:
 					_finish()
@@ -117,20 +123,27 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 1.2:
 				var feet: Vector3 = lab.call("feet_facing")
 				var upper: Vector3 = lab.call("upper_facing")
-				_check("holding rear aim pivots the feet around (feet south %.2f)" % feet.dot(SOUTH),
-					feet.dot(SOUTH) > 0.78)
+				_check("holding rear aim pivots feet only enough to support the waist (feet south %.2f)" % feet.dot(SOUTH),
+					feet.dot(SOUTH) > 0.05 and feet.dot(SOUTH) < 0.85)
 				_check("upper body still points where the mouse asked (upper south %.2f)" % upper.dot(SOUTH),
 					upper.dot(SOUTH) > 0.92)
 				_check("waist stays bounded while feet catch up (%.1f deg)" % float(lab.call("upper_lower_delta_deg")),
 					absf(float(lab.call("upper_lower_delta_deg"))) <= float(lab.call("max_twist_deg")) + 3.0)
 				lab.call("reset_test_pose", Vector3.ZERO)
-				lab.call("set_test_aim_dir", EAST)
+				lab.call("set_test_aim_dir", AIM_INSIDE_LIMIT)
+				lab.set("_body_yaw", ProtoPlayer3D._yaw_of(NORTH))
 				lab.call("set_test_zoom", 1.0)
 				_next()
 		4:
 			if phase_t > 0.55:
-				_check("camera sits opposite the mouse/facing vector (dot %.2f)" % float(lab.call("camera_behind_dot")),
-					float(lab.call("camera_behind_dot")) > 0.82)
+				_check("camera follows lower body, not the upper selector (behind feet %.2f)" % float(lab.call("camera_behind_feet_dot")),
+					float(lab.call("camera_behind_feet_dot")) > 0.82)
+				_check("camera is not being dragged behind the mouse selector (behind selector %.2f)" % float(lab.call("camera_behind_dot")),
+					float(lab.call("camera_behind_dot")) < 0.55)
+				_check("selector dot is visible and follows upper/mouse direction (%.2f)" % float(lab.call("selector_dot_alignment")),
+					bool(lab.call("selector_dot_visible")) and float(lab.call("selector_dot_alignment")) > 0.95)
+				_check("vision dot is visible and follows lower/feet direction (%.2f)" % float(lab.call("vision_dot_alignment")),
+					bool(lab.call("vision_dot_visible")) and float(lab.call("vision_dot_alignment")) > 0.95)
 				_check("overhead zoom is high enough for GTA2 framing (height %.1f)" % float(lab.call("camera_height")),
 					float(lab.call("camera_height")) > 18.0)
 				lab.call("set_test_zoom", 0.0)
@@ -139,8 +152,8 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.55:
 				_check("close zoom drops toward third-person height (height %.1f)" % float(lab.call("camera_height")),
 					float(lab.call("camera_height")) < 8.0)
-				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", EAST)
+				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_move", Vector2(0, 1), true)
 				_p0 = lab.call("player_position")
 				_next()
@@ -150,8 +163,8 @@ func _physics_process(delta: float) -> void:
 				_forward_dist = (p1 - _p0).dot(EAST)
 				_check("forward sprint follows facing, not fixed screen north (east %.1fm)" % _forward_dist,
 					_forward_dist > 4.5 and absf(p1.z - _p0.z) < 0.7)
-				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", EAST)
+				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_move", Vector2(0, -1), true)
 				_p0 = lab.call("player_position")
 				_next()
