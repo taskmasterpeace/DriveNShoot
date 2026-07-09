@@ -162,6 +162,10 @@ floor .55) · `buy_in = profit_day × 25 × price_mult` (clamp .55–1.8) · `he
 × (1+.15·(danger−1)))` · `underboss uptime = .7+.1·loyalty_tier; skim = .2·(1−loyalty/100)·take` ·
 `hold_odds = defense/(defense+attack)` · growth clocks: gestation 6 gd · stages to GROWN 34 gd ·
 grudge heat ×.85/gd (a fresh grudge lives ~19 game-days). Worked examples live with their sims.
+**Infected feed (THE_INFECTED.md I2):** `route_danger` gains its F-ROUTE term (+0–3 from
+`infection_pressure`/choir crossings — quarantine freight pays more, `rob_odds` reads it free), and a
+herd at the home/holdout wire fires the SAME crisis-law pipeline as any raid (walls mitigate, radio
+flag + rescue window — never a silent obituary).
 
 ## 4. Edge cases (headlines)
 

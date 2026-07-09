@@ -124,7 +124,8 @@ and `water_rot` from biome; everything alive starts low ("recovering, not return
 and only grows in apex-eligible biomes (§3.5); `faction_activity` is **derived, never seeded** (§4). Three of
 the ten — `faction_activity`, `water_rot`, `infection_pressure` — are **modifiers read from systems that
 already exist** (`world_state.controller_of` + `events.war_state` + `respect`; biome base + live `weather`;
-corpse_heat + Carousel-anchor proximity), not independent simulations.
+corpse infection deposits + herd load + Carousel-anchor proximity — **THE_INFECTED.md F-IP is the one
+formula**: anchor floor + a decaying accumulator hard-capped at 0.55), not independent simulations.
 
 ### 3.3 The tick — cadence, HOT/WARM/COLD, on/off-screen
 
@@ -688,8 +689,10 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
   - `audio.gd` — **must** add the §13 loop ids to `LOOPED` (`amb_swamp`, `birdsong_day`, `rat_scurry`,
     `knifeback_breath`, `corpse_flies`); everything else is file drops via its dir scan.
   - `tools/soundforge/manifest.json` — **must** gain the §13 entries (ids must match the rows' `sfx.id`s).
-  - `INFECTED_TRIALS` (greenfield) — **must** set `corpse.infection` and `choir_zone` for Tower Birds /
-    Whitewings / NO-BIRDS suppression and `infection_pressure`.
+  - `THE_INFECTED.md` (the reconciled arc — supersedes INFECTED_TRIALS) — **must** set `corpse.infection`
+    and `choir_zone` for Tower Birds / Whitewings / NO-BIRDS suppression and `infection_pressure`:
+    satisfied at its **I1** (writers-first, zero LWE dependency); its **F-IP is the ONE shared formula**;
+    our P3 infected items and its I2/I3 may land in either order.
   - `POPULATION_WAR` — shares the same 500 m cell + `GROUPS`; the ecology GROUPS additions and `row["eco"]`
     must not collide with its `controlling_faction`/`current_pop` fields (they don't — parallel keys).
   - `BANDIT_CONVOY_ECOSYSTEM` — shares `hud.set_threat` (now a stack), the noise bus, and convoys as apex prey

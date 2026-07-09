@@ -341,6 +341,7 @@ Law profile controls:
 - Vehicle inspection rules.
 - Faction uniform/disguise usefulness.
 - Broadcast propaganda style.
+- Quarantine rules (herd corridors, bio-contraband, fever body-scans, advisory broadcasts — THE_INFECTED.md I2; `journey_board_hazards` vocab gains `quarantine_checkpoint`/`herd_crossing`).
 
 ### 6.3 Example Law Profiles
 

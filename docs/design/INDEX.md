@@ -18,6 +18,7 @@
 | **SPECTACLES** | races/derby/pits/beast-husbandry/drone duels + betting | BANKED | S1 one grandstand + betting | events.gd; venue rows; FAMILY dates (soft) |
 | **CLONING** | clinic ritual, wake choice, MEMORY LAW + journal, black market, THE FAMILY LAW | BANKED | C1 ritual + memory law | DSOA §11 (canon); minimal journal (ships in C1) |
 | **MUD_AND_MONSTERS** | traction matrix (surface×wetness×tire), mud (slow-never-stuck), monster trucks (built), tracked+tractors, the rally | BANKED | T1 matrix + mud (rides WEATHER) | WEATHER W-WET; AMERICAN_ROAD 0.17; SPECTACLES |
+| **THE_INFECTED** | the failed trials: taxonomy rows, herds-as-cells, the Choir zone law + `infection_pressure` writer, BITE FEVER, quarantine, the PIT/PREY laws, the Trials films | BANKED | **I1 THE FIRST CHOIR** (fort_benning, shamblers only — ZERO hard gates) | none for I1; P0 + SECURITY_LADDER + NAV-P2 for I2; LWE P3 mutual for I3 (resolved by construction) |
 | LIVING_WORLD_DSOA | the locked five: state flips, law, crime, jail, clone canon §11 | BANKED (canon) | the Florida slice | — |
 | GROUND_INTEGRITY / TERRAIN_RELIEF | floors, void net, relief | BANKED (main) | executes at M2 / M8 | — |
 | ANIMATION packs / RUN / GROUND | rig fixes | partly SHIPPED | per their docs | — |
@@ -71,9 +72,10 @@ Every doc in `docs/design/` classified — nothing untracked:
 - **ORPHANS TIED IN AS OF THIS AUDIT:** CAR_UI_REQUIREMENTS (→ consumed by the freight/collector
   cockpit reads — cite from FAMILY_EMPIRE when E3 lands) · EQUIPMENT_PAPERDOLL (→ the wife/kid/
   fighter dress rows — FAMILY §2.1 + SPECTACLES fighters) · COOP_PVP_MOBILE (→ the co-op v1 law
-  FAMILY_EMPIRE 0.6 already cites; mobile stays DSOA P3) · INFECTED_TRIALS (**GREENLIT 2026-07-09 — the
-  ground/design/critique workflow is running; the reconciled arc doc lands next and joins this
-  ledger; ECOSYSTEM P3 + DSOA + CLONING faith-states consume it) · WAR_AI_RESEARCH (research feedstock for POPULATION_WAR — no action).
+  FAMILY_EMPIRE 0.6 already cites; mobile stays DSOA P3) · INFECTED_TRIALS (**SUPERSEDED 2026-07-09 by
+  THE_INFECTED.md** — the reconciled arc landed and holds the ledger row above; ECOSYSTEM P3 + DSOA +
+  CLONING + SPECTACLES + NAV + SECURITY + BANDIT + POP_WAR all carry its amendment lines) ·
+  WAR_AI_RESEARCH (research feedstock for POPULATION_WAR — no action).
 - **ON MAIN, NOT THIS WORKTREE:** GROUND_INTEGRITY.md + RUN_ANIMATION.md (cherry-pick at M0 — already
   in the M-ladder).
 - **ART/MODELS POLICY (owner question, answered):** there is NO blocking art phase — the box

@@ -23,6 +23,8 @@ basement (dirt-spur payloads and city backrooms both qualify). Cheap scans, no q
 menu of consequences DSOA §11 priced: wrong-state wake-ups, body defects (a permanent wound-tax roll),
 debt collected by leg-breakers (a rival-director contract), and the whole facility can be RAIDED and
 lost — your backup with it. Finding one is intel (radio rumor, a fixer, the wife-as-fixer's ASK line).
+**Fever rule (THE_INFECTED.md I2):** a clinic refuses to scan a fevered body (contagion risk — that
+is all anyone says); black-market vats don't care, +1 on the defect roll.
 
 ## 2. The wake (choose your ground)
 

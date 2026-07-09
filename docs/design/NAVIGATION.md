@@ -115,7 +115,8 @@ gator eating a courier is designed-for — cargo drops where the body fell) · W
 metaworld (the record pattern donor) · net.gd (journeys host-authoritative; clients ghost).
 **Knobs** (data/nav.json): LIVE_CAP 4–8 · R_hydrate 250–350 / R_dehydrate 380–500 (hysteresis ≥80) ·
 W_danger 0–60 s/pt (the courier-avoids-THE-CRIMSON-MILE dial) · η per domain 0.6–1.0 · SHELL band ·
-walker whiskers/t_stuck · SIDEWALK_OFF · fly clearance.
+walker whiskers/t_stuck · SIDEWALK_OFF · fly clearance. `danger_pts` sources include
+`infection_pressure` and `choir_zone` (THE_INFECTED.md F-NAV, I2 — cost, never a wall; W_danger prices it).
 **Sims:** `nav_walk_sim` (door-to-door through a real door) · `nav_walk_block_sim` (obstacle →
 sidestep → re-plan, never a statue) · `nav_drive_sim` (multi-leg drive, park in a spot) ·
 `nav_fly_sim` (relief clearance) · `nav_offscreen_sim` (dehydrate → arithmetic → rematerialize at the

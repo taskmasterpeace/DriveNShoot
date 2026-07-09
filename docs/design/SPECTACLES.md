@@ -7,7 +7,9 @@ when a race track is a large structure"*). **Substrate (all shipped):** `races.j
 fence around it) · martial arts + the pit (unarmed system) · `drone.gd` · the ecosystem's creatures ·
 `events.gd` (the calendar) · the book-maker backroom (FAMILY_EMPIRE) · law_profiles (gambling legality
 per state). **THE DOG LAW (binding): dogs never fight in pits. Ever.** The bond is the game's emotional
-pillar; the beasts that fight are *captured wild things*.
+pillar; the beasts that fight are *captured wild things*. **THE PIT LAW (same force — THE_INFECTED.md
+0.17): infected never fight in pits either.** They are failed CITIZENS, not wild things; venue rows
+carry no infected class and capture gear refuses the `infected` group — at most one bark admits the taboo.
 
 ## 1. The five spectacles (every one: WATCH · BET · ENTER yourself)
 
