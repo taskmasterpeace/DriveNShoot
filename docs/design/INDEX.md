@@ -14,7 +14,7 @@
 | **THE_FAMILY_EMPIRE** | extort/own→city→capital, collectors, family/wife/kids, dates+school, revenge | BANKED | **THE HOLLOWPOINT SLICE** (E1/F1) | **P0** (below), M3c, NAV-P1 |
 | **LIVING_WOUND_ECOSYSTEM** | sector pressure, food chain, nests, night shift, EAR layer, seeding | BANKED | Phase 1 "Alligator Alley Awakens" | **P0**; M4a look (soft) |
 | **WEATHER_AND_SEASONS** | storm-disc field, gradients, seasons, lean-season arc | BANKED | field + rain/dust/heat + calendar (track W, road-independent) | none hard |
-| **THE_LIBRARY** (+ /librarian, LIVE) | skim/study/boost, catalog, content standards | BANKED (skill SHIPPED) | Phase A fix-pack (3 shipped bugs die) | none hard |
+| **THE_LIBRARY** (+ /librarian, LIVE) | skim/study/boost, catalog, content standards | **TABLED (owner, 2026-07-09)** | resumes on owner call; /librarian stays usable for skim books | **CLONING's journal need is decoupled**: a MINIMAL auto-journal (record run facts + render as readable pages) ships inside CLONING C1; the full Library study system stays tabled |
 | **SPECTACLES** | races/derby/pits/beast-husbandry/drone duels + betting | BANKED | S1 one grandstand + betting | events.gd; venue rows; FAMILY dates (soft) |
 | **CLONING** | clinic ritual, wake choice, MEMORY LAW + journal, black market, THE FAMILY LAW | BANKED | C1 ritual + memory law | DSOA §11 (canon); **LIBRARY journal (now required)** |
 | LIVING_WORLD_DSOA | the locked five: state flips, law, crime, jail, clone canon §11 | BANKED (canon) | the Florida slice | — |
@@ -37,9 +37,8 @@ NAV-P2's dehydrate hook.** Never two milestones inside it at once.
 1. **P0** — population wiring + sim fix (days; unblocks three arcs).
 2. **AMERICAN_ROAD M0** — the materialize wire + migration rows (~150 placements light up) + the
    Florida relief bug. *Visible win in week one.*
-3. **LIBRARY Phase A** — the fix-pack (USE-eats-the-book, pad path, fire-guard) — small, kills three
-   shipped bugs, and /librarian starts drafting skim books immediately.
-4. **M1 junction + exit geometry law** — the owner's #1 complaint dies; road_graph lands.
+3. **M1 junction + exit geometry law** — the owner's #1 complaint dies; road_graph lands.
+   *(LIBRARY tabled by owner 2026-07-09 — its Phase-A bug fixes ride along whenever it resumes.)*
 5. **ECOSYSTEM Phase 1** (parallel from here) + **WEATHER track W** (parallel any time).
 6. **M2 ground integrity → M3 addresses + two-tier towns + M3c mission fields → M3b network fill +
    dirt layer → M4a corridor look.**
@@ -51,3 +50,34 @@ NAV-P2's dehydrate hook.** Never two milestones inside it at once.
 
 *Rule of thumb baked into this order: substrate first (P0/M0/M1), then the SLICES that prove fun
 (Alley, Hollowpoint), then breadth. Nothing waits on anything it doesn't truly need.*
+
+## THE FULL FOLDER AUDIT (owner ask 2026-07-09: "anything in the design folder not tied into this?")
+
+Every doc in `docs/design/` classified — nothing untracked:
+
+- **THE ACTIVE WEB (tracked above):** AMERICAN_ROAD · BUILDING_BOOK · NAVIGATION · FAMILY_EMPIRE ·
+  LIVING_WOUND_ECOSYSTEM · WEATHER_AND_SEASONS · SPECTACLES · CLONING · THE_LIBRARY (tabled) ·
+  LIVING_WORLD_DSOA · BANDIT_CONVOY · POPULATION_WAR · SECURITY_LADDER · LOOT_NPC · INDEX.
+- **SHIPPED (their content is live; keep as records):** ROAD_TRAFFIC_OVERHAUL · MAP_POLISH_PLAN ·
+  PUPPET_RIG_V2 · ANIMATION_FIX_PACK · CINEMA_MEDIA_LAYER · DYNAMIC_SPLIT_DRONE · CAROUSEL_PORTAL
+  (dev build — the portal-interior proof CLONING/dens will cite).
+- **REFERENCE (laws, not backlogs):** BODY_RIG_REFERENCE (the mannequin is definitive) ·
+  UI_DESIGN_LANGUAGE (**cross-cutting law — every new panel this web adds (empire ledger, family K
+  tab, betting window, clone terminal) MUST cite it**; now stated here so it's wired in).
+- **THE COMBAT ARC — SCHEDULED (owner, 2026-07-09): after M1, parallel with the slices.**
+  DRIVE_BY_COMBAT (seat-arc firing) + POSE_TO_POSE_STRIKES (contact-pose damage) slot in as order
+  step 5b — so when collectors and pit fights arrive, the combat that powers them is already real.
+- **ORPHANS TIED IN AS OF THIS AUDIT:** CAR_UI_REQUIREMENTS (→ consumed by the freight/collector
+  cockpit reads — cite from FAMILY_EMPIRE when E3 lands) · EQUIPMENT_PAPERDOLL (→ the wife/kid/
+  fighter dress rows — FAMILY §2.1 + SPECTACLES fighters) · COOP_PVP_MOBILE (→ the co-op v1 law
+  FAMILY_EMPIRE 0.6 already cites; mobile stays DSOA P3) · INFECTED_TRIALS (**GREENLIT 2026-07-09 — the
+  ground/design/critique workflow is running; the reconciled arc doc lands next and joins this
+  ledger; ECOSYSTEM P3 + DSOA + CLONING faith-states consume it) · WAR_AI_RESEARCH (research feedstock for POPULATION_WAR — no action).
+- **ON MAIN, NOT THIS WORKTREE:** GROUND_INTEGRITY.md + RUN_ANIMATION.md (cherry-pick at M0 — already
+  in the M-ladder).
+- **ART/MODELS POLICY (owner question, answered):** there is NO blocking art phase — the box
+  aesthetic IS the art. Animals are `quad_params` rows on the shipped quadruped rig; buildings are
+  the builder's shells. Law: **behavior ships first with row-tuned boxes; each creature/building gets
+  a 30–60 min SILHOUETTE PASS (proportions/color/one signature feature — the Knifeback's back
+  ridges, the water tower's name) only after its sim goes green.** Art polish is a permanent
+  background lane (MotionForge gaits, prop dressing), never a milestone gate.

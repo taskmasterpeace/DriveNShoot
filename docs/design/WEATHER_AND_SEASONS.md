@@ -284,6 +284,44 @@ Latitude gate: `snow` spawns only in regions whose usmap row-band is northern (a
 
 ---
 
+## 9. CHEAP RAIN & CHEAP WIND (owner ask 2026-07-09 — the perf recipes, binding for v1)
+
+**THE ONE RULE: weather is rendered AT THE CAMERA, never in the world.** Nothing falls where nobody
+looks; a storm's world-existence is just the field entry (§3.1 — a dict). Costs below are per-frame
+totals, not per-storm.
+
+**RAIN (four cheap layers, ~one particle system total):**
+1. **One camera-attached particle box** (a single `GPUParticles3D`, ~150–400 quads, amount =
+   `intensity × RAIN_MAX_PARTICLES`) riding above the camera. From the top-down rig, falling streaks
+   read poorly anyway — so keep streaks short and lean on layer 2. Emitting only when local
+   `I > 0.05`. Cost: one draw call.
+2. **GROUND RIPPLES sell rain from above** (the top-down truth): a small pool of animated ripple
+   quads (8–16, recycled) scattered inside the camera window + puddle sheen. Cost: one small
+   MultiMesh.
+3. **The wet-sheen material param**: the road/ground materials gain one shader uniform
+   (`wetness` = local I, lerps albedo darker + roughness lower). Zero new geometry, one uniform —
+   the single biggest "it's raining" read at this camera angle.
+4. **Audio + sky**: the `rain_bed` loop volume = I (already specced §3.6); sky/fog tint lerp. Free.
+   **Never**: world-space rain volumes, per-storm emitters, screen-space postFX passes, splash
+   physics.
+
+**WIND (wind is MOTION OF OTHER THINGS — zero particles required):**
+1. **One global shader uniform** (`wind_dir`, `wind_strength` — from the storm field's drift vector,
+   §3.3): the scatter foliage/crop materials add a 4-line vertex-shader sway (`sin(time + worldpos)
+   × strength`). The biome scatter already shares materials, so this is ONE uniform update per frame
+   and every tree, cornfield, and grass patch in view moves. This is 90% of "wind" for ~0% cost.
+2. **Camera-local debris**: a tiny emitter (leaves/dust wisps, ≤40 quads) biased along `wind_dir`,
+   active only in dust/wind states. The dust storm's existing vision tax does the heavy lifting.
+3. **Audio**: `amb_wind` (already in `ProtoAudio.LOOPED`) volume = wind_strength. Shipped.
+4. **Gameplay wind is already specced free**: storm drift IS the wind vector; F-SENSE's P3 wind term
+   and the ecosystem's call-audibility read the same number. Later polish (flag props, powerline
+   sway) = the same uniform, more materials — rows, not systems.
+
+**Budget assertion (`wx_field_sim` extension):** total weather rendering ≤ 2 draw calls + 1 uniform
+at any intensity. If a future effect can't fit that, it's a P3 flag, not a v1 default.
+
+---
+
 *End of spec. Weather is a place; the season is a pressure. Phase with the ecosystem: field + rain/dust/heat
 + calendar + eco couplings ride ECOSYSTEM Phase 1–2; snow + the seasonal arc land P2; hurricanes/tornadoes
 are P3 signatures. Nothing here blocks the Alley slice — the compat shim keeps every shipped consumer green.*
