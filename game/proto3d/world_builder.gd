@@ -370,10 +370,13 @@ static func surface_at(pos: Vector3) -> String:
 
 
 static func _in_rect(pos: Vector3, r: Array) -> bool:
+	# M1 yaw fix: the standard world→local inverse for a yaw-φ box whose local
+	# +Z maps to (sinφ, cosφ) — the old form carried the same Z-reflection the
+	# road slabs did (they matched each other, both mirrored on diagonals).
 	var dx: float = pos.x - r[0]
 	var dz: float = pos.z - r[1]
-	var c: float = cos(-r[4])
-	var s: float = sin(-r[4])
+	var c: float = cos(r[4])
+	var s: float = sin(r[4])
 	return absf(dx * c - dz * s) <= r[2] and absf(dx * s + dz * c) <= r[3]
 
 
@@ -419,7 +422,7 @@ static func build_world(root: Node3D) -> Dictionary:
 	# Diagonal from highway edge (x=8, z=-235) down to the town street (x=52, z=-280).
 	var ramp_dir := Vector2(52.0 - 8.0, -280.0 + 235.0) # (44, -45)
 	var ramp_len := ramp_dir.length() + 12.0
-	var ramp_ang := atan2(ramp_dir.x, -ramp_dir.y) # rotation around Y for a Z-aligned box
+	var ramp_ang := atan2(ramp_dir.x, ramp_dir.y) # Z-aligned box yaw (M1 fix: was Z-reflected — the ramp drew mirrored)
 	box_visual(world, Vector3(9, 0.05, ramp_len), Vector3(30, 0.07, -257.5), COL_ROAD, ramp_ang)
 
 	# --- Meridian: street grid ---------------------------------------------

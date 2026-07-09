@@ -315,6 +315,23 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
 		for row in usmap.roads_near(center, 220.0):
 			_build_road_stretch(chunk, center, row, key, wet)
+		# THE INTERSECTION SLAB (M1): one per flat tee/cross node — painted ABOVE
+		# every road's per-id lift so the crossing reads as one paved mouth
+		# instead of two z-fighting slabs. Walled (separated_pending) crossings
+		# get NO slab — the roads pass without meeting until M2 decks them.
+		var chalf := CHUNK * 0.5
+		for j in usmap.junctions_in(Rect2(center.x - chalf, center.z - chalf, CHUNK, CHUNK)):
+			if String(j["grade"]) != "flat" or not ["tee", "cross"].has(String(j["kind"])):
+				continue
+			var wmax := 8.0
+			for l in j["legs"]:
+				var lr: Dictionary = usmap.road_by_id(String(l["road"]))
+				if not lr.is_empty():
+					wmax = maxf(wmax, float(ProtoUSMap.road_geometry(lr)["width"]))
+			var jp: Vector2 = j["pos"]
+			var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
+				Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
+			jslab.set_meta("junction_slab", String(j["id"]))
 
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
@@ -601,7 +618,12 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		return
 	var rid := String(row["id"])
 	var g := ProtoUSMap.road_geometry(row)
-	var rot := atan2(dir.x, -dir.y) # Z-aligned slab → world yaw
+	# Z-aligned slab → world yaw. M1 FIX: this was atan2(dir.x, -dir.y), which is
+	# the Z-REFLECTED yaw — invisible on axis-aligned roads and 180°-symmetric
+	# boxes, but every true DIAGONAL rendered (and collided!) mirrored across X.
+	# The junction_law_sim physics ray caught it: barriers on diagonal stretches
+	# existed 40+ m off their own centerline. Correct: local +Z → (sinφ, cosφ).
+	var rot := atan2(dir.x, dir.y)
 	var perp := Vector2(dir.y, -dir.x).normalized()
 	# Deterministic per-id lift (≤24mm) so overlapping slabs at junctions never
 	# z-fight — two roads through one chunk each keep their own plane.
@@ -621,11 +643,46 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 					Vector3(mid.x + perp.x * lat, y + 0.02, mid.y + perp.y * lat),
 					ProtoWorldBuilder.COL_DASH, rot)
 				strip.set_meta("road_lane", rid)
-		# THE MEDIAN BARRIER — a real body: crossing a divided highway means an
-		# exit or a chunk-seam gap (which reads as an expansion joint), on purpose.
-		var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, seg_len),
-			Vector3(mid.x, 0.4 + (0.02 if wet else 0.0), mid.y), Color(0.44, 0.43, 0.41), rot)
-		bar.set_meta("road_barrier", rid)
+		# THE MEDIAN BARRIER — a real body, now GAPPED at baked junctions
+		# (AMERICAN_ROAD M1, 0.3): a flat gap-control junction on this road opens
+		# ±junction_gap_half around its projection onto the run. riro ramp mouths
+		# and walled separated_pending crossings NEVER open it (0.2/0.4) — an
+		# exit still never breaches the median; crossing happens at real turns.
+		var cuts: Array = []
+		if usmap != null and usmap.ok:
+			for j in usmap.junctions:
+				if String(j.get("control", "")) != "gap":
+					continue
+				var on_this := false
+				for l in j["legs"]:
+					if String(l["road"]) == rid:
+						on_this = true
+				if not on_this:
+					continue
+				var jp: Vector2 = j["pos"]
+				var t := clampf((jp - a).dot(dir) / (seg_len * seg_len), 0.0, 1.0)
+				if (a + dir * t).distance_to(jp) > float(g["width"]):
+					continue # the node projects off this particular stretch
+				var gh: float = usmap.junction_gap_half(j, rid)
+				if gh > 0.0:
+					cuts.append([clampf(t - gh / seg_len, 0.0, 1.0), clampf(t + gh / seg_len, 0.0, 1.0)])
+		cuts.sort_custom(func(x, y) -> bool: return float(x[0]) < float(y[0]))
+		var t_cur := 0.0
+		var runs: Array = []
+		for c in cuts:
+			if float(c[0]) > t_cur:
+				runs.append([t_cur, float(c[0])])
+			t_cur = maxf(t_cur, float(c[1]))
+		if t_cur < 1.0:
+			runs.append([t_cur, 1.0])
+		for rn in runs:
+			var run_len := (float(rn[1]) - float(rn[0])) * seg_len
+			if run_len < 2.0:
+				continue
+			var rmid := a + dir * ((float(rn[0]) + float(rn[1])) * 0.5)
+			var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, run_len),
+				Vector3(rmid.x, 0.4 + (0.02 if wet else 0.0), rmid.y), Color(0.44, 0.43, 0.41), rot)
+			bar.set_meta("road_barrier", rid)
 	else:
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
 			Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
