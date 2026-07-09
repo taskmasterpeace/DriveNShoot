@@ -249,13 +249,10 @@ func _update_aim_from_mouse() -> void:
 	var rel := mouse - player_px
 	if rel.length() < 10.0:
 		return
-	var right := _cam.global_basis.x
-	var forward := -_cam.global_basis.z
-	right.y = 0.0
-	forward.y = 0.0
-	if right.length_squared() < 0.001 or forward.length_squared() < 0.001:
-		return
-	var d := right.normalized() * rel.x + forward.normalized() * -rel.y
+	# Keep the mouse-to-heading read independent from the orbiting camera. The first
+	# version used camera right/forward here, so rotating the camera changed what the
+	# same cursor position meant and caused runaway spin.
+	var d := Vector3(rel.x, 0.0, rel.y)
 	if d.length_squared() > 0.001:
 		_aim_dir = d.normalized()
 
