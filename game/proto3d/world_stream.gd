@@ -743,6 +743,30 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
 			Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
 		slab2.set_meta("road_slab", rid)
+		# TOWN STREETS (M3 0.19): curbs + streetlights make a street read as a
+		# STREET, not a country road — keyed to the row's kind, pure dressing.
+		if String(row.get("kind", "")) == "street":
+			var curb_lat := float(g["width"]) * 0.5 + 0.25
+			for csgn: float in [1.0, -1.0]:
+				var curb := ProtoWorldBuilder.box_visual(chunk, Vector3(0.4, 0.12, seg_len + 6.0),
+					Vector3(mid.x + perp.x * curb_lat * csgn, 0.06, mid.y + perp.y * curb_lat * csgn),
+					Color(0.62, 0.60, 0.56), rot)
+				curb.set_meta("street_curb", rid)
+			var n_lights := int(seg_len / 30.0)
+			for li in range(n_lights):
+				var lsgn: float = 1.0 if li % 2 == 0 else -1.0
+				var lp := a + dir * ((float(li) + 0.5) / maxf(float(n_lights), 1.0)) + perp * (curb_lat + 0.8) * lsgn
+				var pole := ProtoWorldBuilder.box_body(chunk, Vector3(0.18, 4.6, 0.18),
+					Vector3(lp.x, 2.3, lp.y), Color(0.3, 0.3, 0.32), rot)
+				pole.set_meta("streetlight", rid)
+				var head := ProtoWorldBuilder.material(Color(0.95, 0.88, 0.6), 0.4, true)
+				var hm := MeshInstance3D.new()
+				var hb := BoxMesh.new()
+				hb.size = Vector3(0.5, 0.16, 0.5)
+				hm.mesh = hb
+				hm.material_override = head
+				hm.position = Vector3(0, 2.32, 0)
+				pole.add_child(hm)
 		# Double-yellow center: two-way traffic shares this slab.
 		var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
 			Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
@@ -967,10 +991,8 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 	sign_label.position = base + Vector3(0, 8.0, 0)
 	sign_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	chunk.add_child(sign_label)
-	for i in 6:
-		var q := Vector3(cos(i * TAU / 6.0), 0, sin(i * TAU / 6.0)) * rng.randf_range(16, 42)
-		var bs := Vector3(rng.randf_range(8, 13), rng.randf_range(4, 11), rng.randf_range(8, 13))
-		ProtoWorldBuilder.box_body(chunk, bs, base + q + Vector3(0, bs.y / 2.0, 0), Color(0.32, 0.29, 0.26), rng.randf_range(0, TAU))
+	# (M3 0.19: the husk ring is DEAD — towns grow real streets + Building-Book
+	# slots via the bake's two-tier generator; the sign/landmark/cache remain.)
 	var c := ProtoChest.create("%s cache" % t["name"], {"scrap": rng.randi_range(3, 6), "bandage": 1, "9mm": rng.randi_range(6, 14)})
 	chunk.add_child(c)
 	c.position = base + Vector3(rng.randf_range(-10, 10), 0.05, rng.randf_range(-10, 10))

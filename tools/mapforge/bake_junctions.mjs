@@ -235,8 +235,78 @@ export function renumberExits(map) {
 	return stats;
 }
 
+// THE TWO-TIER TOWN GENERATOR (0.19, M3): every non-authored town's husk ring
+// becomes STREETS + Building-Book placement slots — as ROWS, so the road pass
+// drives them, the junction pass bakes them, and MapForge can edit them.
+// Tier by the town's exit archetype (metro/county_seat → downtown grid;
+// everything else → the main-street kit). Idempotent via the ST- id prefix.
+export function stampTownStreets(map) {
+	const stats = { towns: 0, downtown: 0, mainstreet: 0, streets: 0, slots: 0 };
+	const roads = map.roads || [];
+	const placements = map.placements || [];
+	const exitFor = (t) => (map.exits || []).find((e) => e.town_id === t.id);
+	const hasStreet = (t) => roads.some((r) => String(r.id).startsWith(`ST-${t.id}-`));
+	const occupied = (p, r) => placements.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) < r);
+	const MAIN_SET = ["diner_roadside", "market_general", "gas_station_small", "house_small",
+		"church_small", "bar_roadhouse", "house_small", "motel_strip"];
+	const DOWNTOWN_SET = ["police_station", "courthouse", "clinic_small", "market_general",
+		"diner_roadside", "bar_roadhouse", "jeweler", "restaurant_fancy", "warehouse",
+		"house_small", "house_small", "auto_shop", "radio_station", "school_small"];
+	let slotSeq = 0;
+	const addStreet = (t, tag, a, b) => {
+		roads.push({ id: `ST-${t.id}-${tag}`, kind: "street", pts: [[a.x, a.y], [b.x, b.y]],
+			danger: 0, family: "", nickname: "", lanes: 2, divided: false });
+		stats.streets++;
+	};
+	const addSlot = (t, sid, p, rot) => {
+		if (occupied(p, 16)) return;
+		placements.push({ id: `${t.id}-slot-${++slotSeq}`, building: sid, pos: [p.x, p.y], rot });
+		stats.slots++;
+	};
+	for (const t of map.towns || []) {
+		if (t.authored || hasStreet(t)) continue;
+		const ex = exitFor(t);
+		const tier = ex && ["metro", "county_seat"].includes(ex.archetype) ? "downtown" : "mainstreet";
+		const c = { x: t.pos[0], y: t.pos[1] };
+		// orient the main drag toward the exit approach (or E-W default)
+		let dir = { x: 1, y: 0 };
+		if (ex) {
+			const d = { x: c.x - ex.pos[0], y: c.y - ex.pos[1] };
+			const l = Math.hypot(d.x, d.y) || 1;
+			// the drag runs PERPENDICULAR to the approach — you arrive at Main St
+			dir = { x: -d.y / l, y: d.x / l };
+		}
+		const perp = { x: -dir.y, y: dir.x };
+		const at = (u, w) => ({ x: c.x + dir.x * u + perp.x * w, y: c.y + dir.y * u + perp.y * w });
+		stats.towns++;
+		if (tier === "downtown") {
+			stats.downtown++;
+			// ~4×3 block grid: 4 streets along the drag axis, 3 across
+			for (let i = 0; i < 3; i++) addStreet(t, `ew${i}`, at(-140, -70 + i * 70), at(140, -70 + i * 70));
+			for (let j = 0; j < 4; j++) addStreet(t, `ns${j}`, at(-120 + j * 80, -110), at(-120 + j * 80, 110));
+			DOWNTOWN_SET.forEach((sid, k) => {
+				const row = Math.floor(k / 4);
+				const col = k % 4;
+				addSlot(t, sid, at(-120 + col * 80 + 32, -70 + row * 70 + 24), 0);
+			});
+		} else {
+			stats.mainstreet++;
+			addStreet(t, "main", at(-160, 0), at(160, 0));
+			addStreet(t, "side0", at(-55, -90), at(-55, 90));
+			addStreet(t, "side1", at(65, -90), at(65, 90));
+			MAIN_SET.forEach((sid, k) => {
+				const side = k % 2 === 0 ? 1 : -1;
+				addSlot(t, sid, at(-130 + Math.floor(k / 2) * 62, side * 16), side > 0 ? Math.PI : 0);
+			});
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
-	// geometry first (0.18), then junction rows read the corrected polylines
+	// towns first (their streets join the junction bake), then exit geometry,
+	// then addresses, then the junction rows read the corrected polylines
+	const town = stampTownStreets(map);
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
 	const roads = map.roads || [];
@@ -386,6 +456,9 @@ export function bakeJunctions(map) {
 	}
 
 	map.junctions = junctions;
+	lint.town_stats = town;
+	lint.addr_stats = addr;
+	lint.geo_stats = geo;
 	return { junctions, lint };
 }
 
@@ -399,6 +472,8 @@ if (isMain) {
 	console.log(`BAKE: ${junctions.length} junctions — tees ${lint.tees} · crosses ${lint.crosses} ` +
 		`(${lint.blind_crossings.length} separated_pending) · ramp mouths ${lint.ramp_mouths} · ` +
 		`rejoins ${lint.ramp_rejoins} · end caps ${lint.end_caps} · exits with ramp_ids ${lint.exits_ramp_ids}`);
+	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.downtown} downtown / ` +
+		`${lint.town_stats.mainstreet} main-street) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));
