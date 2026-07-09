@@ -78,6 +78,8 @@ func load_file(path: String) -> bool:
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
 			"side": int(r.get("side", 0)), # exit ramps: +1 along the highway's pts order, -1 against (0.18b)
+			"surface": String(r.get("surface", "asphalt")), # 0.17: asphalt|concrete|gravel|dirt
+			"leads_to": (r.get("leads_to", {}) as Dictionary).duplicate(), # dirt spurs: the payload law (0.19)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
 	rivers = d.get("rivers", [])
 	towns.clear()
@@ -255,6 +257,7 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+					"surface": String(road.get("surface", "asphalt")),
 					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 	return best
 
@@ -279,6 +282,7 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 				"a": pts[best_i], "b": pts[best_i + 1],
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+				"surface": String(road.get("surface", "asphalt")),
 				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
 	return out
 

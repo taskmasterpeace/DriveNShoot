@@ -1331,9 +1331,14 @@ func surface_grip_mult() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
 	if s_name == "road":
 		return 1.0
+	if s_name == "gravel":
+		# M3b (0.17): gravel sits between asphalt and dirt — knobbies barely
+		# notice, street tires feel it. MUD_AND_MONSTERS T1 owns the full matrix.
+		var dm := float(spec["tires"]["dirt_mult"])
+		return minf(1.0, dm + (1.0 - dm) * 0.6)
 	if s_name == "water":
 		return float(spec["tires"]["dirt_mult"]) * 0.5 # slick — lakes/rivers are not roads
-	return float(spec["tires"]["dirt_mult"])
+	return float(spec["tires"]["dirt_mult"]) # dirt_road rides the tire's dirt law
 
 
 ## How much of this vehicle's drivetrain actually reaches the ground RIGHT NOW:

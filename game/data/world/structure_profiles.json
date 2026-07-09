@@ -1399,6 +1399,149 @@
    "power_required": false,
    "can_be_safehouse": true,
    "danger": 1
+  },
+  {
+   "id": "hunting_stand",
+   "category": "service",
+   "display_name": "Hunting Stand",
+   "sign_glyph": "🏹",
+   "allowed_tiers": [
+    "T1",
+    "T2"
+   ],
+   "districts": [
+    "backcountry"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    4,
+    4
+   ],
+   "floors": 2,
+   "enterable": true,
+   "entrances": [
+    "ladder"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "vantage",
+    "ambush"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 1
+  },
+  {
+   "id": "still_shack",
+   "category": "restricted",
+   "display_name": "Still",
+   "sign_glyph": "⚗",
+   "allowed_tiers": [
+    "T1",
+    "T2"
+   ],
+   "districts": [
+    "backcountry"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    6,
+    5
+   ],
+   "floors": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [
+    "moonshiner"
+   ],
+   "law_hooks": [
+    "contraband"
+   ],
+   "event_hooks": [
+    "moonshine",
+    "raid"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 2
+  },
+  {
+   "id": "quarry_pit",
+   "category": "industrial",
+   "display_name": "Quarry",
+   "sign_glyph": "⛏",
+   "allowed_tiers": [
+    "T1",
+    "T2"
+   ],
+   "districts": [
+    "backcountry",
+    "edge"
+   ],
+   "footprint": "compound",
+   "footprint_m": [
+    24,
+    18
+   ],
+   "floors": 1,
+   "enterable": false,
+   "entrances": [],
+   "interior_template": "none",
+   "loot_table": "",
+   "npc_jobs": [
+    "scrapper"
+   ],
+   "law_hooks": [],
+   "event_hooks": [
+    "cache",
+    "ambush"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 2
+  },
+  {
+   "id": "cemetery_old",
+   "category": "monument",
+   "display_name": "Old Cemetery",
+   "sign_glyph": "🪦",
+   "allowed_tiers": [
+    "T1",
+    "T2"
+   ],
+   "districts": [
+    "backcountry"
+   ],
+   "footprint": "medium_rect",
+   "footprint_m": [
+    16,
+    12
+   ],
+   "floors": 1,
+   "enterable": false,
+   "entrances": [],
+   "interior_template": "none",
+   "loot_table": "",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "lore",
+    "digging"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 1
   }
  ]
 }

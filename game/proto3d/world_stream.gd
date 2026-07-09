@@ -740,9 +740,25 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 				Vector3(rmid.x, 0.4 + (0.02 if wet else 0.0), rmid.y), Color(0.44, 0.43, 0.41), rot)
 			bar.set_meta("road_barrier", rid)
 	else:
+		# SURFACE LAW (M3b, 0.17): paint follows the surface — asphalt gets its
+		# markings; GRAVEL is a bare pale slab; DIRT is an unpainted twin-rut
+		# track. Grip follows via the rects below.
+		var surface := String(row.get("surface", "asphalt"))
+		var slab_col := ProtoWorldBuilder.COL_ROAD
+		if surface == "gravel":
+			slab_col = Color(0.45, 0.43, 0.39)
+		elif surface == "dirt":
+			slab_col = Color(0.42, 0.36, 0.27)
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
-			Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+			Vector3(mid.x, y, mid.y), slab_col, rot)
 		slab2.set_meta("road_slab", rid)
+		if surface == "dirt":
+			# the twin ruts — the read that says "someone drives this, slowly"
+			for rsgn: float in [1.0, -1.0]:
+				var rut := ProtoWorldBuilder.box_visual(chunk, Vector3(0.55, 0.06, seg_len + 6.0),
+					Vector3(mid.x + perp.x * 1.1 * rsgn, y + 0.015, mid.y + perp.y * 1.1 * rsgn),
+					Color(0.33, 0.28, 0.21), rot)
+				rut.set_meta("road_rut", rid)
 		# TOWN STREETS (M3 0.19): curbs + streetlights make a street read as a
 		# STREET, not a country road — keyed to the row's kind, pure dressing.
 		if String(row.get("kind", "")) == "street":
@@ -767,17 +783,19 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 				hm.material_override = head
 				hm.position = Vector3(0, 2.32, 0)
 				pole.add_child(hm)
-		# Double-yellow center: two-way traffic shares this slab.
-		var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
-			Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
-		cl.set_meta("road_center", rid)
-		for side_sgn: float in [1.0, -1.0]:
-			for k2 in range(1, int(g["per_side"])):
-				var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
-				var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
-					Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
-					ProtoWorldBuilder.COL_DASH, rot)
-				strip2.set_meta("road_lane", rid)
+		# Double-yellow center + lane strips: ASPHALT ONLY — nobody paints gravel
+		# or a dirt track (the SURFACE LAW's whole point).
+		if surface == "asphalt" or surface == "concrete":
+			var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
+				Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
+			cl.set_meta("road_center", rid)
+			for side_sgn: float in [1.0, -1.0]:
+				for k2 in range(1, int(g["per_side"])):
+					var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
+					var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
+						Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
+						ProtoWorldBuilder.COL_DASH, rot)
+					strip2.set_meta("road_lane", rid)
 	if wet: # bridge rails at the row's real edge
 		var rail_lat := float(g["width"]) * 0.5 + 0.4
 		for sgn2: float in [1.0, -1.0]:
@@ -800,7 +818,8 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 				Vector3(mid.x, y + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
 			deck1.set_meta("road_deck", rid)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
-	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot])
+	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot,
+		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)
 	ProtoWorldBuilder.extra_road_rects[key] = rects
 
 
@@ -1056,8 +1075,16 @@ static func atlas_road_style(kind: String) -> Dictionary:
 	match kind:
 		"interstate":
 			return {"width": 2.2, "color": Color(0.68, 0.60, 0.44), "atlas": true}
-		"backroad":
+		"us_route", "state_road":
+			return {"width": 1.6, "color": Color(0.58, 0.52, 0.40), "atlas": true}
+		"backroad", "county":
 			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": true}
+		"street":
+			return {"width": 0.8, "color": Color(0.42, 0.40, 0.34), "atlas": false} # town-scale: local map only
+		"dirt":
+			# THE DISCOVERY LAYER (0.19): dirt spurs are deliberately NOT on the
+			# atlas — the map never marks the hermit's shack. Local map only.
+			return {"width": 0.7, "color": Color(0.40, 0.34, 0.25), "atlas": false}
 		_:
 			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": false} # ramps: local only
 

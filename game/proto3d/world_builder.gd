@@ -357,10 +357,19 @@ static var usmap: ProtoUSMap = null
 static func surface_at(pos: Vector3) -> String:
 	for r in ROAD_RECTS:
 		if _in_rect(pos, r):
-			return "road"
+			return "road" # the authored slab is asphalt
 	for rects in extra_road_rects.values():
 		for r in rects:
 			if _in_rect(pos, r):
+				# M3b (0.17): the rect carries its row's surface — asphalt reads
+				# "road" (full grip), GRAVEL and DIRT report themselves so the
+				# tire law can price them.
+				if (r as Array).size() > 5:
+					var s := String(r[5])
+					if s == "gravel":
+						return "gravel"
+					if s == "dirt":
+						return "dirt_road"
 				return "road"
 	if usmap != null and usmap.ok:
 		var biome := usmap.biome_at(pos)

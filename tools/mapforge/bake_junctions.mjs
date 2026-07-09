@@ -303,9 +303,83 @@ export function stampTownStreets(map) {
 	return stats;
 }
 
+// THE NETWORK FILL (0.17/0.19, M3b): reclass into the six-class hierarchy +
+// stamp the `surface` field on every road; expand COUNTY roads (nearest-town
+// links — the secondary net); and THE DIRT DISCOVERY LAYER: every county road
+// grows dirt spurs, and EVERY spur carries a `leads_to` payload that lands as
+// a real placement — a dead dirt road is a lie the map tells (row-enforced).
+export function fillNetwork(map) {
+	const stats = { reclassed: 0, surfaced: 0, county_links: 0, spurs: 0, payloads: 0 };
+	const roads = map.roads || [];
+	const placements = map.placements || [];
+	const SURFACE_BY_KIND = { interstate: "asphalt", us_route: "asphalt", state_road: "asphalt",
+		street: "asphalt", exit: "asphalt", county: "gravel", dirt: "dirt" };
+	for (const r of roads) {
+		if (r.kind === "backroad") { r.kind = "county"; stats.reclassed++; } // 0.17: county IS the old backroad
+		if (!r.surface) { r.surface = SURFACE_BY_KIND[r.kind] || "asphalt"; stats.surfaced++; }
+	}
+	// county expansion: each town links to its nearest neighbor within 9 km
+	const towns = map.towns || [];
+	const linked = new Set(roads.filter((r) => String(r.id).startsWith("CR-")).map((r) => r.id));
+	for (const t of towns) {
+		let best = null, bd = 9000;
+		for (const u of towns) {
+			if (u.id === t.id) continue;
+			const d = Math.hypot(u.pos[0] - t.pos[0], u.pos[1] - t.pos[1]);
+			if (d > 700 && d < bd) { bd = d; best = u; }
+		}
+		if (!best) continue;
+		const [a, b] = [t.id, best.id].sort();
+		const cid = `CR-${a}-${b}`;
+		if (linked.has(cid)) continue;
+		linked.add(cid);
+		roads.push({ id: cid, kind: "county", surface: "gravel", pts: [[t.pos[0], t.pos[1]], [best.pos[0], best.pos[1]]],
+			danger: 1, family: "", nickname: "", lanes: 2, divided: false });
+		stats.county_links++;
+	}
+	// dirt spurs + payloads (deterministic off the county road's id hash)
+	const PAYLOADS = [
+		{ kind: "farm", building: "farmhouse_field" },
+		{ kind: "hermit", building: "ruined_house" },
+		{ kind: "stand", building: "hunting_stand" },
+		{ kind: "still", building: "still_shack" },
+		{ kind: "quarry", building: "quarry_pit" },
+		{ kind: "cemetery", building: "cemetery_old" },
+	];
+	const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+	for (const r of roads.filter((x) => x.kind === "county")) {
+		if (roads.some((x) => String(x.id).startsWith(`DR-${r.id}-`))) continue; // idempotent
+		const h = hash(r.id);
+		const nSpurs = 1 + (h % 2);
+		for (let s = 0; s < nSpurs; s++) {
+			const t = s === 0 ? 0.35 : 0.7;
+			const a = r.pts[0], b = r.pts[r.pts.length - 1];
+			const p = { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t };
+			const d = { x: b[0] - a[0], y: b[1] - a[1] };
+			const l = Math.hypot(d.x, d.y) || 1;
+			const sgn = ((h >> (s + 2)) & 1) ? 1 : -1;
+			const perp = { x: (-d.y / l) * sgn, y: (d.x / l) * sgn };
+			const len = 350 + ((h >> (s * 3)) % 350);
+			const end = { x: p.x + perp.x * len, y: p.y + perp.y * len };
+			const pay = PAYLOADS[(h + s * 7) % PAYLOADS.length];
+			const sid = `DR-${r.id}-${s}`;
+			const plid = `${sid}-payload`;
+			roads.push({ id: sid, kind: "dirt", surface: "dirt", pts: [[p.x, p.y], [end.x, end.y]],
+				danger: 1, family: "", nickname: "", lanes: 1, divided: false,
+				leads_to: { kind: pay.kind, placement: plid } });
+			placements.push({ id: plid, building: pay.building,
+				pos: [end.x + perp.x * 14, end.y + perp.y * 14], rot: Math.atan2(-perp.x, -perp.y) });
+			stats.spurs++;
+			stats.payloads++;
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// towns first (their streets join the junction bake), then exit geometry,
 	// then addresses, then the junction rows read the corrected polylines
+	const fill = fillNetwork(map);
 	const town = stampTownStreets(map);
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
@@ -351,7 +425,11 @@ export function bakeJunctions(map) {
 			}
 		}
 	}
-	// true interior crossings (the blind-crossing audit, 0.4)
+	// true interior crossings (the blind-crossing audit, 0.4). Dedupe rule: a
+	// crossing yields only to a node within 12 m, or one within SNAP that
+	// involves the SAME two roads — an unrelated tee 40 m away (a town street
+	// meeting a county road beside the interstate) must never eat a crossing.
+	const MINOR = new Set(["county", "dirt", "street", "backroad"]);
 	for (let i = 0; i < network.length; i++) {
 		for (let j = i + 1; j < network.length; j++) {
 			const A = network[i], B = network[j];
@@ -359,16 +437,27 @@ export function bakeJunctions(map) {
 				for (const sb of segs(B)) {
 					const hit = segIntersect(sa, sb);
 					if (!hit || hit.ang < MIN_CROSS_ANGLE_DEG) continue;
-					if (near(hit.q, SNAP_M)) continue; // already a tee/shared node
+					const dupe = junctions.find((jn) => {
+						const d = dist(v(jn.pos), hit.q);
+						if (d <= 12) return true;
+						if (d > SNAP_M) return false;
+						const legs = jn.legs.map((l) => l.road);
+						return legs.includes(A.id) && legs.includes(B.id);
+					});
+					if (dupe) continue;
 					const bothDivided = isDivided(A) && isDivided(B);
-					const grade = bothDivided ? "separated_pending" : "flat";
+					// LIMITED ACCESS: a minor road (county/dirt/street) NEVER gaps
+					// a divided highway's median at grade — it passes UNDER, walled
+					// until a deck makes it real (the crossing-only-via-exits law).
+					const minorCross = (isDivided(A) && MINOR.has(B.kind)) || (isDivided(B) && MINOR.has(A.kind));
+					const grade = bothDivided || minorCross ? "separated_pending" : "flat";
 					const control = grade === "flat" ? (isDivided(A) || isDivided(B) ? "gap" : "none") : "none";
 					push("cross", grade, control, hit.q, [
 						{ road: A.id, arc_m: Math.round(arcAt(A, hit.q)) },
 						{ road: B.id, arc_m: Math.round(arcAt(B, hit.q)) },
 					]);
 					lint.crosses++;
-					if (grade === "separated_pending")
+					if (bothDivided)
 						lint.blind_crossings.push({ roads: [A.id, B.id], pos: [Math.round(hit.q.x), Math.round(hit.q.y)] });
 				}
 			}
@@ -459,6 +548,7 @@ export function bakeJunctions(map) {
 	lint.town_stats = town;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
+	lint.fill_stats = fill;
 	return { junctions, lint };
 }
 
@@ -474,6 +564,8 @@ if (isMain) {
 		`rejoins ${lint.ramp_rejoins} · end caps ${lint.end_caps} · exits with ramp_ids ${lint.exits_ramp_ids}`);
 	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.downtown} downtown / ` +
 		`${lint.town_stats.mainstreet} main-street) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
+	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
+		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));
