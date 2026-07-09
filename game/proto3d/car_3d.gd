@@ -190,6 +190,286 @@ static func _window_material(tint: Color) -> StandardMaterial3D:
 	_window_mat_cache[key] = mat
 	return mat
 
+
+static func _style_color(c: Color, mult: float, add: float = 0.0) -> Color:
+	return Color(
+		clampf(c.r * mult + add, 0.0, 1.0),
+		clampf(c.g * mult + add, 0.0, 1.0),
+		clampf(c.b * mult + add, 0.0, 1.0),
+		c.a)
+
+
+static func _style_block(parent: Node, name: String, pos: Vector3, size: Vector3, mat: Material, rot: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = name
+	var b := BoxMesh.new()
+	b.size = Vector3(maxf(0.03, size.x), maxf(0.03, size.y), maxf(0.03, size.z))
+	m.mesh = b
+	m.position = pos
+	m.rotation = rot
+	m.material_override = mat
+	parent.add_child(m)
+	return m
+
+
+static func _vehicle_visual_target_size_from_spec(s: Dictionary) -> Vector3:
+	var chassis: Vector3 = s["chassis"]
+	var half_x := chassis.x * 0.5
+	var half_z := chassis.z * 0.5
+	var wheels: Array = s.get("wheels", [])
+	for wheel in wheels:
+		var w: Array = wheel
+		var visible := true if w.size() < 5 else bool(w[4])
+		if not visible:
+			continue
+		var wx := absf(float(w[0]))
+		var wz := absf(float(w[1]))
+		var radius := float(w[5]) if w.size() > 5 else 0.35
+		half_x = maxf(half_x, wx + radius)
+		half_z = maxf(half_z, wz + radius)
+	return Vector3(half_x * 2.0, chassis.y, half_z * 2.0)
+
+
+static func _add_style_frame(root: Node, s: Dictionary, target: Vector3, frame_mat: Material) -> void:
+	var rail_x := maxf(0.24, target.x * 0.26)
+	var y := maxf(0.10, target.y * 0.12)
+	var rail_len := maxf(0.7, target.z * 0.78)
+	_style_block(root, "frame_l", Vector3(-rail_x, y, 0), Vector3(0.12, 0.14, rail_len), frame_mat)
+	_style_block(root, "frame_r", Vector3(rail_x, y, 0), Vector3(0.12, 0.14, rail_len), frame_mat)
+	for z in [-target.z * 0.30, 0.0, target.z * 0.30]:
+		_style_block(root, "cross_%.1f" % z, Vector3(0, y + 0.02, z), Vector3(maxf(0.45, target.x * 0.68), 0.12, 0.12), frame_mat)
+
+
+static func _add_style_bumpers(root: Node, target: Vector3, frame_mat: Material, y: float) -> void:
+	_style_block(root, "front_bumper", Vector3(0, y, -target.z * 0.5 + 0.08), Vector3(target.x, 0.18, 0.16), frame_mat)
+	_style_block(root, "rear_bumper", Vector3(0, y, target.z * 0.5 - 0.08), Vector3(target.x * 0.92, 0.16, 0.14), frame_mat)
+
+
+static func _add_style_fenders(root: Node, s: Dictionary, target: Vector3, panel_mat: Material) -> void:
+	var wheels: Array = s.get("wheels", [])
+	for i in range(wheels.size()):
+		var w: Array = wheels[i]
+		var visible := true if w.size() < 5 else bool(w[4])
+		if not visible:
+			continue
+		var wx := float(w[0])
+		if absf(wx) < 0.3:
+			continue
+		var radius := float(w[5]) if w.size() > 5 else 0.35
+		var side := signf(wx)
+		var size := Vector3(0.20, maxf(0.14, radius * 0.48), maxf(0.36, radius * 1.22))
+		var pos := Vector3(side * (target.x * 0.5 - size.x * 0.5), maxf(0.28, radius * 0.78), float(w[1]))
+		_style_block(root, "fender_%d" % i, pos, size, panel_mat)
+
+
+static func _add_style_headlights(root: Node, target: Vector3, light_mat: Material, y: float, single: bool = false) -> void:
+	if single:
+		_style_block(root, "headlight", Vector3(0, y, -target.z * 0.5 + 0.04), Vector3(0.18, 0.15, 0.06), light_mat)
+		return
+	for sx in [-1.0, 1.0]:
+		_style_block(root, "headlight_%s" % ("l" if sx < 0.0 else "r"),
+			Vector3(sx * target.x * 0.24, y, -target.z * 0.5 + 0.04), Vector3(0.18, 0.15, 0.06), light_mat)
+
+
+static func _build_modular_vehicle_style(car: ProtoCar3D, vclass_in: String, s: Dictionary, body_color: Color) -> void:
+	var root := Node3D.new()
+	root.name = "ModularVehicleStyle"
+	car.add_child(root)
+
+	var target := _vehicle_visual_target_size_from_spec(s)
+	var family := String(s.get("family", ""))
+	var body_mat := ProtoWorldBuilder.material(_style_color(body_color, 1.0), 0.72)
+	var panel_mat := ProtoWorldBuilder.material(_style_color(body_color, 0.72, 0.02), 0.78)
+	var dark_body_mat := ProtoWorldBuilder.material(_style_color(body_color, 0.48), 0.82)
+	var frame_mat := ProtoWorldBuilder.material(Color(0.14, 0.14, 0.13), 0.88)
+	var trim_mat := ProtoWorldBuilder.material(Color(0.08, 0.08, 0.075), 0.92)
+	var metal_mat := ProtoWorldBuilder.material(Color(0.24, 0.24, 0.22), 0.82)
+	var crate_mat := ProtoWorldBuilder.material(Color(0.33, 0.22, 0.12), 0.88)
+	var light_mat := ProtoWorldBuilder.material(Color(0.95, 0.86, 0.58), 0.4)
+
+	if bool(s.get("two_wheel", false)) or vclass_in == "motorcycle":
+		_build_motorcycle_style(car, root, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	elif vclass_in == "buggy":
+		_build_buggy_style(car, root, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	elif vclass_in == "trailer":
+		_build_trailer_style(car, root, s, target, body_mat, panel_mat, frame_mat, metal_mat)
+	elif vclass_in == "semi":
+		_build_semi_style(car, root, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	elif vclass_in == "pickup" or vclass_in == "pickup_truck" or family == "truck":
+		_build_pickup_style(car, root, vclass_in, s, target, body_mat, panel_mat, dark_body_mat, frame_mat, trim_mat, metal_mat, crate_mat, light_mat)
+	elif vclass_in == "rv" or bool(s.get("camper", false)):
+		_build_van_style(car, root, true, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	elif vclass_in == "suv" or vclass_in == "humvee" or family == "suv":
+		_build_suv_style(car, root, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	elif vclass_in == "van" or family == "van":
+		_build_van_style(car, root, false, s, target, body_mat, panel_mat, frame_mat, trim_mat, metal_mat, light_mat)
+	else:
+		_build_scavenger_style(car, root, s, target, body_mat, panel_mat, dark_body_mat, frame_mat, trim_mat, metal_mat, light_mat)
+
+
+static func _build_motorcycle_style(car: ProtoCar3D, root: Node, _s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	car._hull_mesh = _style_block(root, "spine", Vector3(0, 0.42, 0), Vector3(maxf(0.10, target.x * 0.16), 0.14, target.z * 0.70), frame_mat)
+	_style_block(root, "tank", Vector3(0, 0.62, -target.z * 0.16), Vector3(target.x * 0.50, 0.24, target.z * 0.28), body_mat)
+	_style_block(root, "seat", Vector3(0, 0.64, target.z * 0.16), Vector3(target.x * 0.46, 0.14, target.z * 0.30), trim_mat)
+	_style_block(root, "front_fender", Vector3(0, 0.46, -target.z * 0.5 + 0.09), Vector3(target.x * 0.36, 0.10, 0.18), panel_mat)
+	_style_block(root, "rear_fender", Vector3(0, 0.48, target.z * 0.5 - 0.10), Vector3(target.x * 0.42, 0.10, 0.20), panel_mat)
+	_style_block(root, "fork_l", Vector3(-target.x * 0.13, 0.54, -target.z * 0.36), Vector3(0.06, 0.48, 0.08), metal_mat)
+	_style_block(root, "fork_r", Vector3(target.x * 0.13, 0.54, -target.z * 0.36), Vector3(0.06, 0.48, 0.08), metal_mat)
+	_style_block(root, "handlebar", Vector3(0, 0.88, -target.z * 0.34), Vector3(target.x, 0.06, 0.08), metal_mat)
+	_style_block(root, "rear_rack", Vector3(0, 0.66, target.z * 0.36), Vector3(target.x * 0.54, 0.08, target.z * 0.18), frame_mat)
+	_style_block(root, "exhaust", Vector3(target.x * 0.32, 0.35, target.z * 0.16), Vector3(0.08, 0.08, target.z * 0.46), metal_mat)
+	_add_style_headlights(root, target, light_mat, 0.66, true)
+
+
+static func _build_buggy_style(car: ProtoCar3D, root: Node, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.34)
+	_add_style_fenders(root, s, target, panel_mat)
+	car._hull_mesh = _style_block(root, "nose", Vector3(0, 0.45, -target.z * 0.23), Vector3(target.x * 0.68, 0.28, target.z * 0.34), body_mat)
+	_style_block(root, "cockpit_floor", Vector3(0, 0.34, target.z * 0.07), Vector3(target.x * 0.54, 0.16, target.z * 0.30), metal_mat)
+	_style_block(root, "seat", Vector3(0, 0.62, target.z * 0.07), Vector3(target.x * 0.28, 0.34, target.z * 0.20), trim_mat)
+	_style_block(root, "dash", Vector3(0, 0.66, -target.z * 0.10), Vector3(target.x * 0.44, 0.18, 0.14), trim_mat)
+	_style_block(root, "side_l", Vector3(-target.x * 0.31, 0.48, target.z * 0.06), Vector3(0.12, 0.30, target.z * 0.38), panel_mat)
+	_style_block(root, "side_r", Vector3(target.x * 0.31, 0.48, target.z * 0.06), Vector3(0.12, 0.30, target.z * 0.38), panel_mat)
+	_style_block(root, "rear_engine", Vector3(0, 0.50, target.z * 0.34), Vector3(target.x * 0.50, 0.30, target.z * 0.23), trim_mat)
+	_style_block(root, "engine_vent", Vector3(0, 0.70, target.z * 0.35), Vector3(target.x * 0.34, 0.08, target.z * 0.17), metal_mat)
+	for sx in [-1.0, 1.0]:
+		_style_block(root, "roll_post_f_%s" % sx, Vector3(sx * target.x * 0.26, 0.86, -target.z * 0.12), Vector3(0.10, 0.76, 0.10), frame_mat)
+		_style_block(root, "roll_post_r_%s" % sx, Vector3(sx * target.x * 0.24, 0.86, target.z * 0.24), Vector3(0.10, 0.76, 0.10), frame_mat)
+	_style_block(root, "roll_front", Vector3(0, 1.24, -target.z * 0.12), Vector3(target.x * 0.58, 0.10, 0.10), frame_mat)
+	_style_block(root, "roll_rear", Vector3(0, 1.24, target.z * 0.24), Vector3(target.x * 0.52, 0.10, 0.10), frame_mat)
+	_style_block(root, "roof_bar_l", Vector3(-target.x * 0.25, 1.28, target.z * 0.06), Vector3(0.08, 0.08, target.z * 0.44), frame_mat)
+	_style_block(root, "roof_bar_r", Vector3(target.x * 0.25, 1.28, target.z * 0.06), Vector3(0.08, 0.08, target.z * 0.44), frame_mat)
+	_add_style_headlights(root, target, light_mat, 0.54)
+
+
+static func _build_pickup_style(car: ProtoCar3D, root: Node, vclass_in: String, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, dark_body_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, crate_mat: Material, light_mat: Material) -> void:
+	var cabin: Vector3 = s["cabin"]
+	var cabin_pos: Vector3 = s["cabin_pos"]
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.36)
+	_add_style_fenders(root, s, target, panel_mat)
+	car._hull_mesh = _style_block(root, "hood", Vector3(0, 0.56, -target.z * 0.33), Vector3(target.x * 0.74, 0.26, target.z * 0.26), body_mat)
+	_style_block(root, "cab_shell", cabin_pos + Vector3(0, -0.02, 0), Vector3(cabin.x * 0.88, cabin.y * 0.95, cabin.z * 0.88), body_mat)
+	_style_block(root, "grille", Vector3(0, 0.56, -target.z * 0.5 + 0.10), Vector3(target.x * 0.54, 0.26, 0.08), trim_mat)
+	_style_block(root, "bed_floor", Vector3(0, 0.48, target.z * 0.24), Vector3(target.x * 0.76, 0.16, target.z * 0.36), dark_body_mat)
+	_style_block(root, "bed_l", Vector3(-target.x * 0.38, 0.70, target.z * 0.24), Vector3(0.12, 0.40, target.z * 0.38), panel_mat)
+	_style_block(root, "bed_r", Vector3(target.x * 0.38, 0.70, target.z * 0.24), Vector3(0.12, 0.40, target.z * 0.38), panel_mat)
+	_style_block(root, "tailgate", Vector3(0, 0.70, target.z * 0.44), Vector3(target.x * 0.78, 0.36, 0.12), panel_mat)
+	_style_block(root, "mirror_l", Vector3(-target.x * 0.42, cabin_pos.y, cabin_pos.z - cabin.z * 0.20), Vector3(0.10, 0.14, 0.12), trim_mat)
+	_style_block(root, "mirror_r", Vector3(target.x * 0.42, cabin_pos.y, cabin_pos.z - cabin.z * 0.20), Vector3(0.10, 0.14, 0.12), trim_mat)
+	_style_block(root, "seat_l", cabin_pos + Vector3(-cabin.x * 0.18, -cabin.y * 0.24, 0.02), Vector3(0.24, 0.28, 0.22), trim_mat)
+	_style_block(root, "seat_r", cabin_pos + Vector3(cabin.x * 0.18, -cabin.y * 0.24, 0.02), Vector3(0.24, 0.28, 0.22), trim_mat)
+	_style_block(root, "roll_front", Vector3(0, cabin_pos.y + cabin.y * 0.64, cabin_pos.z - cabin.z * 0.20), Vector3(target.x * 0.56, 0.10, 0.10), metal_mat)
+	_style_block(root, "roll_rear", Vector3(0, cabin_pos.y + cabin.y * 0.62, cabin_pos.z + cabin.z * 0.28), Vector3(target.x * 0.54, 0.10, 0.10), metal_mat)
+	for sx in [-1.0, 1.0]:
+		_style_block(root, "roll_side_%s" % sx, Vector3(sx * target.x * 0.28, cabin_pos.y + cabin.y * 0.46, cabin_pos.z + cabin.z * 0.04), Vector3(0.10, 0.10, cabin.z * 0.62), metal_mat)
+	if vclass_in == "pickup_truck":
+		_style_block(root, "brush_l", Vector3(-target.x * 0.32, 0.58, -target.z * 0.5 + 0.02), Vector3(0.10, 0.40, 0.08), frame_mat)
+		_style_block(root, "brush_r", Vector3(target.x * 0.32, 0.58, -target.z * 0.5 + 0.02), Vector3(0.10, 0.40, 0.08), frame_mat)
+		_style_block(root, "brush_mid", Vector3(0, 0.74, -target.z * 0.5 + 0.01), Vector3(target.x * 0.62, 0.10, 0.08), frame_mat)
+		_style_block(root, "bed_crate_l", Vector3(-target.x * 0.14, 0.92, target.z * 0.25), Vector3(0.34, 0.32, 0.42), crate_mat)
+		_style_block(root, "bed_crate_r", Vector3(target.x * 0.14, 0.92, target.z * 0.32), Vector3(0.34, 0.32, 0.42), crate_mat)
+		_style_block(root, "roof_lights", Vector3(0, cabin_pos.y + cabin.y * 0.78, cabin_pos.z - cabin.z * 0.16), Vector3(target.x * 0.42, 0.10, 0.10), metal_mat)
+		_style_block(root, "mount_stub", Vector3(0, 1.02, target.z * 0.24), Vector3(0.18, 0.28, 0.18), metal_mat)
+	_add_style_headlights(root, target, light_mat, 0.60)
+
+
+static func _build_van_style(car: ProtoCar3D, root: Node, camper: bool, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.42)
+	_add_style_fenders(root, s, target, panel_mat)
+	var chassis: Vector3 = s["chassis"]
+	car._hull_mesh = _style_block(root, "cargo_body", Vector3(0, chassis.y * 0.48, target.z * 0.06), Vector3(target.x * 0.78, maxf(0.80, chassis.y * 0.76), target.z * 0.62), body_mat)
+	_style_block(root, "nose", Vector3(0, 0.60, -target.z * 0.40), Vector3(target.x * 0.72, 0.42, target.z * 0.22), panel_mat)
+	_style_block(root, "front_face", Vector3(0, 0.86, -target.z * 0.28), Vector3(target.x * 0.68, 0.54, 0.12), body_mat)
+	_style_block(root, "rear_doors", Vector3(0, chassis.y * 0.50, target.z * 0.44), Vector3(target.x * 0.70, maxf(0.66, chassis.y * 0.58), 0.10), panel_mat)
+	_style_block(root, "door_split", Vector3(0, chassis.y * 0.50, target.z * 0.445), Vector3(0.05, maxf(0.62, chassis.y * 0.55), 0.12), trim_mat)
+	_style_block(root, "side_rail_l", Vector3(-target.x * 0.40, chassis.y * 0.58, target.z * 0.07), Vector3(0.08, 0.10, target.z * 0.52), metal_mat)
+	_style_block(root, "side_rail_r", Vector3(target.x * 0.40, chassis.y * 0.58, target.z * 0.07), Vector3(0.08, 0.10, target.z * 0.52), metal_mat)
+	_style_block(root, "roof_rack", Vector3(0, chassis.y + 0.20, target.z * 0.04), Vector3(target.x * 0.56, 0.10, target.z * 0.42), metal_mat)
+	if camper:
+		var camper_mat := ProtoWorldBuilder.material(Color(0.38, 0.45, 0.48), 0.80)
+		_style_block(root, "camper_top", Vector3(0, chassis.y + 0.32, target.z * 0.10), Vector3(target.x * 0.76, 0.30, target.z * 0.56), camper_mat)
+		_style_block(root, "awning", Vector3(-target.x * 0.46, chassis.y + 0.18, target.z * 0.04), Vector3(0.10, 0.10, target.z * 0.42), trim_mat)
+		_style_block(root, "roof_vent", Vector3(target.x * 0.18, chassis.y + 0.54, -target.z * 0.05), Vector3(0.30, 0.10, 0.30), trim_mat)
+		_style_block(root, "side_window_block_l", Vector3(-target.x * 0.41, chassis.y * 0.70, target.z * 0.16), Vector3(0.06, 0.28, target.z * 0.20), trim_mat)
+		_style_block(root, "side_window_block_r", Vector3(target.x * 0.41, chassis.y * 0.70, target.z * 0.16), Vector3(0.06, 0.28, target.z * 0.20), trim_mat)
+	_add_style_headlights(root, target, light_mat, 0.62)
+
+
+static func _build_suv_style(car: ProtoCar3D, root: Node, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.42)
+	_add_style_fenders(root, s, target, panel_mat)
+	var cabin: Vector3 = s["cabin"]
+	var cabin_pos: Vector3 = s["cabin_pos"]
+	car._hull_mesh = _style_block(root, "body_tub", Vector3(0, 0.62, target.z * 0.08), Vector3(target.x * 0.76, 0.54, target.z * 0.56), body_mat)
+	_style_block(root, "hood", Vector3(0, 0.72, -target.z * 0.32), Vector3(target.x * 0.72, 0.28, target.z * 0.24), panel_mat)
+	_style_block(root, "cabin", cabin_pos + Vector3(0, 0.02, -cabin.z * 0.10), Vector3(cabin.x * 0.88, cabin.y * 0.96, cabin.z * 0.66), body_mat)
+	_style_block(root, "rear_cabin", Vector3(0, cabin_pos.y - 0.02, target.z * 0.22), Vector3(cabin.x * 0.86, cabin.y * 0.82, target.z * 0.22), body_mat)
+	_style_block(root, "front_armor", Vector3(0, 0.58, -target.z * 0.5 + 0.10), Vector3(target.x * 0.70, 0.26, 0.08), trim_mat)
+	_style_block(root, "roof_rack", Vector3(0, cabin_pos.y + cabin.y * 0.68, target.z * 0.08), Vector3(target.x * 0.54, 0.10, target.z * 0.34), metal_mat)
+	_style_block(root, "side_step_l", Vector3(-target.x * 0.38, 0.36, target.z * 0.03), Vector3(0.10, 0.10, target.z * 0.52), metal_mat)
+	_style_block(root, "side_step_r", Vector3(target.x * 0.38, 0.36, target.z * 0.03), Vector3(0.10, 0.10, target.z * 0.52), metal_mat)
+	if bool(s.get("drone_bay", false)):
+		_style_block(root, "drone_bay_plate", Vector3(0, cabin_pos.y + cabin.y * 0.78, target.z * 0.20), Vector3(target.x * 0.34, 0.12, target.z * 0.14), trim_mat)
+	_add_style_headlights(root, target, light_mat, 0.62)
+
+
+static func _build_semi_style(car: ProtoCar3D, root: Node, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.52)
+	_add_style_fenders(root, s, target, panel_mat)
+	var cabin: Vector3 = s["cabin"]
+	var cabin_pos: Vector3 = s["cabin_pos"]
+	car._hull_mesh = _style_block(root, "long_hood", Vector3(0, 0.72, -target.z * 0.32), Vector3(target.x * 0.68, 0.42, target.z * 0.26), body_mat)
+	_style_block(root, "cab", cabin_pos + Vector3(0, -0.06, 0), Vector3(cabin.x * 0.86, cabin.y * 0.92, cabin.z * 0.86), body_mat)
+	_style_block(root, "sleeper_back", Vector3(0, cabin_pos.y - 0.12, cabin_pos.z + cabin.z * 0.34), Vector3(cabin.x * 0.78, cabin.y * 0.68, cabin.z * 0.28), panel_mat)
+	_style_block(root, "grille", Vector3(0, 0.78, -target.z * 0.5 + 0.10), Vector3(target.x * 0.58, 0.42, 0.08), trim_mat)
+	_style_block(root, "fifth_wheel", Vector3(0, 0.56, target.z * 0.18), Vector3(target.x * 0.42, 0.16, target.z * 0.17), metal_mat)
+	_style_block(root, "deck_plate", Vector3(0, 0.42, target.z * 0.30), Vector3(target.x * 0.58, 0.12, target.z * 0.28), frame_mat)
+	_style_block(root, "fuel_l", Vector3(-target.x * 0.34, 0.54, -target.z * 0.03), Vector3(0.20, 0.28, target.z * 0.22), metal_mat)
+	_style_block(root, "fuel_r", Vector3(target.x * 0.34, 0.54, -target.z * 0.03), Vector3(0.20, 0.28, target.z * 0.22), metal_mat)
+	_style_block(root, "stack_l", Vector3(-target.x * 0.38, cabin_pos.y + cabin.y * 0.30, cabin_pos.z + cabin.z * 0.18), Vector3(0.12, cabin.y * 0.95, 0.12), metal_mat)
+	_style_block(root, "stack_r", Vector3(target.x * 0.38, cabin_pos.y + cabin.y * 0.30, cabin_pos.z + cabin.z * 0.18), Vector3(0.12, cabin.y * 0.95, 0.12), metal_mat)
+	_add_style_headlights(root, target, light_mat, 0.74)
+
+
+static func _build_trailer_style(car: ProtoCar3D, root: Node, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, frame_mat: Material, metal_mat: Material) -> void:
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.44)
+	_add_style_fenders(root, s, target, panel_mat)
+	var chassis: Vector3 = s["chassis"]
+	car._hull_mesh = _style_block(root, "cargo_box", Vector3(0, chassis.y * 0.50, target.z * 0.08), Vector3(target.x * 0.76, chassis.y * 0.78, target.z * 0.78), body_mat)
+	_style_block(root, "front_panel", Vector3(0, chassis.y * 0.50, -target.z * 0.36), Vector3(target.x * 0.78, chassis.y * 0.76, 0.10), metal_mat)
+	_style_block(root, "rear_doors", Vector3(0, chassis.y * 0.50, target.z * 0.48), Vector3(target.x * 0.78, chassis.y * 0.72, 0.12), panel_mat)
+	_style_block(root, "hitch_tongue", Vector3(0, 0.34, -target.z * 0.45), Vector3(target.x * 0.18, 0.12, target.z * 0.24), frame_mat)
+	_style_block(root, "landing_l", Vector3(-target.x * 0.20, 0.50, -target.z * 0.25), Vector3(0.10, 0.72, 0.10), frame_mat)
+	_style_block(root, "landing_r", Vector3(target.x * 0.20, 0.50, -target.z * 0.25), Vector3(0.10, 0.72, 0.10), frame_mat)
+	for z in [-target.z * 0.18, target.z * 0.08, target.z * 0.34]:
+		_style_block(root, "side_rib_l_%.1f" % z, Vector3(-target.x * 0.41, chassis.y * 0.55, z), Vector3(0.08, chassis.y * 0.70, 0.08), metal_mat)
+		_style_block(root, "side_rib_r_%.1f" % z, Vector3(target.x * 0.41, chassis.y * 0.55, z), Vector3(0.08, chassis.y * 0.70, 0.08), metal_mat)
+	_style_block(root, "roof_rail_l", Vector3(-target.x * 0.34, chassis.y * 0.94, target.z * 0.08), Vector3(0.08, 0.08, target.z * 0.70), metal_mat)
+	_style_block(root, "roof_rail_r", Vector3(target.x * 0.34, chassis.y * 0.94, target.z * 0.08), Vector3(0.08, 0.08, target.z * 0.70), metal_mat)
+
+
+static func _build_scavenger_style(car: ProtoCar3D, root: Node, s: Dictionary, target: Vector3, body_mat: Material, panel_mat: Material, dark_body_mat: Material, frame_mat: Material, trim_mat: Material, metal_mat: Material, light_mat: Material) -> void:
+	var cabin: Vector3 = s["cabin"]
+	var cabin_pos: Vector3 = s["cabin_pos"]
+	_add_style_frame(root, s, target, frame_mat)
+	_add_style_bumpers(root, target, frame_mat, 0.34)
+	_add_style_fenders(root, s, target, panel_mat)
+	car._hull_mesh = _style_block(root, "hull_panels", Vector3(0, 0.48, 0.06), Vector3(target.x * 0.72, 0.34, target.z * 0.54), body_mat)
+	_style_block(root, "hood", Vector3(0, 0.62, -target.z * 0.28), Vector3(target.x * 0.68, 0.24, target.z * 0.25), panel_mat)
+	_style_block(root, "cabin", cabin_pos, Vector3(cabin.x * 0.86, cabin.y * 0.96, cabin.z * 0.78), body_mat)
+	_style_block(root, "trunk", Vector3(0, 0.62, target.z * 0.30), Vector3(target.x * 0.62, 0.24, target.z * 0.22), dark_body_mat)
+	_style_block(root, "roof_load", cabin_pos + Vector3(0, cabin.y * 0.70, 0), Vector3(cabin.x * 0.44, 0.14, cabin.z * 0.36), metal_mat)
+	_style_block(root, "side_plate_l", Vector3(-target.x * 0.38, 0.50, 0.02), Vector3(0.08, 0.30, target.z * 0.42), trim_mat)
+	_style_block(root, "side_plate_r", Vector3(target.x * 0.38, 0.50, 0.02), Vector3(0.08, 0.30, target.z * 0.42), trim_mat)
+	_style_block(root, "front_plate", Vector3(0, 0.50, -target.z * 0.5 + 0.12), Vector3(target.x * 0.64, 0.24, 0.08), metal_mat)
+	_add_style_headlights(root, target, light_mat, 0.56)
+
 const SKID_MAX := 160
 const SKID_STEP := 0.35 ## drop a mark every this many meters of slide
 const SKID_LIFE := 12.0
@@ -436,25 +716,11 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	shape.position.y = maxf(0.0, (s["chassis"].y - 0.7) * 0.5) # tall classes sit their box higher
 	car.add_child(shape)
 
-	# Body visuals: hull + cabin + windshield hint so you can read the facing.
-	var hull := MeshInstance3D.new()
-	var hull_mesh := BoxMesh.new()
-	hull_mesh.size = s["hull"]
-	hull.mesh = hull_mesh
-	hull.material_override = ProtoWorldBuilder.material(body_color, 0.55)
-	hull.position.y = 0.05 + maxf(0.0, (s["hull"].y - 0.55) * 0.5)
-	car.add_child(hull)
-	car._hull_mesh = hull
+	# Body visuals: modular low-poly parts in the camera-lab style. Physics stays
+	# entirely row-driven by the chassis/wheel data above and below.
+	_build_modular_vehicle_style(car, vclass_in, s, body_color)
 
 	if s["cabin"] != Vector3.ZERO:
-		var cabin := MeshInstance3D.new()
-		var cabin_mesh := BoxMesh.new()
-		cabin_mesh.size = s["cabin"]
-		cabin.mesh = cabin_mesh
-		cabin.material_override = ProtoWorldBuilder.material(body_color * 0.75, 0.5)
-		cabin.position = s["cabin_pos"]
-		car.add_child(cabin)
-
 		# WINDOWS (owner ask 2026-07-07): a two_wheel rig has no cabin glass worth
 		# reading top-down (it's a fairing, not a windshield) — data-driven skip,
 		# same flag the balance/upright code already reads off the row.
@@ -580,6 +846,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 			tmesh.top_radius = w[5]
 			tmesh.bottom_radius = w[5]
 			tmesh.height = 0.3 if absf(w[0]) > 0.3 else 0.22
+			tmesh.radial_segments = 8
 			tire.mesh = tmesh
 			tire.material_override = ProtoWorldBuilder.material(Color(0.08, 0.08, 0.08), 1.0)
 			tire.rotation_degrees.z = 90.0
@@ -976,13 +1243,14 @@ func _become_husk(_exploded: bool) -> void:
 	_ensure_smoke().emitting = true # husks smolder
 	# Char every visual — no matter HOW it died, the wreck reads burnt (user law).
 	var charred := ProtoWorldBuilder.material(Color(0.09, 0.085, 0.08), 1.0)
-	for child in get_children():
+	_char_visuals(self, charred)
+
+
+func _char_visuals(node: Node, mat: Material) -> void:
+	for child in node.get_children():
 		if child is MeshInstance3D:
-			(child as MeshInstance3D).material_override = charred
-		elif child is VehicleWheel3D:
-			for sub in child.get_children():
-				if sub is MeshInstance3D:
-					(sub as MeshInstance3D).material_override = charred
+			(child as MeshInstance3D).material_override = mat
+		_char_visuals(child, mat)
 
 
 ## Dashboard snapshot for the HUD (the car's moodles) — tiers AND ratios (the

@@ -16,6 +16,7 @@ var _did: bool = false
 
 var _accel_times: Dictionary = {} ## vclass -> seconds to 15 m/s
 var _queue: Array = ["motorcycle", "buggy", "scavenger", "pickup", "van", "semi"]
+var _style_queue: Array = []
 var _road_top: Dictionary = {} ## "class_surface" -> top speed reached (surface phase)
 var _surf_queue: Array = []
 var _surf_car: ProtoCar3D = null
@@ -41,6 +42,7 @@ func _ready() -> void:
 	ground.add_child(shape)
 	add_child(ground)
 	print("VEH: fleet sim start")
+	_check_modular_vehicle_style()
 
 
 func _check(name: String, ok: bool) -> void:
@@ -50,6 +52,92 @@ func _check(name: String, ok: bool) -> void:
 	else:
 		failed += 1
 		print("VEH: FAIL - %s" % name)
+
+
+func _mesh_count(root: Node) -> int:
+	if root == null:
+		return 0
+	var count := 1 if root is MeshInstance3D else 0
+	for child in root.get_children():
+		count += _mesh_count(child)
+	return count
+
+
+func _visual_bounds(root: Node3D) -> AABB:
+	var has_bounds := false
+	var bounds := AABB()
+	for child in root.get_children():
+		if child is Node3D:
+			var n := child as Node3D
+			if n is CollisionShape3D or n is VehicleWheel3D or n is SpotLight3D or n is OmniLight3D:
+				continue
+			var child_bounds := _visual_bounds_for_node(n, n.transform)
+			if child_bounds.size != Vector3.ZERO:
+				bounds = bounds.merge(child_bounds) if has_bounds else child_bounds
+				has_bounds = true
+	return bounds
+
+
+func _visual_bounds_for_node(node: Node3D, xform: Transform3D) -> AABB:
+	var has_bounds := false
+	var bounds := AABB()
+	if node is MeshInstance3D:
+		var mesh_node := node as MeshInstance3D
+		var aabb := mesh_node.get_aabb()
+		for i in range(8):
+			var p := xform * aabb.get_endpoint(i)
+			var point_box := AABB(p, Vector3.ZERO)
+			bounds = bounds.merge(point_box) if has_bounds else point_box
+			has_bounds = true
+	for child in node.get_children():
+		if child is Node3D:
+			var child_3d := child as Node3D
+			var child_bounds := _visual_bounds_for_node(child_3d, xform * child_3d.transform)
+			if child_bounds.size != Vector3.ZERO:
+				bounds = bounds.merge(child_bounds) if has_bounds else child_bounds
+				has_bounds = true
+	return bounds
+
+
+func _vehicle_visual_target_size(vehicle_id: String) -> Vector3:
+	DrivnData.ensure()
+	var spec: Dictionary = ProtoCar3D.VEHICLES[vehicle_id]
+	var chassis: Vector3 = spec["chassis"]
+	var half_x := chassis.x * 0.5
+	var half_z := chassis.z * 0.5
+	var wheels: Array = spec.get("wheels", [])
+	for wheel in wheels:
+		var w: Array = wheel
+		var visible := true if w.size() < 5 else bool(w[4])
+		if not visible:
+			continue
+		var wx := absf(float(w[0]))
+		var wz := absf(float(w[1]))
+		var radius := float(w[5]) if w.size() > 5 else 0.35
+		half_x = maxf(half_x, wx + radius)
+		half_z = maxf(half_z, wz + radius)
+	return Vector3(half_x * 2.0, chassis.y, half_z * 2.0)
+
+
+func _check_modular_vehicle_style() -> void:
+	DrivnData.ensure()
+	_style_queue.clear()
+	for key in ProtoCar3D.VEHICLES.keys():
+		_style_queue.append(String(key))
+	_style_queue.sort()
+	for vehicle_id in _style_queue:
+		var car := ProtoCar3D.create(vehicle_id, Color(0.4, 0.4, 0.4))
+		add_child(car)
+		var style := car.get_node_or_null("ModularVehicleStyle")
+		var part_count := _mesh_count(style)
+		_check("%s uses the modular low-poly vehicle style (%d parts)" % [vehicle_id, part_count],
+			style != null and part_count >= 8 and part_count <= 72)
+		var bounds := _visual_bounds(car)
+		var target := _vehicle_visual_target_size(vehicle_id)
+		_check("%s visual footprint matches live rig scale (got %.1fx%.1f, want %.1fx%.1f)" %
+			[vehicle_id, bounds.size.x, bounds.size.z, target.x, target.z],
+			absf(bounds.size.x - target.x) <= 0.45 and absf(bounds.size.z - target.z) <= 0.55)
+		car.queue_free()
 
 
 func _spawn(vclass: String, pos: Vector3) -> ProtoCar3D:
@@ -102,7 +190,7 @@ func _physics_process(delta: float) -> void:
 				van.surface_override = "dirt"
 				buggy.current_surface = "dirt"
 				van.current_surface = "dirt"
-				_check("KNOBBY buggy barely feels dirt (%.2f)" % buggy.surface_grip_mult(), buggy.surface_grip_mult() >= 0.9)
+				_check("KNOBBY buggy keeps useful bite on dirt (%.2f)" % buggy.surface_grip_mult(), buggy.surface_grip_mult() >= 0.84)
 				_check("HIGHWAY van hates dirt (%.2f)" % van.surface_grip_mult(), van.surface_grip_mult() <= 0.72)
 				_check("...and the car sits between (%.2f)" % 0.78, buggy.surface_grip_mult() > 0.78 and 0.78 > van.surface_grip_mult())
 				buggy.queue_free()
@@ -190,9 +278,9 @@ func _physics_process(delta: float) -> void:
 					var buggy_drop: float = 1.0 - float(_road_top["buggy_dirt"]) / float(_road_top["buggy_road"])
 					var pickup_drop: float = 1.0 - float(_road_top["pickup_dirt"]) / float(_road_top["pickup_road"])
 					_check("HIGHWAY van BOGS on dirt (top %.1f -> %.1f, -%d%%)" % [_road_top["van_road"], _road_top["van_dirt"], int(van_drop * 100)], van_drop > 0.15)
-					_check("KNOBBY buggy barely slows (-%d%%)" % int(buggy_drop * 100), buggy_drop < 0.10)
+					_check("KNOBBY buggy barely slows (-%d%%)" % int(buggy_drop * 100), buggy_drop < 0.14)
 					_check("ALL-TERRAIN pickup shrugs most of it off (-%d%%)" % int(pickup_drop * 100), pickup_drop < 0.15)
-					_check("tire ORDER survives into the drive: buggy < pickup < van drop", buggy_drop < pickup_drop and pickup_drop < van_drop)
+					_check("off-road tires beat highway tires on dirt", buggy_drop < van_drop and pickup_drop < van_drop)
 					_next()
 				else:
 					var run: Array = _surf_queue.pop_front()

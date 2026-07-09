@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://vehicle_style_sim_01"]
+
+[ext_resource type="Script" path="res://proto3d/tests/vehicle_style_sim.gd" id="1_vehicle_style_sim"]
+
+[node name="VehicleStyleSim" type="Node3D"]
+script = ExtResource("1_vehicle_style_sim")
