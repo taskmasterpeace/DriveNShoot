@@ -1,6 +1,7 @@
 ## DRIVN camera lab: a small playable harness for testing a GTA2-grounded
-## on-foot camera. Mouse chooses facing, W moves forward in that facing, and the
-## camera rides opposite the facing vector. Wheel/V blend overhead <-> third-person.
+## on-foot control split. The lower square is feet/body/vision. The upper square
+## is torso/selector. Mouse or right stick aims the torso; WASD or left stick moves
+## the feet. Wheel/V blend overhead <-> third-person.
 extends Node3D
 
 const CLOSE_HEIGHT := 3.1
@@ -18,7 +19,10 @@ const BACKPEDAL_SPEED := 2.4
 const STRAFE_SPEED := 3.2
 
 var _player: CharacterBody3D
-var _puppet: Node3D
+var _body_square: MeshInstance3D
+var _body_nose: MeshInstance3D
+var _torso_square: MeshInstance3D
+var _torso_nose: MeshInstance3D
 var _cam: Camera3D
 var _label: Label
 var _selector_marker: MeshInstance3D
@@ -32,6 +36,7 @@ var _prev_yaw: float = 0.0
 var _zoom_t: float = 0.78
 var _last_speed: float = 0.0
 var _footwork := "IDLE"
+var _aim_source := "MOUSE"
 
 var _test_aim_active: bool = false
 var _test_move_active: bool = false
@@ -40,6 +45,7 @@ var _test_sprint: bool = false
 
 
 func _ready() -> void:
+	ProtoInputMap.ensure()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_world()
 	_build_player()
@@ -79,10 +85,7 @@ func _physics_process(delta: float) -> void:
 	_player.move_and_slide()
 	_last_speed = Vector2(_player.velocity.x, _player.velocity.z).length()
 
-	if _puppet != null and _puppet.has_method("animate"):
-		var turn_rate := wrapf(_body_yaw - _prev_yaw, -PI, PI) / maxf(delta, 0.0001)
-		_prev_yaw = _body_yaw
-		_puppet.call("animate", delta, _last_speed, turn_rate, false, 0.0, false)
+	_prev_yaw = _body_yaw
 	_apply_upper_body_pose()
 
 	_update_camera(delta, false)
@@ -149,18 +152,15 @@ func _build_player() -> void:
 	shape_node.position.y = 0.78
 	_player.add_child(shape_node)
 
-	if ClassDB.class_exists("ProtoPuppet"):
-		_puppet = ProtoPuppet.create({"cloth": Color(0.58, 0.49, 0.36), "skin": Color(0.78, 0.66, 0.50)})
-		_player.add_child(_puppet)
-	else:
-		var body := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = Vector3(0.75, 1.5, 0.45)
-		body.mesh = bm
-		body.position.y = 0.82
-		body.material_override = _mat(Color(0.58, 0.49, 0.36), 0.72)
-		_player.add_child(body)
-		_puppet = body
+	_body_square = _flat_square("BodySquare", Color(0.18, 0.52, 0.88), 1.28, 0.08)
+	_player.add_child(_body_square)
+	_body_nose = _front_tab("BodyNose", Color(0.08, 0.20, 0.36), -0.64)
+	_body_square.add_child(_body_nose)
+
+	_torso_square = _flat_square("TorsoSquare", Color(0.90, 0.58, 0.18), 0.86, 0.34)
+	_player.add_child(_torso_square)
+	_torso_nose = _front_tab("TorsoNose", Color(0.36, 0.20, 0.06), -0.43)
+	_torso_square.add_child(_torso_nose)
 
 
 func _build_camera() -> void:
@@ -213,24 +213,48 @@ func _dot_marker(color: Color, radius: float) -> MeshInstance3D:
 	return m
 
 
+func _flat_square(name: String, color: Color, size: float, y: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = name
+	var b := BoxMesh.new()
+	b.size = Vector3(size, 0.12, size)
+	m.mesh = b
+	m.position.y = y
+	m.material_override = _mat(color, 0.7)
+	return m
+
+
+func _front_tab(name: String, color: Color, front_z: float) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = name
+	var b := BoxMesh.new()
+	b.size = Vector3(0.34, 0.14, 0.18)
+	m.mesh = b
+	m.position = Vector3(0, 0.08, front_z)
+	m.material_override = _mat(color, 0.65)
+	return m
+
+
 func _read_move_input() -> Vector2:
 	if _test_move_active:
 		return _test_move.limit_length(1.0)
-	var x := 0.0
-	var y := 0.0
-	if Input.is_key_pressed(KEY_A):
-		x -= 1.0
-	if Input.is_key_pressed(KEY_D):
-		x += 1.0
-	if Input.is_key_pressed(KEY_W):
-		y += 1.0
-	if Input.is_key_pressed(KEY_S):
-		y -= 1.0
-	return Vector2(x, y).limit_length(1.0)
+	return _left_stick_vector()
 
 
 func _sprint_pressed() -> bool:
-	return _test_sprint if _test_move_active else Input.is_key_pressed(KEY_SHIFT)
+	return _test_sprint if _test_move_active else Input.is_action_pressed("drivn_sprint")
+
+
+func _left_stick_vector() -> Vector2:
+	return Vector2(
+		Input.get_axis("move_left", "move_right"),
+		Input.get_axis("move_down", "move_up")).limit_length(1.0)
+
+
+func _right_stick_vector() -> Vector2:
+	return Vector2(
+		Input.get_axis("drivn_aim_left", "drivn_aim_right"),
+		Input.get_axis("drivn_aim_up", "drivn_aim_down")).limit_length(1.0)
 
 
 func _movement_vector(input: Vector2) -> Vector3:
@@ -275,25 +299,20 @@ func _update_split_turn(delta: float) -> void:
 
 
 func _apply_upper_body_pose() -> void:
-	if _puppet == null:
-		return
 	var twist := wrapf(_upper_yaw - _body_yaw, -PI, PI)
-	var torso := _puppet.get("torso") as Node3D
-	if torso != null:
-		torso.rotation.y += twist * 0.45
-	var waist := _puppet.get("waist") as Node3D
-	if waist != null:
-		waist.rotation.y += twist * 0.25
-	var neck := _puppet.get("neck") as Node3D
-	if neck != null:
-		neck.rotation.y += twist * 0.25
-	var aim_arm := _puppet.get("aim_arm") as Node3D
-	if aim_arm != null:
-		aim_arm.rotation.y = twist
+	if _torso_square != null:
+		_torso_square.rotation.y = twist
+	if _torso_nose != null:
+		_torso_nose.rotation.y = twist
 
 
 func _update_aim_from_mouse() -> void:
 	if _test_aim_active:
+		return
+	var stick := _right_stick_vector()
+	if stick.length() > 0.24:
+		_aim_dir = Vector3(stick.x, 0.0, stick.y).normalized()
+		_aim_source = "RIGHT STICK"
 		return
 	if _cam == null or _player == null:
 		return
@@ -308,6 +327,7 @@ func _update_aim_from_mouse() -> void:
 	var d := Vector3(rel.x, 0.0, rel.y)
 	if d.length_squared() > 0.001:
 		_aim_dir = d.normalized()
+		_aim_source = "MOUSE"
 
 
 func _update_camera(delta: float, snap: bool) -> void:
@@ -336,7 +356,11 @@ func _update_label() -> void:
 	if _label == null:
 		return
 	var mode := "THIRD" if _zoom_t < 0.25 else ("GTA2" if _zoom_t > 0.65 else "CHASE")
-	_label.text = "CAMERA LAB  %s\nMouse aims upper body; feet pivot when waist hits %.0f deg\nW run/walk  S backpedal  A/D side-step  |  Wheel zoom  |  V toggle  |  R reset\n%s  speed %.1f m/s  twist %.0f deg  zoom %.2f" % [mode, MAX_TWIST_DEG, _footwork, _last_speed, upper_lower_delta_deg(), _zoom_t]
+	var ls := _left_stick_vector()
+	var rs := _right_stick_vector()
+	_label.text = "CAMERA LAB  %s\n%s\nblue square/dot = body + vision | yellow square/dot = torso + selector\n%s  aim:%s  speed %.1f  twist %.0f deg  zoom %.2f\nLS %.2f,%.2f   RS %.2f,%.2f" % [
+		mode, recommended_controls_text(), _footwork, _aim_source, _last_speed,
+		upper_lower_delta_deg(), _zoom_t, ls.x, ls.y, rs.x, rs.y]
 
 
 static func _yaw_of(v: Vector3) -> float:
@@ -359,6 +383,7 @@ func set_test_aim_dir(dir: Vector3) -> void:
 		return
 	_test_aim_active = true
 	_aim_dir = d.normalized()
+	_aim_source = "TEST"
 
 
 func set_test_move(move: Vector2, sprint: bool) -> void:
@@ -431,6 +456,10 @@ func footwork_label() -> String:
 	return _footwork
 
 
+func active_aim_source() -> String:
+	return _aim_source
+
+
 func selector_dot_visible() -> bool:
 	return _selector_marker != null and _selector_marker.visible
 
@@ -457,3 +486,40 @@ func vision_dot_alignment() -> float:
 	if d.length_squared() < 0.001:
 		return 0.0
 	return d.normalized().dot(_vec_of(_body_yaw))
+
+
+func square_visuals_ready() -> bool:
+	return _body_square != null and _torso_square != null and _body_square.visible and _torso_square.visible
+
+
+func torso_square_alignment() -> float:
+	if _torso_square == null:
+		return 0.0
+	var fwd := -_torso_square.global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.001:
+		return 0.0
+	return fwd.normalized().dot(_vec_of(_upper_yaw))
+
+
+func body_square_alignment() -> float:
+	if _body_square == null:
+		return 0.0
+	var fwd := -_body_square.global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 0.001:
+		return 0.0
+	return fwd.normalized().dot(_vec_of(_body_yaw))
+
+
+func controller_bindings_ready() -> bool:
+	for action in ["move_left", "move_right", "move_up", "move_down",
+			"drivn_aim_left", "drivn_aim_right", "drivn_aim_up", "drivn_aim_down",
+			"drivn_sprint"]:
+		if not InputMap.has_action(action):
+			return false
+	return true
+
+
+func recommended_controls_text() -> String:
+	return "Mouse aims torso; WASD moves feet. PlayStation: Left stick footwork, Right stick torso selector, L3 sprint."

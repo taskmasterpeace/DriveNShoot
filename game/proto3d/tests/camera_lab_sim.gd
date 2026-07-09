@@ -81,7 +81,13 @@ func _physics_process(delta: float) -> void:
 					and lab.has_method("selector_dot_visible") \
 					and lab.has_method("vision_dot_visible") \
 					and lab.has_method("selector_dot_alignment") \
-					and lab.has_method("vision_dot_alignment")
+					and lab.has_method("vision_dot_alignment") \
+					and lab.has_method("square_visuals_ready") \
+					and lab.has_method("torso_square_alignment") \
+					and lab.has_method("body_square_alignment") \
+					and lab.has_method("controller_bindings_ready") \
+					and lab.has_method("recommended_controls_text") \
+					and lab.has_method("active_aim_source")
 				_check("camera lab exposes test hooks", api_ok)
 				if not api_ok:
 					_finish()
@@ -105,6 +111,11 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 1.45:
 				_check("fixed mouse beside player does not spin the facing (min dot %.2f)" % _mouse_min_dot,
 					_mouse_min_dot > 0.92)
+				_check("two-square mock-up is visible", bool(lab.call("square_visuals_ready")))
+				_check("controller rows are wired for LS move, RS aim, L3 sprint", bool(lab.call("controller_bindings_ready")))
+				var controls := String(lab.call("recommended_controls_text"))
+				_check("recommended controls name mouse/keyboard and PlayStation-style sticks",
+					controls.contains("Mouse") and controls.contains("Left stick") and controls.contains("Right stick") and controls.contains("L3"))
 				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", NORTH)
 				lab.call("reset_test_pose", Vector3.ZERO)
@@ -144,6 +155,10 @@ func _physics_process(delta: float) -> void:
 					bool(lab.call("selector_dot_visible")) and float(lab.call("selector_dot_alignment")) > 0.95)
 				_check("vision dot is visible and follows lower/feet direction (%.2f)" % float(lab.call("vision_dot_alignment")),
 					bool(lab.call("vision_dot_visible")) and float(lab.call("vision_dot_alignment")) > 0.95)
+				_check("torso square faces the selector/upper direction (%.2f)" % float(lab.call("torso_square_alignment")),
+					float(lab.call("torso_square_alignment")) > 0.95)
+				_check("body square faces the lower/vision direction (%.2f)" % float(lab.call("body_square_alignment")),
+					float(lab.call("body_square_alignment")) > 0.95)
 				_check("overhead zoom is high enough for GTA2 framing (height %.1f)" % float(lab.call("camera_height")),
 					float(lab.call("camera_height")) > 18.0)
 				lab.call("set_test_zoom", 0.0)
