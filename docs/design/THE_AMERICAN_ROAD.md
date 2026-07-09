@@ -108,7 +108,18 @@ promote them to `deck` — the first the player sees is **I-95×I-40, 900 m from
 numbering per 0.1; the address surfaces are the sign ladder (advance → exit → town welcome), the atlas,
 radio directions, and route shields.
 
-## 4. THE BUILDING BOOK (the owner's "ALL the buildings" — canonical catalog, 42 rows: 19 exist, 23 new)
+## 4. THE BUILDING BOOK → **promoted to its own spec: `docs/design/THE_BUILDING_BOOK.md`** (owner ask
+2026-07-09). That doc is now THE canonical row table (ruling 0.6 transfers to it) — the catalog below
+is retained as the frozen v1 snapshot; new fields (entrances, work spots, parking, the business block,
+event hooks, building strategies) live THERE. Amendments this arc added: **M3c** (the mission-schema
+fields on live rows — entrances/work spots/business blocks; gate for THE_FAMILY_EMPIRE E2) and **M9**
+(capital SEAT compounds per ruler — the FAMILY_EMPIRE E5 gate); street kits gain `sidewalk` +
+walk-node bake fields and junction gaps double as WALK crossings (NAVIGATION §3.3/§2); §9 gains the
+mission props (register, business safe, collector satchel, gold_ring, gravestones + memorial wall,
+burned-house husk, cargo crates + job board, guard-thug spawn anchors). NAVIGATION.md is the second
+sanctioned `road_graph.gd` consumer (after atlas/GPS; ambient traffic still waits for MT per 0.16).
+
+### The frozen v1 snapshot (canonical version now in THE_BUILDING_BOOK.md)
 
 Every row passes the JOB rule (no box without a purpose). `E` = exists today. Tiers: **walkin** (full
 interior via the generalized house recipe) · **lobby** (ground floor real, upper implied) · **solid**
