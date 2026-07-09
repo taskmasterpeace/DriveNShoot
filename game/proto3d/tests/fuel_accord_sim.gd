@@ -49,8 +49,9 @@ func _ready() -> void:
 	add_child(main)
 	for _i in 10:
 		await get_tree().process_frame
-	main.mode = main.Mode.FOOT
-	main.active_car = null
+	main._exit_car() # the REAL exit — raw mode/active_car staging leaves the player's
+	# collision shapes DISABLED from the at-the-wheel boot (the guards' rays passed
+	# clean through him: "ray hit NOTHING" — this sim's own diagnostic caught it)
 	main.player.global_position = GAS + Vector3(0, 0, 2.0)
 	for _i in 40:
 		await get_tree().physics_frame # stream the station — the dress hook fires
