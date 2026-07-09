@@ -16,7 +16,8 @@
 | **WEATHER_AND_SEASONS** | storm-disc field, gradients, seasons, lean-season arc | BANKED | field + rain/dust/heat + calendar (track W, road-independent) | none hard |
 | **THE_LIBRARY** (+ /librarian, LIVE) | skim/study/boost, catalog, content standards | **TABLED (owner, 2026-07-09)** | resumes on owner call; /librarian stays usable for skim books | **CLONING's journal need is decoupled**: a MINIMAL auto-journal (record run facts + render as readable pages) ships inside CLONING C1; the full Library study system stays tabled |
 | **SPECTACLES** | races/derby/pits/beast-husbandry/drone duels + betting | BANKED | S1 one grandstand + betting | events.gd; venue rows; FAMILY dates (soft) |
-| **CLONING** | clinic ritual, wake choice, MEMORY LAW + journal, black market, THE FAMILY LAW | BANKED | C1 ritual + memory law | DSOA §11 (canon); **LIBRARY journal (now required)** |
+| **CLONING** | clinic ritual, wake choice, MEMORY LAW + journal, black market, THE FAMILY LAW | BANKED | C1 ritual + memory law | DSOA §11 (canon); minimal journal (ships in C1) |
+| **MUD_AND_MONSTERS** | traction matrix (surface×wetness×tire), mud (slow-never-stuck), monster trucks (built), tracked+tractors, the rally | BANKED | T1 matrix + mud (rides WEATHER) | WEATHER W-WET; AMERICAN_ROAD 0.17; SPECTACLES |
 | LIVING_WORLD_DSOA | the locked five: state flips, law, crime, jail, clone canon §11 | BANKED (canon) | the Florida slice | — |
 | GROUND_INTEGRITY / TERRAIN_RELIEF | floors, void net, relief | BANKED (main) | executes at M2 / M8 | — |
 | ANIMATION packs / RUN / GROUND | rig fixes | partly SHIPPED | per their docs | — |

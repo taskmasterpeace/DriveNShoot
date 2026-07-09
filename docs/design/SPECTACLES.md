@@ -18,6 +18,7 @@ pillar; the beasts that fight are *captured wild things*.
 | **PIT FIGHT** | `fight_pit` (bar_roadhouse backroom tier → dedicated pit compound) | your fists (the shipped martial-arts ladder) | sponsor & train fighters too (crew rows); regional circuits; the Faith bans it — underground pits in occupied states |
 | **BEAST PIT** | fight_pit variant + your **stable** (homebase build-board row) | a captured wild animal you RAISED | the husbandry loop: trap gators/howlers/hogs (ecosystem capture gear), feed/condition them (the hunger clock), your champion is MORTAL — a name, a record, a grave |
 | **DRONE DUEL** | `drone_ring` (a caged rig — junkyard tier) | a combat drone you built | scrap-built battle-bots; losing = losing the machine; the tonally-clean bloodsport |
+| **MONSTER TRUCK RALLY** (#6 — MUD_AND_MONSTERS.md §3) | `derby_bowl` / `race_track_grandstand` | the monster truck you BUILT | the crush show (junk-car lines, air, freestyle — physics judges); **the mud-course variant when it rains is the headline**: the traction matrix separates the field; purses seed BIG WHEELS |
 
 ## 2. Betting (one system, five events)
 
