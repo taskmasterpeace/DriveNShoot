@@ -1144,7 +1144,12 @@ func _physics_process(delta: float) -> void:
 			_misfire_t = 0.45
 			var mm := get_tree().current_scene
 			if mm == null or not mm.has_method("notify"):
-				mm = get_parent() # sims wrap main in a harness — the parent IS main
+				# sims wrap main in a harness AND cars can live under staging
+				# containers (TestGrounds adopted the spawn car — the silent-
+				# misfire regression): climb until something can actually speak.
+				mm = get_parent()
+				while mm != null and not mm.has_method("notify"):
+					mm = mm.get_parent()
 			if mm != null and "audio" in mm and mm.audio:
 				mm.audio.play_at("metal_debris", global_position, -8.0, 1.5)
 			# Surface the CAUSE once — a mystery stutter reads as a bug, a named

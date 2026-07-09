@@ -4247,6 +4247,12 @@ func enter_car(car: ProtoCar3D) -> void:
 	mode = Mode.DRIVE
 	active_car = car
 	car.is_active = true
+	# AN ACTIVE CAR NEVER SLEEPS (visibility_sim regression): a parked-still
+	# body falls asleep and a sleeping body's _physics_process stops — which
+	# froze the whole living-car feedback loop (misfire cough, battery flicker,
+	# wear reads) for a driver who hadn't touched the gas yet.
+	car.can_sleep = false
+	car.sleeping = false
 	audio.play_at("car_door", car.global_position, -6.0)
 	# THE IGNITION (goal): sitting down doesn't start anything. Keyless junkers and your
 	# own keys turn over on the first throttle; a keyed car you broke into needs the
@@ -4360,6 +4366,7 @@ func _exit_car() -> void:
 	if active_car.ai_driver == null:
 		active_car.is_active = false # an AI-driven ride keeps ROLLING — you just got off
 		active_car.engine_on = false # ...and the ENGINE DIES with the door (start/stop law)
+		active_car.can_sleep = true # parked and empty may sleep again (the perf default)
 	passenger_of_ai = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
 	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3
