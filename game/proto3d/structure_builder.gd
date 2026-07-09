@@ -29,6 +29,8 @@ const CATEGORY_COLORS: Dictionary = {
 	"media": Color(0.36, 0.34, 0.36),
 	"restricted": Color(0.34, 0.36, 0.28),
 	"law_military": Color(0.38, 0.38, 0.3),
+	"venue": Color(0.52, 0.38, 0.2),
+	"agriculture": Color(0.44, 0.42, 0.26),
 }
 
 

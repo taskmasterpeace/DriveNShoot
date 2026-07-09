@@ -437,20 +437,26 @@ static func build_world(root: Node3D) -> Dictionary:
 	sign_label.rotation.y = -PI / 2.0
 	sign_root.add_child(sign_label)
 
-	# --- Filler houses (solid, not enterable) -------------------------------
-	var fillers: Array = [
-		[Vector3(60, 0, -310), Vector3(10, 5, 8), COL_HOUSE_A],
-		[Vector3(62, 0, -268), Vector3(9, 4, 9), COL_HOUSE_B],
-		[Vector3(110, 0, -268), Vector3(12, 4.5, 8), COL_HOUSE_A],
-		[Vector3(140, 0, -312), Vector3(9, 5, 9), COL_HOUSE_B],
-		[Vector3(64, 0, -335), Vector3(8, 4, 8), COL_HOUSE_A],
-	]
-	for f in fillers:
-		var fpos: Vector3 = f[0]
-		var fsize: Vector3 = f[1]
-		var fcol: Color = f[2]
-		box_body(world, fsize, fpos + Vector3(0, fsize.y / 2.0, 0), fcol)
-		box_body(world, Vector3(fsize.x + 0.6, 0.3, fsize.z + 0.6), fpos + Vector3(0, fsize.y + 0.15, 0), COL_ROOF)
+	# --- MERIDIAN: THE PROVING GROUND (owner order 2026-07-09: "redo meridian so
+	# it includes all the testing elements"). The filler boxes are gone; every
+	# building is a structure-profile ROW placed via usmap placements — this is
+	# ProtoStructureBuilder's FIRST world consumer (created ≠ placed, until now).
+	# New testing element = a catalog row + a placement row. Never code.
+	var um := ProtoUSMap.get_default()
+	if um != null and um.ok:
+		DrivnData.ensure_structures()
+		for p in um.placements_in(ProtoWorldStream.AUTHORED):
+			var sid := String(p.get("building", ""))
+			if not DrivnData.structures.has(sid):
+				continue # hand-built ids (the safehouse) stay hand-built; warn-not-crash
+			var shell := ProtoStructureBuilder.materialize(sid)
+			if shell == null:
+				continue
+			world.add_child(shell)
+			shell.position = Vector3(float(p["pos"][0]), 0.0, float(p["pos"][1]))
+			shell.rotation.y = float(p.get("rot", 0.0))
+			shell.set_meta("placement_id", String(p.get("id", sid)))
+			shell.add_to_group("placement")
 
 	# --- Wrecks along the highway shoulder (Divided States flavor) --------------
 	var wrecks: Array = [
