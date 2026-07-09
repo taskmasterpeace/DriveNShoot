@@ -50,6 +50,7 @@ var traffic: ProtoTraffic = null
 var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.md) ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
 var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.md P0 — counts above the chunks; lurker/howler death paths already call it)
 var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AMERICAN_ROAD M1; atlas/GPS consumer only until MT)
+var journeys: ProtoJourneys = null ## the NAV director (NAVIGATION.md P1 — walk domain; DRIVE/records at P2)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -331,6 +332,10 @@ func _ready() -> void:
 	stream.population = population
 	add_child(stream)
 	stream.setup(waypoints, self)
+	# THE JOURNEY DIRECTOR (NAVIGATION.md NAV-P1): purposeful movers only —
+	# directors say WHY, this node moves people. WALK domain live; DRIVE at P2.
+	journeys = ProtoJourneys.create(self)
+	add_child(journeys)
 
 	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.
