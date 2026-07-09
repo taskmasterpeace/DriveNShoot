@@ -36,14 +36,14 @@ func _ready() -> void:
 		await get_tree().physics_frame
 
 	var tv: ProtoTV = main.media_panel.tv_set
-	print("RENDER_TV: is_live=%s" % tv.is_live())
+	print("RENDER_TV: is_live=%s yaw=%.2f" % [tv.is_live(), tv.rotation.y])
 	var scr: MeshInstance3D = tv.screen
-	# Camera in FRONT of the screen (its front face is local -Z), looking at it.
 	_cam = Camera3D.new()
 	add_child(_cam)
 	_cam.current = true
-	var front: Vector3 = -scr.global_transform.basis.z.normalized()
-	_cam.global_position = scr.global_position + front * 2.2 + Vector3(0, 0.15, 0)
+	# THE REAL TEST (2026-07-08 wrong-side fix): shoot from the PLAYER's watch spot. With
+	# the default facing corrected, the picture must face the player, not a corner/wall.
+	_cam.global_position = p.global_position + Vector3(0, 1.3, 0)
 	_cam.look_at(scr.global_position, Vector3.UP)
 	for _i in 6:
 		await get_tree().process_frame
@@ -51,5 +51,5 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
-	print("RENDER_TV: couch_set -> %s" % ("ok" if img.save_png("%s/TV_couch_set.png" % OUT) == OK else "ERR"))
+	print("RENDER_TV: player_view -> %s" % ("ok" if img.save_png("%s/TV_player_view.png" % OUT) == OK else "ERR"))
 	get_tree().quit(0)

@@ -517,7 +517,7 @@ func _build_environment() -> void:
 	var tv := ProtoTV.create()
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
-	tv.rotation.y = 0.7 # angled at the room
+	_face_toward(tv, SAFEHOUSE) # screen faces INTO the room (was a fixed 0.7 that aimed it at a corner — the "wrong side")
 	if media_panel != null:
 		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
@@ -737,8 +737,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		_equip_slot(2)
 	elif event is InputEventMouseButton and event.pressed:
 		var mb := event as InputEventMouseButton
-		# While glassing, the wheel magnifies the binocular view; otherwise it zooms the camera.
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+		# While DRAGGING furniture, the wheel ROTATES it (aim the TV screen / a shelf face —
+		# owner: "they gotta be rotated"); otherwise it's zoom (or binocular magnify).
+		if _dragging != null and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_rotate_dragged(1.0)
+		elif _dragging != null and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_rotate_dragged(-1.0)
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP:
 			if cam_rig.binoculars:
 				cam_rig.add_binocular_zoom(0.25)
 			else:
@@ -2270,8 +2275,13 @@ func _update_drag(delta: float) -> void:
 			_grab_down = false
 			if _is_draggable(_current_interactable) and mode == Mode.FOOT:
 				_dragging = _current_interactable
+				var is_furn: bool = not (_dragging is ProtoChest)
 				var _dl: String = (_dragging as ProtoChest).container.label.to_lower() if _dragging is ProtoChest else "the furniture"
-				notify("🫳 Dragging %s — E to set it down" % _dl)
+				notify("🫳 Dragging %s — E to set it down%s" % [_dl, " · wheel to rotate" if is_furn else ""])
+				if is_furn:
+					# Aim its front at you by default (a TV screen faces where you'll watch);
+					# the wheel then fine-tunes. Fixes "it's on the wrong side" out of the gate.
+					_face_toward(_dragging, player.global_position)
 	if _dragging == null:
 		return
 	if not is_instance_valid(_dragging) or mode != Mode.FOOT or panel.is_open:
@@ -2293,6 +2303,23 @@ func _drop_drag() -> void:
 	if _dragging != null:
 		notify("You set it down.")
 	_dragging = null
+
+
+## Aim a node's FRONT (its local -Z) at a world position — the furniture-facing law (a
+## TV screen, a shelf face). yaw so forward(-Z) points from the node toward `pos`.
+func _face_toward(node: Node3D, pos: Vector3) -> void:
+	var d := pos - node.global_position
+	d.y = 0.0
+	if d.length_squared() > 0.0001:
+		node.rotation.y = atan2(-d.x, -d.z)
+
+
+## Wheel-while-dragging spins the held furniture (owner: "they gotta be rotated"), 15°
+## a notch, persisted with its spot in the save.
+const FURN_ROTATE_STEP := 0.2618 # 15° in radians
+func _rotate_dragged(dir: float) -> void:
+	if _dragging != null and is_instance_valid(_dragging):
+		_dragging.rotation.y = wrapf(_dragging.rotation.y + dir * FURN_ROTATE_STEP, -PI, PI)
 
 
 ## FURNITURE DRAG persistence (prototype): every "furniture" node that carries a

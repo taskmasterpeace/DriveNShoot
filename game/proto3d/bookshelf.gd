@@ -6,6 +6,8 @@ extends Node3D
 static func create(main: Node) -> ProtoBookshelf:
 	var s := ProtoBookshelf.new()
 	s.add_to_group("interactable")
+	s.add_to_group("furniture") # hold-E to move it, wheel to rotate, spot persists (furniture move system)
+	s.set_meta("furniture_id", "bookshelf")
 	var case := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(1.2, 1.8, 0.4)

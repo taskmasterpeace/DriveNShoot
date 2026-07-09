@@ -22,6 +22,8 @@ static func create(main: Node) -> ProtoDroneDock:
 	var d := ProtoDroneDock.new()
 	d._main = main
 	d.add_to_group("interactable")
+	d.add_to_group("furniture") # hold-E to move it, wheel to rotate, spot persists (furniture move system)
+	d.set_meta("furniture_id", "drone_dock")
 	var pad := MeshInstance3D.new()
 	var pm := BoxMesh.new()
 	pm.size = Vector3(1.6, 0.12, 1.6)
