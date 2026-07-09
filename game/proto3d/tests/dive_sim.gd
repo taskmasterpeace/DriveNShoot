@@ -1,8 +1,8 @@
 ## Proof for THE SHOOTDODGE (Max Payne dive): from liftoff to your feet the game
-## NEVER ignores you — the mouse keeps the gun (any direction, independent of the
-## dive line), LMB fires mid-air AND prone, a movement key rolls you up fast, and
-## a vehicle highside keeps its heavy uncancelable recovery. Real inputs: action
-## presses + parsed mouse events (aim_override is the documented aim seam).
+## NEVER ignores you — the mouse keeps the gun inside the human shoulder arc,
+## LMB fires mid-air AND prone, a movement key rolls you up fast, and a vehicle
+## highside keeps its heavy uncancelable recovery. Real inputs: action presses +
+## parsed mouse events (aim_override is the documented aim seam).
 ## Run: godot --headless --path game res://proto3d/tests/dive_sim.tscn
 extends Node
 
@@ -61,7 +61,7 @@ func _ready() -> void:
 	for _i in 8:
 		await get_tree().process_frame
 
-	# --- Stage: on foot, pistol in hand, a dummy due EAST -------------------------
+	# --- Stage: on foot, pistol in hand, a dummy inside the shoulder arc ----------
 	main._exit_car()
 	main.player.global_position = Vector3(6, 0.35, 388) # open interstate shoulder
 	main.player.velocity = Vector3.ZERO
@@ -70,7 +70,8 @@ func _ready() -> void:
 	main.use_item("pistol")
 	for _i in 4:
 		await get_tree().physics_frame
-	var dum := _dummy(main.player.global_position + EAST * 7.0 + Vector3(0, 1.1, 0))
+	var shoot_dir := Vector3(0.6, 0.0, -1.0).normalized()
+	var dum := _dummy(main.player.global_position + shoot_dir * 7.0 + Vector3(0, 1.1, 0))
 	var p = main.player
 	var stamina0: float = p.stamina
 	var tscale0: float = Engine.time_scale
@@ -89,13 +90,16 @@ func _ready() -> void:
 	_check("the air runs 0.6× (scale %.2f < %.2f)" % [Engine.time_scale, tscale0], Engine.time_scale < tscale0 - 0.01)
 	_check("stamina paid the dive toll (%.0f → %.0f)" % [stamina0, p.stamina], p.stamina <= stamina0 - 15.0)
 
-	# --- MID-AIR: the gun is FREE — aim ≠ dive line, and a shot LANDS -------------
+	# --- MID-AIR: the gun follows a reachable mouse aim, and a shot LANDS ---------
 	_aim_at(dum)
 	await get_tree().physics_frame
-	var aim_east: float = p.aim_facing().dot(EAST)
+	var target_dir: Vector3 = dum.global_position - p.global_position
+	target_dir.y = 0.0
+	target_dir = target_dir.normalized()
+	var aim_target: float = p.aim_facing().dot(target_dir)
 	var aim_vs_dive: float = p.aim_facing().dot(p._dive_dir)
-	_check("mid-air the arm obeys the MOUSE (east dot %.2f, dive-line dot %.2f)" % [aim_east, aim_vs_dive],
-		aim_east > 0.85 and absf(aim_vs_dive) < 0.5)
+	_check("mid-air the arm follows reachable mouse aim (target dot %.2f, dive-line dot %.2f)" % [aim_target, aim_vs_dive],
+		aim_target > 0.9 and aim_vs_dive > 0.55 and aim_vs_dive < 0.9)
 	var hp0: float = dum.hp
 	_aim_at(dum)
 	_click()
@@ -111,6 +115,10 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	_check("the dive lands into the prone beat", p.move_state == ProtoPlayer3D.FootState.GETUP)
 	var hp1: float = dum.hp
+	frames = 0
+	while main.current_weapon() != null and not main.current_weapon().can_fire() and frames < 40:
+		frames += 1
+		await get_tree().physics_frame
 	_aim_at(dum)
 	_click()
 	for _i in 2:

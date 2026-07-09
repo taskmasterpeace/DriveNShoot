@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://proto3daimconstraint"]
+
+[ext_resource type="Script" path="res://proto3d/tests/aim_constraint_sim.gd" id="1_aim_constraint"]
+
+[node name="AimConstraintSim" type="Node"]
+script = ExtResource("1_aim_constraint")

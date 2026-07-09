@@ -2319,13 +2319,16 @@ func fire_equipped() -> void:
 		notify("*click* — reload (R)")
 		return
 	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
-	player.aim_now(aim_direction()) # orient arms/eyes at the intent
+	var desired_dir := aim_direction()
+	var gun_dir := player.aim_now(desired_dir)
 	# The BULLET flies muzzle → aim point in FULL 3D: exactly under the cursor
 	# laterally AND angled to the target's height — low loping howlers taught us
 	# a hand-height horizontal ray flies right over short things.
 	var muzzle := player.muzzle_world()
 	var shot := aim_point() - muzzle
-	var dir := shot.normalized() if shot.length_squared() > 0.01 else player.aim_facing()
+	var dir := gun_dir
+	if not w.is_melee() and gun_dir.dot(desired_dir) > 0.995 and shot.length_squared() > 0.01:
+		dir = shot.normalized()
 	if w.fire(self, muzzle, dir):
 		if w.is_melee():
 			cam_rig.add_trauma(0.08) # quiet: no gunshot, no nerve spike, no heat
@@ -2589,8 +2592,8 @@ func _fire_unarmed(w: ProtoWeapon) -> void:
 	if mode != Mode.FOOT or panel.is_open or _reload_t > 0.0:
 		return
 	player.enter_stance()
-	player.aim_now(aim_direction())
-	if w.fire(self, player.muzzle_world(), aim_direction()):
+	var dir := player.aim_now(aim_direction())
+	if w.fire(self, player.muzzle_world(), dir):
 		cam_rig.add_trauma(0.08) # quiet, like all melee — no heat, no nerve spike
 
 

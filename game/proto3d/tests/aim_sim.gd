@@ -1,9 +1,7 @@
-## AIM & LOCOMOTION proof — TWIN-STICK (Option A "free arms, human eyes"):
-## the arms/gun track the mouse ALWAYS and aim any direction INSTANTLY (you can
-## shoot behind you), while the EYES (vision cone, carried by the torso) turn at a
-## human rate — so you can shoot back there before you can SEE back there (the
-## dog's blind-spot job). All input-driven; aim via main.aim_override (headless has
-## no mouse — documented exception). Run: godot --headless --path game res://proto3d/tests/aim_sim.tscn
+## AIM & LOCOMOTION proof: mouse/controller can request any aim direction, but
+## the gun arm stays inside a human shoulder arc while the torso turns to catch up.
+## All input-driven; aim via main.aim_override (headless has no mouse).
+## Run: godot --headless --path game res://proto3d/tests/aim_sim.tscn
 extends Node
 
 const EAST := Vector3(1, 0, 0)
@@ -169,7 +167,7 @@ func _physics_process(delta: float) -> void:
 					(_p0.x - pos.x) > 1.5 and _aim().dot(EAST) > 0.98)
 				Input.action_release("move_left")
 				_next()
-		4: # TWIN-STICK 360: snap aim BEHIND (west); gun flips instantly, eyes lag, shot still HITS
+		4: # REAR AIM: mouse snaps behind, but the gun arm clamps until the torso catches up
 			if not _did:
 				_did = true
 				# torso is ~EAST now (held aim east). Put a dummy due WEST — behind you.
@@ -179,26 +177,37 @@ func _physics_process(delta: float) -> void:
 				main.aim_override = WEST # snap the mouse behind
 			elif phase_t > 0.06 and not _p1_set:
 				_p1_set = true
-				_check("gun snaps BEHIND you instantly (aim west %.2f)" % _aim().dot(WEST), _aim().dot(WEST) > 0.95)
+				_check("gun does NOT spin behind instantly (aim west %.2f, wants <0.65)" % _aim().dot(WEST),
+					_aim().dot(WEST) < 0.65)
 				_check("...but your EYES lag — still facing east, not yet west (sight·west %.2f < 0.6)" % _sight().dot(WEST),
 					_sight().dot(WEST) < 0.6 and _sight_at_snap.dot(EAST) > 0.8)
-				_click() # shoot behind you
+				_click() # try the unreachable rear shot
 			elif phase_t > 0.5:
-				_check("TWIN-STICK: a shot BEHIND you HITS (dummy hp %.0f < %.0f)" % [_dummy_w.hp, _hpw], _dummy_w.hp < _hpw)
+				_check("rear shot obeys the constrained arm instead of bending to the mouse (dummy hp %.0f == %.0f)" %
+					[_dummy_w.hp, _hpw], is_equal_approx(_dummy_w.hp, _hpw))
 				_next()
 		5: # EYES CATCH UP: hold aim west; the torso comes around, now you can SEE behind
-			if phase_t < 0.05:
+			if _step == 0 and phase_t < 0.05:
 				main.aim_override = WEST
-			elif phase_t > 1.2:
+			elif _step == 0 and phase_t > 1.2:
 				_check("hold it and the eyes come around — now you SEE west (sight·west %.2f)" % _sight().dot(WEST),
 					_sight().dot(WEST) > 0.9)
 				var cd: Vector2 = main.vision_cone.current_dir()
 				_check("the vision cone tracks the EYES to west (%.2f)" % cd.dot(Vector2(-1, 0)), cd.dot(Vector2(-1, 0)) > 0.8)
+				main.aim_override = _dummy_w.global_position - main.player.global_position
+				_click()
+				_step = 1
+				phase_t = 0.0
+			elif _step == 1 and phase_t > 0.25:
+				_check("once the body catches up, the same rear target can be shot (dummy hp %.0f < %.0f)" %
+					[_dummy_w.hp, _hpw], _dummy_w.hp < _hpw)
 				_next()
-		6: # MELEE sweeps where you AIM — even behind (360)
+		6: # MELEE sweeps where you AIM when the body can actually reach that arc
 			if not _did:
 				_did = true
+				main.backpack.add("machete", 1)
 				main.use_item("machete")
+				main.player.snap_orientation(EAST)
 				main.aim_override = EAST
 				_dummy_m = _dummy(main.player.global_position + EAST * 2.2 + Vector3(0, 1.1, 0), true)
 				_click()

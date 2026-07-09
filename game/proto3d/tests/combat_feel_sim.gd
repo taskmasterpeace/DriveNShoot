@@ -181,6 +181,7 @@ func _physics_process(delta: float) -> void:
 				if is_instance_valid(_lurk):
 					_lurk.queue_free()
 				_lurk = _spawn_lurker(Vector3(112.0, 0.4, -310.0) + EAST * 2.5, 5000.0)
+				main.player.snap_orientation(EAST)
 				main.aim_override = _lurk.global_position - main.player.global_position
 				_lx = _lurk.global_position.x
 				_lx_max = _lx

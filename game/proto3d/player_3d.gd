@@ -1,11 +1,8 @@
 ## PROTO-3D on-foot player: capsule character, camera-relative WASD, gravity.
 ## AIM & LOCOMOTION (docs/systems/AIM_AND_LOCOMOTION.md): feet, arms, and eyes are
-## THREE separate things (TWIN-STICK, Option A "free arms, human eyes"). WASD drives
-## velocity, screen-relative, never waiting on the body. The ARMS + gun snap to the
-## aim (mouse) INSTANTLY, any direction — bullets fly exactly there, even behind you.
-## The TORSO + EYES follow at a human turn rate, so the vision cone (carried by the
-## torso) can't instantly face behind you: you can shoot back there before you can
-## SEE back there — the gap the dog's rear-smell covers. Akimbo-ready (both arms aim).
+## THREE separate things. WASD drives velocity, screen-relative, never waiting on the
+## body. Mouse/controller gives the DESIRED aim, but the gun arm is anatomically
+## clamped around the torso; the TORSO + EYES turn at a human rate to catch up.
 class_name ProtoPlayer3D
 extends CharacterBody3D
 
@@ -36,7 +33,7 @@ const CROUCH_DETECT := 0.55
 @export var dive_cost: float = 22.0
 
 @export_group("Aim & Look Arc")
-@export var max_look_yaw_deg: float = 60.0     ## reserved (the blind spot now lives in the vision cone's own arc, not an aim clamp)
+@export var max_look_yaw_deg: float = 60.0     ## max gun-arm yaw off the torso before the body must turn
 @export var body_turn_rate_deg: float = 260.0  ## how fast the torso/eyes swing to follow the gun (the rear blind-spot window)
 @export var free_turn_rate_deg: float = 420.0  ## relaxed torso following the feet (quicker)
 @export var head_relax_rate_deg: float = 300.0 ## gaze settling home when no aim intent
@@ -317,7 +314,7 @@ func _physics_process(delta: float) -> void:
 		global_position = global_position.lerp(_remote_target, clampf(12.0 * delta, 0.0, 1.0))
 		var hspeed := (global_position - prev).length() / maxf(delta, 0.0001)
 		_visual.rotation.y = body_yaw
-		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+		_upper.rotation.y = _aim_arm_yaw()
 		if puppet:
 			puppet.animate(delta, hspeed, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
 		return
@@ -329,8 +326,7 @@ func _physics_process(delta: float) -> void:
 	match move_state:
 		FootState.DIVE:
 			# THE SHOOTDODGE: the BODY is committed (full lunge, no steering) but
-			# the GUN is free — the mouse keeps the arm, bullets keep flying,
-			# any direction, the whole flight.
+			# the GUN still reads the mouse inside the same human shoulder arc.
 			velocity.x = _dive_dir.x * dive_speed
 			velocity.z = _dive_dir.z * dive_speed
 			_visual.rotation.x = lerpf(_visual.rotation.x, -1.25, 10.0 * delta)
@@ -462,15 +458,14 @@ func _apply_stance() -> void:
 
 
 ## THE SHOOTDODGE's aim half: mid-air and prone the body is COMMITTED but the gun
-## is FREE — the mouse keeps driving the arm (any direction, independent of the
-## dive line) and the puppet keeps its armed pose. hspeed 0 so the legs trail
+## still reads the mouse inside the human shoulder arc. hspeed 0 so the legs trail
 ## instead of sprinting through the air.
 func _update_aim_only(delta: float) -> void:
 	if _aim_intent.length_squared() > 0.01:
-		aim_yaw = wrapf(_yaw_of(_aim_intent), -PI, PI)
+		aim_yaw = _constrain_aim_yaw(_yaw_of(_aim_intent))
 	_visual.rotation.y = body_yaw
 	if puppet == null or puppet.arm_tracks_gaze():
-		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+		_upper.rotation.y = _aim_arm_yaw()
 	if puppet:
 		puppet.animate(delta, 0.0, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
 
@@ -483,13 +478,9 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 	if move.length_squared() > 0.01:
 		_move_yaw = _yaw_of(move.normalized())
 	if _aim_intent.length_squared() > 0.01:
-		# TWIN-STICK: the arms + gun snap to the aim (mouse) INSTANTLY, any direction —
-		# no arc clamp. The torso + eyes FOLLOW at a human turn rate, so your gun can
-		# already point behind you while your view (the cone, carried by the torso)
-		# is still coming around. You can shoot back there before you can SEE back
-		# there — which is exactly the gap the dog's rear-smell covers.
-		aim_yaw = _yaw_of(_aim_intent)
-		body_yaw = _rotate_yaw(body_yaw, aim_yaw, deg_to_rad(body_turn_rate_deg) * delta)
+		var desired_yaw := _yaw_of(_aim_intent)
+		body_yaw = _rotate_yaw(body_yaw, desired_yaw, deg_to_rad(body_turn_rate_deg) * delta)
+		aim_yaw = _constrain_aim_yaw(desired_yaw)
 	else:
 		if move.length_squared() > 0.01:
 			body_yaw = _rotate_yaw(body_yaw, _move_yaw, deg_to_rad(free_turn_rate_deg) * delta)
@@ -503,7 +494,7 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 	# empty hand relaxes home instead of scissoring ahead of the body (playtest:
 	# "the right arm moves before anything else").
 	if puppet == null or puppet.arm_tracks_gaze():
-		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI) # the top half aims — up to a full turn
+		_upper.rotation.y = _aim_arm_yaw()
 	else:
 		_upper.rotation.y = lerp_angle(_upper.rotation.y, 0.0, clampf(10.0 * delta, 0.0, 1.0))
 	var lower_target := wrapf(_move_yaw - body_yaw, -PI, PI) if move.length_squared() > 0.01 else 0.0
@@ -530,8 +521,23 @@ func sight_facing() -> Vector3:
 	return _vec_of(body_yaw)
 
 
-## AIM facing — where the GUN/arms point. Snaps to the mouse instantly, any
-## direction (twin-stick). Every muzzle + the melee arc read this.
+func _max_aim_arm_yaw() -> float:
+	return deg_to_rad(max_look_yaw_deg)
+
+
+func _constrain_aim_yaw(desired_yaw: float) -> float:
+	var rel := wrapf(desired_yaw - body_yaw, -PI, PI)
+	var limit := _max_aim_arm_yaw()
+	return wrapf(body_yaw + clampf(rel, -limit, limit), -PI, PI)
+
+
+func _aim_arm_yaw() -> float:
+	var rel := wrapf(aim_yaw - body_yaw, -PI, PI)
+	var limit := _max_aim_arm_yaw()
+	return clampf(rel, -limit, limit)
+
+
+## AIM facing — where the GUN/arms actually point after the shoulder arc clamp.
 func aim_facing() -> Vector3:
 	return _vec_of(aim_yaw)
 
@@ -557,14 +563,13 @@ func in_stance() -> bool:
 	return _stance_t > 0.0
 
 
-## Point the gun at a target RIGHT NOW (the fire path) and return that vector.
-## Twin-stick: the gun snaps to the mouse instantly, any direction — so the shot
-## flies exactly where you clicked, even directly behind you.
+## Point the gun at a target RIGHT NOW (the fire path) and return the constrained
+## gun direction. The mouse may ask for behind-the-back; the arm stays human.
 func aim_now(desired: Vector3) -> Vector3:
 	set_aim_intent(desired)
 	if _aim_intent.length_squared() > 0.01:
-		aim_yaw = _yaw_of(_aim_intent)
-		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
+		aim_yaw = _constrain_aim_yaw(_yaw_of(_aim_intent))
+		_upper.rotation.y = _aim_arm_yaw()
 	return aim_facing()
 
 
