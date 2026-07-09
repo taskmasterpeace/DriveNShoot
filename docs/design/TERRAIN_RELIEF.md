@@ -4,6 +4,10 @@
 `ground_material()`/`ground_visual()`, `ground_texture_sim` 12/12. Part 2 (RELIEF /
 elevation) is the greenlit design below, not yet built. Goal origin: "improve the terrain
 in every biome — this adds texture," referencing Terrain3D then LiteTerrain.
+**2026-07-08 pointer:** the highway fall-through traced in part to RELIEF v1's
+per-chunk-CENTER floor decision (relief↔flat seam cliffs beside roads). The fix contract
+is `GROUND_INTEGRITY.md` (rule G4: five-point relief sampling) — it gates how chunk
+floors choose relief from here on.
 
 ## Overview
 

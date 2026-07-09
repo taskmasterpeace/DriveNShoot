@@ -6,6 +6,10 @@ exits are the connections to the locations").
 **Builds on:** `usmap.json` road rows (PILLAR 1: a road is a CHARACTER), the exit-node
 system (World Structures §5), `MAP_POLISH_PLAN.md` (the content that will sit on these
 bones), `motorist.gd`/`autopilot.gd` (the real-car layer this coexists with).
+**2026-07-08 pointer:** roads are VISUAL paint (no collision) — cars drive the chunk
+floor beneath, and "bridges" over water are currently rails + paint with the physical
+floor 30 cm below the deck. `GROUND_INTEGRITY.md` (rule G5) adds real bridge-deck
+colliders + the void net; it is the fall-through contract for everything built here.
 
 ## 1. Overview
 

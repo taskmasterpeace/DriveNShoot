@@ -9,6 +9,9 @@ byte-unchanged) · strike 63 · unarmed 14 · combat_feel 15 · motion 13 · spi
 this pass; the strike VISUAL + white-plank kill shipped). Deferring damage to the contact
 pose breaks the ~6-frame combat sims (howler/threat/pvp/unarmed) and is the POSE_TO_POSE
 goal's Phase-3 follow-up — do it with a combat-sim sweep, not here.
+**Follow-up spec (2026-07-08 evening):** `RUN_ANIMATION.md` — the run's TOP-DOWN read
+(stride shoulder-hip counter-rotation, armed-carry asymmetry, camera-truth acceptance);
+this pack's §3.3 side-view form is its shipped base.
 *(Original spec below, kept as the record.)*
 
 **Was:** SPEC (owner playtest 2026-07-08, the mannequin body's first night out).
