@@ -781,6 +781,21 @@ func update_nav(cam: Camera3D, from: Vector3, target: Vector3, label_txt: String
 		pos = pos.clamp(rect.position, rect.position + rect.size)
 	_nav_arrow.position = pos - Vector2(40, 34)
 
+## 🧭 THE COMPASS ribbon (2026-07-09 playtest "we need a compass"): a top-center heading
+## strip, fed the player's heading each frame. Created lazily so it costs nothing until used.
+var _compass: ProtoCompass = null
+func update_compass(heading: float) -> void:
+	if _compass == null:
+		_compass = ProtoCompass.new()
+		_compass.size = Vector2(300, 34)
+		_compass.custom_minimum_size = _compass.size
+		_compass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_compass)
+	var vw: float = get_viewport().get_visible_rect().size.x
+	_compass.position = Vector2((vw - _compass.size.x) * 0.5, 8.0)
+	_compass.set_heading(heading)
+
+
 ## 🔫 mag/reserve — ammo stays NUMERIC (you count bullets; you feel tired).
 func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: bool) -> void:
 	if _ammo_label == null:

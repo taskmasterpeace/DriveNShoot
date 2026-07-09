@@ -324,6 +324,12 @@ func _ready() -> void:
 
 	waypoints = [["SAFEHOUSE", SAFEHOUSE], ["KENNEL", Vector3(123, 0, -316)], ["YOUR CAR", cars[0]],
 		["⚒ TEST GROUNDS", ProtoTestGrounds.ORIGIN]] # the try-everything field (south of home)
+	# 🏁 the SPECTACLES race board (built in _build_environment, which runs first) — add it
+	# to the ring HERE so the assignment above can't wipe it (2026-07-09 surfacing pass).
+	for _n in get_tree().get_nodes_in_group("interactable"):
+		if _n is ProtoRaceBoard:
+			waypoints.append(["🏁 RACES", _n])
+			break
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
@@ -576,6 +582,13 @@ func _build_environment() -> void:
 	var carousel_portal := ProtoCarouselPortal.create(self)
 	add_child(carousel_portal)
 	carousel_portal.global_position = SAFEHOUSE + Vector3(9.0, 0, 5.0)
+	# 🏁 SPECTACLES (docs/design/SPECTACLES.md — S1 scene; 2026-07-09 playtest "where's all
+	# the spectacles, I was looking forward to trying it"): a race board you walk up to and
+	# START a race (E cycles the card, E again drops the flag). Placed at the safehouse
+	# cluster so it's reachable from the jump, and added to the waypoint ring so N finds it.
+	var race_board := ProtoRaceBoard.create(self)
+	add_child(race_board)
+	race_board.global_position = SAFEHOUSE + Vector3(-8.0, 0, 2.0)
 	if FileAccess.file_exists("res://data/rulers.json"):
 		var rj: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/rulers.json"))
 		if rj is Dictionary:
@@ -1023,6 +1036,10 @@ func _physics_process(delta: float) -> void:
 		hud.update_nav(cam, body_pos, tpos, wp[0])
 	else:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
+	# 🧭 THE COMPASS (2026-07-09 playtest "we need a compass"): the heading you're pointed —
+	# your facing on foot, the rig's nose at the wheel. North is -Z; bearing runs clockwise.
+	var face3: Vector3 = (-active_car.global_basis.z) if (mode == Mode.DRIVE and active_car != null) else player.sight_facing()
+	hud.update_compass(atan2(face3.x, -face3.z))
 
 	hud.set_hp(character.hp, character.hp_cap(), not character.dead)
 	# Feed the puppet: injuries slump the body, death flops it. hurt = how far below a

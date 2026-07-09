@@ -10,6 +10,34 @@
 
 ---
 
+## ✅ EXECUTION STATUS — 2026-07-09 (this pass)
+
+Worked top-down through the list. Green sims in parens.
+
+| # | Item | Status |
+|---|------|--------|
+| 1 | Car-hit crash | ✅ **FIXED** — deferred the promote out of the collision flush (traffic 34/0) |
+| 2 | Handbrake won't stop | ✅ **FIXED** — e-brake zeroes the gas + decel 8→14 (drive 7/0) |
+| 3 | Exit throws you too far | ✅ **FIXED** — offset 2.3→1.5, ground-settle (car_entry 17/0) |
+| 4 | Same loot / no weapons | ✅ **FIXED** — varied ARMED field table + cache_rare revived (loot_field 5/0) |
+| 5 | Unlabeled buildings | ✅ **FIXED** — every sign registered + read (sign_reader 5/0) |
+| 6 | Drone two presses | ✅ **FIXED** — one press deploys AND flies (drone_remote 29/0) |
+| 7 | No drone recall | ✅ **FIXED** — B/R3 flies it home (drone_recall 6/0) |
+| 8 | Signs unreadable + hover | ✅ **FIXED** — group reader + mouse-hover (sign_reader 5/0) |
+| 9 | Spectacles missing | ✅ **REACHABLE** — race board placed at home + on the N ring (surfacing) · tote/betting panel = SPECTACLES arc's next slice |
+| 10 | F10 dev panel stale | ✅ **FRESHENED** — WEATHER row added + teleport fixed (devmode 18/0) · more system rows welcome |
+| 11 | Teleport does nothing | ✅ **FIXED** — list rebuilds on open, arrives above the floor (devmode 18/0) |
+| 12 | Spawn 700 m from testbed | ✅ **ADDRESSED** — dev "⚒ Meridian test town" warp (devmode 18/0). Left the *default* spawn on the interstate on purpose — THE FIRST RUN's cold-open needs it |
+| 13 | Compass | ✅ **ADDED** — top-center heading ribbon (surfacing) |
+| 14 | Radar / "radiant" | ⏸ **NEEDS YOUR WORD** — read as radar/minimap; confirm before I build it (could also be the radio/HUD) |
+| 15 | Remove binoculars | ✅ **DONE** — bind cleared; its B/R3 now drive drone recall |
+| 16 | Roads disconnect | ⏸ **DEFERRED to THE_AMERICAN_ROAD** — the M-ladder owns junction geometry (M0–M4b shipped/in-flight); rebuilding here would collide |
+| 17 | Rideable train | ⏸ **DEFERRED** — there is no train (you saw dirt-road ruts); a rideable one is net-new, needs its own spec |
+| 18 | Car dashboard UI | 🔧 **YOUR LANE** — speed/fuel are already public on `car_3d`; say the word and I'll add tailored getters + a gauge mount |
+| — | "The dog comes all the way down" | ❓ **NEEDS CLARIFICATION** — bond? health bar? follows you down? |
+
+---
+
 ## ⭐ KEEP THESE (things you liked — don't regress)
 - **The road network on the MAP view** — "I love the roads on the map." That's the `road_graph.gd` planning graph (971 junctions, fully connected). Untouched by any road fix below.
 - **The drone in flight** — "This is really fucking good." The pilot/split-view is a keeper; we only fix how you *get* into it and how you get it *back*.
