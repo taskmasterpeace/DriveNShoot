@@ -34,6 +34,13 @@ func _ready() -> void:
 			"warehouse", "monument_plaza", "checkpoint_road", "military_base_shell"]:
 		_check("MVP row '%s' exists" % id, DrivnData.structures.has(id))
 
+	# --- THE MERIDIAN TESTING SET (owner 2026-07-09) + the M0 migration rows -------
+	for id in ["bar_roadhouse", "jeweler", "restaurant_fancy", "school_small", "fight_pit",
+			"derby_bowl", "race_track_grandstand", "drone_ring", "clone_wing", "blackmarket_vat"]:
+		_check("testing row '%s' exists (the spec web's proving-ground set)" % id, DrivnData.structures.has(id))
+	for id in ["ruined_house", "market_stall", "safehouse"]:
+		_check("M0 migration row '%s' exists (legacy usmap ids become shells)" % id, DrivnData.structures.has(id))
+
 	# --- Every row is LAWFUL: fields, footprint names, loot refs, the JOB rule ----
 	var all_lawful := true
 	var loot_ok := true

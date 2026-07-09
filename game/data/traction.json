@@ -1,0 +1,268 @@
+{
+ "_comment": "MUD_AND_MONSTERS T1 \u2014 THE TRACTION MATRIX: traction(surface, wetness, tire_class) -> {speed, grip}. THE SLOW-NEVER-STUCK LAW (owner ruling): speed floor 0.25 \u2014 nothing ever bogs down. Additive fold on the ProtoTraction code floor; noise_mult feeds the ear layer.",
+ "floor_speed": 0.25,
+ "mud_rot_min": 0.55,
+ "wet_rot_min": 0.35,
+ "noise_mult": {
+  "street": 1.0,
+  "knobby": 1.1,
+  "big": 1.25,
+  "tread": 1.6,
+  "farm": 1.15,
+  "mud_surface": 0.7
+ },
+ "matrix": {
+  "asphalt": {
+   "dry": {
+    "street": [
+     1.0,
+     1.0
+    ],
+    "knobby": [
+     0.96,
+     0.97
+    ],
+    "big": [
+     0.8,
+     0.9
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.7,
+     0.95
+    ]
+   },
+   "wet": {
+    "street": [
+     0.95,
+     0.8
+    ],
+    "knobby": [
+     0.94,
+     0.82
+    ],
+    "big": [
+     0.8,
+     0.85
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.7,
+     0.9
+    ]
+   }
+  },
+  "gravel": {
+   "dry": {
+    "street": [
+     0.9,
+     0.85
+    ],
+    "knobby": [
+     0.95,
+     0.92
+    ],
+    "big": [
+     0.85,
+     0.9
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.8,
+     0.92
+    ]
+   },
+   "wet": {
+    "street": [
+     0.82,
+     0.72
+    ],
+    "knobby": [
+     0.9,
+     0.85
+    ],
+    "big": [
+     0.85,
+     0.88
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.8,
+     0.9
+    ]
+   }
+  },
+  "dirt": {
+   "dry": {
+    "street": [
+     0.75,
+     0.7
+    ],
+    "knobby": [
+     0.88,
+     0.85
+    ],
+    "big": [
+     0.9,
+     0.88
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.85,
+     0.9
+    ]
+   },
+   "wet": {
+    "street": [
+     0.55,
+     0.55
+    ],
+    "knobby": [
+     0.75,
+     0.75
+    ],
+    "big": [
+     0.9,
+     0.86
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.82,
+     0.88
+    ]
+   },
+   "mud": {
+    "street": [
+     0.3,
+     0.45
+    ],
+    "knobby": [
+     0.55,
+     0.7
+    ],
+    "big": [
+     0.9,
+     0.85
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.8,
+     0.9
+    ]
+   }
+  },
+  "grass": {
+   "dry": {
+    "street": [
+     0.8,
+     0.75
+    ],
+    "knobby": [
+     0.9,
+     0.87
+    ],
+    "big": [
+     0.9,
+     0.88
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.88,
+     0.92
+    ]
+   },
+   "wet": {
+    "street": [
+     0.6,
+     0.6
+    ],
+    "knobby": [
+     0.78,
+     0.78
+    ],
+    "big": [
+     0.9,
+     0.86
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.85,
+     0.9
+    ]
+   },
+   "mud": {
+    "street": [
+     0.32,
+     0.45
+    ],
+    "knobby": [
+     0.56,
+     0.7
+    ],
+    "big": [
+     0.9,
+     0.85
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.8,
+     0.9
+    ]
+   }
+  },
+  "sand": {
+   "dry": {
+    "street": [
+     0.45,
+     0.5
+    ],
+    "knobby": [
+     0.65,
+     0.72
+    ],
+    "big": [
+     0.88,
+     0.84
+    ],
+    "tread": [
+     1.0,
+     1.0
+    ],
+    "farm": [
+     0.7,
+     0.8
+    ]
+   }
+  }
+ }
+}

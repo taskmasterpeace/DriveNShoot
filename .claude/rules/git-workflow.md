@@ -51,6 +51,7 @@ docs/section-name
 - [ ] Ensure no sensitive files included (.env, keys)
 - [ ] Write descriptive commit message
 - [ ] Push to remote after commit
+- [ ] Player-facing system? Run /librarian (a DRAFTED ledger row is enough to commit — book approval never blocks the code ship)
 
 ## Emergency Recovery
 

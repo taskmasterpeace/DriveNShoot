@@ -29,12 +29,14 @@ const CATEGORY_COLORS: Dictionary = {
 	"media": Color(0.36, 0.34, 0.36),
 	"restricted": Color(0.34, 0.36, 0.28),
 	"law_military": Color(0.38, 0.38, 0.3),
+	"venue": Color(0.52, 0.38, 0.2),
+	"agriculture": Color(0.44, 0.42, 0.26),
 }
 
 
 ## Materialize a profile row. Returns null (with a warning) for unknown ids —
 ## a missing row must never crash a caller (the warn-not-crash law).
-static func materialize(structure_id: String) -> Node3D:
+static func materialize(structure_id: String, label_override: String = "") -> Node3D:
 	DrivnData.ensure_structures()
 	var row: DrivnStructure = DrivnData.structures.get(structure_id)
 	if row == null:
@@ -91,7 +93,9 @@ static func materialize(structure_id: String) -> Node3D:
 		root.add_child(body)
 
 	# THE SIGN (§18): glyph + name out front, readable by the sight cone.
-	var sign := ProtoSign.create("%s %s" % [row.sign_glyph, row.display_name], row.sign_glyph)
+	# M4b: a placement may override the name — the water tower says the TOWN's.
+	var sign_name := label_override if label_override != "" else row.display_name
+	var sign := ProtoSign.create("%s %s" % [row.sign_glyph, sign_name], row.sign_glyph)
 	root.add_child(sign)
 	sign.position = Vector3(w * 0.5 + 1.0, 0, d * 0.5 + 1.0)
 

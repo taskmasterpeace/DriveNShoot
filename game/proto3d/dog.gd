@@ -85,6 +85,8 @@ var _obey_queue: Array = [] ## [ [time_left, state] ] — obedience delay per ty
 var _wag_t: float = 0.0
 var _stuck_t: float = 0.0
 var _bite_cd: float = 0.0
+var balking := false ## THE CHOIR BALK (THE_INFECTED §3.3): dogs refuse the ring — sim-readable
+var _balk_bark_cd := 0.0
 
 
 var _params: Dictionary = {}
@@ -564,6 +566,20 @@ func _do_follow(delta: float) -> void:
 	var speed: float = p["speed"] * (1.35 if dist > 12.0 else (1.0 if dist > 6.0 else 0.55))
 	if dist > 0.6:
 		var dir := to_heel.normalized()
+		# THE CHOIR BALK (THE_INFECTED §3.3 — the bible's flagship tell): the dog
+		# will NOT follow you into the ring. She stops at the edge, growls, and
+		# waits — never a HUD marker, the read IS the dog.
+		_balk_bark_cd = maxf(0.0, _balk_bark_cd - delta)
+		if ProtoCarousel.choir_zone_at(global_position + dir * 7.0) and not ProtoCarousel.choir_zone_at(global_position):
+			balking = true
+			velocity.x = move_toward(velocity.x, 0.0, 42.0 * delta) # dig in HARD — momentum never carries her over the ring
+			velocity.z = move_toward(velocity.z, 0.0, 42.0 * delta)
+			if _balk_bark_cd <= 0.0:
+				_balk_bark_cd = 4.0
+				ProtoFloater.pop(get_parent(), global_position + Vector3(0, 1.4, 0), "grrr…", Color(0.9, 0.6, 0.3), 110)
+			move_and_slide()
+			return
+		balking = false
 		# Unstuck: pinned against a post/wall while trying to move → sidestep and
 		# re-pick the heel angle (dogs flow around obstacles instead of pushing).
 		if velocity.length() < 0.6 and dist > 2.0:

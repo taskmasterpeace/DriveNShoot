@@ -180,6 +180,8 @@ standing_mult:
 
 **Example:** the player crosses a Faith Bloc checkpoint carrying a `pistol` and a `machete` (2 contraband items under Faith Occupation Law) at NEUTRAL standing: `stop_chance = 0.35 * (1.0 + 0.15*2) * 1.0 = 0.35 * 1.3 = 0.455` — a 45.5% chance the checkpoint initiates a stop. The same player at TRUSTED standing: `0.35 * 1.3 * 0.35 = 0.159` (15.9%). At HERO: `0.0` regardless of contraband count.
 
+**Quarantine posts (THE_INFECTED.md I2):** quarantine checkpoints are this same `checkpoint` patrol kind placed at corridor/Choir-zone edges under `quarantine_law`; the body scan counts BITE FEVER as 2 contraband stacks in this formula (F-STOP-Q), and State Enforcers engage the `infected` group on sight — infected are nobody's citizens.
+
 ### 4.3 Bounty Hunter payoff cost
 
 ```text

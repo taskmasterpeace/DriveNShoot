@@ -121,6 +121,25 @@ var _cap_node: CollisionShape3D = null
 func sprinting() -> bool:
 	return _was_running
 
+
+## SPRINT FOOTFALLS (THE_INFECTED §3.4): "hunts by noise" is true of the loud
+## player — running emits a 12 m step event every 0.7 s; WALKING EMITS NOTHING,
+## so the crouch/walk counterplay is exact. Player-attributed (who scales it).
+var _footfall_t := 0.0
+
+func _tick_footfalls(delta: float) -> void:
+	if not _was_running or not is_on_floor():
+		_footfall_t = 0.0
+		return
+	_footfall_t -= delta
+	if _footfall_t <= 0.0:
+		_footfall_t = 0.7
+		var m: Node = get_tree().current_scene
+		if m == null or not m.has_method("emit_noise"):
+			m = get_parent()
+		if m != null and m.has_method("emit_noise"):
+			m.emit_noise(global_position, 12.0, "steps")
+
 ## MULTIPLAYER: a REMOTE player is another human's body, driven by network state,
 ## not by input or local physics. It still takes damage (the one damage law) and
 ## enemies still hunt it (the combatant group) — it's a real body, just puppeted
@@ -291,6 +310,7 @@ func apply_remote_state(pos: Vector3, body_yaw_in: float, aim_yaw_in: float, hur
 
 
 func _physics_process(delta: float) -> void:
+	_tick_footfalls(delta) # THE_INFECTED §3.4 — running is loud to the blind
 	if is_remote:
 		# Lerp toward the last received position; the rig reads the motion.
 		var prev := global_position

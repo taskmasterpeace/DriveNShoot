@@ -99,6 +99,7 @@ Key sims: `world_sim`, `threat_sim`, `spine_sim`, `signature_sim`, `crew_sim`, `
 - Data-driven everything: new vehicle/item/NPC/base/upgrade = a ROW.
 - Signals over coupling; components over inheritance; `Damageable` is the one damage class.
 - Every feature lands with a sim; every bug fix leaves a regression check.
+- Every player-facing feature gets a **/librarian** pass (books are rows, the owner approves all prose — see `docs/design/THE_LIBRARY.md`).
 - Commit after every feature (`.claude/rules/git-workflow.md`); push to origin main.
 - Surface every system: if the player can't see it, it doesn't exist (sheet K / HUD / prompts).
 - No purple. Ever.

@@ -1,6 +1,11 @@
 # THE INFECTED TRIALS — Shamblers, Sprinters, Echoes, Choir-Touched
 
-**Status:** GREENLIT design (owner directive 2026-07-08 via docs/LORE_BIBLE.md §6-7+14:
+> **SUPERSEDED (2026-07-09) by [`THE_INFECTED.md`](THE_INFECTED.md)** — the reconciled arc doc.
+> The taxonomy, shares, and behaviors below ported intact; the plumbing this doc lacked
+> (ecosystem interface, the `infection_pressure` writer, tag grammar, the I1/I2/I3 phases,
+> quarantine, the film payoff) lives there. Keep for the record; build from THE_INFECTED.md.
+
+**Status:** ~~GREENLIT~~ SUPERSEDED (was: owner directive 2026-07-08 via docs/LORE_BIBLE.md §6-7+14:
 "design and build this"). This contract is the build plan; the lore bible is canon.
 **Builds on:** the one puppet rig (every infected is a ProtoPuppet row), the noise layer
 (`emit_noise`/`noises_in` — shamblers ARE noise-seekers), population cells + zone tags

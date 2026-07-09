@@ -65,7 +65,9 @@ AI is a three-state director per gang, ticked on game-hours (not frames):
 - **STRIKE / CHECKPOINT:** strength ≥3 gangs prefer standing CHECKPOINTS (checkpoint_road
   structure + barricade props + a toll demand through the existing toll law — pay,
   fight, or run the strip and eat tire damage). Weaker gangs hit-and-run: the pirates'
-  existing chase AI (`_update_pirates` grows a `gang_id`).
+  existing chase AI (`_update_pirates` grows a `gang_id`). The same barricade/cone kit also
+  dresses QUARANTINE posts (THE_INFECTED.md I2 — a dressing row, not new props), and convoy
+  escorts fire on crossing herds: escort kills seed `corpse.infection` along the route.
 
 ### 3.3 WHAT ATTRACTS THEM (the owner's question, answered as rows)
 `attraction = cargo_value × visibility × region_strength − player_reputation_fear`

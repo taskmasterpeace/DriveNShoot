@@ -259,18 +259,10 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	rng.seed = hash("%d:%d:%d" % [WORLD_SEED, cx, cz])
 	var key := "%d,%d" % [cx, cz]
 
-	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b): pinned structures drop in FIRST,
-	# before any biome-based early-out (a landmark can sit on a bridge or a coast).
-	if usmap != null and usmap.ok:
-		var phalf := CHUNK * 0.5
-		for p in usmap.placements_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
-			_spawn_placement(chunk, p)
-		# EXIT NODES (World_Structures §5/§18): every exit raises its HIGHWAY SIGN
-		# at the ramp mouth — the read that turns a drive into a DECISION. (The
-		# ramps themselves are exit-kind ROADS; the road pass materializes those.)
-		for e in usmap.exits_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
-			_spawn_exit_sign(chunk, e)
-
+	# (GROUND_INTEGRITY rule 2 — FLOOR-FIRST CHUNK LAW: placements/exits moved
+	# BELOW the ground + road passes. A bad row used to abort the build before
+	# the floor existed — one bad placement on a highway chunk = a floorless
+	# chunk on the interstate. Now the floor always lands first.)
 	var biome := biome_at(center)
 	var wet := biome == "water" or biome == "ocean"
 
@@ -281,21 +273,34 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		# state's relief knob says the land rolls — and no road/town needs it flat —
 		# the chunk floor is a DISPLACED mesh over ground_y with a HeightMapShape3D
 		# collider (never a trimesh). Everywhere else: the flat slab, byte-identical.
-		if not wet and ProtoWorldBuilder.relief_at(center.x, center.z) > 0.02:
+		# GROUND_INTEGRITY rule 4 (SEAM-CLIFF LAW): the floor-type decision samples
+		# FIVE points (center + corners) — one relief corner beside a flattened
+		# highway chunk used to make a vertical cliff wall at the seam.
+		var rly := false
+		if not wet:
+			var chalf_g := CHUNK * 0.5
+			for sp in [Vector2.ZERO, Vector2(-chalf_g, -chalf_g), Vector2(chalf_g, -chalf_g),
+					Vector2(-chalf_g, chalf_g), Vector2(chalf_g, chalf_g)]:
+				if ProtoWorldBuilder.relief_at(center.x + sp.x, center.z + sp.y) > 0.02:
+					rly = true
+					break
+		if rly:
 			chunk.add_child(_relief_floor(center, biome))
 			chunk.set_meta("relief", true)
 		else:
+			# GROUND_INTEGRITY rule 3b (TUNNELING): 0.5 m floors tunnel at 38 m/s
+			# (0.63 m/tick). 2.0 m thick, extended DOWNWARD — top face unchanged.
 			var g := StaticBody3D.new()
 			var gm := MeshInstance3D.new()
 			var plane := BoxMesh.new()
-			plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			plane.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gm.mesh = plane
 			gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
-			gm.position.y = -0.26 - (0.22 if wet else 0.0) # water sits a hair lower
+			gm.position.y = -1.01 - (0.22 if wet else 0.0) # top face where the 0.5 m floor's was
 			g.add_child(gm)
 			var gs := CollisionShape3D.new()
 			var gb := BoxShape3D.new()
-			gb.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			gb.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gs.shape = gb
 			gs.position.y = gm.position.y
 			g.add_child(gs)
@@ -315,6 +320,74 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
 		for row in usmap.roads_near(center, 220.0):
 			_build_road_stretch(chunk, center, row, key, wet)
+		# THE INTERSECTION SLAB (M1): one per flat tee/cross node — painted ABOVE
+		# every road's per-id lift so the crossing reads as one paved mouth
+		# instead of two z-fighting slabs. Walled (separated_pending) crossings
+		# get NO slab — the roads pass without meeting until M2 decks them.
+		var chalf := CHUNK * 0.5
+		for j in usmap.junctions_in(Rect2(center.x - chalf, center.z - chalf, CHUNK, CHUNK)):
+			if String(j["grade"]) == "flat" and ["tee", "cross"].has(String(j["kind"])):
+				var wmax := 8.0
+				for l in j["legs"]:
+					var lr: Dictionary = usmap.road_by_id(String(l["road"]))
+					if not lr.is_empty():
+						wmax = maxf(wmax, float(ProtoUSMap.road_geometry(lr)["width"]))
+				var jp: Vector2 = j["pos"]
+				var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
+					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
+				jslab.set_meta("junction_slab", String(j["id"]))
+			elif String(j["kind"]) == "ramp_mouth" and (j["legs"] as Array).size() >= 2:
+				# THE EXIT DRESSING (0.18a): painted GORE at the split, crash
+				# barrels at its tip, and the DECEL LANE running the serving
+				# shoulder upstream — the "little angle" now READS at 60 mph.
+				var hwyr: Dictionary = usmap.road_by_id(String(j["legs"][0]["road"]))
+				var rampr: Dictionary = usmap.road_by_id(String(j["legs"][1]["road"]))
+				if hwyr.is_empty() or rampr.is_empty() or (rampr["pts"] as Array).size() < 2:
+					continue
+				var p0: Vector2 = rampr["pts"][0]
+				var rd: Vector2 = ((rampr["pts"][1] as Vector2) - p0).normalized()
+				var gore := ProtoWorldBuilder.box_visual(chunk, Vector3(2.2, 0.05, 7.0),
+					Vector3(p0.x + rd.x * 8.0, 0.135, p0.y + rd.y * 8.0),
+					Color(0.82, 0.80, 0.74), atan2(rd.x, rd.y))
+				gore.set_meta("junction_gore", String(j["id"]))
+				for bi in range(3):
+					var bp := p0 + rd * (4.0 + 1.2 * float(bi))
+					var barrel := ProtoWorldBuilder.box_body(chunk, Vector3(0.55, 0.9, 0.55),
+						Vector3(bp.x, 0.45, bp.y), Color(0.85, 0.42, 0.08), atan2(rd.x, rd.y))
+					barrel.set_meta("gore_barrel", String(j["id"]))
+				var side_i := int(rampr.get("side", 0))
+				if side_i != 0:
+					var hd := Vector2.RIGHT
+					var best_hd := 1e18
+					var hpts: Array = hwyr["pts"]
+					for hi in range(hpts.size() - 1):
+						var hdd := ProtoUSMap._seg_dist(j["pos"], hpts[hi], hpts[hi + 1])
+						if hdd < best_hd:
+							best_hd = hdd
+							hd = ((hpts[hi + 1] as Vector2) - (hpts[hi] as Vector2)).normalized()
+					var d_s := hd * float(side_i)
+					var rightv := Vector2(-d_s.y, d_s.x)
+					var lat := float(ProtoUSMap.road_geometry(hwyr)["width"]) * 0.5 - 1.5
+					var dc := (j["pos"] as Vector2) + rightv * lat - d_s * 74.0
+					var decel := ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.05, 140.0),
+						Vector3(dc.x, 0.125, dc.y), ProtoWorldBuilder.COL_ROAD, atan2(d_s.x, d_s.y))
+					decel.set_meta("road_decel", String(j["id"]))
+
+	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b) + EXIT SIGNS — after the floor
+	# and roads exist (GROUND_INTEGRITY rule 2). Each spawn is defensive: a bad
+	# row costs one prop and a push_warning, never the floor.
+	if usmap != null and usmap.ok:
+		var phalf2 := CHUNK * 0.5
+		for p in usmap.placements_in(Rect2(center.x - phalf2, center.z - phalf2, CHUNK, CHUNK)):
+			if not (p is Dictionary) or not p.has("building") or not p.has("pos"):
+				push_warning("world_stream: malformed placement row skipped in %s" % key)
+				continue
+			_spawn_placement(chunk, p)
+		for e in usmap.exits_in(Rect2(center.x - phalf2, center.z - phalf2, CHUNK, CHUNK)):
+			if not (e is Dictionary) or not e.has("pos"):
+				push_warning("world_stream: malformed exit row skipped in %s" % key)
+				continue
+			_spawn_exit_sign(chunk, e)
 
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
@@ -517,13 +590,29 @@ func _spawn_pop_actor(group: String, _pos: Vector3) -> Node:
 			return null
 
 
-## Build one authored structure (a placeholder massing box, sized by building type)
-## at its exact world position, tagged so systems + tests can find it.
+## Build one authored structure at its exact world position, tagged so systems
+## + tests can find it. THE MATERIALIZE WIRE (AMERICAN_ROAD M0): ids the catalog
+## knows become REAL shells — signed, chest-seeded, door-gapped — through the
+## one structure builder; unknown ids keep the massing-box fallback (0.7's law:
+## deleting the fallback early turns un-migrated towns into nulls).
+const ID_MIGRATE: Dictionary = {"gas_station": "gas_station_small"} ## legacy usmap ids → catalog rows (M0 migration)
 const PLACEMENT_SIZE: Dictionary = {
 	"safehouse": Vector3(10, 6, 12), "gas_station": Vector3(14, 4, 10),
 	"ruined_house": Vector3(8, 4, 8), "market_stall": Vector3(4, 3, 3),
 }
 func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
+	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
+	DrivnData.ensure_structures()
+	if DrivnData.structures.has(sid):
+		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+		if shell != null:
+			shell.add_to_group("placement")
+			shell.set_meta("building", p["building"])
+			shell.set_meta("placement_id", p["id"])
+			chunk.add_child(shell)
+			shell.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
+			shell.rotation.y = float(p.get("rot", 0.0))
+			return
 	var size: Vector3 = PLACEMENT_SIZE.get(p["building"], Vector3(8, 4, 8))
 	var body := StaticBody3D.new()
 	body.add_to_group("placement")
@@ -585,7 +674,12 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		return
 	var rid := String(row["id"])
 	var g := ProtoUSMap.road_geometry(row)
-	var rot := atan2(dir.x, -dir.y) # Z-aligned slab → world yaw
+	# Z-aligned slab → world yaw. M1 FIX: this was atan2(dir.x, -dir.y), which is
+	# the Z-REFLECTED yaw — invisible on axis-aligned roads and 180°-symmetric
+	# boxes, but every true DIAGONAL rendered (and collided!) mirrored across X.
+	# The junction_law_sim physics ray caught it: barriers on diagonal stretches
+	# existed 40+ m off their own centerline. Correct: local +Z → (sinφ, cosφ).
+	var rot := atan2(dir.x, dir.y)
 	var perp := Vector2(dir.y, -dir.x).normalized()
 	# Deterministic per-id lift (≤24mm) so overlapping slabs at junctions never
 	# z-fight — two roads through one chunk each keep their own plane.
@@ -605,35 +699,250 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 					Vector3(mid.x + perp.x * lat, y + 0.02, mid.y + perp.y * lat),
 					ProtoWorldBuilder.COL_DASH, rot)
 				strip.set_meta("road_lane", rid)
-		# THE MEDIAN BARRIER — a real body: crossing a divided highway means an
-		# exit or a chunk-seam gap (which reads as an expansion joint), on purpose.
-		var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, seg_len),
-			Vector3(mid.x, 0.4 + (0.02 if wet else 0.0), mid.y), Color(0.44, 0.43, 0.41), rot)
-		bar.set_meta("road_barrier", rid)
+		# THE MEDIAN BARRIER — a real body, now GAPPED at baked junctions
+		# (AMERICAN_ROAD M1, 0.3): a flat gap-control junction on this road opens
+		# ±junction_gap_half around its projection onto the run. riro ramp mouths
+		# and walled separated_pending crossings NEVER open it (0.2/0.4) — an
+		# exit still never breaches the median; crossing happens at real turns.
+		var cuts: Array = []
+		if usmap != null and usmap.ok:
+			for j in usmap.junctions:
+				if String(j.get("control", "")) != "gap":
+					continue
+				var on_this := false
+				for l in j["legs"]:
+					if String(l["road"]) == rid:
+						on_this = true
+				if not on_this:
+					continue
+				var jp: Vector2 = j["pos"]
+				var t := clampf((jp - a).dot(dir) / (seg_len * seg_len), 0.0, 1.0)
+				if (a + dir * t).distance_to(jp) > float(g["width"]):
+					continue # the node projects off this particular stretch
+				var gh: float = usmap.junction_gap_half(j, rid)
+				if gh > 0.0:
+					cuts.append([clampf(t - gh / seg_len, 0.0, 1.0), clampf(t + gh / seg_len, 0.0, 1.0)])
+		cuts.sort_custom(func(x, y) -> bool: return float(x[0]) < float(y[0]))
+		var t_cur := 0.0
+		var runs: Array = []
+		for c in cuts:
+			if float(c[0]) > t_cur:
+				runs.append([t_cur, float(c[0])])
+			t_cur = maxf(t_cur, float(c[1]))
+		if t_cur < 1.0:
+			runs.append([t_cur, 1.0])
+		for rn in runs:
+			var run_len := (float(rn[1]) - float(rn[0])) * seg_len
+			if run_len < 2.0:
+				continue
+			var rmid := a + dir * ((float(rn[0]) + float(rn[1])) * 0.5)
+			var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, run_len),
+				Vector3(rmid.x, 0.4 + (0.02 if wet else 0.0), rmid.y), Color(0.44, 0.43, 0.41), rot)
+			bar.set_meta("road_barrier", rid)
 	else:
+		# SURFACE LAW (M3b, 0.17): paint follows the surface — asphalt gets its
+		# markings; GRAVEL is a bare pale slab; DIRT is an unpainted twin-rut
+		# track. Grip follows via the rects below.
+		var surface := String(row.get("surface", "asphalt"))
+		var slab_col := ProtoWorldBuilder.COL_ROAD
+		if surface == "gravel":
+			slab_col = Color(0.45, 0.43, 0.39)
+		elif surface == "dirt":
+			slab_col = Color(0.42, 0.36, 0.27)
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
-			Vector3(mid.x, y, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+			Vector3(mid.x, y, mid.y), slab_col, rot)
 		slab2.set_meta("road_slab", rid)
-		# Double-yellow center: two-way traffic shares this slab.
-		var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
-			Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
-		cl.set_meta("road_center", rid)
-		for side_sgn: float in [1.0, -1.0]:
-			for k2 in range(1, int(g["per_side"])):
-				var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
-				var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
-					Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
-					ProtoWorldBuilder.COL_DASH, rot)
-				strip2.set_meta("road_lane", rid)
+		if surface == "dirt":
+			# the twin ruts — the read that says "someone drives this, slowly"
+			for rsgn: float in [1.0, -1.0]:
+				var rut := ProtoWorldBuilder.box_visual(chunk, Vector3(0.55, 0.06, seg_len + 6.0),
+					Vector3(mid.x + perp.x * 1.1 * rsgn, y + 0.015, mid.y + perp.y * 1.1 * rsgn),
+					Color(0.33, 0.28, 0.21), rot)
+				rut.set_meta("road_rut", rid)
+		# TOWN STREETS (M3 0.19): curbs + streetlights make a street read as a
+		# STREET, not a country road — keyed to the row's kind, pure dressing.
+		if String(row.get("kind", "")) == "street":
+			var curb_lat := float(g["width"]) * 0.5 + 0.25
+			for csgn: float in [1.0, -1.0]:
+				var curb := ProtoWorldBuilder.box_visual(chunk, Vector3(0.4, 0.12, seg_len + 6.0),
+					Vector3(mid.x + perp.x * curb_lat * csgn, 0.06, mid.y + perp.y * curb_lat * csgn),
+					Color(0.62, 0.60, 0.56), rot)
+				curb.set_meta("street_curb", rid)
+			var n_lights := int(seg_len / 30.0)
+			for li in range(n_lights):
+				var lsgn: float = 1.0 if li % 2 == 0 else -1.0
+				var lp := a + dir * ((float(li) + 0.5) / maxf(float(n_lights), 1.0)) + perp * (curb_lat + 0.8) * lsgn
+				var pole := ProtoWorldBuilder.box_body(chunk, Vector3(0.18, 4.6, 0.18),
+					Vector3(lp.x, 2.3, lp.y), Color(0.3, 0.3, 0.32), rot)
+				pole.set_meta("streetlight", rid)
+				var head := ProtoWorldBuilder.material(Color(0.95, 0.88, 0.6), 0.4, true)
+				var hm := MeshInstance3D.new()
+				var hb := BoxMesh.new()
+				hb.size = Vector3(0.5, 0.16, 0.5)
+				hm.mesh = hb
+				hm.material_override = head
+				hm.position = Vector3(0, 2.32, 0)
+				pole.add_child(hm)
+		# Double-yellow center + lane strips: ASPHALT ONLY — nobody paints gravel
+		# or a dirt track (the SURFACE LAW's whole point).
+		if surface == "asphalt" or surface == "concrete":
+			var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
+				Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
+			cl.set_meta("road_center", rid)
+			for side_sgn: float in [1.0, -1.0]:
+				for k2 in range(1, int(g["per_side"])):
+					var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
+					var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
+						Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
+						ProtoWorldBuilder.COL_DASH, rot)
+					strip2.set_meta("road_lane", rid)
 	if wet: # bridge rails at the row's real edge
 		var rail_lat := float(g["width"]) * 0.5 + 0.4
 		for sgn2: float in [1.0, -1.0]:
 			ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
 				Vector3(mid.x + perp.x * rail_lat * sgn2, 0.5, mid.y + perp.y * rail_lat * sgn2),
 				Color(0.35, 0.33, 0.30), rot)
+		# GROUND_INTEGRITY rule 5 (BRIDGES ARE REAL DECKS): the paint was at
+		# y≈0.09 while the physical floor was the water box at −0.23 — cars
+		# crossed rivers sunk 30 cm through the visual. One deck body per
+		# carriageway, top AT the paint.
+		if bool(g["divided"]):
+			var deck_half := float(g["median_w"]) * 0.5 + float(g["carriage_w"]) * 0.5
+			for dsgn: float in [1.0, -1.0]:
+				var doff: Vector2 = perp * deck_half * dsgn
+				var deck := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["carriage_w"]), 0.3, seg_len + 6.0),
+					Vector3(mid.x + doff.x, y + 0.025 - 0.15, mid.y + doff.y), ProtoWorldBuilder.COL_ROAD, rot)
+				deck.set_meta("road_deck", rid)
+		else:
+			var deck1 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), 0.3, seg_len + 6.0),
+				Vector3(mid.x, y + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+			deck1.set_meta("road_deck", rid)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
-	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot])
+	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot,
+		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)
 	ProtoWorldBuilder.extra_road_rects[key] = rects
+
+	# THE CORRIDOR BAND (M4a — "reads as Florida in a screenshot"): fences,
+	# utility poles, verge, field patches along the majors. Deterministic per
+	# stretch; drapes on ground_y so relief never floats a pole. Budget-aware:
+	# ONE fence-rail body + a few pole bodies per stretch, the rest visuals.
+	if not wet and kind_band(row) and seg_len > 40.0:
+		var brng := RandomNumberGenerator.new()
+		brng.seed = hash("%s|%s" % [rid, key])
+		var biome_b := biome_at(Vector3(mid.x, 0, mid.y))
+		var pole_side: float = 1.0 if (absi(hash(rid)) % 2 == 0) else -1.0
+		var band_lat := float(g["width"]) * 0.5
+		# verge: the mowed strip beside the shoulder — green in the wet SE, tan out west
+		var verge_col := Color(0.34, 0.42, 0.24) if biome_b in ["swamp", "farmland", "forest", "plains"] else Color(0.52, 0.46, 0.32)
+		for vsgn: float in [1.0, -1.0]:
+			var verge := ProtoWorldBuilder.box_visual(chunk, Vector3(5.0, 0.02, seg_len),
+				Vector3(mid.x + perp.x * (band_lat + 3.2) * vsgn, 0.015, mid.y + perp.y * (band_lat + 3.2) * vsgn), verge_col, rot)
+			verge.set_meta("road_verge", rid)
+		# utility poles: one side, ~55 m apart, draped on ground_y
+		var n_poles := int(seg_len / 55.0)
+		for pi in range(n_poles):
+			var pt := a + dir * ((float(pi) + 0.5) / maxf(float(n_poles), 1.0)) + perp * (band_lat + 9.0) * pole_side
+			var gy := ProtoWorldBuilder.ground_y(pt.x, pt.y)
+			var pole := ProtoWorldBuilder.box_body(chunk, Vector3(0.28, 8.0, 0.28),
+				Vector3(pt.x, gy + 4.0, pt.y), Color(0.30, 0.24, 0.18), rot)
+			pole.set_meta("roadside_pole", rid)
+			var cross := MeshInstance3D.new()
+			var cm := BoxMesh.new()
+			cm.size = Vector3(2.4, 0.16, 0.16)
+			cross.mesh = cm
+			cross.material_override = ProtoWorldBuilder.material(Color(0.30, 0.24, 0.18))
+			cross.position = Vector3(0, 3.4, 0)
+			pole.add_child(cross)
+		# the field fence: ONE thin rail body + visual posts, field side only
+		var fence_side := -pole_side
+		var frail_mid := mid + perp * (band_lat + 14.0) * fence_side
+		var fgy := ProtoWorldBuilder.ground_y(frail_mid.x, frail_mid.y)
+		var rail := ProtoWorldBuilder.box_body(chunk, Vector3(0.08, 1.1, seg_len),
+			Vector3(frail_mid.x, fgy + 0.62, frail_mid.y), Color(0.38, 0.32, 0.24), rot)
+		rail.set_meta("roadside_fence", rid)
+		var n_posts := int(seg_len / 12.0)
+		for fi in range(n_posts):
+			var fp := a + dir * ((float(fi) + 0.5) / maxf(float(n_posts), 1.0)) + perp * (band_lat + 14.0) * fence_side
+			var fy := ProtoWorldBuilder.ground_y(fp.x, fp.y)
+			ProtoWorldBuilder.box_visual(chunk, Vector3(0.14, 1.2, 0.14),
+				Vector3(fp.x, fy + 0.6, fp.y), Color(0.33, 0.27, 0.2), rot)
+		# field patches: the crop-quilt read beyond the fence (farm country only)
+		if biome_b in ["farmland", "plains"] and brng.randf() < 0.7:
+			var fpc := a + dir * brng.randf_range(0.3, 0.7) + perp * (band_lat + 46.0) * fence_side
+			var patch_col := Color(0.36, 0.44, 0.22) if brng.randf() < 0.5 else Color(0.58, 0.5, 0.28)
+			var patch := ProtoWorldBuilder.box_visual(chunk, Vector3(brng.randf_range(34, 58), 0.02, brng.randf_range(44, 70)),
+				Vector3(fpc.x, 0.012, fpc.y), patch_col, rot)
+			patch.set_meta("field_patch", rid)
+		# guardrail where the land rolls (relief chunks) — the shoulder's promise
+		if chunk.has_meta("relief"):
+			for gsgn: float in [1.0, -1.0]:
+				var gr := ProtoWorldBuilder.box_body(chunk, Vector3(0.25, 0.55, seg_len),
+					Vector3(mid.x + perp.x * (band_lat + 0.9) * gsgn, 0.35, mid.y + perp.y * (band_lat + 0.9) * gsgn),
+					Color(0.55, 0.54, 0.5), rot)
+				gr.set_meta("road_guardrail", rid)
+		# M4b — THE ADDRESS FURNITURE (interstates only): mile markers on the
+		# SAME game-mile the exits use (EXIT N stands near MILE N), route
+		# shields every ~2 km, and a WELCOME monument at every state line.
+		# All text is billboard Label3D (0.12 — legible at the wheel).
+		if String(row.get("kind", "")) == "interstate" and usmap != null and usmap.ok:
+			var full: Dictionary = usmap.road_by_id(rid)
+			if not full.is_empty():
+				var arc_a := usmap.arc_from_origin(full, a)
+				var arc_b := usmap.arc_from_origin(full, b)
+				var arc_lo := minf(arc_a, arc_b)
+				var arc_hi := maxf(arc_a, arc_b)
+				var mile := int(ceil(arc_lo / ProtoUSMap.EXIT_MILE_M))
+				while float(mile) * ProtoUSMap.EXIT_MILE_M <= arc_hi and mile <= 999:
+					var t_m := (float(mile) * ProtoUSMap.EXIT_MILE_M - arc_lo) / maxf(arc_hi - arc_lo, 0.001)
+					if arc_a > arc_b:
+						t_m = 1.0 - t_m
+					var mp := a + dir * t_m + perp * (band_lat + 1.6)
+					var post := ProtoWorldBuilder.box_body(chunk, Vector3(0.14, 1.5, 0.14),
+						Vector3(mp.x, 0.75, mp.y), Color(0.16, 0.42, 0.2), rot)
+					post.set_meta("mile_marker", mile)
+					var lbl := Label3D.new()
+					lbl.text = "MILE\n%d" % mile
+					lbl.font_size = 96
+					lbl.pixel_size = 0.004
+					lbl.modulate = Color(0.92, 0.95, 0.9)
+					lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					lbl.position = Vector3(0, 1.1, 0)
+					post.add_child(lbl)
+					mile += 1
+				if int(arc_lo / 2000.0) != int(arc_hi / 2000.0):
+					var sp2 := mid + perp * (band_lat + 1.6)
+					var spost := ProtoWorldBuilder.box_body(chunk, Vector3(0.16, 2.6, 0.16),
+						Vector3(sp2.x, 1.3, sp2.y), Color(0.3, 0.3, 0.32), rot)
+					spost.set_meta("route_shield", rid)
+					var slbl := Label3D.new()
+					slbl.text = "%s" % rid
+					slbl.font_size = 110
+					slbl.pixel_size = 0.004
+					slbl.modulate = Color(0.88, 0.15, 0.18)
+					slbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					slbl.position = Vector3(0, 2.9, 0)
+					spost.add_child(slbl)
+				var st_a := usmap.state_at(Vector3(a.x, 0, a.y))
+				var st_b := usmap.state_at(Vector3(b.x, 0, b.y))
+				if st_a != st_b and st_b != "":
+					var wp2 := mid + perp * (band_lat + 3.0)
+					var mono := ProtoWorldBuilder.box_body(chunk, Vector3(3.2, 2.2, 0.5),
+						Vector3(wp2.x, 1.1, wp2.y), Color(0.45, 0.38, 0.3), rot)
+					mono.set_meta("state_line", st_b)
+					var wl := Label3D.new()
+					wl.text = "WELCOME TO\n%s" % st_b
+					wl.font_size = 128
+					wl.pixel_size = 0.004
+					wl.modulate = Color(0.95, 0.88, 0.6)
+					wl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					wl.position = Vector3(0, 2.6, 0)
+					mono.add_child(wl)
+
+
+## Which road kinds get the M4a corridor band (majors only — a dirt spur with
+## utility poles would be a lie).
+static func kind_band(row: Dictionary) -> bool:
+	return String(row.get("kind", "")) in ["interstate", "us_route", "state_road"]
 
 
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
@@ -823,10 +1132,8 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 	sign_label.position = base + Vector3(0, 8.0, 0)
 	sign_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	chunk.add_child(sign_label)
-	for i in 6:
-		var q := Vector3(cos(i * TAU / 6.0), 0, sin(i * TAU / 6.0)) * rng.randf_range(16, 42)
-		var bs := Vector3(rng.randf_range(8, 13), rng.randf_range(4, 11), rng.randf_range(8, 13))
-		ProtoWorldBuilder.box_body(chunk, bs, base + q + Vector3(0, bs.y / 2.0, 0), Color(0.32, 0.29, 0.26), rng.randf_range(0, TAU))
+	# (M3 0.19: the husk ring is DEAD — towns grow real streets + Building-Book
+	# slots via the bake's two-tier generator; the sign/landmark/cache remain.)
 	var c := ProtoChest.create("%s cache" % t["name"], {"scrap": rng.randi_range(3, 6), "bandage": 1, "9mm": rng.randi_range(6, 14)})
 	chunk.add_child(c)
 	c.position = base + Vector3(rng.randf_range(-10, 10), 0.05, rng.randf_range(-10, 10))
@@ -890,8 +1197,16 @@ static func atlas_road_style(kind: String) -> Dictionary:
 	match kind:
 		"interstate":
 			return {"width": 2.2, "color": Color(0.68, 0.60, 0.44), "atlas": true}
-		"backroad":
+		"us_route", "state_road":
+			return {"width": 1.6, "color": Color(0.58, 0.52, 0.40), "atlas": true}
+		"backroad", "county":
 			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": true}
+		"street":
+			return {"width": 0.8, "color": Color(0.42, 0.40, 0.34), "atlas": false} # town-scale: local map only
+		"dirt":
+			# THE DISCOVERY LAYER (0.19): dirt spurs are deliberately NOT on the
+			# atlas — the map never marks the hermit's shack. Local map only.
+			return {"width": 0.7, "color": Color(0.40, 0.34, 0.25), "atlas": false}
 		_:
 			return {"width": 1.0, "color": Color(0.48, 0.44, 0.36), "atlas": false} # ramps: local only
 

@@ -48,6 +48,12 @@ var waypoint_idx: int = -1
 var stream: ProtoWorldStream = null
 var traffic: ProtoTraffic = null
 var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.md) ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
+var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.md P0 — counts above the chunks; lurker/howler death paths already call it)
+var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AMERICAN_ROAD M1; atlas/GPS consumer only until MT)
+var journeys: ProtoJourneys = null ## the NAV director (NAVIGATION.md P1 — walk domain; DRIVE/records at P2)
+var cloning: ProtoCloning = null ## the chair + the memory law (CLONING.md C1)
+var ecology: ProtoEcology = null ## the sector pressure loop (LWE P1 eco core)
+var empire: ProtoEmpire = null ## the pitch/take/heat ledger (FAMILY_EMPIRE E1)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -321,9 +327,28 @@ func _ready() -> void:
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
+	# THE POPULATION LEDGER (POPULATION_WAR.md P0 — the shared workorder): wired
+	# BEFORE the stream so the very first chunk build can spend banked counts.
+	population = ProtoPopulation.create(self, ProtoWorldBuilder.usmap)
+	add_child(population)
 	stream = ProtoWorldStream.new()
+	stream.population = population
 	add_child(stream)
 	stream.setup(waypoints, self)
+	# THE JOURNEY DIRECTOR (NAVIGATION.md NAV-P1): purposeful movers only —
+	# directors say WHY, this node moves people. WALK domain live; DRIVE at P2.
+	journeys = ProtoJourneys.create(self)
+	add_child(journeys)
+	# CLONING C1 (CLONING.md): the chair, the memory law, the journal.
+	cloning = ProtoCloning.create(self)
+	add_child(cloning)
+	# THE ECOLOGY DIRECTOR (LIVING_WOUND_ECOSYSTEM P1): the pressure loop on
+	# the cells' eco floats — plants/prey/predators/corpse heat, seasons-aware.
+	ecology = ProtoEcology.create(self)
+	add_child(ecology)
+	# THE FAMILY EMPIRE E1 (THE_FAMILY_EMPIRE.md): the pitch, the take, the heat.
+	empire = ProtoEmpire.create(self)
+	add_child(empire)
 
 	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.
@@ -755,7 +780,76 @@ func _unhandled_input(event: InputEvent) -> void:
 				cam_rig.add_zoom(ZOOM_STEP)
 
 
+## THE VOID NET (docs/design/GROUND_INTEGRITY.md rules 1+6): falling through the
+## world is always OUR bug — catch the body below VOID_Y, put it back on the
+## last-known-good ground (the OLDEST ring entry — furthest from the hole that
+## just ate you), zero velocity, no damage, and SELF-REPORT one structured line
+## so a rotated log can never eat the diagnosis again.
+const VOID_Y := -6.0
+const GOOD_POS_INTERVAL := 0.5
+const GOOD_POS_RING := 4
+var _good_pos: Array[Vector3] = []
+var _good_pos_t := 0.0
+var _void_npc_t := 0.0
+
+
+func _void_net_tick(delta: float) -> void:
+	var body: Node3D = active_car if (mode == Mode.DRIVE and active_car != null and is_instance_valid(active_car) and not active_car.dead) else player
+	if body == null or not is_instance_valid(body):
+		return
+	# the boot seed: the spawn position is grounded by construction, so the ring
+	# is NEVER empty — a fall in the first half-second still has a rescue point.
+	if _good_pos.is_empty() and body.global_position.y > VOID_Y:
+		_good_pos.append(body.global_position)
+	_good_pos_t += delta
+	if _good_pos_t >= GOOD_POS_INTERVAL:
+		_good_pos_t = 0.0
+		var grounded := false
+		if body == player:
+			grounded = player.is_on_floor()
+		else:
+			for w in body.get_children():
+				if w is VehicleWheel3D and (w as VehicleWheel3D).is_in_contact():
+					grounded = true
+					break
+		if grounded and body.global_position.y > VOID_Y:
+			_good_pos.append(body.global_position)
+			while _good_pos.size() > GOOD_POS_RING:
+				_good_pos.remove_at(0)
+	if body.global_position.y < VOID_Y and not _good_pos.is_empty():
+		var pos := body.global_position
+		var ck := "%d,%d" % [int(floor(pos.x / ProtoWorldStream.CHUNK)), int(floor(pos.z / ProtoWorldStream.CHUNK))]
+		var chunk_loaded: bool = stream != null and stream.loaded.has(ck)
+		var chunk_kids: int = (stream.loaded[ck].get_child_count() if (chunk_loaded and stream.loaded[ck] != null) else -1)
+		var spd := 0.0
+		if body is RigidBody3D:
+			spd = (body as RigidBody3D).linear_velocity.length()
+		elif body is CharacterBody3D:
+			spd = (body as CharacterBody3D).velocity.length()
+		# rule 6: the self-report — grep 'VOIDNET' in any log or the toast history
+		print("VOIDNET: fell at %s chunk=%s loaded=%s kids=%d speed=%.1f mode=%s" % [pos, ck, chunk_loaded, chunk_kids, spd, mode])
+		var rescue: Vector3 = _good_pos[0] + Vector3(0, 0.6, 0)
+		body.global_position = rescue
+		if body is RigidBody3D:
+			(body as RigidBody3D).linear_velocity = Vector3.ZERO
+			(body as RigidBody3D).angular_velocity = Vector3.ZERO
+		elif body is CharacterBody3D:
+			(body as CharacterBody3D).velocity = Vector3.ZERO
+		hud.toast("⚠ the ground gave way — hauled back")
+	# NPC bodies below the void are simply freed (their systems re-materialize them)
+	_void_npc_t += delta
+	if _void_npc_t >= 2.0:
+		_void_npc_t = 0.0
+		for c in cars:
+			if c != null and is_instance_valid(c) and c != active_car and c.global_position.y < VOID_Y:
+				c.queue_free()
+		for t in get_tree().get_nodes_in_group("threat"):
+			if t is Node3D and is_instance_valid(t) and (t as Node3D).global_position.y < VOID_Y:
+				t.queue_free()
+
+
 func _physics_process(delta: float) -> void:
+	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
@@ -1437,9 +1531,14 @@ func _update_soundscape(delta: float) -> void:
 ## Which bed the moment calls for: night owns the dark, town owns Meridian,
 ## the biome owns the rest.
 func _ambient_bed() -> String:
+	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
+	# THE CHOIR SUPPRESSION (THE_INFECTED §3.3 / LWE): inside a Choir zone the
+	# wildlife bed DIES — the deepest silence in the game is a place. Never
+	# explain why (§20).
+	if ProtoCarousel.choir_zone_at(pos):
+		return ""
 	if daynight != null and daynight.is_dark():
 		return "amb_night"
-	var pos := active_car.global_position if (mode == Mode.DRIVE and active_car) else player.global_position
 	if pos.x > 35.0 and pos.x < 190.0 and pos.z < -230.0 and pos.z > -380.0:
 		return "amb_town" # Meridian's box (same rect the location label reads)
 	var biome: String = stream.biome_at(pos) if stream != null else "scrub"
@@ -1780,6 +1879,23 @@ func set_map_course(label: String, pos: Vector3) -> void:
 	waypoint_idx = waypoints.size() - 1
 	hud.toast("🧭 Course set: %s" % label)
 	audio.play_ui("blip", -4.0)
+	# THE GPS READOUT (AMERICAN_ROAD M1 — road_graph's sanctioned consumer per
+	# 0.16: addresses before traffic). Fastest route off the baked junctions.
+	if road_graph == null and stream != null and stream.usmap != null and stream.usmap.ok:
+		road_graph = ProtoRoadGraph.build(stream.usmap)
+	if road_graph != null and player != null:
+		var rt := road_graph.route(Vector2(player.global_position.x, player.global_position.z),
+			Vector2(pos.x, pos.z))
+		if not rt.is_empty() and not (rt["roads"] as Array).is_empty():
+			# THE ADDRESS LAW (M3): the GPS speaks in exits — "MIAMI — I-95 EXIT 21".
+			var addr := ""
+			if stream != null and stream.usmap != null:
+				for e in stream.usmap.exits:
+					if (e["dest"] as Vector2).distance_to(Vector2(pos.x, pos.z)) < 400.0:
+						addr = " — EXIT %d %s" % [int(e["exit_number"]), String(e["name"])]
+						break
+			hud.toast("🛣 via %s%s — ~%d min" % [String(rt["text"]), addr,
+				maxi(1, int(ceil(float(rt["time_s"]) / 60.0)))])
 
 
 ## The bounty tick: notice the kill the moment it happens; the waypoint keeps
@@ -3065,6 +3181,26 @@ func _on_death() -> void:
 ## stays where it died — go get it. Dogs, lit nodes, respect, the clock: all persist.
 func respawn_at_home() -> void:
 	deaths += 1
+	# THE CLONE WAKE (CLONING.md C1 — THE MEMORY LAW): with a backup banked you
+	# wake AT THE SCAN as the person who sat the chair — everything learned
+	# since is gone from your head; the journal remembers what you don't. The
+	# wasteland still takes its cut (dying is never free).
+	if cloning != null and cloning.has_backup():
+		var lost_scrap2: int = int(backpack.count("scrap") * 0.4)
+		var lost_jack2: int = int(backpack.count("scrip") * 0.3)
+		if lost_scrap2 > 0:
+			backpack.remove("scrap", lost_scrap2)
+		if lost_jack2 > 0:
+			backpack.remove("scrip", lost_jack2)
+		mode = Mode.FOOT
+		active_car = null
+		player.is_active = true
+		player.dead_vis = false
+		player.global_position = cloning.wake()
+		if cam_rig != null:
+			cam_rig.target = player
+		hud.hide_death()
+		return
 	character.revive()
 	# The toll: the wasteland scavenges a cut of what you were carrying.
 	var lost_scrap: int = int(backpack.count("scrap") * 0.4)
@@ -3606,7 +3742,7 @@ func save_game() -> Dictionary:
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"objectives": objectives.to_record() if objectives != null else {},
 		"deaths": deaths,
-		"weather": weather.state if weather != null else "clear",
+		"weather": weather.serialize() if weather != null else {}, # W-track: the whole FIELD rides (old saves held a bare string — load tolerates both)
 		"event": {"today": events.today_event, "war": events.war_state} if events != null else {},
 		"crew": _crew_records(),
 		"metaworld": metaworld.records.duplicate(true) if metaworld != null else [],
@@ -3618,6 +3754,12 @@ func save_game() -> Dictionary:
 		# FURNITURE DRAG (prototype 2026-07-08): where you've dragged the TV (and any
 		# future furniture) — keyed by furniture_id so a moved set stays moved on reload.
 		"furniture": _furniture_records(),
+		# THE POPULATION LEDGER (P0): the 500m count cells ride the one file.
+		"population": population.serialize() if population != null else {},
+		# THE CHAIR (CLONING C1): the backup + the journal survive everything.
+		"cloning": cloning.serialize() if cloning != null else {},
+		# THE EMPIRE LEDGER (FAMILY_EMPIRE 0.1): ownership lives ONLY here.
+		"empire": empire.serialize() if empire != null else {},
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -3720,6 +3862,13 @@ func apply_save(data: Dictionary) -> void:
 	stress = float(data.get("stress", 0.0))
 	bleeding = int(data.get("bleeding", 0))
 	respect.ledger = (data.get("respect", {}) as Dictionary).duplicate(true)
+	if population != null:
+		population.restore(data.get("population", {})) # the count ledger rides the one file
+		_last_pop_hr = -1.0 # re-anchor the hourly tick to the restored clock
+	if cloning != null:
+		cloning.restore(data.get("cloning", {})) # the backup + journal survive the file too
+	if empire != null:
+		empire.restore(data.get("empire", {})) # the pitch ledger rides too
 	for id in data.get("carousel", []):
 		carousel.set_active(String(id))
 	var gj: Dictionary = data.get("garages", {})
@@ -3747,7 +3896,12 @@ func apply_save(data: Dictionary) -> void:
 		objectives.from_record(data.get("objectives", {}))
 	deaths = int(data.get("deaths", 0))
 	if weather != null and data.has("weather"):
-		weather.restore(String(data["weather"])) # the sky you saved under
+		# the sky you saved under — old saves hold a bare string, W-track saves
+		# hold the whole field {state, systems}; tolerate both (the .get law)
+		if data["weather"] is Dictionary:
+			weather.restore_field(data["weather"] as Dictionary)
+		else:
+			weather.restore(String(data["weather"]))
 	if events != null:
 		var ev: Dictionary = data.get("event", {})
 		events.today_event = String(ev.get("today", ""))
@@ -4055,6 +4209,7 @@ func _update_pirates(delta: float) -> void:
 ## torso empties your lungs. Heal, and the body straightens back out.
 var created_limp: String = "" ## character-creation's permanent bad leg
 var _last_hunger_hr: float = -1.0
+var _last_pop_hr: float = -1.0 ## population ledger hourly-tick anchor (same pattern as hunger)
 var _limp_announced: String = "∅"
 func _sync_wound_effects() -> void:
 	# LEGS → the limp you can SEE + the speed you can FEEL.
@@ -4073,15 +4228,30 @@ func _sync_wound_effects() -> void:
 	if player.puppet:
 		player.puppet.aim_wobble = character.aim_wobble()
 	# TORSO + HUNGER → stamina regen tax (stress already throttles; these stack).
-	player.wound_regen_mult = character.wound_stamina_mult() * character.hunger_stamina_mult()
-	# HUNGER drains on the game clock; the belly reports to the moodle column.
+	# BITE FEVER (THE_INFECTED §3.6): the body burns fighting it — regen ×0.75.
 	var hhr: float = daynight.hour + float(daynight.day) * 24.0
+	var fevered: bool = character.fever_active(hhr)
+	player.wound_regen_mult = character.wound_stamina_mult() * character.hunger_stamina_mult() \
+		* (float(ProtoInfected.fever_row.get("stam_mult", 0.75)) if fevered else 1.0)
+	# HUNGER drains on the game clock; the belly reports to the moodle column.
 	if _last_hunger_hr < 0.0:
 		_last_hunger_hr = hhr
 	elif hhr > _last_hunger_hr:
-		character.hunger_tick(hhr - _last_hunger_hr)
+		# fever tax: hunger drains ×1.3 while it runs (+0.84/gh over the 2.8 base)
+		character.hunger_tick((hhr - _last_hunger_hr) * (float(ProtoInfected.fever_row.get("hunger_mult", 1.3)) if fevered else 1.0))
 		_last_hunger_hr = hhr
 	hud.set_condition("hungry", character.hunger_tier())
+	if cloning != null:
+		cloning.tick() # the chair finishes on the clock (CLONING C1)
+	# POPULATION LEDGER: presence stamps the player's cell (the unseen-refill
+	# gate reads it); the refill tick walks known cells once per game hour.
+	if population != null and player != null:
+		population.mark_seen(player.global_position)
+		if _last_pop_hr < 0.0:
+			_last_pop_hr = hhr
+		elif hhr - _last_pop_hr >= 1.0:
+			population.tick(hhr - _last_pop_hr)
+			_last_pop_hr = hhr
 
 
 func _watch_crash_wounds() -> void:
@@ -4143,6 +4313,12 @@ func enter_car(car: ProtoCar3D) -> void:
 	mode = Mode.DRIVE
 	active_car = car
 	car.is_active = true
+	# AN ACTIVE CAR NEVER SLEEPS (visibility_sim regression): a parked-still
+	# body falls asleep and a sleeping body's _physics_process stops — which
+	# froze the whole living-car feedback loop (misfire cough, battery flicker,
+	# wear reads) for a driver who hadn't touched the gas yet.
+	car.can_sleep = false
+	car.sleeping = false
 	audio.play_at("car_door", car.global_position, -6.0)
 	# THE IGNITION (goal): sitting down doesn't start anything. Keyless junkers and your
 	# own keys turn over on the first throttle; a keyed car you broke into needs the
@@ -4256,6 +4432,7 @@ func _exit_car() -> void:
 	if active_car.ai_driver == null:
 		active_car.is_active = false # an AI-driven ride keeps ROLLING — you just got off
 		active_car.engine_on = false # ...and the ENGINE DIES with the door (start/stop law)
+		active_car.can_sleep = true # parked and empty may sleep again (the perf default)
 	passenger_of_ai = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
 	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3

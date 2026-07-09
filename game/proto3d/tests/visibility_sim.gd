@@ -66,6 +66,12 @@ func _ready() -> void:
 	var car: ProtoCar3D = main.cars[0]
 	main.enter_car(car)
 	car.components["engine"].hp = car.components["engine"].max_hp * 0.2
+	# REGRESSION GUARDS this check carries (both were silent for months):
+	# (1) an ACTIVE car must never sleep — a sleeping body's _physics_process
+	#     stops and freezes the whole living-car feedback loop (enter_car now
+	#     sets can_sleep=false); (2) the warn's main-resolution must survive
+	#     staging containers (TestGrounds adopted the spawn car — the misfire
+	#     fired forever without ever setting _misfire_warned).
 	var t := 0.0
 	while t < 12.0 and not car._misfire_warned:
 		await get_tree().physics_frame

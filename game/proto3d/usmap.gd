@@ -29,6 +29,7 @@ var placements: Array = []        ## AUTHORED LAYER (MapForge v2): [{id, buildin
 ## [{id, highway_id, exit_number, name, archetype, community_tier, service_tags,
 ##   risk_rating, has_return_ramp, pos: Vector2 (ON the highway), dest: Vector2}]
 var exits: Array = []
+var junctions: Array = [] ## baked junction rows (AMERICAN_ROAD M1 schema 0.2)
 
 
 static func get_default() -> ProtoUSMap:
@@ -76,6 +77,9 @@ func load_file(path: String) -> bool:
 			"danger": int(r.get("danger", 1 if kind == "interstate" else 0)),
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
+			"side": int(r.get("side", 0)), # exit ramps: +1 along the highway's pts order, -1 against (0.18b)
+			"surface": String(r.get("surface", "asphalt")), # 0.17: asphalt|concrete|gravel|dirt
+			"leads_to": (r.get("leads_to", {}) as Dictionary).duplicate(), # dirt spurs: the payload law (0.19)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
 	rivers = d.get("rivers", [])
 	towns.clear()
@@ -87,7 +91,8 @@ func load_file(path: String) -> bool:
 	placements.clear()
 	for p in d.get("placements", []):
 		placements.append({"id": p.get("id", ""), "building": p.get("building", ""),
-			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0))})
+			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0)),
+			"label": String(p.get("label", ""))}) # M4b: the water tower says the TOWN's name
 	exits.clear()
 	for e in d.get("exits", []):
 		if not (e is Dictionary) or not (e as Dictionary).has("pos"):
@@ -99,8 +104,25 @@ func load_file(path: String) -> bool:
 			"service_tags": (e.get("service_tags", []) as Array).duplicate(),
 			"risk_rating": int(e.get("risk_rating", 1)),
 			"has_return_ramp": bool(e.get("has_return_ramp", false)),
+			"ramp_ids": (e.get("ramp_ids", []) as Array).duplicate(), # 0.5: the dead-code fix — resolution by ids, never name patterns
+			"town_id": String(e.get("town_id", "")),
+			"known_to_player": bool(e.get("known_to_player", false)),
 			"pos": Vector2(float(e["pos"][0]), float(e["pos"][1])),
 			"dest": Vector2(float(e.get("dest", e["pos"])[0]), float(e.get("dest", e["pos"])[1]))})
+	# THE JUNCTION TABLE (AMERICAN_ROAD M1, schema 0.2): baked by MapForge
+	# (tools/mapforge/bake_junctions.mjs), folded typed here, verified at load.
+	# gap_half is DERIVED (0.3) via junction_gap_half(), never stored.
+	junctions.clear()
+	for j in d.get("junctions", []):
+		if not (j is Dictionary) or not (j as Dictionary).has("pos"):
+			continue
+		var legs: Array = []
+		for l in j.get("legs", []):
+			legs.append({"road": String((l as Dictionary).get("road", "")),
+				"arc_m": float((l as Dictionary).get("arc_m", 0.0))})
+		junctions.append({"id": String(j.get("id", "")), "kind": String(j.get("kind", "cross")),
+			"grade": String(j.get("grade", "flat")), "control": String(j.get("control", "none")),
+			"pos": Vector2(float(j["pos"][0]), float(j["pos"][1])), "legs": legs})
 	ok = w > 0 and h > 0 and grid.size() == h
 	return ok
 
@@ -124,6 +146,74 @@ func exits_in(rect: Rect2) -> Array:
 		if rect.has_point(e["pos"]):
 			out.append(e)
 	return out
+
+
+## Baked junction rows whose node falls inside a chunk's box (the streamer gaps
+## barriers + paints the intersection slab off these — AMERICAN_ROAD M1).
+func junctions_in(rect: Rect2) -> Array:
+	var out: Array = []
+	for j in junctions:
+		if rect.has_point(j["pos"]):
+			out.append(j)
+	return out
+
+
+func road_by_id(rid: String) -> Dictionary:
+	for r in roads:
+		if String(r["id"]) == rid:
+			return r
+	return {}
+
+
+## THE GAME-MILE (ADDRESS LAW 0.1): mile markers use the SAME constant the exit
+## renumber used, so EXIT N stands near MILE N — the real American invariant.
+const EXIT_MILE_M := 2395.0
+
+
+## Arc-length along a road measured from its SOUTH/WEST origin (AASHTO — the
+## bake's arcFromOrigin, mirrored so signs and exits agree).
+func arc_from_origin(road: Dictionary, pos: Vector2) -> float:
+	var pts: Array = road["pts"]
+	var total := 0.0
+	var best_d := 1e18
+	var best_arc := 0.0
+	var arc := 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var l := (b - a).length()
+		var t := clampf((pos - a).dot(b - a) / maxf(l * l, 0.001), 0.0, 1.0)
+		var d := (a + (b - a) * t).distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best_arc = arc + t * l
+		arc += l
+	total = arc
+	var p0: Vector2 = pts[0]
+	var pn: Vector2 = pts[pts.size() - 1]
+	var origin_at_start: bool = (p0.y > pn.y) if absf(pn.y - p0.y) >= absf(pn.x - p0.x) else (p0.x < pn.x)
+	return best_arc if origin_at_start else total - best_arc
+
+
+## THE GAP FORMULA (0.3, derived never stored): the barrier gap a junction opens
+## in road_id's median = half the CROSS road's full width + 6 m each side.
+## Worked (the sim asserts it): I-80 tee onto I-95 (6-lane divided, 27.2 m wide)
+## -> 13.6 + 6.0 = 19.6 m each side, a 39.2 m mouth. Returns 0.0 when the
+## junction doesn't gap this road (riro ramps NEVER open the median — 0.2).
+func junction_gap_half(j: Dictionary, road_id: String) -> float:
+	if String(j.get("control", "none")) != "gap":
+		return 0.0
+	var cross_id := ""
+	for l in j.get("legs", []):
+		if String(l["road"]) != road_id:
+			cross_id = String(l["road"])
+			break
+	if cross_id == "":
+		return 0.0
+	var cross_road := road_by_id(cross_id)
+	if cross_road.is_empty():
+		return 0.0
+	return float(ProtoUSMap.road_geometry(cross_road)["width"]) * 0.5 + 6.0
 
 
 func cell_of(x: float, z: float) -> Vector2i:
@@ -198,6 +288,7 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+					"surface": String(road.get("surface", "asphalt")),
 					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 	return best
 
@@ -222,6 +313,7 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 				"a": pts[best_i], "b": pts[best_i + 1],
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+				"surface": String(road.get("surface", "asphalt")),
 				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
 	return out
 

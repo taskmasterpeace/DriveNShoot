@@ -365,7 +365,8 @@ func to_record() -> Dictionary:
 	var sk: Dictionary = {}
 	for id in skills:
 		sk[id] = {"xp": skills[id]["xp"], "level": skills[id]["level"]}
-	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead, "hunger": hunger}
+	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead, "hunger": hunger,
+		"fever_until_h": fever_until_h}
 
 
 func from_record(rec: Dictionary) -> void:
@@ -379,6 +380,30 @@ func from_record(rec: Dictionary) -> void:
 	dead = bool(rec.get("dead", false))
 	hp = clampf(float(rec.get("hp", 100.0)), 0.0, hp_cap())
 	hunger = clampf(float(rec.get("hunger", 100.0)), 0.0, 100.0) # was leaking — starving loaded back full
+	fever_until_h = float(rec.get("fever_until_h", -1.0)) # old saves load clean (the .get law)
+
+
+# --- BITE FEVER (THE_INFECTED.md §3.6 — sepsis, NEVER transformation; that is
+# all the game will ever say). 36 game-hours; taxes ride the survival stack;
+# the cure is a night's sleep PLUS antibiotics — a medkit treats the wound,
+# never the fever. Scan consumers (checkpoints, clone clinics) arrive at I2. ---
+
+var fever_until_h: float = -1.0
+
+
+func bite_fever(now_h: float) -> void:
+	fever_until_h = maxf(fever_until_h, now_h + float(ProtoInfected.fever_row.get("hours", 36.0)))
+
+
+func fever_active(now_h: float) -> bool:
+	return fever_until_h > 0.0 and now_h < fever_until_h
+
+
+func try_cure_fever(slept_full_night: bool, used_antibiotics: bool) -> bool:
+	if slept_full_night and used_antibiotics:
+		fever_until_h = -1.0
+		return true
+	return false
 
 
 func worst_part() -> String:

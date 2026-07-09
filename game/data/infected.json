@@ -1,0 +1,91 @@
+{
+ "_comment": "THE INFECTED (docs/design/THE_INFECTED.md) \u2014 variants as tag bundles, additive fold on the ProtoInfected code floor. I1 ships the SHAMBLER only; sprinter/echo/choir rows land at I2 per the arc. Voice is NULLSPEECH murmur (0.12 \u2014 inf_moan is dead).",
+ "variants": [
+  {
+   "id": "shambler",
+   "share": 0.9935,
+   "hp": 26,
+   "claw": 8.0,
+   "claw_cd": 1.4,
+   "speed_mps": 1.1,
+   "lock_speed_mps": 1.6,
+   "senses": {
+    "sight_r": 0.0,
+    "ear_r": 0.0,
+    "heat_r": 0.0
+   },
+   "tags": [
+    "infected",
+    "blind",
+    "medium"
+   ],
+   "verbs": [],
+   "puppet": {
+    "skin": [
+     0.62,
+     0.58,
+     0.52
+    ],
+    "cloth": [
+     0.3,
+     0.28,
+     0.24
+    ],
+    "gait": 0.6,
+    "build": 0.72
+   },
+   "motion": "infected_shuffle",
+   "voice": {
+    "idle": "inf_murmur",
+    "cooldown_s": [
+     12,
+     30
+    ]
+   }
+  }
+ ],
+ "herds": {
+  "size_band": [
+   6,
+   20
+  ],
+  "realize_band": [
+   8,
+   16
+  ],
+  "zone_mods": {
+   "military_perimeter": {
+    "sprinter_share_mult": 4.0
+   },
+   "carousel_site": {
+    "choir": 1
+   }
+  }
+ },
+ "choir": {
+  "choir_r": 650.0,
+  "anchor_sources": [
+   "carousel_bases"
+  ],
+  "K_anchor": 0.7,
+  "D_corpse": 0.1,
+  "K_herd": 0.08,
+  "DECAY": 0.02,
+  "DYN_CAP": 0.55,
+  "aura": {
+   "r": 30.0,
+   "speed_mult": 1.25
+  },
+  "hum_r": 45.0,
+  "static_halt": {
+   "r": 25.0,
+   "s": 2.5,
+   "cd": 10.0
+  }
+ },
+ "fever": {
+  "hours": 36.0,
+  "stam_mult": 0.75,
+  "hunger_mult": 1.3
+ }
+}

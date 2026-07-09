@@ -46,7 +46,7 @@ Justification: `ProtoUSMap.cell_m = 500.0` (the macro biome/state grid already u
 - `last_seen_time`, `last_noise_time`, `last_cleared_time` — game-clock seconds (`daynight` clock, matching the existing `ProtoDayNight` timebase other systems already read).
 - `protected` — true for safehouse cells (3.2), true for the AUTHORED Meridian zone (`world_stream.AUTHORED` rect — hand-built content is never overwritten by ecology), settable by future "secure this area" gameplay (fence + generator, out of scope here but the flag is ready for it).
 
-**Desired population by zone_tag** lives in a new data row file `data/population_targets.json` (§11's own naming, promoted from "open question" to a real file):
+**Desired population by zone_tag** lives in a new data row file `data/population_targets.json` (§11's own naming, promoted from "open question" to a real file). *(THE_INFECTED.md I2: `GROUPS` gains `infected` and this file gains its rows + 3 new zone_tags — parallel keys, no collision with `controlling_faction`/`current_pop`, per the LWE parallel-keys law.)*:
 
 ```json
 {

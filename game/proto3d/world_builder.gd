@@ -47,9 +47,14 @@ const TOWN_FLAT_M := 150.0
 const TOWN_FADE_M := 110.0
 ## Per-STATE relief (0 = Florida-flat … 1 = Colorado). A dict IS the data row (v1);
 ## graduating it to a usmap.json field + a MapForge painter is the banked follow-up.
+## M0 FIX (AMERICAN_ROAD): the old 0.2 fallback rolled ~4.8 m hills onto FLORIDA
+## swamp — the flat South is now EXPLICIT rows, and the unknown-state fallback
+## stays 0.2 only for the un-rowed interior.
 const STATE_RELIEF: Dictionary = {
 	"COLORADO": 1.0, "UTAH": 0.8, "NEVADA": 0.6, "CALIFORNIA": 0.5,
 	"KENTUCKY": 0.35, "VIRGINIA": 0.3, "MISSOURI": 0.15, "KANSAS": 0.05,
+	"FLORIDA": 0.0, "LOUISIANA": 0.02, "MISSISSIPPI": 0.05, "ALABAMA": 0.1,
+	"GEORGIA": 0.12, "TEXAS": 0.15,
 }
 static var _relief_noise: FastNoiseLite = null
 
@@ -352,10 +357,19 @@ static var usmap: ProtoUSMap = null
 static func surface_at(pos: Vector3) -> String:
 	for r in ROAD_RECTS:
 		if _in_rect(pos, r):
-			return "road"
+			return "road" # the authored slab is asphalt
 	for rects in extra_road_rects.values():
 		for r in rects:
 			if _in_rect(pos, r):
+				# M3b (0.17): the rect carries its row's surface — asphalt reads
+				# "road" (full grip), GRAVEL and DIRT report themselves so the
+				# tire law can price them.
+				if (r as Array).size() > 5:
+					var s := String(r[5])
+					if s == "gravel":
+						return "gravel"
+					if s == "dirt":
+						return "dirt_road"
 				return "road"
 	if usmap != null and usmap.ok:
 		var biome := usmap.biome_at(pos)
@@ -365,10 +379,13 @@ static func surface_at(pos: Vector3) -> String:
 
 
 static func _in_rect(pos: Vector3, r: Array) -> bool:
+	# M1 yaw fix: the standard world→local inverse for a yaw-φ box whose local
+	# +Z maps to (sinφ, cosφ) — the old form carried the same Z-reflection the
+	# road slabs did (they matched each other, both mirrored on diagonals).
 	var dx: float = pos.x - r[0]
 	var dz: float = pos.z - r[1]
-	var c: float = cos(-r[4])
-	var s: float = sin(-r[4])
+	var c: float = cos(r[4])
+	var s: float = sin(r[4])
 	return absf(dx * c - dz * s) <= r[2] and absf(dx * s + dz * c) <= r[3]
 
 
@@ -414,7 +431,7 @@ static func build_world(root: Node3D) -> Dictionary:
 	# Diagonal from highway edge (x=8, z=-235) down to the town street (x=52, z=-280).
 	var ramp_dir := Vector2(52.0 - 8.0, -280.0 + 235.0) # (44, -45)
 	var ramp_len := ramp_dir.length() + 12.0
-	var ramp_ang := atan2(ramp_dir.x, -ramp_dir.y) # rotation around Y for a Z-aligned box
+	var ramp_ang := atan2(ramp_dir.x, ramp_dir.y) # Z-aligned box yaw (M1 fix: was Z-reflected — the ramp drew mirrored)
 	box_visual(world, Vector3(9, 0.05, ramp_len), Vector3(30, 0.07, -257.5), COL_ROAD, ramp_ang)
 
 	# --- Meridian: street grid ---------------------------------------------
@@ -437,20 +454,26 @@ static func build_world(root: Node3D) -> Dictionary:
 	sign_label.rotation.y = -PI / 2.0
 	sign_root.add_child(sign_label)
 
-	# --- Filler houses (solid, not enterable) -------------------------------
-	var fillers: Array = [
-		[Vector3(60, 0, -310), Vector3(10, 5, 8), COL_HOUSE_A],
-		[Vector3(62, 0, -268), Vector3(9, 4, 9), COL_HOUSE_B],
-		[Vector3(110, 0, -268), Vector3(12, 4.5, 8), COL_HOUSE_A],
-		[Vector3(140, 0, -312), Vector3(9, 5, 9), COL_HOUSE_B],
-		[Vector3(64, 0, -335), Vector3(8, 4, 8), COL_HOUSE_A],
-	]
-	for f in fillers:
-		var fpos: Vector3 = f[0]
-		var fsize: Vector3 = f[1]
-		var fcol: Color = f[2]
-		box_body(world, fsize, fpos + Vector3(0, fsize.y / 2.0, 0), fcol)
-		box_body(world, Vector3(fsize.x + 0.6, 0.3, fsize.z + 0.6), fpos + Vector3(0, fsize.y + 0.15, 0), COL_ROOF)
+	# --- MERIDIAN: THE PROVING GROUND (owner order 2026-07-09: "redo meridian so
+	# it includes all the testing elements"). The filler boxes are gone; every
+	# building is a structure-profile ROW placed via usmap placements — this is
+	# ProtoStructureBuilder's FIRST world consumer (created ≠ placed, until now).
+	# New testing element = a catalog row + a placement row. Never code.
+	var um := ProtoUSMap.get_default()
+	if um != null and um.ok:
+		DrivnData.ensure_structures()
+		for p in um.placements_in(ProtoWorldStream.AUTHORED):
+			var sid := String(p.get("building", ""))
+			if not DrivnData.structures.has(sid):
+				continue # hand-built ids (the safehouse) stay hand-built; warn-not-crash
+			var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+			if shell == null:
+				continue
+			world.add_child(shell)
+			shell.position = Vector3(float(p["pos"][0]), 0.0, float(p["pos"][1]))
+			shell.rotation.y = float(p.get("rot", 0.0))
+			shell.set_meta("placement_id", String(p.get("id", sid)))
+			shell.add_to_group("placement")
 
 	# --- Wrecks along the highway shoulder (Divided States flavor) --------------
 	var wrecks: Array = [

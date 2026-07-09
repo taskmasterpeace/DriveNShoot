@@ -35,6 +35,7 @@ const FOOTPRINT_NAMES: Array = ["small_rect", "medium_rect", "large_rect", "comp
 @export var faction_overrides: Array = []
 @export var power_required: bool = false
 @export var can_be_safehouse: bool = false
+@export var profit_day: float = 0.0 ## THE BUSINESS BLOCK (FAMILY_EMPIRE 0.1): scrip/game-day the world says this place makes; 0 = not a business
 
 
 static func from_dict(d: Dictionary) -> DrivnStructure:
@@ -61,6 +62,7 @@ static func from_dict(d: Dictionary) -> DrivnStructure:
 	s.faction_overrides = (d.get("faction_overrides", []) as Array).duplicate()
 	s.power_required = bool(d.get("power_required", false))
 	s.can_be_safehouse = bool(d.get("can_be_safehouse", false))
+	s.profit_day = float(d.get("profit_day", 0.0))
 	return s
 
 

@@ -399,8 +399,8 @@ func fire_from_seat(side: String, main: Node, aim_dir: Vector3) -> bool:
 	# fire_from_vehicle() already uses for the car's driver window.
 	var origin: Vector3 = (global_transform * seat_pos) + fired_dir * (_body_radius + 0.3)
 	if w.fire(main, origin, fired_dir):
-		if "emit_noise" in main or main.has_method("emit_noise"):
-			main.emit_noise(origin, 40.0, "gunfire")
+		# (the bespoke 40 m emitter retired — ProtoWeapon.fire() now announces
+		# EVERY shot at the unified 60 m; THE_INFECTED 0.14)
 		return true
 	return false
 
