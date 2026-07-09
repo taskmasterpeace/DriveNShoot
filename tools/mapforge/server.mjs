@@ -343,6 +343,13 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/placements" && req.method === "POST") {
 			if (!body.building || !Array.isArray(body.pos))
 				return json(res, 400, { error: "need building and pos:[wx,wz]" });
+			// M0 placement-id validation (AMERICAN_ROAD): the id must be a structure
+			// catalog row, a known migration alias, or a legacy massing-box id —
+			// anything else is a typo the game would silently box-fallback forever.
+			const LEGACY = new Set(["safehouse", "gas_station", "ruined_house", "market_stall"]);
+			const catalog = new Set((structDoc.structures || []).map((s) => s.id));
+			if (!catalog.has(body.building) && !LEGACY.has(body.building))
+				return json(res, 400, { error: `unknown building '${body.building}' — not in structure_profiles.json (${catalog.size} rows) or the legacy set`, known: [...catalog].sort() });
 			const id = body.id || `${body.building}-${map.placements.length + 1}`;
 			map.placements = map.placements.filter((p) => p.id !== id);
 			map.placements.push({ id, building: body.building, pos: body.pos, rot: Number(body.rot || 0) });

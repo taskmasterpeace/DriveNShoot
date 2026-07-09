@@ -855,7 +855,7 @@
     "commercial_strip",
     "roadside"
    ],
-   "footprint": "custom",
+   "footprint": "medium_rect",
    "footprint_m": [
     14,
     10
@@ -901,7 +901,7 @@
    "districts": [
     "commercial_strip"
    ],
-   "footprint": "custom",
+   "footprint": "small_rect",
    "footprint_m": [
     8,
     8
@@ -945,7 +945,7 @@
    "districts": [
     "commercial_strip"
    ],
-   "footprint": "custom",
+   "footprint": "medium_rect",
    "footprint_m": [
     12,
     10
@@ -990,7 +990,7 @@
     "civic",
     "residential"
    ],
-   "footprint": "custom",
+   "footprint": "medium_rect",
    "footprint_m": [
     16,
     12
@@ -1033,7 +1033,7 @@
    "districts": [
     "commercial_strip"
    ],
-   "footprint": "custom",
+   "footprint": "large_rect",
    "footprint_m": [
     14,
     14
@@ -1082,7 +1082,7 @@
     "roadside",
     "edge"
    ],
-   "footprint": "custom",
+   "footprint": "compound",
    "footprint_m": [
     36,
     30
@@ -1126,7 +1126,7 @@
    "districts": [
     "edge"
    ],
-   "footprint": "custom",
+   "footprint": "landmark",
    "footprint_m": [
     60,
     20
@@ -1169,7 +1169,7 @@
    "districts": [
     "commercial_strip"
    ],
-   "footprint": "custom",
+   "footprint": "medium_rect",
    "footprint_m": [
     10,
     10
@@ -1212,7 +1212,7 @@
    "districts": [
     "commercial_strip"
    ],
-   "footprint": "custom",
+   "footprint": "medium_rect",
    "footprint_m": [
     10,
     10
@@ -1255,7 +1255,7 @@
    "districts": [
     "edge"
    ],
-   "footprint": "custom",
+   "footprint": "small_rect",
    "footprint_m": [
     8,
     8
@@ -1284,6 +1284,121 @@
    "power_required": false,
    "can_be_safehouse": false,
    "danger": 3
+  },
+  {
+   "id": "ruined_house",
+   "category": "residential",
+   "display_name": "Ruined House",
+   "sign_glyph": "🏚",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3",
+    "T4"
+   ],
+   "districts": [
+    "residential",
+    "roadside"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    8,
+    8
+   ],
+   "floors": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "loot_table": "corpse",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "evidence",
+    "stash",
+    "squatter"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 2
+  },
+  {
+   "id": "market_stall",
+   "category": "commercial",
+   "display_name": "Stall",
+   "sign_glyph": "🏪",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3",
+    "T4"
+   ],
+   "districts": [
+    "commercial_strip",
+    "roadside"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    4,
+    3
+   ],
+   "floors": 1,
+   "enterable": false,
+   "entrances": [],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [
+    "trader"
+   ],
+   "law_hooks": [],
+   "event_hooks": [
+    "rumor",
+    "trade"
+   ],
+   "faction_overrides": [
+    "paint"
+   ],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 0
+  },
+  {
+   "id": "safehouse",
+   "category": "residential",
+   "display_name": "Safehouse",
+   "sign_glyph": "🏠",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3",
+    "T4"
+   ],
+   "districts": [
+    "residential"
+   ],
+   "footprint": "medium_rect",
+   "footprint_m": [
+    10,
+    12
+   ],
+   "floors": 2,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "stash"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": true,
+   "danger": 1
   }
  ]
 }

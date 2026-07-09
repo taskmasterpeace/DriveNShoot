@@ -517,13 +517,29 @@ func _spawn_pop_actor(group: String, _pos: Vector3) -> Node:
 			return null
 
 
-## Build one authored structure (a placeholder massing box, sized by building type)
-## at its exact world position, tagged so systems + tests can find it.
+## Build one authored structure at its exact world position, tagged so systems
+## + tests can find it. THE MATERIALIZE WIRE (AMERICAN_ROAD M0): ids the catalog
+## knows become REAL shells — signed, chest-seeded, door-gapped — through the
+## one structure builder; unknown ids keep the massing-box fallback (0.7's law:
+## deleting the fallback early turns un-migrated towns into nulls).
+const ID_MIGRATE: Dictionary = {"gas_station": "gas_station_small"} ## legacy usmap ids → catalog rows (M0 migration)
 const PLACEMENT_SIZE: Dictionary = {
 	"safehouse": Vector3(10, 6, 12), "gas_station": Vector3(14, 4, 10),
 	"ruined_house": Vector3(8, 4, 8), "market_stall": Vector3(4, 3, 3),
 }
 func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
+	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
+	DrivnData.ensure_structures()
+	if DrivnData.structures.has(sid):
+		var shell := ProtoStructureBuilder.materialize(sid)
+		if shell != null:
+			shell.add_to_group("placement")
+			shell.set_meta("building", p["building"])
+			shell.set_meta("placement_id", p["id"])
+			chunk.add_child(shell)
+			shell.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
+			shell.rotation.y = float(p.get("rot", 0.0))
+			return
 	var size: Vector3 = PLACEMENT_SIZE.get(p["building"], Vector3(8, 4, 8))
 	var body := StaticBody3D.new()
 	body.add_to_group("placement")

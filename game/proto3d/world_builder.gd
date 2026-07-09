@@ -47,9 +47,14 @@ const TOWN_FLAT_M := 150.0
 const TOWN_FADE_M := 110.0
 ## Per-STATE relief (0 = Florida-flat … 1 = Colorado). A dict IS the data row (v1);
 ## graduating it to a usmap.json field + a MapForge painter is the banked follow-up.
+## M0 FIX (AMERICAN_ROAD): the old 0.2 fallback rolled ~4.8 m hills onto FLORIDA
+## swamp — the flat South is now EXPLICIT rows, and the unknown-state fallback
+## stays 0.2 only for the un-rowed interior.
 const STATE_RELIEF: Dictionary = {
 	"COLORADO": 1.0, "UTAH": 0.8, "NEVADA": 0.6, "CALIFORNIA": 0.5,
 	"KENTUCKY": 0.35, "VIRGINIA": 0.3, "MISSOURI": 0.15, "KANSAS": 0.05,
+	"FLORIDA": 0.0, "LOUISIANA": 0.02, "MISSISSIPPI": 0.05, "ALABAMA": 0.1,
+	"GEORGIA": 0.12, "TEXAS": 0.15,
 }
 static var _relief_noise: FastNoiseLite = null
 
