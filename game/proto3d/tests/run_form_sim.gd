@@ -36,6 +36,7 @@ func _measure(p: ProtoPuppet, v: float) -> Dictionary:
 	var el_max := -1.0e9
 	var torso_x := -1.0e9
 	var foot_x_max := -1.0e9
+	var foot_x_min := 1.0e9 # most toe-DOWN (plantarflex, push-off) this cycle
 	var knee_min := 1.0e9 # most-flexed (most negative) knee this cycle — THE KNEE LAW
 	var knee_max := -1.0e9
 	var guard := 0
@@ -52,6 +53,7 @@ func _measure(p: ProtoPuppet, v: float) -> Dictionary:
 		el_max = maxf(el_max, p.elbow_l.rotation.x)
 		torso_x = maxf(torso_x, p.torso.rotation.x)
 		foot_x_max = maxf(foot_x_max, p.foot_l.rotation.x)
+		foot_x_min = minf(foot_x_min, p.foot_l.rotation.x)
 		knee_min = minf(knee_min, p.knee_l.rotation.x)
 		knee_max = maxf(knee_max, p.knee_l.rotation.x)
 	var step: float = fz_max - fz_min # one foot's per-cycle ground travel = one step length
@@ -62,7 +64,8 @@ func _measure(p: ProtoPuppet, v: float) -> Dictionary:
 	return {
 		"skate": skate, "step": step, "body": body_travel,
 		"bob": bob_max - bob_min, "el_min": el_min, "el_max": el_max,
-		"torso_x": torso_x, "foot_x": foot_x_max, "knee_min": knee_min, "knee_max": knee_max,
+		"torso_x": torso_x, "foot_x": foot_x_max, "foot_min": foot_x_min,
+		"knee_min": knee_min, "knee_max": knee_max,
 	}
 
 
@@ -101,8 +104,13 @@ func _ready() -> void:
 		float(run["knee_min"]) <= -0.9)
 	_check("sprint: the knee NEVER hinges forward (max %.3f <= 0.001)" % float(run["knee_max"]),
 		float(run["knee_max"]) <= 0.001)
-	_check("sprint: the trail foot PUSHES OFF — heel-up plantarflex (foot.x %.2f > 0.2)" % float(run["foot_x"]),
-		float(run["foot_x"]) > 0.2)
+	# ANKLE POLARITY (ANIMATION_FIX_PACK_2 §8.1, D10): push-off is PLANTARFLEX — the toe
+	# drives DOWN (foot rotation.x NEGATIVE), heel up. The swing foot DORSIFLEXES (toe up,
+	# positive) to clear the ground. The old assert wanted foot.x > 0.2 (toes-up push-off).
+	_check("sprint: the trail foot PUSHES OFF toe-DOWN — heel-up plantarflex (foot.x %.2f < -0.2)" % float(run["foot_min"]),
+		float(run["foot_min"]) < -0.2)
+	_check("sprint: the swing foot lifts its toe to CLEAR the ground (foot.x %.2f > 0.1)" % float(run["foot_x"]),
+		float(run["foot_x"]) > 0.1)
 
 	# === 3. A CREEP is NOT a sprint — no locked arms while walking slowly =========
 	var walk := _measure(p, 1.5)

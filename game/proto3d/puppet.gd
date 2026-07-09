@@ -98,7 +98,8 @@ static var MOTION: Dictionary = {
 		"run_lean": 0.22,         # extra forward trunk pitch (rad) at full sprint — the reference's drive
 		"elbow_pump": 1.5,        # locked elbow bend (rad, ~90deg) at sprint; the swing moves to the shoulders
 		"knee_lift_run": 0.6,     # extra swing-leg knee drive (rad) at sprint — the high front knee
-		"ankle_push": 0.5,        # trail-leg plantarflex (rad) on push-off — the heel-up back leg
+		"ankle_push": 0.7,        # trail-leg plantarflex MAGNITUDE (rad) on push-off — the heel-up back leg (code signs it NEGATIVE = toe down; must OVERRIDE the sole-level counter, hence >0.5; ANIMATION_FIX_PACK_2 D10)
+		"swing_toe_up": 0.25,     # swing-leg dorsiflex (rad) — the toe lifts to clear the ground mid-swing (the reference strip's raised forefoot)
 		# TORSO TWIST (owner 2026-07-08: "it turns like a DOORKNOB, not like a
 		# torso"). A turn is led by the CHEST — the shoulder line twists about the
 		# spine while the legs (legs_pivot) track the feet: real shoulder-hip
@@ -619,11 +620,17 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	if _kick_t <= 0.0:
 		var knee_flex_r: float = kr + crouch_knee + (kf * amp + klr) * maxf(0.0, sin(_phase + PI + kph)) * limp_r
 		knee_r.rotation.x = -knee_flex_r
-	# Feet stay roughly level with the ground under the bend; at sprint the TRAIL leg
-	# plantar-flexes on push-off (the reference's heel-up back foot).
+	# ANKLE POLARITY (ANIMATION_FIX_PACK_2 §3.4, D10): the counter keeps the sole level
+	# under the fold; at sprint the TRAIL leg PLANTARFLEXES (toe DOWN, heel driving = the
+	# foot's rotation.x goes NEGATIVE) on push-off, and the SWING leg DORSIFLEXES (toe UP =
+	# positive) to clear the ground. The old code added POSITIVE on the trail leg — a
+	# toes-up push-off, backwards. Rows are magnitudes; the signs are applied here.
 	var apush: float = float(mg["ankle_push"]) * run_blend
-	foot_l.rotation.x = -(knee_l.rotation.x + hip_l.rotation.x) * 0.5 + apush * maxf(0.0, -sin(_phase))
-	foot_r.rotation.x = -(knee_r.rotation.x + hip_r.rotation.x) * 0.5 + apush * maxf(0.0, -sin(_phase + PI))
+	var toe_up: float = float(mg["swing_toe_up"]) * run_blend
+	foot_l.rotation.x = -(knee_l.rotation.x + hip_l.rotation.x) * 0.5 \
+		- apush * maxf(0.0, -sin(_phase)) + toe_up * maxf(0.0, sin(_phase))
+	foot_r.rotation.x = -(knee_r.rotation.x + hip_r.rotation.x) * 0.5 \
+		- apush * maxf(0.0, -sin(_phase + PI)) + toe_up * maxf(0.0, sin(_phase + PI))
 
 	# FREE ARM — natural gait law: each arm counter-swings OPPOSITE its own side's
 	# leg (left arm back when the left leg strides forward). Unless a punch tween
