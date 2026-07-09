@@ -1995,6 +1995,10 @@ func on_npc_attacked(_npc: ProtoNPC, _dmg: float) -> void:
 	respect.add_infamy(ProtoNPC.FACTION, 60.0)
 	stress = minf(100.0, stress + 12.0)
 	notify("🚨 Word spreads fast in Meridian")
+	# THE FUEL ACCORD (F2): the same swing on Accord ground breaks the truce with
+	# EVERY flag — and the posted guards take it personally.
+	if _npc != null and is_instance_valid(_npc):
+		ProtoFuelAccord.report_violence(self, player, _npc.global_position)
 
 
 func _on_respect_changed(faction: String) -> void:
@@ -4160,9 +4164,16 @@ func take_wheel() -> void:
 ## AMBIENT TRAFFIC: now and then, somebody up the road gets in a car and DRIVES —
 ## city to city, on the highway's own bones. The world moves without you.
 func _update_traffic(delta: float) -> void:
+	# THE LEDGER LAW (m1's cascade, 2026-07-09): a freed rig left in `cars` made
+	# `car is ProtoCar3D` ERROR every frame — and an erroring statement ABORTS the
+	# rest of _physics_process (prompt scan, signs, everything after this died; five
+	# m1 checks failed in a row with no visible cause). Prune the ledger, and
+	# validity comes FIRST — 'is' on a freed ref errors before is_instance_valid runs.
+	cars = cars.filter(func(c): return is_instance_valid(c))
 	# CAMPERS carry their kit: any camper rig without one grows one (the RV law).
 	for car in cars:
-		if car is ProtoCar3D and is_instance_valid(car) and not car.dead 				and car.spec.get("camper", false) and not car.has_meta("camp_kit"):
+		if car is ProtoCar3D and not car.dead \
+				and car.spec.get("camper", false) and not car.has_meta("camp_kit"):
 			car.set_meta("camp_kit", true)
 			var ck := ProtoCamp.create(self, car)
 			add_child(ck)

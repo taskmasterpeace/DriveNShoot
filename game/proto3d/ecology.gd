@@ -86,6 +86,10 @@ func tick(dt_gh: float) -> void:
 func deposit_corpse(pos: Vector3, heat: float, infection: float = 0.0) -> void:
 	if _main == null or not ("population" in _main) or _main.population == null:
 		return
+	# THE FUEL ACCORD (F4): no corpse heat gathers on Accord ground — the ring is
+	# neutral for the food chain too (scavengers learn to leave the pumps alone).
+	if ProtoFuelAccord.in_ring(pos, 4.0):
+		return
 	var row: Dictionary = _main.population.cell_at(pos)
 	var eco: Dictionary = row.get("eco", {})
 	if eco.is_empty():

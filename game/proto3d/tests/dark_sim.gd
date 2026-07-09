@@ -108,7 +108,11 @@ func _physics_process(delta: float) -> void:
 				main.daynight.moon_phase = 0.0
 			elif _step == 2 and phase_t > 3.6:
 				var r_new: float = main.vision_cone.last_range_m
-				_check("NEW MOON night is INK (%.0fm < 15)" % r_new, r_new < 15.0)
+				# THE NIGHT FLOOR LAW (SHIP goal, feel_sim): new moon = TENSE, not blind —
+				# the floor was deliberately raised to 0.4 (~40 m). This check was stale
+				# against that shipped feel change (it demanded the old ink-black <15 m).
+				_check("NEW MOON is TENSE, not blind (%.0fm in the 30-48 band)" % r_new,
+					r_new >= 30.0 and r_new <= 48.0)
 				_check("the moon is the dial (%.0fm vs %.0fm)" % [_r_full, r_new], r_new < _r_full - 8.0)
 				_check("clock shows the phase (%s)" % main.daynight.clock_text(), main.daynight.clock_text().contains("🌑"))
 				_next()
@@ -145,7 +149,9 @@ func _physics_process(delta: float) -> void:
 				_step = 1
 				_howler.force_charge()
 				_d0 = _howler.global_position.distance_to(main.player.global_position)
-			elif phase_t > 2.0:
+			elif phase_t > 2.6:
+				# 2.0s missed by half a meter when the pack spawned FAR (50 m start —
+				# spawn distance varies): same assertion, a fair observation window.
 				var d: float = _howler.global_position.distance_to(main.player.global_position) if is_instance_valid(_howler) else 0.0
 				_check("the howler RUNS AT YOU (%.0fm -> %.0fm)" % [_d0, d], d < _d0 * 0.65)
 				_next()
@@ -236,7 +242,8 @@ func _physics_process(delta: float) -> void:
 				main.add_child(_lurk)
 				_lurk.global_position = main.player.global_position + Vector3(0, 0.4, -70.0) # 70m up the road
 				main.player.snap_orientation(Vector3(0, 0, -1))
-				_key(KEY_B, true)
+				# binoculars retired (owner 2026-07-09): drive the machinery via the action
+				Input.action_press("drivn_binoculars")
 			elif _step == 1:
 				_mouse_move(Vector2(0, -220))
 				if main.cam_rig.binocular_offset.y < -60.0:
@@ -252,7 +259,7 @@ func _physics_process(delta: float) -> void:
 					if String(txt).contains("LURKER") and String(txt).contains("m"):
 						named = true
 				_check("the glass NAMES what it sees + range (%s)" % str(main.hud.recon_texts), named)
-				_key(KEY_B, false)
+				Input.action_release("drivn_binoculars")
 				_next()
 		10:
 			print("DRK RESULTS: %d passed, %d failed" % [passed, failed])

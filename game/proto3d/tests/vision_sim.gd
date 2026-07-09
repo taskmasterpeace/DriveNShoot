@@ -67,12 +67,13 @@ func _physics_process(delta: float) -> void:
 				var d: Vector2 = main.vision_cone.current_dir()
 				_check("cone FOLLOWS your aim (aimed east: dir.x=%.2f)" % d.x, d.x > 0.8)
 				main.aim_override = Vector3.ZERO
-				_key(KEY_B, true)
+				# binoculars retired (owner 2026-07-09): drive the machinery via the action
+				Input.action_press("drivn_binoculars")
 				_next()
 		3: # binoculars: narrow lens
 			if phase_t > 1.6:
 				_check("BINOCULARS narrow the cone (%.2f rad)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() < 0.7)
-				_key(KEY_B, false)
+				Input.action_release("drivn_binoculars")
 				_next()
 		4:
 			if phase_t > 1.6:

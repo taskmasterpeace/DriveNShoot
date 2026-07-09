@@ -95,20 +95,20 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 1.4:
 				var lunge := _mark.distance_to(main.player.global_position)
 				_check("dive lunged %.1f m then recovered" % lunge, lunge > 2.0 and main.player.move_state == ProtoPlayer3D.FootState.NORMAL)
-				# Binoculars v2: hold B, sweep the mouse east
+				# BINOCULARS RETIRED (owner order, 2026-07-09 playtest: "get rid of the
+				# binoculars"): B is the drone RECALL now. Holding B must raise NO glass —
+				# these phases now enforce the REMOVAL (the sim tracks shipped reality).
 				_key(KEY_B, true)
 				_next()
 		5:
 			if phase_t > 0.3:
-				_check("vignette overlay on", main.hud._vignette.visible)
+				_check("binoculars are RETIRED — B raises no vignette", not main.hud._vignette.visible)
 				_next()
-		6: # sweep mouse — aim should travel
+		6: # sweep the mouse — the camera must stay HOME (no glass pan)
 			_mouse_move(Vector2(70, 0))
 			if phase_t > 1.0:
 				var off: Vector2 = main.cam_rig.binocular_offset
-				_check("mouse aimed the glass %.0f m out" % off.length(), off.length() > 35.0 and off.x > 0.0)
-				var look_dist: float = (main.cam_rig._look_smooth - main.player.global_position).length()
-				_check("camera view traveled downrange (%.0f m)" % look_dist, look_dist > 20.0)
+				_check("no glass pan — the camera stays home (off %.0f m)" % off.length(), off.length() < 5.0)
 				_key(KEY_B, false)
 				_next()
 		7: # locked sedan: prompt + refusal

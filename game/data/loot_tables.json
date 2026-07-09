@@ -232,7 +232,7 @@
       "entries": [
         { "item": "car_parts", "min": 1, "max": 1, "weight": 0.55, "tags": ["tool"] },
         { "item": "tire_kit", "min": 1, "max": 1, "weight": 0.3, "tags": ["tool"] },
-        { "item": "jerry_can", "min": 1, "max": 1, "weight": 0.3, "tags": ["tool"] },
+        { "item": "jerry_can", "min": 1, "max": 1, "weight": 0.08, "tags": ["tool"] },
         { "item": "duct_tape", "min": 1, "max": 2, "weight": 0.5, "tags": ["tool"] },
         { "item": "scrap", "min": 1, "max": 4, "weight": 0.6, "tags": ["loot"] },
         { "item": "empty", "min": 1, "max": 1, "weight": 0.25, "tags": [] }
@@ -257,7 +257,7 @@
         { "item": "scrap", "min": 2, "max": 8, "weight": 0.65, "tags": ["loot"] },
         { "item": "canned_food", "min": 2, "max": 6, "weight": 0.5, "tags": ["food"] },
         { "item": "car_parts", "min": 1, "max": 2, "weight": 0.35, "tags": ["tool"] },
-        { "item": "jerry_can", "min": 1, "max": 2, "weight": 0.3, "tags": ["tool"] },
+        { "item": "jerry_can", "min": 1, "max": 1, "weight": 0.08, "tags": ["tool"] },
         { "item": "empty", "min": 1, "max": 1, "weight": 0.2, "tags": [] }
       ]
     },

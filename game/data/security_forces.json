@@ -1,455 +1,714 @@
 {
-  "_comment": "SECURITY LADDER (docs/design/SECURITY_LADDER.md) — three jurisdiction tiers: town_guard (N1-N2, community-scoped, pistol-class), state_enforcer (N2-N3, state-scoped, rifle-class, per-ruler/per-faction styled), bounty_hunter (N3, interstate, contract, named individuals). Additive-fold-ready: a wiring builder folds town_guard rows into ProtoNPC.ARCHETYPES the same way npcs.json's archetype array already folds Hazel/Mercer in — new ids only, existing archetypes (e.g. secman/Bridger) stay code-authoritative. weapon_row values reference weapon.gd's WEAPONS dict; 'rifle' is a FORWARD REFERENCE not yet in weapon.gd (see SECURITY_LADDER.md §6.3 for the exact ready-to-paste row — a weapons-owning builder adds it, do not add it here).",
-
-  "town_guard": [
-    {
-      "id": "town_guard_meridian",
-      "name": "Bridger",
-      "title": "SEC-MAN",
-      "tier": "town_guard",
-      "jurisdiction": "community",
-      "employer": "town",
-      "employer_id": "meridian",
-      "weapon_row": "pistol",
-      "hp": 60,
-      "armor_nod": 0.0,
-      "speed": 1.6,
-      "patrol_kind": "beat",
-      "response_triggers": ["witnessed_crime"],
-      "cross_state": false,
-      "de_escalation": {"kind": "radius_from_anchor", "range_m": 40.0, "community_tier": "T2"},
-      "look": "guard",
-      "act_patrol": "scan",
-      "act_alert": "aim_crouch",
-      "color": [0.30, 0.40, 0.55],
-      "greet": "Bridger: 'Got a lurker problem by the water point. 25 scrip for its head.'",
-      "refuse": "Bridger: 'Meridian doesn't work with your kind. Walk away.'",
-      "legend": "Meridian's own sec-man since before the wall went up. Watches the market, not the horizon.",
-      "_note": "This IS npc.gd's existing secman/ProtoNPC.ARCHETYPES['secman'] archetype, named as a Town Guard row for the ladder's data model — superset, not a rewrite. A wiring pass should treat this row as already-satisfied by the live archetype and skip re-folding it."
-    },
-    {
-      "id": "town_guard_rookie",
-      "name": "Deputy Coyle",
-      "title": "DEPUTY",
-      "tier": "town_guard",
-      "jurisdiction": "community",
-      "employer": "town",
-      "employer_id": "",
-      "weapon_row": "pistol",
-      "hp": 50,
-      "armor_nod": 0.0,
-      "speed": 1.7,
-      "patrol_kind": "beat",
-      "response_triggers": ["witnessed_crime"],
-      "cross_state": false,
-      "de_escalation": {"kind": "radius_from_anchor", "range_m": 30.0, "community_tier": "T1"},
-      "look": "guard",
-      "act_patrol": "pace",
-      "act_alert": "aim_crouch",
-      "color": [0.34, 0.42, 0.36],
-      "greet": "Coyle: 'Evenin'. Nothin' happens on my stretch, and I aim to keep it that way.'",
-      "refuse": "Coyle: 'I got eyes on you now. Don't make me use 'em.'",
-      "legend": "A T1 exit-town deputy, six months in, still nervous about the job. Draws fast, aims worse.",
-      "_note": "T1 Roadside Exit flavor — smaller range, jumpier alert line, matches the smallest community tier's stakes."
-    },
-    {
-      "id": "town_guard_veteran",
-      "name": "Sheriff Odette Vance",
-      "title": "SHERIFF",
-      "tier": "town_guard",
-      "jurisdiction": "community",
-      "employer": "town",
-      "employer_id": "",
-      "weapon_row": "shotgun",
-      "hp": 75,
-      "armor_nod": 0.1,
-      "speed": 1.5,
-      "patrol_kind": "beat",
-      "response_triggers": ["witnessed_crime"],
-      "cross_state": false,
-      "de_escalation": {"kind": "radius_from_anchor", "range_m": 56.0, "community_tier": "T3"},
-      "look": "guard",
-      "act_patrol": "scan",
-      "act_alert": "aim_crouch",
-      "color": [0.42, 0.34, 0.24],
-      "greet": "Vance: 'Courthouse business or trouble? Either way, state your business.'",
-      "refuse": "Vance: 'I've buried better than you for less. Get out of my county.'",
-      "legend": "Runs a T3 county seat with a shotgun and thirty years of not being impressed by anybody.",
-      "_note": "T3 County Town flavor — bigger range, shotgun instead of pistol (close-range brawler, still pistol-CLASS in spirit, never rifle-class — see SECURITY_LADDER.md §3.2 on why this tier never carries a rifle)."
-    }
-  ],
-
-  "state_enforcer": [
-    {
-      "id": "enforcer_free_counties",
-      "name": "Free Counties Ranger",
-      "title": "RANGER",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "",
-      "faction": "free_counties",
-      "ruler_flavor": "",
-      "weapon_row": "rifle",
-      "hp": 90,
-      "armor_nod": 0.2,
-      "speed": 1.8,
-      "patrol_kind": "highway",
-      "response_triggers": ["state_heat", "broadcast_warrant_relay"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "legal", "contraband_list_ref": "free_counties_law", "challenge_first": true},
-      "look": "guard",
-      "color": [0.36, 0.44, 0.30],
-      "greet": "Ranger: 'Free Counties road. Keep it civil and keep moving.'",
-      "refuse": "Ranger: 'You've made yourself the county's problem. That ends today.'",
-      "legend": "Loose, challenge-first patrol — Free Counties Law has no contraband list, so a Ranger stop is about what you DO, not what you CARRY.",
-      "_note": "Faction row #1 of 4 mechanically load-bearing rows — keys 1:1 to world_state.gd's free_counties controller id and free_counties_law's empty contraband list."
-    },
-    {
-      "id": "enforcer_faith_bloc",
-      "name": "Faith Bloc Marshal",
-      "title": "MARSHAL",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "",
-      "faction": "broadcast_church",
-      "ruler_flavor": "",
-      "weapon_row": "rifle",
-      "hp": 95,
-      "armor_nod": 0.25,
-      "speed": 1.7,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "contraband", "contraband_list_ref": "faith_occupation_law", "challenge_first": false},
-      "look": "guard",
-      "color": [0.55, 0.50, 0.30],
-      "greet": "Marshal: 'The Witness Hour warned you'd come through. Open the trunk.'",
-      "refuse": "Marshal: 'Unlicensed iron is a confession. We'll take it from here.'",
-      "legend": "Zealot-marshals of the Broadcast Church — the hardest possession checks in the ladder; an unlicensed gun IS the crime, no witness required.",
-      "_note": "Faction row #2 of 4 — keys 1:1 to broadcast_church + faith_occupation_law's full gun-contraband list. This is the row a Florida-takeover encounter should read as, live off world_state.controller_of('FLORIDA') at spawn time (see SECURITY_LADDER.md's Florida edge case)."
-    },
-    {
-      "id": "enforcer_corporate_corridor",
-      "name": "Corridor Security",
-      "title": "AGENT",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "",
-      "faction": "corporate_corridor",
-      "ruler_flavor": "",
-      "weapon_row": "rifle",
-      "hp": 85,
-      "armor_nod": 0.2,
-      "speed": 1.9,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "licensed", "contraband_list_ref": "corporate_corridor_law", "challenge_first": false, "checks": ["license", "drone_registration", "debt_standing"]},
-      "look": "guard",
-      "color": [0.28, 0.36, 0.42],
-      "greet": "Agent: 'License and manifest, please. We bill for delays.'",
-      "refuse": "Agent: 'Your account is now a liability. Repossession is authorized.'",
-      "legend": "Clean roads, brutal repossession — Corridor Security checks licenses and debt standing the way other states check for guns.",
-      "_note": "Faction row #3 of 4 — keys 1:1 to corporate_corridor + corporate_corridor_law (licensed guns, drones tracked, debt replaces jail per law_profiles.json)."
-    },
-    {
-      "id": "enforcer_federal_remnant",
-      "name": "Federal Checkpoint Trooper",
-      "title": "TROOPER",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "",
-      "faction": "federal_remnant",
-      "ruler_flavor": "",
-      "weapon_row": "rifle",
-      "hp": 100,
-      "armor_nod": 0.3,
-      "speed": 1.6,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "registered", "contraband_list_ref": "federal_checkpoint_law", "challenge_first": false, "checks": ["id", "gun_registration"]},
-      "look": "guard",
-      "color": [0.32, 0.34, 0.30],
-      "greet": "Trooper: 'ID and registration. Strict IDs, strict roads — that's the deal here.'",
-      "refuse": "Trooper: 'Unregistered and unwelcome. Hands where I can see them.'",
-      "legend": "The strictest ID/registration stop of the four — the last people still running checkpoints like the old government did.",
-      "_note": "Faction row #4 of 4 — keys 1:1 to federal_remnant + federal_checkpoint_law (registered guns, curfew, armed_drone contraband)."
-    },
-    {
-      "id": "enforcer_bridger_council",
-      "name": "Bridger's Council Rangers",
-      "title": "RANGER",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "VIRGINIA",
-      "faction": "free_counties",
-      "ruler_flavor": "VIRGINIA",
-      "weapon_row": "rifle",
-      "hp": 90,
-      "armor_nod": 0.2,
-      "speed": 1.8,
-      "patrol_kind": "highway",
-      "response_triggers": ["state_heat"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "legal", "contraband_list_ref": "free_counties_law", "challenge_first": true},
-      "look": "guard",
-      "color": [0.36, 0.44, 0.30],
-      "greet": "Ranger: 'Bridger's Council keeps these roads open. Don't give us a reason to close them.'",
-      "refuse": "Ranger: 'The Council's had enough of you. This road's closed to your face.'",
-      "legend": "Virginia's own — Bridger's Council runs a loose confederation, and its Rangers patrol like it: watchful, not paranoid.",
-      "_note": "Ruler-flavor row #1 of 6-8 — dresses enforcer_free_counties with rulers.json's VIRGINIA row ('Bridger's Council', attitude 1.0). Faction field carries the REAL mechanics; ruler_flavor is naming/color/legend only."
-    },
-    {
-      "id": "enforcer_king_sawyer",
-      "name": "King Sawyer's Men-at-Arms",
-      "title": "MAN-AT-ARMS",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "NORTH CAROLINA",
-      "faction": "free_counties",
-      "ruler_flavor": "NORTH CAROLINA",
-      "weapon_row": "rifle",
-      "hp": 92,
-      "armor_nod": 0.2,
-      "speed": 1.7,
-      "patrol_kind": "highway",
-      "response_triggers": ["state_heat"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "legal", "contraband_list_ref": "free_counties_law", "challenge_first": true},
-      "look": "guard",
-      "color": [0.40, 0.34, 0.22],
-      "greet": "Man-at-Arms: 'King Sawyer's road. Bend the knee or keep driving — his mercy runs out fast.'",
-      "refuse": "Man-at-Arms: 'The King takes offense easily, and you've earned every ounce of it.'",
-      "legend": "North Carolina crowned itself a King, and his Men-at-Arms take insult personally — Sawyer's attitude rating (1.2) runs hot, and it shows on the road.",
-      "_note": "Ruler-flavor row #2 — dresses enforcer_free_counties with rulers.json's NORTH CAROLINA row (attitude 1.2, higher than baseline — reflected in a shorter fuse in the greet/refuse lines, not a new mechanical field)."
-    },
-    {
-      "id": "enforcer_marrow_combine",
-      "name": "Peach Combine Security",
-      "title": "SECURITY",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "GEORGIA",
-      "faction": "corporate_corridor",
-      "ruler_flavor": "GEORGIA",
-      "weapon_row": "rifle",
-      "hp": 85,
-      "armor_nod": 0.2,
-      "speed": 1.9,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "licensed", "contraband_list_ref": "corporate_corridor_law", "challenge_first": false, "checks": ["license", "cargo_manifest"]},
-      "look": "guard",
-      "color": [0.50, 0.36, 0.24],
-      "greet": "Security: 'CEO Marrow thanks you for your patience. Manifest, please.'",
-      "refuse": "Security: 'The Combine writes off losses. You're a write-off now.'",
-      "legend": "CEO Marrow's Peach Combine runs Georgia like a supply chain — low attitude rating (0.8) means it's rarely personal, just billable.",
-      "_note": "Ruler-flavor row #3 — dresses enforcer_corporate_corridor with rulers.json's GEORGIA row (CEO Marrow, attitude 0.8 — the mellowest of the sample, reflected in a transactional rather than hostile refuse line)."
-    },
-    {
-      "id": "enforcer_knox_warlord",
-      "name": "Knox Warlord's Enforcers",
-      "title": "ENFORCER",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "KENTUCKY",
-      "faction": "federal_remnant",
-      "ruler_flavor": "KENTUCKY",
-      "weapon_row": "rifle",
-      "hp": 100,
-      "armor_nod": 0.3,
-      "speed": 1.6,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "registered", "contraband_list_ref": "federal_checkpoint_law", "challenge_first": false, "checks": ["id", "gold_manifest"]},
-      "look": "guard",
-      "color": [0.30, 0.28, 0.26],
-      "greet": "Enforcer: 'Fort Knox's gold makes the Warlord paranoid. You're a suspect until proven otherwise.'",
-      "refuse": "Enforcer: 'The Warlord doesn't forgive. Neither do I.'",
-      "legend": "Kentucky's Warlord carries the highest attitude rating in the sample (1.5) — his Enforcers run the hardest, most suspicious checkpoint on this list, gold-vault paranoia made into policy.",
-      "_note": "Ruler-flavor row #4 — dresses enforcer_federal_remnant with rulers.json's KENTUCKY row (Knox Warlord, attitude 1.5 — highest sampled, reflected in the SUSPECT-by-default framing of the greet line)."
-    },
-    {
-      "id": "enforcer_hood_border_guard",
-      "name": "Republic Border Guard",
-      "title": "BORDER GUARD",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "TEXAS",
-      "faction": "federal_remnant",
-      "ruler_flavor": "TEXAS",
-      "weapon_row": "rifle",
-      "hp": 105,
-      "armor_nod": 0.3,
-      "speed": 1.7,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "registered", "contraband_list_ref": "federal_checkpoint_law", "challenge_first": false, "checks": ["id", "gun_registration", "passport"]},
-      "look": "guard",
-      "color": [0.44, 0.30, 0.20],
-      "greet": "Border Guard: 'President-General Hood's Republic. You're a foreign national here. Papers.'",
-      "refuse": "Border Guard: 'The Republic doesn't negotiate with its enemies. Neither do I.'",
-      "legend": "Texas is a nation unto itself, President-General Hood at its head (attitude 1.3) — his Border Guard treats every crossing like an international one.",
-      "_note": "Ruler-flavor row #5 — dresses enforcer_federal_remnant with rulers.json's TEXAS row (President-General Hood, attitude 1.3 — a nation-state framing distinct from the other rows' state-baron framing)."
-    },
-    {
-      "id": "enforcer_house_pit_security",
-      "name": "The House's Pit Security",
-      "title": "PIT SECURITY",
-      "tier": "state_enforcer",
-      "jurisdiction": "state",
-      "employer": "state_ruler",
-      "employer_id": "NEVADA",
-      "faction": "corporate_corridor",
-      "ruler_flavor": "NEVADA",
-      "weapon_row": "rifle",
-      "hp": 88,
-      "armor_nod": 0.2,
-      "speed": 1.9,
-      "patrol_kind": "checkpoint",
-      "response_triggers": ["state_heat", "law_profile_violation"],
-      "cross_state": false,
-      "de_escalation": {"kind": "state_line"},
-      "checkpoint_stop": {"guns": "licensed", "contraband_list_ref": "corporate_corridor_law", "challenge_first": false, "checks": ["license", "marker_debt"]},
-      "look": "guard",
-      "color": [0.42, 0.38, 0.20],
-      "greet": "Pit Security: 'The House sees everything. Settle your marker before you settle in.'",
-      "refuse": "Pit Security: 'The House doesn't do refunds, and it doesn't do mercy either.'",
-      "legend": "Vegas's last pit boss runs Nevada like the house always wins (attitude 0.7, the lowest sampled) — debt is the only law that really matters here.",
-      "_note": "Ruler-flavor row #6 of the 6-8 approved — dresses enforcer_corporate_corridor with rulers.json's NEVADA row (the House, attitude 0.7 — lowest sampled, matching corporate_corridor_law's debt-replaces-jail framing precisely)."
-    }
-  ],
-
-  "bounty_hunter": [
-    {
-      "id": "hunter_calloway",
-      "name": "Delia Calloway",
-      "title": "THE COLLECTOR",
-      "tier": "bounty_hunter",
-      "jurisdiction": "interstate",
-      "employer": "contract",
-      "employer_id": "",
-      "faction": "",
-      "weapon_row": "rifle",
-      "hp": 130,
-      "armor_nod": 0.3,
-      "speed": 1.8,
-      "patrol_kind": "pursuit",
-      "response_triggers": ["broadcast_warrant", "border_standing"],
-      "cross_state": true,
-      "de_escalation": {"kind": "warrant_state_only", "clears_on": ["paid_off", "killed", "warrant_expired"]},
-      "rig": "interceptor",
-      "dog": true,
-      "dog_breed": "shepherd_mix",
-      "look": "drifter",
-      "color": [0.30, 0.30, 0.32],
-      "greet": "Calloway: 'Name your price before I name your grave. Either way, I collect.'",
-      "refuse": "",
-      "legend": "Runs a stripped Interceptor and a shepherd named Toll. Never takes a warrant she can't finish — and she's finished all of them so far.",
-      "_note": "Fixed named hunter #1 of 4. rifle-class, favors distance and patience; the dog is a tracking read (fictional flavor for 'follows your trail'), not a new mechanical dog-companion system."
-    },
-    {
-      "id": "hunter_marsh",
-      "name": "Ezra Marsh",
-      "title": "THE CLOSER",
-      "tier": "bounty_hunter",
-      "jurisdiction": "interstate",
-      "employer": "contract",
-      "employer_id": "",
-      "faction": "",
-      "weapon_row": "shotgun",
-      "hp": 110,
-      "armor_nod": 0.2,
-      "speed": 2.0,
-      "patrol_kind": "pursuit",
-      "response_triggers": ["broadcast_warrant", "border_standing"],
-      "cross_state": true,
-      "de_escalation": {"kind": "warrant_state_only", "clears_on": ["paid_off", "killed", "warrant_expired"]},
-      "rig": "scavenger",
-      "dog": false,
-      "dog_breed": "",
-      "look": "drifter",
-      "color": [0.40, 0.24, 0.20],
-      "greet": "Marsh: 'Most people run. I like that. Gives me something to do.'",
-      "refuse": "",
-      "legend": "Drives a beat-up Scavenger faster than it has any right to go. Doesn't negotiate, doesn't posture — just closes the distance.",
-      "_note": "Fixed named hunter #2 of 4. shotgun-class, favors closing fast and hard; the opposite read from Calloway's patient-rifle style — the two together sketch the tier's range of 'hunter's choice' weapon."
-    },
-    {
-      "id": "hunter_okafor",
-      "name": "Vince Okafor",
-      "title": "THE ADJUSTER",
-      "tier": "bounty_hunter",
-      "jurisdiction": "interstate",
-      "employer": "contract",
-      "employer_id": "",
-      "faction": "",
-      "weapon_row": "pistol",
-      "hp": 115,
-      "armor_nod": 0.25,
-      "speed": 1.7,
-      "patrol_kind": "pursuit",
-      "response_triggers": ["broadcast_warrant", "border_standing"],
-      "cross_state": true,
-      "de_escalation": {"kind": "warrant_state_only", "clears_on": ["paid_off", "killed", "warrant_expired"]},
-      "rig": "behemoth",
-      "dog": true,
-      "dog_breed": "hound",
-      "look": "drifter",
-      "color": [0.34, 0.32, 0.28],
-      "greet": "Okafor: 'I don't do anger. I do arithmetic. You cost more alive, so let's talk.'",
-      "refuse": "",
-      "legend": "Rides a battered Behemoth with a hound named Ledger riding shotgun. Calm, businesslike, and the only one of the four who'll take a bribe mid-chase if the number's right.",
-      "_note": "Fixed named hunter #3 of 4. Runs a Behemoth (slow, armored) — the tier's tank archetype; his 'will negotiate mid-chase' legend line is flavor for §4.3's payoff mechanic being usable even while a hunter is actively rendered, not a separate system."
-    },
-    {
-      "id": "hunter_reyes",
-      "name": "Sable Reyes",
-      "title": "THE LAST NOTICE",
-      "tier": "bounty_hunter",
-      "jurisdiction": "interstate",
-      "employer": "contract",
-      "employer_id": "",
-      "faction": "",
-      "weapon_row": "rifle",
-      "hp": 120,
-      "armor_nod": 0.25,
-      "speed": 1.9,
-      "patrol_kind": "pursuit",
-      "response_triggers": ["broadcast_warrant", "border_standing"],
-      "cross_state": true,
-      "de_escalation": {"kind": "warrant_state_only", "clears_on": ["paid_off", "killed", "warrant_expired"]},
-      "rig": "interceptor",
-      "dog": false,
-      "dog_breed": "",
-      "look": "drifter",
-      "color": [0.24, 0.26, 0.30],
-      "greet": "Reyes: 'You already had your warning. This is the part where I stop sending letters.'",
-      "refuse": "",
-      "legend": "Only takes federal-heat warrants — nothing under Level 6. If Reyes is on your road, the state you burned wants you gone, not just fined.",
-      "_note": "Fixed named hunter #4 of 4. Deliberately gated fictionally to the highest wanted tier (Level 6 / Interstate-Federal Heat) only — a design hook for a wiring builder: this row should only be eligible for dispatch when the broadcast warrant's wanted_level_at_broadcast == 6, giving the roster its own internal escalation (Calloway/Marsh/Okafor for Level 5, Reyes reserved for Level 6)."
-    }
-  ]
+ "_comment": "SECURITY LADDER (docs/design/SECURITY_LADDER.md) — three jurisdiction tiers: town_guard (N1-N2, community-scoped, pistol-class), state_enforcer (N2-N3, state-scoped, rifle-class, per-ruler/per-faction styled), bounty_hunter (N3, interstate, contract, named individuals). Additive-fold-ready: a wiring builder folds town_guard rows into ProtoNPC.ARCHETYPES the same way npcs.json's archetype array already folds Hazel/Mercer in — new ids only, existing archetypes (e.g. secman/Bridger) stay code-authoritative. weapon_row values reference weapon.gd's WEAPONS dict; 'rifle' is a FORWARD REFERENCE not yet in weapon.gd (see SECURITY_LADDER.md §6.3 for the exact ready-to-paste row — a weapons-owning builder adds it, do not add it here).",
+ "town_guard": [
+  {
+   "id": "town_guard_meridian",
+   "name": "Bridger",
+   "title": "SEC-MAN",
+   "tier": "town_guard",
+   "jurisdiction": "community",
+   "employer": "town",
+   "employer_id": "meridian",
+   "weapon_row": "pistol",
+   "hp": 60,
+   "armor_nod": 0,
+   "speed": 1.6,
+   "patrol_kind": "beat",
+   "response_triggers": [
+    "witnessed_crime"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "radius_from_anchor",
+    "range_m": 40,
+    "community_tier": "T2"
+   },
+   "look": "guard",
+   "act_patrol": "scan",
+   "act_alert": "aim_crouch",
+   "color": [
+    0.3,
+    0.4,
+    0.55
+   ],
+   "greet": "Bridger: 'Got a lurker problem by the water point. 25 scrip for its head.'",
+   "refuse": "Bridger: 'Meridian doesn't work with your kind. Walk away.'",
+   "legend": "Meridian's own sec-man since before the wall went up. Watches the market, not the horizon.",
+   "_note": "This IS npc.gd's existing secman/ProtoNPC.ARCHETYPES['secman'] archetype, named as a Town Guard row for the ladder's data model — superset, not a rewrite. A wiring pass should treat this row as already-satisfied by the live archetype and skip re-folding it."
+  },
+  {
+   "id": "town_guard_rookie",
+   "name": "Deputy Coyle",
+   "title": "DEPUTY",
+   "tier": "town_guard",
+   "jurisdiction": "community",
+   "employer": "town",
+   "employer_id": "",
+   "weapon_row": "pistol",
+   "hp": 50,
+   "armor_nod": 0,
+   "speed": 1.7,
+   "patrol_kind": "beat",
+   "response_triggers": [
+    "witnessed_crime"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "radius_from_anchor",
+    "range_m": 30,
+    "community_tier": "T1"
+   },
+   "look": "guard",
+   "act_patrol": "pace",
+   "act_alert": "aim_crouch",
+   "color": [
+    0.34,
+    0.42,
+    0.36
+   ],
+   "greet": "Coyle: 'Evenin'. Nothin' happens on my stretch, and I aim to keep it that way.'",
+   "refuse": "Coyle: 'I got eyes on you now. Don't make me use 'em.'",
+   "legend": "A T1 exit-town deputy, six months in, still nervous about the job. Draws fast, aims worse.",
+   "_note": "T1 Roadside Exit flavor — smaller range, jumpier alert line, matches the smallest community tier's stakes."
+  },
+  {
+   "id": "town_guard_veteran",
+   "name": "Sheriff Odette Vance",
+   "title": "SHERIFF",
+   "tier": "town_guard",
+   "jurisdiction": "community",
+   "employer": "town",
+   "employer_id": "",
+   "weapon_row": "shotgun",
+   "hp": 75,
+   "armor_nod": 0.1,
+   "speed": 1.5,
+   "patrol_kind": "beat",
+   "response_triggers": [
+    "witnessed_crime"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "radius_from_anchor",
+    "range_m": 56,
+    "community_tier": "T3"
+   },
+   "look": "guard",
+   "act_patrol": "scan",
+   "act_alert": "aim_crouch",
+   "color": [
+    0.42,
+    0.34,
+    0.24
+   ],
+   "greet": "Vance: 'Courthouse business or trouble? Either way, state your business.'",
+   "refuse": "Vance: 'I've buried better than you for less. Get out of my county.'",
+   "legend": "Runs a T3 county seat with a shotgun and thirty years of not being impressed by anybody.",
+   "_note": "T3 County Town flavor — bigger range, shotgun instead of pistol (close-range brawler, still pistol-CLASS in spirit, never rifle-class — see SECURITY_LADDER.md §3.2 on why this tier never carries a rifle)."
+  }
+ ],
+ "state_enforcer": [
+  {
+   "id": "enforcer_free_counties",
+   "name": "Free Counties Ranger",
+   "title": "RANGER",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "",
+   "faction": "free_counties",
+   "ruler_flavor": "",
+   "weapon_row": "rifle",
+   "hp": 90,
+   "armor_nod": 0.2,
+   "speed": 1.8,
+   "patrol_kind": "highway",
+   "response_triggers": [
+    "state_heat",
+    "broadcast_warrant_relay"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "legal",
+    "contraband_list_ref": "free_counties_law",
+    "challenge_first": true
+   },
+   "look": "guard",
+   "color": [
+    0.36,
+    0.44,
+    0.3
+   ],
+   "greet": "Ranger: 'Free Counties road. Keep it civil and keep moving.'",
+   "refuse": "Ranger: 'You've made yourself the county's problem. That ends today.'",
+   "legend": "Loose, challenge-first patrol — Free Counties Law has no contraband list, so a Ranger stop is about what you DO, not what you CARRY.",
+   "_note": "Faction row #1 of 4 mechanically load-bearing rows — keys 1:1 to world_state.gd's free_counties controller id and free_counties_law's empty contraband list."
+  },
+  {
+   "id": "enforcer_faith_bloc",
+   "name": "Faith Bloc Marshal",
+   "title": "MARSHAL",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "",
+   "faction": "broadcast_church",
+   "ruler_flavor": "",
+   "weapon_row": "rifle",
+   "hp": 95,
+   "armor_nod": 0.25,
+   "speed": 1.7,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "contraband",
+    "contraband_list_ref": "faith_occupation_law",
+    "challenge_first": false
+   },
+   "look": "guard",
+   "color": [
+    0.55,
+    0.5,
+    0.3
+   ],
+   "greet": "Marshal: 'The Witness Hour warned you'd come through. Open the trunk.'",
+   "refuse": "Marshal: 'Unlicensed iron is a confession. We'll take it from here.'",
+   "legend": "Zealot-marshals of the Broadcast Church — the hardest possession checks in the ladder; an unlicensed gun IS the crime, no witness required.",
+   "_note": "Faction row #2 of 4 — keys 1:1 to broadcast_church + faith_occupation_law's full gun-contraband list. This is the row a Florida-takeover encounter should read as, live off world_state.controller_of('FLORIDA') at spawn time (see SECURITY_LADDER.md's Florida edge case)."
+  },
+  {
+   "id": "enforcer_corporate_corridor",
+   "name": "Corridor Security",
+   "title": "AGENT",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "",
+   "faction": "corporate_corridor",
+   "ruler_flavor": "",
+   "weapon_row": "rifle",
+   "hp": 85,
+   "armor_nod": 0.2,
+   "speed": 1.9,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "licensed",
+    "contraband_list_ref": "corporate_corridor_law",
+    "challenge_first": false,
+    "checks": [
+     "license",
+     "drone_registration",
+     "debt_standing"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.28,
+    0.36,
+    0.42
+   ],
+   "greet": "Agent: 'License and manifest, please. We bill for delays.'",
+   "refuse": "Agent: 'Your account is now a liability. Repossession is authorized.'",
+   "legend": "Clean roads, brutal repossession — Corridor Security checks licenses and debt standing the way other states check for guns.",
+   "_note": "Faction row #3 of 4 — keys 1:1 to corporate_corridor + corporate_corridor_law (licensed guns, drones tracked, debt replaces jail per law_profiles.json)."
+  },
+  {
+   "id": "enforcer_federal_remnant",
+   "name": "Federal Checkpoint Trooper",
+   "title": "TROOPER",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "",
+   "faction": "federal_remnant",
+   "ruler_flavor": "",
+   "weapon_row": "rifle",
+   "hp": 100,
+   "armor_nod": 0.3,
+   "speed": 1.6,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "registered",
+    "contraband_list_ref": "federal_checkpoint_law",
+    "challenge_first": false,
+    "checks": [
+     "id",
+     "gun_registration"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.32,
+    0.34,
+    0.3
+   ],
+   "greet": "Trooper: 'ID and registration. Strict IDs, strict roads — that's the deal here.'",
+   "refuse": "Trooper: 'Unregistered and unwelcome. Hands where I can see them.'",
+   "legend": "The strictest ID/registration stop of the four — the last people still running checkpoints like the old government did.",
+   "_note": "Faction row #4 of 4 — keys 1:1 to federal_remnant + federal_checkpoint_law (registered guns, curfew, armed_drone contraband)."
+  },
+  {
+   "id": "enforcer_bridger_council",
+   "name": "Bridger's Council Rangers",
+   "title": "RANGER",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "VIRGINIA",
+   "faction": "free_counties",
+   "ruler_flavor": "VIRGINIA",
+   "weapon_row": "rifle",
+   "hp": 90,
+   "armor_nod": 0.2,
+   "speed": 1.8,
+   "patrol_kind": "highway",
+   "response_triggers": [
+    "state_heat"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "legal",
+    "contraband_list_ref": "free_counties_law",
+    "challenge_first": true
+   },
+   "look": "guard",
+   "color": [
+    0.36,
+    0.44,
+    0.3
+   ],
+   "greet": "Ranger: 'Bridger's Council keeps these roads open. Don't give us a reason to close them.'",
+   "refuse": "Ranger: 'The Council's had enough of you. This road's closed to your face.'",
+   "legend": "Virginia's own — Bridger's Council runs a loose confederation, and its Rangers patrol like it: watchful, not paranoid.",
+   "_note": "Ruler-flavor row #1 of 6-8 — dresses enforcer_free_counties with rulers.json's VIRGINIA row ('Bridger's Council', attitude 1.0). Faction field carries the REAL mechanics; ruler_flavor is naming/color/legend only."
+  },
+  {
+   "id": "enforcer_king_sawyer",
+   "name": "King Sawyer's Men-at-Arms",
+   "title": "MAN-AT-ARMS",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "NORTH CAROLINA",
+   "faction": "free_counties",
+   "ruler_flavor": "NORTH CAROLINA",
+   "weapon_row": "rifle",
+   "hp": 92,
+   "armor_nod": 0.2,
+   "speed": 1.7,
+   "patrol_kind": "highway",
+   "response_triggers": [
+    "state_heat"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "legal",
+    "contraband_list_ref": "free_counties_law",
+    "challenge_first": true
+   },
+   "look": "guard",
+   "color": [
+    0.4,
+    0.34,
+    0.22
+   ],
+   "greet": "Man-at-Arms: 'King Sawyer's road. Bend the knee or keep driving — his mercy runs out fast.'",
+   "refuse": "Man-at-Arms: 'The King takes offense easily, and you've earned every ounce of it.'",
+   "legend": "North Carolina crowned itself a King, and his Men-at-Arms take insult personally — Sawyer's attitude rating (1.2) runs hot, and it shows on the road.",
+   "_note": "Ruler-flavor row #2 — dresses enforcer_free_counties with rulers.json's NORTH CAROLINA row (attitude 1.2, higher than baseline — reflected in a shorter fuse in the greet/refuse lines, not a new mechanical field)."
+  },
+  {
+   "id": "enforcer_marrow_combine",
+   "name": "Peach Combine Security",
+   "title": "SECURITY",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "GEORGIA",
+   "faction": "corporate_corridor",
+   "ruler_flavor": "GEORGIA",
+   "weapon_row": "rifle",
+   "hp": 85,
+   "armor_nod": 0.2,
+   "speed": 1.9,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "licensed",
+    "contraband_list_ref": "corporate_corridor_law",
+    "challenge_first": false,
+    "checks": [
+     "license",
+     "cargo_manifest"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.5,
+    0.36,
+    0.24
+   ],
+   "greet": "Security: 'CEO Marrow thanks you for your patience. Manifest, please.'",
+   "refuse": "Security: 'The Combine writes off losses. You're a write-off now.'",
+   "legend": "CEO Marrow's Peach Combine runs Georgia like a supply chain — low attitude rating (0.8) means it's rarely personal, just billable.",
+   "_note": "Ruler-flavor row #3 — dresses enforcer_corporate_corridor with rulers.json's GEORGIA row (CEO Marrow, attitude 0.8 — the mellowest of the sample, reflected in a transactional rather than hostile refuse line)."
+  },
+  {
+   "id": "enforcer_knox_warlord",
+   "name": "Knox Warlord's Enforcers",
+   "title": "ENFORCER",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "KENTUCKY",
+   "faction": "federal_remnant",
+   "ruler_flavor": "KENTUCKY",
+   "weapon_row": "rifle",
+   "hp": 100,
+   "armor_nod": 0.3,
+   "speed": 1.6,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "registered",
+    "contraband_list_ref": "federal_checkpoint_law",
+    "challenge_first": false,
+    "checks": [
+     "id",
+     "gold_manifest"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.3,
+    0.28,
+    0.26
+   ],
+   "greet": "Enforcer: 'Fort Knox's gold makes the Warlord paranoid. You're a suspect until proven otherwise.'",
+   "refuse": "Enforcer: 'The Warlord doesn't forgive. Neither do I.'",
+   "legend": "Kentucky's Warlord carries the highest attitude rating in the sample (1.5) — his Enforcers run the hardest, most suspicious checkpoint on this list, gold-vault paranoia made into policy.",
+   "_note": "Ruler-flavor row #4 — dresses enforcer_federal_remnant with rulers.json's KENTUCKY row (Knox Warlord, attitude 1.5 — highest sampled, reflected in the SUSPECT-by-default framing of the greet line)."
+  },
+  {
+   "id": "enforcer_hood_border_guard",
+   "name": "Republic Border Guard",
+   "title": "BORDER GUARD",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "TEXAS",
+   "faction": "federal_remnant",
+   "ruler_flavor": "TEXAS",
+   "weapon_row": "rifle",
+   "hp": 105,
+   "armor_nod": 0.3,
+   "speed": 1.7,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "registered",
+    "contraband_list_ref": "federal_checkpoint_law",
+    "challenge_first": false,
+    "checks": [
+     "id",
+     "gun_registration",
+     "passport"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.44,
+    0.3,
+    0.2
+   ],
+   "greet": "Border Guard: 'President-General Hood's Republic. You're a foreign national here. Papers.'",
+   "refuse": "Border Guard: 'The Republic doesn't negotiate with its enemies. Neither do I.'",
+   "legend": "Texas is a nation unto itself, President-General Hood at its head (attitude 1.3) — his Border Guard treats every crossing like an international one.",
+   "_note": "Ruler-flavor row #5 — dresses enforcer_federal_remnant with rulers.json's TEXAS row (President-General Hood, attitude 1.3 — a nation-state framing distinct from the other rows' state-baron framing)."
+  },
+  {
+   "id": "enforcer_house_pit_security",
+   "name": "The House's Pit Security",
+   "title": "PIT SECURITY",
+   "tier": "state_enforcer",
+   "jurisdiction": "state",
+   "employer": "state_ruler",
+   "employer_id": "NEVADA",
+   "faction": "corporate_corridor",
+   "ruler_flavor": "NEVADA",
+   "weapon_row": "rifle",
+   "hp": 88,
+   "armor_nod": 0.2,
+   "speed": 1.9,
+   "patrol_kind": "checkpoint",
+   "response_triggers": [
+    "state_heat",
+    "law_profile_violation"
+   ],
+   "cross_state": false,
+   "de_escalation": {
+    "kind": "state_line"
+   },
+   "checkpoint_stop": {
+    "guns": "licensed",
+    "contraband_list_ref": "corporate_corridor_law",
+    "challenge_first": false,
+    "checks": [
+     "license",
+     "marker_debt"
+    ]
+   },
+   "look": "guard",
+   "color": [
+    0.42,
+    0.38,
+    0.2
+   ],
+   "greet": "Pit Security: 'The House sees everything. Settle your marker before you settle in.'",
+   "refuse": "Pit Security: 'The House doesn't do refunds, and it doesn't do mercy either.'",
+   "legend": "Vegas's last pit boss runs Nevada like the house always wins (attitude 0.7, the lowest sampled) — debt is the only law that really matters here.",
+   "_note": "Ruler-flavor row #6 of the 6-8 approved — dresses enforcer_corporate_corridor with rulers.json's NEVADA row (the House, attitude 0.7 — lowest sampled, matching corporate_corridor_law's debt-replaces-jail framing precisely)."
+  }
+ ],
+ "bounty_hunter": [
+  {
+   "id": "hunter_calloway",
+   "name": "Delia Calloway",
+   "title": "THE COLLECTOR",
+   "tier": "bounty_hunter",
+   "jurisdiction": "interstate",
+   "employer": "contract",
+   "employer_id": "",
+   "faction": "",
+   "weapon_row": "rifle",
+   "hp": 130,
+   "armor_nod": 0.3,
+   "speed": 1.8,
+   "patrol_kind": "pursuit",
+   "response_triggers": [
+    "broadcast_warrant",
+    "border_standing"
+   ],
+   "cross_state": true,
+   "de_escalation": {
+    "kind": "warrant_state_only",
+    "clears_on": [
+     "paid_off",
+     "killed",
+     "warrant_expired"
+    ]
+   },
+   "rig": "interceptor",
+   "dog": true,
+   "dog_breed": "shepherd_mix",
+   "look": "drifter",
+   "color": [
+    0.3,
+    0.3,
+    0.32
+   ],
+   "greet": "Calloway: 'Name your price before I name your grave. Either way, I collect.'",
+   "refuse": "",
+   "legend": "Runs a stripped Interceptor and a shepherd named Toll. Never takes a warrant she can't finish — and she's finished all of them so far.",
+   "_note": "Fixed named hunter #1 of 4. rifle-class, favors distance and patience; the dog is a tracking read (fictional flavor for 'follows your trail'), not a new mechanical dog-companion system."
+  },
+  {
+   "id": "hunter_marsh",
+   "name": "Ezra Marsh",
+   "title": "THE CLOSER",
+   "tier": "bounty_hunter",
+   "jurisdiction": "interstate",
+   "employer": "contract",
+   "employer_id": "",
+   "faction": "",
+   "weapon_row": "shotgun",
+   "hp": 110,
+   "armor_nod": 0.2,
+   "speed": 2,
+   "patrol_kind": "pursuit",
+   "response_triggers": [
+    "broadcast_warrant",
+    "border_standing"
+   ],
+   "cross_state": true,
+   "de_escalation": {
+    "kind": "warrant_state_only",
+    "clears_on": [
+     "paid_off",
+     "killed",
+     "warrant_expired"
+    ]
+   },
+   "rig": "scavenger",
+   "dog": false,
+   "dog_breed": "",
+   "look": "drifter",
+   "color": [
+    0.4,
+    0.24,
+    0.2
+   ],
+   "greet": "Marsh: 'Most people run. I like that. Gives me something to do.'",
+   "refuse": "",
+   "legend": "Drives a beat-up Scavenger faster than it has any right to go. Doesn't negotiate, doesn't posture — just closes the distance.",
+   "_note": "Fixed named hunter #2 of 4. shotgun-class, favors closing fast and hard; the opposite read from Calloway's patient-rifle style — the two together sketch the tier's range of 'hunter's choice' weapon."
+  },
+  {
+   "id": "hunter_okafor",
+   "name": "Vince Okafor",
+   "title": "THE ADJUSTER",
+   "tier": "bounty_hunter",
+   "jurisdiction": "interstate",
+   "employer": "contract",
+   "employer_id": "",
+   "faction": "",
+   "weapon_row": "pistol",
+   "hp": 115,
+   "armor_nod": 0.25,
+   "speed": 1.7,
+   "patrol_kind": "pursuit",
+   "response_triggers": [
+    "broadcast_warrant",
+    "border_standing"
+   ],
+   "cross_state": true,
+   "de_escalation": {
+    "kind": "warrant_state_only",
+    "clears_on": [
+     "paid_off",
+     "killed",
+     "warrant_expired"
+    ]
+   },
+   "rig": "behemoth",
+   "dog": true,
+   "dog_breed": "hound",
+   "look": "drifter",
+   "color": [
+    0.34,
+    0.32,
+    0.28
+   ],
+   "greet": "Okafor: 'I don't do anger. I do arithmetic. You cost more alive, so let's talk.'",
+   "refuse": "",
+   "legend": "Rides a battered Behemoth with a hound named Ledger riding shotgun. Calm, businesslike, and the only one of the four who'll take a bribe mid-chase if the number's right.",
+   "_note": "Fixed named hunter #3 of 4. Runs a Behemoth (slow, armored) — the tier's tank archetype; his 'will negotiate mid-chase' legend line is flavor for §4.3's payoff mechanic being usable even while a hunter is actively rendered, not a separate system."
+  },
+  {
+   "id": "hunter_reyes",
+   "name": "Sable Reyes",
+   "title": "THE LAST NOTICE",
+   "tier": "bounty_hunter",
+   "jurisdiction": "interstate",
+   "employer": "contract",
+   "employer_id": "",
+   "faction": "",
+   "weapon_row": "rifle",
+   "hp": 120,
+   "armor_nod": 0.25,
+   "speed": 1.9,
+   "patrol_kind": "pursuit",
+   "response_triggers": [
+    "broadcast_warrant",
+    "border_standing"
+   ],
+   "cross_state": true,
+   "de_escalation": {
+    "kind": "warrant_state_only",
+    "clears_on": [
+     "paid_off",
+     "killed",
+     "warrant_expired"
+    ]
+   },
+   "rig": "interceptor",
+   "dog": false,
+   "dog_breed": "",
+   "look": "drifter",
+   "color": [
+    0.24,
+    0.26,
+    0.3
+   ],
+   "greet": "Reyes: 'You already had your warning. This is the part where I stop sending letters.'",
+   "refuse": "",
+   "legend": "Only takes federal-heat warrants — nothing under Level 6. If Reyes is on your road, the state you burned wants you gone, not just fined.",
+   "_note": "Fixed named hunter #4 of 4. Deliberately gated fictionally to the highest wanted tier (Level 6 / Interstate-Federal Heat) only — a design hook for a wiring builder: this row should only be eligible for dispatch when the broadcast warrant's wanted_level_at_broadcast == 6, giving the roster its own internal escalation (Calloway/Marsh/Okafor for Level 5, Reyes reserved for Level 6)."
+  }
+ ],
+ "accord": [
+  {
+   "id": "accord_enforcer",
+   "name": "Accord Enforcer",
+   "tier": "accord",
+   "faction": "fuel_accord",
+   "weapon_row": "raycast_sidearm",
+   "hp": 90,
+   "armor_nod": 0.15,
+   "speed": 1.6,
+   "look": "guard",
+   "color": [
+    0.42,
+    0.46,
+    0.48
+   ],
+   "response_triggers": [
+    "accord_violation"
+   ],
+   "_comment": "THE FUEL ACCORD (2026-07-09): posted in PAIRS at every gas_station_small. The ring is neutral ground for ALL flags; violence inside = max wanted heat with every faction. Constants live in fuel_accord.gd until the SECURITY_LADDER fold consumes these rows."
+  }
+ ]
 }

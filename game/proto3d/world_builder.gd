@@ -474,6 +474,13 @@ static func build_world(root: Node3D) -> Dictionary:
 			shell.rotation.y = float(p.get("rot", 0.0))
 			shell.set_meta("placement_id", String(p.get("id", sid)))
 			shell.add_to_group("placement")
+			# THE FUEL ACCORD (F1-F3): the AUTHORED path dresses its gas stations too —
+			# Meridian's pumps are Accord ground same as every streamed one (the sim
+			# caught this: the town materializes HERE at boot, not via _spawn_placement).
+			if sid == "gas_station_small":
+				var accord := ProtoFuelAccord.create(shell.position, float(p.get("rot", 0.0)))
+				world.add_child(accord)
+				accord.position = shell.position
 
 	# --- Wrecks along the highway shoulder (Divided States flavor) --------------
 	var wrecks: Array = [

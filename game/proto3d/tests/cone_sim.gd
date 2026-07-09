@@ -35,11 +35,12 @@ func _tap_interact() -> void:
 
 
 func _key_b(down: bool) -> void:
-	var ev := InputEventKey.new()
-	ev.keycode = KEY_B
-	ev.physical_keycode = KEY_B
-	ev.pressed = down
-	Input.parse_input_event(ev)
+	# BINOCULARS RETIRED (owner order 2026-07-09): the key bind is dead; the vision
+	# machinery under test stays reachable through the unbound ACTION.
+	if down:
+		Input.action_press("drivn_binoculars")
+	else:
+		Input.action_release("drivn_binoculars")
 
 
 func _next() -> void:

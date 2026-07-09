@@ -72,6 +72,50 @@
   (Miami waterfront, in-world) + the MAP paints the sea and the line everywhere (any terminus,
   one M press). Logged, not hidden.
 
+## Iteration 4 — 2026-07-09 — THE BINOCULAR DRIFT SWEEP (the suite's red cluster, fixed at cause)
+- **Found before it burned another suite hour:** wave 1's binocular REMOVAL (owner order:
+  "get rid of the binoculars") only cleared the BIND — five old sims still drove the feature
+  through `_key(KEY_B)`: m1 (phases 5-6), binocular, cone, dark, vision. Two had ALREADY run
+  red in the in-flight suite → that run could never stamp; killed + will restart clean.
+- **The honest flip (not a weakening):** the vision MACHINERY (cone modes, recon naming,
+  vignette) still ships — only the player bind is dead. Sims now drive it through the unbound
+  ACTION (`Input.action_press("drivn_binoculars")` — programmatic presses work bind-less), so
+  the vision-mechanics coverage is PRESERVED, and binocular_sim + m1 gained the REMOVAL check:
+  the B KEY must raise nothing (B belongs to the drone recall).
+- **m1_sim's 14-minute "hang" explained:** no hang — phase timers advance on PHYSICS TICKS,
+  and three suites' worth of Godot processes starved the box; 60 sim-seconds stretched to 14
+  wall-minutes. (The two extra suites: TaskStop kills the wrapper, the `bash run_suite.sh`
+  grandchild survives — reap the runner PIDs, always.)
+- **Bridge-flood fix (thought-through, not sim-caught):** rivers are 'w' cells → bridge chunks
+  are WET → the W2 sheet at +0.32 visually flooded every bridge deck (paint at ~0.09). Sheet
+  lowered to +0.02: crossings stay dry, the water still reads, DEPTH is sold by the stall law.
+- pilot_skill_sim audited against the one-press drone change: survives by construction (its
+  second use_item hits the harmless re-take branch).
+
+## Iteration 5 — 2026-07-09 — THE FUEL ACCORD lands (owner add, F1–F4) + two ghosts named
+- **THE FUEL ACCORD built end-to-end** off a scout's file:line map: `fuel_accord.gd`
+  (ProtoFuelAccord: static ring registry that registers per streamed station and unregisters
+  on chunk unload · AccordPump: fuel for scrip through the real interact contract, prices.json
+  `pump_fuel` row · AccordGuard ×2: posted, neutral slate, engages Accord-breakers, fires
+  through the player's real hurt path `on_player_clawed` · the SIGN via the wave-1 readable
+  law). Wires: world_stream dress hook on gas_station_small placements · on_npc_attacked
+  reports in-ring violence · bandits' COMMIT gate defers on Accord ground (sightings HELD —
+  a truce, not a bug-off) · ecology's corpse heat skips the ring. Jerry cans went RARE
+  (loot weights 0.3→0.08; field cache 0.25→0.07) — the pump is the economy's sink.
+  security_forces.json gains the `accord[]` row (data vocabulary; constants live in code
+  until the SECURITY_LADDER fold consumes the rows).
+- **The single-arg truth:** player weapons call `take_damage(dmg)` with NO attacker — an
+  unattributed hit on a posted guard is inferred as the player (the only weapon-wielder in
+  the tree). Logged as the honest v1 inference.
+- **m1's silent death = the import gotcha, paid AGAIN:** wiring world_stream to the new
+  class_name before `--import` made every dependent script fail to compile — the scene loads
+  NOTHING and idles forever (no watchdog can fire in a scene that never ran). The tell:
+  not even "scene up" printed. Law reaffirmed: new class_name → import BEFORE any run.
+- **dark_sim's red was STALE, not broken:** `daynight.vision_mult` line 81 says it in its
+  own comment — "raised: new moon = tense, not blind" (the SHIP-goal night floor, feel_sim's
+  law). dark_sim still demanded the old ink-black <15 m. Check synced to the shipped band
+  (30–48 m), reason documented in the sim.
+
 ## AUDIT PASS 1 — 2026-07-09 (against the goal text, checked by files/sims, not judgment)
 | Stop item | Check | State |
 |---|---|---|

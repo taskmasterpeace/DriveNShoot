@@ -606,6 +606,13 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 		if shell != null:
 			shell.add_to_group("placement")
 			shell.set_meta("building", p["building"])
+			# THE FUEL ACCORD (F1-F3): every gas station gets its dressing — the pump,
+			# two posted enforcers, the sign. The ring registers itself for the truce.
+			if sid == "gas_station_small":
+				var accord := ProtoFuelAccord.create(
+					Vector3(p["pos"].x, 0.0, p["pos"].y), float(p.get("rot", 0.0)))
+				chunk.add_child(accord)
+				accord.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
 			shell.set_meta("placement_id", p["id"])
 			chunk.add_child(shell)
 			shell.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
@@ -664,9 +671,11 @@ func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
 ## in water.gdshader per WATER_RESEARCH.md). Painted EDGE-FOAM strips mark every
 ## chunk edge that borders LAND — the shoreline's ≥100 m readability signal,
 ## deterministic geometry a headless sim can assert (never a depth-trick promise).
-## The wet floor sits at −0.23 (GROUND_INTEGRITY); the sheet rides at +0.32 —
-## 0.55 m of visible water: hoods sink, boots wade, the read is immediate.
-const WATER_SHEET_Y := 0.32
+## The wet floor sits at −0.23 (GROUND_INTEGRITY); the sheet rides at +0.02 —
+## BELOW every bridge deck and road paint (0.07+), so a crossing stays visually
+## DRY while the water still reads (rivers are 'w' cells: a higher sheet flooded
+## every bridge deck hood-deep). Depth is sold by the STALL law, not the waterline.
+const WATER_SHEET_Y := 0.02
 static var _water_mat: ShaderMaterial = null
 func _build_water_sheet(chunk: Node3D, center: Vector3) -> void:
 	if _water_mat == null:
@@ -1321,7 +1330,9 @@ static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGe
 		_:
 			if rng.randf() < 0.25:
 				cache[["water", "coffee", "flare", "tire_kit", "whiskey"][rng.randi() % 5]] = 1
-	if near_road and rng.randf() < 0.25:
+	# THE FUEL ACCORD (F1): jerry cans go RARE — the PUMP is where fuel comes from
+	# now (the economy's sink); a found can is a windfall, not a plan.
+	if near_road and rng.randf() < 0.07:
 		cache["jerry_can"] = 1
 	# WEAPONS IN THE FIELD: urban ruins and roadsides arm you more than open country.
 	var wchance: float = 0.14

@@ -53,12 +53,22 @@ func _ready() -> void:
 	main._exit_car() # binoculars are an on-foot verb
 	for _i in 6:
 		await get_tree().physics_frame
+	# BINOCULARS RETIRED (owner order, 2026-07-09 playtest): the KEY bind is dead —
+	# B belongs to the drone recall now. The MACHINERY stays dev/test-reachable
+	# through the unbound ACTION. This sim now proves BOTH truths.
 	_key(KEY_B, true)
 	for _i in 10:
 		await get_tree().physics_frame
-	_check("HOLD B raises the binoculars", bool(main.cam_rig.binoculars))
-	_check("...and the HUD's thin-rim vignette is LIVE", main.hud._vignette != null and main.hud._vignette.visible)
+	_check("the B KEY raises NOTHING (the bind is retired)", not bool(main.cam_rig.binoculars))
 	_key(KEY_B, false)
+	for _i in 6:
+		await get_tree().physics_frame
+	Input.action_press("drivn_binoculars")
+	for _i in 10:
+		await get_tree().physics_frame
+	_check("the ACTION still raises the machinery (dev/test path)", bool(main.cam_rig.binoculars))
+	_check("...and the HUD's thin-rim vignette is LIVE", main.hud._vignette != null and main.hud._vignette.visible)
+	Input.action_release("drivn_binoculars")
 	for _i in 10:
 		await get_tree().physics_frame
 	_check("release drops them", not bool(main.cam_rig.binoculars))

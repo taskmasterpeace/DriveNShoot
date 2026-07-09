@@ -183,6 +183,10 @@ func _tick(delta: float) -> void:
 	g["sightings"] = float(g["sightings"]) + rate * dh
 	# --- COMMIT: strength >=3 raises the KIT; weaker crews hit and run -----------
 	if float(g["sightings"]) >= float(TUNING["threshold_base"]) / float(s):
+		# THE FUEL ACCORD (F4): Accord ground is NO-STRIKE — the crew keeps watching
+		# (sightings hold) and commits the moment the mark rolls OFF neutral ground.
+		if ProtoFuelAccord.in_ring(anchor, 8.0):
+			return
 		g["gstate"] = GangState.COOLDOWN
 		g["cool_until_h"] = now + float(TUNING["cooldown_h"])
 		g["sightings"] = 0.0
