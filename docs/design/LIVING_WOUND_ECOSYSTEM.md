@@ -44,6 +44,7 @@ These resolve the blockers the review surfaced. They are binding; the facet writ
 | **0.8** | **Offline advance is a PURE function** `population.advance_offline_day(seed_base, day, digest)`, called **inside** `run_offline_catchup`'s day loop (`world_state.gd:144`), seeded `hash("ecology:%s:%d" % [sid, base_day+day+1])` (absolute game-day). It mutates floats + appends digest strings only — **never** routed through `events.roll_daily` (which spawns caravans/audio). | Determinism + the "never spawns/plays offline" fairness law; avoids the pre-existing `roll_daily` offline side-effect (flagged for a separate fix). | Offline seed inconsistency + caravan spam. |
 | **0.9** | **One HUD warning owner.** `hud.set_threat` becomes a **priority/owner stack** (each writer registers `text+priority+ttl`; HUD renders the top, or two stacked lines). Precedence: **imminent apex strike > checkpoint (bandit) > drone-shadow > nest territory > NO-BIRDS**. `toast()` gets a small **queue**. | `set_threat` is one shared Label the bandit director rebuilds every tick — it silently blanks/overwrites every ecology tell; `toast()` overwrites with no queue. | The must-not-miss reads losing a race; toast clobber. |
 | **0.10** | **Audio is presentation; the noise bus is simulation — one-way, forever.** `emit_noise` is the sim event predators react to; `audio.play_at` is what the player hears. A creature row may **pair** them (its `sfx` entry carries an optional `pair_noise:{r,kind}` so one row line produces both the sound and the signal), but playing audio NEVER creates a sim signal by itself, and predators NEVER read `AudioServer` state. Predator calls (howls, the Knifeback screech) are audio-only — the predator talking, not a signal. | Coupling them either lets sounds hunt the player (feedback loops) or forces every SFX through the ring buffer. `play_at`'s `max_distance 90` already mirrors `max_noise_m = 90` — what the sim can hear, the player can hear, by convention not by wiring. | A whole class of audio↔AI feedback bugs, pre-empted. |
+| **0.11** | **THE BODY LAW — a kill stays a BODY, never a box.** (Owner, 2026-07-08: *"you see the body, and then it turns into a chest, like a box — that's gonna have to be adjusted."*) One corpse law for every death path: the dead actor's **own rig, posed dead** (the puppet's bent-limb death sprawl / `_quad.pose_dead` already exist) IS the corpse — it stays where it fell, is looted **in place** (`ProtoCorpse`'s container plumbing is kept; the E-prompt opens the body, nothing morphs), decays and fades as the body. `ProtoCorpse.create()` gains a `rig` argument (the killed actor's visual, reparented and death-posed) and its 2-box lump becomes the **fallback only** (no rig handed in). **Audit every death path** — companion "corpse chest," NPC kills, ecology creatures — until zero kills spawn a `ProtoChest`/box morph. | The whole read layer (birds, corpse_heat, gnawed-roadkill clues, scavengers) is built on corpses being *legible bodies*; a box-lump breaks the fiction the ecosystem sells, and `corpse.gd:1` already states the goal ("no more loot crates on a kill — loot the BODY") — the 2-box visual just never got the real rig. | The corpse→chest morph; the box-lump read. Asserted by `body_law_sim`: kill one of each actor type → the body you see is the body you loot, no chest node ever enters the tree. |
 
 ---
 
@@ -521,9 +522,31 @@ readable events.**
 dawn-flee `:217`, `night_pack` group) — already built as night creatures, now formalized and folded into
 the chain:
 - **Spawn gate:** a `strict_nocturnal` row spawns ONLY while `is_dark()`; at dawn the existing FLEE fires
-  and the pack despawns off-view. **A player who only travels by day never sees one — only their leavings**
-  (drag marks, gnawed kills, the dog refusing a treeline at noon). That mystery is load-bearing: it is the
-  seam the future HUNTERS idea (§15) hangs on.
+  and the pack despawns off-view **into its den (below)**. **A player who only travels by day never sees one
+  above ground — only their leavings** (the clue props of §3.8, spawned by the sector's state: the drag line
+  where a party hauled last night's kill toward the den, the half-eaten Mossback on the shoulder from the
+  overnight F-NIGHT predation, the dog balking at a treeline at noon because the den mouth — and the pack
+  sleeping in it — is 80 m past it). That above-ground mystery is load-bearing: it is the seam the future
+  HUNTERS idea (§15.4) hangs on.
+- **THE HOWLER DEN IS UNDERGROUND (owner ask + "can we go underground?" — yes, by the portal law).** The
+  map cannot carve terrain (floors are law — GROUND_INTEGRITY), but the game already owns the pattern: the
+  Carousel portal (`carousel_portal.gd` — an interactable that fires a jump) and the Carousel's own DUNGEON
+  bases prove **separate authored interiors** work. A howler den =
+  **(1) a DEN MOUTH** — a culvert / storm-drain / basement-stair prop placed at chunk load by the §15
+  seeder (anchors: drainage/industrial/ruined_house — distinct from the Knifeback's overpass so the two
+  apex habitats never collide), dressed by the clue system (bones, flies `corpse_flies`, a cold draft
+  audio tell, the stink line NPCs mention) —
+  **(2) walk/E into the mouth → transition into a DEN INTERIOR**: a small authored dark space (built far
+  below the map or off-grid; the portal machinery moves you — no terrain carving). Inside, the clock is
+  irrelevant: **it is always their night** (`is_dark()` is forced true in den space) — the pack is HOME by
+  day, with brood, bone piles, and the range's stockpile as loot.
+  **The day raid is the counterplay** (mirrors the Knifeback's day-den law): light is your weapon down
+  there — the headlight-fear law generalizes to flashlight/flare cones pushing them back (the shipped
+  `_in_headlights` check pointed at hand light), dark is theirs. Clearing the den ends the night range
+  (the §15 seeder marks it reclaimed for `reseed_days`) and triggers the same rodent-boom backfire as any
+  nest clear. Fully data: a den row = `{anchor_kinds, interior_id, pack_size, brood, loot_table}`.
+  **Phase: dens land in P2** (P1 howlers remain denless night terror — the mouth props and interiors are
+  P2 content; nothing in P1 forecloses them).
 - **EYESHINE is the night read:** the amber eye pairs render as emissive points visible to ~60 m regardless
   of `vision_mult` (emissive defeats darkness — information the dark can't hide). Two amber points at the
   treeline, fixed on you, is the iconic night warning — and it counts toward the warn mask (a perceived
@@ -558,7 +581,7 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 
 | Formula | Expression | Vars / ranges | Example |
 |---|---|---|---|
-| **F-PLANT** | `plant_mass += dt·(r_plant·plant_mass·(1−plant_mass)·moisture − c_graze·grazer_pop·plant_mass)` | `moisture=0.4+0.6·water_rot`; `r_plant=0.04` (0.01–0.10); `c_graze=0.03` (0.01–0.08); clamp 0..1 | P=0.55,G=0.15,WR=0.80,dt=1 → +0.0062 → **0.556** |
+| **F-PLANT** | `plant_mass += dt·(r_plant·season_mult·plant_mass·(1−plant_mass)·moisture − c_graze·grazer_pop·plant_mass)` | `moisture=0.4+0.6·water_rot`; `r_plant=0.04` (0.01–0.10); `c_graze=0.03` (0.01–0.08); **`season_mult` from WEATHER_AND_SEASONS.md W-SEASON (SPRING 1.5 / SUMMER 1.0 / AUTUMN 0.7 / WINTER 0.4) — winter starves the chain from the bottom**; clamp 0..1 | P=0.55,G=0.15,WR=0.80,dt=1, SUMMER → +0.0062 → **0.556**; same cell in WINTER → +0.0006 (the lean season) |
 | **F-GRAZER** | `migrate=(plant_mass<0.10)?m_graze·grazer_pop:0; grazer_pop += dt·(r_graze·grazer_pop·(plant_mass−grazer_pop) − c_pg·predator_pressure·grazer_pop − migrate)` | `r_graze=0.03`; `c_pg=0.05`; `m_graze=0.05`; clamp 0..1 | G=0.15,P=0.55,pp=0.396 → −0.0012 → **0.149** (falling) |
 | **F-RODENT** | `food_r=clamp(0.3·plant_mass+0.8·corpse_heat+0.5·water_rot,0,1); rodent_pop += dt·(r_rod·(food_r−rodent_pop) − c_pr·predator_pressure·rodent_pop)` | `r_rod=0.06`; `c_pr=0.07`; clamp 0..1 — **the EXPLODE rule** | R=0.30,C=0.40,WR=0.80,pp=0.396 → +0.027 → **0.327** (climbs); nest cleared (pp=0) → +0.50/h |
 | **F-CORPSE (sector)** | `corpse_heat += dt·(deposits − k_corpse·(1+0.5·water_rot)·corpse_heat − c_rc·rodent_pop·corpse_heat)` | `deposits`=on-screen `Σ body.heat / CORPSE_HEAT_NORM(3.0)`, off-screen `0.02·predator_pressure`; `k_corpse=0.08`; `c_rc=0.05` | C=0.40,R=0.30,WR=0.80 off-screen → −0.043 → **0.357** |
@@ -667,6 +690,12 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
     must not collide with its `controlling_faction`/`current_pop` fields (they don't — parallel keys).
   - `BANDIT_CONVOY_ECOSYSTEM` — shares `hud.set_threat` (now a stack), the noise bus, and convoys as apex prey
     (a raided convoy seeds `corpse_heat` + the "missing caravan" radio line).
+  - `WEATHER_AND_SEASONS.md` — the sky is an ecology DRIVER: regional `water_rot` wetting (W-WET, per cell
+    not per player), `season_mult` on F-PLANT/F-GRAZER (the lean-season arc — winter is the hungry season),
+    the seasonal dark-window offset stretching the NIGHT SHIFT (winter = the howler season), and
+    per-position `vision_mult` in F-SENSE. That doc's §6 lists this one.
+  - `CAROUSEL_PORTAL` / interiors — the howler den (§3.13, P2) rides the portal-to-interior pattern; den
+    interiors are authored spaces, never carved terrain (GROUND_INTEGRITY's floor law).
 
 ---
 
@@ -741,6 +770,15 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
     two nests within 3 cells; nothing seeds in a protected bubble; same `WORLD_SEED` → byte-identical
     placement (determinism); a region seeded at 2× density shows the documented failure mode (wall-to-wall
     STARVING) — asserting the guard is what prevents it.
+11. `body_law_sim` (0.11) — kill one of each actor type (NPC, companion, howler, grazer, Knifeback): every
+    kill leaves the actor's own rig posed dead where it fell, lootable in place via the corpse container;
+    **no `ProtoChest` (or any box-morph node) ever enters the tree on a kill**; the rigless fallback lump
+    appears only when `create()` receives no rig.
+
+**Phase 2 adds:** `den_raid_sim` — a seeded howler den mouth materializes on its anchor; entering
+transitions to the den interior where `is_dark()` is forced and the pack is HOME at noon; a light cone
+pushes them back (the generalized headlight law); clearing the den marks the range reclaimed and fires the
+rodent-boom backfire.
 
 **Phase 2** — `rodent_boom_sim` (clear nest → rodent explosion → disease → settlement problem);
 `pack_variant_sim` (one skeleton, three region_mods; unknown state → default; fold law holds);
@@ -832,7 +870,9 @@ tell); feeding/drag foley (`bones_crunch`, `drag_heavy`); the horse `car_door` p
 (`horse_snort`); **radio VO** for the missing-caravan chatter via `voices.mjs` (§13 — the 4 LOCKED voices,
 never change a `voice_id`). **Night P2:** full bed-down/roost migrations for the wider roster; howler-vs-
 Knifeback territory competition (split `food_avail`); the seeder (§15) goes region-wide with per-biome
-density rows.
+density rows; **the HOWLER DENS land** (underground mouth→interior, the day-raid counterplay, §3.13).
+**Weather/seasons P2** (WEATHER_AND_SEASONS.md): the field's regional `water_rot` wetting + the
+`season_mult` lean-season arc + winter's longer howler nights go live as ecology drivers.
 
 ### PHASE 3 — the full pressure system
 
@@ -903,7 +943,9 @@ its file lands.
 |---|---|---|
 | `game/proto3d/population.gd` | 1 | host `row["eco"]` (seeded from biome); extend `GROUPS` with `grazer`/`rodent`; add `tick_ecology(now_h)`, `advance_offline_day(seed,day,digest)`, eco spawn-plan helpers; fold `ecology.json` on a code floor; `serialize/restore` already carry eco |
 | `game/proto3d/proto3d.gd` | 1 | instantiate `ProtoPopulation` + `ProtoEcology` (near `bandits`, ~`:335`); tick both on the game-hour hook (`:4012-4017`); `data["population"]` in save (`:3556`) + restore (`:3690`); pass `population` to `stream.setup`; add `emit_noise(muzzle,60,"gunfire")` in the non-melee fire branch (`~:2181-2188`); `set_threat` priority stack + `toast` queue |
-| `game/proto3d/corpse.gd` | 1 | `+var heat` (canonical F-CORPSE), decay in `_physics_process`, `+infection/indoors/gnawed`, emit one-shot `"carrion"` noise on spawn |
+| `game/proto3d/corpse.gd` | 1 | **THE BODY LAW (0.11):** `create()` gains a `rig` argument — the killed actor's own visual, reparented + death-posed, IS the corpse; the 2-box lump becomes fallback-only. Plus `+var heat` (canonical F-CORPSE), decay in `_physics_process`, `+infection/indoors/gnawed`, one-shot `"carrion"` noise on spawn |
+| every death path (`companion.gd` MORTAL chest, `npc.gd`, ecology actors) | 1 | audited onto the one body law — zero kills spawn a `ProtoChest`/box morph (`body_law_sim`) |
+| howler DEN (mouth props + interiors, `carousel_portal.gd` pattern) | 2 | den-mouth prop rows (culvert/drain/basement) placed by the §15 seeder; walk-in/E → authored den interior (always-dark space; light-as-weapon counterplay); den row = `{anchor_kinds, interior_id, pack_size, brood, loot_table}` |
 | `game/proto3d/world_stream.gd` | 1 | `_materialize_ecology(chunk,center)` after `_materialize_population` — **per-cell `eco_spawned` guard + `LOAD_BUDGET` gate + `safe_to_spawn`**; plant scatter (tinted, meta `plant`); grazer herds + Wire Rats via `_spawn_pop_actor` arms; Knifeback den + sentinel at chunk-load; `set_meta("wreck",true)` on the wreck box |
 | `game/proto3d/world_state.gd` | 1 | call `population.advance_offline_day(...)` inside `run_offline_catchup`'s day loop (pure, seeded); surface digest lines in the return briefing |
 | `game/proto3d/hud_3d.gd` | 1 | `set_threat` → owner/priority stack (0.9); `toast` queue; reuse `set_recon_tags` for bird naming |
@@ -953,7 +995,7 @@ deepest-authored slice is the VA/NC/GA/FL I-95/I-75 corridor (Meridian ≈ `(110
 | Tower Bird | 4 | urban | **radio towers, tall ruins** | city radio towers, police stations |
 | Whitewing | 4 | any | clean open land | only where `infection_pressure` low — **its absence marks danger** |
 | Razor Dog / variants | 5 | per §10 | dusk roads, dens | see the regional table |
-| **Howler** (`strict_nocturnal`) | 5-night | any, road-adjacent | **the dark itself** — night ranges, never a daytime den you can find | wherever `is_dark()` — 1 range per 4–6 cells (§15); NEVER seen by day, only its leavings |
+| **Howler** (`strict_nocturnal`) | 5-night | any, road-adjacent | night ranges above ground; **UNDERGROUND DEN by day** (culvert/drain/basement mouth → portal interior, §3.13 — P2) | wherever `is_dark()` — 1 range per 4–6 cells (§15); never seen above ground by day — find the den mouth and go down after them, if you dare |
 | **The Knifeback** | 6 | swamp/urban/industrial/forest | **overpasses, drainage tunnels, collapsed malls** | P1: one den under an I-75 overpass in the FL swamp; P2+: FL/GA/AZ/NM/TX/IL/CA |
 
 ---
