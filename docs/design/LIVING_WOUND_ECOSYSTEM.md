@@ -545,8 +545,12 @@ the chain:
   `_in_headlights` check pointed at hand light), dark is theirs. Clearing the den ends the night range
   (the §15 seeder marks it reclaimed for `reseed_days`) and triggers the same rodent-boom backfire as any
   nest clear. Fully data: a den row = `{anchor_kinds, interior_id, pack_size, brood, loot_table}`.
-  **Phase: dens land in P2** (P1 howlers remain denless night terror — the mouth props and interiors are
-  P2 content; nothing in P1 forecloses them).
+  **Phase (amended per THE_AMERICAN_ROAD ruling 0.9 — no portal interiors before the tech is proven):**
+  P1 howlers remain denless night terror. **P2 dens are SURFACE dens** — the dressed mouth prop plus
+  wake-on-approach occupiers (the Carousel `_spawn_occupation` pattern proves dangerous dens work
+  open-air); the raid happens at and around the mouth, light still the weapon. **The true underground
+  portal interior is the P3 ambition** once portal-to-interior tech is proven elsewhere. Nothing in
+  P1/P2 forecloses it.
 - **EYESHINE is the night read:** the amber eye pairs render as emissive points visible to ~60 m regardless
   of `vision_mult` (emissive defeats darkness — information the dark can't hide). Two amber points at the
   treeline, fixed on you, is the iconic night warning — and it counts toward the warn mask (a perceived
@@ -945,7 +949,7 @@ its file lands.
 | `game/proto3d/proto3d.gd` | 1 | instantiate `ProtoPopulation` + `ProtoEcology` (near `bandits`, ~`:335`); tick both on the game-hour hook (`:4012-4017`); `data["population"]` in save (`:3556`) + restore (`:3690`); pass `population` to `stream.setup`; add `emit_noise(muzzle,60,"gunfire")` in the non-melee fire branch (`~:2181-2188`); `set_threat` priority stack + `toast` queue |
 | `game/proto3d/corpse.gd` | 1 | **THE BODY LAW (0.11):** `create()` gains a `rig` argument — the killed actor's own visual, reparented + death-posed, IS the corpse; the 2-box lump becomes fallback-only. Plus `+var heat` (canonical F-CORPSE), decay in `_physics_process`, `+infection/indoors/gnawed`, one-shot `"carrion"` noise on spawn |
 | every death path (`companion.gd` MORTAL chest, `npc.gd`, ecology actors) | 1 | audited onto the one body law — zero kills spawn a `ProtoChest`/box morph (`body_law_sim`) |
-| howler DEN (mouth props + interiors, `carousel_portal.gd` pattern) | 2 | den-mouth prop rows (culvert/drain/basement) placed by the §15 seeder; walk-in/E → authored den interior (always-dark space; light-as-weapon counterplay); den row = `{anchor_kinds, interior_id, pack_size, brood, loot_table}` |
+| howler DEN (mouth props; SURFACE den P2, portal interior P3 — AMERICAN_ROAD 0.9) | 2→3 | den-mouth prop rows (culvert/drain/basement) placed by the §15 seeder; P2 = wake-on-approach occupiers at the mouth (carousel `_spawn_occupation` pattern); P3 = walk-in/E → authored always-dark interior once portal tech is proven; den row = `{anchor_kinds, interior_id, pack_size, brood, loot_table}` |
 | `game/proto3d/world_stream.gd` | 1 | `_materialize_ecology(chunk,center)` after `_materialize_population` — **per-cell `eco_spawned` guard + `LOAD_BUDGET` gate + `safe_to_spawn`**; plant scatter (tinted, meta `plant`); grazer herds + Wire Rats via `_spawn_pop_actor` arms; Knifeback den + sentinel at chunk-load; `set_meta("wreck",true)` on the wreck box |
 | `game/proto3d/world_state.gd` | 1 | call `population.advance_offline_day(...)` inside `run_offline_catchup`'s day loop (pure, seeded); surface digest lines in the return briefing |
 | `game/proto3d/hud_3d.gd` | 1 | `set_threat` → owner/priority stack (0.9); `toast` queue; reuse `set_recon_tags` for bird naming |
