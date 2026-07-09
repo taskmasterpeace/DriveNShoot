@@ -1000,6 +1000,25 @@ func dashboard() -> Dictionary:
 	}
 
 
+## The game MAIN this car reports to (notify toasts, audio). In a live run that's
+## current_scene. Under a sim harness current_scene is the SIM node, and the old
+## fallback assumed get_parent() IS main — false for CONTAINER-parented cars
+## (TestGrounds' pool cars register into main.cars but hang under TestGrounds),
+## which silently ate the misfire warning, the skid loop, and the battery click
+## in harnesses (visibility_sim's red check). Walk ancestors for the first node
+## that speaks notify() — ProtoMain is the only one that does.
+func _main_node() -> Node:
+	if not is_inside_tree():
+		return null
+	var m := get_tree().current_scene
+	if m != null and m.has_method("notify"):
+		return m
+	var walk := get_parent()
+	while walk != null and not walk.has_method("notify"):
+		walk = walk.get_parent()
+	return walk
+
+
 func _physics_process(delta: float) -> void:
 	forward_speed = linear_velocity.dot(-global_basis.z)
 	current_mph = absf(forward_speed) * 2.237
@@ -1139,9 +1158,7 @@ func _physics_process(delta: float) -> void:
 		if _misfire_cd <= 0.0:
 			_misfire_cd = _spiral_rng.randf_range(1.8, 4.2)
 			_misfire_t = 0.45
-			var mm := get_tree().current_scene
-			if mm == null or not mm.has_method("notify"):
-				mm = get_parent() # sims wrap main in a harness — the parent IS main
+			var mm := _main_node()
 			if mm != null and "audio" in mm and mm.audio:
 				mm.audio.play_at("metal_debris", global_position, -8.0, 1.5)
 			# Surface the CAUSE once — a mystery stutter reads as a bug, a named
@@ -1212,10 +1229,9 @@ func _physics_process(delta: float) -> void:
 				_crank_t = 0.0
 				if _click_cd <= 0.0:
 					_click_cd = 1.2
-					if is_inside_tree():
-						var m := get_tree().current_scene
-						if m and m.has_method("notify"):
-							m.notify("🔋 click. Dead battery — it needs CAR PARTS.")
+					var m := _main_node()
+					if m != null:
+						m.notify("🔋 click. Dead battery — it needs CAR PARTS.")
 			else:
 				_crank_t += delta
 				if _crank_t >= 0.5:
@@ -1449,9 +1465,7 @@ func _update_skid_loop() -> void:
 	var drifting := input_handbrake and absf(forward_speed) > 2.0
 	is_skidding = (any_slip and absf(forward_speed) > 3.0) or drifting or is_burnout
 	if is_skidding and _skid_player == null:
-		var m := get_tree().current_scene
-		if m == null or not ("audio" in m):
-			m = get_parent() # sims wrap main in a harness — the parent IS main
+		var m := _main_node()
 		if m != null and "audio" in m and m.audio:
 			_skid_player = (m.audio as ProtoAudio).attach_loop("tire_scream", self, -9.0)
 	if _skid_player != null and is_instance_valid(_skid_player):

@@ -57,6 +57,12 @@ func _ready() -> void:
 		d.interact_prompt(main).contains("STRAY") or d.interact_prompt(main).contains("COMPANION"))
 
 	# --- A coughing engine NAMES its cause, once --------------------------------
+	# NOTE (2026-07-08 fix): cars[0] is TestGrounds' pool car (test_grounds.gd:87
+	# registers into main.cars before proto3d spawns its own) — parented under
+	# TestGrounds, NOT main. That shape broke the old "get_parent() IS main" notify
+	# fallback and this check went red; car_3d._main_node() now walks ancestors, so
+	# a container-parented car warns exactly like a main-parented one. This sim
+	# deliberately KEEPS using cars[0] — the container-parented car IS the regression.
 	var car: ProtoCar3D = main.cars[0]
 	main.enter_car(car)
 	car.components["engine"].hp = car.components["engine"].max_hp * 0.2
