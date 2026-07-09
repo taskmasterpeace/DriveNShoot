@@ -152,6 +152,39 @@ func take_damage(amount: float, _attacker: Node3D = null) -> void:
 	queue_free()
 
 
+## RECALL the bird hands-off (2026-07-09 playtest "a button to automatically fly back").
+## A DOCK scout flies to its dock (existing ROUTE_BACK); a PACK bird (no dock) homes to
+## where the player is and sets itself down as a RECOVERABLE pickup. The caller frees the
+## body first if you were piloting — here we just drop autonomy's brakes and point home.
+func recall() -> void:
+	piloted = false
+	parked = false
+	mode = DroneMode.ROUTE_BACK
+	if not is_instance_valid(_dock) and _main != null and "player" in _main and _main.player != null:
+		_anchor = _main.player.global_position # a pack bird flies back to YOU
+	if _main != null and _main.has_method("notify"):
+		_main.notify("🛸 Recalling — the bird's turning for home.")
+
+
+## Set the bird down as a RECOVERABLE pickup (a {drone} box you can grab & redeploy), NOT a
+## wreck — used by a dead battery and by a dockless recall. Folds the paired remote with it.
+func _land_as_pickup(msg: String = "🛸 The bird set itself down — grab it to redeploy.") -> void:
+	if _main == null:
+		queue_free()
+		return
+	var pickup := ProtoChest.create("Landed drone", {"drone": 1}, false)
+	_main.add_child(pickup)
+	var ground := global_position
+	ground.y = 0.1
+	pickup.global_position = ground
+	_unpair()
+	if _main.has_method("notify"):
+		_main.notify(msg)
+	if "drone" in _main:
+		_main.drone = null
+	queue_free()
+
+
 func _physics_process(delta: float) -> void:
 	if parked:
 		return # set down by the pilot — rotors still, grabbable, waiting for the stick
@@ -180,7 +213,7 @@ func _physics_process(delta: float) -> void:
 				if is_instance_valid(_dock) and _dock.has_method("dock_drone"):
 					_dock.dock_drone(self)
 				else:
-					take_damage(999.0) # nowhere to land — the bird drops
+					_land_as_pickup() # recalled with no dock — set down recoverable, not a wreck
 				return
 
 	# The eye: threats under the bird ping YOUR perception — and a ROUTE scout

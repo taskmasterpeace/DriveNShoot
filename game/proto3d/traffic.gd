@@ -499,7 +499,11 @@ func spawn_agent(road_id: String, seg_i: int, s_ab: float, lane: int, dir: int) 
 	cab.material_override = ProtoWorldBuilder.material(ag.tint.darkened(0.25), 0.85)
 	cab.position = Vector3(0, 0.55, 0.2)
 	ag.add_child(cab)
-	# the BUMPER DOOR: a real car entering this ring promotes the agent to physics
+	# the BUMPER DOOR: a real car entering this ring promotes the agent to physics.
+	# DEFERRED (call_deferred, below): promote() add_child's a VehicleBody3D, which is
+	# illegal inside body_entered — that fires during the physics query flush ("Can't
+	# change this state while flushing queries" → the 2026-07-09 crash on getting hit by
+	# a traffic car). Deferring drains it after the flush; promote() re-guards the agent.
 	var area := Area3D.new()
 	var ash := CollisionShape3D.new()
 	var abox := BoxShape3D.new()
@@ -508,7 +512,7 @@ func spawn_agent(road_id: String, seg_i: int, s_ab: float, lane: int, dir: int) 
 	area.add_child(ash)
 	area.body_entered.connect(func(b: Node3D) -> void:
 		if b is ProtoCar3D and not (b as ProtoCar3D).dead:
-			promote(ag, 0.0))
+			promote.call_deferred(ag, 0.0))
 	ag.add_child(area)
 	add_child(ag)
 	agents.append(ag)

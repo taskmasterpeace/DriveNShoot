@@ -509,21 +509,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		chunk.add_child(l)
 		l.position = center + Vector3(rng.randf_range(-50, 50), 0.4, rng.randf_range(-50, 50))
 	if rng.randf() < 0.12:
-		var cache: Dictionary = {"scrap": rng.randi_range(1, 3), "9mm": rng.randi_range(4, 10), "bandage": 1 if rng.randf() < 0.5 else 0}
-		# The land flavors the loot: farms feed you, ruins tool you up, the road provides.
-		match biome:
-			"farmland":
-				cache["canned_food"] = rng.randi_range(1, 2)
-				if rng.randf() < 0.3:
-					cache["water"] = 1
-			"urban":
-				if rng.randf() < 0.4:
-					cache[["duct_tape", "painkillers", "map_fragment"][rng.randi() % 3]] = 1
-			_:
-				if rng.randf() < 0.25:
-					cache[["water", "coffee", "flare", "tire_kit", "whiskey"][rng.randi() % 5]] = 1
-		if near_road and rng.randf() < 0.25:
-			cache["jerry_can"] = 1
+		# THE FIELD CACHE now VARIES per chest and can ARM you (2026-07-09 playtest
+		# "every chest the same shit / no weapons anywhere") — see roll_field_cache below.
+		var cache: Dictionary = roll_field_cache(biome, near_road, rng)
 		var c := ProtoChest.create("Cache", cache)
 		chunk.add_child(c)
 		c.position = center + Vector3(rng.randf_range(-45, 45), 0.05, rng.randf_range(-45, 45))
@@ -1114,7 +1102,17 @@ func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenera
 		ProtoWorldBuilder.box_body(chunk, bs, bpos + Vector3(0, bs.y / 2.0, 0),
 			Color(0.30, 0.28, 0.26) if rng.randf() < 0.5 else Color(0.36, 0.30, 0.24), rng.randf_range(-0.1, 0.1))
 	if rng.randf() < 0.5:
-		var c := ProtoChest.create("Ruin stash", {"scrap": rng.randi_range(2, 5), "9mm": rng.randi_range(3, 8)})
+		# Ruins TOOL YOU UP (2026-07-09 playtest): often a weapon, now and then a jackpot.
+		var ruin: Dictionary = {"scrap": rng.randi_range(2, 5)}
+		if rng.randf() < 0.6:
+			ruin["9mm"] = rng.randi_range(3, 8)
+		if rng.randf() < 0.3:
+			ruin[["machete", "wrench", "bat", "pistol", "axe"][rng.randi() % 5]] = 1
+		if rng.randf() < 0.08:
+			var rr: Dictionary = ProtoContainer.roll_loot("cache_rare", rng)
+			for k in rr:
+				ruin[k] = int(ruin.get(k, 0)) + int(rr[k])
+		var c := ProtoChest.create("Ruin stash", ruin)
 		chunk.add_child(c)
 		c.position = center + Vector3(rng.randf_range(-30, 30), 0.05, rng.randf_range(-30, 30))
 
@@ -1134,7 +1132,14 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 	chunk.add_child(sign_label)
 	# (M3 0.19: the husk ring is DEAD — towns grow real streets + Building-Book
 	# slots via the bake's two-tier generator; the sign/landmark/cache remain.)
-	var c := ProtoChest.create("%s cache" % t["name"], {"scrap": rng.randi_range(3, 6), "bandage": 1, "9mm": rng.randi_range(6, 14)})
+	var town_loot: Dictionary = {"scrap": rng.randi_range(3, 6), "bandage": 1, "9mm": rng.randi_range(6, 14)}
+	# A town cache often holds a weapon (2026-07-09 playtest "no weapons anywhere").
+	if rng.randf() < 0.35:
+		town_loot[["pistol", "machete", "bat", "wrench"][rng.randi() % 4]] = 1
+	if rng.randf() < 0.15:
+		town_loot["shotgun"] = 1
+		town_loot["12ga"] = int(town_loot.get("12ga", 0)) + rng.randi_range(4, 12)
+	var c := ProtoChest.create("%s cache" % t["name"], town_loot)
 	chunk.add_child(c)
 	c.position = base + Vector3(rng.randf_range(-10, 10), 0.05, rng.randf_range(-10, 10))
 	match String(t.get("id", "")):
@@ -1149,6 +1154,58 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 		"washington": # the drowned monument
 			ProtoWorldBuilder.box_body(chunk, Vector3(2.4, 30, 2.4), base + Vector3(0, 12, 6), Color(0.8, 0.78, 0.72))
 	chunk.add_to_group("biome_town")
+
+
+## THE FIELD CACHE ROLLER (2026-07-09 playtest "every chest the same shit / no weapons
+## anywhere"): what a world cache holds. Each staple rolls independently (no two caches read
+## identical), the biome flavors it, and there's a real chance it ARMS you — melee often, a
+## firearm as the lucky find (with ammo to feed it), plus an occasional RARE jackpot merge.
+## Static + pure (biome, near_road, seeded rng) so loot_field_sim can prove variety headless.
+static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGenerator) -> Dictionary:
+	var cache: Dictionary = {}
+	if rng.randf() < 0.75:
+		cache["scrap"] = rng.randi_range(1, 4)
+	if rng.randf() < 0.6:
+		cache["9mm"] = rng.randi_range(4, 10)
+	if rng.randf() < 0.5:
+		cache["scrip"] = rng.randi_range(3, 12)
+	if rng.randf() < 0.4:
+		cache["bandage"] = 1
+	# The land flavors the loot: farms feed you, ruins tool you up, the road provides.
+	match biome:
+		"farmland":
+			cache["canned_food"] = rng.randi_range(1, 2)
+			if rng.randf() < 0.3:
+				cache["water"] = 1
+		"urban":
+			if rng.randf() < 0.4:
+				cache[["duct_tape", "painkillers", "map_fragment"][rng.randi() % 3]] = 1
+		_:
+			if rng.randf() < 0.25:
+				cache[["water", "coffee", "flare", "tire_kit", "whiskey"][rng.randi() % 5]] = 1
+	if near_road and rng.randf() < 0.25:
+		cache["jerry_can"] = 1
+	# WEAPONS IN THE FIELD: urban ruins and roadsides arm you more than open country.
+	var wchance: float = 0.14
+	if biome == "urban":
+		wchance += 0.15
+	if near_road:
+		wchance += 0.08
+	if rng.randf() < wchance:
+		if rng.randf() < 0.65:
+			cache[["machete", "wrench", "bat"][rng.randi() % 3]] = 1
+		elif rng.randf() < 0.5:
+			cache["pistol"] = 1
+			cache["9mm"] = int(cache.get("9mm", 0)) + rng.randi_range(4, 10)
+		else:
+			cache["shotgun"] = 1
+			cache["12ga"] = int(cache.get("12ga", 0)) + rng.randi_range(4, 10)
+	# A RARE jackpot rides on top now and then — guns, tools, a medkit.
+	if rng.randf() < 0.06:
+		var rare: Dictionary = ProtoContainer.roll_loot("cache_rare", rng)
+		for k in rare:
+			cache[k] = int(cache.get(k, 0)) + int(rare[k])
+	return cache
 
 
 # --- The world map (M): local fog-of-war → the country atlas -------------------

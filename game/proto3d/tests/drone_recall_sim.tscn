@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://ddronerecall0709"]
+
+[ext_resource type="Script" path="res://proto3d/tests/drone_recall_sim.gd" id="1_sim"]
+
+[node name="DroneRecallSim" type="Node"]
+script = ExtResource("1_sim")

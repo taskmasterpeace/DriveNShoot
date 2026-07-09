@@ -88,6 +88,17 @@ func land() -> void:
 		_goto(PState.LANDING)
 
 
+## RECALL hand-off (2026-07-09 playtest): drop the stick WITHOUT landing in place — the
+## caller is sending the bird home under its own autonomy (drone.recall). Frees the body
+## immediately and does NOT emit shut_off (that path PARKS the bird where it hovers; recall
+## wants it to fly home). The caller lowers the split view + points the drone home.
+func abort_to_autonomy() -> void:
+	if state == PState.OFF:
+		return
+	_move = Vector3.ZERO
+	_goto(PState.OFF)
+
+
 ## Advance the piloted body. Call every frame (deterministic — the sim drives it directly).
 func update(delta: float) -> void:
 	if drone == null or not is_instance_valid(drone):

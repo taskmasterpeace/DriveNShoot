@@ -117,7 +117,7 @@
     },
     {
       "id": "cache_rare",
-      "name": "Rare Cache",
+      "name": "Rare Cache (the jackpot — a weapon lives here)",
       "entries": [
         {
           "item": "axe",
@@ -135,6 +135,30 @@
           "item": "medkit",
           "min": 1,
           "max": 1,
+          "weight": 0.5
+        },
+        {
+          "item": "pistol",
+          "min": 1,
+          "max": 1,
+          "weight": 0.3
+        },
+        {
+          "item": "machete",
+          "min": 1,
+          "max": 1,
+          "weight": 0.3
+        },
+        {
+          "item": "wrench",
+          "min": 1,
+          "max": 1,
+          "weight": 0.25
+        },
+        {
+          "item": "9mm",
+          "min": 6,
+          "max": 18,
           "weight": 0.5
         }
       ]

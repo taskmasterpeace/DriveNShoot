@@ -77,11 +77,15 @@ func _ready() -> void:
 	_check("deploy puts a bird in the sky", main.drone != null and is_instance_valid(main.drone))
 	_check("the drone row left the bag (the bird IS the item)", main.backpack.count("drone") == 0)
 	_check("THE REMOTE appeared in the pack", main.backpack.count("drone_remote") == 1)
+	# ONE PRESS (2026-07-09 playtest "shouldn't have to hit use twice"): deploy now
+	# ALSO takes the stick — the first USE flies the bird, no second press needed.
+	_check("ONE PRESS flies it - deploy took the stick", main.drone_pilot.is_active() and main.drone.piloted)
+	_check("the split view came up on deploy", main.split_view.active)
 
 	# --- B: THE STICK — the remote starts a real pilot session ------------------
 	_panel_use("drone_remote")
 	await get_tree().physics_frame
-	_check("USE remote takes the stick (pilot active)", main.drone_pilot.is_active())
+	_check("USE remote while flying is a no-op re-take (still piloting)", main.drone_pilot.is_active())
 	_check("the bird knows it's piloted", main.drone != null and main.drone.piloted)
 	_check("the split view is up", main.split_view.active)
 	_check("the remote was NOT consumed by piloting", main.backpack.count("drone_remote") == 1)

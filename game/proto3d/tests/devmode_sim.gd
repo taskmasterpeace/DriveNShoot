@@ -69,6 +69,25 @@ func _ready() -> void:
 	dev._teleport(Vector3(500, 0.5, 500))
 	await get_tree().physics_frame
 	_check("teleport moves the player", main.player.global_position.distance_to(Vector3(500, 0.5, 500)) < 5.0)
+	# The town DROPDOWN + GO (2026-07-09 playtest "pick a city but can't teleport there").
+	_check("the teleport dropdown filled from the live map", dev._town_pick.item_count > 0)
+	if dev._town_pick.item_count > 0 and main.stream != null and main.stream.usmap != null:
+		dev._town_pick.select(0)
+		var tp: Vector2 = main.stream.usmap.towns[0]["pos"]
+		dev._teleport_town()
+		await get_tree().physics_frame
+		var pxz := Vector2(main.player.global_position.x, main.player.global_position.z)
+		_check("GO warps to the picked town (not 'nothing happened')", pxz.distance_to(tp) < 15.0)
+	# The Meridian test-town warp — "test everything in one spot" (spawn is 700 m north).
+	dev._teleport(Vector3(121, 1.5, -305))
+	await get_tree().physics_frame
+	var mxz := Vector2(main.player.global_position.x, main.player.global_position.z)
+	_check("the Meridian test-town warp lands in the testbed", mxz.distance_to(Vector2(121, -305)) < 20.0)
+	# The new WEATHER row (dust/rain/heat/clear) — a system shipped since the panel was written.
+	dev._weather("dust")
+	_check("the WEATHER row forces DUST", main.weather != null and main.weather.state == "dust")
+	dev._weather("clear")
+	_check("Clear un-pins the weather", main.weather.state == "clear")
 
 	# --- Spawns land in the world ----------------------------------------------
 	var before_dogs: int = main.all_dogs.size()

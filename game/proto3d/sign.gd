@@ -15,6 +15,7 @@ var _readable: bool = false
 static func create(text_in: String, glyph: String = "📜") -> ProtoSign:
 	var s := ProtoSign.new()
 	s.text = text_in
+	s.add_to_group("readable_sign") # EVERY sign is read by proto3d._update_signs (2026-07-09 fix)
 	# The post.
 	var post := MeshInstance3D.new()
 	var bm := BoxMesh.new()

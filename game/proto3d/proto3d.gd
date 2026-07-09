@@ -637,6 +637,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	# THE ACTION CHAIN (controller arc): every verb is an ACTION — the same elif
 	# fires from its key, its mouse button, OR its pad binding (input_bindings.json
 	# rows; rebind in the CONTROLS panel, F11). PS pads read as the same buttons.
+	elif event.is_action_pressed("drivn_drone_recall"):
+		recall_drone() # B / R3 (freed from the removed binoculars): send the bird home
 	elif event.is_action_pressed("drivn_whistle"):
 		_whistle_input(true)
 	elif event.is_action_released("drivn_whistle"):
@@ -2045,7 +2047,14 @@ func use_item(id: String) -> bool:
 		if backpack != null and backpack.count("drone_remote") < 1:
 			backpack.add("drone_remote", 1) # top up to ONE — a controller, not a currency
 		audio.play_ui("blip", -6.0)
-		notify("🛸 Drone up — it patrols and PINGS. The REMOTE's in your pack: USE it to take the stick.")
+		# ONE PRESS = deploy AND take the stick (2026-07-09 playtest: "shouldn't have to
+		# hit use twice"). The old first press spawned only an autonomous PATROL bird that
+		# drifted off-frame = "nothing happened"; now the first USE flies it. The REMOTE
+		# still lands in the pack so you can re-take the stick after you land or pack it.
+		_take_the_stick()
+		if drone_pilot == null or not drone_pilot.is_active():
+			# no pilot module / it couldn't start — the bird patrols; the remote re-flies it
+			notify("🛸 Drone up — it patrols and PINGS. USE the REMOTE in your pack to fly it.")
 		return true
 	if id == "drone_remote":
 		# THE STICK: pilot whichever bird is in the sky (pack patrol or dock scout).
@@ -2964,6 +2973,20 @@ func _take_the_stick() -> bool:
 	drone.parked = false # off the ground — the stick is yours
 	enter_drone_pilot(drone)
 	return false # the remote/drone row is never consumed by taking the stick
+
+
+## RECALL the bird hands-off (2026-07-09 playtest "an auto button to fly back"). Works
+## whether you're PILOTING it (let go of the stick, keep it airborne, it flies home) or it's
+## off patrolling/scouting. A pack bird lands near you; a dock scout returns to its dock.
+func recall_drone() -> void:
+	if drone == null or not is_instance_valid(drone):
+		notify("🛸 No bird in the sky to recall.")
+		return
+	if drone_pilot != null and drone_pilot.is_active():
+		drone_pilot.abort_to_autonomy() # drop the stick without parking it mid-air
+		if split_view != null:
+			split_view.deactivate()
+	drone.recall()
 
 
 func enter_drone_pilot(d: Node3D) -> void:
@@ -4177,23 +4200,37 @@ func _spawn_signs() -> void:
 ## Each frame: a sign is READABLE when it sits inside your sight cone and within
 ## reading range. Symbol always shows; the words surface only when you LOOK.
 const SIGN_READ_RANGE := 14.0
+const SIGN_HOVER_PX := 64.0  ## mouse-hover reveal radius in screen pixels (2026-07-09 ask)
 func _update_signs() -> void:
-	if signs.is_empty():
-		return
+	# READS EVERY SIGN, not just the 3 safehouse ones (2026-07-09 playtest "I'm at a
+	# building, I don't know what the fuck this is"): streamed structure + exit signs join
+	# the "readable_sign" group in ProtoSign.create(), so their NAMES surface here too.
 	var eye: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
 	var gaze: Vector3 = player.sight_facing()
 	var half: float = vision_cone.current_half_angle() if vision_cone != null else 1.0
 	var cos_half: float = cos(half)
+	var cam := get_viewport().get_camera_3d()
+	var mouse := get_viewport().get_mouse_position()
 	var read_any := false
-	for s in signs:
-		if not (s is ProtoSign) or not is_instance_valid(s):
+	for node in get_tree().get_nodes_in_group("readable_sign"):
+		var s := node as ProtoSign
+		if s == null or not is_instance_valid(s):
 			continue
 		var to_s: Vector3 = s.global_position - eye
 		to_s.y = 0.0
 		var d: float = to_s.length()
+		# READ by LOOKING: inside the sight cone, within range.
 		var in_cone: bool = d < SIGN_READ_RANGE and d > 0.1 and gaze.dot(to_s.normalized()) > cos_half
-		s.set_readable(in_cone)
-		read_any = read_any or in_cone
+		# READ by HOVERING (2026-07-09 ask): the mouse over a sign surfaces its words even
+		# when your character can't make them out — you shouldn't have to walk up to learn
+		# what a place is. Only for on-screen signs within a sane distance.
+		var hovered := false
+		if not in_cone and cam != null and d < 130.0:
+			var top: Vector3 = s.global_position + Vector3(0, 1.9, 0)
+			if not cam.is_position_behind(top):
+				hovered = mouse.distance_to(cam.unproject_position(top)) < SIGN_HOVER_PX
+		s.set_readable(in_cone or hovered)
+		read_any = read_any or in_cone or hovered
 	if read_any and not _sign_reading:
 		audio.play_ui("blip", -14.0)
 	_sign_reading = read_any
@@ -4462,8 +4499,11 @@ func _exit_car() -> void:
 		active_car.can_sleep = true # parked and empty may sleep again (the perf default)
 	passenger_of_ai = false
 	# Step out on the driver's side (left). global_basis.x is the car's RIGHT, so negate it.
-	var out_pos := active_car.global_position - active_car.global_basis.x * 2.3
-	out_pos.y = active_car.global_position.y + 0.3
+	# 2.3 m off the car's CENTER flung the player ~1 m past the flank (2026-07-09 playtest
+	# "jump out of the car, it goes way too far"); 1.5 m just clears the door, and a small
+	# lift lets gravity settle him onto the ground instead of dropping in from +0.3.
+	var out_pos := active_car.global_position - active_car.global_basis.x * 1.5
+	out_pos.y = active_car.global_position.y + 0.2
 	player.global_position = out_pos
 	player.velocity = Vector3.ZERO
 	for pc in player.get_children():

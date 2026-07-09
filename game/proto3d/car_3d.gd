@@ -93,7 +93,7 @@ static var VEHICLES: Dictionary = {
 @export var grip_rear: float = 5.0    ## Baseline grip; the Tires component modifies it (see LOOP2 spec).
 @export var handbrake_grip_rear: float = 2.4  ## Slide grip — playtest bug: 1.1 spun the car a full 180.
 @export var handbrake_steer_mult: float = 0.55 ## Steering authority while sliding (full lock = spin).
-@export var handbrake_decel: float = 8.0      ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering; playtest: "didn't brake unless you turned").
+@export var handbrake_decel: float = 14.0     ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering). 8→14 (2026-07-09 playtest "hit space, it doesn't stop"): with the gas now cancelled it bites like a real e-brake; the low rear grip still gives the steerable drift.
 @export var handbrake_yaw_rate: float = 1.4   ## rad/s cap on drift rotation — the anti-180 (raw physics peaked at 6.5).
 @export var handbrake_yaw_damp: float = 18.0  ## counter-torque strength that arrests the spin at the cap / to straight
 
@@ -1532,6 +1532,11 @@ func _physics_process(delta: float) -> void:
 		apply_central_force(aero_force(linear_velocity))
 
 	if input_handbrake:
+		# THE E-BRAKE CANCELS THE GAS. Without this, held throttle re-sets engine_force
+		# (~7 m/s² of push) just above and nearly cancels the decel below — net ≈1 m/s²,
+		# the 2026-07-09 playtest "hit space, it doesn't stop". Yanking the brake
+		# overrides the motor for as long as it's held.
+		engine_force = 0.0
 		# Brake with a FORCE opposing motion, not the wheel `brake` (a strong wheel
 		# brake locks the fronts and steering dies → the car slid straight, 0 yaw) and
 		# not by overwriting velocity (that clobbers the wheels' own friction → no

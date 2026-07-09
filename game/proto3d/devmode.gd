@@ -52,6 +52,16 @@ static func create(main: Node) -> ProtoDevMode:
 		["🌕 full", func() -> void: d._moon(1.0)],
 	])
 
+	# --- WEATHER (2026-07-09: the panel gains systems shipped since it was written —
+	# dust kills the cone, rain kills grip, heat cooks engines) -----------------------
+	d._title(v, "🌦 weather", 12)
+	d._row(v, [
+		["🌪 Dust", func() -> void: d._weather("dust")],
+		["🌧 Rain", func() -> void: d._weather("rain")],
+		["🥵 Heat", func() -> void: d._weather("heat")],
+		["☀ Clear", func() -> void: d._weather("clear")],
+	])
+
 	# --- TELEPORT ------------------------------------------------------------
 	d._title(v, "🚀 teleport", 12)
 	var trow := HBoxContainer.new()
@@ -59,15 +69,15 @@ static func create(main: Node) -> ProtoDevMode:
 	d._town_pick = OptionButton.new()
 	d._town_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	trow.add_child(d._town_pick)
-	var usmap: Variant = d._main.stream.usmap if d._main.stream else null
-	if usmap != null and usmap.ok:
-		for t in usmap.towns:
-			d._town_pick.add_item("%s (%s)" % [t["name"], t["kind"]])
+	d._populate_towns() # fills the town dropdown (also rebuilt whenever the panel opens)
 	var go := Button.new()
 	go.text = "GO"
 	go.pressed.connect(func() -> void: d._teleport_town())
 	trow.add_child(go)
-	d._row(v, [["Safehouse", func() -> void: d._teleport(d._main.SAFEHOUSE + Vector3(0, 0.5, 0))]])
+	d._row(v, [
+		["Safehouse", func() -> void: d._teleport(d._main.SAFEHOUSE + Vector3(0, 0.5, 0))],
+		["⚒ Meridian test town", func() -> void: d._teleport(Vector3(121, 1.5, -305))],
+	])
 
 	# --- SPAWN (lands ~6 m ahead of you) --------------------------------------
 	d._title(v, "👾 spawn (ahead of you)", 12)
@@ -109,6 +119,8 @@ static func create(main: Node) -> ProtoDevMode:
 
 func toggle() -> void:
 	visible = not visible
+	if visible:
+		_populate_towns() # rebuild in case the map finished loading after the panel was built
 
 
 # --- The buttons' hands ------------------------------------------------------
@@ -123,19 +135,48 @@ func _clock_speed(mult: float) -> void:
 	_main.notify("⏱ dev: clock ×%d" % int(mult))
 
 
+func _weather(kind: String) -> void:
+	if _main.weather != null:
+		_main.weather.force(kind) # "clear" un-pins; the others pin ~2 game-hours to test in
+		_main.notify("🌦 dev: weather → %s" % ("cleared" if kind == "clear" else kind))
+
+
 func _moon(phase: float) -> void:
 	_main.daynight.moon_phase = phase
 	_main.notify("%s dev: moon set" % _main.daynight.moon_icon())
 
 
+## Fill (or rebuild) the town dropdown from the live map. Called at create AND every time
+## the panel opens — the old code built it ONCE, so if the map wasn't ready yet the list
+## stayed empty and GO did nothing (2026-07-09 playtest "you can't teleport there").
+func _populate_towns() -> void:
+	if _town_pick == null:
+		return
+	var prev: int = _town_pick.selected
+	_town_pick.clear()
+	var usmap: Variant = _main.stream.usmap if _main.stream else null
+	if usmap != null and usmap.ok:
+		for t in usmap.towns:
+			_town_pick.add_item("%s (%s)" % [t["name"], t["kind"]])
+	if _town_pick.item_count > 0:
+		_town_pick.selected = clampi(prev, 0, _town_pick.item_count - 1)
+
+
 func _teleport_town() -> void:
 	var usmap: Variant = _main.stream.usmap if _main.stream else null
-	if usmap == null or not usmap.ok or _town_pick.selected < 0:
+	if usmap == null or not usmap.ok:
+		_main.notify("🚀 dev: the map isn't loaded yet")
 		return
-	var t: Dictionary = usmap.towns[_town_pick.selected]
+	if _town_pick.item_count == 0:
+		_populate_towns()
+	var idx: int = maxi(_town_pick.selected, 0)
+	if idx >= usmap.towns.size():
+		_main.notify("🚀 dev: pick a town first")
+		return
+	var t: Dictionary = usmap.towns[idx]
 	var p: Vector2 = t["pos"]
-	_teleport(Vector3(p.x, 0.5, p.y))
-	_main.notify("🚀 dev: %s" % t["name"])
+	_teleport(Vector3(p.x, 1.5, p.y)) # arrive a touch high so the streamed floor beats you down
+	_main.notify("🚀 dev: warped to %s" % t["name"])
 
 
 ## Move the player — and the rig under him, if he's driving.
