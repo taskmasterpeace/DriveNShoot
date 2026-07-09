@@ -131,8 +131,9 @@ func _ready() -> void:
 	for e in um.exits:
 		if String(e["id"]) == "I-95_X1":
 			mer = e
-	_check("Meridian's exit resolves its ramp by ID (['EXIT-meridian'], never a name pattern)",
-		not mer.is_empty() and (mer["ramp_ids"] as Array) == ["EXIT-meridian"])
+	_check("Meridian's exit resolves its ramps by ID (EXIT-meridian + the 0.18b mirror, never a name pattern)",
+		not mer.is_empty() and (mer["ramp_ids"] as Array).has("EXIT-meridian")
+		and (mer["ramp_ids"] as Array).has("I-95_X1-off-r"))
 
 	# --- 6) THE ROAD GRAPH: Dijkstra on TIME (0.2) --------------------------------
 	var graph := ProtoRoadGraph.build(um)

@@ -321,17 +321,52 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		# get NO slab — the roads pass without meeting until M2 decks them.
 		var chalf := CHUNK * 0.5
 		for j in usmap.junctions_in(Rect2(center.x - chalf, center.z - chalf, CHUNK, CHUNK)):
-			if String(j["grade"]) != "flat" or not ["tee", "cross"].has(String(j["kind"])):
-				continue
-			var wmax := 8.0
-			for l in j["legs"]:
-				var lr: Dictionary = usmap.road_by_id(String(l["road"]))
-				if not lr.is_empty():
-					wmax = maxf(wmax, float(ProtoUSMap.road_geometry(lr)["width"]))
-			var jp: Vector2 = j["pos"]
-			var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
-				Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
-			jslab.set_meta("junction_slab", String(j["id"]))
+			if String(j["grade"]) == "flat" and ["tee", "cross"].has(String(j["kind"])):
+				var wmax := 8.0
+				for l in j["legs"]:
+					var lr: Dictionary = usmap.road_by_id(String(l["road"]))
+					if not lr.is_empty():
+						wmax = maxf(wmax, float(ProtoUSMap.road_geometry(lr)["width"]))
+				var jp: Vector2 = j["pos"]
+				var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
+					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
+				jslab.set_meta("junction_slab", String(j["id"]))
+			elif String(j["kind"]) == "ramp_mouth" and (j["legs"] as Array).size() >= 2:
+				# THE EXIT DRESSING (0.18a): painted GORE at the split, crash
+				# barrels at its tip, and the DECEL LANE running the serving
+				# shoulder upstream — the "little angle" now READS at 60 mph.
+				var hwyr: Dictionary = usmap.road_by_id(String(j["legs"][0]["road"]))
+				var rampr: Dictionary = usmap.road_by_id(String(j["legs"][1]["road"]))
+				if hwyr.is_empty() or rampr.is_empty() or (rampr["pts"] as Array).size() < 2:
+					continue
+				var p0: Vector2 = rampr["pts"][0]
+				var rd: Vector2 = ((rampr["pts"][1] as Vector2) - p0).normalized()
+				var gore := ProtoWorldBuilder.box_visual(chunk, Vector3(2.2, 0.05, 7.0),
+					Vector3(p0.x + rd.x * 8.0, 0.135, p0.y + rd.y * 8.0),
+					Color(0.82, 0.80, 0.74), atan2(rd.x, rd.y))
+				gore.set_meta("junction_gore", String(j["id"]))
+				for bi in range(3):
+					var bp := p0 + rd * (4.0 + 1.2 * float(bi))
+					var barrel := ProtoWorldBuilder.box_body(chunk, Vector3(0.55, 0.9, 0.55),
+						Vector3(bp.x, 0.45, bp.y), Color(0.85, 0.42, 0.08), atan2(rd.x, rd.y))
+					barrel.set_meta("gore_barrel", String(j["id"]))
+				var side_i := int(rampr.get("side", 0))
+				if side_i != 0:
+					var hd := Vector2.RIGHT
+					var best_hd := 1e18
+					var hpts: Array = hwyr["pts"]
+					for hi in range(hpts.size() - 1):
+						var hdd := ProtoUSMap._seg_dist(j["pos"], hpts[hi], hpts[hi + 1])
+						if hdd < best_hd:
+							best_hd = hdd
+							hd = ((hpts[hi + 1] as Vector2) - (hpts[hi] as Vector2)).normalized()
+					var d_s := hd * float(side_i)
+					var rightv := Vector2(-d_s.y, d_s.x)
+					var lat := float(ProtoUSMap.road_geometry(hwyr)["width"]) * 0.5 - 1.5
+					var dc := (j["pos"] as Vector2) + rightv * lat - d_s * 74.0
+					var decel := ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.05, 140.0),
+						Vector3(dc.x, 0.125, dc.y), ProtoWorldBuilder.COL_ROAD, atan2(d_s.x, d_s.y))
+					decel.set_meta("road_decel", String(j["id"]))
 
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:

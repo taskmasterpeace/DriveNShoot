@@ -198,6 +198,21 @@ func _ready() -> void:
 		var mchunk := _build_chunk_at(mp)
 		for i in range(6):
 			await get_tree().physics_frame
+		# THE EXIT DRESSING (0.18a): gore + barrels + decel paint at the mouth.
+		var has_gore := false
+		var barrels := 0
+		var has_decel := false
+		if mchunk != null:
+			for c in mchunk.get_children():
+				if c.has_meta("junction_gore") and String(c.get_meta("junction_gore")) == String(mouth_j["id"]):
+					has_gore = true
+				if c.has_meta("gore_barrel") and String(c.get_meta("gore_barrel")) == String(mouth_j["id"]):
+					barrels += 1
+				if c.has_meta("road_decel") and String(c.get_meta("road_decel")) == String(mouth_j["id"]):
+					has_decel = true
+		_check("the GORE paints at the ramp split", has_gore)
+		_check("crash barrels stand at the gore tip (%d ≥ 2)" % barrels, barrels >= 2)
+		_check("the DECEL LANE paints the serving shoulder", has_decel)
 		var mblocked := _median_blocked(hwy, mp)
 		if not mblocked and mchunk != null:
 			print("JLAW: DIAG mouth chunk children:")

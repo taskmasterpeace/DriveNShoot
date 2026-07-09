@@ -68,7 +68,129 @@ function arcAt(road, pos) {
 	return best.arc;
 }
 
+// half-width of a road (mirrors ProtoUSMap.road_geometry: LANE_W 3.6, shoulder
+// 2.0, divided carriage +1.6 inner, median 2.4).
+function halfWidth(r, divided) {
+	const lanes = r.lanes || (r.kind === "interstate" ? 4 : 2);
+	const per = Math.max(1, Math.floor(lanes / 2));
+	if (divided) return per * 3.6 + 1.6 + 1.2;
+	return (lanes * 3.6 + 4.0) / 2;
+}
+
+// THE EXIT GEOMETRY LAW (0.18a/b): rewrite every off-ramp to START at the
+// carriageway EDGE of the direction it serves and PEEL at ~12° (the owner's
+// "little angle"); stamp a `side` (+1 = along pts order, -1 = against) on every
+// ramp; and generate the MISSING mirrored off/on ramps on divided highways so
+// each travel direction is served from its own carriageway. Idempotent: rows
+// already carrying geom:"peel_v1" are left alone; mirrors are keyed by id.
+export function rewriteExitGeometry(map) {
+	const roads = map.roads || [];
+	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
+	const isDiv = (r) => (r.divided !== undefined ? !!r.divided : (r.lanes || (r.kind === "interstate" ? 4 : 2)) >= 6);
+	const stats = { rewritten: 0, mirrors_off: 0, mirrors_on: 0, skipped: 0 };
+	const right = (d) => ({ x: -d.y, y: d.x }); // right of travel, top-down
+	const norm = (d) => { const l = Math.hypot(d.x, d.y) || 1; return { x: d.x / l, y: d.y / l }; };
+
+	// local highway direction (along pts order) at the segment nearest to p
+	const dirAt = (road, p) => {
+		let best = null;
+		for (const s of segs(road)) {
+			const pr = projectOnSeg(p, s);
+			if (!best || pr.d < best.d) best = { ...pr, s };
+		}
+		const d = norm(sub(best.s.b, best.s.a));
+		return { d, foot: best.q ?? best.s.a };
+	};
+
+	for (const ex of map.exits || []) {
+		const hwy = network.find((r) => r.id === ex.highway_id);
+		if (!hwy) continue;
+		const exPos = v(ex.pos);
+		const dest = v(ex.dest || ex.pos);
+		const { d: dAlong, foot } = dirAt(hwy, exPos);
+		const edge = halfWidth(hwy, isDiv(hwy)) + 1.0;
+		// serving sense: the travel direction with dest on its RIGHT
+		const toDest = norm(sub(dest, foot));
+		const sSign = (right(dAlong).x * toDest.x + right(dAlong).y * toDest.y) >= 0 ? 1 : -1;
+		const mk = (sgn) => {
+			const dS = { x: dAlong.x * sgn, y: dAlong.y * sgn };
+			const rS = right(dS);
+			const peel = { x: foot.x + rS.x * edge, y: foot.y + rS.y * edge };
+			const th = (12 * Math.PI) / 180; // the little angle
+			const out = {
+				x: peel.x + (dS.x * Math.cos(th) + rS.x * Math.sin(th)) * 70,
+				y: peel.y + (dS.y * Math.cos(th) + rS.y * Math.sin(th)) * 70,
+			};
+			return { peel, out };
+		};
+		const rampIds = ex.ramp_ids || [];
+		for (const rid of rampIds) {
+			const rp = roads.find((r) => r.id === rid);
+			if (!rp) continue;
+			if (rp.geom === "peel_v1") { stats.skipped++; continue; }
+			const p0 = v(rp.pts[0]);
+			const isOff = dist(p0, exPos) <= SNAP_M * 2;
+			if (isOff) {
+				const { peel, out } = mk(sSign);
+				const tail = rp.pts.slice(1).map((p) => [p[0], p[1]]);
+				rp.pts = [[peel.x, peel.y], [out.x, out.y], ...tail];
+				rp.side = sSign;
+				rp.geom = "peel_v1";
+				stats.rewritten++;
+			} else {
+				// on-ramp: end at the edge of its serving carriageway + a merge run
+				const pN = v(rp.pts[rp.pts.length - 1]);
+				const { d: dEnd, foot: footN } = dirAt(hwy, pN);
+				const fromDest = norm(sub(footN, dest));
+				const sIn = (right(dEnd).x * fromDest.x + right(dEnd).y * fromDest.y) <= 0 ? 1 : -1;
+				const dS = { x: dEnd.x * sIn, y: dEnd.y * sIn };
+				const rS = right(dS);
+				const merge = { x: footN.x + rS.x * edge, y: footN.y + rS.y * edge };
+				const mergeEnd = { x: merge.x + dS.x * 100, y: merge.y + dS.y * 100 };
+				const front = rp.pts.slice(0, -1).map((p) => [p[0], p[1]]);
+				rp.pts = [...front, [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]];
+				rp.side = sIn;
+				rp.geom = "peel_v1";
+				stats.rewritten++;
+			}
+		}
+		// mirrored OFF-ramp: a divided highway serves BOTH directions (0.18b);
+		// today every exit has one off — mint the reverse-side twin.
+		if (isDiv(hwy)) {
+			const mirrorId = `${ex.id}-off-r`;
+			if (!roads.find((r) => r.id === mirrorId)) {
+				const { peel, out } = mk(-sSign);
+				roads.push({ id: mirrorId, kind: "exit", pts: [[peel.x, peel.y], [out.x, out.y], [dest.x, dest.y]],
+					danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false,
+					side: -sSign, geom: "peel_v1" });
+				ex.ramp_ids = [...(ex.ramp_ids || []), mirrorId];
+				stats.mirrors_off++;
+			}
+			// mirrored ON-ramp only where a return ramp already exists (mirror the pair)
+			const hasOn = (ex.ramp_ids || []).some((rid2) => {
+				const rp2 = roads.find((r) => r.id === rid2);
+				return rp2 && !rid2.endsWith("-off-r") && dist(v(rp2.pts[0]), exPos) > SNAP_M * 2;
+			});
+			const mirrorOnId = `${ex.id}-on-r`;
+			if (hasOn && !roads.find((r) => r.id === mirrorOnId)) {
+				const dS = { x: -dAlong.x * sSign, y: -dAlong.y * sSign };
+				const rS = right(dS);
+				const merge = { x: foot.x + rS.x * edge + dS.x * 180, y: foot.y + rS.y * edge + dS.y * 180 };
+				const mergeEnd = { x: merge.x + dS.x * 100, y: merge.y + dS.y * 100 };
+				roads.push({ id: mirrorOnId, kind: "exit", pts: [[dest.x, dest.y], [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]],
+					danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false,
+					side: -sSign, geom: "peel_v1" });
+				ex.ramp_ids = [...(ex.ramp_ids || []), mirrorOnId];
+				stats.mirrors_on++;
+			}
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
+	// geometry first (0.18), then junction rows read the corrected polylines
+	const geo = rewriteExitGeometry(map);
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");

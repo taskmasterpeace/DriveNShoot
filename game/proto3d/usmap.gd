@@ -77,6 +77,7 @@ func load_file(path: String) -> bool:
 			"danger": int(r.get("danger", 1 if kind == "interstate" else 0)),
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
+			"side": int(r.get("side", 0)), # exit ramps: +1 along the highway's pts order, -1 against (0.18b)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
 	rivers = d.get("rivers", [])
 	towns.clear()
