@@ -1542,6 +1542,121 @@
    "power_required": false,
    "can_be_safehouse": false,
    "danger": 1
+  },
+  {
+   "id": "water_tower",
+   "category": "monument",
+   "display_name": "Water Tower",
+   "sign_glyph": "🚰",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "edge",
+    "roadside"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    8,
+    8
+   ],
+   "floors": 3,
+   "enterable": false,
+   "entrances": [],
+   "interior_template": "none",
+   "loot_table": "",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "landmark",
+    "vantage"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 0
+  },
+  {
+   "id": "rest_stop",
+   "category": "service",
+   "display_name": "Rest Stop",
+   "sign_glyph": "🚻",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "roadside"
+   ],
+   "footprint": "medium_rect",
+   "footprint_m": [
+    16,
+    10
+   ],
+   "floors": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [
+    "drifter"
+   ],
+   "law_hooks": [],
+   "event_hooks": [
+    "rumor",
+    "stash",
+    "rest"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": true,
+   "danger": 1
+  },
+  {
+   "id": "truck_stop",
+   "category": "service",
+   "display_name": "Truck Stop",
+   "sign_glyph": "🚛",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "roadside"
+   ],
+   "footprint": "large_rect",
+   "footprint_m": [
+    30,
+    20
+   ],
+   "floors": 1,
+   "enterable": true,
+   "entrances": [
+    "front",
+    "fuel_bay"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [
+    "clerk",
+    "trucker"
+   ],
+   "law_hooks": [],
+   "event_hooks": [
+    "fuel",
+    "rumor",
+    "job_offer"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 1
   }
  ]
 }

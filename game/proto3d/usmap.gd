@@ -91,7 +91,8 @@ func load_file(path: String) -> bool:
 	placements.clear()
 	for p in d.get("placements", []):
 		placements.append({"id": p.get("id", ""), "building": p.get("building", ""),
-			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0))})
+			"pos": Vector2(float(p["pos"][0]), float(p["pos"][1])), "rot": float(p.get("rot", 0.0)),
+			"label": String(p.get("label", ""))}) # M4b: the water tower says the TOWN's name
 	exits.clear()
 	for e in d.get("exits", []):
 		if not (e is Dictionary) or not (e as Dictionary).has("pos"):
@@ -162,6 +163,36 @@ func road_by_id(rid: String) -> Dictionary:
 		if String(r["id"]) == rid:
 			return r
 	return {}
+
+
+## THE GAME-MILE (ADDRESS LAW 0.1): mile markers use the SAME constant the exit
+## renumber used, so EXIT N stands near MILE N — the real American invariant.
+const EXIT_MILE_M := 2395.0
+
+
+## Arc-length along a road measured from its SOUTH/WEST origin (AASHTO — the
+## bake's arcFromOrigin, mirrored so signs and exits agree).
+func arc_from_origin(road: Dictionary, pos: Vector2) -> float:
+	var pts: Array = road["pts"]
+	var total := 0.0
+	var best_d := 1e18
+	var best_arc := 0.0
+	var arc := 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var l := (b - a).length()
+		var t := clampf((pos - a).dot(b - a) / maxf(l * l, 0.001), 0.0, 1.0)
+		var d := (a + (b - a) * t).distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best_arc = arc + t * l
+		arc += l
+	total = arc
+	var p0: Vector2 = pts[0]
+	var pn: Vector2 = pts[pts.size() - 1]
+	var origin_at_start: bool = (p0.y > pn.y) if absf(pn.y - p0.y) >= absf(pn.x - p0.x) else (p0.x < pn.x)
+	return best_arc if origin_at_start else total - best_arc
 
 
 ## THE GAP FORMULA (0.3, derived never stored): the barrier gap a junction opens

@@ -124,4 +124,64 @@ func _ready() -> void:
 		if c2 != null:
 			c2.queue_free()
 
+	# --- M4b: THE ADDRESS FURNITURE -----------------------------------------------
+	# THE invariant: EXIT 9 (Meridian) stands near MILE 9 — same game-mile.
+	var mer_exit := Vector2(1204, 282)
+	var c9: Node3D = main.stream._spawn_chunk(int(floor(mer_exit.x / chunk_m)), int(floor(mer_exit.y / chunk_m)))
+	for i in range(3):
+		await get_tree().physics_frame
+	var mile9 := false
+	if c9 != null:
+		for c in c9.get_children():
+			if c.has_meta("mile_marker") and int(c.get_meta("mile_marker")) == 9 \
+					and (c as Node3D).global_position.distance_to(Vector3(mer_exit.x, 0.75, mer_exit.y)) < 400.0:
+				mile9 = true
+	_check("EXIT 9 stands near MILE 9 (the American invariant, one game-mile)", mile9)
+	if c9 != null:
+		c9.queue_free()
+	# the state line: find an interstate segment that crosses a border, build it
+	var line_found := false
+	for r2 in um.roads:
+		if line_found or String(r2.get("kind", "")) != "interstate":
+			continue
+		var pts2: Array = r2["pts"]
+		for i in range(pts2.size() - 1):
+			if line_found:
+				break
+			var aa: Vector2 = pts2[i]
+			var bb: Vector2 = pts2[i + 1]
+			var sa := String(um.state_at(Vector3(aa.x, 0, aa.y)))
+			var sb := String(um.state_at(Vector3(bb.x, 0, bb.y)))
+			if sa == sb or sb == "" or sa == "":
+				continue
+			for t in range(1, 20):
+				var q := aa + (bb - aa) * (float(t) / 20.0)
+				if String(um.state_at(Vector3(q.x, 0, q.y))) != sa:
+					if absf(q.x) <= 6000.0 and absf(q.y) <= 6000.0:
+						break
+					var cl: Node3D = main.stream._spawn_chunk(int(floor(q.x / chunk_m)), int(floor(q.y / chunk_m)))
+					for j in range(3):
+						await get_tree().physics_frame
+					if cl != null:
+						for c2b in cl.get_children():
+							if c2b.has_meta("state_line"):
+								line_found = true
+						cl.queue_free()
+					break
+	_check("a WELCOME monument stands at a state line (the iconic drive read)", line_found)
+	# the water tower says the TOWN's name (label override through the builder)
+	var tower: Node3D = ProtoStructureBuilder.materialize("water_tower", "ROSEWOOD")
+	add_child(tower)
+	var says_town := false
+	var stack: Array = [tower]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		if n is Label3D and (n as Label3D).text.contains("ROSEWOOD"):
+			says_town = true
+			break
+		for ch in n.get_children():
+			stack.append(ch)
+	_check("the water tower says the TOWN's name (label override)", says_town)
+	tower.queue_free()
+
 	_finish(prev_scale)

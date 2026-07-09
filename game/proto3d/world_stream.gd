@@ -604,7 +604,7 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
 	DrivnData.ensure_structures()
 	if DrivnData.structures.has(sid):
-		var shell := ProtoStructureBuilder.materialize(sid)
+		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
 		if shell != null:
 			shell.add_to_group("placement")
 			shell.set_meta("building", p["building"])
@@ -880,6 +880,63 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 					Vector3(mid.x + perp.x * (band_lat + 0.9) * gsgn, 0.35, mid.y + perp.y * (band_lat + 0.9) * gsgn),
 					Color(0.55, 0.54, 0.5), rot)
 				gr.set_meta("road_guardrail", rid)
+		# M4b — THE ADDRESS FURNITURE (interstates only): mile markers on the
+		# SAME game-mile the exits use (EXIT N stands near MILE N), route
+		# shields every ~2 km, and a WELCOME monument at every state line.
+		# All text is billboard Label3D (0.12 — legible at the wheel).
+		if String(row.get("kind", "")) == "interstate" and usmap != null and usmap.ok:
+			var full: Dictionary = usmap.road_by_id(rid)
+			if not full.is_empty():
+				var arc_a := usmap.arc_from_origin(full, a)
+				var arc_b := usmap.arc_from_origin(full, b)
+				var arc_lo := minf(arc_a, arc_b)
+				var arc_hi := maxf(arc_a, arc_b)
+				var mile := int(ceil(arc_lo / ProtoUSMap.EXIT_MILE_M))
+				while float(mile) * ProtoUSMap.EXIT_MILE_M <= arc_hi and mile <= 999:
+					var t_m := (float(mile) * ProtoUSMap.EXIT_MILE_M - arc_lo) / maxf(arc_hi - arc_lo, 0.001)
+					if arc_a > arc_b:
+						t_m = 1.0 - t_m
+					var mp := a + dir * t_m + perp * (band_lat + 1.6)
+					var post := ProtoWorldBuilder.box_body(chunk, Vector3(0.14, 1.5, 0.14),
+						Vector3(mp.x, 0.75, mp.y), Color(0.16, 0.42, 0.2), rot)
+					post.set_meta("mile_marker", mile)
+					var lbl := Label3D.new()
+					lbl.text = "MILE\n%d" % mile
+					lbl.font_size = 96
+					lbl.pixel_size = 0.004
+					lbl.modulate = Color(0.92, 0.95, 0.9)
+					lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					lbl.position = Vector3(0, 1.1, 0)
+					post.add_child(lbl)
+					mile += 1
+				if int(arc_lo / 2000.0) != int(arc_hi / 2000.0):
+					var sp2 := mid + perp * (band_lat + 1.6)
+					var spost := ProtoWorldBuilder.box_body(chunk, Vector3(0.16, 2.6, 0.16),
+						Vector3(sp2.x, 1.3, sp2.y), Color(0.3, 0.3, 0.32), rot)
+					spost.set_meta("route_shield", rid)
+					var slbl := Label3D.new()
+					slbl.text = "%s" % rid
+					slbl.font_size = 110
+					slbl.pixel_size = 0.004
+					slbl.modulate = Color(0.88, 0.15, 0.18)
+					slbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					slbl.position = Vector3(0, 2.9, 0)
+					spost.add_child(slbl)
+				var st_a := usmap.state_at(Vector3(a.x, 0, a.y))
+				var st_b := usmap.state_at(Vector3(b.x, 0, b.y))
+				if st_a != st_b and st_b != "":
+					var wp2 := mid + perp * (band_lat + 3.0)
+					var mono := ProtoWorldBuilder.box_body(chunk, Vector3(3.2, 2.2, 0.5),
+						Vector3(wp2.x, 1.1, wp2.y), Color(0.45, 0.38, 0.3), rot)
+					mono.set_meta("state_line", st_b)
+					var wl := Label3D.new()
+					wl.text = "WELCOME TO\n%s" % st_b
+					wl.font_size = 128
+					wl.pixel_size = 0.004
+					wl.modulate = Color(0.95, 0.88, 0.6)
+					wl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					wl.position = Vector3(0, 2.6, 0)
+					mono.add_child(wl)
 
 
 ## Which road kinds get the M4a corridor band (majors only — a dirt spur with
