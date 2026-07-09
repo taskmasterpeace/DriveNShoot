@@ -2032,22 +2032,26 @@ func use_item(id: String) -> bool:
 	if id == "drone":
 		# STAGE 8 rung 1 (Robotics): deploy the bird. It patrols overhead, pings
 		# threats into your perception, and lands as a pickup when the cell dies.
+		# THE REMOTE LAW (drone fix, 2026-07-09): deploying CONSUMES the drone (the
+		# bird leaves your pack) but hands you a DRONE REMOTE row in its place —
+		# the old flow consumed the item and then told you to "use it again",
+		# which was impossible with one drone. The remote is the stick now.
 		if drone != null and is_instance_valid(drone):
-			# The bird's already up → TAKE THE STICK: fly it yourself (body immobile, the
-			# screen splits as it ranges out — docs/design/DYNAMIC_SPLIT_DRONE.md).
-			if drone_pilot != null and not drone_pilot.is_active():
-				drone.piloted = true
-				drone.parked = false # off the ground — the stick is yours
-				enter_drone_pilot(drone)
-				return true
-			notify("The bird's already up")
-			return false
+			# A bird's already up → this drone item acts as the remote: take the stick.
+			return _take_the_stick()
 		drone = ProtoDrone.create(self, player.global_position)
 		add_child(drone)
 		drone.global_position = player.global_position + Vector3(0, 2.0, 0)
+		if backpack != null and backpack.count("drone_remote") < 1:
+			backpack.add("drone_remote", 1) # top up to ONE — a controller, not a currency
 		audio.play_ui("blip", -6.0)
-		notify("🛸 Drone up — it patrols and PINGS what it sees. Use the drone again to TAKE THE STICK.")
+		notify("🛸 Drone up — it patrols and PINGS. The REMOTE's in your pack: USE it to take the stick.")
 		return true
+	if id == "drone_remote":
+		# THE STICK: pilot whichever bird is in the sky (pack patrol or dock scout).
+		# Never consumed — a controller, not a flare.
+		_take_the_stick()
+		return false
 	match id:
 		"bandage":
 			if bleeding > 0 or character.worst_part() != "" and character.body[character.worst_part()].ratio() < 1.0:
@@ -2943,11 +2947,34 @@ func drop_item(id: String) -> bool:
 ## A lurker's claw connects: body wound + bleed + fear. Combat is two-way now.
 ## Turn a drone ON and fly it: starts the pilot session and raises the dynamic split view
 ## (your body = view 1, the drone = view 2; it auto-splits as the bird ranges out).
+## THE STICK (drone fix, 2026-07-09): one gate for every "fly it myself" path — the
+## drone item with a bird up, and the DRONE REMOTE row. On foot only (in a car the
+## move keys are the gas — flying and driving on one stick is chaos).
+func _take_the_stick() -> bool:
+	if drone == null or not is_instance_valid(drone):
+		notify("🎛 No bird in the sky — deploy a drone or launch the dock scout.")
+		return false
+	if mode != Mode.FOOT:
+		notify("🎛 Step out first — you can't fly the bird from the wheel.")
+		return false
+	if drone_pilot == null or drone_pilot.is_active():
+		notify("The bird's already on your stick")
+		return false
+	drone.piloted = true
+	drone.parked = false # off the ground — the stick is yours
+	enter_drone_pilot(drone)
+	return false # the remote/drone row is never consumed by taking the stick
+
+
 func enter_drone_pilot(d: Node3D) -> void:
 	if drone_pilot == null or split_view == null or d == null:
 		return
 	if drone_pilot.start(d):
 		_drone_warned = 0 # fresh flight, fresh battery warnings
+		# The pack panel can be the thing that started this (USE the remote) — close it
+		# so the split view owns the screen instead of splitting behind the bag.
+		if panel != null and panel.is_open:
+			panel.close()
 		# 🛸 PILOTING pays out: a practiced hand flies faster, sips the battery, and
 		# holds a clean signal farther before the screen splits.
 		drone_pilot.speed_mult = character.pilot_speed_mult()

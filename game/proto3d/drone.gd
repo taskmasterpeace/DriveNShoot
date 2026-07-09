@@ -61,6 +61,11 @@ static func create(main: Node, deploy_pos: Vector3) -> ProtoDrone:
 	eye.position.y = -0.09
 	d.add_child(eye)
 	d.add_to_group("combatant") # a body in the world: it CAN be shot down (lost)
+	# THE RETRIEVAL BUG (drone fix, 2026-07-09): the pack-up contract (interact_prompt/
+	# interact) existed but the bird never JOINED the interact scan's group — a
+	# pilot-parked bird sat unretrievable forever while the shutoff line promised
+	# "E near the bird packs it up". The group makes the promise true.
+	d.add_to_group("interactable")
 	# The rotor HUM rides the bird (sound-map pass): a positional loop, so you hear the
 	# drone approach/leave and can find your own scout by ear.
 	if main != null and "audio" in main and main.audio != null:
@@ -105,6 +110,7 @@ func interact(main: Node) -> void:
 		return
 	if "backpack" in main and main.backpack != null:
 		main.backpack.add("drone", 1)
+	_unpair() # the controller folds into the kit — redeploying hands it back
 	if "audio" in main and main.audio != null:
 		main.audio.play_ui("camera_click", -6.0)
 	if "drone" in main and main.drone == self:
@@ -112,6 +118,20 @@ func interact(main: Node) -> void:
 	if main.has_method("notify"):
 		main.notify("🛸 Bird packed up")
 	queue_free()
+
+
+## THE PAIRING (drone fix, 2026-07-09): the REMOTE row lives exactly as long as its
+## bird. Every way a bird leaves the sky for good calls this — strip the remote from
+## the pack and fold the split eye if it was watching this bird. (The dock return
+## keeps the remote — the bird's home, the controller stays on the couch arm.)
+func _unpair(strip_remote: bool = true) -> void:
+	if _main == null:
+		return
+	if strip_remote and "backpack" in _main and _main.backpack != null:
+		_main.backpack.remove("drone_remote", 1)
+	if "split_view" in _main and _main.split_view != null \
+			and _main.split_view.active and _main.split_view._remote == self:
+		_main.split_view.deactivate()
 
 
 ## Shot down = LOST: a wreck where it fell, salvage for whoever walks there.
@@ -124,6 +144,7 @@ func take_damage(amount: float, _attacker: Node3D = null) -> void:
 	var ground := global_position
 	ground.y = 0.1
 	wreck.global_position = ground
+	_unpair() # SIGNAL LOST for real — the paired remote dies with the bird
 	if _main.has_method("notify"):
 		_main.notify("🛸 SIGNAL LOST — the bird went down. The wreck's where it fell.")
 	if "drone" in _main:
@@ -188,6 +209,7 @@ func _physics_process(delta: float) -> void:
 		var ground := global_position
 		ground.y = 0.1
 		pickup.global_position = ground
+		_unpair() # the bird's down and boxed — the remote folds with it
 		if _main.has_method("notify"):
 			_main.notify("🛸 Battery dead — the bird set itself down")
 		if "drone" in _main:

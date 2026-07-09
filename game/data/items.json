@@ -317,12 +317,21 @@
   },
   {
    "category": "tool",
-   "desc": "USE deploys the bird \u2014 it patrols and pings threats.",
+   "desc": "USE deploys the bird \u2014 it patrols and pings threats. Deploying hands you the REMOTE.",
    "emoji": "\ud83d\udef8",
    "id": "drone",
    "name": "Scout drone",
    "usable": true,
    "weight": 3.0
+  },
+  {
+   "category": "tool",
+   "desc": "USE takes the stick of your bird in the sky. Dies with the bird.",
+   "emoji": "\ud83c\udf9b\ufe0f",
+   "id": "drone_remote",
+   "name": "Drone remote",
+   "usable": true,
+   "weight": 0.3
   },
   {
    "category": "loot",

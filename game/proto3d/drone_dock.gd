@@ -75,16 +75,29 @@ func interact(main: Node) -> void:
 	bird.global_position = global_position + Vector3(0, 1.0, 0)
 	main.drone = bird
 	flights += 1
+	# THE REMOTE EYE (drone fix, 2026-07-09): the old launch was invisible — the bird
+	# tore off at 16 m/s and the player read it as "disappeared after launch". Now the
+	# split view FOLLOWS the scout (that's the whole dynamic-split tech: your couch on
+	# one side, the bird's eye on the other), and the dock hands you a REMOTE so you
+	# can take the stick mid-route. The eye folds when the bird docks or dies.
+	if "split_view" in main and main.split_view != null and not main.split_view.active \
+			and "player" in main and main.player != null:
+		if "character" in main and main.character != null:
+			main.split_view.max_separation = main.character.pilot_signal_m()
+		main.split_view.activate(main.player, bird)
+	if "backpack" in main and main.backpack != null and main.backpack.count("drone_remote") < 1:
+		main.backpack.add("drone_remote", 1)
 	if main.has_method("notify"):
 		# The boot line is the LORE keystone: every drone still runs the old
 		# national AI's firmware — the thing that carved the states up.
-		main.notify("🛸 [BOOT: FEDNET-OPTIMIZER v9 — REQUESTS SUSPENDED] Scout away — it flies the route, you keep the couch.")
+		main.notify("🛸 [BOOT: FEDNET-OPTIMIZER v9 — REQUESTS SUSPENDED] Scout away — watch the split, or USE the REMOTE in your pack to take the stick.")
 
 
 ## The bird is home: charge a beat, ready again. Reusable — a dock, not a vending machine.
 func dock_drone(bird: ProtoDrone) -> void:
 	charging = true
 	_charge_t = CHARGE_SECONDS # THE CHARGE LAW: a quarter of the day before the next flight
+	bird._unpair(false) # fold the eye; the REMOTE stays — the bird's home, not lost
 	if _main != null:
 		if _main.has_method("notify"):
 			_main.notify("🛸 The bird is HOME — %d hazard%s marked this flight." % [bird.marks, "" if bird.marks == 1 else "s"])
