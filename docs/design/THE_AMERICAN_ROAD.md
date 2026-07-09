@@ -40,7 +40,12 @@ the space between exits is where "America" lives.*
 | **0.12 CAMERA-HONEST AMERICA.** | The driving camera is near-vertical (height 9–58 m, FOV 62, ground window ≈ ±50–90 m) — **the 120–384 m "backdrop band" is off-screen at the wheel; there is no horizon.** Mountains read **underfoot**: relief + snowline/rock tint, flanking ridge walls inside the ~90 m window, long shadows/palette. Distant ranges + the water-tower silhouette live where distance actually renders: **binoculars (240 m), V-views, the drone, and the atlas**. One staged screenshot from the real rig gates ANY backdrop spend. **Billboards:** fixed posts+panel for the silhouette, but the TEXT is a camera-facing Label3D (the proven `sign.gd` BILLBOARD_ENABLED grammar) or the panel tilts 40–60° sky-ward; acceptance = legible in a staged frame at cruise, else billboards ship silhouette-only. |
 | **0.13 E% IS INSTANCES, NOT TYPES.** | Enterable-percentage targets key to **placement instances in a fixed test rect**; M5's five walk-in types are chosen **by instance count** across the ~150 profile-id placements (likely: house_small, gas_station_small, diner_roadside, motel_strip, police_station). The 42-row catalog lands as rows immediately (rows are cheap), each tagged M5/M7/backlog so "catalog complete" never reads as "interiors due." |
 | **0.14 SCALE FICTION.** | Buildings AND towns are 1:1 islands; the 60× law compresses only the land between. No fiction-km conversions inside town grids. |
-| **0.15 FUN ADOPTIONS (rows on shipped patterns).** | **Dead-exit ghost towns** (the `dead` archetype finally gets content: boarded husks, one live vending machine, a faded billboard — danger-4 destinations that feed corpse_heat) · **sign condition as danger telegraph** (weathered/bullet-holed ProtoSign variant at `risk_rating ≥ 3` — the read IS the warning; "THE BURNED RAMP" finally burns) · **state-line monuments** ("WELCOME TO FLORIDA" structure rows auto-placed where an interstate crosses a state boundary — the bake already walks arcs — the most iconic drive read in America) · **route reassurance shields** ("I-95 SOUTH" every ~2 km, billboard-text grammar — the missing third leg of the address system). All M4b/backlog. |
+| **0.16 TRAFFIC IS DEFERRED (owner, 2026-07-09).** | *"We don't need to worry about simulated traffic or any traffic yet."* This arc builds the ROADS, not the cars on them. M1 sheds every traffic assert and agent change; `road_graph.gd` still lands (it powers the atlas/GPS address routing NOW and is the substrate traffic will consume LATER), but no agent touches it. Everything traffic — node transfer, backroad spawns, motorist multi-road routes, convoy routing, the traffic.json junction knobs — moves to a parked milestone **MT (TRAFFIC RETURNS)**, owner-gated. |
+| **0.17 THE ROAD HIERARCHY (small America).** | Six road classes as rows — `interstate` (divided, ramps+gores) · `us_route` (2–4 lane, at-grade junctions; a town's main street often IS the US route — the classic American pattern) · `state_road` (2-lane) · `county` (today's `backroad` kind, network expanded to link neighboring exits/towns off-highway) · `street` (town grids) · **`dirt` (NEW)**. NEW **`surface` field** on every road row: `asphalt | concrete | gravel | dirt` — drives the paint variant, a grip multiplier (gravel 0.85, dirt 0.75 dry / worse in rain via the weather field), dust kick-up FX per surface, tire audio loops (the EAR layer), and noise radius (the ecosystem hears you differently on gravel). |
+| **0.18 THE EXIT GEOMETRY LAW (the owner's "little angle") — BOTH halves.** | (a) **The peel-off:** off-ramps leave the carriageway at a shallow **8–15°** with a **deceleration lane** running ~120–180 m along the shoulder before the split, a painted **GORE** (the chevron triangle), and reflector posts; on-ramps mirror it with an acceleration lane and a merge taper. No more roads teeing off a highway at 90°. (b) **Direction-correct sides:** on a divided highway every exit serves EACH travel direction from its own carriageway — a full exit = up to four ramps (off+on per side); ramp rows gain a `side` field; **the bake generates the missing mirrored ramps** for today's one-off/one-on exits (87 off / 22 on today — the asymmetry is itself a bug this fixes). Right-hand exits only (the American default; no left exits, ever). |
+| **0.19 CITY, BACKCOUNTRY & DIRT DENSITY (two tiers + the discovery layer).** | **Towns are a two-tier generator:** metro/county-seat exits get a real **downtown grid** (~4×5 blocks, streetlights, curbs, denser Building-Book placements); neighborhood/service exits get the **main-street kit** (main drag + 2–4 side streets). Both ship as generators so every city upgrades. **County roads** expand into a real secondary network (linking adjacent exits and towns off-highway — the bones already exist as the 5 backroads). **DIRT ROADS ARE THE DISCOVERY LAYER:** every dirt spur is a row with a **`leads_to` payload** — farm, cache, hermit camp, still, hunting stand, quarry, ranger station, old cemetery — the row-enforced law: **a dirt road always leads to SOMETHING** (a dead dirt road is a lie the map tells; the sim rejects payload-less spurs). Slower, dustier, quieter — and worth it. |
+| **0.20 THE ASSET INVENTORY IS PART OF THE CONTRACT.** | §9 enumerates every buildable asset (all box/paint/Label3D/MultiMesh — no purchases), each tagged [exists]/[NEW] and keyed to the milestone that consumes it. A milestone is not done while an asset it consumes is missing from §9's ledger. |
+| **0.15 FUN ADOPTIONS (rows on shipped patterns).** *(kept in place — numbering is historical, the rulings are unordered)* | **Dead-exit ghost towns** (the `dead` archetype finally gets content: boarded husks, one live vending machine, a faded billboard — danger-4 destinations that feed corpse_heat) · **sign condition as danger telegraph** (weathered/bullet-holed ProtoSign variant at `risk_rating ≥ 3` — the read IS the warning; "THE BURNED RAMP" finally burns) · **state-line monuments** ("WELCOME TO FLORIDA" structure rows auto-placed where an interstate crosses a state boundary — the bake already walks arcs — the most iconic drive read in America) · **route reassurance shields** ("I-95 SOUTH" every ~2 km, billboard-text grammar — the missing third leg of the address system). All M4b/backlog. |
 
 ---
 
@@ -69,9 +74,10 @@ interiors, with ecosystem/weather/library interleaved where their real dependenc
 | M | Name | Definition of done | Sims |
 |---|---|---|---|
 | **M0** (~2–3 d) | **TRUE-UP + FREE WINS** — the materialize wire (`_spawn_placement` → `ProtoStructureBuilder.materialize` for profile ids) **+ the legacy-id migration rows (0.7)**; MapForge placement-id validation; `STATE_RELIEF` → rows with **FLORIDA 0.0** (today it rolls ~4.8 m!); cherry-pick GROUND_INTEGRITY.md from main | drive to HOLLOWPOINT: every placement is a signed, chest-seeded shell | `placement_wire_sim`, `structure_data_sim` |
-| **M1** (~1–1.5 w) | **THE JUNCTION LAW** — bake `junctions[]` (13 vertices + 88 exits + audited blind crossings); `road_graph.gd`; barrier gaps (0.3); intersection slabs; `_maybe_transfer` at nodes (cars continue I-90→I-95; backroads + on-ramps finally carry traffic) | stand at the I-80/I-95 T, watch a car turn through a real gap | `junction_bake_sim`, `junction_law_sim`, `traffic_transfer_sim`; `road_lane_sim`/`traffic_sim` assertions FLIP with the law |
+| **M1** (~1–1.5 w) | **THE JUNCTION + EXIT GEOMETRY LAW** (geometry only — 0.16) — bake `junctions[]` (13 vertices + 88 exits + audited blind crossings); `road_graph.gd` (consumed by the atlas/GPS only, for now); barrier gaps (0.3); intersection slabs; **the exit geometry law (0.18): decel/accel lanes, 8–15° peel-offs, painted gores + chevrons, and the bake generating direction-correct mirrored ramps on every divided-highway exit** | **drive it yourself**: turn from I-80 onto I-95 through a real gap in the median; take an exit down a real angled ramp past a painted gore — in your own car, no NPC traffic anywhere | `junction_bake_sim`, `junction_law_sim` (geometry: gap present, slab wins, gore painted, mirrored ramps exist + `side` correct); `road_lane_sim`/`exit_blueprint_sim` assertions FLIP with the law |
 | **M2** (~1 w) | **GROUND INTEGRITY EXECUTED** — void net, floor-first, 2 m floors + CCD, 5-point relief sampling, **real bridge decks** (resolves `separated_pending` into overpasses; builds the ecosystem's I-75 den site) | can't fall through the highway at any speed; a car crosses the canal on a deck | `ground_integrity_sim` |
-| **M3** (~1 w) | **THE ADDRESS LAW** — milepost renumber (0.1, Meridian = 9); `town_id` on exits; atlas/radio/signs speak addresses ("MIAMI — I-95 EXIT 21"); **street kits v1** (0.8) replace the husk ring; motorists route multi-road | "how do I get to Rosewood?" answerable with highway + exit; the exit leads to streets | `exit_address_sim` (strictly increasing along arcs; Meridian == 9), `town_grid_sim` |
+| **M3** (~1 w) | **THE ADDRESS LAW + TWO-TIER TOWNS** — milepost renumber (0.1, Meridian = 9); `town_id` on exits; atlas/radio/signs speak addresses ("MIAMI — I-95 EXIT 21"); **the two-tier town generator (0.19)**: metro/county-seat exits grow a downtown grid (~4×5 blocks, streetlights, curbs), neighborhood/service exits grow the main-street kit — both replace the husk ring | "how do I get to Rosewood?" answerable with highway + exit; the exit leads to streets; a metro exit leads to a downtown | `exit_address_sim` (strictly increasing along arcs; Meridian == 9), `town_grid_sim` (both tiers junction-baked; drivable by the player) |
+| **M3b** (~1 w, parallel with M4a) | **THE NETWORK FILL (small America, 0.17/0.19)** — reclass existing roads into the six-class hierarchy + the `surface` field; **county-road expansion** (link adjacent exits/towns off-highway — the 5 backroads become a real secondary net); **the DIRT DISCOVERY LAYER**: dirt spurs off county roads, each with a `leads_to` payload row (farm/cache/hermit/still/hunting stand/quarry/cemetery), unpainted twin-rut look, gravel/dirt grip + dust + tire audio | leave the interstate at a no-name county road, follow a dirt spur through a cattle gate, and find the hermit's shack the map never marked | `network_fill_sim` (every dirt spur has a payload that materializes; surface field drives grip/FX rows; county net connects ≥N exit pairs off-highway) |
 | **M4a** (~3–4 d, parallel with M2/M3) | **CORRIDOR KIT #1 (Southeast)** — fences, utility poles, guardrails, field patches, verge — the band pass in `_build_road_stretch` (needs only M1) | a 60-second I-75 drive reads as Florida in a screenshot | `roadside_band_sim` (instance counts, body budget, drape) |
 | **M4b** (after 0.1 lands) | mile markers + billboards (camera-honest, 0.12) + route shields + state-line monuments + rest_stop/truck_stop/water_tower rows at chosen exits + ghost-town kit (0.15) | EXIT N stands near MILE N; the water tower says the town's name | extends `roadside_band_sim` |
 | **M6** (parallel from ~M2; owned by LIVING_WOUND §9) | **ECOSYSTEM PHASE 1** — hard gate: population-cell wiring + sim-hang fix (its own spec's step 0). Soft gate: M4a on I-75 | "the Alley is alive — don't stop under the overpass" | its own suite |
@@ -79,9 +85,10 @@ interiors, with ecosystem/weather/library interleaved where their real dependenc
 | **M5** (~1.5 w, after M3) | **CATALOG RECONCILED + 5 CORE ENTERABLES** — `building_type` join field; buildings.json + `PLACEMENT_SIZE` retire into rows; the five house.gd laws generalize into the builder (**`ProtoInteriorSkin`**: roof-hide, front-fade, floor-fade + RAMP-not-steps + the footprint furnisher); wave 1 = the five by instance count (0.13), **LOD law (0.11)** | walk into the Hollowpoint diner: roof hides, front fades, register loots | `shell_recipe_sim` (real walk-ins), `furnisher_sim`, `furniture_container_sim` |
 | **M7** (~1–1.5 w) | **INTERIORS WAVE 2 + THE LIBRARY IN THE WORLD** — `interior_template` room kits (clinic/church/courthouse/warehouse/radio); the **`bookshelf`** furniture row makes books findable in houses; furniture persistence gap closed | — | `interior_template_sim`, `furniture_persist_sim`, `library_shelf_sim` |
 | **M8** (~1 w) | **MOUNTAINS (camera-honest)** — relief rows + MapForge relief painter; state-border blending; `RELIEF_MAX_M` → 80 in heavy states; **snowline/rock tint underfoot** (the single biggest "Colorado" read); pass-gate structures; ranges/silhouettes in binocular/atlas layers only (0.12) | Colorado is climbs, ridge walls, and snowline beside the road | `border_blend_sim`, `snowline_sim`, `terrain_relief_sim` |
+| **MT** (PARKED — owner-gated, 0.16) | **TRAFFIC RETURNS** — agents consume `road_graph.gd`: `_maybe_transfer` at nodes (cars continue I-90→I-95), backroad/on-ramp spawns, motorist multi-road routes, convoys on the net, the traffic.json junction knobs | a stranger's pickup turns off the interstate onto the county road ahead of you | `traffic_transfer_sim` (moved here from M1); `traffic_sim` assertions flip |
 
-**The discipline list (binding):** no asset shopping (banked owner verdict) · ONE look kit before any
-second · no every-building-enterable (open-top shells are honest to the top-down camera) · no
+**The discipline list (binding):** **no simulated-traffic work until MT** (owner, 0.16) · no asset
+shopping (banked owner verdict) · ONE look kit before any second · no every-building-enterable (open-top shells are honest to the top-down camera) · no
 roads-that-climb until traffic rides height (mountains option C deferred) · **no portal interiors before
 M7+, and none for the M6 den (0.9)** · no hand-editing junctions before the bake exists · no
 freeway-stack art (gap + slab + deck reads correctly top-down) · no fifth building vocabulary, no second
@@ -92,8 +99,9 @@ parallelize two inside it**.
 
 `junctions[]` rows in usmap.json (schema 0.2), baked by MapForge (`POST /api/junctions/bake`,
 re-runnable, character-preserving) and verified at load. `road_graph.gd` builds nodes↔road-arcs once at
-fold; `route(from, to)` is Dijkstra on time-cost; traffic (`_maybe_transfer`), motorists
-(`plan_route` v2), convoys, and the autopilot all consume the same graph — one routing law. Barrier
+fold; `route(from, to)` is Dijkstra on time-cost. **Per 0.16 its only consumers NOW are the atlas/GPS
+(address routing, "fastest way to I-95 EXIT 9") and the sims; traffic, motorists, convoys, and the
+autopilot adopt the same graph at MT** — one routing law, phased consumption. Barrier
 runs skip `±gap_half` around flat nodes; one intersection slab per node paints above the overlap.
 Blind divided×divided crossings ride `separated_pending` (walled, no transfer) until M2's decks
 promote them to `deck` — the first the player sees is **I-95×I-40, 900 m from Meridian**. Exit
@@ -188,7 +196,68 @@ grids v1 (0.8). Say the word and any of these flips before M1 lands.
 
 ---
 
+## 9. THE ASSET INVENTORY (0.20 — everything we must BUILD; all box/paint/Label3D/decal/MultiMesh, zero purchases)
+
+Legend: **[E]** exists today · **[NEW]** to build · *(M#)* = the milestone that consumes it. Grounded
+in the real American road network: what you actually see from a car on an interstate, a US route, a
+county road, and a dirt lane.
+
+**9.1 Road surfaces & paint** — asphalt slab **[E]** · concrete variant (bridges/city) **[NEW]** (M2/M3)
+· gravel surface **[NEW]** (M3b) · **dirt twin-rut track** (two worn lines, grass center) **[NEW]**
+(M3b) · lane paint set: yellow center (solid/dashed), white edge lines, dashes **[E-partial]** →
+per-class variants (M1) · **gore triangle + chevron paint [NEW]** (M1) · decel/accel lane tapers
+**[NEW]** (M1) · intersection slab **[NEW]** (M1) · stop bars + crosswalks (city grids) **[NEW]** (M3)
+· curbs (downtown) **[NEW]** (M3) · rumble-strip band (paint + audio trigger) **[NEW]** (M4a).
+
+**9.2 Junction & ramp furniture** — median barrier **[E]** + **gap end-caps [NEW]** (M1) · reflector
+posts (ramp edges/curves) **[NEW]** (M1) · **crash barrels at gores** (the orange drums — pure
+Americana) **[NEW]** (M1) · bridge deck + overpass side-rails **[NEW]** (M2) · culvert mouths under
+the roadbed (double duty: drainage read + the ecosystem's den anchors) **[NEW]** (M2).
+
+**9.3 The signage set** (all on the proven `ProtoSign`/Label3D grammar) — big green exit sign **[E]** ·
+advance exit sign ("EXIT 9 — MERIDIAN — NEXT RIGHT") **[NEW]** (M3) · **route shields — three shapes**:
+interstate (blue/red), US route (white shield), state (circle/square) **[NEW]** (M4b) · mile markers
+**[NEW]** (M4b) · speed limit **[NEW]** (M4a) · stop + yield (junctions/towns) **[NEW]** (M1/M3) ·
+town welcome sign ("MERIDIAN — pop. UNKNOWN") **[E-partial]** (M3) · **state-line monument**
+("WELCOME TO FLORIDA") **[NEW]** (M4b) · "PAVEMENT ENDS" **[E-referenced]** + dirt-lane wooden signs
+("NO OUTLET", hand-painted names) **[NEW]** (M3b) · curve chevrons **[NEW]** (M4a/M8) · billboard
+(posts + panel + camera-facing text; weathered/burned variants at `risk_rating ≥ 3`) **[NEW]** (M4b)
+· bullet-holed/weathered sign variants (the danger telegraph) **[NEW]** (M4b).
+
+**9.4 Roadside & rural furniture** — wire fence + wood-post fence (MultiMesh runs) **[NEW]** (M4a) ·
+guardrail **[NEW]** (M4a) · **utility poles + sagging line** **[NEW]** (M4a) · streetlights (downtown,
+lit at night — the daynight tie) **[NEW]** (M3) · traffic lights (downtown; static amber-flash is
+enough pre-MT) **[NEW]** (M3) · mailboxes at farm drives **[NEW]** (M4a) · **cattle guards + swing
+gates** (dirt spurs) **[NEW]** (M3b) · fire hydrants (downtown flavor) **[NEW]** (M3) · roadkill props
+(register per-body `corpse.heat` — the ecosystem interface) **[NEW]** (M4a/M6).
+
+**9.5 The landscape kit** — field PATCHES (corn rows / wheat / fallow, fence-framed, road-oriented)
+**[NEW]** (M4a) · treeline walls **[E-partial]** (biome scatter exists; the BAND arrangement is new,
+M4a) · orchard rows **[NEW]** (kit #2+) · drainage ditches **[NEW]** (M4a) · hay bales **[NEW]** (M4a)
+· irrigation rig (the long wheel-line — the plains read) **[NEW]** (kit #2) · dirt-road water crossing
+(splash ford) **[NEW]** (M3b) · saguaro/mesa props (desert kit) **[NEW]** (kit #3).
+
+**9.6 Dirt-spur payload structures** (the `leads_to` catalog — each a Building-Book-law row) — hermit
+shack **[NEW]** · moonshine still **[NEW]** · hunting stand **[NEW]** · quarry pit **[NEW]** · old
+cemetery (fits the Church Wolf fiction later) **[NEW]** · buried-cache dig site **[E]**
+(`buried_cache.gd` + the Hunter dog verb — free content) · ranger_station **[NEW — already §4]** ·
+abandoned farmstead (ruined_house + silo cluster template) **[compose from §4]**. *(All M3b; each is
+small, box-built, one loot table + one clue.)*
+
+**9.7 FX & audio** (rides the ecosystem EAR-layer law: audio is presentation; SoundForge manifest
+entries, synth fallback until files land) — tire loops per surface: `tire_gravel`, `tire_dirt`
+**[NEW]** + rumble-strip buzz **[NEW]** (M3b/M4a) · dust kick-up particles per surface (dirt > gravel
+> asphalt; weather-field wind biases the plume) **[NEW]** (M3b) · `amb_downtown` bed (distant dogs,
+loose signage creak) **[NEW]** (M3) · cattle-guard rattle one-shot **[NEW]** (M3b).
+
+**The count:** ~45 buildable assets, of which ~8 exist and ~10 are compositions of existing pieces.
+Nothing on this list is bigger than a day; most are hours. The inventory is the backlog — MapForge and
+the kits consume it row by row, and a milestone is not done while its column has holes.
+
+---
+
 *The answer to "what first": **M0 this week** (one wire + rows — 13 towns light up), **M1 next** (the
-junction law — your #1 complaint dies), and the ecosystem starts in parallel the moment its own
-population-cell prerequisite is wired. The buildings are all named (§4); the interiors have one recipe
-and a LOD law; America is a band system plus the honest camera. Nothing here waits on an asset store.*
+junction + exit-geometry law — your #1 complaint dies, and exits finally peel off at the little angle),
+then addresses, two-tier towns, the network fill with its dirt discovery layer, and the corridor look.
+**No traffic anywhere until you ask for it (MT).** The buildings are all named (§4); the assets are all
+named (§9); America is a band system plus the honest camera. Nothing here waits on an asset store.*
