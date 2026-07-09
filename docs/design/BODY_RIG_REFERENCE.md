@@ -93,6 +93,22 @@ a slab (1.6), the waif a rail (0.3), the trader grew fat on the market (1.5). Th
 belly (waist depth) grows fastest. Character creation ties `build` to how a
 character looks; the same sixteen blocks read as fifty different people.
 
+## THE BODY TYPE PROFILE — adult / woman / teen / kid / stocky
+
+`body_type` in the appearance row is the silhouette layer above `build`. It changes
+proportions while keeping the same sixteen pieces and the same authorable joints:
+head scale, chest/waist/pelvis ratios, shoulder width, hip width, limb length,
+limb thickness, hand size, and foot size. A kid is not just a root-scaled adult:
+the head reads larger against the chest and the elbow/knee joints sit on shorter
+limbs. A woman profile narrows the shoulder line and widens the hip read without
+requiring a second rig. A stocky profile can still use `build` for weight, but its
+shorter limbs and heavier torso make the silhouette distinct.
+
+Current code rows live in `ProtoPuppet.BODY_TYPES`, and survivor presets such as
+`woman`, `teen_runner`, and `kid` expose those profiles through character creation.
+The profile values are still row data: adding a new body shape is a row, not a mesh
+swap or a second animation system.
+
 ## The vertical column (rest, scale 1.0 ≈ 1.8 m)
 
 ```

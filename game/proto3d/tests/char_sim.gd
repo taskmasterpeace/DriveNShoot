@@ -37,6 +37,13 @@ func _physics_process(delta: float) -> void:
 		0:
 			if phase_t > 0.6:
 				_check("the creation screen exists", main.char_create != null)
+				var body_choices: Array = []
+				for opt in ProtoCharCreate.OPTIONS:
+					if String(opt[1]) == "look":
+						for pair in opt[2]:
+							body_choices.append(String(pair[1]))
+				_check("character creation exposes woman/teen/kid body profiles",
+					body_choices.has("woman") and body_choices.has("teen_runner") and body_choices.has("kid"))
 				main.char_create.toggle()
 				_check("J opens it", main.char_create.is_open)
 				main.char_create.toggle()
@@ -53,7 +60,8 @@ func _physics_process(delta: float) -> void:
 					pup.appearance["handed"] == "left" and pup.handed_sign < 0.0)
 				_check("the puppet is blind in the RIGHT eye", pup.appearance["blind_eye"] == "r")
 				_check("the puppet carries the bad LEFT leg as a limp", pup.appearance["limp"] == "l")
-				_check("the RAIDER body applied (torso %.2f > scav 0.5)" % pup.appearance["torso"].x, pup.appearance["torso"].x > 0.5)
+				_check("the RAIDER body applied (build %.2f, height %.2f)" % [pup.appearance["build"], pup.appearance["height"]],
+					float(pup.appearance["build"]) > 1.0 and float(pup.appearance["height"]) > 1.0)
 				# The SAME picks are stat hooks:
 				_check("a blind eye NARROWS the vision cone (arc mult %.2f)" % main.character.vision_arc_mult, main.character.vision_arc_mult == 0.5)
 				_check("the dark side follows the RIGHT eye (yaw offset %.2f, want <0)" % main.character.vision_yaw_offset, main.character.vision_yaw_offset < 0.0)
@@ -66,6 +74,13 @@ func _physics_process(delta: float) -> void:
 				_check("re-authoring whole restores full sight", main.character.vision_arc_mult == 1.0 and not main.character.eyepatch)
 				_check("re-authoring whole restores full speed", main.player.leg_mult == 1.0)
 				_check("and flips the hand back to the right", main.player.puppet.appearance["handed"] == "right")
+				main.apply_character({"handed": "right", "blind_eye": "", "bad_leg": "", "look": "kid"})
+				_next()
+		3:
+			if phase_t > 0.3:
+				_check("the KID body profile applies through character creation",
+					main.player.puppet.appearance["body_type"] == "kid"
+					and main.player.puppet.scale.y < 0.82)
 				_report()
 
 	if t > 20.0:

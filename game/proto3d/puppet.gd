@@ -18,9 +18,21 @@ extends Node3D
 ## skeleton skinny (0) → normal (1) → heavy (2). It scales widths and depths only —
 ## heights and joints never move, so aim/strike/crouch numbers hold on every body.
 const DEFAULT: Dictionary = {
+	"body_type": "adult",                    ## adult | woman | teen | kid | stocky
 	"height": 1.0,                          ## overall scale
 	"build": 1.0,                            ## 0 skinny · 1 normal · 2 heavy (widths/depths only)
 	"torso": Vector3(0.46, 0.28, 0.24),     ## CHEST box size (waist + pelvis derive from it)
+	"head_scale": Vector3.ONE,
+	"chest_mul": Vector3.ONE,
+	"waist_mul": Vector3.ONE,
+	"pelvis_mul": Vector3.ONE,
+	"shoulder_mul": 1.0,
+	"hip_mul": 1.0,
+	"arm_len": 1.0,
+	"leg_len": 1.0,
+	"limb_width": 1.0,
+	"hand_scale": 1.0,
+	"foot_scale": 1.0,
 	"skin": Color(0.78, 0.6, 0.45),
 	"cloth": Color(0.46, 0.4, 0.32),        ## torso + arms
 	"pants": Color(0.3, 0.3, 0.28),         ## pelvis + legs
@@ -32,6 +44,76 @@ const DEFAULT: Dictionary = {
 	"limp": "",                              ## "" | "l" | "r" — that leg drags
 }
 
+## BODY TYPE is the silhouette layer above build. Build is still weight/thickness;
+## body_type changes proportions: head read, shoulder/hip relationship, limb length,
+## hands/feet. The same 22 joints stay alive, just seated on a different box person.
+const BODY_TYPES: Dictionary = {
+	"adult": {},
+	"woman": {
+		"height": 0.96,
+		"build": 0.82,
+		"head_scale": Vector3(0.96, 0.98, 0.96),
+		"chest_mul": Vector3(0.88, 0.98, 0.90),
+		"waist_mul": Vector3(0.82, 0.98, 0.88),
+		"pelvis_mul": Vector3(1.18, 0.98, 1.04),
+		"shoulder_mul": 0.86,
+		"hip_mul": 1.15,
+		"arm_len": 0.94,
+		"leg_len": 0.96,
+		"limb_width": 0.90,
+		"hand_scale": 0.88,
+		"foot_scale": 0.90,
+	},
+	"teen": {
+		"height": 0.88,
+		"build": 0.58,
+		"head_scale": Vector3(1.08, 1.10, 1.06),
+		"chest_mul": Vector3(0.86, 0.94, 0.88),
+		"waist_mul": Vector3(0.86, 0.94, 0.86),
+		"pelvis_mul": Vector3(0.92, 0.94, 0.92),
+		"shoulder_mul": 0.84,
+		"hip_mul": 0.90,
+		"arm_len": 0.88,
+		"leg_len": 0.90,
+		"limb_width": 0.82,
+		"hand_scale": 0.82,
+		"foot_scale": 0.84,
+		"gait": 1.12,
+	},
+	"kid": {
+		"height": 0.76,
+		"build": 0.36,
+		"head_scale": Vector3(1.22, 1.24, 1.18),
+		"chest_mul": Vector3(0.80, 0.88, 0.82),
+		"waist_mul": Vector3(0.82, 0.88, 0.82),
+		"pelvis_mul": Vector3(0.86, 0.88, 0.86),
+		"shoulder_mul": 0.76,
+		"hip_mul": 0.82,
+		"arm_len": 0.78,
+		"leg_len": 0.78,
+		"limb_width": 0.72,
+		"hand_scale": 0.72,
+		"foot_scale": 0.74,
+		"gait": 1.22,
+	},
+	"stocky": {
+		"height": 1.02,
+		"build": 1.65,
+		"head_scale": Vector3(1.02, 1.00, 1.02),
+		"chest_mul": Vector3(1.08, 1.00, 1.08),
+		"waist_mul": Vector3(1.12, 1.00, 1.18),
+		"pelvis_mul": Vector3(1.10, 1.00, 1.10),
+		"shoulder_mul": 1.08,
+		"hip_mul": 1.05,
+		"arm_len": 0.96,
+		"leg_len": 0.94,
+		"limb_width": 1.12,
+		"hand_scale": 1.08,
+		"foot_scale": 1.06,
+		"gait": 0.92,
+	},
+}
+
 ## The proof of the pillar: 50 survivors from ONE rig by feeding it ROWS. Each is a
 ## partial override of DEFAULT — add a look = add a row, never touch code. These
 ## double as NPC bodies (Rung 4) and character-creation presets (Rung 5).
@@ -41,10 +123,13 @@ const SURVIVORS: Dictionary = {
 	"scav": {"cloth": Color(0.5, 0.44, 0.3), "pants": Color(0.32, 0.3, 0.26), "backpack": true, "gait": 1.0},
 	"drifter": {"cloth": Color(0.4, 0.36, 0.34), "pants": Color(0.28, 0.26, 0.24), "hat": Color(0.3, 0.26, 0.18), "gait": 0.9, "build": 0.85},
 	"raider": {"torso": Vector3(0.50, 0.30, 0.26), "cloth": Color(0.35, 0.2, 0.16), "pants": Color(0.22, 0.2, 0.18), "gait": 1.15, "height": 1.06, "build": 1.6},
-	"trader": {"cloth": Color(0.55, 0.45, 0.2), "pants": Color(0.3, 0.28, 0.22), "hat": Color(0.5, 0.42, 0.22), "gait": 0.85, "build": 1.5},
+	"trader": {"body_type": "stocky", "cloth": Color(0.55, 0.45, 0.2), "pants": Color(0.3, 0.28, 0.22), "hat": Color(0.5, 0.42, 0.22)},
 	"guard": {"torso": Vector3(0.48, 0.29, 0.25), "cloth": Color(0.3, 0.34, 0.4), "pants": Color(0.24, 0.26, 0.3), "hat": Color(0.22, 0.24, 0.28), "gait": 1.0, "height": 1.04, "build": 1.3},
 	"waif": {"torso": Vector3(0.40, 0.26, 0.20), "cloth": Color(0.5, 0.5, 0.44), "pants": Color(0.34, 0.34, 0.3), "gait": 1.1, "height": 0.92, "build": 0.3},
 	"old_timer": {"cloth": Color(0.44, 0.42, 0.4), "pants": Color(0.3, 0.3, 0.3), "hat": Color(0.4, 0.38, 0.34), "gait": 0.75, "limp": "l", "height": 0.98, "build": 0.7},
+	"woman": {"body_type": "woman", "cloth": Color(0.42, 0.34, 0.30), "pants": Color(0.25, 0.25, 0.28), "gait": 1.0},
+	"teen_runner": {"body_type": "teen", "cloth": Color(0.36, 0.43, 0.38), "pants": Color(0.26, 0.28, 0.27), "gait": 1.16},
+	"kid": {"body_type": "kid", "cloth": Color(0.48, 0.42, 0.34), "pants": Color(0.30, 0.30, 0.28), "gait": 1.22},
 	# The LURKER on the shared rig: all-black, hooded (a hood mesh rides the head), a
 	# slow prowl. The last enemy pulled off its bespoke mesh onto the one puppet.
 	"lurker": {"torso": Vector3(0.44, 0.28, 0.22), "cloth": Color(0.12, 0.11, 0.10), "pants": Color(0.10, 0.09, 0.09), "skin": Color(0.14, 0.13, 0.12), "hat": Color(0.09, 0.08, 0.08), "gait": 0.8, "height": 1.02, "build": 0.8},
@@ -237,6 +322,12 @@ const FREE_FORE_LEN: float = 0.28
 ## Leg length hip→sole (thigh 0.42 + calf 0.38 + foot ≈ 0.10), the anti-skate stride
 ## solve's L (ANIMATION_FIX_PACK §4.2): step length = 2·leg_eff·L·sin(amplitude).
 const LEG_LEN: float = 0.90
+var _upper_len: float = FREE_UPPER_LEN
+var _fore_len: float = FREE_FORE_LEN
+var _thigh_len: float = 0.42
+var _calf_len: float = 0.38
+var _foot_height: float = 0.10
+var _leg_len: float = LEG_LEN
 ## Two-hand hold blade (ANIMATION_FIX_PACK §3.5): while gripping a longarm two-handed,
 ## the SUPPORT shoulder blades FORWARD (toward -Z) and a touch inward so the free hand
 ## can actually reach the fore-grip from the anatomical left shoulder (~0.72m away raw,
@@ -301,8 +392,16 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	ensure_motions() # the rig reads ROWS — fold the data before the first stride
 	var p := ProtoPuppet.new()
 	var a := DEFAULT.duplicate(true)
+	var body_type: String = String(appearance_in.get("body_type", a["body_type"]))
+	if not BODY_TYPES.has(body_type):
+		body_type = "adult"
+	var body_profile: Dictionary = BODY_TYPES.get(body_type, {})
+	for k in body_profile:
+		a[k] = body_profile[k]
 	for k in appearance_in:
 		a[k] = appearance_in[k]
+	if not BODY_TYPES.has(String(a.get("body_type", "adult"))):
+		a["body_type"] = "adult"
 	p.appearance = a
 	p.scale = Vector3.ONE * float(a["height"])
 	# In this rig the RIGHT hand sits at local +X. Left-handed mirrors to -X.
@@ -325,15 +424,38 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	var build: float = clampf(float(a.get("build", 1.0)), 0.0, 2.0)
 	var wm: float = lerpf(0.72, 1.28, build * 0.5)  # torso widths
 	var dm: float = lerpf(0.80, 1.30, build * 0.5)  # torso depths (the belly axis)
-	var lm: float = lerpf(0.82, 1.18, build * 0.5)  # limb thickness
+	var limb_width: float = clampf(float(a.get("limb_width", 1.0)), 0.5, 1.4)
+	var lm: float = lerpf(0.82, 1.18, build * 0.5) * limb_width  # limb thickness
+	var head_scale: Vector3 = a.get("head_scale", Vector3.ONE)
+	var chest_mul: Vector3 = a.get("chest_mul", Vector3.ONE)
+	var waist_mul: Vector3 = a.get("waist_mul", Vector3.ONE)
+	var pelvis_mul: Vector3 = a.get("pelvis_mul", Vector3.ONE)
+	var shoulder_mul: float = clampf(float(a.get("shoulder_mul", 1.0)), 0.5, 1.5)
+	var hip_mul: float = clampf(float(a.get("hip_mul", 1.0)), 0.5, 1.5)
+	var arm_len_mul: float = clampf(float(a.get("arm_len", 1.0)), 0.6, 1.25)
+	var leg_len_mul: float = clampf(float(a.get("leg_len", 1.0)), 0.6, 1.25)
+	var hand_scale: float = clampf(float(a.get("hand_scale", 1.0)), 0.55, 1.3)
+	var foot_scale: float = clampf(float(a.get("foot_scale", 1.0)), 0.55, 1.3)
+	p._upper_len = FREE_UPPER_LEN * arm_len_mul
+	p._fore_len = FREE_FORE_LEN * arm_len_mul
+	p._thigh_len = 0.42 * leg_len_mul
+	p._calf_len = 0.38 * leg_len_mul
+	p._foot_height = 0.10 * foot_scale
+	p._leg_len = p._thigh_len + p._calf_len + p._foot_height
+	var hip_y: float = p._leg_len
+	var pelvis_y: float = hip_y + 0.02
+	var waist_y: float = hip_y + 0.10
+	var chest_y: float = hip_y + 0.38
+	var neck_y: float = chest_y + 0.14
+	var shoulder_y: float = chest_y + 0.12
 	# Legacy-save guard: pre-mannequin rows carried plank-torso sizes (y up to 0.74)
 	# that would build a broken chest — clamp into the chest's sane band.
 	tsz = Vector3(clampf(tsz.x, 0.36, 0.56), clampf(tsz.y, 0.24, 0.34), clampf(tsz.z, 0.18, 0.30))
 
 	# --- UPPER TORSO / CHEST: the lean/twist body the animator drives (1.14→1.42).
-	var chest := Vector3(tsz.x * wm, tsz.y, tsz.z * dm)
-	p.torso = _box(chest, Vector3(0, 1.28, 0), cloth)
-	p._chest_rest_y = 1.28
+	var chest := Vector3(tsz.x * wm * chest_mul.x, tsz.y * chest_mul.y, tsz.z * dm * chest_mul.z)
+	p.torso = _box(chest, Vector3(0, chest_y, 0), cloth)
+	p._chest_rest_y = chest_y
 	p.add_child(p.torso)
 
 	# --- LOWER TORSO / WAIST: its own piece on the LOWER-SPINE swivel (1.00). The
@@ -342,32 +464,36 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# read as a separate piece by its narrower width step. The belly grows fastest
 	# here on a heavy build.
 	p.waist = Node3D.new()
-	p.waist.position = Vector3(0, 1.00, 0)
-	p._waist_rest_y = 1.00
+	p.waist.position = Vector3(0, waist_y, 0)
+	p._waist_rest_y = waist_y
 	p.add_child(p.waist)
 	var belly: float = lerpf(0.92, 1.22, build * 0.5)
-	p.waist.add_child(_box(Vector3(chest.x * 0.78, 0.24, tsz.z * dm * belly), Vector3(0, 0.07, 0), cloth))
+	p.waist.add_child(_box(Vector3(chest.x * 0.78 * waist_mul.x, 0.24 * waist_mul.y, tsz.z * dm * belly * waist_mul.z), Vector3(0, 0.07, 0), cloth))
 	# (PELVIS/HIPS is built with the legs below — it rides legs_pivot, so the hips
 	# face where the FEET walk while the chest faces the aim: real counter-rotation.)
 
 	# --- NECK (ball) + HEAD: the neck box rises from the shoulder line; the head
 	# sits ON it. Head 0.25 tall ≈ 14% of the body — a head, not a bobble.
 	p.neck = Node3D.new()
-	p.neck.position = Vector3(0, 1.42, 0)
-	p._neck_rest_y = 1.42
+	p.neck.position = Vector3(0, neck_y, 0)
+	p._neck_rest_y = neck_y
 	p.add_child(p.neck)
 	var neck_col := Color(skin.r * 0.92, skin.g * 0.92, skin.b * 0.92)
-	p.neck.add_child(_box(Vector3(0.11, 0.12, 0.11), Vector3(0, 0.05, 0), neck_col))
-	p.head = _box(Vector3(0.24, 0.25, 0.23), Vector3(0, 0.23, 0), skin)
+	p.neck.add_child(_box(Vector3(0.11 * head_scale.x, 0.12, 0.11 * head_scale.z), Vector3(0, 0.05, 0), neck_col))
+	var head_size := Vector3(0.24 * head_scale.x, 0.25 * head_scale.y, 0.23 * head_scale.z)
+	var head_y: float = 0.105 + head_size.y * 0.5
+	p.head = _box(head_size, Vector3(0, head_y, 0), skin)
 	p.neck.add_child(p.head)
 	# Eyes read facing from above; a patched eye goes dark. (neck-local, face = -Z)
 	for side in [-1.0, 1.0]:
 		var blind: bool = (a["blind_eye"] == "l" and side < 0.0) or (a["blind_eye"] == "r" and side > 0.0)
-		var eye := _box(Vector3(0.06, 0.06, 0.04),
-			Vector3(side * 0.07, 0.26, -0.115), Color(0.05, 0.05, 0.05) if blind else Color(0.9, 0.9, 0.85))
+		var eye := _box(Vector3(0.06 * head_scale.x, 0.06 * head_scale.y, 0.04),
+			Vector3(side * 0.07 * head_scale.x, head_y + head_size.y * 0.12, -head_size.z * 0.5),
+			Color(0.05, 0.05, 0.05) if blind else Color(0.9, 0.9, 0.85))
 		p.neck.add_child(eye)
 	if float(a["hat"].a) > 0.01:
-		p._hat = _box(Vector3(0.34, 0.13, 0.33), Vector3(0, 0.38, 0), a["hat"])
+		p._hat = _box(Vector3(head_size.x * 1.38, 0.13 * head_scale.y, head_size.z * 1.38),
+			Vector3(0, head_y + head_size.y * 0.5 + 0.06 * head_scale.y, 0), a["hat"])
 		p.neck.add_child(p._hat)
 
 	# --- Backpack (rides the chest depth so it sits ON the back at any build) ----
@@ -384,26 +510,27 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# --- PELVIS / HIPS: the third torso piece, child of legs_pivot so it yaws with
 	# the walk. Hip BALL joints live inside it. Column: hip 0.90 → knee 0.48 →
 	# ankle 0.10 → sole 0 (legs ≈ half the body, per the reference).
-	p._pelvis = _box(Vector3(0.36 * wm, 0.16, 0.22 * dm), Vector3(0, 0.92, 0), pants)
+	p._pelvis = _box(Vector3(0.36 * wm * pelvis_mul.x, 0.16 * pelvis_mul.y, 0.22 * dm * pelvis_mul.z), Vector3(0, pelvis_y, 0), pants)
 	p.legs_pivot.add_child(p._pelvis)
-	var hip_x: float = 0.11 * wm
-	var thigh_size := Vector3(0.15 * lm, 0.42, 0.17 * lm)
-	var calf_size := Vector3(0.125 * lm, 0.38, 0.145 * lm)
-	p.hip_l = _limb_pivot(Vector3(-hip_x, 0.90, 0), thigh_size, pants)
-	p.hip_r = _limb_pivot(Vector3(hip_x, 0.90, 0), thigh_size, pants)
+	var hip_x: float = 0.11 * wm * hip_mul
+	var thigh_size := Vector3(0.15 * lm, p._thigh_len, 0.17 * lm)
+	var calf_size := Vector3(0.125 * lm, p._calf_len, 0.145 * lm)
+	p.hip_l = _limb_pivot(Vector3(-hip_x, hip_y, 0), thigh_size, pants)
+	p.hip_r = _limb_pivot(Vector3(hip_x, hip_y, 0), thigh_size, pants)
 	p.legs_pivot.add_child(p.hip_l)
 	p.legs_pivot.add_child(p.hip_r)
-	p.knee_l = _joint_under(p.hip_l, Vector3(0, -0.42, 0))
-	p.knee_r = _joint_under(p.hip_r, Vector3(0, -0.42, 0))
+	p.knee_l = _joint_under(p.hip_l, Vector3(0, -p._thigh_len, 0))
+	p.knee_r = _joint_under(p.hip_r, Vector3(0, -p._thigh_len, 0))
 	var boot := Color(pants.r * 0.6, pants.g * 0.6, pants.b * 0.6)
 	for kn in [p.knee_l, p.knee_r]:
-		kn.add_child(_box(calf_size, Vector3(0, -0.19, 0), pants))
+		kn.add_child(_box(calf_size, Vector3(0, -p._calf_len * 0.5, 0), pants))
 	# ANKLE HINGE + FOOT: a low block, toe forward, sole ON the ground; the ankle
 	# connector cube (below) doubles as the reference's raised ankle riser.
-	p.foot_l = _joint_under(p.knee_l, Vector3(0, -0.38, 0))
-	p.foot_r = _joint_under(p.knee_r, Vector3(0, -0.38, 0))
+	p.foot_l = _joint_under(p.knee_l, Vector3(0, -p._calf_len, 0))
+	p.foot_r = _joint_under(p.knee_r, Vector3(0, -p._calf_len, 0))
+	var foot_size := Vector3(0.125 * lm * foot_scale, p._foot_height, 0.27 * foot_scale)
 	for ft in [p.foot_l, p.foot_r]:
-		ft.add_child(_box(Vector3(0.125 * lm, 0.10, 0.27), Vector3(0, -0.05, -0.055), boot))
+		ft.add_child(_box(foot_size, Vector3(0, -p._foot_height * 0.5, -0.055 * foot_scale), boot))
 	# CROUCH no-kiss fix: the THIGH box is _limb_pivot's sole mesh child — grab it so
 	# the animator can nudge its local Y by hip_joint_gap (same law as before).
 	p._hip_box_rest_y = -thigh_size.y * 0.5
@@ -414,35 +541,35 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# hand — like the left side"), hanging STRAIGHT from ball shoulders. Only the
 	# JOB differs: the aim side yaws to the gaze, the free side counter-swings /
 	# fore-grips. The aim is a ROTATION in animate() — never baked into geometry.
-	p._sh_x = chest.x * 0.5 + 0.045 # arm tucks against the chest edge at any build
-	var upper_size := Vector3(0.11 * lm, 0.30, 0.11 * lm)
-	var fore_size := Vector3(0.095 * lm, 0.26, 0.095 * lm)
+	p._sh_x = (chest.x * 0.5 + 0.045) * shoulder_mul # arm tucks against the chest edge at any build
+	var upper_size := Vector3(0.11 * lm, p._upper_len, 0.11 * lm)
+	var fore_size := Vector3(0.095 * lm, p._fore_len * 0.93, 0.095 * lm)
 
 	# FREE ARM (the off hand): shoulder BALL → elbow HINGE → wrist BALL → fingers.
-	p.free_arm = _limb_pivot(Vector3(-p._sh_x * right, 1.40, 0), upper_size, cloth)
+	p.free_arm = _limb_pivot(Vector3(-p._sh_x * right, shoulder_y, 0), upper_size, cloth)
 	p.add_child(p.free_arm)
-	p.elbow_l = _joint_under(p.free_arm, Vector3(0, -FREE_UPPER_LEN, 0))
-	p.elbow_l.add_child(_box(fore_size, Vector3(0, -0.13, 0), cloth))
-	p.hand_l = _joint_under(p.elbow_l, Vector3(0, -FREE_FORE_LEN, 0))
-	p.fingers_l = _build_hand(p.hand_l, skin)
+	p.elbow_l = _joint_under(p.free_arm, Vector3(0, -p._upper_len, 0))
+	p.elbow_l.add_child(_box(fore_size, Vector3(0, -p._fore_len * 0.465, 0), cloth))
+	p.hand_l = _joint_under(p.elbow_l, Vector3(0, -p._fore_len, 0))
+	p.fingers_l = _build_hand(p.hand_l, skin, hand_scale)
 
 	# AIM ARM (the gun side): aim_arm = the YAW pivot at body center (a full-turn
 	# aim stays symmetric); shoulder = the REAL ball joint the arm hangs from.
 	p.aim_arm = Node3D.new()
 	p.add_child(p.aim_arm)
 	p.shoulder = Node3D.new()
-	p.shoulder.position = Vector3(p._sh_x * right, 1.40, 0)
+	p.shoulder.position = Vector3(p._sh_x * right, shoulder_y, 0)
 	p.aim_arm.add_child(p.shoulder)
-	p.shoulder.add_child(_box(upper_size, Vector3(0, -0.15, 0), cloth))
+	p.shoulder.add_child(_box(upper_size, Vector3(0, -p._upper_len * 0.5, 0), cloth))
 	p.elbow_r = Node3D.new()
-	p.elbow_r.position = Vector3(0, -FREE_UPPER_LEN, 0)
+	p.elbow_r.position = Vector3(0, -p._upper_len, 0)
 	p.shoulder.add_child(p.elbow_r)
-	p.elbow_r.add_child(_box(fore_size, Vector3(0, -0.13, 0), cloth))
+	p.elbow_r.add_child(_box(fore_size, Vector3(0, -p._fore_len * 0.465, 0), cloth))
 	p.hand = Node3D.new()
-	p.hand.position = Vector3(0, -FREE_FORE_LEN, 0) # the WRIST ball; net rest = straight down
+	p.hand.position = Vector3(0, -p._fore_len, 0) # the WRIST ball; net rest = straight down
 	p._gun_rest = p.hand.position
 	p.elbow_r.add_child(p.hand)
-	p.fingers_r = _build_hand(p.hand, skin)
+	p.fingers_r = _build_hand(p.hand, skin, hand_scale)
 	# The held-weapon node is a CONTAINER (weapons-as-data): its box children are
 	# rebuilt per weapon from a SHAPE spec. The node ORIGIN stays the grip point
 	# (grip_r seats it, recoil tweens it, the muzzle reads _muzzle_z forward), so
@@ -463,14 +590,14 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	_joint_ball(p.free_arm, 0.125 * lm, cloth)
 	_joint_ball(p.elbow_r, 0.10 * lm, cloth)    # elbow hinges
 	_joint_ball(p.elbow_l, 0.10 * lm, cloth)
-	_joint_ball(p.hand, 0.085, skin)            # wrist balls
-	_joint_ball(p.hand_l, 0.085, skin)
+	_joint_ball(p.hand, 0.085 * hand_scale, skin) # wrist balls
+	_joint_ball(p.hand_l, 0.085 * hand_scale, skin)
 	_joint_ball(p.hip_l, 0.155 * lm, pants)     # hip balls
 	_joint_ball(p.hip_r, 0.155 * lm, pants)
 	_joint_ball(p.knee_l, 0.13 * lm, pants)     # knee hinges
 	_joint_ball(p.knee_r, 0.13 * lm, pants)
-	_joint_ball(p.foot_l, 0.105 * lm, boot)     # ankle hinges (the riser blocks)
-	_joint_ball(p.foot_r, 0.105 * lm, boot)
+	_joint_ball(p.foot_l, 0.105 * lm * foot_scale, boot) # ankle hinges (the riser blocks)
+	_joint_ball(p.foot_r, 0.105 * lm * foot_scale, boot)
 
 	# ANIMATION_FIX_PACK §3.1 (THE SHOULDER LAW): capture how far the arm roots rest
 	# ABOVE the chest center from the REAL built geometry (never a literal), so a
@@ -494,12 +621,12 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 ## wrist and a FINGERS block hinged at the knuckle line, palm-front (-Z, where a
 ## weapon grip sits). fingers.rotation.x 0 = open flat; +GRIP_CURL = curled shut.
 ## Returns the fingers hinge node; the palm rides the wrist directly.
-static func _build_hand(wrist: Node3D, skin: Color) -> Node3D:
-	wrist.add_child(_box(Vector3(0.075, 0.09, 0.055), Vector3(0, -0.045, 0), skin))
+static func _build_hand(wrist: Node3D, skin: Color, hand_scale: float = 1.0) -> Node3D:
+	wrist.add_child(_box(Vector3(0.075, 0.09, 0.055) * hand_scale, Vector3(0, -0.045 * hand_scale, 0), skin))
 	var fingers := Node3D.new()
-	fingers.position = Vector3(0, -0.09, -0.02) # the knuckle line
+	fingers.position = Vector3(0, -0.09 * hand_scale, -0.02 * hand_scale) # the knuckle line
 	wrist.add_child(fingers)
-	fingers.add_child(_box(Vector3(0.07, 0.075, 0.05), Vector3(0, -0.035, 0), skin))
+	fingers.add_child(_box(Vector3(0.07, 0.075, 0.05) * hand_scale, Vector3(0, -0.035 * hand_scale, 0), skin))
 	return fingers
 
 
@@ -571,7 +698,7 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# Cadence ω = π·v / step_length, step_length = 2·(leg_eff·L)·sin(amp): a full half-
 	# cycle plants the foot exactly one step of ground, so feet ≠ moonwalk at any speed.
 	if moving:
-		var leg_eff: float = float(mg["leg_eff"]) * LEG_LEN
+		var leg_eff: float = float(mg["leg_eff"]) * _leg_len
 		var step_len: float = maxf(0.08, 2.0 * leg_eff * sin(maxf(0.02, amp)))
 		_phase += (PI * speed / step_len) * float(mg["cadence_mult"]) * gait * delta
 
@@ -655,7 +782,7 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 				# the aim chain). Height stays the shoulder law's; the gun aim is untouched.
 				var bk := clampf(10.0 * delta, 0.0, 1.0)
 				var grip_t := _foregrip_target()
-				var reach := FREE_UPPER_LEN + FREE_FORE_LEN
+				var reach := _upper_len + _fore_len
 				var dy: float = grip_t.y - free_arm.position.y
 				var h_want: float = sqrt(maxf(0.04, reach * reach * 0.72 - dy * dy)) # ~0.85·reach in 3D
 				var anat_x: float = -_sh_x * handed_sign
@@ -906,8 +1033,8 @@ func _solve_foregrip_ik(delta: float) -> void:
 	var target: Vector3 = _foregrip_target()
 	var s := free_arm.position
 	var v := target - s
-	var a := FREE_UPPER_LEN
-	var b := FREE_FORE_LEN
+	var a := _upper_len
+	var b := _fore_len
 	var d := clampf(v.length(), 0.02, a + b - 0.002)
 	var dir := v.normalized()
 	# Interior angles (law of cosines); clampf eats the degenerate cases.

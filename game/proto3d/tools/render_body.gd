@@ -5,7 +5,7 @@
 ## Runs NON-headless (real GPU); the offscreen path hangs under --headless.
 extends Node3D
 
-const OUT := "C:/WINDOWS/TEMP/claude/D--git-carworld/6c9af67f-9864-4393-bc47-bb421db03620/scratchpad/photobooth"
+const OUT := "C:/WINDOWS/TEMP/carworld_bodytypes"
 
 var _cam: Camera3D
 
@@ -72,6 +72,21 @@ func _ready() -> void:
 		heavy.animate(0.016, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame
 	await _shot("builds", Vector3(0.0, 1.15, 3.9), Vector3(0.0, 1.0, 0.0))
+
+	# --- BODY TYPE LINEUP: same rig, different proportions ---------------------
+	var adult: ProtoPuppet = await _make({"body_type": "adult"}, false, 0.0, PI); adult.position.x = -2.8
+	var woman: ProtoPuppet = await _make({"body_type": "woman"}, false, 0.0, PI); woman.position.x = -1.4
+	var teen: ProtoPuppet = await _make({"body_type": "teen"}, false, 0.0, PI)
+	var kid: ProtoPuppet = await _make({"body_type": "kid"}, false, 0.0, PI); kid.position.x = 1.4
+	var stocky: ProtoPuppet = await _make({"body_type": "stocky"}, false, 0.0, PI); stocky.position.x = 2.8
+	for _f in 20:
+		adult.animate(0.016, 0.0, 0.0, false, 0.0, false)
+		woman.animate(0.016, 0.0, 0.0, false, 0.0, false)
+		teen.animate(0.016, 0.0, 0.0, false, 0.0, false)
+		kid.animate(0.016, 0.0, 0.0, false, 0.0, false)
+		stocky.animate(0.016, 0.0, 0.0, false, 0.0, false)
+		await get_tree().process_frame
+	await _shot("body_profiles", Vector3(0.0, 1.2, 6.4), Vector3(0.0, 0.95, 0.0))
 	get_tree().quit(0)
 
 

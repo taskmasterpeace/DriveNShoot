@@ -28,6 +28,13 @@ func _sweep(p: ProtoPuppet, frames: int, speed: float, turn: float, armed: bool,
 	return [lo, hi]
 
 
+func _box_size(node: Node) -> Vector3:
+	var mi := node as MeshInstance3D
+	if mi == null or not (mi.mesh is BoxMesh):
+		return Vector3.ZERO
+	return (mi.mesh as BoxMesh).size
+
+
 func _ready() -> void:
 	print("PUP: start")
 
@@ -128,16 +135,22 @@ func _ready() -> void:
 	add_child(poser)
 	poser.set_hand_pose(ProtoWeapon.WEAPONS["pistol"]["hand_pose"]["offset"], false)
 	var pistol_hand: Vector3 = poser.hand.position
-	var pistol_freearm: float = poser.free_arm.position.x
 	poser.set_hand_pose(ProtoWeapon.WEAPONS["shotgun"]["hand_pose"]["offset"], true)
+	poser.set_armed(true)
+	poser.raised = true
+	for _i in 60:
+		poser.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 	var shotgun_hand: Vector3 = poser.hand.position
-	var shotgun_freearm: float = poser.free_arm.position.x
+	var shotgun_support_x: float = poser.free_arm.position.x
+	var shotgun_support_lift: float = poser.free_arm.rotation.x
+	var shotgun_elbow: float = poser.elbow_l.rotation.x
 	poser.set_hand_pose(ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"]["offset"], true)
 	var rocket_hand: Vector3 = poser.hand.position
 	_check("each weapon poses the hand DIFFERENTLY (pistol %.2f / shotgun %.2f / rocket %.2f y)" % [pistol_hand.y, shotgun_hand.y, rocket_hand.y],
 		pistol_hand != shotgun_hand and shotgun_hand != rocket_hand and rocket_hand.y > shotgun_hand.y and shotgun_hand.y > pistol_hand.y)
-	_check("a two-handed longarm brings the free hand ACROSS (1-hand x %.2f → 2-hand x %.2f)" % [pistol_freearm, shotgun_freearm],
-		signf(pistol_freearm) != signf(shotgun_freearm) or absf(shotgun_freearm) < absf(pistol_freearm))
+	_check("a two-handed longarm raises the support arm from its anatomical shoulder (x %.2f, lift %.2f, elbow %.2f)" % [shotgun_support_x, shotgun_support_lift, shotgun_elbow],
+		is_equal_approx(shotgun_support_x, -poser._sh_x * poser.handed_sign)
+		and shotgun_support_lift > 0.75 and shotgun_elbow > 0.25)
 
 	# --- Rung 2: 50 survivors from ROWS (look = data) ------------------------
 	var scav := ProtoPuppet.create(ProtoPuppet.look("scav"))
@@ -149,6 +162,30 @@ func _ready() -> void:
 	_check("a SURVIVOR row changes the body (scav has a backpack, raider is bigger)",
 		scav._pack != null and raider.appearance["torso"].x > scav.appearance["torso"].x)
 	_check("the old-timer row carries a LIMP straight into the gait", oldtimer.appearance["limp"] == "l")
+
+	# --- Body profiles: proportions, not just color/build ---------------------
+	var adult := ProtoPuppet.create({"body_type": "adult"})
+	var woman := ProtoPuppet.create({"body_type": "woman"})
+	var kid := ProtoPuppet.create({"body_type": "kid"})
+	add_child(adult)
+	add_child(woman)
+	add_child(kid)
+	var adult_chest := _box_size(adult.torso)
+	var woman_chest := _box_size(woman.torso)
+	var adult_pelvis := _box_size(adult._pelvis)
+	var woman_pelvis := _box_size(woman._pelvis)
+	_check("woman body type narrows shoulders while widening the hip read",
+		absf(woman.shoulder.position.x) < absf(adult.shoulder.position.x)
+		and woman_pelvis.x / woman_chest.x > adult_pelvis.x / adult_chest.x)
+	var adult_head := _box_size(adult.head)
+	var kid_head := _box_size(kid.head)
+	var kid_chest := _box_size(kid.torso)
+	_check("kid body type is shorter with a bigger head-to-chest read",
+		kid.scale.y < 0.82
+		and kid_head.y / kid_chest.y > adult_head.y / adult_chest.y * 1.15)
+	_check("kid body type shortens limb joints, not just root-scales the adult",
+		absf(kid.knee_l.position.y) < absf(adult.knee_l.position.y)
+		and absf(kid.elbow_l.position.y) < absf(adult.elbow_l.position.y))
 
 	# --- The PLAYER wears the puppet -----------------------------------------
 	var player := ProtoPlayer3D.create(ProtoPuppet.look("scav"))
