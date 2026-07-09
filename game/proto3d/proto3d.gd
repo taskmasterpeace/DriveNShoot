@@ -48,6 +48,7 @@ var waypoint_idx: int = -1
 var stream: ProtoWorldStream = null
 var traffic: ProtoTraffic = null
 var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.md) ## ambient lane-followers (ROAD_TRAFFIC_OVERHAUL.md)
+var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.md P0 — counts above the chunks; lurker/howler death paths already call it)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -321,7 +322,12 @@ func _ready() -> void:
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
+	# THE POPULATION LEDGER (POPULATION_WAR.md P0 — the shared workorder): wired
+	# BEFORE the stream so the very first chunk build can spend banked counts.
+	population = ProtoPopulation.create(self, ProtoWorldBuilder.usmap)
+	add_child(population)
 	stream = ProtoWorldStream.new()
+	stream.population = population
 	add_child(stream)
 	stream.setup(waypoints, self)
 
@@ -3553,6 +3559,8 @@ func save_game() -> Dictionary:
 		"dogs": dogs_out,
 		# THE SHELF (docs/cinema.md Phase 4): what you've found and what you've watched.
 		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
+		# THE POPULATION LEDGER (P0): the 500m count cells ride the one file.
+		"population": population.serialize() if population != null else {},
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -3655,6 +3663,9 @@ func apply_save(data: Dictionary) -> void:
 	stress = float(data.get("stress", 0.0))
 	bleeding = int(data.get("bleeding", 0))
 	respect.ledger = (data.get("respect", {}) as Dictionary).duplicate(true)
+	if population != null:
+		population.restore(data.get("population", {})) # the count ledger rides the one file
+		_last_pop_hr = -1.0 # re-anchor the hourly tick to the restored clock
 	for id in data.get("carousel", []):
 		carousel.set_active(String(id))
 	var gj: Dictionary = data.get("garages", {})
@@ -3989,6 +4000,7 @@ func _update_pirates(delta: float) -> void:
 ## torso empties your lungs. Heal, and the body straightens back out.
 var created_limp: String = "" ## character-creation's permanent bad leg
 var _last_hunger_hr: float = -1.0
+var _last_pop_hr: float = -1.0 ## population ledger hourly-tick anchor (same pattern as hunger)
 var _limp_announced: String = "∅"
 func _sync_wound_effects() -> void:
 	# LEGS → the limp you can SEE + the speed you can FEEL.
@@ -4016,6 +4028,15 @@ func _sync_wound_effects() -> void:
 		character.hunger_tick(hhr - _last_hunger_hr)
 		_last_hunger_hr = hhr
 	hud.set_condition("hungry", character.hunger_tier())
+	# POPULATION LEDGER: presence stamps the player's cell (the unseen-refill
+	# gate reads it); the refill tick walks known cells once per game hour.
+	if population != null and player != null:
+		population.mark_seen(player.global_position)
+		if _last_pop_hr < 0.0:
+			_last_pop_hr = hhr
+		elif hhr - _last_pop_hr >= 1.0:
+			population.tick(hhr - _last_pop_hr)
+			_last_pop_hr = hhr
 
 
 func _watch_crash_wounds() -> void:
