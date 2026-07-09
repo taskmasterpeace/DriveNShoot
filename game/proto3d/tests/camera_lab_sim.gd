@@ -87,7 +87,12 @@ func _physics_process(delta: float) -> void:
 					and lab.has_method("body_square_alignment") \
 					and lab.has_method("controller_bindings_ready") \
 					and lab.has_method("recommended_controls_text") \
-					and lab.has_method("active_aim_source")
+					and lab.has_method("active_aim_source") \
+					and lab.has_method("visual_model_names") \
+					and lab.has_method("set_visual_model") \
+					and lab.has_method("active_model_name") \
+					and lab.has_method("style_part_count") \
+					and lab.has_method("style_summary")
 				_check("camera lab exposes test hooks", api_ok)
 				if not api_ok:
 					_finish()
@@ -116,6 +121,20 @@ func _physics_process(delta: float) -> void:
 				var controls := String(lab.call("recommended_controls_text"))
 				_check("recommended controls name mouse/keyboard and PlayStation-style sticks",
 					controls.contains("Mouse") and controls.contains("Left stick") and controls.contains("Right stick") and controls.contains("L3"))
+				var model_names := String(lab.call("visual_model_names"))
+				_check("camera lab has low-poly style modes", model_names.contains("squares") and model_names.contains("survivor") and model_names.contains("truck"))
+				lab.call("set_visual_model", "survivor")
+				_check("block survivor mode is active", String(lab.call("active_model_name")) == "survivor")
+				_check("block survivor is modular but cheap (%d parts)" % int(lab.call("style_part_count", "survivor")),
+					int(lab.call("style_part_count", "survivor")) >= 12 and int(lab.call("style_part_count", "survivor")) <= 36)
+				lab.call("set_visual_model", "truck")
+				_check("block truck mode is active", String(lab.call("active_model_name")) == "truck")
+				_check("block truck is modular exterior-first (%d parts)" % int(lab.call("style_part_count", "truck")),
+					int(lab.call("style_part_count", "truck")) >= 18 and int(lab.call("style_part_count", "truck")) <= 72)
+				var summary := String(lab.call("style_summary"))
+				_check("style summary names modular low-poly exterior and simple interior",
+					summary.contains("modular") and summary.contains("low-poly") and summary.contains("simple interior"))
+				lab.call("set_visual_model", "squares")
 				lab.call("reset_test_pose", Vector3.ZERO)
 				lab.call("set_test_aim_dir", NORTH)
 				lab.call("reset_test_pose", Vector3.ZERO)

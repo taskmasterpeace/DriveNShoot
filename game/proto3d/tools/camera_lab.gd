@@ -23,6 +23,9 @@ var _body_square: MeshInstance3D
 var _body_nose: MeshInstance3D
 var _torso_square: MeshInstance3D
 var _torso_nose: MeshInstance3D
+var _survivor_model: Node3D
+var _survivor_upper: Node3D
+var _truck_model: Node3D
 var _cam: Camera3D
 var _label: Label
 var _selector_marker: MeshInstance3D
@@ -37,6 +40,7 @@ var _zoom_t: float = 0.78
 var _last_speed: float = 0.0
 var _footwork := "IDLE"
 var _aim_source := "MOUSE"
+var _active_model_name := "squares"
 
 var _test_aim_active: bool = false
 var _test_move_active: bool = false
@@ -66,6 +70,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		if key.pressed and not key.echo:
 			if key.keycode == KEY_V:
 				_zoom_t = 0.0 if _zoom_t > 0.35 else 0.82
+			elif key.keycode == KEY_M:
+				cycle_visual_model()
 			elif key.keycode == KEY_R:
 				_test_aim_active = false
 				_test_move_active = false
@@ -161,6 +167,11 @@ func _build_player() -> void:
 	_player.add_child(_torso_square)
 	_torso_nose = _front_tab("TorsoNose", Color(0.36, 0.20, 0.06), -0.43)
 	_torso_square.add_child(_torso_nose)
+	_survivor_model = _build_block_survivor()
+	_player.add_child(_survivor_model)
+	_truck_model = _build_block_truck()
+	_player.add_child(_truck_model)
+	_apply_visual_model()
 
 
 func _build_camera() -> void:
@@ -235,6 +246,163 @@ func _front_tab(name: String, color: Color, front_z: float) -> MeshInstance3D:
 	return m
 
 
+func _block(parent: Node, name: String, pos: Vector3, size: Vector3, color: Color, rot: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = name
+	var b := BoxMesh.new()
+	b.size = size
+	m.mesh = b
+	m.position = pos
+	m.rotation = rot
+	m.material_override = _mat(color, 0.74)
+	parent.add_child(m)
+	return m
+
+
+func _wheel(parent: Node, name: String, pos: Vector3) -> MeshInstance3D:
+	var m := MeshInstance3D.new()
+	m.name = name
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.34
+	cyl.bottom_radius = 0.34
+	cyl.height = 0.30
+	cyl.radial_segments = 8
+	m.mesh = cyl
+	m.position = pos
+	m.rotation.z = PI * 0.5
+	m.material_override = _mat(Color(0.08, 0.08, 0.08), 0.86)
+	parent.add_child(m)
+	return m
+
+
+func _build_block_survivor() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockSurvivor"
+	root.position.y = 0.56
+	var upper := Node3D.new()
+	upper.name = "SurvivorUpper"
+	root.add_child(upper)
+	_survivor_upper = upper
+	var cloth := Color(0.42, 0.33, 0.23)
+	var dark := Color(0.12, 0.12, 0.12)
+	var skin := Color(0.58, 0.39, 0.24)
+	_block(root, "pelvis", Vector3(0, 0.50, 0), Vector3(0.72, 0.34, 0.42), dark)
+	_block(root, "leg_l", Vector3(-0.22, 0.02, 0), Vector3(0.24, 0.86, 0.24), dark)
+	_block(root, "leg_r", Vector3(0.22, 0.02, 0), Vector3(0.24, 0.86, 0.24), dark)
+	_block(root, "boot_l", Vector3(-0.22, -0.48, -0.08), Vector3(0.30, 0.16, 0.46), dark)
+	_block(root, "boot_r", Vector3(0.22, -0.48, -0.08), Vector3(0.30, 0.16, 0.46), dark)
+	_block(upper, "waist", Vector3(0, 0.78, 0), Vector3(0.62, 0.30, 0.38), cloth)
+	_block(upper, "chest", Vector3(0, 1.14, 0), Vector3(0.78, 0.54, 0.44), cloth)
+	_block(upper, "head", Vector3(0, 1.70, -0.02), Vector3(0.46, 0.46, 0.42), skin)
+	_block(upper, "nose", Vector3(0, 1.68, -0.27), Vector3(0.18, 0.12, 0.16), skin)
+	_block(upper, "arm_l", Vector3(-0.56, 1.10, -0.02), Vector3(0.18, 0.66, 0.20), cloth, Vector3(0, 0, deg_to_rad(-9)))
+	_block(upper, "arm_r", Vector3(0.56, 1.10, -0.02), Vector3(0.18, 0.66, 0.20), cloth, Vector3(0, 0, deg_to_rad(9)))
+	_block(upper, "hand_l", Vector3(-0.62, 0.69, -0.03), Vector3(0.20, 0.18, 0.18), skin)
+	_block(upper, "hand_r", Vector3(0.62, 0.69, -0.03), Vector3(0.20, 0.18, 0.18), skin)
+	return root
+
+
+func _build_block_truck() -> Node3D:
+	var root := Node3D.new()
+	root.name = "BlockTruck"
+	root.position.y = 0.12
+	root.scale = Vector3(0.72, 0.72, 0.72)
+	var blue := Color(0.05, 0.28, 0.72)
+	var dark := Color(0.08, 0.08, 0.08)
+	var metal := Color(0.20, 0.20, 0.18)
+	var glass := Color(0.16, 0.24, 0.26)
+	_block(root, "chassis_l", Vector3(-0.34, 0.10, 0.0), Vector3(0.16, 0.18, 2.85), metal)
+	_block(root, "chassis_r", Vector3(0.34, 0.10, 0.0), Vector3(0.16, 0.18, 2.85), metal)
+	_block(root, "front_cross", Vector3(0, 0.15, -1.24), Vector3(0.98, 0.18, 0.16), metal)
+	_block(root, "rear_cross", Vector3(0, 0.15, 1.22), Vector3(0.98, 0.18, 0.16), metal)
+	_block(root, "hood", Vector3(0, 0.54, -0.96), Vector3(1.12, 0.25, 0.76), blue, Vector3(deg_to_rad(-4), 0, 0))
+	_block(root, "cab", Vector3(0, 0.88, -0.24), Vector3(1.02, 0.78, 0.68), blue)
+	_block(root, "windshield", Vector3(0, 1.05, -0.61), Vector3(0.84, 0.34, 0.06), glass, Vector3(deg_to_rad(-14), 0, 0))
+	_block(root, "bed_floor", Vector3(0, 0.47, 0.78), Vector3(1.16, 0.18, 1.10), blue)
+	_block(root, "bed_l", Vector3(-0.64, 0.70, 0.78), Vector3(0.12, 0.42, 1.10), blue)
+	_block(root, "bed_r", Vector3(0.64, 0.70, 0.78), Vector3(0.12, 0.42, 1.10), blue)
+	_block(root, "tailgate", Vector3(0, 0.68, 1.39), Vector3(1.20, 0.38, 0.12), blue)
+	_block(root, "front_bumper", Vector3(0, 0.35, -1.48), Vector3(1.18, 0.20, 0.16), metal)
+	_block(root, "rear_bumper", Vector3(0, 0.33, 1.56), Vector3(1.12, 0.18, 0.14), metal)
+	_block(root, "grille", Vector3(0, 0.55, -1.39), Vector3(0.86, 0.26, 0.08), metal)
+	_block(root, "headlight_l", Vector3(-0.34, 0.58, -1.45), Vector3(0.18, 0.18, 0.06), Color(0.95, 0.86, 0.62))
+	_block(root, "headlight_r", Vector3(0.34, 0.58, -1.45), Vector3(0.18, 0.18, 0.06), Color(0.95, 0.86, 0.62))
+	_block(root, "seat_l", Vector3(-0.23, 0.67, -0.14), Vector3(0.24, 0.30, 0.22), dark)
+	_block(root, "seat_r", Vector3(0.23, 0.67, -0.14), Vector3(0.24, 0.30, 0.22), dark)
+	_block(root, "mirror_l", Vector3(-0.67, 0.86, -0.45), Vector3(0.10, 0.16, 0.12), dark)
+	_block(root, "mirror_r", Vector3(0.67, 0.86, -0.45), Vector3(0.10, 0.16, 0.12), dark)
+	_block(root, "roll_front", Vector3(0, 1.36, -0.33), Vector3(1.03, 0.12, 0.12), metal)
+	_block(root, "roll_rear", Vector3(0, 1.30, 0.28), Vector3(1.03, 0.12, 0.12), metal)
+	_block(root, "roll_l", Vector3(-0.52, 1.10, -0.02), Vector3(0.12, 0.12, 0.76), metal, Vector3(deg_to_rad(16), 0, 0))
+	_block(root, "roll_r", Vector3(0.52, 1.10, -0.02), Vector3(0.12, 0.12, 0.76), metal, Vector3(deg_to_rad(16), 0, 0))
+	_wheel(root, "wheel_fl", Vector3(-0.68, 0.22, -1.02))
+	_wheel(root, "wheel_fr", Vector3(0.68, 0.22, -1.02))
+	_wheel(root, "wheel_rl", Vector3(-0.68, 0.22, 0.95))
+	_wheel(root, "wheel_rr", Vector3(0.68, 0.22, 0.95))
+	return root
+
+
+func _set_square_visible(value: bool) -> void:
+	if _body_square != null:
+		_body_square.visible = value
+	if _torso_square != null:
+		_torso_square.visible = value
+
+
+func _apply_visual_model() -> void:
+	_set_square_visible(_active_model_name == "squares")
+	if _survivor_model != null:
+		_survivor_model.visible = _active_model_name == "survivor"
+	if _truck_model != null:
+		_truck_model.visible = _active_model_name == "truck"
+
+
+func cycle_visual_model() -> void:
+	var names := PackedStringArray(["squares", "survivor", "truck"])
+	var idx := names.find(_active_model_name)
+	idx = 0 if idx < 0 else (idx + 1) % names.size()
+	set_visual_model(names[idx])
+
+
+func set_visual_model(name: String) -> bool:
+	var next := name.to_lower()
+	if not PackedStringArray(["squares", "survivor", "truck"]).has(next):
+		return false
+	_active_model_name = next
+	_apply_visual_model()
+	return true
+
+
+func active_model_name() -> String:
+	return _active_model_name
+
+
+func visual_model_names() -> String:
+	return "squares,survivor,truck"
+
+
+func _mesh_count(root: Node) -> int:
+	var count := 1 if root is MeshInstance3D else 0
+	for child in root.get_children():
+		count += _mesh_count(child)
+	return count
+
+
+func style_part_count(name: String) -> int:
+	match name.to_lower():
+		"squares":
+			return _mesh_count(_body_square) + _mesh_count(_torso_square)
+		"survivor":
+			return _mesh_count(_survivor_model)
+		"truck":
+			return _mesh_count(_truck_model)
+	return 0
+
+
+func style_summary() -> String:
+	return "modular low-poly exterior-first block models with a simple interior budget for vehicles."
+
+
 func _read_move_input() -> Vector2:
 	if _test_move_active:
 		return _test_move.limit_length(1.0)
@@ -304,6 +472,8 @@ func _apply_upper_body_pose() -> void:
 		_torso_square.rotation.y = twist
 	if _torso_nose != null:
 		_torso_nose.rotation.y = twist
+	if _survivor_upper != null:
+		_survivor_upper.rotation.y = twist
 
 
 func _update_aim_from_mouse() -> void:
@@ -358,8 +528,8 @@ func _update_label() -> void:
 	var mode := "THIRD" if _zoom_t < 0.25 else ("GTA2" if _zoom_t > 0.65 else "CHASE")
 	var ls := _left_stick_vector()
 	var rs := _right_stick_vector()
-	_label.text = "CAMERA LAB  %s\n%s\nblue square/dot = body + vision | yellow square/dot = torso + selector\n%s  aim:%s  speed %.1f  twist %.0f deg  zoom %.2f\nLS %.2f,%.2f   RS %.2f,%.2f" % [
-		mode, recommended_controls_text(), _footwork, _aim_source, _last_speed,
+	_label.text = "CAMERA LAB  %s  model:%s\n%s\nblue/dot = lower body + vision | yellow/dot = upper body + selector | M cycles model\n%s  aim:%s  speed %.1f  twist %.0f deg  zoom %.2f\nLS %.2f,%.2f   RS %.2f,%.2f" % [
+		mode, _active_model_name, recommended_controls_text(), _footwork, _aim_source, _last_speed,
 		upper_lower_delta_deg(), _zoom_t, ls.x, ls.y, rs.x, rs.y]
 
 
