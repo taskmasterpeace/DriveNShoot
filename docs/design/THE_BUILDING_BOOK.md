@@ -71,6 +71,26 @@ Every row MAY carry; rows with jobs/residents MUST carry `entrances`:
 civic/road-service are never extortable (they're law/venue surfaces — the city SEAT is *taken*, not
 squeezed); backrooms per the map above; `diner_roadside` is the HOLLOWPOINT SLICE's business.
 
+## 3b. THE MULTI-USE LAW (owner, 2026-07-09: *"I want every building to have multiple uses — not just
+a jeweler where the only thing you can do is buy a ring"*)
+
+**Binding: every catalog row must carry ≥3 distinct player verbs** (`structure_data_sim` counts them —
+a one-verb building fails validation like a jobless one). The verbs come from the systems already
+specced; a row lists which it hooks. The jeweler, done right, is the template:
+
+**`jeweler` (NEW row, commercial, walkin):** buy the `gold_ring` (courtship) · **fence** jewelry-class
+loot at real prices (the hot-goods channel — heat if the piece is traceable) · **appraise** unknown
+valuables (what IS this Carousel trinket worth?) · commission pieces (anniversary gifts — the bond
+calendar) · extortable/buyable with a lapidary backroom (fencing at scale). Five verbs, one box.
+More NEW venue rows this pass (all obey the law): **`restaurant_fancy`** (the romantic dinner —
+date venue tier 2, private-booth meets, launder-friendly buy-in) · **`race_track_grandstand`**
+(SPECTACLES: race day, betting window, pit-lane wrenching jobs, derby conversions — the LARGE venue
+structure the owner asked for) · **`fight_pit`** / **`drone_ring`** (fight night, betting, sponsor a
+fighter, enter yourself) · **`clone_wing`** + **`blackmarket_vat`** (CLONING.md: scan, vat visit,
+wake point; the vat is hidden, raidable, and illegal under faith law). Existing rows gain their verb
+lists in the same pass — the drive-in was always a date; the school now schedules your kid
+(FAMILY_EMPIRE §2.2b); the church marries, buries, AND sanctuaries.
+
 ## 4. Building strategies (what each building is FOR — the owner's "building strategies")
 
 - **HOME:** house_two_story / rest_stop / motel room (`can_be_safehouse`) — beds (save/rest/LIBRARY

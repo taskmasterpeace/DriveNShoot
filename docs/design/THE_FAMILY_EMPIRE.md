@@ -112,6 +112,21 @@ clean-history player marries in peace; a noisy one invited the crash. Every wedd
 to a **named grudge row** (0.4) — the widow arc always has a target. Guests are set-piece spawns, not
 journeys (the NAV carve-out).
 
+**§2.2b DATES & FAMILY LIFE (owner, 2026-07-09: "you have to take her someplace romantic… dinner
+places… get your relationship thing up").** Courtship REQUIRES the romantic beat: stage one of any
+courtship is a DATE at a `date_venue` row — the drive-in (a show night — shipped!), a dinner place
+(diner_roadside cheap / `restaurant_fancy` proper), a scenic overlook (the M8 relief gives us these
+free), or a SPECTACLE (take her to the races — SPECTACLES.md §3). Dates are real trips (drive there,
+the venue verb runs, bond rises per venue tier + variety bonus — the same place twice pays half; she
+has preferences by trade row, surfaced through her ASK channel). Married life keeps the verb: family
+dinners at home (the stove) or out; anniversaries land on the calendar (miss them, the bond notices —
+the dog guilt-nag law, humanized). **KIDS GO TO SCHOOL:** school-age children attend `school_small`
+on a NAVIGATION schedule (walk/be-driven there — DRIVING THE KID TO SCHOOL is a real verb and feeds
+the TEACH-wheel line); school raises the BOOKKEEPER/VOICE aptitude lanes (the enforcer lane grows in
+the yard, not the classroom), school events roll on the calendar (recital = a date-class family beat;
+trouble = a fetch-the-kid crisis ping under the attention law), and a town with your kid in its school
+is a town you defend differently — the empire feels it.
+
 **§2.3 CHILDREN.** Born, grow on the real clock (gestation ~2.4 real hours; GROWN at ~34 game-days ≈
 13.6 real hours — the 60× childhood). Aptitudes inherit from BOTH parents' real skills + her trade
 bias; paperdoll rows give visible resemblance. **Four specialist classes — the fourth is the game
@@ -128,11 +143,13 @@ a grave, a **memorial wall at the homebase**, the save remembers, and the killer
 **The house can burn** (metaworld raid escalation; walls mitigate; a lost home is rebuilt at cost and
 the family relocates) — *"a house in the middle of nowhere"* is a real strategic choice: remote = safe
 from city heat, exposed to the wasteland's own pressure (the ecosystem doesn't care who you are).
-**CLONING** (owner: *"we gotta add cloning"*): wired to **LIVING_WORLD_DSOA §11 exactly** — the player
-may carry clone insurance (policy tiers, backup age, per-state legality, debt, memory drift, corpse
-persistence — all already designed there); **family members CANNOT be cloned in v1** (§11.7's dog
-ruling extended: permadeath is the emotional pillar; owner can flip it later, and the fiction will
-charge him for it).
+**CLONING**: the full player-facing loop is now **docs/design/CLONING.md** (the clinic ritual,
+wake-point choice, the MEMORY LAW + journal re-remember, black-market vats, and THE FAMILY LAW — you
+don't lose your family, they lost YOU: grief, a bond hit scaled by backup staleness, strangers born
+after your last scan, maybe your own grave at the memorial wall). Canon substrate stays
+LIVING_WORLD_DSOA §11; **family members can NEVER be cloned** (§11.7 extended — permadeath is the
+pillar; insurance never rescues the family, which is exactly why the crisis-law rescue drives matter
+MORE for a cloned player).
 
 ## 3. Formulas (canonical; the road/building side owns `profit_day`)
 
