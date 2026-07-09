@@ -251,6 +251,33 @@ func biome_at(pos: Vector3) -> String:
 	return legend.get(biome_char(pos.x, pos.z), "ocean")
 
 
+## THE WATER AUTHORITY (SEABOARD goal W1): how deep the water is at a world point.
+## 0.0 = dry land. A water/ocean cell reads depth off its NEIGHBORS: any land
+## neighbor makes it a SHALLOW ford (0.5 m — wade it, drive it slow on the traction
+## matrix); surrounded by water = DEEP (3.0 m — engines stall, you swim, the drone
+## overflies). ONE law, five readers (sheets, car stall, swim, map paint, drone) —
+## so the painted sea and the sea that kills your engine can never disagree.
+const WATER_SHALLOW_M := 0.5
+const WATER_DEEP_M := 3.0
+func water_depth_at(x: float, z: float) -> float:
+	var b: String = legend.get(biome_char(x, z), "ocean")
+	if b != "water" and b != "ocean":
+		return 0.0
+	var c := cell_of(x, z)
+	for dy: int in [-1, 0, 1]:
+		for dx: int in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var cx: int = c.x + dx
+			var cy: int = c.y + dy
+			if cx < 0 or cx >= w or cy < 0 or cy >= h:
+				continue # off the map edge reads as MORE ocean, never a shore
+			var nb: String = legend.get(grid[cy][cx], "ocean")
+			if nb != "water" and nb != "ocean":
+				return WATER_SHALLOW_M
+	return WATER_DEEP_M
+
+
 func state_at(pos: Vector3) -> String:
 	var c := cell_of(pos.x, pos.z)
 	if c.x < 0 or c.x >= w or c.y < 0 or c.y >= h:
@@ -312,6 +339,26 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 ## EVERY road within max_d of a point — one entry per road, each with its own
 ## closest segment (the junction fix: an exit ramp must not displace its own
 ## interstate in the chunk that hosts them both).
+## THE SEABOARD LINE (R2): nearest rail stretch per line — roads_near's exact idiom,
+## its own walk so road consumers never see a rail row.
+func rails_near(pos: Vector3, max_d: float) -> Array:
+	var p := Vector2(pos.x, pos.z)
+	var out: Array = []
+	for rl in rails:
+		var pts: PackedVector2Array = rl["pts"]
+		var best_d := max_d
+		var best_i := -1
+		for i in range(pts.size() - 1):
+			var d := _seg_dist(p, pts[i], pts[i + 1])
+			if d < best_d:
+				best_d = d
+				best_i = i
+		if best_i >= 0:
+			out.append({"id": rl["id"], "name": String(rl.get("name", "")), "kind": "rail",
+				"dist": best_d, "a": pts[best_i], "b": pts[best_i + 1]})
+	return out
+
+
 func roads_near(pos: Vector3, max_d: float) -> Array:
 	var p := Vector2(pos.x, pos.z)
 	var out: Array = []

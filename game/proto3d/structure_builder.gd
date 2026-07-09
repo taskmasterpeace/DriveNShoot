@@ -31,6 +31,7 @@ const CATEGORY_COLORS: Dictionary = {
 	"law_military": Color(0.38, 0.38, 0.3),
 	"venue": Color(0.52, 0.38, 0.2),
 	"agriculture": Color(0.44, 0.42, 0.26),
+	"transit": Color(0.42, 0.46, 0.48), # SEABOARD: station slate — steel-age gray-blue
 }
 
 

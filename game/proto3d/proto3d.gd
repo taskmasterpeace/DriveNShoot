@@ -333,6 +333,26 @@ func _ready() -> void:
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
+	# 🚉 THE SEABOARD LINE (SEABOARD goal R4/R5): the train rides at boot, and every
+	# platform gets its STOP POST — the diegetic timetable (E boards when it's in).
+	# Lives HERE, after the usmap assignment above — _build_environment runs before
+	# the map exists (the waypoint-ring lesson: order beats intent in _ready).
+	if ProtoWorldBuilder.usmap.ok and not ProtoWorldBuilder.usmap.rails.is_empty():
+		train = ProtoTrain.create(self, ProtoWorldBuilder.usmap.rails[0])
+		add_child(train)
+		for si in train.stations.size():
+			var stop := ProtoTrain.TrainStop.create(self, train, si)
+			add_child(stop)
+			var sp: Vector2 = train.stations[si]["pos"]
+			var hd: Vector2 = train._heading_at(float(train.stations[si]["mark"]))
+			var sperp := Vector2(hd.y, -hd.x)
+			stop.global_position = Vector3(sp.x + sperp.x * 4.5, 0, sp.y + sperp.y * 4.5)
+			# THE PLATFORM (the LOOK pass caught bare dirt): a real raised slab along
+			# the track — the floor you board from and step off onto (E's landing).
+			var prot := atan2(hd.x, hd.y)
+			ProtoWorldBuilder.box_body(self, Vector3(3.4, 0.24, 22.0),
+				Vector3(sp.x + sperp.x * 3.1, 0.12, sp.y + sperp.y * 3.1),
+				Color(0.55, 0.53, 0.49), prot)
 	# THE POPULATION LEDGER (POPULATION_WAR.md P0 — the shared workorder): wired
 	# BEFORE the stream so the very first chunk build can spend banked counts.
 	population = ProtoPopulation.create(self, ProtoWorldBuilder.usmap)
@@ -471,6 +491,9 @@ var drone: ProtoDrone = null
 ## additive and dormant until you turn a drone on — default off, zero impact on normal play.
 var split_view: ProtoSplitView = null
 var drone_pilot: ProtoDronePilot = null
+## 🚉 THE SEABOARD LINE (rail R4/R5): the one shuttle + the ride state.
+var train: ProtoTrain = null
+var riding_train: bool = false ## aboard: body pinned to the seat, camera on the rails
 
 
 func _build_environment() -> void:
@@ -610,11 +633,33 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
 			toggle_controls_panel()
 		return
+	# 🚉 THE T-SKIP (rail R5) — EVENT-driven while riding: one press, one leg, the
+	# clock pays the route (60× law). Event path beats a physics poll: parse-fed
+	# presses land exactly once (the ride_sim eaten-edge lesson).
+	if riding_train and event is InputEventKey and (event as InputEventKey).pressed \
+			and not (event as InputEventKey).echo \
+			and (event as InputEventKey).physical_keycode == KEY_T:
+		if train != null and is_instance_valid(train):
+			var leg_secs := train.skip_to_next_station()
+			if leg_secs > 0.0:
+				daynight.advance_hours(leg_secs / 60.0)
+				var at := train.dwelling_station()
+				if at >= 0:
+					notify("🚉 %s — %s. E steps off; T rides on." %
+						[String(train.stations[at]["name"]), daynight.clock_text()])
+		return
 	if event.is_action_pressed("interact"):
 		# Piloting a drone? Interact brings it in — you can't just switch it off in the air,
 		# so this starts a landing; it shuts off (and frees you) once it's down.
 		if drone_pilot != null and drone_pilot.is_active():
 			drone_pilot.request_off()
+			return
+		if riding_train:
+			# 🚉 E steps off — at a PLATFORM only (nobody jumps from a rolling train).
+			if train != null and is_instance_valid(train) and train.is_dwelling():
+				_train_exit()
+			else:
+				notify("🚉 Not at a platform — T skips ahead; step off when it calls.")
 			return
 		if panel.is_open:
 			panel.close()
@@ -869,6 +914,12 @@ func _physics_process(delta: float) -> void:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
 	# drone with your move keys and update the flight. All dormant unless a session is live.
+	# 🚉 RIDING THE SEABOARD (rail R5): the body rides the seat (seat-anchor law).
+	# The T-skip is EVENT-driven in _unhandled_input — a polled edge-latch here raced
+	# the input pump and ate every other press (ride_sim caught skip 2 moving 0 m).
+	if riding_train and train != null and is_instance_valid(train):
+		player.global_position = train.seat_pos()
+		player.velocity = Vector3.ZERO
 	if drone_pilot != null and drone_pilot.is_active():
 		drone_pilot.update(delta)
 		if drone_pilot.body_immobile():
@@ -1052,7 +1103,7 @@ func _physics_process(delta: float) -> void:
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
 	# The TV no longer fast-forwards time (owner 2026-07-07: "that's absurd") —
 	# a broadcast runs at 1:1 and the AIR CLOCK keeps the schedule honest.
-	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
+	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open and not riding_train
 	# Headlights answer the dark on their own.
 	for c in cars:
 		if is_instance_valid(c):
@@ -2990,6 +3041,50 @@ func _take_the_stick() -> bool:
 	drone.parked = false # off the ground — the stick is yours
 	enter_drone_pilot(drone)
 	return false # the remote/drone row is never consumed by taking the stick
+
+
+## 🚉 Board THE SEABOARD LINE (rail R5): fare first, then the seat-anchor law — your
+## body rides the coach, the camera rides the rails, the country rolls past.
+func board_train(t: ProtoTrain) -> void:
+	if riding_train or t == null or not is_instance_valid(t):
+		return
+	if mode != Mode.FOOT:
+		notify("🚉 Step out first — the train takes walkers.")
+		return
+	if backpack.count("scrip") < ProtoTrain.FARE_SCRIP:
+		notify("🚉 The conductor waves you off — fare is %d scrip." % ProtoTrain.FARE_SCRIP)
+		return
+	backpack.remove("scrip", ProtoTrain.FARE_SCRIP)
+	riding_train = true
+	player.velocity = Vector3.ZERO
+	for pc in player.get_children():
+		if pc is CollisionShape3D:
+			(pc as CollisionShape3D).disabled = true
+	player.visible = false
+	player.is_active = false
+	cam_rig.target = t
+	audio.play_ui("blip", -8.0)
+	notify("🚉 Aboard %s — T skips to the next stop · E steps off at a platform." % t.line_name)
+
+
+## 🚉 Step off onto the PLATFORM — ground-settled beside the coach (the car-exit lesson:
+## a small lift, never a throw).
+func _train_exit() -> void:
+	riding_train = false
+	if train != null and is_instance_valid(train):
+		player.global_position = train.platform_pos()
+	player.velocity = Vector3.ZERO
+	for pc in player.get_children():
+		if pc is CollisionShape3D:
+			(pc as CollisionShape3D).disabled = false
+	player.visible = true
+	player.is_active = true
+	cam_rig.target = player
+	var here := ""
+	if train != null and is_instance_valid(train) and train.dwelling_station() >= 0:
+		here = String(train.stations[train.dwelling_station()]["name"])
+	audio.play_at("car_door", player.global_position, -8.0)
+	notify("🚉 You step onto the platform%s." % ((" — " + here) if here != "" else ""))
 
 
 ## RECALL the bird hands-off (2026-07-09 playtest "an auto button to fly back"). Works

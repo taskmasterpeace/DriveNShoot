@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://dseabshots0709a"]
+
+[ext_resource type="Script" path="res://proto3d/tools/seaboard_shots.gd" id="1_tool"]
+
+[node name="SeaboardShots" type="Node3D"]
+script = ExtResource("1_tool")

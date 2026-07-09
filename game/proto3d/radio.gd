@@ -21,6 +21,9 @@ const SIGNALS: Array = [
 	# THE HERD WARNING (THE_INFECTED 0.15 — the howlers-row clone; never "infected"
 	# as an id, don't overload the group name): reveals the walking ground.
 	{"id": "herd_warning", "weight": 0.18, "night_mult": 1.4},
+	# 🚉 THE SEABOARD ON THE AIR (SEABOARD goal R6): dispatch still calls the line —
+	# departures/arrivals flavor that reads the LIVE train.
+	{"id": "rail_bulletin", "weight": 0.12, "night_mult": 1.0},
 ]
 const LORE: Array = [
 	"…heard the Bone Road's got a turn nobody marks. Maple Hill, they call it. Good people, if you find it…", # the §3.4 breadcrumb (MAP_POLISH_PLAN)
@@ -110,6 +113,24 @@ func _deliver(id: String) -> void:
 	last_signal = id
 	var origin: Vector3 = _main.player.global_position
 	match id:
+		"rail_bulletin":
+			# 🚉 SEABOARD DISPATCH (R6): where the train IS, read off the live line —
+			# a timetable you overhear, not a menu you open.
+			var tr: Variant = _main.get("train") if "train" in _main else null
+			if tr == null or not is_instance_valid(tr):
+				_main.notify("📻 '…Seaboard dispatch — no movement on the line today. Walk it or drive it…'")
+				return
+			var dw: int = tr.dwelling_station()
+			if dw >= 0:
+				var nxt_i: int = tr.next_station_index()
+				_main.notify("📻 '…Seaboard dispatch — she holds at %s, boarding for %s. Fare's %d scrip…'" %
+					[String(tr.stations[dw]["name"]),
+					String(tr.stations[nxt_i]["name"]) if nxt_i >= 0 else "the turnaround",
+					ProtoTrain.FARE_SCRIP])
+			else:
+				var nx: int = tr.next_station_index()
+				_main.notify("📻 '…Seaboard dispatch — she's rolling. Next call: %s…'" %
+					(String(tr.stations[nx]["name"]) if nx >= 0 else "end of the line"))
 		"distress":
 			# A real place with real stakes: a cache, and the reason it's unclaimed.
 			var ang := rng.randf() * TAU

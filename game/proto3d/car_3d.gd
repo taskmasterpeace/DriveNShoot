@@ -541,6 +541,7 @@ var ignition: String = "key"   ## "key" | "hotwire" | "none" — set by main on 
 var window_broken: bool = false ## the smash-entry scar (cosmetic flag, honest history)
 var _crank_t: float = 0.0
 var _click_cd: float = 0.0
+var _water_deep: bool = false ## SEABOARD W3: intake under — no spark, no crank
 var display_name: String = "car"
 
 ## Trailer coupling (semi + trailer only).
@@ -1493,12 +1494,28 @@ func _physics_process(delta: float) -> void:
 
 	engine_force = 0.0
 	brake = 0.0
+	# THE HARD WATER LAW (SEABOARD W3): DEEP water drowns the drive — the engine dies
+	# the moment the intake goes under and will NOT crank until you're out of the
+	# water; a rig left sunk FLOODS toward dead (a rescue window — but the sea always
+	# wins). Shallow fords stay drivable: the traction matrix already taxes them.
+	_water_deep = false
+	if ProtoWorldBuilder.usmap != null and ProtoWorldBuilder.usmap.ok:
+		_water_deep = ProtoWorldBuilder.usmap.water_depth_at(global_position.x, global_position.z) \
+			> ProtoUSMap.WATER_SHALLOW_M
+	if _water_deep:
+		if engine_on:
+			engine_on = false
+			var mw := _main_node()
+			if mw != null:
+				mw.notify("🌊 The engine DROWNS — deep water. Get out and SWIM.")
+		components["engine"].damage(3.0 * delta)
 	# THE IGNITION: a dead engine pushes nothing. Wanting to move CRANKS it — half a
 	# second with a live battery, a dry CLICK with a critical one. No key? main runs the
 	# hot-wire at the wheel before ignition reads anything but "none".
 	if not engine_on:
 		_click_cd = maxf(0.0, _click_cd - delta)
-		if is_active and ignition != "none" and (input_throttle > 0.0 or input_brake > 0.0):
+		if is_active and ignition != "none" and not _water_deep \
+				and (input_throttle > 0.0 or input_brake > 0.0):
 			if components["battery"].tier() >= Damageable.Tier.CRITICAL:
 				_crank_t = 0.0
 				if _click_cd <= 0.0:

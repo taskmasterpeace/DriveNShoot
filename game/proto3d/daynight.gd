@@ -44,6 +44,18 @@ func _physics_process(delta: float) -> void:
 	_apply()
 
 
+## THE SEABOARD SKIP (rail R5): advance the clock by h game-hours in ONE step — the
+## train's T-skip pays the route's real time into the world clock (60× law). Day and
+## moon roll exactly as the frame tick would have rolled them.
+func advance_hours(h: float) -> void:
+	hour += maxf(h, 0.0)
+	while hour >= 24.0:
+		hour -= 24.0
+		day += 1
+		moon_phase = 0.5 - 0.5 * cos(TAU * float(day % 8) / 8.0)
+	_apply()
+
+
 ## 1.0 at high noon → 0.0 deep night (drives light, sky, and sight).
 func daylight() -> float:
 	return clampf(sin((hour - 6.0) / 12.0 * PI), 0.0, 1.0) if hour >= 6.0 and hour <= 18.0 else 0.0

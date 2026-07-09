@@ -320,6 +320,12 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
 		for row in usmap.roads_near(center, 220.0):
 			_build_road_stretch(chunk, center, row, key, wet)
+		# --- THE SEABOARD LINE (SEABOARD goal R2): rail materializes per chunk —
+		# ballast + twin steel + MultiMesh ties (the dirt twin-rut pipeline
+		# re-skinned). RAIL ONLY here: road/junction geometry stays
+		# THE_AMERICAN_ROAD's (the one-milestone-in-world_stream law).
+		for rrow in usmap.rails_near(center, 220.0):
+			_build_rail_stretch(chunk, center, rrow)
 		# THE INTERSECTION SLAB (M1): one per flat tee/cross node — painted ABOVE
 		# every road's per-id lift so the crossing reads as one paved mouth
 		# instead of two z-fighting slabs. Walled (separated_pending) crossings
@@ -649,6 +655,60 @@ func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
 ## and the grip rect at the row's real width. Every piece is meta-tagged with
 ## the road id (road_slab / road_center / road_lane / road_barrier) so sims and
 ## tools can read the built world without guessing at colors.
+## THE SEABOARD LINE (R2): one rail stretch through this chunk — the gravel BED
+## (paint, not a body: the roads-are-paint law), TWIN STEEL at standard-gauge read
+## (±0.72 m), and a MultiMesh of TIES every 2.4 m — the top-down rhythm that says
+## RAILROAD instead of dirt ruts (the 2026-07-09 playtest mistook ruts for track).
+func _build_rail_stretch(chunk: Node3D, center: Vector3, row: Dictionary) -> void:
+	var seg := _clip_segment_to_chunk(row["a"], row["b"], center)
+	if seg.is_empty():
+		return
+	var a: Vector2 = seg[0]
+	var b: Vector2 = seg[1]
+	var mid := (a + b) * 0.5
+	var dir := b - a
+	var seg_len := dir.length()
+	if seg_len <= 4.0:
+		return
+	var rid := String(row["id"])
+	var rot := atan2(dir.x, dir.y) # local +Z → (sinφ, cosφ) — the M1 yaw law
+	var perp := Vector2(dir.y, -dir.x).normalized()
+	# THE RIGHT-OF-WAY RIBBON (visual judge, round 1: "the track is invisible at every
+	# distance"): a wide CLEARED strip under the bed — the read that carries at
+	# altitude, exactly how roads earn their read from width, not their paint.
+	var row_strip := ProtoWorldBuilder.box_visual(chunk, Vector3(7.0, 0.06, seg_len + 4.0),
+		Vector3(mid.x, 0.03, mid.y), Color(0.50, 0.44, 0.33), rot)
+	row_strip.set_meta("rail_row", rid)
+	# BALLAST: crushed-stone BLUE-GRAY — a hard value step off every biome tan.
+	var bed := ProtoWorldBuilder.box_visual(chunk, Vector3(3.4, 0.1, seg_len + 4.0),
+		Vector3(mid.x, 0.07, mid.y), Color(0.32, 0.32, 0.34), rot)
+	bed.set_meta("rail_bed", rid)
+	for sgn: float in [1.0, -1.0]:
+		# STEEL: bright enough to read as two live lines, proud of the ties.
+		var steel := ProtoWorldBuilder.box_visual(chunk, Vector3(0.14, 0.16, seg_len + 4.0),
+			Vector3(mid.x + perp.x * 0.72 * sgn, 0.14, mid.y + perp.y * 0.72 * sgn),
+			Color(0.63, 0.64, 0.68), rot)
+		steel.set_meta("rail_steel", rid)
+	var n_ties := int(seg_len / 2.4)
+	if n_ties > 0:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		var tie := BoxMesh.new()
+		tie.size = Vector3(2.2, 0.06, 0.24)
+		mm.mesh = tie
+		mm.instance_count = n_ties
+		var adir := dir.normalized()
+		var tie_basis := Basis(Vector3.UP, rot)
+		for i in n_ties:
+			var p := a + adir * ((float(i) + 0.5) * 2.4)
+			mm.set_instance_transform(i, Transform3D(tie_basis, Vector3(p.x, 0.11, p.y)))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = ProtoWorldBuilder.material(Color(0.27, 0.22, 0.16), 0.85)
+		mmi.set_meta("rail_ties", rid)
+		chunk.add_child(mmi)
+
+
 func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: String, wet: bool) -> void:
 	var seg := _clip_segment_to_chunk(row["a"], row["b"], center)
 	if seg.is_empty():
@@ -1391,8 +1451,8 @@ func _draw_country() -> void:
 		var row: String = usmap.grid[cz]
 		for cx in range(0, usmap.w, step):
 			var biome: String = usmap.legend.get(row[cx], "ocean")
-			if biome == "ocean":
-				continue
+			# THE MAP PAINTS WATER (SEABOARD W4): the sea is INK, not absence — the
+			# coastline reads on the atlas so a route reads BEFORE you drive it.
 			var p := org + (Vector2(cx, cz) * usmap.cell_m + usmap.offset - bounds.position) * px
 			_map_canvas.draw_rect(Rect2(p, Vector2(cpx + 0.5, cpx + 0.5)), MAP_BIOME.get(biome, Color(0.3, 0.3, 0.3)))
 	for road in usmap.roads:
@@ -1403,6 +1463,16 @@ func _draw_country() -> void:
 		for i in range(pts.size() - 1):
 			_map_canvas.draw_line(org + (pts[i] - bounds.position) * px, org + (pts[i + 1] - bounds.position) * px,
 				style["color"], float(style["width"]))
+	# THE SEABOARD ON THE ATLAS (SEABOARD R/W4): the rail reads like a ROUTE — thin
+	# steel over the country, station ticks where it calls — so a ride plans itself.
+	for rl in usmap.rails:
+		var rpts: PackedVector2Array = rl["pts"]
+		for i in range(rpts.size() - 1):
+			_map_canvas.draw_line(org + (rpts[i] - bounds.position) * px,
+				org + (rpts[i + 1] - bounds.position) * px, Color(0.60, 0.58, 0.55), 1.4)
+		for st in rl.get("stations", []):
+			var sp := org + ((st["pos"] as Vector2) - bounds.position) * px
+			_map_canvas.draw_rect(Rect2(sp - Vector2(2, 2), Vector2(4, 4)), Color(0.82, 0.78, 0.70))
 	# THE EXITS LAYER: every valve on the network — named where it matters.
 	for mk in atlas_exit_markers():
 		var ep := org + ((mk["pos"] as Vector2) - bounds.position) * px

@@ -1669,6 +1669,48 @@
    "can_be_safehouse": false,
    "danger": 1,
    "profit_day": 22
+  },
+  {
+   "id": "train_station",
+   "category": "transit",
+   "display_name": "Train Station",
+   "sign_glyph": "🚉",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3",
+    "T4"
+   ],
+   "districts": [
+    "roadside",
+    "transit"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    16,
+    7
+   ],
+   "floors": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "loot_table": "chest_common",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "distress_call"
+   ],
+   "faction_overrides": [
+    "paint",
+    "guards",
+    "prices"
+   ],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "danger": 1,
+   "profit_day": 10
   }
  ]
 }

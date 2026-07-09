@@ -12,7 +12,9 @@ for scene in "$ROOT"/game/proto3d/tests/*_sim.tscn; do
   name="$(basename "$scene" .tscn)"
   if [ -n "$FILTER" ] && [[ "$name" != *"$FILTER"* ]]; then continue; fi
   TOTAL=$((TOTAL+1))
-  out="$("$GD" --headless --path "$ROOT/game" "res://proto3d/tests/$name.tscn" 2>&1 | tail -200)"
+  # timeout backstop: a hung sim (missing watchdog / crashed pre-timer) must never
+  # stall the whole suite — the 2026-07-09 rig_v2 zombie held the runner 30+ min.
+  out="$(timeout -k 10 180 "$GD" --headless --path "$ROOT/game" "res://proto3d/tests/$name.tscn" 2>&1 | tail -200)"
   # Pass = an explicit all-green line, or a results line with 0 failed.
   if echo "$out" | grep -qiE "ALL CHECKS PASSED"; then
     echo "[PASS] $name"
