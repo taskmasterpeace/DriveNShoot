@@ -922,6 +922,42 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 					slbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 					slbl.position = Vector3(0, 2.9, 0)
 					spost.add_child(slbl)
+				if int(arc_lo / 3000.0) != int(arc_hi / 3000.0):
+					var t_b: float = (ceil(arc_lo / 3000.0) * 3000.0 - arc_lo) / maxf(arc_hi - arc_lo, 0.001)
+					if arc_a > arc_b:
+						t_b = 1.0 - t_b
+					var bp2: Vector2 = a + dir * clampf(t_b, 0.0, 1.0) + perp * (band_lat + 23.0) * -pole_side
+					var by: float = ProtoWorldBuilder.ground_y(bp2.x, bp2.y)
+					var board_root := Node3D.new()
+					board_root.name = "RoadBillboard"
+					board_root.position = Vector3(bp2.x, by, bp2.y)
+					board_root.rotation.y = rot
+					board_root.set_meta("road_billboard", rid)
+					var risk: int = int(row.get("risk_rating", row.get("danger", 0)))
+					board_root.set_meta("road_billboard_condition", "weathered" if risk >= 3 else "clean")
+					chunk.add_child(board_root)
+					ProtoWorldBuilder.box_visual(board_root, Vector3(0.22, 4.6, 0.22),
+						Vector3(-2.35, 2.3, 0), Color(0.26, 0.25, 0.23), 0.0)
+					ProtoWorldBuilder.box_visual(board_root, Vector3(0.22, 4.6, 0.22),
+						Vector3(2.35, 2.3, 0), Color(0.26, 0.25, 0.23), 0.0)
+					var panel_col: Color = Color(0.12, 0.24, 0.25) if risk < 3 else Color(0.23, 0.18, 0.14)
+					ProtoWorldBuilder.box_visual(board_root, Vector3(5.8, 2.2, 0.18),
+						Vector3(0, 4.25, 0), panel_col, 0.0)
+					if risk >= 3:
+						for hx_v in [-1.6, 0.2, 1.4]:
+							var hx: float = float(hx_v)
+							ProtoWorldBuilder.box_visual(board_root, Vector3(0.16, 0.16, 0.04),
+								Vector3(hx, 4.45 + 0.25 * signf(hx), -0.12), Color(0.04, 0.035, 0.03), 0.0)
+					var bl := Label3D.new()
+					bl.text = "KEEP DRIVING\nNO SERVICE" if risk >= 3 else "LAST GAS\nNEXT EXIT"
+					bl.font_size = 150
+					bl.pixel_size = 0.004
+					bl.modulate = Color(0.95, 0.86, 0.58) if risk >= 3 else Color(0.96, 0.94, 0.82)
+					bl.outline_size = 8
+					bl.outline_modulate = Color(0, 0, 0, 0.85)
+					bl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+					bl.position = Vector3(0, 4.28, -0.14)
+					board_root.add_child(bl)
 				var st_a := usmap.state_at(Vector3(a.x, 0, a.y))
 				var st_b := usmap.state_at(Vector3(b.x, 0, b.y))
 				if st_a != st_b and st_b != "":
