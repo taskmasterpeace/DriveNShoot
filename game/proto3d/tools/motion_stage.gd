@@ -88,10 +88,11 @@ var _rmb_down: bool = false
 var _aim_world: Vector3 = Vector3(-1.2, 1.0, -5.0) # world point the puppet aims at (floor raycast lands here)
 
 # --- HELD-ITEM CYCLE: real weapon ROWS, never an invented one -----------------
-const ITEM_IDS: Array[String] = ["fists", "pistol", "shotgun", "car_mg", "machete"]
+const ITEM_IDS: Array[String] = ["fists", "pistol", "shotgun", "pipe_rocket", "wrench", "machete", "axe", "bat", "car_mg"]
 const ITEM_LABELS: Dictionary = {
 	"fists": "FISTS", "pistol": "PISTOL", "shotgun": "SHOTGUN",
-	"car_mg": "RIFLE (Hood MG row)", "machete": "MACHETE",
+	"pipe_rocket": "PIPE ROCKET", "wrench": "WRENCH", "machete": "MACHETE",
+	"axe": "FIRE AXE", "bat": "BASEBALL BAT", "car_mg": "RIFLE (Hood MG row)",
 }
 var _item_idx: int = 0
 

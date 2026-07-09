@@ -98,16 +98,21 @@ func _ready() -> void:
 
 	# --- 5. A quick pass over the other owner-asked features, read-only against
 	# the real APIs (no invented behavior) -------------------------------------
+	var grip_preview_ids: Array[String] = ["fists", "pistol", "shotgun", "pipe_rocket", "wrench", "machete", "axe", "bat"]
+	var exposes_all_grip_previews := true
+	for wid in grip_preview_ids:
+		exposes_all_grip_previews = exposes_all_grip_previews and stage.ITEM_IDS.has(wid)
+	_check("the stage weapon cycle exposes every handheld grip row", exposes_all_grip_previews)
 	_check("ITEM_IDS['pistol'] is a REAL row with the REAL (one-handed) hand_pose",
 		ProtoWeapon.WEAPONS["pistol"]["hand_pose"]["two_handed"] == false)
-	stage._set_item(1) # pistol by ITEM_IDS order
+	stage._set_item(stage.ITEM_IDS.find("pistol"))
 	_check("equipping a GUN raises the arm (twin-stick aim read — same law as proto3d.gd)",
 		stage.puppet.raised == true)
-	stage._set_item(2) # shotgun (two-handed gun row)
+	stage._set_item(stage.ITEM_IDS.find("shotgun"))
 	_check("the shotgun's REAL two_handed flag pulls the free arm to the fore-grip",
 		not is_equal_approx(stage.puppet.free_arm.position.x, -0.29))
 	_check("a gun still raises (shotgun is not melee)", stage.puppet.raised == true)
-	stage._set_item(4) # machete (melee)
+	stage._set_item(stage.ITEM_IDS.find("machete"))
 	_check("equipping a MELEE row carries LOW (raised == false, same law as proto3d.gd)",
 		stage.puppet.raised == false)
 
