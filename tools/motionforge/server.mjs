@@ -32,22 +32,25 @@ const DEFAULTS = {
 	puppet: {
 		gait: { cadence_base: 2.0, cadence_speed: 1.15, stride_amp: 0.6, arm_swing: 0.85,
 			step_bob: 0.12, breath_amp: 0.02, lean_turn: 0.22, crouch_drop: 0.34,
-			// crouch no-kiss rows (the shimmer fix) — were engine-only, now sliders too.
-			// ANIMATION_FIX_PACK §4.1 (D2): hip_fold_max/crouch_knee DEEPENED so the crouch
-			// FOLDS (feet plant at the full pelvis drop) instead of sinking through the floor.
-			hip_fold_max: 0.70, hip_drop_frac: 0.50, hip_joint_gap: 0.03, torso_scale_min: 0.81,
+			// THE SQUAT (ANIMATION_FIX_PACK_2 §4/§5): the crouch is a real squat now —
+			// hip_fold FORWARD (thighs over the toes), retuned with the no-kiss levers.
+			// ALL leg rows are MAGNITUDES; the engine owns the anatomical sign (a knee
+			// folds BACK) so a forge save can never re-invert a joint.
+			hip_fold_max: 0.98, hip_drop_frac: 0.50, hip_joint_gap: 0.11, torso_scale_min: 0.72,
 			// RIG V2 follow-through: elbows/knees ride their parents as fractions.
 			// knee_follow is the single biggest look upgrade — tune it FIRST.
-			knee_follow: 0.55, knee_phase: 0.45, knee_rest: 0.06, crouch_knee: 1.30,
+			knee_follow: 0.55, knee_phase: 0.45, knee_rest: 0.06, crouch_knee: 1.00,
 			elbow_follow: 0.35, elbow_rest: 0.14,
 			// ANIMATION_FIX_PACK §3.3/§4.2 (D3): WALK/RUN to the reference strip. Amplitude
 			// + cadence SOLVED from speed (anti-skate), plus run form. cadence_base/
 			// cadence_speed/stride_amp/step_bob above are now VESTIGIAL (the solve replaced
 			// them) — kept so old motions.json rows don't error; tune the ones below instead.
-			a_walk_max: 0.62, a_run_max: 0.85, leg_eff: 0.92, cadence_mult: 1.0,
+			// leg_eff RE-CAL'd 0.92->0.75 for the KNEE LAW (the back-folding knee shortens
+			// the ground stride); ankle_push is a plantarflex MAGNITUDE; swing_toe_up is new.
+			a_walk_max: 0.62, a_run_max: 0.85, leg_eff: 0.75, cadence_mult: 1.0,
 			walk_speed_ref: 4.2, run_blend_lo: 4.0, run_blend_hi: 7.2,
 			column_bob: 0.045, head_stabilize: 0.5, run_lean: 0.22, elbow_pump: 1.5,
-			knee_lift_run: 0.6, ankle_push: 0.5,
+			knee_lift_run: 0.6, ankle_push: 0.7, swing_toe_up: 0.25,
 			// THE DOORKNOB FIX (2026-07-08): the chest LEADS a turn (spine twist) +
 			// banks into it — real body english instead of a rigid flat yaw.
 			turn_twist: 0.34, turn_bank: 0.30 },
