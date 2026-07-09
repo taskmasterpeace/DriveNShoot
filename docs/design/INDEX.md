@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | BANKED | **M0 wire+rows (~2-3 d)** → M1 junction+exit geometry | GROUND_INTEGRITY (cherry-pick, main) |
 | **THE_BUILDING_BOOK** | canonical catalog, interiors law, mission schema, MULTI-USE law, strategies | BANKED | M0 materialize wire; M3c mission fields | AMERICAN_ROAD milestones |
-| **NAVIGATION** | the journey law (walk/drive/fly), tiers, walk graph, failure ladder | BANKED | NAV-P1 walk (wife→church through a door) | road_graph (M1) for P2 drive |
+| **NAVIGATION** | the journey law (walk/drive/fly), tiers, walk graph, failure ladder — **+§9 cold-start spec** (schemas, v0 graph algo, park/door machines, steering port map, sim staging) | BANKED | NAV-P1 walk (wife→church through a door); first hot file `nav/steering.gd` | road_graph (M1) for P2 drive |
 | **THE_FAMILY_EMPIRE** | extort/own→city→capital, collectors, family/wife/kids, dates+school, revenge | BANKED | **THE HOLLOWPOINT SLICE** (E1/F1) | **P0** (below), M3c, NAV-P1 |
 | **LIVING_WOUND_ECOSYSTEM** | sector pressure, food chain, nests, night shift, EAR layer, seeding | BANKED | Phase 1 "Alligator Alley Awakens" | **P0**; M4a look (soft) |
 | **WEATHER_AND_SEASONS** | storm-disc field, gradients, seasons, lean-season arc | BANKED | field + rain/dust/heat + calendar (track W, road-independent) | none hard |
