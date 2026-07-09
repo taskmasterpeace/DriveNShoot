@@ -11,8 +11,8 @@ const LCD_FONT := "res://assets/ui/fonts/radio_lcd.ttf"
 
 # Normalized calibration of the generated faceplate (fractions of its shown size),
 # measured off assets/ui/radio/faceplate.png (640x360). Retune if the art is swapped.
-const SCALE_X0 := 0.21    # x where BAND_LO (88.1) sits on the FM scale
-const SCALE_X1 := 0.79    # x where BAND_HI (107.9) sits
+const SCALE_X0 := 0.245   # x where BAND_LO (88.1) sits — under the "88" label
+const SCALE_X1 := 0.765   # x where BAND_HI (107.9) sits — under the "108" label
 const SCALE_Y := 0.24     # top of the pointer travel
 const SCALE_H := 0.11     # pointer height (down over the tick strip)
 const WIN_X := 0.24       # display window left
