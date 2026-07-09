@@ -69,8 +69,9 @@ func _ready() -> void:
 	for e in m.exits:
 		if String(e["id"]) == "I-95_X1":
 			mx = e
-	_check("EXIT 1 — MERIDIAN is on I-95 (T3 county_seat)",
+	_check("EXIT 9 — MERIDIAN is on I-95 (T3 county_seat; ADDRESS LAW 0.1 canon)",
 		not mx.is_empty() and String(mx["highway_id"]) == "I-95"
+		and int(mx["exit_number"]) == 9
 		and String(mx["community_tier"]) == "T3" and String(mx["archetype"]) == "county_seat")
 
 	# --- The SIGN materializes in the streamed world (§18) --------------------------
@@ -93,7 +94,7 @@ func _ready() -> void:
 			break
 	_check("the EXIT SIGN rises at the ramp mouth (streamed)", sign_found)
 	_check("the sign READS the decision (%s)" % sign_text,
-		sign_text.contains("EXIT 1") and sign_text.contains("MERIDIAN") and sign_text.contains("T3"))
+		sign_text.contains("EXIT 9") and sign_text.contains("MERIDIAN") and sign_text.contains("T3"))
 
 	print("EXIT RESULTS: %d passed, %d failed" % [passed, failed])
 	print("EXIT: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

@@ -188,9 +188,57 @@ export function rewriteExitGeometry(map) {
 	return stats;
 }
 
+// THE ADDRESS LAW (0.1, M3): exit_number = round(arc / EXIT_MILE_M) measured
+// from the SOUTH/WEST end of every highway (AASHTO), EXIT_MILE_M tuned so
+// MERIDIAN = I-95 EXIT 9. Ids NEVER change — only the display number. Also
+// stamps town_id (nearest town within 600 m of dest). Strictly increasing
+// along the arc (duplicates bump +1).
+export const EXIT_MILE_M = 2395; // TUNED (0.1's own law): Meridian's south-origin arc is 21,557 m → 21557/9 ≈ 2395 makes MERIDIAN = I-95 EXIT 9. The spec's ≈1450 estimate predated the measured arc; the ruling's binding constraint is the canon number, and mile markers use this SAME game-mile so EXIT N stands near MILE N.
+export function renumberExits(map) {
+	const network = (map.roads || []).filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
+	const stats = { renumbered: 0, meridian: 0, town_ids: 0 };
+	const totalLen = (hwy) => segs(hwy).reduce((s, g) => s + g.len, 0);
+	const arcFromOrigin = (hwy, pos) => {
+		const p0 = v(hwy.pts[0]), pN = v(hwy.pts[hwy.pts.length - 1]);
+		const northSouth = Math.abs(pN.y - p0.y) >= Math.abs(pN.x - p0.x);
+		const originAtStart = northSouth ? (p0.y > pN.y) : (p0.x < pN.x); // south = +z, west = -x
+		const a = arcAt(hwy, pos);
+		return originAtStart ? a : totalLen(hwy) - a;
+	};
+	const byHwy = new Map();
+	for (const ex of map.exits || []) {
+		if (!byHwy.has(ex.highway_id)) byHwy.set(ex.highway_id, []);
+		byHwy.get(ex.highway_id).push(ex);
+	}
+	for (const [hid, list] of byHwy) {
+		const hwy = network.find((r) => r.id === hid);
+		if (!hwy) continue;
+		list.forEach((ex) => (ex._arc = arcFromOrigin(hwy, v(ex.pos))));
+		list.sort((a, b) => a._arc - b._arc);
+		let prev = 0;
+		for (const ex of list) {
+			let n = Math.max(1, Math.round(ex._arc / EXIT_MILE_M));
+			if (n <= prev) n = prev + 1; // strictly increasing along the arc
+			prev = n;
+			ex.exit_number = n;
+			delete ex._arc;
+			stats.renumbered++;
+			if (ex.id === "I-95_X1") stats.meridian = n;
+			let bestTown = null, bd = 600;
+			for (const t of map.towns || []) {
+				const d = dist({ x: t.pos[0], y: t.pos[1] }, v(ex.dest || ex.pos));
+				if (d < bd) { bd = d; bestTown = t; }
+			}
+			if (bestTown) { ex.town_id = bestTown.id; stats.town_ids++; }
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// geometry first (0.18), then junction rows read the corrected polylines
 	const geo = rewriteExitGeometry(map);
+	const addr = renumberExits(map);
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");

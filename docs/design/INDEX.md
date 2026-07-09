@@ -20,7 +20,7 @@
 | **MUD_AND_MONSTERS** | traction matrix (surface×wetness×tire), mud (slow-never-stuck), monster trucks (built), tracked+tractors, the rally | BANKED | T1 matrix + mud (rides WEATHER) | WEATHER W-WET; AMERICAN_ROAD 0.17; SPECTACLES |
 | **THE_INFECTED** | the failed trials: taxonomy rows, herds-as-cells, the Choir zone law + `infection_pressure` writer, BITE FEVER, quarantine, the PIT/PREY laws, the Trials films | BANKED | **I1 THE FIRST CHOIR** (fort_benning, shamblers only — ZERO hard gates) | none for I1; P0 + SECURITY_LADDER + NAV-P2 for I2; LWE P3 mutual for I3 (resolved by construction) |
 | LIVING_WORLD_DSOA | the locked five: state flips, law, crime, jail, clone canon §11 | BANKED (canon) | the Florida slice | — |
-| GROUND_INTEGRITY / TERRAIN_RELIEF | floors, void net, relief | BANKED (main) | executes at M2 / M8 | — |
+| GROUND_INTEGRITY / TERRAIN_RELIEF | floors, void net, relief | **M2 SHIPPED** (5be6ad4: void net + floor-first + CCD/2m + 5-point sampling + real decks; ground_integrity_sim 9/9) / relief M8 | — | — |
 | ANIMATION packs / RUN / GROUND | rig fixes | partly SHIPPED | per their docs | — |
 | BANDIT_CONVOY / POPULATION_WAR / SECURITY_LADDER / LOOT_NPC | convoys, cells, wanted | BANKED / partly shipped | per their docs | P0 (cells) |
 

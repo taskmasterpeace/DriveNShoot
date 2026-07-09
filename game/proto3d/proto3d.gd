@@ -1859,7 +1859,14 @@ func set_map_course(label: String, pos: Vector3) -> void:
 		var rt := road_graph.route(Vector2(player.global_position.x, player.global_position.z),
 			Vector2(pos.x, pos.z))
 		if not rt.is_empty() and not (rt["roads"] as Array).is_empty():
-			hud.toast("🛣 via %s — ~%d min" % [String(rt["text"]),
+			# THE ADDRESS LAW (M3): the GPS speaks in exits — "MIAMI — I-95 EXIT 21".
+			var addr := ""
+			if stream != null and stream.usmap != null:
+				for e in stream.usmap.exits:
+					if (e["dest"] as Vector2).distance_to(Vector2(pos.x, pos.z)) < 400.0:
+						addr = " — EXIT %d %s" % [int(e["exit_number"]), String(e["name"])]
+						break
+			hud.toast("🛣 via %s%s — ~%d min" % [String(rt["text"]), addr,
 				maxi(1, int(ceil(float(rt["time_s"]) / 60.0)))])
 
 
