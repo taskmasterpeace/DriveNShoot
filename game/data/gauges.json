@@ -1,0 +1,14 @@
+{
+  "_comment": "THE GAUGE FLEET — one dial PNG per drivable vehicle class. The dial is generated pixel art (PixelLab, assets/ui/gauges/<id>.png); the needle is code (proto3d/gauge.gd) driven by car speed. A new gauge = a PNG + a row here. 'vclasses' binds a face to vehicle classes; 'max' is the top number on the dial; needle angle = start_deg + (mph/max)*sweep_deg. Layout convention: 0 at lower-left, max at lower-right, 270deg sweep from -135.",
+  "gauges": [
+    {"id": "sport",     "png": "res://assets/ui/gauges/sport.png",     "max": 160, "redline": 135, "start_deg": -135, "sweep_deg": 270, "vclasses": ["buggy"]},
+    {"id": "rig",       "png": "res://assets/ui/gauges/rig.png",       "max": 100, "redline": 85,  "start_deg": -135, "sweep_deg": 270, "vclasses": ["semi"]},
+    {"id": "salvage",   "png": "res://assets/ui/gauges/salvage.png",   "max": 120, "redline": 100, "start_deg": -135, "sweep_deg": 270, "vclasses": ["scavenger"]},
+    {"id": "ratbike",   "png": "res://assets/ui/gauges/ratbike.png",   "max": 120, "redline": 100, "start_deg": -135, "sweep_deg": 270, "vclasses": ["motorcycle"]},
+    {"id": "rustler",   "png": "res://assets/ui/gauges/rustler.png",   "max": 120, "redline": 100, "start_deg": -135, "sweep_deg": 270, "vclasses": ["pickup"]},
+    {"id": "boxer",     "png": "res://assets/ui/gauges/boxer.png",     "max": 100, "redline": 85,  "start_deg": -135, "sweep_deg": 270, "vclasses": ["van"]},
+    {"id": "warhauler", "png": "res://assets/ui/gauges/warhauler.png", "max": 140, "redline": 120, "start_deg": -135, "sweep_deg": 270, "vclasses": ["pickup_truck"]},
+    {"id": "homestead", "png": "res://assets/ui/gauges/homestead.png", "max": 100, "redline": 85,  "start_deg": -135, "sweep_deg": 270, "vclasses": ["rv"]},
+    {"id": "bulwark",   "png": "res://assets/ui/gauges/bulwark.png",   "max": 140, "redline": 120, "start_deg": -135, "sweep_deg": 270, "vclasses": ["suv"]}
+  ]
+}

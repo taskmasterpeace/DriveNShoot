@@ -1268,6 +1268,7 @@ func dashboard() -> Dictionary:
 		"surface": current_surface, "struggling": is_struggling,
 		"tire_name": spec["tires"]["name"], "drive_factor": offroad_factor(),
 		"name": display_name, "load": trunk.total_weight(), "load_max": trunk.max_weight,
+		"vclass": vclass,
 	}
 
 

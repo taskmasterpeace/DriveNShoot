@@ -18,6 +18,8 @@ var _dash_box: HBoxContainer
 var _dash_labels: Dictionary = {}
 var _dash_fuel: Label
 var _dash_cook: Label
+var _gauge: ProtoGauge      ## the pixel-art speedometer (dial PNG + code-driven needle)
+var _gauge_id: String = ""  ## current dial id — swapped only when the vehicle changes
 
 const TIER_COLORS: Array[Color] = [
 	Color(0.92, 0.89, 0.82, 0.55), # GOOD — quiet
@@ -118,6 +120,19 @@ static func create() -> ProtoHUD:
 	hud._speed_label.offset_bottom = -48.0
 	hud._speed_label.text = "0 MPH"
 	hud.add_child(hud._speed_label)
+
+	# The pixel-art gauge cluster (bottom-left, above the speed text). Dial is a
+	# generated PNG; the needle is code, driven from car speed each frame. Hidden
+	# until driving; a default face is applied so it never boots blank.
+	hud._gauge = ProtoGauge.create(156.0)
+	hud._gauge.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	hud._gauge.offset_left = 20.0
+	hud._gauge.offset_right = 176.0
+	hud._gauge.offset_top = -206.0
+	hud._gauge.offset_bottom = -50.0
+	hud._gauge.visible = false
+	hud._gauge.apply("sport")
+	hud.add_child(hud._gauge)
 
 	hud._mode_label = Label.new()
 	hud._mode_label.add_theme_font_override("font", ProtoHUD.mixed_font())
@@ -291,8 +306,27 @@ func toast(text: String) -> void:
 
 
 func set_speed(mph: float, driving: bool) -> void:
-	_speed_label.visible = driving
 	_speed_label.text = "%d MPH" % int(mph)
+	if _gauge != null:
+		_gauge.visible = driving
+		if driving:
+			_gauge.set_value(mph)
+		# The gauge has its own digital readout; the text stays only as a fallback
+		# when a dial PNG is missing, so we never render nothing.
+		_speed_label.visible = driving and not _gauge.has_dial()
+	else:
+		_speed_label.visible = driving
+
+
+## Sim hooks: the live gauge state — which dial, needle angle, real dial vs fallback.
+func gauge_id() -> String:
+	return _gauge.gauge_id if _gauge != null else ""
+
+func gauge_needle_deg() -> float:
+	return _gauge.needle_deg if _gauge != null else 0.0
+
+func gauge_has_dial() -> bool:
+	return _gauge != null and _gauge.has_dial()
 
 
 ## The emoji ARE the meters. Called once per frame with the character's vitals;
@@ -385,6 +419,13 @@ func set_dashboard(d) -> void:
 		_dash_wrap.visible = false
 		return
 	_dash_wrap.visible = true
+	# This vehicle's gauge face — data-driven by vclass (data/gauges.json). Swapped
+	# only when it actually changes, so we're not reloading a texture every frame.
+	if _gauge != null:
+		var gid: String = ProtoGauge.for_vclass(String(d.get("vclass", "")))
+		if gid != _gauge_id:
+			_gauge_id = gid
+			_gauge.apply(gid)
 	var ratios: Dictionary = d.get("ratios", {})
 	for part in _dash_labels:
 		var tier: int = d[part]
