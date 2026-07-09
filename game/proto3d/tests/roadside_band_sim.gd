@@ -32,6 +32,17 @@ func _count_meta(chunk: Node3D, meta: String) -> int:
 	return n
 
 
+func _has_billboard_label(root: Node) -> bool:
+	if root is Label3D:
+		var label := root as Label3D
+		if label.billboard == BaseMaterial3D.BILLBOARD_ENABLED and label.text.strip_edges() != "":
+			return true
+	for child in root.get_children():
+		if _has_billboard_label(child):
+			return true
+	return false
+
+
 func _ready() -> void:
 	print("BAND: start")
 	var prev_scale := Engine.time_scale
@@ -169,6 +180,36 @@ func _ready() -> void:
 						cl.queue_free()
 					break
 	_check("a WELCOME monument stands at a state line (the iconic drive read)", line_found)
+	# M4b also promises route reassurance shields and camera-honest billboards.
+	var shield_found := false
+	var billboard_found := false
+	var checked := 0
+	for rr in um.roads:
+		if checked >= 32 or (shield_found and billboard_found):
+			break
+		if String(rr.get("kind", "")) != "interstate":
+			continue
+		var rpts: Array = rr["pts"]
+		for ri in range(rpts.size() - 1):
+			if checked >= 32 or (shield_found and billboard_found):
+				break
+			var ra: Vector2 = rpts[ri]
+			var rb: Vector2 = rpts[ri + 1]
+			var rm := (ra + rb) * 0.5
+			if absf(rm.x) <= 6000.0 and absf(rm.y) <= 6000.0:
+				continue
+			var rc: Node3D = main.stream._spawn_chunk(int(floor(rm.x / chunk_m)), int(floor(rm.y / chunk_m)))
+			checked += 1
+			if rc == null:
+				continue
+			for prop in rc.get_children():
+				if prop.has_meta("route_shield"):
+					shield_found = true
+				if prop.has_meta("road_billboard") and _has_billboard_label(prop):
+					billboard_found = true
+			rc.queue_free()
+	_check("route reassurance shields appear along interstates", shield_found)
+	_check("camera-facing billboards appear along interstates", billboard_found)
 	# the water tower says the TOWN's name (label override through the builder)
 	var tower: Node3D = ProtoStructureBuilder.materialize("water_tower", "ROSEWOOD")
 	add_child(tower)
