@@ -93,6 +93,9 @@ func _ready() -> void:
 	_check("...the video plays INSIDE that viewport", main.media_panel._video.get_parent() == vp)
 	_check("...the SET's screen texture IS that live viewport (the wiring is real, end to end)",
 		tv_node._live_material != null and tv_node._live_material.albedo_texture == vp.get_texture())
+	# The screen is a QUADMESH so the WHOLE frame shows — a BoxMesh atlases its 6 faces
+	# and the front sampled only a cropped sub-rect (owner: "a piece cropped of the image").
+	_check("...on a QuadMesh (full-frame, not a BoxMesh sub-rect crop)", tv_node.screen.mesh is QuadMesh)
 	_check("...the couch reel keeps PLAYING (audio + always-live frames)", main.media_panel._video.is_playing())
 	_check("...but the fullscreen CHROME is gone (no fullscreen takeover)",
 		main.media_panel.visible and not main.media_panel._root.visible)

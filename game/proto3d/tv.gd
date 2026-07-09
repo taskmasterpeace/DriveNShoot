@@ -27,11 +27,17 @@ static func create() -> ProtoTV:
 	body.material_override = ProtoWorldBuilder.material(Color(0.12, 0.11, 0.10), 0.85)
 	body.position.y = 0.9
 	tv.add_child(body)
-	# The screen — off-glow amber, the one warm light in the safehouse.
+	# The screen — off-glow amber, the one warm light in the safehouse. It's a QUADMESH
+	# (one face, full 0..1 UV = the WHOLE frame), NOT a BoxMesh: a box unwraps its six
+	# faces across the UV atlas, so the front face sampled only a CROPPED sub-rect (owner
+	# 2026-07-08: "you only see a piece cropped of the image"). Same law as the drive-in /
+	# public screens. A quad faces +Z; rotate it PI so its face points the TV's FRONT (-Z)
+	# — a rotation preserves the image (reads right-way-round, no UV flip needed).
 	tv.screen = MeshInstance3D.new()
-	var sm := BoxMesh.new()
-	sm.size = Vector3(1.3, 0.8, 0.03)
+	var sm := QuadMesh.new()
+	sm.size = Vector2(1.3, 0.8)
 	tv.screen.mesh = sm
+	tv.screen.rotation.y = PI
 	tv.screen.material_override = ProtoWorldBuilder.material(Color(0.35, 0.28, 0.12), 0.4, true)
 	tv._off_material = tv.screen.material_override
 	tv.screen.position = Vector3(0, 0.9, -0.12)
