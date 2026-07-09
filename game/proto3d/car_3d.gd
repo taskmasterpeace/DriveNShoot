@@ -1327,27 +1327,53 @@ func _sample_surface() -> String:
 	return ProtoWorldBuilder.surface_at(global_position)
 
 
+## The tire class (MUD_AND_MONSTERS T1): a row field when the rig declares one,
+## else derived from the shipped knobby-vs-highway law.
+func tire_class() -> String:
+	return String(spec.get("tire_class", "knobby" if float(spec["tires"]["dirt_mult"]) >= 0.75 else "street"))
+
+
+## The wetness class under this rig — MUD only where it actually rained
+## (WEATHER's W-WET wrote the cell's water_rot; the desert never muds).
+func wetness_here() -> String:
+	var s_name: String = surface_override if surface_override != "" else current_surface
+	if not is_inside_tree():
+		return "dry"
+	var m: Node = get_tree().current_scene
+	if m == null or not ("population" in m):
+		m = get_parent()
+	var rot := 0.25
+	var rain := 0.0
+	if m != null and "population" in m and m.population != null:
+		rot = float(m.population.cell_at(global_position).get("water_rot", 0.25))
+	if m != null and "weather" in m and m.weather != null and m.weather is ProtoWeather:
+		rain = (m.weather as ProtoWeather).intensity_at(global_position, "rain")
+	return ProtoTraction.wetness(s_name, rot, rain)
+
+
 func surface_grip_mult() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
 	if s_name == "road":
-		return 1.0
-	if s_name == "gravel":
-		# M3b (0.17): gravel sits between asphalt and dirt — knobbies barely
-		# notice, street tires feel it. MUD_AND_MONSTERS T1 owns the full matrix.
-		var dm := float(spec["tires"]["dirt_mult"])
-		return minf(1.0, dm + (1.0 - dm) * 0.6)
+		return 1.0 # asphalt's rain tax is WEATHER's grip_now — never double-taxed
 	if s_name == "water":
 		return float(spec["tires"]["dirt_mult"]) * 0.5 # slick — lakes/rivers are not roads
-	return float(spec["tires"]["dirt_mult"]) # dirt_road rides the tire's dirt law
+	# THE TRACTION MATRIX (MUD_AND_MONSTERS T1): everything off the asphalt
+	# prices by surface × wetness × tire class — mud fishtails street tires
+	# and barely slows BIG wheels (the reason to build the monster truck).
+	return float(ProtoTraction.traction(s_name, wetness_here(), tire_class())["grip"])
 
 
 ## How much of this vehicle's drivetrain actually reaches the ground RIGHT NOW:
 ## surface-through-the-tires × tire condition. 1.0 = full song; low = bogged/limping.
+## THE SLOW-NEVER-STUCK LAW: the matrix speed floor is 0.25 — mud is a crawl,
+## never a stop (owner ruling; the stuck state stays OUT).
 func offroad_factor() -> float:
 	var s_name: String = surface_override if surface_override != "" else current_surface
-	var surf: float = 1.0 if s_name == "road" else clampf(float(spec["tires"]["dirt_mult"]), 0.5, 1.0)
+	var surf := 1.0
 	if s_name == "water":
-		surf *= 0.34 # fording a river BOGS you — cross at the bridges
+		surf = clampf(float(spec["tires"]["dirt_mult"]), 0.5, 1.0) * 0.34 # fording BOGS you — cross at the bridges
+	elif s_name != "road":
+		surf = float(ProtoTraction.traction(s_name, wetness_here(), tire_class())["speed"])
 	return surf * TIER_TIRE_DRAG[components["tires"].tier()]
 
 

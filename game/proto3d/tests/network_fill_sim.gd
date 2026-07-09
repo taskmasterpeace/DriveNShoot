@@ -142,15 +142,20 @@ func _ready() -> void:
 			c2.queue_free()
 
 	# --- 5) the grip law prices the surfaces ---------------------------------------
+	# (asserts flipped with MUD_AND_MONSTERS T1 in the same commit — the matrix
+	# now owns off-asphalt grip; gravel still sits between dirt and asphalt.)
 	var car: ProtoCar3D = ProtoCar3D.create("scavenger", Color(0.4, 0.4, 0.4))
 	var dm := float(car.spec["tires"]["dirt_mult"])
+	var tire := car.tire_class()
 	car.surface_override = "gravel"
 	var ggrip := car.surface_grip_mult()
-	_check("gravel grip sits BETWEEN dirt (%.2f) and asphalt (got %.2f)" % [dm, ggrip],
-		ggrip > dm + 0.01 and ggrip < 1.0)
+	var want_g := float(ProtoTraction.traction("gravel", "dry", tire)["grip"])
+	_check("gravel grip is the MATRIX row (%.2f) and sits between dirt (%.2f) and 1.0" % [want_g, dm],
+		is_equal_approx(ggrip, want_g) and ggrip > dm + 0.01 and ggrip < 1.0)
 	car.surface_override = "dirt_road"
-	_check("a dirt track grips at the tire's dirt law (%.2f)" % dm,
-		is_equal_approx(car.surface_grip_mult(), dm))
+	var want_d := float(ProtoTraction.traction("dirt", "dry", tire)["grip"])
+	_check("a dry dirt track grips at the MATRIX dirt row (%.2f)" % want_d,
+		is_equal_approx(car.surface_grip_mult(), want_d))
 	car.free()
 
 	_finish(prev_scale)
