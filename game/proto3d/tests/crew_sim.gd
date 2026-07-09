@@ -41,6 +41,10 @@ func _ready() -> void:
 		ProtoNPC.ARCHETYPES.has("mechanic") and ProtoNPC.ARCHETYPES.has("medic")
 		and String(ProtoNPC.ARCHETYPES["mechanic"]["name"]) == "Hazel"
 		and String(ProtoNPC.ARCHETYPES["medic"]["role"]) == "hire")
+	_check("named female characters use female puppet rows",
+		String(ProtoNPC.ARCHETYPES["trader"]["look"]) == "trader_f"
+		and String(ProtoNPC.ARCHETYPES["mechanic"]["look"]) == "drifter_f"
+		and String(ProtoCompanion.CREW["hazel"]["look"]) == "scav_f")
 
 	# --- FOLLOW (the dog law, human-shaped) ---------------------------------------
 	main.player.global_position += Vector3(14, 0, 0)

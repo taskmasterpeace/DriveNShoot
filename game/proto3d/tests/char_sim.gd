@@ -44,6 +44,11 @@ func _physics_process(delta: float) -> void:
 							body_choices.append(String(pair[1]))
 				_check("character creation exposes woman/teen/kid body profiles",
 					body_choices.has("woman") and body_choices.has("teen_runner") and body_choices.has("kid"))
+				var female_choices: Array = ["scav_f", "drifter_f", "raider_f", "trader_f", "guard_f", "waif_f", "old_timer_f"]
+				var has_female_versions := true
+				for choice in female_choices:
+					has_female_versions = has_female_versions and body_choices.has(String(choice))
+				_check("character creation exposes female versions of core archetypes", has_female_versions)
 				main.char_create.toggle()
 				_check("J opens it", main.char_create.is_open)
 				main.char_create.toggle()

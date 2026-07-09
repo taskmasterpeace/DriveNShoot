@@ -14,7 +14,9 @@ var is_open: bool = false
 var choices: Dictionary = {"handed": "right", "blind_eye": "", "bad_leg": "", "look": "scav"}
 
 const OPTIONS: Array = [
-	["BODY", "look", [["Scav", "scav"], ["Drifter", "drifter"], ["Raider", "raider"], ["Trader", "trader"], ["Guard", "guard"], ["Woman", "woman"], ["Teen", "teen_runner"], ["Kid", "kid"], ["Old-timer", "old_timer"]]],
+	["BODY", "look", [["Scav", "scav"], ["Drifter", "drifter"], ["Raider", "raider"], ["Trader", "trader"], ["Guard", "guard"], ["Waif", "waif"], ["Old-timer", "old_timer"]]],
+	["BODY F", "look", [["Scav F", "scav_f"], ["Drifter F", "drifter_f"], ["Raider F", "raider_f"], ["Trader F", "trader_f"], ["Guard F", "guard_f"], ["Waif F", "waif_f"], ["Old-timer F", "old_timer_f"]]],
+	["AGE", "look", [["Woman", "woman"], ["Teen", "teen_runner"], ["Kid", "kid"]]],
 	["HANDED", "handed", [["Right", "right"], ["Left", "left"]]],
 	["BLIND EYE", "blind_eye", [["None", ""], ["Left", "l"], ["Right", "r"]]],
 	["BAD LEG", "bad_leg", [["None", ""], ["Left", "l"], ["Right", "r"]]],
@@ -27,8 +29,8 @@ static func create(main: Node) -> ProtoCharCreate:
 	c.layer = 4
 	c._root = PanelContainer.new()
 	c._root.set_anchors_preset(Control.PRESET_CENTER)
-	c._root.offset_left = -340.0
-	c._root.offset_right = 340.0
+	c._root.offset_left = -430.0
+	c._root.offset_right = 430.0
 	c._root.offset_top = -220.0
 	c._root.offset_bottom = 220.0
 	var style := StyleBoxFlat.new()

@@ -118,15 +118,22 @@ const BODY_TYPES: Dictionary = {
 ## partial override of DEFAULT — add a look = add a row, never touch code. These
 ## double as NPC bodies (Rung 4) and character-creation presets (Rung 5).
 ## BUILD is the new variety axis: the raider is a slab, the waif is a rail, the
-## trader grew fat on the market — same sixteen blocks, different silhouettes.
+## trader grew fat on the market — same rig, different silhouettes.
 const SURVIVORS: Dictionary = {
 	"scav": {"cloth": Color(0.5, 0.44, 0.3), "pants": Color(0.32, 0.3, 0.26), "backpack": true, "gait": 1.0},
+	"scav_f": {"body_type": "woman", "cloth": Color(0.50, 0.43, 0.31), "pants": Color(0.31, 0.30, 0.27), "backpack": true, "gait": 1.03},
 	"drifter": {"cloth": Color(0.4, 0.36, 0.34), "pants": Color(0.28, 0.26, 0.24), "hat": Color(0.3, 0.26, 0.18), "gait": 0.9, "build": 0.85},
+	"drifter_f": {"body_type": "woman", "cloth": Color(0.41, 0.36, 0.33), "pants": Color(0.27, 0.26, 0.24), "hat": Color(0.31, 0.27, 0.19), "gait": 0.92, "build": 0.72},
 	"raider": {"torso": Vector3(0.50, 0.30, 0.26), "cloth": Color(0.35, 0.2, 0.16), "pants": Color(0.22, 0.2, 0.18), "gait": 1.15, "height": 1.06, "build": 1.6},
+	"raider_f": {"body_type": "woman", "torso": Vector3(0.48, 0.29, 0.25), "cloth": Color(0.36, 0.19, 0.15), "pants": Color(0.22, 0.20, 0.18), "gait": 1.16, "height": 1.01, "build": 1.18},
 	"trader": {"body_type": "stocky", "cloth": Color(0.55, 0.45, 0.2), "pants": Color(0.3, 0.28, 0.22), "hat": Color(0.5, 0.42, 0.22)},
+	"trader_f": {"body_type": "woman", "cloth": Color(0.56, 0.44, 0.22), "pants": Color(0.30, 0.27, 0.22), "hat": Color(0.50, 0.42, 0.22), "gait": 0.90, "build": 1.18},
 	"guard": {"torso": Vector3(0.48, 0.29, 0.25), "cloth": Color(0.3, 0.34, 0.4), "pants": Color(0.24, 0.26, 0.3), "hat": Color(0.22, 0.24, 0.28), "gait": 1.0, "height": 1.04, "build": 1.3},
+	"guard_f": {"body_type": "woman", "torso": Vector3(0.47, 0.28, 0.24), "cloth": Color(0.30, 0.34, 0.41), "pants": Color(0.24, 0.26, 0.30), "hat": Color(0.22, 0.24, 0.28), "gait": 1.02, "height": 1.0, "build": 1.08},
 	"waif": {"torso": Vector3(0.40, 0.26, 0.20), "cloth": Color(0.5, 0.5, 0.44), "pants": Color(0.34, 0.34, 0.3), "gait": 1.1, "height": 0.92, "build": 0.3},
+	"waif_f": {"body_type": "woman", "torso": Vector3(0.39, 0.25, 0.20), "cloth": Color(0.50, 0.49, 0.44), "pants": Color(0.34, 0.34, 0.30), "gait": 1.14, "height": 0.90, "build": 0.22},
 	"old_timer": {"cloth": Color(0.44, 0.42, 0.4), "pants": Color(0.3, 0.3, 0.3), "hat": Color(0.4, 0.38, 0.34), "gait": 0.75, "limp": "l", "height": 0.98, "build": 0.7},
+	"old_timer_f": {"body_type": "woman", "cloth": Color(0.45, 0.42, 0.39), "pants": Color(0.30, 0.30, 0.30), "hat": Color(0.40, 0.38, 0.34), "gait": 0.74, "limp": "r", "height": 0.94, "build": 0.62},
 	"woman": {"body_type": "woman", "cloth": Color(0.42, 0.34, 0.30), "pants": Color(0.25, 0.25, 0.28), "gait": 1.0},
 	"teen_runner": {"body_type": "teen", "cloth": Color(0.36, 0.43, 0.38), "pants": Color(0.26, 0.28, 0.27), "gait": 1.16},
 	"kid": {"body_type": "kid", "cloth": Color(0.48, 0.42, 0.34), "pants": Color(0.30, 0.30, 0.28), "gait": 1.22},

@@ -20,7 +20,7 @@ const SCOUT_CD := 4.0
 const CREW: Dictionary = {
 	"sam": {"name": "Sam", "title": "GUNNER", "look": "drifter", "job": "gunner",
 		"hire_cost": 40, "gear": {"9mm": 20, "scrip": 5}},
-	"hazel": {"name": "Hazel", "title": "MECHANIC", "look": "scav", "job": "mechanic",
+	"hazel": {"name": "Hazel", "title": "MECHANIC", "look": "scav_f", "job": "mechanic",
 		"hire_cost": 60, "gear": {"car_parts": 1, "duct_tape": 2, "scrip": 8}},
 	"mercer": {"name": "Doc Mercer", "title": "MEDIC", "look": "old_timer", "job": "medic",
 		"hire_cost": 60, "gear": {"bandage": 3, "medkit": 1}},

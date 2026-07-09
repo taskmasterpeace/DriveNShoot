@@ -15,7 +15,7 @@ const FACTION := "meridian"
 static var ARCHETYPES: Dictionary = {
 	# look = a ProtoPuppet.SURVIVORS row (the same rig, a different body); act = how
 	# this NPC "acts its part" through STATE — trader gestures, guard scans, drifter idles.
-	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade", "look": "trader", "act": "gesture",
+	"trader": {"name": "Mercy", "title": "TRADER", "role": "trade", "look": "trader_f", "act": "gesture",
 		"color": Color(0.72, 0.55, 0.28),
 		"greet": "Mercy: 'Scrip talks. What are you buying?'",
 		"refuse": "Mercy: 'Not to you. Not after what you did.'",

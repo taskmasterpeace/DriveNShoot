@@ -7,7 +7,7 @@
   ],
   "_archetypes_comment": "Full NPC templates folded onto ProtoNPC.ARCHETYPES at boot. These add the mechanic/medic hires (Hazel/Mercer) whose CREW rows already existed but had no archetype to be hired FROM.",
   "archetypes": [
-    {"id": "mechanic", "name": "Hazel", "title": "MECHANIC — 60 SCRIP", "role": "hire", "look": "drifter", "act": "idle",
+    {"id": "mechanic", "name": "Hazel", "title": "MECHANIC — 60 SCRIP", "role": "hire", "look": "drifter_f", "act": "idle",
       "color": [0.40, 0.36, 0.30],
       "greet": "Hazel: 'Sixty scrip and your rig stops dying on you.'",
       "refuse": "Hazel: 'I fix rigs, not whatever mess you are.'", "stock": {}},

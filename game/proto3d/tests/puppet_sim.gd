@@ -162,6 +162,27 @@ func _ready() -> void:
 	_check("a SURVIVOR row changes the body (scav has a backpack, raider is bigger)",
 		scav._pack != null and raider.appearance["torso"].x > scav.appearance["torso"].x)
 	_check("the old-timer row carries a LIMP straight into the gait", oldtimer.appearance["limp"] == "l")
+	var base_ids: Array = ["scav", "drifter", "raider", "trader", "guard", "waif", "old_timer"]
+	var female_ids: Array = ["scav_f", "drifter_f", "raider_f", "trader_f", "guard_f", "waif_f", "old_timer_f"]
+	var female_rows_ok := true
+	for i in range(female_ids.size()):
+		var base_id: String = String(base_ids[i])
+		var female_id: String = String(female_ids[i])
+		var base_row: Dictionary = ProtoPuppet.look(base_id)
+		var female_row: Dictionary = ProtoPuppet.look(female_id)
+		female_rows_ok = female_rows_ok and not base_row.is_empty()
+		female_rows_ok = female_rows_ok and not female_row.is_empty()
+		female_rows_ok = female_rows_ok and String(female_row.get("body_type", "")) == "woman"
+	var scav_f_row: Dictionary = ProtoPuppet.look("scav_f")
+	var trader_f_row: Dictionary = ProtoPuppet.look("trader_f")
+	var guard_f_row: Dictionary = ProtoPuppet.look("guard_f")
+	var old_timer_f_row: Dictionary = ProtoPuppet.look("old_timer_f")
+	_check("every core survivor archetype has a female version row", female_rows_ok)
+	_check("female survivor rows keep archetype identity props",
+		bool(scav_f_row.get("backpack", false))
+		and float(trader_f_row.get("build", 0.0)) > 1.0
+		and guard_f_row.has("hat")
+		and String(old_timer_f_row.get("limp", "")) != "")
 
 	# --- Body profiles: proportions, not just color/build ---------------------
 	var adult := ProtoPuppet.create({"body_type": "adult"})

@@ -90,6 +90,21 @@ func _ready() -> void:
 	await _shot("body_profiles", Vector3(0.0, 1.2, 6.4), Vector3(0.0, 0.95, 0.0))
 	await _dispose([adult, woman, teen, kid, stocky])
 
+	# --- FEMALE ARCHETYPE LINEUP: same role reads, woman profile underneath -----
+	var female_specs: Array = ["scav_f", "drifter_f", "raider_f", "trader_f", "guard_f", "waif_f", "old_timer_f"]
+	var female_nodes: Array = []
+	for i in range(female_specs.size()):
+		var id: String = String(female_specs[i])
+		var p: ProtoPuppet = await _make(ProtoPuppet.look(id), false, 0.0, PI)
+		p.position.x = -3.6 + float(i) * 1.2
+		female_nodes.append(p)
+	for _f in 20:
+		for n in female_nodes:
+			(n as ProtoPuppet).animate(0.016, 0.0, 0.0, false, 0.0, false)
+		await get_tree().process_frame
+	await _shot("female_variants", Vector3(0.0, 1.2, 7.4), Vector3(0.0, 0.95, 0.0))
+	await _dispose(female_nodes)
+
 	var profiles: Array = [
 		{"id": "adult", "app": {"body_type": "adult"}},
 		{"id": "woman", "app": {"body_type": "woman"}},
