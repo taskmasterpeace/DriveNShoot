@@ -186,7 +186,11 @@ is the tainted-land tell).
 **L5 — Pack predators** (wild, harass, retreat if outmatched). Base **Razor Dog** + region variants (§10).
 Reuse `howler.gd`'s pack brain wholesale (roles, ripple, scream, vision-cone circling, `noises_in` hunting).
 Phase 1: spawned **wild** via a `world_stream` biome roll (the gator/lurker pattern), no director. Phase 2:
-a light per-sector pack director on the same accrual.
+a light per-sector pack director on the same accrual. **The HOWLER itself joins the chain here as the
+`strict_nocturnal` night-pack tier (§3.13)** — the black, glow-eyed terror the day never sees; its kills
+finally deposit `corpse_heat` (it joins the food economy), and it **competes** with the Knifeback for the
+same prey (a howler pack inside a nest's territory splits the larder — both get hungrier, the roads get
+worse; the rivalry is free pressure).
 
 **L6 — Apex nests** (rare, memorable, territorial). **The Knifeback** — `ProtoKnifeback` on `ProtoQuadruped`,
 built NEW copying `gator.gd` (do **not** extend `lurker`: it's a humanoid stealth puppet, wrong for an apex
@@ -203,7 +207,8 @@ has a concrete effect:
   (damage-reduction), `fast` (speed mult), `blind` (hunts by `noises_in` only), `nocturnal` (active in dark,
   dawn-flee).
 - **Behavior:** `grazer, scavenger, pack_hunter, ambusher, nest_defender, migratory, cowardly, territorial,
-  corpse_following, road_hunting, human_curious, human_fearing, human_eating`.
+  corpse_following, road_hunting, human_curious, human_fearing, human_eating, strict_nocturnal` (§3.13 —
+  exists ONLY while `is_dark()`: spawn-gated to night, burned off at dawn, never seen by day, ever).
 - **Region:** `urban forest swamp desert farmland mountain highway industrial radio_tower choir_zone
   military_zone` (each narrows eligibility by biome/zone_tag/anchor/faction/proximity).
 
@@ -291,9 +296,9 @@ unless hungry/desperate/experienced/prey-looks-weak."
 **Nest tick + hunting party** (pseudocode; nest tick copies `bandits.gd`, party copies `howler` roles +
 `gator` strike):
 ```
-_tick: prey = 0.10·grazer_pop + 0.03·rodent_pop + 0.15·corpse_heat + 0.05·food_stockpile
+_tick: food_eff = clamp(food_avail + 0.05·food_stockpile, 0, 1)   # ONE hunger law — F-HUNGER (§4)
        food_stockpile *= 0.92^dh                              # spoilage — a fed nest returns to hunger
-       hunger += (0.014·pop_load − 0.02·prey)·dh; clamp 0..1
+       hunger += (h_rise·pop_load·(1−food_eff) − h_fall·food_eff + brood)·dh; clamp 0..1
        brood  += (0.01 if hunger<0.4 else 0)·dh
        expansion_pressure += 0.02·dh·((hunger>=0.5)+(juveniles>=cap))
        sightings += signal_pressure·dh                        # strength NOT in accrual (balance law)
@@ -490,6 +495,58 @@ by the time you hear the close scream, you have already been warned in ≥3 othe
 (§3.8). Freebie fix riding this pass: the horse's mount sound is a `car_door` placeholder (`horse.gd:248`) —
 it gets a real `horse_snort` from the same production list.
 
+### 3.13 THE NIGHT SHIFT — the world changes hands at dusk
+
+The clock is already built (`daynight.gd`: 24-min days, `hour`/`day`, `daylight()`, twilight ramps, moon =
+night floor, `is_dark()` `:61`, `vision_mult()` 0.4–1.0 `:67`). The ecosystem formalizes it into **shift
+windows** matching the existing twilight ramps: **DAY 6:00–18:00 · DUSK 18:00–20:00 · NIGHT 20:00–4:30 ·
+DAWN 4:30–6:00.** Every creature row's `activity[]` resolves against these windows (F-SHIFT). The law:
+**night is not darker day — it is a different ecosystem with a different cast, and the changeovers are
+readable events.**
+
+**The two-shift duty table** (what each layer does, per window):
+
+| Layer | DAY | DUSK (the handoff) | NIGHT | DAWN (the debrief) |
+|---|---|---|---|---|
+| Grazers | graze in the open — the visible herds | **path to bed-down cover** (a readable migration: the herd leaving the solar field tells you the time) | bedded in cover, near-still — easy meat (F-NIGHT off-screen predation ×2) | rise, return to feed grounds |
+| Rodents | hidden in anchors (except Carrion Squirrel) | emerge | **the rodent shift** — scurry chorus, Wire/Sump rats active, wrecks alive | back into the anchors |
+| Birds | the EYE read-layer flies (§3.7) | **stream to roost** — where they roost is the safe-ish ground, a free tell | **absent — the bird language is OFFLINE at night; the read channel hands off to the EAR (§3.12: calls, bed, scurry) and to EYESHINE** | **the morning sweep**: vultures rise and find the night's kills — the dawn spiral over the interstate is the report of what happened while you slept |
+| Pack (Razor Dog line) | lay up at dens/shade (jumpable — the day counterplay) | wake; first howls (F-CALL activates) | road-hunting at full aggression | den up |
+| **HOWLERS (`strict_nocturnal`)** | **do not exist — never seen by day, ever** | — | **own the dark** (below) | FLEE + burn off the map (existing `howler.gd:217`) |
+| Apex (Knifeback) | **den-bound ambusher** — AMBUSH only at the den; the day is when you can hunt IT | patrols wake | hunts (the human-gate's `is_dark()` term; STARVING road ambushes are night-weighted) | drags kills home |
+| The human-gate | mostly shut | opening | naturally open (night is a gate term) — **but the warning contract still binds: ≥3 warnings, night or not** (eyeshine, howls, dog balk all count) | closing |
+
+**THE STRICT-NOCTURNAL LAW — the owner's predator.** The black things with the glowing eyes are the
+**howlers** (`howler.gd`: dark quad bodies, amber emissive eye spheres `:83`, headlight fear `:310`,
+dawn-flee `:217`, `night_pack` group) — already built as night creatures, now formalized and folded into
+the chain:
+- **Spawn gate:** a `strict_nocturnal` row spawns ONLY while `is_dark()`; at dawn the existing FLEE fires
+  and the pack despawns off-view. **A player who only travels by day never sees one — only their leavings**
+  (drag marks, gnawed kills, the dog refusing a treeline at noon). That mystery is load-bearing: it is the
+  seam the future HUNTERS idea (§15) hangs on.
+- **EYESHINE is the night read:** the amber eye pairs render as emissive points visible to ~60 m regardless
+  of `vision_mult` (emissive defeats darkness — information the dark can't hide). Two amber points at the
+  treeline, fixed on you, is the iconic night warning — and it counts toward the warn mask (a perceived
+  clue, same contract).
+- **Light is counterplay, and a beacon:** headlight fear (existing) repels the pack cone-front — but
+  headlights at night also feed `sightings`/visibility (the bandit law). Kill your lights to hide; keep
+  them to hold the howlers off. That tension is the night drive.
+- **They join the food economy:** howler kills now drop/deposit `corpse_heat` (off-screen: their predation
+  feeds the F-CORPSE deposit term), they cull grazers/rodents at night, and they **compete with the
+  Knifeback** — overlapping territory splits `food_avail`, both parties hungrier, the roads worse.
+- **Blood moon (existing `events.gd` roll):** on a blood-moon night the howler realization cap lifts +1 and
+  F-CALL cadence halves — the shipped event finally *means* something ecological.
+- **Owner call (one flag):** the Knifeback defaults to **dusk+night hunter, day-bound den** — so it CAN be
+  scouted and fought by day at its den, which is the fair counterplay window and keeps the two predators
+  distinct (the howler is *never* seeable; the apex is *findable if you dare*). If you want the apex
+  strictly nocturnal too, it's the same `strict_nocturnal` tag on its row — one data flag, no code.
+
+**Night legibility (the contract does not sleep):** at dusk the read channel hands off eye→ear (birds
+offline; F-CALL escalation, the wildlife bed, scurry chorus, eyeshine, and the dog's balk carry the night).
+The changeover itself is information: herds bedding early / birds roosting low and tight = pressure is high
+tonight. At dawn the world debriefs you — the morning vulture sweep and fresh gnawed roadkill are the
+night's ledger, readable over coffee at the safehouse door.
+
 ---
 
 ## 4. Formulas
@@ -506,7 +563,7 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 | **F-RODENT** | `food_r=clamp(0.3·plant_mass+0.8·corpse_heat+0.5·water_rot,0,1); rodent_pop += dt·(r_rod·(food_r−rodent_pop) − c_pr·predator_pressure·rodent_pop)` | `r_rod=0.06`; `c_pr=0.07`; clamp 0..1 — **the EXPLODE rule** | R=0.30,C=0.40,WR=0.80,pp=0.396 → +0.027 → **0.327** (climbs); nest cleared (pp=0) → +0.50/h |
 | **F-CORPSE (sector)** | `corpse_heat += dt·(deposits − k_corpse·(1+0.5·water_rot)·corpse_heat − c_rc·rodent_pop·corpse_heat)` | `deposits`=on-screen `Σ body.heat / CORPSE_HEAT_NORM(3.0)`, off-screen `0.02·predator_pressure`; `k_corpse=0.08`; `c_rc=0.05` | C=0.40,R=0.30,WR=0.80 off-screen → −0.043 → **0.357** |
 | **F-CORPSE (body)** | `heat = clamp(heat0 − _age/DECAY_SECONDS·(rain?1.5:1.0), 0, 1)`, `heat0 = clamp(0.4·size + 0.3·blood + 0.3·infection + exposed_bonus, 0, 1)` | `size∈{0.6,1.0,1.6}`→pre-clamped; `blood` from launch len; `exposed_bonus=0.2` outdoor; `DECAY_SECONDS=90` (32 looted) — **canonical, [0,1] (0.5)** | car-flung raider outdoor: heat0=0.81; at 45 s rain → **0.06** (vultures thinned 4→0) |
-| **F-HUNGER** | `if nest_strength>0: brood=(nest_strength>0.6)?0.01:0; predator_hunger += dt·(h_rise·(1−food_avail) − h_fall·food_avail + brood)` | `h_rise=0.03`; `h_fall=0.05`; clamp 0..1; **plus a discrete `+0.06`/grazer-kill impulse (§3.10)** | H=0.60,food_avail=0.325 → +0.004/h; 6 kills → +0.36 instantly → STARVING near the den |
+| **F-HUNGER** | `if nest_strength>0: food_eff=clamp(food_avail+0.05·food_stockpile,0,1); brood=(nest_strength>0.6)?0.01:0; predator_hunger += dt·(h_rise·pop_load·(1−food_eff) − h_fall·food_eff + brood)` | `h_rise=0.03`; `h_fall=0.05`; `pop_load=clamp((adults+0.5·juveniles)/3, 0.5, 3)`; clamp 0..1; **plus a discrete `+0.06`/grazer-kill impulse (§3.10)**. **Fixed point: `food_eff* = h_rise·pop_load/(h_rise·pop_load + h_fall)` — pop_load 1 → 0.375, THE number the §15 seeding budget is built on** | H=0.60, food_eff=0.325, pop_load=1 → +0.004/h (starving slowly: 0.325 < 0.375); food_eff 0.45 → −0.006/h (recovering); 6 kills → +0.36 instantly → STARVING near the den |
 | **F-NEST** | `surplus=max(0,food_avail−0.5·predator_hunger); deficit=max(0,predator_hunger−0.7); nest_strength += dt·(n_grow·surplus − n_decay·deficit)` | `n_grow=0.006`; `n_decay=0.02`; clamp 0..1; forced 0 in non-apex biome / protected sector | N=0.55,food_avail=0.325 → +0.00015 → **0.550** |
 | **F-NOISE** | `human_noise = clamp(human_noise·exp(−k_noise·dt) + noise_in, 0, 1)` | `k_noise=0.8` (forgets in ~3 gh); `noise_in`=normalized `noises_in` on-screen else 0 | 0.50 off-screen dt=1 → **0.225** |
 | **F-SCORE** | `FV + 4·scent + 3·noise + 5·weakness + 3·memory − 4·norm_dist − danger·danger_discount` | `weakness=1−hp_ratio`; `noise=radius/90`; `norm_dist=clamp(dist/territory_r_eff,0,3)`; `danger_discount=base[nstate]·(1−0.3·aggression)` | HUNGRY nest: grazer@60m=**8.58**; lone armed bleeding player@120m night=**9.86** → hunts the human; same player FED=**5.9** → ignored |
@@ -519,6 +576,8 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 | **F-SENSE** | `sense_range = base_range · daynight.vision_mult() · weather.vision_mult() · wind_mult` (sight only; noise/scent ignore mults) | base≈40 m; day 0.4–1.0; weather dust 0.18/rain 0.6/clear 1.0; wind 0.7–1.3 (P3) | dust night: 40·0.5·0.18 = **3.6 m** — the Knifeback can't see you; go silent to survive |
 | **F-AMBIENT** | `wildlife = clamp(0.5·grazer_pop + 0.3·plant_mass + 0.2·(1−corpse_heat), 0, 1) · (1 − suppress)`; `suppress = max(predator_pressure, infection_pressure, choir_zone)`; `bed_db = lerp(BED_QUIET, BED_LIVE, wildlife)` | `BED_QUIET=−50`, `BED_LIVE=−22` (dB, the existing `_amb` floor is −50); `predator_pressure` reused from §4 helpers; recompute on sector change, ~2 s crossfade; `wildlife < QUIET_TELL=0.15` in a lively-baseline biome credits warn bit 1 after 10 s | healthy swamp G=0.6,P=0.75,C=0.1,pp=0.1 → wildlife≈0.66 → bed **−31.5 dB** (alive). Same cell, STARVING nest pp=0.72 → wildlife≈0.21 → **−44 dB**; clear the nest and the rats boom → scurry chorus replaces birdsong. The land is *audibly* dying |
 | **F-CALL** | `call_period_s = base[nstate] · rand(0.8,1.2)`; `call_ring_m = lerp(90, 30, hunger)`; `call_db = lerp(−16, −4, hunger)`; played `audio.play_at(sfx.id, ring_point)` — **audio-only, no emit_noise (0.10)** | `base = {FED:∞, HUNGRY:120, STARVING:60}` s; ring_point = a random azimuth at `call_ring_m` from the player, clamped inside `territory_r_eff`; screech overrides: always on dispatch + LUNGE telegraph | HUNGRY nest, hunger 0.5: a howl every ~2 min from ~60 m at −10 dB — "something's out there." STARVING 0.85: every ~min from ~35 m at −5 dB — the ring is closing. The ESCALATION is the information |
+| **F-SHIFT** | `active(row) = current window ∈ row.activity[]`; windows DAY 6–18 / DUSK 18–20 / NIGHT 20–4:30 / DAWN 4:30–6 (`daynight.hour`, matching the twilight ramps); changeover behaviors run over `CHANGEOVER_MIN` at the window edge (herds path to bed-down, birds to roost, packs wake); `strict_nocturnal`: spawn gate `is_dark()`, at dawn FLEE→despawn off-view (`howler.gd:217`) | `CHANGEOVER_MIN = 20` game-min (≈ 20 real s); inactive rows realize 0 regardless of floats (activity is a hard gate on §3.6, like `safe_to_spawn`); a bedded/roosted actor still EXISTS if already realized — it changes behavior, not existence | 18:10, Mossback herd (activity day/dusk): mid-changeover, pathing to the treeline bed-down — the herd leaving the solar field IS the clock. 23:00, Wire Rat (dusk/night): active, scurry chorus. 23:00 howler roll: `is_dark()` true → pack eligible; 5:40 → FLEE fires, gone before light |
+| **F-NIGHT** | Off-screen night predation: `deposits_off = 0.02·predator_pressure·(is_night ? NIGHT_PRED_MULT : 1)` (bedded herds are easy meat — feeds F-CORPSE); grazer cull term `c_pg` ×1.3 at night when `predator_hunger > 0.5`. Eyeshine: emissive eye pairs readable to `EYESHINE_M` independent of `vision_mult`; perceiving one sets a warn bit (the contract counts it) | `NIGHT_PRED_MULT = 2.0` (1.5–3); `EYESHINE_M = 60` (30–90) — emissive defeats darkness by design: the dark hides the body, never the eyes; blood moon: howler realization cap +1, F-CALL base halved, for that night only (`events.gd` roll) | A STARVING sector overnight (pp=0.5): deposits 0.02·0.5·2 = +0.02/gh → dawn `corpse_heat` ≈ +0.17 → the morning vulture sweep has something to find, and the player reads last night's hunt in the morning sky |
 
 ---
 
@@ -633,6 +692,11 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 | call cadence `{HUNGRY, STARVING}` | 120 / 60 s | 60–240 / 30–120 | how talkative a hungry nest is (fair-warning pacing) |
 | call ring / dB sweep | 90→30 m / −16→−4 | ±30 m / ±6 dB | how fast the howls close in as hunger rises |
 | voice cooldowns (`sfx.cooldown_s`) | per row | 2–60 s | idle-call chatter density per species |
+| `CHANGEOVER_MIN` | 20 game-min | 10–40 | how long the dusk/dawn handoff takes (the readable migration) |
+| `NIGHT_PRED_MULT` | 2.0 | 1.5–3 | off-screen night predation rate (how much the dark eats) |
+| `EYESHINE_M` | 60 m | 30–90 | eyeshine read distance (the night warning range) |
+| night howler density / HOT cap | 1 per 4–6 cells / 1 pack | §15 bands | how owned the night feels (terror, not wallpaper) |
+| blood-moon lift | cap +1, call ×0.5 | 0–2 / 0.3–1 | how bad a blood-moon night gets |
 
 ---
 
@@ -666,6 +730,17 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
    `< −42`, and 10 s of lingering there credits warn bit 1; a dispatch plays `knifeback_screech`
    positionally **before** any Knifeback is within the player's vision cone (calls-are-fair-warning);
    `play_at` self-frees on its timer (headless-safe, no leaked players after the run).
+9. `night_shift_sim` — drive the clock (T-wait/`dev_mult`): at DUSK the staged Mossback herd paths to
+   bed-down and the vulture marker roosts; while `is_dark()` a `strict_nocturnal` pack becomes eligible and
+   realizes (off-view); **at any DAY hour, zero `strict_nocturnal` actors exist in the tree**; at DAWN the
+   FLEE fires and the pack is gone before `daylight() > 0.5`; an overnight STARVING sector deposits
+   F-NIGHT corpse_heat and the morning sweep spawns a vulture marker over it; eyeshine nodes are emissive
+   and their perception sets a warn bit; blood-moon night lifts the cap by exactly +1.
+10. `seed_budget_sim` — run the §15 procedural seeder over a staged 10×10-sector region: densities land
+    inside the §15 bands; **no apex nest seeds without a viable prey shed** (the insta-starve guard); no
+    two nests within 3 cells; nothing seeds in a protected bubble; same `WORLD_SEED` → byte-identical
+    placement (determinism); a region seeded at 2× density shows the documented failure mode (wall-to-wall
+    STARVING) — asserting the guard is what prevents it.
 
 **Phase 2** — `rodent_boom_sim` (clear nest → rodent explosion → disease → settlement problem);
 `pack_variant_sim` (one skeleton, three region_mods; unknown state → default; fold law holds);
@@ -729,7 +804,13 @@ plumbing):**
   identity ships with it, day one); the **stampede** rumble; the **wildlife bed** (`amb_swamp` +
   `birdsong_day` on F-AMBIENT — the quiet-tell live in the Alley); F-CALL escalation for the one nest.
   ~10 SoundForge generations (§13 P1 rows); everything falls back to synth until the files land.
-- Offline advance (pure) → one briefing line. Sims 1–8 (§8).
+- **The night shift, P1 cut (§3.13):** the `strict_nocturnal` law on the howler (spawn gate + dawn burn-off
+  mostly exist — formalize + fold its kills into `corpse_heat`); eyeshine long-range read; the Knifeback's
+  day-den / night-hunt split; the dusk/dawn changeover for the ONE herd + the vulture roost/morning sweep;
+  F-NIGHT off-screen predation. Blood-moon lift (one `events.gd` read).
+- **Seeding, P1 cut (§15):** the deterministic per-cell seed roll + the viability guard, run over the Alley
+  corridor only — the one authored den stays authored; the seeder proves itself on packs/herds/anchors.
+- Offline advance (pure) → one briefing line. Sims 1–10 (§8).
 
 **Deliberately NOT in P1** (add only when the Alley "feels good" — the owner's rule): the full 6-state machine
 (BREEDING/WOUNDED/EXPANDING), a pack **director**, non-Florida biomes, the rodent-explosion *sim depth*, nest
@@ -749,7 +830,9 @@ new roster (hog squeal, goat bleat, Canebelly bellow, crow gather, a proper `jac
 variant voice re-skins as rows** (Church Wolf = `wolf_howl`, Salt Dog hunts blind so its *voice* is the only
 tell); feeding/drag foley (`bones_crunch`, `drag_heavy`); the horse `car_door` placeholder fixed
 (`horse_snort`); **radio VO** for the missing-caravan chatter via `voices.mjs` (§13 — the 4 LOCKED voices,
-never change a `voice_id`).
+never change a `voice_id`). **Night P2:** full bed-down/roost migrations for the wider roster; howler-vs-
+Knifeback territory competition (split `food_avail`); the seeder (§15) goes region-wide with per-biome
+density rows.
 
 ### PHASE 3 — the full pressure system
 
@@ -832,7 +915,7 @@ its file lands.
 | `tools/soundforge/manifest.json` | 1→2 | append the §13 entries; `node tools/soundforge/generate.mjs <id>` per sound; VO lines via `voices.mjs` (the 4 LOCKED voices — never change a `voice_id`) |
 | `game/proto3d/horse.gd` | 2 | replace the `car_door` mount placeholder (`:248`) with `horse_snort` |
 | `game/data/population_targets.json` | 2 | add grazer/rodent desired counts to `swamp`/`house_field`/`industrial` zone rows |
-| `game/proto3d/howler.gd` | 1→2 | P1: re-skinnable as the pack base via a row (no structural change). P2: cross-scan the `grazer` group so packs hunt prey |
+| `game/proto3d/howler.gd` | 1→2 | P1: re-skinnable as the pack base via a row; **`strict_nocturnal` formalized** (spawn gate `is_dark()`, dawn FLEE retained), kills deposit `corpse_heat` (joins the food economy), eyeshine emissive read to `EYESHINE_M`, blood-moon cap lift. P2: cross-scan the `grazer` group so packs hunt prey; territory competition with the nest |
 | `game/proto3d/radio.gd` | 2 | `SIGNALS` row + `_deliver` case + `LORE` breadcrumb for missing-caravan chatter (`:13,22,98`, model the `howlers` case `:127`) |
 | `game/proto3d/respect.gd` | 2 | no code change — nest-clear bounties call existing `add_esteem` |
 | `game/proto3d/metaworld.gd` | 3 | nest→settlement off-screen raids via `force_raid` |
@@ -870,6 +953,7 @@ deepest-authored slice is the VA/NC/GA/FL I-95/I-75 corridor (Meridian ≈ `(110
 | Tower Bird | 4 | urban | **radio towers, tall ruins** | city radio towers, police stations |
 | Whitewing | 4 | any | clean open land | only where `infection_pressure` low — **its absence marks danger** |
 | Razor Dog / variants | 5 | per §10 | dusk roads, dens | see the regional table |
+| **Howler** (`strict_nocturnal`) | 5-night | any, road-adjacent | **the dark itself** — night ranges, never a daytime den you can find | wherever `is_dark()` — 1 range per 4–6 cells (§15); NEVER seen by day, only its leavings |
 | **The Knifeback** | 6 | swamp/urban/industrial/forest | **overpasses, drainage tunnels, collapsed malls** | P1: one den under an I-75 overpass in the FL swamp; P2+: FL/GA/AZ/NM/TX/IL/CA |
 
 ---
@@ -954,6 +1038,74 @@ every system in this spec picks it up from the row alone.
 
 ---
 
-*End of spec. Phase 1 = "Alligator Alley Awakens." The land talks — to the eye (§3.7–3.8) and the ear
-(§3.12) — before it bites. A new animal is a row (§14); its voice is a file. Nothing broadens until the
-Alley feels good.*
+## 15. Procedural Seeding Budget — how much of what, for the system to function
+
+Nothing is hand-placed (the one authored P1 den excepted). Everything seeds from **deterministic per-cell
+rolls** at cell bootstrap — `rng.seed = hash("ecoseed:%s:%d" % [cell_id, WORLD_SEED])` (the chunk-hash
+idiom, `world_stream.gd:258`) rolled against per-biome density rows in `ecology.json` — so the same world
+seed always grows the same wilds, saves are stable, and retuning distribution is editing rows, never code.
+Candidacy resolves to reality only when a qualifying **anchor** exists at chunk load (a den needs an
+overpass/industrial/ruin; no anchor → the candidacy silently lapses), so densities concentrate on
+infrastructure automatically — which IS the fiction. A P3 MapForge layer can pin/override any of it.
+
+### 15.1 The stability arithmetic (why these numbers)
+
+The budget falls out of the spec's own fixed points — this is the "if this happens, that happens" made
+placement math:
+- **A nest is stable iff `food_eff ≥ 0.375` sustained** (F-HUNGER fixed point at pop_load 1). With
+  `food_avail = 0.5·grazer + 0.3·rodent + 0.4·corpse`, that means roughly **grazer_pop ≈ 0.6, or 0.45 +
+  healthy rodents** in the nest's sector.
+- **Grazers equilibrate near `plant_mass − 1.67·predator_pressure`** (F-GRAZER fixed point) — a FED nest
+  (pp ≈ 0.17) drags its own larder down ~0.28. So a nest's own cell can't feed it alone at typical
+  plant_mass; it needs a **PREY SHED**: the 3×3 block around the den averaging `plant_mass ≥ 0.55` with
+  **≥4 grazer-capable cells** (P2 migration rebalances grazers into the culled cell; P1's authored den
+  sits on the swamp's densest band, which satisfies this by placement).
+- **Therefore the seeder must enforce the VIABILITY GUARD:** roll a nest candidacy only where the shed
+  test passes — *else skip*. This is the single most important rule in the section: dense-seeding nests
+  onto land that can't feed them produces wall-to-wall STARVING sectors, which turns "the roads become
+  meat" from a story into noise. An unstable nest is a design bug, not extra content.
+
+### 15.2 The budget table (per 10×10-sector region ≈ 5×5 km; the FUNCTIONAL bands)
+
+| What | Seed rate (eligible cells) | Realized on screen | Floor (below = feels empty) | Ceiling (above = collapse) |
+|---|---|---|---|---|
+| Plants | biome-given (`biome_seed` rows) — free | scatter per §3.4 | ≥40% of cells plant-capable | — (plants can't overshoot) |
+| Grazer herds | grazer_pop seed 0.25–0.35 in plant-capable cells | 1 herd (3–6 heads) per **2–3** plant cells | 1 herd / 4 cells | 1 herd / cell (grazing outstrips F-PLANT regrowth) |
+| Rodent anchors | ride the existing wreck/placement rolls — every wreck IS one | swarms per anchor, `K_rod` cap | ≥1 anchor per road-shoulder cell | — (anchor-bound, self-capping) |
+| Day packs (Razor Dog line) | 1 den per **6–10** eligible cells | ≤2 packs realized in the HOT 3×3 | 1 / 12 cells | 1 / 4 cells (they strip the grazer floor the nest needs) |
+| **Howlers (night)** | 1 night-range per **4–6** road-adjacent cells | **hard cap 1 pack realized per HOT set** (terror, not wallpaper); blood moon +1 | 1 / 8 cells | 1 / 3 cells (night becomes a shooting gallery, fear dies) |
+| **Apex nests** | **1 per 15–25 eligible cells** (≈ one per 8–12 km of corridor), never within **3 cells** of another (territorial law), never in a protected bubble, **viability guard mandatory** | 1 den + parties per §3.5 | 1 per 30 cells (the apex never enters the player's story) | 1 per 10 cells (sheds overlap → chronic starvation everywhere) |
+| Birds | **never seeded — always derived** (corpse_heat / nest / infection) | per F-BIRDS | — | — |
+
+Read the table as: **the system functions anywhere between floor and ceiling; the seed-rate column is the
+tuned center.** All seven rates ship as `ecology.json` `seed_density` rows keyed by biome (swamp/forest
+rich, desert/plains sparse, urban rodent-heavy), so "how much of what" stays a data question forever.
+
+### 15.3 What the seeder actually does
+
+1. At cell bootstrap (`_new_cell`): hash-roll nest/pack-den **candidacy** vs the biome's `seed_density` row;
+   store a flag, spawn nothing.
+2. Nest candidacy → run the **viability guard** over the 3×3 shed (plant seeds are known from biomes — no
+   simulation needed at seed time). Fail → drop the flag.
+3. At chunk load: candidacy + qualifying anchor present → materialize the den/dens (off-view, before
+   arrival, the gator pattern). No anchor in any of the cell's chunks → lapse.
+4. Herds/rodents need no placement at all — they ARE the float seeds (§3.2) realized by §3.6.
+5. Spacing, protected-bubble, and HOT-cap laws enforced at realization, asserted by `seed_budget_sim`.
+
+### 15.4 Banked, NOT greenlit — HUNTERS (the humans who come looking)
+
+The owner's forward idea, recorded so the seams stay open, deliberately undesigned: **hunters** — NPC
+parties who track the night things *without knowing what they are*. Everything they need already exists in
+this spec by design: they read the SAME clue rows the player does (§3.8 — drag marks, gnawed kills,
+eyeshine reports), camp at dusk near suspected territory (the campfire is bait the spec already understands
+— noise + light + livestock), feed the radio chatter seam ("fellas at the rest stop swear they saw eyes"),
+and plug into the existing bounty/`respect` economy the nest-clear jobs use. The `strict_nocturnal` law is
+what makes them possible: nobody who hunts by day has ever *seen* one, so the hunters are always wrong
+about what it is — that dramatic irony is the content. **Do not build any of this until greenlit; this
+paragraph exists so nothing in Phases 1–3 forecloses it.**
+
+---
+
+*End of spec. Phase 1 = "Alligator Alley Awakens." The land talks — to the eye (§3.7–3.8), the ear
+(§3.12), and differently after dark (§3.13) — before it bites. A new animal is a row (§14); its voice is a
+file; its numbers are §15's bands. Nothing broadens until the Alley feels good.*
