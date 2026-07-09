@@ -10,7 +10,10 @@ roles: circler/charger/screamer, ripple, scream, vision-cone circling, `noises_i
 (ambush→lunge→recover apex skeleton + `corpse_pending`), `corpse.gd` (the corpse group + decay), the
 noise bus (`emit_noise`/`noises_in`), `world_state.gd` (`run_offline_catchup`, deterministic + bounded),
 `metaworld.gd` (off-screen raid records), `respect.gd` (lazy float-bag ledger pattern), `radio.gd`
-(bulletins), `dog.gd` (bond/record/grudge pattern), `weather.gd`/`daynight.gd` (`vision_mult`).
+(bulletins), `dog.gd` (bond/record/grudge pattern), `weather.gd`/`daynight.gd` (`vision_mult`),
+`audio.gd` (two-tier SFX: SoundForge mp3 overrides synth fallback — **a new sound id needs only a file,
+never engine code**; `play_at` positional one-shots, `attach_loop`/`attach_flat_loop` beds, `play_count`
+sim hook), `tools/soundforge/` (`generate.mjs` ElevenLabs SFX + `voices.mjs` TTS in the 4 LOCKED voices).
 **Core law:** *If the land is healthy, predators stay wild. If the land is starving, the roads become meat.*
 **One-line identity:** the world is a **pressure system** of ~10 invisible per-sector floats; when the
 player enters a sector the game realizes visible creatures **from those numbers**, and everything the
@@ -40,6 +43,7 @@ These resolve the blockers the review surfaced. They are binding; the facet writ
 | **0.7** | **Save: one added path, no `SAVE_VERSION` bump.** `data["population"] = population.serialize()` (the eco floats ride inside each cell for free); `apply_save` restores via `.get("population", {})`. On restore, set every cell's `eco["_last_h"] = _now_h()` so the first live `dt ≈ 0` (never a whole-game-age catch-up). `_last_h` is bookkeeping, not gospel. | The dormant ledger's own TODO (`population.gd:397-401`); avoids a load-time saturation bug. | `_last_h` serialize contradiction. |
 | **0.8** | **Offline advance is a PURE function** `population.advance_offline_day(seed_base, day, digest)`, called **inside** `run_offline_catchup`'s day loop (`world_state.gd:144`), seeded `hash("ecology:%s:%d" % [sid, base_day+day+1])` (absolute game-day). It mutates floats + appends digest strings only — **never** routed through `events.roll_daily` (which spawns caravans/audio). | Determinism + the "never spawns/plays offline" fairness law; avoids the pre-existing `roll_daily` offline side-effect (flagged for a separate fix). | Offline seed inconsistency + caravan spam. |
 | **0.9** | **One HUD warning owner.** `hud.set_threat` becomes a **priority/owner stack** (each writer registers `text+priority+ttl`; HUD renders the top, or two stacked lines). Precedence: **imminent apex strike > checkpoint (bandit) > drone-shadow > nest territory > NO-BIRDS**. `toast()` gets a small **queue**. | `set_threat` is one shared Label the bandit director rebuilds every tick — it silently blanks/overwrites every ecology tell; `toast()` overwrites with no queue. | The must-not-miss reads losing a race; toast clobber. |
+| **0.10** | **Audio is presentation; the noise bus is simulation — one-way, forever.** `emit_noise` is the sim event predators react to; `audio.play_at` is what the player hears. A creature row may **pair** them (its `sfx` entry carries an optional `pair_noise:{r,kind}` so one row line produces both the sound and the signal), but playing audio NEVER creates a sim signal by itself, and predators NEVER read `AudioServer` state. Predator calls (howls, the Knifeback screech) are audio-only — the predator talking, not a signal. | Coupling them either lets sounds hunt the player (feedback loops) or forces every SFX through the ring buffer. `play_at`'s `max_distance 90` already mirrors `max_noise_m = 90` — what the sim can hear, the player can hear, by convention not by wiring. | A whole class of audio↔AI feedback bugs, pre-empted. |
 
 ---
 
@@ -437,6 +441,55 @@ actors, plays no audio**; **protected sectors** (safehouse/homebase bubble) forc
 advance the daynight clock (offline does not touch `_last_h`), so the next live tick resumes with no
 double-count.
 
+### 3.12 The EAR LAYER — audio as information (the second read channel)
+
+The bird layer is the eye's read of the pressure system; this is the **ear's**. Same law — information
+without UI — and same substrate discipline: everything rides `audio.gd`'s two tiers (a SoundForge mp3 at
+`assets/sfx/<id>.mp3` overrides a synth fallback; the dir scan means **a new creature voice is a file drop,
+zero engine code**) and decision 0.10 (audio never drives simulation).
+
+**Per-creature voice = data.** Every `creatures.json` row gains an `sfx` block; each entry is
+`{id, db, pitch, cooldown_s, pair_noise?}`:
+
+```json
+"mossback": { "sfx": {
+  "idle":  {"id":"mossback_call",  "db":-14, "cooldown_s":[18,40]},
+  "alarm": {"id":"mossback_alarm", "db":-4,  "cooldown_s":[2,4], "pair_noise":{"r":35,"kind":"stampede"}},
+  "hurt":  {"id":"hurt",           "db":-6,  "pitch":0.8},
+  "death": {"id":"body_thud",      "db":-2} } }
+```
+Missing entries are silent (default-safe); ids resolve against `ProtoAudio.streams` (file or synth), so a
+row can reference `growl`/`howl`/`hurt`/`body_thud` today and upgrade to a bespoke sample later by dropping
+a file. `pair_noise` is the ONE place a sound and a sim signal are born together (0.10) — the Mossback's
+alarm bleat and its `"stampede"` `emit_noise` come from the same row line.
+
+**The audible read-language** (what the ear learns, mirror of the bird table):
+
+| What you hear | Driven by | Meaning |
+|---|---|---|
+| **Wildlife bed** (frogs/insects/birdsong loop, per biome) | F-AMBIENT: volume from `grazer_pop`/`plant_mass`, suppressed by `predator_pressure`/`infection_pressure` | the land is alive — the healthy-sector baseline |
+| **The bed goes QUIET** | suppression term high | the audio NO-BIRDS: apex near, infected, or Choir — the scariest silence, hearable before it's visible |
+| **Distant howls/yips** at dusk (`howl` reused, jackal pitch 1.15) | nest/pack state: FED silent · HUNGRY ~120 s, far ring, −14 dB · STARVING ~60 s, tight ring, −6 dB (F-CALL) | the pack's mood, at a distance — closer + more frequent = hungrier |
+| **The Knifeback SCREECH** (`knifeback_screech`) | party dispatch + LUNGE telegraph | the apex's audio identity — once heard, never misread; also the named-nemesis signature (§3.10) |
+| **Low den breath** (`knifeback_breath` loop, `attach_loop` on the sentinel, max_distance 70) | within ~`territory_r·0.3` of the den | you are standing on the nest |
+| **Stampede rumble** (`stampede`) | herd alarm ripple | the predator reveal, audible through cover — hooves tell you *which way* they fled from |
+| **Rat scurry loop** (`rat_scurry`, `attach_loop` on the anchor) | Wire Rats resident in a wreck | the wreck is occupied before you open it; sector-wide scurry chorus = the rodent boom after a nest clear |
+| **Wing-burst** (`vulture_wings`) | flock SCATTER | something just moved — the audio edge of the visual scatter |
+| **Dog growl** (existing `growl`/`dog_whine`) | the balk (§3.8, warn bit 3) | your personal early-warning system, already voiced |
+| **Bone crunch / heavy drag** (`bones_crunch`, `drag_heavy`) | party feeding / DRAG state | a kill is being eaten or hauled — follow it to the den (or away from it) |
+
+**The wildlife bed** extends the existing ambience seam (`proto3d.gd:1427`'s `attach_flat_loop(want, -50)`):
+add `amb_swamp` (frogs/insects) to the biome pick and a second `birdsong_day` layer whose volume is
+**F-AMBIENT** — recomputed on sector change (crossfade ~2 s), suppressed exactly by the pressure that empties
+the sky. The quiet-tell is credited to the **missing-birds warn bit (bit 1)** when the player lingers ≥10 s in
+a suppressed sector whose biome baseline is lively — ear and eye feed the same contract, no new bit.
+
+**Calls are fair-warning too:** the F-CALL escalation (farther-apart-and-quiet → closer-and-loud) is the
+audible arm of the warning ladder; the Knifeback always screeches on dispatch **before** it is visible —
+by the time you hear the close scream, you have already been warned in ≥3 other ways or the strike defers
+(§3.8). Freebie fix riding this pass: the horse's mount sound is a `car_door` placeholder (`horse.gd:248`) —
+it gets a real `horse_snort` from the same production list.
+
 ---
 
 ## 4. Formulas
@@ -464,6 +517,8 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 | **F-BIRDS** | `n = clampi(round(1 + h·6), 0, MAX_BIRDS=7)`, `h=clamp(Σ cluster body.heat / CORPSE_HEAT_NORM,0,1)`; formation by h-band (§3.7); `n=0` if suppressed | `CLUSTER_R=40`; `FEAR_R=60`; `INFECT_ABSENT=0.6` | h=0.5 → 4 birds (CIRCLE_LOW); predator within 60 m → n=0 → NO-BIRDS chip |
 | **F-OFFLINE** | per day: run WARM F-PLANT..F-NEST at dt=24 (×4 substeps), seed `hash("ecology:%s:%d"%[sid,base_day+day+1])`; do NOT touch `_last_h` | `days=clampi(gap_days,0,7)`; threshold 12 h | 5-day absence, grazers wiped before logout → grazers rebound ~0.15, hunger climbs → STARVING on return |
 | **F-SENSE** | `sense_range = base_range · daynight.vision_mult() · weather.vision_mult() · wind_mult` (sight only; noise/scent ignore mults) | base≈40 m; day 0.4–1.0; weather dust 0.18/rain 0.6/clear 1.0; wind 0.7–1.3 (P3) | dust night: 40·0.5·0.18 = **3.6 m** — the Knifeback can't see you; go silent to survive |
+| **F-AMBIENT** | `wildlife = clamp(0.5·grazer_pop + 0.3·plant_mass + 0.2·(1−corpse_heat), 0, 1) · (1 − suppress)`; `suppress = max(predator_pressure, infection_pressure, choir_zone)`; `bed_db = lerp(BED_QUIET, BED_LIVE, wildlife)` | `BED_QUIET=−50`, `BED_LIVE=−22` (dB, the existing `_amb` floor is −50); `predator_pressure` reused from §4 helpers; recompute on sector change, ~2 s crossfade; `wildlife < QUIET_TELL=0.15` in a lively-baseline biome credits warn bit 1 after 10 s | healthy swamp G=0.6,P=0.75,C=0.1,pp=0.1 → wildlife≈0.66 → bed **−31.5 dB** (alive). Same cell, STARVING nest pp=0.72 → wildlife≈0.21 → **−44 dB**; clear the nest and the rats boom → scurry chorus replaces birdsong. The land is *audibly* dying |
+| **F-CALL** | `call_period_s = base[nstate] · rand(0.8,1.2)`; `call_ring_m = lerp(90, 30, hunger)`; `call_db = lerp(−16, −4, hunger)`; played `audio.play_at(sfx.id, ring_point)` — **audio-only, no emit_noise (0.10)** | `base = {FED:∞, HUNGRY:120, STARVING:60}` s; ring_point = a random azimuth at `call_ring_m` from the player, clamped inside `territory_r_eff`; screech overrides: always on dispatch + LUNGE telegraph | HUNGRY nest, hunger 0.5: a howl every ~2 min from ~60 m at −10 dB — "something's out there." STARVING 0.85: every ~min from ~35 m at −5 dB — the ring is closing. The ESCALATION is the information |
 
 ---
 
@@ -531,7 +586,9 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
   (`run_offline_catchup`, `controller_of`, `broadcast_queue`), `events.gd` (`war_state`, the seed idiom),
   `respect.gd` (add/relieve/esteem), `radio.gd` (`SIGNALS`/`LORE`/`broadcast_queue`), `hud_3d.gd`
   (`set_threat` stack, `set_recon_tags`, `toast` queue), `dog.gd` (`_sense`/`morale`/record pattern),
-  `drone.gd` (scout/`mark_hazard`), `carousel.gd` (Choir anchors, P3), `metaworld.gd` (`force_raid`, P3).
+  `drone.gd` (scout/`mark_hazard`), `carousel.gd` (Choir anchors, P3), `metaworld.gd` (`force_raid`, P3),
+  `audio.gd` (`play_at`/`attach_loop`/`attach_flat_loop`, the dir-scan asset law, `play_count` sim hook),
+  `tools/soundforge/` (`generate.mjs` SFX, `voices.mjs` locked-voice VO).
 - **Written for (these systems must be updated to reference this doc):**
   - `population.gd` — **must** host `row["eco"]`, add GROUPS `grazer`/`rodent`, add `tick_ecology` /
     `advance_offline_day`, and carry eco in `serialize`.
@@ -539,8 +596,12 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
   - `world_state.gd` — **must** call `population.advance_offline_day` in the day loop (pure), and surface eco
     digest lines in the return briefing.
   - `hud_3d.gd` — **must** convert `set_threat` to the priority stack (0.9) and add the `toast` queue.
-  - `proto3d.gd` — **must** instantiate `ProtoPopulation` + `ProtoEcology`, add the gunfire `emit_noise`, and
-    route save/restore through `population.serialize()`.
+  - `proto3d.gd` — **must** instantiate `ProtoPopulation` + `ProtoEcology`, add the gunfire `emit_noise`,
+    route save/restore through `population.serialize()`, and extend the `_amb` ambience pick with
+    `amb_swamp` + the F-AMBIENT `birdsong_day` layer.
+  - `audio.gd` — **must** add the §13 loop ids to `LOOPED` (`amb_swamp`, `birdsong_day`, `rat_scurry`,
+    `knifeback_breath`, `corpse_flies`); everything else is file drops via its dir scan.
+  - `tools/soundforge/manifest.json` — **must** gain the §13 entries (ids must match the rows' `sfx.id`s).
   - `INFECTED_TRIALS` (greenfield) — **must** set `corpse.infection` and `choir_zone` for Tower Birds /
     Whitewings / NO-BIRDS suppression and `infection_pressure`.
   - `POPULATION_WAR` — shares the same 500 m cell + `GROUPS`; the ecology GROUPS additions and `row["eco"]`
@@ -567,6 +628,11 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
 | `BAIT_R` | 70 m | 40–120 | how far a bait drop calls a predator |
 | `MAX_OFFLINE_DAYS` / threshold | 7 / 12 h | inherited | offline catch-up bound |
 | time-to-first-ambush (near den) | ~2–3 real min | 1–8 | P1 causal-loop legibility (owner-tunable) |
+| `BED_LIVE` / `BED_QUIET` | −22 / −50 dB | −18..−30 / −44..−60 | wildlife-bed loud/silent extremes (the audio NO-BIRDS) |
+| `QUIET_TELL` | 0.15 | 0.05–0.3 | wildlife level below which silence credits warn bit 1 |
+| call cadence `{HUNGRY, STARVING}` | 120 / 60 s | 60–240 / 30–120 | how talkative a hungry nest is (fair-warning pacing) |
+| call ring / dB sweep | 90→30 m / −16→−4 | ±30 m / ±6 dB | how fast the howls close in as hunger rises |
+| voice cooldowns (`sfx.cooldown_s`) | per row | 2–60 s | idle-call chatter density per species |
 
 ---
 
@@ -593,6 +659,13 @@ All per-game-hour (gh); a game-day = 24 gh = 24 real min. Coefficients ship as a
    `_last_h` reset so no double-count.
 7. `ecology_save_sim` — save→load round-trips `row["eco"]` + cells through `data["population"]`; an old save
    lacking the key loads clean (no `SAVE_VERSION` bump).
+8. `ecology_audio_sim` — every `sfx.id` referenced by any creature row resolves in `ProtoAudio.streams`
+   after `_build_all()` (file or synth fallback — a bad id is a data bug, caught headless); a herd alarm
+   increments `ProtoAudio.play_count` AND lands its `pair_noise` in `noises_in` (0.10's one pairing point);
+   F-AMBIENT: a healthy staged sector computes `bed_db > −32`, the same sector with a STARVING nest
+   `< −42`, and 10 s of lingering there credits warn bit 1; a dispatch plays `knifeback_screech`
+   positionally **before** any Knifeback is within the player's vision cone (calls-are-fair-warning);
+   `play_at` self-frees on its timer (headless-safe, no leaked players after the run).
 
 **Phase 2** — `rodent_boom_sim` (clear nest → rodent explosion → disease → settlement problem);
 `pack_variant_sim` (one skeleton, three region_mods; unknown state → default; fold law holds);
@@ -651,7 +724,12 @@ plumbing):**
   paced" tell**; **contextual save-flagged teaching**; the **dog balk**.
 - **Agency in P1:** the **bait/lure** verb (substrate exists) + a legible **destroy-nest backfire** (visible
   Wire-Rat boom + holdout gripe) so P1 does not teach the wrong lesson.
-- Offline advance (pure) → one briefing line. Sims 1–7 (§8).
+- **The ear layer, P1 cut (§3.12):** `sfx` blocks on the V1 rows (Mossback voice, rat scurry loop, vulture
+  wing-burst; jackal reuses `howl` at pitch 1.15); the **Knifeback screech + den breath** (its audio
+  identity ships with it, day one); the **stampede** rumble; the **wildlife bed** (`amb_swamp` +
+  `birdsong_day` on F-AMBIENT — the quiet-tell live in the Alley); F-CALL escalation for the one nest.
+  ~10 SoundForge generations (§13 P1 rows); everything falls back to synth until the files land.
+- Offline advance (pure) → one briefing line. Sims 1–8 (§8).
 
 **Deliberately NOT in P1** (add only when the Alley "feels good" — the owner's rule): the full 6-state machine
 (BREEDING/WOUNDED/EXPANDING), a pack **director**, non-Florida biomes, the rodent-explosion *sim depth*, nest
@@ -666,7 +744,12 @@ Squirrel/Needle Mole); off-screen sector sim for **all** visited sectors; **radi
 **nest-clear bounties** (holdout job → esteem + relieve); the **named nemesis** (name + scar + trophy, if not
 already pulled to P1); Ash Crow + Bone Kite + PERCH; the remaining clues; the burn/leave/destroy action loops
 at full depth; escalate the contract to `UNLEASH_WARNINGS=5` across the wider corridor; the scent stimulus
-layer + `feeding_grounds`/`corpse_sites`/`road_crossings` **learning**.
+layer + `feeding_grounds`/`corpse_sites`/`road_crossings` **learning**. **Audio P2:** bespoke voices for the
+new roster (hog squeal, goat bleat, Canebelly bellow, crow gather, a proper `jackal_howl`) + **regional
+variant voice re-skins as rows** (Church Wolf = `wolf_howl`, Salt Dog hunts blind so its *voice* is the only
+tell); feeding/drag foley (`bones_crunch`, `drag_heavy`); the horse `car_door` placeholder fixed
+(`horse_snort`); **radio VO** for the missing-caravan chatter via `voices.mjs` (§13 — the 4 LOCKED voices,
+never change a `voice_id`).
 
 ### PHASE 3 — the full pressure system
 
@@ -677,7 +760,10 @@ ships: Whitewing clean-land vs NO-BIRDS over Choir/Carousel anchors, `corpse.inf
 **off-screen settlement raids** (starving/expanding nest hits a holdout/homebase via `metaworld.force_raid`;
 walls mitigate; briefing reports it); wind-biased scent; full `infection_pressure`/`water_rot`/`faction_activity`
 coupling; full regional coverage; a **MapForge NESTS/ECOLOGY layer** (click-place dens + tune per-sector seeds,
-the EXIT-NODES idiom).
+the EXIT-NODES idiom). **Audio P3:** Choir-zone total suppression (near a Carousel anchor the bed AND the
+calls die — the deepest silence in the game is a place); infected corpse-flies drone keyed to
+`corpse.infection`; wind-biased call audibility (downwind howls carry, matching F-SENSE's wind term);
+regional ambience beds per new biome as pure `amb_*` file drops.
 
 ---
 
@@ -719,9 +805,14 @@ TX/IL/CA 2 (seeds; Phase 2+ fills the rest). Region strength scales commit pace 
 
 **New data:** `game/data/ecology.json` (coefficients, biome seeds, water_rot bases, zone capacities,
 apex_biomes, warning constants, clue rows, action-loop deltas, tuning) · `game/data/creatures.json` (all fauna:
-grazers/rodents/packs/birds — tags + region_mods + spawn_biomes + habitat_anchors) · `game/data/plants.json`
-(L1) · `game/data/nests.json` (apex archetypes + per-state strength + den anchors). *(Clue/bird sub-tables may
-split out later; P1 folds them into `ecology.json`/`creatures.json`.)*
+grazers/rodents/packs/birds — tags + region_mods + spawn_biomes + habitat_anchors + **`sfx` voice blocks**,
+§3.12) · `game/data/plants.json` (L1) · `game/data/nests.json` (apex archetypes + per-state strength + den
+anchors + call cadence). *(Clue/bird sub-tables may split out later; P1 folds them into
+`ecology.json`/`creatures.json`.)*
+
+**New assets:** `game/assets/sfx/*.mp3` from the §13 production list (~10 in P1, ~12 more P2/P3) — pure file
+drops; `ProtoAudio`'s dir scan picks up any id with no code change, and every id falls back to a synth until
+its file lands.
 
 **Changed files**
 
@@ -736,6 +827,10 @@ split out later; P1 folds them into `ecology.json`/`creatures.json`.)*
 | `game/proto3d/dog.gd` | 1 | `_sense` BALK toward nest territory (stop/growl/tuck via `morale`), sets the dog-refuse warn bit; (P2) the named-nemesis record path |
 | `game/proto3d/objectives.gd` (+ a save codex flag) | 1 | contextual, save-flagged first-encounter teaching (independent of the retiring first-run) |
 | `game/proto3d/weapon.gd` | 1 | (alt site for) the gunfire `emit_noise` so shooting draws predators |
+| `game/proto3d/audio.gd` | 1 | add loop ids to `LOOPED` (`amb_swamp`, `birdsong_day`, `rat_scurry`, `knifeback_breath`) — nothing else; new SFX are file drops via the existing dir scan |
+| `game/proto3d/proto3d.gd` (ambience seam) | 1 | at the `_amb` pick (`:1427`): `amb_swamp` for the swamp biome + the `birdsong_day` layer volumed by F-AMBIENT (recompute on sector change, ~2 s crossfade) |
+| `tools/soundforge/manifest.json` | 1→2 | append the §13 entries; `node tools/soundforge/generate.mjs <id>` per sound; VO lines via `voices.mjs` (the 4 LOCKED voices — never change a `voice_id`) |
+| `game/proto3d/horse.gd` | 2 | replace the `car_door` mount placeholder (`:248`) with `horse_snort` |
 | `game/data/population_targets.json` | 2 | add grazer/rodent desired counts to `swamp`/`house_field`/`industrial` zone rows |
 | `game/proto3d/howler.gd` | 1→2 | P1: re-skinnable as the pack base via a row (no structural change). P2: cross-scan the `grazer` group so packs hunt prey |
 | `game/proto3d/radio.gd` | 2 | `SIGNALS` row + `_deliver` case + `LORE` breadcrumb for missing-caravan chatter (`:13,22,98`, model the `howlers` case `:127`) |
@@ -779,4 +874,86 @@ deepest-authored slice is the VA/NC/GA/FL I-95/I-75 corridor (Meridian ≈ `(110
 
 ---
 
-*End of spec. Phase 1 = "Alligator Alley Awakens." Nothing broadens until the Alley feels good.*
+## 13. Audio Production List (SoundForge)
+
+Each row is one `tools/soundforge/manifest.json` entry (`{id, duration_seconds, prompt_influence, prompt}` —
+id **must** match the `sfx.id` the creature rows reference). Produce with
+`node tools/soundforge/generate.mjs <id>` → the mp3 lands in `game/assets/sfx/` → re-import → `ProtoAudio`
+picks it up by dir scan, **zero engine code**. Until a file lands, every id needs either a synth fallback or
+silence-by-default — ship order never blocks on audio. Loops must ALSO be added to `ProtoAudio.LOOPED`.
+`prompt_influence` ≈ 0.5 house-standard. House prompt style: dry, close, short tail, no reverb wash, gritty.
+
+| id | P | dur s | loop | prompt |
+|---|---|---:|---|---|
+| `mossback_call` | 1 | 1.6 | | Mutated elk bugle: a low mournful deer call with a wet, wrong harmonic under it, distant forest, single call, dry, no birdsong |
+| `mossback_alarm` | 1 | 1.0 | | Deer alarm snort-bark: one sharp panicked exhale-bark from a large ungulate, close, dry, cut tail |
+| `stampede` | 1 | 3.0 | | Small herd of heavy hooved animals bolting across packed dirt and cracked asphalt: rumbling hoofbeats rising then receding, a few panicked bleats, no music |
+| `rat_scurry` | 1 | 3.0 | ✔ | Rats moving inside a wrecked car: tiny claws on rusted sheet metal, intermittent scratches and squeaks, seamless loop, claustrophobic, close, dry |
+| `vulture_wings` | 1 | 1.2 | | A flock of large vultures bursting into flight at once: heavy wing flaps, a rasping croak, feathers beating air, close, dry |
+| `vulture_caw` | 1 | 1.0 | | Single vulture rasp-croak overhead, hoarse and ugly, mid-distance, open air, dry |
+| `knifeback_screech` | 1 | 2.2 | | Large unknown predator screech: a metallic rising shriek that breaks into a guttural clicking snarl, part animal part scrap-metal scrape, terrifying, mid-distance, dry — THE apex identity, never reused for anything else |
+| `knifeback_breath` | 1 | 4.0 | ✔ | Huge animal breathing slow in an concrete underpass: deep wet rhythmic breaths with a faint bone-rattle on the exhale, seamless loop, very close, claustrophobic |
+| `amb_swamp` | 1 | 6.0 | ✔ | Southern swamp at dusk ambience bed: frogs, crickets, distant water plops, thick insect drone, seamless loop, no birds, no music |
+| `birdsong_day` | 1 | 6.0 | ✔ | Healthy daytime wild birdsong bed: layered small songbirds, occasional woodpecker knock, seamless loop, open country, no wind rumble — the layer that DIES when the land does |
+| `knifeback_lunge` | 2 | 0.9 | | Big predator launching: explosive claw-scrabble on concrete then a whipping air rush, fast, close, dry |
+| `bones_crunch` | 2 | 1.4 | | Large animal feeding: wet crunching of bone and cartilage, tearing sinew, unhurried, close, dry, no growling |
+| `drag_heavy` | 2 | 2.5 | | Heavy carcass dragged over dirt and gravel: rhythmic scraping slides with claw steps between, receding slightly, dry |
+| `hog_squeal` | 2 | 1.2 | | Wild hog alarm squeal: one furious rising pig squeal, harsh, close, dry, cut tail |
+| `goat_bleat` | 2 | 0.9 | | Scrappy goat bleat, single dry ragged call, close, a little hoarse, dry |
+| `canebelly_bellow` | 2 | 2.0 | | Huge swamp herbivore bellow: a deep water-buffalo moan with a gurgling wet undertone, mid-distance over water, dry |
+| `crow_gather` | 2 | 2.2 | | A murder of crows gathering and arguing: overlapping harsh caws, wing rustle, mid-distance, open farmland, dry |
+| `jackal_howl` | 2 | 2.0 | | Thin desert jackal howl: a high wavering yip-howl answered faintly by two others, night, mid-distance, dry |
+| `wolf_howl` | 2 | 2.5 | | Lone wolf howl, long and cold, rural night, distant church bell ghost-faint underneath, single howl, dry |
+| `rat_squeak` | 2 | 0.6 | | One rat squeak-hiss, sharp and small, very close, dry |
+| `horse_snort` | 2 | 1.0 | | Horse snort and soft stamp: one breathy nostril snort plus a single hoof shift on dirt, close, calm, dry |
+| `corpse_flies` | 3 | 4.0 | ✔ | Dense blowfly swarm over carrion: thick circling insect buzz, seamless loop, close, nauseating, dry |
+
+**Radio VO** (P2, `tools/soundforge/voices.mjs` — the 4 LOCKED voices; **never change a `voice_id`**):
+`vo_radio_caravan_lost` — *"…Peach Combine run's three days overdue past the Alley — anybody seen 'em?…"* ·
+`vo_radio_overpass` — *"…truckers are sayin' don't stop under the I-75 overpass after dark. They ain't sayin' why…"* ·
+`vo_radio_rats` — *"…ever since somebody cleared out whatever lived under the Alley, Rosewood's crawlin' with rats. You break it, you bought it…"*
+Delivered through the existing `radio.gd` `_deliver` path (§3.8's SIGNALS row); each line also exists as a
+text bulletin first (the media-layer fallback law: text always works).
+
+---
+
+## 14. How To Add An Animal (the cookbook)
+
+The whole point of the data spine: **a new animal is a ROW, never code.** The recipe, end to end:
+
+1. **Pick the base** — grazer / rodent / bird / pack / apex. That decides the class that renders it
+   (`ProtoCreature`, `ProtoBirdSign`, `ProtoPackPredator`, `ProtoKnifeback`-alike) — you never touch it.
+2. **Write ONE row** in `creatures.json` (unknown id **adds**; the fold law). Field checklist:
+   `id, name, emoji, layer, tags[]` (Body/Behavior/Region — §3.4; tags carry the stats & verbs),
+   `biomes[], regions[], habitat_anchors[], activity[]`, `sector_float`,
+   `spawn_density{base, drivers, cap, gate}` (the float→count curve),
+   `quad_params{scale,color,tail,snout,ears}` (**no purple**), `max_hp, base_speed, flee_speed`,
+   herd/swarm + `panic_range` (prey) or roles (pack), `diet[], predators[], food_value`,
+   `noise{idle,alarm}`, **`sfx{idle,alarm,hurt,death}`** (§3.12 — reference existing ids like
+   `growl`/`hurt`/`body_thud` to ship silent-of-bespoke today), `loot{}`.
+3. **Voice it (optional, later is fine)** — add §13-style entries to `soundforge/manifest.json`, run
+   `node tools/soundforge/generate.mjs <id>`, re-import. The dir scan does the rest. Loop → add to `LOOPED`.
+4. **Gait it (optional)** — a MotionForge row in `motions.json` under the creature's rig key (the horse
+   `"horse"` pattern); tune on the treadmill stage (`res://proto3d/tools/motion_stage.tscn`).
+5. **F10 refold → it's alive.** Verify: `ecology_rows_sim` (row folds), `where_lives_sim` (spawns only in
+   its biomes/anchors), `ecology_audio_sim` (every `sfx.id` resolves).
+
+**When you DO need code:** only a genuinely new **Behavior-tag VERB** (say, `dam_builder` or `web_spinner`)
+— implement the tag handler once in the owning class, and every future row reuses it. A new skin, stat
+spread, region, voice, herd size, diet, or habitat is never code.
+
+**Worked example — the Ridge Elk (Appalachia, ~20 min):**
+`tags:["quadruped","large","grazer","cowardly","climber","mountain","forest"]`, `biomes:["mountains",
+"forest"]`, `regions:["WEST VIRGINIA","KENTUCKY","TENNESSEE"]`, `spawn_density:{base:0,drivers:
+{plant_mass:5},cap:3,gate:{plant_mass:{min:0.15}}}`, `quad_params:{scale:2.4,color:[0.32,0.30,0.24],
+tail:0.35,snout:true,ears:true}`, `sfx:{idle:{id:"elk_bugle",db:-12,cooldown_s:[25,60]},alarm:
+{id:"mossback_alarm",db:-4,pair_noise:{r:38,kind:"stampede"}}}` + one manifest entry
+(*"Rocky-mountain elk bugle echoing off a ridge, single long call, cold air, distant, dry"*) + `generate.mjs
+elk_bugle`. No code. It herds, panics, reveals predators, feeds nests, and dies into the vulture economy —
+every system in this spec picks it up from the row alone.
+
+---
+
+*End of spec. Phase 1 = "Alligator Alley Awakens." The land talks — to the eye (§3.7–3.8) and the ear
+(§3.12) — before it bites. A new animal is a row (§14); its voice is a file. Nothing broadens until the
+Alley feels good.*
