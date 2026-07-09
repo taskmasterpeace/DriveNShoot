@@ -3637,7 +3637,7 @@ func save_game() -> Dictionary:
 		"circuit": {"level": circuit_level, "beats": circuit_beats.duplicate()},
 		"objectives": objectives.to_record() if objectives != null else {},
 		"deaths": deaths,
-		"weather": weather.state if weather != null else "clear",
+		"weather": weather.serialize() if weather != null else {}, # W-track: the whole FIELD rides (old saves held a bare string — load tolerates both)
 		"event": {"today": events.today_event, "war": events.war_state} if events != null else {},
 		"crew": _crew_records(),
 		"metaworld": metaworld.records.duplicate(true) if metaworld != null else [],
@@ -3779,7 +3779,12 @@ func apply_save(data: Dictionary) -> void:
 		objectives.from_record(data.get("objectives", {}))
 	deaths = int(data.get("deaths", 0))
 	if weather != null and data.has("weather"):
-		weather.restore(String(data["weather"])) # the sky you saved under
+		# the sky you saved under — old saves hold a bare string, W-track saves
+		# hold the whole field {state, systems}; tolerate both (the .get law)
+		if data["weather"] is Dictionary:
+			weather.restore_field(data["weather"] as Dictionary)
+		else:
+			weather.restore(String(data["weather"]))
 	if events != null:
 		var ev: Dictionary = data.get("event", {})
 		events.today_event = String(ev.get("today", ""))
