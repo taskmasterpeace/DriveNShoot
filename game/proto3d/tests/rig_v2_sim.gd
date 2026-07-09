@@ -177,10 +177,10 @@ func _ready() -> void:
 	_check("the forearm steps down from the upper arm",
 		(fore_box.mesh as BoxMesh).size.x < (upper_box.mesh as BoxMesh).size.x)
 
-	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew 9 → 18 → 22: the
-	# MANNEQUIN set adds the waist swivel + the knuckle hinges) =====================
-	_check("JOINT_NAMES is the mannequin set (22) with the original 9 as the prefix",
-		ProtoStrikePlayer.JOINT_NAMES.size() == 22
+	# === 9. STRIKE ROWS drive the NEW hinges (JOINT_AXIS grew 9 → 18 → 22 → 25: the
+	# MANNEQUIN set adds the waist swivel, knuckle hinges, and held weapon orientation)
+	_check("JOINT_NAMES is the mannequin set (25) with the original 9 as the prefix",
+		ProtoStrikePlayer.JOINT_NAMES.size() == 25
 		and ProtoStrikePlayer.JOINT_NAMES.slice(0, 9) == ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick", "elbow_r", "elbow_l", "knee_r", "knee_l"])
 	_check("the waist swivel + knuckle hinges are authorable",
 		ProtoStrikePlayer.JOINT_AXIS.has("waist_twist") and ProtoStrikePlayer.JOINT_AXIS.has("waist_lean")
@@ -192,6 +192,10 @@ func _ready() -> void:
 	_check("the four new hinges are authorable joints",
 		ProtoStrikePlayer.JOINT_AXIS.has("elbow_r") and ProtoStrikePlayer.JOINT_AXIS.has("elbow_l")
 		and ProtoStrikePlayer.JOINT_AXIS.has("knee_r") and ProtoStrikePlayer.JOINT_AXIS.has("knee_l"))
+	_check("held weapon orientation is authorable",
+		ProtoStrikePlayer.JOINT_AXIS.has("weapon_yaw")
+		and ProtoStrikePlayer.JOINT_AXIS.has("weapon_pitch")
+		and ProtoStrikePlayer.JOINT_AXIS.has("weapon_roll"))
 	var p2 := ProtoPuppet.create({})
 	add_child(p2)
 	var sp := ProtoStrikePlayer.new()
@@ -226,7 +230,7 @@ func _ready() -> void:
 	add_child(stage)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check("stage AUTHOR_JOINTS is the mannequin set (22), keys 1-9 = the first nine", stage.AUTHOR_JOINTS.size() == 22)
+	_check("stage AUTHOR_JOINTS is the mannequin set (25), keys 1-9 = the first nine", stage.AUTHOR_JOINTS.size() == 25)
 	var jm: Dictionary = stage._author_joint_map()
 	_check("every AUTHOR_JOINT maps to a real puppet node (full body wired)",
 		stage.AUTHOR_JOINTS.all(func(jn: String) -> bool: return jm.get(jn, null) is Node3D))
@@ -235,6 +239,10 @@ func _ready() -> void:
 		if not (jm.get(jn, null) is Node3D):
 			map_ok = false
 	_check("the stage's joint map resolves all four new hinges to REAL puppet nodes", map_ok)
+	_check("the stage maps held weapon orientation to the REAL weapon node",
+		jm.get("weapon_yaw", null) == stage.puppet.gun
+		and jm.get("weapon_pitch", null) == stage.puppet.gun
+		and jm.get("weapon_roll", null) == stage.puppet.gun)
 	_press(KEY_TAB)
 	await get_tree().process_frame
 	_check("TAB entered author mode", stage._author_mode)

@@ -72,6 +72,7 @@ func _ready() -> void:
 		heavy.animate(0.016, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame
 	await _shot("builds", Vector3(0.0, 1.15, 3.9), Vector3(0.0, 1.0, 0.0))
+	await _dispose([skinny, normal, heavy])
 
 	# --- BODY TYPE LINEUP: same rig, different proportions ---------------------
 	var adult: ProtoPuppet = await _make({"body_type": "adult"}, false, 0.0, PI); adult.position.x = -2.8
@@ -87,6 +88,32 @@ func _ready() -> void:
 		stocky.animate(0.016, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame
 	await _shot("body_profiles", Vector3(0.0, 1.2, 6.4), Vector3(0.0, 0.95, 0.0))
+	await _dispose([adult, woman, teen, kid, stocky])
+
+	var profiles: Array = [
+		{"id": "adult", "app": {"body_type": "adult"}},
+		{"id": "woman", "app": {"body_type": "woman"}},
+		{"id": "teen", "app": {"body_type": "teen"}},
+		{"id": "kid", "app": {"body_type": "kid"}},
+		{"id": "stocky", "app": {"body_type": "stocky"}},
+	]
+	for spec_v in profiles:
+		var spec: Dictionary = spec_v
+		var app: Dictionary = spec.get("app", {})
+		var solo: ProtoPuppet = await _make(app, false, 0.0, PI)
+		await _shot("body_%s_front" % String(spec["id"]), Vector3(0.0, 1.05, 2.75), Vector3(0.0, 0.86, 0.0))
+		await _shot("body_%s_34" % String(spec["id"]), Vector3(1.75, 1.15, 2.35), Vector3(0.0, 0.9, 0.0))
+		await _dispose([solo])
+
+	var bat_hold: ProtoPuppet = await _make_melee_hold("bat")
+	await _shot("bat_twohand_hold", Q34, LOOK)
+	await _dispose([bat_hold])
+	var axe_hold: ProtoPuppet = await _make_melee_hold("axe")
+	await _shot("axe_twohand_hold", Q34, LOOK)
+	await _dispose([axe_hold])
+	var axe_contact: ProtoPuppet = await _make_melee_contact("axe")
+	await _shot("axe_contact", Q34, LOOK)
+	await _dispose([axe_contact])
 	get_tree().quit(0)
 
 
@@ -136,14 +163,40 @@ func _make_gun(id: String) -> ProtoPuppet:
 	return p
 
 
+func _make_melee_hold(id: String) -> ProtoPuppet:
+	var p := ProtoPuppet.create({})
+	add_child(p)
+	p.rotation.y = PI
+	var w: Dictionary = ProtoWeapon.WEAPONS[id]
+	var hp: Dictionary = w["hand_pose"]
+	var shape: Dictionary = ProtoWeapon.SHAPES[id]
+	p.set_weapon_mesh(shape["parts"], float(shape.get("muzzle_z", 0.34)))
+	p.set_hand_pose(hp.get("offset", Vector3.ZERO), bool(hp.get("two_handed", false)),
+		hp.get("grip_l", Vector3.ZERO), hp.get("grip_r", Vector3.ZERO))
+	p.raised = true
+	p.set_armed(true)
+	for _f in 3:
+		await get_tree().process_frame
+	for _i in 100:
+		p.animate(0.016, 0.0, 0.0, true, 0.0, false)
+		await get_tree().process_frame
+	return p
+
+
 func _make_bat_contact() -> ProtoPuppet:
+	return await _make_melee_contact("bat")
+
+
+func _make_melee_contact(id: String) -> ProtoPuppet:
 	var p := ProtoPuppet.create({})
 	add_child(p)
 	p.rotation.y = PI * 0.72
-	var w: Dictionary = ProtoWeapon.WEAPONS["bat"]
-	var shape: Dictionary = ProtoWeapon.SHAPES["bat"]
+	var w: Dictionary = ProtoWeapon.WEAPONS[id]
+	var hp: Dictionary = w["hand_pose"]
+	var shape: Dictionary = ProtoWeapon.SHAPES[id]
 	p.set_weapon_mesh(shape["parts"], float(shape.get("muzzle_z", 0.34)))
-	p.set_hand_pose(w["hand_pose"]["offset"], true)
+	p.set_hand_pose(hp.get("offset", Vector3.ZERO), bool(hp.get("two_handed", false)),
+		hp.get("grip_l", Vector3.ZERO), hp.get("grip_r", Vector3.ZERO))
 	p.set_armed(true)
 	for _f in 3:
 		await get_tree().process_frame
@@ -153,6 +206,14 @@ func _make_bat_contact() -> ProtoPuppet:
 		p.animate(0.016, 0.0, 0.0, false, 0.0, false)
 		await get_tree().process_frame
 	return p
+
+
+func _dispose(nodes: Array) -> void:
+	for n in nodes:
+		if n is Node and is_instance_valid(n):
+			(n as Node).queue_free()
+	for _f in 4:
+		await get_tree().process_frame
 
 
 func _shot(name: String, cam_pos: Vector3, look: Vector3) -> void:

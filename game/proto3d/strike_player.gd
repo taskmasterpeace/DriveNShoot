@@ -61,12 +61,16 @@ const JOINT_AXIS: Dictionary = {
 	"waist_lean": "rotation:x",
 	"fingers_r": "rotation:x",
 	"fingers_l": "rotation:x",
+	"weapon_yaw": "rotation:y",
+	"weapon_pitch": "rotation:x",
+	"weapon_roll": "rotation:z",
 }
 const JOINT_NAMES: Array = ["torso_twist", "torso_lean", "shoulder_yaw", "shoulder_pitch", "hip_kick",
 	"elbow_r", "elbow_l", "knee_r", "knee_l",
 	"head_yaw", "head_pitch", "free_shoulder_yaw", "free_shoulder_pitch",
 	"wrist_r", "wrist_l", "ankle_r", "ankle_l", "hip_l_pitch",
-	"waist_twist", "waist_lean", "fingers_r", "fingers_l"]
+	"waist_twist", "waist_lean", "fingers_r", "fingers_l",
+	"weapon_yaw", "weapon_pitch", "weapon_roll"]
 
 ## Code-floor seed rows (mirrors data/strikes.json day one exactly — the fold below
 ## overlays any JSON edit on top, same additive law as ProtoPuppet.MOTION/motions.json).
@@ -124,10 +128,10 @@ static var STRIKES: Dictionary = {
 	},
 	"bat_swing": {
 		"poses": [
-			{"name": "load", "joints": {"torso_twist": -0.55, "waist_twist": -0.3, "shoulder_yaw": -0.9, "shoulder_pitch": 0.9, "elbow_r": 0.5, "wrist_r": -0.3, "free_shoulder_yaw": -0.5, "free_shoulder_pitch": 0.75, "elbow_l": 0.95, "head_yaw": 0.5, "knee_r": -0.18, "fingers_r": 1.35, "fingers_l": 1.35}, "ease_ms": 110.0, "hold_ms": 45.0, "ease_curve": "out", "contact": false},
-			{"name": "contact", "joints": {"torso_twist": 0.6, "waist_twist": 0.35, "shoulder_yaw": 0.55, "shoulder_pitch": 1.15, "elbow_r": 0.1, "wrist_r": 0.0, "free_shoulder_yaw": 0.3, "free_shoulder_pitch": 1.05, "elbow_l": 0.2, "head_yaw": 0.0, "knee_r": -0.06}, "ease_ms": 80.0, "hold_ms": 30.0, "ease_curve": "out", "contact": true},
-			{"name": "follow_through", "joints": {"torso_twist": 0.95, "shoulder_yaw": 1.15, "shoulder_pitch": 1.3, "wrist_r": -0.4, "free_shoulder_pitch": 0.85}, "ease_ms": 70.0, "hold_ms": 25.0, "ease_curve": "out", "contact": false},
-			{"name": "settle", "joints": {"torso_twist": 0.0, "waist_twist": 0.0, "shoulder_yaw": 0.0, "shoulder_pitch": 0.0, "elbow_r": 0.14, "wrist_r": 0.0, "free_shoulder_yaw": 0.0, "free_shoulder_pitch": 0.0, "elbow_l": 0.14, "head_yaw": 0.0, "knee_r": -0.06, "fingers_r": 0.22, "fingers_l": 0.22}, "ease_ms": 160.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
+			{"name": "load", "joints": {"torso_twist": -0.55, "waist_twist": -0.3, "shoulder_yaw": -0.9, "shoulder_pitch": 0.9, "elbow_r": 0.5, "wrist_r": -0.3, "weapon_yaw": -0.55, "weapon_pitch": -0.1, "free_shoulder_yaw": -0.5, "free_shoulder_pitch": 0.75, "elbow_l": 0.95, "head_yaw": 0.5, "knee_r": -0.18, "fingers_r": 1.35, "fingers_l": 1.35}, "ease_ms": 110.0, "hold_ms": 45.0, "ease_curve": "out", "contact": false},
+			{"name": "contact", "joints": {"torso_twist": 0.6, "waist_twist": 0.35, "shoulder_yaw": 0.55, "shoulder_pitch": 1.15, "elbow_r": 0.1, "wrist_r": 0.0, "weapon_yaw": 1.05, "weapon_pitch": -0.05, "free_shoulder_yaw": 0.3, "free_shoulder_pitch": 1.05, "elbow_l": 0.2, "head_yaw": 0.0, "knee_r": -0.06}, "ease_ms": 80.0, "hold_ms": 30.0, "ease_curve": "out", "contact": true},
+			{"name": "follow_through", "joints": {"torso_twist": 0.95, "shoulder_yaw": 1.15, "shoulder_pitch": 1.3, "wrist_r": -0.4, "weapon_yaw": 1.3, "weapon_pitch": 0.15, "free_shoulder_pitch": 0.85}, "ease_ms": 70.0, "hold_ms": 25.0, "ease_curve": "out", "contact": false},
+			{"name": "settle", "joints": {"torso_twist": 0.0, "waist_twist": 0.0, "shoulder_yaw": 0.0, "shoulder_pitch": 0.0, "elbow_r": 0.14, "wrist_r": 0.0, "weapon_yaw": 0.0, "weapon_pitch": 0.0, "free_shoulder_yaw": 0.0, "free_shoulder_pitch": 0.0, "elbow_l": 0.14, "head_yaw": 0.0, "knee_r": -0.06, "fingers_r": 0.22, "fingers_l": 0.22}, "ease_ms": 160.0, "hold_ms": 0.0, "ease_curve": "in_out", "contact": false},
 		],
 		"req_skill": {"id": "", "level": 0}, "cancel_window_ms": 200.0, "chain_next": "",
 	},
@@ -228,12 +232,16 @@ func rebind_rest() -> void:
 func _axis_value(node: Node3D, prop: String) -> float:
 	if prop == "rotation:y":
 		return node.rotation.y
-	return node.rotation.x # every JOINT_AXIS entry is rotation:x or rotation:y today
+	if prop == "rotation:z":
+		return node.rotation.z
+	return node.rotation.x
 
 
 func _set_axis_value(node: Node3D, prop: String, v: float) -> void:
 	if prop == "rotation:y":
 		node.rotation.y = v
+	elif prop == "rotation:z":
+		node.rotation.z = v
 	else:
 		node.rotation.x = v
 

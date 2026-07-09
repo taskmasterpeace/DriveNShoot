@@ -58,12 +58,14 @@ const WEAPONS: Dictionary = {
 	# them on the ground (knockdown) more than it launches them. Punishes a miss.
 	"axe": {"name": "Fire axe", "emoji": "🪓", "behavior": Behavior.MELEE, "damage": 34.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.9, "spread_deg": 0.0, "reach": 2.5, "arc_deg": 62.0, "stamina": 16.0, "knockdown": 0.55, "shove": 3.0, "hit_sfx": "impact_crunch", "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true}},
+		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true,
+			"grip_r": Vector3(0.0, 0.0, 0.06), "grip_l": Vector3(0.0, -0.02, -0.12)}},
 	# The BASEBALL BAT — the KNOCKBACK king: long reach, wide arc, fast-ish, and it
 	# LAUNCHES (huge shove). Home-run a howler off you. Lower raw damage, all impact.
 	"bat": {"name": "Baseball bat", "emoji": "🏏", "behavior": Behavior.MELEE, "damage": 18.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.6, "spread_deg": 0.0, "reach": 2.8, "arc_deg": 95.0, "stamina": 10.0, "knockdown": 0.45, "shove": 7.0, "hit_sfx": "thunk", "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true,
+			"grip_r": Vector3(0.0, 0.0, 0.06), "grip_l": Vector3(0.0, -0.02, -0.10)}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
@@ -265,7 +267,7 @@ func _strike_id_for(weapon_id: String, combo: int, is_kick: bool) -> String:
 			return "kick" if is_kick else "punch_" + str(((combo - 1) % 3) + 1)
 		"shove_palm":
 			return "shove"
-		"bat":
+		"bat", "axe", "katana":
 			return "bat_swing"
 		_:
 			return "weapon_swing"

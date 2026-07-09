@@ -174,6 +174,8 @@ func _ready() -> void:
 	var woman_chest := _box_size(woman.torso)
 	var adult_pelvis := _box_size(adult._pelvis)
 	var woman_pelvis := _box_size(woman._pelvis)
+	_check("the pelvis reads as a hip belt, not a solid crotch slab (height %.2f)" % adult_pelvis.y,
+		adult_pelvis.y <= 0.13)
 	_check("woman body type narrows shoulders while widening the hip read",
 		absf(woman.shoulder.position.x) < absf(adult.shoulder.position.x)
 		and woman_pelvis.x / woman_chest.x > adult_pelvis.x / adult_chest.x)

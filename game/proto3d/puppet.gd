@@ -510,9 +510,13 @@ static func create(appearance_in: Dictionary = {}) -> ProtoPuppet:
 	# --- PELVIS / HIPS: the third torso piece, child of legs_pivot so it yaws with
 	# the walk. Hip BALL joints live inside it. Column: hip 0.90 → knee 0.48 →
 	# ankle 0.10 → sole 0 (legs ≈ half the body, per the reference).
-	p._pelvis = _box(Vector3(0.36 * wm * pelvis_mul.x, 0.16 * pelvis_mul.y, 0.22 * dm * pelvis_mul.z), Vector3(0, pelvis_y, 0), pants)
+	var pelvis_size := Vector3(0.36 * wm * pelvis_mul.x, 0.11 * pelvis_mul.y, 0.22 * dm * pelvis_mul.z)
+	p._pelvis = _box(pelvis_size, Vector3(0, pelvis_y + 0.035 * pelvis_mul.y, 0), pants)
 	p.legs_pivot.add_child(p._pelvis)
 	var hip_x: float = 0.11 * wm * hip_mul
+	var hip_block_size := Vector3(0.12 * lm * hip_mul, 0.13 * pelvis_mul.y, 0.18 * dm * pelvis_mul.z)
+	p.legs_pivot.add_child(_box(hip_block_size, Vector3(-hip_x, hip_y - 0.035 * pelvis_mul.y, 0), pants))
+	p.legs_pivot.add_child(_box(hip_block_size, Vector3(hip_x, hip_y - 0.035 * pelvis_mul.y, 0), pants))
 	var thigh_size := Vector3(0.15 * lm, p._thigh_len, 0.17 * lm)
 	var calf_size := Vector3(0.125 * lm, p._calf_len, 0.145 * lm)
 	p.hip_l = _limb_pivot(Vector3(-hip_x, hip_y, 0), thigh_size, pants)
@@ -1319,6 +1323,7 @@ func _strike_joint_map() -> Dictionary:
 		"hip_l_pitch": hip_l,
 		"waist_twist": waist, "waist_lean": waist,
 		"fingers_r": fingers_r, "fingers_l": fingers_l,
+		"weapon_yaw": gun, "weapon_pitch": gun, "weapon_roll": gun,
 	}
 
 

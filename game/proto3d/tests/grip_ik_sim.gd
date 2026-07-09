@@ -60,6 +60,11 @@ func _ready() -> void:
 			var g: Vector3 = hp.get("grip_l", Vector3.ZERO)
 			_check("two-hand gun '%s' carries a NONZERO grip_l %s (no silent one-shoulder hold)" % [wid, g],
 				not g.is_zero_approx())
+	for wid2 in ["bat", "axe"]:
+		var hp2: Dictionary = (ProtoWeapon.WEAPONS[wid2] as Dictionary).get("hand_pose", {})
+		var g2: Vector3 = hp2.get("grip_l", Vector3.ZERO)
+		_check("two-hand melee '%s' carries a handle grip_l %s" % [wid2, g2],
+			bool(hp2.get("two_handed", false)) and hp2.has("grip_l") and not g2.is_zero_approx() and g2.z < -0.05)
 
 	var p := ProtoPuppet.create({})
 	add_child(p)

@@ -66,9 +66,13 @@ func _ready() -> void:
 		"ankle_r": puppet.foot_r, "ankle_l": puppet.foot_l, "hip_l_pitch": puppet.hip_l,
 		"waist_twist": puppet.waist, "waist_lean": puppet.waist,
 		"fingers_r": puppet.fingers_r, "fingers_l": puppet.fingers_l,
+		"weapon_yaw": puppet.gun, "weapon_pitch": puppet.gun, "weapon_roll": puppet.gun,
 	}
 	for jn in joints:
 		_check("puppet exposes the '%s' joint" % jn, joints[jn] != null and is_instance_valid(joints[jn]))
+	_check("strike rows can rotate the held weapon, not only the wrist",
+		ProtoStrikePlayer.JOINT_AXIS.has("weapon_yaw") and joints.has("weapon_yaw")
+		and ProtoStrikePlayer.JOINT_AXIS.has("weapon_pitch") and joints.has("weapon_pitch"))
 
 	# --- (a) strikes.json FOLDS: 6 rows, each with exactly one contact pose, every
 	# joint it names present in the injected dict. --------------------------------
@@ -223,6 +227,9 @@ func _ready() -> void:
 	_check("bat_swing folds from strikes.json", ProtoStrikePlayer.STRIKES.has("bat_swing"))
 	var bat_row: Dictionary = ProtoStrikePlayer.STRIKES["bat_swing"]
 	_check("bat_swing authored with 4 poses (load/contact/follow/settle)", (bat_row["poses"] as Array).size() == 4)
+	var bat_contact: Dictionary = (bat_row["poses"][1] as Dictionary)["joints"]
+	_check("bat_swing contact turns the weapon container across the body",
+		bat_contact.has("weapon_yaw") and absf(float(bat_contact["weapon_yaw"])) > 0.6)
 	var bat_dur: float = _row_duration_ms("bat_swing")
 	_check("bat_swing plays end-to-end under 650ms (%.0fms)" % bat_dur, bat_dur <= 650.0)
 	var sp6 := ProtoStrikePlayer.new()
@@ -242,6 +249,9 @@ func _ready() -> void:
 		float((bat_row["poses"][1]["joints"] as Dictionary)["waist_twist"])],
 		signf(float((bat_row["poses"][0]["joints"] as Dictionary)["waist_twist"]))
 		!= signf(float((bat_row["poses"][1]["joints"] as Dictionary)["waist_twist"])))
+	var axe_weapon := ProtoWeapon.new("axe")
+	_check("axe uses the same long two-hand swing family as the bat",
+		axe_weapon._strike_id_for("axe", 1, false) == "bat_swing")
 
 	print("STRIKE RESULTS: %d passed, %d failed" % [passed, failed])
 	print("STRIKE: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
