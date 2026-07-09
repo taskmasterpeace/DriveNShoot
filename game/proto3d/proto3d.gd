@@ -51,6 +51,7 @@ var bandits: ProtoBandits = null ## the gang director (BANDIT_CONVOY_ECOSYSTEM.m
 var population: ProtoPopulation = null ## the 500m count ledger (POPULATION_WAR.md P0 — counts above the chunks; lurker/howler death paths already call it)
 var road_graph: ProtoRoadGraph = null ## lazy-built off the baked junctions (AMERICAN_ROAD M1; atlas/GPS consumer only until MT)
 var journeys: ProtoJourneys = null ## the NAV director (NAVIGATION.md P1 — walk domain; DRIVE/records at P2)
+var cloning: ProtoCloning = null ## the chair + the memory law (CLONING.md C1)
 const HOME_KEY := "🏠 HOME"
 const COURSE_PREFIX := "🧭 " ## a map-picked destination — only ever one at a time
 
@@ -336,6 +337,9 @@ func _ready() -> void:
 	# directors say WHY, this node moves people. WALK domain live; DRIVE at P2.
 	journeys = ProtoJourneys.create(self)
 	add_child(journeys)
+	# CLONING C1 (CLONING.md): the chair, the memory law, the journal.
+	cloning = ProtoCloning.create(self)
+	add_child(cloning)
 
 	# THE TRAFFIC SYSTEM (ROAD_TRAFFIC_OVERHAUL.md §3.4): ambient agents on the
 	# road polylines — right-hand lanes, following, exits, promote-on-touch.
@@ -3106,6 +3110,26 @@ func _on_death() -> void:
 ## stays where it died — go get it. Dogs, lit nodes, respect, the clock: all persist.
 func respawn_at_home() -> void:
 	deaths += 1
+	# THE CLONE WAKE (CLONING.md C1 — THE MEMORY LAW): with a backup banked you
+	# wake AT THE SCAN as the person who sat the chair — everything learned
+	# since is gone from your head; the journal remembers what you don't. The
+	# wasteland still takes its cut (dying is never free).
+	if cloning != null and cloning.has_backup():
+		var lost_scrap2: int = int(backpack.count("scrap") * 0.4)
+		var lost_jack2: int = int(backpack.count("scrip") * 0.3)
+		if lost_scrap2 > 0:
+			backpack.remove("scrap", lost_scrap2)
+		if lost_jack2 > 0:
+			backpack.remove("scrip", lost_jack2)
+		mode = Mode.FOOT
+		active_car = null
+		player.is_active = true
+		player.dead_vis = false
+		player.global_position = cloning.wake()
+		if cam_rig != null:
+			cam_rig.target = player
+		hud.hide_death()
+		return
 	character.revive()
 	# The toll: the wasteland scavenges a cut of what you were carrying.
 	var lost_scrap: int = int(backpack.count("scrap") * 0.4)
@@ -3658,6 +3682,8 @@ func save_game() -> Dictionary:
 		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
 		# THE POPULATION LEDGER (P0): the 500m count cells ride the one file.
 		"population": population.serialize() if population != null else {},
+		# THE CHAIR (CLONING C1): the backup + the journal survive everything.
+		"cloning": cloning.serialize() if cloning != null else {},
 	}
 	# THE LIVING WORLD: politics + laws + queued bulletins persist; last_played stamps
 	# "now" so the next load can size the absence and run offline catch-up.
@@ -3763,6 +3789,8 @@ func apply_save(data: Dictionary) -> void:
 	if population != null:
 		population.restore(data.get("population", {})) # the count ledger rides the one file
 		_last_pop_hr = -1.0 # re-anchor the hourly tick to the restored clock
+	if cloning != null:
+		cloning.restore(data.get("cloning", {})) # the backup + journal survive the file too
 	for id in data.get("carousel", []):
 		carousel.set_active(String(id))
 	var gj: Dictionary = data.get("garages", {})
@@ -4134,6 +4162,8 @@ func _sync_wound_effects() -> void:
 		character.hunger_tick((hhr - _last_hunger_hr) * (float(ProtoInfected.fever_row.get("hunger_mult", 1.3)) if fevered else 1.0))
 		_last_hunger_hr = hhr
 	hud.set_condition("hungry", character.hunger_tier())
+	if cloning != null:
+		cloning.tick() # the chair finishes on the clock (CLONING C1)
 	# POPULATION LEDGER: presence stamps the player's cell (the unseen-refill
 	# gate reads it); the refill tick walks known cells once per game hour.
 	if population != null and player != null:
