@@ -402,6 +402,9 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	car.mass = s["mass"]
 	car.center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	car.center_of_mass = Vector3(0, s["com_y"], 0)
+	# GROUND_INTEGRITY rule 3a: at 38 m/s a body steps 0.63 m per physics tick —
+	# more than the old 0.5 m floor was thick. CCD on every rig, always.
+	car.continuous_cd = true
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
 	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt

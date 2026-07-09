@@ -757,7 +757,76 @@ func _unhandled_input(event: InputEvent) -> void:
 				cam_rig.add_zoom(ZOOM_STEP)
 
 
+## THE VOID NET (docs/design/GROUND_INTEGRITY.md rules 1+6): falling through the
+## world is always OUR bug — catch the body below VOID_Y, put it back on the
+## last-known-good ground (the OLDEST ring entry — furthest from the hole that
+## just ate you), zero velocity, no damage, and SELF-REPORT one structured line
+## so a rotated log can never eat the diagnosis again.
+const VOID_Y := -6.0
+const GOOD_POS_INTERVAL := 0.5
+const GOOD_POS_RING := 4
+var _good_pos: Array[Vector3] = []
+var _good_pos_t := 0.0
+var _void_npc_t := 0.0
+
+
+func _void_net_tick(delta: float) -> void:
+	var body: Node3D = active_car if (mode == Mode.DRIVE and active_car != null and is_instance_valid(active_car) and not active_car.dead) else player
+	if body == null or not is_instance_valid(body):
+		return
+	# the boot seed: the spawn position is grounded by construction, so the ring
+	# is NEVER empty — a fall in the first half-second still has a rescue point.
+	if _good_pos.is_empty() and body.global_position.y > VOID_Y:
+		_good_pos.append(body.global_position)
+	_good_pos_t += delta
+	if _good_pos_t >= GOOD_POS_INTERVAL:
+		_good_pos_t = 0.0
+		var grounded := false
+		if body == player:
+			grounded = player.is_on_floor()
+		else:
+			for w in body.get_children():
+				if w is VehicleWheel3D and (w as VehicleWheel3D).is_in_contact():
+					grounded = true
+					break
+		if grounded and body.global_position.y > VOID_Y:
+			_good_pos.append(body.global_position)
+			while _good_pos.size() > GOOD_POS_RING:
+				_good_pos.remove_at(0)
+	if body.global_position.y < VOID_Y and not _good_pos.is_empty():
+		var pos := body.global_position
+		var ck := "%d,%d" % [int(floor(pos.x / ProtoWorldStream.CHUNK)), int(floor(pos.z / ProtoWorldStream.CHUNK))]
+		var chunk_loaded: bool = stream != null and stream.loaded.has(ck)
+		var chunk_kids: int = (stream.loaded[ck].get_child_count() if (chunk_loaded and stream.loaded[ck] != null) else -1)
+		var spd := 0.0
+		if body is RigidBody3D:
+			spd = (body as RigidBody3D).linear_velocity.length()
+		elif body is CharacterBody3D:
+			spd = (body as CharacterBody3D).velocity.length()
+		# rule 6: the self-report — grep 'VOIDNET' in any log or the toast history
+		print("VOIDNET: fell at %s chunk=%s loaded=%s kids=%d speed=%.1f mode=%s" % [pos, ck, chunk_loaded, chunk_kids, spd, mode])
+		var rescue: Vector3 = _good_pos[0] + Vector3(0, 0.6, 0)
+		body.global_position = rescue
+		if body is RigidBody3D:
+			(body as RigidBody3D).linear_velocity = Vector3.ZERO
+			(body as RigidBody3D).angular_velocity = Vector3.ZERO
+		elif body is CharacterBody3D:
+			(body as CharacterBody3D).velocity = Vector3.ZERO
+		hud.toast("⚠ the ground gave way — hauled back")
+	# NPC bodies below the void are simply freed (their systems re-materialize them)
+	_void_npc_t += delta
+	if _void_npc_t >= 2.0:
+		_void_npc_t = 0.0
+		for c in cars:
+			if c != null and is_instance_valid(c) and c != active_car and c.global_position.y < VOID_Y:
+				c.queue_free()
+		for t in get_tree().get_nodes_in_group("threat"):
+			if t is Node3D and is_instance_valid(t) and (t as Node3D).global_position.y < VOID_Y:
+				t.queue_free()
+
+
 func _physics_process(delta: float) -> void:
+	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the

@@ -259,18 +259,10 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	rng.seed = hash("%d:%d:%d" % [WORLD_SEED, cx, cz])
 	var key := "%d,%d" % [cx, cz]
 
-	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b): pinned structures drop in FIRST,
-	# before any biome-based early-out (a landmark can sit on a bridge or a coast).
-	if usmap != null and usmap.ok:
-		var phalf := CHUNK * 0.5
-		for p in usmap.placements_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
-			_spawn_placement(chunk, p)
-		# EXIT NODES (World_Structures §5/§18): every exit raises its HIGHWAY SIGN
-		# at the ramp mouth — the read that turns a drive into a DECISION. (The
-		# ramps themselves are exit-kind ROADS; the road pass materializes those.)
-		for e in usmap.exits_in(Rect2(center.x - phalf, center.z - phalf, CHUNK, CHUNK)):
-			_spawn_exit_sign(chunk, e)
-
+	# (GROUND_INTEGRITY rule 2 — FLOOR-FIRST CHUNK LAW: placements/exits moved
+	# BELOW the ground + road passes. A bad row used to abort the build before
+	# the floor existed — one bad placement on a highway chunk = a floorless
+	# chunk on the interstate. Now the floor always lands first.)
 	var biome := biome_at(center)
 	var wet := biome == "water" or biome == "ocean"
 
@@ -281,21 +273,34 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		# state's relief knob says the land rolls — and no road/town needs it flat —
 		# the chunk floor is a DISPLACED mesh over ground_y with a HeightMapShape3D
 		# collider (never a trimesh). Everywhere else: the flat slab, byte-identical.
-		if not wet and ProtoWorldBuilder.relief_at(center.x, center.z) > 0.02:
+		# GROUND_INTEGRITY rule 4 (SEAM-CLIFF LAW): the floor-type decision samples
+		# FIVE points (center + corners) — one relief corner beside a flattened
+		# highway chunk used to make a vertical cliff wall at the seam.
+		var rly := false
+		if not wet:
+			var chalf_g := CHUNK * 0.5
+			for sp in [Vector2.ZERO, Vector2(-chalf_g, -chalf_g), Vector2(chalf_g, -chalf_g),
+					Vector2(-chalf_g, chalf_g), Vector2(chalf_g, chalf_g)]:
+				if ProtoWorldBuilder.relief_at(center.x + sp.x, center.z + sp.y) > 0.02:
+					rly = true
+					break
+		if rly:
 			chunk.add_child(_relief_floor(center, biome))
 			chunk.set_meta("relief", true)
 		else:
+			# GROUND_INTEGRITY rule 3b (TUNNELING): 0.5 m floors tunnel at 38 m/s
+			# (0.63 m/tick). 2.0 m thick, extended DOWNWARD — top face unchanged.
 			var g := StaticBody3D.new()
 			var gm := MeshInstance3D.new()
 			var plane := BoxMesh.new()
-			plane.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			plane.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gm.mesh = plane
 			gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
-			gm.position.y = -0.26 - (0.22 if wet else 0.0) # water sits a hair lower
+			gm.position.y = -1.01 - (0.22 if wet else 0.0) # top face where the 0.5 m floor's was
 			g.add_child(gm)
 			var gs := CollisionShape3D.new()
 			var gb := BoxShape3D.new()
-			gb.size = Vector3(CHUNK + 2.0, 0.5, CHUNK + 2.0)
+			gb.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gs.shape = gb
 			gs.position.y = gm.position.y
 			g.add_child(gs)
@@ -367,6 +372,22 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					var decel := ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.05, 140.0),
 						Vector3(dc.x, 0.125, dc.y), ProtoWorldBuilder.COL_ROAD, atan2(d_s.x, d_s.y))
 					decel.set_meta("road_decel", String(j["id"]))
+
+	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b) + EXIT SIGNS — after the floor
+	# and roads exist (GROUND_INTEGRITY rule 2). Each spawn is defensive: a bad
+	# row costs one prop and a push_warning, never the floor.
+	if usmap != null and usmap.ok:
+		var phalf2 := CHUNK * 0.5
+		for p in usmap.placements_in(Rect2(center.x - phalf2, center.z - phalf2, CHUNK, CHUNK)):
+			if not (p is Dictionary) or not p.has("building") or not p.has("pos"):
+				push_warning("world_stream: malformed placement row skipped in %s" % key)
+				continue
+			_spawn_placement(chunk, p)
+		for e in usmap.exits_in(Rect2(center.x - phalf2, center.z - phalf2, CHUNK, CHUNK)):
+			if not (e is Dictionary) or not e.has("pos"):
+				push_warning("world_stream: malformed exit row skipped in %s" % key)
+				continue
+			_spawn_exit_sign(chunk, e)
 
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
@@ -739,6 +760,21 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
 				Vector3(mid.x + perp.x * rail_lat * sgn2, 0.5, mid.y + perp.y * rail_lat * sgn2),
 				Color(0.35, 0.33, 0.30), rot)
+		# GROUND_INTEGRITY rule 5 (BRIDGES ARE REAL DECKS): the paint was at
+		# y≈0.09 while the physical floor was the water box at −0.23 — cars
+		# crossed rivers sunk 30 cm through the visual. One deck body per
+		# carriageway, top AT the paint.
+		if bool(g["divided"]):
+			var deck_half := float(g["median_w"]) * 0.5 + float(g["carriage_w"]) * 0.5
+			for dsgn: float in [1.0, -1.0]:
+				var doff: Vector2 = perp * deck_half * dsgn
+				var deck := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["carriage_w"]), 0.3, seg_len + 6.0),
+					Vector3(mid.x + doff.x, y + 0.025 - 0.15, mid.y + doff.y), ProtoWorldBuilder.COL_ROAD, rot)
+				deck.set_meta("road_deck", rid)
+		else:
+			var deck1 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), 0.3, seg_len + 6.0),
+				Vector3(mid.x, y + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+			deck1.set_meta("road_deck", rid)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
 	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot])
 	ProtoWorldBuilder.extra_road_rects[key] = rects
