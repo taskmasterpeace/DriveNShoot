@@ -15,15 +15,25 @@ var _doll: Dictionary = {}  ## geometry rows (ProtoCar3D.doll_spec_for)
 var _tiers: Dictionary = {} ## part -> live tier
 var _on_fire: bool = false
 var _fire_clock: float = 0.0
+var _flash: Dictionary = {} ## part -> seconds left of the "just got WORSE" pulse
 
 
 func _ready() -> void:
-	set_process(false) # only ticks while on fire (the hood flicker)
+	set_process(false) # only ticks while on fire or a part is flashing
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _process(delta: float) -> void:
 	_fire_clock += delta
+	var done: Array = []
+	for part in _flash:
+		_flash[part] = float(_flash[part]) - delta
+		if float(_flash[part]) <= 0.0:
+			done.append(part)
+	for part in done:
+		_flash.erase(part)
+	if not _on_fire and _flash.is_empty():
+		set_process(false)
 	queue_redraw()
 
 
@@ -39,13 +49,16 @@ func update_state(d: Dictionary) -> void:
 	var fire: bool = bool(d.get("on_fire", false))
 	if fire != _on_fire:
 		_on_fire = fire
-		set_process(fire)
 		changed = true
 	for part in PARTS:
 		var t: int = int(d.get(part, 0))
-		if int(_tiers.get(part, -1)) != t:
+		var old: int = int(_tiers.get(part, -1))
+		if old != t:
+			if t > old and old >= 0:
+				_flash[part] = 0.7 # DAMAGE JUICE: the part pulses when it just got worse
 			_tiers[part] = t
 			changed = true
+	set_process(_on_fire or not _flash.is_empty())
 	visible = not _doll.is_empty()
 	if changed and visible:
 		queue_redraw()
@@ -79,10 +92,15 @@ func _draw() -> void:
 		draw_rect(Rect2(c.x - hw - _strip(asd), c.y - hl, _strip(asd), hl * 2.0), _steel(asd))
 		draw_rect(Rect2(c.x + hw, c.y - hl, _strip(asd), hl * 2.0), _steel(asd))
 
-	# 2) WHEELS — the TIRES part tints all corners (healthy = dark rubber; worn+ =
-	# the tier color shouts). Wide rigs wear them PROUD of the body like the 3D
-	# cylinders do — inside the chassis box they'd vanish; a narrow two-wheeler
-	# keeps them centered front/back.
+	# 2) BODY — the outline IS the chassis part.
+	var body := Rect2(c.x - hw, c.y - hl, hw * 2.0, hl * 2.0)
+	draw_rect(body, Color(0.10, 0.11, 0.125, 1.0))
+	draw_rect(body, _tier_color("chassis", 1.0), false, 2.0)
+
+	# 3) WHEELS over the body — the TIRES part tints all corners (healthy = dark
+	# rubber; worn+ = the tier color shouts). Wide rigs wear them PROUD of the
+	# hull like the 3D cylinders; a two-wheeler's tires ARE its nose and tail —
+	# drawn after the body so the narrow hull can't swallow them.
 	var tire_col := Color(0.16, 0.17, 0.18, 0.95) if _tier("tires") == 0 else _tier_color("tires", 0.95)
 	var proud: bool = body_w >= 1.0
 	for wrow in _doll.get("wheels", []):
@@ -91,13 +109,9 @@ func _draw() -> void:
 		var wz: float = float(wr[1]) * s
 		var rad: float = float(wr[2]) * s
 		var wcx: float = (signf(wx) * (body_w * 0.5 + 0.10) * s) if proud else 0.0
+		var wcz: float = wz if proud else signf(wz) * (hl - rad)
 		var ww: float = (0.30 if proud else 0.26) * s
-		draw_rect(Rect2(c.x + (wcx if proud else wx) - ww * 0.5, c.y + wz - rad, ww, rad * 2.0), tire_col)
-
-	# 3) BODY — the outline IS the chassis part.
-	var body := Rect2(c.x - hw, c.y - hl, hw * 2.0, hl * 2.0)
-	draw_rect(body, Color(0.10, 0.11, 0.125, 1.0))
-	draw_rect(body, _tier_color("chassis", 1.0), false, 2.0)
+		draw_rect(Rect2(c.x + (wcx if proud else wx) - ww * 0.5, c.y + wcz - rad, ww, rad * 2.0), tire_col)
 
 	# 4) The felt parts as panels: ENGINE hood (front), BATTERY box (front-right),
 	# FUEL TANK slab (rear). Healthy = quiet; worn+ = loud tier color.
@@ -133,10 +147,17 @@ func _tier(part: String) -> int:
 
 
 ## Healthy parts stay QUIET (dim slate — the doll is mostly dark until something
-## hurts); tier 1+ shouts in the shared HUD tier palette.
+## hurts); tier 1+ shouts in the shared HUD tier palette. A part that just got
+## WORSE pulses toward white for a beat (the hit you feel on the instrument).
 func _tier_color(part: String, alpha: float) -> Color:
 	var t := _tier(part)
+	var base: Color
 	if t == 0:
-		return Color(0.40, 0.45, 0.42, alpha * 0.4)
-	var col: Color = ProtoHUD.TIER_COLORS[clampi(t, 0, 3)]
-	return Color(col.r, col.g, col.b, alpha)
+		base = Color(0.40, 0.45, 0.42, alpha * 0.4)
+	else:
+		var col: Color = ProtoHUD.TIER_COLORS[clampi(t, 0, 3)]
+		base = Color(col.r, col.g, col.b, alpha)
+	var fl: float = clampf(float(_flash.get(part, 0.0)) / 0.7, 0.0, 1.0)
+	if fl > 0.0:
+		base = base.lerp(Color(1.0, 1.0, 1.0, 1.0), fl * (0.55 + 0.45 * sin(_fire_clock * 26.0)))
+	return base

@@ -763,7 +763,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_char_create"):
 		char_create.toggle()
 	elif event.is_action_pressed("drivn_sheet"):
-		hud.toggle_sheet(_sheet_text())
+		hud.toggle_sheet(_sheet_text(), _body_tiers())
 	elif event.is_action_pressed("drivn_skill_tree"):
 		skill_tree.toggle() # the visual mastery tree — perks light as skills level by doing
 	elif event.is_action_pressed("drivn_waypoints"):
@@ -3185,6 +3185,14 @@ func _update_skill_trickle(delta: float) -> void:
 
 
 ## The character sheet (K) — stats speak emoji, per the moodle law.
+## The body doll's feed: part -> live tier (the sheet text says it, the doll shows it).
+func _body_tiers() -> Dictionary:
+	var out: Dictionary = {}
+	for part in ProtoCharacter.PART_NAMES:
+		out[part] = (character.body[part] as Damageable).tier()
+	return out
+
+
 func _sheet_text() -> String:
 	var lines: Array[String] = []
 	lines.append("❤️ HP %d / %d (cap)" % [int(character.hp), int(character.hp_cap())])

@@ -691,7 +691,9 @@ var _death_label: Label = null
 ## and off the bottom of the screen (playtest: "K opens at the bottom-left").
 ## A fixed Panel + inner ScrollContainer keeps it centered and bounded no matter
 ## how much it says.
-func toggle_sheet(text: String) -> void:
+var _body_doll: ProtoBodyDoll = null ## the wound silhouette on the K sheet (body_doll.gd)
+
+func toggle_sheet(text: String, body_tiers: Dictionary = {}) -> void:
 	if _sheet_panel == null:
 		var vp := get_viewport().get_visible_rect().size
 		var w: float = minf(540.0, vp.x - 80.0)
@@ -724,11 +726,22 @@ func toggle_sheet(text: String) -> void:
 		_sheet_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_sheet_label.custom_minimum_size = Vector2(w - 52.0, 0)
 		scroll.add_child(_sheet_label)
+		# THE BODY DOLL (owner ask 2026-07-10): wounds ON the figure, top-right of
+		# the sheet — the text rows say it, the doll SHOWS it.
+		_body_doll = ProtoBodyDoll.new()
+		_body_doll.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_body_doll.offset_left = -134.0
+		_body_doll.offset_right = -16.0
+		_body_doll.offset_top = 16.0
+		_body_doll.offset_bottom = 172.0
+		_sheet_panel.add_child(_body_doll)
 		add_child(_sheet_panel)
 		_sheet_panel.visible = false
 	_sheet_panel.visible = not _sheet_panel.visible
 	if _sheet_panel.visible:
 		_sheet_label.text = text
+		if _body_doll != null:
+			_body_doll.set_tiers(body_tiers)
 
 func sheet_open() -> bool:
 	return _sheet_panel != null and _sheet_panel.visible

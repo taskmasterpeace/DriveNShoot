@@ -59,6 +59,14 @@ func _ready() -> void:
 	print("RENDER_UI: gauge=%s hp_plate=%s ammo_plate=%s" % [hud._gauge.get_global_rect(), hud._hp_plate.get_global_rect(), hud._ammo_plate.get_global_rect()])
 	await _shot("HUD_drive")
 
+	# 2b) THE K SHEET — wounds read ON the body doll (staged torso + leg).
+	var chr: ProtoCharacter = main.character
+	(chr.body["torso"] as Damageable).hp = (chr.body["torso"] as Damageable).max_hp * 0.5
+	(chr.body["r_leg"] as Damageable).hp = (chr.body["r_leg"] as Damageable).max_hp * 0.1
+	main.hud.toggle_sheet(main._sheet_text(), main._body_tiers())
+	await _shot("SHEET_body")
+	main.hud.toggle_sheet("", {}) # close it again
+
 	# 3) THE SKILL TREE (U) — pixel skill icons on every branch header.
 	main.skill_tree.open()
 	await _shot("SKILL_tree")

@@ -79,11 +79,43 @@ polish~~ → executed below.
 back: the character has no visual damage read yet, particles are still gray boxes,
 the doll's 2px outline is subtle at 1× (loud states carry it), bike wheel read weak.
 
-**Next up (iteration 3):**
-1. **THE BODY DOLL on the K sheet** — `assets/ui/doll/body_doll.png` + 6-part wound
-   tints from character.gd's paper-doll (head/chest/arms/legs), same quiet/loud law.
-   Find the K-sheet build in proto3d.gd, mount beside the wound list, sim + render.
-2. Doll juice: a part FLASHES for a beat when its tier worsens (damage you FEEL on the
-   instrument); bike wheel read fix (draw two_wheel wheels full-width front/back).
-3. Smoke deep pass: billboard/sphere puffs + count/lifetime tune (kill the last popcorn).
-4. Phone swap-chip pictogram in primitives (emoji renders as mush at 14px).
+**Next up (iteration 3):** ~~body doll · doll juice · bike wheels~~ → executed below.
+
+---
+
+## Iteration 3 — 2026-07-10 ~07:40
+
+**Shipped:**
+- **THE BODY DOLL on the K sheet** (`body_doll.gd`, ProtoBodyDoll): the character's
+  6-part paper-doll made visible — the PixelLab silhouette top-right of the sheet with
+  each wound region tinted by its live Damageable tier. The craft move: per-part WHITE
+  MASKS baked once from the art's own alpha (first render showed floating programmer
+  rectangles — masked tints follow the body's real shape: a red leg paints THE LEG).
+  Anchors are fractions of the figure's alpha-bbox (self-calibrating to regenerated
+  art). Wired through `toggle_sheet(text, body_tiers)` + proto3d's `_body_tiers()`;
+  real-K-press flow proven. **bodydoll_sim NEW 10/10** (incl. the headless-frames≠
+  real-time flash-decay gotcha), dashboard 30/30 stays green.
+- **Doll juice**: a vehicle part that WORSENS pulses white for 0.7s (the hit you feel
+  on the instrument, self-stopping clock); two-wheeler tires now draw flush at nose/
+  tail OVER the hull (they vanished under it, then bled off the plate — both caught
+  by the gallery, both fixed).
+- **render_doll** grew the body gallery strip; **render_ui** grew the SHEET_body
+  in-game shot (staged torso WORN + r_leg CRITICAL — text rows and doll agree).
+
+**Steam rating: 7.0/10** (was 6.5). Damage now has a face on BOTH bodies — the rig
+and the driver — with one shared tier grammar, and instruments react to hits. Still
+holding it back: smoke is gray boxes (curves help, mesh doesn't), the swap-chip emoji
+is mush, world lighting/night feedback flat, muzzle/impact effects thin.
+
+**Nits parked:** bike doll tires sit slightly right of center (they mirror the rig's
+real visible-wheel x — could center for the read); sheet shows "HP 100/69 (cap)"
+when staged wounds drop the cap below current hp (pre-existing, cosmetic).
+
+**Next up (iteration 4):**
+1. **Smoke deep pass** — billboarded soft puffs (QuadMesh + radial-gradient texture or
+   SphereMesh), count/lifetime retune, slight wind drift; same treatment for the husk
+   smolder. Kill the last popcorn. exhaust_sim guards the law.
+2. **Phone swap-chip pictogram** in draw primitives (brick vs phone glyphs, no emoji).
+3. **Muzzle flash + hit feedback probe** — inventory what weapon.gd shows on fire/hit
+   today; cheapest loud win (a 2-frame flash quad + tracer brightness?) — visuals only.
+4. Doll nits: center two-wheel tires; consider part ICONS on the vehicle doll panels.
