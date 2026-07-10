@@ -202,7 +202,8 @@
       "id": "game_military_cache",
       "name": "Border Academy Cartridge Safe",
       "entries": [
-        {"item": "game_cart_ashland_command", "min": 1, "max": 1, "weight": 1.0}
+        {"item": "game_cart_ashland_command", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_black_grid", "min": 1, "max": 1, "weight": 1.0}
       ]
     },
     {

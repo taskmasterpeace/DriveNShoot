@@ -375,6 +375,15 @@ func _ready() -> void:
 		converged and Vector2(deck.cartridge.actor_state(1)["pos"]).is_equal_approx(
 			Vector2(expected_actor["pos"]))
 		and arcade.sent_results.size() == 1 and deck.ledger.recent_results.size() == 1)
+	var book_rows: Array = (JSON.parse_string(FileAccess.get_file_as_string("res://data/books.json")) as Dictionary).get("books", [])
+	var grid_book: Dictionary = book_rows.filter(func(book: Dictionary) -> bool:
+		return String(book.get("id", "")) == "book_black_grid")[0]
+	var grid_manual_text := "\n".join(grid_book.get("pages", [])).to_lower()
+	_check("doctrine teaches fog loadout deployables vehicles all modes bots votes and clean-room law",
+		(grid_book.get("pages", []) as Array).size() >= 11
+		and ["fog", "loadout", "barricades", "vehicles", "frontlines", "bug hunt",
+			"fleet", "votes", "sixteen seats", "clean-room"].all(func(term: String) -> bool:
+				return grid_manual_text.contains(term)))
 	_finish()
 
 

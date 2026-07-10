@@ -1,4 +1,5 @@
-## ONE final Phase 1 proof iterates all twenty owned cartridges through the
+## ONE final catalog proof preserves the exact twenty-game Phase 1 contract and
+## iterates all twenty-two owned cartridges through the
 ## exact shell/deck/input/snapshot/result/stop path used by the world devices.
 extends Node
 
@@ -22,17 +23,25 @@ func _ready() -> void:
 	deck.set_process(false)
 	var shell := ProtoGameShell.create(deck)
 	add_child(shell)
-	var rows: Array = deck.registry.phase_rows(1)
-	_check("the complete Phase 1 catalog contains twenty rows", rows.size() == 20)
+	var phase_one: Array = deck.registry.phase_rows(1)
+	var phase_two: Array = deck.registry.phase_rows(2)
+	var rows: Array = phase_one + phase_two
+	_check("the complete Phase 1 catalog still contains exactly twenty rows",
+		phase_one.size() == 20)
+	_check("the complete installed catalog contains two flagships and twenty-two games",
+		phase_two.size() == 2 and rows.size() == 22
+		and phase_two.all(func(row: Dictionary) -> bool:
+			return deck.registry.installed(String(row.get("id", "")))))
 	for row_value in rows:
 		var row: Dictionary = row_value
 		deck.ledger.unlock(String(row.get("id", "")))
-	_check("ownership ledger can install every declared Phase 1 row",
-		deck.ledger.installed_count(1) == 20)
+	_check("ownership ledger can install every declared row without weakening Phase 1",
+		deck.ledger.installed_count(1) == 20 and deck.ledger.installed_count(2) == 2
+		and deck.ledger.installed_total_count() == 22)
 	var before_scale := Engine.time_scale
 	for row_value in rows:
 		await _prove_row(deck, shell, row_value as Dictionary)
-	_check("all twenty owned cartridge lifecycles leave DRIVN time untouched",
+	_check("all twenty-two owned cartridge lifecycles leave DRIVN time untouched",
 		Engine.time_scale == before_scale)
 	_finish()
 
@@ -40,7 +49,7 @@ func _ready() -> void:
 func _prove_row(deck: Node, shell: CanvasLayer, row: Dictionary) -> void:
 	var game_id := String(row.get("id", ""))
 	var history_before := (deck.ledger.recent_results as Array).size()
-	var launched: bool = shell.open_game(game_id, {"source": "phase-one-catalog",
+	var launched: bool = shell.open_game(game_id, {"source": "complete-catalog",
 		"device": String(row.get("platform", ""))})
 	_check("%s launches through owned shell" % game_id, launched
 		and deck.cartridge != null and deck.current_row.get("id") == game_id)

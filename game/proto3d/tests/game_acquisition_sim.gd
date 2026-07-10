@@ -101,6 +101,20 @@ func _ready() -> void:
 	_check("every non-starter Phase 1 game has one physical cartridge item",
 		cartridge_items.size() == 18 and cartridge_items.has("game_cart_radworm")
 		and not cartridge_items.has("game_cart_waste_heap"))
+	var flagship_items: Array = ProtoContainer.ITEMS.keys().filter(func(item_id: Variant) -> bool:
+		return String(item_id) in ["game_cart_rust_runners", "game_cart_black_grid"])
+	_check("both flagship shooters have ordinary physical cartridge items",
+		flagship_items.size() == 2)
+	main.backpack.add("game_cart_rust_runners", 1)
+	main.backpack.add("game_cart_black_grid", 1)
+	var rust_installed: bool = main.use_item("game_cart_rust_runners")
+	var grid_installed: bool = main.use_item("game_cart_black_grid")
+	if rust_installed:
+		main.backpack.remove("game_cart_rust_runners", 1)
+	if grid_installed:
+		main.backpack.remove("game_cart_black_grid", 1)
+	_check("the generic USE path installs both flagship cartridges",
+		rust_installed and grid_installed and ledger.installed_count(2) == 2)
 
 	main.backpack.add("game_cart_radworm", 1)
 	var installed: bool = main.use_item("game_cart_radworm")
@@ -110,7 +124,7 @@ func _ready() -> void:
 		and ledger.unlocked.has("radworm") and main.backpack.count("game_cart_radworm") == 0)
 	if shelf != null:
 		_check("the physical shelf count updates after installation",
-			String(shelf.interact_prompt(main)).contains("3 / %d" % available_games))
+			String(shelf.interact_prompt(main)).contains("5 / %d" % available_games))
 	else:
 		_check("the physical shelf count updates after installation", false)
 	main.backpack.add("game_cart_radworm", 1)
@@ -131,7 +145,8 @@ func _ready() -> void:
 	if not ledger.unlocked.has("radworm"):
 		print("GAME_ACQUISITION: save unlocked=%s restored=%s" % [
 			str((save.get("game_deck", {}) as Dictionary).get("unlocked", [])), str(ledger.unlocked)])
-	_check("installed ownership survives the one-file save", ledger.unlocked.has("radworm"))
+	_check("installed ownership survives the one-file save", ledger.unlocked.has("radworm")
+		and ledger.unlocked.has("rust_runners") and ledger.unlocked.has("black_grid"))
 	_check("acquisition never changes world time scale", Engine.time_scale == 1.0)
 	_finish()
 

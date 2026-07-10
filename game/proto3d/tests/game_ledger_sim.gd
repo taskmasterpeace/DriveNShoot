@@ -81,6 +81,13 @@ func _ready() -> void:
 				and (board_row.get("entries", []) as Array).size() >= 2
 	_check("all twenty Phase 1 games have explicit fictional house boards",
 		covered_house_ids.size() == 20 and house_rows_valid)
+	var flagship_ids: Array = reg.phase_rows(2).map(func(row: Dictionary) -> String:
+		return String(row.get("id", "")))
+	_check("both flagship shooters have explicit fictional house boards",
+		flagship_ids.size() == 2 and flagship_ids.all(func(game_id: Variant) -> bool:
+			return reg.house_boards.any(func(board: Dictionary) -> bool:
+				return String(board.get("game_id", "")) == String(game_id) \
+				and bool(board.get("fictional", false)))))
 	var personal: Array = ledger.board("waste_heap", "stock-1", "personal")
 	_check("personal scope contains only the real local best", personal.size() == 1
 		and not bool((personal[0] as Dictionary).get("fictional", true))

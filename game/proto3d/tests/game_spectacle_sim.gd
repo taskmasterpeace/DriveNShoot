@@ -53,7 +53,8 @@ func _ready() -> void:
 		return events.any(func(event: Dictionary) -> bool:
 			return String(event.get("game_id", "")) == String(row.get("id", ""))))
 	_check("catalog validates three venues and every installed event night",
-		venues.size() == 3 and events.size() == 10 + scheduled_flagships.size()
+		venues.size() == 3 and events.size() == 12
+		and scheduled_flagships.size() == installed_flagships.size()
 		and (catalog.get("warnings", []) as Array).is_empty())
 	var console_ids: Array = (registry.phase_rows(1) + scheduled_flagships).filter(func(row: Dictionary) -> bool:
 		return String(row.get("platform", "")) == "console").map(func(row: Dictionary) -> String:

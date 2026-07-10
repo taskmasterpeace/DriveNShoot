@@ -497,6 +497,10 @@
   {
    "category": "media", "desc": "A blood-red Crimson Road league cartridge. USE installs RUST RUNNERS.",
    "emoji": "\ud83d\ude80", "id": "game_cart_rust_runners", "name": "Prize Cartridge: RUST RUNNERS", "usable": true, "weight": 0.14
+  },
+  {
+   "category": "media", "desc": "A sealed Continuity field-simulation cartridge. USE installs BLACK GRID.",
+   "emoji": "\u25a6", "id": "game_cart_black_grid", "name": "Military Cartridge: BLACK GRID", "usable": true, "weight": 0.16
   }
  ]
 }

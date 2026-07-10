@@ -329,6 +329,16 @@ func _ready() -> void:
 		and rust_board.size() == 1
 		and (venue_catalog.get("events", []) as Array).any(func(event: Dictionary) -> bool:
 			return String(event.get("game_id", "")) == "rust_runners"))
+	var book_rows: Array = (JSON.parse_string(FileAccess.get_file_as_string("res://data/books.json")) as Dictionary).get("books", [])
+	var rust_book: Dictionary = book_rows.filter(func(book: Dictionary) -> bool:
+		return String(book.get("id", "")) == "book_rust_runners")[0]
+	var rust_manual_text := "\n".join(rust_book.get("pages", [])).to_lower()
+	_check("mercenary manual teaches every live stance resource mode bot and network law",
+		(rust_book.get("pages", []) as Array).size() >= 9
+		and ["backflip", "gore", "deathmatch", "capture the flag", "pointmatch",
+			"bots", "eight same-session", "open soldat"].all(func(term: String) -> bool:
+				return rust_manual_text.contains(term.replace(" ", "")) \
+					or rust_manual_text.contains(term)))
 	var arcade := FakeArcade.new()
 	add_child(arcade)
 	var deck := ProtoGameDeck.create(self)

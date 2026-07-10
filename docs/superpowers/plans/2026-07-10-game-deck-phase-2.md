@@ -159,18 +159,18 @@ asset is declared.
 - Modify: `game/proto3d/proto3d.gd`
 - Extend: world/acquisition/spectacle/catalog sims
 
-- [ ] Both Phase 2 cartridges install through the same generic physical item
+- [x] Both Phase 2 cartridges install through the same generic physical item
   path, appear on the shelf count (22 total), and launch only when owned outside
   an explicitly venue-owned event.
-- [ ] RUST RUNNERS is a high-profile venue prize/cache find; BLACK GRID comes
+- [x] RUST RUNNERS is a high-profile venue prize/cache find; BLACK GRID comes
   from a military terminal/cache; both get recurring tournament nights,
   brackets, wagers, house/session boards, spectator mirroring, and waypoints.
-- [ ] Expand both already-authored in-world books until every live mechanic,
+- [x] Expand both already-authored in-world books until every live mechanic,
   mode, control, scoring rule, bot behavior, and clean-room/source boundary is
   taught accurately.
-- [ ] Extend the combined catalog proof from 20 Phase 1 games to all 22 without
+- [x] Extend the combined catalog proof from 20 Phase 1 games to all 22 without
   weakening the Phase 1 exact-count contract.
-- [ ] Commit `feat: integrate flagship shooters into the world`.
+- [x] Commit `feat: integrate flagship shooters into the world`.
 
 ## Task 7: Final 22-game audit and clean-room gate
 
