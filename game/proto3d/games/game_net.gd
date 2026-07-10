@@ -5,6 +5,7 @@ class_name ProtoArcadeNet
 extends Node
 
 signal invite_received(peer_id: int, offer: Dictionary)
+signal lobby_response_received(peer_id: int, response: Dictionary)
 signal peer_joined_game(peer_id: int, session_id: String)
 signal input_received(peer_id: int, tick: int, snapshot: Dictionary)
 signal event_received(peer_id: int, event: Dictionary)
@@ -19,6 +20,7 @@ var host_peer := 0
 var members: Dictionary = {}
 var _seen_event_ids: Dictionary = {}
 var _seen_result_ids: Dictionary = {}
+var _seen_lobby_messages: Dictionary = {}
 var _last_input_tick: Dictionary = {}
 
 
@@ -55,7 +57,23 @@ func clear_session() -> void:
 	members.clear()
 	_seen_event_ids.clear()
 	_seen_result_ids.clear()
+	_seen_lobby_messages.clear()
 	_last_input_tick.clear()
+
+
+func add_member(peer_id: int) -> bool:
+	if session_id == "" or peer_id <= 0 or members.has(peer_id):
+		return false
+	members[peer_id] = true
+	return true
+
+
+func remove_member(peer_id: int) -> bool:
+	if peer_id <= 0 or not members.has(peer_id) or peer_id == host_peer:
+		return false
+	members.erase(peer_id)
+	_last_input_tick.erase(peer_id)
+	return true
 
 
 func invite(peer_id: int, offer: Dictionary) -> bool:
@@ -75,6 +93,17 @@ func accept(peer_id: int, offered_session_id: String, offered_game_id: String) -
 		return false
 	arcade_reliable.rpc_id(peer_id, {"kind": "accept", "session_id": offered_session_id,
 		"game_id": offered_game_id})
+	return true
+
+
+func accept_lobby(peer_id: int, response: Dictionary) -> bool:
+	if not _can_send() or peer_id <= 0:
+		return false
+	var envelope := response.duplicate(true)
+	envelope["kind"] = "accept"
+	if not _valid_lobby_response(envelope):
+		return false
+	arcade_reliable.rpc_id(peer_id, envelope)
 	return true
 
 
@@ -134,9 +163,19 @@ func ingest_reliable(sender: int, envelope: Dictionary) -> bool:
 	if sender <= 0 or registry.get_game(envelope_game).is_empty():
 		return false
 	if kind == "invite":
+		if envelope.has("lobby_action"):
+			if not _valid_lobby_offer(sender, envelope) \
+					or not _remember_lobby_message("offer", envelope):
+				return false
 		invite_received.emit(sender, envelope.duplicate(true))
 		return true
 	if kind == "accept":
+		if envelope.has("lobby_action"):
+			if not _valid_lobby_response(envelope) \
+					or not _remember_lobby_message("response", envelope):
+				return false
+			lobby_response_received.emit(sender, envelope.duplicate(true))
+			return true
 		peer_joined_game.emit(sender, String(envelope.get("session_id", "")))
 		return true
 	if not _valid_member_envelope(sender, envelope):
@@ -183,6 +222,35 @@ func _valid_member_envelope(sender: int, envelope: Dictionary) -> bool:
 	return session_id != "" and members.has(sender) \
 		and String(envelope.get("session_id", "")) == session_id \
 		and String(envelope.get("game_id", "")) == game_id
+
+
+func _valid_lobby_offer(sender: int, envelope: Dictionary) -> bool:
+	var offered_session := String(envelope.get("session_id", ""))
+	var offered_host := int(envelope.get("host_peer", 0))
+	return String(envelope.get("lobby_action", "")) == "offer" \
+		and String(envelope.get("invitation_id", "")) != "" \
+		and offered_session != "" and offered_host > 0 and sender == offered_host \
+		and (session_id == "" or offered_session == session_id)
+
+
+func _valid_lobby_response(envelope: Dictionary) -> bool:
+	var action := String(envelope.get("lobby_action", ""))
+	var offered_session := String(envelope.get("session_id", ""))
+	var offered_host := int(envelope.get("host_peer", 0))
+	return action in ["accept_player", "accept_spectator", "cancel"] \
+		and String(envelope.get("invitation_id", "")) != "" \
+		and offered_session != "" and offered_host > 0 \
+		and (session_id == "" or offered_session == session_id) \
+		and (host_peer == 0 or offered_host == host_peer)
+
+
+func _remember_lobby_message(prefix: String, envelope: Dictionary) -> bool:
+	var key := "%s:%s:%s" % [prefix, String(envelope.get("lobby_action", "")),
+		String(envelope.get("invitation_id", ""))]
+	if _seen_lobby_messages.has(key):
+		return false
+	_seen_lobby_messages[key] = true
+	return true
 
 
 func _valid_result(result: Dictionary) -> bool:

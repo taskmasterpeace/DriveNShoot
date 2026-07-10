@@ -40,6 +40,8 @@ var event_count := 0
 var input_count := 0
 var snapshot_count := 0
 var result_count := 0
+var lobby_offer_count := 0
+var lobby_response_count := 0
 
 
 func _check(label: String, ok: bool) -> void:
@@ -69,8 +71,41 @@ func _ready() -> void:
 	bridge.input_received.connect(func(_peer: int, _tick: int, _snapshot: Dictionary) -> void: input_count += 1)
 	bridge.snapshot_received.connect(func(_peer: int, _state: Dictionary) -> void: snapshot_count += 1)
 	bridge.result_received.connect(func(_peer: int, _result: Dictionary) -> void: result_count += 1)
+	if bridge.has_signal("invite_received"):
+		bridge.invite_received.connect(func(_peer: int, _offer: Dictionary) -> void:
+			lobby_offer_count += 1)
+	if bridge.has_signal("lobby_response_received"):
+		bridge.lobby_response_received.connect(func(_peer: int, _response: Dictionary) -> void:
+			lobby_response_count += 1)
+	var has_lobby_api := bridge.has_method("add_member") and bridge.has_method("remove_member") \
+		and bridge.has_method("accept_lobby") and bridge.has_signal("lobby_response_received")
+	_check("the bridge exposes lobby membership and response APIs", has_lobby_api)
+	if not has_lobby_api:
+		_finish()
+		return
 	_check("a known game session begins", bridge.begin_session("crown-room", "crown_of_ash", 1, [1, 2]))
 	_check("unknown game session is rejected", not bridge.begin_session("bad", "not_a_game", 1, [1, 2]))
+	_check("host can add one accepted member but not duplicate it",
+		bridge.add_member(3) and not bridge.add_member(3) and bridge.members.has(3))
+	_check("host can remove a present member but not invent a removal",
+		bridge.remove_member(3) and not bridge.remove_member(3) and not bridge.members.has(3))
+	var lobby_offer := {"kind": "invite", "lobby_action": "offer",
+		"invitation_id": "crown-invite-1", "session_id": "crown-room",
+		"game_id": "crown_of_ash", "host_peer": 1, "capacity": 2,
+		"seed": 71, "bot_fill": true}
+	_check("one validated lobby offer is accepted exactly once",
+		bridge.ingest_reliable(1, lobby_offer)
+		and not bridge.ingest_reliable(1, lobby_offer) and lobby_offer_count == 1)
+	var malformed_offer := lobby_offer.duplicate(true)
+	malformed_offer["invitation_id"] = ""
+	_check("a lobby offer missing identity is rejected",
+		not bridge.ingest_reliable(1, malformed_offer))
+	var lobby_response := {"kind": "accept", "lobby_action": "accept_spectator",
+		"invitation_id": "crown-invite-1", "session_id": "crown-room",
+		"game_id": "crown_of_ash", "host_peer": 1}
+	_check("one validated lobby response is accepted exactly once",
+		bridge.ingest_reliable(2, lobby_response)
+		and not bridge.ingest_reliable(2, lobby_response) and lobby_response_count == 1)
 	var deck_script := load("res://proto3d/games/game_deck.gd") as GDScript
 	var deck: Node = deck_script.create(self)
 	add_child(deck)

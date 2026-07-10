@@ -125,8 +125,9 @@ func _ready() -> void:
 		(console.session_broker.lobby_snapshot().get("seats", []) as Array).size() == 2
 		and (console.session_broker.pending_invitations() as Array).is_empty())
 	online.pressed.emit()
-	_check("ONLINE GAME selects the same-session mode",
-		String(console.session_broker.lobby_snapshot().get("mode", "")) == "online")
+	_check("ONLINE GAME refuses to invent an absent DRIVN session",
+		String(console.session_broker.lobby_snapshot().get("status", ""))
+			== "NO LIVE DRIVN SESSION")
 
 	var ui: Dictionary = lobby.call("snapshot_ui")
 	_check("MATCH exposes roster, invitations, selection, bots, and status",

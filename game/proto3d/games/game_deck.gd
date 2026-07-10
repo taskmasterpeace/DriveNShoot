@@ -7,6 +7,7 @@ signal state_changed(state: String)
 signal game_launched(game_id: String)
 signal result_recorded(result: Dictionary)
 signal cartridge_error(game_id: String, message: String)
+signal arcade_net_attached(bridge: Node)
 
 const STATE_OFF := "OFF"
 const STATE_LIBRARY := "LIBRARY"
@@ -243,6 +244,7 @@ func attach_net(bridge: Node) -> void:
 		arcade_net.snapshot_received.connect(_on_net_snapshot)
 		arcade_net.result_received.connect(_on_net_result)
 		arcade_net.input_received.connect(_on_net_input)
+	arcade_net_attached.emit(arcade_net)
 
 
 func _on_cartridge_network_event(event: Dictionary) -> void:
@@ -259,6 +261,8 @@ func _on_net_snapshot(_peer_id: int, snapshot_state: Dictionary) -> void:
 
 
 func _on_net_result(_peer_id: int, result: Dictionary) -> void:
+	if bool(current_context.get("spectator", false)):
+		return
 	if ledger.submit(result):
 		result_recorded.emit(result.duplicate(true))
 

@@ -351,7 +351,7 @@ git commit -m "feat: surface Game Deck match lobby"
   `accept_spectator`, `cancel`; session events `lobby_start`, `lobby_leave`
 - Consumes: Task 2 lobby state and Task 3 shell launch callback
 
-- [ ] **Step 1: Write failing protocol tests**
+- [x] **Step 1: Write failing protocol tests**
 
 Extend `game_net_sim` with exact envelope assertions:
 
@@ -370,11 +370,11 @@ Prove player ownership is required, spectator ownership is bypassed, power is
 required for both, stale/expired/used/wrong-session/full/host-left failures are
 non-mutating, and SPECTATE is rejected for local invitations.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Expected: missing member mutation and lobby-action validation failures.
 
-- [ ] **Step 3: Extend the generic transport safely**
+- [x] **Step 3: Extend the generic transport safely**
 
 Add member mutation with positive IDs and duplicate rejection. Track seen
 invitation IDs separately from event/result IDs. Add
@@ -384,7 +384,7 @@ game/session/host fields before emitting `invite_received` or the new response
 signal. Keep legacy offers without `lobby_action` accepted as `offer`, and keep
 the existing three-argument `accept` behavior, for backward compatibility.
 
-- [ ] **Step 4: Implement host/client broker transitions**
+- [x] **Step 4: Implement host/client broker transitions**
 
 Host `configure_lobby("online")` creates or adopts a session. Client offer
 reception adds a pending invitation. `join_invitation` validates locally,
@@ -409,7 +409,7 @@ Host launches and sends one reliable `lobby_start` session event. Joined
 clients open PLAY. Spectators open PLAY content in deck `SPECTATING` state with
 no local seat. Invitations older than 30,000 monotonic milliseconds are stale.
 
-- [ ] **Step 5: Suppress spectator input and result writes**
+- [x] **Step 5: Suppress spectator input and result writes**
 
 Assert and preserve these existing deck laws:
 
@@ -422,13 +422,13 @@ Assert and preserve these existing deck laws:
 
 Add an explicit regression if any branch is indirect.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 Run `game_net_sim`, `game_online_mp_sim`, `game_lobby_policy_sim`, and
 `game_shell_sim`. Expected: all protocol, ownership, spectator, and legacy
 assertions pass with zero failures.
 
-- [ ] **Step 7: Commit the online handshake**
+- [x] **Step 7: Commit the online handshake**
 
 ```powershell
 git add game/proto3d/games/game_net.gd game/proto3d/games/game_session_broker.gd game/proto3d/games/game_deck.gd game/proto3d/tests/game_net_sim.gd game/proto3d/tests/game_online_mp_sim.gd game/proto3d/tests/game_lobby_policy_sim.gd

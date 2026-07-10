@@ -33,6 +33,10 @@ func _setup(new_main: Node, new_deck: Node, new_shell: CanvasLayer) -> void:
 	_build_case()
 	var broker_script := load("res://proto3d/games/game_session_broker.gd") as GDScript
 	session_broker = broker_script.create(self, deck, shell)
+	if deck != null and deck.has_signal("arcade_net_attached"):
+		deck.arcade_net_attached.connect(session_broker.attach_bridge)
+		if deck.arcade_net != null:
+			session_broker.attach_bridge(deck.arcade_net)
 	deck.game_launched.connect(_on_game_launched)
 	deck.state_changed.connect(_on_deck_state_changed)
 
@@ -79,13 +83,23 @@ func _add_box(label: String, size: Vector3, at: Vector3, color: Color) -> void:
 
 
 func interact_prompt(_main: Node) -> String:
-	return "E  GAME CONSOLE — NO POWER" if not powered else "E  PLAY GAME CONSOLE"
+	if not powered:
+		return "E  GAME CONSOLE — NO POWER"
+	if session_broker != null and session_broker.has_method("pending_invitations") \
+			and not (session_broker.pending_invitations() as Array).is_empty():
+		return "E  GAME CONSOLE — MATCH INVITE"
+	return "E  PLAY GAME CONSOLE"
 
 
 func interact(_main: Node) -> void:
 	if not powered:
 		if main != null and main.has_method("notify"):
 			main.notify("🎮 The console is dark. It needs a real power source.")
+		return
+	if session_broker != null and session_broker.has_method("pending_invitations") \
+			and not (session_broker.pending_invitations() as Array).is_empty() \
+			and shell.has_method("open_pending_lobby"):
+		shell.open_pending_lobby()
 		return
 	shell.open_library("console", {"source": "console", "device": "console", "auto_start": true})
 

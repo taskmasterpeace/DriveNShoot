@@ -193,6 +193,23 @@ func open_lobby(game_id: String, context: Dictionary = {}) -> bool:
 	return configured
 
 
+func open_pending_lobby() -> bool:
+	if lobby == null or _broker == null or (_broker.pending_invitations() as Array).is_empty():
+		return false
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	current_view = "match"
+	var snapshot: Dictionary = _broker.lobby_snapshot()
+	_title.text = "GAME DECK // %s MATCH" % String(snapshot.get("title", "PENDING"))
+	_status.text = "WORLD LIVE // INVITATION RECEIVED // JOIN or SPECTATE"
+	lobby.call("refresh")
+	_sync_views()
+	lobby.call_deferred("focus_default")
+	return true
+
+
 func _on_lobby_launch(request: Dictionary) -> void:
 	open_game(String(request.get("game_id", "")),
 		(request.get("context", {}) as Dictionary).duplicate(true))
