@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource path="res://proto3d/tests/rustball_sim.gd" type="Script" id="1"]
+
+[node name="RustballSim" type="Node"]
+script = ExtResource("1")

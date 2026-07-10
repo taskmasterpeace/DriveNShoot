@@ -113,11 +113,11 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/rustball/*`, `tests/rustball_sim.*`
 
-- [ ] Red sim: acceleration, dash/body impulse, deterministic ball physics,
+- [x] Red sim: acceleration, dash/body impulse, deterministic ball physics,
   arena rebounds, goal detection/reset, credited goal/save, clock/score finish,
   bot offense/defense, local seats, snapshot, and goals/saves result.
-- [ ] Implement one-to-four players in an original bumper-yard league pitch.
-- [ ] Commit `feat: add RUSTBALL`.
+- [x] Implement one-to-four players in an original bumper-yard league pitch.
+- [x] Commit `feat: add RUSTBALL`.
 
 ## Task 7: FUEL RUN
 
