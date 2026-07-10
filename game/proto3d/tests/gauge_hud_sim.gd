@@ -100,6 +100,15 @@ func _ready() -> void:
 	_check("fuel half -> needle straight up (~0)", absf(fg.needle_deg) < 0.5)
 	_check("HUD built the dash cluster", hud._fuel_gauge != null and hud._temp_gauge != null and hud._tach_gauge != null)
 
+	# 7) THE HUD PLATES (pixel health/ammo readouts) — the real set_hp/set_ammo path.
+	hud.set_hp(75.0, 90.0, true)
+	hud.set_ammo("🔫", "pistol", 12, 48, true)
+	_check("HP plate built with a real plate texture", hud._hp_plate != null and hud._hp_plate.has_plate())
+	_check("ammo plate built with a real plate texture", hud._ammo_plate != null and hud._ammo_plate.has_plate())
+	_check("HP plate visible while shown", hud._hp_plate.visible)
+	hud.set_hp(75.0, 90.0, false)
+	_check("HP plate hidden when not shown", not hud._hp_plate.visible)
+
 	print("GAUGE RESULTS: %d passed, %d failed" % [passed, failed])
 	if failed == 0:
 		print("ALL CHECKS PASSED")

@@ -316,14 +316,30 @@ func set_keys(names: Array) -> void:
 	_keys_label.text = "" if names.is_empty() else "KEYS: " + ", ".join(names)
 
 
+## THE TOAST QUEUE (LWE 0.9 / audit F11): a burst of beats plays IN ORDER —
+## the old single-label overwrite ate every message that arrived mid-fade.
+var _toast_q: Array = []
 func toast(text: String) -> void:
-	_toast_label.text = text
+	if _toast_q.size() >= 5:
+		return # a flood keeps its first five — the rest were never readable anyway
+	_toast_q.append(text)
+	if _toast_q.size() == 1:
+		_play_next_toast()
+
+
+func _play_next_toast() -> void:
+	if _toast_q.is_empty():
+		return
+	_toast_label.text = String(_toast_q[0])
 	_toast_label.modulate.a = 1.0
 	if _toast_tween and _toast_tween.is_valid():
 		_toast_tween.kill()
 	_toast_tween = create_tween()
 	_toast_tween.tween_interval(1.4)
 	_toast_tween.tween_property(_toast_label, "modulate:a", 0.0, 0.8)
+	_toast_tween.tween_callback(func() -> void:
+		_toast_q.pop_front()
+		_play_next_toast())
 
 
 func set_speed(mph: float, driving: bool) -> void:
@@ -546,6 +562,8 @@ func set_mode(driving: bool) -> void:
 var _flash: ColorRect = null
 var _ammo_label: Label = null
 var _hp_label: Label = null
+var _hp_plate: ProtoStatPlate = null    ## pixel plate skin for the HP readout
+var _ammo_plate: ProtoStatPlate = null  ## pixel plate skin for the ammo readout
 
 ## ❤️ HP / cap — numeric (you count blood like bullets when it's this scarce).
 func set_hp(hp: float, cap: float, show: bool) -> void:
@@ -561,10 +579,26 @@ func set_hp(hp: float, cap: float, show: bool) -> void:
 		_hp_label.offset_top = -166.0
 		_hp_label.offset_bottom = -138.0
 		add_child(_hp_label)
-	_hp_label.visible = show
+	if _hp_plate == null:
+		_hp_plate = ProtoStatPlate.create("res://assets/ui/hud/health.png", 184.0, Color(0.96, 0.42, 0.32))
+		_hp_plate.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_hp_plate.offset_left = 20.0
+		_hp_plate.offset_right = 204.0
+		_hp_plate.offset_top = -206.0
+		_hp_plate.offset_bottom = -114.0
+		_hp_plate.visible = false
+		add_child(_hp_plate)
+	var hp_plated: bool = _hp_plate.has_plate()
+	_hp_plate.visible = show and hp_plated
+	_hp_label.visible = show and not hp_plated
 	if show:
-		_hp_label.text = "❤️ %d / %d" % [int(hp), int(cap)]
-		_hp_label.modulate.a = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008) if hp < 30.0 else 1.0
+		var pulse: float = 0.75 + 0.25 * sin(Time.get_ticks_msec() * 0.008) if hp < 30.0 else 1.0
+		if hp_plated:
+			_hp_plate.set_text("%d/%d" % [int(hp), int(cap)], Color(1.0, 0.28, 0.22) if hp < 30.0 else Color(0.96, 0.42, 0.32))
+			_hp_plate.modulate.a = pulse
+		else:
+			_hp_label.text = "❤️ %d / %d" % [int(hp), int(cap)]
+			_hp_label.modulate.a = pulse
 var _sheet_panel: Panel = null
 var _sheet_label: Label = null
 var _death_label: Label = null
@@ -661,6 +695,9 @@ func jump_flash_active() -> bool:
 
 
 func _process(delta: float) -> void:
+	# the threat stack's ttl'd tells expire on their own clock (F11)
+	if not _threat_stack.is_empty():
+		_render_threat()
 	if _jump_t <= 0.0:
 		return
 	_jump_t = maxf(0.0, _jump_t - delta)
@@ -880,9 +917,23 @@ func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: boo
 		_ammo_label.offset_top = -132.0
 		_ammo_label.offset_bottom = -104.0
 		add_child(_ammo_label)
-	_ammo_label.visible = show
+	if _ammo_plate == null:
+		_ammo_plate = ProtoStatPlate.create("res://assets/ui/hud/ammo.png", 184.0, Color(0.96, 0.72, 0.2))
+		_ammo_plate.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		_ammo_plate.offset_left = 20.0
+		_ammo_plate.offset_right = 204.0
+		_ammo_plate.offset_top = -108.0
+		_ammo_plate.offset_bottom = -16.0
+		_ammo_plate.visible = false
+		add_child(_ammo_plate)
+	var ammo_plated: bool = _ammo_plate.has_plate()
+	_ammo_plate.visible = show and ammo_plated
+	_ammo_label.visible = show and not ammo_plated
 	if show:
-		_ammo_label.text = "%s %s  %d / %d" % [emoji, name_txt, mag, reserve]
+		if ammo_plated:
+			_ammo_plate.set_text("%d/%d" % [mag, reserve])
+		else:
+			_ammo_label.text = "%s %s  %d / %d" % [emoji, name_txt, mag, reserve]
 
 ## Red pain flash (crash wounds, hits) — one frame of hurt you FEEL.
 func flash_pain() -> void:
@@ -942,8 +993,23 @@ func set_location(text: String) -> void:
 ## THE THREAT CHIP (UI language: badge chip for the ONE piece of state worth
 ## calling out): a persistent line for standing road threats — a drone shadowing
 ## you, a checkpoint ahead — that a fading toast can't carry. "" hides it.
+## THE THREAT STACK (LWE 0.9 / audit F11): every writer registers under its
+## OWNER with a priority (+ optional ttl); the top priority renders. The old
+## single setter meant the bandit director silently blanked every ecology
+## tell each tick. Precedence guide: apex strike 5 > checkpoint 4 >
+## drone-shadow 3 > nest territory 2 > ambient reads 1.
 var _threat_label: Label = null
-func set_threat(text: String) -> void:
+var _threat_stack: Dictionary = {} ## owner -> {text, priority, until(ms|-1)}
+func set_threat(text: String, owner: String = "legacy", priority: int = 4, ttl_s: float = -1.0) -> void:
+	if text == "":
+		_threat_stack.erase(owner)
+	else:
+		_threat_stack[owner] = {"text": text, "priority": priority,
+			"until": (Time.get_ticks_msec() + int(ttl_s * 1000.0)) if ttl_s > 0.0 else -1}
+	_render_threat()
+
+
+func _render_threat() -> void:
 	if _threat_label == null:
 		_threat_label = Label.new()
 		_threat_label.add_theme_font_override("font", ProtoHUD.mixed_font())
@@ -954,5 +1020,20 @@ func set_threat(text: String) -> void:
 		_threat_label.add_theme_constant_override("shadow_offset_y", 1)
 		_threat_label.position = Vector2(28, 46) # right under the mode/location line
 		add_child(_threat_label)
-	_threat_label.text = text
-	_threat_label.visible = text != ""
+	var now := Time.get_ticks_msec()
+	var stale: Array = []
+	for o in _threat_stack:
+		var e: Dictionary = _threat_stack[o]
+		if int(e["until"]) > 0 and now > int(e["until"]):
+			stale.append(o)
+	for o in stale:
+		_threat_stack.erase(o)
+	var best_text := ""
+	var best_p := -2147483648
+	for o in _threat_stack:
+		var e: Dictionary = _threat_stack[o]
+		if int(e["priority"]) > best_p:
+			best_p = int(e["priority"])
+			best_text = String(e["text"])
+	_threat_label.text = best_text
+	_threat_label.visible = best_text != ""
