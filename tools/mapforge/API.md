@@ -56,6 +56,8 @@ node tools/mapforge/generate_usa.mjs  # REGENERATES the whole map (overwrites yo
 | Structures | `GET/POST/DELETE /api/structures` — the §7 catalog (§9 JOB rule) |
 | **Districts (v4)** | `GET/POST/DELETE /api/districts` — named polygons; future territory rows |
 | **Plan (v4)** | `GET/POST/DELETE /api/plan` — shared owner+AI TODO pins (open/doing/done) |
+| **Regions (v4.1)** | `GET /api/regions` — state cards: ruler, bandit strength, towns/exits/districts, biome mix, bbox |
+| **Ecology (v4.1)** | `GET /api/ecology` — creature rows + by-biome index (what lives where) |
 | **Route (v4)** | `GET /api/route?ax=&az=&bx=&bz=&vehicle=` — drive-time on the real graph |
 | **Vehicles (v4)** | `GET /api/vehicles` — fleet top speeds read live from `car_3d.gd` |
 | Housekeeping | `POST /api/reload` |
