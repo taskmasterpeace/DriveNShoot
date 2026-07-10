@@ -43,8 +43,14 @@ func _setup(new_deck: Node) -> void:
 
 func _build_ui() -> void:
 	_root = PanelContainer.new()
-	_root.set_anchors_preset(Control.PRESET_CENTER)
-	_root.custom_minimum_size = Vector2(1180, 680)
+	# A full-rect responsive frame: PRESET_CENTER alone treats the anchor as the
+	# panel's top-left, which pushed half the shell beyond the rendered viewport.
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.offset_left = 24.0
+	_root.offset_top = 20.0
+	_root.offset_right = -24.0
+	_root.offset_bottom = -20.0
+	_root.custom_minimum_size = Vector2(720, 600)
 	var frame := StyleBoxFlat.new()
 	frame.bg_color = INK
 	frame.border_color = AMBER

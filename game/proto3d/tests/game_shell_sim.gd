@@ -32,7 +32,13 @@ func _ready() -> void:
 	var shell: CanvasLayer = shell_script.create(deck)
 	add_child(shell)
 	shell.open_library("handheld")
+	await get_tree().process_frame
 	_check("library opens inside the heavy shell", shell.is_open and shell.current_view == "library")
+	var shell_rect: Rect2 = shell._root.get_global_rect()
+	var view_rect: Rect2 = get_viewport().get_visible_rect()
+	_check("the bezel stays fully inside the rendered frame", shell_rect.position.x >= 0.0
+		and shell_rect.position.y >= 0.0 and shell_rect.end.x <= view_rect.end.x
+		and shell_rect.end.y <= view_rect.end.y)
 	_check("library buttons are keyboard/pad focusable", shell.first_library_button != null
 		and shell.first_library_button.focus_mode == Control.FOCUS_ALL)
 
