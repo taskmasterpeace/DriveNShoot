@@ -93,6 +93,17 @@ func restore_snapshot(state: Dictionary) -> void:
 	_render()
 
 
+func debug_force_finish() -> bool:
+	if finished or not active:
+		return false
+	return finish_match({
+		"primary": score,
+		"secondary": {"highest_part": highest_part},
+		"outcome": "complete",
+		"ranked": true,
+	})
+
+
 func _empty_board() -> Array:
 	var out: Array = []
 	for _y in SIZE:

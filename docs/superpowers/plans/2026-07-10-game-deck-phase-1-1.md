@@ -43,14 +43,14 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 - Create: `game/proto3d/games/handheld/handheld_draw.gd`
 - Modify: `game/proto3d/games/game_registry.gd`
 
-- [ ] Write a red catalog sim that iterates the ten handheld rows and requires
+- [x] Write a red catalog sim that iterates the ten handheld rows and requires
   each scene to instantiate, match its declared viewport, start, pause/resume,
   snapshot/restore, and stop without changing `Engine.time_scale`.
-- [ ] Add a tiny original drawing helper for palette, labels, and primitive
+- [x] Add a tiny original drawing helper for palette, labels, and primitive
   shapes; no rules or input logic lives in the helper.
-- [ ] Add registry validation for cartridge scene root, manual id, and device
+- [x] Add registry validation for cartridge scene root, manual id, and device
   screen dimensions without making a missing optional scene fatal.
-- [ ] Run the red sim and retain its nine missing-scene failures.
+- [x] Run the red sim and retain its nine missing-scene failures.
 
 ## Task 2: RADWORM
 

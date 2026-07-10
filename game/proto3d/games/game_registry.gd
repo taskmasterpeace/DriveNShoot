@@ -180,3 +180,26 @@ func enabled(id: String) -> bool:
 		if source.is_empty() or not FileAccess.file_exists(String(source.get("notice_path", ""))):
 			return false
 	return true
+
+
+func cartridge_contract_error(id: String) -> String:
+	var row := get_game(id)
+	if row.is_empty():
+		return "unknown cartridge"
+	var scene_path := String(row.get("cartridge_scene", ""))
+	if not ResourceLoader.exists(scene_path):
+		return "not installed"
+	var packed := load(scene_path) as PackedScene
+	if packed == null:
+		return "scene does not load"
+	var instance := packed.instantiate()
+	if not (instance is Control):
+		instance.free()
+		return "root is not Control"
+	for method in ["configure", "start_match", "apply_inputs", "pause_match", "snapshot",
+			"restore_snapshot", "stop_match", "debug_force_finish"]:
+		if not instance.has_method(method):
+			instance.free()
+			return "missing method %s" % method
+	instance.free()
+	return ""
