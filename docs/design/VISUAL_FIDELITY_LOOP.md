@@ -146,13 +146,41 @@ the game and it finally looks authored; every dial on the screen now agrees on o
 grammar. Holding it back: blood/impact FX still box-particles, night/headlight
 atmosphere flat, world materials untouched, doll outline subtle at 1x.
 
-**Next up (iteration 5):**
-1. **FX pass 2 — blood + bullet impact on the puff system** (fx.gd: blood gets dark
-   soft sprites + gravity, impact gets dust-colored puffs; flash gets a hot diamond
-   quad). Sim: fx groups still spawn; carbooth-style render via a staged hit.
-2. **Night atmosphere probe** — what does 22:00 look like today (render at night with
-   headlights); cheapest wins: headlight cone softness, tail-glow bloom-ish emissive
-   tune, dash glow at night. VISUALS ONLY, keep the night-floor law intact.
-3. Vehicle doll: subtle part ICONS (engine bolt / battery / pump glyphs at 2px scale)
-   if they read at 1x — test in the gallery first.
-4. PixelLab: consider a matching 9:16 phone SKIN for THE CAR GPS mini-panel (cohesion).
+**Next up (iteration 5):** ~~FX pass 2 · night probe~~ → executed below; doll icons +
+car-GPS skin deferred (queued below).
+
+---
+
+## Iteration 5 — 2026-07-10 ~09:20
+
+**Shipped:**
+- **FX PASS 2 on the puff system** (`fx.gd`): BLOOD = dark soft droplets that burst,
+  thin and fall (puff sprite on its OWN material — the black-ball law holds); IMPACT =
+  a blooming DUST kick + a pinch of hot emissive SPARK chips (two fire-and-forget
+  emitters); MUZZLE FLASH grew a soft HOT-GLOW CORE disc behind the blade + light.
+  All fx groups intact — **combat_feel 15/15, gunfeel 37/37, exhaust 22/22.**
+- **render_fx.gd** — THE FX BOOTH (new tool): flash/blood/impact staged and captured
+  MID-LIFE (the flash lives 70ms — the booth slows Engine.time_scale to 0.05 to catch
+  it mid-bloom, restoring the previous value per the house law). Strip verified: the
+  flash reads hot blade + glow core + light pool; blood splats; dust blooms w/ sparks.
+- **NIGHT PROBE done** (render_ui NIGHT_world @ 22:30): the night floor is honest, the
+  HUD/gauges/doll stay readable, warm light pools look right. FINDINGS for the queue:
+  (a) parked/AI cars are nearly INVISIBLE at night — they need a faint glint/rim or
+  idle tail-glow at distance; (b) the headlight-cone judgment needs a DRIVING night
+  shot (probe was on foot); (c) dash could take a subtle warm night-glow backing.
+
+**Steam rating: 7.5/10** (was 7.3). Every combat answer now photographs like an
+effect instead of debris cubes, and the game's most-seen particle systems share one
+authored sprite language. Holding it back: night-parked cars vanish, world materials/
+biome ground still flat, doll outline subtle at 1x, no in-cabin night glow.
+
+**Next up (iteration 6):**
+1. **Night pass** — the probe's findings: idle tail-glow visible at distance for
+   parked/AI rigs (emissive floor when is_dark), a DRIVING night render in carbooth
+   (car + headlights on a dark stage) to judge cones, and a soft warm backing behind
+   the dash cluster at night. Keep the night-floor law.
+2. Vehicle doll part icons at 1x (gallery-test first; drop if unreadable).
+3. THE CAR GPS phone-skin cohesion pass (small: reuse phone.png frame for the mini
+   panel, or a matching bezel row).
+4. PixelLab check-in: balance + one purposeful spend if a surface needs real art
+   (candidates: dash night-glow plate, wound-doll frame).

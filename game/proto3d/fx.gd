@@ -58,6 +58,17 @@ static func muzzle_flash(parent: Node, pos: Vector3, dir: Vector3) -> void:
 	light.light_energy = 2.4
 	light.omni_range = 4.0
 	m.add_child(light)
+	# The HOT CORE: a soft glow disc at the muzzle behind the blade (the shared
+	# puff sprite, billboarded) — the flash reads round-and-hot, not boxy.
+	var core := MeshInstance3D.new()
+	var cq := QuadMesh.new()
+	cq.size = Vector2(0.55, 0.55)
+	var cmat := puff_material()
+	cmat.albedo_color = Color(1.0, 0.86, 0.42, 0.95)
+	cq.material = cmat
+	core.mesh = cq
+	m.add_child(core)
+	core.position = Vector3(0, 0, 0.1)
 	var tw := m.create_tween()
 	tw.tween_property(m, "scale", Vector3(0.4, 0.4, 1.3), 0.07)
 	tw.parallel().tween_property(light, "light_energy", 0.0, 0.07)
@@ -88,22 +99,30 @@ static func casing(parent: Node, pos: Vector3, right_dir: Vector3) -> void:
 	tw.tween_callback(m.queue_free)
 
 
-## Blood puff on flesh hits — dark, brief, gravity-pulled.
+## Blood on flesh hits — dark soft droplets that burst, shrink and fall (the
+## puff sprite tinted on ITS OWN material — the black-ball law, never p.color).
 static func blood(parent: Node, pos: Vector3) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true
-	p.amount = 14
+	p.amount = 12
 	p.lifetime = 0.45
 	p.explosiveness = 1.0
-	p.mesh = BoxMesh.new()
-	(p.mesh as BoxMesh).size = Vector3(0.07, 0.07, 0.07)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.30, 0.30)
+	var mat := puff_material()
+	mat.albedo_color = Color(0.42, 0.05, 0.04, 0.9)
+	quad.material = mat
+	p.mesh = quad
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0.0, 1.0))
+	shrink.add_point(Vector2(1.0, 0.45))
+	p.scale_amount_curve = shrink # droplets thin as they fly
 	p.direction = Vector3(0, 1, 0)
 	p.spread = 70.0
 	p.initial_velocity_min = 1.6
 	p.initial_velocity_max = 3.4
 	p.gravity = Vector3(0, -14.0, 0)
-	p.color = Color(0.45, 0.06, 0.05)
 	p.add_to_group("fx_blood")
 	parent.add_child(p)
 	p.global_position = pos
@@ -112,29 +131,57 @@ static func blood(parent: Node, pos: Vector3) -> void:
 	tw.tween_callback(p.queue_free)
 
 
-## Impact dust/sparks where a round meets the WORLD (walls, ground, wrecks) —
-## misses and cover hits read instantly.
+## Impact where a round meets the WORLD (walls, ground, wrecks): a soft DUST
+## kick + a pinch of hot SPARKS — misses and cover hits read instantly.
 static func impact(parent: Node, pos: Vector3) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true
-	p.amount = 10
-	p.lifetime = 0.35
+	p.amount = 8
+	p.lifetime = 0.4
 	p.explosiveness = 1.0
-	p.mesh = BoxMesh.new()
-	(p.mesh as BoxMesh).size = Vector3(0.05, 0.05, 0.05)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.26, 0.26)
+	var mat := puff_material()
+	mat.albedo_color = Color(0.72, 0.65, 0.50, 0.75)
+	quad.material = mat
+	p.mesh = quad
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 1.5))
+	p.scale_amount_curve = grow # dust blooms outward
 	p.direction = Vector3(0, 1, 0)
 	p.spread = 80.0
-	p.initial_velocity_min = 1.2
-	p.initial_velocity_max = 2.6
-	p.gravity = Vector3(0, -6.0, 0)
-	p.color = Color(0.78, 0.7, 0.55)
+	p.initial_velocity_min = 1.0
+	p.initial_velocity_max = 2.2
+	p.gravity = Vector3(0, -3.5, 0)
 	p.add_to_group("fx_impact")
 	parent.add_child(p)
 	p.global_position = pos
 	var tw := p.create_tween()
-	tw.tween_interval(0.7)
+	tw.tween_interval(0.8)
 	tw.tween_callback(p.queue_free)
+	# The sparks: a pinch of hot emissive chips that die fast under gravity.
+	var s := CPUParticles3D.new()
+	s.one_shot = true
+	s.emitting = true
+	s.amount = 5
+	s.lifetime = 0.22
+	s.explosiveness = 1.0
+	s.mesh = BoxMesh.new()
+	(s.mesh as BoxMesh).size = Vector3(0.035, 0.035, 0.035)
+	(s.mesh as BoxMesh).material = ProtoWorldBuilder.material(Color(1.0, 0.8, 0.35), 0.1, true)
+	s.direction = Vector3(0, 1, 0)
+	s.spread = 75.0
+	s.initial_velocity_min = 2.4
+	s.initial_velocity_max = 4.2
+	s.gravity = Vector3(0, -18.0, 0)
+	s.add_to_group("fx_impact")
+	parent.add_child(s)
+	s.global_position = pos
+	var tw2 := s.create_tween()
+	tw2.tween_interval(0.6)
+	tw2.tween_callback(s.queue_free)
 
 
 ## The swing made visible: a flat arc blade that sweeps through the melee arc

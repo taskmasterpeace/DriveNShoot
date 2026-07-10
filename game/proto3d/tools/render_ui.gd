@@ -114,4 +114,11 @@ func _ready() -> void:
 	stream.toggle_map()
 	await _shot("GPS_buttons_debug")
 	stream._on_gps_button("power")
+
+	# 8) THE NIGHT PROBE (fidelity loop it.5) — 22:30, headlights auto-asserted
+	# by main every frame; judge cone softness / tail glow / dash night read.
+	main.daynight.hour = 22.5
+	for _i in 45:
+		await get_tree().process_frame
+	await _shot("NIGHT_world")
 	get_tree().quit(0)
