@@ -258,10 +258,12 @@ func _about_text() -> String:
 	]
 	for source_id in deck.current_row.get("source_ids", []):
 		var source: Dictionary = deck.registry.get_source(String(source_id))
-		lines.append("%s\n%s\nCode: %s\nContent: %s\nRevision: %s\nNotice: %s" % [
+		lines.append("%s\n%s\nCode: %s\nContent: %s\nRevision: %s\nAdapted/used: %s\nExcluded: %s\nNotice: %s\nLicense: %s" % [
 			String(source.get("name", source_id)), String(source.get("url", "")),
 			String(source.get("code_license", "")), String(source.get("content_license", "")),
-			String(source.get("revision", "")), String(source.get("notice_path", ""))])
+			String(source.get("revision", "")), ", ".join(source.get("included", [])),
+			", ".join(source.get("excluded", [])), String(source.get("notice_path", "")),
+			String(source.get("license_path", "not licensed / reference only"))])
 	return "\n".join(lines)
 
 

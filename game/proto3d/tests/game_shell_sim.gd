@@ -66,7 +66,9 @@ func _ready() -> void:
 		and shell.current_text.contains("Arcade move left"))
 	shell.show_view("about")
 	_check("ABOUT separates lore from real source/license", shell.current_text.contains("IN THE WORLD")
-		and shell.current_text.contains("REAL SOURCE & LICENSE") and shell.current_text.contains("LittleJS Arcade"))
+		and shell.current_text.contains("REAL SOURCE & LICENSE") and shell.current_text.contains("LittleJS Arcade")
+		and shell.current_text.contains("Adapted/used:") and shell.current_text.contains("Excluded:")
+		and shell.current_text.contains("License: res://third_party/licenses/"))
 
 	shell.show_view("play")
 	var stance := InputEventJoypadButton.new()
@@ -101,6 +103,19 @@ func _ready() -> void:
 	_check("power off destroys the active cartridge", deck.cartridge == null and deck.state == "OFF")
 	_check("a missing future cartridge is isolated as an error", not deck.launch("radworm", {})
 		and deck.state == "ERROR" and deck.error_text.contains("CARTRIDGE"))
+	_check("CROWN OF ASH launches into read-only spectator state",
+		deck.launch("crown_of_ash", {"source": "session", "spectator": true})
+		and deck.start(90, []) and deck.state == "SPECTATING")
+	_check("spectator receives authoritative board snapshots", deck.apply_network_snapshot({
+		"board": [["", "", "", "", "", "", "", "bK"], ["", "", "", "", "", "", "", ""],
+			["", "", "", "", "", "", "", ""], ["", "", "", "", "", "", "", ""],
+			["", "", "", "", "", "", "", ""], ["", "", "", "", "", "", "", ""],
+			["", "", "", "", "wP", "", "", ""], ["", "", "", "", "wK", "", "", ""]],
+		"side_to_move": "w", "castling": "", "en_passant": [-1, -1], "halfmove": 0,
+		"fullmove": 1, "repetition": {}, "game_status": "playing", "cursor": [4, 6],
+		"selected": [-1, -1], "seed": 90, "seats": [], "tick": 4, "active": true,
+		"paused": false, "finished": false, "session_id": "spectator-proof",
+	}) and deck.cartridge.piece_at(Vector2i(4, 6)) == "wP")
 	_check("shell lifecycle never pauses DRIVN", Engine.time_scale == time_scale_before)
 	_finish()
 

@@ -97,10 +97,23 @@ func _process(_delta: float) -> void:
 func _on_game_launched(game_id: String) -> void:
 	var row: Dictionary = deck.registry.get_game(game_id)
 	if String(row.get("platform", "")) == "handheld":
-		var device: Dictionary = deck.registry.get_device(String(row.get("device_id", "")))
-		var size: Array = device.get("screen_size_m", [0.24, 0.135])
-		(_screen.mesh as QuadMesh).size = Vector2(float(size[0]), float(size[1]))
+		set_device(String(row.get("device_id", "")))
 	set_live(deck.texture())
+
+
+func set_device(device_id: String) -> bool:
+	var device: Dictionary = deck.registry.get_device(device_id)
+	if device.is_empty() or String(device.get("platform", "")) != "handheld":
+		return false
+	var size: Array = device.get("screen_size_m", [])
+	if size.size() != 2:
+		return false
+	(_screen.mesh as QuadMesh).size = Vector2(float(size[0]), float(size[1]))
+	return true
+
+
+func screen_size() -> Vector2:
+	return (_screen.mesh as QuadMesh).size
 
 
 func _on_deck_state_changed(next_state: String) -> void:

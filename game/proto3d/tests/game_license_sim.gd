@@ -18,6 +18,7 @@ func _ready() -> void:
 	print("GAME_LICENSE: start")
 	var reg := ProtoGameRegistry.load_catalog()
 	var all_notices := true
+	var all_license_paths := true
 	var all_pinned := true
 	for source_id in reg.sources:
 		var source: Dictionary = reg.sources[source_id]
@@ -25,10 +26,16 @@ func _ready() -> void:
 		if not notice.begins_with("res://third_party/licenses/") or not FileAccess.file_exists(notice):
 			all_notices = false
 			print("GAME_LICENSE: missing notice for %s -> %s" % [source_id, notice])
+		var license_path := String(source.get("license_path", ""))
+		if String(source.get("code_license", "")) != "not imported" \
+				and (not license_path.begins_with("res://third_party/licenses/") \
+				or not FileAccess.file_exists(license_path)):
+			all_license_paths = false
 		var revision := String(source.get("revision", ""))
 		if not (revision.length() == 40 or revision.begins_with("accessed-")):
 			all_pinned = false
 	_check("every source notice ships inside res://", all_notices)
+	_check("licensed sources distinguish a local license path", all_license_paths)
 	_check("every source is pinned or access-dated", all_pinned)
 	_check("aggregate notices ship", FileAccess.file_exists("res://THIRD_PARTY_NOTICES.md")
 		and FileAccess.get_file_as_string("res://THIRD_PARTY_NOTICES.md").contains("LittleJS Arcade"))
@@ -40,6 +47,9 @@ func _ready() -> void:
 		String(infantry.get("code_license", "")) == "not imported"
 		and (infantry.get("excluded", []) as Array).has("all client code")
 		and (infantry.get("excluded", []) as Array).has("maps"))
+	var soldat: Dictionary = reg.get_source("opensoldat")
+	_check("OpenSoldat engine and excluded base-content licenses stay separate",
+		FileAccess.file_exists(String(soldat.get("content_license_path", ""))))
 	var prohibited_paths: Array[String] = []
 	_scan_paths("res://proto3d/games", prohibited_paths)
 	_scan_paths("res://assets", prohibited_paths)

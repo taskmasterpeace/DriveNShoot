@@ -32,6 +32,8 @@ var _cells: Array[Label] = []
 var _status_label: Label = null
 var _battle_overlay: PanelContainer = null
 var _battle_label: Label = null
+var _ai_side := ""
+var _applying_network_event := false
 
 
 func _ready() -> void:
@@ -44,6 +46,11 @@ func _ready() -> void:
 
 func start_match(new_seed: int, new_seats: Array) -> void:
 	super.start_match(new_seed, new_seats)
+	_ai_side = ""
+	if new_seats.size() == 1 and not bool(context.get("online", false)) \
+			and not bool(context.get("spectator", false)) and bool(context.get("ai", true)):
+		_ai_side = _other(String((new_seats[0] as Dictionary).get("side",
+			context.get("local_side", "w"))))
 	load_fen("start")
 
 
@@ -130,6 +137,13 @@ func try_move(from: Vector2i, to: Vector2i, promotion: String = "Q") -> bool:
 		selected = INVALID_SQUARE
 		_render()
 		adjudicate()
+		if bool(context.get("online", false)) and not _applying_network_event:
+			network_event_requested.emit({
+				"event_id": "move:%s:%d:%s%s" % [_session_id, fullmove_number,
+					_name(from), _name(to)],
+				"type": "move", "from": _name(from), "to": _name(to),
+				"promotion": promotion.to_upper(),
+			})
 		return true
 	return false
 
@@ -543,10 +557,17 @@ func _move_key(move: Dictionary) -> String:
 
 
 func apply_inputs(new_tick: int, snapshots: Array) -> void:
-	if not active or paused or finished or snapshots.is_empty():
+	if not active or paused or finished:
 		return
 	tick = maxi(tick, new_tick)
-	var snapshot_row: Dictionary = snapshots[0]
+	if _ai_side == side_to_move:
+		var ai_move: Dictionary = choose_ai_move(2)
+		if not ai_move.is_empty():
+			try_move(ai_move["from"], ai_move["to"], String(ai_move.get("promotion", "Q")))
+		return
+	var snapshot_row := _snapshot_for_side(snapshots, side_to_move)
+	if snapshot_row.is_empty():
+		return
 	var pressed: Dictionary = snapshot_row.get("pressed", {})
 	if bool(pressed.get("move_left", false)):
 		cursor.x = maxi(0, cursor.x - 1)
@@ -564,6 +585,33 @@ func apply_inputs(new_tick: int, snapshots: Array) -> void:
 			if not try_move(selected, cursor):
 				selected = INVALID_SQUARE
 	_render()
+
+
+func _snapshot_for_side(snapshots: Array, side: String) -> Dictionary:
+	var owner_seat := -999
+	for index in seats.size():
+		var seat: Dictionary = seats[index]
+		var seat_side := String(seat.get("side", "w" if index == 0 else "b"))
+		if seat_side == side:
+			owner_seat = int(seat.get("seat", index))
+			break
+	for snapshot_value in snapshots:
+		var snapshot: Dictionary = snapshot_value
+		if int(snapshot.get("seat", -999)) == owner_seat:
+			return snapshot
+	return {}
+
+
+func apply_event(event: Dictionary) -> void:
+	if String(event.get("type", "move")) != "move" or finished:
+		return
+	var from_value: Variant = event.get("from", "")
+	var to_value: Variant = event.get("to", "")
+	var from: Vector2i = from_value if from_value is Vector2i else _point(String(from_value))
+	var to: Vector2i = to_value if to_value is Vector2i else _point(String(to_value))
+	_applying_network_event = true
+	try_move(from, to, String(event.get("promotion", "Q")))
+	_applying_network_event = false
 
 
 func _inside(square: Vector2i) -> bool:

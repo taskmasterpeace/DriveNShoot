@@ -3591,6 +3591,8 @@ func _ensure_net() -> void:
 	if net == null:
 		net = ProtoNet.create(self)
 		add_child(net)
+		if game_deck != null:
+			game_deck.attach_net(net.arcade)
 		net.peer_joined.connect(_net_spawn_peer)
 		net.peer_left.connect(_net_despawn_peer)
 

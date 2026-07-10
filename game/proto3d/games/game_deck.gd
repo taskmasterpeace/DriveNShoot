@@ -29,6 +29,7 @@ var active_seats: Array = []
 var state := STATE_OFF
 var error_text := ""
 var shell_open := false
+var arcade_net: Node = null
 var _tick := 0
 var _accumulator := 0.0
 
@@ -82,6 +83,7 @@ func launch(game_id: String, context: Dictionary) -> bool:
 	viewport.add_child(cartridge)
 	cartridge.configure(current_row, current_context)
 	cartridge.match_finished.connect(_on_match_finished)
+	cartridge.network_event_requested.connect(_on_cartridge_network_event)
 	_set_state(STATE_READY)
 	game_launched.emit(game_id)
 	return true
@@ -102,7 +104,7 @@ func start(seed_value: int, seats: Array) -> bool:
 	_tick = 0
 	_accumulator = 0.0
 	cartridge.start_match(seed_value, active_seats)
-	_set_state(STATE_PLAYING)
+	_set_state(STATE_SPECTATING if bool(current_context.get("spectator", false)) else STATE_PLAYING)
 	return true
 
 
@@ -177,6 +179,54 @@ func _on_match_finished(result: Dictionary) -> void:
 	if ledger.submit(result):
 		result_recorded.emit(result.duplicate(true))
 	_set_state(STATE_READY)
+
+
+func apply_network_event(event: Dictionary) -> bool:
+	if cartridge == null or state not in [STATE_PLAYING, STATE_SPECTATING]:
+		return false
+	cartridge.apply_event(event.duplicate(true))
+	return true
+
+
+func apply_network_snapshot(snapshot_state: Dictionary) -> bool:
+	if cartridge == null or state not in [STATE_PLAYING, STATE_SPECTATING] \
+			or snapshot_state.is_empty():
+		return false
+	cartridge.restore_snapshot(snapshot_state.duplicate(true))
+	return true
+
+
+func attach_net(bridge: Node) -> void:
+	if arcade_net != null:
+		if arcade_net.event_received.is_connected(_on_net_event):
+			arcade_net.event_received.disconnect(_on_net_event)
+		if arcade_net.snapshot_received.is_connected(_on_net_snapshot):
+			arcade_net.snapshot_received.disconnect(_on_net_snapshot)
+		if arcade_net.result_received.is_connected(_on_net_result):
+			arcade_net.result_received.disconnect(_on_net_result)
+	arcade_net = bridge
+	if arcade_net != null:
+		arcade_net.event_received.connect(_on_net_event)
+		arcade_net.snapshot_received.connect(_on_net_snapshot)
+		arcade_net.result_received.connect(_on_net_result)
+
+
+func _on_cartridge_network_event(event: Dictionary) -> void:
+	if arcade_net != null:
+		arcade_net.send_event(event)
+
+
+func _on_net_event(_peer_id: int, event: Dictionary) -> void:
+	apply_network_event(event)
+
+
+func _on_net_snapshot(_peer_id: int, snapshot_state: Dictionary) -> void:
+	apply_network_snapshot(snapshot_state)
+
+
+func _on_net_result(_peer_id: int, result: Dictionary) -> void:
+	if ledger.submit(result):
+		result_recorded.emit(result.duplicate(true))
 
 
 func _set_state(next_state: String) -> void:

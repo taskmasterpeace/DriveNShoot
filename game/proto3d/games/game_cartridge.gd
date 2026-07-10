@@ -6,6 +6,7 @@ extends Control
 signal score_changed(score: Dictionary)
 signal match_finished(result: Dictionary)
 signal request_feedback(kind: String, payload: Dictionary)
+signal network_event_requested(event: Dictionary)
 
 var game_row: Dictionary = {}
 var context: Dictionary = {}

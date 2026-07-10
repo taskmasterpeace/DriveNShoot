@@ -109,6 +109,37 @@ func _ready() -> void:
 	var ai_b: Dictionary = game.choose_ai_move(2)
 	_check("snapshot restores exact chess state", game.position_key() == String(saved["position_key"]))
 	_check("AI choice is deterministic from the same state", not ai_a.is_empty() and ai_a == ai_b)
+
+	game.context = {"source": "local"}
+	game.start_match(111, [{"seat": 0, "profile_id": "bone"}, {"seat": 1, "profile_id": "rust"}])
+	game.load_fen("7k/4p3/8/8/8/8/4P3/4K3 b - - 0 1")
+	game.cursor = _sq("e7")
+	game.selected = game.INVALID_SQUARE
+	game.apply_inputs(1, [
+		{"seat": 0, "pressed": {"primary": true}},
+		{"seat": 1, "pressed": {}},
+	])
+	_check("local seat zero cannot move the rival army", game.selected == game.INVALID_SQUARE)
+	game.apply_inputs(2, [
+		{"seat": 0, "pressed": {}},
+		{"seat": 1, "pressed": {"primary": true}},
+	])
+	_check("local seat one owns the second army", game.selected == _sq("e7"))
+
+	game.context = {"source": "solo", "ai": true}
+	game.start_match(112, [{"seat": 0, "profile_id": "local"}])
+	game.load_fen("7k/4p3/8/8/8/8/4P3/4K3 b - - 0 1")
+	var ai_before: String = game.position_key()
+	game.apply_inputs(1, [{"seat": 0, "pressed": {}}])
+	_check("single-player AI takes the unattended army turn", game.position_key() != ai_before
+		and game.side_to_move == "w")
+
+	game.context = {"source": "session", "online": true, "local_side": "w"}
+	game.start_match(113, [{"seat": 0, "profile_id": "local", "side": "w"}])
+	game.load_fen("start")
+	game.apply_event({"event_id": "remote-e4", "type": "move", "from": "e2", "to": "e4"})
+	_check("reliable online move event commits through cartridge authority", game.piece_at(_sq("e4")) == "wP"
+		and game.side_to_move == "b")
 	_check("capture vignette never changes world time", Engine.time_scale == 1.0)
 	_finish()
 

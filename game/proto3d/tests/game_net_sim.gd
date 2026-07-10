@@ -41,14 +41,22 @@ func _ready() -> void:
 	bridge.result_received.connect(func(_peer: int, _result: Dictionary) -> void: result_count += 1)
 	_check("a known game session begins", bridge.begin_session("crown-room", "crown_of_ash", 1, [1, 2]))
 	_check("unknown game session is rejected", not bridge.begin_session("bad", "not_a_game", 1, [1, 2]))
+	var deck_script := load("res://proto3d/games/game_deck.gd") as GDScript
+	var deck: Node = deck_script.create(self)
+	add_child(deck)
+	deck.attach_net(bridge)
+	deck.launch("crown_of_ash", {"source": "session", "online": true, "local_side": "b"})
+	deck.start(70, [{"seat": 0, "profile_id": "host", "side": "b"}])
 
 	var chess_event := {"session_id": "crown-room", "game_id": "crown_of_ash",
 		"kind": "event", "event_id": "move-1", "payload": {"from": "e2", "to": "e4"}}
 	_check("member turn event is accepted", bridge.ingest_reliable(2, chess_event))
+	_check("accepted turn event reaches the live cartridge", deck.cartridge.piece_at(Vector2i(4, 4)) == "wP")
 	_check("duplicate turn event is rejected", not bridge.ingest_reliable(2, chess_event) and event_count == 1)
 	var outsider_event := chess_event.duplicate(true)
 	outsider_event["event_id"] = "move-outsider"
 	_check("non-member event is rejected", not bridge.ingest_reliable(9, outsider_event))
+	deck.attach_net(null)
 
 	var input := {"session_id": "crown-room", "game_id": "crown_of_ash",
 		"kind": "input", "tick": 12, "payload": {"move": Vector2.RIGHT}}

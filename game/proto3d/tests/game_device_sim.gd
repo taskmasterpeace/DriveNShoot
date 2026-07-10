@@ -41,6 +41,15 @@ func _ready() -> void:
 	if console == null or handheld == null:
 		_finish()
 		return
+	var all_orientations := handheld.has_method("set_device")
+	if all_orientations:
+		all_orientations = handheld.set_device("handheld_square") \
+			and handheld.screen_size() == Vector2(0.18, 0.18) \
+			and handheld.set_device("handheld_portrait") \
+			and handheld.screen_size() == Vector2(0.12, 0.213) \
+			and handheld.set_device("handheld_landscape") \
+			and handheld.screen_size() == Vector2(0.24, 0.135)
+	_check("one handheld shell honors square, portrait, and landscape rows", all_orientations)
 	main._exit_car()
 	main._current_interactable = console
 	_check("console uses the ordinary interactable law", console.is_in_group("interactable")
