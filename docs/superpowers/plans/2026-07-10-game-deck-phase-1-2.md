@@ -134,11 +134,11 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/skyjoust/*`, `tests/skyjoust_sim.*`
 
-- [ ] Red sim: rocket thrust/fuel, lift/gravity, facing/air control, altitude
+- [x] Red sim: rocket thrust/fuel, lift/gravity, facing/air control, altitude
   advantage, lance hit rules, knockout/respawn, round win, bot climb/attack,
   two local seats, snapshot, and wins/knockouts result.
-- [ ] Implement an original county-fair rocket-rig duel above broken grandstands.
-- [ ] Commit `feat: add SKYJOUST`.
+- [x] Implement an original county-fair rocket-rig duel above broken grandstands.
+- [x] Commit `feat: add SKYJOUST`.
 
 ## Task 9: FIGHT NIGHT '99
 
