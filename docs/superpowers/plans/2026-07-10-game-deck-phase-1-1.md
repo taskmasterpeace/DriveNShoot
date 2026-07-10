@@ -116,11 +116,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/fall_line/*`, `tests/fall_line_sim.*`
 
-- [ ] Red sim: gravity, rotation, thrust/fuel, lateral drift, safe-pad landing,
+- [x] Red sim: gravity, rotation, thrust/fuel, lateral drift, safe-pad landing,
   crash thresholds, landing-rating/fuel result, snapshot.
-- [ ] Implement deterministic fixed-step lander physics and original relay-craft
+- [x] Implement deterministic fixed-step lander physics and original relay-craft
   silhouette in the portrait viewport.
-- [ ] Commit `feat: add FALL LINE`.
+- [x] Commit `feat: add FALL LINE`.
 
 ## Task 9: TILT SALVAGE
 
