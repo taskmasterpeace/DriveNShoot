@@ -50,7 +50,7 @@
 | id | sim | status | note |
 |----|-----|--------|------|
 | E1 | audio_sim | DONE | realigned to the IGNITION LAW (dead motor silent → crank → hum → pitch) + I-95 staging — 8/0 |
-| E2 | bike_rider_sim | OPEN | pose radians predate ANIMATION_FIX_PACK_2's knee-sign law (knees flex NEGATIVE now) — sign-flip realign |
+| E2 | bike_rider_sim | DONE | sign-law realign (hips fold positive, knees flex negative) — 10/0 |
 | E3 | bike_sim | DONE | root: swerve ends spun 180° (forward_speed sign flip) + brake-is-reverse scheme — stop choreography now throttles against the roll — 8/0 |
 | E4 | binocular_sim | DONE | realigned to the retirement (bind row cleared; B=recall) — 6/0 |
 | E5 | char_sim | DONE | realigned to RIG V2 build axis (raider slab = build 1.6) — 14/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 25 (C0–C6, I0–I2, W0, P17, E1, E3–E7, E11, E24–E27, F8, F10, F12)
-- OPEN: 19 (E2, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 26 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E24–E27, F8, F10, F12)
+- OPEN: 18 (E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

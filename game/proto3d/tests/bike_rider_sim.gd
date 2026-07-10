@@ -63,10 +63,12 @@ func _ready() -> void:
 	_check("mounting the BIKE keeps the puppet VISIBLE (rider_exposed row)", main.player.visible)
 	_check("...pinned to the saddle (%.2fm from the bike)" % main.player.global_position.distance_to(bike.global_position),
 		main.player.global_position.distance_to(bike.global_position) < 1.6)
+	# ANIMATION_FIX_PACK_2 sign law: hips fold FORWARD (positive), the knee is
+	# the elbow's mirror and flexes NEGATIVE — the old signs predate it.
 	_check("...posed RIDING (hips folded onto the seat, %.2f rad)" % main.player.puppet.hip_l.rotation.x,
-		main.player.puppet.hip_l.rotation.x < -0.7)
+		main.player.puppet.hip_l.rotation.x > 0.7)
 	_check("...knees gripping the tank (%.2f rad)" % main.player.puppet.knee_l.rotation.x,
-		main.player.puppet.knee_l.rotation.x > 0.8)
+		main.player.puppet.knee_l.rotation.x < -0.8)
 
 	# --- 2. THE ARM AIMS (the whole point) ----------------------------------------
 	main.backpack.add("pistol", 1)
