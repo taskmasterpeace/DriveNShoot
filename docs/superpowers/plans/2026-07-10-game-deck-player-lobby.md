@@ -453,7 +453,7 @@ git commit -m "feat: add Game Deck join and spectate handshake"
 - Consumes: completed lobby, broker, ArcadeNet, deck, and cartridge contracts
 - Produces: real-process proof and final verification record
 
-- [ ] **Step 1: Write a two-process player-join loopback**
+- [x] **Step 1: Write a two-process player-join loopback**
 
 Host opens ONLINE GAME for DIAL TANKS, invites peer 2, and waits. Client
 receives the visible pending invitation and invokes JOIN MATCH through the
@@ -461,7 +461,7 @@ lobby action. Host starts with bot fill, client sends a physical key event,
 host applies semantic input, and client converges to the authoritative
 snapshot. Duplicate result delivery leaves one signal and one ledger row.
 
-- [ ] **Step 2: Add the spectator pass to the same loopback**
+- [x] **Step 2: Add the spectator pass to the same loopback**
 
 Run a second session. Client invokes SPECTATE. Prove:
 
@@ -475,7 +475,7 @@ Run a second session. Client invokes SPECTATE. Prove:
 The shell script runs join and spectator modes sequentially and requires host
 and client `ALL CHECKS PASSED` lines for both.
 
-- [ ] **Step 3: Run the real loopback RED then GREEN**
+- [x] **Step 3: Run the real loopback RED then GREEN**
 
 Before implementation wiring, the script must fail at the missing visible
 invite/join transition. After wiring:
@@ -486,7 +486,7 @@ bash tools/game_lobby_loopback.sh
 
 Expected: `GAME LOBBY LOOPBACK: ALL CHECKS PASSED`.
 
-- [ ] **Step 4: GPU-render five acceptance frames**
+- [x] **Step 4: GPU-render five acceptance frames**
 
 Create a bounded temporary harness and render 1793x1009 Compatibility frames
 on the available GPU:
@@ -500,7 +500,7 @@ on the available GPU:
 Inspect every image with `view_image`, fix any clipping/contrast/focus defect,
 rerender, and delete the temporary harness with `apply_patch`.
 
-- [ ] **Step 5: Run the full serial regression**
+- [x] **Step 5: Run the full serial regression**
 
 Run, independently and serially:
 
@@ -515,7 +515,7 @@ Run, independently and serially:
 
 Record exact scene/assertion counts and every expected cleanup-only engine line.
 
-- [ ] **Step 6: Write the verification record and audit every requirement**
+- [x] **Step 6: Write the verification record and audit every requirement**
 
 `GAME_DECK_LOBBY.md` must contain one evidence row for each of the seven named
 actions, ownership/power/proximity/session/full/stale validations, every bot
@@ -523,13 +523,13 @@ ceiling, player and spectator real-process proof, GPU frames, regression counts,
 contradictions, and missing items. The completion gate is zero contradictions
 and zero missing items.
 
-- [ ] **Step 7: Final diff, parse, and temporary-file checks**
+- [x] **Step 7: Final diff, parse, and temporary-file checks**
 
 Run `git diff --check`, `bash -n tools/game_lobby_loopback.sh`, Godot
 `--check-only` on every new script, confirm no `_game_lobby_visual_audit` file,
 and confirm the worktree contains only intended changes.
 
-- [ ] **Step 8: Commit final verification**
+- [x] **Step 8: Commit final verification**
 
 ```powershell
 git add docs/verification/GAME_DECK_LOBBY.md docs/superpowers/plans/2026-07-10-game-deck-player-lobby.md game/proto3d/tests/game_lobby_online_* tools/game_lobby_loopback.sh

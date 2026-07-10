@@ -136,7 +136,10 @@ func _ready() -> void:
 		and deck.state == "ERROR" and deck.error_text.contains("UNKNOWN"))
 	_check("CROWN OF ASH launches into read-only spectator state",
 		deck.launch("crown_of_ash", {"source": "session", "spectator": true})
-		and deck.start(90, []) and deck.state == "SPECTATING")
+		and deck.start(90, []) and deck.state == "SPECTATING"
+		and shell.open_game("crown_of_ash", {"source": "session", "spectator": true,
+			"auto_start": true, "seed": 90, "seats": []})
+		and shell._status.text.contains("SPECTATING // INPUT LOCKED"))
 	_check("spectator receives authoritative board snapshots", deck.apply_network_snapshot({
 		"board": [["", "", "", "", "", "", "", "bK"], ["", "", "", "", "", "", "", ""],
 			["", "", "", "", "", "", "", ""], ["", "", "", "", "", "", "", ""],

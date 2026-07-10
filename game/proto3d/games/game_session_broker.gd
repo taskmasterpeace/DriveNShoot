@@ -64,13 +64,15 @@ func configure_lobby(game_id: String, mode: String, bot_fill: bool) -> bool:
 	var players: Dictionary = row.get("players", {})
 	var capacity := maxi(1, int(players.get("max", 1)))
 	var local_peer := _local_peer_id()
+	var prepared_session := String(_bridge().get("session_id")) \
+		if mode == "online" else ""
 	lobby = {
 		"game_id": game_id,
 		"title": String(row.get("title", game_id.to_upper())),
 		"ruleset": String(row.get("ruleset", "stock-1")),
 		"mode": mode,
 		"host_peer": _session_host_peer() if mode == "online" else local_peer,
-		"session_id": _session_id() if mode == "online" else "",
+		"session_id": prepared_session,
 		"capacity": capacity,
 		"local_radius_m": float(row.get("local_radius_m", 0.0)),
 		"bot_fill": bot_fill,
@@ -689,6 +691,11 @@ func _occupied_peer_ids() -> Array[int]:
 	for seat_value in lobby.get("seats", []):
 		var seat: Dictionary = seat_value
 		occupied.append(int(seat.get("peer_id", 0)))
+	for spectator_value in lobby.get("spectators", []):
+		var peer_id := int((spectator_value as Dictionary).get("peer_id", 0)) \
+			if spectator_value is Dictionary else int(spectator_value)
+		if peer_id > 0 and not occupied.has(peer_id):
+			occupied.append(peer_id)
 	return occupied
 
 

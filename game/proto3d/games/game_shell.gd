@@ -309,8 +309,12 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 			current_view = "error"
 			_sync_views()
 			return false
-	_status.text = "WORLD LIVE // POWER %d // NETWORK %d // START or ESC: menu // F1: help" % [
-		int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
+	if spectator:
+		_status.text = "SPECTATING // INPUT LOCKED // POWER %d // NETWORK %d // ESC: menu" % [
+			int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
+	else:
+		_status.text = "WORLD LIVE // POWER %d // NETWORK %d // START or ESC: menu // F1: help" % [
+			int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
 	_sync_views()
 	return true
 

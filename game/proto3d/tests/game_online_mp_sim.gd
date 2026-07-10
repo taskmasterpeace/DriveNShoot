@@ -246,6 +246,9 @@ func _run_lobby_handshake() -> void:
 		bool(client_broker.join_invitation(invitation_id, true))
 		and (host_broker.lobby_snapshot().get("spectators", []) as Array).has(2)
 		and not _seat_has_peer(host_broker.lobby_snapshot().get("seats", []), 2))
+	_check("an accepted spectator is removed from invite candidates",
+		not (host_broker.eligible_peers("online") as Array).any(func(row: Dictionary) -> bool:
+			return int(row.get("peer_id", 0)) == 2))
 	_check("the accepted online invitation is one-use",
 		not bool(client_broker.join_invitation(invitation_id, true))
 		and String(client_broker.lobby_snapshot().get("status", "")) == "INVITATION ALREADY USED")
@@ -298,6 +301,12 @@ func _run_lobby_handshake() -> void:
 		not _seat_has_peer(host_broker.lobby_snapshot().get("seats", []), 2)
 		and not host_bridge.members.has(2)
 		and String(client_broker.lobby_snapshot().get("game_id", "")) == "")
+	host_bridge.clear_session()
+	host_bridge.begin_session("road-reconnected", "dial_tanks", 1, [1])
+	_check("reconfiguring after a DRIVN reconnect adopts the fresh session id",
+		bool(host_broker.configure_lobby("dial_tanks", "online", true))
+		and String(host_broker.lobby_snapshot().get("session_id", ""))
+			== "road-reconnected")
 
 
 func _seat_has_peer(seats_value: Variant, peer_id: int) -> bool:
