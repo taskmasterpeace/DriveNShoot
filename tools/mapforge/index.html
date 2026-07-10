@@ -2,72 +2,101 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>MAPFORGE — DIVIDED STATES USA</title>
+<title>MAPFORGE v4 — DIVIDED STATES USA</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 	:root {
 		--ink: #14110c; --panel: #1d1913; --panel2: #262017;
 		--bone: #e8e0cf; --dim: #9a8f78; --amber: #f0b429; --rust: #8a4a2b;
-		--blood: #c0392b; --line: #3a3226;
+		--blood: #c0392b; --teal: #37b2a0; --line: #3a3226; --ok: #7fae4c;
 	}
 	* { margin: 0; padding: 0; box-sizing: border-box; }
-	body { background: var(--ink); color: var(--bone); font: 14px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-	header { display: flex; align-items: baseline; gap: 16px; padding: 10px 16px; border-bottom: 2px solid var(--rust); background: var(--panel); }
-	header h1 { font-size: 18px; letter-spacing: 3px; color: var(--amber); font-weight: 700; }
-	header .sub { color: var(--dim); font-size: 12px; letter-spacing: 1px; }
-	header a { color: var(--amber); margin-left: auto; text-decoration: none; border: 1px solid var(--line); padding: 3px 10px; }
+	body { background: var(--ink); color: var(--bone); font: 13px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+	header { display: flex; align-items: baseline; gap: 14px; padding: 8px 14px; border-bottom: 2px solid var(--rust); background: var(--panel); flex-shrink: 0; }
+	header h1 { font-size: 17px; letter-spacing: 3px; color: var(--amber); font-weight: 700; }
+	header .sub { color: var(--dim); font-size: 11px; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	header a { color: var(--amber); margin-left: auto; text-decoration: none; border: 1px solid var(--line); padding: 3px 10px; font-size: 12px; flex-shrink: 0; }
 	header a:hover { background: var(--panel2); }
-	main { flex: 1; display: flex; min-height: 0; }
-	#side { width: 240px; background: var(--panel); border-right: 1px solid var(--line); padding: 12px; overflow-y: auto; flex-shrink: 0; }
-	.sec { margin-bottom: 16px; }
-	.sec h2 { font-size: 11px; letter-spacing: 2px; color: var(--dim); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 8px; text-transform: uppercase; }
-	.swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-	.sw { display: flex; align-items: center; gap: 6px; padding: 4px 6px; cursor: pointer; border: 1px solid transparent; font-size: 12px; }
-	.sw:hover { background: var(--panel2); }
-	.sw.on { border-color: var(--amber); background: var(--panel2); }
-	.sw i { width: 14px; height: 14px; display: inline-block; border: 1px solid #0008; }
-	.row { display: flex; gap: 4px; flex-wrap: wrap; }
+	#helpbtn { color: var(--amber); font-weight: 700; padding: 3px 10px; flex-shrink: 0; }
+	main { flex: 1; display: flex; min-height: 0; position: relative; }
+
+	/* ---- left toolbar ---- */
+	#tools { width: 92px; background: var(--panel); border-right: 1px solid var(--line); padding: 8px 6px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; overflow-y: auto; }
+	#tools button { width: 100%; text-align: center; padding: 7px 2px; font-size: 11px; letter-spacing: 1px; }
+	#tools .gap { height: 8px; flex-shrink: 0; }
+	#tools .lbl { font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; text-align: center; margin-top: 4px; }
+
 	button, select { background: var(--panel2); color: var(--bone); border: 1px solid var(--line); padding: 5px 9px; font: inherit; font-size: 12px; cursor: pointer; }
 	button:hover { border-color: var(--amber); }
 	button.on { border-color: var(--amber); color: var(--amber); }
 	button.danger:hover { border-color: var(--blood); color: var(--blood); }
-	#wrap { flex: 1; overflow: auto; display: grid; align-items: safe center; justify-items: safe center; padding: 20px; background: repeating-linear-gradient(45deg, #100d09 0 12px, #12100b 12px 24px); }
-	canvas { image-rendering: pixelated; cursor: crosshair; box-shadow: 0 0 0 2px var(--rust), 0 12px 50px #000c; }
-	footer { display: flex; gap: 18px; padding: 7px 16px; background: var(--panel); border-top: 1px solid var(--line); font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; }
-	footer b { color: var(--bone); font-weight: 600; }
-	#saved { color: var(--amber); margin-left: auto; }
-	.hint { font-size: 11px; color: var(--dim); margin-top: 6px; }
-	kbd { background: var(--panel2); border: 1px solid var(--line); padding: 0 4px; font-size: 11px; }
-	.zoomrow { display: flex; align-items: center; gap: 6px; }
-	.zoomrow b { color: var(--bone); min-width: 46px; text-align: center; font-size: 12px; }
-	#brush { position: fixed; pointer-events: none; border: 2px solid var(--amber); box-shadow: 0 0 0 1px #000a inset, 0 0 6px #000a; display: none; z-index: 5; }
-	#roadstatus { font-size: 11px; color: var(--amber); margin-top: 6px; min-height: 14px; }
-	.swatches .sw { position: relative; }
-	input[type=text], input[type=number] { background: var(--panel2); color: var(--bone); border: 1px solid var(--line); padding: 4px 6px; font: inherit; font-size: 12px; width: 100%; }
-	input[type=text]:focus, input[type=number]:focus, select:focus { outline: none; border-color: var(--amber); }
+	input[type=text], input[type=number], textarea { background: var(--panel2); color: var(--bone); border: 1px solid var(--line); padding: 4px 6px; font: inherit; font-size: 12px; width: 100%; }
+	input:focus, select:focus, textarea:focus { outline: none; border-color: var(--amber); }
 	input[type=checkbox] { accent-color: var(--amber); }
-	.form label { display: block; font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; margin-top: 6px; }
-	.form label.chk { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--bone); font-size: 11px; cursor: pointer; }
+
+	/* ---- canvas ---- */
+	#stage { flex: 1; position: relative; min-width: 0; background: #100d09; }
+	#cv { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; display: block; }
+	#minimap { position: absolute; right: 10px; top: 10px; border: 1px solid var(--rust); box-shadow: 0 4px 20px #000a; cursor: pointer; image-rendering: pixelated; background: var(--ink); }
+	#measurebox { position: absolute; left: 10px; top: 10px; background: rgba(29,25,19,.94); border: 1px solid var(--rust); padding: 8px 12px; font-size: 12px; display: none; max-width: 340px; box-shadow: 0 4px 20px #000a; }
+	#measurebox h3 { color: var(--amber); font-size: 11px; letter-spacing: 2px; margin-bottom: 4px; }
+	#measurebox .big { font-size: 15px; color: var(--bone); }
+	#measurebox .dim { color: var(--dim); font-size: 11px; }
+	#measurebox .route-roads { color: var(--amber); font-size: 11px; margin-top: 3px; word-break: break-word; }
+
+	/* ---- right panel ---- */
+	#side { width: 252px; background: var(--panel); border-left: 1px solid var(--line); padding: 10px; overflow-y: auto; flex-shrink: 0; }
+	.sec { margin-bottom: 14px; }
+	.sec h2 { font-size: 10px; letter-spacing: 2px; color: var(--dim); border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 7px; text-transform: uppercase; }
+	.sec h2.fold { cursor: pointer; user-select: none; }
+	.sec h2.fold:hover { color: var(--bone); }
+	.row { display: flex; gap: 4px; flex-wrap: wrap; }
+	.hint { font-size: 10px; color: var(--dim); margin-top: 5px; }
+	kbd { background: var(--panel2); border: 1px solid var(--line); padding: 0 4px; font-size: 10px; }
+	.form label { display: block; font-size: 9px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; margin-top: 6px; }
+	.form label.chk { display: flex; align-items: center; gap: 6px; margin-top: 7px; color: var(--bone); font-size: 11px; cursor: pointer; text-transform: none; letter-spacing: 0; }
 	.pair { display: flex; gap: 6px; }
 	.pair label { flex: 1; }
-	#exitlist, #structlist { max-height: 170px; overflow-y: auto; border: 1px solid var(--line); background: var(--ink); }
-	.exitrow { display: flex; align-items: center; gap: 6px; padding: 3px 5px; font-size: 11px; border-bottom: 1px solid var(--line); }
-	.exitrow:last-child { border-bottom: 0; }
-	.exitrow span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.exitrow button { padding: 0 5px; font-size: 11px; line-height: 16px; flex-shrink: 0; }
+	.lay { display: flex; align-items: center; gap: 6px; padding: 2px 2px; font-size: 11px; cursor: pointer; user-select: none; }
+	.lay:hover { background: var(--panel2); }
+	.lay i { width: 10px; height: 10px; display: inline-block; border: 1px solid #0008; flex-shrink: 0; }
+	.swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
+	.sw { display: flex; align-items: center; gap: 5px; padding: 3px 5px; cursor: pointer; border: 1px solid transparent; font-size: 11px; }
+	.sw:hover { background: var(--panel2); }
+	.sw.on { border-color: var(--amber); background: var(--panel2); }
+	.sw i { width: 12px; height: 12px; display: inline-block; border: 1px solid #0008; }
+	#inspector { font-size: 11px; }
+	#inspector .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+	#inspector .kv b { color: var(--bone); font-weight: 600; text-align: right; word-break: break-all; }
+	#inspector .kv span { color: var(--dim); flex-shrink: 0; }
+	#inspector .title { color: var(--amber); font-weight: 700; font-size: 12px; margin-bottom: 4px; word-break: break-all; }
+	#inspector .actions { margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap; }
+	.listbox { max-height: 150px; overflow-y: auto; border: 1px solid var(--line); background: var(--ink); }
+	.listrow { display: flex; align-items: center; gap: 6px; padding: 3px 5px; font-size: 11px; border-bottom: 1px solid var(--line); cursor: pointer; }
+	.listrow:hover { background: var(--panel2); }
+	.listrow:last-child { border-bottom: 0; }
+	.listrow span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.structrow { padding: 3px 6px; font-size: 11px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 	.structrow:hover { background: var(--panel2); }
 	.structrow.on { border-color: var(--amber); background: var(--panel2); }
-	.sec h2.fold { cursor: pointer; user-select: none; }
-	.sec h2.fold:hover { color: var(--bone); }
 	#sproblems { color: var(--blood); font-size: 11px; margin-top: 6px; white-space: pre-wrap; }
-	#exitdlg { position: fixed; z-index: 9; display: none; width: 256px; background: var(--panel); border: 1px solid var(--rust); box-shadow: 0 0 0 2px #000a, 0 14px 50px #000d; padding: 10px 12px 12px; }
-	#exitdlg h3 { font-size: 12px; letter-spacing: 2px; color: var(--amber); }
-	#exitdlg .hint { margin-top: 4px; }
-	#helpbtn { color: var(--amber); font-weight: 700; padding: 3px 10px; flex-shrink: 0; }
-	#tagline { padding: 5px 16px; background: var(--panel2); border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	#tagline b { color: var(--amber); font-weight: 700; }
-	#helppanel { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 92vw; background: var(--panel); border-left: 2px solid var(--rust); box-shadow: -16px 0 60px #000d; z-index: 20; display: none; flex-direction: column; }
+	#healthline { font-size: 11px; }
+	#healthline b { color: var(--amber); }
+
+	/* ---- footer ---- */
+	footer { display: flex; gap: 16px; padding: 6px 14px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; flex-shrink: 0; }
+	footer b { color: var(--bone); font-weight: 600; }
+	#saved { color: var(--amber); margin-left: auto; flex-shrink: 0; }
+	#bakestat { color: var(--teal); flex-shrink: 0; }
+
+	/* ---- dialogs ---- */
+	.dlg { position: fixed; z-index: 9; display: none; width: 280px; background: var(--panel); border: 1px solid var(--rust); box-shadow: 0 0 0 2px #000a, 0 14px 50px #000d; padding: 10px 12px 12px; }
+	.dlg h3 { font-size: 12px; letter-spacing: 2px; color: var(--amber); }
+	.dlg .hint { margin-top: 4px; }
+	.dlg .btns { display: flex; gap: 6px; margin-top: 10px; }
+
+	/* ---- help ---- */
+	#helppanel { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 92vw; background: var(--panel); border-left: 2px solid var(--rust); box-shadow: -16px 0 60px #000d; z-index: 20; display: none; flex-direction: column; }
 	#helppanel.open { display: flex; }
 	#helppanel .hh { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 2px solid var(--rust); background: var(--panel2); }
 	#helppanel .hh h2 { font-size: 13px; letter-spacing: 2px; color: var(--amber); flex: 1; }
@@ -84,700 +113,222 @@
 <body>
 <header>
 	<h1>MAPFORGE</h1>
-	<span class="sub" id="mapname" title="The map you are editing: name · time compression · world size · grid">DIVIDED STATES USA · 60× · 75×42.5 km</span>
-	<a href="/api/help" target="_blank" title="Open the REST API docs — everything this editor does, a script or an AI can do too">API — for humans &amp; AIs</a>
-	<button id="helpbtn" title="How do I use this? Opens the plain-language guide">?</button>
+	<span class="sub" id="mapname">DIVIDED STATES USA</span>
+	<a href="/api/help" target="_blank" title="The REST API — everything this editor does, a script or an AI can do too">API</a>
+	<button id="helpbtn" title="How do I use this? The plain-language guide">?</button>
 </header>
-<div id="tagline">The world-map editor — paint the land, lay the roads, drop highway exits, pin buildings; every click saves straight into the game's map. New here? Hit <b>?</b> (top right).</div>
 <main>
+	<div id="tools">
+		<button id="t-select" class="on" title="Select & move — click any road/exit/town/note/district; drag vertices and pins. Hold SPACE or middle-drag to pan anywhere.">SELECT</button>
+		<button id="t-road" title="Draw roads — click drops the next point on the selected road (nearest end). Double-click a segment inserts a point. Right-click a vertex deletes it.">ROAD</button>
+		<button id="t-exit" title="Build a highway exit — click where it should LEAD; pieces + archetypes in the dialog. Numbers itself by MILEPOST (the address law).">EXIT</button>
+		<button id="t-measure" title="Drive-time ruler — click A, then B: route, distance, real minutes and game hours per vehicle">MEASURE</button>
+		<button id="t-district" title="Draw a named district — click polygon corners, double-click (or ENTER) to close">DISTRICT</button>
+		<button id="t-note" title="Pin a plan note — the shared owner+AI TODO layer">NOTE</button>
+		<button id="t-paint" title="Paint biomes — pick a color below, drag on the map">PAINT</button>
+		<button id="t-town" title="Found a town — click the map and name it">TOWN</button>
+		<button id="t-place" title="Pin the structure chosen in the catalog at the exact spot you click">PLACE</button>
+		<div class="gap"></div>
+		<div class="lbl">View</div>
+		<button id="zoom-in" title="Zoom in (wheel over the map too)">+</button>
+		<button id="zoom-out" title="Zoom out">−</button>
+		<button id="zoom-fit" title="Whole country on screen">FIT</button>
+		<button id="zoom-meridian" title="Jump to Meridian — the starting town">MERID.</button>
+		<div class="gap"></div>
+		<div class="lbl">World</div>
+		<button id="bake" title="Re-bake junctions[] — run after moving roads so the game + routes stay true (auto-runs after edits)">BAKE</button>
+		<button id="undo" title="Undo (Ctrl+Z)">UNDO</button>
+		<button id="redo" title="Redo (Ctrl+Y)">REDO</button>
+		<button id="reload" title="Re-read every file from disk — for when the game or an AI changed the map underneath you">RELOAD</button>
+	</div>
+	<div id="stage">
+		<canvas id="cv"></canvas>
+		<canvas id="minimap" width="150" height="85" title="The whole country — click to jump"></canvas>
+		<div id="measurebox"></div>
+	</div>
 	<div id="side">
-		<div class="sec">
-			<h2>Tool</h2>
-			<div class="row">
-				<button id="t-paint" class="on" title="Paint biomes — pick a color in the Biome palette, then drag on the map">PAINT</button>
-				<button id="t-road" title="Draw roads — pick a road in the Roads box, then each map click drops its next point">ROAD</button>
-				<button id="t-town" title="Found a town — click the map and type its name">TOWN</button>
-				<button id="t-place" title="Pin the structure chosen under Authored structures at the exact spot you click">PLACE</button>
-				<button id="t-exit" title="Build a highway exit — click where it should LEAD, then name it in the dialog">EXIT</button>
-				<button id="t-inspect" title="Click any cell to read its biome, state, nearest road and nearest town">INSPECT</button>
-			</div>
-			<div class="hint" id="toolhint">Drag to paint. <kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd> brush.</div>
-		</div>
-		<div class="sec">
-			<h2>Zoom</h2>
-			<div class="zoomrow">
-				<button id="zoom-out" title="Zoom out — the mouse wheel over the map works too">−</button>
-				<b id="zoomlbl" title="Current zoom level">100%</b>
-				<button id="zoom-in" title="Zoom in — the mouse wheel over the map works too">+</button>
-				<button id="zoom-fit" title="Snap back to 100% — the whole map on screen">FIT</button>
-			</div>
-			<div class="hint">Mouse wheel over the map zooms too. Scroll to pan when zoomed in.</div>
-		</div>
-		<div class="sec">
-			<h2>Biome palette</h2>
-			<div class="swatches" id="palette"></div>
-			<div class="hint" id="biomedesc">Hover a biome to see what it grows in-game.</div>
-		</div>
-		<div class="sec">
-			<h2>Brush</h2>
-			<div class="row">
-				<button data-b="1" class="brush on" title="Paint 1×1 cell at a time (key 1)">1</button>
-				<button data-b="3" class="brush" title="Paint 3×3 cells at a time (key 3)">3</button>
-				<button data-b="5" class="brush" title="Paint 5×5 cells at a time (key 5)">5</button>
-				<button data-b="9" class="brush" title="Paint 9×9 cells at a time (key 9)">9</button>
-			</div>
+		<div class="sec" id="inspector-sec">
+			<h2>Inspector</h2>
+			<div id="inspector"><div class="hint">Click anything on the map with SELECT.</div></div>
 		</div>
 		<div class="sec">
 			<h2>Layers</h2>
-			<div class="row">
-				<button id="l-states" class="on" title="Show/hide state border lines — display only, changes no data">STATE LINES</button>
-				<button id="l-roads" class="on" title="Show/hide roads and exit nodes — display only, changes no data">ROADS</button>
-				<button id="l-towns" class="on" title="Show/hide town dots and names — display only, changes no data">TOWNS</button>
-			</div>
+			<div id="layers"></div>
 		</div>
 		<div class="sec">
-			<h2>Roads</h2>
-			<select id="roadsel" style="width:100%" title="The road you are editing — it draws bright amber on the map; all others go dim"></select>
+			<h2>Network health</h2>
+			<div id="healthline" class="hint">—</div>
+			<div class="hint">Orphans = street grids / spurs the junction bake never tied to the trunk. Toggle the ORPHANS layer to see them bleed red.</div>
+		</div>
+		<div class="sec" id="paintsec" style="display:none">
+			<h2>Biome palette</h2>
+			<div class="swatches" id="palette"></div>
 			<div class="row" style="margin-top:6px">
-				<button id="road-new" title="Start a new road — name it (e.g. US-50), then click 2+ points on the map">NEW</button>
-				<button id="road-undo" title="Remove the selected road's last point — its nickname/danger/toll data is untouched">UNDO PT</button>
-				<button id="road-del" class="danger" title="Delete the whole selected road (asks first)">DELETE</button>
+				<button data-b="1" class="brush on" title="1×1 cells (key 1)">1</button>
+				<button data-b="3" class="brush" title="3×3 (key 3)">3</button>
+				<button data-b="5" class="brush" title="5×5 (key 5)">5</button>
+				<button data-b="9" class="brush" title="9×9 (key 9)">9</button>
 			</div>
-			<div id="roadstatus"></div>
-			<div class="hint">Pick a road above (it lights up on the map). With the ROAD tool, each click drops the next point. UNDO PT removes the last one.</div>
+			<div class="hint" id="biomedesc">Hover a biome to see what it grows in-game.</div>
 		</div>
-		<div class="sec">
-			<h2 id="exithdr">Exit nodes</h2>
-			<div id="exitlist"></div>
-			<div class="hint">With the EXIT tool, click where the exit should LEAD — the node anchors itself on the nearest interstate and builds its own ramps. Deleting a node takes its ramps with it.</div>
+		<div class="sec" id="measuresec" style="display:none">
+			<h2>Measure — vehicle</h2>
+			<select id="vehiclesel" style="width:100%"></select>
+			<div class="hint">Interstates run the vehicle's top speed; lesser roads cap at their law speed. Times show REAL minutes at the wheel and the GAME clock (60×).</div>
 		</div>
-		<div class="sec">
-			<h2>Authored structures</h2>
-			<select id="buildingsel" style="width:100%" title="Which structure the PLACE tool pins where you click">
-				<option>safehouse</option><option>gas_station</option>
-				<option>ruined_house</option><option>market_stall</option>
-			</select>
-			<div class="hint">With the PLACE tool, click to PIN this structure at exact coords — biomes stay procedural around it.</div>
-		</div>
-		<div class="sec">
-			<h2>Exits &amp; templates</h2>
+		<div class="sec" id="roadsec" style="display:none">
+			<h2>Road drawing</h2>
 			<div class="row">
-				<button id="do-exit" title="Old v1 ramp builder — type a town id, get a bare ramp; the EXIT tool replaces it">AUTO-EXIT</button>
-				<button id="do-stamp" title="Drop the chosen template's structures at your LAST map click — click the spot first">STAMP</button>
+				<button id="road-new" title="Start a new road — name it (e.g. US-50), pick a kind, then click points">NEW ROAD</button>
 			</div>
-			<select id="tplsel" style="width:100%;margin-top:6px" title="Which ready-made cluster STAMP drops (waystation / hamlet / outpost)">
-				<option>waystation</option><option>hamlet</option><option>outpost</option>
-			</select>
-			<div class="hint">AUTO-EXIT (v1) builds a bare ramp to a named town — the EXIT tool supersedes it. STAMP drops the chosen template at your last click.</div>
+			<div class="form">
+				<label>kind for new points<select id="roadkindsel" style="width:100%">
+					<option>interstate</option><option>us_route</option><option>state_road</option>
+					<option>county</option><option>street</option><option>dirt</option>
+				</select></label>
+			</div>
+			<div id="roadstatus" class="hint"></div>
+			<div class="hint">Click = drop next point (nearest end extends). Double-click a segment = insert. Right-click a vertex = delete it. Drag vertices with SELECT.</div>
+		</div>
+		<div class="sec" id="placesec" style="display:none">
+			<h2>Place structure</h2>
+			<select id="buildingsel" style="width:100%"></select>
+			<div class="hint">Click the map to PIN it at exact coords. The catalog below creates new TYPES.</div>
 		</div>
 		<div class="sec">
-			<h2 id="structfold" class="fold" title="Open/close the library of building TYPES — profiles are created here, placed in the world later">▸ Structure catalog</h2>
+			<h2 id="exithdr" class="fold">▸ Exit nodes</h2>
+			<div id="exitlistwrap" style="display:none"><div id="exitlist" class="listbox"></div></div>
+		</div>
+		<div class="sec">
+			<h2 id="planhdr" class="fold">▸ Plan notes</h2>
+			<div id="planlistwrap" style="display:none"><div id="planlist" class="listbox"></div></div>
+		</div>
+		<div class="sec">
+			<h2 id="structfold" class="fold">▸ Structure catalog</h2>
 			<div id="structbody" style="display:none">
 				<div class="hint" style="margin:0 0 6px">Created ≠ placed — buildings go in the world after the roads are arranged.</div>
-				<div id="structlist"></div>
+				<div id="structlist" class="listbox"></div>
 				<div class="row" style="margin-top:6px">
-					<button id="s-new" title="Clear the form to write a fresh profile from scratch">NEW</button>
-					<button id="s-save" title="Write this profile into the catalog — it checks the rules (incl. §9) first">SAVE</button>
-					<button id="s-del" class="danger" title="Remove the loaded profile from the catalog (asks first)">DELETE</button>
+					<button id="s-new">NEW</button>
+					<button id="s-save" title="Checks the §9 job rule first">SAVE</button>
+					<button id="s-del" class="danger">DELETE</button>
 				</div>
 				<div id="sproblems"></div>
 				<div id="sform" class="form">
-					<label title="Machine name — lowercase letters, digits and underscores only (e.g. gas_station_small)">id (snake_case)<input type="text" id="s-id" placeholder="gas_station_small"></label>
-					<label title="The human name players see on the sign and the map">display name<input type="text" id="s-display_name" placeholder="Gas Station"></label>
+					<label>id (snake_case)<input type="text" id="s-id" placeholder="gas_station_small"></label>
+					<label>display name<input type="text" id="s-display_name" placeholder="Gas Station"></label>
 					<div class="pair">
-						<label title="One symbol for signs and the map (e.g. ⛽) — required by §18">sign glyph<input type="text" id="s-sign_glyph" placeholder="⛽"></label>
-						<label title="What shelf it belongs to (service, housing, civic, ruin...)">category<input type="text" id="s-category" placeholder="service"></label>
+						<label>sign glyph<input type="text" id="s-sign_glyph" placeholder="⛽"></label>
+						<label>category<input type="text" id="s-category" placeholder="service"></label>
 					</div>
-					<label title="Which community sizes may grow this building — T1 tiny roadside up to T4 city">allowed tiers (comma)<input type="text" id="s-allowed_tiers" placeholder="T1, T2, T3, T4"></label>
-					<label title="Which neighborhoods want it (commercial_strip, roadside, residential...)">districts (comma)<input type="text" id="s-districts" placeholder="commercial_strip, roadside"></label>
-					<label title="The ground-plan shape class the world builder uses">footprint<select id="s-footprint" style="width:100%"></select></label>
+					<label>allowed tiers (comma)<input type="text" id="s-allowed_tiers" placeholder="T1, T2, T3, T4"></label>
+					<label>districts (comma)<input type="text" id="s-districts" placeholder="commercial_strip, roadside"></label>
+					<label>footprint<select id="s-footprint" style="width:100%"></select></label>
 					<div class="pair">
-						<label title="Building width in meters (along the street)">width m<input type="number" id="s-fw" min="2" value="10"></label>
-						<label title="Building depth in meters (back from the street)">depth m<input type="number" id="s-fd" min="2" value="8"></label>
+						<label>width m<input type="number" id="s-fw" min="2" value="10"></label>
+						<label>depth m<input type="number" id="s-fd" min="2" value="8"></label>
 					</div>
 					<div class="pair">
-						<label title="How many stories tall">floors<input type="number" id="s-floors" min="1" value="1"></label>
-						<label title="How hostile it is inside: 0 safe, 5 deathtrap">danger 0–5<input type="number" id="s-danger" min="0" max="5" value="1"></label>
+						<label>floors<input type="number" id="s-floors" min="1" value="1"></label>
+						<label>danger 0–5<input type="number" id="s-danger" min="0" max="5" value="1"></label>
 					</div>
-					<label class="chk" title="Can the player walk inside? Unchecked = solid shell"><input type="checkbox" id="s-enterable" checked> enterable</label>
-					<label title="Where the doors are (front, rear_optional...)">entrances (comma)<input type="text" id="s-entrances" placeholder="front, rear_optional"></label>
-					<label title="Which interior layout to build inside — none = empty shell">interior template<input type="text" id="s-interior_template" value="none"></label>
-					<label title="What can be found inside (chest_common...) — one way to satisfy the §9 job rule">loot table<input type="text" id="s-loot_table" placeholder="chest_common"></label>
-					<label title="Who works here (clerk, trader...) — satisfies the §9 job rule">npc jobs (comma)<input type="text" id="s-npc_jobs" placeholder="clerk, trader"></label>
-					<label title="Rules that apply here (fuel_tax...) — satisfies the §9 job rule">law hooks (comma)<input type="text" id="s-law_hooks" placeholder="fuel_tax"></label>
-					<label title="Things that can happen here (ambush, rumor...) — satisfies the §9 job rule">event hooks (comma)<input type="text" id="s-event_hooks" placeholder="ambush, rumor"></label>
-					<label title="What the owning faction may reskin: paint, guards, prices...">faction overrides (comma)<input type="text" id="s-faction_overrides" placeholder="paint, guards, prices"></label>
-					<label class="chk" title="Only functions while the local power is on"><input type="checkbox" id="s-power_required"> power required</label>
-					<label class="chk" title="The player could claim this building as a home base"><input type="checkbox" id="s-can_be_safehouse"> can be safehouse</label>
+					<label class="chk"><input type="checkbox" id="s-enterable" checked> enterable</label>
+					<label>entrances (comma)<input type="text" id="s-entrances" placeholder="front, rear_optional"></label>
+					<label>interior template<input type="text" id="s-interior_template" value="none"></label>
+					<label>loot table<input type="text" id="s-loot_table" placeholder="chest_common"></label>
+					<label>npc jobs (comma)<input type="text" id="s-npc_jobs" placeholder="clerk, trader"></label>
+					<label>law hooks (comma)<input type="text" id="s-law_hooks" placeholder="fuel_tax"></label>
+					<label>event hooks (comma)<input type="text" id="s-event_hooks" placeholder="ambush, rumor"></label>
+					<label>faction overrides (comma)<input type="text" id="s-faction_overrides" placeholder="paint, guards, prices"></label>
+					<label class="chk"><input type="checkbox" id="s-power_required"> power required</label>
+					<label class="chk"><input type="checkbox" id="s-can_be_safehouse"> can be safehouse</label>
 				</div>
-				<div class="hint">The JOB rule (§9): a building must bring at least one of loot table / npc jobs / law hooks / event hooks.</div>
 			</div>
 		</div>
-		<div class="sec">
-			<h2>Reload</h2>
-			<button id="reload" title="Re-read the map file from disk — for when the game or an AI changed it underneath you">RE-READ FROM DISK</button>
-			<div class="hint">Every edit saves straight into game/data/usmap.json — restart the game to drive it.</div>
+	</div>
+	<div id="exitdlg" class="dlg form">
+		<h3>NEW EXIT</h3>
+		<div class="hint" id="exitanchor">—</div>
+		<label>piece<select id="exitpiece" style="width:100%">
+			<option value="exit">exit only</option>
+			<option value="interchange">full interchange (return ramp)</option>
+			<option value="service_stop">service stop (exit + waystation)</option>
+			<option value="town_connector">town connector (exit + hamlet)</option>
+			<option value="outpost_stop">outpost (exit + outpost)</option>
+		</select></label>
+		<label>name (blank = archetype default)<input type="text" id="exitname" placeholder="MERIDIAN"></label>
+		<label>archetype<select id="exitarch" style="width:100%"></select></label>
+		<label class="chk"><input type="checkbox" id="exitreturn" checked> return ramp</label>
+		<div class="btns">
+			<button id="exitgo">BUILD</button>
+			<button id="exitcancel">CANCEL</button>
 		</div>
 	</div>
-	<div id="wrap"><canvas id="cv"></canvas></div>
-	<div id="brush"></div>
-	<div id="exitdlg" class="form">
-		<h3>NEW EXIT NODE</h3>
-		<div class="hint" id="exitanchor">—</div>
-		<label title="What the highway sign will say — leave blank and it names itself after the archetype">name (blank = archetype default)<input type="text" id="exitname" placeholder="MERIDIAN"></label>
-		<label title="What kind of stop this exit leads to — sets its community tier and danger">archetype<select id="exitarch" style="width:100%"></select></label>
-		<label class="chk" title="Also build the on-ramp back onto the highway"><input type="checkbox" id="exitreturn" checked> return ramp (full interchange)</label>
-		<div class="row" style="margin-top:10px">
-			<button id="exitgo" title="Create the exit node — ramps and the highway sign build themselves in-game">BUILD EXIT</button>
-			<button id="exitcancel" title="Never mind — Esc works too">CANCEL</button>
+	<div id="districtdlg" class="dlg form">
+		<h3>NEW DISTRICT</h3>
+		<label>id (snake_case)<input type="text" id="d-id" placeholder="meridian_downtown"></label>
+		<label>name<input type="text" id="d-name" placeholder="DOWNTOWN"></label>
+		<label>kind<select id="d-kind" style="width:100%">
+			<option>downtown</option><option>commercial</option><option>industrial</option>
+			<option>residential</option><option>port</option><option>combat_zone</option>
+			<option>farmland</option><option>custom</option>
+		</select></label>
+		<div class="btns">
+			<button id="districtgo">SAVE DISTRICT</button>
+			<button id="districtcancel">CANCEL</button>
+		</div>
+	</div>
+	<div id="notedlg" class="dlg form">
+		<h3 id="notedlg-title">PLAN NOTE</h3>
+		<label>text<textarea id="n-text" rows="3" placeholder="grow the port district here"></textarea></label>
+		<label>status<select id="n-status" style="width:100%">
+			<option>open</option><option>doing</option><option>done</option>
+		</select></label>
+		<div class="btns">
+			<button id="notego">SAVE</button>
+			<button id="notedel" class="danger" style="display:none">DELETE</button>
+			<button id="notecancel">CANCEL</button>
 		</div>
 	</div>
 	<aside id="helppanel">
 		<div class="hh">
-			<h2>HOW TO USE MAPFORGE</h2>
-			<button id="helpclose" title="Close the guide — Esc works too">✕ CLOSE</button>
+			<h2>HOW TO USE MAPFORGE v4</h2>
+			<button id="helpclose">✕ CLOSE</button>
 		</div>
 		<div id="helpbody">
-			<p style="margin-top:12px">This is the map of the whole game world. <b>Every click saves instantly</b> into <code>game/data/usmap.json</code> — the exact file the game loads. There is no Save button because you never need one; the amber flash in the bottom-right corner confirms each write. Restart the game and your world is live.</p>
+			<p style="margin-top:12px">This is the map of the whole game world — <b>every edit saves instantly</b> into <code>game/data/usmap.json</code>, the exact file the game loads. The amber flash bottom-right confirms each write. Restart the game and your world is live.</p>
+			<h3>Moving around</h3>
+			<p><b>Wheel</b> zooms at the mouse. <b>Middle-drag</b> (or hold <kbd>SPACE</kbd> and drag) pans. <span class="bn">FIT</span> shows the whole country; <span class="bn">MERID.</span> jumps to the starting town. The <b>minimap</b> (top right) shows where you are — click it to jump.</p>
 			<h3>The workflow story</h3>
-			<p>Build the world in this order:</p>
 			<ol>
-				<li><b>Arrange the roads</b> — the interstates are the spine of everything.</li>
-				<li><b>Drop EXIT nodes</b> along them — each exit is a socket where content will live.</li>
-				<li><b>(Later) place communities</b> — towns and structures grow at those exits.</li>
+				<li><b>Arrange the highways</b> — the interstates are the spine (ROAD tool).</li>
+				<li><b>Drop EXITS</b> along them — each one numbers itself by milepost, the same law the game signs use.</li>
+				<li><b>Draw DISTRICTS</b> and pin <b>NOTES</b> — plan the places before you build them.</li>
+				<li><b>MEASURE</b> drives — check the distances feel right before committing.</li>
+				<li><b>Place structures</b> at the exits (PLACE + the catalog).</li>
 			</ol>
-			<p class="dim">In one line: arrange roads → drop exits → (later) place communities.</p>
-			<h3>The tools (top of the left bar — the lit one is active)</h3>
-			<p><span class="bn">PAINT</span> — paints the land itself. Pick a color in the <b>Biome palette</b> (hover one to read what it grows in-game), pick a <b>Brush</b> size (<kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd>/<kbd>9</kbd> cells — the number keys work too), then drag across the map. The stroke saves the moment you release the mouse.</p>
-			<p><span class="bn">ROAD</span> — draws and extends roads. First pick a road in the <b>Roads</b> box — it lights up bright amber, everything else goes dim. Then every click on the map drops that road's next point; the numbered dots show the order and the red dot is the newest. <span class="bn">UNDO PT</span> removes the last point, <span class="bn">NEW</span> starts a fresh road (name it like <code>US-50</code>), <span class="bn">DELETE</span> removes the whole selected road. Editing points never touches the rest of a road's data — nicknames (THE CRIMSON MILE), danger ratings, families and tolls all survive your edits.</p>
-			<p><span class="bn">TOWN</span> — founds a town. Click the map, type a name, done — it appears as a named dot.</p>
-			<p><span class="bn">PLACE</span> — pins ONE structure at the exact spot you click. Choose which one under <b>Authored structures</b> first. The land around it stays procedural; only that building is guaranteed.</p>
-			<p><span class="bn">EXIT</span> — the important one. Click where the exit should <b>LEAD</b> — the destination, not the highway itself. A little dialog opens:</p>
-			<ol>
-				<li>Name it, or leave the name blank and it names itself after the archetype.</li>
-				<li>Pick an <b>archetype</b> — what kind of stop this is; each carries a default community tier and a danger level.</li>
-				<li>Keep <b>return ramp</b> checked for a full interchange (a way back onto the highway).</li>
-				<li>Press <span class="bn">BUILD EXIT</span>.</li>
-			</ol>
-			<p>The node anchors itself on the <b>nearest interstate</b> automatically, and in the game the off-ramp, the return ramp and the big highway sign all build themselves. The <b>Exit nodes</b> list shows every node you've made; its <span class="bn">✕</span> deletes a node <b>and its ramp roads with it</b>.</p>
-			<p><span class="bn">INSPECT</span> — click any cell and the bottom bar reads out its biome, its state, and the nearest road and town with distances in meters.</p>
-			<h3>Zoom &amp; layers</h3>
-			<p><span class="bn">−</span> / <span class="bn">+</span> zoom (the mouse wheel over the map works too), <span class="bn">FIT</span> snaps back to 100%. Scroll to pan when zoomed in. <span class="bn">STATE LINES</span> / <span class="bn">ROADS</span> / <span class="bn">TOWNS</span> only show or hide those layers on screen — they never change the data.</p>
-			<h3>Exits &amp; templates (the older tools)</h3>
-			<p><span class="bn">AUTO-EXIT</span> is the v1 ramp builder: type a town id and it lays a bare ramp to that town. The EXIT tool above does everything this does and more — prefer the EXIT tool. <span class="bn">STAMP</span> drops the chosen template (waystation / hamlet / outpost) of structures at your <b>last click</b> on the map — so click the spot first, then press STAMP and name the place.</p>
-			<h3>The structure catalog</h3>
-			<p>Click <span class="bn">▸ Structure catalog</span> to unfold the library of building <b>types</b>. A <b>structure profile</b> is the blueprint of a kind of building — its name, sign glyph, size, floors, danger, doors, loot and workers — not a building standing in the world. <b>Created ≠ placed:</b> saving a profile only puts it on the shelf; it enters the world later, when the PLACE tool, a template, or the community generator uses it.</p>
-			<p><span class="bn">NEW</span> clears the form for a fresh profile, <span class="bn">SAVE</span> writes it into the catalog, <span class="bn">DELETE</span> removes it.</p>
-			<p><b>The §9 “every building needs a job” rule:</b> if SAVE refuses with a red NOT LAWFUL message naming §9, the profile is missing its reason to exist. Give it at least ONE of: a <b>loot table</b> (something to find), <b>npc jobs</b> (someone works there), <b>law hooks</b> (a rule applies there) or <b>event hooks</b> (something can happen there). A building with none of those is dead scenery — and the catalog refuses dead scenery.</p>
+			<h3>The tools</h3>
+			<p><span class="bn">SELECT</span> — click anything: roads, exits, towns, placements, districts, notes. The Inspector (right) shows its row. Selected roads grow <b>vertex handles</b> — drag them to reshape; changes save on release and the junction bake re-runs by itself. Drag an exit's diamond to slide it along its highway (it renumbers by milepost — that's the law).</p>
+			<p><span class="bn">ROAD</span> — pick or NEW a road, then each click drops the next point on the <b>nearest end</b> (so you can stretch a highway from either side). <b>Double-click a segment</b> inserts a point mid-road. <b>Right-click a vertex</b> deletes it. Every point edit preserves the road's character — nickname, danger, toll, lanes, surface all survive.</p>
+			<p><span class="bn">EXIT</span> — click where the exit should <b>LEAD</b>. Pick a <b>piece</b>: exit only, full interchange, or a combo that also stamps a waystation/hamlet/outpost at the destination. The node anchors on the nearest interstate, numbers itself by <b>milepost</b> (MERIDIAN = I-95 EXIT 9 is the canon anchor), and the game builds the ramps, gore paint and the big green sign from the row.</p>
+			<p><span class="bn">MEASURE</span> — click A, then B. You get: straight-line distance, the routed distance along real roads, <b>minutes at the wheel</b> and the <b>game-clock hours</b> (60×), for the vehicle picked on the right. This is "how long would it take to drive there" answered before you build.</p>
+			<p><span class="bn">DISTRICT</span> — click polygon corners, <b>double-click or ENTER</b> to close, name it (downtown / port / combat zone...). Districts save into the map file — future territory systems read them.</p>
+			<p><span class="bn">NOTE</span> — pin a shared TODO on the map (open → doing → done). This is the collaborative plan layer: your notes and the AI's notes live in the same file, so both of you see what's planned where.</p>
+			<p><span class="bn">PAINT</span> / <span class="bn">TOWN</span> / <span class="bn">PLACE</span> — as always: biomes, town founding, pinning catalog structures.</p>
+			<h3>Network health</h3>
+			<p>The right panel counts the road network's <b>orphans</b> — street grids and spurs the junction bake never tied to the trunk (why a GPS route can't reach them). Toggle the <span class="bn">ORPHANS</span> layer to paint them red, then fix them by dragging their feeder road to actually touch, and <span class="bn">BAKE</span>.</p>
 			<h3>Housekeeping</h3>
-			<p><span class="bn">RE-READ FROM DISK</span> reloads the map file — use it if the game, an AI, or another tab changed the map underneath you. The footer's left side always shows the cell, world coordinates and biome under your cursor.</p>
-			<p class="dim">Keys: <kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd>/<kbd>9</kbd> brush size · <kbd>Esc</kbd> closes dialogs and this guide. Hover any button for a one-line reminder.</p>
+			<p><span class="bn">BAKE</span> re-runs the junction law by hand (it auto-runs ~2s after road edits). <span class="bn">UNDO</span>/<span class="bn">REDO</span> (Ctrl+Z / Ctrl+Y) cover every edit. <span class="bn">RELOAD</span> re-reads all files from disk.</p>
+			<p class="dim">Keys: <kbd>1/3/5/9</kbd> brush · <kbd>SPACE</kbd>+drag pan · <kbd>Esc</kbd> cancels dialogs/tools · <kbd>Ctrl+Z/Y</kbd> undo/redo · <kbd>Del</kbd> deletes the selection.</p>
 		</div>
 	</aside>
 </main>
 <footer>
 	<span id="pos">—</span>
 	<span id="info">—</span>
+	<span id="bakestat"></span>
 	<span id="saved"></span>
 </footer>
-<script>
-const COLORS = {
-	ocean: "#0d1a26", water: "#1e4a63", forest: "#3d5426", scrub: "#6b5a3d",
-	plains: "#736b46", farmland: "#8c7a42", desert: "#94764c", mountains: "#6b6862",
-	swamp: "#40513a", urban: "#7d776e",
-};
-// What each biome GROWS when the game streams a chunk on it (matches world_stream.gd).
-const BIOME_INFO = {
-	ocean: "The world edge — nothing spawns, keeps the coastline closed.",
-	water: "Lakes & rivers. BOGS cars (cross at road bridges). No scatter.",
-	forest: "Dense trees, some solid trunks you can't drive through. Thicker near roads.",
-	scrub: "Sparse brush & rocks — the open, drivable wasteland.",
-	plains: "Light scatter, the odd tree, roadside copses. Fast open driving.",
-	farmland: "Crop rows + barns. Caches here hold food. Windbreak trees by the road.",
-	desert: "Sparse scatter + cracked dirt patches. Wide and empty.",
-	mountains: "Solid rock formations — real obstacles — plus scatter. Slows you down.",
-	swamp: "Water pools + trees + brush. More lurkers lurk here than anywhere.",
-	urban: "Ruined city blocks with streets you can drive, husks for cover, tool caches.",
-};
-let meta = null, rows = [], states = [], roads = [], towns = [], placements = [];
-let exits = [], archetypes = [], structures = [], footprints = []; // spec §5 nodes + §7 catalog
-let exitDest = null; // pending EXIT-tool destination [wx,wz] while the dialog is up
-let selStructId = null, structOpen = false;
-let lastWorld = null; // last clicked world [wx,wz] — AUTO-EXIT / STAMP anchor here
-let tool = "paint", biome = "forest", brush = 1, painting = false, stroke = [];
-let showStates = true, showRoads = true, showTowns = true;
-let PX = 8, basePX = 8, zoom = 1;
-const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
-const brushEl = document.getElementById("brush");
-
-async function api(path, opts) {
-	const r = await fetch(path, opts);
-	const j = await r.json();
-	if (!r.ok) throw new Error(j.error || r.status);
-	return j;
-}
-function savedFlash(msg) {
-	const el = document.getElementById("saved");
-	el.textContent = msg;
-	clearTimeout(el._t); el._t = setTimeout(() => el.textContent = "", 1800);
-}
-async function load() {
-	meta = await api("/api/meta");
-	rows = (await api("/api/grid?layer=biomes")).rows;
-	states = (await api("/api/grid?layer=states")).rows;
-	roads = await api("/api/roads");
-	towns = await api("/api/towns");
-	placements = await api("/api/placements");
-	({ exits, archetypes } = await api("/api/exits"));
-	({ structures, footprints } = await api("/api/structures"));
-	document.getElementById("mapname").textContent =
-		`${meta.name} · ${meta.compression}× · ${meta.world_km[0]}×${meta.world_km[1]} km · ${meta.w}×${meta.h} cells of ${meta.cell_m} m`;
-	basePX = Math.max(4, Math.floor(Math.min((innerWidth - 280) / meta.w, (innerHeight - 130) / meta.h)));
-	buildPalette(); buildRoadSel(); buildExitArch(); buildExitList(); buildFootprintSel(); buildStructList(); applyZoom(); roadStatus();
-}
-function applyZoom() {
-	PX = Math.max(2, Math.round(basePX * zoom));
-	cv.width = meta.w * PX; cv.height = meta.h * PX;
-	document.getElementById("zoomlbl").textContent = Math.round(zoom * 100) + "%";
-	draw();
-}
-function setZoom(z) { zoom = Math.min(8, Math.max(0.5, z)); applyZoom(); }
-function buildPalette() {
-	const pal = document.getElementById("palette");
-	pal.innerHTML = "";
-	const desc = document.getElementById("biomedesc");
-	for (const [ch, name] of Object.entries(meta.legend)) {
-		const d = document.createElement("div");
-		d.className = "sw" + (name === biome ? " on" : "");
-		d.title = BIOME_INFO[name] || name;
-		d.innerHTML = `<i style="background:${COLORS[name] || "#333"}"></i>${name}`;
-		d.onmouseenter = () => { desc.textContent = BIOME_INFO[name] || name; };
-		d.onclick = () => { biome = name; desc.textContent = BIOME_INFO[name] || name; document.querySelectorAll(".sw").forEach(s => s.classList.remove("on")); d.classList.add("on"); };
-		pal.appendChild(d);
-	}
-}
-function buildRoadSel() {
-	const sel = document.getElementById("roadsel");
-	sel.innerHTML = roads.map(r => `<option>${r.id}</option>`).join("");
-}
-function selectedRoad() { return roads.find(r => r.id === document.getElementById("roadsel").value); }
-function roadStatus() {
-	const el = document.getElementById("roadstatus");
-	const r = selectedRoad();
-	if (!r) { el.textContent = "no road selected"; return; }
-	const n = r.pts.length;
-	el.textContent = tool === "road"
-		? `▸ ${r.id}: ${n} pts — click the map to drop point ${n + 1}`
-		: `${r.id}: ${n} pts (switch to the ROAD tool to add)`;
-}
-const w2p = (wx, wz) => [(wx - meta.world_offset[0]) / meta.cell_m * PX, (wz - meta.world_offset[1]) / meta.cell_m * PX];
-function draw() {
-	for (let z = 0; z < meta.h; z++)
-		for (let x = 0; x < meta.w; x++) {
-			ctx.fillStyle = COLORS[meta.legend[rows[z][x]]] || "#222";
-			ctx.fillRect(x * PX, z * PX, PX, PX);
-		}
-	if (showStates) { // state borders: draw a line where the state char changes
-		ctx.strokeStyle = "rgba(232,224,207,.28)"; ctx.lineWidth = 1;
-		ctx.beginPath();
-		for (let z = 0; z < meta.h; z++)
-			for (let x = 0; x < meta.w; x++) {
-				if (x + 1 < meta.w && states[z][x] !== states[z][x + 1] && states[z][x] !== "." && states[z][x + 1] !== ".") {
-					ctx.moveTo((x + 1) * PX, z * PX); ctx.lineTo((x + 1) * PX, (z + 1) * PX);
-				}
-				if (z + 1 < meta.h && states[z][x] !== states[z + 1][x] && states[z][x] !== "." && states[z + 1][x] !== ".") {
-					ctx.moveTo(x * PX, (z + 1) * PX); ctx.lineTo((x + 1) * PX, (z + 1) * PX);
-				}
-			}
-		ctx.stroke();
-	}
-	if (showRoads) {
-		const selId = document.getElementById("roadsel").value;
-		// Unselected roads: dim & thin. Selected: bright & thick so you always know which one you're editing.
-		for (const r of roads) {
-			if (r.id === selId || r.pts.length < 2) continue;
-			const ramp = r.kind === "exit"; // ramps read dimmer + thinner than interstates
-			ctx.strokeStyle = ramp ? "#5a5138" : "#7a6f4e";
-			ctx.lineWidth = Math.max(1, PX * (ramp ? 0.09 : 0.16));
-			ctx.beginPath();
-			r.pts.forEach((p, i) => { const [px, pz] = w2p(p[0], p[1]); i ? ctx.lineTo(px, pz) : ctx.moveTo(px, pz); });
-			ctx.stroke();
-		}
-		const r = selectedRoad();
-		if (r) {
-			if (r.pts.length >= 2) {
-				ctx.strokeStyle = "#ffcf3f"; ctx.lineWidth = Math.max(2, PX * 0.3);
-				ctx.beginPath();
-				r.pts.forEach((p, i) => { const [px, pz] = w2p(p[0], p[1]); i ? ctx.lineTo(px, pz) : ctx.moveTo(px, pz); });
-				ctx.stroke();
-			}
-			// Numbered handles so you can SEE the order of points you dropped.
-			r.pts.forEach((p, i) => {
-				const [px, pz] = w2p(p[0], p[1]);
-				ctx.fillStyle = i === r.pts.length - 1 ? "#ff5a3b" : "#ffcf3f";
-				ctx.beginPath(); ctx.arc(px, pz, 4, 0, 7); ctx.fill();
-				ctx.fillStyle = "#14110c"; ctx.font = "bold 9px ui-monospace, monospace";
-				ctx.textAlign = "center"; ctx.textBaseline = "middle";
-				ctx.fillText(String(i + 1), px, pz + 0.5);
-				ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-			});
-		}
-		// EXIT NODES (spec §5): amber diamond ON the highway, a thin tie to the destination.
-		for (const e of exits) {
-			const [px, pz] = w2p(e.pos[0], e.pos[1]);
-			const [qx, qz] = w2p(e.dest[0], e.dest[1]);
-			ctx.strokeStyle = "rgba(240,180,41,.45)"; ctx.lineWidth = 1;
-			ctx.beginPath(); ctx.moveTo(px, pz); ctx.lineTo(qx, qz); ctx.stroke();
-			const dr = Math.max(4, PX * 0.45);
-			ctx.fillStyle = "#f0b429"; ctx.strokeStyle = "#14110c"; ctx.lineWidth = 1;
-			ctx.beginPath();
-			ctx.moveTo(px, pz - dr); ctx.lineTo(px + dr, pz); ctx.lineTo(px, pz + dr); ctx.lineTo(px - dr, pz);
-			ctx.closePath(); ctx.fill(); ctx.stroke();
-			if (PX >= 5) {
-				ctx.fillStyle = "#f0b429"; ctx.font = `${Math.max(8, Math.round(PX * 0.9))}px ui-monospace, monospace`;
-				ctx.fillText(`X${e.exit_number} ${e.name}`, px + dr + 3, pz + 3);
-			}
-		}
-	}
-	if (showTowns) {
-		for (const t of towns) {
-			const [px, pz] = w2p(t.pos[0], t.pos[1]);
-			ctx.fillStyle = t.kind === "city" ? "#f0b429" : "#c9995c";
-			ctx.beginPath(); ctx.arc(px, pz, t.kind === "city" ? 4 : 3, 0, 7); ctx.fill();
-			ctx.fillStyle = "#e8e0cf"; ctx.font = `${Math.max(9, PX + 1)}px ui-monospace, monospace`;
-			ctx.fillText(t.name, px + 6, pz + 3);
-		}
-	}
-	// Authored structures — teal squares so they read distinctly from towns/roads.
-	for (const p of placements) {
-		const [px, pz] = w2p(p.pos[0], p.pos[1]);
-		const s = Math.max(4, PX * 0.6);
-		ctx.fillStyle = "#37b2a0"; ctx.strokeStyle = "#0a2b27"; ctx.lineWidth = 1;
-		ctx.fillRect(px - s / 2, pz - s / 2, s, s); ctx.strokeRect(px - s / 2, pz - s / 2, s, s);
-		if (PX >= 6) { ctx.fillStyle = "#bfeee6"; ctx.font = "9px ui-monospace, monospace"; ctx.fillText(p.building, px + s, pz + 3); }
-	}
-}
-function cellAt(ev) {
-	const r = cv.getBoundingClientRect();
-	return [Math.floor((ev.clientX - r.left) / PX), Math.floor((ev.clientY - r.top) / PX)];
-}
-function paintAt(x, z) {
-	const half = Math.floor(brush / 2);
-	const ch = Object.entries(meta.legend).find(([, n]) => n === biome)[0];
-	for (let dz = -half; dz <= half; dz++)
-		for (let dx = -half; dx <= half; dx++) {
-			const nx = x + dx, nz = z + dz;
-			if (nx < 0 || nx >= meta.w || nz < 0 || nz >= meta.h) continue;
-			if (rows[nz][nx] === ch) continue;
-			rows[nz] = rows[nz].substring(0, nx) + ch + rows[nz].substring(nx + 1);
-			stroke.push([nx, nz]);
-		}
-	draw();
-}
-const cellToWorld = (x, z) => [meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m];
-cv.addEventListener("mousedown", async (ev) => {
-	const [x, z] = cellAt(ev);
-	lastWorld = cellToWorld(x, z); // every click updates the AUTO-EXIT / STAMP anchor
-	if (tool === "paint") { painting = true; stroke = []; paintAt(x, z); }
-	else if (tool === "place") {
-		const building = document.getElementById("buildingsel").value;
-		await api("/api/placements", { method: "POST", body: JSON.stringify({ building, pos: lastWorld }) });
-		placements = await api("/api/placements"); savedFlash(`${building} pinned`); draw();
-	}
-	else if (tool === "exit") { exitDest = lastWorld; openExitDlg(ev); }
-	else if (tool === "road") {
-		const id = document.getElementById("roadsel").value;
-		const r = roads.find(r => r.id === id);
-		if (!r) return savedFlash("no road selected — NEW first");
-		r.pts.push([meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m]);
-		await api("/api/roads", { method: "POST", body: JSON.stringify(r) });
-		savedFlash(`${id}: point ${r.pts.length} saved`); draw(); roadStatus();
-	} else if (tool === "town") {
-		const name = prompt("Town name (empty = cancel):");
-		if (!name) return;
-		const id = name.toLowerCase().replace(/[^a-z0-9]/g, "");
-		const t = { id, name: name.toUpperCase(), pos: [meta.world_offset[0] + (x + 0.5) * meta.cell_m, meta.world_offset[1] + (z + 0.5) * meta.cell_m], kind: "holdout" };
-		await api("/api/towns", { method: "POST", body: JSON.stringify(t) });
-		towns = await api("/api/towns"); savedFlash(`${t.name} founded`); draw();
-	} else if (tool === "inspect") {
-		const info = await api(`/api/cell?x=${x}&z=${z}`);
-		document.getElementById("info").innerHTML =
-			`<b>${info.biome}</b> · ${info.state || "open water"} · road <b>${info.nearest_road?.id ?? "—"}</b> ${info.nearest_road ? info.nearest_road.dist_m + " m" : ""} · town <b>${info.nearest_town?.name ?? "—"}</b> ${info.nearest_town ? info.nearest_town.dist_m + " m" : ""}`;
-	}
-});
-function updateBrush(ev) {
-	if (tool !== "paint" || ev.target !== cv) { brushEl.style.display = "none"; return; }
-	const r = cv.getBoundingClientRect();
-	const [x, z] = cellAt(ev);
-	const half = Math.floor(brush / 2);
-	const size = brush * PX;
-	brushEl.style.display = "block";
-	brushEl.style.width = size + "px";
-	brushEl.style.height = size + "px";
-	brushEl.style.left = (r.left + (x - half) * PX) + "px";
-	brushEl.style.top = (r.top + (z - half) * PX) + "px";
-	brushEl.style.borderColor = COLORS[biome] || "#f0b429";
-}
-addEventListener("mousemove", (ev) => {
-	if (painting && ev.target === cv) { const [x, z] = cellAt(ev); paintAt(x, z); }
-	updateBrush(ev);
-	if (ev.target === cv && meta) {
-		const [x, z] = cellAt(ev);
-		const wx = Math.round(meta.world_offset[0] + (x + 0.5) * meta.cell_m);
-		const wz = Math.round(meta.world_offset[1] + (z + 0.5) * meta.cell_m);
-		document.getElementById("pos").innerHTML = `cell <b>${x},${z}</b> · world <b>${wx}, ${wz}</b> m · <b>${meta.legend[rows[z]?.[x]] ?? "?"}</b>${showStates ? " · " + (meta.state_legend[states[z]?.[x]] ?? "") : ""}`;
-	}
-});
-cv.addEventListener("mouseleave", () => { brushEl.style.display = "none"; });
-cv.addEventListener("wheel", (ev) => { ev.preventDefault(); setZoom(zoom * (ev.deltaY < 0 ? 1.25 : 0.8)); }, { passive: false });
-addEventListener("mouseup", async () => {
-	if (!painting) return;
-	painting = false;
-	if (stroke.length) {
-		await api("/api/paint", { method: "POST", body: JSON.stringify({ biome, cells: stroke }) });
-		savedFlash(`${stroke.length} cells → disk`);
-	}
-});
-for (const [id, t] of [["t-paint", "paint"], ["t-road", "road"], ["t-town", "town"], ["t-place", "place"], ["t-exit", "exit"], ["t-inspect", "inspect"]])
-	document.getElementById(id).onclick = () => {
-		tool = t;
-		document.querySelectorAll("#side .sec:first-child button").forEach(b => b.classList.remove("on"));
-		document.getElementById(id).classList.add("on");
-		document.getElementById("toolhint").textContent = {
-			paint: "Drag to paint. 1/3/5/9 brush.", road: "Click the map to drop the next road point.",
-			town: "Click to found a town.", place: "Click to pin the selected structure.",
-			exit: "Click where the exit should LEAD — ramps build from the nearest interstate.",
-			inspect: "Click a cell for the full readout.",
-		}[t];
-		if (t !== "paint") brushEl.style.display = "none";
-		if (t !== "exit") closeExitDlg();
-		roadStatus();
-	};
-document.querySelectorAll(".brush").forEach(b => b.onclick = () => {
-	brush = Number(b.dataset.b);
-	document.querySelectorAll(".brush").forEach(x => x.classList.remove("on")); b.classList.add("on");
-});
-addEventListener("keydown", (e) => {
-	if (e.key === "Escape") { document.getElementById("helppanel").classList.remove("open"); return closeExitDlg(); }
-	if (e.target.matches("input, select, textarea")) return; // typing in a form, not brushing
-	if ("1359".includes(e.key)) document.querySelector(`.brush[data-b="${e.key}"]`)?.click();
-});
-for (const [id, fn] of [["l-states", v => showStates = v], ["l-roads", v => showRoads = v], ["l-towns", v => showTowns = v]])
-	document.getElementById(id).onclick = (ev) => { ev.target.classList.toggle("on"); fn(ev.target.classList.contains("on")); draw(); };
-document.getElementById("zoom-in").onclick = () => setZoom(zoom * 1.25);
-document.getElementById("zoom-out").onclick = () => setZoom(zoom * 0.8);
-document.getElementById("zoom-fit").onclick = () => setZoom(1);
-document.getElementById("roadsel").onchange = () => { draw(); roadStatus(); };
-document.getElementById("road-new").onclick = async () => {
-	const id = prompt("Road id (e.g. US-50):");
-	if (!id) return;
-	roads.push({ id, kind: "interstate", pts: [] });
-	buildRoadSel();
-	document.getElementById("roadsel").value = id;
-	document.getElementById("t-road").click(); // jump straight into the ROAD tool
-	savedFlash(`${id}: now click 2+ points on the map`); draw(); roadStatus();
-};
-document.getElementById("road-undo").onclick = async () => {
-	const r = selectedRoad();
-	if (!r || !r.pts.length) return savedFlash("nothing to undo");
-	r.pts.pop();
-	await api("/api/roads", { method: "POST", body: JSON.stringify(r) });
-	savedFlash(`${r.id}: point removed (${r.pts.length} left)`); draw(); roadStatus();
-};
-document.getElementById("road-del").onclick = async () => {
-	const id = document.getElementById("roadsel").value;
-	if (!id || !confirm(`Delete ${id}?`)) return;
-	await api(`/api/roads?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-	roads = await api("/api/roads"); buildRoadSel(); savedFlash(`${id} deleted`); draw(); roadStatus();
-};
-document.getElementById("do-exit").onclick = async () => {
-	const town = prompt("Build an off-ramp to which town? (town id)", towns[0]?.id || "");
-	if (!town) return;
-	try {
-		const r = await api("/api/exit", { method: "POST", body: JSON.stringify({ town }) });
-		roads = await api("/api/roads"); buildRoadSel();
-		savedFlash(`ramp from ${r.from_interstate} (${r.length_m} m)`); draw();
-	} catch (e) { savedFlash("exit failed: " + e.message); }
-};
-document.getElementById("do-stamp").onclick = async () => {
-	if (!lastWorld) return savedFlash("click the map first to set the anchor");
-	const template = document.getElementById("tplsel").value;
-	const name = prompt("Name this place (used for placement ids):", "spot") || "spot";
-	const r = await api("/api/stamp_template", { method: "POST", body: JSON.stringify({ template, pos: lastWorld, name }) });
-	placements = await api("/api/placements");
-	savedFlash(`${template}: ${r.stamped.length} structures stamped`); draw();
-};
-// ---- EXIT NODES (spec §5): the content sockets the owner arranges ----
-function nearestInterstateJS(wx, wz) { // mirror of the server's anchor pick — preview only
-	let best = null, bestD = Infinity;
-	for (const r of roads) {
-		if (r.kind && r.kind !== "interstate") continue;
-		for (let i = 0; i + 1 < r.pts.length; i++) {
-			const a = r.pts[i], b = r.pts[i + 1];
-			const abx = b[0] - a[0], abz = b[1] - a[1];
-			const l2 = abx * abx + abz * abz || 1e-4;
-			const t = Math.max(0, Math.min(1, ((wx - a[0]) * abx + (wz - a[1]) * abz) / l2));
-			const d = Math.hypot(wx - (a[0] + abx * t), wz - (a[1] + abz * t));
-			if (d < bestD) { bestD = d; best = r.id; }
-		}
-	}
-	return best ? { id: best, dist: Math.round(bestD) } : null;
-}
-function buildExitArch() {
-	const sel = document.getElementById("exitarch");
-	const keep = sel.value;
-	sel.innerHTML = archetypes.map(a => `<option value="${a.id}">${a.id} · ${a.tier_default} · danger ${a.danger}</option>`).join("");
-	sel.value = archetypes.some(a => a.id === keep) ? keep
-		: (archetypes.some(a => a.id === "service") ? "service" : (archetypes[0]?.id ?? ""));
-}
-function buildExitList() {
-	document.getElementById("exithdr").textContent = `Exit nodes (${exits.length})`;
-	const el = document.getElementById("exitlist");
-	el.innerHTML = "";
-	if (!exits.length) { el.innerHTML = `<div class="hint" style="padding:4px 6px;margin:0">none yet — use the EXIT tool</div>`; return; }
-	for (const e of exits) {
-		const row = document.createElement("div");
-		row.className = "exitrow";
-		const label = document.createElement("span");
-		label.textContent = `${e.highway_id} X${e.exit_number} · ${e.name} · ${e.community_tier} ${e.archetype}`;
-		label.title = `${e.id} — ${(e.service_tags || []).join("/") || "no services"} · risk ${e.risk_rating}${e.has_return_ramp ? " · return ramp" : ""}`;
-		const del = document.createElement("button");
-		del.className = "danger";
-		del.textContent = "✕";
-		del.title = `delete ${e.id} and its ramps`;
-		del.onclick = async () => {
-			if (!confirm(`Delete ${e.id} (${e.name}) and its ramp roads?`)) return;
-			await api(`/api/exits?id=${encodeURIComponent(e.id)}`, { method: "DELETE" });
-			roads = await api("/api/roads");
-			({ exits, archetypes } = await api("/api/exits"));
-			buildRoadSel(); buildExitList(); savedFlash(`${e.id} gone (ramps too)`); draw();
-		};
-		row.append(label, del);
-		el.appendChild(row);
-	}
-}
-function openExitDlg(ev) {
-	const near = nearestInterstateJS(exitDest[0], exitDest[1]);
-	document.getElementById("exitanchor").textContent = near
-		? `dest ${Math.round(exitDest[0])}, ${Math.round(exitDest[1])} m · anchors on ${near.id} (~${near.dist} m ramp)`
-		: "no interstate on the map — the server will refuse this";
-	const dlg = document.getElementById("exitdlg");
-	dlg.style.display = "block";
-	dlg.style.left = Math.max(8, Math.min(ev.clientX + 14, innerWidth - 290)) + "px";
-	dlg.style.top = Math.max(8, Math.min(ev.clientY + 10, innerHeight - 300)) + "px";
-	const name = document.getElementById("exitname");
-	name.value = "";
-	setTimeout(() => name.focus(), 0); // after the canvas mousedown's default focus change
-}
-function closeExitDlg() { document.getElementById("exitdlg").style.display = "none"; exitDest = null; }
-document.getElementById("exitcancel").onclick = closeExitDlg;
-document.getElementById("exitname").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("exitgo").click(); });
-document.getElementById("exitgo").onclick = async () => {
-	if (!exitDest) return closeExitDlg();
-	const name = document.getElementById("exitname").value.trim();
-	const payload = {
-		dest: exitDest,
-		archetype: document.getElementById("exitarch").value,
-		has_return_ramp: document.getElementById("exitreturn").checked,
-	};
-	if (name) payload.name = name.toUpperCase();
-	try {
-		const r = await api("/api/exits", { method: "POST", body: JSON.stringify(payload) });
-		roads = await api("/api/roads");
-		({ exits, archetypes } = await api("/api/exits"));
-		buildRoadSel(); buildExitList();
-		savedFlash(`${r.exit.id} · ${r.exit.name} (${r.ramp_length_m} m ramp)`);
-		closeExitDlg(); draw();
-	} catch (e) { savedFlash("exit failed: " + e.message); }
-};
-
-// ---- STRUCTURE CATALOG (spec §7): buildings are CREATED here, placed later ----
-const S_TEXT = ["id", "display_name", "sign_glyph", "category", "loot_table", "interior_template"];
-const S_CSV = ["allowed_tiers", "districts", "entrances", "npc_jobs", "law_hooks", "event_hooks", "faction_overrides"];
-const S_BOOL = ["enterable", "power_required", "can_be_safehouse"];
-const sEl = (k) => document.getElementById("s-" + k);
-function buildFootprintSel() {
-	sEl("footprint").innerHTML = footprints.map(f => `<option>${f}</option>`).join("");
-}
-function structLine(s) {
-	const t = s.allowed_tiers || [], fm = s.footprint_m || [];
-	const tiers = t.length > 1 ? `${t[0]}-${t[t.length - 1]}` : (t[0] || "?");
-	return `${s.sign_glyph || "▪"} ${s.display_name || s.id} · ${s.category} · ${tiers} · ${fm[0] ?? "?"}×${fm[1] ?? "?"}m`;
-}
-function buildStructList() {
-	document.getElementById("structfold").textContent = `${structOpen ? "▾" : "▸"} Structure catalog (${structures.length})`;
-	const el = document.getElementById("structlist");
-	el.innerHTML = "";
-	for (const s of structures) {
-		const d = document.createElement("div");
-		d.className = "structrow" + (s.id === selStructId ? " on" : "");
-		d.textContent = structLine(s);
-		d.title = `${s.id} — click to load it into the form below`;
-		d.onclick = () => { selStructId = s.id; loadStructForm(s); buildStructList(); };
-		el.appendChild(d);
-	}
-}
-function loadStructForm(s) {
-	for (const k of S_TEXT) sEl(k).value = s[k] ?? "";
-	for (const k of S_CSV) sEl(k).value = (s[k] || []).join(", ");
-	for (const k of S_BOOL) sEl(k).checked = !!s[k];
-	sEl("footprint").value = s.footprint || "small_rect";
-	sEl("fw").value = s.footprint_m?.[0] ?? 10;
-	sEl("fd").value = s.footprint_m?.[1] ?? 8;
-	sEl("floors").value = s.floors ?? 1;
-	sEl("danger").value = s.danger ?? 1;
-	showProblems([]);
-}
-function serializeStructForm() { // exactly the row POST /api/structures expects
-	const s = {};
-	for (const k of S_TEXT) s[k] = sEl(k).value.trim();
-	for (const k of S_CSV) s[k] = sEl(k).value.split(",").map(x => x.trim()).filter(Boolean);
-	for (const k of S_BOOL) s[k] = sEl(k).checked;
-	s.footprint = sEl("footprint").value;
-	s.footprint_m = [Number(sEl("fw").value), Number(sEl("fd").value)];
-	s.floors = Number(sEl("floors").value);
-	s.danger = Number(sEl("danger").value);
-	return s;
-}
-function showProblems(list) {
-	document.getElementById("sproblems").textContent = list.length ? "NOT LAWFUL:\n· " + list.join("\n· ") : "";
-}
-document.getElementById("structfold").onclick = () => {
-	structOpen = !structOpen;
-	document.getElementById("structbody").style.display = structOpen ? "block" : "none";
-	buildStructList();
-};
-document.getElementById("s-new").onclick = () => {
-	selStructId = null;
-	loadStructForm({ footprint: footprints[0] || "small_rect", footprint_m: [10, 8], floors: 1, danger: 1, enterable: true, interior_template: "none" });
-	buildStructList();
-	sEl("id").focus();
-};
-document.getElementById("s-save").onclick = async () => {
-	const s = serializeStructForm();
-	// raw fetch, not api(): a 400 carries the {problems:[...]} list we surface in red
-	const r = await fetch("/api/structures", { method: "POST", body: JSON.stringify(s) });
-	const j = await r.json();
-	if (!r.ok) return showProblems(j.problems || [j.error || String(r.status)]);
-	selStructId = j.structure.id;
-	({ structures, footprints } = await api("/api/structures"));
-	buildStructList(); showProblems([]);
-	savedFlash(`${j.structure.id} → catalog (${j.total} rows)`);
-};
-document.getElementById("s-del").onclick = async () => {
-	const id = sEl("id").value.trim();
-	if (!id) return savedFlash("no structure loaded");
-	if (!confirm(`Delete structure profile '${id}' from the catalog?`)) return;
-	await api(`/api/structures?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-	if (selStructId === id) selStructId = null;
-	({ structures, footprints } = await api("/api/structures"));
-	buildStructList(); savedFlash(`${id} removed`);
-};
-// ---- HELP: the ? guide overlay — dismissible, remembers nothing ----
-document.getElementById("helpbtn").onclick = () => document.getElementById("helppanel").classList.toggle("open");
-document.getElementById("helpclose").onclick = () => document.getElementById("helppanel").classList.remove("open");
-document.getElementById("reload").onclick = load;
-load();
-</script>
+<script src="/app.js"></script>
 </body>
 </html>

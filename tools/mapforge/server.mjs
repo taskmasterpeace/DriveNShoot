@@ -15,28 +15,44 @@
 // Zero dependencies. No purple.
 
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, "..", "..");
 const MAP_PATH = process.env.USMAP_PATH || join(ROOT, "game", "data", "usmap.json");
-const PORT = Number(process.env.MAPFORGE_PORT || 8899);
+const PORT = Number(process.env.MAPFORGE_PORT || process.env.PORT || 8899);
 
 if (!existsSync(MAP_PATH)) {
 	console.error(`No map at ${MAP_PATH} — run: node tools/mapforge/generate_usa.mjs`);
 	process.exit(1);
 }
-let map = JSON.parse(readFileSync(MAP_PATH, "utf8"));
-// Back-fill arrays so every endpoint can rely on them (old maps).
-if (!Array.isArray(map.placements)) map.placements = [];
-if (!Array.isArray(map.exits)) map.exits = [];
-// v4: DISTRICTS — named polygon areas (downtown, port, combat zone...). The game
-// ignores unknown top-level keys today; territory/heat systems consume these later.
-if (!Array.isArray(map.districts)) map.districts = [];
+let map = null, mapMtime = 0;
+function readMap() {
+	map = JSON.parse(readFileSync(MAP_PATH, "utf8"));
+	// Back-fill arrays so every endpoint can rely on them (old maps).
+	if (!Array.isArray(map.placements)) map.placements = [];
+	if (!Array.isArray(map.exits)) map.exits = [];
+	// v4: DISTRICTS — named polygon areas (downtown, port, combat zone...). The game
+	// ignores unknown top-level keys today; territory/heat systems consume these later.
+	if (!Array.isArray(map.districts)) map.districts = [];
+	mapMtime = statSync(MAP_PATH).mtimeMs;
+}
+readMap();
 
-const save = () => writeFileSync(MAP_PATH, JSON.stringify(map));
+const save = () => { writeFileSync(MAP_PATH, JSON.stringify(map)); mapMtime = statSync(MAP_PATH).mtimeMs; };
+// THE MULTI-WRITER GUARD (v4): the FORGE hub's MapForge, a preview instance, and
+// any curl-driving AI may run at once — all against ONE disk file. Before every
+// request, a cheap stat detects an external write and re-reads, so no process
+// ever clobbers another's edits with a stale in-memory map. (Last write inside
+// the same millisecond still wins — one human editor at a time is the intended
+// mode; this guard is for the tool/AI/hub trio, not real-time co-editing.)
+function syncFromDisk() {
+	try {
+		if (statSync(MAP_PATH).mtimeMs !== mapMtime) { readMap(); invalidateGraph(); }
+	} catch { /* transient mid-write stat — next request catches up */ }
+}
 
 // --- THE PLAN LAYER (v4): shared owner+AI TODO pins. A SIDECAR file — never
 // game data, so the game file stays lean and the plan can be chatty.
@@ -470,6 +486,7 @@ const HELP = {
 	biomes: "see GET /api/meta legend — chars: . ocean, w water, F forest, f scrub, p plains, a farmland, d desert, m mountains, s swamp, u urban",
 	endpoints: [
 		"GET  /api/help                         → this document",
+		"POST /api/reload                       → v4: re-read every file from disk (multi-writer guard also auto-detects external writes)",
 		"GET  /api/meta                         → dims, scale, legends, row counts (no grids — cheap)",
 		"GET  /api/map                          → the entire map JSON",
 		"GET  /api/grid?layer=biomes|states     → {rows: [...]} the raw char grid",
@@ -560,6 +577,7 @@ const server = createServer(async (req, res) => {
 	}
 
 	try {
+		syncFromDisk();
 		// ---- static editor ----
 		if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html"))
 			return res.writeHead(200, { "content-type": "text/html" }).end(readFileSync(join(HERE, "index.html")));
@@ -568,6 +586,14 @@ const server = createServer(async (req, res) => {
 
 		// ---- API ----
 		if (url.pathname === "/api/help") return json(res, 200, HELP);
+		if (url.pathname === "/api/reload" && req.method === "POST") {
+			readMap(); invalidateGraph();
+			plan = existsSync(PLAN_PATH) ? JSON.parse(readFileSync(PLAN_PATH, "utf8")) : { notes: [] };
+			if (!Array.isArray(plan.notes)) plan.notes = [];
+			structDoc = existsSync(STRUCT_PATH) ? JSON.parse(readFileSync(STRUCT_PATH, "utf8")) : { structures: [] };
+			if (!Array.isArray(structDoc.structures)) structDoc.structures = [];
+			return json(res, 200, { ok: true, roads: map.roads.length, exits: map.exits.length, junctions: (map.junctions || []).length });
+		}
 		if (url.pathname === "/api/meta")
 			return json(res, 200, {
 				name: map.name, version: map.version, compression: map.compression,
