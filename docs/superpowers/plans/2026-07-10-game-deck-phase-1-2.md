@@ -175,17 +175,17 @@ existing `ProtoArcadeNet` bridge.
 - Create: `tools/game_console_loopback.sh`
 - Create: `docs/verification/GAME_DECK_PHASE_1_2.md`
 
-- [ ] Verify ten non-placeholder titles/objectives/lore entries, ten guide pages,
+- [x] Verify ten non-placeholder titles/objectives/lore entries, ten guide pages,
   exact control profiles, eligible notices/licenses, and original art only.
-- [ ] Run all ten focused console sims, `console_catalog_sim`, shared Game Deck
+- [x] Run all ten focused console sims, `console_catalog_sim`, shared Game Deck
   sims, all Phase 1.1 sims, and DRIVN regressions serially.
-- [ ] Run a real two-process ENet console loopback proving remote real-time input,
+- [x] Run a real two-process ENet console loopback proving remote real-time input,
   host snapshot convergence, one shared result, and no duplicate ledger write.
-- [ ] GPU-render CROWN OF ASH plus one real-time, one physics, one turn-based,
+- [x] GPU-render CROWN OF ASH plus one real-time, one physics, one turn-based,
   and the physical console frame; inspect all five.
-- [ ] Record exact counts, contradictions, missing items, expected exclusion
+- [x] Record exact counts, contradictions, missing items, expected exclusion
   messages, and non-failing engine cleanup warnings.
-- [ ] Commit `test: verify Game Deck phase 1.2` only with zero missing items.
+- [x] Commit `test: verify Game Deck phase 1.2` only with zero missing items.
 
 ## Verification command
 

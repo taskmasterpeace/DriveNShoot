@@ -14,7 +14,9 @@ const DARK_SQUARE := Color("3b3429")
 const MATERIAL: Dictionary = {"P": 100, "N": 320, "B": 330, "R": 500, "Q": 900, "K": 0}
 const GLYPHS: Dictionary = {
 	"wK": "♔", "wQ": "♕", "wR": "♖", "wB": "♗", "wN": "♘", "wP": "♙",
-	"bK": "♚", "bQ": "♛", "bR": "♜", "bB": "♝", "bN": "♞", "bP": "♟",
+	# Outline glyphs accept Godot's palette tint consistently. Several Windows
+	# color-font fallbacks render the filled black pawn purple and ignore tint.
+	"bK": "♔", "bQ": "♕", "bR": "♖", "bB": "♗", "bN": "♘", "bP": "♙",
 }
 
 var board: Array = []

@@ -39,6 +39,19 @@ func _ready() -> void:
 	_check("every source is pinned or access-dated", all_pinned)
 	_check("aggregate notices ship", FileAccess.file_exists("res://THIRD_PARTY_NOTICES.md")
 		and FileAccess.get_file_as_string("res://THIRD_PARTY_NOTICES.md").contains("LittleJS Arcade"))
+	var aggregate := FileAccess.get_file_as_string("res://THIRD_PARTY_NOTICES.md")
+	var current_material := aggregate.get_slice("## Pre-integration provenance records", 0)
+	var current_sources := ["LittleJS Arcade", "3-Bit Games", "Godot Demo Projects",
+		"Bashball", "Cars on the Road", "Flying Turtles", "Wrathskeller",
+		"Tanks of Freedom"]
+	_check("aggregate notice identifies every Phase 1 source as material used",
+		current_sources.all(func(source_name: String) -> bool:
+			return current_material.contains(source_name)))
+	var future_material := aggregate.get_slice("## Pre-integration provenance records", 1)
+	_check("only the two uninstalled Phase 2 provenance families remain future",
+		future_material.contains("OpenSoldat") and future_material.contains("FreeInfantry")
+		and not future_material.contains("3-Bit Games")
+		and not future_material.contains("Tanks of Freedom"))
 	var tanks: Dictionary = reg.get_source("tanks_of_freedom")
 	_check("Tanks audio exclusion remains explicit", (tanks.get("excluded", []) as Array).any(func(value: Variant) -> bool:
 		return String(value).contains("CC-BY-SA audio")))
@@ -54,6 +67,10 @@ func _ready() -> void:
 	_scan_paths("res://proto3d/games", prohibited_paths)
 	_scan_paths("res://assets", prohibited_paths)
 	_check("no Twemoji, Infantry, or Soldat source asset path ships", prohibited_paths.is_empty())
+	var imported_art: Array[String] = []
+	_scan_imported_art("res://proto3d/games", imported_art)
+	_check("Game Deck cartridge art remains original code-drawn primitives",
+		imported_art.is_empty())
 	_finish()
 
 
@@ -72,6 +89,23 @@ func _scan_paths(path: String, hits: Array[String]) -> void:
 				var lower := child.to_lower()
 				if lower.contains("twemoji") or lower.contains("infantry") or lower.contains("soldat"):
 					hits.append(child)
+		name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _scan_imported_art(path: String, hits: Array[String]) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if name != "." and name != "..":
+			var child := path.path_join(name)
+			if dir.current_is_dir():
+				_scan_imported_art(child, hits)
+			elif child.get_extension().to_lower() in ["png", "jpg", "jpeg", "webp", "svg"]:
+				hits.append(child)
 		name = dir.get_next()
 	dir.list_dir_end()
 

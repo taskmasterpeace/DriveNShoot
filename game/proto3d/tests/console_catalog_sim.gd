@@ -21,6 +21,34 @@ func _ready() -> void:
 	var rows: Array = registry.phase_rows(1).filter(func(row: Dictionary) -> bool:
 		return String(row.get("platform", "")) == "console")
 	_check("catalog declares exactly ten console games", rows.size() == 10)
+	var exact_titles := {
+		"crown_of_ash": "CROWN OF ASH", "dial_tanks": "DIAL TANKS",
+		"red_sky": "RED SKY", "black_orbit": "BLACK ORBIT",
+		"gridbreach": "GRIDBREACH", "rustball": "RUSTBALL",
+		"fuel_run": "FUEL RUN", "skyjoust": "SKYJOUST",
+		"fight_night_99": "FIGHT NIGHT ’99", "ashland_command": "ASHLAND COMMAND",
+	}
+	_check("ten approved non-placeholder console titles are exact", rows.all(func(row: Dictionary) -> bool:
+		var id := String(row.get("id", ""))
+		return exact_titles.has(id) and String(row.get("title", "")) == String(exact_titles[id])))
+	_check("every console row ships a substantial objective and in-lore history",
+		rows.all(func(row: Dictionary) -> bool:
+			return String(row.get("help", "")).length() >= 60 \
+				and String(row.get("about_world", "")).length() >= 60))
+	var book_data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/books.json"))
+	var guide_pages: Array = []
+	if book_data is Dictionary:
+		for book_value in (book_data as Dictionary).get("books", []):
+			var book: Dictionary = book_value
+			if String(book.get("id", "")) == "book_game_deck_console":
+				guide_pages = book.get("pages", [])
+				break
+	var all_guided := guide_pages.size() == 11
+	for title_value in exact_titles.values():
+		var title := String(title_value).replace("’", "'")
+		all_guided = all_guided and guide_pages.any(func(page_value: Variant) -> bool:
+			return String(page_value).replace("’", "'").begins_with(title))
+	_check("the console annual has one usage page and one strategy page per title", all_guided)
 	_check("the console shelf shares one original presentation helper",
 		ResourceLoader.exists("res://proto3d/games/console/console_draw.gd"))
 	var before_scale := Engine.time_scale
