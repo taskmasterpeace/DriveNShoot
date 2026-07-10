@@ -91,12 +91,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/black_orbit/*`, `tests/black_orbit_sim.*`
 
-- [ ] Red sim: turn/thrust inertia, wraparound bounds, independent aim/fire,
+- [x] Red sim: turn/thrust inertia, wraparound bounds, independent aim/fire,
   asteroid split, collision damage, salvage spawn/collection/bank, bot claim
   behavior, local seats, snapshot, and wins/salvage result.
-- [ ] Implement one-to-four salvage skiffs, original dead-satellite debris, claim
+- [x] Implement one-to-four salvage skiffs, original dead-satellite debris, claim
   beacons, projectile trails, and compact match HUD.
-- [ ] Commit `feat: add BLACK ORBIT`.
+- [x] Commit `feat: add BLACK ORBIT`.
 
 ## Task 5: GRIDBREACH
 
