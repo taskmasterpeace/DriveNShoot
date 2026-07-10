@@ -438,8 +438,15 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
 		if absf(center.x) <= SLAB and absf(center.z) <= SLAB:
-			ProtoWorldBuilder.box_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
-				center + Vector3(0, 0.045, 0), BIOME_GROUND[biome])
+			# WATER READS (it.14): lit ripple + sun glint off the shared water
+			# material — the flat painted box photographed as cardboard.
+			var wmesh := MeshInstance3D.new()
+			var wbm := BoxMesh.new()
+			wbm.size = Vector3(CHUNK, 0.04, CHUNK)
+			wmesh.mesh = wbm
+			wmesh.material_override = ProtoWorldBuilder.water_material(BIOME_GROUND[biome])
+			wmesh.position = center + Vector3(0, 0.045, 0)
+			chunk.add_child(wmesh)
 		return chunk
 
 	# --- A town? (macro anchor inside this chunk → ruins + sign + landmark) ---

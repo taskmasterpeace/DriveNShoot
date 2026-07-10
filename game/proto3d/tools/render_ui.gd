@@ -205,6 +205,33 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shot("STREET_meridian")
 
+	# 11b) WATER READ (it.14) — the first coast the grid offers: a land cell with
+	# an ocean neighbor; pin the car on the shore, camera settles, shoot.
+	var shore := Vector3.ZERO
+	var got_shore := false
+	for cz in range(0, um.h, 2):
+		for cx in range(1, um.w - 1, 2):
+			var cc: Vector2 = um.cell_center(Vector2i(cx, cz))
+			if um.biome_at(Vector3(cc.x, 0, cc.y)) != "ocean":
+				var ce: Vector2 = um.cell_center(Vector2i(cx + 1, cz))
+				if um.biome_at(Vector3(ce.x, 0, ce.y)) == "ocean":
+					shore = Vector3(lerpf(cc.x, ce.x, 0.35), 0.0, cc.y)
+					got_shore = true
+					break
+		if got_shore:
+			break
+	if got_shore:
+		var wgy: float = ProtoWorldBuilder.ground_y(shore.x, shore.z)
+		for _i in 60:
+			if main.active_car != null:
+				main.active_car.global_position = Vector3(shore.x, wgy + 1.4, shore.z)
+				main.active_car.linear_velocity = Vector3.ZERO
+				main.active_car.angular_velocity = Vector3.ZERO
+			await get_tree().process_frame
+		for _i in 110:
+			await get_tree().process_frame
+		await _shot("WATER_shore")
+
 	# 12) STORM-EDGE drive probe (it.13) — PROBE_STORM=1 only (adds ~15 s): a
 	# small staged rain cell dead ahead, drive in on a REAL held key (the poller
 	# owns the throttle — the paid-for law), 3 frames across the gradient.

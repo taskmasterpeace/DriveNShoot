@@ -224,6 +224,25 @@ static func chunk_tint(base: Color, cx: int, cz: int) -> Color:
 		clampf(base.b + dv, 0.0, 1.0), base.a)
 
 
+## WATER (fidelity loop it.14 probe: lakes read as flat painted boxes): the same
+## noise normal at gentle strength gives lit RIPPLE, low roughness gives the sun
+## a glint lane — one cached material, zero new geometry.
+static func water_material(color: Color) -> StandardMaterial3D:
+	var key := "wat_" + color.to_html()
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.12
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.045, 0.045, 0.045) # broad, lazy ripple at ~22 m
+	mat.normal_enabled = true
+	mat.normal_texture = ground_normal_texture()
+	mat.normal_scale = 0.35
+	_mat_cache[key] = mat
+	return mat
+
+
 ## A ground/terrain material: the biome tint, textured. Separate from material() so only
 ## TERRAIN gets grain — boxes/houses stay clean. Cached per color like material().
 static func ground_material(color: Color, rough: float = 0.95) -> StandardMaterial3D:

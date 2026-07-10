@@ -98,5 +98,12 @@ func _ready() -> void:
 	_check("building tints spread across placements (%d distinct >= 2)" % wall_shades.size(),
 		wall_shades.size() >= 2)
 
+	# WATER READS (it.14): lit ripple + glint — low roughness, gentle normal, cached.
+	var wm := ProtoWorldBuilder.water_material(Color(0.16, 0.28, 0.34))
+	_check("water material glints (roughness %.2f <= 0.2)" % wm.roughness, wm.roughness <= 0.2)
+	_check("water has lit ripple (normal on, gentle %.2f <= 0.5)" % wm.normal_scale,
+		wm.normal_enabled and wm.normal_scale <= 0.5)
+	_check("water material is cached", ProtoWorldBuilder.water_material(Color(0.16, 0.28, 0.34)) == wm)
+
 	print("GROUND: DONE — %d passed, %d failed" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)

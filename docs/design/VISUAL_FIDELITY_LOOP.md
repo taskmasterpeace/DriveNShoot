@@ -410,11 +410,55 @@ storms have real edges you can see coming. Remaining ladder to ~9: title/menu ar
 (owner-gated), interior density at street scale, water/shoreline read, character/
 puppet material polish, minimap/atlas cohesion extras.
 
-**Next up (iteration 14):**
-1. **WATER READ probe** — shoreline/lake/ocean from the game camera (the water
-   shader shipped in SEABOARD — how does it photograph now? cheapest wins).
-2. **PUPPET READ probe** — the character up close from the game camera (materials,
-   face/paperdoll cohesion); inventory the cheapest polish (rim? tint variance on
-   clothes rows?). VISUALS ONLY — the rig is sacred (BODY_RIG_REFERENCE law).
-3. TITLE backdrop: execute only if the owner has replied yes.
-4. Ledger housekeeping: the ratings ladder from 5.5 → now, one table for the owner.
+**Next up (iteration 14):** ~~water probe + material · puppet probe · ladder~~ →
+executed below; TITLE still owner-gated.
+
+---
+
+## Iteration 14 — 2026-07-10 ~14:50
+
+**Shipped:**
+- **WATER READS** (probe: lakes photographed as flat painted boxes; the razor
+  land-water edge + no depth band logged): new cached `water_material` — the shared
+  noise normal at gentle 0.35 for lit RIPPLE + roughness 0.12 for a sun-glint lane,
+  zero new geometry; wired into the wet-chunk build. After-probe: the sheet reads
+  rippled. Deeper wins (shore wet-band, depth tint) logged for a dedicated pass.
+  **ground_texture_sim 19/19** (3 new water checks), map 45/45.
+- **PUPPET probe verdict: NO CHANGE** — the photobooth game-view shows the mannequin
+  reading clean and cohesive at game distance (head/jacket/pants/boots separation
+  already carries). The style IS the authored look; polish would be gilding. The one
+  real candidate — NPC wardrobe variance in crowds — queued as a probe (needs a
+  crowd shot, not a solo).
+- **THE RATINGS LADDER** (for the owner):
+
+  | It. | Rating | The lever |
+  |----|--------|-----------|
+  | 1  | 6.0 | pipe law (exhaust out the side) + 9:16 phone GPS |
+  | 2  | 6.5 | THE VEHICLE DAMAGE DOLL (spec-row silhouette, armor faces) |
+  | 3  | 7.0 | THE BODY DOLL on the K sheet (masked wound tints) |
+  | 4  | 7.3 | smoke deep pass + the black-ball law |
+  | 5  | 7.5 | FX pass 2 (blood/impact/flash on soft sprites) |
+  | 6  | 7.7 | night glow law + night stage |
+  | 7  | 7.9 | ground patchwork + dust law |
+  | 8  | 8.1 | biome tint separation (the lemon fix) |
+  | 9  | 8.2 | CAR GPS device cohesion + probes |
+  | 10 | 8.4 | WEATHER MADE VISIBLE (streaks/motes/grade/fog) |
+  | 11 | 8.5 | building patchwork + roof caps |
+  | 12 | 8.6 | town look-proof + wet air |
+  | 13 | 8.7 | THE MARK (firefight memory) + storm-edge proof |
+  | 14 | 8.8 | water ripple/glint + puppet verdict |
+
+**Steam rating: 8.8/10** (was 8.7). The remaining distance to 10 is mostly OWNED
+surfaces (title/menu art — owner-gated; UI is the owner's lane per MAP-FIRST) and
+larger art passes (interior density, NPC wardrobe variance, shore bands, decal
+variety). The loop continues mining honest wins.
+
+**Next up (iteration 15):**
+1. **NPC CROWD probe** — a Meridian street with residents/motorists in frame: does
+   the crowd read varied (wardrobe/tint) or cloned? Cheapest wardrobe-variance win
+   if cloned (puppet body colors are DATA — rig untouched).
+2. **SHORE BAND design probe**: cost out a wet-sand rim on coast cells (geometry vs
+   texture approach) — pick and implement if < an iteration.
+3. TITLE backdrop: only on the owner's yes.
+4. Interior density probe: one furnished shell interior from the game camera —
+   does the furniture set read at street scale?
