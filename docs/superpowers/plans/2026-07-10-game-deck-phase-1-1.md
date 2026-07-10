@@ -56,12 +56,12 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/radworm/radworm.gd`, `.tscn`, `tests/radworm_sim.gd`, `.tscn`
 
-- [ ] Red sim: deterministic food, no instant reversal, growth, wall/self
+- [x] Red sim: deterministic food, no instant reversal, growth, wall/self
   collision, survival ticks, snapshot, one length result.
-- [ ] Implement a fixed-tick routing worm with a queued turn and original
+- [x] Implement a fixed-tick routing worm with a queued turn and original
   Continuity-terminal presentation.
-- [ ] Prove keyboard and pad snapshots cause the same turn.
-- [ ] Commit `feat: add RADWORM`.
+- [x] Prove keyboard and pad snapshots cause the same turn.
+- [x] Commit `feat: add RADWORM`.
 
 ## Task 3: DEAD GROUND
 
