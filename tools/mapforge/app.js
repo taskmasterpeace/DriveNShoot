@@ -248,12 +248,21 @@ function tracePoly(pts) {
 function draw() {
 	if (!meta) return;
 	ctx.clearRect(0, 0, cv._w, cv._h);
-	// biomes
+	// biomes — blit ONLY the visible cells: a full-map blit at high zoom asks the
+	// rasterizer for a ~100k-px destination rect and wedges the tab.
 	const cm = meta.cell_m;
-	const bx = w2sx(meta.world_offset[0]), bz = w2sz(meta.world_offset[1]);
-	const bw = meta.w * cm * view.scale, bh = meta.h * cm * view.scale;
+	const ox = meta.world_offset[0], oz = meta.world_offset[1];
 	ctx.imageSmoothingEnabled = false;
-	ctx.drawImage(bmp, bx, bz, bw, bh);
+	{
+		const cx0 = Math.max(0, Math.floor((s2wx(0) - ox) / cm));
+		const cz0 = Math.max(0, Math.floor((s2wz(0) - oz) / cm));
+		const cx1 = Math.min(meta.w, Math.ceil((s2wx(cv._w) - ox) / cm));
+		const cz1 = Math.min(meta.h, Math.ceil((s2wz(cv._h) - oz) / cm));
+		if (cx1 > cx0 && cz1 > cz0)
+			ctx.drawImage(bmp, cx0, cz0, cx1 - cx0, cz1 - cz0,
+				w2sx(ox + cx0 * cm), w2sz(oz + cz0 * cm),
+				(cx1 - cx0) * cm * view.scale, (cz1 - cz0) * cm * view.scale);
+	}
 	// state borders (world-space path under a transform)
 	if (layers.states && statePath) {
 		ctx.save();
