@@ -64,3 +64,9 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **F3** apex rarity: bar 0.75 (cold swamps host none); THE ONE AUTHORED NEST at the Alley (−8000,6000) hot from first touch — apexes are memorable, not wallpaper.
 - **F4** the land hears: emit_noise deposits human_noise per cell (decays 0.12/gh); the apex's ground scales with your racket — go quiet and it shrinks.
 - creatures_sim grew to 36 checks; ecology 12/0 · population_cell 23/0 · world_walkthrough 16/0 standalone (batch dips = background-suite contention).
+
+## Iteration 8 — THE CONTRACT ARC CLOSES (2026-07-09)
+- **F6** bait (dropped meat deposits heat) + backfire (rodents ×(2−pred)) · **F9** offline ecology (same equations, 24 gh/day, never spawns, Alley-boldness briefing) · **F7** bird language (marker law — shots scatter, never farm; formations speak freshness; NO-BIRDS over apex sky; the 6 s gather beat re-materializes the standing chunk) · **F11** legibility (threat OWNER/priority/ttl stack; toast queue; cause-stamped over-hunt beat).
+- **THE ANCHOR BUG** (found by F7's gather check): the bridge add_child()s before positioning — every realized creature anchored at the chunk-add origin and drifted off; the knifeback territorialized the wrong ground. Home claimed lazily on frame 1 now.
+- **E12 closed** (19/0): the horn's re-enter E lost the contested scan beside the guarding dog — far-door staging. **Zero PARTIALs**: F5's emergence half → DEFERRED(P2 nest-prop arc), P18 → DEFERRED(owner's dashboard lane).
+- **creatures_sim grew to 50 checks.** Ledger: every row DONE or DEFERRED. Audit 2 + the final full suite launched.
