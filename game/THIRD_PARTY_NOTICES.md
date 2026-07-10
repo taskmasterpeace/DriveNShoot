@@ -8,7 +8,9 @@ do not imply endorsement.
 
 ### LittleJS Arcade
 
-WASTE HEAP and CROWN OF ASH adapt selected game rules and implementation ideas
+All ten handheld cartridges (WASTE HEAP, RADWORM, DEAD GROUND, PACK RAT,
+BUNKER BREAKER, LAST MILE, IRON DOME, FALL LINE, TILT//SALVAGE, and RELAY
+BLOOM) and CROWN OF ASH adapt selected game rules and implementation ideas
 from LittleJS Arcade at pinned revision
 `b3ef6b4d8d5035ad5bf3780bf8afdb48aaa5bda3`, under the MIT License.
 Copyright (c) 2026 Frank Force. See

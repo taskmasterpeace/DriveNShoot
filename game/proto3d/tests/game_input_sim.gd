@@ -83,6 +83,19 @@ func _ready() -> void:
 		return row.get("semantic") == "stance" and String(row.get("pad", "")).contains("B / ◯")))
 	_check("all ARCADE actions folded into InputMap", InputMap.has_action("arcade_primary")
 		and InputMap.has_action("arcade_pause") and InputMap.has_action("arcade_scoreboard"))
+	var handheld_profiles := {
+		"pointer_grid": 8,
+		"paddle": 5,
+		"racer": 6,
+		"pointer_fire": 8,
+		"lander": 5,
+		"pinball": 6,
+	}
+	var exact_profiles := true
+	for profile: String in handheld_profiles:
+		exact_profiles = exact_profiles and router.PROFILES.has(profile) \
+			and (router.PROFILES[profile] as Array).size() == int(handheld_profiles[profile])
+	_check("handheld HELP profiles expose only their real controls", exact_profiles)
 	_finish()
 
 

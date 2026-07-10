@@ -22,6 +22,10 @@ func _ready() -> void:
 	var rows: Array = registry.phase_rows(1).filter(func(row: Dictionary) -> bool:
 		return String(row.get("platform", "")) == "handheld")
 	_check("catalog still declares exactly ten handheld games", rows.size() == 10)
+	_check("every handheld carries player-facing help", rows.all(func(row: Dictionary) -> bool:
+		return not String(row.get("help", "")).strip_edges().is_empty()))
+	_check("RELAY BLOOM help describes its shipped rotation rules",
+		String(registry.get_game("relay_bloom").get("help", "")).contains("Rotate"))
 	var before_scale := Engine.time_scale
 	for row_value in rows:
 		var row: Dictionary = row_value

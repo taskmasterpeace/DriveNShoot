@@ -88,7 +88,7 @@
       "cartridge_scene": "res://proto3d/games/relay_bloom/relay_bloom.tscn", "score": {"primary": "score", "direction": "high", "secondary": "max_combo"},
       "controls_profile": "pointer_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
-      "help": "Swap adjacent components to make lines of three or more and cascade the relay back online.",
+      "help": "Rotate relay tiles until every terminal has a reciprocal path back to the source.",
       "about_world": "Line crews called the bright repair diagrams blooms; the nickname outlived the grid."
     },
 

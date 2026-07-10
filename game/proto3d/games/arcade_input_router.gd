@@ -27,6 +27,14 @@ const ACTIONS: Dictionary = {
 
 const PROFILES: Dictionary = {
 	"puzzle_grid": ["move_up", "move_down", "move_left", "move_right", "pause", "help"],
+	"pointer_grid": ["move_up", "move_down", "move_left", "move_right",
+		"primary", "secondary", "pause", "help"],
+	"paddle": ["move_left", "move_right", "primary", "pause", "help"],
+	"racer": ["move_up", "move_down", "move_left", "move_right", "pause", "help"],
+	"pointer_fire": ["aim_up", "aim_down", "aim_left", "aim_right",
+		"primary", "secondary", "pause", "help"],
+	"lander": ["move_left", "move_right", "primary", "pause", "help"],
+	"pinball": ["move_left", "move_right", "primary", "secondary", "pause", "help"],
 	"shared_shooter": ["move_up", "move_down", "move_left", "move_right",
 		"aim_up", "aim_down", "aim_left", "aim_right", "primary", "secondary",
 		"mobility", "stance", "reload", "interact", "weapon_prev", "weapon_next",
