@@ -102,7 +102,24 @@ func _physics_process(delta: float) -> void:
 			_check("swamp eco seeds rich (prey %.2f ≥ 0.5)" % float(eco["prey_density"]), float(eco["prey_density"]) >= 0.5)
 			_check("cold-start banked grazers (%d ≥ 2)" % int(cur.get("grazer", 0)), int(cur.get("grazer", 0)) >= 2)
 			_check("cold-start banked pack predators (%d ≥ 1)" % int(cur.get("pack_pred", 0)), int(cur.get("pack_pred", 0)) >= 1)
-			_check("cold-start banked THE apex (%d == 1)" % int(cur.get("apex", 0)), int(cur.get("apex", 0)) == 1)
+			# F3 THE ONE AUTHORED NEST: the first swamp IS the Alley den (hot
+			# from first touch); every OTHER swamp cell stays below the apex
+			# bar — apexes are rare, never wallpaper.
+			_check("the AUTHORED NEST banked THE apex (%d == 1)" % int(cur.get("apex", 0)), int(cur.get("apex", 0)) == 1)
+			var other := Vector3.INF
+			var um2: ProtoUSMap = main.stream.usmap
+			for z2 in range(2000, 20000, 500):
+				for x2 in range(-8000, 12000, 500):
+					var p2 := Vector3(float(x2), 0, float(z2))
+					if um2.biome_at(p2) == "swamp" and p2.distance_to(swamp) > 900.0:
+						other = p2
+						break
+				if other != Vector3.INF:
+					break
+			if other != Vector3.INF:
+				var orow: Dictionary = main.population.cell_at(other)
+				_check("a GENERIC swamp cell banks NO apex (rarity law)",
+					int((orow["current_pop"] as Dictionary).get("apex", 0)) == 0)
 			# a human-zone cell banks rodents (rats live where humans lived) —
 			# scan near the swamp for ground whose ZONE qualifies (the Alley's
 			# own road shoulder), never a hardcoded coordinate's guess.
@@ -135,7 +152,7 @@ func _physics_process(delta: float) -> void:
 			# float drift itself is ecology_sim's job — a 0.549-vs-0.55
 			# threshold straddle here would be testing luck, not law)
 			eco["prey_density"] = 0.9
-			eco["predator_pressure"] = 0.6
+			eco["predator_pressure"] = 0.8 # the AUTHORED nest runs hot (apex bar 0.75)
 			eco["corpse_heat"] = 0.6
 			main.ecology.tick(4.0)
 			var g2: int = int(cur.get("grazer", 0))
@@ -161,6 +178,11 @@ func _physics_process(delta: float) -> void:
 				"biome": "scrub", "current_pop": {}, "protected": false}
 			var healed: Dictionary = main.population.cell_at(old_pos)
 			_check("pre-eco save cell HEALS (eco backfilled on touch)", healed.has("eco"))
+			# re-arm the NEST before realization: the side-checks' extra ticks
+			# drift pred around the 0.75 apex bar and the reconcile un-banks
+			# the den — force the authored heat back, one tick to re-bank.
+			(swamp_row["eco"] as Dictionary)["predator_pressure"] = 0.85
+			main.ecology.tick(1.0)
 			_next()
 		3: # REALIZATION: the player ARRIVES (staged teleport — documented exception)
 			main.cars[0].global_position = swamp + Vector3(20, 1.2, 0)
@@ -281,8 +303,42 @@ func _physics_process(delta: float) -> void:
 			_check("…and comes BACK (mended past 70%%, healthy state)",
 				(_kb.nest_state == ProtoKnifeback.Nest.FED or _kb.nest_state == ProtoKnifeback.Nest.BREEDING)
 				and _kb.body.hp >= _kb.body.max_hp * 0.7)
+			# stage the HUMAN-GATE trial: a FED nest with the player inside it
+			kb_eco["prey_density"] = 0.6
+			_kb._nest_tick() # FED
+			main.player.global_position = _kb.nest_pos + Vector3(5, 0.4, 0)
+			main.player.velocity = Vector3.ZERO
 			_next()
-		10:
+		10: # F2 THE HUMAN GATE: a fed apex never hunts people
+			if phase_t > 0.8:
+				_check("F2: a FED apex never hunts humans (gate shut)",
+					_kb._hunt == null or not _kb._hunt.is_in_group("player3d"))
+				var eco3: Dictionary = main.population.cell_at(_kb.nest_pos)["eco"]
+				eco3["prey_density"] = 0.02
+				eco3["warn_count"] = 0
+				_kb._nest_tick() # STARVING — but the land has not warned yet
+				_next()
+		11: # F1 THE WARNING LADDER: the unwarned strike defers into a tell
+			if phase_t > 1.0:
+				var eco4: Dictionary = main.population.cell_at(_kb.nest_pos)["eco"]
+				_check("F1: unwarned strike DEFERS into a tell (warn_count %d ≥ 1, not hunting)" % int(eco4.get("warn_count", 0)),
+					int(eco4.get("warn_count", 0)) >= 1
+					and (_kb._hunt == null or not _kb._hunt.is_in_group("player3d")))
+				eco4["warn_count"] = 3 # the land has said its three pieces
+				_next()
+		12: # F1+F2 armed: warned + STARVING → the road is meat; F4: noise widens
+			if phase_t > 0.9:
+				_check("F1/F2: warned + STARVING → it hunts the player",
+					_kb._hunt != null and is_instance_valid(_kb._hunt) and _kb._hunt.is_in_group("player3d"))
+				var eco5: Dictionary = main.population.cell_at(_kb.nest_pos)["eco"]
+				var hn0: float = float(eco5.get("human_noise", 0.0))
+				main.emit_noise(_kb.nest_pos, 60.0, "gunshot")
+				main.emit_noise(_kb.nest_pos, 60.0, "engine")
+				_check("F4: the land HEARS the racket (human_noise %.2f → %.2f)" % [hn0, float(eco5.get("human_noise", 0.0))],
+					float(eco5.get("human_noise", 0.0)) > hn0 + 0.2)
+				main.player.global_position = Vector3(-8600, 0.4, 6600) # out of its world
+				_next()
+		13:
 			_finish()
 
 	if t > 90.0:

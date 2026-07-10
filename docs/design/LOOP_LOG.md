@@ -55,3 +55,12 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **Wave-3 closes:** E9 frontier 15/0 ("backroad" kind retired → county rows) · E10 furnisher 11/0 (THE LIBRARY's shelf stole the desk's E-scan — chain retargeted to clear air) · E13 los 9/0 (the fade was never ray-blocked: the perception cone follows the AIM, not the body snap) · E14 m1 22/0 (4 stales: retirement, sedan-moved-to-TestGrounds, smash prompt, void-net corridor).
 - **Diagnosis lessons for the suite:** the perception cone follows aim_override, not snap_orientation; interact is a contested scan (bookshelf/stove own their wall stretches); prompts are law-citations ("smash" not "Hotwire"); kinds get renormalized ("backroad"→"county") — sims must assert the LAW, not the string of the week.
 - **Remaining OPEN: the F-contract arc only** (F1-F4, F6, F7, F9, F11, F13, F14) + partials E12/F5/P18 + the deferred owner-lane rows.
+
+## Iteration 7 — THE APEX CONTRACT (F1+F2+F3+F4) + F13/F14 (2026-07-09)
+- **F13** furnisher cap is per-CHUNK ≤3 (awake_by_chunk; no co-op starvation) — furnisher_lod 11/0.
+- **F14** 14 Building Book rows land (53-row catalog, all lawful w/ districts + JOB rule) — structure_data 36/0, silhouette 21/0.
+- **F1** the warning ladder: warn_count rides the CELL (survives the animal); three escalating tells; an unwarned human strike DEFERS into the next tell.
+- **F2** the human gate: FED never hunts people; dogs at HUNGRY; humans only STARVING+warned — the land's state means safety again.
+- **F3** apex rarity: bar 0.75 (cold swamps host none); THE ONE AUTHORED NEST at the Alley (−8000,6000) hot from first touch — apexes are memorable, not wallpaper.
+- **F4** the land hears: emit_noise deposits human_noise per cell (decays 0.12/gh); the apex's ground scales with your racket — go quiet and it shrinks.
+- creatures_sim grew to 36 checks; ecology 12/0 · population_cell 23/0 · world_walkthrough 16/0 standalone (batch dips = background-suite contention).

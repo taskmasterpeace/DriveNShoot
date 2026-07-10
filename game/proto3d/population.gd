@@ -159,6 +159,10 @@ func _new_cell(key: String, pos: Vector3) -> Dictionary:
 			"water_rot": 0.55 if biome == "swamp" else 0.25,
 		},
 	}
+	# THE ONE AUTHORED NEST (LWE §9-P1 / F3): the Alley's den cell runs hot
+	# from first TOUCH — everywhere else the apex bar (0.75) must be earned.
+	if key == cell_key(ProtoEcology.AUTHORED_NEST):
+		(row["eco"] as Dictionary)["predator_pressure"] = 0.8
 	# COLD START (the eco→world bridge's bootstrap half): a fresh cell BANKS the
 	# wildlife its floats support, so the first chunk to load here realizes a
 	# living sector — not an empty one waiting hours of reconcile ticks.

@@ -25,6 +25,13 @@ const SEASON_GRAZE: PackedFloat32Array = [1.3, 1.0, 0.8, 0.6]
 ## per-sector cap — no 16×-per-chunk herd multiplication.
 const WILDLIFE: PackedStringArray = ["grazer", "rodent", "scavenger", "pack_pred", "apex"]
 
+## THE ONE AUTHORED NEST (LWE §9-P1 / audit F3): the Alligator Alley den —
+## the first swamp on the corridor. Its cell runs HOT from day one; everywhere
+## else an apex must EARN its ground (pred ≥ APEX_BAR) through corpse heat,
+## noise, and breeding — apexes are rare and memorable, never wallpaper.
+const AUTHORED_NEST := Vector3(-8000, 0, 6000)
+const APEX_BAR := 0.75
+
 var _main: Node = null
 var _last_h: float = -1.0
 
@@ -33,6 +40,17 @@ static func create(main: Node) -> ProtoEcology:
 	var e := ProtoEcology.new()
 	e._main = main
 	return e
+
+
+## Runs once, lazily, on the first tick: the authored nest's ground is hot.
+var _nest_seeded: bool = false
+func _seed_authored_nest() -> void:
+	if _nest_seeded or _main == null or not ("population" in _main) or _main.population == null:
+		return
+	_nest_seeded = true
+	var eco: Dictionary = _main.population.cell_at(AUTHORED_NEST).get("eco", {})
+	if not eco.is_empty():
+		eco["predator_pressure"] = maxf(float(eco.get("predator_pressure", 0.0)), 0.8)
 
 
 func _now_h() -> float:
@@ -57,6 +75,7 @@ func _physics_process(_delta: float) -> void:
 func tick(dt_gh: float) -> void:
 	if _main == null or not ("population" in _main) or _main.population == null:
 		return
+	_seed_authored_nest()
 	var season := 1
 	if "weather" in _main and _main.weather != null and _main.weather is ProtoWeather:
 		season = (_main.weather as ProtoWeather).season()
@@ -81,6 +100,9 @@ func tick(dt_gh: float) -> void:
 		pred += (R_PRED_FOLLOW * clampf(prey - pred, -1.0, 1.0) - R_PRED_DECAY * pred * (1.0 if prey < 0.05 else 0.0)) * dt_gh
 		# corpse heat cools; fresh deposits arrive from ProtoCorpse directly
 		heat = maxf(0.0, heat - CORPSE_DECAY * dt_gh)
+		# human noise cools too (F4): the accumulator emit_noise deposits into —
+		# go quiet for a few game hours and the land forgets your racket
+		eco["human_noise"] = maxf(0.0, float(eco.get("human_noise", 0.0)) - 0.12 * dt_gh)
 		eco["food_avail"] = clampf(food, 0.0, 1.0)
 		eco["prey_density"] = clampf(prey, 0.0, 1.0)
 		eco["predator_pressure"] = clampf(pred, 0.0, 1.0)
@@ -114,8 +136,9 @@ static func wildlife_desired(row: Dictionary) -> Dictionary:
 	out["scavenger"] = clampi(1 + int(heat * 2.0), 0, 3) if heat >= 0.18 else 0
 	# pack predators follow the pressure float (the lag is in the float math)
 	out["pack_pred"] = int(round(pred * 3.0))
-	# an apex nests only in wet, high-pressure land (the Alley's law)
-	out["apex"] = 1 if (pred >= 0.55 and rot >= 0.45) else 0
+	# an apex nests only where the land runs HOT (F3: the bar is high — the
+	# authored Alley nest qualifies from day one; anywhere else must earn it)
+	out["apex"] = 1 if (pred >= APEX_BAR and rot >= 0.45) else 0
 	return out
 
 

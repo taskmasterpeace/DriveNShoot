@@ -112,6 +112,13 @@ const NOISE_TTL_MS := 8000.0 ## ~8s memory, then an event ages out
 func emit_noise(pos: Vector3, radius_m: float, kind: String = "misc") -> void:
 	_noise_log.append({"pos": pos, "radius": radius_m, "kind": kind, "time": Time.get_ticks_msec()})
 	_prune_noise()
+	# THE LAND HEARS TOO (LWE F4): every racket accumulates on the sector's
+	# human_noise float (decays ~0.12/gh in ecology.tick) — the apex widens
+	# its ground on a noisy road; go quiet and the swamp forgets you.
+	if population != null:
+		var eco: Dictionary = population.cell_at(pos).get("eco", {})
+		if not eco.is_empty():
+			eco["human_noise"] = clampf(float(eco.get("human_noise", 0.0)) + radius_m / 400.0, 0.0, 1.0)
 
 
 ## Every live event whose radius still reaches `pos` — a howler calls this with

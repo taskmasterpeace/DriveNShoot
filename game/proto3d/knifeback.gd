@@ -25,13 +25,13 @@ var territory_m: float = TERRITORY_BASE_M
 var nest_strength: float = 0.3
 var dead: bool = false
 var body: Damageable = null
-var warned: bool = false        ## the one guaranteed tell fired?
 
 var _quad: ProtoQuadruped = null
 var _main: Node = null
 var _hunt: Node3D = null
 var _attack_t: float = 0.0
 var _nest_t: float = 0.0
+var _warn_cd: float = 0.0       ## one tell per nest-tick cadence
 var _fed_streak: int = 0
 var _rng := RandomNumberGenerator.new()
 var _wander_target: Vector3
@@ -195,6 +195,7 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		return
 	_attack_t = maxf(0.0, _attack_t - delta)
+	_warn_cd = maxf(0.0, _warn_cd - delta)
 	_nest_t -= delta
 	if _nest_t <= 0.0:
 		_nest_t = NEST_TICK_S
@@ -219,13 +220,50 @@ func _retreat(delta: float) -> void:
 		velocity.z = 0.0
 
 
+## The nest cell's floats — warn_count and human_noise live here so the LAND
+## remembers across this animal's death (kill the beast, the warnings stand).
+func _cell_eco() -> Dictionary:
+	if _main != null and "population" in _main and _main.population != null:
+		return _main.population.cell_at(nest_pos).get("eco", {})
+	return {}
+
+
+## THE WARNING LADDER (LWE 0.6 / audit F1): a human strike is ILLEGAL until
+## the land has warned three times — each would-be strike defers into the
+## next tell instead. warn_count rides the CELL, so it survives the animal.
+func _warn(eco: Dictionary, warns: int) -> void:
+	if _warn_cd > 0.0:
+		return
+	_warn_cd = NEST_TICK_S
+	eco["warn_count"] = warns + 1
+	if _main != null and "audio" in _main and _main.audio != null:
+		_main.audio.play_at("howler_scream", global_position, 2.0)
+	if _main == null or not _main.has_method("notify"):
+		return
+	match warns:
+		0:
+			_main.notify("🦴 Something big is moving in the swamp. It knows you're here.")
+		1:
+			_main.notify("🦴 Drag marks on the shoulder — fresh. You are being shadowed.")
+		_:
+			_main.notify("🦴 The swamp has gone SILENT around you. Last warning.")
+
+
 func _hunt_or_hold(delta: float) -> void:
-	var radius := hunt_radius()
-	# acquire: anything warm inside the ground it currently claims
+	var eco: Dictionary = _cell_eco()
+	# F4: a noisy road WIDENS the ground it claims — go quiet and it shrinks
+	var radius := hunt_radius() * (1.0 + 0.6 * float(eco.get("human_noise", 0.0)))
+	# acquire: what counts as FOOD depends on the nest's state (F2 — the human
+	# gate: a FED apex never hunts people; dogs enter the menu when HUNGRY;
+	# humans only when the land is STARVING and fairly warned)
 	if _hunt == null or not is_instance_valid(_hunt) or ("dead" in _hunt and _hunt.dead):
 		_hunt = null
 		var best_d := radius
 		for grp in ["player3d", "dog", "creature"]:
+			if grp == "player3d" and nest_state != Nest.STARVING:
+				continue
+			if grp == "dog" and not (nest_state == Nest.HUNGRY or nest_state == Nest.STARVING):
+				continue
 			for n in get_tree().get_nodes_in_group(grp):
 				if n == self or not (n is Node3D) or not is_instance_valid(n):
 					continue
@@ -237,14 +275,12 @@ func _hunt_or_hold(delta: float) -> void:
 				if d < best_d:
 					best_d = d
 					_hunt = n as Node3D
-		# THE WARNING (LWE 0.6's P1 subset): the first acquisition of a HUMAN is
-		# announced, unmissably, before any strike can land.
-		if _hunt != null and _hunt.is_in_group("player3d") and not warned:
-			warned = true
-			if _main != null and _main.has_method("notify"):
-				_main.notify("🦴 Something big just moved in the swamp. It knows you're here.")
-			if _main != null and "audio" in _main and _main.audio != null:
-				_main.audio.play_at("howler_scream", global_position, 2.0)
+		# F1: the fair-warning gate — the strike DEFERS into the next tell
+		if _hunt != null and _hunt.is_in_group("player3d"):
+			var warns := int(eco.get("warn_count", 0))
+			if warns < 3:
+				_hunt = null
+				_warn(eco, warns)
 	if _hunt == null:
 		# hold the ground: slow patrol around the nest
 		_wander_t -= delta
