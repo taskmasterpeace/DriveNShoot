@@ -58,7 +58,7 @@
 | E7 | dark_sim | DONE | night-floor law (tense-not-blind) + glass retirement — 17/0 |
 | E8 | drone_sim | DONE | one-press piloted truth asserted, then abort_to_autonomy for the patrol/battery legs (pilot owns battery, drone.gd:194) — 7/0 |
 | E9 | frontier_sim | DONE | "backroad" kind retired by the road-rows normalization — town-knitters are the 46 "county" rows (all 2-lane undivided; 5 keep the winding character) — 15/0 |
-| E10 | furnisher_sim | OPEN | "REAL E opens the desk's panel (not a neighbor's)" — interact-scan proximity; baseline-red (predates loop furnisher) |
+| E10 | furnisher_sim | DONE | THE LIBRARY's bookshelf owns the desk's wall stretch ("read the MANUALS" wins the E-scan) — chain retargeted to the clear-air kitchen cabinet — 11/0 |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
 | E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
 | E13 | los_sim | OPEN | REAL-BUG, narrowed: fade ray (proto3d.gd:1282 sight_blocked eye+1.5→target+0.9) stays blocked after the door opens while the eye-height occl fan SPILLS ✓ — suspect the swung panel/frame or safehouse furniture clips the descending ray; open-ground ray proven clean (probe2) |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 34 (C0–C6, I0–I2, W0, P17, E1–E9, E11, E14, E15, E17, E19–E21, E24–E27, F8, F10, F12)
-- OPEN: 10 (E10, E13; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 35 (C0–C6, I0–I2, W0, P17, E1–E11, E14, E15, E17, E19–E21, E24–E27, F8, F10, F12)
+- OPEN: 9 (E13; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

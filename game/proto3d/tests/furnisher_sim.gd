@@ -94,28 +94,29 @@ func _ready() -> void:
 	_check("every 'house' furniture_set id is present (%s)" % str(found_ids), all_present)
 	_check("the GUN RACK (gun_safe row) is present", found_ids.has("gun_safe"))
 
-	# --- A fridge REAL-interact opens with resolver loot ---------------------------
-	# The E-chain test targets the DESK: it sits MID-LINE on the west wall with
-	# neighbors only 1.3m along the same axis — unlike the fridge, whose slot is
-	# the corner pocket where the back-wall overflow (the stove) lands closer to
-	# any approach point than the fridge itself. Corner staging = ambiguous scan.
+	# --- A cabinet REAL-interact opens with resolver loot ---------------------------
+	# The KITCHEN CABINET is the chain target — the one piece with clear air:
+	# THE LIBRARY's bookshelf (proto3d.gd:547) owns the desk's stretch, the
+	# STOVE owns the back corner by the fridge; the mid-line cabinet sits
+	# 1.4 m from every neighbor.
 	var fridge: ProtoFurniture = null
 	for f in house.furniture:
-		if f.furniture_id == "desk":
+		if f.furniture_id == "kitchen_cabinet":
 			fridge = f
 			break
-	_check("a desk exists to test (mid-wall E-chain target)", fridge != null)
+	_check("a kitchen cabinet exists to test (clear-air E-chain target)", fridge != null)
 	if fridge != null:
-		# 0.5m — closer than any neighbor on the 1.3m furnishing line can ever be,
-		# so the fridge always wins the nearest-interactable scan.
-		main.player.global_position = fridge.global_position + Vector3(0.5, 0, 0)
+		# 0.4m — closer than any neighbor on the furnishing line can ever be,
+		# and FACING it (you open what you look at).
+		main.player.global_position = fridge.global_position + Vector3(0.4, 0, 0)
 		main.player.velocity = Vector3.ZERO
+		main.player.snap_orientation(Vector3(-1, 0, 0)) # the desk is due west
 		for _i in 6:
 			await get_tree().physics_frame
 		_tap_interact()
 		for _i in 6:
 			await get_tree().physics_frame
-		_check("REAL E opens the desk's panel (its container, not a neighbor's)",
+		_check("REAL E opens the cabinet's panel (its container, not a neighbor's)",
 			main.panel.is_open and main.panel._theirs == fridge.container)
 		# Loot PRESENCE is a separate claim: this fridge's deterministic uid may
 		# legitimately roll empty ("empty" weights are part of the table). Assert
