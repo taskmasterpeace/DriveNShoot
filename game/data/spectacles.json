@@ -14,9 +14,9 @@
       "stake_step": 10,
       "prohibited_groups": ["dog", "infected"],
       "spawns": {
-        "left": [74.0, 0.05, 8.0],
-        "right": [82.0, 0.05, -8.0],
-        "spectator": [78.0, 0.05, 15.0]
+        "left": [70.0, 0.05, 14.0],
+        "right": [86.0, 0.05, 14.0],
+        "spectator": [78.0, 0.05, 20.0]
       },
       "entrants": [
         {"id": "ash", "name": "ASH MERCER", "strength": 1.15, "opponent_row": "duel", "weapon_id": "pistol", "group": "human"},

@@ -20,6 +20,8 @@ const SCENARIO_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_scenario.g
 const CHAOS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_chaos.gd")
 const VERDICT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_verdict.gd")
 const IMPACT_BAY_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_impact_bay.gd")
+const SPECTACLE_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_spectacle.gd")
+const SPECTACLE_PANEL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_spectacle_panel.gd")
 const WEAPON_WHEEL_SCRIPT := preload("res://proto3d/weapon_wheel.gd")
 
 var save_isolated: bool = true
@@ -55,6 +57,8 @@ var scenario_tool: RefCounted = null
 var chaos: RefCounted = null
 var verdict: RefCounted = null
 var impact_bay: Node3D = null
+var spectacle: Node = null
+var spectacle_panel: CanvasLayer = null
 var weapon_wheel: CanvasLayer = null
 var radial_selection: String = "pistol"
 var shot_spread_deg: float = -1.0 # Tests/AI may override; negative keeps authored player spread.
@@ -133,6 +137,12 @@ func _ready() -> void:
 	impact_bay = IMPACT_BAY_SCRIPT.new()
 	add_child(impact_bay)
 	impact_bay.setup(self, Vector3(104, 0.05, 0))
+	spectacle = SPECTACLE_SCRIPT.new()
+	add_child(spectacle)
+	spectacle.setup(self, "wasteland_shootout", 8401)
+	spectacle_panel = SPECTACLE_PANEL_SCRIPT.new()
+	add_child(spectacle_panel)
+	spectacle_panel.setup(spectacle)
 	verdict = VERDICT_SCRIPT.new()
 	hud.verdict_submitted.connect(_on_verdict_submitted)
 	hud.verdict_clear_requested.connect(_on_verdict_clear_requested)
@@ -668,6 +678,7 @@ func clear_spectacle_fighters() -> void:
 	_player_round_id = "player"
 	_player_attacker_id = "opponent"
 	if opponent != null:
+		_clear_spectacle_names(opponent)
 		opponent.configure_identity("opponent", "player")
 		opponent.set_target(player)
 		opponent.set_behavior("passive")
@@ -696,22 +707,23 @@ func configure_spectacle_match(left: Dictionary, right: Dictionary, spectacle_mo
 		opponent.configure_identity(rival_id, "player")
 		opponent.set_behavior(String(rival.get("opponent_row", "duel")))
 		opponent.set_weapon(String(rival.get("weapon_id", "pistol")))
-		var player_spawn := Transform3D(Basis.IDENTITY,
-			Vector3(74, 0.05, 8) if player_is_left else Vector3(82, 0.05, -8))
-		var rival_spawn := Transform3D(Basis.IDENTITY,
-			Vector3(82, 0.05, -8) if player_is_left else Vector3(74, 0.05, 8))
+		var left_spawn: Transform3D = _spectacle_spawn(left, Vector3(70, 0.05, 14))
+		var right_spawn: Transform3D = _spectacle_spawn(right, Vector3(86, 0.05, 14))
+		var player_spawn: Transform3D = left_spawn if player_is_left else right_spawn
+		var rival_spawn: Transform3D = right_spawn if player_is_left else left_spawn
 		scenario_player_spawn = player_spawn
 		adapter.reset_at(player_spawn)
 		opponent.set_meta("scenario_spawn", rival_spawn)
 		opponent.reset_at(rival_spawn)
 		opponent.set_target(player)
+		_add_spectacle_name(opponent, rival, Color("#35b6a6"))
 		spectacle_fighters = [opponent]
 		return true
 	opponent.set_enabled(true)
 	opponent.configure_identity(left_id, right_id)
 	opponent.set_behavior(String(left.get("opponent_row", "duel")))
 	opponent.set_weapon(String(left.get("weapon_id", "pistol")))
-	var left_spawn := Transform3D(Basis.IDENTITY, Vector3(74, 0.05, 8))
+	var left_spawn: Transform3D = _spectacle_spawn(left, Vector3(70, 0.05, 14))
 	opponent.set_meta("scenario_spawn", left_spawn)
 	opponent.reset_at(left_spawn)
 
@@ -721,16 +733,47 @@ func configure_spectacle_match(left: Dictionary, right: Dictionary, spectacle_mo
 	right_fighter.setup(lab_round, opponent.body, String(right.get("opponent_row", "duel")), self)
 	right_fighter.configure_identity(right_id, left_id)
 	right_fighter.set_weapon(String(right.get("weapon_id", "pistol")))
-	var right_spawn := Transform3D(Basis.IDENTITY, Vector3(82, 0.05, -8))
+	var right_spawn: Transform3D = _spectacle_spawn(right, Vector3(86, 0.05, 14))
 	right_fighter.set_meta("scenario_spawn", right_spawn)
 	right_fighter.reset_at(right_spawn)
 	opponent.set_target(right_fighter.body)
 	right_fighter.set_target(opponent.body)
+	_add_spectacle_name(opponent, left, Color("#e8a33a"))
+	_add_spectacle_name(right_fighter, right, Color("#35b6a6"))
 	scenario_opponents.append(right_fighter)
 	spectacle_fighters = [opponent, right_fighter]
-	scenario_player_spawn = Transform3D(Basis.IDENTITY, Vector3(78, 0.05, 15))
+	var spectator: Array = left.get("spectator_spawn", [78, 0.05, 20])
+	scenario_player_spawn = Transform3D(Basis.IDENTITY,
+		Vector3(float(spectator[0]), float(spectator[1]), float(spectator[2])))
 	adapter.reset_at(scenario_player_spawn)
 	return true
+
+
+func _spectacle_spawn(entrant: Dictionary, fallback: Vector3) -> Transform3D:
+	var coords: Array = entrant.get("spectacle_spawn", [])
+	var at: Vector3 = Vector3(float(coords[0]), float(coords[1]), float(coords[2])) \
+		if coords.size() >= 3 else fallback
+	return Transform3D(Basis.IDENTITY, at)
+
+
+func _add_spectacle_name(fighter: Node3D, entrant: Dictionary, color: Color) -> void:
+	_clear_spectacle_names(fighter)
+	var tag := Label3D.new()
+	tag.name = "SpectacleName"
+	tag.text = String(entrant.get("name", entrant.get("id", "FIGHTER"))).to_upper()
+	tag.font_size = 38
+	tag.pixel_size = 0.007
+	tag.outline_size = 8
+	tag.modulate = color
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.position = Vector3(0, 2.35, 0)
+	fighter.add_child(tag)
+
+
+func _clear_spectacle_names(fighter: Node3D) -> void:
+	for old_tag in fighter.find_children("SpectacleName", "Label3D", true, false):
+		fighter.remove_child(old_tag)
+		old_tag.queue_free()
 
 
 func spectacle_facts() -> Dictionary:
@@ -909,7 +952,10 @@ func _physics_process(delta: float) -> void:
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
 		frozen.set("aim_world", command.get("aim_world"))
 		command = frozen
-	if hud != null and (hud.verdict_open() or hud.calibration_open()):
+	var spectacle_blocks_player: bool = spectacle_panel != null and spectacle_panel.is_open() \
+		or (spectacle != null and String(spectacle.phase) == "running" \
+		and String(spectacle.mode) == "watch")
+	if hud != null and (hud.verdict_open() or hud.calibration_open() or spectacle_blocks_player):
 		var modal_command: RefCounted = COMMAND_SCRIPT.new()
 		modal_command.set("aim_world", command.get("aim_world"))
 		command = modal_command
@@ -1294,6 +1340,12 @@ func _update_station() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if (event as InputEventKey).keycode == KEY_J and spectacle_panel != null:
+			spectacle_panel.toggle()
+			return
+		if spectacle_panel != null and spectacle_panel.handle_key(event as InputEventKey):
+			return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match (event as InputEventKey).keycode:
 			KEY_F1: switch_mode("hybrid")

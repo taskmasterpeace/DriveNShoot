@@ -152,7 +152,10 @@ func _ready() -> void:
 			and String(right.get("fighter_id")) == String(live_match["right"]) \
 			and left.target == right.body and right.target == left.body \
 			and String(left.weapon.id) == String(live.entrant_by_id(String(live_match["left"]))["weapon_id"]) \
-			and String(right.weapon.id) == String(live.entrant_by_id(String(live_match["right"]))["weapon_id"])
+			and String(right.weapon.id) == String(live.entrant_by_id(String(live_match["right"]))["weapon_id"]) \
+			and left._has_line_of_sight() and right._has_line_of_sight() \
+			and not left.find_children("SpectacleName", "Label3D", true, false).is_empty() \
+			and not right.find_children("SpectacleName", "Label3D", true, false).is_empty()
 	_check("WATCH stages two real reciprocal collision-active AI fighters with authored weapons", watch_ready)
 	if watch_ready:
 		var left: Node = fighters[0]
@@ -169,9 +172,16 @@ func _ready() -> void:
 		lab.lab_round.hit(right_id, 200.0, {"attacker":left_id, "kind":"watch_probe"})
 		for _i in 3:
 			await get_tree().process_frame
+		var restaged: Array = lab.get("spectacle_fighters")
+		var tag_count_ok: bool = restaged.size() == 2
+		if tag_count_ok:
+			tag_count_ok = restaged[0].find_children(
+				"SpectacleName", "Label3D", true, false).size() == 1 \
+				and restaged[1].find_children(
+					"SpectacleName", "Label3D", true, false).size() == 1
 		_check("physical match completion advances and restages semifinal B",
 			String(live.facts()["current_match"].get("id", "")) == "semi_b"
-			and (lab.get("spectacle_fighters") as Array).size() == 2)
+			and restaged.size() == 2 and tag_count_ok)
 
 	live.reset_tournament()
 	_check("physical reset clears WATCH bodies and allows ENTER selection",
@@ -218,6 +228,58 @@ func _ready() -> void:
 	_check("tournament reset frees temporary AI and restores the exact opening player transform",
 		(lab.get("spectacle_fighters") as Array).is_empty()
 		and lab.adapter.anchor_transform().origin.distance_to(original_transform.origin) < 0.01)
+
+	var integrated_ui: bool = "spectacle" in lab and lab.get("spectacle") != null \
+		and "spectacle_panel" in lab and lab.get("spectacle_panel") != null
+	_check("standalone lab boots with the Spectacle runtime and panel", integrated_ui)
+	if integrated_ui:
+		var ui_runtime: Node = lab.get("spectacle")
+		var ui_panel: CanvasLayer = lab.get("spectacle_panel")
+		var prior_time_scale: float = Engine.time_scale
+		var toggle := InputEventKey.new()
+		toggle.keycode = KEY_J
+		toggle.pressed = true
+		lab._unhandled_input(toggle)
+		_check("J opens a full WATCH · BET · ENTER tournament panel",
+			ui_panel.is_open() and String(ui_panel.panel_facts()["text"]).contains("WATCH")
+			and String(ui_panel.panel_facts()["text"]).contains("BET")
+			and String(ui_panel.panel_facts()["text"]).contains("ENTER")
+			and String(ui_panel.panel_facts()["text"]).contains("BANKROLL")
+			and String(ui_panel.panel_facts()["text"]).contains("SEMIFINAL")
+			and int(ui_panel.panel_facts()["button_count"]) >= 9
+			and is_equal_approx(Engine.time_scale, prior_time_scale))
+		var held_position: Vector3 = lab.player.global_position
+		var held_mag: int = lab.adapter.weapon.mag
+		lab.feed_for_test({"keyboard":{"move":Vector2(0, 1), "fire":true,
+			"aim_world":Vector3.FORWARD}})
+		await get_tree().physics_frame
+		_check("open panel suppresses movement/fire without changing time scale",
+			lab.player.global_position.distance_to(held_position) < 0.01
+			and lab.adapter.weapon.mag == held_mag
+			and is_equal_approx(Engine.time_scale, prior_time_scale))
+		for key in [KEY_2, KEY_RIGHT, KEY_UP, KEY_B]:
+			var event := InputEventKey.new()
+			event.keycode = key
+			event.pressed = true
+			lab._unhandled_input(event)
+		_check("panel keyboard parity selects ENTER, entrant/stake, and places the ticket",
+			String(ui_runtime.facts()["mode"]) == "enter"
+			and int(ui_runtime.facts()["stake"]) == 20
+			and not ui_runtime.facts()["ticket"].is_empty())
+		var start := InputEventKey.new()
+		start.keycode = KEY_ENTER
+		start.pressed = true
+		lab._unhandled_input(start)
+		await get_tree().process_frame
+		_check("START closes the large panel and leaves a compact live bracket strip",
+			String(ui_runtime.facts()["phase"]) == "running" and not ui_panel.is_open()
+			and bool(ui_panel.panel_facts()["compact_visible"]))
+		var refresh_before: int = int(ui_panel.panel_facts()["refresh_count"])
+		for _i in 8:
+			await get_tree().physics_frame
+		_check("panel refresh is event-driven rather than rebuilt every physics frame",
+			int(ui_panel.panel_facts()["refresh_count"]) == refresh_before)
+		ui_runtime.reset_tournament()
 	lab.queue_free()
 	await get_tree().process_frame
 	_finish()

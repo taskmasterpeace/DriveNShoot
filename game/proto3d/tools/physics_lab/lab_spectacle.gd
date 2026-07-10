@@ -249,6 +249,11 @@ func _start_current_match() -> void:
 		return
 	var left: Dictionary = entrant_by_id(String(current["left"]))
 	var right: Dictionary = entrant_by_id(String(current["right"]))
+	var spawns: Dictionary = row.get("spawns", {})
+	left["spectacle_spawn"] = (spawns.get("left", [70, 0.05, 14]) as Array).duplicate()
+	right["spectacle_spawn"] = (spawns.get("right", [86, 0.05, 14]) as Array).duplicate()
+	left["spectator_spawn"] = (spawns.get("spectator", [78, 0.05, 20]) as Array).duplicate()
+	right["spectator_spawn"] = left["spectator_spawn"]
 	lab.lab_round.setup([String(current["left"]), String(current["right"])],
 		float(row.get("round_health", 100.0)), int(row.get("rounds_to_win", 2)))
 	var physical_mode: String = "enter" if mode == "enter" and "player" in [
@@ -281,6 +286,8 @@ func facts() -> Dictionary:
 	var odds: Dictionary = {}
 	for entrant in entrants:
 		odds[String(entrant["id"])] = float(entrant.get("odds", 0.0))
+	var round_state: Dictionary = lab.lab_round.snapshot() \
+		if lab != null and "lab_round" in lab and lab.lab_round != null else {}
 	return {"card_id":card_id, "name":String(row.get("name", "")),
 		"venue":String(row.get("venue", "")), "nonlethal":bool(row.get("nonlethal", false)),
 		"modes":(row.get("modes", []) as Array).duplicate(), "mode":mode, "phase":phase,
@@ -288,7 +295,7 @@ func facts() -> Dictionary:
 		"current_match":current_match(), "selected_entrant":String(entrants[selected_index]["id"])
 			if not entrants.is_empty() else "", "odds":odds, "stake":stake,
 		"bankroll":bankroll, "ticket":ticket.duplicate(true), "champion":champion,
-		"payout":payout, "status":status, "seed":seed}
+		"payout":payout, "status":status, "seed":seed, "round":round_state}
 
 
 func readout() -> String:

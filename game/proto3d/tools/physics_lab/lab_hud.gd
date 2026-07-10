@@ -40,6 +40,7 @@ var _verdict_status: Label = null
 
 func setup() -> void:
 	layer = 80
+	controls_text += "  ·  J spectacles"
 	controls_text += "  ·  Z vehicle  ·  X face  ·  P energy  ·  C apply  ·  Backspace reset"
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

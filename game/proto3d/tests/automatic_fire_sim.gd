@@ -69,8 +69,25 @@ func _ready() -> void:
 	main._unhandled_input(_fire_event(false))
 	_check("holding a semi-auto pistol consumes exactly one round", pistol.mag == 11)
 
+	_stop_audio(main)
+	# Give the audio mixer a frame to release MP3 playback objects before the
+	# fixture frees their owners and quits the process.
+	await get_tree().process_frame
 	main.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	_finish()
+
+
+func _stop_audio(root: Node) -> void:
+	for node in root.find_children("*", "AudioStreamPlayer", true, false):
+		var player := node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for node in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := node as AudioStreamPlayer3D
+		player.stop()
+		player.stream = null
 
 
 func _finish() -> void:

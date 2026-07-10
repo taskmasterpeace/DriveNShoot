@@ -50,9 +50,29 @@ time scale that existed before launch.
 | Start Mirror Run | F12 | — |
 | Reset station/match | Backspace | Start / Options |
 | Verdict Book | V | — |
+| Combat Spectacles | J | mouse buttons in panel |
 
 Impact Bay keyboard controls are active only while the Vehicle Damage Bay is the nearest station:
 `Z` vehicle · `X` face · `P` energy preset · `C` apply. Backspace restores both target cars.
+
+## Combat Spectacles — WATCH · BET · ENTER
+
+Press `J` anywhere in the standalone lab. The event board shows four visible entrants with strength,
+decimal odds, weapon, two semifinals, the final, stake, 1,000-credit lab bankroll, ticket, champion,
+and payout. These credits exist only in the lab and never read or write campaign scrip.
+
+- **WATCH [1]:** two real AI bodies fight with their authored weapons under the existing nonlethal
+  round controller. The player moves to the broadcast spectator mark; the compact bracket stays up.
+- **BET [B]:** use left/right to select an entrant and down/up to change the 10–250 credit stake.
+  One ticket is allowed before START. Odds and 10% house vig come from `ProtoBetting`.
+- **ENTER [2]:** the current F1/F2/F3 body replaces seed zero. Surface, condition, weapon handling,
+  and body choice stay; opponents and the rest of the bracket use the same physical match path.
+- **Enter:** START when ready; after settlement it becomes RESET. `J` or Escape closes the large board
+  without abandoning the tournament or changing time scale.
+
+Dogs and infected are rejected from the row and runtime. Health depletion produces round cards and
+resets—never a corpse, campaign wound, crime, death, or save mutation. The same card seed reproduces
+the same names, strengths, bracket, equipment, and result inputs.
 
 Keyboard-only inspection controls: F5 X-ray · F6 day/night · F7 clear/dust · F8 headlights ·
 F9 normal/binocular range · F10 camera zoom · O door · [ / ] target distance · comma rewind ·
