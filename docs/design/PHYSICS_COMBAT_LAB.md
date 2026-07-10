@@ -22,6 +22,8 @@ world, netcode, traffic, or the shipped player controller.
 - Grenades are the first consumer of reusable throwable data.
 - Hold to charge distance; release to throw; a tap produces a quick medium toss.
 - Repeatable combat matches use nonlethal rounds.
+- Driving sight uses a bounded human head: it looks through a turn, follows active mouse/right-stick
+  aim within a neck limit, and naturally returns toward the road without accumulating 360° rotation.
 - Sound asset overhaul is separate. This work emits stable sound-event ids but does not replace audio.
 - Spectacles obey WATCH · BET · ENTER. Dogs and infected never enter pits.
 
@@ -53,7 +55,8 @@ The lab remains after graduation as a regression playground and performance benc
 The lab contains five connected stations:
 
 1. **Body lane:** straight sprint, slalom, low doorway, stairs, waist cover, turn pads.
-2. **Grip range:** stationary and moving targets at 5/10/20/30/50 m.
+2. **Grip and gaze range:** stationary and moving targets at 5/10/20/30/50 m, plus a marked driving
+   circle for head/vision return-to-forward tests.
 3. **Dive and throw lane:** forward/lateral/backward dive markings and landing rings at 5–40 m.
 4. **Nonlethal killhouse:** cover, doors, sight breaks, one configurable sparring opponent.
 5. **Vehicle impact bay:** unarmored and armored rigs, ballistic wall, crash barrier, reset console.
@@ -224,24 +227,60 @@ Nonlethal rules:
 - melee and martial-arts moves score under the same round controller;
 - opponent accuracy, reaction delay, aggression, and weapon are data rows visible on the HUD.
 
-## 9. Field-of-view root-cause station
+## 9. Driving gaze and field-of-view station
 
-No main-game FOV fix lands until the problem is reproduced. The lab places targets and occluders at
-5, 10, 20, 30, 50, 75, 100, 150, and 240 m. Controls toggle day/night, dust, headlights, binoculars,
-camera zoom, and doors.
+### Diagnosed directional root cause
+
+Driving sight currently has no independent human-head state. `_update_vision_cone()` points the cone
+at the car's horizontal travel velocity above 4 m/s and otherwise at the vehicle body. It does not
+consume a bounded driver gaze, mouse/right-stick look intent, a neck return spring, or a visual neck
+pose. Consequently a sustained circle can make the cone continuously orbit in world space without a
+readable head limit or return-to-forward behavior.
+
+The replacement separates three directions:
+
+1. **Vehicle forward:** the car's local `-Z`; the neutral road-facing reference.
+2. **Driver gaze:** a local yaw bounded to the authored neck arc; the vision cone and visible head use
+   this direction.
+3. **Weapon aim:** mouse/right-stick reticle clamped by the active seat's firing arc; bullets use this
+   direction before spread. It is not silently replaced by gaze.
+
+With no active aim input, driver gaze receives a small look-through-turn target from steering/yaw
+rate, clamped to roughly ±35°. It uses a critically damped shortest-angle spring and returns toward
+vehicle forward as the turn settles. The local angle can never wrap or accumulate beyond the limit,
+even after repeated circles.
+
+Recent mouse/right-stick intent has priority over turn anticipation. Gaze follows that aim within a
+wider authored neck limit (initial tuning ±80°). The weapon may continue to its legal seat-arc edge
+when the reticle exceeds the neck limit; the head stays anatomically bounded. After 0.55 s without
+meaningful aim movement, gaze blends back to the turn target and then forward. Mouse and pad use the
+same normalized look-intent timestamp and yaw path.
+
+The visible driver/rider puppet writes the local gaze to the neck/head joint. The vision cone reads
+the exact same resolved gaze vector, so the model and the clear area cannot disagree. Hidden cab
+drivers still run the state because gameplay sight must not depend on whether a roof occludes the
+model.
+
+### Distance and occlusion instrumentation
+
+The lab also places targets and occluders at 5, 10, 20, 30, 50, 75, 100, 150, and 240 m. Controls
+toggle day/night, dust, headlights, binoculars, camera zoom, and doors. This retains the earlier
+distance investigation without conflating it with the now-diagnosed driving-direction defect.
 
 For the target under test, the HUD shows:
 
 - world distance and on-screen/off-screen state;
 - camera projection and near/far visibility;
+- vehicle-forward, resolved-gaze, and weapon-aim yaw in local degrees;
+- active gaze source (`turn`, `mouse`, `right_stick`, or `returning`) and time since look input;
 - cone range, half-angle, and clear radius;
 - LOS-fan distance in the target direction;
 - perception-fade membership and target transparency;
 - whether gameplay AI considers the target visible.
 
-Known hypothesis to test: normal cone (100 m), binocular recon (240 m), fade candidate cutoff (100 m),
-and camera framing can disagree. Instrumentation must identify the failing boundary before any value
-or algorithm changes. A failing regression sim is written after reproduction and before the fix.
+The distance hypothesis remains: normal cone (100 m), binocular recon (240 m), fade candidate cutoff
+(100 m), and camera framing can disagree. Instrumentation must identify that boundary before any
+distance value or algorithm changes. Direction and distance receive separate regression cases.
 
 ## 10. Vehicle impact bay
 
@@ -353,6 +392,8 @@ Each slice lands with a real-path sim and a hands-on card.
 - `muzzle_visibility_sim`: accepted shots create correctly anchored/capped flash instances.
 - `sparring_sim`: passive/return-fire/hunter/duel, nonlethal reset, score, no campaign death.
 - `throw_charge_sim`: shared preview/launch math, charge-distance ordering, mass/strength effects.
+- `drive_gaze_sim`: turn anticipation is bounded, repeated circles never accumulate head yaw, aim
+  temporarily owns gaze, weapon aim stays independent, and idle/released steering returns gaze forward.
 - `fov_distance_sim`: marked-distance telemetry agrees with cone, fade, LOS, and camera after the
   reproduced root cause is fixed.
 
