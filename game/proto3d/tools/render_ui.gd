@@ -162,4 +162,29 @@ func _ready() -> void:
 		for _i in 110:
 			await get_tree().process_frame # the camera closes a 30 km lerp before the shot
 		await _shot(String(probe[1]))
+
+	# 10) WEATHER READ (it.9) — rain, then a dust storm, forced on the REAL system
+	# (weather.force spawns the cell centered on the player).
+	main.weather.force("rain", 300.0)
+	for _i in 55:
+		await get_tree().process_frame
+	await _shot("WEATHER_rain")
+	main.weather.force("dust", 300.0)
+	for _i in 55:
+		await get_tree().process_frame
+	await _shot("WEATHER_dust")
+	main.weather.force("clear", 300.0)
+
+	# 11) STREET READ (it.9) — Meridian main street from the game camera.
+	var street := Vector3(112.0, 0.0, -305.0) # amb_town rect center — MAIN ST
+	var sgy: float = ProtoWorldBuilder.ground_y(street.x, street.z)
+	for _i in 60:
+		if main.active_car != null:
+			main.active_car.global_position = Vector3(street.x, sgy + 1.4, street.z)
+			main.active_car.linear_velocity = Vector3.ZERO
+			main.active_car.angular_velocity = Vector3.ZERO
+		await get_tree().process_frame
+	for _i in 110:
+		await get_tree().process_frame
+	await _shot("STREET_meridian")
 	get_tree().quit(0)

@@ -271,13 +271,40 @@ parcels at every scale. Crossing 8: the game photographs like a place now. Holdi
 it back: structures/streets still flat-material, weather visuals unprobed, CAR GPS
 mini-panel bezel-less, skid/scorch decals absent.
 
-**Next up (iteration 9):**
-1. **THE CAR GPS cohesion pass** (concrete sketch: draw the mini panel as a slim
-   rounded DEVICE — 2px amber-tinted bezel, a speaker dot, the map inset 3px — pure
-   primitives in hud_3d's cargps build, no texture; render_ui CARGPS shot proves it).
-2. **WEATHER READ probe** — force rain + a dust storm from the game camera
-   (weather.gd hooks), judge droplet/dust readability; queue the cheapest wins.
-3. **STREET READ probe** — Meridian main street from the game camera (buildings,
-   signs, road paint): the next flat-material frontier.
-4. Doll 1x loud-state outline: thicken the chassis stroke 2px→3px only at tier>=2
-   (a 1-line juice check in the gallery).
+**Next up (iteration 9):** ~~CAR GPS bezel · weather probe · street probe · doll
+stroke~~ → executed below.
+
+---
+
+## Iteration 9 — 2026-07-10 ~11:50
+
+**Shipped:**
+- **CAR GPS device cohesion**: the mini panel joins the handheld family — device-round
+  corners (4→7), a slim inner bezel line, a speaker slit, and a live amber power LED,
+  all primitives in `_draw_cargps`. CARGPS shot verified: reads as dash HARDWARE.
+- **Doll loud-state stroke**: chassis outline 2px→3px at tier>=2 (the 1x whisper fix).
+- **WEATHER READ probe** (new permanent WEATHER_rain / WEATHER_dust shots):
+  **DUST works** — amber grade + crushed vision read as a storm; gap = no airborne
+  motes (queued). **RAIN IS INVISIBLE** — banner says RAIN, world reads sunny: no
+  streaks, no cool grade, no wet-ground darkening. The biggest weather gap.
+- **STREET READ probe** (STREET_meridian): landed INSIDE a building (bonus: the
+  roof-fade interior read works, strays/traders visible). Confirmed finding:
+  **buildings are flat single-color slabs** — walls/roofs/trim share one tone. Next
+  frontier. (Probe fix for next pass: place ON the road, e.g. off the road polyline.)
+
+**Steam rating: 8.2/10** (was 8.1). Small pass — instruments now read as one hardware
+family and the probes bought the next two big tickets. Holding it back: invisible
+rain, flat buildings, no dust motes, no decals.
+
+**Next up (iteration 10):**
+1. **MAKE RAIN VISIBLE** — (a) falling streak particles anchored to the camera/player
+   (thin quads on their OWN material — the law), (b) a cool-wet grade while raining
+   (sun energy down ~15%, cooler fog/ambient through the weather/daynight env hooks —
+   VISUALS only, vision_mult untouched), (c) optional ground darkening via a weather
+   multiply on ground materials IF cheap (cached materials — careful). Before/after
+   WEATHER_rain.
+2. **Dust motes** — player-anchored puff drift while state=="dust" (same law).
+3. **BUILDING READ pass** — per-building tint jitter (patchwork law for structures) +
+   wall/roof tone separation; STREET probe placed on the road proves it.
+4. Weather-probe polish: the post-shot force("clear") didn't clear the banner by the
+   street shot — check force() cell semantics when convenient.

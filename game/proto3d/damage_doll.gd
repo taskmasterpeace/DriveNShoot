@@ -92,10 +92,11 @@ func _draw() -> void:
 		draw_rect(Rect2(c.x - hw - _strip(asd), c.y - hl, _strip(asd), hl * 2.0), _steel(asd))
 		draw_rect(Rect2(c.x + hw, c.y - hl, _strip(asd), hl * 2.0), _steel(asd))
 
-	# 2) BODY — the outline IS the chassis part.
+	# 2) BODY — the outline IS the chassis part (louder stroke once it's CRITICAL:
+	# the 2px line whispered at 1x dash scale).
 	var body := Rect2(c.x - hw, c.y - hl, hw * 2.0, hl * 2.0)
 	draw_rect(body, Color(0.10, 0.11, 0.125, 1.0))
-	draw_rect(body, _tier_color("chassis", 1.0), false, 2.0)
+	draw_rect(body, _tier_color("chassis", 1.0), false, 3.0 if _tier("chassis") >= 2 else 2.0)
 
 	# 3) WHEELS over the body — the TIRES part tints all corners (healthy = dark
 	# rubber; worn+ = the tier color shouts). Wide rigs wear them PROUD of the

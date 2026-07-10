@@ -1012,7 +1012,7 @@ func update_car_gps(active: bool, heading: float, wp_rel: Vector2, wp_name: Stri
 		style.bg_color = Color(0.06, 0.055, 0.045, 0.92)
 		style.border_color = AMBER
 		style.set_border_width_all(2)
-		style.set_corner_radius_all(4)
+		style.set_corner_radius_all(7) # device-round, matching the handheld family
 		style.set_content_margin_all(6)
 		_cargps_panel.add_theme_stylebox_override("panel", style)
 		var v := VBoxContainer.new()
@@ -1048,6 +1048,11 @@ func _draw_cargps() -> void:
 	var c := size * 0.5
 	var px := (size.x * 0.5) / CARGPS_RADIUS_M # meters -> canvas px (north-up)
 	_cargps_canvas.draw_rect(Rect2(Vector2.ZERO, size), Color(0.045, 0.05, 0.04))
+	# DEVICE COHESION (fidelity loop it.9): a slim inner bezel + a live LED so the
+	# mini map reads as HARDWARE in the handheld family, not a floating panel.
+	_cargps_canvas.draw_rect(Rect2(Vector2(1, 1), size - Vector2(2, 2)), Color(0.18, 0.16, 0.12), false, 1.0)
+	_cargps_canvas.draw_rect(Rect2(Vector2(size.x * 0.5 - 8.0, 2.0), Vector2(16.0, 2.5)), Color(0.18, 0.16, 0.12)) # speaker slit
+	_cargps_canvas.draw_circle(Vector2(size.x - 6.0, size.y - 6.0), 2.0, Color(0.96, 0.72, 0.2, 0.9)) # power LED
 	# Range ring + N tick — the "this is an instrument" read.
 	_cargps_canvas.draw_arc(c, size.x * 0.46, 0.0, TAU, 40, Color(0.25, 0.22, 0.16), 1.0)
 	_cargps_canvas.draw_string(ThemeDB.fallback_font, Vector2(c.x - 4, 12), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.55, 0.45))
