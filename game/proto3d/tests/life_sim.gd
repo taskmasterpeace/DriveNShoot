@@ -162,6 +162,10 @@ func _physics_process(delta: float) -> void:
 				_lucky.command_guard(_lucky.global_position)
 			elif _step == 1 and phase_t > 0.5:
 				_step = 2
+				# stand at the FAR door first: Lucky guards the exit side, and
+				# E is contested ground there (pet-the-dog can beat the handle)
+				main.player.global_position = main.cars[0].global_position 					+ main.cars[0].global_transform.basis.x * 1.6
+				main.player.velocity = Vector3.ZERO
 				_tap_interact() # back in the car
 			elif _step == 2 and phase_t > 1.0:
 				_step = 3

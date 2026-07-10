@@ -33,7 +33,7 @@
 | P14 | Radar / minimap ("radiant") | DEFERRED(spec #14 NEEDS OWNER'S WORD) | — |
 | P16 | Roads disconnect (M2 decks) | DEFERRED(owned by THE_AMERICAN_ROAD M-ladder) | — |
 | P17 | Rideable train | DONE(SEABOARD LINE shipped `ProtoTrain`) | train arc sims |
-| P18 | Car dashboard UI | PARTIAL(gauge cluster Phase 1 shipped 8600601; owner's lane) | `gauge_hud_sim` in-suite PASS |
+| P18 | Car dashboard UI | DEFERRED(owner's dashboard lane — his cluster + fuel/temp/tach shipped mid-loop; the polish is his) | `gauge_hud_sim` PASS |
 | P-clarify-1 | "The dog comes all the way down" | DEFERRED(needs owner clarification) | — |
 
 ## D. PROOF HARNESS
@@ -60,7 +60,7 @@
 | E9 | frontier_sim | DONE | "backroad" kind retired by the road-rows normalization — town-knitters are the 46 "county" rows (all 2-lane undivided; 5 keep the winding character) — 15/0 |
 | E10 | furnisher_sim | DONE | THE LIBRARY's bookshelf owns the desk's wall stretch ("read the MANUALS" wins the E-scan) — chain retargeted to the clear-air kitchen cabinet — 11/0 |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
-| E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
+| E12 | life_sim | DONE | horn-heel root: the re-enter E lost the contested scan beside the guarding dog — far-door staging — 19/0 |
 | E13 | los_sim | DONE | not the ray at all — the perception cone follows the AIM, not the body snap (headless left the aim astray); aim_override = NORTH — 9/0 |
 | E14 | m1_sim | DONE | three stales realigned: binocular retirement, sedan moved to TestGrounds (stage by cars[1] position), entry-ladder smash prompt, void-net corridor tape — 22/0 |
 | E15 | nav_sim | DONE | ring gained ⚒ TEST GROUNDS stop — wrap check walks the ring to OFF — 8/0 |
@@ -88,7 +88,7 @@
 | F2 | Human-gate: FED never hunts humans; dogs enter the menu at HUNGRY; humans only STARVING+warned — state gates WHO, not just how far | DONE | `creatures_sim` 36/0 (FED-gate check) |
 | F3 | Apex rarity: bar raised to pred ≥ 0.75 (cold swamps no longer qualify); THE ONE AUTHORED NEST at the Alley (−8000, 6000) runs hot from first touch | DONE | `creatures_sim` 36/0 (nest-banks-1 + generic-swamp-banks-0) |
 | F4 | Noise chain: emit_noise deposits human_noise on the cell (decays 0.12/gh); the apex's claimed ground scales ×(1+0.6·noise) — quiet routes matter | DONE | `creatures_sim` 36/0 (racket check) |
-| F5 | Rats emerge from wrecks (nest-in-object); swamp road_shoulder zone SHIPPED (the Alley banks rodents now) | PARTIAL | zone fix in `creatures_sim` 31/0 |
+| F5 | Nest-in-wreck: the P1 ZONE half SHIPPED (Alley rats, iter 4); the emergence-from-object visual | DEFERRED(the P2 den/nest-prop arc — LWE 0.3 puts nest.gd in Phase 2) | zone half: `creatures_sim` |
 | F6 | Bait verb (dropped meat deposits corpse-heat — pull the swamp off your route) + the backfire (rodent desire ×(2−pred): rats inherit the earth) | DONE | `creatures_sim` 38/0 |
 | F7 | Bird language: the vulture is a MARKER (shots scatter, never fell/farmed); formations SPEAK (fresh kill = low+tight, old = high+lazy, gunfire = scatter, NO-BIRDS over an apex sky); the 6 s re-materialize beat gathers banked birds over watched kills. + the ANCHOR BUG: creatures/knifebacks claimed home at the chunk-add origin and drifted off — lazily claimed on frame 1 now | DONE | `creatures_sim` 46/0 |
 | F8 | Protected cells bank NO wildlife on the hourly tick (doorstep law) | DONE | `creatures_sim` 31/0 (GAP-8 check) |
