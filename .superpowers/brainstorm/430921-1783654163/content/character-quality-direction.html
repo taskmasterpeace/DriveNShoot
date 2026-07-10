@@ -1,0 +1,116 @@
+<style>
+  :root { --accent:#d9851f; --accent-hover:#f09a2b; --selected-border:#d9851f; --selected-bg:rgba(217,133,31,.13); }
+  .current-grid { display:grid; grid-template-columns:1.35fr 1fr; gap:1rem; margin-bottom:1.5rem; }
+  .current-grid img { width:100%; height:250px; object-fit:contain; background:#292b2f; border-radius:10px; }
+  .diagnosis { background:var(--bg-secondary); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+  .diagnosis li { margin:.35rem 0; color:var(--text-secondary); }
+  .direction-art { width:100%; height:220px; background:linear-gradient(180deg,#24272b,#17191c); }
+  .direction-art svg { width:100%; height:100%; }
+  .badge { display:inline-block; padding:.2rem .5rem; border-radius:999px; background:rgba(217,133,31,.16); color:#e79a3d; font-size:.72rem; font-weight:700; letter-spacing:.04em; }
+  .meter { display:flex; gap:.35rem; margin-top:.65rem; font-size:.72rem; color:var(--text-secondary); }
+  .meter b { color:#e79a3d; }
+  @media(max-width:760px){ .current-grid{grid-template-columns:1fr;} }
+</style>
+
+<h2>What should “8–9 quality” mean for DRIVN’s characters?</h2>
+<p class="subtitle">The proven 22-joint procedural rig stays. Choose the visual target for reshaping its body pieces, grips, and top-down motion.</p>
+
+<div class="current-grid">
+  <div class="mockup">
+    <div class="mockup-header">Current game-camera read — mechanically solid, visually 6.5</div>
+    <div class="mockup-body"><img src="/files/current-game-view.png" alt="Current character from the game camera"></div>
+  </div>
+  <div class="diagnosis">
+    <div class="label">What the render shows</div>
+    <ul>
+      <li>Chest, waist, and pelvis collapse into one flat rectangle.</li>
+      <li>Head-to-neck transition is abrupt; hands and boots lack silhouette.</li>
+      <li>Weapon hands hit their math targets, but the shoulders still read like a T-pose.</li>
+      <li>Sprint works from the side, but the overhead shoulder/hip rhythm is missing.</li>
+    </ul>
+    <img src="/files/current-shotgun.png" alt="Current shotgun grip" style="width:100%;height:145px;object-fit:contain;background:#292b2f;border-radius:8px">
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card" data-choice="refined_mannequin" onclick="toggleSelect(this)">
+    <div class="card-image direction-art">
+      <svg viewBox="0 0 260 220" aria-label="Refined procedural mannequin concept">
+        <g transform="translate(130 20)">
+          <polygon points="-20,0 15,0 21,31 10,42 -17,39 -23,15" fill="#b98260"/>
+          <rect x="-8" y="38" width="15" height="14" rx="3" fill="#9c6f52"/>
+          <polygon points="-42,50 40,50 31,103 19,116 -21,116 -34,102" fill="#786852"/>
+          <polygon points="-22,112 21,112 27,137 16,151 -18,151 -28,137" fill="#4f4940"/>
+          <polygon points="-43,54 -29,58 -36,104 -45,135 -56,132 -52,99" fill="#8a765a"/>
+          <polygon points="40,54 28,58 34,104 44,135 55,132 51,99" fill="#8a765a"/>
+          <rect x="-58" y="130" width="14" height="17" rx="4" fill="#b98260"/>
+          <rect x="43" y="130" width="14" height="17" rx="4" fill="#b98260"/>
+          <polygon points="-22,148 -3,148 -6,198 -27,198" fill="#464c4b"/>
+          <polygon points="3,148 22,148 28,198 7,198" fill="#464c4b"/>
+          <polygon points="-29,195 -5,195 -2,207 -33,207" fill="#242728"/>
+          <polygon points="6,195 29,195 34,207 5,207" fill="#242728"/>
+        </g>
+      </svg>
+    </div>
+    <div class="card-body">
+      <span class="badge">RECOMMENDED</span>
+      <h3>A — Refined Procedural Mannequin</h3>
+      <p>Tapered limbs, shaped chest/waist/pelvis, beveled head, real palms/boots, jacket and gear layers. Keeps the current lightweight box-rig identity while removing the “stacked rectangles” read.</p>
+      <div class="meter"><b>Target 8.5</b><span>•</span><span>medium scope</span><span>•</span><span>low rig risk</span></div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="chunky_survivor" onclick="toggleSelect(this)">
+    <div class="card-image direction-art">
+      <svg viewBox="0 0 260 220" aria-label="Chunky graphic survivor concept">
+        <g transform="translate(130 18)">
+          <polygon points="-17,0 17,0 23,30 13,40 -17,37 -23,12" fill="#b98260"/>
+          <rect x="-7" y="36" width="14" height="11" fill="#8d6349"/>
+          <polygon points="-53,47 51,47 42,110 24,125 -25,125 -44,109" fill="#806843"/>
+          <polygon points="-30,120 29,120 34,148 20,157 -21,157 -35,146" fill="#423d35"/>
+          <polygon points="-55,52 -37,59 -47,127 -63,145 -75,135 -64,111" fill="#8b734d"/>
+          <polygon points="52,52 36,59 46,127 62,145 74,135 63,111" fill="#8b734d"/>
+          <rect x="-78" y="132" width="20" height="18" rx="3" fill="#b98260"/>
+          <rect x="57" y="132" width="20" height="18" rx="3" fill="#b98260"/>
+          <polygon points="-30,153 -3,153 -8,196 -38,196" fill="#3b4140"/>
+          <polygon points="3,153 30,153 39,196 8,196" fill="#3b4140"/>
+          <polygon points="-42,192 -5,192 0,208 -49,208" fill="#202324"/>
+          <polygon points="7,192 43,192 51,208 3,208" fill="#202324"/>
+        </g>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>B — Chunky Graphic Survivor</h3>
+      <p>Exaggerated shoulders, gloves, boots, backpacks, and weapon silhouettes. Strongest at the high camera and in crowds; intentionally less natural when viewed close.</p>
+      <div class="meter"><b>Target 8</b><span>•</span><span>small–medium scope</span><span>•</span><span>best top-down read</span></div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="contoured_lowpoly" onclick="toggleSelect(this)">
+    <div class="card-image direction-art">
+      <svg viewBox="0 0 260 220" aria-label="Contoured low-poly human concept">
+        <g transform="translate(130 16)">
+          <polygon points="-18,1 12,-2 24,15 18,35 5,44 -15,38 -24,20" fill="#b98260"/>
+          <polygon points="-8,40 8,40 12,55 0,62 -12,54" fill="#96684d"/>
+          <polygon points="-36,54 -18,48 19,48 39,57 31,104 17,120 -19,119 -33,102" fill="#746751"/>
+          <polygon points="-20,116 19,116 25,139 14,153 -15,153 -25,138" fill="#4e4941"/>
+          <polygon points="-38,57 -27,63 -34,100 -47,135 -58,132 -50,94" fill="#83725a"/>
+          <polygon points="38,58 27,63 34,100 47,135 58,132 50,94" fill="#83725a"/>
+          <ellipse cx="-53" cy="140" rx="9" ry="12" fill="#b98260"/>
+          <ellipse cx="53" cy="140" rx="9" ry="12" fill="#b98260"/>
+          <polygon points="-19,150 -3,150 -8,198 -28,198" fill="#434948"/>
+          <polygon points="3,150 19,150 28,198 8,198" fill="#434948"/>
+          <polygon points="-30,195 -7,195 -2,207 -34,207" fill="#222627"/>
+          <polygon points="7,195 30,195 35,207 3,207" fill="#222627"/>
+        </g>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>C — Contoured Low-Poly Human</h3>
+      <p>Faceted custom primitives and capsule-like hands/limbs around the same pivots. Closest to a conventional human model, with the largest geometry, collision, and visual-regression surface.</p>
+      <div class="meter"><b>Target 9</b><span>•</span><span>large scope</span><span>•</span><span>highest risk</span></div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.25rem">Click the direction that feels like DRIVN. This selects the visual target—not final proportions.</p>
