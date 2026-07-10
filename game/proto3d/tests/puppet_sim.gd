@@ -124,20 +124,34 @@ func _ready() -> void:
 		signf(righty.shoulder.position.x) != signf(lefty.shoulder.position.x))
 
 	# --- Rung 2: weapons carry their own HAND POSE ---------------------------
+	# RIG V2 realign: the free hand comes across via per-frame GRIP IK
+	# (grip_l rows + animate settle — grip_ik_sim's recipe), not a static
+	# free_arm.position write; measure the free HAND's settled world x.
 	var poser := ProtoPuppet.create({})
 	add_child(poser)
-	poser.set_hand_pose(ProtoWeapon.WEAPONS["pistol"]["hand_pose"]["offset"], false)
+	poser.raised = true
+	poser.set_armed(true)
+	var hp_pi: Dictionary = ProtoWeapon.WEAPONS["pistol"]["hand_pose"]
+	poser.set_hand_pose(hp_pi["offset"], false)
+	for _i in 30:
+		poser.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 	var pistol_hand: Vector3 = poser.hand.position
-	var pistol_freearm: float = poser.free_arm.position.x
-	poser.set_hand_pose(ProtoWeapon.WEAPONS["shotgun"]["hand_pose"]["offset"], true)
+	var pistol_free_x: float = poser.hand_l.global_position.x - poser.global_position.x
+	var hp_sg: Dictionary = ProtoWeapon.WEAPONS["shotgun"]["hand_pose"]
+	poser.set_hand_pose(hp_sg["offset"], true, hp_sg.get("grip_l", Vector3.ZERO), hp_sg.get("grip_r", Vector3.ZERO))
+	for _i in 40:
+		poser.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 	var shotgun_hand: Vector3 = poser.hand.position
-	var shotgun_freearm: float = poser.free_arm.position.x
-	poser.set_hand_pose(ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"]["offset"], true)
+	var shotgun_free_x: float = poser.hand_l.global_position.x - poser.global_position.x
+	var hp_ro: Dictionary = ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"]
+	poser.set_hand_pose(hp_ro["offset"], true, hp_ro.get("grip_l", Vector3.ZERO), hp_ro.get("grip_r", Vector3.ZERO))
+	for _i in 40:
+		poser.animate(1.0 / 60.0, 0.0, 0.0, true, 0.0, false)
 	var rocket_hand: Vector3 = poser.hand.position
 	_check("each weapon poses the hand DIFFERENTLY (pistol %.2f / shotgun %.2f / rocket %.2f y)" % [pistol_hand.y, shotgun_hand.y, rocket_hand.y],
 		pistol_hand != shotgun_hand and shotgun_hand != rocket_hand and rocket_hand.y > shotgun_hand.y and shotgun_hand.y > pistol_hand.y)
-	_check("a two-handed longarm brings the free hand ACROSS (1-hand x %.2f → 2-hand x %.2f)" % [pistol_freearm, shotgun_freearm],
-		signf(pistol_freearm) != signf(shotgun_freearm) or absf(shotgun_freearm) < absf(pistol_freearm))
+	_check("a two-handed longarm brings the free hand ACROSS (1-hand x %.2f → 2-hand x %.2f)" % [pistol_free_x, shotgun_free_x],
+		absf(shotgun_free_x) < absf(pistol_free_x))
 
 	# --- Rung 2: 50 survivors from ROWS (look = data) ------------------------
 	var scav := ProtoPuppet.create(ProtoPuppet.look("scav"))

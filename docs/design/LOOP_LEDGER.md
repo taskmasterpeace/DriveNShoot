@@ -65,7 +65,7 @@
 | E14 | m1_sim | OPEN | nil global_position cascade + door/hotwire/sedan checks — staged node missing; read full ediag log first |
 | E15 | nav_sim | DONE | ring gained ⚒ TEST GROUNDS stop — wrap check walks the ring to OFF — 8/0 |
 | E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
-| E17 | puppet_sim | OPEN | — |
+| E17 | puppet_sim | DONE | rung-2 realigned to RIG V2 grip IK (grips + animate settle; measure the free HAND) — 20/0 |
 | E18 | radio_positional_sim | DEFERRED(owner's live radio arc) | — |
 | E19 | stage3_sim | DONE | skills mirror the grown tree (12: +martial_arts, piloting); drive-xp leg staged active_car on I-95 + ignition — 12/0 |
 | E20 | stage4_sim | DONE | corpse sweep realigned to 0.11 (bodies are ProtoCorpse group, not chest lumps) — 10/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 29 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E15, E19, E20, E24–E27, F8, F10, F12)
-- OPEN: 15 (E8–E10, E13, E14, E17, E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 30 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E15, E17, E19, E20, E24–E27, F8, F10, F12)
+- OPEN: 14 (E8–E10, E13, E14, E21; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
