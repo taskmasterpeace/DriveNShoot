@@ -1,0 +1,7 @@
+{
+  "_comment": "These are fictional HOUSE records, never simulated internet users.",
+  "boards": [
+    {"game_id": "waste_heap", "ruleset": "stock-1", "scope": "house", "fictional": true, "entries": [{"name": "KESSLER", "primary": 8192, "secondary": {"highest_part": 1024}}, {"name": "MERCY", "primary": 4096, "secondary": {"highest_part": 512}}]},
+    {"game_id": "crown_of_ash", "ruleset": "stock-1", "scope": "house", "fictional": true, "entries": [{"name": "BRIDGER", "primary": 18, "secondary": {"clock_ms": 288000}}, {"name": "SAM", "primary": 11, "secondary": {"clock_ms": 351000}}]}
+  ]
+}

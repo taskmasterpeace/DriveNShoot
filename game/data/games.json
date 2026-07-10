@@ -1,0 +1,205 @@
+{
+  "_comment": "THE GAME DECK — every in-world game is one cartridge row using the same shell, input, score, save, and network contracts.",
+  "games": [
+    {
+      "id": "waste_heap", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
+      "title": "WASTE HEAP", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/waste_heap/waste_heap.tscn", "score": {"primary": "score", "direction": "high", "secondary": "highest_part"},
+      "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
+      "help": "Slide every salvage part. Equal parts combine. Build the largest working core before the tray locks.",
+      "about_world": "A pocket logistics trainer recovered from an emergency-management warehouse. Road crews now wager on impossible reactor stacks."
+    },
+    {
+      "id": "radworm", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
+      "title": "RADWORM", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/radworm/radworm.tscn", "score": {"primary": "length", "direction": "high", "secondary": "survival_ms"},
+      "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
+      "help": "Route the worm through lost packets. Do not strike the firewall, the border, or your own tail.",
+      "about_world": "Continuity technicians used this routing toy to teach children that every packet had a place."
+    },
+    {
+      "id": "dead_ground", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
+      "title": "DEAD GROUND", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/dead_ground/dead_ground.tscn", "score": {"primary": "clear_ms", "direction": "low", "secondary": "errors"},
+      "controls_profile": "pointer_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Reveal safe ground and flag buried ordnance. Numbers count mines touching that square.",
+      "about_world": "A volunteer demining drill passed from settlement to settlement on copied memory cards."
+    },
+    {
+      "id": "pack_rat", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
+      "title": "PACK RAT", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/pack_rat/pack_rat.tscn", "score": {"primary": "levels", "direction": "high", "secondary": "moves"},
+      "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Push every crate onto an evacuation bay. Crates pull nobody and corners forgive nothing.",
+      "about_world": "Warehouse crews kept their loading discipline sharp with this mean little crate puzzle."
+    },
+    {
+      "id": "bunker_breaker", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
+      "title": "BUNKER BREAKER", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/bunker_breaker/bunker_breaker.tscn", "score": {"primary": "score", "direction": "high", "secondary": "layers"},
+      "controls_profile": "paddle", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Keep the breaching slug alive, angle returns with the paddle, and strip every armor layer.",
+      "about_world": "A shelter sales demo turned into a roadhouse score machine after Black Week."
+    },
+    {
+      "id": "last_mile", "phase": 1, "platform": "handheld", "device_id": "handheld_landscape",
+      "title": "LAST MILE", "aspect": "16:9", "players": {"min": 1, "max": 1, "ai": true, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/last_mile/last_mile.tscn", "score": {"primary": "course_ms", "direction": "low", "secondary": "clean_laps"},
+      "controls_profile": "racer", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
+      "help": "Thread traffic, hold the racing line, and finish the courier route in the lowest time.",
+      "about_world": "A pre-collapse delivery-driver aptitude test now treated as prophecy by long-haul crews."
+    },
+    {
+      "id": "iron_dome", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
+      "title": "IRON DOME", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/iron_dome/iron_dome.tscn", "score": {"primary": "score", "direction": "high", "secondary": "cities_saved"},
+      "controls_profile": "pointer_fire", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Detonate interceptors where incoming warheads will be. Preserve cities and ration the magazine.",
+      "about_world": "A Black Week civil-defense simulator whose optimism aged worse than its phosphor screen."
+    },
+    {
+      "id": "fall_line", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
+      "title": "FALL LINE", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/fall_line/fall_line.tscn", "score": {"primary": "landing_rating", "direction": "high", "secondary": "fuel"},
+      "controls_profile": "lander", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Pulse thrust, kill horizontal drift, and settle a supply capsule onto the marked pad.",
+      "about_world": "Orbital relief crews trained on it before the skies closed and the capsules stopped coming."
+    },
+    {
+      "id": "tilt_salvage", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
+      "title": "TILT//SALVAGE", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/tilt_salvage/tilt_salvage.tscn", "score": {"primary": "score", "direction": "high", "secondary": "jackpots"},
+      "controls_profile": "pinball", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Work both flippers, preserve the ball, and light salvage lanes for the jackpot.",
+      "about_world": "A truck-stop table rebuilt in software from dash switches, toll counters, and spite."
+    },
+    {
+      "id": "relay_bloom", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
+      "title": "RELAY BLOOM", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cartridge_scene": "res://proto3d/games/relay_bloom/relay_bloom.tscn", "score": {"primary": "score", "direction": "high", "secondary": "max_combo"},
+      "controls_profile": "pointer_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
+      "help": "Swap adjacent components to make lines of three or more and cascade the relay back online.",
+      "about_world": "Line crews called the bright repair diagrams blooms; the nickname outlived the grid."
+    },
+
+    {
+      "id": "crown_of_ash", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "CROWN OF ASH", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/crown_of_ash/crown_of_ash.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "clock_ms"},
+      "controls_profile": "board_cursor", "manual_book_id": "book_game_deck_console", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Command a complete chess army. Every legal capture resolves as a skippable faction execution; the board result remains pure chess.",
+      "about_world": "Rival state courts commissioned this brutal etiquette lesson, each insisting its own pieces were the heroes."
+    },
+    {
+      "id": "dial_tanks", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "DIAL TANKS", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/dial_tanks/dial_tanks.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "kills"},
+      "controls_profile": "twin_stick", "manual_book_id": "book_game_deck_console", "source_ids": ["littlejs_arcade"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Drive, rotate the turret, and bank shells through tight arenas. Last tank moving wins the round.",
+      "about_world": "Carousel gunners swear its ricochet tables were copied from a real targeting school."
+    },
+    {
+      "id": "red_sky", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "RED SKY", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/red_sky/red_sky.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "damage"},
+      "controls_profile": "artillery", "manual_book_id": "book_game_deck_console", "source_ids": ["three_bit_games"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Choose angle and charge, read the wind, and erase rival gun crews before they bracket you.",
+      "about_world": "A weather station’s artillery model escaped into barracks culture and never came back."
+    },
+    {
+      "id": "black_orbit", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "BLACK ORBIT", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/black_orbit/black_orbit.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "salvage"},
+      "controls_profile": "twin_stick", "manual_book_id": "book_game_deck_console", "source_ids": ["three_bit_games"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Thrust through debris, shoot rival claim ships, and bank the most orbital salvage.",
+      "about_world": "Made when people still argued over who would own the junk above the atmosphere."
+    },
+    {
+      "id": "gridbreach", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "GRIDBREACH", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/gridbreach/gridbreach.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "survival_ms"},
+      "controls_profile": "arena_grid", "manual_book_id": "book_game_deck_console", "source_ids": ["godot_demos"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Plant charges, break walls, trap rivals in blast lanes, and remain online when the timer expires.",
+      "about_world": "A network-security metaphor so popular that nobody remembers what the original grid protected."
+    },
+    {
+      "id": "rustball", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "RUSTBALL", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/rustball/rustball.tscn", "score": {"primary": "goals", "direction": "high", "secondary": "saves"},
+      "controls_profile": "physics_sport", "manual_book_id": "book_game_deck_console", "source_ids": ["bashball"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Body the iron ball through the rival gate. Momentum, rebounds, and ugly saves decide the league.",
+      "about_world": "Settlements with no grass and too many bumpers invented the national sport they deserved."
+    },
+    {
+      "id": "fuel_run", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "FUEL RUN", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/fuel_run/fuel_run.tscn", "score": {"primary": "captures", "direction": "high", "secondary": "lap_ms"},
+      "controls_profile": "racer", "manual_book_id": "book_game_deck_console", "source_ids": ["cars_on_road"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Race for the center can, return it to your pump, and steal rival fuel before the short clock dies.",
+      "about_world": "A refinery morale game whose thirty-second panic feels much less funny now."
+    },
+    {
+      "id": "skyjoust", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "SKYJOUST", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/skyjoust/skyjoust.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "knockouts"},
+      "controls_profile": "aerial_duel", "manual_book_id": "book_game_deck_console", "source_ids": ["flying_turtles"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Burn the rocket rig, take altitude, and strike the rival pilot from above.",
+      "about_world": "A county-fair death machine survived only as a cartridge, which is probably for the best."
+    },
+    {
+      "id": "fight_night_99", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "FIGHT NIGHT ’99", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/fight_night_99/fight_night_99.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "hp_remaining"},
+      "controls_profile": "fighter", "manual_book_id": "book_game_deck_console", "source_ids": ["wrathskeller"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "venue_prize", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Pick a road legend, learn the chain, manage guard, and take two rounds before the bell.",
+      "about_world": "Bootleg fighters turned real drivers, medics, and gang bosses into a touring grudge league."
+    },
+    {
+      "id": "ashland_command", "phase": 1, "platform": "console", "device_id": "console_16_9",
+      "title": "ASHLAND COMMAND", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/ashland_command/ashland_command.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "turns"},
+      "controls_profile": "tactics_grid", "manual_book_id": "book_game_deck_console", "source_ids": ["tanks_of_freedom"],
+      "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "military_cache", "ruleset": "stock-1", "local_radius_m": 4.0,
+      "help": "Move squads, hold supply, combine fire, and break the enemy command before your position collapses.",
+      "about_world": "An academy tactics package overwritten with the borders people actually fight over now."
+    },
+
+    {
+      "id": "rust_runners", "phase": 2, "platform": "console", "device_id": "console_16_9",
+      "title": "RUST RUNNERS", "aspect": "16:9", "players": {"min": 1, "max": 8, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/rust_runners/rust_runners.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "kills"},
+      "controls_profile": "shared_shooter", "manual_book_id": "book_rust_runners", "source_ids": ["opensoldat"],
+      "requires_power": true, "power_draw": 4, "network_cost": 0, "unlock_type": "venue_prize", "ruleset": "stock-1", "local_radius_m": 5.0,
+      "help": "Move, aim independently, burn jet fuel, swap weapons, and fight fast side-view objective rounds.",
+      "about_world": "The Crimson Road’s impossible infantry tournament: refinery steel, jet belts, and no clean shirts."
+    },
+    {
+      "id": "black_grid", "phase": 2, "platform": "console", "device_id": "console_16_9",
+      "title": "BLACK GRID", "aspect": "16:9", "players": {"min": 1, "max": 16, "ai": true, "local": true, "online": "same_session"},
+      "cartridge_scene": "res://proto3d/games/black_grid/black_grid.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "objective_score"},
+      "controls_profile": "shared_shooter", "manual_book_id": "book_black_grid", "source_ids": ["freeinfantry_reference"],
+      "requires_power": true, "power_draw": 4, "network_cost": 0, "unlock_type": "military_cache", "ruleset": "stock-1", "local_radius_m": 5.0,
+      "help": "Use the shared shooter layout to manage momentum, fog, loadout weight, projectiles, vehicles, and field objectives.",
+      "about_world": "A Continuity command simulation that accidentally preserved the doctrine used to divide the country."
+    }
+  ]
+}
