@@ -97,6 +97,21 @@ func _ready() -> void:
 	_check("menu-state pad B closes fullscreen to the device", not shell.is_open)
 	_check("closing fullscreen keeps the cartridge alive", deck.cartridge != null and deck.state == "PAUSED")
 
+	_check("portrait cartridge launches through the same shell", shell.open_game("iron_dome", {"source": "solo"}))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var portrait_frame: Rect2 = get_viewport().get_visible_rect()
+	var portrait_controls: Array = [shell._root, shell._title, shell._status,
+		shell._tabs["library"], shell._tabs["play"], shell._tabs["help"],
+		shell._tabs["controls"], shell._tabs["about"], shell._tabs["scores"]]
+	var portrait_in_frame := true
+	for control_value in portrait_controls:
+		var control := control_value as Control
+		var rect := control.get_global_rect()
+		portrait_in_frame = portrait_in_frame and rect.size.x > 0.0 and rect.size.y > 0.0 \
+			and portrait_frame.encloses(rect)
+	_check("portrait games cannot push the bezel, tabs, or status out of frame", portrait_in_frame)
+
 	shell.open_game("waste_heap", {"source": "solo"})
 	deck.start(88, [{"seat": 0, "device": -1, "profile_id": "local"}])
 	shell.power_off()

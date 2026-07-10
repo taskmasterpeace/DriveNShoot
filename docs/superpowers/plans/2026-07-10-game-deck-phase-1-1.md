@@ -169,14 +169,14 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 - Modify: `game/THIRD_PARTY_NOTICES.md`
 - Create: `docs/verification/GAME_DECK_PHASE_1_1.md`
 
-- [ ] Verify every game has non-placeholder title/help/lore, a correct source
+- [x] Verify every game has non-placeholder title/help/lore, a correct source
   notice, original primitive art, and a complete guide page.
-- [ ] Run all ten focused handheld sims, `handheld_catalog_sim`,
+- [x] Run all ten focused handheld sims, `handheld_catalog_sim`,
   `game_passenger_sim`, and the complete Phase 1.0 suite serially.
-- [ ] GPU-render one square, portrait, and landscape cartridge plus the physical
+- [x] GPU-render one square, portrait, and landscape cartridge plus the physical
   held device; inspect all four frames.
-- [ ] Record direct evidence and explicitly list any contradiction/missing item.
-- [ ] Commit `test: verify Game Deck phase 1.1` only with zero missing items.
+- [x] Record direct evidence and explicitly list any contradiction/missing item.
+- [x] Commit `test: verify Game Deck phase 1.1` only with zero missing items.
 
 ## Verification command
 
@@ -189,6 +189,10 @@ $tests = @(
   'game_passenger_sim','game_registry_sim','game_input_sim','game_ledger_sim',
   'game_shell_sim','game_net_sim','game_device_sim','game_save_sim',
   'game_license_sim','input_map_sim','save_sim'
+
+  # Complete inherited Phase 1.0 and moving-world regression gates:
+  'npc_drive_sim','crown_of_ash_sim','media_registry_sim','tv_sim','net_sim',
+  'data_sim'
 )
 foreach ($test in $tests) {
   & $godot --headless --path game ("res://proto3d/tests/$test.tscn")
