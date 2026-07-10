@@ -26,6 +26,7 @@ var ticket: Dictionary = {}
 var champion: String = ""
 var payout: int = 0
 var status: String = ""
+var _round_connected: bool = false
 
 
 func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
@@ -44,6 +45,9 @@ func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
 		status = String(validation["error"])
 		return false
 	row = candidate
+	if lab != null and "lab_round" in lab and lab.lab_round != null and not _round_connected:
+		lab.lab_round.match_ended.connect(_on_physical_match_ended)
+		_round_connected = true
 	_reset_state()
 	return true
 
@@ -192,6 +196,8 @@ func start_tournament() -> bool:
 	phase = "running"
 	match_index = 0
 	status = "SEMIFINAL A LIVE"
+	if lab != null:
+		_start_current_match()
 	_emit_changed()
 	return true
 
@@ -224,7 +230,31 @@ func record_match_winner(winner_id: String) -> bool:
 
 
 func reset_tournament() -> void:
+	if lab != null and lab.has_method("clear_spectacle_fighters"):
+		lab.clear_spectacle_fighters()
 	_reset_state()
+
+
+func _start_current_match() -> void:
+	if lab == null or phase != "running" or not lab.has_method("configure_spectacle_match"):
+		return
+	var current: Dictionary = current_match()
+	if current.is_empty():
+		return
+	var left: Dictionary = entrant_by_id(String(current["left"]))
+	var right: Dictionary = entrant_by_id(String(current["right"]))
+	lab.lab_round.setup([String(current["left"]), String(current["right"])],
+		float(row.get("round_health", 100.0)), int(row.get("rounds_to_win", 2)))
+	lab.configure_spectacle_match(left, right, mode)
+
+
+func _on_physical_match_ended(winner_id: String) -> void:
+	if phase != "running" or not record_match_winner(winner_id):
+		return
+	if phase == "running":
+		call_deferred("_start_current_match")
+	elif lab != null and lab.has_method("clear_spectacle_fighters"):
+		lab.call_deferred("clear_spectacle_fighters")
 
 
 func current_match() -> Dictionary:

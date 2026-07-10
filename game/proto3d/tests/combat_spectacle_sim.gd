@@ -123,6 +123,51 @@ func _ready() -> void:
 		String(runtime.facts()["entrants"][0]["id"]) == "player"
 		and runtime.facts()["matches"].any(func(match: Dictionary) -> bool:
 			return String(match["left"]) == "player" or String(match["right"]) == "player"))
+
+	var lab: Node3D = (load("res://proto3d/tools/physics_combat_lab.tscn") as PackedScene).instantiate()
+	add_child(lab)
+	for _i in 8:
+		await get_tree().physics_frame
+	var live: Node = (load(RUNTIME_PATH) as Script).new()
+	lab.add_child(live)
+	_check("physical runtime binds to the standalone lab", live.setup(lab, "wasteland_shootout", 8401)
+		and live.select_mode("watch") and live.start_tournament())
+	for _i in 4:
+		await get_tree().physics_frame
+	var fighters: Array = lab.get("spectacle_fighters") if "spectacle_fighters" in lab else []
+	var live_match: Dictionary = live.facts()["current_match"]
+	var watch_ready: bool = fighters.size() == 2
+	if watch_ready:
+		var left: Node = fighters[0]
+		var right: Node = fighters[1]
+		watch_ready = left.has_method("configure_identity") and right.has_method("configure_identity") \
+			and left.body.collision_layer != 0 and right.body.collision_layer != 0 \
+			and String(left.get("fighter_id")) == String(live_match["left"]) \
+			and String(right.get("fighter_id")) == String(live_match["right"]) \
+			and left.target == right.body and right.target == left.body \
+			and String(left.weapon.id) == String(live.entrant_by_id(String(live_match["left"]))["weapon_id"]) \
+			and String(right.weapon.id) == String(live.entrant_by_id(String(live_match["right"]))["weapon_id"])
+	_check("WATCH stages two real reciprocal collision-active AI fighters with authored weapons", watch_ready)
+	if watch_ready:
+		var left: Node = fighters[0]
+		var right: Node = fighters[1]
+		var left_id: String = String(left.get("fighter_id"))
+		var right_id: String = String(right.get("fighter_id"))
+		var left_health: float = lab.lab_round.health(left_id)
+		left.take_damage(9.0, right.body)
+		_check("real damage signal scores the arbitrary WATCH fighter ids",
+			is_equal_approx(lab.lab_round.health(left_id), left_health - 9.0)
+			and is_equal_approx(lab.lab_round.health(right_id), 100.0))
+		lab.lab_round.hit(right_id, 200.0, {"attacker":left_id, "kind":"watch_probe"})
+		lab.lab_round.reset_round()
+		lab.lab_round.hit(right_id, 200.0, {"attacker":left_id, "kind":"watch_probe"})
+		for _i in 3:
+			await get_tree().process_frame
+		_check("physical match completion advances and restages semifinal B",
+			String(live.facts()["current_match"].get("id", "")) == "semi_b"
+			and (lab.get("spectacle_fighters") as Array).size() == 2)
+	lab.queue_free()
+	await get_tree().process_frame
 	_finish()
 
 

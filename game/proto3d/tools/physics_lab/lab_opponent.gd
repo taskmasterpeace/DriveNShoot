@@ -21,6 +21,8 @@ var active_car: Node = null
 var fx_parent: Node = null
 var shot_spread_deg: float = 0.0
 var enabled: bool = true
+var fighter_id: String = "opponent"
+var opponent_id: String = "player"
 
 var _agent: NavigationAgent3D = null
 var _provoked: bool = false
@@ -127,6 +129,11 @@ func set_target(target_in: Node3D) -> void:
 	target = target_in
 
 
+func configure_identity(fighter: String, opponent: String) -> void:
+	fighter_id = fighter
+	opponent_id = opponent
+
+
 func reset_at(at: Transform3D) -> void:
 	if body == null:
 		return
@@ -156,7 +163,7 @@ func _on_body_damaged(amount: float, _attacker: Node3D = null) -> void:
 	_hits_taken += 1
 	_provoked = true
 	_reaction_left = float(row.get("reaction_s", 0.2))
-	round_controller.hit("opponent", amount, {"attacker": "player", "kind": "hit"})
+	round_controller.hit(fighter_id, amount, {"attacker":opponent_id, "kind":"hit"})
 
 
 func _physics_process(delta: float) -> void:
@@ -255,6 +262,7 @@ func _try_fire(direction: Vector3) -> void:
 
 func metrics() -> Dictionary:
 	return {"behavior": behavior_id, "shots": _shots, "hits_taken": _hits_taken,
+		"fighter_id":fighter_id, "opponent_id":opponent_id,
 		"provoked": _provoked, "searching": _searching,
 		"last_seen_age": _last_seen_age, "has_last_known": _has_last_known,
 		"position": body.global_position if body != null else Vector3.ZERO,

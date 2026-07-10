@@ -40,6 +40,7 @@ var opponent_behavior: String = "PASSIVE"
 var lab_round: RefCounted = null
 var opponent: Node3D = null
 var scenario_opponents: Array[Node3D] = []
+var spectacle_fighters: Array[Node3D] = []
 var scenario_vehicles: Array[ProtoCar3D] = []
 var scenario_player_spawn: Transform3D = station_spawn
 var scenario_win_condition: Dictionary = {}
@@ -652,6 +653,57 @@ func _clear_scenario_opponents() -> void:
 		if is_instance_valid(extra):
 			extra.queue_free()
 	scenario_opponents.clear()
+
+
+func clear_spectacle_fighters() -> void:
+	for fighter in spectacle_fighters:
+		if fighter != opponent and is_instance_valid(fighter):
+			fighter.queue_free()
+	scenario_opponents = scenario_opponents.filter(func(extra: Node3D) -> bool:
+		return is_instance_valid(extra) and extra not in spectacle_fighters)
+	spectacle_fighters.clear()
+	if opponent != null:
+		opponent.configure_identity("opponent", "player")
+		opponent.set_target(player)
+
+
+func configure_spectacle_match(left: Dictionary, right: Dictionary, spectacle_mode: String) -> bool:
+	clear_spectacle_fighters()
+	if opponent == null or lab_round == null or spectacle_mode != "watch":
+		return false
+	var left_id: String = String(left.get("id", ""))
+	var right_id: String = String(right.get("id", ""))
+	if left_id == "" or right_id == "":
+		return false
+	opponent.set_enabled(true)
+	opponent.configure_identity(left_id, right_id)
+	opponent.set_behavior(String(left.get("opponent_row", "duel")))
+	opponent.set_weapon(String(left.get("weapon_id", "pistol")))
+	var left_spawn := Transform3D(Basis.IDENTITY, Vector3(74, 0.05, 8))
+	opponent.set_meta("scenario_spawn", left_spawn)
+	opponent.reset_at(left_spawn)
+
+	var right_fighter: Node3D = OPPONENT_SCRIPT.new()
+	right_fighter.name = "SpectacleFighter_%s" % right_id
+	add_child(right_fighter)
+	right_fighter.setup(lab_round, opponent.body, String(right.get("opponent_row", "duel")), self)
+	right_fighter.configure_identity(right_id, left_id)
+	right_fighter.set_weapon(String(right.get("weapon_id", "pistol")))
+	var right_spawn := Transform3D(Basis.IDENTITY, Vector3(82, 0.05, -8))
+	right_fighter.set_meta("scenario_spawn", right_spawn)
+	right_fighter.reset_at(right_spawn)
+	opponent.set_target(right_fighter.body)
+	right_fighter.set_target(opponent.body)
+	scenario_opponents.append(right_fighter)
+	spectacle_fighters = [opponent, right_fighter]
+	scenario_player_spawn = Transform3D(Basis.IDENTITY, Vector3(78, 0.05, 15))
+	adapter.reset_at(scenario_player_spawn)
+	return true
+
+
+func spectacle_facts() -> Dictionary:
+	return {"count":spectacle_fighters.size(), "ids":spectacle_fighters.map(
+		func(fighter: Node3D) -> String: return String(fighter.get("fighter_id")))}
 
 
 func _clear_scenario_vehicles() -> void:
