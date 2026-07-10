@@ -13,6 +13,7 @@ var _vignette: ColorRect
 var _toast_tween: Tween
 var _moodle_box: VBoxContainer
 var _dash_wrap: VBoxContainer
+var _damage_doll: ProtoDamageDoll = null ## the rig silhouette w/ live part tints (damage_doll.gd)
 var _dash_status: Label ## the useful line: vehicle · surface/struggle · cargo (sim hook)
 var _dash_box: HBoxContainer
 var _dash_labels: Dictionary = {}
@@ -279,6 +280,17 @@ static func create() -> ProtoHUD:
 	hud._dash_cook.add_theme_font_size_override("font_size", 24)
 	hud._dash_cook.add_theme_color_override("font_color", Color(0.98, 0.4, 0.1))
 	hud._dash_box.add_child(hud._dash_cook)
+	# THE DAMAGE DOLL (owner ask 2026-07-10): the rig's top-down silhouette, drawn
+	# from its own spec rows, parts tinted by live tier + armor faces as strips —
+	# parked just left of the dash block, shown/hidden with it.
+	hud._damage_doll = ProtoDamageDoll.new()
+	hud._damage_doll.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	hud._damage_doll.offset_left = -664.0
+	hud._damage_doll.offset_right = -568.0
+	hud._damage_doll.offset_top = -148.0
+	hud._damage_doll.offset_bottom = -24.0
+	hud._damage_doll.visible = false
+	hud.add_child(hud._damage_doll)
 
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
@@ -492,6 +504,8 @@ func gps_glyph_text() -> String:
 func set_dashboard(d) -> void:
 	if d == null:
 		_dash_wrap.visible = false
+		if _damage_doll != null:
+			_damage_doll.visible = false
 		if _dash_active:
 			_dash_active = false
 			_place_plates()
@@ -500,6 +514,10 @@ func set_dashboard(d) -> void:
 		_dash_active = true
 		_place_plates()
 	_dash_wrap.visible = true
+	# THE DAMAGE DOLL rides the same dict: geometry once (d["doll"], absent = the
+	# doll stays hidden — old hand-built dicts render exactly as before), tiers live.
+	if _damage_doll != null:
+		_damage_doll.update_state(d)
 	# This vehicle's gauge face — data-driven by vclass (data/gauges.json). Swapped
 	# only when it actually changes, so we're not reloading a texture every frame.
 	if _gauge != null:

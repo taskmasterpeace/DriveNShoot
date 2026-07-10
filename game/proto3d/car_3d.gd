@@ -1183,6 +1183,19 @@ func _ensure_smoke() -> CPUParticles3D:
 		_smoke.gravity = Vector3(0, 0.8, 0)
 		_smoke.color = Color(0.25, 0.24, 0.23, 0.8)
 		_smoke.position = spec.get("tailpipe", Vector3(0, 0.6, 0.0))
+		# PUFFS, not popcorn (fidelity loop it.2): each mote fades in, GROWS as it
+		# rises, and thins out — instead of full-size boxes blinking in and out.
+		var grow := Curve.new()
+		grow.add_point(Vector2(0.0, 0.5))
+		grow.add_point(Vector2(0.4, 1.0))
+		grow.add_point(Vector2(1.0, 1.7))
+		_smoke.scale_amount_curve = grow
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.0))
+		fade.set_color(1, Color(1, 1, 1, 0.0))
+		fade.add_point(0.14, Color(1, 1, 1, 0.92))
+		fade.add_point(0.55, Color(1, 1, 1, 0.75))
+		_smoke.color_ramp = fade
 		_smoke.emitting = false
 		add_child(_smoke)
 	return _smoke
@@ -1288,10 +1301,42 @@ func _char_visuals(node: Node, mat: Material) -> void:
 		_char_visuals(child, mat)
 
 
+## THE DAMAGE DOLL's geometry rows (owner ask 2026-07-10): the HUD silhouette is
+## drawn from the SAME spec rows that build the 3D body, so every class — and any
+## future materialized row — gets a doll that matches its rig. Cached per class
+## (spec shapes don't move at runtime; an F10 refold that resizes a chassis just
+## repopulates on the next class lookup after restart).
+static var _doll_specs: Dictionary = {}
+
+static func doll_spec_for(vclass_in: String) -> Dictionary:
+	if _doll_specs.has(vclass_in):
+		return _doll_specs[vclass_in]
+	if not VEHICLES.has(vclass_in):
+		return {}
+	var s: Dictionary = VEHICLES[vclass_in]
+	var ch: Vector3 = s["chassis"]
+	var cab: Vector3 = s["cabin"]
+	var cabp: Vector3 = s["cabin_pos"]
+	var wheels: Array = []
+	for w in s["wheels"]:
+		var wr: Array = w
+		if bool(wr[4]): # visible wheels only — the doll shows what the player sees
+			wheels.append([float(wr[0]), float(wr[1]), float(wr[5])])
+	var out: Dictionary = {
+		"w": ch.x, "l": ch.z,
+		"cabin": [cab.x, cab.z, cabp.z],
+		"wheels": wheels,
+		"armor": s.get("armor", {}),
+	}
+	_doll_specs[vclass_in] = out
+	return out
+
+
 ## Dashboard snapshot for the HUD (the car's moodles) — tiers AND ratios (the
 ## bars), plus what the ground is doing to you right now.
 func dashboard() -> Dictionary:
 	return {
+		"doll": ProtoCar3D.doll_spec_for(vclass),
 		"engine": components["engine"].tier(), "tires": components["tires"].tier(),
 		"battery": components["battery"].tier(), "fuel_tank": components["fuel_tank"].tier(),
 		"chassis": components["chassis"].tier(), "fuel": fuel,

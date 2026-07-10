@@ -50,12 +50,40 @@ emoji-text, there's no damage doll yet, particles are bare gray boxes with no fa
 and night/impact feedback is thin. A Steam reviewer says "charming prototype aesthetic,
 UI half-dressed."
 
-**Next up (iteration 2):**
-1. **THE VEHICLE DAMAGE DOLL** — new `damage_doll.gd` Control: top-down silhouette drawn
-   from spec rows (chassis/cabin/bed/wheels), 5 part-glyphs tinted by live tier
-   (engine/tires/battery/fuel_tank/chassis) + 4 armor-face edge strips (front/rear/side
-   rows) — mounts in the dash where the static thumbnail sits. Sim + render_ui proof.
-2. Smoke puffs that GROW and FADE over life (scale_amount_curve / color_ramp) — boxes
-   popping in/out is the cheapest-looking thing on screen right now.
-3. Body doll on the K sheet over `body_doll.png` (6-part wound tints).
-4. Phone-skin polish pass from the render_ui shot (LCD rect fine-tune if needed).
+**Next up (iteration 2):** ~~vehicle damage doll · smoke grow/fade · body doll · phone
+polish~~ → executed below.
+
+---
+
+## Iteration 2 — 2026-07-10 ~06:50
+
+**Shipped:**
+- **THE VEHICLE DAMAGE DOLL** (`damage_doll.gd`, class_name ProtoDamageDoll): top-down
+  rig silhouette DRAWN FROM SPEC ROWS (`ProtoCar3D.doll_spec_for` — chassis/cabin/
+  visible-wheels/armor, cached per class) so every present/future row gets a doll that
+  matches its rig. Live tints: chassis = the outline, engine hood / battery box / fuel
+  tank slab as panels, TIRES on corner-proud wheels (inside the chassis box they
+  vanished — first gallery render caught it); vehicles.json armor rows draw as steel
+  FACE STRIPS (front/rear/sides — the directional read); ON-FIRE flickers the hood
+  (process only runs while burning). Healthy = QUIET slate; tier 1+ shouts in the shared
+  HUD palette on the house dark-plate-amber-edge backing. Mounts left of the dash block,
+  rides the same dashboard dict ("doll" absent = hidden — P1 contract kept, proven).
+  **dashboard_sim 30/30 (4 new), gauge_hud 44/44, exhaust 18/18.**
+- **Smoke puffs grow + fade** (scale_amount_curve 0.5→1.7, alpha ramp in/out) — the
+  popcorn read is tamed; deeper particle pass still queued.
+- **render_doll.gd** — the doll's own acceptance GALLERY (classes × damage states, one
+  strip): healthy-quiet / beat-up-loud / fire-glow / shot-tires-red all verified by eye.
+
+**Steam rating: 6.5/10** (was 6.0). The dash now has a real instrument that answers
+"where am I hurt" at a glance, and directional armor is finally visible. Holding it
+back: the character has no visual damage read yet, particles are still gray boxes,
+the doll's 2px outline is subtle at 1× (loud states carry it), bike wheel read weak.
+
+**Next up (iteration 3):**
+1. **THE BODY DOLL on the K sheet** — `assets/ui/doll/body_doll.png` + 6-part wound
+   tints from character.gd's paper-doll (head/chest/arms/legs), same quiet/loud law.
+   Find the K-sheet build in proto3d.gd, mount beside the wound list, sim + render.
+2. Doll juice: a part FLASHES for a beat when its tier worsens (damage you FEEL on the
+   instrument); bike wheel read fix (draw two_wheel wheels full-width front/back).
+3. Smoke deep pass: billboard/sphere puffs + count/lifetime tune (kill the last popcorn).
+4. Phone swap-chip pictogram in primitives (emoji renders as mush at 14px).

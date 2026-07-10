@@ -48,6 +48,8 @@ func _run() -> void:
 		_check("smoke sits PAST the bumper (z=%.2f > 2.2)" % sm.position.z, sm.position.z > 2.2)
 		_check("smoke leaves REARWARD (dir.z=%.2f > 0.7)" % sm.direction.z, sm.direction.z > 0.7)
 		_check("smoke is no up-fountain (dir.y=%.2f < 0.5)" % sm.direction.y, sm.direction.y < 0.5)
+		_check("puffs GROW over life (scale curve set)", sm.scale_amount_curve != null)
+		_check("puffs FADE in/out (color ramp set)", sm.color_ramp != null)
 	var tip := car.get_node_or_null("exhaust_tip")
 	_check("visible exhaust tip welded on", tip is MeshInstance3D)
 	if tip is MeshInstance3D:

@@ -52,6 +52,7 @@ func _ready() -> void:
 		"fuel": 62.0, "on_fire": false, "cook": 38.0, "name": "Rustler",
 		"surface": "road", "struggling": false, "tire_name": "stock",
 		"drive_factor": 1.0, "load": 40.0, "load_max": 120.0, "vclass": "pickup", "rev": 4.6,
+		"doll": ProtoCar3D.doll_spec_for("pickup"), # the damage doll reads spec rows
 	})
 	hud.set_hp(64.0, 90.0, true)
 	hud.set_ammo("🔫", "pistol", 9, 34, true)
