@@ -182,18 +182,18 @@ asset is declared.
 - Modify: `game/proto3d/tests/game_license_sim.gd`
 - Modify: `docs/superpowers/plans/2026-07-10-game-deck-phase-2.md`
 
-- [ ] Clean-room sim finds no Infantry/Soldat trademarked source paths, maps,
+- [x] Clean-room sim finds no Infantry/Soldat trademarked source paths, maps,
   zone files, art, audio, names, text, or forbidden hashes; notices distinguish
   used MIT OpenSoldat code knowledge, excluded CC-BY base content, and
   reference-only FreeInfantry/Infantry behavior.
-- [ ] Run both focused flagship suites, shared kernel/controls, 22-game catalog,
+- [x] Run both focused flagship suites, shared kernel/controls, 22-game catalog,
   ownership, local/online, venue/world, license, save, device/passenger, media,
   and DRIVN network regressions serially with exact counts.
-- [ ] Add a real two-process ENet flagship loopback proving live shooter input,
+- [x] Add a real two-process ENet flagship loopback proving live shooter input,
   host snapshot convergence, and one idempotent result.
-- [ ] GPU-render and inspect both games in shell, local split-seat readability,
+- [x] GPU-render and inspect both games in shell, local split-seat readability,
   RUST RUNNERS at a drive-in tournament, BLACK GRID at a military/game-hall
   tournament, and both physical acquisition paths; remove the capture harness.
-- [ ] Record exact evidence, expected engine lines, exclusions, contradictions,
+- [x] Record exact evidence, expected engine lines, exclusions, contradictions,
   and missing items. Zero contradictions and zero missing items is the gate.
-- [ ] Commit `test: verify complete 22-game Game Deck`.
+- [x] Commit `test: verify complete 22-game Game Deck`.
