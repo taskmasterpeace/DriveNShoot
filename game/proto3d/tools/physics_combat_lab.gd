@@ -11,6 +11,7 @@ const HUD_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_hud.gd")
 const THROWABLE_SCRIPT := preload("res://proto3d/throwable.gd")
 const ROUND_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_round.gd")
 const OPPONENT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_opponent.gd")
+const DIAGNOSTICS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_diagnostics.gd")
 
 var save_isolated: bool = true
 var lab_mode: bool = true
@@ -29,10 +30,30 @@ var current_scenario: String = "free_play"
 var opponent_behavior: String = "PASSIVE"
 var lab_round: RefCounted = null
 var opponent: Node3D = null
+var diagnostics: Node3D = null
+var gaze_origin: Vector3 = Vector3(26, 0.05, 0)
+var gaze_targets: Dictionary = {}
+var active_gaze_target: Node3D = null
+var gaze_wall: Node3D = null
+var gaze_door: Node3D = null
+var gaze_target_distance: int = 20
+var gaze_night: bool = false
+var gaze_dust: bool = false
+var gaze_headlights: bool = false
+var gaze_binoculars: bool = false
+var gaze_zoomed: bool = false
+var gaze_door_open: bool = false
 var _prior_time_scale: float = 1.0
 var _throw_hold: float = 0.0
 var _last_command: RefCounted = null
 const OPPONENT_BEHAVIORS: Array[String] = ["passive", "return_fire", "hunter", "duel"]
+const GAZE_DISTANCES: Array[int] = [5, 10, 20, 30, 50, 75, 100, 150, 240]
+var _environment: Environment = null
+var _sun: DirectionalLight3D = null
+var _gaze_headlight: SpotLight3D = null
+var _gaze_source: String = "turn"
+var _look_age: float = 0.0
+var _prior_aim: Vector3 = Vector3.FORWARD
 
 
 func _ready() -> void:
@@ -45,6 +66,8 @@ func _ready() -> void:
 	hud.setup()
 	switch_mode("hybrid")
 	_build_sparring()
+	diagnostics = DIAGNOSTICS_SCRIPT.new()
+	add_child(diagnostics)
 	reset_station()
 
 
@@ -57,19 +80,22 @@ func _build_world() -> void:
 	env.ambient_light_color = Color("#c8ad82")
 	env.ambient_light_energy = 0.72
 	world_env.environment = env
+	_environment = env
 	add_child(world_env)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, -28, 0)
 	sun.light_color = Color("#ffe0a8")
 	sun.light_energy = 1.25
 	sun.shadow_enabled = true
+	_sun = sun
 	add_child(sun)
 
 	# Long enough to measure a full sprint, dive recovery, and charged throws
 	# without a physics body reaching the edge during one comparison pass.
-	ProtoWorldBuilder.box_body(self, Vector3(132, 0.4, 160), Vector3(52, -0.2, 0),
+	ProtoWorldBuilder.box_body(self, Vector3(132, 0.4, 520), Vector3(52, -0.2, 0),
 		Color("#282622"))
 	_build_navigation_floor()
+	_build_gaze_station()
 	var names: Array[String] = ["BODY LANE", "GRIP & GAZE RANGE", "DIVE & THROW LANE",
 		"KILLHOUSE", "VEHICLE DAMAGE BAY"]
 	for i in names.size():
@@ -105,13 +131,67 @@ func _build_world() -> void:
 	camera.look_at(Vector3(7, 0, 0), Vector3.UP)
 
 
+func _build_gaze_station() -> void:
+	for distance in GAZE_DISTANCES:
+		var target := StaticBody3D.new()
+		target.name = "GazeTarget_%03dm" % distance
+		# Calibration plates are observed targets, never mutual occluders. The
+		# authored wall and door below are the controlled LOS variables.
+		target.collision_layer = 0
+		target.position = gaze_origin + Vector3(0, 0.95, -float(distance))
+		target.add_to_group("lab_gaze_target")
+		target.set_meta("distance_m", distance)
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(0.75, 1.8, 0.22)
+		collision.shape = shape
+		target.add_child(collision)
+		var mesh_node := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = shape.size
+		mesh_node.mesh = mesh
+		mesh_node.material_override = ProtoWorldBuilder.material(
+			Color("#c58a32") if distance <= 100 else Color("#3f968b"), 0.86)
+		target.add_child(mesh_node)
+		var label := Label3D.new()
+		label.text = "%d m" % distance
+		label.font_size = 48
+		label.pixel_size = 0.01
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.position.y = 1.35
+		target.add_child(label)
+		add_child(target)
+		gaze_targets[distance] = target
+	gaze_wall = Node3D.new()
+	gaze_wall.name = "GazeOcclusionWall"
+	gaze_wall.add_to_group("lab_gaze_wall")
+	add_child(gaze_wall)
+	ProtoWorldBuilder.box_body(gaze_wall, Vector3(4.0, 3.0, 0.4),
+		Vector3(gaze_origin.x - 3.1, 1.5, -12), Color("#4a4034"))
+	ProtoWorldBuilder.box_body(gaze_wall, Vector3(4.0, 3.0, 0.4),
+		Vector3(gaze_origin.x + 3.1, 1.5, -12), Color("#4a4034"))
+	gaze_door = ProtoWorldBuilder.box_body(self, Vector3(2.2, 2.8, 0.32),
+		Vector3(gaze_origin.x, 1.4, -12), Color("#765538"))
+	gaze_door.name = "GazeDoor"
+	gaze_door.add_to_group("lab_gaze_door")
+	_gaze_headlight = SpotLight3D.new()
+	_gaze_headlight.name = "GazeHeadlight"
+	_gaze_headlight.light_color = Color("#ffe2a5")
+	_gaze_headlight.light_energy = 5.0
+	_gaze_headlight.spot_range = 42.0
+	_gaze_headlight.spot_angle = 42.0
+	_gaze_headlight.visible = false
+	add_child(_gaze_headlight)
+	set_target_distance(gaze_target_distance)
+
+
 func _build_navigation_floor() -> void:
 	var region := NavigationRegion3D.new()
 	region.name = "LabNavigation"
 	var nav := NavigationMesh.new()
 	nav.vertices = PackedVector3Array([
-		Vector3(-12, 0.05, -76), Vector3(116, 0.05, -76),
-		Vector3(116, 0.05, 76), Vector3(-12, 0.05, 76)])
+		Vector3(-12, 0.05, -250), Vector3(116, 0.05, -250),
+		Vector3(116, 0.05, 250), Vector3(-12, 0.05, 250)])
 	nav.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 	region.navigation_mesh = nav
 	add_child(region)
@@ -178,6 +258,58 @@ func set_opponent_behavior(id: String) -> bool:
 	return true
 
 
+func set_target_distance(distance: int) -> bool:
+	if not gaze_targets.has(distance):
+		return false
+	gaze_target_distance = distance
+	active_gaze_target = gaze_targets[distance]
+	return true
+
+
+func cycle_target_distance(step: int = 1) -> void:
+	var index: int = GAZE_DISTANCES.find(gaze_target_distance)
+	set_target_distance(GAZE_DISTANCES[posmod(index + step, GAZE_DISTANCES.size())])
+
+
+func set_gaze_door(open: bool) -> void:
+	gaze_door_open = open
+	if gaze_door != null:
+		gaze_door.global_position.x = gaze_origin.x + (3.6 if open else 0.0)
+
+
+func toggle_xray() -> void:
+	if diagnostics != null:
+		diagnostics.set_xray(not diagnostics.updates_enabled(), adapter)
+
+
+func toggle_day_night() -> void:
+	gaze_night = not gaze_night
+	_environment.background_color = Color("#080c12") if gaze_night else Color("#181817")
+	_environment.ambient_light_energy = 0.18 if gaze_night else 0.72
+	_sun.light_energy = 0.16 if gaze_night else 1.25
+
+
+func toggle_dust() -> void:
+	gaze_dust = not gaze_dust
+	_environment.fog_enabled = gaze_dust
+	_environment.fog_light_color = Color("#a77445")
+	_environment.fog_density = 0.035 if gaze_dust else 0.0
+
+
+func toggle_headlights() -> void:
+	gaze_headlights = not gaze_headlights
+	_gaze_headlight.visible = gaze_headlights
+
+
+func toggle_binoculars() -> void:
+	gaze_binoculars = not gaze_binoculars
+
+
+func toggle_camera_zoom() -> void:
+	gaze_zoomed = not gaze_zoomed
+	camera.fov = 38.0 if gaze_zoomed else 58.0
+
+
 func _cycle_opponent_behavior() -> void:
 	var current_id: String = opponent_behavior.to_lower()
 	var index: int = OPPONENT_BEHAVIORS.find(current_id)
@@ -226,6 +358,7 @@ func _physics_process(delta: float) -> void:
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
 		frozen.set("aim_world", command.get("aim_world"))
 		command = frozen
+	_update_gaze_source(command, delta)
 	_last_command = command
 	adapter.apply_command(command, delta)
 	adapter.weapon.tick(delta, self)
@@ -241,9 +374,47 @@ func _physics_process(delta: float) -> void:
 	var metrics: Dictionary = adapter.metrics()
 	hud.refresh(active_mode, current_station, adapter.weapon, metrics,
 		String(adapter.condition.get("id", "fresh")).to_upper(), _round_readout())
+	if diagnostics != null:
+		diagnostics.update_xray(adapter)
+		if active_gaze_target != null:
+			var vision: Dictionary = {"source": _gaze_source, "look_age": _look_age,
+				"range": 240.0 if gaze_binoculars else 100.0,
+				"half_angle_deg": 55.0, "fade_member": true,
+				"transparency": 0.0}
+			var diagnostic: Dictionary = diagnostics.snapshot(adapter,
+				active_gaze_target, camera, vision)
+			hud.set_tools(_diagnostic_readout(diagnostic))
 	var desired: Vector3 = player.global_position + Vector3(10, 20, 17)
 	camera.global_position = camera.global_position.lerp(desired, clampf(delta * 4.0, 0.0, 1.0))
 	camera.look_at(player.global_position + Vector3(3, 0, 0), Vector3.UP)
+	if _gaze_headlight != null:
+		_gaze_headlight.global_position = player.global_position + Vector3(0, 1.3, 0)
+		_gaze_headlight.look_at(active_gaze_target.global_position if active_gaze_target != null \
+			else player.global_position + Vector3.FORWARD * 20.0, Vector3.UP)
+
+
+func _update_gaze_source(command: RefCounted, delta: float) -> void:
+	var aim: Vector3 = command.get("aim_world")
+	var change: float = _prior_aim.angle_to(aim)
+	var pad_aim: Vector2 = Input.get_vector("drivn_aim_left", "drivn_aim_right",
+		"drivn_aim_up", "drivn_aim_down")
+	if change > deg_to_rad(1.0):
+		_gaze_source = "right_stick" if pad_aim.length() > 0.25 else "mouse"
+		_look_age = 0.0
+	else:
+		_look_age += delta
+		_gaze_source = "returning" if _look_age > 0.55 else "turn"
+	_prior_aim = aim
+
+
+func _diagnostic_readout(facts: Dictionary) -> String:
+	return "TOOLS  X-RAY %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
+		"ON" if diagnostics.updates_enabled() else "OFF", gaze_target_distance,
+		"BINOC" if gaze_binoculars else "NORMAL", "OPEN" if gaze_door_open else "CLOSED",
+		"NIGHT" if gaze_night else "DAY", "DUST" if gaze_dust else "CLEAR",
+		float(facts.get("forward_yaw_deg", 0.0)), float(facts.get("head_yaw_deg", 0.0)),
+		float(facts.get("weapon_yaw_deg", 0.0)), "CLEAR" if bool(facts.get("los", false)) else "BLOCKED",
+		String(facts.get("source", "turn")).to_upper()]
 
 
 func _round_readout() -> String:
@@ -305,6 +476,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F2: switch_mode("active_ragdoll")
 			KEY_F3: switch_mode("full_physics")
 			KEY_F4: _cycle_opponent_behavior()
+			KEY_F5: toggle_xray()
+			KEY_F6: toggle_day_night()
+			KEY_F7: toggle_dust()
+			KEY_F8: toggle_headlights()
+			KEY_F9: toggle_binoculars()
+			KEY_F10: toggle_camera_zoom()
+			KEY_O: set_gaze_door(not gaze_door_open)
+			KEY_BRACKETLEFT: cycle_target_distance(-1)
+			KEY_BRACKETRIGHT: cycle_target_distance(1)
 			KEY_BACKSPACE: reset_station()
 	elif event is InputEventJoypadButton and event.pressed \
 			and (event as InputEventJoypadButton).button_index == JOY_BUTTON_DPAD_RIGHT:

@@ -10,7 +10,7 @@ const TEAL := Color("#35b6a6")
 const PANEL := Color(0.105, 0.085, 0.068, 0.94)
 const BORDER := Color("#5e4b35")
 
-var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 bodies  ·  F4 / D-PAD RIGHT opponent  ·  BACKSPACE reset"
+var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 bodies  ·  F4 / D-PAD RIGHT opponent  ·  F5 xray  ·  F6 day  ·  F7 dust  ·  F8 lights  ·  F9 binoc  ·  F10 zoom  ·  O door  ·  [ ] range  ·  BACKSPACE reset"
 var _mode: Label = null
 var _station: Label = null
 var _weapon: Label = null
@@ -101,3 +101,8 @@ func pulse_hit() -> void:
 	_weapon.modulate = AMBER
 	var tween := create_tween()
 	tween.tween_property(_weapon, "modulate", Color.WHITE, 0.12)
+
+
+func set_tools(text: String) -> void:
+	if _tools != null:
+		_tools.text = text
