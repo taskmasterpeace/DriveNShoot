@@ -88,20 +88,20 @@ asset is declared.
 - Modify: `game/data/items.json`
 - Modify: `game/data/loot_tables.json`
 
-- [ ] Red sim: Deathmatch, Team Deathmatch, Capture the Flag, and Pointmatch
+- [x] Red sim: Deathmatch, Team Deathmatch, Capture the Flag, and Pointmatch
   score distinctly; flags carry/drop/return/capture; point item possession
   changes the scoring cadence; score/time limits end one normalized match.
-- [ ] Fill to eight actors with deterministic bots that traverse platforms,
+- [x] Fill to eight actors with deterministic bots that traverse platforms,
   seek weapons/health, select targets, retreat when wounded, and pursue the
   active objective.
-- [ ] Prove two-to-four local seats and an eight-seat online context use the
+- [x] Prove two-to-four local seats and an eight-seat online context use the
   ordinary semantic-input/snapshot/result bridge with convergence after restore.
-- [ ] Draw a readable original Crimson Road broadcast: arena, actors, jet
+- [x] Draw a readable original Crimson Road broadcast: arena, actors, jet
   exhaust, weapons, pickups, flags, kill feed, scoreboard, ammo/health/vest/jet,
   respawn, objective, and mode state.
-- [ ] Give the cartridge an acquisition row/cache path, honest house board, and
+- [x] Give the cartridge an acquisition row/cache path, honest house board, and
   a live tournament card on an existing venue screen.
-- [ ] Commit `feat: complete Rust Runners flagship cartridge`.
+- [x] Commit `feat: complete Rust Runners flagship cartridge`.
 
 ## Task 4: BLACK GRID movement, loadout, combat, and fog
 

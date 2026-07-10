@@ -60,6 +60,22 @@ func installed_count(phase: int = 1) -> int:
 	return count
 
 
+func installed_total_count() -> int:
+	var count := 0
+	for game_id in unlocked:
+		if registry.installed(String(game_id)):
+			count += 1
+	return count
+
+
+func available_count() -> int:
+	var count := 0
+	for game_id in registry.order:
+		if registry.installed(String(game_id)):
+			count += 1
+	return count
+
+
 func record_tournament(record_id: String, record: Dictionary) -> bool:
 	if record_id == "" or record.is_empty() or tournament_records.has(record_id):
 		return false

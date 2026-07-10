@@ -66,7 +66,8 @@ static func load_catalog(path: String = PATH) -> Dictionary:
 		var game_id := String(row.get("game_id", ""))
 		var game: Dictionary = registry.get_game(game_id)
 		if id == "" or event_ids.has(id) or not venue_ids.has(String(row.get("venue_id", ""))) \
-				or game.is_empty() or int(game.get("phase", 0)) != 1 \
+				or game.is_empty() or int(game.get("phase", 0)) not in [1, 2] \
+				or (int(game.get("phase", 0)) == 2 and not registry.installed(game_id)) \
 				or String(game.get("platform", "")) != "console" \
 				or int(row.get("day_mod", -1)) not in range(7) \
 				or float(row.get("hour", -1.0)) < 0.0 or float(row.get("hour", 24.0)) >= 24.0 \

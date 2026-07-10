@@ -194,7 +194,8 @@
       "entries": [
         {"item": "game_cart_rustball", "min": 1, "max": 1, "weight": 1.0},
         {"item": "game_cart_fuel_run", "min": 1, "max": 1, "weight": 1.0},
-        {"item": "game_cart_skyjoust", "min": 1, "max": 1, "weight": 1.0}
+        {"item": "game_cart_skyjoust", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_rust_runners", "min": 1, "max": 1, "weight": 1.0}
       ]
     },
     {

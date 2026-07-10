@@ -64,7 +64,8 @@ func _add_box(label: String, size: Vector3, at: Vector3, color: Color) -> void:
 
 func _refresh_label() -> void:
 	if _label != null:
-		_label.text = "GAME DECK\n%d / 20" % int(deck.ledger.installed_count(1))
+		_label.text = "GAME DECK\n%d / %d" % [int(deck.ledger.installed_total_count()),
+			int(deck.ledger.available_count())]
 
 
 func interact_position() -> Vector3:
@@ -73,7 +74,8 @@ func interact_position() -> Vector3:
 
 func interact_prompt(_main: Node) -> String:
 	_refresh_label()
-	return "E — GAME CARTRIDGE SHELF  %d / 20 INSTALLED" % int(deck.ledger.installed_count(1))
+	return "E — GAME CARTRIDGE SHELF  %d / %d INSTALLED" % [
+		int(deck.ledger.installed_total_count()), int(deck.ledger.available_count())]
 
 
 func interact(_main: Node) -> void:

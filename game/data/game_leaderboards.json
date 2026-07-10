@@ -20,6 +20,7 @@
     {"game_id":"fuel_run","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"FULL CAN","primary":28,"secondary":{"lap_ms":18410}},{"name":"CUTLINE","primary":22,"secondary":{"lap_ms":19180}}]},
     {"game_id":"skyjoust","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"COUNTY ACE","primary":31,"secondary":{"knockouts":49}},{"name":"RED KITE","primary":24,"secondary":{"knockouts":38}}]},
     {"game_id":"fight_night_99","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"ROAD LEGEND","primary":33,"secondary":{"hp_remaining":180}},{"name":"LOW GUARD","primary":26,"secondary":{"hp_remaining":141}}]},
-    {"game_id":"ashland_command","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"QUARTERMASTER","primary":16,"secondary":{"turns":94}},{"name":"RIDGE HAND","primary":12,"secondary":{"turns":81}}]}
+    {"game_id":"ashland_command","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"QUARTERMASTER","primary":16,"secondary":{"turns":94}},{"name":"RIDGE HAND","primary":12,"secondary":{"turns":81}}]},
+    {"game_id":"rust_runners","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"JET SAINT","primary":38,"secondary":{"kills":214}},{"name":"RED BOOTS","primary":31,"secondary":{"kills":187}}]}
   ]
 }

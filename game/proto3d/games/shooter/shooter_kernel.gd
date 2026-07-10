@@ -297,6 +297,7 @@ func damage_actor(actor_id: int, amount: float, armor_pierce: float,
 	var knockback_impulse := direction * knockback
 	actor["velocity"] = Vector2(actor.get("velocity", Vector2.ZERO)) + knockback_impulse
 	actor["last_knockback"] = knockback_impulse
+	actor["last_attacker"] = attacker_id
 	if float(actor["hp"]) <= 0.0:
 		actor["alive"] = false
 	events.append({"kind": "damage", "tick": tick, "actor_id": actor_id,

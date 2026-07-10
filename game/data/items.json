@@ -493,6 +493,10 @@
   {
    "category": "media", "desc": "A mil-spec tactical cartridge recovered from an academy cache. USE installs ASHLAND COMMAND.",
    "emoji": "\ud83c\udf96\ufe0f", "id": "game_cart_ashland_command", "name": "Military Cartridge: ASHLAND COMMAND", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "A blood-red Crimson Road league cartridge. USE installs RUST RUNNERS.",
+   "emoji": "\ud83d\ude80", "id": "game_cart_rust_runners", "name": "Prize Cartridge: RUST RUNNERS", "usable": true, "weight": 0.14
   }
  ]
 }

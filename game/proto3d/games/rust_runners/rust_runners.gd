@@ -28,6 +28,8 @@ const FALL_DAMAGE_SPEED := 500.0
 const RESPAWN_TICKS := 90
 const SPAWN_PROTECTION_TICKS := 36
 const PICKUP_RADIUS := 30.0
+const POINT_SCORE_TICKS := 30
+const MODES: Array[String] = ["deathmatch", "team_deathmatch", "capture_flag", "pointmatch"]
 
 var combat: RefCounted = null
 var actors: Array = []
@@ -38,8 +40,18 @@ var platforms: Array[Rect2] = []
 var spawns: Array[Vector2] = []
 var mode := "deathmatch"
 var gore_enabled := true
+var mode_scores: Dictionary = {}
+var flags: Array = []
+var point_item: Dictionary = {}
+var kill_feed: Array[String] = []
+var show_scoreboard := false
+var score_limit := 10
+var time_limit_ticks := 10800
+var match_ticks := 0
 var _rng := RandomNumberGenerator.new()
 var _status: Label = null
+var _scoreboard_label: Label = null
+var _kill_feed_label: Label = null
 
 
 func _ready() -> void:
@@ -47,6 +59,16 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Draw.header(self, "RUST RUNNERS", "CRIMSON ROAD BOOTLEG LEAGUE // MOVE FAST OR FEED THE STEEL")
 	_status = Draw.status(self)
+	_scoreboard_label = Draw.label("", 15, Draw.BONE, HORIZONTAL_ALIGNMENT_RIGHT)
+	_scoreboard_label.name = "Scoreboard"
+	_scoreboard_label.position = Vector2(930, 112)
+	_scoreboard_label.size = Vector2(270, 210)
+	add_child(_scoreboard_label)
+	_kill_feed_label = Draw.label("", 14, Draw.DIM)
+	_kill_feed_label.name = "KillFeed"
+	_kill_feed_label.position = Vector2(78, 118)
+	_kill_feed_label.size = Vector2(360, 145)
+	add_child(_kill_feed_label)
 	queue_redraw()
 
 
@@ -69,7 +91,17 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	super.start_match(new_seed, new_seats)
 	_rng.seed = new_seed
 	mode = String(context.get("mode", "deathmatch"))
+	if mode not in MODES:
+		mode = "deathmatch"
 	gore_enabled = bool(context.get("gore", true))
+	score_limit = maxi(1, int(context.get("score_limit", 10)))
+	time_limit_ticks = maxi(30, int(context.get("time_limit_ticks", 10800)))
+	match_ticks = 0
+	show_scoreboard = false
+	mode_scores.clear()
+	flags.clear()
+	point_item.clear()
+	kill_feed.clear()
 	var map_rows := load_map_rows()
 	var map_id := String(context.get("map_id", "refinery_run"))
 	current_map = (map_rows.get(map_id, map_rows.get("refinery_run", {})) as Dictionary).duplicate(true)
@@ -96,7 +128,24 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 			"active_slot": 0, "active_weapon": "rr_scrap_rifle"})
 		combat.equip(index, ["rr_scrap_rifle", "rr_bolt_launcher", "rr_frag"])
 		actors.append(combat.actor_state(index))
+	_init_mode_state()
 	_render()
+
+
+func _init_mode_state() -> void:
+	for actor_value in actors:
+		var actor: Dictionary = actor_value
+		actor["score"] = 0
+		mode_scores["actor:%d" % int(actor.get("id", 0))] = 0
+		mode_scores["team:%d" % int(actor.get("team", 0))] = 0
+	if mode == "capture_flag":
+		for team in 2:
+			var home := spawns[team % spawns.size()]
+			flags.append({"team": team, "home": home, "pos": home,
+				"carrier": -1, "dropped": false})
+	if mode == "pointmatch":
+		var field := _rect_from(current_map.get("bounds", [60, 110, 1160, 520]))
+		point_item = {"pos": field.get_center(), "carrier": -1, "score_tick": 0}
 
 
 func _build_map_state() -> void:
@@ -119,6 +168,8 @@ func apply_inputs(new_tick: int, snapshots: Array) -> void:
 	if not active or paused or finished:
 		return
 	tick = maxi(tick, new_tick)
+	match_ticks += 1
+	show_scoreboard = false
 	for index in actors.size():
 		var actor: Dictionary = actors[index]
 		if not bool(actor.get("alive", false)):
@@ -130,9 +181,12 @@ func apply_inputs(new_tick: int, snapshots: Array) -> void:
 	combat.step()
 	_sync_deaths()
 	_step_timers_and_parts()
+	_update_objectives()
 	for index in actors.size():
 		if bool((actors[index] as Dictionary).get("alive", false)):
 			_collect_pickups(index)
+	if not finished and match_ticks >= time_limit_ticks:
+		_finish_mode(_leading_actor(), _leading_team())
 	_render()
 
 
@@ -142,6 +196,7 @@ func _apply_actor_input(index: int, input: Dictionary) -> void:
 	var aim: Vector2 = input.get("aim", Vector2.ZERO)
 	var held: Dictionary = input.get("held", {})
 	var pressed: Dictionary = input.get("pressed", {})
+	show_scoreboard = show_scoreboard or bool(held.get("scoreboard", false))
 	if aim.length_squared() > 0.001:
 		actor["aim"] = aim.normalized()
 		actor["facing"] = 1 if aim.x >= 0.0 else -1
@@ -253,8 +308,161 @@ func _sync_deaths() -> void:
 			continue
 		actor["deaths"] = int(actor.get("deaths", 0)) + 1
 		actor["respawn_ticks"] = RESPAWN_TICKS
+		var attacker := int(actor.get("last_attacker", -1))
+		if attacker >= 0 and attacker < actors.size() and attacker != index:
+			_record_kill(attacker, index)
+		_drop_carried_objectives(index)
 		if gore_enabled:
 			_spawn_death_parts(actor)
+
+
+func _record_kill(killer: int, victim: int) -> void:
+	if killer < 0 or killer >= actors.size() or victim < 0 or victim >= actors.size():
+		return
+	var source: Dictionary = actors[killer]
+	var target: Dictionary = actors[victim]
+	source["kills"] = int(source.get("kills", 0)) + 1
+	source["score"] = int(source.get("score", 0)) + 1
+	var actor_key := "actor:%d" % killer
+	mode_scores[actor_key] = int(mode_scores.get(actor_key, 0)) + 1
+	if mode == "team_deathmatch":
+		var team_key := "team:%d" % int(source.get("team", 0))
+		mode_scores[team_key] = int(mode_scores.get(team_key, 0)) + 1
+	kill_feed.push_front("%s CUT %s" % [_actor_name(source), _actor_name(target)])
+	if kill_feed.size() > 5:
+		kill_feed.resize(5)
+	if not finished:
+		var winning_score := int(mode_scores.get(actor_key, 0))
+		if mode == "team_deathmatch":
+			winning_score = int(mode_scores.get("team:%d" % int(source.get("team", 0)), 0))
+		if mode in ["deathmatch", "team_deathmatch"] and winning_score >= score_limit:
+			_finish_mode(killer, int(source.get("team", 0)))
+
+
+func _update_objectives() -> void:
+	if mode == "capture_flag":
+		_update_flags()
+	elif mode == "pointmatch":
+		_update_point_item()
+
+
+func _update_flags() -> void:
+	for flag_index in flags.size():
+		var flag: Dictionary = flags[flag_index]
+		var carrier := int(flag.get("carrier", -1))
+		if carrier >= 0:
+			var runner: Dictionary = actors[carrier]
+			if not bool(runner.get("alive", false)):
+				flag["carrier"] = -1
+				flag["dropped"] = true
+			else:
+				flag["pos"] = Vector2(runner.get("pos", Vector2.ZERO))
+				var team := int(runner.get("team", 0))
+				var own_flag: Dictionary = flags[team]
+				if team != int(flag.get("team", -1)) and int(own_flag.get("carrier", -1)) == -1 \
+						and not bool(own_flag.get("dropped", false)) \
+						and Vector2(runner.get("pos", Vector2.ZERO)).distance_to(Vector2(own_flag.get("home", Vector2.ZERO))) <= 34.0:
+					_capture_flag(team, flag_index, carrier)
+			continue
+		for actor_value in actors:
+			var actor: Dictionary = actor_value
+			if not bool(actor.get("alive", false)) or Vector2(actor.get("pos", Vector2.ZERO)).distance_to(
+					Vector2(flag.get("pos", Vector2.ZERO))) > 28.0:
+				continue
+			if int(actor.get("team", -1)) == int(flag.get("team", -2)):
+				if bool(flag.get("dropped", false)):
+					_reset_flag(flag_index)
+			else:
+				flag["carrier"] = int(actor.get("id", -1))
+				flag["dropped"] = false
+				kill_feed.push_front("%s TOOK TEAM %d SIGNAL" % [_actor_name(actor), int(flag.get("team", 0))])
+			break
+
+
+func _capture_flag(team: int, flag_index: int, carrier: int) -> void:
+	mode_scores["team:%d" % team] = int(mode_scores.get("team:%d" % team, 0)) + 3
+	var actor: Dictionary = actors[carrier]
+	actor["score"] = int(actor.get("score", 0)) + 3
+	mode_scores["actor:%d" % carrier] = int(mode_scores.get("actor:%d" % carrier, 0)) + 3
+	kill_feed.push_front("%s BANKED THE SIGNAL" % _actor_name(actor))
+	_reset_flag(flag_index)
+	if int(mode_scores["team:%d" % team]) >= score_limit:
+		_finish_mode(carrier, team)
+
+
+func _reset_flag(index: int) -> void:
+	var flag: Dictionary = flags[index]
+	flag["pos"] = Vector2(flag.get("home", Vector2.ZERO))
+	flag["carrier"] = -1
+	flag["dropped"] = false
+
+
+func _update_point_item() -> void:
+	var carrier := int(point_item.get("carrier", -1))
+	if carrier >= 0:
+		var actor: Dictionary = actors[carrier]
+		if not bool(actor.get("alive", false)):
+			point_item["carrier"] = -1
+			return
+		point_item["pos"] = Vector2(actor.get("pos", Vector2.ZERO))
+		point_item["score_tick"] = int(point_item.get("score_tick", 0)) + 1
+		if int(point_item["score_tick"]) >= POINT_SCORE_TICKS:
+			point_item["score_tick"] = 0
+			actor["score"] = int(actor.get("score", 0)) + 1
+			var actor_key := "actor:%d" % carrier
+			mode_scores[actor_key] = int(mode_scores.get(actor_key, 0)) + 1
+			if int(mode_scores[actor_key]) >= score_limit:
+				_finish_mode(carrier, int(actor.get("team", 0)))
+		return
+	for actor_value in actors:
+		var actor: Dictionary = actor_value
+		if bool(actor.get("alive", false)) and Vector2(actor.get("pos", Vector2.ZERO)).distance_to(
+				Vector2(point_item.get("pos", Vector2.ZERO))) <= 28.0:
+			point_item["carrier"] = int(actor.get("id", -1))
+			point_item["score_tick"] = 0
+			kill_feed.push_front("%s HOLDS THE POINT IRON" % _actor_name(actor))
+			break
+
+
+func _drop_carried_objectives(actor_id: int) -> void:
+	for flag_value in flags:
+		var flag: Dictionary = flag_value
+		if int(flag.get("carrier", -1)) == actor_id:
+			flag["carrier"] = -1
+			flag["dropped"] = true
+			flag["pos"] = Vector2((actors[actor_id] as Dictionary).get("pos", Vector2.ZERO))
+	if int(point_item.get("carrier", -1)) == actor_id:
+		point_item["carrier"] = -1
+		point_item["pos"] = Vector2((actors[actor_id] as Dictionary).get("pos", Vector2.ZERO))
+
+
+func _finish_mode(winner_actor: int, winner_team: int) -> void:
+	if finished:
+		return
+	var kills := 0
+	if winner_actor >= 0 and winner_actor < actors.size():
+		kills = int((actors[winner_actor] as Dictionary).get("kills", 0))
+	finish_match({"primary": 1, "secondary": {"kills": kills,
+		"winner": winner_actor, "team": winner_team, "mode": mode,
+		"objective_score": int(mode_scores.get("team:%d" % winner_team, 0)),
+		"duration_ticks": match_ticks, "map_id": String(current_map.get("id", ""))},
+		"outcome": "complete", "ranked": true})
+
+
+func _leading_actor() -> int:
+	var best := 0
+	for index in actors.size():
+		if int((actors[index] as Dictionary).get("score", 0)) > int((actors[best] as Dictionary).get("score", 0)):
+			best = index
+	return best
+
+
+func _leading_team() -> int:
+	return 0 if int(mode_scores.get("team:0", 0)) >= int(mode_scores.get("team:1", 0)) else 1
+
+
+func _actor_name(actor: Dictionary) -> String:
+	return "RIDER" if not bool(actor.get("ai", false)) else "BOT-%02d" % int(actor.get("id", 0))
 
 
 func _step_timers_and_parts() -> void:
@@ -379,10 +587,93 @@ func _snapshot_for_actor(index: int, snapshots: Array) -> Dictionary:
 	return {}
 
 
-func _ai_snapshot(_index: int) -> Dictionary:
-	# Task 3 installs objective-aware traversal. Slice one keeps the deterministic
-	# opponent inert so locomotion and combat laws can be isolated.
-	return {}
+func _ai_snapshot(index: int) -> Dictionary:
+	if not bool(context.get("bots_enabled", true)):
+		return {}
+	var actor: Dictionary = actors[index]
+	var origin: Vector2 = actor.get("pos", Vector2.ZERO)
+	var target_pos := origin
+	var goal := "enemy"
+	var target_enemy := _nearest_enemy(index)
+	if float(actor.get("hp", 100.0)) < 35.0:
+		var health := _nearest_pickup(origin, "health")
+		if not health.is_empty():
+			target_pos = Vector2(health.get("pos", origin))
+			goal = "pickup_health"
+		elif target_enemy >= 0:
+			target_pos = origin - (Vector2((actors[target_enemy] as Dictionary).get("pos", origin)) - origin)
+			goal = "retreat"
+	elif mode == "capture_flag":
+		var carried := _flag_carried_by(index)
+		if carried >= 0:
+			target_pos = Vector2((flags[int(actor.get("team", 0))] as Dictionary).get("home", origin))
+			goal = "flag_home"
+		else:
+			var enemy_flag: Dictionary = flags[1 - int(actor.get("team", 0))]
+			target_pos = Vector2(enemy_flag.get("pos", origin))
+			goal = "enemy_flag"
+	elif mode == "pointmatch" and int(point_item.get("carrier", -1)) != index:
+		target_pos = Vector2(point_item.get("pos", origin))
+		goal = "point_item"
+	elif target_enemy >= 0:
+		target_pos = Vector2((actors[target_enemy] as Dictionary).get("pos", origin))
+	actor["ai_goal"] = goal
+	var delta := target_pos - origin
+	var move := Vector2(signf(delta.x), 0.0)
+	var held := {}
+	var pressed := {}
+	if delta.y < -30.0:
+		held["mobility"] = true
+		if bool(actor.get("on_ground", false)):
+			pressed["mobility"] = true
+	if target_enemy >= 0:
+		var enemy_delta := Vector2((actors[target_enemy] as Dictionary).get("hit_pos",
+			(actors[target_enemy] as Dictionary).get("pos", origin))) - _muzzle(actor)
+		if enemy_delta.length() < 820.0 and posmod(tick + index * 3, 9) == 0:
+			pressed["primary"] = true
+		if enemy_delta.length() < 300.0 and posmod(tick + index * 7, 91) == 0:
+			pressed["secondary"] = true
+		return {"seat": index, "move": move, "aim": enemy_delta.normalized(),
+			"held": held, "pressed": pressed, "released": {}}
+	return {"seat": index, "move": move, "aim": delta.normalized(),
+		"held": held, "pressed": pressed, "released": {}}
+
+
+func _nearest_enemy(index: int) -> int:
+	var actor: Dictionary = actors[index]
+	var best := -1
+	var best_distance := INF
+	for other in actors.size():
+		if other == index or not bool((actors[other] as Dictionary).get("alive", false)) \
+				or int((actors[other] as Dictionary).get("team", -1)) == int(actor.get("team", -2)):
+			continue
+		var distance := Vector2(actor.get("pos", Vector2.ZERO)).distance_squared_to(
+			Vector2((actors[other] as Dictionary).get("pos", Vector2.ZERO)))
+		if distance < best_distance:
+			best_distance = distance
+			best = other
+	return best
+
+
+func _nearest_pickup(origin: Vector2, kind: String) -> Dictionary:
+	var best := {}
+	var best_distance := INF
+	for pickup_value in pickups:
+		var pickup: Dictionary = pickup_value
+		if String(pickup.get("kind", "")) != kind:
+			continue
+		var distance := origin.distance_squared_to(Vector2(pickup.get("pos", origin)))
+		if distance < best_distance:
+			best_distance = distance
+			best = pickup
+	return best
+
+
+func _flag_carried_by(actor_id: int) -> int:
+	for index in flags.size():
+		if int((flags[index] as Dictionary).get("carrier", -1)) == actor_id:
+			return index
+	return -1
 
 
 func _muzzle(actor: Dictionary) -> Vector2:
@@ -428,10 +719,35 @@ func damage_actor_for_test(index: int, amount: float, attacker: int) -> bool:
 		return false
 	var ok: bool = combat.damage_actor(index, amount, 0.0, Vector2.RIGHT, 0.0, attacker)
 	if ok and not bool((actors[index] as Dictionary).get("alive", true)):
-		if attacker >= 0 and attacker < actors.size() and attacker != index:
-			(actors[attacker] as Dictionary)["kills"] = int((actors[attacker] as Dictionary).get("kills", 0)) + 1
 		_sync_deaths()
 	return ok
+
+
+func score_kill_for_test(killer: int, victim: int) -> bool:
+	if finished or victim < 0 or victim >= actors.size():
+		return false
+	var target: Dictionary = actors[victim]
+	target["spawn_protection"] = 0
+	target["alive"] = true
+	target["hp"] = float(target.get("max_hp", 100.0))
+	target["respawn_ticks"] = 0
+	return damage_actor_for_test(victim, float(target["hp"]) + 1.0, killer)
+
+
+func flag_state(team: int) -> Dictionary:
+	return flags[team] if team >= 0 and team < flags.size() else {}
+
+
+func update_objectives_for_test() -> void:
+	_update_objectives()
+
+
+func respawn_actor_for_test(index: int) -> void:
+	_respawn(index)
+
+
+func ai_snapshot_for_test(index: int) -> Dictionary:
+	return _ai_snapshot(index)
 
 
 func set_gore_enabled(value: bool) -> void:
@@ -446,6 +762,14 @@ func snapshot() -> Dictionary:
 	state["pickups"] = pickups.duplicate(true)
 	state["death_parts"] = death_parts.duplicate(true)
 	state["gore_enabled"] = gore_enabled
+	state["mode_scores"] = mode_scores.duplicate(true)
+	state["flags"] = flags.duplicate(true)
+	state["point_item"] = point_item.duplicate(true)
+	state["kill_feed"] = kill_feed.duplicate()
+	state["show_scoreboard"] = show_scoreboard
+	state["score_limit"] = score_limit
+	state["time_limit_ticks"] = time_limit_ticks
+	state["match_ticks"] = match_ticks
 	state["rng_state"] = _rng.state
 	state["last_result"] = last_result.duplicate(true)
 	return state
@@ -466,6 +790,14 @@ func restore_snapshot(state: Dictionary) -> void:
 	pickups = (state.get("pickups", pickups) as Array).duplicate(true)
 	death_parts = (state.get("death_parts", death_parts) as Array).duplicate(true)
 	gore_enabled = bool(state.get("gore_enabled", gore_enabled))
+	mode_scores = (state.get("mode_scores", mode_scores) as Dictionary).duplicate(true)
+	flags = (state.get("flags", flags) as Array).duplicate(true)
+	point_item = (state.get("point_item", point_item) as Dictionary).duplicate(true)
+	kill_feed.assign(state.get("kill_feed", kill_feed))
+	show_scoreboard = bool(state.get("show_scoreboard", show_scoreboard))
+	score_limit = int(state.get("score_limit", score_limit))
+	time_limit_ticks = int(state.get("time_limit_ticks", time_limit_ticks))
+	match_ticks = int(state.get("match_ticks", match_ticks))
 	_rng.state = int(state.get("rng_state", _rng.state))
 	last_result = (state.get("last_result", last_result) as Dictionary).duplicate(true)
 	_render()
@@ -507,6 +839,16 @@ func _render() -> void:
 			int(rider.get("jet_fuel", 0)), active_id.trim_prefix("rr_").replace("_", " ").to_upper(),
 			int(active_state.get("ammo", 0)), int(active_state.get("reserve", 0)),
 			int(rider.get("kills", 0)), int(rider.get("deaths", 0))]
+	if _scoreboard_label != null:
+		var lines: Array[String] = ["%s // LIMIT %d" % [mode.to_upper(), score_limit]]
+		for actor_value in actors:
+			var actor: Dictionary = actor_value
+			lines.append("%s  %02d  K%d D%d" % [_actor_name(actor), int(actor.get("score", 0)),
+				int(actor.get("kills", 0)), int(actor.get("deaths", 0))])
+		_scoreboard_label.text = "\n".join(lines)
+		_scoreboard_label.visible = show_scoreboard
+	if _kill_feed_label != null:
+		_kill_feed_label.text = "\n".join(kill_feed)
 	queue_redraw()
 
 
@@ -528,6 +870,16 @@ func _draw() -> void:
 		var color := Draw.SIGNAL if String(pickup.get("kind", "")) == "health" else Draw.AMBER
 		draw_rect(Rect2(pos - Vector2(9, 12), Vector2(18, 12)), color, true)
 		draw_circle(pos - Vector2(0, 14), 5, Draw.BONE)
+	for flag_value in flags:
+		var flag: Dictionary = flag_value
+		var flag_pos: Vector2 = flag.get("pos", Vector2.ZERO)
+		draw_line(flag_pos, flag_pos - Vector2(0, 48), Draw.BONE, 4.0)
+		draw_colored_polygon(PackedVector2Array([flag_pos - Vector2(0, 48),
+			flag_pos + Vector2(36, -38), flag_pos - Vector2(0, 28)]),
+			Draw.team_color(int(flag.get("team", 0))))
+	if not point_item.is_empty():
+		draw_circle(Vector2(point_item.get("pos", Vector2.ZERO)) - Vector2(0, 18), 11, Draw.AMBER)
+		draw_arc(Vector2(point_item.get("pos", Vector2.ZERO)) - Vector2(0, 18), 17, 0, TAU, 16, Draw.BONE, 2.0)
 	if combat != null:
 		for projectile_value in combat.projectiles:
 			var projectile: Dictionary = projectile_value

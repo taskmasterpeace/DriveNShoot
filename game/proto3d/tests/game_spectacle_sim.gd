@@ -46,11 +46,13 @@ func _ready() -> void:
 	var catalog: Dictionary = venue_script.load_catalog(data_path)
 	var venues: Array = catalog.get("venues", [])
 	var events: Array = catalog.get("events", [])
-	_check("catalog validates three venue types and ten event nights",
-		venues.size() == 3 and events.size() == 10
-		and (catalog.get("warnings", []) as Array).is_empty())
 	var registry := ProtoGameRegistry.load_catalog()
-	var console_ids: Array = registry.phase_rows(1).filter(func(row: Dictionary) -> bool:
+	var installed_flagships: Array = registry.phase_rows(2).filter(func(row: Dictionary) -> bool:
+		return registry.installed(String(row.get("id", ""))))
+	_check("catalog validates three venues and every installed event night",
+		venues.size() == 3 and events.size() == 10 + installed_flagships.size()
+		and (catalog.get("warnings", []) as Array).is_empty())
+	var console_ids: Array = (registry.phase_rows(1) + installed_flagships).filter(func(row: Dictionary) -> bool:
 		return String(row.get("platform", "")) == "console").map(func(row: Dictionary) -> String:
 		return String(row.get("id", "")))
 	var event_ids: Dictionary = {}

@@ -34,11 +34,12 @@ func _ready() -> void:
 	_check("a new save owns exactly WASTE HEAP and CROWN OF ASH",
 		starters.size() == 2 and starters.has("waste_heap") and starters.has("crown_of_ash"))
 	var shelf: Node3D = main.get("game_shelf") as Node3D
+	var available_games := int(ledger.available_count())
 	_check("the safehouse owns one ordinary interactable cartridge shelf",
 		shelf != null and shelf.is_in_group("interactable") and shelf.is_in_group("game_shelf"))
 	if shelf != null:
 		_check("the shelf tells the truth about installed media",
-			String(shelf.interact_prompt(main)).contains("2 / 20"))
+			String(shelf.interact_prompt(main)).contains("2 / %d" % available_games))
 		shelf.interact(main)
 		_check("the shelf opens the same ownership-gated console library",
 			main.game_shell.is_open and main.game_shell.current_view == "library")
@@ -94,7 +95,9 @@ func _ready() -> void:
 
 	ProtoContainer.ensure_items()
 	var cartridge_items: Array = ProtoContainer.ITEMS.keys().filter(func(item_id: Variant) -> bool:
-		return String(item_id).begins_with("game_cart_"))
+		var game_id := String(item_id).trim_prefix("game_cart_")
+		return String(item_id).begins_with("game_cart_") \
+			and int(main.game_deck.registry.get_game(game_id).get("phase", 0)) == 1)
 	_check("every non-starter Phase 1 game has one physical cartridge item",
 		cartridge_items.size() == 18 and cartridge_items.has("game_cart_radworm")
 		and not cartridge_items.has("game_cart_waste_heap"))
@@ -107,7 +110,7 @@ func _ready() -> void:
 		and ledger.unlocked.has("radworm") and main.backpack.count("game_cart_radworm") == 0)
 	if shelf != null:
 		_check("the physical shelf count updates after installation",
-			String(shelf.interact_prompt(main)).contains("3 / 20"))
+			String(shelf.interact_prompt(main)).contains("3 / %d" % available_games))
 	else:
 		_check("the physical shelf count updates after installation", false)
 	main.backpack.add("game_cart_radworm", 1)
