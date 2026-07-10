@@ -60,6 +60,15 @@ func installed_count(phase: int = 1) -> int:
 	return count
 
 
+func record_tournament(record_id: String, record: Dictionary) -> bool:
+	if record_id == "" or record.is_empty() or tournament_records.has(record_id):
+		return false
+	var stored := record.duplicate(true)
+	stored["record_id"] = record_id
+	tournament_records[record_id] = stored
+	return true
+
+
 func submit(result: Dictionary) -> bool:
 	if not _valid_result(result):
 		return false

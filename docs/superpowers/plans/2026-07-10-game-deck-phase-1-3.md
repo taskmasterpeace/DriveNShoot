@@ -140,15 +140,15 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/proto3d/newsroom.gd`
 - Extend: `game/proto3d/tests/game_spectacle_sim.gd`
 
-- [ ] Red sim: entering live event pays its declared entry once and starts the
+- [x] Red sim: entering live event pays its declared entry once and starts the
   ordinary cartridge/runtime; a completed player win advances the bracket,
   records one tournament result, pays scrip once, and grants any cartridge prize.
-- [ ] Reuse `ProtoBetting` for optional visible wagers outside cartridge code;
+- [x] Reuse `ProtoBetting` for optional visible wagers outside cartridge code;
   settlement is idempotent and pays physical scrip.
-- [ ] Deterministic trap roll can interrupt the bezel without corrupting or
+- [x] Deterministic trap roll can interrupt the bezel without corrupting or
   fabricating a result; expose the branch as a signal/announcer/broadcast hook.
-- [ ] Queue tournament ads and player-win radio/TV lines through `ProtoNewsroom`.
-- [ ] Commit `feat: add Game Deck brackets wagers and traps`.
+- [x] Queue tournament ads and player-win radio/TV lines through `ProtoNewsroom`.
+- [x] Commit `feat: add Game Deck brackets wagers and traps`.
 
 ## Task 7: Main-world placement and navigation
 

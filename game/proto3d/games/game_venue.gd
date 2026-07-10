@@ -3,6 +3,10 @@
 ## the next task and still uses the ordinary Game Deck.
 extends StaticBody3D
 
+signal tournament_started(event: Dictionary)
+signal tournament_settled(record: Dictionary)
+signal trap_triggered(event: Dictionary, trap: String)
+
 const PATH := "res://data/game_tournaments.json"
 const KINDS := ["drive_in", "roadhouse", "game_hall"]
 
@@ -16,6 +20,10 @@ var spectator: Node3D = null
 var tote_board: Label3D = null
 var poster: Label3D = null
 var announcer: Label3D = null
+var current_event: Dictionary = {}
+var bracket: Array = []
+var betting_card: Dictionary = {}
+var _current_record_id := ""
 var _refresh_t := 0.0
 
 
@@ -66,7 +74,9 @@ static func load_catalog(path: String = PATH) -> Dictionary:
 				or float(row.get("trap_chance", -1.0)) < 0.0 \
 				or float(row.get("trap_chance", 2.0)) > 1.0 \
 				or String(row.get("poster", "")) == "" \
-				or (row.get("announcer", []) as Array).is_empty():
+				or (row.get("announcer", []) as Array).is_empty() \
+				or (row.get("entrants", []) as Array).size() < 2 \
+				or (row.get("possible_traps", []) as Array).is_empty():
 			warnings.append("invalid tournament event '%s'" % id)
 			continue
 		event_ids[id] = true
@@ -123,6 +133,8 @@ func _build() -> void:
 	shape.shape = box
 	shape.position = Vector3(0, 1.0, 1.3)
 	add_child(shape)
+	if deck != null and not deck.result_recorded.is_connected(_on_result_recorded):
+		deck.result_recorded.connect(_on_result_recorded)
 	refresh_schedule(_day(), _hour())
 	set_process(true)
 
@@ -204,13 +216,147 @@ func interact_prompt(_main: Node) -> String:
 
 func interact(_main: Node) -> void:
 	refresh_schedule(_day(), _hour())
-	var line := "🎮 No live bracket. %s" % tote_board.text.replace("\n", " — ") \
-		if active_event.is_empty() else "🎮 %s is LIVE — bracket entry opens at the counter." % \
-		String(active_event.get("game_id", "")).to_upper()
+	if not active_event.is_empty():
+		enter_live_event()
+		return
+	_notify("🎮 No live bracket. %s" % tote_board.text.replace("\n", " — "))
+
+
+func enter_live_event() -> bool:
+	refresh_schedule(_day(), _hour())
+	if active_event.is_empty() or not current_event.is_empty() or main == null \
+			or not ("backpack" in main) or main.backpack == null:
+		return false
+	var fee := int(active_event.get("entry_fee_scrip", 0))
+	if main.backpack.count("scrip") < fee or (fee > 0 and not main.backpack.remove("scrip", fee)):
+		_notify("🎮 Entry is %d scrip. The window does not run tabs." % fee)
+		return false
+	current_event = active_event.duplicate(true)
+	_current_record_id = "%s:day:%d" % [String(current_event.get("id", "")), _day()]
+	_build_bracket()
+	_open_betting_card()
+	if "newsroom" in main and main.newsroom != null \
+			and main.newsroom.has_method("report_game_tournament"):
+		main.newsroom.report_game_tournament(current_event,
+			String(venue_row.get("name", "GAME VENUE")))
+	var context := {"source": "tournament", "device": "console", "venue_owned": true,
+		"auto_start": true, "tournament_id": String(current_event.get("id", "")),
+		"venue_id": String(venue_row.get("id", "")),
+		"seed": hash("tournament:%s:%d" % [String(current_event.get("id", "")), _day()])}
+	if not shell.open_game(String(current_event.get("game_id", "")), context):
+		main.backpack.add("scrip", fee)
+		current_event.clear()
+		_current_record_id = ""
+		return false
+	tournament_started.emit(current_event.duplicate(true))
+	_update_bracket_board("ROUND LIVE // RIDER AT THE CONTROLS")
+	var trap := trap_for(current_event, _day())
+	if trap != "":
+		announcer.text = "INTERRUPTION // %s" % trap.replace("_", " ").to_upper()
+		trap_triggered.emit(current_event.duplicate(true), trap)
+		_notify("⚠ TOURNAMENT INTERRUPTED — %s. The match stays live on the screen." %
+			trap.replace("_", " ").to_upper())
+		shell.close_to_device()
+	return true
+
+
+func _build_bracket() -> void:
+	bracket.clear()
+	var entrants: Array = current_event.get("entrants", [])
+	for index in entrants.size():
+		bracket.append({"id": "npc-%d" % index, "name": String(entrants[index]),
+			"status": "ROUND ONE"})
+	bracket.append({"id": "player", "name": "RIDER", "status": "ROUND ONE"})
+
+
+func _open_betting_card() -> void:
+	var card_entrants: Array = []
+	for index in bracket.size():
+		var entry: Dictionary = bracket[index]
+		card_entrants.append({"id": String(entry.get("id", "")),
+			"name": String(entry.get("name", "")), "strength": 0.8 + float(index) * 0.15})
+	betting_card = ProtoBetting.open_card(String(venue_row.get("id", "game_venue")),
+		_day(), card_entrants)
+
+
+func place_wager(entrant_id: String, stake: int) -> Dictionary:
+	if current_event.is_empty() or betting_card.is_empty() or stake <= 0 or main == null \
+			or not ("backpack" in main) or main.backpack.count("scrip") < stake:
+		return {}
+	var valid := (betting_card.get("entrants", []) as Array).any(func(entry: Dictionary) -> bool:
+		return String(entry.get("id", "")) == entrant_id)
+	if not valid or not main.backpack.remove("scrip", stake):
+		return {}
+	return ProtoBetting.place(betting_card, entrant_id, stake,
+		entrant_id == "player")
+
+
+func trap_for(event: Dictionary, day: int) -> String:
+	if event.is_empty():
+		return ""
+	var traps: Array = event.get("possible_traps", [])
+	if traps.is_empty():
+		return ""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("game-trap:%s:%d" % [String(event.get("id", "")), day])
+	if rng.randf() >= float(event.get("trap_chance", 0.0)):
+		return ""
+	return String(traps[int(rng.randi()) % traps.size()])
+
+
+func _on_result_recorded(result: Dictionary) -> void:
+	settle_result(result)
+
+
+func settle_result(result: Dictionary) -> bool:
+	if current_event.is_empty() or String(result.get("game_id", "")) != \
+			String(current_event.get("game_id", "")) or String(result.get("source", "")) != "tournament":
+		return false
+	var won := float(result.get("primary", 0.0)) > 0.0
+	var record := {"record_id": _current_record_id, "event_id": current_event.get("id", ""),
+		"venue_id": venue_row.get("id", ""), "game_id": current_event.get("game_id", ""),
+		"day": _day(), "won": won, "result_id": result.get("result_id", ""),
+		"primary": result.get("primary", 0), "settled": true}
+	if not bool(deck.ledger.record_tournament(_current_record_id, record)):
+		return false
+	for index in bracket.size():
+		if String((bracket[index] as Dictionary).get("id", "")) == "player":
+			(bracket[index] as Dictionary)["status"] = "CHAMPION" if won else "ELIMINATED"
+	if won and main != null and "backpack" in main:
+		main.backpack.add("scrip", int(current_event.get("prize_scrip", 0)))
+		var prize_item := String(current_event.get("prize_item", ""))
+		if prize_item != "":
+			main.backpack.add(prize_item, 1)
+	if not betting_card.is_empty():
+		ProtoBetting.settle(betting_card, "player" if won else "npc-0")
+		var payout := 0
+		for ticket_value in betting_card.get("tickets", []):
+			payout += int((ticket_value as Dictionary).get("paid", 0))
+		if payout > 0 and main != null and "backpack" in main:
+			main.backpack.add("scrip", payout)
+	if won and main != null and "newsroom" in main and main.newsroom != null \
+			and main.newsroom.has_method("report_game_win"):
+		main.newsroom.report_game_win(current_event,
+			String(venue_row.get("name", "GAME VENUE")))
+	_update_bracket_board("RIDER WINS // PRIZE PAID" if won else "RIDER OUT // HOUSE FINAL")
+	tournament_settled.emit(record.duplicate(true))
+	return true
+
+
+func _update_bracket_board(headline: String) -> void:
+	var lines: Array[String] = [headline]
+	for entry_value in bracket:
+		var entry: Dictionary = entry_value
+		lines.append("%s  %s" % [String(entry.get("name", "?")),
+			String(entry.get("status", ""))])
+	tote_board.text = "\n".join(lines)
+
+
+func _notify(text: String) -> void:
 	if main != null and main.has_method("notify"):
-		main.notify(line)
+		main.notify(text)
 	else:
-		print(line)
+		print(text)
 
 
 func _process(delta: float) -> void:
