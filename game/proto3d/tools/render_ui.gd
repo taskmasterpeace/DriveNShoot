@@ -175,8 +175,13 @@ func _ready() -> void:
 	await _shot("WEATHER_dust")
 	main.weather.force("clear", 300.0)
 
-	# 11) STREET READ (it.9) — Meridian main street from the game camera.
-	var street := Vector3(112.0, 0.0, -305.0) # amb_town rect center — MAIN ST
+	# 11) STREET READ (it.9/11) — Meridian main street, placed ON the road (the
+	# rect-center guess landed inside a building last pass).
+	var street := Vector3(112.0, 0.0, -305.0)
+	var rn: Dictionary = stream.usmap.road_near(Vector3(110, 0, -323), 400.0)
+	if not rn.is_empty():
+		var mid: Vector2 = ((rn["a"] as Vector2) + (rn["b"] as Vector2)) * 0.5
+		street = Vector3(mid.x, 0.0, mid.y)
 	var sgy: float = ProtoWorldBuilder.ground_y(street.x, street.z)
 	for _i in 60:
 		if main.active_car != null:

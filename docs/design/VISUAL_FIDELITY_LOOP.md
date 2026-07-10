@@ -326,13 +326,40 @@ sheets down with a cool damp grade, dust storms drift amber haze. Holding it bac
 flat buildings (the last big slab), no wet-ground darkening, no storm audio-visual
 sync check, doll outline nits.
 
-**Next up (iteration 11):**
-1. **THE BUILDING READ** (firm lead, rolled twice) — per-building tint jitter (the
-   patchwork law via a hash of the building's position) + wall vs ROOF tone
-   separation in the structure builder; STREET probe placed ON the road (use a road
-   polyline point near Meridian center, not the amb_town rect center) proves it.
-2. Wet-ground darkening IF cheap: a rain-intensity multiply on ground material
-   albedo needs per-chunk materials (already per-color-cached — a wet variant per
-   biome color doubles the cache; acceptable) — probe the cost first.
-3. Storm-edge readability: drive INTO a storm (does the transition read?) — probe.
-4. PixelLab check-in + consider real art for the K-sheet frame / dash plates.
+**Next up (iteration 11):** ~~building read core~~ → executed below; town look-proof
++ wet ground + storm edge roll.
+
+---
+
+## Iteration 11 — 2026-07-10 ~13:05
+
+**Shipped:**
+- **THE BUILDING PATCHWORK** (`structure_builder.materialize` gains `tint_seed`):
+  per-placement wall-tint jitter through the same quantized law as the ground quilt
+  (seed = hash of the placement position, wired at BOTH placement callsites; seed 0
+  = byte-identical for every other caller — all builder sims stay green untouched).
+  A street of same-category shells stops being one repeated swatch.
+  **ground_texture_sim 16/16** (new: distinct wall swatches across seeds).
+- **THE ROOF READS**: massing blocks (junkyards/monuments/compounds) were one swatch
+  wall-to-top — now capped with a warm roof tone (visual-only, no collision), so the
+  top-down camera separates WALLS from ROOF.
+- **STREET probe repointed onto the road** via `usmap.road_near` — landed on the
+  I-95_X1 off-ramp: a genuinely good ROAD read (centerline paint, forest parcels
+  flanking). For the TOWN street with several buildings in frame (the jitter/roof
+  look-proof), next pass queries a "street"-kind road near Meridian center instead.
+
+**Steam rating: 8.5/10** (was 8.4). Structures now vary like the land under them and
+roofs read as roofs — sim-proven; the town-frame look-proof rides next pass. Holding
+it back: town look-proof pending, wet ground, storm-edge transition unprobed, dash/
+sheet plates still primitive-styled.
+
+**Next up (iteration 12):**
+1. **TOWN LOOK-PROOF**: STREET probe v3 — filter road_near to kind=="street" (or pick
+   a placement-dense point from usmap.placements_in around Meridian) so several
+   jittered shells + roof caps land in frame; view + judge.
+2. **Wet-ground darkening** IF cheap (probe material-cache cost: a wet variant per
+   biome color ≈ doubles a small cache — acceptable; wire off rain intensity).
+3. **Storm-edge drive probe** — cross a storm boundary; does the grade/streak
+   transition read smoothly?
+4. PixelLab check-in: consider real art where primitives still read thin (K-sheet
+   frame, dash plates) — ~$0.005/gen, $78.7 left.

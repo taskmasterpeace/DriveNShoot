@@ -477,7 +477,8 @@ static func build_world(root: Node3D) -> Dictionary:
 			var sid := String(p.get("building", ""))
 			if not DrivnData.structures.has(sid):
 				continue # hand-built ids (the safehouse) stay hand-built; warn-not-crash
-			var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+			var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")),
+				hash(Vector2i(int(float(p["pos"][0])), int(float(p["pos"][1])))))
 			if shell == null:
 				continue
 			world.add_child(shell)

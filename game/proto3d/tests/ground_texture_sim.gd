@@ -21,6 +21,16 @@ func _is_purple(c: Color) -> bool:
 	return c.s > 0.15 and c.h > 0.72 and c.h < 0.92
 
 
+func _first_mesh(n: Node) -> MeshInstance3D:
+	if n is MeshInstance3D:
+		return n
+	for c in n.get_children():
+		var hit := _first_mesh(c)
+		if hit != null:
+			return hit
+	return null
+
+
 func _ready() -> void:
 	var col := ProtoWorldBuilder.COL_GROUND
 	var gm := ProtoWorldBuilder.ground_material(col)
@@ -73,6 +83,20 @@ func _ready() -> void:
 	_check("patchwork deals 2..5 quantized shades (%d)" % shades.size(),
 		shades.size() >= 2 and shades.size() <= 5)
 	_check("the nudge stays subtle (max %.3f <= 0.056)" % max_dv, max_dv <= 0.056)
+
+	# THE BUILDING PATCHWORK (it.11): per-placement tint jitter through the same
+	# quantized law — different seeds deal different wall swatches; seed 0 = base.
+	DrivnData.ensure_structures()
+	var wall_shades: Dictionary = {}
+	for seed_v in [12345, 777, 4242, 90210, 31337]:
+		var s := ProtoStructureBuilder.materialize("house_small", "", int(seed_v))
+		if s != null:
+			var mi := _first_mesh(s)
+			if mi != null and mi.material_override is StandardMaterial3D:
+				wall_shades[(mi.material_override as StandardMaterial3D).albedo_color.to_html()] = true
+			s.queue_free()
+	_check("building tints spread across placements (%d distinct >= 2)" % wall_shades.size(),
+		wall_shades.size() >= 2)
 
 	print("GROUND: DONE — %d passed, %d failed" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)

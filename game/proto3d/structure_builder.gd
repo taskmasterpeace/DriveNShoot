@@ -36,7 +36,7 @@ const CATEGORY_COLORS: Dictionary = {
 
 ## Materialize a profile row. Returns null (with a warning) for unknown ids —
 ## a missing row must never crash a caller (the warn-not-crash law).
-static func materialize(structure_id: String, label_override: String = "") -> Node3D:
+static func materialize(structure_id: String, label_override: String = "", tint_seed: int = 0) -> Node3D:
 	DrivnData.ensure_structures()
 	var row: DrivnStructure = DrivnData.structures.get(structure_id)
 	if row == null:
@@ -56,6 +56,11 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 	var w := row.footprint_m.x
 	var d := row.footprint_m.y
 	var col: Color = CATEGORY_COLORS.get(row.category, Color(0.45, 0.4, 0.33))
+	# THE PATCHWORK FOR BUILDINGS (fidelity loop it.11): a stable per-placement
+	# tint nudge (quantized — the material cache stays bounded) so a street stops
+	# reading as one repeated swatch. Seed 0 = byte-identical to before.
+	if tint_seed != 0:
+		col = ProtoWorldBuilder.chunk_tint(col, tint_seed, tint_seed >> 8)
 
 	if row.enterable:
 		# Four walls, a REAL door gap in the front (+Z), open top — from the
@@ -108,6 +113,17 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 		shape.position.y = mesh.position.y
 		body.add_child(shape)
 		root.add_child(body)
+		# THE ROOF READS (fidelity loop it.11): a massing block's top face was the
+		# same swatch as its walls — cap it with a warm roof tone (visual-only,
+		# no collision) so the top-down camera reads WALLS vs ROOF.
+		var roof := MeshInstance3D.new()
+		var roof_mesh := BoxMesh.new()
+		roof_mesh.size = Vector3(w, 0.14, d)
+		roof.mesh = roof_mesh
+		roof.material_override = ProtoWorldBuilder.material(
+			col.lerp(ProtoWorldBuilder.COL_ROOF, 0.55).darkened(0.12), 0.95)
+		roof.position.y = WALL_H * row.floors + 0.07
+		root.add_child(roof)
 
 	# THE SILHOUETTE (I2): one read-feature per CATEGORY so 39 types stop being
 	# one brown box — a canopy says fuel, a steeple says church, a stack says

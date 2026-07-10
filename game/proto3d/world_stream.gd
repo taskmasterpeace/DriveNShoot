@@ -646,7 +646,8 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
 	DrivnData.ensure_structures()
 	if DrivnData.structures.has(sid):
-		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")),
+			hash(Vector2i(int((p["pos"] as Vector2).x), int((p["pos"] as Vector2).y))))
 		if shell != null:
 			shell.add_to_group("placement")
 			shell.set_meta("building", p["building"])
