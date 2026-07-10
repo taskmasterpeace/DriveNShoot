@@ -61,6 +61,17 @@ func _run() -> void:
 	await get_tree().create_timer(1.0).timeout
 	_check("the pulse decays and the clock stops", vd._flash.is_empty() and not vd.is_processing())
 
+	# --- THE WARDROBE LAW (it.15): jittered looks differ, seed 0 stays authored ---
+	var base_look: Dictionary = ProtoPuppet.look("scav")
+	var l1: Dictionary = ProtoPuppet.look("scav", 12345)
+	var l2: Dictionary = ProtoPuppet.look("scav", 777)
+	_check("wardrobe: seed 0 is the exact authored row",
+		base_look["cloth"] == ProtoPuppet.SURVIVORS["scav"]["cloth"])
+	_check("wardrobe: seeded looks vary from the row", l1["cloth"] != base_look["cloth"])
+	_check("wardrobe: two spawns differ from each other", l1["cloth"] != l2["cloth"])
+	_check("wardrobe: the nudge stays subtle (dv %.2f < 0.15)" % absf((l1["cloth"] as Color).v - (base_look["cloth"] as Color).v),
+		absf((l1["cloth"] as Color).v - (base_look["cloth"] as Color).v) < 0.15)
+
 	# --- The REAL path: wound the character, press K, read the sheet's doll ---
 	main = (load("res://proto3d/proto3d.tscn") as PackedScene).instantiate()
 	add_child(main)

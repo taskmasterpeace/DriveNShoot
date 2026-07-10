@@ -449,6 +449,22 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			chunk.add_child(wmesh)
 		return chunk
 
+	# SHORE BANDS (fidelity loop it.15): a wet-sand rim where this land chunk
+	# meets water — the coast stops being a razor edge. 4 biome probes, thin
+	# grain strips, no collision.
+	if usmap != null and usmap.ok:
+		for dir4 in [Vector3(CHUNK, 0, 0), Vector3(-CHUNK, 0, 0), Vector3(0, 0, CHUNK), Vector3(0, 0, -CHUNK)]:
+			var d4: Vector3 = dir4
+			if usmap.biome_at(center + d4) in ["water", "ocean"]:
+				var strip := MeshInstance3D.new()
+				var sbm := BoxMesh.new()
+				var along_x := absf(d4.z) > 0.0
+				sbm.size = Vector3(CHUNK if along_x else 2.6, 0.05, 2.6 if along_x else CHUNK)
+				strip.mesh = sbm
+				strip.material_override = ProtoWorldBuilder.ground_material(Color(0.60, 0.55, 0.42), 1.0)
+				strip.position = center + d4 * 0.5 - d4.normalized() * 1.3 + Vector3(0, 0.055, 0)
+				chunk.add_child(strip)
+
 	# --- A town? (macro anchor inside this chunk → ruins + sign + landmark) ---
 	if usmap != null and usmap.ok:
 		var t := usmap.town_near(center, 91.0)

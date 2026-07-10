@@ -205,6 +205,28 @@ func _ready() -> void:
 		await get_tree().process_frame
 	await _shot("STREET_meridian")
 
+	# 11a) INTERIOR DENSITY (it.15) — pin beside a furnished shell, let the
+	# furnisher WAKE on approach (the LOD law), shoot the open-top interior.
+	var fspot := Vector3.ZERO
+	var got_f := false
+	for p in town_pl:
+		var b := String(p.get("building", ""))
+		if b.contains("diner") or b.contains("police") or b.contains("bar"):
+			fspot = Vector3((p["pos"] as Vector2).x, 0.0, (p["pos"] as Vector2).y)
+			got_f = true
+			break
+	if got_f:
+		var fgy: float = ProtoWorldBuilder.ground_y(fspot.x, fspot.z)
+		for _i in 60:
+			if main.active_car != null:
+				main.active_car.global_position = Vector3(fspot.x + 9.0, fgy + 1.4, fspot.z + 5.0)
+				main.active_car.linear_velocity = Vector3.ZERO
+				main.active_car.angular_velocity = Vector3.ZERO
+			await get_tree().process_frame
+		for _i in 110:
+			await get_tree().process_frame
+		await _shot("INTERIOR_shell")
+
 	# 11b) WATER READ (it.14) — the first coast the grid offers: a land cell with
 	# an ocean neighbor; pin the car on the shore, camera settles, shoot.
 	var shore := Vector3.ZERO

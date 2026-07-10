@@ -453,12 +453,39 @@ surfaces (title/menu art — owner-gated; UI is the owner's lane per MAP-FIRST) 
 larger art passes (interior density, NPC wardrobe variance, shore bands, decal
 variety). The loop continues mining honest wins.
 
-**Next up (iteration 15):**
-1. **NPC CROWD probe** — a Meridian street with residents/motorists in frame: does
-   the crowd read varied (wardrobe/tint) or cloned? Cheapest wardrobe-variance win
-   if cloned (puppet body colors are DATA — rig untouched).
-2. **SHORE BAND design probe**: cost out a wet-sand rim on coast cells (geometry vs
-   texture approach) — pick and implement if < an iteration.
-3. TITLE backdrop: only on the owner's yes.
-4. Interior density probe: one furnished shell interior from the game camera —
-   does the furniture set read at street scale?
+**Next up (iteration 15):** ~~wardrobe law · shore bands · probes~~ → executed below.
+
+---
+
+## Iteration 15 — 2026-07-10 ~15:40
+
+**Shipped:**
+- **THE WARDROBE LAW** (crowd probe verdict: 8 authored looks, but within an
+  archetype every NPC was an exact clone): `ProtoPuppet.look(name, jitter_seed)` —
+  a stable per-spawn hue/value nudge on cloth+pants ONLY (colors are DATA, the rig
+  is sacred; seed 0 = the exact authored row so the player, named looks, and the
+  lurker's all-black stay untouched). Wired at the two crowd callsites (motorists,
+  npcs). **bodydoll_sim 14/14** (4 new wardrobe checks: authored-exact, varies,
+  spawns differ, subtle).
+- **SHORE BANDS**: a wet-sand grain rim wherever a land chunk borders water (4
+  biome probes per chunk, thin visual strips, no collision) — the coast stops
+  being a razor edge. Look-proven: a warm beach line runs the whole coast now.
+  map_sim 45/45, npc_drive 11/11.
+- **Probe results**: roof caps read in-game (massing blocks in the interior frame);
+  the interior-density question rolled with a better target (the probed diner/
+  police are ROOFED — aim at an open-top walkin house next pass). A live dust
+  storm crossed the probe shot — the amber grade holding up in the wild.
+- Ladder: | 15 | 8.9 | wardrobe law + shore bands |
+
+**Steam rating: 8.9/10** (was 8.8). Crowds stop being clones and coasts have
+beaches. Remaining honest levers: interior density (open-shell target), decal
+variety, NPC crowd LOOK-shot (in-world), title/menu (owner-gated).
+
+**Next up (iteration 16):**
+1. **Interior density, take 2** — aim the probe at an open-top walkin shell
+   (house_small class) with the furnisher awake; judge furniture read from above.
+2. **CROWD LOOK-shot** — an in-world frame with 3+ jittered NPCs (Test Grounds
+   spawns or Meridian residents) proving the wardrobe law photographs.
+3. **Decal variety probe**: marks are one dark pock — worth a size/alpha jitter?
+   (1-line if yes.) Skid color per-surface already exists.
+4. TITLE backdrop: only on the owner's yes.
