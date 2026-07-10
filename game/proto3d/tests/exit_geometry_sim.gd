@@ -94,11 +94,15 @@ func _ready() -> void:
 	_check("right-hand exits only — the PRIMARY ramp's dest is on its serving right", bad_side == 0)
 	_check("every DIVIDED-highway exit serves BOTH directions (the 0.18b mirrors)", divided_missing_mirror == 0)
 
-	# canon guard (0.5): EXIT-meridian survives with its id and its destination
+	# canon guard (0.5, amended by the v4 MAP-FIRST Meridian pass): EXIT-meridian
+	# survives with its id and still DELIVERS to Meridian — the ramp now tees into
+	# MAIN ST (~[216,-290], ~112 m from the town dot) instead of dead-ending on the
+	# dot. 150 m = anywhere on the downtown grid; a rewrite that flings the ramp
+	# somewhere else entirely still fails.
 	var mer_ramp: Dictionary = um.road_by_id("EXIT-meridian")
-	_check("EXIT-meridian keeps its id and still lands at Meridian (dest 110,-325)",
+	_check("EXIT-meridian keeps its id and still lands at Meridian (MAIN ST arrival, <150 m)",
 		not mer_ramp.is_empty()
-		and ((mer_ramp["pts"] as Array).back() as Vector2).distance_to(Vector2(110, -325)) < 5.0)
+		and ((mer_ramp["pts"] as Array).back() as Vector2).distance_to(Vector2(110, -325)) < 150.0)
 
 	print("XGEO RESULTS: %d passed, %d failed" % [passed, failed])
 	print("XGEO: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

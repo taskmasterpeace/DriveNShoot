@@ -71,10 +71,24 @@ func _ready() -> void:
 			for t in um.towns:
 				if (t["pos"] as Vector2).distance_to(endp) < 300.0:
 					near_town = true
+			# amended (v4 MAP-FIRST pass): a county link may also TEE INTO the
+			# network — a farm-to-market road ending on a highway is lawful
+			# (CR-saint-regis-i75 ties the Saint Regis island to I-75). Lawful
+			# tee = a baked junction within 60 m listing this road as a leg.
+			var tees_in := false
 			if not near_town:
+				for j in um.junctions:
+					var jd: Dictionary = j
+					var jp: Vector2 = jd["pos"]
+					if jp.distance_to(endp) < 60.0:
+						for l in (jd["legs"] as Array):
+							var ld: Dictionary = l
+							if String(ld["road"]) == String(r["id"]):
+								tees_in = true
+			if not near_town and not tees_in:
 				cr_anchored = false
 	_check("the county net links >= 10 town pairs off-highway (%d links)" % cr, cr >= 10)
-	_check("every county link ends AT towns (both ends within 300 m)", cr_anchored)
+	_check("every county link ends AT a town or TEES INTO the net (300 m town / 60 m junction leg)", cr_anchored)
 
 	# --- 3) THE PAYLOAD LAW --------------------------------------------------------
 	var spurs := 0

@@ -396,6 +396,18 @@ export function bakeJunctions(map) {
 		junctions.push({ id: jid(kind), kind, grade, control, pos: [Math.round(pos.x * 100) / 100, Math.round(pos.y * 100) / 100], legs });
 		return junctions[junctions.length - 1];
 	};
+	// THE MERGE LAW (v4 connectivity fix): "one node per meeting" used to DROP a
+	// meeting's legs when another junction sat within SNAP_M — which silently
+	// disconnected every town grid from its feeder road (the road_graph orphans).
+	// A nearby node now ABSORBS the meeting instead: missing roads join its legs.
+	lint.merged_legs = 0;
+	const mergeLegs = (jn, roadsIn) => {
+		for (const rd of roadsIn) {
+			if (jn.legs.some((l) => l.road === rd.id)) continue;
+			jn.legs.push({ road: rd.id, arc_m: Math.round(arcAt(rd, v(jn.pos))) });
+			lint.merged_legs++;
+		}
+	};
 
 	// ---- 1) NETWORK x NETWORK: endpoint tees + true crossings -------------------
 	for (let i = 0; i < network.length; i++) {
@@ -411,7 +423,8 @@ export function bakeJunctions(map) {
 					if (pr.d <= SNAP_M && (!best || pr.d < best.d)) best = { ...pr, s };
 				}
 				if (!best) continue;
-				if (near(best.q ?? p, SNAP_M)) continue; // one node per meeting
+				const eaten = near(best.q ?? p, SNAP_M);
+				if (eaten) { mergeLegs(eaten, [A, B]); continue; } // one node per meeting — legs SURVIVE
 				const bothDivided = isDivided(A) && isDivided(B);
 				// a tee ONTO a divided road opens a gap in ITS barrier; the arriving
 				// road ends here. divided x divided tees still gap (a real T turn).
@@ -444,7 +457,7 @@ export function bakeJunctions(map) {
 						const legs = jn.legs.map((l) => l.road);
 						return legs.includes(A.id) && legs.includes(B.id);
 					});
-					if (dupe) continue;
+					if (dupe) { mergeLegs(dupe, [A, B]); continue; }
 					const bothDivided = isDivided(A) && isDivided(B);
 					// LIMITED ACCESS: a minor road (county/dirt/street) NEVER gaps
 					// a divided highway's median at grade — it passes UNDER, walled
@@ -490,6 +503,7 @@ export function bakeJunctions(map) {
 						{ road: hwy.id, arc_m: Math.round(arcAt(hwy, exPos)) },
 						{ road: rp.id, arc_m: 0 },
 					]);
+				else mergeLegs(dupe, [hwy, rp]); // a shared mouth still lists every ramp
 				lint.ramp_mouths++;
 			}
 		}
@@ -518,11 +532,13 @@ export function bakeJunctions(map) {
 		}
 		if (ex) claim(ex, rp.id);
 		const node = best.q;
-		if (!near(node, 10))
+		const nearRejoin = near(node, 10);
+		if (!nearRejoin)
 			push("ramp_rejoin", "flat", "riro", node, [
 				{ road: best.R.id, arc_m: Math.round(arcAt(best.R, node)) },
 				{ road: rp.id, arc_m: Math.round(arcAt(rp, node)) },
 			]);
+		else mergeLegs(nearRejoin, [best.R, rp]); // rejoining ONTO a node keeps the ramp leg
 		lint.ramp_rejoins++;
 	}
 	for (const ex of map.exits || []) {
@@ -538,7 +554,8 @@ export function bakeJunctions(map) {
 	for (const A of network) {
 		for (const endIdx of [0, A.pts.length - 1]) {
 			const p = v(A.pts[endIdx]);
-			if (near(p, SNAP_M)) continue;
+			const nearCap = near(p, SNAP_M);
+			if (nearCap) { mergeLegs(nearCap, [A]); continue; } // the endpoint's road must be a leg SOMEWHERE
 			push("end_cap", "flat", "none", p, [{ road: A.id, arc_m: Math.round(arcAt(A, p)) }]);
 			lint.end_caps++;
 		}

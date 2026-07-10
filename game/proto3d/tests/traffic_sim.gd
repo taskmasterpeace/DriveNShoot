@@ -106,6 +106,12 @@ func _ready() -> void:
 	# ~610m in. Spawn 400m in, dir +1 — the ramp departs the travel side.
 	var exiter: Node3D = traffic.spawn_agent("I-95", 4, 400.0, 0, 1)
 	traffic.set_agent_speed(exiter, 25.0)
+	# Since the 0.18b mirrors an exit owns ramps for BOTH directions (+ the
+	# legacy row) — landing on ANY of ITS ramp_ids is "took the exit".
+	var mer_ramp_ids: Array = []
+	for me in traffic.usmap.exits:
+		if String((me as Dictionary)["id"]) == "I-95_X1":
+			mer_ramp_ids = (me as Dictionary).get("ramp_ids", [])
 	var took_ramp := false
 	var despawned := false
 	for _i in 1500: # the ramp is ~1.25km at 2-lane cruise (±jitter) — give it room
@@ -115,7 +121,7 @@ func _ready() -> void:
 		if not traffic.agents.has(exiter):
 			despawned = true
 			break
-		if traffic.agent_road(exiter) == "EXIT-meridian":
+		if mer_ramp_ids.has(traffic.agent_road(exiter)):
 			took_ramp = true
 	_check("the agent TOOK the exit (transferred onto the ramp polyline)", took_ramp)
 	_check("...and despawned at the ramp's end — gone to the location", despawned)
@@ -267,7 +273,7 @@ func _ready() -> void:
 		traffic._tick(0.1)
 		if not traffic.agents.has(tripper):
 			break
-		if traffic.agent_road(tripper) == "EXIT-meridian":
+		if mer_ramp_ids.has(traffic.agent_road(tripper)):
 			trip_took_ramp = true
 	_check("a TRIP agent leaves at ITS destination exit even at exit_take_chance 0", trip_took_ramp)
 	_check("...and resolved at the destination (city-to-city, proven end to end)",

@@ -312,7 +312,7 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 		ag._exit_rolled = String(e["id"]) # rolled — never re-rolled on the same pass
 		if ag.dest_exit_id != "" and String(e["id"]) != ag.dest_exit_id:
 			continue # not MY exit — a car with somewhere to be doesn't wander off
-		var ramp := _ramp_for(e)
+		var ramp := _ramp_for(e, ag.dir)
 		if ramp.is_empty():
 			continue
 		# the ramp must depart the agent's travel side (never dart across the median)
@@ -339,16 +339,36 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 		return
 
 
-func _ramp_for(e: Dictionary) -> Dictionary:
+## Pick the exit's DEPARTURE ramp for a given travel direction. Since the 0.18b
+## mirrors, an exit owns ramps for BOTH directions (`side` = the pts-order sense
+## a ramp serves) — the old first-in-road-order pick could hand an agent the
+## opposite carriageway's ramp and the side check would then skip the exit.
+## Law: a mouth-anchored ramp whose side matches wins; a side-less legacy ramp
+## is acceptable for either direction; ON-ramps (mouth downstream) never depart.
+func _ramp_for(e: Dictionary, want_dir: int = 0) -> Dictionary:
 	var ramp_ids: Array = e.get("ramp_ids", [])
+	var epos: Vector2 = e["pos"]
+	var legacy: Dictionary = {}
+	for rid in ramp_ids:
+		var road: Dictionary = usmap.road_by_id(String(rid))
+		if road.is_empty() or String(road.get("kind", "exit")) != "exit":
+			continue
+		var pts: PackedVector2Array = road["pts"]
+		if pts[0].distance_to(epos) >= 30.0 and pts[pts.size() - 1].distance_to(epos) >= 30.0:
+			continue # rejoins downstream — an ON-ramp, never a departure
+		var side := int(road.get("side", 0))
+		if want_dir != 0 and side == want_dir:
+			return road # the ramp serving MY travel direction
+		if legacy.is_empty() and side == 0:
+			legacy = road # side-less legacy ramp serves either direction
+	if not legacy.is_empty():
+		return legacy
+	# fallback: any exit-kind road whose endpoint sits on this exit's anchor
 	for road in usmap.roads:
 		if String(road["kind"]) != "exit":
 			continue
-		if ramp_ids.has(String(road["id"])):
-			return road
-		# fallback: an exit-kind road whose endpoint sits on this exit's anchor
-		var pts: PackedVector2Array = road["pts"]
-		if pts[0].distance_to(e["pos"]) < 30.0 or pts[pts.size() - 1].distance_to(e["pos"]) < 30.0:
+		var pts2: PackedVector2Array = road["pts"]
+		if pts2[0].distance_to(epos) < 30.0 or pts2[pts2.size() - 1].distance_to(epos) < 30.0:
 			return road
 	return {}
 

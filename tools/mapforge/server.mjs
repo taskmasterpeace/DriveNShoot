@@ -654,6 +654,15 @@ const server = createServer(async (req, res) => {
 			const row = prev ? { ...prev } : { kind, danger: 0, family: "", nickname: "", lanes, divided: lanes >= 6 };
 			for (const [k, v] of Object.entries(body)) if (v !== undefined) row[k] = v;
 			row.id = body.id; row.kind = kind; row.lanes = lanes; row.pts = body.pts;
+			// A hand-edit on a RAMP invalidates its crafted peel: clear the bake's
+			// idempotence flags so the next bake re-crafts the 12° peel around the
+			// new shape (mid-points survive as the authored curve; the mouth obeys
+			// the exit geometry law again). Without this, edited ramps keep a stale
+			// geom:"peel_v1" and exit_geometry_sim rightly fails them.
+			if (kind === "exit" && prev && JSON.stringify(prev.pts) !== JSON.stringify(row.pts)) {
+				delete row.geom;
+				delete row.side;
+			}
 			map.roads = map.roads.filter((r) => r.id !== body.id);
 			map.roads.push(row);
 			save(); invalidateGraph();
