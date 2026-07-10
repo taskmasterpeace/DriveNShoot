@@ -6,6 +6,7 @@ var main: Node3D
 var t := 0.0
 var phase := 0
 var phase_t := 0.0
+var _n_extra := 0
 var passed := 0
 var failed := 0
 
@@ -62,8 +63,15 @@ func _physics_process(delta: float) -> void:
 				_key(KEY_N)
 				_next()
 		4:
-			if phase_t > 0.4:
-				_check("N wraps to OFF", main.waypoint_idx == -1)
+			if phase_t > 0.4 + 0.35 * _n_extra:
+				# The ring gained stops since (⚒ TEST GROUNDS, proto3d.gd:326;
+				# partner/drone marks when live) — walk however many remain and
+				# assert the ring still ENDS at OFF.
+				if main.waypoint_idx != -1 and _n_extra < 4:
+					_n_extra += 1
+					_key(KEY_N)
+					return
+				_check("N wraps to OFF (after %d extra stops)" % _n_extra, main.waypoint_idx == -1)
 				# Encumbrance: dump 40 scrap (48kg) into a 32kg pack
 				main.backpack.add("scrap", 40)
 				_next()
