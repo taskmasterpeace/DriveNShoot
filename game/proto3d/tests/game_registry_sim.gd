@@ -37,6 +37,8 @@ func _ready() -> void:
 	_check("ten console rows", console.size() == 10)
 	_check("two Phase 2 rows", reg.phase_rows(2).size() == 2)
 	_check("proof rows declared", reg.rows.has("waste_heap") and reg.rows.has("crown_of_ash"))
+	_check("both proof cartridges pass scene and notice gates", reg.enabled("waste_heap")
+		and reg.enabled("crown_of_ash"))
 	_check("missing future scenes are uninstalled, not malformed", not reg.installed("radworm"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
