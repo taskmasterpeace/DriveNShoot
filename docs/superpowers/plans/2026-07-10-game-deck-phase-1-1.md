@@ -136,11 +136,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/relay_bloom/*`, `tests/relay_bloom_sim.*`
 
-- [ ] Red sim: seeded tile rotations, edge connectivity, all-terminal power,
+- [x] Red sim: seeded tile rotations, edge connectivity, all-terminal power,
   correction/combo accounting, completion, score/max-combo result.
-- [ ] Implement cursor and pointer rotation with an original electrical-relay
+- [x] Implement cursor and pointer rotation with an original electrical-relay
   diagram presentation.
-- [ ] Commit `feat: add RELAY BLOOM`.
+- [x] Commit `feat: add RELAY BLOOM`.
 
 ## Task 11: Passenger handheld lifecycle
 

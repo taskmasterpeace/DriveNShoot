@@ -55,7 +55,9 @@ func _ready() -> void:
 		and reg.enabled("fall_line") and reg.cartridge_contract_error("fall_line") == "")
 	_check("portrait pinball clears scene and notice gates", reg.installed("tilt_salvage")
 		and reg.enabled("tilt_salvage") and reg.cartridge_contract_error("tilt_salvage") == "")
-	_check("missing future scenes are uninstalled, not malformed", not reg.installed("relay_bloom"))
+	_check("relay puzzle clears scene and notice gates", reg.installed("relay_bloom")
+		and reg.enabled("relay_bloom") and reg.cartridge_contract_error("relay_bloom") == "")
+	_check("missing future scenes are uninstalled, not malformed", not reg.installed("dial_tanks"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 
