@@ -258,7 +258,7 @@ func _ready() -> void:
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
 	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
 		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1,
-		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1, "lockpick": 1})
+		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1, "game_handheld": 1, "lockpick": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -453,6 +453,11 @@ var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
 var book_panel: ProtoBookPanel = null ## THE LIBRARY — the in-game manuals (bookshelf / book items)
+## THE GAME DECK: one runtime drives the safehouse console, fullscreen shell, and pocket screen.
+var game_deck: Node = null
+var game_shell: CanvasLayer = null
+var game_console: Node3D = null
+var game_handheld: Node3D = null
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
@@ -556,6 +561,24 @@ func _build_environment() -> void:
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
 	_face_toward(tv, SAFEHOUSE) # screen faces INTO the room (was a fixed 0.7 that aimed it at a corner — the "wrong side")
+	# GAME DECK: every cartridge reaches the same always-live viewport, input, score,
+	# save, and network contracts. These are only two physical shells around it.
+	var deck_script := load("res://proto3d/games/game_deck.gd") as GDScript
+	game_deck = deck_script.create(self)
+	add_child(game_deck)
+	var shell_script := load("res://proto3d/games/game_shell.gd") as GDScript
+	game_shell = shell_script.create(game_deck)
+	add_child(game_shell)
+	var console_script := load("res://proto3d/games/game_console.gd") as GDScript
+	game_console = console_script.create(self, game_deck, game_shell)
+	add_child(game_console)
+	game_console.global_position = SAFEHOUSE + Vector3(-0.9, 0.0, -2.2)
+	_face_toward(game_console, SAFEHOUSE)
+	var handheld_script := load("res://proto3d/games/game_handheld.gd") as GDScript
+	game_handheld = handheld_script.create(self, game_deck, game_shell)
+	add_child(game_handheld)
+	game_handheld.global_position = SAFEHOUSE + Vector3(-3.75, 1.15, -0.55)
+	game_handheld.rotation_degrees = Vector3(-65, 8, 0)
 	if media_panel != null:
 		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
@@ -616,6 +639,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# (and never mid-capture: the key you press is the key you MEANT to bind).
 		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
 			toggle_controls_panel()
+		return
+	if game_shell != null and game_shell.is_open:
+		# The shell receives cartridge input in its own _input pass. Nothing leaks
+		# through to feet, guns, car doors, or the world while the bezel is open.
 		return
 	if event.is_action_pressed("interact"):
 		# Piloting a drone? Interact brings it in — you can't just switch it off in the air,
@@ -931,6 +958,7 @@ func _physics_process(delta: float) -> void:
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
+		or (game_shell != null and game_shell.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
 		or (radio_dial != null and radio_dial.is_open) \
 		or (skill_tree != null and skill_tree.is_open) \
@@ -2013,6 +2041,10 @@ func use_item(id: String) -> bool:
 		character.set_eyepatch(not character.eyepatch)
 		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
 		return false # toggles; never consumed
+	if id == "game_handheld":
+		if game_handheld != null:
+			game_handheld.open(self)
+		return false # hardware stays in the pack
 	if ProtoWeapon.WEAPONS.has(id):
 		# Already own it? USING a gun you carry means DRAW it — switch, don't refuse.
 		for i in weapons.size():
@@ -3876,6 +3908,8 @@ func save_game() -> Dictionary:
 		"dogs": dogs_out,
 		# THE SHELF (docs/cinema.md Phase 4): what you've found and what you've watched.
 		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
+		# Every cartridge uses the same ledger: unlocks, settings, scores, challenges.
+		"game_deck": game_deck.serialize() if game_deck != null else {},
 		# FURNITURE DRAG (prototype 2026-07-08): where you've dragged the TV (and any
 		# future furniture) — keyed by furniture_id so a moved set stays moved on reload.
 		"furniture": _furniture_records(),
@@ -3980,6 +4014,8 @@ func dismiss_briefing() -> void:
 
 func apply_save(data: Dictionary) -> void:
 	player_restore(data.get("player", {}))
+	if game_deck != null:
+		game_deck.restore(data.get("game_deck", {}))
 	var ck: Dictionary = data.get("clock", {})
 	daynight.day = int(ck.get("day", 1))
 	daynight.hour = float(ck.get("hour", 9.0))

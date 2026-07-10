@@ -412,6 +412,15 @@
    "weight": 0.2,
    "value": 18,
    "desc": "A sealed course. With a full night in a bed, it breaks BITE FEVER \u2014 nothing else does."
+  },
+  {
+   "category": "tool",
+   "desc": "A hand-cranked pocket game system. USE opens the handheld cartridge library; it stays in your pack.",
+   "emoji": "\ud83c\udfae",
+   "id": "game_handheld",
+   "name": "Pocket Game Deck",
+   "usable": true,
+   "weight": 0.45
   }
  ]
 }

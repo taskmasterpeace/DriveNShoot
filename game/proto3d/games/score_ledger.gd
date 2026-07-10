@@ -15,6 +15,7 @@ var settings: Dictionary = {}
 var seen_help: Array = []
 var tournament_records: Dictionary = {}
 var _seen_result_ids: Dictionary = {}
+var _starter_unlocks: Array = []
 
 
 func _init(new_registry: RefCounted) -> void:
@@ -22,7 +23,8 @@ func _init(new_registry: RefCounted) -> void:
 	for id in registry.order:
 		var row: Dictionary = registry.rows[id]
 		if String(row.get("unlock_type", "")) == "starter":
-			unlocked.append(String(id))
+			_starter_unlocks.append(String(id))
+	unlocked = _starter_unlocks.duplicate()
 
 
 func submit(result: Dictionary) -> bool:
@@ -167,7 +169,7 @@ func serialize() -> Dictionary:
 
 
 func restore(data: Dictionary) -> void:
-	unlocked = (data.get("unlocked", unlocked) as Array).duplicate()
+	unlocked = (data.get("unlocked", _starter_unlocks) as Array).duplicate()
 	personal_bests = (data.get("personal_bests", {}) as Dictionary).duplicate(true)
 	recent_results = (data.get("recent_results", []) as Array).duplicate(true)
 	challenges = (data.get("challenges", []) as Array).duplicate(true)

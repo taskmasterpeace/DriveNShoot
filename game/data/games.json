@@ -15,7 +15,7 @@
       "title": "RADWORM", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
       "cartridge_scene": "res://proto3d/games/radworm/radworm.tscn", "score": {"primary": "length", "direction": "high", "secondary": "survival_ms"},
       "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
-      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
       "help": "Route the worm through lost packets. Do not strike the firewall, the border, or your own tail.",
       "about_world": "Continuity technicians used this routing toy to teach children that every packet had a place."
     },
@@ -51,7 +51,7 @@
       "title": "LAST MILE", "aspect": "16:9", "players": {"min": 1, "max": 1, "ai": true, "local": false, "online": "challenge"},
       "cartridge_scene": "res://proto3d/games/last_mile/last_mile.tscn", "score": {"primary": "course_ms", "direction": "low", "secondary": "clean_laps"},
       "controls_profile": "racer", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
-      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
+      "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
       "help": "Thread traffic, hold the racing line, and finish the courier route in the lowest time.",
       "about_world": "A pre-collapse delivery-driver aptitude test now treated as prophecy by long-haul crews."
     },

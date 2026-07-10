@@ -70,6 +70,64 @@
         "THE CIRCUIT\n\nThe loop that keeps you alive: SCAVENGE a cache → UPGRADE at the workbench →\nPUSH farther out → light a NODE. The HUD pips track the cycle; finishing one pays.\nY catches radio: distress caches, trade runs, howler warnings.\nWeekly, somewhere, a STATE GOES TO WAR — the map is not decoration.",
         "THE NIGHT\n\nNight shrinks what you can see — that's the danger, not a number.\nHOWLERS hunt in packs with roles: circlers pin you, chargers come straight,\na SCREAMER calls more. Headlights scare them; so do flares.\nLURKERS wait indoors. The walkie hears them moving before you see them.\nRespect the dark or feed it."
       ]
+    },
+    {
+      "id": "book_game_deck_handheld",
+      "title": "POCKET GAME DECK FIELD GUIDE",
+      "emoji": "\ud83c\udfae",
+      "pages": [
+        "USING THE HANDHELD\n\nFind the POCKET GAME DECK in the safehouse supply chest. Open TAB, select it, and USE it. The road keeps moving while you play: hunger, weather, danger, and the clock do not pause. ESC or START opens the cartridge pause page; B / Circle returns to the little physical screen without killing the run. POWER ends the cartridge. HELP and CONTROLS always show your live keyboard, mouse, and pad bindings.",
+        "WASTE HEAP\n\nSlide the whole salvage tray with arrows, WASD, D-pad, or left stick. Equal-numbered parts fuse once per move and a new part arrives after a successful slide. Build the largest reactor core before no move remains. Corners are stable but can trap low parts; preserve one clean descending edge. The primary record is SCORE, then HIGHEST PART. A challenge copies the seed, so both players receive the same luck.",
+        "RADWORM\n\nSteer the Continuity routing worm through bright lost packets. Each packet lengthens the tail and raises the score. Touching the border, firewall debris, or your own tail ends the route. Plan two turns ahead and keep the center open; circling the perimeter too early removes escape lanes. Primary record: LENGTH. Tiebreaker: SURVIVAL TIME. Remote play is an asynchronous seed challenge.",
+        "DEAD GROUND\n\nReveal a square with CONFIRM / primary click; FLAG suspected ordnance with CANCEL / secondary click. A number counts mines in the eight touching squares. Empty ground opens as a flood. Begin from certain zeros, mark only forced mines, and use the remaining-mine counter before guessing. Primary record is lowest CLEAR TIME; ERRORS break ties. The board seed is preserved for fair challenges.",
+        "PACK RAT\n\nPush every cargo crate onto a marked evacuation bay. You can push one crate but never pull it, and two crates cannot be pushed together. Before each move, check whether a crate would enter a non-goal corner or a wall pocket; either can make the level impossible. Work from the deepest bay outward so finished crates do not block the aisle. Record: LEVELS cleared, then fewer MOVES.",
+        "BUNKER BREAKER\n\nMove the paddle horizontally and keep the breaching slug in play. The return angle changes with the part of the paddle you strike: edges send it wide, center sends it straight. Clear every armor brick to descend a bunker layer. Preserve lives by meeting the ball instead of chasing it late. Primary record: SCORE. Tiebreaker: LAYERS breached. The portrait screen is intentional.",
+        "LAST MILE\n\nSteer with left/right, accelerate and brake with the displayed racer bindings. Thread civilian traffic, clip checkpoints in order, and finish the courier course with as few contacts as possible. Smooth steering holds speed; panic corrections cost more time than a brief lift. Learn traffic rhythm before taking the inside line. Primary record is lowest COURSE TIME; CLEAN LAPS settle equal runs.",
+        "IRON DOME\n\nAim the ground battery with pointer or stick and fire interceptors into incoming missile trails. An interceptor bursts where you trigger it; one expanding blast can chain nearby warheads. Protect the cities, conserve shots, and detonate ahead of clustered targets rather than directly on one. Empty silos do not reload mid-wave. Primary record: SCORE. Tiebreaker: CITIES SAVED.",
+        "FALL LINE\n\nRotate and pulse the lander's thrusters to settle on the marked pad. Gravity never stops working; kill horizontal drift early, then descend on short controlled burns. Landing too fast, too tilted, or outside the pad destroys the craft. Fuel remaining matters, but a gentle touchdown matters first. Primary record: LANDING RATING. Tiebreaker: FUEL.",
+        "TILT SALVAGE\n\nUse left and right flippers to keep the steel salvage ball alive. Launch with the shown action, nudge sparingly, and shoot lit lanes to build multipliers. A late flipper sends the ball sideways; an early flipper sends it high. Repeated nudges trigger a tilt and kill the table. Primary record: SCORE. Tiebreaker: JACKPOTS.",
+        "RELAY BLOOM\n\nRotate relay tiles until power forms an unbroken path from the source to every bloom. CONFIRM turns the selected tile; pointer play can select directly. Build outward from fixed terminals and use edge constraints before touching the ambiguous center. Completing several relays without a correction grows the combo. Primary record: SCORE. Tiebreaker: MAX COMBO."
+      ]
+    },
+    {
+      "id": "book_game_deck_console",
+      "title": "SAFEHOUSE CONSOLE STRATEGY ANNUAL",
+      "emoji": "\ud83d\udd79\ufe0f",
+      "pages": [
+        "USING THE CONSOLE\n\nThe amber set beside the safehouse TV is an ordinary E interactable. All cartridges use one 16:9 screen, shell, controls page, score ledger, save block, and network seam. Local players must be physically near the set and claim separate pads. Online players join from another terminal. Closing the fullscreen bezel returns your body but leaves the cartridge alive on the set. POWER ends it.",
+        "CROWN OF ASH\n\nThis is complete chess under wasteland colors. Select a piece, select its destination, and protect your crown. Castling, en passant, promotion, check, checkmate, stalemate, repetition, insufficient material, and the fifty-move draw all apply. Captures play a battle vignette but never change the legal result. Develop pieces before raiding, keep the king sheltered, and inspect every enemy reply. Records count WINS, then CLOCK time.",
+        "DIAL TANKS\n\nDrive and aim independently. Shells ricochet off hard walls, mines punish repeated routes, and the last working tank wins. Use cover to split enemy sightlines, then move before return fire lands. Local and online rounds use the same authoritative snapshot. Primary record: WINS. Tiebreaker: KILLS.",
+        "RED SKY\n\nTwo artillery crews trade shots across ruined terrain. Set angle and power, account for wind, then fire. Explosions deform cover and can expose a better line for the next shell. A ranging shot that misses safely is often better than gambling maximum power. Primary record: WINS. Tiebreaker: DAMAGE dealt.",
+        "BLACK ORBIT\n\nPilot a salvage skiff through a wraparound asteroid field. Turn, thrust, aim, and fire independently; inertia persists when thrust stops. Break rock, collect salvage, and deny the rival without drifting into debris. Short burns are safer than constant thrust. Primary record: WINS. Tiebreaker: SALVAGE.",
+        "GRIDBREACH\n\nPlant charges through the maze, retreat behind hard cover, and use blast chains to cut routes or trap rivals. Fire travels in straight lanes until a wall stops it; upgrades extend reach and charge count. Never enter a pocket without an exit timer in mind. Primary record: WINS. Tiebreaker: SURVIVAL TIME.",
+        "RUSTBALL\n\nBody the iron ball through the rival gate. Momentum transfers through every hit, so approach at an angle that sends the ball where you want after contact. One player presses, one covers the rebound. Boost spent on a lost ball is boost unavailable for the save. Primary record: GOALS. Tiebreaker: SAVES.",
+        "FUEL RUN\n\nRace armed scrap cars around the refinery, collect the fuel cell, and return it to your depot. The carrier is heavier and visible to everyone. Teammates should screen intersections while the carrier takes the clean line. Crashes can knock the cell loose. Primary record: CAPTURES. Tiebreaker: fastest LAP.",
+        "SKYJOUST\n\nClimb, dive, and lance rival gliders out of the county-fair sky. Speed gives authority but also lengthens every turn. Attack from above, cross once, then regain altitude instead of circling at stall speed. A clean lance hit matters more than grazing fire. Primary record: WINS. Tiebreaker: KNOCKOUTS.",
+        "FIGHT NIGHT '99\n\nMove, guard, strike, and commit to specials in a two-dimensional tournament ring. High attacks catch movement; low attacks open a standing guard; throws punish passive blocking. Learn recovery frames and stop mashing into a missed heavy. Best-of rounds support local and online rivals. Primary record: WINS. Tiebreaker: HP REMAINING.",
+        "ASHLAND COMMAND\n\nMove squads and armor across a turn-based grid, capture supply points, and break the opposing command unit. Terrain changes defense and movement cost; damaged units still occupy space. Concentrate fire, screen artillery, and deny repairs. The battle is deterministic and supports hot-seat or reliable online turns. Primary record: WINS. Tiebreaker: fewer TURNS."
+      ]
+    },
+    {
+      "id": "book_rust_runners",
+      "title": "RUST RUNNERS MERCENARY MANUAL",
+      "emoji": "\ud83d\ude80",
+      "pages": [
+        "FIELD CONTROLS\n\nMove with WASD / left stick and aim with mouse / right stick. PRIMARY fires, SECONDARY throws or uses the carried tool, JUMP ignites the boots, RELOAD changes magazines, SWAP cycles weapons, and USE handles objectives. The same shared-shooter profile is used by BLACK GRID so muscle memory transfers exactly.",
+        "MOVEMENT & JETS\n\nRUST RUNNERS is fast side-view infantry combat: run, jump, crouch, prone, and burn limited jet fuel to cross ledges or change a duel's height. Momentum survives in the air. Feather the jet instead of holding it; a dry pack at the top of an arc leaves no answer to incoming fire.",
+        "GUNFIGHTS\n\nWeapons differ in magazine, recoil, projectile speed, and role. Fire short automatic bursts, lead moving targets, and reload behind terrain. Grenades inherit your motion. Health kits and weapon drops are contested resources. Objective wins matter before kill counts.",
+        "MODES & RECORDS\n\nDeathmatch, team deathmatch, capture, and hold objectives share one deterministic match contract. Local players use separate pads at the same console; remote peers use the same controls and rules. Primary record: WINS. Tiebreaker: KILLS. All art, maps, names, sounds, and lore are original DRIVN material."
+      ]
+    },
+    {
+      "id": "book_black_grid",
+      "title": "BLACK GRID CONTINUITY DOCTRINE",
+      "emoji": "\u25a6",
+      "pages": [
+        "FIELD CONTROLS\n\nMove with WASD / left stick and aim with mouse / right stick. PRIMARY fires, SECONDARY uses the selected equipment, JUMP becomes the infantry maneuver, RELOAD changes magazines, SWAP cycles inventory, and USE enters vehicles or works objectives. This is the exact shared-shooter layout used by RUST RUNNERS.",
+        "MASS, POWER, AND LOADOUT\n\nBLACK GRID is a top-down combined-arms battle. Every weapon, cell, tool, and armor plate adds mass; heavy kits accelerate slowly and spend more energy. Power drives equipment, shields, deployables, and some vehicles. Build a role instead of carrying everything.",
+        "SQUADS & OBJECTIVES\n\nFight for generators, relays, depots, and territory rather than wandering for kills. Engineers establish defenses, medics preserve tickets, scouts expose routes, and heavy crews break hard points. Vehicles require space, fuel/power, and infantry support. A squad that shares information beats four excellent loners.",
+        "CLEAN-ROOM LINE\n\nNo Infantry Online or FreeInfantry client code, server code, maps, zone files, art, audio, names, text, or branding is included. BLACK GRID is original DRIVN code and presentation using only documented and observed player-facing genre mechanics. Primary record: WINS. Tiebreaker: OBJECTIVE SCORE."
+      ]
     }
   ]
 }
