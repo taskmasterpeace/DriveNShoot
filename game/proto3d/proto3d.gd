@@ -996,6 +996,9 @@ func _physics_process(delta: float) -> void:
 	var wpn := current_weapon()
 	if wpn:
 		wpn.tick(delta, self) # main threaded through for the pump-chain beats (GUNFEEL PASS)
+		if _fire_down and mode == Mode.FOOT and wpn.is_automatic() \
+				and not panel.is_open and _reload_t <= 0.0 and wpn.mag > 0:
+			fire_equipped()
 	# The unarmed rows are ALWAYS live (cooldowns + the combo window decay).
 	fists.tick(delta, self)
 	palm.tick(delta, self)

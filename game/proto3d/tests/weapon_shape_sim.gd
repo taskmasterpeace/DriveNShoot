@@ -23,7 +23,7 @@ func _ready() -> void:
 	get_tree().create_timer(30.0).timeout.connect(func() -> void:
 		print("WPNSHAPE: WATCHDOG"); print("WPNSHAPE: FAILURES PRESENT"); get_tree().quit(1))
 
-	var combat: Array = ["pistol", "shotgun", "pipe_rocket", "wrench", "machete", "axe", "bat"]
+	var combat: Array = ["pistol", "scrap_smg", "shotgun", "pipe_rocket", "wrench", "machete", "axe", "bat"]
 
 	# === 1. COVERAGE: every combat weapon declares a shape with real parts ==========
 	var covered := true

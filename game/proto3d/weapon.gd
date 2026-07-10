@@ -20,14 +20,21 @@ enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
-		"fire_sfx": "shot", "hit_stop": false,
+		"trigger_mode": "semi", "fire_sfx": "shot", "hit_stop": false,
 		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
 		# body when the scaled kick crosses stagger_threshold. Strength eats all of it.
 		"recoil": {"kick_pitch": 0.09, "torso_jolt": 0.04, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
+	"scrap_smg": {"name": "Scrap SMG", "emoji": "🔫", "behavior": Behavior.HITSCAN,
+		"damage": 8.0, "mag_size": 30, "ammo": "9mm", "cooldown": 0.12,
+		"spread_deg": 5.5, "range": 38.0, "reload_s": 1.35, "trigger_mode": "auto",
+		"fire_sfx": "shot_mg", "hit_stop": false,
+		"recoil": {"kick_pitch": 0.055, "torso_jolt": 0.025, "stagger_threshold": 0.4},
+		"hand_pose": {"offset": Vector3(-0.05, 0.11, -0.03), "two_handed": true,
+			"grip_r": Vector3(0.0, 0.0, 0.07), "grip_l": Vector3(0.0, -0.02, -0.16)}},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
-		"fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
+		"trigger_mode": "semi", "fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
 		# 12ga at strength 0 = 0.38 >= 0.3: the WEAK get rocked; at strength 8 the
 		# scaled 0.20 stays under — the strong eat it with the arm. The fantasy, as data.
 		"recoil": {"kick_pitch": 0.38, "torso_jolt": 0.15, "stagger_threshold": 0.3},
@@ -40,7 +47,7 @@ const WEAPONS: Dictionary = {
 			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, -0.20)}}, # support hand on the FOREND
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
-		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
+		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "trigger_mode": "semi", "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
 		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
 			# ANIMATION_FIX_PACK §3.5.2 (D5): support hand UNDER the tube, ahead of the
@@ -66,7 +73,7 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
-		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "trigger_mode": "auto", "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
 		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
 	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
 	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
@@ -100,6 +107,13 @@ static var SHAPES: Dictionary = {
 	"pistol": {"muzzle_z": 0.26, "parts": [
 		{"size": Vector3(0.055, 0.075, 0.26), "pos": Vector3(0, 0.03, -0.10), "color": GUNMETAL},
 		{"size": Vector3(0.05, 0.15, 0.075), "pos": Vector3(0, -0.07, 0.02), "color": DARKSTEEL},
+	]},
+	# SCRAP SMG — compact receiver, exposed barrel, wire stock, and a stick mag.
+	"scrap_smg": {"muzzle_z": 0.42, "parts": [
+		{"size": Vector3(0.075, 0.10, 0.28), "pos": Vector3(0, 0.03, -0.12), "color": GUNMETAL},
+		{"size": Vector3(0.035, 0.035, 0.22), "pos": Vector3(0, 0.04, -0.34), "color": DARKSTEEL},
+		{"size": Vector3(0.045, 0.12, 0.08), "pos": Vector3(0, -0.08, -0.08), "color": DARKSTEEL, "rot": Vector3(-0.12, 0, 0)},
+		{"size": Vector3(0.035, 0.07, 0.24), "pos": Vector3(0, -0.01, 0.14), "color": BRIGHTSTEEL, "rot": Vector3(0.14, 0, 0)},
 	]},
 	# PUMP SHOTGUN — long barrel, pump under it, receiver, a wood stock kicked back.
 	"shotgun": {"muzzle_z": 0.55, "parts": [
@@ -169,6 +183,10 @@ func _init(id_in: String) -> void:
 
 func info() -> Dictionary:
 	return WEAPONS[id]
+
+
+func is_automatic() -> bool:
+	return String(info().get("trigger_mode", "semi")) == "auto"
 
 
 ## main is optional (bare `tick(delta)` stays legal for anything that never

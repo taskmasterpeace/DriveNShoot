@@ -33,7 +33,7 @@ func _ready() -> void:
 		get_tree().quit(1))
 
 	# === 1. WEAPON TIERS ===========================================================
-	var ranged := ["pistol", "shotgun", "pipe_rocket"]
+	var ranged := ["pistol", "scrap_smg", "shotgun", "pipe_rocket"]
 	var melee := ["wrench", "machete", "axe", "bat"]
 	var tiers_ok := true
 	for id in ranged:

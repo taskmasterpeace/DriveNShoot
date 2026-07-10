@@ -88,7 +88,7 @@ static func create(main: Node) -> ProtoTestGrounds:
 
 	# --- 🔫 THE ARMORY: every weapon row + the ammo to feed it -------------------
 	g._sign(Vector3(48, 0, 158), "🔫 ARMORY", 44)
-	var guns := ProtoChest.create("ARMORY — guns", {"pistol": 1, "shotgun": 1, "pipe_rocket": 1, "9mm": 240, "12ga": 60, "rocket": 12})
+	var guns := ProtoChest.create("ARMORY — guns", {"pistol": 1, "scrap_smg": 1, "shotgun": 1, "pipe_rocket": 1, "9mm": 240, "12ga": 60, "rocket": 12})
 	g.add_child(guns)
 	guns.position = Vector3(44, 0.4, 164)
 	var steel := ProtoChest.create("ARMORY — steel", {"wrench": 1, "machete": 1, "axe": 1, "bat": 1})

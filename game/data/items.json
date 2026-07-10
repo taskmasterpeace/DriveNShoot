@@ -11,6 +11,15 @@
   },
   {
    "category": "weapon",
+   "desc": "A compact automatic built from salvage. USE equips it.",
+   "emoji": "\ud83d\udd2b",
+   "id": "scrap_smg",
+   "name": "Scrap SMG",
+   "usable": true,
+   "weight": 2.4
+  },
+  {
+   "category": "weapon",
    "desc": "Doors, howlers, arguments. USE equips it.",
    "emoji": "\ud83d\udd2b",
    "id": "shotgun",
