@@ -102,12 +102,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/gridbreach/*`, `tests/gridbreach_sim.*`
 
-- [ ] Red sim: grid movement, solid/destructible walls, charge capacity, fuse,
+- [x] Red sim: grid movement, solid/destructible walls, charge capacity, fuse,
   orthogonal blast blocking, chain reaction, wall break, elimination, bot escape,
   local seats, snapshot, and wins/survival result.
-- [ ] Implement one-to-four sabotage avatars in an original Continuity relay
+- [x] Implement one-to-four sabotage avatars in an original Continuity relay
   maze; do not import Godot demo maps or sprites.
-- [ ] Commit `feat: add GRIDBREACH`.
+- [x] Commit `feat: add GRIDBREACH`.
 
 ## Task 6: RUSTBALL
 
