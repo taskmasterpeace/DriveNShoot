@@ -674,6 +674,11 @@ var _tire_mesh_by_wheel: Array = []
 var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
+var _direct_contact_packets: int = 0
+var _direct_state_frames: int = 0
+var _direct_contacts_seen: int = 0
+var _direct_max_speed: float = 0.0
+var _fallback_incoming_velocity: Vector3 = Vector3.ZERO
 var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
@@ -694,6 +699,8 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# GROUND_INTEGRITY rule 3a: at 38 m/s a body steps 0.63 m per physics tick —
 	# more than the old 0.5 m floor was thick. CCD on every rig, always.
 	car.continuous_cd = true
+	car.contact_monitor = true
+	car.max_contacts_reported = 8
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
 	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt
@@ -1062,6 +1069,50 @@ func take_damage(amount: float) -> void:
 		"legacy_armor":armor})
 
 
+func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	_direct_state_frames += 1
+	_direct_contacts_seen = maxi(_direct_contacts_seen, state.get_contact_count())
+	var may_refine_fallback: bool = String((last_impact.get("packet", {}) as Dictionary).get(
+		"source", "")) == "crash_fallback" and _fallback_incoming_velocity.length_squared() > 0.01
+	if dead or (_impact_cd > 0.0 and not may_refine_fallback) or state.get_contact_count() <= 0:
+		return
+	var strongest: Dictionary = {}
+	var strongest_energy: float = 0.0
+	for i in state.get_contact_count():
+		var local_normal: Vector3 = state.get_contact_local_normal(i)
+		var world_normal: Vector3 = (state.transform.basis * local_normal).normalized()
+		var incoming_velocity: Vector3 = _fallback_incoming_velocity if may_refine_fallback \
+			else (_prev_vel if _prev_vel.length_squared() > state.linear_velocity.length_squared() \
+			else state.linear_velocity)
+		var impact_speed: float = absf(incoming_velocity.dot(world_normal))
+		_direct_max_speed = maxf(_direct_max_speed, impact_speed)
+		var impulse: Vector3 = state.get_contact_impulse(i)
+		var energy: float = maxf(impact_speed * 2.5,
+			impulse.length() / maxf(1.0, mass) * 4.0)
+		if impact_speed < 7.0 or energy <= strongest_energy:
+			continue
+		var incoming: Vector3 = incoming_velocity.normalized() \
+			if incoming_velocity.length_squared() > 0.01 else -world_normal
+		strongest = VEHICLE_IMPACT_SCRIPT.contact_packet(
+			state.transform * state.get_contact_local_position(i), world_normal,
+			incoming, energy, "crash")
+		strongest_energy = energy
+	if strongest.is_empty():
+		return
+	_impact_cd = 0.5
+	_direct_contact_packets += 1
+	call_deferred("_apply_direct_contact", strongest)
+
+
+func _apply_direct_contact(packet: Dictionary) -> void:
+	if not dead:
+		take_impact(packet)
+		_fallback_incoming_velocity = Vector3.ZERO
+		if bool(spec.get("rider_exposed", false)) and is_active \
+			and float(packet.get("energy", 0.0)) > 20.0:
+			rider_thrown.emit(float(packet.get("energy", 0.0)))
+
+
 # --- TIRE PUNCTURE: the 6th damage part (owner ask 2026-07-07) ---------------
 
 ## Flat a specific wheel by ROW index (0-based, matching the vehicle row's
@@ -1373,9 +1424,16 @@ func _physics_process(delta: float) -> void:
 	_impact_cd = maxf(0.0, _impact_cd - delta)
 	var moved := global_position.distance_to(_prev_pos)
 	var dv := (linear_velocity - _prev_vel).length()
-	if _impact_cd <= 0.0 and moved < 4.0 and dv > 9.0:
+	if _impact_cd <= 0.0 and get_contact_count() == 0 and moved < 4.0 and dv > 9.0:
 		_impact_cd = 0.5
-		take_damage(clampf((dv - 9.0) * 1.5, 4.0, 45.0))
+		var incoming: Vector3 = _prev_vel.normalized() if _prev_vel.length_squared() > 0.01 \
+			else -global_basis.z
+		_fallback_incoming_velocity = _prev_vel
+		var normal: Vector3 = -incoming
+		var half: Vector3 = (spec.get("hull", spec.get("chassis", Vector3(2, 1, 4))) as Vector3) * 0.5
+		take_impact(VEHICLE_IMPACT_SCRIPT.contact_packet(
+			global_position + incoming * maxf(half.x, half.z), normal, incoming,
+			clampf((dv - 9.0) * 1.5, 4.0, 45.0), "crash_fallback"))
 		# No cab, no mercy: a hard hit on an exposed ride THROWS the rider.
 		if spec.get("rider_exposed", false) and is_active and dv > 8.0:
 			rider_thrown.emit(dv)

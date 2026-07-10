@@ -20,7 +20,7 @@ enum Behavior { HITSCAN, HITSCAN_MULTI, PROJECTILE, MELEE }
 const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
-		"trigger_mode": "semi", "fire_sfx": "shot", "hit_stop": false,
+		"trigger_mode": "semi", "penetration": 10.0, "fire_sfx": "shot", "hit_stop": false,
 		"muzzle_fx": {"length": 0.46, "width": 0.13, "offset": 0.22, "life": 0.075,
 			"energy": 2.6, "range": 4.2, "emission": 5.0, "color": Color(1.0, 0.78, 0.28)},
 		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
@@ -31,7 +31,7 @@ const WEAPONS: Dictionary = {
 			"carry_class": "pistol", "elbow_pole_l": Vector3(-0.7, -0.6, 0.2)}},
 	"scrap_smg": {"name": "Scrap SMG", "emoji": "🔫", "behavior": Behavior.HITSCAN,
 		"damage": 8.0, "mag_size": 30, "ammo": "9mm", "cooldown": 0.12,
-		"spread_deg": 5.5, "range": 38.0, "reload_s": 1.35, "trigger_mode": "auto",
+		"spread_deg": 5.5, "range": 38.0, "reload_s": 1.35, "trigger_mode": "auto", "penetration": 8.0,
 		"fire_sfx": "shot_mg", "hit_stop": false,
 		"muzzle_fx": {"length": 0.34, "width": 0.10, "offset": 0.18, "life": 0.055,
 			"energy": 2.1, "range": 3.6, "emission": 5.5, "color": Color(1.0, 0.72, 0.22)},
@@ -41,7 +41,7 @@ const WEAPONS: Dictionary = {
 			"carry_class": "long_gun", "elbow_pole_l": Vector3(-0.7, -0.6, 0.2)}},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
-		"trigger_mode": "semi", "fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
+		"trigger_mode": "semi", "penetration": 6.0, "fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
 		"muzzle_fx": {"length": 0.82, "width": 0.25, "offset": 0.38, "life": 0.095,
 			"energy": 4.8, "range": 6.0, "emission": 6.5, "color": Color(1.0, 0.68, 0.18)},
 		# 12ga at strength 0 = 0.38 >= 0.3: the WEAK get rocked; at strength 8 the
@@ -86,7 +86,7 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true, "carry_class": "melee"}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
-		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "trigger_mode": "auto", "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
+		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "trigger_mode": "auto", "penetration": 22.0, "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
 		"muzzle_fx": {"length": 0.62, "width": 0.18, "offset": 0.30, "life": 0.065,
 			"energy": 3.2, "range": 5.2, "emission": 6.0, "color": Color(1.0, 0.74, 0.20)},
 		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
@@ -513,10 +513,12 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 			if not killed and bool(info().get("hit_stop", false)) and main.has_method("hit_stop"):
 				main.hit_stop()
 		elif is_car:
-			# METAL: a shot car keeps its EXISTING chassis damage (armor formula
-			# lives on ProtoCar3D.take_damage — untouched), it just answers with
-			# the right FX/sound instead of blood (GUNFEEL #6 per-surface).
-			col.take_damage(dmg)
+			# METAL: the real ray facts feed the one vehicle-impact boundary.
+			# Stable collision stays authoritative; armor/dents/marks resolve there.
+			col.take_impact({"world_pos":end,
+				"world_normal":hit.get("normal", -dir), "incoming_dir":dir,
+				"energy":dmg, "penetration":float(info().get("penetration", 8.0)),
+				"source":"bullet", "weapon_id":id})
 			ProtoFX.impact(main, end)
 			if "audio" in main and main.audio:
 				main.audio.play_at("impact_metal", end, -6.0)

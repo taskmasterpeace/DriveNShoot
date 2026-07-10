@@ -1,6 +1,6 @@
 ## L2 vehicle impacts: one finite packet and rotation-safe local face law.
 ## Run: Godot --headless --path game res://proto3d/tests/vehicle_contact_sim.tscn
-extends Node
+extends Node3D
 
 const IMPACT_PATH := "res://proto3d/vehicle_impact.gd"
 
@@ -74,4 +74,53 @@ func _ready() -> void:
 		float(contact["energy"]) == 5000.0 and String(contact["source"]) == "crash"
 		and (contact["world_pos"] as Vector3) == Vector3(4, 1, 2)
 		and (contact["world_normal"] as Vector3).dot(Vector3.LEFT) > 0.99)
+
+	var lab: Node3D = (load("res://proto3d/tools/physics_combat_lab.tscn") as PackedScene).instantiate()
+	add_child(lab)
+	for _i in 5:
+		await get_tree().physics_frame
+	lab.start_scenario("armored_penetration", 45)
+	await get_tree().physics_frame
+	var target_car: ProtoCar3D = lab.scenario_vehicles[0]
+	var gun := ProtoWeapon.new("pistol")
+	lab.shot_spread_deg = 0.0
+	var ray_origin: Vector3 = target_car.global_position + Vector3(0, 0.0, 7.0)
+	var ray_direction: Vector3 = (target_car.global_position
+		- ray_origin).normalized()
+	gun.fire(lab, ray_origin, ray_direction)
+	await get_tree().physics_frame
+	var bullet_packet: Dictionary = target_car.last_impact.get("packet", {})
+	_check("real weapon ray forwards hit point/normal/direction/weapon id to the car (%s)" %
+		str(bullet_packet),
+		String(bullet_packet.get("source", "")) == "bullet"
+		and String(bullet_packet.get("weapon_id", "")) == "pistol"
+		and (bullet_packet.get("world_pos", Vector3.INF) as Vector3).is_finite()
+		and (bullet_packet.get("world_normal", Vector3.ZERO) as Vector3).length() > 0.9)
+	lab.queue_free()
+	await get_tree().process_frame
+
+	ProtoWorldBuilder.box_body(self, Vector3(30, 0.5, 30), Vector3(0, -0.25, 0),
+		Color("#292622"))
+	ProtoWorldBuilder.box_body(self, Vector3(12, 4, 0.6), Vector3(0, 2, -7),
+		Color("#51483d"))
+	var crash_car := ProtoCar3D.create("scavenger", Color("#805033"))
+	add_child(crash_car)
+	crash_car.position = Vector3(0, 1.0, -1.5)
+	for _i in 5:
+		await get_tree().physics_frame
+	crash_car.linear_velocity = Vector3(0, 0, -22.0)
+	crash_car._prev_vel = crash_car.linear_velocity
+	crash_car._prev_pos = crash_car.global_position
+	for _i in 180:
+		await get_tree().physics_frame
+		if String(crash_car.last_impact.get("packet", {}).get("source", "")) == "crash":
+			break
+	var crash_packet: Dictionary = crash_car.last_impact.get("packet", {})
+	_check("real wall contact emits a bounded direct crash packet (%s · states %d contacts %d max %.1f)" % [
+		str(crash_packet), crash_car._direct_state_frames, crash_car._direct_contacts_seen,
+		crash_car._direct_max_speed],
+		String(crash_packet.get("source", "")) == "crash"
+		and float(crash_packet.get("energy", 0.0)) > 0.0
+		and float(crash_packet.get("energy", 0.0)) <= 5000.0
+		and (crash_packet.get("world_pos", Vector3.INF) as Vector3).is_finite())
 	_finish()
