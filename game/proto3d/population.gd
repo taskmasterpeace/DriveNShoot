@@ -110,7 +110,20 @@ func cell_at(pos: Vector3) -> Dictionary:
 	var key := cell_key(pos)
 	if not cells.has(key):
 		cells[key] = _new_cell(key, pos)
-	return cells[key]
+	var row: Dictionary = cells[key]
+	# THE PRE-ECO SAVE HEAL (audit GAP-10): a cell serialized before the eco
+	# wire has no "eco" dict — without this backfill the ecosystem is silently
+	# DEAD in every already-explored cell of an old save, forever.
+	if not row.has("eco"):
+		var biome: String = usmap.biome_at(pos) if (usmap != null and usmap.ok) else "scrub"
+		row["eco"] = {
+			"food_avail": 0.45,
+			"prey_density": {"swamp": 0.5, "forest": 0.35, "farmland": 0.3, "plains": 0.3}.get(biome, 0.15),
+			"predator_pressure": {"swamp": 0.6, "forest": 0.2}.get(biome, 0.1),
+			"corpse_heat": 0.0,
+			"water_rot": 0.55 if biome == "swamp" else 0.25,
+		}
+	return row
 
 
 func _new_cell(key: String, pos: Vector3) -> Dictionary:
@@ -168,7 +181,12 @@ func _derive_zone_tag(pos: Vector3) -> String:
 	if biome == "urban" or near_town:
 		return "suburbs" if not near_town or String(usmap.town_near(pos, 200.0).get("kind", "")) != "city" else "industrial"
 	match biome:
-		"forest", "swamp", "mountains":
+		"swamp":
+			# the Alley's own shoulder: rats haunt the wreck lines where the
+			# road cuts the swamp (audit GAP-5 — rodents were unreachable in
+			# the whole P1 corridor because every swamp cell read thick_forest)
+			return "road_shoulder" if near_road else "thick_forest"
+		"forest", "mountains":
 			return "thick_forest"
 		"farmland", "plains":
 			return "house_field" if near_road else "thick_forest"

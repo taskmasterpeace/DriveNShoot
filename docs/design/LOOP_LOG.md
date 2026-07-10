@@ -36,3 +36,11 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **Sims added:** `silhouette_sim` (21 — features per rep, iconic-truth overrides, floors height, 39/39 catalog materializes). Stale builder header fixed.
 - **LOOK:** 4 contact sheets → judge round 1 FAIL (sheet-3 composition: a giant footprint swallowed neighbors; chimney read as interior post; boom arm invisible; awning faint) → fixed (footprint-aware framing + giant gets own sheet + 3 feature tweaks) → **round 2: PASS 4/4 sheets.** Renders in docs/acceptance/iter3/.
 - **Regression sweep:** silhouette 21/0 · interior_skin 15/0 · furnisher_lod 10/0 · structure_data 36/0 · placement_wire 6/0 · town 16/0 · world_walkthrough 16/0.
+
+## Iteration 4 — AUDIT 1 + THE E-BURN-DOWN, wave 1 (2026-07-09)
+- **AUDIT (every-3rd-iteration law): added 14 rows (F1–F14).** Verdict: the ecosystem's P1 plumbing shipped, parts of its P1 CONTRACT didn't (warning contract, human-gate, one-authored-nest, noise chain, bird language, offline, legibility). Interiors "substantially conformant". All 3 playtest spot-checks verified in code.
+- **Audit quick-fixes shipped same iteration (4):** F8 protected cells bank no wildlife on tick · F10 pre-eco saves heal on touch · F12 BODY LAW on all four remaining death paths (howler/lurker/companion/infected pass their rigs; corpse adopter learned the biped's private _pose_dead) · F5a swamp+road = road_shoulder (the Alley banks rats now).
+- **E-rows closed (8):** E4 binocular 6/0 · E6 cone 8/0 · E7 dark 17/0 · E11 items 23/0 (3 price rows — incl. my own iter-1 `hide` debt) · E24 vision_reach 8/0 · E25 vision 6/0 · E26 walkthrough 15/0 · E27 car (flake, already closed). E12 life PARTIAL (night-floor realigned 18/19; horn-heels = real bug). Realignments carry the shipped-law citations in-file (retirement = playtest #15; night floor = daynight.gd:69 "tense, not blind").
+- **Deferred to the owner's LIVE radio/TV arc (4):** E16 noise, E18 radio_positional, E22 station, E23 tv — his lane moved under them mid-loop; realigning now would fight his WIP.
+- **Suite (iter-2/3 background run): 167/191** — new names all contention flakes (aim_sim 15/0 standalone); zero regressions from loop work.
+- **creatures_sim grew to 31 checks** (protected-law + save-heal regressions).

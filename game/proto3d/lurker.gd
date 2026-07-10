@@ -73,7 +73,12 @@ func take_damage(amount: float) -> void:
 		# KILL PAYOFF: the skull pops, the remains drop (soft pile, never a
 		# car-denting crate).
 		ProtoFX.skull(get_parent(), global_position)
-		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 2}, Color(0.46, 0.44, 0.4), hit_launch, m)
+		# 0.11 BODY LAW: the lurker's own puppet IS the corpse
+		var rig := _puppet
+		_puppet = null
+		if rig != null:
+			remove_child(rig)
+		var corpse := ProtoCorpse.create("Corpse", {"meat": 1, "scrip": 2}, Color(0.46, 0.44, 0.4), hit_launch, m, rig)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
 		queue_free()

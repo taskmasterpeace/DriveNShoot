@@ -12,6 +12,7 @@ var checks_passed: int = 0
 var checks_failed: int = 0
 var _start_z: float = 0.0
 var _walk_start: Vector3
+var _car: Node3D = null
 
 
 func _ready() -> void:
@@ -49,22 +50,36 @@ func _physics_process(delta: float) -> void:
 		0: # settle
 			if phase_t > 0.5:
 				_check("boots in DRIVE mode", main.mode == 0)
-				_check("the FLEET spawned (2 scavengers + bike/van/buggy/pickup/semi + trailer = %d)" % main.cars.size(), main.cars.size() == 8)
-				_start_z = main.cars[0].global_position.z
+				# TestGrounds' MOTOR POOL adopts the boot car and parks one of
+				# EVERY rig (2026-07 realign — the old exact-8 fleet predates it)
+				_check("the FLEET + motor pool spawned (%d rigs ≥ 15)" % main.cars.size(), main.cars.size() >= 15)
+				_car = main.active_car # the DRIVEN car — cars[0] is pool-order luck
+				_check("the wheel is yours (active car set)", _car != null)
+				if _car == null:
+					phase = 99
+					return
+				# stage onto I-95 southbound: the pool pen wall is 57 m ahead of
+				# the boot spot (staging positions = the documented exception)
+				_car.global_position = Vector3(6, 0.8, 380)
+				_car.global_transform.basis = Basis()
+				_car.linear_velocity = Vector3.ZERO
+				_car.angular_velocity = Vector3.ZERO
+				_start_z = 380.0
 				Input.action_press("move_up")
 				_next()
 		1: # drive south 4s
+			Input.action_press("move_up") # held like a real key — sticky action state flushes ~4 s in
 			if phase_t > 4.0:
 				Input.action_release("move_up")
-				var dz: float = main.cars[0].global_position.z - _start_z
+				var dz: float = _car.global_position.z - _start_z
 				_check("car drove the interstate (moved %.0f m)" % absf(dz), dz < -50.0)
-				_check("car hit speed (%.0f mph)" % main.cars[0].current_mph, main.cars[0].current_mph > 30.0)
+				_check("car hit speed (%.0f mph)" % _car.current_mph, _car.current_mph > 30.0)
 				Input.action_press("move_down")
 				_next()
 		2: # brake to stop
-			if main.cars[0].current_mph < 2.0 or phase_t > 5.0:
+			if _car.current_mph < 2.0 or phase_t > 5.0:
 				Input.action_release("move_down")
-				_check("car braked to a stop", main.cars[0].current_mph < 2.0)
+				_check("car braked to a stop", _car.current_mph < 2.0)
 				_tap_interact()
 				_next()
 		3: # exited?

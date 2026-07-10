@@ -154,7 +154,12 @@ func take_damage(amount: float) -> void:
 		# THE BODY LAW + the ecosystem contract: an infected corpse READS WRONG —
 		# pale tint, no pack loot, and it carries the infection float the
 		# pressure law (F-IP) and the corpse-flies tell consume.
-		var corpse := ProtoCorpse.create("Body", {}, Color(0.58, 0.55, 0.5), hit_launch, m)
+		# 0.11 BODY LAW: the infected's own pale body IS the corpse
+		var rig := _puppet
+		_puppet = null
+		if rig != null:
+			remove_child(rig)
+		var corpse := ProtoCorpse.create("Body", {}, Color(0.58, 0.55, 0.5), hit_launch, m, rig)
 		corpse.infection = 1.0
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position

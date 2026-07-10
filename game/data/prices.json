@@ -1,6 +1,21 @@
 {
-  "_comment": "Base prices (scrip) — folds ADDITIVELY onto ProtoNPC.PRICES at boot (code is the floor; a row here prices a NEW item with no code). See ProtoNPC.ensure_prices().",
-  "prices": [
-    {"id": "field_ration", "price": 6}
-  ]
+ "_comment": "Base prices (scrip) — folds ADDITIVELY onto ProtoNPC.PRICES at boot (code is the floor; a row here prices a NEW item with no code). See ProtoNPC.ensure_prices().",
+ "prices": [
+  {
+   "id": "field_ration",
+   "price": 6
+  },
+  {
+   "id": "hide",
+   "price": 9
+  },
+  {
+   "id": "drone_remote",
+   "price": 45
+  },
+  {
+   "id": "antibiotics",
+   "price": 60
+  }
+ ]
 }

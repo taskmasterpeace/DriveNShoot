@@ -90,7 +90,10 @@ func _physics_process(delta: float) -> void:
 				main.daynight.hour = 2.0
 			elif phase_t > 2.0:
 				_check("2 AM is dark", main.daynight.is_dark())
-				_check("night taxes your EYES (cone %.0fm < 24)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m < 24.0)
+				# THE RAISED FLOOR (daynight.gd:69 "tense, not blind"): the tax
+				# shows against the 90m+ day reach, but never strips past 0.4.
+				_check("night taxes your EYES (cone %.0fm < 60)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m < 60.0)
+				_check("…but the floor holds (%.0fm ≥ 20 — tense, not blind)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m >= 20.0)
 				_check("headlights come on at dark", main.cars[0].headlights_on)
 				# The night icon is the MOON PHASE now (🌑🌘🌓🌕) — assert "not daytime".
 				_check("clock reads night (%s)" % main.daynight.clock_text(), not main.daynight.clock_text().contains("☀️"))

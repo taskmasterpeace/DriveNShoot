@@ -76,6 +76,8 @@ func _adopt_rig(rig: Node3D) -> void:
 	rig.position = Vector3.ZERO
 	if rig.has_method("pose_dead"):
 		rig.call("pose_dead")
+	elif rig.has_method("_pose_dead"):
+		rig.call("_pose_dead") # the biped puppet's sprawl is underscore-private
 	_collect_fade_mats(rig)
 
 

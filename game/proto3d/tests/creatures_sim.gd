@@ -142,6 +142,25 @@ func _physics_process(delta: float) -> void:
 			_check("rich sector steps grazers back UP (%d → %d ≥ 3)" % [g1, g2], g2 >= 3)
 			_check("corpse heat banked scavengers (%d ≥ 1)" % int(cur.get("scavenger", 0)), int(cur.get("scavenger", 0)) >= 1)
 			_check("apex still holds the wet ground (== 1)", int(cur.get("apex", 0)) == 1)
+			# audit GAP-8: a PROTECTED cell banks NO wildlife however rich its
+			# floats — never hunted on your doorstep. Flag a fresh cell
+			# directly: which 500 m cells GET the flag is the bubble law's
+			# business (safehouse_spawn_suppression_sim); the reconcile guard
+			# is what's under test here.
+			var home_row: Dictionary = main.population.cell_at(Vector3(-9000, 0, -9000))
+			home_row["protected"] = true
+			(home_row["eco"] as Dictionary)["prey_density"] = 0.9
+			(home_row["current_pop"] as Dictionary)["grazer"] = 0
+			main.ecology.tick(4.0)
+			_check("protected cell banks NO wildlife (doorstep law)",
+				int((home_row["current_pop"] as Dictionary).get("grazer", 0)) == 0)
+			# audit GAP-10: a pre-eco save row HEALS on first touch
+			var old_pos := Vector3(9000, 0, 9000)
+			var old_key: String = main.population.cell_key(old_pos)
+			main.population.cells[old_key] = {"id": old_key, "zone_tag": "thick_forest",
+				"biome": "scrub", "current_pop": {}, "protected": false}
+			var healed: Dictionary = main.population.cell_at(old_pos)
+			_check("pre-eco save cell HEALS (eco backfilled on touch)", healed.has("eco"))
 			_next()
 		3: # REALIZATION: the player ARRIVES (staged teleport — documented exception)
 			main.cars[0].global_position = swamp + Vector3(20, 1.2, 0)

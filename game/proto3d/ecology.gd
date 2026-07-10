@@ -123,6 +123,11 @@ static func wildlife_desired(row: Dictionary) -> Dictionary:
 ## floats support — ±1 per elapsed game hour (capped), never a teleport to the
 ## target. A kill stays killed for hours; a starved sector empties gradually.
 func _reconcile_wildlife(row: Dictionary, dt_gh: float) -> void:
+	# LWE §3.11: never hunted on your own doorstep — protected cells (safehouse/
+	# homebase bubbles) bank NO wildlife, ever (audit GAP-8: the hourly tick
+	# used to re-bank predators cold-start had correctly skipped).
+	if bool(row.get("protected", false)):
+		return
 	var cur: Dictionary = row.get("current_pop", {})
 	if cur.is_empty():
 		return

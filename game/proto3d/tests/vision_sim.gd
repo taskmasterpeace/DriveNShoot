@@ -69,14 +69,16 @@ func _physics_process(delta: float) -> void:
 				main.aim_override = Vector3.ZERO
 				_key(KEY_B, true)
 				_next()
-		3: # binoculars: narrow lens
+		3: # binoculars are RETIRED (playtest #15): B never narrows the lens
 			if phase_t > 1.6:
-				_check("BINOCULARS narrow the cone (%.2f rad)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() < 0.7)
+				_check("retired binoculars leave the cone WIDE (%.2f rad)" % main.vision_cone.current_half_angle(),
+					main.vision_cone.current_half_angle() > 1.0)
 				_key(KEY_B, false)
 				_next()
 		4:
 			if phase_t > 1.6:
-				_check("lowering the glass restores the cone (%.2f rad)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() > 1.0)
+				_check("the cone stays wide after release (%.2f rad)" % main.vision_cone.current_half_angle(),
+					main.vision_cone.current_half_angle() > 1.0)
 				_next()
 		5:
 			print("VISION RESULTS: %d passed, %d failed" % [passed, failed])

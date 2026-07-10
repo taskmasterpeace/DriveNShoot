@@ -108,7 +108,11 @@ func _physics_process(delta: float) -> void:
 				main.daynight.moon_phase = 0.0
 			elif _step == 2 and phase_t > 3.6:
 				var r_new: float = main.vision_cone.last_range_m
-				_check("NEW MOON night is INK (%.0fm < 15)" % r_new, r_new < 15.0)
+				# THE RAISED FLOOR (daynight.gd:69 — "new moon = tense, not
+				# blind"): 0.4 sight floor, never ink. The old <15 predates it.
+				_check("NEW MOON strips toward the 0.4 floor (%.0fm ≤ 0.62×full %.0fm)" % [r_new, _r_full],
+					r_new <= _r_full * 0.62)
+				_check("…but TENSE, not BLIND (%.0fm ≥ 20)" % r_new, r_new >= 20.0)
 				_check("the moon is the dial (%.0fm vs %.0fm)" % [_r_full, r_new], r_new < _r_full - 8.0)
 				_check("clock shows the phase (%s)" % main.daynight.clock_text(), main.daynight.clock_text().contains("🌑"))
 				_next()
@@ -223,35 +227,23 @@ func _physics_process(delta: float) -> void:
 			elif _step == 3 and phase_t > 1.4:
 				_check("...then the mag lands full (%d)" % main.current_weapon().mag, main.current_weapon().mag == 12)
 				_next()
-		9: # THE GLASS: sweep far FAST, and it NAMES what it sees with ranges.
-			# Down the HIGHWAY lane — the desert's scatter rocks legitimately
-			# block LOS (the glass is honest; the test lane must be clear).
+		9: # THE GLASS IS RETIRED (playtest #15: "get rid of the binoculars") —
+			# the bind row is cleared; B belongs to drone recall. This phase now
+			# asserts the removal. (The recon NAMING it did folds into the
+			# future radar arc, #14 — deliberately not re-homed here.)
 			if _step == 0:
 				_step = 1
 				main.daynight.hour = 12.0
 				main.aim_override = Vector3.ZERO
 				_place(Vector3(6, 0.3, 300))
-				_lurk = ProtoLurker.create()
-				_lurk.stalk_range = 0.0
-				main.add_child(_lurk)
-				_lurk.global_position = main.player.global_position + Vector3(0, 0.4, -70.0) # 70m up the road
 				main.player.snap_orientation(Vector3(0, 0, -1))
 				_key(KEY_B, true)
-			elif _step == 1:
+			elif _step == 1 and phase_t > 1.2:
 				_mouse_move(Vector2(0, -220))
-				if main.cam_rig.binocular_offset.y < -60.0:
-					_step = 2
-					_check("the glass SWEEPS far fast now (offset %.0fm in %.1fs)" % [absf(main.cam_rig.binocular_offset.y), phase_t], phase_t < 2.5)
-					phase_t = 0.0
-				elif phase_t > 3.0:
-					_check("the glass SWEEPS far fast (stuck at %.0fm)" % absf(main.cam_rig.binocular_offset.y), false)
-					_next()
-			elif _step == 2 and phase_t > 1.4:
-				var named := false
-				for txt in main.hud.recon_texts:
-					if String(txt).contains("LURKER") and String(txt).contains("m"):
-						named = true
-				_check("the glass NAMES what it sees + range (%s)" % str(main.hud.recon_texts), named)
+				_check("retired glass never raises (cam_rig.binoculars stays off)",
+					not bool(main.cam_rig.binoculars))
+				_check("retired glass never sweeps (offset %.0fm stays home)" % absf(main.cam_rig.binocular_offset.y),
+					absf(main.cam_rig.binocular_offset.y) < 10.0)
 				_key(KEY_B, false)
 				_next()
 		10:

@@ -122,7 +122,12 @@ func take_damage(amount: float) -> void:
 
 func _die_to_chest() -> void:
 	var gear: Dictionary = (CREW[crew_id].get("gear", {}) as Dictionary).duplicate()
-	var corpse := ProtoCorpse.create("%s's body" % comp_name, gear, Color(0.55, 0.48, 0.4), hit_launch, _main)
+	# 0.11 BODY LAW: the crew member's own body IS the body the road collected
+	var rig := puppet
+	puppet = null
+	if rig != null:
+		remove_child(rig)
+	var corpse := ProtoCorpse.create("%s's body" % comp_name, gear, Color(0.55, 0.48, 0.4), hit_launch, _main, rig)
 	get_parent().add_child(corpse)
 	corpse.global_position = global_position
 	if _main != null and "companions" in _main:

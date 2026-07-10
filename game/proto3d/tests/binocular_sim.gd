@@ -45,23 +45,28 @@ func _ready() -> void:
 	_check("the shader takes the MAX of the bands, never the sum (the no-stack law)",
 		ProtoHUD.VIGNETTE_SHADER.contains("max("))
 
-	# === 2. THE REAL INPUT PATH: hold B raises it, release drops it ================
+	# === 2. THE RETIREMENT (playtest #15, owner: "get rid of the binoculars") =====
+	# The bind row is CLEARED (keys+pad empty) so the verb can never fire from
+	# input; B belongs to drone recall now. This section asserts the removal —
+	# the shipped truth — while §1's vignette constants stay (the rim shader
+	# remains in code for the future radar/scope arc).
 	main = (load("res://proto3d/proto3d.tscn") as PackedScene).instantiate()
 	add_child(main)
 	for _i in 8:
 		await get_tree().process_frame
-	main._exit_car() # binoculars are an on-foot verb
+	main._exit_car() # was an on-foot verb
 	for _i in 6:
 		await get_tree().physics_frame
+	var row_clear := true
+	for a in ProtoInputMap.actions:
+		if String(a.get("id", "")) == "drivn_binoculars":
+			row_clear = (a.get("keys", []) as Array).is_empty() and (a.get("pad", []) as Array).is_empty()
+	_check("the binocular BIND ROW is cleared (keys+pad empty)", row_clear)
 	_key(KEY_B, true)
 	for _i in 10:
 		await get_tree().physics_frame
-	_check("HOLD B raises the binoculars", bool(main.cam_rig.binoculars))
-	_check("...and the HUD's thin-rim vignette is LIVE", main.hud._vignette != null and main.hud._vignette.visible)
+	_check("HOLD B no longer raises binoculars (B = drone recall now)", not bool(main.cam_rig.binoculars))
 	_key(KEY_B, false)
-	for _i in 10:
-		await get_tree().physics_frame
-	_check("release drops them", not bool(main.cam_rig.binoculars))
 
 	print("BINOC RESULTS: %d passed, %d failed" % [passed, failed])
 	print("BINOC: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

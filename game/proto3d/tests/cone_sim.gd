@@ -86,9 +86,10 @@ func _physics_process(delta: float) -> void:
 				_check("both eyes open restores the arc (%.2f)" % main.vision_cone.current_half_angle(), main.vision_cone.current_half_angle() > _arc0 * 0.9)
 				_key_b(true) # raise binoculars
 				_next()
-		6: # binoculars EXTEND true sight range
+		6: # binoculars are RETIRED (playtest #15): B changes nothing
 			if phase_t > 1.8:
-				_check("binoculars EXTEND sight (%.0fm)" % main.vision_cone.last_range_m, main.vision_cone.last_range_m > 90.0)
+				_check("retired binoculars leave sight UNCHANGED (%.0fm)" % main.vision_cone.last_range_m,
+					main.vision_cone.last_range_m <= 90.0)
 				_key_b(false)
 				_next()
 		7: # dog snapshot: alert reveals a bubble at the threat

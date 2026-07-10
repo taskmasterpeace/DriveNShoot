@@ -49,40 +49,63 @@
 
 | id | sim | status | note |
 |----|-----|--------|------|
-| E1 | audio_sim | OPEN | engine-hum loop nil pitch_scale |
+| E1 | audio_sim | OPEN | engine-hum attach nil pitch_scale — real-bug bucket |
 | E2 | bike_rider_sim | OPEN | — |
 | E3 | bike_sim | OPEN | — |
-| E4 | binocular_sim | OPEN | binoculars REMOVED by playtest #15 — sim is stale |
+| E4 | binocular_sim | DONE | realigned to the retirement (bind row cleared; B=recall) — 6/0 |
 | E5 | char_sim | OPEN | — |
-| E6 | cone_sim | OPEN | asserts binoculars extend sight — stale vs #15 |
-| E7 | dark_sim | OPEN | — |
+| E6 | cone_sim | DONE | binocular phase asserts no-change — 8/0 |
+| E7 | dark_sim | DONE | night-floor law (tense-not-blind) + glass retirement — 17/0 |
 | E8 | drone_sim | OPEN | likely stale vs one-press/recall rework |
 | E9 | frontier_sim | OPEN | — |
 | E10 | furnisher_sim | OPEN | fold into I1 work |
-| E11 | items_sim | OPEN | — |
-| E12 | life_sim | OPEN | — |
+| E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
+| E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
 | E13 | los_sim | OPEN | — |
 | E14 | m1_sim | OPEN | — |
 | E15 | nav_sim | OPEN | — |
-| E16 | noise_sim | OPEN | — |
+| E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
 | E17 | puppet_sim | OPEN | — |
-| E18 | radio_positional_sim | OPEN | possibly stale vs owner's radio-faces arc |
+| E18 | radio_positional_sim | DEFERRED(owner's live radio arc) | — |
 | E19 | stage3_sim | OPEN | — |
 | E20 | stage4_sim | OPEN | — |
 | E21 | stage7_sim | OPEN | — |
-| E22 | station_sim | OPEN | — |
-| E23 | tv_sim | OPEN | possibly stale vs owner's TV-cabinet commit |
-| E24 | vision_reach_sim | OPEN | — |
-| E25 | vision_sim | OPEN | — |
-| E26 | walkthrough_sim (old) | OPEN | stale vs TestGrounds adopting the boot car (boots facing the pen wall) |
+| E22 | station_sim | DEFERRED(owner's live radio arc) | — |
+| E23 | tv_sim | DEFERRED(owner's live TV arc) | — |
+| E24 | vision_reach_sim | DONE | retirement section (bind-row cleared truth) — 8/0 |
+| E25 | vision_sim | DONE | binocular phase asserts cone stays wide — 6/0 |
+| E26 | walkthrough_sim (old) | DONE | realigned: motor-pool fleet ≥15 + I-95 staged drive — 15/0 |
 | E27 | car_sim | DONE(flake) | green standalone + baseline; contention-only failure |
+
+
+## F. AUDIT 1 ROWS (iteration-4 adversarial audit vs LWE/BUILDING_BOOK/PLAYTEST specs — added 14)
+
+> The ecosystem's P1 PLUMBING shipped; parts of its P1 CONTRACT didn't. Quick-fix rows landed same iteration; contract rows queue next.
+
+| id | item | status | proof |
+|----|------|--------|-------|
+| F1 | Warning contract (LWE 0.6): warn_mask ≥3 perceived clues before a human strike; strike DEFERS + force-spawns a clue | OPEN | — |
+| F2 | Human-gate by nest state (LWE §3.5): FED apex never hunts humans; state changes eligibility, not just radius | OPEN | — |
+| F3 | ONE authored nest (LWE §9-P1): apex-per-swamp-cell → one memorable I-75 nest + den prop; apex rarity law | OPEN | — |
+| F4 | Noise→predator chain (LWE §3.5): human_noise float + apex reads noises_in; quiet/lights/route verbs matter | OPEN | — |
+| F5 | Rats emerge from wrecks (nest-in-object); swamp road_shoulder zone SHIPPED (the Alley banks rodents now) | PARTIAL | zone fix in `creatures_sim` 31/0 |
+| F6 | Bait verb + rodent-boom backfire on apex kill (LWE §9-P1 agency) | OPEN | — |
+| F7 | Bird language (LWE §3.7): vulture = unkillable marker w/ formation states; + re-materialize loaded chunks so birds gather over watched kills | OPEN | — |
+| F8 | Protected cells bank NO wildlife on the hourly tick (doorstep law) | DONE | `creatures_sim` 31/0 (GAP-8 check) |
+| F9 | Offline ecology (LWE 0.8): pure advance_offline_day + return briefing | OPEN | — |
+| F10 | Pre-eco saves heal on touch (eco backfill in cell_at) | DONE | `creatures_sim` 31/0 (GAP-10 check) |
+| F11 | Legibility layer (LWE 0.9): threat-priority stack, toast queue, cause-stamped beats | OPEN | — |
+| F12 | 0.11 BODY LAW on ALL death paths: howler/lurker/companion/infected pass their rigs | DONE | threat 17/0 · crew 11/0 · infected 10/0 · corpse 12/0 |
+| F13 | Furnisher cap semantics (AR 0.11): per-chunk 2-3 (not global 6); co-op starvation | OPEN | — |
+| F14 | Catalog 42-row completion (BUILDING_BOOK §1: 14 missing rows incl. hospital_lobby, library_small, city_hall) | OPEN | — |
 
 ---
 
-## Status roll-up
-- DONE: 12 (C0–C6, I0–I2, W0, P17, E27)
-- OPEN: 26 (E1–E26)
-- PARTIAL: 1 (P18)
-- DEFERRED: 3 (P14, P16, P-clarify-1)
+## Status roll-up (post-audit-1, iteration 4)
+- DONE: 22 (C0–C6, I0–I2, W0, P17, E4, E6, E7, E11, E24–E27, F8, F10, F12)
+- OPEN: 22 (E1–E3, E5, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- PARTIAL: 3 (P18, E12, F5)
+- DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
+- **Audit 1 added 14 rows** (4 closed same iteration)
 
 **STOP CONDITION** holds only when every row reads DONE or DEFERRED(reason), the full sim suite (incl. `world_walkthrough_sim`) is green, and two consecutive audits add zero rows.
