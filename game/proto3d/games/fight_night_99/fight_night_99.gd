@@ -32,7 +32,8 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	_rng.seed = new_seed
 	fighters.clear()
 	var archetype_ids: Array[String] = ["road_warden", "pit_medic", "toll_breaker"]
-	for index in 2:
+	var count := target_participant_count(2, 2, new_seats.size())
+	for index in count:
 		var archetype := String((new_seats[index] as Dictionary).get("archetype", archetype_ids[index])) \
 			if index < new_seats.size() else archetype_ids[_rng.randi_range(0, archetype_ids.size() - 1)]
 		if not ARCHETYPES.has(archetype):

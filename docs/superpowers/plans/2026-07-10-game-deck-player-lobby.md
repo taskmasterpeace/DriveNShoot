@@ -47,7 +47,7 @@ renderer for visual acceptance.
 - Produces: `ProtoGameCartridge.participant_total: int`
 - Consumes: `context.actor_count`, `context.bots_enabled`, `game_row.players.max`
 
-- [ ] **Step 1: Write the failing all-cartridge bot-fill simulation**
+- [x] **Step 1: Write the failing all-cartridge bot-fill simulation**
 
 Create a table of all twelve console IDs and their expected maxima. Launch each
 with one human and `{ "bots_enabled": true, "actor_count": maximum }`, then
@@ -68,7 +68,7 @@ for game_id in EXPECTED:
         int(cartridge.participant_total) == int(EXPECTED[game_id]))
 ```
 
-- [ ] **Step 2: Run RED and verify the missing contract is the failure**
+- [x] **Step 2: Run RED and verify the missing contract is the failure**
 
 ```powershell
 & $godot --headless --path game res://proto3d/tests/game_bot_fill_sim.tscn
@@ -77,7 +77,7 @@ for game_id in EXPECTED:
 Expected: parse/runtime failure because `participant_total` and
 `target_participant_count` do not exist.
 
-- [ ] **Step 3: Add the shared helper to the base cartridge**
+- [x] **Step 3: Add the shared helper to the base cartridge**
 
 ```gdscript
 var participant_total := 0
@@ -96,7 +96,7 @@ func target_participant_count(minimum: int, maximum: int,
 
 Reset `participant_total` in `start_match` before the cartridge-specific call.
 
-- [ ] **Step 4: Fold every console cartridge through the helper**
+- [x] **Step 4: Fold every console cartridge through the helper**
 
 Replace local participant-count calculations with the shared helper. Examples:
 
@@ -117,7 +117,7 @@ target_participant_count(2, 2, new_seats.size())
 Keep each cartridge's existing `index >= new_seats.size()` AI law. Do not add a
 second bot implementation.
 
-- [ ] **Step 5: Run GREEN and the focused console regression block**
+- [x] **Step 5: Run GREEN and the focused console regression block**
 
 Run `game_bot_fill_sim`, `crown_of_ash_sim`, `dial_tanks_sim`, `red_sky_sim`,
 `black_orbit_sim`, `gridbreach_sim`, `rustball_sim`, `fuel_run_sim`,
@@ -126,7 +126,7 @@ Run `game_bot_fill_sim`, `crown_of_ash_sim`, `dial_tanks_sim`, `red_sky_sim`,
 Expected: every named scene exits 0; bot-fill sim reports 24 or more passes and
 zero failures.
 
-- [ ] **Step 6: Commit the participant law**
+- [x] **Step 6: Commit the participant law**
 
 ```powershell
 git add game/proto3d/games game/proto3d/tests/game_bot_fill_sim.*

@@ -41,7 +41,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	shells.clear()
 	mines.clear()
 	round_winner = -1
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	var spawns: Array[Vector2] = [Vector2(155, 175), Vector2(1125, 585),
 		Vector2(1125, 175), Vector2(155, 585)]
 	for index in count:

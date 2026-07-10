@@ -35,7 +35,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	asteroids.clear()
 	shots.clear()
 	salvage_pickups.clear()
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	var homes: Array[Vector2] = [Vector2(135, 185), Vector2(1145, 570),
 		Vector2(1145, 185), Vector2(135, 570)]
 	for index in count:

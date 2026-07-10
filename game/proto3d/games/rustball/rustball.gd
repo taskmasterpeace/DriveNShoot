@@ -38,7 +38,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	players_state.clear()
 	team_scores = [0, 0]
 	elapsed_ticks = 0
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	for index in count:
 		var team := index % 2
 		var row := index / 2

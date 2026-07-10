@@ -36,7 +36,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	players.clear()
 	bombs.clear()
 	blasts.clear()
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	var spawns: Array[Vector2i] = [Vector2i(1, 1), Vector2i(11, 7),
 		Vector2i(11, 1), Vector2i(1, 7)]
 	for index in count:

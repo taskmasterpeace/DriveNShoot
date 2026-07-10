@@ -40,7 +40,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	crews.clear()
 	projectile.clear()
 	current_turn = 0
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	var crew_x: Array[float] = [165.0, 1115.0, 385.0, 895.0]
 	for index in count:
 		crews.append({"id": index, "x": crew_x[index], "hp": START_HP,

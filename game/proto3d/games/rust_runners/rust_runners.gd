@@ -111,7 +111,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 		_rect_from(current_map.get("bounds", [60, 110, 1160, 520])), platforms)
 	actors.clear()
 	death_parts.clear()
-	var actor_count := clampi(int(context.get("actor_count", maxi(2, new_seats.size()))), 2, 8)
+	var actor_count := target_participant_count(2, 8, new_seats.size())
 	for index in actor_count:
 		var spawn := spawns[index % spawns.size()]
 		combat.add_actor({"id": index, "team": index % 2, "pos": spawn,

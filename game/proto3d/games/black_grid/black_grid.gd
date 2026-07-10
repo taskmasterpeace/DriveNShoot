@@ -135,7 +135,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	team_scores = {"team:0": 0, "team:1": 0}
 	tickets = {"team:0": int(context.get("tickets", 20)),
 		"team:1": int(context.get("tickets", 20))}
-	var actor_count := clampi(int(context.get("actor_count", maxi(2, new_seats.size()))), 2, 16)
+	var actor_count := target_participant_count(2, 16, new_seats.size())
 	for index in actor_count:
 		var team := 0 if mode == "bug_hunt" else index % 2
 		var spawn_rows: Array = (current_zone.get("spawns", {}) as Dictionary).get("team_%d" % team, [])

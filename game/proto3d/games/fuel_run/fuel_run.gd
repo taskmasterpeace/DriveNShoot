@@ -32,7 +32,7 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	_rng.seed = new_seed
 	cars.clear()
 	elapsed_ticks = 0
-	var count := clampi(maxi(2, new_seats.size()), 2, 4)
+	var count := target_participant_count(2, 4, new_seats.size())
 	var homes: Array[Vector2] = [Vector2(150, 190), Vector2(1130, 550),
 		Vector2(1130, 190), Vector2(150, 550)]
 	for index in count:

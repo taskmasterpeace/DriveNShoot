@@ -32,7 +32,8 @@ func start_match(new_seed: int, new_seats: Array) -> void:
 	_rng.seed = new_seed
 	pilots.clear()
 	var spawns: Array[Vector2] = [Vector2(265, 520), Vector2(1015, 520)]
-	for index in 2:
+	var count := target_participant_count(2, 2, new_seats.size())
+	for index in count:
 		pilots.append({"id": index, "pos": spawns[index], "spawn": spawns[index],
 			"vel": Vector2.ZERO, "facing": 1 if index == 0 else -1,
 			"fuel": MAX_FUEL, "alive": true, "ai": index >= new_seats.size(),

@@ -19,6 +19,7 @@ var active := false
 var paused := false
 var finished := false
 var last_result: Dictionary = {}
+var participant_total := 0
 var _session_id := ""
 
 
@@ -32,12 +33,27 @@ func configure(new_game_row: Dictionary, new_context: Dictionary) -> void:
 func start_match(new_seed: int, new_seats: Array) -> void:
 	seed_value = new_seed
 	seats = new_seats.duplicate(true)
+	participant_total = new_seats.size()
 	tick = 0
 	active = true
 	paused = false
 	finished = false
 	last_result.clear()
 	_session_id = String(context.get("session_id", "%s-%d-%d" % [game_id, seed_value, get_instance_id()]))
+
+
+func target_participant_count(minimum: int, maximum: int,
+		human_count: int = seats.size()) -> int:
+	var safe_minimum := maxi(0, minimum)
+	var safe_maximum := maxi(safe_minimum, maximum)
+	var requested := int(context.get("actor_count", -1))
+	if requested >= 0:
+		participant_total = clampi(requested, safe_minimum, safe_maximum)
+	elif bool(context.get("bots_enabled", false)):
+		participant_total = safe_maximum
+	else:
+		participant_total = clampi(human_count, safe_minimum, safe_maximum)
+	return participant_total
 
 
 func apply_inputs(_new_tick: int, _snapshots: Array) -> void:

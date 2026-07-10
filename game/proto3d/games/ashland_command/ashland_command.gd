@@ -46,6 +46,7 @@ func _ready() -> void:
 
 func start_match(new_seed: int, new_seats: Array) -> void:
 	super.start_match(new_seed, new_seats)
+	target_participant_count(2, 2, new_seats.size())
 	_rng.seed = new_seed
 	terrain = _build_terrain()
 	units.clear()
