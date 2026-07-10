@@ -128,10 +128,11 @@ func _physics_process(delta: float) -> void:
 				var w: ProtoWeapon = main.current_weapon()
 				_check("rest recovers the cone (%.1f)" % w.current_spread(main), w.current_spread(main) < _base_spread * 1.15)
 				# Shoot-from-the-car test (the hood MG default is GONE — VEHICLES.md §6):
-				# clear battlefield corpses (loot is grabby by design), stand at the door
-				for node in main.get_children():
-					if node is ProtoChest and node.container.label == "Corpse":
-						node.queue_free()
+				# clear battlefield BODIES (0.11 BODY LAW: kills are ProtoCorpse
+				# rigs in the "corpse" group now, never chest lumps — loot is
+				# grabby by design and E would open a body instead of the door)
+				for node in get_tree().get_nodes_in_group("corpse"):
+					(node as Node).queue_free()
 				var car: ProtoCar3D = main.cars[0]
 				main.player.global_position = car.global_position - car.global_basis.x * 2.0
 				main.player.velocity = Vector3.ZERO

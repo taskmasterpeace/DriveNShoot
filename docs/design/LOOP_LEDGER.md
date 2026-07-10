@@ -68,7 +68,7 @@
 | E17 | puppet_sim | OPEN | — |
 | E18 | radio_positional_sim | DEFERRED(owner's live radio arc) | — |
 | E19 | stage3_sim | OPEN | — |
-| E20 | stage4_sim | OPEN | — |
+| E20 | stage4_sim | DONE | corpse sweep realigned to 0.11 (bodies are ProtoCorpse group, not chest lumps) — 10/0 |
 | E21 | stage7_sim | OPEN | — |
 | E22 | station_sim | DEFERRED(owner's live radio arc) | — |
 | E23 | tv_sim | DEFERRED(owner's live TV arc) | — |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 27 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E15, E24–E27, F8, F10, F12)
-- OPEN: 17 (E8–E10, E13, E14, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 28 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E15, E20, E24–E27, F8, F10, F12)
+- OPEN: 16 (E8–E10, E13, E14, E17, E19, E21; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
