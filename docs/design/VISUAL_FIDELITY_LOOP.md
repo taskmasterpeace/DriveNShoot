@@ -296,15 +296,43 @@ stroke~~ → executed below.
 family and the probes bought the next two big tickets. Holding it back: invisible
 rain, flat buildings, no dust motes, no decals.
 
-**Next up (iteration 10):**
-1. **MAKE RAIN VISIBLE** — (a) falling streak particles anchored to the camera/player
-   (thin quads on their OWN material — the law), (b) a cool-wet grade while raining
-   (sun energy down ~15%, cooler fog/ambient through the weather/daynight env hooks —
-   VISUALS only, vision_mult untouched), (c) optional ground darkening via a weather
-   multiply on ground materials IF cheap (cached materials — careful). Before/after
-   WEATHER_rain.
-2. **Dust motes** — player-anchored puff drift while state=="dust" (same law).
-3. **BUILDING READ pass** — per-building tint jitter (patchwork law for structures) +
-   wall/roof tone separation; STREET probe placed on the road proves it.
-4. Weather-probe polish: the post-shot force("clear") didn't clear the banner by the
-   street shot — check force() cell semantics when convenient.
+**Next up (iteration 10):** ~~rain visible · dust motes · force(clear) fix~~ →
+executed below; BUILDING READ is now the firm lead for 11 (rolled twice).
+
+---
+
+## Iteration 10 — 2026-07-10 ~12:30
+
+**Shipped:**
+- **THE WEATHER MADE VISIBLE** (`weather.gd` grows its visual layer): RAIN = 220
+  billboarded streak quads sheeting down over the probe (own material, fixed amount —
+  both laws hold); DUST = 150 amber puff motes streaming sideways; both emitters ride
+  a probe-anchored root and toggle off intensity (>0.12), working through BOTH the
+  field and the fiat-pin paths.
+- **THE SKY GRADE**: `ProtoWeather.sky_dim/sky_tint/sky_tint_amt` static channels
+  (the grip_now pattern) — rain cools+dims 15%, dust warms, heat glows faintly;
+  daynight applies them to the DAY term only, so **the night floor stays un-dimmed**
+  (never blind, storm or not — sim-proven at midnight).
+- **force("clear") BUG FIXED**: the old filter removed only "clear"-kind systems
+  (none exist) — the storm disc survived and re-derived RAIN a frame later (the
+  probe's stuck banner). The fiat now clears the sky; regression-proven (stays clear
+  through 40 frames).
+- **weather_fx_sim NEW: 10/10** (streaks/motes on-off per kind, material law, grade
+  values, midnight floor, clear-stays-clear). Rain streaks widened 0.03→0.05 m after
+  the first render read ~1px at the gameplay camera.
+
+**Steam rating: 8.4/10** (was 8.2). Weather is now a picture, not a stat line: rain
+sheets down with a cool damp grade, dust storms drift amber haze. Holding it back:
+flat buildings (the last big slab), no wet-ground darkening, no storm audio-visual
+sync check, doll outline nits.
+
+**Next up (iteration 11):**
+1. **THE BUILDING READ** (firm lead, rolled twice) — per-building tint jitter (the
+   patchwork law via a hash of the building's position) + wall vs ROOF tone
+   separation in the structure builder; STREET probe placed ON the road (use a road
+   polyline point near Meridian center, not the amb_town rect center) proves it.
+2. Wet-ground darkening IF cheap: a rain-intensity multiply on ground material
+   albedo needs per-chunk materials (already per-color-cached — a wet variant per
+   biome color doubles the cache; acceptable) — probe the cost first.
+3. Storm-edge readability: drive INTO a storm (does the transition read?) — probe.
+4. PixelLab check-in + consider real art for the K-sheet frame / dash plates.
