@@ -92,9 +92,24 @@ func _ready() -> void:
 	main._unhandled_input(_rb(false))
 	_check("RB tap has parity with RMB", main.equipped == 1)
 
+	_stop_audio(main)
+	await get_tree().create_timer(0.12, true, false, true).timeout
 	main.queue_free()
 	wheel.queue_free()
-	_finish()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	call_deferred("_finish")
+
+
+func _stop_audio(root: Node) -> void:
+	for node in root.find_children("*", "AudioStreamPlayer", true, false):
+		var player := node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for node in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := node as AudioStreamPlayer3D
+		player.stop()
+		player.stream = null
 
 
 func _finish() -> void:

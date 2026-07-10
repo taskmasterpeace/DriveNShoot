@@ -11,6 +11,7 @@ var _lurk: ProtoLurker
 var _base_spread := 0.0
 var _stress0 := 0.0
 var _mag0: int = 0
+var _finishing: bool = false
 
 
 func _ready() -> void:
@@ -64,6 +65,8 @@ func _next() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _finishing:
+		return
 	t += delta
 	phase_t += delta
 	match phase:
@@ -172,11 +175,32 @@ func _physics_process(delta: float) -> void:
 				_check("YOUR OWN GUN kills from the driver's seat (no mount needed)", false)
 				_next()
 		9:
-			print("CBT RESULTS: %d passed, %d failed" % [passed, failed])
-			print("CBT: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
-			get_tree().quit(0 if failed == 0 else 1)
+			_finish(0 if failed == 0 else 1)
 
 	if t > 45.0:
 		print("CBT: TIMEOUT in phase %d" % phase)
-		print("CBT RESULTS: %d passed, %d failed" % [passed, failed])
-		get_tree().quit(1)
+		_finish(1)
+
+
+func _finish(exit_code: int) -> void:
+	_finishing = true
+	_stop_audio(main)
+	await get_tree().create_timer(0.12, true, false, true).timeout
+	main.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	main = null
+	print("CBT RESULTS: %d passed, %d failed" % [passed, failed])
+	print("CBT: %s" % ("ALL CHECKS PASSED" if exit_code == 0 else "FAILURES PRESENT"))
+	get_tree().quit(exit_code)
+
+
+func _stop_audio(root: Node) -> void:
+	for node in root.find_children("*", "AudioStreamPlayer", true, false):
+		var player := node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for node in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := node as AudioStreamPlayer3D
+		player.stop()
+		player.stream = null

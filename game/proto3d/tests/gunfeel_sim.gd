@@ -295,6 +295,27 @@ func _ready() -> void:
 	_check("fire_mount ALSO spawns a muzzle flash", get_tree().get_nodes_in_group("fx_flash").size() > mflash_before)
 	_check("…and a shell casing", get_tree().get_nodes_in_group("fx_casing").size() > mcasing_before)
 
+	_stop_audio(main)
+	await get_tree().create_timer(0.12, true, false, true).timeout
+	main.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	main = null
+	call_deferred("_finish")
+
+
+func _stop_audio(root: Node) -> void:
+	for node in root.find_children("*", "AudioStreamPlayer", true, false):
+		var player := node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for node in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := node as AudioStreamPlayer3D
+		player.stop()
+		player.stream = null
+
+
+func _finish() -> void:
 	print("GUNFEEL RESULTS: %d passed, %d failed" % [passed, failed])
 	print("GUNFEEL: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)

@@ -83,8 +83,25 @@ func _ready() -> void:
 	_check("replayed automatic fire reuses each slot's mesh and material resources",
 		resources_reused)
 
+	_stop_audio(main)
+	await get_tree().process_frame
 	main.queue_free()
-	_finish()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	# Let this coroutine unwind so its last MeshInstance3D locals cannot retain
+	# the pooled mesh/material resources while the process is shutting down.
+	call_deferred("_finish")
+
+
+func _stop_audio(root: Node) -> void:
+	for node in root.find_children("*", "AudioStreamPlayer", true, false):
+		var player := node as AudioStreamPlayer
+		player.stop()
+		player.stream = null
+	for node in root.find_children("*", "AudioStreamPlayer3D", true, false):
+		var player := node as AudioStreamPlayer3D
+		player.stop()
+		player.stream = null
 
 
 func _finish() -> void:
