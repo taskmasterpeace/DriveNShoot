@@ -56,7 +56,7 @@
 | E5 | char_sim | DONE | realigned to RIG V2 build axis (raider slab = build 1.6) — 14/0 |
 | E6 | cone_sim | DONE | binocular phase asserts no-change — 8/0 |
 | E7 | dark_sim | DONE | night-floor law (tense-not-blind) + glass retirement — 17/0 |
-| E8 | drone_sim | OPEN | likely stale vs one-press/recall rework |
+| E8 | drone_sim | DONE | one-press piloted truth asserted, then abort_to_autonomy for the patrol/battery legs (pilot owns battery, drone.gd:194) — 7/0 |
 | E9 | frontier_sim | OPEN | BACKROADS lay 0 (want ≥5) — road-gen or usmap-data drift from the corridor pass; real diagnosis |
 | E10 | furnisher_sim | OPEN | "REAL E opens the desk's panel (not a neighbor's)" — interact-scan proximity; baseline-red (predates loop furnisher) |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 31 (C0–C6, I0–I2, W0, P17, E1–E7, E11, E15, E17, E19–E21, E24–E27, F8, F10, F12)
-- OPEN: 13 (E8–E10, E13, E14; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 32 (C0–C6, I0–I2, W0, P17, E1–E8, E11, E15, E17, E19–E21, E24–E27, F8, F10, F12)
+- OPEN: 12 (E9, E10, E13, E14; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

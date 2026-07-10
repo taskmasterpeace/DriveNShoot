@@ -70,6 +70,14 @@ func _physics_process(delta: float) -> void:
 			elif phase_t > 1.2:
 				_check("drone DEPLOYS from the pack (item consumed)", main.drone != null and main.backpack.count("drone") == 0)
 				_check("...and it's AIRBORNE (y %.1f)" % main.drone.global_position.y, main.drone.global_position.y > 4.0)
+				# ONE PRESS = deploy AND fly (playtest #6) — assert, then release
+				# to AUTONOMY: the pilot owns battery/shutoff while flying
+				# (drone.gd:194), and phases 3-4 test the AUTONOMOUS bird.
+				_check("...and ONE press put you at the stick (piloted)", main.drone.piloted)
+				main.drone_pilot.abort_to_autonomy()
+				main.drone.piloted = false
+				main.drone.parked = false
+				main.drone.mode = ProtoDrone.DroneMode.PATROL
 				_next()
 		2: # THE SECOND WINDOW rides the drone's eye
 			if _step == 0:
