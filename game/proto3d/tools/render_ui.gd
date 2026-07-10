@@ -204,4 +204,30 @@ func _ready() -> void:
 	for _i in 110:
 		await get_tree().process_frame
 	await _shot("STREET_meridian")
+
+	# 12) STORM-EDGE drive probe (it.13) — PROBE_STORM=1 only (adds ~15 s): a
+	# small staged rain cell dead ahead, drive in on a REAL held key (the poller
+	# owns the throttle — the paid-for law), 3 frames across the gradient.
+	if OS.get_environment("PROBE_STORM") == "1" and main.active_car != null:
+		main.weather.systems.clear()
+		var pcar: ProtoCar3D = main.active_car
+		var fwd: Vector3 = -pcar.global_basis.z
+		var cell: Vector3 = pcar.global_position + fwd * 500.0
+		main.weather.systems.append({"kind": "rain", "pos": Vector2(cell.x, cell.z),
+			"radius": 450.0, "vel": Vector2.ZERO, "ttl_h": 8.0, "age_h": 1.0})
+		var kev := InputEventKey.new()
+		kev.keycode = KEY_W
+		kev.physical_keycode = KEY_W
+		kev.pressed = true
+		Input.parse_input_event(kev)
+		for snap_row in [["STORM_outside", 60], ["STORM_edge", 300], ["STORM_core", 300]]:
+			var snap: Array = snap_row
+			for _i in int(snap[1]):
+				await get_tree().process_frame
+			await _shot(String(snap[0]))
+		var kev2 := InputEventKey.new()
+		kev2.keycode = KEY_W
+		kev2.physical_keycode = KEY_W
+		kev2.pressed = false
+		Input.parse_input_event(kev2)
 	get_tree().quit(0)

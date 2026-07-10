@@ -41,8 +41,9 @@ func _ready() -> void:
 	_cam.position = Vector3(0.0, 1.15, 1.5)
 	_cam.look_at(Vector3(0, 0.95, 0), Vector3.UP)
 
-	# [label, capture frame delay] — the flash lives ~4 frames, shoot it at birth.
-	var subjects: Array = [["flash", 0], ["blood", 7], ["impact", 7]]
+	# [label, capture frame delay] — the flash lives ~4 frames, shoot it at birth;
+	# "mark" is the SAME impact captured late (burst dead, the pock remains).
+	var subjects: Array = [["flash", 0], ["blood", 7], ["impact", 7], ["mark", 45]]
 	var strip := Image.create(TILE * subjects.size(), TILE, false, Image.FORMAT_RGBA8)
 	for i in subjects.size():
 		var row: Array = subjects[i]
@@ -58,7 +59,9 @@ func _ready() -> void:
 			"blood":
 				ProtoFX.blood(_sv, Vector3(0, 1.0, 0))
 			"impact":
-				ProtoFX.impact(_sv, Vector3(0, 0.9, 0))
+				ProtoFX.impact(_sv, Vector3(0, 0.9, 0), Vector3(0, 0, 1))
+			"mark":
+				ProtoFX.impact(_sv, Vector3(0, 0.9, 0), Vector3(0, 0, 1))
 		for _f in int(row[1]):
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw

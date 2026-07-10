@@ -132,8 +132,30 @@ static func blood(parent: Node, pos: Vector3) -> void:
 
 
 ## Impact where a round meets the WORLD (walls, ground, wrecks): a soft DUST
-## kick + a pinch of hot SPARKS — misses and cover hits read instantly.
-static func impact(parent: Node, pos: Vector3) -> void:
+## kick + a pinch of hot SPARKS — misses and cover hits read instantly. Pass the
+## surface `normal` to also leave THE MARK (it.13): a dark pock that lingers ~9 s
+## and fades — the wall remembers the firefight. ZERO normal = burst only
+## (cars/companions keep their old read).
+static func impact(parent: Node, pos: Vector3, normal: Vector3 = Vector3.ZERO) -> void:
+	if normal.length_squared() > 0.01:
+		var mark := MeshInstance3D.new()
+		var mq := QuadMesh.new()
+		mq.size = Vector2(0.32, 0.32)
+		var mm := puff_material()
+		mm.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED # it lies ON the surface
+		mm.albedo_color = Color(0.06, 0.055, 0.05, 0.62)
+		mq.material = mm
+		mark.mesh = mq
+		mark.add_to_group("fx_mark")
+		parent.add_child(mark)
+		var n := normal.normalized()
+		var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
+		mark.look_at_from_position(pos + n * 0.03, pos - n, up) # quad face OUT along n
+		mark.rotate_object_local(Vector3(0, 0, 1), randf() * TAU) # break repetition
+		var mtw := mark.create_tween()
+		mtw.tween_interval(9.0)
+		mtw.tween_property(mark, "transparency", 1.0, 4.0)
+		mtw.tween_callback(mark.queue_free)
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true

@@ -142,7 +142,7 @@ func _strip(a: float) -> float:
 
 
 func _steel(a: float) -> Color:
-	return Color(0.62, 0.68, 0.75, 0.16 + clampf(a / 90.0, 0.0, 1.0) * 0.4)
+	return Color(0.62, 0.68, 0.75, 0.24 + clampf(a / 90.0, 0.0, 1.0) * 0.42)
 
 
 func _tier(part: String) -> int:

@@ -384,12 +384,37 @@ below; storm-edge probe rolls with reasoning.
 Remaining ladder to ~9: storm-edge motion read, decals (skid/scorch/impact), menu/
 title art, interior furnishing density at street scale, doll art polish.
 
-**Next up (iteration 13):**
-1. **STORM-EDGE drive probe** — stage a rain system at a known offset, drive the car
-   through the edge with REAL held keys (the drive-sim pattern), capture 3 frames
-   (outside/edge/core); judge the gradient.
-2. **DECALS probe** — what do skid marks look like today (drive + handbrake render)?
-   Scorch/impact marks on walls exist? Inventory then cheapest win.
-3. Consider the TITLE screen read (menu.gd) — one PixelLab backdrop could lift the
-   first impression massively; ask-the-owner note in the report.
-4. Doll polish: armor-face strips could read stronger at 1x (thicken by armor tier).
+**Next up (iteration 13):** ~~storm-edge probe · decals · doll strips~~ → executed
+below; TITLE screen awaits the owner's word.
+
+---
+
+## Iteration 13 — 2026-07-10 ~14:15
+
+**Shipped:**
+- **THE MARK** (decals inventory → cheapest win): skid decals + screech already
+  existed; gunfire left NO memory. Now a world hit leaves a dark pock aligned to the
+  surface normal (weapon's ray already carried it), random-rotated against
+  repetition, lingering 9 s then fading — fire-and-forget, grouped `fx_mark`.
+  Cars/companions keep their old read (ZERO normal = burst only, compat default).
+  FX booth grew a late-capture "mark" tile: the pock persists after the burst dies.
+- **STORM-EDGE drive probe** (env-guarded PROBE_STORM=1 in render_ui, ~15 s extra):
+  a small staged rain cell dead ahead, REAL held-W drive (the poller law), 3 frames
+  across the gradient. **The transition reads beautifully** — at the edge the storm
+  interior darkens with streaks + thickened haze while the near field stays bright;
+  no popping. Speedo 67 mph in-frame proves the real drive.
+- **Doll armor strips**: alpha floor 0.16→0.24 — the directional read carries at 1x.
+
+**Steam rating: 8.7/10** (was 8.6). Firefights now leave scars on the world and
+storms have real edges you can see coming. Remaining ladder to ~9: title/menu art
+(owner-gated), interior density at street scale, water/shoreline read, character/
+puppet material polish, minimap/atlas cohesion extras.
+
+**Next up (iteration 14):**
+1. **WATER READ probe** — shoreline/lake/ocean from the game camera (the water
+   shader shipped in SEABOARD — how does it photograph now? cheapest wins).
+2. **PUPPET READ probe** — the character up close from the game camera (materials,
+   face/paperdoll cohesion); inventory the cheapest polish (rim? tint variance on
+   clothes rows?). VISUALS ONLY — the rig is sacred (BODY_RIG_REFERENCE law).
+3. TITLE backdrop: execute only if the owner has replied yes.
+4. Ledger housekeeping: the ratings ladder from 5.5 → now, one table for the owner.
