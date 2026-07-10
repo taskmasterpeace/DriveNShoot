@@ -3947,6 +3947,12 @@ func apply_save(data: Dictionary) -> void:
 	if population != null:
 		population.restore(data.get("population", {})) # the count ledger rides the one file
 		_last_pop_hr = -1.0 # re-anchor the hourly tick to the restored clock
+	if ecology != null:
+		# LWE §0.7's own line (audit-3): re-anchor the eco tick to the restored
+		# clock — loading an OLDER save froze the whole director until the live
+		# clock re-passed the stale timestamp; CONTINUE fired one phantom
+		# whole-game-age tick that smeared every persisted float.
+		ecology._last_h = -1.0
 	if cloning != null:
 		cloning.restore(data.get("cloning", {})) # the backup + journal survive the file too
 	if empire != null:

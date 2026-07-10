@@ -76,3 +76,10 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **All five fixed + proven same iteration:** warn decay 1/7 quiet game-days (accumulator rides offline ticks free) · the gate re-checks the CURRENT hunt · warnings ride the guaranteed set_threat lane (owner "apex", top priority) · dropped meat emits a "carrion" noise (howlers' existing noses hear it) · the seed runs every tick (latch deleted).
 - creatures_sim grew to 55 checks. 10 CLEAN verdicts incl. "no realigned sim weakened a law" (dark's new-moon check is strictly STRONGER than the old one).
 - The dry-streak resets: audits 3+4 must both run dry.
+
+## Iteration 10 — AUDIT 3 (1 gap: the spec's own missing line) (2026-07-10)
+- **Audit 3 verdict: 1 gap** — LWE §0.7 prescribes re-anchoring the eco tick clock on load; the implementation dropped it. Loading an OLDER save froze the whole director (warn decay + nest re-seed inert with it) until the live clock re-passed the stale stamp; CONTINUE fired one phantom whole-game-age tick that smeared every persisted float.
+- **Fixed + proven same iteration:** apply_save re-anchors `ecology._last_h = -1.0` (the file's own population pattern at :3949); save_sim grew the re-anchor check — 21/0.
+- 14 CLEAN verdicts: all five audit-2 fixes hold (incl. howlers hear the carrion bell — they don't filter kinds), the new eco fields round-trip the save perfectly, no realigned sim weakened a law, the walkthrough's six gates still match shipped truth.
+- The mid-run-edit pollution lesson: the gate-2 suite must run UNTOUCHED — the polluted run (178/192 with a d–f block exactly at my edit window; all seven green standalone) is discarded. Clean-room run next.
+- Dry-streak: audits 4 + 5 must both run dry.

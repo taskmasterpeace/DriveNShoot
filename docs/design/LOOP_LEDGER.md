@@ -108,5 +108,6 @@
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration; all 14 closed by iter 8)
 - **Audit 2 added 5 rows — ALL closed same iteration** (A2-1 warn decay 1/7 quiet days · A2-2 mid-chase state call-off · A2-3 tells delivered via the threat stack · A2-4 the carrion dinner bell · A2-5 the nest seed unlatched for mid-session loads)
+- **Audit 3 added 1 row — closed same iteration** (A3-1: LWE §0.7's own line — apply_save re-anchors ecology's tick clock; an older save froze the director, CONTINUE fired one phantom whole-game-age tick). 14 CLEAN verdicts incl. the full save round-trip of the new eco fields.
 
 **STOP CONDITION** holds only when every row reads DONE or DEFERRED(reason), the full sim suite (incl. `world_walkthrough_sim`) is green, and two consecutive audits add zero rows.

@@ -84,8 +84,13 @@ func _ready() -> void:
 		main.circuit_beats[k] = false
 
 	# --- LOAD: the road remembers -------------------------------------------------
+	main.ecology._last_h = 999999.0 # a stale eco clock a load must re-anchor
 	_check("load succeeds", main.load_game())
 	_check("the pockets came back (%d scrip)" % main.backpack.count("scrip"), main.backpack.count("scrip") == jack0)
+	# LWE §0.7 (audit-3): the eco tick RE-ANCHORS to the restored clock — an
+	# older save must never freeze the director, a newer one must never fire
+	# one phantom whole-game-age tick.
+	_check("the ECO CLOCK re-anchored on load (sentinel set)", main.ecology._last_h == -1.0)
 	_check("the clock came back (day %d, %02.0f:00)" % [main.daynight.day, main.daynight.hour],
 		main.daynight.day == 3 and absf(main.daynight.hour - 21.0) < 0.2)
 	_check("the ledger came back (NEVADA %s)" % main.respect.standing("NEVADA"),
