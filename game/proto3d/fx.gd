@@ -140,10 +140,11 @@ static func impact(parent: Node, pos: Vector3, normal: Vector3 = Vector3.ZERO) -
 	if normal.length_squared() > 0.01:
 		var mark := MeshInstance3D.new()
 		var mq := QuadMesh.new()
-		mq.size = Vector2(0.32, 0.32)
+		var msize := randf_range(0.24, 0.4) # variety: no two pocks identical (it.16)
+		mq.size = Vector2(msize, msize)
 		var mm := puff_material()
 		mm.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED # it lies ON the surface
-		mm.albedo_color = Color(0.06, 0.055, 0.05, 0.62)
+		mm.albedo_color = Color(0.06, 0.055, 0.05, randf_range(0.5, 0.72))
 		mq.material = mm
 		mark.mesh = mq
 		mark.add_to_group("fx_mark")

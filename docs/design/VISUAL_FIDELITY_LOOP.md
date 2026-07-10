@@ -481,11 +481,40 @@ variety). The loop continues mining honest wins.
 beaches. Remaining honest levers: interior density (open-shell target), decal
 variety, NPC crowd LOOK-shot (in-world), title/menu (owner-gated).
 
-**Next up (iteration 16):**
-1. **Interior density, take 2** — aim the probe at an open-top walkin shell
-   (house_small class) with the furnisher awake; judge furniture read from above.
-2. **CROWD LOOK-shot** — an in-world frame with 3+ jittered NPCs (Test Grounds
-   spawns or Meridian residents) proving the wardrobe law photographs.
-3. **Decal variety probe**: marks are one dark pock — worth a size/alpha jitter?
-   (1-line if yes.) Skid color per-surface already exists.
+**Next up (iteration 16):** ~~interior take 2 · crowd shot · decal variety~~ →
+executed below.
+
+---
+
+## Iteration 16 — 2026-07-10 ~16:10
+
+**Shipped:**
+- **CROWD LOOK-PROOF**: four same-archetype scavs with seeded wardrobes lined up
+  in-world — the tint differences photograph (darker gray → warm tan across the
+  line), and Meridian's own residents wander the same frame with their authored
+  looks. The wardrobe law is real on screen, not just in the sim.
+- **INTERIOR DENSITY, answered**: the open-top house shows its BED and crates
+  clearly from the game camera — furniture READS at street scale. Density itself
+  (pieces per set) is a furnisher-ROW content question, not a visual defect —
+  logged as a content-side note for the owner, not a loop item.
+- **Decal variety**: impact marks jitter size (0.24-0.40 m) and alpha (0.5-0.72)
+  — no two pocks identical. combat_feel 15/15, gunfeel 37/37.
+- Ladder: | 16 | 9.0 | crowd + interior proofs, decal variety |
+
+**Steam rating: 9.0/10** (was 8.9). The world now photographs ALIVE: varied crowds,
+furnished interiors, varied battle scars, beaches, storms with edges, towns with
+character. What separates 9 from 10 is owner-lane and content-scale work:
+- TITLE/menu art (PixelLab backdrop — STILL AWAITING THE OWNER'S YES).
+- UI deep-styling (the owner's declared lane — MAP-FIRST ruling).
+- Furnisher set density + more structure archetypes (content rows).
+- Bigger art passes (real texture sets, model detail) beyond the box-authored style.
+The loop has mined the honest code-drawn wins; the remaining levers need either the
+owner's word or content-scale investment. The loop CONTINUES probing + polishing.
+
+**Next up (iteration 17):**
+1. **Full-suite regression sweep** — run the COMPLETE visual-domain sim battery in
+   one pass and re-render every acceptance shot; fix anything that drifted.
+2. **The doll juice recheck**: flash-on-worsen in a live drive (stage a hit while
+   driving — does the pulse read at speed?).
+3. **Husk/wreck read at night** (carbooth night + husk combo tile).
 4. TITLE backdrop: only on the owner's yes.

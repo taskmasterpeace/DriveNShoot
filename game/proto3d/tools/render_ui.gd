@@ -209,11 +209,14 @@ func _ready() -> void:
 	# furnisher WAKE on approach (the LOD law), shoot the open-top interior.
 	var fspot := Vector3.ZERO
 	var got_f := false
-	for p in town_pl:
-		var b := String(p.get("building", ""))
-		if b.contains("diner") or b.contains("police") or b.contains("bar"):
-			fspot = Vector3((p["pos"] as Vector2).x, 0.0, (p["pos"] as Vector2).y)
-			got_f = true
+	for pref in ["house", "diner", "bar"]: # open-top walkin FIRST (it.16 — roofed shells hid the furniture)
+		for p in town_pl:
+			var b := String(p.get("building", ""))
+			if b.contains(String(pref)):
+				fspot = Vector3((p["pos"] as Vector2).x, 0.0, (p["pos"] as Vector2).y)
+				got_f = true
+				break
+		if got_f:
 			break
 	if got_f:
 		var fgy: float = ProtoWorldBuilder.ground_y(fspot.x, fspot.z)
@@ -226,6 +229,21 @@ func _ready() -> void:
 		for _i in 110:
 			await get_tree().process_frame
 		await _shot("INTERIOR_shell")
+
+	# 11a2) CROWD LOOK-shot (it.16): four same-archetype puppets with jittered
+	# wardrobes lined up by the car — the law must PHOTOGRAPH, not just sim.
+	if main.active_car != null:
+		var crowd: Array = []
+		for i in range(4):
+			var pup := ProtoPuppet.create(ProtoPuppet.look("scav", 1009 + i * 37))
+			main.add_child(pup)
+			pup.global_position = main.active_car.global_position + Vector3(-3.0 + float(i) * 2.0, 0.15, -4.5)
+			crowd.append(pup)
+		for _i in 25:
+			await get_tree().process_frame
+		await _shot("CROWD_wardrobe")
+		for pup in crowd:
+			(pup as Node).queue_free()
 
 	# 11b) WATER READ (it.14) — the first coast the grid offers: a land cell with
 	# an ocean neighbor; pin the car on the shore, camera settles, shoot.
