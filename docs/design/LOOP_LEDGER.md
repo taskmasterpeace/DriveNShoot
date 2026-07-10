@@ -50,19 +50,19 @@
 | id | sim | status | note |
 |----|-----|--------|------|
 | E1 | audio_sim | DONE | realigned to the IGNITION LAW (dead motor silent → crank → hum → pitch) + I-95 staging — 8/0 |
-| E2 | bike_rider_sim | OPEN | — |
-| E3 | bike_sim | OPEN | — |
+| E2 | bike_rider_sim | OPEN | pose radians predate ANIMATION_FIX_PACK_2's knee-sign law (knees flex NEGATIVE now) — sign-flip realign |
+| E3 | bike_sim | OPEN | "brakes to a stop" — suspect ignition-law cold motor (audio_sim pattern: stage ignition=key + I-95) |
 | E4 | binocular_sim | DONE | realigned to the retirement (bind row cleared; B=recall) — 6/0 |
 | E5 | char_sim | DONE | realigned to RIG V2 build axis (raider slab = build 1.6) — 14/0 |
 | E6 | cone_sim | DONE | binocular phase asserts no-change — 8/0 |
 | E7 | dark_sim | DONE | night-floor law (tense-not-blind) + glass retirement — 17/0 |
 | E8 | drone_sim | OPEN | likely stale vs one-press/recall rework |
-| E9 | frontier_sim | OPEN | — |
-| E10 | furnisher_sim | OPEN | fold into I1 work |
+| E9 | frontier_sim | OPEN | BACKROADS lay 0 (want ≥5) — road-gen or usmap-data drift from the corridor pass; real diagnosis |
+| E10 | furnisher_sim | OPEN | "REAL E opens the desk's panel (not a neighbor's)" — interact-scan proximity; baseline-red (predates loop furnisher) |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
 | E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
-| E13 | los_sim | OPEN | — |
-| E14 | m1_sim | OPEN | — |
+| E13 | los_sim | OPEN | "open the door and it is SEEN (fade 0.88)" — door-state → LOS fade path; real-bug candidate |
+| E14 | m1_sim | OPEN | nil global_position cascade + door/hotwire/sedan checks — staged node missing; read full ediag log first |
 | E15 | nav_sim | OPEN | — |
 | E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
 | E17 | puppet_sim | OPEN | — |
