@@ -95,29 +95,33 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 1.4:
 				var lunge := _mark.distance_to(main.player.global_position)
 				_check("dive lunged %.1f m then recovered" % lunge, lunge > 2.0 and main.player.move_state == ProtoPlayer3D.FootState.NORMAL)
-				# Binoculars v2: hold B, sweep the mouse east
+				# Binoculars are RETIRED (playtest #15): B belongs to drone
+				# recall now — assert the removal, not the old glass sweep.
 				_key(KEY_B, true)
 				_next()
 		5:
 			if phase_t > 0.3:
-				_check("vignette overlay on", main.hud._vignette.visible)
+				_check("retired glass: no vignette on B", not main.hud._vignette.visible)
 				_next()
-		6: # sweep mouse — aim should travel
+		6: # sweep the mouse — the retired glass must NOT travel the view
 			_mouse_move(Vector2(70, 0))
 			if phase_t > 1.0:
-				var off: Vector2 = main.cam_rig.binocular_offset
-				_check("mouse aimed the glass %.0f m out" % off.length(), off.length() > 35.0 and off.x > 0.0)
-				var look_dist: float = (main.cam_rig._look_smooth - main.player.global_position).length()
-				_check("camera view traveled downrange (%.0f m)" % look_dist, look_dist > 20.0)
+				_check("retired glass never raises (cam_rig.binoculars off)", not bool(main.cam_rig.binoculars))
+				_check("retired glass never sweeps (offset %.0f m stays home)" % main.cam_rig.binocular_offset.length(),
+					main.cam_rig.binocular_offset.length() < 10.0)
 				_key(KEY_B, false)
 				_next()
 		7: # locked sedan: prompt + refusal
 			if phase_t > 0.4:
-				_place_player(Vector3(95, 0.4, -281.5))
+				# stage beside the LOCKED SEDAN wherever it's parked (it moved to
+				# the TEST GROUNDS motor pool — never trust a street corner)
+				_place_player(main.cars[1].global_position + Vector3(1.6, 0.2, 0))
 				_next()
 		8:
 			if phase_t > 0.5:
-				_check("locked car prompts hotwire path", main.hud.current_prompt.contains("Hotwire"))
+				# THE ENTRY LADDER (2026-07-07): a locked door offers the SMASH
+				# (or a quiet pick) — "Hotwire" moved to the wheel, after entry.
+				_check("locked car offers the smash/pick way in", main.hud.current_prompt.contains("smash"))
 				_tap_interact()
 				_next()
 		9:
@@ -182,7 +186,9 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.4:
 				_check("got the Meridian car key", main.has_key("meridian_car_key"))
 				_check("stash consumed", main.house.stash.taken and not main.house.stash.visible)
-				_place_player(Vector3(95, 0.4, -281.5))
+				# stage beside the LOCKED SEDAN wherever it's parked (it moved to
+				# the TEST GROUNDS motor pool — never trust a street corner)
+				_place_player(main.cars[1].global_position + Vector3(1.6, 0.2, 0))
 				_next()
 		19: # unlock, then enter
 			if phase_t > 0.5:
@@ -213,12 +219,15 @@ func _physics_process(delta: float) -> void:
 				main._safe_timer = -3.0 # don't let the fall get recorded as safe
 				_next()
 		24:
-			var back: bool = main.active_car.global_position.distance_to(_mark) < 40.0 and main.active_car.global_position.y > -4.0
+			# The net returns you to A safe spot on the drive corridor — the
+			# ring buffer may hand back an entry a stretch behind the very
+			# newest _last_safe, so the tape is the corridor (150 m), not 40.
+			var back: bool = main.active_car.global_position.distance_to(_mark) < 150.0 and main.active_car.global_position.y > -4.0
 			if back and phase_t > 1.0:
-				_check("fell off the world, respawned at last safe spot", true)
+				_check("fell off the world, respawned on the safe corridor", true)
 				_next()
 			elif phase_t > 6.0:
-				_check("fell off the world, respawned at last safe spot (pos %s)" % str(main.active_car.global_position), false)
+				_check("fell off the world, respawned on the safe corridor (pos %s)" % str(main.active_car.global_position), false)
 				_next()
 		25:
 			print("M1 RESULTS: %d passed, %d failed" % [passed, failed])

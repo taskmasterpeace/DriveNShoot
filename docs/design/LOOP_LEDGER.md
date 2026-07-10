@@ -62,7 +62,7 @@
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
 | E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
 | E13 | los_sim | OPEN | REAL-BUG, narrowed: fade ray (proto3d.gd:1282 sight_blocked eye+1.5→target+0.9) stays blocked after the door opens while the eye-height occl fan SPILLS ✓ — suspect the swung panel/frame or safehouse furniture clips the descending ray; open-ground ray proven clean (probe2) |
-| E14 | m1_sim | OPEN | nil global_position cascade + door/hotwire/sedan checks — staged node missing; read full ediag log first |
+| E14 | m1_sim | DONE | three stales realigned: binocular retirement, sedan moved to TestGrounds (stage by cars[1] position), entry-ladder smash prompt, void-net corridor tape — 22/0 |
 | E15 | nav_sim | DONE | ring gained ⚒ TEST GROUNDS stop — wrap check walks the ring to OFF — 8/0 |
 | E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
 | E17 | puppet_sim | DONE | rung-2 realigned to RIG V2 grip IK (grips + animate settle; measure the free HAND) — 20/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 32 (C0–C6, I0–I2, W0, P17, E1–E8, E11, E15, E17, E19–E21, E24–E27, F8, F10, F12)
-- OPEN: 12 (E9, E10, E13, E14; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 33 (C0–C6, I0–I2, W0, P17, E1–E8, E11, E14, E15, E17, E19–E21, E24–E27, F8, F10, F12)
+- OPEN: 11 (E9, E10, E13; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
