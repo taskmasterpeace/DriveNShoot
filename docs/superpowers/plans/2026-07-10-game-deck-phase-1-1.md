@@ -151,14 +151,14 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 - Create: `game/proto3d/tests/game_passenger_sim.gd`
 - Create: `game/proto3d/tests/game_passenger_sim.tscn`
 
-- [ ] Red sim enters a real passenger seat, opens the inventory handheld, drives
+- [x] Red sim enters a real passenger seat, opens the inventory handheld, drives
   the vehicle through its real AI/autopilot path, observes movement while the
   cartridge changes state, then proves damage and seat exit close safely.
-- [ ] Add a handheld context guard: on foot and passenger allowed; active driver
+- [x] Add a handheld context guard: on foot and passenger allowed; active driver
   receives a clear refusal. Damage closes fullscreen to the held device; death
   or passenger exit stops with `body_unavailable` and no invented ranked result.
-- [ ] Keep world clock, vehicle physics, and damage live while playing.
-- [ ] Commit `feat: let passengers play the handheld`.
+- [x] Keep world clock, vehicle physics, and damage live while playing.
+- [x] Commit `feat: let passengers play the handheld`.
 
 ## Task 12: Shelf, guide, art, and completion audit
 

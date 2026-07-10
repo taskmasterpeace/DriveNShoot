@@ -86,6 +86,15 @@ func _process(_delta: float) -> void:
 	# the little physical screen rides just ahead of the player's hands.
 	if not visible or main == null or main.get("player") == null:
 		return
+	var riding: bool = bool(main.get("passenger_of_ai"))
+	var active_car: Node3D = main.get("active_car") as Node3D
+	if riding and active_car != null:
+		# In the passenger seat the prop belongs to the moving cab, not the hidden
+		# on-foot body parked at its boarding position.
+		global_position = active_car.global_position + active_car.global_basis.y * 1.15 \
+			- active_car.global_basis.z * 0.35
+		rotation = Vector3(-1.0, active_car.global_rotation.y, 0)
+		return
 	var player := main.get("player") as Node3D
 	if player == null:
 		return

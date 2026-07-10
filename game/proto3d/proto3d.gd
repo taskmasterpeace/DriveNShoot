@@ -2032,6 +2032,16 @@ func _on_respect_changed(faction: String) -> void:
 
 
 ## Item effects (data → verb). Returns true if consumed.
+func _stop_handheld_session(reason: String) -> void:
+	if game_shell != null and game_shell.is_open:
+		game_shell.close_to_device()
+	if game_deck != null and game_deck.cartridge != null \
+			and String(game_deck.current_context.get("device", "")) == "handheld":
+		game_deck.stop(reason)
+	if game_handheld != null:
+		game_handheld.set_off()
+
+
 func use_item(id: String) -> bool:
 	# HUNGER: any row with food_val FEEDS you (generic — the rows rule).
 	var fv: float = float(ProtoContainer.ITEMS.get(id, {}).get("food_val", 0))
@@ -2042,6 +2052,9 @@ func use_item(id: String) -> bool:
 		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
 		return false # toggles; never consumed
 	if id == "game_handheld":
+		if mode == Mode.DRIVE and not passenger_of_ai:
+			notify("ðŸŽ® Keep both hands on the wheel. A passenger can run the Game Deck.")
+			return false
 		if game_handheld != null:
 			game_handheld.open(self)
 		return false # hardware stays in the pack
@@ -3117,6 +3130,10 @@ func enter_drone_pilot(d: Node3D) -> void:
 func on_player_clawed(damage: float, _who: Node3D) -> void:
 	if character.dead:
 		return
+	# A hit breaks fullscreen concentration but does not erase the pocket run: the
+	# same live texture remains on the physical handheld until the body/seat is lost.
+	if game_handheld != null and game_handheld.visible and game_shell != null and game_shell.is_open:
+		game_shell.close_to_device()
 	# Hit while piloting a drone? Your immobile body must bail — the bird hovers, you fight.
 	if drone_pilot != null and drone_pilot.body_immobile():
 		drone_pilot.on_attacked()
@@ -3324,6 +3341,7 @@ func _hotwire_duration() -> float:
 var deaths: int = 0
 
 func _on_death() -> void:
+	_stop_handheld_session("body_unavailable")
 	player.is_active = false
 	player.dead_vis = true
 	if active_car:
@@ -4609,6 +4627,8 @@ func _pose_exposed_rider(delta: float) -> void:
 func _exit_car() -> void:
 	if active_car == null:
 		return
+	if passenger_of_ai:
+		_stop_handheld_session("body_unavailable")
 	_unboard_dogs(active_car)
 	audio.play_at("car_door", active_car.global_position, -6.0)
 	mode = Mode.FOOT
