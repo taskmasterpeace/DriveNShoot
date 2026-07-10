@@ -87,11 +87,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/bunker_breaker/*`, `tests/bunker_breaker_sim.*`
 
-- [ ] Red sim: deterministic ball integration, paddle-angle response, brick hit,
+- [x] Red sim: deterministic ball integration, paddle-angle response, brick hit,
   layer clear, life loss, portrait bounds, score/layers result.
-- [ ] Implement fixed-step breakout rules with primitive armor plates, sparks,
+- [x] Implement fixed-step breakout rules with primitive armor plates, sparks,
   and a bunker-depth meter.
-- [ ] Commit `feat: add BUNKER BREAKER`.
+- [x] Commit `feat: add BUNKER BREAKER`.
 
 ## Task 6: LAST MILE
 

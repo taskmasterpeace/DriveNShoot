@@ -45,7 +45,9 @@ func _ready() -> void:
 		and reg.enabled("dead_ground") and reg.cartridge_contract_error("dead_ground") == "")
 	_check("warehouse cartridge clears scene and notice gates", reg.installed("pack_rat")
 		and reg.enabled("pack_rat") and reg.cartridge_contract_error("pack_rat") == "")
-	_check("missing future scenes are uninstalled, not malformed", not reg.installed("bunker_breaker"))
+	_check("portrait breaker clears scene and notice gates", reg.installed("bunker_breaker")
+		and reg.enabled("bunker_breaker") and reg.cartridge_contract_error("bunker_breaker") == "")
+	_check("missing future scenes are uninstalled, not malformed", not reg.installed("last_mile"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 
