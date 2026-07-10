@@ -84,6 +84,22 @@ func _ready() -> void:
 	hud.set_speed(0.0, false)
 	_check("gauge hidden when not driving", not hud._gauge.visible)
 
+	# 6) THE DASH CLUSTER (owner ask: finish the dashboard) — fuel / temp / tach load,
+	# and a bottom-pivot fuel gauge's needle maps E(0)->start, F(max)->start+sweep, half->up.
+	var dash_ids: Array[String] = ["fuel", "temp", "tach"]
+	for did in dash_ids:
+		_check("dash gauge '%s' texture loads" % did, ProtoGauge.texture(did) is Texture2D)
+	var fg := ProtoGauge.create(84.0)
+	add_child(fg)
+	fg.apply("fuel")
+	fg.set_value(0.0)
+	_check("fuel E (0) -> needle at start (-80)", is_equal_approx(fg.needle_deg, -80.0))
+	fg.set_value(100.0)
+	_check("fuel F (100) -> needle at start+sweep (80)", is_equal_approx(fg.needle_deg, 80.0))
+	fg.set_value(50.0)
+	_check("fuel half -> needle straight up (~0)", absf(fg.needle_deg) < 0.5)
+	_check("HUD built the dash cluster", hud._fuel_gauge != null and hud._temp_gauge != null and hud._tach_gauge != null)
+
 	print("GAUGE RESULTS: %d passed, %d failed" % [passed, failed])
 	if failed == 0:
 		print("ALL CHECKS PASSED")

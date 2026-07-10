@@ -1269,6 +1269,7 @@ func dashboard() -> Dictionary:
 		"tire_name": spec["tires"]["name"], "drive_factor": offroad_factor(),
 		"name": display_name, "load": trunk.total_weight(), "load_max": trunk.max_weight,
 		"vclass": vclass,
+		"rev": clampf(absf(forward_speed) / maxf(top_speed, 1.0), 0.0, 1.0) * 8.0,
 	}
 
 

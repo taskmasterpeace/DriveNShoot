@@ -9,6 +9,9 @@
     {"id": "boxer",     "png": "res://assets/ui/gauges/boxer.png",     "max": 100, "redline": 85,  "start_deg": -135, "sweep_deg": 270, "vclasses": ["van"]},
     {"id": "warhauler", "png": "res://assets/ui/gauges/warhauler.png", "max": 140, "redline": 120, "start_deg": -135, "sweep_deg": 270, "vclasses": ["pickup_truck"]},
     {"id": "homestead", "png": "res://assets/ui/gauges/homestead.png", "max": 100, "redline": 85,  "start_deg": -135, "sweep_deg": 270, "vclasses": ["rv"]},
-    {"id": "bulwark",   "png": "res://assets/ui/gauges/bulwark.png",   "max": 140, "redline": 120, "start_deg": -135, "sweep_deg": 270, "vclasses": ["suv"]}
+    {"id": "bulwark",   "png": "res://assets/ui/gauges/bulwark.png",   "max": 140, "redline": 120, "start_deg": -135, "sweep_deg": 270, "vclasses": ["suv"]},
+    {"id": "fuel", "png": "res://assets/ui/gauges/fuel.png", "max": 100, "redline": 999, "start_deg": -80, "sweep_deg": 160, "pivot": {"x": 0.5, "y": 0.60}, "needle_len": 0.36, "vclasses": []},
+    {"id": "temp", "png": "res://assets/ui/gauges/temp.png", "max": 100, "redline": 85,  "start_deg": -80, "sweep_deg": 160, "pivot": {"x": 0.5, "y": 0.60}, "needle_len": 0.36, "vclasses": []},
+    {"id": "tach", "png": "res://assets/ui/gauges/tach.png", "max": 8,   "redline": 7,   "start_deg": -135, "sweep_deg": 270, "vclasses": []}
   ]
 }

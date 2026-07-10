@@ -20,6 +20,9 @@ var _dash_fuel: Label
 var _dash_cook: Label
 var _gauge: ProtoGauge      ## the pixel-art speedometer (dial PNG + code-driven needle)
 var _gauge_id: String = ""  ## current dial id — swapped only when the vehicle changes
+var _fuel_gauge: ProtoGauge ## the dash cluster: fuel / temp / tach beside the speedo
+var _temp_gauge: ProtoGauge
+var _tach_gauge: ProtoGauge
 
 const TIER_COLORS: Array[Color] = [
 	Color(0.92, 0.89, 0.82, 0.55), # GOOD — quiet
@@ -133,6 +136,24 @@ static func create() -> ProtoHUD:
 	hud._gauge.visible = false
 	hud._gauge.apply("sport")
 	hud.add_child(hud._gauge)
+
+	# The dash cluster: fuel · temp · tach, small gauges in a row beside the speedo,
+	# driven each frame from the car's fuel / engine-heat / rev. Hidden until driving.
+	var cluster_ids: Array[String] = ["fuel", "temp", "tach"]
+	var cluster_x: Array[float] = [186.0, 274.0, 362.0]
+	for i in 3:
+		var cg := ProtoGauge.create(84.0)
+		cg.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		cg.offset_left = cluster_x[i]
+		cg.offset_right = cluster_x[i] + 84.0
+		cg.offset_top = -150.0
+		cg.offset_bottom = -66.0
+		cg.visible = false
+		cg.apply(cluster_ids[i])
+		hud.add_child(cg)
+		if i == 0: hud._fuel_gauge = cg
+		elif i == 1: hud._temp_gauge = cg
+		else: hud._tach_gauge = cg
 
 	hud._mode_label = Label.new()
 	hud._mode_label.add_theme_font_override("font", ProtoHUD.mixed_font())
@@ -316,6 +337,10 @@ func set_speed(mph: float, driving: bool) -> void:
 		_speed_label.visible = driving and not _gauge.has_dial()
 	else:
 		_speed_label.visible = driving
+	if _fuel_gauge != null:
+		_fuel_gauge.visible = driving
+		_temp_gauge.visible = driving
+		_tach_gauge.visible = driving
 
 
 ## Sim hooks: the live gauge state — which dial, needle angle, real dial vs fallback.
@@ -426,6 +451,10 @@ func set_dashboard(d) -> void:
 		if gid != _gauge_id:
 			_gauge_id = gid
 			_gauge.apply(gid)
+	if _fuel_gauge != null:
+		_fuel_gauge.set_value(float(d.get("fuel", 100.0)))
+		_temp_gauge.set_value(float(d.get("cook", 0.0)))
+		_tach_gauge.set_value(float(d.get("rev", 0.0)))
 	var ratios: Dictionary = d.get("ratios", {})
 	for part in _dash_labels:
 		var tier: int = d[part]

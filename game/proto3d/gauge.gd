@@ -141,6 +141,12 @@ func apply(id: String) -> void:
 	_redline = float(r.get("redline", _max * 0.85))
 	_start_deg = float(r.get("start_deg", -135.0))
 	_sweep_deg = float(r.get("sweep_deg", 270.0))
+	# Needle PIVOT (fraction of the gauge; center by default) + length. A bottom-hub
+	# fuel/temp gauge pivots low and sweeps a short arc; a full round dial pivots center.
+	var pv: Dictionary = r.get("pivot", {})
+	_needle.position = Vector2(float(pv.get("x", 0.5)) * _s, float(pv.get("y", 0.5)) * _s)
+	var tip: float = _s * float(r.get("needle_len", 0.34))
+	_blade.polygon = PackedVector2Array([Vector2(-2.5, 7), Vector2(2.5, 7), Vector2(1.3, -tip), Vector2(-1.3, -tip)])
 	var tex: Texture2D = ProtoGauge.texture(id)
 	_dial.texture = tex
 	_dial.visible = tex != null
