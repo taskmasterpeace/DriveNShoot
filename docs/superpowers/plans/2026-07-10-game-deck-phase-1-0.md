@@ -70,8 +70,8 @@
 - `game/proto3d/tests/game_device_sim.gd/.tscn`
 - `game/proto3d/tests/game_save_sim.gd/.tscn`
 - `game/proto3d/tests/game_license_sim.gd/.tscn`
-- `THIRD_PARTY_NOTICES.md`
-- `third_party/licenses/*.txt`
+- `game/THIRD_PARTY_NOTICES.md`
+- `game/third_party/licenses/*.txt`
 
 ---
 
@@ -83,7 +83,7 @@
 - Create: `game/data/game_devices.json`
 - Create: `game/data/game_leaderboards.json`
 - Create: `game/proto3d/games/game_registry.gd`
-- Create: `third_party/licenses/littlejs-arcade-mit.txt`
+- Create: `game/third_party/licenses/littlejs-arcade-mit.txt`
 - Test: `game/proto3d/tests/game_registry_sim.gd`
 - Test: `game/proto3d/tests/game_registry_sim.tscn`
 
@@ -174,7 +174,7 @@ Expected: all registry checks pass; all 22 rows validate, and missing future sce
 - [ ] **Step 6: Commit the registry slice**
 
 ```powershell
-git add -- game/data/games.json game/data/game_sources.json game/data/game_devices.json game/data/game_leaderboards.json third_party/licenses/littlejs-arcade-mit.txt game/proto3d/games/game_registry.gd game/proto3d/tests/game_registry_sim.gd game/proto3d/tests/game_registry_sim.tscn
+git add -- game/data/games.json game/data/game_sources.json game/data/game_devices.json game/data/game_leaderboards.json game/third_party/licenses/littlejs-arcade-mit.txt game/proto3d/games/game_registry.gd game/proto3d/tests/game_registry_sim.gd game/proto3d/tests/game_registry_sim.tscn
 git commit -m "feat: add the Game Deck catalog registry"
 ```
 
@@ -423,17 +423,17 @@ git commit -m "feat: add generic Game Deck networking"
 - Create: `game/proto3d/games/game_handheld.gd`
 - Modify: `game/proto3d/proto3d.gd`
 - Modify: `game/data/books.json`
-- Create: `THIRD_PARTY_NOTICES.md`
-- Create: `third_party/licenses/godot-demo-projects-mit.txt`
-- Create: `third_party/licenses/3-bit-games-mit.txt`
-- Create: `third_party/licenses/bashball-mit.txt`
-- Create: `third_party/licenses/cars-on-road-mit.txt`
-- Create: `third_party/licenses/flying-turtles-mit.txt`
-- Create: `third_party/licenses/wrathskeller-mit.txt`
-- Create: `third_party/licenses/tanks-of-freedom-mit.txt`
-- Create: `third_party/licenses/opensoldat-mit.txt`
-- Create: `third_party/licenses/opensoldat-base-cc-by-4.0.txt`
-- Create: `third_party/licenses/freeinfantry-reference-note.txt`
+- Create: `game/THIRD_PARTY_NOTICES.md`
+- Create: `game/third_party/licenses/godot-demo-projects-mit.txt`
+- Create: `game/third_party/licenses/3-bit-games-mit.txt`
+- Create: `game/third_party/licenses/bashball-mit.txt`
+- Create: `game/third_party/licenses/cars-on-road-mit.txt`
+- Create: `game/third_party/licenses/flying-turtles-mit.txt`
+- Create: `game/third_party/licenses/wrathskeller-mit.txt`
+- Create: `game/third_party/licenses/tanks-of-freedom-mit.txt`
+- Create: `game/third_party/licenses/opensoldat-mit.txt`
+- Create: `game/third_party/licenses/opensoldat-base-cc-by-4.0.txt`
+- Create: `game/third_party/licenses/freeinfantry-reference-note.txt`
 - Test: `game/proto3d/tests/game_device_sim.gd`
 - Test: `game/proto3d/tests/game_device_sim.tscn`
 - Test: `game/proto3d/tests/game_save_sim.gd`
@@ -462,7 +462,7 @@ Construct registry/ledger/deck/shell in `_build_environment()`, add the safehous
 
 - [ ] **Step 5: Add proof manuals and notices**
 
-Add WASTE HEAP and CROWN OF ASH pages to the designated books. ABOUT shows the exact source URL, license, modification statement, and link to the local notice. Add verbatim license texts for permissive sources and a factual non-license reference note for FreeInfantry; source rows distinguish `notice_path` from `license_path`. `THIRD_PARTY_NOTICES.md` names only material actually used in this slice, while future-source files are clearly labeled as pre-integration provenance records rather than shipped-use claims.
+Add WASTE HEAP and CROWN OF ASH pages to the designated books. ABOUT shows the exact source URL, license, modification statement, and link to the local notice. Add verbatim license texts for permissive sources and a factual non-license reference note for FreeInfantry; source rows distinguish `notice_path` from `license_path`. `game/THIRD_PARTY_NOTICES.md` names only material actually used in this slice, while future-source files are clearly labeled as pre-integration provenance records rather than shipped-use claims.
 
 - [ ] **Step 6: Run new sims plus regression sims serially**
 
@@ -475,7 +475,7 @@ Expected: every new proof passes and the existing TV/save/input behavior remains
 Inspect `git diff -- proto3d.gd` and stage it only after confirming both prior user changes and the additive Game Deck hunk are preserved.
 
 ```powershell
-git add -- game/proto3d/games/game_console.gd game/proto3d/games/game_handheld.gd game/proto3d/proto3d.gd game/data/books.json THIRD_PARTY_NOTICES.md third_party/licenses game/proto3d/tests/game_device_sim.gd game/proto3d/tests/game_device_sim.tscn game/proto3d/tests/game_save_sim.gd game/proto3d/tests/game_save_sim.tscn game/proto3d/tests/game_license_sim.gd game/proto3d/tests/game_license_sim.tscn
+git add -- game/proto3d/games/game_console.gd game/proto3d/games/game_handheld.gd game/proto3d/proto3d.gd game/data/books.json game/THIRD_PARTY_NOTICES.md game/third_party/licenses game/proto3d/tests/game_device_sim.gd game/proto3d/tests/game_device_sim.tscn game/proto3d/tests/game_save_sim.gd game/proto3d/tests/game_save_sim.tscn game/proto3d/tests/game_license_sim.gd game/proto3d/tests/game_license_sim.tscn
 git commit -m "feat: wire the Game Deck into the world"
 ```
 
