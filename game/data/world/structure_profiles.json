@@ -547,7 +547,8 @@
    ],
    "power_required": false,
    "can_be_safehouse": false,
-   "danger": 1
+   "danger": 1,
+   "silhouette": "steeple"
   },
   {
    "id": "monument_plaza",
@@ -635,7 +636,8 @@
    ],
    "power_required": false,
    "can_be_safehouse": false,
-   "danger": 3
+   "danger": 3,
+   "silhouette": "boom"
   },
   {
    "id": "military_base_shell",
@@ -679,7 +681,8 @@
    ],
    "power_required": true,
    "can_be_safehouse": false,
-   "danger": 5
+   "danger": 5,
+   "silhouette": "berm"
   },
   {
    "id": "drive_in_theater",
@@ -1028,7 +1031,8 @@
    ],
    "power_required": false,
    "can_be_safehouse": false,
-   "danger": 0
+   "danger": 0,
+   "silhouette": "flagpole"
   },
   {
    "id": "fight_pit",
@@ -1250,7 +1254,8 @@
    ],
    "power_required": true,
    "can_be_safehouse": false,
-   "danger": 1
+   "danger": 1,
+   "silhouette": "hazard"
   },
   {
    "id": "blackmarket_vat",
@@ -1482,7 +1487,8 @@
    "faction_overrides": [],
    "power_required": false,
    "can_be_safehouse": false,
-   "danger": 2
+   "danger": 2,
+   "silhouette": "silo"
   },
   {
    "id": "quarry_pit",

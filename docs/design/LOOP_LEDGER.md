@@ -24,7 +24,7 @@
 |----|------|--------|-------|
 | I0 | **`ProtoInteriorSkin`** — house.gd's three laws generalized (`interior_skin.gd`); `interior_template` rows: "walkin" (open-top honest default) / "walkin_roofed" (EARNED roof: motel_strip, police_station); wave-1 all wired | DONE | `interior_skin_sim` 15/0 |
 | I1 | **Footprint furnisher** — `furnisher.gd` (grid lifted from house.gd, door-safe, faces the room); LOD law: wakes ≤40 m / frees >55 m / awake cap; per-instance position-keyed loot uids; wave-1 building_types rows added | DONE | `furnisher_lod_sim` 10/0 |
-| I2 | **Silhouette pass** — 39 structure types read as themselves from outside (massing variation; catalog says 39 vs spec's 42 — 3-row gap noted) | OPEN | — |
+| I2 | **Silhouette pass** — every structure grows its read-feature: 15 category defaults + per-row `silhouette` override (schema field; church=steeple, school=flagpole — data categories were crossed), floors read as wall height, plinth pulled outside its slab | DONE | `silhouette_sim` 21/0 + judge PASS (4/4 sheets, iter3 renders) |
 
 ## C. PLAYTEST_FIX_SPEC — still-open rows
 
@@ -80,8 +80,8 @@
 ---
 
 ## Status roll-up
-- DONE: 11 (C0–C6, I0, I1, W0, P17, E27)
-- OPEN: 27 (I2, E1–E26)
+- DONE: 12 (C0–C6, I0–I2, W0, P17, E27)
+- OPEN: 26 (E1–E26)
 - PARTIAL: 1 (P18)
 - DEFERRED: 3 (P14, P16, P-clarify-1)
 

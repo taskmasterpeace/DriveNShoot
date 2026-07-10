@@ -29,3 +29,10 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **Sims added:** `interior_skin_sim` (15), `furnisher_lod_sim` (10).
 - **Targeted regressions green:** structure_data 36/0, placement_wire 6/0, town 16/0, world_walkthrough 16/0.
 - **Gaps found:** node names are session-unique — determinism asserts must key loot uids, not names (sim measurement fixed, not weakened).
+
+## Iteration 3 — THE SILHOUETTE PASS (2026-07-09)
+- **Row shipped:** I2 — every structure grows its category read-feature (canopy/awning/porch+chimney/lightbar/cross/steeple/flagpole/marquee/stack/boom/plinth/mast/hazard/berm/silo), all visual-only boxes (zero new colliders); floors build wall height (courthouse 6 m); NEW schema field `silhouette` = per-row override.
+- **Data-truth catch:** the catalog's categories are CROSSED in places (church_small=civic_faction, school_small=civic, clone_wing=medical, still_shack=restricted) — the mapper agent's summary was wrong in 5 places; row overrides now carry iconic truth (steeple on the church, flag on the school) regardless of category.
+- **Sims added:** `silhouette_sim` (21 — features per rep, iconic-truth overrides, floors height, 39/39 catalog materializes). Stale builder header fixed.
+- **LOOK:** 4 contact sheets → judge round 1 FAIL (sheet-3 composition: a giant footprint swallowed neighbors; chimney read as interior post; boom arm invisible; awning faint) → fixed (footprint-aware framing + giant gets own sheet + 3 feature tweaks) → **round 2: PASS 4/4 sheets.** Renders in docs/acceptance/iter3/.
+- **Regression sweep:** silhouette 21/0 · interior_skin 15/0 · furnisher_lod 10/0 · structure_data 36/0 · placement_wire 6/0 · town 16/0 · world_walkthrough 16/0.

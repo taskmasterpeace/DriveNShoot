@@ -26,6 +26,7 @@ const FOOTPRINT_NAMES: Array = ["small_rect", "medium_rect", "large_rect", "comp
 @export var enterable: bool = true
 @export var entrances: Array = []              ## ["front", "rear_optional", …]
 @export var interior_template: String = "none"
+@export var silhouette: String = ""            ## I2 read-feature override ("" = category default): steeple/flagpole/canopy/…
 
 @export_group("System Hooks (the JOB)")
 @export var loot_table: String = ""            ## DrivnLootTable id ("" = no loot)
@@ -55,6 +56,7 @@ static func from_dict(d: Dictionary) -> DrivnStructure:
 	s.enterable = bool(d.get("enterable", true))
 	s.entrances = (d.get("entrances", []) as Array).duplicate()
 	s.interior_template = String(d.get("interior_template", "none"))
+	s.silhouette = String(d.get("silhouette", ""))
 	s.loot_table = String(d.get("loot_table", ""))
 	s.npc_jobs = (d.get("npc_jobs", []) as Array).duplicate()
 	s.law_hooks = (d.get("law_hooks", []) as Array).duplicate()
@@ -71,7 +73,7 @@ func to_dict() -> Dictionary:
 		"allowed_tiers": allowed_tiers, "districts": districts,
 		"footprint": footprint, "footprint_m": [footprint_m.x, footprint_m.y],
 		"floors": floors, "danger": danger, "enterable": enterable, "entrances": entrances,
-		"interior_template": interior_template, "loot_table": loot_table,
+		"interior_template": interior_template, "silhouette": silhouette, "loot_table": loot_table,
 		"npc_jobs": npc_jobs, "law_hooks": law_hooks, "event_hooks": event_hooks,
 		"faction_overrides": faction_overrides, "power_required": power_required,
 		"can_be_safehouse": can_be_safehouse}
