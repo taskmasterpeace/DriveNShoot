@@ -89,7 +89,8 @@ session peers regardless of their world distance. INVITE PLAYER sends the
 selected peer a reliable lobby invitation containing the game, ruleset,
 session, host, seed, capacity, bot-fill policy, and invitation identifier.
 
-Joining as a player requires:
+Invitations expire 30 seconds after the host creates them. Joining as a player
+requires:
 
 - a powered receiving terminal;
 - membership in the same live DRIVN session;
@@ -216,15 +217,16 @@ signal when available. It stores no permanent save data.
 
 ### ArcadeNet lobby protocol
 
-Keep the existing invite and accept RPCs. Extend their envelopes with generic
-`lobby_action` values:
+Keep the existing invite, accept, and session-event RPCs. Extend pre-session
+invite/accept envelopes with generic `lobby_action` values:
 
 - `offer`: initial invitation;
 - `accept_player`: join with a seat;
-- `accept_spectator`: join without a seat;
-- `start`: authoritative launch request;
-- `leave`: remove the peer from the lobby; and
+- `accept_spectator`: join without a seat; and
 - `cancel`: invalidate the invitation or lobby.
+
+After acceptance establishes common membership, authoritative `start` and
+`leave` messages use the existing validated reliable session-event channel.
 
 Every envelope includes a unique `invitation_id` or `event_id`. Duplicate and
 stale identifiers are rejected. Add generic member mutation methods:
@@ -232,11 +234,12 @@ stale identifiers are rejected. Add generic member mutation methods:
 ```gdscript
 func add_member(peer_id: int) -> bool
 func remove_member(peer_id: int) -> bool
+func accept_lobby(peer_id: int, response: Dictionary) -> bool
 ```
 
-No message contains cartridge-specific fields. The start envelope contains a
-generic context dictionary, fixed seed, ordered seats, spectator peer list,
-game ID, ruleset, and bot policy.
+No message contains cartridge-specific fields. The reliable start event
+contains a generic context dictionary, fixed seed, ordered seats, spectator
+peer list, game ID, ruleset, and bot policy.
 
 ## Participant-count law
 
