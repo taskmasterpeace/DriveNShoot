@@ -953,7 +953,9 @@ func reset_spectacle_bout() -> bool:
 
 
 func _spectacle_running() -> bool:
-	return spectacle != null and String(spectacle.phase) == "running"
+	return spectacle != null and (String(spectacle.phase) == "running" \
+		or (spectacle.has_method("physical_cleanup_pending") \
+		and spectacle.physical_cleanup_pending()))
 
 
 func reset_fighters() -> void:

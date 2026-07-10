@@ -70,13 +70,14 @@ func _ready() -> void:
 	_check("holding a semi-auto pistol consumes exactly one round", pistol.mag == 11)
 
 	_stop_audio(main)
-	# Give the audio mixer a frame to release MP3 playback objects before the
-	# fixture frees their owners and quits the process.
-	await get_tree().process_frame
+	# Give the MP3 mixer a real-time drain window before freeing its owners. A
+	# single render frame is occasionally too short in a long sequential suite.
+	await get_tree().create_timer(0.12, true, false, true).timeout
 	main.queue_free()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_finish()
+	main = null
+	call_deferred("_finish")
 
 
 func _stop_audio(root: Node) -> void:

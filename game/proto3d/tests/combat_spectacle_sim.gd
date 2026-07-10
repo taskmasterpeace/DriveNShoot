@@ -417,6 +417,15 @@ func _ready() -> void:
 			and String(lab.adapter.surface.get("id", "")) == bout_surface
 			and String(lab.adapter.condition.get("id", "")) == bout_condition)
 		var first_complete: bool = _settle_tournament(ui_runtime, lab, true)
+		var settled_champion: String = String(ui_runtime.facts()["champion"])
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_check("physical final settlement restores ordinary sparring while preserving champion/card copy",
+			first_complete and lab.lab_round.fighter_order == ["player", "opponent"]
+			and (lab.get("spectacle_fighters") as Array).is_empty()
+			and String(ui_runtime.facts()["champion"]) == settled_champion
+			and not (ui_runtime.facts()["round"]["last_card"] as Dictionary).is_empty()
+			and String(ui_panel.panel_facts()["text"]).contains("THE BOARD REMEMBERS THE CHAMPION"))
 		ui_runtime.reset_tournament()
 		var second_started: bool = ui_runtime.select_mode("watch") and ui_runtime.start_tournament()
 		var locked_scenario: String = String(lab.current_scenario)
@@ -465,15 +474,27 @@ func _ready() -> void:
 
 func _settle_tournament(runtime: Node, lab: Node3D, choose_left: bool) -> bool:
 	var guard: int = 0
-	while String(runtime.facts()["phase"]) == "running" and guard < 4:
+	while String(runtime.facts()["phase"]) == "running" and guard < 2:
 		var current: Dictionary = runtime.facts()["current_match"]
 		var winner: String = String(current["left"] if choose_left else current["right"])
 		if winner == "" or not runtime.record_match_winner(winner):
 			return false
+		if String(runtime.facts()["phase"]) == "running" \
+				and not runtime._start_current_match():
+			return false
 		max_spectacle_ai = maxi(max_spectacle_ai,
 			(lab.get("spectacle_fighters") as Array).size())
 		guard += 1
-	return guard == 3 and String(runtime.facts()["phase"]) == "settled"
+	if guard != 2 or String(runtime.facts()["phase"]) != "running":
+		return false
+	var final: Dictionary = runtime.facts()["current_match"]
+	var loser: String = String(final["right"] if choose_left else final["left"])
+	lab.lab_round.hit(loser, 999.0,
+		{"attacker":String(final["left"] if choose_left else final["right"]), "kind":"final_probe"})
+	lab.lab_round.reset_round()
+	lab.lab_round.hit(loser, 999.0,
+		{"attacker":String(final["left"] if choose_left else final["right"]), "kind":"final_probe"})
+	return String(runtime.facts()["phase"]) == "settled"
 
 
 func _finish() -> void:

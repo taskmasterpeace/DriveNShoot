@@ -30,6 +30,7 @@ var _round_connected: bool = false
 var _opening_player_transform: Transform3D = Transform3D.IDENTITY
 var _opening_round_state: Dictionary = {}
 var _round_owned: bool = false
+var _settled_round_state: Dictionary = {}
 
 
 func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
@@ -195,6 +196,7 @@ func _reset_state() -> void:
 	ticket.clear()
 	champion = ""
 	payout = 0
+	_settled_round_state.clear()
 	status = "CHOOSE WATCH OR ENTER · BET BEFORE START"
 	_build_field_and_bracket()
 	_emit_changed()
@@ -384,8 +386,22 @@ func _on_physical_match_ended(winner_id: String) -> void:
 		return
 	if phase == "running":
 		call_deferred("_stage_next_match")
-	elif lab != null and lab.has_method("clear_spectacle_fighters"):
-		lab.call_deferred("clear_spectacle_fighters")
+	elif phase == "settled":
+		_settled_round_state = lab.lab_round.snapshot() if lab != null \
+			and "lab_round" in lab and lab.lab_round != null else {}
+		call_deferred("_finish_physical_tournament")
+
+
+func _finish_physical_tournament() -> void:
+	if lab != null and lab.has_method("clear_spectacle_fighters"):
+		lab.clear_spectacle_fighters()
+	if _round_owned:
+		_restore_opening_round()
+	_emit_changed()
+
+
+func physical_cleanup_pending() -> bool:
+	return _round_owned
 
 
 func _on_physical_round_changed(_state: Dictionary) -> void:
@@ -409,8 +425,10 @@ func facts() -> Dictionary:
 	var odds: Dictionary = {}
 	for entrant in entrants:
 		odds[String(entrant["id"])] = float(entrant.get("odds", 0.0))
-	var round_state: Dictionary = lab.lab_round.snapshot() \
-		if lab != null and "lab_round" in lab and lab.lab_round != null else {}
+	var round_state: Dictionary = _settled_round_state.duplicate(true) \
+		if phase == "settled" and not _settled_round_state.is_empty() else (
+			lab.lab_round.snapshot() if lab != null and "lab_round" in lab \
+			and lab.lab_round != null else {})
 	return {"card_id":card_id, "name":String(row.get("name", "")),
 		"venue":String(row.get("venue", "")), "nonlethal":bool(row.get("nonlethal", false)),
 		"modes":(row.get("modes", []) as Array).duplicate(), "mode":mode, "phase":phase,
