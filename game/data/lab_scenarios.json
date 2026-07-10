@@ -1,0 +1,92 @@
+{
+  "scenarios": {
+    "pistol_duel": {
+      "name": "PISTOL DUEL", "seed": 1101,
+      "body_modes": ["hybrid"],
+      "spawn_transforms": {"player": [0, 0.05, 0], "opponents": [[0, 0.05, -8]]},
+      "loadouts": {"player": "pistol", "opponents": ["pistol"]},
+      "opponents": ["duel"], "surface": "asphalt", "condition": "fresh",
+      "weather": {"time": "day", "atmosphere": "clear", "headlights": false},
+      "camera_preset": "on_foot_3d", "transport": "local",
+      "win_condition": {"type": "rounds", "value": 2},
+      "opening_events": ["bell", "draw", "first_shot"]
+    },
+    "smg_suppression": {
+      "name": "SMG SUPPRESSION", "seed": 2202,
+      "body_modes": ["hybrid", "active_ragdoll"],
+      "spawn_transforms": {"player": [26, 0.05, 0], "opponents": [[26, 0.05, -20]]},
+      "loadouts": {"player": "scrap_smg", "opponents": ["pistol"]},
+      "opponents": ["return_fire"], "surface": "gravel", "condition": "overloaded",
+      "weather": {"time": "day", "atmosphere": "dust", "headlights": false},
+      "camera_preset": "high_tactical", "transport": "good_coop",
+      "win_condition": {"type": "hits", "value": 20},
+      "opening_events": ["target_rise", "burst_prompt", "return_fire"]
+    },
+    "martial_arts_bout": {
+      "name": "MARTIAL ARTS BOUT", "seed": 3303,
+      "body_modes": ["hybrid", "active_ragdoll", "full_physics"],
+      "spawn_transforms": {"player": [0, 0.05, 8], "opponents": [[0, 0.05, 5]]},
+      "loadouts": {"player": "fists", "opponents": ["fists"]},
+      "opponents": ["duel"], "surface": "dirt", "condition": "late_game_specialist",
+      "weather": {"time": "day", "atmosphere": "clear", "headlights": false},
+      "camera_preset": "broadcast", "transport": "local",
+      "win_condition": {"type": "points", "value": 10},
+      "opening_events": ["bow", "bell", "combo_window"]
+    },
+    "cover_two": {
+      "name": "TWO IN COVER", "seed": 4404,
+      "body_modes": ["hybrid"],
+      "spawn_transforms": {"player": [72, 0.05, 10], "opponents": [[76, 0.05, -6], [82, 0.05, 4]]},
+      "loadouts": {"player": "pistol", "opponents": ["pistol", "scrap_smg"]},
+      "opponents": ["hunter", "hunter"], "surface": "asphalt", "condition": "fresh",
+      "weather": {"time": "day", "atmosphere": "clear", "headlights": false},
+      "camera_preset": "high_tactical", "transport": "good_coop",
+      "win_condition": {"type": "rounds", "value": 2},
+      "opening_events": ["door_close", "left_contact", "right_flank"]
+    },
+    "low_light_hunt": {
+      "name": "LOW-LIGHT HUNT", "seed": 5505,
+      "body_modes": ["hybrid", "active_ragdoll"],
+      "spawn_transforms": {"player": [26, 0.05, 10], "opponents": [[26, 0.05, -30]]},
+      "loadouts": {"player": "pistol", "opponents": ["scrap_smg"]},
+      "opponents": ["hunter"], "surface": "wet", "condition": "hurt",
+      "weather": {"time": "night", "atmosphere": "dust", "headlights": true},
+      "camera_preset": "chase_candidate", "transport": "bad_wifi",
+      "win_condition": {"type": "find_and_tag", "value": 1},
+      "opening_events": ["lights_out", "last_known_ping", "hunter_search"]
+    },
+    "vehicle_gunner_pass": {
+      "name": "VEHICLE GUNNER PASS", "seed": 6606,
+      "body_modes": ["hybrid"],
+      "spawn_transforms": {"player": [104, 0.05, 18], "opponents": [[104, 0.05, -12]], "vehicles": [[110, 0.4, 8]]},
+      "loadouts": {"player": "scrap_smg", "opponents": ["scrap_smg"], "vehicle": "pickup"},
+      "opponents": ["return_fire"], "surface": "dirt", "condition": "fresh",
+      "weather": {"time": "day", "atmosphere": "clear", "headlights": false},
+      "camera_preset": "top_down_drive", "transport": "good_coop",
+      "win_condition": {"type": "survive_pass", "value": 1},
+      "opening_events": ["engine_start", "gunner_mount", "vehicle_pass"]
+    },
+    "armored_penetration": {
+      "name": "ARMORED PENETRATION", "seed": 7707,
+      "body_modes": ["hybrid"],
+      "spawn_transforms": {"player": [104, 0.05, 16], "opponents": [], "vehicles": [[104, 0.4, -8]]},
+      "loadouts": {"player": "scrap_smg", "opponents": [], "vehicle": "suv_armored"},
+      "opponents": [], "surface": "asphalt", "condition": "late_game_specialist",
+      "weather": {"time": "day", "atmosphere": "clear", "headlights": false},
+      "camera_preset": "on_foot_3d", "transport": "local",
+      "win_condition": {"type": "penetrations", "value": 5},
+      "opening_events": ["armor_face_callout", "first_impact", "damage_readout"]
+    },
+    "tournament_final": {
+      "name": "TOURNAMENT FINAL", "seed": 8808,
+      "body_modes": ["hybrid", "active_ragdoll", "full_physics"],
+      "spawn_transforms": {"player": [78, 0.05, 8], "opponents": [[78, 0.05, -8]]},
+      "loadouts": {"player": "shotgun", "opponents": ["scrap_smg"]},
+      "opponents": ["duel"], "surface": "mud", "condition": "late_game_specialist",
+      "weather": {"time": "night", "atmosphere": "clear", "headlights": true},
+      "camera_preset": "broadcast", "transport": "hostile_jitter",
+      "win_condition": {"type": "rounds", "value": 2},
+      "opening_events": ["crowd_roar", "broadcast_intro", "final_bell"]
+    }
+  }
+}

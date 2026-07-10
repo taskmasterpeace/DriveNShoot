@@ -16,6 +16,9 @@ const REPLAY_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_replay.gd")
 const CALIBRATION_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_calibration.gd")
 const SURFACE_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_surface.gd")
 const CAMERA_WALL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_camera_wall.gd")
+const SCENARIO_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_scenario.gd")
+const CHAOS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_chaos.gd")
+const VERDICT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_verdict.gd")
 
 var save_isolated: bool = true
 var lab_mode: bool = true
@@ -41,6 +44,9 @@ var mirror_results: Dictionary = {}
 var calibration: RefCounted = null
 var surface_tool: RefCounted = null
 var camera_wall: Node = null
+var scenario_tool: RefCounted = null
+var chaos: RefCounted = null
+var verdict: RefCounted = null
 var gaze_origin: Vector3 = Vector3(26, 0.05, 0)
 var gaze_targets: Dictionary = {}
 var active_gaze_target: Node3D = null
@@ -68,6 +74,13 @@ var _mirror_root: Node3D = null
 var _mirror_trace: Array[RefCounted] = []
 var _mirror_cursor: int = -1
 var _last_dive_state: String = "NORMAL"
+var _scenario_camera_preset: String = "on_foot_3d"
+var _scenario_index: int = 0
+var _transport_index: int = 0
+var _chaos_load: float = 0.0
+var _clear_verdict_armed: bool = false
+var _chaos_clock_ms: float = 0.0
+var _network_command: RefCounted = null
 
 
 func _ready() -> void:
@@ -89,6 +102,13 @@ func _ready() -> void:
 	camera_wall = CAMERA_WALL_SCRIPT.new()
 	add_child(camera_wall)
 	camera_wall.setup(player)
+	scenario_tool = SCENARIO_SCRIPT.new()
+	scenario_tool.build_cards(self, Vector3(70, 0.05, 16))
+	chaos = CHAOS_SCRIPT.new()
+	chaos.configure_transport("local", 1)
+	verdict = VERDICT_SCRIPT.new()
+	hud.verdict_submitted.connect(_on_verdict_submitted)
+	hud.verdict_clear_requested.connect(_on_verdict_clear_requested)
 	reset_station()
 
 
@@ -330,6 +350,55 @@ func begin_controller_calibration() -> void:
 		calibration.begin_drift_sample(5.0)
 
 
+func cycle_transport(step: int = 1) -> void:
+	if chaos == null:
+		return
+	var ids: Array[String] = ["local", "good_coop", "bad_wifi", "hostile_jitter"]
+	_transport_index = posmod(_transport_index + step, ids.size())
+	chaos.configure_transport(ids[_transport_index], 1000 + _transport_index)
+	_network_command = null
+
+
+func cycle_chaos_load() -> void:
+	if chaos == null:
+		return
+	_chaos_load = 0.0 if _chaos_load >= 1.0 else _chaos_load + 0.25
+	chaos.set_load(self, _chaos_load)
+
+
+func save_current_verdict(ratings: Dictionary, note: String = "") -> Dictionary:
+	if verdict == null:
+		return {"ok": false, "error": "Verdict Book unavailable"}
+	var facts: Dictionary = adapter.metrics().duplicate(true)
+	if diagnostics != null and active_gaze_target != null:
+		facts.merge(diagnostics.snapshot(adapter, active_gaze_target, camera,
+			{"source": _gaze_source, "look_age": _look_age}), true)
+	return verdict.save({"ratings": ratings.duplicate(true), "note": note,
+		"mode": active_mode, "weapon": String(adapter.weapon.id),
+		"surface": String(adapter.surface.get("id", "asphalt")),
+		"camera": _scenario_camera_preset,
+		"condition": String(adapter.condition.get("id", "fresh")),
+		"scenario": current_scenario, "metrics": facts,
+		"replay_id": "frame_%d" % (replay.last_frame() if replay != null else -1)})
+
+
+func _on_verdict_submitted(ratings: Dictionary, note: String) -> void:
+	var result: Dictionary = save_current_verdict(ratings, note)
+	hud.set_verdict_status("SAVED %s" % String(result.get("id", "")) if bool(result.get("ok", false)) \
+		else "SAVE FAILED: %s" % String(result.get("error", "unknown")))
+	_clear_verdict_armed = false
+
+
+func _on_verdict_clear_requested() -> void:
+	if not _clear_verdict_armed:
+		_clear_verdict_armed = true
+		hud.set_verdict_status("PRESS CLEAR ALL AGAIN TO CONFIRM")
+		return
+	var cleared: bool = verdict != null and verdict.clear_all(true)
+	hud.set_verdict_status("ALL VERDICTS CLEARED" if cleared else "CLEAR FAILED")
+	_clear_verdict_armed = false
+
+
 func set_target_distance(distance: int) -> bool:
 	if not gaze_targets.has(distance):
 		return false
@@ -390,9 +459,69 @@ func _cycle_opponent_behavior() -> void:
 		lab_round.reset_match()
 
 
-func start_scenario(id: String) -> void:
+func start_scenario(id: String, seed: int = -1) -> Dictionary:
+	if scenario_tool == null:
+		return {}
+	var state: Dictionary = scenario_tool.start(id, seed)
+	if state.is_empty():
+		return {}
 	current_scenario = id
+	_scenario_index = scenario_tool.ids().find(id)
 	reset_station()
+	var modes: Array = state.get("body_modes", ["hybrid"])
+	switch_mode(String(modes[0]))
+	set_surface(String(state.get("surface", "asphalt")))
+	set_condition_preset(String(state.get("condition", "fresh")))
+	var loadouts: Dictionary = state.get("loadouts", {})
+	adapter.set_weapon(String(loadouts.get("player", "pistol")))
+	var spawns: Dictionary = state.get("spawn_transforms", {})
+	adapter.reset_at(Transform3D(Basis.IDENTITY, _array_position(spawns.get("player", [0, 0.05, 0]))))
+	var opponents: Array = state.get("opponents", [])
+	if not opponents.is_empty():
+		set_opponent_behavior(String(opponents[0]))
+	var opponent_spawns: Array = spawns.get("opponents", [])
+	if opponent != null and not opponent_spawns.is_empty():
+		opponent.reset_at(Transform3D(Basis.IDENTITY, _array_position(opponent_spawns[0])))
+	var weather: Dictionary = state.get("weather", {})
+	_set_environment_state(String(weather.get("time", "day")) == "night",
+		String(weather.get("atmosphere", "clear")) == "dust",
+		bool(weather.get("headlights", false)))
+	_scenario_camera_preset = String(state.get("camera_preset", "on_foot_3d"))
+	chaos.configure_transport(String(state.get("transport", "local")), int(state["seed"]))
+	_network_command = null
+	return state.duplicate(true)
+
+
+func scenario_state() -> Dictionary:
+	return {"scenario": current_scenario, "mode": active_mode,
+		"position": adapter.anchor_transform().origin, "weapon": String(adapter.weapon.id),
+		"surface": String(adapter.surface.get("id", "")),
+		"condition": String(adapter.condition.get("id", "")),
+		"opponent": opponent_behavior.to_lower(), "night": gaze_night, "dust": gaze_dust,
+		"headlights": gaze_headlights, "camera": _scenario_camera_preset,
+		"transport": String(chaos.preset_id), "seed": int(scenario_tool.current.get("seed", 0)),
+		"opening_events": scenario_tool.current.get("opening_events", []).duplicate(true)}
+
+
+func cycle_scenario(step: int = 1) -> void:
+	var ids: Array[String] = scenario_tool.ids()
+	_scenario_index = posmod(_scenario_index + step, ids.size())
+	start_scenario(ids[_scenario_index])
+
+
+func _array_position(value: Variant) -> Vector3:
+	var coords := value as Array
+	return Vector3(float(coords[0]), float(coords[1]), float(coords[2])) \
+		if coords.size() >= 3 else Vector3.ZERO
+
+
+func _set_environment_state(night: bool, dust: bool, headlights: bool) -> void:
+	if gaze_night != night:
+		toggle_day_night()
+	if gaze_dust != dust:
+		toggle_dust()
+	if gaze_headlights != headlights:
+		toggle_headlights()
 
 
 func reset_station() -> void:
@@ -429,6 +558,7 @@ func _physics_process(delta: float) -> void:
 	if lab_round != null:
 		lab_round.tick(delta)
 	_update_mirror(delta)
+	_chaos_clock_ms += delta * 1000.0
 	if calibration != null:
 		calibration.sample({"left_stick": Input.get_vector("move_left", "move_right",
 			"move_up", "move_down"),
@@ -437,10 +567,21 @@ func _physics_process(delta: float) -> void:
 			"left_trigger": Input.get_action_strength("drivn_grenade"),
 			"right_trigger": Input.get_action_strength("drivn_fire")}, delta)
 	var command: RefCounted = input_source.sample(camera, player.global_position, delta)
+	if chaos != null and String(chaos.preset_id) != "local":
+		chaos.enqueue(command, _chaos_clock_ms)
+		var delivered: Array = chaos.pump(_chaos_clock_ms)
+		if not delivered.is_empty():
+			_network_command = (delivered[-1]["command"] as RefCounted).duplicate_frame()
+		command = _network_command.duplicate_frame() if _network_command != null \
+			else COMMAND_SCRIPT.new()
 	if lab_round != null and lab_round.commands_frozen():
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
 		frozen.set("aim_world", command.get("aim_world"))
 		command = frozen
+	if hud != null and hud.verdict_open():
+		var modal_command: RefCounted = COMMAND_SCRIPT.new()
+		modal_command.set("aim_world", command.get("aim_world"))
+		command = modal_command
 	_update_gaze_source(command, delta)
 	_last_command = command
 	adapter.apply_command(command, delta)
@@ -506,10 +647,11 @@ func _update_gaze_source(command: RefCounted, delta: float) -> void:
 func _diagnostic_readout(facts: Dictionary) -> String:
 	var replay_status: String = "FROZEN" if replay != null and replay.frozen else \
 		"REC %.1fs" % (float(replay.frame_count()) / 60.0 if replay != null else 0.0)
-	var tool_state: String = "%s/%s/CAM %s" % [
+	var tool_state: String = "%s/%s/CAM %s/%s/LOAD %d%%" % [
 		String(surface_tool.active_id).to_upper() if surface_tool != null else "ASPHALT",
 		String(surface_tool.active_condition).to_upper() if surface_tool != null else "FRESH",
-		"ON" if camera_wall != null and bool(camera_wall.facts()["visible"]) else "OFF"]
+		"ON" if camera_wall != null and bool(camera_wall.facts()["visible"]) else "OFF",
+		String(chaos.preset_id).to_upper() if chaos != null else "LOCAL", int(_chaos_load * 100.0)]
 	return "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
 		tool_state,
 		"ON" if diagnostics.updates_enabled() else "OFF", replay_status,
@@ -743,6 +885,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_I: cycle_condition()
 			KEY_K: toggle_camera_wall()
 			KEY_L: begin_controller_calibration()
+			KEY_N: cycle_scenario()
+			KEY_B: cycle_transport()
+			KEY_M: cycle_chaos_load()
+			KEY_V: hud.toggle_verdict()
 			KEY_BACKSPACE: reset_station()
 	elif event is InputEventJoypadButton and event.pressed:
 		match (event as InputEventJoypadButton).button_index:
