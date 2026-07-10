@@ -2713,12 +2713,8 @@ func fire_from_vehicle() -> void:
 	# a horizontal ray sails over heads. Shots angle DOWN to the aim point.
 	var shot := aim_point() - origin
 	var dir := shot.normalized() if shot.length_squared() > 0.01 else active_car.facing()
-	if w.fire(self, origin, dir):
-		# GUNFEEL #7: the same on-foot juice, from the window — flash + brass
-		# PARENTED TO THE CAR (global_position resolves through the parent
-		# transform every frame, so both ride the car's motion for their life).
-		ProtoFX.muzzle_flash(active_car, origin, dir)
-		ProtoFX.casing(active_car, origin, dir.cross(Vector3.UP).normalized() * -1.0)
+	if w.fire(self, origin, dir, active_car):
+		# The weapon's accepted-shot path parents its one flash+casing pair to the car.
 		cam_rig.add_trauma(0.26 if w.id == "shotgun" else 0.18) # same per-weapon table as on-foot (:1935)
 		stress = minf(100.0, stress + 1.5)
 		audio.play_at(String(w.info().get("fire_sfx", "shot")), active_car.global_position)
@@ -2895,11 +2891,8 @@ func fire_mount() -> void:
 		return
 	var fwd := active_car.facing()
 	var origin := active_car.global_position + fwd * 2.6 + Vector3(0, 0.8, 0)
-	if w.fire(self, origin, fwd):
-		# GUNFEEL #7: the hood MG gets the same flash+brass, parented to the car
-		# (mount trauma stays as-is — this weapon's own 0.1 is untouched).
-		ProtoFX.muzzle_flash(active_car, origin, fwd)
-		ProtoFX.casing(active_car, origin, fwd.cross(Vector3.UP).normalized() * -1.0)
+	if w.fire(self, origin, fwd, active_car):
+		# The mount uses the same one accepted-shot FX path as every handheld.
 		cam_rig.add_trauma(0.1)
 		audio.play_at(String(w.info().get("fire_sfx", "shot")), active_car.global_position, -4.0, 1.3)
 

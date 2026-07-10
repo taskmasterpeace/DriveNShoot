@@ -21,6 +21,8 @@ const WEAPONS: Dictionary = {
 	"pistol": {"name": "Pistol", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 18.0,
 		"mag_size": 12, "ammo": "9mm", "cooldown": 0.32, "spread_deg": 4.0, "range": 42.0, "reload_s": 0.9,
 		"trigger_mode": "semi", "fire_sfx": "shot", "hit_stop": false,
+		"muzzle_fx": {"length": 0.46, "width": 0.13, "offset": 0.22, "life": 0.075,
+			"energy": 2.6, "range": 4.2, "emission": 5.0, "color": Color(1.0, 0.78, 0.28)},
 		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
 		# body when the scaled kick crosses stagger_threshold. Strength eats all of it.
 		"recoil": {"kick_pitch": 0.09, "torso_jolt": 0.04, "stagger_threshold": 0.3},
@@ -29,12 +31,16 @@ const WEAPONS: Dictionary = {
 		"damage": 8.0, "mag_size": 30, "ammo": "9mm", "cooldown": 0.12,
 		"spread_deg": 5.5, "range": 38.0, "reload_s": 1.35, "trigger_mode": "auto",
 		"fire_sfx": "shot_mg", "hit_stop": false,
+		"muzzle_fx": {"length": 0.34, "width": 0.10, "offset": 0.18, "life": 0.055,
+			"energy": 2.1, "range": 3.6, "emission": 5.5, "color": Color(1.0, 0.72, 0.22)},
 		"recoil": {"kick_pitch": 0.055, "torso_jolt": 0.025, "stagger_threshold": 0.4},
 		"hand_pose": {"offset": Vector3(-0.05, 0.11, -0.03), "two_handed": true,
 			"grip_r": Vector3(0.0, 0.0, 0.07), "grip_l": Vector3(0.0, -0.02, -0.16)}},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
 		"trigger_mode": "semi", "fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
+		"muzzle_fx": {"length": 0.82, "width": 0.25, "offset": 0.38, "life": 0.095,
+			"energy": 4.8, "range": 6.0, "emission": 6.5, "color": Color(1.0, 0.68, 0.18)},
 		# 12ga at strength 0 = 0.38 >= 0.3: the WEAK get rocked; at strength 8 the
 		# scaled 0.20 stays under — the strong eat it with the arm. The fantasy, as data.
 		"recoil": {"kick_pitch": 0.38, "torso_jolt": 0.15, "stagger_threshold": 0.3},
@@ -48,6 +54,8 @@ const WEAPONS: Dictionary = {
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
 		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "trigger_mode": "semi", "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
+		"muzzle_fx": {"length": 0.95, "width": 0.34, "offset": 0.42, "life": 0.12,
+			"energy": 5.6, "range": 7.0, "emission": 7.0, "color": Color(1.0, 0.55, 0.16)},
 		"recoil": {"kick_pitch": 0.5, "torso_jolt": 0.2, "stagger_threshold": 0.3},
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
 			# ANIMATION_FIX_PACK §3.5.2 (D5): support hand UNDER the tube, ahead of the
@@ -74,6 +82,8 @@ const WEAPONS: Dictionary = {
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "trigger_mode": "auto", "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report
+		"muzzle_fx": {"length": 0.62, "width": 0.18, "offset": 0.30, "life": 0.065,
+			"energy": 3.2, "range": 5.2, "emission": 6.0, "color": Color(1.0, 0.74, 0.20)},
 		"recoil": {"kick_pitch": 0.05, "torso_jolt": 0.02, "stagger_threshold": 0.4}},
 	# UNARMED (MOVESET.txt): empty hands are never empty. TAP = the combo
 	# (jab→jab→cross; KICKS fold in at Martial Arts 2), HOLD = the shove below,
@@ -290,7 +300,7 @@ func _strike_id_for(weapon_id: String, combo: int, is_kick: bool) -> String:
 
 
 ## Fires from the player toward aim_dir. Returns true if a shot happened.
-func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
+func fire(main: Node, from: Vector3, aim_dir: Vector3, fx_parent: Node = null) -> bool:
 	if not can_fire():
 		return false
 	var w := info()
@@ -428,8 +438,9 @@ func fire(main: Node, from: Vector3, aim_dir: Vector3) -> bool:
 	var sp := current_spread(main)
 	bloom = minf(bloom + 0.45, 2.2) # each shot blooms the cone; rest recovers it
 	# Every trigger pull is ANSWERED: flash at the muzzle, brass off to the right.
-	ProtoFX.muzzle_flash(main, from, aim_dir)
-	ProtoFX.casing(main, from, aim_dir.cross(Vector3.UP).normalized() * -1.0)
+	var fx_host: Node = fx_parent if fx_parent != null else main
+	ProtoFX.muzzle_flash(fx_host, from, aim_dir, w.get("muzzle_fx", {}))
+	ProtoFX.casing(fx_host, from, aim_dir.cross(Vector3.UP).normalized() * -1.0)
 	match w["behavior"]:
 		Behavior.HITSCAN:
 			_ray_shot(main, from, _spread(aim_dir, sp), w["range"], w["damage"])
