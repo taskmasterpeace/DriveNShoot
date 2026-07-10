@@ -21,11 +21,16 @@ const STATES: Array = ["VIRGINIA", "KENTUCKY", "MISSOURI", "KANSAS", "COLORADO",
 
 # (ROAD_W retired 2026-07-07: width is the ROW's — ProtoUSMap.road_geometry, the one law.)
 
+## Retuned (fidelity loop it.8 probe: noon sun 1.25x warm over high-value yellow
+## tints read LEMON inside the vision pool): ~10% less value so midday doesn't
+## blow out, and the hues separate — farmland WHEAT-gold, forest a deep woodland
+## floor, desert warm sand, plains dry sage. (The map palette below is its own
+## read and stays.)
 const BIOME_GROUND: Dictionary = {
-	"forest": Color(0.30, 0.34, 0.20), "farmland": Color(0.55, 0.48, 0.26),
-	"plains": Color(0.52, 0.47, 0.30), "scrub": Color(0.52, 0.42, 0.28),
-	"desert": Color(0.62, 0.50, 0.32), "mountains": Color(0.46, 0.44, 0.42),
-	"swamp": Color(0.30, 0.32, 0.22), "urban": Color(0.42, 0.40, 0.38),
+	"forest": Color(0.24, 0.29, 0.17), "farmland": Color(0.50, 0.42, 0.24),
+	"plains": Color(0.45, 0.42, 0.27), "scrub": Color(0.46, 0.38, 0.26),
+	"desert": Color(0.60, 0.46, 0.30), "mountains": Color(0.46, 0.44, 0.42),
+	"swamp": Color(0.25, 0.28, 0.20), "urban": Color(0.42, 0.40, 0.38),
 	"water": Color(0.16, 0.28, 0.34), "ocean": Color(0.10, 0.20, 0.28),
 }
 

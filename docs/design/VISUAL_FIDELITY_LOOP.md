@@ -241,11 +241,43 @@ mid-drive anymore. Holding it back: the vision-pool lemon wash (needs a careful
 cone-shader touch), biome tints could separate more (farmland golden vs forest
 deep), chunk seams could dither, doll outline at 1x.
 
-**Next up (iteration 8):**
-1. **THE CONE WASH** — find where the vision pool brightens the ground (cone shader
-   / light energy) and tame the lemon blowout WITHOUT touching visibility gameplay;
-   before/after via GROUND probes.
-2. Biome tint separation pass (BIOME_GROUND: farmland golden, forest deeper, desert
-   warmer — small steps, probe-verified, no purple).
-3. Vehicle doll part icons at 1x (gallery-test; drop if unreadable).
-4. THE CAR GPS phone-skin cohesion pass.
+**Next up (iteration 8):** ~~cone wash + biome tints~~ → executed below; doll icons
+CLOSED (skip with reasoning); CAR-GPS skin rolls with a concrete sketch.
+
+---
+
+## Iteration 8 — 2026-07-10 ~11:15
+
+**Shipped:**
+- **THE CONE WASH, diagnosis FLIPPED**: the vision shader (vision_cone.gd) only DIMS
+  outside the pool (×0.68) — the pool doesn't brighten anything; it shows the TRUE
+  ground color. The lemon was the BIOME TINTS themselves under the 1.25x warm noon
+  sun. The cone is gameplay information and stays untouched.
+- **BIOME TINT SEPARATION** (BIOME_GROUND retune, ~10% value down + hue separation):
+  farmland → WHEAT-gold, forest → deep woodland floor, plains → dry sage, scrub/
+  desert/swamp nudged warm/murky; mountains/urban/water untouched; the GPS map
+  palette (MAP_BIOME) untouched on purpose — it's its own read. Before/after GROUND
+  probes: the lemon is GONE, farmland reads golden, forest reads green, the
+  patchwork parcels carry through. **ground_texture 15/15 (incl. no-purple guard),
+  map_sim 45/45.**
+- **Doll part icons: CLOSED as SKIP** — at 1x the dash doll is ~96 px; part glyphs
+  land at ~3 px (mush by arithmetic, no render needed). The doll's spatial anatomy
+  IS the label (hood = engine, slab = tank, corners = tires). Revisit only if the
+  doll ever gets a zoomed inspect state.
+
+**Steam rating: 8.1/10** (was 7.9). The world's floor now has honest, differentiated
+color under real daylight — golden farms, green woods, warm sand — with grain and
+parcels at every scale. Crossing 8: the game photographs like a place now. Holding
+it back: structures/streets still flat-material, weather visuals unprobed, CAR GPS
+mini-panel bezel-less, skid/scorch decals absent.
+
+**Next up (iteration 9):**
+1. **THE CAR GPS cohesion pass** (concrete sketch: draw the mini panel as a slim
+   rounded DEVICE — 2px amber-tinted bezel, a speaker dot, the map inset 3px — pure
+   primitives in hud_3d's cargps build, no texture; render_ui CARGPS shot proves it).
+2. **WEATHER READ probe** — force rain + a dust storm from the game camera
+   (weather.gd hooks), judge droplet/dust readability; queue the cheapest wins.
+3. **STREET READ probe** — Meridian main street from the game camera (buildings,
+   signs, road paint): the next flat-material frontier.
+4. Doll 1x loud-state outline: thicken the chassis stroke 2px→3px only at tier>=2
+   (a 1-line juice check in the gallery).
