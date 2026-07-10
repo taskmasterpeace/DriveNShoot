@@ -49,7 +49,7 @@
 
 | id | sim | status | note |
 |----|-----|--------|------|
-| E1 | audio_sim | OPEN | engine-hum attach nil pitch_scale — real-bug bucket |
+| E1 | audio_sim | DONE | realigned to the IGNITION LAW (dead motor silent → crank → hum → pitch) + I-95 staging — 8/0 |
 | E2 | bike_rider_sim | OPEN | — |
 | E3 | bike_sim | OPEN | — |
 | E4 | binocular_sim | DONE | realigned to the retirement (bind row cleared; B=recall) — 6/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 23 (C0–C6, I0–I2, W0, P17, E4–E7, E11, E24–E27, F8, F10, F12)
-- OPEN: 21 (E1–E3, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 24 (C0–C6, I0–I2, W0, P17, E1, E4–E7, E11, E24–E27, F8, F10, F12)
+- OPEN: 20 (E2, E3, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
