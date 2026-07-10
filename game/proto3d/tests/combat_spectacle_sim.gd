@@ -17,6 +17,10 @@ class RejectingLab:
 	var lab_round: RefCounted = preload(
 		"res://proto3d/tools/physics_lab/lab_round.gd").new()
 
+	func _init() -> void:
+		lab_round.setup(["player", "opponent"], 100.0, 2)
+		lab_round.hit("player", 9.0, {"attacker":"opponent", "kind":"fixture"})
+
 	func configure_spectacle_match(_left: Dictionary, _right: Dictionary,
 			_mode: String) -> bool:
 		return false
@@ -89,6 +93,10 @@ func _ready() -> void:
 	bypassed_law["entrants"][0]["group"] = "dog"
 	var bad_spawns: Dictionary = valid_row.duplicate(true); bad_spawns["spawns"]["left"] = [1, 2]
 	var bad_round: Dictionary = valid_row.duplicate(true); bad_round["round_health"] = 0
+	var wrong_wins: Dictionary = valid_row.duplicate(true); wrong_wins["rounds_to_win"] = 3
+	var wrong_stakes: Dictionary = valid_row.duplicate(true); wrong_stakes["stake_max"] = 25
+	var uppercase_dog: Dictionary = valid_row.duplicate(true)
+	uppercase_dog["entrants"][0]["group"] = "DOG"
 	_check("validator rejects lethal, dog, infected, duplicate, bad-weapon, and short cards",
 		not bool(runtime.validate_row(lethal)["ok"])
 		and not bool(runtime.validate_row(dog)["ok"])
@@ -99,7 +107,10 @@ func _ready() -> void:
 	_check("entrant law and physical schema cannot be bypassed by malformed rows",
 		not bool(runtime.validate_row(bypassed_law)["ok"])
 		and not bool(runtime.validate_row(bad_spawns)["ok"])
-		and not bool(runtime.validate_row(bad_round)["ok"]))
+		and not bool(runtime.validate_row(bad_round)["ok"])
+		and not bool(runtime.validate_row(wrong_wins)["ok"])
+		and not bool(runtime.validate_row(wrong_stakes)["ok"])
+		and not bool(runtime.validate_row(uppercase_dog)["ok"]))
 
 	var rejecting_lab := RejectingLab.new()
 	add_child(rejecting_lab)
@@ -110,7 +121,9 @@ func _ready() -> void:
 	_check("failed physical staging rolls the tournament back to a visible ready state",
 		rejecting_ready and not rejecting_runtime.start_tournament()
 		and String(rejecting_runtime.facts()["phase"]) == "ready"
-		and String(rejecting_runtime.facts()["status"]).contains("STAGING"))
+		and String(rejecting_runtime.facts()["status"]).contains("STAGING")
+		and rejecting_lab.lab_round.fighter_order == ["player", "opponent"]
+		and is_equal_approx(rejecting_lab.lab_round.health("player"), 91.0))
 	rejecting_lab.queue_free()
 
 	var share_sum: float = 0.0
@@ -271,7 +284,21 @@ func _ready() -> void:
 	live.reset_tournament()
 	_check("tournament reset frees temporary AI and restores the exact opening player transform",
 		(lab.get("spectacle_fighters") as Array).is_empty()
-		and lab.adapter.anchor_transform().origin.distance_to(original_transform.origin) < 0.01)
+		and lab.adapter.anchor_transform().origin.distance_to(original_transform.origin) < 0.01
+		and lab.lab_round.fighter_order == ["player", "opponent"])
+
+	var scenario_card: Dictionary = lab.start_scenario("cover_two", 4402)
+	var scenario_actor_count: int = lab.scenario_opponents.size()
+	var scenario_behavior: String = String(lab.opponent_behavior)
+	var scenario_start_blocked: bool = not scenario_card.is_empty() \
+		and lab.spectacle.select_mode("watch") and not lab.spectacle.start_tournament()
+	_check("Spectacles refuse staging without stealing an active scenario's actors",
+		scenario_start_blocked and String(lab.current_scenario) == "cover_two"
+		and scenario_actor_count >= 1 and lab.scenario_opponents.size() == scenario_actor_count
+		and String(lab.opponent_behavior) == scenario_behavior
+		and lab.scenario_opponents.all(func(actor: Node) -> bool: return is_instance_valid(actor))
+		and (lab.get("spectacle_fighters") as Array).is_empty())
+	lab.start_scenario("free_play", 4402)
 
 	var integrated_ui: bool = "spectacle" in lab and lab.get("spectacle") != null \
 		and "spectacle_panel" in lab and lab.get("spectacle_panel") != null
@@ -354,6 +381,11 @@ func _ready() -> void:
 			damage_readout.contains("%s HP %.0f/100" % [player_name, player_health_after])
 			and damage_readout.contains(String(ui_runtime.entrant_by_id(ui_rival)["name"]).to_upper())
 			and damage_readout.contains(String(ui_runtime.row["broadcast"]["semifinal"])))
+		var hud_round: String = lab._round_readout()
+		_check("always-visible HUD uses the active Spectacle fighter ids instead of legacy P/O score",
+			hud_round.contains(player_name)
+			and hud_round.contains(String(ui_runtime.entrant_by_id(ui_rival)["name"]).to_upper())
+			and hud_round.contains("HP") and not hud_round.contains("P0-0O"))
 		lab.lab_round.hit(ui_rival, 200.0,
 			{"attacker":"player", "kind":"broadcast_probe"})
 		await get_tree().process_frame

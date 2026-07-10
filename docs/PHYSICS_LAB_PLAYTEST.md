@@ -78,7 +78,9 @@ and never read or write campaign scrip.
 Dogs and infected are rejected from the row and runtime. Health depletion produces round cards and
 resets—never a corpse, campaign wound, crime, death, or save mutation. The same card seed reproduces
 the same names, strengths, bracket, equipment, and result inputs. A malformed card or failed arena
-staging returns to a visible ready state instead of leaving a half-running tournament.
+staging returns to a visible ready state instead of leaving a half-running tournament. Spectacles do
+not steal actors from a running scenario card: close the board and cycle `N` back to **FREE PLAY**
+before START. FREE PLAY also restores ordinary `player`/`opponent` sparring ownership.
 
 Keyboard-only inspection controls: F5 X-ray · F6 day/night · F7 clear/dust · F8 headlights ·
 F9 normal/binocular range · F10 camera zoom · O door · [ / ] target distance · comma rewind ·

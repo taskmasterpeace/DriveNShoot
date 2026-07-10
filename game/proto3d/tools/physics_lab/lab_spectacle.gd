@@ -28,6 +28,8 @@ var payout: int = 0
 var status: String = ""
 var _round_connected: bool = false
 var _opening_player_transform: Transform3D = Transform3D.IDENTITY
+var _opening_round_state: Dictionary = {}
+var _round_owned: bool = false
 
 
 func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
@@ -47,6 +49,7 @@ func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
 		return false
 	row = candidate
 	if lab != null and "lab_round" in lab and lab.lab_round != null and not _round_connected:
+		_opening_round_state = lab.lab_round.snapshot()
 		lab.lab_round.match_ended.connect(_on_physical_match_ended)
 		if lab.lab_round.has_signal("state_changed"):
 			lab.lab_round.state_changed.connect(_on_physical_round_changed)
@@ -90,7 +93,8 @@ func validate_row(candidate: Dictionary) -> Dictionary:
 		if required not in modes:
 			return {"ok":false, "error":"MISSING MODE %s" % required.to_upper()}
 	if not _positive_number(candidate.get("round_health")) \
-			or not _positive_integer(candidate.get("rounds_to_win")):
+			or not _positive_integer(candidate.get("rounds_to_win")) \
+			or int(candidate.get("rounds_to_win", 0)) != 2:
 		return {"ok":false, "error":"INVALID ROUND RULES"}
 	if not candidate.get("entrants") is Array:
 		return {"ok":false, "error":"ENTRANTS MUST BE AN ARRAY"}
@@ -105,8 +109,11 @@ func validate_row(candidate: Dictionary) -> Dictionary:
 		for group in (candidate["prohibited_groups"] as Array):
 			if typeof(group) != TYPE_STRING:
 				return {"ok":false, "error":"INVALID PROHIBITED GROUP"}
-			if String(group) not in prohibited:
-				prohibited.append(String(group))
+			var group_id: String = String(group)
+			if group_id != group_id.to_lower():
+				return {"ok":false, "error":"GROUP IDS MUST BE LOWERCASE"}
+			if group_id not in prohibited:
+				prohibited.append(group_id)
 	var opponent_ids: Array[String] = _opponent_ids()
 	for raw_entrant in field:
 		if not raw_entrant is Dictionary:
@@ -121,7 +128,13 @@ func validate_row(candidate: Dictionary) -> Dictionary:
 			return {"ok":false, "error":"ENTRANT NAME REQUIRED"}
 		if not _positive_number(entrant.get("strength")):
 			return {"ok":false, "error":"STRENGTH MUST BE POSITIVE"}
-		if String(entrant.get("group", "human")) in prohibited:
+		var raw_group: Variant = entrant.get("group", "human")
+		if typeof(raw_group) != TYPE_STRING:
+			return {"ok":false, "error":"INVALID ENTRANT GROUP"}
+		var entrant_group: String = String(raw_group)
+		if entrant_group != entrant_group.to_lower():
+			return {"ok":false, "error":"GROUP IDS MUST BE LOWERCASE"}
+		if entrant_group in prohibited:
 			return {"ok":false, "error":"PROHIBITED ENTRANT GROUP"}
 		if String(entrant.get("weapon_id", "")) not in ProtoWeapon.WEAPONS:
 			return {"ok":false, "error":"UNKNOWN WEAPON"}
@@ -134,7 +147,8 @@ func validate_row(candidate: Dictionary) -> Dictionary:
 	var minimum: int = int(candidate["stake_min"])
 	var maximum: int = int(candidate["stake_max"])
 	var step: int = int(candidate["stake_step"])
-	if minimum < 1 or maximum < minimum or step < 1:
+	if minimum != 10 or maximum != 250 or step != 10 \
+			or (maximum - minimum) % step != 0:
 		return {"ok":false, "error":"INVALID STAKE BAND"}
 	if not candidate.get("spawns") is Dictionary:
 		return {"ok":false, "error":"SPAWNS MUST BE AN OBJECT"}
@@ -297,11 +311,14 @@ func record_match_winner(winner_id: String) -> bool:
 
 
 func reset_tournament() -> void:
-	if lab != null and lab.has_method("clear_spectacle_fighters"):
+	var owned_physical: bool = _round_owned or _has_lab_spectacle_fighters()
+	if owned_physical and lab != null and lab.has_method("clear_spectacle_fighters"):
 		lab.clear_spectacle_fighters()
 		if "adapter" in lab and lab.adapter != null:
 			lab.scenario_player_spawn = _opening_player_transform
 			lab.adapter.reset_at(_opening_player_transform)
+	if _round_owned:
+		_restore_opening_round()
 	_reset_state()
 
 
@@ -321,19 +338,40 @@ func _start_current_match() -> bool:
 	right["spectacle_spawn"] = (spawns.get("right", [86, 0.05, 14]) as Array).duplicate()
 	left["spectator_spawn"] = (spawns.get("spectator", [78, 0.05, 20]) as Array).duplicate()
 	right["spectator_spawn"] = left["spectator_spawn"]
+	var prior_round: Dictionary = lab.lab_round.snapshot()
 	lab.lab_round.setup([String(current["left"]), String(current["right"])],
 		float(row.get("round_health", 100.0)), int(row.get("rounds_to_win", 2)))
 	var physical_mode: String = "enter" if mode == "enter" and "player" in [
 		String(current["left"]), String(current["right"])] else "watch"
-	return bool(lab.configure_spectacle_match(left, right, physical_mode))
+	var configured: bool = bool(lab.configure_spectacle_match(left, right, physical_mode))
+	if not configured:
+		lab.lab_round.restore_snapshot(prior_round)
+		return false
+	_round_owned = true
+	return true
 
 
 func _recover_from_staging_failure() -> void:
-	if lab != null and lab.has_method("clear_spectacle_fighters"):
+	if (_round_owned or _has_lab_spectacle_fighters()) and lab != null \
+			and lab.has_method("clear_spectacle_fighters"):
 		lab.clear_spectacle_fighters()
+	if _round_owned:
+		_restore_opening_round()
 	_reset_state()
 	status = "MATCH STAGING FAILED · CHECK CARD AND ARENA"
 	_emit_changed()
+
+
+func _restore_opening_round() -> void:
+	if lab != null and "lab_round" in lab and lab.lab_round != null \
+			and not _opening_round_state.is_empty():
+		lab.lab_round.restore_snapshot(_opening_round_state)
+	_round_owned = false
+
+
+func _has_lab_spectacle_fighters() -> bool:
+	return lab != null and "spectacle_fighters" in lab \
+		and not (lab.spectacle_fighters as Array).is_empty()
 
 
 func _stage_next_match() -> void:

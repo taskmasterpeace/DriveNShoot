@@ -561,6 +561,8 @@ func _cycle_opponent_behavior() -> void:
 func start_scenario(id: String, seed: int = -1) -> Dictionary:
 	if _spectacle_running() or scenario_tool == null:
 		return {}
+	if id == "free_play":
+		return _start_free_play()
 	var state: Dictionary = scenario_tool.start(id, seed)
 	if state.is_empty():
 		return {}
@@ -623,6 +625,33 @@ func start_scenario(id: String, seed: int = -1) -> Dictionary:
 	return state.duplicate(true)
 
 
+func _start_free_play() -> Dictionary:
+	_clear_scenario_opponents()
+	_clear_scenario_vehicles()
+	current_scenario = "free_play"
+	_scenario_index = -1
+	scenario_tool.current.clear()
+	scenario_win_condition.clear()
+	_scenario_progress = 0
+	_scenario_complete = false
+	_scenario_elapsed = 0.0
+	scenario_player_spawn = station_spawn
+	if lab_round != null:
+		lab_round.setup(["player", "opponent"], 100.0, 2)
+	if opponent != null:
+		opponent.set_enabled(true)
+		opponent.configure_identity("opponent", "player")
+		opponent.set_behavior("passive")
+		opponent.set_weapon("pistol")
+		opponent.set_meta("scenario_spawn", opponent_spawn)
+		opponent_behavior = "PASSIVE"
+	reset_station()
+	_set_environment_state(false, false, false)
+	chaos.configure_transport("local", 1)
+	return {"id":"free_play", "seed":1, "opponents":["passive"],
+		"surface":"asphalt", "condition":"fresh"}
+
+
 func scenario_state() -> Dictionary:
 	return {"scenario": current_scenario, "mode": active_mode,
 		"position": adapter.anchor_transform().origin, "weapon": String(adapter.weapon.id),
@@ -643,7 +672,9 @@ func scenario_state() -> Dictionary:
 func cycle_scenario(step: int = 1) -> void:
 	if _spectacle_running():
 		return
-	var ids: Array[String] = scenario_tool.ids()
+	var ids: Array[String] = ["free_play"]
+	ids.append_array(scenario_tool.ids())
+	_scenario_index = ids.find(current_scenario)
 	_scenario_index = posmod(_scenario_index + step, ids.size())
 	start_scenario(ids[_scenario_index])
 
@@ -690,6 +721,11 @@ func clear_spectacle_fighters() -> void:
 
 
 func configure_spectacle_match(left: Dictionary, right: Dictionary, spectacle_mode: String) -> bool:
+	var has_foreign_opponents: bool = scenario_opponents.any(func(extra: Node3D) -> bool:
+		return extra not in spectacle_fighters)
+	if current_scenario != "free_play" or has_foreign_opponents \
+			or not scenario_vehicles.is_empty():
+		return false
 	clear_spectacle_fighters()
 	if opponent == null or lab_round == null or spectacle_mode not in ["watch", "enter"]:
 		return false
@@ -1113,6 +1149,17 @@ func _diagnostic_readout(facts: Dictionary) -> String:
 func _round_readout() -> String:
 	if lab_round == null:
 		return opponent_behavior
+	if _spectacle_running():
+		var current: Dictionary = spectacle.current_match()
+		var left_id: String = String(current.get("left", ""))
+		var right_id: String = String(current.get("right", ""))
+		if lab_round.fighters.has(left_id) and lab_round.fighters.has(right_id):
+			return "SPECTACLE %s · %s %.0fHP R%d/%d · %s %.0fHP R%d/%d" % [
+				String(current.get("round", "BOUT")), _spectacle_fighter_name(left_id),
+				lab_round.health(left_id), lab_round.rounds(left_id), lab_round.rounds_to_win,
+				_spectacle_fighter_name(right_id), lab_round.health(right_id),
+				lab_round.rounds(right_id), lab_round.rounds_to_win]
+		return "SPECTACLE · %s" % String(spectacle.status)
 	var opponent_row: Dictionary = opponent.row if opponent != null else {}
 	var base: String = "%s P%d-%dO  %s  %.2fs  ±%.1f°  A%.2f" % [opponent_behavior,
 		lab_round.rounds("player"), lab_round.rounds("opponent"),
@@ -1125,6 +1172,13 @@ func _round_readout() -> String:
 		return "%s  %s: %s" % [base, String(card.get("reason", "ROUND")),
 			String(card.get("winner", "")).to_upper()]
 	return base
+
+
+func _spectacle_fighter_name(id: String) -> String:
+	for entrant in spectacle.entrants:
+		if String(entrant.get("id", "")) == id:
+			return String(entrant.get("name", id)).to_upper()
+	return id.to_upper()
 
 
 func _capture_replay_snapshot() -> Dictionary:

@@ -169,7 +169,8 @@ func snapshot() -> Dictionary:
 	return {"nonlethal": true, "phase": phase, "winner": winner,
 		"round": round_index, "freeze_remaining": freeze_remaining,
 		"last_card": last_card.duplicate(true), "fighters": fighters.duplicate(true),
-		"max_health":max_health, "rounds_to_win":rounds_to_win}
+		"fighter_order":fighter_order.duplicate(), "max_health":max_health,
+		"rounds_to_win":rounds_to_win}
 
 
 func restore_snapshot(state: Dictionary) -> bool:
@@ -181,6 +182,9 @@ func restore_snapshot(state: Dictionary) -> bool:
 	freeze_remaining = float(state.get("freeze_remaining", 0.0))
 	last_card = (state.get("last_card", {}) as Dictionary).duplicate(true)
 	fighters = (state["fighters"] as Dictionary).duplicate(true)
+	fighter_order.clear()
+	for raw_id in (state.get("fighter_order", fighters.keys()) as Array):
+		fighter_order.append(String(raw_id))
 	max_health = maxf(1.0, float(state.get("max_health", max_health)))
 	rounds_to_win = maxi(1, int(state.get("rounds_to_win", rounds_to_win)))
 	state_changed.emit(snapshot())
