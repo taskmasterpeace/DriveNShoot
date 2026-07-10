@@ -83,17 +83,24 @@ func _ready() -> void:
 	_check("a WEST-COAST METRO stands on the Produce Line (SAN PERDIDO)", metro_found)
 
 	# === 2. BACKROADS: the drifter's 2-lane shortcuts ==============================
+	# The road-rows normalization retired the "backroad" kind — the town-knitters
+	# live as "county" rows now (the corridor pass also added straight county
+	# connectors, so WINDING is a character a subset carries, not all).
 	var backroads: Array = []
 	for r in m.roads:
-		if String(r["kind"]) == "backroad":
+		if String(r["kind"]) == "county":
 			backroads.append(r)
-	_check("BACKROADS knit the towns across corridors (%d laid, want >=5)" % backroads.size(),
+	_check("BACKROADS knit the towns across corridors (%d county laid, want >=5)" % backroads.size(),
 		backroads.size() >= 5)
 	var br_ok := true
+	var winding := 0
 	for br in backroads:
-		if int(br["lanes"]) != 2 or bool(br["divided"]) or (br["pts"] as PackedVector2Array).size() < 4:
+		if int(br["lanes"]) != 2 or bool(br["divided"]):
 			br_ok = false
-	_check("...every backroad is a WINDING 2-lane, never divided", br_ok)
+		if (br["pts"] as PackedVector2Array).size() >= 4:
+			winding += 1
+	_check("...every county road is a 2-lane, never divided (+%d keep the WINDING character, want >=5)" % winding,
+		br_ok and winding >= 5)
 
 	# === 3. CHICAGO — THE BLACK BEANIE CROWN =======================================
 	var chi: Dictionary = {}
