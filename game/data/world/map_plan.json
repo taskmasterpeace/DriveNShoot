@@ -1,0 +1,49 @@
+{
+  "_comment": "MapForge PLAN layer — shared owner/AI map TODOs. Not game data.",
+  "notes": [
+    {
+      "created": "2026-07-10",
+      "id": "note-1",
+      "status": "open",
+      "pos": [
+        120,
+        -380
+      ],
+      "text": "RACE LOOP: wire the grandstand betting board to a marked circuit - start gate here?",
+      "author": "claude"
+    },
+    {
+      "created": "2026-07-10",
+      "id": "note-2",
+      "status": "open",
+      "pos": [
+        300,
+        -292
+      ],
+      "text": "X9 service strip: truck_stop seeded - add weigh_station + motel row east along the ramp?",
+      "author": "claude"
+    },
+    {
+      "created": "2026-07-10",
+      "id": "note-3",
+      "status": "open",
+      "pos": [
+        115,
+        -290
+      ],
+      "text": "MAIN ST is real now (curbs+lights dress street rows). Drive it and mark what Meridian still needs.",
+      "author": "claude"
+    },
+    {
+      "created": "2026-07-10",
+      "id": "note-4",
+      "status": "open",
+      "pos": [
+        -45000,
+        14500
+      ],
+      "text": "16 small street-fragment crumbs remain (see ORPHANS layer) - mostly single side streets; fix by dragging each onto its main street + BAKE",
+      "author": "claude"
+    }
+  ]
+}
