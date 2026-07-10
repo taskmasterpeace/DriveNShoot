@@ -61,7 +61,7 @@
 | E10 | furnisher_sim | DONE | THE LIBRARY's bookshelf owns the desk's wall stretch ("read the MANUALS" wins the E-scan) — chain retargeted to the clear-air kitchen cabinet — 11/0 |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
 | E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
-| E13 | los_sim | OPEN | REAL-BUG, narrowed: fade ray (proto3d.gd:1282 sight_blocked eye+1.5→target+0.9) stays blocked after the door opens while the eye-height occl fan SPILLS ✓ — suspect the swung panel/frame or safehouse furniture clips the descending ray; open-ground ray proven clean (probe2) |
+| E13 | los_sim | DONE | not the ray at all — the perception cone follows the AIM, not the body snap (headless left the aim astray); aim_override = NORTH — 9/0 |
 | E14 | m1_sim | DONE | three stales realigned: binocular retirement, sedan moved to TestGrounds (stage by cars[1] position), entry-ladder smash prompt, void-net corridor tape — 22/0 |
 | E15 | nav_sim | DONE | ring gained ⚒ TEST GROUNDS stop — wrap check walks the ring to OFF — 8/0 |
 | E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 35 (C0–C6, I0–I2, W0, P17, E1–E11, E14, E15, E17, E19–E21, E24–E27, F8, F10, F12)
-- OPEN: 9 (E13; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 36 (C0–C6, I0–I2, W0, P17, E1–E11, E13–E15, E17, E19–E21, E24–E27, F8, F10, F12) — **THE E-SET IS CLOSED**
+- OPEN: 8 (F1–F4, F6, F7, F9, F11, F13, F14 — the ecosystem-contract arc)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

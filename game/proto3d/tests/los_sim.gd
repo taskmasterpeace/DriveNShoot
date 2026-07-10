@@ -84,6 +84,10 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 0.4:
 				_place(Vector3(108.5, 0.35, -317.8))
 				main.player.snap_orientation(NORTH) # facing the house
+				# AIM north too: the perception cone follows the AIM, not the
+				# body snap — headless leaves the mouse-aim wherever it was
+				# (the fade ray was CLEAR yet the lurker sat outside the cone).
+				main.aim_override = NORTH
 				_l1 = _spawn_lurker(Vector3(108.5, 0.4, -322.5), 0.0) # 4.7m away, IN cone & near range
 				_next()
 		2: # a closed door is a wall: in-cone + in-range yet UNSEEN, and the light stops
@@ -96,6 +100,16 @@ func _physics_process(delta: float) -> void:
 		3: # open the door and the SAME spot is seen — sight through the aperture
 			if phase_t > 1.3:
 				_check("door swung open", main.house.front_door.is_open)
+				var qf: Vector3 = main.player.global_position + Vector3(0, 1.5, 0)
+				var qt: Vector3 = _l1.global_position + Vector3(0, 0.9, 0)
+				var q := PhysicsRayQueryParameters3D.create(qf, qt)
+				q.exclude = main._sight_excl
+				var hit: Dictionary = main.player.get_world_3d().direct_space_state.intersect_ray(q)
+				if not hit.is_empty():
+					var c: Node = hit["collider"]
+					print("LOS-DBG: fade ray hits %s parent=%s at %s" % [c.name, c.get_parent().name, hit["position"]])
+				else:
+					print("LOS-DBG: fade ray CLEAR")
 				_check("open the door and it is SEEN (fade %.2f)" % _fade_of(_l1), _fade_of(_l1) < 0.25)
 				var r: float = main.vision_cone.occl_range_at(NORTH)
 				_check("light SPILLS through the open doorway (%.1fm > 4.5)" % r, r > 4.5)
