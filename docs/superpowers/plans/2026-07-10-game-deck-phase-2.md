@@ -46,17 +46,17 @@ asset is declared.
 - Modify: `game/proto3d/games/arcade_input_router.gd`
 - Modify: `game/proto3d/tests/game_input_sim.gd`
 
-- [ ] Red controls sim: both Phase 2 rows resolve the identical ordered
+- [x] Red controls sim: both Phase 2 rows resolve the identical ordered
   semantic list and the same live keyboard/mouse/pad labels for move, aim,
   primary, secondary, mobility, stance, reload, interact, weapon cycling,
   scoreboard, pause, and help.
-- [ ] Red kernel sim: seeded spread is repeatable; fire cadence/ammo/reload are
+- [x] Red kernel sim: seeded spread is repeatable; fire cadence/ammo/reload are
   enforced; hitscan, moving projectiles, grenades, ricochet, shrapnel, blast
   falloff, armor, recoil/knockback, and friendly-fire policy produce declared
   results; a deep snapshot/restore reproduces the next tick.
-- [ ] Add original RUST RUNNERS and BLACK GRID weapon rows with explicit
+- [x] Add original RUST RUNNERS and BLACK GRID weapon rows with explicit
   provenance, balance, projectile, damage, and presentation fields.
-- [ ] Commit `feat: add shared flagship shooter kernel`.
+- [x] Commit `feat: add shared flagship shooter kernel`.
 
 ## Task 2: RUST RUNNERS locomotion and combat fidelity
 

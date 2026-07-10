@@ -118,6 +118,11 @@ func _ready() -> void:
 	_check("every console row names one exact installed HELP profile", console_rows.all(func(row: Dictionary) -> bool:
 		return router.PROFILES.has(String(row.get("controls_profile", ""))))
 		and String(registry.get_game("fuel_run").get("controls_profile", "")) == "capture_racer")
+	var flagship_rows: Array = registry.phase_rows(2)
+	_check("both flagships use all nineteen shared shooter semantics", flagship_rows.size() == 2
+		and (router.PROFILES["shared_shooter"] as Array).size() == 19
+		and flagship_rows.all(func(row: Dictionary) -> bool:
+			return String(row.get("controls_profile", "")) == "shared_shooter"))
 	_finish()
 
 
