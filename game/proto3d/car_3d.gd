@@ -93,7 +93,7 @@ static var VEHICLES: Dictionary = {
 @export var grip_rear: float = 5.0    ## Baseline grip; the Tires component modifies it (see LOOP2 spec).
 @export var handbrake_grip_rear: float = 2.4  ## Slide grip — playtest bug: 1.1 spun the car a full 180.
 @export var handbrake_steer_mult: float = 0.55 ## Steering authority while sliding (full lock = spin).
-@export var handbrake_decel: float = 14.0     ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering). 8→14 (2026-07-09 playtest "hit space, it doesn't stop"): with the gas now cancelled it bites like a real e-brake; the low rear grip still gives the steerable drift.
+@export var handbrake_decel: float = 20.0     ## m/s² braking — a decel FORCE (not a wheel-brake, which locks the fronts & kills steering). 8→14 (2026-07-09 "hit space, it doesn't stop") → 20 (2026-07-10 "feels like it just decelerates"): a hard ~2g emergency bite; the low rear grip still gives the steerable drift.
 @export var handbrake_yaw_rate: float = 1.4   ## rad/s cap on drift rotation — the anti-180 (raw physics peaked at 6.5).
 @export var handbrake_yaw_damp: float = 18.0  ## counter-torque strength that arrests the spin at the cap / to straight
 
@@ -1270,6 +1270,7 @@ func dashboard() -> Dictionary:
 		"name": display_name, "load": trunk.total_weight(), "load_max": trunk.max_weight,
 		"vclass": vclass,
 		"rev": clampf(absf(forward_speed) / maxf(top_speed, 1.0), 0.0, 1.0) * 8.0,
+		"gps": bool(spec.get("gps", false)),
 	}
 
 
@@ -1547,6 +1548,13 @@ func _physics_process(delta: float) -> void:
 		var vh := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
 		if vh.length() > 1.0:
 			apply_central_force(-vh.normalized() * mass * handbrake_decel)
+		else:
+			# THE FULL STOP (2026-07-10 playtest "the handbrake doesn't stop, it decelerates"):
+			# the force gate above leaves a ~1 m/s (2 mph) CREEP forever. Below the gate the
+			# drift is over — settle the last crawl to an actual halt. (A direct write is safe
+			# here: sub-1 m/s, the friction solver isn't shaping a slide anymore.)
+			linear_velocity.x = move_toward(linear_velocity.x, 0.0, 6.0 * delta)
+			linear_velocity.z = move_toward(linear_velocity.z, 0.0, 6.0 * delta)
 		# Cap + settle the yaw so a drift stays a drift and never snaps into a 180.
 		# A direct `angular_velocity.y =` write fights the vehicle solver (it zeroed the
 		# drift), so we nudge with TORQUE: brake the spin only past the cap, and add a

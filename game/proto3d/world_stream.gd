@@ -63,6 +63,26 @@ var _map_canvas: Control = null
 var _map_player: Vector3 = Vector3.ZERO
 var _map_mode: int = 0 ## 0 off · 1 local (fog-of-war) · 2 state · 3 country atlas
 var _atlas_bounds: Rect2 = Rect2() ## currently-drawn atlas bounds (state/country) — for click-mapping
+
+## GPS INTERACTIVITY (owner ask 2026-07-10): the map ZOOMS (mouse wheel + the +/- chips
+## drawn on the LCD) and PANS (the handheld's own D-PAD buttons + arrow keys/pad ui_*);
+## POWER closes the set, MENU cycles local→state→country. Zoom anchors on the cursor.
+var _atlas_zoom: float = 1.0        ## 1..8 over the fitted view (state/country)
+var _atlas_pan: Vector2 = Vector2.ZERO ## world-m offset of the view center, clamped in-bounds
+var _local_zoom: float = 1.0        ## 1..4 over the local fog map
+var _zoom_chip_rects: Array = []    ## [[Rect2, factor], ...] — the LCD +/- chips (canvas space)
+var map_debug_buttons: bool = false ## render_ui acceptance: outline the device hotspots
+
+## The handheld's PHYSICAL buttons, as fractions of the device root (measured off the
+## render). Only exist in device mode; each is an invisible Button over the art.
+const GPS_BTN: Dictionary = {
+	"power": Rect2(0.318, 0.766, 0.066, 0.056),
+	"menu":  Rect2(0.402, 0.766, 0.072, 0.056),
+	"left":  Rect2(0.545, 0.772, 0.058, 0.046),
+	"up":    Rect2(0.594, 0.728, 0.068, 0.048),
+	"right": Rect2(0.652, 0.772, 0.058, 0.046),
+	"down":  Rect2(0.594, 0.808, 0.068, 0.046),
+}
 var _pois: Array = []
 var _main: Node = null ## the game root — the atlas calls back to set a course
 
@@ -142,6 +162,8 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 				main.on_state_entered(st) # the ruler reads your ledger at the border
 		last_state = st
 	# Keep the open map live so the you-dot and your markers track as you move.
+	if _map_layer != null and _map_layer.visible:
+		_poll_map_pan(get_physics_process_delta_time())
 	if map_open():
 		_map_canvas.queue_redraw()
 
@@ -1305,6 +1327,28 @@ func toggle_map() -> void:
 			screen.anchor_bottom = GPS_SCREEN.position.y + GPS_SCREEN.size.y
 			root.add_child(screen)
 			host = screen
+			# THE DEVICE'S OWN BUTTONS work (owner ask): invisible hotspots over the art —
+			# POWER closes, MENU cycles the view, D-PAD pans the atlas.
+			for bname in GPS_BTN:
+				var r: Rect2 = GPS_BTN[bname]
+				var hb := Button.new()
+				hb.anchor_left = r.position.x
+				hb.anchor_top = r.position.y
+				hb.anchor_right = r.position.x + r.size.x
+				hb.anchor_bottom = r.position.y + r.size.y
+				hb.focus_mode = Control.FOCUS_NONE
+				if map_debug_buttons:
+					var dbg := StyleBoxFlat.new()
+					dbg.bg_color = Color(1, 0.6, 0.1, 0.25)
+					dbg.border_color = Color(1, 0.6, 0.1)
+					dbg.set_border_width_all(2)
+					for st in ["normal", "hover", "pressed", "focus"]:
+						hb.add_theme_stylebox_override(st, dbg)
+				else:
+					for st in ["normal", "hover", "pressed", "focus"]:
+						hb.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+				hb.pressed.connect(_on_gps_button.bind(String(bname)))
+				root.add_child(hb)
 		else:
 			_map_panel = PanelContainer.new()
 			_map_panel.set_anchors_preset(Control.PRESET_CENTER)
@@ -1333,6 +1377,7 @@ func toggle_map() -> void:
 	_map_mode = (_map_mode + 1) % 4
 	if _map_mode >= 2 and not (usmap != null and usmap.ok):
 		_map_mode = 0 # no state/country atlas without the map file
+	_reset_view()
 	_map_layer.visible = _map_mode != 0
 	if _map_layer.visible:
 		_map_canvas.queue_redraw()
@@ -1383,6 +1428,30 @@ func _draw_map() -> void:
 		_draw_state()
 	else:
 		_draw_local()
+	_draw_zoom_chips()
+
+
+## The LCD's own +/- buttons (owner: "even if you gotta put it on the screen itself") —
+## top-right of the screen, pixel-square chips. Their rects feed _on_map_input.
+func _draw_zoom_chips() -> void:
+	var size: Vector2 = _map_canvas.size
+	_zoom_chip_rects = []
+	var s := 24.0
+	var pad := 6.0
+	var plus := Rect2(Vector2(size.x - s - pad, pad), Vector2(s, s))
+	var minus := Rect2(Vector2(size.x - s - pad, pad * 2 + s), Vector2(s, s))
+	for chip in [[plus, 1.3, "+"], [minus, 1.0 / 1.3, "-"]]:
+		var r: Rect2 = chip[0]
+		_map_canvas.draw_rect(r, Color(0.07, 0.06, 0.05, 0.85))
+		_map_canvas.draw_rect(r, Color(0.96, 0.72, 0.2), false, 2.0)
+		_map_canvas.draw_string(ThemeDB.fallback_font, r.position + Vector2(8, 17), String(chip[2]),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.96, 0.72, 0.2))
+		_zoom_chip_rects.append([r, chip[1]])
+	# The zoom readout under the chips (reads like a real unit).
+	var z := _local_zoom if _map_mode == 1 else _atlas_zoom
+	if z > 1.01:
+		_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(size.x - s - pad - 6, pad * 3 + s * 2 + 12),
+			"x%.1f" % z, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82, 0.8))
 
 
 # --- Pixel map markers (assets/ui/markers/) — icons replace the old dots on the map ----
@@ -1455,7 +1524,7 @@ func _state_bounds() -> Rect2:
 func _draw_local() -> void:
 	var size: Vector2 = _map_canvas.size
 	var center := size * 0.5
-	var scale := 0.10 # px per meter → ~±3 km view
+	var scale := 0.10 * _local_zoom # px per meter → ~±3 km view at x1, wheel zooms in
 	# Fog-of-war: only chunks you've SEEN are drawn
 	for key in visited:
 		var w: Vector2 = visited[key]
@@ -1494,16 +1563,122 @@ func _draw_local() -> void:
 	# You
 	if not _draw_marker(center, "arrow", 22.0, true):
 		_map_canvas.draw_circle(center, 5.0, Color(0.9, 0.25, 0.12))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DIVIDED STATES — %s   (M again: the atlas)" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DSA — %s" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 
 
 ## Screen⇄world mapping for the atlas (shared by draw + click). world XZ →
 ## screen: org + (worldXZ - bounds.position) * px. Inverse in _on_map_input.
 func _atlas_transform(bounds: Rect2) -> Dictionary:
 	var size: Vector2 = _map_canvas.size
-	var px := minf(size.x / maxf(1.0, bounds.size.x), size.y / maxf(1.0, bounds.size.y))
-	var org := (size - bounds.size * px) * 0.5 # letterbox the atlas in the panel
+	var px := minf(size.x / maxf(1.0, bounds.size.x), size.y / maxf(1.0, bounds.size.y)) * _atlas_zoom
+	# The view centers on bounds-center + pan; at zoom 1 pan clamps to 0 = the letterbox fit.
+	var center := bounds.get_center() + _atlas_pan
+	var org := size * 0.5 - (center - bounds.position) * px
 	return {"org": org, "px": px, "bounds": bounds}
+
+
+## Clamp the pan so the zoomed view never drifts past the atlas bounds.
+func _clamp_pan(bounds: Rect2) -> void:
+	var lim := bounds.size * 0.5 * (1.0 - 1.0 / maxf(1.0, _atlas_zoom))
+	_atlas_pan.x = clampf(_atlas_pan.x, -lim.x, lim.x)
+	_atlas_pan.y = clampf(_atlas_pan.y, -lim.y, lim.y)
+
+
+## The atlas bounds for the CURRENT mode — set on draw, derivable headless (sims zoom
+## before a single frame ever renders).
+func _ensure_bounds() -> void:
+	if _atlas_bounds.size.x > 0.0:
+		return
+	if _map_mode == 3 and usmap != null and usmap.ok:
+		_atlas_bounds = usmap.world_bounds()
+	else:
+		_atlas_bounds = _state_bounds()
+
+
+## Zoom by `factor`, anchored so the world point under `at` (canvas px) stays put.
+func zoom_at(at: Vector2, factor: float) -> void:
+	if _map_mode == 1:
+		_local_zoom = clampf(_local_zoom * factor, 1.0, 4.0)
+		_map_canvas.queue_redraw()
+		return
+	if _map_mode < 2:
+		return
+	_ensure_bounds()
+	var xf := _atlas_transform(_atlas_bounds)
+	var px_now := float(xf["px"])
+	_atlas_zoom = clampf(_atlas_zoom * factor, 1.0, 8.0)
+	var px_new := minf(_map_canvas.size.x / maxf(1.0, _atlas_bounds.size.x),
+		_map_canvas.size.y / maxf(1.0, _atlas_bounds.size.y)) * _atlas_zoom
+	# Anchor the world point under the cursor — only when the canvas has real size
+	# (a headless sim zooms before any layout; 0-size px would NaN the pan).
+	if px_now > 0.0001 and px_new > 0.0001:
+		var world: Vector2 = (at - Vector2(xf["org"])) / px_now + _atlas_bounds.position
+		_atlas_pan = world + (_map_canvas.size * 0.5 - at) / px_new - _atlas_bounds.get_center()
+	_clamp_pan(_atlas_bounds)
+	_map_canvas.queue_redraw()
+
+
+## Pan by a fraction of the current view span (the D-pad step).
+func pan_step(dir: Vector2) -> void:
+	if _map_mode < 2:
+		return
+	_ensure_bounds()
+	var span := _atlas_bounds.size / maxf(1.0, _atlas_zoom)
+	_atlas_pan += dir * span * 0.18
+	_clamp_pan(_atlas_bounds)
+	_map_canvas.queue_redraw()
+
+
+## Held-key/pad panning (arrows + controller d-pad via the ui_* actions) — smooth,
+## span-relative, polled from update_stream while the atlas is open.
+func _poll_map_pan(delta: float) -> void:
+	if _map_mode < 2 or _map_canvas == null:
+		return
+	var dir := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
+	if dir == Vector2.ZERO:
+		return
+	var span := _atlas_bounds.size / maxf(1.0, _atlas_zoom)
+	_atlas_pan += dir * span * 0.8 * delta
+	_clamp_pan(_atlas_bounds)
+
+
+## The handheld's buttons: POWER off · MENU cycles the view · D-PAD pans.
+func _on_gps_button(bname: String) -> void:
+	match bname:
+		"power":
+			_map_mode = 0
+			_map_layer.visible = false
+		"menu":
+			_map_mode = 1 + (_map_mode % 3) # 1→2→3→1, never off (that's POWER's job)
+			if _map_mode >= 2 and not (usmap != null and usmap.ok):
+				_map_mode = 1
+			_reset_view()
+			_map_canvas.queue_redraw()
+		"left":
+			pan_step(Vector2(-1, 0))
+		"right":
+			pan_step(Vector2(1, 0))
+		"up":
+			pan_step(Vector2(0, -1))
+		"down":
+			pan_step(Vector2(0, 1))
+
+
+## Fresh fit when the view mode changes — zoom/pan don't leak across modes.
+func _reset_view() -> void:
+	_atlas_zoom = 1.0
+	_atlas_pan = Vector2.ZERO
+	_local_zoom = 1.0
+
+
+## The GPS title, short like a real unit: local/state name the state, country is DSA.
+func atlas_title() -> String:
+	match _map_mode:
+		2:
+			return "DSA — %s" % last_state
+		3:
+			return "DSA"
+	return "DSA — %s" % last_state
 
 
 ## The country atlas: the whole compressed USA — biomes, interstates, towns, you.
@@ -1588,7 +1763,7 @@ func _draw_atlas(bounds: Rect2) -> void:
 	var you := org + (Vector2(_map_player.x, _map_player.z) - bounds.position) * px
 	if not _draw_marker(you, "arrow", 22.0, true):
 		_map_canvas.draw_circle(you, 4.0, Color(0.9, 0.25, 0.12))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "%s — %s" % [usmap.map_name, last_state], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), atlas_title(), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), "click a town to SET COURSE · click open ground to drop a mark · F in the world plants 🏠 HOME",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.78, 0.6))
 
@@ -1596,7 +1771,24 @@ func _draw_atlas(bounds: Rect2) -> void:
 ## Click the atlas to set your course: nearest town within reach wins, else drop
 ## a plain mark where you clicked. Routes back to main.set_map_course.
 func _on_map_input(event: InputEvent) -> void:
-	if _map_mode < 2 or _main == null or usmap == null or not usmap.ok:
+	if _main == null:
+		return
+	# THE WHEEL ZOOMS (any view) — anchored on the cursor.
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+		var mb := event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			zoom_at(mb.position, 1.3)
+			return
+		if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			zoom_at(mb.position, 1.0 / 1.3)
+			return
+		# THE LCD +/- CHIPS — on-screen zoom buttons (drawn by _draw_zoom_chips).
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			for chip in _zoom_chip_rects:
+				if (chip[0] as Rect2).has_point(mb.position):
+					zoom_at(_map_canvas.size * 0.5, float(chip[1]))
+					return
+	if _map_mode < 2 or usmap == null or not usmap.ok:
 		return
 	if not (event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):

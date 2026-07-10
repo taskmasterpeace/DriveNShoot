@@ -71,4 +71,34 @@ func _ready() -> void:
 	main.panel.open(main.backpack, null)
 	await _shot("PACK_items")
 	main.panel.close()
+
+	# 5) GPS INTERACTIVITY — a zoomed+panned state view (wheel/chips/D-pad territory).
+	stream.toggle_map()
+	stream.toggle_map() # local -> state
+	stream.zoom_at(stream._map_canvas.size * 0.5, 3.0)
+	stream.pan_step(Vector2(1, 0))
+	await _shot("GPS_state_zoom")
+	stream._on_gps_button("power")
+
+	# 6) THE CAR GPS — a REAL course through the live loop: equip the boot rig with
+	# gps and select a waypoint; proto3d's own frame tick feeds the dash unit.
+	main.active_car.spec["gps"] = true
+	main.waypoint_idx = 0 # SAFEHOUSE
+	for _i in 12:
+		await get_tree().physics_frame
+	await _shot("CARGPS")
+	main.waypoint_idx = -1
+	main.active_car.spec["gps"] = false
+
+	# 7) HOTSPOT CALIBRATION — rebuild the device with the button outlines visible.
+	stream.map_debug_buttons = true
+	stream._map_layer.queue_free()
+	stream._map_layer = null
+	stream._map_canvas = null
+	stream._map_panel = null
+	stream._map_mode = 0
+	stream.toggle_map()
+	stream.toggle_map()
+	await _shot("GPS_buttons_debug")
+	stream._on_gps_button("power")
 	get_tree().quit(0)

@@ -953,6 +953,100 @@ func update_nav(cam: Camera3D, from: Vector3, target: Vector3, label_txt: String
 		pos = pos.clamp(rect.position, rect.position + rect.size)
 	_nav_arrow.position = pos - Vector2(40, 34)
 
+# --- THE CAR GPS (owner ask 2026-07-10): gps-equipped rigs show your set course -----
+## A dash-mounted mini map, bottom-right above the damage row: nearby roads (north-up),
+## you as a heading triangle, the course waypoint as a pixel pin + name/distance. Shows
+## only while DRIVING a rig whose row carries gps:true AND a waypoint is set — the
+## handheld sets the course, the car displays it ("set it on the GPS, see it right there").
+var _cargps_panel: PanelContainer = null
+var _cargps_canvas: Control = null
+var _cargps_label: Label = null
+var _cargps_heading: float = 0.0
+var _cargps_wp_rel: Vector2 = Vector2.ZERO
+var _cargps_roads: Array = []   ## Array[PackedVector2Array], car-relative meters
+var _cargps_pin: Texture2D = null
+
+const CARGPS_RADIUS_M := 420.0  ## world radius the mini map shows
+const CARGPS_PX := 150.0        ## canvas size
+
+func update_car_gps(active: bool, heading: float, wp_rel: Vector2, wp_name: String, dist_m: float, roads_rel: Array) -> void:
+	if _cargps_panel == null:
+		_cargps_panel = PanelContainer.new()
+		_cargps_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+		_cargps_panel.offset_left = -20.0 - (CARGPS_PX + 16.0)
+		_cargps_panel.offset_right = -20.0
+		_cargps_panel.offset_top = -330.0
+		_cargps_panel.offset_bottom = -330.0 + CARGPS_PX + 40.0
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.06, 0.055, 0.045, 0.92)
+		style.border_color = AMBER
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(4)
+		style.set_content_margin_all(6)
+		_cargps_panel.add_theme_stylebox_override("panel", style)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 2)
+		_cargps_panel.add_child(v)
+		_cargps_canvas = Control.new()
+		_cargps_canvas.custom_minimum_size = Vector2(CARGPS_PX, CARGPS_PX)
+		_cargps_canvas.clip_contents = true
+		_cargps_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_cargps_canvas.draw.connect(_draw_cargps)
+		v.add_child(_cargps_canvas)
+		_cargps_label = Label.new()
+		_cargps_label.add_theme_font_override("font", ProtoHUD.mixed_font())
+		_cargps_label.add_theme_font_size_override("font_size", 13)
+		_cargps_label.add_theme_color_override("font_color", AMBER)
+		_cargps_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(_cargps_label)
+		var pin_path := "res://assets/ui/markers/pin.png"
+		_cargps_pin = load(pin_path) if ResourceLoader.exists(pin_path) else null
+		add_child(_cargps_panel)
+	_cargps_panel.visible = active
+	if not active:
+		return
+	_cargps_heading = heading
+	_cargps_wp_rel = wp_rel
+	_cargps_roads = roads_rel
+	_cargps_label.text = "%s · %dm" % [wp_name, int(dist_m)] if dist_m < 950.0 else "%s · %.1fkm" % [wp_name, dist_m / 1000.0]
+	_cargps_canvas.queue_redraw()
+
+
+func _draw_cargps() -> void:
+	var size: Vector2 = _cargps_canvas.size
+	var c := size * 0.5
+	var px := (size.x * 0.5) / CARGPS_RADIUS_M # meters -> canvas px (north-up)
+	_cargps_canvas.draw_rect(Rect2(Vector2.ZERO, size), Color(0.045, 0.05, 0.04))
+	# Range ring + N tick — the "this is an instrument" read.
+	_cargps_canvas.draw_arc(c, size.x * 0.46, 0.0, TAU, 40, Color(0.25, 0.22, 0.16), 1.0)
+	_cargps_canvas.draw_string(ThemeDB.fallback_font, Vector2(c.x - 4, 12), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.55, 0.45))
+	for pts_v in _cargps_roads:
+		var pts: PackedVector2Array = pts_v
+		for i in range(pts.size() - 1):
+			_cargps_canvas.draw_line(c + pts[i] * px, c + pts[i + 1] * px, Color(0.5, 0.46, 0.38), 2.0)
+	# The course pin — clamped to the ring edge when it's beyond the radius.
+	var wp := _cargps_wp_rel * px
+	if wp.length() > size.x * 0.44:
+		wp = wp.normalized() * size.x * 0.44
+	if _cargps_pin != null:
+		_cargps_canvas.draw_texture_rect(_cargps_pin, Rect2(c + wp - Vector2(9, 18), Vector2(18, 18)), false)
+	else:
+		_cargps_canvas.draw_circle(c + wp, 4.0, Color(0.9, 0.3, 0.2))
+	# You: a heading triangle at center (north-up map — bearing h: 0=N up, 90°=E right).
+	var fwd := Vector2(sin(_cargps_heading), -cos(_cargps_heading))
+	var right := Vector2(-fwd.y, fwd.x)
+	_cargps_canvas.draw_colored_polygon(PackedVector2Array([
+		c + fwd * 9.0, c - fwd * 5.0 + right * 5.5, c - fwd * 5.0 - right * 5.5]), AMBER)
+
+
+## Sim hooks — the car GPS state without scraping controls.
+func cargps_active() -> bool:
+	return _cargps_panel != null and _cargps_panel.visible
+
+func cargps_text() -> String:
+	return _cargps_label.text if _cargps_label != null else ""
+
+
 ## 🧭 THE COMPASS ribbon (2026-07-09 playtest "we need a compass"): a top-center heading
 ## strip, fed the player's heading each frame. Created lazily so it costs nothing until used.
 var _compass: ProtoCompass = null

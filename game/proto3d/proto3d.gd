@@ -1041,9 +1041,12 @@ func _physics_process(delta: float) -> void:
 		var wp: Array = waypoints[waypoint_idx]
 		var tpos: Vector3 = wp[1].global_position if wp[1] is Node3D else wp[1]
 		hud.update_nav(cam, body_pos, tpos, wp[0])
+		_update_car_gps(tpos, String(wp[0]))
 	else:
 		hud.update_nav(cam, body_pos, Vector3.ZERO, "")
+		hud.update_car_gps(false, 0.0, Vector2.ZERO, "", 0.0, [])
 	# 🧭 THE COMPASS (2026-07-09 playtest "we need a compass"): the heading you're pointed —
+	# (the CAR GPS above shares this bearing law: north -Z, clockwise.)
 	# your facing on foot, the rig's nose at the wheel. North is -Z; bearing runs clockwise.
 	var face3: Vector3 = (-active_car.global_basis.z) if (mode == Mode.DRIVE and active_car != null) else player.sight_facing()
 	hud.update_compass(atan2(face3.x, -face3.z))
@@ -1096,6 +1099,46 @@ func _physics_process(delta: float) -> void:
 
 ## The perception cone: clear where you're looking, dim where you aren't.
 ## Follows the body on foot, the car while driving, and your AIM while glassing.
+## THE CAR GPS (owner ask 2026-07-10): a gps-equipped rig DISPLAYS the course you set —
+## the atlas/handheld picks it, the dash unit shows it. Roads re-query on a slow clock.
+var _cargps_roads_rel: Array = []
+var _cargps_qpos: Vector3 = Vector3(1e9, 0, 0)
+
+func _update_car_gps(tpos: Vector3, wp_name: String) -> void:
+	var active := mode == Mode.DRIVE and active_car != null and is_instance_valid(active_car) \
+		and not active_car.dead and bool(active_car.spec.get("gps", false))
+	if not active:
+		hud.update_car_gps(false, 0.0, Vector2.ZERO, "", 0.0, [])
+		return
+	var cpos: Vector3 = active_car.global_position
+	# Nearby roads, rebuilt only after real movement (a country-polyline scan per frame is waste).
+	if cpos.distance_to(_cargps_qpos) > 60.0 and stream.usmap != null and stream.usmap.ok:
+		_cargps_qpos = cpos
+		_cargps_roads_rel = []
+		for near in stream.usmap.roads_near(cpos, 460.0):
+			var road: Dictionary = stream.usmap.road_by_id(String(near["id"]))
+			if road.is_empty():
+				continue
+			var pts: PackedVector2Array = road["pts"]
+			var run := PackedVector2Array()
+			for i in pts.size():
+				var rel := Vector2(pts[i].x - cpos.x, pts[i].y - cpos.z)
+				if rel.length() < 900.0:
+					run.append(rel)
+				elif run.size() >= 2:
+					_cargps_roads_rel.append(run)
+					run = PackedVector2Array()
+				else:
+					run = PackedVector2Array()
+			if run.size() >= 2:
+				_cargps_roads_rel.append(run)
+			if _cargps_roads_rel.size() >= 10:
+				break
+	var fwd: Vector3 = -active_car.global_basis.z
+	var wp_rel := Vector2(tpos.x - cpos.x, tpos.z - cpos.z)
+	hud.update_car_gps(true, atan2(fwd.x, -fwd.z), wp_rel, wp_name, wp_rel.length(), _cargps_roads_rel)
+
+
 func _update_vision_cone(delta: float, binoc: bool) -> void:
 	var cam := get_viewport().get_camera_3d()
 	var body: Node3D = active_car if (mode == Mode.DRIVE and active_car) else player
