@@ -45,6 +45,7 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **Suite (iter-2/3 background run): 167/191** — new names all contention flakes (aim_sim 15/0 standalone); zero regressions from loop work.
 - **creatures_sim grew to 31 checks** (protected-law + save-heal regressions).
 
-## Iteration 5 (in progress) — E-burn-down wave 2 (2026-07-09)
-- E1 audio 8/0 (ignition law: dead motor silent → crank → hum → pitch; I-95 staging — the pen wall strikes again) · E3 bike 8/0 (swerve ends spun 180°; brake-is-reverse scheme → stop = throttle against the roll) · E5 char 14/0 (RIG V2 build axis).
-- Diagnoses banked in ledger notes: E2 knee-sign law, E9 backroads-0, E10 desk interact, E13 door-LOS fade, E14 m1 nil cascade. Full per-sim logs: scratchpad/ediag/.
+## Iteration 5 — E-burn-down wave 2 (2026-07-09): 10 more rows closed
+- **Closed:** E1 audio 8/0 (ignition law: dead motor silent → crank → hum → pitch, I-95 staging) · E2 bike_rider 10/0 (knee-sign law) · E3 bike 8/0 (swerve ends spun 180°; brake-is-reverse → stop = throttle against the roll) · E5 char 14/0 (RIG V2 build axis) · E8 drone 7/0 (one-press piloted truth + abort_to_autonomy for the autonomous legs — the pilot owns battery, drone.gd:194) · E15 nav 8/0 (ring gained TEST GROUNDS; walk to OFF) · E17 puppet 20/0 (grip-IK settle recipe) · E19 stage3 12/0 (12-skill tree mirror + I-95 drive-xp) · E20 stage4 10/0 (corpse sweep → 0.11 group) · E21 stage7 11/0 (Sam's duel staged clear of TestGrounds clutter).
+- **The recurring villain:** ⚒ TEST GROUNDS — four sims (audio pitch, stage3 drive-xp, stage7 line-of-fire, old walkthrough) failed on the fairground's pen walls/clutter around the boot spot; the I-95 staging pattern (6,0.8,380 basis-identity) is now the house move.
+- **Remaining OPEN E (4):** E9 frontier (backroads lay 0), E10 furnisher (desk E grabs a neighbor), E13 los (fade ray blocked post-open while the occl fan spills — panel geometry cleared, blocker unnamed; probes in scratchpad), E14 m1 (nil cascade — read ediag log). Partials: E12 (horn-heels), F5 (nest-in-wreck).
