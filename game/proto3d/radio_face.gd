@@ -83,6 +83,7 @@ static func create(radio_id_in: String, w: float = 400.0) -> ProtoRadioFace:
 	g._dial.set_anchors_preset(Control.PRESET_FULL_RECT)
 	g._dial.texture = tex
 	g._dial.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	g._dial.expand_mode = TextureRect.EXPAND_IGNORE_SIZE # never overflow the control (the faceplate PNG is bigger than the widget)
 	g._dial.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	g._dial.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	g._dial.visible = tex != null

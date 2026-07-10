@@ -458,7 +458,13 @@ func gps_glyph_text() -> String:
 func set_dashboard(d) -> void:
 	if d == null:
 		_dash_wrap.visible = false
+		if _dash_active:
+			_dash_active = false
+			_place_plates()
 		return
+	if not _dash_active:
+		_dash_active = true
+		_place_plates()
 	_dash_wrap.visible = true
 	# This vehicle's gauge face — data-driven by vclass (data/gauges.json). Swapped
 	# only when it actually changes, so we're not reloading a texture every frame.
@@ -564,6 +570,26 @@ var _ammo_label: Label = null
 var _hp_label: Label = null
 var _hp_plate: ProtoStatPlate = null    ## pixel plate skin for the HP readout
 var _ammo_plate: ProtoStatPlate = null  ## pixel plate skin for the ammo readout
+var _dash_active: bool = false          ## driving? plates dodge ABOVE the gauge cluster
+
+
+## Plates never sit on the gauges: on foot they stack bottom-left; at the wheel they
+## form a row just above the speedo/dash dials (whose top edge is -206).
+func _place_plates() -> void:
+	if _hp_plate != null:
+		var hp_x: float = 20.0
+		var hp_top: float = -206.0 if not _dash_active else -304.0
+		_hp_plate.offset_left = hp_x
+		_hp_plate.offset_right = hp_x + 184.0
+		_hp_plate.offset_top = hp_top
+		_hp_plate.offset_bottom = hp_top + 92.0
+	if _ammo_plate != null:
+		var am_x: float = 20.0 if not _dash_active else 212.0
+		var am_top: float = -108.0 if not _dash_active else -304.0
+		_ammo_plate.offset_left = am_x
+		_ammo_plate.offset_right = am_x + 184.0
+		_ammo_plate.offset_top = am_top
+		_ammo_plate.offset_bottom = am_top + 92.0
 
 ## ❤️ HP / cap — numeric (you count blood like bullets when it's this scarce).
 func set_hp(hp: float, cap: float, show: bool) -> void:
@@ -582,12 +608,9 @@ func set_hp(hp: float, cap: float, show: bool) -> void:
 	if _hp_plate == null:
 		_hp_plate = ProtoStatPlate.create("res://assets/ui/hud/health.png", 184.0, Color(0.96, 0.42, 0.32))
 		_hp_plate.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-		_hp_plate.offset_left = 20.0
-		_hp_plate.offset_right = 204.0
-		_hp_plate.offset_top = -206.0
-		_hp_plate.offset_bottom = -114.0
 		_hp_plate.visible = false
 		add_child(_hp_plate)
+		_place_plates()
 	var hp_plated: bool = _hp_plate.has_plate()
 	_hp_plate.visible = show and hp_plated
 	_hp_label.visible = show and not hp_plated
@@ -920,12 +943,9 @@ func set_ammo(emoji: String, name_txt: String, mag: int, reserve: int, show: boo
 	if _ammo_plate == null:
 		_ammo_plate = ProtoStatPlate.create("res://assets/ui/hud/ammo.png", 184.0, Color(0.96, 0.72, 0.2))
 		_ammo_plate.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-		_ammo_plate.offset_left = 20.0
-		_ammo_plate.offset_right = 204.0
-		_ammo_plate.offset_top = -108.0
-		_ammo_plate.offset_bottom = -16.0
 		_ammo_plate.visible = false
 		add_child(_ammo_plate)
+		_place_plates()
 	var ammo_plated: bool = _ammo_plate.has_plate()
 	_ammo_plate.visible = show and ammo_plated
 	_ammo_label.visible = show and not ammo_plated

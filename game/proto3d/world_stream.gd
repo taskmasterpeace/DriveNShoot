@@ -1265,30 +1265,70 @@ static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGe
 
 # --- The world map (M): local fog-of-war → the country atlas -------------------
 
+## THE GPS DEVICE (owner ask): the map is a SCREEN on the handheld — the generated
+## device PNG frames it, the atlas renders inside its empty screen rect (fractions of
+## the device; same moving-part law as every other face). Missing PNG = the old plain
+## panel, so the map never disappears.
+const GPS_PNG := "res://assets/ui/device/gps.png"
+const GPS_SCREEN := Rect2(0.302, 0.273, 0.378, 0.430) ## the dark LCD inside the bezel (cross-section-scanned: x134-306, y138-362 of 448x512)
+const GPS_H := 940.0 ## on-screen device height (448x512 aspect → ~822 wide; LCD ≈ 311x404)
+
 func toggle_map() -> void:
 	if _map_layer == null:
 		_map_layer = CanvasLayer.new()
 		_map_layer.layer = 3
 		add_child(_map_layer)
-		_map_panel = PanelContainer.new()
-		_map_panel.set_anchors_preset(Control.PRESET_CENTER)
-		_map_panel.offset_left = -300.0
-		_map_panel.offset_right = 300.0
-		_map_panel.offset_top = -240.0
-		_map_panel.offset_bottom = 240.0
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.08, 0.075, 0.06, 0.96)
-		style.border_color = Color(0.96, 0.72, 0.2)
-		style.set_border_width_all(2)
-		_map_panel.add_theme_stylebox_override("panel", style)
-		_map_layer.add_child(_map_panel)
+		var dev_tex: Texture2D = load(GPS_PNG) if ResourceLoader.exists(GPS_PNG) else null
+		var host: Control = null ## whatever the canvas mounts into
+		if dev_tex != null:
+			# The handheld: centered, device aspect, map inside the screen rect.
+			var dw := GPS_H * 448.0 / 512.0
+			var root := Control.new()
+			root.set_anchors_preset(Control.PRESET_CENTER)
+			root.offset_left = -dw * 0.5
+			root.offset_right = dw * 0.5
+			root.offset_top = -GPS_H * 0.5
+			root.offset_bottom = GPS_H * 0.5
+			_map_layer.add_child(root)
+			var dev := TextureRect.new()
+			dev.set_anchors_preset(Control.PRESET_FULL_RECT)
+			dev.texture = dev_tex
+			dev.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			dev.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			dev.stretch_mode = TextureRect.STRETCH_SCALE # root already holds the aspect
+			dev.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			root.add_child(dev)
+			var screen := Control.new()
+			screen.anchor_left = GPS_SCREEN.position.x
+			screen.anchor_top = GPS_SCREEN.position.y
+			screen.anchor_right = GPS_SCREEN.position.x + GPS_SCREEN.size.x
+			screen.anchor_bottom = GPS_SCREEN.position.y + GPS_SCREEN.size.y
+			root.add_child(screen)
+			host = screen
+		else:
+			_map_panel = PanelContainer.new()
+			_map_panel.set_anchors_preset(Control.PRESET_CENTER)
+			_map_panel.offset_left = -300.0
+			_map_panel.offset_right = 300.0
+			_map_panel.offset_top = -240.0
+			_map_panel.offset_bottom = 240.0
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.08, 0.075, 0.06, 0.96)
+			style.border_color = Color(0.96, 0.72, 0.2)
+			style.set_border_width_all(2)
+			_map_panel.add_theme_stylebox_override("panel", style)
+			_map_layer.add_child(_map_panel)
+			host = _map_panel
 		_map_canvas = Control.new()
-		_map_canvas.custom_minimum_size = Vector2(600, 480)
+		if host is PanelContainer:
+			_map_canvas.custom_minimum_size = Vector2(600, 480)
+		else:
+			_map_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_map_canvas.clip_contents = true # roads at map scale run for kilometers — nothing draws past the frame (playtest: "lines outside the map")
 		_map_canvas.mouse_filter = Control.MOUSE_FILTER_STOP # the atlas is clickable
 		_map_canvas.draw.connect(_draw_map)
 		_map_canvas.gui_input.connect(_on_map_input)
-		_map_panel.add_child(_map_canvas)
+		host.add_child(_map_canvas)
 		_map_layer.visible = false
 	_map_mode = (_map_mode + 1) % 4
 	if _map_mode >= 2 and not (usmap != null and usmap.ok):

@@ -24,6 +24,7 @@ static func create(png_path: String, w: float = 208.0, col: Color = Color(0.96, 
 	g._plate.set_anchors_preset(Control.PRESET_FULL_RECT)
 	g._plate.texture = tex
 	g._plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	g._plate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE # never overflow the control (the texture is bigger than the widget)
 	g._plate.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	g._plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	g._plate.visible = tex != null
