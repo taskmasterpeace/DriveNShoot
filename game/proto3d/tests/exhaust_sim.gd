@@ -80,6 +80,19 @@ func _run() -> void:
 		_check("stack tip sits high (y=%.2f > 2.0)" % ssm.position.y, ssm.position.y > 2.0)
 	_check("semi stack column welded on", semi.get_node_or_null("exhaust_tip") is MeshInstance3D)
 
+	# --- NIGHT GLOW LAW: parked rigs read at distance in the dark (tails brighten) ---
+	ProtoCar3D.night_glow = 2.0
+	for i in range(3):
+		await get_tree().physics_frame
+	var tail0: StandardMaterial3D = semi._tail_mats[0]
+	_check("night tails idle brighter (%.1f >= 2.4)" % tail0.emission_energy_multiplier,
+		tail0.emission_energy_multiplier >= 2.4)
+	ProtoCar3D.night_glow = 1.0
+	for i in range(3):
+		await get_tree().physics_frame
+	_check("day restores the idle glow (%.1f < 2.0)" % tail0.emission_energy_multiplier,
+		tail0.emission_energy_multiplier < 2.0)
+
 	# --- Husk: wreck-mode smolder from the hull center, wide and upward ---
 	car._become_husk(false)
 	for i in range(4):

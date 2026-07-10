@@ -10,6 +10,8 @@ const SHOT := 900
 
 var _sv: SubViewport
 var _cam: Camera3D
+var _envres: Environment
+var _key: DirectionalLight3D
 
 
 func _ready() -> void:
@@ -21,18 +23,18 @@ func _ready() -> void:
 	_sv.transparent_bg = false
 	add_child(_sv)
 	var env := WorldEnvironment.new()
-	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.16, 0.17, 0.19)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.5, 0.5, 0.55)
-	e.ambient_light_energy = 0.6
-	env.environment = e
+	_envres = Environment.new()
+	_envres.background_mode = Environment.BG_COLOR
+	_envres.background_color = Color(0.16, 0.17, 0.19)
+	_envres.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	_envres.ambient_light_color = Color(0.5, 0.5, 0.55)
+	_envres.ambient_light_energy = 0.6
+	env.environment = _envres
 	_sv.add_child(env)
-	var key := DirectionalLight3D.new()
-	key.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(-38.0), 0.0)
-	key.light_energy = 1.1
-	_sv.add_child(key)
+	_key = DirectionalLight3D.new()
+	_key.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(-38.0), 0.0)
+	_key.light_energy = 1.1
+	_sv.add_child(_key)
 	var floor_mesh := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	pm.size = Vector2(24, 24)
@@ -42,28 +44,43 @@ func _ready() -> void:
 	_cam = Camera3D.new()
 	_sv.add_child(_cam)
 
-	# SUBJECTS: [vclass, chassis_ratio (-1 = husk), label]
+	# SUBJECTS: [vclass, chassis_ratio (-1 = husk), label, night]
 	var subjects: Array = [
-		["scavenger", 0.5, "scav_smoking"],
-		["semi", 0.5, "semi_stack"],
-		["scavenger", -1.0, "husk"],
+		["scavenger", 0.5, "scav_smoking", false],
+		["semi", 0.5, "semi_stack", false],
+		["scavenger", -1.0, "husk", false],
+		["scavenger", 1.0, "night_drive", true],
 	]
 	for s_row in subjects:
 		var row: Array = s_row
-		await _shoot(String(row[0]), float(row[1]), String(row[2]))
+		await _shoot(String(row[0]), float(row[1]), String(row[2]), bool(row[3]))
 	print("CARBOOTH: done")
 	get_tree().quit(0)
 
 
-func _shoot(vc: String, ratio: float, label: String) -> void:
+func _shoot(vc: String, ratio: float, label: String, night: bool = false) -> void:
+	# The stage answers the clock: a night subject gets a moonlit void, its own
+	# headlights, and the night tail glow (restored to day after).
+	if night:
+		_envres.background_color = Color(0.015, 0.018, 0.03)
+		_envres.ambient_light_energy = 0.06
+		_key.light_energy = 0.07
+		ProtoCar3D.night_glow = 2.0
+	else:
+		_envres.background_color = Color(0.16, 0.17, 0.19)
+		_envres.ambient_light_energy = 0.6
+		_key.light_energy = 1.1
+		ProtoCar3D.night_glow = 1.0
 	var car := ProtoCar3D.create(vc, Color(0.45, 0.28, 0.2))
 	car.freeze = true # a studio stand, not a road — no floor collision needed
 	car.position = Vector3(0, 0.7, 0)
 	_sv.add_child(car)
 	await get_tree().physics_frame
+	if night:
+		car.set_headlights(true)
 	if ratio < 0.0:
 		car._become_husk(false)
-	else:
+	elif ratio < 1.0:
 		car.components["chassis"].hp = car.components["chassis"].max_hp * ratio
 	if OS.get_environment("CARBOOTH_HIDE_SMOKE") == "1" and ratio > 0.0:
 		car._ensure_smoke().visible = false # isolation probe: is the artifact the emitter?

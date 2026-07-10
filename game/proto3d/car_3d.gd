@@ -561,6 +561,12 @@ var _halo: OmniLight3D = null
 ## brighten every car on the map wearing the same body color) so brake-glow is
 ## per-instance. Reverse adds a white glow box PLUS a real backward SpotLight3D
 ## that only lights up while actually reversing (+Z is backward in this engine).
+## NIGHT GLOW (fidelity loop it.6, probe: "parked rigs vanish at night"): main
+## sets this once per frame off daynight — every intact rig's tail boxes idle
+## brighter in the dark so a car reads at distance from BEHIND too (headlights
+## already answer the dark facing forward).
+static var night_glow: float = 1.0
+
 var _tail_mats: Array = []      ## StandardMaterial3D, one per tail box, duplicated
 var _reverse_glows: Array = []  ## MeshInstance3D, one per tail box (white box)
 var _reverse_light: SpotLight3D = null
@@ -1418,19 +1424,28 @@ func _physics_process(delta: float) -> void:
 	_prev_vel = linear_velocity
 	_prev_pos = global_position
 
-	# Rolling dust: kick up wasteland behind the vehicle at speed.
+	# Rolling dust: kick up wasteland behind the vehicle at speed — soft puffs on
+	# the shared FX sprite, tinted on THEIR OWN material (the black-ball law; the
+	# old box mesh carried a dead `color` that no material ever read).
 	if _dust == null:
 		_dust = CPUParticles3D.new()
 		_dust.amount = 28
 		_dust.lifetime = 1.1
-		_dust.mesh = BoxMesh.new()
-		(_dust.mesh as BoxMesh).size = Vector3(0.22, 0.22, 0.22)
+		var dust_quad := QuadMesh.new()
+		dust_quad.size = Vector2(0.5, 0.5)
+		var dust_mat := ProtoFX.puff_material()
+		dust_mat.albedo_color = Color(0.62, 0.52, 0.38, 0.5)
+		dust_quad.material = dust_mat
+		_dust.mesh = dust_quad
+		var dust_grow := Curve.new()
+		dust_grow.add_point(Vector2(0.0, 0.5))
+		dust_grow.add_point(Vector2(1.0, 1.6))
+		_dust.scale_amount_curve = dust_grow
 		_dust.direction = Vector3(0, 0.6, 1)
 		_dust.spread = 25.0
 		_dust.initial_velocity_min = 1.0
 		_dust.initial_velocity_max = 2.5
 		_dust.gravity = Vector3(0, -2.0, 0)
-		_dust.color = Color(0.62, 0.52, 0.38, 0.5)
 		_dust.position = Vector3(0, -0.2, spec["chassis"].z / 2.0)
 		_dust.emitting = false
 		add_child(_dust)
@@ -1445,6 +1460,9 @@ func _physics_process(delta: float) -> void:
 		_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
 
 	_update_wear_visuals(delta)
+	# Tails tick for EVERY rig — parked cars must answer the night glow too (the
+	# old call sat below the parked return, freezing their glow at build state).
+	_update_tail_lights()
 
 	if not is_active or dead:
 		engine_force = 0.0
@@ -1653,7 +1671,6 @@ func _physics_process(delta: float) -> void:
 			elif absf(input_steer) < 0.15:
 				apply_torque(Vector3(0.0, -wy * mass * yaw_damp, 0.0))
 
-	_update_tail_lights()
 	_emit_skids()
 
 
@@ -1801,7 +1818,7 @@ func _update_tail_lights() -> void:
 	var target_mult: float = float(brake_row.get("energy_mult", 3.0)) if braking else 1.0
 	for m in _tail_mats:
 		if m is StandardMaterial3D:
-			(m as StandardMaterial3D).emission_energy_multiplier = 1.4 * target_mult
+			(m as StandardMaterial3D).emission_energy_multiplier = 1.4 * target_mult * ProtoCar3D.night_glow
 	# A soft red pulse rides along with the glow — subtle, not a strobe.
 	if braking and _brake_light == null:
 		_brake_light = OmniLight3D.new()

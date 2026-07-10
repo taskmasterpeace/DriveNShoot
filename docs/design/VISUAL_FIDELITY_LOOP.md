@@ -174,13 +174,44 @@ effect instead of debris cubes, and the game's most-seen particle systems share 
 authored sprite language. Holding it back: night-parked cars vanish, world materials/
 biome ground still flat, doll outline subtle at 1x, no in-cabin night glow.
 
-**Next up (iteration 6):**
-1. **Night pass** — the probe's findings: idle tail-glow visible at distance for
-   parked/AI rigs (emissive floor when is_dark), a DRIVING night render in carbooth
-   (car + headlights on a dark stage) to judge cones, and a soft warm backing behind
-   the dash cluster at night. Keep the night-floor law.
-2. Vehicle doll part icons at 1x (gallery-test first; drop if unreadable).
-3. THE CAR GPS phone-skin cohesion pass (small: reuse phone.png frame for the mini
-   panel, or a matching bezel row).
-4. PixelLab check-in: balance + one purposeful spend if a surface needs real art
-   (candidates: dash night-glow plate, wound-doll frame).
+**Next up (iteration 6):** ~~night pass~~ → executed below; doll icons + CAR-GPS skin
+roll forward.
+
+---
+
+## Iteration 6 — 2026-07-10 ~10:00
+
+**Shipped:**
+- **THE NIGHT GLOW LAW** (`ProtoCar3D.night_glow`, set by main off daynight): every
+  intact rig's tail boxes idle 2x brighter in the dark — a car now reads at distance
+  from BEHIND (headlights already answered the dark facing forward). Which exposed a
+  real bug the new sim check caught: `_update_tail_lights()` sat BELOW the parked
+  early-return, so parked cars' glow state was frozen at build forever — moved above
+  the gate; parked rigs now answer brakes/night like the rest. **exhaust_sim 24/24.**
+- **Carbooth NIGHT STAGE**: subjects carry a night flag (moonlit void, own headlights,
+  night glow, restored after). The night_drive shots are the look-proof: hot tail
+  lamps + warm halo pool from behind; twin soft cones throwing far up-screen from
+  top-down. **Cone verdict: no tuning needed** — the flat-long-throw law reads
+  authored as-is. Dash night backing: SKIPPED on evidence (probe shows the cluster
+  readable at night; don't gild).
+- **Rolling DUST on the puff system** (caught while reading the drive block): the
+  most-seen driving effect was still box-particles with a DEAD `color` line (the
+  instance-color path, ignored without the material flag). Soft sprites + growth
+  curve, tint on its own material. Struggle/dirt recolors still write `_dust.color`
+  (dead writes — harmless, queued to route onto the material next touch).
+- **PixelLab check-in**: $78.72 of $79.44 remaining — five iterations of art cost
+  ~$0.72 total (~$0.005/gen). ART IS CHEAP; spend freely where a surface needs it.
+
+**Steam rating: 7.7/10** (was 7.5). Night is now a place: rigs glow, cones throw,
+pools warm — and it's all diegetic. Holding it back: flat world/biome ground
+materials (the next big lever), struggle-dust recolor dead-write, doll outline at 1x,
+no impact decals/scorch marks.
+
+**Next up (iteration 7):**
+1. **THE GROUND READ probe** — what do biome floors look like today (render farmland/
+   forest/desert chunks from the game camera)? Cheapest material-variance win: noise-
+   textured ground materials via a shared triplanar or vertex-tint variance, or a
+   subtle detail texture — probe first, judge from renders, keep chunk cost flat.
+2. Struggle-dust recolor: route the two `_dust.color` writes onto the material.
+3. Vehicle doll part icons at 1x (gallery-test; drop if unreadable).
+4. THE CAR GPS phone-skin cohesion pass.
