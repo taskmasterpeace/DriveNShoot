@@ -379,7 +379,164 @@ Expected additive rows:
 Unknown fields remain forward-compatible. Code floors provide safe defaults so existing rows behave
 exactly as before until given new fields.
 
-## 14. Verification and acceptance
+## 14. Ten lab additions the owner did not ask for—but will use
+
+These are part of the standalone lab. They never mutate campaign data, and every one either shortens
+iteration time or exposes a quality problem that ordinary play can hide.
+
+### Bonus 1 — THE MIRROR RUN
+
+Record one 10–30 second input sequence, then play it through F1 hybrid, F2 active ragdoll, and F3 full
+physics simultaneously in three parallel lanes. All three receive the exact timestamped command
+packets, stats, weapon, surface, and opponent events.
+
+- Color-coded ghosts and finish markers show drift between bodies.
+- A synchronized three-camera strip can be toggled above the main view.
+- The result card compares latency, speed error, grip error, falls, recovery, and physics cost.
+- This prevents memory and mood from deciding which body felt better five minutes ago.
+
+**Acceptance:** one recorded sprint/turn/dive/fire sequence replays deterministically across all three
+modes and produces a side-by-side metric table.
+
+### Bonus 2 — THE BLACK BOX REPLAY
+
+Keep a rolling 20-second buffer of commands, transforms, contacts, state changes, shots, and damage
+packets. Press a button after something looks wrong to freeze the test and scrub backward/forward.
+
+- Timeline markers name foot plants, dive launch/contact, firing, grip loss, hits, and joint-limit events.
+- Playback supports 1×, 0.25×, and frame-step.
+- “Return live” restores the lab from a snapshot instead of restarting the scene.
+- Replays are lab data, not videos; they remain small and expose the actual state that caused a pose.
+
+**Acceptance:** the owner can reproduce a bad landing, pause on first contact, inspect it, and resume or
+re-run from two seconds before the event.
+
+### Bonus 3 — X-RAY MODE
+
+A single toggle overlays the facts behind the animation:
+
+- collision capsule or rigid bodies;
+- joint axes, limits, motor targets, and constraint stress;
+- center of mass and support polygon;
+- planted/slipping feet and contact normals;
+- weapon grip anchors, hand targets, elbow poles, muzzle line, and measured errors;
+- damage hitboxes, armor face, and resolved impact zone.
+
+Colors have text/icon redundancy and avoid purple. Normal play remains clean; this is an inspection
+view, not a permanent art layer.
+
+**Acceptance:** every body mode exposes equivalent labeled diagnostics even when its underlying physics
+implementation differs.
+
+### Bonus 4 — INPUT OSCILLOSCOPE & CONTROLLER CALIBRATION
+
+Show raw and normalized keyboard, mouse, stick, trigger, and button state in real time. Let the owner
+tune deadzone, response curve, aim sensitivity, trigger threshold, vibration, and hold/tap timing,
+then save named **lab presets** without touching the campaign bindings.
+
+- Stick-drift detection measures the resting controller for five seconds.
+- A latency flash measures input event → command packet → first visible/physical response.
+- Radial selection draws sector boundaries and shows accidental neighboring selections.
+- Mouse and pad can be compared using the same aim path and target course.
+
+**Acceptance:** a drifting stick is identified, corrected by a preset, and produces stable zero input;
+tap RB still cycles while hold RB reliably opens the radial.
+
+### Bonus 5 — THE SURFACE CAROUSEL
+
+A rotating lane selector swaps the same movement course among dry asphalt, dirt, wet pavement, mud,
+loose gravel, shallow water, and a low-friction debug surface. Weather and slope can be layered over
+the chosen material.
+
+- Character acceleration, foot slip, dive slide, recovery, and ragdoll balance use the real surface.
+- Vehicles use the existing traction matrix and current tire row.
+- Mirror Run can repeat one command trace across every surface.
+- The HUD names actual friction/traction multipliers so a handling change is explainable.
+
+**Acceptance:** identical input produces measurably different stopping and dive-slide distances while
+remaining bounded and recoverable on every authored surface.
+
+### Bonus 6 — THE CONDITION DIAL
+
+Sliders stage the character without permanent wounds or inventory work:
+
+- stamina and fatigue;
+- carried weight and armor mass;
+- healthy, wounded leg, wounded arm, and head-clarity states;
+- strength, marksmanship, martial arts, and driving levels;
+- calm versus high-stress recoil/wobble.
+
+Presets include **fresh**, **overloaded**, **hurt**, **exhausted**, and **late-game specialist**. The
+same condition packet feeds all three body modes and the sparring opponent when requested.
+
+**Acceptance:** a wound/load changes only the systems it is meant to change, the HUD states why, and
+reset returns to the exact baseline in one action.
+
+### Bonus 7 — CAMERA TRUTH WALL
+
+Judge each action through the views players will actually use. One station can display synchronized:
+
+- standard top-down drive camera;
+- on-foot 3D camera;
+- chase/shoulder candidate;
+- high tactical view;
+- a small opponent/spectator broadcast view.
+
+It includes day, night, dust, headlight, muzzle-flash, and silhouette presets. A pose only graduates
+when it reads at gameplay distance—not merely in a close orbit camera.
+
+**Acceptance:** sprint low-ready, two-hand grip, directional dive, muzzle flash, and vehicle dents are
+identifiable in the standard game view and at least one spectacle broadcast view.
+
+### Bonus 8 — THE SCENARIO DECK
+
+Physical cards/console buttons launch deterministic encounter rows instead of requiring console
+commands. Initial cards:
+
+1. pistol duel;
+2. automatic-weapon suppression;
+3. fists-only martial-arts bout;
+4. two opponents using cover;
+5. low-light flashlight hunt;
+6. vehicle-versus-gunner pass;
+7. armored-car penetration test;
+8. tournament final with crowd/broadcast HUD.
+
+Each card owns seed, bodies, loadouts, positions, AI settings, weather, win condition, and reset rule.
+New cards are data. A “shuffle” button is allowed only after deterministic cards are proven.
+
+**Acceptance:** selecting the same card twice creates the same opening state and expected event order.
+
+### Bonus 9 — NETWORK & CROWD CHAOS
+
+The lab can wrap command/state delivery in simulated latency, jitter, packet loss, and update-rate
+limits without needing a second computer. A separate load slider spawns spectator impostors, active
+fighters, rigid bodies, decals, flashes, and damaged vehicles up to authored budgets.
+
+- Presets: local, good co-op, bad Wi-Fi, and hostile jitter.
+- The panel separates render, script, and physics cost.
+- F1/F2/F3 show correction error and visible snapping under the same network preset.
+- This is diagnostic simulation, not a claim that active ragdoll netcode is already shipped.
+
+**Acceptance:** the lab identifies the first exceeded budget and never silently lowers quality while a
+comparison is being recorded.
+
+### Bonus 10 — THE VERDICT BOOK
+
+After any run, the owner can rate **feel**, **control**, **weight**, **readability**, and **fun** from
+1–10, add a short note, and attach the latest metrics/replay id. The lab builds a comparison page by
+body mode, weapon, surface, camera, condition, and scenario.
+
+- Objective metrics and subjective scores are shown together but never collapsed into a fake single
+  “winner” number.
+- Filters expose patterns such as “active ragdoll feels best in melee but loses aim under bad Wi-Fi.”
+- Export JSON and Markdown to `user://physics_lab/verdicts/`; never write repository data automatically.
+- A clear-all action requires confirmation.
+
+**Acceptance:** the owner can finish a session with an evidence-backed shortlist instead of relying on
+memory, and exports can be attached to a future implementation decision.
+
+## 15. Verification and acceptance
 
 Each slice lands with a real-path sim and a hands-on card.
 
@@ -418,7 +575,17 @@ distance, shoot/crash armored vehicles and see bounded damage, and leave with te
 favorite body mode. Later slices let the same combat become a watchable/bettable/enterable event and
 make BACKROOMS '84 playable from a world console.
 
-## 15. Explicit non-goals
+### Bonus-tool sims
+
+- `mirror_run_sim`: one command trace reaches every mode unchanged and produces comparable results.
+- `lab_replay_sim`: rolling buffer, event markers, scrub, snapshot restore, and bounded memory.
+- `lab_diagnostics_sim`: X-ray coverage and controller calibration/preset isolation.
+- `lab_surface_condition_sim`: deterministic surface/condition permutations and clean reset.
+- `lab_scenario_sim`: scenario rows reproduce identical openings from the same seed.
+- `lab_chaos_sim`: network/load presets report budgets without contaminating normal mode.
+- `lab_verdict_sim`: subjective record plus metrics exports only below `user://physics_lab/`.
+
+## 16. Explicit non-goals
 
 - No full campaign migration to active ragdoll until the owner chooses a lab winner.
 - No soft-body vehicles.
