@@ -123,12 +123,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/fuel_run/*`, `tests/fuel_run_sim.*`
 
-- [ ] Red sim: acceleration/steering/brake, arena collision, center-can pickup,
+- [x] Red sim: acceleration/steering/brake, arena collision, center-can pickup,
   carrier slowdown/drop, home-pump capture, rival steal, thirty-second clock,
   bot route choice, local seats, snapshot, and captures/lap-time result.
-- [ ] Implement one-to-four top-down refinery buggies with original pump, spill,
+- [x] Implement one-to-four top-down refinery buggies with original pump, spill,
   tire, and jerry-can art. Use `capture_racer`, not the handheld racer HELP list.
-- [ ] Commit `feat: add FUEL RUN`.
+- [x] Commit `feat: add FUEL RUN`.
 
 ## Task 8: SKYJOUST
 
