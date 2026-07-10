@@ -4,6 +4,8 @@
 class_name ProtoLabPhysicalBody
 extends Node3D
 
+signal damaged(amount: float, attacker: Node3D)
+
 const PROFILE_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_profiles.gd")
 const PELVIS_OFFSET := Vector3(0, 1.08, 0)
 
@@ -35,6 +37,14 @@ var _dive_elapsed: float = 0.0
 var _dive_airborne: bool = false
 var _dive_contact: bool = false
 var _dive_recovered: bool = false
+
+
+class LabPhysicsPart extends RigidBody3D:
+	var damage_callback: Callable
+
+	func take_damage(amount: float, attacker: Node3D = null) -> void:
+		if damage_callback.is_valid():
+			damage_callback.call(amount, attacker)
 
 
 func setup(profile_id: String) -> void:
@@ -97,8 +107,9 @@ func _build_rig() -> void:
 
 func _make_part(id: String, size: Vector3, offset: Vector3, part_mass: float,
 		color: Color) -> void:
-	var body := RigidBody3D.new()
+	var body := LabPhysicsPart.new()
 	body.name = id
+	body.damage_callback = _route_damage
 	body.mass = part_mass
 	body.position = offset
 	body.linear_damp = 0.30
@@ -128,6 +139,10 @@ func _make_part(id: String, size: Vector3, offset: Vector3, part_mass: float,
 	parts[id] = body
 	rest_offsets[id] = offset
 	rest_bases[id] = Basis.IDENTITY
+
+
+func _route_damage(amount: float, attacker: Node3D = null) -> void:
+	damaged.emit(amount, attacker)
 
 
 func _connect(child_id: String, parent_id: String, anchor: Vector3,
@@ -205,6 +220,18 @@ func _apply_root_force() -> void:
 		var part := part_value as RigidBody3D
 		part.apply_central_force(force * (part.mass / total_mass))
 	_last_force = force.length()
+	# Active bodies need a root-height controller as well as angular pose motors;
+	# otherwise a perfectly connected ragdoll simply folds onto the floor. F3 has
+	# deliberately softer authority, but remains upright and targetable. Diving
+	# releases this spring so the airborne/contact sequence stays genuinely free.
+	if _dive_state in ["ready", "recovered"]:
+		var target_y: float = _last_reset.origin.y + float(profile["stance_height"])
+		var height_error: float = target_y - pelvis.global_position.y
+		var lift: float = total_mass * 9.8 \
+			+ height_error * float(profile["height_kp"]) \
+			- pelvis.linear_velocity.y * float(profile["height_kd"])
+		pelvis.apply_central_force(Vector3.UP * clampf(lift,
+			-float(profile["max_lift_force"]), float(profile["max_lift_force"])))
 	var up_error: Vector3 = pelvis.global_basis.y.cross(Vector3.UP)
 	var balance: Vector3 = up_error * float(profile["balance_kp"]) \
 		- pelvis.angular_velocity * float(profile["balance_kd"])
@@ -378,6 +405,7 @@ func metrics() -> Dictionary:
 	var right_target: Vector3 = gun.global_transform * _grip_r if gun != null else right_hand.global_position
 	return {"finite": finite, "speed": Vector2(pelvis.linear_velocity.x, pelvis.linear_velocity.z).length(),
 		"peak_speed": _peak_speed,
+		"pelvis_height": pelvis.global_position.y - _last_reset.origin.y,
 		"target_speed": float(profile.get("target_speed", 7.2)), "joint_count": joints.size(),
 		"part_count": parts.size(), "max_separation": max_separation,
 		"force_driven": mode_id == "full_physics" and _last_force > 0.0,

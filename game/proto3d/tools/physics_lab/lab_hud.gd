@@ -10,7 +10,7 @@ const TEAL := Color("#35b6a6")
 const PANEL := Color(0.105, 0.085, 0.068, 0.94)
 const BORDER := Color("#5e4b35")
 
-var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 bodies  ·  F4 reset"
+var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 bodies  ·  F4 / D-PAD RIGHT opponent  ·  BACKSPACE reset"
 var _mode: Label = null
 var _station: Label = null
 var _weapon: Label = null
@@ -24,7 +24,7 @@ func setup() -> void:
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
-	var top := _panel(Vector2(18, 18), Vector2(382, 244))
+	var top := _panel(Vector2(18, 18), Vector2(520, 244))
 	root.add_child(top)
 	var badge := _label("PHYSICS & COMBAT LAB", 14, AMBER)
 	badge.position = Vector2(16, 12)
@@ -40,7 +40,7 @@ func setup() -> void:
 	top.add_child(_weapon)
 	_telemetry = _label("", 13, MUTED)
 	_telemetry.position = Vector2(16, 128)
-	_telemetry.size = Vector2(350, 92)
+	_telemetry.size = Vector2(488, 92)
 	top.add_child(_telemetry)
 
 	var controls := _panel(Vector2(18, -90), Vector2(980, 66))
@@ -93,3 +93,11 @@ func refresh(mode: String, station: String, weapon: ProtoWeapon, metrics: Dictio
 		float(metrics.get("speed", 0.0)), float(metrics.get("grip_left_cm", 0.0)),
 		float(metrics.get("grip_right_cm", 0.0)), float(metrics.get("sprint_blend", 0.0)),
 		float(metrics.get("low_ready_blend", 0.0)), String(metrics.get("dive_state", "NORMAL"))]
+
+
+func pulse_hit() -> void:
+	if _weapon == null:
+		return
+	_weapon.modulate = AMBER
+	var tween := create_tween()
+	tween.tween_property(_weapon, "modulate", Color.WHITE, 0.12)

@@ -272,6 +272,11 @@ func can_fire() -> bool:
 
 ## Effective spread right now (base × bloom × skill) — the reticle draws this.
 func current_spread(main: Node) -> float:
+	# AI/lab shooters can author their complete accuracy cone on the controller.
+	# Player contexts do not expose this property and retain the normal weapon ×
+	# bloom × skill × wound formula below.
+	if main != null and "shot_spread_deg" in main and float(main.shot_spread_deg) >= 0.0:
+		return float(main.shot_spread_deg) * (1.0 + bloom)
 	var skill_mult := 1.0
 	var wobble := 0.0
 	if "character" in main and main.character:

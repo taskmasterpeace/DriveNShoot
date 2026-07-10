@@ -102,6 +102,8 @@ func _ready() -> void:
 	_check("active ragdoll remains finite and connected",
 		bool(active_metrics.get("finite", false))
 		and float(active_metrics.get("max_separation", INF)) < 1.2)
+	_check("active ragdoll supports a readable standing pelvis",
+		float(active_metrics.get("pelvis_height", 0.0)) >= 0.75)
 	_check("active ragdoll reaches at least 75%% commanded speed (%.2f / %.2f m/s)" % [
 		float(active_metrics.get("speed", 0.0)), float(active_metrics.get("target_speed", 7.2))],
 		float(active_metrics.get("speed", 0.0)) >= float(active_metrics.get("target_speed", 7.2)) * 0.75)
@@ -118,6 +120,8 @@ func _ready() -> void:
 	_check("full physics remains finite and connected",
 		bool(full_metrics.get("finite", false))
 		and float(full_metrics.get("max_separation", INF)) < 1.2)
+	_check("full physics keeps enough stance height to remain targetable",
+		float(full_metrics.get("pelvis_height", 0.0)) >= 0.45)
 	_check("full physics moves through authored forces (force %.1f, moved %.2fm)" % [
 		float(full_metrics.get("last_force", 0.0)), lab.player.global_position.distance_to(switch_origin)],
 		bool(full_metrics.get("force_driven", false))

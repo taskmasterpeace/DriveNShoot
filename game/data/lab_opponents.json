@@ -1,0 +1,48 @@
+{
+  "opponents": {
+    "passive": {
+      "name": "Standing Target",
+      "reaction_s": 0.35,
+      "accuracy_deg": 0.0,
+      "aggression": 0.0,
+      "cover_bias": 0.0,
+      "weapon_id": "pistol",
+      "health": 100.0,
+      "martial_arts": 0,
+      "preferred_range": 9.0
+    },
+    "return_fire": {
+      "name": "Return-Fire Partner",
+      "reaction_s": 0.22,
+      "accuracy_deg": 1.0,
+      "aggression": 0.65,
+      "cover_bias": 0.35,
+      "weapon_id": "pistol",
+      "health": 100.0,
+      "martial_arts": 1,
+      "preferred_range": 9.0
+    },
+    "hunter": {
+      "name": "Hunter",
+      "reaction_s": 0.18,
+      "accuracy_deg": 1.8,
+      "aggression": 0.82,
+      "cover_bias": 0.55,
+      "weapon_id": "scrap_smg",
+      "health": 100.0,
+      "martial_arts": 2,
+      "preferred_range": 8.0
+    },
+    "duel": {
+      "name": "Duelist",
+      "reaction_s": 0.12,
+      "accuracy_deg": 0.8,
+      "aggression": 1.0,
+      "cover_bias": 0.2,
+      "weapon_id": "pistol",
+      "health": 100.0,
+      "martial_arts": 3,
+      "preferred_range": 7.0
+    }
+  }
+}
