@@ -7,6 +7,7 @@ class_name ProtoCar3D
 extends VehicleBody3D
 
 const VEHICLE_IMPACT_SCRIPT := preload("res://proto3d/vehicle_impact.gd")
+const VEHICLE_DAMAGE_VISUAL_SCRIPT := preload("res://proto3d/vehicle_damage_visual.gd")
 
 signal speed_changed(mph: float)
 ## A bike has no cab: a hard crash THROWS the rider (main handles the tumble).
@@ -533,6 +534,7 @@ var impact_armor_durability: Dictionary = {}
 var impact_zones: Dictionary = {"front":0.0, "rear":0.0, "left":0.0,
 	"right":0.0, "top":0.0, "wheel":0.0}
 var last_impact: Dictionary = {}
+var damage_visual: Node3D = null
 
 ## Locked cars need their key found somewhere in the world.
 var locked: bool = false
@@ -729,6 +731,10 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# Body visuals: modular low-poly parts in the camera-lab style. Physics stays
 	# entirely row-driven by the chassis/wheel data above and below.
 	_build_modular_vehicle_style(car, vclass_in, s, body_color)
+	car.damage_visual = VEHICLE_DAMAGE_VISUAL_SCRIPT.new()
+	car.damage_visual.name = "VehicleDamageVisual"
+	car.add_child(car.damage_visual)
+	car.damage_visual.setup(car, car.get_node("ModularVehicleStyle"), car.impact_profile)
 
 	if s["cabin"] != Vector3.ZERO:
 		# WINDOWS (owner ask 2026-07-07): a two_wheel rig has no cabin glass worth
@@ -1041,6 +1047,8 @@ func take_impact(raw_packet: Dictionary) -> Dictionary:
 				(components[zone_component] as Damageable).damage(got * 0.6)
 	result["packet"] = hit
 	result["zone_severity"] = float(impact_zones[zone])
+	if damage_visual != null:
+		damage_visual.apply_impact(hit, result)
 	last_impact = result.duplicate(true)
 	return result
 

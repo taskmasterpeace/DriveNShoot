@@ -56,7 +56,7 @@ static func zone_for(vehicle_transform: Transform3D, half_extents: Vector3,
 	var local_normal: Vector3 = (inverse.basis * (hit["world_normal"] as Vector3)).normalized()
 	var half := Vector3(maxf(0.01, absf(half_extents.x)),
 		maxf(0.01, absf(half_extents.y)), maxf(0.01, absf(half_extents.z)))
-	if local_normal.y > 0.58 or local_pos.y >= half.y * 0.82:
+	if local_normal.y > 0.58:
 		return "top"
 	var near_wheel_height: bool = local_pos.y <= maxf(0.35, half.y * 0.32)
 	var near_side: bool = absf(local_pos.x) >= half.x * 0.72
