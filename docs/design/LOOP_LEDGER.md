@@ -97,13 +97,13 @@
 | F11 | Legibility layer (LWE 0.9): threat-priority stack, toast queue, cause-stamped beats | OPEN | — |
 | F12 | 0.11 BODY LAW on ALL death paths: howler/lurker/companion/infected pass their rigs | DONE | threat 17/0 · crew 11/0 · infected 10/0 · corpse 12/0 |
 | F13 | Furnisher cap semantics: per-CHUNK ≤3 (awake_by_chunk ledger; global-6 removed — no co-op starvation) | DONE | `furnisher_lod_sim` 11/0 (4-shell cluster: 3 wake) |
-| F14 | Catalog 42-row completion (BUILDING_BOOK §1: 14 missing rows incl. hospital_lobby, library_small, city_hall) | OPEN | — |
+| F14 | Catalog completion: 14 Building Book rows landed (53 total, all lawful: districts + JOB rule; silhouette overrides on the landmark rows) | DONE | `structure_data_sim` 36/0 + `silhouette_sim` 21/0 (53/53 materialize) |
 
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 37 (…E-set closed… + F8, F10, F12, F13)
-- OPEN: 7 (F1–F4, F6, F7, F9, F11, F14 — the ecosystem-contract arc)
+- DONE: 38 (…E-set closed… + F8, F10, F12–F14)
+- OPEN: 6 (F1–F4, F6, F7, F9, F11 — the ecosystem-contract arc)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

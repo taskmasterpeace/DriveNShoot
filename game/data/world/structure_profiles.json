@@ -1675,6 +1675,529 @@
    "can_be_safehouse": false,
    "danger": 1,
    "profit_day": 22
+  },
+  {
+   "id": "house_two_story",
+   "category": "residential",
+   "display_name": "TWO-STORY HOUSE",
+   "sign_glyph": "🏠",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "residential"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    10,
+    9
+   ],
+   "floors": 2,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "walkin",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "resident"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "trailer_single",
+   "category": "residential",
+   "display_name": "SINGLE-WIDE TRAILER",
+   "sign_glyph": "🚚",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "rural_edge",
+    "outskirts"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    5,
+    11
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "walkin",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "resident"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "apartment_block",
+   "category": "residential",
+   "display_name": "APARTMENT BLOCK",
+   "sign_glyph": "🏢",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "residential"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    16,
+    12
+   ],
+   "floors": 3,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "resident"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "hospital_lobby",
+   "category": "medical",
+   "display_name": "HOSPITAL",
+   "sign_glyph": "🏥",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "medical",
+    "civic_center"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    20,
+    16
+   ],
+   "floors": 2,
+   "danger": 2,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "medic"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "library_small",
+   "category": "civic",
+   "display_name": "LIBRARY",
+   "sign_glyph": "📚",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "civic_center"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    12,
+    10
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "librarian"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "fire_station",
+   "category": "service",
+   "display_name": "FIRE STATION",
+   "sign_glyph": "🚒",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "civic_center"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    14,
+    12
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "crew"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "grain_elevator",
+   "category": "agriculture",
+   "display_name": "GRAIN ELEVATOR",
+   "sign_glyph": "🌾",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "rural_edge",
+    "backcountry"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    10,
+    10
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": false,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "rumor",
+    "body_discovery"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "substation_power",
+   "category": "industrial",
+   "display_name": "POWER SUBSTATION",
+   "sign_glyph": "⚡",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "industrial",
+    "edge"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    10,
+    8
+   ],
+   "floors": 1,
+   "danger": 2,
+   "enterable": false,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "hazard",
+   "loot_table": "",
+   "npc_jobs": [],
+   "law_hooks": [],
+   "event_hooks": [
+    "distress_call"
+   ],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "factory_shell",
+   "category": "industrial",
+   "display_name": "FACTORY",
+   "sign_glyph": "🏭",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "industrial"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    24,
+    18
+   ],
+   "floors": 2,
+   "danger": 2,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "worker"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "pawn_gun_shop",
+   "category": "commercial",
+   "display_name": "PAWN & GUN",
+   "sign_glyph": "🔫",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "commercial_strip"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    10,
+    8
+   ],
+   "floors": 1,
+   "danger": 2,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "",
+   "loot_table": "",
+   "npc_jobs": [
+    "clerk"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "weigh_station",
+   "category": "industrial_service",
+   "display_name": "WEIGH STATION",
+   "sign_glyph": "⚖️",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "roadside"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    12,
+    8
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "boom",
+   "loot_table": "",
+   "npc_jobs": [
+    "inspector"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "toll_booth",
+   "category": "industrial_service",
+   "display_name": "TOLL BOOTH",
+   "sign_glyph": "🎫",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "roadside"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    4,
+    3
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "boom",
+   "loot_table": "",
+   "npc_jobs": [
+    "collector"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "ranger_station",
+   "category": "civic_faction",
+   "display_name": "RANGER STATION",
+   "sign_glyph": "🌲",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "backcountry"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    8,
+    7
+   ],
+   "floors": 1,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "flagpole",
+   "loot_table": "",
+   "npc_jobs": [
+    "ranger"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
+  },
+  {
+   "id": "city_hall",
+   "category": "civic_faction",
+   "display_name": "CITY HALL",
+   "sign_glyph": "🏛️",
+   "allowed_tiers": [
+    "T1",
+    "T2",
+    "T3"
+   ],
+   "districts": [
+    "civic_center"
+   ],
+   "footprint": "small_rect",
+   "footprint_m": [
+    18,
+    14
+   ],
+   "floors": 2,
+   "danger": 1,
+   "enterable": true,
+   "entrances": [
+    "front"
+   ],
+   "interior_template": "none",
+   "silhouette": "flagpole",
+   "loot_table": "",
+   "npc_jobs": [
+    "clerk"
+   ],
+   "law_hooks": [],
+   "event_hooks": [],
+   "faction_overrides": [],
+   "power_required": false,
+   "can_be_safehouse": false,
+   "profit_day": 0.0
   }
  ]
 }
