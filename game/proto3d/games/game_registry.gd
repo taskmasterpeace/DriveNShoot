@@ -135,9 +135,31 @@ func _game_error(row: Dictionary) -> String:
 
 
 func _load_boards(path: String) -> void:
+	var seen: Dictionary = {}
 	for value in _read_array(path, "boards"):
-		if value is Dictionary:
-			house_boards.append((value as Dictionary).duplicate(true))
+		if not (value is Dictionary):
+			_warn("leaderboard row is not a dictionary")
+			continue
+		var board := value as Dictionary
+		var game_id := String(board.get("game_id", ""))
+		var ruleset := String(board.get("ruleset", ""))
+		var key := "%s|%s" % [game_id, ruleset]
+		var entries: Variant = board.get("entries", null)
+		if rows.get(game_id, {}).is_empty() or ruleset != String(get_game(game_id).get("ruleset", "")) \
+				or String(board.get("scope", "")) != "house" \
+				or not bool(board.get("fictional", false)) or not (entries is Array) \
+				or (entries as Array).is_empty() or seen.has(key):
+			_warn("invalid or duplicate house leaderboard '%s'" % key)
+			continue
+		var entries_valid := (entries as Array).all(func(entry_value: Variant) -> bool:
+			return entry_value is Dictionary and String((entry_value as Dictionary).get("name", "")) != "" \
+				and ((entry_value as Dictionary).get("primary", null) is int \
+				or (entry_value as Dictionary).get("primary", null) is float))
+		if not entries_valid:
+			_warn("invalid entries on house leaderboard '%s'" % key)
+			continue
+		seen[key] = true
+		house_boards.append(board.duplicate(true))
 
 
 func _warn(message: String) -> void:

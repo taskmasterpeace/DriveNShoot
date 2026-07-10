@@ -153,7 +153,7 @@ func create_challenge(result: Dictionary, target_peer: int) -> Dictionary:
 	return challenge.duplicate(true)
 
 
-func board(game_id: String, ruleset: String, scope: String) -> Array:
+func board(game_id: String, ruleset: String, scope: String, seed_value: int = -1) -> Array:
 	var out: Array = []
 	if scope == "house":
 		for board_value in registry.house_boards:
@@ -183,6 +183,17 @@ func board(game_id: String, ruleset: String, scope: String) -> Array:
 				entry["fictional"] = false
 				entry["scope"] = "session"
 				out.append(entry)
+	elif scope == "challenge":
+		for challenge_value in challenges:
+			var challenge: Dictionary = challenge_value
+			if String(challenge.get("game_id", "")) != game_id \
+					or String(challenge.get("ruleset", "")) != ruleset \
+					or (seed_value >= 0 and int(challenge.get("seed", -1)) != seed_value):
+				continue
+			out.append({"name": "PEER %d TARGET" % int(challenge.get("target_peer", 0)),
+				"primary": challenge.get("target_primary", 0), "secondary": {},
+				"seed": int(challenge.get("seed", 0)), "fictional": false,
+				"scope": "challenge", "status": String(challenge.get("status", "open"))})
 	var game_row: Dictionary = registry.get_game(game_id)
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return _better(a, b, game_row))

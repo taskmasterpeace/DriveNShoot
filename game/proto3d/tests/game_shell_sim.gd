@@ -72,6 +72,19 @@ func _ready() -> void:
 		and shell.current_text.contains("REAL SOURCE & LICENSE") and shell.current_text.contains("LittleJS Arcade")
 		and shell.current_text.contains("Adapted/used:") and shell.current_text.contains("Excluded:")
 		and shell.current_text.contains("License: res://third_party/licenses/"))
+	deck.ledger.submit({"result_id": "shell-session", "game_id": "waste_heap",
+		"ruleset": "stock-1", "seed": 77, "players": [{"profile_id": "peer-2"}],
+		"primary": 64, "secondary": {"highest_part": 16}, "outcome": "complete",
+		"ranked": true, "source": "session"})
+	deck.ledger.create_challenge({"result_id": "shell-challenge", "game_id": "waste_heap",
+		"ruleset": "stock-1", "seed": 77, "players": [{"profile_id": "local"}],
+		"primary": 128, "secondary": {"highest_part": 32}, "outcome": "complete",
+		"ranked": true, "source": "solo"}, 2)
+	shell.show_view("scores")
+	_check("SCORES separates personal house session challenge and offline global scopes",
+		shell.current_text.contains("PERSONAL") and shell.current_text.contains("HOUSE (FICTIONAL)")
+		and shell.current_text.contains("SESSION") and shell.current_text.contains("CHALLENGE")
+		and shell.current_text.contains("GLOBAL // OFFLINE"))
 
 	shell.show_view("play")
 	var stance := InputEventJoypadButton.new()

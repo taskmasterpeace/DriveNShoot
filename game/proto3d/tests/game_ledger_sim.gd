@@ -67,6 +67,35 @@ func _ready() -> void:
 	var house: Array = ledger.board("waste_heap", "stock-1", "house")
 	_check("house rows are explicitly fictional", not house.is_empty() and house.all(func(row: Dictionary) -> bool:
 		return bool(row.get("fictional", false)) and row.get("scope") == "house"))
+	var phase_one_ids: Array = reg.phase_rows(1).map(func(row: Dictionary) -> String:
+		return String(row.get("id", "")))
+	var covered_house_ids: Dictionary = {}
+	var house_rows_valid := true
+	for board_value in reg.house_boards:
+		var board_row: Dictionary = board_value
+		var board_game := String(board_row.get("game_id", ""))
+		if phase_one_ids.has(board_game):
+			covered_house_ids[board_game] = true
+			house_rows_valid = house_rows_valid and bool(board_row.get("fictional", false)) \
+				and String(board_row.get("scope", "")) == "house" \
+				and (board_row.get("entries", []) as Array).size() >= 2
+	_check("all twenty Phase 1 games have explicit fictional house boards",
+		covered_house_ids.size() == 20 and house_rows_valid)
+	var personal: Array = ledger.board("waste_heap", "stock-1", "personal")
+	_check("personal scope contains only the real local best", personal.size() == 1
+		and not bool((personal[0] as Dictionary).get("fictional", true))
+		and String((personal[0] as Dictionary).get("scope", "")) == "personal")
+	ledger.submit(_result("session-peer", "waste_heap", "stock-1", 333).merged({"source": "session"}, true))
+	var session_board: Array = ledger.board("waste_heap", "stock-1", "session")
+	_check("session scope contains real current-session results only", session_board.size() == 1
+		and not bool((session_board[0] as Dictionary).get("fictional", true))
+		and String((session_board[0] as Dictionary).get("scope", "")) == "session")
+	var challenge_board: Array = ledger.board("waste_heap", "stock-1", "challenge", 4242)
+	var wrong_seed_board: Array = ledger.board("waste_heap", "stock-1", "challenge", 4243)
+	_check("challenge scope requires the exact game ruleset and seed",
+		challenge_board.size() == 1 and wrong_seed_board.is_empty()
+		and int((challenge_board[0] as Dictionary).get("seed", 0)) == 4242)
+	_check("GLOBAL provider is honestly unavailable", ledger.board("waste_heap", "stock-1", "global").is_empty())
 
 	for i in 55:
 		ledger.submit(_result("cap-%02d" % i, "waste_heap", "stock-1", 200 + i))
@@ -77,7 +106,7 @@ func _ready() -> void:
 	var saved: Dictionary = ledger.serialize()
 	var restored: RefCounted = ledger_script.new(reg)
 	restored.restore(saved)
-	_check("save round-trip preserves best", int(restored.personal_best("waste_heap", "stock-1").get("primary", 0)) == 254)
+	_check("save round-trip preserves best", int(restored.personal_best("waste_heap", "stock-1").get("primary", 0)) == 333)
 	_check("save round-trip preserves challenge seed", int(restored.challenges[0].get("seed", 0)) == 4242)
 	_check("save round-trip preserves capped history", restored.recent_results.size() == ledger.recent_results.size())
 	_check("malformed and unknown results are rejected", not restored.submit({})

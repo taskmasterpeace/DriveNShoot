@@ -309,13 +309,38 @@ func _about_text() -> String:
 func _scores_text() -> String:
 	var game_id := String(deck.current_row.get("id", ""))
 	var ruleset := String(deck.current_row.get("ruleset", ""))
-	var best: Dictionary = deck.ledger.personal_best(game_id, ruleset)
 	var lines: Array[String] = ["[color=#f2b735][font_size=28]SCORES[/font_size][/color]"]
-	lines.append("PERSONAL // no completed run" if best.is_empty() else "PERSONAL // %s" % best.get("primary"))
-	for row_value in deck.ledger.board(game_id, ruleset, "house"):
-		var row: Dictionary = row_value
-		lines.append("HOUSE (FICTIONAL) // %s  %s" % [row.get("name", "?"), row.get("primary", 0)])
+	_append_score_scope(lines, "PERSONAL", deck.ledger.board(game_id, ruleset, "personal"), false)
+	_append_score_scope(lines, "HOUSE (FICTIONAL)", deck.ledger.board(game_id, ruleset, "house"), true)
+	_append_score_scope(lines, "SESSION", deck.ledger.board(game_id, ruleset, "session"), false)
+	var seed_value := int(deck.cartridge.get("seed_value")) if deck.cartridge != null else -1
+	_append_score_scope(lines, "CHALLENGE", deck.ledger.board(game_id, ruleset, "challenge", seed_value), false)
+	lines.append("")
+	lines.append("[color=#918675]GLOBAL // OFFLINE — no provider configured[/color]")
 	return "\n".join(lines)
+
+
+func _append_score_scope(lines: Array[String], heading: String, entries: Array,
+		fictional: bool) -> void:
+	lines.append("")
+	lines.append("[color=#f2b735]%s[/color]" % heading)
+	if entries.is_empty():
+		lines.append("  — no records")
+		return
+	for index in entries.size():
+		var entry: Dictionary = entries[index]
+		var name := String(entry.get("name", "RIDER"))
+		if name == "RIDER" and (entry.get("players", []) as Array).size() > 0:
+			name = String(((entry.get("players", []) as Array)[0] as Dictionary).get("name", "RIDER"))
+		var secondary: Dictionary = entry.get("secondary", {})
+		var detail := ""
+		if not secondary.is_empty():
+			var pieces: Array[String] = []
+			for key in secondary:
+				pieces.append("%s %s" % [String(key).to_upper(), str(secondary[key])])
+			detail = " // " + " · ".join(pieces)
+		lines.append("  #%d  %s%s  %s%s" % [index + 1, name,
+			" [FICTIONAL]" if fictional else "", str(entry.get("primary", 0)), detail])
 
 
 func _set_text(text: String) -> void:

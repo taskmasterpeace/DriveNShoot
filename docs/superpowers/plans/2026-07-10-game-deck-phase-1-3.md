@@ -81,13 +81,13 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/proto3d/games/game_shell.gd`
 - Modify: `game/proto3d/tests/game_ledger_sim.gd`
 
-- [ ] Red sim: all twenty Phase 1 games have explicitly fictional house rows;
+- [x] Red sim: all twenty Phase 1 games have explicitly fictional house rows;
   personal, house, current-session, and challenge scopes remain separated;
   challenge comparison requires game/ruleset/seed; GLOBAL is visibly offline.
-- [ ] Render rank, scope, primary/secondary values, and fictional labels without
+- [x] Render rank, scope, primary/secondary values, and fictional labels without
   mixing lore NPC records with real profiles.
-- [ ] Preserve caps, idempotency, and ruleset isolation.
-- [ ] Commit `feat: complete Game Deck leaderboards`.
+- [x] Preserve caps, idempotency, and ruleset isolation.
+- [x] Commit `feat: complete Game Deck leaderboards`.
 
 ## Task 4: Nearby and remote terminal policy
 
