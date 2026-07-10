@@ -4,9 +4,12 @@
 extends Node
 
 const RUNTIME_PATH := "res://proto3d/tools/physics_lab/lab_spectacle.gd"
+const SAVE_PATH := "user://drivn.save"
 
 var passed: int = 0
 var failed: int = 0
+var prior_scale: float = 1.0
+var max_spectacle_ai: int = 0
 
 
 func _check(label: String, ok: bool) -> void:
@@ -17,7 +20,11 @@ func _check(label: String, ok: bool) -> void:
 
 func _ready() -> void:
 	print("SPECTACLE: start")
-	get_tree().create_timer(45.0).timeout.connect(func() -> void:
+	prior_scale = Engine.time_scale
+	var save_existed: bool = FileAccess.file_exists(SAVE_PATH)
+	var save_stamp: int = FileAccess.get_modified_time(SAVE_PATH) if save_existed else -1
+	get_tree().create_timer(45.0, true, false, true).timeout.connect(func() -> void:
+		Engine.time_scale = prior_scale
 		print("SPECTACLE: WATCHDOG")
 		get_tree().quit(1))
 	if not ResourceLoader.exists(RUNTIME_PATH):
@@ -124,6 +131,7 @@ func _ready() -> void:
 		and runtime.facts()["matches"].any(func(match: Dictionary) -> bool:
 			return String(match["left"]) == "player" or String(match["right"]) == "player"))
 
+	Engine.time_scale = 0.83
 	var lab: Node3D = (load("res://proto3d/tools/physics_combat_lab.tscn") as PackedScene).instantiate()
 	add_child(lab)
 	for _i in 8:
@@ -141,6 +149,7 @@ func _ready() -> void:
 	for _i in 4:
 		await get_tree().physics_frame
 	var fighters: Array = lab.get("spectacle_fighters") if "spectacle_fighters" in lab else []
+	max_spectacle_ai = maxi(max_spectacle_ai, fighters.size())
 	var live_match: Dictionary = live.facts()["current_match"]
 	var watch_ready: bool = fighters.size() == 2
 	if watch_ready:
@@ -173,6 +182,7 @@ func _ready() -> void:
 		for _i in 3:
 			await get_tree().process_frame
 		var restaged: Array = lab.get("spectacle_fighters")
+		max_spectacle_ai = maxi(max_spectacle_ai, restaged.size())
 		var tag_count_ok: bool = restaged.size() == 2
 		if tag_count_ok:
 			tag_count_ok = restaged[0].find_children(
@@ -190,6 +200,7 @@ func _ready() -> void:
 	for _i in 4:
 		await get_tree().physics_frame
 	var enter_fighters: Array = lab.get("spectacle_fighters")
+	max_spectacle_ai = maxi(max_spectacle_ai, enter_fighters.size())
 	var enter_match: Dictionary = live.facts()["current_match"]
 	var rival_id: String = String(enter_match["right"]) if String(enter_match["left"]) == "player" \
 		else String(enter_match["left"])
@@ -279,13 +290,50 @@ func _ready() -> void:
 			await get_tree().physics_frame
 		_check("panel refresh is event-driven rather than rebuilt every physics frame",
 			int(ui_panel.panel_facts()["refresh_count"]) == refresh_before)
+		var first_complete: bool = _settle_tournament(ui_runtime, lab, true)
 		ui_runtime.reset_tournament()
+		var second_complete: bool = ui_runtime.select_mode("watch") \
+			and ui_runtime.start_tournament() and _settle_tournament(ui_runtime, lab, false)
+		ui_runtime.reset_tournament()
+		await get_tree().process_frame
+		_check("two complete tournaments reset with at most two temporary AI and no death state",
+			first_complete and second_complete and max_spectacle_ai <= 2
+			and (lab.get("spectacle_fighters") as Array).is_empty()
+			and get_tree().get_nodes_in_group("corpse").is_empty() and not lab.character.dead)
+		var idle_nodes_before: int = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+		for _i in 120:
+			ui_runtime.facts()
+			ui_runtime.readout()
+		var idle_nodes_after: int = int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+		_check("idle odds and bracket reads allocate no scene nodes",
+			idle_nodes_after == idle_nodes_before)
+	var save_untouched: bool = FileAccess.file_exists(SAVE_PATH) == save_existed
+	if save_untouched and save_existed:
+		save_untouched = FileAccess.get_modified_time(SAVE_PATH) == save_stamp
+	_check("Spectacles never mutate the campaign save", save_untouched)
 	lab.queue_free()
 	await get_tree().process_frame
+	_check("Spectacles restore the exact pre-lab time scale on exit",
+		is_equal_approx(Engine.time_scale, 0.83))
+	Engine.time_scale = prior_scale
 	_finish()
 
 
+func _settle_tournament(runtime: Node, lab: Node3D, choose_left: bool) -> bool:
+	var guard: int = 0
+	while String(runtime.facts()["phase"]) == "running" and guard < 4:
+		var current: Dictionary = runtime.facts()["current_match"]
+		var winner: String = String(current["left"] if choose_left else current["right"])
+		if winner == "" or not runtime.record_match_winner(winner):
+			return false
+		max_spectacle_ai = maxi(max_spectacle_ai,
+			(lab.get("spectacle_fighters") as Array).size())
+		guard += 1
+	return guard == 3 and String(runtime.facts()["phase"]) == "settled"
+
+
 func _finish() -> void:
+	Engine.time_scale = prior_scale
 	print("SPECTACLE RESULTS: %d passed, %d failed" % [passed, failed])
 	print("SPECTACLE: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)

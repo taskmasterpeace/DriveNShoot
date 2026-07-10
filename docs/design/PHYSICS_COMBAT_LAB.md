@@ -1,6 +1,6 @@
 # PHYSICS & COMBAT LAB — playable body, gunfeel, damage, and Spectacles proving ground
 
-**Status:** L1–L2 SHIPPED · L3–L4 PLANNED · **Date:** 2026-07-10
+**Status:** L1–L3 SHIPPED · L4 PLANNED · **Date:** 2026-07-10
 
 ## 1. The promise
 
@@ -36,8 +36,8 @@ unplayable.
    automatic firearm/fists/grenade, nonlethal opponent, distance/LOS calibration, instrumentation.
 2. **L2 — Impact Bay — SHIPPED:** event-driven vehicle dents, directional armor, bullet marks, crash
    contact capture, damage persistence, and performance budgets.
-3. **L3 — Spectacle Runtime:** reusable nonlethal bout card with watch/bet/enter modes, tournament
-   brackets, payout through `ProtoBetting`, and venue-rule rows.
+3. **L3 — Spectacle Runtime — SHIPPED:** reusable nonlethal bout card with watch/bet/enter modes,
+   seeded four-fighter brackets, lab-credit payout through `ProtoBetting`, and venue-rule rows.
 4. **L4 — BACKROOMS '84:** a playable lore-native ConsoleNet maze duel with fog of war, local score,
    AI opponent, tournament invitation, and Spectacle hooks.
 
@@ -345,16 +345,20 @@ Bullets and crashes produce one packet:
 
 ## 11. Spectacle Runtime
 
-L3 generalizes the lab duel into an event row. Every card supports:
+L3 generalizes the lab duel into an event row. The shipped killhouse card supports:
 
-- **WATCH:** AI-versus-AI simulation with visible score, round clock, and winner.
-- **BET:** honest odds and vig through `ProtoBetting`; physical scrip settlement at the venue.
-- **ENTER:** player replaces one entrant under the same rules and can bet on themself.
+- **WATCH:** two real AI bodies fight with authored weapons and reciprocal line of sight while the
+  player observes from a broadcast mark. In-world nameplates and a compact bracket keep the match legible.
+- **BET:** one pre-start ticket uses visible decimal odds and the existing `ProtoBetting` 10% vig.
+  Stakes and the 1,000-credit bankroll are lab-only; no campaign scrip is read or written.
+- **ENTER:** the current F1/F2/F3 body replaces seed zero while preserving its selected surface,
+  condition, and weapon handling. Every health depletion is a nonlethal round reset.
 
-The first combat card is nonlethal. Venue rows may later allow first-blood or lethal rules, but L3
-does not introduce permanent fighter death. Cards support qualifiers, semifinals, finals, seeding,
-records, purses, and an optional ConsoleNet invitation. The live event can be watched on a venue
-screen; results can create radio/TV copy without requiring new media assets.
+The four named human entrants, strengths, equipment, semifinals, and final reproduce from the same
+card seed. Row validation rejects lethal cards, dogs, infected, duplicate ids, missing weapons, and
+invalid stake bands. Reset frees every temporary fighter, restores the player transform, and keeps
+the campaign save, law, crime, wounds, deaths, and time scale untouched. Campaign venues, purses,
+records, broadcast media, and ConsoleNet invitations remain later integrations.
 
 This adds a ranged **shootout/killhouse** spectacle without rewriting the existing laws for car
 races, derbies, fist pits, beast pits, drone duels, or monster rallies.
@@ -583,9 +587,11 @@ Each slice lands with a real-path sim and a hands-on card.
   and the 20-car/320-mark no-allocation soak.
 - Existing vehicle, traffic, gunfeel, save, traction, and motorcycle sims remain green.
 
-### L3/L4 sims
+### L3 shipped / L4 planned sims
 
-- `combat_spectacle_sim`: watch/bet/enter, bracket, payout, nonlethal fighter reset.
+- `combat_spectacle_sim`: deterministic row validation, honest one-ticket betting, real watch/enter
+  fighters, reciprocal LOS, panel/input parity, two-tournament cleanup, node-allocation bound, save and
+  time-scale isolation.
 - `arcade_maze_sim`: wall LOS, memory, hidden enemy, deterministic maze, score/invitation.
 - `tournament_trap_sim`: invitation to live venue and interruptible cabinet flow.
 
@@ -594,8 +600,8 @@ Each slice lands with a real-path sim and a hands-on card.
 The owner can launch one batch file, switch among all three bodies without restarting, feel and see
 the same sprint/grip/dive/throw/gun tests, fight a repeatable opponent, diagnose visibility by marked
 distance, shoot/crash armored vehicles and see bounded damage, and leave with telemetry plus a clear
-favorite body mode. Later slices let the same combat become a watchable/bettable/enterable event and
-make BACKROOMS '84 playable from a world console.
+favorite body mode. L3 makes the same combat a watchable, bettable, enterable four-fighter event.
+L4 makes BACKROOMS '84 playable from a world console.
 
 ### Bonus-tool sims
 
