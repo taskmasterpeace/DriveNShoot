@@ -10,6 +10,9 @@
 let meta = null, rows = [], states = [], roads = [], towns = [], placements = [];
 let exits = [], archetypes = [], structures = [], footprints = [];
 let districts = [], notes = [], junctions = [], vehicles = [], health = null;
+let regions = [], ecology = null;           // v4.1: state cards + what-lives-where
+const stateMasks = {};                      // state char -> tinted offscreen mask
+let ecoTint = null;                         // offscreen wildlife-richness tint
 let tool = "select";
 let sel = null;            // {type, id}
 let biome = "forest", brush = 1;
@@ -70,10 +73,11 @@ const NOTE_COLOR = { open: "#f0b429", doing: "#e8e0cf", done: "#7fae4c" };
 const layers = {
 	states: true, rivers: true, highways: true, minor: true, streets: true,
 	dirt: true, ramps: true, junctions: false, exits: true, towns: true,
-	placements: true, districts: true, notes: true, orphans: false,
+	placements: true, districts: true, notes: true, orphans: false, ecology: false,
 };
 const LAYER_DEFS = [
-	["states", "state lines", "#e8e0cf"], ["rivers", "rivers", "#1e4a63"],
+	["states", "state lines", "#e8e0cf"], ["ecology", "ECOLOGY (what lives where)", "#7fae4c"],
+	["rivers", "rivers", "#1e4a63"],
 	["highways", "interstates / US routes", "#d9c98f"], ["minor", "state + county", "#a08c60"],
 	["streets", "town streets", "#8b8578"], ["dirt", "dirt spurs", "#7a5c3e"],
 	["ramps", "exit ramps", "#b0a070"], ["junctions", "junctions", "#f0b429"],
@@ -128,6 +132,9 @@ async function load() {
 	await refresh(false);
 	({ structures, footprints } = await api("/api/structures"));
 	vehicles = (await api("/api/vehicles")).vehicles;
+	regions = await api("/api/regions");
+	ecology = await api("/api/ecology");
+	buildEcoTint();
 	document.getElementById("mapname").textContent =
 		`${meta.name} · ${meta.compression}× · ${meta.world_km[0]}×${meta.world_km[1]} km · ${meta.roads} roads · ${meta.exits} exits · ${meta.junctions} junctions`;
 	buildBmp(); buildStatePath(); buildPalette(); buildVehicleSel(); buildFootprintSel();
@@ -221,6 +228,48 @@ function drawMini() {
 	mctx.imageSmoothingEnabled = false;
 	mctx.drawImage(bmp, 0, 0, mini.width, mini.height);
 }
+// v4.1: a tinted mask per state (built lazily, cached — states never change here)
+function stateMask(ch) {
+	if (stateMasks[ch]) return stateMasks[ch];
+	const c = document.createElement("canvas");
+	c.width = meta.w; c.height = meta.h;
+	const x2 = c.getContext("2d");
+	x2.fillStyle = "rgba(240,180,41,.34)";
+	for (let z = 0; z < meta.h; z++)
+		for (let x = 0; x < meta.w; x++)
+			if (states[z][x] === ch) x2.fillRect(x, z, 1, 1);
+	stateMasks[ch] = c;
+	return c;
+}
+// v4.1: wildlife-richness tint — greener where more creature rows can live
+function buildEcoTint() {
+	if (!ecology) return;
+	ecoTint = document.createElement("canvas");
+	ecoTint.width = meta.w; ecoTint.height = meta.h;
+	const x2 = ecoTint.getContext("2d");
+	const maxN = Math.max(1, ...Object.values(ecology.by_biome).map((l) => l.length));
+	for (let z = 0; z < meta.h; z++)
+		for (let x = 0; x < meta.w; x++) {
+			const b = meta.legend[rows[z][x]];
+			const n = (ecology.by_biome[b] || []).length;
+			if (!n) continue;
+			x2.fillStyle = `rgba(127,174,76,${(0.12 + 0.5 * (n / maxN)).toFixed(2)})`;
+			x2.fillRect(x, z, 1, 1);
+		}
+}
+// blit an offscreen cell-grid canvas through the visible-cell clip (the same
+// law as the biome blit — a full-map blit at deep zoom wedges the renderer)
+function blitCells(src) {
+	const cm = meta.cell_m, ox = meta.world_offset[0], oz = meta.world_offset[1];
+	const cx0 = Math.max(0, Math.floor((s2wx(0) - ox) / cm));
+	const cz0 = Math.max(0, Math.floor((s2wz(0) - oz) / cm));
+	const cx1 = Math.min(meta.w, Math.ceil((s2wx(cv._w) - ox) / cm));
+	const cz1 = Math.min(meta.h, Math.ceil((s2wz(cv._h) - oz) / cm));
+	if (cx1 > cx0 && cz1 > cz0)
+		ctx.drawImage(src, cx0, cz0, cx1 - cx0, cz1 - cz0,
+			w2sx(ox + cx0 * cm), w2sz(oz + cz0 * cm),
+			(cx1 - cx0) * cm * view.scale, (cz1 - cz0) * cm * view.scale);
+}
 
 // ---------- draw ----------
 let drawQueued = false;
@@ -251,18 +300,11 @@ function draw() {
 	// biomes — blit ONLY the visible cells: a full-map blit at high zoom asks the
 	// rasterizer for a ~100k-px destination rect and wedges the tab.
 	const cm = meta.cell_m;
-	const ox = meta.world_offset[0], oz = meta.world_offset[1];
 	ctx.imageSmoothingEnabled = false;
-	{
-		const cx0 = Math.max(0, Math.floor((s2wx(0) - ox) / cm));
-		const cz0 = Math.max(0, Math.floor((s2wz(0) - oz) / cm));
-		const cx1 = Math.min(meta.w, Math.ceil((s2wx(cv._w) - ox) / cm));
-		const cz1 = Math.min(meta.h, Math.ceil((s2wz(cv._h) - oz) / cm));
-		if (cx1 > cx0 && cz1 > cz0)
-			ctx.drawImage(bmp, cx0, cz0, cx1 - cx0, cz1 - cz0,
-				w2sx(ox + cx0 * cm), w2sz(oz + cz0 * cm),
-				(cx1 - cx0) * cm * view.scale, (cz1 - cz0) * cm * view.scale);
-	}
+	blitCells(bmp);
+	// v4.1 overlays on the land itself
+	if (layers.ecology && ecoTint) blitCells(ecoTint);
+	if (sel?.type === "state") blitCells(stateMask(sel.id));
 	// state borders (world-space path under a transform)
 	if (layers.states && statePath) {
 		ctx.save();
@@ -361,16 +403,35 @@ function draw() {
 			}
 		}
 	}
-	// placements
+	// placements — real footprint rectangles once you're close (v4.1); the
+	// catalog's footprint_m + the row's rot make placement TRUE, not symbolic
 	if (layers.placements && view.scale > 0.04) {
 		for (const p of placements) {
 			const x = w2sx(p.pos[0]), z = w2sz(p.pos[1]);
-			if (x < -20 || x > cv._w + 20 || z < -20 || z > cv._h + 20) continue;
-			const s = Math.max(3, Math.min(10, 12 * view.scale * 4));
+			if (x < -40 || x > cv._w + 40 || z < -40 || z > cv._h + 40) continue;
 			const selMe = sel?.type === "placement" && sel.id === p.id;
-			ctx.fillStyle = selMe ? "#ffcf3f" : "#37b2a0"; ctx.strokeStyle = "#0a2b27"; ctx.lineWidth = 1;
-			ctx.fillRect(x - s / 2, z - s / 2, s, s); ctx.strokeRect(x - s / 2, z - s / 2, s, s);
-			if (view.scale > 0.3) { ctx.fillStyle = "#bfeee6"; ctx.font = "9px ui-monospace"; ctx.fillText(p.building, x + s, z + 3); }
+			const fp = footprintById[p.building];
+			if (fp && view.scale > 0.25) {
+				ctx.save();
+				ctx.translate(x, z);
+				ctx.rotate(-(p.rot || 0)); // Godot Y-rotation is CCW; canvas y is down
+				const wpx = fp[0] * view.scale, dpx = fp[1] * view.scale;
+				ctx.fillStyle = selMe ? "rgba(255,207,63,.5)" : "rgba(55,178,160,.35)";
+				ctx.strokeStyle = selMe ? "#ffcf3f" : "#37b2a0"; ctx.lineWidth = 1;
+				ctx.fillRect(-wpx / 2, -dpx / 2, wpx, dpx);
+				ctx.strokeRect(-wpx / 2, -dpx / 2, wpx, dpx);
+				// the door edge (front = -z in placement space) reads as a notch
+				ctx.fillStyle = selMe ? "#ffcf3f" : "#bfeee6";
+				ctx.fillRect(-wpx * 0.12, -dpx / 2 - 1.5, wpx * 0.24, 3);
+				ctx.restore();
+				ctx.fillStyle = "#bfeee6"; ctx.font = "9px ui-monospace";
+				ctx.fillText(p.building, x + wpx / 2 + 3, z + 3);
+			} else {
+				const s = Math.max(3, Math.min(10, 12 * view.scale * 4));
+				ctx.fillStyle = selMe ? "#ffcf3f" : "#37b2a0"; ctx.strokeStyle = "#0a2b27"; ctx.lineWidth = 1;
+				ctx.fillRect(x - s / 2, z - s / 2, s, s); ctx.strokeRect(x - s / 2, z - s / 2, s, s);
+				if (view.scale > 0.3) { ctx.fillStyle = "#bfeee6"; ctx.font = "9px ui-monospace"; ctx.fillText(p.building, x + s, z + 3); }
+			}
 		}
 	}
 	// plan notes
@@ -678,6 +739,39 @@ function renderInspector() {
 				async () => api(`/api/districts?id=${encodeURIComponent(prev.id)}`, { method: "DELETE" }));
 			sel = null; await refresh(); savedFlash(`${d.name} removed`);
 		};
+	} else if (sel.type === "state") {
+		const st = regions.find((s) => s.ch === sel.id);
+		if (!st) { sel = null; return renderInspector(); }
+		const totalCells = Math.max(1, st.cells);
+		const biomeMix = Object.entries(st.biomes).sort((a, b) => b[1] - a[1]).slice(0, 4)
+			.map(([b, n]) => `${b} ${Math.round((n / totalCells) * 100)}%`).join(" · ");
+		// wildlife = creatures whose biomes exist in this state, ranked by coverage
+		const wl = (ecology?.creatures || []).map((c) => {
+			const cov = c.biomes.reduce((s, b) => s + (st.biomes[b] || 0), 0);
+			return { c, cov };
+		}).filter((x) => x.cov > 0).sort((a, b) => b.cov - a.cov);
+		el.innerHTML = `<div class="title">🗺 ${esc(st.name)}</div>` +
+			(st.ruler ? kv("ruler", `${st.ruler.ruler} (${st.ruler.title})`) + kv("attitude ×", st.ruler.attitude) : "") +
+			(st.bandit_strength !== null ? kv("bandit strength", st.bandit_strength + "/5") : "") +
+			kv("area", `${st.cells} cells · ${Math.round(st.cells * 0.25)} km²`) +
+			kv("towns", st.towns.length) + kv("exits", st.exits.length) +
+			(st.districts.length ? kv("districts", st.districts.map((d) => d.name).join(", ")) : "") +
+			`<div class="hint" style="margin-top:4px">${esc(biomeMix)}</div>` +
+			`<div class="hint" style="margin-top:4px">🐾 ${wl.length ? wl.map((x) => esc(x.c.name)).join(" · ") : "no creature rows live here yet"}</div>` +
+			(st.towns.length ? `<div class="listbox" style="margin-top:6px;max-height:110px">` +
+				st.towns.slice(0, 12).map((t) => `<div class="listrow" data-jump="${t.pos[0]},${t.pos[1]}"><span>${esc(t.name)} · ${esc(t.kind || "")}</span></div>`).join("") + `</div>` : "") +
+			`<div class="actions"><button id="i-zoomstate">ZOOM TO STATE</button></div>`;
+		document.getElementById("i-zoomstate").onclick = () => {
+			const [x0, z0, x1, z1] = st.bbox;
+			view.cx = (x0 + x1) / 2; view.cz = (z0 + z1) / 2;
+			view.scale = Math.min(cv._w / (x1 - x0), cv._h / (z1 - z0)) * 0.9;
+			requestDraw();
+		};
+		el.querySelectorAll("[data-jump]").forEach((row) => row.onclick = () => {
+			const [jx, jz] = row.dataset.jump.split(",").map(Number);
+			view.cx = jx; view.cz = jz; view.scale = Math.max(view.scale, 0.3);
+			requestDraw();
+		});
 	} else if (sel.type === "note") {
 		const n = notes.find((x) => x.id === sel.id);
 		if (!n) { sel = null; return renderInspector(); }
@@ -792,8 +886,15 @@ cv.addEventListener("mousedown", async (ev) => {
 			drag = { kind: "town", t, start: w, prevPos: [...t.pos], moved: false };
 			return;
 		}
+		// empty land → select the STATE under the cursor (v4.1 region select)
+		if (!hit) {
+			const cx = Math.floor((w[0] - meta.world_offset[0]) / meta.cell_m);
+			const cz = Math.floor((w[1] - meta.world_offset[1]) / meta.cell_m);
+			const ch = states[cz]?.[cx];
+			hit = ch && ch !== "." ? { type: "state", id: ch } : null;
+		}
 		sel = hit; renderInspector(); requestDraw();
-		if (!hit) footerInfoAt(w);
+		if (!hit || hit.type === "state") footerInfoAt(w);
 	} else if (tool === "road") {
 		const r = vertexRoad();
 		if (!r) { savedFlash("select a road first (or NEW ROAD)"); return; }
@@ -848,7 +949,8 @@ addEventListener("mousemove", (ev) => {
 		const biomeName = rows[czi]?.[cx] ? meta.legend[rows[czi][cx]] : "?";
 		document.getElementById("pos").innerHTML =
 			`world <b>${Math.round(hoverWorld[0])}, ${Math.round(hoverWorld[1])}</b> m · cell <b>${cx},${czi}</b> · <b>${biomeName ?? "?"}</b>` +
-			(layers.states && states[czi]?.[cx] && states[czi][cx] !== "." ? ` · ${meta.state_legend[states[czi][cx]]}` : "");
+			(layers.states && states[czi]?.[cx] && states[czi][cx] !== "." ? ` · ${meta.state_legend[states[czi][cx]]}` : "") +
+			(layers.ecology && ecology && biomeName ? ` · 🐾 ${(ecology.by_biome[biomeName] || []).join(", ") || "nothing"}` : "");
 		if (tool === "road" || (tool === "district" && districtDraft.length) || tool === "paint") requestDraw();
 	}
 	if (!drag) return;
@@ -1200,10 +1302,21 @@ function buildVehicleSel() {
 	s.innerHTML = vehicles.map((v) => `<option value="${v.id}">${v.name} — top ${v.top} m/s</option>`).join("");
 	s.onchange = () => { if (measure.a && measure.b) runMeasure(); };
 }
+let footprintById = {}; // building id -> [w, d] meters (drawn as true rectangles)
 function buildBuildingSel() {
 	const s = document.getElementById("buildingsel");
-	const ids = [...new Set([...structures.map((x) => x.id), "safehouse", "gas_station", "ruined_house", "market_stall"])];
-	s.innerHTML = ids.map((i) => `<option>${i}</option>`).join("");
+	footprintById = {};
+	const byCat = {};
+	for (const x of structures) {
+		footprintById[x.id] = x.footprint_m || [10, 8];
+		(byCat[x.category || "misc"] = byCat[x.category || "misc"] || []).push(x);
+	}
+	let html = "";
+	for (const cat of Object.keys(byCat).sort()) {
+		html += `<optgroup label="${cat}">` + byCat[cat].map((x) => `<option value="${x.id}">${x.sign_glyph || "▪"} ${x.id} (${(x.footprint_m || [])[0]}×${(x.footprint_m || [])[1]}m)</option>`).join("") + `</optgroup>`;
+	}
+	html += `<optgroup label="legacy">` + ["safehouse", "gas_station", "ruined_house", "market_stall"].map((i) => `<option>${i}</option>`).join("") + `</optgroup>`;
+	s.innerHTML = html;
 }
 function buildExitList() {
 	document.getElementById("exithdr").textContent = `${document.getElementById("exitlistwrap").style.display === "none" ? "▸" : "▾"} Exit nodes (${exits.length})`;

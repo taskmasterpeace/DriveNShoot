@@ -419,6 +419,86 @@ function graphHealth() {
 	};
 }
 
+// ---- REGIONS + ECOLOGY (v4.1): the state card + what-lives-where -------------------
+// Rulers are LIVE mechanics (rulers.json attitude/infamy); bandit_regions carries
+// per-state gang strength; creatures.json rows carry biome arrays. The editor
+// joins them so a state click answers "who runs it, what lives here".
+const RULERS_PATH = join(ROOT, "game", "data", "rulers.json");
+const BANDITS_PATH = join(ROOT, "game", "data", "bandit_regions.json");
+const CREATURES_PATH = join(ROOT, "game", "data", "creatures.json");
+const readJson = (p, fb) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return fb; } };
+
+function pointInPolyS(p, poly) {
+	let inside = false;
+	for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+		const xi = poly[i][0], zi = poly[i][1], xj = poly[j][0], zj = poly[j][1];
+		if (((zi > p[1]) !== (zj > p[1])) && p[0] < ((xj - xi) * (p[1] - zi)) / (zj - zi) + xi) inside = !inside;
+	}
+	return inside;
+}
+
+function regionsReport() {
+	const rulers = readJson(RULERS_PATH, {});
+	const bandits = readJson(BANDITS_PATH, { regions: {} });
+	const stateAt = (wx, wz) => {
+		const [cx, cz] = worldToCell(wx, wz);
+		if (!inGrid(cx, cz)) return ".";
+		return map.states_grid[cz][cx];
+	};
+	const out = {};
+	for (const [ch, name] of Object.entries(map.state_legend)) {
+		out[ch] = {
+			ch, name, cells: 0, biomes: {},
+			bbox: [Infinity, Infinity, -Infinity, -Infinity],
+			towns: [], exits: [], districts: [],
+			ruler: (rulers.states || {})[name] || rulers.default || null,
+			bandit_strength: (bandits.regions || {})[name] ?? null,
+		};
+	}
+	for (let z = 0; z < map.h; z++)
+		for (let x = 0; x < map.w; x++) {
+			const ch = map.states_grid[z][x];
+			const st = out[ch];
+			if (!st) continue;
+			st.cells++;
+			const b = map.legend[map.grid[z][x]];
+			st.biomes[b] = (st.biomes[b] || 0) + 1;
+			const [wx, wz] = cellToWorld(x, z);
+			st.bbox[0] = Math.min(st.bbox[0], wx - map.cell_m / 2); st.bbox[1] = Math.min(st.bbox[1], wz - map.cell_m / 2);
+			st.bbox[2] = Math.max(st.bbox[2], wx + map.cell_m / 2); st.bbox[3] = Math.max(st.bbox[3], wz + map.cell_m / 2);
+		}
+	for (const t of map.towns) {
+		const st = out[stateAt(t.pos[0], t.pos[1])];
+		if (st) st.towns.push({ id: t.id, name: t.name, pos: t.pos, kind: t.kind });
+	}
+	for (const e of map.exits) {
+		const st = out[stateAt(e.pos[0], e.pos[1])];
+		if (st) st.exits.push({ id: e.id, name: e.name, number: e.exit_number });
+	}
+	for (const d of map.districts) {
+		const c = (d.poly || []).reduce((s, p) => [s[0] + p[0] / d.poly.length, s[1] + p[1] / d.poly.length], [0, 0]);
+		const st = out[stateAt(c[0], c[1])];
+		if (st) st.districts.push({ id: d.id, name: d.name, kind: d.kind });
+	}
+	return Object.values(out).filter((s) => s.cells > 0);
+}
+
+function ecologyReport() {
+	const cdoc = readJson(CREATURES_PATH, { creatures: [] });
+	const creatures = (cdoc.creatures || cdoc || []).map((c) => ({
+		id: c.id, name: c.name, group: c.group, biomes: c.biomes || [],
+		hp: c.hp, speed: c.speed, loot: c.loot || {}, eco_kill: c.eco_kill,
+		noise_flee: c.noise_flee, size: c.size,
+	}));
+	const byBiome = {};
+	for (const b of Object.values(map.legend)) byBiome[b] = [];
+	for (const c of creatures)
+		for (const b of c.biomes)
+			if (byBiome[b]) byBiome[b].push(c.id);
+	return { creatures, by_biome: byBiome,
+		note: "creature rows from creatures.json (biome-weighted spawn); threats (howlers/lurkers/infected) ride their own directors — swamp is knifeback country, night belongs to the howlers" };
+}
+
 // ---- VEHICLES: read the fleet's top speeds LIVE from car_3d.gd ---------------------
 // (VCLASSES rows carry "name" and "top" on their first line; trailer's top 0 is
 // skipped. If the parse ever fails we fall back to the last-known table.)
@@ -510,6 +590,8 @@ const HELP = {
 		"GET  /api/plan                         → v4: the shared PLAN layer (owner+AI map TODOs)",
 		"POST /api/plan        {id?, pos:[wx,wz], text, status? open|doing|done, author?} → pin/update a note",
 		"DELETE /api/plan?id=note-3",
+		"GET  /api/regions                      → v4.1: the STATE cards — ruler, bandit strength, towns/exits/districts inside, biome mix, bbox",
+		"GET  /api/ecology                      → v4.1: creature rows + by-biome index (what lives where)",
 		"GET  /api/vehicles                     → v4: the fleet's top speeds, read live from car_3d.gd",
 		"GET  /api/route?ax=&az=&bx=&bz=&vehicle=scavenger → v4: A→B drive-time (graph route, polyline, law+vehicle times, 60× game clock)",
 		"GET  /api/structures · POST /api/structures · DELETE /api/structures?id=",
@@ -867,6 +949,12 @@ const server = createServer(async (req, res) => {
 			savePlan();
 			return json(res, 200, { removed: n - plan.notes.length });
 		}
+
+		// ---- REGIONS + ECOLOGY (v4.1) ----------------------------------------------
+		if (url.pathname === "/api/regions" && req.method === "GET")
+			return json(res, 200, regionsReport());
+		if (url.pathname === "/api/ecology" && req.method === "GET")
+			return json(res, 200, ecologyReport());
 
 		// ---- VEHICLES + ROUTE (v4): the drive-time answers -------------------------
 		if (url.pathname === "/api/vehicles") {
