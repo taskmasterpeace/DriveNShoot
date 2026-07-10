@@ -11,8 +11,8 @@ const TRANSPORTS: Dictionary = {
 }
 const LOAD_MAX: Dictionary = {"spectators":120, "fighters":12, "rigid_props":60,
 	"flashes":100, "marks":100, "cars":20}
-const BUDGETS: Dictionary = {"render_ms":16.7, "script_ms":5.0, "physics_ms":8.0,
-	"load_nodes":412}
+const BUDGETS: Dictionary = {"frame_cpu_ms":16.7, "script_estimate_ms":5.0,
+	"physics_ms":8.0, "render_draw_calls":2200, "load_nodes":412}
 
 var preset_id: String = "local"
 var preset: Dictionary = TRANSPORTS["local"].duplicate(true)
@@ -140,20 +140,32 @@ func _spawn_load_node(category: String, index: int) -> void:
 
 
 func performance_facts() -> Dictionary:
-	var render_ms: float = Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
-	var script_ms: float = Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+	# Godot exposes CPU frame/physics time and render workload counters, but no
+	# portable per-frame GPU milliseconds here. Keep those facts distinct instead
+	# of presenting the same TIME_PROCESS sample under two misleading labels.
+	var frame_cpu_ms: float = Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 	var physics_ms: float = Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+	var navigation_ms: float = Performance.get_monitor(Performance.TIME_NAVIGATION_PROCESS) * 1000.0
+	var script_estimate_ms: float = maxf(0.0, frame_cpu_ms - physics_ms - navigation_ms)
+	var render_draw_calls: int = int(Performance.get_monitor(
+		Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	var render_objects: int = int(Performance.get_monitor(
+		Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
 	var first: String = ""
-	if render_ms > float(BUDGETS["render_ms"]):
-		first = "render_ms"
-	elif script_ms > float(BUDGETS["script_ms"]):
-		first = "script_ms"
+	if frame_cpu_ms > float(BUDGETS["frame_cpu_ms"]):
+		first = "frame_cpu_ms"
+	elif script_estimate_ms > float(BUDGETS["script_estimate_ms"]):
+		first = "script_estimate_ms"
 	elif physics_ms > float(BUDGETS["physics_ms"]):
 		first = "physics_ms"
+	elif render_draw_calls > int(BUDGETS["render_draw_calls"]):
+		first = "render_draw_calls"
 	elif get_load_total() > int(BUDGETS["load_nodes"]):
 		first = "load_nodes"
-	return {"render_ms": render_ms, "script_ms": script_ms, "physics_ms": physics_ms,
-		"first_exceeded": first, "auto_degraded": false,
+	return {"frame_cpu_ms": frame_cpu_ms, "script_estimate_ms": script_estimate_ms,
+		"physics_ms": physics_ms, "navigation_ms": navigation_ms,
+		"render_metric": "draw_calls", "render_draw_calls": render_draw_calls,
+		"render_objects": render_objects, "first_exceeded": first, "auto_degraded": false,
 		"load_counts": _load_counts.duplicate(true), "load_total": get_load_total()}
 
 

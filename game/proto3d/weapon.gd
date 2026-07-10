@@ -474,6 +474,12 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 	var to := from + dir * rng
 	var q := PhysicsRayQueryParameters3D.create(from, to)
 	var excl: Array[RID] = [main.player.get_rid()]
+	# Articulated lab/network bodies can expose every self-collider. The normal
+	# player has only one RID and returns an empty list, preserving campaign fire.
+	if main.has_method("weapon_exclusions"):
+		for rid in main.weapon_exclusions():
+			if rid is RID and not excl.has(rid):
+				excl.append(rid)
 	# Shooting from a vehicle: don't shoot your own ride in the back of the head.
 	if "active_car" in main and main.active_car != null and is_instance_valid(main.active_car):
 		excl.append((main.active_car as PhysicsBody3D).get_rid())

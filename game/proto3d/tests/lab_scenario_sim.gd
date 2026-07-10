@@ -71,9 +71,11 @@ func _ready() -> void:
 		load_counts.has_all(["spectators", "fighters", "rigid_props", "flashes", "marks", "cars"])
 		and int(load_counts["spectators"]) == 12 and int(load_counts["cars"]) == 2)
 	var budget: Dictionary = chaos.performance_facts()
-	_check("chaos reports the first exceeded budget and never auto-degrades",
-		budget.has_all(["render_ms", "script_ms", "physics_ms", "first_exceeded",
-			"auto_degraded"]) and not bool(budget["auto_degraded"]))
+	_check("chaos separates truthful CPU/physics/render-proxy facts and never auto-degrades",
+		budget.has_all(["frame_cpu_ms", "script_estimate_ms", "physics_ms",
+			"render_draw_calls", "render_objects", "first_exceeded", "auto_degraded"])
+		and String(budget.get("render_metric", "")) == "draw_calls"
+		and not bool(budget["auto_degraded"]))
 	chaos.clear_load()
 	await get_tree().process_frame
 	_check("clearing chaos frees every temporary load node",
@@ -85,6 +87,16 @@ func _ready() -> void:
 	add_child(lab)
 	for _i in 6:
 		await get_tree().physics_frame
+	lab.chaos.configure_transport("bad_wifi", 9)
+	lab.chaos.set_load(lab, 0.25)
+	await get_tree().physics_frame
+	var visible_chaos: String = lab.hud.tools_text() if lab.hud.has_method("tools_text") else ""
+	_check("standalone telemetry shows latency, jitter, loss, queue/drop and measured costs",
+		visible_chaos.contains("120ms") and visible_chaos.contains("JIT 45")
+		and visible_chaos.contains("LOSS 8%") and visible_chaos.contains("DROP")
+		and visible_chaos.contains("CPU") and visible_chaos.contains("PHYS")
+		and visible_chaos.contains("DRAW"))
+	lab.chaos.clear_load()
 	var one: Dictionary = lab.start_scenario("low_light_hunt", 44)
 	var first_opening: Dictionary = lab.scenario_state()
 	var two: Dictionary = lab.start_scenario("low_light_hunt", 44)
@@ -92,6 +104,30 @@ func _ready() -> void:
 	_check("standalone card applies the same opening state twice",
 		one == two and first_opening == second_opening
 		and lab.current_scenario == "low_light_hunt")
+	lab.start_scenario("armored_penetration", 77)
+	await get_tree().physics_frame
+	_check("zero-opponent card removes the persistent sparring actor from play",
+		int(lab.scenario_state()["opponent_count"]) == 0
+		and not bool(lab.opponent.enabled)
+		and lab.opponent.body.collision_layer == 0)
+	_check("armored card stages one real armored vehicle and its authored objective",
+		lab.scenario_vehicles.size() == 1
+		and lab.scenario_vehicles[0] is ProtoCar3D
+		and bool(lab.scenario_vehicles[0].get_meta("lab_armored", false))
+		and String(lab.scenario_state()["win_condition"]["type"]) == "penetrations")
+	lab.start_scenario("vehicle_gunner_pass", 88)
+	var authored_player_spawn: Vector3 = lab.scenario_state()["position"]
+	lab.adapter.reset_at(Transform3D(Basis.IDENTITY, Vector3(3, 0.05, 3)))
+	lab.reset_fighters()
+	_check("round reset restores the current card's authored player and vehicle opening",
+		lab.adapter.anchor_transform().origin.distance_to(authored_player_spawn) < 0.01
+		and lab.scenario_vehicles.size() == 1
+		and String(lab.scenario_vehicles[0].get_meta("lab_vehicle_id", "")) == "pickup"
+		and String(lab.scenario_state()["win_condition"]["type"]) == "survive_pass")
+	lab.start_scenario("cover_two", 55)
+	await get_tree().physics_frame
+	_check("two-in-cover card spawns both real nonlethal AI opponents",
+		lab.scenario_opponents.size() == 1 and int(lab.scenario_state()["opponent_count"]) == 2)
 	lab.queue_free()
 	await get_tree().process_frame
 	var save_untouched: bool = FileAccess.file_exists("user://drivn.save") == save_existed

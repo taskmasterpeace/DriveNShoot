@@ -19,6 +19,7 @@ const CAMERA_WALL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_camera_
 const SCENARIO_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_scenario.gd")
 const CHAOS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_chaos.gd")
 const VERDICT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_verdict.gd")
+const WEAPON_WHEEL_SCRIPT := preload("res://proto3d/weapon_wheel.gd")
 
 var save_isolated: bool = true
 var lab_mode: bool = true
@@ -37,6 +38,10 @@ var current_scenario: String = "free_play"
 var opponent_behavior: String = "PASSIVE"
 var lab_round: RefCounted = null
 var opponent: Node3D = null
+var scenario_opponents: Array[Node3D] = []
+var scenario_vehicles: Array[ProtoCar3D] = []
+var scenario_player_spawn: Transform3D = station_spawn
+var scenario_win_condition: Dictionary = {}
 var diagnostics: Node3D = null
 var replay: RefCounted = null
 var mirror_bodies: Dictionary = {}
@@ -47,6 +52,9 @@ var camera_wall: Node = null
 var scenario_tool: RefCounted = null
 var chaos: RefCounted = null
 var verdict: RefCounted = null
+var weapon_wheel: CanvasLayer = null
+var radial_selection: String = "pistol"
+var shot_spread_deg: float = -1.0 # Tests/AI may override; negative keeps authored player spread.
 var gaze_origin: Vector3 = Vector3(26, 0.05, 0)
 var gaze_targets: Dictionary = {}
 var active_gaze_target: Node3D = null
@@ -81,6 +89,11 @@ var _chaos_load: float = 0.0
 var _clear_verdict_armed: bool = false
 var _chaos_clock_ms: float = 0.0
 var _network_command: RefCounted = null
+var _radial_down: bool = false
+var _scenario_progress: int = 0
+var _scenario_complete: bool = false
+var _scenario_elapsed: float = 0.0
+var _scenario_vehicle_hp: float = 0.0
 
 
 func _ready() -> void:
@@ -97,6 +110,12 @@ func _ready() -> void:
 	add_child(diagnostics)
 	replay = REPLAY_SCRIPT.new()
 	calibration = CALIBRATION_SCRIPT.new()
+	input_source.set_calibration(calibration)
+	hud.calibration_changed.connect(apply_calibration_settings)
+	hud.calibration_sample_requested.connect(begin_controller_calibration)
+	hud.calibration_save_requested.connect(_save_calibration_preset)
+	hud.calibration_load_requested.connect(_load_calibration_preset)
+	hud.set_calibration_values(calibration.preset())
 	surface_tool = SURFACE_SCRIPT.new()
 	surface_tool.build_panels(self, Vector3(10, 0.05, 11))
 	camera_wall = CAMERA_WALL_SCRIPT.new()
@@ -273,12 +292,16 @@ func switch_mode(id: String) -> bool:
 	active_mode = id
 	player = adapter.combat_body()
 	adapter.set_weapon(weapon_id)
+	radial_selection = weapon_id
 	adapter.set_condition(prior_condition)
 	adapter.set_surface(prior_surface)
 	adapter.reset_at(at)
 	_connect_player_damage()
 	if opponent != null:
 		opponent.set_target(player)
+	for extra in scenario_opponents:
+		if is_instance_valid(extra):
+			extra.set_target(player)
 	if camera_wall != null:
 		camera_wall.set_subject(player)
 	return true
@@ -293,6 +316,12 @@ func _connect_player_damage() -> void:
 		adapter.damaged.connect(_on_player_damaged)
 
 
+func cycle_body_mode(step: int = 1) -> void:
+	var modes: Array[String] = ["hybrid", "active_ragdoll", "full_physics"]
+	var index: int = modes.find(active_mode)
+	switch_mode(modes[posmod(index + step, modes.size())])
+
+
 func _on_player_damaged(amount: float, _attacker: Node3D = null) -> void:
 	if lab_round != null:
 		lab_round.hit("player", amount, {"attacker": "opponent", "kind": "bullet"})
@@ -301,6 +330,7 @@ func _on_player_damaged(amount: float, _attacker: Node3D = null) -> void:
 func set_opponent_behavior(id: String) -> bool:
 	if opponent == null or not opponent.set_behavior(id):
 		return false
+	opponent.set_enabled(true)
 	opponent_behavior = id.to_upper()
 	return true
 
@@ -348,6 +378,54 @@ func toggle_camera_wall() -> void:
 func begin_controller_calibration() -> void:
 	if calibration != null:
 		calibration.begin_drift_sample(5.0)
+		hud.set_calibration_status("SAMPLING: RELEASE BOTH STICKS FOR FIVE SECONDS")
+
+
+func toggle_controller_calibration() -> void:
+	if hud != null:
+		hud.toggle_calibration(calibration.preset() if calibration != null else {})
+
+
+func apply_calibration_settings(settings: Dictionary) -> void:
+	if calibration == null:
+		return
+	var limits: Dictionary = {"deadzone":Vector2(0.0, 0.5),
+		"response_exponent":Vector2(0.2, 3.0), "aim_sensitivity":Vector2(0.2, 2.5),
+		"trigger_threshold":Vector2(0.0, 0.8), "rumble":Vector2(0.0, 1.0),
+		"hold_threshold":Vector2(0.08, 0.5)}
+	for id in limits:
+		if settings.has(id):
+			var limit: Vector2 = limits[id]
+			calibration.set(id, clampf(float(settings[id]), limit.x, limit.y))
+	if weapon_wheel != null:
+		weapon_wheel.hold_threshold = calibration.hold_threshold
+	preview_calibration_rumble()
+	hud.set_calibration_values(calibration.preset())
+	hud.set_calibration_status("APPLIED TO LIVE LAB PAD INPUT + RUMBLE PREVIEW · CAMPAIGN UNCHANGED")
+
+
+func preview_calibration_rumble() -> bool:
+	var pads: Array[int] = Input.get_connected_joypads()
+	if calibration == null or pads.is_empty():
+		return false
+	for pad_id in pads:
+		Input.start_joy_vibration(pad_id, float(calibration.rumble) * 0.45,
+			float(calibration.rumble), 0.18)
+	return true
+
+
+func _save_calibration_preset(preset_name: String) -> void:
+	var saved: bool = calibration != null and calibration.save_preset(preset_name)
+	hud.set_calibration_status("SAVED '%s'" % preset_name if saved \
+		else "SAVE FAILED — ENTER A PRESET NAME")
+
+
+func _load_calibration_preset(preset_name: String) -> void:
+	var loaded: bool = calibration != null and calibration.load_preset(preset_name)
+	if loaded:
+		apply_calibration_settings(calibration.preset())
+	hud.set_calibration_status("LOADED '%s'" % preset_name if loaded \
+		else "PRESET '%s' NOT FOUND" % preset_name)
 
 
 func cycle_transport(step: int = 1) -> void:
@@ -467,6 +545,8 @@ func start_scenario(id: String, seed: int = -1) -> Dictionary:
 		return {}
 	current_scenario = id
 	_scenario_index = scenario_tool.ids().find(id)
+	_clear_scenario_opponents()
+	_clear_scenario_vehicles()
 	reset_station()
 	var modes: Array = state.get("body_modes", ["hybrid"])
 	switch_mode(String(modes[0]))
@@ -474,14 +554,44 @@ func start_scenario(id: String, seed: int = -1) -> Dictionary:
 	set_condition_preset(String(state.get("condition", "fresh")))
 	var loadouts: Dictionary = state.get("loadouts", {})
 	adapter.set_weapon(String(loadouts.get("player", "pistol")))
+	radial_selection = String(adapter.weapon.id)
 	var spawns: Dictionary = state.get("spawn_transforms", {})
-	adapter.reset_at(Transform3D(Basis.IDENTITY, _array_position(spawns.get("player", [0, 0.05, 0]))))
+	scenario_player_spawn = Transform3D(Basis.IDENTITY,
+		_array_position(spawns.get("player", [0, 0.05, 0])))
+	adapter.reset_at(scenario_player_spawn)
 	var opponents: Array = state.get("opponents", [])
+	if opponent != null:
+		opponent.set_enabled(not opponents.is_empty())
 	if not opponents.is_empty():
 		set_opponent_behavior(String(opponents[0]))
 	var opponent_spawns: Array = spawns.get("opponents", [])
 	if opponent != null and not opponent_spawns.is_empty():
-		opponent.reset_at(Transform3D(Basis.IDENTITY, _array_position(opponent_spawns[0])))
+		var primary_spawn := Transform3D(Basis.IDENTITY, _array_position(opponent_spawns[0]))
+		opponent.set_meta("scenario_spawn", primary_spawn)
+		opponent.reset_at(primary_spawn)
+	var opponent_loadouts: Array = loadouts.get("opponents", [])
+	if opponent != null and not opponent_loadouts.is_empty():
+		opponent.set_weapon(String(opponent_loadouts[0]))
+	for i in range(1, opponents.size()):
+		var extra: Node3D = OPPONENT_SCRIPT.new()
+		extra.name = "ScenarioOpponent_%d" % (i + 1)
+		add_child(extra)
+		extra.setup(lab_round, player, String(opponents[i]), self)
+		var extra_spawn := Transform3D(Basis.IDENTITY,
+			_array_position(opponent_spawns[i] if i < opponent_spawns.size() else [3, 0.05, -6]))
+		extra.set_meta("scenario_spawn", extra_spawn)
+		extra.reset_at(extra_spawn)
+		if i < opponent_loadouts.size():
+			extra.set_weapon(String(opponent_loadouts[i]))
+		scenario_opponents.append(extra)
+	_spawn_scenario_vehicles(spawns.get("vehicles", []), loadouts)
+	scenario_win_condition = (state.get("win_condition", {}) as Dictionary).duplicate(true)
+	_scenario_progress = 0
+	_scenario_complete = false
+	_scenario_elapsed = 0.0
+	_scenario_vehicle_hp = _scenario_vehicle_health()
+	if String(scenario_win_condition.get("type", "")) == "rounds" and lab_round != null:
+		lab_round.rounds_to_win = maxi(1, int(scenario_win_condition.get("value", 2)))
 	var weather: Dictionary = state.get("weather", {})
 	_set_environment_state(String(weather.get("time", "day")) == "night",
 		String(weather.get("atmosphere", "clear")) == "dust",
@@ -497,7 +607,13 @@ func scenario_state() -> Dictionary:
 		"position": adapter.anchor_transform().origin, "weapon": String(adapter.weapon.id),
 		"surface": String(adapter.surface.get("id", "")),
 		"condition": String(adapter.condition.get("id", "")),
-		"opponent": opponent_behavior.to_lower(), "night": gaze_night, "dust": gaze_dust,
+		"opponent": opponent_behavior.to_lower(),
+		"opponent_count": (1 if opponent != null and opponent.enabled else 0) + scenario_opponents.size(),
+		"vehicles": scenario_vehicles.map(func(car: ProtoCar3D) -> String:
+			return String(car.get_meta("lab_vehicle_id", car.vclass))),
+		"win_condition": scenario_win_condition.duplicate(true),
+		"objective": scenario_objective(),
+		"night": gaze_night, "dust": gaze_dust,
 		"headlights": gaze_headlights, "camera": _scenario_camera_preset,
 		"transport": String(chaos.preset_id), "seed": int(scenario_tool.current.get("seed", 0)),
 		"opening_events": scenario_tool.current.get("opening_events", []).duplicate(true)}
@@ -524,6 +640,108 @@ func _set_environment_state(night: bool, dust: bool, headlights: bool) -> void:
 		toggle_headlights()
 
 
+func _clear_scenario_opponents() -> void:
+	for extra in scenario_opponents:
+		if is_instance_valid(extra):
+			extra.queue_free()
+	scenario_opponents.clear()
+
+
+func _clear_scenario_vehicles() -> void:
+	for car in scenario_vehicles:
+		if is_instance_valid(car):
+			car.queue_free()
+	scenario_vehicles.clear()
+
+
+func _spawn_scenario_vehicles(raw_spawns: Variant, loadouts: Dictionary) -> void:
+	var vehicle_spawns: Array = raw_spawns as Array if raw_spawns is Array else []
+	var raw_ids: Variant = loadouts.get("vehicles", loadouts.get("vehicle", ""))
+	var vehicle_ids: Array[String] = []
+	if raw_ids is Array:
+		for raw_id in raw_ids:
+			vehicle_ids.append(String(raw_id))
+	elif String(raw_ids) != "":
+		vehicle_ids.append(String(raw_ids))
+	for i in vehicle_spawns.size():
+		var authored_id: String = vehicle_ids[mini(i, vehicle_ids.size() - 1)] \
+			if not vehicle_ids.is_empty() else "scavenger"
+		var vclass: String = "suv" if authored_id == "suv_armored" else authored_id
+		if not ProtoCar3D.VEHICLES.has(vclass):
+			vclass = "scavenger"
+		var car := ProtoCar3D.create(vclass, Color("#78593e"))
+		car.name = "ScenarioVehicle_%d" % (i + 1)
+		add_child(car)
+		var spawn := Transform3D(Basis.IDENTITY, _array_position(vehicle_spawns[i]))
+		car.global_transform = spawn
+		car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		car.freeze = true
+		car.add_to_group("lab_scenario_vehicle")
+		car.set_meta("scenario_spawn", spawn)
+		car.set_meta("lab_vehicle_id", authored_id)
+		car.set_meta("lab_armored", authored_id == "suv_armored")
+		if authored_id == "suv_armored":
+			car.armor = maxf(car.armor, 100.0)
+		car.set_meta("scenario_damage", car.snapshot_damage())
+		scenario_vehicles.append(car)
+
+
+func _reset_scenario_vehicles() -> void:
+	for car in scenario_vehicles:
+		if not is_instance_valid(car):
+			continue
+		car.global_transform = car.get_meta("scenario_spawn", car.global_transform)
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3.ZERO
+		car.restore_damage(car.get_meta("scenario_damage", {}) as Dictionary)
+	_scenario_vehicle_hp = _scenario_vehicle_health()
+
+
+func _scenario_vehicle_health() -> float:
+	var total: float = 0.0
+	for car in scenario_vehicles:
+		if not is_instance_valid(car):
+			continue
+		var parts: Dictionary = car.snapshot_damage().get("components", {})
+		for hp in parts.values():
+			total += float(hp)
+	return total
+
+
+func scenario_objective() -> Dictionary:
+	var kind: String = String(scenario_win_condition.get("type", "free_play"))
+	var target: int = maxi(1, int(scenario_win_condition.get("value", 1)))
+	var progress: int = _scenario_progress
+	if lab_round != null and lab_round.fighters.has("player"):
+		var fighter: Dictionary = lab_round.fighters["player"]
+		match kind:
+			"rounds": progress = int(fighter.get("rounds", 0))
+			"points": progress = int(fighter.get("points", 0))
+			"hits": progress = int(fighter.get("hits", 0))
+			"find_and_tag": progress = mini(1, int(fighter.get("hits", 0)))
+	var complete: bool = _scenario_complete or progress >= target
+	return {"type": kind, "progress": progress, "target": target, "complete": complete}
+
+
+func _update_scenario_runtime(delta: float) -> void:
+	if current_scenario == "free_play" or scenario_win_condition.is_empty():
+		return
+	_scenario_elapsed += delta
+	var kind: String = String(scenario_win_condition.get("type", ""))
+	if kind == "survive_pass" and not scenario_vehicles.is_empty() \
+		and is_instance_valid(scenario_vehicles[0]):
+		var pass_car: ProtoCar3D = scenario_vehicles[0]
+		pass_car.global_position.z -= 8.0 * delta
+		if pass_car.global_position.z <= scenario_player_spawn.origin.z - 28.0:
+			_scenario_progress = int(scenario_win_condition.get("value", 1))
+			_scenario_complete = true
+	elif kind == "penetrations":
+		var health_now: float = _scenario_vehicle_health()
+		if health_now < _scenario_vehicle_hp - 0.01:
+			_scenario_progress += 1
+		_scenario_vehicle_hp = health_now
+
+
 func reset_station() -> void:
 	if adapter == null:
 		return
@@ -543,9 +761,13 @@ func reset_station() -> void:
 
 func reset_fighters() -> void:
 	if adapter != null:
-		adapter.reset_at(station_spawn)
-	if opponent != null:
-		opponent.reset_at(opponent_spawn)
+		adapter.reset_at(scenario_player_spawn)
+	if opponent != null and opponent.enabled:
+		opponent.reset_at(opponent.get_meta("scenario_spawn", opponent_spawn))
+	for extra in scenario_opponents:
+		if is_instance_valid(extra):
+			extra.reset_at(extra.get_meta("scenario_spawn", Transform3D.IDENTITY))
+	_reset_scenario_vehicles()
 
 
 func feed_for_test(source: Variant) -> void:
@@ -557,15 +779,18 @@ func _physics_process(delta: float) -> void:
 		return
 	if lab_round != null:
 		lab_round.tick(delta)
+	_update_scenario_runtime(delta)
 	_update_mirror(delta)
 	_chaos_clock_ms += delta * 1000.0
 	if calibration != null:
-		calibration.sample({"left_stick": Input.get_vector("move_left", "move_right",
-			"move_up", "move_down"),
-			"right_stick": Input.get_vector("drivn_aim_left", "drivn_aim_right",
-				"drivn_aim_up", "drivn_aim_down"),
-			"left_trigger": Input.get_action_strength("drivn_grenade"),
-			"right_trigger": Input.get_action_strength("drivn_fire")}, delta)
+		var raw_controls: Dictionary = input_source.raw_pad_state()
+		raw_controls["keyboard_move"] = input_source.keyboard_action_move()
+		raw_controls["mouse"] = get_viewport().get_mouse_position()
+		raw_controls["buttons"] = {"sprint":Input.is_action_pressed("drivn_sprint"),
+			"dive":Input.is_action_pressed("jump"), "fire":Input.is_action_pressed("drivn_fire"),
+			"reload":Input.is_action_pressed("drivn_reload")}
+		calibration.sample(raw_controls, delta)
+		hud.refresh_calibration(calibration.oscilloscope(), calibration.drift_result())
 	var command: RefCounted = input_source.sample(camera, player.global_position, delta)
 	if chaos != null and String(chaos.preset_id) != "local":
 		chaos.enqueue(command, _chaos_clock_ms)
@@ -574,11 +799,17 @@ func _physics_process(delta: float) -> void:
 			_network_command = (delivered[-1]["command"] as RefCounted).duplicate_frame()
 		command = _network_command.duplicate_frame() if _network_command != null \
 			else COMMAND_SCRIPT.new()
+	_update_weapon_radial(command, delta)
+	if weapon_wheel != null and bool(weapon_wheel.is_open):
+		command.set("move", Vector3.ZERO)
+		command.set("sprint", false)
+		command.set("fire_pressed", false)
+		command.set("fire_held", false)
 	if lab_round != null and lab_round.commands_frozen():
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
 		frozen.set("aim_world", command.get("aim_world"))
 		command = frozen
-	if hud != null and hud.verdict_open():
+	if hud != null and (hud.verdict_open() or hud.calibration_open()):
 		var modal_command: RefCounted = COMMAND_SCRIPT.new()
 		modal_command.set("aim_world", command.get("aim_world"))
 		command = modal_command
@@ -586,6 +817,8 @@ func _physics_process(delta: float) -> void:
 	_last_command = command
 	adapter.apply_command(command, delta)
 	adapter.weapon.tick(delta, self)
+	if bool(command.get("reload_pressed")):
+		adapter.weapon.mag = int(adapter.weapon.info()["mag_size"])
 	var fired: bool = false
 	if bool(command.get("fire_pressed")) or (bool(command.get("fire_held")) and adapter.weapon.is_automatic()):
 		fired = _fire_weapon(command)
@@ -644,6 +877,38 @@ func _update_gaze_source(command: RefCounted, delta: float) -> void:
 	_prior_aim = aim
 
 
+func _ensure_weapon_wheel() -> void:
+	if weapon_wheel != null:
+		return
+	weapon_wheel = WEAPON_WHEEL_SCRIPT.create()
+	add_child(weapon_wheel)
+	if calibration != null:
+		weapon_wheel.hold_threshold = calibration.hold_threshold
+
+
+func _update_weapon_radial(command: RefCounted, delta: float) -> void:
+	if bool(command.get("radial_pressed")):
+		_ensure_weapon_wheel()
+		_radial_down = true
+		var wheel_ids: Array[String] = ["fists", "pistol", "scrap_smg", "shotgun", "grenade"]
+		weapon_wheel.configure(wheel_ids, radial_selection)
+		weapon_wheel.begin_hold()
+	if not _radial_down or weapon_wheel == null:
+		return
+	if bool(command.get("radial_held")):
+		weapon_wheel.advance_hold(delta)
+		if bool(weapon_wheel.is_open):
+			var aim: Vector3 = command.get("aim_world")
+			weapon_wheel.update_pointer(Vector2(aim.x, aim.z))
+	if bool(command.get("radial_released")):
+		_radial_down = false
+		var selected: String = String(weapon_wheel.release())
+		if selected in ["fists", "pistol", "scrap_smg", "shotgun", "grenade"]:
+			radial_selection = selected
+		if ProtoWeapon.WEAPONS.has(selected):
+			adapter.set_weapon(selected)
+
+
 func _diagnostic_readout(facts: Dictionary) -> String:
 	var replay_status: String = "FROZEN" if replay != null and replay.frozen else \
 		"REC %.1fs" % (float(replay.frame_count()) / 60.0 if replay != null else 0.0)
@@ -652,7 +917,13 @@ func _diagnostic_readout(facts: Dictionary) -> String:
 		String(surface_tool.active_condition).to_upper() if surface_tool != null else "FRESH",
 		"ON" if camera_wall != null and bool(camera_wall.facts()["visible"]) else "OFF",
 		String(chaos.preset_id).to_upper() if chaos != null else "LOCAL", int(_chaos_load * 100.0)]
-	return "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
+	var net: Dictionary = chaos.transport_facts() if chaos != null else {}
+	var perf: Dictionary = chaos.performance_facts() if chaos != null else {}
+	var budget: String = String(perf.get("first_exceeded", ""))
+	if budget == "":
+		budget = "OK"
+	var objective: Dictionary = scenario_objective()
+	return "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s\nNET %.0fms JIT %.0f LOSS %.0f%% Q%d DROP %d · CPU %.1fms SCRIPT~ %.1fms PHYS %.1fms DRAW %d · BUDGET %s · GOAL %s %d/%d" % [
 		tool_state,
 		"ON" if diagnostics.updates_enabled() else "OFF", replay_status,
 		gaze_target_distance, "BINOC" if gaze_binoculars else "NORMAL",
@@ -660,7 +931,13 @@ func _diagnostic_readout(facts: Dictionary) -> String:
 		"NIGHT" if gaze_night else "DAY", "DUST" if gaze_dust else "CLEAR",
 		float(facts.get("forward_yaw_deg", 0.0)), float(facts.get("head_yaw_deg", 0.0)),
 		float(facts.get("weapon_yaw_deg", 0.0)), "CLEAR" if bool(facts.get("los", false)) else "BLOCKED",
-		String(facts.get("source", "turn")).to_upper()]
+		String(facts.get("source", "turn")).to_upper(),
+		float(net.get("latency_ms", 0.0)), float(net.get("jitter_ms", 0.0)),
+		float(net.get("loss", 0.0)) * 100.0, int(net.get("queued", 0)), int(net.get("dropped", 0)),
+		float(perf.get("frame_cpu_ms", 0.0)), float(perf.get("script_estimate_ms", 0.0)),
+		float(perf.get("physics_ms", 0.0)), int(perf.get("render_draw_calls", 0)), budget.to_upper(),
+		String(objective.get("type", "free_play")).to_upper(), int(objective.get("progress", 0)),
+		int(objective.get("target", 1))]
 
 
 func _round_readout() -> String:
@@ -827,13 +1104,61 @@ func clear_mirror_run() -> void:
 
 func _fire_weapon(command: RefCounted) -> bool:
 	if adapter.weapon.mag <= 0:
-		return false
+		if not adapter.weapon.is_melee():
+			return false
 	var direction: Vector3 = command.get("aim_world")
+	if active_mode != "hybrid" and adapter.weapon.is_melee():
+		return _physical_melee(direction)
 	if adapter.weapon.fire(self, adapter.muzzle_world(), direction):
 		adapter.apply_recoil(direction, adapter.weapon.info().get("recoil", {}),
 			character.level("strength"))
 		return true
 	return false
+
+
+func _physical_melee(direction: Vector3) -> bool:
+	if not adapter.weapon.can_fire():
+		return false
+	var row: Dictionary = adapter.weapon.info()
+	adapter.weapon._cd = float(row["cooldown"])
+	adapter.right_hand.apply_central_impulse(direction.normalized() * adapter.right_hand.mass * 2.2)
+	if opponent == null or lab_round == null or lab_round.phase != "active":
+		return true
+	var to_target: Vector3 = opponent.body.global_position - player.global_position
+	to_target.y = 0.0
+	if to_target.length() <= float(row.get("reach", 1.9)) \
+			and direction.normalized().dot(to_target.normalized()) \
+			>= cos(deg_to_rad(float(row.get("arc_deg", 70.0)) * 0.5)) \
+			and _physical_melee_clear(opponent.body):
+		opponent.take_damage(float(row.get("damage", 8.0)), player)
+		opponent.body.velocity += to_target.normalized() * float(row.get("shove", 1.2))
+		adapter.weapon._combo = adapter.weapon._combo + 1 \
+			if adapter.weapon._combo_t > 0.0 else 1
+		adapter.weapon._combo_t = 1.2
+		if adapter.weapon._combo % 3 == 0:
+			lab_round.score("player", "clean_combo")
+			if int(adapter.condition.get("martial_arts", 0)) >= 2:
+				lab_round.knockdown("opponent", "player")
+	return true
+
+
+func _physical_melee_clear(target: CollisionObject3D) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(
+		player.global_position + Vector3(0, 0.25, 0),
+		target.global_position + Vector3(0, 0.85, 0))
+	var excluded: Array[RID] = weapon_exclusions()
+	excluded.append(target.get_rid())
+	query.exclude = excluded
+	return player.get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+func weapon_exclusions() -> Array[RID]:
+	var excluded: Array[RID] = []
+	if adapter != null and "parts" in adapter:
+		for part in (adapter.parts as Dictionary).values():
+			if part is CollisionObject3D:
+				excluded.append((part as CollisionObject3D).get_rid())
+	return excluded
 
 
 func _release_throw(command: RefCounted) -> void:
@@ -884,7 +1209,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_U: cycle_surface()
 			KEY_I: cycle_condition()
 			KEY_K: toggle_camera_wall()
-			KEY_L: begin_controller_calibration()
+			KEY_L: toggle_controller_calibration()
 			KEY_N: cycle_scenario()
 			KEY_B: cycle_transport()
 			KEY_M: cycle_chaos_load()
@@ -896,6 +1221,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			JOY_BUTTON_DPAD_LEFT: cycle_surface()
 			JOY_BUTTON_DPAD_UP: cycle_condition()
 			JOY_BUTTON_DPAD_DOWN: toggle_camera_wall()
+			JOY_BUTTON_Y: cycle_body_mode()
+			JOY_BUTTON_LEFT_SHOULDER: cycle_scenario()
+			JOY_BUTTON_BACK: toggle_replay_freeze()
+			JOY_BUTTON_START: reset_station()
 
 
 func emit_noise(_at: Vector3, _radius: float, _kind: String = "") -> void:

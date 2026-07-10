@@ -64,6 +64,24 @@ func _ready() -> void:
 	await get_tree().create_timer(0.16).timeout
 	var inactive: bool = flashes.all(func(n: Node) -> bool: return not n.visible)
 	_check("expired flash slots stay pooled and inactive", inactive and flashes.size() == 12)
+	var resources_before: Dictionary = {}
+	for flash in flashes:
+		var blade_a := flash.get_child(0) as MeshInstance3D
+		var blade_b := flash.get_child(1) as MeshInstance3D
+		resources_before[flash.get_instance_id()] = [blade_a.mesh.get_instance_id(),
+			blade_b.mesh.get_instance_id(), blade_a.material_override.get_instance_id()]
+	for _i in 12:
+		weapon._cd = 0.0
+		weapon.fire(main, origin, direction, host)
+	var resources_reused: bool = true
+	for flash in flashes:
+		var blade_a := flash.get_child(0) as MeshInstance3D
+		var blade_b := flash.get_child(1) as MeshInstance3D
+		resources_reused = resources_reused and resources_before[flash.get_instance_id()] == [
+			blade_a.mesh.get_instance_id(), blade_b.mesh.get_instance_id(),
+			blade_a.material_override.get_instance_id()]
+	_check("replayed automatic fire reuses each slot's mesh and material resources",
+		resources_reused)
 
 	main.queue_free()
 	_finish()

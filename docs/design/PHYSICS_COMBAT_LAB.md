@@ -1,6 +1,6 @@
 # PHYSICS & COMBAT LAB — playable body, gunfeel, damage, and Spectacles proving ground
 
-**Status:** DRAFT FOR OWNER REVIEW · **Date:** 2026-07-10
+**Status:** L1 SHIPPED · L2–L4 PLANNED · **Date:** 2026-07-10
 
 ## 1. The promise
 
@@ -32,7 +32,7 @@ world, netcode, traffic, or the shipped player controller.
 The work ships in four independently playable slices. A later slice cannot make an earlier slice
 unplayable.
 
-1. **L1 — Physics & Combat Lab:** body comparison, common controls, weapon radial, pistol/shotgun/
+1. **L1 — Physics & Combat Lab — SHIPPED:** body comparison, common controls, weapon radial, pistol/shotgun/
    automatic firearm/fists/grenade, nonlethal opponent, distance/LOS calibration, instrumentation.
 2. **L2 — Impact Bay:** event-driven vehicle dents, directional armor, bullet marks, crash contact
    capture, damage persistence, and performance budgets.

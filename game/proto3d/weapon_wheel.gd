@@ -16,6 +16,7 @@ const WEDGE_ACTIVE := Color("#d8922f")
 const CENTER_ACTIVE := Color("#2fa89a")
 
 var is_open: bool = false
+var hold_threshold: float = HOLD_S
 var _holding: bool = false
 var _held_s: float = 0.0
 var _ids: Array[String] = []
@@ -166,7 +167,7 @@ func advance_hold(delta: float) -> void:
 	if not _holding or is_open:
 		return
 	_held_s += delta
-	if _held_s >= HOLD_S:
+	if _held_s >= hold_threshold:
 		_open()
 
 

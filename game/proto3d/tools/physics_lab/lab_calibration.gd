@@ -37,7 +37,9 @@ func sample(raw: Dictionary, delta: float) -> void:
 	_last_normalized = {"left_stick": normalize_stick(left),
 		"right_stick": normalize_stick(right),
 		"left_trigger": normalize_trigger(float(raw.get("left_trigger", 0.0))),
-		"right_trigger": normalize_trigger(float(raw.get("right_trigger", 0.0)))}
+		"right_trigger": normalize_trigger(float(raw.get("right_trigger", 0.0))),
+		"keyboard_move": raw.get("keyboard_move", Vector2.ZERO),
+		"mouse": raw.get("mouse", Vector2.ZERO), "buttons": raw.get("buttons", {})}
 	if _sampling:
 		_max_rest = maxf(_max_rest, maxf(left.length(), right.length()))
 		_sample_elapsed += delta

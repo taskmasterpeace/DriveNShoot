@@ -20,6 +20,7 @@ var hud: Node = null
 var active_car: Node = null
 var fx_parent: Node = null
 var shot_spread_deg: float = 0.0
+var enabled: bool = true
 
 var _agent: NavigationAgent3D = null
 var _provoked: bool = false
@@ -33,6 +34,8 @@ var _hits_taken: int = 0
 var _behavior_time: float = 0.0
 var _last_muzzle: Vector3 = Vector3.ZERO
 var _last_aim: Vector3 = Vector3.FORWARD
+var _body_collision_layer: int = 0
+var _body_collision_mask: int = 0
 
 
 func setup(round_in: RefCounted, target_in: Node3D, behavior_in: String = "passive",
@@ -45,6 +48,8 @@ func setup(round_in: RefCounted, target_in: Node3D, behavior_in: String = "passi
 	body.use_player_input = false
 	body.is_active = true
 	add_child(body)
+	_body_collision_layer = body.collision_layer
+	_body_collision_mask = body.collision_mask
 	player = body
 	body.damaged.connect(_on_body_damaged)
 	_agent = NavigationAgent3D.new()
@@ -53,6 +58,7 @@ func setup(round_in: RefCounted, target_in: Node3D, behavior_in: String = "passi
 	_agent.target_desired_distance = 1.0
 	body.add_child(_agent)
 	set_behavior(behavior_in)
+	set_enabled(true)
 
 
 static func _rows() -> Dictionary:
@@ -83,6 +89,24 @@ func set_behavior(id: String) -> bool:
 	weapon = ProtoWeapon.new(String(row.get("weapon_id", "pistol")))
 	_set_weapon_visual()
 	return true
+
+
+func set_weapon(id: String) -> bool:
+	if not ProtoWeapon.WEAPONS.has(id):
+		return false
+	weapon = ProtoWeapon.new(id)
+	row["weapon_id"] = id
+	_set_weapon_visual()
+	return true
+
+
+func set_enabled(value: bool) -> void:
+	enabled = value
+	visible = value
+	process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
+	if body != null:
+		body.collision_layer = _body_collision_layer if value else 0
+		body.collision_mask = _body_collision_mask if value else 0
 
 
 func _set_weapon_visual() -> void:

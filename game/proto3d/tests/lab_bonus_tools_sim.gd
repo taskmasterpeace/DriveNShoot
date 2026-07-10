@@ -94,6 +94,54 @@ func _ready() -> void:
 	add_child(lab)
 	for _i in 6:
 		await get_tree().physics_frame
+	var calibration_ui: bool = lab.hud.has_method("calibration_panel_facts")
+	var calibration_facts: Dictionary = lab.hud.calibration_panel_facts() if calibration_ui else {}
+	var calibration_fields: Array = calibration_facts.get("fields", [])
+	var has_calibration_fields: bool = true
+	for field_id in ["deadzone", "response_exponent", "aim_sensitivity",
+		"trigger_threshold", "rumble", "hold_threshold"]:
+		has_calibration_fields = has_calibration_fields and calibration_fields.has(field_id)
+	_check("standalone lab exposes an interactive calibration panel with every tuning field",
+		calibration_ui and has_calibration_fields)
+	lab.calibration.deadzone = 0.20
+	var calibrated_input: RefCounted = null
+	lab.input_source.feed_for_test({"pad": {"move": Vector2(0.12, 0.0),
+		"aim_world": Vector3.FORWARD}})
+	calibrated_input = lab.input_source.sample(lab.camera, lab.player.global_position, 1.0 / 60.0)
+	lab.input_source.clear_test_feed()
+	_check("selected lab calibration normalizes the actual pad command path",
+		calibrated_input != null and (calibrated_input.get("move") as Vector3).is_zero_approx())
+	lab.calibration.trigger_threshold = 0.20
+	lab.input_source.feed_for_test({"pad": {"move": Vector2.ZERO,
+		"aim_world": Vector3.FORWARD, "right_trigger": 0.15, "fire": true}})
+	var trigger_below: RefCounted = lab.input_source.sample(lab.camera,
+		lab.player.global_position, 1.0 / 60.0)
+	lab.input_source.feed_for_test({"pad": {"move": Vector2.ZERO,
+		"aim_world": Vector3.FORWARD, "right_trigger": 0.55, "fire": false}})
+	var trigger_above: RefCounted = lab.input_source.sample(lab.camera,
+		lab.player.global_position, 1.0 / 60.0)
+	_check("calibrated trigger threshold gates the real pad fire edge",
+		not bool(trigger_below.get("fire_held")) and bool(trigger_above.get("fire_pressed")))
+	lab.input_source.clear_test_feed()
+	var original_move_left: Array[InputEvent] = InputMap.action_get_events("move_left")
+	InputMap.action_erase_events("move_left")
+	var rebound_left := InputEventKey.new()
+	rebound_left.keycode = KEY_Q
+	InputMap.action_add_event("move_left", rebound_left)
+	Input.action_press("move_left", 1.0)
+	await get_tree().process_frame
+	var rebound_command: RefCounted = lab.input_source.sample(lab.camera,
+		lab.player.global_position, 1.0 / 60.0)
+	Input.action_release("move_left")
+	var q_is_bound: bool = InputMap.action_get_events("move_left").any(
+		func(event: InputEvent) -> bool:
+			return event is InputEventKey and (event as InputEventKey).keycode == KEY_Q)
+	InputMap.action_erase_events("move_left")
+	for original_event in original_move_left:
+		InputMap.action_add_event("move_left", original_event)
+	_check("lab keyboard movement honors the live InputMap rebind (x %.2f)" %
+		float((rebound_command.get("move") as Vector3).x),
+		q_is_bound and float((rebound_command.get("move") as Vector3).x) < -0.9)
 	var baseline: Dictionary = lab.adapter.metrics().duplicate(true)
 	lab.set_condition_preset("hurt")
 	var hurt: Dictionary = lab.adapter.metrics()

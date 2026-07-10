@@ -5,6 +5,10 @@ extends CanvasLayer
 
 signal verdict_submitted(ratings: Dictionary, note: String)
 signal verdict_clear_requested
+signal calibration_changed(settings: Dictionary)
+signal calibration_sample_requested
+signal calibration_save_requested(preset_name: String)
+signal calibration_load_requested(preset_name: String)
 
 const BONE := Color("#eadfca")
 const MUTED := Color("#aa9c86")
@@ -13,12 +17,19 @@ const TEAL := Color("#35b6a6")
 const PANEL := Color(0.105, 0.085, 0.068, 0.94)
 const BORDER := Color("#5e4b35")
 
-var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 bodies  ·  F4 opponent  ·  F5 xray  ·  F11 freeze  ·  F12 mirror  ·  U surface  ·  I condition  ·  K cameras  ·  L calibrate  ·  N scenario  ·  B network  ·  M load  ·  V verdict  ·  BACKSPACE reset"
+var controls_text: String = "WASD / LEFT STICK move  ·  SHIFT / L3 sprint  ·  SPACE / A dive  ·  LMB / RT fire  ·  G / LT throw  ·  RMB / RB radial  ·  F1/F2/F3 or Y bodies  ·  F4 / D-PAD RIGHT opponent  ·  U / D-PAD LEFT surface  ·  I / D-PAD UP condition  ·  K / D-PAD DOWN cameras  ·  L calibration  ·  N / LB scenario  ·  F11 / BACK freeze  ·  START reset  ·  V verdict"
 var _mode: Label = null
 var _station: Label = null
 var _weapon: Label = null
 var _telemetry: Label = null
+var _tools_panel: Panel = null
 var _tools: Label = null
+var _calibration_panel: Panel = null
+var _calibration_spins: Dictionary = {}
+var _calibration_name: LineEdit = null
+var _calibration_readout: Label = null
+var _calibration_status: Label = null
+var _recommended_deadzone: float = 0.12
 var _verdict_panel: Panel = null
 var _verdict_spins: Dictionary = {}
 var _verdict_note: LineEdit = null
@@ -50,18 +61,134 @@ func setup() -> void:
 	_telemetry.size = Vector2(488, 92)
 	top.add_child(_telemetry)
 
-	var controls := _panel(Vector2(18, -90), Vector2(980, 66))
-	controls.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	var controls := _panel(Vector2.ZERO, Vector2.ZERO)
+	controls.anchor_left = 0.0
+	controls.anchor_right = 1.0
+	controls.anchor_top = 1.0
+	controls.anchor_bottom = 1.0
+	controls.offset_left = 18.0
+	controls.offset_right = -18.0
+	controls.offset_top = -108.0
+	controls.offset_bottom = -18.0
 	root.add_child(controls)
-	var control_label := _label(controls_text, 13, BONE)
-	control_label.position = Vector2(16, 12)
-	control_label.size = Vector2(948, 44)
+	var control_label := _label(controls_text, 11, BONE)
+	control_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	control_label.offset_left = 16.0
+	control_label.offset_right = -16.0
+	control_label.offset_top = 10.0
+	control_label.offset_bottom = -10.0
 	control_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	controls.add_child(control_label)
 	_tools = _label("TOOLS  X-RAY OFF  ·  MIRROR READY  ·  BLACK BOX 20s", 12, MUTED)
-	_tools.position = Vector2(420, 24)
-	root.add_child(_tools)
+	_tools_panel = _panel(Vector2.ZERO, Vector2.ZERO)
+	_tools_panel.anchor_left = 1.0
+	_tools_panel.anchor_right = 1.0
+	_tools_panel.anchor_top = 0.0
+	_tools_panel.anchor_bottom = 0.0
+	_tools_panel.offset_left = -740.0
+	_tools_panel.offset_right = -18.0
+	_tools_panel.offset_top = 18.0
+	_tools_panel.offset_bottom = 104.0
+	root.add_child(_tools_panel)
+	_tools.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_tools.offset_left = 14.0
+	_tools.offset_right = -14.0
+	_tools.offset_top = 8.0
+	_tools.offset_bottom = -8.0
+	_tools.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_tools_panel.add_child(_tools)
+	_build_calibration(root)
 	_build_verdict(root)
+
+
+func _build_calibration(root: Control) -> void:
+	_calibration_panel = _panel(Vector2.ZERO, Vector2(560, 538))
+	_calibration_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_calibration_panel.position = Vector2(-280, -269)
+	_calibration_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(_calibration_panel)
+	var title := _label("INPUT OSCILLOSCOPE", 22, BONE)
+	title.position = Vector2(22, 16)
+	_calibration_panel.add_child(title)
+	var sub := _label("LAB-ONLY PAD TUNING — CAMPAIGN BINDS STAY UNTOUCHED", 11, MUTED)
+	sub.position = Vector2(22, 48)
+	_calibration_panel.add_child(sub)
+	var configs: Dictionary = {
+		"deadzone": [0.0, 0.5, 0.01], "response_exponent": [0.2, 3.0, 0.05],
+		"aim_sensitivity": [0.2, 2.5, 0.05], "trigger_threshold": [0.0, 0.8, 0.01],
+		"rumble": [0.0, 1.0, 0.05], "hold_threshold": [0.08, 0.5, 0.01],
+	}
+	var fields: Array[String] = ["deadzone", "response_exponent", "aim_sensitivity",
+		"trigger_threshold", "rumble", "hold_threshold"]
+	for i in fields.size():
+		var id: String = fields[i]
+		var field_label := _label(id.replace("_", " ").to_upper(), 12, TEAL)
+		field_label.position = Vector2(24, 82 + i * 39)
+		_calibration_panel.add_child(field_label)
+		var spin := SpinBox.new()
+		var config: Array = configs[id]
+		spin.min_value = float(config[0])
+		spin.max_value = float(config[1])
+		spin.step = float(config[2])
+		spin.position = Vector2(366, 74 + i * 39)
+		spin.size = Vector2(166, 32)
+		spin.add_theme_font_size_override("font_size", 13)
+		_calibration_panel.add_child(spin)
+		_calibration_spins[id] = spin
+	_calibration_readout = _label("RAW L 0.00,0.00  R 0.00,0.00\nNORM L 0.00,0.00  R 0.00,0.00", 11, MUTED)
+	_calibration_readout.position = Vector2(24, 320)
+	_calibration_readout.size = Vector2(508, 56)
+	_calibration_panel.add_child(_calibration_readout)
+	var sample_button := Button.new()
+	sample_button.text = "SAMPLE DRIFT 5s"
+	sample_button.position = Vector2(24, 378)
+	sample_button.size = Vector2(154, 34)
+	sample_button.pressed.connect(func() -> void: calibration_sample_requested.emit())
+	_calibration_panel.add_child(sample_button)
+	var recommended_button := Button.new()
+	recommended_button.text = "USE RECOMMENDED"
+	recommended_button.position = Vector2(188, 378)
+	recommended_button.size = Vector2(164, 34)
+	recommended_button.pressed.connect(_use_recommended_deadzone)
+	_calibration_panel.add_child(recommended_button)
+	var apply_button := Button.new()
+	apply_button.text = "APPLY + RUMBLE"
+	apply_button.position = Vector2(362, 378)
+	apply_button.size = Vector2(170, 34)
+	apply_button.pressed.connect(_emit_calibration)
+	_calibration_panel.add_child(apply_button)
+	_calibration_name = LineEdit.new()
+	_calibration_name.placeholder_text = "preset name"
+	_calibration_name.position = Vector2(24, 422)
+	_calibration_name.size = Vector2(248, 34)
+	_calibration_panel.add_child(_calibration_name)
+	var save_button := Button.new()
+	save_button.text = "SAVE"
+	save_button.position = Vector2(282, 422)
+	save_button.size = Vector2(76, 34)
+	save_button.pressed.connect(func() -> void:
+		_emit_calibration()
+		calibration_save_requested.emit(_calibration_name.text))
+	_calibration_panel.add_child(save_button)
+	var load_button := Button.new()
+	load_button.text = "LOAD"
+	load_button.position = Vector2(368, 422)
+	load_button.size = Vector2(76, 34)
+	load_button.pressed.connect(func() -> void:
+		calibration_load_requested.emit(_calibration_name.text))
+	_calibration_panel.add_child(load_button)
+	var close_button := Button.new()
+	close_button.text = "CLOSE"
+	close_button.position = Vector2(454, 422)
+	close_button.size = Vector2(78, 34)
+	close_button.pressed.connect(func() -> void: toggle_calibration())
+	_calibration_panel.add_child(close_button)
+	_calibration_status = _label("L OPENS/CLOSES · APPLY UPDATES THE LIVE LAB COMMAND PATH", 11, AMBER)
+	_calibration_status.position = Vector2(24, 470)
+	_calibration_status.size = Vector2(508, 48)
+	_calibration_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_calibration_panel.add_child(_calibration_status)
+	_calibration_panel.visible = false
 
 
 func _build_verdict(root: Control) -> void:
@@ -174,6 +301,79 @@ func pulse_hit() -> void:
 func set_tools(text: String) -> void:
 	if _tools != null:
 		_tools.text = text
+
+
+func tools_text() -> String:
+	return _tools.text if _tools != null else ""
+
+
+func toggle_calibration(settings: Dictionary = {}) -> void:
+	if _calibration_panel == null:
+		return
+	if not settings.is_empty():
+		set_calibration_values(settings)
+	_calibration_panel.visible = not _calibration_panel.visible
+	if _calibration_panel.visible and _calibration_name != null:
+		_calibration_name.grab_focus()
+
+
+func calibration_open() -> bool:
+	return _calibration_panel != null and _calibration_panel.visible
+
+
+func calibration_panel_facts() -> Dictionary:
+	return {"visible": calibration_open(), "fields": _calibration_spins.keys(),
+		"values": calibration_values()}
+
+
+func calibration_values() -> Dictionary:
+	var values: Dictionary = {}
+	for id in _calibration_spins:
+		values[id] = float((_calibration_spins[id] as SpinBox).value)
+	return values
+
+
+func set_calibration_values(settings: Dictionary) -> void:
+	for id in _calibration_spins:
+		if settings.has(id):
+			(_calibration_spins[id] as SpinBox).value = float(settings[id])
+
+
+func refresh_calibration(oscilloscope: Dictionary, drift: Dictionary) -> void:
+	if _calibration_readout == null:
+		return
+	var raw: Dictionary = oscilloscope.get("raw", {})
+	var normalized: Dictionary = oscilloscope.get("normalized", {})
+	var raw_l: Vector2 = raw.get("left_stick", Vector2.ZERO)
+	var raw_r: Vector2 = raw.get("right_stick", Vector2.ZERO)
+	var norm_l: Vector2 = normalized.get("left_stick", Vector2.ZERO)
+	var norm_r: Vector2 = normalized.get("right_stick", Vector2.ZERO)
+	var key_move: Vector2 = raw.get("keyboard_move", Vector2.ZERO)
+	var mouse: Vector2 = raw.get("mouse", Vector2.ZERO)
+	_recommended_deadzone = float(drift.get("recommended_deadzone", _recommended_deadzone))
+	var sample_state: String = "SAMPLING %.1f/5.0s" % float(drift.get("elapsed", 0.0)) \
+		if bool(oscilloscope.get("sampling", false)) else "RECOMMENDED DZ %.2f" % _recommended_deadzone
+	_calibration_readout.text = "RAW  L %.2f,%.2f  R %.2f,%.2f  LT/RT %.2f/%.2f\nNORM L %.2f,%.2f  R %.2f,%.2f  LT/RT %.2f/%.2f\nKEY %.0f,%.0f  MOUSE %.0f,%.0f  ·  %s" % [
+		raw_l.x, raw_l.y, raw_r.x, raw_r.y,
+		float(raw.get("left_trigger", 0.0)), float(raw.get("right_trigger", 0.0)),
+		norm_l.x, norm_l.y, norm_r.x, norm_r.y,
+		float(normalized.get("left_trigger", 0.0)), float(normalized.get("right_trigger", 0.0)),
+		key_move.x, key_move.y, mouse.x, mouse.y, sample_state]
+
+
+func set_calibration_status(status: String) -> void:
+	if _calibration_status != null:
+		_calibration_status.text = status
+
+
+func _use_recommended_deadzone() -> void:
+	if _calibration_spins.has("deadzone"):
+		(_calibration_spins["deadzone"] as SpinBox).value = _recommended_deadzone
+	_emit_calibration()
+
+
+func _emit_calibration() -> void:
+	calibration_changed.emit(calibration_values())
 
 
 func toggle_verdict() -> void:

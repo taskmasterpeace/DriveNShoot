@@ -16,6 +16,9 @@ class FlashSlot extends Node3D:
 	var blade_a: MeshInstance3D = null
 	var blade_b: MeshInstance3D = null
 	var light: OmniLight3D = null
+	var mesh_a: BoxMesh = null
+	var mesh_b: BoxMesh = null
+	var material: StandardMaterial3D = null
 	var active: bool = false
 	var life_left: float = 0.0
 	var started_serial: int = 0
@@ -27,6 +30,15 @@ class FlashSlot extends Node3D:
 		blade_a = MeshInstance3D.new()
 		blade_b = MeshInstance3D.new()
 		light = OmniLight3D.new()
+		mesh_a = BoxMesh.new()
+		mesh_b = BoxMesh.new()
+		material = StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.emission_enabled = true
+		blade_a.mesh = mesh_a
+		blade_b.mesh = mesh_b
+		blade_a.material_override = material
+		blade_b.material_override = material
 		blade_a.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		blade_b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(blade_a)
@@ -41,20 +53,11 @@ class FlashSlot extends Node3D:
 		var width: float = float(row.get("width", 0.16))
 		var offset: float = float(row.get("offset", 0.3))
 		var color: Color = row.get("color", Color(1.0, 0.82, 0.35)) as Color
-		var mesh_a := BoxMesh.new()
 		mesh_a.size = Vector3(width, width * 0.24, length)
-		var mesh_b := BoxMesh.new()
 		mesh_b.size = mesh_a.size
-		var material := StandardMaterial3D.new()
 		material.albedo_color = color
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.emission_enabled = true
 		material.emission = color
 		material.emission_energy_multiplier = float(row.get("emission", 5.0))
-		blade_a.mesh = mesh_a
-		blade_b.mesh = mesh_b
-		blade_a.material_override = material
-		blade_b.material_override = material
 		light.light_color = color
 		light.light_energy = float(row.get("energy", 2.4))
 		light.omni_range = float(row.get("range", 4.0))

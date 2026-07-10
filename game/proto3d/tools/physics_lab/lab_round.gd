@@ -40,7 +40,7 @@ func setup(ids: Array, health_in: float = 100.0, rounds_to_win_in: int = 2) -> v
 
 func _fresh_fighter() -> Dictionary:
 	return {"health": max_health, "rounds": 0, "points": 0,
-		"knockdowns": 0, "damage_taken": 0.0}
+		"knockdowns": 0, "hits": 0, "damage_taken": 0.0}
 
 
 func health(id: String) -> float:
@@ -72,8 +72,11 @@ func hit(fighter_id: String, amount: float, tags: Dictionary = {}) -> Dictionary
 	var fighter := fighters[fighter_id] as Dictionary
 	fighter["health"] = maxf(0.0, float(fighter["health"]) - amount)
 	fighter["damage_taken"] = float(fighter["damage_taken"]) + amount
+	var attacker: String = String(tags.get("attacker", opponent_of(fighter_id)))
+	if fighters.has(attacker):
+		var scorer := fighters[attacker] as Dictionary
+		scorer["hits"] = int(scorer.get("hits", 0)) + 1
 	if float(fighter["health"]) <= 0.0:
-		var attacker: String = String(tags.get("attacker", opponent_of(fighter_id)))
 		_end_round(attacker, fighter_id, String(tags.get("kind", "depletion")).to_upper())
 	return snapshot()
 
