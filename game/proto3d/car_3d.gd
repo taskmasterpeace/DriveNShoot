@@ -1302,6 +1302,19 @@ func _become_husk(_exploded: bool) -> void:
 	# Char every visual — no matter HOW it died, the wreck reads burnt (user law).
 	var charred := ProtoWorldBuilder.material(Color(0.09, 0.085, 0.08), 1.0)
 	_char_visuals(self, charred)
+	# THE DYING EMBER (it.17 night sweep): a faint hot point in the hull so a
+	# night wreck reads as a DEAD FIRE, not a hole in the dark. Emissive mesh,
+	# no light (husks are many, lights are not free) — added AFTER the char pass
+	# so it keeps its glow.
+	var ember := MeshInstance3D.new()
+	var ember_mesh := BoxMesh.new()
+	ember_mesh.size = Vector3(0.14, 0.06, 0.18)
+	ember.mesh = ember_mesh
+	ember.material_override = ProtoWorldBuilder.material(Color(0.9, 0.32, 0.08), 0.6, true)
+	var hull_deck: Vector3 = spec.get("hull", spec["chassis"])
+	ember.position = Vector3(0.1, hull_deck.y + 0.08, -0.5) # ON the burnt deck — visible, not buried
+	ember.name = "ember"
+	add_child(ember)
 
 
 func _char_visuals(node: Node, mat: Material) -> void:

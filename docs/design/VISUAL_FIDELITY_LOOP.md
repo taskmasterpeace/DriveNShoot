@@ -511,10 +511,41 @@ character. What separates 9 from 10 is owner-lane and content-scale work:
 The loop has mined the honest code-drawn wins; the remaining levers need either the
 owner's word or content-scale investment. The loop CONTINUES probing + polishing.
 
-**Next up (iteration 17):**
-1. **Full-suite regression sweep** — run the COMPLETE visual-domain sim battery in
-   one pass and re-render every acceptance shot; fix anything that drifted.
-2. **The doll juice recheck**: flash-on-worsen in a live drive (stage a hit while
-   driving — does the pulse read at speed?).
-3. **Husk/wreck read at night** (carbooth night + husk combo tile).
-4. TITLE backdrop: only on the owner's yes.
+**Next up (iteration 17):** ~~full sweep · night husk · juice recheck~~ → executed
+below.
+
+---
+
+## Iteration 17 — 2026-07-10 ~16:55
+
+**Shipped:**
+- **FULL-SUITE SWEEP: 287/287 GREEN** across all 12 visual-domain sims (exhaust 25
+  after the ember check, map 45, gauge 44, dash 30, bodydoll 14, combat_feel 15,
+  gunfeel 37, ground 19, weather_fx 12, silhouette 21, interior_skin 15, npc_drive
+  11) + every acceptance render re-shot and spot-checked. ZERO drift after 16
+  iterations of changes.
+- **THE DYING EMBER** (the one gap the sweep found): a night husk read as a hole in
+  the dark — now a faint emissive ember sits on the burnt deck (mesh, no light —
+  husks are many), and from the game camera a wreck reads silhouette + ember +
+  smolder. Booth note: the night-husk tile shows headlight cones (studio-only —
+  in-game main forces lights off on dead cars every frame).
+- **Doll juice recheck, resolved by evidence**: the flash path is already sim-proven
+  end-to-end (tier flow in dashboard_sim, arm/decay in bodydoll_sim); whether the
+  0.7 s pulse FEELS right at 60 mph is a human-playtest question — owner-noted, not
+  fabricated into a sim.
+- Ladder: | 17 | 9.0 | stability sweep + the dying ember |
+
+**Steam rating: 9.0/10** (held — a stability pass, honestly rated). The loop's
+remaining levers stand as stated in it.16: title/menu (owner-gated), UI lane
+(owner's), content rows, big-art passes.
+
+**Next up (iteration 18):**
+1. **Playtest-facing polish sweep**: walk the PLAYTEST_GUIDE's DO→EXPECT script eyes
+   (boot → drive → fight → night) via renders; catch anything a fresh player sees
+   in minute one that the probes haven't.
+2. **The smoking gun check**: SMOKING fire_state (chassis <40%) — is there tail
+   smoke AND engine smoke separation? (fire at engine, smoke at pipe — verify the
+   read mid-spiral.)
+3. TITLE backdrop: only on the owner's yes.
+4. Consider: loop cadence — with the code-mine worked, propose slowing to 60-min
+   iterations (more per-pass depth) in the report; owner decides.

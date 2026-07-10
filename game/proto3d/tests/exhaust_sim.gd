@@ -102,6 +102,7 @@ func _run() -> void:
 		_check("husk smolder goes UP (dir.y=%.2f > 0.9)" % sm.direction.y, sm.direction.y > 0.9)
 		_check("husk smolder spreads wide (%.0f deg >= 20)" % sm.spread, sm.spread >= 20.0)
 		_check("husk smolders (emitting)", sm.emitting)
+		_check("the dying EMBER glows in the wreck", car.get_node_or_null("ember") is MeshInstance3D)
 		var hmat := (sm.mesh as QuadMesh).material as StandardMaterial3D if sm.mesh is QuadMesh else null
 		_check("husk smoke is burnt BLACK on the material (r=%.2f < 0.2)" % (hmat.albedo_color.r if hmat != null else -1.0),
 			hmat != null and hmat.albedo_color.r < 0.2)

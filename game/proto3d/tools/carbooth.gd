@@ -50,6 +50,7 @@ func _ready() -> void:
 		["semi", 0.5, "semi_stack", false],
 		["scavenger", -1.0, "husk", false],
 		["scavenger", 1.0, "night_drive", true],
+		["scavenger", -1.0, "night_husk", true], # it.17: does a wreck read in the dark?
 	]
 	for s_row in subjects:
 		var row: Array = s_row
