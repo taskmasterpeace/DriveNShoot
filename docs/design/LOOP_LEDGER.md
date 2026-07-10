@@ -53,7 +53,7 @@
 | E2 | bike_rider_sim | OPEN | — |
 | E3 | bike_sim | OPEN | — |
 | E4 | binocular_sim | DONE | realigned to the retirement (bind row cleared; B=recall) — 6/0 |
-| E5 | char_sim | OPEN | — |
+| E5 | char_sim | DONE | realigned to RIG V2 build axis (raider slab = build 1.6) — 14/0 |
 | E6 | cone_sim | DONE | binocular phase asserts no-change — 8/0 |
 | E7 | dark_sim | DONE | night-floor law (tense-not-blind) + glass retirement — 17/0 |
 | E8 | drone_sim | OPEN | likely stale vs one-press/recall rework |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 22 (C0–C6, I0–I2, W0, P17, E4, E6, E7, E11, E24–E27, F8, F10, F12)
-- OPEN: 22 (E1–E3, E5, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
+- DONE: 23 (C0–C6, I0–I2, W0, P17, E4–E7, E11, E24–E27, F8, F10, F12)
+- OPEN: 21 (E1–E3, E8–E10, E13–E15, E17, E19–E21; F1–F4, F6, F7, F9, F11, F13, F14)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

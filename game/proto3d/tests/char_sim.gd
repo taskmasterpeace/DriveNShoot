@@ -53,7 +53,11 @@ func _physics_process(delta: float) -> void:
 					pup.appearance["handed"] == "left" and pup.handed_sign < 0.0)
 				_check("the puppet is blind in the RIGHT eye", pup.appearance["blind_eye"] == "r")
 				_check("the puppet carries the bad LEFT leg as a limp", pup.appearance["limp"] == "l")
-				_check("the RAIDER body applied (torso %.2f > scav 0.5)" % pup.appearance["torso"].x, pup.appearance["torso"].x > 0.5)
+				# RIG V2 realign: BUILD is the variety axis now (puppet.gd:38 —
+				# "the raider is a slab"); raw torso.x stayed 0.50, the slab
+				# read comes from build 1.6 vs the scav's default 1.0.
+				_check("the RAIDER body applied (build %.2f > scav 1.0)" % float(pup.appearance.get("build", 1.0)),
+					float(pup.appearance.get("build", 1.0)) > 1.0)
 				# The SAME picks are stat hooks:
 				_check("a blind eye NARROWS the vision cone (arc mult %.2f)" % main.character.vision_arc_mult, main.character.vision_arc_mult == 0.5)
 				_check("the dark side follows the RIGHT eye (yaw offset %.2f, want <0)" % main.character.vision_yaw_offset, main.character.vision_yaw_offset < 0.0)
