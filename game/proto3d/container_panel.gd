@@ -167,7 +167,13 @@ func _fill(box: VBoxContainer, from: ProtoContainer, to: ProtoContainer, mine_si
 			var btn := Button.new()
 			btn.add_theme_font_override("font", ProtoHUD.mixed_font())
 			var n := from.count(id)
-			btn.text = "%s %s ×%d · %.1fkg" % [info["emoji"], info["name"], n, info.get("w", 0.5) * n]
+			# Pixel item icon (assets/ui/items/ via the bridge) — the emoji stays only
+			# as the fallback when an id has no icon yet.
+			var pic := ProtoItemBridge.icon_for(String(id))
+			if pic != null:
+				btn.icon = pic
+				btn.add_theme_constant_override("icon_max_width", 24)
+			btn.text = "%s%s ×%d · %.1fkg" % ["" if pic != null else String(info["emoji"]) + " ", info["name"], n, info.get("w", 0.5) * n]
 			btn.tooltip_text = String(info.get("desc", ""))
 			if _merchant != null and id != "scrip" and _main and _main.has_method("trade_price"):
 				btn.text += "  🪙%d" % _main.trade_price(id, mine_side) # sell price on your side, buy on theirs

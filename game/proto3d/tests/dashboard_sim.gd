@@ -60,8 +60,9 @@ func _ready() -> void:
 	var d := car.dashboard()
 	_check("set_dashboard receives tier == CRITICAL for engine", int(d["engine"]) == Damageable.Tier.CRITICAL)
 	var expect_engine_bar := ProtoHUD._bar(car.components["engine"].ratio())
+	# (2026-07-10 pixel-icon pass: the part icon is a TextureRect beside the label now — the label is the BARE bar.)
 	_check("the rendered bar is the ▮▮▱▱-class CRITICAL string (%s)" % hud.dash_part_text("engine"),
-		hud.dash_part_text("engine") == "🔧" + expect_engine_bar and expect_engine_bar.count("▮") <= 1)
+		hud.dash_part_text("engine") == expect_engine_bar and expect_engine_bar.count("▮") <= 1)
 
 	# --- P0-1b: fuel bar + 💥BLOW don't regress under fire staging ------------------
 	car.components["engine"].hp = car.components["engine"].max_hp # heal so fire is isolated
@@ -107,7 +108,7 @@ func _ready() -> void:
 	hud.set_dashboard(car.dashboard())
 	var expect_batt_bar := ProtoHUD._bar(car.components["battery"].ratio())
 	_check("the dashboard renders CRITICAL for battery too (%s)" % hud.dash_part_text("battery"),
-		hud.dash_part_text("battery") == "🔋" + expect_batt_bar and expect_batt_bar.count("▮") <= 1)
+		hud.dash_part_text("battery") == expect_batt_bar and expect_batt_bar.count("▮") <= 1)
 	car.components["battery"].hp = car.components["battery"].max_hp # heal
 
 	# --- P0-1d: CRITICAL tires — the SLOP (physical grip drop) + dashboard CONFIRM ---
@@ -127,7 +128,7 @@ func _ready() -> void:
 	hud.set_dashboard(car.dashboard())
 	var expect_tire_bar := ProtoHUD._bar(car.components["tires"].ratio())
 	_check("the dashboard renders CRITICAL for tires too (%s)" % hud.dash_part_text("tires"),
-		hud.dash_part_text("tires") == "🛞" + expect_tire_bar and expect_tire_bar.count("▮") <= 1)
+		hud.dash_part_text("tires") == expect_tire_bar and expect_tire_bar.count("▮") <= 1)
 	car.components["tires"].hp = car.components["tires"].max_hp # heal
 
 	# --- P1-2: occupant clause — synthetic dict (no producer yet) --------------------

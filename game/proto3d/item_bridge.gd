@@ -8,6 +8,30 @@ extends RefCounted
 
 static var _cache: Dictionary = {}   ## id -> InventoryItem (one resource per id, shared)
 
+## THE ICON SHELF (assets/ui/items/): an item id resolves to its pixel icon when one
+## exists — direct name match first, then the alias table (an alias is either another
+## items/ name or a full res:// path into a sibling icon set). Missing icon = null and
+## the grid falls back to the item's name, exactly as before.
+const ICON_DIR := "res://assets/ui/items"
+const ICON_ALIAS: Dictionary = {
+	"9mm": "ammo", "12ga": "ammo", "painkillers": "pills", "map_fragment": "map",
+	"scrip": "coins", "car_parts": "res://assets/ui/skills/x_gear.png",
+	"power_cell": "res://assets/ui/skills/x_battery.png",
+	"drone": "res://assets/ui/markers/drone.png",
+	"drone_remote": "res://assets/ui/markers/drone.png",
+}
+
+static func icon_for(id: String) -> Texture2D:
+	var direct := "%s/%s.png" % [ICON_DIR, id]
+	if ResourceLoader.exists(direct):
+		return load(direct)
+	if ICON_ALIAS.has(id):
+		var alias := String(ICON_ALIAS[id])
+		var path := alias if alias.begins_with("res://") else "%s/%s.png" % [ICON_DIR, alias]
+		if ResourceLoader.exists(path):
+			return load(path)
+	return null
+
 
 ## Stack sizes by category — ammo/coin pile deep, gear stays chunky.
 static func _max_stack(cat: String) -> int:
@@ -33,6 +57,7 @@ static func resolve(id: String) -> InventoryItem:
 	item.id = StringName(id)
 	item.display_name = "%s %s" % [String(row.get("emoji", "")), String(row.get("name", id))]
 	item.description = String(row.get("desc", ""))
+	item.icon = icon_for(id)
 	item.max_stack = _max_stack(String(row.get("cat", "loot")))
 	_cache[id] = item
 	return item

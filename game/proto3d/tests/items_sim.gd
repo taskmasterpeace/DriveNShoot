@@ -148,6 +148,12 @@ func _physics_process(delta: float) -> void:
 				_check("the pack reads as a KIT LIST (%d category headers, want >=4)" % headers, headers >= 4)
 				_check("rows carry tooltips (%d)" % tooltips, tooltips >= 5)
 				_check("load line is honest kg", main.panel._load_label.text.contains("kg"))
+				# THE PIXEL ITEM ICONS (2026-07-10): the bridge resolves art for the rows —
+				# direct name, the alias table, and a safe null for unknown ids.
+				_check("icon_for resolves a direct item icon (pistol)", ProtoItemBridge.icon_for("pistol") is Texture2D)
+				_check("icon_for resolves an alias (9mm -> ammo)", ProtoItemBridge.icon_for("9mm") is Texture2D)
+				_check("icon_for is a safe null for an unknown id", ProtoItemBridge.icon_for("nonsense_id") == null)
+				_check("the grid bridge stamps icons onto InventoryItems", ProtoItemBridge.resolve("pistol").icon is Texture2D)
 				main.panel.close()
 				_next()
 		6:

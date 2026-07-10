@@ -16,8 +16,12 @@ var _dash_wrap: VBoxContainer
 var _dash_status: Label ## the useful line: vehicle · surface/struggle · cargo (sim hook)
 var _dash_box: HBoxContainer
 var _dash_labels: Dictionary = {}
+var _dash_rows: Dictionary = {}     ## part -> the HBox row (icon + bar tint together)
+var _dash_has_icon: Dictionary = {} ## part -> a pixel icon replaced the emoji
 var _dash_fuel: Label
 var _dash_cook: Label
+var _dash_thumb: TextureRect        ## the rig you're in (assets/ui/vehicles/<vclass>.png)
+var _dash_thumb_vclass: String = ""
 var _gauge: ProtoGauge      ## the pixel-art speedometer (dial PNG + code-driven needle)
 var _gauge_id: String = ""  ## current dial id — swapped only when the vehicle changes
 var _fuel_gauge: ProtoGauge ## the dash cluster: fuel / temp / tach beside the speedo
@@ -219,22 +223,52 @@ static func create() -> ProtoHUD:
 	hud._dash_wrap.alignment = BoxContainer.ALIGNMENT_END
 	hud._dash_wrap.visible = false
 	hud.add_child(hud._dash_wrap)
+	# Status row: [vehicle thumbnail] status text — the thumb is the rig you're in
+	# (assets/ui/vehicles/<vclass>.png), swapped live by set_dashboard.
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 6)
+	srow.alignment = BoxContainer.ALIGNMENT_END
+	hud._dash_thumb = TextureRect.new()
+	hud._dash_thumb.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	hud._dash_thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hud._dash_thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	hud._dash_thumb.custom_minimum_size = Vector2(44, 24)
+	hud._dash_thumb.visible = false
+	srow.add_child(hud._dash_thumb)
 	hud._dash_status = Label.new()
 	hud._dash_status.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._dash_status.add_theme_font_size_override("font_size", 15)
 	hud._dash_status.add_theme_color_override("font_color", BONE)
 	hud._dash_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hud._dash_wrap.add_child(hud._dash_status)
+	srow.add_child(hud._dash_status)
+	hud._dash_wrap.add_child(srow)
 	hud._dash_box = HBoxContainer.new()
 	hud._dash_box.alignment = BoxContainer.ALIGNMENT_END
 	hud._dash_box.add_theme_constant_override("separation", 10)
 	hud._dash_wrap.add_child(hud._dash_box)
 	for part in ["engine", "tires", "battery", "fuel_tank", "chassis"]:
+		# Each part row: [pixel icon] ▮▮▮▱ — the icon replaces the emoji (missing PNG =
+		# the emoji stays in the label text). The ROW is the tint target so icon + bar
+		# read the same tier color together.
+		var prow := HBoxContainer.new()
+		prow.add_theme_constant_override("separation", 3)
+		var ipath := "res://assets/ui/hudicons/d_%s.png" % part
+		if ResourceLoader.exists(ipath):
+			var ic := TextureRect.new()
+			ic.texture = load(ipath)
+			ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			ic.custom_minimum_size = Vector2(22, 22)
+			prow.add_child(ic)
+			hud._dash_has_icon[part] = true
 		var pl := Label.new()
 		pl.add_theme_font_override("font", ProtoHUD.mixed_font())
 		pl.add_theme_font_size_override("font_size", 20)
-		hud._dash_box.add_child(pl)
+		prow.add_child(pl)
+		hud._dash_box.add_child(prow)
 		hud._dash_labels[part] = pl
+		hud._dash_rows[part] = prow
 	hud._dash_fuel = Label.new()
 	hud._dash_fuel.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hud._dash_fuel.add_theme_font_size_override("font_size", 18)
@@ -477,12 +511,20 @@ func set_dashboard(d) -> void:
 		_fuel_gauge.set_value(float(d.get("fuel", 100.0)))
 		_temp_gauge.set_value(float(d.get("cook", 0.0)))
 		_tach_gauge.set_value(float(d.get("rev", 0.0)))
+	# The rig's thumbnail beside the status line — swapped only when the vehicle changes.
+	if _dash_thumb != null:
+		var tvc: String = String(d.get("vclass", ""))
+		if tvc != _dash_thumb_vclass:
+			_dash_thumb_vclass = tvc
+			var tpath := "res://assets/ui/vehicles/%s.png" % tvc
+			_dash_thumb.texture = load(tpath) if ResourceLoader.exists(tpath) else null
+			_dash_thumb.visible = _dash_thumb.texture != null
 	var ratios: Dictionary = d.get("ratios", {})
 	for part in _dash_labels:
 		var tier: int = d[part]
 		var lbl: Label = _dash_labels[part]
-		lbl.text = "%s%s" % [DASH_EMOJI[part], _bar(ratios.get(part, 1.0))]
-		lbl.modulate = TIER_COLORS[tier]
+		lbl.text = "%s%s" % ["" if _dash_has_icon.get(part, false) else DASH_EMOJI[part], _bar(ratios.get(part, 1.0))]
+		(_dash_rows[part] as Control).modulate = TIER_COLORS[tier]
 	# P1-4 (EV row, dormant until a vehicles.json row sets powertrain=="electric"):
 	# the SAME bar widget, SAME dash slot — never both fuel and charge at once.
 	if String(d.get("powertrain", "gas")) == "electric":

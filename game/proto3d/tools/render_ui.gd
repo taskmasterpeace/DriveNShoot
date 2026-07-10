@@ -53,4 +53,22 @@ func _ready() -> void:
 	hud.set_ammo("🔫", "pistol", 9, 34, true)
 	print("RENDER_UI: gauge=%s hp_plate=%s ammo_plate=%s" % [hud._gauge.get_global_rect(), hud._hp_plate.get_global_rect(), hud._ammo_plate.get_global_rect()])
 	await _shot("HUD_drive")
+
+	# 3) THE SKILL TREE (U) — pixel skill icons on every branch header.
+	main.skill_tree.open()
+	await _shot("SKILL_tree")
+	main.skill_tree.close()
+
+	# 4) THE PACK — pixel item icons on the rows (bridge icon_for).
+	main.backpack.add("pistol", 1)
+	main.backpack.add("9mm", 24)
+	main.backpack.add("bandage", 3)
+	main.backpack.add("canned_food", 2)
+	main.backpack.add("jerry_can", 1)
+	main.backpack.add("scrap", 8)
+	main.backpack.add("painkillers", 2)
+	main.backpack.add("duct_tape", 1)
+	main.panel.open(main.backpack, null)
+	await _shot("PACK_items")
+	main.panel.close()
 	get_tree().quit(0)

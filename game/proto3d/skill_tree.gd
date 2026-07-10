@@ -131,14 +131,28 @@ func _branch(skill_id: String) -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 3)
 
-	# Header: ⭐ emoji name — Lv N
-	var htext := "%s%s %s — Lv %d" % ["⭐ " if bool(row.get("star", false)) else "", row.get("emoji", ""), row.get("name", skill_id), lvl]
+	# Header: [pixel icon] ⭐ name — Lv N (the icon replaces the emoji; missing PNG = emoji stays)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 6)
+	var icon_path := "res://assets/ui/skills/%s.png" % skill_id
+	var has_icon := ResourceLoader.exists(icon_path)
+	if has_icon:
+		var ic := TextureRect.new()
+		ic.texture = load(icon_path)
+		ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.custom_minimum_size = Vector2(22, 22)
+		head.add_child(ic)
+	var htext := "%s%s%s — Lv %d" % ["⭐ " if bool(row.get("star", false)) else "",
+		"" if has_icon else String(row.get("emoji", "")) + " ", row.get("name", skill_id), lvl]
 	var header := Label.new()
 	header.text = htext
 	header.add_theme_font_override("font", ProtoHUD.mixed_font())
 	header.add_theme_font_size_override("font_size", 15)
 	header.add_theme_color_override("font_color", AMBER if bool(row.get("star", false)) else BONE)
-	box.add_child(header)
+	head.add_child(header)
+	box.add_child(head)
 
 	# Progress bar toward the next level (control_gallery ProgressBar).
 	var bar := ProgressBar.new()
