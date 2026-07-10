@@ -175,16 +175,16 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Create: `docs/verification/GAME_DECK_PHASE_1_3.md`
 - Modify: `game/proto3d/tests/game_license_sim.gd`
 
-- [ ] Iterate all twenty Phase 1 games through ownership-aware launch, semantic
+- [x] Iterate all twenty Phase 1 games through ownership-aware launch, semantic
   input, pause, snapshot, forced completion, one ledger write, and clean stop.
-- [ ] Run focused acquisition, board, local, online, venue, device, save,
+- [x] Run focused acquisition, board, local, online, venue, device, save,
   passenger, catalog, license, media, world, and network regressions serially.
-- [ ] Re-run real console ENet loopback.
-- [ ] GPU-render and inspect shelf/cache, drive-in match, roadhouse bracket,
+- [x] Re-run real console ENet loopback.
+- [x] GPU-render and inspect shelf/cache, drive-in match, roadhouse bracket,
   game-hall screen, and tournament trap interruption; remove capture harness.
-- [ ] Record exact counts, contradictions, missing items, expected engine lines,
+- [x] Record exact counts, contradictions, missing items, expected engine lines,
   and deferred Phase 2 scope. Zero Phase 1 missing items is the gate.
-- [ ] Commit `test: verify Game Deck phase 1.3`.
+- [x] Commit `test: verify Game Deck phase 1.3`.
 
 ## Phase 1.3 completion command
 

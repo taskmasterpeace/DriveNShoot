@@ -24,6 +24,7 @@ var current_event: Dictionary = {}
 var bracket: Array = []
 var betting_card: Dictionary = {}
 var _current_record_id := ""
+var active_trap := ""
 var _refresh_t := 0.0
 
 
@@ -167,6 +168,12 @@ func event_at(day: int, hour: float) -> Dictionary:
 
 func refresh_schedule(day: int, hour: float) -> void:
 	active_event = event_at(day, hour)
+	_retire_settled_event()
+	if not current_event.is_empty() and active_trap != "":
+		tote_board.text = "MATCH LIVE\nWORLD INTERRUPTION"
+		poster.text = String(current_event.get("poster", "GAME NIGHT"))
+		announcer.text = "INTERRUPTION // %s" % active_trap.replace("_", " ").to_upper()
+		return
 	if active_event.is_empty():
 		var next := _next_event(day, hour)
 		tote_board.text = "NEXT\n%s" % _event_time_line(next)
@@ -177,6 +184,20 @@ func refresh_schedule(day: int, hour: float) -> void:
 	poster.text = String(active_event.get("poster", "GAME NIGHT"))
 	var barks: Array = active_event.get("announcer", [])
 	announcer.text = String(barks[0]) if not barks.is_empty() else String(venue_row.get("name", ""))
+
+
+func _retire_settled_event() -> void:
+	if current_event.is_empty() or String(current_event.get("id", "")) == \
+			String(active_event.get("id", "")):
+		return
+	if _current_record_id == "" or deck == null or deck.ledger == null \
+			or not deck.ledger.tournament_records.has(_current_record_id):
+		return
+	current_event.clear()
+	bracket.clear()
+	betting_card.clear()
+	_current_record_id = ""
+	active_trap = ""
 
 
 func _next_event(day: int, hour: float) -> Dictionary:
@@ -252,6 +273,7 @@ func enter_live_event() -> bool:
 	_update_bracket_board("ROUND LIVE // RIDER AT THE CONTROLS")
 	var trap := trap_for(current_event, _day())
 	if trap != "":
+		active_trap = trap
 		announcer.text = "INTERRUPTION // %s" % trap.replace("_", " ").to_upper()
 		trap_triggered.emit(current_event.duplicate(true), trap)
 		_notify("⚠ TOURNAMENT INTERRUPTED — %s. The match stays live on the screen." %

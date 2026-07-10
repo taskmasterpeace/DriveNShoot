@@ -71,6 +71,11 @@ func _ready() -> void:
 	_scan_imported_art("res://proto3d/games", imported_art)
 	_check("Game Deck cartridge art remains original code-drawn primitives",
 		imported_art.is_empty())
+	var tournament_text := FileAccess.get_file_as_string("res://data/game_tournaments.json").to_lower()
+	_check("tournament venues posters and brackets add no undeclared media imports",
+		tournament_text != "" and not tournament_text.contains(".png")
+		and not tournament_text.contains(".jpg") and not tournament_text.contains(".svg")
+		and not tournament_text.contains(".ogg") and not tournament_text.contains(".wav"))
 	_finish()
 
 

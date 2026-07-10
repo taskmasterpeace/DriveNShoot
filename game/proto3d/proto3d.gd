@@ -606,6 +606,17 @@ func _build_environment() -> void:
 		var cache := ProtoChest.create(String(spec[0]),
 			ProtoContainer.roll_loot(String(spec[1]), rng))
 		cache.add_to_group("game_cache")
+		var cache_label := Label3D.new()
+		cache_label.name = "GameCacheLabel"
+		cache_label.text = String(spec[1]).trim_prefix("game_").replace("_", "\n").to_upper()
+		cache_label.font_size = 36
+		cache_label.pixel_size = 0.004
+		cache_label.modulate = Color("f2b735")
+		cache_label.outline_modulate = Color("11100d")
+		cache_label.outline_size = 8
+		cache_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		cache_label.position = Vector3(0, 1.15, 0)
+		cache.add_child(cache_label)
 		add_child(cache)
 		cache.global_position = spec[2]
 		game_cartridge_caches.append(cache)

@@ -28,24 +28,25 @@ static func create(new_main: Node, new_deck: Node, new_shell: CanvasLayer) -> No
 func _build() -> void:
 	_add_box("Back", Vector3(1.65, 1.7, 0.16), Vector3(0, 0.9, 0), WOOD.darkened(0.18))
 	for y in [0.22, 0.62, 1.02, 1.42]:
-		_add_box("Shelf", Vector3(1.72, 0.1, 0.42), Vector3(0, y, 0.08), WOOD)
+		_add_box("Shelf", Vector3(1.72, 0.1, 0.42), Vector3(0, y, -0.08), WOOD)
 	for index in 12:
 		var color := AMBER if index % 3 != 2 else Color("b84a3b")
 		_add_box("Media%02d" % index, Vector3(0.09, 0.27, 0.2),
-			Vector3(-0.68 + float(index % 4) * 0.43, 0.42 + float(index / 4) * 0.4, 0.25), color)
+			Vector3(-0.68 + float(index % 4) * 0.43, 0.42 + float(index / 4) * 0.4, -0.25), color)
 	_label = Label3D.new()
 	_label.font_size = 42
 	_label.pixel_size = 0.004
 	_label.modulate = BONE
 	_label.outline_modulate = Color("11100d")
 	_label.outline_size = 8
-	_label.position = Vector3(0, 1.86, 0.13)
+	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.position = Vector3(0, 2.15, -0.35)
 	add_child(_label)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(1.8, 1.9, 0.5)
 	shape.shape = box
-	shape.position = Vector3(0, 0.95, 0.08)
+	shape.position = Vector3(0, 0.95, -0.08)
 	add_child(shape)
 	_refresh_label()
 
@@ -63,11 +64,11 @@ func _add_box(label: String, size: Vector3, at: Vector3, color: Color) -> void:
 
 func _refresh_label() -> void:
 	if _label != null:
-		_label.text = "GAME DECK  %d / 20" % int(deck.ledger.installed_count(1))
+		_label.text = "GAME DECK\n%d / 20" % int(deck.ledger.installed_count(1))
 
 
 func interact_position() -> Vector3:
-	return global_position + global_basis.z * 0.8
+	return global_position - global_basis.z * 0.8
 
 
 func interact_prompt(_main: Node) -> String:

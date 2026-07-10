@@ -160,6 +160,14 @@ func _ready() -> void:
 		and deck.ledger.tournament_records.size() == 1)
 	_check("the event ad and champion become radio/TV newsroom hooks",
 		harness.newsroom.ads.size() == 1 and harness.newsroom.wins.size() == 1)
+	harness.daynight.day = trap_day + 1
+	harness.daynight.hour = 17.25
+	venue.refresh_schedule(harness.daynight.day, harness.daynight.hour)
+	var next_started := bool(venue.enter_live_event())
+	_check("a settled bracket retires when the venue's next event begins", next_started
+		and String(venue.current_event.get("id", "")) == "fuel_run_sunday"
+		and String(venue.active_trap) == ""
+		and String(deck.current_context.get("tournament_id", "")) == "fuel_run_sunday")
 	_check("spectator and schedule never change world time scale", Engine.time_scale == 1.0)
 	_finish()
 
