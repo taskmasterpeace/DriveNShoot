@@ -166,6 +166,14 @@ func _physics_process(delta: float) -> void:
 		4: # FIGHT + SCOUT: his gun answers, and what HE sees pings YOUR perception
 			if _step == 0:
 				_step = 1
+				# OPEN GROUND: the boot area is TEST GROUNDS clutter now — pool
+				# cars and pens eat Sam's line of fire. Stage the duel on the
+				# clear highway north of it (staging positions, the documented
+				# exception).
+				main.player.global_position = Vector3(6, 0.35, 430)
+				main.player.velocity = Vector3.ZERO
+				var sam4: ProtoCompanion = main.companions[0]
+				sam4.global_position = main.player.global_position + Vector3(1.5, 0.1, -2.0)
 				main.player.snap_orientation(NORTH)
 				main.aim_override = Vector3.ZERO
 				_lurk = ProtoLurker.create()
