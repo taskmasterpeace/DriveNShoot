@@ -81,6 +81,17 @@ func _physics_process(delta: float) -> void:
 			_check("the interstate network exists (%d roads, want >=10)" % usmap.roads.size(), usmap.roads.size() >= 10)
 			_check("towns across the country (%d, want >=30)" % usmap.towns.size(), usmap.towns.size() >= 30)
 			_check("state legend covers 48 states (%d)" % usmap.state_legend.size(), usmap.state_legend.size() == 48)
+			# THE GPS MAP UI (state zoom + pixel markers), wired 2026-07-09.
+			stream.last_state = "COLORADO"
+			var sb := stream._state_bounds()
+			var wb := usmap.world_bounds()
+			_check("state zoom is a real sub-rect of the country", sb.size.x > 0.0 and sb.size.x < wb.size.x and sb.size.y < wb.size.y)
+			_check("map markers load (pin/home/drone/arrow)",
+				stream._marker("pin") is Texture2D and stream._marker("home") is Texture2D \
+				and stream._marker("drone") is Texture2D and stream._marker("arrow") is Texture2D)
+			for _mi in 4:
+				stream.toggle_map()
+			_check("M cycles off->local->state->country->off (4 modes)", stream._map_mode == 0)
 			_next(Phase.ANCHORS)
 		Phase.ANCHORS:
 			var meridian := Vector3(110, 0, -325)

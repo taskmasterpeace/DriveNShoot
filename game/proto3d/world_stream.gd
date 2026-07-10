@@ -61,7 +61,8 @@ var _map_layer: CanvasLayer = null
 var _map_panel: PanelContainer = null
 var _map_canvas: Control = null
 var _map_player: Vector3 = Vector3.ZERO
-var _map_mode: int = 0 ## 1 = local (fog-of-war), 2 = country atlas
+var _map_mode: int = 0 ## 0 off · 1 local (fog-of-war) · 2 state · 3 country atlas
+var _atlas_bounds: Rect2 = Rect2() ## currently-drawn atlas bounds (state/country) — for click-mapping
 var _pois: Array = []
 var _main: Node = null ## the game root — the atlas calls back to set a course
 
@@ -1289,9 +1290,9 @@ func toggle_map() -> void:
 		_map_canvas.gui_input.connect(_on_map_input)
 		_map_panel.add_child(_map_canvas)
 		_map_layer.visible = false
-	_map_mode = (_map_mode + 1) % 3
-	if _map_mode == 2 and not (usmap != null and usmap.ok):
-		_map_mode = 0 # no atlas without the map file
+	_map_mode = (_map_mode + 1) % 4
+	if _map_mode >= 2 and not (usmap != null and usmap.ok):
+		_map_mode = 0 # no state/country atlas without the map file
 	_map_layer.visible = _map_mode != 0
 	if _map_layer.visible:
 		_map_canvas.queue_redraw()
@@ -1336,10 +1337,79 @@ func atlas_exit_markers() -> Array:
 
 
 func _draw_map() -> void:
-	if _map_mode == 2:
+	if _map_mode == 3:
 		_draw_country()
+	elif _map_mode == 2:
+		_draw_state()
 	else:
 		_draw_local()
+
+
+# --- Pixel map markers (assets/ui/markers/) — icons replace the old dots on the map ----
+static var _marker_tex: Dictionary = {}
+
+func _marker(nm: String) -> Texture2D:
+	if _marker_tex.has(nm):
+		return _marker_tex[nm]
+	var path := "res://assets/ui/markers/%s.png" % nm
+	var t: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	_marker_tex[nm] = t
+	return t
+
+
+## Draw a pixel marker at a screen pos (anchor_bottom pins the icon's tip on the spot).
+## Returns false when the PNG is missing so callers can fall back to a drawn dot.
+func _draw_marker(screen_pos: Vector2, nm: String, sz: float = 18.0, anchor_bottom: bool = false) -> bool:
+	var t := _marker(nm)
+	if t == null:
+		return false
+	var off := Vector2(sz * 0.5, sz) if anchor_bottom else Vector2(sz * 0.5, sz * 0.5)
+	_map_canvas.draw_texture_rect(t, Rect2(screen_pos - off, Vector2(sz, sz)), false)
+	return true
+
+
+## Which marker icon a waypoint name reads as.
+func _marker_for_waypoint(nm: String) -> String:
+	var s := nm.to_lower()
+	if "home" in s or "🏠" in nm or "safehouse" in s:
+		return "home"
+	if "drone" in s or "🛸" in nm or "hazard" in s:
+		return "drone"
+	if "bounty" in s:
+		return "skull"
+	if "car" in s:
+		return "arrow"
+	return "pin"
+
+
+## The current state's world-space bounding rect (for the STATE zoom), padded a cell.
+func _state_bounds() -> Rect2:
+	if usmap == null or not usmap.ok:
+		return Rect2(-1000, -1000, 2000, 2000)
+	if usmap.states_grid.is_empty():
+		return usmap.world_bounds()
+	var target := ""
+	for ch in usmap.state_legend:
+		if String(usmap.state_legend[ch]) == last_state:
+			target = String(ch)
+			break
+	if target == "":
+		return usmap.world_bounds()
+	var minc := Vector2i(999999, 999999)
+	var maxc := Vector2i(-999999, -999999)
+	for cz in usmap.states_grid.size():
+		var row: String = usmap.states_grid[cz]
+		for cx in row.length():
+			if row[cx] == target:
+				minc.x = mini(minc.x, cx)
+				minc.y = mini(minc.y, cz)
+				maxc.x = maxi(maxc.x, cx)
+				maxc.y = maxi(maxc.y, cz)
+	if maxc.x < minc.x:
+		return usmap.world_bounds()
+	var p0 := Vector2(minc.x, minc.y) * usmap.cell_m + usmap.offset
+	var p1 := Vector2(maxc.x + 1, maxc.y + 1) * usmap.cell_m + usmap.offset
+	return Rect2(p0, p1 - p0).grow(usmap.cell_m * 2.0)
 
 
 func _draw_local() -> void:
@@ -1382,27 +1452,38 @@ func _draw_local() -> void:
 			_map_canvas.draw_circle(p2, 4.0, Color(0.96, 0.72, 0.2))
 			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(7, 4), poi[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.92, 0.89, 0.82))
 	# You
-	_map_canvas.draw_circle(center, 5.0, Color(0.9, 0.25, 0.12))
+	if not _draw_marker(center, "arrow", 22.0, true):
+		_map_canvas.draw_circle(center, 5.0, Color(0.9, 0.25, 0.12))
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DIVIDED STATES — %s   (M again: the atlas)" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 
 
 ## Screen⇄world mapping for the atlas (shared by draw + click). world XZ →
 ## screen: org + (worldXZ - bounds.position) * px. Inverse in _on_map_input.
-func _country_transform() -> Dictionary:
+func _atlas_transform(bounds: Rect2) -> Dictionary:
 	var size: Vector2 = _map_canvas.size
-	var bounds := usmap.world_bounds()
-	var px := minf(size.x / bounds.size.x, size.y / bounds.size.y)
-	var org := (size - bounds.size * px) * 0.5 # letterbox the country in the panel
+	var px := minf(size.x / maxf(1.0, bounds.size.x), size.y / maxf(1.0, bounds.size.y))
+	var org := (size - bounds.size * px) * 0.5 # letterbox the atlas in the panel
 	return {"org": org, "px": px, "bounds": bounds}
 
 
 ## The country atlas: the whole compressed USA — biomes, interstates, towns, you.
 func _draw_country() -> void:
+	if usmap != null and usmap.ok:
+		_draw_atlas(usmap.world_bounds())
+
+
+func _draw_state() -> void:
+	_draw_atlas(_state_bounds())
+
+
+## The atlas renderer, shared by the STATE zoom and the COUNTRY view — only the
+## `bounds` differ (a state's cell rect vs the whole continent).
+func _draw_atlas(bounds: Rect2) -> void:
+	_atlas_bounds = bounds
 	var size: Vector2 = _map_canvas.size
-	var xf := _country_transform()
+	var xf := _atlas_transform(bounds)
 	var org: Vector2 = xf["org"]
 	var px: float = xf["px"]
-	var bounds: Rect2 = xf["bounds"]
 	var step := 2 # draw every 2nd cell — plenty at this panel size
 	var cpx := usmap.cell_m * px * step
 	for cz in range(0, usmap.h, step):
@@ -1459,12 +1540,14 @@ func _draw_country() -> void:
 		var wpos: Vector3 = raw.global_position if (raw is Node3D and is_instance_valid(raw)) else (raw if raw is Vector3 else Vector3.ZERO)
 		var mp := org + (Vector2(wpos.x, wpos.z) - bounds.position) * px
 		var picked: bool = i == sel
-		_map_canvas.draw_circle(mp, 5.0 if picked else 3.0, Color(0.4, 0.85, 0.4) if picked else Color(0.96, 0.86, 0.55))
 		if picked:
-			_map_canvas.draw_arc(mp, 9.0, 0.0, TAU, 20, Color(0.4, 0.85, 0.4), 1.5)
+			_map_canvas.draw_arc(mp, 13.0, 0.0, TAU, 20, Color(0.4, 0.85, 0.4), 2.0)
+		if not _draw_marker(mp, _marker_for_waypoint(String(poi[0])), 22.0 if picked else 18.0, true):
+			_map_canvas.draw_circle(mp, 5.0 if picked else 3.0, Color(0.4, 0.85, 0.4) if picked else Color(0.96, 0.86, 0.55))
 		_map_canvas.draw_string(ThemeDB.fallback_font, mp + Vector2(6, 3), String(poi[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.95, 0.8))
 	var you := org + (Vector2(_map_player.x, _map_player.z) - bounds.position) * px
-	_map_canvas.draw_circle(you, 4.0, Color(0.9, 0.25, 0.12))
+	if not _draw_marker(you, "arrow", 22.0, true):
+		_map_canvas.draw_circle(you, 4.0, Color(0.9, 0.25, 0.12))
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "%s — %s" % [usmap.map_name, last_state], HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
 	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), "click a town to SET COURSE · click open ground to drop a mark · F in the world plants 🏠 HOME",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.78, 0.6))
@@ -1473,12 +1556,12 @@ func _draw_country() -> void:
 ## Click the atlas to set your course: nearest town within reach wins, else drop
 ## a plain mark where you clicked. Routes back to main.set_map_course.
 func _on_map_input(event: InputEvent) -> void:
-	if _map_mode != 2 or _main == null or usmap == null or not usmap.ok:
+	if _map_mode < 2 or _main == null or usmap == null or not usmap.ok:
 		return
 	if not (event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
 		return
-	var xf := _country_transform()
+	var xf := _atlas_transform(_atlas_bounds)
 	var org: Vector2 = xf["org"]
 	var px: float = xf["px"]
 	var bounds: Rect2 = xf["bounds"]
