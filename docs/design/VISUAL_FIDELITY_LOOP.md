@@ -207,11 +207,45 @@ pools warm — and it's all diegetic. Holding it back: flat world/biome ground
 materials (the next big lever), struggle-dust recolor dead-write, doll outline at 1x,
 no impact decals/scorch marks.
 
-**Next up (iteration 7):**
-1. **THE GROUND READ probe** — what do biome floors look like today (render farmland/
-   forest/desert chunks from the game camera)? Cheapest material-variance win: noise-
-   textured ground materials via a shared triplanar or vertex-tint variance, or a
-   subtle detail texture — probe first, judge from renders, keep chunk cost flat.
-2. Struggle-dust recolor: route the two `_dust.color` writes onto the material.
+**Next up (iteration 7):** ~~ground probe + patchwork · dust law~~ → executed below;
+doll icons + CAR-GPS skin roll again.
+
+---
+
+## Iteration 7 — 2026-07-10 ~10:40
+
+**Shipped:**
+- **THE GROUND READ PROBE** (render_ui GROUND_farmland/forest/desert — permanent
+  acceptance shots): staged biome teleports from the game camera. Three probe
+  lessons paid for: a bare position set loses to the fall/void-net (PIN each frame
+  at `ground_y`), the harness boots IN the car so pin the ACTIVE CAR (the seat
+  anchor owns the player), and a 30 km snap needs ~2 s for the camera lerp to
+  close. Probe verdict: the triplanar grain WORKS; the real gaps were (a) zero
+  mid-scale variance — fields one flat sheet at 10-50 m — and (b) the vision-cone
+  pool washing visible ground to lemon-bright (finding logged, not yolo'd).
+- **THE PATCHWORK** (`ProtoWorldBuilder.chunk_tint` + world_stream `_ground_col`):
+  deterministic per-chunk tint nudge (±5.5% value, quantized to 5 shades so the
+  material cache stays bounded), applied to relief floors, flat floors and biome
+  ground visuals. Fields now read as a QUILT — verified in the after-probe (tonal
+  parcels with chunk seams reading as field edges). **ground_texture_sim 15/15**
+  (3 new patchwork checks: deterministic, 2-5 shades, subtle).
+- **THE DUST LAW FIXES**: `_dust.amount = 56/28` toggled EVERY FRAME while
+  struggling — a live amount-change violation (restart + origin-parked instances)
+  on the most-seen driving effect; now fixed at 40 and struggle reads through the
+  dust's own material tint (the old `_dust.color` writes were dead — no material
+  ever read them).
+
+**Steam rating: 7.9/10** (was 7.7). The world floor finally has scale texture:
+grain up close, parcels at distance — and the dust system can't stutter-restart
+mid-drive anymore. Holding it back: the vision-pool lemon wash (needs a careful
+cone-shader touch), biome tints could separate more (farmland golden vs forest
+deep), chunk seams could dither, doll outline at 1x.
+
+**Next up (iteration 8):**
+1. **THE CONE WASH** — find where the vision pool brightens the ground (cone shader
+   / light energy) and tame the lemon blowout WITHOUT touching visibility gameplay;
+   before/after via GROUND probes.
+2. Biome tint separation pass (BIOME_GROUND: farmland golden, forest deeper, desert
+   warmer — small steps, probe-verified, no purple).
 3. Vehicle doll part icons at 1x (gallery-test; drop if unreadable).
 4. THE CAR GPS phone-skin cohesion pass.

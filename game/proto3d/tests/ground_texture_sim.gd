@@ -59,5 +59,20 @@ func _ready() -> void:
 	_check("ALL %d biomes get textured ground" % biomes, textured == biomes and biomes == 10)
 	_check("no biome ground color is purple", not ProtoWorldStream.BIOME_GROUND.values().any(_is_purple))
 
+	# THE PATCHWORK (fidelity loop it.7): per-chunk tint is deterministic, subtle,
+	# and quantized so the material cache stays bounded (<=5 shades per biome).
+	var t1 := ProtoWorldBuilder.chunk_tint(col, 3, 7)
+	_check("chunk_tint is deterministic (same chunk, same shade)",
+		t1 == ProtoWorldBuilder.chunk_tint(col, 3, 7))
+	var shades: Dictionary = {}
+	var max_dv := 0.0
+	for cx in range(40):
+		var tc := ProtoWorldBuilder.chunk_tint(col, cx, 11)
+		shades[tc.to_html()] = true
+		max_dv = maxf(max_dv, absf(tc.r - col.r))
+	_check("patchwork deals 2..5 quantized shades (%d)" % shades.size(),
+		shades.size() >= 2 and shades.size() <= 5)
+	_check("the nudge stays subtle (max %.3f <= 0.056)" % max_dv, max_dv <= 0.056)
+
 	print("GROUND: DONE — %d passed, %d failed" % [passed, failed])
 	get_tree().quit(1 if failed > 0 else 0)

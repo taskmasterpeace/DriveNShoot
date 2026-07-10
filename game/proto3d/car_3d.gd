@@ -671,6 +671,7 @@ var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
 var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
+var _dust_mat: StandardMaterial3D = null ## the dust's own tint (struggle/surface reads)
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
 
@@ -1429,13 +1430,13 @@ func _physics_process(delta: float) -> void:
 	# old box mesh carried a dead `color` that no material ever read).
 	if _dust == null:
 		_dust = CPUParticles3D.new()
-		_dust.amount = 28
+		_dust.amount = 40 # FIXED — amount changes restart emission (the black-ball law)
 		_dust.lifetime = 1.1
 		var dust_quad := QuadMesh.new()
 		dust_quad.size = Vector2(0.5, 0.5)
-		var dust_mat := ProtoFX.puff_material()
-		dust_mat.albedo_color = Color(0.62, 0.52, 0.38, 0.5)
-		dust_quad.material = dust_mat
+		_dust_mat = ProtoFX.puff_material()
+		_dust_mat.albedo_color = Color(0.62, 0.52, 0.38, 0.5)
+		dust_quad.material = _dust_mat
 		_dust.mesh = dust_quad
 		var dust_grow := Curve.new()
 		dust_grow.add_point(Vector2(0.0, 0.5))
@@ -1453,11 +1454,15 @@ func _physics_process(delta: float) -> void:
 	# vehicles churn double the dust in fat mud clumps — you SEE the struggle.
 	var dust_speed: float = SURFACE.get(current_surface, SURFACE["road"])["dust_speed"]
 	_dust.emitting = not dead and absf(forward_speed) > (2.5 if is_struggling else dust_speed)
-	_dust.amount = 56 if is_struggling else 28
-	if is_struggling:
-		_dust.color = Color(0.45, 0.34, 0.2, 0.75)
-	else:
-		_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
+	# Amount stays FIXED (the restart law); struggle reads through the TINT on
+	# the dust's own material (the old `_dust.color` writes were dead — no
+	# vertex-color material ever read them).
+	if _dust_mat != null:
+		if is_struggling:
+			_dust_mat.albedo_color = Color(0.45, 0.34, 0.2, 0.8)
+		else:
+			_dust_mat.albedo_color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" \
+				else Color(0.55, 0.55, 0.55, 0.32)
 
 	_update_wear_visuals(delta)
 	# Tails tick for EVERY rig — parked cars must answer the night glow too (the

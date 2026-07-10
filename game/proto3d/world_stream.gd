@@ -97,6 +97,13 @@ func setup(pois: Array, main_ref: Node = null) -> void:
 		population = main_ref.population
 
 
+## The chunk's ground color: biome base + the deterministic PATCHWORK nudge
+## (fidelity loop it.7 — fields read as a quilt at 10-50 m, not one flat sheet).
+func _ground_col(biome: String, center: Vector3) -> Color:
+	return ProtoWorldBuilder.chunk_tint(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]),
+		int(floor(center.x / CHUNK)), int(floor(center.z / CHUNK)))
+
+
 ## Which state a world position is in (the macro map's Voronoi states; the old
 ## 800 m bands only if the map file is missing).
 func current_state(pos) -> String:
@@ -207,7 +214,7 @@ func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
 	st.generate_normals() # displaced slopes need real normals to light correctly
 	var gm := MeshInstance3D.new()
 	gm.mesh = st.commit()
-	gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+	gm.material_override = ProtoWorldBuilder.ground_material(_ground_col(biome, center), 1.0)
 	body.add_child(gm)
 
 	var hshape := HeightMapShape3D.new()
@@ -329,7 +336,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			var plane := BoxMesh.new()
 			plane.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gm.mesh = plane
-			gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+			gm.material_override = ProtoWorldBuilder.ground_material(_ground_col(biome, center), 1.0)
 			gm.position.y = -1.01 - (0.22 if wet else 0.0) # top face where the 0.5 m floor's was
 			g.add_child(gm)
 			var gs := CollisionShape3D.new()
@@ -342,7 +349,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			chunk.add_child(g)
 	elif biome != "scrub" and biome != "desert":
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
-			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))
+			center + Vector3(0, 0.03, 0), _ground_col(biome, center))
 
 	# --- The roads materialize (ROAD_TRAFFIC_OVERHAUL.md §3.3): EVERY macro road
 	# near this chunk becomes real asphalt to its ROW's geometry — lanes, median

@@ -213,6 +213,17 @@ static func ground_normal_texture() -> Texture2D:
 	return t
 
 
+## THE PATCHWORK (fidelity loop it.7 probe: fine grain exists but fields are one
+## flat sheet at 10-50 m scale): a deterministic per-chunk tint nudge, quantized
+## to 5 shades so the ground_material cache stays bounded (5 per biome). Same
+## chunk always deals the same shade — the quilt never shimmers on re-stream.
+static func chunk_tint(base: Color, cx: int, cz: int) -> Color:
+	var step := float(absi(hash(Vector2i(cx, cz))) % 5) / 4.0 # 0..1 in 5 steps
+	var dv := lerpf(-0.055, 0.055, step)
+	return Color(clampf(base.r + dv, 0.0, 1.0), clampf(base.g + dv, 0.0, 1.0),
+		clampf(base.b + dv, 0.0, 1.0), base.a)
+
+
 ## A ground/terrain material: the biome tint, textured. Separate from material() so only
 ## TERRAIN gets grain — boxes/houses stay clean. Cached per color like material().
 static func ground_material(color: Color, rough: float = 0.95) -> StandardMaterial3D:

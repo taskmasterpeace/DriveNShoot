@@ -121,4 +121,45 @@ func _ready() -> void:
 	for _i in 45:
 		await get_tree().process_frame
 	await _shot("NIGHT_world")
+
+	# 9) THE GROUND READ (fidelity loop it.7) — three biomes from the game camera.
+	# Staged positions (the documented exception); chunks stream in around the player.
+	main.daynight.hour = 11.0
+	for _i in 20:
+		await get_tree().process_frame
+	var um: ProtoUSMap = stream.usmap
+	for probe_row in [["farmland", "GROUND_farmland"], ["forest", "GROUND_forest"], ["desert", "GROUND_desert"]]:
+		var probe: Array = probe_row
+		var want: String = probe[0]
+		var found := Vector3.ZERO
+		var got := false
+		for cz in range(0, um.h, 2):
+			for cx in range(0, um.w, 2):
+				var cc: Vector2 = um.cell_center(Vector2i(cx, cz))
+				var p := Vector3(cc.x, 0, cc.y)
+				if um.biome_at(p) == want:
+					found = p
+					got = true
+					break
+			if got:
+				break
+		if not got:
+			print("RENDER_UI: no %s cell found — skipped" % want)
+			continue
+		# PIN whichever body the camera follows (the harness boots IN the car —
+		# a player-only set loses to the seat anchor; a bare one-shot set loses
+		# to the fall/void-net) at the true relief height while chunks stream.
+		var gy: float = ProtoWorldBuilder.ground_y(found.x, found.z)
+		for _i in 60:
+			if main.active_car != null:
+				main.active_car.global_position = Vector3(found.x, gy + 1.4, found.z)
+				main.active_car.linear_velocity = Vector3.ZERO
+				main.active_car.angular_velocity = Vector3.ZERO
+			else:
+				main.player.global_position = Vector3(found.x, gy + 0.8, found.z)
+				main.player.velocity = Vector3.ZERO
+			await get_tree().process_frame
+		for _i in 110:
+			await get_tree().process_frame # the camera closes a 30 km lerp before the shot
+		await _shot(String(probe[1]))
 	get_tree().quit(0)
