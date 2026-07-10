@@ -429,6 +429,9 @@ var _tackle_t: float = 0.0
 var _fire_down: bool = false          ## latch: a trigger's repeat events fire once
 var _pad_aiming: bool = false         ## right stick currently owns the aim
 var _pad_prev_drive: bool = false     ## for the trigger job-swap on mode change
+var _drive_gaze = preload("res://proto3d/drive_gaze.gd").new()
+var _drive_look_idle: float = 99.0
+var _drive_look_source: String = "returning"
 var controls_panel: Node = null       ## the rebind UI (F11 / menu)
 
 ## GRAB & DRAG (MOVESET.txt): hold E on a chest/body = haul it behind you (slow,
@@ -617,6 +620,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
 			toggle_controls_panel()
 		return
+	if mode == Mode.DRIVE and event is InputEventMouseMotion \
+			and (event as InputEventMouseMotion).relative.length() > 0.5:
+		_drive_look_idle = 0.0
+		_drive_look_source = "mouse"
 	if event.is_action_pressed("interact"):
 		# Piloting a drone? Interact brings it in — you can't just switch it off in the air,
 		# so this starts a landing; it shuts off (and frees you) once it's down.
@@ -1107,13 +1114,18 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 		# blind spot. While glassing, it rides the aim so you see where you point.
 		facing = player.aim_facing() if binoc else player.sight_facing()
 	elif mode == Mode.DRIVE and active_car:
-		# Look where you're GOING, not where the nose is pointed: in a drift the
-		# chassis yaws off travel, and facing the nose read as "looking sideways
-		# while driving straight" (playtest). Fall back to the nose when crawling.
-		var vel := active_car.linear_velocity
-		vel.y = 0.0
-		if vel.length() > 4.0:
-			facing = vel.normalized()
+		# The car owns the frame, a human-sized neck owns the look. Turn rate gives
+		# anticipatory look-through, recent mouse/stick aim temporarily owns the
+		# head, and the spring always unwinds toward the windshield.
+		var aim_active: bool = _drive_look_idle < 0.55
+		facing = _drive_gaze.update(
+			delta,
+			active_car.global_basis,
+			active_car.angular_velocity.y,
+			aim_direction(),
+			aim_active,
+			_drive_look_source
+		)
 	var params: Array = ProtoVisionCone.MODE_DRIVE if mode == Mode.DRIVE else ProtoVisionCone.MODE_FOOT
 	if binoc:
 		params = ProtoVisionCone.MODE_BINOC
@@ -2508,8 +2520,10 @@ func _furniture_load(recs: Dictionary) -> void:
 ## Per-frame pad work: the RIGHT STICK is the second half of twin-stick (it owns
 ## aim_override while deflected — the exact seam the sims aim with), and the
 ## TRIGGERS swap jobs when you take the wheel (RT gas / LT brake, GTA-style).
-func _update_pad(_delta: float) -> void:
+func _update_pad(delta: float) -> void:
 	var driving := mode == Mode.DRIVE
+	if driving:
+		_drive_look_idle += delta
 	if driving != _pad_prev_drive:
 		_pad_prev_drive = driving
 		_swap_drive_triggers(driving)
@@ -2519,6 +2533,9 @@ func _update_pad(_delta: float) -> void:
 	if av.length() > 0.25:
 		aim_override = av.normalized() # a UNIT vector = 25 m out (the aim_point law)
 		_pad_aiming = true
+		if driving:
+			_drive_look_idle = 0.0
+			_drive_look_source = "right_stick"
 	elif _pad_aiming:
 		_pad_aiming = false
 		aim_override = Vector3.ZERO # hand the reticle back to the mouse
@@ -4414,6 +4431,9 @@ func _update_location_label() -> void:
 func enter_car(car: ProtoCar3D) -> void:
 	mode = Mode.DRIVE
 	active_car = car
+	_drive_gaze.reset()
+	_drive_look_idle = 99.0
+	_drive_look_source = "returning"
 	car.is_active = true
 	# AN ACTIVE CAR NEVER SLEEPS (visibility_sim regression): a parked-still
 	# body falls asleep and a sleeping body's _physics_process stops — which
@@ -4515,6 +4535,7 @@ func _pose_exposed_rider(delta: float) -> void:
 	player.puppet.raised = armed
 	player.puppet.rotation.y = wrapf(active_car.rotation.y - player.rotation.y, -PI, PI)
 	player.puppet.pose_riding(delta, armed)
+	player.puppet.set_gaze_yaw(_drive_gaze.local_yaw)
 	if armed:
 		var to_aim: Vector3 = aim_point() - player.puppet.global_position
 		to_aim.y = 0.0

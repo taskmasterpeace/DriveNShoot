@@ -13,6 +13,8 @@
 class_name ProtoPuppet
 extends Node3D
 
+const DRIVE_GAZE_LIMIT: float = deg_to_rad(80.0)
+
 ## An appearance ROW — the whole point. Every field has a default so a bare {} works.
 ## BUILD (owner 2026-07-08, the mannequin reference): ONE number makes the same
 ## skeleton skinny (0) → normal (1) → heavy (2). It scales widths and depths only —
@@ -1008,6 +1010,10 @@ func pose_riding(delta: float, armed_aim: bool) -> void:
 		hand.rotation.x = lerpf(hand.rotation.x, HAND_CARRY, k)
 		if fingers_r != null:
 			fingers_r.rotation.x = lerpf(fingers_r.rotation.x, GRIP_CURL, k)
+
+
+func set_gaze_yaw(local_yaw: float) -> void:
+	neck.rotation.y = clampf(local_yaw, -DRIVE_GAZE_LIMIT, DRIVE_GAZE_LIMIT)
 
 
 ## A body that has fallen: the whole COLUMN collapses (chest, waist, pelvis all
