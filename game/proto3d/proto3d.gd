@@ -433,6 +433,9 @@ var _drive_gaze = preload("res://proto3d/drive_gaze.gd").new()
 var _drive_look_idle: float = 99.0
 var _drive_look_source: String = "returning"
 var controls_panel: Node = null       ## the rebind UI (F11 / menu)
+var weapon_wheel: Node = null
+var _weapon_wheel_down: bool = false
+var _weapon_wheel_pad: bool = false
 
 ## GRAB & DRAG (MOVESET.txt): hold E on a chest/body = haul it behind you (slow,
 ## heavy, teaches STRENGTH); tap E keeps its old meaning (open). E again drops it.
@@ -620,6 +623,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
 			toggle_controls_panel()
 		return
+	if weapon_wheel != null and bool(weapon_wheel.get("is_open")):
+		if event.is_action_released("drivn_weapon_wheel"):
+			_release_weapon_wheel()
+		elif event is InputEventMouseMotion:
+			_update_wheel_mouse((event as InputEventMouseMotion).position)
+		return
 	if mode == Mode.DRIVE and event is InputEventMouseMotion \
 			and (event as InputEventMouseMotion).relative.length() > 0.5:
 		_drive_look_idle = 0.0
@@ -664,6 +673,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	# THE ACTION CHAIN (controller arc): every verb is an ACTION — the same elif
 	# fires from its key, its mouse button, OR its pad binding (input_bindings.json
 	# rows; rebind in the CONTROLS panel, F11). PS pads read as the same buttons.
+	elif event.is_action_pressed("drivn_weapon_wheel"):
+		_begin_weapon_wheel(event is InputEventJoypadButton)
+	elif event.is_action_released("drivn_weapon_wheel"):
+		_release_weapon_wheel()
 	elif event.is_action_pressed("drivn_drone_recall"):
 		recall_drone() # B / R3 (freed from the removed binoculars): send the bird home
 	elif event.is_action_pressed("drivn_whistle"):
@@ -879,6 +892,7 @@ func _void_net_tick(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
+	_update_weapon_wheel(delta)
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
@@ -941,7 +955,8 @@ func _physics_process(delta: float) -> void:
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
 		or (radio_dial != null and radio_dial.is_open) \
 		or (skill_tree != null and skill_tree.is_open) \
-		or (book_panel != null and book_panel.is_open)
+		or (book_panel != null and book_panel.is_open) \
+		or (weapon_wheel != null and bool(weapon_wheel.get("is_open")))
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
@@ -2578,6 +2593,70 @@ func _equip_slot(idx: int) -> void:
 	_reload_t = 0.0 # switching abandons the mag swap
 	_reload_wpn = null
 	notify("Equipped the %s" % weapons[idx].info()["name"])
+
+
+func _ensure_weapon_wheel() -> void:
+	if weapon_wheel != null:
+		return
+	weapon_wheel = preload("res://proto3d/weapon_wheel.gd").create()
+	add_child(weapon_wheel)
+
+
+func _weapon_wheel_ids() -> Array[String]:
+	var ids: Array[String] = ["fists"]
+	for weapon in weapons:
+		ids.append(String(weapon.id))
+	return ids
+
+
+func _begin_weapon_wheel(from_pad: bool) -> void:
+	if _weapon_wheel_down or panel.is_open:
+		return
+	_ensure_weapon_wheel()
+	_weapon_wheel_down = true
+	_weapon_wheel_pad = from_pad
+	var current: String = current_weapon().id if current_weapon() != null else "fists"
+	weapon_wheel.configure(_weapon_wheel_ids(), current)
+	weapon_wheel.begin_hold()
+
+
+func _release_weapon_wheel() -> void:
+	if not _weapon_wheel_down or weapon_wheel == null:
+		return
+	_weapon_wheel_down = false
+	var selected: String = String(weapon_wheel.release())
+	if selected == "fists":
+		equipped = -1
+		_reload_t = 0.0
+		_reload_wpn = null
+		notify("Hands free")
+		return
+	for i in weapons.size():
+		if String(weapons[i].id) == selected:
+			_equip_slot(i)
+			return
+
+
+func _update_weapon_wheel(delta: float) -> void:
+	if not _weapon_wheel_down or weapon_wheel == null:
+		return
+	weapon_wheel.advance_hold(delta)
+	if not bool(weapon_wheel.get("is_open")):
+		return
+	if _weapon_wheel_pad:
+		var pointer := Vector2(
+			Input.get_axis("drivn_aim_left", "drivn_aim_right"),
+			Input.get_axis("drivn_aim_up", "drivn_aim_down"))
+		weapon_wheel.update_pointer(pointer)
+	else:
+		_update_wheel_mouse(get_viewport().get_mouse_position())
+
+
+func _update_wheel_mouse(screen_pos: Vector2) -> void:
+	if weapon_wheel == null:
+		return
+	var center: Vector2 = get_viewport().get_visible_rect().size * 0.5
+	weapon_wheel.update_pointer((screen_pos - center) / 180.0)
 
 
 func toggle_controls_panel() -> void:
