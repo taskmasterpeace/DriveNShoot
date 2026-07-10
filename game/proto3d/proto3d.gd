@@ -2975,9 +2975,12 @@ func drop_item(id: String) -> bool:
 	pile.container.add(id, 1)
 	audio.play_ui("blip", -12.0)
 	# THE BAIT VERB (LWE §9-P1 / audit F6): meat on the ground DRAWS the land —
-	# drop it up the road on purpose and pull the swamp off your route.
+	# drop it up the road on purpose and pull the swamp off your route. The
+	# heat draws the BIRDS; the carrion noise draws the TEETH (audit-2 GAP-4:
+	# howlers already hunt through noises_in — this is their dinner bell).
 	if ecology != null and (id == "meat" or id == "cooked_meal"):
 		ecology.deposit_corpse(pile.global_position, 0.9)
+		emit_noise(pile.global_position, 70.0, "carrion")
 		notify("🥩 The meat's on the ground. The land will smell it.")
 	return true
 

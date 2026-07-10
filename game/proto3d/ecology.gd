@@ -42,12 +42,12 @@ static func create(main: Node) -> ProtoEcology:
 	return e
 
 
-## Runs once, lazily, on the first tick: the authored nest's ground is hot.
-var _nest_seeded: bool = false
+## Runs every tick (audit-2 GAP-5: a boot-time latch missed mid-session loads
+## of pre-eco saves — one cell_at + maxf per game hour is cheap enough to
+## just keep true): the authored nest's ground stays hot, whatever loaded.
 func _seed_authored_nest() -> void:
-	if _nest_seeded or _main == null or not ("population" in _main) or _main.population == null:
+	if _main == null or not ("population" in _main) or _main.population == null:
 		return
-	_nest_seeded = true
 	var eco: Dictionary = _main.population.cell_at(AUTHORED_NEST).get("eco", {})
 	if not eco.is_empty():
 		eco["predator_pressure"] = maxf(float(eco.get("predator_pressure", 0.0)), 0.8)
@@ -103,6 +103,15 @@ func tick(dt_gh: float) -> void:
 		# human noise cools too (F4): the accumulator emit_noise deposits into —
 		# go quiet for a few game hours and the land forgets your racket
 		eco["human_noise"] = maxf(0.0, float(eco.get("human_noise", 0.0)) - 0.12 * dt_gh)
+		# and the WARNINGS fade (audit-2 GAP-1, LWE §3.8): one step per 7 quiet
+		# game-days — a veteran returning after a week is RE-WARNED, never
+		# silently ambushed. The accumulator rides offline ticks for free.
+		if int(eco.get("warn_count", 0)) > 0:
+			var wacc := float(eco.get("_warn_decay_gh", 0.0)) + dt_gh
+			if wacc >= 168.0:
+				eco["warn_count"] = maxi(0, int(eco.get("warn_count", 0)) - 1)
+				wacc = 0.0
+			eco["_warn_decay_gh"] = wacc
 		eco["food_avail"] = clampf(food, 0.0, 1.0)
 		eco["prey_density"] = clampf(prey, 0.0, 1.0)
 		eco["predator_pressure"] = clampf(pred, 0.0, 1.0)

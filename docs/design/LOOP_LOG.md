@@ -70,3 +70,9 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **THE ANCHOR BUG** (found by F7's gather check): the bridge add_child()s before positioning — every realized creature anchored at the chunk-add origin and drifted off; the knifeback territorialized the wrong ground. Home claimed lazily on frame 1 now.
 - **E12 closed** (19/0): the horn's re-enter E lost the contested scan beside the guarding dog — far-door staging. **Zero PARTIALs**: F5's emergence half → DEFERRED(P2 nest-prop arc), P18 → DEFERRED(owner's dashboard lane).
 - **creatures_sim grew to 50 checks.** Ledger: every row DONE or DEFERRED. Audit 2 + the final full suite launched.
+
+## Iteration 9 — AUDIT 2 (5 gaps, all closed same pass) (2026-07-10)
+- **Audit 2 verdict: 5 gaps** — the fairness residue: warnings never decayed (armed-forever ambush on returning veterans), a mid-chase state downgrade kept the hunt, tells could drop (toast burst) or land inaudible (90 m scream vs 128 m reach), the bait drew birds but no teeth, the nest seed latched per-boot (mid-session loads cooled the Alley).
+- **All five fixed + proven same iteration:** warn decay 1/7 quiet game-days (accumulator rides offline ticks free) · the gate re-checks the CURRENT hunt · warnings ride the guaranteed set_threat lane (owner "apex", top priority) · dropped meat emits a "carrion" noise (howlers' existing noses hear it) · the seed runs every tick (latch deleted).
+- creatures_sim grew to 55 checks. 10 CLEAN verdicts incl. "no realigned sim weakened a law" (dark's new-moon check is strictly STRONGER than the old one).
+- The dry-streak resets: audits 3+4 must both run dry.

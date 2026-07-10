@@ -350,6 +350,9 @@ func _physics_process(delta: float) -> void:
 				_check("F1: unwarned strike DEFERS into a tell (warn_count %d ≥ 1, not hunting)" % int(eco4.get("warn_count", 0)),
 					int(eco4.get("warn_count", 0)) >= 1
 					and (_kb._hunt == null or not _kb._hunt.is_in_group("player3d")))
+				# audit-2 GAP-3: the tell rides the GUARANTEED lane too
+				_check("A2: the warning is DELIVERED on the threat stack",
+					main.hud._threat_stack.has("apex"))
 				eco4["warn_count"] = 3 # the land has said its three pieces
 				_kb._hunt = null # re-scan with the warnings spent
 				_next()
@@ -363,6 +366,18 @@ func _physics_process(delta: float) -> void:
 				main.emit_noise(_kb.nest_pos, 60.0, "engine")
 				_check("F4: the land HEARS the racket (human_noise %.2f → %.2f)" % [hn0, float(eco5.get("human_noise", 0.0))],
 					float(eco5.get("human_noise", 0.0)) > hn0 + 0.2)
+				# audit-2 GAP-2: a mid-chase downgrade CALLS THE APEX OFF
+				eco5["prey_density"] = 0.6
+				_kb._nest_tick() # the land recovered → FED
+				_kb._hunt_or_hold(0.016) # one brain frame re-checks the gate
+				_check("A2: the recovered land calls the hunt OFF (FED drops the player)",
+					_kb._hunt == null or not _kb._hunt.is_in_group("player3d"))
+				# audit-2 GAP-1: warnings FADE — one step per 7 quiet game-days
+				eco5["warn_count"] = 3
+				eco5["_warn_decay_gh"] = 0.0
+				main.ecology.tick(168.0)
+				_check("A2: a quiet week FADES a warning (3 → %d)" % int(eco5.get("warn_count", 0)),
+					int(eco5.get("warn_count", 0)) == 2)
 				main.player.global_position = Vector3(-8600, 0.4, 6600) # out of its world
 				_next()
 		13: # F6 THE BAIT VERB + THE BACKFIRE
@@ -375,6 +390,18 @@ func _physics_process(delta: float) -> void:
 				var h1: float = float((bait_cell["eco"] as Dictionary).get("corpse_heat", 0.0))
 				_check("F6: dropped meat BAITS the land (heat %.2f → %.2f)" % [h0, h1],
 					dropped and h1 >= h0 + 0.25)
+				# audit-2 GAP-4: the bait rings the DINNER BELL the teeth can hear
+				var carrion := false
+				for hn in main.noises_in(main.player.global_position):
+					if String(hn.get("kind", "")) == "carrion":
+						carrion = true
+				_check("A2: the bait rings a CARRION bell (noises_in)", carrion)
+				# audit-2 GAP-5: the authored nest re-heats EVERY tick (no boot latch)
+				var nest_eco13: Dictionary = main.population.cell_at(ProtoEcology.AUTHORED_NEST)["eco"]
+				nest_eco13["predator_pressure"] = 0.1 # a mid-session load cooled it
+				main.ecology.tick(1.0)
+				_check("A2: the authored nest re-heats on the next tick (%.2f ≥ 0.8)" % float(nest_eco13["predator_pressure"]),
+					float(nest_eco13["predator_pressure"]) >= 0.75)
 				# backfire: rodents boom where the predators died (pure law)
 				var fake := {"biome": "scrub", "zone_tag": "road_shoulder",
 					"eco": {"food_avail": 0.6, "prey_density": 0.3, "predator_pressure": 0.8,

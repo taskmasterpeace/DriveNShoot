@@ -244,21 +244,37 @@ func _warn(eco: Dictionary, warns: int) -> void:
 	eco["warn_count"] = warns + 1
 	if _main != null and "audio" in _main and _main.audio != null:
 		_main.audio.play_at("howler_scream", global_position, 2.0)
-	if _main == null or not _main.has_method("notify"):
+	if _main == null:
 		return
+	var text := ""
 	match warns:
 		0:
-			_main.notify("🦴 Something big is moving in the swamp. It knows you're here.")
+			text = "🦴 Something big is moving in the swamp. It knows you're here."
 		1:
-			_main.notify("🦴 Drag marks on the shoulder — fresh. You are being shadowed.")
+			text = "🦴 Drag marks on the shoulder — fresh. You are being shadowed."
 		_:
-			_main.notify("🦴 The swamp has gone SILENT around you. Last warning.")
+			text = "🦴 The swamp has gone SILENT around you. Last warning."
+	# THE TELL MUST BE DELIVERED (audit-2 GAP-3): toasts can drop in a burst
+	# and the scream carries 90 m vs a ~128 m acquisition reach — the threat
+	# STACK line is the guaranteed lane (apex = top priority, its own ttl).
+	if "hud" in _main and _main.hud != null:
+		_main.hud.set_threat(text, "apex", 5, 6.0)
+	if _main.has_method("notify"):
+		_main.notify(text)
 
 
 func _hunt_or_hold(delta: float) -> void:
 	var eco: Dictionary = _cell_eco()
 	# F4: a noisy road WIDENS the ground it claims — go quiet and it shrinks
 	var radius := hunt_radius() * (1.0 + 0.6 * float(eco.get("human_noise", 0.0)))
+	# STATE GATES WHO — including a hunt already in progress (audit-2 GAP-2):
+	# a mid-chase downgrade (the land recovering past the line) calls it off.
+	if _hunt != null and is_instance_valid(_hunt):
+		if _hunt.is_in_group("player3d") and nest_state != Nest.STARVING:
+			_hunt = null
+		elif _hunt != null and _hunt.is_in_group("dog") \
+				and not (nest_state == Nest.HUNGRY or nest_state == Nest.STARVING):
+			_hunt = null
 	# acquire: what counts as FOOD depends on the nest's state (F2 — the human
 	# gate: a FED apex never hunts people; dogs enter the menu when HUNGRY;
 	# humans only when the land is STARVING and fairly warned)
