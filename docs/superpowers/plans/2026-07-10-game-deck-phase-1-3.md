@@ -158,14 +158,14 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/proto3d/tests/game_device_sim.gd`
 - Create: `game/proto3d/tests/game_world_sim.gd/.tscn`
 
-- [ ] Red sim: the real main scene contains the shelf, four acquisition caches,
+- [x] Red sim: the real main scene contains the shelf, four acquisition caches,
   and all declared venue instances at their row positions; each appears through
   the ordinary interactable contract and venue waypoints are reachable.
-- [ ] Append venue waypoints before world-stream setup so tournament travel is
+- [x] Append venue waypoints before world-stream setup so tournament travel is
   surfaced through the existing N/atlas path.
-- [ ] Make save/load preserve installs, results, challenges, and tournament
+- [x] Make save/load preserve installs, results, challenges, and tournament
   records while reconstructing physical venue/shelf state from data.
-- [ ] Commit `feat: place Game Deck culture in the DRIVN world`.
+- [x] Commit `feat: place Game Deck culture in the DRIVN world`.
 
 ## Task 8: Combined twenty-game proof and spectacle render
 

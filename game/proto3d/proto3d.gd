@@ -337,6 +337,10 @@ func _ready() -> void:
 		if _n is ProtoRaceBoard:
 			waypoints.append(["🏁 RACES", _n])
 			break
+	for venue_value in game_venues:
+		var venue: Node3D = venue_value
+		var venue_row: Dictionary = venue.get("venue_row")
+		waypoints.append([String(venue_row.get("waypoint", "🎮 GAME NIGHT")), venue])
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
@@ -460,6 +464,7 @@ var game_console: Node3D = null
 var game_handheld: Node3D = null
 var game_shelf: Node3D = null
 var game_cartridge_caches: Array = []
+var game_venues: Array = []
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
@@ -604,6 +609,20 @@ func _build_environment() -> void:
 		add_child(cache)
 		cache.global_position = spec[2]
 		game_cartridge_caches.append(cache)
+	# Console culture has places and a calendar. Each venue is one generic node
+	# folded from rows; its screen samples this same deck texture.
+	var venue_script := load("res://proto3d/games/game_venue.gd") as GDScript
+	var tournament_catalog: Dictionary = venue_script.load_catalog()
+	for venue_value in tournament_catalog.get("venues", []):
+		var venue_row: Dictionary = venue_value
+		var venue_id := String(venue_row.get("id", ""))
+		var venue_events: Array = (tournament_catalog.get("events", []) as Array).filter(
+			func(event: Dictionary) -> bool:
+				return String(event.get("venue_id", "")) == venue_id)
+		var venue: Node3D = venue_script.create(self, game_deck, game_shell,
+			venue_row, venue_events)
+		add_child(venue)
+		game_venues.append(venue)
 	if media_panel != null:
 		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
