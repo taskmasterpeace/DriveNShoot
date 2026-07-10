@@ -47,14 +47,18 @@ names, text, UI, character shapes, and primitive art are original DRIVN work.
 The Soldat mark and OpenSoldat base maps, sprites, art, audio, branding, and
 other CC BY 4.0 base content are excluded and were not imported.
 
+### FreeInfantry / Infantry Online player-facing reference
+
+BLACK GRID is a clean-room implementation of documented and observed
+player-facing genre mechanics. No FreeInfantry or Infantry Online client code,
+server code, maps, zone files, art, audio, names, text, branding, or proprietary
+data was copied or imported. The source record is reference-only and grants no
+license to proprietary material; BLACK GRID's code, zones, names, UI, tactical
+glass, unit shapes, and prose are original DRIVN work. See
+`res://third_party/licenses/freeinfantry-reference-note.txt`.
+
 ## Pre-integration provenance records
 
-The following record supports a cataloged future cartridge. Its presence is
-not a claim that its code or content ships in the current build:
-
-- FreeInfantry / Infantry Online — clean-room reference only; no licensed or
-  proprietary client/server material imported
-
-Exact upstream URLs, pinned revisions, exclusions, and local notice paths are
-listed in `res://data/game_sources.json` and surfaced by each cartridge's ABOUT
-screen.
+No cataloged source family remains future-only. Both Phase 2 cartridges retain
+their precise inclusions and exclusions in `res://data/game_sources.json` and
+surface them through each cartridge's ABOUT screen.

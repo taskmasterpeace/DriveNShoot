@@ -59,7 +59,8 @@ func _ready() -> void:
 		and reg.enabled("relay_bloom") and reg.cartridge_contract_error("relay_bloom") == "")
 	_check("RUST RUNNERS clears scene source and cartridge-contract gates", reg.installed("rust_runners")
 		and reg.enabled("rust_runners") and reg.cartridge_contract_error("rust_runners") == "")
-	_check("remaining future BLACK GRID scene is uninstalled, not malformed", not reg.installed("black_grid"))
+	_check("BLACK GRID clears scene source and cartridge-contract gates", reg.installed("black_grid")
+		and reg.enabled("black_grid") and reg.cartridge_contract_error("black_grid") == "")
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 

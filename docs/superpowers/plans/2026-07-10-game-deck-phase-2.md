@@ -111,17 +111,17 @@ asset is declared.
 - Create: `game/proto3d/games/black_grid/black_grid.gd/.tscn`
 - Create: `game/proto3d/tests/black_grid_sim.gd/.tscn`
 
-- [ ] Red sim: top-down/isometric free movement retains inertia; class base
+- [x] Red sim: top-down/isometric free movement retains inertia; class base
   mass plus loadout weight changes acceleration/top speed; combat boost/dive
   uses the same mobility semantic as jets; stance changes handling.
-- [ ] Prove independently aimed projectile travel, explosive blast falloff,
+- [x] Prove independently aimed projectile travel, explosive blast falloff,
   multiple seeded shrapnel rays, ricochet, ammo/reload, heat, armor, energy,
   loadout limits, equipment cycling, and distinct infantry class profiles.
-- [ ] Prove real-time fog excludes occluded/dark enemies, radar contacts reveal
+- [x] Prove real-time fog excludes occluded/dark enemies, radar contacts reveal
   coarse positions, and line-of-sight/radar state survives snapshot/restore.
-- [ ] Add original data-driven Continuity zones, walls, darkness, spawn nodes,
+- [x] Add original data-driven Continuity zones, walls, darkness, spawn nodes,
   capture nodes, and vehicle pads; no Infantry zone/map data is used.
-- [ ] Commit `feat: build Black Grid infantry combat`.
+- [x] Commit `feat: build Black Grid infantry combat`.
 
 ## Task 5: BLACK GRID deployables, vehicles, modes, and bots
 
