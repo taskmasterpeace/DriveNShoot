@@ -44,3 +44,7 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **Deferred to the owner's LIVE radio/TV arc (4):** E16 noise, E18 radio_positional, E22 station, E23 tv — his lane moved under them mid-loop; realigning now would fight his WIP.
 - **Suite (iter-2/3 background run): 167/191** — new names all contention flakes (aim_sim 15/0 standalone); zero regressions from loop work.
 - **creatures_sim grew to 31 checks** (protected-law + save-heal regressions).
+
+## Iteration 5 (in progress) — E-burn-down wave 2 (2026-07-09)
+- E1 audio 8/0 (ignition law: dead motor silent → crank → hum → pitch; I-95 staging — the pen wall strikes again) · E3 bike 8/0 (swerve ends spun 180°; brake-is-reverse scheme → stop = throttle against the roll) · E5 char 14/0 (RIG V2 build axis).
+- Diagnoses banked in ledger notes: E2 knee-sign law, E9 backroads-0, E10 desk interact, E13 door-LOS fade, E14 m1 nil cascade. Full per-sim logs: scratchpad/ediag/.

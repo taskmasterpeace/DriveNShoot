@@ -106,9 +106,20 @@ func _physics_process(delta: float) -> void:
 					swerve_lean_seen > deg_to_rad(3.0) and swerve_lean_seen < deg_to_rad(32.0))
 				_next(Phase.STOP)
 		Phase.STOP:
-			bike.input_throttle = 0.0
-			# Release below walking pace — held brake at ~0 engages reverse (by design).
-			bike.input_brake = 0.0 if bike.forward_speed < 1.5 else 1.0
+			# The swerve can end with the bike SPUN ~180° (forward_speed sign
+			# flips with facing at ~−12 m/s). Under the arcade scheme brake IS
+			# reverse-gear at low/negative speed — so a rider stopping a
+			# backward-rolling bike uses FORWARD throttle as the brake, then
+			# releases everything at walking pace.
+			if bike.forward_speed > 1.5:
+				bike.input_throttle = 0.0
+				bike.input_brake = 1.0
+			elif bike.forward_speed < -1.5:
+				bike.input_throttle = 1.0
+				bike.input_brake = 0.0
+			else:
+				bike.input_throttle = 0.0
+				bike.input_brake = 0.0
 			if absf(bike.forward_speed) < 0.5 and phase_t > 0.5:
 				bike.input_brake = 0.0
 				_next(Phase.DISMOUNT)
