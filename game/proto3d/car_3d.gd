@@ -628,7 +628,6 @@ var cook: float = 0.0 ## 0-100 while ON_FIRE — "it might blow, it might not"
 var dead: bool = false
 var salvaged: bool = false
 var _smoke: CPUParticles3D = null
-var _smoke_bucket: int = -1
 var _flames: CPUParticles3D = null
 var _spiral_rng := RandomNumberGenerator.new()
 
@@ -1153,24 +1152,26 @@ func _update_damage_smoke() -> void:
 	var sev := clampf(1.0 - ratio / 0.7, 0.0, 1.0)
 	sm.emitting = sev > 0.0
 	if not sm.emitting:
-		_smoke_bucket = -1
 		return
-	# Quantize severity — changing CPUParticles amount restarts emission, so only
-	# touch it when the bucket actually moves.
-	var bucket := clampi(int(sev * 4.0), 0, 3)
-	if bucket != _smoke_bucket:
-		_smoke_bucket = bucket
-		sm.amount = [10, 20, 32, 44][bucket]
-	sm.color = Color(0.30, 0.29, 0.28, 0.7).lerp(Color(0.07, 0.07, 0.07, 0.92), sev)
+	# Amount stays FIXED (changing it restarts emission), and the tint rides the
+	# car's OWN puff material: WHITE smoke = a worry, BLACK smoke = a death
+	# sentence — reads like real engines.
+	var pm := (sm.mesh as QuadMesh).material as StandardMaterial3D
+	if pm != null:
+		pm.albedo_color = Color(0.62, 0.61, 0.59, 0.55).lerp(Color(0.08, 0.08, 0.08, 0.85), sev)
 
 
 func _ensure_smoke() -> CPUParticles3D:
 	if _smoke == null:
 		_smoke = CPUParticles3D.new()
-		_smoke.amount = 10
-		_smoke.lifetime = 1.6
-		_smoke.mesh = BoxMesh.new()
-		(_smoke.mesh as BoxMesh).size = Vector3(0.18, 0.18, 0.18)
+		_smoke.amount = 36
+		_smoke.lifetime = 2.2
+		# SOFT PUFFS (fidelity loop it.4): billboarded radial-gradient discs off
+		# the shared ProtoFX sprite — the gray boxes read as debris, not smoke.
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.55, 0.55)
+		quad.material = ProtoFX.puff_material()
+		_smoke.mesh = quad
 		# OUT THE PIPE (playtest 2026-07-10 "smoke comes out of the middle"): puffs
 		# leave along the PIPE AXIS — rearward past the bumper for most rigs, straight
 		# up for a stack (row `exhaust_dir`, semi) — then buoyancy lifts them. The old
@@ -1180,22 +1181,21 @@ func _ensure_smoke() -> CPUParticles3D:
 		_smoke.spread = 11.0
 		_smoke.initial_velocity_min = 2.0
 		_smoke.initial_velocity_max = 3.4
-		_smoke.gravity = Vector3(0, 0.8, 0)
-		_smoke.color = Color(0.25, 0.24, 0.23, 0.8)
+		# Buoyancy + a whisper of WIND so the column never rises laser-straight.
+		_smoke.gravity = Vector3(0.3, 0.85, 0.12)
+		_smoke.color = Color(0.5, 0.49, 0.48, 0.7)
 		_smoke.position = spec.get("tailpipe", Vector3(0, 0.6, 0.0))
 		# PUFFS, not popcorn (fidelity loop it.2): each mote fades in, GROWS as it
 		# rises, and thins out — instead of full-size boxes blinking in and out.
 		var grow := Curve.new()
-		grow.add_point(Vector2(0.0, 0.5))
+		grow.add_point(Vector2(0.0, 0.35))
 		grow.add_point(Vector2(0.4, 1.0))
-		grow.add_point(Vector2(1.0, 1.7))
+		grow.add_point(Vector2(1.0, 1.75))
 		_smoke.scale_amount_curve = grow
-		var fade := Gradient.new()
-		fade.set_color(0, Color(1, 1, 1, 0.0))
-		fade.set_color(1, Color(1, 1, 1, 0.0))
-		fade.add_point(0.14, Color(1, 1, 1, 0.92))
-		fade.add_point(0.55, Color(1, 1, 1, 0.75))
-		_smoke.color_ramp = fade
+		# NO per-instance color/ramp — the CPUParticles instance-color path is
+		# the black-ball artifact (see ProtoFX.puff_material). Fade over life
+		# comes from scale growth + the sprite's soft falloff; tint lives on
+		# THIS car's own material instance (albedo_color, severity-driven).
 		_smoke.emitting = false
 		add_child(_smoke)
 	return _smoke
@@ -1286,8 +1286,11 @@ func _become_husk(_exploded: bool) -> void:
 	smolder.position = Vector3(0, maxf(0.5, hull_v.y * 0.6), 0)
 	smolder.direction = Vector3(0, 1, 0)
 	smolder.spread = 26.0
-	smolder.gravity = Vector3(0, 1.1, 0)
-	smolder.amount = 26
+	smolder.gravity = Vector3(0.25, 1.1, 0.1) # the same whisper of wind as the pipe
+	# (amount stays untouched — changing it restarts emission; tint on the material)
+	var hm := (smolder.mesh as QuadMesh).material as StandardMaterial3D
+	if hm != null:
+		hm.albedo_color = Color(0.10, 0.095, 0.09, 0.8) # burnt-out BLACK, whatever it read in life
 	smolder.emitting = true # husks smolder
 	# Char every visual — no matter HOW it died, the wreck reads burnt (user law).
 	var charred := ProtoWorldBuilder.material(Color(0.09, 0.085, 0.08), 1.0)

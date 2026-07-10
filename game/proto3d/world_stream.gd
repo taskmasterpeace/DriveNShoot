@@ -1473,8 +1473,19 @@ func _draw_zoom_chips() -> void:
 	var dc := Rect2(Vector2(size.x - s - pad, pad * 4 + s * 2 + 22), Vector2(s, s))
 	_map_canvas.draw_rect(dc, Color(0.07, 0.06, 0.05, 0.85))
 	_map_canvas.draw_rect(dc, Color(0.96, 0.72, 0.2), false, 2.0)
-	_map_canvas.draw_string(ProtoHUD.mixed_font(), dc.position + Vector2(3, 17),
-		"📱" if device_skin == "gps" else "📟", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	# The icon shows the OTHER handheld, drawn in primitives (emoji rendered as
+	# mush at chip size): a tall PHONE while on the brick, the BRICK on the phone.
+	var icon_col := Color(0.96, 0.72, 0.2)
+	if device_skin == "gps":
+		var pr := Rect2(dc.position + Vector2(7.0, 4.0), Vector2(10.0, 16.0))
+		_map_canvas.draw_rect(pr, icon_col, false, 1.5)
+		_map_canvas.draw_line(pr.position + Vector2(3.0, 13.0), pr.position + Vector2(7.0, 13.0), icon_col, 1.2)
+	else:
+		var br := Rect2(dc.position + Vector2(5.0, 8.0), Vector2(14.0, 11.0))
+		_map_canvas.draw_rect(br, icon_col, false, 1.5)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.0, -4.0), Vector2(2.5, 4.0)), icon_col)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.5, 6.5), Vector2(3.0, 2.0)), icon_col)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(8.0, 6.5), Vector2(3.0, 2.0)), icon_col)
 	_device_chip_rect = dc
 
 

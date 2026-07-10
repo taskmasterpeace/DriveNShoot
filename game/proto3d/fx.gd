@@ -6,6 +6,41 @@ class_name ProtoFX
 extends RefCounted
 
 
+## THE SOFT PUFF (fidelity loop it.4): one shared billboarded smoke sprite — a
+## radial-gradient disc generated once at runtime (no asset on disk), tinted by
+## each emitter's own color/ramp via vertex color. Every gray-box particle
+## system upgrades through this pair instead of rolling its own.
+static var _puff_tex: ImageTexture = null
+
+static func puff_texture() -> ImageTexture:
+	if _puff_tex == null:
+		var n := 64
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var d := Vector2(x - n / 2.0 + 0.5, y - n / 2.0 + 0.5).length() / (n / 2.0)
+				var a := clampf(1.0 - d, 0.0, 1.0)
+				a = a * a * (3.0 - 2.0 * a) * 0.85 # smoothstep falloff, core capped —
+				# even a fresh dense puff stays translucent (opaque cores read as balls)
+				img.set_pixel(x, y, Color(1, 1, 1, a))
+		_puff_tex = ImageTexture.create_from_image(img)
+	return _puff_tex
+
+
+static func puff_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Tint via the MATERIAL's albedo_color (per emitter), NEVER per-instance
+	# vertex color: with CPUParticles3D the instance-color path rendered one
+	# zero-data instance as a PURE-BLACK disc pinned at the emitter — probed at
+	# (0.00, 0.00, 0.00) and immune to ramp/amount/billboard-mode changes.
+	mat.vertex_color_use_as_albedo = false
+	mat.albedo_texture = puff_texture()
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	return mat
+
+
 ## Muzzle flash: a hot emissive blade + a light blink at the muzzle. ~70 ms.
 static func muzzle_flash(parent: Node, pos: Vector3, dir: Vector3) -> void:
 	var m := MeshInstance3D.new()

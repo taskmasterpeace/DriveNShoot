@@ -111,7 +111,9 @@ func _draw() -> void:
 		var wcx: float = (signf(wx) * (body_w * 0.5 + 0.10) * s) if proud else 0.0
 		var wcz: float = wz if proud else signf(wz) * (hl - rad)
 		var ww: float = (0.30 if proud else 0.26) * s
-		draw_rect(Rect2(c.x + (wcx if proud else wx) - ww * 0.5, c.y + wcz - rad, ww, rad * 2.0), tire_col)
+		# (non-proud rigs center their tires — the rig's visible pair sits a touch
+		# off-axis for physics, but the DOLL reads better symmetric)
+		draw_rect(Rect2(c.x + wcx - ww * 0.5, c.y + wcz - rad, ww, rad * 2.0), tire_col)
 
 	# 4) The felt parts as panels: ENGINE hood (front), BATTERY box (front-right),
 	# FUEL TANK slab (rear). Healthy = quiet; worn+ = loud tier color.

@@ -49,7 +49,15 @@ func _run() -> void:
 		_check("smoke leaves REARWARD (dir.z=%.2f > 0.7)" % sm.direction.z, sm.direction.z > 0.7)
 		_check("smoke is no up-fountain (dir.y=%.2f < 0.5)" % sm.direction.y, sm.direction.y < 0.5)
 		_check("puffs GROW over life (scale curve set)", sm.scale_amount_curve != null)
-		_check("puffs FADE in/out (color ramp set)", sm.color_ramp != null)
+		var smat := (sm.mesh as QuadMesh).material as StandardMaterial3D if sm.mesh is QuadMesh else null
+		_check("puffs are BILLBOARDED SOFT DISCS (quad + billboard + sprite)",
+			smat != null and smat.billboard_mode == BaseMaterial3D.BILLBOARD_ENABLED
+			and smat.albedo_texture != null)
+		_check("NO instance-color path (the black-ball artifact law)",
+			smat != null and not smat.vertex_color_use_as_albedo and sm.color_ramp == null)
+		_check("a whisper of wind bends the column (gravity.x=%.2f > 0)" % sm.gravity.x, sm.gravity.x > 0.0)
+		_check("light damage smokes LIGHT gray on the material (r=%.2f > 0.35)" % (smat.albedo_color.r if smat != null else -1.0),
+			smat != null and smat.albedo_color.r > 0.35)
 	var tip := car.get_node_or_null("exhaust_tip")
 	_check("visible exhaust tip welded on", tip is MeshInstance3D)
 	if tip is MeshInstance3D:
@@ -81,6 +89,9 @@ func _run() -> void:
 		_check("husk smolder goes UP (dir.y=%.2f > 0.9)" % sm.direction.y, sm.direction.y > 0.9)
 		_check("husk smolder spreads wide (%.0f deg >= 20)" % sm.spread, sm.spread >= 20.0)
 		_check("husk smolders (emitting)", sm.emitting)
+		var hmat := (sm.mesh as QuadMesh).material as StandardMaterial3D if sm.mesh is QuadMesh else null
+		_check("husk smoke is burnt BLACK on the material (r=%.2f < 0.2)" % (hmat.albedo_color.r if hmat != null else -1.0),
+			hmat != null and hmat.albedo_color.r < 0.2)
 
 	_finish()
 

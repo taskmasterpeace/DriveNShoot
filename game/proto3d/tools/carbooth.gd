@@ -65,8 +65,11 @@ func _shoot(vc: String, ratio: float, label: String) -> void:
 		car._become_husk(false)
 	else:
 		car.components["chassis"].hp = car.components["chassis"].max_hp * ratio
-	# Let the plume develop — smoke lifetime is 1.6s.
-	for _f in 100:
+	if OS.get_environment("CARBOOTH_HIDE_SMOKE") == "1" and ratio > 0.0:
+		car._ensure_smoke().visible = false # isolation probe: is the artifact the emitter?
+	# Let the plume develop PAST one full emission cycle (lifetime 2.2s) — in the
+	# first cycle the not-yet-spawned slots are suspects for origin artifacts.
+	for _f in 170:
 		await get_tree().process_frame
 	var views: Array = [
 		["topdown", Vector3(0, 16.0, 0.8), Vector3.ZERO],

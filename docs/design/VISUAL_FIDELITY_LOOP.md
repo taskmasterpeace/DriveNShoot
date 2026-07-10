@@ -111,11 +111,48 @@ is mush, world lighting/night feedback flat, muzzle/impact effects thin.
 real visible-wheel x — could center for the read); sheet shows "HP 100/69 (cap)"
 when staged wounds drop the cap below current hp (pre-existing, cosmetic).
 
-**Next up (iteration 4):**
-1. **Smoke deep pass** — billboarded soft puffs (QuadMesh + radial-gradient texture or
-   SphereMesh), count/lifetime retune, slight wind drift; same treatment for the husk
-   smolder. Kill the last popcorn. exhaust_sim guards the law.
-2. **Phone swap-chip pictogram** in draw primitives (brick vs phone glyphs, no emoji).
-3. **Muzzle flash + hit feedback probe** — inventory what weapon.gd shows on fire/hit
-   today; cheapest loud win (a 2-frame flash quad + tracer brightness?) — visuals only.
-4. Doll nits: center two-wheel tires; consider part ICONS on the vehicle doll panels.
+**Next up (iteration 4):** ~~smoke deep pass · chip pictogram · muzzle probe · doll
+nits~~ → executed below.
+
+---
+
+## Iteration 4 — 2026-07-10 ~08:30
+
+**Shipped:**
+- **SMOKE DEEP PASS** — the exhaust is finally SMOKE: billboarded soft discs off a
+  shared runtime radial-gradient sprite (`ProtoFX.puff_texture/puff_material` — the
+  craft home every gray-box system upgrades through), 36 puffs × 2.2s, wind whisper in
+  the gravity, severity tint WHITE-worry → BLACK-death on each car's own material,
+  husks burn black. Verified by render: a real billowing plume.
+- **THE BLACK BALL HUNT** (the iteration's real work): a pure-black disc pinned at the
+  pipe survived ramp rebuilds, alpha floors, fixed amounts, billboard-mode swaps, and
+  full-cycle waits. Isolation ladder: 5x crop → hide-the-emitter probe (ball is the
+  smoke system) → pixel probe (0.00,0.00,0.00 exactly) → **root cause: CPUParticles3D's
+  per-instance color path (vertex_color_use_as_albedo + color/color_ramp) renders one
+  zero-data instance as an opaque black disc at the emitter.** LAW (sim-enforced): puff
+  emitters tint via their OWN material's albedo_color, never per-instance color.
+  **exhaust_sim 22/22** incl. the no-instance-color-path check. Side effect: severity
+  smoke-density buckets replaced by the color read (amount changes restart emission
+  and park instances at origin — same artifact family, also outlawed).
+- **Device swap chip pictograms** in primitives — brick glyph on the phone, phone glyph
+  on the brick, both crop-verified crisp (the 14px emoji mush is gone).
+- **Muzzle/hit probe done**: ProtoFX already answers every shot (flash/casing/blood/
+  impact/swing/skull) — the upgrade path is quality (soft-sprite blood + impact via
+  puff_material, flash shape), queued below.
+- Doll nit: two-wheel tires centered on the doll's axis.
+
+**Steam rating: 7.3/10** (was 7.0). The smoke column is the single most-seen effect in
+the game and it finally looks authored; every dial on the screen now agrees on one
+grammar. Holding it back: blood/impact FX still box-particles, night/headlight
+atmosphere flat, world materials untouched, doll outline subtle at 1x.
+
+**Next up (iteration 5):**
+1. **FX pass 2 — blood + bullet impact on the puff system** (fx.gd: blood gets dark
+   soft sprites + gravity, impact gets dust-colored puffs; flash gets a hot diamond
+   quad). Sim: fx groups still spawn; carbooth-style render via a staged hit.
+2. **Night atmosphere probe** — what does 22:00 look like today (render at night with
+   headlights); cheapest wins: headlight cone softness, tail-glow bloom-ish emissive
+   tune, dash glow at night. VISUALS ONLY, keep the night-floor law intact.
+3. Vehicle doll: subtle part ICONS (engine bolt / battery / pump glyphs at 2px scale)
+   if they read at 1x — test in the gallery first.
+4. PixelLab: consider a matching 9:16 phone SKIN for THE CAR GPS mini-panel (cohesion).
