@@ -100,15 +100,15 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/proto3d/games/game_shell.gd`
 - Modify: `game/proto3d/tests/game_net_sim.gd`
 
-- [ ] Red local sim: a real remote character outside the row radius cannot be
+- [x] Red local sim: a real remote character outside the row radius cannot be
   invited; after real CharacterBody motion into radius the invitation succeeds,
   creates two declared seats, and both inputs affect the ordinary cartridge.
-- [ ] Red online sim: two powered terminals in one DRIVN session may form a
+- [x] Red online sim: two powered terminals in one DRIVN session may form a
   remote offer; wrong session, missing power, non-member, and locked ordinary
   library launches are refused.
-- [ ] Keep invites/events/snapshots/results on the one `ProtoArcadeNet` bridge;
+- [x] Keep invites/events/snapshots/results on the one `ProtoArcadeNet` bridge;
   no per-game RPC and no public matchmaking fiction.
-- [ ] Commit `feat: add Game Deck terminal invitations`.
+- [x] Commit `feat: add Game Deck terminal invitations`.
 
 ## Task 5: Data-driven tournament venues and spectator screens
 

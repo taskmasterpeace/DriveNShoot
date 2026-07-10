@@ -14,6 +14,7 @@ var _screen: MeshInstance3D
 var _screen_material: StandardMaterial3D
 var _live_texture: Texture2D = null
 var powered := true
+var session_broker: RefCounted = null
 
 
 static func create(new_main: Node, new_deck: Node, new_shell: CanvasLayer) -> Node3D:
@@ -30,6 +31,8 @@ func _setup(new_main: Node, new_deck: Node, new_shell: CanvasLayer) -> void:
 	name = "SafehouseGameConsole"
 	add_to_group("interactable")
 	_build_case()
+	var broker_script := load("res://proto3d/games/game_session_broker.gd") as GDScript
+	session_broker = broker_script.create(self, deck, shell)
 	deck.game_launched.connect(_on_game_launched)
 	deck.state_changed.connect(_on_deck_state_changed)
 
@@ -98,6 +101,24 @@ func set_powered(value: bool) -> void:
 
 func is_powered() -> bool:
 	return powered
+
+
+func local_offer(game_id: String, peer_id: int, body: Node3D, device: int = 1) -> Dictionary:
+	return session_broker.local_offer(game_id, peer_id, body, device) if session_broker != null else {}
+
+
+func start_local_offer(offer: Dictionary) -> bool:
+	return session_broker != null and bool(session_broker.start_local_offer(offer))
+
+
+func online_offer(game_id: String, peer_id: int, remote_terminal: Node,
+		session_id: String) -> Dictionary:
+	return session_broker.online_offer(game_id, peer_id, remote_terminal, session_id) \
+		if session_broker != null else {}
+
+
+func start_online_offer(offer: Dictionary) -> bool:
+	return session_broker != null and bool(session_broker.start_online_offer(offer))
 
 
 func interact_position() -> Vector3:
