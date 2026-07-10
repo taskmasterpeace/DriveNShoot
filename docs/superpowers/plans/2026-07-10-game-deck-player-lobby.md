@@ -153,7 +153,7 @@ git commit -m "feat: add universal Game Deck bot fill"
   `leave_lobby`
 - Consumes: console power, `deck.registry`, `deck.ledger`, `main.remote_players`
 
-- [ ] **Step 1: Write failing policy assertions for SOLO and LOCAL GAME**
+- [x] **Step 1: Write failing policy assertions for SOLO and LOCAL GAME**
 
 Use the real main scene and real `CharacterBody3D` peer bodies. Assert:
 
@@ -173,11 +173,11 @@ _check("acceptance revalidates distance",
 Also prove unpowered console, unknown game, handheld game, locked cartridge,
 duplicate invite, full match, leave, and `Engine.time_scale` invariants.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Expected: failure because the broker has no lobby state API.
 
-- [ ] **Step 3: Add typed lobby state and snapshots**
+- [x] **Step 3: Add typed lobby state and snapshots**
 
 Add signals and state:
 
@@ -196,7 +196,7 @@ stable seed, and sets defaults: SOLO bot fill on, LOCAL off, ONLINE on.
 `lobby_snapshot` returns a deep copy containing game, mode, host, seats,
 spectators, roster, pending invites, bot policy, capacity, and status.
 
-- [ ] **Step 4: Add candidate discovery and revalidation**
+- [x] **Step 4: Add candidate discovery and revalidation**
 
 `eligible_peers("local")` reads `console.main.remote_players`, filters valid
 bodies by declared radius, and returns stable peer/name/distance rows.
@@ -206,19 +206,19 @@ seat.
 
 Invalid operations set one exact status string and mutate nothing else.
 
-- [ ] **Step 5: Route existing console compatibility methods through lobby policy**
+- [x] **Step 5: Route existing console compatibility methods through lobby policy**
 
 Retain `local_offer` and `start_local_offer` as compatibility wrappers so
 existing callers and tests remain valid, but have them build/consume the same
 validated lobby state. Add `game_console.attach_lobby` only if required; do not
 duplicate policy in the console.
 
-- [ ] **Step 6: Run GREEN**
+- [x] **Step 6: Run GREEN**
 
 Run `game_lobby_policy_sim` and `game_local_mp_sim`. Expected: zero failures;
 the original two-seat real-input proof remains green.
 
-- [ ] **Step 7: Commit local lobby policy**
+- [x] **Step 7: Commit local lobby policy**
 
 ```powershell
 git add game/proto3d/games/game_session_broker.gd game/proto3d/games/game_console.gd game/proto3d/tests/game_lobby_policy_sim.* game/proto3d/tests/game_local_mp_sim.gd
