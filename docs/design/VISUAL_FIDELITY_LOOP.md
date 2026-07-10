@@ -539,13 +539,37 @@ below.
 remaining levers stand as stated in it.16: title/menu (owner-gated), UI lane
 (owner's), content rows, big-art passes.
 
-**Next up (iteration 18):**
-1. **Playtest-facing polish sweep**: walk the PLAYTEST_GUIDE's DO→EXPECT script eyes
-   (boot → drive → fight → night) via renders; catch anything a fresh player sees
-   in minute one that the probes haven't.
-2. **The smoking gun check**: SMOKING fire_state (chassis <40%) — is there tail
-   smoke AND engine smoke separation? (fire at engine, smoke at pipe — verify the
-   read mid-spiral.)
-3. TITLE backdrop: only on the owner's yes.
-4. Consider: loop cadence — with the code-mine worked, propose slowing to 60-min
-   iterations (more per-pass depth) in the report; owner decides.
+**Next up (iteration 18):** ~~playtest sweep · smoking gun~~ → executed below; the
+60-min cadence proposal is with the owner.
+
+---
+
+## Iteration 18 — 2026-07-10 ~17:30
+
+**Shipped:**
+- **FIRE IS ORANGE** (the playtest-eyes sweep's big catch): `_ensure_flames` set
+  the OUTLAWED instance-color path on bare BoxMesh particles — no material ever
+  read it, so every engine fire in the game has rendered as WHITE-GRAY cubes.
+  Now emissive orange ember cubes on the mesh's own material, shrinking as they
+  die. The mid-spiral read is perfect: FIRE at the engine, worry-gray smoke at
+  the pipe (new carbooth subjects: mid_spiral 0.3 + fiat on_fire). The black-ball
+  law's last hideout, closed. **exhaust_sim 25/25.**
+- **THE PURPLE PURGE**: the 🎮 emoji (renders purple — the #1 house law covers
+  icons) swapped to 🕹 at all four UI sites (menu button, menu hint, controls
+  panel title, bind toast). **menu_sim 7/7, input_map_sim 15/15.**
+- **THE FRONT DOOR render** (new permanent MENU_boot shot): the title screen is
+  dignified — amber DRIVN wordmark, clean rows — but PLAIN (flat dark backdrop
+  with the world faintly behind). The PixelLab backdrop offer to the owner now
+  has photographic evidence attached.
+- Ladder: | 18 | 9.1 | fire is orange + purple purge |
+
+**Steam rating: 9.1/10** (was 9.0). A first-minute defect (white fire) and a
+house-law violation (purple icon) — both found only by walking the game like a
+fresh player. Remaining: owner-gated art + content rows, as stated.
+
+**Next up (iteration 19):**
+1. **Continue playtest-eyes**: the FIGHT minute (melee arcs, crit slow-mo read,
+   reticle) — render what a first fight looks like; catch reads probes missed.
+2. **The blood-on-ground check**: does blood leave ground memory like bullets do?
+   (fx_mark for flesh hits near ground — same law, tiny.)
+3. TITLE backdrop + cadence: on the owner's word.

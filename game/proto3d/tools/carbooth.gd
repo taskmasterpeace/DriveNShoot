@@ -47,6 +47,8 @@ func _ready() -> void:
 	# SUBJECTS: [vclass, chassis_ratio (-1 = husk), label, night]
 	var subjects: Array = [
 		["scavenger", 0.5, "scav_smoking", false],
+		["scavenger", 0.3, "mid_spiral", false],  # it.18: SMOKING band — darker pipe smoke
+		["scavenger", 0.5, "on_fire", false],     # it.18: flames at ENGINE vs smoke at PIPE
 		["semi", 0.5, "semi_stack", false],
 		["scavenger", -1.0, "husk", false],
 		["scavenger", 1.0, "night_drive", true],
@@ -83,6 +85,11 @@ func _shoot(vc: String, ratio: float, label: String, night: bool = false) -> voi
 		car._become_husk(false)
 	elif ratio < 1.0:
 		car.components["chassis"].hp = car.components["chassis"].max_hp * ratio
+	if label == "on_fire":
+		# Fiat fire at healthy-ish chassis: flames at the ENGINE while smoke leaves
+		# the PIPE — the separation read, without the cook-explode flake.
+		car.fire_state = ProtoCar3D.FireState.ON_FIRE
+		car._ensure_flames().emitting = true
 	if OS.get_environment("CARBOOTH_HIDE_SMOKE") == "1" and ratio > 0.0:
 		car._ensure_smoke().visible = false # isolation probe: is the artifact the emitter?
 	# Let the plume develop PAST one full emission cycle (lifetime 2.2s) — in the

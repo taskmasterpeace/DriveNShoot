@@ -1213,12 +1213,20 @@ func _ensure_flames() -> CPUParticles3D:
 		_flames = CPUParticles3D.new()
 		_flames.amount = 40
 		_flames.lifetime = 0.7
-		_flames.mesh = BoxMesh.new()
-		(_flames.mesh as BoxMesh).size = Vector3(0.3, 0.3, 0.3)
+		var fmesh := BoxMesh.new()
+		fmesh.size = Vector3(0.3, 0.3, 0.3)
+		# FIRE IS ORANGE (it.18 playtest eyes): the old `color =` rode the outlawed
+		# instance-color path — no material read it, so flames rendered as WHITE
+		# boxes. Emissive ember cubes on the mesh's OWN material (the law).
+		fmesh.material = ProtoWorldBuilder.material(Color(1.0, 0.45, 0.08), 0.3, true)
+		_flames.mesh = fmesh
+		var fshrink := Curve.new()
+		fshrink.add_point(Vector2(0.0, 1.0))
+		fshrink.add_point(Vector2(1.0, 0.3))
+		_flames.scale_amount_curve = fshrink # embers die small
 		_flames.direction = Vector3(0, 1, 0)
 		_flames.initial_velocity_min = 2.5
 		_flames.initial_velocity_max = 5.0
-		_flames.color = Color(1.0, 0.45, 0.08, 0.95)
 		_flames.position = Vector3(0, 0.7, -0.8)
 		_flames.emitting = false
 		add_child(_flames)

@@ -272,6 +272,16 @@ func _ready() -> void:
 			await get_tree().process_frame
 		await _shot("WATER_shore")
 
+	# 13) THE FRONT DOOR (it.18 — what a fresh player sees FIRST): the title
+	# menu, summoned the way a real launch builds it.
+	var menu := ProtoMenu.create(main)
+	main.add_child(menu)
+	for _i in 12:
+		await get_tree().process_frame
+	await _shot("MENU_boot")
+	menu.queue_free()
+	await get_tree().process_frame
+
 	# 12) STORM-EDGE drive probe (it.13) — PROBE_STORM=1 only (adds ~15 s): a
 	# small staged rain cell dead ahead, drive in on a REAL held key (the poller
 	# owns the throttle — the paid-for law), 3 frames across the gradient.

@@ -40,7 +40,7 @@ static func create(main: Node) -> ProtoControlsPanel:
 	v.add_theme_constant_override("separation", 6)
 	p._root.add_child(v)
 	var title := Label.new()
-	title.text = "🎮  CONTROLS — click a binding, press the new key or button"
+	title.text = "🕹  CONTROLS — click a binding, press the new key or button"
 	title.add_theme_font_override("font", ProtoHUD.mixed_font())
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", AMBER)
@@ -193,5 +193,5 @@ func _input(event: InputEvent) -> void:
 	ProtoInputMap.rebind(String(_capture["id"]), slot, [d])
 	_capture = {}
 	if _main != null and _main.has_method("notify"):
-		_main.notify("🎮 Bound %s" % ProtoInputMap.pretty(d))
+		_main.notify("🕹 Bound %s" % ProtoInputMap.pretty(d))
 	_rebuild()
