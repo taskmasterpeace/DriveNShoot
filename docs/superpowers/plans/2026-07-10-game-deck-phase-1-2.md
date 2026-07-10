@@ -80,12 +80,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/red_sky/*`, `tests/red_sky_sim.*`
 
-- [ ] Red sim: turn ownership, angle/charge, deterministic wind, ballistic
+- [x] Red sim: turn ownership, angle/charge, deterministic wind, ballistic
   flight, terrain collision/deformation, blast falloff, damage, next turn, AI
   ranging shot, local seats, snapshot, and wins/damage result.
-- [ ] Implement one-to-four artillery crews on an original ruined weather-array
+- [x] Implement one-to-four artillery crews on an original ruined weather-array
   skyline. Reliable action events remain optional because snapshots are authority.
-- [ ] Commit `feat: add RED SKY`.
+- [x] Commit `feat: add RED SKY`.
 
 ## Task 4: BLACK ORBIT
 

@@ -116,7 +116,7 @@ func _ready() -> void:
 	deck.start(88, [{"seat": 0, "device": -1, "profile_id": "local"}])
 	shell.power_off()
 	_check("power off destroys the active cartridge", deck.cartridge == null and deck.state == "OFF")
-	_check("a missing future cartridge is isolated as an error", not deck.launch("red_sky", {})
+	_check("a missing future cartridge is isolated as an error", not deck.launch("black_orbit", {})
 		and deck.state == "ERROR" and deck.error_text.contains("CARTRIDGE"))
 	_check("CROWN OF ASH launches into read-only spectator state",
 		deck.launch("crown_of_ash", {"source": "session", "spectator": true})
