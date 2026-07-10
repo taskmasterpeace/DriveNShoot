@@ -67,11 +67,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/dead_ground/*`, `tests/dead_ground_sim.*`
 
-- [ ] Red sim: first-click-safe deterministic mine layout, adjacent counts,
+- [x] Red sim: first-click-safe deterministic mine layout, adjacent counts,
   zero flood, flag/unflag, win, mine loss, low-time result with errors.
-- [ ] Implement cursor plus pointer-cell selection through semantic input.
-- [ ] Draw original survey stakes, hazard marks, and volunteer-demining copy.
-- [ ] Commit `feat: add DEAD GROUND`.
+- [x] Implement cursor plus pointer-cell selection through semantic input.
+- [x] Draw original survey stakes, hazard marks, and volunteer-demining copy.
+- [x] Commit `feat: add DEAD GROUND`.
 
 ## Task 4: PACK RAT
 
