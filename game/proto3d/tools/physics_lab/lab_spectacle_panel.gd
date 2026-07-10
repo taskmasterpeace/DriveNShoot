@@ -141,19 +141,57 @@ func refresh(facts: Dictionary) -> void:
 	var ticket_line: String = "NO TICKET" if ticket.is_empty() else "%s · %d @ %.2f" % [
 		String(ticket.get("id", "")).to_upper(), int(ticket.get("stake", 0)), float(ticket.get("odds", 0.0))]
 	var round_state: Dictionary = facts.get("round", {})
-	_body.text = "%s\n\n%s\n\nMODE  %s     SELECT  %s\nSTAKE  %d     BANKROLL  %d     TICKET  %s\nROUND  %s     CHAMPION  %s     PAYOUT  %d\n\n%s" % [
-		"\n".join(entrant_lines), "\n".join(bracket_lines), String(facts.get("mode", "watch")).to_upper(),
+	var current: Dictionary = facts.get("current_match", {})
+	var live_line: String = _fighter_line(facts, current, round_state)
+	var card_line: String = _round_card_line(facts, round_state)
+	var broadcast_line: String = _broadcast_line(facts, current)
+	_body.text = "%s\n\n%s\n\n%s\n%s\n%s\n\nMODE  %s     SELECT  %s\nSTAKE  %d     BANKROLL  %d     TICKET  %s\nROUND  %s     CHAMPION  %s     PAYOUT  %d\n\n%s" % [
+		"\n".join(entrant_lines), "\n".join(bracket_lines), live_line, card_line,
+		broadcast_line, String(facts.get("mode", "watch")).to_upper(),
 		_name_for(facts, String(facts.get("selected_entrant", ""))), int(facts.get("stake", 0)),
 		int(facts.get("bankroll", 0)), ticket_line, String(round_state.get("phase", "READY")).to_upper(),
 		_name_for(facts, String(facts.get("champion", ""))), int(facts.get("payout", 0)),
 		String(facts.get("status", ""))]
-	var current: Dictionary = facts.get("current_match", {})
-	_compact_text.text = "SPECTACLES  ·  %s  ·  %s vs %s\n%s  ·  BANKROLL %d  ·  PAYOUT %d" % [
+	_compact_text.text = "SPECTACLES  ·  %s  ·  %s vs %s\n%s\n%s" % [
 		String(current.get("round", facts.get("phase", "READY"))).to_upper(),
 		_name_for(facts, String(current.get("left", ""))),
-		_name_for(facts, String(current.get("right", ""))), String(facts.get("status", "")),
-		int(facts.get("bankroll", 0)), int(facts.get("payout", 0))]
+		_name_for(facts, String(current.get("right", ""))), live_line,
+		"%s · BANKROLL %d · PAYOUT %d" % [card_line,
+			int(facts.get("bankroll", 0)), int(facts.get("payout", 0))]]
 	_update_visibility(facts)
+
+
+func _fighter_line(facts: Dictionary, current: Dictionary, round_state: Dictionary) -> String:
+	var left_id: String = String(current.get("left", ""))
+	var right_id: String = String(current.get("right", ""))
+	var fighters: Dictionary = round_state.get("fighters", {})
+	if left_id == "" or right_id == "" or not fighters.has(left_id) or not fighters.has(right_id):
+		return "FIGHTERS READY"
+	var health_max: float = float(round_state.get("max_health", 100.0))
+	var wins: int = int(round_state.get("rounds_to_win", 2))
+	var left: Dictionary = fighters[left_id]
+	var right: Dictionary = fighters[right_id]
+	return "%s HP %.0f/%.0f R %d/%d  ·  %s HP %.0f/%.0f R %d/%d" % [
+		_name_for(facts, left_id), float(left.get("health", 0.0)), health_max,
+		int(left.get("rounds", 0)), wins, _name_for(facts, right_id),
+		float(right.get("health", 0.0)), health_max, int(right.get("rounds", 0)), wins]
+
+
+func _round_card_line(facts: Dictionary, round_state: Dictionary) -> String:
+	var card: Dictionary = round_state.get("last_card", {})
+	if card.is_empty():
+		return "CARD —"
+	return "CARD %s · %s" % [_name_for(facts, String(card.get("winner", ""))),
+		String(card.get("reason", "ROUND")).to_upper()]
+
+
+func _broadcast_line(facts: Dictionary, current: Dictionary) -> String:
+	var copy: Dictionary = facts.get("broadcast", {})
+	if String(facts.get("phase", "")) == "settled":
+		return String(copy.get("winner", ""))
+	if String(current.get("round", "")) == "FINAL":
+		return String(copy.get("final", ""))
+	return String(copy.get("semifinal", ""))
 
 
 func _name_for(facts: Dictionary, id: String) -> String:

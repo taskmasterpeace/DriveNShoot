@@ -12,6 +12,19 @@ var prior_scale: float = 1.0
 var max_spectacle_ai: int = 0
 
 
+class RejectingLab:
+	extends Node3D
+	var lab_round: RefCounted = preload(
+		"res://proto3d/tools/physics_lab/lab_round.gd").new()
+
+	func configure_spectacle_match(_left: Dictionary, _right: Dictionary,
+			_mode: String) -> bool:
+		return false
+
+	func clear_spectacle_fighters() -> void:
+		pass
+
+
 func _check(label: String, ok: bool) -> void:
 	passed += 1 if ok else 0
 	failed += 0 if ok else 1
@@ -71,6 +84,11 @@ func _ready() -> void:
 	duplicate_id["entrants"][1]["id"] = duplicate_id["entrants"][0]["id"]
 	var bad_weapon: Dictionary = valid_row.duplicate(true); bad_weapon["entrants"][2]["weapon_id"] = "missing"
 	var short_field: Dictionary = valid_row.duplicate(true); short_field["entrants"].pop_back()
+	var bypassed_law: Dictionary = valid_row.duplicate(true)
+	bypassed_law["prohibited_groups"] = []
+	bypassed_law["entrants"][0]["group"] = "dog"
+	var bad_spawns: Dictionary = valid_row.duplicate(true); bad_spawns["spawns"]["left"] = [1, 2]
+	var bad_round: Dictionary = valid_row.duplicate(true); bad_round["round_health"] = 0
 	_check("validator rejects lethal, dog, infected, duplicate, bad-weapon, and short cards",
 		not bool(runtime.validate_row(lethal)["ok"])
 		and not bool(runtime.validate_row(dog)["ok"])
@@ -78,6 +96,22 @@ func _ready() -> void:
 		and not bool(runtime.validate_row(duplicate_id)["ok"])
 		and not bool(runtime.validate_row(bad_weapon)["ok"])
 		and not bool(runtime.validate_row(short_field)["ok"]))
+	_check("entrant law and physical schema cannot be bypassed by malformed rows",
+		not bool(runtime.validate_row(bypassed_law)["ok"])
+		and not bool(runtime.validate_row(bad_spawns)["ok"])
+		and not bool(runtime.validate_row(bad_round)["ok"]))
+
+	var rejecting_lab := RejectingLab.new()
+	add_child(rejecting_lab)
+	var rejecting_runtime: Node = (load(RUNTIME_PATH) as Script).new()
+	rejecting_lab.add_child(rejecting_runtime)
+	var rejecting_ready: bool = rejecting_runtime.setup(
+		rejecting_lab, "wasteland_shootout", 8401)
+	_check("failed physical staging rolls the tournament back to a visible ready state",
+		rejecting_ready and not rejecting_runtime.start_tournament()
+		and String(rejecting_runtime.facts()["phase"]) == "ready"
+		and String(rejecting_runtime.facts()["status"]).contains("STAGING"))
+	rejecting_lab.queue_free()
 
 	var share_sum: float = 0.0
 	for entrant in entrants:
@@ -192,7 +226,6 @@ func _ready() -> void:
 		_check("physical match completion advances and restages semifinal B",
 			String(live.facts()["current_match"].get("id", "")) == "semi_b"
 			and restaged.size() == 2 and tag_count_ok)
-
 	live.reset_tournament()
 	_check("physical reset clears WATCH bodies and allows ENTER selection",
 		(lab.get("spectacle_fighters") as Array).is_empty() and live.select_mode("enter"))
@@ -246,6 +279,8 @@ func _ready() -> void:
 	if integrated_ui:
 		var ui_runtime: Node = lab.get("spectacle")
 		var ui_panel: CanvasLayer = lab.get("spectacle_panel")
+		lab.set_surface("mud")
+		lab.set_condition_preset("hurt")
 		var prior_time_scale: float = Engine.time_scale
 		var toggle := InputEventKey.new()
 		toggle.keycode = KEY_J
@@ -268,6 +303,19 @@ func _ready() -> void:
 			lab.player.global_position.distance_to(held_position) < 0.01
 			and lab.adapter.weapon.mag == held_mag
 			and is_equal_approx(Engine.time_scale, prior_time_scale))
+		var panel_scenario: String = String(lab.current_scenario)
+		var panel_mode: String = String(lab.active_mode)
+		var panel_surface: String = String(lab.adapter.surface.get("id", ""))
+		var panel_condition: String = String(lab.adapter.condition.get("id", ""))
+		for key in [KEY_N, KEY_F2, KEY_U, KEY_I]:
+			var conflict := InputEventKey.new()
+			conflict.keycode = key
+			conflict.pressed = true
+			lab._unhandled_input(conflict)
+		_check("open Spectacles panel consumes unrelated lab shortcuts",
+			String(lab.current_scenario) == panel_scenario and String(lab.active_mode) == panel_mode
+			and String(lab.adapter.surface.get("id", "")) == panel_surface
+			and String(lab.adapter.condition.get("id", "")) == panel_condition)
 		for key in [KEY_2, KEY_RIGHT, KEY_UP, KEY_B]:
 			var event := InputEventKey.new()
 			event.keycode = key
@@ -285,15 +333,79 @@ func _ready() -> void:
 		_check("START closes the large panel and leaves a compact live bracket strip",
 			String(ui_runtime.facts()["phase"]) == "running" and not ui_panel.is_open()
 			and bool(ui_panel.panel_facts()["compact_visible"]))
+		for fighter in (lab.get("spectacle_fighters") as Array):
+			fighter.set_behavior("passive")
 		var refresh_before: int = int(ui_panel.panel_facts()["refresh_count"])
 		for _i in 8:
 			await get_tree().physics_frame
 		_check("panel refresh is event-driven rather than rebuilt every physics frame",
 			int(ui_panel.panel_facts()["refresh_count"]) == refresh_before)
+		var ui_match: Dictionary = ui_runtime.facts()["current_match"]
+		var ui_rival: String = String(ui_match["right"]) \
+			if String(ui_match["left"]) == "player" else String(ui_match["left"])
+		var player_name: String = String(ui_runtime.entrant_by_id("player")["name"]).to_upper()
+		var player_health_before: float = float(
+			ui_runtime.facts()["round"]["fighters"]["player"]["health"])
+		lab._on_player_damaged(7.0)
+		await get_tree().process_frame
+		var damage_readout: String = String(ui_panel.panel_facts()["text"])
+		var player_health_after: float = maxf(0.0, player_health_before - 7.0)
+		_check("live board names both fighters and shows event-driven health plus broadcast copy",
+			damage_readout.contains("%s HP %.0f/100" % [player_name, player_health_after])
+			and damage_readout.contains(String(ui_runtime.entrant_by_id(ui_rival)["name"]).to_upper())
+			and damage_readout.contains(String(ui_runtime.row["broadcast"]["semifinal"])))
+		lab.lab_round.hit(ui_rival, 200.0,
+			{"attacker":"player", "kind":"broadcast_probe"})
+		await get_tree().process_frame
+		var round_readout: String = String(ui_panel.panel_facts()["text"])
+		_check("live board exposes round score and the real nonlethal round card",
+			round_readout.contains("%s HP %.0f/100 R 1/2" % [player_name, player_health_after])
+			and round_readout.contains("BROADCAST_PROBE"))
+		var bout_matches: Array = ui_runtime.facts()["matches"]
+		var bout_ticket: Dictionary = ui_runtime.facts()["ticket"]
+		var bout_mode: String = String(lab.active_mode)
+		var bout_surface: String = String(lab.adapter.surface.get("id", ""))
+		var bout_condition: String = String(lab.adapter.condition.get("id", ""))
+		var bout_reset := InputEventKey.new()
+		bout_reset.keycode = KEY_BACKSPACE
+		bout_reset.pressed = true
+		lab._unhandled_input(bout_reset)
+		await get_tree().process_frame
+		var reset_round: Dictionary = ui_runtime.facts()["round"]
+		var reset_fighters: Dictionary = reset_round.get("fighters", {})
+		var reset_clean: bool = not reset_fighters.is_empty()
+		for fighter in reset_fighters.values():
+			reset_clean = reset_clean and is_equal_approx(float(fighter["health"]),
+				float(reset_round["max_health"])) and int(fighter["rounds"]) == 0
+		_check("Backspace resets only the physical bout and preserves the ENTER experiment",
+			reset_clean and String(ui_runtime.facts()["phase"]) == "running"
+			and ui_runtime.facts()["matches"] == bout_matches
+			and ui_runtime.facts()["ticket"] == bout_ticket
+			and String(lab.active_mode) == bout_mode
+			and String(lab.adapter.surface.get("id", "")) == bout_surface
+			and String(lab.adapter.condition.get("id", "")) == bout_condition)
 		var first_complete: bool = _settle_tournament(ui_runtime, lab, true)
 		ui_runtime.reset_tournament()
-		var second_complete: bool = ui_runtime.select_mode("watch") \
-			and ui_runtime.start_tournament() and _settle_tournament(ui_runtime, lab, false)
+		var second_started: bool = ui_runtime.select_mode("watch") and ui_runtime.start_tournament()
+		var locked_scenario: String = String(lab.current_scenario)
+		var locked_mode: String = String(lab.active_mode)
+		var locked_surface: String = String(lab.adapter.surface.get("id", ""))
+		var locked_condition: String = String(lab.adapter.condition.get("id", ""))
+		for key in [KEY_N, KEY_F2, KEY_U, KEY_I]:
+			var conflict := InputEventKey.new()
+			conflict.keycode = key
+			conflict.pressed = true
+			lab._unhandled_input(conflict)
+		await get_tree().process_frame
+		var locked_fighters: Array = lab.get("spectacle_fighters")
+		_check("running WATCH consumes conflicting scenario/body/surface/condition shortcuts",
+			second_started and String(lab.current_scenario) == locked_scenario
+			and String(lab.active_mode) == locked_mode
+			and String(lab.adapter.surface.get("id", "")) == locked_surface
+			and String(lab.adapter.condition.get("id", "")) == locked_condition
+			and locked_fighters.size() == 2
+			and locked_fighters.all(func(fighter: Node) -> bool: return is_instance_valid(fighter)))
+		var second_complete: bool = second_started and _settle_tournament(ui_runtime, lab, false)
 		ui_runtime.reset_tournament()
 		await get_tree().process_frame
 		_check("two complete tournaments reset with at most two temporary AI and no death state",

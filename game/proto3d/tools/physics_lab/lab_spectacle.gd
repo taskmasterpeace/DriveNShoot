@@ -48,6 +48,8 @@ func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
 	row = candidate
 	if lab != null and "lab_round" in lab and lab.lab_round != null and not _round_connected:
 		lab.lab_round.match_ended.connect(_on_physical_match_ended)
+		if lab.lab_round.has_signal("state_changed"):
+			lab.lab_round.state_changed.connect(_on_physical_round_changed)
 		_round_connected = true
 		if "adapter" in lab and lab.adapter != null:
 			_opening_player_transform = lab.adapter.anchor_transform()
@@ -74,25 +76,50 @@ func _opponent_ids() -> Array[String]:
 
 
 func validate_row(candidate: Dictionary) -> Dictionary:
-	if not bool(candidate.get("nonlethal", false)):
+	if typeof(candidate.get("nonlethal")) != TYPE_BOOL \
+			or not bool(candidate.get("nonlethal", false)):
 		return {"ok":false, "error":"LETHAL CARDS ARE DISABLED"}
-	var modes: Array = candidate.get("modes", [])
+	for text_field in ["name", "venue", "kind"]:
+		if typeof(candidate.get(text_field)) != TYPE_STRING \
+				or String(candidate.get(text_field, "")).strip_edges() == "":
+			return {"ok":false, "error":"INVALID %s" % text_field.to_upper()}
+	if not candidate.get("modes") is Array:
+		return {"ok":false, "error":"MODES MUST BE AN ARRAY"}
+	var modes: Array = candidate["modes"]
 	for required in ["watch", "bet", "enter"]:
 		if required not in modes:
 			return {"ok":false, "error":"MISSING MODE %s" % required.to_upper()}
-	var field: Array = candidate.get("entrants", [])
+	if not _positive_number(candidate.get("round_health")) \
+			or not _positive_integer(candidate.get("rounds_to_win")):
+		return {"ok":false, "error":"INVALID ROUND RULES"}
+	if not candidate.get("entrants") is Array:
+		return {"ok":false, "error":"ENTRANTS MUST BE AN ARRAY"}
+	var field: Array = candidate["entrants"]
 	if field.size() != 4:
 		return {"ok":false, "error":"SHOOTOUT REQUIRES FOUR ENTRANTS"}
 	var seen: Dictionary = {}
-	var prohibited: Array = candidate.get("prohibited_groups", ["dog", "infected"])
+	var prohibited: Array[String] = ["dog", "infected"]
+	if candidate.has("prohibited_groups"):
+		if not candidate["prohibited_groups"] is Array:
+			return {"ok":false, "error":"PROHIBITED GROUPS MUST BE AN ARRAY"}
+		for group in (candidate["prohibited_groups"] as Array):
+			if typeof(group) != TYPE_STRING:
+				return {"ok":false, "error":"INVALID PROHIBITED GROUP"}
+			if String(group) not in prohibited:
+				prohibited.append(String(group))
 	var opponent_ids: Array[String] = _opponent_ids()
 	for raw_entrant in field:
-		var entrant: Dictionary = raw_entrant
+		if not raw_entrant is Dictionary:
+			return {"ok":false, "error":"ENTRANTS MUST BE OBJECTS"}
+		var entrant: Dictionary = raw_entrant as Dictionary
 		var id: String = String(entrant.get("id", ""))
 		if id == "" or seen.has(id):
 			return {"ok":false, "error":"ENTRANT IDS MUST BE UNIQUE"}
 		seen[id] = true
-		if float(entrant.get("strength", 0.0)) <= 0.0:
+		if typeof(entrant.get("name")) != TYPE_STRING \
+				or String(entrant.get("name", "")).strip_edges() == "":
+			return {"ok":false, "error":"ENTRANT NAME REQUIRED"}
+		if not _positive_number(entrant.get("strength")):
 			return {"ok":false, "error":"STRENGTH MUST BE POSITIVE"}
 		if String(entrant.get("group", "human")) in prohibited:
 			return {"ok":false, "error":"PROHIBITED ENTRANT GROUP"}
@@ -100,12 +127,48 @@ func validate_row(candidate: Dictionary) -> Dictionary:
 			return {"ok":false, "error":"UNKNOWN WEAPON"}
 		if String(entrant.get("opponent_row", "")) not in opponent_ids:
 			return {"ok":false, "error":"UNKNOWN OPPONENT ROW"}
-	var minimum: int = int(candidate.get("stake_min", 0))
-	var maximum: int = int(candidate.get("stake_max", 0))
-	var step: int = int(candidate.get("stake_step", 0))
+	if not _positive_integer(candidate.get("stake_min")) \
+			or not _positive_integer(candidate.get("stake_max")) \
+			or not _positive_integer(candidate.get("stake_step")):
+		return {"ok":false, "error":"INVALID STAKE BAND"}
+	var minimum: int = int(candidate["stake_min"])
+	var maximum: int = int(candidate["stake_max"])
+	var step: int = int(candidate["stake_step"])
 	if minimum < 1 or maximum < minimum or step < 1:
 		return {"ok":false, "error":"INVALID STAKE BAND"}
+	if not candidate.get("spawns") is Dictionary:
+		return {"ok":false, "error":"SPAWNS MUST BE AN OBJECT"}
+	var spawns: Dictionary = candidate["spawns"]
+	for spawn_id in ["left", "right", "spectator"]:
+		if not _valid_spawn(spawns.get(spawn_id)):
+			return {"ok":false, "error":"INVALID %s SPAWN" % spawn_id.to_upper()}
+	if not candidate.get("broadcast") is Dictionary:
+		return {"ok":false, "error":"BROADCAST COPY REQUIRED"}
+	var broadcast: Dictionary = candidate["broadcast"]
+	for copy_id in ["semifinal", "final", "winner"]:
+		if typeof(broadcast.get(copy_id)) != TYPE_STRING \
+				or String(broadcast.get(copy_id, "")).strip_edges() == "":
+			return {"ok":false, "error":"INVALID BROADCAST COPY"}
 	return {"ok":true, "error":""}
+
+
+func _positive_number(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) \
+		and float(value) > 0.0
+
+
+func _positive_integer(value: Variant) -> bool:
+	return typeof(value) in [TYPE_INT, TYPE_FLOAT] and is_finite(float(value)) \
+		and float(value) > 0.0 and is_equal_approx(float(value), float(int(value)))
+
+
+func _valid_spawn(value: Variant) -> bool:
+	if not value is Array or (value as Array).size() != 3:
+		return false
+	for coordinate in (value as Array):
+		if typeof(coordinate) not in [TYPE_INT, TYPE_FLOAT] or not is_finite(float(coordinate)):
+			return false
+	return true
 
 
 func _reset_state() -> void:
@@ -199,8 +262,9 @@ func start_tournament() -> bool:
 	phase = "running"
 	match_index = 0
 	status = "SEMIFINAL A LIVE"
-	if lab != null:
-		_start_current_match()
+	if lab != null and not _start_current_match():
+		_recover_from_staging_failure()
+		return false
 	_emit_changed()
 	return true
 
@@ -241,14 +305,17 @@ func reset_tournament() -> void:
 	_reset_state()
 
 
-func _start_current_match() -> void:
-	if lab == null or phase != "running" or not lab.has_method("configure_spectacle_match"):
-		return
+func _start_current_match() -> bool:
+	if lab == null or phase != "running" or not lab.has_method("configure_spectacle_match") \
+			or not "lab_round" in lab or lab.lab_round == null:
+		return false
 	var current: Dictionary = current_match()
 	if current.is_empty():
-		return
+		return false
 	var left: Dictionary = entrant_by_id(String(current["left"]))
 	var right: Dictionary = entrant_by_id(String(current["right"]))
+	if left.is_empty() or right.is_empty():
+		return false
 	var spawns: Dictionary = row.get("spawns", {})
 	left["spectacle_spawn"] = (spawns.get("left", [70, 0.05, 14]) as Array).duplicate()
 	right["spectacle_spawn"] = (spawns.get("right", [86, 0.05, 14]) as Array).duplicate()
@@ -258,16 +325,34 @@ func _start_current_match() -> void:
 		float(row.get("round_health", 100.0)), int(row.get("rounds_to_win", 2)))
 	var physical_mode: String = "enter" if mode == "enter" and "player" in [
 		String(current["left"]), String(current["right"])] else "watch"
-	lab.configure_spectacle_match(left, right, physical_mode)
+	return bool(lab.configure_spectacle_match(left, right, physical_mode))
+
+
+func _recover_from_staging_failure() -> void:
+	if lab != null and lab.has_method("clear_spectacle_fighters"):
+		lab.clear_spectacle_fighters()
+	_reset_state()
+	status = "MATCH STAGING FAILED · CHECK CARD AND ARENA"
+	_emit_changed()
+
+
+func _stage_next_match() -> void:
+	if phase == "running" and not _start_current_match():
+		_recover_from_staging_failure()
 
 
 func _on_physical_match_ended(winner_id: String) -> void:
 	if phase != "running" or not record_match_winner(winner_id):
 		return
 	if phase == "running":
-		call_deferred("_start_current_match")
+		call_deferred("_stage_next_match")
 	elif lab != null and lab.has_method("clear_spectacle_fighters"):
 		lab.call_deferred("clear_spectacle_fighters")
+
+
+func _on_physical_round_changed(_state: Dictionary) -> void:
+	if phase == "running":
+		_emit_changed()
 
 
 func current_match() -> Dictionary:
@@ -295,7 +380,8 @@ func facts() -> Dictionary:
 		"current_match":current_match(), "selected_entrant":String(entrants[selected_index]["id"])
 			if not entrants.is_empty() else "", "odds":odds, "stake":stake,
 		"bankroll":bankroll, "ticket":ticket.duplicate(true), "champion":champion,
-		"payout":payout, "status":status, "seed":seed, "round":round_state}
+		"payout":payout, "status":status, "seed":seed, "round":round_state,
+		"broadcast":(row.get("broadcast", {}) as Dictionary).duplicate(true)}
 
 
 func readout() -> String:

@@ -59,7 +59,9 @@ Impact Bay keyboard controls are active only while the Vehicle Damage Bay is the
 
 Press `J` anywhere in the standalone lab. The event board shows four visible entrants with strength,
 decimal odds, weapon, two semifinals, the final, stake, 1,000-credit lab bankroll, ticket, champion,
-and payout. These credits exist only in the lab and never read or write campaign scrip.
+and payout. During a bout it updates both fighters' health and round score from real damage events,
+then shows the nonlethal round card and authored broadcast copy. These credits exist only in the lab
+and never read or write campaign scrip.
 
 - **WATCH [1]:** two real AI bodies fight with their authored weapons under the existing nonlethal
   round controller. The player moves to the broadcast spectator mark; the compact bracket stays up.
@@ -69,10 +71,14 @@ and payout. These credits exist only in the lab and never read or write campaign
   and body choice stay; opponents and the rest of the bracket use the same physical match path.
 - **Enter:** START when ready; after settlement it becomes RESET. `J` or Escape closes the large board
   without abandoning the tournament or changing time scale.
+- **Backspace / Start:** resets only the current physical bout while it is live. The bracket, ticket,
+  selected body, surface, and condition remain intact. Other lab-changing shortcuts are locked until
+  the tournament settles or is reset.
 
 Dogs and infected are rejected from the row and runtime. Health depletion produces round cards and
 resets—never a corpse, campaign wound, crime, death, or save mutation. The same card seed reproduces
-the same names, strengths, bracket, equipment, and result inputs.
+the same names, strengths, bracket, equipment, and result inputs. A malformed card or failed arena
+staging returns to a visible ready state instead of leaving a half-running tournament.
 
 Keyboard-only inspection controls: F5 X-ray · F6 day/night · F7 clear/dust · F8 headlights ·
 F9 normal/binocular range · F10 camera zoom · O door · [ / ] target distance · comma rewind ·

@@ -290,7 +290,7 @@ func _build_sparring() -> void:
 
 
 func switch_mode(id: String) -> bool:
-	if id not in ["hybrid", "active_ragdoll", "full_physics"]:
+	if _spectacle_running() or id not in ["hybrid", "active_ragdoll", "full_physics"]:
 		return false
 	var at: Transform3D = station_spawn
 	var weapon_id: String = "pistol"
@@ -349,7 +349,7 @@ func _on_player_damaged(amount: float, _attacker: Node3D = null) -> void:
 
 
 func set_opponent_behavior(id: String) -> bool:
-	if opponent == null or not opponent.set_behavior(id):
+	if _spectacle_running() or opponent == null or not opponent.set_behavior(id):
 		return false
 	opponent.set_enabled(true)
 	opponent_behavior = id.to_upper()
@@ -357,7 +357,7 @@ func set_opponent_behavior(id: String) -> bool:
 
 
 func set_surface(id: String) -> bool:
-	return surface_tool != null and surface_tool.select(id, adapter)
+	return not _spectacle_running() and surface_tool != null and surface_tool.select(id, adapter)
 
 
 func cycle_surface(step: int = 1) -> void:
@@ -369,7 +369,7 @@ func cycle_surface(step: int = 1) -> void:
 
 
 func set_condition_preset(id: String) -> bool:
-	if surface_tool == null or not surface_tool.apply_condition(id, adapter):
+	if _spectacle_running() or surface_tool == null or not surface_tool.apply_condition(id, adapter):
 		return false
 	var packet: Dictionary = surface_tool.condition(id)
 	for skill_id in ["strength", "marksmanship", "martial_arts", "driving"]:
@@ -559,7 +559,7 @@ func _cycle_opponent_behavior() -> void:
 
 
 func start_scenario(id: String, seed: int = -1) -> Dictionary:
-	if scenario_tool == null:
+	if _spectacle_running() or scenario_tool == null:
 		return {}
 	var state: Dictionary = scenario_tool.start(id, seed)
 	if state.is_empty():
@@ -641,6 +641,8 @@ func scenario_state() -> Dictionary:
 
 
 func cycle_scenario(step: int = 1) -> void:
+	if _spectacle_running():
+		return
 	var ids: Array[String] = scenario_tool.ids()
 	_scenario_index = posmod(_scenario_index + step, ids.size())
 	start_scenario(ids[_scenario_index])
@@ -886,6 +888,9 @@ func _update_scenario_runtime(delta: float) -> void:
 func reset_station() -> void:
 	if adapter == null:
 		return
+	if _spectacle_running():
+		reset_spectacle_bout()
+		return
 	if lab_round != null:
 		lab_round.reset_match()
 	reset_fighters()
@@ -900,6 +905,19 @@ func reset_station() -> void:
 		part.hp = part.max_hp
 	adapter.weapon.mag = int(adapter.weapon.info()["mag_size"])
 	_throw_hold = 0.0
+
+
+func reset_spectacle_bout() -> bool:
+	if not _spectacle_running() or lab_round == null:
+		return false
+	# reset_match emits reset_requested; the existing signal resets every real
+	# fighter at its authored bout spawn without touching bracket or ticket data.
+	lab_round.reset_match()
+	return true
+
+
+func _spectacle_running() -> bool:
+	return spectacle != null and String(spectacle.phase) == "running"
 
 
 func reset_fighters() -> void:
@@ -1341,13 +1359,19 @@ func _update_station() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if (event as InputEventKey).keycode == KEY_J and spectacle_panel != null:
+		var keycode: Key = (event as InputEventKey).keycode
+		if keycode == KEY_J and spectacle_panel != null:
 			spectacle_panel.toggle()
 			return
 		if spectacle_panel != null and spectacle_panel.handle_key(event as InputEventKey):
 			return
-	if event is InputEventKey and event.pressed and not event.echo:
-		match (event as InputEventKey).keycode:
+		if spectacle_panel != null and spectacle_panel.is_open():
+			return
+		if _spectacle_running():
+			if keycode == KEY_BACKSPACE:
+				reset_spectacle_bout()
+			return
+		match keycode:
 			KEY_F1: switch_mode("hybrid")
 			KEY_F2: switch_mode("active_ragdoll")
 			KEY_F3: switch_mode("full_physics")
@@ -1386,6 +1410,11 @@ func _unhandled_input(event: InputEvent) -> void:
 					impact_bay.apply_selected()
 			KEY_BACKSPACE: reset_station()
 	elif event is InputEventJoypadButton and event.pressed:
+		if (spectacle_panel != null and spectacle_panel.is_open()) or _spectacle_running():
+			if _spectacle_running() \
+					and (event as InputEventJoypadButton).button_index == JOY_BUTTON_START:
+				reset_spectacle_bout()
+			return
 		match (event as InputEventJoypadButton).button_index:
 			JOY_BUTTON_DPAD_RIGHT: _cycle_opponent_behavior()
 			JOY_BUTTON_DPAD_LEFT: cycle_surface()

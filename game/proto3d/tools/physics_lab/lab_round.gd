@@ -6,6 +6,7 @@ extends RefCounted
 signal round_ended(card: Dictionary)
 signal match_ended(winner_id: String)
 signal reset_requested
+signal state_changed(state: Dictionary)
 
 const ROUND_CARD_S := 1.2
 
@@ -36,6 +37,7 @@ func setup(ids: Array, health_in: float = 100.0, rounds_to_win_in: int = 2) -> v
 	reset_count = 0
 	freeze_remaining = 0.0
 	round_index = 1
+	state_changed.emit(snapshot())
 
 
 func _fresh_fighter() -> Dictionary:
@@ -78,6 +80,8 @@ func hit(fighter_id: String, amount: float, tags: Dictionary = {}) -> Dictionary
 		scorer["hits"] = int(scorer.get("hits", 0)) + 1
 	if float(fighter["health"]) <= 0.0:
 		_end_round(attacker, fighter_id, String(tags.get("kind", "depletion")).to_upper())
+	else:
+		state_changed.emit(snapshot())
 	return snapshot()
 
 
@@ -91,6 +95,7 @@ func knockdown(fighter_id: String, attacker_id: String = "") -> void:
 	var scorer := fighters[attacker] as Dictionary
 	victim["knockdowns"] = int(victim["knockdowns"]) + 1
 	scorer["points"] = int(scorer["points"]) + 2
+	state_changed.emit(snapshot())
 
 
 func score(fighter_id: String, event: String) -> void:
@@ -100,6 +105,8 @@ func score(fighter_id: String, event: String) -> void:
 	match event:
 		"clean_combo": fighter["points"] = int(fighter["points"]) + 1
 		"knockdown": fighter["points"] = int(fighter["points"]) + 2
+		_: return
+	state_changed.emit(snapshot())
 
 
 func ring_out(fighter_id: String, attacker_id: String = "") -> void:
@@ -124,6 +131,7 @@ func _end_round(scorer_id: String, defeated_id: String, reason: String) -> void:
 	else:
 		phase = "round_end"
 	round_ended.emit(last_card.duplicate(true))
+	state_changed.emit(snapshot())
 
 
 func tick(delta: float) -> void:
@@ -142,6 +150,7 @@ func reset_round() -> void:
 	round_index += 1
 	reset_count += 1
 	reset_requested.emit()
+	state_changed.emit(snapshot())
 
 
 func reset_match() -> void:
@@ -153,12 +162,14 @@ func reset_match() -> void:
 	freeze_remaining = 0.0
 	round_index = 1
 	reset_requested.emit()
+	state_changed.emit(snapshot())
 
 
 func snapshot() -> Dictionary:
 	return {"nonlethal": true, "phase": phase, "winner": winner,
 		"round": round_index, "freeze_remaining": freeze_remaining,
-		"last_card": last_card.duplicate(true), "fighters": fighters.duplicate(true)}
+		"last_card": last_card.duplicate(true), "fighters": fighters.duplicate(true),
+		"max_health":max_health, "rounds_to_win":rounds_to_win}
 
 
 func restore_snapshot(state: Dictionary) -> bool:
@@ -170,4 +181,7 @@ func restore_snapshot(state: Dictionary) -> bool:
 	freeze_remaining = float(state.get("freeze_remaining", 0.0))
 	last_card = (state.get("last_card", {}) as Dictionary).duplicate(true)
 	fighters = (state["fighters"] as Dictionary).duplicate(true)
+	max_health = maxf(1.0, float(state.get("max_health", max_health)))
+	rounds_to_win = maxi(1, int(state.get("rounds_to_win", rounds_to_win)))
+	state_changed.emit(snapshot())
 	return true
