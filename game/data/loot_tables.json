@@ -164,6 +164,47 @@
       ]
     },
     {
+      "id": "game_firmware_cache",
+      "name": "Emergency Firmware Case",
+      "entries": [
+        {"item": "game_cart_radworm", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_dead_ground", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_pack_rat", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_bunker_breaker", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_last_mile", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_iron_dome", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_fall_line", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_tilt_salvage", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_relay_bloom", "min": 1, "max": 1, "weight": 1.0}
+      ]
+    },
+    {
+      "id": "game_electronics_cache",
+      "name": "Electronics Store Cartridge Case",
+      "entries": [
+        {"item": "game_cart_dial_tanks", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_red_sky", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_black_orbit", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_gridbreach", "min": 1, "max": 1, "weight": 1.0}
+      ]
+    },
+    {
+      "id": "game_drive_in_cache",
+      "name": "Drive-In Tournament Lockbox",
+      "entries": [
+        {"item": "game_cart_rustball", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_fuel_run", "min": 1, "max": 1, "weight": 1.0},
+        {"item": "game_cart_skyjoust", "min": 1, "max": 1, "weight": 1.0}
+      ]
+    },
+    {
+      "id": "game_military_cache",
+      "name": "Border Academy Cartridge Safe",
+      "entries": [
+        {"item": "game_cart_ashland_command", "min": 1, "max": 1, "weight": 1.0}
+      ]
+    },
+    {
       "_comment": "LOOT_NPC_PRODUCTION_WANTED_SPAWN.md §14 Phase 1 — furniture tables, one per furniture_defs.json row. entries carry an optional 'tags' array (additive to the schema: ProtoContainer.roll_loot/DrivnLootTable.roll ignore unknown keys, so these stay compatible with every existing reader). loot_resolver.gd reads tags to apply building-type weight multipliers and law overrides (a 'weapon' tag under a guns-banned law can be replaced with confiscation_notice). A literal 'empty' item entry is headroom the resolver drops on read — it exists so the weights read honestly in the JSON (spec §5.2).",
       "id": "furniture_fridge",
       "name": "Fridge",

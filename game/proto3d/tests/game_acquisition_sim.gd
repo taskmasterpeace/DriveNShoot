@@ -33,6 +33,55 @@ func _ready() -> void:
 	var starters: Array = ledger.unlocked
 	_check("a new save owns exactly WASTE HEAP and CROWN OF ASH",
 		starters.size() == 2 and starters.has("waste_heap") and starters.has("crown_of_ash"))
+	var shelf: Node3D = main.get("game_shelf") as Node3D
+	_check("the safehouse owns one ordinary interactable cartridge shelf",
+		shelf != null and shelf.is_in_group("interactable") and shelf.is_in_group("game_shelf"))
+	if shelf != null:
+		_check("the shelf tells the truth about installed media",
+			String(shelf.interact_prompt(main)).contains("2 / 20"))
+		shelf.interact(main)
+		_check("the shelf opens the same ownership-gated console library",
+			main.game_shell.is_open and main.game_shell.current_view == "library")
+	else:
+		_check("the shelf tells the truth about installed media", false)
+		_check("the shelf opens the same ownership-gated console library", false)
+
+	main.game_shell.open_library("handheld")
+	await get_tree().process_frame
+	var waste_button := _library_button("WASTE HEAP")
+	var auto_started := false
+	var row_costs_visible := waste_button != null and waste_button.text.contains("PWR 1") \
+		and waste_button.text.contains("NET 0")
+	if waste_button != null:
+		waste_button.pressed.emit()
+		auto_started = main.game_deck.state == "PLAYING" and main.game_deck.cartridge != null
+	_check("a real library button launches and starts the ordinary cartridge", auto_started)
+	_check("library rows surface declared power and network costs", row_costs_visible)
+	main.game_deck.stop("auto_start_probe")
+
+	var console: Node3D = main.game_console
+	var power_refused := false
+	if console != null and console.has_method("set_powered"):
+		console.set_powered(false)
+		main.game_shell.close_to_device()
+		console.interact(main)
+		power_refused = not main.game_shell.is_open \
+			and String(console.interact_prompt(main)).contains("NO POWER")
+		console.set_powered(true)
+	_check("an unpowered physical console refuses play without charging a fake fee", power_refused)
+
+	var cache_tables := ["game_firmware_cache", "game_electronics_cache",
+		"game_drive_in_cache", "game_military_cache"]
+	var tables_exist := cache_tables.all(func(table_id: String) -> bool:
+		return ProtoContainer.has_loot_table(table_id))
+	var physical_caches: Array = main.get("game_cartridge_caches") if main.get("game_cartridge_caches") is Array else []
+	var caches_are_real := physical_caches.size() == 4
+	for cache_value in physical_caches:
+		var cache: Node = cache_value
+		caches_are_real = caches_are_real and cache.is_in_group("interactable") \
+			and cache.is_in_group("game_cache") and not cache.container.slots.is_empty()
+	_check("four data-backed cartridge cache tables exist", tables_exist)
+	_check("firmware electronics drive-in and military caches exist in the real world", caches_are_real)
 
 	main.game_shell.open_library("handheld")
 	await get_tree().process_frame
@@ -56,6 +105,11 @@ func _ready() -> void:
 		main.backpack.remove("game_cart_radworm", 1)
 	_check("USE consumes a physical cartridge and installs its game", installed
 		and ledger.unlocked.has("radworm") and main.backpack.count("game_cart_radworm") == 0)
+	if shelf != null:
+		_check("the physical shelf count updates after installation",
+			String(shelf.interact_prompt(main)).contains("3 / 20"))
+	else:
+		_check("the physical shelf count updates after installation", false)
 	main.backpack.add("game_cart_radworm", 1)
 	var duplicate_consumed: bool = main.use_item("game_cart_radworm")
 	_check("duplicate media is not consumed or installed twice", not duplicate_consumed

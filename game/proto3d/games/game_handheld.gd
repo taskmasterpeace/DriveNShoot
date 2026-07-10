@@ -78,7 +78,7 @@ func _add_button(at: Vector3, size: Vector3) -> void:
 
 func open(_main: Node = null) -> void:
 	visible = true
-	shell.open_library("handheld")
+	shell.open_library("handheld", {"source": "handheld", "device": "handheld", "auto_start": true})
 
 
 func _process(_delta: float) -> void:

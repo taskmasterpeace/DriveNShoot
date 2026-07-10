@@ -24,6 +24,7 @@ var _library_box: VBoxContainer
 var _text_scroll: ScrollContainer
 var _text_label: RichTextLabel
 var _tabs: Dictionary = {}
+var _library_context: Dictionary = {}
 
 
 static func create(new_deck: Node) -> CanvasLayer:
@@ -153,12 +154,17 @@ func _build_ui() -> void:
 	layout.add_child(_status)
 
 
-func open_library(platform: String = "") -> void:
+func open_library(platform: String = "", context: Dictionary = {}) -> void:
 	is_open = true
 	visible = true
 	_root.visible = true
 	deck.set_shell_open(true)
 	current_view = "library"
+	_library_context = context.duplicate(true)
+	if not _library_context.has("auto_start"):
+		_library_context["auto_start"] = true
+	if not _library_context.has("device") and platform != "":
+		_library_context["device"] = platform
 	_title.text = "GAME DECK // CARTRIDGE LIBRARY"
 	_rebuild_library(platform)
 	_sync_views()
@@ -183,12 +189,17 @@ func _rebuild_library(platform: String) -> void:
 			suffix = "  [NOT INSTALLED]"
 		elif not owned:
 			suffix = "  [LOCKED — FIND CARTRIDGE]"
-		button.text = "%s  //  %s%s" % [String(row.get("title", id)),
-			String(row.get("aspect", "")), suffix]
+		button.text = "%s  //  %s  //  PWR %d · NET %d%s" % [String(row.get("title", id)),
+			String(row.get("aspect", "")), int(row.get("power_draw", 0)),
+			int(row.get("network_cost", 0)), suffix]
 		button.disabled = not available or not owned
 		button.add_theme_color_override("font_color", BONE if not button.disabled else DIM)
 		var game_id := id
-		button.pressed.connect(func() -> void: open_game(game_id, {"source": "solo"}))
+		button.pressed.connect(func() -> void:
+			var launch_context := _library_context.duplicate(true)
+			if not launch_context.has("source"):
+				launch_context["source"] = "solo"
+			open_game(game_id, launch_context))
 		_library_box.add_child(button)
 		if first_library_button == null:
 			first_library_button = button
@@ -219,6 +230,18 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 	_title.text = "GAME DECK // %s" % String(deck.current_row.get("title", game_id))
 	_screen.texture = deck.texture()
 	current_view = "play"
+	if bool(context.get("auto_start", false)):
+		var seed_value := int(context.get("seed", hash("%s:%d" % [game_id, Time.get_ticks_msec()])))
+		var seats: Array = (context.get("seats", [{"seat": 0, "device": -1,
+			"profile_id": "local", "name": "RIDER"}]) as Array).duplicate(true)
+		if not deck.start(seed_value, seats):
+			deck._fail(game_id, "CARTRIDGE FAILED TO START")
+			_set_text(deck.error_text)
+			current_view = "error"
+			_sync_views()
+			return false
+	_status.text = "WORLD LIVE // POWER %d // NETWORK %d // START or ESC: menu // F1: help" % [
+		int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
 	_sync_views()
 	return true
 

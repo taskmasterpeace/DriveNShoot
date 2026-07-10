@@ -60,17 +60,17 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/proto3d/tests/game_shell_sim.gd`
 - Extend: `game/proto3d/tests/game_acquisition_sim.gd`
 
-- [ ] Red sim: the safehouse owns an interactable cartridge shelf beside the
+- [x] Red sim: the safehouse owns an interactable cartridge shelf beside the
   TV; it reports installed/total, opens the same ownership-gated library, and
   cannot make locked games playable.
-- [ ] Make real library button activation launch **and start** through the same
+- [x] Make real library button activation launch **and start** through the same
   deck using an explicit auto-start context; direct test/dev launch remains
   controllable. Surface row power draw and network cost in the bezel.
-- [ ] Refuse an unpowered console without deducting a fictional fee; safehouse
+- [x] Refuse an unpowered console without deducting a fictional fee; safehouse
   defaults powered until a future household grid supplies a real state.
-- [ ] Add deterministic firmware, electronics, drive-in, and military cache
+- [x] Add deterministic firmware, electronics, drive-in, and military cache
   tables/physical chests so all non-prize Phase 1 media has a world path.
-- [ ] Commit `feat: wire Game Deck shelf power and world caches`.
+- [x] Commit `feat: wire Game Deck shelf power and world caches`.
 
 ## Task 3: Complete honest leaderboards
 

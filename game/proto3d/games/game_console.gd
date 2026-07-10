@@ -13,6 +13,7 @@ var shell: CanvasLayer
 var _screen: MeshInstance3D
 var _screen_material: StandardMaterial3D
 var _live_texture: Texture2D = null
+var powered := true
 
 
 static func create(new_main: Node, new_deck: Node, new_shell: CanvasLayer) -> Node3D:
@@ -75,11 +76,28 @@ func _add_box(label: String, size: Vector3, at: Vector3, color: Color) -> void:
 
 
 func interact_prompt(_main: Node) -> String:
-	return "E  PLAY GAME CONSOLE"
+	return "E  GAME CONSOLE — NO POWER" if not powered else "E  PLAY GAME CONSOLE"
 
 
 func interact(_main: Node) -> void:
-	shell.open_library("console")
+	if not powered:
+		if main != null and main.has_method("notify"):
+			main.notify("🎮 The console is dark. It needs a real power source.")
+		return
+	shell.open_library("console", {"source": "console", "device": "console", "auto_start": true})
+
+
+func set_powered(value: bool) -> void:
+	powered = value
+	if not powered:
+		if deck != null and deck.cartridge != null \
+				and String(deck.current_context.get("device", "")) == "console":
+			deck.stop("power_lost")
+		set_off()
+
+
+func is_powered() -> bool:
+	return powered
 
 
 func interact_position() -> Vector3:

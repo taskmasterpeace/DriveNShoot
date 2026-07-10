@@ -458,6 +458,8 @@ var game_deck: Node = null
 var game_shell: CanvasLayer = null
 var game_console: Node3D = null
 var game_handheld: Node3D = null
+var game_shelf: Node3D = null
+var game_cartridge_caches: Array = []
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
@@ -579,6 +581,29 @@ func _build_environment() -> void:
 	add_child(game_handheld)
 	game_handheld.global_position = SAFEHOUSE + Vector3(-3.75, 1.15, -0.55)
 	game_handheld.rotation_degrees = Vector3(-65, 8, 0)
+	var shelf_script := load("res://proto3d/games/game_shelf.gd") as GDScript
+	game_shelf = shelf_script.create(self, game_deck, game_shell)
+	add_child(game_shelf)
+	game_shelf.global_position = SAFEHOUSE + Vector3(-4.8, 0.0, -2.0)
+	_face_toward(game_shelf, SAFEHOUSE)
+	# Four explicit discovery sites make ownership physical in this vertical
+	# slice. Their contents are still data rolls; adding media remains a row edit.
+	var cache_specs: Array = [
+		["Emergency Firmware Case", "game_firmware_cache", SAFEHOUSE + Vector3(5.5, 0.05, 3.0)],
+		["Electronics Store Cartridge Case", "game_electronics_cache", Vector3(150, 0.05, -350)],
+		["Drive-In Tournament Lockbox", "game_drive_in_cache", Vector3(66, 0.05, -230)],
+		["Border Academy Cartridge Safe", "game_military_cache", Vector3(205, 0.05, -220)],
+	]
+	for cache_index in cache_specs.size():
+		var spec: Array = cache_specs[cache_index]
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("game-cache:%d" % cache_index)
+		var cache := ProtoChest.create(String(spec[0]),
+			ProtoContainer.roll_loot(String(spec[1]), rng))
+		cache.add_to_group("game_cache")
+		add_child(cache)
+		cache.global_position = spec[2]
+		game_cartridge_caches.append(cache)
 	if media_panel != null:
 		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
