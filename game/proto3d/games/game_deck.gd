@@ -65,7 +65,9 @@ func _setup(new_main: Node) -> void:
 func launch(game_id: String, context: Dictionary) -> bool:
 	_clear_cartridge("switch")
 	error_text = ""
-	current_row = registry.get_game(game_id)
+	# The active session owns a copy. stop() clears current_row; retaining the
+	# registry Dictionary here silently erased that catalog row after first play.
+	current_row = registry.get_game(game_id).duplicate(true)
 	current_context = context.duplicate(true)
 	if current_row.is_empty():
 		return _fail(game_id, "CARTRIDGE UNKNOWN")

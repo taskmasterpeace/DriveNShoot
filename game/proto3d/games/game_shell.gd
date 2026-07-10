@@ -176,9 +176,16 @@ func _rebuild_library(platform: String) -> void:
 		var button := Button.new()
 		button.focus_mode = Control.FOCUS_ALL
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.text = "%s  //  %s%s" % [String(row.get("title", id)), String(row.get("aspect", "")),
-			"" if deck.registry.enabled(id) else "  [NOT INSTALLED]"]
-		button.disabled = not deck.registry.enabled(id)
+		var available := bool(deck.registry.enabled(id))
+		var owned := bool(deck.ledger.is_unlocked(id))
+		var suffix := ""
+		if not available:
+			suffix = "  [NOT INSTALLED]"
+		elif not owned:
+			suffix = "  [LOCKED — FIND CARTRIDGE]"
+		button.text = "%s  //  %s%s" % [String(row.get("title", id)),
+			String(row.get("aspect", "")), suffix]
+		button.disabled = not available or not owned
 		button.add_theme_color_override("font_color", BONE if not button.disabled else DIM)
 		var game_id := id
 		button.pressed.connect(func() -> void: open_game(game_id, {"source": "solo"}))
@@ -194,6 +201,15 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 	visible = true
 	_root.visible = true
 	deck.set_shell_open(true)
+	var venue_owned := bool(context.get("venue_owned", false))
+	var spectator := bool(context.get("spectator", false))
+	if not venue_owned and not spectator and not bool(deck.ledger.is_unlocked(game_id)):
+		deck._fail(game_id, "CARTRIDGE NOT OWNED — find and install physical media")
+		_title.text = "GAME DECK // LOCKED"
+		_set_text(deck.error_text)
+		current_view = "error"
+		_sync_views()
+		return false
 	if not deck.launch(game_id, context):
 		_title.text = "GAME DECK // ERROR"
 		_set_text(deck.error_text)

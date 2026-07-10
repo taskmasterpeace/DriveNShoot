@@ -421,6 +421,78 @@
    "name": "Pocket Game Deck",
    "usable": true,
    "weight": 0.45
+  },
+  {
+   "category": "media", "desc": "Copied routing firmware for the Pocket Game Deck. USE installs RADWORM on the shelf.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_radworm", "name": "Firmware: RADWORM", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "A demining drill on a scarred memory wafer. USE installs DEAD GROUND.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_dead_ground", "name": "Firmware: DEAD GROUND", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "Warehouse training firmware with a hand-drawn rat. USE installs PACK RAT.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_pack_rat", "name": "Firmware: PACK RAT", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "A portrait-format bunker breaching wafer. USE installs BUNKER BREAKER.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_bunker_breaker", "name": "Firmware: BUNKER BREAKER", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "Highway courier certification firmware. USE installs LAST MILE.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_last_mile", "name": "Firmware: LAST MILE", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "Black Week civil-defense firmware. USE installs IRON DOME.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_iron_dome", "name": "Firmware: IRON DOME", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "Supply-capsule flight training firmware. USE installs FALL LINE.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_fall_line", "name": "Firmware: FALL LINE", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "A roadhouse table image copied off a dashboard board. USE installs TILT//SALVAGE.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_tilt_salvage", "name": "Firmware: TILT//SALVAGE", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "Radio-repair teaching firmware. USE installs RELAY BLOOM.",
+   "emoji": "\ud83d\udcbe", "id": "game_cart_relay_bloom", "name": "Firmware: RELAY BLOOM", "usable": true, "weight": 0.04
+  },
+  {
+   "category": "media", "desc": "A thick amber arena cartridge. USE installs DIAL TANKS.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_dial_tanks", "name": "Cartridge: DIAL TANKS", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "An artillery cartridge with a red weather stripe. USE installs RED SKY.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_red_sky", "name": "Cartridge: RED SKY", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "A salvage-company orbital claim cartridge. USE installs BLACK ORBIT.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_black_orbit", "name": "Cartridge: BLACK ORBIT", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "A sabotage maze cartridge in a cracked grid case. USE installs GRIDBREACH.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_gridbreach", "name": "Cartridge: GRIDBREACH", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "Bumper-yard league media with dents around the contacts. USE installs RUSTBALL.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_rustball", "name": "Cartridge: RUSTBALL", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "Refinery capture-racing media that smells like fuel. USE installs FUEL RUN.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_fuel_run", "name": "Cartridge: FUEL RUN", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "County-fair aerial duel media. USE installs SKYJOUST.",
+   "emoji": "\ud83c\udfae", "id": "game_cart_skyjoust", "name": "Cartridge: SKYJOUST", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "A stamped fight-night prize cartridge. USE installs FIGHT NIGHT '99.",
+   "emoji": "\ud83c\udfc6", "id": "game_cart_fight_night_99", "name": "Prize Cartridge: FIGHT NIGHT '99", "usable": true, "weight": 0.12
+  },
+  {
+   "category": "media", "desc": "A mil-spec tactical cartridge recovered from an academy cache. USE installs ASHLAND COMMAND.",
+   "emoji": "\ud83c\udf96\ufe0f", "id": "game_cart_ashland_command", "name": "Military Cartridge: ASHLAND COMMAND", "usable": true, "weight": 0.12
   }
  ]
 }

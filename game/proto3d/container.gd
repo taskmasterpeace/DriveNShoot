@@ -124,9 +124,9 @@ static func has_loot_table(table_id: String) -> bool:
 	return _loot_tables.has(table_id)
 
 ## Panel grouping order (container_panel renders headers in this order).
-const CAT_ORDER: Array = ["weapon", "ammo", "med", "food", "tool", "loot"]
+const CAT_ORDER: Array = ["weapon", "ammo", "med", "food", "tool", "media", "loot"]
 const CAT_LABEL: Dictionary = {"weapon": "WEAPONS", "ammo": "AMMO", "med": "MEDS",
-	"food": "FOOD & DRINK", "tool": "TOOLS & GEAR", "loot": "LOOT"}
+	"food": "FOOD & DRINK", "tool": "TOOLS & GEAR", "media": "GAME CARTRIDGES", "loot": "LOOT"}
 
 
 func total_weight() -> float:

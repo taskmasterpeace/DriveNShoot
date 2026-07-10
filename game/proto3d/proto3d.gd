@@ -2058,6 +2058,20 @@ func use_item(id: String) -> bool:
 		if game_handheld != null:
 			game_handheld.open(self)
 		return false # hardware stays in the pack
+	if id.begins_with("game_cart_"):
+		if game_deck == null or game_deck.ledger == null:
+			return false
+		var game_id := String(game_deck.ledger.game_id_for_item(id))
+		if game_id == "":
+			notify("🎮 The media is unreadable.")
+			return false
+		if not bool(game_deck.ledger.install_item(id)):
+			notify("🎮 %s is already installed. Keep the spare or trade it." %
+				String(game_deck.registry.get_game(game_id).get("title", game_id)))
+			return false
+		notify("🎮 INSTALLED — %s is now on the Game Deck shelf." %
+			String(game_deck.registry.get_game(game_id).get("title", game_id)))
+		return true
 	if ProtoWeapon.WEAPONS.has(id):
 		# Already own it? USING a gun you carry means DRAW it — switch, don't refuse.
 		for i in weapons.size():

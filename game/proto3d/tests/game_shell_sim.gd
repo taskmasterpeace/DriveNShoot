@@ -29,6 +29,9 @@ func _ready() -> void:
 	var time_scale_before := Engine.time_scale
 	var deck: Node = deck_script.create()
 	add_child(deck)
+	# This shell geometry regression needs a portrait game; acquisition is proved
+	# separately, so install the physical test cartridge explicitly.
+	deck.ledger.unlock("iron_dome")
 	var shell: CanvasLayer = shell_script.create(deck)
 	add_child(shell)
 	shell.open_library("handheld")

@@ -36,16 +36,16 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Modify: `game/data/items.json`
 - Modify: `game/proto3d/proto3d.gd`
 
-- [ ] Red sim: new ledger contains exactly the two starter games; locked rows
+- [x] Red sim: new ledger contains exactly the two starter games; locked rows
   remain visible but cannot launch from the library; an owned generic cartridge
   item installs once, is consumed by the normal USE path, survives save/restore,
   and becomes launchable without any game-id branch.
-- [ ] Add `is_unlocked`, `unlock`, and installed-count helpers with idempotency.
-- [ ] Add eighteen Phase 1 `game_cart_<game_id>` item rows with platform-aware
+- [x] Add `is_unlocked`, `unlock`, and installed-count helpers with idempotency.
+- [x] Add eighteen Phase 1 `game_cart_<game_id>` item rows with platform-aware
   names/descriptions; starter media is already installed and is not duplicated.
-- [ ] Gate ordinary library launch by ownership while allowing an explicit
+- [x] Gate ordinary library launch by ownership while allowing an explicit
   venue-owned tournament context.
-- [ ] Commit `feat: add physical Game Deck cartridge ownership`.
+- [x] Commit `feat: add physical Game Deck cartridge ownership`.
 
 ## Task 2: Real shelf, auto-start, power, and world caches
 

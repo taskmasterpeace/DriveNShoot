@@ -5,6 +5,7 @@ extends RefCounted
 
 const RECENT_PER_GAME_CAP := 50
 const CHALLENGE_CAP := 100
+const CARTRIDGE_ITEM_PREFIX := "game_cart_"
 
 var registry: RefCounted
 var unlocked: Array = []
@@ -25,6 +26,38 @@ func _init(new_registry: RefCounted) -> void:
 		if String(row.get("unlock_type", "")) == "starter":
 			_starter_unlocks.append(String(id))
 	unlocked = _starter_unlocks.duplicate()
+
+
+func is_unlocked(game_id: String) -> bool:
+	return unlocked.has(game_id)
+
+
+func unlock(game_id: String) -> bool:
+	if registry.get_game(game_id).is_empty() or unlocked.has(game_id):
+		return false
+	unlocked.append(game_id)
+	return true
+
+
+func game_id_for_item(item_id: String) -> String:
+	if not item_id.begins_with(CARTRIDGE_ITEM_PREFIX):
+		return ""
+	var game_id := item_id.trim_prefix(CARTRIDGE_ITEM_PREFIX)
+	return game_id if not registry.get_game(game_id).is_empty() else ""
+
+
+func install_item(item_id: String) -> bool:
+	var game_id := game_id_for_item(item_id)
+	return game_id != "" and unlock(game_id)
+
+
+func installed_count(phase: int = 1) -> int:
+	var count := 0
+	for game_id_value in unlocked:
+		var row: Dictionary = registry.get_game(String(game_id_value))
+		if int(row.get("phase", 0)) == phase:
+			count += 1
+	return count
 
 
 func submit(result: Dictionary) -> bool:
@@ -169,7 +202,14 @@ func serialize() -> Dictionary:
 
 
 func restore(data: Dictionary) -> void:
-	unlocked = (data.get("unlocked", _starter_unlocks) as Array).duplicate()
+	unlocked.clear()
+	for game_id_value in data.get("unlocked", _starter_unlocks):
+		var game_id := String(game_id_value)
+		if not registry.get_game(game_id).is_empty() and not unlocked.has(game_id):
+			unlocked.append(game_id)
+	for starter_value in _starter_unlocks:
+		if not unlocked.has(starter_value):
+			unlocked.append(starter_value)
 	personal_bests = (data.get("personal_bests", {}) as Dictionary).duplicate(true)
 	recent_results = (data.get("recent_results", []) as Array).duplicate(true)
 	challenges = (data.get("challenges", []) as Array).duplicate(true)

@@ -31,6 +31,9 @@ func _ready() -> void:
 	add_child(main)
 	for _i in 10:
 		await get_tree().process_frame
+	# The passenger test owns the two physical firmware wafers it exercises.
+	main.game_deck.ledger.unlock("last_mile")
+	main.game_deck.ledger.unlock("radworm")
 	main._exit_car()
 
 	var car := ProtoCar3D.create("van", Color(0.44, 0.4, 0.32))
