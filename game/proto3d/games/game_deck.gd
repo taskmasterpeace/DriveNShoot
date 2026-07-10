@@ -16,6 +16,7 @@ const STATE_PAUSED := "PAUSED"
 const STATE_SPECTATING := "SPECTATING"
 const STATE_ERROR := "ERROR"
 const TICK_HZ := 30.0
+const NET_SNAPSHOT_TICKS := 3
 
 var main: Node = null
 var registry: RefCounted
@@ -32,6 +33,8 @@ var shell_open := false
 var arcade_net: Node = null
 var _tick := 0
 var _accumulator := 0.0
+var _remote_inputs: Dictionary = {}
+var _remote_input_ticks: Dictionary = {}
 
 
 static func create(new_main: Node = null) -> Node:
@@ -93,8 +96,12 @@ func start(seed_value: int, seats: Array) -> bool:
 	if cartridge == null or state not in [STATE_READY, STATE_PAUSED]:
 		return false
 	active_seats = seats.duplicate(true)
+	_remote_inputs.clear()
+	_remote_input_ticks.clear()
 	for seat_value in active_seats:
 		var seat: Dictionary = seat_value
+		if not _seat_is_local(seat):
+			continue
 		var seat_id := int(seat.get("seat", 0))
 		var device := int(seat.get("device", -1))
 		if device < 0:
@@ -136,8 +143,26 @@ func process_tick() -> void:
 	var snapshots: Array = []
 	for seat_value in active_seats:
 		var seat: Dictionary = seat_value
-		snapshots.append(input_router.snapshot_for_seat(int(seat.get("seat", 0))))
+		var seat_id := int(seat.get("seat", 0))
+		if _seat_is_local(seat):
+			var local_snapshot: Dictionary = input_router.snapshot_for_seat(seat_id)
+			snapshots.append(local_snapshot)
+			if _online() and not _net_is_host():
+				arcade_net.send_input(_tick, local_snapshot)
+		else:
+			var peer_id := int(seat.get("peer_id", 0))
+			var remote_snapshot: Dictionary = (_remote_inputs.get(peer_id,
+				_blank_snapshot(seat_id)) as Dictionary).duplicate(true)
+			remote_snapshot["seat"] = seat_id
+			snapshots.append(remote_snapshot)
+			# Held axes persist between packets; edge actions are consumed once.
+			if _remote_inputs.has(peer_id):
+				(_remote_inputs[peer_id] as Dictionary)["pressed"] = {}
+				(_remote_inputs[peer_id] as Dictionary)["released"] = {}
 	cartridge.apply_inputs(_tick, snapshots)
+	if _online() and _net_is_host() and _tick % NET_SNAPSHOT_TICKS == 0:
+		var session_id := String(current_context.get("session_id", "game"))
+		arcade_net.send_snapshot("snapshot:%s:%d" % [session_id, _tick], cartridge.snapshot())
 
 
 func _process(delta: float) -> void:
@@ -155,6 +180,8 @@ func stop(reason: String) -> void:
 	current_row.clear()
 	current_context.clear()
 	active_seats.clear()
+	_remote_inputs.clear()
+	_remote_input_ticks.clear()
 	error_text = ""
 	_set_state(STATE_OFF)
 
@@ -178,6 +205,8 @@ func _fail(game_id: String, message: String) -> bool:
 func _on_match_finished(result: Dictionary) -> void:
 	if ledger.submit(result):
 		result_recorded.emit(result.duplicate(true))
+	if _online() and _net_is_host():
+		arcade_net.send_result(result)
 	_set_state(STATE_READY)
 
 
@@ -204,11 +233,14 @@ func attach_net(bridge: Node) -> void:
 			arcade_net.snapshot_received.disconnect(_on_net_snapshot)
 		if arcade_net.result_received.is_connected(_on_net_result):
 			arcade_net.result_received.disconnect(_on_net_result)
+		if arcade_net.input_received.is_connected(_on_net_input):
+			arcade_net.input_received.disconnect(_on_net_input)
 	arcade_net = bridge
 	if arcade_net != null:
 		arcade_net.event_received.connect(_on_net_event)
 		arcade_net.snapshot_received.connect(_on_net_snapshot)
 		arcade_net.result_received.connect(_on_net_result)
+		arcade_net.input_received.connect(_on_net_input)
 
 
 func _on_cartridge_network_event(event: Dictionary) -> void:
@@ -227,6 +259,48 @@ func _on_net_snapshot(_peer_id: int, snapshot_state: Dictionary) -> void:
 func _on_net_result(_peer_id: int, result: Dictionary) -> void:
 	if ledger.submit(result):
 		result_recorded.emit(result.duplicate(true))
+
+
+func _on_net_input(peer_id: int, new_tick: int, snapshot_state: Dictionary) -> void:
+	if not _online() or not _net_is_host() or new_tick <= int(_remote_input_ticks.get(peer_id, 0)):
+		return
+	var declared_seat := -1
+	for seat_value in active_seats:
+		var seat: Dictionary = seat_value
+		if int(seat.get("peer_id", 0)) == peer_id and not _seat_is_local(seat):
+			declared_seat = int(seat.get("seat", -1))
+			break
+	if declared_seat < 0:
+		return
+	var accepted := snapshot_state.duplicate(true)
+	accepted["seat"] = declared_seat
+	_remote_input_ticks[peer_id] = new_tick
+	_remote_inputs[peer_id] = accepted
+
+
+func _seat_is_local(seat: Dictionary) -> bool:
+	if not _online():
+		return true
+	var peer_id := int(seat.get("peer_id", 0))
+	if peer_id <= 0:
+		return true
+	var local_peer_id := int(current_context.get("local_peer_id", 1))
+	return peer_id == local_peer_id
+
+
+func _online() -> bool:
+	return arcade_net != null and bool(current_context.get("online", false))
+
+
+func _net_is_host() -> bool:
+	return arcade_net != null and arcade_net.has_method("is_host_authority") \
+		and bool(arcade_net.call("is_host_authority"))
+
+
+func _blank_snapshot(seat_id: int) -> Dictionary:
+	return {"seat": seat_id, "device": -2, "held": {}, "pressed": {},
+		"released": {}, "move": Vector2.ZERO, "aim": Vector2.ZERO,
+		"cursor": Vector2.ZERO, "mouse_aim": Vector2.ZERO}
 
 
 func _set_state(next_state: String) -> void:

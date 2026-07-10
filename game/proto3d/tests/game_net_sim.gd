@@ -4,6 +4,36 @@
 ## Run: Godot --headless --path game res://proto3d/tests/game_net_sim.tscn
 extends Node
 
+class FakeArcade:
+	extends Node
+	signal input_received(peer_id: int, tick: int, snapshot: Dictionary)
+	signal event_received(peer_id: int, event: Dictionary)
+	signal snapshot_received(peer_id: int, state: Dictionary)
+	signal result_received(peer_id: int, result: Dictionary)
+
+	var host_authority := true
+	var sent_inputs: Array = []
+	var sent_snapshots: Array = []
+	var sent_results: Array = []
+
+	func is_host_authority() -> bool:
+		return host_authority
+
+	func send_input(new_tick: int, snapshot: Dictionary) -> bool:
+		sent_inputs.append({"tick": new_tick, "snapshot": snapshot.duplicate(true)})
+		return true
+
+	func send_event(_event: Dictionary) -> bool:
+		return true
+
+	func send_snapshot(event_id: String, state: Dictionary) -> bool:
+		sent_snapshots.append({"event_id": event_id, "state": state.duplicate(true)})
+		return true
+
+	func send_result(result: Dictionary) -> bool:
+		sent_results.append(result.duplicate(true))
+		return true
+
 var passed := 0
 var failed := 0
 var event_count := 0
@@ -83,6 +113,52 @@ func _ready() -> void:
 	_check("unknown envelope game is rejected", not bridge.ingest_reliable(2, {
 		"session_id": "waste-challenge", "game_id": "ghost", "kind": "event",
 		"event_id": "ghost-1", "payload": {}}))
+
+	var host_arcade := FakeArcade.new()
+	add_child(host_arcade)
+	var host_deck: Node = deck_script.create(self)
+	add_child(host_deck)
+	host_deck.attach_net(host_arcade)
+	host_deck.launch("waste_heap", {"source": "session", "online": true,
+		"local_peer_id": 1, "session_id": "realtime-host"})
+	host_deck.start(707, [{"seat": 1, "peer_id": 2, "profile_id": "remote"}])
+	host_deck.cartridge.restore_snapshot({
+		"board": [[2, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]],
+		"score": 0, "highest_part": 2, "rng_state": 707, "tick": 0,
+	})
+	var remote_left := {"seat": 1, "device": 4, "move": Vector2.LEFT,
+		"aim": Vector2.RIGHT, "held": {"move_left": true},
+		"pressed": {"move_left": true}, "released": {}}
+	host_arcade.input_received.emit(2, 8, remote_left)
+	var stale_right := remote_left.duplicate(true)
+	stale_right["move"] = Vector2.RIGHT
+	stale_right["held"] = {"move_right": true}
+	stale_right["pressed"] = {"move_right": true}
+	host_arcade.input_received.emit(2, 7, stale_right)
+	host_deck.process_tick()
+	_check("remote real-time input reaches its declared host seat", host_deck.cartridge.board[0][0] == 4)
+	_check("the deck rejects stale remote input ticks", int(host_deck._remote_input_ticks.get(2, 0)) == 8
+		and Vector2(host_deck._remote_inputs[2].get("move", Vector2.ZERO)) == Vector2.LEFT)
+	host_deck.process_tick()
+	host_deck.process_tick()
+	_check("only the host publishes authoritative cartridge snapshots",
+		host_arcade.sent_snapshots.size() == 1)
+	host_deck.cartridge.debug_force_finish()
+	_check("the host publishes one normalized shared result", host_arcade.sent_results.size() == 1)
+
+	var client_arcade := FakeArcade.new()
+	client_arcade.host_authority = false
+	add_child(client_arcade)
+	var client_deck: Node = deck_script.create(self)
+	add_child(client_deck)
+	client_deck.attach_net(client_arcade)
+	client_deck.launch("waste_heap", {"source": "session", "online": true,
+		"local_peer_id": 2, "session_id": "realtime-client"})
+	client_deck.start(708, [{"seat": 1, "peer_id": 2, "device": -1, "profile_id": "client"}])
+	client_deck.process_tick()
+	_check("a client streams its local semantic snapshot", client_arcade.sent_inputs.size() == 1)
+	_check("a client never publishes authoritative snapshots", client_arcade.sent_snapshots.is_empty())
+
 	net.leave()
 	_check("leaving DRIVN clears arcade session state", bridge.session_id == "" and bridge.members.is_empty())
 	_finish()

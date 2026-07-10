@@ -114,6 +114,10 @@ func _can_send() -> bool:
 	return proto_net != null and bool(proto_net.get("online")) and multiplayer.has_multiplayer_peer()
 
 
+func is_host_authority() -> bool:
+	return proto_net != null and bool(proto_net.is_server())
+
+
 @rpc("any_peer", "reliable", "call_remote")
 func arcade_reliable(envelope: Dictionary) -> void:
 	ingest_reliable(multiplayer.get_remote_sender_id(), envelope)

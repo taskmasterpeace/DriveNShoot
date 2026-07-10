@@ -150,7 +150,7 @@
       "id": "fuel_run", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "FUEL RUN", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
       "cartridge_scene": "res://proto3d/games/fuel_run/fuel_run.tscn", "score": {"primary": "captures", "direction": "high", "secondary": "lap_ms"},
-      "controls_profile": "racer", "manual_book_id": "book_game_deck_console", "source_ids": ["cars_on_road"],
+      "controls_profile": "capture_racer", "manual_book_id": "book_game_deck_console", "source_ids": ["cars_on_road"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
       "help": "Race for the center can, return it to your pump, and steal rival fuel before the short clock dies.",
       "about_world": "A refinery morale game whose thirty-second panic feels much less funny now."

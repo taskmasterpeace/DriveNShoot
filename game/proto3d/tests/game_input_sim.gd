@@ -96,6 +96,28 @@ func _ready() -> void:
 		exact_profiles = exact_profiles and router.PROFILES.has(profile) \
 			and (router.PROFILES[profile] as Array).size() == int(handheld_profiles[profile])
 	_check("handheld HELP profiles expose only their real controls", exact_profiles)
+	var console_profiles := {
+		"board_cursor": 8,
+		"twin_stick": 13,
+		"artillery": 8,
+		"arena_grid": 8,
+		"physics_sport": 8,
+		"capture_racer": 8,
+		"aerial_duel": 8,
+		"fighter": 10,
+		"tactics_grid": 8,
+	}
+	var exact_console_profiles := true
+	for profile: String in console_profiles:
+		exact_console_profiles = exact_console_profiles and router.PROFILES.has(profile) \
+			and (router.PROFILES[profile] as Array).size() == int(console_profiles[profile])
+	_check("console HELP profiles expose only their real controls", exact_console_profiles)
+	var registry := ProtoGameRegistry.load_catalog()
+	var console_rows: Array = registry.phase_rows(1).filter(func(row: Dictionary) -> bool:
+		return String(row.get("platform", "")) == "console")
+	_check("every console row names one exact installed HELP profile", console_rows.all(func(row: Dictionary) -> bool:
+		return router.PROFILES.has(String(row.get("controls_profile", ""))))
+		and String(registry.get_game("fuel_run").get("controls_profile", "")) == "capture_racer")
 	_finish()
 
 

@@ -48,22 +48,22 @@ existing `ProtoArcadeNet` bridge.
 - Modify: `game/proto3d/tests/game_net_sim.gd`
 - Modify: `game/proto3d/games/crown_of_ash/crown_of_ash.gd`
 
-- [ ] Write the red catalog harness: exactly ten console rows; every scene is
+- [x] Write the red catalog harness: exactly ten console rows; every scene is
   16:9, instantiates, starts solo, starts with two local seats, accepts online
   context, mutates from semantic input, pauses, snapshots/restores, finishes
   once, and never changes `Engine.time_scale`. Preserve nine missing failures.
-- [ ] Write red input assertions for `board_cursor`, `twin_stick`, `artillery`,
+- [x] Write red input assertions for `board_cursor`, `twin_stick`, `artillery`,
   `arena_grid`, `physics_sport`, `capture_racer`, `aerial_duel`, `fighter`, and
   `tactics_grid`; add only the verbs each game actually uses.
-- [ ] Write red network assertions showing a bridge `input_received` signal
+- [x] Write red network assertions showing a bridge `input_received` signal
   reaches the correct remote seat in a live deck, stale ticks are ignored, the
   host publishes snapshots/results, and a client cannot become snapshot authority.
-- [ ] Implement deck-level remote input queues and host snapshot cadence without
+- [x] Implement deck-level remote input queues and host snapshot cadence without
   adding game-specific branches. Keep CROWN's reliable move events intact.
-- [ ] Add the original console draw helper and a CROWN completion hook used by
+- [x] Add the original console draw helper and a CROWN completion hook used by
   the catalog audit.
-- [ ] Run the red harness and retain exactly the nine missing console scenes.
-- [ ] Commit `test: define the console cartridge contract`.
+- [x] Run the red harness and retain exactly the nine missing console scenes.
+- [x] Commit `test: define the console cartridge contract`.
 
 ## Task 2: DIAL TANKS
 

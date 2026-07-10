@@ -411,6 +411,14 @@ func _finish_chess(winner: String) -> void:
 	})
 
 
+func debug_force_finish() -> bool:
+	if finished:
+		return false
+	game_status = "checkmate"
+	_finish_chess("w")
+	return finished
+
+
 func _insufficient_material() -> bool:
 	var non_kings: Array = []
 	var bishop_colors: Array[int] = []
