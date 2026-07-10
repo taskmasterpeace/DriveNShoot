@@ -216,11 +216,10 @@ func _store_nearby_rig(gate_id: String) -> void:
 			best = car
 	if best == null:
 		return
-	var comps: Dictionary = {}
-	for k in best.components:
-		comps[k] = best.components[k].hp
+	var damage_record: Dictionary = best.snapshot_damage()
 	g.garage.append({"vclass": best.vclass, "fuel": best.fuel,
-		"components": comps, "trunk": best.trunk.slots.duplicate()})
+		"components":damage_record.get("components", {}),
+		"damage":damage_record, "trunk": best.trunk.slots.duplicate()})
 	_main.cars.erase(best)
 	best.queue_free()
 	_main.notify("🅿️ Your %s rolls into %s's garage (%d/%d slots) — it'll wait" % [best.display_name, g.row["name"], g.garage.size(), slots])
@@ -236,10 +235,14 @@ func _deliver_garage(gate_id: String) -> void:
 		_main.add_child(car)
 		car.global_position = g.global_position + Vector3(8.0 + 4.0 * i, 1.0, -6.0)
 		car.fuel = float(rec.get("fuel", 60.0))
-		var comps: Dictionary = rec.get("components", {})
-		for k in comps:
-			if car.components.has(k):
-				car.components[k].hp = float(comps[k])
+		if rec.has("damage"):
+			car.restore_damage(rec["damage"] as Dictionary)
+		else:
+			# Pre-L2 garage records remain valid.
+			var comps: Dictionary = rec.get("components", {})
+			for k in comps:
+				if car.components.has(k):
+					car.components[k].hp = float(comps[k])
 		car.trunk.slots = (rec.get("trunk", {}) as Dictionary).duplicate()
 		_main.cars.append(car)
 		i += 1

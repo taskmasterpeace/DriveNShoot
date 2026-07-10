@@ -119,6 +119,15 @@ func _ready() -> void:
 	_check("mark summaries stay finite and surface-aligned",
 		bool(mark_visual.facts()["marks_finite"]) and bool(mark_visual.facts()["marks_aligned"]))
 	var marked_snapshot: Dictionary = mark_visual.snapshot()
+	var pooled_resources: Dictionary = mark_visual.mark_resource_ids()
+	mark_visual.restore({"version":1, "zones":{"front":0.0, "rear":0.0,
+		"left":0.0, "right":0.0, "top":0.0, "wheel":0.0}, "marks":[]})
+	var cleared_pool_stable: bool = int(mark_visual.facts()["mark_count"]) == 0 \
+		and mark_visual.mark_resource_ids() == pooled_resources
+	mark_visual.restore(marked_snapshot)
+	_check("snapshot reset/restore reuses hidden mark slots instead of reallocating",
+		cleared_pool_stable and mark_visual.mark_resource_ids() == pooled_resources
+		and int(mark_visual.facts()["mark_count"]) == 16)
 	var marked_fresh := _car(15.0)
 	var marked_fresh_visual: Node = marked_fresh.get("damage_visual")
 	_check("mark summary round-trip regenerates the capped pool deterministically",

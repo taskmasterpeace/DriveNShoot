@@ -66,13 +66,19 @@ func _ready() -> void:
 
 	var shallow_car := _car("humvee", 4.0)
 	var shallow: Dictionary = shallow_car.take_impact(_packet(shallow_car, "front", 8.0, 0.0))
-	_check("energy below resistance makes a shallow accepted scuff without penetration",
+	_check("sub-threshold energy makes a mark/scuff without penetration or a cumulative dent",
 		bool(shallow["accepted"]) and not bool(shallow["penetrated"])
 		and float(shallow["component_damage"]) <= 0.1
-		and float(shallow["severity_delta"]) > 0.0)
+		and bool(shallow["mark_allowed"]) and is_zero_approx(float(shallow["severity_delta"])))
+	var threshold_car := _car("scavenger", 6.0)
+	var at_threshold: Dictionary = threshold_car.take_impact(
+		_packet(threshold_car, "front", 18.0, 10.0))
+	_check("authored armor dent threshold consumes energy plus penetration load",
+		is_equal_approx(float(threshold_car.impact_profile["armor_dent_threshold"]), 28.0)
+		and float(at_threshold["severity_delta"]) > 0.0)
 
-	var fresh_car := _car("suv", 8.0)
-	var depleted_car := _car("suv", 12.0)
+	var fresh_car := _car("suv", 10.0)
+	var depleted_car := _car("suv", 14.0)
 	depleted_car.impact_armor_durability["front"] = 0.0
 	var fresh: Dictionary = fresh_car.take_impact(_packet(fresh_car, "front", 55.0, 5.0))
 	var depleted: Dictionary = depleted_car.take_impact(_packet(depleted_car, "front", 55.0, 5.0))
@@ -80,7 +86,7 @@ func _ready() -> void:
 		float(depleted["component_damage"]) > float(fresh["component_damage"])
 		and float(depleted["armor_before"]) == 0.0)
 
-	var legacy_car := _car("scavenger", 16.0)
+	var legacy_car := _car("scavenger", 18.0)
 	var legacy_before: float = (legacy_car.components["chassis"] as Damageable).hp
 	var expected: float = 20.0 * clampf(1.0 - legacy_car.armor / 140.0, 0.25, 1.0)
 	legacy_car.take_damage(20.0)

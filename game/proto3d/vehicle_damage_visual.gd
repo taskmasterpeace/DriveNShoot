@@ -29,6 +29,7 @@ func setup(car_in: ProtoCar3D, visual_root_in: Node3D, profile_in: Dictionary) -
 	car = car_in
 	visual_root = visual_root_in
 	profile = profile_in.duplicate(true)
+	add_to_group("vehicle_damage_visual")
 	deformation_seed = int(profile.get("deformation_seed", 1001))
 	for zone in ZONES:
 		panels[zone] = []
@@ -154,11 +155,16 @@ func add_mark(packet: Dictionary, resolution: Dictionary) -> bool:
 	var local_pos: Vector3 = car.to_local(world_pos)
 	var local_normal: Vector3 = (car.global_basis.inverse() * world_normal).normalized()
 	var cap: int = clampi(int(profile.get("mark_cap", 16)), 1, 16)
-	var slot_index: int = marks.size()
-	if marks.size() < cap:
+	var slot_index: int = -1
+	for i in mini(marks.size(), cap):
+		if mark_summaries[i].is_empty():
+			slot_index = i
+			break
+	if slot_index < 0 and marks.size() < cap:
+		slot_index = marks.size()
 		marks.append(_new_mark())
 		mark_summaries.append({})
-	else:
+	elif slot_index < 0:
 		slot_index = _oldest_mark_index()
 		mark_reuses += 1
 	_mark_serial += 1
@@ -251,7 +257,7 @@ func facts() -> Dictionary:
 			(car.global_basis * normal).normalized()) > 0.96
 	return {"panel_count":rest_transforms.size(), "deform_events":deform_events,
 		"zones":zone_state.duplicate(true), "deformation_seed":deformation_seed,
-		"mark_count":mark_summaries.size(), "mark_cap":clampi(int(profile.get("mark_cap", 16)), 1, 16),
+		"mark_count":active_mark_count(), "mark_cap":clampi(int(profile.get("mark_cap", 16)), 1, 16),
 		"mark_reuses":mark_reuses, "mark_summaries":_ordered_mark_summaries(),
 		"marks_finite":finite, "marks_aligned":aligned}
 
@@ -269,24 +275,40 @@ func restore(state: Dictionary) -> bool:
 	for zone in ZONES:
 		zone_state[zone] = clampf(float(restored_zones.get(zone, 0.0)), 0.0, 1.0)
 	_apply_all()
+	deform_events = 0
 	_clear_marks()
 	for raw_summary in (state.get("marks", []) as Array):
 		if raw_summary is not Dictionary:
 			continue
 		var summary: Dictionary = (raw_summary as Dictionary).duplicate(true)
-		if marks.size() >= clampi(int(profile.get("mark_cap", 16)), 1, 16):
+		if active_mark_count() >= clampi(int(profile.get("mark_cap", 16)), 1, 16):
 			break
-		marks.append(_new_mark())
-		mark_summaries.append(summary)
+		var slot_index: int = -1
+		for i in marks.size():
+			if mark_summaries[i].is_empty():
+				slot_index = i
+				break
+		if slot_index < 0:
+			slot_index = marks.size()
+			marks.append(_new_mark())
+			mark_summaries.append({})
+		mark_summaries[slot_index] = summary
 		_mark_serial = maxi(_mark_serial, int(summary.get("serial", 0)))
-		_place_mark(marks.size() - 1, summary)
+		_place_mark(slot_index, summary)
 	return true
 
 
+func active_mark_count() -> int:
+	var count: int = 0
+	for summary in mark_summaries:
+		if not summary.is_empty():
+			count += 1
+	return count
+
+
 func _clear_marks() -> void:
-	for mark in marks:
-		mark.queue_free()
-	marks.clear()
-	mark_summaries.clear()
+	for i in marks.size():
+		marks[i].visible = false
+		mark_summaries[i] = {}
 	_mark_serial = 0
 	mark_reuses = 0

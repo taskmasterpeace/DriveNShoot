@@ -185,8 +185,10 @@ func _build_world() -> void:
 	for pos in [Vector3(73, 1.5, -6), Vector3(81, 1.5, 2), Vector3(75, 1.5, 8)]:
 		ProtoWorldBuilder.box_body(self, Vector3(0.5, 3.0, 8.0), pos, Color("#4b4032"))
 	ProtoWorldBuilder.box_body(self, Vector3(22, 0.4, 0.5), Vector3(104, 2.8, -12), Color("#59452f"))
-	for x in [94.0, 114.0]:
-		ProtoWorldBuilder.box_body(self, Vector3(0.5, 5.6, 24), Vector3(x, 2.8, 0), Color("#463c31"))
+	# Keep both side crash rails low: the fixed oblique camera otherwise lets a
+	# tall near/far rail occlude one of the two side-by-side comparison rigs.
+	ProtoWorldBuilder.box_body(self, Vector3(0.5, 1.2, 24), Vector3(94, 0.6, 0), Color("#463c31"))
+	ProtoWorldBuilder.box_body(self, Vector3(0.5, 1.2, 24), Vector3(114, 0.6, 0), Color("#59452f"))
 
 	camera = Camera3D.new()
 	camera.position = Vector3(12, 22, 18)
@@ -679,8 +681,15 @@ func _spawn_scenario_vehicles(raw_spawns: Variant, loadouts: Dictionary) -> void
 		add_child(car)
 		var spawn := Transform3D(Basis.IDENTITY, _array_position(vehicle_spawns[i]))
 		car.global_transform = spawn
-		car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
-		car.freeze = true
+		# Stationary scenario fixtures still need an awake physics body so the
+		# VehicleWheel3D suspension initializes finite render transforms.
+		car.axis_lock_linear_x = true
+		car.axis_lock_linear_y = true
+		car.axis_lock_linear_z = true
+		car.axis_lock_angular_x = true
+		car.axis_lock_angular_y = true
+		car.axis_lock_angular_z = true
+		car.can_sleep = false
 		car.add_to_group("lab_scenario_vehicle")
 		car.set_meta("scenario_spawn", spawn)
 		car.set_meta("lab_vehicle_id", authored_id)
@@ -932,7 +941,7 @@ func _diagnostic_readout(facts: Dictionary) -> String:
 	if budget == "":
 		budget = "OK"
 	var objective: Dictionary = scenario_objective()
-	return "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s\nNET %.0fms JIT %.0f LOSS %.0f%% Q%d DROP %d · CPU %.1fms SCRIPT~ %.1fms PHYS %.1fms DRAW %d · BUDGET %s · GOAL %s %d/%d" % [
+	var readout: String = "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s\nNET %.0fms JIT %.0f LOSS %.0f%% Q%d DROP %d · CPU %.1fms SCRIPT~ %.1fms PHYS %.1fms DRAW %d · BUDGET %s · GOAL %s %d/%d" % [
 		tool_state,
 		"ON" if diagnostics.updates_enabled() else "OFF", replay_status,
 		gaze_target_distance, "BINOC" if gaze_binoculars else "NORMAL",
@@ -947,6 +956,10 @@ func _diagnostic_readout(facts: Dictionary) -> String:
 		float(perf.get("physics_ms", 0.0)), int(perf.get("render_draw_calls", 0)), budget.to_upper(),
 		String(objective.get("type", "free_play")).to_upper(), int(objective.get("progress", 0)),
 		int(objective.get("target", 1))]
+	return readout + "\nDAMAGE  CARS %d · PANELS %d · EVENTS %d · REUSE %d · WORST HIT %d µs" % [
+		int(perf.get("damaged_cars", 0)), int(perf.get("damage_panels", 0)),
+		int(perf.get("deform_events", 0)), int(perf.get("mark_reuses", 0)),
+		int(perf.get("impact_us", 0))]
 
 
 func _round_readout() -> String:

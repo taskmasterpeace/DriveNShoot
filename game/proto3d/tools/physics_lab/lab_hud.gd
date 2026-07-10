@@ -91,7 +91,7 @@ func setup() -> void:
 	_tools_panel.offset_left = -740.0
 	_tools_panel.offset_right = -18.0
 	_tools_panel.offset_top = 18.0
-	_tools_panel.offset_bottom = 104.0
+	_tools_panel.offset_bottom = 130.0
 	root.add_child(_tools_panel)
 	_tools.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_tools.offset_left = 14.0

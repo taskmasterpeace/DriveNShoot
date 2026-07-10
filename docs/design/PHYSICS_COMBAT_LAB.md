@@ -1,6 +1,6 @@
 # PHYSICS & COMBAT LAB — playable body, gunfeel, damage, and Spectacles proving ground
 
-**Status:** L1 SHIPPED · L2–L4 PLANNED · **Date:** 2026-07-10
+**Status:** L1–L2 SHIPPED · L3–L4 PLANNED · **Date:** 2026-07-10
 
 ## 1. The promise
 
@@ -34,8 +34,8 @@ unplayable.
 
 1. **L1 — Physics & Combat Lab — SHIPPED:** body comparison, common controls, weapon radial, pistol/shotgun/
    automatic firearm/fists/grenade, nonlethal opponent, distance/LOS calibration, instrumentation.
-2. **L2 — Impact Bay:** event-driven vehicle dents, directional armor, bullet marks, crash contact
-   capture, damage persistence, and performance budgets.
+2. **L2 — Impact Bay — SHIPPED:** event-driven vehicle dents, directional armor, bullet marks, crash
+   contact capture, damage persistence, and performance budgets.
 3. **L3 — Spectacle Runtime:** reusable nonlethal bout card with watch/bet/enter modes, tournament
    brackets, payout through `ProtoBetting`, and venue-rule rows.
 4. **L4 — BACKROOMS '84:** a playable lore-native ConsoleNet maze duel with fog of war, local score,
@@ -284,6 +284,12 @@ distance value or algorithm changes. Direction and distance receive separate reg
 
 ## 10. Vehicle impact bay
 
+**Shipped L2 controls:** stand on the Vehicle Damage Bay pad, then use `Z` to select the light sheet
+car or armored SUV, `X` to select a face, `P` to select 9 mm/rifle/heavy/crash energy, and `C` to
+apply the labeled diagnostic packet. Real weapon rays and real physics contacts enter the exact same
+`ProtoCar3D.take_impact()` resolver. Backspace restores both clean snapshots without touching the
+campaign save.
+
 ### Performance decision
 
 Do not use soft-body vehicles or continuously rewrite arbitrary mesh vertices. Cars keep their stable
@@ -322,6 +328,20 @@ Bullets and crashes produce one packet:
   path before full damage presentation.
 - Save zone severity, armor durability, deformation seed, and mark summary—not every transformed
   vertex. Restore regenerates the bounded look deterministically.
+- Carousel garages store the same complete damage snapshot (components, punctures/fire, face armor,
+  dents, and marks); pre-L2 component-only garage records still deliver safely.
+
+### Shipped performance and collision boundary
+
+- Cosmetic work happens only when an impact packet arrives; idle frames do not rewrite panel
+  transforms or allocate mark resources.
+- Every real car owns a fixed, row-tunable pool capped at 16 marks. A 20-car soak holds 320 marks;
+  later hits reuse the oldest slots without silently reducing quality.
+- Telemetry samples damage counters at a bounded 4 Hz and reports worst impact microseconds,
+  impact/deform event counts, mark reuse, damaged cars,
+  registered damage panels, CPU/physics time, draw calls, and the first exceeded authored budget.
+- The stable `VehicleBody3D` hull never follows the visual dent. Handling/component degradation is
+  authoritative; dents and holes are a bounded presentation of the same damage state.
 
 ## 11. Spectacle Runtime
 
@@ -559,6 +579,8 @@ Each slice lands with a real-path sim and a hands-on card.
 - `vehicle_contact_sim`: front/rear/side contact packets and energy bounds.
 - `directional_armor_sim`: same hit behaves differently by face and armor strength.
 - `vehicle_deform_sim`: bounded event-driven panel state, mark cap/pool, snapshot round trip.
+- `impact_bay_sim`: playable controls, real-ray marks, crash reproducer, exact reset/save isolation,
+  and the 20-car/320-mark no-allocation soak.
 - Existing vehicle, traffic, gunfeel, save, traction, and motorcycle sims remain green.
 
 ### L3/L4 sims

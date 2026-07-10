@@ -115,11 +115,15 @@ func _ready() -> void:
 		await get_tree().physics_frame
 		if String(crash_car.last_impact.get("packet", {}).get("source", "")) == "crash":
 			break
+	for _settle in 4:
+		await get_tree().physics_frame
 	var crash_packet: Dictionary = crash_car.last_impact.get("packet", {})
-	_check("real wall contact emits a bounded direct crash packet (%s · states %d contacts %d max %.1f)" % [
+	_check("real frontal wall contact emits one bounded direct front-zone packet (%s · states %d contacts %d max %.1f)" % [
 		str(crash_packet), crash_car._direct_state_frames, crash_car._direct_contacts_seen,
 		crash_car._direct_max_speed],
 		String(crash_packet.get("source", "")) == "crash"
+		and String(crash_car.last_impact.get("zone", "")) == "front"
+		and crash_car.impact_events == 1
 		and float(crash_packet.get("energy", 0.0)) > 0.0
 		and float(crash_packet.get("energy", 0.0)) <= 5000.0
 		and (crash_packet.get("world_pos", Vector3.INF) as Vector3).is_finite())

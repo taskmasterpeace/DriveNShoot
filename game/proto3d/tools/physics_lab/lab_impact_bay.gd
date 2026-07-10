@@ -21,6 +21,9 @@ var preset_index: int = 0
 var last_result: Dictionary = {}
 var impact_us: int = 0
 var _selection_label: Label3D = null
+var _readout_cache: String = "IMPACT BAY READY"
+var _cached_impact_events: int = -1
+var _last_result_event: int = -1
 
 
 func setup(lab_in: Node3D, origin: Vector3) -> void:
@@ -77,16 +80,22 @@ func selected_car() -> ProtoCar3D:
 
 func cycle_vehicle(step: int = 1) -> void:
 	vehicle_index = posmod(vehicle_index + step, cars.size())
+	last_result.clear()
+	_last_result_event = -1
 	_update_label()
 
 
 func cycle_zone(step: int = 1) -> void:
 	zone_index = posmod(zone_index + step, ZONES.size())
+	last_result.clear()
+	_last_result_event = -1
 	_update_label()
 
 
 func cycle_preset(step: int = 1) -> void:
 	preset_index = posmod(preset_index + step, PRESET_ORDER.size())
+	last_result.clear()
+	_last_result_event = -1
 	_update_label()
 
 
@@ -105,6 +114,9 @@ func apply_selected() -> Dictionary:
 		"source":String(preset["source"]), "weapon_id":String(preset["weapon_id"])}
 	var started: int = Time.get_ticks_usec()
 	last_result = car.take_impact(packet)
+	last_result["lab_vehicle_index"] = vehicle_index
+	last_result["lab_preset"] = preset_id
+	_last_result_event = car.impact_events
 	impact_us = Time.get_ticks_usec() - started
 	_update_label()
 	return last_result.duplicate(true)
@@ -130,6 +142,7 @@ func reset() -> void:
 	zone_index = 0
 	preset_index = 0
 	last_result.clear()
+	_last_result_event = -1
 	impact_us = 0
 	_update_label()
 
@@ -138,41 +151,64 @@ func facts() -> Dictionary:
 	var car: ProtoCar3D = selected_car()
 	if car == null:
 		return {}
-	var result: Dictionary = car.last_impact if not car.last_impact.is_empty() else last_result
+	var result_matches_selection: bool = not last_result.is_empty() \
+		and _last_result_event == car.impact_events \
+		and int(last_result.get("lab_vehicle_index", -1)) == vehicle_index \
+		and String(last_result.get("zone", "")) == ZONES[zone_index] \
+		and String(last_result.get("lab_preset", "")) == PRESET_ORDER[preset_index]
+	var live_matches_selection: bool = not car.last_impact.is_empty() \
+		and String(car.last_impact.get("zone", "")) == ZONES[zone_index]
+	var result: Dictionary = last_result if result_matches_selection \
+		else (car.last_impact if live_matches_selection else {})
 	var visual: Dictionary = car.damage_visual.facts()
 	var preset_id: String = PRESET_ORDER[preset_index]
+	var zone: String = ZONES[zone_index]
+	var authored_resistance: float = float((car.impact_profile.get("armor", {}) as Dictionary).get(zone, 0.0))
+	var current_armor: float = float(car.impact_armor_durability.get(zone, 0.0))
 	return {"vehicle":car.vclass, "vehicle_name":car.display_name,
-		"armored":bool(car.get_meta("lab_armored", false)), "zone":ZONES[zone_index],
+		"armored":bool(car.get_meta("lab_armored", false)), "zone":zone,
 		"preset":preset_id, "energy":float(PRESETS[preset_id]["energy"]),
 		"penetration":float(PRESETS[preset_id]["penetration"]),
-		"resistance":float(result.get("resistance", 0.0)),
-		"armor_before":float(result.get("armor_before", 0.0)),
-		"armor_after":float(result.get("armor_after", 0.0)),
+		"resistance":float(result.get("resistance", authored_resistance)),
+		"armor_before":float(result.get("armor_before", current_armor)),
+		"armor_after":float(result.get("armor_after", current_armor)),
 		"absorbed":float(result.get("absorbed", 0.0)),
 		"remaining":float(result.get("remaining_energy", 0.0)),
-		"severity":float((visual["zones"] as Dictionary).get(ZONES[zone_index], 0.0)),
+		"severity":float((visual["zones"] as Dictionary).get(zone, 0.0)),
 		"marks":int(visual["mark_count"]), "mark_cap":int(visual["mark_cap"]),
 		"panels":int(visual["panel_count"]), "source":String((result.get("packet", {}) as Dictionary).get("source", "ready")),
 		"impact_us":maxi(impact_us, car.last_impact_us), "impact_events":car.impact_events}
 
 
 func readout() -> String:
+	var car: ProtoCar3D = selected_car()
+	if car != null and car.impact_events != _cached_impact_events:
+		_rebuild_readout()
+	return _readout_cache
+
+
+func _rebuild_readout() -> void:
 	var f: Dictionary = facts()
-	return "IMPACT BAY  %s%s  ·  FACE %s  ·  PRESET %s\nENERGY %.0f / PEN %.0f  ·  ARMOR %.0f → %.0f  ·  ABSORB %.0f / PASS %.0f\nSEVERITY %.2f  ·  MARKS %d/%d  ·  PANELS %d  ·  %s  ·  %d µs" % [
+	var preset_label: String = "CRASH (CONTACT REPRO)" if String(f.get("preset", "")) == "crash" \
+		else String(f.get("preset", "9mm")).to_upper()
+	_readout_cache = "IMPACT BAY  %s%s  ·  FACE %s  ·  PRESET %s\nENERGY %.0f / PEN %.0f  ·  ARMOR %.0f → %.0f  ·  ABSORB %.0f / PASS %.0f\nSEVERITY %.2f  ·  MARKS %d/%d  ·  PANELS %d  ·  %s  ·  %d µs" % [
 		String(f.get("vehicle_name", "CAR")).to_upper(), " [ARMORED]" if bool(f.get("armored", false)) else "",
-		String(f.get("zone", "front")).to_upper(), String(f.get("preset", "9mm")).to_upper(),
+		String(f.get("zone", "front")).to_upper(), preset_label,
 		float(f.get("energy", 0.0)), float(f.get("penetration", 0.0)),
 		float(f.get("armor_before", 0.0)), float(f.get("armor_after", 0.0)),
 		float(f.get("absorbed", 0.0)), float(f.get("remaining", 0.0)),
 		float(f.get("severity", 0.0)), int(f.get("marks", 0)), int(f.get("mark_cap", 16)),
 		int(f.get("panels", 0)), String(f.get("source", "ready")).to_upper(),
 		int(f.get("impact_us", 0))]
+	var car: ProtoCar3D = selected_car()
+	_cached_impact_events = car.impact_events if car != null else -1
 
 
 func _update_label() -> void:
 	if _selection_label == null or cars.is_empty():
 		return
 	var car: ProtoCar3D = selected_car()
-	_selection_label.position = car.position + Vector3(0, 2.0, 0)
+	_selection_label.position = car.position + Vector3(0, 3.35, 0)
 	_selection_label.text = "▼ %s / %s / %s" % [car.display_name.to_upper(),
 		ZONES[zone_index].to_upper(), PRESET_ORDER[preset_index].to_upper()]
+	_rebuild_readout()

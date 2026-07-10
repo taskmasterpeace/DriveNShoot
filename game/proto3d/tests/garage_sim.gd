@@ -39,6 +39,11 @@ func _ready() -> void:
 	rig.global_position = bellamy.global_position + Vector3(10, 1, 0)
 	rig.fuel = 42.0
 	rig.trunk.add("medkit", 3)
+	rig.puncture_tire(0)
+	rig.take_impact({"world_pos":rig.global_position + Vector3(0, 0.4, -1.5),
+		"world_normal":Vector3.FORWARD, "incoming_dir":Vector3.FORWARD,
+		"energy":50.0, "penetration":35.0, "source":"bullet", "weapon_id":"garage_probe"})
+	var parked_damage: Dictionary = rig.snapshot_damage()
 	main.cars.append(rig)
 	main.player.global_position = bellamy.global_position + Vector3(3, 0.5, 0)
 	crsl.jump("camp_bellamy") # → norfolk (THE PAIR)
@@ -69,8 +74,35 @@ func _ready() -> void:
 	_check("jump IN delivers the rig at the gate", delivered != null and bellamy.garage.is_empty())
 	_check("fuel, cargo — INTACT (%.0f fuel, %d medkits)" % [delivered.fuel if delivered else -1.0, delivered.trunk.count("medkit") if delivered else -1],
 		delivered != null and is_equal_approx(delivered.fuel, 42.0) and delivered.trunk.count("medkit") == 3)
+	var delivered_damage: Dictionary = delivered.snapshot_damage() if delivered != null else {}
+	_check("puncture, face armor, dents, fire state, and pooled marks survive garage save/delivery",
+		delivered != null and delivered_damage.get("punctured", []) == parked_damage["punctured"]
+		and delivered_damage.get("fire_state", -1) == parked_damage["fire_state"]
+		and _same_impact_state(delivered_damage.get("impact", {}), parked_damage["impact"]))
 
 	Engine.time_scale = 1.0
 	print("GAR RESULTS: %d passed, %d failed" % [passed, failed])
 	print("GAR: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
+	main.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
 	get_tree().quit(0 if failed == 0 else 1)
+
+
+func _same_impact_state(after: Dictionary, before: Dictionary) -> bool:
+	if after.get("zones", {}) != before.get("zones", {}) \
+			or after.get("armor_durability", {}) != before.get("armor_durability", {}):
+		return false
+	var after_marks: Array = after.get("marks", [])
+	var before_marks: Array = before.get("marks", [])
+	if after_marks.size() != before_marks.size():
+		return false
+	for i in before_marks.size():
+		var a: Dictionary = after_marks[i]
+		var b: Dictionary = before_marks[i]
+		for key in ["zone", "local_pos", "local_normal", "radius", "serial"]:
+			var same: bool = is_equal_approx(float(a.get(key)), float(b.get(key))) \
+				if key == "radius" else a.get(key) == b.get(key)
+			if not same:
+				return false
+	return true

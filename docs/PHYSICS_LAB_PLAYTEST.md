@@ -1,6 +1,6 @@
-# DRIVN Physics & Combat Lab — L1 playtest guide
+# DRIVN Physics & Combat Lab — L1–L2 playtest guide
 
-**Status:** L1 playable · **Launcher:** `PHYSICS_LAB.bat` · **Scene:** `res://proto3d/tools/physics_combat_lab.tscn`
+**Status:** L1–L2 playable · **Launcher:** `PHYSICS_LAB.bat` · **Scene:** `res://proto3d/tools/physics_combat_lab.tscn`
 
 The lab is standalone and save-isolated. It does not load or write `user://drivn.save`, create
 campaign wounds/crime/deaths, advance the world clock, or consume campaign inventory. Backspace or
@@ -51,6 +51,9 @@ time scale that existed before launch.
 | Reset station/match | Backspace | Start / Options |
 | Verdict Book | V | — |
 
+Impact Bay keyboard controls are active only while the Vehicle Damage Bay is the nearest station:
+`Z` vehicle · `X` face · `P` energy preset · `C` apply. Backspace restores both target cars.
+
 Keyboard-only inspection controls: F5 X-ray · F6 day/night · F7 clear/dust · F8 headlights ·
 F9 normal/binocular range · F10 camera zoom · O door · [ / ] target distance · comma rewind ·
 B network preset · M load level. Inside the L panel: sample five seconds of resting drift, use the
@@ -76,7 +79,32 @@ Mode switches preserve position, weapon, condition, and surface, then free the p
    forward/head/cone/weapon yaw, day/night/dust/headlight/binocular/zoom toggles.
 3. **Dive & Throw Lane:** charged trajectory and recovery inspection on a 520 m-deep floor.
 4. **Killhouse:** passive/return-fire/hunter/duel AI and repeatable nonlethal rounds.
-5. **Vehicle Damage Bay:** L1 geometry and scenario staging. Visible dents/armor are the L2 slice.
+5. **Vehicle Damage Bay:** playable light-versus-armored impacts, real-ray holes, bounded dents,
+   crash-energy reproduction, exact reset, and live damage/performance facts.
+
+## Impact Bay — the 3-minute L2 test
+
+1. Walk onto station 05. The left readout must show the selected car, face, energy/penetration,
+   armor before/after, absorbed/passed energy, severity, mark pool, panel count, source, and cost.
+2. Leave **LIGHT SHEET / FRONT / 9MM** selected and press C. Then press Z and apply the same hit to
+   **ARMORED SUV**. Expect the light car to bend more and the armored face to pass less energy.
+3. Use X to try front/rear/left/right/top/wheel and P to try 9 mm/rifle/heavy. Heavy fire can cross
+   armor that turns 9 mm into a shallow scuff. Armor durability is per face.
+4. Equip the pistol and shoot either car. Expect a dark, surface-aligned hole and a bounded local dent.
+   Repeated holes stop at 16 per car and reuse the oldest slot.
+5. Select **CRASH** and press C. This is explicitly a contact-energy reproducer using the real damage
+   resolver: expect a dent and no invented bullet hole. Real driving collisions use direct contact
+   position/normal/impulse, with delta velocity only as fallback.
+6. Press Backspace. Both cars must return to exact clean snapshots: no marks, zero visual severity,
+   full authored face armor. Restarting or resetting the standalone lab never writes the campaign save.
+
+Campaign note: parking a damaged rig in a Carousel garage preserves punctures/fire, component HP,
+per-face armor durability, dents, and pooled marks through save/load and later delivery.
+
+For load inspection, press M to raise explicit lab load. The top-right DAMAGE rail reports damaged
+cars, registered panels, deform events, mark-slot reuse, and worst impact microseconds. The proven cap
+is 20 real damaged cars × 16 marks = 320 pooled marks with stable nodes/resources during idle; the lab
+reports the first exceeded CPU/physics/draw/load budget and never silently lowers counts or quality.
 
 ### The ten bonus tools
 
@@ -109,7 +137,7 @@ Calibration presets live at `user://physics_lab/input_presets.json`. Verdicts li
 Selecting the same card and seed reproduces its opening state and event order, including reset
 positions, real staged vehicle rigs, loadouts, AI, weather, camera, transport, and a visible objective
 counter. Vehicle Gunner Pass moves its rig through the bay; Armored Penetration stages a collision-
-active armored SUV with no stray sparring actor. Visible dents/penetration surfaces remain L2, and
+active armored SUV with no stray sparring actor. Visible dents/penetration surfaces are live in L2;
 Spectacle payouts remain L3.
 
 ## DO → EXPECT acceptance card
@@ -129,12 +157,16 @@ Spectacle payouts remain L3.
 - **Finish a duel** → winner card and score appear; no corpse, campaign wound, crime, death, or save.
 - **Hide Camera Truth Wall / X-ray** → all five SubViewports or debug updates disable.
 - **Bad Wi-Fi + load** → latency/loss/cost are reported; quality/counts do not silently degrade.
+- **9 mm light car vs armored SUV** → the light face bends more; the armored face absorbs more and
+  retains independent durability.
+- **Shoot then crash a bay car** → bullets use pooled surface marks; crash packets dent without a
+  fabricated bullet hole; Backspace returns both cars to exact clean state.
 - **Open L calibration** → raw and normalized pad values update live; a measured drift deadzone makes
   resting input zero, APPLY changes the lab command path, and campaign bindings remain untouched.
 - **Reset** → health, ammo, body, surface, and condition return to baseline; temporary mirror/physics
   bodies are freed.
 
-## Known L1 boundaries
+## Known L1–L2 boundaries
 
 - F2/F3 are intentionally block-built experimental bodies, not final character art or shipped
   campaign replacements.
@@ -144,12 +176,14 @@ Spectacle payouts remain L3.
   replay data, not a rendered video.
 - Camera lighting presets are readability views; the separate sound overhaul and replacement audio
   assets are not part of L1.
-- Visible modular vehicle deformation/directional armor is L2. WATCH/BET/ENTER brackets are L3.
-  BACKROOMS '84 is L4.
+- Vehicle dents are deliberately cosmetic and bounded: the stable collision hull does not bend with
+  the mesh. Component/chassis damage and handling penalties remain the authoritative physical result.
+- WATCH/BET/ENTER brackets are L3. BACKROOMS '84 is L4.
 
 ## Automated evidence
 
-The L1 release sim drives the full path above and must end with `PHYSICS_LAB: ALL CHECKS PASSED`.
+The L1–L2 release sims drive the full path above and must end with `PHYSICS_LAB: ALL CHECKS PASSED`
+and `IMPACT_BAY: ALL CHECKS PASSED`.
 Focused sims cover body integrity, grip IK, low-ready sprint, automatic fire, radial behavior, muzzle
 pooling, throw charge, gaze/visibility, nonlethal sparring, replay, diagnostics, tools, scenarios,
 verdict isolation, vehicles, traffic, and save behavior.

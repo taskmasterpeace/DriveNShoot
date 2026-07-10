@@ -13,6 +13,7 @@ const LOAD_MAX: Dictionary = {"spectators":120, "fighters":12, "rigid_props":60,
 	"flashes":100, "marks":100, "cars":20}
 const BUDGETS: Dictionary = {"frame_cpu_ms":16.7, "script_estimate_ms":5.0,
 	"physics_ms":8.0, "render_draw_calls":2200, "load_nodes":412}
+const DAMAGE_SAMPLE_INTERVAL_MS: int = 250
 
 var preset_id: String = "local"
 var preset: Dictionary = TRANSPORTS["local"].duplicate(true)
@@ -26,6 +27,10 @@ var _max_delay: float = 0.0
 var _last_enqueue_ms: float = -INF
 var _load_root: Node3D = null
 var _load_counts: Dictionary = {}
+var _damage_cache: Dictionary = {"impact_us":0, "impact_events":0, "deform_events":0,
+	"mark_reuses":0, "damaged_cars":0, "damage_panels":0, "damage_samples":0}
+var _damage_sampled_at_ms: int = -100000
+var _damage_samples: int = 0
 
 
 func configure_transport(id: String, seed: int = 1) -> bool:
@@ -139,7 +144,7 @@ func _spawn_load_node(category: String, index: int) -> void:
 	_load_root.add_child(node)
 
 
-func performance_facts() -> Dictionary:
+func performance_facts(force_damage_sample: bool = false) -> Dictionary:
 	# Godot exposes CPU frame/physics time and render workload counters, but no
 	# portable per-frame GPU milliseconds here. Keep those facts distinct instead
 	# of presenting the same TIME_PROCESS sample under two misleading labels.
@@ -162,11 +167,57 @@ func performance_facts() -> Dictionary:
 		first = "render_draw_calls"
 	elif get_load_total() > int(BUDGETS["load_nodes"]):
 		first = "load_nodes"
+	var damage: Dictionary = _damage_performance_facts(force_damage_sample)
 	return {"frame_cpu_ms": frame_cpu_ms, "script_estimate_ms": script_estimate_ms,
 		"physics_ms": physics_ms, "navigation_ms": navigation_ms,
 		"render_metric": "draw_calls", "render_draw_calls": render_draw_calls,
 		"render_objects": render_objects, "first_exceeded": first, "auto_degraded": false,
-		"load_counts": _load_counts.duplicate(true), "load_total": get_load_total()}
+		"load_counts": _load_counts.duplicate(true), "load_total": get_load_total(),
+		"impact_us":damage["impact_us"], "impact_events":damage["impact_events"],
+		"deform_events":damage["deform_events"], "mark_reuses":damage["mark_reuses"],
+		"damaged_cars":damage["damaged_cars"], "damage_panels":damage["damage_panels"],
+		"damage_samples":damage["damage_samples"]}
+
+
+func _damage_performance_facts(force_sample: bool = false) -> Dictionary:
+	var now_ms: int = Time.get_ticks_msec()
+	if not force_sample and now_ms - _damage_sampled_at_ms < DAMAGE_SAMPLE_INTERVAL_MS:
+		return _damage_cache
+	var out: Dictionary = {"impact_us":0, "impact_events":0, "deform_events":0,
+		"mark_reuses":0, "damaged_cars":0, "damage_panels":0, "damage_samples":0}
+	_damage_sampled_at_ms = now_ms
+	_damage_samples += 1
+	out["damage_samples"] = _damage_samples
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is not SceneTree:
+		_damage_cache = out
+		return out
+	for raw_visual in (main_loop as SceneTree).get_nodes_in_group("vehicle_damage_visual"):
+		var visual := raw_visual as Node
+		if visual == null or not is_instance_valid(visual):
+			continue
+		var deform_events: int = int(visual.get("deform_events"))
+		var mark_summaries: Array = visual.get("mark_summaries") as Array
+		var has_damage: bool = deform_events > 0 or mark_summaries.any(
+			func(summary: Dictionary) -> bool: return not summary.is_empty())
+		if not has_damage:
+			for severity in (visual.get("zone_state") as Dictionary).values():
+				if float(severity) > 0.0001:
+					has_damage = true
+					break
+		if not has_damage:
+			continue
+		out["damaged_cars"] = int(out["damaged_cars"]) + 1
+		out["damage_panels"] = int(out["damage_panels"]) \
+			+ (visual.get("rest_transforms") as Dictionary).size()
+		out["deform_events"] = int(out["deform_events"]) + deform_events
+		out["mark_reuses"] = int(out["mark_reuses"]) + int(visual.get("mark_reuses"))
+		var damage_car := visual.get("car") as ProtoCar3D
+		if damage_car != null and is_instance_valid(damage_car):
+			out["impact_us"] = maxi(int(out["impact_us"]), damage_car.last_impact_us)
+			out["impact_events"] = int(out["impact_events"]) + damage_car.impact_events
+	_damage_cache = out
+	return out
 
 
 func get_load_total() -> int:

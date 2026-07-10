@@ -680,7 +680,6 @@ var _direct_contact_packets: int = 0
 var _direct_state_frames: int = 0
 var _direct_contacts_seen: int = 0
 var _direct_max_speed: float = 0.0
-var _fallback_incoming_velocity: Vector3 = Vector3.ZERO
 var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
@@ -1077,18 +1076,18 @@ func take_damage(amount: float) -> void:
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_direct_state_frames += 1
 	_direct_contacts_seen = maxi(_direct_contacts_seen, state.get_contact_count())
-	var may_refine_fallback: bool = String((last_impact.get("packet", {}) as Dictionary).get(
-		"source", "")) == "crash_fallback" and _fallback_incoming_velocity.length_squared() > 0.01
-	if dead or (_impact_cd > 0.0 and not may_refine_fallback) or state.get_contact_count() <= 0:
+	if dead or _impact_cd > 0.0 or state.get_contact_count() <= 0:
 		return
 	var strongest: Dictionary = {}
 	var strongest_energy: float = 0.0
 	for i in state.get_contact_count():
 		var local_normal: Vector3 = state.get_contact_local_normal(i)
-		var world_normal: Vector3 = (state.transform.basis * local_normal).normalized()
-		var incoming_velocity: Vector3 = _fallback_incoming_velocity if may_refine_fallback \
-			else (_prev_vel if _prev_vel.length_squared() > state.linear_velocity.length_squared() \
-			else state.linear_velocity)
+		# Godot reports the separating normal acting on this body. Impact packets
+		# carry the struck vehicle surface's outward normal, which is its inverse.
+		var world_normal: Vector3 = -(state.transform.basis * local_normal).normalized()
+		var incoming_velocity: Vector3 = _prev_vel \
+			if _prev_vel.length_squared() > state.linear_velocity.length_squared() \
+			else state.linear_velocity
 		var impact_speed: float = absf(incoming_velocity.dot(world_normal))
 		_direct_max_speed = maxf(_direct_max_speed, impact_speed)
 		var impulse: Vector3 = state.get_contact_impulse(i)
@@ -1112,7 +1111,6 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 func _apply_direct_contact(packet: Dictionary) -> void:
 	if not dead:
 		take_impact(packet)
-		_fallback_incoming_velocity = Vector3.ZERO
 		if bool(spec.get("rider_exposed", false)) and is_active \
 			and float(packet.get("energy", 0.0)) > 20.0:
 			rider_thrown.emit(float(packet.get("energy", 0.0)))
@@ -1462,8 +1460,7 @@ func _physics_process(delta: float) -> void:
 		_impact_cd = 0.5
 		var incoming: Vector3 = _prev_vel.normalized() if _prev_vel.length_squared() > 0.01 \
 			else -global_basis.z
-		_fallback_incoming_velocity = _prev_vel
-		var normal: Vector3 = -incoming
+		var normal: Vector3 = incoming
 		var half: Vector3 = (spec.get("hull", spec.get("chassis", Vector3(2, 1, 4))) as Vector3) * 0.5
 		take_impact(VEHICLE_IMPACT_SCRIPT.contact_packet(
 			global_position + incoming * maxf(half.x, half.z), normal, incoming,

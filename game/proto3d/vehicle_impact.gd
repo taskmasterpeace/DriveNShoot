@@ -132,14 +132,24 @@ static func resolve(raw_packet: Dictionary, zone: String, profile_in: Dictionary
 	var absorbed: float = minf(energy, effective_resistance)
 	var remaining: float = maxf(0.0, energy - absorbed)
 	var armor_after: float = maxf(0.0, armor_before - absorbed)
-	var shallow: float = minf(0.03, energy / maxf(1.0, resistance) * 0.02) \
-		if energy > 0.0 else 0.0
-	var severity_delta: float = shallow if remaining <= 0.001 else \
-		clampf(remaining / 120.0, 0.005, 0.35)
+	var has_live_armor: bool = resistance > 0.001 and armor_before > 0.001
+	var dent_threshold: float = maxf(0.0, float(profile_in.get(
+		"armor_dent_threshold" if has_live_armor else "dent_threshold", 0.0)))
+	# Penetration represents concentrated surface work even when the projectile's
+	# residual component energy is absorbed. Below the authored load, allow the
+	# pooled scuff/mark but never accumulate a visual dent.
+	var deformation_load: float = energy + float(hit["penetration"])
+	var severity_delta: float = 0.0
+	if deformation_load + 0.0001 >= dent_threshold:
+		var shallow: float = minf(0.03, energy / maxf(1.0, resistance) * 0.02) \
+			if energy > 0.0 else 0.0
+		severity_delta = shallow if remaining <= 0.001 else \
+			clampf(remaining / 120.0, 0.005, 0.35)
 	return {"accepted":energy > 0.0, "zone":zone, "resistance":resistance,
 		"absorbed":absorbed, "remaining_energy":remaining,
 		"component_damage":remaining, "severity_delta":severity_delta,
 		"armor_before":armor_before, "armor_after":armor_after,
 		"penetrated":remaining > 0.001,
+		"deformation_load":deformation_load, "dent_threshold":dent_threshold,
 		"mark_allowed":energy > 0.0 and String(hit["source"]) == "bullet",
 		"compatibility":false}
