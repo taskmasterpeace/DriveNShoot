@@ -535,6 +535,8 @@ var impact_zones: Dictionary = {"front":0.0, "rear":0.0, "left":0.0,
 	"right":0.0, "top":0.0, "wheel":0.0}
 var last_impact: Dictionary = {}
 var damage_visual: Node3D = null
+var last_impact_us: int = 0
+var impact_events: int = 0
 
 ## Locked cars need their key found somewhere in the world.
 var locked: bool = false
@@ -1028,6 +1030,7 @@ func _nearest_hitch_rig() -> ProtoCar3D:
 func take_impact(raw_packet: Dictionary) -> Dictionary:
 	if dead:
 		return {"accepted":false, "zone":"front", "component_damage":0.0}
+	var impact_started_us: int = Time.get_ticks_usec()
 	var hit: Dictionary = VEHICLE_IMPACT_SCRIPT.packet(raw_packet)
 	var zone: String = String(hit.get("zone_override", ""))
 	if zone == "":
@@ -1057,6 +1060,8 @@ func take_impact(raw_packet: Dictionary) -> Dictionary:
 	if damage_visual != null:
 		damage_visual.apply_impact(hit, result)
 	last_impact = result.duplicate(true)
+	last_impact_us = Time.get_ticks_usec() - impact_started_us
+	impact_events += 1
 	return result
 
 

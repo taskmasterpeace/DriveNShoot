@@ -24,6 +24,8 @@ var _weapon: Label = null
 var _telemetry: Label = null
 var _tools_panel: Panel = null
 var _tools: Label = null
+var _impact_panel: Panel = null
+var _impact_label: Label = null
 var _calibration_panel: Panel = null
 var _calibration_spins: Dictionary = {}
 var _calibration_name: LineEdit = null
@@ -38,6 +40,7 @@ var _verdict_status: Label = null
 
 func setup() -> void:
 	layer = 80
+	controls_text += "  ·  Z vehicle  ·  X face  ·  P energy  ·  C apply  ·  Backspace reset"
 	var root := Control.new()
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -97,8 +100,23 @@ func setup() -> void:
 	_tools.offset_bottom = -8.0
 	_tools.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_tools_panel.add_child(_tools)
+	_build_impact_bay(root)
 	_build_calibration(root)
 	_build_verdict(root)
+
+
+func _build_impact_bay(root: Control) -> void:
+	_impact_panel = _panel(Vector2(18, 276), Vector2(520, 126))
+	root.add_child(_impact_panel)
+	_impact_label = _label("IMPACT BAY READY", 12, BONE)
+	_impact_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_impact_label.offset_left = 16.0
+	_impact_label.offset_right = -16.0
+	_impact_label.offset_top = 12.0
+	_impact_label.offset_bottom = -12.0
+	_impact_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_impact_panel.add_child(_impact_label)
+	_impact_panel.visible = false
 
 
 func _build_calibration(root: Control) -> void:
@@ -305,6 +323,17 @@ func set_tools(text: String) -> void:
 
 func tools_text() -> String:
 	return _tools.text if _tools != null else ""
+
+
+func set_impact_bay(text: String, visible: bool) -> void:
+	if _impact_label != null:
+		_impact_label.text = text
+	if _impact_panel != null:
+		_impact_panel.visible = visible
+
+
+func impact_text() -> String:
+	return _impact_label.text if _impact_label != null else ""
 
 
 func toggle_calibration(settings: Dictionary = {}) -> void:

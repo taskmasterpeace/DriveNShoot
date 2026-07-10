@@ -19,6 +19,7 @@ const CAMERA_WALL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_camera_
 const SCENARIO_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_scenario.gd")
 const CHAOS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_chaos.gd")
 const VERDICT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_verdict.gd")
+const IMPACT_BAY_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_impact_bay.gd")
 const WEAPON_WHEEL_SCRIPT := preload("res://proto3d/weapon_wheel.gd")
 
 var save_isolated: bool = true
@@ -52,6 +53,7 @@ var camera_wall: Node = null
 var scenario_tool: RefCounted = null
 var chaos: RefCounted = null
 var verdict: RefCounted = null
+var impact_bay: Node3D = null
 var weapon_wheel: CanvasLayer = null
 var radial_selection: String = "pistol"
 var shot_spread_deg: float = -1.0 # Tests/AI may override; negative keeps authored player spread.
@@ -125,6 +127,9 @@ func _ready() -> void:
 	scenario_tool.build_cards(self, Vector3(70, 0.05, 16))
 	chaos = CHAOS_SCRIPT.new()
 	chaos.configure_transport("local", 1)
+	impact_bay = IMPACT_BAY_SCRIPT.new()
+	add_child(impact_bay)
+	impact_bay.setup(self, Vector3(104, 0.05, 0))
 	verdict = VERDICT_SCRIPT.new()
 	hud.verdict_submitted.connect(_on_verdict_submitted)
 	hud.verdict_clear_requested.connect(_on_verdict_clear_requested)
@@ -751,6 +756,8 @@ func reset_station() -> void:
 	if surface_tool != null:
 		set_surface("asphalt")
 		set_condition_preset("fresh")
+	if impact_bay != null:
+		impact_bay.reset()
 	character.hp = 100.0
 	character.dead = false
 	for part in character.body.values():
@@ -844,6 +851,8 @@ func _physics_process(delta: float) -> void:
 	var metrics: Dictionary = live_metrics
 	hud.refresh(active_mode, current_station, adapter.weapon, metrics,
 		String(adapter.condition.get("id", "fresh")).to_upper(), _round_readout())
+	if impact_bay != null:
+		hud.set_impact_bay(impact_bay.readout(), current_station == "VEHICLE DAMAGE BAY")
 	if diagnostics != null:
 		diagnostics.update_xray(adapter)
 		if active_gaze_target != null:
@@ -1214,6 +1223,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_B: cycle_transport()
 			KEY_M: cycle_chaos_load()
 			KEY_V: hud.toggle_verdict()
+			KEY_Z:
+				if current_station == "VEHICLE DAMAGE BAY" and impact_bay != null:
+					impact_bay.cycle_vehicle()
+			KEY_X:
+				if current_station == "VEHICLE DAMAGE BAY" and impact_bay != null:
+					impact_bay.cycle_zone()
+			KEY_P:
+				if current_station == "VEHICLE DAMAGE BAY" and impact_bay != null:
+					impact_bay.cycle_preset()
+			KEY_C:
+				if current_station == "VEHICLE DAMAGE BAY" and impact_bay != null:
+					impact_bay.apply_selected()
 			KEY_BACKSPACE: reset_station()
 	elif event is InputEventJoypadButton and event.pressed:
 		match (event as InputEventJoypadButton).button_index:
