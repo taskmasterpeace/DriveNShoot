@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "spectacles": {
+    "wasteland_shootout": {
+      "name": "THE MERIDIAN FOUR",
+      "venue": "Killhouse Broadcast Court",
+      "kind": "combat_shootout",
+      "nonlethal": true,
+      "modes": ["watch", "bet", "enter"],
+      "round_health": 100.0,
+      "rounds_to_win": 2,
+      "stake_min": 10,
+      "stake_max": 250,
+      "stake_step": 10,
+      "prohibited_groups": ["dog", "infected"],
+      "spawns": {
+        "left": [74.0, 0.05, 8.0],
+        "right": [82.0, 0.05, -8.0],
+        "spectator": [78.0, 0.05, 15.0]
+      },
+      "entrants": [
+        {"id": "ash", "name": "ASH MERCER", "strength": 1.15, "opponent_row": "duel", "weapon_id": "pistol", "group": "human"},
+        {"id": "brick", "name": "BRICKHOUSE", "strength": 0.88, "opponent_row": "hunter", "weapon_id": "scrap_smg", "group": "human"},
+        {"id": "vesper", "name": "VESPER VALE", "strength": 1.02, "opponent_row": "duel", "weapon_id": "shotgun", "group": "human"},
+        {"id": "half_stack", "name": "HALF-STACK", "strength": 0.72, "opponent_row": "hunter", "weapon_id": "pistol", "group": "human"}
+      ],
+      "broadcast": {
+        "semifinal": "TWO WALK IN. ONE NAME MOVES.",
+        "final": "THE MERIDIAN FOUR — FINAL",
+        "winner": "THE BOARD REMEMBERS THE CHAMPION."
+      }
+    }
+  }
+}
