@@ -1,0 +1,20 @@
+{
+  "_comment": "Game Deck event calendar. Venues own cabinets/screens; cartridges remain ordinary Game Deck runtime rows.",
+  "venues": [
+    {"id":"meridian_drive_in_games","name":"STATIC SKY DRIVE-IN","kind":"drive_in","position":[60.0,0.0,-215.0],"screen_size":[7.2,4.05],"accent":"#f2b735","waypoint":"🎮 DRIVE-IN GAMES","powered":true},
+    {"id":"meridian_roadhouse_games","name":"THE BENT AXLE ARCADE","kind":"roadhouse","position":[92.0,0.0,-292.0],"screen_size":[3.2,1.8],"accent":"#b84a3b","waypoint":"🎮 ROADHOUSE ARCADE","powered":true},
+    {"id":"meridian_game_hall","name":"COUNTY CONTINUITY HALL","kind":"game_hall","position":[168.0,0.0,-350.0],"screen_size":[5.3,2.98],"accent":"#2f8f83","waypoint":"🎮 GAME HALL","powered":true}
+  ],
+  "events": [
+    {"id":"crown_monday","venue_id":"meridian_game_hall","game_id":"crown_of_ash","day_mod":1,"hour":18.0,"duration_h":2.0,"entry_fee_scrip":8,"prize_scrip":70,"prize_item":"","trap_chance":0.08,"poster":"MONDAY // THE EMPTY CROWN","announcer":["THE BOARD REMEMBERS EVERY CAPTURE.","NO DICE. NO EXCUSES."]},
+    {"id":"dial_drive_in","venue_id":"meridian_drive_in_games","game_id":"dial_tanks","day_mod":2,"hour":20.0,"duration_h":2.0,"entry_fee_scrip":10,"prize_scrip":90,"prize_item":"","trap_chance":0.18,"poster":"TUESDAY // BANK THE SHOT","announcer":["TWO BOUNCES STILL COUNT.","MINES ARE A PROMISE TO THE FUTURE."]},
+    {"id":"red_sky_midweek","venue_id":"meridian_roadhouse_games","game_id":"red_sky","day_mod":3,"hour":19.0,"duration_h":2.0,"entry_fee_scrip":8,"prize_scrip":80,"prize_item":"","trap_chance":0.12,"poster":"WEDNESDAY // READ THE WIND","announcer":["THE FRONT IS MOVING.","RANGING SHOTS BUY TOMORROW."]},
+    {"id":"orbit_claim_night","venue_id":"meridian_game_hall","game_id":"black_orbit","day_mod":4,"hour":21.0,"duration_h":2.0,"entry_fee_scrip":12,"prize_scrip":100,"prize_item":"","trap_chance":0.10,"poster":"THURSDAY // CLAIM THE BLACK","announcer":["SHORT BURNS. LONG MEMORY.","SALVAGE BELONGS TO THE SURVIVOR."]},
+    {"id":"grid_friday","venue_id":"meridian_roadhouse_games","game_id":"gridbreach","day_mod":5,"hour":20.0,"duration_h":2.0,"entry_fee_scrip":10,"prize_scrip":95,"prize_item":"","trap_chance":0.22,"poster":"FRIDAY // LIGHT THE GRID","announcer":["COUNT THE FUSE TWICE.","EVERY POCKET NEEDS AN EXIT."]},
+    {"id":"rustball_saturday","venue_id":"meridian_drive_in_games","game_id":"rustball","day_mod":6,"hour":19.0,"duration_h":2.5,"entry_fee_scrip":15,"prize_scrip":120,"prize_item":"game_cart_fight_night_99","trap_chance":0.20,"poster":"SATURDAY // NO GRASS, NO MERCY","announcer":["THE BALL ONLY LOVES MOMENTUM.","WIN THE NIGHT. TAKE THE PRIZE CART."]},
+    {"id":"fuel_run_sunday","venue_id":"meridian_drive_in_games","game_id":"fuel_run","day_mod":0,"hour":17.0,"duration_h":2.0,"entry_fee_scrip":12,"prize_scrip":110,"prize_item":"","trap_chance":0.14,"poster":"SUNDAY // BRING THE CAN HOME","announcer":["THE CARRIER IS HEAVY AND EVERYBODY KNOWS.","SCREEN THE INTERSECTION."]},
+    {"id":"skyjoust_late","venue_id":"meridian_game_hall","game_id":"skyjoust","day_mod":2,"hour":22.0,"duration_h":1.5,"entry_fee_scrip":10,"prize_scrip":100,"prize_item":"","trap_chance":0.09,"poster":"TUESDAY LATE // OWN THE HEIGHT","announcer":["CLIMB BEFORE YOU FIGHT.","ONE CLEAN LANCE ENDS THE ARGUMENT."]},
+    {"id":"fight_night_thursday","venue_id":"meridian_roadhouse_games","game_id":"fight_night_99","day_mod":4,"hour":18.0,"duration_h":2.0,"entry_fee_scrip":18,"prize_scrip":150,"prize_item":"","trap_chance":0.25,"poster":"THURSDAY // ROAD LEGENDS ONLY","announcer":["GUARD HIGH UNTIL THEY TEACH YOU LOW.","THE ROAD CAME TO WATCH."]},
+    {"id":"ashland_campaign","venue_id":"meridian_game_hall","game_id":"ashland_command","day_mod":6,"hour":16.0,"duration_h":2.0,"entry_fee_scrip":14,"prize_scrip":130,"prize_item":"","trap_chance":0.06,"poster":"SATURDAY // SUPPLY IS THE MAP","announcer":["DAMAGED UNITS STILL HOLD GROUND.","BREAK THE COMMAND, NOT YOUR LINE."]}
+  ]
+}

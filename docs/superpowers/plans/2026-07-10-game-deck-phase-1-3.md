@@ -119,17 +119,17 @@ radius; all venue art is original ink/bone/amber/rust with no purple.
 - Create: `game/proto3d/games/game_venue.gd`
 - Create: `game/proto3d/tests/game_spectacle_sim.gd/.tscn`
 
-- [ ] Red sim: venue/event rows validate unique ids, installed console games,
+- [x] Red sim: venue/event rows validate unique ids, installed console games,
   visible schedules, entry/prize/trap fields, original venue labels, and no
   purple color data.
-- [ ] Build three physical venue types (drive-in, roadhouse, game hall) from
+- [x] Build three physical venue types (drive-in, roadhouse, game hall) from
   Godot primitives with a live 16:9 mirror, tote/bracket board, poster, status,
   and announcer line.
-- [ ] Schedule ten console event rows so every Phase 1 console game has a night;
+- [x] Schedule ten console event rows so every Phase 1 console game has a night;
   event lookup is deterministic by game day/hour.
-- [ ] Prove the spectator samples `deck.texture()` exactly and never owns game
+- [x] Prove the spectator samples `deck.texture()` exactly and never owns game
   simulation or changes time scale.
-- [ ] Commit `feat: add Game Deck tournament venues`.
+- [x] Commit `feat: add Game Deck tournament venues`.
 
 ## Task 6: Brackets, entry, wagers, prizes, and traps
 
