@@ -114,6 +114,24 @@ func _ready() -> void:
 	diner.global_position = Vector3(-200, 0, 0)
 	_check("diner carries a furnisher too", _furnisher_of(diner) != null)
 
+	# THE PER-CHUNK CAP (AR 0.11 / audit F13): four shells in ONE 128 m chunk,
+	# a player in the middle — at most 3 wake; the 4th holds until a slot frees.
+	var pack: Array = []
+	for i in 4:
+		var s := ProtoStructureBuilder.materialize("house_small")
+		add_child(s)
+		s.global_position = Vector3(940.0 + 18.0 * i, 0, 1000.0) # chunk 7 spans 896..1024 — all four INSIDE it
+		pack.append(s)
+	player.global_position = Vector3(967, 0.4, 1000) # within 40 m of all four
+	await _frames(30)
+	var awake_n := 0
+	for s in pack:
+		var fr := _furnisher_of(s)
+		if fr != null and fr.awake:
+			awake_n += 1
+	_check("per-chunk cap holds (%d awake ≤ 3 of 4 clustered shells)" % awake_n,
+		awake_n >= 2 and awake_n <= 3)
+
 	_finish()
 
 

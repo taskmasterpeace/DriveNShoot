@@ -12,10 +12,11 @@ extends Node3D
 const WAKE_M := 40.0
 const SLEEP_M := 55.0          ## hysteresis — no thrash at the boundary
 const CHECK_EVERY := 20        ## frames between distance checks (cheap)
-## Global awake cap (AR 0.11: ≤2-3 full interiors per chunk; the radius already
-## bounds it — this is the backstop against a furniture-mall pileup).
-static var awake_count: int = 0
-const AWAKE_CAP := 6
+## THE CAP IS PER CHUNK (AR 0.11's actual ruling: ≤2-3 full interiors per
+## 128 m chunk — audit F13: the old global-6 both overshot the measured worst
+## chunk and could starve a co-op partner elsewhere to zero wakes).
+static var awake_by_chunk: Dictionary = {} ## "cx,cz" -> awake count
+const CHUNK_CAP := 3
 
 var building_type: String = ""
 var uid_seed: String = ""
@@ -24,6 +25,7 @@ var half_d: float = 4.0
 var awake: bool = false
 var pieces: Array = []
 var _frame: int = 0
+var _awake_ck: String = "" ## the chunk this furnisher counted itself into
 
 
 static func attach(root: Node3D, w: float, d: float, btype: String, seed_in: String) -> ProtoFurnisher:
@@ -37,12 +39,16 @@ static func attach(root: Node3D, w: float, d: float, btype: String, seed_in: Str
 	return f
 
 
+func _chunk_key() -> String:
+	return "%d,%d" % [int(floor(global_position.x / 128.0)), int(floor(global_position.z / 128.0))]
+
+
 func _physics_process(_delta: float) -> void:
 	_frame += 1
 	if _frame % CHECK_EVERY != 0:
 		return
 	var near := _nearest_player_dist()
-	if not awake and near <= WAKE_M and awake_count < AWAKE_CAP:
+	if not awake and near <= WAKE_M and int(awake_by_chunk.get(_chunk_key(), 0)) < CHUNK_CAP:
 		_wake()
 	elif awake and near > SLEEP_M:
 		_sleep()
@@ -61,7 +67,8 @@ func _nearest_player_dist() -> float:
 ## the room, nothing ever blocking the (+Z center) doorway.
 func _wake() -> void:
 	awake = true
-	awake_count += 1
+	_awake_ck = _chunk_key()
+	awake_by_chunk[_awake_ck] = int(awake_by_chunk.get(_awake_ck, 0)) + 1
 	var row: Dictionary = ProtoLootResolver.building_row(building_type)
 	var fset: Array = row.get("furniture_set", [])
 	var placed := 0
@@ -93,7 +100,7 @@ func _wake() -> void:
 
 func _sleep() -> void:
 	awake = false
-	awake_count = maxi(0, awake_count - 1)
+	awake_by_chunk[_awake_ck] = maxi(0, int(awake_by_chunk.get(_awake_ck, 0)) - 1)
 	for p in pieces:
 		if is_instance_valid(p):
 			(p as Node).queue_free()
@@ -103,4 +110,4 @@ func _sleep() -> void:
 func _exit_tree() -> void:
 	if awake:
 		awake = false
-		awake_count = maxi(0, awake_count - 1)
+		awake_by_chunk[_awake_ck] = maxi(0, int(awake_by_chunk.get(_awake_ck, 0)) - 1)

@@ -96,14 +96,14 @@
 | F10 | Pre-eco saves heal on touch (eco backfill in cell_at) | DONE | `creatures_sim` 31/0 (GAP-10 check) |
 | F11 | Legibility layer (LWE 0.9): threat-priority stack, toast queue, cause-stamped beats | OPEN | — |
 | F12 | 0.11 BODY LAW on ALL death paths: howler/lurker/companion/infected pass their rigs | DONE | threat 17/0 · crew 11/0 · infected 10/0 · corpse 12/0 |
-| F13 | Furnisher cap semantics (AR 0.11): per-chunk 2-3 (not global 6); co-op starvation | OPEN | — |
+| F13 | Furnisher cap semantics: per-CHUNK ≤3 (awake_by_chunk ledger; global-6 removed — no co-op starvation) | DONE | `furnisher_lod_sim` 11/0 (4-shell cluster: 3 wake) |
 | F14 | Catalog 42-row completion (BUILDING_BOOK §1: 14 missing rows incl. hospital_lobby, library_small, city_hall) | OPEN | — |
 
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 36 (C0–C6, I0–I2, W0, P17, E1–E11, E13–E15, E17, E19–E21, E24–E27, F8, F10, F12) — **THE E-SET IS CLOSED**
-- OPEN: 8 (F1–F4, F6, F7, F9, F11, F13, F14 — the ecosystem-contract arc)
+- DONE: 37 (…E-set closed… + F8, F10, F12, F13)
+- OPEN: 7 (F1–F4, F6, F7, F9, F11, F14 — the ecosystem-contract arc)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
