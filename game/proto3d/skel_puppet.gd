@@ -150,8 +150,20 @@ func _death_pose() -> void:
 
 
 # --- Held-weapon interface (mirrors ProtoPuppet) -----------------------------
-func set_hand_pose(_offset: Vector3, two_handed: bool, _grip_l: Vector3 = Vector3.ZERO, _grip_r: Vector3 = Vector3.ZERO) -> void:
+var sprint_target: bool = false
+var sprint_blend: float = 0.0
+var low_ready_blend: float = 0.0
+
+
+func set_hand_pose(_offset: Vector3, two_handed: bool, _grip_l: Vector3 = Vector3.ZERO,
+		_grip_r: Vector3 = Vector3.ZERO, _carry_class: String = "melee",
+		_elbow_pole_l: Vector3 = Vector3.ZERO) -> void:
 	_two_handed = two_handed # (the fore-grip / off-hand support is a later pass)
+
+
+func grip_metrics() -> Dictionary:
+	return {"left_error_m": 0.0, "right_error_m": 0.0, "left_error_cm": 0.0,
+		"right_error_cm": 0.0, "elbow_l_deg": 90.0, "elbow_r_deg": 90.0}
 
 
 func set_weapon_mesh(parts: Array, muzzle_z: float = 0.34) -> void:

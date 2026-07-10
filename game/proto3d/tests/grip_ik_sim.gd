@@ -46,7 +46,8 @@ func _ready() -> void:
 	_check("the shotgun row carries a grip_l fore-grip point", shotgun_pose.has("grip_l"))
 	_check("the pipe rocket row carries a grip_l too",
 		(ProtoWeapon.WEAPONS["pipe_rocket"]["hand_pose"] as Dictionary).has("grip_l"))
-	_check("the pistol row does NOT (one hand, unchanged)", not pistol_pose.has("grip_l"))
+	_check("the pistol now carries a support-hand firing grip",
+		bool(pistol_pose.get("two_handed", false)) and pistol_pose.has("grip_l"))
 	# ANIMATION_FIX_PACK §3.5.2 DATA GUARD (D5): EVERY two-hand GUN must carry a NONZERO
 	# grip_l — a zero grip silently drops the support hand to the legacy posed hold (the
 	# "both arms grow from one shoulder" look the owner flagged). Melee two-handers
@@ -77,6 +78,11 @@ func _ready() -> void:
 	_check("the free hand PLANTS on the fore-grip (%.3fm off, wants <0.05)" % miss, miss < 0.05)
 	_check("the hold is a BENT-elbow hold, not a straight-arm reach (elbow %.2f rad)" % p.elbow_l.rotation.x,
 		absf(p.elbow_l.rotation.x) > 0.3)
+	var metrics: Dictionary = p.grip_metrics()
+	_check("grip diagnostics report the measured support-hand error",
+		absf(float(metrics["left_error_m"]) - miss) < 0.002)
+	_check("shotgun elbow stays anatomical (20-145 deg)",
+		float(metrics["elbow_l_deg"]) >= 20.0 and float(metrics["elbow_l_deg"]) <= 145.0)
 
 	# === 3. THE HOLD TRACKS THE AIM: yaw the twin-stick, the hand stays planted ===
 	# (yaw TOWARD the support side — the far side legitimately runs out of arm and

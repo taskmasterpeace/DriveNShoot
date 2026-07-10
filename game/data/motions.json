@@ -7,7 +7,13 @@
         "stride_amp": 0.72,
         "step_bob": 0.15,
         "cadence_speed": 1.35,
-        "lean_turn": 0.26
+        "lean_turn": 0.26,
+        "sprint_blend_rate": 8.0,
+        "low_ready_in": 10.0,
+        "low_ready_out": 12.0,
+        "pistol_low_pitch_deg": 25.0,
+        "long_low_pitch_deg": 32.0,
+        "long_low_roll_deg": 20.0
       }
     }
   }

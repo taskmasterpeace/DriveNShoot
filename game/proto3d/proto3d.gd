@@ -406,6 +406,7 @@ var _pack_cd: float = 35.0
 ## Timed reloads: swapping a mag is a COMMITMENT (fire is blocked meanwhile).
 var _reload_t: float = 0.0
 var _reload_wpn: ProtoWeapon = null
+var _pending_fire_s: float = -1.0 ## low-ready raise queue; <0 means no shot waiting
 ## GUNFEEL PASS #4: the reload is staged into two audible beats WITHOUT
 ## changing total reload_s — "reload_drop" plays at the start (reload_equipped),
 ## "reload_insert" plays once the countdown crosses RELOAD_INSERT_PCT of the
@@ -901,6 +902,7 @@ func _physics_process(delta: float) -> void:
 	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
 	_update_weapon_wheel(delta)
 	_update_throw(delta)
+	_update_pending_fire(delta)
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
@@ -1019,7 +1021,7 @@ func _physics_process(delta: float) -> void:
 	var wpn := current_weapon()
 	if wpn:
 		wpn.tick(delta, self) # main threaded through for the pump-chain beats (GUNFEEL PASS)
-		if _fire_down and mode == Mode.FOOT and wpn.is_automatic() \
+		if _fire_down and _pending_fire_s < 0.0 and mode == Mode.FOOT and wpn.is_automatic() \
 				and not panel.is_open and _reload_t <= 0.0 and wpn.mag > 0:
 			fire_equipped()
 	# The unarmed rows are ALWAYS live (cooldowns + the combo window decay).
@@ -2307,7 +2309,8 @@ func _apply_hand_pose(wpn: ProtoWeapon) -> void:
 		return
 	var pose: Dictionary = wpn.info().get("hand_pose", {"offset": Vector3.ZERO, "two_handed": false})
 	player.puppet.set_hand_pose(pose.get("offset", Vector3.ZERO), pose.get("two_handed", false),
-		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO))
+		pose.get("grip_l", Vector3.ZERO), pose.get("grip_r", Vector3.ZERO),
+		String(pose.get("carry_class", "melee")), pose.get("elbow_pole_l", Vector3.ZERO))
 	# THE SILHOUETTE (weapons-as-data): rebuild the held mesh so a pistol reads as
 	# a pistol, a shotgun as a shotgun — the shape is the WEAPON's property, a row.
 	var shp: Dictionary = ProtoWeapon.shape(id)
@@ -2352,7 +2355,7 @@ func aim_direction() -> Vector3:
 	return out.normalized() if out.length_squared() > 0.01 else player.facing()
 
 
-func fire_equipped() -> void:
+func fire_equipped(force_ready: bool = false) -> void:
 	var w := current_weapon()
 	if w == null or mode != Mode.FOOT or panel.is_open or _reload_t > 0.0:
 		return
@@ -2363,6 +2366,10 @@ func fire_equipped() -> void:
 		audio.play_ui("click", -2.0) # GUNFEEL #3: dry-fire is HEARD, not just read
 		notify("*click* — reload (R)")
 		return
+	if not w.is_melee() and not force_ready and not player.request_fire_ready():
+		_pending_fire_s = 0.18
+		return
+	_pending_fire_s = -1.0
 	player.enter_stance() # a raised gun = combat stance: slow feet, no sprint
 	player.aim_now(aim_direction()) # orient arms/eyes at the intent
 	# The BULLET flies muzzle → aim point in FULL 3D: exactly under the cursor
@@ -2600,7 +2607,22 @@ func _equip_slot(idx: int) -> void:
 	equipped = idx
 	_reload_t = 0.0 # switching abandons the mag swap
 	_reload_wpn = null
+	_pending_fire_s = -1.0
 	notify("Equipped the %s" % weapons[idx].info()["name"])
+
+
+func _update_pending_fire(delta: float) -> void:
+	if _pending_fire_s < 0.0:
+		return
+	var weapon := current_weapon()
+	if weapon == null or weapon.is_melee() or mode != Mode.FOOT or panel.is_open \
+			or character.dead or _reload_t > 0.0:
+		_pending_fire_s = -1.0
+		return
+	_pending_fire_s -= delta
+	if player.request_fire_ready() or _pending_fire_s <= 0.0:
+		_pending_fire_s = -1.0
+		fire_equipped(true)
 
 
 func _ensure_weapon_wheel() -> void:

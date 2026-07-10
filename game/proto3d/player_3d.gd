@@ -319,6 +319,7 @@ func _physics_process(delta: float) -> void:
 		_visual.rotation.y = body_yaw
 		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
 		if puppet:
+			puppet.set("sprint_target", hspeed > run_speed * 0.8)
 			puppet.animate(delta, hspeed, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
 		return
 	if not is_on_floor():
@@ -472,6 +473,7 @@ func _update_aim_only(delta: float) -> void:
 	if puppet == null or puppet.arm_tracks_gaze():
 		_upper.rotation.y = wrapf(aim_yaw - body_yaw, -PI, PI)
 	if puppet:
+		puppet.set("sprint_target", false)
 		puppet.animate(delta, 0.0, 0.0, _gun != null and _gun.visible, hurt, dead_vis)
 
 
@@ -515,6 +517,7 @@ func _update_orientation(move: Vector3, delta: float) -> void:
 		var turn_rate := wrapf(body_yaw - _prev_body_yaw, -PI, PI) / maxf(delta, 0.0001)
 		_prev_body_yaw = body_yaw
 		var hspeed := Vector2(velocity.x, velocity.z).length()
+		puppet.set("sprint_target", _was_running)
 		puppet.animate(delta, hspeed, turn_rate, _gun != null and _gun.visible, hurt, dead_vis)
 
 
@@ -551,6 +554,16 @@ func clear_aim_intent() -> void:
 ## no sprint, slower backpedal — the plant-and-shoot vs move-and-spray choice.
 func enter_stance() -> void:
 	_stance_t = stance_lull
+
+
+## A sprinting firearm is carried low. A fire request ends sprint immediately,
+## then waits for the visible raise to cross the shared acceptance gate.
+func request_fire_ready() -> bool:
+	enter_stance()
+	if _was_running:
+		return false
+	return puppet == null or not ("low_ready_blend" in puppet) \
+		or float(puppet.get("low_ready_blend")) < 0.35
 
 
 func in_stance() -> bool:

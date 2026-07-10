@@ -26,7 +26,9 @@ const WEAPONS: Dictionary = {
 		# RIG V2 recoil rows (rad): kick_pitch snaps the aim arm, torso_jolt rocks the
 		# body when the scaled kick crosses stagger_threshold. Strength eats all of it.
 		"recoil": {"kick_pitch": 0.09, "torso_jolt": 0.04, "stagger_threshold": 0.3},
-		"hand_pose": {"offset": Vector3(0.0, -0.06, 0.03), "two_handed": false}}, # one hand, held low
+		"hand_pose": {"offset": Vector3(0.0, -0.03, 0.02), "two_handed": true,
+			"grip_r": Vector3(0.0, -0.04, 0.02), "grip_l": Vector3(-0.035, -0.025, -0.055),
+			"carry_class": "pistol", "elbow_pole_l": Vector3(-0.7, -0.6, 0.2)}},
 	"scrap_smg": {"name": "Scrap SMG", "emoji": "🔫", "behavior": Behavior.HITSCAN,
 		"damage": 8.0, "mag_size": 30, "ammo": "9mm", "cooldown": 0.12,
 		"spread_deg": 5.5, "range": 38.0, "reload_s": 1.35, "trigger_mode": "auto",
@@ -35,7 +37,8 @@ const WEAPONS: Dictionary = {
 			"energy": 2.1, "range": 3.6, "emission": 5.5, "color": Color(1.0, 0.72, 0.22)},
 		"recoil": {"kick_pitch": 0.055, "torso_jolt": 0.025, "stagger_threshold": 0.4},
 		"hand_pose": {"offset": Vector3(-0.05, 0.11, -0.03), "two_handed": true,
-			"grip_r": Vector3(0.0, 0.0, 0.07), "grip_l": Vector3(0.0, -0.02, -0.16)}},
+			"grip_r": Vector3(0.0, 0.0, 0.07), "grip_l": Vector3(0.0, -0.02, -0.16),
+			"carry_class": "long_gun", "elbow_pole_l": Vector3(-0.7, -0.6, 0.2)}},
 	"shotgun": {"name": "Pump shotgun", "emoji": "🔫", "behavior": Behavior.HITSCAN_MULTI, "damage": 9.0,
 		"pellets": 6, "mag_size": 5, "ammo": "12ga", "cooldown": 0.95, "spread_deg": 11.0, "range": 22.0, "reload_s": 1.6, "shove": 2.6,
 		"trigger_mode": "semi", "fire_sfx": "shotgun", "pump_sfx": "shotgun_pump", "hit_stop": true,
@@ -50,7 +53,8 @@ const WEAPONS: Dictionary = {
 			# ANIMATION_FIX_PACK §3.5.2 (D5): grip_l moved ONTO the pump (SHAPES pump sits
 			# at z ~-0.22) — the old (0,-0.02,0.0) sat INSIDE the trigger hand, so the IK
 			# planted the support hand on top of the gun hand ("both arms same shoulder").
-			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, -0.20)}}, # support hand on the FOREND
+			"grip_r": Vector3(0.0, 0.0, 0.1), "grip_l": Vector3(0.0, -0.02, -0.20),
+			"carry_class": "long_gun", "elbow_pole_l": Vector3(-0.7, -0.6, 0.2)}}, # support hand on the FOREND
 	"pipe_rocket": {"name": "Pipe rocket", "emoji": "🧨", "behavior": Behavior.PROJECTILE, "damage": 60.0,
 		"mag_size": 1, "ammo": "rocket", "cooldown": 1.6, "spread_deg": 2.0, "range": 60.0,
 		"speed": 20.0, "blast": 5.0, "reload_s": 2.2, "trigger_mode": "semi", "fire_sfx": "shot_rocket", "hit_stop": true, # the tube THOOMPS — never a 9mm crack
@@ -60,25 +64,26 @@ const WEAPONS: Dictionary = {
 		"hand_pose": {"offset": Vector3(-0.12, 0.34, 0.16), "two_handed": true,
 			# ANIMATION_FIX_PACK §3.5.2 (D5): support hand UNDER the tube, ahead of the
 			# shoulder (the tube spans z -0.5..0.14) — was -0.12 (barely off the trigger hand).
-			"grip_l": Vector3(0.0, -0.12, -0.30)}}, # free hand steadies the tube forward
+			"grip_l": Vector3(0.0, -0.12, -0.30), "carry_class": "heavy",
+			"elbow_pole_l": Vector3(-0.8, -0.5, 0.15)}}, # free hand steadies the tube forward
 	# Melee: no ammo, QUIET (no stress spike), stamina-gated. The wrench doubles
 	# as the repair tool (multi-use). Machete hits harder.
 	"wrench": {"name": "Wrench", "emoji": "🔧", "behavior": Behavior.MELEE, "damage": 14.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.5, "spread_deg": 0.0, "reach": 2.4, "arc_deg": 100.0, "stamina": 8.0, "knockdown": 0.35, "shove": 1.8, "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false, "carry_class": "melee"}},
 	"machete": {"name": "Machete", "emoji": "🔪", "behavior": Behavior.MELEE, "damage": 24.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.7, "spread_deg": 0.0, "reach": 2.6, "arc_deg": 80.0, "stamina": 12.0, "knockdown": 0.25, "shove": 3.4, "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false}},
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": false, "carry_class": "melee"}},
 	# The AXE — slow, two-handed, a committed CHOP: biggest single hit, and it puts
 	# them on the ground (knockdown) more than it launches them. Punishes a miss.
 	"axe": {"name": "Fire axe", "emoji": "🪓", "behavior": Behavior.MELEE, "damage": 34.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.9, "spread_deg": 0.0, "reach": 2.5, "arc_deg": 62.0, "stamina": 16.0, "knockdown": 0.55, "shove": 3.0, "hit_sfx": "impact_crunch", "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true}},
+		"hand_pose": {"offset": Vector3(0.03, -0.02, 0.0), "two_handed": true, "carry_class": "melee"}},
 	# The BASEBALL BAT — the KNOCKBACK king: long reach, wide arc, fast-ish, and it
 	# LAUNCHES (huge shove). Home-run a howler off you. Lower raw damage, all impact.
 	"bat": {"name": "Baseball bat", "emoji": "🏏", "behavior": Behavior.MELEE, "damage": 18.0,
 		"mag_size": 0, "ammo": "", "cooldown": 0.6, "spread_deg": 0.0, "reach": 2.8, "arc_deg": 95.0, "stamina": 10.0, "knockdown": 0.45, "shove": 7.0, "hit_sfx": "thunk", "hit_stop": true,
-		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true}},
+		"hand_pose": {"offset": Vector3(0.02, -0.02, 0.0), "two_handed": true, "carry_class": "melee"}},
 	# Vehicle mount (COMBAT_AND_GEAR §5): same system, bolted to the car.
 	"car_mg": {"name": "Hood MG", "emoji": "🔫", "behavior": Behavior.HITSCAN, "damage": 10.0,
 		"mag_size": 40, "ammo": "9mm", "cooldown": 0.13, "spread_deg": 3.5, "range": 55.0, "trigger_mode": "auto", "fire_sfx": "shot_mg", "hit_stop": false, # a mounted .30's own concussive report

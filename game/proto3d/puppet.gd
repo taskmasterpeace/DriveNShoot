@@ -102,6 +102,12 @@ static var MOTION: Dictionary = {
 		"knee_lift_run": 0.6,     # extra swing-leg knee drive (rad) at sprint — the high front knee
 		"ankle_push": 0.7,        # trail-leg plantarflex MAGNITUDE (rad) on push-off — the heel-up back leg (code signs it NEGATIVE = toe down; must OVERRIDE the sole-level counter, hence >0.5; ANIMATION_FIX_PACK_2 D10)
 		"swing_toe_up": 0.25,     # swing-leg dorsiflex (rad) — the toe lifts to clear the ground mid-swing (the reference strip's raised forefoot)
+		"sprint_blend_rate": 8.0, # actual sprint state owns run form — speed alone never does
+		"low_ready_in": 10.0,     # armed sprint settles into the carry in ~0.1 s
+		"low_ready_out": 12.0,    # releasing sprint raises inside the 0.18 s fire cap
+		"pistol_low_pitch_deg": 25.0,
+		"long_low_pitch_deg": 32.0,
+		"long_low_roll_deg": 20.0,
 		# TORSO TWIST (owner 2026-07-08: "it turns like a DOORKNOB, not like a
 		# torso"). A turn is led by the CHEST — the shoulder line twists about the
 		# spine while the legs (legs_pivot) track the feet: real shoulder-hip
@@ -218,6 +224,9 @@ var aim_wobble: float = 0.0
 ## the raised iron IS the aim read). Melee sets it FALSE — steel is CARRIED low
 ## and only comes up in the swing (playtest: the always-raised wrench floated).
 var raised: bool = true
+var sprint_target: bool = false ## set from ProtoPlayer3D._was_running, never guessed from speed
+var sprint_blend: float = 0.0   ## public telemetry hook for the lab/sims
+var low_ready_blend: float = 0.0 ## 0 firing pose · 1 tactical armed sprint carry
 
 ## THE SIGN LAW (verified by render, 2026-07-08 — the wrong-way arms bug was signs):
 ## the puppet faces LOCAL -Z, and POSITIVE rotation.x swings a hanging limb FORWARD.
@@ -283,6 +292,9 @@ var _two_handed: bool = false ## longarm: the free hand rides the fore-grip (RIG
 ## sits in the trigger palm (the gun re-seats by -grip_r). ZERO grip_l = no row
 ## data -> the legacy posed hold (never a silent misreach).
 var _grip_l: Vector3 = Vector3.ZERO
+var _grip_r: Vector3 = Vector3.ZERO
+var _carry_class: String = "melee"
+var _elbow_pole_l: Vector3 = Vector3.ZERO
 var _gun_seat: Vector3 = Vector3.ZERO ## gun.position at rest (recoil returns HERE, not 0)
 var _dead_blend: float = 0.0
 var _flinch: float = 0.0       ## hit reaction — the body rocks away from the blow
@@ -563,8 +575,15 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 	# AMPLITUDE and the CADENCE are SOLVED from speed so the stance foot's ground speed
 	# equals the body speed — no more side-view moonwalk (the old fixed cadence covered
 	# ~1.8m/s of a 4.2m/s walk). run_blend ramps in the sprint form (lean/elbows/knees).
-	var run_blend: float = clampf((speed - float(mg["run_blend_lo"]))
-		/ maxf(0.01, float(mg["run_blend_hi"]) - float(mg["run_blend_lo"])), 0.0, 1.0)
+	sprint_blend = move_toward(sprint_blend, 1.0 if sprint_target else 0.0,
+		float(mg.get("sprint_blend_rate", 8.0)) * delta)
+	var run_blend: float = sprint_blend
+	var wants_low_ready: bool = sprint_target and armed and gun.visible and raised \
+		and _carry_class in ["pistol", "long_gun", "heavy"]
+	var low_rate: float = float(mg.get("low_ready_in", 10.0)) if wants_low_ready \
+		else float(mg.get("low_ready_out", 12.0))
+	low_ready_blend = move_toward(low_ready_blend, 1.0 if wants_low_ready else 0.0,
+		low_rate * delta)
 	var speed_amp: float = clampf(speed / maxf(0.5, float(mg["walk_speed_ref"])), 0.0, 1.0)
 	# Amplitude tapers at low speed for a natural short-stepped creep; because the cadence
 	# re-solves FROM this amplitude below, tapering it never reintroduces skate.
@@ -709,7 +728,9 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		# HOLD: RAISE the hanging arm to the level iron. RELAXED: hang + counter-
 		# swing opposite THIS side's leg (the gun arm is the right when right-handed).
 		var gun_own: float = swing_r if handed_sign > 0.0 else swing_l
-		var pose_target := (AIM_RAISE + sin(_t * 2.0) * 0.02 + wobble) if hold else ARM_HANG - gun_own * 0.55
+		var low_shoulder: float = 0.88 if _carry_class == "pistol" else 0.76
+		var raised_target: float = lerpf(AIM_RAISE, low_shoulder, low_ready_blend)
+		var pose_target := (raised_target + sin(_t * 2.0) * 0.02 + wobble) if hold else ARM_HANG - gun_own * 0.55
 		# One smoothed write: raise/lower transitions blend and the post-swing
 		# hand-off can't pop (the lerp eats the mismatch in a few frames).
 		shoulder.rotation.x = lerpf(shoulder.rotation.x, pose_target, clampf(12.0 * delta, 0.0, 1.0))
@@ -718,13 +739,24 @@ func animate(delta: float, speed: float, turn_rate: float, armed: bool, hurt: fl
 		# in line with the barrel; the WRIST counter-rotates the whole chain so the
 		# gun stays level and the muzzle keeps aim. Carried low, the wrist rolls
 		# the tool along the leg (HAND_CARRY).
-		hand.rotation.x = lerpf(hand.rotation.x, -(AIM_RAISE + AIM_ELBOW) if hold else HAND_CARRY, clampf(10.0 * delta, 0.0, 1.0))
-		var elbow_target := AIM_ELBOW if hold else er + ef * maxf(0.0, shoulder.rotation.x) * 0.6
+		var low_elbow: float = 0.66 if _carry_class == "pistol" else 0.86
+		var elbow_target := lerpf(AIM_ELBOW, low_elbow, low_ready_blend) if hold \
+			else er + ef * maxf(0.0, shoulder.rotation.x) * 0.6
+		var low_pitch_deg: float = float(mg.get("pistol_low_pitch_deg", 25.0)) \
+			if _carry_class == "pistol" else float(mg.get("long_low_pitch_deg", 32.0))
+		var hand_hold: float = -(raised_target + elbow_target) \
+			- deg_to_rad(low_pitch_deg) * low_ready_blend
+		hand.rotation.x = lerpf(hand.rotation.x, hand_hold if hold else HAND_CARRY,
+			clampf(10.0 * delta, 0.0, 1.0))
 		# RUN FORM (§3.3): the gun-side elbow pumps to ~90° when running UNARMED, matching
 		# the free arm; a raised gun keeps its aim pose (no lock).
 		if not hold:
 			elbow_target = lerpf(elbow_target, float(mg["elbow_pump"]), smoothstep(0.55, 0.9, run_blend))
 		elbow_r.rotation.x = lerpf(elbow_r.rotation.x, maxf(0.0, elbow_target), clampf(10.0 * delta, 0.0, 1.0))
+		var carry_roll: float = -deg_to_rad(float(mg.get("long_low_roll_deg", 20.0))) \
+			* handed_sign if _carry_class in ["long_gun", "heavy"] else 0.0
+		aim_arm.rotation.z = lerpf(aim_arm.rotation.z, carry_roll * low_ready_blend,
+			clampf(10.0 * delta, 0.0, 1.0))
 
 	# THE HANDS (owner: "the opening and closing of the hands"): fingers curl shut
 	# around a held weapon, relax half-open otherwise; a melee tween owns them
@@ -1057,10 +1089,15 @@ func _pose_dead() -> void:
 ## ZERO means "no grip row", falling back to the legacy posed hold. grip_r seats the
 ## gun in the trigger palm by its own grip point (gun.position = -grip_r), so a
 ## shotgun's stock rides behind the hand while muzzle math keeps reading the mesh.
-func set_hand_pose(offset: Vector3, two_handed: bool, grip_l: Vector3 = Vector3.ZERO, grip_r: Vector3 = Vector3.ZERO) -> void:
+func set_hand_pose(offset: Vector3, two_handed: bool, grip_l: Vector3 = Vector3.ZERO,
+		grip_r: Vector3 = Vector3.ZERO, carry_class: String = "melee",
+		elbow_pole_l: Vector3 = Vector3.ZERO) -> void:
 	_hand_offset = offset
 	_two_handed = two_handed
 	_grip_l = grip_l
+	_grip_r = grip_r
+	_carry_class = carry_class
+	_elbow_pole_l = elbow_pole_l
 	_gun_seat = Vector3(-grip_r.x * handed_sign, -grip_r.y, -grip_r.z)
 	gun.position = _gun_seat
 	hand.position = _gun_rest + Vector3(offset.x * handed_sign, offset.y, offset.z)
@@ -1071,6 +1108,28 @@ func set_hand_pose(offset: Vector3, two_handed: bool, grip_l: Vector3 = Vector3.
 	# (animate() blades the free shoulder FORWARD toward the fore-grip and the 2-bone IK
 	# plants the hand on it). Seat both arm roots where they belong.
 	free_arm.position.x = -_sh_x * handed_sign
+
+
+## Live, world-space grip truth for the Physics Lab and regressions. Centimeter
+## errors answer "is the hand really on the prop?" without trusting pose intent.
+func grip_metrics() -> Dictionary:
+	var left_error: float = INF
+	if not _grip_l.is_zero_approx() and hand_l != null:
+		var left_target: Vector3 = global_transform * _foregrip_target()
+		left_error = hand_l.global_position.distance_to(left_target)
+	var right_error: float = INF
+	if gun != null and hand != null:
+		var grip_local := Vector3(_grip_r.x * handed_sign, _grip_r.y, _grip_r.z)
+		var right_target: Vector3 = gun.global_transform * grip_local
+		right_error = hand.global_position.distance_to(right_target)
+	return {
+		"left_error_m": left_error,
+		"right_error_m": right_error,
+		"left_error_cm": left_error * 100.0,
+		"right_error_cm": right_error * 100.0,
+		"elbow_l_deg": absf(rad_to_deg(elbow_l.rotation.x)),
+		"elbow_r_deg": absf(rad_to_deg(elbow_r.rotation.x)),
+	}
 
 
 # --- Held-weapon feel (delegated by the player) -----------------------------

@@ -24,6 +24,7 @@ func _check(check_name: String, ok: bool) -> void:
 ## Drive the puppet at a fixed speed and measure ONE full stride cycle off the live rig.
 func _measure(p: ProtoPuppet, v: float) -> Dictionary:
 	var dt := 1.0 / 60.0
+	p.set("sprint_target", v >= 6.0)
 	for _i in 150: # settle the phase + smoothed poses
 		p.animate(dt, v, 0.0, false, 0.0, false)
 	var phase0: float = p._phase
