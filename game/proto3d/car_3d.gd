@@ -6,6 +6,8 @@
 class_name ProtoCar3D
 extends VehicleBody3D
 
+const VEHICLE_IMPACT_SCRIPT := preload("res://proto3d/vehicle_impact.gd")
+
 signal speed_changed(mph: float)
 ## A bike has no cab: a hard crash THROWS the rider (main handles the tumble).
 signal rider_thrown(dv: float)
@@ -526,6 +528,11 @@ var driver_top: float = 1.0
 var vclass: String = "scavenger"
 var armor: float = 30.0 ## 0-100; blunts incoming combat damage (was inert metadata — now real)
 var spec: Dictionary = {}
+var impact_profile: Dictionary = {}
+var impact_armor_durability: Dictionary = {}
+var impact_zones: Dictionary = {"front":0.0, "rear":0.0, "left":0.0,
+	"right":0.0, "top":0.0, "wheel":0.0}
+var last_impact: Dictionary = {}
 
 ## Locked cars need their key found somewhere in the world.
 var locked: bool = false
@@ -688,6 +695,9 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
 	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt
+	car.impact_profile = VEHICLE_IMPACT_SCRIPT.profile(s)
+	car.impact_armor_durability = VEHICLE_IMPACT_SCRIPT.initial_armor_durability(
+		car.impact_profile)
 	# LIGHTS: fold once onto the shared class spec (idempotent — same law as the rest
 	# of this dict) so a row's partial override survives deep-merged against defaults.
 	s["lights"] = _merged_lights(s.get("lights", {}) as Dictionary)
@@ -1002,16 +1012,46 @@ func _nearest_hitch_rig() -> ProtoCar3D:
 	return null
 
 
-func take_damage(amount: float) -> void:
+func take_impact(raw_packet: Dictionary) -> Dictionary:
 	if dead:
-		return
-	# ARMOR is real now: it blunts the hit (armor 100 → ~28% gets through, floor 0.25).
-	var got: float = amount * clampf(1.0 - armor / 140.0, 0.25, 1.0)
-	# Chassis takes the hit; hard hits can wound a random component too.
-	components["chassis"].damage(got)
-	if got > 8.0 and _spiral_rng.randf() < 0.45:
-		var ids: Array = ["engine", "tires", "battery", "fuel_tank"]
-		components[ids[_spiral_rng.randi() % ids.size()]].damage(got * 0.6)
+		return {"accepted":false, "zone":"front", "component_damage":0.0}
+	var hit: Dictionary = VEHICLE_IMPACT_SCRIPT.packet(raw_packet)
+	var zone: String = String(hit.get("zone_override", ""))
+	if zone == "":
+		var half_extents: Vector3 = (spec.get("hull", spec.get("chassis",
+			Vector3(2, 1, 4))) as Vector3) * 0.5
+		zone = VEHICLE_IMPACT_SCRIPT.zone_for(global_transform, half_extents, hit)
+	var result: Dictionary = VEHICLE_IMPACT_SCRIPT.resolve(hit, zone, impact_profile,
+		impact_armor_durability)
+	impact_armor_durability[zone] = float(result["armor_after"])
+	impact_zones[zone] = clampf(float(impact_zones.get(zone, 0.0))
+		+ float(result["severity_delta"]), 0.0, 1.0)
+	var got: float = float(result["component_damage"])
+	if got > 0.0:
+		(components["chassis"] as Damageable).damage(got)
+		if bool(result.get("compatibility", false)):
+			if got > 8.0 and _spiral_rng.randf() < 0.45:
+				var ids: Array = ["engine", "tires", "battery", "fuel_tank"]
+				(components[ids[_spiral_rng.randi() % ids.size()]] as Damageable).damage(got * 0.6)
+		elif got > 8.0:
+			var zone_component: String = {"front":"engine", "rear":"fuel_tank",
+				"left":"battery", "right":"battery", "top":"battery",
+				"wheel":"tires"}.get(zone, "chassis")
+			if components.has(zone_component):
+				(components[zone_component] as Damageable).damage(got * 0.6)
+	result["packet"] = hit
+	result["zone_severity"] = float(impact_zones[zone])
+	last_impact = result.duplicate(true)
+	return result
+
+
+func take_damage(amount: float) -> void:
+	# Compatibility callers retain the exact pre-L2 armor/component law while
+	# still crossing the single impact boundary.
+	take_impact({"world_pos":global_position, "world_normal":-global_basis.z,
+		"incoming_dir":global_basis.z, "energy":amount, "penetration":0.0,
+		"source":"legacy", "compatibility":true, "zone_override":"front",
+		"legacy_armor":armor})
 
 
 # --- TIRE PUNCTURE: the 6th damage part (owner ask 2026-07-07) ---------------

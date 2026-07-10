@@ -23,6 +23,16 @@
         "rear": 30,
         "side": 30
       },
+      "impact": {
+        "armor_durability_mult": 1.8,
+        "dent_threshold": 7.0,
+        "armor_dent_threshold": 28.0,
+        "max_dent": 0.24,
+        "max_shift": 0.17,
+        "max_rotation_deg": 11.0,
+        "mark_cap": 16,
+        "deformation_seed": 1101
+      },
       "wound_mult": 1.0,
       "mounts": []
     },
@@ -47,6 +57,16 @@
         "front": 5,
         "rear": 5,
         "side": 5
+      },
+      "impact": {
+        "armor_durability_mult": 1.0,
+        "dent_threshold": 4.0,
+        "armor_dent_threshold": 12.0,
+        "max_dent": 0.12,
+        "max_shift": 0.08,
+        "max_rotation_deg": 8.0,
+        "mark_cap": 12,
+        "deformation_seed": 1201
       },
       "wound_mult": 2.5,
       "mounts": [],
@@ -372,6 +392,16 @@
         "front": 55,
         "rear": 45,
         "side": 50
+      },
+      "impact": {
+        "armor_durability_mult": 2.6,
+        "dent_threshold": 12.0,
+        "armor_dent_threshold": 44.0,
+        "max_dent": 0.18,
+        "max_shift": 0.12,
+        "max_rotation_deg": 7.0,
+        "mark_cap": 16,
+        "deformation_seed": 1901
       },
       "wound_mult": 0.8,
       "mounts": [
