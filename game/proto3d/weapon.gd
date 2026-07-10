@@ -549,38 +549,6 @@ func _launch(main: Node, from: Vector3, dir: Vector3, w: Dictionary) -> void:
 	rocket.global_position = from + dir * 1.2
 
 
-## Lobbed grenade: ballistic arc + fuse, blast via main.on_explosion.
-class ProtoGrenade:
-	extends Node3D
-	var vel: Vector3
-	var fuse: float = 1.6
-	var blast: float = 5.0
-	var damage: float = 55.0
-
-	func _ready() -> void:
-		var m := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.18, 0.18, 0.18)
-		m.mesh = box
-		m.material_override = ProtoWorldBuilder.material(Color(0.2, 0.28, 0.16), 0.6)
-		add_child(m)
-
-	func _physics_process(delta: float) -> void:
-		vel.y -= 12.0 * delta
-		global_position += vel * delta
-		if global_position.y < 0.15:
-			global_position.y = 0.15
-			vel = vel * 0.35
-			vel.y = 0.0
-		fuse -= delta
-		if fuse <= 0.0:
-			var main := get_parent()
-			# ONE blast law: damage + knockback + knockdown routed through main.
-			if main.has_method("on_explosion"):
-				main.on_explosion(global_position, damage, blast)
-			queue_free()
-
-
 ## The flying pipe rocket: straight line, explodes on proximity or timeout.
 class ProtoRocket:
 	extends Node3D

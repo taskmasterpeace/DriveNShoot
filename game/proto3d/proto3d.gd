@@ -9,6 +9,7 @@ enum Mode { DRIVE, FOOT }
 const INTERACT_RANGE := 3.4
 const ZOOM_STEP := 0.07
 const KILL_Y := -12.0
+const THROWABLE_SCRIPT := preload("res://proto3d/throwable.gd")
 
 var mode: Mode = Mode.DRIVE
 var player: ProtoPlayer3D
@@ -436,6 +437,10 @@ var controls_panel: Node = null       ## the rebind UI (F11 / menu)
 var weapon_wheel: Node = null
 var _weapon_wheel_down: bool = false
 var _weapon_wheel_pad: bool = false
+var _throw_down: bool = false
+var _throw_hold: float = 0.0
+var _throw_prev_stance: float = 0.0
+var _throw_preview: MeshInstance3D = null
 
 ## GRAB & DRAG (MOVESET.txt): hold E on a chest/body = haul it behind you (slow,
 ## heavy, teaches STRENGTH); tap E keeps its old meaning (open). E again drops it.
@@ -775,7 +780,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			reload_equipped()
 	elif event.is_action_pressed("drivn_grenade"):
-		throw_grenade()
+		_begin_throw()
+	elif event.is_action_released("drivn_grenade"):
+		_release_throw()
 	elif event.is_action_pressed("drivn_map"):
 		stream.toggle_map()
 	elif event.is_action_pressed("drivn_beacon"):
@@ -893,6 +900,7 @@ func _void_net_tick(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
 	_update_weapon_wheel(delta)
+	_update_throw(delta)
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
 	# DRONE PILOTING: while you're flying the bird, your body is a sitting duck — steer the
@@ -2755,17 +2763,107 @@ func _update_tackle(delta: float) -> void:
 			return
 
 
-## G lobs a grenade toward the mouse (arc + fuse; blast reuses on_explosion).
-func throw_grenade() -> void:
-	if mode != Mode.FOOT or panel.is_open or not backpack.remove("grenade", 1):
+## Press raises and previews; release commits inventory and begins the fuse.
+func _begin_throw() -> void:
+	if _throw_down or mode != Mode.FOOT or panel.is_open or character.dead \
+			or backpack.count("grenade") <= 0 \
+			or (weapon_wheel != null and bool(weapon_wheel.get("is_open"))):
 		return
+	_throw_down = true
+	_throw_hold = 0.0
+	_throw_prev_stance = float(player.get("_stance_t"))
 	player.enter_stance()
-	var dir := player.aim_now(aim_direction()) # your arms obey the same arc as the gun
-	var g := ProtoWeapon.ProtoGrenade.new()
-	g.vel = dir * 9.0 + Vector3.UP * 5.0
-	add_child(g)
-	g.global_position = player.global_position + Vector3(0, 1.4, 0) + dir * 0.6
-	notify("Grenade out!")
+	player.aim_now(aim_direction())
+	_ensure_throw_preview()
+
+
+func _release_throw() -> void:
+	if not _throw_down:
+		return
+	if mode != Mode.FOOT or panel.is_open or character.dead \
+			or (weapon_wheel != null and bool(weapon_wheel.get("is_open"))):
+		_cancel_throw()
+		return
+	var row: Dictionary = THROWABLE_SCRIPT.row("grenade")
+	if row.is_empty() or not backpack.remove("grenade", 1):
+		_cancel_throw()
+		return
+	var charge: float = THROWABLE_SCRIPT.charge_for(_throw_hold, row)
+	var dir: Vector3 = player.aim_now(aim_direction())
+	var inherited: Vector3 = player.velocity
+	inherited.y = 0.0
+	var velocity: Vector3 = THROWABLE_SCRIPT.launch_velocity(dir, charge,
+		character.level("strength"), float(row["mass"]), inherited, row)
+	var projectile: Node3D = THROWABLE_SCRIPT.create_projectile(row, velocity)
+	add_child(projectile)
+	projectile.global_position = player.global_position + Vector3(0, 1.4, 0) + dir * 0.6
+	_throw_down = false
+	_hide_throw_preview()
+	notify("Grenade out — %d%% power" % int(round(charge * 100.0)))
+
+
+func _update_throw(delta: float) -> void:
+	if not _throw_down:
+		return
+	if mode != Mode.FOOT or panel.is_open or character.dead \
+			or (weapon_wheel != null and bool(weapon_wheel.get("is_open"))):
+		_cancel_throw()
+		return
+	_throw_hold += delta
+	var row: Dictionary = THROWABLE_SCRIPT.row("grenade")
+	var charge: float = THROWABLE_SCRIPT.charge_for(_throw_hold, row)
+	var dir: Vector3 = player.aim_now(aim_direction())
+	var inherited: Vector3 = player.velocity
+	inherited.y = 0.0
+	var velocity: Vector3 = THROWABLE_SCRIPT.launch_velocity(dir, charge,
+		character.level("strength"), float(row["mass"]), inherited, row)
+	var origin: Vector3 = player.global_position + Vector3(0, 1.4, 0) + dir * 0.6
+	var points: PackedVector3Array = THROWABLE_SCRIPT.predict(origin, velocity,
+		float(row["gravity"]), 24, 1.0 / 30.0)
+	_draw_throw_preview(points)
+
+
+func _ensure_throw_preview() -> void:
+	if _throw_preview != null:
+		return
+	_throw_preview = MeshInstance3D.new()
+	_throw_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_throw_preview)
+
+
+func _draw_throw_preview(points: PackedVector3Array) -> void:
+	_ensure_throw_preview()
+	var mesh := ImmediateMesh.new()
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.albedo_color = Color(0.95, 0.66, 0.2, 0.88)
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mesh.surface_begin(Mesh.PRIMITIVE_LINES, material)
+	for i in points.size() - 1:
+		mesh.surface_add_vertex(points[i])
+		mesh.surface_add_vertex(points[i + 1])
+	mesh.surface_end()
+	_throw_preview.mesh = mesh
+	_throw_preview.visible = true
+
+
+func _hide_throw_preview() -> void:
+	if _throw_preview != null:
+		_throw_preview.visible = false
+
+
+func _cancel_throw() -> void:
+	if not _throw_down:
+		return
+	_throw_down = false
+	player.set("_stance_t", _throw_prev_stance)
+	_hide_throw_preview()
+
+
+## Compatibility door for scripts that used the old immediate throw call.
+func throw_grenade() -> void:
+	_begin_throw()
+	_release_throw()
 
 
 ## Shooting from the driver's seat: YOUR equipped gun, out the window, at the
@@ -4504,6 +4602,7 @@ func _update_location_label() -> void:
 
 
 func enter_car(car: ProtoCar3D) -> void:
+	_cancel_throw()
 	mode = Mode.DRIVE
 	active_car = car
 	_drive_gaze.reset()
