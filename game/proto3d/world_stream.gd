@@ -71,6 +71,7 @@ var _atlas_zoom: float = 1.0        ## 1..8 over the fitted view (state/country)
 var _atlas_pan: Vector2 = Vector2.ZERO ## world-m offset of the view center, clamped in-bounds
 var _local_zoom: float = 1.0        ## 1..4 over the local fog map
 var _zoom_chip_rects: Array = []    ## [[Rect2, factor], ...] — the LCD +/- chips (canvas space)
+var _device_chip_rect: Rect2 = Rect2() ## the LCD 📱/📟 chip — swaps device skins (canvas space)
 var map_debug_buttons: bool = false ## render_ui acceptance: outline the device hotspots
 
 ## The handheld's PHYSICAL buttons, as fractions of the device root (measured off the
@@ -1291,26 +1292,38 @@ static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGe
 ## device PNG frames it, the atlas renders inside its empty screen rect (fractions of
 ## the device; same moving-part law as every other face). Missing PNG = the old plain
 ## panel, so the map never disappears.
-const GPS_PNG := "res://assets/ui/device/gps.png"
-const GPS_SCREEN := Rect2(0.302, 0.273, 0.378, 0.430) ## the dark LCD inside the bezel (cross-section-scanned: x134-306, y138-362 of 448x512)
-const GPS_H := 940.0 ## on-screen device height (448x512 aspect → ~822 wide; LCD ≈ 311x404)
+## DEVICE SKINS (owner ask 2026-07-10 "we need a 9x16 like a cell phone as well"):
+## ONE screen law, two handhelds — the GPS brick (448x512, physical buttons) and the
+## PHONE (181x288 portrait, all-touch: the LCD chips are the only controls). `screen`
+## is the dark LCD as fractions of the art (cross-section-scanned, same law as the
+## brick); the 📱/📟 chip on the LCD swaps skins live, keeping the current view.
+const DEVICE_SKINS: Dictionary = {
+	"gps": {"png": "res://assets/ui/device/gps.png", "h": 940.0, "aspect": 448.0 / 512.0,
+		"screen": Rect2(0.302, 0.273, 0.378, 0.430), "buttons": GPS_BTN},
+	"phone": {"png": "res://assets/ui/device/phone.png", "h": 900.0, "aspect": 181.0 / 288.0,
+		"screen": Rect2(0.10, 0.146, 0.80, 0.729), "buttons": {}},
+}
+var device_skin: String = "gps" ## which handheld frames the map — swapped by the LCD chip
 
 func toggle_map() -> void:
 	if _map_layer == null:
 		_map_layer = CanvasLayer.new()
 		_map_layer.layer = 3
 		add_child(_map_layer)
-		var dev_tex: Texture2D = load(GPS_PNG) if ResourceLoader.exists(GPS_PNG) else null
+		var skin: Dictionary = DEVICE_SKINS.get(device_skin, DEVICE_SKINS["gps"])
+		var skin_png: String = skin["png"]
+		var dev_tex: Texture2D = load(skin_png) if ResourceLoader.exists(skin_png) else null
 		var host: Control = null ## whatever the canvas mounts into
 		if dev_tex != null:
 			# The handheld: centered, device aspect, map inside the screen rect.
-			var dw := GPS_H * 448.0 / 512.0
+			var dev_h: float = skin["h"]
+			var dw: float = dev_h * float(skin["aspect"])
 			var root := Control.new()
 			root.set_anchors_preset(Control.PRESET_CENTER)
 			root.offset_left = -dw * 0.5
 			root.offset_right = dw * 0.5
-			root.offset_top = -GPS_H * 0.5
-			root.offset_bottom = GPS_H * 0.5
+			root.offset_top = -dev_h * 0.5
+			root.offset_bottom = dev_h * 0.5
 			_map_layer.add_child(root)
 			var dev := TextureRect.new()
 			dev.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1320,17 +1333,20 @@ func toggle_map() -> void:
 			dev.stretch_mode = TextureRect.STRETCH_SCALE # root already holds the aspect
 			dev.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(dev)
+			var scr_rect: Rect2 = skin["screen"]
 			var screen := Control.new()
-			screen.anchor_left = GPS_SCREEN.position.x
-			screen.anchor_top = GPS_SCREEN.position.y
-			screen.anchor_right = GPS_SCREEN.position.x + GPS_SCREEN.size.x
-			screen.anchor_bottom = GPS_SCREEN.position.y + GPS_SCREEN.size.y
+			screen.anchor_left = scr_rect.position.x
+			screen.anchor_top = scr_rect.position.y
+			screen.anchor_right = scr_rect.position.x + scr_rect.size.x
+			screen.anchor_bottom = scr_rect.position.y + scr_rect.size.y
 			root.add_child(screen)
 			host = screen
 			# THE DEVICE'S OWN BUTTONS work (owner ask): invisible hotspots over the art —
-			# POWER closes, MENU cycles the view, D-PAD pans the atlas.
-			for bname in GPS_BTN:
-				var r: Rect2 = GPS_BTN[bname]
+			# POWER closes, MENU cycles the view, D-PAD pans the atlas. (The phone is
+			# all-touch: its row is empty, the LCD chips carry everything.)
+			var skin_btns: Dictionary = skin["buttons"]
+			for bname in skin_btns:
+				var r: Rect2 = skin_btns[bname]
 				var hb := Button.new()
 				hb.anchor_left = r.position.x
 				hb.anchor_top = r.position.y
@@ -1452,6 +1468,28 @@ func _draw_zoom_chips() -> void:
 	if z > 1.01:
 		_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(size.x - s - pad - 6, pad * 3 + s * 2 + 12),
 			"x%.1f" % z, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82, 0.8))
+	# THE DEVICE SWAP CHIP (owner ask 2026-07-10): flip the GPS brick ↔ the 9:16
+	# phone right on the LCD — the icon shows the OTHER handheld you'd switch to.
+	var dc := Rect2(Vector2(size.x - s - pad, pad * 4 + s * 2 + 22), Vector2(s, s))
+	_map_canvas.draw_rect(dc, Color(0.07, 0.06, 0.05, 0.85))
+	_map_canvas.draw_rect(dc, Color(0.96, 0.72, 0.2), false, 2.0)
+	_map_canvas.draw_string(ProtoHUD.mixed_font(), dc.position + Vector2(3, 17),
+		"📱" if device_skin == "gps" else "📟", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_device_chip_rect = dc
+
+
+## Flip GPS brick ↔ phone, keeping the current view: rebuild the device UI from
+## its skin row (toggle_map owns construction — re-enter it on the same mode).
+func _swap_device_skin() -> void:
+	device_skin = "phone" if device_skin == "gps" else "gps"
+	var keep := _map_mode
+	if _map_layer != null:
+		_map_layer.queue_free()
+		_map_layer = null
+		_map_canvas = null
+		_map_panel = null
+	_map_mode = keep - 1 # toggle_map advances (+1): land back on the same view
+	toggle_map()
 
 
 # --- Pixel map markers (assets/ui/markers/) — icons replace the old dots on the map ----
@@ -1788,6 +1826,10 @@ func _on_map_input(event: InputEvent) -> void:
 				if (chip[0] as Rect2).has_point(mb.position):
 					zoom_at(_map_canvas.size * 0.5, float(chip[1]))
 					return
+			# The 📱/📟 chip: flip the handheld, keep the view.
+			if _device_chip_rect.has_point(mb.position):
+				_swap_device_skin()
+				return
 	if _map_mode < 2 or usmap == null or not usmap.ok:
 		return
 	if not (event is InputEventMouseButton and event.pressed \

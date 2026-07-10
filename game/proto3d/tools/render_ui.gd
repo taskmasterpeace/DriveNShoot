@@ -4,7 +4,7 @@
 ## markers land where the calibration says they do.
 extends Node
 
-const OUT := "C:/WINDOWS/TEMP/claude/D--git-carworld/8e5fe94c-3439-40ce-aa3c-9fe0a08b3d51/scratchpad/photobooth"
+const OUT := "C:/WINDOWS/TEMP/claude/D--git-carworld/0f71b692-94b3-495a-9db8-c96fa73de59a/scratchpad/photobooth"
 
 
 func _shot(name_out: String) -> void:
@@ -37,6 +37,10 @@ func _ready() -> void:
 	await _shot("GPS_state")
 	stream.toggle_map() # 3 country
 	await _shot("GPS_country")
+	# THE PHONE SKIN (owner ask 2026-07-10): same map, 9:16 handheld.
+	stream._swap_device_skin()
+	await _shot("GPS_phone")
+	stream._swap_device_skin() # back to the brick
 	stream.toggle_map() # off
 
 	# 2) THE DRIVE HUD — gauges + plates, forced through the real HUD calls.

@@ -111,6 +111,17 @@ func _physics_process(delta: float) -> void:
 			_check("country title is just DSA", stream.atlas_title() == "DSA")
 			stream._on_gps_button("power")
 			_check("POWER button shuts the set", stream._map_mode == 0 and not stream.map_open())
+			# DEVICE SKINS (owner ask 2026-07-10): the 9:16 PHONE frames the same map.
+			_check("phone skin art exists (assets/ui/device/phone.png)",
+				ResourceLoader.exists("res://assets/ui/device/phone.png"))
+			stream.toggle_map() # local, on the brick
+			stream._swap_device_skin()
+			_check("swap chip flips to the PHONE mid-session", stream.device_skin == "phone")
+			_check("the map survives the swap on the same view (local)",
+				stream.map_open() and stream._map_mode == 1)
+			stream._swap_device_skin()
+			_check("and flips back to the brick", stream.device_skin == "gps" and stream.map_open())
+			stream._on_gps_button("power")
 			_next(Phase.ANCHORS)
 		Phase.ANCHORS:
 			var meridian := Vector3(110, 0, -325)
