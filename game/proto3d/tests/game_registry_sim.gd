@@ -57,7 +57,7 @@ func _ready() -> void:
 		and reg.enabled("tilt_salvage") and reg.cartridge_contract_error("tilt_salvage") == "")
 	_check("relay puzzle clears scene and notice gates", reg.installed("relay_bloom")
 		and reg.enabled("relay_bloom") and reg.cartridge_contract_error("relay_bloom") == "")
-	_check("missing future scenes are uninstalled, not malformed", not reg.installed("ashland_command"))
+	_check("missing future scenes are uninstalled, not malformed", not reg.installed("rust_runners"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 

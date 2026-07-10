@@ -155,13 +155,13 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/ashland_command/*`, `tests/ashland_command_sim.*`
 
-- [ ] Red sim: grid terrain costs/defense, action points, move/attack legality,
+- [x] Red sim: grid terrain costs/defense, action points, move/attack legality,
   deterministic damage, supply capture/income/repair, turn end, damaged-unit
   occupancy, command-unit defeat, AI turn, hot seat, reliable action replay,
   snapshot, and wins/turns result.
-- [ ] Implement an original compact state-border scenario with primitive unit
+- [x] Implement an original compact state-border scenario with primitive unit
   insignia. Exclude Tanks of Freedom CC-BY-SA audio and branding.
-- [ ] Commit `feat: add ASHLAND COMMAND`.
+- [x] Commit `feat: add ASHLAND COMMAND`.
 
 ## Task 11: Console shelf, guide, network, art, and completion audit
 
