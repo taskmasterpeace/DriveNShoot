@@ -45,7 +45,12 @@ func _physics_process(delta: float) -> void:
 	match phase:
 		0:
 			if phase_t > 0.8:
-				_check("character spine exists (6 parts, the 11-skill tree)", main.character.body.size() == 6 and main.character.skills.size() == 11)
+				# The tree GROWS (martial_arts, piloting since the 11 era) —
+				# assert the spine MIRRORS the tree and the tree holds ≥12.
+				_check("character spine exists (6 parts, skills mirror the %d-skill tree)" % main.character.SKILLS.size(),
+					main.character.body.size() == 6
+					and main.character.skills.size() == main.character.SKILLS.size()
+					and main.character.SKILLS.size() >= 12)
 				# Skill engine: xp -> level -> real effect
 				main.grant_xp("mechanics", 200.0)
 				_check("xp levels Mechanics (lv %d)" % main.character.level("mechanics"), main.character.level("mechanics") >= 2)
@@ -75,10 +80,16 @@ func _physics_process(delta: float) -> void:
 				_check("K opens the character sheet", main.hud.sheet_open())
 				_key(KEY_K)
 				_next()
-		5: # driving xp by miles
+		5: # driving xp by miles — the odometer rides the ACTIVE car
+			# (proto3d.gd:970), staged onto I-95 (the boot spot noses the
+			# motor-pool pen wall) with the ignition-law crank.
 			if phase_t > 0.3:
-				main.cars[0].use_player_input = false
-				main.cars[0].input_throttle = 1.0
+				main.active_car.global_position = Vector3(6, 0.8, 380)
+				main.active_car.global_transform.basis = Basis()
+				main.active_car.linear_velocity = Vector3.ZERO
+				main.active_car.ignition = "key"
+				main.active_car.use_player_input = false
+				main.active_car.input_throttle = 1.0
 				_next()
 		6:
 			if main.character.skills["driving"]["xp"] > 0.0:
