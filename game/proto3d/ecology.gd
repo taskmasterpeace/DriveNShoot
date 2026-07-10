@@ -19,6 +19,12 @@ const CORPSE_DECAY := 0.05    ## heat cools per gh
 const SEASON_PLANT: PackedFloat32Array = [1.5, 1.0, 0.7, 0.4]  ## SPRING…WINTER
 const SEASON_GRAZE: PackedFloat32Array = [1.3, 1.0, 0.8, 0.6]
 
+## THE REALIZATION LEDGER GROUPS (LWE §0.4): wildlife counts ride the SAME
+## current_pop dict the human groups use, so world_stream's one instantiation
+## bridge (materialize_budget → _spawn_pop_actor) spends them with the same
+## per-sector cap — no 16×-per-chunk herd multiplication.
+const WILDLIFE: PackedStringArray = ["grazer", "rodent", "scavenger", "pack_pred", "apex"]
+
 var _main: Node = null
 var _last_h: float = -1.0
 
@@ -79,6 +85,56 @@ func tick(dt_gh: float) -> void:
 		eco["prey_density"] = clampf(prey, 0.0, 1.0)
 		eco["predator_pressure"] = clampf(pred, 0.0, 1.0)
 		eco["corpse_heat"] = clampf(heat, 0.0, 1.0)
+		_reconcile_wildlife(row, dt_gh)
+
+
+## THE ECO→WORLD BRIDGE, half 1 (the floats' first reader): what the sector's
+## numbers say should be ALIVE here, as {group: count}. Pure — population.gd
+## calls it at cell bootstrap (cold start: the Alley lives on first touch) and
+## tick() steps the banked counts toward it every game hour. RNG-free by law;
+## realization (world_stream spending the counts) is where RNG enters.
+static func wildlife_desired(row: Dictionary) -> Dictionary:
+	var eco: Dictionary = row.get("eco", {})
+	if eco.is_empty():
+		return {}
+	var prey := float(eco.get("prey_density", 0.0))
+	var pred := float(eco.get("predator_pressure", 0.0))
+	var heat := float(eco.get("corpse_heat", 0.0))
+	var food := float(eco.get("food_avail", 0.0))
+	var rot := float(eco.get("water_rot", 0.0))
+	var biome := String(row.get("biome", "scrub"))
+	var zone := String(row.get("zone_tag", ""))
+	var out := {}
+	# grazers live where plants live — never city cores or open water
+	out["grazer"] = 0 if ["urban", "water", "ocean"].has(biome) else int(round(prey * 5.0))
+	# rats live where humans lived — wreck lines, dead suburbs, roadside trash
+	out["rodent"] = int(round(clampf(food - 0.2, 0.0, 1.0) * 3.0)) \
+		if ["suburbs", "industrial", "house_field", "road_shoulder"].has(zone) else 0
+	# vultures ride death — corpse heat IS the read layer made visible
+	out["scavenger"] = clampi(1 + int(heat * 2.0), 0, 3) if heat >= 0.18 else 0
+	# pack predators follow the pressure float (the lag is in the float math)
+	out["pack_pred"] = int(round(pred * 3.0))
+	# an apex nests only in wet, high-pressure land (the Alley's law)
+	out["apex"] = 1 if (pred >= 0.55 and rot >= 0.45) else 0
+	return out
+
+
+## Half 2 of the bridge's ledger side: step each wildlife count toward what the
+## floats support — ±1 per elapsed game hour (capped), never a teleport to the
+## target. A kill stays killed for hours; a starved sector empties gradually.
+func _reconcile_wildlife(row: Dictionary, dt_gh: float) -> void:
+	var cur: Dictionary = row.get("current_pop", {})
+	if cur.is_empty():
+		return
+	var des := wildlife_desired(row)
+	var step := clampi(int(dt_gh), 1, 4)
+	for g in WILDLIFE:
+		var have := int(cur.get(g, 0))
+		var want := int(des.get(g, 0))
+		if have < want:
+			cur[g] = have + mini(step, want - have)
+		elif have > want:
+			cur[g] = have - mini(step, have - want)
 
 
 ## THE CORPSE DEPOSIT (the no-free-lunch ethic): a body's heat draws the

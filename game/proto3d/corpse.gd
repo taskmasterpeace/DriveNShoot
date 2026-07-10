@@ -32,12 +32,16 @@ var _spin := Vector3.ZERO
 var _mats: Array[StandardMaterial3D] = []   ## per-corpse (own) mats, so fading one doesn't fade the world
 var _fading := false
 var _main: Node = null                      ## optional — the landing THUD plays through it
+var _rig: Node3D = null                     ## 0.11 BODY LAW: the dead actor's own visual, when handed in
 
 
 ## label: the body's name ("Raider's body"). loot: {item_id: count}. tint: skin/clothing.
 ## launch: initial velocity (a car hit / blast flings it; melee/gunshot → a small flop).
 ## main (optional): lets the body THUD when it lands (sound-map pass).
-static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.45, 0.36), launch: Vector3 = Vector3.ZERO, main: Node = null) -> ProtoCorpse:
+## rig (0.11 BODY LAW, LWE): the killed actor's OWN visual, reparented here and
+## posed dead — the body you see IS the body you loot. The 2-box lump below is
+## the no-rig FALLBACK only.
+static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.45, 0.36), launch: Vector3 = Vector3.ZERO, main: Node = null, rig: Node3D = null) -> ProtoCorpse:
 	var c := ProtoCorpse.new()
 	c._main = main
 	c.add_to_group("interactable")
@@ -46,15 +50,43 @@ static func create(label: String, loot: Dictionary, tint: Color = Color(0.55, 0.
 	for id in loot:
 		c.container.add(id, loot[id])
 
-	# The body: a torso + head box, flat-shaded (clean actor look), tinted. Own materials.
-	c._box(Vector3(0.5, 0.55, 0.28), Vector3(0, 0.35, 0), tint)
-	c._box(Vector3(0.26, 0.26, 0.26), Vector3(0, 0.72, 0), tint * 1.08)
+	if rig != null:
+		c._adopt_rig(rig)
+	else:
+		# Fallback body: a torso + head box, flat-shaded, tinted. Own materials.
+		c._box(Vector3(0.5, 0.55, 0.28), Vector3(0, 0.35, 0), tint)
+		c._box(Vector3(0.26, 0.26, 0.26), Vector3(0, 0.72, 0), tint * 1.08)
 
 	# The flop: launch + a tumble spin biased by the launch (a hard hit spins harder).
+	# A rig body keeps its feet-down dignity — small hop, no cartwheeling boxes.
 	c._vel = launch if launch != Vector3.ZERO else Vector3(0, 2.2, 0)
 	var mag := launch.length()
-	c._spin = Vector3(2.5 + mag * 0.35, 1.5, 1.0 + mag * 0.2)
+	c._spin = Vector3(2.5 + mag * 0.35, 1.5, 1.0 + mag * 0.2) if rig == null else Vector3(0, 0.6 + mag * 0.1, 0)
 	return c
+
+
+## THE BODY LAW adoption: take the dead actor's rig as our visual, pose it dead
+## (the rig's own sprawl law — quadruped/puppet both carry one), and make its
+## materials fade-capable so decay works on real bodies too.
+func _adopt_rig(rig: Node3D) -> void:
+	_rig = rig
+	if rig.get_parent() != null:
+		rig.get_parent().remove_child(rig)
+	add_child(rig)
+	rig.position = Vector3.ZERO
+	if rig.has_method("pose_dead"):
+		rig.call("pose_dead")
+	_collect_fade_mats(rig)
+
+
+func _collect_fade_mats(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mat: Material = (node as MeshInstance3D).material_override
+		if mat is StandardMaterial3D:
+			(mat as StandardMaterial3D).transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_mats.append(mat as StandardMaterial3D)
+	for child in node.get_children():
+		_collect_fade_mats(child)
 
 
 func _box(size: Vector3, pos: Vector3, color: Color) -> void:
@@ -119,8 +151,9 @@ func _physics_process(delta: float) -> void:
 func _land() -> void:
 	_grounded = true
 	global_position.y = REST_Y
-	# Settle into a lying pose: flat on the ground, keeping a random facing yaw.
-	rotation = Vector3(PI * 0.5, rotation.y, 0.0)
+	# Settle into a lying pose: the box lump lies flat; a real rig's pose_dead
+	# already owns the sprawl (body on its side, legs stiff) — don't face-plant it.
+	rotation = Vector3(PI * 0.5, rotation.y, 0.0) if _rig == null else Vector3(0.0, rotation.y, 0.0)
 	# The body hits the dirt — you HEAR the weight (sound-map pass).
 	if _main != null and "audio" in _main and _main.audio != null:
 		_main.audio.play_at("body_thud", global_position, -2.0)

@@ -564,7 +564,10 @@ func _materialize_population(chunk: Node3D, center: Vector3) -> void:
 ## "" groups this bridge doesn't materialize yet (faction_troops — P1/§3.4's
 ## ProtoSquad, out of this ticket's scope) simply bank forever, which is correct:
 ## counts-not-instances means nothing is lost by a group having no renderer yet.
-func _spawn_pop_actor(group: String, _pos: Vector3) -> Node:
+## THE ECO→WORLD BRIDGE, realized half (LWE §0.4): the wildlife groups the
+## ecology reconcile banks become living rows here — creature kind picked by
+## the ground it stands on (biome gates in data/creatures.json).
+func _spawn_pop_actor(group: String, pos: Vector3) -> Node:
 	match group:
 		"threat":
 			return ProtoLurker.create()
@@ -574,6 +577,11 @@ func _spawn_pop_actor(group: String, _pos: Vector3) -> Node:
 			return ProtoNPC.create("trader")
 		"law":
 			return ProtoNPC.create("secman")
+		"grazer", "rodent", "scavenger", "pack_pred":
+			var cid := ProtoCreature.pick_id(group, biome_at(pos))
+			return ProtoCreature.create(cid) if cid != "" else null
+		"apex":
+			return ProtoKnifeback.create()
 		_:
 			return null
 

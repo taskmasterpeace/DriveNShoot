@@ -121,10 +121,11 @@ func _new_cell(key: String, pos: Vector3) -> Dictionary:
 		if st != "":
 			faction = _main.world_state.controller_of(st)
 	var desired: Dictionary = _desired_for_zone(zone)
+	var biome: String = usmap.biome_at(pos) if (usmap != null and usmap.ok) else "scrub"
 	var row := {
 		"id": key,
 		"zone_tag": zone,
-		"biome": (usmap.biome_at(pos) if (usmap != null and usmap.ok) else "scrub"),
+		"biome": biome,
 		"controlling_faction": faction,
 		"desired_pop": desired.duplicate(),
 		"current_pop": {"civilian": 0, "worker": 0, "threat": 0, "law": 0, "faction_troops": 0},
@@ -133,16 +134,25 @@ func _new_cell(key: String, pos: Vector3) -> Dictionary:
 		"last_cleared_time": -1.0,
 		"protected": _is_protected(pos),
 		# THE ECO DICT (LIVING_WOUND_ECOSYSTEM §3.2 — P1 subset of the ten):
-		# the sector's living floats. Everything alive starts LOW ("recovering,
-		# not returned"); water_rot seeds from the biome (swamps start damp).
+		# the sector's living floats, seeded BY BIOME. Humans left; the wild
+		# didn't — swamps and forests start rich (the Alley lives on first
+		# touch), worked land starts middling, everything else "recovering,
+		# not returned". water_rot: swamps start damp.
 		"eco": {
 			"food_avail": 0.45,
-			"prey_density": 0.15,
-			"predator_pressure": 0.1,
+			"prey_density": {"swamp": 0.5, "forest": 0.35, "farmland": 0.3, "plains": 0.3}.get(biome, 0.15),
+			"predator_pressure": {"swamp": 0.6, "forest": 0.2}.get(biome, 0.1),
 			"corpse_heat": 0.0,
-			"water_rot": 0.55 if String(usmap.biome_at(pos) if (usmap != null and usmap.ok) else "") == "swamp" else 0.25,
+			"water_rot": 0.55 if biome == "swamp" else 0.25,
 		},
 	}
+	# COLD START (the eco→world bridge's bootstrap half): a fresh cell BANKS the
+	# wildlife its floats support, so the first chunk to load here realizes a
+	# living sector — not an empty one waiting hours of reconcile ticks.
+	if not bool(row["protected"]):
+		var wseed: Dictionary = ProtoEcology.wildlife_desired(row)
+		for g in wseed:
+			row["current_pop"][g] = int(wseed[g])
 	log.append("bootstrap %s zone=%s protected=%s" % [key, zone, row["protected"]])
 	return row
 
@@ -253,7 +263,10 @@ func materialize_budget(pos: Vector3) -> Dictionary:
 	var row := cell_at(pos)
 	var cur: Dictionary = row["current_pop"]
 	var out := {}
-	for g in GROUPS:
+	# Humans + wildlife spend through the ONE bridge (LWE §0.4): same cap, same
+	# never-double-counted law — a group world_stream has no spawner for just
+	# banks forever, which is correct.
+	for g in (Array(GROUPS) + Array(ProtoEcology.WILDLIFE)):
 		var have := int(cur.get(g, 0))
 		if have <= 0:
 			continue

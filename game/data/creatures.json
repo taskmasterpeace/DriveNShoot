@@ -1,0 +1,227 @@
+{
+ "comment": "LIVING WOUND ECOSYSTEM P1 — the five creatures (rows overlay creature.gd's code floor; id present here replaces the floor row wholesale). group keys the realization ledger (grazer/rodent/scavenger/pack_pred/apex); biomes gate WHERE the reconcile law lets the group live; size/color feed the quad rig; loot is rolled ONTO THE BODY at death (0.11 BODY LAW — a kill stays a body, never a box).",
+ "creatures": [
+  {
+   "id": "mossback",
+   "name": "MOSSBACK",
+   "group": "grazer",
+   "biomes": [
+    "swamp",
+    "forest",
+    "farmland",
+    "plains",
+    "scrub"
+   ],
+   "size": [
+    1.5,
+    0.95,
+    2.3
+   ],
+   "color": [
+    0.3,
+    0.36,
+    0.22
+   ],
+   "hp": 70,
+   "speed": 1.4,
+   "flee_speed": 4.2,
+   "sense_m": 16.0,
+   "herd_m": 26.0,
+   "loot": {
+    "meat": [
+     2,
+     4
+    ],
+    "hide": [
+     1,
+     2
+    ]
+   },
+   "eco_kill": {
+    "prey_density": -0.05
+   },
+   "noise_flee": true,
+   "rig_scale": 2.2,
+   "rig_tail": 0.25,
+   "rig_ears": true
+  },
+  {
+   "id": "wire_rat",
+   "name": "WIRE RAT",
+   "group": "rodent",
+   "biomes": [
+    "urban",
+    "scrub",
+    "farmland",
+    "plains",
+    "forest",
+    "swamp",
+    "desert"
+   ],
+   "size": [
+    0.34,
+    0.24,
+    0.62
+   ],
+   "color": [
+    0.36,
+    0.32,
+    0.28
+   ],
+   "hp": 8,
+   "speed": 2.6,
+   "flee_speed": 5.2,
+   "sense_m": 10.0,
+   "herd_m": 0.0,
+   "loot": {
+    "meat": [
+     0,
+     1
+    ]
+   },
+   "eco_kill": {
+    "prey_density": -0.01
+   },
+   "noise_flee": true,
+   "rig_scale": 0.38,
+   "rig_tail": 0.55,
+   "rig_ears": true,
+   "rig_squash_y": 0.55,
+   "rig_stretch_z": 1.2
+  },
+  {
+   "id": "road_vulture",
+   "name": "ROAD VULTURE",
+   "group": "scavenger",
+   "biomes": [
+    "swamp",
+    "forest",
+    "farmland",
+    "plains",
+    "scrub",
+    "desert",
+    "urban",
+    "mountains"
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.75
+   ],
+   "color": [
+    0.2,
+    0.18,
+    0.17
+   ],
+   "hp": 12,
+   "speed": 3.0,
+   "flee_speed": 6.0,
+   "sense_m": 14.0,
+   "herd_m": 0.0,
+   "loot": {
+    "meat": [
+     0,
+     1
+    ]
+   },
+   "eco_kill": {},
+   "flying": true,
+   "circle_r": 9.0,
+   "circle_h": 7.0,
+   "rig_scale": 0.5,
+   "rig_tail": 0.2,
+   "rig_ears": false
+  },
+  {
+   "id": "glass_jackal",
+   "name": "RAZOR DOG",
+   "group": "pack_pred",
+   "biomes": [
+    "swamp",
+    "forest",
+    "scrub",
+    "desert",
+    "plains",
+    "farmland"
+   ],
+   "size": [
+    0.85,
+    0.72,
+    1.55
+   ],
+   "color": [
+    0.44,
+    0.38,
+    0.3
+   ],
+   "hp": 45,
+   "speed": 2.2,
+   "flee_speed": 5.0,
+   "chase_speed": 4.6,
+   "sense_m": 22.0,
+   "herd_m": 18.0,
+   "attack_dmg": 11.0,
+   "attack_m": 1.7,
+   "attack_cd": 1.1,
+   "dusk_bias": true,
+   "loot": {
+    "meat": [
+     1,
+     2
+    ],
+    "hide": [
+     0,
+     1
+    ]
+   },
+   "eco_kill": {
+    "predator_pressure": -0.08
+   },
+   "rig_scale": 1.05,
+   "rig_tail": 0.45,
+   "rig_ears": true
+  },
+  {
+   "id": "knifeback",
+   "name": "KNIFEBACK",
+   "group": "apex",
+   "biomes": [
+    "swamp"
+   ],
+   "size": [
+    2.2,
+    1.35,
+    3.6
+   ],
+   "color": [
+    0.24,
+    0.27,
+    0.2
+   ],
+   "hp": 260,
+   "speed": 1.8,
+   "chase_speed": 5.4,
+   "flee_speed": 3.2,
+   "sense_m": 30.0,
+   "attack_dmg": 34.0,
+   "attack_m": 2.6,
+   "attack_cd": 1.6,
+   "loot": {
+    "meat": [
+     4,
+     8
+    ],
+    "hide": [
+     2,
+     4
+    ]
+   },
+   "eco_kill": {
+    "predator_pressure": -0.2
+   },
+   "rig_scale": 3.0,
+   "rig_tail": 0.8,
+   "rig_ears": false
+  }
+ ]
+}

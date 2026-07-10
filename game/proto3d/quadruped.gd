@@ -176,23 +176,40 @@ func flinch() -> void:
 
 
 # --- The FLOP (mirrors the biped's _pose_dead): a body that has fallen ---------
+# THE WHOLE ANIMAL falls (2026-07-09 acceptance render: body box dropped but
+# neck/tail/legs are SIBLINGS of body, not children — the head floated at
+# standing height, a decapitation read on every kill). Now every part sinks
+# with the chest, and unpose restores every stored value exactly (the dog's
+# bandage-save revive depends on a perfect restore).
 var _flopped: bool = false
 var _pre_flop_y: float = 0.0
+var _pre_neck: Vector3 = Vector3.ZERO
+var _pre_tail: Vector3 = Vector3.ZERO
+var _pre_hips: Array = []
 
 
 func pose_dead() -> void:
 	if _flopped:
 		return
 	_flopped = true
+	var s: float = float(params.get("scale", 1.0))
 	_pre_flop_y = body.position.y
 	body.rotation.z = 1.45
 	body.position.y = _pre_flop_y * 0.55
 	if neck:
-		neck.rotation.x = 0.6
-	for l in legs:
-		l.rotation.x = 0.35
+		_pre_neck = neck.position
+		neck.position.y = _pre_flop_y * 0.55 + 0.05 * s # the head lies with the chest
+		neck.rotation.x = 1.05                          # muzzle to the dirt
 	if tail_pivot:
+		_pre_tail = tail_pivot.position
+		tail_pivot.position.y = _pre_flop_y * 0.55
 		tail_pivot.rotation.y = 0.0 # the tail goes still — that's the read
+	_pre_hips = []
+	for l in legs:
+		_pre_hips.append(l.position)
+		l.position.y = 0.16 * s # hips sink with the fallen body
+		l.rotation.x = 0.35
+		l.rotation.z = 0.55 if legs.find(l) % 2 == 0 else -0.25 # stiff, splayed
 
 
 func unpose_dead() -> void:
@@ -202,6 +219,14 @@ func unpose_dead() -> void:
 	body.rotation.z = 0.0
 	body.position.y = _pre_flop_y
 	if neck:
+		neck.position = _pre_neck
 		neck.rotation.x = 0.0
+	if tail_pivot:
+		tail_pivot.position = _pre_tail
+	for i in legs.size():
+		if i < _pre_hips.size():
+			legs[i].position = _pre_hips[i]
+		legs[i].rotation.x = 0.0
+		legs[i].rotation.z = 0.0
 	for l in legs:
 		l.rotation.x = 0.0

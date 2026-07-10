@@ -118,6 +118,15 @@
    "weight": 0.4
   },
   {
+   "category": "material",
+   "desc": "A cured wild hide. Traders pay for the good ones.",
+   "emoji": "\ud83e\udded",
+   "id": "hide",
+   "name": "Cured hide",
+   "usable": false,
+   "weight": 0.9
+  },
+  {
    "category": "food",
    "desc": "A hot meal: worst wound +10, stress \u221210.",
    "emoji": "\ud83e\udd6b",
