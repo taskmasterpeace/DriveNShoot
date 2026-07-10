@@ -134,8 +134,10 @@ static func wildlife_desired(row: Dictionary) -> Dictionary:
 	# never a pure win; the rats inherit the earth)
 	out["rodent"] = int(round(clampf(food - 0.2, 0.0, 1.0) * 3.0 * (2.0 - pred))) \
 		if ["suburbs", "industrial", "house_field", "road_shoulder"].has(zone) else 0
-	# vultures ride death — corpse heat IS the read layer made visible
-	out["scavenger"] = clampi(1 + int(heat * 2.0), 0, 3) if heat >= 0.18 else 0
+	# vultures ride death — corpse heat IS the read layer made visible. And
+	# NO-BIRDS is a sentence too (F7's ABSENT read): they refuse the sky over
+	# an apex-hot sector — empty air over wet ground means something worse.
+	out["scavenger"] = clampi(1 + int(heat * 2.0), 0, 3) if (heat >= 0.18 and pred < APEX_BAR) else 0
 	# pack predators follow the pressure float (the lag is in the float math)
 	out["pack_pred"] = int(round(pred * 3.0))
 	# an apex nests only where the land runs HOT (F3: the bar is high — the

@@ -84,8 +84,9 @@ static func create() -> ProtoKnifeback:
 
 
 func _ready() -> void:
-	nest_pos = global_position
-	_wander_target = global_position
+	# nest_pos is claimed lazily on the first physics frame — the bridge
+	# add_child()s BEFORE positioning, and a den at the chunk-add origin
+	# would territorialize the wrong ground entirely.
 	var n: Node = get_parent()
 	while n != null:
 		if "population" in n and "daynight" in n:
@@ -191,9 +192,14 @@ func hunt_radius() -> float:
 			return territory_m
 
 
+var _den_claimed: bool = false
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
+	if not _den_claimed: # first frame: the spawn position is final NOW
+		_den_claimed = true
+		nest_pos = global_position
+		_wander_target = global_position
 	_attack_t = maxf(0.0, _attack_t - delta)
 	_warn_cd = maxf(0.0, _warn_cd - delta)
 	_nest_t -= delta

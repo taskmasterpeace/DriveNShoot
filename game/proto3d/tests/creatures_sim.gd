@@ -157,7 +157,11 @@ func _physics_process(delta: float) -> void:
 			main.ecology.tick(4.0)
 			var g2: int = int(cur.get("grazer", 0))
 			_check("rich sector steps grazers back UP (%d → %d ≥ 3)" % [g1, g2], g2 >= 3)
-			_check("corpse heat banked scavengers (%d ≥ 1)" % int(cur.get("scavenger", 0)), int(cur.get("scavenger", 0)) >= 1)
+			# F7 ABSENT read: birds refuse the sky over the apex-hot nest —
+			# NO-BIRDS is the sentence (the positive case is a pure-law check
+			# in the F7 phase below)
+			_check("NO-BIRDS over the apex nest (scavenger %d == 0)" % int(cur.get("scavenger", 0)),
+				int(cur.get("scavenger", 0)) == 0)
 			_check("apex still holds the wet ground (== 1)", int(cur.get("apex", 0)) == 1)
 			# audit GAP-8: a PROTECTED cell banks NO wildlife however rich its
 			# floats — never hunted on your doorstep. Flag a fresh cell
@@ -317,6 +321,10 @@ func _physics_process(delta: float) -> void:
 				eco3["prey_density"] = 0.02
 				eco3["warn_count"] = 0
 				_kb._nest_tick() # STARVING — but the land has not warned yet
+				_kb._hunt = null # drop whatever mossback it latched onto — the
+				# trial is about the HUMAN gate, and a busy jaw never re-scans
+				main.player.global_position = _kb.nest_pos + Vector3(4, 0.4, 0)
+				main.player.velocity = Vector3.ZERO
 				_next()
 		11: # F1 THE WARNING LADDER: the unwarned strike defers into a tell
 			if phase_t > 1.0:
@@ -325,6 +333,7 @@ func _physics_process(delta: float) -> void:
 					int(eco4.get("warn_count", 0)) >= 1
 					and (_kb._hunt == null or not _kb._hunt.is_in_group("player3d")))
 				eco4["warn_count"] = 3 # the land has said its three pieces
+				_kb._hunt = null # re-scan with the warnings spent
 				_next()
 		12: # F1+F2 armed: warned + STARVING → the road is meat; F4: noise widens
 			if phase_t > 0.9:
@@ -371,7 +380,60 @@ func _physics_process(delta: float) -> void:
 				_check("F9: offline advance NEVER spawns (%d → %d live)" % [live0, live1], live1 <= live0)
 				_check("F9: the catchup returns a digest", digest.has("days") and int(digest["days"]) == 4)
 				_next()
-		15:
+		15: # F7 THE BIRD LANGUAGE: marker law + formations + the ABSENT/positive pair
+			if phase_t > 0.4:
+				# pure law: heat draws birds — unless an apex owns the sky
+				var fake7 := {"biome": "swamp", "zone_tag": "thick_forest",
+					"eco": {"food_avail": 0.5, "prey_density": 0.4, "predator_pressure": 0.3,
+						"corpse_heat": 0.6, "water_rot": 0.5}}
+				var birds_ok: int = int(ProtoEcology.wildlife_desired(fake7).get("scavenger", 0))
+				(fake7["eco"] as Dictionary)["predator_pressure"] = 0.8
+				var birds_apex: int = int(ProtoEcology.wildlife_desired(fake7).get("scavenger", 0))
+				_check("F7: heat draws BIRDS on open land (%d ≥ 1)" % birds_ok, birds_ok >= 1)
+				_check("F7: NO-BIRDS where the apex owns the sky (%d == 0)" % birds_apex, birds_apex == 0)
+				# marker law: you can't farm the read layer
+				var v := ProtoCreature.create("road_vulture")
+				main.add_child(v)
+				v.global_position = main.player.global_position + Vector3(6, 3, 0)
+				v.take_damage(999.0)
+				_check("F7: a shot bird SCATTERS, never falls (alive, FLUSH)",
+					is_instance_valid(v) and not v.dead and v.state == ProtoCreature.CState.FLUSH)
+				# formation: a fresh corpse reads LOW+TIGHT
+				var body7 := ProtoCorpse.create("Read target", {}, Color(0.4, 0.35, 0.3), Vector3.ZERO, main)
+				main.add_child(body7)
+				body7.global_position = main.player.global_position + Vector3(8, 0.3, 0)
+				body7.heat = 1.0
+				v.state = ProtoCreature.CState.CIRCLE
+				v._sense_vulture()
+				_check("F7: the formation SPEAKS freshness (read %.2f ≥ 0.8)" % v._read_fresh, v._read_fresh >= 0.8)
+				v.queue_free()
+				body7.queue_free()
+				_next()
+		16: # F7 THE GATHER: banked birds realize into the chunk you STAND in
+			if phase_t > 0.3 and phase_t < 0.5:
+				# park the stream's center (the active car) at the player's spot;
+				# the bait already heated this cell — bank a bird and wait for
+				# the 6 s re-materialize beat to spend it
+				main.cars[0].global_position = main.player.global_position + Vector3(10, 1.0, 0)
+				main.cars[0].linear_velocity = Vector3.ZERO
+				# bank on the cell of the CAR'S CHUNK CENTER — that's the cell
+				# the re-materialize beat spends (a player can straddle a 500 m
+				# line from their own chunk's center)
+				var gccx := int(floor(main.cars[0].global_position.x / 128.0))
+				var gccz := int(floor(main.cars[0].global_position.z / 128.0))
+				var gcenter := Vector3((gccx + 0.5) * 128.0, 0, (gccz + 0.5) * 128.0)
+				var gcell: Dictionary = main.population.cell_at(gcenter)
+				(gcell["eco"] as Dictionary)["corpse_heat"] = 0.6
+				(gcell["eco"] as Dictionary)["predator_pressure"] = 0.2
+				main.ecology.tick(1.0)
+			elif phase_t > 9.0:
+				var gathered := 0
+				for n in get_tree().get_nodes_in_group("creature"):
+					if n is ProtoCreature and (n as ProtoCreature).kind == "road_vulture" 							and is_instance_valid(n) 							and (n as Node3D).global_position.distance_to(main.player.global_position) < 300.0:
+						gathered += 1
+				_check("F7: birds GATHER over the watched kill (%d ≥ 1, no chunk reload)" % gathered, gathered >= 1)
+				_next()
+		17:
 			_finish()
 
 	if t > 90.0:

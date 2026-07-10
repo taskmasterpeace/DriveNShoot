@@ -102,7 +102,10 @@ static func create(id: String) -> ProtoCreature:
 	c.row = ROWS[id]
 	c.name = "Creature_%s" % id
 	c.add_to_group("creature")
-	c.add_to_group("combatant") # meleeable/huntable; gators may ambush one — that's the food chain
+	# THE READ LAYER IS NOT MEAT (LWE §3.7 / audit F7): flying markers carry
+	# information, not loot — they never join the huntable union.
+	if not bool(c.row.get("flying", false)):
+		c.add_to_group("combatant") # meleeable/huntable; gators may ambush one — the food chain
 	if float(c.row.get("attack_dmg", 0.0)) > 0.0:
 		c.add_to_group("threat") # predators fight back and read as hostiles
 	c.body = Damageable.new(String(c.row.get("name", id)), "🐾", float(c.row.get("hp", 20.0)))
@@ -135,10 +138,11 @@ static func create(id: String) -> ProtoCreature:
 
 
 func _ready() -> void:
-	_anchor = global_position
-	_wander_target = global_position
 	# Find main by walking up to the node that owns the ledgers (harness-safe:
 	# current_scene is the SIM under a test harness — never assume it).
+	# NOTE: the ANCHOR is set lazily on the first physics frame instead —
+	# the bridge add_child()s BEFORE it sets global_position, so a _ready
+	# anchor points at the chunk-add origin and the animal drifts off to it.
 	var n: Node = get_parent()
 	while n != null:
 		if "population" in n and "daynight" in n:
@@ -149,6 +153,13 @@ func _ready() -> void:
 
 func take_damage(amount: float) -> void:
 	if dead:
+		return
+	# F7: you can't farm the read layer — a shot SCATTERS the bird skyward,
+	# it never falls (the information keeps flying).
+	if _is_flying():
+		state = CState.FLUSH
+		_flee_from = global_position + Vector3(_rng.randf_range(-1, 1), -1, _rng.randf_range(-1, 1))
+		_flee_t = 4.0
 		return
 	body.damage(amount)
 	if _quad:
@@ -223,9 +234,14 @@ func _die() -> void:
 	queue_free()
 
 
+var _anchored: bool = false
 func _physics_process(delta: float) -> void:
 	if dead:
 		return
+	if not _anchored: # first frame: the spawn position is final NOW
+		_anchored = true
+		_anchor = global_position
+		_wander_target = global_position
 	_frame += 1
 	_attack_t = maxf(0.0, _attack_t - delta)
 	if _frame % SENSE_EVERY == 0:
@@ -343,20 +359,34 @@ func _pick_prey(sense_m: float) -> Node3D:
 	return best
 
 
-## The vulture read layer: find the freshest corpse in glide range and orbit it.
+## The vulture read layer (F7 — THE BIRD LANGUAGE): find the freshest corpse
+## in glide range and SAY something with the orbit — fresh kill = a LOW TIGHT
+## spiral (predator may be near), old kill = high and lazy, gunfire = SCATTER.
+var _read_fresh: float = 0.0 ## the freshness the formation is reporting
 func _sense_vulture() -> void:
 	var pos := global_position
-	var best: Node3D = null
+	var best: ProtoCorpse = null
 	var best_d := 60.0
 	for n in get_tree().get_nodes_in_group("corpse"):
-		if not (n is Node3D) or not is_instance_valid(n):
+		if not (n is ProtoCorpse) or not is_instance_valid(n):
 			continue
 		var d: float = pos.distance_to((n as Node3D).global_position)
 		if d < best_d:
 			best_d = d
-			best = n as Node3D
+			best = n as ProtoCorpse
 	if best != null:
 		_anchor = best.global_position
+		_read_fresh = best.heat
+	else:
+		_read_fresh = 0.0
+	# gunfire SCATTERS the flock (the read layer answers the trigger)
+	if _main != null and _main.has_method("noises_in"):
+		for h in _main.noises_in(pos):
+			if String(h.get("kind", "")) == "gunshot" or String(h.get("kind", "")) == "gunfire":
+				state = CState.FLUSH
+				_flee_from = h["pos"]
+				_flee_t = 3.5
+				return
 	# flushed by anything alive walking up on the meal
 	var danger := _nearest_danger(9.0)
 	if danger != Vector3.INF and state != CState.FLUSH:
@@ -422,8 +452,10 @@ func _do_hunt(delta: float) -> void:
 ## kinds skip move_and_slide entirely — position is authored, cheap, and reads
 ## perfectly from the top-down camera.
 func _do_circle(delta: float) -> void:
-	var r := float(row.get("circle_r", 8.0))
-	var h := float(row.get("circle_h", 6.0))
+	# THE FORMATION IS THE SENTENCE (F7): fresh kill → LOW + TIGHT (predator
+	# may be near); old kill / nothing → HIGH + LAZY. Rows give the baseline.
+	var r := lerpf(float(row.get("circle_r", 8.0)) * 1.4, float(row.get("circle_r", 8.0)) * 0.55, _read_fresh)
+	var h := lerpf(float(row.get("circle_h", 6.0)) * 1.4, float(row.get("circle_h", 6.0)) * 0.65, _read_fresh)
 	_circle_a += delta * float(row.get("speed", 3.0)) / maxf(r, 1.0)
 	var target := _anchor + Vector3(cos(_circle_a) * r, h + sin(_circle_a * 2.3) * 0.6, sin(_circle_a) * r)
 	global_position = global_position.lerp(target, clampf(delta * 2.0, 0.0, 1.0))

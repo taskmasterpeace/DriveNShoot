@@ -54,6 +54,7 @@ var visited: Dictionary = {} ## "cx,cz" -> Vector2 (chunk center) — the map's 
 ## ROW in one frame (the hitch). Tunable; 3 clears a 7-wide edge in ~3 frames.
 const LOAD_BUDGET := 3
 var _load_queue: Array = [] ## pending chunk coords (Vector2i), drained nearest-first
+var _remat_next_ms: int = 0 ## the F7 gather throttle (banked counts → the chunk you stand in)
 var last_state: String = ""
 
 var _map_layer: CanvasLayer = null
@@ -122,6 +123,15 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 				loaded[key].queue_free()
 			loaded.erase(key)
 			ProtoWorldBuilder.extra_road_rects.erase(key)
+	# THE READ LAYER GATHERS (LWE F7): banked counts realize into the chunk
+	# you're STANDING in every few seconds — chunk-load used to be the only
+	# spend, so vultures could never gather over a kill you were watching.
+	# safe_to_spawn keeps it honest (≥45 m, outside your cone — no pop-in).
+	if population != null and Time.get_ticks_msec() >= _remat_next_ms:
+		_remat_next_ms = Time.get_ticks_msec() + 6000
+		var here := "%d,%d" % [ccx, ccz]
+		if loaded.has(here) and loaded[here] != null and is_instance_valid(loaded[here]):
+			_materialize_population(loaded[here], Vector3((ccx + 0.5) * CHUNK, 0, (ccz + 0.5) * CHUNK))
 	# State line crossings announce themselves
 	var st := current_state(body_pos)
 	if st != last_state:
