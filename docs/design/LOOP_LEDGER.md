@@ -61,7 +61,7 @@
 | E10 | furnisher_sim | OPEN | "REAL E opens the desk's panel (not a neighbor's)" — interact-scan proximity; baseline-red (predates loop furnisher) |
 | E11 | items_sim | DONE | 3 missing price rows added (hide/drone_remote/antibiotics) — 23/0 |
 | E12 | life_sim | PARTIAL | night-floor realigned (18/19) — HORN-heels check = real-bug remainder |
-| E13 | los_sim | OPEN | "open the door and it is SEEN (fade 0.88)" — door-state → LOS fade path; real-bug candidate |
+| E13 | los_sim | OPEN | REAL-BUG, narrowed: fade ray (proto3d.gd:1282 sight_blocked eye+1.5→target+0.9) stays blocked after the door opens while the eye-height occl fan SPILLS ✓ — suspect the swung panel/frame or safehouse furniture clips the descending ray; open-ground ray proven clean (probe2) |
 | E14 | m1_sim | OPEN | nil global_position cascade + door/hotwire/sedan checks — staged node missing; read full ediag log first |
 | E15 | nav_sim | DONE | ring gained ⚒ TEST GROUNDS stop — wrap check walks the ring to OFF — 8/0 |
 | E16 | noise_sim | DEFERRED(owner's live radio arc — loud-radio draw API moving) | — |
