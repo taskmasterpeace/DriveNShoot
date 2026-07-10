@@ -27,7 +27,7 @@
     "front",
     "rear_optional"
    ],
-   "interior_template": "none",
+   "interior_template": "walkin",
    "loot_table": "chest_common",
    "npc_jobs": [
     "clerk",
@@ -124,7 +124,7 @@
     "front",
     "kitchen_rear"
    ],
-   "interior_template": "none",
+   "interior_template": "walkin",
    "loot_table": "chest_common",
    "npc_jobs": [
     "cook",
@@ -171,7 +171,7 @@
     "office",
     "room_doors"
    ],
-   "interior_template": "none",
+   "interior_template": "walkin_roofed",
    "loot_table": "chest_common",
    "npc_jobs": [
     "owner",
@@ -216,7 +216,7 @@
     "front",
     "rear"
    ],
-   "interior_template": "none",
+   "interior_template": "walkin",
    "loot_table": "chest_common",
    "npc_jobs": [
     "resident",
@@ -258,7 +258,7 @@
     "front",
     "impound_gate"
    ],
-   "interior_template": "none",
+   "interior_template": "walkin_roofed",
    "loot_table": "cache_rare",
    "npc_jobs": [
     "sheriff",

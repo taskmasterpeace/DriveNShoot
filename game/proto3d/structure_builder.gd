@@ -64,9 +64,10 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 		_wall(root, Vector3(-w * 0.5, WALL_H * 0.5, 0), Vector3(WALL_T, WALL_H, d), col)          # west
 		_wall(root, Vector3(w * 0.5, WALL_H * 0.5, 0), Vector3(WALL_T, WALL_H, d), col)           # east
 		var seg := (w - DOOR_W) * 0.5 # the front wall splits around the doorway
+		var fronts: Array = []
 		if seg > 0.1:
-			_wall(root, Vector3(-(DOOR_W + seg) * 0.5, WALL_H * 0.5, d * 0.5), Vector3(seg, WALL_H, WALL_T), col)
-			_wall(root, Vector3((DOOR_W + seg) * 0.5, WALL_H * 0.5, d * 0.5), Vector3(seg, WALL_H, WALL_T), col)
+			fronts.append(_wall(root, Vector3(-(DOOR_W + seg) * 0.5, WALL_H * 0.5, d * 0.5), Vector3(seg, WALL_H, WALL_T), col))
+			fronts.append(_wall(root, Vector3((DOOR_W + seg) * 0.5, WALL_H * 0.5, d * 0.5), Vector3(seg, WALL_H, WALL_T), col))
 		var floor_slab := MeshInstance3D.new()
 		var fm := BoxMesh.new()
 		fm.size = Vector3(w, 0.06, d)
@@ -74,6 +75,20 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 		floor_slab.material_override = ProtoWorldBuilder.material(col.darkened(0.45), 0.95)
 		floor_slab.position.y = 0.03
 		root.add_child(floor_slab)
+		# THE INTERIOR SKIN (I0): walk-in rows wear the generalized house laws.
+		# "walkin" = open-top (the honest default) + inside-detect + front-fade;
+		# "walkin_roofed" = the EARNED hide-roof on top (AR 0.9: motel/police/
+		# safehouse class only). Any other template value = today's bare shell,
+		# byte-identical (backward-compat law).
+		if row.interior_template == "walkin" or row.interior_template == "walkin_roofed":
+			ProtoInteriorSkin.apply(root, w, d, WALL_H, fronts,
+				row.interior_template == "walkin_roofed", col.darkened(0.35))
+			# THE FURNISHER (I1): furniture WAKES on approach, FREES on exit
+			# (AR 0.11's LOD law) — the set comes from the row's building-type
+			# ROW in building_types.json, uids seeded by the structure id so
+			# the same shell always wakes the same pieces + loot.
+			if not ProtoLootResolver.building_row(row.id).is_empty():
+				ProtoFurnisher.attach(root, w, d, row.id, row.id)
 	else:
 		# A solid massing block — junkyards/monuments/compounds read as mass.
 		var body := StaticBody3D.new()
@@ -113,7 +128,8 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 	return root
 
 
-static func _wall(root: Node3D, pos: Vector3, size: Vector3, col: Color) -> void:
+## Returns the wall's MeshInstance3D so the interior skin can fade fronts.
+static func _wall(root: Node3D, pos: Vector3, size: Vector3, col: Color) -> MeshInstance3D:
 	var body := StaticBody3D.new()
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new()
@@ -128,3 +144,4 @@ static func _wall(root: Node3D, pos: Vector3, size: Vector3, col: Color) -> void
 	body.add_child(shape)
 	root.add_child(body)
 	body.position = pos
+	return mesh

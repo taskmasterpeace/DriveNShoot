@@ -23,3 +23,9 @@ Format per entry: **iter # · row shipped · sims added · suite total · gaps f
 - **LOOK:** 7 acceptance renders → fresh judge round 1: 4/7 (fails: rat=re-tinted-jackal, vulture=ground plank, lineup=head-on hid the ridge) → fixed (rig_squash_y/stretch_z rows, birdify wings, profile+airborne staging) → **round 2: OVERALL PASS.** Renders in docs/acceptance/iter1/.
 - **Real bugs the loop caught:** knifeback sticky-BREEDING state (sim), quadruped floating-head death pose (render), vulture-was-a-dog (judge), boot car adopted by TestGrounds facing the pen wall (walkthrough gate — explains old walkthrough_sim's inherited red), buffered-output-hides-parse-error + untyped-loop-var `:=` inference (tooling gotchas re-paid and logged).
 - **Gaps found:** catalog has 39 structure rows vs spec's 42 (noted on I2).
+
+## Iteration 2 — THE INTERIOR SKIN + THE FURNISHER (2026-07-09)
+- **Rows shipped:** I0 (`interior_skin.gd` — roof-hide/front-fade/slab-fade generalized from house.gd; `interior_template` data values "walkin"/"walkin_roofed"; roof EARNED per AR 0.9), I1 (`furnisher.gd` — door-safe grid lifted from house.gd; AR 0.11 LOD law: wake ≤40 m, free >55 m, awake cap; per-instance position-keyed loot uids; 4 new building_types rows).
+- **Sims added:** `interior_skin_sim` (15), `furnisher_lod_sim` (10).
+- **Targeted regressions green:** structure_data 36/0, placement_wire 6/0, town 16/0, world_walkthrough 16/0.
+- **Gaps found:** node names are session-unique — determinism asserts must key loot uids, not names (sim measurement fixed, not weakened).
