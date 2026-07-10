@@ -43,7 +43,9 @@ func _ready() -> void:
 		and reg.enabled("radworm") and reg.cartridge_contract_error("radworm") == "")
 	_check("demining cartridge clears scene and notice gates", reg.installed("dead_ground")
 		and reg.enabled("dead_ground") and reg.cartridge_contract_error("dead_ground") == "")
-	_check("missing future scenes are uninstalled, not malformed", not reg.installed("pack_rat"))
+	_check("warehouse cartridge clears scene and notice gates", reg.installed("pack_rat")
+		and reg.enabled("pack_rat") and reg.cartridge_contract_error("pack_rat") == "")
+	_check("missing future scenes are uninstalled, not malformed", not reg.installed("bunker_breaker"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 

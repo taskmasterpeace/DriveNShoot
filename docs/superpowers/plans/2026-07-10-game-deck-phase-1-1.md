@@ -77,11 +77,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/pack_rat/*`, `tests/pack_rat_sim.*`
 
-- [ ] Red sim: wall blocking, single-crate push, no pull/double push, goal
+- [x] Red sim: wall blocking, single-crate push, no pull/double push, goal
   completion, deterministic level order, moves/levels result, snapshot.
-- [ ] Implement three compact authored evacuation-warehouse maps as data rows in
+- [x] Implement three compact authored evacuation-warehouse maps as data rows in
   the script; no external Sokoban art or maps.
-- [ ] Commit `feat: add PACK RAT`.
+- [x] Commit `feat: add PACK RAT`.
 
 ## Task 5: BUNKER BREAKER
 
