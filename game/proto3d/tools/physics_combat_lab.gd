@@ -12,6 +12,7 @@ const THROWABLE_SCRIPT := preload("res://proto3d/throwable.gd")
 const ROUND_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_round.gd")
 const OPPONENT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_opponent.gd")
 const DIAGNOSTICS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_diagnostics.gd")
+const REPLAY_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_replay.gd")
 
 var save_isolated: bool = true
 var lab_mode: bool = true
@@ -31,6 +32,9 @@ var opponent_behavior: String = "PASSIVE"
 var lab_round: RefCounted = null
 var opponent: Node3D = null
 var diagnostics: Node3D = null
+var replay: RefCounted = null
+var mirror_bodies: Dictionary = {}
+var mirror_results: Dictionary = {}
 var gaze_origin: Vector3 = Vector3(26, 0.05, 0)
 var gaze_targets: Dictionary = {}
 var active_gaze_target: Node3D = null
@@ -54,6 +58,10 @@ var _gaze_headlight: SpotLight3D = null
 var _gaze_source: String = "turn"
 var _look_age: float = 0.0
 var _prior_aim: Vector3 = Vector3.FORWARD
+var _mirror_root: Node3D = null
+var _mirror_trace: Array[RefCounted] = []
+var _mirror_cursor: int = -1
+var _last_dive_state: String = "NORMAL"
 
 
 func _ready() -> void:
@@ -68,6 +76,7 @@ func _ready() -> void:
 	_build_sparring()
 	diagnostics = DIAGNOSTICS_SCRIPT.new()
 	add_child(diagnostics)
+	replay = REPLAY_SCRIPT.new()
 	reset_station()
 
 
@@ -353,6 +362,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if lab_round != null:
 		lab_round.tick(delta)
+	_update_mirror(delta)
 	var command: RefCounted = input_source.sample(camera, player.global_position, delta)
 	if lab_round != null and lab_round.commands_frozen():
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
@@ -362,16 +372,29 @@ func _physics_process(delta: float) -> void:
 	_last_command = command
 	adapter.apply_command(command, delta)
 	adapter.weapon.tick(delta, self)
+	var fired: bool = false
 	if bool(command.get("fire_pressed")) or (bool(command.get("fire_held")) and adapter.weapon.is_automatic()):
-		_fire_weapon(command)
+		fired = _fire_weapon(command)
 	if bool(command.get("throw_pressed")):
 		_throw_hold = 0.0
 	if bool(command.get("throw_held")):
 		_throw_hold += delta
 	if bool(command.get("throw_released")):
 		_release_throw(command)
+	var live_metrics: Dictionary = adapter.metrics()
+	if replay != null and not replay.frozen:
+		replay.record_command(command)
+		replay.record_snapshot(_capture_replay_snapshot())
+		if fired:
+			replay.mark("fire", "%s FIRED" % String(adapter.weapon.id).to_upper())
+		if bool(command.get("dive_pressed")):
+			replay.mark("dive", "DIVE LAUNCH")
+		var dive_state: String = String(live_metrics.get("dive_state", "NORMAL"))
+		if dive_state != _last_dive_state and dive_state in ["contact", "CONTACT"]:
+			replay.mark("contact", "DIVE CONTACT")
+		_last_dive_state = dive_state
 	_update_station()
-	var metrics: Dictionary = adapter.metrics()
+	var metrics: Dictionary = live_metrics
 	hud.refresh(active_mode, current_station, adapter.weapon, metrics,
 		String(adapter.condition.get("id", "fresh")).to_upper(), _round_readout())
 	if diagnostics != null:
@@ -408,9 +431,12 @@ func _update_gaze_source(command: RefCounted, delta: float) -> void:
 
 
 func _diagnostic_readout(facts: Dictionary) -> String:
-	return "TOOLS  X-RAY %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
-		"ON" if diagnostics.updates_enabled() else "OFF", gaze_target_distance,
-		"BINOC" if gaze_binoculars else "NORMAL", "OPEN" if gaze_door_open else "CLOSED",
+	var replay_status: String = "FROZEN" if replay != null and replay.frozen else \
+		"REC %.1fs" % (float(replay.frame_count()) / 60.0 if replay != null else 0.0)
+	return "TOOLS  X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
+		"ON" if diagnostics.updates_enabled() else "OFF", replay_status,
+		gaze_target_distance, "BINOC" if gaze_binoculars else "NORMAL",
+		"OPEN" if gaze_door_open else "CLOSED",
 		"NIGHT" if gaze_night else "DAY", "DUST" if gaze_dust else "CLEAR",
 		float(facts.get("forward_yaw_deg", 0.0)), float(facts.get("head_yaw_deg", 0.0)),
 		float(facts.get("weapon_yaw_deg", 0.0)), "CLEAR" if bool(facts.get("los", false)) else "BLOCKED",
@@ -434,13 +460,157 @@ func _round_readout() -> String:
 	return base
 
 
-func _fire_weapon(command: RefCounted) -> void:
-	if adapter.weapon.mag <= 0:
+func _capture_replay_snapshot() -> Dictionary:
+	var transforms: Dictionary = {}
+	var velocities: Dictionary = {}
+	if "parts" in adapter:
+		for id in (adapter.parts as Dictionary):
+			var part := (adapter.parts as Dictionary)[id] as RigidBody3D
+			transforms[id] = part.global_transform
+			velocities[id] = {"linear": part.linear_velocity, "angular": part.angular_velocity}
+	else:
+		transforms["root"] = player.global_transform
+		velocities["root"] = adapter.body_velocity()
+	return {"mode": active_mode, "body_transforms": transforms,
+		"velocities": velocities, "weapon": String(adapter.weapon.id),
+		"ammo": adapter.weapon.mag, "condition": adapter.condition.duplicate(true),
+		"round": lab_round.snapshot() if lab_round != null else {},
+		"opponent": opponent.metrics() if opponent != null else {},
+		"rng_seed": 0, "station": current_station}
+
+
+func freeze_replay() -> void:
+	if replay != null:
+		replay.freeze()
+
+
+func toggle_replay_freeze() -> void:
+	if replay == null:
 		return
+	if replay.frozen:
+		replay.unfreeze()
+	else:
+		replay.freeze()
+
+
+func restore_replay_offset(frames_back: int) -> bool:
+	if replay == null or replay.frame_count() == 0:
+		return false
+	var frame: int = maxi(replay.first_frame(), replay.last_frame() - maxi(0, frames_back))
+	var state: Dictionary = replay.seek(frame)
+	if state.is_empty():
+		return false
+	_restore_replay_snapshot(state)
+	return true
+
+
+func _restore_replay_snapshot(state: Dictionary) -> void:
+	var mode: String = String(state.get("mode", active_mode))
+	if mode != active_mode:
+		switch_mode(mode)
+	adapter.set_weapon(String(state.get("weapon", "pistol")))
+	adapter.set_condition(state.get("condition", {"id": "fresh"}))
+	var transforms: Dictionary = state.get("body_transforms", {})
+	var velocities: Dictionary = state.get("velocities", {})
+	if "parts" in adapter:
+		for id in transforms:
+			if (adapter.parts as Dictionary).has(id):
+				var part := (adapter.parts as Dictionary)[id] as RigidBody3D
+				part.global_transform = transforms[id]
+				var motion: Dictionary = velocities.get(id, {})
+				part.linear_velocity = motion.get("linear", Vector3.ZERO)
+				part.angular_velocity = motion.get("angular", Vector3.ZERO)
+	elif transforms.has("root"):
+		adapter.reset_at(transforms["root"])
+		player.velocity = velocities.get("root", Vector3.ZERO)
+	# reset_at() intentionally refills a station reset; replay ammo is restored
+	# afterward because the Black Box snapshot is authoritative.
+	adapter.weapon.mag = int(state.get("ammo", adapter.weapon.mag))
+	if lab_round != null and lab_round.has_method("restore_snapshot"):
+		lab_round.restore_snapshot(state.get("round", {}))
+	if opponent != null:
+		var opponent_state: Dictionary = state.get("opponent", {})
+		if opponent_state.has("position"):
+			opponent.reset_at(Transform3D(Basis.IDENTITY, opponent_state["position"]))
+		if opponent_state.has("behavior"):
+			set_opponent_behavior(String(opponent_state["behavior"]))
+
+
+func start_mirror_run() -> bool:
+	if replay == null or replay.frame_count() == 0:
+		return false
+	clear_mirror_run()
+	_mirror_root = Node3D.new()
+	_mirror_root.name = "MirrorRun"
+	add_child(_mirror_root)
+	var modes: Array[String] = ["hybrid", "active_ragdoll", "full_physics"]
+	for i in modes.size():
+		var mode: String = modes[i]
+		var body_adapter: Node = ADAPTER_SCRIPT.new() if mode == "hybrid" else PHYSICAL_SCRIPT.new()
+		_mirror_root.add_child(body_adapter)
+		if mode == "hybrid":
+			body_adapter.setup({})
+		else:
+			body_adapter.setup(mode)
+		body_adapter.set_weapon(String(adapter.weapon.id))
+		body_adapter.set_condition(adapter.condition)
+		body_adapter.reset_at(Transform3D(Basis.IDENTITY,
+			Vector3(float(i) * 5.0, 0.05, 22.0)))
+		body_adapter.add_to_group("lab_mirror_body")
+		body_adapter.combat_body().remove_from_group("combatant")
+		mirror_bodies[mode] = body_adapter
+	_mirror_trace = replay.command_frames()
+	_mirror_cursor = 0
+	mirror_results.clear()
+	return true
+
+
+func _update_mirror(delta: float) -> void:
+	if _mirror_cursor < 0 or _mirror_cursor >= _mirror_trace.size():
+		return
+	var command: RefCounted = _mirror_trace[_mirror_cursor]
+	for mode in mirror_bodies:
+		var body_adapter: Node = mirror_bodies[mode]
+		body_adapter.apply_command(command.duplicate_frame(), delta)
+		body_adapter.weapon.tick(delta, self)
+		if bool(command.get("fire_pressed")) and body_adapter.weapon.can_fire():
+			body_adapter.weapon.mag -= 1
+			body_adapter.weapon._cd = float(body_adapter.weapon.info()["cooldown"])
+			body_adapter.apply_recoil(command.get("aim_world"),
+				body_adapter.weapon.info().get("recoil", {}), character.level("strength"))
+	_mirror_cursor += 1
+	if _mirror_cursor >= _mirror_trace.size():
+		_finish_mirror_run()
+
+
+func _finish_mirror_run() -> void:
+	for mode in mirror_bodies:
+		var body_adapter: Node = mirror_bodies[mode]
+		var facts: Dictionary = body_adapter.metrics().duplicate(true)
+		facts["finish_position"] = body_adapter.combat_body().global_position
+		facts["ammo"] = body_adapter.weapon.mag
+		mirror_results[mode] = facts
+	_mirror_cursor = -1
+
+
+func clear_mirror_run() -> void:
+	if _mirror_root != null and is_instance_valid(_mirror_root):
+		_mirror_root.queue_free()
+	_mirror_root = null
+	mirror_bodies.clear()
+	_mirror_trace.clear()
+	_mirror_cursor = -1
+
+
+func _fire_weapon(command: RefCounted) -> bool:
+	if adapter.weapon.mag <= 0:
+		return false
 	var direction: Vector3 = command.get("aim_world")
 	if adapter.weapon.fire(self, adapter.muzzle_world(), direction):
 		adapter.apply_recoil(direction, adapter.weapon.info().get("recoil", {}),
 			character.level("strength"))
+		return true
+	return false
 
 
 func _release_throw(command: RefCounted) -> void:
@@ -482,7 +652,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F8: toggle_headlights()
 			KEY_F9: toggle_binoculars()
 			KEY_F10: toggle_camera_zoom()
+			KEY_F11: toggle_replay_freeze()
+			KEY_F12: start_mirror_run()
 			KEY_O: set_gaze_door(not gaze_door_open)
+			KEY_COMMA: restore_replay_offset(120)
 			KEY_BRACKETLEFT: cycle_target_distance(-1)
 			KEY_BRACKETRIGHT: cycle_target_distance(1)
 			KEY_BACKSPACE: reset_station()

@@ -156,3 +156,15 @@ func snapshot() -> Dictionary:
 	return {"nonlethal": true, "phase": phase, "winner": winner,
 		"round": round_index, "freeze_remaining": freeze_remaining,
 		"last_card": last_card.duplicate(true), "fighters": fighters.duplicate(true)}
+
+
+func restore_snapshot(state: Dictionary) -> bool:
+	if not bool(state.get("nonlethal", false)) or not state.has("fighters"):
+		return false
+	phase = String(state.get("phase", "active"))
+	winner = String(state.get("winner", ""))
+	round_index = int(state.get("round", 1))
+	freeze_remaining = float(state.get("freeze_remaining", 0.0))
+	last_card = (state.get("last_card", {}) as Dictionary).duplicate(true)
+	fighters = (state["fighters"] as Dictionary).duplicate(true)
+	return true
