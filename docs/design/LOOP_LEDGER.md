@@ -92,7 +92,7 @@
 | F6 | Bait verb (dropped meat deposits corpse-heat — pull the swamp off your route) + the backfire (rodent desire ×(2−pred): rats inherit the earth) | DONE | `creatures_sim` 38/0 |
 | F7 | Bird language (LWE §3.7): vulture = unkillable marker w/ formation states; + re-materialize loaded chunks so birds gather over watched kills | OPEN | — |
 | F8 | Protected cells bank NO wildlife on the hourly tick (doorstep law) | DONE | `creatures_sim` 31/0 (GAP-8 check) |
-| F9 | Offline ecology (LWE 0.8): pure advance_offline_day + return briefing | OPEN | — |
+| F9 | Offline ecology: run_offline_catchup advances the SAME RNG-free equations 24 gh/day (floats + banked counts, never a spawn) + Alley-boldness briefing line | DONE | `creatures_sim` 41/0 + `offline_catchup_sim` 16/0 |
 | F10 | Pre-eco saves heal on touch (eco backfill in cell_at) | DONE | `creatures_sim` 31/0 (GAP-10 check) |
 | F11 | Legibility layer (LWE 0.9): threat-priority stack, toast queue, cause-stamped beats | OPEN | — |
 | F12 | 0.11 BODY LAW on ALL death paths: howler/lurker/companion/infected pass their rigs | DONE | threat 17/0 · crew 11/0 · infected 10/0 · corpse 12/0 |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 43 (…E-set closed… + F1–F4, F6, F8, F10, F12–F14)
-- OPEN: 3 (F7 bird language, F9 offline ecology, F11 legibility)
+- DONE: 44 (…E-set closed… + F1–F4, F6, F8–F10, F12–F14)
+- OPEN: 2 (F7 bird language, F11 legibility)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

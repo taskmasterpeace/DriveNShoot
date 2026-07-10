@@ -358,7 +358,20 @@ func _physics_process(delta: float) -> void:
 				_check("F6: rats INHERIT the earth when predators die (%d → %d)" % [with_pred, without_pred],
 					without_pred > with_pred)
 				_next()
-		14:
+		14: # F9 OFFLINE ECOLOGY: absence advances the floats, never spawns
+			if phase_t > 0.4:
+				var eco9: Dictionary = swamp_row["eco"]
+				var prey0: float = float(eco9.get("prey_density", 0.0))
+				var live0: int = get_tree().get_nodes_in_group("creature").size()
+				var digest: Dictionary = main.world_state.run_offline_catchup(4, 12345)
+				var prey1: float = float(eco9.get("prey_density", 0.0))
+				var live1: int = get_tree().get_nodes_in_group("creature").size()
+				_check("F9: 4 absent days MOVE the land (prey %.2f → %.2f)" % [prey0, prey1],
+					absf(prey1 - prey0) > 0.01)
+				_check("F9: offline advance NEVER spawns (%d → %d live)" % [live0, live1], live1 <= live0)
+				_check("F9: the catchup returns a digest", digest.has("days") and int(digest["days"]) == 4)
+				_next()
+		15:
 			_finish()
 
 	if t > 90.0:

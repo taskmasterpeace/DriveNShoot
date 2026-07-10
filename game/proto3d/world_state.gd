@@ -143,6 +143,20 @@ func run_offline_catchup(days: int, seed_base: int) -> Dictionary:
 		var base_day := int(_main.daynight.day) if ("daynight" in _main and _main.daynight != null) else 0
 		for i in days:
 			_main.events.roll_daily(base_day + i + 1)
+	# THE LAND KEPT LIVING (LWE 0.8 / audit F9): the same RNG-free pressure
+	# equations advance 24 gh per absent day — floats and BANKED COUNTS only,
+	# never a spawn (counts-not-instances is exactly what makes this legal).
+	# One briefing line when the Alley's nest grew bold while you were gone.
+	if "ecology" in _main and _main.ecology != null and "population" in _main and _main.population != null:
+		var nest_eco: Dictionary = _main.population.cell_at(ProtoEcology.AUTHORED_NEST).get("eco", {})
+		var pred0: float = float(nest_eco.get("predator_pressure", 0.0))
+		for i in days:
+			_main.ecology.tick(24.0)
+		var pred1: float = float(nest_eco.get("predator_pressure", 0.0))
+		if pred1 >= pred0 + 0.04:
+			digest["changes"].append("🦴 Predators near the Alley have grown bold while you were gone.")
+		elif pred0 >= pred1 + 0.04:
+			digest["changes"].append("🦴 The Alley's predators thinned out in your absence.")
 	# THE SIGNATURE POLITICAL BEAT: at the major-event threshold, FLORIDA falls to the
 	# Faith Bloc if it isn't already theirs. Deterministic on the threshold (the canonical
 	# slice); the seed only flavors which bulletin voice reports it.
