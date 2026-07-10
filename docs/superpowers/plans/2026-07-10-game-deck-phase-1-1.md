@@ -97,11 +97,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/last_mile/*`, `tests/last_mile_sim.*`
 
-- [ ] Red sim: throttle/brake/steer, lane bounds, deterministic traffic,
+- [x] Red sim: throttle/brake/steer, lane bounds, deterministic traffic,
   collision time penalty, ordered checkpoints, finish, low course-time result.
-- [ ] Implement a pseudo-3D 16:9 courier road using original polygons/lines;
+- [x] Implement a pseudo-3D 16:9 courier road using original polygons/lines;
   ghost/AI follows deterministic racing-line samples.
-- [ ] Commit `feat: add LAST MILE`.
+- [x] Commit `feat: add LAST MILE`.
 
 ## Task 7: IRON DOME
 
