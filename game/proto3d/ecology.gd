@@ -129,8 +129,10 @@ static func wildlife_desired(row: Dictionary) -> Dictionary:
 	var out := {}
 	# grazers live where plants live — never city cores or open water
 	out["grazer"] = 0 if ["urban", "water", "ocean"].has(biome) else int(round(prey * 5.0))
-	# rats live where humans lived — wreck lines, dead suburbs, roadside trash
-	out["rodent"] = int(round(clampf(food - 0.2, 0.0, 1.0) * 3.0)) \
+	# rats live where humans lived — wreck lines, dead suburbs, roadside trash —
+	# and BOOM where the predators died (F6's backfire: clearing the apex is
+	# never a pure win; the rats inherit the earth)
+	out["rodent"] = int(round(clampf(food - 0.2, 0.0, 1.0) * 3.0 * (2.0 - pred))) \
 		if ["suburbs", "industrial", "house_field", "road_shoulder"].has(zone) else 0
 	# vultures ride death — corpse heat IS the read layer made visible
 	out["scavenger"] = clampi(1 + int(heat * 2.0), 0, 3) if heat >= 0.18 else 0

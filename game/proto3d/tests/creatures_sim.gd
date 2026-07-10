@@ -338,7 +338,27 @@ func _physics_process(delta: float) -> void:
 					float(eco5.get("human_noise", 0.0)) > hn0 + 0.2)
 				main.player.global_position = Vector3(-8600, 0.4, 6600) # out of its world
 				_next()
-		13:
+		13: # F6 THE BAIT VERB + THE BACKFIRE
+			if phase_t > 0.5:
+				# bait: dropped meat DRAWS the land (corpse-heat deposit)
+				var bait_cell: Dictionary = main.population.cell_at(main.player.global_position)
+				var h0: float = float((bait_cell["eco"] as Dictionary).get("corpse_heat", 0.0))
+				main.backpack.add("meat", 1)
+				var dropped: bool = main.drop_item("meat")
+				var h1: float = float((bait_cell["eco"] as Dictionary).get("corpse_heat", 0.0))
+				_check("F6: dropped meat BAITS the land (heat %.2f → %.2f)" % [h0, h1],
+					dropped and h1 >= h0 + 0.25)
+				# backfire: rodents boom where the predators died (pure law)
+				var fake := {"biome": "scrub", "zone_tag": "road_shoulder",
+					"eco": {"food_avail": 0.6, "prey_density": 0.3, "predator_pressure": 0.8,
+						"corpse_heat": 0.0, "water_rot": 0.25}}
+				var with_pred: int = int(ProtoEcology.wildlife_desired(fake).get("rodent", 0))
+				(fake["eco"] as Dictionary)["predator_pressure"] = 0.0
+				var without_pred: int = int(ProtoEcology.wildlife_desired(fake).get("rodent", 0))
+				_check("F6: rats INHERIT the earth when predators die (%d → %d)" % [with_pred, without_pred],
+					without_pred > with_pred)
+				_next()
+		14:
 			_finish()
 
 	if t > 90.0:

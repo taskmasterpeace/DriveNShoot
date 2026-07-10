@@ -89,7 +89,7 @@
 | F3 | Apex rarity: bar raised to pred ≥ 0.75 (cold swamps no longer qualify); THE ONE AUTHORED NEST at the Alley (−8000, 6000) runs hot from first touch | DONE | `creatures_sim` 36/0 (nest-banks-1 + generic-swamp-banks-0) |
 | F4 | Noise chain: emit_noise deposits human_noise on the cell (decays 0.12/gh); the apex's claimed ground scales ×(1+0.6·noise) — quiet routes matter | DONE | `creatures_sim` 36/0 (racket check) |
 | F5 | Rats emerge from wrecks (nest-in-object); swamp road_shoulder zone SHIPPED (the Alley banks rodents now) | PARTIAL | zone fix in `creatures_sim` 31/0 |
-| F6 | Bait verb + rodent-boom backfire on apex kill (LWE §9-P1 agency) | OPEN | — |
+| F6 | Bait verb (dropped meat deposits corpse-heat — pull the swamp off your route) + the backfire (rodent desire ×(2−pred): rats inherit the earth) | DONE | `creatures_sim` 38/0 |
 | F7 | Bird language (LWE §3.7): vulture = unkillable marker w/ formation states; + re-materialize loaded chunks so birds gather over watched kills | OPEN | — |
 | F8 | Protected cells bank NO wildlife on the hourly tick (doorstep law) | DONE | `creatures_sim` 31/0 (GAP-8 check) |
 | F9 | Offline ecology (LWE 0.8): pure advance_offline_day + return briefing | OPEN | — |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 42 (…E-set closed… + F1–F4, F8, F10, F12–F14)
-- OPEN: 4 (F6 bait/backfire, F7 bird language, F9 offline ecology, F11 legibility)
+- DONE: 43 (…E-set closed… + F1–F4, F6, F8, F10, F12–F14)
+- OPEN: 3 (F7 bird language, F9 offline ecology, F11 legibility)
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)
