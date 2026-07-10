@@ -94,7 +94,7 @@
 | F8 | Protected cells bank NO wildlife on the hourly tick (doorstep law) | DONE | `creatures_sim` 31/0 (GAP-8 check) |
 | F9 | Offline ecology: run_offline_catchup advances the SAME RNG-free equations 24 gh/day (floats + banked counts, never a spawn) + Alley-boldness briefing line | DONE | `creatures_sim` 41/0 + `offline_catchup_sim` 16/0 |
 | F10 | Pre-eco saves heal on touch (eco backfill in cell_at) | DONE | `creatures_sim` 31/0 (GAP-10 check) |
-| F11 | Legibility layer (LWE 0.9): threat-priority stack, toast queue, cause-stamped beats | OPEN | — |
+| F11 | Legibility: set_threat is an OWNER/priority/ttl STACK (writers never blank each other); toasts QUEUE (a burst plays in order); the over-hunt beat is cause-stamped once per sector | DONE | `creatures_sim` 50/0 + bandit 18/0 + gadget 19/0 |
 | F12 | 0.11 BODY LAW on ALL death paths: howler/lurker/companion/infected pass their rigs | DONE | threat 17/0 · crew 11/0 · infected 10/0 · corpse 12/0 |
 | F13 | Furnisher cap semantics: per-CHUNK ≤3 (awake_by_chunk ledger; global-6 removed — no co-op starvation) | DONE | `furnisher_lod_sim` 11/0 (4-shell cluster: 3 wake) |
 | F14 | Catalog completion: 14 Building Book rows landed (53 total, all lawful: districts + JOB rule; silhouette overrides on the landmark rows) | DONE | `structure_data_sim` 36/0 + `silhouette_sim` 21/0 (53/53 materialize) |
@@ -102,8 +102,8 @@
 ---
 
 ## Status roll-up (post-audit-1, iteration 4)
-- DONE: 45 (…E-set closed… + F1–F4, F6–F10, F12–F14)
-- OPEN: 1 (F11 legibility)
+- DONE: 46 (…E-set closed… + THE WHOLE F-CONTRACT ARC F1–F14)
+- OPEN: 0 — **every build row is closed**
 - PARTIAL: 3 (P18, E12, F5)
 - DEFERRED: 7 (P14, P16, P-clarify-1, E16, E18, E22, E23)
 - **Audit 1 added 14 rows** (4 closed same iteration)

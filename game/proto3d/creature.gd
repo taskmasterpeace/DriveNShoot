@@ -213,6 +213,13 @@ func _die() -> void:
 		for k in (row.get("eco_kill", {}) as Dictionary):
 			if eco.has(k):
 				eco[k] = clampf(float(eco[k]) + float((row["eco_kill"] as Dictionary)[k]), 0.0, 1.0)
+		# THE CAUSE-STAMPED BEAT (LWE 0.9 / audit F11): when YOUR hunting
+		# thins the herds past the line, the game says so — once per sector.
+		if eco.has("prey_density") and float(eco["prey_density"]) < 0.15 \
+				and not bool(eco.get("_thinned_told", false)):
+			eco["_thinned_told"] = true
+			if _main.has_method("notify"):
+				_main.notify("🦴 The herds here are THINNING — the packs will come looking.")
 		_main.population.on_actor_removed(self)
 	var loot := {}
 	for item_id in (row.get("loot", {}) as Dictionary):

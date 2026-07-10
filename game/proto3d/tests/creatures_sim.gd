@@ -242,6 +242,7 @@ func _physics_process(delta: float) -> void:
 			# measure the VICTIM'S cell — it may have wandered across a 500 m
 			# line since realization; eco_kill lands where the body falls
 			_victim_cell = main.population.cell_at(_victim_pos)
+			(_victim_cell["eco"] as Dictionary)["prey_density"] = 0.18 # near the thinning line
 			_pre_kill_prey = float((_victim_cell["eco"] as Dictionary).get("prey_density", 0.0))
 			_victim.take_damage(999.0)
 			_next()
@@ -269,6 +270,23 @@ func _physics_process(delta: float) -> void:
 				var prey_now: float = float((_victim_cell["eco"] as Dictionary).get("prey_density", 0.0))
 				_check("the kill wrote back to the land (prey %.3f < %.3f)" % [prey_now, _pre_kill_prey],
 					prey_now < _pre_kill_prey)
+				# F11: the cause-stamped over-hunt beat fired, once per sector
+				_check("F11: thinning the herd is CALLED OUT (once)",
+					bool((_victim_cell["eco"] as Dictionary).get("_thinned_told", false)))
+				# F11: the threat STACK — priority renders, release restores, ttl expires
+				main.hud.set_threat("nest territory", "eco", 2)
+				main.hud.set_threat("CHECKPOINT AHEAD", "bandit", 4)
+				_check("F11: the higher tell WINS the line", main.hud._threat_label.text == "CHECKPOINT AHEAD")
+				main.hud.set_threat("", "bandit")
+				_check("F11: releasing it RESTORES the lower tell", main.hud._threat_label.text == "nest territory")
+				main.hud.set_threat("", "eco")
+				# F11: the toast QUEUE — a burst plays in order, never clobbers
+				# (clear first: the sim's own beats have been queuing all run)
+				main.hud._toast_q.clear()
+				main.hud.toast("first beat")
+				main.hud.toast("second beat")
+				_check("F11: a toast burst QUEUES (first shows, second waits)",
+					main.hud._toast_label.text == "first beat" and main.hud._toast_q.size() == 2)
 				_next()
 		9: # THE NEST MACHINE (drive the floats, walk the states)
 			if _kb == null or not is_instance_valid(_kb):
