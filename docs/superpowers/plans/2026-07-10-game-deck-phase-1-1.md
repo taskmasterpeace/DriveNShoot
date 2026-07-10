@@ -107,10 +107,10 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/iron_dome/*`, `tests/iron_dome_sim.*`
 
-- [ ] Red sim: target cursor, interceptor launch, manual detonation, expanding
+- [x] Red sim: target cursor, interceptor launch, manual detonation, expanding
   blast, missile chain, city hit, ammo exhaustion, score/cities result.
-- [ ] Implement portrait missile-defense rules and original settlement skyline.
-- [ ] Commit `feat: add IRON DOME`.
+- [x] Implement portrait missile-defense rules and original settlement skyline.
+- [x] Commit `feat: add IRON DOME`.
 
 ## Task 8: FALL LINE
 

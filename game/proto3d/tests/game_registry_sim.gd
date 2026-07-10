@@ -49,7 +49,9 @@ func _ready() -> void:
 		and reg.enabled("bunker_breaker") and reg.cartridge_contract_error("bunker_breaker") == "")
 	_check("landscape racer clears scene and notice gates", reg.installed("last_mile")
 		and reg.enabled("last_mile") and reg.cartridge_contract_error("last_mile") == "")
-	_check("missing future scenes are uninstalled, not malformed", not reg.installed("iron_dome"))
+	_check("missile-defense cartridge clears scene and notice gates", reg.installed("iron_dome")
+		and reg.enabled("iron_dome") and reg.cartridge_contract_error("iron_dome") == "")
+	_check("missing future scenes are uninstalled, not malformed", not reg.installed("fall_line"))
 	_check("catalog validates without row errors", reg.load_warnings.is_empty())
 	_finish()
 
