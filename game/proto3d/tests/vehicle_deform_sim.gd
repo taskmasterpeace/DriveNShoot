@@ -124,6 +124,24 @@ func _ready() -> void:
 	_check("mark summary round-trip regenerates the capped pool deterministically",
 		marked_fresh_visual.restore(marked_snapshot)
 		and marked_fresh_visual.facts()["mark_summaries"] == marked_snapshot.get("marks", []))
+	var car_snapshot: Dictionary = mark_car.snapshot_damage()
+	_check("car damage snapshot carries compact zones, armor durability, seed, and marks",
+		car_snapshot.has("impact") and (car_snapshot["impact"] as Dictionary).has_all([
+			"version", "zones", "armor_durability", "deformation_seed", "marks"]))
+	var roundtrip_car := _car(21.0)
+	roundtrip_car.restore_damage(car_snapshot)
+	_check("car-level damage restore regenerates the same impact state",
+		roundtrip_car.damage_visual.snapshot() == mark_car.damage_visual.snapshot()
+		and roundtrip_car.impact_armor_durability == mark_car.impact_armor_durability)
+	var old_record: Dictionary = car_snapshot.duplicate(true)
+	old_record.erase("impact")
+	var old_save_car := _car(27.0)
+	_impact(old_save_car, "front", 90.0)
+	old_save_car.restore_damage(old_record)
+	_check("pre-L2 damage record restores as a clean finite impact presentation",
+		int(old_save_car.damage_visual.facts()["mark_count"]) == 0
+		and (old_save_car.damage_visual.facts()["zones"] as Dictionary).values().all(
+			func(value: Variant) -> bool: return is_zero_approx(float(value))))
 	_finish()
 
 

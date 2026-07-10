@@ -67,10 +67,23 @@ func _ready() -> void:
 	ghost.adopted = true
 	main.metaworld.dehydrate(ghost)
 	var meta0: int = main.metaworld.records.size()
+	# L2 IMPACT BAY: compact zone/armor/mark state rides the campaign save.
+	var saved_car: ProtoCar3D = main.cars[0]
+	var clean_vehicle_damage: Dictionary = saved_car.snapshot_damage()
+	var half: Vector3 = saved_car.spec["hull"] * 0.5
+	saved_car.take_impact({"world_pos":saved_car.global_transform * Vector3(0, 0.4, -half.z),
+		"world_normal":-saved_car.global_basis.z, "incoming_dir":saved_car.global_basis.z,
+		"energy":86.0, "penetration":20.0, "source":"bullet", "weapon_id":"save_probe"})
+	var damaged_vehicle: Dictionary = saved_car.snapshot_damage()
 
 	# --- SAVE, then WRECK everything -------------------------------------------------
-	main.save_game()
+	var first_save: Dictionary = main.save_game()
 	_check("the save hit the disk", FileAccess.file_exists(main.SAVE_PATH))
+	_check("vehicle impact record is present and compact",
+		first_save.has("vehicle_damage") and not (first_save["vehicle_damage"] as Array).is_empty()
+		and (damaged_vehicle["impact"] as Dictionary).has_all([
+			"zones", "armor_durability", "deformation_seed", "marks"]))
+	saved_car.restore_damage(clean_vehicle_damage)
 	main.backpack.remove("scrip", jack0)
 	main.daynight.day = 1
 	main.respect.add_infamy("NEVADA", 500.0)
@@ -86,6 +99,11 @@ func _ready() -> void:
 	# --- LOAD: the road remembers -------------------------------------------------
 	main.ecology._last_h = 999999.0 # a stale eco clock a load must re-anchor
 	_check("load succeeds", main.load_game())
+	var restored_vehicle: Dictionary = saved_car.snapshot_damage()
+	_check("vehicle dents, face armor, and marks came back",
+		restored_vehicle.has("impact") and damaged_vehicle.has("impact")
+		and (restored_vehicle["impact"] as Dictionary) ==
+			(damaged_vehicle["impact"] as Dictionary))
 	_check("the pockets came back (%d scrip)" % main.backpack.count("scrip"), main.backpack.count("scrip") == jack0)
 	# LWE §0.7 (audit-3): the eco tick RE-ANCHORS to the restored clock — an
 	# older save must never freeze the director, a newer one must never fire

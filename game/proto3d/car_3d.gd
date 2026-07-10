@@ -1152,20 +1152,25 @@ func any_punctured() -> bool:
 	return false
 
 
-# --- Damage snapshot/restore (round-trip proof — no per-car save exists yet; -----
-# this is the self-contained hook the future save-integration work can call into).
+# --- Damage snapshot/restore: components + compact deterministic impact look. ---
 
 ## All 6 damage parts + fuel + fire state as a plain, JSON/var_to_str-safe dict.
 func snapshot_damage() -> Dictionary:
 	var comp_hp := {}
 	for cid in components:
 		comp_hp[cid] = (components[cid] as Damageable).hp
+	var visual_state: Dictionary = damage_visual.snapshot() if damage_visual != null else {}
 	return {
 		"components": comp_hp,
 		"punctured": _punctured.duplicate(),
 		"fuel": fuel,
 		"fire_state": fire_state,
 		"cook": cook,
+		"impact": {"version":1, "zones":impact_zones.duplicate(true),
+			"armor_durability":impact_armor_durability.duplicate(true),
+			"deformation_seed":int(visual_state.get("deformation_seed",
+				impact_profile.get("deformation_seed", 1001))),
+			"marks":(visual_state.get("marks", []) as Array).duplicate(true)},
 	}
 
 
@@ -1184,6 +1189,30 @@ func restore_damage(d: Dictionary) -> void:
 	fuel = float(d.get("fuel", fuel))
 	fire_state = int(d.get("fire_state", fire_state)) as FireState
 	cook = float(d.get("cook", cook))
+	var impact: Dictionary = d.get("impact", {})
+	if int(impact.get("version", 0)) == 1:
+		var restored_zones: Dictionary = impact.get("zones", {})
+		for zone in impact_zones:
+			impact_zones[zone] = clampf(float(restored_zones.get(zone, 0.0)), 0.0, 1.0)
+		var defaults: Dictionary = VEHICLE_IMPACT_SCRIPT.initial_armor_durability(impact_profile)
+		var restored_armor: Dictionary = impact.get("armor_durability", {})
+		for zone in defaults:
+			impact_armor_durability[zone] = clampf(float(restored_armor.get(zone,
+				defaults[zone])), 0.0, float(defaults[zone]))
+		if damage_visual != null:
+			damage_visual.restore({"version":1, "zones":impact_zones.duplicate(true),
+				"deformation_seed":int(impact.get("deformation_seed",
+					impact_profile.get("deformation_seed", 1001))),
+				"marks":(impact.get("marks", []) as Array).duplicate(true)})
+	else:
+		for zone in impact_zones:
+			impact_zones[zone] = 0.0
+		impact_armor_durability = VEHICLE_IMPACT_SCRIPT.initial_armor_durability(impact_profile)
+		if damage_visual != null:
+			damage_visual.restore({"version":1, "zones":impact_zones.duplicate(true),
+				"deformation_seed":int(impact_profile.get("deformation_seed", 1001)),
+				"marks":[]})
+	last_impact.clear()
 
 
 # --- The death spiral: HEALTHY -> SMOKING -> ON FIRE -> cook -> HUSK (always burnt) ---

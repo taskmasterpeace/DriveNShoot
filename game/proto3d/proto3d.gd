@@ -4016,6 +4016,30 @@ func begin_new_game() -> void:
 		objectives.arm()
 
 
+func _vehicle_damage_records() -> Array:
+	var records: Array = []
+	for i in cars.size():
+		var car: ProtoCar3D = cars[i]
+		if car != null and is_instance_valid(car):
+			records.append({"index":i, "vclass":car.vclass, "damage":car.snapshot_damage()})
+	return records
+
+
+func _restore_vehicle_damage_records(records: Array) -> void:
+	for raw_record in records:
+		if raw_record is not Dictionary:
+			continue
+		var record: Dictionary = raw_record
+		var index: int = int(record.get("index", -1))
+		if index < 0 or index >= cars.size():
+			continue
+		var car: ProtoCar3D = cars[index]
+		if car == null or not is_instance_valid(car) \
+			or car.vclass != String(record.get("vclass", "")):
+			continue
+		car.restore_damage(record.get("damage", {}) as Dictionary)
+
+
 func save_game() -> Dictionary:
 	var dogs_out: Array = []
 	for d in get_tree().get_nodes_in_group("proto_dog"): # the group never lies (arrays can)
@@ -4048,6 +4072,8 @@ func save_game() -> Dictionary:
 		# FURNITURE DRAG (prototype 2026-07-08): where you've dragged the TV (and any
 		# future furniture) — keyed by furniture_id so a moved set stays moved on reload.
 		"furniture": _furniture_records(),
+		# L2 IMPACT BAY: compact component + face armor + seeded dents/mark summaries.
+		"vehicle_damage": _vehicle_damage_records(),
 		# THE POPULATION LEDGER (P0): the 500m count cells ride the one file.
 		"population": population.serialize() if population != null else {},
 		# THE CHAIR (CLONING C1): the backup + the journal survive everything.
@@ -4186,6 +4212,8 @@ func apply_save(data: Dictionary) -> void:
 			g.siege_deadline_day = int(data["sieges"][sid])
 	homebase.restore(data.get("homebase", []))
 	_furniture_load(data.get("furniture", {}))
+	if data.has("vehicle_damage"): # old saves had no vehicle records and remain valid
+		_restore_vehicle_damage_records(data.get("vehicle_damage", []) as Array)
 	var circ: Dictionary = data.get("circuit", {})
 	circuit_level = int(circ.get("level", 1))
 	var b: Dictionary = circ.get("beats", {})
