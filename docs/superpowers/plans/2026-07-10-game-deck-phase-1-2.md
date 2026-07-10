@@ -144,12 +144,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/fight_night_99/*`, `tests/fight_night_99_sim.*`
 
-- [ ] Red sim: character/archetype selection, walk/crouch, high/low/heavy hit
+- [x] Red sim: character/archetype selection, walk/crouch, high/low/heavy hit
   windows, standing/crouching guard, throw, recovery, special meter, KO, best-of
   rounds, deterministic AI, two local seats, snapshot, and wins/HP result.
-- [ ] Implement original road legends and ring art; no upstream character art,
+- [x] Implement original road legends and ring art; no upstream character art,
   names, animation frames, or prose.
-- [ ] Commit `feat: add FIGHT NIGHT '99`.
+- [x] Commit `feat: add FIGHT NIGHT '99`.
 
 ## Task 10: ASHLAND COMMAND
 
