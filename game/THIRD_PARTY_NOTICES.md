@@ -37,13 +37,21 @@ Pinned revisions, upstream URLs, copyright notices, full MIT texts, precise
 inclusions, and exclusions are stored in `res://data/game_sources.json` and
 `res://third_party/licenses/` and are surfaced by each cartridge's ABOUT tab.
 
+### OpenSoldat implementation reference
+
+RUST RUNNERS uses selected engine implementation knowledge and player-facing
+mechanical relationships from OpenSoldat at pinned revision
+`967097b7623f6e8b24b3bc7ad10d97a9367a99f0`, under the MIT License. See
+`res://third_party/licenses/opensoldat-mit.txt`. RUST RUNNERS' code, arenas,
+names, text, UI, character shapes, and primitive art are original DRIVN work.
+The Soldat mark and OpenSoldat base maps, sprites, art, audio, branding, and
+other CC BY 4.0 base content are excluded and were not imported.
+
 ## Pre-integration provenance records
 
-The following records support cataloged future cartridges. Their presence is
-not a claim that their code or content ships in the current build:
+The following record supports a cataloged future cartridge. Its presence is
+not a claim that its code or content ships in the current build:
 
-- OpenSoldat — MIT engine reference; marks, maps, default art/audio excluded
-- OpenSoldat Base — CC BY 4.0 reference only; no base content included
 - FreeInfantry / Infantry Online — clean-room reference only; no licensed or
   proprietary client/server material imported
 

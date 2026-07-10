@@ -121,8 +121,9 @@ func fire(actor_id: int, weapon_id: String, origin: Vector2, aim: Vector2,
 			_trace_hitscan(actor_id, origin, direction, row)
 		else:
 			_spawn_projectile(actor_id, origin, direction, row, extra)
-	actor["velocity"] = Vector2(actor.get("velocity", Vector2.ZERO)) \
-		- base_direction * float(row.get("recoil", 0.0))
+	var recoil_impulse := -base_direction * float(row.get("recoil", 0.0))
+	actor["velocity"] = Vector2(actor.get("velocity", Vector2.ZERO)) + recoil_impulse
+	actor["last_recoil"] = recoil_impulse
 	var fired := {"kind": "fire", "tick": tick, "actor_id": actor_id,
 		"weapon_id": weapon_id, "directions": directions,
 		"ammo": int(state["ammo"]), "recoil": float(row.get("recoil", 0.0))}
@@ -287,13 +288,15 @@ func damage_actor(actor_id: int, amount: float, armor_pierce: float,
 	if amount <= 0.0 or not actors.has(actor_id):
 		return false
 	var actor: Dictionary = actors[actor_id]
-	if not bool(actor.get("alive", false)):
+	if not bool(actor.get("alive", false)) or int(actor.get("spawn_protection", 0)) > 0:
 		return false
 	var armor := float(actor.get("armor", 0.0))
 	var absorb := minf(armor, amount * (1.0 - clampf(armor_pierce, 0.0, 1.0)))
 	actor["armor"] = armor - absorb
 	actor["hp"] = maxf(0.0, float(actor.get("hp", 0.0)) - (amount - absorb))
-	actor["velocity"] = Vector2(actor.get("velocity", Vector2.ZERO)) + direction * knockback
+	var knockback_impulse := direction * knockback
+	actor["velocity"] = Vector2(actor.get("velocity", Vector2.ZERO)) + knockback_impulse
+	actor["last_knockback"] = knockback_impulse
 	if float(actor["hp"]) <= 0.0:
 		actor["alive"] = false
 	events.append({"kind": "damage", "tick": tick, "actor_id": actor_id,
@@ -317,7 +320,7 @@ func _explode(projectile: Dictionary) -> void:
 		if not bool(actor.get("alive", false)) or (not friendly
 				and int(actor.get("team", -2)) == owner_team):
 			continue
-		var offset := Vector2(actor.get("pos", Vector2.ZERO)) - center
+		var offset := Vector2(actor.get("hit_pos", actor.get("pos", Vector2.ZERO))) - center
 		var distance := offset.length()
 		if distance > radius:
 			continue
@@ -358,7 +361,8 @@ func _first_actor_hit_data(start: Vector2, finish: Vector2, owner: int, team: in
 				and int(actor.get("team", -2)) == team):
 			continue
 		var fraction := _segment_circle_fraction(start, finish,
-			Vector2(actor.get("pos", Vector2.ZERO)), float(actor.get("radius", 12.0)))
+			Vector2(actor.get("hit_pos", actor.get("pos", Vector2.ZERO))),
+			float(actor.get("radius", 12.0)))
 		if fraction >= 0.0 and fraction < best_fraction:
 			best_fraction = fraction
 			best = {"actor_id": actor_id, "fraction": fraction}

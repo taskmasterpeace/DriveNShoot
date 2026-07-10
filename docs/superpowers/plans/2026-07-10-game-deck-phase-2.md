@@ -66,16 +66,16 @@ asset is declared.
 - Create: `game/proto3d/games/rust_runners/rust_runners.gd/.tscn`
 - Create: `game/proto3d/tests/rust_runners_sim.gd/.tscn`
 
-- [ ] Red sim: deterministic side-view acceleration, air control, gravity,
+- [x] Red sim: deterministic side-view acceleration, air control, gravity,
   platform collision, jump/limited jet fuel, recharge, crouch, prone,
   roll/backflip, stance hull changes, and velocity-scaled fall damage.
-- [ ] Prove independent full-angle aim, primary/secondary slots, weapon swap and
+- [x] Prove independent full-angle aim, primary/secondary slots, weapon swap and
   drop/pickup, magazine reload, thrown grenade, hitscan/projectile weapons,
   spread/recoil/knockback, health/vest/grenade pickups, spawn protection,
   ragdoll-like primitive death pieces, gore toggle, and timed respawn.
-- [ ] Author at least three original data-driven arenas: refinery steel, broken
+- [x] Author at least three original data-driven arenas: refinery steel, broken
   bridge truss, and truck graveyard; import no upstream map or content.
-- [ ] Commit `feat: build Rust Runners movement and combat`.
+- [x] Commit `feat: build Rust Runners movement and combat`.
 
 ## Task 3: RUST RUNNERS modes, bots, multiplayer, and presentation
 

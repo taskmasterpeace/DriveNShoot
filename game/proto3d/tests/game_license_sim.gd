@@ -43,13 +43,13 @@ func _ready() -> void:
 	var current_material := aggregate.get_slice("## Pre-integration provenance records", 0)
 	var current_sources := ["LittleJS Arcade", "3-Bit Games", "Godot Demo Projects",
 		"Bashball", "Cars on the Road", "Flying Turtles", "Wrathskeller",
-		"Tanks of Freedom"]
-	_check("aggregate notice identifies every Phase 1 source as material used",
+		"Tanks of Freedom", "OpenSoldat"]
+	_check("aggregate notice identifies every installed source as material used",
 		current_sources.all(func(source_name: String) -> bool:
 			return current_material.contains(source_name)))
 	var future_material := aggregate.get_slice("## Pre-integration provenance records", 1)
-	_check("only the two uninstalled Phase 2 provenance families remain future",
-		future_material.contains("OpenSoldat") and future_material.contains("FreeInfantry")
+	_check("only the uninstalled BLACK GRID provenance family remains future",
+		future_material.contains("FreeInfantry") and not future_material.contains("OpenSoldat")
 		and not future_material.contains("3-Bit Games")
 		and not future_material.contains("Tanks of Freedom"))
 	var tanks: Dictionary = reg.get_source("tanks_of_freedom")
