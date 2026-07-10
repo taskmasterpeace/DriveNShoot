@@ -93,6 +93,10 @@ func interact(_main: Node) -> void:
 func set_powered(value: bool) -> void:
 	powered = value
 	if not powered:
+		if session_broker != null and session_broker.has_method("leave_lobby"):
+			session_broker.leave_lobby("CONSOLE LOST POWER")
+		if shell != null and String(shell.get("current_view")) == "match":
+			shell.close_to_device()
 		if deck != null and deck.cartridge != null \
 				and String(deck.current_context.get("device", "")) == "console":
 			deck.stop("power_lost")

@@ -579,6 +579,7 @@ func _build_environment() -> void:
 	var console_script := load("res://proto3d/games/game_console.gd") as GDScript
 	game_console = console_script.create(self, game_deck, game_shell)
 	add_child(game_console)
+	game_shell.attach_terminal(game_console, game_console.session_broker)
 	game_console.global_position = SAFEHOUSE + Vector3(-0.9, 0.0, -2.2)
 	_face_toward(game_console, SAFEHOUSE)
 	var handheld_script := load("res://proto3d/games/game_handheld.gd") as GDScript

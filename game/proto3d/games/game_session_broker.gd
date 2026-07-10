@@ -119,8 +119,10 @@ func eligible_peers(mode: String = "") -> Array:
 
 func invite_peer(peer_id: int) -> bool:
 	_expire_invitations()
-	if lobby.is_empty() or peer_id <= 0:
+	if lobby.is_empty():
 		return _set_status("NO MATCH CONFIGURED")
+	if peer_id <= 0:
+		return _set_status("NO PLAYER AVAILABLE")
 	var seats: Array = lobby.get("seats", [])
 	if seats.size() + _pending_player_invitation_count() >= int(lobby.get("capacity", 1)):
 		return _set_status("MATCH IS FULL")
@@ -169,6 +171,9 @@ func pending_invitations() -> Array:
 
 
 func join_invitation(invitation_id: String, as_spectator: bool = false) -> bool:
+	if invitation_id == "":
+		return _set_status("NO LIVE MATCH TO SPECTATE" if as_spectator \
+			else "NO INVITATION TO JOIN")
 	if used_invitation_ids.has(invitation_id):
 		return _set_status("INVITATION ALREADY USED")
 	_expire_invitations()
@@ -218,6 +223,14 @@ func start_match() -> bool:
 	}
 	launch_ready.emit({"game_id": String(lobby.get("game_id", "")), "context": context})
 	_set_status("MATCH STARTING")
+	return true
+
+
+func set_bot_fill(enabled: bool) -> bool:
+	if lobby.is_empty():
+		return _set_status("NO MATCH CONFIGURED")
+	lobby["bot_fill"] = enabled
+	_set_status("BOT FILL ON" if enabled else "BOT FILL OFF")
 	return true
 
 

@@ -247,7 +247,7 @@ git commit -m "feat: add Game Deck lobby policy"
 - Produces: shell `attach_terminal(console, broker)` and `open_lobby(game_id, context)`
 - Consumes: Task 2 broker API and `launch_ready`
 
-- [ ] **Step 1: Write the failing real-Button UI simulation**
+- [x] **Step 1: Write the failing real-Button UI simulation**
 
 Instantiate the real deck, shell, console, broker, and lobby. Open DIAL TANKS
 from the real console library and assert the shell enters MATCH, not PLAY.
@@ -271,11 +271,11 @@ Press every action and assert its intended mode, status, invite, join,
 spectator, or bot-toggle state. Assert hover/focus styles exist and the lobby
 fits within 1280x720 and the shell's 720x600 minimum.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Expected: `game_lobby.gd` is missing and console selection still auto-starts.
 
-- [ ] **Step 3: Build the isolated lobby Control**
+- [x] **Step 3: Build the isolated lobby Control**
 
 Construct a responsive `VBoxContainer` with:
 
@@ -293,7 +293,7 @@ Use existing shell constants by value in the lobby file: ink `11100d`, card
 Implement the exact public API from the design. `snapshot_ui` returns labels,
 enabled states, selected mode/peer, roster, invitations, bot fill, and status.
 
-- [ ] **Step 4: Integrate MATCH into the shell**
+- [x] **Step 4: Integrate MATCH into the shell**
 
 Add MATCH to `_tabs`, add the lobby to the view stack, and update `_sync_views`.
 Console library selection calls `open_lobby`; handheld selection keeps
@@ -306,7 +306,7 @@ func _on_lobby_launch(request: Dictionary) -> void:
 
 Venue-owned `open_game` calls remain direct and unchanged.
 
-- [ ] **Step 5: Wire the real main scene**
+- [x] **Step 5: Wire the real main scene**
 
 After `ProtoGameConsole.create` has created its broker, call:
 
@@ -317,13 +317,13 @@ game_shell.attach_terminal(game_console, game_console.session_broker)
 Power loss closes the lobby, clears ephemeral broker state, and leaves the
 console's existing dark-screen behavior intact.
 
-- [ ] **Step 6: Run GREEN and shell/device regressions**
+- [x] **Step 6: Run GREEN and shell/device regressions**
 
 Run `game_lobby_sim`, `game_shell_sim`, and `game_device_sim`. Expected: all
 seven labels pass, console selection opens MATCH, handheld/venue play remains
 direct, and no frame/time-scale regression occurs.
 
-- [ ] **Step 7: Commit the visible lobby**
+- [x] **Step 7: Commit the visible lobby**
 
 ```powershell
 git add game/proto3d/games/game_lobby.gd game/proto3d/games/game_shell.gd game/proto3d/games/game_console.gd game/proto3d/proto3d.gd game/proto3d/tests/game_lobby_sim.* game/proto3d/tests/game_shell_sim.gd game/proto3d/tests/game_device_sim.gd

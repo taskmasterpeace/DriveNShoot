@@ -118,7 +118,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var portrait_frame: Rect2 = get_viewport().get_visible_rect()
 	var portrait_controls: Array = [shell._root, shell._title, shell._status,
-		shell._tabs["library"], shell._tabs["play"], shell._tabs["help"],
+		shell._tabs["library"], shell._tabs["match"], shell._tabs["play"], shell._tabs["help"],
 		shell._tabs["controls"], shell._tabs["about"], shell._tabs["scores"]]
 	var portrait_in_frame := true
 	for control_value in portrait_controls:

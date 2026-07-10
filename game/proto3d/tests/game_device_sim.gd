@@ -57,6 +57,13 @@ func _ready() -> void:
 	await _e()
 	_check("real E input opens the shared console library", main.game_shell.is_open
 		and main.game_shell.current_view == "library")
+	_check("the real main scene wires the console to one MATCH lobby",
+		main.game_shell.lobby != null and console.session_broker != null)
+	main.game_shell.first_library_button.pressed.emit()
+	await get_tree().process_frame
+	_check("real console cartridge selection opens MATCH before play",
+		main.game_shell.current_view == "match" and main.game_deck.cartridge == null)
+	main.game_shell.open_library("console", {"source": "console", "device": "console"})
 	for _i in 3:
 		await get_tree().physics_frame
 	_check("fullscreen shell locks the body", main.player.input_locked)

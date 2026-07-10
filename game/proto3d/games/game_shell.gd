@@ -15,6 +15,7 @@ var is_open := false
 var current_view := "library"
 var current_text := ""
 var first_library_button: Button = null
+var lobby: Control = null
 var _root: PanelContainer
 var _title: Label
 var _status: Label
@@ -23,8 +24,11 @@ var _library_scroll: ScrollContainer
 var _library_box: VBoxContainer
 var _text_scroll: ScrollContainer
 var _text_label: RichTextLabel
+var _view_stack: Control
 var _tabs: Dictionary = {}
 var _library_context: Dictionary = {}
+var _terminal: Node3D = null
+var _broker: RefCounted = null
 
 
 static func create(new_deck: Node) -> CanvasLayer:
@@ -92,7 +96,7 @@ func _build_ui() -> void:
 	var tab_bar := HBoxContainer.new()
 	tab_bar.add_theme_constant_override("separation", 6)
 	layout.add_child(tab_bar)
-	for tab in [["library", "LIBRARY"], ["play", "PLAY"], ["help", "HELP"],
+	for tab in [["library", "LIBRARY"], ["match", "MATCH"], ["play", "PLAY"], ["help", "HELP"],
 			["controls", "CONTROLS"], ["about", "ABOUT"], ["scores", "SCORES"]]:
 		var button := Button.new()
 		button.text = String(tab[1])
@@ -116,21 +120,21 @@ func _build_ui() -> void:
 	body_style.corner_radius_bottom_right = 8
 	body.add_theme_stylebox_override("panel", body_style)
 	layout.add_child(body)
-	var stack := Control.new()
-	stack.custom_minimum_size = Vector2(0, 510)
-	body.add_child(stack)
+	_view_stack = Control.new()
+	_view_stack.custom_minimum_size = Vector2(0, 510)
+	body.add_child(_view_stack)
 
 	_screen = TextureRect.new()
 	_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_screen.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	stack.add_child(_screen)
+	_view_stack.add_child(_screen)
 
 	_library_scroll = ScrollContainer.new()
 	_library_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_library_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stack.add_child(_library_scroll)
+	_view_stack.add_child(_library_scroll)
 	_library_box = VBoxContainer.new()
 	_library_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_library_box.add_theme_constant_override("separation", 6)
@@ -139,7 +143,7 @@ func _build_ui() -> void:
 	_text_scroll = ScrollContainer.new()
 	_text_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_text_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	stack.add_child(_text_scroll)
+	_view_stack.add_child(_text_scroll)
 	_text_label = RichTextLabel.new()
 	_text_label.bbcode_enabled = true
 	_text_label.fit_content = true
@@ -152,6 +156,50 @@ func _build_ui() -> void:
 	_status.text = "WORLD LIVE // START or ESC: menu // F1: help"
 	_status.add_theme_color_override("font_color", DIM)
 	layout.add_child(_status)
+
+
+func attach_terminal(terminal: Node3D, broker: RefCounted) -> void:
+	_terminal = terminal
+	if _broker != broker:
+		if _broker != null and _broker.has_signal("launch_ready") \
+				and _broker.launch_ready.is_connected(_on_lobby_launch):
+			_broker.launch_ready.disconnect(_on_lobby_launch)
+		_broker = broker
+		if _broker != null and _broker.has_signal("launch_ready") \
+				and not _broker.launch_ready.is_connected(_on_lobby_launch):
+			_broker.launch_ready.connect(_on_lobby_launch)
+	if lobby == null and broker != null:
+		var lobby_script := load("res://proto3d/games/game_lobby.gd") as GDScript
+		lobby = lobby_script.create(broker)
+		_view_stack.add_child(lobby)
+		lobby.leave_requested.connect(_on_lobby_leave)
+	_sync_views()
+
+
+func open_lobby(game_id: String, context: Dictionary = {}) -> bool:
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	if lobby == null or _broker == null:
+		_status.text = "MATCH TERMINAL NOT ATTACHED"
+		return false
+	current_view = "match"
+	_title.text = "GAME DECK // MATCH"
+	var configured := bool(lobby.call("configure", game_id, context))
+	_status.text = "WORLD LIVE // MATCH SETUP // START or ESC: close"
+	_sync_views()
+	lobby.call_deferred("focus_default")
+	return configured
+
+
+func _on_lobby_launch(request: Dictionary) -> void:
+	open_game(String(request.get("game_id", "")),
+		(request.get("context", {}) as Dictionary).duplicate(true))
+
+
+func _on_lobby_leave() -> void:
+	open_library("console", _library_context)
 
 
 func open_library(platform: String = "", context: Dictionary = {}) -> void:
@@ -199,7 +247,11 @@ func _rebuild_library(platform: String) -> void:
 			var launch_context := _library_context.duplicate(true)
 			if not launch_context.has("source"):
 				launch_context["source"] = "solo"
-			open_game(game_id, launch_context))
+			if String(row.get("platform", "")) == "console" \
+					and String(launch_context.get("device", "")) == "console":
+				open_lobby(game_id, launch_context)
+			else:
+				open_game(game_id, launch_context))
 		_library_box.add_child(button)
 		if first_library_button == null:
 			first_library_button = button
@@ -249,6 +301,12 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 func show_view(view_id: String) -> void:
 	if view_id == "library":
 		open_library(String(deck.current_row.get("platform", "")))
+		return
+	if view_id == "match":
+		current_view = "match"
+		if lobby != null:
+			lobby.call("refresh")
+		_sync_views()
 		return
 	if deck.current_row.is_empty() and view_id != "pause":
 		_set_text("NO CARTRIDGE // choose one from LIBRARY")
@@ -351,7 +409,9 @@ func _set_text(text: String) -> void:
 func _sync_views() -> void:
 	_screen.visible = current_view == "play"
 	_library_scroll.visible = current_view == "library"
-	_text_scroll.visible = current_view not in ["play", "library"]
+	if lobby != null:
+		lobby.visible = current_view == "match"
+	_text_scroll.visible = current_view not in ["play", "library", "match"]
 	for tab_id in _tabs:
 		(_tabs[tab_id] as Button).button_pressed = String(tab_id) == current_view
 
