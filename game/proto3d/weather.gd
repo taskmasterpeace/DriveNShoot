@@ -48,10 +48,12 @@ static var grip_now: float = 1.0
 static var sky_dim: float = 1.0
 static var sky_tint: Color = Color(1, 1, 1)
 static var sky_tint_amt: float = 0.0
+static var fog_mult: float = 1.0 ## WET AIR (it.12): storms thicken the distance haze
+## kind -> [dim, tint, max tint amount, fog mult at full intensity]
 const GRADE: Dictionary = {
-	"rain": [0.85, Color(0.55, 0.62, 0.72), 0.42],
-	"dust": [0.90, Color(0.85, 0.64, 0.38), 0.38],
-	"heat": [1.00, Color(1.00, 0.84, 0.62), 0.16],
+	"rain": [0.85, Color(0.55, 0.62, 0.72), 0.42, 2.3],
+	"dust": [0.90, Color(0.85, 0.64, 0.38), 0.38, 3.2],
+	"heat": [1.00, Color(1.00, 0.84, 0.62), 0.16, 1.15],
 }
 
 ## Active storm systems: {kind, pos: Vector2, radius, vel: Vector2 (m/s), ttl_h, age_h}
@@ -328,9 +330,11 @@ func _update_fx(probe: Node3D, k: String, i: float) -> void:
 		ProtoWeather.sky_dim = lerpf(1.0, float(g[0]), i)
 		ProtoWeather.sky_tint = g[1]
 		ProtoWeather.sky_tint_amt = float(g[2]) * i
+		ProtoWeather.fog_mult = lerpf(1.0, float(g[3]), i)
 	else:
 		ProtoWeather.sky_dim = 1.0
 		ProtoWeather.sky_tint_amt = 0.0
+		ProtoWeather.fog_mult = 1.0
 	if probe == null or _main == null or not is_inside_tree():
 		return
 	if _fx_root == null:

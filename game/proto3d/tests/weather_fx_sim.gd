@@ -49,6 +49,8 @@ func _run() -> void:
 		rm != null and not rm.vertex_color_use_as_albedo and wx._rain_fx.color_ramp == null)
 	_check("sky grade cools + dims in rain (amt %.2f > 0.2, dim %.2f < 1.0)" % [ProtoWeather.sky_tint_amt, ProtoWeather.sky_dim],
 		ProtoWeather.sky_tint_amt > 0.2 and ProtoWeather.sky_dim < 1.0)
+	_check("WET AIR thickens the haze (fog x%.1f > 1.5)" % ProtoWeather.fog_mult,
+		ProtoWeather.fog_mult > 1.5)
 
 	# --- The night floor survives a midnight downpour (never blind) ---
 	main.daynight.hour = 0.5
@@ -75,6 +77,8 @@ func _run() -> void:
 		wx.state == "clear" and wx.systems.is_empty())
 	_check("clear kills the grade (amt %.2f -> 0)" % ProtoWeather.sky_tint_amt,
 		ProtoWeather.sky_tint_amt == 0.0 and ProtoWeather.sky_dim == 1.0)
+	_check("clear thins the air back (fog x%.1f -> 1)" % ProtoWeather.fog_mult,
+		ProtoWeather.fog_mult == 1.0)
 	_check("clear kills the fx", not wx._rain_fx.emitting and not wx._dust_fx.emitting)
 	_finish()
 

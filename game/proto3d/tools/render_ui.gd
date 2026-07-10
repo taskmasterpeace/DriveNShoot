@@ -175,13 +175,25 @@ func _ready() -> void:
 	await _shot("WEATHER_dust")
 	main.weather.force("clear", 300.0)
 
-	# 11) STREET READ (it.9/11) — Meridian main street, placed ON the road (the
-	# rect-center guess landed inside a building last pass).
+	# 11) STREET READ v3 (it.9/11/12) — the PLACEMENT-DENSEST spot in Meridian's
+	# rect: centroid of the tightest cluster, so several tint-jittered shells +
+	# roof caps land in one frame (road_near found the I-95 ramp; rect-center
+	# landed inside a building — the cluster is the honest town frame).
 	var street := Vector3(112.0, 0.0, -305.0)
-	var rn: Dictionary = stream.usmap.road_near(Vector3(110, 0, -323), 400.0)
-	if not rn.is_empty():
-		var mid: Vector2 = ((rn["a"] as Vector2) + (rn["b"] as Vector2)) * 0.5
-		street = Vector3(mid.x, 0.0, mid.y)
+	var town_pl: Array = stream.usmap.placements_in(Rect2(35.0, -380.0, 155.0, 150.0))
+	if town_pl.size() >= 3:
+		var best_p := Vector2.ZERO
+		var best_n := -1
+		for p in town_pl:
+			var c: Vector2 = p["pos"]
+			var n := 0
+			for q in town_pl:
+				if (q["pos"] as Vector2).distance_to(c) < 30.0:
+					n += 1
+			if n > best_n:
+				best_n = n
+				best_p = c
+		street = Vector3(best_p.x + 8.0, 0.0, best_p.y + 10.0) # a step off the shell itself
 	var sgy: float = ProtoWorldBuilder.ground_y(street.x, street.z)
 	for _i in 60:
 		if main.active_car != null:

@@ -353,13 +353,43 @@ roofs read as roofs — sim-proven; the town-frame look-proof rides next pass. H
 it back: town look-proof pending, wet ground, storm-edge transition unprobed, dash/
 sheet plates still primitive-styled.
 
-**Next up (iteration 12):**
-1. **TOWN LOOK-PROOF**: STREET probe v3 — filter road_near to kind=="street" (or pick
-   a placement-dense point from usmap.placements_in around Meridian) so several
-   jittered shells + roof caps land in frame; view + judge.
-2. **Wet-ground darkening** IF cheap (probe material-cache cost: a wet variant per
-   biome color ≈ doubles a small cache — acceptable; wire off rain intensity).
-3. **Storm-edge drive probe** — cross a storm boundary; does the grade/streak
-   transition read smoothly?
-4. PixelLab check-in: consider real art where primitives still read thin (K-sheet
-   frame, dash plates) — ~$0.005/gen, $78.7 left.
+**Next up (iteration 12):** ~~town proof · wet air · PixelLab check~~ → executed
+below; storm-edge probe rolls with reasoning.
+
+---
+
+## Iteration 12 — 2026-07-10 ~13:40
+
+**Shipped:**
+- **THE TOWN LOOK-PROOF** (STREET probe v3 — placement-cluster centroid instead of
+  road_near/rect-center): Meridian center with 6+ shells in frame, and the building
+  patchwork READS — cool gray / tan / cream / warm brown across the block, open-top
+  interiors honest, long clean shadows. The street stopped being one swatch. Probe
+  shot is the permanent acceptance now.
+- **WET AIR** (in place of wet-ground darkening): a `fog_mult` grade channel — rain
+  x2.3, dust x3.2, heat x1.15 distance-haze thickening, applied in daynight next to
+  the other channels. Rationale: ground darkening required swapping cached shared
+  materials across live chunks (heavy churn); the sky grade already dims 15% and
+  thicker air sells WET at distance for one env write. **weather_fx_sim 12/12** (2
+  new fog checks).
+- **PixelLab check-in**: $78.72 still (nothing spent since it.1 — the loop's wins
+  have been code-drawn). Verdict: no HUD surface currently reads thin enough to
+  need generated art; the next worthy PixelLab surface is the TITLE/menu backdrop
+  (out of the 30-min loop scope — flagged for the owner).
+- **Storm-edge probe ROLLED with reasoning**: proving the gradient read needs a
+  driven crossing (static 3-point shots don't show the transition); the drive-sim
+  staging (real held keys — the DRIVE poller gotcha) deserves its own pass.
+
+**Steam rating: 8.6/10** (was 8.5). The town finally photographs like a town.
+Remaining ladder to ~9: storm-edge motion read, decals (skid/scorch/impact), menu/
+title art, interior furnishing density at street scale, doll art polish.
+
+**Next up (iteration 13):**
+1. **STORM-EDGE drive probe** — stage a rain system at a known offset, drive the car
+   through the edge with REAL held keys (the drive-sim pattern), capture 3 frames
+   (outside/edge/core); judge the gradient.
+2. **DECALS probe** — what do skid marks look like today (drive + handbrake render)?
+   Scorch/impact marks on walls exist? Inventory then cheapest win.
+3. Consider the TITLE screen read (menu.gd) — one PixelLab backdrop could lift the
+   first impression massively; ask-the-owner note in the report.
+4. Doll polish: armor-face strips could read stronger at 1x (thicken by armor tier).
