@@ -5,6 +5,7 @@ extends Node3D
 
 const INPUT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_input.gd")
 const ADAPTER_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_body_adapter.gd")
+const PHYSICAL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_physical_body.gd")
 const HUD_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_hud.gd")
 const THROWABLE_SCRIPT := preload("res://proto3d/throwable.gd")
 
@@ -56,7 +57,9 @@ func _build_world() -> void:
 	sun.shadow_enabled = true
 	add_child(sun)
 
-	ProtoWorldBuilder.box_body(self, Vector3(132, 0.4, 38), Vector3(52, -0.2, 0),
+	# Long enough to measure a full sprint, dive recovery, and charged throws
+	# without a physics body reaching the edge during one comparison pass.
+	ProtoWorldBuilder.box_body(self, Vector3(132, 0.4, 160), Vector3(52, -0.2, 0),
 		Color("#282622"))
 	var names: Array[String] = ["BODY LANE", "GRIP & GAZE RANGE", "DIVE & THROW LANE",
 		"KILLHOUSE", "VEHICLE DAMAGE BAY"]
@@ -94,17 +97,26 @@ func _build_world() -> void:
 
 
 func switch_mode(id: String) -> bool:
-	if id != "hybrid":
+	if id not in ["hybrid", "active_ragdoll", "full_physics"]:
 		return false
 	var at: Transform3D = station_spawn
+	var weapon_id: String = "pistol"
+	var prior_condition: Dictionary = {"id": "fresh", "speed_mult": 1.0, "stamina": 100.0}
 	if adapter != null:
-		at = player.global_transform
+		at = adapter.anchor_transform()
+		weapon_id = String(adapter.weapon.id)
+		prior_condition = adapter.condition.duplicate(true)
 		adapter.queue_free()
-	adapter = ADAPTER_SCRIPT.new()
+	adapter = ADAPTER_SCRIPT.new() if id == "hybrid" else PHYSICAL_SCRIPT.new()
 	add_child(adapter)
-	adapter.setup({})
+	if id == "hybrid":
+		adapter.setup({})
+	else:
+		adapter.setup(id)
 	active_mode = id
 	player = adapter.combat_body()
+	adapter.set_weapon(weapon_id)
+	adapter.set_condition(prior_condition)
 	adapter.reset_at(at)
 	return true
 
@@ -159,13 +171,14 @@ func _fire_weapon(command: RefCounted) -> void:
 		return
 	var direction: Vector3 = command.get("aim_world")
 	if adapter.weapon.fire(self, adapter.muzzle_world(), direction):
-		player.gun_recoil(adapter.weapon.info().get("recoil", {}), character.level("strength"))
+		adapter.apply_recoil(direction, adapter.weapon.info().get("recoil", {}),
+			character.level("strength"))
 
 
 func _release_throw(command: RefCounted) -> void:
 	var row: Dictionary = THROWABLE_SCRIPT.row("grenade")
 	var charge: float = THROWABLE_SCRIPT.charge_for(_throw_hold, row)
-	var inherited: Vector3 = player.velocity
+	var inherited: Vector3 = adapter.body_velocity()
 	inherited.y = 0.0
 	var direction: Vector3 = command.get("aim_world")
 	var velocity: Vector3 = THROWABLE_SCRIPT.launch_velocity(direction, charge,

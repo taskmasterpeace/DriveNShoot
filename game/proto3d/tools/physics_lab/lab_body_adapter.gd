@@ -34,6 +34,18 @@ func muzzle_world() -> Vector3:
 	return player.muzzle_world()
 
 
+func body_velocity() -> Vector3:
+	return player.velocity
+
+
+func anchor_transform() -> Transform3D:
+	return player.global_transform
+
+
+func apply_recoil(_direction: Vector3, row: Dictionary, strength: int) -> void:
+	player.gun_recoil(row, strength)
+
+
 func set_weapon(id: String) -> void:
 	weapon = ProtoWeapon.new(id)
 	var row: Dictionary = weapon.info()
