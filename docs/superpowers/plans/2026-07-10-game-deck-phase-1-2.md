@@ -69,12 +69,12 @@ existing `ProtoArcadeNet` bridge.
 
 **Files:** `games/dial_tanks/*`, `tests/dial_tanks_sim.*`
 
-- [ ] Red sim: deterministic spawns, body/turret independence, shell collision,
+- [x] Red sim: deterministic spawns, body/turret independence, shell collision,
   limited ricochets, mine placement/detonation, damage/death, round win, bot
   target movement, two distinct local seats, snapshot, and normalized result.
-- [ ] Implement one-to-four-player top-down arena rounds with original Carousel
+- [x] Implement one-to-four-player top-down arena rounds with original Carousel
   training-bay walls, tank silhouettes, shell trails, impact sparks, and HUD.
-- [ ] Commit `feat: add DIAL TANKS`.
+- [x] Commit `feat: add DIAL TANKS`.
 
 ## Task 3: RED SKY
 
