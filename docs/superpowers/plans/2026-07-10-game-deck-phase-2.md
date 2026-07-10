@@ -130,22 +130,22 @@ asset is declared.
 - Modify: `game/proto3d/games/black_grid/black_grid.gd`
 - Extend: `game/proto3d/tests/black_grid_sim.gd`
 
-- [ ] Red sim: sensor, barricade, turret, and repair node placement costs real
+- [x] Red sim: sensor, barricade, turret, and repair node placement costs real
   carried resources/energy, affects visibility/combat/pathing, and can be
   destroyed; interaction enters/exits light vehicles with distinct mass,
   momentum, armor, seats, and weapon mounts.
-- [ ] Implement and prove Skirmish, Frontlines/KOTH, Capture the Flag,
+- [x] Implement and prove Skirmish, Frontlines/KOTH, Capture the Flag,
   cooperative Bug Hunt, and compact Fleet mode with team spawn networks,
   forward captures, base defense, score/time end, and round-end mode voting.
-- [ ] Fill to sixteen actors with deterministic objective-aware bots that
+- [x] Fill to sixteen actors with deterministic objective-aware bots that
   attack, defend, repair, use spawn networks, deploy equipment, and crew
   vehicles; Bug Hunt creatures use their own simple role behaviors.
-- [ ] Draw readable original tactical glass, isometric field, fog mask, radar,
+- [x] Draw readable original tactical glass, isometric field, fog mask, radar,
   contacts, projectiles/shrapnel/blasts, deployables, vehicles, objectives,
   loadout/weight/energy/armor, team status, vote, and scoreboard.
-- [ ] Prove local layouts and same-session online snapshots converge through
+- [x] Prove local layouts and same-session online snapshots converge through
   the ordinary Game Deck network bridge.
-- [ ] Commit `feat: complete Black Grid flagship cartridge`.
+- [x] Commit `feat: complete Black Grid flagship cartridge`.
 
 ## Task 6: Phase 2 world, manuals, tournaments, and ownership
 
