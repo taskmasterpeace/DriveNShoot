@@ -24,6 +24,9 @@ var online: bool = false
 var _sync_t: float = 0.0
 ## peer_id -> {pos, byaw, ayaw, hurt, armed} last-known state (for late spawns + lerp).
 var peer_state: Dictionary = {}
+## Every in-world cartridge shares this one generic invite/input/event/snapshot
+## bridge. It is a child named Arcade so every ENet peer gets the same RPC path.
+var arcade: Node = null
 
 ## PROXIMITY VOICE (owner goal): one ProtoVoice runs locally — it captures MY
 ## mic + owns RX playback for every remote peer. Created when a session starts
@@ -38,6 +41,9 @@ static func create(main: Node) -> ProtoNet:
 	var n := ProtoNet.new()
 	n._main = main
 	n.name = "ProtoNet"
+	var arcade_script := load("res://proto3d/games/game_net.gd") as GDScript
+	n.arcade = arcade_script.create(n)
+	n.add_child(n.arcade)
 	n.peer_joined.connect(n._on_voice_peer_joined)
 	n.peer_left.connect(n._on_voice_peer_left)
 	return n
@@ -90,6 +96,8 @@ func leave() -> void:
 	multiplayer.multiplayer_peer = null
 	online = false
 	peer_state.clear()
+	if arcade != null:
+		arcade.clear_session()
 	_teardown_local_voice()
 
 
