@@ -7,6 +7,8 @@ var player: ProtoPlayer3D = null
 var weapon: ProtoWeapon = null
 var mode_id: String = "hybrid"
 var condition: Dictionary = {"id": "fresh", "speed_mult": 1.0, "stamina": 100.0}
+var surface: Dictionary = {"id": "asphalt", "stop_decel": 14.0,
+	"dive_slide_mult": 1.0, "accel_mult": 1.0, "body_friction": 0.04}
 var _last_command: RefCounted = null
 
 
@@ -97,3 +99,10 @@ func set_condition(row: Dictionary) -> void:
 	condition = row.duplicate(true)
 	player.speed_mult = float(row.get("speed_mult", 1.0))
 	player.stamina = clampf(float(row.get("stamina", 100.0)), 0.0, player.max_stamina)
+	player.hurt = float(row.get("hurt", 0.0))
+
+
+func set_surface(row: Dictionary) -> void:
+	surface = row.duplicate(true)
+	player.accel = float(row.get("stop_decel", 14.0))
+	player.dive_speed = 9.5 * float(row.get("dive_slide_mult", 1.0))

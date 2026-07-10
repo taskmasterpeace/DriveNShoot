@@ -18,6 +18,8 @@ var rest_offsets: Dictionary = {}
 var rest_bases: Dictionary = {}
 var weapon: ProtoWeapon = null
 var condition: Dictionary = {"id": "fresh", "speed_mult": 1.0, "stamina": 100.0}
+var surface: Dictionary = {"id": "asphalt", "stop_decel": 14.0,
+	"dive_slide_mult": 1.0, "accel_mult": 1.0, "body_friction": 0.04}
 
 var pelvis: RigidBody3D = null
 var left_hand: RigidBody3D = null
@@ -211,7 +213,9 @@ func _apply_root_force() -> void:
 			force -= lateral_velocity * 140.0
 		else:
 			force = -horizontal * 90.0
-	force = force.limit_length(float(profile["move_force"]))
+	var force_cap: float = float(profile["move_force"]) \
+		* float(surface.get("accel_mult", 1.0))
+	force = force.limit_length(force_cap)
 	# Propulsion belongs to the articulated body, not only the pelvis. Dividing
 	# the same authored force by mass keeps the net force unchanged while every
 	# segment accelerates together instead of the pelvis towing planted limbs.
@@ -286,7 +290,8 @@ func _start_dive() -> void:
 		direction = _aim_world
 	direction.y = 0.0
 	direction = direction.normalized()
-	var impulse: Vector3 = (direction * float(profile["dive_impulse"]) + Vector3.UP * 4.2) * pelvis.mass
+	var impulse: Vector3 = (direction * float(profile["dive_impulse"]) \
+		* float(surface.get("dive_slide_mult", 1.0)) + Vector3.UP * 4.2) * pelvis.mass
 	pelvis.apply_central_impulse(impulse)
 	pelvis.apply_torque_impulse(pelvis.global_basis.x * -pelvis.mass * 1.8)
 	_dive_state = "airborne"
@@ -420,3 +425,12 @@ func metrics() -> Dictionary:
 
 func set_condition(row: Dictionary) -> void:
 	condition = row.duplicate(true)
+
+
+func set_surface(row: Dictionary) -> void:
+	surface = row.duplicate(true)
+	for part_value in parts.values():
+		var part := part_value as RigidBody3D
+		var material := part.physics_material_override
+		if material != null:
+			material.friction = float(row.get("body_friction", 0.04))

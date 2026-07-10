@@ -13,6 +13,9 @@ const ROUND_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_round.gd")
 const OPPONENT_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_opponent.gd")
 const DIAGNOSTICS_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_diagnostics.gd")
 const REPLAY_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_replay.gd")
+const CALIBRATION_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_calibration.gd")
+const SURFACE_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_surface.gd")
+const CAMERA_WALL_SCRIPT := preload("res://proto3d/tools/physics_lab/lab_camera_wall.gd")
 
 var save_isolated: bool = true
 var lab_mode: bool = true
@@ -35,6 +38,9 @@ var diagnostics: Node3D = null
 var replay: RefCounted = null
 var mirror_bodies: Dictionary = {}
 var mirror_results: Dictionary = {}
+var calibration: RefCounted = null
+var surface_tool: RefCounted = null
+var camera_wall: Node = null
 var gaze_origin: Vector3 = Vector3(26, 0.05, 0)
 var gaze_targets: Dictionary = {}
 var active_gaze_target: Node3D = null
@@ -77,6 +83,12 @@ func _ready() -> void:
 	diagnostics = DIAGNOSTICS_SCRIPT.new()
 	add_child(diagnostics)
 	replay = REPLAY_SCRIPT.new()
+	calibration = CALIBRATION_SCRIPT.new()
+	surface_tool = SURFACE_SCRIPT.new()
+	surface_tool.build_panels(self, Vector3(10, 0.05, 11))
+	camera_wall = CAMERA_WALL_SCRIPT.new()
+	add_child(camera_wall)
+	camera_wall.setup(player)
 	reset_station()
 
 
@@ -224,10 +236,13 @@ func switch_mode(id: String) -> bool:
 	var at: Transform3D = station_spawn
 	var weapon_id: String = "pistol"
 	var prior_condition: Dictionary = {"id": "fresh", "speed_mult": 1.0, "stamina": 100.0}
+	var prior_surface: Dictionary = {"id": "asphalt", "stop_decel": 14.0,
+		"dive_slide_mult": 1.0, "accel_mult": 1.0, "body_friction": 0.04}
 	if adapter != null:
 		at = adapter.anchor_transform()
 		weapon_id = String(adapter.weapon.id)
 		prior_condition = adapter.condition.duplicate(true)
+		prior_surface = adapter.surface.duplicate(true)
 		adapter.queue_free()
 	adapter = ADAPTER_SCRIPT.new() if id == "hybrid" else PHYSICAL_SCRIPT.new()
 	add_child(adapter)
@@ -239,10 +254,13 @@ func switch_mode(id: String) -> bool:
 	player = adapter.combat_body()
 	adapter.set_weapon(weapon_id)
 	adapter.set_condition(prior_condition)
+	adapter.set_surface(prior_surface)
 	adapter.reset_at(at)
 	_connect_player_damage()
 	if opponent != null:
 		opponent.set_target(player)
+	if camera_wall != null:
+		camera_wall.set_subject(player)
 	return true
 
 
@@ -265,6 +283,51 @@ func set_opponent_behavior(id: String) -> bool:
 		return false
 	opponent_behavior = id.to_upper()
 	return true
+
+
+func set_surface(id: String) -> bool:
+	return surface_tool != null and surface_tool.select(id, adapter)
+
+
+func cycle_surface(step: int = 1) -> void:
+	if surface_tool == null:
+		return
+	var ids: Array[String] = surface_tool.ids()
+	var index: int = ids.find(String(surface_tool.active_id))
+	set_surface(ids[posmod(index + step, ids.size())])
+
+
+func set_condition_preset(id: String) -> bool:
+	if surface_tool == null or not surface_tool.apply_condition(id, adapter):
+		return false
+	var packet: Dictionary = surface_tool.condition(id)
+	for skill_id in ["strength", "marksmanship", "martial_arts", "driving"]:
+		(character.skills[skill_id] as Dictionary)["level"] = int(packet.get(skill_id, 0))
+	if opponent != null:
+		opponent.body.speed_mult = float(packet.get("speed_mult", 1.0))
+		opponent.body.stamina = clampf(float(packet.get("stamina", 100.0)), 0.0,
+			opponent.body.max_stamina)
+		for skill_id in ["strength", "marksmanship", "martial_arts", "driving"]:
+			(opponent.character.skills[skill_id] as Dictionary)["level"] = int(packet.get(skill_id, 0))
+	return true
+
+
+func cycle_condition(step: int = 1) -> void:
+	if surface_tool == null:
+		return
+	var ids: Array[String] = surface_tool.condition_ids()
+	var index: int = ids.find(String(surface_tool.active_condition))
+	set_condition_preset(ids[posmod(index + step, ids.size())])
+
+
+func toggle_camera_wall() -> void:
+	if camera_wall != null:
+		camera_wall.set_visible(not bool(camera_wall.facts()["visible"]))
+
+
+func begin_controller_calibration() -> void:
+	if calibration != null:
+		calibration.begin_drift_sample(5.0)
 
 
 func set_target_distance(distance: int) -> bool:
@@ -338,6 +401,9 @@ func reset_station() -> void:
 	if lab_round != null:
 		lab_round.reset_match()
 	reset_fighters()
+	if surface_tool != null:
+		set_surface("asphalt")
+		set_condition_preset("fresh")
 	character.hp = 100.0
 	character.dead = false
 	for part in character.body.values():
@@ -363,6 +429,13 @@ func _physics_process(delta: float) -> void:
 	if lab_round != null:
 		lab_round.tick(delta)
 	_update_mirror(delta)
+	if calibration != null:
+		calibration.sample({"left_stick": Input.get_vector("move_left", "move_right",
+			"move_up", "move_down"),
+			"right_stick": Input.get_vector("drivn_aim_left", "drivn_aim_right",
+				"drivn_aim_up", "drivn_aim_down"),
+			"left_trigger": Input.get_action_strength("drivn_grenade"),
+			"right_trigger": Input.get_action_strength("drivn_fire")}, delta)
 	var command: RefCounted = input_source.sample(camera, player.global_position, delta)
 	if lab_round != null and lab_round.commands_frozen():
 		var frozen: RefCounted = COMMAND_SCRIPT.new()
@@ -433,7 +506,12 @@ func _update_gaze_source(command: RefCounted, delta: float) -> void:
 func _diagnostic_readout(facts: Dictionary) -> String:
 	var replay_status: String = "FROZEN" if replay != null and replay.frozen else \
 		"REC %.1fs" % (float(replay.frame_count()) / 60.0 if replay != null else 0.0)
-	return "TOOLS  X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
+	var tool_state: String = "%s/%s/CAM %s" % [
+		String(surface_tool.active_id).to_upper() if surface_tool != null else "ASPHALT",
+		String(surface_tool.active_condition).to_upper() if surface_tool != null else "FRESH",
+		"ON" if camera_wall != null and bool(camera_wall.facts()["visible"]) else "OFF"]
+	return "TOOLS  %s · X-RAY %s · BLACK BOX %s · %dm %s · DOOR %s · %s/%s · F/G/W %.0f°/%.0f°/%.0f° · LOS %s · %s" % [
+		tool_state,
 		"ON" if diagnostics.updates_enabled() else "OFF", replay_status,
 		gaze_target_distance, "BINOC" if gaze_binoculars else "NORMAL",
 		"OPEN" if gaze_door_open else "CLOSED",
@@ -474,6 +552,7 @@ func _capture_replay_snapshot() -> Dictionary:
 	return {"mode": active_mode, "body_transforms": transforms,
 		"velocities": velocities, "weapon": String(adapter.weapon.id),
 		"ammo": adapter.weapon.mag, "condition": adapter.condition.duplicate(true),
+		"surface": adapter.surface.duplicate(true),
 		"round": lab_round.snapshot() if lab_round != null else {},
 		"opponent": opponent.metrics() if opponent != null else {},
 		"rng_seed": 0, "station": current_station}
@@ -510,6 +589,7 @@ func _restore_replay_snapshot(state: Dictionary) -> void:
 		switch_mode(mode)
 	adapter.set_weapon(String(state.get("weapon", "pistol")))
 	adapter.set_condition(state.get("condition", {"id": "fresh"}))
+	adapter.set_surface(state.get("surface", {"id": "asphalt"}))
 	var transforms: Dictionary = state.get("body_transforms", {})
 	var velocities: Dictionary = state.get("velocities", {})
 	if "parts" in adapter:
@@ -554,6 +634,7 @@ func start_mirror_run() -> bool:
 			body_adapter.setup(mode)
 		body_adapter.set_weapon(String(adapter.weapon.id))
 		body_adapter.set_condition(adapter.condition)
+		body_adapter.set_surface(adapter.surface)
 		body_adapter.reset_at(Transform3D(Basis.IDENTITY,
 			Vector3(float(i) * 5.0, 0.05, 22.0)))
 		body_adapter.add_to_group("lab_mirror_body")
@@ -658,10 +739,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_COMMA: restore_replay_offset(120)
 			KEY_BRACKETLEFT: cycle_target_distance(-1)
 			KEY_BRACKETRIGHT: cycle_target_distance(1)
+			KEY_U: cycle_surface()
+			KEY_I: cycle_condition()
+			KEY_K: toggle_camera_wall()
+			KEY_L: begin_controller_calibration()
 			KEY_BACKSPACE: reset_station()
-	elif event is InputEventJoypadButton and event.pressed \
-			and (event as InputEventJoypadButton).button_index == JOY_BUTTON_DPAD_RIGHT:
-		_cycle_opponent_behavior()
+	elif event is InputEventJoypadButton and event.pressed:
+		match (event as InputEventJoypadButton).button_index:
+			JOY_BUTTON_DPAD_RIGHT: _cycle_opponent_behavior()
+			JOY_BUTTON_DPAD_LEFT: cycle_surface()
+			JOY_BUTTON_DPAD_UP: cycle_condition()
+			JOY_BUTTON_DPAD_DOWN: toggle_camera_wall()
 
 
 func emit_noise(_at: Vector3, _radius: float, _kind: String = "") -> void:
