@@ -97,6 +97,8 @@ var _scenario_progress: int = 0
 var _scenario_complete: bool = false
 var _scenario_elapsed: float = 0.0
 var _scenario_vehicle_hp: float = 0.0
+var _player_round_id: String = "player"
+var _player_attacker_id: String = "opponent"
 
 
 func _ready() -> void:
@@ -332,7 +334,8 @@ func cycle_body_mode(step: int = 1) -> void:
 
 func _on_player_damaged(amount: float, _attacker: Node3D = null) -> void:
 	if lab_round != null:
-		lab_round.hit("player", amount, {"attacker": "opponent", "kind": "bullet"})
+		lab_round.hit(_player_round_id, amount,
+			{"attacker":_player_attacker_id, "kind":"bullet"})
 
 
 func set_opponent_behavior(id: String) -> bool:
@@ -662,19 +665,48 @@ func clear_spectacle_fighters() -> void:
 	scenario_opponents = scenario_opponents.filter(func(extra: Node3D) -> bool:
 		return is_instance_valid(extra) and extra not in spectacle_fighters)
 	spectacle_fighters.clear()
+	_player_round_id = "player"
+	_player_attacker_id = "opponent"
 	if opponent != null:
 		opponent.configure_identity("opponent", "player")
 		opponent.set_target(player)
+		opponent.set_behavior("passive")
+		opponent.set_meta("scenario_spawn", opponent_spawn)
+		opponent.reset_at(opponent_spawn)
+		opponent_behavior = "PASSIVE"
 
 
 func configure_spectacle_match(left: Dictionary, right: Dictionary, spectacle_mode: String) -> bool:
 	clear_spectacle_fighters()
-	if opponent == null or lab_round == null or spectacle_mode != "watch":
+	if opponent == null or lab_round == null or spectacle_mode not in ["watch", "enter"]:
 		return false
 	var left_id: String = String(left.get("id", ""))
 	var right_id: String = String(right.get("id", ""))
 	if left_id == "" or right_id == "":
 		return false
+	if spectacle_mode == "enter":
+		var player_is_left: bool = left_id == "player"
+		if not player_is_left and right_id != "player":
+			return false
+		var rival: Dictionary = right if player_is_left else left
+		var rival_id: String = String(rival["id"])
+		_player_round_id = "player"
+		_player_attacker_id = rival_id
+		opponent.set_enabled(true)
+		opponent.configure_identity(rival_id, "player")
+		opponent.set_behavior(String(rival.get("opponent_row", "duel")))
+		opponent.set_weapon(String(rival.get("weapon_id", "pistol")))
+		var player_spawn := Transform3D(Basis.IDENTITY,
+			Vector3(74, 0.05, 8) if player_is_left else Vector3(82, 0.05, -8))
+		var rival_spawn := Transform3D(Basis.IDENTITY,
+			Vector3(82, 0.05, -8) if player_is_left else Vector3(74, 0.05, 8))
+		scenario_player_spawn = player_spawn
+		adapter.reset_at(player_spawn)
+		opponent.set_meta("scenario_spawn", rival_spawn)
+		opponent.reset_at(rival_spawn)
+		opponent.set_target(player)
+		spectacle_fighters = [opponent]
+		return true
 	opponent.set_enabled(true)
 	opponent.configure_identity(left_id, right_id)
 	opponent.set_behavior(String(left.get("opponent_row", "duel")))

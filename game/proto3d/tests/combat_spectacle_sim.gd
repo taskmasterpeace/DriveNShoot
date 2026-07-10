@@ -128,6 +128,12 @@ func _ready() -> void:
 	add_child(lab)
 	for _i in 8:
 		await get_tree().physics_frame
+	var original_player_id: int = lab.player.get_instance_id()
+	var original_adapter_id: int = lab.adapter.get_instance_id()
+	var original_transform: Transform3D = lab.adapter.anchor_transform()
+	var original_mode: String = lab.active_mode
+	var original_surface: String = String(lab.adapter.surface.get("id", ""))
+	var original_condition: String = String(lab.adapter.condition.get("id", ""))
 	var live: Node = (load(RUNTIME_PATH) as Script).new()
 	lab.add_child(live)
 	_check("physical runtime binds to the standalone lab", live.setup(lab, "wasteland_shootout", 8401)
@@ -166,6 +172,52 @@ func _ready() -> void:
 		_check("physical match completion advances and restages semifinal B",
 			String(live.facts()["current_match"].get("id", "")) == "semi_b"
 			and (lab.get("spectacle_fighters") as Array).size() == 2)
+
+	live.reset_tournament()
+	_check("physical reset clears WATCH bodies and allows ENTER selection",
+		(lab.get("spectacle_fighters") as Array).is_empty() and live.select_mode("enter"))
+	_check("ENTER tournament starts", live.start_tournament())
+	for _i in 4:
+		await get_tree().physics_frame
+	var enter_fighters: Array = lab.get("spectacle_fighters")
+	var enter_match: Dictionary = live.facts()["current_match"]
+	var rival_id: String = String(enter_match["right"]) if String(enter_match["left"]) == "player" \
+		else String(enter_match["left"])
+	var enter_ready: bool = enter_fighters.size() == 1
+	if enter_ready:
+		var rival: Node = enter_fighters[0]
+		enter_ready = rival.has_method("configure_identity") \
+			and String(rival.get("fighter_id")) == rival_id \
+			and String(rival.get("opponent_id")) == "player" \
+			and rival.target == lab.player and rival.body.collision_layer != 0
+	_check("ENTER keeps the current player body and stages exactly one authored rival",
+		enter_ready and lab.player.get_instance_id() == original_player_id
+		and lab.adapter.get_instance_id() == original_adapter_id
+		and lab.active_mode == original_mode
+		and String(lab.adapter.surface.get("id", "")) == original_surface
+		and String(lab.adapter.condition.get("id", "")) == original_condition)
+	if enter_ready:
+		var rival: Node = enter_fighters[0]
+		var player_health: float = lab.lab_round.health("player")
+		var rival_health: float = lab.lab_round.health(rival_id)
+		lab._on_player_damaged(8.0)
+		rival.take_damage(9.0, lab.player)
+		_check("ENTER routes both real damage signals to the correct nonlethal fighters",
+			is_equal_approx(lab.lab_round.health("player"), player_health - 8.0)
+			and is_equal_approx(lab.lab_round.health(rival_id), rival_health - 9.0))
+		lab.lab_round.hit(rival_id, 200.0, {"attacker":"player", "kind":"enter_probe"})
+		lab.lab_round.reset_round()
+		lab.lab_round.hit(rival_id, 200.0, {"attacker":"player", "kind":"enter_probe"})
+		for _i in 3:
+			await get_tree().process_frame
+		_check("player can advance in the same bracket without death/corpse state",
+			String((live.facts()["matches"] as Array)[0]["winner"]) == "player"
+			and get_tree().get_nodes_in_group("corpse").is_empty()
+			and not lab.character.dead)
+	live.reset_tournament()
+	_check("tournament reset frees temporary AI and restores the exact opening player transform",
+		(lab.get("spectacle_fighters") as Array).is_empty()
+		and lab.adapter.anchor_transform().origin.distance_to(original_transform.origin) < 0.01)
 	lab.queue_free()
 	await get_tree().process_frame
 	_finish()

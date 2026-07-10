@@ -27,6 +27,7 @@ var champion: String = ""
 var payout: int = 0
 var status: String = ""
 var _round_connected: bool = false
+var _opening_player_transform: Transform3D = Transform3D.IDENTITY
 
 
 func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
@@ -48,6 +49,8 @@ func setup(lab_in: Node3D, card_id_in: String, seed_in: int) -> bool:
 	if lab != null and "lab_round" in lab and lab.lab_round != null and not _round_connected:
 		lab.lab_round.match_ended.connect(_on_physical_match_ended)
 		_round_connected = true
+		if "adapter" in lab and lab.adapter != null:
+			_opening_player_transform = lab.adapter.anchor_transform()
 	_reset_state()
 	return true
 
@@ -232,6 +235,9 @@ func record_match_winner(winner_id: String) -> bool:
 func reset_tournament() -> void:
 	if lab != null and lab.has_method("clear_spectacle_fighters"):
 		lab.clear_spectacle_fighters()
+		if "adapter" in lab and lab.adapter != null:
+			lab.scenario_player_spawn = _opening_player_transform
+			lab.adapter.reset_at(_opening_player_transform)
 	_reset_state()
 
 
@@ -245,7 +251,9 @@ func _start_current_match() -> void:
 	var right: Dictionary = entrant_by_id(String(current["right"]))
 	lab.lab_round.setup([String(current["left"]), String(current["right"])],
 		float(row.get("round_health", 100.0)), int(row.get("rounds_to_win", 2)))
-	lab.configure_spectacle_match(left, right, mode)
+	var physical_mode: String = "enter" if mode == "enter" and "player" in [
+		String(current["left"]), String(current["right"])] else "watch"
+	lab.configure_spectacle_match(left, right, physical_mode)
 
 
 func _on_physical_match_ended(winner_id: String) -> void:
