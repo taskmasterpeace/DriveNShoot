@@ -100,6 +100,14 @@ func _ready() -> void:
 	_check("fuel half -> needle straight up (~0)", absf(fg.needle_deg) < 0.5)
 	_check("HUD built the dash cluster", hud._fuel_gauge != null and hud._temp_gauge != null and hud._tach_gauge != null)
 
+	# 6b) THE CAR GPS (owner ask): gps-equipped rigs display the set course.
+	hud.update_car_gps(true, 0.0, Vector2(120, 0), "HOME", 120.0, [])
+	_check("car GPS panel shows when active", hud.cargps_active())
+	_check("car GPS names the course + distance (%s)" % hud.cargps_text(),
+		hud.cargps_text().contains("HOME") and hud.cargps_text().contains("120"))
+	hud.update_car_gps(false, 0.0, Vector2.ZERO, "", 0.0, [])
+	_check("car GPS hides when inactive", not hud.cargps_active())
+
 	# 7) THE HUD PLATES (pixel health/ammo readouts) — the real set_hp/set_ammo path.
 	hud.set_hp(75.0, 90.0, true)
 	hud.set_ammo("🔫", "pistol", 12, 48, true)

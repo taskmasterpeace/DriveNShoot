@@ -92,6 +92,25 @@ func _physics_process(delta: float) -> void:
 			for _mi in 4:
 				stream.toggle_map()
 			_check("M cycles off->local->state->country->off (4 modes)", stream._map_mode == 0)
+			# GPS INTERACTIVITY (owner ask 2026-07-10): zoom clamps, pan clamps, DSA titles,
+			# and the handheld's own buttons drive the map.
+			stream.toggle_map() # local
+			stream.toggle_map() # state
+			_check("state title reads like a GPS (%s)" % stream.atlas_title(), stream.atlas_title() == "DSA — COLORADO")
+			stream.zoom_at(Vector2(100, 100), 100.0)
+			_check("zoom clamps at x8", is_equal_approx(stream._atlas_zoom, 8.0))
+			var pan_before: float = stream._atlas_pan.x
+			stream.pan_step(Vector2(1, 0))
+			_check("d-pad pan moves the zoomed view east (%.0f -> %.0f)" % [pan_before, stream._atlas_pan.x],
+				stream._atlas_pan.x > pan_before)
+			stream.zoom_at(Vector2(100, 100), 0.0001)
+			_check("zoom out clamps at x1 and re-centers (pan -> 0)",
+				is_equal_approx(stream._atlas_zoom, 1.0) and stream._atlas_pan == Vector2.ZERO)
+			stream._on_gps_button("menu") # state -> country
+			_check("MENU button cycles to the country view", stream._map_mode == 3)
+			_check("country title is just DSA", stream.atlas_title() == "DSA")
+			stream._on_gps_button("power")
+			_check("POWER button shuts the set", stream._map_mode == 0 and not stream.map_open())
 			_next(Phase.ANCHORS)
 		Phase.ANCHORS:
 			var meridian := Vector3(110, 0, -325)

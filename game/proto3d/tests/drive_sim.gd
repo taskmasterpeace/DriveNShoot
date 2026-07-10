@@ -31,6 +31,7 @@ var hbs_speed0: float = 0.0
 var hbs_drop: float = 0.0
 var hbs_yaw0: float = 0.0
 var hbs_yaw_drift: float = 0.0
+var hbs_checked: bool = false
 
 var hb_start_yaw: float = 0.0
 var hb_turned: float = 0.0
@@ -134,10 +135,15 @@ func _physics_process(delta: float) -> void:
 			car.input_handbrake = true
 			hbs_drop = hbs_speed0 - speed
 			hbs_yaw_drift = maxf(hbs_yaw_drift, absf(wrapf(car.rotation.y - hbs_yaw0, -PI, PI)))
-			if phase_t > 2.0:
-				car.input_handbrake = false
+			if phase_t > 2.0 and not hbs_checked:
+				hbs_checked = true
 				_check("straight handbrake BRAKES (lost %.1f m/s in 2s, want >=8)" % hbs_drop, hbs_drop >= 8.0)
 				_check("straight handbrake tracks straight (drifted %.0f deg, want <20)" % rad_to_deg(hbs_yaw_drift), hbs_yaw_drift < deg_to_rad(20.0))
+			# Keep holding: the e-brake must reach a FULL STOP, not a 1 m/s creep
+			# (2026-07-10 playtest "it feels like it just decelerates").
+			if phase_t > 5.0:
+				_check("held handbrake comes to a FULL STOP (%.2f m/s, want <0.4)" % speed, speed < 0.4)
+				car.input_handbrake = false
 				_next(Phase.HB_TURN_PREP)
 
 		# --- Handbrake TURN drifts in a controlled arc, never a 180 ---
@@ -155,8 +161,10 @@ func _physics_process(delta: float) -> void:
 			if phase_t > 1.6:
 				car.input_handbrake = false
 				car.input_steer = 0.0
-				_check("handbrake TURN drifts a real arc 35-150 deg in 1.6s (got %.0f)" % rad_to_deg(hb_turned),
-					hb_turned > deg_to_rad(35.0) and hb_turned < deg_to_rad(150.0))
+				# Floor 35→25 (2026-07-10): the e-brake bites harder now (decel 14→20 for the
+				# owner's "it doesn't STOP" fix) — less time at speed = a shorter, still-real arc.
+				_check("handbrake TURN drifts a real arc 25-150 deg in 1.6s (got %.0f)" % rad_to_deg(hb_turned),
+					hb_turned > deg_to_rad(25.0) and hb_turned < deg_to_rad(150.0))
 				_next(Phase.HB_LONG_PREP)
 
 		# --- LONG hold stays bounded: no runaway 360 spin-out ---
