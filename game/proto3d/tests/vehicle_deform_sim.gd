@@ -44,6 +44,10 @@ func _ready() -> void:
 		_check("real vehicles own the focused damage-visual component", false)
 		_finish()
 		return
+	if not visual.has_method("add_mark"):
+		_check("damage visual exposes the fixed bullet-mark pool", false)
+		_finish()
+		return
 	var shape := car.get_children().filter(func(node: Node) -> bool:
 		return node is CollisionShape3D).front() as CollisionShape3D
 	var collision_resource_id: int = shape.shape.get_instance_id()
@@ -91,6 +95,35 @@ func _ready() -> void:
 	var restored: bool = fresh_visual.restore(snapshot)
 	_check("compact seeded snapshot regenerates identical local panel transforms",
 		restored and fresh_visual.panel_transforms() == visual.panel_transforms())
+
+	var mark_car := _car(9.0)
+	var mark_visual: Node = mark_car.get("damage_visual")
+	for _i in 40:
+		_impact(mark_car, "front", 5.0)
+	var mark_facts: Dictionary = mark_visual.facts()
+	_check("forty bullets cap at the authored sixteen reusable marks",
+		int(mark_facts["mark_count"]) == 16 and int(mark_facts["mark_cap"]) == 16
+		and int(mark_facts["mark_reuses"]) == 24)
+	var resources_before: Dictionary = mark_visual.mark_resource_ids()
+	for _i in 160:
+		_impact(mark_car, "rear", 5.0)
+	_check("post-cap bullet holes reuse the same nodes, meshes, and materials",
+		mark_visual.mark_resource_ids() == resources_before
+		and int(mark_visual.facts()["mark_reuses"]) == 184)
+	var mark_count_before: int = int(mark_visual.facts()["mark_count"])
+	var rejected: bool = mark_visual.add_mark({"world_pos":mark_car.global_position,
+		"world_normal":Vector3.UP, "energy":0.0, "source":"miss"},
+		{"mark_allowed":false})
+	_check("failed/non-bullet hit never creates a mark",
+		not rejected and int(mark_visual.facts()["mark_count"]) == mark_count_before)
+	_check("mark summaries stay finite and surface-aligned",
+		bool(mark_visual.facts()["marks_finite"]) and bool(mark_visual.facts()["marks_aligned"]))
+	var marked_snapshot: Dictionary = mark_visual.snapshot()
+	var marked_fresh := _car(15.0)
+	var marked_fresh_visual: Node = marked_fresh.get("damage_visual")
+	_check("mark summary round-trip regenerates the capped pool deterministically",
+		marked_fresh_visual.restore(marked_snapshot)
+		and marked_fresh_visual.facts()["mark_summaries"] == marked_snapshot.get("marks", []))
 	_finish()
 
 

@@ -18,6 +18,11 @@ var rest_transforms: Dictionary = {}
 var zone_state: Dictionary = {}
 var deformation_seed: int = 1001
 var deform_events: int = 0
+var marks: Array[MeshInstance3D] = []
+var mark_summaries: Array[Dictionary] = []
+var mark_reuses: int = 0
+var _mark_serial: int = 0
+var _mark_material: StandardMaterial3D = null
 
 
 func setup(car_in: ProtoCar3D, visual_root_in: Node3D, profile_in: Dictionary) -> void:
@@ -81,6 +86,7 @@ func apply_impact(_packet: Dictionary, resolution: Dictionary) -> void:
 		zone_state.get(zone, 0.0))), 0.0, 1.0)
 	_apply_zone(zone)
 	deform_events += 1
+	add_mark(_packet, resolution)
 
 
 func _apply_all() -> void:
@@ -136,14 +142,123 @@ func panel_transforms(zone: String = "") -> Dictionary:
 	return out
 
 
+func add_mark(packet: Dictionary, resolution: Dictionary) -> bool:
+	if not bool(resolution.get("mark_allowed", false)) or car == null:
+		return false
+	var world_pos: Vector3 = packet.get("world_pos", Vector3.ZERO)
+	var world_normal: Vector3 = packet.get("world_normal", Vector3.UP)
+	if not world_pos.is_finite() or not world_normal.is_finite():
+		return false
+	if world_normal.length_squared() < 0.0001:
+		world_normal = Vector3.UP
+	var local_pos: Vector3 = car.to_local(world_pos)
+	var local_normal: Vector3 = (car.global_basis.inverse() * world_normal).normalized()
+	var cap: int = clampi(int(profile.get("mark_cap", 16)), 1, 16)
+	var slot_index: int = marks.size()
+	if marks.size() < cap:
+		marks.append(_new_mark())
+		mark_summaries.append({})
+	else:
+		slot_index = _oldest_mark_index()
+		mark_reuses += 1
+	_mark_serial += 1
+	var summary: Dictionary = {"zone":String(resolution.get("zone", "front")),
+		"local_pos":local_pos, "local_normal":local_normal,
+		"radius":clampf(0.035 + float(packet.get("energy", 0.0)) * 0.0002, 0.035, 0.08),
+		"serial":_mark_serial}
+	mark_summaries[slot_index] = summary
+	_place_mark(slot_index, summary)
+	return true
+
+
+func _new_mark() -> MeshInstance3D:
+	if _mark_material == null:
+		_mark_material = StandardMaterial3D.new()
+		_mark_material.albedo_color = Color("#181512")
+		_mark_material.roughness = 0.96
+	var mark := MeshInstance3D.new()
+	mark.name = "ImpactMark_%02d" % marks.size()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.04
+	mesh.bottom_radius = 0.052
+	mesh.height = 0.012
+	mesh.radial_segments = 10
+	mark.mesh = mesh
+	mark.material_override = _mark_material
+	mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mark.add_to_group("vehicle_damage_mark")
+	add_child(mark)
+	return mark
+
+
+func _oldest_mark_index() -> int:
+	var oldest_index: int = 0
+	var oldest_serial: int = int(mark_summaries[0].get("serial", 0))
+	for i in range(1, mark_summaries.size()):
+		var serial: int = int(mark_summaries[i].get("serial", 0))
+		if serial < oldest_serial:
+			oldest_serial = serial
+			oldest_index = i
+	return oldest_index
+
+
+func _place_mark(index: int, summary: Dictionary) -> void:
+	var mark: MeshInstance3D = marks[index]
+	var normal: Vector3 = summary.get("local_normal", Vector3.UP)
+	if normal.length_squared() < 0.0001:
+		normal = Vector3.UP
+	normal = normal.normalized()
+	mark.position = (summary.get("local_pos", Vector3.ZERO) as Vector3) + normal * 0.012
+	mark.quaternion = Quaternion(Vector3.UP, normal)
+	var radius: float = float(summary.get("radius", 0.04))
+	var mesh := mark.mesh as CylinderMesh
+	mesh.top_radius = radius * 0.78
+	mesh.bottom_radius = radius
+	mark.set_meta("serial", int(summary.get("serial", 0)))
+	mark.visible = true
+
+
+func _ordered_mark_summaries() -> Array[Dictionary]:
+	var ordered: Array[Dictionary] = []
+	for summary in mark_summaries:
+		if not summary.is_empty():
+			ordered.append(summary.duplicate(true))
+	ordered.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.get("serial", 0)) < int(b.get("serial", 0)))
+	return ordered
+
+
+func mark_resource_ids() -> Dictionary:
+	var out: Dictionary = {}
+	for i in marks.size():
+		var mark: MeshInstance3D = marks[i]
+		out[i] = [mark.get_instance_id(), mark.mesh.get_instance_id(),
+			mark.material_override.get_instance_id()]
+	return out
+
+
 func facts() -> Dictionary:
+	var finite: bool = true
+	var aligned: bool = true
+	for i in mark_summaries.size():
+		var summary: Dictionary = mark_summaries[i]
+		if summary.is_empty():
+			continue
+		var local_pos: Vector3 = summary.get("local_pos", Vector3.ZERO)
+		var normal: Vector3 = summary.get("local_normal", Vector3.UP)
+		finite = finite and local_pos.is_finite() and normal.is_finite()
+		aligned = aligned and marks[i].global_basis.y.normalized().dot(
+			(car.global_basis * normal).normalized()) > 0.96
 	return {"panel_count":rest_transforms.size(), "deform_events":deform_events,
-		"zones":zone_state.duplicate(true), "deformation_seed":deformation_seed}
+		"zones":zone_state.duplicate(true), "deformation_seed":deformation_seed,
+		"mark_count":mark_summaries.size(), "mark_cap":clampi(int(profile.get("mark_cap", 16)), 1, 16),
+		"mark_reuses":mark_reuses, "mark_summaries":_ordered_mark_summaries(),
+		"marks_finite":finite, "marks_aligned":aligned}
 
 
 func snapshot() -> Dictionary:
 	return {"version":1, "zones":zone_state.duplicate(true),
-		"deformation_seed":deformation_seed}
+		"deformation_seed":deformation_seed, "marks":_ordered_mark_summaries()}
 
 
 func restore(state: Dictionary) -> bool:
@@ -154,4 +269,24 @@ func restore(state: Dictionary) -> bool:
 	for zone in ZONES:
 		zone_state[zone] = clampf(float(restored_zones.get(zone, 0.0)), 0.0, 1.0)
 	_apply_all()
+	_clear_marks()
+	for raw_summary in (state.get("marks", []) as Array):
+		if raw_summary is not Dictionary:
+			continue
+		var summary: Dictionary = (raw_summary as Dictionary).duplicate(true)
+		if marks.size() >= clampi(int(profile.get("mark_cap", 16)), 1, 16):
+			break
+		marks.append(_new_mark())
+		mark_summaries.append(summary)
+		_mark_serial = maxi(_mark_serial, int(summary.get("serial", 0)))
+		_place_mark(marks.size() - 1, summary)
 	return true
+
+
+func _clear_marks() -> void:
+	for mark in marks:
+		mark.queue_free()
+	marks.clear()
+	mark_summaries.clear()
+	_mark_serial = 0
+	mark_reuses = 0
