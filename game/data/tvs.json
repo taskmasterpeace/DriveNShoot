@@ -1,0 +1,7 @@
+{
+  "_comment": "THE TV CABINETS — each is a pixel TV faceplate PNG with an EMPTY screen; the media pipeline (media_panel.gd) plays the channel/video through the 'screen' rect (fractions of the shown cabinet). The screen content is NEVER baked into the art (same law as the radio LCD). Adding a TV = drop a PNG + a row; 'w'/'h' set the cabinet aspect, 'screen' is where the picture goes.",
+  "tvs": [
+    {"id": "crt",        "png": "res://assets/ui/tv/crt.png",        "w": 480, "h": 360, "screen": {"x": 0.17, "y": 0.14, "w": 0.53, "h": 0.66}},
+    {"id": "flatscreen", "png": "res://assets/ui/tv/flatscreen.png", "w": 640, "h": 360, "screen": {"x": 0.13, "y": 0.12, "w": 0.73, "h": 0.71}}
+  ]
+}

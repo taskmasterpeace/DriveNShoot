@@ -45,6 +45,8 @@ var _status: Label
 var _ticker: Label
 var _category: String = "film"
 var _static_rect: ColorRect
+var _tv_id: String = "crt"      ## which cabinet skins the fullscreen bezel (data/tvs.json)
+var _tvface: ProtoTVFace = null ## the pixel TV cabinet (when a PNG is present)
 var _static_t: float = 0.0
 var _ebs_card: PanelContainer
 var _ebs_label: Label
@@ -172,22 +174,32 @@ static func create(main: Node) -> ProtoMediaPanel:
 	p._channel_view.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(p._channel_view)
 
-	var frame := PanelContainer.new()
-	var fstyle := StyleBoxFlat.new()
-	fstyle.bg_color = Color(0.02, 0.02, 0.02, 1.0)
-	fstyle.border_color = Color(0.25, 0.21, 0.14)
-	fstyle.set_border_width_all(2)
-	fstyle.set_content_margin_all(4)
-	frame.add_theme_stylebox_override("panel", fstyle)
-	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	p._channel_view.add_child(frame)
-
-	# A Control stack: the video, the static burst, the DEAD AIR card, the EBS card —
-	# whichever applies sits on top (only one visible at a time).
-	var screen_stack := Control.new()
-	screen_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	screen_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	frame.add_child(screen_stack)
+	# THE CABINET (pixel-art skin): a data-driven TV face (ProtoTVFace, data/tvs.json).
+	# The channel/video plays through the cabinet's empty SCREEN rect — same law as the
+	# radio LCD. A missing cabinet PNG falls back to the plain dark frame, so the picture
+	# never disappears. The video / static / cards below all mount into screen_stack.
+	var screen_stack: Control
+	if ProtoTVFace.texture(p._tv_id) != null:
+		var tvface := ProtoTVFace.create(p._tv_id)
+		tvface.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tvface.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		p._channel_view.add_child(tvface)
+		p._tvface = tvface
+		screen_stack = tvface.screen
+	else:
+		var frame := PanelContainer.new()
+		var fstyle := StyleBoxFlat.new()
+		fstyle.bg_color = Color(0.02, 0.02, 0.02, 1.0)
+		fstyle.border_color = Color(0.25, 0.21, 0.14)
+		fstyle.set_border_width_all(2)
+		fstyle.set_content_margin_all(4)
+		frame.add_theme_stylebox_override("panel", fstyle)
+		frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		p._channel_view.add_child(frame)
+		screen_stack = Control.new()
+		screen_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		screen_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		frame.add_child(screen_stack)
 	p._screen_stack = screen_stack
 
 	# THE ALWAYS-LIVE PIPELINE (TV fix 2026-07-08, matching drive_in/public_screen): the
