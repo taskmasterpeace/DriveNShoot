@@ -126,11 +126,11 @@ rendering/math utilities; distinct rules stay readable in each cartridge.
 
 **Files:** `games/tilt_salvage/*`, `tests/tilt_salvage_sim.*`
 
-- [ ] Red sim: launch, gravity, wall/bumper collision, independent flippers,
+- [x] Red sim: launch, gravity, wall/bumper collision, independent flippers,
   lane/jackpot scoring, drain, nudge/tilt lockout, one score result.
-- [ ] Implement deterministic portrait pinball using primitive collision math;
+- [x] Implement deterministic portrait pinball using primitive collision math;
   presentation is a junkyard sorting table, not copied pinball art.
-- [ ] Commit `feat: add TILT SALVAGE`.
+- [x] Commit `feat: add TILT SALVAGE`.
 
 ## Task 10: RELAY BLOOM
 
