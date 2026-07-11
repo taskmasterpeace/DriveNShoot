@@ -567,9 +567,25 @@ remaining levers stand as stated in it.16: title/menu (owner-gated), UI lane
 house-law violation (purple icon) — both found only by walking the game like a
 fresh player. Remaining: owner-gated art + content rows, as stated.
 
-**Next up (iteration 19):**
-1. **Continue playtest-eyes**: the FIGHT minute (melee arcs, crit slow-mo read,
-   reticle) — render what a first fight looks like; catch reads probes missed.
-2. **The blood-on-ground check**: does blood leave ground memory like bullets do?
-   (fx_mark for flesh hits near ground — same law, tiny.)
-3. TITLE backdrop + cadence: on the owner's word.
+**Next up (iteration 19):** ~~fight minute · blood pools~~ → executed below. THE
+LOOP STANDS DOWN after this — owner called the handoff (see
+docs/HANDOFF_VISUAL_FIDELITY_2026-07-10.md).
+
+---
+
+## Iteration 19 — 2026-07-11 ~18:20 (the handoff pass)
+
+**Shipped:**
+- **THE POOL**: flesh hits leave ground memory like bullets do — blood() raycasts
+  to the floor under the hit and lays a dark-red stain through the new shared
+  `ProtoFX.surface_mark` (ONE law for every lingering stain: pocks, pools; size/
+  alpha/linger parameterized). FX booth grew pool/swing/skull tiles (7 total) —
+  the pool stains, the swing arc streaks, the skull pops.
+- **A surgery lesson paid**: the first surface_mark extraction landed the new func
+  MID-BODY of impact() (parse survived, semantics broke — impact lost its dust,
+  combat_feel's skull check failed downstream). Caught by the gate, restructured,
+  all green: **combat_feel 15/15, gunfeel 37/37, exhaust 25/25.** Booth lesson:
+  box_body() wants a Node3D parent — a SubViewport isn't one (inline the floor).
+- Ladder: | 19 | 9.1 | blood pools + fight-minute tiles |
+
+**Steam rating: 9.1/10** (held). Final state of the loop: see the handoff doc.

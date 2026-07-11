@@ -129,6 +129,15 @@ static func blood(parent: Node, pos: Vector3) -> void:
 	var tw := p.create_tween()
 	tw.tween_interval(0.8)
 	tw.tween_callback(p.queue_free)
+	# THE POOL (it.19): flesh hits leave ground memory too — find the floor under
+	# the hit and stain it (the same one-mark law as bullet pocks).
+	if parent is Node3D and (parent as Node3D).is_inside_tree():
+		var space := (parent as Node3D).get_world_3d().direct_space_state
+		var qr := PhysicsRayQueryParameters3D.create(pos, pos + Vector3(0, -3.5, 0))
+		var ghit: Dictionary = space.intersect_ray(qr)
+		if not ghit.is_empty():
+			surface_mark(parent, ghit["position"], ghit.get("normal", Vector3.UP),
+				Color(0.30, 0.045, 0.035, randf_range(0.45, 0.6)), randf_range(0.3, 0.5), 14.0)
 
 
 ## Impact where a round meets the WORLD (walls, ground, wrecks): a soft DUST
@@ -138,25 +147,8 @@ static func blood(parent: Node, pos: Vector3) -> void:
 ## (cars/companions keep their old read).
 static func impact(parent: Node, pos: Vector3, normal: Vector3 = Vector3.ZERO) -> void:
 	if normal.length_squared() > 0.01:
-		var mark := MeshInstance3D.new()
-		var mq := QuadMesh.new()
-		var msize := randf_range(0.24, 0.4) # variety: no two pocks identical (it.16)
-		mq.size = Vector2(msize, msize)
-		var mm := puff_material()
-		mm.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED # it lies ON the surface
-		mm.albedo_color = Color(0.06, 0.055, 0.05, randf_range(0.5, 0.72))
-		mq.material = mm
-		mark.mesh = mq
-		mark.add_to_group("fx_mark")
-		parent.add_child(mark)
-		var n := normal.normalized()
-		var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
-		mark.look_at_from_position(pos + n * 0.03, pos - n, up) # quad face OUT along n
-		mark.rotate_object_local(Vector3(0, 0, 1), randf() * TAU) # break repetition
-		var mtw := mark.create_tween()
-		mtw.tween_interval(9.0)
-		mtw.tween_property(mark, "transparency", 1.0, 4.0)
-		mtw.tween_callback(mark.queue_free)
+		surface_mark(parent, pos, normal, Color(0.06, 0.055, 0.05, randf_range(0.5, 0.72)),
+			randf_range(0.24, 0.4), 9.0)
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true
@@ -205,6 +197,31 @@ static func impact(parent: Node, pos: Vector3, normal: Vector3 = Vector3.ZERO) -
 	var tw2 := s.create_tween()
 	tw2.tween_interval(0.6)
 	tw2.tween_callback(s.queue_free)
+
+
+## THE SURFACE MARK — one law for every lingering stain (bullet pocks, blood
+## pools): a soft disc laid ON the surface, random-rotated, fading out after
+## `linger` seconds. Fire-and-forget, grouped fx_mark for the sims.
+static func surface_mark(parent: Node, pos: Vector3, normal: Vector3, tint: Color,
+		msize: float, linger: float) -> void:
+	var mark := MeshInstance3D.new()
+	var mq := QuadMesh.new()
+	mq.size = Vector2(msize, msize)
+	var mm := puff_material()
+	mm.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED # it lies ON the surface
+	mm.albedo_color = tint
+	mq.material = mm
+	mark.mesh = mq
+	mark.add_to_group("fx_mark")
+	parent.add_child(mark)
+	var n := normal.normalized()
+	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
+	mark.look_at_from_position(pos + n * 0.03, pos - n, up) # quad face OUT along n
+	mark.rotate_object_local(Vector3(0, 0, 1), randf() * TAU) # break repetition
+	var mtw := mark.create_tween()
+	mtw.tween_interval(linger)
+	mtw.tween_property(mark, "transparency", 1.0, 4.0)
+	mtw.tween_callback(mark.queue_free)
 
 
 ## The swing made visible: a flat arc blade that sweeps through the melee arc

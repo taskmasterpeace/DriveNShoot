@@ -30,20 +30,33 @@ func _ready() -> void:
 	key.rotation = Vector3(deg_to_rad(-42.0), deg_to_rad(-38.0), 0.0)
 	key.light_energy = 1.1
 	_sv.add_child(key)
-	var floor_mesh := MeshInstance3D.new()
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(8, 8)
-	floor_mesh.mesh = pm
-	floor_mesh.material_override = ProtoWorldBuilder.material(Color(0.22, 0.21, 0.19), 0.9)
-	_sv.add_child(floor_mesh)
+	# A COLLIDABLE floor (it.19): the blood POOL raycasts for ground — a bare
+	# mesh floor gave it nothing to stain. (Inline build — box_body wants a
+	# Node3D parent and the SubViewport isn't one.)
+	var floor_body := StaticBody3D.new()
+	var fmesh := MeshInstance3D.new()
+	var fbm := BoxMesh.new()
+	fbm.size = Vector3(8, 0.1, 8)
+	fmesh.mesh = fbm
+	fmesh.material_override = ProtoWorldBuilder.material(Color(0.22, 0.21, 0.19), 0.9)
+	floor_body.add_child(fmesh)
+	var fshape := CollisionShape3D.new()
+	var fbs := BoxShape3D.new()
+	fbs.size = fbm.size
+	fshape.shape = fbs
+	floor_body.add_child(fshape)
+	floor_body.position = Vector3(0, -0.05, 0)
+	_sv.add_child(floor_body)
 	_cam = Camera3D.new()
 	_sv.add_child(_cam)
 	_cam.position = Vector3(0.0, 1.15, 1.5)
 	_cam.look_at(Vector3(0, 0.95, 0), Vector3.UP)
 
 	# [label, capture frame delay] — the flash lives ~4 frames, shoot it at birth;
-	# "mark" is the SAME impact captured late (burst dead, the pock remains).
-	var subjects: Array = [["flash", 0], ["blood", 7], ["impact", 7], ["mark", 45]]
+	# "mark" is the SAME impact captured late (burst dead, the pock remains);
+	# "pool" is blood captured late (the ground remembers); swing rides slow-mo.
+	var subjects: Array = [["flash", 0], ["blood", 7], ["impact", 7], ["mark", 45],
+		["pool", 50], ["swing", 1], ["skull", 6]]
 	var strip := Image.create(TILE * subjects.size(), TILE, false, Image.FORMAT_RGBA8)
 	for i in subjects.size():
 		var row: Array = subjects[i]
@@ -51,22 +64,29 @@ func _ready() -> void:
 		# The flash lives 70ms (~4 frames) — slow the CLOCK to catch it mid-bloom,
 		# restoring the PREVIOUS time_scale after (the house sim law).
 		var prev_ts := Engine.time_scale
-		if label == "flash":
-			Engine.time_scale = 0.05
+		if label == "flash" or label == "swing":
+			Engine.time_scale = 0.05 # both live ~a dozen frames — catch them mid-arc
+		var swing_dummy: Node3D = null
 		match label:
 			"flash":
 				ProtoFX.muzzle_flash(_sv, Vector3(0, 1.0, 0), Vector3(1, 0, 0.25))
-			"blood":
+			"blood", "pool":
 				ProtoFX.blood(_sv, Vector3(0, 1.0, 0))
-			"impact":
+			"impact", "mark":
 				ProtoFX.impact(_sv, Vector3(0, 0.9, 0), Vector3(0, 0, 1))
-			"mark":
-				ProtoFX.impact(_sv, Vector3(0, 0.9, 0), Vector3(0, 0, 1))
+			"swing":
+				swing_dummy = Node3D.new()
+				_sv.add_child(swing_dummy)
+				ProtoFX.swing_arc(swing_dummy, Vector3(1, 0, 0.3), 110.0, 1.6)
+			"skull":
+				ProtoFX.skull(_sv, Vector3(0, 1.1, 0))
 		for _f in int(row[1]):
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
-		if label == "flash":
+		if label == "flash" or label == "swing":
 			Engine.time_scale = prev_ts
+		if swing_dummy != null:
+			swing_dummy.queue_free()
 		var img := _sv.get_texture().get_image()
 		if img.get_format() != strip.get_format():
 			img.convert(strip.get_format())
