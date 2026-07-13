@@ -150,6 +150,12 @@ func _ready() -> void:
 	u.equip("data_cuff")
 	_check("the bracelet slot BOOSTS field repairs", u.repair_mult() > repair0)
 
+	# --- footwear slot: boots move you (folds into leg_mult -> the one speed site) --
+	var ft := ProtoCharacter.new()
+	_check("bare feet are neutral speed (gear_speed_mult 1.0)", absf(ft.gear_speed_mult() - 1.0) < 0.001)
+	ft.equip("tactical_boots") # +0.08
+	_check("the footwear slot SPEEDS you up (boots > bare)", ft.gear_speed_mult() > 1.0)
+
 	# --- talisman slot: luck sharpens your eye for salvage (scavenge_bonus) ------
 	var lk := ProtoCharacter.new()
 	var scav0: int = lk.scavenge_bonus()

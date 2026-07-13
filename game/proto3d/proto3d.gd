@@ -4370,7 +4370,7 @@ func _sync_wound_effects() -> void:
 	var eff_limp := wound_limp if wound_limp != "" else created_limp
 	if player.puppet and player.puppet.appearance.get("limp", "") != eff_limp:
 		player.puppet.appearance["limp"] = eff_limp
-	player.leg_mult = (0.72 if created_limp != "" else 1.0) * character.wound_leg_mult()
+	player.leg_mult = (0.72 if created_limp != "" else 1.0) * character.wound_leg_mult() * character.gear_speed_mult()
 	if wound_limp != _limp_announced:
 		if wound_limp != "" and _limp_announced == "∅" or wound_limp != "" and _limp_announced == "":
 			notify("🦵 Your leg gives — you LIMP now. The car is further than it was.")

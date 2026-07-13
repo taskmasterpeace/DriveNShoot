@@ -50,7 +50,8 @@ static var CATALOG: Dictionary = {
 	# clothing — the NON-armor slots earn their keep via MODS (carry, stealth), not soak.
 	"leather_duster":   {"name": "Leather duster",      "emoji": "🧥", "slot": "outer_coat", "tier": 2, "soak": 0.0, "covers": [], "stealth": 0.05},
 	"ghillie_poncho":   {"name": "Ghillie poncho",      "emoji": "🥷", "slot": "outer_coat", "tier": 3, "soak": 0.0, "covers": [], "stealth": 0.12},
-	"combat_boots":     {"name": "Combat boots",        "emoji": "🥾", "slot": "footwear", "tier": 2, "soak": 0.0, "covers": []},
+	"combat_boots":     {"name": "Combat boots",        "emoji": "🥾", "slot": "footwear", "tier": 2, "soak": 0.0, "covers": [], "speed": 0.04},
+	"tactical_boots":   {"name": "Tactical boots",      "emoji": "🥾", "slot": "footwear", "tier": 3, "soak": 0.0, "covers": [], "speed": 0.08},
 	"canvas_backpack":  {"name": "Canvas backpack",     "emoji": "🎒", "slot": "back", "tier": 2, "soak": 0.0, "covers": [], "carry": 10.0},
 	"frame_pack":       {"name": "Frame pack",          "emoji": "🎒", "slot": "back", "tier": 3, "soak": 0.0, "covers": [], "carry": 18.0},
 	# accessories — the ring slots put teeth in your fists (unarmed mod, wired to martial arts).
@@ -106,6 +107,7 @@ static func ensure_gear() -> void:
 			"reload_speed": clampf(float(row.get("reload_speed", 0.0)), 0.0, 0.3),
 			"repair": clampf(float(row.get("repair", 0.0)), 0.0, 0.3),
 			"luck": clampi(int(row.get("luck", 0)), 0, 4),
+			"speed": clampf(float(row.get("speed", 0.0)), -0.2, 0.2),
 		}
 	_register_as_items()
 

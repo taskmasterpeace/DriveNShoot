@@ -254,6 +254,16 @@ func shove_mult() -> float:
 	return 1.0 + 0.06 * minf(level("strength"), 10)
 
 
+## GEAR: boots that move you (footwear). >1.0 = faster; bare = 1.0. Folded into the
+## leg multiplier main pushes to the body, so it rides the ONE speed site. Clamped so
+## a survivor gets an edge, never a rocket.
+func gear_speed_mult() -> float:
+	var m := 1.0
+	for slot in worn:
+		m += float(ProtoGear.row(String(worn[slot])).get("speed", 0.0))
+	return clampf(m, 0.85, 1.25)
+
+
 ## Stealth: threats notice you later (walking; sprinting spoils it — the player
 ## body carries the blended value as noise_mult).
 func stealth_detect_mult() -> float:
