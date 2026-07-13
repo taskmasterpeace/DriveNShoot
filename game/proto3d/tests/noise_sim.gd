@@ -52,9 +52,14 @@ func _ready() -> void:
 	_check("a stale burst PRUNES down to zero (bounded, not a leak)", main._noise_log.is_empty())
 
 	# --- Stage: a car with a radio, and a howler a real ~55m out ------------------
-	main.enter_car(main.cars[0])
-	await get_tree().physics_frame
-	var car: ProtoCar3D = main.active_car
+	main.daynight.hour = 0.0 # NIGHT — a howler is inert (vel 0) in daylight; the hunter must be awake
+	main._exit_car() # ON FOOT: the player is the radio CARRIER and stays in the player3d group. A
+	main.player.is_active = true # DRIVING player is degrouped, so the howler's _player is null and it
+	main.player.global_position = Vector3(6, 0.35, 388) # freezes (early-returns) before it can investigate.
+	main.player.velocity = Vector3.ZERO
+	for _i in 4:
+		await get_tree().physics_frame
+	var car: Node3D = main.player # the radio's noise source (a carried radio rides the player on foot)
 	var howler := ProtoHowler.create(main)
 	main.add_child(howler)
 	howler.set_role("circler")

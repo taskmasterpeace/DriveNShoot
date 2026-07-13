@@ -1457,7 +1457,11 @@ func _update_audio_loops(delta: float) -> void:
 			and (active_car.components["battery"] as Damageable).tier() == Damageable.Tier.BROKEN
 		music.set_powered(not (active_car != null and battery_dead))
 		_music_noise_cd -= delta
-		if music.is_playing() and music.power_on and _music_noise_cd <= 0.0:
+		# The noise bus is SIMULATION, audio is presentation (LWE §0.10, one-way): a
+		# powered radio makes noise whether or not the audio DEVICE renders it. Gating on
+		# is_playing() (the AudioStreamPlayer's .playing flag) coupled them AND went silent
+		# headless (the Dummy driver never "plays") — key off power_on, the sim state.
+		if music.power_on and _music_noise_cd <= 0.0:
 			_music_noise_cd = 2.0
 			emit_noise(carrier.global_position, lerpf(0.0, 90.0, float(music.volume_pct) / 100.0), "radio")
 	# Fire crackle on whatever car is burning near you
