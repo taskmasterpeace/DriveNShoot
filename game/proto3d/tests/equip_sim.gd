@@ -49,6 +49,13 @@ func _ready() -> void:
 			if ProtoGear.CATALOG.has(String(k)):
 				looted_gear = true
 	_check("gear is LOOTABLE — the armory cache rolls a wearable piece", looted_gear)
+	var looted_clothing := false
+	for _i in 80:
+		for k in ProtoContainer.roll_loot("cache_rare", lrng):
+			var gr: Dictionary = ProtoGear.row(String(k))
+			if not gr.is_empty() and not (String(gr.get("slot", "")) in ProtoGear.ARMOR_SLOTS):
+				looted_clothing = true
+	_check("clothing gear is findable too (not just armor) — a pack/coat drops", looted_clothing)
 	# Found at a PLACE: the Military Base's chest pulls the armory table.
 	var armory_wired := false
 	var sp: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/world/structure_profiles.json"))
