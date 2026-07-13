@@ -127,6 +127,18 @@ func _ready() -> void:
 	_check("bare fists are unchanged (no ring = no unarmed mod)",
 		absf(ProtoCharacter.new().unarmed_dmg_mult() - fist_bare) < 0.001)
 
+	# --- belt/sash/bracelet round out the slot effects (clean single-consumer) --
+	var u := ProtoCharacter.new()
+	var carry0: float = u.carry_cap()
+	u.equip("tactical_rig_belt")
+	_check("the belt slot ADDS carry (+10kg)", absf((u.carry_cap() - carry0) - 10.0) < 0.5)
+	var reload0: float = u.reload_mult()
+	u.equip("dual_bandolier")
+	_check("the sash slot SPEEDS reload (mult drops)", u.reload_mult() < reload0)
+	var repair0: float = u.repair_mult()
+	u.equip("data_cuff")
+	_check("the bracelet slot BOOSTS field repairs", u.repair_mult() > repair0)
+
 	# --- Worn gear survives save/load (the dog pattern) -------------------------
 	c.equip("kevlar_vest")
 	c.equip("riot_helm")

@@ -159,7 +159,23 @@ func horn_recall_radius() -> float:
 
 ## Mechanics: repairs restore more (hotwire time lives in main._hotwire_duration).
 func repair_mult() -> float:
-	return 1.0 + 0.08 * minf(level("mechanics"), 10)
+	return 1.0 + 0.08 * minf(level("mechanics"), 10) + gear_repair_bonus()
+
+
+## GEAR: a bracelet (mechanic's wraps / data cuff) sharpens field repairs. Bare = 0.
+func gear_repair_bonus() -> float:
+	var b := 0.0
+	for slot in worn:
+		b += float(ProtoGear.row(String(worn[slot])).get("repair", 0.0))
+	return clampf(b, 0.0, 0.5)
+
+
+## GEAR: a sash/bandolier speeds the reload (multiplier on reload time; 1.0 = none).
+func gear_reload_mult() -> float:
+	var cut := 0.0
+	for slot in worn:
+		cut += float(ProtoGear.row(String(worn[slot])).get("reload_speed", 0.0))
+	return clampf(1.0 - cut, 0.6, 1.0)
 
 
 func salvage_bonus() -> int:
@@ -172,7 +188,7 @@ func crit_bonus() -> float:
 
 
 func reload_mult() -> float:
-	return maxf(0.6, 1.0 - 0.04 * level("marksmanship"))
+	return maxf(0.5, (1.0 - 0.04 * level("marksmanship")) * gear_reload_mult())
 
 
 ## Melee: one skill for every swung thing.

@@ -56,6 +56,13 @@ static var CATALOG: Dictionary = {
 	# accessories — the ring slots put teeth in your fists (unarmed mod, wired to martial arts).
 	"brass_knuckles":   {"name": "Brass knuckles",      "emoji": "🥊", "slot": "ring_l", "tier": 2, "soak": 0.0, "covers": [], "unarmed": 0.12},
 	"knuckle_duster":   {"name": "Knuckle duster",      "emoji": "🤜", "slot": "ring_r", "tier": 3, "soak": 0.0, "covers": [], "unarmed": 0.08},
+	# belt — carry; sash — faster reload; bracelet — better field repairs (clean single-consumer wires).
+	"utility_belt":     {"name": "Utility belt",        "emoji": "🩹", "slot": "belt", "tier": 2, "soak": 0.0, "covers": [], "carry": 6.0},
+	"tactical_rig_belt": {"name": "Tactical rig belt",  "emoji": "🎗", "slot": "belt", "tier": 3, "soak": 0.0, "covers": [], "carry": 10.0},
+	"ammo_bandolier":   {"name": "Ammo bandolier",      "emoji": "🎯", "slot": "sash", "tier": 2, "soak": 0.0, "covers": [], "reload_speed": 0.08},
+	"dual_bandolier":   {"name": "Dual bandolier",      "emoji": "🎯", "slot": "sash", "tier": 3, "soak": 0.0, "covers": [], "reload_speed": 0.14},
+	"mechanic_wrap":    {"name": "Mechanic's wraps",    "emoji": "🔧", "slot": "bracelet", "tier": 2, "soak": 0.0, "covers": [], "repair": 0.10},
+	"data_cuff":        {"name": "Data cuff",           "emoji": "⌚", "slot": "bracelet", "tier": 4, "soak": 0.0, "covers": [], "repair": 0.18},
 }
 
 static var _folded: bool = false
@@ -90,6 +97,8 @@ static func ensure_gear() -> void:
 			"carry": maxf(0.0, float(row.get("carry", 0.0))),
 			"stealth": clampf(float(row.get("stealth", 0.0)), 0.0, 0.4),
 			"unarmed": clampf(float(row.get("unarmed", 0.0)), 0.0, 0.3),
+			"reload_speed": clampf(float(row.get("reload_speed", 0.0)), 0.0, 0.3),
+			"repair": clampf(float(row.get("repair", 0.0)), 0.0, 0.3),
 		}
 	_register_as_items()
 
