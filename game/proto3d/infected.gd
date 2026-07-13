@@ -238,6 +238,10 @@ func _physics_process(delta: float) -> void:
 			if n_kin >= 2:
 				_target = sum / float(n_kin)
 				_has_target = true
+		# THE ECHO (§0.8): a worker that WAITS — it never advances on you. It may hear the
+		# noise, but it holds its task spot; drop any acquired target so it idles in place.
+		if not bool(row.get("advances", true)):
+			_has_target = false
 
 	var speed := float(row.get("speed_mps", 1.1))
 	if _has_target:

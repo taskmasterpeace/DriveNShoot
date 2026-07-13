@@ -52,15 +52,14 @@
    "speed_mps": 2.8,
    "lock_speed_mps": 3.6,
    "senses": {
-    "sight_r": 0.0,
+    "sight_r": 12.0,
     "ear_r": 0.0,
     "heat_r": 0.0
    },
    "tags": [
     "infected",
-    "blind",
     "fast",
-    "fragile"
+    "medium"
    ],
    "verbs": [],
    "puppet": {
@@ -83,6 +82,55 @@
     "cooldown_s": [
      10,
      24
+    ]
+   }
+  },
+  {
+   "id": "echo",
+   "share": 0.0,
+   "hp": 24,
+   "claw": 6.0,
+   "claw_cd": 1.4,
+   "speed_mps": 1.1,
+   "lock_speed_mps": 1.1,
+   "advances": false,
+   "senses": {
+    "sight_r": 0.0,
+    "ear_r": 0.0,
+    "heat_r": 0.0
+   },
+   "tags": [
+    "infected",
+    "blind",
+    "climber",
+    "medium"
+   ],
+   "verbs": [
+    "climb_fence",
+    "tug_door",
+    "tool_strike",
+    "follow_pattern"
+   ],
+   "puppet": {
+    "skin": [
+     0.6,
+     0.56,
+     0.5
+    ],
+    "cloth": [
+     0.32,
+     0.3,
+     0.26
+    ],
+    "gait": 0.5,
+    "build": 0.74
+   },
+   "motion": "infected_shuffle",
+   "voice": {
+    "idle": "inf_murmur",
+    "cooldown_s": [
+     12,
+     30
     ]
    }
   }
