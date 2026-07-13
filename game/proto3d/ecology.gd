@@ -117,6 +117,11 @@ func tick(dt_gh: float) -> void:
 		eco["predator_pressure"] = clampf(pred, 0.0, 1.0)
 		eco["corpse_heat"] = clampf(heat, 0.0, 1.0)
 		_reconcile_wildlife(row, dt_gh)
+	# audit-2 GAP-5, part 2: re-floor the authored nest AFTER the loop. The pre-loop
+	# seed (line ~78) lets reconcile read it hot, but the per-cell predator decay would
+	# cool it back below the apex bar within the SAME tick — the hot floor has to survive
+	# the tick, not merely start it. (Was landing at 0.74 vs the 0.75 bar.)
+	_seed_authored_nest()
 
 
 ## THE ECO→WORLD BRIDGE, half 1 (the floats' first reader): what the sector's

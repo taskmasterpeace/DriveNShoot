@@ -415,6 +415,11 @@ func _physics_process(delta: float) -> void:
 		14: # F9 OFFLINE ECOLOGY: absence advances the floats, never spawns
 			if phase_t > 0.4:
 				var eco9: Dictionary = swamp_row["eco"]
+				# Prior phases hunted this sector to the prey=0 FIXED POINT (multiplicative
+				# growth can't lift off exactly 0). Stage a LIVING cell so "the land moves"
+				# tests the real offline drift, not the degenerate dead-zone equilibrium.
+				eco9["prey_density"] = 0.4
+				eco9["food_avail"] = 0.6
 				var prey0: float = float(eco9.get("prey_density", 0.0))
 				var live0: int = get_tree().get_nodes_in_group("creature").size()
 				var digest: Dictionary = main.world_state.run_offline_catchup(4, 12345)
