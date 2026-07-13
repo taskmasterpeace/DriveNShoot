@@ -63,7 +63,10 @@ func _home_count() -> int:
 
 
 func _town_screen(t_pos: Vector2) -> Vector2:
-	var xf: Dictionary = main.stream._country_transform()
+	# Use the SAME transform the click handler uses — _atlas_transform over the drawn
+	# _atlas_bounds. The atlas gained pan/zoom (_atlas_transform), so _country_transform()
+	# no longer matches the handler; that mismatch was the 5415 m round-trip miss.
+	var xf: Dictionary = main.stream._atlas_transform(main.stream._atlas_bounds)
 	return xf["org"] + (t_pos - (xf["bounds"] as Rect2).position) * float(xf["px"])
 
 
@@ -109,8 +112,17 @@ func _physics_process(delta: float) -> void:
 				_next()
 		4:
 			if phase_t > 0.4:
-				_check("the country ATLAS is open (mode 2)", main.stream.map_open() and main.stream._map_mode == 2)
+				# The map is a 4-MODE cycle now (off/local/STATE/country); the town-click
+				# course is authored on the COUNTRY atlas — mode 3, not mode 2 (a STATE view
+				# was inserted). Stage mode 3 so the click transform matches _town_screen's
+				# _country_transform() (the 5415 m miss was clicking country coords on the
+				# state-scale map).
+				main.stream._map_mode = 3
 				main.stream._map_canvas.size = Vector2(600, 480) # deterministic layout, headless
+				# Headless never DRAWS the atlas, so _atlas_bounds (what the click handler
+				# maps against) stays empty — set the country bounds it would draw.
+				main.stream._atlas_bounds = main.stream.usmap.world_bounds()
+				_check("the country ATLAS is open (mode 3)", main.stream.map_open() and main.stream._map_mode == 3)
 				var picked: Dictionary = main.stream.usmap.town_near(Vector3(0, 0, 0), 1.0e9)
 				town_name = String(picked["name"])
 				var tp: Vector2 = picked["pos"]
@@ -127,7 +139,7 @@ func _physics_process(delta: float) -> void:
 						main.waypoints[ci][1].distance_to(town_pos) < main.stream.usmap.cell_m)
 					_check("the course label names the town", String(main.waypoints[ci][0]).contains(town_name))
 				# Now click OPEN GROUND (>22px from every town) → a plain MARK, replacing the course.
-				var xf: Dictionary = main.stream._country_transform()
+				var xf: Dictionary = main.stream._atlas_transform(main.stream._atlas_bounds)
 				var org: Vector2 = xf["org"]
 				var px: float = xf["px"]
 				var bpos: Vector2 = (xf["bounds"] as Rect2).position
