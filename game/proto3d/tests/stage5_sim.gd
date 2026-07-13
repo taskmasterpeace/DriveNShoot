@@ -88,15 +88,21 @@ func _physics_process(delta: float) -> void:
 				_next()
 		6:
 			if phase_t > 0.3:
-				# M cycles local → the COUNTRY ATLAS → closed (Stage 5 v2).
-				_check("second M shows the country atlas (still open)", main.stream.map_open())
+				# M cycles off → local → STATE → COUNTRY ATLAS → off (4-mode now: the
+				# state view was added between local and the atlas, so it's 4 presses to close).
+				_check("second M shows the STATE view (still open)", main.stream.map_open())
 				_key(KEY_M)
 				_next()
 		7:
 			if phase_t > 0.3:
-				_check("third M closes it", not main.stream.map_open())
+				_check("third M shows the COUNTRY ATLAS (still open)", main.stream.map_open())
+				_key(KEY_M)
 				_next()
 		8:
+			if phase_t > 0.3:
+				_check("fourth M closes the map (4-mode cycle)", not main.stream.map_open())
+				_next()
+		9:
 			print("WLD RESULTS: %d passed, %d failed" % [passed, failed])
 			print("WLD: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 			get_tree().quit(0 if failed == 0 else 1)
