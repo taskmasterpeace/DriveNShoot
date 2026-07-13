@@ -84,11 +84,18 @@ func set_blind_eye(side: String) -> void:
 	vision_yaw_offset = -0.55 if side == "r" else (0.55 if side == "l" else 0.0)
 
 
+## THE PAPERDOLL: slot -> worn gear id ("" = bare). Every one of the 19 slots is
+## always present and always valid (the spec's "no slot invalid" law). See gear.gd.
+var worn: Dictionary = {}
+
+
 func _init() -> void:
 	for id in SKILLS:
 		skills[id] = {"xp": 0.0, "level": 0}
 	for part in PART_NAMES:
 		body[part] = Damageable.new(part, PART_EMOJI[part], 60.0 if part == "head" else 100.0)
+	for slot in ProtoGear.SLOTS:
+		worn[slot] = ""
 
 
 func add_xp(id: String, amount: float) -> void:
@@ -255,10 +262,60 @@ func hp_cap() -> float:
 	return maxf(15.0, 100.0 - lost)
 
 
+## THE PAPERDOLL, felt: WORN ARMOR blunts an incoming wound to a part. Sums the
+## soak of every worn piece that COVERS that part, clamped to 0.75 so a kitted-out
+## survivor is tanky, never invulnerable. One place, so EVERY damage source (claws,
+## blasts, PvP, hazards) that routes through take_wound respects the armor.
+func armor_soak(part: String) -> float:
+	var soak := 0.0
+	for slot in worn:
+		var gid: String = String(worn[slot])
+		if gid == "":
+			continue
+		var r: Dictionary = ProtoGear.row(gid)
+		if r.is_empty():
+			continue
+		if part in (r.get("covers", []) as Array):
+			soak += float(r.get("soak", 0.0))
+	return clampf(soak, 0.0, 0.75)
+
+
+## Wear a gear row. ONE ITEM PER SLOT (UO law) — the row decides its own slot, so a
+## chest plate can never land on the head; a new piece swaps whatever was worn.
+## Returns false on an unknown id.
+func equip(gear_id: String) -> bool:
+	var r: Dictionary = ProtoGear.row(gear_id)
+	if r.is_empty():
+		return false
+	var slot: String = String(r.get("slot", ""))
+	if not worn.has(slot):
+		return false
+	worn[slot] = gear_id
+	return true
+
+
+## Bare a slot (the piece is returned to the caller to drop back in the pack).
+func unequip(slot: String) -> String:
+	var was: String = String(worn.get(slot, ""))
+	if worn.has(slot):
+		worn[slot] = ""
+	return was
+
+
+## The sheet's one-line kit readout (surface every system).
+func gear_line() -> String:
+	var pieces := 0
+	for s in worn:
+		if String(worn[s]) != "":
+			pieces += 1
+	return "%d worn · torso soak %d%%" % [pieces, int(round(armor_soak("torso") * 100.0))]
+
+
 ## A wound: damage a part + core hp. Head/torso destroyed or hp 0 = the run ends.
 func take_wound(part: String, amount: float) -> void:
 	if dead:
 		return
+	amount *= (1.0 - armor_soak(part)) # worn armor eats its share first
 	body[part].damage(amount)
 	hp = clampf(minf(hp - amount * 0.6, hp_cap()), 0.0, hp_cap())
 	if hp <= 0.0 or body["head"].tier() == Damageable.Tier.BROKEN \
@@ -366,7 +423,7 @@ func to_record() -> Dictionary:
 	for id in skills:
 		sk[id] = {"xp": skills[id]["xp"], "level": skills[id]["level"]}
 	return {"hp": hp, "parts": parts, "skills": sk, "dead": dead, "hunger": hunger,
-		"fever_until_h": fever_until_h}
+		"fever_until_h": fever_until_h, "worn": worn.duplicate()}
 
 
 func from_record(rec: Dictionary) -> void:
@@ -381,6 +438,15 @@ func from_record(rec: Dictionary) -> void:
 	hp = clampf(float(rec.get("hp", 100.0)), 0.0, hp_cap())
 	hunger = clampf(float(rec.get("hunger", 100.0)), 0.0, 100.0) # was leaking — starving loaded back full
 	fever_until_h = float(rec.get("fever_until_h", -1.0)) # old saves load clean (the .get law)
+	# THE PAPERDOLL: rebuild every slot bare, then restore worn gear that still
+	# validates against the catalog (unknown/retired ids drop to bare — the .get law).
+	worn = {}
+	for slot in ProtoGear.SLOTS:
+		worn[slot] = ""
+	for slot in (rec.get("worn", {}) as Dictionary):
+		var gid: String = String(rec["worn"][slot])
+		if worn.has(slot) and (gid == "" or not ProtoGear.row(gid).is_empty()):
+			worn[slot] = gid
 
 
 # --- BITE FEVER (THE_INFECTED.md §3.6 — sepsis, NEVER transformation; that is

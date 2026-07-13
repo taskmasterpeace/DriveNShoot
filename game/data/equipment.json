@@ -1,0 +1,25 @@
+{
+  "_note": "The 19-slot paperdoll (docs/design/EQUIPMENT_PAPERDOLL.md). Rows here fold ADDITIVELY onto ProtoGear.CATALOG at boot — a new id becomes real gear. Reusing a code-floor id is ignored (code wins). slot must be one of ProtoGear.SLOTS; soak is a relative 0..1 armor cut over the body parts in covers.",
+  "gear": [
+    {
+      "id": "composite_shell",
+      "name": "Composite combat shell",
+      "emoji": "🛡",
+      "slot": "chest",
+      "tier": 5,
+      "soak": 0.42,
+      "covers": ["torso"],
+      "desc": "White-Coat composite. The best torso plate this side of a Redoubt."
+    },
+    {
+      "id": "gas_mask_full",
+      "name": "Full gas mask",
+      "emoji": "😷",
+      "slot": "face",
+      "tier": 3,
+      "soak": 0.0,
+      "covers": [],
+      "desc": "Seals the face slot. Toxin/rad resist lands when the survival layers arrive."
+    }
+  ]
+}

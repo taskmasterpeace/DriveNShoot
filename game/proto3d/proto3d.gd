@@ -159,6 +159,7 @@ func _ready() -> void:
 	ProtoContainer.ensure_items() # …and data/items.json onto the item catalog (a new item = a ROW)
 	ProtoNPC.ensure_prices() # …and data/prices.json onto the price list
 	ProtoNPC.ensure_archetypes() # …and data/npcs.json archetypes (mechanic/medic hires)
+	ProtoGear.ensure_gear() # …and data/equipment.json onto the 19-slot paperdoll (a new gear = a ROW)
 	_build_environment()
 	var info: Dictionary = ProtoWorldBuilder.build_world(self)
 	house = info["house"]
@@ -2013,6 +2014,13 @@ func use_item(id: String) -> bool:
 		character.set_eyepatch(not character.eyepatch)
 		notify("You cover one eye — half the world goes dark" if character.eyepatch else "Both eyes open again")
 		return false # toggles; never consumed
+	# THE PAPERDOLL: USE a wearable to PUT IT ON (one item per slot; the gear picks
+	# its own slot). Consumed from the pack into the slot; armor blunts wounds now.
+	if not ProtoGear.row(id).is_empty():
+		if character.equip(id):
+			notify("🦺 Worn: %s" % String(ProtoGear.row(id).get("name", id)))
+			return true
+		return false
 	if ProtoWeapon.WEAPONS.has(id):
 		# Already own it? USING a gun you carry means DRAW it — switch, don't refuse.
 		for i in weapons.size():
