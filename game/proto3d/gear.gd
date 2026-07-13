@@ -47,10 +47,12 @@ static var CATALOG: Dictionary = {
 	# legs
 	"combat_leggings":  {"name": "Combat leggings",     "emoji": "👖", "slot": "legs", "tier": 2, "soak": 0.10, "covers": ["l_leg", "r_leg"]},
 	"battle_plate_legs": {"name": "Battle plate (legs)", "emoji": "🛡", "slot": "legs", "tier": 4, "soak": 0.22, "covers": ["l_leg", "r_leg"]},
-	# clothing/accessory anchors — prove the non-armor slots exist and hold gear
-	"leather_duster":   {"name": "Leather duster",      "emoji": "🧥", "slot": "outer_coat", "tier": 2, "soak": 0.0, "covers": []},
+	# clothing — the NON-armor slots earn their keep via MODS (carry, stealth), not soak.
+	"leather_duster":   {"name": "Leather duster",      "emoji": "🧥", "slot": "outer_coat", "tier": 2, "soak": 0.0, "covers": [], "stealth": 0.05},
+	"ghillie_poncho":   {"name": "Ghillie poncho",      "emoji": "🥷", "slot": "outer_coat", "tier": 3, "soak": 0.0, "covers": [], "stealth": 0.12},
 	"combat_boots":     {"name": "Combat boots",        "emoji": "🥾", "slot": "footwear", "tier": 2, "soak": 0.0, "covers": []},
-	"canvas_backpack":  {"name": "Canvas backpack",     "emoji": "🎒", "slot": "back", "tier": 2, "soak": 0.0, "covers": []},
+	"canvas_backpack":  {"name": "Canvas backpack",     "emoji": "🎒", "slot": "back", "tier": 2, "soak": 0.0, "covers": [], "carry": 10.0},
+	"frame_pack":       {"name": "Frame pack",          "emoji": "🎒", "slot": "back", "tier": 3, "soak": 0.0, "covers": [], "carry": 18.0},
 }
 
 static var _folded: bool = false
@@ -82,6 +84,8 @@ static func ensure_gear() -> void:
 			"tier": int(row.get("tier", 1)),
 			"soak": clampf(float(row.get("soak", 0.0)), 0.0, 0.6),
 			"covers": row.get("covers", []),
+			"carry": maxf(0.0, float(row.get("carry", 0.0))),
+			"stealth": clampf(float(row.get("stealth", 0.0)), 0.0, 0.4),
 		}
 	_register_as_items()
 

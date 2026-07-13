@@ -96,6 +96,20 @@ func _ready() -> void:
 		String(c.worn["chest"]) == "composite_shell")
 	_check("equip refuses an unknown id", not c.equip("banana_peel"))
 
+	# --- The 13 non-armor slots earn their keep: carry + stealth MODS -----------
+	var g := ProtoCharacter.new()
+	var carry_bare: float = g.carry_cap()
+	g.equip("frame_pack") # back slot, +18 kg
+	_check("the back slot ADDS carry (a pack raises the cap ~+18kg)",
+		absf((g.carry_cap() - carry_bare) - 18.0) < 0.5)
+	var seen_bare: float = g.stealth_detect_mult()
+	g.equip("ghillie_poncho") # outer_coat, -12% detection
+	_check("the coat slot makes you STEALTHIER (detection range drops)",
+		g.stealth_detect_mult() < seen_bare)
+	_check("a bare survivor gets NO gear mod (unchanged carry + stealth)",
+		absf(ProtoCharacter.new().carry_cap() - carry_bare) < 0.001
+		and absf(ProtoCharacter.new().stealth_detect_mult() - seen_bare) < 0.001)
+
 	# --- Worn gear survives save/load (the dog pattern) -------------------------
 	c.equip("kevlar_vest")
 	c.equip("riot_helm")

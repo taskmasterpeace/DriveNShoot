@@ -203,9 +203,27 @@ func stamina_regen_mult() -> float:
 	return 1.0 + 0.05 * minf(level("endurance"), 10)
 
 
-## Strength: the CARRY_CAP hook made real + shove.
+## GEAR MODS: the 13 non-armor slots earn their keep. A worn pack raises the carry
+## cap; a coat/cloak dampens how far a threat notices you. Bare = zero, so nothing
+## changes until you wear it. Data-tunable (carry/stealth fields on the gear rows).
+func gear_carry_bonus() -> float:
+	var kg := 0.0
+	for slot in worn:
+		kg += float(ProtoGear.row(String(worn[slot])).get("carry", 0.0))
+	return kg
+
+
+## Worn stealth cut, as a multiplier on detection range (1.0 = none, 0.5 = half).
+func gear_stealth_mult() -> float:
+	var cut := 0.0
+	for slot in worn:
+		cut += float(ProtoGear.row(String(worn[slot])).get("stealth", 0.0))
+	return clampf(1.0 - cut, 0.4, 1.0)
+
+
+## Strength: the CARRY_CAP hook made real + shove (+ a worn pack).
 func carry_cap() -> float:
-	return 32.0 + 2.5 * minf(level("strength"), 12)
+	return 32.0 + 2.5 * minf(level("strength"), 12) + gear_carry_bonus()
 
 
 func shove_mult() -> float:
@@ -215,7 +233,7 @@ func shove_mult() -> float:
 ## Stealth: threats notice you later (walking; sprinting spoils it — the player
 ## body carries the blended value as noise_mult).
 func stealth_detect_mult() -> float:
-	return maxf(0.5, 1.0 - 0.05 * level("stealth"))
+	return maxf(0.35, (1.0 - 0.05 * level("stealth")) * gear_stealth_mult())
 
 
 ## Scavenging: caches give more; fragments reveal wider.
