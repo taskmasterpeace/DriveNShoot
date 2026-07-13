@@ -260,9 +260,17 @@ func stealth_detect_mult() -> float:
 	return maxf(0.35, (1.0 - 0.05 * level("stealth")) * gear_stealth_mult())
 
 
-## Scavenging: caches give more; fragments reveal wider.
+## GEAR: a talisman (lucky foot / scavver's compass) sharpens your eye for salvage.
+func gear_luck_bonus() -> int:
+	var b := 0
+	for slot in worn:
+		b += int(ProtoGear.row(String(worn[slot])).get("luck", 0))
+	return b
+
+
+## Scavenging: caches give more; fragments reveal wider (+ a lucky talisman).
 func scavenge_bonus() -> int:
-	return int(level("scavenging") / 2.0)
+	return int(level("scavenging") / 2.0) + gear_luck_bonus()
 
 
 func fragment_reveal_radius() -> int:

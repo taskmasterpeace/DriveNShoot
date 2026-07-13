@@ -66,6 +66,9 @@ static var CATALOG: Dictionary = {
 	# shirt/under-armor — a thin plate under the vest; soak flows through the SAME law (armor_soak reads every slot).
 	"flex_armor_base":  {"name": "Flex armor base",     "emoji": "👕", "slot": "shirt", "tier": 2, "soak": 0.06, "covers": ["head", "torso", "l_arm", "r_arm", "l_leg", "r_leg"]},
 	"trauma_plate_insert": {"name": "Trauma plate insert", "emoji": "🛡", "slot": "shirt", "tier": 3, "soak": 0.12, "covers": ["torso"]},
+	# talisman — luck: your eye catches extra salvage (feeds scavenge_bonus at every chest).
+	"rabbits_foot":     {"name": "Lucky rabbit's foot", "emoji": "🐇", "slot": "talisman", "tier": 1, "soak": 0.0, "covers": [], "luck": 1},
+	"scavenger_compass": {"name": "Scavver's compass",  "emoji": "🧭", "slot": "talisman", "tier": 3, "soak": 0.0, "covers": [], "luck": 2},
 }
 
 static var _folded: bool = false
@@ -102,6 +105,7 @@ static func ensure_gear() -> void:
 			"unarmed": clampf(float(row.get("unarmed", 0.0)), 0.0, 0.3),
 			"reload_speed": clampf(float(row.get("reload_speed", 0.0)), 0.0, 0.3),
 			"repair": clampf(float(row.get("repair", 0.0)), 0.0, 0.3),
+			"luck": clampi(int(row.get("luck", 0)), 0, 4),
 		}
 	_register_as_items()
 

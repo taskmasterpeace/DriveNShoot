@@ -65,7 +65,8 @@
         { "item": "knuckle_duster", "min": 1, "max": 1, "weight": 0.15 },
         { "item": "utility_belt", "min": 1, "max": 1, "weight": 0.18 },
         { "item": "ammo_bandolier", "min": 1, "max": 1, "weight": 0.15 },
-        { "item": "mechanic_wrap", "min": 1, "max": 1, "weight": 0.15 }
+        { "item": "mechanic_wrap", "min": 1, "max": 1, "weight": 0.15 },
+        { "item": "rabbits_foot", "min": 1, "max": 1, "weight": 0.12 }
       ]
     },
     {

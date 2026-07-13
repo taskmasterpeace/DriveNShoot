@@ -150,6 +150,12 @@ func _ready() -> void:
 	u.equip("data_cuff")
 	_check("the bracelet slot BOOSTS field repairs", u.repair_mult() > repair0)
 
+	# --- talisman slot: luck sharpens your eye for salvage (scavenge_bonus) ------
+	var lk := ProtoCharacter.new()
+	var scav0: int = lk.scavenge_bonus()
+	lk.equip("scavenger_compass") # talisman, +2 finds
+	_check("the talisman slot ADDS scavenge finds (luck)", lk.scavenge_bonus() == scav0 + 2)
+
 	# --- Worn gear survives save/load (the dog pattern) -------------------------
 	c.equip("kevlar_vest")
 	c.equip("riot_helm")
