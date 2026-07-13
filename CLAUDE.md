@@ -60,6 +60,7 @@ Keyboard (stock): WASD move · SHIFT sprint · **CTRL hold = CROUCH (sprint+tap 
 | Scout drone | `drone.gd`, `drone_dock.gd` | safehouse dock → ROUTE SCOUT flies your course (body stays home), 🛸 map marks, returns/recharges, shoot-down-able; AI-collapse boot line |
 | Input map | `input_map.gd`, `controls_panel.gd` + `data/input_bindings.json` | every verb = an ACTION row (key+mouse+pad on one action); twin-stick pad driver (right stick → aim_override, trigger job-swap at the wheel, rumble); F11 press-to-capture rebinds persist to user:// |
 | Audio/VO | `audio.gd` + `tools/soundforge/` | 57 SFX + 11 TTS lines in 4 LOCKED voices (`voices.json` — never change a voice_id) |
+| Paperdoll gear | `gear.gd` + `character.gd` + `data/equipment.json` | THE 19-SLOT PAPERDOLL (rung 1): ProtoGear catalog (6 armor/7 clothing/6 accessory), every slot bare by default, folds JSON additively (a new gear = a ROW); WORN ARMOR soaks wounds at the `take_wound` choke (clamped 0.75), USE wears it one-per-slot, rides the save. `equip_sim` |
 
 ## 🛠 The tool suite (the strategy: models/humans tune content, never code)
 
