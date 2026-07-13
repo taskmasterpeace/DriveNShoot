@@ -183,7 +183,15 @@ func melee_dmg_mult() -> float:
 ## Martial Arts: the empty-hand ladder. Damage scales here; the KICK (lv2),
 ## THROW (lv4) and FINISHER (lv6) gates read level("martial_arts") directly.
 func unarmed_dmg_mult() -> float:
-	return 1.0 + 0.07 * minf(level("martial_arts"), 10)
+	return 1.0 + 0.07 * minf(level("martial_arts"), 10) + gear_unarmed_bonus()
+
+
+## GEAR: the ring slots (brass knuckles / duster) put teeth in your fists. Bare = 0.
+func gear_unarmed_bonus() -> float:
+	var b := 0.0
+	for slot in worn:
+		b += float(ProtoGear.row(String(worn[slot])).get("unarmed", 0.0))
+	return clampf(b, 0.0, 0.4)
 
 
 func melee_stam_mult() -> float:

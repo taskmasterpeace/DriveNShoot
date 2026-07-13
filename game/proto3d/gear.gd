@@ -53,6 +53,9 @@ static var CATALOG: Dictionary = {
 	"combat_boots":     {"name": "Combat boots",        "emoji": "🥾", "slot": "footwear", "tier": 2, "soak": 0.0, "covers": []},
 	"canvas_backpack":  {"name": "Canvas backpack",     "emoji": "🎒", "slot": "back", "tier": 2, "soak": 0.0, "covers": [], "carry": 10.0},
 	"frame_pack":       {"name": "Frame pack",          "emoji": "🎒", "slot": "back", "tier": 3, "soak": 0.0, "covers": [], "carry": 18.0},
+	# accessories — the ring slots put teeth in your fists (unarmed mod, wired to martial arts).
+	"brass_knuckles":   {"name": "Brass knuckles",      "emoji": "🥊", "slot": "ring_l", "tier": 2, "soak": 0.0, "covers": [], "unarmed": 0.12},
+	"knuckle_duster":   {"name": "Knuckle duster",      "emoji": "🤜", "slot": "ring_r", "tier": 3, "soak": 0.0, "covers": [], "unarmed": 0.08},
 }
 
 static var _folded: bool = false
@@ -86,6 +89,7 @@ static func ensure_gear() -> void:
 			"covers": row.get("covers", []),
 			"carry": maxf(0.0, float(row.get("carry", 0.0))),
 			"stealth": clampf(float(row.get("stealth", 0.0)), 0.0, 0.4),
+			"unarmed": clampf(float(row.get("unarmed", 0.0)), 0.0, 0.3),
 		}
 	_register_as_items()
 

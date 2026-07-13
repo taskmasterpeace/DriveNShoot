@@ -117,6 +117,16 @@ func _ready() -> void:
 		absf(ProtoCharacter.new().carry_cap() - carry_bare) < 0.001
 		and absf(ProtoCharacter.new().stealth_detect_mult() - seen_bare) < 0.001)
 
+	# --- Accessory ring slots put teeth in your fists (unarmed mod) -------------
+	var h := ProtoCharacter.new()
+	var fist_bare: float = h.unarmed_dmg_mult()
+	h.equip("brass_knuckles") # ring_l
+	h.equip("knuckle_duster") # ring_r — both rings stack
+	_check("ring slots BOOST unarmed damage (brass knuckles + duster)",
+		h.unarmed_dmg_mult() > fist_bare)
+	_check("bare fists are unchanged (no ring = no unarmed mod)",
+		absf(ProtoCharacter.new().unarmed_dmg_mult() - fist_bare) < 0.001)
+
 	# --- Worn gear survives save/load (the dog pattern) -------------------------
 	c.equip("kevlar_vest")
 	c.equip("riot_helm")
