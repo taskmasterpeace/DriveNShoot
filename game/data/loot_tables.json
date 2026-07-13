@@ -174,7 +174,10 @@
         { "item": "milspec_body_armor", "min": 1, "max": 1, "weight": 0.25 },
         { "item": "combat_helmet", "min": 1, "max": 1, "weight": 0.4 },
         { "item": "battle_plate_legs", "min": 1, "max": 1, "weight": 0.3 },
-        { "item": "arm_guards", "min": 1, "max": 1, "weight": 0.4 }
+        { "item": "arm_guards", "min": 1, "max": 1, "weight": 0.4 },
+        { "item": "shotgun", "min": 1, "max": 1, "weight": 0.3 },
+        { "item": "12ga", "min": 8, "max": 20, "weight": 0.5 },
+        { "item": "pistol", "min": 1, "max": 1, "weight": 0.3 }
       ]
     },
     {

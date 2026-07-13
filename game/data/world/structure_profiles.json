@@ -661,7 +661,7 @@
     "main_gate"
    ],
    "interior_template": "none",
-   "loot_table": "cache_rare",
+   "loot_table": "armor_cache",
    "npc_jobs": [
     "soldier",
     "hunter_dog",

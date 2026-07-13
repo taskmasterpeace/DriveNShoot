@@ -49,6 +49,15 @@ func _ready() -> void:
 			if ProtoGear.CATALOG.has(String(k)):
 				looted_gear = true
 	_check("gear is LOOTABLE — the armory cache rolls a wearable piece", looted_gear)
+	# Found at a PLACE: the Military Base's chest pulls the armory table.
+	var armory_wired := false
+	var sp: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/world/structure_profiles.json"))
+	if sp is Dictionary:
+		for srow in ((sp as Dictionary).get("structures", []) as Array):
+			if srow is Dictionary and String((srow as Dictionary).get("id", "")) == "military_base_shell":
+				armory_wired = String((srow as Dictionary).get("loot_table", "")) == "armor_cache"
+	_check("the Military Base chest pulls the armory table (gear found at a place)",
+		armory_wired and ProtoContainer.has_loot_table("armor_cache"))
 
 	# --- The real USE verb wears a piece from the pack --------------------------
 	main.backpack.add("kevlar_vest", 1)
