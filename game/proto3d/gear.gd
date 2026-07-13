@@ -64,12 +64,10 @@ static func ensure_gear() -> void:
 		return
 	_folded = true
 	var path := "res://data/equipment.json"
-	if not FileAccess.file_exists(path):
-		return
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if not (parsed is Dictionary):
-		return
-	for r in (parsed as Dictionary).get("gear", []):
+	var parsed: Variant = null
+	if FileAccess.file_exists(path):
+		parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
+	for r in ((parsed as Dictionary).get("gear", []) if parsed is Dictionary else []):
 		if not (r is Dictionary):
 			continue
 		var row := r as Dictionary
@@ -85,6 +83,35 @@ static func ensure_gear() -> void:
 			"soak": clampf(float(row.get("soak", 0.0)), 0.0, 0.6),
 			"covers": row.get("covers", []),
 		}
+	_register_as_items()
+
+
+## Bridge every gear piece into the pack's item catalog so a LOOTED/found piece
+## stacks, weighs, and shows like any item — and USE wears it (proto3d.use_item
+## already routes gear ids here). Heavier plate weighs more; the code floor wins if
+## an id somehow already exists. Runs once, after the fold.
+static func _register_as_items() -> void:
+	for gid in CATALOG:
+		var g: Dictionary = CATALOG[gid]
+		var is_armor: bool = String(g.get("slot", "")) in ARMOR_SLOTS
+		var tier: int = int(g.get("tier", 1))
+		var desc: String = String(g.get("desc", ""))
+		if desc == "":
+			desc = "T%d %s — worn in the %s slot." % [tier, String(g.get("name", gid)), String(g.get("slot", ""))]
+		if not ProtoContainer.ITEMS.has(gid):
+			var w: float = (0.8 + 0.7 * float(tier)) if is_armor else 0.5
+			ProtoContainer.ITEMS[gid] = {
+				"name": String(g.get("name", gid)),
+				"emoji": String(g.get("emoji", "🧷")),
+				"usable": true,
+				"w": w,
+				"cat": "armor" if is_armor else "gear",
+				"desc": desc,
+			}
+		# Every item needs a PRICE (Mercy stocks anything) — scale by tier + armor.
+		if not ProtoNPC.PRICES.has(gid):
+			var base: int = 40 if is_armor else 18
+			ProtoNPC.PRICES[gid] = base * maxi(1, tier)
 
 
 ## One gear row (or {} if unknown). The single read every consumer uses.

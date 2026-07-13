@@ -58,7 +58,8 @@
           "min": 1,
           "max": 1,
           "weight": 0.25
-        }
+        },
+        { "item": "scavplate_vest", "min": 1, "max": 1, "weight": 0.2 }
       ]
     },
     {
@@ -160,7 +161,20 @@
           "min": 6,
           "max": 18,
           "weight": 0.5
-        }
+        },
+        { "item": "kevlar_vest", "min": 1, "max": 1, "weight": 0.3 },
+        { "item": "combat_helmet", "min": 1, "max": 1, "weight": 0.2 }
+      ]
+    },
+    {
+      "id": "armor_cache",
+      "name": "Armory Cache (a police/mil locker — plate lives here)",
+      "entries": [
+        { "item": "kevlar_vest", "min": 1, "max": 1, "weight": 0.5 },
+        { "item": "milspec_body_armor", "min": 1, "max": 1, "weight": 0.25 },
+        { "item": "combat_helmet", "min": 1, "max": 1, "weight": 0.4 },
+        { "item": "battle_plate_legs", "min": 1, "max": 1, "weight": 0.3 },
+        { "item": "arm_guards", "min": 1, "max": 1, "weight": 0.4 }
       ]
     },
     {

@@ -36,6 +36,20 @@ func _ready() -> void:
 		ProtoGear.CATALOG.has("composite_shell")
 		and ProtoGear.slot_of("composite_shell") == "chest")
 
+	# --- Reachable in play: gear is a real pack ITEM and drops from loot ---------
+	_check("gear registers as a usable pack ITEM (kevlar_vest, cat armor)",
+		ProtoContainer.ITEMS.has("kevlar_vest")
+		and bool((ProtoContainer.ITEMS["kevlar_vest"] as Dictionary).get("usable", false))
+		and String((ProtoContainer.ITEMS["kevlar_vest"] as Dictionary).get("cat", "")) == "armor")
+	var lrng := RandomNumberGenerator.new()
+	lrng.seed = hash("gear_loot")
+	var looted_gear := false
+	for _i in 80:
+		for k in ProtoContainer.roll_loot("armor_cache", lrng):
+			if ProtoGear.CATALOG.has(String(k)):
+				looted_gear = true
+	_check("gear is LOOTABLE — the armory cache rolls a wearable piece", looted_gear)
+
 	# --- The real USE verb wears a piece from the pack --------------------------
 	main.backpack.add("kevlar_vest", 1)
 	var used: bool = main.use_item("kevlar_vest")
