@@ -63,6 +63,9 @@ static var CATALOG: Dictionary = {
 	"dual_bandolier":   {"name": "Dual bandolier",      "emoji": "🎯", "slot": "sash", "tier": 3, "soak": 0.0, "covers": [], "reload_speed": 0.14},
 	"mechanic_wrap":    {"name": "Mechanic's wraps",    "emoji": "🔧", "slot": "bracelet", "tier": 2, "soak": 0.0, "covers": [], "repair": 0.10},
 	"data_cuff":        {"name": "Data cuff",           "emoji": "⌚", "slot": "bracelet", "tier": 4, "soak": 0.0, "covers": [], "repair": 0.18},
+	# shirt/under-armor — a thin plate under the vest; soak flows through the SAME law (armor_soak reads every slot).
+	"flex_armor_base":  {"name": "Flex armor base",     "emoji": "👕", "slot": "shirt", "tier": 2, "soak": 0.06, "covers": ["head", "torso", "l_arm", "r_arm", "l_leg", "r_leg"]},
+	"trauma_plate_insert": {"name": "Trauma plate insert", "emoji": "🛡", "slot": "shirt", "tier": 3, "soak": 0.12, "covers": ["torso"]},
 }
 
 static var _folded: bool = false

@@ -127,6 +127,17 @@ func _ready() -> void:
 	_check("bare fists are unchanged (no ring = no unarmed mod)",
 		absf(ProtoCharacter.new().unarmed_dmg_mult() - fist_bare) < 0.001)
 
+	# --- shirt slot: a plate UNDER the vest stacks soak through the same law -----
+	var s := ProtoCharacter.new()
+	s.equip("kevlar_vest") # chest 0.24
+	var soak_vest: float = s.armor_soak("torso")
+	s.equip("trauma_plate_insert") # shirt 0.12 torso, UNDER the vest
+	_check("the shirt slot stacks soak (trauma plate under the vest)",
+		absf(s.armor_soak("torso") - (soak_vest + 0.12)) < 0.001)
+	var s2 := ProtoCharacter.new()
+	s2.equip("flex_armor_base") # covers all six parts
+	_check("a flex under-shirt soaks EVERY part (even an arm)", s2.armor_soak("l_arm") > 0.0)
+
 	# --- belt/sash/bracelet round out the slot effects (clean single-consumer) --
 	var u := ProtoCharacter.new()
 	var carry0: float = u.carry_cap()
