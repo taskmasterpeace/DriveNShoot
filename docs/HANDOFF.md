@@ -221,6 +221,13 @@
 
 ## 0. THE NEXT ARC — THE LIVING WORLD (owner directive, 2026-07-06) 🌎
 
+> ### ✅ VERIFIED STATE (2026-07-13, by running the sims on `codex/specticles-games`)
+> **The Living World arc below is SHIPPED — this whole section is now history, kept for context.** A branch audit (ran the acceptance sims, didn't trust the prose) found the project far more complete than this doc assumed:
+> - **The map ladder (owner's map-first priority) is green through M4b:** M0 placement-wire (6/6) · M1 junctions+exit-geometry (junction_bake 14, junction_law 11, exit_geometry 6, road_lane 26) · M2 ground-integrity (9) · M3 addresses+two-tier towns (exit_address 7, town_grid 9) · M3b network-fill+dirt (12) · M4a/M4b roadside band+markers (14).
+> - **The Living World layers this doc/§4 calls "the next arc" are BUILT + green:** the Florida offline-catchup slice (offline_catchup 16, law_profile 8, broadcast_fallback 10, return-briefing panel), CLONING C1 (clone_ritual 15), the crime/economy spine EMPIRE (13) + BETTING (12) + SPECTACLES, INFECTED I1 + the choir, ECOSYSTEM P1 core (ecology 12), WEATHER, MUD/traction, NAV-P1, drones. Files present: `world_state/cloning/empire/betting/infected/ecology/drone.gd`.
+> - **Shipped THIS session:** the 19-slot equipment PAPERDOLL, 0→**15/19 slots effect-wired** (`gear.gd`; `equip_sim` 31/31). The 4 unwired slots (face/ear×2) need a rad/toxin/comms system that doesn't exist — a scope call.
+> - **The genuine remainder is the deep ledger (see the `spec-execution-marathon` build trail):** ECOSYSTEM P1p2 creatures · INFECTED I2/I3 · M5/M7 interiors · M8 mountains · NAV-P2/P3 · SPECTACLES S2/S3 · CLONING C2 · EMPIRE F1/E2 · MT (traffic, owner-parked). **These are multi-file spec milestones that touch `world_stream.gd` (THE HOT FILE — the American Road spec forbids parallel work on it) and need each spec's INDEX.md ledger context — sequence them, do not start one blind.**
+
 **This section is the current marching order. It supersedes the reined-in roadmap in §3.**
 
 > ### ✅ SHIPPED (2026-07-06) — the Florida MVS is BUILT, all three phases sim-proven
