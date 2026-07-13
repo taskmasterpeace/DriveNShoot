@@ -67,6 +67,8 @@ var riding_in: ProtoCar3D = null ## the vehicle this dog is riding shotgun in
 
 var _owner_ref: Node3D = null
 var _main: Node = null ## the proto3d main scene (set at adoption) — sim-safe, no current_scene reliance
+var _fever_react_cd: float = 0.0 ## I2 §0.5 cooldown on the "your dog sniffs your fever" tell
+var _fever_sniffing: bool = false ## true while the dog smells BITE FEVER on its owner (the sim read)
 var _visual: Node3D
 var _quad: ProtoQuadruped = null
 var _follow_angle: float = 0.0 ## personal heel offset so dogs don't stack
@@ -481,6 +483,23 @@ func _physics_process(delta: float) -> void:
 		if _bleed_out_t <= 0.0:
 			_die_forever()
 		return
+
+	# THE INFECTED I2 (§0.5): "your own dog sniffs you." A bonded dog SMELLS the bite
+	# fever on its owner and won't settle — a living, present tell that you're sick, the
+	# way the state's scanners are. Purely additive: its own cooldown, touches no other
+	# sense/obey logic. Reads _fever_sniffing for the sim + a periodic worried bark.
+	if _main != null and "character" in _main and _main.character != null:
+		_fever_react_cd = maxf(0.0, _fever_react_cd - delta)
+		var now_h: float = (_main.daynight.day * 24.0 + _main.daynight.hour) \
+			if ("daynight" in _main and _main.daynight != null) else 0.0
+		var owner_sick: bool = bond_tier() >= 1 and _near_owner(6.0) and _main.character.fever_active(now_h)
+		_fever_sniffing = owner_sick
+		if owner_sick and _fever_react_cd <= 0.0:
+			_fever_react_cd = 8.0
+			if "audio" in _main and _main.audio:
+				_main.audio.play_at("bark", global_position, -12.0, 0.9)
+			if _main.has_method("notify"):
+				_main.notify("🐕 %s keeps sniffing you and whining — something's wrong with you." % dog_name)
 
 	# Obedience delay queue
 	var qi := 0
