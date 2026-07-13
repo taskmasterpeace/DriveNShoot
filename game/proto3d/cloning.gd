@@ -41,6 +41,12 @@ func has_backup() -> bool:
 ## THE RITUAL: sit the chair. Costs scrip up front; the snapshot completes on
 ## the clock (tick() watches). vat = the black market — cheap, defect-rolled.
 func begin_scan(vat: bool = false) -> bool:
+	# THE INFECTED I2 (§0.5/§3.5): a clone clinic SCANS the body, and BITE FEVER is
+	# scan-detectable — it will not copy a sick body ("the state fears your body more
+	# than your body does"). Cure the fever (a full night's sleep + antibiotics) first.
+	if _main.character.fever_active(now_h()):
+		_main.notify("🧬 The scanner flags BITE FEVER — the clinic won't copy a sick body. Cure it first.")
+		return false
 	var price := VAT_PRICE if vat else SCAN_PRICE
 	if _main.backpack.count("scrip") < price:
 		_main.notify("🧬 The technician shakes his head — %d scrip for the chair." % price)
