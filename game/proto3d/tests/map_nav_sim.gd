@@ -23,6 +23,13 @@ func _ready() -> void:
 	main = (load("res://proto3d/proto3d.tscn") as PackedScene).instantiate()
 	add_child(main)
 	print("MAPNAV: scene up")
+	# WATCHDOG (the iron rule — this sim was missing one and HUNG the headless suite
+	# silently when a phase stalled; now it fails fast and names the stuck phase).
+	get_tree().create_timer(60.0).timeout.connect(func() -> void:
+		print("MAPNAV: WATCHDOG — stalled at phase %d (t=%.1f)" % [phase, phase_t])
+		print("MAPNAV RESULTS: %d passed, %d failed" % [passed, failed + 1])
+		print("MAPNAV: FAILURES PRESENT")
+		get_tree().quit(1))
 
 
 func _check(check_name: String, ok: bool) -> void:
