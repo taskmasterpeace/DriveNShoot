@@ -52,8 +52,11 @@ func _ready() -> void:
 
 	# --- O = power; the set starts quiet -----------------------------------------
 	_check("the set starts OFF", not m.power_on and not m.is_playing())
-	await _key(KEY_O)
-	_check("O powers ON — %s is playing" % m.station_name(), m.power_on and m.is_playing())
+	# O now OPENS THE RADIO DIAL (radio_dial_sim covers that UI); the dial's POWER button
+	# calls music.toggle_power() — the power LOGIC this sim is about. Drive it directly.
+	m.toggle_power()
+	await get_tree().physics_frame
+	_check("the dial's power turns the set ON (%s playing)" % m.station_name(), m.power_on and m.is_playing())
 
 	# --- A powered station never goes quiet between tracks -------------------------
 	m._on_finished() # the track ends…
@@ -75,8 +78,9 @@ func _ready() -> void:
 	_check("the knob PERSISTS (user://radio_settings.json)", FileAccess.file_exists(ProtoMusic.SETTINGS_PATH))
 
 	# --- O again = off ----------------------------------------------------------------
-	await _key(KEY_O)
-	_check("O powers OFF", not m.power_on and not m.is_playing())
+	m.toggle_power()
+	await get_tree().physics_frame
+	_check("the dial's power turns it OFF", not m.power_on and not m.is_playing())
 
 	# --- The Y-scan's music signal lands on a random station ---------------------------
 	main.radio._deliver("music")
