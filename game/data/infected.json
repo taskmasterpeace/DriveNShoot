@@ -42,6 +42,49 @@
      30
     ]
    }
+  },
+  {
+   "id": "sprinter",
+   "share": 0.0,
+   "hp": 15,
+   "claw": 9.0,
+   "claw_cd": 1.1,
+   "speed_mps": 2.8,
+   "lock_speed_mps": 3.6,
+   "senses": {
+    "sight_r": 0.0,
+    "ear_r": 0.0,
+    "heat_r": 0.0
+   },
+   "tags": [
+    "infected",
+    "blind",
+    "fast",
+    "fragile"
+   ],
+   "verbs": [],
+   "puppet": {
+    "skin": [
+     0.58,
+     0.5,
+     0.46
+    ],
+    "cloth": [
+     0.24,
+     0.2,
+     0.18
+    ],
+    "gait": 1.4,
+    "build": 0.6
+   },
+   "motion": "infected_shuffle",
+   "voice": {
+    "idle": "inf_murmur",
+    "cooldown_s": [
+     10,
+     24
+    ]
+   }
   }
  ],
  "herds": {
