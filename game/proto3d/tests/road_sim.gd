@@ -51,7 +51,8 @@ func _ready() -> void:
 	main.active_car = main.cars[0]
 	main.active_car.global_position = on_pt
 	main._last_road_id = "" # fresh
-	main.hud._toast_label.text = "" # clear the board
+	main.hud._toast_q.clear() # toast() is a QUEUE now (LWE §0.9); clear it too or a
+	main.hud._toast_label.text = "" # backlog (or the 5-flood cap) eats the welcome toast
 	main._update_road_read()
 	var greeted: bool = main.hud._toast_label.text.contains(String(named["nickname"]))
 	_check("driving onto '%s' greets you (welcome-sign toast)" % named["nickname"], greeted)
