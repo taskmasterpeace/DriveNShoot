@@ -56,6 +56,10 @@ func _ready() -> void:
 	# --- E opens the set; the feet freeze ---------------------------------------
 	await _e()
 	_check("E opens the media panel", main.media_panel.is_open)
+	for _i in 6: # input_locked latches a frame or two after the panel opens — converge, not snapshot (load-flaky)
+		if p.input_locked:
+			break
+		await get_tree().physics_frame
 	_check("the feet FREEZE while the set is on", p.input_locked)
 
 	# --- Pick the reel off the CLIPS shelf --------------------------------------
@@ -156,6 +160,13 @@ func _ready() -> void:
 	_check("watched PERSISTS through save/load", main.media_watched.has("test_pattern"))
 
 	# --- E reopens FULLSCREEN; E again = THE COUCH (panel away, feet back) -------
+	# apply_save restores the player off the set + clears _current_interactable; re-stage
+	# at the screen and settle so E re-finds the TV (mirrors the opening approach — the
+	# interactable is a per-frame proximity read, not saved).
+	main.player.global_position = main.SAFEHOUSE + Vector3(-3.0, 0.35, -1.4)
+	main.player.velocity = Vector3.ZERO
+	for _i in 10:
+		await get_tree().physics_frame
 	await _e()
 	_check("E at the set reopens FULLSCREEN", main.media_panel.is_open)
 	await _e()
