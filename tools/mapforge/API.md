@@ -96,6 +96,18 @@ curl -X POST localhost:8899/api/plan -d '{"pos":[120,-380],"text":"race loop sta
 # Road surgery, then re-run the junction law
 curl -X POST localhost:8899/api/roads -d '{"id":"US-50","kind":"us_route","pts":[[-45000,-2000],[-30000,1500],[-18000,900]]}'
 curl -X POST localhost:8899/api/junctions/bake -d '{}'
+
+# RACING DESTRUCTION SET (2026-07-14) — elevation + track pieces
+# A road climbs: optional per-point `elev` meters, same length as pts (short/missing = 0;
+# field-preserving overlay, so posting pts alone never clears a slope). ELEV tool in the
+# UI: select a road, click a vertex, scroll or +/- (0.5m steps, -5..+30m).
+curl -X POST localhost:8899/api/roads -d '{"id":"US-50","pts":[[0,0],[120,0],[240,0]],"elev":[0,6,0]}'
+# The track-piece catalog (ramps, banked curve, destructible barrels/crates):
+curl "localhost:8899/api/track_pieces"
+# Drop a piece — placements namespaced "track:<id>" (R rotates in the UI; rot in degrees):
+curl -X POST localhost:8899/api/placements -d '{"building":"track:ramp_big","pos":[150,-350],"rot":90}'
+# Repaint a road's SURFACE (grip/handling follow in-game — the handling-character law):
+curl -X POST localhost:8899/api/roads -d '{"id":"US-50","surface":"gravel"}'
 ```
 
 ## Guardrails

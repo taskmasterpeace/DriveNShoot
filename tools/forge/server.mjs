@@ -24,6 +24,7 @@ const CHILDREN = [
   { id: "media",    name: "MediaForge",   dir: "mediaforge",   port: 8897 },
   { id: "vehicles", name: "VehicleForge", dir: "vehicleforge", port: 8898 },
   { id: "motion",   name: "MotionForge",  dir: "motionforge",  port: 8896 },
+  { id: "showroom", name: "THE SHOWROOM", dir: "showroom",     port: 8901 },
 ];
 
 const tag = (c) => `[${c.id.toUpperCase().padEnd(8)}]`;

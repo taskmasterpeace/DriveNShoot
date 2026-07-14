@@ -74,6 +74,15 @@ const saveStructures = () => writeFileSync(STRUCT_PATH, JSON.stringify(structDoc
 const blueprints = existsSync(BLUEPRINT_PATH)
 	? JSON.parse(readFileSync(BLUEPRINT_PATH, "utf8")).exit_archetypes || []
 	: [];
+
+// --- The TRACK PIECE catalog (RACING DESTRUCTION SET) ------------------------------
+// Read-only here: rows live in game/data/track_pieces.json (engine: track_piece.gd);
+// the editor places them as placement rows namespaced "track:<id>".
+const TRACK_PATH = join(ROOT, "game", "data", "track_pieces.json");
+const loadTrackPieces = () => existsSync(TRACK_PATH)
+	? (JSON.parse(readFileSync(TRACK_PATH, "utf8")).track_pieces || [])
+	: [];
+let trackPieces = loadTrackPieces();
 const FOOTPRINTS = ["small_rect", "medium_rect", "large_rect", "compound", "landmark"];
 
 // Mirror of the engine's DrivnStructure.validate() — the row must be LAWFUL.
@@ -595,6 +604,7 @@ const HELP = {
 		"GET  /api/vehicles                     → v4: the fleet's top speeds, read live from car_3d.gd",
 		"GET  /api/route?ax=&az=&bx=&bz=&vehicle=scavenger → v4: A→B drive-time (graph route, polyline, law+vehicle times, 60× game clock)",
 		"GET  /api/structures · POST /api/structures · DELETE /api/structures?id=",
+		"GET  /api/track_pieces                 → the RACING DESTRUCTION SET catalog (place as building 'track:<id>'; road rows carry optional per-point 'elev' meters)",
 		"POST /api/exit        {town} or {pos} [v1 — prefer /api/exits]",
 		"POST /api/stamp_template {template, town|pos, name?} (waystation|hamlet|outpost)",
 	],
@@ -801,7 +811,13 @@ const server = createServer(async (req, res) => {
 				return json(res, 400, { error: "need building and pos:[wx,wz]" });
 			const LEGACY = new Set(["safehouse", "gas_station", "ruined_house", "market_stall"]);
 			const catalog = new Set((structDoc.structures || []).map((s) => s.id));
-			if (!catalog.has(body.building) && !LEGACY.has(body.building))
+			// RACING DESTRUCTION SET: "track:<id>" placements validate against track_pieces.json
+			if (String(body.building).startsWith("track:")) {
+				trackPieces = loadTrackPieces();
+				const tid = String(body.building).slice(6);
+				if (!trackPieces.some((t) => t.id === tid))
+					return json(res, 400, { error: `unknown track piece '${tid}' — not in track_pieces.json (${trackPieces.length} rows)`, known: trackPieces.map((t) => t.id).sort() });
+			} else if (!catalog.has(body.building) && !LEGACY.has(body.building))
 				return json(res, 400, { error: `unknown building '${body.building}' — not in structure_profiles.json (${catalog.size} rows) or the legacy set`, known: [...catalog].sort() });
 			const id = body.id || `${body.building}-${map.placements.length + 1}`;
 			map.placements = map.placements.filter((p) => p.id !== id);
@@ -985,6 +1001,10 @@ const server = createServer(async (req, res) => {
 		}
 
 		// ---- STRUCTURE CATALOG (spec §7): the owner CREATES buildings here ---------
+		if (url.pathname === "/api/track_pieces" && req.method === "GET") {
+			trackPieces = loadTrackPieces();
+			return json(res, 200, { track_pieces: trackPieces });
+		}
 		if (url.pathname === "/api/structures" && req.method === "GET")
 			return json(res, 200, { structures: structDoc.structures, footprints: FOOTPRINTS });
 		if (url.pathname === "/api/structures" && req.method === "POST") {

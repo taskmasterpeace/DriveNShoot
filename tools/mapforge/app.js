@@ -11,6 +11,7 @@ let meta = null, rows = [], states = [], roads = [], towns = [], placements = []
 let exits = [], archetypes = [], structures = [], footprints = [];
 let districts = [], notes = [], junctions = [], vehicles = [], health = null;
 let regions = [], ecology = null;           // v4.1: state cards + what-lives-where
+let trackPieces = [];                       // Racing Destruction Set catalog (track_pieces.json)
 const stateMasks = {};                      // state char -> tinted offscreen mask
 let ecoTint = null;                         // offscreen wildlife-richness tint
 let tool = "select";
@@ -131,6 +132,7 @@ async function load() {
 	states = (await api("/api/grid?layer=states")).rows;
 	await refresh(false);
 	({ structures, footprints } = await api("/api/structures"));
+	try { trackPieces = (await api("/api/track_pieces")).track_pieces || []; } catch { trackPieces = []; }
 	vehicles = (await api("/api/vehicles")).vehicles;
 	regions = await api("/api/regions");
 	ecology = await api("/api/ecology");
@@ -353,6 +355,20 @@ function draw() {
 			tracePoly(r.pts); ctx.stroke();
 			ctx.setLineDash([]);
 		}
+		// ELEVATION tint (Racing Destruction Set): segments climb toward amber;
+		// per-segment so a ramp reads as a gradient along the road
+		if (Array.isArray(r.elev) && r.elev.some((e) => e)) {
+			for (let i = 0; i + 1 < r.pts.length; i++) {
+				const ea = r.elev[i] || 0, eb = r.elev[i + 1] || 0;
+				if (!ea && !eb) continue;
+				ctx.strokeStyle = elevTint((ea + eb) / 2);
+				ctx.lineWidth = Math.max(1.0, st.w * view.scale * 0.6);
+				ctx.beginPath();
+				ctx.moveTo(w2sx(r.pts[i][0]), w2sz(r.pts[i][1]));
+				ctx.lineTo(w2sx(r.pts[i + 1][0]), w2sz(r.pts[i + 1][1]));
+				ctx.stroke();
+			}
+		}
 	}
 	// vertex handles for the selected/edited road
 	const vr = vertexRoad();
@@ -362,6 +378,17 @@ function draw() {
 			ctx.fillStyle = i === 0 ? "#7fae4c" : i === vr.pts.length - 1 ? "#ff5a3b" : "#ffcf3f";
 			ctx.strokeStyle = "#14110c"; ctx.lineWidth = 1;
 			ctx.fillRect(x - 3.5, z - 3.5, 7, 7); ctx.strokeRect(x - 3.5, z - 3.5, 7, 7);
+			// ELEV: nonzero heights label their vertex; the ARMED vertex wears a ring
+			const h = Array.isArray(vr.elev) ? (vr.elev[i] || 0) : 0;
+			if (elevSel && elevSel.id === vr.id && elevSel.i === i) {
+				ctx.strokeStyle = "#ffd27f"; ctx.lineWidth = 2;
+				ctx.beginPath(); ctx.arc(x, z, 8, 0, 7); ctx.stroke();
+			}
+			if (h || (tool === "elev" && elevSel && elevSel.id === vr.id && elevSel.i === i)) {
+				ctx.fillStyle = h > 0 ? "#ffd27f" : h < 0 ? "#8fb7c9" : "#e8e0cf";
+				ctx.font = "10px ui-monospace, monospace";
+				ctx.fillText(`${h > 0 ? "+" : ""}${h.toFixed(1)}m`, x + 6, z - 6);
+			}
 		}
 		// ghost line to cursor in ROAD tool
 		if (tool === "road" && hoverWorld) {
@@ -654,15 +681,18 @@ function renderInspector() {
 					<label>danger<input type="number" id="i-danger" min="0" max="5" value="${r.danger ?? 0}"></label>
 					<label>lanes<input type="number" id="i-lanes" min="1" max="8" value="${r.lanes ?? 2}"></label>
 				</div>
+				<label>surface<select id="i-surface">${["asphalt", "gravel", "dirt", "concrete"].map((s) =>
+					`<option value="${s}"${(r.surface || "asphalt") === s ? " selected" : ""}>${s}</option>`).join("")}</select></label>
 			</div>
 			<div class="actions">
 				<button id="i-apply">APPLY</button>
 				<button id="i-delroad" class="danger">DELETE ROAD</button>
 			</div>
-			<div class="hint">Drag the square handles on the map to reshape. Green = start, red = end.</div>`;
+			<div class="hint">Drag the square handles on the map to reshape. Green = start, red = end.
+			Surface repaints the whole road — grip/handling follow it in-game (the handling-character law).</div>`;
 		document.getElementById("i-apply").onclick = async () => {
 			const prevRow = { ...r };
-			const body = { id: r.id, pts: r.pts, nickname: document.getElementById("i-nickname").value, danger: Number(document.getElementById("i-danger").value), lanes: Number(document.getElementById("i-lanes").value) };
+			const body = { id: r.id, pts: r.pts, nickname: document.getElementById("i-nickname").value, danger: Number(document.getElementById("i-danger").value), lanes: Number(document.getElementById("i-lanes").value), surface: document.getElementById("i-surface").value };
 			await api("/api/roads", { method: "POST", body: JSON.stringify(body) });
 			pushUndo(`edit ${r.id}`, async () => api("/api/roads", { method: "POST", body: JSON.stringify(prevRow) }),
 				async () => api("/api/roads", { method: "POST", body: JSON.stringify(body) }));
@@ -839,6 +869,8 @@ function evScreen(ev) {
 cv.addEventListener("contextmenu", (ev) => ev.preventDefault());
 cv.addEventListener("wheel", (ev) => {
 	ev.preventDefault();
+	// ELEV tool with an armed vertex: the wheel RAISES/LOWERS instead of zooming
+	if (tool === "elev" && elevSel && nudgeElev(ev.deltaY < 0 ? 1 : -1)) return;
 	const [sx, sz] = evScreen(ev);
 	setZoom(ev.deltaY < 0 ? 1.25 : 0.8, sx, sz);
 }, { passive: false });
@@ -907,6 +939,16 @@ cv.addEventListener("mousedown", async (ev) => {
 		else r.pts.push([Math.round(w[0]), Math.round(w[1])]);
 		await postRoad(r, prevPts, `extend ${r.id}`);
 		roadStatus();
+	} else if (tool === "elev") {
+		// ELEVATION (Racing Destruction Set): click a vertex of the selected road
+		// to arm it, then WHEEL or +/- nudge its height (postRoad is field-
+		// preserving, so surface/side/geom survive; `elev` rides the same law).
+		const r = vertexRoad();
+		if (!r) { savedFlash("select a road first (SELECT), then click its vertices"); return; }
+		const vi = hitVertex(w, r);
+		if (vi < 0) { savedFlash("click ON a vertex handle to set its height"); return; }
+		elevSel = { id: r.id, i: vi };
+		roadStatus(); requestDraw();
 	} else if (tool === "exit") {
 		pendingExit = w;
 		openExitDlg(ev);
@@ -1103,6 +1145,42 @@ async function postRoad(r, prevPts, label) {
 		savedFlash(label);
 	} catch (e) { savedFlash("save failed: " + e.message); }
 	requestDraw();
+}
+
+// ---------- ELEVATION (Racing Destruction Set P3) ----------
+// One armed vertex; wheel / +/- nudge in 0.5m steps, clamped -5..+30 (the
+// engine's own row law). Writes ride the field-preserving /api/roads overlay.
+let elevSel = null; // { id, i }
+let elevSaveTimer = null;
+function elevRoad() { return elevSel ? roads.find((x) => x.id === elevSel.id) : null; }
+function nudgeElev(dir) {
+	const r = elevRoad();
+	if (!r || tool !== "elev") return false;
+	if (!Array.isArray(r.elev)) r.elev = [];
+	while (r.elev.length < r.pts.length) r.elev.push(0);
+	const prevElev = [...r.elev];
+	r.elev[elevSel.i] = Math.max(-5, Math.min(30, Math.round((r.elev[elevSel.i] + dir * 0.5) * 2) / 2));
+	requestDraw();
+	// debounce the write — a scroll burst lands as ONE undoable save
+	clearTimeout(elevSaveTimer);
+	elevSaveTimer = setTimeout(async () => {
+		const body = { ...r };
+		try {
+			await api("/api/roads", { method: "POST", body: JSON.stringify(body) });
+			pushUndo(`elev ${r.id}[${elevSel?.i}] → ${r.elev[elevSel?.i ?? 0]}m`,
+				async () => api("/api/roads", { method: "POST", body: JSON.stringify({ ...r, elev: prevElev }) }),
+				async () => api("/api/roads", { method: "POST", body: JSON.stringify(body) }));
+			scheduleBake();
+			savedFlash(`${r.id} elev[${elevSel?.i}] = ${r.elev[elevSel?.i ?? 0]}m`);
+		} catch (e) { savedFlash("elev save failed: " + e.message); }
+	}, 450);
+	return true;
+}
+// amber climb tint: 0m = base road color, 30m = hot amber-white
+function elevTint(h) {
+	const t = Math.max(0, Math.min(1, h / 18));
+	const lerp = (a, b) => Math.round(a + (b - a) * t);
+	return `rgb(${lerp(150, 255)},${lerp(120, 214)},${lerp(70, 130)})`;
 }
 
 function paintAtWorld(w) {
@@ -1312,6 +1390,13 @@ function buildBuildingSel() {
 		(byCat[x.category || "misc"] = byCat[x.category || "misc"] || []).push(x);
 	}
 	let html = "";
+	// TRACK first — the Racing Destruction Set palette (rows from track_pieces.json;
+	// placements land namespaced "track:<id>", materialized by track_piece.gd)
+	if (trackPieces.length) {
+		for (const t of trackPieces) footprintById["track:" + t.id] = [t.size?.[0] || 4, t.size?.[2] || 6];
+		html += `<optgroup label="TRACK — destruction set">` + trackPieces.map((t) =>
+			`<option value="track:${t.id}">${t.kind === "ramp" ? "⛰" : t.kind === "bank" ? "⌒" : t.destructible ? "💥" : "▮"} ${t.label || t.id} (${t.size?.[0]}×${t.size?.[2]}m${t.destructible ? " · breaks" : ""})</option>`).join("") + `</optgroup>`;
+	}
 	for (const cat of Object.keys(byCat).sort()) {
 		html += `<optgroup label="${cat}">` + byCat[cat].map((x) => `<option value="${x.id}">${x.sign_glyph || "▪"} ${x.id} (${(x.footprint_m || [])[0]}×${(x.footprint_m || [])[1]}m)</option>`).join("") + `</optgroup>`;
 	}
@@ -1448,10 +1533,11 @@ function setTool(t) {
 	if (t !== "exit") closeExitDlg();
 	if (t !== "district") districtDraft = [];
 	if (t !== "measure") clearMeasure();
+	if (t !== "elev") elevSel = null;
 	roadStatus();
 	requestDraw();
 }
-for (const t of ["select", "road", "exit", "measure", "district", "note", "paint", "town", "place"])
+for (const t of ["select", "road", "elev", "exit", "measure", "district", "note", "paint", "town", "place"])
 	document.getElementById("t-" + t).onclick = () => setTool(t);
 
 function roadStatus() {
@@ -1501,6 +1587,8 @@ addEventListener("keydown", async (e) => {
 		return;
 	}
 	if (e.target.matches("input, select, textarea")) return;
+	if (tool === "elev" && elevSel && (e.key === "+" || e.key === "=")) { nudgeElev(1); return; }
+	if (tool === "elev" && elevSel && (e.key === "-" || e.key === "_")) { nudgeElev(-1); return; }
 	if (e.key === "Enter" && tool === "district" && districtDraft.length >= 3) finishDistrict();
 	if ("1359".includes(e.key)) document.querySelector(`.brush[data-b="${e.key}"]`)?.click();
 	if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); await doUndo(); }

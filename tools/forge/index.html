@@ -165,6 +165,21 @@ const TOOLS = [
       ]],
     ]
   },
+  {
+    id:"showroom", label:"SHOWROOM", port:8901, title:"THE SHOWROOM", sub:"every vehicle + structure row, rendered — look at the pictures",
+    help:[
+      ["What it shows", [
+        "Every <b>VEHICLE</b> row (ProtoCar3D.VEHICLES + data/vehicles.json) from front-3/4 · side · rear-3/4 · top, plus a standing-puppet SCALE shot (and a saddle SEATED shot for two-wheel rigs).",
+        "Every <b>STRUCTURE</b> row (data/world/structure_profiles.json) from an elevated 3/4 and straight-down top angle.",
+        "Click any card to zoom every angle for that row, with its data-row facts underneath.",
+      ]],
+      ["Golden rules", [
+        "The owner's law: a green sim proves STRUCTURE, never LOOKS — a gauge once shipped with hallucinated art because nobody looked at the picture. This tab is the look.",
+        "<b>RE-RENDER</b> shoots whatever tab you're viewing (VEHICLES/STRUCTURES/ALL) — it opens a real Godot window (image capture needs a live GPU swapchain) for a minute or two, then the gallery refreshes itself.",
+        "New vehicle or structure row? Re-render after saving it in VEHICLES/MAP — the showroom always reads the CURRENT data + CURRENT geometry, never a stale cache.",
+      ]],
+    ]
+  },
 ];
 
 const tabsEl = document.getElementById("tabs");

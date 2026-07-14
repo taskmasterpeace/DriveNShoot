@@ -1,7 +1,7 @@
 {
-	"count": 11,
-	"generated": "2026-07-14T09:35:51",
-	"mode": "vehicles",
+	"count": 64,
+	"generated": "2026-07-14T10:13:39",
+	"mode": "all",
 	"shots": [
 		{
 			"angles": [
@@ -146,6 +146,801 @@
 			"display_name": "Boxer",
 			"family": "van",
 			"id": "van"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "APARTMENT BLOCK",
+			"floors": 3,
+			"footprint_m": [
+				16.0,
+				12.0
+			],
+			"id": "apartment_block"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial_service",
+			"display_name": "Auto Shop",
+			"floors": 1,
+			"footprint_m": [
+				15.0,
+				12.0
+			],
+			"id": "auto_shop"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Roadhouse",
+			"floors": 1,
+			"footprint_m": [
+				14.0,
+				10.0
+			],
+			"id": "bar_roadhouse"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "restricted",
+			"display_name": "Backlot Vat",
+			"floors": 1,
+			"footprint_m": [
+				8.0,
+				8.0
+			],
+			"id": "blackmarket_vat"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "monument",
+			"display_name": "Old Cemetery",
+			"floors": 1,
+			"footprint_m": [
+				16.0,
+				12.0
+			],
+			"id": "cemetery_old"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "law_military",
+			"display_name": "Checkpoint",
+			"floors": 1,
+			"footprint_m": [
+				8.0,
+				6.0
+			],
+			"id": "checkpoint_road"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic_faction",
+			"display_name": "Church",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				18.0
+			],
+			"id": "church_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic_faction",
+			"display_name": "CITY HALL",
+			"floors": 2,
+			"footprint_m": [
+				18.0,
+				14.0
+			],
+			"id": "city_hall"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "medical",
+			"display_name": "Clinic",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				10.0
+			],
+			"id": "clinic_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "medical",
+			"display_name": "Clone Wing",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				10.0
+			],
+			"id": "clone_wing"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic_law",
+			"display_name": "Courthouse",
+			"floors": 2,
+			"footprint_m": [
+				20.0,
+				16.0
+			],
+			"id": "courthouse"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "venue",
+			"display_name": "Derby Bowl",
+			"floors": 1,
+			"footprint_m": [
+				36.0,
+				30.0
+			],
+			"id": "derby_bowl"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Diner",
+			"floors": 1,
+			"footprint_m": [
+				14.0,
+				9.0
+			],
+			"id": "diner_roadside"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "media",
+			"display_name": "Drive-In",
+			"floors": 1,
+			"footprint_m": [
+				40.0,
+				30.0
+			],
+			"id": "drive_in_theater"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "venue",
+			"display_name": "Drone Ring",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				10.0
+			],
+			"id": "drone_ring"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial",
+			"display_name": "FACTORY",
+			"floors": 2,
+			"footprint_m": [
+				24.0,
+				18.0
+			],
+			"id": "factory_shell"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "agriculture",
+			"display_name": "Farmhouse & Field",
+			"floors": 1,
+			"footprint_m": [
+				22.0,
+				16.0
+			],
+			"id": "farmhouse_field"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "venue",
+			"display_name": "Fight Pit",
+			"floors": 1,
+			"footprint_m": [
+				14.0,
+				14.0
+			],
+			"id": "fight_pit"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "FIRE STATION",
+			"floors": 1,
+			"footprint_m": [
+				14.0,
+				12.0
+			],
+			"id": "fire_station"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "Gas Station",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				9.0
+			],
+			"id": "gas_station_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "agriculture",
+			"display_name": "GRAIN ELEVATOR",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				10.0
+			],
+			"id": "grain_elevator"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "medical",
+			"display_name": "HOSPITAL",
+			"floors": 2,
+			"footprint_m": [
+				20.0,
+				16.0
+			],
+			"id": "hospital_lobby"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "House",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				12.0
+			],
+			"id": "house_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "TWO-STORY HOUSE",
+			"floors": 2,
+			"footprint_m": [
+				10.0,
+				9.0
+			],
+			"id": "house_two_story"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "Hunting Stand",
+			"floors": 2,
+			"footprint_m": [
+				4.0,
+				4.0
+			],
+			"id": "hunting_stand"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Jeweler",
+			"floors": 1,
+			"footprint_m": [
+				8.0,
+				8.0
+			],
+			"id": "jeweler"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial",
+			"display_name": "Junkyard",
+			"floors": 1,
+			"footprint_m": [
+				30.0,
+				24.0
+			],
+			"id": "junkyard"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "Kennel",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				8.0
+			],
+			"id": "kennel_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic",
+			"display_name": "LIBRARY",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				10.0
+			],
+			"id": "library_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "General Store",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				8.0
+			],
+			"id": "market_general"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Stall",
+			"floors": 1,
+			"footprint_m": [
+				4.0,
+				3.0
+			],
+			"id": "market_stall"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "restricted",
+			"display_name": "Military Base",
+			"floors": 1,
+			"footprint_m": [
+				60.0,
+				45.0
+			],
+			"id": "military_base_shell"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "monument",
+			"display_name": "Monument",
+			"floors": 1,
+			"footprint_m": [
+				18.0,
+				18.0
+			],
+			"id": "monument_plaza"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Motel",
+			"floors": 1,
+			"footprint_m": [
+				22.0,
+				8.0
+			],
+			"id": "motel_strip"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "PAWN & GUN",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				8.0
+			],
+			"id": "pawn_gun_shop"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic_law",
+			"display_name": "Police Station",
+			"floors": 1,
+			"footprint_m": [
+				16.0,
+				12.0
+			],
+			"id": "police_station"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial",
+			"display_name": "Quarry",
+			"floors": 1,
+			"footprint_m": [
+				24.0,
+				18.0
+			],
+			"id": "quarry_pit"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "venue",
+			"display_name": "Grandstand",
+			"floors": 2,
+			"footprint_m": [
+				60.0,
+				20.0
+			],
+			"id": "race_track_grandstand"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "media",
+			"display_name": "Radio Station",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				10.0
+			],
+			"id": "radio_station"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic_faction",
+			"display_name": "RANGER STATION",
+			"floors": 1,
+			"footprint_m": [
+				8.0,
+				7.0
+			],
+			"id": "ranger_station"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "Rest Stop",
+			"floors": 1,
+			"footprint_m": [
+				16.0,
+				10.0
+			],
+			"id": "rest_stop"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "commercial",
+			"display_name": "Fine Dining",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				10.0
+			],
+			"id": "restaurant_fancy"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "Ruined House",
+			"floors": 1,
+			"footprint_m": [
+				8.0,
+				8.0
+			],
+			"id": "ruined_house"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "Safehouse",
+			"floors": 2,
+			"footprint_m": [
+				10.0,
+				12.0
+			],
+			"id": "safehouse"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "civic",
+			"display_name": "School",
+			"floors": 1,
+			"footprint_m": [
+				16.0,
+				12.0
+			],
+			"id": "school_small"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "restricted",
+			"display_name": "Still",
+			"floors": 1,
+			"footprint_m": [
+				6.0,
+				5.0
+			],
+			"id": "still_shack"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial",
+			"display_name": "POWER SUBSTATION",
+			"floors": 1,
+			"footprint_m": [
+				10.0,
+				8.0
+			],
+			"id": "substation_power"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial_service",
+			"display_name": "TOLL BOOTH",
+			"floors": 1,
+			"footprint_m": [
+				4.0,
+				3.0
+			],
+			"id": "toll_booth"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "residential",
+			"display_name": "SINGLE-WIDE TRAILER",
+			"floors": 1,
+			"footprint_m": [
+				5.0,
+				11.0
+			],
+			"id": "trailer_single"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "service",
+			"display_name": "Truck Stop",
+			"floors": 1,
+			"footprint_m": [
+				30.0,
+				20.0
+			],
+			"id": "truck_stop"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial",
+			"display_name": "Warehouse",
+			"floors": 1,
+			"footprint_m": [
+				24.0,
+				16.0
+			],
+			"id": "warehouse"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "monument",
+			"display_name": "Water Tower",
+			"floors": 3,
+			"footprint_m": [
+				8.0,
+				8.0
+			],
+			"id": "water_tower"
+		},
+		{
+			"angles": [
+				"34",
+				"top"
+			],
+			"category": "structures",
+			"category_tag": "industrial_service",
+			"display_name": "WEIGH STATION",
+			"floors": 1,
+			"footprint_m": [
+				12.0,
+				8.0
+			],
+			"id": "weigh_station"
 		}
 	]
 }
