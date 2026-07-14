@@ -630,6 +630,22 @@ const PLACEMENT_SIZE: Dictionary = {
 	"ruined_house": Vector3(8, 4, 8), "market_stall": Vector3(4, 3, 3),
 }
 func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
+	var bid := String(p["building"])
+	# RACING DESTRUCTION SET (P2): a placement whose building id carries the
+	# "track:" namespace (e.g. "track:ramp_big") is a TRACK PIECE, not a
+	# structure — dropped through the exact same authored placements layer
+	# (MapForge's PLACE tool / POST /api/placements), zero new plumbing.
+	if bid.begins_with("track:"):
+		var piece := ProtoTrackPiece.create(bid.substr(6))
+		if piece == null:
+			push_warning("world_stream: unknown track piece '%s' skipped" % bid)
+			return
+		piece.set_meta("building", bid)
+		piece.set_meta("placement_id", p["id"])
+		chunk.add_child(piece)
+		piece.global_position = Vector3(p["pos"].x, 0.0, p["pos"].y)
+		piece.rotation.y = float(p.get("rot", 0.0))
+		return
 	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
 	DrivnData.ensure_structures()
 	if DrivnData.structures.has(sid):
@@ -713,6 +729,33 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 	# Deterministic per-id lift (≤24mm) so overlapping slabs at junctions never
 	# z-fight — two roads through one chunk each keep their own plane.
 	var y := (0.09 if wet else 0.07) + float(absi(hash(rid)) % 5) * 0.004
+	# ELEVATION AS ROWS (RACING_DESTRUCTION_SET P1): interpolate the row's
+	# authored elev[] (folded by usmap.gd, sampled at THIS segment's endpoints
+	# as elev_a/elev_b) onto this chunk's own clipped a/b, so a ramp spanning
+	# several chunks pitches smoothly and each chunk's slab/deck/pillars land at
+	# the right height. elev_a==elev_b==0 (every road with no "elev" field —
+	# the overwhelming majority) leaves h0, h1, mid_h, pitch all exactly 0.0:
+	# the flat-road path below is byte-identical to before this feature.
+	var elev_a := float(row.get("elev_a", 0.0))
+	var elev_b := float(row.get("elev_b", 0.0))
+	var h0 := 0.0
+	var h1 := 0.0
+	var elevated := absf(elev_a) > 0.001 or absf(elev_b) > 0.001
+	if elevated:
+		var raw_a: Vector2 = row["a"]
+		var raw_b: Vector2 = row["b"]
+		var full_d: Vector2 = raw_b - raw_a
+		var full_len2 := maxf(full_d.length_squared(), 0.0001)
+		var ta := clampf((a - raw_a).dot(full_d) / full_len2, 0.0, 1.0)
+		var tb := clampf((b - raw_a).dot(full_d) / full_len2, 0.0, 1.0)
+		h0 = lerpf(elev_a, elev_b, ta)
+		h1 = lerpf(elev_a, elev_b, tb)
+	var mid_h := (h0 + h1) * 0.5
+	# NOTE the sign: rotation.x tilts the LOCAL +Z end DOWN as pitch grows
+	# positive (verified empirically against a driven car, not just the
+	# rotation's magnitude) — atan2(h0 - h1, ...) puts the row's "a" end
+	# (local -Z, where h0 lives) at the LOW side and "b" (h1) at the HIGH side.
+	var pitch := (atan2(h0 - h1, seg_len) if elevated else 0.0)
 	if bool(g["divided"]):
 		# TWIN CARRIAGEWAYS around the median gap, each with its own lane strips.
 		var carriage_w := float(g["carriage_w"])
@@ -720,13 +763,13 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		for sgn: float in [1.0, -1.0]:
 			var off: Vector2 = perp * half_gap * sgn
 			var slab := ProtoWorldBuilder.box_visual(chunk, Vector3(carriage_w, 0.05, seg_len + 6.0),
-				Vector3(mid.x + off.x, y, mid.y + off.y), ProtoWorldBuilder.COL_ROAD, rot)
+				Vector3(mid.x + off.x, y + mid_h, mid.y + off.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
 			slab.set_meta("road_slab", rid)
 			for k in range(1, int(g["per_side"])):
 				var lat: float = (float(g["center_gap"]) + k * ProtoUSMap.LANE_W) * sgn
 				var strip := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
-					Vector3(mid.x + perp.x * lat, y + 0.02, mid.y + perp.y * lat),
-					ProtoWorldBuilder.COL_DASH, rot)
+					Vector3(mid.x + perp.x * lat, y + mid_h + 0.02, mid.y + perp.y * lat),
+					ProtoWorldBuilder.COL_DASH, rot, pitch)
 				strip.set_meta("road_lane", rid)
 		# THE MEDIAN BARRIER — a real body, now GAPPED at baked junctions
 		# (AMERICAN_ROAD M1, 0.3): a flat gap-control junction on this road opens
@@ -765,8 +808,11 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			if run_len < 2.0:
 				continue
 			var rmid := a + dir * ((float(rn[0]) + float(rn[1])) * 0.5)
+			# Elevated + divided is an out-of-scope combo for v1 (no baked map row
+			# does both) — the barrier rides the SEGMENT'S average height (mid_h)
+			# rather than a per-run interpolation; note the approximation.
 			var bar := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 0.8, run_len),
-				Vector3(rmid.x, 0.4 + (0.02 if wet else 0.0), rmid.y), Color(0.44, 0.43, 0.41), rot)
+				Vector3(rmid.x, 0.4 + mid_h + (0.02 if wet else 0.0), rmid.y), Color(0.44, 0.43, 0.41), rot, pitch)
 			bar.set_meta("road_barrier", rid)
 	else:
 		# SURFACE LAW (M3b, 0.17): paint follows the surface — asphalt gets its
@@ -779,14 +825,14 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		elif surface == "dirt":
 			slab_col = Color(0.42, 0.36, 0.27)
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
-			Vector3(mid.x, y, mid.y), slab_col, rot)
+			Vector3(mid.x, y + mid_h, mid.y), slab_col, rot, pitch)
 		slab2.set_meta("road_slab", rid)
 		if surface == "dirt":
 			# the twin ruts — the read that says "someone drives this, slowly"
 			for rsgn: float in [1.0, -1.0]:
 				var rut := ProtoWorldBuilder.box_visual(chunk, Vector3(0.55, 0.06, seg_len + 6.0),
-					Vector3(mid.x + perp.x * 1.1 * rsgn, y + 0.015, mid.y + perp.y * 1.1 * rsgn),
-					Color(0.33, 0.28, 0.21), rot)
+					Vector3(mid.x + perp.x * 1.1 * rsgn, y + mid_h + 0.015, mid.y + perp.y * 1.1 * rsgn),
+					Color(0.33, 0.28, 0.21), rot, pitch)
 				rut.set_meta("road_rut", rid)
 		# TOWN STREETS (M3 0.19): curbs + streetlights make a street read as a
 		# STREET, not a country road — keyed to the row's kind, pure dressing.
@@ -816,14 +862,14 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		# or a dirt track (the SURFACE LAW's whole point).
 		if surface == "asphalt" or surface == "concrete":
 			var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
-				Vector3(mid.x, y + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot)
+				Vector3(mid.x, y + mid_h + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot, pitch)
 			cl.set_meta("road_center", rid)
 			for side_sgn: float in [1.0, -1.0]:
 				for k2 in range(1, int(g["per_side"])):
 					var lat2: float = k2 * ProtoUSMap.LANE_W * side_sgn
 					var strip2 := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 0.06, seg_len + 6.0),
-						Vector3(mid.x + perp.x * lat2, y + 0.02, mid.y + perp.y * lat2),
-						ProtoWorldBuilder.COL_DASH, rot)
+						Vector3(mid.x + perp.x * lat2, y + mid_h + 0.02, mid.y + perp.y * lat2),
+						ProtoWorldBuilder.COL_DASH, rot, pitch)
 					strip2.set_meta("road_lane", rid)
 	if wet: # bridge rails at the row's real edge
 		var rail_lat := float(g["width"]) * 0.5 + 0.4
@@ -846,6 +892,40 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			var deck1 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), 0.3, seg_len + 6.0),
 				Vector3(mid.x, y + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
 			deck1.set_meta("road_deck", rid)
+	elif elevated:
+		# AN ELEVATED ROAD IS THE FLOOR (RACING_DESTRUCTION_SET P1 — the same law
+		# GROUND_INTEGRITY rule 5 taught bridges): the painted slab above is
+		# visual-only, so a real deck body carries the car up the slope. One
+		# full-width deck (even on a divided row — the rare elevated+divided
+		# combo isn't split into two carriageways here, a noted v1 simplification),
+		# edge guard rails riding the same pitch, and support pillars every ~30 m
+		# once the deck clears ~1.5 m off the ground (gravity doesn't care which
+		# way the road tilts, so pillars stand straight up, no pitch).
+		var deck_thick := 0.5
+		var deck2 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), deck_thick, seg_len + 6.0),
+			Vector3(mid.x, y + mid_h - deck_thick * 0.5, mid.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
+		deck2.set_meta("road_deck", rid)
+		deck2.set_meta("road_elevated", true)
+		var rail_lat2 := float(g["width"]) * 0.5 + 0.4
+		for sgn3: float in [1.0, -1.0]:
+			var rail2 := ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
+				Vector3(mid.x + perp.x * rail_lat2 * sgn3, y + mid_h + 0.5, mid.y + perp.y * rail_lat2 * sgn3),
+				Color(0.35, 0.33, 0.30), rot, pitch)
+			rail2.set_meta("road_guard_rail", rid)
+		var n_pillars := int(seg_len / 30.0)
+		var pillar_lat := float(g["width"]) * 0.5 + 2.5 # STRADDLE the lanes — a
+		# dead-center pillar would be a wall in the driving line (caught by
+		# elevation_sim's own drive-up: the car stopped dead on the first one).
+		for pi2 in range(n_pillars):
+			var tt := (float(pi2) + 0.5) / maxf(float(n_pillars), 1.0)
+			var pp := a + dir * tt
+			var ph := lerpf(h0, h1, tt)
+			if ph > 1.5:
+				for psgn: float in [1.0, -1.0]:
+					var pillar := ProtoWorldBuilder.box_body(chunk, Vector3(1.4, ph, 1.4),
+						Vector3(pp.x + perp.x * pillar_lat * psgn, ph * 0.5, pp.y + perp.y * pillar_lat * psgn),
+						Color(0.32, 0.30, 0.28))
+					pillar.set_meta("road_pillar", rid)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
 	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot,
 		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)

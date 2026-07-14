@@ -246,11 +246,15 @@ static func ground_visual(parent: Node3D, size: Vector3, pos: Vector3, color: Co
 	return mesh
 
 
-## Solid box with collision (StaticBody3D + mesh + shape).
-static func box_body(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0) -> StaticBody3D:
+## Solid box with collision (StaticBody3D + mesh + shape). rot_x is the PITCH
+## (RACING_DESTRUCTION_SET P1 — sloped road decks/ramps): 0.0 leaves every
+## existing flat call site byte-identical; Godot's default YXZ euler order
+## composes rotation = yaw(rot_y) * pitch(rot_x), tilting the box's local Z
+## (its "forward"/length axis) up or down around its own center.
+static func box_body(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0, rot_x: float = 0.0) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.position = pos
-	body.rotation.y = rot_y
+	body.rotation = Vector3(rot_x, rot_y, 0.0)
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
@@ -267,14 +271,14 @@ static func box_body(parent: Node3D, size: Vector3, pos: Vector3, color: Color, 
 
 
 ## Visual-only box (road surfaces, markings — no collision seams to bump over).
-static func box_visual(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0) -> MeshInstance3D:
+static func box_visual(parent: Node3D, size: Vector3, pos: Vector3, color: Color, rot_y: float = 0.0, rot_x: float = 0.0) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = size
 	mesh.mesh = bm
 	mesh.material_override = material(color)
 	mesh.position = pos
-	mesh.rotation.y = rot_y
+	mesh.rotation = Vector3(rot_x, rot_y, 0.0)
 	parent.add_child(mesh)
 	return mesh
 

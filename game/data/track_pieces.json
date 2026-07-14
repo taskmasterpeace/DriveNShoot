@@ -1,0 +1,76 @@
+{
+	"_comment": "RACING DESTRUCTION SET catalog (P2): track pieces authored in MapForge (PLACE tool, TRACK category), materialized by track_piece.gd, dropped as placement rows namespaced 'track:<id>'. size is [width_x, height_y, depth_z] meters. No purple.",
+	"track_pieces": [
+		{
+			"id": "ramp_small",
+			"label": "Ramp (Small Lip)",
+			"kind": "ramp",
+			"size": [4.0, 1.2, 6.0],
+			"lip_angle_deg": 16.0,
+			"destructible": false,
+			"color": [0.34, 0.33, 0.31]
+		},
+		{
+			"id": "ramp_big",
+			"label": "Ramp (Big Launch)",
+			"kind": "ramp",
+			"size": [5.0, 3.0, 9.0],
+			"lip_angle_deg": 28.0,
+			"destructible": false,
+			"color": [0.30, 0.29, 0.27]
+		},
+		{
+			"id": "jump_gap",
+			"label": "Jump Gap (Launch + Landing)",
+			"kind": "ramp",
+			"size": [5.0, 2.4, 7.0],
+			"lip_angle_deg": 22.0,
+			"gap_m": 10.0,
+			"destructible": false,
+			"color": [0.30, 0.29, 0.27]
+		},
+		{
+			"id": "banked_curve",
+			"label": "Banked Curve",
+			"kind": "bank",
+			"size": [11.0, 2.2, 11.0],
+			"bank_deg": 25.0,
+			"destructible": false,
+			"color": [0.33, 0.32, 0.30]
+		},
+		{
+			"id": "barrier_concrete",
+			"label": "Concrete Barrier",
+			"kind": "obstacle",
+			"size": [3.0, 1.0, 1.0],
+			"destructible": false,
+			"color": [0.55, 0.54, 0.50]
+		},
+		{
+			"id": "barrel_stack",
+			"label": "Barrel Stack",
+			"kind": "obstacle",
+			"size": [1.8, 1.6, 1.8],
+			"destructible": true,
+			"hp": 35.0,
+			"break_speed_mps": 3.0,
+			"dmg_per_mps": 10.0,
+			"scrap_min": 1,
+			"scrap_max": 3,
+			"color": [0.72, 0.32, 0.10]
+		},
+		{
+			"id": "crate_wall",
+			"label": "Crate Wall",
+			"kind": "obstacle",
+			"size": [3.6, 1.6, 1.0],
+			"destructible": true,
+			"hp": 55.0,
+			"break_speed_mps": 3.5,
+			"dmg_per_mps": 9.0,
+			"scrap_min": 2,
+			"scrap_max": 4,
+			"color": [0.45, 0.34, 0.20]
+		}
+	]
+}

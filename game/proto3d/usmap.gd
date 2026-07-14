@@ -73,7 +73,14 @@ func load_file(path: String) -> bool:
 		# (a six-lane without a median is a death trap) — both overridable per row.
 		var kind := String(r.get("kind", "interstate"))
 		var lanes := int(r.get("lanes", 4 if kind == "interstate" else 2))
-		roads.append({"id": r["id"], "kind": kind, "pts": pts,
+		# ELEVATION AS ROWS (RACING_DESTRUCTION_SET P1): optional per-point heights
+		# (meters), same length as pts — missing/short entries default to 0.0 so a
+		# road with no "elev" field at all folds byte-identical to before.
+		var elev_raw: Array = r.get("elev", [])
+		var elev := PackedFloat32Array()
+		for ei in range(pts.size()):
+			elev.append(float(elev_raw[ei]) if ei < elev_raw.size() else 0.0)
+		roads.append({"id": r["id"], "kind": kind, "pts": pts, "elev": elev,
 			"danger": int(r.get("danger", 1 if kind == "interstate" else 0)),
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
@@ -285,7 +292,9 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 			var d := _seg_dist(p, pts[i], pts[i + 1])
 			if d < best_d:
 				best_d = d
+				var ep := _elev_pair(road, i)
 				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
+					"elev_a": ep[0], "elev_b": ep[1],
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
 					"surface": String(road.get("surface", "asphalt")),
@@ -309,8 +318,9 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 				best_d = d
 				best_i = i
 		if best_i >= 0:
+			var ep := _elev_pair(road, best_i)
 			out.append({"id": road["id"], "kind": road["kind"], "dist": best_d,
-				"a": pts[best_i], "b": pts[best_i + 1],
+				"a": pts[best_i], "b": pts[best_i + 1], "elev_a": ep[0], "elev_b": ep[1],
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
 				"surface": String(road.get("surface", "asphalt")),
@@ -341,3 +351,36 @@ static func _seg_dist(p: Vector2, a: Vector2, b: Vector2) -> float:
 		return p.distance_to(a)
 	var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
 	return p.distance_to(a + ab * t)
+
+
+## The elev[] values at pts[i]/pts[i+1] — 0.0/0.0 when the row carries no
+## elevation data (or the array is short), so a flat road never sees a phantom
+## slope (RACING_DESTRUCTION_SET P1).
+static func _elev_pair(road: Dictionary, i: int) -> Array:
+	var elev: PackedFloat32Array = road.get("elev", PackedFloat32Array())
+	var ea := float(elev[i]) if i < elev.size() else 0.0
+	var eb := float(elev[i + 1]) if i + 1 < elev.size() else 0.0
+	return [ea, eb]
+
+
+## Height (meters) at an arc-length distance along a road's own polyline — the
+## ONE way any consumer (streamer, traffic, a future GPS elevation profile)
+## reads a road's slope, sharing the same pts walk arc_from_origin uses.
+## Linear interpolation between authored elev[] points; 0.0 for a flat/no-elev
+## row (missing or short elev[] never throws, it just reads as flat).
+static func elev_at(road: Dictionary, arc_m: float) -> float:
+	var pts: Array = road["pts"]
+	var elev: PackedFloat32Array = road.get("elev", PackedFloat32Array())
+	if elev.is_empty() or pts.size() < 2:
+		return 0.0
+	var acc := 0.0
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg_len: float = maxf((b - a).length(), 0.0001)
+		var ep := _elev_pair(road, i)
+		if arc_m <= acc + seg_len or i == pts.size() - 2:
+			var t := clampf((arc_m - acc) / seg_len, 0.0, 1.0)
+			return lerpf(float(ep[0]), float(ep[1]), t)
+		acc += seg_len
+	return 0.0
