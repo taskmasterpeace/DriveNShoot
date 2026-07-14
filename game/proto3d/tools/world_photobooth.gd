@@ -29,6 +29,8 @@ const SHOTS: Array = [
 	{"name": "town_approach_farmbelt", "pos": Vector3(-55950, 1.0, -17850), "yaw": 105.0}, # ARC 2: Seattle fades in through worked land + water tower
 	{"name": "billboard_i40", "pos": Vector3(-2373, 1.0, 3537), "yaw": 180.0}, # ARC 2: EXIT 20 advert readable at the wheel
 	{"name": "ecotone_seam", "pos": Vector3(-7616, 1.0, -19392), "yaw": 65.0}, # ARC 2: forest thins into the neighbor biome
+	{"name": "meridian_districts", "pos": Vector3(150, 1.0, -320), "yaw": 160.0}, # ARC 3: downtown grey vs fairgrounds trampled
+	{"name": "ghost_dead_motel", "pos": Vector3(-57011, 1.0, -2140), "yaw": 175.0}, # ARC 3: decayed Americana off a dirt spur
 ]
 
 var main: Node = null

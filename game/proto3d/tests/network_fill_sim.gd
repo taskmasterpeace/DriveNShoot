@@ -155,6 +155,54 @@ func _ready() -> void:
 		if c2 != null:
 			c2.queue_free()
 
+	# --- 4b) ARC 3 GHOST SITES: decayed Americana under the SAME payload law -------
+	var ghost_kinds: Array[String] = ["dead_motel", "dead_gas", "drive_in_ruin", "roadside_attraction"]
+	var ghosts := 0
+	var ghost_kind_ok := true
+	var ghost_probe: Dictionary = {}
+	var cluster_ok := true
+	for r in um.roads:
+		if not String(r["id"]).begins_with("GR-"):
+			continue
+		ghosts += 1
+		var gkind := String((r.get("leads_to", {}) as Dictionary).get("kind", ""))
+		if gkind not in ghost_kinds:
+			ghost_kind_ok = false
+		var members := 0
+		for p in um.placements:
+			if String(p["id"]).begins_with(String(r["id"]) + "-p"):
+				members += 1
+		if members < 3:
+			cluster_ok = false
+		if ghost_probe.is_empty():
+			ghost_probe = r
+	_check("GHOST SITES haunt the county net (%d >= 12)" % ghosts, ghosts >= 12)
+	_check("every ghost kind is in the Americana vocabulary", ghost_kind_ok)
+	_check("every ghost is a CLUSTER (>= 3 shells), never a lone prop", cluster_ok)
+	if not ghost_probe.is_empty():
+		var g_anchor_id := String((ghost_probe["leads_to"] as Dictionary)["placement"])
+		var g_pos := Vector2.ZERO
+		for p in um.placements:
+			if String(p["id"]) == g_anchor_id:
+				g_pos = p["pos"]
+		var chunk_m2 := float(ProtoWorldStream.CHUNK)
+		var gc: Node3D = main.stream._spawn_chunk(int(floor(g_pos.x / chunk_m2)), int(floor(g_pos.y / chunk_m2)))
+		for i in range(3):
+			await get_tree().physics_frame
+		var g_shell := false
+		for s in get_tree().get_nodes_in_group("structure"):
+			if String(s.get_meta("placement_id", "")) == g_anchor_id:
+				g_shell = true
+		var g_cache := false
+		if gc != null:
+			for c in gc.get_children():
+				if c is ProtoChest and (c as Node3D).position.distance_to(Vector3(g_pos.x, 0, g_pos.y)) < 12.0:
+					g_cache = true
+		_check("the ghost anchor (%s) MATERIALIZES" % String((ghost_probe["leads_to"] as Dictionary)["kind"]), g_shell)
+		_check("...and buries its THEMED CACHE (the scavenge promise)", g_cache)
+		if gc != null:
+			gc.queue_free()
+
 	# --- 5) the grip law prices the surfaces ---------------------------------------
 	# (asserts flipped with MUD_AND_MONSTERS T1 in the same commit — the matrix
 	# now owns off-asphalt grip; gravel still sits between dirt and asphalt.)

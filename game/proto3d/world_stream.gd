@@ -93,6 +93,9 @@ var _pois: Array = []
 var _main: Node = null ## the game root — the atlas calls back to set a course
 
 
+var _district_tints_stamped := false
+
+
 func setup(pois: Array, main_ref: Node = null) -> void:
 	_pois = pois
 	_main = main_ref
@@ -100,6 +103,23 @@ func setup(pois: Array, main_ref: Node = null) -> void:
 		usmap = ProtoUSMap.get_default()
 	if main_ref != null and "population" in main_ref and main_ref.population != null:
 		population = main_ref.population
+	# ARC 3 (THE_COUNTRY_PLAN): district tints on AUTHORED ground — hand-built
+	# land is never chunked, so painted districts tint it ONCE at boot (bbox
+	# quads under the road paint). Streamed chunks tint themselves per-chunk.
+	if usmap != null and usmap.ok and not _district_tints_stamped:
+		_district_tints_stamped = true
+		for dr in usmap.districts:
+			var dpoly: PackedVector2Array = dr["poly"]
+			var dlo := Vector2(1e18, 1e18)
+			var dhi := Vector2(-1e18, -1e18)
+			for pv in dpoly:
+				dlo = Vector2(minf(dlo.x, pv.x), minf(dlo.y, pv.y))
+				dhi = Vector2(maxf(dhi.x, pv.x), maxf(dhi.y, pv.y))
+			var dc := (dlo + dhi) * 0.5
+			var dq := ProtoWorldBuilder.ground_visual(self, Vector3(dhi.x - dlo.x, 0.03, dhi.y - dlo.y),
+				Vector3(dc.x, 0.042, dc.y),
+				DISTRICT_TINTS.get(String(dr.get("kind", "")), Color(0.40, 0.38, 0.33)))
+			dq.set_meta("district_tint", String(dr.get("id", "")))
 
 
 ## The chunk's ground color: biome base + the deterministic PATCHWORK nudge
@@ -375,6 +395,25 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
 			center + Vector3(0, 0.03, 0), _ground_col(biome, center))
 
+	# ARC 3 (THE_COUNTRY_PLAN): DISTRICTS tint the ground — you FEEL the block
+	# change before any sign says so. Painted polys only; flat chunks only (a
+	# tint quad on displaced relief would z-fight the hillside).
+	if usmap != null and usmap.ok and not wet and not chunk.has_meta("relief"):
+		# a district smaller than a chunk still tints it — sample 5 points, not
+		# just the exact center (chunk-res is the honest tint resolution).
+		var dist_row: Dictionary = {}
+		var dq_half := CHUNK * 0.32
+		for doff in [Vector2.ZERO, Vector2(-dq_half, -dq_half), Vector2(dq_half, -dq_half),
+				Vector2(-dq_half, dq_half), Vector2(dq_half, dq_half)]:
+			dist_row = usmap.district_at(center + Vector3((doff as Vector2).x, 0, (doff as Vector2).y))
+			if not dist_row.is_empty():
+				break
+		if not dist_row.is_empty():
+			var dq := ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
+				center + Vector3(0, 0.045, 0),
+				DISTRICT_TINTS.get(String(dist_row.get("kind", "")), Color(0.40, 0.38, 0.33)))
+			dq.set_meta("district_tint", String(dist_row.get("id", "")))
+
 	# --- The roads materialize (ROAD_TRAFFIC_OVERHAUL.md §3.3): EVERY macro road
 	# near this chunk becomes real asphalt to its ROW's geometry — lanes, median
 	# division, honest grip width. Plural is the junction fix: an exit ramp used
@@ -448,6 +487,20 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				push_warning("world_stream: malformed placement row skipped in %s" % key)
 				continue
 			_spawn_placement(chunk, p)
+			# ARC 3 GHOST SITES: the cluster anchor buries a THEMED CACHE — the
+			# payload law's loot promise (a dead motel is a scavenge run, not decor).
+			if String(p.get("id", "")).begins_with("GR-") and String(p.get("id", "")).ends_with("-p0"):
+				var gc_rng := RandomNumberGenerator.new()
+				gc_rng.seed = hash(String(p["id"]))
+				var gc_loot: Dictionary = {"scrap": gc_rng.randi_range(4, 9), "9mm": gc_rng.randi_range(4, 10)}
+				if gc_rng.randf() < 0.5:
+					gc_loot[["bandage", "medkit", "food_can", "food_can"][gc_rng.randi() % 4]] = gc_rng.randi_range(1, 2)
+				if gc_rng.randf() < 0.25:
+					gc_loot[["pistol", "machete", "wrench", "bat"][gc_rng.randi() % 4]] = 1
+				var gc := ProtoChest.create("Ghost-site cache", gc_loot)
+				chunk.add_child(gc)
+				var gp: Vector2 = p["pos"]
+				gc.position = Vector3(gp.x + gc_rng.randf_range(-6, 6), 0.05, gp.y + gc_rng.randf_range(-6, 6))
 		for e in usmap.exits_in(Rect2(center.x - phalf2, center.z - phalf2, CHUNK, CHUNK)):
 			if not (e is Dictionary) or not e.has("pos"):
 				push_warning("world_stream: malformed exit row skipped in %s" % key)
@@ -1262,6 +1315,11 @@ func _on_new_road(pos: Vector3, key: String) -> bool:
 const SERVICE_WORDS: Dictionary = {"fuel": "GAS", "food": "FOOD", "rest": "REST", "medical": "MED",
 	"repair": "REPAIR", "parts": "PARTS", "market": "MARKET", "law": "LAW", "shelter": "SHELTER",
 	"scavenge": "SALVAGE", "scrap": "SCRAP", "transit": "RAIL", "jobs": "WORK", "city": "CITY"}
+
+## ARC 3: district kind -> ground tint (downtown asphalt-grey, the yards
+## oil-stained, fairgrounds trampled fair-dirt). Unknown kinds get the neutral.
+const DISTRICT_TINTS: Dictionary = {"downtown": Color(0.36, 0.36, 0.37),
+	"industrial": Color(0.32, 0.29, 0.25), "commercial": Color(0.47, 0.43, 0.33)}
 
 const VEG_STOCK: Dictionary = {
 	"forest": {"kind": "deciduous", "visual": 40, "roadside": 52, "deep_west": 40, "deep_mid": 52, "deep_east": 72,

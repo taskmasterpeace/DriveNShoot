@@ -276,6 +276,125 @@ function structureProfiles() {
 }
 
 // ---------------------------------------------------------------------------
+// ARC 3 — GHOST SITES (THE_COUNTRY_PLAN): decayed Americana off the dirt
+// spurs. A third of county roads grow ONE ghost spur (GR-<rid>) whose payload
+// is a placement CLUSTER — ruined shells arranged in the spur's own frame —
+// under the SAME payload law as every dirt spur (a dead dirt road is a lie).
+// The engine buries a themed cache at the anchor (-p0). Idempotent by prefix.
+export function mintGhostSites(map) {
+	const stats = { ghosts: 0, placements: 0 };
+	const roads = map.roads || [];
+	const placements = map.placements || [];
+	// cluster rows: [building, along_m, side_m, rot_off] in the spur frame
+	const GHOSTS = [
+		{ kind: "dead_motel", rows: [["motel_strip", 0, 0, 0], ["ruined_house", 30, 12, 0.6], ["trailer_single", -24, 14, 2.4]] },
+		{ kind: "dead_gas", rows: [["gas_station_small", 0, 0, 0], ["junkyard", 34, 16, 1.2], ["ruined_house", -26, 14, 4.0]] },
+		{ kind: "drive_in_ruin", rows: [["drive_in_theater", 0, 0, 0], ["market_stall", 30, 20, 2.0], ["ruined_house", -34, 18, 5.2]] },
+		{ kind: "roadside_attraction", rows: [["diner_roadside", 0, 0, 0], ["market_stall", 22, 12, 1.5], ["market_stall", -18, 14, 4.4], ["water_tower", 38, -10, 0]] },
+	];
+	const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+	for (const r of roads.filter((x) => x.kind === "county")) {
+		const h = hash("ghost:" + r.id);
+		if (h % 3 !== 0) continue; // a third of the county net decays
+		const sid = `GR-${r.id}`;
+		if (roads.some((x) => x.id === sid)) continue; // idempotent
+		const a = r.pts[0], b = r.pts[r.pts.length - 1];
+		const t = 0.5;
+		const p = { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t };
+		const d = { x: b[0] - a[0], y: b[1] - a[1] };
+		const l = Math.hypot(d.x, d.y) || 1;
+		const sgn = (h >>> 3) & 1 ? 1 : -1;
+		const dir = { x: (-d.y / l) * sgn, y: (d.x / l) * sgn }; // the spur's own axis
+		const perp = { x: d.x / l, y: d.y / l };
+		const len = 300 + ((h >>> 4) % 250);
+		const end = { x: p.x + dir.x * len, y: p.y + dir.y * len };
+		const ghost = GHOSTS[(h >>> 2) % GHOSTS.length];
+		roads.push({ id: sid, kind: "dirt", surface: "dirt", pts: [[p.x, p.y], [end.x, end.y]],
+			danger: 1, family: "", nickname: "", lanes: 1, divided: false,
+			leads_to: { kind: ghost.kind, placement: `${sid}-p0` } });
+		ghost.rows.forEach(([bid, along, side, rotOff], i) => {
+			const px = end.x + dir.x * (14 + along) + perp.x * side;
+			const py = end.y + dir.y * (14 + along) + perp.y * side;
+			placements.push({ id: `${sid}-p${i}`, building: bid, pos: [px, py],
+				rot: Math.atan2(-dir.x, -dir.y) + rotOff });
+			stats.placements++;
+		});
+		stats.ghosts++;
+	}
+	return stats;
+}
+
+// ARC 3 — DISTRICT SLOTS (the Meridian unification seam): when an AUTHORED
+// town carries painted districts, the generator may fill their EMPTY ground
+// from the district's own building pool — additively, never moving or
+// touching a hand placement (meridian_town_sim is the guard). Rows only.
+export function bakeDistrictSlots(map) {
+	const stats = { districts: 0, slots: 0 };
+	const districts = map.districts || [];
+	const placements = map.placements || [];
+	const roads = map.roads || [];
+	const profiles = structureProfiles();
+	const POOLS = {
+		downtown: ["market_general", "bar_roadhouse", "pawn_gun_shop", "diner_roadside", "library_small"],
+		industrial: ["warehouse", "factory_shell", "junkyard", "auto_shop", "substation_power"],
+		commercial: ["market_stall", "market_stall", "diner_roadside", "bar_roadhouse"],
+	};
+	const inPoly = (px, py, poly) => {
+		let inside = false;
+		for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+			const [xi, yi] = poly[i], [xj, yj] = poly[j];
+			if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
+		}
+		return inside;
+	};
+	const fp = (bid) => (profiles[bid] && profiles[bid].footprint_m) || [10, 10];
+	for (const dst of districts) {
+		const pool = POOLS[dst.kind];
+		if (!pool) continue;
+		if (placements.some((pl) => String(pl.id).startsWith(`${dst.id}-dslot-`))) { stats.districts++; continue; }
+		const rng = mulberry32(hashStr("dslot:" + dst.id));
+		const xs = dst.poly.map((p) => p[0]), ys = dst.poly.map((p) => p[1]);
+		const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+		const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+		let placed = 0;
+		for (let gy = y0 + 8; gy <= y1 - 8 && placed < 8; gy += 16) {
+			for (let gx = x0 + 8; gx <= x1 - 8 && placed < 8; gx += 16) {
+				if (!inPoly(gx, gy, dst.poly)) continue;
+				if (rng() < 0.3) continue; // breathe — a district is not a parking lot
+				const bid = pool[Math.floor(rng() * pool.length) % pool.length];
+				const [fw, fh] = fp(bid);
+				const myR = Math.max(fw, fh) * 0.5;
+				// never crowd a hand placement (or an earlier slot): footprints + 6 m air
+				let clear = true;
+				for (const pl of placements) {
+					const [ow, oh] = fp(pl.building);
+					const need = myR + Math.max(ow, oh) * 0.5 + 3;
+					if (Math.hypot(pl.pos[0] - gx, pl.pos[1] - gy) < need) { clear = false; break; }
+				}
+				if (!clear) continue;
+				// keep off every road polyline (12 m + half footprint)
+				for (const r of roads) {
+					if (!clear) break;
+					for (let i = 0; i + 1 < r.pts.length && clear; i++) {
+						const [ax, ay] = r.pts[i], [bx, by] = r.pts[i + 1];
+						const dx = bx - ax, dy = by - ay;
+						const tt = Math.max(0, Math.min(1, ((gx - ax) * dx + (gy - ay) * dy) / Math.max(dx * dx + dy * dy, 1e-6)));
+						if (Math.hypot(ax + dx * tt - gx, ay + dy * tt - gy) < myR + 8) clear = false;
+					}
+				}
+				if (!clear) continue;
+				placements.push({ id: `${dst.id}-dslot-${placed}`, building: bid, pos: [gx, gy],
+					rot: Math.atan2(-(cx - gx), -(cy - gy)) });
+				placed++;
+				stats.slots++;
+			}
+		}
+		if (placed) stats.districts++;
+	}
+	return stats;
+}
+
+// ---------------------------------------------------------------------------
 // ARC 2 — TOWN IDENTITY (THE_COUNTRY_PLAN): every generated town gets ONE
 // seeded landmark (the silhouette you navigate by) written as ROWS — the
 // engine's _stamp_town materializes it, the welcome sign names it, the atlas
@@ -850,6 +969,8 @@ export function bakeJunctions(map) {
 	const town = stampTownStreets(map);
 	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
 	const belts = bakeFarmBelts(map); // ARC 2: the farm-belt approach ring
+	const ghosts = mintGhostSites(map); // ARC 3: decayed Americana off the spurs
+	const dslots = bakeDistrictSlots(map); // ARC 3: districts fill their own ground
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
 	const rel = bakeRoadRelief(map); // 1A: roads climb the painted macro (after ramps exist)
@@ -1038,6 +1159,8 @@ export function bakeJunctions(map) {
 	lint.town_stats = town;
 	lint.landmark_stats = marks;
 	lint.farmbelt_stats = belts;
+	lint.ghost_stats = ghosts;
+	lint.dslot_stats = dslots;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
@@ -1060,6 +1183,8 @@ if (isMain) {
 	if (lint.overpass_stats) console.log(`BAKE: overpasses — ${lint.overpass_stats.converted} pending crossings DECKED (${lint.overpass_stats.reused_pts} pts reused, ${lint.overpass_stats.skipped} skipped near road ends)`);
 	if (lint.landmark_stats) console.log(`BAKE: landmarks — ${lint.landmark_stats.named} towns named, ${lint.landmark_stats.kept} bespoke kept`);
 	if (lint.farmbelt_stats) console.log(`BAKE: farm belts — ${lint.farmbelt_stats.cells} grid cells turned to farmland around ${lint.farmbelt_stats.towns} towns`);
+	if (lint.ghost_stats) console.log(`BAKE: ghost sites — ${lint.ghost_stats.ghosts} minted (${lint.ghost_stats.placements} cluster placements)`);
+	if (lint.dslot_stats) console.log(`BAKE: district slots — ${lint.dslot_stats.slots} filled across ${lint.dslot_stats.districts} districts`);
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);

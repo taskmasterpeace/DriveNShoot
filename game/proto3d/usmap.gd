@@ -38,6 +38,7 @@ var placements: Array = []        ## AUTHORED LAYER (MapForge v2): [{id, buildin
 ##   risk_rating, has_return_ramp, pos: Vector2 (ON the highway), dest: Vector2}]
 var exits: Array = []
 var junctions: Array = [] ## baked junction rows (AMERICAN_ROAD M1 schema 0.2)
+var districts: Array = [] ## ARC 3: painted district rows [{id, name, kind, poly}]
 
 
 static func get_default() -> ProtoUSMap:
@@ -155,6 +156,20 @@ func load_file(path: String) -> bool:
 			"grade": String(j.get("grade", "flat")), "control": String(j.get("control", "none")),
 			"deck_road": String(j.get("deck_road", "")),
 			"pos": Vector2(float(j["pos"][0]), float(j["pos"][1])), "legs": legs})
+	# ARC 3 (THE_COUNTRY_PLAN): DISTRICTS feed the engine — painted polygon rows
+	# (MapForge v4 DISTRICTS layer) fold typed; district_at() joins the query
+	# family; consumers tint the ground and steer the town generator's pools.
+	districts.clear()
+	for dr in d.get("districts", []):
+		if not (dr is Dictionary) or not (dr as Dictionary).has("poly"):
+			continue
+		var poly := PackedVector2Array()
+		for pv in dr.get("poly", []):
+			poly.append(Vector2(float(pv[0]), float(pv[1])))
+		if poly.size() < 3:
+			continue
+		districts.append({"id": String(dr.get("id", "")), "name": String(dr.get("name", "")),
+			"kind": String(dr.get("kind", "district")), "poly": poly})
 	ok = w > 0 and h > 0 and grid.size() == h
 	_build_seg_grid()
 	return ok
@@ -320,6 +335,15 @@ func biome_char(x: float, z: float) -> String:
 
 func biome_at(pos: Vector3) -> String:
 	return legend.get(biome_char(pos.x, pos.z), "ocean")
+
+
+## ARC 3: which painted district (if any) holds this point — first hit wins.
+func district_at(pos: Vector3) -> Dictionary:
+	var p2 := Vector2(pos.x, pos.z)
+	for dr in districts:
+		if Geometry2D.is_point_in_polygon(p2, (dr as Dictionary)["poly"]):
+			return dr
+	return {}
 
 
 func state_at(pos: Vector3) -> String:

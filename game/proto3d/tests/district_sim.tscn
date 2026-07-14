@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://districtsim0"]
+
+[ext_resource type="Script" path="res://proto3d/tests/district_sim.gd" id="1"]
+
+[node name="DistrictSim" type="Node"]
+script = ExtResource("1")
