@@ -1,8 +1,8 @@
 # Game Deck Lobby Verification
 
-Verified: 2026-07-10  
-Branch: `codex/game-deck-build`  
-Godot: 4.5.1 stable, Compatibility renderer  
+Verified: 2026-07-10
+Branch: `codex/game-deck-build`
+Godot: 4.5.1 stable, Compatibility renderer
 Scope: console MATCH flow, player invitations, same-session online play,
 spectating, and universal bot fill.
 

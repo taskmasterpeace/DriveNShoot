@@ -1,7 +1,7 @@
 # Game Deck Phase 1.3 Verification
 
-Date: 2026-07-10  
-Branch: `codex/game-deck-build`  
+Date: 2026-07-10
+Branch: `codex/game-deck-build`
 Scope: complete Phase 1 ownership, world placement, invitations, boards, and
 tournament spectacle for all twenty cartridges
 
@@ -19,7 +19,7 @@ mutating its registry row. Three physical venues run the ordinary console
 cartridges on public screens with schedules, entry, brackets, wagers, prizes,
 announcer copy, and deterministic world interruptions.
 
-Contradicted Phase 1 requirements: **none**.  
+Contradicted Phase 1 requirements: **none**.
 Missing Phase 1 requirements: **none**.
 
 This verdict deliberately does not claim Phase 2. RUST RUNNERS and BLACK GRID
