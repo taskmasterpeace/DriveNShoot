@@ -26,6 +26,9 @@ const SHOTS: Array = [
 	{"name": "appalachia_i40", "pos": Vector3(-6500, 1.0, 2875), "yaw": 20.0},
 	{"name": "mississippi_i90", "pos": Vector3(-15737, 1.0, -10966), "yaw": 70.0},
 	{"name": "overpass_i40_i75", "pos": Vector3(-6980, 1.0, 2794), "yaw": 81.0},
+	{"name": "town_approach_farmbelt", "pos": Vector3(-55950, 1.0, -17850), "yaw": 105.0}, # ARC 2: Seattle fades in through worked land + water tower
+	{"name": "billboard_i40", "pos": Vector3(-2373, 1.0, 3537), "yaw": 180.0}, # ARC 2: EXIT 20 advert readable at the wheel
+	{"name": "ecotone_seam", "pos": Vector3(-7616, 1.0, -19392), "yaw": 65.0}, # ARC 2: forest thins into the neighbor biome
 ]
 
 var main: Node = null
@@ -85,6 +88,12 @@ func _shoot(s: Dictionary, out_abs: String) -> void:
 	for _i in 40:
 		main.stream.update_stream(pos, main)
 		await get_tree().physics_frame
+	# the teleport "crossed" every state line on the way — flush the border
+	# toasts so the shot documents the WORLD, not the travel noise
+	if main.get("hud") != null and "_toast_q" in main.hud:
+		main.hud._toast_q.clear()
+		if main.hud.get("_toast_label") != null:
+			main.hud._toast_label.text = ""
 	for _i in 30:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw

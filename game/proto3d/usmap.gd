@@ -117,6 +117,7 @@ func load_file(path: String) -> bool:
 		towns.append({"id": t["id"], "name": t["name"],
 			"pos": Vector2(float(t["pos"][0]), float(t["pos"][1])),
 			"kind": t.get("kind", "holdout"), "landmark": t.get("landmark", ""),
+			"landmark_kind": t.get("landmark_kind", ""),
 			"authored": t.get("authored", false)})
 	placements.clear()
 	for p in d.get("placements", []):
@@ -259,6 +260,26 @@ func arc_from_origin(road: Dictionary, pos: Vector2) -> float:
 	var pn: Vector2 = pts[pts.size() - 1]
 	var origin_at_start: bool = (p0.y > pn.y) if absf(pn.y - p0.y) >= absf(pn.x - p0.x) else (p0.x < pn.x)
 	return best_arc if origin_at_start else total - best_arc
+
+
+## ARC 2 (THE_COUNTRY_PLAN): a road's exits as [{arc, row}] sorted by arc from
+## the road's own origin — lazy, built once per road, so billboards can name
+## the REAL next exit at its REAL distance without rescanning 88 rows.
+var _exit_arcs: Dictionary = {}
+
+
+func exit_arcs(rid: String) -> Array:
+	if _exit_arcs.has(rid):
+		return _exit_arcs[rid]
+	var out: Array = []
+	var full := road_by_id(rid)
+	if not full.is_empty():
+		for e in exits:
+			if String((e as Dictionary).get("highway_id", "")) == rid:
+				out.append({"arc": arc_from_origin(full, (e as Dictionary)["pos"]), "row": e})
+	out.sort_custom(func(x: Dictionary, y: Dictionary) -> bool: return float(x["arc"]) < float(y["arc"]))
+	_exit_arcs[rid] = out
+	return out
 
 
 ## THE GAP FORMULA (0.3, derived never stored): the barrier gap a junction opens

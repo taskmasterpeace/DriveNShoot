@@ -275,6 +275,78 @@ function structureProfiles() {
 	return _profileCache;
 }
 
+// ---------------------------------------------------------------------------
+// ARC 2 — TOWN IDENTITY (THE_COUNTRY_PLAN): every generated town gets ONE
+// seeded landmark (the silhouette you navigate by) written as ROWS — the
+// engine's _stamp_town materializes it, the welcome sign names it, the atlas
+// labels it. The 3 bespoke landmark towns (vegas/stlouis/washington) keep
+// their hand-built rows: any town already carrying `landmark` is skipped.
+export function bakeTownLandmarks(map) {
+	const stats = { named: 0, kept: 0 };
+	const KINDS = [
+		// [kind, weight, name builder]
+		["water_tower", 0.34, (r) => `THE ${pickOne(r, ["RUSTED", "GRAY", "GREEN", "FADED"])} WATER TOWER`],
+		["grain_elevator", 0.24, () => "THE GRAIN ELEVATOR"],
+		["church_steeple", 0.22, (r) => `THE ${pickOne(r, ["WHITE", "BURNED", "LEANING"])} STEEPLE`],
+		["radio_mast", 0.20, () => "THE RADIO MAST"],
+	];
+	const total = KINDS.reduce((s, k) => s + k[1], 0);
+	for (const t of map.towns || []) {
+		if (t.landmark) { stats.kept++; continue; }
+		const rng = mulberry32(hashStr("landmark:" + t.id));
+		let roll = rng() * total;
+		let kind = KINDS[KINDS.length - 1];
+		for (const k of KINDS) {
+			roll -= k[1];
+			if (roll <= 0) { kind = k; break; }
+		}
+		t.landmark_kind = kind[0];
+		t.landmark = kind[2](rng);
+		stats.named++;
+	}
+	return stats;
+}
+
+function pickOne(rng, arr) {
+	return arr[Math.floor(rng() * arr.length) % arr.length];
+}
+
+// ARC 2 — THE FARM BELT: towns fade in through worked land. A one-cell ring
+// (500m cells ≈ the 300-500m approach) around every town converts plains,
+// scrub and forest grid cells to farmland (settlers clear the treeline), so
+// the vegetation rows grow crops/windbreaks before the welcome sign. Water,
+// urban, desert, mountain and swamp cells are respected — a wheat field in
+// the Mojave would be a lie. Idempotent by construction.
+export function bakeFarmBelts(map) {
+	const stats = { towns: 0, cells: 0 };
+	const grid = map.grid || [];
+	if (!grid.length) return stats;
+	const [ox, oy] = map.world_offset || [0, 0];
+	const cell = map.cell_m || 500;
+	for (const t of map.towns || []) {
+		const cx = Math.floor((t.pos[0] - ox) / cell);
+		const cy = Math.floor((t.pos[1] - oy) / cell);
+		let touched = 0;
+		for (let dy = -1; dy <= 1; dy++) {
+			const y = cy + dy;
+			if (y < 0 || y >= grid.length) continue;
+			let row = grid[y];
+			for (let dx = -1; dx <= 1; dx++) {
+				const x = cx + dx;
+				if (x < 0 || x >= row.length) continue;
+				const ch = row[x];
+				if (ch === "p" || ch === "f" || ch === "F") {
+					row = row.slice(0, x) + "a" + row.slice(x + 1);
+					touched++;
+				}
+			}
+			grid[y] = row;
+		}
+		if (touched) { stats.towns++; stats.cells += touched; }
+	}
+	return stats;
+}
+
 export function stampTownStreets(map) {
 	const stats = { towns: 0, downtown: 0, mainstreet: 0, streets: 0, slots: 0 };
 	const roads = map.roads || [];
@@ -776,6 +848,8 @@ export function bakeJunctions(map) {
 	// then addresses, then the junction rows read the corrected polylines
 	const fill = fillNetwork(map);
 	const town = stampTownStreets(map);
+	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
+	const belts = bakeFarmBelts(map); // ARC 2: the farm-belt approach ring
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
 	const rel = bakeRoadRelief(map); // 1A: roads climb the painted macro (after ramps exist)
@@ -962,6 +1036,8 @@ export function bakeJunctions(map) {
 	map.junctions = junctions;
 	lint.overpass_stats = op;
 	lint.town_stats = town;
+	lint.landmark_stats = marks;
+	lint.farmbelt_stats = belts;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
@@ -982,6 +1058,8 @@ if (isMain) {
 	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.downtown} downtown / ` +
 		`${lint.town_stats.mainstreet} main-street) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
 	if (lint.overpass_stats) console.log(`BAKE: overpasses — ${lint.overpass_stats.converted} pending crossings DECKED (${lint.overpass_stats.reused_pts} pts reused, ${lint.overpass_stats.skipped} skipped near road ends)`);
+	if (lint.landmark_stats) console.log(`BAKE: landmarks — ${lint.landmark_stats.named} towns named, ${lint.landmark_stats.kept} bespoke kept`);
+	if (lint.farmbelt_stats) console.log(`BAKE: farm belts — ${lint.farmbelt_stats.cells} grid cells turned to farmland around ${lint.farmbelt_stats.towns} towns`);
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);

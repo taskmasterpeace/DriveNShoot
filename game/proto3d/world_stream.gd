@@ -501,6 +501,17 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	_river_sheets(chunk, center)
 
 	# --- Biome content --------------------------------------------------------
+	# ARC 2 ECOTONE LAW (THE_COUNTRY_PLAN): biome edges BLEND — a chunk whose
+	# 4-neighbors disagree thins its vegetation toward the seam (forest thins
+	# into plains, scrub sparses into desert) instead of a hard 500m wall of
+	# density. One modulation factor; density itself stays data (VEG rows).
+	var eco := 1.0
+	if usmap != null and usmap.ok and not wet:
+		var same_n := 0
+		for eco_d in [Vector3(CHUNK, 0, 0), Vector3(-CHUNK, 0, 0), Vector3(0, 0, CHUNK), Vector3(0, 0, -CHUNK)]:
+			if biome_at(center + (eco_d as Vector3)) == biome:
+				same_n += 1
+		eco = lerpf(0.5, 1.0, float(same_n) / 4.0)
 	match biome:
 		"forest":
 			# THE FRONTIER LAW (owner + lore bible): eastern forest is DENSE and
@@ -523,7 +534,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			elif deep:
 				solid = 8
 				visual = int(fveg.get("deep_west", 40))
-			_trees(chunk, center, rng, visual, road, solid, String(fveg.get("kind", "deciduous")), fveg)
+			_trees(chunk, center, rng, int(float(visual) * eco), road, int(float(solid) * eco), String(fveg.get("kind", "deciduous")), fveg)
 		"farmland":
 			_crops(chunk, center, rng)
 			if rng.randf() < 0.14:
@@ -532,14 +543,14 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				ProtoWorldBuilder.box_body(chunk, Vector3(2.4, 7.0, 2.4), bpos + Vector3(6, 3.5, 2), Color(0.6, 0.58, 0.52))
 			var farm_veg := veg("farmland")
 			if near_road and rng.randf() < float(farm_veg.get("windbreak_p", 0.4)):
-				_trees(chunk, center, rng, int(farm_veg.get("windbreak", 10)), road, 5, "deciduous", farm_veg) # the windbreak line by the road
+				_trees(chunk, center, rng, int(float(farm_veg.get("windbreak", 10)) * eco), road, 5, "deciduous", farm_veg) # the windbreak line by the road
 		"plains":
 			var plains_veg := veg("plains")
-			_scatter(chunk, center, rng, int(plains_veg.get("bushes", 12)), Color(0.36, 0.38, 0.24))
+			_scatter(chunk, center, rng, int(float(plains_veg.get("bushes", 12)) * eco), Color(0.36, 0.38, 0.24))
 			if rng.randf() < float(plains_veg.get("lone_p", 0.25)):
 				_trees(chunk, center, rng, int(plains_veg.get("lone", 3)), road, 5, "deciduous", plains_veg)
 			if near_road and rng.randf() < float(plains_veg.get("copse_p", 0.35)):
-				_trees(chunk, center, rng, int(plains_veg.get("copse", 9)), road, 5, "deciduous", plains_veg) # a small roadside copse
+				_trees(chunk, center, rng, int(float(plains_veg.get("copse", 9)) * eco), road, 5, "deciduous", plains_veg) # a small roadside copse
 			# WILD HORSES (frontier goal + the animal-location tune): mustang
 			# country is the WEST — open plains chunks graze a catchable horse
 			# (E mounts; same rig as the stable's). East keeps them rare.
@@ -554,9 +565,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				else:
 					wild.position = center + Vector3(0, 0.3, 55)
 		"scrub":
-			_scatter(chunk, center, rng, int(veg("scrub").get("bushes", 26)), Color(0.33, 0.36, 0.22))
+			_scatter(chunk, center, rng, int(float(veg("scrub").get("bushes", 26)) * eco), Color(0.33, 0.36, 0.22))
 		"desert":
-			_scatter(chunk, center, rng, int(veg("desert").get("bushes", 16)), Color(0.5, 0.42, 0.3))
+			_scatter(chunk, center, rng, int(float(veg("desert").get("bushes", 16)) * eco), Color(0.5, 0.42, 0.3))
 			for i in 3:
 				ProtoWorldBuilder.box_visual(chunk, Vector3(3.5, 0.03, 3.5),
 					center + Vector3(rng.randf_range(-55, 55), 0.015, rng.randf_range(-55, 55)), Color(0.55, 0.44, 0.27))
@@ -574,18 +585,18 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					rpos + Vector3(0, rh * 0.5 - 0.4, 0), Color(0.46, 0.44, 0.42), rng.randf_range(0, TAU))
 				rock.set_meta("ridge_rock", true)
 			var mtn_veg := veg("mountains")
-			_scatter(chunk, center, rng, int(mtn_veg.get("bushes", 14)), Color(0.42, 0.40, 0.37))
+			_scatter(chunk, center, rng, int(float(mtn_veg.get("bushes", 14)) * eco), Color(0.42, 0.40, 0.37))
 			# SPARSE CONIFERS (vegetation rows): visual-only pines between the rocks —
 			# the ridge rocks stay the collision story, the treeline sells the biome.
 			if int(mtn_veg.get("visual", 0)) > 0:
-				_trees(chunk, center, rng, int(mtn_veg.get("visual", 0)), road, 0, "conifer", mtn_veg)
+				_trees(chunk, center, rng, int(float(mtn_veg.get("visual", 0)) * eco), road, 0, "conifer", mtn_veg)
 		"swamp":
 			for i in 4:
 				ProtoWorldBuilder.box_visual(chunk, Vector3(rng.randf_range(6, 14), 0.03, rng.randf_range(6, 14)),
 					center + Vector3(rng.randf_range(-50, 50), 0.04, rng.randf_range(-50, 50)), Color(0.14, 0.22, 0.20))
 			var swamp_veg := veg("swamp")
-			_trees(chunk, center, rng, int(swamp_veg.get("visual", 14)), road, 5, String(swamp_veg.get("kind", "cypress")), swamp_veg)
-			_scatter(chunk, center, rng, int(swamp_veg.get("bushes", 12)), Color(0.3, 0.33, 0.2))
+			_trees(chunk, center, rng, int(float(swamp_veg.get("visual", 14)) * eco), road, 5, String(swamp_veg.get("kind", "cypress")), swamp_veg)
+			_scatter(chunk, center, rng, int(float(swamp_veg.get("bushes", 12)) * eco), Color(0.3, 0.33, 0.2))
 			# THE GATOR (MAP_POLISH_PLAN §3.3): a stationary ambush at the water's
 			# edge — deterministic per chunk, PLACED before the player arrives
 			# (never popped into view), excluded from population current_pop.
@@ -1138,8 +1149,36 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 							var hx: float = float(hx_v)
 							ProtoWorldBuilder.box_visual(board_root, Vector3(0.16, 0.16, 0.04),
 								Vector3(hx, 4.45 + 0.25 * signf(hx), -0.12), Color(0.04, 0.035, 0.03), 0.0)
+					# ARC 2 (THE_COUNTRY_PLAN): billboards advertise the REAL next
+					# exit's services at its REAL distance in the same game-miles the
+					# mileposts use — the GPS-less driving payoff. Wasteland stretches
+					# (risk >= 3) keep their warning; roads with no exits keep stock.
+					var btext := "LAST GAS\nNEXT EXIT"
+					if risk >= 3:
+						btext = "KEEP DRIVING\nNO SERVICE"
+					else:
+						var board_arc := ceilf(arc_lo / 3000.0) * 3000.0
+						var nearest: Dictionary = {}
+						var nd := 1e18
+						for ea in usmap.exit_arcs(rid):
+							var dd: float = absf(float((ea as Dictionary)["arc"]) - board_arc)
+							if dd < nd:
+								nd = dd
+								nearest = ea
+						if not nearest.is_empty():
+							var ex: Dictionary = nearest["row"]
+							var mi := maxi(1, int(round(nd / ProtoUSMap.EXIT_MILE_M)))
+							var words: PackedStringArray = []
+							for tg in ex.get("service_tags", []):
+								if SERVICE_WORDS.has(String(tg)):
+									words.append(SERVICE_WORDS[String(tg)])
+								if words.size() >= 3:
+									break
+							if words.is_empty():
+								words.append("SERVICES")
+							btext = "EXIT %d — %d MI\n%s" % [int(ex.get("exit_number", 0)), mi, " — ".join(words)]
 					var bl := Label3D.new()
-					bl.text = "KEEP DRIVING\nNO SERVICE" if risk >= 3 else "LAST GAS\nNEXT EXIT"
+					bl.text = btext
 					bl.font_size = 150
 					bl.pixel_size = 0.004
 					bl.modulate = Color(0.95, 0.86, 0.58) if risk >= 3 else Color(0.96, 0.94, 0.82)
@@ -1218,6 +1257,12 @@ func _on_new_road(pos: Vector3, key: String) -> bool:
 ## data/vegetation.json overlays this CODE STOCK per biome key — a missing key
 ## keeps stock, a missing file changes nothing. Visual density lives in DATA;
 ## SOLID trunk counts stay in code (the frontier LAW, guarded by frontier_sim).
+## ARC 2: exit service_tags -> billboard words (restricted/unknown stay silent
+## on purpose — a billboard never advertises a trap or a mystery).
+const SERVICE_WORDS: Dictionary = {"fuel": "GAS", "food": "FOOD", "rest": "REST", "medical": "MED",
+	"repair": "REPAIR", "parts": "PARTS", "market": "MARKET", "law": "LAW", "shelter": "SHELTER",
+	"scavenge": "SALVAGE", "scrap": "SCRAP", "transit": "RAIL", "jobs": "WORK", "city": "CITY"}
+
 const VEG_STOCK: Dictionary = {
 	"forest": {"kind": "deciduous", "visual": 40, "roadside": 52, "deep_west": 40, "deep_mid": 52, "deep_east": 72,
 		"scale_min": 0.7, "scale_max": 1.5, "canopy_a": [0.20, 0.30, 0.14], "canopy_b": [0.20, 0.30, 0.14]},
@@ -1552,6 +1597,10 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 			ProtoWorldBuilder.box_body(chunk, Vector3(18, 2, 2), base + Vector3(0, 24, 0), Color(0.55, 0.35, 0.2), 0.0)
 		"washington": # the drowned monument
 			ProtoWorldBuilder.box_body(chunk, Vector3(2.4, 30, 2.4), base + Vector3(0, 12, 6), Color(0.8, 0.78, 0.72))
+	# ARC 2 — TOWN IDENTITY (THE_COUNTRY_PLAN): every generated town raises its
+	# baked landmark silhouette — you tell towns apart from the highway before
+	# you can read the sign. Kind + name are ROWS (bake); this just builds it.
+	_stamp_landmark(chunk, t, base, rng)
 	# TOWN DRESSING (layout v2, 2026-07-14): life between the shells — junk piles,
 	# a couple of long-dead parked wrecks, low yard fences. All box_visual (no
 	# collision, driving stays clean), deterministic, <=10 nodes per town chunk.
@@ -1623,6 +1672,60 @@ static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGe
 		for k in rare:
 			cache[k] = int(cache.get(k, 0)) + int(rare[k])
 	return cache
+
+
+## ARC 2 — the landmark silhouettes (water tower / grain elevator / steeple /
+## radio mast). Baked rows pick the kind + name; this raises the geometry tall
+## enough to read over the treeline from the interstate. Bespoke towns (vegas/
+## stlouis/washington) carry no landmark_kind, so this is a no-op for them.
+func _stamp_landmark(chunk: Node3D, t: Dictionary, base: Vector3, rng: RandomNumberGenerator) -> void:
+	var kind := String(t.get("landmark_kind", ""))
+	if kind == "":
+		return
+	var ang := rng.randf_range(0.0, TAU)
+	var lp := base + Vector3(cos(ang), 0.0, sin(ang)) * rng.randf_range(70.0, 105.0)
+	lp.y = ProtoWorldBuilder.ground_y(lp.x, lp.z)
+	var root := Node3D.new()
+	root.name = "TownLandmark"
+	root.position = lp
+	root.set_meta("town_landmark", kind)
+	chunk.add_child(root)
+	var lname := String(t.get("landmark", ""))
+	match kind:
+		"water_tower":
+			var tank_col := Color(0.5, 0.32, 0.22) # RUSTED (the stock read)
+			if lname.contains("GRAY"):
+				tank_col = Color(0.56, 0.56, 0.55)
+			elif lname.contains("GREEN"):
+				tank_col = Color(0.32, 0.45, 0.32)
+			elif lname.contains("FADED"):
+				tank_col = Color(0.6, 0.55, 0.45)
+			for corner in [Vector2(-3.0, -3.0), Vector2(3.0, -3.0), Vector2(-3.0, 3.0), Vector2(3.0, 3.0)]:
+				ProtoWorldBuilder.box_body(root, Vector3(0.5, 14.0, 0.5),
+					Vector3((corner as Vector2).x, 7.0, (corner as Vector2).y), Color(0.35, 0.33, 0.3))
+			ProtoWorldBuilder.box_body(root, Vector3(7.6, 5.4, 7.6), Vector3(0, 16.7, 0), tank_col)
+			ProtoWorldBuilder.box_visual(root, Vector3(5.4, 1.2, 5.4), Vector3(0, 20.0, 0), tank_col.darkened(0.25))
+		"grain_elevator":
+			ProtoWorldBuilder.box_body(root, Vector3(6.0, 24.0, 6.0), Vector3(0, 12.0, 0), Color(0.72, 0.68, 0.6))
+			ProtoWorldBuilder.box_visual(root, Vector3(2.6, 3.0, 2.6), Vector3(0, 25.5, 0), Color(0.6, 0.56, 0.5))
+			for si in 3:
+				ProtoWorldBuilder.box_body(root, Vector3(3.4, 17.0, 3.4),
+					Vector3(6.2, 8.5, -4.0 + float(si) * 4.0), Color(0.66, 0.63, 0.56))
+		"church_steeple":
+			var white := not lname.contains("BURNED")
+			var body_col := Color(0.85, 0.83, 0.78) if white else Color(0.24, 0.21, 0.19)
+			ProtoWorldBuilder.box_body(root, Vector3(9.0, 6.0, 13.0), Vector3(0, 3.0, 0), body_col)
+			ProtoWorldBuilder.box_body(root, Vector3(3.2, 11.0, 3.2), Vector3(0, 8.5, -7.0), body_col)
+			var lean := 0.12 if lname.contains("LEANING") else 0.0
+			var spire := ProtoWorldBuilder.box_visual(root, Vector3(1.5, 7.0, 1.5), Vector3(0, 17.0, -7.0), body_col.darkened(0.2))
+			spire.rotation.z = lean
+		"radio_mast":
+			ProtoWorldBuilder.box_body(root, Vector3(1.1, 34.0, 1.1), Vector3(0, 17.0, 0), Color(0.52, 0.2, 0.18))
+			for ai in 3:
+				ProtoWorldBuilder.box_visual(root, Vector3(6.0, 0.3, 0.3),
+					Vector3(0, 9.0 + float(ai) * 9.0, 0), Color(0.62, 0.6, 0.58))
+			var beacon := ProtoWorldBuilder.box_visual(root, Vector3(0.7, 0.7, 0.7), Vector3(0, 34.4, 0), Color(0.95, 0.25, 0.15))
+			beacon.material_override = ProtoWorldBuilder.material(Color(0.95, 0.25, 0.15), 0.3, true)
 
 
 # --- The world map (M): local fog-of-war → the country atlas -------------------

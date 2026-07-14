@@ -167,5 +167,39 @@ func _ready() -> void:
 		_check("%s edge ring is residential/industrial (%d/%d >= 60%%)" % [metro_id, edge_res, edge_all],
 			edge_all > 0 and float(edge_res) / float(edge_all) >= 0.6)
 
+	# --- ARC 2 (THE_COUNTRY_PLAN): TOWN IDENTITY + FARM BELTS as rows -------------
+	var lm_kinds: Array[String] = ["water_tower", "grain_elevator", "church_steeple", "radio_mast"]
+	var named := 0
+	var kinds_ok := true
+	var register_ok := true
+	var bespoke_kept := 0
+	for t in m.towns:
+		var lm := String(t.get("landmark", ""))
+		var lk := String(t.get("landmark_kind", ""))
+		if lm != "":
+			named += 1
+		if not lm.begins_with("THE "):
+			register_ok = false
+		if lk == "":
+			bespoke_kept += 1 # vegas/stlouis/washington carry hand-built rows
+		elif lk not in lm_kinds:
+			kinds_ok = false
+	_check("every town is NAMED by a landmark (%d/%d)" % [named, m.towns.size()], named == m.towns.size())
+	_check("generated landmark kinds stay in the vocabulary", kinds_ok)
+	_check("the landmark register holds (every name is 'THE ...')", register_ok)
+	_check("the 3 bespoke towns keep their hand-built landmarks (%d)" % bespoke_kept, bespoke_kept == 3)
+
+	var belted := 0
+	for t in m.towns:
+		var tp := Vector2(float(t["pos"][0]), float(t["pos"][1]))
+		var has_farm := false
+		for dx in [-500.0, 0.0, 500.0]:
+			for dz in [-500.0, 0.0, 500.0]:
+				if m.biome_at(Vector3(tp.x + float(dx), 0, tp.y + float(dz))) == "farmland":
+					has_farm = true
+		if has_farm:
+			belted += 1
+	_check("FARM BELTS ring the town approaches (%d towns read farmland nearby, >= 30)" % belted, belted >= 30)
+
 	# --- the fabric is versioned rows (regen ran once, stays idempotent) ---------
 	_finish()
