@@ -59,6 +59,23 @@ func report_raid(won: bool, wall_level: int) -> void:
 		_queue("tv", "OVERNIGHT: a compound was breached. Scavengers move at dawn.")
 
 
+## Console culture is world news: an ad creates a travel reason and a win puts
+## the player on both the dial and public lower-thirds.
+func report_game_tournament(event: Dictionary, venue_name: String) -> void:
+	var game := String(event.get("game_id", "GAME NIGHT")).replace("_", " ").to_upper()
+	var prize := int(event.get("prize_scrip", 0))
+	_queue("radio", "%s is live at %s. Entry at the counter; %d scrip to the winner." %
+		[game, venue_name, prize])
+	_queue("tv", "TONIGHT AT %s — %s // PRIZE %d SCRIP" % [venue_name, game, prize])
+
+
+func report_game_win(event: Dictionary, venue_name: String) -> void:
+	var game := String(event.get("game_id", "GAME NIGHT")).replace("_", " ").to_upper()
+	_queue("radio", "The RIDER took %s at %s. House records just got rewritten." %
+		[game, venue_name])
+	_queue("tv", "NEW CHAMPION — RIDER WINS %s AT %s" % [game, venue_name])
+
+
 ## The latest UNHEARD tv-medium bulletin (the media panel's lower-third pulls this).
 func latest_tv_line() -> String:
 	if not ("world_state" in _main) or _main.world_state == null:

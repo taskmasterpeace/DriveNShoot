@@ -1,0 +1,10 @@
+OpenSoldat Base Content — reference-only provenance record
+https://github.com/opensoldat/base
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Upstream legal text: https://github.com/opensoldat/base/blob/master/LICENSE.txt
+
+No OpenSoldat base content is included in DRIVN. This record documents why the
+catalog describes the upstream content separately from the MIT-licensed engine.
+If content is ever imported later, pin its revision, audit its Credits.md,
+include the verbatim license legal code, identify every creator, mark changes,
+and provide the source URI before enabling that build.

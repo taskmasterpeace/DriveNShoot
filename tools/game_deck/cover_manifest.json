@@ -1,0 +1,26 @@
+{
+  "games": [
+    {"id":"waste_heap","title":"WASTE HEAP","platform":"handheld","aspect":"1:1","players":"1 PLAYER","network":"CHALLENGE","size":[1024,1024],"accent":"#D28A32"},
+    {"id":"radworm","title":"RADWORM","platform":"handheld","aspect":"1:1","players":"1 PLAYER","network":"CHALLENGE","size":[1024,1024],"accent":"#78DCAA"},
+    {"id":"dead_ground","title":"DEAD GROUND","platform":"handheld","aspect":"1:1","players":"1 PLAYER","network":"CHALLENGE","size":[1024,1024],"accent":"#BD4D3A"},
+    {"id":"pack_rat","title":"PACK RAT","platform":"handheld","aspect":"1:1","players":"1 PLAYER","network":"CHALLENGE","size":[1024,1024],"accent":"#2BAE9A"},
+    {"id":"bunker_breaker","title":"BUNKER BREAKER","platform":"handheld","aspect":"9:16","players":"1 PLAYER","network":"CHALLENGE","size":[864,1536],"accent":"#F08A32"},
+    {"id":"last_mile","title":"LAST MILE","platform":"handheld","aspect":"16:9","players":"1 PLAYER","network":"CHALLENGE","size":[1536,864],"accent":"#3E8DA8"},
+    {"id":"iron_dome","title":"IRON DOME","platform":"handheld","aspect":"9:16","players":"1 PLAYER","network":"CHALLENGE","size":[864,1536],"accent":"#D74335"},
+    {"id":"fall_line","title":"FALL LINE","platform":"handheld","aspect":"9:16","players":"1 PLAYER","network":"CHALLENGE","size":[864,1536],"accent":"#D67B31"},
+    {"id":"tilt_salvage","title":"TILT//SALVAGE","platform":"handheld","aspect":"9:16","players":"1 PLAYER","network":"CHALLENGE","size":[864,1536],"accent":"#31B4A3"},
+    {"id":"relay_bloom","title":"RELAY BLOOM","platform":"handheld","aspect":"1:1","players":"1 PLAYER","network":"CHALLENGE","size":[1024,1024],"accent":"#E3B843"},
+    {"id":"crown_of_ash","title":"CROWN OF ASH","platform":"console","aspect":"16:9","players":"1-2 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#C5A15B"},
+    {"id":"dial_tanks","title":"DIAL TANKS","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#D48B35"},
+    {"id":"red_sky","title":"RED SKY","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#C94334"},
+    {"id":"black_orbit","title":"BLACK ORBIT","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#43A9B8"},
+    {"id":"gridbreach","title":"GRIDBREACH","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#E2B63F"},
+    {"id":"rustball","title":"RUSTBALL","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#D2632B"},
+    {"id":"fuel_run","title":"FUEL RUN","platform":"console","aspect":"16:9","players":"1-4 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#E5B839"},
+    {"id":"skyjoust","title":"SKYJOUST","platform":"console","aspect":"16:9","players":"1-2 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#45A1C7"},
+    {"id":"fight_night_99","title":"FIGHT NIGHT '99","platform":"console","aspect":"16:9","players":"1-2 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#C53D31"},
+    {"id":"ashland_command","title":"ASHLAND COMMAND","platform":"console","aspect":"16:9","players":"1-2 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#9B8D4F"},
+    {"id":"rust_runners","title":"RUST RUNNERS","platform":"console","aspect":"16:9","players":"1-8 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#C84236"},
+    {"id":"black_grid","title":"BLACK GRID","platform":"console","aspect":"16:9","players":"1-16 PLAYERS","network":"LOCAL // ONLINE","size":[1024,1536],"accent":"#32B2AA"}
+  ]
+}

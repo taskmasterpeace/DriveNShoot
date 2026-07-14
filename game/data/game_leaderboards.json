@@ -1,0 +1,27 @@
+{
+  "_comment": "Fictional HOUSE records only. These are named local legends, never simulated internet users.",
+  "boards": [
+    {"game_id":"waste_heap","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"KESSLER","primary":8192,"secondary":{"highest_part":1024}},{"name":"MERCY","primary":4096,"secondary":{"highest_part":512}}]},
+    {"game_id":"radworm","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"PACKET JANE","primary":47,"secondary":{"survival_ms":98220}},{"name":"HOLLOW KID","primary":35,"secondary":{"survival_ms":71440}}]},
+    {"game_id":"dead_ground","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"MINE EYES","primary":38210,"secondary":{"errors":0}},{"name":"OLD VERA","primary":45990,"secondary":{"errors":0}}]},
+    {"game_id":"pack_rat","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"DOCK SIX","primary":9,"secondary":{"moves":284}},{"name":"MULE","primary":7,"secondary":{"moves":196}}]},
+    {"game_id":"bunker_breaker","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"MALLET","primary":18450,"secondary":{"layers":8}},{"name":"TINY JUNE","primary":13900,"secondary":{"layers":6}}]},
+    {"game_id":"last_mile","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"NIGHT COURIER","primary":72120,"secondary":{"clean_laps":3}},{"name":"HALF-STACK","primary":76880,"secondary":{"clean_laps":2}}]},
+    {"game_id":"iron_dome","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"SILO ANN","primary":22100,"secondary":{"cities_saved":6}},{"name":"NOON SIREN","primary":17750,"secondary":{"cities_saved":5}}]},
+    {"game_id":"fall_line","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"SOFT BOOTS","primary":980,"secondary":{"fuel":37}},{"name":"CAPSULE TOM","primary":910,"secondary":{"fuel":29}}]},
+    {"game_id":"tilt_salvage","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"DOUBLE FLIP","primary":284000,"secondary":{"jackpots":7}},{"name":"MERCY","primary":191500,"secondary":{"jackpots":5}}]},
+    {"game_id":"relay_bloom","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"SPARKS","primary":14600,"secondary":{"max_combo":12}},{"name":"WIREMAN","primary":11950,"secondary":{"max_combo":9}}]},
+    {"game_id":"crown_of_ash","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"BRIDGER","primary":18,"secondary":{"clock_ms":288000}},{"name":"SAM","primary":11,"secondary":{"clock_ms":351000}}]},
+    {"game_id":"dial_tanks","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"BANK SHOT","primary":23,"secondary":{"kills":61}},{"name":"TWO BOUNCE","primary":17,"secondary":{"kills":44}}]},
+    {"game_id":"red_sky","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"WEATHERVANE","primary":19,"secondary":{"damage":940}},{"name":"HIGH ANGLE","primary":14,"secondary":{"damage":770}}]},
+    {"game_id":"black_orbit","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"CLAIM NINE","primary":21,"secondary":{"salvage":188}},{"name":"DRIFTWOOD","primary":16,"secondary":{"salvage":141}}]},
+    {"game_id":"gridbreach","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"FUSEBOX","primary":27,"secondary":{"survival_ms":44120}},{"name":"CORNER CUT","primary":20,"secondary":{"survival_ms":39770}}]},
+    {"game_id":"rustball","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"BUMPER SAINT","primary":42,"secondary":{"saves":31}},{"name":"IRON TOE","primary":35,"secondary":{"saves":24}}]},
+    {"game_id":"fuel_run","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"FULL CAN","primary":28,"secondary":{"lap_ms":18410}},{"name":"CUTLINE","primary":22,"secondary":{"lap_ms":19180}}]},
+    {"game_id":"skyjoust","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"COUNTY ACE","primary":31,"secondary":{"knockouts":49}},{"name":"RED KITE","primary":24,"secondary":{"knockouts":38}}]},
+    {"game_id":"fight_night_99","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"ROAD LEGEND","primary":33,"secondary":{"hp_remaining":180}},{"name":"LOW GUARD","primary":26,"secondary":{"hp_remaining":141}}]},
+    {"game_id":"ashland_command","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"QUARTERMASTER","primary":16,"secondary":{"turns":94}},{"name":"RIDGE HAND","primary":12,"secondary":{"turns":81}}]},
+    {"game_id":"rust_runners","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"JET SAINT","primary":38,"secondary":{"kills":214}},{"name":"RED BOOTS","primary":31,"secondary":{"kills":187}}]},
+    {"game_id":"black_grid","ruleset":"stock-1","scope":"house","fictional":true,"entries":[{"name":"DEAD CHANNEL","primary":24,"secondary":{"objective_score":188}},{"name":"GREEN GLASS","primary":19,"secondary":{"objective_score":153}}]}
+  ]
+}

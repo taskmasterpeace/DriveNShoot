@@ -1,0 +1,8 @@
+{
+  "devices": [
+    {"id": "console_16_9", "platform": "console", "aspect": "16:9", "resolution": [1280, 720], "local_radius_m": 4.0, "power_draw": 3, "screen_size_m": [1.28, 0.72], "shell": "safehouse_console"},
+    {"id": "handheld_square", "platform": "handheld", "aspect": "1:1", "resolution": [640, 640], "local_radius_m": 0.0, "power_draw": 1, "screen_size_m": [0.18, 0.18], "shell": "handheld_square"},
+    {"id": "handheld_portrait", "platform": "handheld", "aspect": "9:16", "resolution": [540, 960], "local_radius_m": 0.0, "power_draw": 1, "screen_size_m": [0.12, 0.213], "shell": "handheld_portrait"},
+    {"id": "handheld_landscape", "platform": "handheld", "aspect": "16:9", "resolution": [1280, 720], "local_radius_m": 0.0, "power_draw": 1, "screen_size_m": [0.24, 0.135], "shell": "handheld_landscape"}
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "_comment": "Original RUST RUNNERS arenas. Rectangles are DRIVN-authored traversal rows; no OpenSoldat base map or content is imported.",
+  "maps": [
+    {
+      "id":"refinery_run","name":"REFINERY RUN","theme":"rust refinery cracking towers and hot pipe bridges",
+      "bounds":[60.0,110.0,1160.0,520.0],
+      "platforms":[[60,610,1160,20],[120,500,250,18],[390,455,210,18],[650,500,230,18],[930,420,230,18],[180,345,220,18],[515,300,250,18],[850,245,260,18]],
+      "spawns":[[135,610],[1145,610],[245,500],[785,500],[1030,420],[280,345],[640,300],[1010,245]],
+      "pickups":[
+        {"kind":"weapon","weapon_id":"rr_sawgun","pos":[495,455],"value":1},
+        {"kind":"weapon","weapon_id":"rr_rivet_lance","pos":[635,300],"value":1},
+        {"kind":"health","pos":[260,345],"value":45},
+        {"kind":"vest","pos":[1040,420],"value":40},
+        {"kind":"grenade","pos":[760,500],"value":2}
+      ]
+    },
+    {
+      "id":"broken_span","name":"BROKEN SPAN","theme":"collapsed interstate truss over a dry river cut",
+      "bounds":[60.0,110.0,1160.0,520.0],
+      "platforms":[[60,610,330,20],[890,610,330,20],[340,520,220,18],[720,520,220,18],[500,410,280,18],[150,330,245,18],[885,330,245,18],[535,235,210,18]],
+      "spawns":[[120,610],[1160,610],[410,520],[870,520],[560,410],[720,410],[240,330],[1040,330]],
+      "pickups":[
+        {"kind":"weapon","weapon_id":"rr_bolt_launcher","pos":[640,410],"value":1},
+        {"kind":"weapon","weapon_id":"rr_drum_smg","pos":[640,235],"value":1},
+        {"kind":"health","pos":[270,330],"value":40},
+        {"kind":"vest","pos":[1010,330],"value":35},
+        {"kind":"grenade","pos":[420,520],"value":2}
+      ]
+    },
+    {
+      "id":"truck_grave","name":"TRUCK GRAVE","theme":"stacked convoy wrecks beneath a ruined stadium gantry",
+      "bounds":[60.0,110.0,1160.0,520.0],
+      "platforms":[[60,610,1160,20],[100,525,260,18],[410,545,190,18],[650,505,200,18],[900,540,260,18],[245,410,250,18],[575,365,220,18],[875,385,245,18],[465,250,350,18]],
+      "spawns":[[120,610],[1160,610],[210,525],[530,545],[750,505],[1040,540],[350,410],[990,385]],
+      "pickups":[
+        {"kind":"weapon","weapon_id":"rr_sawgun","pos":[505,545],"value":1},
+        {"kind":"weapon","weapon_id":"rr_rivet_lance","pos":[640,250],"value":1},
+        {"kind":"health","pos":[360,410],"value":45},
+        {"kind":"vest","pos":[990,385],"value":45},
+        {"kind":"grenade","pos":[750,505],"value":3}
+      ]
+    }
+  ]
+}

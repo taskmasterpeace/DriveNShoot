@@ -404,7 +404,7 @@ Audio routes through `ProtoAudio`; cartridges do not create unmanaged audio buse
 
 ## 11. License and Provenance Contract
 
-The build includes `THIRD_PARTY_NOTICES.md` plus one verbatim local license text per imported source under `third_party/licenses/`. Each source row records what was used and what was excluded.
+The Godot build includes `game/THIRD_PARTY_NOTICES.md` plus one verbatim local license text per imported source under `game/third_party/licenses/`, so ABOUT can open notices through `res://`. Each source row records what was used and what was excluded.
 
 | Source | Code | Content | Decision |
 |---|---|---|---|

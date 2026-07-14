@@ -16,6 +16,25 @@
   {
    "id": "antibiotics",
    "price": 60
-  }
+  },
+  {"id": "game_handheld", "price": 55},
+  {"id": "game_cart_radworm", "price": 8},
+  {"id": "game_cart_dead_ground", "price": 12},
+  {"id": "game_cart_pack_rat", "price": 10},
+  {"id": "game_cart_bunker_breaker", "price": 12},
+  {"id": "game_cart_last_mile", "price": 16},
+  {"id": "game_cart_iron_dome", "price": 18},
+  {"id": "game_cart_fall_line", "price": 14},
+  {"id": "game_cart_tilt_salvage", "price": 20},
+  {"id": "game_cart_relay_bloom", "price": 14},
+  {"id": "game_cart_dial_tanks", "price": 30},
+  {"id": "game_cart_red_sky", "price": 28},
+  {"id": "game_cart_black_orbit", "price": 32},
+  {"id": "game_cart_gridbreach", "price": 30},
+  {"id": "game_cart_rustball", "price": 36},
+  {"id": "game_cart_fuel_run", "price": 34},
+  {"id": "game_cart_skyjoust", "price": 38},
+  {"id": "game_cart_fight_night_99", "price": 80},
+  {"id": "game_cart_ashland_command", "price": 90}
  ]
 }

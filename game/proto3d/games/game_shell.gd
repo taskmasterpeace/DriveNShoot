@@ -1,0 +1,495 @@
+## THE GAME SHELL: one heavy-bezel library/play/help/about/scores surface for
+## all cartridges. The physical device and fullscreen view share one texture.
+class_name ProtoGameShell
+extends CanvasLayer
+
+const INK := Color("11100d")
+const CARD := Color("242019")
+const AMBER := Color("f2b735")
+const BONE := Color("e8dfcf")
+const DIM := Color("918675")
+const DANGER := Color("c94f3d")
+
+var deck: Node
+var is_open := false
+var current_view := "library"
+var current_text := ""
+var first_library_button: Button = null
+var lobby: Control = null
+var _root: PanelContainer
+var _title: Label
+var _status: Label
+var _screen: TextureRect
+var _library_scroll: ScrollContainer
+var _library_box: GridContainer
+var _text_scroll: ScrollContainer
+var _text_label: RichTextLabel
+var _view_stack: Control
+var _tabs: Dictionary = {}
+var _library_context: Dictionary = {}
+var _terminal: Node3D = null
+var _broker: RefCounted = null
+
+
+static func create(new_deck: Node) -> CanvasLayer:
+	var script := load("res://proto3d/games/game_shell.gd") as GDScript
+	var shell: CanvasLayer = script.new()
+	shell._setup(new_deck)
+	return shell
+
+
+func _setup(new_deck: Node) -> void:
+	deck = new_deck
+	layer = 6
+	_build_ui()
+	visible = false
+	_root.visible = false
+
+
+func _build_ui() -> void:
+	_root = PanelContainer.new()
+	# A full-rect responsive frame: PRESET_CENTER alone treats the anchor as the
+	# panel's top-left, which pushed half the shell beyond the rendered viewport.
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.offset_left = 24.0
+	_root.offset_top = 20.0
+	_root.offset_right = -24.0
+	_root.offset_bottom = -20.0
+	_root.custom_minimum_size = Vector2(720, 600)
+	var frame := StyleBoxFlat.new()
+	frame.bg_color = INK
+	frame.border_color = AMBER
+	frame.set_border_width_all(2)
+	frame.set_content_margin_all(18)
+	frame.corner_radius_top_left = 10
+	frame.corner_radius_top_right = 10
+	frame.corner_radius_bottom_left = 10
+	frame.corner_radius_bottom_right = 10
+	_root.add_theme_stylebox_override("panel", frame)
+	add_child(_root)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 10)
+	_root.add_child(layout)
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 10)
+	layout.add_child(header)
+	_title = Label.new()
+	_title.text = "GAME DECK // NO CARTRIDGE"
+	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_title.add_theme_font_size_override("font_size", 24)
+	_title.add_theme_color_override("font_color", AMBER)
+	header.add_child(_title)
+	var power := Button.new()
+	power.text = "■ POWER"
+	power.focus_mode = Control.FOCUS_ALL
+	power.add_theme_color_override("font_color", DANGER)
+	power.pressed.connect(power_off)
+	header.add_child(power)
+	var close := Button.new()
+	close.text = "✕"
+	close.focus_mode = Control.FOCUS_ALL
+	close.add_theme_color_override("font_color", DANGER)
+	close.pressed.connect(close_to_device)
+	header.add_child(close)
+
+	var tab_bar := HBoxContainer.new()
+	tab_bar.add_theme_constant_override("separation", 6)
+	layout.add_child(tab_bar)
+	for tab in [["library", "LIBRARY"], ["match", "MATCH"], ["play", "PLAY"], ["help", "HELP"],
+			["controls", "CONTROLS"], ["about", "ABOUT"], ["scores", "SCORES"]]:
+		var button := Button.new()
+		button.text = String(tab[1])
+		button.focus_mode = Control.FOCUS_ALL
+		button.toggle_mode = true
+		var view_id := String(tab[0])
+		button.pressed.connect(func() -> void: show_view(view_id))
+		tab_bar.add_child(button)
+		_tabs[view_id] = button
+
+	var body := PanelContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var body_style := StyleBoxFlat.new()
+	body_style.bg_color = CARD
+	body_style.border_color = Color("4f4638")
+	body_style.set_border_width_all(1)
+	body_style.set_content_margin_all(12)
+	body_style.corner_radius_top_left = 8
+	body_style.corner_radius_top_right = 8
+	body_style.corner_radius_bottom_left = 8
+	body_style.corner_radius_bottom_right = 8
+	body.add_theme_stylebox_override("panel", body_style)
+	layout.add_child(body)
+	_view_stack = Control.new()
+	_view_stack.custom_minimum_size = Vector2(0, 510)
+	body.add_child(_view_stack)
+
+	_screen = TextureRect.new()
+	_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_screen.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_screen.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_view_stack.add_child(_screen)
+
+	_library_scroll = ScrollContainer.new()
+	_library_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_library_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_view_stack.add_child(_library_scroll)
+	_library_box = GridContainer.new()
+	_library_box.columns = 4
+	_library_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_library_box.add_theme_constant_override("h_separation", 10)
+	_library_box.add_theme_constant_override("v_separation", 10)
+	_library_scroll.add_child(_library_box)
+
+	_text_scroll = ScrollContainer.new()
+	_text_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_text_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_view_stack.add_child(_text_scroll)
+	_text_label = RichTextLabel.new()
+	_text_label.bbcode_enabled = true
+	_text_label.fit_content = true
+	_text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_text_label.add_theme_font_size_override("normal_font_size", 18)
+	_text_label.add_theme_color_override("default_color", BONE)
+	_text_scroll.add_child(_text_label)
+
+	_status = Label.new()
+	_status.text = "WORLD LIVE // START or ESC: menu // F1: help"
+	_status.add_theme_color_override("font_color", DIM)
+	layout.add_child(_status)
+
+
+func attach_terminal(terminal: Node3D, broker: RefCounted) -> void:
+	_terminal = terminal
+	if _broker != broker:
+		if _broker != null and _broker.has_signal("launch_ready") \
+				and _broker.launch_ready.is_connected(_on_lobby_launch):
+			_broker.launch_ready.disconnect(_on_lobby_launch)
+		_broker = broker
+		if _broker != null and _broker.has_signal("launch_ready") \
+				and not _broker.launch_ready.is_connected(_on_lobby_launch):
+			_broker.launch_ready.connect(_on_lobby_launch)
+	if lobby == null and broker != null:
+		var lobby_script := load("res://proto3d/games/game_lobby.gd") as GDScript
+		lobby = lobby_script.create(broker)
+		_view_stack.add_child(lobby)
+		lobby.leave_requested.connect(_on_lobby_leave)
+	_sync_views()
+
+
+func open_lobby(game_id: String, context: Dictionary = {}) -> bool:
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	if lobby == null or _broker == null:
+		_status.text = "MATCH TERMINAL NOT ATTACHED"
+		return false
+	current_view = "match"
+	_title.text = "GAME DECK // MATCH"
+	var configured := bool(lobby.call("configure", game_id, context))
+	_status.text = "WORLD LIVE // MATCH SETUP // START or ESC: close"
+	_sync_views()
+	lobby.call_deferred("focus_default")
+	return configured
+
+
+func open_pending_lobby() -> bool:
+	if lobby == null or _broker == null or (_broker.pending_invitations() as Array).is_empty():
+		return false
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	current_view = "match"
+	var snapshot: Dictionary = _broker.lobby_snapshot()
+	_title.text = "GAME DECK // %s MATCH" % String(snapshot.get("title", "PENDING"))
+	_status.text = "WORLD LIVE // INVITATION RECEIVED // JOIN or SPECTATE"
+	lobby.call("refresh")
+	_sync_views()
+	lobby.call_deferred("focus_default")
+	return true
+
+
+func _on_lobby_launch(request: Dictionary) -> void:
+	open_game(String(request.get("game_id", "")),
+		(request.get("context", {}) as Dictionary).duplicate(true))
+
+
+func _on_lobby_leave() -> void:
+	open_library("console", _library_context)
+
+
+func open_library(platform: String = "", context: Dictionary = {}) -> void:
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	current_view = "library"
+	_library_context = context.duplicate(true)
+	if not _library_context.has("auto_start"):
+		_library_context["auto_start"] = true
+	if not _library_context.has("device") and platform != "":
+		_library_context["device"] = platform
+	_title.text = "GAME DECK // CARTRIDGE LIBRARY"
+	_rebuild_library(platform)
+	_sync_views()
+
+
+func _rebuild_library(platform: String) -> void:
+	for child in _library_box.get_children():
+		child.queue_free()
+	_library_box.columns = 4 if get_viewport().get_visible_rect().size.x >= 1000.0 else 2
+	first_library_button = null
+	var card_script := load("res://proto3d/games/game_cover_card.gd") as GDScript
+	for id_value in deck.registry.order:
+		var id := String(id_value)
+		var row: Dictionary = deck.registry.get_game(id)
+		if platform != "" and String(row.get("platform", "")) != platform:
+			continue
+		var available := bool(deck.registry.enabled(id))
+		var owned := bool(deck.ledger.is_unlocked(id))
+		var button: Button = card_script.create(row, available, owned)
+		var suffix := ""
+		if not available:
+			suffix = "  [NOT INSTALLED]"
+		elif not owned:
+			suffix = "  [LOCKED — FIND CARTRIDGE]"
+		button.text = "%s  //  %s  //  PWR %d · NET %d%s" % [String(row.get("title", id)),
+			String(row.get("aspect", "")), int(row.get("power_draw", 0)),
+			int(row.get("network_cost", 0)), suffix]
+		button.disabled = not available or not owned
+		var game_id := id
+		button.pressed.connect(func() -> void:
+			var launch_context := _library_context.duplicate(true)
+			if not launch_context.has("source"):
+				launch_context["source"] = "solo"
+			if String(row.get("platform", "")) == "console" \
+					and String(launch_context.get("device", "")) == "console":
+				open_lobby(game_id, launch_context)
+			else:
+				open_game(game_id, launch_context))
+		_library_box.add_child(button)
+		if first_library_button == null and not button.disabled:
+			first_library_button = button
+	if first_library_button != null:
+		first_library_button.grab_focus()
+
+
+func open_game(game_id: String, context: Dictionary = {}) -> bool:
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	var venue_owned := bool(context.get("venue_owned", false))
+	var spectator := bool(context.get("spectator", false))
+	if not venue_owned and not spectator and not bool(deck.ledger.is_unlocked(game_id)):
+		deck._fail(game_id, "CARTRIDGE NOT OWNED — find and install physical media")
+		_title.text = "GAME DECK // LOCKED"
+		_set_text(deck.error_text)
+		current_view = "error"
+		_sync_views()
+		return false
+	if not deck.launch(game_id, context):
+		_title.text = "GAME DECK // ERROR"
+		_set_text(deck.error_text)
+		current_view = "error"
+		_sync_views()
+		return false
+	_title.text = "GAME DECK // %s" % String(deck.current_row.get("title", game_id))
+	_screen.texture = deck.texture()
+	current_view = "play"
+	if bool(context.get("auto_start", false)):
+		var seed_value := int(context.get("seed", hash("%s:%d" % [game_id, Time.get_ticks_msec()])))
+		var seats: Array = (context.get("seats", [{"seat": 0, "device": -1,
+			"profile_id": "local", "name": "RIDER"}]) as Array).duplicate(true)
+		if not deck.start(seed_value, seats):
+			deck._fail(game_id, "CARTRIDGE FAILED TO START")
+			_set_text(deck.error_text)
+			current_view = "error"
+			_sync_views()
+			return false
+	if spectator:
+		_status.text = "SPECTATING // INPUT LOCKED // POWER %d // NETWORK %d // ESC: menu" % [
+			int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
+	else:
+		_status.text = "WORLD LIVE // POWER %d // NETWORK %d // START or ESC: menu // F1: help" % [
+			int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
+	_sync_views()
+	return true
+
+
+func show_view(view_id: String) -> void:
+	if view_id == "library":
+		open_library(String(deck.current_row.get("platform", "")))
+		return
+	if view_id == "match":
+		current_view = "match"
+		if lobby != null:
+			lobby.call("refresh")
+		_sync_views()
+		return
+	if deck.current_row.is_empty() and view_id != "pause":
+		_set_text("NO CARTRIDGE // choose one from LIBRARY")
+		current_view = view_id
+		_sync_views()
+		return
+	current_view = view_id
+	match view_id:
+		"play":
+			_screen.texture = deck.texture()
+		"help":
+			_set_text(_help_text(false))
+		"controls":
+			_set_text(_help_text(true))
+		"about":
+			_set_text(_about_text())
+		"scores":
+			_set_text(_scores_text())
+		"pause":
+			_set_text("[color=#f2b735][font_size=30]PAUSED[/font_size][/color]\n\nThe road is still moving outside this screen.\n\nSTART / ESC — resume\nB / ◯ — return to the physical device")
+		_:
+			_set_text(deck.error_text)
+	_sync_views()
+
+
+func _help_text(controls_only: bool) -> String:
+	var lines: Array[String] = []
+	if not controls_only:
+		lines.append("[color=#f2b735][font_size=28]HOW TO PLAY[/font_size][/color]")
+		lines.append(String(deck.current_row.get("help", "")))
+		lines.append("")
+	lines.append("[color=#f2b735][font_size=24]LIVE CONTROLS[/font_size][/color]")
+	var profile := String(deck.current_row.get("controls_profile", "puzzle_grid"))
+	for row_value in deck.input_router.help_labels(profile):
+		var row: Dictionary = row_value
+		lines.append("%s\n  %s   //   %s" % [String(row.get("label", "")),
+			String(row.get("keyboard", "—")), String(row.get("pad", "—"))])
+	return "\n".join(lines)
+
+
+func _about_text() -> String:
+	var lines: Array[String] = [
+		"[color=#f2b735][font_size=28]IN THE WORLD[/font_size][/color]",
+		String(deck.current_row.get("about_world", "")), "",
+		"[color=#f2b735][font_size=28]REAL SOURCE & LICENSE[/font_size][/color]",
+	]
+	for source_id in deck.current_row.get("source_ids", []):
+		var source: Dictionary = deck.registry.get_source(String(source_id))
+		lines.append("%s\n%s\nCode: %s\nContent: %s\nRevision: %s\nAdapted/used: %s\nExcluded: %s\nNotice: %s\nLicense: %s" % [
+			String(source.get("name", source_id)), String(source.get("url", "")),
+			String(source.get("code_license", "")), String(source.get("content_license", "")),
+			String(source.get("revision", "")), ", ".join(source.get("included", [])),
+			", ".join(source.get("excluded", [])), String(source.get("notice_path", "")),
+			String(source.get("license_path", "not licensed / reference only"))])
+	return "\n".join(lines)
+
+
+func _scores_text() -> String:
+	var game_id := String(deck.current_row.get("id", ""))
+	var ruleset := String(deck.current_row.get("ruleset", ""))
+	var lines: Array[String] = ["[color=#f2b735][font_size=28]SCORES[/font_size][/color]"]
+	_append_score_scope(lines, "PERSONAL", deck.ledger.board(game_id, ruleset, "personal"), false)
+	_append_score_scope(lines, "HOUSE (FICTIONAL)", deck.ledger.board(game_id, ruleset, "house"), true)
+	_append_score_scope(lines, "SESSION", deck.ledger.board(game_id, ruleset, "session"), false)
+	var seed_value := int(deck.cartridge.get("seed_value")) if deck.cartridge != null else -1
+	_append_score_scope(lines, "CHALLENGE", deck.ledger.board(game_id, ruleset, "challenge", seed_value), false)
+	lines.append("")
+	lines.append("[color=#918675]GLOBAL // OFFLINE — no provider configured[/color]")
+	return "\n".join(lines)
+
+
+func _append_score_scope(lines: Array[String], heading: String, entries: Array,
+		fictional: bool) -> void:
+	lines.append("")
+	lines.append("[color=#f2b735]%s[/color]" % heading)
+	if entries.is_empty():
+		lines.append("  — no records")
+		return
+	for index in entries.size():
+		var entry: Dictionary = entries[index]
+		var name := String(entry.get("name", "RIDER"))
+		if name == "RIDER" and (entry.get("players", []) as Array).size() > 0:
+			name = String(((entry.get("players", []) as Array)[0] as Dictionary).get("name", "RIDER"))
+		var secondary: Dictionary = entry.get("secondary", {})
+		var detail := ""
+		if not secondary.is_empty():
+			var pieces: Array[String] = []
+			for key in secondary:
+				pieces.append("%s %s" % [String(key).to_upper(), str(secondary[key])])
+			detail = " // " + " · ".join(pieces)
+		lines.append("  #%d  %s%s  %s%s" % [index + 1, name,
+			" [FICTIONAL]" if fictional else "", str(entry.get("primary", 0)), detail])
+
+
+func _set_text(text: String) -> void:
+	current_text = text
+	_text_label.text = text
+
+
+func _sync_views() -> void:
+	_screen.visible = current_view == "play"
+	_library_scroll.visible = current_view == "library"
+	if lobby != null:
+		lobby.visible = current_view == "match"
+	_text_scroll.visible = current_view not in ["play", "library", "match"]
+	for tab_id in _tabs:
+		(_tabs[tab_id] as Button).button_pressed = String(tab_id) == current_view
+
+
+func handle_event(event: InputEvent) -> bool:
+	if not is_open:
+		return false
+	if current_view == "play" and deck.state == "PLAYING":
+		if _is_pause_event(event):
+			deck.pause()
+			show_view("pause")
+		else:
+			deck.feed_event(event)
+		return true
+	if current_view == "pause" and _is_pause_event(event):
+		deck.resume()
+		show_view("play")
+		return true
+	if _is_raw_close(event):
+		close_to_device()
+		return true
+	return false
+
+
+func _is_pause_event(event: InputEvent) -> bool:
+	return (event is InputEventKey and (event as InputEventKey).pressed \
+		and not (event as InputEventKey).echo \
+		and (event as InputEventKey).physical_keycode == KEY_ESCAPE) \
+		or (event is InputEventJoypadButton and (event as InputEventJoypadButton).pressed \
+		and (event as InputEventJoypadButton).button_index == JOY_BUTTON_START)
+
+
+func _is_raw_close(event: InputEvent) -> bool:
+	return (event is InputEventKey and (event as InputEventKey).pressed \
+		and not (event as InputEventKey).echo \
+		and (event as InputEventKey).physical_keycode == KEY_ESCAPE) \
+		or (event is InputEventJoypadButton and (event as InputEventJoypadButton).pressed \
+		and (event as InputEventJoypadButton).button_index == JOY_BUTTON_B)
+
+
+func _input(event: InputEvent) -> void:
+	if handle_event(event):
+		get_viewport().set_input_as_handled()
+
+
+func close_to_device() -> void:
+	is_open = false
+	_root.visible = false
+	visible = false
+	deck.set_shell_open(false)
+
+
+func power_off() -> void:
+	deck.stop("power_off")
+	close_to_device()
+
+
+func screen_texture() -> Texture2D:
+	return _screen.texture
