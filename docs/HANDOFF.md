@@ -1,5 +1,64 @@
 # DRIVN — Engineering Handoff
 
+> ## ⏭ 2026-07-14 — THREE OWNER ARCS SHIPPED + MERGED TO MAIN (read this first)
+>
+> **All merged to main through `35f1ba4` (branch codex/specticles-games == main). Tree clean.**
+>
+> ### Arc 1 — vehicles/surfaces/drone ("racing destruction set… 10/10 no shortcuts")
+> - **GLB BODY LAW**: 9 blenderforge-authored vehicle bodies (glass cabins, visible
+>   interiors) worn when shipped; box builders remain the fallback stock
+>   (`vehicle_style_sim` 88 proves BOTH phases). **THE VISIBLE DRIVER**: puppet SEEN
+>   at the wheel of every rig (`pose_driving`; passengers sit right; saddle law kept)
+>   — `driver_visible_sim` 12. Blender 5.1 + blender-mcp INSTALLED (user config + addon).
+> - **SURFACE HANDLING CHARACTER**: `data/surfaces.json` rows — grip/rear_bias/
+>   steer_response/brake/roll_drag/roughness/yaw_loose per surface, wetness folding;
+>   consumed per-axle. THE PROVING GROUNDS IS PAVED law (`surface_override`).
+>   `surface_handling_sim` 10 + drive/traction/vehicles/aero/track green.
+> - **DRONE REAL FLIGHT**: SPACE/CTRL held-target altitude (ground-clamped), SHIFT
+>   boost 2× drain, banking, SIGNAL WEAK/LOST auto-return, altitude-following split
+>   eye. `drone_flight_sim` 22 (89/89 across the five drone sims). B = recall.
+> - **RDS ENGINE + EDITOR**: road rows carry optional `elev` (pitched slabs, deck
+>   collision, rails, pillars — `elevation_sim` 25); `track_pieces.json` +
+>   `track_piece.gd` destructibles (`track_piece_sim` 26); MapForge ELEV tool +
+>   road SURFACE picker + TRACK palette (`GET /api/track_pieces`). Placement of
+>   pieces in the world = OWNER'S LANE (the palette exists for exactly that).
+> - **THE SHOWROOM**: FORGE hub child :8901 + `SHOWROOM.bat` — every vehicle/structure
+>   row rendered to `docs/renders/showroom/`; `showroom_sim` 194 guards coverage.
+>
+> ### Arc 2 — "improve the country's tree density and cities layout, DO NOT cut corners"
+> - **VEGETATION AS ROWS** (`data/vegetation.json` over `VEG_STOCK`): forest deep-east
+>   72 → 260 visual trees/chunk in 3 draw calls (shape KINDS: deciduous/conifer/cypress
+>   as MM tiers), swamp 70 cypress, mountain conifers, MultiMesh `_scatter`; SOLID
+>   trunks untouched (frontier law, `frontier_sim` 15); Meridian apron grew 180 trees.
+>   `vegetation_sim` 15. BEFORE/AFTER renders: `docs/renders/world/{baseline,after}`.
+> - **TOWN LAYOUT v2** (`stampTownStreets` rewritten): street-FACING footprint-aware
+>   block-edge frontage, per-building zoning rings, downtown residential outskirts,
+>   cluster stamps, per-town seeds, versioned regen — 470 → 2124 slots/58 towns; town
+>   dressing (junk/wrecks/fences) in `_stamp_town`. `city_layout_sim` 12 ·
+>   `town_grid_sim` 10 (counts flipped WITH the code: 9 streets, ≥40 slots).
+> - **THE WORLD PHOTOBOOTH** (`proto3d/tools/world_photobooth.gd`): the before/after
+>   proof tool for any world-look change — boots the real game, captures the real camera.
+>
+> ### Arc 3 — BANKED, NOT BUILT: the AI DEV LAB goal (owner superseded it mid-flight)
+> Full pre-work surveys are saved in auto-memory (`ai-survey-2026-07-14`): the three
+> headline gaps are (a) autopilot never brakes for hazards + reverses blind,
+> (b) traffic agents are BLIND to non-car obstacles (track pieces!), (c) road_graph
+> is GPS-text-only — no agent follows a computed route; no delivery loop despite
+> convoys already hauling named cargo. Combat side: pirates only ram, NO AI can fire
+> a car mount (player-only plumbing exists), everything targets only the player,
+> F10 can't spawn bandits/infected, zero AI debug visualization. When this goal
+> re-fires, start from the memory + session tasks #6–9.
+>
+> ### Standing follow-ups (small, honest)
+> - Motorcycle *seated* showroom pose reads stiff (flagged by the showroom agent).
+> - Weapon-mount visuals read as dark slabs on the new GLB bodies (functional, ugly).
+> - Tail-light quads sit slightly off on GLB bodies (anchor is chassis-derived).
+> - 2 librarian manuals DRAFTED in `docs/BOOKS.md` awaiting owner APPROVE/REJECT
+>   (THE ROADBED READER · THE PILOT'S POCKET CARD — full prose in the ledger).
+>
+> *(The 2026-07-07 queue below is retained for history; its items were superseded
+> or absorbed by the arcs above and the marathon sessions between.)*
+
 > ## ⏭ NEXT SESSION QUEUE (updated 2026-07-07 EVENING — READ FIRST)
 >
 > ### STATE OF THE GAME (evaluated 2026-07-07 evening, full-suite run)
