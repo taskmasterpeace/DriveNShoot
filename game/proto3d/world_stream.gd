@@ -243,11 +243,26 @@ func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
 
 ## THE DRAPE: lift a relief chunk's content onto the land. Road-adjacent pieces move ~0
 ## by construction (relief fades to zero near asphalt), pure-wilderness scatter rides up.
+## 1A MACRO LAW: road fabric is EXEMPT — a climbing road carries its own baked elev
+## (slab/deck/furniture place themselves against the row height); draping them by
+## ground_y (= the same macro) would DOUBLE-LIFT every slab on a grade.
+const DRAPE_EXEMPT_METAS: Array = ["road_slab", "road_lane", "road_center", "road_rut",
+	"road_barrier", "road_deck", "road_guardrail", "street_curb", "streetlight",
+	"mile_marker", "route_shield", "road_billboard", "state_line", "road_decel", "road_pillar",
+	"river_sheet"] # 1B: water sheets set their own surface height
 func _drape_chunk(chunk: Node3D) -> void:
 	for child in chunk.get_children():
-		if child is Node3D and not child.has_meta("relief_floor"):
-			var c := child as Node3D
-			c.position.y += ProtoWorldBuilder.ground_y(c.position.x, c.position.z)
+		if not (child is Node3D) or child.has_meta("relief_floor"):
+			continue
+		var exempt := false
+		for m in DRAPE_EXEMPT_METAS:
+			if child.has_meta(String(m)):
+				exempt = true
+				break
+		if exempt:
+			continue
+		var c := child as Node3D
+		c.position.y += ProtoWorldBuilder.ground_y(c.position.x, c.position.z)
 
 
 ## Spawn up to LOAD_BUDGET queued chunks this frame, nearest to the player first, after
@@ -327,7 +342,11 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			var chalf_g := CHUNK * 0.5
 			for sp in [Vector2.ZERO, Vector2(-chalf_g, -chalf_g), Vector2(chalf_g, -chalf_g),
 					Vector2(-chalf_g, chalf_g), Vector2(chalf_g, chalf_g)]:
-				if ProtoWorldBuilder.relief_at(center.x + sp.x, center.z + sp.y) > 0.02:
+				# 1A MACRO LAW: the painted macro land needs a relief floor even
+				# where the detail knob is flat (e.g. RIGHT AT A CLIMBING ROAD —
+				# exactly where the car is). Sample the HONEST height, not the knob.
+				if ProtoWorldBuilder.relief_at(center.x + sp.x, center.z + sp.y) > 0.02 \
+						or ProtoWorldBuilder.ground_y(center.x + sp.x, center.z + sp.y) > 0.05:
 					rly = true
 					break
 		if rly:
@@ -477,6 +496,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	var near_road: bool = not road.is_empty() and float(road.get("dist", 999.0)) < 95.0
 	if near_road and biome in ["plains", "farmland", "forest", "scrub"] and rng.randf() < 0.3:
 		_stamp_neighborhood(chunk, center, road, rng)
+
+	# --- 1B: RIVER WATER SHEETS — the carve is the bed; this is the surface. ----
+	_river_sheets(chunk, center)
 
 	# --- Biome content --------------------------------------------------------
 	match biome:
@@ -788,6 +810,10 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 	var h0 := 0.0
 	var h1 := 0.0
 	var elevated := absf(elev_a) > 0.001 or absf(elev_b) > 0.001
+	# 1B: a ZERO-elev road over a river carve still needs its bridge — the
+	# channel undercuts it, so the span is elevated relative to the LAND.
+	if not elevated and ProtoWorldBuilder.river_carve((a.x + b.x) * 0.5, (a.y + b.y) * 0.5) > 0.5:
+		elevated = true
 	if elevated:
 		var raw_a: Vector2 = row["a"]
 		var raw_b: Vector2 = row["b"]
@@ -942,37 +968,43 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 	elif elevated:
 		# AN ELEVATED ROAD IS THE FLOOR (RACING_DESTRUCTION_SET P1 — the same law
 		# GROUND_INTEGRITY rule 5 taught bridges): the painted slab above is
-		# visual-only, so a real deck body carries the car up the slope. One
-		# full-width deck (even on a divided row — the rare elevated+divided
-		# combo isn't split into two carriageways here, a noted v1 simplification),
-		# edge guard rails riding the same pitch, and support pillars every ~30 m
-		# once the deck clears ~1.5 m off the ground (gravity doesn't care which
-		# way the road tilts, so pillars stand straight up, no pitch).
-		var deck_thick := 0.5
-		var deck2 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), deck_thick, seg_len + 6.0),
-			Vector3(mid.x, y + mid_h - deck_thick * 0.5, mid.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
-		deck2.set_meta("road_deck", rid)
-		deck2.set_meta("road_elevated", true)
-		var rail_lat2 := float(g["width"]) * 0.5 + 0.4
-		for sgn3: float in [1.0, -1.0]:
-			var rail2 := ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
-				Vector3(mid.x + perp.x * rail_lat2 * sgn3, y + mid_h + 0.5, mid.y + perp.y * rail_lat2 * sgn3),
-				Color(0.35, 0.33, 0.30), rot, pitch)
-			rail2.set_meta("road_guard_rail", rid)
-		var n_pillars := int(seg_len / 30.0)
-		var pillar_lat := float(g["width"]) * 0.5 + 2.5 # STRADDLE the lanes — a
-		# dead-center pillar would be a wall in the driving line (caught by
-		# elevation_sim's own drive-up: the car stopped dead on the first one).
-		for pi2 in range(n_pillars):
-			var tt := (float(pi2) + 0.5) / maxf(float(n_pillars), 1.0)
-			var pp := a + dir * tt
-			var ph := lerpf(h0, h1, tt)
-			if ph > 1.5:
-				for psgn: float in [1.0, -1.0]:
-					var pillar := ProtoWorldBuilder.box_body(chunk, Vector3(1.4, ph, 1.4),
-						Vector3(pp.x + perp.x * pillar_lat * psgn, ph * 0.5, pp.y + perp.y * pillar_lat * psgn),
-						Color(0.32, 0.30, 0.28))
-					pillar.set_meta("road_pillar", rid)
+		# visual-only, so a real deck body carries the car up the slope.
+		# 1A MACRO LAW: "elevated" now means elevated ABOVE THE LAND, not above
+		# zero — a mountain interstate carries elev ~20m but the terrain meets it
+		# (the road-blend law), so the RELIEF FLOOR is its deck and it needs no
+		# hardware. Decks/rails/pillars fire on real CLEARANCE only (bridges,
+		# overpasses, authored ramps over flat ground).
+		var clr_a := h0 - ProtoWorldBuilder.ground_y(a.x, a.y)
+		var clr_b := h1 - ProtoWorldBuilder.ground_y(b.x, b.y)
+		var clr_mid := mid_h - ProtoWorldBuilder.ground_y(mid.x, mid.y)
+		var max_clr := maxf(maxf(clr_a, clr_b), clr_mid)
+		if max_clr > 0.8:
+			var deck_thick := 0.5
+			var deck2 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), deck_thick, seg_len + 6.0),
+				Vector3(mid.x, y + mid_h - deck_thick * 0.5, mid.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
+			deck2.set_meta("road_deck", rid)
+			deck2.set_meta("road_elevated", true)
+			var rail_lat2 := float(g["width"]) * 0.5 + 0.4
+			for sgn3: float in [1.0, -1.0]:
+				var rail2 := ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
+					Vector3(mid.x + perp.x * rail_lat2 * sgn3, y + mid_h + 0.5, mid.y + perp.y * rail_lat2 * sgn3),
+					Color(0.35, 0.33, 0.30), rot, pitch)
+				rail2.set_meta("road_guard_rail", rid)
+			var n_pillars := int(seg_len / 30.0)
+			var pillar_lat := float(g["width"]) * 0.5 + 2.5 # STRADDLE the lanes — a
+			# dead-center pillar would be a wall in the driving line (caught by
+			# elevation_sim's own drive-up: the car stopped dead on the first one).
+			for pi2 in range(n_pillars):
+				var tt := (float(pi2) + 0.5) / maxf(float(n_pillars), 1.0)
+				var pp := a + dir * tt
+				var ph := lerpf(h0, h1, tt)
+				var pg := ProtoWorldBuilder.ground_y(pp.x, pp.y)
+				if ph - pg > 1.5:
+					for psgn: float in [1.0, -1.0]:
+						var pillar := ProtoWorldBuilder.box_body(chunk, Vector3(1.4, ph - pg, 1.4),
+							Vector3(pp.x + perp.x * pillar_lat * psgn, pg + (ph - pg) * 0.5, pp.y + perp.y * pillar_lat * psgn),
+							Color(0.32, 0.30, 0.28))
+						pillar.set_meta("road_pillar", rid)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
 	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot,
 		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)
@@ -1053,8 +1085,10 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 					if arc_a > arc_b:
 						t_m = 1.0 - t_m
 					var mp := a + dir * t_m + perp * (band_lat + 1.6)
+					# 1A: furniture rides the road's own height on a grade
+					var mh := lerpf(h0, h1, clampf(t_m, 0.0, 1.0))
 					var post := ProtoWorldBuilder.box_body(chunk, Vector3(0.14, 1.5, 0.14),
-						Vector3(mp.x, 0.75, mp.y), Color(0.16, 0.42, 0.2), rot)
+						Vector3(mp.x, 0.75 + mh, mp.y), Color(0.16, 0.42, 0.2), rot)
 					post.set_meta("mile_marker", mile)
 					var lbl := Label3D.new()
 					lbl.text = "MILE\n%d" % mile
@@ -1068,7 +1102,7 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 				if int(arc_lo / 2000.0) != int(arc_hi / 2000.0):
 					var sp2 := mid + perp * (band_lat + 1.6)
 					var spost := ProtoWorldBuilder.box_body(chunk, Vector3(0.16, 2.6, 0.16),
-						Vector3(sp2.x, 1.3, sp2.y), Color(0.3, 0.3, 0.32), rot)
+						Vector3(sp2.x, 1.3 + mid_h, sp2.y), Color(0.3, 0.3, 0.32), rot)
 					spost.set_meta("route_shield", rid)
 					var slbl := Label3D.new()
 					slbl.text = "%s" % rid
@@ -1119,7 +1153,7 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 				if st_a != st_b and st_b != "":
 					var wp2 := mid + perp * (band_lat + 3.0)
 					var mono := ProtoWorldBuilder.box_body(chunk, Vector3(3.2, 2.2, 0.5),
-						Vector3(wp2.x, 1.1, wp2.y), Color(0.45, 0.38, 0.3), rot)
+						Vector3(wp2.x, 1.1 + mid_h, wp2.y), Color(0.45, 0.38, 0.3), rot)
 					mono.set_meta("state_line", st_b)
 					var wl := Label3D.new()
 					wl.text = "WELCOME TO\n%s" % st_b
@@ -1321,6 +1355,52 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 		solids.append(spots[i])
 		var trunk := ProtoWorldBuilder.box_body(chunk, Vector3(0.5, 3.0, 0.5), spots[i] + Vector3(0, 1.5, 0), Color(0.30, 0.22, 0.14))
 		trunk.set_meta("dense_trunk", true)
+
+
+## 1B: translucent water sheets along every river span crossing this chunk —
+## the surface over the carved bed (the ONE water authority sets the height).
+func _river_sheets(chunk: Node3D, center: Vector3) -> void:
+	var um: ProtoUSMap = ProtoWorldBuilder.usmap
+	if um == null or not um.ok or um._river_segs.is_empty():
+		return
+	var half := CHUNK * 0.5 + 20.0
+	for seg in um._river_segs:
+		var a: Vector2 = seg[0]
+		var b: Vector2 = seg[1]
+		var w: float = float(seg[2])
+		# quick reject: segment bbox vs chunk bbox
+		if maxf(a.x, b.x) < center.x - half or minf(a.x, b.x) > center.x + half:
+			continue
+		if maxf(a.y, b.y) < center.z - half or minf(a.y, b.y) > center.z + half:
+			continue
+		# clip the segment to the chunk's (padded) box by parameter stepping
+		var ab := b - a
+		var seg_l := ab.length()
+		if seg_l < 1.0:
+			continue
+		var t0 := 1.0
+		var t1 := 0.0
+		var steps := int(clampf(seg_l / 24.0, 8.0, 512.0)) # fine enough that a 128m chunk can't fall between samples
+		for i in steps + 1:
+			var t := float(i) / float(steps)
+			var p := a + ab * t
+			if absf(p.x - center.x) <= half and absf(p.y - center.z) <= half:
+				t0 = minf(t0, t)
+				t1 = maxf(t1, t)
+		if t1 <= t0:
+			continue
+		var ca := a + ab * t0
+		var cb := a + ab * t1
+		var mid := (ca + cb) * 0.5
+		var clen := ca.distance_to(cb)
+		# surface height from the water authority's own math at the span mid
+		var bank_grade := ProtoWorldBuilder.ground_y(mid.x, mid.y) + ProtoWorldBuilder.river_carve(mid.x, mid.y)
+		var surf := bank_grade - 1.2
+		var rot := atan2(-(cb.x - ca.x), -(cb.y - ca.y))
+		var sheet := ProtoWorldBuilder.box_visual(chunk, Vector3(w, 0.06, clen + 8.0),
+			Vector3(mid.x, surf, mid.y), Color(0.16, 0.30, 0.36), rot)
+		sheet.set_meta("river_sheet", true)
+		sheet.transparency = 0.35
 
 
 ## Crop rows: farmland reads as WORKED LAND from the driver's seat.

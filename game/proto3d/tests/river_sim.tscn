@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://river_sim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/river_sim.gd" id="1"]
+
+[node name="river_sim" type="Node"]
+script = ExtResource("1")

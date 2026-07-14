@@ -458,6 +458,246 @@ export function stampTownStreets(map) {
 	return stats;
 }
 
+// THE ROAD RELIEF BAKE (THE_COUNTRY_PLAN 1A): roads CLIMB the painted macro land.
+// Mirrors the engine's law exactly — bilinear(relief grid) × MACRO_MAX_M with the
+// town-terrace pull — then writes per-point `elev` onto every network road,
+// grade-capped at MAX_GRADE with forward/backward slope-limit passes. Ramps blend
+// from their highway's height at the peel to the terrain at their tail. Streets
+// bench at their town's own height (the terrace the terrain also builds).
+// Junction continuity is FREE: every road samples the same field at the same (x,z).
+const MACRO_MAX_M = 30.0;
+const MAX_GRADE = 0.06;
+const TOWN_FLAT_M = 150.0, TOWN_FADE_M = 110.0;
+export function bakeRoadRelief(map) {
+	const relief = map.relief || [];
+	const stats = { roads: 0, points: 0, ramps: 0, streets: 0, capped: 0 };
+	if (!relief.length) return stats; // unpainted map: law dormant
+	const [ox, oz] = map.world_offset, cm = map.cell_m;
+	const cell = (cx, cz) => {
+		if (cz < 0 || cz >= relief.length) return 0;
+		const row = relief[cz];
+		if (cx < 0 || cx >= row.length) return 0;
+		return (row.charCodeAt(cx) - 48) / 9.0;
+	};
+	const relief01 = (x, z) => {
+		const fx = (x - ox) / cm - 0.5, fz = (z - oz) / cm - 0.5;
+		const x0 = Math.floor(fx), z0 = Math.floor(fz);
+		const tx = fx - x0, tz = fz - z0;
+		return (cell(x0, z0) * (1 - tx) + cell(x0 + 1, z0) * tx) * (1 - tz)
+			+ (cell(x0, z0 + 1) * (1 - tx) + cell(x0 + 1, z0 + 1) * tx) * tz;
+	};
+	const towns = (map.towns || []).map((t) => ({ x: t.pos[0], y: t.pos[1],
+		bench: Math.max(0, Math.min(1, relief01(t.pos[0], t.pos[1]))) * MACRO_MAX_M }));
+	const macroY = (x, z) => {
+		let h = relief01(x, z) * MACRO_MAX_M;
+		let best = null, bd = 1e18;
+		for (const t of towns) {
+			const d = Math.hypot(x - t.x, z - t.y);
+			if (d < bd) { bd = d; best = t; }
+		}
+		if (best && bd < TOWN_FLAT_M) return best.bench;
+		if (best && bd < TOWN_FLAT_M + TOWN_FADE_M)
+			return best.bench + (h - best.bench) * ((bd - TOWN_FLAT_M) / TOWN_FADE_M);
+		return h;
+	};
+	const network = new Set(["interstate", "us_route", "state_road", "county", "backroad", "dirt"]);
+	const byId = {};
+	for (const r of map.roads || []) byId[r.id] = r;
+	for (const r of map.roads || []) {
+		const kind = r.kind || "interstate";
+		if (String(r.id).startsWith("ST-")) {
+			// STREETS: the whole town rides one bench — constant elev per row.
+			const t0 = towns.reduce((acc, t) => {
+				const d = Math.hypot(r.pts[0][0] - t.x, r.pts[0][1] - t.y);
+				return d < acc.d ? { d, t } : acc;
+			}, { d: 1e18, t: null });
+			const bench = t0.t ? Math.round(t0.t.bench * 100) / 100 : 0;
+			r.elev = r.pts.map(() => bench);
+			r.elev_mode = "ground";
+			stats.streets++;
+			continue;
+		}
+		if (!network.has(kind) && kind !== "exit") continue;
+		if (kind === "exit") continue; // ramps blended AFTER highways carry heights
+		// ADAPTIVE DENSIFY (1A): sparse polylines lerp across kilometres and average
+		// the ranges into causeways — insert midpoints wherever the macro deviates
+		// from the linear profile by >0.75m (recursive, min span 450m). Colinear
+		// insertions preserve the path, so junction arc_m projections stay honest.
+		let densified = true;
+		let guard = 0;
+		while (densified && guard++ < 12) {
+			densified = false;
+			for (let i = 0; i + 1 < r.pts.length; i++) {
+				const [ax, az] = r.pts[i], [bx, bz] = r.pts[i + 1];
+				const L = Math.hypot(bx - ax, bz - az);
+				if (L < 450) continue;
+				const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+				const linear = (macroY(ax, az) + macroY(bx, bz)) / 2;
+				if (Math.abs(macroY(mx, mz) - linear) > 0.75) {
+					r.pts.splice(i + 1, 0, [Math.round(mx * 100) / 100, Math.round(mz * 100) / 100]);
+					densified = true;
+					i++;
+				}
+			}
+		}
+		const elev = r.pts.map((p) => macroY(p[0], p[1]));
+		// grade cap: forward + backward slope-limiting over segment lengths
+		for (let pass = 0; pass < 2; pass++) {
+			for (let i = 1; i < elev.length; i++) {
+				const L = Math.hypot(r.pts[i][0] - r.pts[i - 1][0], r.pts[i][1] - r.pts[i - 1][1]) || 1;
+				const dh = elev[i] - elev[i - 1], cap = MAX_GRADE * L;
+				if (Math.abs(dh) > cap) { elev[i] = elev[i - 1] + Math.sign(dh) * cap; stats.capped++; }
+			}
+			for (let i = elev.length - 2; i >= 0; i--) {
+				const L = Math.hypot(r.pts[i + 1][0] - r.pts[i][0], r.pts[i + 1][1] - r.pts[i][1]) || 1;
+				const dh = elev[i] - elev[i + 1], cap = MAX_GRADE * L;
+				if (Math.abs(dh) > cap) { elev[i] = elev[i + 1] + Math.sign(dh) * cap; stats.capped++; }
+			}
+		}
+		r.elev = elev.map((h) => Math.round(Math.max(0, h) * 100) / 100);
+		r.elev_mode = "ground"; // terrain BLENDS to ground-mode roads (the road-meets-land law)
+		stats.roads++;
+		stats.points += elev.length;
+	}
+	// RAMPS: start at the highway's own height at the peel point, land on terrain.
+	const arcH = (road, p) => {
+		// height of `road` at the polyline point nearest p (linear within segment)
+		let best = { d: 1e18, h: 0 };
+		const e = road.elev || [];
+		for (let i = 0; i + 1 < road.pts.length; i++) {
+			const [ax, az] = road.pts[i], [bx, bz] = road.pts[i + 1];
+			const dx = bx - ax, dz = bz - az;
+			const L2 = dx * dx + dz * dz || 1;
+			const t = Math.max(0, Math.min(1, ((p[0] - ax) * dx + (p[1] - az) * dz) / L2));
+			const d = Math.hypot(p[0] - (ax + t * dx), p[1] - (az + t * dz));
+			if (d < best.d) best = { d, h: (e[i] || 0) + ((e[i + 1] || 0) - (e[i] || 0)) * t };
+		}
+		return best.h;
+	};
+	for (const ex of map.exits || []) {
+		const hwy = byId[ex.highway_id];
+		if (!hwy || !hwy.elev) continue;
+		for (const rid of ex.ramp_ids || []) {
+			const rp = byId[rid];
+			if (!rp) continue;
+			const startH = arcH(hwy, rp.pts[0]);
+			const endH = macroY(rp.pts[rp.pts.length - 1][0], rp.pts[rp.pts.length - 1][1]);
+			const n = rp.pts.length - 1 || 1;
+			rp.elev = rp.pts.map((_, i) => Math.round(Math.max(0, startH + (endH - startH) * (i / n)) * 100) / 100);
+			rp.elev_mode = "structure"; // ramps FLY — the land never warps up to meet them
+			stats.ramps++;
+		}
+	}
+	return stats;
+}
+
+// THE OVERPASS BAKE (THE_COUNTRY_PLAN 1B): every separated_pending crossing
+// becomes a REAL grade separation — the lighter road (fewer lanes; tie → later
+// id) climbs a hump over the through road: clearance 6.2m, approach runs 140m
+// (≈5.6% grade), junction grade flips to "deck". Point insertion is COLINEAR
+// (arc lengths preserved — junction legs' arc_m stay honest) and IDEMPOTENT
+// (a nearby existing point is reused instead of duplicated on re-bake). The
+// engine side: macro_y skips the road-blend inside deck zones, so the land
+// stays at grade while the hump keeps its clearance and the deck law builds
+// the physical overpass (deck + rails + pillars) from real clearance.
+const OVERPASS_CLEAR_M = 6.2;
+const OVERPASS_APPROACH_M = 140.0;
+const OVERPASS_TOP_M = 30.0;
+export function bakeOverpasses(map, junctions) {
+	const stats = { converted: 0, humps: 0, reused_pts: 0, skipped: 0 };
+	const byId = {};
+	for (const r of map.roads || []) byId[r.id] = r;
+	const elevAtArc = (road, arc) => {
+		const e = road.elev || [];
+		let acc = 0;
+		for (let i = 0; i + 1 < road.pts.length; i++) {
+			const L = Math.hypot(road.pts[i + 1][0] - road.pts[i][0], road.pts[i + 1][1] - road.pts[i][1]);
+			if (arc <= acc + L || i === road.pts.length - 2) {
+				const t = Math.max(0, Math.min(1, (arc - acc) / (L || 1)));
+				return (e[i] || 0) + ((e[i + 1] || 0) - (e[i] || 0)) * t;
+			}
+			acc += L;
+		}
+		return 0;
+	};
+	// insert (or reuse) a point at arc `A` on `road`, returning its index
+	const ensurePointAt = (road, A) => {
+		let acc = 0;
+		for (let i = 0; i + 1 < road.pts.length; i++) {
+			const ax = road.pts[i][0], az = road.pts[i][1];
+			const bx = road.pts[i + 1][0], bz = road.pts[i + 1][1];
+			const L = Math.hypot(bx - ax, bz - az);
+			if (A <= acc + L + 1e-6) {
+				// reuse a nearby existing point (idempotent re-bakes)
+				if (Math.abs(A - acc) < 8) { stats.reused_pts++; return i; }
+				if (Math.abs(A - (acc + L)) < 8) { stats.reused_pts++; return i + 1; }
+				const t = (A - acc) / (L || 1);
+				const p = [Math.round((ax + (bx - ax) * t) * 100) / 100, Math.round((az + (bz - az) * t) * 100) / 100];
+				road.pts.splice(i + 1, 0, p);
+				(road.elev = road.elev || road.pts.map(() => 0)).splice(i + 1, 0, elevAtArc(road, A));
+				return i + 1;
+			}
+			acc += L;
+		}
+		return road.pts.length - 1;
+	};
+	const roadLen = (road) => {
+		let L = 0;
+		for (let i = 0; i + 1 < road.pts.length; i++)
+			L += Math.hypot(road.pts[i + 1][0] - road.pts[i][0], road.pts[i + 1][1] - road.pts[i][1]);
+		return L;
+	};
+	for (const j of junctions) {
+		if (j.grade !== "separated_pending") continue;
+		const legs = j.legs || [];
+		if (legs.length < 2) { stats.skipped++; continue; }
+		const rA = byId[legs[0].road], rB = byId[legs[1].road];
+		if (!rA || !rB) { stats.skipped++; continue; }
+		const lanesA = rA.lanes || 4, lanesB = rB.lanes || 4;
+		let over = rA, overLeg = legs[0], under = rB, underLeg = legs[1];
+		if (lanesA > lanesB || (lanesA === lanesB && String(rA.id) < String(rB.id))) {
+			over = rB; overLeg = legs[1]; under = rA; underLeg = legs[0];
+		}
+		const L = roadLen(over);
+		const jArc = overLeg.arc_m;
+		if (jArc < OVERPASS_TOP_M + 10 || jArc > L - OVERPASS_TOP_M - 10) { stats.skipped++; continue; } // too near an end — leave pending
+		const underH = elevAtArc(under, underLeg.arc_m);
+		const topH = Math.round((underH + OVERPASS_CLEAR_M) * 100) / 100;
+		const marks = [
+			[Math.max(2, jArc - OVERPASS_APPROACH_M), null], // approach: keep own elev
+			[jArc - OVERPASS_TOP_M, topH],
+			[jArc + OVERPASS_TOP_M, topH],
+			[Math.min(L - 2, jArc + OVERPASS_APPROACH_M), null],
+		];
+		// insert outermost-first on each side so arcs stay valid during splices
+		const idxs = [];
+		for (const [A, hh] of [marks[0], marks[3], marks[1], marks[2]]) {
+			const idx = ensurePointAt(over, A);
+			if (hh !== null) over.elev[idx] = hh;
+			idxs.push(idx);
+		}
+		j.grade = "deck";
+		j.deck_road = over.id;
+		stats.converted++;
+		stats.humps++;
+		// RAISE-ONLY slope limit: hump tops are pinned; approach points LIFT to
+		// within the cap so no short reused span exceeds a sane grade. Never
+		// lowers anything — climbs stay, the hump stays, the approach lengthens.
+		const capm = 0.058;
+		for (let pass = 0; pass < 2; pass++) {
+			for (let i = 1; i < over.pts.length; i++) {
+				const L = Math.hypot(over.pts[i][0] - over.pts[i - 1][0], over.pts[i][1] - over.pts[i - 1][1]) || 1;
+				over.elev[i] = Math.max(over.elev[i], Math.round((over.elev[i - 1] - capm * L) * 100) / 100);
+			}
+			for (let i = over.pts.length - 2; i >= 0; i--) {
+				const L = Math.hypot(over.pts[i + 1][0] - over.pts[i][0], over.pts[i + 1][1] - over.pts[i][1]) || 1;
+				over.elev[i] = Math.max(over.elev[i], Math.round((over.elev[i + 1] - capm * L) * 100) / 100);
+			}
+		}
+	}
+	return stats;
+}
+
 // THE NETWORK FILL (0.17/0.19, M3b): reclass into the six-class hierarchy +
 // stamp the `surface` field on every road; expand COUNTY roads (nearest-town
 // links — the secondary net); and THE DIRT DISCOVERY LAYER: every county road
@@ -538,6 +778,7 @@ export function bakeJunctions(map) {
 	const town = stampTownStreets(map);
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
+	const rel = bakeRoadRelief(map); // 1A: roads climb the painted macro (after ramps exist)
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");
@@ -716,11 +957,15 @@ export function bakeJunctions(map) {
 		}
 	}
 
+	// 1B: raise the overpasses — pending crossings become real decks (idempotent)
+	const op = bakeOverpasses(map, junctions);
 	map.junctions = junctions;
+	lint.overpass_stats = op;
 	lint.town_stats = town;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
+	lint.relief_stats = rel;
 	return { junctions, lint };
 }
 
@@ -736,6 +981,8 @@ if (isMain) {
 		`rejoins ${lint.ramp_rejoins} · end caps ${lint.end_caps} · exits with ramp_ids ${lint.exits_ramp_ids}`);
 	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.downtown} downtown / ` +
 		`${lint.town_stats.mainstreet} main-street) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
+	if (lint.overpass_stats) console.log(`BAKE: overpasses — ${lint.overpass_stats.converted} pending crossings DECKED (${lint.overpass_stats.reused_pts} pts reused, ${lint.overpass_stats.skipped} skipped near road ends)`);
+	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);

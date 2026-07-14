@@ -21,6 +21,14 @@ var legend: Dictionary = {}       ## char -> biome name
 var state_legend: Dictionary = {} ## char -> state name
 var grid: PackedStringArray = []
 var states_grid: PackedStringArray = []
+var relief_grid: PackedStringArray = [] ## painted 0-9 digits (THE_COUNTRY_PLAN 1A); empty = unpainted
+var _river_segs: Array = [] ## 1B: [[a: Vector2, b: Vector2, width: float], ...] — cached at load
+## THE SEGMENT GRID (1B perf law): road segments bucketed into 256m cells at load,
+## so road_near/roads_near scan a 3x3 neighborhood instead of the whole country.
+## ground_y consults roads per SAMPLE now (the road-meets-land law) — without this
+## index a single chunk floor cost 289 full-country scans and wedged headless runs.
+const SEG_BUCKET_M := 256.0
+var _seg_grid: Dictionary = {} ## "bx,bz" -> Array of [road_index, seg_index]
 var roads: Array = []             ## [{id, kind, pts: PackedVector2Array (world m)}]
 var rivers: Array = []
 var towns: Array = []             ## [{id, name, pos: Vector2, kind, landmark?}]
@@ -61,6 +69,10 @@ func load_file(path: String) -> bool:
 	state_legend = d.get("state_legend", {})
 	grid = PackedStringArray(d.get("grid", []))
 	states_grid = PackedStringArray(d.get("states_grid", []))
+	# PAINTED RELIEF (THE_COUNTRY_PLAN 1A): digits 0-9 per cell — the macro
+	# height amplitude MapForge's RELIEF layer paints. Absent = no macro (the
+	# per-state fallback keeps the pre-paint behavior byte-identical).
+	relief_grid = PackedStringArray(d.get("relief", []))
 	roads.clear()
 	for r in d.get("roads", []):
 		var pts := PackedVector2Array()
@@ -81,6 +93,9 @@ func load_file(path: String) -> bool:
 		for ei in range(pts.size()):
 			elev.append(float(elev_raw[ei]) if ei < elev_raw.size() else 0.0)
 		roads.append({"id": r["id"], "kind": kind, "pts": pts, "elev": elev,
+			# 1A: "ground" = terrain-following baked relief (the land BLENDS to it);
+			# anything else (ramps, bridge humps, authored jumps) keeps real clearance.
+			"elev_mode": String(r.get("elev_mode", "")),
 			"danger": int(r.get("danger", 1 if kind == "interstate" else 0)),
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
@@ -88,7 +103,15 @@ func load_file(path: String) -> bool:
 			"surface": String(r.get("surface", "asphalt")), # 0.17: asphalt|concrete|gravel|dirt
 			"leads_to": (r.get("leads_to", {}) as Dictionary).duplicate(), # dirt spurs: the payload law (0.19)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
+	# 1B: rivers become REAL — polyline + width (m). Cached as Vector2s once.
 	rivers = d.get("rivers", [])
+	_river_segs.clear()
+	for rv in rivers:
+		var rpts: Array = rv.get("pts", [])
+		var rw := float(rv.get("width", 26.0))
+		for i in range(rpts.size() - 1):
+			_river_segs.append([Vector2(float(rpts[i][0]), float(rpts[i][1])),
+				Vector2(float(rpts[i + 1][0]), float(rpts[i + 1][1])), rw])
 	towns.clear()
 	for t in d.get("towns", []):
 		towns.append({"id": t["id"], "name": t["name"],
@@ -129,9 +152,45 @@ func load_file(path: String) -> bool:
 				"arc_m": float((l as Dictionary).get("arc_m", 0.0))})
 		junctions.append({"id": String(j.get("id", "")), "kind": String(j.get("kind", "cross")),
 			"grade": String(j.get("grade", "flat")), "control": String(j.get("control", "none")),
+			"deck_road": String(j.get("deck_road", "")),
 			"pos": Vector2(float(j["pos"][0]), float(j["pos"][1])), "legs": legs})
 	ok = w > 0 and h > 0 and grid.size() == h
+	_build_seg_grid()
 	return ok
+
+
+## Bucket every road segment into 256m cells (stepping long segments so a 5km
+## interstate span registers in every cell it crosses). Built once per load.
+func _build_seg_grid() -> void:
+	_seg_grid.clear()
+	for ri in roads.size():
+		var pts: PackedVector2Array = roads[ri]["pts"]
+		for si in range(pts.size() - 1):
+			var a := pts[si]
+			var b := pts[si + 1]
+			var seg_l := a.distance_to(b)
+			var steps := int(seg_l / SEG_BUCKET_M) + 1
+			var marked: Dictionary = {}
+			for k in steps + 1:
+				var p := a.lerp(b, float(k) / float(steps))
+				var bx := int(floor(p.x / SEG_BUCKET_M))
+				var bz := int(floor(p.y / SEG_BUCKET_M))
+				# stamp the 3x3 around each step so max_d up to ~256 stays exact
+				for dz in [-1, 0, 1]:
+					for dx in [-1, 0, 1]:
+						var bkey := "%d,%d" % [bx + dx, bz + dz]
+						if marked.has(bkey):
+							continue
+						marked[bkey] = true
+						if not _seg_grid.has(bkey):
+							_seg_grid[bkey] = []
+						(_seg_grid[bkey] as Array).append([ri, si])
+
+
+## Candidate [road_index, seg_index] pairs near a point (the grid's 1-cell reach
+## covers max_d <= SEG_BUCKET_M; callers needing more fall back to the full scan).
+func _seg_candidates(p: Vector2) -> Array:
+	return _seg_grid.get("%d,%d" % [int(floor(p.x / SEG_BUCKET_M)), int(floor(p.y / SEG_BUCKET_M))], [])
 
 
 ## Authored placements whose world position falls inside a chunk's box (world m).
@@ -249,6 +308,49 @@ func state_at(pos: Vector3) -> String:
 	return state_legend.get(states_grid[c.y][c.x], "")
 
 
+## PAINTED RELIEF, 0..1 (THE_COUNTRY_PLAN 1A): BILINEAR between cell centers so
+## the macro land rolls smoothly across 500m cells instead of stepping. -1.0
+## when the map carries no relief layer (callers fall back to the per-state law).
+func relief01(x: float, z: float) -> float:
+	if relief_grid.is_empty():
+		return -1.0
+	var fx := (x - offset.x) / cell_m - 0.5
+	var fz := (z - offset.y) / cell_m - 0.5
+	var x0 := int(floor(fx))
+	var z0 := int(floor(fz))
+	var tx := fx - float(x0)
+	var tz := fz - float(z0)
+	var v00 := _relief_cell(x0, z0)
+	var v10 := _relief_cell(x0 + 1, z0)
+	var v01 := _relief_cell(x0, z0 + 1)
+	var v11 := _relief_cell(x0 + 1, z0 + 1)
+	return lerpf(lerpf(v00, v10, tx), lerpf(v01, v11, tx), tz)
+
+
+## Nearest river segment within max_d: {dist, width} or {} (1B — rivers are real).
+func river_near(x: float, z: float, max_d: float) -> Dictionary:
+	var p := Vector2(x, z)
+	var best_d := max_d
+	var best_w := 0.0
+	for seg in _river_segs:
+		var d := _seg_dist(p, seg[0], seg[1])
+		if d < best_d:
+			best_d = d
+			best_w = float(seg[2])
+	if best_w <= 0.0:
+		return {}
+	return {"dist": best_d, "width": best_w}
+
+
+func _relief_cell(cx: int, cz: int) -> float:
+	if cx < 0 or cz < 0 or cz >= relief_grid.size():
+		return 0.0
+	var row := relief_grid[cz]
+	if cx >= row.length():
+		return 0.0
+	return float(row.unicode_at(cx) - 48) / 9.0 # '0'..'9' -> 0..1
+
+
 ## THE ONE GEOMETRY LAW (ROAD_TRAFFIC_OVERHAUL.md §3.2): every consumer of lane
 ## math — the streamer's slabs, the traffic system's offsets, the autopilot's
 ## lane-keeping, grip registration — reads THIS, so the painted road and the
@@ -286,6 +388,25 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 	var p := Vector2(pos.x, pos.z)
 	var best: Dictionary = {}
 	var best_d := max_d
+	# THE SEGMENT GRID fast path (1B perf law): a 256m-bucket lookup covers every
+	# query up to the bucket size — ground_y calls this per SAMPLE now, and the
+	# full-country scan wedged headless runs. Bigger radii keep the honest scan.
+	if max_d <= SEG_BUCKET_M and not _seg_grid.is_empty():
+		for cand in _seg_candidates(p):
+			var road: Dictionary = roads[cand[0]]
+			var i: int = cand[1]
+			var pts: PackedVector2Array = road["pts"]
+			var d := _seg_dist(p, pts[i], pts[i + 1])
+			if d < best_d:
+				best_d = d
+				var ep := _elev_pair(road, i)
+				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
+					"elev_a": ep[0], "elev_b": ep[1], "elev_mode": String(road.get("elev_mode", "")),
+					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+					"surface": String(road.get("surface", "asphalt")),
+					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
+		return best
 	for road in roads:
 		var pts: PackedVector2Array = road["pts"]
 		for i in range(pts.size() - 1):
@@ -294,7 +415,7 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 				best_d = d
 				var ep := _elev_pair(road, i)
 				best = {"id": road["id"], "kind": road["kind"], "dist": d, "a": pts[i], "b": pts[i + 1],
-					"elev_a": ep[0], "elev_b": ep[1],
+					"elev_a": ep[0], "elev_b": ep[1], "elev_mode": String(road.get("elev_mode", "")),
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
 					"surface": String(road.get("surface", "asphalt")),
@@ -308,6 +429,31 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 func roads_near(pos: Vector3, max_d: float) -> Array:
 	var p := Vector2(pos.x, pos.z)
 	var out: Array = []
+	# THE SEGMENT GRID fast path (1B): per-road best segment from the bucket only.
+	if max_d <= SEG_BUCKET_M and not _seg_grid.is_empty():
+		var best_by_road: Dictionary = {} # road_index -> [best_d, best_i]
+		for cand in _seg_candidates(p):
+			var ri: int = cand[0]
+			var si: int = cand[1]
+			var rpts: PackedVector2Array = roads[ri]["pts"]
+			var dd := _seg_dist(p, rpts[si], rpts[si + 1])
+			if dd >= max_d:
+				continue
+			if not best_by_road.has(ri) or dd < float((best_by_road[ri] as Array)[0]):
+				best_by_road[ri] = [dd, si]
+		for ri in best_by_road:
+			var road: Dictionary = roads[ri]
+			var pts2: PackedVector2Array = road["pts"]
+			var bi: int = (best_by_road[ri] as Array)[1]
+			var ep2 := _elev_pair(road, bi)
+			out.append({"id": road["id"], "kind": road["kind"], "dist": float((best_by_road[ri] as Array)[0]),
+				"a": pts2[bi], "b": pts2[bi + 1], "elev_a": ep2[0], "elev_b": ep2[1],
+				"elev_mode": String(road.get("elev_mode", "")),
+				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+				"surface": String(road.get("surface", "asphalt")),
+				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
+		return out
 	for road in roads:
 		var pts: PackedVector2Array = road["pts"]
 		var best_d := max_d
@@ -321,6 +467,7 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 			var ep := _elev_pair(road, best_i)
 			out.append({"id": road["id"], "kind": road["kind"], "dist": best_d,
 				"a": pts[best_i], "b": pts[best_i + 1], "elev_a": ep[0], "elev_b": ep[1],
+				"elev_mode": String(road.get("elev_mode", "")),
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
 				"surface": String(road.get("surface", "asphalt")),

@@ -68,7 +68,11 @@ static func relief_at(x: float, z: float) -> float:
 	var biome: String = usmap.biome_at(pos)
 	if biome == "water" or biome == "ocean":
 		return 0.0
-	var base := float(STATE_RELIEF.get(usmap.state_at(pos), 0.2))
+	# PAINTED RELIEF (THE_COUNTRY_PLAN 1A): the map's relief layer is the
+	# amplitude authority when painted; the per-state dict stays the fallback
+	# so an unpainted map behaves byte-identical to the pre-paint law.
+	var painted := usmap.relief01(x, z)
+	var base := painted if painted >= 0.0 else float(STATE_RELIEF.get(usmap.state_at(pos), 0.2))
 	if base <= 0.0:
 		return 0.0
 	var road: Dictionary = usmap.road_near(pos, ROAD_FLAT_M + ROAD_FADE_M + 40.0)
@@ -86,12 +90,131 @@ static func relief_at(x: float, z: float) -> float:
 	return clampf(base, 0.0, 1.0)
 
 
+## THE MACRO LAND (THE_COUNTRY_PLAN 1A): the painted relief grid × MACRO_MAX_M —
+## the broad ranges roads CLIMB (the bake writes this same field into road elev,
+## so asphalt and terrain agree by construction). Macro never fades near roads
+## (the road rides it); it TERRACES flat around towns (a town sits on its own
+## bench at its center's height) and is zero on water and wherever the grid says 0
+## (Florida, the authored slab). Unpainted map -> 0.0 everywhere (old behavior).
+const MACRO_MAX_M := 30.0
+static func macro_y(x: float, z: float) -> float:
+	if usmap == null or not usmap.ok:
+		return 0.0
+	var r01 := usmap.relief01(x, z)
+	if r01 < 0.0:
+		return 0.0 # unpainted map: macro law dormant
+	var pos := Vector3(x, 0, z)
+	var biome: String = usmap.biome_at(pos)
+	if biome == "water" or biome == "ocean":
+		return 0.0
+	var h := r01 * MACRO_MAX_M
+	# TOWN TERRACE: within the town flat/fade band the land benches to the
+	# town center's own macro height — streets bake to the same bench, so a
+	# hill town is a terrace, never a slope full of floating shells.
+	var town: Dictionary = usmap.town_near(pos, TOWN_FLAT_M + TOWN_FADE_M + 40.0)
+	if not town.is_empty():
+		var tp: Vector2 = town["pos"]
+		var bench := clampf(usmap.relief01(tp.x, tp.y), 0.0, 1.0) * MACRO_MAX_M
+		var td := Vector2(x, z).distance_to(tp)
+		if td < TOWN_FLAT_M:
+			return bench
+		var t := clampf((td - TOWN_FLAT_M) / TOWN_FADE_M, 0.0, 1.0)
+		h = lerpf(bench, h, t)
+	# THE ROAD MEETS THE LAND (1A): a road's baked elev lerps LINEARLY between its
+	# own sparse points while the macro rolls — so near a GROUND-mode road, the land
+	# blends to the ROAD's interpolated height (the old flatten-law's shape, aimed
+	# at the road instead of zero). Structure roads (ramps, bridge humps, authored
+	# jumps) do NOT pull the land — their clearance is the whole point.
+	# 1B OVERPASS LAW: inside a deck-junction's zone the land follows NOBODY —
+	# the under road runs at grade, the over road's hump keeps its clearance.
+	if _deck_zone(x, z):
+		return h
+	var road: Dictionary = usmap.road_near(pos, ROAD_FLAT_M + ROAD_FADE_M + 40.0)
+	if not road.is_empty() and String(road.get("elev_mode", "")) != "ground":
+		road = {} # nearest road is a structure — fall through to bare macro
+	if not road.is_empty():
+		var rd := float(road.get("dist", 9999.0))
+		if rd < ROAD_FLAT_M + ROAD_FADE_M:
+			var a2: Vector2 = road["a"]
+			var b2: Vector2 = road["b"]
+			var ab := b2 - a2
+			var t2 := clampf((Vector2(x, z) - a2).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+			var road_h := lerpf(float(road.get("elev_a", 0.0)), float(road.get("elev_b", 0.0)), t2)
+			if rd < ROAD_FLAT_M:
+				return road_h
+			return lerpf(road_h, h, clampf((rd - ROAD_FLAT_M) / ROAD_FADE_M, 0.0, 1.0))
+	return h
+
+
+## 1B: deck-grade junction zones, cached once (only ~60 overpasses map-wide).
+static var _deck_zones: PackedVector2Array = PackedVector2Array()
+static var _deck_zones_built := false
+const DECK_ZONE_M := 140.0
+static func _deck_zone(x: float, z: float) -> bool:
+	if not _deck_zones_built:
+		_deck_zones_built = true
+		if usmap != null and usmap.ok:
+			for j in usmap.junctions:
+				if String(j.get("grade", "")) == "deck":
+					_deck_zones.append(j["pos"] as Vector2)
+	for p in _deck_zones:
+		if p.distance_squared_to(Vector2(x, z)) < DECK_ZONE_M * DECK_ZONE_M:
+			return true
+	return false
+
+
+## THE RIVER CARVE (THE_COUNTRY_PLAN 1B): rivers are channels cut into the land.
+## Full depth inside the half-width, cosine banks easing back to grade over
+## RIVER_BANK_M. Returns how much to LOWER the ground here (0 on dry land).
+const RIVER_DEPTH_M := 4.5
+const RIVER_BANK_M := 22.0
+static func river_carve(x: float, z: float) -> float:
+	if usmap == null or not usmap.ok:
+		return 0.0
+	var rv := usmap.river_near(x, z, 200.0)
+	if rv.is_empty():
+		return 0.0
+	var half := float(rv["width"]) * 0.5
+	var d := float(rv["dist"])
+	if d >= half + RIVER_BANK_M:
+		return 0.0
+	if d <= half:
+		return RIVER_DEPTH_M
+	return RIVER_DEPTH_M * 0.5 * (1.0 + cos(PI * (d - half) / RIVER_BANK_M))
+
+
+## THE WATER AUTHORITY (1B — water_depth_at is BORN): depth of standing water at
+## a point, meters. Rivers: surface sits 1.2m below the bank grade; depth =
+## surface - carved bed. Biome water/ocean keeps the old binary read as 1.8m.
+## Zero everywhere dry. THE one water law — car fords, swimming, the map: ask here.
+static func water_depth_at(x: float, z: float) -> float:
+	if usmap == null or not usmap.ok:
+		return 0.0
+	var carve := river_carve(x, z)
+	if carve > 0.01:
+		var bank_grade := ground_y(x, z) + carve # the land as it was before the cut
+		var surface := bank_grade - 1.2
+		var bed := bank_grade - carve
+		return maxf(0.0, surface - bed)
+	var biome: String = usmap.biome_at(Vector3(x, 0, z))
+	if biome == "water" or biome == "ocean":
+		return 1.8
+	return 0.0
+
+
 ## THE height field — deterministic (world-seeded noise), continuous, cheap. n² biases
 ## the land toward broad valleys with occasional ridges, so driving stays drivable.
+## 1A LAW: ground = MACRO (painted ranges, roads ride it) + DETAIL (fbm² hills that
+## still fade to zero near roads/towns — the wilderness-only law, unchanged).
+## 1B LAW: the RIVER CARVE cuts last — a channel through macro, detail, and even
+## the road-blend (a bridge sails over on its own baked elev; the deck law fires
+## from the real clearance the carve creates).
 static func ground_y(x: float, z: float) -> float:
+	var macro := macro_y(x, z)
+	var carve := river_carve(x, z)
 	var r := relief_at(x, z)
 	if r <= 0.001:
-		return 0.0
+		return macro - carve
 	if _relief_noise == null:
 		_relief_noise = FastNoiseLite.new()
 		_relief_noise.seed = 0xD817D # THE world seed — same land for every run and peer
@@ -100,7 +223,7 @@ static func ground_y(x: float, z: float) -> float:
 		_relief_noise.fractal_octaves = 4
 		_relief_noise.frequency = RELIEF_FREQ
 	var n := (_relief_noise.get_noise_2d(x, z) + 1.0) * 0.5
-	return n * n * r * RELIEF_MAX_M
+	return macro + n * n * r * RELIEF_MAX_M - carve
 
 
 ## --- PIXEL ART IN 3D (goal: "pixel art, brought into 3D") ----------------------------
@@ -473,6 +596,10 @@ static func surface_at(pos: Vector3) -> String:
 	if usmap != null and usmap.ok:
 		var biome := usmap.biome_at(pos)
 		if biome == "water" or biome == "ocean":
+			return "water"
+		# 1B: a RIVER is water where it's actually wet (the ford law — the one
+		# water authority decides, not the biome grid).
+		if water_depth_at(pos.x, pos.z) > 0.25:
 			return "water"
 	return "dirt"
 

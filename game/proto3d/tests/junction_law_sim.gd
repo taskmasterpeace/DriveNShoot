@@ -44,8 +44,25 @@ func _median_blocked(road: Dictionary, wp: Vector2) -> bool:
 	var perp := Vector2(seg_dir.y, -seg_dir.x)
 	var g: Dictionary = ProtoUSMap.road_geometry(road)
 	var reach := float(g["carriage_w"]) + float(g["median_w"])
-	var from3 := Vector3(wp.x + perp.x * reach, 0.4, wp.y + perp.y * reach)
-	var to3 := Vector3(wp.x - perp.x * reach, 0.4, wp.y - perp.y * reach)
+	# 1A: the barrier rides the GRADE now — cast at the road's own height here.
+	var ray_h := 0.4
+	var el: PackedFloat32Array = road.get("elev", PackedFloat32Array())
+	if el.size() >= 2:
+		# nearest segment's lerped height at wp
+		var bi := 0
+		var bd := 1e18
+		for i2 in range(pts.size() - 1):
+			var d2 := ProtoUSMap._seg_dist(wp, pts[i2], pts[i2 + 1])
+			if d2 < bd:
+				bd = d2
+				bi = i2
+		var a4: Vector2 = pts[bi]
+		var b4: Vector2 = pts[bi + 1]
+		var ab4 := b4 - a4
+		var t4 := clampf((wp - a4).dot(ab4) / maxf(ab4.length_squared(), 0.001), 0.0, 1.0)
+		ray_h = 0.4 + lerpf(el[bi], el[bi + 1], t4)
+	var from3 := Vector3(wp.x + perp.x * reach, ray_h, wp.y + perp.y * reach)
+	var to3 := Vector3(wp.x - perp.x * reach, ray_h, wp.y - perp.y * reach)
 	var q := PhysicsRayQueryParameters3D.create(from3, to3)
 	var space := (main as Node3D).get_world_3d().direct_space_state
 	var hits := 0
@@ -96,7 +113,7 @@ func _ready() -> void:
 				if not r.is_empty() and bool(ProtoUSMap.road_geometry(r)["divided"]) \
 						and um.junction_gap_half(j, String(l["road"])) > 0.0:
 					gap_j = j
-		if walled_j.is_empty() and String(j["grade"]) == "separated_pending":
+		if walled_j.is_empty() and String(j["grade"]) in ["separated_pending", "deck"]:
 			walled_j = j
 		if mouth_j.is_empty() and String(j["kind"]) == "ramp_mouth":
 			# a mouth on a divided highway, away from any gap junction
@@ -180,7 +197,7 @@ func _ready() -> void:
 		var wchunk := _build_chunk_at(wp)
 		for i in range(6):
 			await get_tree().physics_frame
-		_check("walled crossing (%s) keeps its median CLOSED — pending its M2 deck" % String(walled_j["id"]),
+		_check("walled crossing (%s) keeps its median CLOSED — decked or pending, never gapped" % String(walled_j["id"]),
 			_median_blocked(wroad, wp))
 		var wslab := false
 		if wchunk != null:

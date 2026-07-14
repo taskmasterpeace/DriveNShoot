@@ -12,9 +12,12 @@ const MAP_PATH := "res://data/usmap.json"
 const TEST_ROAD_ID := "TEST-RAMP-ELEV"
 ## Deep in open PLAINS, 5+ km from any real road or town (surveyed offline) —
 ## the synthetic ramp can't interfere with any other sim's real-map content.
-const RAMP_X := -39744.0
-const RAMP_Z_LOW := -20228.0  ## elev 0.0 end (the ramp's "a")
-const RAMP_Z_HIGH := -20348.0 ## elev 8.0 end (the ramp's "b") — 120 m run, climbs 8 m
+# 1A NOTE: the old NW stage sits in PAINTED MOUNTAIN macro now (the land climbs
+# to ~20m there and swallowed the 8m test ramp) — staged in painted-flat FLORIDA
+# swamp instead (relief digit 0, nearest real road 663m).
+const RAMP_X := -2500.0
+const RAMP_Z_LOW := 12026.0   ## elev 0.0 end (the ramp's "a")
+const RAMP_Z_HIGH := 11906.0  ## elev 8.0 end (the ramp's "b") — 120 m run, climbs 8 m, ONE chunk (z 11904..12032)
 
 var passed := 0
 var failed := 0
@@ -101,7 +104,14 @@ func _ready() -> void:
 	_check("elev[] has one height per point (%d)" % elev.size(), elev.size() == 2)
 	_check("elev[0] == 0.0 (the low end)", is_equal_approx(elev[0], 0.0))
 	_check("elev[1] == 8.0 (the high end)", is_equal_approx(elev[1], 8.0))
-	var bare_road: Dictionary = usmap.road_by_id("I-95")
+	# 1A NOTE: real map roads now CARRY baked relief elev (the country climbs), so
+	# the no-elev fold law is proven on a SYNTHETIC row instead of I-95.
+	usmap.roads.append({"id": "ELEVSIM-BARE", "kind": "street",
+		"pts": PackedVector2Array([Vector2(90000, 90000), Vector2(90100, 90000), Vector2(90200, 90000)]),
+		"elev": PackedFloat32Array([0.0, 0.0, 0.0]),
+		"danger": 0, "family": "", "nickname": "", "toll": 0, "side": 0,
+		"surface": "asphalt", "leads_to": {}, "lanes": 2, "divided": false})
+	var bare_road: Dictionary = usmap.road_by_id("ELEVSIM-BARE")
 	_check("a road with NO elev field at all still folds (defaults to flat)",
 		not bare_road.is_empty() and (bare_road["elev"] as PackedFloat32Array).size() == (bare_road["pts"] as PackedVector2Array).size())
 	var bare_elev: PackedFloat32Array = bare_road["elev"]
@@ -129,7 +139,9 @@ func _ready() -> void:
 
 	# === 5. THE STREAMER: a real chunk over the synthetic ramp gets a pitched ====
 	# === visual slab, a REAL collision deck, guard rails, and support pillars. ===
-	var chunk: Node3D = main.stream._spawn_chunk(-311, -159) # center (-39744, -20288) — exact chunk center
+	var chunk: Node3D = main.stream._spawn_chunk(
+		int(floor(RAMP_X / 128.0)),
+		int(floor(((RAMP_Z_LOW + RAMP_Z_HIGH) * 0.5) / 128.0))) # the ramp's own chunk, derived from the stage constants
 	_check("the elevated chunk materializes", chunk != null)
 	var slabs: Array = _tagged(chunk, "road_slab", TEST_ROAD_ID)
 	_check("the ramp lays its visual slab (%d)" % slabs.size(), slabs.size() >= 1)

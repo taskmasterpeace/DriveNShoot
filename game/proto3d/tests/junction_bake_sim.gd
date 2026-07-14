@@ -61,22 +61,24 @@ func _ready() -> void:
 				riro_ok = false
 		if String(j["kind"]) == "ramp_rejoin" and String(j["control"]) == "gap":
 			riro_ok = false
-		if String(j["grade"]) == "separated_pending":
+		if String(j["grade"]) == "separated_pending" or String(j["grade"]) == "deck":
 			pending += 1
 	_check("every kind is in the 0.2 enum", kinds_ok)
 	_check("all 88 exits have a ramp_mouth node (%d found)" % mouths, mouths == 88)
 	_check("THE RIRO LAW: no ramp mouth/rejoin EVER opens the median (control never 'gap')", riro_ok)
-	_check("divided x divided crossings triage to separated_pending (%d found, >= 7)" % pending, pending >= 7)
+	# 1B: the overpass bake DECKS every pending crossing — the triage law now
+	# reads pending+deck together (grade separation exists either way).
+	_check("divided x divided crossings triage to grade separation (%d pending+deck, >= 7)" % pending, pending >= 7)
 
 	# --- 2) I-95 x I-40 — the named first grade-sep (0.4) ------------------------
 	var i9540 := false
 	for j in um.junctions:
-		if String(j["grade"]) != "separated_pending":
+		if not (String(j["grade"]) in ["separated_pending", "deck"]):
 			continue
 		var road_ids: Array = j["legs"].map(func(l: Dictionary) -> String: return String(l["road"]))
 		if road_ids.has("I-95") and road_ids.has("I-40") and (j["pos"] as Vector2).distance_to(Vector2(-708, 3724)) < 50.0:
 			i9540 = true
-	_check("I-95 x I-40 exists at (-708, 3724), walled pending its M2 deck", i9540)
+	_check("I-95 x I-40 exists at (-708, 3724) — its DECK stands (1B)", i9540)
 
 	# --- 3) THE GAP FORMULA worked example (0.3) ----------------------------------
 	var gap_ok := false
@@ -149,7 +151,7 @@ func _ready() -> void:
 	if not rt.is_empty():
 		for nid in rt["nodes"]:
 			var j2: Dictionary = (graph.nodes.get(nid, {}) as Dictionary).get("junction", {})
-			if String(j2.get("grade", "flat")) == "separated_pending" and not String(nid).contains("@"):
+			if String(j2.get("grade", "flat")) in ["separated_pending", "deck"] and not String(nid).contains("@"):
 				pending_transfer = true
 	_check("no transfer THROUGH a walled crossing (separated_pending nodes are per-road clones)",
 		not pending_transfer)

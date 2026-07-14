@@ -59,11 +59,16 @@ func _ready() -> void:
 	traffic.rng.seed = hash("traffic_sim")
 	ProtoTraffic.TRAFFIC["budget"] = 0.0        # no ambient spawns under the sim
 	ProtoTraffic.TRAFFIC["despawn_r"] = 999999.0 # staged agents live far from the player
+	# THE DENSIFY LAW: the relief bake inserts polyline midpoints, so vertex
+	# INDICES drift between bakes — survey segments by their corner COORDINATES.
+	var pts95: PackedVector2Array = traffic._road("I-95")["pts"]
+	var s3 := _seg_at(pts95, Vector2(2250, -2500))
+	var s4 := _seg_at(pts95, Vector2(1500, -250))
 
 	# === 2. RIGHT-HAND LAW: both directions sit on their own side ==================
 	# I-95 segment [2250,-2500]->[1500,-250]: spawn one agent per direction, lane 0.
-	var a_fwd: Node3D = traffic.spawn_agent("I-95", 3, 400.0, 0, 1)
-	var a_back: Node3D = traffic.spawn_agent("I-95", 3, 800.0, 0, -1)
+	var a_fwd: Node3D = traffic.spawn_agent("I-95", s3, 400.0, 0, 1)
+	var a_back: Node3D = traffic.spawn_agent("I-95", s3, 800.0, 0, -1)
 	traffic._tick(0.016)
 	var seg_a := Vector2(2250, -2500)
 	var seg_b := Vector2(1500, -250)
@@ -86,9 +91,9 @@ func _ready() -> void:
 	traffic.despawn_agent(a_back)
 
 	# === 3. CAR-FOLLOWING: a follower never drives through its leader =============
-	var leader: Node3D = traffic.spawn_agent("I-95", 3, 500.0, 0, 1)
+	var leader: Node3D = traffic.spawn_agent("I-95", s3, 500.0, 0, 1)
 	traffic.set_agent_speed(leader, 4.0) # a crawler
-	var chaser: Node3D = traffic.spawn_agent("I-95", 3, 440.0, 0, 1)
+	var chaser: Node3D = traffic.spawn_agent("I-95", s3, 440.0, 0, 1)
 	traffic.set_agent_speed(chaser, 24.0)
 	var min_gap := 999.0
 	for _i in 240: # 12 simulated seconds
@@ -104,7 +109,7 @@ func _ready() -> void:
 	ProtoTraffic.TRAFFIC["exit_take_chance"] = 1.0
 	# I-95 seg 4 [1500,-250]->[-1000,4250]; the Meridian exit anchors at (1204,283),
 	# ~610m in. Spawn 400m in, dir +1 — the ramp departs the travel side.
-	var exiter: Node3D = traffic.spawn_agent("I-95", 4, 400.0, 0, 1)
+	var exiter: Node3D = traffic.spawn_agent("I-95", s4, 400.0, 0, 1)
 	traffic.set_agent_speed(exiter, 25.0)
 	# Since the 0.18b mirrors an exit owns ramps for BOTH directions (+ the
 	# legacy row) — landing on ANY of ITS ramp_ids is "took the exit".
@@ -128,7 +133,7 @@ func _ready() -> void:
 
 	# === 5. PROMOTION: a bullet makes it REAL =====================================
 	ProtoTraffic.TRAFFIC["promote_cap"] = 1.0
-	var victim: Node3D = traffic.spawn_agent("I-95", 3, 600.0, 0, 1)
+	var victim: Node3D = traffic.spawn_agent("I-95", s3, 600.0, 0, 1)
 	traffic._tick(0.016)
 	var vpos := victim.global_position
 	var cars_before: int = main.cars.size()
@@ -142,7 +147,7 @@ func _ready() -> void:
 		and (main.cars[-1].components["chassis"] as Damageable).hp < (main.cars[-1].components["chassis"] as Damageable).max_hp)
 	_check("...and the agent itself is gone", not is_instance_valid(victim))
 	# At cap: the next touch despawns, never a physics storm.
-	var victim2: Node3D = traffic.spawn_agent("I-95", 3, 640.0, 0, 1)
+	var victim2: Node3D = traffic.spawn_agent("I-95", s3, 640.0, 0, 1)
 	traffic._tick(0.016)
 	var cars_at_cap: int = main.cars.size()
 	victim2.take_damage(12.0)
@@ -240,7 +245,7 @@ func _ready() -> void:
 	var lane_off := Vector2(-seg_d2.y, seg_d2.x) * ProtoUSMap.lane_offset(traffic._road("I-95"), 0)
 	var block_pt := seg_a2 + seg_d2 * 700.0 + lane_off
 	blocker.global_position = Vector3(block_pt.x, 0.6, block_pt.y)
-	var chaser2: Node3D = traffic.spawn_agent("I-95", 3, 560.0, 0, 1)
+	var chaser2: Node3D = traffic.spawn_agent("I-95", s3, 560.0, 0, 1)
 	traffic.set_agent_speed(chaser2, 24.0)
 	var min_gap2 := 999.0
 	for _i in 200:
@@ -265,7 +270,7 @@ func _ready() -> void:
 		main.cars.erase(arrival_car)
 		arrival_car.queue_free()
 	await get_tree().process_frame
-	var tripper: Node3D = traffic.spawn_agent("I-95", 3, 100.0, 0, 1)
+	var tripper: Node3D = traffic.spawn_agent("I-95", s3, 100.0, 0, 1)
 	traffic.set_agent_trip(tripper, "I-95_X1")
 	traffic.set_agent_speed(tripper, 30.0)
 	var trip_took_ramp := false
@@ -283,7 +288,7 @@ func _ready() -> void:
 	traffic._promoted.clear()
 	ProtoTraffic.TRAFFIC["promote_cap"] = 5.0
 	main.active_car.global_position = Vector3(1875.0, 1.0, -1375.0) # back in view of the column
-	var lead: Node3D = traffic.spawn_agent("I-95", 3, 300.0, 0, 1)
+	var lead: Node3D = traffic.spawn_agent("I-95", s3, 300.0, 0, 1)
 	traffic.set_agent_trip(lead, "I-95_X1")
 	var column: Array = traffic.spawn_convoy_behind(lead, 2, "scrap")
 	_check("a convoy is a 2-3 truck COLUMN (got %d)" % column.size(), column.size() == 3)
@@ -328,3 +333,15 @@ func _all_near(traffic: ProtoTraffic, pos: Vector3, r: float) -> bool:
 		if is_instance_valid(a) and a.global_position.distance_to(pos) > r:
 			return false
 	return true
+
+
+## Nearest-vertex survey: densify-proof segment index for a surveyed corner.
+func _seg_at(pts: PackedVector2Array, corner: Vector2) -> int:
+	var bi := 0
+	var bd := 1e18
+	for i in range(pts.size() - 1):
+		var d := pts[i].distance_to(corner)
+		if d < bd:
+			bd = d
+			bi = i
+	return bi

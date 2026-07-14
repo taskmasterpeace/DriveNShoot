@@ -578,7 +578,8 @@ const HELP = {
 		"POST /api/reload                       → v4: re-read every file from disk (multi-writer guard also auto-detects external writes)",
 		"GET  /api/meta                         → dims, scale, legends, row counts (no grids — cheap)",
 		"GET  /api/map                          → the entire map JSON",
-		"GET  /api/grid?layer=biomes|states     → {rows: [...]} the raw char grid",
+		"GET  /api/grid?layer=biomes|states|relief → {rows: [...]} the raw char grid",
+		"POST /api/relief      {value: 0-9, cells|rect} → paint the macro land (re-bake after: roads climb from this grid)",
 		"GET  /api/cell?x=&z=  (or ?wx=&wz= world meters) → biome/state/world pos/nearest road+town",
 		"PUT  /api/cell        {x, z, biome}    → paint one cell (biome = legend char or name)",
 		"POST /api/paint       {biome, cells: [[x,z],...]} or {biome, rect: [x0,z0,x1,z1]} → bulk paint",
@@ -701,7 +702,35 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/map") return json(res, 200, map);
 		if (url.pathname === "/api/grid") {
 			const layer = q.get("layer") || "biomes";
-			return json(res, 200, { layer, rows: layer === "states" ? map.states_grid : map.grid });
+			const rows = layer === "states" ? map.states_grid
+				: layer === "relief" ? (map.relief || [])
+				: map.grid;
+			return json(res, 200, { layer, rows });
+		}
+		// THE RELIEF PAINTER (THE_COUNTRY_PLAN 1A): brush digits 0-9 onto the macro
+		// land. cells [[cx,cz],...] or rect [x0,z0,x1,z1] (cell coords), value 0-9.
+		// NOTE: roads bake their climb from this grid — repaint then re-bake
+		// (POST /api/junctions/bake) so asphalt agrees with the land.
+		if (url.pathname === "/api/relief" && req.method === "POST") {
+			if (!map.relief || !map.relief.length)
+				map.relief = Array.from({ length: map.h }, () => "0".repeat(map.w));
+			const v = String(Math.max(0, Math.min(9, Number(body.value ?? 0))));
+			const cells = body.cells || [];
+			if (Array.isArray(body.rect) && body.rect.length === 4) {
+				for (let z = Math.min(body.rect[1], body.rect[3]); z <= Math.max(body.rect[1], body.rect[3]); z++)
+					for (let x = Math.min(body.rect[0], body.rect[2]); x <= Math.max(body.rect[0], body.rect[2]); x++)
+						cells.push([x, z]);
+			}
+			let painted = 0;
+			for (const [cx, cz] of cells) {
+				if (cz < 0 || cz >= map.relief.length) continue;
+				const row = map.relief[cz];
+				if (cx < 0 || cx >= row.length) continue;
+				map.relief[cz] = row.slice(0, cx) + v + row.slice(cx + 1);
+				painted++;
+			}
+			save();
+			return json(res, 200, { ok: true, painted, value: Number(v) });
 		}
 		if (url.pathname === "/api/cell" && req.method === "GET") {
 			let x = q.has("x") ? Number(q.get("x")) : null;

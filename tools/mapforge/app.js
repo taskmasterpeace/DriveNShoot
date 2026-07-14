@@ -17,6 +17,8 @@ let ecoTint = null;                         // offscreen wildlife-richness tint
 let tool = "select";
 let sel = null;            // {type, id}
 let biome = "forest", brush = 1;
+let reliefRows = [];            // 1A: the painted macro grid (digits)
+let reliefMode = false, reliefVal = 5;
 let painting = false, paintStroke = [], paintPrev = [];
 let districtDraft = [];    // [[wx,wz],...] while drawing a district
 let measure = { a: null, b: null, result: null, busy: false };
@@ -130,6 +132,7 @@ async function load() {
 	meta = await api("/api/meta");
 	rows = (await api("/api/grid?layer=biomes")).rows;
 	states = (await api("/api/grid?layer=states")).rows;
+	reliefRows = (await api("/api/grid?layer=relief")).rows || [];
 	await refresh(false);
 	({ structures, footprints } = await api("/api/structures"));
 	try { trackPieces = (await api("/api/track_pieces")).track_pieces || []; } catch { trackPieces = []; }
@@ -139,7 +142,7 @@ async function load() {
 	buildEcoTint();
 	document.getElementById("mapname").textContent =
 		`${meta.name} · ${meta.compression}× · ${meta.world_km[0]}×${meta.world_km[1]} km · ${meta.roads} roads · ${meta.exits} exits · ${meta.junctions} junctions`;
-	buildBmp(); buildStatePath(); buildPalette(); buildVehicleSel(); buildFootprintSel();
+	buildBmp(); buildStatePath(); buildPalette(); buildReliefUI(); buildVehicleSel(); buildFootprintSel();
 	buildStructList(); buildBuildingSel(); buildExitArch();
 	fitView(); requestDraw();
 	refreshHealth();
@@ -306,6 +309,23 @@ function draw() {
 	blitCells(bmp);
 	// v4.1 overlays on the land itself
 	if (layers.ecology && ecoTint) blitCells(ecoTint);
+	// 1A RELIEF OVERLAY: visible-cells tint by digit while the relief painter is on
+	if (reliefMode && reliefRows.length) {
+		const cw = meta.cell_m * view.scale;
+		const x0 = Math.max(0, Math.floor((s2wx(0) - meta.world_offset[0]) / meta.cell_m));
+		const z0 = Math.max(0, Math.floor((s2wz(0) - meta.world_offset[1]) / meta.cell_m));
+		const x1 = Math.min(meta.w - 1, Math.ceil((s2wx(cv._w) - meta.world_offset[0]) / meta.cell_m));
+		const z1 = Math.min(meta.h - 1, Math.ceil((s2wz(cv._h) - meta.world_offset[1]) / meta.cell_m));
+		for (let cz2 = z0; cz2 <= z1; cz2++) {
+			const rrow = reliefRows[cz2] || "";
+			for (let cx2 = x0; cx2 <= x1; cx2++) {
+				const d = (rrow.charCodeAt(cx2) || 48) - 48;
+				if (d <= 0) continue;
+				ctx.fillStyle = `rgba(${150 + d * 10},${110 + d * 12},${60},${0.10 + d * 0.05})`;
+				ctx.fillRect(w2sx(meta.world_offset[0] + cx2 * meta.cell_m), w2sz(meta.world_offset[1] + cz2 * meta.cell_m), cw + 1, cw + 1);
+			}
+		}
+	}
 	if (sel?.type === "state") blitCells(stateMask(sel.id));
 	// state borders (world-space path under a transform)
 	if (layers.states && statePath) {
@@ -1183,10 +1203,41 @@ function elevTint(h) {
 	return `rgb(${lerp(150, 255)},${lerp(120, 214)},${lerp(70, 130)})`;
 }
 
+function buildReliefUI() {
+	const wrap = document.getElementById("reliefvals");
+	if (!wrap) return;
+	wrap.innerHTML = "";
+	for (let v = 0; v <= 9; v++) {
+		const b = document.createElement("button");
+		b.textContent = String(v);
+		b.className = v === reliefVal ? "on" : "";
+		b.title = v === 0 ? "flat (Florida)" : v >= 7 ? "range core (the Rockies)" : "hills " + v;
+		b.onclick = () => { reliefVal = v; buildReliefUI(); };
+		wrap.appendChild(b);
+	}
+	const chk = document.getElementById("reliefmode");
+	chk.checked = reliefMode;
+	chk.onchange = () => { reliefMode = chk.checked; requestDraw(); };
+}
+
 function paintAtWorld(w) {
 	const x = Math.floor((w[0] - meta.world_offset[0]) / meta.cell_m);
 	const z = Math.floor((w[1] - meta.world_offset[1]) / meta.cell_m);
 	const half = Math.floor(brush / 2);
+	if (reliefMode) { // 1A: the RELIEF painter — digits onto the macro grid
+		const cells = [];
+		for (let dz = -half; dz <= half; dz++)
+			for (let dx = -half; dx <= half; dx++) {
+				const nx = x + dx, nz = z + dz;
+				if (nx < 0 || nx >= meta.w || nz < 0 || nz >= meta.h) continue;
+				if (!reliefRows[nz]) reliefRows[nz] = "0".repeat(meta.w);
+				reliefRows[nz] = reliefRows[nz].substring(0, nx) + String(reliefVal) + reliefRows[nz].substring(nx + 1);
+				cells.push([nx, nz]);
+			}
+		if (cells.length) api("/api/relief", { method: "POST", body: JSON.stringify({ value: reliefVal, cells }) }).then(() => savedFlash(`relief ${reliefVal} × ${cells.length} cells — RE-BAKE so roads climb it`));
+		requestDraw();
+		return;
+	}
 	const ch = Object.entries(meta.legend).find(([, n]) => n === biome)[0];
 	for (let dz = -half; dz <= half; dz++)
 		for (let dx = -half; dx <= half; dx++) {

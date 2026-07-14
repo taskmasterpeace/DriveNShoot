@@ -22,6 +22,10 @@ const SHOTS: Array = [
 	{"name": "mountains", "pos": Vector3(-53750, 1.0, -19250), "yaw": 45.0},
 	{"name": "town_downtown", "pos": Vector3(-23600, 1.0, 13114), "yaw": 30.0},
 	{"name": "town_mainstreet", "pos": Vector3(-4800, 1.0, 14533), "yaw": 30.0},
+	{"name": "colorado_i25", "pos": Vector3(-35125, 1.0, 0), "yaw": 20.0},
+	{"name": "appalachia_i40", "pos": Vector3(-6500, 1.0, 2875), "yaw": 20.0},
+	{"name": "mississippi_i90", "pos": Vector3(-15737, 1.0, -10966), "yaw": 70.0},
+	{"name": "overpass_i40_i75", "pos": Vector3(-6980, 1.0, 2794), "yaw": 81.0},
 ]
 
 var main: Node = null
@@ -63,6 +67,18 @@ func _ready() -> void:
 
 func _shoot(s: Dictionary, out_abs: String) -> void:
 	var pos: Vector3 = s["pos"]
+	# THE VERTICAL COUNTRY: spots carry authored y for flat land, but painted
+	# relief and road humps rise above it — stage on the REAL surface (land or
+	# road deck, whichever is higher) or the player spawns under the world and
+	# the void net teleports the shot home to the safehouse.
+	var road: Dictionary = main.stream.usmap.road_near(pos, 60.0)
+	var surf_y := ProtoWorldBuilder.ground_y(pos.x, pos.z)
+	if not road.is_empty():
+		var a2: Vector2 = road["a"]
+		var ab: Vector2 = (road["b"] as Vector2) - a2
+		var t := clampf((Vector2(pos.x, pos.z) - a2).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		surf_y = maxf(surf_y, lerpf(float(road.get("elev_a", 0.0)), float(road.get("elev_b", 0.0)), t))
+	pos.y = maxf(pos.y, surf_y + 1.0)
 	main.player.global_position = pos
 	main.player.rotation.y = deg_to_rad(float(s.get("yaw", 0.0)))
 	# let the streamer build the neighborhood (chunks, roads, towns, trees)

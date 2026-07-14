@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://relief_paint_sim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/relief_paint_sim.gd" id="1"]
+
+[node name="ReliefPaintSim" type="Node"]
+script = ExtResource("1")

@@ -169,7 +169,19 @@ func _physics_process(delta: float) -> void:
 					i70 = r
 			_check("I-70 exists in the network", not i70.is_empty())
 			var pts: PackedVector2Array = i70["pts"]
-			var mid: Vector2 = (pts[2] + pts[3]) * 0.5 # Kansas stretch
+			# THE DENSIFY LAW: the relief bake inserts polyline midpoints, so vertex
+			# INDICES drift between bakes — survey mid-country by ARC LENGTH instead.
+			var total_arc := 0.0
+			for pi in range(pts.size() - 1):
+				total_arc += pts[pi].distance_to(pts[pi + 1])
+			var walk := total_arc * 0.5
+			var mid: Vector2 = pts[0]
+			for pi in range(pts.size() - 1):
+				var seg_len := pts[pi].distance_to(pts[pi + 1])
+				if walk <= seg_len:
+					mid = pts[pi] + (pts[pi + 1] - pts[pi]) * (walk / maxf(seg_len, 0.001))
+					break
+				walk -= seg_len
 			var mid3 := Vector3(mid.x, 0, mid.y)
 			stream.update_stream(mid3, self)
 			_check("streaming loaded a ring of chunks (%d)" % stream.loaded.size(), stream.loaded.size() >= 40)

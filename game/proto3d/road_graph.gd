@@ -66,11 +66,13 @@ func _build() -> void:
 			(adj[bn] as Array).append({"to": an, "road": String(rid), "len_m": span, "time_s": span / mps})
 
 
-## separated_pending nodes are per-road clones (no transfer until M2 decks them);
-## every other node is shared (that IS the transfer).
+## separated_pending AND deck nodes are per-road clones (no transfer): a DECK is
+## an overpass, not an interchange — you cross ABOVE a road, you don't turn onto
+## it (turning takes ramps, and ramps are exit rows). Every other node is shared
+## (that IS the transfer).
 func _travel_node(nid: String, rid: String) -> String:
 	var j: Dictionary = (nodes.get(nid, {}) as Dictionary).get("junction", {})
-	if String(j.get("grade", "flat")) == "separated_pending":
+	if String(j.get("grade", "flat")) in ["separated_pending", "deck"]:
 		var cid := "%s@%s" % [nid, rid]
 		if not nodes.has(cid):
 			nodes[cid] = {"pos": j["pos"], "junction": j}
