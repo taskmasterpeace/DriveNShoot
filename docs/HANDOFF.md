@@ -1,6 +1,28 @@
 # DRIVN — Engineering Handoff
 
-> ## ⏭ 2026-07-14 — THREE OWNER ARCS SHIPPED + MERGED TO MAIN (read this first)
+> ## ⏭ 2026-07-14 (later) — THE_COUNTRY_PLAN SHIPPED IN FULL (read this first)
+>
+> **All three arcs of `docs/design/THE_COUNTRY_PLAN.md` executed and merged to main
+> (`3ede17e` → `3143a00` → `a48c6a5`; branch == main; tree clean).** The country is
+> VERTICAL (painted relief, 6%-capped climbing interstates, carved rivers with real
+> bridge decks + water sheets + `water_depth_at` authority, all 60 blind crossings
+> now true overpasses with `deck_road` rows), READABLE (56 seeded town landmarks +
+> sign naming, farm-belt approach rings, billboards advertising the REAL next exit
+> at REAL milepost miles — I-95 keeps wasteland warnings by the risk law — ecotone
+> vegetation blending), and ALIVE (districts fold + `district_at` + per-kind ground
+> tints + the Meridian unification seam via `bakeDistrictSlots`; 19 GHOST SITES —
+> dead motels/gas/drive-ins/attractions as placement clusters + themed caches under
+> the payload law). New proof sims: `relief_paint_sim` 16 · `river_sim` 12 ·
+> `overpass_sim` 8 · `readable_road_sim` 15 · `district_sim` 13; extended:
+> `network_fill_sim` 17 · `city_layout_sim` 17. Before/after photobooth passes in
+> `docs/renders/world/arc1_baseline` … `arc3_after` (all reviewed by eye).
+> **Paid-for laws this pass**: THE LANE LAW (never stage a drive sim on a divided
+> road's centerline — that's the median barrier); THE DENSIFY LAW (survey polyline
+> segments by corner COORDINATES, never index — the relief bake inserts midpoints);
+> the photobooth stages on the REAL surface and flushes border toasts; JS `>>` on a
+> 32-bit hash goes negative — use `>>>`.
+
+> ## 2026-07-14 — THREE OWNER ARCS SHIPPED + MERGED TO MAIN
 >
 > **All merged to main through `35f1ba4` (branch codex/specticles-games == main). Tree clean.**
 >

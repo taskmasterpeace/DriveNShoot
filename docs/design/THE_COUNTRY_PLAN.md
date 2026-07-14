@@ -1,6 +1,6 @@
 # THE COUNTRY PLAN — relief, rivers, and the readable road
 
-**Status:** 2026-07-14 — research-verified execution plan, ready for `/goal` passes.
+**Status:** ✅ **SHIPPED IN FULL, 2026-07-14** — all three arcs executed in one `/goal` session and merged to main: Arc 1A+1B `3ede17e` (relief/climbing roads/rivers/bridges/60 overpasses), Arc 2 `3143a00` (landmarks/farm belts/exit billboards/ecotones), Arc 3 `a48c6a5` (districts→engine/ghost sites). Proof sims: relief_paint 16 · river 12 · overpass 8 · readable_road 15 · district 13 · network_fill 17 (+ every guard green). Before/after renders in `docs/renders/world/arc1_baseline..arc3_after`. This document is now the RECORD of what shipped, kept for the §0 research corrections and per-arc discipline notes.
 **Owner ask:** "do all this research and make a doc we can follow" — the eight
 country-scale ideas, ordered into three arcs by dependency, every claim checked
 against the code that actually shipped (receipts inline). Companion contracts:
