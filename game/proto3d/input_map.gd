@@ -110,13 +110,15 @@ static func descriptor_to_event(d: String) -> InputEvent:
 		"mouse":
 			var mb := InputEventMouseButton.new()
 			mb.button_index = {"left": MOUSE_BUTTON_LEFT, "right": MOUSE_BUTTON_RIGHT,
-				"middle": MOUSE_BUTTON_MIDDLE}.get(parts[1], MOUSE_BUTTON_LEFT)
+				"middle": MOUSE_BUTTON_MIDDLE, "wheel_up": MOUSE_BUTTON_WHEEL_UP,
+				"wheel_down": MOUSE_BUTTON_WHEEL_DOWN}.get(parts[1], MOUSE_BUTTON_LEFT)
 			return mb
 		"joy":
 			if not JOY_BUTTONS.has(parts[1]):
 				push_warning("InputMap: unknown pad button '%s'" % d)
 				return null
 			var jb := InputEventJoypadButton.new()
+			jb.device = -1 # wildcard: one data row must work for every local pad/seat
 			jb.button_index = JOY_BUTTONS[parts[1]]
 			return jb
 		"axis":
@@ -124,6 +126,7 @@ static func descriptor_to_event(d: String) -> InputEvent:
 				push_warning("InputMap: unknown pad axis '%s'" % d)
 				return null
 			var jm := InputEventJoypadMotion.new()
+			jm.device = -1 # wildcard: physical device is preserved by the arcade router
 			jm.axis = JOY_AXES[parts[1]]
 			jm.axis_value = -1.0 if (parts.size() > 2 and parts[2] == "-") else 1.0
 			return jm
@@ -147,6 +150,8 @@ static func event_to_descriptor(ev: InputEvent) -> String:
 			MOUSE_BUTTON_LEFT: return "mouse:left"
 			MOUSE_BUTTON_RIGHT: return "mouse:right"
 			MOUSE_BUTTON_MIDDLE: return "mouse:middle"
+			MOUSE_BUTTON_WHEEL_UP: return "mouse:wheel_up"
+			MOUSE_BUTTON_WHEEL_DOWN: return "mouse:wheel_down"
 		return ""
 	if ev is InputEventJoypadButton:
 		var idx := (ev as InputEventJoypadButton).button_index
@@ -210,7 +215,8 @@ static func pretty(d: String) -> String:
 	var parts := d.split(":")
 	match parts[0]:
 		"key": return parts[1].to_upper()
-		"mouse": return {"left": "LMB", "right": "RMB", "middle": "MMB"}.get(parts[1], "MOUSE")
+		"mouse": return {"left": "LMB", "right": "RMB", "middle": "MMB",
+			"wheel_up": "WHEEL ↑", "wheel_down": "WHEEL ↓"}.get(parts[1], "MOUSE")
 		"joy":
 			return {"a": "A / ✕", "b": "B / ◯", "x": "X / ▢", "y": "Y / △",
 				"lb": "LB / L1", "rb": "RB / R1", "l3": "L3", "r3": "R3",

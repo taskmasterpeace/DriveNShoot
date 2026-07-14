@@ -213,6 +213,36 @@ static func ground_normal_texture() -> Texture2D:
 	return t
 
 
+## THE PATCHWORK (fidelity loop it.7 probe: fine grain exists but fields are one
+## flat sheet at 10-50 m scale): a deterministic per-chunk tint nudge, quantized
+## to 5 shades so the ground_material cache stays bounded (5 per biome). Same
+## chunk always deals the same shade — the quilt never shimmers on re-stream.
+static func chunk_tint(base: Color, cx: int, cz: int) -> Color:
+	var step := float(absi(hash(Vector2i(cx, cz))) % 5) / 4.0 # 0..1 in 5 steps
+	var dv := lerpf(-0.055, 0.055, step)
+	return Color(clampf(base.r + dv, 0.0, 1.0), clampf(base.g + dv, 0.0, 1.0),
+		clampf(base.b + dv, 0.0, 1.0), base.a)
+
+
+## WATER (fidelity loop it.14 probe: lakes read as flat painted boxes): the same
+## noise normal at gentle strength gives lit RIPPLE, low roughness gives the sun
+## a glint lane — one cached material, zero new geometry.
+static func water_material(color: Color) -> StandardMaterial3D:
+	var key := "wat_" + color.to_html()
+	if _mat_cache.has(key):
+		return _mat_cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.12
+	mat.uv1_triplanar = true
+	mat.uv1_scale = Vector3(0.045, 0.045, 0.045) # broad, lazy ripple at ~22 m
+	mat.normal_enabled = true
+	mat.normal_texture = ground_normal_texture()
+	mat.normal_scale = 0.35
+	_mat_cache[key] = mat
+	return mat
+
+
 ## A ground/terrain material: the biome tint, textured. Separate from material() so only
 ## TERRAIN gets grain — boxes/houses stay clean. Cached per color like material().
 static func ground_material(color: Color, rough: float = 0.95) -> StandardMaterial3D:
@@ -470,7 +500,8 @@ static func build_world(root: Node3D) -> Dictionary:
 			var sid := String(p.get("building", ""))
 			if not DrivnData.structures.has(sid):
 				continue # hand-built ids (the safehouse) stay hand-built; warn-not-crash
-			var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+			var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")),
+				hash(Vector2i(int(float(p["pos"][0])), int(float(p["pos"][1])))))
 			if shell == null:
 				continue
 			world.add_child(shell)

@@ -1,0 +1,32 @@
+{
+  "_comment": "Original clean-room BLACK GRID zones. No Infantry client, zone, map, name, art, audio, or text material is present.",
+  "zones": [
+    {
+      "id":"relay_fall","name":"RELAY FALL","theme":"Continuity relay yards split by hardened switching walls",
+      "bounds":[60,110,1160,520],
+      "walls":[[620,210,30,250],[300,360,190,28],[790,300,210,28],[465,145,28,125],[930,465,180,24]],
+      "darkness":[[90,125,230,145],[930,125,250,130]],
+      "spawns":{"team_0":[[130,560],[210,500],[150,420],[280,570]],"team_1":[[1150,560],[1070,500],[1130,420],[1000,570]]},
+      "capture_nodes":[{"id":"west_relay","pos":[360,250]},{"id":"switch_core","pos":[640,360]},{"id":"east_relay","pos":[920,230]}],
+      "vehicle_pads":[{"id":"pad_west","pos":[245,565]},{"id":"pad_east","pos":[1035,565]}]
+    },
+    {
+      "id":"blackout_yard","name":"BLACKOUT YARD","theme":"unpowered freight exchange under permanent tactical darkness",
+      "bounds":[60,110,1160,520],
+      "walls":[[600,150,42,350],[270,260,230,30],[742,390,245,30],[120,470,180,28],[980,190,170,28]],
+      "darkness":[[120,140,300,190],[710,125,420,205],[430,430,360,170]],
+      "spawns":{"team_0":[[120,565],[190,520],[250,570],[140,430]],"team_1":[[1160,565],[1090,520],[1030,570],[1140,430]]},
+      "capture_nodes":[{"id":"dark_depot","pos":[330,195]},{"id":"dead_switch","pos":[620,535]},{"id":"cold_store","pos":[930,220]}],
+      "vehicle_pads":[{"id":"west_motor_pool","pos":[315,545]},{"id":"east_motor_pool","pos":[930,545]}]
+    },
+    {
+      "id":"continuity_bastion","name":"CONTINUITY BASTION","theme":"buried command campus and armored fleet drill grid",
+      "bounds":[60,110,1160,520],
+      "walls":[[400,180,32,300],[848,180,32,300],[540,330,200,34],[175,280,150,26],[955,280,150,26]],
+      "darkness":[[435,125,410,175],[435,400,410,190]],
+      "spawns":{"team_0":[[125,560],[210,540],[150,450],[285,490]],"team_1":[[1155,560],[1070,540],[1130,450],[995,490]]},
+      "capture_nodes":[{"id":"west_gate","pos":[345,330]},{"id":"command_stack","pos":[640,245]},{"id":"east_gate","pos":[935,330]}],
+      "vehicle_pads":[{"id":"fleet_west","pos":[250,555]},{"id":"fleet_east","pos":[1030,555]},{"id":"fleet_center","pos":[640,540]}]
+    }
+  ]
+}

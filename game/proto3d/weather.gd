@@ -42,12 +42,29 @@ const WET_REVERT := 0.02         ## per gh
 ## Cars read this per frame (default 1.0 so every sim without weather is dry).
 static var grip_now: float = 1.0
 
+## THE SKY GRADE (fidelity loop it.10 — "rain is invisible"): visual channels
+## daynight applies to the sun/ambient, same static pattern as grip_now.
+## kind -> [dim, tint, max tint amount] — scaled by local intensity.
+static var sky_dim: float = 1.0
+static var sky_tint: Color = Color(1, 1, 1)
+static var sky_tint_amt: float = 0.0
+static var fog_mult: float = 1.0 ## WET AIR (it.12): storms thicken the distance haze
+## kind -> [dim, tint, max tint amount, fog mult at full intensity]
+const GRADE: Dictionary = {
+	"rain": [0.85, Color(0.55, 0.62, 0.72), 0.42, 2.3],
+	"dust": [0.90, Color(0.85, 0.64, 0.38), 0.38, 3.2],
+	"heat": [1.00, Color(1.00, 0.84, 0.62), 0.16, 1.15],
+}
+
 ## Active storm systems: {kind, pos: Vector2, radius, vel: Vector2 (m/s), ttl_h, age_h}
 var systems: Array = []
 var state: String = "clear" ## DERIVED: the dominant kind over the player (compat)
 var _main: Node = null
 var _last_wx_h: float = -1.0
 var _forced_until_h: float = -1.0 ## force() pins the derived state for sims/moments
+var _fx_root: Node3D = null ## the weather made VISIBLE — streaks/motes ride the probe
+var _rain_fx: CPUParticles3D = null
+var _dust_fx: CPUParticles3D = null
 
 
 static func create(main: Node) -> ProtoWeather:
@@ -142,6 +159,11 @@ func force(state_in: String, duration: float = 0.0) -> void:
 	if not STATES.has(state_in):
 		return
 	state = state_in
+	if state_in == "clear":
+		# The fiat means CLEAR THE SKY — the old filter removed only "clear"-kind
+		# systems (none exist), so the storm disc stayed and re-derived its state
+		# a frame later (the probe's stuck-RAIN banner).
+		systems.clear()
 	systems = systems.filter(func(s: Dictionary) -> bool: return String(s["kind"]) != state_in)
 	if state_in != "clear":
 		var center := Vector2.ZERO
@@ -197,6 +219,11 @@ func _physics_process(delta: float) -> void:
 
 	# W-TAX at the bodies that pay them
 	var now_h := _now_h()
+	var probe: Node3D = null
+	if _main != null and "active_car" in _main and _main.active_car != null and is_instance_valid(_main.active_car):
+		probe = _main.active_car
+	elif _main != null and "player" in _main and _main.player != null:
+		probe = _main.player
 	# THE FIAT PIN (compat law): while force() holds, the row applies EVERYWHERE
 	# — sims and scripted moments teleport, and the sky must follow the fiat,
 	# not the disc they left behind. The field resumes when the pin expires.
@@ -208,15 +235,12 @@ func _physics_process(delta: float) -> void:
 			_main.active_car.components["engine"].damage(fwear * delta)
 		if _last_wx_h < 0.0:
 			_last_wx_h = now_h
+		_update_fx(probe, state, 1.0)
 		return
-	var probe: Node3D = null
-	if _main != null and "active_car" in _main and _main.active_car != null and is_instance_valid(_main.active_car):
-		probe = _main.active_car
-	elif _main != null and "player" in _main and _main.player != null:
-		probe = _main.player
 	if probe != null:
 		var k := kind_at(probe.global_position)
 		var i := intensity_at(probe.global_position, k) if k != "" else 0.0
+		_update_fx(probe, k, i)
 		ProtoWeather.grip_now = lerpf(1.0, float(STATES.get(k, STATES["clear"])["grip"]), i) if k != "" else 1.0
 		var wear: float = (float(STATES[k]["engine_wear"]) * i) if k != "" else 0.0
 		if wear > 0.0 and _main != null and "active_car" in _main and _main.active_car != null \
@@ -294,3 +318,82 @@ func _hour_tick(hours: int) -> void:
 			row["water_rot"] = rot
 			if not eco.is_empty():
 				eco["water_rot"] = rot
+
+
+# --- THE WEATHER MADE VISIBLE (fidelity loop it.10: "rain is invisible") --------
+# Streaks/motes ride the probe (fixed amounts, tints on their OWN materials —
+# the black-ball law); the sky grade rides the static channels daynight applies.
+
+func _update_fx(probe: Node3D, k: String, i: float) -> void:
+	if k != "" and GRADE.has(k):
+		var g: Array = GRADE[k]
+		ProtoWeather.sky_dim = lerpf(1.0, float(g[0]), i)
+		ProtoWeather.sky_tint = g[1]
+		ProtoWeather.sky_tint_amt = float(g[2]) * i
+		ProtoWeather.fog_mult = lerpf(1.0, float(g[3]), i)
+	else:
+		ProtoWeather.sky_dim = 1.0
+		ProtoWeather.sky_tint_amt = 0.0
+		ProtoWeather.fog_mult = 1.0
+	if probe == null or _main == null or not is_inside_tree():
+		return
+	if _fx_root == null:
+		_fx_root = Node3D.new()
+		_main.add_child(_fx_root)
+		_rain_fx = _make_rain_fx()
+		_fx_root.add_child(_rain_fx)
+		_dust_fx = _make_dust_fx()
+		_fx_root.add_child(_dust_fx)
+	_fx_root.global_position = probe.global_position
+	_rain_fx.emitting = k == "rain" and i > 0.12
+	_dust_fx.emitting = k == "dust" and i > 0.12
+
+
+## Falling STREAKS: thin billboarded quads sheeting down over the probe.
+func _make_rain_fx() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 220 # FIXED — the restart law
+	p.lifetime = 0.7
+	var q := QuadMesh.new()
+	q.size = Vector2(0.05, 0.6) # ~3px at the gameplay camera — thinner vanished
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.vertex_color_use_as_albedo = false # the law: tint lives HERE
+	m.albedo_color = Color(0.66, 0.72, 0.84, 0.55)
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	q.material = m
+	p.mesh = q
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(16.0, 0.5, 16.0)
+	p.position = Vector3(0, 13.0, 0)
+	p.direction = Vector3(0.12, -1.0, 0.06)
+	p.spread = 2.0
+	p.initial_velocity_min = 22.0
+	p.initial_velocity_max = 27.0
+	p.gravity = Vector3.ZERO
+	p.emitting = false
+	return p
+
+
+## Drifting DUST: soft amber motes streaming sideways through the storm.
+func _make_dust_fx() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = 150 # FIXED — the restart law
+	p.lifetime = 1.8
+	var q := QuadMesh.new()
+	q.size = Vector2(0.5, 0.5)
+	var m := ProtoFX.puff_material()
+	m.albedo_color = Color(0.70, 0.55, 0.34, 0.22)
+	q.material = m
+	p.mesh = q
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = Vector3(15.0, 4.0, 15.0)
+	p.position = Vector3(0, 3.0, 0)
+	p.direction = Vector3(1.0, 0.06, 0.3)
+	p.spread = 9.0
+	p.initial_velocity_min = 6.0
+	p.initial_velocity_max = 11.0
+	p.gravity = Vector3(0.5, 0.15, 0.2)
+	p.emitting = false
+	return p

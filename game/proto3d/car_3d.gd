@@ -21,32 +21,32 @@ static var VEHICLES: Dictionary = {
 		"chassis": Vector3(2.0, 0.7, 4.4), "hull": Vector3(2.0, 0.55, 4.4), "cabin": Vector3(1.7, 0.5, 2.0), "cabin_pos": Vector3(0, 0.55, 0.25),
 		"wheels": [[-0.85, -1.45, true, false, true, 0.38], [0.85, -1.45, true, false, true, 0.38],
 			[-0.85, 1.45, false, true, true, 0.38], [0.85, 1.45, false, true, true, 0.38]],
-		"trunk_max_w": 40.0, "dog_seats": 2, "wound_mult": 1.0, "tailpipe": Vector3(-0.65, 0.22, 2.15), "com_y": -0.25},
+		"trunk_max_w": 40.0, "dog_seats": 2, "wound_mult": 1.0, "tailpipe": Vector3(-0.72, 0.24, 2.32), "com_y": -0.25},
 	"motorcycle": {"name": "Rat Bike", "aero_drag": 0.15, "mass": 260.0, "engine": 3400.0, "top": 38.0, "rev": 8.0,
 		"steer": [0.62, 0.2, 6.5], "tires": {"grip_f": 5.2, "grip_r": 4.6, "dirt_mult": 0.82, "name": "dual-sport"},
 		"chassis": Vector3(0.55, 0.6, 2.2), "hull": Vector3(0.34, 0.42, 1.9), "cabin": Vector3(0.3, 0.28, 0.7), "cabin_pos": Vector3(0, 0.62, 0.35),
 		# Physics rides 4 narrow-track wheels (self-standing trick); only the centered pair renders.
 		"wheels": [[-0.11, -0.8, true, false, false, 0.34], [0.11, -0.8, true, false, true, 0.34],
 			[-0.11, 0.8, false, true, false, 0.34], [0.11, 0.8, false, true, true, 0.34]],
-		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "two_wheel": true, "tailpipe": Vector3(0.16, 0.28, 0.95), "com_y": -0.4},
+		"trunk_max_w": 10.0, "dog_seats": 0, "wound_mult": 2.5, "rider_exposed": true, "two_wheel": true, "tailpipe": Vector3(0.20, 0.30, 1.12), "com_y": -0.4},
 	"buggy": {"name": "Dustrunner", "aero_drag": 0.30, "mass": 620.0, "engine": 5200.0, "top": 31.0, "rev": 10.0,
 		"steer": [0.6, 0.2, 6.0], "tires": {"grip_f": 5.0, "grip_r": 4.6, "dirt_mult": 0.95, "name": "knobby"},
 		"chassis": Vector3(1.7, 0.6, 3.0), "hull": Vector3(1.6, 0.35, 2.9), "cabin": Vector3(1.2, 0.45, 1.2), "cabin_pos": Vector3(0, 0.5, 0.1),
 		"wheels": [[-0.8, -1.1, true, false, true, 0.42], [0.8, -1.1, true, false, true, 0.42],
 			[-0.8, 1.1, false, true, true, 0.42], [0.8, 1.1, false, true, true, 0.42]],
-		"trunk_max_w": 22.0, "dog_seats": 1, "wound_mult": 1.4, "tailpipe": Vector3(-0.5, 0.32, 1.4), "com_y": -0.3},
+		"trunk_max_w": 22.0, "dog_seats": 1, "wound_mult": 1.4, "tailpipe": Vector3(-0.62, 0.34, 1.62), "com_y": -0.3},
 	"pickup": {"name": "Rustler", "aero_drag": 0.40, "mass": 1250.0, "engine": 8200.0, "top": 30.0, "rev": 10.0,
 		"steer": [0.55, 0.15, 4.8], "tires": {"grip_f": 5.4, "grip_r": 5.0, "dirt_mult": 0.90, "name": "all-terrain"},
 		"chassis": Vector3(2.1, 1.0, 4.8), "hull": Vector3(2.05, 0.8, 4.7), "cabin": Vector3(1.9, 0.75, 1.6), "cabin_pos": Vector3(0, 0.95, -1.0),
 		"wheels": [[-0.88, -1.6, true, false, true, 0.44], [0.88, -1.6, true, false, true, 0.44],
 			[-0.88, 1.6, false, true, true, 0.44], [0.88, 1.6, false, true, true, 0.44]],
-		"trunk_max_w": 60.0, "dog_seats": 2, "wound_mult": 0.9, "tailpipe": Vector3(-0.7, 0.26, 2.35), "com_y": -0.4},
+		"trunk_max_w": 60.0, "dog_seats": 2, "wound_mult": 0.9, "tailpipe": Vector3(-0.82, 0.28, 2.52), "com_y": -0.4},
 	"van": {"name": "Boxer", "aero_drag": 0.50, "mass": 1700.0, "engine": 7200.0, "top": 27.0, "rev": 9.0,
 		"steer": [0.5, 0.13, 4.0], "tires": {"grip_f": 5.6, "grip_r": 5.2, "dirt_mult": 0.68, "name": "highway"},
 		"chassis": Vector3(2.2, 1.5, 5.2), "hull": Vector3(2.2, 1.35, 5.2), "cabin": Vector3(2.0, 0.5, 1.4), "cabin_pos": Vector3(0, 1.05, -1.7),
 		"wheels": [[-0.9, -1.9, true, false, true, 0.4], [0.9, -1.9, true, false, true, 0.4],
 			[-0.9, 1.9, false, true, true, 0.4], [0.9, 1.9, false, true, true, 0.4]],
-		"trunk_max_w": 120.0, "dog_seats": 4, "wound_mult": 0.8, "tailpipe": Vector3(-0.78, 0.24, 2.55), "com_y": -0.45},
+		"trunk_max_w": 120.0, "dog_seats": 4, "wound_mult": 0.8, "tailpipe": Vector3(-0.86, 0.26, 2.72), "com_y": -0.45},
 	"semi": {"name": "Longhaul", "aero_drag": 1.00, "mass": 3800.0, "engine": 12000.0, "top": 25.0, "rev": 6.0,
 		"steer": [0.45, 0.1, 3.0], "tires": {"grip_f": 6.2, "grip_r": 5.8, "dirt_mult": 0.7, "name": "rig"},
 		"chassis": Vector3(2.4, 1.9, 6.4), "hull": Vector3(2.35, 1.0, 6.2), "cabin": Vector3(2.3, 1.3, 2.2), "cabin_pos": Vector3(0, 1.55, -1.9),
@@ -55,7 +55,7 @@ static var VEHICLES: Dictionary = {
 		"wheels": [[-0.95, -2.4, true, false, true, 0.45], [0.95, -2.4, true, false, true, 0.45],
 			[-0.95, 1.6, false, true, true, 0.45], [0.95, 1.6, false, true, true, 0.45],
 			[-0.95, 2.55, false, false, true, 0.45], [0.95, 2.55, false, false, true, 0.45]],
-		"trunk_max_w": 45.0, "dog_seats": 2, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "com_y": -0.55, "hitch_z": 3.1},
+		"trunk_max_w": 45.0, "dog_seats": 2, "wound_mult": 0.4, "tailpipe": Vector3(1.05, 2.6, -1.2), "exhaust_dir": Vector3(0, 1, 0), "com_y": -0.55, "hitch_z": 3.1},
 	# THE HUMVEE (gadgets goal): the military's ride — heavy, armored, planted, and it
 	# carries its OWN DRONE BAY on the rear deck (a mounted ProtoDroneDock: launch a route
 	# scout from the truck, quarter-day recharge law and all). The military AI that drives
@@ -65,7 +65,7 @@ static var VEHICLES: Dictionary = {
 		"chassis": Vector3(2.3, 1.1, 4.9), "hull": Vector3(2.25, 0.9, 4.8), "cabin": Vector3(2.0, 0.6, 2.2), "cabin_pos": Vector3(0, 1.05, -0.3),
 		"wheels": [[-0.95, -1.6, true, false, true, 0.46], [0.95, -1.6, true, false, true, 0.46],
 			[-0.95, 1.6, false, true, true, 0.46], [0.95, 1.6, false, true, true, 0.46]],
-		"trunk_max_w": 70.0, "dog_seats": 2, "wound_mult": 0.6, "tailpipe": Vector3(-0.75, 0.3, 2.4), "com_y": -0.45,
+		"trunk_max_w": 70.0, "dog_seats": 2, "wound_mult": 0.6, "tailpipe": Vector3(-0.88, 0.30, 2.57), "com_y": -0.45,
 		"armor": {"front": 55.0}, "drone_bay": true},
 	"trailer": {"name": "trailer", "aero_drag": 0.60, "mass": 2200.0, "engine": 0.0, "top": 0.0, "rev": 0.0,
 		"steer": [0.0, 0.0, 1.0], "tires": {"grip_f": 6.0, "grip_r": 6.0, "dirt_mult": 0.7, "name": "rig"},
@@ -647,6 +647,12 @@ var _halo: OmniLight3D = null
 ## brighten every car on the map wearing the same body color) so brake-glow is
 ## per-instance. Reverse adds a white glow box PLUS a real backward SpotLight3D
 ## that only lights up while actually reversing (+Z is backward in this engine).
+## NIGHT GLOW (fidelity loop it.6, probe: "parked rigs vanish at night"): main
+## sets this once per frame off daynight — every intact rig's tail boxes idle
+## brighter in the dark so a car reads at distance from BEHIND too (headlights
+## already answer the dark facing forward).
+static var night_glow: float = 1.0
+
 var _tail_mats: Array = []      ## StandardMaterial3D, one per tail box, duplicated
 var _reverse_glows: Array = []  ## MeshInstance3D, one per tail box (white box)
 var _reverse_light: SpotLight3D = null
@@ -714,7 +720,6 @@ var cook: float = 0.0 ## 0-100 while ON_FIRE — "it might blow, it might not"
 var dead: bool = false
 var salvaged: bool = false
 var _smoke: CPUParticles3D = null
-var _smoke_bucket: int = -1
 var _flames: CPUParticles3D = null
 var _spiral_rng := RandomNumberGenerator.new()
 
@@ -752,6 +757,7 @@ var _prev_vel: Vector3 = Vector3.ZERO
 var _prev_pos: Vector3 = Vector3.ZERO
 var _impact_cd: float = 0.0
 var _dust: CPUParticles3D = null ## speed dust — cheap AAA ground feel
+var _dust_mat: StandardMaterial3D = null ## the dust's own tint (struggle/surface reads)
 var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a beat
 
 
@@ -805,6 +811,26 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# Body visuals: modular low-poly parts in the camera-lab style. Physics stays
 	# entirely row-driven by the chassis/wheel data above and below.
 	_build_modular_vehicle_style(car, vclass_in, s, body_color)
+
+	# THE PIPE IS REAL (playtest 2026-07-10): damage smoke needs a visible tailpipe
+	# to pour from — a stubby exhaust tip at the row's `tailpipe` point. Skipped for
+	# two_wheel rigs (their style block already welds a muffler); a vertical
+	# `exhaust_dir` row (the semi's stack) gets a column instead of a tip.
+	var pipe_at: Vector3 = s.get("tailpipe", Vector3.ZERO)
+	if pipe_at != Vector3.ZERO and not bool(s.get("two_wheel", false)):
+		var pipe := MeshInstance3D.new()
+		var pipe_mesh := BoxMesh.new()
+		var pipe_dir: Vector3 = s.get("exhaust_dir", Vector3(0, 0.18, 1.0))
+		if absf(pipe_dir.y) > 0.7: # a stack: the column runs down from the tip
+			pipe_mesh.size = Vector3(0.12, 0.9, 0.12)
+			pipe.position = pipe_at - Vector3(0, 0.42, 0)
+		else: # a bumper tip: pokes out past the tail
+			pipe_mesh.size = Vector3(0.09, 0.09, 0.34)
+			pipe.position = pipe_at - Vector3(0, 0, 0.13)
+		pipe.mesh = pipe_mesh
+		pipe.name = "exhaust_tip"
+		pipe.material_override = ProtoWorldBuilder.material(Color(0.16, 0.16, 0.17), 0.35)
+		car.add_child(pipe)
 
 	if s["cabin"] != Vector3.ZERO:
 		# WINDOWS (owner ask 2026-07-07): a two_wheel rig has no cabin glass worth
@@ -1219,30 +1245,50 @@ func _update_damage_smoke() -> void:
 	var sev := clampf(1.0 - ratio / 0.7, 0.0, 1.0)
 	sm.emitting = sev > 0.0
 	if not sm.emitting:
-		_smoke_bucket = -1
 		return
-	# Quantize severity — changing CPUParticles amount restarts emission, so only
-	# touch it when the bucket actually moves.
-	var bucket := clampi(int(sev * 4.0), 0, 3)
-	if bucket != _smoke_bucket:
-		_smoke_bucket = bucket
-		sm.amount = [10, 20, 32, 44][bucket]
-	sm.color = Color(0.30, 0.29, 0.28, 0.7).lerp(Color(0.07, 0.07, 0.07, 0.92), sev)
+	# Amount stays FIXED (changing it restarts emission), and the tint rides the
+	# car's OWN puff material: WHITE smoke = a worry, BLACK smoke = a death
+	# sentence — reads like real engines.
+	var pm := (sm.mesh as QuadMesh).material as StandardMaterial3D
+	if pm != null:
+		pm.albedo_color = Color(0.62, 0.61, 0.59, 0.55).lerp(Color(0.08, 0.08, 0.08, 0.85), sev)
 
 
 func _ensure_smoke() -> CPUParticles3D:
 	if _smoke == null:
 		_smoke = CPUParticles3D.new()
-		_smoke.amount = 10
-		_smoke.lifetime = 1.6
-		_smoke.mesh = BoxMesh.new()
-		(_smoke.mesh as BoxMesh).size = Vector3(0.22, 0.22, 0.22)
-		_smoke.direction = Vector3(0, 1, 0)
-		_smoke.initial_velocity_min = 1.5
-		_smoke.initial_velocity_max = 3.0
-		_smoke.gravity = Vector3(0, 1.0, 0)
-		_smoke.color = Color(0.25, 0.24, 0.23, 0.8)
-		_smoke.position = spec.get("tailpipe", Vector3(0, 0.6, 1.2))
+		_smoke.amount = 36
+		_smoke.lifetime = 2.2
+		# SOFT PUFFS (fidelity loop it.4): billboarded radial-gradient discs off
+		# the shared ProtoFX sprite — the gray boxes read as debris, not smoke.
+		var quad := QuadMesh.new()
+		quad.size = Vector2(0.55, 0.55)
+		quad.material = ProtoFX.puff_material()
+		_smoke.mesh = quad
+		# OUT THE PIPE (playtest 2026-07-10 "smoke comes out of the middle"): puffs
+		# leave along the PIPE AXIS — rearward past the bumper for most rigs, straight
+		# up for a stack (row `exhaust_dir`, semi) — then buoyancy lifts them. The old
+		# emitter fired (0,1,0) from inside the trunk, so every plume read center-of-car.
+		var pipe_dir: Vector3 = spec.get("exhaust_dir", Vector3(0, 0.18, 1.0))
+		_smoke.direction = pipe_dir.normalized()
+		_smoke.spread = 11.0
+		_smoke.initial_velocity_min = 2.0
+		_smoke.initial_velocity_max = 3.4
+		# Buoyancy + a whisper of WIND so the column never rises laser-straight.
+		_smoke.gravity = Vector3(0.3, 0.85, 0.12)
+		_smoke.color = Color(0.5, 0.49, 0.48, 0.7)
+		_smoke.position = spec.get("tailpipe", Vector3(0, 0.6, 0.0))
+		# PUFFS, not popcorn (fidelity loop it.2): each mote fades in, GROWS as it
+		# rises, and thins out — instead of full-size boxes blinking in and out.
+		var grow := Curve.new()
+		grow.add_point(Vector2(0.0, 0.35))
+		grow.add_point(Vector2(0.4, 1.0))
+		grow.add_point(Vector2(1.0, 1.75))
+		_smoke.scale_amount_curve = grow
+		# NO per-instance color/ramp — the CPUParticles instance-color path is
+		# the black-ball artifact (see ProtoFX.puff_material). Fade over life
+		# comes from scale growth + the sprite's soft falloff; tint lives on
+		# THIS car's own material instance (albedo_color, severity-driven).
 		_smoke.emitting = false
 		add_child(_smoke)
 	return _smoke
@@ -1253,12 +1299,20 @@ func _ensure_flames() -> CPUParticles3D:
 		_flames = CPUParticles3D.new()
 		_flames.amount = 40
 		_flames.lifetime = 0.7
-		_flames.mesh = BoxMesh.new()
-		(_flames.mesh as BoxMesh).size = Vector3(0.3, 0.3, 0.3)
+		var fmesh := BoxMesh.new()
+		fmesh.size = Vector3(0.3, 0.3, 0.3)
+		# FIRE IS ORANGE (it.18 playtest eyes): the old `color =` rode the outlawed
+		# instance-color path — no material read it, so flames rendered as WHITE
+		# boxes. Emissive ember cubes on the mesh's OWN material (the law).
+		fmesh.material = ProtoWorldBuilder.material(Color(1.0, 0.45, 0.08), 0.3, true)
+		_flames.mesh = fmesh
+		var fshrink := Curve.new()
+		fshrink.add_point(Vector2(0.0, 1.0))
+		fshrink.add_point(Vector2(1.0, 0.3))
+		_flames.scale_amount_curve = fshrink # embers die small
 		_flames.direction = Vector3(0, 1, 0)
 		_flames.initial_velocity_min = 2.5
 		_flames.initial_velocity_max = 5.0
-		_flames.color = Color(1.0, 0.45, 0.08, 0.95)
 		_flames.position = Vector3(0, 0.7, -0.8)
 		_flames.emitting = false
 		add_child(_flames)
@@ -1326,10 +1380,35 @@ func _become_husk(_exploded: bool) -> void:
 	cook = 0.0
 	if _flames:
 		_flames.emitting = false
-	_ensure_smoke().emitting = true # husks smolder
+	# WRECK MODE: a husk smolders from the burnt hull's heart, wide and upward —
+	# not out the tailpipe (and a trailer husk, tailpipe ZERO, smolders too).
+	var smolder := _ensure_smoke()
+	var hull_v: Vector3 = spec["chassis"]
+	smolder.position = Vector3(0, maxf(0.5, hull_v.y * 0.6), 0)
+	smolder.direction = Vector3(0, 1, 0)
+	smolder.spread = 26.0
+	smolder.gravity = Vector3(0.25, 1.1, 0.1) # the same whisper of wind as the pipe
+	# (amount stays untouched — changing it restarts emission; tint on the material)
+	var hm := (smolder.mesh as QuadMesh).material as StandardMaterial3D
+	if hm != null:
+		hm.albedo_color = Color(0.10, 0.095, 0.09, 0.8) # burnt-out BLACK, whatever it read in life
+	smolder.emitting = true # husks smolder
 	# Char every visual — no matter HOW it died, the wreck reads burnt (user law).
 	var charred := ProtoWorldBuilder.material(Color(0.09, 0.085, 0.08), 1.0)
 	_char_visuals(self, charred)
+	# THE DYING EMBER (it.17 night sweep): a faint hot point in the hull so a
+	# night wreck reads as a DEAD FIRE, not a hole in the dark. Emissive mesh,
+	# no light (husks are many, lights are not free) — added AFTER the char pass
+	# so it keeps its glow.
+	var ember := MeshInstance3D.new()
+	var ember_mesh := BoxMesh.new()
+	ember_mesh.size = Vector3(0.14, 0.06, 0.18)
+	ember.mesh = ember_mesh
+	ember.material_override = ProtoWorldBuilder.material(Color(0.9, 0.32, 0.08), 0.6, true)
+	var hull_deck: Vector3 = spec.get("hull", spec["chassis"])
+	ember.position = Vector3(0.1, hull_deck.y + 0.08, -0.5) # ON the burnt deck — visible, not buried
+	ember.name = "ember"
+	add_child(ember)
 
 
 func _char_visuals(node: Node, mat: Material) -> void:
@@ -1339,10 +1418,42 @@ func _char_visuals(node: Node, mat: Material) -> void:
 		_char_visuals(child, mat)
 
 
+## THE DAMAGE DOLL's geometry rows (owner ask 2026-07-10): the HUD silhouette is
+## drawn from the SAME spec rows that build the 3D body, so every class — and any
+## future materialized row — gets a doll that matches its rig. Cached per class
+## (spec shapes don't move at runtime; an F10 refold that resizes a chassis just
+## repopulates on the next class lookup after restart).
+static var _doll_specs: Dictionary = {}
+
+static func doll_spec_for(vclass_in: String) -> Dictionary:
+	if _doll_specs.has(vclass_in):
+		return _doll_specs[vclass_in]
+	if not VEHICLES.has(vclass_in):
+		return {}
+	var s: Dictionary = VEHICLES[vclass_in]
+	var ch: Vector3 = s["chassis"]
+	var cab: Vector3 = s["cabin"]
+	var cabp: Vector3 = s["cabin_pos"]
+	var wheels: Array = []
+	for w in s["wheels"]:
+		var wr: Array = w
+		if bool(wr[4]): # visible wheels only — the doll shows what the player sees
+			wheels.append([float(wr[0]), float(wr[1]), float(wr[5])])
+	var out: Dictionary = {
+		"w": ch.x, "l": ch.z,
+		"cabin": [cab.x, cab.z, cabp.z],
+		"wheels": wheels,
+		"armor": s.get("armor", {}),
+	}
+	_doll_specs[vclass_in] = out
+	return out
+
+
 ## Dashboard snapshot for the HUD (the car's moodles) — tiers AND ratios (the
 ## bars), plus what the ground is doing to you right now.
 func dashboard() -> Dictionary:
 	return {
+		"doll": ProtoCar3D.doll_spec_for(vclass),
 		"engine": components["engine"].tier(), "tires": components["tires"].tier(),
 		"battery": components["battery"].tier(), "fuel_tank": components["fuel_tank"].tier(),
 		"chassis": components["chassis"].tier(), "fuel": fuel,
@@ -1421,19 +1532,28 @@ func _physics_process(delta: float) -> void:
 	_prev_vel = linear_velocity
 	_prev_pos = global_position
 
-	# Rolling dust: kick up wasteland behind the vehicle at speed.
+	# Rolling dust: kick up wasteland behind the vehicle at speed — soft puffs on
+	# the shared FX sprite, tinted on THEIR OWN material (the black-ball law; the
+	# old box mesh carried a dead `color` that no material ever read).
 	if _dust == null:
 		_dust = CPUParticles3D.new()
-		_dust.amount = 28
+		_dust.amount = 40 # FIXED — amount changes restart emission (the black-ball law)
 		_dust.lifetime = 1.1
-		_dust.mesh = BoxMesh.new()
-		(_dust.mesh as BoxMesh).size = Vector3(0.22, 0.22, 0.22)
+		var dust_quad := QuadMesh.new()
+		dust_quad.size = Vector2(0.5, 0.5)
+		_dust_mat = ProtoFX.puff_material()
+		_dust_mat.albedo_color = Color(0.62, 0.52, 0.38, 0.5)
+		dust_quad.material = _dust_mat
+		_dust.mesh = dust_quad
+		var dust_grow := Curve.new()
+		dust_grow.add_point(Vector2(0.0, 0.5))
+		dust_grow.add_point(Vector2(1.0, 1.6))
+		_dust.scale_amount_curve = dust_grow
 		_dust.direction = Vector3(0, 0.6, 1)
 		_dust.spread = 25.0
 		_dust.initial_velocity_min = 1.0
 		_dust.initial_velocity_max = 2.5
 		_dust.gravity = Vector3(0, -2.0, 0)
-		_dust.color = Color(0.62, 0.52, 0.38, 0.5)
 		_dust.position = Vector3(0, -0.2, spec["chassis"].z / 2.0)
 		_dust.emitting = false
 		add_child(_dust)
@@ -1441,17 +1561,22 @@ func _physics_process(delta: float) -> void:
 	# vehicles churn double the dust in fat mud clumps — you SEE the struggle.
 	var dust_speed: float = SURFACE.get(current_surface, SURFACE["road"])["dust_speed"]
 	_dust.emitting = not dead and absf(forward_speed) > (2.5 if is_struggling else dust_speed)
-	_dust.amount = 56 if is_struggling else 28
-	if is_struggling:
-		_dust.color = Color(0.45, 0.34, 0.2, 0.75)
-	else:
-		# SURFACE FEEDBACK (owner directive): the wheel-spray tints per-surface
-		# from the same handling row the physics now consults — gravel throws pale
-		# grit, mud throws dark clumps, asphalt barely dusts at all.
-		var dust_c: Array = current_handling().get("dust", [0.55, 0.55, 0.55, 0.32])
-		_dust.color = Color(float(dust_c[0]), float(dust_c[1]), float(dust_c[2]), float(dust_c[3]))
+	# Amount stays FIXED (the restart law); struggle reads through the TINT on
+	# the dust's own material (the old `_dust.color` writes were dead — no
+	# vertex-color material ever read them). MERGE 2026-07-14: main's material
+	# mechanism carries OUR per-surface tint from the handling row — gravel
+	# throws pale grit, mud throws dark clumps, asphalt barely dusts at all.
+	if _dust_mat != null:
+		if is_struggling:
+			_dust_mat.albedo_color = Color(0.45, 0.34, 0.2, 0.8)
+		else:
+			var dust_c: Array = current_handling().get("dust", [0.55, 0.55, 0.55, 0.32])
+			_dust_mat.albedo_color = Color(float(dust_c[0]), float(dust_c[1]), float(dust_c[2]), float(dust_c[3]))
 
 	_update_wear_visuals(delta)
+	# Tails tick for EVERY rig — parked cars must answer the night glow too (the
+	# old call sat below the parked return, freezing their glow at build state).
+	_update_tail_lights()
 
 	if not is_active or dead:
 		engine_force = 0.0
@@ -1708,7 +1833,6 @@ func _physics_process(delta: float) -> void:
 			elif absf(input_steer) < 0.15:
 				apply_torque(Vector3(0.0, -wy * mass * yaw_damp, 0.0))
 
-	_update_tail_lights()
 	_emit_skids()
 
 
@@ -1876,7 +2000,7 @@ func _update_tail_lights() -> void:
 	var target_mult: float = float(brake_row.get("energy_mult", 3.0)) if braking else 1.0
 	for m in _tail_mats:
 		if m is StandardMaterial3D:
-			(m as StandardMaterial3D).emission_energy_multiplier = 1.4 * target_mult
+			(m as StandardMaterial3D).emission_energy_multiplier = 1.4 * target_mult * ProtoCar3D.night_glow
 	# A soft red pulse rides along with the glow — subtle, not a strobe.
 	if braking and _brake_light == null:
 		_brake_light = OmniLight3D.new()

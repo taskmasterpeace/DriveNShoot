@@ -31,7 +31,7 @@ static func create(main: Node, car_in: ProtoCar3D, dest_in: Vector3, look: Strin
 	shape.shape = cap
 	shape.position.y = 0.85
 	m.add_child(shape)
-	m.puppet = ProtoPuppet.create(ProtoPuppet.look(look))
+	m.puppet = ProtoPuppet.create(ProtoPuppet.look(look, hash(m.get_instance_id()))) # wardrobe law: no clones
 	m.add_child(m.puppet)
 	return m
 

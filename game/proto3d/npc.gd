@@ -147,7 +147,7 @@ static func create(arch: String) -> ProtoNPC:
 
 	# The SAME puppet the player wears — just a different look row and, each frame, a
 	# different STATE. An NPC "acting its part" is not extra code, it's the rig fed data.
-	var look: Dictionary = ProtoPuppet.look(a.get("look", ""))
+	var look: Dictionary = ProtoPuppet.look(a.get("look", ""), hash(n.get_instance_id())) # wardrobe law
 	if not look.has("cloth"):
 		look["cloth"] = a["color"] # fall back to the archetype's signature color
 	n._puppet = ProtoPuppet.create(look)

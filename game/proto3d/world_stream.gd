@@ -21,11 +21,16 @@ const STATES: Array = ["VIRGINIA", "KENTUCKY", "MISSOURI", "KANSAS", "COLORADO",
 
 # (ROAD_W retired 2026-07-07: width is the ROW's — ProtoUSMap.road_geometry, the one law.)
 
+## Retuned (fidelity loop it.8 probe: noon sun 1.25x warm over high-value yellow
+## tints read LEMON inside the vision pool): ~10% less value so midday doesn't
+## blow out, and the hues separate — farmland WHEAT-gold, forest a deep woodland
+## floor, desert warm sand, plains dry sage. (The map palette below is its own
+## read and stays.)
 const BIOME_GROUND: Dictionary = {
-	"forest": Color(0.30, 0.34, 0.20), "farmland": Color(0.55, 0.48, 0.26),
-	"plains": Color(0.52, 0.47, 0.30), "scrub": Color(0.52, 0.42, 0.28),
-	"desert": Color(0.62, 0.50, 0.32), "mountains": Color(0.46, 0.44, 0.42),
-	"swamp": Color(0.30, 0.32, 0.22), "urban": Color(0.42, 0.40, 0.38),
+	"forest": Color(0.24, 0.29, 0.17), "farmland": Color(0.50, 0.42, 0.24),
+	"plains": Color(0.45, 0.42, 0.27), "scrub": Color(0.46, 0.38, 0.26),
+	"desert": Color(0.60, 0.46, 0.30), "mountains": Color(0.46, 0.44, 0.42),
+	"swamp": Color(0.25, 0.28, 0.20), "urban": Color(0.42, 0.40, 0.38),
 	"water": Color(0.16, 0.28, 0.34), "ocean": Color(0.10, 0.20, 0.28),
 }
 
@@ -71,6 +76,7 @@ var _atlas_zoom: float = 1.0        ## 1..8 over the fitted view (state/country)
 var _atlas_pan: Vector2 = Vector2.ZERO ## world-m offset of the view center, clamped in-bounds
 var _local_zoom: float = 1.0        ## 1..4 over the local fog map
 var _zoom_chip_rects: Array = []    ## [[Rect2, factor], ...] — the LCD +/- chips (canvas space)
+var _device_chip_rect: Rect2 = Rect2() ## the LCD 📱/📟 chip — swaps device skins (canvas space)
 var map_debug_buttons: bool = false ## render_ui acceptance: outline the device hotspots
 
 ## The handheld's PHYSICAL buttons, as fractions of the device root (measured off the
@@ -94,6 +100,13 @@ func setup(pois: Array, main_ref: Node = null) -> void:
 		usmap = ProtoUSMap.get_default()
 	if main_ref != null and "population" in main_ref and main_ref.population != null:
 		population = main_ref.population
+
+
+## The chunk's ground color: biome base + the deterministic PATCHWORK nudge
+## (fidelity loop it.7 — fields read as a quilt at 10-50 m, not one flat sheet).
+func _ground_col(biome: String, center: Vector3) -> Color:
+	return ProtoWorldBuilder.chunk_tint(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]),
+		int(floor(center.x / CHUNK)), int(floor(center.z / CHUNK)))
 
 
 ## Which state a world position is in (the macro map's Voronoi states; the old
@@ -206,7 +219,7 @@ func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
 	st.generate_normals() # displaced slopes need real normals to light correctly
 	var gm := MeshInstance3D.new()
 	gm.mesh = st.commit()
-	gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+	gm.material_override = ProtoWorldBuilder.ground_material(_ground_col(biome, center), 1.0)
 	body.add_child(gm)
 
 	var hshape := HeightMapShape3D.new()
@@ -328,7 +341,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			var plane := BoxMesh.new()
 			plane.size = Vector3(CHUNK + 2.0, 2.0, CHUNK + 2.0)
 			gm.mesh = plane
-			gm.material_override = ProtoWorldBuilder.ground_material(BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]), 1.0)
+			gm.material_override = ProtoWorldBuilder.ground_material(_ground_col(biome, center), 1.0)
 			gm.position.y = -1.01 - (0.22 if wet else 0.0) # top face where the 0.5 m floor's was
 			g.add_child(gm)
 			var gs := CollisionShape3D.new()
@@ -341,7 +354,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			chunk.add_child(g)
 	elif biome != "scrub" and biome != "desert":
 		ProtoWorldBuilder.ground_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
-			center + Vector3(0, 0.03, 0), BIOME_GROUND.get(biome, BIOME_GROUND["scrub"]))
+			center + Vector3(0, 0.03, 0), _ground_col(biome, center))
 
 	# --- The roads materialize (ROAD_TRAFFIC_OVERHAUL.md §3.3): EVERY macro road
 	# near this chunk becomes real asphalt to its ROW's geometry — lanes, median
@@ -425,9 +438,32 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	# --- Water chunks: still surface, no scatter, nothing to fight. -----------
 	if wet:
 		if absf(center.x) <= SLAB and absf(center.z) <= SLAB:
-			ProtoWorldBuilder.box_visual(chunk, Vector3(CHUNK, 0.04, CHUNK),
-				center + Vector3(0, 0.045, 0), BIOME_GROUND[biome])
+			# WATER READS (it.14): lit ripple + sun glint off the shared water
+			# material — the flat painted box photographed as cardboard.
+			var wmesh := MeshInstance3D.new()
+			var wbm := BoxMesh.new()
+			wbm.size = Vector3(CHUNK, 0.04, CHUNK)
+			wmesh.mesh = wbm
+			wmesh.material_override = ProtoWorldBuilder.water_material(BIOME_GROUND[biome])
+			wmesh.position = center + Vector3(0, 0.045, 0)
+			chunk.add_child(wmesh)
 		return chunk
+
+	# SHORE BANDS (fidelity loop it.15): a wet-sand rim where this land chunk
+	# meets water — the coast stops being a razor edge. 4 biome probes, thin
+	# grain strips, no collision.
+	if usmap != null and usmap.ok:
+		for dir4 in [Vector3(CHUNK, 0, 0), Vector3(-CHUNK, 0, 0), Vector3(0, 0, CHUNK), Vector3(0, 0, -CHUNK)]:
+			var d4: Vector3 = dir4
+			if usmap.biome_at(center + d4) in ["water", "ocean"]:
+				var strip := MeshInstance3D.new()
+				var sbm := BoxMesh.new()
+				var along_x := absf(d4.z) > 0.0
+				sbm.size = Vector3(CHUNK if along_x else 2.6, 0.05, 2.6 if along_x else CHUNK)
+				strip.mesh = sbm
+				strip.material_override = ProtoWorldBuilder.ground_material(Color(0.60, 0.55, 0.42), 1.0)
+				strip.position = center + d4 * 0.5 - d4.normalized() * 1.3 + Vector3(0, 0.055, 0)
+				chunk.add_child(strip)
 
 	# --- A town? (macro anchor inside this chunk → ruins + sign + landmark) ---
 	if usmap != null and usmap.ok:
@@ -649,7 +685,8 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 	var sid := String(ID_MIGRATE.get(p["building"], p["building"]))
 	DrivnData.ensure_structures()
 	if DrivnData.structures.has(sid):
-		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")))
+		var shell := ProtoStructureBuilder.materialize(sid, String(p.get("label", "")),
+			hash(Vector2i(int((p["pos"] as Vector2).x), int((p["pos"] as Vector2).y))))
 		if shell != null:
 			shell.add_to_group("placement")
 			shell.set_meta("building", p["building"])
@@ -1371,26 +1408,38 @@ static func roll_field_cache(biome: String, near_road: bool, rng: RandomNumberGe
 ## device PNG frames it, the atlas renders inside its empty screen rect (fractions of
 ## the device; same moving-part law as every other face). Missing PNG = the old plain
 ## panel, so the map never disappears.
-const GPS_PNG := "res://assets/ui/device/gps.png"
-const GPS_SCREEN := Rect2(0.302, 0.273, 0.378, 0.430) ## the dark LCD inside the bezel (cross-section-scanned: x134-306, y138-362 of 448x512)
-const GPS_H := 940.0 ## on-screen device height (448x512 aspect → ~822 wide; LCD ≈ 311x404)
+## DEVICE SKINS (owner ask 2026-07-10 "we need a 9x16 like a cell phone as well"):
+## ONE screen law, two handhelds — the GPS brick (448x512, physical buttons) and the
+## PHONE (181x288 portrait, all-touch: the LCD chips are the only controls). `screen`
+## is the dark LCD as fractions of the art (cross-section-scanned, same law as the
+## brick); the 📱/📟 chip on the LCD swaps skins live, keeping the current view.
+const DEVICE_SKINS: Dictionary = {
+	"gps": {"png": "res://assets/ui/device/gps.png", "h": 940.0, "aspect": 448.0 / 512.0,
+		"screen": Rect2(0.302, 0.273, 0.378, 0.430), "buttons": GPS_BTN},
+	"phone": {"png": "res://assets/ui/device/phone.png", "h": 900.0, "aspect": 181.0 / 288.0,
+		"screen": Rect2(0.10, 0.146, 0.80, 0.729), "buttons": {}},
+}
+var device_skin: String = "gps" ## which handheld frames the map — swapped by the LCD chip
 
 func toggle_map() -> void:
 	if _map_layer == null:
 		_map_layer = CanvasLayer.new()
 		_map_layer.layer = 3
 		add_child(_map_layer)
-		var dev_tex: Texture2D = load(GPS_PNG) if ResourceLoader.exists(GPS_PNG) else null
+		var skin: Dictionary = DEVICE_SKINS.get(device_skin, DEVICE_SKINS["gps"])
+		var skin_png: String = skin["png"]
+		var dev_tex: Texture2D = load(skin_png) if ResourceLoader.exists(skin_png) else null
 		var host: Control = null ## whatever the canvas mounts into
 		if dev_tex != null:
 			# The handheld: centered, device aspect, map inside the screen rect.
-			var dw := GPS_H * 448.0 / 512.0
+			var dev_h: float = skin["h"]
+			var dw: float = dev_h * float(skin["aspect"])
 			var root := Control.new()
 			root.set_anchors_preset(Control.PRESET_CENTER)
 			root.offset_left = -dw * 0.5
 			root.offset_right = dw * 0.5
-			root.offset_top = -GPS_H * 0.5
-			root.offset_bottom = GPS_H * 0.5
+			root.offset_top = -dev_h * 0.5
+			root.offset_bottom = dev_h * 0.5
 			_map_layer.add_child(root)
 			var dev := TextureRect.new()
 			dev.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1400,17 +1449,20 @@ func toggle_map() -> void:
 			dev.stretch_mode = TextureRect.STRETCH_SCALE # root already holds the aspect
 			dev.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			root.add_child(dev)
+			var scr_rect: Rect2 = skin["screen"]
 			var screen := Control.new()
-			screen.anchor_left = GPS_SCREEN.position.x
-			screen.anchor_top = GPS_SCREEN.position.y
-			screen.anchor_right = GPS_SCREEN.position.x + GPS_SCREEN.size.x
-			screen.anchor_bottom = GPS_SCREEN.position.y + GPS_SCREEN.size.y
+			screen.anchor_left = scr_rect.position.x
+			screen.anchor_top = scr_rect.position.y
+			screen.anchor_right = scr_rect.position.x + scr_rect.size.x
+			screen.anchor_bottom = scr_rect.position.y + scr_rect.size.y
 			root.add_child(screen)
 			host = screen
 			# THE DEVICE'S OWN BUTTONS work (owner ask): invisible hotspots over the art —
-			# POWER closes, MENU cycles the view, D-PAD pans the atlas.
-			for bname in GPS_BTN:
-				var r: Rect2 = GPS_BTN[bname]
+			# POWER closes, MENU cycles the view, D-PAD pans the atlas. (The phone is
+			# all-touch: its row is empty, the LCD chips carry everything.)
+			var skin_btns: Dictionary = skin["buttons"]
+			for bname in skin_btns:
+				var r: Rect2 = skin_btns[bname]
 				var hb := Button.new()
 				hb.anchor_left = r.position.x
 				hb.anchor_top = r.position.y
@@ -1532,6 +1584,39 @@ func _draw_zoom_chips() -> void:
 	if z > 1.01:
 		_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(size.x - s - pad - 6, pad * 3 + s * 2 + 12),
 			"x%.1f" % z, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82, 0.8))
+	# THE DEVICE SWAP CHIP (owner ask 2026-07-10): flip the GPS brick ↔ the 9:16
+	# phone right on the LCD — the icon shows the OTHER handheld you'd switch to.
+	var dc := Rect2(Vector2(size.x - s - pad, pad * 4 + s * 2 + 22), Vector2(s, s))
+	_map_canvas.draw_rect(dc, Color(0.07, 0.06, 0.05, 0.85))
+	_map_canvas.draw_rect(dc, Color(0.96, 0.72, 0.2), false, 2.0)
+	# The icon shows the OTHER handheld, drawn in primitives (emoji rendered as
+	# mush at chip size): a tall PHONE while on the brick, the BRICK on the phone.
+	var icon_col := Color(0.96, 0.72, 0.2)
+	if device_skin == "gps":
+		var pr := Rect2(dc.position + Vector2(7.0, 4.0), Vector2(10.0, 16.0))
+		_map_canvas.draw_rect(pr, icon_col, false, 1.5)
+		_map_canvas.draw_line(pr.position + Vector2(3.0, 13.0), pr.position + Vector2(7.0, 13.0), icon_col, 1.2)
+	else:
+		var br := Rect2(dc.position + Vector2(5.0, 8.0), Vector2(14.0, 11.0))
+		_map_canvas.draw_rect(br, icon_col, false, 1.5)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.0, -4.0), Vector2(2.5, 4.0)), icon_col)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.5, 6.5), Vector2(3.0, 2.0)), icon_col)
+		_map_canvas.draw_rect(Rect2(br.position + Vector2(8.0, 6.5), Vector2(3.0, 2.0)), icon_col)
+	_device_chip_rect = dc
+
+
+## Flip GPS brick ↔ phone, keeping the current view: rebuild the device UI from
+## its skin row (toggle_map owns construction — re-enter it on the same mode).
+func _swap_device_skin() -> void:
+	device_skin = "phone" if device_skin == "gps" else "gps"
+	var keep := _map_mode
+	if _map_layer != null:
+		_map_layer.queue_free()
+		_map_layer = null
+		_map_canvas = null
+		_map_panel = null
+	_map_mode = keep - 1 # toggle_map advances (+1): land back on the same view
+	toggle_map()
 
 
 # --- Pixel map markers (assets/ui/markers/) — icons replace the old dots on the map ----
@@ -1868,6 +1953,10 @@ func _on_map_input(event: InputEvent) -> void:
 				if (chip[0] as Rect2).has_point(mb.position):
 					zoom_at(_map_canvas.size * 0.5, float(chip[1]))
 					return
+			# The 📱/📟 chip: flip the handheld, keep the view.
+			if _device_chip_rect.has_point(mb.position):
+				_swap_device_skin()
+				return
 	if _map_mode < 2 or usmap == null or not usmap.ok:
 		return
 	if not (event is InputEventMouseButton and event.pressed \

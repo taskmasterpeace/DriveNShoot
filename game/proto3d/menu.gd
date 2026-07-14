@@ -64,7 +64,7 @@ func _build() -> void:
 	if FileAccess.file_exists(_main.SAVE_PATH):
 		_button("↻  CONTINUE", continue_game)
 	_button("🌐  HOST CO-OP", host_game)
-	_button("🎮  CONTROLS", func() -> void: _main.toggle_controls_panel())
+	_button("🕹  CONTROLS", func() -> void: _main.toggle_controls_panel()) # 🕹 not 🎮 — the pad emoji renders PURPLE (the law)
 	_button("⚙  OPTIONS", func() -> void: open_options())
 	var jrow := HBoxContainer.new()
 	jrow.add_theme_constant_override("separation", 6)
@@ -83,7 +83,7 @@ func _build() -> void:
 	hint.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.55, 0.5, 0.42))
-	hint.text = "in-game: F5 save · F9 load · F7 host · F8 join · K sheet · F10 dev · F11 controls · 🎮 pads welcome"
+	hint.text = "in-game: F5 save · F9 load · F7 host · F8 join · K sheet · F10 dev · F11 controls · 🕹 pads welcome"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_root.add_child(hint)
 	# A PAD navigates the door: focus the first button so D-pad/✕ work from boot.

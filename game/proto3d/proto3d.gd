@@ -259,7 +259,7 @@ func _ready() -> void:
 	# in the SEDAN's trunk (the key/hotwire loop pays off in firepower).
 	var chest := ProtoChest.create("Chest", {"bandage": 2, "meat": 2, "scrip": 8, "shotgun": 1, "12ga": 10, "eyepatch": 1, "drone": 1,
 		"medkit": 1, "water": 2, "jerry_can": 1, "car_parts": 1, "flare": 2, "map_fragment": 1,
-		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1, "lockpick": 1})
+		"surveil_cam": 2, "walkie": 1, "motion_sensor": 2, "book_home": 1, "game_handheld": 1, "lockpick": 1})
 	chest.position = Vector3(108.2, 0.05, -324.0)
 	add_child(chest)
 	cars[1].trunk.add("pipe_rocket", 1)
@@ -338,6 +338,10 @@ func _ready() -> void:
 		if _n is ProtoRaceBoard:
 			waypoints.append(["🏁 RACES", _n])
 			break
+	for venue_value in game_venues:
+		var venue: Node3D = venue_value
+		var venue_row: Dictionary = venue.get("venue_row")
+		waypoints.append([String(venue_row.get("waypoint", "🎮 GAME NIGHT")), venue])
 
 	# The macro map (DIVIDED STATES USA) feeds streaming, surfaces, and the HUD.
 	ProtoWorldBuilder.usmap = ProtoUSMap.get_default()
@@ -454,6 +458,14 @@ var music: ProtoMusic = null
 var radio_dial: ProtoRadioDial = null ## the frequency-tuning radio face (O opens it)
 var skill_tree: ProtoSkillTree = null ## the visual mastery tree (U opens it; K stays the atlas)
 var book_panel: ProtoBookPanel = null ## THE LIBRARY — the in-game manuals (bookshelf / book items)
+## THE GAME DECK: one runtime drives the safehouse console, fullscreen shell, and pocket screen.
+var game_deck: Node = null
+var game_shell: CanvasLayer = null
+var game_console: Node3D = null
+var game_handheld: Node3D = null
+var game_shelf: Node3D = null
+var game_cartridge_caches: Array = []
+var game_venues: Array = []
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
@@ -559,6 +571,73 @@ func _build_environment() -> void:
 	add_child(tv)
 	tv.global_position = SAFEHOUSE + Vector3(-3.0, 0, -2.0) # the corner of home
 	_face_toward(tv, SAFEHOUSE) # screen faces INTO the room (was a fixed 0.7 that aimed it at a corner — the "wrong side")
+	# GAME DECK: every cartridge reaches the same always-live viewport, input, score,
+	# save, and network contracts. These are only two physical shells around it.
+	var deck_script := load("res://proto3d/games/game_deck.gd") as GDScript
+	game_deck = deck_script.create(self)
+	add_child(game_deck)
+	var shell_script := load("res://proto3d/games/game_shell.gd") as GDScript
+	game_shell = shell_script.create(game_deck)
+	add_child(game_shell)
+	var console_script := load("res://proto3d/games/game_console.gd") as GDScript
+	game_console = console_script.create(self, game_deck, game_shell)
+	add_child(game_console)
+	game_shell.attach_terminal(game_console, game_console.session_broker)
+	game_console.global_position = SAFEHOUSE + Vector3(-0.9, 0.0, -2.2)
+	_face_toward(game_console, SAFEHOUSE)
+	var handheld_script := load("res://proto3d/games/game_handheld.gd") as GDScript
+	game_handheld = handheld_script.create(self, game_deck, game_shell)
+	add_child(game_handheld)
+	game_handheld.global_position = SAFEHOUSE + Vector3(-3.75, 1.15, -0.55)
+	game_handheld.rotation_degrees = Vector3(-65, 8, 0)
+	var shelf_script := load("res://proto3d/games/game_shelf.gd") as GDScript
+	game_shelf = shelf_script.create(self, game_deck, game_shell)
+	add_child(game_shelf)
+	game_shelf.global_position = SAFEHOUSE + Vector3(-4.8, 0.0, -2.0)
+	_face_toward(game_shelf, SAFEHOUSE)
+	# Four explicit discovery sites make ownership physical in this vertical
+	# slice. Their contents are still data rolls; adding media remains a row edit.
+	var cache_specs: Array = [
+		["Emergency Firmware Case", "game_firmware_cache", SAFEHOUSE + Vector3(5.5, 0.05, 3.0)],
+		["Electronics Store Cartridge Case", "game_electronics_cache", Vector3(150, 0.05, -350)],
+		["Drive-In Tournament Lockbox", "game_drive_in_cache", Vector3(66, 0.05, -230)],
+		["Border Academy Cartridge Safe", "game_military_cache", Vector3(205, 0.05, -220)],
+	]
+	for cache_index in cache_specs.size():
+		var spec: Array = cache_specs[cache_index]
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("game-cache:%d" % cache_index)
+		var cache := ProtoChest.create(String(spec[0]),
+			ProtoContainer.roll_loot(String(spec[1]), rng))
+		cache.add_to_group("game_cache")
+		var cache_label := Label3D.new()
+		cache_label.name = "GameCacheLabel"
+		cache_label.text = String(spec[1]).trim_prefix("game_").replace("_", "\n").to_upper()
+		cache_label.font_size = 36
+		cache_label.pixel_size = 0.004
+		cache_label.modulate = Color("f2b735")
+		cache_label.outline_modulate = Color("11100d")
+		cache_label.outline_size = 8
+		cache_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		cache_label.position = Vector3(0, 1.15, 0)
+		cache.add_child(cache_label)
+		add_child(cache)
+		cache.global_position = spec[2]
+		game_cartridge_caches.append(cache)
+	# Console culture has places and a calendar. Each venue is one generic node
+	# folded from rows; its screen samples this same deck texture.
+	var venue_script := load("res://proto3d/games/game_venue.gd") as GDScript
+	var tournament_catalog: Dictionary = venue_script.load_catalog()
+	for venue_value in tournament_catalog.get("venues", []):
+		var venue_row: Dictionary = venue_value
+		var venue_id := String(venue_row.get("id", ""))
+		var venue_events: Array = (tournament_catalog.get("events", []) as Array).filter(
+			func(event: Dictionary) -> bool:
+				return String(event.get("venue_id", "")) == venue_id)
+		var venue: Node3D = venue_script.create(self, game_deck, game_shell,
+			venue_row, venue_events)
+		add_child(venue)
+		game_venues.append(venue)
 	if media_panel != null:
 		media_panel.tv_set = tv # close the panel mid-reel → the picture lands ON the set
 	# THE DRIVE-IN (cinema.md Phase 3): a lot off the Meridian road. Its screen
@@ -619,6 +698,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		# (and never mid-capture: the key you press is the key you MEANT to bind).
 		if event.is_action_pressed("drivn_controls") and not controls_panel.capturing():
 			toggle_controls_panel()
+		return
+	if game_shell != null and game_shell.is_open:
+		# The shell receives cartridge input in its own _input pass. Nothing leaks
+		# through to feet, guns, car doors, or the world while the bezel is open.
 		return
 	if event.is_action_pressed("interact"):
 		# Piloting a drone? Interact brings it in — you can't just switch it off in the air,
@@ -766,7 +849,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_char_create"):
 		char_create.toggle()
 	elif event.is_action_pressed("drivn_sheet"):
-		hud.toggle_sheet(_sheet_text())
+		hud.toggle_sheet(_sheet_text(), _body_tiers())
 	elif event.is_action_pressed("drivn_skill_tree"):
 		skill_tree.toggle() # the visual mastery tree — perks light as skills level by doing
 	elif event.is_action_pressed("drivn_waypoints"):
@@ -954,6 +1037,7 @@ func _physics_process(delta: float) -> void:
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
+		or (game_shell != null and game_shell.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
 		or (radio_dial != null and radio_dial.is_open) \
 		or (skill_tree != null and skill_tree.is_open) \
@@ -1091,7 +1175,9 @@ func _physics_process(delta: float) -> void:
 	# The TV no longer fast-forwards time (owner 2026-07-07: "that's absurd") —
 	# a broadcast runs at 1:1 and the AIR CLOCK keeps the schedule honest.
 	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
-	# Headlights answer the dark on their own.
+	# Headlights answer the dark on their own — and tails idle brighter so a rig
+	# reads at distance from BEHIND too (the night-glow law, car_3d).
+	ProtoCar3D.night_glow = 2.0 if daynight.is_dark() else 1.0
 	for c in cars:
 		if is_instance_valid(c):
 			c.set_headlights(daynight.is_dark())
@@ -2041,6 +2127,16 @@ func _on_respect_changed(faction: String) -> void:
 
 
 ## Item effects (data → verb). Returns true if consumed.
+func _stop_handheld_session(reason: String) -> void:
+	if game_shell != null and game_shell.is_open:
+		game_shell.close_to_device()
+	if game_deck != null and game_deck.cartridge != null \
+			and String(game_deck.current_context.get("device", "")) == "handheld":
+		game_deck.stop(reason)
+	if game_handheld != null:
+		game_handheld.set_off()
+
+
 func use_item(id: String) -> bool:
 	# HUNGER: any row with food_val FEEDS you (generic — the rows rule).
 	var fv: float = float(ProtoContainer.ITEMS.get(id, {}).get("food_val", 0))
@@ -2057,6 +2153,27 @@ func use_item(id: String) -> bool:
 			notify("🦺 Worn: %s" % String(ProtoGear.row(id).get("name", id)))
 			return true
 		return false
+	if id == "game_handheld":
+		if mode == Mode.DRIVE and not passenger_of_ai:
+			notify("ðŸŽ® Keep both hands on the wheel. A passenger can run the Game Deck.")
+			return false
+		if game_handheld != null:
+			game_handheld.open(self)
+		return false # hardware stays in the pack
+	if id.begins_with("game_cart_"):
+		if game_deck == null or game_deck.ledger == null:
+			return false
+		var game_id := String(game_deck.ledger.game_id_for_item(id))
+		if game_id == "":
+			notify("🎮 The media is unreadable.")
+			return false
+		if not bool(game_deck.ledger.install_item(id)):
+			notify("🎮 %s is already installed. Keep the spare or trade it." %
+				String(game_deck.registry.get_game(game_id).get("title", game_id)))
+			return false
+		notify("🎮 INSTALLED — %s is now on the Game Deck shelf." %
+			String(game_deck.registry.get_game(game_id).get("title", game_id)))
+		return true
 	if ProtoWeapon.WEAPONS.has(id):
 		# Already own it? USING a gun you carry means DRAW it — switch, don't refuse.
 		for i in weapons.size():
@@ -3131,6 +3248,10 @@ func enter_drone_pilot(d: Node3D) -> void:
 func on_player_clawed(damage: float, _who: Node3D) -> void:
 	if character.dead:
 		return
+	# A hit breaks fullscreen concentration but does not erase the pocket run: the
+	# same live texture remains on the physical handheld until the body/seat is lost.
+	if game_handheld != null and game_handheld.visible and game_shell != null and game_shell.is_open:
+		game_shell.close_to_device()
 	# Hit while piloting a drone? Your immobile body must bail — the bird hovers, you fight.
 	if drone_pilot != null and drone_pilot.body_immobile():
 		drone_pilot.on_attacked()
@@ -3231,6 +3352,14 @@ func _update_skill_trickle(delta: float) -> void:
 
 
 ## The character sheet (K) — stats speak emoji, per the moodle law.
+## The body doll's feed: part -> live tier (the sheet text says it, the doll shows it).
+func _body_tiers() -> Dictionary:
+	var out: Dictionary = {}
+	for part in ProtoCharacter.PART_NAMES:
+		out[part] = (character.body[part] as Damageable).tier()
+	return out
+
+
 func _sheet_text() -> String:
 	var lines: Array[String] = []
 	lines.append("❤️ HP %d / %d (cap)" % [int(character.hp), int(character.hp_cap())])
@@ -3338,6 +3467,7 @@ func _hotwire_duration() -> float:
 var deaths: int = 0
 
 func _on_death() -> void:
+	_stop_handheld_session("body_unavailable")
 	player.is_active = false
 	player.dead_vis = true
 	if active_car:
@@ -3611,6 +3741,8 @@ func _ensure_net() -> void:
 	if net == null:
 		net = ProtoNet.create(self)
 		add_child(net)
+		if game_deck != null:
+			game_deck.attach_net(net.arcade)
 		net.peer_joined.connect(_net_spawn_peer)
 		net.peer_left.connect(_net_despawn_peer)
 
@@ -3928,6 +4060,8 @@ func save_game() -> Dictionary:
 		"dogs": dogs_out,
 		# THE SHELF (docs/cinema.md Phase 4): what you've found and what you've watched.
 		"media": {"unlocked": media_unlocked.keys(), "watched": media_watched.keys()},
+		# Every cartridge uses the same ledger: unlocks, settings, scores, challenges.
+		"game_deck": game_deck.serialize() if game_deck != null else {},
 		# FURNITURE DRAG (prototype 2026-07-08): where you've dragged the TV (and any
 		# future furniture) — keyed by furniture_id so a moved set stays moved on reload.
 		"furniture": _furniture_records(),
@@ -4032,6 +4166,8 @@ func dismiss_briefing() -> void:
 
 func apply_save(data: Dictionary) -> void:
 	player_restore(data.get("player", {}))
+	if game_deck != null:
+		game_deck.restore(data.get("game_deck", {}))
 	var ck: Dictionary = data.get("clock", {})
 	daynight.day = int(ck.get("day", 1))
 	daynight.hour = float(ck.get("hour", 9.0))
@@ -4656,6 +4792,8 @@ func _pose_cab_driver(delta: float) -> void:
 func _exit_car() -> void:
 	if active_car == null:
 		return
+	if passenger_of_ai:
+		_stop_handheld_session("body_unavailable")
 	_unboard_dogs(active_car)
 	audio.play_at("car_door", active_car.global_position, -6.0)
 	mode = Mode.FOOT

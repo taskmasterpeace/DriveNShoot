@@ -13,6 +13,7 @@ var _vignette: ColorRect
 var _toast_tween: Tween
 var _moodle_box: VBoxContainer
 var _dash_wrap: VBoxContainer
+var _damage_doll: ProtoDamageDoll = null ## the rig silhouette w/ live part tints (damage_doll.gd)
 var _dash_status: Label ## the useful line: vehicle · surface/struggle · cargo (sim hook)
 var _dash_box: HBoxContainer
 var _dash_labels: Dictionary = {}
@@ -279,6 +280,17 @@ static func create() -> ProtoHUD:
 	hud._dash_cook.add_theme_font_size_override("font_size", 24)
 	hud._dash_cook.add_theme_color_override("font_color", Color(0.98, 0.4, 0.1))
 	hud._dash_box.add_child(hud._dash_cook)
+	# THE DAMAGE DOLL (owner ask 2026-07-10): the rig's top-down silhouette, drawn
+	# from its own spec rows, parts tinted by live tier + armor faces as strips —
+	# parked just left of the dash block, shown/hidden with it.
+	hud._damage_doll = ProtoDamageDoll.new()
+	hud._damage_doll.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	hud._damage_doll.offset_left = -664.0
+	hud._damage_doll.offset_right = -568.0
+	hud._damage_doll.offset_top = -148.0
+	hud._damage_doll.offset_bottom = -24.0
+	hud._damage_doll.visible = false
+	hud.add_child(hud._damage_doll)
 
 	# Binocular vignette (under the labels)
 	hud._vignette = ColorRect.new()
@@ -492,6 +504,8 @@ func gps_glyph_text() -> String:
 func set_dashboard(d) -> void:
 	if d == null:
 		_dash_wrap.visible = false
+		if _damage_doll != null:
+			_damage_doll.visible = false
 		if _dash_active:
 			_dash_active = false
 			_place_plates()
@@ -500,6 +514,10 @@ func set_dashboard(d) -> void:
 		_dash_active = true
 		_place_plates()
 	_dash_wrap.visible = true
+	# THE DAMAGE DOLL rides the same dict: geometry once (d["doll"], absent = the
+	# doll stays hidden — old hand-built dicts render exactly as before), tiers live.
+	if _damage_doll != null:
+		_damage_doll.update_state(d)
 	# This vehicle's gauge face — data-driven by vclass (data/gauges.json). Swapped
 	# only when it actually changes, so we're not reloading a texture every frame.
 	if _gauge != null:
@@ -673,7 +691,9 @@ var _death_label: Label = null
 ## and off the bottom of the screen (playtest: "K opens at the bottom-left").
 ## A fixed Panel + inner ScrollContainer keeps it centered and bounded no matter
 ## how much it says.
-func toggle_sheet(text: String) -> void:
+var _body_doll: ProtoBodyDoll = null ## the wound silhouette on the K sheet (body_doll.gd)
+
+func toggle_sheet(text: String, body_tiers: Dictionary = {}) -> void:
 	if _sheet_panel == null:
 		var vp := get_viewport().get_visible_rect().size
 		var w: float = minf(540.0, vp.x - 80.0)
@@ -706,11 +726,22 @@ func toggle_sheet(text: String) -> void:
 		_sheet_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_sheet_label.custom_minimum_size = Vector2(w - 52.0, 0)
 		scroll.add_child(_sheet_label)
+		# THE BODY DOLL (owner ask 2026-07-10): wounds ON the figure, top-right of
+		# the sheet — the text rows say it, the doll SHOWS it.
+		_body_doll = ProtoBodyDoll.new()
+		_body_doll.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_body_doll.offset_left = -134.0
+		_body_doll.offset_right = -16.0
+		_body_doll.offset_top = 16.0
+		_body_doll.offset_bottom = 172.0
+		_sheet_panel.add_child(_body_doll)
 		add_child(_sheet_panel)
 		_sheet_panel.visible = false
 	_sheet_panel.visible = not _sheet_panel.visible
 	if _sheet_panel.visible:
 		_sheet_label.text = text
+		if _body_doll != null:
+			_body_doll.set_tiers(body_tiers)
 
 func sheet_open() -> bool:
 	return _sheet_panel != null and _sheet_panel.visible
@@ -981,7 +1012,7 @@ func update_car_gps(active: bool, heading: float, wp_rel: Vector2, wp_name: Stri
 		style.bg_color = Color(0.06, 0.055, 0.045, 0.92)
 		style.border_color = AMBER
 		style.set_border_width_all(2)
-		style.set_corner_radius_all(4)
+		style.set_corner_radius_all(7) # device-round, matching the handheld family
 		style.set_content_margin_all(6)
 		_cargps_panel.add_theme_stylebox_override("panel", style)
 		var v := VBoxContainer.new()
@@ -1017,6 +1048,11 @@ func _draw_cargps() -> void:
 	var c := size * 0.5
 	var px := (size.x * 0.5) / CARGPS_RADIUS_M # meters -> canvas px (north-up)
 	_cargps_canvas.draw_rect(Rect2(Vector2.ZERO, size), Color(0.045, 0.05, 0.04))
+	# DEVICE COHESION (fidelity loop it.9): a slim inner bezel + a live LED so the
+	# mini map reads as HARDWARE in the handheld family, not a floating panel.
+	_cargps_canvas.draw_rect(Rect2(Vector2(1, 1), size - Vector2(2, 2)), Color(0.18, 0.16, 0.12), false, 1.0)
+	_cargps_canvas.draw_rect(Rect2(Vector2(size.x * 0.5 - 8.0, 2.0), Vector2(16.0, 2.5)), Color(0.18, 0.16, 0.12)) # speaker slit
+	_cargps_canvas.draw_circle(Vector2(size.x - 6.0, size.y - 6.0), 2.0, Color(0.96, 0.72, 0.2, 0.9)) # power LED
 	# Range ring + N tick — the "this is an instrument" read.
 	_cargps_canvas.draw_arc(c, size.x * 0.46, 0.0, TAU, 40, Color(0.25, 0.22, 0.16), 1.0)
 	_cargps_canvas.draw_string(ThemeDB.fallback_font, Vector2(c.x - 4, 12), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.6, 0.55, 0.45))

@@ -477,8 +477,9 @@ func _ray_shot(main: Node, from: Vector3, dir: Vector3, rng: float, dmg: float, 
 				main.audio.play_at("impact_metal", end, -6.0)
 		else:
 			# THE WORLD: dust off the wall/ground — even a miss tells you where
-			# it went. GUNFEEL #6: pick wood vs dirt by what's actually there.
-			ProtoFX.impact(main, end)
+			# it went, and THE MARK lingers (it.13: the wall remembers).
+			# GUNFEEL #6: pick wood vs dirt by what's actually there.
+			ProtoFX.impact(main, end, hit.get("normal", Vector3.UP))
 			if "audio" in main and main.audio:
 				main.audio.play_at(_surface_sfx(col), end, -6.0)
 	_tracer(main, from, end)

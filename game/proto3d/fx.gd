@@ -6,6 +6,41 @@ class_name ProtoFX
 extends RefCounted
 
 
+## THE SOFT PUFF (fidelity loop it.4): one shared billboarded smoke sprite — a
+## radial-gradient disc generated once at runtime (no asset on disk), tinted by
+## each emitter's own color/ramp via vertex color. Every gray-box particle
+## system upgrades through this pair instead of rolling its own.
+static var _puff_tex: ImageTexture = null
+
+static func puff_texture() -> ImageTexture:
+	if _puff_tex == null:
+		var n := 64
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var d := Vector2(x - n / 2.0 + 0.5, y - n / 2.0 + 0.5).length() / (n / 2.0)
+				var a := clampf(1.0 - d, 0.0, 1.0)
+				a = a * a * (3.0 - 2.0 * a) * 0.85 # smoothstep falloff, core capped —
+				# even a fresh dense puff stays translucent (opaque cores read as balls)
+				img.set_pixel(x, y, Color(1, 1, 1, a))
+		_puff_tex = ImageTexture.create_from_image(img)
+	return _puff_tex
+
+
+static func puff_material() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Tint via the MATERIAL's albedo_color (per emitter), NEVER per-instance
+	# vertex color: with CPUParticles3D the instance-color path rendered one
+	# zero-data instance as a PURE-BLACK disc pinned at the emitter — probed at
+	# (0.00, 0.00, 0.00) and immune to ramp/amount/billboard-mode changes.
+	mat.vertex_color_use_as_albedo = false
+	mat.albedo_texture = puff_texture()
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	return mat
+
+
 ## Muzzle flash: a hot emissive blade + a light blink at the muzzle. ~70 ms.
 static func muzzle_flash(parent: Node, pos: Vector3, dir: Vector3) -> void:
 	var m := MeshInstance3D.new()
@@ -23,6 +58,17 @@ static func muzzle_flash(parent: Node, pos: Vector3, dir: Vector3) -> void:
 	light.light_energy = 2.4
 	light.omni_range = 4.0
 	m.add_child(light)
+	# The HOT CORE: a soft glow disc at the muzzle behind the blade (the shared
+	# puff sprite, billboarded) — the flash reads round-and-hot, not boxy.
+	var core := MeshInstance3D.new()
+	var cq := QuadMesh.new()
+	cq.size = Vector2(0.55, 0.55)
+	var cmat := puff_material()
+	cmat.albedo_color = Color(1.0, 0.86, 0.42, 0.95)
+	cq.material = cmat
+	core.mesh = cq
+	m.add_child(core)
+	core.position = Vector3(0, 0, 0.1)
 	var tw := m.create_tween()
 	tw.tween_property(m, "scale", Vector3(0.4, 0.4, 1.3), 0.07)
 	tw.parallel().tween_property(light, "light_energy", 0.0, 0.07)
@@ -53,53 +99,129 @@ static func casing(parent: Node, pos: Vector3, right_dir: Vector3) -> void:
 	tw.tween_callback(m.queue_free)
 
 
-## Blood puff on flesh hits — dark, brief, gravity-pulled.
+## Blood on flesh hits — dark soft droplets that burst, shrink and fall (the
+## puff sprite tinted on ITS OWN material — the black-ball law, never p.color).
 static func blood(parent: Node, pos: Vector3) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true
-	p.amount = 14
+	p.amount = 12
 	p.lifetime = 0.45
 	p.explosiveness = 1.0
-	p.mesh = BoxMesh.new()
-	(p.mesh as BoxMesh).size = Vector3(0.07, 0.07, 0.07)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.30, 0.30)
+	var mat := puff_material()
+	mat.albedo_color = Color(0.42, 0.05, 0.04, 0.9)
+	quad.material = mat
+	p.mesh = quad
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0.0, 1.0))
+	shrink.add_point(Vector2(1.0, 0.45))
+	p.scale_amount_curve = shrink # droplets thin as they fly
 	p.direction = Vector3(0, 1, 0)
 	p.spread = 70.0
 	p.initial_velocity_min = 1.6
 	p.initial_velocity_max = 3.4
 	p.gravity = Vector3(0, -14.0, 0)
-	p.color = Color(0.45, 0.06, 0.05)
 	p.add_to_group("fx_blood")
 	parent.add_child(p)
 	p.global_position = pos
 	var tw := p.create_tween()
 	tw.tween_interval(0.8)
 	tw.tween_callback(p.queue_free)
+	# THE POOL (it.19): flesh hits leave ground memory too — find the floor under
+	# the hit and stain it (the same one-mark law as bullet pocks).
+	if parent is Node3D and (parent as Node3D).is_inside_tree():
+		var space := (parent as Node3D).get_world_3d().direct_space_state
+		var qr := PhysicsRayQueryParameters3D.create(pos, pos + Vector3(0, -3.5, 0))
+		var ghit: Dictionary = space.intersect_ray(qr)
+		if not ghit.is_empty():
+			surface_mark(parent, ghit["position"], ghit.get("normal", Vector3.UP),
+				Color(0.30, 0.045, 0.035, randf_range(0.45, 0.6)), randf_range(0.3, 0.5), 14.0)
 
 
-## Impact dust/sparks where a round meets the WORLD (walls, ground, wrecks) —
-## misses and cover hits read instantly.
-static func impact(parent: Node, pos: Vector3) -> void:
+## Impact where a round meets the WORLD (walls, ground, wrecks): a soft DUST
+## kick + a pinch of hot SPARKS — misses and cover hits read instantly. Pass the
+## surface `normal` to also leave THE MARK (it.13): a dark pock that lingers ~9 s
+## and fades — the wall remembers the firefight. ZERO normal = burst only
+## (cars/companions keep their old read).
+static func impact(parent: Node, pos: Vector3, normal: Vector3 = Vector3.ZERO) -> void:
+	if normal.length_squared() > 0.01:
+		surface_mark(parent, pos, normal, Color(0.06, 0.055, 0.05, randf_range(0.5, 0.72)),
+			randf_range(0.24, 0.4), 9.0)
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.emitting = true
-	p.amount = 10
-	p.lifetime = 0.35
+	p.amount = 8
+	p.lifetime = 0.4
 	p.explosiveness = 1.0
-	p.mesh = BoxMesh.new()
-	(p.mesh as BoxMesh).size = Vector3(0.05, 0.05, 0.05)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.26, 0.26)
+	var mat := puff_material()
+	mat.albedo_color = Color(0.72, 0.65, 0.50, 0.75)
+	quad.material = mat
+	p.mesh = quad
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.5))
+	grow.add_point(Vector2(1.0, 1.5))
+	p.scale_amount_curve = grow # dust blooms outward
 	p.direction = Vector3(0, 1, 0)
 	p.spread = 80.0
-	p.initial_velocity_min = 1.2
-	p.initial_velocity_max = 2.6
-	p.gravity = Vector3(0, -6.0, 0)
-	p.color = Color(0.78, 0.7, 0.55)
+	p.initial_velocity_min = 1.0
+	p.initial_velocity_max = 2.2
+	p.gravity = Vector3(0, -3.5, 0)
 	p.add_to_group("fx_impact")
 	parent.add_child(p)
 	p.global_position = pos
 	var tw := p.create_tween()
-	tw.tween_interval(0.7)
+	tw.tween_interval(0.8)
 	tw.tween_callback(p.queue_free)
+	# The sparks: a pinch of hot emissive chips that die fast under gravity.
+	var s := CPUParticles3D.new()
+	s.one_shot = true
+	s.emitting = true
+	s.amount = 5
+	s.lifetime = 0.22
+	s.explosiveness = 1.0
+	s.mesh = BoxMesh.new()
+	(s.mesh as BoxMesh).size = Vector3(0.035, 0.035, 0.035)
+	(s.mesh as BoxMesh).material = ProtoWorldBuilder.material(Color(1.0, 0.8, 0.35), 0.1, true)
+	s.direction = Vector3(0, 1, 0)
+	s.spread = 75.0
+	s.initial_velocity_min = 2.4
+	s.initial_velocity_max = 4.2
+	s.gravity = Vector3(0, -18.0, 0)
+	s.add_to_group("fx_impact")
+	parent.add_child(s)
+	s.global_position = pos
+	var tw2 := s.create_tween()
+	tw2.tween_interval(0.6)
+	tw2.tween_callback(s.queue_free)
+
+
+## THE SURFACE MARK — one law for every lingering stain (bullet pocks, blood
+## pools): a soft disc laid ON the surface, random-rotated, fading out after
+## `linger` seconds. Fire-and-forget, grouped fx_mark for the sims.
+static func surface_mark(parent: Node, pos: Vector3, normal: Vector3, tint: Color,
+		msize: float, linger: float) -> void:
+	var mark := MeshInstance3D.new()
+	var mq := QuadMesh.new()
+	mq.size = Vector2(msize, msize)
+	var mm := puff_material()
+	mm.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED # it lies ON the surface
+	mm.albedo_color = tint
+	mq.material = mm
+	mark.mesh = mq
+	mark.add_to_group("fx_mark")
+	parent.add_child(mark)
+	var n := normal.normalized()
+	var up := Vector3.UP if absf(n.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
+	mark.look_at_from_position(pos + n * 0.03, pos - n, up) # quad face OUT along n
+	mark.rotate_object_local(Vector3(0, 0, 1), randf() * TAU) # break repetition
+	var mtw := mark.create_tween()
+	mtw.tween_interval(linger)
+	mtw.tween_property(mark, "transparency", 1.0, 4.0)
+	mtw.tween_callback(mark.queue_free)
 
 
 ## The swing made visible: a flat arc blade that sweeps through the melee arc

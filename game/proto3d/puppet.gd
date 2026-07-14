@@ -51,8 +51,22 @@ const SURVIVORS: Dictionary = {
 }
 
 
-static func look(name_in: String) -> Dictionary:
-	return SURVIVORS.get(name_in, {}).duplicate(true)
+static func look(name_in: String, jitter_seed: int = 0) -> Dictionary:
+	var row: Dictionary = SURVIVORS.get(name_in, {}).duplicate(true)
+	# THE WARDROBE LAW (fidelity loop it.15): same-archetype NPCs stop being
+	# clones — a stable per-spawn nudge on cloth/pants only (colors are DATA;
+	# the rig is sacred). Seed 0 = the exact authored row (player, named looks,
+	# the lurker's all-black — every existing caller unchanged).
+	if jitter_seed != 0 and not row.is_empty():
+		var rng := RandomNumberGenerator.new()
+		rng.seed = jitter_seed
+		for key in ["cloth", "pants"]:
+			if row.has(key):
+				var c: Color = row[key]
+				c.h = fposmod(c.h + rng.randf_range(-0.03, 0.03), 1.0)
+				c.v = clampf(c.v + rng.randf_range(-0.07, 0.07), 0.05, 0.95)
+				row[key] = c
+	return row
 
 
 ## MOTIONFORGE (MOVESET.txt SPEC B): the animator's magic numbers are ROWS.

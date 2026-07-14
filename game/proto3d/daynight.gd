@@ -102,12 +102,18 @@ func _apply() -> void:
 	# a new moon leaves the headlights (almost) alone in the world. FLOOR RAISED
 	# (playtest, twice): new moon read as pitch black — night should be MOODY,
 	# never BLIND. You always keep a sliver of starlight.
-	_sun.light_energy = maxf(0.055 + 0.075 * moon_phase, bright * 1.25)
+	# THE SKY ANSWERS THE STORM (fidelity loop it.10): weather dims/cools the DAY
+	# term only — the night floor stays un-dimmed (never blind, storm or not).
+	_sun.light_energy = maxf(0.055 + 0.075 * moon_phase, bright * 1.25 * ProtoWeather.sky_dim)
 	_sun.light_color = Color(1.0, 0.92, 0.78).lerp(Color(1.0, 0.6, 0.35), tw)
 	if bright < 0.05:
 		_sun.light_color = Color(0.72, 0.78, 0.95) # cold moon silver
+	_sun.light_color = _sun.light_color.lerp(ProtoWeather.sky_tint, ProtoWeather.sky_tint_amt)
 	if _env:
-		_env.ambient_light_energy = 0.06 + 0.085 * moon_phase + 0.5 * bright
+		_env.ambient_light_energy = (0.06 + 0.085 * moon_phase + 0.5 * bright) \
+			* lerpf(1.0, ProtoWeather.sky_dim, 0.7)
+		# WET AIR (it.12): storms thicken the distance haze — depth you can feel.
+		_env.fog_density = 0.0006 * ProtoWeather.fog_mult
 		_env.fog_light_color = SKY_NIGHT[2].lerp(SKY_DUSK[2] if tw > 0.0 else SKY_DAY[2], bright)
 	if _sky_mat:
 		var moonlit := 0.6 + 0.7 * moon_phase

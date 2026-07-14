@@ -64,6 +64,20 @@ func _ready() -> void:
 	_check("the rendered bar is the ▮▮▱▱-class CRITICAL string (%s)" % hud.dash_part_text("engine"),
 		hud.dash_part_text("engine") == expect_engine_bar and expect_engine_bar.count("▮") <= 1)
 
+	# --- THE DAMAGE DOLL (owner ask 2026-07-10): silhouette from spec rows, live tints ---
+	_check("doll: dashboard carries the spec-row geometry", (d.get("doll", {}) as Dictionary).has("w"))
+	_check("doll: HUD widget exists + visible while driving",
+		hud._damage_doll != null and hud._damage_doll.visible)
+	_check("doll: the CRITICAL engine tier flows into the doll",
+		hud._damage_doll._tier("engine") == Damageable.Tier.CRITICAL)
+	hud.set_dashboard({"engine": 0, "tires": 0, "battery": 0, "fuel_tank": 0, "chassis": 0,
+		"ratios": {}, "fuel": 50.0, "on_fire": false, "cook": 0.0, "name": "bare",
+		"surface": "road", "struggling": false, "tire_name": "t", "drive_factor": 1.0,
+		"load": 0.0, "load_max": 1.0, "vclass": "scavenger", "rev": 0.0})
+	_check("doll: a hand-built dict without doll data hides the doll (P1 contract)",
+		not hud._damage_doll.visible)
+	hud.set_dashboard(car.dashboard()) # restore the live dict for the next stages
+
 	# --- P0-1b: fuel bar + 💥BLOW don't regress under fire staging ------------------
 	car.components["engine"].hp = car.components["engine"].max_hp # heal so fire is isolated
 	car.fuel = 63.0

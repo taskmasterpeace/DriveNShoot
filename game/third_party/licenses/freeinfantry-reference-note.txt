@@ -1,0 +1,15 @@
+FreeInfantry / Infantry Online — CLEAN-ROOM REFERENCE NOTE
+https://freeinfantry.com/
+Accessed: 2026-07-10
+
+This is not a license grant and DRIVN does not treat it as one.
+
+No FreeInfantry or Infantry Online client code, server code, maps, zone files,
+art, audio, names, text, or branding has been copied, imported, or distributed.
+BLACK GRID is an original Godot implementation based only on documented and
+observed player-facing genre mechanics: a top-down infantry battlefield,
+vehicles, inventory mass, power economy, deployables, objectives, and squads.
+
+The existence or license of any server repository is not treated as permission
+to use client code or client content. Any future reference work must preserve
+this exclusion boundary.
