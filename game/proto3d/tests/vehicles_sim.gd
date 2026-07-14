@@ -33,6 +33,10 @@ var _hitch_gap0: float = -1.0
 
 
 func _ready() -> void:
+	# BOX-STOCK MODE (GLB body law 2026-07-14): this sim's footprint/part-count
+	# checks codify the modular box builders; the authored GLB bodies get their
+	# own acceptance phase in vehicle_style_sim. Physics is identical either way.
+	ProtoCar3D.use_glb_bodies = false
 	var ground := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()

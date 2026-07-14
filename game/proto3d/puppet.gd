@@ -1010,6 +1010,39 @@ func pose_riding(delta: float, armed_aim: bool) -> void:
 			fingers_r.rotation.x = lerpf(fingers_r.rotation.x, GRIP_CURL, k)
 
 
+## THE DRIVER'S SEAT POSE (2026-07-14, GLB body law: cabins are GLASS now, so the
+## body at the wheel is SEEN): upright bench posture — hips square on the seat,
+## knees toward the pedals, both hands forward ON THE WHEEL, eyes on the road.
+## Direct writes like pose_riding — animate() never runs while mounted.
+func pose_driving(delta: float) -> void:
+	var k := clampf(10.0 * delta, 0.0, 1.0)
+	# Thighs forward on the bench (sign law +); calves drop toward the pedals
+	# (KNEE LAW — knees flex negative).
+	hip_l.rotation.x = lerpf(hip_l.rotation.x, 1.35, k)
+	hip_r.rotation.x = lerpf(hip_r.rotation.x, 1.35, k)
+	knee_l.rotation.x = lerpf(knee_l.rotation.x, -1.05, k)
+	knee_r.rotation.x = lerpf(knee_r.rotation.x, -1.05, k)
+	foot_l.rotation.x = lerpf(foot_l.rotation.x, -0.25, k)
+	foot_r.rotation.x = lerpf(foot_r.rotation.x, -0.25, k)
+	torso.rotation.x = lerpf(torso.rotation.x, 0.08, k)  # upright, not leaned like the bike
+	torso.rotation.z = lerpf(torso.rotation.z, 0.0, k)
+	waist.rotation.x = lerpf(waist.rotation.x, 0.05, k)
+	neck.rotation.x = lerpf(neck.rotation.x, -0.05, k)   # eyes level on the road
+	# BOTH hands forward to the wheel: ten-and-two.
+	free_arm.rotation.x = lerpf(free_arm.rotation.x, 0.95, k)
+	free_arm.rotation.y = move_toward(free_arm.rotation.y, 0.12, 6.0 * delta)
+	free_arm.rotation.z = move_toward(free_arm.rotation.z, 0.0, 6.0 * delta)
+	elbow_l.rotation.x = lerpf(elbow_l.rotation.x, 0.45, k)
+	if fingers_l != null:
+		fingers_l.rotation.x = lerpf(fingers_l.rotation.x, GRIP_CURL, k)
+	shoulder.rotation.y = move_toward(shoulder.rotation.y, -0.12, 6.0 * delta)
+	shoulder.rotation.x = lerpf(shoulder.rotation.x, 0.95, k)
+	elbow_r.rotation.x = lerpf(elbow_r.rotation.x, 0.45, k)
+	hand.rotation.x = lerpf(hand.rotation.x, HAND_CARRY, k)
+	if fingers_r != null:
+		fingers_r.rotation.x = lerpf(fingers_r.rotation.x, GRIP_CURL, k)
+
+
 ## A body that has fallen: the whole COLUMN collapses (chest, waist, pelvis all
 ## sink), limbs sprawl with bent joints, the hands fall OPEN. Blended in ~0.3s.
 func _pose_dead() -> void:

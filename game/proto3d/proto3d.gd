@@ -457,6 +457,8 @@ var book_panel: ProtoBookPanel = null ## THE LIBRARY — the in-game manuals (bo
 var surveil_cams: Array = [] ## placed ProtoSurveilCam eyes — the V-window CAMS feed
 var _dog_eye_grace: float = 0.0 ## covers the obey delay between the seek whistle and SEEK
 var _drone_warned: int = 0 ## piloting battery warnings fired (0 none · 1 @20% · 2 @10%)
+var _drone_signal_state: int = 0 ## piloting signal warnings fired (0 none · 1 WEAK · 2 LOST)
+var _drone_boost_was: bool = false ## edge-detect so the boost-engage rumble fires once, not every frame
 var last_walkie_report: String = "" ## sim hook: the walkie-talkie's last chatter line
 var media_unlocked: Dictionary = {} ## id -> true (found DVDs/tapes/reels)
 var media_watched: Dictionary = {}  ## id -> true (the shelf remembers)
@@ -883,10 +885,17 @@ func _physics_process(delta: float) -> void:
 			var stick := Vector3(
 				Input.get_axis("move_left", "move_right"), 0.0,
 				Input.get_axis("move_up", "move_down"))
-			drone_pilot.pilot_input(stick)
+			# SPACE/CTRL climb-dive + SHIFT boost — safe reuse of the on-foot dive/crouch/
+			# sprint keys: input_locked freezes the body's own reads of them while flying.
+			var vertical := Input.get_axis("drivn_drone_descend", "drivn_drone_ascend")
+			var boosting := Input.is_action_pressed("drivn_sprint")
+			drone_pilot.pilot_input(stick, vertical, boosting)
 			# 🛸 PILOTING levels by DOING: stick time — actual steering, never AFK hover.
 			if stick.length() > 0.1:
 				grant_xp("piloting", delta * 1.5)
+			if boosting and not _drone_boost_was:
+				pad_rumble(0.2, 0.35, 0.12) # one pulse on the rising edge, not every held frame
+			_drone_boost_was = boosting
 		# QoL: low-battery warnings while you fly — 20% heads-up, 10% means turn back NOW.
 		if drone != null and is_instance_valid(drone):
 			var bp: float = drone.battery_pct()
@@ -898,6 +907,19 @@ func _physics_process(delta: float) -> void:
 				_drone_warned = 1
 				audio.play_ui("blip", -6.0)
 				notify("🛸 Battery 20%% — think about heading home.")
+			# SIGNAL RANGE (owner polish): the bird's link holds only so far from YOUR body —
+			# past it, it auto-recalls instead of stranding you out of control range.
+			if drone_pilot.body_immobile():
+				var sig_frac: float = player.global_position.distance_to(drone.global_position) / ProtoDrone.ROUTE_RANGE
+				if sig_frac >= 1.0 and _drone_signal_state < 2:
+					_drone_signal_state = 2
+					pad_rumble(0.4, 0.5, 0.3)
+					notify("🛸 SIGNAL LOST — bird returning.")
+					recall_drone()
+				elif sig_frac >= 0.85 and _drone_signal_state < 1:
+					_drone_signal_state = 1
+					audio.play_ui("blip", -6.0)
+					notify("🛸 SIGNAL WEAK — heading out of range.")
 	# THE DOG'S EYE winds down with the search: when the seeking dog comes off SEEK (found
 	# it / recalled / died) the split folds back to one view and the default range returns.
 	# A short grace covers the obey delay — command_seek QUEUES the state, so the eye must
@@ -1034,8 +1056,13 @@ func _physics_process(delta: float) -> void:
 	# Waypoint arrow + world streaming
 	var cam := get_viewport().get_camera_3d()
 	# THE VISIBLE RIDER (rider_exposed rigs): saddle pin + riding pose + live aim arm.
-	if mode == Mode.DRIVE and active_car != null and not character.dead and bool(active_car.spec.get("rider_exposed", false)):
-		_pose_exposed_rider(delta)
+	# THE VISIBLE DRIVER (GLB body law 2026-07-14): cabins are GLASS now — every
+	# other rig pins the puppet to the DRIVER'S SEAT, hands on the wheel.
+	if mode == Mode.DRIVE and active_car != null and not character.dead:
+		if bool(active_car.spec.get("rider_exposed", false)):
+			_pose_exposed_rider(delta)
+		else:
+			_pose_cab_driver(delta)
 	var body_pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
 	stream.update_stream(body_pos, self)
 	if waypoint_idx >= 0 and cam:
@@ -1751,10 +1778,15 @@ func on_dog_nose(dog: ProtoDog, stash: Node3D) -> void:
 ## Finds the nearest interactable with a live prompt and shows its chip.
 func _update_interact_prompt() -> void:
 	_current_interactable = null
-	# PILOTING owns the prompt line (QoL): the controls + the live battery, always visible.
+	# PILOTING owns the prompt line (QoL): the controls + the live battery/altitude/signal.
 	if drone_pilot != null and drone_pilot.body_immobile():
-		var b: String = (" · batt %d%%" % int(drone.battery_pct())) if (drone != null and is_instance_valid(drone)) else ""
-		hud.show_prompt("🛸 PILOTING — move keys fly · E brings it in to LAND%s" % b)
+		if drone != null and is_instance_valid(drone):
+			var sig_frac: float = player.global_position.distance_to(drone.global_position) / ProtoDrone.ROUTE_RANGE
+			var sig: String = "LOST" if sig_frac >= 1.0 else ("WEAK" if sig_frac >= 0.85 else "OK")
+			hud.show_prompt("🛸 PILOTING — batt %d%% · alt %dm · signal %s — SPACE/CTRL climb/dive · SHIFT boost · E land · B recall" \
+				% [int(drone.battery_pct()), int(round(drone_pilot.altitude_agl())), sig])
+		else:
+			hud.show_prompt("🛸 PILOTING — SPACE/CTRL climb/dive · SHIFT boost · E land · B recall")
 		return
 	if mode == Mode.DRIVE:
 		if active_car and active_car.current_mph < 8.0:
@@ -3081,6 +3113,8 @@ func enter_drone_pilot(d: Node3D) -> void:
 		return
 	if drone_pilot.start(d):
 		_drone_warned = 0 # fresh flight, fresh battery warnings
+		_drone_signal_state = 0 # fresh flight, fresh signal warnings
+		_drone_boost_was = false
 		# The pack panel can be the thing that started this (USE the remote) — close it
 		# so the split view owns the screen instead of splitting behind the bag.
 		if panel != null and panel.is_open:
@@ -3536,7 +3570,13 @@ func reload_content() -> Dictionary:
 	ProtoTraffic.ensure_rows()
 	ProtoBandits._folded = false
 	ProtoBandits.ensure_rows()
-	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion+traffic rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
+	# SURFACE HANDLING (owner directive 2026-07-14): data/surfaces.json re-folds
+	# live too — a MapForge-style tuning pass lands on every car already driving.
+	ProtoTraction._loaded = false
+	ProtoTraction._handling_loaded = false
+	ProtoTraction.ensure()
+	ProtoTraction.ensure_handling()
+	notify("🔧 CONTENT RELOADED — %d vehicle rows, map %s, motion+traffic+surface rows refolded. New spawns wear the new stats." % [DrivnData.vehicles.size(), "refreshed" if map_ok else "kept"])
 	return {"vehicles": DrivnData.vehicles.size(), "map_ok": map_ok}
 
 
@@ -4119,7 +4159,8 @@ func enter_passenger(car: ProtoCar3D) -> void:
 	passenger_of_ai = true
 	audio.play_at("car_door", car.global_position, -6.0)
 	player.is_active = false
-	player.visible = false
+	# GLB body law: shotgun seat is behind GLASS too — stay visible, sit right.
+	player.visible = true
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	var who: String = car.ai_driver.moto_name if (car.ai_driver != null and "moto_name" in car.ai_driver) else "the driver"
 	notify("🚗 You ride shotgun with %s — E out · HOLD E to take the wheel" % who)
@@ -4143,7 +4184,12 @@ func take_wheel() -> void:
 func _update_traffic(delta: float) -> void:
 	# CAMPERS carry their kit: any camper rig without one grows one (the RV law).
 	for car in cars:
-		if car is ProtoCar3D and is_instance_valid(car) and not car.dead 				and car.spec.get("camper", false) and not car.has_meta("camp_kit"):
+		# is_instance_valid FIRST — a freed car still lingering in `cars` (a
+		# despawned/promoted traffic rig) must never reach `is` or a member
+		# access, both of which throw on a freed instance (RACING_DESTRUCTION_SET
+		# P1's elevation_sim was the first sim to run long enough, off the
+		# authored core, to actually hit this pre-existing order-of-evaluation bug).
+		if is_instance_valid(car) and car is ProtoCar3D and not car.dead and car.spec.get("camper", false) and not car.has_meta("camp_kit"):
 			car.set_meta("camp_kit", true)
 			var ck := ProtoCamp.create(self, car)
 			add_child(ck)
@@ -4492,9 +4538,11 @@ func enter_car(car: ProtoCar3D) -> void:
 	# need the arm for aiming"): an EXPOSED rig (rider_exposed row) keeps the
 	# puppet in the saddle — visible, pinned, aim arm live (_pose_exposed_rider
 	# runs it per frame). Roofed cabs still hide the driver (no read through a
-	# roof). Colliders drop either way so the ghost body never blocks the rig.
-	var exposed := bool(car.spec.get("rider_exposed", false))
-	player.visible = exposed
+	# Colliders drop either way so the ghost body never blocks the rig.
+	# THE VISIBLE DRIVER (GLB body law 2026-07-14): cabins have real GLASS now —
+	# the puppet stays VISIBLE in every rig, seated at the wheel (_pose_cab_driver
+	# pins it per frame; exposed rigs keep the saddle law + live aim arm).
+	player.visible = true
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	for pc in player.get_children():
 		if pc is CollisionShape3D:
@@ -4578,6 +4626,31 @@ func _pose_exposed_rider(delta: float) -> void:
 				ProtoPlayer3D._yaw_of(to_aim.normalized()) - player.puppet.global_rotation.y, -PI, PI)
 	else:
 		player.puppet.aim_arm.rotation.y = move_toward(player.puppet.aim_arm.rotation.y, 0.0, 8.0 * delta)
+
+
+## THE VISIBLE DRIVER's frame (GLB body law): pin the puppet to the DRIVER'S SEAT
+## of a roofed cab — visible through the authored glass — hands on the wheel.
+## Seat anchor derives from the rig's own cabin rows so every archetype sits right.
+func _pose_cab_driver(delta: float) -> void:
+	if active_car == null or player.puppet == null:
+		return
+	var cabin: Vector3 = active_car.spec.get("cabin", Vector3.ZERO)
+	var cabin_pos: Vector3 = active_car.spec.get("cabin_pos", Vector3.ZERO)
+	# Driver sits LEFT of center, butt at the cab floor line; riding shotgun
+	# with an AI motorist puts you on the RIGHT (the wheel stays theirs).
+	var side := 1.0 if passenger_of_ai else -1.0
+	var seat_local := Vector3(
+		side * maxf(0.3, cabin.x * 0.22),
+		float(active_car.spec["chassis"].y) * 0.5 + 0.16,
+		cabin_pos.z + 0.1)
+	if cabin == Vector3.ZERO: # cabless rows (trailer) — center fallback
+		seat_local = Vector3(0, float(active_car.spec["chassis"].y) * 0.5 + 0.16, 0)
+	player.global_position = active_car.global_transform * seat_local
+	player.set_armed(false)
+	player.puppet.raised = false
+	player.puppet.rotation.y = wrapf(active_car.rotation.y - player.rotation.y, -PI, PI)
+	player.puppet.pose_driving(delta)
+	player.puppet.aim_arm.rotation.y = move_toward(player.puppet.aim_arm.rotation.y, 0.0, 8.0 * delta)
 
 
 func _exit_car() -> void:

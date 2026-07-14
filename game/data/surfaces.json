@@ -1,0 +1,53 @@
+{
+  "_comment": "SURFACE-DEPENDENT HANDLING (owner directive 2026-07-14): one row per surface = one HANDLING CHARACTER, folded additively (key-by-key, same deep-merge law as car_3d's _merged_lights) over ProtoTraction.handling_table's code floor. grip/rear_bias/speed are the BASELINE axes; steer_response/brake/roll_drag/roughness/yaw_loose are the FEEL axes that make loose ground drive differently, not just slower. asphalt is the neutral 1.0/0.0 row every other surface is judged against — car_3d.gd byte-matches old behavior when a row's steer_response/rear_bias/yaw_loose all read 1.0/1.0/0.0. dust is [r,g,b,a] fed straight to the wheel-spray particle color; sfx is an open hint for a future audio pass (unwired — no tone-per-surface plumbing exists yet, see CLAUDE.md note).",
+  "surfaces": {
+    "asphalt": {
+      "grip": 1.0, "rear_bias": 1.0, "speed": 1.0,
+      "steer_response": 1.0, "brake": 1.0, "roll_drag": 0.0,
+      "roughness": 0.0, "yaw_loose": 0.0,
+      "dust": [0.55, 0.55, 0.55, 0.32], "sfx": ""
+    },
+    "gravel": {
+      "grip": 0.75, "rear_bias": 0.55, "speed": 0.9,
+      "steer_response": 0.8, "brake": 0.65, "roll_drag": 0.02,
+      "roughness": 0.35, "yaw_loose": 0.45,
+      "dust": [0.58, 0.54, 0.48, 0.55], "sfx": "gravel_crunch"
+    },
+    "dirt": {
+      "grip": 0.7, "rear_bias": 0.88, "speed": 0.85,
+      "steer_response": 0.85, "brake": 0.7, "roll_drag": 0.03,
+      "roughness": 0.22, "yaw_loose": 0.22,
+      "dust": [0.62, 0.52, 0.38, 0.5], "sfx": "dirt_kick"
+    },
+    "grass": {
+      "grip": 0.8, "rear_bias": 0.95, "speed": 0.9,
+      "steer_response": 0.9, "brake": 0.75, "roll_drag": 0.05,
+      "roughness": 0.15, "yaw_loose": 0.2,
+      "dust": [0.3, 0.42, 0.2, 0.35], "sfx": "grass_swish"
+    },
+    "sand": {
+      "grip": 0.62, "rear_bias": 1.05, "speed": 0.5,
+      "steer_response": 0.65, "brake": 0.7, "roll_drag": 0.18,
+      "roughness": 0.2, "yaw_loose": 0.15,
+      "dust": [0.78, 0.7, 0.48, 0.6], "sfx": "sand_hiss"
+    },
+    "mud": {
+      "grip": 0.4, "rear_bias": 0.9, "speed": 0.4,
+      "steer_response": 0.5, "brake": 0.55, "roll_drag": 0.25,
+      "roughness": 0.25, "yaw_loose": 0.5,
+      "dust": [0.32, 0.26, 0.15, 0.7], "sfx": "mud_squelch"
+    },
+    "metal": {
+      "grip": 0.92, "rear_bias": 1.0, "speed": 1.0,
+      "steer_response": 0.98, "brake": 0.95, "roll_drag": 0.0,
+      "roughness": 0.05, "yaw_loose": 0.05,
+      "dust": [0.6, 0.6, 0.62, 0.15], "sfx": ""
+    },
+    "water": {
+      "grip": 0.5, "rear_bias": 1.0, "speed": 0.34,
+      "steer_response": 0.6, "brake": 0.5, "roll_drag": 0.3,
+      "roughness": 0.1, "yaw_loose": 0.3,
+      "dust": [0.25, 0.38, 0.42, 0.5], "sfx": ""
+    }
+  }
+}

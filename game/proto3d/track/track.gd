@@ -119,6 +119,11 @@ func spawn_vehicle(id: String) -> void:
 	car = ProtoCar3D.create(vehicle_id, Color(0.62, 0.18, 0.12))
 	car.use_player_input = not headless_sim
 	car.is_active = true
+	# THE PROVING GROUNDS IS PAVED: this scene has no streamed road rects, so
+	# surface_at() would call the ring "dirt" — and the SURFACE HANDLING law
+	# (2026-07-14: dirt = loose rear, mushy steering, long brakes) makes the
+	# gauntlet slalom un-threadable. The test facility declares its tarmac.
+	car.surface_override = "road"
 	add_child(car)
 	_reset_to_line()
 
@@ -201,6 +206,7 @@ func spawn_chaser() -> void:
 	if chaser != null and is_instance_valid(chaser):
 		chaser.queue_free()
 	chaser = ProtoCar3D.create("buggy", Color(0.2, 0.3, 0.5))
+	chaser.surface_override = "road" # same tarmac law as spawn_vehicle
 	add_child(chaser)
 	chaser.global_position = _cps[0] + Vector3(-6, 0.8, -6)
 	chaser_ai = ProtoAutopilot.attach(chaser)

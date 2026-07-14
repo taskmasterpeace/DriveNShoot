@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://driver_vis_sim1"]
+
+[ext_resource type="Script" path="res://proto3d/tests/driver_visible_sim.gd" id="1"]
+
+[node name="DriverVisibleSim" type="Node"]
+script = ExtResource("1")

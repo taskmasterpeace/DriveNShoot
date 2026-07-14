@@ -21,6 +21,12 @@ var max_separation: float = 22.0
 var split_line_thickness: float = 4.0
 var cam_height: float = 26.0      ## how high each eye floats over its subject
 var cam_back: float = 9.0         ## …and how far back — the game's top-down-angled look
+## ALTITUDE-FOLLOWING EYE (drone flight polish): a subject flying HIGH (the piloted
+## drone) pulls its own eye up and back too — climbing actually shows more world.
+## Pure geometry (same fixed FOV), so it never touches the "altitude never splits"
+## law — that's still driven by horizontal separation alone (_tick below).
+const ALT_CAM_GAIN: float = 0.7
+const ALT_BACK_GAIN: float = 0.25
 
 var active: bool = false
 var _anchor: Node3D = null        ## view 1 — your body
@@ -142,5 +148,8 @@ func _tick() -> void:
 
 
 func _aim(cam: Camera3D, target: Vector3) -> void:
-	cam.global_position = Vector3(target.x, cam_height, target.z + cam_back)
+	# The subject's own altitude pulls its eye up+back proportionally (a grounded body's
+	# target.y is near zero, so this is a no-op for view 1 — it's the drone eye it flies).
+	var extra: float = maxf(0.0, target.y)
+	cam.global_position = Vector3(target.x, cam_height + extra * ALT_CAM_GAIN, target.z + cam_back + extra * ALT_BACK_GAIN)
 	cam.look_at(Vector3(target.x, 0.0, target.z), Vector3.UP)

@@ -44,11 +44,16 @@ func _ready() -> void:
 		await _frames(4)
 	# Isolated staging (test-standards): away from the spawn's own car/chest clutter so
 	# the interact scan can only grab OUR subject.
-	main.player.global_position = Vector3(6, 0.35, 388)
+	# (2026-07-14) 14m further out than the classic spot: the surface-handling law
+	# lets staged cars SLIDE on dirt as they settle, and the old spot put the
+	# BOOT car inside scan range the moment our subject drifted past it.
+	main.player.global_position = Vector3(20, 0.35, 388)
 	await _frames(2)
 
 	# --- 1. SMASH THE GLASS (no pick): hold E → 0.6s → open, LOUD. ------------------
 	var car_a := _stage_car(Vector3(2.6, 0.6, 0), true, "test_key_a")
+	await _frames(10) # let it SETTLE — dirt grip (surface-handling law) lets a dropped car slide
+	main.player.global_position = car_a.global_position + Vector3(-2.0, 0.0, 0.0)
 	await _frames(3)
 	_check("locked + no pick prompts the SMASH", car_a.interact_prompt(main).contains("smash"))
 	Input.action_press("interact")
@@ -63,6 +68,8 @@ func _ready() -> void:
 	main.backpack.add("lockpick", 1)
 	var car_b := _stage_car(Vector3(-2.6, 0.6, 0), true, "test_key_b")
 	car_a.queue_free()
+	await _frames(10)
+	main.player.global_position = car_b.global_position + Vector3(2.0, 0.0, 0.0)
 	await _frames(3)
 	_check("with a pick the prompt offers the QUIET way", car_b.interact_prompt(main).contains("pick"))
 	Input.action_press("interact")

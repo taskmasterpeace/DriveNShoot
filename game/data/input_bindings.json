@@ -20,6 +20,8 @@
     {"id": "drivn_grenade", "label": "Grenade",                 "group": "ON FOOT", "keys": ["key:G"], "pad": ["axis:lt"]},
     {"id": "drivn_binoculars", "label": "Binoculars (disabled)",  "group": "ON FOOT", "keys": [], "pad": []},
     {"id": "drivn_drone_recall", "label": "Drone — recall (fly home)", "group": "WORLD", "keys": ["key:B"], "pad": ["joy:r3"]},
+    {"id": "drivn_drone_ascend", "label": "Drone — climb (held)", "group": "WORLD", "keys": ["key:SPACE"], "pad": ["joy:a"]},
+    {"id": "drivn_drone_descend", "label": "Drone — dive (held)", "group": "WORLD", "keys": ["key:CTRL"], "pad": ["joy:b"]},
     {"id": "drivn_zoom_in",  "label": "Zoom in (held)",          "group": "WORLD", "keys": ["key:Z"], "pad": []},
     {"id": "drivn_zoom_out", "label": "Zoom out (held)",         "group": "WORLD", "keys": ["key:X"], "pad": []},
     {"id": "drivn_weapon_next", "label": "Next weapon",         "group": "ON FOOT", "keys": ["key:QUOTELEFT"], "pad": ["joy:rb"]},

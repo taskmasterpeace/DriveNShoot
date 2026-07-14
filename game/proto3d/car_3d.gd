@@ -133,6 +133,15 @@ const SURFACE: Dictionary = {
 var current_surface: String = "road"
 var surface_override: String = "" ## sims/tests force a surface without a world under the car
 
+## THE HANDLING CHARACTER (owner directive 2026-07-14): ProtoTraction.handling()
+## cached per-frame (key = surface|wetness|tire, only recomputed when one of
+## those actually changes) so wheels never each re-query it.
+var _handling_cache: Dictionary = {}
+var _handling_cache_key: String = ""
+var _rumble_cd: float = 0.0 ## throttles the roughness pad-rumble (not every tick)
+const GRAVITY_MPS2 := 9.8   ## standard gravity — the rolling-resistance formula's own constant
+const ROUGHNESS_FORCE := 6.0 ## N-per-mass-unit scale for the suspension judder force
+
 ## LIGHTS (owner ask 2026-07-07): "it's too dark out there" — a car-anchored NIGHT
 ## HALO for spill light, plus BRAKE-GLOW / REVERSE-WHITE states on the tail boxes.
 ## Engine defaults here; a row's `lights` sub-dict (vehicles.json → DrivnVehicle.extra
@@ -271,10 +280,87 @@ static func _add_style_headlights(root: Node, target: Vector3, light_mat: Materi
 			Vector3(sx * target.x * 0.24, y, -target.z * 0.5 + 0.04), Vector3(0.18, 0.15, 0.06), light_mat)
 
 
+## GLB BODY LAW (2026-07-14, BLENDERFORGE): a rig whose archetype has an authored
+## body in res://assets/models/vehicles/<name>.glb wears THE MODEL — open cabins,
+## real glass panes, visible interiors, so THE DRIVER IS SEEN at the wheel. The box
+## builders below remain the code stock + fallback when no model ships (and the
+## sim-verifiable baseline — vehicle_style_sim flips use_glb_bodies off to prove it).
+## Authoring pipeline: tools/blenderforge/gen_vehicles.py (nose = -Z, meters 1:1,
+## ground plane at y 0, "body" material = the tint target).
+static var use_glb_bodies: bool = true
+const GLB_BODY_DIR := "res://assets/models/vehicles/"
+
+
+static func _glb_body_name(vclass_in: String, s: Dictionary) -> String:
+	if bool(s.get("two_wheel", false)) or vclass_in == "motorcycle":
+		return "motorcycle"
+	if bool(s.get("camper", false)) or vclass_in == "rv":
+		return "camper"
+	if vclass_in == "pickup_truck":
+		return "pickup"
+	if vclass_in == "suv" or vclass_in == "humvee":
+		return "humvee"
+	var family := String(s.get("family", ""))
+	if vclass_in == "van" or family == "van":
+		return "van"
+	if vclass_in in ["scavenger", "buggy", "pickup", "semi", "trailer"]:
+		return vclass_in
+	return "scavenger"
+
+
+static func _try_glb_body(car: ProtoCar3D, root: Node3D, vclass_in: String, s: Dictionary, body_color: Color) -> bool:
+	if not use_glb_bodies:
+		return false
+	var path := GLB_BODY_DIR + _glb_body_name(vclass_in, s) + ".glb"
+	if not ResourceLoader.exists(path):
+		return false
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return false
+	var inst := scene.instantiate()
+	inst.name = "GlbBody"
+	# Authored ground plane is y=0; sink it to the resting contact patch
+	# (wheel node -0.15, ~mid suspension 0.16, tire radius).
+	var r: float = 0.38
+	var wheel_rows: Array = s.get("wheels", [])
+	if wheel_rows.size() > 0:
+		r = float(wheel_rows[0][5])
+	inst.position.y = -(0.15 + 0.16 + r)
+	root.add_child(inst)
+	# Tint every "body"-named surface with the rig color; adopt the biggest
+	# mesh as the hull (shimmy/damage wobble target).
+	var biggest: MeshInstance3D = null
+	var biggest_verts: int = 0
+	var stack: Array = [inst]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.push_back(c)
+		var mi := n as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var verts: int = 0
+		for i in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(i)
+			if m != null and String(m.resource_name).begins_with("body"):
+				mi.set_surface_override_material(i, ProtoWorldBuilder.material(_style_color(body_color, 1.0), 0.72))
+			var arrays: Array = mi.mesh.surface_get_arrays(i)
+			var vtx: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			verts += vtx.size()
+		if verts > biggest_verts:
+			biggest_verts = verts
+			biggest = mi
+	if biggest != null:
+		car._hull_mesh = biggest
+	return true
+
+
 static func _build_modular_vehicle_style(car: ProtoCar3D, vclass_in: String, s: Dictionary, body_color: Color) -> void:
 	var root := Node3D.new()
 	root.name = "ModularVehicleStyle"
 	car.add_child(root)
+	if _try_glb_body(car, root, vclass_in, s, body_color):
+		return
 
 	var target := _vehicle_visual_target_size_from_spec(s)
 	var family := String(s.get("family", ""))
@@ -1359,7 +1445,11 @@ func _physics_process(delta: float) -> void:
 	if is_struggling:
 		_dust.color = Color(0.45, 0.34, 0.2, 0.75)
 	else:
-		_dust.color = Color(0.62, 0.52, 0.38, 0.5) if current_surface == "dirt" else Color(0.55, 0.55, 0.55, 0.32)
+		# SURFACE FEEDBACK (owner directive): the wheel-spray tints per-surface
+		# from the same handling row the physics now consults — gravel throws pale
+		# grit, mud throws dark clumps, asphalt barely dusts at all.
+		var dust_c: Array = current_handling().get("dust", [0.55, 0.55, 0.55, 0.32])
+		_dust.color = Color(float(dust_c[0]), float(dust_c[1]), float(dust_c[2]), float(dust_c[3]))
 
 	_update_wear_visuals(delta)
 
@@ -1386,6 +1476,12 @@ func _physics_process(delta: float) -> void:
 	# drags everywhere. eff_top is the speed the drivetrain can really deliver.
 	current_surface = surface_override if surface_override != "" else _sample_surface()
 	var drive_factor := offroad_factor()
+	# THE SURFACE CHARACTER (owner directive 2026-07-14): ONE query per frame —
+	# grip/speed still ride the mature tire+wetness matrix above (surface_grip_
+	# mult()/offroad_factor(), UNTOUCHED — the rain-not-double-taxed law lives
+	# there); h carries the NEW handling levers (rear_bias/steer_response/brake/
+	# roll_drag/roughness/yaw_loose), every one neutral (1.0/0.0) on asphalt.
+	var h: Dictionary = current_handling()
 	# TIRE PUNCTURE: any flat wheel taxes the top speed ONCE (not stacked per flat —
 	# you're limping either way), same lever the row already uses for drive_factor.
 	var punct_top_mult := PUNCTURE_TOP_SPEED_MULT if any_punctured() else 1.0
@@ -1396,7 +1492,11 @@ func _physics_process(delta: float) -> void:
 	# While the handbrake is down, authority is trimmed too — full lock mid-slide
 	# whipped the car 180 (first-playtest bug); a drift should be steered, not spun.
 	var speed_ratio := clampf(absf(forward_speed) / eff_top, 0.0, 1.0)
-	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio)
+	# SURFACE STEER RESPONSE (owner directive): loose ground mushes the wheel —
+	# both the max lock AND the wind-up/return rate shrink by the SAME lever
+	# (steer_response 1.0 on asphalt = byte-identical to before).
+	var steer_resp: float = float(h["steer_response"])
+	var steer_limit := lerpf(max_steer, high_speed_steer, speed_ratio) * steer_resp
 	if input_handbrake:
 		steer_limit *= handbrake_steer_mult
 	# TWO-RATE STEERING (owner ask 2026-07-07): centering back toward straight is
@@ -1404,7 +1504,7 @@ func _physics_process(delta: float) -> void:
 	# 0) vs growing/holding is the tell, so a direction-reversal through center
 	# also gets the snappy rate, not just a literal release-to-neutral.
 	var steer_target := input_steer * steer_limit
-	var rate := steer_return_speed if absf(steer_target) < absf(steering) else steer_speed
+	var rate := (steer_return_speed if absf(steer_target) < absf(steering) else steer_speed) * steer_resp
 	steering = move_toward(steering, steer_target, rate * driver_control * delta)
 	# CHASSIS SLOP (drivable damage): a bent frame won't track true — at speed the
 	# wheel WANDERS and you correct constantly. Worn = a shimmy; critical = a fight.
@@ -1483,10 +1583,14 @@ func _physics_process(delta: float) -> void:
 	var rear_base := handbrake_grip_rear if input_handbrake else grip_rear
 	if is_burnout:
 		rear_base *= burnout_slip
+	# SURFACE REAR BIAS (owner directive): loose ground is TAIL-HAPPY (gravel/dirt
+	# rear_bias <1.0 oversteers) or PLOUGHS at the front (sand's rear_bias >1.0
+	# washes the nose out instead) — asphalt's 1.0 leaves this byte-identical.
+	var rear_bias: float = float(h["rear_bias"])
 	for w in _rear_wheels:
 		var r_idx := _all_wheels.find(w)
 		var r_punct_mult := PUNCTURE_GRIP_MULT if (r_idx >= 0 and bool(_punctured[r_idx])) else 1.0
-		w.wheel_friction_slip = rear_base * grip_mult * ProtoWeather.grip_now * r_punct_mult
+		w.wheel_friction_slip = rear_base * grip_mult * rear_bias * ProtoWeather.grip_now * r_punct_mult
 
 	if input_throttle > 0.0 and engine_mult > 0.0:
 		fuel = maxf(0.0, fuel - fuel_drain_rate * input_throttle * delta)
@@ -1521,18 +1625,50 @@ func _physics_process(delta: float) -> void:
 		# Taper force as speed climbs — punchy low end, natural top-speed plateau.
 		# Off-road/worn-tire drag lowers BOTH the ceiling and the punch.
 		engine_force = -input_throttle * max_engine_force * engine_mult * drive_factor * lerpf(1.0, 0.45, speed_ratio)
+	# SURFACE BRAKING (owner directive): loose ground can't bite the wheel brake
+	# as hard — gravel/dirt lock up and skate, so stops run LONGER (h.brake 1.0
+	# on asphalt = untouched).
+	var surf_brake: float = max_brake * float(h["brake"])
 	if engine_on and input_brake > 0.0:
 		if forward_speed > 1.0:
-			brake = input_brake * max_brake
+			brake = input_brake * surf_brake
 		elif forward_speed > -reverse_top_speed:
 			engine_force = input_brake * max_engine_force * 0.5
 	elif not engine_on and input_brake > 0.0 and forward_speed > 1.0:
-		brake = input_brake * max_brake # brakes don't need a motor
+		brake = input_brake * surf_brake # brakes don't need a motor
 
 	# AERODYNAMIC DRAG — a v² force opposing horizontal motion (Ander2211 ref, MIT).
 	# Additive: no-op when aero_drag == 0. Applied every frame incl. coasting.
 	if aero_drag > 0.0:
 		apply_central_force(aero_force(linear_velocity))
+
+	# ROLLING RESISTANCE (owner directive): sand/mud BOG you — a drag force, not
+	# a grip cut, so you plough rather than slide. Guarded near-zero speed so a
+	# parked car never gets shoved backward by its own drag.
+	var roll_drag: float = float(h["roll_drag"])
+	if roll_drag > 0.0:
+		var roll_vh := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
+		var roll_speed := roll_vh.length()
+		if roll_speed > 0.3:
+			apply_central_force(-roll_vh.normalized() * roll_drag * mass * GRAVITY_MPS2)
+
+	# SUSPENSION ROUGHNESS (owner directive): washboard gravel/dirt judder the
+	# body — a small, DETERMINISTIC (position+time hashed, never global RNG so
+	# sims stay stable) vertical flutter scaled by speed. A light pad rumble
+	# rides along for the human at the wheel.
+	var roughness: float = float(h["roughness"])
+	if roughness > 0.0 and absf(forward_speed) > 0.5:
+		var rough_scale := roughness * clampf(absf(forward_speed) / 15.0, 0.0, 1.0)
+		if rough_scale > 0.0:
+			var t_ms := float(Time.get_ticks_msec())
+			var judder := sin(t_ms * 0.031 + global_position.x * 0.7) + sin(t_ms * 0.047 + global_position.z * 0.9 + 1.7)
+			apply_central_force(Vector3(0.0, judder * 0.5 * rough_scale * mass * ROUGHNESS_FORCE, 0.0))
+			_rumble_cd -= delta
+			if is_active and use_player_input and rough_scale > 0.3 and _rumble_cd <= 0.0:
+				_rumble_cd = 0.15
+				var rm := _main_node()
+				if rm != null and rm.has_method("pad_rumble"):
+					rm.pad_rumble(0.05, rough_scale * 0.35, 0.12)
 
 	if input_handbrake:
 		# THE E-BRAKE CANCELS THE GAS. Without this, held throttle re-sets engine_force
@@ -1562,7 +1698,9 @@ func _physics_process(delta: float) -> void:
 		if absf(forward_speed) > 3.0:
 			# A skilled driver's drift is TIGHTER: the cap shrinks and the settle
 			# torque grows with driver_control — less spin, exactly the skill's pitch.
-			var yaw_cap := handbrake_yaw_rate / driver_control
+			# SURFACE YAW_LOOSE (owner directive): loose ground rotates easier under
+			# the e-brake — the cap widens by (1+yaw_loose); asphalt (0.0) unchanged.
+			var yaw_cap := (handbrake_yaw_rate * (1.0 + float(h["yaw_loose"]))) / driver_control
 			var yaw_damp := handbrake_yaw_damp * driver_control
 			var wy := angular_velocity.y
 			if absf(wy) > yaw_cap:
@@ -1677,6 +1815,26 @@ func offroad_factor() -> float:
 	elif s_name != "road":
 		surf = float(ProtoTraction.traction(s_name, wetness_here(), tire_class())["speed"])
 	return surf * TIER_TIRE_DRAG[components["tires"].tier()]
+
+
+## THE SURFACE CHARACTER (owner directive 2026-07-14): one query point per frame
+## for the NEW per-surface handling levers (rear_bias/steer_response/brake/
+## roll_drag/roughness/yaw_loose/dust/sfx) — cached so wheels don't each
+## re-query it. grip is OVERRIDDEN back onto the existing, already-tuned
+## surface_grip_mult() law (road forced 1.0, water's dirt_mult*0.5, the
+## rain-not-double-taxed rule) so asphalt driving is byte-identical to before —
+## the new mechanics are pure ADDITIONS, all neutral (1.0/0.0) on asphalt.
+func current_handling() -> Dictionary:
+	var s_name: String = surface_override if surface_override != "" else current_surface
+	var wet := wetness_here()
+	var tire := tire_class()
+	var key := "%s|%s|%s" % [s_name, wet, tire]
+	if key != _handling_cache_key:
+		_handling_cache_key = key
+		var h: Dictionary = ProtoTraction.handling(s_name, wet, tire)
+		h["grip"] = surface_grip_mult() # the law lives here, never duplicated
+		_handling_cache = h
+	return _handling_cache
 
 
 ## Wear you can SEE from straight above: tires recolor by condition tier, and at

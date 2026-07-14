@@ -15,9 +15,37 @@ func _ready() -> void:
 	for key in ProtoCar3D.VEHICLES.keys():
 		ids.append(String(key))
 	ids.sort()
+	# PHASE 1 — the box-builder STOCK (the fallback law): GLB bodies off, every
+	# row still builds the modular style exactly as before.
+	ProtoCar3D.use_glb_bodies = false
 	for vehicle_id in ids:
 		_check_vehicle(vehicle_id)
+	# PHASE 2 — the AUTHORED GLB bodies (blenderforge): every archetype with a
+	# shipped model wears it — meshes present, tinted body, hull adopted, chars.
+	ProtoCar3D.use_glb_bodies = true
+	for vehicle_id in ids:
+		_check_glb_vehicle(vehicle_id)
+	ProtoCar3D.use_glb_bodies = true
 	_finish()
+
+
+func _check_glb_vehicle(vehicle_id: String) -> void:
+	var spec: Dictionary = ProtoCar3D.VEHICLES[vehicle_id]
+	var glb_path: String = ProtoCar3D.GLB_BODY_DIR + ProtoCar3D._glb_body_name(vehicle_id, spec) + ".glb"
+	if not ResourceLoader.exists(glb_path):
+		print("VEHICLE_STYLE_SIM: (no GLB shipped for %s — fallback covers it)" % vehicle_id)
+		return
+	var car := ProtoCar3D.create(vehicle_id, Color(0.10, 0.28, 0.62))
+	add_child(car)
+	var style := car.get_node_or_null("ModularVehicleStyle")
+	var glb := style.get_node_or_null("GlbBody") if style != null else null
+	var mesh_count := _mesh_count(glb)
+	_check("%s wears its authored GLB body (%d meshes)" % [vehicle_id, mesh_count],
+		glb != null and mesh_count >= 4)
+	_check("%s GLB adopts a hull mesh (shimmy/damage target)" % vehicle_id, car._hull_mesh != null)
+	_check("%s GLB tires stay low-poly cylinders" % vehicle_id, _low_poly_tires(car))
+	_check("%s GLB nested parts char when wrecked" % vehicle_id, _nested_parts_char(car))
+	car.queue_free()
 
 
 func _check(name: String, ok: bool) -> void:

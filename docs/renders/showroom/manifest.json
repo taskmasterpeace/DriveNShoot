@@ -1,0 +1,151 @@
+{
+	"count": 11,
+	"generated": "2026-07-14T09:35:51",
+	"mode": "vehicles",
+	"shots": [
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Dustrunner",
+			"family": "car",
+			"id": "buggy"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Humvee",
+			"family": "",
+			"id": "humvee"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale",
+				"seated"
+			],
+			"category": "vehicles",
+			"display_name": "Rat Bike",
+			"family": "bike",
+			"id": "motorcycle"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Rustler",
+			"family": "truck",
+			"id": "pickup"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Warhauler",
+			"family": "truck",
+			"id": "pickup_truck"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Homestead",
+			"family": "van",
+			"id": "rv"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Scavenger",
+			"family": "car",
+			"id": "scavenger"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Longhaul",
+			"family": "rig",
+			"id": "semi"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Bulwark",
+			"family": "suv",
+			"id": "suv"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "trailer",
+			"family": "rig",
+			"id": "trailer"
+		},
+		{
+			"angles": [
+				"front34",
+				"side",
+				"rear34",
+				"top",
+				"scale"
+			],
+			"category": "vehicles",
+			"display_name": "Boxer",
+			"family": "van",
+			"id": "van"
+		}
+	]
+}

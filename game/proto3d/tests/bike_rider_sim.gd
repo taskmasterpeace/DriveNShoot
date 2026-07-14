@@ -104,7 +104,9 @@ func _ready() -> void:
 	_check("...and the shot leaves the puppet's REAL muzzle (%.1fm from the bike)" % muzzle.distance_to(bike.global_position),
 		muzzle.distance_to(bike.global_position) < 3.0)
 
-	# --- 4. DISMOUNT restores; a CAB still hides you (unchanged law) ---------------
+	# --- 4. DISMOUNT restores; a CAB shows the driver too (GLB body law 2026-07-14:
+	# cabins wear real GLASS now — the puppet is SEEN at the wheel of every rig;
+	# driver_visible_sim owns the deep checks, this guards the flip) ---------------
 	main._exit_car()
 	for _i in 8:
 		await get_tree().physics_frame
@@ -113,7 +115,7 @@ func _ready() -> void:
 	main.enter_car(main.cars[0]) # the scavenger — a roofed cab
 	for _i in 6:
 		await get_tree().physics_frame
-	_check("a CAB still hides the driver (no read through a roof)", not main.player.visible)
+	_check("a CAB shows the driver through the glass (GLB body law)", main.player.visible)
 	main._exit_car()
 
 	print("RIDER RESULTS: %d passed, %d failed" % [passed, failed])

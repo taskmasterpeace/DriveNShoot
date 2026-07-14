@@ -14,11 +14,26 @@ extends Node
 
 enum PState { OFF, FLYING, HOVER, LANDING }
 
-const FLY_H: float = 8.0        ## cruise altitude
-const FLY_SPEED: float = 14.0   ## piloted horizontal speed (m/s)
+const FLY_H: float = 8.0        ## cruise altitude — the target you take off to
+const FLY_SPEED: float = 14.0   ## piloted horizontal speed (m/s), unboosted
 const LAND_SPEED: float = 6.0   ## descent rate (m/s)
 const GROUND_Y: float = 0.2     ## "landed" height
 const AIRBORNE_EPS: float = 0.3
+
+## Flight-feel arc (owner: "should be able to control drones — polish it, make it
+## feel like a bird"): a HELD target altitude (climb/dive nudge it, ground+ceiling
+## clamp it), gentle accel/decel (mass, not a teleporting cursor), and a boost tier.
+const CLIMB_RATE: float = 6.0        ## m/s while ascend/descend is held
+const MIN_ALT_ABOVE_GROUND: float = 2.5  ## never lets you auger into the terrain
+const MAX_ALT: float = 40.0          ## the signal's vertical ceiling
+const ACCEL_RATE: float = 2.5        ## 1/s — time-to-full-speed ≈ 0.4s (1/ACCEL_RATE)
+const BOOST_SPEED_MULT: float = 1.6  ## SHIFT while flying = boost
+const BOOST_DRAIN_MULT: float = 2.0  ## …and it drinks the battery twice as fast
+const MAX_BANK: float = 0.35         ## rad — roll/pitch clamp, a bird not a plank
+const YAW_RATE: float = 6.0          ## 1/s — how fast the nose chases the heading
+const BANK_RATE: float = 5.0         ## 1/s — how fast the tilt eases toward its target
+const LEVEL_RATE: float = 3.0        ## 1/s — how fast it levels out off the stick
+const BANK_GAIN: float = 0.028       ## accel (m/s²) → bank angle (rad), pre-clamp
 
 signal state_changed(state: PState)
 signal shut_off()               ## fully landed + off — body has control again
@@ -26,6 +41,12 @@ signal shut_off()               ## fully landed + off — body has control again
 var state: PState = PState.OFF
 var drone: Node3D = null
 var _move: Vector3 = Vector3.ZERO   ## desired horizontal pilot input this frame
+var _vertical: float = 0.0         ## -1..1 climb/dive input this frame
+var _boosting: bool = false        ## SHIFT held this frame
+var _velocity: Vector3 = Vector3.ZERO      ## the bird's actual eased horizontal velocity
+var _prev_velocity: Vector3 = Vector3.ZERO ## last frame's velocity, for the bank's accel read
+var _target_alt: float = FLY_H     ## the HELD altitude — climb/dive nudge it, nothing else moves it
+var _last_agl: float = FLY_H       ## last computed altitude-above-ground (HUD reads this)
 ## 🛸 PILOTING skill (goal): main sets these from the character on takeoff — a practiced
 ## hand flies faster and wastes less charge. 1.0 = unskilled.
 var speed_mult: float = 1.0
@@ -52,15 +73,30 @@ func start(d: Node3D) -> bool:
 		return false
 	drone = d
 	_move = Vector3.ZERO
+	_vertical = 0.0
+	_boosting = false
+	_velocity = Vector3.ZERO
+	_prev_velocity = Vector3.ZERO
+	_target_alt = FLY_H
+	_last_agl = FLY_H
 	_goto(PState.FLYING)
 	return true
 
 
-## Steer input while flying: a horizontal move vector (WASD / left stick). Ignored unless
-## you're actually flying.
-func pilot_input(move: Vector3) -> void:
+## Steer input while flying: a horizontal move vector (WASD / left stick), a climb/dive
+## axis (-1 dive..+1 climb: SPACE/CTRL or a pad face button), and boost (SHIFT/L3, ~1.6×
+## speed for ~2× the battery). Ignored unless you're actually flying.
+func pilot_input(move: Vector3, vertical: float = 0.0, boost: bool = false) -> void:
 	if state == PState.FLYING:
 		_move = Vector3(move.x, 0.0, move.z)
+		_vertical = clampf(vertical, -1.0, 1.0)
+		_boosting = boost
+
+
+## The HUD's altitude readout — height above the ground directly below the bird, not
+## raw world-Y (a hill under it shouldn't read as "the bird climbed").
+func altitude_agl() -> float:
+	return _last_agl
 
 
 ## Player asked to shut the drone OFF. You can't kill it mid-air — if it's up, this begins
@@ -79,6 +115,8 @@ func request_off() -> void:
 func on_attacked() -> void:
 	if state == PState.FLYING:
 		_move = Vector3.ZERO
+		_vertical = 0.0
+		_boosting = false
 		_goto(PState.HOVER)
 
 
@@ -107,28 +145,99 @@ func update(delta: float) -> void:
 		return
 	# QoL: the battery keeps draining while YOU fly it (the drone's own tick stands down
 	# when piloted) — and an empty battery brings the bird DOWN, never a vanish mid-air.
+	# BOOST drinks it twice as fast (only while actually flying under it — hovering off
+	# the stick after a bail never charges the boost rate).
 	if state == PState.FLYING or state == PState.HOVER:
 		if "battery" in drone:
-			drone.set("battery", maxf(0.0, float(drone.get("battery")) - delta * drain_mult))
+			var boosting_now := _boosting and state == PState.FLYING
+			var rate := drain_mult * (BOOST_DRAIN_MULT if boosting_now else 1.0)
+			drone.set("battery", maxf(0.0, float(drone.get("battery")) - delta * rate))
 			if float(drone.get("battery")) <= 0.0:
 				_goto(PState.LANDING)
 	var p := drone.global_position
 	match state:
 		PState.FLYING:
-			if _move.length() > 0.01:
-				p += _move.normalized() * FLY_SPEED * speed_mult * delta
-			p.y = lerpf(p.y, FLY_H, 1.0 - exp(-4.0 * delta))
+			# Mass, not a cursor: ease toward the desired velocity (accel/decel both ride
+			# this one lerp) instead of snapping straight to top speed.
+			var top_speed := FLY_SPEED * speed_mult * (BOOST_SPEED_MULT if _boosting else 1.0)
+			var target_vel := (_move.normalized() * top_speed) if _move.length() > 0.01 else Vector3.ZERO
+			_velocity = _velocity.lerp(target_vel, 1.0 - exp(-ACCEL_RATE * delta))
+			p += _velocity * delta
+			# The HELD altitude: climb/dive nudge the target, nothing else moves it — so
+			# letting go of both HOLDS the sky exactly where you left it.
+			if absf(_vertical) > 0.01:
+				_target_alt += _vertical * CLIMB_RATE * delta
+			var ground_y := _ground_y_below(p)
+			_target_alt = clampf(_target_alt, ground_y + MIN_ALT_ABOVE_GROUND, MAX_ALT)
+			p.y = lerpf(p.y, _target_alt, 1.0 - exp(-4.0 * delta))
+			_last_agl = p.y - ground_y
+			_update_bank(delta)
 		PState.HOVER:
-			p.y = lerpf(p.y, FLY_H, 1.0 - exp(-4.0 * delta))   # holds the sky, no drift
+			var ground_y2 := _ground_y_below(p)
+			p.y = lerpf(p.y, _target_alt, 1.0 - exp(-4.0 * delta))   # holds the sky, no drift
+			_last_agl = p.y - ground_y2
+			_level_out(delta)
 		PState.LANDING:
 			p.y = move_toward(p.y, GROUND_Y, LAND_SPEED * delta)
+			_level_out(delta)
 			if p.y <= GROUND_Y + 0.05:
 				drone.global_position = Vector3(p.x, GROUND_Y, p.z)
+				_last_agl = 0.0
 				_finish_off()
 				return
 		PState.OFF:
 			return
 	drone.global_position = p
+
+
+## Faces the bird into its velocity and BANKS it (roll into lateral accel, pitch into
+## fore/aft accel) — the "feels like a bird" ask. Steering itself stays camera-relative
+## top-down twin-stick; this is purely the visual read on top of that.
+func _update_bank(delta: float) -> void:
+	if drone == null or not is_instance_valid(drone):
+		return
+	var accel := (_velocity - _prev_velocity) / maxf(delta, 0.0001)
+	_prev_velocity = _velocity
+	if _velocity.length() > 0.6:
+		var target_yaw := atan2(_velocity.x, _velocity.z)
+		var diff := wrapf(target_yaw - drone.rotation.y, -PI, PI)
+		drone.rotation.y += diff * (1.0 - exp(-YAW_RATE * delta))
+	var yaw := drone.rotation.y
+	var lateral := accel.x * cos(yaw) - accel.z * sin(yaw)   # sideways accel, nose-relative
+	var fwd := accel.x * sin(yaw) + accel.z * cos(yaw)       # fore/aft accel, nose-relative
+	var roll_target := clampf(-lateral * BANK_GAIN, -MAX_BANK, MAX_BANK)
+	var pitch_target := clampf(fwd * BANK_GAIN, -MAX_BANK, MAX_BANK)
+	drone.rotation.z = lerpf(drone.rotation.z, roll_target, 1.0 - exp(-BANK_RATE * delta))
+	drone.rotation.x = lerpf(drone.rotation.x, pitch_target, 1.0 - exp(-BANK_RATE * delta))
+
+
+## Off the stick (hovering after a bail, or coming down) — level the wings and bleed
+## the velocity so a re-take doesn't inherit a stale lean or a phantom drift.
+func _level_out(delta: float) -> void:
+	if drone == null or not is_instance_valid(drone):
+		return
+	var t := 1.0 - exp(-LEVEL_RATE * delta)
+	drone.rotation.z = lerpf(drone.rotation.z, 0.0, t)
+	drone.rotation.x = lerpf(drone.rotation.x, 0.0, t)
+	_velocity = _velocity.lerp(Vector3.ZERO, t)
+	_prev_velocity = _velocity
+
+
+## The ground directly below a world position (a raycast, same tool every other system
+## uses for a terrain read — steering.gd, ground_integrity, weapon LOS). No hit (open
+## sky over an uncollided sim stage) falls back to sea-level so the clamp still holds.
+func _ground_y_below(pos: Vector3) -> float:
+	if drone == null or not is_instance_valid(drone):
+		return 0.0
+	var world := drone.get_world_3d()
+	if world == null:
+		return 0.0
+	var from := Vector3(pos.x, pos.y + 4.0, pos.z)
+	var to := Vector3(pos.x, pos.y - 200.0, pos.z)
+	var hit: Dictionary = world.direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
+	if hit.is_empty():
+		return 0.0
+	return float((hit["position"] as Vector3).y)
 
 
 func _airborne() -> bool:
@@ -138,6 +247,8 @@ func _airborne() -> bool:
 func _finish_off() -> void:
 	_goto(PState.OFF)
 	_move = Vector3.ZERO
+	_vertical = 0.0
+	_boosting = false
 	shut_off.emit()
 
 
