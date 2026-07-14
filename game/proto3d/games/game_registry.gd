@@ -87,9 +87,22 @@ func _load_games(path: String) -> void:
 		if reason != "":
 			_warn(reason)
 			continue
+		var art_reason := cover_error(row)
+		if art_reason != "":
+			_warn(art_reason)
 		var id := String(row["id"])
 		rows[id] = row
 		order.append(id)
+
+
+func cover_error(row: Dictionary) -> String:
+	var id := String(row.get("id", ""))
+	var path := String(row.get("cover_path", ""))
+	if path == "":
+		return "game '%s' lacks cover_path" % id
+	if not FileAccess.file_exists(path):
+		return "game '%s' cover is missing: %s" % [id, path]
+	return ""
 
 
 func _game_error(row: Dictionary) -> String:

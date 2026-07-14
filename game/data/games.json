@@ -4,6 +4,7 @@
     {
       "id": "waste_heap", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
       "title": "WASTE HEAP", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/waste_heap.webp",
       "cartridge_scene": "res://proto3d/games/waste_heap/waste_heap.tscn", "score": {"primary": "score", "direction": "high", "secondary": "highest_part"},
       "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1",
@@ -13,6 +14,7 @@
     {
       "id": "radworm", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
       "title": "RADWORM", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/radworm.webp",
       "cartridge_scene": "res://proto3d/games/radworm/radworm.tscn", "score": {"primary": "length", "direction": "high", "secondary": "survival_ms"},
       "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -22,6 +24,7 @@
     {
       "id": "dead_ground", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
       "title": "DEAD GROUND", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/dead_ground.webp",
       "cartridge_scene": "res://proto3d/games/dead_ground/dead_ground.tscn", "score": {"primary": "clear_ms", "direction": "low", "secondary": "errors"},
       "controls_profile": "pointer_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -31,6 +34,7 @@
     {
       "id": "pack_rat", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
       "title": "PACK RAT", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/pack_rat.webp",
       "cartridge_scene": "res://proto3d/games/pack_rat/pack_rat.tscn", "score": {"primary": "levels", "direction": "high", "secondary": "moves"},
       "controls_profile": "puzzle_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -40,6 +44,7 @@
     {
       "id": "bunker_breaker", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
       "title": "BUNKER BREAKER", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/bunker_breaker.webp",
       "cartridge_scene": "res://proto3d/games/bunker_breaker/bunker_breaker.tscn", "score": {"primary": "score", "direction": "high", "secondary": "layers"},
       "controls_profile": "paddle", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -49,6 +54,7 @@
     {
       "id": "last_mile", "phase": 1, "platform": "handheld", "device_id": "handheld_landscape",
       "title": "LAST MILE", "aspect": "16:9", "players": {"min": 1, "max": 1, "ai": true, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/last_mile.webp",
       "cartridge_scene": "res://proto3d/games/last_mile/last_mile.tscn", "score": {"primary": "course_ms", "direction": "low", "secondary": "clean_laps"},
       "controls_profile": "racer", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -58,6 +64,7 @@
     {
       "id": "iron_dome", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
       "title": "IRON DOME", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/iron_dome.webp",
       "cartridge_scene": "res://proto3d/games/iron_dome/iron_dome.tscn", "score": {"primary": "score", "direction": "high", "secondary": "cities_saved"},
       "controls_profile": "pointer_fire", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -67,6 +74,7 @@
     {
       "id": "fall_line", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
       "title": "FALL LINE", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/fall_line.webp",
       "cartridge_scene": "res://proto3d/games/fall_line/fall_line.tscn", "score": {"primary": "landing_rating", "direction": "high", "secondary": "fuel"},
       "controls_profile": "lander", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -76,6 +84,7 @@
     {
       "id": "tilt_salvage", "phase": 1, "platform": "handheld", "device_id": "handheld_portrait",
       "title": "TILT//SALVAGE", "aspect": "9:16", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/tilt_salvage.webp",
       "cartridge_scene": "res://proto3d/games/tilt_salvage/tilt_salvage.tscn", "score": {"primary": "score", "direction": "high", "secondary": "jackpots"},
       "controls_profile": "pinball", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -85,6 +94,7 @@
     {
       "id": "relay_bloom", "phase": 1, "platform": "handheld", "device_id": "handheld_square",
       "title": "RELAY BLOOM", "aspect": "1:1", "players": {"min": 1, "max": 1, "ai": false, "local": false, "online": "challenge"},
+      "cover_path": "res://assets/game_covers/relay_bloom.webp",
       "cartridge_scene": "res://proto3d/games/relay_bloom/relay_bloom.tscn", "score": {"primary": "score", "direction": "high", "secondary": "max_combo"},
       "controls_profile": "pointer_grid", "manual_book_id": "book_game_deck_handheld", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 1, "network_cost": 0, "unlock_type": "found_firmware", "ruleset": "stock-1",
@@ -95,6 +105,7 @@
     {
       "id": "crown_of_ash", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "CROWN OF ASH", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/crown_of_ash.webp",
       "cartridge_scene": "res://proto3d/games/crown_of_ash/crown_of_ash.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "clock_ms"},
       "controls_profile": "board_cursor", "manual_book_id": "book_game_deck_console", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "starter", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -104,6 +115,7 @@
     {
       "id": "dial_tanks", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "DIAL TANKS", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/dial_tanks.webp",
       "cartridge_scene": "res://proto3d/games/dial_tanks/dial_tanks.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "kills"},
       "controls_profile": "twin_stick", "manual_book_id": "book_game_deck_console", "source_ids": ["littlejs_arcade"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -113,6 +125,7 @@
     {
       "id": "red_sky", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "RED SKY", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/red_sky.webp",
       "cartridge_scene": "res://proto3d/games/red_sky/red_sky.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "damage"},
       "controls_profile": "artillery", "manual_book_id": "book_game_deck_console", "source_ids": ["three_bit_games"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -122,6 +135,7 @@
     {
       "id": "black_orbit", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "BLACK ORBIT", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/black_orbit.webp",
       "cartridge_scene": "res://proto3d/games/black_orbit/black_orbit.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "salvage"},
       "controls_profile": "twin_stick", "manual_book_id": "book_game_deck_console", "source_ids": ["three_bit_games"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -131,6 +145,7 @@
     {
       "id": "gridbreach", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "GRIDBREACH", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/gridbreach.webp",
       "cartridge_scene": "res://proto3d/games/gridbreach/gridbreach.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "survival_ms"},
       "controls_profile": "arena_grid", "manual_book_id": "book_game_deck_console", "source_ids": ["godot_demos"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -140,6 +155,7 @@
     {
       "id": "rustball", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "RUSTBALL", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/rustball.webp",
       "cartridge_scene": "res://proto3d/games/rustball/rustball.tscn", "score": {"primary": "goals", "direction": "high", "secondary": "saves"},
       "controls_profile": "physics_sport", "manual_book_id": "book_game_deck_console", "source_ids": ["bashball"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -149,6 +165,7 @@
     {
       "id": "fuel_run", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "FUEL RUN", "aspect": "16:9", "players": {"min": 1, "max": 4, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/fuel_run.webp",
       "cartridge_scene": "res://proto3d/games/fuel_run/fuel_run.tscn", "score": {"primary": "captures", "direction": "high", "secondary": "lap_ms"},
       "controls_profile": "capture_racer", "manual_book_id": "book_game_deck_console", "source_ids": ["cars_on_road"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -158,6 +175,7 @@
     {
       "id": "skyjoust", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "SKYJOUST", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/skyjoust.webp",
       "cartridge_scene": "res://proto3d/games/skyjoust/skyjoust.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "knockouts"},
       "controls_profile": "aerial_duel", "manual_book_id": "book_game_deck_console", "source_ids": ["flying_turtles"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "found_cartridge", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -167,6 +185,7 @@
     {
       "id": "fight_night_99", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "FIGHT NIGHT ’99", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/fight_night_99.webp",
       "cartridge_scene": "res://proto3d/games/fight_night_99/fight_night_99.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "hp_remaining"},
       "controls_profile": "fighter", "manual_book_id": "book_game_deck_console", "source_ids": ["wrathskeller"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "venue_prize", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -176,6 +195,7 @@
     {
       "id": "ashland_command", "phase": 1, "platform": "console", "device_id": "console_16_9",
       "title": "ASHLAND COMMAND", "aspect": "16:9", "players": {"min": 1, "max": 2, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/ashland_command.webp",
       "cartridge_scene": "res://proto3d/games/ashland_command/ashland_command.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "turns"},
       "controls_profile": "tactics_grid", "manual_book_id": "book_game_deck_console", "source_ids": ["tanks_of_freedom"],
       "requires_power": true, "power_draw": 3, "network_cost": 0, "unlock_type": "military_cache", "ruleset": "stock-1", "local_radius_m": 4.0,
@@ -186,6 +206,7 @@
     {
       "id": "rust_runners", "phase": 2, "platform": "console", "device_id": "console_16_9",
       "title": "RUST RUNNERS", "aspect": "16:9", "players": {"min": 1, "max": 8, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/rust_runners.webp",
       "cartridge_scene": "res://proto3d/games/rust_runners/rust_runners.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "kills"},
       "controls_profile": "shared_shooter", "manual_book_id": "book_rust_runners", "source_ids": ["opensoldat"],
       "requires_power": true, "power_draw": 4, "network_cost": 0, "unlock_type": "venue_prize", "ruleset": "stock-1", "local_radius_m": 5.0,
@@ -195,6 +216,7 @@
     {
       "id": "black_grid", "phase": 2, "platform": "console", "device_id": "console_16_9",
       "title": "BLACK GRID", "aspect": "16:9", "players": {"min": 1, "max": 16, "ai": true, "local": true, "online": "same_session"},
+      "cover_path": "res://assets/game_covers/black_grid.webp",
       "cartridge_scene": "res://proto3d/games/black_grid/black_grid.tscn", "score": {"primary": "wins", "direction": "high", "secondary": "objective_score"},
       "controls_profile": "shared_shooter", "manual_book_id": "book_black_grid", "source_ids": ["freeinfantry_reference"],
       "requires_power": true, "power_draw": 4, "network_cost": 0, "unlock_type": "military_cache", "ruleset": "stock-1", "local_radius_m": 5.0,
