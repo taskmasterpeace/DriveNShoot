@@ -2,12 +2,13 @@
 
 **Law:** every new/updated spec lands with a row here (same commit). Status: **BANKED** (spec only) ·
 **EXECUTING** (code in flight) · **SHIPPED** (sims green) · **PARKED** (owner-gated).
-*Last updated 2026-07-09.*
+*Last updated 2026-07-14.*
 
 ## The active contracts
 
 | Spec | Owns | Status | V1 gate / first slice | Hard deps |
 |---|---|---|---|---|
+| **THE_COUNTRY_PLAN** | the 3-arc country ladder: 1A painted relief bands + climbing roads (grade-capped road elev bake) · 1B rivers/bridges/60 overpasses + water_depth_at is BORN · 2 town landmarks/farm belts/exit-service billboards/ecotones · 3 districts→engine + ghost sites; §0 = the research corrections (relief v1 + M4b furniture ALREADY shipped — don't rebuild) | **BANKED (2026-07-14, research-verified)** | Arc 1A: `relief_paint_sim` + driven-climb + Florida/Meridian byte-flat | TERRAIN_RELIEF (design), GROUND_INTEGRITY (shipped law), RDS elev channel (shipped) |
 | **MERIDIAN_LIVE** | the CONNECTED town: diegetic prompts for every shipped director (pitch/chair/tote/church), 6-8 resident schedules + THE WITNESS LAW, race-day calendar surfaces, the pond + eco paddock + quarantine dressing, **THE PLAY.BAT TRUTH (0.5: an arc isn't visible until merged to main)** | **BANKED (owner Q&A 2026-07-09) — EXECUTES NEXT, before creatures (0.4)** | one pass; `meridian_live_sim` | everything it consumes is SHIPPED |
 | **THE_AMERICAN_ROAD** | junction/exit/address laws, road hierarchy+dirt, corridor look, milestones M0–M9 | **M0–M4a SHIPPED** (92fbd87 wire · M1 junctions/gaps/yaw-bug/exit-peel · 5be6ad4 M2 integrity · 978c8c8 Meridian=EXIT 9 · 3291bb3 two-tier towns · 1e9a194 M3b network fill+dirt layer · 4730500 M4a corridor kit) → **M4b/M5 next** | M4b mile markers/shields; M5 interiors (ProtoInteriorSkin) | — |
 | **THE_BUILDING_BOOK** | canonical catalog, interiors law, mission schema, MULTI-USE law, strategies | BANKED | M0 materialize wire; M3c mission fields | AMERICAN_ROAD milestones |
