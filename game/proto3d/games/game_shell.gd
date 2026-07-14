@@ -21,7 +21,7 @@ var _title: Label
 var _status: Label
 var _screen: TextureRect
 var _library_scroll: ScrollContainer
-var _library_box: VBoxContainer
+var _library_box: GridContainer
 var _text_scroll: ScrollContainer
 var _text_label: RichTextLabel
 var _view_stack: Control
@@ -135,9 +135,11 @@ func _build_ui() -> void:
 	_library_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_library_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_view_stack.add_child(_library_scroll)
-	_library_box = VBoxContainer.new()
+	_library_box = GridContainer.new()
+	_library_box.columns = 4
 	_library_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_library_box.add_theme_constant_override("separation", 6)
+	_library_box.add_theme_constant_override("h_separation", 10)
+	_library_box.add_theme_constant_override("v_separation", 10)
 	_library_scroll.add_child(_library_box)
 
 	_text_scroll = ScrollContainer.new()
@@ -238,17 +240,17 @@ func open_library(platform: String = "", context: Dictionary = {}) -> void:
 func _rebuild_library(platform: String) -> void:
 	for child in _library_box.get_children():
 		child.queue_free()
+	_library_box.columns = 4 if get_viewport().get_visible_rect().size.x >= 1000.0 else 2
 	first_library_button = null
+	var card_script := load("res://proto3d/games/game_cover_card.gd") as GDScript
 	for id_value in deck.registry.order:
 		var id := String(id_value)
 		var row: Dictionary = deck.registry.get_game(id)
 		if platform != "" and String(row.get("platform", "")) != platform:
 			continue
-		var button := Button.new()
-		button.focus_mode = Control.FOCUS_ALL
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		var available := bool(deck.registry.enabled(id))
 		var owned := bool(deck.ledger.is_unlocked(id))
+		var button: Button = card_script.create(row, available, owned)
 		var suffix := ""
 		if not available:
 			suffix = "  [NOT INSTALLED]"
@@ -258,7 +260,6 @@ func _rebuild_library(platform: String) -> void:
 			String(row.get("aspect", "")), int(row.get("power_draw", 0)),
 			int(row.get("network_cost", 0)), suffix]
 		button.disabled = not available or not owned
-		button.add_theme_color_override("font_color", BONE if not button.disabled else DIM)
 		var game_id := id
 		button.pressed.connect(func() -> void:
 			var launch_context := _library_context.duplicate(true)
@@ -270,7 +271,7 @@ func _rebuild_library(platform: String) -> void:
 			else:
 				open_game(game_id, launch_context))
 		_library_box.add_child(button)
-		if first_library_button == null:
+		if first_library_button == null and not button.disabled:
 			first_library_button = button
 	if first_library_button != null:
 		first_library_button.grab_focus()
