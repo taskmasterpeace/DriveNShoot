@@ -65,8 +65,8 @@ func _ready() -> void:
 			dt_streets += 1
 		if String(r["id"]).begins_with("ST-%s-" % String(ms_town.get("id", "?"))):
 			ms_streets += 1
-	_check("the downtown town holds a GRID (7 street rows: 3 across + 4 along, got %d)" % dt_streets,
-		dt_streets == 7)
+	_check("the downtown town holds a GRID (9 street rows: 3+2 across + 4 along, layout v3, got %d)" % dt_streets,
+		dt_streets == 9)
 	_check("the main-street town holds the KIT (3 rows: drag + 2 sides, got %d)" % ms_streets,
 		ms_streets == 3)
 
@@ -84,7 +84,9 @@ func _ready() -> void:
 	for p in um.placements:
 		if String(p["id"]).begins_with("%s-slot-" % String(dt_town.get("id", "?"))):
 			dt_slots += 1
-	_check("downtown Building-Book slots landed (%d >= 8)" % dt_slots, dt_slots >= 8)
+	# TOWN LAYOUT v2 (2026-07-14): block-edge frontage fills real downtowns —
+	# the floor rises from the v1 grid's 8 to a lived-in 40.
+	_check("downtown Building-Book slots landed (%d >= 40, layout v2)" % dt_slots, dt_slots >= 40)
 
 	# --- the built chunk: street dressing + shells, no husk ring -------------------
 	var chunk_m := float(ProtoWorldStream.CHUNK)
@@ -95,6 +97,7 @@ func _ready() -> void:
 	var lights := 0
 	var slabs := 0
 	var shells := 0
+	var dressing := 0
 	if chunk != null:
 		for c in chunk.get_children():
 			if c.has_meta("street_curb"):
@@ -105,10 +108,13 @@ func _ready() -> void:
 				slabs += 1
 			if c.has_meta("structure_id"):
 				shells += 1
+			if c.has_meta("town_dressing"):
+				dressing += 1
 	_check("street slabs paint in the built town chunk (%d)" % slabs, slabs >= 2)
 	_check("CURBS dress the streets (%d)" % curbs, curbs >= 4)
 	_check("STREETLIGHTS stand the blocks (%d)" % lights, lights >= 4)
 	_check("Building-Book SHELLS materialized in the town chunk (%d)" % shells, shells >= 2)
+	_check("TOWN DRESSING lives between the shells (junk/wrecks/fences, %d >= 5)" % dressing, dressing >= 5)
 	if chunk != null:
 		chunk.queue_free()
 

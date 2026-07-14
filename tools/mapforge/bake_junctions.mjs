@@ -240,64 +240,219 @@ export function renumberExits(map) {
 // drives them, the junction pass bakes them, and MapForge can edit them.
 // Tier by the town's exit archetype (metro/county_seat → downtown grid;
 // everything else → the main-street kit). Idempotent via the ST- id prefix.
+// TOWN LAYOUT v2 (2026-07-14, "improve the cities layout — do not cut corners"):
+// real BLOCK EDGES — buildings walk both sides of every street at footprint-aware
+// pitch, every building FACES its street (rot from the street's own direction —
+// the v1 rot:0 downtowns faced world-north), building types ZONE by distance
+// rings from the town center (civic/commercial core → mixed mid → residential
+// edge with industry on one flank), residential CLUSTERS stamp trailer parks and
+// farmhouses at the outskirts, and every town seeds its own deterministic PRNG
+// (same map in → same town out). One-time REGEN: map.town_layout_version < 2
+// strips v1 ST-/slot- rows and restamps; after that the ST- prefix keeps it
+// idempotent (MapForge edits survive later bakes).
+function mulberry32(seed) {
+	return function () {
+		seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+		let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+		t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+}
+function hashStr(s) {
+	let h = 2166136261;
+	for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+	return h >>> 0;
+}
+let _profileCache = null;
+function structureProfiles() {
+	if (_profileCache) return _profileCache;
+	const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+	try {
+		const doc = JSON.parse(readFileSync(join(root, "game", "data", "world", "structure_profiles.json"), "utf8"));
+		_profileCache = {};
+		for (const s of doc.structures || []) _profileCache[s.id] = s;
+	} catch { _profileCache = {}; }
+	return _profileCache;
+}
+
 export function stampTownStreets(map) {
 	const stats = { towns: 0, downtown: 0, mainstreet: 0, streets: 0, slots: 0 };
 	const roads = map.roads || [];
 	const placements = map.placements || [];
 	const exitFor = (t) => (map.exits || []).find((e) => e.town_id === t.id);
 	const hasStreet = (t) => roads.some((r) => String(r.id).startsWith(`ST-${t.id}-`));
-	const occupied = (p, r) => placements.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) < r);
-	const MAIN_SET = ["diner_roadside", "market_general", "gas_station_small", "house_small",
-		"church_small", "bar_roadhouse", "house_small", "motel_strip"];
-	const DOWNTOWN_SET = ["police_station", "courthouse", "clinic_small", "market_general",
-		"diner_roadside", "bar_roadhouse", "jeweler", "restaurant_fancy", "warehouse",
-		"house_small", "house_small", "auto_shop", "radio_station", "school_small"];
-	let slotSeq = 0;
-	const addStreet = (t, tag, a, b) => {
-		roads.push({ id: `ST-${t.id}-${tag}`, kind: "street", pts: [[a.x, a.y], [b.x, b.y]],
-			danger: 0, family: "", nickname: "", lanes: 2, divided: false });
-		stats.streets++;
-	};
-	const addSlot = (t, sid, p, rot) => {
-		if (occupied(p, 16)) return;
-		placements.push({ id: `${t.id}-slot-${++slotSeq}`, building: sid, pos: [p.x, p.y], rot });
-		stats.slots++;
-	};
+	const profiles = structureProfiles();
+	const fp = (sid) => (profiles[sid] && profiles[sid].footprint_m) || [10, 10];
+
+	// ---- the v2 REGEN sweep (one-time): strip v1 town fabric, restamp fresh ----
+	const TOWN_LAYOUT_VERSION = 4;
+	if ((map.town_layout_version || 1) < TOWN_LAYOUT_VERSION) {
+		for (const t of map.towns || []) {
+			if (t.authored) continue;
+			for (let i = roads.length - 1; i >= 0; i--)
+				if (String(roads[i].id).startsWith(`ST-${t.id}-`)) roads.splice(i, 1);
+			for (let i = placements.length - 1; i >= 0; i--)
+				if (String(placements[i].id).startsWith(`${t.id}-slot-`)) placements.splice(i, 1);
+		}
+		map.town_layout_version = TOWN_LAYOUT_VERSION;
+	}
+
+	// ZONING POOLS by catalog category (the one-of-a-kind Meridian rows and the
+	// hand-place-only categories stay OUT of the generator's hands).
+	const EXCLUDE = new Set(["city_hall", "monument_plaza", "clone_wing", "blackmarket_vat",
+		"drone_ring", "fight_pit", "derby_bowl", "race_track_grandstand", "military_base_shell"]);
+	const byCat = {};
+	for (const sid of Object.keys(profiles)) {
+		if (EXCLUDE.has(sid)) continue;
+		const cat = profiles[sid].category || "misc";
+		(byCat[cat] = byCat[cat] || []).push(sid);
+	}
+	for (const cat of Object.keys(byCat)) byCat[cat].sort();
+	const pool = (cats) => cats.flatMap((c) => byCat[c] || []);
+	const CORE_POOL = pool(["civic_law", "civic", "commercial", "media"]);
+	const MID_POOL = pool(["commercial", "service", "venue", "medical"]);
+	const EDGE_RES = pool(["residential"]);
+	const EDGE_IND = pool(["industrial", "industrial_service", "agriculture"]);
+	// anchors every town deserves, placed first at the best frontage
+	const DOWNTOWN_ANCHORS = ["courthouse", "police_station", "market_general", "clinic_small"];
+	const MAIN_ANCHORS = ["diner_roadside", "market_general", "gas_station_small", "church_small"];
+
 	for (const t of map.towns || []) {
 		if (t.authored || hasStreet(t)) continue;
+		const rng = mulberry32(hashStr("town:" + t.id));
+		let slotSeq = 0;
+		const townStreets = [];
+		const townSlots = []; // {x, y, half} for footprint-aware self-collision
+		const addStreet = (tag, a, b) => {
+			roads.push({ id: `ST-${t.id}-${tag}`, kind: "street", pts: [[a.x, a.y], [b.x, b.y]],
+				danger: 0, family: "", nickname: "", lanes: 2, divided: false });
+			townStreets.push({ a, b });
+			stats.streets++;
+		};
+		const nearOtherStreet = (p, ownA, ownB, r) => townStreets.some((s) => {
+			if (s.a === ownA && s.b === ownB) return false;
+			const dx = s.b.x - s.a.x, dy = s.b.y - s.a.y;
+			const L2 = dx * dx + dy * dy || 1;
+			const u = Math.max(0, Math.min(1, ((p.x - s.a.x) * dx + (p.y - s.a.y) * dy) / L2));
+			return Math.hypot(p.x - (s.a.x + u * dx), p.y - (s.a.y + u * dy)) < r;
+		});
+		const addSlot = (sid, p, rot) => {
+			const half = Math.max(fp(sid)[0], fp(sid)[1]) * 0.5;
+			// respect hand placements (the old 16m law) AND our own footprints
+			if (placements.some((q) => !String(q.id).startsWith(`${t.id}-slot-`) &&
+				Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) < 16)) return false;
+			if (townSlots.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < q.half + half + 2.5)) return false;
+			placements.push({ id: `${t.id}-slot-${++slotSeq}`, building: sid, pos: [Math.round(p.x), Math.round(p.y)], rot: Math.round(rot * 1000) / 1000 });
+			townSlots.push({ x: p.x, y: p.y, half });
+			stats.slots++;
+			return true;
+		};
+		const c = { x: t.pos[0], y: t.pos[1] };
+		// FRONTAGE WALK: place buildings along both sides of a street segment,
+		// footprint-aware pitch, setback from the centerline, FACING the street.
+		const frontage = (a, b, pick, cap) => {
+			const dx = b.x - a.x, dy = b.y - a.y;
+			const len = Math.hypot(dx, dy) || 1;
+			const d = { x: dx / len, y: dy / len };
+			const perp = { x: -d.y, y: d.x };
+			let placed = 0;
+			for (const side of [1, -1]) {
+				let u = 14 + rng() * 8;
+				while (u < len - 14 && placed < cap) {
+					// probe the slot POSITION first (the ring is the building's, not the
+					// street's — a corner lot on a core street can still be edge ring)
+					const probe = { x: a.x + d.x * u + perp.x * side * 12, y: a.y + d.y * u + perp.y * side * 12 };
+					const sid = pick(side, probe);
+					if (!sid) break;
+					const f = fp(sid);
+					const setback = 6.0 + f[1] * 0.5 + 2.5;
+					const p = { x: a.x + d.x * u + perp.x * side * setback, y: a.y + d.y * u + perp.y * side * setback };
+					const px = perp.x * side, py = perp.y * side;
+					u += f[0] + 6 + rng() * 5;
+					if (nearOtherStreet(p, a, b, 13)) continue;
+					// FACE THE STREET: front is +Z at rot 0 (the main-street kit law) —
+					// rot = atan2(-outward.x, -outward.y) points the door at the curb.
+					if (addSlot(sid, p, Math.atan2(-px, -py))) placed++;
+				}
+			}
+			return placed;
+		};
+		// ZONING RINGS sized to the real grid (~±150m): core keeps the law and the
+		// ledger, the middle trades, the edge SLEEPS (and works, one flank).
+		const RING_CORE = 80, RING_MID = 150;
+		const ringPick = (p) => {
+			const dist = Math.hypot(p.x - c.x, p.y - c.y);
+			if (dist < RING_CORE) return CORE_POOL;
+			if (dist < RING_MID) return MID_POOL;
+			return null; // edge handled by the caller's residential/industrial pick
+		};
 		const ex = exitFor(t);
 		const tier = ex && ["metro", "county_seat"].includes(ex.archetype) ? "downtown" : "mainstreet";
-		const c = { x: t.pos[0], y: t.pos[1] };
-		// orient the main drag toward the exit approach (or E-W default)
 		let dir = { x: 1, y: 0 };
 		if (ex) {
-			const d = { x: c.x - ex.pos[0], y: c.y - ex.pos[1] };
-			const l = Math.hypot(d.x, d.y) || 1;
-			// the drag runs PERPENDICULAR to the approach — you arrive at Main St
-			dir = { x: -d.y / l, y: d.x / l };
+			const dd = { x: c.x - ex.pos[0], y: c.y - ex.pos[1] };
+			const l = Math.hypot(dd.x, dd.y) || 1;
+			dir = { x: -dd.y / l, y: dd.x / l };
 		}
 		const perp = { x: -dir.y, y: dir.x };
 		const at = (u, w) => ({ x: c.x + dir.x * u + perp.x * w, y: c.y + dir.y * u + perp.y * w });
 		stats.towns++;
+		let anchors;
+		let anchorIdx = 0;
 		if (tier === "downtown") {
 			stats.downtown++;
-			// ~4×3 block grid: 4 streets along the drag axis, 3 across
-			for (let i = 0; i < 3; i++) addStreet(t, `ew${i}`, at(-140, -70 + i * 70), at(140, -70 + i * 70));
-			for (let j = 0; j < 4; j++) addStreet(t, `ns${j}`, at(-120 + j * 80, -110), at(-120 + j * 80, 110));
-			DOWNTOWN_SET.forEach((sid, k) => {
-				const row = Math.floor(k / 4);
-				const col = k % 4;
-				addSlot(t, sid, at(-120 + col * 80 + 32, -70 + row * 70 + 24), 0);
-			});
+			for (let i = 0; i < 3; i++) addStreet(`ew${i}`, at(-140, -70 + i * 70), at(140, -70 + i * 70));
+			// RESIDENTIAL OUTSKIRTS (layout v3): the grid no longer dead-ends at a
+			// hard empty boundary — two outer streets carry the town's edge ring.
+			addStreet(`ew_n`, at(-100, -145), at(100, -145));
+			addStreet(`ew_s`, at(-100, 145), at(100, 145));
+			for (let j = 0; j < 4; j++) addStreet(`ns${j}`, at(-120 + j * 80, -155), at(-120 + j * 80, 155));
+			anchors = DOWNTOWN_ANCHORS.slice();
+			// industry claims ONE flank (the yards side), seeded per town
+			const indSide = rng() < 0.5 ? 1 : -1;
+			const pick = (side) => {
+				if (anchorIdx < anchors.length) return anchors[anchorIdx++];
+				return null;
+			};
+			// anchors first along the central drag
+			frontage(at(-140, 0), at(140, 0), pick, anchors.length);
+			for (const s of townStreets) {
+				frontage(s.a, s.b, (side, probe) => {
+					const rp = ringPick(probe);
+					if (rp) return rp[Math.floor(rng() * rp.length)];
+					if (side === indSide && rng() < 0.45 && EDGE_IND.length) return EDGE_IND[Math.floor(rng() * EDGE_IND.length)];
+					return EDGE_RES.length ? EDGE_RES[Math.floor(rng() * EDGE_RES.length)] : null;
+				}, 12);
+			}
 		} else {
 			stats.mainstreet++;
-			addStreet(t, "main", at(-160, 0), at(160, 0));
-			addStreet(t, "side0", at(-55, -90), at(-55, 90));
-			addStreet(t, "side1", at(65, -90), at(65, 90));
-			MAIN_SET.forEach((sid, k) => {
-				const side = k % 2 === 0 ? 1 : -1;
-				addSlot(t, sid, at(-130 + Math.floor(k / 2) * 62, side * 16), side > 0 ? Math.PI : 0);
-			});
+			addStreet("main", at(-160, 0), at(160, 0));
+			addStreet("side0", at(-55, -90), at(-55, 90));
+			addStreet("side1", at(65, -90), at(65, 90));
+			anchors = MAIN_ANCHORS.slice();
+			frontage(at(-160, 0), at(160, 0), (side) => {
+				if (anchorIdx < anchors.length) return anchors[anchorIdx++];
+				const p2 = rng();
+				if (p2 < 0.55) return CORE_POOL[Math.floor(rng() * CORE_POOL.length)];
+				if (p2 < 0.8) return MID_POOL[Math.floor(rng() * MID_POOL.length)];
+				return EDGE_RES[Math.floor(rng() * EDGE_RES.length)];
+			}, 16);
+			// residential back streets
+			for (const tag of ["side0", "side1"]) {
+				const s = townStreets.find((x, i) => i === (tag === "side0" ? 1 : 2));
+				frontage(s.a, s.b, () => EDGE_RES[Math.floor(rng() * EDGE_RES.length)], 6);
+			}
+			// CLUSTER STAMPS at the outskirts: a trailer park (seeded) or a farmhouse
+			if (rng() < 0.45 && profiles["trailer_single"]) {
+				const base = at(-40 + rng() * 80, (rng() < 0.5 ? 1 : -1) * (105 + rng() * 20));
+				for (let r = 0; r < 2; r++)
+					for (let k2 = 0; k2 < 3; k2++)
+						addSlot("trailer_single", { x: base.x + k2 * 14 - 14, y: base.y + r * 12 }, Math.atan2(-perp.x, -perp.y));
+			}
+			if (rng() < 0.5 && profiles["farmhouse_field"]) {
+				const fu = (rng() < 0.5 ? -1 : 1) * (200 + rng() * 40);
+				addSlot("farmhouse_field", at(fu, (rng() - 0.5) * 60), rng() * Math.PI * 2);
+			}
 		}
 	}
 	return stats;

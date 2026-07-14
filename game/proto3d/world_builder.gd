@@ -366,6 +366,71 @@ static func _scatter_detail(world: Node3D) -> void:
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		world.add_child(mmi)
 
+	# TREES FOR THE AUTHORED LAND (2026-07-14 density law): the hand-built
+	# Meridian core was the one TREELESS stretch of America. Deciduous stands
+	# across the ±1400m apron — clear of every road (the same _on_road law the
+	# scrub uses) and thinned inside the town core so streets stay readable.
+	# 3 draw calls: trunk MM + two canopy-tint MMs (the world_stream shape law).
+	var town_core := Rect2(40.0, -400.0, 180.0, 180.0)
+	var tree_spots: Array[Vector3] = []
+	var tguard := 0
+	while tree_spots.size() < 180 and tguard < 5000:
+		tguard += 1
+		var tx := rng.randf_range(-1400.0, 1400.0)
+		var tz := rng.randf_range(-1400.0, 1400.0)
+		if _on_road(tx, tz):
+			continue
+		if town_core.has_point(Vector2(tx, tz)) and tree_spots.size() % 12 != 0:
+			continue # the core keeps only sparse street trees
+		tree_spots.append(Vector3(tx, 0, tz))
+	var trunk_mm := MultiMesh.new()
+	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
+	var tmesh := BoxMesh.new()
+	tmesh.size = Vector3(0.4, 2.8, 0.4)
+	tmesh.material = material(Color(0.30, 0.22, 0.14), 1.0)
+	trunk_mm.mesh = tmesh
+	trunk_mm.instance_count = tree_spots.size()
+	var tin_cols: Array = [Color(0.20, 0.30, 0.14), Color(0.15, 0.26, 0.11)]
+	var tin_pools: Array = [[], []]
+	var tin_scales: Array[float] = []
+	var tin_yaws: Array[float] = []
+	for i in tree_spots.size():
+		tin_scales.append(rng.randf_range(0.7, 1.6))
+		tin_yaws.append(rng.randf_range(0.0, TAU))
+		(tin_pools[i % 2] as Array).append(i)
+	var tree_tiers: Array = [[Vector3(2.8, 1.8, 2.8), 3.0], [Vector3(1.8, 1.4, 1.8), 4.3]]
+	for pi in 2:
+		var idxs: Array = tin_pools[pi]
+		if idxs.is_empty():
+			continue
+		var cmm := MultiMesh.new()
+		cmm.transform_format = MultiMesh.TRANSFORM_3D
+		var cmesh := BoxMesh.new()
+		cmesh.size = Vector3.ONE
+		cmesh.material = material(tin_cols[pi], 1.0)
+		cmm.mesh = cmesh
+		cmm.instance_count = idxs.size() * tree_tiers.size()
+		var ci := 0
+		for i in idxs:
+			var ts: float = tin_scales[i]
+			for t in tree_tiers:
+				var tsz: Vector3 = t[0]
+				var b2 := Basis(Vector3.UP, tin_yaws[i]).scaled(tsz * ts)
+				cmm.set_instance_transform(ci, Transform3D(b2, tree_spots[i] + Vector3(0, float(t[1]) * ts, 0)))
+				ci += 1
+		var cmi := MultiMeshInstance3D.new()
+		cmi.multimesh = cmm
+		cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.add_child(cmi)
+	for i in tree_spots.size():
+		var b3 := Basis(Vector3.UP, tin_yaws[i]).scaled(Vector3.ONE * tin_scales[i])
+		trunk_mm.set_instance_transform(i, Transform3D(b3, tree_spots[i] + Vector3(0, 1.4 * tin_scales[i], 0)))
+	var tmi := MultiMeshInstance3D.new()
+	tmi.multimesh = trunk_mm
+	tmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	tmi.add_to_group("authored_trees")
+	world.add_child(tmi)
+
 
 ## Road footprints (asphalt) — MIRRORS the visual slabs laid in build_world below
 ## (roads are visual-only, no collision, so the car can't raycast them). Each entry:

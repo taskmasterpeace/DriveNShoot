@@ -489,31 +489,35 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			var deep := road.is_empty() or float(road.get("dist", 999.0)) > 140.0
 			var east_x := center.x > -10000.0
 			var mid_x := center.x > -35000.0 and not east_x
+			var fveg := veg("forest")
 			var solid := 5
-			var visual := 52 if near_road else 40
+			var visual := int(fveg.get("roadside", 52)) if near_road else int(fveg.get("visual", 40))
 			if deep and east_x:
 				solid = 34
-				visual = 72
+				visual = int(fveg.get("deep_east", 72))
 			elif deep and mid_x:
 				solid = 16
-				visual = 52
+				visual = int(fveg.get("deep_mid", 52))
 			elif deep:
 				solid = 8
-			_trees(chunk, center, rng, visual, road, solid)
+				visual = int(fveg.get("deep_west", 40))
+			_trees(chunk, center, rng, visual, road, solid, String(fveg.get("kind", "deciduous")), fveg)
 		"farmland":
 			_crops(chunk, center, rng)
 			if rng.randf() < 0.14:
 				var bpos := center + Vector3(rng.randf_range(-45, 45), 0, rng.randf_range(-45, 45))
 				ProtoWorldBuilder.box_body(chunk, Vector3(7, 4.5, 10), bpos + Vector3(0, 2.25, 0), Color(0.48, 0.20, 0.14))
 				ProtoWorldBuilder.box_body(chunk, Vector3(2.4, 7.0, 2.4), bpos + Vector3(6, 3.5, 2), Color(0.6, 0.58, 0.52))
-			if near_road and rng.randf() < 0.4:
-				_trees(chunk, center, rng, 10, road) # the windbreak line by the road
+			var farm_veg := veg("farmland")
+			if near_road and rng.randf() < float(farm_veg.get("windbreak_p", 0.4)):
+				_trees(chunk, center, rng, int(farm_veg.get("windbreak", 10)), road, 5, "deciduous", farm_veg) # the windbreak line by the road
 		"plains":
-			_scatter(chunk, center, rng, 12, Color(0.36, 0.38, 0.24))
-			if rng.randf() < 0.25:
-				_trees(chunk, center, rng, 3, road)
-			if near_road and rng.randf() < 0.35:
-				_trees(chunk, center, rng, 9, road) # a small roadside copse
+			var plains_veg := veg("plains")
+			_scatter(chunk, center, rng, int(plains_veg.get("bushes", 12)), Color(0.36, 0.38, 0.24))
+			if rng.randf() < float(plains_veg.get("lone_p", 0.25)):
+				_trees(chunk, center, rng, int(plains_veg.get("lone", 3)), road, 5, "deciduous", plains_veg)
+			if near_road and rng.randf() < float(plains_veg.get("copse_p", 0.35)):
+				_trees(chunk, center, rng, int(plains_veg.get("copse", 9)), road, 5, "deciduous", plains_veg) # a small roadside copse
 			# WILD HORSES (frontier goal + the animal-location tune): mustang
 			# country is the WEST — open plains chunks graze a catchable horse
 			# (E mounts; same rig as the stable's). East keeps them rare.
@@ -528,9 +532,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				else:
 					wild.position = center + Vector3(0, 0.3, 55)
 		"scrub":
-			_scatter(chunk, center, rng, 26, Color(0.33, 0.36, 0.22))
+			_scatter(chunk, center, rng, int(veg("scrub").get("bushes", 26)), Color(0.33, 0.36, 0.22))
 		"desert":
-			_scatter(chunk, center, rng, 16, Color(0.5, 0.42, 0.3))
+			_scatter(chunk, center, rng, int(veg("desert").get("bushes", 16)), Color(0.5, 0.42, 0.3))
 			for i in 3:
 				ProtoWorldBuilder.box_visual(chunk, Vector3(3.5, 0.03, 3.5),
 					center + Vector3(rng.randf_range(-55, 55), 0.015, rng.randf_range(-55, 55)), Color(0.55, 0.44, 0.27))
@@ -547,13 +551,19 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				var rock := ProtoWorldBuilder.box_body(chunk, Vector3(rng.randf_range(4, 11), rh, rng.randf_range(4, 11)),
 					rpos + Vector3(0, rh * 0.5 - 0.4, 0), Color(0.46, 0.44, 0.42), rng.randf_range(0, TAU))
 				rock.set_meta("ridge_rock", true)
-			_scatter(chunk, center, rng, 14, Color(0.42, 0.40, 0.37))
+			var mtn_veg := veg("mountains")
+			_scatter(chunk, center, rng, int(mtn_veg.get("bushes", 14)), Color(0.42, 0.40, 0.37))
+			# SPARSE CONIFERS (vegetation rows): visual-only pines between the rocks —
+			# the ridge rocks stay the collision story, the treeline sells the biome.
+			if int(mtn_veg.get("visual", 0)) > 0:
+				_trees(chunk, center, rng, int(mtn_veg.get("visual", 0)), road, 0, "conifer", mtn_veg)
 		"swamp":
 			for i in 4:
 				ProtoWorldBuilder.box_visual(chunk, Vector3(rng.randf_range(6, 14), 0.03, rng.randf_range(6, 14)),
 					center + Vector3(rng.randf_range(-50, 50), 0.04, rng.randf_range(-50, 50)), Color(0.14, 0.22, 0.20))
-			_trees(chunk, center, rng, 14, road)
-			_scatter(chunk, center, rng, 12, Color(0.3, 0.33, 0.2))
+			var swamp_veg := veg("swamp")
+			_trees(chunk, center, rng, int(swamp_veg.get("visual", 14)), road, 5, String(swamp_veg.get("kind", "cypress")), swamp_veg)
+			_scatter(chunk, center, rng, int(swamp_veg.get("bushes", 12)), Color(0.3, 0.33, 0.2))
 			# THE GATOR (MAP_POLISH_PLAN §3.3): a stationary ambush at the water's
 			# edge — deterministic per chunk, PLACED before the player arrives
 			# (never popped into view), excluded from population current_pop.
@@ -1170,7 +1180,44 @@ func _on_new_road(pos: Vector3, key: String) -> bool:
 
 ## A stand of trees: MultiMesh trunks + canopies (cheap), a few SOLID trunks
 ## (forests are obstacles), all kept off the asphalt.
-func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, road: Dictionary, solid_count: int = 5) -> void:
+## VEGETATION AS ROWS (2026-07-14, "improve the country's tree density"):
+## data/vegetation.json overlays this CODE STOCK per biome key — a missing key
+## keeps stock, a missing file changes nothing. Visual density lives in DATA;
+## SOLID trunk counts stay in code (the frontier LAW, guarded by frontier_sim).
+const VEG_STOCK: Dictionary = {
+	"forest": {"kind": "deciduous", "visual": 40, "roadside": 52, "deep_west": 40, "deep_mid": 52, "deep_east": 72,
+		"scale_min": 0.7, "scale_max": 1.5, "canopy_a": [0.20, 0.30, 0.14], "canopy_b": [0.20, 0.30, 0.14]},
+	"swamp": {"kind": "cypress", "visual": 14, "scale_min": 0.7, "scale_max": 1.5,
+		"canopy_a": [0.20, 0.30, 0.14], "canopy_b": [0.20, 0.30, 0.14], "bushes": 12},
+	"plains": {"kind": "deciduous", "lone": 3, "lone_p": 0.25, "copse": 9, "copse_p": 0.35, "bushes": 12,
+		"canopy_a": [0.20, 0.30, 0.14], "canopy_b": [0.20, 0.30, 0.14]},
+	"farmland": {"kind": "deciduous", "windbreak": 10, "windbreak_p": 0.4,
+		"canopy_a": [0.20, 0.30, 0.14], "canopy_b": [0.20, 0.30, 0.14]},
+	"mountains": {"kind": "conifer", "visual": 0, "bushes": 14, "scale_min": 0.8, "scale_max": 1.5,
+		"canopy_a": [0.14, 0.24, 0.13], "canopy_b": [0.14, 0.24, 0.13]},
+	"scrub": {"bushes": 26},
+	"desert": {"bushes": 16},
+}
+static var _veg_folded: Dictionary = {}
+
+
+static func veg(biome: String) -> Dictionary:
+	if _veg_folded.is_empty():
+		for k in VEG_STOCK:
+			_veg_folded[k] = (VEG_STOCK[k] as Dictionary).duplicate()
+		if FileAccess.file_exists("res://data/vegetation.json"):
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/vegetation.json"))
+			if parsed is Dictionary:
+				var rows: Dictionary = (parsed as Dictionary).get("biomes", {})
+				for k in rows:
+					if not _veg_folded.has(k):
+						_veg_folded[k] = {}
+					for f in (rows[k] as Dictionary):
+						_veg_folded[k][f] = rows[k][f]
+	return _veg_folded.get(biome, {})
+
+
+func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, road: Dictionary, solid_count: int = 5, kind: String = "deciduous", row: Dictionary = {}) -> void:
 	var spots: Array[Vector3] = []
 	var guard := 0
 	while spots.size() < count and guard < count * 8:
@@ -1183,30 +1230,79 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 		spots.append(p)
 	if spots.is_empty():
 		return
+	# SHAPE KINDS: deciduous = trunk + 2 stacked canopy boxes (round crown);
+	# conifer = trunk + 3 shrinking tiers (pine); cypress = tall thin + narrow
+	# crown. Tiers ride as EXTRA INSTANCES in the two canopy MMs, so a whole
+	# stand is 3 draw calls flat, whatever the count. Two canopy MMs = the two
+	# green tint pools trees split between (variety without more materials).
+	var s_min: float = float(row.get("scale_min", 0.7))
+	var s_max: float = float(row.get("scale_max", 1.5))
+	var col_a: Array = row.get("canopy_a", [0.20, 0.30, 0.14])
+	var col_b: Array = row.get("canopy_b", [0.20, 0.30, 0.14])
+	var trunk_size := Vector3(0.4, 2.8, 0.4)
+	if kind == "cypress":
+		trunk_size = Vector3(0.5, 4.5, 0.5)
+	var tiers: Array = []  # [size, y_offset] per canopy piece, pre-scale
+	match kind:
+		"conifer":
+			tiers = [[Vector3(3.0, 1.2, 3.0), 2.6], [Vector3(2.1, 1.1, 2.1), 3.6], [Vector3(1.1, 1.0, 1.1), 4.5]]
+		"cypress":
+			tiers = [[Vector3(1.6, 2.6, 1.6), 5.2]]
+		_:
+			tiers = [[Vector3(2.8, 1.8, 2.8), 3.0], [Vector3(1.8, 1.4, 1.8), 4.3]]
 	var trunk_mm := MultiMesh.new()
 	trunk_mm.transform_format = MultiMesh.TRANSFORM_3D
 	var tmesh := BoxMesh.new()
-	tmesh.size = Vector3(0.4, 2.8, 0.4)
+	tmesh.size = trunk_size
 	tmesh.material = ProtoWorldBuilder.material(Color(0.30, 0.22, 0.14), 1.0)
 	trunk_mm.mesh = tmesh
 	trunk_mm.instance_count = spots.size()
-	var can_mm := MultiMesh.new()
-	can_mm.transform_format = MultiMesh.TRANSFORM_3D
-	var cmesh := BoxMesh.new()
-	cmesh.size = Vector3(2.6, 2.2, 2.6)
-	cmesh.material = ProtoWorldBuilder.material(Color(0.20, 0.30, 0.14), 1.0)
-	can_mm.mesh = cmesh
-	can_mm.instance_count = spots.size()
+	# split trees between the two tint pools deterministically
+	var pool_a: Array[int] = []
+	var pool_b: Array[int] = []
+	var scales: Array[float] = []
+	var yaws: Array[float] = []
 	for i in spots.size():
-		var s := rng.randf_range(0.7, 1.5)
-		var basis := Basis(Vector3.UP, rng.randf_range(0, TAU)).scaled(Vector3.ONE * s)
-		trunk_mm.set_instance_transform(i, Transform3D(basis, spots[i] + Vector3(0, 1.4 * s, 0)))
-		can_mm.set_instance_transform(i, Transform3D(basis, spots[i] + Vector3(0, 3.2 * s, 0)))
-	for mm in [trunk_mm, can_mm]:
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		chunk.add_child(mmi)
+		scales.append(rng.randf_range(s_min, s_max))
+		yaws.append(rng.randf_range(0, TAU))
+		if rng.randf() < 0.5:
+			pool_a.append(i)
+		else:
+			pool_b.append(i)
+	var pools: Array = [[pool_a, col_a], [pool_b, col_b]]
+	for pi in 2:
+		var idxs: Array[int] = pools[pi][0]
+		var col: Array = pools[pi][1]
+		if idxs.is_empty():
+			continue
+		var can_mm := MultiMesh.new()
+		can_mm.transform_format = MultiMesh.TRANSFORM_3D
+		var cmesh := BoxMesh.new()
+		cmesh.size = Vector3.ONE  # unit box; tier size rides the instance basis
+		cmesh.material = ProtoWorldBuilder.material(Color(float(col[0]), float(col[1]), float(col[2])), 1.0)
+		can_mm.mesh = cmesh
+		can_mm.instance_count = idxs.size() * tiers.size()
+		var ii := 0
+		for i in idxs:
+			var s: float = scales[i]
+			for t in tiers:
+				var tsize: Vector3 = t[0]
+				var toff: float = t[1]
+				var b := Basis(Vector3.UP, yaws[i]).scaled(tsize * s)
+				can_mm.set_instance_transform(ii, Transform3D(b, spots[i] + Vector3(0, toff * s, 0)))
+				ii += 1
+		var cmi := MultiMeshInstance3D.new()
+		cmi.multimesh = can_mm
+		cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		chunk.add_child(cmi)
+	for i in spots.size():
+		var s2: float = scales[i]
+		var tb := Basis(Vector3.UP, yaws[i]).scaled(Vector3.ONE * s2)
+		trunk_mm.set_instance_transform(i, Transform3D(tb, spots[i] + Vector3(0, trunk_size.y * 0.5 * s2, 0)))
+	var tmi := MultiMeshInstance3D.new()
+	tmi.multimesh = trunk_mm
+	tmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	chunk.add_child(tmi)
 	chunk.add_to_group("biome_trees")
 	# REAL trunks — you cannot drive through a forest at full song. Dense woods
 	# (the frontier law) plant MANY, spaced so a bike/horse threads (centers
@@ -1251,11 +1347,40 @@ func _crops(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator) -> void:
 
 
 func _scatter(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, color: Color) -> void:
+	# TWO MultiMeshes (bush tint + rock tint) instead of `count` separate nodes —
+	# density rows can now push counts way up without a node-count bill.
+	var bush_idx: Array[int] = []
+	var rock_idx: Array[int] = []
+	var poss: Array[Vector3] = []
+	var scs: Array[float] = []
 	for i in count:
-		var pos := center + Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-60, 60))
-		var s := rng.randf_range(0.5, 1.6)
-		ProtoWorldBuilder.box_visual(chunk, Vector3(0.7, 0.5, 0.7) * s, pos + Vector3(0, 0.25 * s, 0),
-			color if rng.randf() > 0.4 else Color(0.42, 0.4, 0.37))
+		poss.append(center + Vector3(rng.randf_range(-60, 60), 0, rng.randf_range(-60, 60)))
+		scs.append(rng.randf_range(0.5, 1.6))
+		if rng.randf() > 0.4:
+			bush_idx.append(i)
+		else:
+			rock_idx.append(i)
+	var sets: Array = [[bush_idx, color], [rock_idx, Color(0.42, 0.4, 0.37)]]
+	for si in 2:
+		var idxs: Array[int] = sets[si][0]
+		if idxs.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.7, 0.5, 0.7)
+		mesh.material = ProtoWorldBuilder.material(sets[si][1], 1.0)
+		mm.mesh = mesh
+		mm.instance_count = idxs.size()
+		var ii := 0
+		for i in idxs:
+			var b := Basis(Vector3.UP, 0.0).scaled(Vector3.ONE * scs[i])
+			mm.set_instance_transform(ii, Transform3D(b, poss[i] + Vector3(0, 0.25 * scs[i], 0)))
+			ii += 1
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		chunk.add_child(mmi)
 
 
 ## A handful of homes beside the road — America lived along its interstates.
@@ -1347,6 +1472,24 @@ func _stamp_town(chunk: Node3D, t: Dictionary, rng: RandomNumberGenerator) -> vo
 			ProtoWorldBuilder.box_body(chunk, Vector3(18, 2, 2), base + Vector3(0, 24, 0), Color(0.55, 0.35, 0.2), 0.0)
 		"washington": # the drowned monument
 			ProtoWorldBuilder.box_body(chunk, Vector3(2.4, 30, 2.4), base + Vector3(0, 12, 6), Color(0.8, 0.78, 0.72))
+	# TOWN DRESSING (layout v2, 2026-07-14): life between the shells — junk piles,
+	# a couple of long-dead parked wrecks, low yard fences. All box_visual (no
+	# collision, driving stays clean), deterministic, <=10 nodes per town chunk.
+	for i in 3:
+		var jp := base + Vector3(rng.randf_range(-90, 90), 0, rng.randf_range(-90, 90))
+		ProtoWorldBuilder.box_visual(chunk, Vector3(rng.randf_range(1.2, 2.4), rng.randf_range(0.4, 0.9), rng.randf_range(1.0, 2.0)),
+			jp + Vector3(0, 0.3, 0), Color(0.34, 0.30, 0.26), rng.randf_range(0, TAU)).set_meta("town_dressing", true)
+	for i in 2:
+		var wp := base + Vector3(rng.randf_range(-80, 80), 0, rng.randf_range(-80, 80))
+		var wreck := ProtoWorldBuilder.box_visual(chunk, Vector3(1.9, 0.9, 4.2), wp + Vector3(0, 0.42, 0),
+			Color(0.36, 0.27, 0.20), rng.randf_range(0, TAU))
+		wreck.set_meta("town_dressing", true)
+		ProtoWorldBuilder.box_visual(chunk, Vector3(1.5, 0.5, 1.8), wp + Vector3(0, 1.05, -0.3),
+			Color(0.30, 0.24, 0.19), 0.0).set_meta("town_dressing", true)
+	for i in 2:
+		var fx := base + Vector3(rng.randf_range(-100, 100), 0, rng.randf_range(-100, 100))
+		ProtoWorldBuilder.box_visual(chunk, Vector3(rng.randf_range(8, 16), 0.9, 0.15),
+			fx + Vector3(0, 0.45, 0), Color(0.40, 0.34, 0.24), rng.randf_range(0, TAU)).set_meta("town_dressing", true)
 	chunk.add_to_group("biome_town")
 
 

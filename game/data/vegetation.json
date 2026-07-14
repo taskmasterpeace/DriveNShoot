@@ -1,0 +1,54 @@
+{
+	"_comment": "VEGETATION DENSITY ROWS (2026-07-14, 'improve the country's tree density') — folded ADDITIVELY over world_stream.gd VEG_STOCK code defaults: a missing key keeps stock, a missing file changes nothing. Counts are VISUAL trees (MultiMesh instances, ~free); SOLID collidable trunk counts stay in CODE — they are the frontier LAW (east>=24, west<=10, roadside<=6, spacing>=1.9m), not dressing. kind: deciduous | conifer | cypress. canopy_a/canopy_b: the two green tint pools instances split between (variety without extra draw calls). No purple.",
+	"biomes": {
+		"forest": {
+			"kind": "deciduous",
+			"visual": 150,
+			"roadside": 150,
+			"deep_west": 170,
+			"deep_mid": 190,
+			"deep_east": 260,
+			"scale_min": 0.7,
+			"scale_max": 1.6,
+			"canopy_a": [0.20, 0.30, 0.14],
+			"canopy_b": [0.15, 0.26, 0.11]
+		},
+		"swamp": {
+			"kind": "cypress",
+			"visual": 70,
+			"scale_min": 0.8,
+			"scale_max": 1.7,
+			"canopy_a": [0.18, 0.27, 0.16],
+			"canopy_b": [0.22, 0.28, 0.13],
+			"bushes": 18
+		},
+		"plains": {
+			"kind": "deciduous",
+			"lone": 6,
+			"lone_p": 0.45,
+			"copse": 16,
+			"copse_p": 0.5,
+			"bushes": 24,
+			"canopy_a": [0.24, 0.32, 0.15],
+			"canopy_b": [0.28, 0.31, 0.13]
+		},
+		"farmland": {
+			"kind": "deciduous",
+			"windbreak": 22,
+			"windbreak_p": 0.6,
+			"canopy_a": [0.22, 0.31, 0.14],
+			"canopy_b": [0.26, 0.30, 0.13]
+		},
+		"mountains": {
+			"kind": "conifer",
+			"visual": 12,
+			"bushes": 14,
+			"scale_min": 0.8,
+			"scale_max": 1.5,
+			"canopy_a": [0.14, 0.24, 0.13],
+			"canopy_b": [0.11, 0.21, 0.12]
+		},
+		"scrub": { "bushes": 48 },
+		"desert": { "bushes": 24 }
+	}
+}
