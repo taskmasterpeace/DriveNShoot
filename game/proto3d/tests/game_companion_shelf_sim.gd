@@ -69,9 +69,13 @@ func _ready() -> void:
 	shelf.call("set_filter", "all")
 	shelf.call("restore_focus", "black_grid")
 	await get_tree().process_frame
+	await get_tree().process_frame
 	var restored: Dictionary = shelf.call("snapshot_ui")
 	_check("focus restores to BLACK GRID", String(restored.get("focused_game_id", "")) == "black_grid"
 		and (cards["black_grid"] as Button).has_focus())
+	var shelf_scroll: ScrollContainer = shelf.get("_scroll") as ScrollContainer
+	_check("restored focus scrolls its physical cartridge into view",
+		shelf_scroll != null and shelf_scroll.scroll_vertical > 0)
 
 	var selected := [""]
 	shelf.connect("game_selected", func(game_id: String) -> void: selected[0] = game_id)

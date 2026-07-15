@@ -63,7 +63,11 @@ func set_filter(filter_id: String) -> void:
 
 func restore_focus(game_id: String) -> void:
 	if cards.has(game_id) and (cards[game_id] as Button).visible:
-		(cards[game_id] as Button).grab_focus()
+		var card := cards[game_id] as Button
+		card.grab_focus()
+		# Controller focus is not useful when the remembered physical cartridge
+		# remains below the scroll fold after an eject.
+		_scroll.ensure_control_visible(card)
 	else:
 		_focus_first_visible()
 
