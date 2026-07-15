@@ -3,6 +3,10 @@
 class_name ProtoGameShell
 extends CanvasLayer
 
+signal companion_change_requested
+signal companion_restart_requested
+signal companion_quit_requested
+
 const INK := Color("11100d")
 const CARD := Color("242019")
 const AMBER := Color("f2b735")
@@ -16,9 +20,13 @@ var current_view := "library"
 var current_text := ""
 var first_library_button: Button = null
 var lobby: Control = null
+var companion_mode := false
 var _root: PanelContainer
 var _title: Label
 var _status: Label
+var _power_button: Button
+var _restart_button: Button
+var _close_button: Button
 var _screen: TextureRect
 var _library_scroll: ScrollContainer
 var _library_box: GridContainer
@@ -80,18 +88,25 @@ func _build_ui() -> void:
 	_title.add_theme_font_size_override("font_size", 24)
 	_title.add_theme_color_override("font_color", AMBER)
 	header.add_child(_title)
-	var power := Button.new()
-	power.text = "■ POWER"
-	power.focus_mode = Control.FOCUS_ALL
-	power.add_theme_color_override("font_color", DANGER)
-	power.pressed.connect(power_off)
-	header.add_child(power)
-	var close := Button.new()
-	close.text = "✕"
-	close.focus_mode = Control.FOCUS_ALL
-	close.add_theme_color_override("font_color", DANGER)
-	close.pressed.connect(close_to_device)
-	header.add_child(close)
+	_power_button = Button.new()
+	_power_button.text = "■ POWER"
+	_power_button.focus_mode = Control.FOCUS_ALL
+	_power_button.add_theme_color_override("font_color", DANGER)
+	_power_button.pressed.connect(power_off)
+	header.add_child(_power_button)
+	_restart_button = Button.new()
+	_restart_button.text = "RESTART"
+	_restart_button.focus_mode = Control.FOCUS_ALL
+	_restart_button.add_theme_color_override("font_color", AMBER)
+	_restart_button.visible = false
+	_restart_button.pressed.connect(func() -> void: companion_restart_requested.emit())
+	header.add_child(_restart_button)
+	_close_button = Button.new()
+	_close_button.text = "✕"
+	_close_button.focus_mode = Control.FOCUS_ALL
+	_close_button.add_theme_color_override("font_color", DANGER)
+	_close_button.pressed.connect(_on_close_pressed)
+	header.add_child(_close_button)
 
 	var tab_bar := HBoxContainer.new()
 	tab_bar.add_theme_constant_override("separation", 6)
@@ -160,7 +175,25 @@ func _build_ui() -> void:
 	layout.add_child(_status)
 
 
+func set_companion_mode(enabled: bool) -> void:
+	companion_mode = enabled
+	_power_button.text = "CHANGE CARTRIDGE" if enabled else "■ POWER"
+	_close_button.text = "QUIT" if enabled else "✕"
+	_restart_button.visible = enabled
+	(_tabs["library"] as Button).visible = not enabled
+	(_tabs["match"] as Button).visible = not enabled
+	if enabled:
+		_title.text = "DRIVN: GAME DECK // NO CARTRIDGE"
+		_status.text = "A DRIVN COMPANION // SINGLE PLAYER"
+	else:
+		_title.text = "GAME DECK // NO CARTRIDGE"
+		_status.text = "WORLD LIVE // START or ESC: menu // F1: help"
+	_sync_views()
+
+
 func attach_terminal(terminal: Node3D, broker: RefCounted) -> void:
+	if companion_mode:
+		return
 	_terminal = terminal
 	if _broker != broker:
 		if _broker != null and _broker.has_signal("launch_ready") \
@@ -179,6 +212,9 @@ func attach_terminal(terminal: Node3D, broker: RefCounted) -> void:
 
 
 func open_lobby(game_id: String, context: Dictionary = {}) -> bool:
+	if companion_mode:
+		_status.text = "A DRIVN COMPANION // SINGLE PLAYER ONLY"
+		return false
 	is_open = true
 	visible = true
 	_root.visible = true
@@ -196,6 +232,8 @@ func open_lobby(game_id: String, context: Dictionary = {}) -> bool:
 
 
 func open_pending_lobby() -> bool:
+	if companion_mode:
+		return false
 	if lobby == null or _broker == null or (_broker.pending_invitations() as Array).is_empty():
 		return false
 	is_open = true
@@ -222,6 +260,9 @@ func _on_lobby_leave() -> void:
 
 
 func open_library(platform: String = "", context: Dictionary = {}) -> void:
+	if companion_mode:
+		companion_change_requested.emit()
+		return
 	is_open = true
 	visible = true
 	_root.visible = true
@@ -278,6 +319,8 @@ func _rebuild_library(platform: String) -> void:
 
 
 func open_game(game_id: String, context: Dictionary = {}) -> bool:
+	if companion_mode:
+		context = _companion_context(game_id, context)
 	is_open = true
 	visible = true
 	_root.visible = true
@@ -297,7 +340,8 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 		current_view = "error"
 		_sync_views()
 		return false
-	_title.text = "GAME DECK // %s" % String(deck.current_row.get("title", game_id))
+	_title.text = "%s // %s" % ["DRIVN: GAME DECK" if companion_mode else "GAME DECK",
+		String(deck.current_row.get("title", game_id))]
 	_screen.texture = deck.texture()
 	current_view = "play"
 	if bool(context.get("auto_start", false)):
@@ -310,7 +354,9 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 			current_view = "error"
 			_sync_views()
 			return false
-	if spectator:
+	if companion_mode:
+		_status.text = "A DRIVN COMPANION // SINGLE PLAYER // START or ESC: menu // F1: help"
+	elif spectator:
 		_status.text = "SPECTATING // INPUT LOCKED // POWER %d // NETWORK %d // ESC: menu" % [
 			int(deck.current_row.get("power_draw", 0)), int(deck.current_row.get("network_cost", 0))]
 	else:
@@ -322,9 +368,14 @@ func open_game(game_id: String, context: Dictionary = {}) -> bool:
 
 func show_view(view_id: String) -> void:
 	if view_id == "library":
+		if companion_mode:
+			companion_change_requested.emit()
+			return
 		open_library(String(deck.current_row.get("platform", "")))
 		return
 	if view_id == "match":
+		if companion_mode:
+			return
 		current_view = "match"
 		if lobby != null:
 			lobby.call("refresh")
@@ -453,7 +504,12 @@ func handle_event(event: InputEvent) -> bool:
 		show_view("play")
 		return true
 	if _is_raw_close(event):
-		close_to_device()
+		if companion_mode and not deck.current_row.is_empty():
+			if deck.state == "PAUSED":
+				deck.resume()
+			show_view("play")
+		else:
+			close_to_device()
 		return true
 	return false
 
@@ -480,16 +536,78 @@ func _input(event: InputEvent) -> void:
 
 
 func close_to_device() -> void:
+	if companion_mode:
+		if not deck.current_row.is_empty():
+			if deck.state == "PAUSED":
+				deck.resume()
+			show_view("play")
+		return
+	hide_for_transition()
+
+
+func hide_for_transition() -> void:
 	is_open = false
 	_root.visible = false
 	visible = false
 	deck.set_shell_open(false)
 
 
+func show_after_transition() -> void:
+	is_open = true
+	visible = true
+	_root.visible = true
+	deck.set_shell_open(true)
+	show_view("play")
+
+
 func power_off() -> void:
+	if companion_mode:
+		companion_change_requested.emit()
+		return
 	deck.stop("power_off")
 	close_to_device()
 
 
 func screen_texture() -> Texture2D:
 	return _screen.texture
+
+
+func companion_snapshot() -> Dictionary:
+	var visible_tabs: Array[String] = []
+	var reachable: Array[String] = [_title.text, _status.text, _power_button.text,
+		_restart_button.text, _close_button.text]
+	for tab_id in _tabs:
+		var button := _tabs[tab_id] as Button
+		if button.visible:
+			visible_tabs.append(String(tab_id))
+			reachable.append(button.text)
+	return {
+		"companion_mode": companion_mode,
+		"visible_tabs": visible_tabs,
+		"lobby_attached": lobby != null,
+		"reachable_text": " // ".join(reachable),
+	}
+
+
+func _on_close_pressed() -> void:
+	if companion_mode:
+		companion_quit_requested.emit()
+	else:
+		close_to_device()
+
+
+func _companion_context(game_id: String, source: Dictionary) -> Dictionary:
+	var context := source.duplicate(true)
+	var row: Dictionary = deck.registry.get_game(game_id)
+	var console := String(row.get("platform", "")) == "console"
+	var players: Dictionary = row.get("players", {}) as Dictionary
+	context["source"] = "companion"
+	context["device"] = String(row.get("platform", ""))
+	context["auto_start"] = true
+	context["online"] = false
+	context["spectator"] = false
+	context["bots_enabled"] = console
+	context["actor_count"] = int(players.get("max", 1)) if console else 1
+	context["seats"] = [{"seat": 0, "device": -1, "profile_id": "companion-local",
+		"name": "RIDER"}]
+	return context

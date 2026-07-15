@@ -63,8 +63,7 @@ func set_filter(filter_id: String) -> void:
 
 func restore_focus(game_id: String) -> void:
 	if cards.has(game_id) and (cards[game_id] as Button).visible:
-		# Queue this behind any filter fallback so the remembered cartridge wins.
-		(cards[game_id] as Button).call_deferred("grab_focus")
+		(cards[game_id] as Button).grab_focus()
 	else:
 		_focus_first_visible()
 
@@ -231,10 +230,10 @@ func _focus_first_visible() -> void:
 	for game_id_value in registry.order:
 		var card: Button = cards.get(String(game_id_value)) as Button
 		if card != null and card.visible:
-			card.call_deferred("grab_focus")
+			card.grab_focus()
 			return
 	if promo_card != null and promo_card.visible:
-		promo_card.call_deferred("grab_focus")
+		promo_card.grab_focus()
 
 
 func _update_columns() -> void:
