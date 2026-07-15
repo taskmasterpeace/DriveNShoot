@@ -100,7 +100,10 @@ func cover_error(row: Dictionary) -> String:
 	var path := String(row.get("cover_path", ""))
 	if path == "":
 		return "game '%s' lacks cover_path" % id
-	if not FileAccess.file_exists(path):
+	# Imported images become packed .ctex resources in Windows exports. The
+	# source .webp is intentionally absent there, while ResourceLoader still
+	# resolves the original path through Godot's remap table.
+	if not ResourceLoader.exists(path):
 		return "game '%s' cover is missing: %s" % [id, path]
 	return ""
 

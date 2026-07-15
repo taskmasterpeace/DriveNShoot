@@ -30,3 +30,15 @@ thumbnail.
 
 - Key art SHA-256: `5369242EB22002AB0B3759CF938988E35E58B884A3662AC0F6CE1F157D551064`
 - Promo SHA-256: `64C5BB2D049DFF23E01CA6D4A89BD7D1AE5FE619D712B63FC62E961A47F9F7C5`
+
+`game_deck.ico` is the companion executable's separate, deterministic Windows
+icon. It contains 16, 24, 32, 48, 64, 128, and 256 pixel layers and combines
+the DRIVN divided-highway mark with the four universal cartridge contacts. It
+is built entirely from code and the same checked-in font and palette:
+
+```powershell
+python tools/game_deck/build_companion_icon.py
+python tools/game_deck/build_companion_icon.py --check
+```
+
+- Windows icon SHA-256: `512670B78816C62E7151DF15E90F4074E90174380CA31B682F35B5694B474784`

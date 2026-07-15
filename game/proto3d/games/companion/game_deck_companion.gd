@@ -13,6 +13,7 @@ const PROMO := "PROMO"
 const QUIT := "QUIT"
 const BOOT_DURATION := 2.2
 const RELEASE_PATH := "res://data/game_deck_companion.json"
+const SMOKE_SAVE_PATH := "user://game_deck_companion_smoke.json"
 
 var app_state := BOOT
 var release_row: Dictionary = {}
@@ -36,6 +37,7 @@ var _pending_launch_ok := false
 var _quit_after_eject := false
 var _exit_on_quit := true
 var _initialized := false
+var _smoke_mode := false
 
 
 static func create(new_save_path_override: String = "") -> Control:
@@ -55,11 +57,17 @@ func _ready() -> void:
 		return
 	_initialized = true
 	get_tree().auto_accept_quit = false
+	_smoke_mode = _smoke_requested()
+	if _smoke_mode and save_path_override == "":
+		save_path_override = SMOKE_SAVE_PATH
 	_load_release()
 	_build_runtime()
 	_build_boot()
 	app_state = BOOT
 	set_process(true)
+	if _smoke_mode:
+		set_process(false)
+		call_deferred("_run_export_smoke")
 
 
 func _process(delta: float) -> void:
@@ -397,6 +405,99 @@ func _next_seed() -> int:
 	if candidate == current_seed:
 		candidate += _seed_nonce + 1
 	return maxi(1, candidate)
+
+
+func _smoke_requested() -> bool:
+	return OS.get_cmdline_args().has("--companion-smoke") \
+		or OS.get_cmdline_user_args().has("--companion-smoke")
+
+
+func _run_export_smoke() -> void:
+	var failures: Array[String] = []
+	_smoke_check(failures, "companion release data loaded",
+		String(release_row.get("product_title", "")) == "DRIVN: GAME DECK")
+	_smoke_check(failures, "smoke persistence is isolated",
+		String(save_store.get("path")) == SMOKE_SAVE_PATH)
+	var packed_covers_ok: bool = deck.registry.order.size() == 22
+	for game_id_value in deck.registry.order:
+		var cover_path := String(deck.registry.get_game(String(game_id_value)).get(
+			"cover_path", ""))
+		packed_covers_ok = packed_covers_ok and ResourceLoader.exists(cover_path) \
+			and load(cover_path) is Texture2D
+	_smoke_check(failures, "all twenty-two packed cover textures resolve",
+		packed_covers_ok)
+	skip_boot()
+	_smoke_check(failures, "boot reaches shelf", app_state == SHELF)
+
+	var handheld_ok := inspect_game("waste_heap") and insert_game("waste_heap")
+	_smoke_check(failures, "handheld cartridge accepted", handheld_ok)
+	if handheld_ok:
+		transition.call("_advance", 0.63)
+		transition.call("_advance", 0.53)
+		_smoke_check(failures, "handheld launches through cartridge contact",
+			app_state == PLAY and deck.state == ProtoGameDeck.STATE_PLAYING
+			and String(deck.current_row.get("id", "")) == "waste_heap")
+		_smoke_check(failures, "handheld remains one human with no bot fill",
+			deck.active_seats.size() == 1
+			and not bool(deck.current_context.get("bots_enabled", true))
+			and int(deck.current_context.get("actor_count", 0)) == 1
+			and deck.cartridge != null
+			and int(deck.cartridge.get("participant_total")) == 1)
+		change_cartridge()
+		transition.call("_advance", 0.56)
+		_smoke_check(failures, "handheld eject restores shelf", app_state == SHELF)
+
+	var console_ok := inspect_game("rust_runners") and insert_game("rust_runners")
+	_smoke_check(failures, "console cartridge accepted", console_ok)
+	if console_ok:
+		transition.call("_advance", 0.63)
+		transition.call("_advance", 0.53)
+		_smoke_check(failures, "console launches through cartridge contact",
+			app_state == PLAY and deck.state == ProtoGameDeck.STATE_PLAYING
+			and String(deck.current_row.get("id", "")) == "rust_runners")
+		_smoke_check(failures, "console fills the stock eight-rider field with AI",
+			deck.active_seats.size() == 1
+			and bool(deck.current_context.get("bots_enabled", false))
+			and int(deck.current_context.get("actor_count", 0)) == 8
+			and deck.cartridge != null
+			and int(deck.cartridge.get("participant_total")) == 8)
+		change_cartridge()
+		transition.call("_advance", 0.56)
+		_smoke_check(failures, "console eject restores shelf", app_state == SHELF)
+
+	var save_error := save_now()
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(SMOKE_SAVE_PATH)) \
+		if save_error == OK and FileAccess.file_exists(SMOKE_SAVE_PATH) else null
+	var envelope := parsed as Dictionary if parsed is Dictionary else {}
+	var smoke_ui: Dictionary = envelope.get("ui", {}) as Dictionary
+	_smoke_check(failures, "dedicated companion envelope saves cleanly",
+		save_error == OK and int(envelope.get("schema", 0)) == ProtoCompanionSave.SCHEMA
+		and envelope.get("ledger", null) is Dictionary
+		and bool(smoke_ui.get("seen_insert", false))
+		and String(smoke_ui.get("last_game_id", "")) == "rust_runners")
+
+	if deck.cartridge != null:
+		deck.stop("export_smoke_complete")
+	_cleanup_smoke_files()
+	get_tree().auto_accept_quit = true
+	if failures.is_empty():
+		print("GAME_DECK_COMPANION_SMOKE: PASS - handheld, console AI, eject, and save")
+		get_tree().quit(0)
+	else:
+		print("GAME_DECK_COMPANION_SMOKE: FAIL - %s" % " | ".join(failures))
+		get_tree().quit(1)
+
+
+func _smoke_check(failures: Array[String], label: String, ok: bool) -> void:
+	print("GAME_DECK_COMPANION_SMOKE: %s - %s" % ["PASS" if ok else "FAIL", label])
+	if not ok:
+		failures.append(label)
+
+
+func _cleanup_smoke_files() -> void:
+	for candidate in [SMOKE_SAVE_PATH, SMOKE_SAVE_PATH + ".tmp"]:
+		if FileAccess.file_exists(candidate):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(candidate))
 
 
 func _finalize_quit() -> void:
