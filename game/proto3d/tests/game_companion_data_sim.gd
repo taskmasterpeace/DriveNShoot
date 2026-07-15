@@ -40,6 +40,14 @@ func _ready() -> void:
 		and (promo.get("features", []) as Array).size() == 5)
 	_check("promotion declares its final art path", String(promo.get("art_path", ""))
 		== "res://assets/game_deck/companion_drivn_promo.webp")
+	var key_art_path := "res://assets/game_deck/companion_drivn_key_art.webp"
+	var promo_art_path := String(promo.get("art_path", ""))
+	var key_art := load(key_art_path) as Texture2D if ResourceLoader.exists(key_art_path) else null
+	var promo_art := load(promo_art_path) as Texture2D if ResourceLoader.exists(promo_art_path) else null
+	_check("original text-free DRIVN key art is an imported 3:2 master",
+		key_art != null and key_art.get_width() == 1536 and key_art.get_height() == 1024)
+	_check("final DRIVN promotion is an imported exact 2:3 box front",
+		promo_art != null and promo_art.get_width() == 1024 and promo_art.get_height() == 1536)
 	_check("optional full-game URL remains a string", row.get("full_game_url", null) is String)
 
 	var registry := ProtoGameRegistry.load_catalog()
