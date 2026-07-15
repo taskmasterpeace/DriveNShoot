@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "product_title": "DRIVN: GAME DECK",
+  "subtitle": "A DRIVN COMPANION",
+  "version": "0.14.0",
+  "promo": {
+    "headline": "DRIVN // THE FULL WASTELAND",
+    "strap": "GAME DECK LIVES INSIDE THIS WORLD",
+    "body": "This arcade is one room in a much bigger world: top-down vehicular combat and road survival across the Divided States of America.",
+    "features": [
+      "ROAD SURVIVAL",
+      "ARMED VEHICLES",
+      "CREW + DOGS",
+      "SAFEHOUSES",
+      "MEDIA + GAME DECK"
+    ],
+    "status": "FULL GAME IN DEVELOPMENT",
+    "art_path": "res://assets/game_deck/companion_drivn_promo.webp"
+  },
+  "full_game_url": ""
+}
