@@ -1,0 +1,16 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_DECK_COMPANION_SMOKE: PASS - companion release data loaded
+GAME_DECK_COMPANION_SMOKE: PASS - smoke persistence is isolated
+GAME_DECK_COMPANION_SMOKE: PASS - all twenty-two packed cover textures resolve
+GAME_DECK_COMPANION_SMOKE: PASS - boot reaches shelf
+GAME_DECK_COMPANION_SMOKE: PASS - handheld cartridge accepted
+GAME_DECK_COMPANION_SMOKE: PASS - handheld launches through cartridge contact
+GAME_DECK_COMPANION_SMOKE: PASS - handheld remains one human with no bot fill
+GAME_DECK_COMPANION_SMOKE: PASS - handheld eject restores shelf
+GAME_DECK_COMPANION_SMOKE: PASS - console cartridge accepted
+GAME_DECK_COMPANION_SMOKE: PASS - console launches through cartridge contact
+GAME_DECK_COMPANION_SMOKE: PASS - console fills the stock eight-rider field with AI
+GAME_DECK_COMPANION_SMOKE: PASS - console eject restores shelf
+GAME_DECK_COMPANION_SMOKE: PASS - dedicated companion envelope saves cleanly
+GAME_DECK_COMPANION_SMOKE: PASS - handheld, console AI, eject, and save

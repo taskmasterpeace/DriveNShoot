@@ -1,0 +1,938 @@
+﻿DRIVN: GAME DECK FULL REGRESSION
+
+
+===== game_companion_data_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_DATA: start
+GAME_COMPANION_DATA: PASS - release row exists
+GAME_COMPANION_DATA: PASS - release row is valid JSON
+GAME_COMPANION_DATA: PASS - product identity is exact
+GAME_COMPANION_DATA: PASS - release schema and version are present
+GAME_COMPANION_DATA: PASS - promotion has finished copy
+GAME_COMPANION_DATA: PASS - promotion declares its final art path
+GAME_COMPANION_DATA: PASS - original text-free DRIVN key art is an imported 3:2 master
+GAME_COMPANION_DATA: PASS - final DRIVN promotion is an imported exact 2:3 box front
+GAME_COMPANION_DATA: PASS - optional full-game URL remains a string
+GAME_COMPANION_DATA: PASS - canonical companion catalog is exactly ten handheld and twelve console
+GAME_COMPANION_DATA RESULTS: 10 passed, 0 failed
+GAME_COMPANION_DATA: ALL CHECKS PASSED
+
+===== game_companion_save_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_SAVE: start
+GAME_COMPANION_SAVE: PASS - companion save store exists
+GAME_COMPANION_SAVE: PASS - test score enters the real ledger
+GAME_COMPANION_SAVE: PASS - companion save writes atomically
+GAME_COMPANION_SAVE: PASS - score ledger round-trips
+GAME_COMPANION_SAVE: PASS - companion UI state round-trips
+GAME_COMPANION_SAVE: PASS - all twenty-two games are transiently unlocked
+GAME_COMPANION_SAVE: PASS - DRIVN save fixture remains byte-identical
+GAME_COMPANION_SAVE: PASS - corrupt save returns safe defaults
+GAME_COMPANION_SAVE: PASS - corrupt save is quarantined and all games stay playable
+GAME_COMPANION_SAVE: PASS - corrupt recovery never touches DRIVN save fixture
+GAME_COMPANION_SAVE RESULTS: 10 passed, 0 failed
+GAME_COMPANION_SAVE: ALL CHECKS PASSED
+
+===== game_companion_shelf_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_SHELF: start
+GAME_COMPANION_SHELF: PASS - companion shelf implementation exists
+GAME_COMPANION_SHELF: PASS - ALL contains 22 games followed by one DRIVN promo
+GAME_COMPANION_SHELF: PASS - promo is a distinct non-cartridge card
+GAME_COMPANION_SHELF: PASS - every canonical card is enabled and owns keep-aspect art
+GAME_COMPANION_SHELF: PASS - HANDHELD filter shows exactly ten games and hides promo
+GAME_COMPANION_SHELF: PASS - CONSOLE filter shows exactly twelve games and hides promo
+GAME_COMPANION_SHELF: PASS - focus restores to BLACK GRID
+GAME_COMPANION_SHELF: PASS - restored focus scrolls its physical cartridge into view
+GAME_COMPANION_SHELF: PASS - real cover press emits its exact catalog id
+GAME_COMPANION_SHELF: PASS - promo press uses its own non-game signal
+GAME_COMPANION_SHELF RESULTS: 10 passed, 0 failed
+GAME_COMPANION_SHELF: ALL CHECKS PASSED
+
+===== game_companion_inspector_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_INSPECTOR: start
+GAME_COMPANION_INSPECTOR: PASS - companion inspector implementation exists
+GAME_COMPANION_INSPECTOR: PASS - INSERT is unavailable until a real cartridge is inspected
+GAME_COMPANION_INSPECTOR: PASS - four device exemplars expose exact art, copy, facts, score law, badges, and live controls
+GAME_COMPANION_INSPECTOR: PASS - 1:1, 9:16, and 16:9 cartridges all preserve cover proportions
+GAME_COMPANION_INSPECTOR: PASS - INSERT emits only the currently inspected canonical id
+GAME_COMPANION_INSPECTOR: PASS - DRIVN promo exposes exact configured headline, strap, body, features, and status
+GAME_COMPANION_INSPECTOR: PASS - promo is 2:3 keep-aspect art with no cartridge action or registry identity
+GAME_COMPANION_INSPECTOR: PASS - missing full-game URL hides Follow entirely
+GAME_COMPANION_INSPECTOR: PASS - configured HTTPS Follow emits only its exact URL
+GAME_COMPANION_INSPECTOR: PASS - non-HTTPS promotion links are never exposed
+GAME_COMPANION_INSPECTOR RESULTS: 10 passed, 0 failed
+GAME_COMPANION_INSPECTOR: ALL CHECKS PASSED
+
+===== game_companion_transition_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_TRANSITION: start
+GAME_COMPANION_TRANSITION: PASS - companion transition implementation exists
+GAME_COMPANION_TRANSITION: PASS - ritual opens on the selected physical package with shared art
+GAME_COMPANION_TRANSITION: PASS - skip before electrical contact does nothing
+GAME_COMPANION_TRANSITION: PASS - standard insert traverses package, cartridge, slot, contact, and screen in order
+GAME_COMPANION_TRANSITION: PASS - electrical contact occurs exactly once at the 0.62-second threshold
+GAME_COMPANION_TRANSITION: PASS - standard ritual finishes no later than 1.15 seconds
+GAME_COMPANION_TRANSITION: PASS - finished insertion cannot double-emit contact or completion
+GAME_COMPANION_TRANSITION: PASS - skip after contact safely reaches the powered screen
+GAME_COMPANION_TRANSITION: PASS - eject begins from the powered screen
+GAME_COMPANION_TRANSITION: PASS - standard eject reverses completely to idle
+GAME_COMPANION_TRANSITION: PASS - reduced motion uses one 0.1-second fade to contact
+GAME_COMPANION_TRANSITION: PASS - reduced motion uses a second 0.1-second fade to finish
+GAME_COMPANION_TRANSITION: PASS - reduced-motion eject preserves the complete idle transition
+GAME_COMPANION_TRANSITION: PASS - package and cartridge labels keep art aspect without cropping
+GAME_COMPANION_TRANSITION RESULTS: 14 passed, 0 failed
+GAME_COMPANION_TRANSITION: ALL CHECKS PASSED
+
+===== game_companion_flow_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_FLOW: start
+GAME_COMPANION_FLOW: PASS - standalone companion root script and scene exist
+GAME_COMPANION_FLOW: PASS - branded app begins on an exclusive BOOT surface
+GAME_COMPANION_FLOW: PASS - boot remains skippable before its 2.2-second deadline
+GAME_COMPANION_FLOW: PASS - skip opens the real shelf immediately
+GAME_COMPANION_FLOW: PASS - unskipped boot resolves at the exact 2.2-second branded deadline
+GAME_COMPANION_FLOW: PASS - companion ledger transiently unlocks all twenty-two installed cartridges
+GAME_COMPANION_FLOW: PASS - selecting box art opens inspection without launching
+GAME_COMPANION_FLOW: PASS - INSERT begins the physical ritual but cannot launch before contact
+GAME_COMPANION_FLOW: PASS - the cartridge remains absent through the pre-contact slot beat
+GAME_COMPANION_FLOW: PASS - electrical contact launches WASTE HEAP through the canonical deck
+GAME_COMPANION_FLOW: PASS - handheld context is exactly one local human with no bot or network path
+GAME_COMPANION_FLOW: PASS - standalone shell and canonical deck render the exact same live texture
+GAME_COMPANION_FLOW: PASS - RESTART replaces the match with a fresh stock seed
+GAME_COMPANION_FLOW: PASS - CHANGE CARTRIDGE stops, saves, and enters reverse eject
+GAME_COMPANION_FLOW: PASS - eject restores shelf focus to the same physical box
+GAME_COMPANION_FLOW: PASS - all twenty-two canonical cartridges launch through inspect/contact/play
+GAME_COMPANION_FLOW: PASS - every handheld stays solo and every console fills to declared stock AI maximum
+GAME_COMPANION_FLOW: PASS - DRIVN promotion is a distinct non-launching application state
+GAME_COMPANION_FLOW: PASS - companion shell exposes only play/help/controls/about/scores
+GAME_COMPANION_FLOW: PASS - no multiplayer, second-seat, power, or network action/copy is reachable
+GAME_COMPANION_FLOW: PASS - quit from play uses the same stop/save/eject path
+GAME_COMPANION_FLOW: PASS - orderly quit reaches terminal QUIT only after eject finishes
+GAME_COMPANION_FLOW: PASS - companion persistence is a dedicated valid envelope
+GAME_COMPANION_FLOW: PASS - the DRIVN main-save fixture remains byte-for-byte untouched
+GAME_COMPANION_FLOW RESULTS: 24 passed, 0 failed
+GAME_COMPANION_FLOW: ALL CHECKS PASSED
+
+===== game_companion_boot_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_BOOT: start
+GAME_COMPANION_BOOT: PASS - boot router script and scene exist
+GAME_COMPANION_BOOT: PASS - empty feature set routes to normal DRIVN
+GAME_COMPANION_BOOT: PASS - ordinary Windows and editor features route to normal DRIVN
+GAME_COMPANION_BOOT: PASS - exact companion export feature routes to Game Deck
+GAME_COMPANION_BOOT: PASS - companion wins inside a mixed export feature set
+GAME_COMPANION_BOOT: PASS - both routed targets are installed PackedScenes
+GAME_COMPANION_BOOT: PASS - project front door is the pure boot router
+GAME_COMPANION_BOOT: PASS - PLAY.bat still launches DRIVN directly and never the companion
+GAME_COMPANION_BOOT RESULTS: 8 passed, 0 failed
+GAME_COMPANION_BOOT: ALL CHECKS PASSED
+
+===== game_companion_export_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COMPANION_EXPORT: start
+GAME_COMPANION_EXPORT: PASS - export presets parse
+GAME_COMPANION_EXPORT: PASS - dedicated Windows Game Deck Companion preset exists
+GAME_COMPANION_EXPORT: PASS - preset carries only the exact companion feature and output name
+GAME_COMPANION_EXPORT: PASS - release is embedded x86-64 with no console wrapper
+GAME_COMPANION_EXPORT: PASS - Windows metadata identifies the DRIVN companion product
+GAME_COMPANION_EXPORT: PASS - companion owns a separate installed product icon
+GAME_COMPANION_EXPORT: PASS - preset starts complete and explicitly includes dynamic and legal assets
+GAME_COMPANION_EXPORT: PASS - all 22 dynamic scenes, covers, font, notices, and licenses exist for export
+GAME_COMPANION_EXPORT: PASS - one-click companion build script exists
+GAME_COMPANION_EXPORT: PASS - builder runs all eight companion gates plus shared release regressions
+GAME_COMPANION_EXPORT: PASS - builder exports only the companion artifact and verifies size/hash/smoke
+GAME_COMPANION_EXPORT RESULTS: 11 passed, 0 failed
+GAME_COMPANION_EXPORT: ALL CHECKS PASSED
+
+===== game_registry_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_REG: start
+GAME_REG: PASS - the registry implementation exists
+GAME_REG: PASS - twenty Phase 1 rows
+GAME_REG: PASS - ten handheld rows
+GAME_REG: PASS - ten console rows
+GAME_REG: PASS - two Phase 2 rows
+GAME_REG: PASS - proof rows declared
+GAME_REG: PASS - both proof cartridges pass scene and notice gates
+GAME_REG: PASS - new handheld cartridge clears scene and notice gates
+GAME_REG: PASS - demining cartridge clears scene and notice gates
+GAME_REG: PASS - warehouse cartridge clears scene and notice gates
+GAME_REG: PASS - portrait breaker clears scene and notice gates
+GAME_REG: PASS - landscape racer clears scene and notice gates
+GAME_REG: PASS - missile-defense cartridge clears scene and notice gates
+GAME_REG: PASS - portrait lander clears scene and notice gates
+GAME_REG: PASS - portrait pinball clears scene and notice gates
+GAME_REG: PASS - relay puzzle clears scene and notice gates
+GAME_REG: PASS - RUST RUNNERS clears scene source and cartridge-contract gates
+GAME_REG: PASS - BLACK GRID clears scene source and cartridge-contract gates
+GAME_REG: PASS - catalog validates without row errors
+GAME_REG RESULTS: 19 passed, 0 failed
+GAME_REG: ALL CHECKS PASSED
+
+===== game_catalog_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_CATALOG: start
+GAME_CATALOG: PASS - the complete Phase 1 catalog still contains exactly twenty rows
+GAME_CATALOG: PASS - the complete installed catalog contains two flagships and twenty-two games
+GAME_CATALOG: PASS - ownership ledger can install every declared row without weakening Phase 1
+GAME_CATALOG: PASS - waste_heap launches through owned shell
+GAME_CATALOG: PASS - waste_heap starts through the shared deck
+GAME_CATALOG: PASS - waste_heap consumes a real semantic input tick
+GAME_CATALOG: PASS - waste_heap pause blocks simulation without global pause
+GAME_CATALOG: PASS - waste_heap restores its deterministic snapshot
+GAME_CATALOG: PASS - waste_heap writes one normalized result
+GAME_CATALOG: PASS - waste_heap stops without erasing its registry row
+GAME_CATALOG: PASS - radworm launches through owned shell
+GAME_CATALOG: PASS - radworm starts through the shared deck
+GAME_CATALOG: PASS - radworm consumes a real semantic input tick
+GAME_CATALOG: PASS - radworm pause blocks simulation without global pause
+GAME_CATALOG: PASS - radworm restores its deterministic snapshot
+GAME_CATALOG: PASS - radworm writes one normalized result
+GAME_CATALOG: PASS - radworm stops without erasing its registry row
+GAME_CATALOG: PASS - dead_ground launches through owned shell
+GAME_CATALOG: PASS - dead_ground starts through the shared deck
+GAME_CATALOG: PASS - dead_ground consumes a real semantic input tick
+GAME_CATALOG: PASS - dead_ground pause blocks simulation without global pause
+GAME_CATALOG: PASS - dead_ground restores its deterministic snapshot
+GAME_CATALOG: PASS - dead_ground writes one normalized result
+GAME_CATALOG: PASS - dead_ground stops without erasing its registry row
+GAME_CATALOG: PASS - pack_rat launches through owned shell
+GAME_CATALOG: PASS - pack_rat starts through the shared deck
+GAME_CATALOG: PASS - pack_rat consumes a real semantic input tick
+GAME_CATALOG: PASS - pack_rat pause blocks simulation without global pause
+GAME_CATALOG: PASS - pack_rat restores its deterministic snapshot
+GAME_CATALOG: PASS - pack_rat writes one normalized result
+GAME_CATALOG: PASS - pack_rat stops without erasing its registry row
+GAME_CATALOG: PASS - bunker_breaker launches through owned shell
+GAME_CATALOG: PASS - bunker_breaker starts through the shared deck
+GAME_CATALOG: PASS - bunker_breaker consumes a real semantic input tick
+GAME_CATALOG: PASS - bunker_breaker pause blocks simulation without global pause
+GAME_CATALOG: PASS - bunker_breaker restores its deterministic snapshot
+GAME_CATALOG: PASS - bunker_breaker writes one normalized result
+GAME_CATALOG: PASS - bunker_breaker stops without erasing its registry row
+GAME_CATALOG: PASS - last_mile launches through owned shell
+GAME_CATALOG: PASS - last_mile starts through the shared deck
+GAME_CATALOG: PASS - last_mile consumes a real semantic input tick
+GAME_CATALOG: PASS - last_mile pause blocks simulation without global pause
+GAME_CATALOG: PASS - last_mile restores its deterministic snapshot
+GAME_CATALOG: PASS - last_mile writes one normalized result
+GAME_CATALOG: PASS - last_mile stops without erasing its registry row
+GAME_CATALOG: PASS - iron_dome launches through owned shell
+GAME_CATALOG: PASS - iron_dome starts through the shared deck
+GAME_CATALOG: PASS - iron_dome consumes a real semantic input tick
+GAME_CATALOG: PASS - iron_dome pause blocks simulation without global pause
+GAME_CATALOG: PASS - iron_dome restores its deterministic snapshot
+GAME_CATALOG: PASS - iron_dome writes one normalized result
+GAME_CATALOG: PASS - iron_dome stops without erasing its registry row
+GAME_CATALOG: PASS - fall_line launches through owned shell
+GAME_CATALOG: PASS - fall_line starts through the shared deck
+GAME_CATALOG: PASS - fall_line consumes a real semantic input tick
+GAME_CATALOG: PASS - fall_line pause blocks simulation without global pause
+GAME_CATALOG: PASS - fall_line restores its deterministic snapshot
+GAME_CATALOG: PASS - fall_line writes one normalized result
+GAME_CATALOG: PASS - fall_line stops without erasing its registry row
+GAME_CATALOG: PASS - tilt_salvage launches through owned shell
+GAME_CATALOG: PASS - tilt_salvage starts through the shared deck
+GAME_CATALOG: PASS - tilt_salvage consumes a real semantic input tick
+GAME_CATALOG: PASS - tilt_salvage pause blocks simulation without global pause
+GAME_CATALOG: PASS - tilt_salvage restores its deterministic snapshot
+GAME_CATALOG: PASS - tilt_salvage writes one normalized result
+GAME_CATALOG: PASS - tilt_salvage stops without erasing its registry row
+GAME_CATALOG: PASS - relay_bloom launches through owned shell
+GAME_CATALOG: PASS - relay_bloom starts through the shared deck
+GAME_CATALOG: PASS - relay_bloom consumes a real semantic input tick
+GAME_CATALOG: PASS - relay_bloom pause blocks simulation without global pause
+GAME_CATALOG: PASS - relay_bloom restores its deterministic snapshot
+GAME_CATALOG: PASS - relay_bloom writes one normalized result
+GAME_CATALOG: PASS - relay_bloom stops without erasing its registry row
+GAME_CATALOG: PASS - crown_of_ash launches through owned shell
+GAME_CATALOG: PASS - crown_of_ash starts through the shared deck
+GAME_CATALOG: PASS - crown_of_ash consumes a real semantic input tick
+GAME_CATALOG: PASS - crown_of_ash pause blocks simulation without global pause
+GAME_CATALOG: PASS - crown_of_ash restores its deterministic snapshot
+GAME_CATALOG: PASS - crown_of_ash writes one normalized result
+GAME_CATALOG: PASS - crown_of_ash stops without erasing its registry row
+GAME_CATALOG: PASS - dial_tanks launches through owned shell
+GAME_CATALOG: PASS - dial_tanks starts through the shared deck
+GAME_CATALOG: PASS - dial_tanks consumes a real semantic input tick
+GAME_CATALOG: PASS - dial_tanks pause blocks simulation without global pause
+GAME_CATALOG: PASS - dial_tanks restores its deterministic snapshot
+GAME_CATALOG: PASS - dial_tanks writes one normalized result
+GAME_CATALOG: PASS - dial_tanks stops without erasing its registry row
+GAME_CATALOG: PASS - red_sky launches through owned shell
+GAME_CATALOG: PASS - red_sky starts through the shared deck
+GAME_CATALOG: PASS - red_sky consumes a real semantic input tick
+GAME_CATALOG: PASS - red_sky pause blocks simulation without global pause
+GAME_CATALOG: PASS - red_sky restores its deterministic snapshot
+GAME_CATALOG: PASS - red_sky writes one normalized result
+GAME_CATALOG: PASS - red_sky stops without erasing its registry row
+GAME_CATALOG: PASS - black_orbit launches through owned shell
+GAME_CATALOG: PASS - black_orbit starts through the shared deck
+GAME_CATALOG: PASS - black_orbit consumes a real semantic input tick
+GAME_CATALOG: PASS - black_orbit pause blocks simulation without global pause
+GAME_CATALOG: PASS - black_orbit restores its deterministic snapshot
+GAME_CATALOG: PASS - black_orbit writes one normalized result
+GAME_CATALOG: PASS - black_orbit stops without erasing its registry row
+GAME_CATALOG: PASS - gridbreach launches through owned shell
+GAME_CATALOG: PASS - gridbreach starts through the shared deck
+GAME_CATALOG: PASS - gridbreach consumes a real semantic input tick
+GAME_CATALOG: PASS - gridbreach pause blocks simulation without global pause
+GAME_CATALOG: PASS - gridbreach restores its deterministic snapshot
+GAME_CATALOG: PASS - gridbreach writes one normalized result
+GAME_CATALOG: PASS - gridbreach stops without erasing its registry row
+GAME_CATALOG: PASS - rustball launches through owned shell
+GAME_CATALOG: PASS - rustball starts through the shared deck
+GAME_CATALOG: PASS - rustball consumes a real semantic input tick
+GAME_CATALOG: PASS - rustball pause blocks simulation without global pause
+GAME_CATALOG: PASS - rustball restores its deterministic snapshot
+GAME_CATALOG: PASS - rustball writes one normalized result
+GAME_CATALOG: PASS - rustball stops without erasing its registry row
+GAME_CATALOG: PASS - fuel_run launches through owned shell
+GAME_CATALOG: PASS - fuel_run starts through the shared deck
+GAME_CATALOG: PASS - fuel_run consumes a real semantic input tick
+GAME_CATALOG: PASS - fuel_run pause blocks simulation without global pause
+GAME_CATALOG: PASS - fuel_run restores its deterministic snapshot
+GAME_CATALOG: PASS - fuel_run writes one normalized result
+GAME_CATALOG: PASS - fuel_run stops without erasing its registry row
+GAME_CATALOG: PASS - skyjoust launches through owned shell
+GAME_CATALOG: PASS - skyjoust starts through the shared deck
+GAME_CATALOG: PASS - skyjoust consumes a real semantic input tick
+GAME_CATALOG: PASS - skyjoust pause blocks simulation without global pause
+GAME_CATALOG: PASS - skyjoust restores its deterministic snapshot
+GAME_CATALOG: PASS - skyjoust writes one normalized result
+GAME_CATALOG: PASS - skyjoust stops without erasing its registry row
+GAME_CATALOG: PASS - fight_night_99 launches through owned shell
+GAME_CATALOG: PASS - fight_night_99 starts through the shared deck
+GAME_CATALOG: PASS - fight_night_99 consumes a real semantic input tick
+GAME_CATALOG: PASS - fight_night_99 pause blocks simulation without global pause
+GAME_CATALOG: PASS - fight_night_99 restores its deterministic snapshot
+GAME_CATALOG: PASS - fight_night_99 writes one normalized result
+GAME_CATALOG: PASS - fight_night_99 stops without erasing its registry row
+GAME_CATALOG: PASS - ashland_command launches through owned shell
+GAME_CATALOG: PASS - ashland_command starts through the shared deck
+GAME_CATALOG: PASS - ashland_command consumes a real semantic input tick
+GAME_CATALOG: PASS - ashland_command pause blocks simulation without global pause
+GAME_CATALOG: PASS - ashland_command restores its deterministic snapshot
+GAME_CATALOG: PASS - ashland_command writes one normalized result
+GAME_CATALOG: PASS - ashland_command stops without erasing its registry row
+GAME_CATALOG: PASS - rust_runners launches through owned shell
+GAME_CATALOG: PASS - rust_runners starts through the shared deck
+GAME_CATALOG: PASS - rust_runners consumes a real semantic input tick
+GAME_CATALOG: PASS - rust_runners pause blocks simulation without global pause
+GAME_CATALOG: PASS - rust_runners restores its deterministic snapshot
+GAME_CATALOG: PASS - rust_runners writes one normalized result
+GAME_CATALOG: PASS - rust_runners stops without erasing its registry row
+GAME_CATALOG: PASS - black_grid launches through owned shell
+GAME_CATALOG: PASS - black_grid starts through the shared deck
+GAME_CATALOG: PASS - black_grid consumes a real semantic input tick
+GAME_CATALOG: PASS - black_grid pause blocks simulation without global pause
+GAME_CATALOG: PASS - black_grid restores its deterministic snapshot
+GAME_CATALOG: PASS - black_grid writes one normalized result
+GAME_CATALOG: PASS - black_grid stops without erasing its registry row
+GAME_CATALOG: PASS - all twenty-two owned cartridge lifecycles leave DRIVN time untouched
+GAME_CATALOG RESULTS: 158 passed, 0 failed
+GAME_CATALOG: ALL CHECKS PASSED
+
+===== game_shell_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_SHELL: start
+GAME_SHELL: PASS - deck and shell implementations exist
+GAME_SHELL: PASS - library opens inside the heavy shell
+GAME_SHELL: PASS - the bezel stays fully inside the rendered frame
+GAME_SHELL: PASS - library buttons are keyboard/pad focusable
+GAME_SHELL: PASS - WASTE HEAP launches through the deck
+GAME_SHELL: PASS - the cartridge is a child of one always-live viewport
+GAME_SHELL: PASS - fullscreen and physical consumers share the exact texture
+GAME_SHELL: PASS - real key input reaches cartridge semantics
+GAME_SHELL: PASS - HELP combines objective and live bindings
+GAME_SHELL: PASS - ABOUT separates lore from real source/license
+GAME_SHELL: PASS - SCORES separates personal house session challenge and offline global scopes
+GAME_SHELL: PASS - active-play pad B reaches cartridge input and does not close
+GAME_SHELL: PASS - Esc pauses into shell state without touching world time
+GAME_SHELL: PASS - menu-state pad B closes fullscreen to the device
+GAME_SHELL: PASS - closing fullscreen keeps the cartridge alive
+GAME_SHELL: PASS - portrait cartridge launches through the same shell
+GAME_SHELL: PASS - portrait games cannot push the bezel, tabs, or status out of frame
+GAME_SHELL: PASS - power off destroys the active cartridge
+GAME_SHELL: PASS - an unknown cartridge is isolated as an error
+GAME_SHELL: PASS - CROWN OF ASH launches into read-only spectator state
+GAME_SHELL: PASS - spectator receives authoritative board snapshots
+GAME_SHELL: PASS - shell lifecycle never pauses DRIVN
+GAME_SHELL RESULTS: 22 passed, 0 failed
+GAME_SHELL: ALL CHECKS PASSED
+
+===== game_cover_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_COVER: start
+GAME_COVER: PASS - the registry implementation exists
+GAME_COVER: PASS - the complete catalog still contains twenty-two rows
+GAME_COVER: PASS - all twenty-two rows declare unique cover paths
+GAME_COVER: PASS - all declared cover files load
+GAME_COVER: PASS - all twelve console covers are 2:3 box fronts
+GAME_COVER: PASS - all ten handheld labels match their declared display aspect
+GAME_COVER: PASS - the reusable cartridge cover card exists
+GAME_COVER: PASS - the cover card script loads
+GAME_COVER: PASS - an owned card preserves searchable title and machine facts
+GAME_COVER: PASS - cover art is loaded with aspect-preserving presentation
+GAME_COVER: PASS - cover cards expose explicit controller focus styling
+GAME_COVER: PASS - a missing cover produces a deterministic visible fallback
+GAME_COVER: PASS - locked media keeps its art visible but cannot launch
+GAME_COVER: PASS - the real handheld shelf renders ten cover cards in catalog order
+GAME_COVER: PASS - an owned handheld cover routes through the existing launch path
+GAME_COVER RESULTS: 15 passed, 0 failed
+GAME_COVER: ALL CHECKS PASSED
+
+===== game_input_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_INPUT: start
+GAME_INPUT: PASS - the shared input router exists
+GAME_INPUT: PASS - keyboard is isolated to seat zero
+GAME_INPUT: PASS - joypad device 1 drives only seat one
+GAME_INPUT: PASS - active-play pad B reaches semantic stance
+GAME_INPUT: PASS - pressed is one-shot while held persists
+GAME_INPUT: PASS - release is reported once and clears held
+GAME_INPUT: PASS - mouse wheel descriptors round-trip
+GAME_INPUT: PASS - wheel up is shared weapon next
+GAME_INPUT: PASS - shooter HELP lists the shared stance action
+GAME_INPUT: PASS - all ARCADE actions folded into InputMap
+GAME_INPUT: PASS - handheld HELP profiles expose only their real controls
+GAME_INPUT: PASS - console HELP profiles expose only their real controls
+GAME_INPUT: PASS - every console row names one exact installed HELP profile
+GAME_INPUT: PASS - both flagships use all nineteen shared shooter semantics
+GAME_INPUT RESULTS: 14 passed, 0 failed
+GAME_INPUT: ALL CHECKS PASSED
+
+===== handheld_catalog_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+HANDHELD_CATALOG: start
+HANDHELD_CATALOG: PASS - catalog still declares exactly ten handheld games
+HANDHELD_CATALOG: PASS - every handheld carries player-facing help
+HANDHELD_CATALOG: PASS - RELAY BLOOM help describes its shipped rotation rules
+HANDHELD_CATALOG: PASS - waste_heap device matches declared aspect
+HANDHELD_CATALOG: PASS - waste_heap implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - waste_heap starts through the shared contract
+HANDHELD_CATALOG: PASS - waste_heap accepts semantic input ticks
+HANDHELD_CATALOG: PASS - waste_heap pauses without simulation mutation
+HANDHELD_CATALOG: PASS - waste_heap restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - waste_heap emits one normalized valid result
+HANDHELD_CATALOG: PASS - radworm device matches declared aspect
+HANDHELD_CATALOG: PASS - radworm implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - radworm starts through the shared contract
+HANDHELD_CATALOG: PASS - radworm accepts semantic input ticks
+HANDHELD_CATALOG: PASS - radworm pauses without simulation mutation
+HANDHELD_CATALOG: PASS - radworm restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - radworm emits one normalized valid result
+HANDHELD_CATALOG: PASS - dead_ground device matches declared aspect
+HANDHELD_CATALOG: PASS - dead_ground implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - dead_ground starts through the shared contract
+HANDHELD_CATALOG: PASS - dead_ground accepts semantic input ticks
+HANDHELD_CATALOG: PASS - dead_ground pauses without simulation mutation
+HANDHELD_CATALOG: PASS - dead_ground restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - dead_ground emits one normalized valid result
+HANDHELD_CATALOG: PASS - pack_rat device matches declared aspect
+HANDHELD_CATALOG: PASS - pack_rat implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - pack_rat starts through the shared contract
+HANDHELD_CATALOG: PASS - pack_rat accepts semantic input ticks
+HANDHELD_CATALOG: PASS - pack_rat pauses without simulation mutation
+HANDHELD_CATALOG: PASS - pack_rat restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - pack_rat emits one normalized valid result
+HANDHELD_CATALOG: PASS - bunker_breaker device matches declared aspect
+HANDHELD_CATALOG: PASS - bunker_breaker implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - bunker_breaker starts through the shared contract
+HANDHELD_CATALOG: PASS - bunker_breaker accepts semantic input ticks
+HANDHELD_CATALOG: PASS - bunker_breaker pauses without simulation mutation
+HANDHELD_CATALOG: PASS - bunker_breaker restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - bunker_breaker emits one normalized valid result
+HANDHELD_CATALOG: PASS - last_mile device matches declared aspect
+HANDHELD_CATALOG: PASS - last_mile implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - last_mile starts through the shared contract
+HANDHELD_CATALOG: PASS - last_mile accepts semantic input ticks
+HANDHELD_CATALOG: PASS - last_mile pauses without simulation mutation
+HANDHELD_CATALOG: PASS - last_mile restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - last_mile emits one normalized valid result
+HANDHELD_CATALOG: PASS - iron_dome device matches declared aspect
+HANDHELD_CATALOG: PASS - iron_dome implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - iron_dome starts through the shared contract
+HANDHELD_CATALOG: PASS - iron_dome accepts semantic input ticks
+HANDHELD_CATALOG: PASS - iron_dome pauses without simulation mutation
+HANDHELD_CATALOG: PASS - iron_dome restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - iron_dome emits one normalized valid result
+HANDHELD_CATALOG: PASS - fall_line device matches declared aspect
+HANDHELD_CATALOG: PASS - fall_line implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - fall_line starts through the shared contract
+HANDHELD_CATALOG: PASS - fall_line accepts semantic input ticks
+HANDHELD_CATALOG: PASS - fall_line pauses without simulation mutation
+HANDHELD_CATALOG: PASS - fall_line restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - fall_line emits one normalized valid result
+HANDHELD_CATALOG: PASS - tilt_salvage device matches declared aspect
+HANDHELD_CATALOG: PASS - tilt_salvage implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - tilt_salvage starts through the shared contract
+HANDHELD_CATALOG: PASS - tilt_salvage accepts semantic input ticks
+HANDHELD_CATALOG: PASS - tilt_salvage pauses without simulation mutation
+HANDHELD_CATALOG: PASS - tilt_salvage restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - tilt_salvage emits one normalized valid result
+HANDHELD_CATALOG: PASS - relay_bloom device matches declared aspect
+HANDHELD_CATALOG: PASS - relay_bloom implements the shared cartridge contract
+HANDHELD_CATALOG: PASS - relay_bloom starts through the shared contract
+HANDHELD_CATALOG: PASS - relay_bloom accepts semantic input ticks
+HANDHELD_CATALOG: PASS - relay_bloom pauses without simulation mutation
+HANDHELD_CATALOG: PASS - relay_bloom restores its deterministic snapshot
+HANDHELD_CATALOG: PASS - relay_bloom emits one normalized valid result
+HANDHELD_CATALOG: PASS - the full shelf never changes world time scale
+HANDHELD_CATALOG RESULTS: 74 passed, 0 failed
+HANDHELD_CATALOG: ALL CHECKS PASSED
+
+===== console_catalog_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+CONSOLE_CATALOG: start
+CONSOLE_CATALOG: PASS - catalog declares exactly ten console games
+CONSOLE_CATALOG: PASS - ten approved non-placeholder console titles are exact
+CONSOLE_CATALOG: PASS - every console row ships a substantial objective and in-lore history
+CONSOLE_CATALOG: PASS - the console annual has one usage page and one strategy page per title
+CONSOLE_CATALOG: PASS - the console shelf shares one original presentation helper
+CONSOLE_CATALOG: PASS - crown_of_ash uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - crown_of_ash implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - crown_of_ash starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - crown_of_ash consumes semantic console input
+CONSOLE_CATALOG: PASS - crown_of_ash pauses without simulation mutation
+CONSOLE_CATALOG: PASS - crown_of_ash restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - crown_of_ash assigns two distinct local seats
+CONSOLE_CATALOG: PASS - crown_of_ash accepts the same-session online context
+CONSOLE_CATALOG: PASS - crown_of_ash emits one normalized valid result
+CONSOLE_CATALOG: PASS - dial_tanks uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - dial_tanks implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - dial_tanks starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - dial_tanks consumes semantic console input
+CONSOLE_CATALOG: PASS - dial_tanks pauses without simulation mutation
+CONSOLE_CATALOG: PASS - dial_tanks restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - dial_tanks assigns two distinct local seats
+CONSOLE_CATALOG: PASS - dial_tanks accepts the same-session online context
+CONSOLE_CATALOG: PASS - dial_tanks emits one normalized valid result
+CONSOLE_CATALOG: PASS - red_sky uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - red_sky implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - red_sky starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - red_sky consumes semantic console input
+CONSOLE_CATALOG: PASS - red_sky pauses without simulation mutation
+CONSOLE_CATALOG: PASS - red_sky restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - red_sky assigns two distinct local seats
+CONSOLE_CATALOG: PASS - red_sky accepts the same-session online context
+CONSOLE_CATALOG: PASS - red_sky emits one normalized valid result
+CONSOLE_CATALOG: PASS - black_orbit uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - black_orbit implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - black_orbit starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - black_orbit consumes semantic console input
+CONSOLE_CATALOG: PASS - black_orbit pauses without simulation mutation
+CONSOLE_CATALOG: PASS - black_orbit restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - black_orbit assigns two distinct local seats
+CONSOLE_CATALOG: PASS - black_orbit accepts the same-session online context
+CONSOLE_CATALOG: PASS - black_orbit emits one normalized valid result
+CONSOLE_CATALOG: PASS - gridbreach uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - gridbreach implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - gridbreach starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - gridbreach consumes semantic console input
+CONSOLE_CATALOG: PASS - gridbreach pauses without simulation mutation
+CONSOLE_CATALOG: PASS - gridbreach restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - gridbreach assigns two distinct local seats
+CONSOLE_CATALOG: PASS - gridbreach accepts the same-session online context
+CONSOLE_CATALOG: PASS - gridbreach emits one normalized valid result
+CONSOLE_CATALOG: PASS - rustball uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - rustball implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - rustball starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - rustball consumes semantic console input
+CONSOLE_CATALOG: PASS - rustball pauses without simulation mutation
+CONSOLE_CATALOG: PASS - rustball restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - rustball assigns two distinct local seats
+CONSOLE_CATALOG: PASS - rustball accepts the same-session online context
+CONSOLE_CATALOG: PASS - rustball emits one normalized valid result
+CONSOLE_CATALOG: PASS - fuel_run uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - fuel_run implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - fuel_run starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - fuel_run consumes semantic console input
+CONSOLE_CATALOG: PASS - fuel_run pauses without simulation mutation
+CONSOLE_CATALOG: PASS - fuel_run restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - fuel_run assigns two distinct local seats
+CONSOLE_CATALOG: PASS - fuel_run accepts the same-session online context
+CONSOLE_CATALOG: PASS - fuel_run emits one normalized valid result
+CONSOLE_CATALOG: PASS - skyjoust uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - skyjoust implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - skyjoust starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - skyjoust consumes semantic console input
+CONSOLE_CATALOG: PASS - skyjoust pauses without simulation mutation
+CONSOLE_CATALOG: PASS - skyjoust restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - skyjoust assigns two distinct local seats
+CONSOLE_CATALOG: PASS - skyjoust accepts the same-session online context
+CONSOLE_CATALOG: PASS - skyjoust emits one normalized valid result
+CONSOLE_CATALOG: PASS - fight_night_99 uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - fight_night_99 implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - fight_night_99 starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - fight_night_99 consumes semantic console input
+CONSOLE_CATALOG: PASS - fight_night_99 pauses without simulation mutation
+CONSOLE_CATALOG: PASS - fight_night_99 restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - fight_night_99 assigns two distinct local seats
+CONSOLE_CATALOG: PASS - fight_night_99 accepts the same-session online context
+CONSOLE_CATALOG: PASS - fight_night_99 emits one normalized valid result
+CONSOLE_CATALOG: PASS - ashland_command uses the shared 16:9 console
+CONSOLE_CATALOG: PASS - ashland_command implements the shared cartridge contract
+CONSOLE_CATALOG: PASS - ashland_command starts a deterministic solo/AI match
+CONSOLE_CATALOG: PASS - ashland_command consumes semantic console input
+CONSOLE_CATALOG: PASS - ashland_command pauses without simulation mutation
+CONSOLE_CATALOG: PASS - ashland_command restores a deterministic snapshot
+CONSOLE_CATALOG: PASS - ashland_command assigns two distinct local seats
+CONSOLE_CATALOG: PASS - ashland_command accepts the same-session online context
+CONSOLE_CATALOG: PASS - ashland_command emits one normalized valid result
+CONSOLE_CATALOG: PASS - the full console shelf never changes world time scale
+CONSOLE_CATALOG RESULTS: 96 passed, 0 failed
+CONSOLE_CATALOG: ALL CHECKS PASSED
+
+===== game_bot_fill_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_BOT_FILL: start
+GAME_BOT_FILL: PASS - shared participant-count contract exists
+GAME_BOT_FILL: PASS - crown_of_ash catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - crown_of_ash fills every empty seat
+GAME_BOT_FILL: PASS - crown_of_ash runtime creates the declared filled population
+GAME_BOT_FILL: PASS - crown_of_ash bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - crown_of_ash runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - dial_tanks catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - dial_tanks fills every empty seat
+GAME_BOT_FILL: PASS - dial_tanks runtime creates the declared filled population
+GAME_BOT_FILL: PASS - dial_tanks bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - dial_tanks runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - red_sky catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - red_sky fills every empty seat
+GAME_BOT_FILL: PASS - red_sky runtime creates the declared filled population
+GAME_BOT_FILL: PASS - red_sky bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - red_sky runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - black_orbit catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - black_orbit fills every empty seat
+GAME_BOT_FILL: PASS - black_orbit runtime creates the declared filled population
+GAME_BOT_FILL: PASS - black_orbit bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - black_orbit runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - gridbreach catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - gridbreach fills every empty seat
+GAME_BOT_FILL: PASS - gridbreach runtime creates the declared filled population
+GAME_BOT_FILL: PASS - gridbreach bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - gridbreach runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - rustball catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - rustball fills every empty seat
+GAME_BOT_FILL: PASS - rustball runtime creates the declared filled population
+GAME_BOT_FILL: PASS - rustball bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - rustball runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - fuel_run catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - fuel_run fills every empty seat
+GAME_BOT_FILL: PASS - fuel_run runtime creates the declared filled population
+GAME_BOT_FILL: PASS - fuel_run bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - fuel_run runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - skyjoust catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - skyjoust fills every empty seat
+GAME_BOT_FILL: PASS - skyjoust runtime creates the declared filled population
+GAME_BOT_FILL: PASS - skyjoust bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - skyjoust runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - fight_night_99 catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - fight_night_99 fills every empty seat
+GAME_BOT_FILL: PASS - fight_night_99 runtime creates the declared filled population
+GAME_BOT_FILL: PASS - fight_night_99 bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - fight_night_99 runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - ashland_command catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - ashland_command fills every empty seat
+GAME_BOT_FILL: PASS - ashland_command runtime creates the declared filled population
+GAME_BOT_FILL: PASS - ashland_command bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - ashland_command runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - rust_runners catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - rust_runners fills every empty seat
+GAME_BOT_FILL: PASS - rust_runners runtime creates the declared filled population
+GAME_BOT_FILL: PASS - rust_runners bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - rust_runners runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL: PASS - black_grid catalog maximum is the bot-fill ceiling
+GAME_BOT_FILL: PASS - black_grid fills every empty seat
+GAME_BOT_FILL: PASS - black_grid runtime creates the declared filled population
+GAME_BOT_FILL: PASS - black_grid bot-fill off keeps the rules-required pair
+GAME_BOT_FILL: PASS - black_grid runtime does not retain max-fill actors when disabled
+GAME_BOT_FILL RESULTS: 61 passed, 0 failed
+GAME_BOT_FILL: ALL CHECKS PASSED
+
+===== game_ledger_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_LEDGER: start
+GAME_LEDGER: PASS - the score ledger exists
+GAME_LEDGER: PASS - first result is accepted
+GAME_LEDGER: PASS - duplicate result id is rejected
+GAME_LEDGER: PASS - lower high-score run remains valid history
+GAME_LEDGER: PASS - higher high-score run becomes best
+GAME_LEDGER: PASS - duplicate did not grow history
+GAME_LEDGER: PASS - high-direction best is 120
+GAME_LEDGER: PASS - low-direction best is 80
+GAME_LEDGER: PASS - new submissions cannot invent a ruleset
+GAME_LEDGER: PASS - loaded historical rulesets remain visible but isolated
+GAME_LEDGER: PASS - challenge preserves game, ruleset, seed, target
+GAME_LEDGER: PASS - house rows are explicitly fictional
+GAME_LEDGER: PASS - all twenty Phase 1 games have explicit fictional house boards
+GAME_LEDGER: PASS - both flagship shooters have explicit fictional house boards
+GAME_LEDGER: PASS - personal scope contains only the real local best
+GAME_LEDGER: PASS - session scope contains real current-session results only
+GAME_LEDGER: PASS - challenge scope requires the exact game ruleset and seed
+GAME_LEDGER: PASS - GLOBAL provider is honestly unavailable
+GAME_LEDGER: PASS - recent history caps at fifty per game
+GAME_LEDGER: PASS - save round-trip preserves best
+GAME_LEDGER: PASS - save round-trip preserves challenge seed
+GAME_LEDGER: PASS - save round-trip preserves capped history
+GAME_LEDGER: PASS - malformed and unknown results are rejected
+GAME_LEDGER RESULTS: 23 passed, 0 failed
+GAME_LEDGER: ALL CHECKS PASSED
+
+===== game_save_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_SAVE: start
+GAME_SAVE: PASS - main owns the save-backed Game Deck
+GAME_SAVE: PASS - one-file save contains a Game Deck block
+GAME_SAVE: PASS - personal best round-trips
+GAME_SAVE: PASS - unlock and per-game setting round-trip
+GAME_SAVE: PASS - unrelated save keys survive
+GAME_SAVE: PASS - old save defaults to starter unlocks
+GAME_SAVE: PASS - old save invents no score history
+GAME_SAVE RESULTS: 7 passed, 0 failed
+GAME_SAVE: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)
+
+===== game_lobby_policy_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_LOBBY_POLICY: start
+GAME_LOBBY_POLICY: PASS - terminal broker exposes the complete lobby policy API
+GAME_LOBBY_POLICY: PASS - unpowered console refuses lobby configuration
+GAME_LOBBY_POLICY: PASS - unknown and handheld rows cannot become console lobbies
+GAME_LOBBY_POLICY: PASS - locked cartridge cannot become an ordinary lobby
+GAME_LOBBY_POLICY: PASS - SOLO configures one host seat and max-fill default
+GAME_LOBBY_POLICY: PASS - SOLO start emits one ordinary max-fill launch request
+GAME_LOBBY_POLICY: PASS - LOCAL GAME configures but a far body is not eligible
+GAME_LOBBY_POLICY: PASS - walking a real body into range makes it eligible
+GAME_LOBBY_POLICY: PASS - INVITE PLAYER creates exactly one pending invitation
+GAME_LOBBY_POLICY: PASS - duplicate pending invitation is rejected without growing state
+GAME_LOBBY_POLICY: PASS - acceptance revalidates physical range
+GAME_LOBBY_POLICY: PASS - JOIN MATCH consumes the invitation into one distinct seat
+GAME_LOBBY_POLICY: PASS - used invitation cannot be consumed twice
+GAME_LOBBY_POLICY: PASS - remaining local seats can be invited and joined
+GAME_LOBBY_POLICY: PASS - third local seat joins
+GAME_LOBBY_POLICY: PASS - fourth local seat joins
+GAME_LOBBY_POLICY: PASS - fourth invitation is accepted
+GAME_LOBBY_POLICY: PASS - full lobby refuses another invitation without mutation
+GAME_LOBBY_POLICY: PASS - LOCAL bot-fill off launches only accepted humans
+GAME_LOBBY_POLICY: PASS - LEAVE LOBBY clears roster and pending invitation state
+GAME_LOBBY_POLICY: PASS - lobby policy never changes world time scale
+GAME_LOBBY_POLICY RESULTS: 21 passed, 0 failed
+GAME_LOBBY_POLICY: ALL CHECKS PASSED
+
+===== game_license_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_LICENSE: start
+GAME_LICENSE: PASS - every source notice ships inside res://
+GAME_LICENSE: PASS - licensed sources distinguish a local license path
+GAME_LICENSE: PASS - every source is pinned or access-dated
+GAME_LICENSE: PASS - aggregate notices ship
+GAME_LICENSE: PASS - aggregate notice identifies every installed source as material used
+GAME_LICENSE: PASS - no installed source family remains mislabeled as future
+GAME_LICENSE: PASS - Tanks audio exclusion remains explicit
+GAME_LICENSE: PASS - Infantry is reference-only with all client material excluded
+GAME_LICENSE: PASS - OpenSoldat engine and excluded base-content licenses stay separate
+GAME_LICENSE: PASS - no Twemoji, Infantry, or Soldat source asset path ships
+GAME_LICENSE: PASS - Game Deck cartridge art remains original code-drawn primitives
+GAME_LICENSE: PASS - tournament venues posters and brackets add no undeclared media imports
+GAME_LICENSE RESULTS: 12 passed, 0 failed
+GAME_LICENSE: ALL CHECKS PASSED
+
+===== game_cleanroom_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_CLEANROOM: start
+GAME_CLEANROOM: PASS - OpenSoldat code reference is MIT and base content remains a separate exclusion
+GAME_CLEANROOM: PASS - BLACK GRID source record imports no code and excludes every client material family
+GAME_CLEANROOM: PASS - aggregate notice distinguishes used MIT knowledge and clean-room behavior reference
+GAME_CLEANROOM: PASS - flagship runtime contains no imported art audio map zone or archive file
+GAME_CLEANROOM: PASS - no runtime filename carries an upstream product or client identifier
+GAME_CLEANROOM: PASS - all flagship resource dependencies stay inside original DRIVN runtime paths
+GAME_CLEANROOM: PASS - all original arena and zone ids are unique and use DRIVN naming
+GAME_CLEANROOM: PASS - every flagship weapon id belongs to an original rr/bg namespace
+GAME_CLEANROOM: PASS - original row data references no external media path
+GAME_CLEANROOM: PASS - in-world manuals disclose both source boundaries to the player
+GAME_CLEANROOM RESULTS: 10 passed, 0 failed
+GAME_CLEANROOM: ALL CHECKS PASSED
+
+===== rust_runners_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+RUST_RUNNERS: start
+RUST_RUNNERS: PASS - cartridge scene and original arena rows exist
+RUST_RUNNERS: PASS - refinery bridge and graveyard arenas are complete original data rows
+RUST_RUNNERS: PASS - match spawns one rider and one deterministic opponent
+RUST_RUNNERS: PASS - seed and arena produce exact deterministic spawn state
+RUST_RUNNERS: PASS - ground movement accelerates instead of teleporting
+RUST_RUNNERS: PASS - air control bends but preserves momentum
+RUST_RUNNERS: PASS - mobility jumps then burns finite jet fuel in the air
+RUST_RUNNERS: PASS - ground contact recharges the jet pack
+RUST_RUNNERS: PASS - stance enters crouch with a shorter collision hull
+RUST_RUNNERS: PASS - down plus stance enters prone
+RUST_RUNNERS: PASS - moving stance press starts a momentum roll
+RUST_RUNNERS: PASS - stance plus opposite mobility performs a backflip
+RUST_RUNNERS: PASS - platform landing resolves and excessive impact causes fall damage
+RUST_RUNNERS: PASS - aim is independent full-angle and primary fires the active slot
+RUST_RUNNERS: PASS - weapon cycling changes between primary and secondary carried slots
+RUST_RUNNERS: PASS - reload starts the selected magazine timer
+RUST_RUNNERS: PASS - alternate fire throws a physical grenade
+RUST_RUNNERS: PASS - cartridge combat applies seeded shot damage recoil and knockback
+RUST_RUNNERS: PASS - active weapons can be dropped into a world pickup
+RUST_RUNNERS: PASS - a dropped weapon can be picked back up
+RUST_RUNNERS: PASS - health vest and grenade pickups restore their declared resources
+RUST_RUNNERS: PASS - spawn protection rejects incoming damage
+RUST_RUNNERS: PASS - lethal damage creates original primitive death pieces
+RUST_RUNNERS: PASS - death timer respawns with protection and full health
+RUST_RUNNERS: PASS - gore toggle preserves death rules without spawning pieces
+RUST_RUNNERS: PASS - full locomotion combat and pickup snapshot restores exactly
+RUST_RUNNERS: PASS - focused cartridge emits one normalized flagship result
+RUST_RUNNERS: PASS - Deathmatch awards the killer's individual score
+RUST_RUNNERS: PASS - Team Deathmatch awards the killer's team
+RUST_RUNNERS: PASS - CTF enemy flag can be carried
+RUST_RUNNERS: PASS - a killed carrier drops the flag at the death position
+RUST_RUNNERS: PASS - the owning team returns its dropped flag
+RUST_RUNNERS: PASS - carrying the enemy flag home records a capture and resets it
+RUST_RUNNERS: PASS - Pointmatch possession produces periodic individual score
+RUST_RUNNERS: PASS - score limit ends one normalized mode result exactly once
+RUST_RUNNERS: PASS - one human seat fills to the flagship eight-actor population
+RUST_RUNNERS: PASS - wounded bot seeks a health pickup and produces traversal input
+RUST_RUNNERS: PASS - objective bot pursues the enemy flag and ignites traversal mobility
+RUST_RUNNERS: PASS - combat bot selects a target aims and fires on a deterministic cadence
+RUST_RUNNERS: PASS - four-seat local layout keeps two simultaneous actors isolated
+RUST_RUNNERS: PASS - eight-seat online state converges through the ordinary deep snapshot
+RUST_RUNNERS: PASS - broadcast HUD exposes mode score kill feed ammo health vest jet and scoreboard
+RUST_RUNNERS: PASS - physical prize cache house board and drive-in night surface the cartridge
+RUST_RUNNERS: PASS - mercenary manual teaches every live stance resource mode bot and network law
+RUST_RUNNERS: PASS - ordinary host bridge applies remote shooter input and publishes snapshots
+RUST_RUNNERS: PASS - ordinary bridge converges and publishes one normalized flagship result
+RUST_RUNNERS RESULTS: 46 passed, 0 failed
+RUST_RUNNERS: ALL CHECKS PASSED
+
+===== black_grid_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+BLACK_GRID: start
+BLACK_GRID: PASS - cartridge scene and original zone rows exist
+BLACK_GRID: PASS - three zones declare original walls darkness spawns objectives and vehicle pads
+BLACK_GRID: PASS - match starts a rider and deterministic opposing field bot
+BLACK_GRID: PASS - seed class loadout and zone reproduce exact initial state
+BLACK_GRID: PASS - free movement accelerates and coasts with retained inertia
+BLACK_GRID: PASS - class and carried equipment produce real encumbrance
+BLACK_GRID: PASS - loadout cap rejects an impossible everything-kit
+BLACK_GRID: PASS - shared mobility performs a powered combat boost
+BLACK_GRID: PASS - energy recharges after boost pressure ends
+BLACK_GRID: PASS - aim remains independent while stance changes handling
+BLACK_GRID: PASS - independent primary fire launches a traveling projectile before impact
+BLACK_GRID: PASS - projectile travel resolves armor then health and knockback
+BLACK_GRID: PASS - magazine reload uses the same shared timed ammo economy
+BLACK_GRID: PASS - reload moves reserve rounds into the magazine
+BLACK_GRID: PASS - weapon heat eventually gates an otherwise loaded pulse carbine
+BLACK_GRID: PASS - siege explosion emits blast falloff and deterministic shrapnel
+BLACK_GRID: PASS - rail fire ricochets from declared zone geometry
+BLACK_GRID: PASS - wall occlusion removes the exact enemy contact
+BLACK_GRID: PASS - radar retains only a coarse contact behind the wall
+BLACK_GRID: PASS - clear line of sight restores the exact real-time contact
+BLACK_GRID: PASS - darkness hides exact contacts outside close reveal range
+BLACK_GRID: PASS - fog exact and radar contact state survives deep restore
+BLACK_GRID: PASS - infantry slice emits one normalized objective-aware result
+BLACK_GRID: PASS - sensor placement spends carried material and energy
+BLACK_GRID: PASS - team sensor extends coarse radar without inventing exact sight
+BLACK_GRID: PASS - barricade becomes destroyable collision that blocks movement
+BLACK_GRID: PASS - powered turret acquires and damages an enemy
+BLACK_GRID: PASS - repair node restores nearby allied infantry
+BLACK_GRID: PASS - field equipment is damageable and leaves the active set when destroyed
+BLACK_GRID: PASS - zone vehicle pads spawn distinct light armored field vehicles
+BLACK_GRID: PASS - interaction enters a real driver seat and removes infantry movement authority
+BLACK_GRID: PASS - vehicle mass retains distinct mounted momentum
+BLACK_GRID: PASS - mounted weapon uses shared projectile combat
+BLACK_GRID: PASS - driver can exit back to infantry at the vehicle position
+BLACK_GRID: PASS - Skirmish kill spends enemy tickets and awards team score
+BLACK_GRID: PASS - team spawn network returns the defeated actor at an owned position
+BLACK_GRID: PASS - Frontlines capture creates a forward spawn and periodic objective score
+BLACK_GRID: PASS - Capture the Flag carries banks and resets the enemy signal
+BLACK_GRID: PASS - Bug Hunt starts a cooperative squad against role-tagged creatures
+BLACK_GRID: PASS - clearing the last bug ends one cooperative round
+BLACK_GRID: PASS - Fleet mode scores destroyed mounted armor and honors its limit
+BLACK_GRID: PASS - round-end vote resolves a deterministic declared next mode
+BLACK_GRID: PASS - declared time limit ends one field round when score remains tied
+BLACK_GRID: PASS - one rider fills to sixteen deterministic field actors
+BLACK_GRID: PASS - objective bot selects an uncaptured forward node and moves toward it
+BLACK_GRID: PASS - engineer bot fortifies an owned objective with a deployable
+BLACK_GRID: PASS - field bot can claim an unoccupied vehicle seat
+BLACK_GRID: PASS - local field seats retain isolated simultaneous movement
+BLACK_GRID: PASS - deployable vehicle objective bot and spawn state converges after restore
+BLACK_GRID: PASS - tactical glass surfaces fog radar loadout objectives vehicles and vote state
+BLACK_GRID: PASS - ordinary host bridge applies remote field input and publishes full snapshots
+BLACK_GRID: PASS - ordinary bridge converges vehicles objectives fog and one result
+BLACK_GRID: PASS - doctrine teaches fog loadout deployables vehicles all modes bots votes and clean-room law
+BLACK_GRID RESULTS: 53 passed, 0 failed
+BLACK_GRID: ALL CHECKS PASSED
+
+===== game_shooter_controls_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+SHOOTER_CONTROLS: start
+SHOOTER_CONTROLS: PASS - both flagship rows exist in Phase 2
+SHOOTER_CONTROLS: PASS - both rows name one shared shooter profile
+SHOOTER_CONTROLS: PASS - shared shooter semantics have the exact approved order
+SHOOTER_CONTROLS: PASS - RUST RUNNERS and BLACK GRID display identical live HELP rows
+SHOOTER_CONTROLS: PASS - move and independent aim expose WASD/left-stick and mouse/right-stick
+SHOOTER_CONTROLS: PASS - fire is LMB or right trigger without stealing the mobility face button
+SHOOTER_CONTROLS: PASS - alternate fire is RMB or G and left trigger
+SHOOTER_CONTROLS: PASS - mobility and stance are Space/A and Ctrl/B
+SHOOTER_CONTROLS: PASS - reload/interact are R/X and E/Y
+SHOOTER_CONTROLS: PASS - weapon cycle, scoreboard, pause, and help keep their approved slots
+SHOOTER_CONTROLS RESULTS: 10 passed, 0 failed
+SHOOTER_CONTROLS: ALL CHECKS PASSED
+
+===== game_shooter_kernel_sim =====
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+SHOOTER_KERNEL: start
+SHOOTER_KERNEL: PASS - shared kernel and weapon-row catalog exist
+SHOOTER_KERNEL: PASS - both original arsenals load from valid unique rows
+SHOOTER_KERNEL: PASS - combatants carry team health armor radius and deterministic loadouts
+SHOOTER_KERNEL: PASS - seeded spread and recoil are exactly repeatable
+SHOOTER_KERNEL: PASS - cadence refuses a second shot on the same tick
+SHOOTER_KERNEL: PASS - a legal shot spends exactly one magazine round
+SHOOTER_KERNEL: PASS - hitscan intersects a circular target and armor absorbs before health
+SHOOTER_KERNEL: PASS - default team policy prevents friendly fire
+SHOOTER_KERNEL: PASS - traveling projectiles exist before their impact tick
+SHOOTER_KERNEL: PASS - projectile travel resolves damage at the fixed tick
+SHOOTER_KERNEL: PASS - grenade blast damage falls off with distance
+SHOOTER_KERNEL: PASS - explosion emits its declared deterministic shrapnel fan
+SHOOTER_KERNEL: PASS - declared hitscan ricochet reflects from field geometry
+SHOOTER_KERNEL: PASS - a ricochet spawned inside geometry uses the exit-face normal
+SHOOTER_KERNEL: PASS - empty magazines refuse fire and can begin a timed reload
+SHOOTER_KERNEL: PASS - reload transfers reserve rounds without exceeding magazine size
+SHOOTER_KERNEL: PASS - deep snapshot restore reproduces the exact next combat tick
+SHOOTER_KERNEL RESULTS: 17 passed, 0 failed
+SHOOTER_KERNEL: ALL CHECKS PASSED
+
+COMPANION_REGRESSION: PASS - 25 suites, 755 checks, DRIVN save restored byte-for-byte
