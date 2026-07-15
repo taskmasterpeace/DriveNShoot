@@ -16,17 +16,21 @@ var cover_texture_rect: TextureRect
 var state_label: Label
 var art_loaded := false
 var game_row: Dictionary = {}
+var presentation: Dictionary = {}
 
 
-static func create(row: Dictionary, available: bool, owned: bool) -> Button:
+static func create(row: Dictionary, available: bool, owned: bool,
+		new_presentation: Dictionary = {}) -> Button:
 	var script := load("res://proto3d/games/game_cover_card.gd") as GDScript
 	var card: Button = script.new()
-	card._setup(row, available, owned)
+	card._setup(row, available, owned, new_presentation)
 	return card
 
 
-func _setup(row: Dictionary, available: bool, owned: bool) -> void:
+func _setup(row: Dictionary, available: bool, owned: bool,
+		new_presentation: Dictionary = {}) -> void:
 	game_row = row.duplicate(true)
+	presentation = new_presentation.duplicate(true)
 	name = "CoverCard_%s" % String(row.get("id", "unknown"))
 	focus_mode = Control.FOCUS_ALL
 	clip_contents = true
@@ -40,9 +44,16 @@ func _setup(row: Dictionary, available: bool, owned: bool) -> void:
 	elif not owned:
 		state = "LOCKED // FIND CARTRIDGE"
 	var title := String(row.get("title", row.get("id", "UNKNOWN")))
-	text = "%s  //  %s  //  PWR %d / NET %d%s" % [title,
-		String(row.get("aspect", "")), int(row.get("power_draw", 0)),
-		int(row.get("network_cost", 0)), "  [%s]" % state if state != "READY" else ""]
+	if bool(presentation.get("companion", false)):
+		var companion_players: Dictionary = row.get("players", {}) as Dictionary
+		text = "%s  //  %s  //  SINGLE PLAYER%s%s" % [title,
+			String(row.get("aspect", "")),
+			" // AI OPPONENTS" if bool(companion_players.get("ai", false)) else "",
+			"  [%s]" % state if state != "READY" else ""]
+	else:
+		text = "%s  //  %s  //  PWR %d / NET %d%s" % [title,
+			String(row.get("aspect", "")), int(row.get("power_draw", 0)),
+			int(row.get("network_cost", 0)), "  [%s]" % state if state != "READY" else ""]
 	disabled = not available or not owned
 	_style_button()
 
@@ -127,9 +138,14 @@ func _setup(row: Dictionary, available: bool, owned: bool) -> void:
 		else "%d-%dP" % [min_players, max_players]
 	var facts := Label.new()
 	facts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	facts.text = "%s // %s // %s\nPWR %d // NET %d" % [String(row.get("aspect", "")),
-		player_fact, _network_fact(players), int(row.get("power_draw", 0)),
-		int(row.get("network_cost", 0))]
+	if bool(presentation.get("companion", false)):
+		facts.text = "%s // SINGLE PLAYER\n%s" % [String(row.get("aspect", "")),
+			"AI OPPONENTS // %d ACTORS" % max_players if bool(players.get("ai", false))
+			else "SOLO CHALLENGE"]
+	else:
+		facts.text = "%s // %s // %s\nPWR %d // NET %d" % [String(row.get("aspect", "")),
+			player_fact, _network_fact(players), int(row.get("power_draw", 0)),
+			int(row.get("network_cost", 0))]
 	facts.add_theme_font_size_override("font_size", 11)
 	facts.add_theme_color_override("font_color", DIM)
 	layout.add_child(facts)
