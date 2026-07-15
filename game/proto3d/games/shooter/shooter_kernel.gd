@@ -407,6 +407,7 @@ func _segment_rect_hit(start: Vector2, finish: Vector2, rect: Rect2) -> Dictiona
 	var t_min := 0.0
 	var t_max := 1.0
 	var normal := Vector2.ZERO
+	var exit_normal := Vector2.ZERO
 	for axis in 2:
 		var origin := start[axis]
 		var direction := delta[axis]
@@ -420,18 +421,29 @@ func _segment_rect_hit(start: Vector2, finish: Vector2, rect: Rect2) -> Dictiona
 		var far := (high - origin) / direction
 		var near_normal := Vector2.ZERO
 		near_normal[axis] = -1.0 if direction > 0.0 else 1.0
+		var far_normal := -near_normal
 		if near > far:
 			var swap := near
 			near = far
 			far = swap
-		if near > t_min:
+		if near >= t_min:
 			t_min = near
 			normal = near_normal
-		t_max = minf(t_max, far)
+		if far < t_max:
+			t_max = far
+			exit_normal = far_normal
 		if t_min > t_max:
 			return {}
 	if t_min < 0.0 or t_min > 1.0:
 		return {}
+	# Spawns, knockback, and a previous sub-step can leave a projectile inside
+	# a platform. There is no entering face then; use the nearest exit face so
+	# Vector2 never receives a zero reflection normal.
+	if normal.is_zero_approx():
+		if exit_normal.is_zero_approx() or t_max < 0.0 or t_max > 1.0:
+			return {}
+		return {"fraction": t_max, "point": start + delta * t_max,
+			"normal": exit_normal}
 	return {"fraction": t_min, "point": start + delta * t_min, "normal": normal}
 
 

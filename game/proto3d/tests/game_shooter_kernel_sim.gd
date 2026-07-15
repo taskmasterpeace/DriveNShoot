@@ -110,6 +110,22 @@ func _ready() -> void:
 	_check("declared hitscan ricochet reflects from field geometry",
 		ricochet_kernel.event_count("ricochet") == 1)
 
+	var inside_wall_kernel: RefCounted = script.new()
+	inside_wall_kernel.configure(rows, 34, Rect2(0, 0, 1000, 600),
+		[Rect2(400, 0, 20, 600)])
+	inside_wall_kernel.add_actor({"id": 0, "team": 0, "pos": Vector2(410, 300),
+		"hp": 100.0, "armor": 0.0, "radius": 12.0, "velocity": Vector2.ZERO})
+	inside_wall_kernel.equip(0, ["rr_frag"])
+	inside_wall_kernel.fire(0, "rr_frag", Vector2(410, 300), Vector2.RIGHT,
+		{"fuse_ticks": 40})
+	inside_wall_kernel.step()
+	var escaped_projectile: Dictionary = inside_wall_kernel.projectiles[0] \
+		if not inside_wall_kernel.projectiles.is_empty() else {}
+	_check("a ricochet spawned inside geometry uses the exit-face normal",
+		inside_wall_kernel.event_count("ricochet") == 1
+		and Vector2(escaped_projectile.get("velocity", Vector2.ZERO)).x < 0.0
+		and Vector2(escaped_projectile.get("pos", Vector2.ZERO)).x > 400.0)
+
 	var reload_kernel: RefCounted = script.new()
 	reload_kernel.configure(rows, 12, Rect2(0, 0, 1000, 600), [])
 	reload_kernel.add_actor({"id": 0, "team": 0, "pos": Vector2.ZERO, "hp": 100.0,
