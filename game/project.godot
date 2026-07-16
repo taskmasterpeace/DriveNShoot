@@ -29,10 +29,13 @@ driver/enable_input=true
 
 # The legacy 2D game's game-specific autoloads were removed 2026-07-06. They ran in
 # EVERY scene incl. the 3D mainline; Debugger's global F2 hotkey fade-swapped the
-# LIVE 3D game into the old 2D start_screen mid-play (the "I hit a button and it
-# loaded another game" bug). proto3d depends on none of them. Recover from git if
+# LIVE 3D game into the old 2D start_screen mid-play (the 'I hit a button and it
+# loaded another game' bug). proto3d depends on none of them. Recover from git if
 # the legacy 2D scenes are ever revived.
-# (DialogueManager kept — it's a reusable addon, not the 2D game.)
+# (DialogueManager kept - it's a reusable addon, not the 2D game.)
+# KEEP THIS COMMENT ASCII AND QUOTE-FREE: Godot's project.godot writer mangles
+# comments containing double-quote chars -- it collapsed this block and corrupted
+# the DialogueManager autoload key on every editor save until de-quoted 2026-07-16.
 DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 
 [dialogue_manager]
