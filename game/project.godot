@@ -29,8 +29,6 @@ driver/enable_input=true
 
 DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
 
-[dialogue_manager]
-
 [display]
 
 window/size/viewport_width=1920
