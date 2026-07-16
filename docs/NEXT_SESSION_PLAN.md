@@ -117,10 +117,30 @@ auto-mirrors on divided roads. `renumberExits` then assigns the milepost number 
 - **~30 sims** (`game_*_sim`, `console_*_sim`, `handheld_catalog_sim`) — catalog, acquisition,
   license, save, input, shooter kernel, local + online MP, spectacle, bot-fill. Green.
 
-**Why you never saw it — the missing door:** the deck opens when you **USE the `game_handheld`
-item** ("Pocket Game Deck") from your pack; cartridges (`game_cart_*`) install individual games on
-the shelf. A fresh NEW GAME never puts a handheld in your hands and the item isn't seeded into
-early loot/shops, so there's no way to stumble onto it. It's a surfacing gap, not a build gap.
+**AUDIT 2026-07-16 — I WAS WRONG ABOUT "NO DOOR". Corrected:**
+The system is BUILT, GREEN, REACHABLE and WAYPOINTED. What it is NOT is *announced*.
+- **Sims: 24 green, 721 checks, 0 failures** (registry 19 · catalog 158 · console_catalog 96 ·
+  handheld_catalog 74 · device 15 · cover 15 · shell 22 · ledger 23 · license 12 · acquisition 20 ·
+  save 7 · input 14 · shooter_kernel 16 · shooter_controls 10 · cleanroom 10 · lobby 28 ·
+  lobby_policy 21 · local_mp 6 · bot_fill 61 · net 30 · online_mp 25 · passenger 12 · spectacle 19 ·
+  world 8).
+- **The Pocket Game Deck IS obtainable from minute one** — it sits in the safehouse SUPPLY CHEST
+  at (108.2, -324) next to the shotgun/drone (`proto3d.gd:262`). My earlier "there is no door"
+  claim was simply wrong; I had not read the chest.
+- **Cartridges**: 20 item rows, 19 loot-table entries, plus hand-placed world caches.
+- **3 venues, positioned IN MERIDIAN with live waypoints**: THE BENT AXLE ARCADE at [92, 0, -292]
+  (~35 m from that chest), STATIC SKY DRIVE-IN, COUNTY CONTINUITY HALL + 12 tournament events.
+  Venue waypoints DO register (`proto3d.gd:344` -> "🎮 ROADHOUSE ARCADE" on N).
+
+**SO WHY HAS NOBODY SEEN IT? Nothing ever TELLS you it exists:**
+- `radio.gd`: **0** lines mention the deck, arcade, or cartridges — and the radio is this game's
+  "here is what exists in the world" channel.
+- `objectives.gd` (THE FIRST RUN): **0** beats teach it (grep hits were comments only).
+- The handheld is the 19th item in a 19-item chest, with no callout on pickup.
+That is the whole gap: a 721-check system sits 35 m from spawn and is announced to nobody.
+
+**THE FIX IS SMALL (next session):** one radio row + one FIRST RUN beat + a pickup toast. Do NOT
+rebuild anything — it works.
 
 **The work:**
 - **A. Give it a door (the real fix).** Seed `game_handheld` so a normal player finds one early —

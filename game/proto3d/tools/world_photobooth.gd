@@ -31,6 +31,7 @@ const SHOTS: Array = [
 	{"name": "ecotone_seam", "pos": Vector3(-7616, 1.0, -19392), "yaw": 65.0}, # ARC 2: forest thins into the neighbor biome
 	{"name": "meridian_districts", "pos": Vector3(150, 1.0, -320), "yaw": 160.0}, # ARC 3: downtown grey vs fairgrounds trampled
 	{"name": "ghost_dead_motel", "pos": Vector3(-57011, 1.0, -2140), "yaw": 175.0}, # ARC 3: decayed Americana off a dirt spur
+	{"name": "bent_axle_arcade", "pos": Vector3(92, 1.0, -284), "yaw": 180.0}, # SPECTICLES AUDIT: THE BENT AXLE ARCADE, 35m from the safehouse
 	{"name": "seattle_city_exit", "pos": Vector3(-56064, 1.0, -17888), "yaw": 68}, # CITY EXITS: standing at the exit, looking down the 6-deg ramp into Seattle
 ]
 
