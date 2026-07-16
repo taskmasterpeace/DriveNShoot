@@ -76,6 +76,35 @@ re-drive that Meridian-edge fall-through (§5) so I can see the hole instead of 
 
 ---
 
+## 1b. CITY EXITS — POC LANDED 2026-07-16, 26 CITIES STILL TO GO
+
+**The bug (found by survey, not by guess):** 33 of 59 towns had NO exit at all, and the
+`NEAREST HIGHWAY` column read **0 m** — the interstate ran straight PAST Seattle, San
+Francisco, Chicago, Miami, Atlanta, NYC, Dallas... with no off-ramp. Those cities were
+physically unreachable from the road.
+
+**The POC (shipped):** `mintTownExits()` in `tools/mapforge/bake_junctions.mjs` mints an
+exit per exit-less town to the PROVEN denver/losangeles pattern (measured off the live
+rows): `pos` on the carriageway, `dest` ~520 m perpendicular (inside `renumberExits`' 600 m
+`town_id` stamp radius), plus a bare 2-point off-ramp that `rewriteExitGeometry` peels and
+auto-mirrors on divided roads. `renumberExits` then assigns the milepost number and stamps
+`town_id` for free. Reachability 26/59 -> 29/59. Proof: `city_exit_sim` 25/25.
+
+**TO SCALE TO THE REMAINING 26:** flip `MINT_EXITS_ONLY` (top of the mint pass) from the
+3-city POC array to **`null`** and re-bake. Before doing it, know the two live hazards:
+- **The address law cascades.** `renumberExits` is "strictly increasing (duplicates bump
+  +1)", so inserting exits CAN shift a neighbour's display number (the POC moved
+  `I-75_X5` 7->8 — Atlanta lands on its game-mile). Ids never change, only display
+  numbers, which the law explicitly allows — but **MERIDIAN must stay I-95 EXIT 9**. The
+  POC deliberately avoided I-95 for this reason; a full sweep will touch it. `city_exit_sim`
+  and the bake's `MERIDIAN=` print both guard this.
+- **4 towns are LINKAGE bugs, not missing exits** (cheyenne/I-25_X2, kansascity/I-70_X5,
+  richmond/I-95_X5, chicago/I-80_X8): an exit's `dest` lands 630-805 m away — just OUTSIDE
+  the 600 m stamp radius, so `town_id` never sticks. Decide: widen the radius, or move
+  those dests onto their towns. Don't double-mint them.
+
+---
+
 ## 2. TURN ON THE GAME DECK (top priority — the "you never saw it" system)
 
 **What's actually there (all shipped on this branch, sim-green):**

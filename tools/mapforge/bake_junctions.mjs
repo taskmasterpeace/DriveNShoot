@@ -276,6 +276,94 @@ function structureProfiles() {
 }
 
 // ---------------------------------------------------------------------------
+// CITY EXITS (POC 2026-07-16): 33 of 59 towns had NO exit — the interstate ran
+// straight PAST Seattle, San Francisco, Atlanta and 26 more with no off-ramp,
+// so those cities were unreachable from the highway. Mint one to the PROVEN
+// denver/losangeles pattern (measured off the live rows, not invented):
+//   pos  = the town projected onto its nearest carriageway
+//   dest = ~520 m perpendicular off it — long enough to be a real ramp, and
+//          INSIDE renumberExits' 600 m town_id stamp radius so the link sticks
+//   ramp = a bare 2-point off-ramp; rewriteExitGeometry peels it into real
+//          geometry and auto-mints the divided-highway mirror (-off-r)
+// renumberExits then assigns the milepost number and stamps town_id for free.
+// `only` gates the POC subset; pass null to serve EVERY exit-less town.
+const MINT_EXITS_ONLY = ["seattle", "sanfrancisco", "atlanta"]; // POC — set to null for the full sweep
+
+export function mintTownExits(map, only = null) {
+	const stats = { minted: 0, skipped_served: 0, skipped_nohwy: 0, ids: [] };
+	const roads = map.roads || [];
+	if (!map.exits) map.exits = [];
+	const exits = map.exits;
+	const HWY = new Set(["interstate", "us_route", "state_road"]);
+	const hwys = roads.filter((r) => HWY.has(r.kind || ""));
+	const STAMP_R = 600; // MUST mirror renumberExits' town_id radius
+	const OFF_M = 520;   // the denver/losangeles offset (inside STAMP_R)
+	const r2 = (n) => Math.round(n * 100) / 100;
+
+	// biome probe so a ramp never dead-ends in the sea (Seattle hugs the west edge)
+	const cell = map.cell_m || 500;
+	const [ox, oy] = map.world_offset || [0, 0];
+	const grid = map.grid || [], legend = map.legend || {};
+	const wet = (x, y) => {
+		const cx = Math.floor((x - ox) / cell), cy = Math.floor((y - oy) / cell);
+		if (cy < 0 || cy >= grid.length) return true;
+		const row = grid[cy];
+		if (cx < 0 || cx >= row.length) return true;
+		const b = legend[row[cx]] || "ocean";
+		return b === "ocean" || b === "water";
+	};
+
+	// a town is SERVED if an exit names it, or any exit dest lands inside the stamp radius
+	const served = new Set();
+	for (const e of exits) {
+		if (e.town_id) served.add(e.town_id);
+		const d0 = v(e.dest || e.pos);
+		for (const t of map.towns || []) if (dist({ x: t.pos[0], y: t.pos[1] }, d0) < STAMP_R) served.add(t.id);
+	}
+	const nextIdx = (hid) => {
+		let n = 0;
+		for (const e of exits) if (e.highway_id === hid) {
+			const mm = /_X(\d+)$/.exec(String(e.id));
+			if (mm) n = Math.max(n, parseInt(mm[1], 10));
+		}
+		return n + 1;
+	};
+
+	for (const t of map.towns || []) {
+		if (only && !only.includes(t.id)) continue;
+		if (served.has(t.id)) { stats.skipped_served++; continue; }
+		const tp = { x: t.pos[0], y: t.pos[1] };
+		let best = { d: 1e18, r: null, s: null, q: null };
+		for (const r of hwys) for (const s of segs(r)) {
+			const pr = projectOnSeg(tp, s);
+			if (pr.d < best.d) best = { d: pr.d, r, s, q: pr.q || s.a };
+		}
+		if (!best.r) { stats.skipped_nohwy++; continue; }
+		const pos = best.q;
+		const dv = sub(best.s.b, best.s.a), L = Math.hypot(dv.x, dv.y) || 1;
+		const perp = { x: -dv.y / L, y: dv.x / L };
+		const cand = (k) => ({ x: pos.x + perp.x * OFF_M * k, y: pos.y + perp.y * OFF_M * k });
+		const sgn = (wet(cand(1).x, cand(1).y) && !wet(cand(-1).x, cand(-1).y)) ? -1 : 1;
+		const dest = cand(sgn);
+		const id = `${best.r.id}_X${nextIdx(best.r.id)}`;
+		const ramp = `${id}-off`;
+		roads.push({ id: ramp, kind: "exit", surface: "asphalt",
+			pts: [[r2(pos.x), r2(pos.y)], [r2(dest.x), r2(dest.y)]],
+			danger: 2, family: "", nickname: "", lanes: 2, divided: false });
+		exits.push({ id, highway_id: best.r.id, exit_number: 0,
+			name: String(t.name || t.id).toUpperCase(),
+			archetype: t.kind === "city" ? "industrial" : "county_seat",
+			community_tier: "T1",
+			service_tags: ["parts", "repair", "scrap"],
+			risk_rating: 3, has_return_ramp: false, known_to_player: false,
+			pos: [r2(pos.x), r2(pos.y)], dest: [r2(dest.x), r2(dest.y)],
+			ramp_ids: [ramp], town_id: t.id });
+		stats.minted++; stats.ids.push(`${id}->${t.id}`);
+	}
+	return stats;
+}
+
+// ---------------------------------------------------------------------------
 // ARC 3 — GHOST SITES (THE_COUNTRY_PLAN): decayed Americana off the dirt
 // spurs. A third of county roads grow ONE ghost spur (GR-<rid>) whose payload
 // is a placement CLUSTER — ruined shells arranged in the spur's own frame —
@@ -971,6 +1059,7 @@ export function bakeJunctions(map) {
 	const belts = bakeFarmBelts(map); // ARC 2: the farm-belt approach ring
 	const ghosts = mintGhostSites(map); // ARC 3: decayed Americana off the spurs
 	const dslots = bakeDistrictSlots(map); // ARC 3: districts fill their own ground
+	const cityx = mintTownExits(map, MINT_EXITS_ONLY); // CITY EXITS: give exit-less towns an off-ramp
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
 	const rel = bakeRoadRelief(map); // 1A: roads climb the painted macro (after ramps exist)
@@ -1160,6 +1249,7 @@ export function bakeJunctions(map) {
 	lint.landmark_stats = marks;
 	lint.farmbelt_stats = belts;
 	lint.ghost_stats = ghosts;
+	lint.cityexit_stats = cityx;
 	lint.dslot_stats = dslots;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
@@ -1184,6 +1274,7 @@ if (isMain) {
 	if (lint.landmark_stats) console.log(`BAKE: landmarks — ${lint.landmark_stats.named} towns named, ${lint.landmark_stats.kept} bespoke kept`);
 	if (lint.farmbelt_stats) console.log(`BAKE: farm belts — ${lint.farmbelt_stats.cells} grid cells turned to farmland around ${lint.farmbelt_stats.towns} towns`);
 	if (lint.ghost_stats) console.log(`BAKE: ghost sites — ${lint.ghost_stats.ghosts} minted (${lint.ghost_stats.placements} cluster placements)`);
+	if (lint.cityexit_stats) console.log(`BAKE: city exits — ${lint.cityexit_stats.minted} minted [${lint.cityexit_stats.ids.join(", ")}] (${lint.cityexit_stats.skipped_served} already served)`);
 	if (lint.dslot_stats) console.log(`BAKE: district slots — ${lint.dslot_stats.slots} filled across ${lint.dslot_stats.districts} districts`);
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +

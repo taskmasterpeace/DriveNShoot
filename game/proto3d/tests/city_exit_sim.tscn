@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cityexitsim0"]
+
+[ext_resource type="Script" path="res://proto3d/tests/city_exit_sim.gd" id="1"]
+
+[node name="CityExitSim" type="Node"]
+script = ExtResource("1")

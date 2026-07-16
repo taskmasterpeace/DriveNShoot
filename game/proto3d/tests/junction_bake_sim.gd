@@ -64,7 +64,10 @@ func _ready() -> void:
 		if String(j["grade"]) == "separated_pending" or String(j["grade"]) == "deck":
 			pending += 1
 	_check("every kind is in the 0.2 enum", kinds_ok)
-	_check("all 88 exits have a ramp_mouth node (%d found)" % mouths, mouths == 88)
+	# THE MOUTH LAW: assert the INVARIANT (every exit owns a ramp_mouth), never a
+	# frozen count — minting a city exit legitimately grows both sides together.
+	_check("every exit has a ramp_mouth node (%d exits / %d mouths)" % [um.exits.size(), mouths],
+		mouths == um.exits.size())
 	_check("THE RIRO LAW: no ramp mouth/rejoin EVER opens the median (control never 'gap')", riro_ok)
 	# 1B: the overpass bake DECKS every pending crossing — the triage law now
 	# reads pending+deck together (grade separation exists either way).
