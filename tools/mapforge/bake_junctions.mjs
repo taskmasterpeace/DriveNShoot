@@ -297,8 +297,22 @@ export function mintTownExits(map, only = null) {
 	const HWY = new Set(["interstate", "us_route", "state_road"]);
 	const hwys = roads.filter((r) => HWY.has(r.kind || ""));
 	const STAMP_R = 600; // MUST mirror renumberExits' town_id radius
-	const OFF_M = 520;   // the denver/losangeles offset (inside STAMP_R)
+	const RUN = 450;     // how far up the highway the ramp starts (a real approach)
+	const FALLBACK_OFF = 520; // denver/losangeles offset when a town has no streets
 	const r2 = (n) => Math.round(n * 100) / 100;
+	const totalLen = (road) => segs(road).reduce((s, g) => s + g.len, 0);
+	const pointAtArc = (road, target) => {
+		let acc = 0;
+		const ss = segs(road);
+		for (const g of ss) {
+			if (acc + g.len >= target) {
+				const t = (target - acc) / Math.max(g.len, 1e-6);
+				return { x: g.a.x + (g.b.x - g.a.x) * t, y: g.a.y + (g.b.y - g.a.y) * t };
+			}
+			acc += g.len;
+		}
+		return ss.length ? ss[ss.length - 1].b : null;
+	};
 
 	// biome probe so a ramp never dead-ends in the sea (Seattle hugs the west edge)
 	const cell = map.cell_m || 500;
@@ -313,7 +327,6 @@ export function mintTownExits(map, only = null) {
 		return b === "ocean" || b === "water";
 	};
 
-	// a town is SERVED if an exit names it, or any exit dest lands inside the stamp radius
 	const served = new Set();
 	for (const e of exits) {
 		if (e.town_id) served.add(e.town_id);
@@ -334,31 +347,85 @@ export function mintTownExits(map, only = null) {
 		if (served.has(t.id)) { stats.skipped_served++; continue; }
 		const tp = { x: t.pos[0], y: t.pos[1] };
 		let best = { d: 1e18, r: null, s: null, q: null };
-		for (const r of hwys) for (const s of segs(r)) {
-			const pr = projectOnSeg(tp, s);
-			if (pr.d < best.d) best = { d: pr.d, r, s, q: pr.q || s.a };
+		for (const r of hwys) for (const g of segs(r)) {
+			const pr = projectOnSeg(tp, g);
+			if (pr.d < best.d) best = { d: pr.d, r, s: g, q: pr.q || g.a };
 		}
 		if (!best.r) { stats.skipped_nohwy++; continue; }
-		const pos = best.q;
+		const foot = best.q;
 		const dv = sub(best.s.b, best.s.a), L = Math.hypot(dv.x, dv.y) || 1;
+		const dir = { x: dv.x / L, y: dv.y / L };
 		const perp = { x: -dv.y / L, y: dv.x / L };
-		const cand = (k) => ({ x: pos.x + perp.x * OFF_M * k, y: pos.y + perp.y * OFF_M * k });
-		const sgn = (wet(cand(1).x, cand(1).y) && !wet(cand(-1).x, cand(-1).y)) ? -1 : 1;
-		const dest = cand(sgn);
+		const sgn = (wet(foot.x + perp.x * FALLBACK_OFF, foot.y + perp.y * FALLBACK_OFF)
+			&& !wet(foot.x - perp.x * FALLBACK_OFF, foot.y - perp.y * FALLBACK_OFF)) ? -1 : 1;
+
+		// THE APPROACH LAW: prefer running in from BEHIND the town (dest ends up
+		// ahead of the peel = a shallow corner). If the city IS the highway's origin
+		// (Seattle on I-90, SF on I-80) there is no road behind — approach from ahead
+		// instead and let the SIDE rule below aim the peel backwards.
+		const footArc = arcAt(best.r, tp);
+		const total = totalLen(best.r);
+		const behindArc = footArc - RUN;
+		const canBehind = behindArc >= 30 && behindArc <= total - 30;
+		const pArc = canBehind ? behindArc : Math.min(Math.max(footArc + RUN, 30), Math.max(30, total - 30));
+		const pos = pointAtArc(best.r, pArc) || foot;
+
+		// THE SIDE LAW (the one that actually makes the geometry work):
+		// rewriteExitGeometry picks its peel direction as "the travel direction with
+		// dest on its RIGHT". So dest MUST sit right-of-approach, or the peel aims
+		// the wrong way and the ramp doubles back on itself (measured 132-167 deg).
+		// Put dest right-of-approach and the peel always points AT the city.
+		const adv = { x: foot.x - pos.x, y: foot.y - pos.y };
+		const adL = Math.hypot(adv.x, adv.y) || 1;
+		const ad = { x: adv.x / adL, y: adv.y / adL };          // travel dir: pos -> town
+		const rightOf = { x: -ad.y, y: ad.x };                   // right of that travel
+
+		// THE DEST LAW: land the ramp ON THE TOWN'S OWN STREET GRID, not in a field.
+		// (v1 threw dest 520 m perpendicular and sailed past the city, stranding the
+		// player 362-420 m from the nearest street — the whole point of an exit.)
+		let dest = null, destOnStreet = false;
+		let bestEp = { d: 1e18, p: null };
+		for (const r of roads) {
+			if (!String(r.id).startsWith(`ST-${t.id}-`)) continue;
+			for (const ep of [r.pts[0], r.pts[r.pts.length - 1]]) {
+				const e2 = { x: ep[0], y: ep[1] };
+				const off = (e2.x - foot.x) * rightOf.x + (e2.y - foot.y) * rightOf.y;
+				if (off < 20) continue;               // must be right-of-approach
+				const d2 = dist(e2, foot);
+				if (d2 < bestEp.d && d2 < STAMP_R) bestEp = { d: d2, p: e2 };
+			}
+		}
+		if (bestEp.p) { dest = bestEp.p; destOnStreet = true; }
+		else {
+			// no street on that side — fall back to the shipped perpendicular offset,
+			// flipping away from the sea if need be (Seattle hugs the west edge).
+			const fb = { x: foot.x + rightOf.x * FALLBACK_OFF, y: foot.y + rightOf.y * FALLBACK_OFF };
+			dest = wet(fb.x, fb.y)
+				? { x: foot.x - rightOf.x * FALLBACK_OFF, y: foot.y - rightOf.y * FALLBACK_OFF } : fb;
+		}
+		let onArc = Math.min(Math.max(footArc + RUN, 30), Math.max(30, total - 30));
+		const onEnd = pointAtArc(best.r, onArc) || foot;
+
 		const id = `${best.r.id}_X${nextIdx(best.r.id)}`;
-		const ramp = `${id}-off`;
-		roads.push({ id: ramp, kind: "exit", surface: "asphalt",
+		const offId = `${id}-off`, onId = `${id}-on`;
+		roads.push({ id: offId, kind: "exit", surface: "asphalt",
 			pts: [[r2(pos.x), r2(pos.y)], [r2(dest.x), r2(dest.y)]],
+			danger: 2, family: "", nickname: "", lanes: 2, divided: false });
+		// THE RETURN LAW: 75% of shipped exits are one-way trips — you can drive into
+		// the city and never rejoin the highway. Every minted exit gets its on-ramp.
+		roads.push({ id: onId, kind: "exit", surface: "asphalt",
+			pts: [[r2(dest.x), r2(dest.y)], [r2(onEnd.x), r2(onEnd.y)]],
 			danger: 2, family: "", nickname: "", lanes: 2, divided: false });
 		exits.push({ id, highway_id: best.r.id, exit_number: 0,
 			name: String(t.name || t.id).toUpperCase(),
 			archetype: t.kind === "city" ? "industrial" : "county_seat",
 			community_tier: "T1",
 			service_tags: ["parts", "repair", "scrap"],
-			risk_rating: 3, has_return_ramp: false, known_to_player: false,
+			risk_rating: 3, has_return_ramp: true, known_to_player: false,
 			pos: [r2(pos.x), r2(pos.y)], dest: [r2(dest.x), r2(dest.y)],
-			ramp_ids: [ramp], town_id: t.id });
-		stats.minted++; stats.ids.push(`${id}->${t.id}`);
+			ramp_ids: [offId, onId], town_id: t.id });
+		stats.minted++;
+		stats.ids.push(`${id}->${t.id}${destOnStreet ? "" : "(field!)"}`);
 	}
 	return stats;
 }
@@ -1201,8 +1268,12 @@ export function bakeJunctions(map) {
 			}
 		}
 		if (!best) continue;
-		// attach to its exit: id prefix first ("I-95_X2-on" -> "I-95_X2"), else nearest
-		let ex = (map.exits || []).find((e) => rp.id.startsWith(e.id));
+		// attach to its exit: id prefix first ("I-95_X2-on" -> "I-95_X2"), else nearest.
+		// THE ID BOUNDARY LAW: match on `id + "-"`, never a bare startsWith —
+		// "I-40_X10-on".startsWith("I-40_X1") is TRUE, so X1 silently SWALLOWED
+		// X10's on-ramp (a live bug in the shipped map, found 2026-07-16). Without
+		// the boundary, every two-digit exit donates its ramps to its X1 neighbour.
+		let ex = (map.exits || []).find((e) => rp.id.startsWith(e.id + "-"));
 		if (!ex) {
 			let bd = 1e18;
 			for (const e of map.exits || []) {

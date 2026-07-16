@@ -149,4 +149,49 @@ func _ready() -> void:
 				var roads_used: Array = rt.get("roads", [])
 				_check("...and it actually rides I-90 to get there", roads_used.has("I-90"))
 
+	# --- 6. THE QUALITY BARS: the v1 POC shipped ALL THREE of these BROKEN, and
+	# the shipped fleet still does (72% strand you in a field, 75% are one-way
+	# trips, 100% carry an 86 deg hairpin). These asserts stop that regressing.
+	for tid_v in POC:
+		var eq := _exit_by_id(m, String(POC[tid_v]))
+		if eq.is_empty():
+			continue
+		# THE RETURN LAW: an exit you cannot leave is a trap, not an exit.
+		var ons := 0
+		for rp in eq.get("ramp_ids", []):
+			if String(rp).ends_with("-on") or String(rp).ends_with("-on-r"):
+				ons += 1
+		_check("%s: you can REJOIN the highway (%d on-ramps)" % [POC[tid_v], ons], ons >= 1)
+		# THE DEST LAW: the ramp lands on the town's OWN street grid, not a paddock.
+		var near_street := 1e18
+		for r in m.roads:
+			if not String(r["id"]).begins_with("ST-%s-" % String(tid_v)):
+				continue
+			var rp2: PackedVector2Array = r["pts"]
+			for i in range(rp2.size() - 1):
+				near_street = minf(near_street, ProtoUSMap._seg_dist(eq["dest"], rp2[i], rp2[i + 1]))
+		_check("%s: the ramp LANDS ON A STREET (%.0f m), never a field" % [POC[tid_v], near_street],
+			near_street < 30.0)
+		# THE SIDE LAW: dest right-of-approach aims the peel AT the city, which keeps
+		# the corner shallow. Get it wrong and the ramp hairpins back (132-168 deg).
+		var offr := m.road_by_id(String(POC[tid_v]) + "-off")
+		if not offr.is_empty():
+			var pp: PackedVector2Array = offr["pts"]
+			if pp.size() >= 3:
+				var kink := absf(rad_to_deg(wrapf((pp[2] - pp[1]).angle() - (pp[1] - pp[0]).angle(), -PI, PI)))
+				_check("%s: the peel is DRIVABLE, not a hairpin (%.0f deg < 35)" % [POC[tid_v], kink],
+					kink < 35.0)
+
+	# THE ID BOUNDARY LAW: "I-40_X10-on".startsWith("I-40_X1") is TRUE, so X1 used
+	# to SWALLOW its two-digit neighbour's on-ramp (a live bug in the shipped map).
+	var misclaimed := 0
+	for e2 in m.exits:
+		for rp3 in (e2 as Dictionary).get("ramp_ids", []):
+			for other in m.exits:
+				var oid := String((other as Dictionary)["id"])
+				if oid != String((e2 as Dictionary)["id"]) and String(rp3).begins_with(oid + "-"):
+					misclaimed += 1
+	_check("no exit STEALS a neighbour's ramp (%d mis-claims — the id-boundary law)" % misclaimed,
+		misclaimed == 0)
+
 	_finish()
