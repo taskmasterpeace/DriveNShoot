@@ -17,7 +17,30 @@ setup YOU do on your machine before the next session boots — everything after 
 
 ---
 
-## 1. CONNECT GODOT AI (the MCP bridge) — DO THIS FIRST
+## 1. CONNECT GODOT AI — ✅ DONE 2026-07-16, THE BRIDGE IS LIVE
+
+**Status: connected and handshake-verified.** Godot AI 2.9.0 (server 3.4.4) installed at
+`game/addons/godot_ai/`, enabled; the old `godot_mcp` (9080) is DISABLED (it was the
+project.godot mangler — see the landmine note below). Server listens on 127.0.0.1:8000;
+`claude mcp list` reports `godot-ai ... ✔ Connected` (single registration, user scope).
+Tool surface confirmed live: `editor_screenshot`, `project_run`, `logs_read`,
+`scene_get_hierarchy`, `node_*`, `script_*`, and **`game_manage`** (`input_key` /
+`input_mouse` / `input_action` — the agent can DRIVE the running game).
+
+**LANDMINE PAID FOR (do not re-pay): never put multi-line or double-quoted comments in
+`project.godot`.** An addon's config re-serializer strips whitespace AND newlines, which
+joins the comment into the following line — silently commenting OUT the autoload beneath
+it (it killed the `DialogueManager` autoload and dropped plugins from `enabled`). This
+masqueraded as "the godot-ai install corrupted my project"; it was latent and any plugin
+install would have triggered it. Fixed by removing the `[autoload]` comment entirely
+(commits 580405b -> 7d4d19d). `project.godot` is now stable across editor opens — keep it
+comment-free.
+
+**Open housekeeping:** `game/addons/godot_ai/` (250 files) is UNTRACKED and the
+`project.godot` plugin-enable is UNCOMMITTED — decide whether to commit the addon (self
+contained repo) or gitignore it (and keep project.godot's enable local). Not urgent.
+
+### (original setup steps, for reference)
 
 This is the free, open-source route (`hi-godot/godot-ai`): an MCP server that exposes the **live
 Godot editor** (~120 operations / ~43 tools — build scenes, edit nodes, wire signals, materials,
