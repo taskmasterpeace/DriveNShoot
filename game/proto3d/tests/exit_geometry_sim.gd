@@ -86,7 +86,14 @@ func _ready() -> void:
 			if rightv.dot(((e["dest"] as Vector2) - ex_pos).normalized()) < -0.05 and side == int(rp.get("side", 0)) and String(rid).ends_with("-off-r") == false:
 				bad_side += 1
 				print("XGEO: LEFT EXIT (dest not on serving right) on %s" % rid)
-		if bool(g["divided"]) and not (sides.has(1) and sides.has(-1)):
+		# authored towns (Meridian) keep a clean town-side diamond by design — no
+		# generated far-side mirror (its hand-placed core is off-limits to a road).
+		var t_authored := false
+		for t in um.towns:
+			if String(t["id"]) == String(e.get("town_id", "")):
+				t_authored = bool(t.get("authored", false))
+				break
+		if bool(g["divided"]) and not t_authored and not (sides.has(1) and sides.has(-1)):
 			divided_missing_mirror += 1
 			print("XGEO: divided exit %s missing a side (%s)" % [e["id"], sides.keys()])
 	_check("every off-ramp starts at the carriageway EDGE (%d ramps checked)" % off_total, bad_edge == 0)

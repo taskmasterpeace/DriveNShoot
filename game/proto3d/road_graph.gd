@@ -58,10 +58,16 @@ func _build() -> void:
 			var a: Dictionary = lst[i]
 			var b: Dictionary = lst[i + 1]
 			var span: float = absf(float(b["arc_m"]) - float(a["arc_m"]))
-			if span < 1.0:
-				continue
 			var an := _travel_node(String(a["node"]), String(rid))
 			var bn := _travel_node(String(b["node"]), String(rid))
+			if span < 1.0:
+				# CO-LOCATED junctions (a ramp mouth AND an interchange cross-street
+				# share the exit anchor's arc) must still CONNECT — a 0-cost transfer,
+				# not a broken chain. Skipping the arc split every divided highway into
+				# disconnected halves at each interchange (route() returned {}).
+				(adj[an] as Array).append({"to": bn, "road": String(rid), "len_m": 0.0, "time_s": 0.0})
+				(adj[bn] as Array).append({"to": an, "road": String(rid), "len_m": 0.0, "time_s": 0.0})
+				continue
 			(adj[an] as Array).append({"to": bn, "road": String(rid), "len_m": span, "time_s": span / mps})
 			(adj[bn] as Array).append({"to": an, "road": String(rid), "len_m": span, "time_s": span / mps})
 
