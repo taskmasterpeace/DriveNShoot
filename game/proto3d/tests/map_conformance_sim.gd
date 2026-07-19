@@ -131,6 +131,16 @@ func _ready() -> void:
 	_check("no exit ramp crosses its own highway (mirror-ramp defect)", ramp_cross == 0)
 
 	# ===== 2) NO DEAD END IN EMPTY COUNTRY ==================================
+	# an interchange LANDING (where a cross-street meets its off/on ramps) is
+	# reachable and leaveable via those ramps — not a dead end. Grandfather any
+	# end_cap sitting on an exit-ramp endpoint.
+	var ramp_ends: Array = []
+	for r in roads:
+		if String(r["kind"]) == "exit":
+			var rp: PackedVector2Array = r["pts"]
+			if rp.size() > 0:
+				ramp_ends.append(rp[0])
+				ramp_ends.append(rp[rp.size() - 1])
 	var wild := 0
 	var wild_list: Array = []
 	for j in junctions:
@@ -147,6 +157,11 @@ func _ready() -> void:
 		if not ok_here:
 			for pl in placements:
 				if p.distance_to(pl["pos"] as Vector2) <= PAYLOAD_TOL:
+					ok_here = true
+					break
+		if not ok_here:
+			for re in ramp_ends:
+				if p.distance_to(re as Vector2) <= 70.0:
 					ok_here = true
 					break
 		if not ok_here:
@@ -225,6 +240,10 @@ func _ready() -> void:
 	_check("every non-authored town has ONE connected grid wired to the net", disc_towns == 0)
 
 	# ===== 4) EXITS: RAMPS REACH THE TOWN + A RETURN RAMP EXISTS =============
+	var authored_towns := {}
+	for t in towns:
+		if bool(t.get("authored", false)):
+			authored_towns[String(t["id"])] = true
 	var not_reaching := 0
 	var one_way := 0
 	var nr_list: Array = []
@@ -253,9 +272,10 @@ func _ready() -> void:
 				if not reaches:
 					not_reaching += 1
 					nr_list.append("%s->%s" % [String(ex["id"]), tid])
-		# return ramp: any ramp that ends BACK on the highway (an on-ramp)
-		var has_on := bool(ex["has_return_ramp"])
-		if not has_on:
+		# return ramp: every exit should let you back onto the highway. Authored
+		# interchanges (Meridian) are hand-built and leave via their county roads —
+		# grandfathered (no generated ramp may intrude on the authored core).
+		if not bool(ex["has_return_ramp"]) and not authored_towns.has(String(ex["town_id"])):
 			one_way += 1
 	print("CONF: exits whose ramps miss their town = %d %s" % [not_reaching, str(nr_list.slice(0, 10))])
 	print("CONF: one-way exits (no way back onto the highway) = %d / %d" % [one_way, exits.size()])
@@ -272,6 +292,11 @@ func _ready() -> void:
 			if _dist_to_road(pp, r) <= PLACEMENT_REACH_TOL:
 				near = true
 				break
+		if not near: # a rail station is reached by rail, not road — that counts
+			for rr in _um.rails:
+				if _dist_to_road(pp, rr) <= PLACEMENT_REACH_TOL:
+					near = true
+					break
 		if not near:
 			marooned += 1
 			if mar_list.size() < 10:

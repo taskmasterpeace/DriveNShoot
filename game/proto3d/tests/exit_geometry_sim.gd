@@ -18,6 +18,21 @@ func _check(check_name: String, ok: bool) -> void:
 	print("XGEO: %s - %s" % ["PASS" if ok else "FAIL", check_name])
 
 
+## Proper segment-segment intersection point, or null (any angle).
+func _seg_cross(a1: Vector2, a2: Vector2, b1: Vector2, b2: Vector2) -> Variant:
+	var d1 := a2 - a1
+	var d2 := b2 - b1
+	var den := d1.x * d2.y - d1.y * d2.x
+	if absf(den) < 1e-9:
+		return null
+	var dp := b1 - a1
+	var t := (dp.x * d2.y - dp.y * d2.x) / den
+	var u := (dp.x * d1.y - dp.y * d1.x) / den
+	if t < 0.0 or t > 1.0 or u < 0.0 or u > 1.0:
+		return null
+	return a1 + d1 * t
+
+
 ## Local highway direction (along pts order) at the segment nearest p.
 func _dir_at(road: Dictionary, p: Vector2) -> Vector2:
 	var best_d := 1e18
@@ -86,13 +101,44 @@ func _ready() -> void:
 			if rightv.dot(((e["dest"] as Vector2) - ex_pos).normalized()) < -0.05 and side == int(rp.get("side", 0)) and String(rid).ends_with("-off-r") == false:
 				bad_side += 1
 				print("XGEO: LEFT EXIT (dest not on serving right) on %s" % rid)
-		if bool(g["divided"]) and not (sides.has(1) and sides.has(-1)):
+		# authored towns (Meridian) keep a clean town-side diamond by design — no
+		# generated far-side mirror (its hand-placed core is off-limits to a road).
+		var t_authored := false
+		for t in um.towns:
+			if String(t["id"]) == String(e.get("town_id", "")):
+				t_authored = bool(t.get("authored", false))
+				break
+		if bool(g["divided"]) and not t_authored and not (sides.has(1) and sides.has(-1)):
 			divided_missing_mirror += 1
 			print("XGEO: divided exit %s missing a side (%s)" % [e["id"], sides.keys()])
 	_check("every off-ramp starts at the carriageway EDGE (%d ramps checked)" % off_total, bad_edge == 0)
 	_check("every off-ramp peels at the LITTLE ANGLE (8-15°)", bad_angle == 0)
 	_check("right-hand exits only — the PRIMARY ramp's dest is on its serving right", bad_side == 0)
 	_check("every DIVIDED-highway exit serves BOTH directions (the 0.18b mirrors)", divided_missing_mirror == 0)
+
+	# REGRESSION (owner /goal 2026-07-18 "no misaligned exits"): no off-ramp may
+	# cross its own highway (the old mirror-ramp bug sliced across both carriageways).
+	var crossings := 0
+	for e in um.exits:
+		var hwy2: Dictionary = um.road_by_id(String(e["highway_id"]))
+		if hwy2.is_empty():
+			continue
+		var hpts: Array = hwy2["pts"]
+		for rid in (e["ramp_ids"] as Array):
+			var rp2: Dictionary = um.road_by_id(String(rid))
+			if rp2.is_empty() or String(rp2.get("kind", "")) != "exit":
+				continue
+			var rpts: Array = rp2["pts"]
+			if rpts.size() < 2:
+				continue
+			var mouth: Vector2 = rpts[0]
+			for ri in range(rpts.size() - 1):
+				for hi in range(hpts.size() - 1):
+					var hit: Variant = _seg_cross(rpts[ri], rpts[ri + 1], hpts[hi], hpts[hi + 1])
+					if hit != null and (hit as Vector2).distance_to(mouth) > 26.0:
+						crossings += 1
+						print("XGEO: ramp %s crosses its own highway %s at %s" % [rid, String(e["highway_id"]), hit])
+	_check("no off-ramp crosses its own highway (the mirror-ramp bug)", crossings == 0)
 
 	# canon guard (0.5): EXIT-meridian survives with its id and its destination
 	var mer_ramp: Dictionary = um.road_by_id("EXIT-meridian")

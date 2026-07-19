@@ -131,9 +131,13 @@ func _ready() -> void:
 	for e in um.exits:
 		if String(e["id"]) == "I-95_X1":
 			mer = e
-	_check("Meridian's exit resolves its ramps by ID (EXIT-meridian + the 0.18b mirror, never a name pattern)",
+	# Meridian is AUTHORED: its interchange stays exactly as hand-built — the canon
+	# primary EXIT-meridian survives (ruling 0.5: ids never change), the stale
+	# crossing mirror is gone, and no generated road touches its core (it leaves via
+	# its county roads). Resolved by ID, never a name pattern.
+	_check("Meridian's exit keeps its canon primary EXIT-meridian (and no stale crossing mirror)",
 		not mer.is_empty() and (mer["ramp_ids"] as Array).has("EXIT-meridian")
-		and (mer["ramp_ids"] as Array).has("I-95_X1-off-r"))
+		and not (mer["ramp_ids"] as Array).has("I-95_X1-off-r"))
 
 	# --- 6) THE ROAD GRAPH: Dijkstra on TIME (0.2) --------------------------------
 	var graph := ProtoRoadGraph.build(um)
