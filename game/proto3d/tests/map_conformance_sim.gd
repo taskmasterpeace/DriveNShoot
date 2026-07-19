@@ -73,6 +73,25 @@ func _dist_to_road(p: Vector2, r: Dictionary) -> float:
 	return best
 
 
+## Two roads "touch" if their polylines geometrically cross, or an endpoint of one
+## lands within GRID_JOIN_TOL of the other (a T-join / shared corner). This is the
+## drivable-connectivity test for undivided streets on a shared flat floor.
+func _roads_touch(a: Dictionary, b: Dictionary) -> bool:
+	var pa: PackedVector2Array = a["pts"]
+	var pb: PackedVector2Array = b["pts"]
+	for i in range(pa.size() - 1):
+		for k in range(pb.size() - 1):
+			if _seg_hit(pa[i], pa[i + 1], pb[k], pb[k + 1]) != null:
+				return true
+	for ea in [pa[0], pa[pa.size() - 1]]:
+		if _dist_to_road(ea, b) <= GRID_JOIN_TOL:
+			return true
+	for eb in [pb[0], pb[pb.size() - 1]]:
+		if _dist_to_road(eb, a) <= GRID_JOIN_TOL:
+			return true
+	return false
+
+
 func _ready() -> void:
 	print("CONF: start")
 	get_tree().create_timer(90.0).timeout.connect(func() -> void:
@@ -174,21 +193,37 @@ func _ready() -> void:
 	_check("no road dead-ends in empty country", wild == 0)
 
 	# ===== 3) EVERY NON-AUTHORED TOWN: ONE CONNECTED GRID, WIRED TO THE NET ==
+	# Town streets are UNDIVIDED — no median barrier, just slabs on the flat chunk
+	# floor — so a car drives across any intersection freely. Real drivable
+	# connectivity is GEOMETRIC CROSSING (does the polyline cross/touch another), not
+	# whether the sparse-crossing junction bake happened to emit a node there. Two of
+	# a town's streets are one component if their polylines cross or touch; the grid
+	# is WIRED if any street crosses/touches an arterial (interstate/county/exit
+	# ramp/interchange cross-street) passing near the town.
 	var disc_towns := 0
 	var disc_list: Array = []
 	for t in towns:
 		if bool(t.get("authored", false)):
 			continue
-		var prefix := "ST-%s-" % String(t["id"])
+		var tid := String(t["id"])
+		var tc: Vector2 = t["pos"]
+		var sprefix := "ST-%s-" % tid
 		var streets: Array = []
 		for r in roads:
-			if String(r["id"]).begins_with(prefix):
+			if String(r["id"]).begins_with(sprefix):
 				streets.append(r)
 		if streets.is_empty():
 			disc_towns += 1
-			disc_list.append("%s(no-grid)" % String(t["id"]))
+			disc_list.append("%s(no-grid)" % tid)
 			continue
-		# union-find over streets sharing a corner within GRID_JOIN_TOL
+		var arterials: Array = []
+		for r in roads:
+			var rk := String(r["id"])
+			if rk.begins_with(sprefix):
+				continue
+			var is_art := rk.begins_with("I-") or rk.begins_with("US-") or rk.begins_with("CR-") or rk.begins_with("EXIT") or rk.ends_with("-off") or rk.ends_with("-on") or rk.ends_with("-xr") or rk.ends_with("-off-r") or rk.ends_with("-on-r")
+			if is_art and _dist_to_road(tc, r) <= 1200.0:
+				arterials.append(r)
 		var parent := {}
 		for i in range(streets.size()):
 			parent[i] = i
@@ -197,18 +232,9 @@ func _ready() -> void:
 				parent[a] = parent[parent[a]]
 				a = parent[a]
 			return a
-		var ends := []
-		for r in streets:
-			var pts: PackedVector2Array = r["pts"]
-			ends.append([pts[0], pts[pts.size() - 1]])
 		for i in range(streets.size()):
 			for k in range(i + 1, streets.size()):
-				var joined := false
-				for ea in ends[i]:
-					for eb in ends[k]:
-						if (ea as Vector2).distance_to(eb as Vector2) <= GRID_JOIN_TOL:
-							joined = true
-				if joined:
+				if _roads_touch(streets[i], streets[k]):
 					var ra: int = find.call(i)
 					var rb: int = find.call(k)
 					if ra != rb:
@@ -216,25 +242,18 @@ func _ready() -> void:
 		var comps := {}
 		for i in range(streets.size()):
 			comps[find.call(i)] = true
-		# wired to the network: a street endpoint meets a non-street road nearby
 		var wired := false
 		for r in streets:
-			var pts: PackedVector2Array = r["pts"]
-			for endp in [pts[0], pts[pts.size() - 1]]:
-				for other in roads:
-					if String(other["id"]).begins_with("ST-"):
-						continue
-					if _dist_to_road(endp, other) <= GRID_JOIN_TOL * 1.6:
-						wired = true
-						break
-				if wired:
+			for ar in arterials:
+				if _roads_touch(r, ar):
+					wired = true
 					break
 			if wired:
 				break
 		var town_ok: bool = comps.size() == 1 and wired
 		if not town_ok:
 			disc_towns += 1
-			disc_list.append("%s(comp=%d,wired=%s)" % [String(t["id"]), comps.size(), str(wired)])
+			disc_list.append("%s(comp=%d,wired=%s)" % [tid, comps.size(), str(wired)])
 	print("CONF: towns with a broken/disconnected street grid = %d / %d" % [disc_towns, _non_authored(towns)])
 	print("CONF:   %s" % str(disc_list.slice(0, 16)))
 	_check("every non-authored town has ONE connected grid wired to the net", disc_towns == 0)

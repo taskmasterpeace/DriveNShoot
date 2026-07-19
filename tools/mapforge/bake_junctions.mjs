@@ -257,23 +257,29 @@ export function renumberExits(map) {
 	return stats;
 }
 
-// THE TWO-TIER TOWN GENERATOR (0.19, M3): every non-authored town's husk ring
-// becomes STREETS + Building-Book placement slots — as ROWS, so the road pass
-// drives them, the junction pass bakes them, and MapForge can edit them.
-// Tier by the town's exit archetype (metro/county_seat → downtown grid;
-// everything else → the main-street kit). Idempotent via the ST- id prefix.
+// THE TOWN GRID GENERATOR (0.19, M3 + owner /goal 2026-07-18 "no unorganized cities,
+// streets that go into towns"): every non-authored town becomes a ROBUST CONNECTED
+// LATTICE — a main street running IN from the exit + parallel streets + cross streets,
+// so the grid can't disconnect (a whole lattice of crossings, not three fragile stubs),
+// with buildings LINING the streets (organized), and an APPROACH connector tying the
+// grid to the exit ramp. Tier by the town's own kind: a CITY gets a deep grid, a
+// HOLDOUT a small main-street. Sweep-and-rebuild (ST- streets + <town>-slot-
+// placements) so re-runs replace cleanly.
 export function stampTownStreets(map) {
-	const stats = { towns: 0, downtown: 0, mainstreet: 0, streets: 0, slots: 0 };
-	const roads = map.roads || [];
-	const placements = map.placements || [];
+	const stats = { towns: 0, city: 0, holdout: 0, streets: 0, slots: 0 };
+	map.roads = (map.roads || []).filter((r) => !String(r.id).startsWith("ST-"));
+	map.placements = (map.placements || []).filter((p) => !/-slot-\d+$/.test(String(p.id)));
+	const roads = map.roads;
+	const placements = map.placements;
 	const exitFor = (t) => (map.exits || []).find((e) => e.town_id === t.id);
-	const hasStreet = (t) => roads.some((r) => String(r.id).startsWith(`ST-${t.id}-`));
 	const occupied = (p, r) => placements.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) < r);
-	const MAIN_SET = ["diner_roadside", "market_general", "gas_station_small", "house_small",
-		"church_small", "bar_roadhouse", "house_small", "motel_strip"];
-	const DOWNTOWN_SET = ["police_station", "courthouse", "clinic_small", "market_general",
+	// building kits — a CITY reads as a downtown, a HOLDOUT as a roadside strip.
+	const CITY_SET = ["police_station", "courthouse", "clinic_small", "market_general",
 		"diner_roadside", "bar_roadhouse", "jeweler", "restaurant_fancy", "warehouse",
-		"house_small", "house_small", "auto_shop", "radio_station", "school_small"];
+		"auto_shop", "radio_station", "school_small", "house_small", "market_general",
+		"house_small", "diner_roadside"];
+	const HOLDOUT_SET = ["diner_roadside", "market_general", "gas_station_small", "house_small",
+		"church_small", "bar_roadhouse", "auto_shop", "motel_strip"];
 	let slotSeq = 0;
 	const addStreet = (t, tag, a, b) => {
 		roads.push({ id: `ST-${t.id}-${tag}`, kind: "street", pts: [[a.x, a.y], [b.x, b.y]],
@@ -281,46 +287,71 @@ export function stampTownStreets(map) {
 		stats.streets++;
 	};
 	const addSlot = (t, sid, p, rot) => {
-		if (occupied(p, 16)) return;
+		if (occupied(p, 15)) return;
 		placements.push({ id: `${t.id}-slot-${++slotSeq}`, building: sid, pos: [p.x, p.y], rot });
 		stats.slots++;
 	};
 	for (const t of map.towns || []) {
-		if (t.authored || hasStreet(t)) continue;
+		if (t.authored) continue;
 		const ex = exitFor(t);
-		const tier = ex && ["metro", "county_seat"].includes(ex.archetype) ? "downtown" : "mainstreet";
 		const c = { x: t.pos[0], y: t.pos[1] };
-		// orient the main drag toward the exit approach (or E-W default)
+		// MAIN street runs ALONG the approach (from the exit INTO town). No exit ->
+		// an E-W default. dir = unit approach (exit -> town); perp is the cross axis.
 		let dir = { x: 1, y: 0 };
 		if (ex) {
 			const d = { x: c.x - ex.pos[0], y: c.y - ex.pos[1] };
 			const l = Math.hypot(d.x, d.y) || 1;
-			// the drag runs PERPENDICULAR to the approach — you arrive at Main St
-			dir = { x: -d.y / l, y: d.x / l };
+			dir = { x: d.x / l, y: d.y / l };
 		}
 		const perp = { x: -dir.y, y: dir.x };
-		const at = (u, w) => ({ x: c.x + dir.x * u + perp.x * w, y: c.y + dir.y * u + perp.y * w });
-		stats.towns++;
-		if (tier === "downtown") {
-			stats.downtown++;
-			// ~4×3 block grid: 4 streets along the drag axis, 3 across
-			for (let i = 0; i < 3; i++) addStreet(t, `ew${i}`, at(-140, -70 + i * 70), at(140, -70 + i * 70));
-			for (let j = 0; j < 4; j++) addStreet(t, `ns${j}`, at(-120 + j * 80, -110), at(-120 + j * 80, 110));
-			DOWNTOWN_SET.forEach((sid, k) => {
-				const row = Math.floor(k / 4);
-				const col = k % 4;
-				addSlot(t, sid, at(-120 + col * 80 + 32, -70 + row * 70 + 24), 0);
-			});
-		} else {
-			stats.mainstreet++;
-			addStreet(t, "main", at(-160, 0), at(160, 0));
-			addStreet(t, "side0", at(-55, -90), at(-55, 90));
-			addStreet(t, "side1", at(65, -90), at(65, 90));
-			MAIN_SET.forEach((sid, k) => {
-				const side = k % 2 === 0 ? 1 : -1;
-				addSlot(t, sid, at(-130 + Math.floor(k / 2) * 62, side * 16), side > 0 ? Math.PI : 0);
-			});
+		// at(a, b): a = along the main drag (+ = away from the exit), b = across it.
+		const at = (a, b) => ({ x: c.x + dir.x * a + perp.x * b, y: c.y + dir.y * a + perp.y * b });
+		const city = t.kind === "city";
+		const nMain = city ? 5 : 3;   // streets parallel to the drag (across offsets)
+		const nCross = city ? 5 : 3;  // cross streets (along offsets)
+		const SP = 72;                // block size
+		const LIP = 60;               // street overhang past the grid — MUST exceed the
+		                              // bake's 40 m junction-dedup so the approach tee at
+		                              // the main street's exit-side end isn't eaten by the
+		                              // first cross (else the approach floats off as its
+		                              // own component).
+		const halfB = ((nMain - 1) * SP) / 2;   // grid half-width (across)
+		const halfA = ((nCross - 1) * SP) / 2;  // grid half-length (along)
+		// MAIN streets (parallel to the drag) at each across-offset, full length + a lip
+		for (let i = 0; i < nMain; i++) {
+			const b = -halfB + i * SP;
+			addStreet(t, `m${i}`, at(-halfA - LIP, b), at(halfA + LIP, b));
 		}
+		// CROSS streets (perpendicular) at each along-offset, full width + a lip
+		for (let j = 0; j < nCross; j++) {
+			const a = -halfA + j * SP;
+			addStreet(t, `x${j}`, at(a, -halfB - 34), at(a, halfB + 34));
+		}
+		// THE APPROACH: connect the exit ramp/xr (which ends at dest, near town) to the
+		// grid's exit-side edge, so the highway literally leads into the street grid.
+		if (ex) {
+			const dest = { x: (ex.dest || ex.pos)[0], y: (ex.dest || ex.pos)[1] };
+			const gate = at(-halfA - LIP, 0); // the -dir edge of the centre main street
+			if (Math.hypot(dest.x - gate.x, dest.y - gate.y) > 6) addStreet(t, "approach", dest, gate);
+		}
+		// BUILDINGS line the main streets (both frontages), facing the street.
+		const SET = city ? CITY_SET : HOLDOUT_SET;
+		const faceAcross = Math.atan2(perp.x, perp.y); // rot to face across the drag
+		let k = 0;
+		for (let i = 0; i < nMain; i++) {
+			const b = -halfB + i * SP;
+			const perBlock = city ? 4 : 3;
+			for (let s = 0; s < perBlock; s++) {
+				const a = -halfA + 22 + s * ((2 * halfA - 20) / Math.max(1, perBlock - 1));
+				for (const side of [1, -1]) {
+					const p = at(a, b + side * 13);
+					addSlot(t, SET[k % SET.length], p, side > 0 ? faceAcross : faceAcross + Math.PI);
+					k++;
+				}
+			}
+		}
+		stats.towns++;
+		if (city) stats.city++; else stats.holdout++;
 	}
 	return stats;
 }
@@ -399,12 +430,13 @@ export function fillNetwork(map) {
 }
 
 export function bakeJunctions(map) {
-	// towns first (their streets join the junction bake), then exit geometry,
-	// then addresses, then the junction rows read the corrected polylines
+	// fill the network, ADDRESS the exits (stamps town_id — the town grid needs it to
+	// find its exit and run a street in from it), stamp the town grids, rewrite exit
+	// geometry to the diamonds, THEN the junction rows read the corrected polylines.
 	const fill = fillNetwork(map);
+	const addr = renumberExits(map);
 	const town = stampTownStreets(map);
 	const geo = rewriteExitGeometry(map);
-	const addr = renumberExits(map);
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");
@@ -590,8 +622,8 @@ if (isMain) {
 	console.log(`BAKE: ${junctions.length} junctions — tees ${lint.tees} · crosses ${lint.crosses} ` +
 		`(${lint.blind_crossings.length} separated_pending) · ramp mouths ${lint.ramp_mouths} · ` +
 		`rejoins ${lint.ramp_rejoins} · end caps ${lint.end_caps} · exits with ramp_ids ${lint.exits_ramp_ids}`);
-	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.downtown} downtown / ` +
-		`${lint.town_stats.mainstreet} main-street) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
+	console.log(`BAKE: towns ${lint.town_stats.towns} stamped (${lint.town_stats.city} city / ` +
+		`${lint.town_stats.holdout} holdout) · ${lint.town_stats.streets} street rows · ${lint.town_stats.slots} slots · MERIDIAN=${lint.addr_stats.meridian}`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
 	console.log(`BAKE: interchanges — ${lint.geo_stats.rebuilt} exits rebuilt (${lint.geo_stats.authored} authored primary kept) · ` +

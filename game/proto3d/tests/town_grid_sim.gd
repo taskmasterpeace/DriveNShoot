@@ -40,24 +40,21 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	var um: ProtoUSMap = main.stream.usmap
 
-	# --- pick one town per tier off the real data --------------------------------
-	var towns: Dictionary = {}
-	for t in um.towns:
-		towns[String(t["id"])] = t
+	# --- pick one CITY and one HOLDOUT off the real data (tier is by town KIND now:
+	# a city grows a deep grid, a holdout a small one) -----------------------------
 	var dt_town: Dictionary = {}
 	var ms_town: Dictionary = {}
-	for e in um.exits:
-		var tid := String(e.get("town_id", ""))
-		if tid == "" or not towns.has(tid) or bool((towns[tid] as Dictionary).get("authored", false)):
+	for t in um.towns:
+		if bool((t as Dictionary).get("authored", false)):
 			continue
-		if dt_town.is_empty() and ["metro", "county_seat"].has(String(e["archetype"])):
-			dt_town = towns[tid]
-		if ms_town.is_empty() and not ["metro", "county_seat"].has(String(e["archetype"])):
-			ms_town = towns[tid]
-	_check("a downtown-tier and a main-street-tier town both exist in the data",
+		if dt_town.is_empty() and String(t["kind"]) == "city":
+			dt_town = t
+		elif ms_town.is_empty() and String(t["kind"]) == "holdout":
+			ms_town = t
+	_check("a city and a holdout town both exist in the data",
 		not dt_town.is_empty() and not ms_town.is_empty())
 
-	# --- the rows: streets per tier ------------------------------------------------
+	# --- the rows: a city holds a DEEP grid, a holdout a small one -----------------
 	var dt_streets := 0
 	var ms_streets := 0
 	for r in um.roads:
@@ -65,18 +62,18 @@ func _ready() -> void:
 			dt_streets += 1
 		if String(r["id"]).begins_with("ST-%s-" % String(ms_town.get("id", "?"))):
 			ms_streets += 1
-	_check("the downtown town holds a GRID (7 street rows: 3 across + 4 along, got %d)" % dt_streets,
-		dt_streets == 7)
-	_check("the main-street town holds the KIT (3 rows: drag + 2 sides, got %d)" % ms_streets,
-		ms_streets == 3)
+	_check("the city holds a DEEP GRID (>= 10 street rows: 5 main + 5 cross, got %d)" % dt_streets,
+		dt_streets >= 10)
+	_check("the holdout holds a small grid (>= 6 street rows: 3 main + 3 cross, got %d)" % ms_streets,
+		ms_streets >= 6)
 
 	# --- junction-baked: the grid's crossings are junction ROWS --------------------
 	var dt_pos: Vector2 = dt_town["pos"]
 	var near_j := 0
 	for j in um.junctions:
-		if (j["pos"] as Vector2).distance_to(dt_pos) < 200.0 and ["cross", "tee"].has(String(j["kind"])):
+		if (j["pos"] as Vector2).distance_to(dt_pos) < 220.0 and ["cross", "tee"].has(String(j["kind"])):
 			near_j += 1
-	_check("the downtown grid is JUNCTION-BAKED (%d cross/tee rows inside the grid, >= 8)" % near_j,
+	_check("the city grid is JUNCTION-BAKED (%d cross/tee rows inside the grid, >= 8)" % near_j,
 		near_j >= 8)
 
 	# --- the slots: Building-Book placements landed --------------------------------
@@ -84,7 +81,7 @@ func _ready() -> void:
 	for p in um.placements:
 		if String(p["id"]).begins_with("%s-slot-" % String(dt_town.get("id", "?"))):
 			dt_slots += 1
-	_check("downtown Building-Book slots landed (%d >= 8)" % dt_slots, dt_slots >= 8)
+	_check("city Building-Book slots landed (%d >= 8)" % dt_slots, dt_slots >= 8)
 
 	# --- the built chunk: street dressing + shells, no husk ring -------------------
 	var chunk_m := float(ProtoWorldStream.CHUNK)
