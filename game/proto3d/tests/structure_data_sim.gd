@@ -97,15 +97,20 @@ func _ready() -> void:
 	_check("every looted row carries its CACHE (§9)", loot_chests_ok)
 	_check("every shell is TAGGED for the systems (§2 rule 1)", tagged_ok)
 
-	# --- Enterable shells have a REAL door gap -------------------------------------
+	# --- Enterable shells have a REAL door gap + are FURNISHED (not empty) ---------
 	var gas := ProtoStructureBuilder.materialize("gas_station_small")
 	add_child(gas)
 	gas.position = Vector3(0, 0, 200)
 	var walls := 0
+	var furniture := 0
 	for c in gas.get_children():
-		if c is StaticBody3D and not (c is ProtoChest): # the cache is a body too
+		if c is ProtoFurniture:
+			furniture += 1
+		elif c is StaticBody3D and not (c is ProtoChest): # the cache is a body too
 			walls += 1
 	_check("an enterable shell splits the front wall (5 wall bodies = a doorway)", walls == 5)
+	_check("an enterable shell is FURNISHED — not an empty box (%d interactable pieces)" % furniture,
+		furniture >= 2)
 
 	# --- The unknown-id law: warn, never crash -------------------------------------
 	var ghost := ProtoStructureBuilder.materialize("no_such_building")

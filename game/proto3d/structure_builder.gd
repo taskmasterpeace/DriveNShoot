@@ -34,6 +34,33 @@ const CATEGORY_COLORS: Dictionary = {
 	"transit": Color(0.42, 0.46, 0.48), # SEABOARD: station slate — steel-age gray-blue
 }
 
+## Category -> the furniture pieces that dress its interior (ids from
+## furniture_defs.json). A building without a row here gets the plain default.
+const CATEGORY_FURNITURE: Dictionary = {
+	"residential": ["fridge", "kitchen_cabinet", "closet", "desk"],
+	"commercial": ["cash_register", "kitchen_cabinet", "warehouse_crate", "desk"],
+	"service": ["cash_register", "tool_rack", "kitchen_cabinet"],
+	"civic_law": ["police_locker", "gun_safe", "desk"],
+	"law_military": ["gun_safe", "police_locker", "tool_rack"],
+	"medical": ["medicine_cabinet", "closet", "desk"],
+	"civic_faction": ["kitchen_cabinet", "desk", "closet"],
+	"civic": ["desk", "closet"],
+	"media": ["desk", "tool_rack"],
+	"industrial": ["warehouse_crate", "tool_rack"],
+	"industrial_service": ["warehouse_crate", "tool_rack"],
+	"agriculture": ["tool_rack", "kitchen_cabinet", "gun_safe"],
+	"restricted": ["warehouse_crate", "gun_safe", "desk"],
+	"venue": ["cash_register", "desk"],
+	"transit": ["desk", "closet"],
+}
+## Category -> the building_types.json id whose loot weight_mult the furniture uses.
+const CATEGORY_BUILDING_TYPE: Dictionary = {
+	"residential": "house", "agriculture": "farmhouse", "service": "gas_station",
+	"civic_law": "police_station", "law_military": "police_station",
+	"medical": "clinic", "civic_faction": "church",
+	"industrial": "warehouse", "industrial_service": "warehouse", "restricted": "warehouse",
+}
+
 
 ## Materialize a profile row. Returns null (with a warning) for unknown ids —
 ## a missing row must never crash a caller (the warn-not-crash law).
@@ -75,6 +102,10 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 		floor_slab.material_override = ProtoWorldBuilder.material(col.darkened(0.45), 0.95)
 		floor_slab.position.y = 0.03
 		root.add_child(floor_slab)
+		# NOT AN EMPTY SHELL (LOOT_NPC §4 + owner /goal "we need enterable buildings"):
+		# a few interactable furniture pieces matched to the building's category, on
+		# interior anchors clear of the front door and the cache. Walk in, open a fridge.
+		_furnish(root, row, w, d)
 	else:
 		# A solid massing block — junkyards/monuments/compounds read as mass.
 		var body := StaticBody3D.new()
@@ -112,6 +143,30 @@ static func materialize(structure_id: String, label_override: String = "") -> No
 		root.add_child(chest)
 		chest.position = Vector3(0, 0, -d * 0.25) if row.enterable else Vector3(w * 0.5 + 1.2, 0, -d * 0.25)
 	return root
+
+
+## Dress an enterable shell with interactable furniture. Deterministic per building
+## type (mirrors the loot cache's seeding). Anchors sit clear of the front doorway
+## (+Z centre) and the cache at (0,0,-d*0.25) so neither the walk-in ray nor the
+## chest is ever blocked.
+static func _furnish(root: Node3D, row: DrivnStructure, w: float, d: float) -> void:
+	var furn_set: Array = CATEGORY_FURNITURE.get(row.category, ["desk", "closet"])
+	if furn_set.is_empty():
+		return
+	var area := w * d
+	var n: int = 2 if area < 90.0 else (3 if area < 200.0 else 4)
+	n = mini(n, furn_set.size())
+	var bt := String(CATEGORY_BUILDING_TYPE.get(row.category, ""))
+	var anchors: Array = [
+		Vector3(-w * 0.3, 0, -d * 0.36), Vector3(w * 0.3, 0, -d * 0.36),
+		Vector3(-w * 0.37, 0, d * 0.02), Vector3(w * 0.37, 0, d * 0.02),
+	]
+	for i in range(n):
+		var piece := ProtoFurniture.create(String(furn_set[i]), "%s:furn_%d" % [row.id, i], bt)
+		if piece == null:
+			continue
+		piece.position = anchors[i % anchors.size()]
+		root.add_child(piece)
 
 
 static func _wall(root: Node3D, pos: Vector3, size: Vector3, col: Color) -> void:
