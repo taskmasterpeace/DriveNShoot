@@ -429,6 +429,71 @@ export function fillNetwork(map) {
 	return stats;
 }
 
+// HEAL DEAD ENDS (owner /goal 2026-07-18 "no roads should have dead ends"): every
+// network road endpoint that stops in open country — not at the map edge, not at a
+// town, not at a payload placement, and not already meeting another road — is EXTENDED
+// to whichever is nearest: another road (a real junction), a town centre (it arrives
+// somewhere), or the map edge (it leaves the country). The 8 interstates that died
+// mid-map and the stray dirt spurs all connect. Run before the junction bake so the
+// new meetings bake as tees. Exit ramps are handled by the diamond law, not here.
+function nearestEdgePt(p, mn, mx) {
+	const dl = p.x - mn[0], dr = mx[0] - p.x, dt = p.y - mn[1], db = mx[1] - p.y;
+	const m = Math.min(dl, dr, dt, db);
+	if (m === dl) return { x: mn[0], y: p.y };
+	if (m === dr) return { x: mx[0], y: p.y };
+	if (m === dt) return { x: p.x, y: mn[1] };
+	return { x: p.x, y: mx[1] };
+}
+export function healDeadEnds(map) {
+	const roads = map.roads || [], towns = map.towns || [], place = map.placements || [];
+	const stats = { healed: 0, to_road: 0, to_town: 0, to_edge: 0 };
+	const mn = map.world_offset || [-60000, -20500], cell = map.cell_m || 500;
+	const mx = [mn[0] + (map.w || 150) * cell, mn[1] + (map.h || 85) * cell];
+	const EDGE = 1600, TOWN_TOL = 1300, PAY_TOL = 130, HEAL_R = 5200;
+	const nearEdge = (p) => p.x - mn[0] < EDGE || mx[0] - p.x < EDGE || p.y - mn[1] < EDGE || mx[1] - p.y < EDGE;
+	const targets = roads.filter((r) => r.kind !== "exit");
+	for (const r of roads) {
+		if (r.kind === "exit" || !r.pts || r.pts.length < 2) continue;
+		for (const which of [0, 1]) {
+			// recompute the index each time: healing the start with unshift shifts all
+			// indices, so a captured length-1 would then read the wrong (interior) vertex.
+			const endIdx = which === 0 ? 0 : r.pts.length - 1;
+			const p = { x: r.pts[endIdx][0], y: r.pts[endIdx][1] };
+			if (nearEdge(p)) continue;
+			if (towns.some((t) => Math.hypot(t.pos[0] - p.x, t.pos[1] - p.y) <= TOWN_TOL)) continue;
+			if (place.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) <= PAY_TOL)) continue;
+			let connected = false, bestRoad = null;
+			for (const o of targets) {
+				if (o.id === r.id) continue;
+				for (const s of segs(o)) {
+					const pr = projectOnSeg(p, s);
+					if (pr.d <= SNAP_M) { connected = true; break; }
+					if (!bestRoad || pr.d < bestRoad.d) bestRoad = { d: pr.d, pt: pr.q ?? s.a };
+				}
+				if (connected) break;
+			}
+			if (connected) continue;
+			const cands = [];
+			if (bestRoad) cands.push({ d: bestRoad.d, pt: bestRoad.pt, kind: "road" });
+			let bt = null;
+			for (const t of towns) {
+				const d = Math.hypot(t.pos[0] - p.x, t.pos[1] - p.y);
+				if (!bt || d < bt.d) bt = { d, pt: { x: t.pos[0], y: t.pos[1] } };
+			}
+			if (bt) cands.push({ d: bt.d, pt: bt.pt, kind: "town" });
+			const ep = nearestEdgePt(p, mn, mx);
+			cands.push({ d: Math.hypot(ep.x - p.x, ep.y - p.y), pt: ep, kind: "edge" });
+			cands.sort((a, b) => a.d - b.d);
+			const c = cands.find((x) => x.d <= HEAL_R);
+			if (!c) continue;
+			const np = [c.pt.x, c.pt.y];
+			if (which === 0) r.pts.unshift(np); else r.pts.push(np);
+			stats.healed++; stats["to_" + c.kind]++;
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// fill the network, ADDRESS the exits (stamps town_id — the town grid needs it to
 	// find its exit and run a street in from it), stamp the town grids, rewrite exit
@@ -437,6 +502,7 @@ export function bakeJunctions(map) {
 	const addr = renumberExits(map);
 	const town = stampTownStreets(map);
 	const geo = rewriteExitGeometry(map);
+	const heal = healDeadEnds(map);
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");
@@ -609,6 +675,7 @@ export function bakeJunctions(map) {
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
+	lint.heal_stats = heal;
 	return { junctions, lint };
 }
 
@@ -629,6 +696,8 @@ if (isMain) {
 	console.log(`BAKE: interchanges — ${lint.geo_stats.rebuilt} exits rebuilt (${lint.geo_stats.authored} authored primary kept) · ` +
 		`${lint.geo_stats.off} town off/${lint.geo_stats.on} on · ${lint.geo_stats.far_off} far off/${lint.geo_stats.far_on} on · ` +
 		`${lint.geo_stats.crossroads} cross-streets into town`);
+	console.log(`BAKE: healed dead-ends — ${lint.heal_stats.healed} (${lint.heal_stats.to_road} to a road · ` +
+		`${lint.heal_stats.to_town} to a town · ${lint.heal_stats.to_edge} off the map edge)`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));
