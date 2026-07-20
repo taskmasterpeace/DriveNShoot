@@ -457,7 +457,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD,
 					atan2(jdir.x, jdir.y))
 				jslab.set_meta("junction_slab", String(j["id"]))
-			elif String(j["grade"]) == "separated_pending" and (j["legs"] as Array).size() >= 2:
+			elif ["separated_pending", "deck"].has(String(j["grade"])) and (j["legs"] as Array).size() >= 2:
 				# M2, THE OVERPASS: 152 grade-separated crossings rendered NOTHING — the two
 				# roads simply intersected at the same height with the median unbroken. The
 				# minor road now BRIDGES the major one, so "separated" is finally true on the
@@ -1022,7 +1022,32 @@ func _build_overpass(chunk: Node3D, j: Dictionary) -> void:
 		minor = ra
 		gmaj = gb
 		gmin = ga
+	# THE BAKE NAMES THE CLIMBER. Once the overpass bake has raised a road's elev[] hump it
+	# records which road decks over (`deck_road`) — trust that over the width heuristic, or
+	# the structure can end up built across the road that stays at grade.
+	var deck_id := String(j.get("deck_road", ""))
+	if deck_id != "":
+		if String(ra["id"]) == deck_id:
+			minor = ra
+			gmin = ga
+			major = rb
+			gmaj = gb
+		elif String(rb["id"]) == deck_id:
+			minor = rb
+			gmin = gb
+			major = ra
+			gmaj = ga
 	var jp: Vector2 = j["pos"]
+	# DECK HEIGHT, AND WHO PROVIDES THE CLIMB. A baked "deck" node already carries its
+	# approach in the road's OWN elev[] hump — the slab rises to meet the deck, so read the
+	# height the bake chose and lay NO approach ramps, or the road gets lifted twice. A
+	# legacy `separated_pending` node has no hump: it self-lifts to DECK_H and needs ramps.
+	var baked := String(j.get("grade", "")) == "deck"
+	var deck_y := DECK_H
+	if baked:
+		for l in j["legs"]:
+			if String(l["road"]) == String(minor["id"]):
+				deck_y = maxf(ProtoUSMap.elev_at(minor, float(l["arc_m"])), 1.2)
 	var mdir := _road_dir_at(minor, jp)
 	var yaw := atan2(mdir.x, mdir.y)
 	var w := float(gmin["width"])
@@ -1031,22 +1056,24 @@ func _build_overpass(chunk: Node3D, j: Dictionary) -> void:
 
 	# the deck
 	var deck := ProtoWorldBuilder.box_body(chunk, Vector3(w, 0.5, span),
-		Vector3(jp.x, DECK_H, jp.y), col, yaw)
+		Vector3(jp.x, deck_y, jp.y), col, yaw)
 	deck.set_meta("overpass_deck", String(j["id"]))
 	# rails down both edges so the deck reads as a bridge from above
 	for sgn: float in [1.0, -1.0]:
 		var rl := Vector2(-mdir.y, mdir.x) * (w * 0.5 + 0.3) * sgn
 		var rail := ProtoWorldBuilder.box_body(chunk, Vector3(0.35, 1.0, span),
-			Vector3(jp.x + rl.x, DECK_H + 0.7, jp.y + rl.y), Color(0.36, 0.34, 0.32), yaw)
+			Vector3(jp.x + rl.x, deck_y + 0.7, jp.y + rl.y), Color(0.36, 0.34, 0.32), yaw)
 		rail.set_meta("overpass_rail", String(j["id"]))
 	# piers, clear of the major road's carriageways
 	for psgn: float in [1.0, -1.0]:
 		var pp := jp + mdir * (span * 0.5 + 2.0) * psgn
-		var pier := ProtoWorldBuilder.box_body(chunk, Vector3(1.6, DECK_H, 1.6),
-			Vector3(pp.x, DECK_H * 0.5, pp.y), Color(0.45, 0.44, 0.42), yaw)
+		var pier := ProtoWorldBuilder.box_body(chunk, Vector3(1.6, deck_y, 1.6),
+			Vector3(pp.x, deck_y * 0.5, pp.y), Color(0.45, 0.44, 0.42), yaw)
 		pier.set_meta("overpass_pier", String(j["id"]))
 	# drivable approach ramps — a pitched slab, the same ramp-not-steps law the
 	# safehouse stairs use (a car can climb a ramp; it cannot climb a step).
+	if baked:
+		return # the road's own elev[] hump IS the approach — never ramp on top of it
 	var pitch := atan2(DECK_H, DECK_RAMP)
 	for asgn: float in [1.0, -1.0]:
 		var mid := jp + mdir * (span * 0.5 + DECK_RAMP * 0.5) * asgn

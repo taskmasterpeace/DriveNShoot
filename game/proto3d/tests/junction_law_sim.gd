@@ -96,7 +96,12 @@ func _ready() -> void:
 				if not r.is_empty() and bool(ProtoUSMap.road_geometry(r)["divided"]) \
 						and um.junction_gap_half(j, String(l["road"])) > 0.0:
 					gap_j = j
-		if walled_j.is_empty() and String(j["grade"]) == "separated_pending":
+		# GRADE-SEPARATED, EITHER STATE. Probing only "separated_pending" assumed the deck
+		# was never built — but the bake DECKS every such crossing (grade -> "deck") and
+		# M2 now renders it, so on a fully baked map there are zero pending ones left and
+		# the probe found nothing. A crossing that is separated at all — awaiting its deck
+		# or already carrying one — must keep its median closed.
+		if walled_j.is_empty() and (String(j["grade"]) == "separated_pending" or String(j["grade"]) == "deck"):
 			walled_j = j
 		if mouth_j.is_empty() and String(j["kind"]) == "ramp_mouth":
 			# a mouth on a divided highway, away from any gap junction
@@ -199,7 +204,8 @@ func _ready() -> void:
 				if c.has_meta("overpass_ramp") and String(c.get_meta("overpass_ramp")) == String(walled_j["id"]):
 					has_ramp = true
 		_check("the walled crossing carries a real OVERPASS DECK (M2)", has_deck)
-		_check("...with drivable APPROACH RAMPS up to it", has_ramp)
+		_check("...with a drivable APPROACH up to it (pitched ramps or a baked elev hump)",
+			has_ramp or _approach_climbs(um, walled_j))
 		if wchunk != null:
 			wchunk.queue_free()
 
@@ -332,3 +338,29 @@ func _ready() -> void:
 			bchunk.queue_free()
 
 	_finish(prev_scale)
+
+
+## A grade separation is only real if you can DRIVE up to it — but two mechanisms provide
+## that approach, and the check must assert the CLIMB, not one mechanism. A legacy
+## `separated_pending` node self-lifts and builds pitched approach ramps; a baked "deck"
+## node carries the climb in the deck road's own elev[] hump, so the slab itself rises and
+## laying ramps on top would lift the road twice.
+func _approach_climbs(um: ProtoUSMap, j: Dictionary) -> bool:
+	var rid := String(j.get("deck_road", ""))
+	if rid == "":
+		return false
+	var road: Dictionary = um.road_by_id(rid)
+	if road.is_empty():
+		return false
+	var arc := -1.0
+	for l in j["legs"]:
+		if String(l["road"]) == rid:
+			arc = float(l["arc_m"])
+	if arc < 0.0:
+		return false
+	var top := ProtoUSMap.elev_at(road, arc)
+	if top < 1.0:
+		return false # it never actually rose — no deck to drive onto
+	# ...and it gets there at a grade a car can take, not a step
+	var back := ProtoUSMap.elev_at(road, maxf(arc - 60.0, 0.0))
+	return absf(top - back) / 60.0 < 0.25
