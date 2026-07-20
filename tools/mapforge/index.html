@@ -138,13 +138,30 @@
 		<div class="sec">
 			<h2>Roads</h2>
 			<select id="roadsel" style="width:100%" title="The road you are editing — it draws bright amber on the map; all others go dim"></select>
-			<div class="row" style="margin-top:6px">
-				<button id="road-new" title="Start a new road — name it (e.g. US-50), then click 2+ points on the map">NEW</button>
+			<div class="form" id="roadnew">
+				<label title="What CLASS of road NEW builds — an interstate spine, a county highway, a town street, or a dirt track. Picking one proposes its usual lanes/surface; override any of it below.">new road: kind<select id="road-kind" style="width:100%">
+					<option value="interstate">interstate</option>
+					<option value="county">county</option>
+					<option value="street" selected>street</option>
+					<option value="dirt">dirt</option>
+				</select></label>
+				<div class="pair">
+					<label title="How wide: 6 or 4 for an interstate, 2 for most roads, 1 for a dirt track">lanes<input type="number" id="road-lanes" min="1" max="8" step="1" value="2"></label>
+					<label title="Drives the PAINT and the GRIP: asphalt holds, gravel slides, dirt slides more">surface<select id="road-surface" style="width:100%">
+						<option value="asphalt" selected>asphalt</option>
+						<option value="gravel">gravel</option>
+						<option value="dirt">dirt</option>
+					</select></label>
+				</div>
+				<label class="chk" title="Twin carriageways with a physical median barrier down the middle — interstates, mostly"><input type="checkbox" id="road-divided"> divided (median barrier)</label>
+			</div>
+			<div class="row" style="margin-top:8px">
+				<button id="road-new" title="Start a new road with the kind/lanes/surface above — name it (e.g. US-50), then click 2+ points on the map">NEW</button>
 				<button id="road-undo" title="Remove the selected road's last point — its nickname/danger/toll data is untouched">UNDO PT</button>
 				<button id="road-del" class="danger" title="Delete the whole selected road (asks first)">DELETE</button>
 			</div>
 			<div id="roadstatus"></div>
-			<div class="hint">Pick a road above (it lights up on the map). With the ROAD tool, each click drops the next point. UNDO PT removes the last one.</div>
+			<div class="hint">Set the kind/lanes/surface, then NEW — those fields build the next road (they don't re-edit an old one). Pick a road above and it lights up on the map; with the ROAD tool each click drops its next point, UNDO PT removes the last.</div>
 		</div>
 		<div class="sec">
 			<h2 id="exithdr">Exit nodes</h2>
@@ -249,7 +266,7 @@
 			<p class="dim">In one line: arrange roads → drop exits → (later) place communities.</p>
 			<h3>The tools (top of the left bar — the lit one is active)</h3>
 			<p><span class="bn">PAINT</span> — paints the land itself. Pick a color in the <b>Biome palette</b> (hover one to read what it grows in-game), pick a <b>Brush</b> size (<kbd>1</kbd>/<kbd>3</kbd>/<kbd>5</kbd>/<kbd>9</kbd> cells — the number keys work too), then drag across the map. The stroke saves the moment you release the mouse.</p>
-			<p><span class="bn">ROAD</span> — draws and extends roads. First pick a road in the <b>Roads</b> box — it lights up bright amber, everything else goes dim. Then every click on the map drops that road's next point; the numbered dots show the order and the red dot is the newest. <span class="bn">UNDO PT</span> removes the last point, <span class="bn">NEW</span> starts a fresh road (name it like <code>US-50</code>), <span class="bn">DELETE</span> removes the whole selected road. Editing points never touches the rest of a road's data — nicknames (THE CRIMSON MILE), danger ratings, families and tolls all survive your edits.</p>
+			<p><span class="bn">ROAD</span> — draws and extends roads. First pick a road in the <b>Roads</b> box — it lights up bright amber, everything else goes dim. Then every click on the map drops that road's next point; the numbered dots show the order and the red dot is the newest. <span class="bn">UNDO PT</span> removes the last point, <span class="bn">NEW</span> starts a fresh road, <span class="bn">DELETE</span> removes the whole selected road. Before you hit NEW, set <b>kind</b> (interstate / county / street / dirt), <b>lanes</b>, <b>surface</b> and <b>divided</b> — those build the road you're about to draw, and picking a kind proposes the rest. Then name it (like <code>US-50</code>) and click 2+ points. Editing points never touches the rest of a road's data — nicknames (THE CRIMSON MILE), danger, families, tolls, lanes, surface and the ramp/interchange markings a bake wrote all survive your edits.</p>
 			<p><span class="bn">TOWN</span> — founds a town. Click the map, type a name, done — it appears as a named dot.</p>
 			<p><span class="bn">PLACE</span> — pins ONE structure at the exact spot you click. Choose which one under <b>Authored structures</b> first. The land around it stays procedural; only that building is guaranteed.</p>
 			<p><span class="bn">EXIT</span> — the important one. Click where the exit should <b>LEAD</b> — the destination, not the highway itself. A little dialog opens:</p>
@@ -366,9 +383,11 @@ function roadStatus() {
 	const r = selectedRoad();
 	if (!r) { el.textContent = "no road selected"; return; }
 	const n = r.pts.length;
+	// Read out what this road actually IS — kind/lanes/surface were invisible here.
+	const spec = `${r.kind ?? "interstate"} · ${r.lanes ?? 2}ln${r.divided ? " divided" : ""}${r.surface ? " · " + r.surface : ""}`;
 	el.textContent = tool === "road"
-		? `▸ ${r.id}: ${n} pts — click the map to drop point ${n + 1}`
-		: `${r.id}: ${n} pts (switch to the ROAD tool to add)`;
+		? `▸ ${r.id} [${spec}]: ${n} pts — click the map to drop point ${n + 1}`
+		: `${r.id} [${spec}]: ${n} pts (switch to the ROAD tool to add)`;
 }
 const w2p = (wx, wz) => [(wx - meta.world_offset[0]) / meta.cell_m * PX, (wz - meta.world_offset[1]) / meta.cell_m * PX];
 function draw() {
@@ -568,10 +587,32 @@ document.getElementById("zoom-in").onclick = () => setZoom(zoom * 1.25);
 document.getElementById("zoom-out").onclick = () => setZoom(zoom * 0.8);
 document.getElementById("zoom-fit").onclick = () => setZoom(1);
 document.getElementById("roadsel").onchange = () => { draw(); roadStatus(); };
+// Picking a kind PROPOSES its usual shape (what the baked map already uses) —
+// every field stays overridable.
+const ROAD_KIND_SHAPE = {
+	interstate: { lanes: 4, divided: true, surface: "asphalt" },
+	county: { lanes: 2, divided: false, surface: "gravel" },
+	street: { lanes: 2, divided: false, surface: "asphalt" },
+	dirt: { lanes: 1, divided: false, surface: "dirt" },
+};
+document.getElementById("road-kind").onchange = (ev) => {
+	const s = ROAD_KIND_SHAPE[ev.target.value] ?? ROAD_KIND_SHAPE.street;
+	document.getElementById("road-lanes").value = s.lanes;
+	document.getElementById("road-divided").checked = s.divided;
+	document.getElementById("road-surface").value = s.surface;
+};
 document.getElementById("road-new").onclick = async () => {
 	const id = prompt("Road id (e.g. US-50):");
 	if (!id) return;
-	roads.push({ id, kind: "interstate", pts: [] });
+	if (roads.some(r => r.id === id)) return savedFlash(`${id} already exists — pick it above`);
+	// A hand-drawn road is whatever the fields say it is. It used to be a 4-lane
+	// divided interstate no matter what you were actually drawing.
+	roads.push({
+		id, kind: document.getElementById("road-kind").value, pts: [],
+		lanes: Number(document.getElementById("road-lanes").value) || 2,
+		divided: document.getElementById("road-divided").checked,
+		surface: document.getElementById("road-surface").value,
+	});
 	buildRoadSel();
 	document.getElementById("roadsel").value = id;
 	document.getElementById("t-road").click(); // jump straight into the ROAD tool

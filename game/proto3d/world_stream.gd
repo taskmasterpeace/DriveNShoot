@@ -363,6 +363,12 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD,
 					atan2(jdir.x, jdir.y))
 				jslab.set_meta("junction_slab", String(j["id"]))
+			elif String(j["grade"]) == "separated_pending" and (j["legs"] as Array).size() >= 2:
+				# M2, THE OVERPASS: 152 grade-separated crossings rendered NOTHING — the two
+				# roads simply intersected at the same height with the median unbroken. The
+				# minor road now BRIDGES the major one, so "separated" is finally true on the
+				# ground and not just in the junction row.
+				_build_overpass(chunk, j)
 			elif String(j["kind"]) == "ramp_mouth" and (j["legs"] as Array).size() >= 2:
 				# THE EXIT DRESSING (0.18a): painted GORE at the split, crash
 				# barrels at its tip, and the DECEL LANE running the serving
@@ -814,6 +820,80 @@ func _build_rail_stretch(chunk: Node3D, center: Vector3, row: Dictionary) -> voi
 		mmi.material_override = ProtoWorldBuilder.material(Color(0.27, 0.22, 0.16), 0.85)
 		mmi.set_meta("rail_ties", rid)
 		chunk.add_child(mmi)
+
+
+## THE OVERPASS (AMERICAN_ROAD M2). A walled crossing carries the MINOR road over the
+## MAJOR one on a real deck with drivable approach ramps, piers and rails. The median
+## below stays INTACT — that is the whole point of a grade separation, and it is why
+## these nodes must never open a gap.
+const DECK_H := 5.6      ## clearance under the deck (m)
+const DECK_RAMP := 44.0  ## approach length — DECK_H/44 is a ~13% grade, arcade-steep but drivable
+
+
+func _build_overpass(chunk: Node3D, j: Dictionary) -> void:
+	if usmap == null:
+		return
+	var ra: Dictionary = usmap.road_by_id(String(j["legs"][0]["road"]))
+	var rb: Dictionary = usmap.road_by_id(String(j["legs"][1]["road"]))
+	if ra.is_empty() or rb.is_empty():
+		return
+	var ga: Dictionary = ProtoUSMap.road_geometry(ra)
+	var gb: Dictionary = ProtoUSMap.road_geometry(rb)
+	# the WIDER road stays at grade and passes under; the minor one climbs over it.
+	var major: Dictionary = ra
+	var minor: Dictionary = rb
+	var gmaj: Dictionary = ga
+	var gmin: Dictionary = gb
+	if float(gb["width"]) > float(ga["width"]):
+		major = rb
+		minor = ra
+		gmaj = gb
+		gmin = ga
+	var jp: Vector2 = j["pos"]
+	var mdir := _road_dir_at(minor, jp)
+	var yaw := atan2(mdir.x, mdir.y)
+	var w := float(gmin["width"])
+	var span := float(gmaj["width"]) + 16.0     # clear the whole carriageway + shoulders
+	var col := ProtoWorldBuilder.COL_ROAD
+
+	# the deck
+	var deck := ProtoWorldBuilder.box_body(chunk, Vector3(w, 0.5, span),
+		Vector3(jp.x, DECK_H, jp.y), col, yaw)
+	deck.set_meta("overpass_deck", String(j["id"]))
+	# rails down both edges so the deck reads as a bridge from above
+	for sgn: float in [1.0, -1.0]:
+		var rl := Vector2(-mdir.y, mdir.x) * (w * 0.5 + 0.3) * sgn
+		var rail := ProtoWorldBuilder.box_body(chunk, Vector3(0.35, 1.0, span),
+			Vector3(jp.x + rl.x, DECK_H + 0.7, jp.y + rl.y), Color(0.36, 0.34, 0.32), yaw)
+		rail.set_meta("overpass_rail", String(j["id"]))
+	# piers, clear of the major road's carriageways
+	for psgn: float in [1.0, -1.0]:
+		var pp := jp + mdir * (span * 0.5 + 2.0) * psgn
+		var pier := ProtoWorldBuilder.box_body(chunk, Vector3(1.6, DECK_H, 1.6),
+			Vector3(pp.x, DECK_H * 0.5, pp.y), Color(0.45, 0.44, 0.42), yaw)
+		pier.set_meta("overpass_pier", String(j["id"]))
+	# drivable approach ramps — a pitched slab, the same ramp-not-steps law the
+	# safehouse stairs use (a car can climb a ramp; it cannot climb a step).
+	var pitch := atan2(DECK_H, DECK_RAMP)
+	for asgn: float in [1.0, -1.0]:
+		var mid := jp + mdir * (span * 0.5 + DECK_RAMP * 0.5) * asgn
+		var body := StaticBody3D.new()
+		var mesh := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(w, 0.5, sqrt(DECK_RAMP * DECK_RAMP + DECK_H * DECK_H))
+		mesh.mesh = bm
+		mesh.material_override = ProtoWorldBuilder.material(col, 0.9)
+		body.add_child(mesh)
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = bm.size
+		shape.shape = bs
+		body.add_child(shape)
+		chunk.add_child(body)
+		# yaw to the road, then pitch about the local X so the deck end is the high end
+		var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch * asgn)
+		body.transform = Transform3D(basis, Vector3(mid.x, DECK_H * 0.5, mid.y))
+		body.set_meta("overpass_ramp", String(j["id"]))
 
 
 ## Unit heading of a road's polyline at the segment nearest `p` (same yaw convention as

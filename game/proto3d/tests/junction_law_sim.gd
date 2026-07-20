@@ -180,14 +180,26 @@ func _ready() -> void:
 		var wchunk := _build_chunk_at(wp)
 		for i in range(6):
 			await get_tree().physics_frame
-		_check("walled crossing (%s) keeps its median CLOSED — pending its M2 deck" % String(walled_j["id"]),
+		_check("walled crossing (%s) keeps its median CLOSED — you cross OVER it, never through" % String(walled_j["id"]),
 			_median_blocked(wroad, wp))
 		var wslab := false
 		if wchunk != null:
 			for c in wchunk.get_children():
 				if c.has_meta("junction_slab") and String(c.get_meta("junction_slab")) == String(walled_j["id"]):
 					wslab = true
-		_check("...and paints NO slab (the roads don't meet yet)", not wslab)
+		_check("...and paints NO at-grade slab (they do not meet at grade)", not wslab)
+		# M2 THE OVERPASS: the walled crossing must now carry a real DECK — grade
+		# separation that exists on the ground, not just in the junction row.
+		var has_deck := false
+		var has_ramp := false
+		if wchunk != null:
+			for c in wchunk.get_children():
+				if c.has_meta("overpass_deck") and String(c.get_meta("overpass_deck")) == String(walled_j["id"]):
+					has_deck = true
+				if c.has_meta("overpass_ramp") and String(c.get_meta("overpass_ramp")) == String(walled_j["id"]):
+					has_ramp = true
+		_check("the walled crossing carries a real OVERPASS DECK (M2)", has_deck)
+		_check("...with drivable APPROACH RAMPS up to it", has_ramp)
 		if wchunk != null:
 			wchunk.queue_free()
 

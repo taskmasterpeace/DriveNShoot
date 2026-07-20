@@ -153,7 +153,8 @@ const HELP = {
 		"PUT  /api/cell        {x, z, biome}    → paint one cell (biome = legend char or name)",
 		"POST /api/paint       {biome, cells: [[x,z],...]} or {biome, rect: [x0,z0,x1,z1]} → bulk paint",
 		"GET  /api/roads                        → all roads",
-		"POST /api/roads       {id, kind?, pts: [[wx,wz],...]} → add or replace a road by id",
+		"POST /api/roads       {id, pts: [[wx,wz],...], kind?, lanes?, divided?, surface?, ...} → add or update a road by id",
+		"                      (a field you DON'T send is PRESERVED — side/geom/interchange/leads_to survive a pts-only edit)",
 		"DELETE /api/roads?id=I-99              → remove a road",
 		"GET  /api/towns                        → all towns",
 		"POST /api/towns       {id, name, pos: [wx,wz], kind?, landmark?} → add or replace a town",
@@ -291,20 +292,27 @@ const server = createServer(async (req, res) => {
 		if (url.pathname === "/api/roads" && req.method === "POST") {
 			if (!body.id || !Array.isArray(body.pts) || body.pts.length < 2)
 				return json(res, 400, { error: "need id and pts:[[wx,wz],...] (>=2)" });
-			// PRESERVE THE ROAD'S CHARACTER (danger/family/nickname/toll): editing a
-			// road's points must never strip its identity (the old handler did).
+			// PRESERVE EVERY FIELD ON THE ROW — not just the ones someone remembered
+			// to list. The old handler rebuilt the row from a WHITELIST, so editing a
+			// road's points silently killed surface / side / geom / interchange /
+			// leads_to: a peeled ramp forgot it was peeled, an -xr cross-street
+			// stopped being an interchange, a dirt spur lost its payload, and the
+			// next bake mis-classified all of them. Law: spread the OLD row, then
+			// let the request overwrite ONLY what it actually supplied.
 			const prev = map.roads.find((r) => r.id === body.id) || {};
 			map.roads = map.roads.filter((r) => r.id !== body.id);
+			const row = { ...prev };
+			for (const [k, v] of Object.entries(body)) if (v !== undefined) row[k] = v;
 			// ROAD OVERHAUL: lanes (6/4/2) + divided are part of a road's CHARACTER
-			// too — preserved on edit, same law as danger/nickname/toll.
-			const kind = body.kind ?? prev.kind ?? "interstate";
-			const lanes = body.lanes ?? prev.lanes ?? (kind === "interstate" ? 4 : 2);
-			map.roads.push({
-				id: body.id, kind, pts: body.pts,
-				danger: body.danger ?? prev.danger ?? 0, family: body.family ?? prev.family ?? "",
-				nickname: body.nickname ?? prev.nickname ?? "", ...(body.toll ?? prev.toll ? { toll: body.toll ?? prev.toll } : {}),
-				lanes, divided: body.divided ?? prev.divided ?? lanes >= 6,
-			});
+			// too. These defaults only ever fill a HOLE — they never overwrite.
+			row.kind ??= "interstate";
+			row.lanes ??= row.kind === "interstate" ? 4 : 2;
+			row.divided ??= row.lanes >= 6;
+			row.danger ??= 0;
+			row.family ??= "";
+			row.nickname ??= "";
+			if (!row.toll) delete row.toll; // a free road carries NO toll key (as before)
+			map.roads.push(row);
 			save();
 			return json(res, 200, { ok: true, roads: map.roads.length });
 		}
