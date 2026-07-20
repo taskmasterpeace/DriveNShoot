@@ -243,4 +243,97 @@ func _ready() -> void:
 		if mchunk != null:
 			mchunk.queue_free()
 
+	# ---- THE DRESSING PASS (2026-07-19: 618 junctions rendered NOTHING) ----------
+	var um2: ProtoUSMap = main.stream.usmap
+	# 1) ramp_rejoin now paints an ACCELERATION lane (was: nothing, 151 nodes)
+	var rej: Dictionary = {}
+	for j in um2.junctions:
+		if String(j["kind"]) == "ramp_rejoin":
+			var rr: Dictionary = um2.road_by_id(String(j["legs"][1]["road"]))
+			if not rr.is_empty() and int(rr.get("side", 0)) != 0:
+				rej = j
+				break
+	if not rej.is_empty():
+		var rchunk := _build_chunk_at(rej["pos"])
+		await get_tree().physics_frame
+		var has_accel := false
+		if rchunk != null:
+			for c in rchunk.get_children():
+				if c.has_meta("road_accel") and String(c.get_meta("road_accel")) == String(rej["id"]):
+					has_accel = true
+		_check("a ramp REJOIN paints an ACCELERATION lane (%s)" % String(rej["id"]), has_accel)
+		if rchunk != null:
+			rchunk.queue_free()
+
+	# 2) end_cap now closes the road with a rail (was: nothing, 467 nodes)
+	var cap: Dictionary = {}
+	for j2 in um2.junctions:
+		if String(j2["kind"]) == "end_cap":
+			cap = j2
+			break
+	if not cap.is_empty():
+		var cchunk := _build_chunk_at(cap["pos"])
+		await get_tree().physics_frame
+		var has_rail := false
+		if cchunk != null:
+			for c2 in cchunk.get_children():
+				if c2.has_meta("road_endcap") and String(c2.get_meta("road_endcap")) == String(cap["id"]):
+					has_rail = true
+		_check("an END CAP closes the road with a guardrail (%s)" % String(cap["id"]), has_rail)
+		if cchunk != null:
+			cchunk.queue_free()
+
+	# 3) the intersection slab is ALIGNED to its road, not an axis-aligned square
+	var diag: Dictionary = {}
+	for j3 in um2.junctions:
+		if String(j3["grade"]) != "flat" or not ["tee", "cross"].has(String(j3["kind"])):
+			continue
+		var r3: Dictionary = um2.road_by_id(String(j3["legs"][0]["road"]))
+		if r3.is_empty():
+			continue
+		var pts3: PackedVector2Array = r3["pts"]
+		var dseg := (pts3[1] - pts3[0]).normalized()
+		# a clearly DIAGONAL road — the case the old rot 0.0 square got wrong
+		if absf(dseg.x) > 0.35 and absf(dseg.y) > 0.35:
+			diag = j3
+			break
+	if not diag.is_empty():
+		var dchunk := _build_chunk_at(diag["pos"])
+		await get_tree().physics_frame
+		var slab_rot := 0.0
+		var found_slab := false
+		if dchunk != null:
+			for c3 in dchunk.get_children():
+				if c3.has_meta("junction_slab") and String(c3.get_meta("junction_slab")) == String(diag["id"]):
+					slab_rot = absf((c3 as Node3D).rotation.y)
+					found_slab = true
+		_check("the intersection slab is ROTATED to its diagonal road (%.2f rad, not 0)" % slab_rot,
+			found_slab and slab_rot > 0.05)
+		if dchunk != null:
+			dchunk.queue_free()
+
+	# 4) a road that BENDS inside a chunk draws BOTH segments (was: nearest only)
+	var bend_road := ""
+	var bend_at := Vector2.ZERO
+	for r4 in um2.roads:
+		var p4: PackedVector2Array = r4["pts"]
+		if p4.size() < 3:
+			continue
+		# the bend VERTEX lies on both adjacent segments, so a chunk centred there
+		# sees both within the streamer's search radius — no length condition needed.
+		bend_road = String(r4["id"])
+		bend_at = p4[1]
+		break
+	if bend_road != "":
+		var bchunk := _build_chunk_at(bend_at)
+		await get_tree().physics_frame
+		var slabs := 0
+		if bchunk != null:
+			for c4 in bchunk.get_children():
+				if c4.has_meta("road_slab") and String(c4.get_meta("road_slab")) == bend_road:
+					slabs += 1
+		_check("a BEND renders both its segments (%s: %d slabs >= 2)" % [bend_road, slabs], slabs >= 2)
+		if bchunk != null:
+			bchunk.queue_free()
+
 	_finish(prev_scale)
