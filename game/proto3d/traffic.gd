@@ -608,7 +608,13 @@ func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false, chain: bool = t
 		var lat := right * ProtoUSMap.lane_offset(road, tag.lane)
 		var here := Vector2(ag.global_position.x, ag.global_position.z)
 		route.append(Vector3(here.x + d.x * 40.0 + lat.x, 0, here.y + d.y * 40.0 + lat.y))
-		var off := right * (float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 4.0)
+		# PULL OVER ONTO THE SHOULDER, not off the road. width*0.5 + 4 put a car 17.6 m
+		# from the centreline of 27.2 m I-95 — past the outer lane and clean off the
+		# slab. Park just outside the OUTERMOST lane instead, which stays on pavement
+		# for every profile from a 5.6 m dirt track to a 6-lane divided interstate.
+		var rg: Dictionary = ProtoUSMap.road_geometry(road)
+		var shoulder: float = ProtoUSMap.lane_offset(road, int(rg["per_side"]) - 1) + 2.2
+		var off := right * minf(shoulder, float(rg["width"]) * 0.5 - 0.6)
 		route.append(Vector3(here.x + d.x * 80.0 + off.x, 0, here.y + d.y * 80.0 + off.y))
 		pilot.set_route(route)
 	# THE CARGO (§3.1): a convoy truck hauls its row in the trunk — rob the road.
