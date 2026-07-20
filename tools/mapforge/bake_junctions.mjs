@@ -163,12 +163,36 @@ export function rewriteExitGeometry(map) {
 		// polyline (dirAt), so a curving highway near the exit never makes the ramp
 		// slice back across the carriageways (the I-70_X2 curve case).
 		const onRamp = (id, sgn, source) => {
-			const provisional = add(foot, mul(mul(dAlong, sgn), 180));
-			const { d: dM, foot: footM } = dirAt(hwy, provisional);
-			const dS = mul(dM, sgn), rS = right(dS);
-			const merge = add(footM, mul(rS, edge));
-			const mergeEnd = add(merge, mul(dS, 100));
-			R.push({ id, kind: "exit", pts: [[source.x, source.y], [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]],
+			const dTravel = mul(dAlong, sgn);
+			const alongSrc = (source.x - foot.x) * dTravel.x + (source.y - foot.y) * dTravel.y;
+			const build = (lead) => {
+				const provisional = add(foot, mul(dTravel, lead));
+				const { d: dM, foot: footM } = dirAt(hwy, provisional);
+				const dS = mul(dM, sgn), rS = right(dS);
+				const merge = add(footM, mul(rS, edge));
+				const mergeEnd = add(merge, mul(dS, 100));
+				return [[source.x, source.y], [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]];
+			};
+			const crossesHwy = (pp) => {
+				for (let i = 0; i < pp.length - 1; i++) {
+					const s1 = { a: { x: pp[i][0], y: pp[i][1] }, b: { x: pp[i + 1][0], y: pp[i + 1][1] } };
+					for (let k = 0; k < hwy.pts.length - 1; k++) {
+						if (segIntersect(s1, { a: v(hwy.pts[k]), b: v(hwy.pts[k + 1]) })) return true;
+					}
+				}
+				return false;
+			};
+			// THE MERGE SHOULD LIE DOWNSTREAM OF THE SOURCE. A fixed 180 m from the exit's
+			// foot puts it BEHIND the town whenever the town sits further downstream: the
+			// car leaves town driving one way, meets the highway, and the 100 m taper runs
+			// back the other — a wrong-way merge on a polyline that doubles back (3 of 88
+			// on-ramps). Reaching past the town fixes those, but on a CURVING highway the
+			// longer chord can cut clean across the carriageways, and a ramp crossing its
+			// own highway is far worse than a backward taper. So: prefer the corrected
+			// merge, and fall back to the standard one when it would cross.
+			let pts = build(Math.max(180, alongSrc + 180));
+			if (crossesHwy(pts)) pts = build(180);
+			R.push({ id, kind: "exit", pts,
 				danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false, side: sgn, geom: "peel_v1" });
 		};
 
@@ -203,8 +227,14 @@ export function rewriteExitGeometry(map) {
 			onRamp(`${ex.id}-on-r`, -sSign, farLand);
 			// the cross-street INTO town: far landing -> over the highway (at grade,
 			// median gapped at the crossing) -> town. Ties the far side into the net.
+			// BRIDGE WHERE THE TOWN IS, not at the exit anchor. Crossing at `foot` makes a V
+			// whenever the town sits far ALONG the highway from the anchor: I-90_X11-xr ran
+			// 531 m out to the anchor and 531 m back to a point 147 m from where it started
+			// — 1,062 m of street to go nowhere. The town's own projection gives a real
+			// perpendicular crossing, and the far ramps still land on its far end.
+			const xrFoot = dirAt(hwy, dest).foot;
 			R.push({ id: `${ex.id}-xr`, kind: "street", surface: "asphalt",
-				pts: [[farLand.x, farLand.y], [foot.x, foot.y], [dest.x, dest.y]],
+				pts: [[farLand.x, farLand.y], [xrFoot.x, xrFoot.y], [dest.x, dest.y]],
 				danger: 0, family: "", nickname: "", lanes: 2, divided: false, interchange: true });
 			ramp_ids.push(`${ex.id}-off-r`, `${ex.id}-on-r`);
 			stats.far_off++; stats.far_on++; stats.crossroads++;
@@ -1228,8 +1258,124 @@ export function healDeadEnds(map) {
 // simple path — a repeat is damage (6 DR- spurs were closed loops, pts[0] == pts[3],
 // legacy breakage that predates the heal fix and which fillNetwork's idempotency guard
 // preserves rather than rebuilds). Never drops below 2 points.
+// --- THE OVERLAP LAW (doubled-back polylines) --------------------------------------
+// A road is a simple path. One that REVERSES and drives back along the pavement it just
+// laid is DAMAGE: traffic and motorists walk arc-length, so a retrace flips their travel
+// direction mid-road, junctions bake at the self-intersection, and the streamer lays
+// overlapping slabs on the same tarmac. I-75 carried a 1.9 km return at ZERO separation;
+// I-35 an 839 m one.
+// But a road that turns back and SEPARATES is a legitimate spur, cross-street or mountain
+// switchback and must survive untouched. So the test is NOT the turn angle (a switchback
+// reverses through 180 degrees too) — it is whether the two runs SHARE PAVEMENT: mean
+// separation below the road's own width, straight off THE ONE GEOMETRY LAW.
+function ptSegDist(p, a, b) {
+	const dx = b[0] - a[0], dy = b[1] - a[1];
+	const L = dx * dx + dy * dy;
+	const t = L < 1e-9 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L));
+	return Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t));
+}
+
+// mean distance from samples along segment ia->ia+1 to the run of segments [0, k1)
+function meanSepToRun(pts, ia, k1) {
+	const a = pts[ia], b = pts[ia + 1];
+	let sum = 0, n = 0;
+	for (const t of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+		const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+		let best = Infinity;
+		for (let k = 0; k < k1; k++) best = Math.min(best, ptSegDist(p, pts[k], pts[k + 1]));
+		sum += best; n++;
+	}
+	return n ? sum / n : Infinity;
+}
+
+function angDiff(a, b) {
+	let d = b - a;
+	while (d > Math.PI) d -= 2 * Math.PI;
+	while (d < -Math.PI) d += 2 * Math.PI;
+	return Math.abs(d);
+}
+
+const LOBE_RATIO = 0.15;    // straight-line gap / path travelled — below this the stretch goes nowhere
+const LOBE_MIN_PATH = 200;  // metres; shorter than this is a ramp stub, not a lobe
+
+function fixDoubleBacks(r, stats) {
+	const divided = r.divided !== undefined ? !!r.divided : (r.lanes || (r.kind === "interstate" ? 4 : 2)) >= 6;
+	const width = halfWidth(r, divided) * 2;
+	for (let guard = 0; guard < 8; guard++) {
+		const pts = r.pts;
+		if (!pts || pts.length < 4) return;
+		let cut = null;
+		for (let i = 1; i < pts.length - 1 && !cut; i++) {
+			const h1 = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]);
+			const h2 = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+			if (angDiff(h1, h2) <= (150 * Math.PI) / 180) continue;   // not a reversal
+			if (meanSepToRun(pts, i, i) >= width) continue;           // separates — a real spur
+			// walk the RETURN for as long as it keeps riding the outbound corridor
+			let e = i + 1;
+			while (e + 1 < pts.length && meanSepToRun(pts, e, i) < width) e++;
+			// where on the OUTBOUND run did the retrace get back to?
+			let k = 0, best = Infinity;
+			for (let m = 0; m <= i; m++) {
+				const d = Math.hypot(pts[m][0] - pts[e][0], pts[m][1] - pts[e][1]);
+				if (d < best) { best = d; k = m; }
+			}
+			if (e - k < 2) continue; // nothing enclosed — leave it alone
+			cut = { k, e };
+		}
+		// THE LOBE LAW. "Shares pavement" only catches a retrace laid exactly on top of the
+		// outbound run. I-35 returned 10 m to the SIDE — parallel, not overlapping, so one
+		// road width could never see it. What actually makes it damage is that the stretch
+		// GOES NOWHERE: 3,355 m of interstate to end up 111 m from where it started. That
+		// is scale-free and needs no magic distance — measure straight-line gap against
+		// path travelled. Real geometry is nowhere near: the lobes score 0.016 / 0.033 /
+		// 0.095 and the first legitimate spur scores 0.623, a 4x margin. Short generated
+		// ramp stubs never reach LOBE_MIN_PATH, so their generator keeps ownership of them.
+		if (!cut) {
+			const cum = [0];
+			for (let m = 1; m < pts.length; m++) cum.push(cum[m - 1] + Math.hypot(pts[m][0] - pts[m - 1][0], pts[m][1] - pts[m - 1][1]));
+			let best = null;
+			for (let i = 1; i < pts.length - 1 && !best; i++) {
+				const h1 = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]);
+				const h2 = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+				if (angDiff(h1, h2) <= (150 * Math.PI) / 180) continue;
+				for (let k = 0; k <= i; k++) {
+					for (let e = i + 1; e < pts.length; e++) {
+						const path = cum[e] - cum[k];
+						if (path < LOBE_MIN_PATH) continue;
+						const ratio = Math.hypot(pts[k][0] - pts[e][0], pts[k][1] - pts[e][1]) / path;
+						if (ratio < LOBE_RATIO && (!best || ratio < best.ratio)) best = { k, e, ratio };
+					}
+				}
+			}
+			if (best && best.e - best.k >= 2) cut = best;
+		}
+		if (!cut) return;
+		// splice the excursion out. pts[0] and the tail are NEVER touched: a road's
+		// endpoints anchor its junctions, towns and exit addresses.
+		stats.points_dropped += cut.e - cut.k - 1;
+		stats.doubled_back++;
+		if (!stats.roads.includes(r.id)) stats.roads.push(r.id);
+		r.pts = pts.slice(0, cut.k + 1).concat(pts.slice(cut.e));
+		// CLEAN THE JOIN. Removing an excursion can leave a VESTIGIAL STUB at the splice:
+		// I-75's lobe left a 103 m spur pointing SSW before the road reversed NE, and the
+		// exit's far ramp then crossed the carriageways right at it. If the join vertex is
+		// a short segment that immediately doubles back, it is leftover from the excursion,
+		// not road. Scoped to the join alone, so untouched switchbacks can never be hit.
+		const j = cut.k + 1;
+		if (j > 0 && j < r.pts.length - 1) {
+			const A = r.pts[j - 1], B = r.pts[j], C = r.pts[j + 1];
+			const hIn = Math.atan2(B[1] - A[1], B[0] - A[0]);
+			const hOut = Math.atan2(C[1] - B[1], C[0] - B[0]);
+			if (angDiff(hIn, hOut) > (150 * Math.PI) / 180 && Math.hypot(B[0] - A[0], B[1] - A[1]) < 250) {
+				r.pts.splice(j, 1);
+				stats.points_dropped++;
+			}
+		}
+	}
+}
+
 export function repairPolylines(map) {
-	const stats = { roads_fixed: 0, points_dropped: 0 };
+	const stats = { roads_fixed: 0, points_dropped: 0, doubled_back: 0, roads: [] };
 	for (const r of map.roads || []) {
 		if (!r.pts || r.pts.length < 3) continue;
 		const kept = [];
@@ -1243,6 +1389,7 @@ export function repairPolylines(map) {
 			r.pts = kept;
 			stats.roads_fixed++;
 		}
+		fixDoubleBacks(r, stats);
 	}
 	return stats;
 }
@@ -1485,7 +1632,7 @@ if (isMain) {
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
-	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads, ${lint.repair_stats.points_dropped} duplicate vertices dropped`);
+	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads deduped, ${lint.repair_stats.doubled_back} doubled-back runs spliced out, ${lint.repair_stats.points_dropped} vertices dropped ${JSON.stringify(lint.repair_stats.roads)}`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));
