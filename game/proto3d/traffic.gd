@@ -177,13 +177,32 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 			lead_arc = parc
 			var vel: Vector3 = pcar.linear_velocity if "linear_velocity" in pcar else Vector3.ZERO
 			lead_speed = maxf(0.0, Vector2(vel.x, vel.z).length())
+	var blocked := false
 	if lead_arc < 1e17:
 		var gap := lead_arc - _travel_arc(ag) - CAR_LEN
-		var follow_dist := float(TRAFFIC["headway_s"]) * maxf(ag.speed, 1.0)
-		if gap < float(TRAFFIC["min_gap_m"]):
+		var min_gap := float(TRAFFIC["min_gap_m"])
+		if gap < min_gap:
 			desired = 0.0
-		elif gap < follow_dist:
-			desired = minf(desired, lead_speed * clampf(gap / follow_dist, 0.0, 1.0) + 0.5)
+			blocked = true
+		else:
+			# THE STOPPING-DISTANCE LAW. A bare time headway is a LIE at highway speed: 1.6 s
+			# at 24 m/s starts the brake at 38 m, but shedding 24 m/s at ACCEL 7 m/s^2 needs
+			# v^2/2a = 41 m — the agent could not stop in the distance it began stopping in, so
+			# it coasted into the back of a parked rig. Target instead the fastest speed it can
+			# STILL stop from: v = sqrt(2a * slack) + the leader's own speed. That decays
+			# smoothly to the leader's pace at min_gap, where the old
+			# `lead_speed * (gap/follow_dist)` collapsed to a 0.5 m/s crawl the moment a PARKED
+			# leader came into range — braking 95 m early and stranding every trip.
+			var v_stop := sqrt(2.0 * ACCEL * (gap - min_gap)) + lead_speed
+			# Headway is comfort RELATIVE TO THE LEADER, never an absolute speed cap: as
+			# `gap / headway_s` it forced 1.6 s of absolute spacing (41 m at cruise), which
+			# tore convoy columns apart and stranded arrivals that never closed on their
+			# destination. Closing speed is what a headway actually governs.
+			var comfort := lead_speed + (gap - min_gap) / float(TRAFFIC["headway_s"])
+			var cap := minf(v_stop, comfort)
+			if cap < desired:
+				desired = cap
+				blocked = true
 	var was := ag.speed
 	ag.speed = move_toward(ag.speed, desired, ACCEL * delta)
 	# a hard brake near the player earns a HORN (the world has opinions)
@@ -193,7 +212,7 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		main.audio.play_at("horn", ag.global_position, -4.0)
 	# --- exits: the only doors off the highway (roll once per exit approach)
 	_maybe_take_exit(ag, road)
-	_maybe_turn(ag)
+	_maybe_turn(ag, blocked)
 	if not is_instance_valid(ag):
 		return
 	# --- advance along the polyline (s_ab is a->b; dir signs the step)
@@ -620,7 +639,13 @@ const TURN_TRIGGER := 26.0 ## how close to a node counts as "at the intersection
 ## the MIDDLE of its streets — so without this a car drives straight through every
 ## intersection in every city and can never turn off. Each tick, look for a non-straight
 ## connector out of this lane at a node we are arriving at, and sometimes take it.
-func _maybe_turn(ag: TrafficAgent) -> void:
+func _maybe_turn(ag: TrafficAgent, blocked: bool = false) -> void:
+	# NEVER TURN WHILE STOPPING. The follow law measures its gap ALONG THE CURRENT ROAD;
+	# re-seating onto a connector mid-brake hands the agent a road the blocker isn't on,
+	# so the car it was stopping for stops existing and it drives straight through the
+	# rig. A discretionary turn waits until the lane ahead is clear.
+	if blocked:
+		return
 	if ag.dest_exit_id != "":
 		return # on a trip: it is going somewhere specific, do not wander
 	var lg := _lane_graph()

@@ -1224,9 +1224,33 @@ export function healDeadEnds(map) {
 	return stats;
 }
 
+// REPAIR: drop any vertex that revisits an earlier point on the SAME road. A road is a
+// simple path — a repeat is damage (6 DR- spurs were closed loops, pts[0] == pts[3],
+// legacy breakage that predates the heal fix and which fillNetwork's idempotency guard
+// preserves rather than rebuilds). Never drops below 2 points.
+export function repairPolylines(map) {
+	const stats = { roads_fixed: 0, points_dropped: 0 };
+	for (const r of map.roads || []) {
+		if (!r.pts || r.pts.length < 3) continue;
+		const kept = [];
+		for (const p of r.pts) {
+			const dupe = kept.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.0);
+			if (dupe && kept.length >= 2) { stats.points_dropped++; continue; }
+			if (dupe) continue;
+			kept.push(p);
+		}
+		if (kept.length >= 2 && kept.length !== r.pts.length) {
+			r.pts = kept;
+			stats.roads_fixed++;
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// towns first (their streets join the junction bake), then exit geometry,
 	// then addresses, then the junction rows read the corrected polylines
+	const repair = repairPolylines(map);
 	const fill = fillNetwork(map);
 	const town = stampTownStreets(map);
 	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
@@ -1436,6 +1460,7 @@ export function bakeJunctions(map) {
 	lint.fill_stats = fill;
 	lint.relief_stats = rel;
 	lint.heal_stats = heal;
+	lint.repair_stats = repair;
 	return { junctions, lint };
 }
 
@@ -1460,6 +1485,7 @@ if (isMain) {
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
+	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads, ${lint.repair_stats.points_dropped} duplicate vertices dropped`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));
