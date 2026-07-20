@@ -25,6 +25,7 @@ static var TRAFFIC: Dictionary = {
 	"despawn_r": 550.0,      # ...and dissolve past this
 	"headway_s": 1.6,        # following distance in seconds of travel
 	"min_gap_m": 8.0,        # the hard floor — never closer than this
+	"turn_chance": 0.35,     # odds an ambient car turns off at a node it reaches
 	"speed_lanes_2": 16.0,   # cruise by road class (m/s)
 	"speed_lanes_4": 21.0,
 	"speed_lanes_6": 26.0,
@@ -66,6 +67,7 @@ static func fold_file(into: Dictionary, path: String = "res://data/traffic.json"
 var main: Node = null
 var usmap: ProtoUSMap = null
 var rng := RandomNumberGenerator.new()
+var _lanes: ProtoLaneGraph = null ## THE LANE GRAPH — built lazily on first transfer
 var agents: Array = []
 var _promoted: Array = []
 var _maintain_t: float = 0.0
@@ -175,13 +177,32 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 			lead_arc = parc
 			var vel: Vector3 = pcar.linear_velocity if "linear_velocity" in pcar else Vector3.ZERO
 			lead_speed = maxf(0.0, Vector2(vel.x, vel.z).length())
+	var blocked := false
 	if lead_arc < 1e17:
 		var gap := lead_arc - _travel_arc(ag) - CAR_LEN
-		var follow_dist := float(TRAFFIC["headway_s"]) * maxf(ag.speed, 1.0)
-		if gap < float(TRAFFIC["min_gap_m"]):
+		var min_gap := float(TRAFFIC["min_gap_m"])
+		if gap < min_gap:
 			desired = 0.0
-		elif gap < follow_dist:
-			desired = minf(desired, lead_speed * clampf(gap / follow_dist, 0.0, 1.0) + 0.5)
+			blocked = true
+		else:
+			# THE STOPPING-DISTANCE LAW. A bare time headway is a LIE at highway speed: 1.6 s
+			# at 24 m/s starts the brake at 38 m, but shedding 24 m/s at ACCEL 7 m/s^2 needs
+			# v^2/2a = 41 m — the agent could not stop in the distance it began stopping in, so
+			# it coasted into the back of a parked rig. Target instead the fastest speed it can
+			# STILL stop from: v = sqrt(2a * slack) + the leader's own speed. That decays
+			# smoothly to the leader's pace at min_gap, where the old
+			# `lead_speed * (gap/follow_dist)` collapsed to a 0.5 m/s crawl the moment a PARKED
+			# leader came into range — braking 95 m early and stranding every trip.
+			var v_stop := sqrt(2.0 * ACCEL * (gap - min_gap)) + lead_speed
+			# Headway is comfort RELATIVE TO THE LEADER, never an absolute speed cap: as
+			# `gap / headway_s` it forced 1.6 s of absolute spacing (41 m at cruise), which
+			# tore convoy columns apart and stranded arrivals that never closed on their
+			# destination. Closing speed is what a headway actually governs.
+			var comfort := lead_speed + (gap - min_gap) / float(TRAFFIC["headway_s"])
+			var cap := minf(v_stop, comfort)
+			if cap < desired:
+				desired = cap
+				blocked = true
 	var was := ag.speed
 	ag.speed = move_toward(ag.speed, desired, ACCEL * delta)
 	# a hard brake near the player earns a HORN (the world has opinions)
@@ -191,6 +212,7 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		main.audio.play_at("horn", ag.global_position, -4.0)
 	# --- exits: the only doors off the highway (roll once per exit approach)
 	_maybe_take_exit(ag, road)
+	_maybe_turn(ag, blocked)
 	if not is_instance_valid(ag):
 		return
 	# --- advance along the polyline (s_ab is a->b; dir signs the step)
@@ -201,12 +223,16 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		var seg_len := a2.distance_to(b2)
 		if ag.s_ab > seg_len and ag.dir > 0:
 			if ag.seg_i + 1 >= pts.size() - 1:
-				_arrive(ag) # the road ended under it — it got where it was going
+				if _maybe_transfer(ag):
+					return # took a connector onto the next road — kept driving
+				_arrive(ag) # nowhere to go from here: it got where it was going
 				return
 			ag.s_ab -= seg_len
 			ag.seg_i += 1
 		elif ag.s_ab < 0.0 and ag.dir < 0:
 			if ag.seg_i <= 0:
+				if _maybe_transfer(ag):
+					return
 				_arrive(ag)
 				return
 			ag.seg_i -= 1
@@ -387,21 +413,26 @@ func _maintain() -> void:
 	if agents.size() >= budget:
 		return
 	# One spawn attempt per pass — fills over a few seconds, never a wall of cars.
-	# INTERSTATES ONLY (owner P0: "traffic only drives on the highway") — ambient
-	# flow never materializes on a ramp or spur; ramps are reached by TRIPS.
+	# THE WHOLE NETWORK, not just the highway. Ambient flow used to be INTERSTATE ONLY,
+	# because a polyline follower that reaches a short street's end just vanishes — so
+	# every town we built stood empty of cars. Now that agents TRANSFER through junctions
+	# (see _maybe_transfer), a car put on a street keeps driving, so streets and county
+	# roads carry traffic too. Ramps and dirt stay trip-only: you reach those on purpose.
 	var candidates: Array = []
 	for c0 in usmap.roads_near(anchor, float(TRAFFIC["spawn_r_max"]) + 150.0):
-		if String(c0["kind"]) == "interstate":
+		if ["interstate", "county", "street"].has(String(c0["kind"])):
 			candidates.append(c0)
 	if candidates.is_empty():
 		return
+	# weight by lanes AND class, so the interstate still carries most of the flow
+	# instead of a town's 570 street rows drowning it out.
 	var weights := 0.0
 	for c in candidates:
-		weights += float(int(c["lanes"]))
+		weights += float(int(c["lanes"])) * _kind_weight(String(c["kind"]))
 	var roll := rng.randf() * weights
 	var pick: Dictionary = candidates[0]
 	for c in candidates:
-		roll -= float(int(c["lanes"]))
+		roll -= float(int(c["lanes"])) * _kind_weight(String(c["kind"]))
 		if roll <= 0.0:
 			pick = c
 			break
@@ -495,7 +526,10 @@ func spawn_agent(road_id: String, seg_i: int, s_ab: float, lane: int, dir: int) 
 	ag.s_ab = s_ab
 	ag.lane = clampi(lane, 0, int(ProtoUSMap.road_geometry(road)["per_side"]) - 1)
 	ag.dir = 1 if dir >= 0 else -1
-	var base_speed := float(TRAFFIC["speed_lanes_%d" % int(road["lanes"])]) if TRAFFIC.has("speed_lanes_%d" % int(road["lanes"])) else float(TRAFFIC["speed_lanes_4"])
+	# CRUISE BY ROAD CLASS. Keying speed off LANE COUNT meant a 2-lane dirt backroad
+	# and a 2-lane interstate cruised identically; the lane graph carries a real
+	# per-class limit, so use it.
+	var base_speed: float = float(ProtoLaneGraph.KIND_SPEED.get(String(road.get("kind", "street")), 16.0))
 	ag.cruise = base_speed * (1.0 + rng.randf_range(-1.0, 1.0) * float(TRAFFIC["speed_jitter"]))
 	ag.speed = ag.cruise
 	ag.tint = Color(0.30 + rng.randf() * 0.35, 0.30 + rng.randf() * 0.35, 0.32 + rng.randf() * 0.35)
@@ -551,6 +585,122 @@ func despawn_agent(ag: Node3D) -> void:
 ## pulled over at the end of its trip. Off-view, it dissolves like it always
 ## did. If the promote cap is full, it stalls in place (a stopped car) and the
 ## distance cull collects it once the player moves on.
+## The lane graph, built once on first use (the same lazy pattern the GPS uses).
+func _lane_graph() -> ProtoLaneGraph:
+	if _lanes == null and usmap != null and usmap.ok:
+		_lanes = ProtoLaneGraph.build(usmap)
+	return _lanes
+
+
+
+## Re-seat an agent onto a connector's target lane. Shared by the end-of-road TRANSFER
+## and the mid-road TURN.
+func _take_connector(ag: TrafficAgent, pick: Dictionary) -> bool:
+	var lg := _lane_graph()
+	var to_id := String(pick["to"])
+	if lg == null or not lg.lanes.has(to_id):
+		return false
+	var trow: Dictionary = lg.lanes[to_id]
+	var nroad := String(trow["road_id"])
+	var nr := _road(nroad)
+	if nr.is_empty():
+		return false
+	var npts: PackedVector2Array = nr["pts"]
+	if npts.size() < 2:
+		return false
+	var jp: Vector2 = pick.get("jpos", Vector2.ZERO)
+	var bi := 0
+	var bd := 1e18
+	for i in range(npts.size() - 1):
+		var d := ProtoUSMap._seg_dist(jp, npts[i], npts[i + 1])
+		if d < bd:
+			bd = d
+			bi = i
+	var a0: Vector2 = npts[bi]
+	var b0: Vector2 = npts[bi + 1]
+	var segv := b0 - a0
+	var t := 0.0
+	if segv.length_squared() > 0.001:
+		t = clampf((jp - a0).dot(segv) / segv.length_squared(), 0.0, 1.0)
+	ag.road_id = nroad
+	ag.seg_i = bi
+	ag.s_ab = t * a0.distance_to(b0)
+	ag.dir = int(trow["dir"])
+	ag.lane = int(trow["lane"])
+	ag._exit_rolled = ""
+	ag.cruise = minf(maxf(ag.cruise, 6.0), float(trow["speed_mps"]))
+	ag.speed = minf(ag.speed, maxf(float(pick.get("v_turn", 8.0)), 4.0))
+	return true
+
+
+const TURN_TRIGGER := 26.0 ## how close to a node counts as "at the intersection"
+
+## THE TURN. _maybe_transfer only fires where a polyline ENDS, but a town grid crosses in
+## the MIDDLE of its streets — so without this a car drives straight through every
+## intersection in every city and can never turn off. Each tick, look for a non-straight
+## connector out of this lane at a node we are arriving at, and sometimes take it.
+func _maybe_turn(ag: TrafficAgent, blocked: bool = false) -> void:
+	# NEVER TURN WHILE STOPPING. The follow law measures its gap ALONG THE CURRENT ROAD;
+	# re-seating onto a connector mid-brake hands the agent a road the blocker isn't on,
+	# so the car it was stopping for stops existing and it drives straight through the
+	# rig. A discretionary turn waits until the lane ahead is clear.
+	if blocked:
+		return
+	if ag.dest_exit_id != "":
+		return # on a trip: it is going somewhere specific, do not wander
+	var lg := _lane_graph()
+	if lg == null:
+		return
+	var conns: Array = lg.exits_from(ProtoLaneGraph.lane_id(ag.road_id, ag.dir, ag.lane))
+	if conns.is_empty():
+		return
+	var here := Vector2(ag.global_position.x, ag.global_position.z)
+	for c in conns:
+		if String(c["turn"]) == "straight":
+			continue # going straight needs no transfer — the road already continues
+		var jp: Vector2 = c.get("jpos", Vector2.ZERO)
+		if jp.distance_to(here) > TURN_TRIGGER or String(c["id"]) == ag._exit_rolled:
+			continue
+		ag._exit_rolled = String(c["id"]) # decide once per node, never re-roll
+		if rng.randf() < float(TRAFFIC.get("turn_chance", 0.35)):
+			_take_connector(ag, c)
+		return
+
+
+const TRANSFER_R := 110.0 ## how near a junction counts as "reached its end"
+
+## THE TRANSFER (AMERICAN_ROAD MT, "traffic returns"). A road ending used to mean the
+## agent VANISHED — `_arrive()` despawned or parked it, because a polyline follower has
+## nowhere else to go. Now we ask the LANE GRAPH: take a connector and keep driving onto
+## the next road. This is the one change that turns ambient traffic from per-polyline
+## path-followers into something that uses the NETWORK — cars TURN at junctions.
+func _maybe_transfer(ag: TrafficAgent) -> bool:
+	var lg := _lane_graph()
+	if lg == null:
+		return false
+	var conns: Array = lg.exits_from(ProtoLaneGraph.lane_id(ag.road_id, ag.dir, ag.lane))
+	if conns.is_empty():
+		return false
+	# a lane spans its whole road, so it carries connectors for EVERY junction along it —
+	# keep only the ones at the end we actually reached.
+	var here := Vector2(ag.global_position.x, ag.global_position.z)
+	var opts: Array = []
+	for c in conns:
+		if (c.get("jpos", Vector2.ZERO) as Vector2).distance_to(here) <= TRANSFER_R:
+			opts.append(c)
+	if opts.is_empty():
+		return false
+	# straight is the common case in real flow; turns are the minority
+	var pick: Dictionary = opts[0]
+	var best_w := -1.0
+	for c2 in opts:
+		var w: float = (3.0 if String(c2["turn"]) == "straight" else 1.0) * (0.5 + rng.randf())
+		if w > best_w:
+			best_w = w
+			pick = c2
+	return _take_connector(ag, pick)
+
+
 func _arrive(ag: TrafficAgent) -> void:
 	var near_player := ag.global_position.distance_to(_anchor()) < float(TRAFFIC["vanish_r_min"])
 	if not near_player:
@@ -608,7 +758,13 @@ func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false, chain: bool = t
 		var lat := right * ProtoUSMap.lane_offset(road, tag.lane)
 		var here := Vector2(ag.global_position.x, ag.global_position.z)
 		route.append(Vector3(here.x + d.x * 40.0 + lat.x, 0, here.y + d.y * 40.0 + lat.y))
-		var off := right * (float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 4.0)
+		# PULL OVER ONTO THE SHOULDER, not off the road. width*0.5 + 4 put a car 17.6 m
+		# from the centreline of 27.2 m I-95 — past the outer lane and clean off the
+		# slab. Park just outside the OUTERMOST lane instead, which stays on pavement
+		# for every profile from a 5.6 m dirt track to a 6-lane divided interstate.
+		var rg: Dictionary = ProtoUSMap.road_geometry(road)
+		var shoulder: float = ProtoUSMap.lane_offset(road, int(rg["per_side"]) - 1) + 2.2
+		var off := right * minf(shoulder, float(rg["width"]) * 0.5 - 0.6)
 		route.append(Vector3(here.x + d.x * 80.0 + off.x, 0, here.y + d.y * 80.0 + off.y))
 		pilot.set_route(route)
 	# THE CARGO (§3.1): a convoy truck hauls its row in the trunk — rob the road.
@@ -688,6 +844,15 @@ func _size_as_truck(ag: TrafficAgent) -> void:
 
 
 # --- Internals -------------------------------------------------------------------
+
+## Spawn weight by class — the interstate still carries most ambient flow even though
+## a town contributes hundreds of street rows.
+func _kind_weight(kind: String) -> float:
+	match kind:
+		"interstate": return 3.0
+		"county": return 1.5
+		_: return 0.8
+
 
 func _anchor() -> Vector3:
 	if main != null and "active_car" in main and main.active_car != null and is_instance_valid(main.active_car):

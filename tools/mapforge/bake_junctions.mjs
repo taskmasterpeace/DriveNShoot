@@ -68,13 +68,19 @@ function arcAt(road, pos) {
 	return best.arc;
 }
 
-// half-width of a road (mirrors ProtoUSMap.road_geometry: LANE_W 3.6, shoulder
-// 2.0, divided carriage +1.6 inner, median 2.4).
+// THE ONE GEOMETRY LAW — half-width of a road.
+// `ProtoUSMap.road_geometry()` in game/proto3d/usmap.gd is the SINGLE SOURCE OF
+// TRUTH for lane math (LANE_W 3.6, SHOULDER_W 1.0, MEDIAN_W 2.4). This function
+// returns exactly HALF of that function's `width` for the same road row, and the
+// two MUST STAY EQUAL — if road_geometry() ever changes, change this in the same
+// commit, or the baked ramps/junctions drift off the road the engine paints.
+//   divided:   width = 2*(per_side*3.6 + 1.6) + 2.4  ->  half = per_side*3.6 + 1.6 + 1.2
+//   undivided: width = lanes*3.6 + 2.0*SHOULDER_W    ->  half = (lanes*3.6 + 2.0) / 2
 function halfWidth(r, divided) {
 	const lanes = r.lanes || (r.kind === "interstate" ? 4 : 2);
-	const per = Math.max(1, Math.floor(lanes / 2));
-	if (divided) return per * 3.6 + 1.6 + 1.2;
-	return (lanes * 3.6 + 4.0) / 2;
+	const per = Math.max(1, Math.floor(lanes / 2)); // mirrors maxi(1, lanes / 2) (integer division)
+	if (divided) return per * 3.6 + 1.6 + 1.2; // half of 2*carriage_w + MEDIAN_W
+	return (lanes * 3.6 + 2.0) / 2;            // half of lanes*LANE_W + 2*SHOULDER_W
 }
 
 // THE EXIT GEOMETRY LAW v2 (0.18a/b + owner /goal 2026-07-18 "no misaligned exits,
@@ -1161,7 +1167,16 @@ export function healDeadEnds(map) {
 	const mx = [mn[0] + (map.w || 150) * cell, mn[1] + (map.h || 85) * cell];
 	const EDGE = 1600, TOWN_TOL = 1300, PAY_TOL = 130, HEAL_R = 5200;
 	const nearEdge = (p) => p.x - mn[0] < EDGE || mx[0] - p.x < EDGE || p.y - mn[1] < EDGE || mx[1] - p.y < EDGE;
+	// TWO DIFFERENT ROLES, TWO DIFFERENT SETS:
+	//  * the CONNECTED test scans ALL roads, ramps included — an endpoint that meets
+	//    an exit ramp IS connected. (Scanning only non-exit roads wrongly judged an
+	//    interchange cross-street (`-xr`) a dead end even though its far landing is
+	//    served by its own off/on RAMPS; heal then prepended the nearest point on the
+	//    highway — already a vertex of that very road — producing doubled-back
+	//    polylines like [foot, farLand, foot, dest].)
+	//  * heal TARGETS stay non-exit roads only — we still never EXTEND a road onto a ramp.
 	const targets = roads.filter((r) => r.kind !== "exit");
+	const isTarget = new Set(targets.map((r) => r.id));
 	for (const r of roads) {
 		if (r.kind === "exit" || !r.pts || r.pts.length < 2) continue;
 		for (const which of [0, 1]) {
@@ -1173,12 +1188,13 @@ export function healDeadEnds(map) {
 			if (towns.some((t) => Math.hypot(t.pos[0] - p.x, t.pos[1] - p.y) <= TOWN_TOL)) continue;
 			if (place.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) <= PAY_TOL)) continue;
 			let connected = false, bestRoad = null;
-			for (const o of targets) {
+			for (const o of roads) {
 				if (o.id === r.id) continue;
+				const canTarget = isTarget.has(o.id); // a ramp SATISFIES "connected", but is never extended onto
 				for (const s of segs(o)) {
 					const pr = projectOnSeg(p, s);
 					if (pr.d <= SNAP_M) { connected = true; break; }
-					if (!bestRoad || pr.d < bestRoad.d) bestRoad = { d: pr.d, pt: pr.q ?? s.a };
+					if (canTarget && (!bestRoad || pr.d < bestRoad.d)) bestRoad = { d: pr.d, pt: pr.q ?? s.a };
 				}
 				if (connected) break;
 			}
@@ -1197,8 +1213,35 @@ export function healDeadEnds(map) {
 			const c = cands.find((x) => x.d <= HEAL_R);
 			if (!c) continue;
 			const np = [c.pt.x, c.pt.y];
+			// BELT AND BRACES: never add a vertex this road ALREADY has. Re-adding one
+			// doubles the polyline back on itself ([foot, farLand, foot, dest]) instead
+			// of extending it; within ~1 m the extension is a no-op anyway.
+			if (r.pts.some((q) => Math.hypot(q[0] - np[0], q[1] - np[1]) <= 1.0)) continue;
 			if (which === 0) r.pts.unshift(np); else r.pts.push(np);
 			stats.healed++; stats["to_" + c.kind]++;
+		}
+	}
+	return stats;
+}
+
+// REPAIR: drop any vertex that revisits an earlier point on the SAME road. A road is a
+// simple path — a repeat is damage (6 DR- spurs were closed loops, pts[0] == pts[3],
+// legacy breakage that predates the heal fix and which fillNetwork's idempotency guard
+// preserves rather than rebuilds). Never drops below 2 points.
+export function repairPolylines(map) {
+	const stats = { roads_fixed: 0, points_dropped: 0 };
+	for (const r of map.roads || []) {
+		if (!r.pts || r.pts.length < 3) continue;
+		const kept = [];
+		for (const p of r.pts) {
+			const dupe = kept.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.0);
+			if (dupe && kept.length >= 2) { stats.points_dropped++; continue; }
+			if (dupe) continue;
+			kept.push(p);
+		}
+		if (kept.length >= 2 && kept.length !== r.pts.length) {
+			r.pts = kept;
+			stats.roads_fixed++;
 		}
 	}
 	return stats;
@@ -1207,6 +1250,7 @@ export function healDeadEnds(map) {
 export function bakeJunctions(map) {
 	// towns first (their streets join the junction bake), then exit geometry,
 	// then addresses, then the junction rows read the corrected polylines
+	const repair = repairPolylines(map);
 	const fill = fillNetwork(map);
 	const town = stampTownStreets(map);
 	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
@@ -1416,6 +1460,7 @@ export function bakeJunctions(map) {
 	lint.fill_stats = fill;
 	lint.relief_stats = rel;
 	lint.heal_stats = heal;
+	lint.repair_stats = repair;
 	return { junctions, lint };
 }
 
@@ -1440,6 +1485,7 @@ if (isMain) {
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
+	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads, ${lint.repair_stats.points_dropped} duplicate vertices dropped`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));

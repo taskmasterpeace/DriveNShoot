@@ -44,25 +44,8 @@ func _median_blocked(road: Dictionary, wp: Vector2) -> bool:
 	var perp := Vector2(seg_dir.y, -seg_dir.x)
 	var g: Dictionary = ProtoUSMap.road_geometry(road)
 	var reach := float(g["carriage_w"]) + float(g["median_w"])
-	# 1A: the barrier rides the GRADE now — cast at the road's own height here.
-	var ray_h := 0.4
-	var el: PackedFloat32Array = road.get("elev", PackedFloat32Array())
-	if el.size() >= 2:
-		# nearest segment's lerped height at wp
-		var bi := 0
-		var bd := 1e18
-		for i2 in range(pts.size() - 1):
-			var d2 := ProtoUSMap._seg_dist(wp, pts[i2], pts[i2 + 1])
-			if d2 < bd:
-				bd = d2
-				bi = i2
-		var a4: Vector2 = pts[bi]
-		var b4: Vector2 = pts[bi + 1]
-		var ab4 := b4 - a4
-		var t4 := clampf((wp - a4).dot(ab4) / maxf(ab4.length_squared(), 0.001), 0.0, 1.0)
-		ray_h = 0.4 + lerpf(el[bi], el[bi + 1], t4)
-	var from3 := Vector3(wp.x + perp.x * reach, ray_h, wp.y + perp.y * reach)
-	var to3 := Vector3(wp.x - perp.x * reach, ray_h, wp.y - perp.y * reach)
+	var from3 := Vector3(wp.x + perp.x * reach, 0.4, wp.y + perp.y * reach)
+	var to3 := Vector3(wp.x - perp.x * reach, 0.4, wp.y - perp.y * reach)
 	var q := PhysicsRayQueryParameters3D.create(from3, to3)
 	var space := (main as Node3D).get_world_3d().direct_space_state
 	var hits := 0
@@ -113,7 +96,12 @@ func _ready() -> void:
 				if not r.is_empty() and bool(ProtoUSMap.road_geometry(r)["divided"]) \
 						and um.junction_gap_half(j, String(l["road"])) > 0.0:
 					gap_j = j
-		if walled_j.is_empty() and String(j["grade"]) in ["separated_pending", "deck"]:
+		# GRADE-SEPARATED, EITHER STATE. Probing only "separated_pending" assumed the deck
+		# was never built — but the bake DECKS every such crossing (grade -> "deck") and
+		# M2 now renders it, so on a fully baked map there are zero pending ones left and
+		# the probe found nothing. A crossing that is separated at all — awaiting its deck
+		# or already carrying one — must keep its median closed.
+		if walled_j.is_empty() and (String(j["grade"]) == "separated_pending" or String(j["grade"]) == "deck"):
 			walled_j = j
 		if mouth_j.is_empty() and String(j["kind"]) == "ramp_mouth":
 			# a mouth on a divided highway, away from any gap junction
@@ -197,14 +185,27 @@ func _ready() -> void:
 		var wchunk := _build_chunk_at(wp)
 		for i in range(6):
 			await get_tree().physics_frame
-		_check("walled crossing (%s) keeps its median CLOSED — decked or pending, never gapped" % String(walled_j["id"]),
+		_check("walled crossing (%s) keeps its median CLOSED — you cross OVER it, never through" % String(walled_j["id"]),
 			_median_blocked(wroad, wp))
 		var wslab := false
 		if wchunk != null:
 			for c in wchunk.get_children():
 				if c.has_meta("junction_slab") and String(c.get_meta("junction_slab")) == String(walled_j["id"]):
 					wslab = true
-		_check("...and paints NO slab (the roads don't meet yet)", not wslab)
+		_check("...and paints NO at-grade slab (they do not meet at grade)", not wslab)
+		# M2 THE OVERPASS: the walled crossing must now carry a real DECK — grade
+		# separation that exists on the ground, not just in the junction row.
+		var has_deck := false
+		var has_ramp := false
+		if wchunk != null:
+			for c in wchunk.get_children():
+				if c.has_meta("overpass_deck") and String(c.get_meta("overpass_deck")) == String(walled_j["id"]):
+					has_deck = true
+				if c.has_meta("overpass_ramp") and String(c.get_meta("overpass_ramp")) == String(walled_j["id"]):
+					has_ramp = true
+		_check("the walled crossing carries a real OVERPASS DECK (M2)", has_deck)
+		_check("...with a drivable APPROACH up to it (pitched ramps or a baked elev hump)",
+			has_ramp or _approach_climbs(um, walled_j))
 		if wchunk != null:
 			wchunk.queue_free()
 
@@ -243,4 +244,123 @@ func _ready() -> void:
 		if mchunk != null:
 			mchunk.queue_free()
 
+	# ---- THE DRESSING PASS (2026-07-19: 618 junctions rendered NOTHING) ----------
+	var um2: ProtoUSMap = main.stream.usmap
+	# 1) ramp_rejoin now paints an ACCELERATION lane (was: nothing, 151 nodes)
+	var rej: Dictionary = {}
+	for j in um2.junctions:
+		if String(j["kind"]) == "ramp_rejoin":
+			var rr: Dictionary = um2.road_by_id(String(j["legs"][1]["road"]))
+			if not rr.is_empty() and int(rr.get("side", 0)) != 0:
+				rej = j
+				break
+	if not rej.is_empty():
+		var rchunk := _build_chunk_at(rej["pos"])
+		await get_tree().physics_frame
+		var has_accel := false
+		if rchunk != null:
+			for c in rchunk.get_children():
+				if c.has_meta("road_accel") and String(c.get_meta("road_accel")) == String(rej["id"]):
+					has_accel = true
+		_check("a ramp REJOIN paints an ACCELERATION lane (%s)" % String(rej["id"]), has_accel)
+		if rchunk != null:
+			rchunk.queue_free()
+
+	# 2) end_cap now closes the road with a rail (was: nothing, 467 nodes)
+	var cap: Dictionary = {}
+	for j2 in um2.junctions:
+		if String(j2["kind"]) == "end_cap":
+			cap = j2
+			break
+	if not cap.is_empty():
+		var cchunk := _build_chunk_at(cap["pos"])
+		await get_tree().physics_frame
+		var has_rail := false
+		if cchunk != null:
+			for c2 in cchunk.get_children():
+				if c2.has_meta("road_endcap") and String(c2.get_meta("road_endcap")) == String(cap["id"]):
+					has_rail = true
+		_check("an END CAP closes the road with a guardrail (%s)" % String(cap["id"]), has_rail)
+		if cchunk != null:
+			cchunk.queue_free()
+
+	# 3) the intersection slab is ALIGNED to its road, not an axis-aligned square
+	var diag: Dictionary = {}
+	for j3 in um2.junctions:
+		if String(j3["grade"]) != "flat" or not ["tee", "cross"].has(String(j3["kind"])):
+			continue
+		var r3: Dictionary = um2.road_by_id(String(j3["legs"][0]["road"]))
+		if r3.is_empty():
+			continue
+		var pts3: PackedVector2Array = r3["pts"]
+		var dseg := (pts3[1] - pts3[0]).normalized()
+		# a clearly DIAGONAL road — the case the old rot 0.0 square got wrong
+		if absf(dseg.x) > 0.35 and absf(dseg.y) > 0.35:
+			diag = j3
+			break
+	if not diag.is_empty():
+		var dchunk := _build_chunk_at(diag["pos"])
+		await get_tree().physics_frame
+		var slab_rot := 0.0
+		var found_slab := false
+		if dchunk != null:
+			for c3 in dchunk.get_children():
+				if c3.has_meta("junction_slab") and String(c3.get_meta("junction_slab")) == String(diag["id"]):
+					slab_rot = absf((c3 as Node3D).rotation.y)
+					found_slab = true
+		_check("the intersection slab is ROTATED to its diagonal road (%.2f rad, not 0)" % slab_rot,
+			found_slab and slab_rot > 0.05)
+		if dchunk != null:
+			dchunk.queue_free()
+
+	# 4) a road that BENDS inside a chunk draws BOTH segments (was: nearest only)
+	var bend_road := ""
+	var bend_at := Vector2.ZERO
+	for r4 in um2.roads:
+		var p4: PackedVector2Array = r4["pts"]
+		if p4.size() < 3:
+			continue
+		# the bend VERTEX lies on both adjacent segments, so a chunk centred there
+		# sees both within the streamer's search radius — no length condition needed.
+		bend_road = String(r4["id"])
+		bend_at = p4[1]
+		break
+	if bend_road != "":
+		var bchunk := _build_chunk_at(bend_at)
+		await get_tree().physics_frame
+		var slabs := 0
+		if bchunk != null:
+			for c4 in bchunk.get_children():
+				if c4.has_meta("road_slab") and String(c4.get_meta("road_slab")) == bend_road:
+					slabs += 1
+		_check("a BEND renders both its segments (%s: %d slabs >= 2)" % [bend_road, slabs], slabs >= 2)
+		if bchunk != null:
+			bchunk.queue_free()
+
 	_finish(prev_scale)
+
+
+## A grade separation is only real if you can DRIVE up to it — but two mechanisms provide
+## that approach, and the check must assert the CLIMB, not one mechanism. A legacy
+## `separated_pending` node self-lifts and builds pitched approach ramps; a baked "deck"
+## node carries the climb in the deck road's own elev[] hump, so the slab itself rises and
+## laying ramps on top would lift the road twice.
+func _approach_climbs(um: ProtoUSMap, j: Dictionary) -> bool:
+	var rid := String(j.get("deck_road", ""))
+	if rid == "":
+		return false
+	var road: Dictionary = um.road_by_id(rid)
+	if road.is_empty():
+		return false
+	var arc := -1.0
+	for l in j["legs"]:
+		if String(l["road"]) == rid:
+			arc = float(l["arc_m"])
+	if arc < 0.0:
+		return false
+	var top := ProtoUSMap.elev_at(road, arc)
+	if top < 1.0:
+		return false # it never actually rose — no deck to drive onto
+	# ...and it gets there at a grade a car can take, not a step
+	var back := ProtoUSMap.elev_at(road, maxf(arc - 60.0, 0.0))
+	return absf(top - back) / 60.0 < 0.25
