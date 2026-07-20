@@ -108,6 +108,7 @@ func _physics_process(delta: float) -> void:
 	var reach := 6.0 + absf(car.forward_speed) * 1.1
 	var origin := car.global_position + Vector3(0, 0.6, 0)
 	var avoid := 0.0
+	var nose_d := 1e9 # distance to whatever is dead ahead (INF = clear road)
 	for i in 3:
 		var ang: float = [-0.42, 0.0, 0.42][i]
 		var dir := fwd.rotated(Vector3.UP, ang)
@@ -120,6 +121,7 @@ func _physics_process(delta: float) -> void:
 			match i:
 				0: avoid -= w * 1.4 # blocked LEFT → steer right
 				1:
+					nose_d = origin.distance_to(hit["position"])
 					# Dead ahead blocked: swerve toward the freer side (side states
 					# are one frame stale for index 2 — fine at 60 Hz reflexes) —
 					# and REFRESH the commitment so the choice sticks past the wall.
@@ -138,5 +140,16 @@ func _physics_process(delta: float) -> void:
 	car.input_throttle = clampf(0.35 + 0.65 * straightness, 0.0, 1.0) * aggression
 	if _whisker_hit[1]:
 		car.input_throttle *= 0.45
-	car.input_brake = 1.0 if (absf(angle) > 1.9 and absf(car.forward_speed) > 8.0) else 0.0
+	# BRAKE FOR WHAT IS ACTUALLY AHEAD. The only brake used to be heading error, so
+	# a blocked nose merely lifted the throttle and a promoted car would rear-end a
+	# stopped one at full speed. Brake once the obstacle is inside our stopping
+	# distance (v^2/2a, a ~8 m/s^2 arcade), hardest when it is closest.
+	var spd := absf(car.forward_speed)
+	var stop_d := 2.5 + (spd * spd) / 16.0
+	var nose_brake := 0.0
+	if nose_d < stop_d and spd > 1.0:
+		nose_brake = clampf(1.0 - nose_d / maxf(stop_d, 0.001), 0.0, 1.0)
+		car.input_throttle = 0.0
+	var turn_brake := 1.0 if (absf(angle) > 1.9 and spd > 8.0) else 0.0
+	car.input_brake = maxf(nose_brake, turn_brake)
 	car.input_handbrake = false
