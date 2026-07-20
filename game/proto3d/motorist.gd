@@ -39,18 +39,90 @@ static func create(main: Node, car_in: ProtoCar3D, dest_in: Vector3, look: Strin
 ## ROUTE PLANNING (the highway's own bones): project onto the nearest interstate,
 ## walk its points toward the end that closes on the destination, then leave the
 ## road at the point nearest the destination. City-to-city = the road, followed.
+## THE WAYPOINT SPACING. The autopilot passes a waypoint within 24 m, but this used to
+## emit one point per POLYLINE VERTEX — kilometres apart on an interstate — so a motorist
+## cut every corner cross-country between them.
+const WP_SPACING := 45.0
+
+static var _graph: ProtoRoadGraph = null
+
+
+static func _graph_for(usmap: ProtoUSMap) -> ProtoRoadGraph:
+	if _graph == null or _graph.usmap != usmap:
+		_graph = ProtoRoadGraph.build(usmap)
+	return _graph
+
+
+## Lay densified, right-hand-lane waypoints from a to b.
+static func _densify(out: Array, a: Vector2, b: Vector2, usmap: ProtoUSMap) -> void:
+	var span := a.distance_to(b)
+	if span < 1.0:
+		return
+	var steps := maxi(1, int(span / WP_SPACING))
+	var stepv := (b - a) / float(steps)
+	var hd := (b - a).normalized()
+	var right := Vector2(-hd.y, hd.x)
+	for i in range(1, steps + 1):
+		var p := a + stepv * float(i)
+		# RIGHT-HAND LANE (ROAD_TRAFFIC_OVERHAUL §3.5) off the one geometry law, so a
+		# motorist never drives the centreline into oncoming traffic or a median barrier.
+		var off := Vector2.ZERO
+		var near: Dictionary = usmap.road_near(Vector3(p.x, 0.0, p.y), 70.0)
+		if not near.is_empty():
+			var rd: Dictionary = usmap.road_by_id(String(near["id"]))
+			if not rd.is_empty():
+				off = right * ProtoUSMap.lane_offset(rd, 0)
+		out.append(Vector3(p.x + off.x, 0.0, p.y + off.y))
+
+
+## A trip across the NETWORK. This used to filter to `kind == "interstate"` and walk ONE
+## road's vertices toward the point nearest the destination — so it could not route across
+## two roads at all, and if the destination sat on a different highway the motorist simply
+## aimed cross-country. Now it plans on ProtoRoadGraph (Dijkstra on time-cost, the same
+## graph the GPS uses) and densifies the result. Falls back to the old single-road walk if
+## the graph can't reach.
 static func plan_route(usmap: ProtoUSMap, from: Vector3, dest_in: Vector3) -> Array:
 	var out: Array = []
 	if usmap == null or not usmap.ok:
 		out.append(dest_in)
 		return out
-	# Prefer a real INTERSTATE (exit ramps are 2-point stubs — a trip needs bones).
+	var f2 := Vector2(from.x, from.z)
+	var d2 := Vector2(dest_in.x, dest_in.z)
+	# A SHORT HOP needs no graph: routing 380 m through junction nodes can send the car
+	# backwards to the nearest node before it ever heads for the destination.
+	var g := _graph_for(usmap)
+	if f2.distance_to(d2) > 600.0 and g != null:
+		var rt: Dictionary = g.route(f2, d2)
+		if not rt.is_empty() and (rt["nodes"] as Array).size() >= 2:
+			# DROP LEADING BACKTRACK: nearest_node() can snap BEHIND us, so skip any
+			# opening nodes that sit farther from the destination than we already are.
+			var here_d := f2.distance_to(d2)
+			var path: Array = []
+			var started := false
+			for nid in rt["nodes"]:
+				var nd: Dictionary = g.nodes.get(String(nid), {})
+				if nd.is_empty():
+					continue
+				var np: Vector2 = nd["pos"]
+				if not started and np.distance_to(d2) >= here_d:
+					continue # still behind us — not progress yet
+				started = true
+				path.append(np)
+			var prev := f2
+			for np2 in path:
+				_densify(out, prev, np2 as Vector2, usmap)
+				prev = np2
+			_densify(out, prev, d2, usmap)
+			out.append(dest_in)
+			return out
+	if f2.distance_to(d2) <= 600.0:
+		_densify(out, f2, d2, usmap)
+		out.append(dest_in)
+		return out
+	# FALLBACK — no graph route (isolated spawn): walk the nearest road's vertices.
 	var road: Dictionary = {}
 	var best_rd := 4000.0
-	var f2 := Vector2(from.x, from.z)
 	for r in usmap.roads:
-		if String(r.get("kind", "interstate")) != "interstate":
-			continue
 		var rpts: PackedVector2Array = r["pts"]
 		for i in range(rpts.size() - 1):
 			var seg_d := ProtoUSMap._seg_dist(f2, rpts[i], rpts[i + 1])
@@ -64,13 +136,10 @@ static func plan_route(usmap: ProtoUSMap, from: Vector3, dest_in: Vector3) -> Ar
 	var start_i := 0
 	var best_d := 1e18
 	for i in pts.size():
-		var d := pts[i].distance_to(Vector2(from.x, from.z))
+		var d := pts[i].distance_to(f2)
 		if d < best_d:
 			best_d = d
 			start_i = i
-	# Find the EXIT: the road point closest to the destination, searched in BOTH
-	# directions (endpoint heuristics lie on kinked interstates — walk the line).
-	var d2 := Vector2(dest_in.x, dest_in.z)
 	var best_exit_i := start_i
 	var best_exit_d := pts[start_i].distance_to(d2)
 	for i2 in pts.size():
@@ -80,16 +149,9 @@ static func plan_route(usmap: ProtoUSMap, from: Vector3, dest_in: Vector3) -> Ar
 	var step := 1 if best_exit_i > start_i else -1
 	var i3 := start_i
 	while i3 != best_exit_i:
-		var prev := i3
+		var prev_i := i3
 		i3 += step
-		# RIGHT-HAND LANE (ROAD_TRAFFIC_OVERHAUL.md §3.5): waypoints offset to the
-		# innermost right-hand lane of the travel direction, off the same geometry
-		# law the streamer paints — a motorist no longer drives the centerline
-		# into oncoming traffic (or into a divided road's median barrier).
-		var d := (pts[i3] - pts[prev]).normalized()
-		var right := Vector2(-d.y, d.x)
-		var off := right * ProtoUSMap.lane_offset(road, 0)
-		out.append(Vector3(pts[i3].x + off.x, 0, pts[i3].y + off.y))
+		_densify(out, pts[prev_i], pts[i3], usmap)
 	out.append(dest_in)
 	return out
 

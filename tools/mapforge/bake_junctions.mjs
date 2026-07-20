@@ -514,10 +514,34 @@ export function healDeadEnds(map) {
 	return stats;
 }
 
+// REPAIR: drop any vertex that revisits an earlier point on the SAME road. A road is a
+// simple path — a repeat is damage (6 DR- spurs were closed loops, pts[0] == pts[3],
+// legacy breakage that predates the heal fix and which fillNetwork's idempotency guard
+// preserves rather than rebuilds). Never drops below 2 points.
+export function repairPolylines(map) {
+	const stats = { roads_fixed: 0, points_dropped: 0 };
+	for (const r of map.roads || []) {
+		if (!r.pts || r.pts.length < 3) continue;
+		const kept = [];
+		for (const p of r.pts) {
+			const dupe = kept.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.0);
+			if (dupe && kept.length >= 2) { stats.points_dropped++; continue; }
+			if (dupe) continue;
+			kept.push(p);
+		}
+		if (kept.length >= 2 && kept.length !== r.pts.length) {
+			r.pts = kept;
+			stats.roads_fixed++;
+		}
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// fill the network, ADDRESS the exits (stamps town_id — the town grid needs it to
 	// find its exit and run a street in from it), stamp the town grids, rewrite exit
 	// geometry to the diamonds, THEN the junction rows read the corrected polylines.
+	const repair = repairPolylines(map);
 	const fill = fillNetwork(map);
 	const addr = renumberExits(map);
 	const town = stampTownStreets(map);
@@ -696,6 +720,7 @@ export function bakeJunctions(map) {
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
 	lint.heal_stats = heal;
+	lint.repair_stats = repair;
 	return { junctions, lint };
 }
 
@@ -716,6 +741,7 @@ if (isMain) {
 	console.log(`BAKE: interchanges — ${lint.geo_stats.rebuilt} exits rebuilt (${lint.geo_stats.authored} authored primary kept) · ` +
 		`${lint.geo_stats.off} town off/${lint.geo_stats.on} on · ${lint.geo_stats.far_off} far off/${lint.geo_stats.far_on} on · ` +
 		`${lint.geo_stats.crossroads} cross-streets into town`);
+	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads, ${lint.repair_stats.points_dropped} duplicate vertices dropped`);
 	console.log(`BAKE: healed dead-ends — ${lint.heal_stats.healed} (${lint.heal_stats.to_road} to a road · ` +
 		`${lint.heal_stats.to_town} to a town · ${lint.heal_stats.to_edge} off the map edge)`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
