@@ -241,7 +241,7 @@ func _emit_connector(j: Dictionary, jpos: Vector2, ri: Dictionary, ro: Dictionar
 	aabb = aabb.grow(0.5)
 	var cid := "C%d" % connectors.size()
 	var row := {
-		"id": cid, "junction": String(j.get("id", "")), "is_junction": true,
+		"id": cid, "junction": String(j.get("id", "")), "is_junction": true, "jpos": jpos,
 		"from": id_in, "to": id_out, "turn": turn, "pts": pts, "aabb": aabb,
 		"v_turn": v_turn, "control": String(j.get("control", "none")),
 		"kind_in": String(ri.get("kind", "street")),
