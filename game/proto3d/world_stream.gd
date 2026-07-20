@@ -322,7 +322,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	var road: Dictionary = {}
 	if usmap != null and usmap.ok:
 		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
-		for row in usmap.roads_near(center, 220.0):
+		# EVERY segment in range, not just each road's nearest one — a road that bends
+		# inside this chunk used to draw only one of the two segments meeting at the bend.
+		for row in usmap.road_segments_near(center, 220.0):
 			_build_road_stretch(chunk, center, row, key, wet)
 		# --- THE SEABOARD LINE (SEABOARD goal R2): rail materializes per chunk —
 		# ballast + twin steel + MultiMesh ties (the dirt twin-rut pipeline
@@ -337,14 +339,29 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		var chalf := CHUNK * 0.5
 		for j in usmap.junctions_in(Rect2(center.x - chalf, center.z - chalf, CHUNK, CHUNK)):
 			if String(j["grade"]) == "flat" and ["tee", "cross"].has(String(j["kind"])):
+				# THE INTERSECTION PATCH: ALIGNED to the widest leg and sized to the real
+				# crossing (across = that road's width, along = the other road's width).
+				# It used to be an axis-aligned SQUARE at rot 0.0, which sat visibly askew
+				# on every diagonal road — and most interstates here are diagonal.
+				var jp: Vector2 = j["pos"]
 				var wmax := 8.0
+				var wother := 8.0
+				var jdir := Vector2.RIGHT
 				for l in j["legs"]:
 					var lr: Dictionary = usmap.road_by_id(String(l["road"]))
-					if not lr.is_empty():
-						wmax = maxf(wmax, float(ProtoUSMap.road_geometry(lr)["width"]))
-				var jp: Vector2 = j["pos"]
-				var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
-					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
+					if lr.is_empty():
+						continue
+					var lw := float(ProtoUSMap.road_geometry(lr)["width"])
+					if lw > wmax:
+						wother = wmax
+						wmax = lw
+						jdir = _road_dir_at(lr, jp)
+					else:
+						wother = maxf(wother, lw)
+				var jslab := ProtoWorldBuilder.box_visual(chunk,
+					Vector3(wmax + 2.0, 0.05, wother + 2.0),
+					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD,
+					atan2(jdir.x, jdir.y))
 				jslab.set_meta("junction_slab", String(j["id"]))
 			elif String(j["kind"]) == "ramp_mouth" and (j["legs"] as Array).size() >= 2:
 				# THE EXIT DRESSING (0.18a): painted GORE at the split, crash
@@ -382,6 +399,45 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 					var decel := ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.05, 140.0),
 						Vector3(dc.x, 0.125, dc.y), ProtoWorldBuilder.COL_ROAD, atan2(d_s.x, d_s.y))
 					decel.set_meta("road_decel", String(j["id"]))
+			elif String(j["kind"]) == "ramp_rejoin" and (j["legs"] as Array).size() >= 2:
+				# THE MERGE DRESSING — the mirror of the exit's decel lane. Until now the 151
+				# rejoin nodes dressed NOTHING at all: a ramp simply appeared on the highway.
+				# A real on-ramp gets an ACCELERATION lane running DOWNSTREAM of the merge.
+				var hwy2: Dictionary = usmap.road_by_id(String(j["legs"][0]["road"]))
+				var ramp2: Dictionary = usmap.road_by_id(String(j["legs"][1]["road"]))
+				if hwy2.is_empty() or ramp2.is_empty():
+					continue
+				var side2 := int(ramp2.get("side", 0))
+				if side2 != 0:
+					var hd2 := _road_dir_at(hwy2, j["pos"]) * float(side2)
+					var right2 := Vector2(-hd2.y, hd2.x)
+					var lat2 := float(ProtoUSMap.road_geometry(hwy2)["width"]) * 0.5 - 1.5
+					# DOWNSTREAM (+hd2) — the opposite side of the node from a decel lane
+					var ac := (j["pos"] as Vector2) + right2 * lat2 + hd2 * 60.0
+					var accel := ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.05, 120.0),
+						Vector3(ac.x, 0.125, ac.y), ProtoWorldBuilder.COL_ROAD, atan2(hd2.x, hd2.y))
+					accel.set_meta("road_accel", String(j["id"]))
+					var mgp := (j["pos"] as Vector2) + hd2 * 5.0
+					var mg := ProtoWorldBuilder.box_visual(chunk, Vector3(1.8, 0.05, 6.0),
+						Vector3(mgp.x, 0.135, mgp.y), Color(0.82, 0.80, 0.74), atan2(hd2.x, hd2.y))
+					mg.set_meta("junction_merge", String(j["id"]))
+			elif String(j["kind"]) == "end_cap" and (j["legs"] as Array).size() >= 1:
+				# THE ROAD ENDS HERE — 467 end caps dressed NOTHING, so a road just stopped in
+				# open ground. A guardrail across the mouth makes the terminus read as chosen.
+				var capr: Dictionary = usmap.road_by_id(String(j["legs"][0]["road"]))
+				if capr.is_empty():
+					continue
+				var cw := float(ProtoUSMap.road_geometry(capr)["width"])
+				var cd := _road_dir_at(capr, j["pos"])
+				var cp: Vector2 = j["pos"]
+				var rail := ProtoWorldBuilder.box_body(chunk, Vector3(cw + 1.0, 0.9, 0.4),
+					Vector3(cp.x, 0.45, cp.y), Color(0.55, 0.52, 0.46), atan2(cd.x, cd.y))
+				rail.set_meta("road_endcap", String(j["id"]))
+				for ci in range(3):
+					var capx := cp + Vector2(-cd.y, cd.x) * (float(ci - 1) * (cw * 0.33))
+					var post := ProtoWorldBuilder.box_visual(chunk, Vector3(0.3, 1.1, 0.3),
+						Vector3(capx.x, 0.55, capx.y), Color(0.85, 0.42, 0.08), atan2(cd.x, cd.y))
+					post.set_meta("endcap_post", String(j["id"]))
 
 	# AUTHORED PLACEMENTS (MapForge v2 Goal 2b) + EXIT SIGNS — after the floor
 	# and roads exist (GROUND_INTEGRITY rule 2). Each spawn is defensive: a bad
@@ -758,6 +814,22 @@ func _build_rail_stretch(chunk: Node3D, center: Vector3, row: Dictionary) -> voi
 		mmi.material_override = ProtoWorldBuilder.material(Color(0.27, 0.22, 0.16), 0.85)
 		mmi.set_meta("rail_ties", rid)
 		chunk.add_child(mmi)
+
+
+## Unit heading of a road's polyline at the segment nearest `p` (same yaw convention as
+## _build_road_stretch: local +Z runs along the road, so rot = atan2(dir.x, dir.y)).
+func _road_dir_at(road: Dictionary, p: Vector2) -> Vector2:
+	var pts: PackedVector2Array = road["pts"]
+	var best := 1e18
+	var out := Vector2.RIGHT
+	for i in range(pts.size() - 1):
+		var d := ProtoUSMap._seg_dist(p, pts[i], pts[i + 1])
+		if d < best:
+			best = d
+			var seg := pts[i + 1] - pts[i]
+			if seg.length() > 0.001:
+				out = seg.normalized()
+	return out
 
 
 func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: String, wet: bool) -> void:
