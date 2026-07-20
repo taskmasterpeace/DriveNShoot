@@ -323,6 +323,66 @@ func _ready() -> void:
 	print("CONF: marooned placements (no road within %dm) = %d %s" % [int(PLACEMENT_REACH_TOL), marooned, str(mar_list)])
 	_check("every placement is reachable from a road", marooned == 0)
 
+	# === 6. NO ROAD DOUBLES BACK ON ITSELF ======================================
+	# A road is a simple path. One that reverses and drives back over the pavement it just
+	# laid flips traffic's travel direction mid-road (agents walk arc-length), bakes
+	# junctions at the self-intersection, and lays overlapping slabs. I-75 carried a 1.9 km
+	# return at ZERO separation; I-35 and I-40 carried LOBES — 3.4 km and 7.6 km of
+	# interstate to end up 111 m and 727 m from where they started.
+	# Two laws, both scale-free: a reversal may not SHARE PAVEMENT (mean separation under
+	# the road's own width), and a stretch may not GO NOWHERE (straight-line gap under 15%
+	# of the path travelled). A spur or switchback that turns back but SEPARATES is
+	# legitimate and must survive — the real ones score 0.62+, the damage scored 0.016.
+	var shared := 0
+	var lobes := 0
+	var bad_list: Array = []
+	for r6 in roads:
+		var rd: Dictionary = r6
+		var pts: PackedVector2Array = rd["pts"]
+		if pts.size() < 3:
+			continue
+		var geom: Dictionary = ProtoUSMap.road_geometry(rd)
+		var width: float = geom["width"]
+		var cum := PackedFloat32Array()
+		cum.append(0.0)
+		for m in range(1, pts.size()):
+			cum.append(cum[m - 1] + pts[m - 1].distance_to(pts[m]))
+		for i in range(1, pts.size() - 1):
+			var h1: float = (pts[i] - pts[i - 1]).angle()
+			var h2: float = (pts[i + 1] - pts[i]).angle()
+			if absf(wrapf(h2 - h1, -PI, PI)) <= deg_to_rad(150.0):
+				continue
+			var sep := 0.0
+			for t: float in [0.1, 0.25, 0.5, 0.75, 0.9]:
+				var p: Vector2 = pts[i].lerp(pts[i + 1], t)
+				var best := 1.0e18
+				for k in range(0, i):
+					best = minf(best, ProtoUSMap._seg_dist(p, pts[k], pts[k + 1]))
+				sep += best
+			sep /= 5.0
+			if sep < width:
+				shared += 1
+				if bad_list.size() < 8:
+					bad_list.append("%s@%d shares %.1fm" % [String(rd["id"]), i, sep])
+			var found := false
+			for k2 in range(0, i + 1):
+				if found:
+					break
+				for e in range(i + 1, pts.size()):
+					var path: float = cum[e] - cum[k2]
+					if path < 200.0:
+						continue
+					var gap: float = pts[k2].distance_to(pts[e])
+					if gap / path < 0.15:
+						lobes += 1
+						found = true
+						if bad_list.size() < 8:
+							bad_list.append("%s lobe %.0fm->%.0fm" % [String(rd["id"]), path, gap])
+						break
+	print("CONF: doubled-back runs — %d share pavement, %d lobes %s" % [shared, lobes, str(bad_list)])
+	_check("no road doubles back over its own pavement, and no stretch goes nowhere",
+		shared == 0 and lobes == 0)
+
 	print("CONF RESULTS: %d passed, %d failed" % [passed, failed])
 	print("CONF: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))
 	get_tree().quit(0 if failed == 0 else 1)
