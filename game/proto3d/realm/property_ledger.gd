@@ -187,22 +187,44 @@ func _commit(candidate: Dictionary) -> Dictionary:
 
 func _persist(path: String, candidate: Dictionary) -> Error:
 	var serialized: String = JSON.stringify(candidate)
-	if serialized.to_utf8_buffer().size() > MAX_BYTES:
+	var expected: PackedByteArray = serialized.to_utf8_buffer()
+	if expected.size() > MAX_BYTES:
 		return ERR_OUT_OF_MEMORY
 	# Same-directory rename; never delete the previous authoritative file first.
 	var temporary: String = "%s.tmp.%d.%d" % [path, OS.get_process_id(), Time.get_ticks_usec()]
 	var file: FileAccess = FileAccess.open(temporary, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
-	file.store_string(serialized)
+	var stored: bool = file.store_buffer(expected)
 	file.flush()
 	var error: Error = file.get_error()
 	file.close()
+	if not stored and error == OK:
+		error = ERR_FILE_CANT_WRITE
 	if error == OK:
-		error = DirAccess.rename_absolute(temporary, path)
+		error = _replace_verified(temporary, path, expected)
 	if error != OK:
 		DirAccess.remove_absolute(temporary)
 	return error
+
+
+func _replace_verified(temporary: String, path: String, expected: PackedByteArray) -> Error:
+	# Windows flush()/close() may hide deferred stdio errors. Reopen the CLOSED
+	# file and compare complete bytes before publishing, not just cached errors.
+	var file: FileAccess = FileAccess.open(temporary, FileAccess.READ)
+	if file == null:
+		return FileAccess.get_open_error()
+	if file.get_length() != expected.size():
+		file.close()
+		return ERR_FILE_CORRUPT
+	var actual: PackedByteArray = file.get_buffer(expected.size())
+	var error: Error = file.get_error()
+	file.close()
+	if error != OK:
+		return error
+	if actual != expected:
+		return ERR_FILE_CORRUPT
+	return DirAccess.rename_absolute(temporary, path)
 
 
 func _valid_state(state: Dictionary, definitions: Dictionary, catalog: Dictionary) -> bool:

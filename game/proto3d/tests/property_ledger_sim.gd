@@ -108,6 +108,20 @@ func _ready() -> void:
 	# Replace the destination with a directory to force a real rename failure.
 	# Keep the old file beside it; no user saves are involved.
 	var disk_before: String = FileAccess.get_file_as_string(root + "/ledger.json")
+	# Exercise the production closed-file publication boundary with real broken
+	# output. Deterministic fixtures avoid filling the user's disk to force fflush.
+	var intended: PackedByteArray = disk_before.to_utf8_buffer()
+	for incomplete: String in [disk_before.left(disk_before.length() - 1), disk_before.replace("\"version\":1", "\"version\":2")]:
+		_write(root + "/incomplete.tmp", incomplete)
+		var publish_error: Error = ledger._replace_verified(root + "/incomplete.tmp", root + "/ledger.json", intended)
+		_check("incomplete or altered closed output rejects publication", publish_error != OK)
+		_check("incomplete output preserves disk and authority memory", FileAccess.get_file_as_string(root + "/ledger.json") == disk_before and ledger.snapshot() == valid)
+		# Restore only this test's file so RED can report both malformed fixtures.
+		_write(root + "/ledger.json", disk_before)
+		if FileAccess.file_exists(root + "/incomplete.tmp"):
+			DirAccess.remove_absolute(root + "/incomplete.tmp")
+	_write(root + "/complete.tmp", disk_before)
+	_check("exact closed output can replace authority", ledger._replace_verified(root + "/complete.tmp", root + "/ledger.json", intended) == OK and FileAccess.get_file_as_string(root + "/ledger.json") == disk_before)
 	DirAccess.rename_absolute(root + "/ledger.json", root + "/preserved.json")
 	DirAccess.make_dir_absolute(root + "/ledger.json")
 	_check("failed durable commit cannot credit", not ledger.credit("alice", 5, "io_fail").ok and ledger.snapshot() == valid)
