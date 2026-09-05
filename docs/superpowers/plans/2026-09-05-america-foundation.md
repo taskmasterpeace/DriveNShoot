@@ -32,7 +32,7 @@
 
 ### Task 2: Blender MCP homestead kit
 
-**Files:** tools/blenderforge/mcp_bootstrap.py, tools/blenderforge/mcp_client.py, tools/blenderforge/gen_homestead.py, tools/blenderforge/tests/test_homestead_contract.py, game/assets/models/homestead/*.glb, tools/blenderforge/previews/homestead/*, docs/art/HOMESTEAD_KIT.md.
+**Files:** tools/blenderforge/mcp_bootstrap.py, tools/blenderforge/mcp_client.py, tools/blenderforge/gen_homestead.py, tools/blenderforge/tests/test_homestead_contract.py, tools/blenderforge/sources/homestead_kit.blend and sources/.gitignore, game/assets/models/homestead/*.glb and their new import files, game/proto3d/tests/homestead_asset_sim.gd and .tscn, tools/blenderforge/previews/homestead/*, docs/art/HOMESTEAD_KIT.md. Godot-generated UID companions belong with their scripts.
 
 **Interfaces:** Consumes the installed addon and MCP Python SDK. Produces four GLBs: roadstead_cottage, parcel_mailbox, freight_kiosk, delivery_crate. Export contract comes verbatim from the spec. MCP client starts the installed stdio server, initializes MCP, lists tool schemas, and calls execute_blender_code / get_scene_info. Bind addon only to loopback on a task-specific port; disable MCP telemetry for this child process only. Do not edit user MCP config.
 
