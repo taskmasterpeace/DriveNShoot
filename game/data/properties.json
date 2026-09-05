@@ -1,0 +1,25 @@
+{
+  "properties": [
+    {
+      "id": "roadstead_001",
+      "name": "1 Roadstead Lane",
+      "price": 150,
+      "item_capacity": 120,
+      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+    },
+    {
+      "id": "roadstead_002",
+      "name": "2 Roadstead Lane",
+      "price": 225,
+      "item_capacity": 180,
+      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+    },
+    {
+      "id": "roadstead_003",
+      "name": "3 Roadstead Lane",
+      "price": 300,
+      "item_capacity": 240,
+      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+    }
+  ]
+}
