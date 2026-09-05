@@ -222,6 +222,8 @@ def porch_chair(x, y):
 
 def cottage():
     asset_scene("roadstead_cottage")
+    door_floor = .355
+    door_clear_top = door_floor + 2.20
     box("Foundation", (10.2, 8.2, .32), (0, 0, .12), "concrete", .035)
     # Floor boards provide readable interior detail when the roof is hidden.
     for x in range(34):
@@ -232,7 +234,9 @@ def cottage():
         z = .45 + row*.175
         spans = [(-5, 5)]
         holes = []
-        if z < 2.55:
+        # Remove every board whose lower surface would intrude into the promised
+        # 2.20 m clearance above the finished floor. The next row starts at 2.635 m.
+        if z - .09 <= door_clear_top:
             holes.append((-.70, .70))
         if 1.02 < z < 2.63:
             holes += [(-3.76, -2.24), (2.24, 3.76)]
@@ -354,10 +358,18 @@ def cottage():
     # Exact physical doorway clearance independent of the exported metadata.
     bpy.context.view_layer.update()
     deps = bpy.context.evaluated_depsgraph_get()
-    for x in (-.60,0,.60):
-        for z in (.60,1.4,2.25):
-            hit, *_ = bpy.context.scene.ray_cast(deps, Vector((x,-4.4,z)), Vector((0,1,0)), distance=.75)
+    for x in (-.65, 0, .65):
+        for z in (door_floor + .01, 1.4, door_clear_top):
+            # The porch ends at Y=-4.02 and stands 0.045m above the interior
+            # floor. The lowest probe starts inside that step, not inside wood.
+            start_y = -4.01 if z < door_floor + .02 else -4.4
+            hit, *_ = bpy.context.scene.ray_cast(deps, Vector((x,start_y,z)), Vector((0,1,0)), distance=-3.65-start_y)
             assert not hit, f"Doorway obstructed at x={x}, z={z}"
+    for x in (-.72, .72):
+        hit, *_ = bpy.context.scene.ray_cast(deps, Vector((x,-4.4,1.4)), Vector((0,1,0)), distance=.75)
+        assert hit, f"Door casing control missed at x={x}"
+    hit, *_ = bpy.context.scene.ray_cast(deps, Vector((0,-4.4,2.70)), Vector((0,1,0)), distance=.75)
+    assert hit, "Door header control missed"
     return finish("roadstead_cottage")
 
 

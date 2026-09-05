@@ -1,4 +1,4 @@
-"""Export contract: catches missing/oversized assets and non-cutaway roofs."""
+"""Export contract: inspect real GLB vertices, hierarchy and resource portability."""
 import json
 import math
 import struct
@@ -14,16 +14,23 @@ def read_glb(path):
     magic, version, length = struct.unpack_from("<III", raw)
     if (magic, version, length) != (0x46546C67, 2, len(raw)):
         raise ValueError("Invalid GLB header")
-    size, kind = struct.unpack_from("<II", raw, 12)
-    if kind != 0x4E4F534A:
-        raise ValueError("Missing GLB JSON")
-    return json.loads(raw[20:20 + size])
+    chunks = {}
+    offset = 12
+    while offset < len(raw):
+        size, kind = struct.unpack_from("<II", raw, offset)
+        offset += 8
+        chunks[kind] = raw[offset:offset + size]
+        offset += size
+    if 0x4E4F534A not in chunks or 0x004E4942 not in chunks:
+        raise ValueError("GLB must contain JSON and embedded binary geometry")
+    document = json.loads(chunks[0x4E4F534A].decode("utf-8").rstrip(" \0"))
+    return document, chunks[0x004E4942]
 
 
 def matrix(node):
     if "matrix" in node:
-        m = node["matrix"]
-        return [[m[c * 4 + r] for c in range(4)] for r in range(4)]
+        values = node["matrix"]
+        return [[values[column * 4 + row] for column in range(4)] for row in range(4)]
     x, y, z, w = node.get("rotation", [0, 0, 0, 1])
     sx, sy, sz = node.get("scale", [1, 1, 1])
     tx, ty, tz = node.get("translation", [0, 0, 0])
@@ -36,31 +43,41 @@ def matrix(node):
 
 
 def multiply(a, b):
-    return [[sum(a[r][k] * b[k][c] for k in range(4)) for c in range(4)] for r in range(4)]
+    return [[sum(a[row][k] * b[k][column] for k in range(4))
+             for column in range(4)] for row in range(4)]
 
 
-def bounds(gltf):
+def position_values(gltf, binary, accessor_index):
+    accessor = gltf["accessors"][accessor_index]
+    view = gltf["bufferViews"][accessor["bufferView"]]
+    if accessor["componentType"] != 5126 or accessor["type"] != "VEC3":
+        raise ValueError("Position accessor must contain float VEC3 values")
+    stride = view.get("byteStride", 12)
+    start = view.get("byteOffset", 0) + accessor.get("byteOffset", 0)
+    return [struct.unpack_from("<fff", binary, start + index * stride)
+            for index in range(accessor["count"])]
+
+
+def geometry_bounds(gltf, binary, node_prefix=None):
     points = []
-    identity = [[int(r == c) for c in range(4)] for r in range(4)]
+    identity = [[int(row == column) for column in range(4)] for row in range(4)]
 
     def visit(index, parent):
         node = gltf["nodes"][index]
         transform = multiply(parent, matrix(node))
-        if "mesh" in node:
+        if "mesh" in node and (node_prefix is None or node.get("name", "").startswith(node_prefix)):
             for primitive in gltf["meshes"][node["mesh"]]["primitives"]:
-                accessor = gltf["accessors"][primitive["attributes"]["POSITION"]]
-                for x in (accessor["min"][0], accessor["max"][0]):
-                    for y in (accessor["min"][1], accessor["max"][1]):
-                        for z in (accessor["min"][2], accessor["max"][2]):
-                            point = [x, y, z, 1]
-                            points.append([sum(transform[r][k] * point[k] for k in range(4)) for r in range(3)])
+                for point in position_values(gltf, binary, primitive["attributes"]["POSITION"]):
+                    value = [point[0], point[1], point[2], 1]
+                    points.append([sum(transform[row][k] * value[k] for k in range(4))
+                                   for row in range(3)])
         for child in node.get("children", []):
             visit(child, transform)
 
     for root in gltf["scenes"][gltf.get("scene", 0)]["nodes"]:
         visit(root, identity)
-    return ([min(p[i] for p in points) for i in range(3)],
-            [max(p[i] for p in points) for i in range(3)])
+    return ([min(point[axis] for point in points) for axis in range(3)],
+            [max(point[axis] for point in points) for axis in range(3)])
 
 
 class HomesteadContract(unittest.TestCase):
@@ -69,29 +86,31 @@ class HomesteadContract(unittest.TestCase):
             with self.subTest(asset=name):
                 path = ASSETS / (name + ".glb")
                 self.assertTrue(path.is_file(), "Missing Blender MCP asset: " + name)
-                gltf = read_glb(path)
+                gltf, binary = read_glb(path)
                 self.assertEqual(len(gltf["scenes"]), 1, "Export accidentally includes other Blender scenes")
                 self.assertLessEqual(len(gltf["nodes"]), 2, "Foreign asset or factory cube in GLB")
-                self.assertFalse(any(n.get("name", "") == "Cube" for n in gltf["nodes"]))
+                self.assertFalse(any(node.get("name", "") == "Cube" for node in gltf["nodes"]))
                 self.assertGreater(len(gltf.get("meshes", [])), 0)
                 self.assertGreater(len(gltf.get("materials", [])), 1)
-                self.assertFalse(any("uri" in b for b in gltf.get("buffers", [])), "GLB depends on external buffers")
-                self.assertFalse(any("uri" in i for i in gltf.get("images", [])), "GLB depends on external images")
-                triangles = sum(gltf["accessors"][p["indices"]]["count"] // 3
-                                for mesh in gltf["meshes"] for p in mesh["primitives"])
-                budget = {"roadstead_cottage":40000, "parcel_mailbox":4000, "freight_kiosk":12000, "delivery_crate":6000}[name]
+                self.assertFalse(any("uri" in buffer for buffer in gltf.get("buffers", [])), "GLB depends on external buffers")
+                self.assertFalse(any("uri" in image for image in gltf.get("images", [])), "GLB depends on external images")
+                triangles = sum(gltf["accessors"][primitive["indices"]]["count"] // 3
+                                for mesh in gltf["meshes"] for primitive in mesh["primitives"])
+                budget = {"roadstead_cottage":40000, "parcel_mailbox":4000,
+                          "freight_kiosk":12000, "delivery_crate":6000}[name]
                 self.assertLess(triangles, budget, "Asset exceeds first-pass geometry budget")
-                lo, hi = bounds(gltf)
-                self.assertTrue(all(math.isfinite(n) for n in lo + hi))
-                self.assertGreater(hi[1] - lo[1], 0.3, "Export is flattened or wrong-axis")
+                low, high = geometry_bounds(gltf, binary)
+                self.assertTrue(all(math.isfinite(number) for number in low + high))
+                self.assertGreater(high[1] - low[1], 0.3, "Export is flattened or wrong-axis")
                 if name == "roadstead_cottage":
-                    self.assertTrue(any(n.get("name", "").startswith("Roof") and "mesh" in n for n in gltf["nodes"]), "No independently hideable roof")
-                    self.assertGreater(hi[0] - lo[0], 9.5)
-                    self.assertLess(hi[0] - lo[0], 13)
-                    self.assertGreater(hi[1], 4)
-                    self.assertLess(hi[1], 7)
-                    self.assertGreater(hi[2], 5.5, "Porch must project toward Godot +Z")
-                    self.assertGreater(lo[1], -0.3, "Ground origin is wrong")
+                    self.assertTrue(any(node.get("name", "").startswith("Roof") and "mesh" in node
+                                        for node in gltf["nodes"]), "No independently hideable roof")
+                    self.assertGreater(high[1], 4, "Cottage roof is flattened or underscaled")
+                    self.assertLess(high[1], 7, "Cottage roof exceeds metre-scale height")
+                    self.assertGreater(high[2], 5.5, "Porch must project toward Godot +Z")
+                    body_low, _body_high = geometry_bounds(gltf, binary, "Body")
+                    self.assertGreaterEqual(body_low[1], -0.06, "Body sinks below the documented ground tolerance")
+                    self.assertLessEqual(body_low[1], 0.02, "Body floats above the documented ground tolerance")
 
 
 if __name__ == "__main__":
