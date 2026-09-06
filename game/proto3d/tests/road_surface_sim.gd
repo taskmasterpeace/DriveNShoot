@@ -35,11 +35,12 @@ func capture(id: String) -> void:
 	captures.append({"id":id,"pixels":str(picture.get_size()),"player":str(main.player.global_position),
 		"car":str(main.active_car.global_position) if main.active_car != null else "on foot",
 		"camera":str(main.cam_rig._cam.global_position),"hour":main.daynight.hour,
-		"note":"Actual unedited game render. Initial location/vehicle staging; real E/W thereafter. Comparison clock held at 11:00. Isolated fresh profile."})
+		"note":"Actual unedited game render. Locations are photographically staged, not continuous-trip evidence. See the named scene for real inputs exercised. Comparison clock held at 11:00. Isolated fresh profile."})
 
-func probe_road(rid: String, slabs: Array[MeshInstance3D], at: Vector3) -> void:
+func probe_road(rid: String, slabs: Array[MeshInstance3D], at: Vector3, terrain_only: bool = false) -> void:
 	var probes: int = 0
 	var buried: int = 0
+	var missed: int = 0
 	var maximum: float = -INF
 	var worst := Vector3.ZERO
 	var collider_name: String = ""
@@ -53,7 +54,20 @@ func probe_road(rid: String, slabs: Array[MeshInstance3D], at: Vector3) -> void:
 				continue
 			var query := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 20, point - Vector3.UP * 5, 1)
 			var hit: Dictionary = main.get_world_3d().direct_space_state.intersect_ray(query)
+			# The separate profile gate inspects physical terrain, while the
+			# default broader gate STILL counts median/other obstruction hits.
+			if terrain_only:
+				var excluded: Array[RID] = []
+				for attempt: int in 32:
+					if hit.is_empty() or (hit["collider"] as Node).has_meta("relief_floor"):
+						break
+					excluded.append((hit["collider"] as CollisionObject3D).get_rid())
+					query.exclude = excluded
+					hit = main.get_world_3d().direct_space_state.intersect_ray(query)
+				if not hit.is_empty() and not (hit["collider"] as Node).has_meta("relief_floor"):
+					hit = {}
 			if hit.is_empty():
+				missed += 1
 				continue
 			probes += 1
 			var gap: float = (hit["position"] as Vector3).y - point.y
@@ -70,7 +84,8 @@ func probe_road(rid: String, slabs: Array[MeshInstance3D], at: Vector3) -> void:
 				buried += 1
 	print("ROAD SURFACE diagnostic: road=%s probes=%d buried=%d max=%.3f worst=%s collider=%s ground_y=%.3f" % [rid,probes,buried,maximum,worst,collider_name,ProtoWorldBuilder.ground_y(worst.x,worst.z)])
 	check(rid + " has sampled physical pavement", probes >= 20)
-	check(rid + " is not buried under terrain or blockers", buried == 0)
+	check(rid + " has a floor at every tested pavement point", missed == 0)
+	check(rid + (" is not buried under physical terrain" if terrain_only else " is not buried under terrain or blockers"), buried == 0)
 
 func run_checks(slabs: Array[MeshInstance3D], at: Vector3) -> void:
 	for rid: String in ["I-90", "I-90_X11-off", "I-90_X11-on", "I-90_X11-off-r", "I-90_X11-on-r"]:

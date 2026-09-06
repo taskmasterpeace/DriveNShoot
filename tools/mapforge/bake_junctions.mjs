@@ -819,10 +819,8 @@ export function stampTownStreets(map, finalizeRoads = null) {
 const MACRO_MAX_M = 30.0;
 const MAX_GRADE = 0.06;
 const TOWN_FLAT_M = 150.0, TOWN_FADE_M = 110.0;
-export function bakeRoadRelief(map) {
+function reliefField(map) {
 	const relief = map.relief || [];
-	const stats = { roads: 0, points: 0, ramps: 0, streets: 0, capped: 0 };
-	if (!relief.length) return stats; // unpainted map: law dormant
 	const [ox, oz] = map.world_offset, cm = map.cell_m;
 	const cell = (cx, cz) => {
 		if (cz < 0 || cz >= relief.length) return 0;
@@ -851,9 +849,14 @@ export function bakeRoadRelief(map) {
 			return best.bench + (h - best.bench) * ((bd - TOWN_FLAT_M) / TOWN_FADE_M);
 		return h;
 	};
+	return { macroY, towns };
+}
+
+export function bakeRoadRelief(map) {
+	const stats = { roads: 0, points: 0, ramps: 0, streets: 0, capped: 0 };
+	if (!(map.relief || []).length) return stats; // unpainted map: law dormant
+	const { macroY, towns } = reliefField(map);
 	const network = new Set(["interstate", "us_route", "state_road", "county", "backroad", "dirt"]);
-	const byId = {};
-	for (const r of map.roads || []) byId[r.id] = r;
 	for (const r of map.roads || []) {
 		const kind = r.kind || "interstate";
 		if (String(r.id).startsWith("ST-")) {
@@ -910,7 +913,18 @@ export function bakeRoadRelief(map) {
 		stats.roads++;
 		stats.points += elev.length;
 	}
-	// RAMPS: start at the highway's own height at the peel point, land on terrain.
+	stats.ramps = bakeRampRelief(map).ramps;
+	return stats;
+}
+
+// Correct the ramp profile without rebaking highways/overpass humps or changing
+// junctions and town content. Original path vertices survive; new ones are
+// strictly collinear. The terminal joining the highway depends on ramp direction.
+export function bakeRampRelief(map) {
+	const stats = { ramps: 0, points_added: 0 };
+	if (!(map.relief || []).length) return stats;
+	const { macroY } = reliefField(map);
+	const byId = new Map((map.roads || []).map(r => [r.id,r]));
 	const arcH = (road, p) => {
 		// height of `road` at the polyline point nearest p (linear within segment)
 		let best = { d: 1e18, h: 0 };
@@ -926,16 +940,46 @@ export function bakeRoadRelief(map) {
 		return best.h;
 	};
 	for (const ex of map.exits || []) {
-		const hwy = byId[ex.highway_id];
+		const hwy = byId.get(ex.highway_id);
 		if (!hwy || !hwy.elev) continue;
 		for (const rid of ex.ramp_ids || []) {
-			const rp = byId[rid];
-			if (!rp) continue;
-			const startH = arcH(hwy, rp.pts[0]);
-			const endH = macroY(rp.pts[rp.pts.length - 1][0], rp.pts[rp.pts.length - 1][1]);
-			const n = rp.pts.length - 1 || 1;
-			rp.elev = rp.pts.map((_, i) => Math.round(Math.max(0, startH + (endH - startH) * (i / n)) * 100) / 100);
-			rp.elev_mode = "structure"; // ramps FLY — the land never warps up to meet them
+			const rp = byId.get(rid);
+			if (!rp || rp.kind !== "exit" || rp.pts.length < 2) continue;
+			const original=rp.pts;
+			const arcs=[0];
+			for(let i=1;i<original.length;i++) arcs.push(arcs[i-1]+Math.hypot(original[i][0]-original[i-1][0],original[i][1]-original[i-1][1]));
+			const total=arcs.at(-1);
+			const off=Math.hypot(original[0][0]-ex.pos[0],original[0][1]-ex.pos[1]) <= SNAP_M*2;
+			const join=off ? original[0] : original.at(-1);
+			const correction=arcH(hwy,join)-macroY(join[0],join[1]);
+			const blend=Math.min(120,total);
+			const sample=(point,arc)=>{
+				const fromJoin=off ? arc : total-arc;
+				const weight=blend>0 ? Math.max(0,1-fromJoin/blend) : 1;
+				return Math.max(0,macroY(point[0],point[1])+correction*weight);
+			};
+			const points=[original[0]], heights=[sample(original[0],0)];
+			const appendSpan=(a,b,aa,ba,ah,bh,depth=0)=>{
+				const length=ba-aa;
+				let error=0;
+				for(const t of [0.25,0.5,0.75]) {
+					const p=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+					error=Math.max(error,Math.abs(sample(p,aa+length*t)-(ah+(bh-ah)*t)));
+				}
+				if(depth<16 && length>0.5 && (length>64.000001 || error>0.0125)) {
+					const mid=[(a[0]+b[0])*0.5,(a[1]+b[1])*0.5], ma=(aa+ba)*0.5;
+					const mh=sample(mid,ma);
+					appendSpan(a,mid,aa,ma,ah,mh,depth+1);
+					appendSpan(mid,b,ma,ba,mh,bh,depth+1);
+				} else { points.push(b); heights.push(bh); }
+			};
+			for(let i=1;i<original.length;i++) appendSpan(original[i-1],original[i],arcs[i-1],arcs[i],sample(original[i-1],arcs[i-1]),sample(original[i],arcs[i]));
+			stats.points_added+=points.length-original.length;
+			rp.pts=points;
+			rp.elev=heights.map(h=>Math.round(h*100)/100);
+			// Clearance/topology is a separate contract: do not silently warp the
+			// land across the highway underneath a still-unrepaired mirrored ramp.
+			rp.elev_mode = "structure";
 			stats.ramps++;
 		}
 	}

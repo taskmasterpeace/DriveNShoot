@@ -860,7 +860,9 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 	var mid := (a + b) * 0.5
 	var dir := b - a
 	var seg_len := dir.length()
-	if seg_len <= 4.0:
+	# Adaptive elevation profiles and chunk clipping create valid short spans.
+	# Discard only degenerate slivers: a 4m cutoff punches holes in ramps.
+	if seg_len <= 0.05:
 		return
 	var rid := String(row["id"])
 	var g := ProtoUSMap.road_geometry(row)

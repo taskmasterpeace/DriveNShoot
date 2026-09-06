@@ -17,13 +17,24 @@ passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Current-source screenshot follow-up — 2026-09-06
 
+The [ramp profile audit](verification/RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md)
+adds four before/after comparisons, repairs 207 ramp height profiles and closes
+short-segment pavement gaps. Independent review verifies original XZ vertices,
+collinear insertions and unrelated data are preserved. Final checks: 61/0 GPU,
+20/0 Node and **260/3 focused headless**. The open failures are two physical
+median crossings and the original baseline billboard assertion. The separate
+profile gate is 25/0 GPU and 21/0 headless; it does not replace the broader
+**15/2** obstruction gate. Final evidence review accepted this bounded repair. No finished
+interchange, nationwide completion, newer ZIP or save recovery is claimed.
+
 The [Seattle roadside audit](verification/ROADSIDE_VISUAL_AUDIT_2026_09_06.md)
 adds three new real captures and three baselines. Grounded poles/posts and
 road/building-aware strip clipping now include local streets reserved before
 streaming decoration. Independent review closed the construction-order finding.
-Final focused checks: 36/0 GPU and 157/0 headless, clean logs. The broader physical
-ramp probe still fails **9/3**, exposing terrain burial and a median crossing;
-this is not a finished interchange or USA. No newer ZIP or save recovery.
+At that checkpoint, focused checks were 36/0 GPU and 157/0 headless, clean logs.
+The then-failing **9/3** ramp probe exposed terrain burial and a median crossing;
+the newer profile audit above supersedes that result. Neither pass certifies a
+finished interchange or USA. No newer ZIP or save recovery.
 
 The [route atlas audit](verification/ATLAS_VISUAL_AUDIT_2026_09_06.md) adds seven
 new real views and an unchanged-source baseline. Wide planning, readable and

@@ -16,6 +16,20 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — screenshot-led ramp profile and pavement repair
+
+The [four-pair visual audit](verification/RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md)
+repairs geographic ramp heights and renderer gaps on valid short segments.
+The selective migration changes 207 owned ramps, retains original XZ vertices
+and unrelated data, adds 3,304 collinear points and is idempotent. Five final
+captures pass 61 GPU checks; Node checks pass 20/20. The expanded headless batch
+is **260/3**, not all green: two broad-gate median-crossing failures and the
+existing baseline billboard failure remain. Final logs are clean; no timeouts.
+The broad ramp result is now **15/2**, superseding the earlier 9/3 below; the
+separate terrain/short-span gate passes 21/0 headless and 25/0 GPU. Source review
+closed three findings and accepted the final evidence/docs. Exit topology, city
+art and the full-game mission remain unfinished. No new export or save recovery.
+
 ## 2026-09-06 — screenshot-led roadside clearance repair
 
 The [Seattle before/after audit](verification/ROADSIDE_VISUAL_AUDIT_2026_09_06.md)

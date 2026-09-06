@@ -1,0 +1,62 @@
+[
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-035a2075c1bc440e89f51360233bd150\\captures\\01_seattle_approach.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-before\\01_seattle_approach.png",
+    "sha256": "4B924B9147E580593448F3EAEABD31278ECC9639206072711938B82704864FE3",
+    "bytes": 432585
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-035a2075c1bc440e89f51360233bd150\\captures\\02_i5_short_ramp_section.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-before\\02_i5_short_ramp_section.png",
+    "sha256": "B31CDE37C40F71944C6F5A60E4C87B7DE342805182CE02E1E3CACE400F064BDD",
+    "bytes": 846424
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-035a2075c1bc440e89f51360233bd150\\captures\\manifest.json",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-before\\manifest.json",
+    "sha256": "0C5558AADE30F360C9BC158389D9F0E697B3BDDA44D42D8B73B763AE55A46824",
+    "bytes": 818
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-698b7eeffa544659a1e46f0b5def7e82\\captures\\01_seattle_approach.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-after\\01_seattle_approach.png",
+    "sha256": "5A611A94CEC3228722D84968565A9E65597EC4D3B9D9A98B761CD885B2293B5A",
+    "bytes": 435661
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-698b7eeffa544659a1e46f0b5def7e82\\captures\\02_i5_short_ramp_section.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-after\\02_i5_short_ramp_section.png",
+    "sha256": "446D57E29F3C7A23BCF617D59AF79A72644A057E34697455D2C7750EF29F7B0A",
+    "bytes": 842345
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-698b7eeffa544659a1e46f0b5def7e82\\captures\\manifest.json",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\profile-after\\manifest.json",
+    "sha256": "1393839E8917025DC00A36516C50D63A3D563EEC8C765A037C4C1FF99EA38071",
+    "bytes": 940
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-4197dae915934e0a99f27afe38b12a73\\captures\\01_seattle_approach.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\drive-after\\01_seattle_approach.png",
+    "sha256": "327039DE7E6C6CCF2423D588D8C2B70551B8419E339BF1F3DD73713946902478",
+    "bytes": 427455
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-4197dae915934e0a99f27afe38b12a73\\captures\\02_return_ramp_before_drive.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\drive-after\\02_return_ramp_before_drive.png",
+    "sha256": "D15B7C439D930AEA44189103E1A99A789798D59B4E879A3DA5ECAB61103CE548",
+    "bytes": 458493
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-4197dae915934e0a99f27afe38b12a73\\captures\\03_return_ramp_after_drive.png",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\drive-after\\03_return_ramp_after_drive.png",
+    "sha256": "B9B37C697E0C6E71C43AF224905D06D0467C9D51F6233A77D8B75FA632491BC7",
+    "bytes": 743058
+  },
+  {
+    "source": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-4197dae915934e0a99f27afe38b12a73\\captures\\manifest.json",
+    "copy": "D:\\git\\carworld\\.worktrees\\america-foundation\\docs\\renders\\ramp-profile-2026-09-06\\drive-after\\manifest.json",
+    "sha256": "1646D74B754A128131DC22A204DE92C7C0E20697856D5F46C59DC1997056A8A8",
+    "bytes": 1423
+  }
+]

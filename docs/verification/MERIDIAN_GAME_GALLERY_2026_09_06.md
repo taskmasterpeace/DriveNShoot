@@ -11,6 +11,9 @@ the map now has [seven new views and a readability repair](ATLAS_VISUAL_AUDIT_20
 The [Seattle roadside follow-up](ROADSIDE_VISUAL_AUDIT_2026_09_06.md) adds three
 before/after pairs, fixes floating/overlapping scenery, and preserves a failing
 physical ramp gate with its remaining visual defects.
+The newer [ramp surface audit](RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md) shows
+four before/after pairs: corrected ramp heights and a closed I-5 asphalt gap,
+with tangled joins and physical median crossings still explicitly unfinished.
 The original tour frames below are retained for comparison.
 The previous overwritten player save is still unrecovered; this tour used
 disposable isolated saves, never that profile.

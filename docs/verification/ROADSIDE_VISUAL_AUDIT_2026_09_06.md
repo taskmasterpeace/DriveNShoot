@@ -1,5 +1,10 @@
 # Seattle roadside — screenshot-led clearance repair
 
+Follow-up: the [newer ramp profile audit](RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md)
+repairs height-related burial and short-span pavement gaps. Its 15/2 broad
+gate still fails two median crossings; the historical 9/3 result below is
+preserved as the pre-profile baseline.
+
 Three new actual game views, paired with three unchanged-source baseline
 captures. This is a bounded scenery-placement repair on `codex/america-foundation`,
 not a finished interchange, polished USA, new Windows export or MMO release.
