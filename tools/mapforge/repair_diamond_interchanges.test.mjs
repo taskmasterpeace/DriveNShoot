@@ -39,6 +39,24 @@ function fixture() {
 	};
 }
 
+function addCrossingExit(map) {
+	map.roads.push(
+		{ id: 'main-y', kind: 'interstate', pts: [[-1500, -500], [900, -500]], elev: [0, 0], elev_mode: 'ground', lanes: 6, divided: true },
+		{ id: 'town-y', kind: 'street', pts: [[-300, -140], [-300, -60]], elev: [0, 0], elev_mode: 'ground', lanes: 2 },
+		{ id: 'y-cedar', side: 1, pts: [[-300, -485.4], [-220, -469], [-300, -320]], kind: 'exit', lanes: 2, divided: false },
+		{ id: 'y-violet', side: 1, pts: [[-300, -320], [-120, -469], [-40, -485.4]], kind: 'exit', lanes: 2, divided: false },
+		{ id: 'y-amber', side: -1, pts: [[-300, -514.6], [-380, -531], [-300, -680]], kind: 'exit', lanes: 2, divided: false },
+		{ id: 'y-cobalt', side: -1, pts: [[-300, -680], [-480, -531], [-560, -514.6]], kind: 'exit', lanes: 2, divided: false },
+	);
+	map.exits.push({ id: 'Y', highway_id: 'main-y', pos: [-300, -500], dest: [-300, -100],
+		ramp_ids: ['y-cedar', 'y-violet', 'y-amber', 'y-cobalt'], name: 'CROSSING EXIT' });
+	map.junctions.push(
+		{ id: 'y-mouth', kind: 'ramp_mouth', legs: [{ road: 'main-y' }, { road: 'y-cedar' }, { road: 'y-amber' }] },
+		{ id: 'y-violet-port', kind: 'ramp_rejoin', legs: [{ road: 'main-y' }, { road: 'y-violet' }] },
+		{ id: 'y-cobalt-port', kind: 'ramp_rejoin', legs: [{ road: 'main-y' }, { road: 'y-cobalt' }] },
+	);
+}
+
 function staged(change = () => {}) {
 	const root = resolve('build');
 	mkdirSync(root, { recursive: true });
@@ -96,6 +114,37 @@ test('migration API reports exact selected replacement counts', () => {
 	assert.deepEqual(source.applyDiamondInterchanges(map, ['X']), { exits: 1, roads: 6, junctions: 8 });
 });
 
+test('existing invalid or contradictory explicit ramp roles reject without mutating input', () => {
+	for (const role of ['on', 'invalid']) {
+		const map = fixture();
+		map.roads.find((road) => road.id === 'cedar').ramp_role = role;
+		const before = structuredClone(map);
+		assert.throws(() => source.applyDiamondInterchanges(map, ['X']), /role|contradict|invalid/i);
+		assert.deepEqual(map, before);
+	}
+});
+
+test('authored, owner-authored, explicitly nongenerated, and unsupported legacy ramps reject without mutation', () => {
+	for (const [field, value] of [['authored', true], ['owner_authored', true], ['generated', false], ['geom', 'hand_authored']]) {
+		const map = fixture();
+		map.roads.find((road) => road.id === 'cedar')[field] = value;
+		const before = structuredClone(map);
+		assert.throws(() => source.applyDiamondInterchanges(map, ['X']), /authored|generated|geom|scheme/i);
+		assert.deepEqual(map, before);
+	}
+});
+
+test('managed regeneration also rejects authored or unsupported ramp rows without mutation', () => {
+	for (const [field, value] of [['authored', true], ['generated', false], ['geom', 'hand_authored']]) {
+		const map = fixture();
+		source.applyDiamondInterchanges(map, ['X']);
+		map.roads.find((road) => road.id === 'cedar')[field] = value;
+		const before = structuredClone(map);
+		assert.throws(() => source.applyDiamondInterchanges(map, ['X']), /authored|generated|geom|scheme/i);
+		assert.deepEqual(map, before);
+	}
+});
+
 test('missing and ambiguous role ownership reject before write', () => {
 	for (const [name, change, pattern] of [
 		['missing', (map) => { map.junctions = map.junctions.filter((row) => !row.legs.some((leg) => leg.road === 'cobalt')); }, /role|junction|cobalt/i],
@@ -143,7 +192,8 @@ test('expected source digest permits the reviewed write', () => {
 test('dry run reports footprint and external-road conflicts while write fails closed', () => {
 	const { directory, path } = staged((map) => {
 		map.placements.push({ id: 'blocked-building', building: 'safehouse', pos: [0, 100], rot: 0 });
-		map.roads.push({ id: 'intruder', kind: 'county', lanes: 2, divided: false, pts: [[-50, 100], [50, 100]], custom: 'KEEP' });
+		map.roads.push({ id: 'intruder', kind: 'county', lanes: 2, divided: false, pts: [[-50, 100], [50, 100]],
+			interchange_id: 'X', custom: 'KEEP' });
 	});
 	try {
 		const before = readFileSync(path);
@@ -156,6 +206,22 @@ test('dry run reports footprint and external-road conflicts while write fails cl
 		const write = run(path, '--write', '--exit=X');
 		assert.notEqual(write.status, 0);
 		assert.match(write.stderr, /conflict/i);
+		assert.deepEqual(readFileSync(path), before);
+	} finally { cleanup(directory); }
+});
+
+test('two explicitly selected interchange owners remain external to each other for conflict rejection', () => {
+	const { directory, path } = staged(addCrossingExit);
+	try {
+		const before = readFileSync(path);
+		const dry = run(path, '--exit=X', '--exit=Y');
+		assert.equal(dry.status, 0, dry.stderr);
+		const conflicts = JSON.parse(dry.stdout).external_road_conflicts;
+		assert.ok(conflicts.some((row) => row.exit === 'X' && row.external_exit === 'Y'
+			|| row.exit === 'Y' && row.external_exit === 'X'), JSON.stringify(conflicts));
+		const write = run(path, '--write', '--exit=X', '--exit=Y');
+		assert.notEqual(write.status, 0);
+		assert.match(write.stderr, /external road conflict/i);
 		assert.deepEqual(readFileSync(path), before);
 	} finally { cleanup(directory); }
 });

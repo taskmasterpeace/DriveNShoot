@@ -14,9 +14,18 @@ function sha256(bytes) {
 	return createHash('sha256').update(bytes).digest('hex');
 }
 
+function selectedRoadOwners(map, exitIds) {
+	const selected = new Set(exitIds), owners = new Map();
+	for (const exit of map.exits || []) {
+		if (!selected.has(exit.id)) continue;
+		for (const roadId of [...(exit.ramp_ids || []), ...(exit.connector_ids || [])]) owners.set(roadId, exit.id);
+	}
+	return owners;
+}
+
 function buildingConflicts(map, exitIds, profiles) {
-	const selected = new Set(exitIds);
-	const corridors = buildRoadCorridors((map.roads || []).filter((road) => selected.has(road.interchange_id)));
+	const owners = selectedRoadOwners(map, exitIds);
+	const corridors = buildRoadCorridors((map.roads || []).filter((road) => owners.has(road.id)));
 	return (map.placements || []).flatMap((placement) => {
 		const roads = footprintRoadConflicts(placementFootprint(placement, profiles), corridors);
 		return roads.length ? [{ placement: placement.id, building: placement.building, roads }] : [];
@@ -36,13 +45,14 @@ function segmentIntersection(a, b, c, d) {
 function externalRoadConflicts(map, exitIds) {
 	const selected = new Set(exitIds);
 	const exits = new Map((map.exits || []).filter((exit) => selected.has(exit.id)).map((exit) => [exit.id, exit]));
-	const managed = (map.roads || []).filter((road) => selected.has(road.interchange_id));
-	const managedIds = new Set(managed.map((road) => road.id));
-	const external = (map.roads || []).filter((road) => !managedIds.has(road.id));
+	const owners = selectedRoadOwners(map, exitIds);
+	const managed = (map.roads || []).filter((road) => owners.has(road.id));
 	const conflicts = new Map();
 	for (const road of managed) {
-		const exit = exits.get(road.interchange_id);
-		for (const other of external) {
+		const owner = owners.get(road.id), exit = exits.get(owner);
+		for (const other of map.roads || []) {
+			const otherOwner = owners.get(other.id);
+			if (other.id === road.id || otherOwner === owner) continue;
 			if (other.id === exit.highway_id) continue;
 			for (let i = 1; i < road.pts.length; i++) for (let j = 1; j < other.pts.length; j++) {
 				const pos = segmentIntersection(road.pts[i - 1], road.pts[i], other.pts[j - 1], other.pts[j]);
@@ -50,9 +60,10 @@ function externalRoadConflicts(map, exitIds) {
 				const atDestination = road.id === `${exit.id}-town-link`
 					&& Math.hypot(pos[0] - exit.dest[0], pos[1] - exit.dest[1]) <= 1.01;
 				if (atDestination) continue;
-				const key = `${road.id}\0${other.id}`;
+				const key = [road.id, other.id].sort().join('\0');
 				if (!conflicts.has(key)) conflicts.set(key, { exit: exit.id, managed_road: road.id,
-					external_road: other.id, pos: pos.map((value) => Math.round(value * 100) / 100) });
+					external_road: other.id, ...(otherOwner ? { external_exit: otherOwner } : {}),
+					pos: pos.map((value) => Math.round(value * 100) / 100) });
 			}
 		}
 	}

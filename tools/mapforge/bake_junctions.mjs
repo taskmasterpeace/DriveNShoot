@@ -875,7 +875,7 @@ function stageLegacyDiamondRoles(map, exitIds) {
 		if (!exit) throw new Error(`Unknown exit ${exitId}`);
 		if (exit.interchange && !managedDiamond(exit))
 			throw new Error(`Exit ${exitId}: unsupported authored interchange layout ${exit.interchange.layout || "unknown"}`);
-		if (managedDiamond(exit)) continue;
+		const managed = managedDiamond(exit);
 		if (!Array.isArray(exit.ramp_ids) || exit.ramp_ids.length !== 4 || new Set(exit.ramp_ids).size !== 4)
 			throw new Error(`Exit ${exitId}: exactly four distinct owned ramp IDs are required`);
 		const highway = roads.get(exit.highway_id);
@@ -888,6 +888,18 @@ function stageLegacyDiamondRoles(map, exitIds) {
 			if ((ramp.exit_id && ramp.exit_id !== exitId) || (ramp.interchange_id && ramp.interchange_id !== exitId)
 				|| (map.exits || []).some((other) => other.id !== exitId && other.ramp_ids?.includes(rampId)))
 				throw new Error(`Ramp ${rampId} has foreign ownership`);
+			if (ramp.authored === true || ramp.owner_authored === true || ramp.generated === false)
+				throw new Error(`Ramp ${rampId}: authored or explicitly nongenerated geometry cannot be migrated`);
+			if (managed) {
+				if (ramp.geom !== "diamond_v2") throw new Error(`Ramp ${rampId}: managed geom scheme must remain diamond_v2`);
+				if (ramp.ramp_role !== "off" && ramp.ramp_role !== "on")
+					throw new Error(`Ramp ${rampId}: invalid managed ramp role ${ramp.ramp_role}`);
+				continue;
+			}
+			if (ramp.geom !== undefined && ramp.geom !== null && ramp.geom !== "" && ramp.geom !== "peel_v1")
+				throw new Error(`Ramp ${rampId}: unsupported legacy geom scheme ${ramp.geom}`);
+			if (ramp.ramp_role !== undefined && ramp.ramp_role !== "off" && ramp.ramp_role !== "on")
+				throw new Error(`Ramp ${rampId}: invalid explicit ramp role ${ramp.ramp_role}`);
 			const roles = new Set();
 			for (const junction of map.junctions || []) {
 				if (junction.kind !== "ramp_mouth" && junction.kind !== "ramp_rejoin") continue;
@@ -900,6 +912,8 @@ function stageLegacyDiamondRoles(map, exitIds) {
 			if (roles.size !== 1)
 				throw new Error(`Ramp ${rampId}: ${roles.size ? "ambiguous" : "missing"} role junction naming owning highway ${exit.highway_id}`);
 			const role = [...roles][0];
+			if (ramp.ramp_role !== undefined && ramp.ramp_role !== role)
+				throw new Error(`Ramp ${rampId}: explicit role ${ramp.ramp_role} contradicts ${role} role junction`);
 			if (ramp.side !== -1 && ramp.side !== 1) throw new Error(`Ramp ${rampId}: side must be +1 or -1`);
 			if (!Array.isArray(ramp.pts) || ramp.pts.length < 2) throw new Error(`Ramp ${rampId}: terminal polyline required`);
 			const terminalIndex = role === "off" ? 0 : ramp.pts.length - 1;
