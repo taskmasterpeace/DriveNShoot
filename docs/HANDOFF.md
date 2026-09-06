@@ -1,5 +1,17 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-06 — test-save isolation incident (recovery open)
+
+An unisolated road-life regression overwrote the existing normal player save.
+The [incident record](verification/TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md)
+documents the write, preserved affected copies and unsuccessful backup checks.
+Preservation is not recovery; no verified pre-test playthrough has been restored.
+A fail-closed harness guard is implemented in `1a6976f`: both unsafe entry modes
+refuse before loading the game and preserve disposable save sentinels. The driver
+passes 11 checks; isolated gameplay/restart remain 71/0 and 5/0. Independent task
+review is approved; final milestone review is pending. Do not run game/import verification against the normal Godot profile;
+isolate APPDATA and LOCALAPPDATA.
+
 ## 2026-09-06 — bounded realm purchase process proof
 
 The [independent-process verification](verification/REALM_PURCHASE_2026_09_06.md)
@@ -10,6 +22,11 @@ credential expiry, real write lock/retry, forced server restart, interrupted-sen
 recovery, corrupt-state rejection and the explicit server flag are observed. Fixture
 resources are statically excluded by the Windows export preset; a new exported pack
 was not inspected in this task.
+
+The 241 assertion result is not a pristine diagnostic gate: the link component
+logged a failed port-bind attempt, and road-life reported an ObjectDB/one-resource
+exit leak. Both 57-check process workflows had clean child logs. These caveats and
+the save incident remain separate from the successful assertion counts.
 
 This is a test-fixture purchase-authority slice, not a player-facing realm. The
 property panel remains offline/local. Public authentication, encrypted and

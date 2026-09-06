@@ -32,7 +32,7 @@
 - `connect_loopback(port: int, credential: String) -> Error`; `send_command(command: Dictionary) -> Error`; `close() -> void`.
 - Link owns an independently polled SceneMultiplayer, not SceneTree.multiplayer. Duplicate starts reject without replacing live connection; close is safe and frees its peer.
 
-- [ ] Write tests first. The RED test dynamically loads missing script only after checking ResourceLoader.exists so missing functionality is an assertion failure, not parse failure. Catch these realistic bugs: unknown fields accepted, bool/fraction version accepted, request overflow, colon-based receipt collisions, raw account leakage, shared view mutation, unverified/expired accounts admitted, unauthenticated commands accepted, stale-session mutations, ignored packet limits and leaked network API replacement.
+- [x] Write tests first. The RED test dynamically loads missing script only after checking ResourceLoader.exists so missing functionality is an assertion failure, not parse failure. Catch these realistic bugs: unknown fields accepted, bool/fraction version accepted, request overflow, colon-based receipt collisions, raw account leakage, shared view mutation, unverified/expired accounts admitted, unauthenticated commands accepted, stale-session mutations, ignored packet limits and leaked network API replacement.
 
 ```gdscript
 check("realm protocol exists", ResourceLoader.exists("res://proto3d/realm/realm_protocol.gd"))
@@ -42,8 +42,8 @@ var purchase := {"version":1, "kind":"purchase", "request_id":"buy-1", "parcel_i
 # receipt_key("a:b", "c") != receipt_key("a", "b:c").
 ```
 
-- [ ] Run RED with isolated APPDATA and the installed console Godot; retain exact failing output. Import new class names before later runs.
-- [ ] Implement strict protocol and link. Parse size-bounded UTF-8 JSON before routing. The core mutation path must remain:
+- [x] Run RED with isolated APPDATA and the installed console Godot; retain exact failing output. Import new class names before later runs.
+- [x] Implement strict protocol and link. Parse size-bounded UTF-8 JSON before routing. The core mutation path must remain:
 
 ```gdscript
 # peer_id comes from SceneMultiplayer.peer_packet, never client JSON.
@@ -54,8 +54,8 @@ var result: Dictionary = ledger.purchase(identity.account_id, command.parcel_id,
 # Send receipt only after the real ledger returns; project separately for each peer.
 ```
 
-- [ ] Run focused unit/local-wire sims GREEN plus `property_ledger_sim`. Real loopback clients may share a test process here, but call them component checks, not the Task 2 multi-process proof. Use temporary ports/files, no external services, and bounded watchdogs.
-- [ ] Self-review, report exact RED/GREEN commands/output and files, commit only owned code/tests. Parent dispatches task review before Task 2 implementation.
+- [x] Run focused unit/local-wire sims GREEN plus `property_ledger_sim`. Real loopback clients may share a test process here, but call them component checks, not the Task 2 multi-process proof. Use temporary ports/files, no external services, and bounded watchdogs.
+- [x] Self-review, report exact RED/GREEN commands/output and files, commit only owned code/tests. Parent dispatches task review before Task 2 implementation.
 
 ## Task 2: Dedicated process race, restart, rejection and write-failure proof
 
@@ -63,9 +63,9 @@ var result: Dictionary = ledger.purchase(identity.account_id, command.parcel_id,
 
 **Interfaces:** Consume Task 1 signatures exactly. Test server reads `--realm-test-server --config=<absolute path>`; test client reads `--config=<absolute path>`. PowerShell creates fresh isolated fixture paths and controls only its own child processes. Server config supplies ledger path, port, credential hash rows with account/expiry, stop marker, ready path; clients receive a single raw credential and unique profile, not other credentials.
 
-- [ ] Write the PowerShell acceptance workflow first so it fails with the missing fixture scene before implementation. Use Start-Process Hidden with redirected logs, bounded waits, and own-process cleanup in finally. Require pwsh 7. No downloads, global process kills or secret logging.
-- [ ] Implement fixture server: explicit flag or exit failure; validate complete config/hash rows before opening ledger; seed 500 test scrip per known account with stable fixture receipts before READY; corrupt existing store is never reset; verifier hashes supplied token and compares fixture expiry; bind loopback through production link.
-- [ ] Implement fixture client: connect through production link, report admission/disconnect, retain actual incoming messages in result JSON; read numbered command files from its own fixture path and send exact requested packets. Test controller files are never network authority. Provide a common future send timestamp for the two-client race.
+- [x] Write the PowerShell acceptance workflow first so it fails with the missing fixture scene before implementation. Use Start-Process Hidden with redirected logs, bounded waits, and own-process cleanup in finally. Require pwsh 7. No downloads, global process kills or secret logging.
+- [x] Implement fixture server: explicit flag or exit failure; validate complete config/hash rows before opening ledger; seed 500 test scrip per known account with stable fixture receipts before READY; corrupt existing store is never reset; verifier hashes supplied token and compares fixture expiry; bind loopback through production link.
+- [x] Implement fixture client: connect through production link, report admission/disconnect, retain actual incoming messages in result JSON; read numbered command files from its own fixture path and send exact requested packets. Test controller files are never network authority. Provide a common future send timestamp for the two-client race.
 
 ```powershell
 # Hand-derived independent expectations after both real clients race:
@@ -76,9 +76,15 @@ if ($state.parcels.roadstead_001.owner_id -notin @('alice','bob')) { throw 'No d
 # with roadstead_002 returns receipt_conflict without changes.
 ```
 
-- [ ] Exercise every numbered acceptance in the design: racing, projections, exact replay and conflict, forged schema, bad/expired tokens, expiry after admission, oversized packet, real exclusive write lock and retry, forced task-server termination after acknowledgment and recovery, corrupt-state startup, omitted explicit flag. Tests must inspect the actual store and both clients' received messages. Do not claim interrupted backpack/guest/AOI proof.
-- [ ] Run the complete workflow twice with fresh fixtures and retain outputs, checks and per-process logs under ignored build directories. Copy non-secret acceptance summaries into verification docs. Run the existing property ledger and local road-life regressions after network proof.
-- [ ] Document exact passing/failed counts and limitations, commit only owned code/docs, request task review and whole-milestone review. Leave full-game goal active.
+- [x] Exercise every numbered acceptance in the design: racing, projections, exact replay and conflict, forged schema, bad/expired tokens, expiry after admission, oversized packet, real exclusive write lock and retry, forced task-server termination after acknowledgment and recovery, corrupt-state startup, omitted explicit flag. Tests must inspect the actual store and both clients' received messages. Do not claim interrupted backpack/guest/AOI proof.
+- [x] Run the complete workflow twice with fresh fixtures and retain outputs, checks and per-process logs under ignored build directories. Copy non-secret acceptance summaries into verification docs. Run the existing property ledger and local road-life regressions after network proof.
+- [x] Document exact passing/failed counts and limitations, commit only owned code/docs, and complete task review. Leave full-game goal active.
+- [ ] Complete whole-milestone review after Task 3; do not conflate passing assertions with clean diagnostics or recovery of the overwritten save.
+
+Task 2 violated profile isolation in two earlier component batches and overwrote
+the existing player save. Corrected isolated evidence does not erase that failure;
+see the incident record and Task 3 below. All future imports and runtime checks
+must set BOTH APPDATA and LOCALAPPDATA to fresh owned test directories.
 
 ## Task 3: Fail-closed road-life regression profile guard (incident remediation)
 
@@ -91,12 +97,13 @@ inside this checkout's designated `build/` or `.superpowers/sdd/` test roots.
 **Files:** `game/proto3d/tests/road_life_sim.gd`, new
 `tools/road_life_profile_guard.ps1`; update only incident prevention status.
 
-- [ ] Test first with a fresh disposable normal-like profile outside approved
+- [x] Test first with a fresh disposable normal-like profile outside approved
   roots and a save sentinel. Explicit APPDATA/LOCALAPPDATA apply even to RED.
   Preserve evidence that old behavior modifies only this owned sentinel.
-- [ ] Refuse unsafe paths before either exercise or restart-check; normalize
+- [x] Refuse unsafe paths before either exercise or restart-check; normalize
   Windows case, separators and dot segments; require full component containment.
-- [ ] GREEN proves rejected-profile sentinel unchanged and allowed fresh-profile
+- [x] GREEN proves rejected-profile sentinel unchanged and allowed fresh-profile
   real-input road-life71/0. Hidden owned processes, bounded waits and no deletion.
-- [ ] Retain exact commands/profile paths/logs, self-review, commit owned files,
-  independent task review, then whole-milestone review. Do not claim save recovery.
+- [x] Retain exact commands/profile paths/logs, self-review, commit owned files,
+  and complete independent task review (approved `1a6976f`).
+- [ ] Complete whole-milestone review. Do not claim save recovery.

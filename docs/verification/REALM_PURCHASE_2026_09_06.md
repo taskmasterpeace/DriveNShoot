@@ -74,8 +74,8 @@ pwsh -NoProfile -File tools/realm_loopback.ps1
 pwsh -NoProfile -File tools/realm_loopback.ps1
 # 57 passed, 0 failed (fresh run 2)
 
-Godot_v4.5.1-stable_win64_console.exe --headless --path game --import
-# exit 0; two pre-existing Dialogue Manager invalid-UID fallback warnings
+# Historical import: exit 0, two pre-existing Dialogue Manager invalid-UID
+# fallback warnings. It was not profile-isolated; do not repeat that invocation.
 
 $profile = Resolve-Path build/realm-purchase-task2-fix1/isolated-regression-profile-be2779981d8747ce93fb58c05dae9110
 $env:APPDATA = Join-Path $profile "Roaming"
@@ -99,11 +99,21 @@ outputs are `isolated-final-realm_protocol_sim.log`,
 `isolated-final-road_life_sim.log`. The two complete workflow outputs are retained
 beside them as `final-process-workflow-1.log` and `final-process-workflow-2.log`.
 
+The isolated component gate is **not diagnostic-clean**. The link log includes
+`Couldn't create an ENet host` from an unsuccessful temporary-port bind before a
+successful retry. The road-life log includes ObjectDB instances leaked at exit and
+one resource still in use. The assertion counts remain 241/0, but these diagnostics
+are unresolved wider-gate caveats. Both complete 57-check process workflows have
+clean child logs; their result must not be generalized to every component command.
+
 An earlier component gate inherited the normal Godot profile, and its road-life
 test changed the existing `user://drivn.save`. Those results are not used as the
 isolated regression evidence above. The affected files were preserved under
 `build/save-isolation-incident-f257d9f30f1a4eff8e8c987816a44cf4`; no restore,
 delete, or further normal-profile mutation was attempted.
+The [incident and prevention record](TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md)
+explicitly leaves recovery unresolved: these are copies of affected current files,
+not verified pre-test backups, and passing replacement tests do not undo the write.
 
 ## Exact boundary
 

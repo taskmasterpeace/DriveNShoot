@@ -2,6 +2,16 @@
 
 Working branch: `codex/america-foundation`, isolated from the original checkout at `f1290de`. This is a foundation milestone toward the larger DRIVN vision, **not a completed MMO or an assigned quality score**.
 
+## Test-save incident - recovery unresolved
+
+An unisolated regression overwrote the existing normal player save. The
+[incident record](verification/TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md) documents
+the confirmed write and preserved affected files, which are not pre-test backups.
+The original playthrough has not been recovered. A fail-closed road-life harness
+guard now passes its local safety checks and independent task review; final
+milestone review remains pending.
+All future engine/import verification must explicitly isolate both profile paths.
+
 ## Latest playable candidate — 2026-09-06
 
 The [habitation audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md#playable-windows-candidate--verified-after-the-visual-pass)
@@ -53,7 +63,7 @@ Nineteen failing scenes also failed in a separately imported clean `f1290de` sna
 
 Final title-only boot: 120 real main-scene frames, exit 0, no diagnostics and no save created. Local milestone review is complete; the remaining failures and production gates below still prevent a release-ready or global-completion claim.
 
-The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [next persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) records the missing two-client, dedicated-authority proof and failure cases; that gate is not yet implemented.
+The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) is now partially implemented: independent loopback clients authenticate to a dedicated purchase authority and race for a parcel, replay receipts, handle failed writes and recover after server termination. The [process proof](verification/REALM_PURCHASE_2026_09_06.md) passes 57 checks twice. This uses explicit test credentials, not public login; the player-facing property panel remains local. Component assertions passed 241/0, but port-bind and exit-resource diagnostics remain disclosed. Whole-milestone review is pending.
 
 ## What is still required for the requested large MMO
 
@@ -65,7 +75,7 @@ are retained. The following mission gates remain open.
 
 1. **Connected country:** certify every town's road connections, driveable approaches and streamed terrain seams; country content needs more than map pins or a distance-compression setting.
 2. **Authenticated persistent realms:** dedicated server account identity, authoritative movement/combat/economy, area-of-interest replication, reconnect/session rules and migrations. Current ENet co-op is not that service.
-3. **Real multiplayer ownership proof:** independent authenticated clients compete for the same parcel, survive a server restart and respect revoked access. Sequential local ledger commands prove only the component's serialization rules.
+3. **Complete multiplayer ownership integration:** the independent purchase race and restart are now proven for the loopback test service. Player-facing connection/purchase UI, authoritative world access, revoked guest access and interrupted backpack/storage recovery remain unproven over the network.
 4. **Content depth:** varied destinations, enemy tactics, meaningful item sinks, household uses, repeatable contracts, regional progression and consequences. One job-board neighborhood is a first loop, not a nationwide content rollout.
 5. **Production operations:** measured load and frame budgets, soak tests, recovery/backups, moderation, telemetry and abuse handling; signed Windows release packaging with asset-license review and real player testing.
 
