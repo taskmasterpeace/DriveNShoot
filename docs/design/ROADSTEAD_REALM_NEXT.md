@@ -1,6 +1,11 @@
 # Roadstead: next persistent-realm gate
 
-**Status: not implemented.** This is the acceptance boundary after the local road-to-home loop, not a claim that a public MMO exists.
+**Status: partial process proof implemented (2026-09-06).** The authenticated
+loopback purchase/race/replay/write-failure/restart slice passes twice in separate
+processes; see `docs/verification/REALM_PURCHASE_2026_09_06.md`. The playable
+property panel is still offline/local and is not connected to this authority.
+Public authentication, encrypted/server-authenticated transport, realm world and
+door authority, backpack/guest/AOI behavior, operations and capacity remain open.
 
 ## Current boundary
 
@@ -8,7 +13,7 @@
 
 RoadLife's first checkpoint is deliberately local. Do not add a remotely callable function that accepts an arbitrary account ID, reward amount, item count or claimed destination and delegates straight to its ledger.
 
-## Smallest meaningful next proof
+## Smallest meaningful process proof — completed subset
 
 Run a **separate headless realm process and two independent clients**, each with its own local profile. Use explicit server startup, dummy audio and test-only identity fixtures. Do not infer server mode merely because a test harness is headless. Godot supports dedicated-server exports that can strip unnecessary visual resources and provide a dedicated feature tag. [Godot 4.5 dedicated-server documentation](https://docs.godotengine.org/en/4.5/tutorials/export/exporting_for_dedicated_servers.html).
 
@@ -35,3 +40,8 @@ Use per-peer projections and spatial relevance rules instead of broadcasting acc
 - A successful two-client test: not an MMO-scale capacity result.
 
 After this proof, measure server tick time, update bandwidth, memory growth, persistence latency, disconnect recovery and long-running resource leaks on declared hardware. Only then set a supported player count. Public deployment additionally needs operational recovery, account/abuse controls, transport/credential review, release packaging and a deployment authorization; none was provisioned during the Blender/local milestone.
+
+The 2026-09-06 process run satisfies only the purchase-related rows above. Guest
+revocation, backpack/storage commit boundaries and distant-region relevance are
+still unimplemented acceptance work, as is the adapter that would replace the
+offline panel's synchronous full-ledger reads with asynchronous private views.

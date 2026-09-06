@@ -1,5 +1,21 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-06 — bounded realm purchase process proof
+
+The [independent-process verification](verification/REALM_PURCHASE_2026_09_06.md)
+records two fresh 52/52 loopback runs plus 235/235 protocol/link/ledger/road-life
+regression assertions. Separate Godot clients race through authenticated production
+realm links; durable replay, exact loser rejection, forged/malformed traffic,
+credential expiry, real write lock/retry, forced server restart, interrupted-send
+recovery, corrupt-state rejection and the explicit server flag are observed. Fixture
+resources are statically excluded by the Windows export preset; a new exported pack
+was not inspected in this task.
+
+This is a test-fixture purchase-authority slice, not a player-facing realm. The
+property panel remains offline/local. Public authentication, encrypted and
+server-authenticated transport, world/door authority, backpack and guest recovery,
+AOI, operations and capacity remain open; the full-game goal remains active.
+
 ## 2026-09-06 — playable screenshot-audited Windows build
 
 The [habitation audit and Windows ZIP](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md#playable-windows-candidate--verified-after-the-visual-pass)
