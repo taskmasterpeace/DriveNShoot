@@ -8,8 +8,14 @@ APPDATA/LOCALAPPDATA profiles, distinct child PIDs and `127.0.0.1` only:
 
 | Fresh evidence directory | Acceptance | Interrupted outcome before retry |
 |---|---:|---|
-| `build/realm-purchase-09e526b08eae402fa212afdd3ec91f6e` | 57 passed, 0 failed | authority had applied; winner balance 50 |
-| `build/realm-purchase-3e7d5591415f4d0d87ccb8fc6637bee5` | 57 passed, 0 failed | authority had applied; winner balance 50 |
+| `build/realm-purchase-09e526b08eae402fa212afdd3ec91f6e` | 57 passed, 0 failed | not applied; parcel unowned; winner balance 350 |
+| `build/realm-purchase-3e7d5591415f4d0d87ccb8fc6637bee5` | 57 passed, 0 failed | not applied; parcel unowned; winner balance 350 |
+
+These are the literal pre-retry values in each retained `interrupted-outcome.json`.
+The replacement retry then purchases the 300-scrip parcel and reaches balance 50
+with one owner and one debit. These two runs do not demonstrate an already-applied
+request whose acknowledgment was lost; the separate crash-after-acknowledgment
+and replay checks must not be conflated with that unobserved interrupted outcome.
 
 Each run inspected every child stdout/stderr file after task-owned cleanup and
 found no `SCRIPT ERROR`, parse error, `ERROR` line or leak diagnostic. Full
@@ -106,6 +112,15 @@ one resource still in use. The assertion counts remain 241/0, but these diagnost
 are unresolved wider-gate caveats. Both complete 57-check process workflows have
 clean child logs; their result must not be generalized to every component command.
 
+Editor-import safety caveat: the existing Godot MCP addon calls
+`TCPServer.listen(port)` without a bind address (`game/addons/godot_mcp/mcp_server.gd:53`,
+port 9080), so the editor import uses the engine's default wildcard bind, not the
+realm link's explicit loopback bind. The final-fix import logged startup/shutdown
+and its owned process exited. No connection audit was performed. No more editor
+imports are authorized for this verification until that tooling bind is confined;
+subsequent focused checks use runtime scenes only. This is a pre-existing addon
+behavior, not a deployed realm service or a fixed network-isolation guarantee.
+
 An earlier component gate inherited the normal Godot profile, and its road-life
 test changed the existing `user://drivn.save`. Those results are not used as the
 isolated regression evidence above. The affected files were preserved under
@@ -116,6 +131,33 @@ explicitly leaves recovery unresolved: these are copies of affected current file
 not verified pre-test backups, and passing replacement tests do not undo the write.
 
 ## Exact boundary
+
+### Final-review broadcast correction
+
+The final review identified unsafe iteration over the live admitted-peer
+dictionary while a failed outbound view could remove its current recipient.
+The production broadcast now iterates a detached keys snapshot. A test-only
+oversized outbound-view injection drives the real production rejection path;
+healthy clients and purchase/receipt traffic still use the real link and ledger.
+This is controlled size-failure injection, not a reproduced native send error.
+
+The original loop produced **67 passed, 1 failed**, specifically the later healthy
+recipient's missing update. The fixed loop passes **68/0**, with protocol **49/0**
+and ledger **67/0**, all runtime stderr empty. Exact fresh APPDATA/LOCALAPPDATA,
+commands, PIDs, RED/GREEN output and audit are retained under
+`build/realm-broadcast-fix-20260906-9d4c913a/`.
+
+One further independent-process run against the broadcast correction passed
+**57/0** in `build/realm-purchase-37504941e5d04fe38de7bddd7e9c9f06/`:
+22 bounded cleanup attempts, 44 child logs without diagnostics, all owned
+processes exited. Its literal interrupted outcome is again **not applied,
+unowned, balance 350**; retry reaches balance 50 with one debit. No lost-ack
+after-commit claim is added. Earlier noisy or unsafe runs remain disclosed above.
+
+Scoped final re-review is pending; no full-game or save-recovery completion is
+claimed by these additional checks.
+
+### Unfinished integration
 
 This is local loopback purchase authority with disposable hashed test credentials.
 It is not production/public authentication, server-authenticated or encrypted
