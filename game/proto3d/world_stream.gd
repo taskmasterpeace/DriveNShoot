@@ -1589,6 +1589,89 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 	chunk.add_to_group("biome_neighborhood")
 
 
+## Nearby exclusion rectangles for anonymous urban filler. A road can bend back
+## through a chunk: inspect EVERY candidate segment, never road_near/roads_near's
+## one nearest segment per road. The existing spatial index bounds country-scale
+## work; a 128m search envelope covers the block's 48m offsets + rotated 14m boxes.
+## Rect layout matches extra_road_rects: [x, z, half_x, half_z, Godot yaw].
+func _ruin_exclusions(center: Vector3, key: String) -> Array:
+	var result: Array = []
+	var point := Vector2(center.x, center.z)
+	# Six-field entries are the macro road GRIP envelope (one metre wider than
+	# asphalt); use the row geometry below instead. Five-field entries are the
+	# actual local streets, including the cross just painted by this stamper.
+	for rect: Array in ProtoWorldBuilder.extra_road_rects.get(key, []):
+		if rect.size() == 5:
+			result.append(rect)
+	if usmap == null or not usmap.ok:
+		return result
+	var candidates: Array = []
+	if not usmap._seg_grid.is_empty():
+		candidates = usmap._seg_candidates(point)
+	else:
+		# Unindexed fixture/fallback maps still obey the same all-segments law.
+		for ri in usmap.roads.size():
+			var points: PackedVector2Array = usmap.roads[ri]["pts"]
+			for si in range(points.size() - 1):
+				candidates.append([ri, si])
+	for candidate: Array in candidates:
+		var road: Dictionary = usmap.roads[candidate[0]]
+		var points: PackedVector2Array = road["pts"]
+		var a: Vector2 = points[candidate[1]]
+		var b: Vector2 = points[candidate[1] + 1]
+		var half_width := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5
+		if ProtoUSMap._seg_dist(point, a, b) > CHUNK + half_width + 3.0:
+			continue
+		var delta := b - a
+		if delta.length_squared() < 0.0001:
+			continue
+		var midpoint := (a + b) * 0.5
+		# Asphalt extends 3m past each segment endpoint (_build_road_stretch).
+		result.append([midpoint.x, midpoint.y, half_width, delta.length() * 0.5 + 3.0,
+			atan2(delta.x, delta.y)])
+	DrivnData.ensure_structures()
+	for placement: Dictionary in usmap.placements:
+		var bid := String(placement.get("building", ""))
+		if bid.begins_with("track:"):
+			continue # track-piece compound/pitched geometry is not a building footprint
+		var sid := String(ID_MIGRATE.get(bid, bid))
+		var profile: DrivnStructure = DrivnData.structures.get(sid)
+		var fallback: Vector3 = PLACEMENT_SIZE.get(bid, Vector3(8, 4, 8))
+		var half := (profile.footprint_m if profile != null else Vector2(fallback.x, fallback.z)) * 0.5
+		var pos: Vector2 = placement["pos"]
+		if pos.distance_to(point) > CHUNK + half.length():
+			continue
+		# The legacy massing-box fallback has no rotation; catalog shells do.
+		var yaw := float(placement.get("rot", 0.0)) if profile != null else 0.0
+		result.append([pos.x, pos.y, half.x, half.y, yaw])
+	return result
+
+
+## Exact oriented-box SAT in XZ. Godot yaw sends local +X to (cos,-sin)
+## and +Z to (sin,cos); the older _on_new_road point test uses the opposite
+## convention. Testing all four axes preserves legal diagonal near misses.
+static func _ruin_footprint_clear(pos: Vector3, size: Vector3, yaw: float, exclusions: Array) -> bool:
+	var half := Vector2(size.x, size.z) * 0.5
+	var x_axis := Vector2(cos(yaw), -sin(yaw))
+	var z_axis := Vector2(sin(yaw), cos(yaw))
+	for rect: Array in exclusions:
+		var delta := Vector2(float(rect[0]) - pos.x, float(rect[1]) - pos.z)
+		var other_half := Vector2(float(rect[2]), float(rect[3]))
+		var other_yaw := float(rect[4])
+		var other_x := Vector2(cos(other_yaw), -sin(other_yaw))
+		var other_z := Vector2(sin(other_yaw), cos(other_yaw))
+		var separated := false
+		for axis: Vector2 in [x_axis, z_axis, other_x, other_z]:
+			var span := absf(x_axis.dot(axis)) * half.x + absf(z_axis.dot(axis)) * half.y
+			span += absf(other_x.dot(axis)) * other_half.x + absf(other_z.dot(axis)) * other_half.y
+			if absf(delta.dot(axis)) >= span:
+				separated = true
+				break
+		if not separated:
+			return false
+	return true
+
+
 ## City ruins block (urban biome filler between town anchors).
 func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, key: String) -> void:
 	ProtoWorldBuilder.box_visual(chunk, Vector3(8, 0.04, CHUNK * 0.9), center + Vector3(0, 0.06, 0), ProtoWorldBuilder.COL_ROAD)
@@ -1597,12 +1680,19 @@ func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenera
 	rects.append([center.x, center.z, 4.0, CHUNK * 0.45, 0.0])
 	rects.append([center.x, center.z, CHUNK * 0.45, 4.0, 0.0])
 	ProtoWorldBuilder.extra_road_rects[key] = rects
+	var exclusions := _ruin_exclusions(center, key)
 	for i in rng.randi_range(4, 7):
 		var q: Vector3 = [Vector3(1, 0, 1), Vector3(-1, 0, 1), Vector3(1, 0, -1), Vector3(-1, 0, -1)][i % 4]
 		var bpos := center + Vector3(q.x * rng.randf_range(14, 48), 0, q.z * rng.randf_range(14, 48))
 		var bs := Vector3(rng.randf_range(8, 14), rng.randf_range(3, 12), rng.randf_range(8, 14))
-		ProtoWorldBuilder.box_body(chunk, bs, bpos + Vector3(0, bs.y / 2.0, 0),
-			Color(0.30, 0.28, 0.26) if rng.randf() < 0.5 else Color(0.36, 0.30, 0.24), rng.randf_range(-0.1, 0.1))
+		# Consume the ORIGINAL draws even when this anonymous candidate is rejected:
+		# accepted buildings, the ruin stash and all later chunk rolls stay stable.
+		var color := Color(0.30, 0.28, 0.26) if rng.randf() < 0.5 else Color(0.36, 0.30, 0.24)
+		var yaw := rng.randf_range(-0.1, 0.1)
+		if not _ruin_footprint_clear(bpos, bs, yaw, exclusions):
+			continue
+		var building := ProtoWorldBuilder.box_body(chunk, bs, bpos + Vector3(0, bs.y / 2.0, 0), color, yaw)
+		building.set_meta("biome_filler", "ruin")
 	if rng.randf() < 0.5:
 		# Ruins TOOL YOU UP (2026-07-09 playtest): often a weapon, now and then a jackpot.
 		var ruin: Dictionary = {"scrap": rng.randi_range(2, 5)}
