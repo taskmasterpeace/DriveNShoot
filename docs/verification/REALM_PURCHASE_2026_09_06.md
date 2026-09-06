@@ -121,6 +121,11 @@ imports are authorized for this verification until that tooling bind is confined
 subsequent focused checks use runtime scenes only. This is a pre-existing addon
 behavior, not a deployed realm service or a fixed network-isolation guarantee.
 
+Subsequent tooling fix `6374687` confines both listeners to literal loopback and
+passed independent review plus 20 live socket/protocol checks. See
+[MCP verification](MCP_LOOPBACK_2026_09_06.md). The hold is lifted for that isolated
+source only; the historical exposure and save incident are not retroactively cleared.
+
 An earlier component gate inherited the normal Godot profile, and its road-life
 test changed the existing `user://drivn.save`. Those results are not used as the
 isolated regression evidence above. The affected files were preserved under

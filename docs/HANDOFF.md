@@ -11,9 +11,10 @@ refuse before loading the game and preserve disposable save sentinels. The drive
 passes 11 checks; isolated gameplay/restart remain 71/0 and 5/0. Independent task
 review is approved, and the final milestone corrections were approved at
 `26a5407`. Do not run verification against the normal Godot profile; isolate
-APPDATA and LOCALAPPDATA. Editor/import verification is additionally on hold
-until the existing MCP addon's wildcard listener is confined to loopback. Its
-observed import process exited; that does not prove the exposure was harmless.
+APPDATA and LOCALAPPDATA. The editor/import hold is resolved for this isolated
+source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
+The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
+20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
 ## 2026-09-06 — bounded realm purchase process proof
 

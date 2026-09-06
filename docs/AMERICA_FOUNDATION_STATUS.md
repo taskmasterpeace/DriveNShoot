@@ -10,9 +10,10 @@ the confirmed write and preserved affected files, which are not pre-test backups
 The original playthrough has not been recovered. A fail-closed road-life harness
 guard now passes its local safety checks and independent task review. The final
 purchase milestone corrections were approved at `26a5407`; recovery is still open.
-All future verification must explicitly isolate both profile paths. Editor/import
-checks are on hold until the existing MCP wildcard listener is confined; the
-observed import process has exited, with exposure not audited.
+All future verification must explicitly isolate both profile paths. Reviewed fix
+`6374687` resolves the current-source editor/import hold by confining both MCP
+listeners to loopback; the [live gate](verification/MCP_LOOPBACK_2026_09_06.md)
+passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Latest playable candidate — 2026-09-06
 

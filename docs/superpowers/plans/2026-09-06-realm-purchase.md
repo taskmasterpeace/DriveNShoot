@@ -117,3 +117,8 @@ pre-retry state. The scoped re-review approved both fixes. Full-game goal, playe
 realm integration, public security/operations, original-save recovery and wider
 diagnostics remain open. No more editor/import verification until the existing
 MCP addon's wildcard bind is confined; all observed owned processes have exited.
+
+Subsequent prerequisite `6374687` is independently approved: both listeners now
+bind loopback and the live gate passes 20 checks. The current-source import hold
+is resolved, with fresh APPDATA and LOCALAPPDATA still mandatory. Historical
+exposure, save recovery, player realm integration and full-game gates remain open.

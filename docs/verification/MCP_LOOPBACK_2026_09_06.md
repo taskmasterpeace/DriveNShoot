@@ -67,4 +67,6 @@ suppression, normal-profile access, global process kill or recursive deletion.
 This is a sampled TCP endpoint and local protocol check, not a UDP audit, every
 MCP command, IPv6-client compatibility, external-client penetration test, public
 service clearance, or proof the earlier exposure was harmless. Original save
-recovery and the full-game mission remain open. Independent review is pending.
+recovery and the full-game mission remain open. Independent review approved
+`6374687` with no blocking findings; see
+`../../.superpowers/sdd/2026-09-06-mcp-loopback/review.md`.
