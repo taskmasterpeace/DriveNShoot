@@ -248,7 +248,9 @@ if not bool(road.get("one_way", false)):
 ## Task 4: Physical road presentation and four-direction driving proof
 
 **Files:** `world_stream.gd`; new `interchange_drive_sim.{gd,tscn}`;
-`road_surface_sim.gd` only to extend coverage honestly; isolated runner.
+`road_surface_sim.gd` only to extend coverage honestly; `elevation_sim.gd` only
+to isolate its synthetic map fixture and update verified support expectations
+if required by the global station law; isolated runner.
 **Consumes:** shared ports, same managed rows/geometry as Task 3.
 **Produces:** actual port signs/decel/accel/gore placement and physical traversal
 evidence, plus unedited captures under a unique isolated build run.
@@ -271,6 +273,9 @@ evidence, plus unedited captures under a unique isolated build run.
   Regression-check elevated `road_guard_rail` drape exemption (the existing
   roadside tag is a different `road_guardrail`), and verify column placement
   on densified short deck spans rather than relying on per-span length/30.
+  Global column stations use point-order arc distance, matching elev_at, not
+  arc_from_origin's south/west address convention. Sample actual pillar feet
+  against terrain and reserve every underlying road's full footprint.
   The disposable preview also shows generated neighborhood homes across the
   town-side feeder. Probe real bodies before fixing _stamp_neighborhood: it
   currently checks no road footprint and offsets from chunk center rather
@@ -294,6 +299,10 @@ Input.parse_input_event(event)
 - [ ] Parent inspects every final capture, runs broad surface and relevant
   road/junction/traffic/atlas/elevation checks, records baseline failures and
   hashes map bytes after every scene. Commit only with evidence and review.
+  Before running elevation_sim, replace its legacy live-map overwrite/restore
+  fixture with an owned disposable map loaded through the real ProtoUSMap fold
+  before main boot. The same synthetic road and assertions remain; interruption
+  must never leave game/data/usmap.json modified. No test may write the live map.
 
 ## Task 5: Visual acceptance, publication inside the repo and rollout record
 
