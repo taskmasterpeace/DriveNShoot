@@ -21,6 +21,7 @@ var _server: bool = false
 var _authenticated: bool = false
 var _admitted: Dictionary = {}
 var _command_times: Dictionary = {}
+var _generation: int = 0
 
 
 func start_server(authority: ProtoPropertyLedger, verifier: Callable, port: int) -> Error:
@@ -72,13 +73,12 @@ func send_command(command: Dictionary) -> Error:
 
 
 func close() -> void:
+	_generation += 1
 	_authenticated = false
 	_admitted.clear()
 	_command_times.clear()
-	if _peer != null:
-		_peer.close()
-	if _api != null:
-		_api.multiplayer_peer = null
+	var old_peer: ENetMultiplayerPeer = _peer
+	var old_api: SceneMultiplayer = _api
 	_peer = null
 	_api = null
 	_ledger = null
@@ -86,6 +86,10 @@ func close() -> void:
 	_credential = ""
 	_server = false
 	set_process(false)
+	if old_peer != null:
+		old_peer.close()
+	if old_api != null:
+		old_api.multiplayer_peer = null
 
 
 func _exit_tree() -> void:
@@ -95,46 +99,52 @@ func _exit_tree() -> void:
 func _process(_delta: float) -> void:
 	if _api == null:
 		return
-	var error: Error = _api.poll()
-	if error != OK and not _server:
-		_fail_local("poll_failed:%d" % error)
+	var polled_api: SceneMultiplayer = _api
+	var generation: int = _generation
+	var error: Error = polled_api.poll()
+	if error != OK and _api == polled_api and _generation == generation and not _server:
+		_fail_local("poll_failed:%d" % error, generation)
 
 
 func _activate(peer: ENetMultiplayerPeer) -> void:
+	_generation += 1
+	var generation: int = _generation
 	_peer = peer
 	_api = SceneMultiplayer.new()
 	_api.allow_object_decoding = false
 	_api.server_relay = false
 	_api.auth_timeout = 3.0
 	_api.root_path = get_path()
-	_api.auth_callback = _on_auth_data
-	_api.peer_authenticating.connect(_on_peer_authenticating)
-	_api.peer_authentication_failed.connect(_on_peer_authentication_failed)
-	_api.peer_connected.connect(_on_peer_connected)
-	_api.peer_disconnected.connect(_on_peer_disconnected)
-	_api.peer_packet.connect(_on_peer_packet)
-	_api.connected_to_server.connect(_on_connected_to_server)
-	_api.connection_failed.connect(_on_connection_failed)
-	_api.server_disconnected.connect(_on_server_disconnected)
+	_api.auth_callback = _on_auth_data.bind(generation)
+	_api.peer_authenticating.connect(_on_peer_authenticating.bind(generation))
+	_api.peer_authentication_failed.connect(_on_peer_authentication_failed.bind(generation))
+	_api.peer_connected.connect(_on_peer_connected.bind(generation))
+	_api.peer_disconnected.connect(_on_peer_disconnected.bind(generation))
+	_api.peer_packet.connect(_on_peer_packet.bind(generation))
+	_api.connected_to_server.connect(_on_connected_to_server.bind(generation))
+	_api.connection_failed.connect(_on_connection_failed.bind(generation))
+	_api.server_disconnected.connect(_on_server_disconnected.bind(generation))
 	_api.multiplayer_peer = peer
 	set_process(true)
 
 
-func _on_peer_authenticating(peer_id: int) -> void:
+func _on_peer_authenticating(peer_id: int, generation: int) -> void:
+	if generation != _generation:
+		return
 	if _server:
 		return
 	var packet: PackedByteArray = JSON.stringify({"version": 1, "credential": _credential}).to_utf8_buffer()
 	if packet.size() > AUTH_BYTES_MAX or _api.send_auth(peer_id, packet) != OK:
-		_fail_local("authentication_send_failed")
+		_fail_local("authentication_send_failed", generation)
 		return
 	# This proof trusts the configured loopback endpoint; the server separately
 	# completes its side only after credential verification.
 	if _api.complete_auth(peer_id) != OK:
-		_fail_local("authentication_complete_failed")
+		_fail_local("authentication_complete_failed", generation)
 
 
-func _on_auth_data(peer_id: int, packet: PackedByteArray) -> void:
-	if not _server or _api == null:
+func _on_auth_data(peer_id: int, packet: PackedByteArray, generation: int) -> void:
+	if generation != _generation or not _server or _api == null:
 		return
 	var decoded: Variant = _decode_json(packet, AUTH_BYTES_MAX)
 	if not decoded is Dictionary:
@@ -159,7 +169,9 @@ func _on_auth_data(peer_id: int, packet: PackedByteArray) -> void:
 		_reject_peer(peer_id)
 
 
-func _on_peer_connected(peer_id: int) -> void:
+func _on_peer_connected(peer_id: int, generation: int) -> void:
+	if generation != _generation:
+		return
 	if _server:
 		if _admitted.has(peer_id):
 			_send_view(peer_id)
@@ -169,45 +181,53 @@ func _on_peer_connected(peer_id: int) -> void:
 		authenticated.emit()
 
 
-func _on_connected_to_server() -> void:
+func _on_connected_to_server(generation: int) -> void:
+	if generation != _generation:
+		return
 	# peer_connected is the authenticated boundary; the transport signal alone
 	# never admits command traffic.
 	pass
 
 
-func _on_peer_authentication_failed(peer_id: int) -> void:
+func _on_peer_authentication_failed(peer_id: int, generation: int) -> void:
+	if generation != _generation:
+		return
 	if _server:
 		_admitted.erase(peer_id)
 		_command_times.erase(peer_id)
 	else:
-		_fail_local("authentication_failed")
+		_fail_local("authentication_failed", generation)
 
 
-func _on_peer_disconnected(peer_id: int) -> void:
+func _on_peer_disconnected(peer_id: int, generation: int) -> void:
+	if generation != _generation:
+		return
 	if _server:
 		_admitted.erase(peer_id)
 		_command_times.erase(peer_id)
 	elif peer_id == SERVER_PEER_ID:
-		_fail_local("peer_disconnected")
+		_fail_local("peer_disconnected", generation)
 
 
-func _on_connection_failed() -> void:
-	if not _server:
-		_fail_local("connection_failed")
+func _on_connection_failed(generation: int) -> void:
+	if generation == _generation and not _server:
+		_fail_local("connection_failed", generation)
 
 
-func _on_server_disconnected() -> void:
-	if not _server:
-		_fail_local("server_disconnected")
+func _on_server_disconnected(generation: int) -> void:
+	if generation == _generation and not _server:
+		_fail_local("server_disconnected", generation)
 
 
-func _on_peer_packet(peer_id: int, packet: PackedByteArray) -> void:
+func _on_peer_packet(peer_id: int, packet: PackedByteArray, generation: int) -> void:
+	if generation != _generation:
+		return
 	if not _server:
 		var reply: Variant = _decode_json(packet, REPLY_BYTES_MAX)
 		if reply is Dictionary and _valid_server_message(reply):
 			message_received.emit(reply.duplicate(true))
 		else:
-			_fail_local("invalid_server_message")
+			_fail_local("invalid_server_message", generation)
 		return
 	if not _admitted.has(peer_id):
 		_reject_peer(peer_id)
@@ -291,12 +311,11 @@ func _reject_peer(peer_id: int) -> void:
 		_api.disconnect_peer(peer_id)
 
 
-func _fail_local(reason: String) -> void:
-	if _peer == null:
+func _fail_local(reason: String, generation: int) -> void:
+	if _peer == null or generation != _generation:
 		return
-	_authenticated = false
-	disconnected.emit(reason)
 	close()
+	disconnected.emit(reason)
 
 
 func _decode_json(packet: PackedByteArray, maximum: int) -> Variant:

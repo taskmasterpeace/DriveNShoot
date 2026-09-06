@@ -20,6 +20,7 @@ var bob_credential: String
 var unknown_credential: String
 var expired_credential: String
 var extra_credential: String
+var reconnect_credential: String
 
 
 func _check(label: String, condition: bool) -> void:
@@ -61,21 +62,27 @@ func _ready() -> void:
 	_check("isolated test root created", root_created)
 	var ledger_script: Script = load(LEDGER_COMPONENT)
 	ledger = ledger_script.new()
-	var rows: Array = [{"id": "roadstead_001", "name": "Roadstead", "price": 150,
-		"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"}]
+	var rows: Array = [
+		{"id": "roadstead_001", "name": "Roadstead", "price": 150,
+			"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"},
+		{"id": "reconnect_site", "name": "Reconnect site", "price": 75,
+			"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"}
+	]
 	_check("test authority opens", ledger.open(root + "/ledger.json", rows) == OK)
-	_check("test accounts exist", ledger.ensure_account("alice-secret").ok and ledger.ensure_account("bob-secret").ok)
-	_check("test accounts funded", ledger.credit("alice-secret", 500, "fund_alice").ok and ledger.credit("bob-secret", 500, "fund_bob").ok)
+	_check("test accounts exist", ledger.ensure_account("alice-secret").ok and ledger.ensure_account("bob-secret").ok and ledger.ensure_account("reconnect-secret").ok)
+	_check("test accounts funded", ledger.credit("alice-secret", 500, "fund_alice").ok and ledger.credit("bob-secret", 500, "fund_bob").ok and ledger.credit("reconnect-secret", 200, "fund_reconnect").ok)
 	alice_credential = _new_credential()
 	bob_credential = _new_credential()
 	unknown_credential = _new_credential()
 	expired_credential = _new_credential()
 	extra_credential = _new_credential()
+	reconnect_credential = _new_credential()
 	credentials[alice_credential] = {"account_id": "alice-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60}
 	credentials[bob_credential] = {"account_id": "bob-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60}
 	credentials[unknown_credential] = {"account_id": "unknown-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60}
 	credentials[expired_credential] = {"account_id": "alice-secret", "expires_at": int(Time.get_unix_time_from_system()) - 1}
 	credentials[extra_credential] = {"account_id": "alice-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60, "role": "admin"}
+	credentials[reconnect_credential] = {"account_id": "reconnect-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60}
 	await _run_wire_checks()
 	_finish()
 
@@ -126,6 +133,26 @@ func _run_wire_checks() -> void:
 	await _wait_until(func() -> bool: return _auths("rejected") == 1, 4.0)
 	_check("reused link authenticates after failure", _auths("rejected") == 1)
 	rejected.close()
+
+	var reentrant: Node = _new_link("reentrant")
+	var reconnect_observation: Dictionary = {"released": false, "error": FAILED, "attempts": 0}
+	reentrant.disconnected.connect(func(_reason: String) -> void:
+		if int(reconnect_observation.attempts) > 0:
+			return
+		reconnect_observation.attempts = int(reconnect_observation.attempts) + 1
+		reconnect_observation.released = reentrant.get("_peer") == null and reentrant.get("_api") == null
+		reconnect_observation.error = reentrant.connect_loopback(port, reconnect_credential)
+	)
+	_check("reentrant client begins rejected wire authentication", reentrant.connect_loopback(port, _new_credential()) == OK)
+	var old_api: SceneMultiplayer = reentrant.get("_api")
+	await _wait_until(func() -> bool: return _auths("reentrant") == 1, 5.0)
+	_check("disconnect handler observes released old resources", bool(reconnect_observation.released))
+	_check("disconnect handler reconnects synchronously", int(reconnect_observation.error) == OK)
+	_check("replacement survives old API callback and polling", _auths("reentrant") == 1 and reentrant.get("_api") != null and reentrant.get("_api") != old_api)
+	_check("replacement sends actual purchase", reentrant.send_command({"version": 1, "kind": "purchase", "request_id": "reconnect-buy", "parcel_id": "reconnect_site"}) == OK)
+	await _wait_until(func() -> bool: return _has_receipt("reentrant", "reconnect-buy", true), 5.0)
+	_check("replacement purchase reaches real authority", _has_receipt("reentrant", "reconnect-buy", true) and ledger.snapshot().parcels.reconnect_site.owner_id == "reconnect-secret" and ledger.snapshot().accounts["reconnect-secret"].scrip == 125)
+	reentrant.close()
 	var expired: Node = _new_link("expired")
 	_check("expired client begins connection", expired.connect_loopback(port, expired_credential) == OK)
 	await _wait_until(func() -> bool: return _disconnects("expired") > 0, 4.0)
