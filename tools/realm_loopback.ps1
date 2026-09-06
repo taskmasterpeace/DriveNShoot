@@ -1,7 +1,10 @@
 #requires -Version 7.0
 <# Local-only disposable realm acceptance. Never starts public listeners. #>
 [CmdletBinding()]
-param([string]$EnginePath='C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe')
+param(
+    [string]$EnginePath='C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe',
+    [switch]$CleanupFailureProbe
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -41,6 +44,9 @@ function Json-Read([string]$Path) {
     if(-not (Test-Path -LiteralPath $Path -PathType Leaf)){ return $null }
     try { return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -Depth 32 } catch { return $null }
 }
+function Has-ReadyMarker($Value) {
+    return $null -ne $Value -and $Value.PSObject.Properties.Name -contains 'ready' -and $Value.ready -eq $true
+}
 function Wait-For([scriptblock]$Condition,[string]$Label,[int]$Seconds=15) {
     $watch=[Diagnostics.Stopwatch]::StartNew()
     while($watch.Elapsed.TotalSeconds -lt $Seconds) {
@@ -71,13 +77,64 @@ function Spawn([string]$Label,[string]$Scene,[string[]]$UserArgs) {
         $stdout=Join-Path $run ($Label+'.stdout.log'); $stderr=Join-Path $run ($Label+'.stderr.log')
         $process=Start-Process -FilePath $EnginePath -ArgumentList $quoted -WorkingDirectory $root -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     } finally { $env:APPDATA=$oldA; $env:LOCALAPPDATA=$oldL }
-    if(-not $ownedPids.Add($process.Id)) { Stop-Owned $process; throw "Child PID reused inside one proof: $($process.Id)" }
+    if(-not $ownedPids.Add($process.Id)) { Require-StopOwned $process $Label; throw "Child PID reused inside one proof: $($process.Id)" }
     $owned.Add($process)
     $processLogs.Add([pscustomobject]@{label=$Label;pid=$process.Id;stdout=$stdout;stderr=$stderr})
     return $process
 }
-function Stop-Owned([Diagnostics.Process]$Process) {
-    if($null -ne $Process -and -not $Process.HasExited) { $Process.Kill($true); $Process.WaitForExit() }
+function Stop-Owned([Diagnostics.Process]$Process,[int]$WaitMsec=5000,[bool]$RequestKill=$true) {
+    if($null -eq $Process){return [pscustomobject]@{stopped=$true;error=''}}
+    try {
+        if(-not $Process.HasExited) {
+            if($RequestKill){$Process.Kill($true)}
+            if(-not $Process.WaitForExit($WaitMsec)) {
+                return [pscustomobject]@{stopped=$false;error="cleanup_timeout:pid=$($Process.Id)"}
+            }
+        }
+        return [pscustomobject]@{stopped=$true;error=''}
+    } catch {
+        try { if($Process.HasExited){return [pscustomobject]@{stopped=$true;error=''}} } catch {}
+        return [pscustomobject]@{stopped=$false;error="cleanup_exception:pid=$($Process.Id):$($_.Exception.GetType().Name)"}
+    }
+}
+function Stop-OwnedBatch($Processes,[int]$WaitMsec=5000,[Collections.Generic.HashSet[int]]$SkipKillPids=$null) {
+    $failures=[Collections.Generic.List[string]]::new()
+    $attempted=0
+    foreach($process in $Processes) {
+        $attempted++
+        $requestKill=$null -eq $SkipKillPids -or -not $SkipKillPids.Contains($process.Id)
+        $outcome=Stop-Owned $process $WaitMsec $requestKill
+        if(-not $outcome.stopped){$failures.Add($outcome.error)}
+    }
+    return [pscustomobject]@{attempted=$attempted;failures=@($failures)}
+}
+function Require-StopOwned([Diagnostics.Process]$Process,[string]$Label) {
+    $outcome=Stop-Owned $Process
+    if(-not $outcome.stopped){throw "Failed to stop owned process ${Label}: $($outcome.error)"}
+}
+function Run-CleanupFailureProbe {
+    $probeProcesses=[Collections.Generic.List[Diagnostics.Process]]::new()
+    $probeCode=2
+    try {
+        $pwsh=(Get-Command pwsh -ErrorAction Stop).Source
+        foreach($label in @('timeout','must-still-clean')) {
+            $probeProcesses.Add((Start-Process -FilePath $pwsh -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 10') -WorkingDirectory $run -WindowStyle Hidden -PassThru))
+        }
+        $skipKill=[Collections.Generic.HashSet[int]]::new()
+        [void]$skipKill.Add($probeProcesses[0].Id)
+        $watch=[Diagnostics.Stopwatch]::StartNew()
+        $result=Stop-OwnedBatch $probeProcesses 25 $skipKill
+        $bounded=$watch.ElapsedMilliseconds -lt 1000
+        $continued=$probeProcesses[1].HasExited
+        if($result.attempted -eq 2 -and $result.failures.Count -eq 1 -and $bounded -and $continued) {$probeCode=1}
+    } finally {
+        $finalCleanup=Stop-OwnedBatch $probeProcesses
+        if($finalCleanup.failures.Count -gt 0 -or @($probeProcesses | Where-Object {-not $_.HasExited}).Count -gt 0){$probeCode=2}
+    }
+    if($probeCode -eq 1){
+        return [pscustomobject]@{exit_code=1;message='REALM CLEANUP PROBE EXPECTED FAILURE: timeout surfaced; later owned handle cleaned; final cleanup complete'}
+    }
+    return [pscustomobject]@{exit_code=2;message='REALM CLEANUP PROBE INVALID: cleanup timeout was not surfaced, continuation failed, or final cleanup failed'}
 }
 function New-Client([string]$Name,[string]$Credential,[bool]$Raw=$false,[string]$AuthOverride='') {
     $commandDir=Join-Path $run ($Name+'-commands')
@@ -95,6 +152,7 @@ function Ready($Client) {
     } ($Client.name+' admission')
 }
 function View($Client) { $v=Json-Read $Client.result; if($null -eq $v){return $null}; return @($v.messages | Where-Object kind -eq 'view') | Select-Object -Last 1 }
+function View-Count($Client) { $v=Json-Read $Client.result; if($null -eq $v){return 0}; return @($v.messages | Where-Object kind -eq 'view').Count }
 function Receipt-Count($Client) { $v=Json-Read $Client.result; if($null -eq $v){return 0}; return @($v.messages | Where-Object kind -eq 'receipt').Count }
 function Send($Client,$Payload,[long]$At=0,[bool]$ExitAfterSend=$false) {
     $Client.serial++
@@ -131,6 +189,12 @@ function Test-UdpPortAvailable([int]$Candidate) {
         $probe.Dispose()
         return $true
     } catch { return $false }
+}
+
+if($CleanupFailureProbe){
+    $probeResult=Run-CleanupFailureProbe
+    Write-Output $probeResult.message
+    exit $probeResult.exit_code
 }
 
 try {
@@ -171,14 +235,20 @@ try {
     $before=State-Bytes; $n=Receipt-Count $winner
     Send $winner (Purchase 'race' 'roadstead_001'); $receipt=Receipt $winner $n
     Check 'successful request replay has no second debit' ($receipt.ok -and (State-Bytes) -ceq $before)
-    $n=Receipt-Count $winner
+    $n=Receipt-Count $winner; $viewsBefore=View-Count $winner
     $lock=[IO.File]::Open($winner.result,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
     Send $winner (Purchase 'race' 'roadstead_001')
-    Start-Sleep -Milliseconds 300
+    $winnerLog=Join-Path $run ($winner.name+'.stdout.log')
+    $expectedReceiptCount=$n+1; $expectedViewCount=$viewsBefore+1
+    Wait-For {
+        $line=Select-String -LiteralPath $winnerLog -Pattern "RESULT_RETRY .*receipts=$expectedReceiptCount views=$expectedViewCount" -ErrorAction SilentlyContinue
+        $null -ne $line
+    } 'failed publication contains fresh network receipt and view' 5
     $lock.Dispose(); $lock=$null
+    Wait-For { (Receipt-Count $winner) -eq $expectedReceiptCount -and (View-Count $winner) -eq $expectedViewCount } 'buffered receipt and view publish after unlock without another command'
     $receipt=Receipt $winner $n
     $published=Json-Read $winner.result
-    Check 'locked client result retries buffered network receipt and view' ($receipt.ok -and $receipt.request_id -eq 'race' -and $published.publish_failures -gt 0 -and $published.messages_received -eq @($published.messages).Count -and (View $winner).balance -eq 350 -and (State-Bytes) -ceq $before)
+    Check 'locked client result retries buffered network receipt and view' ($receipt.ok -and $receipt.request_id -eq 'race' -and (Receipt-Count $winner) -eq $expectedReceiptCount -and (View-Count $winner) -eq $expectedViewCount -and $published.publish_failures -gt 0 -and $published.messages_received -eq @($published.messages).Count -and (View $winner).balance -eq 350 -and (State-Bytes) -ceq $before)
     $n=Receipt-Count $winner; Send $winner (Purchase 'race' 'roadstead_002'); $receipt=Receipt $winner $n
     Check 'changed payload under same receipt is rejected' (-not $receipt.ok -and $receipt.error -eq 'receipt_conflict' -and (State-Bytes) -ceq $before)
     $attacker=New-Client 'forged-command' $bobToken $true; Ready $attacker
@@ -225,7 +295,7 @@ try {
     Send $soon (Purchase 'after-expiry' 'roadstead_003')
     Wait-For { $v=Json-Read $soon.result; $null -ne $v -and $v.disconnected } 'expired admitted session rejection'
     Check 'expiry after admission prevents a purchase' ((State-Bytes) -ceq $recovered)
-    Stop-Owned $server
+    Require-StopOwned $server 'server before restart'
     $config.ready_path=Join-Path $run 'server-restart.ready.json'; Json-Write $configPath $config
     $server=Spawn 'server-restart' 'realm_fixture_server' @('--realm-test-server',"--config=$configPath")
     Wait-For { $null -ne (Json-Read $config.ready_path) } 'restarted authority ready'
@@ -251,7 +321,7 @@ try {
     $final=Json-Read $ledger
     Check 'uncertain command retry results in exactly one 300 debit' ($receipt.ok -and $final.accounts.($winner.name).scrip -eq 50 -and $final.parcels.roadstead_003.owner_id -eq $winner.name)
     Check 'final authority has exact balances owners and receipt count' ($final.accounts.($winner.name).scrip -eq 50 -and $final.accounts.($loser.name).scrip -eq 275 -and $final.accounts.soon.scrip -eq 500 -and $final.accounts.expired.scrip -eq 500 -and $final.parcels.roadstead_001.owner_id -eq $winner.name -and $final.parcels.roadstead_002.owner_id -eq $loser.name -and $final.parcels.roadstead_003.owner_id -eq $winner.name -and @($final.receipts.PSObject.Properties).Count -eq 7 -and $final.receipts.PSObject.Properties.Name -contains (Receipt-Key $winner.name 'race') -and $final.receipts.PSObject.Properties.Name -contains (Receipt-Key $loser.name 'locked-file') -and $final.receipts.PSObject.Properties.Name -contains (Receipt-Key $winner.name 'uncertain'))
-    Stop-Owned $server
+    Require-StopOwned $server 'server before startup rejection probes'
     $corruptPath=Join-Path $run 'corrupt-authority.json'; '{broken' | Set-Content -LiteralPath $corruptPath -Encoding utf8
     $corruptBefore=[IO.File]::ReadAllText($corruptPath)
     $config.ledger_path=$corruptPath; $config.ready_path=Join-Path $run 'corrupt.ready.json'; Json-Write $configPath $config
@@ -262,13 +332,37 @@ try {
     $unguarded=Spawn 'server-no-flag' 'realm_fixture_server' @("--config=$configPath")
     Wait-For { $unguarded.HasExited } 'explicit test server flag guard'
     Check 'headless alone never provisions or starts realm' ($unguarded.ExitCode -ne 0 -and -not (Test-Path -LiteralPath $config.ledger_path) -and -not (Test-Path -LiteralPath $config.ready_path) -and (Test-UdpPortAvailable $port))
+    $aliasRoot=Join-Path $run 'path-alias-probes'
+    New-Item -ItemType Directory -Path $aliasRoot,(Join-Path $aliasRoot 'inner') | Out-Null
+    $caseLedger=Join-Path $aliasRoot 'case-authority.json'
+    $separatorLedger=Join-Path $aliasRoot 'separator-authority.json'
+    $dotLedger=Join-Path $aliasRoot 'inner\..\dot-authority.json'
+    $aliasProbes=@(
+        @{name='case';config=(Join-Path $aliasRoot 'case.config.json');ledger=$caseLedger;ready=(Join-Path $aliasRoot 'CASE-AUTHORITY.JSON')},
+        @{name='separator';config=(Join-Path $aliasRoot 'separator.config.json');ledger=$separatorLedger;ready=$separatorLedger.Replace('\','/')},
+        @{name='dot-segment';config=(Join-Path $aliasRoot 'dot.config.json');ledger=$dotLedger;ready=(Join-Path $aliasRoot 'dot-authority.json')},
+        @{name='config-path';config=(Join-Path $aliasRoot 'config-target.json');ledger=(Join-Path $aliasRoot 'config-ledger.json');ready=(Join-Path $aliasRoot 'CONFIG-TARGET.JSON')}
+    )
+    foreach($probe in $aliasProbes) {
+        $probeConfig=@{port=$port;ledger_path=$probe.ledger;ready_path=$probe.ready;stop_path=(Join-Path $aliasRoot ($probe.name+'.stop'));identities=$config.identities}
+        Json-Write $probe.config $probeConfig
+        $configSentinel=[IO.File]::ReadAllText($probe.config)
+        $pathProbe=Spawn ('server-alias-'+$probe.name) 'realm_fixture_server' @('--realm-test-server',"--config=$($probe.config)")
+        Wait-For { $pathProbe.HasExited -or (Has-ReadyMarker (Json-Read $probe.ready)) } ('path alias '+$probe.name+' resolves') 5
+        if(-not $pathProbe.HasExited){Require-StopOwned $pathProbe ('path alias '+$probe.name)}
+        $readyValue=Json-Read $probe.ready
+        Check ('canonical '+$probe.name+' alias rejects before provisioning') ($pathProbe.HasExited -and $pathProbe.ExitCode -ne 0 -and [IO.File]::ReadAllText($probe.config) -ceq $configSentinel -and -not (Test-Path -LiteralPath $probe.ledger) -and -not (Has-ReadyMarker $readyValue))
+    }
     Check 'workflow completed' $true
 } catch {
     $checks.Add([ordered]@{name='workflow completed';passed=$false;error=$_.Exception.Message})
     Write-Output ('REALM PROOF FAILURE: '+$_.Exception.Message)
 } finally {
     if($null -ne $lock){$lock.Dispose()}
-    foreach($process in $owned){Stop-Owned $process}
+    $cleanup=Stop-OwnedBatch $owned
+    $cleanupClean=$cleanup.failures.Count -eq 0
+    $checks.Add([ordered]@{name='owned process cleanup is bounded and complete';passed=$cleanupClean;attempted=$cleanup.attempted;details=@($cleanup.failures)})
+    Write-Output ('REALM PROOF '+$(if($cleanupClean){'PASS'}else{'FAIL'})+' owned process cleanup is bounded and complete')
     $unexpected=[Collections.Generic.List[string]]::new()
     foreach($entry in $processLogs) {
         foreach($path in @($entry.stdout,$entry.stderr)) {

@@ -19,7 +19,7 @@ func _ready() -> void:
 		return
 	var config_path: String = _argument_value(arguments, "--config=")
 	var config: Dictionary = _read_config(config_path)
-	if config.is_empty() or not _valid_config(config):
+	if config.is_empty() or not _valid_config(config, config_path):
 		_fail("invalid_config")
 		return
 	_stop_path = String(config.stop_path)
@@ -84,7 +84,7 @@ func _read_config(path: String) -> Dictionary:
 	return parsed if parsed is Dictionary else {}
 
 
-func _valid_config(config: Dictionary) -> bool:
+func _valid_config(config: Dictionary, config_path: String) -> bool:
 	var expected: Array[String] = ["identities", "ledger_path", "port", "ready_path", "stop_path"]
 	if config.size() != expected.size():
 		return false
@@ -93,14 +93,18 @@ func _valid_config(config: Dictionary) -> bool:
 			return false
 	if not _integer(config.port, 1, 65535) or not config.identities is Array or config.identities.is_empty() or config.identities.size() > 64:
 		return false
-	var paths: Array[String] = []
+	var config_identity: String = _canonical_path_identity(config_path)
+	if config_identity.is_empty():
+		return false
+	var paths: Dictionary = {config_identity: true}
 	for field: String in ["ledger_path", "ready_path", "stop_path"]:
 		if not config[field] is String:
 			return false
 		var path: String = String(config[field])
-		if path.is_empty() or path.length() > 4096 or not path.is_absolute_path() or paths.has(path):
+		var identity: String = _canonical_path_identity(path)
+		if path.is_empty() or path.length() > 4096 or identity.is_empty() or paths.has(identity):
 			return false
-		paths.append(path)
+		paths[identity] = true
 	var accounts: Dictionary = {}
 	var hashes: Dictionary = {}
 	for value: Variant in config.identities:
@@ -116,6 +120,22 @@ func _valid_config(config: Dictionary) -> bool:
 		accounts[row.account_id] = true
 		hashes[row.token_sha256] = true
 	return true
+
+
+func _canonical_path_identity(value: String) -> String:
+	if value.is_empty() or value.length() > 4096 or not value.is_absolute_path():
+		return ""
+	var normalized: String = value.replace("\\", "/").simplify_path()
+	if not normalized.is_absolute_path():
+		return ""
+	for component: String in normalized.split("/", false):
+		# Win32 ignores trailing dots/spaces in ordinary path components. Reject
+		# those spellings rather than allowing an alias through validation.
+		if component.is_empty() or component.ends_with(".") or component.ends_with(" "):
+			return ""
+	if OS.get_name() == "Windows":
+		normalized = normalized.to_lower()
+	return normalized.trim_suffix("/")
 
 
 func _valid_hash(value: String) -> bool:

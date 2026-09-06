@@ -5,6 +5,7 @@ extends Node
 const SERVER_PEER_ID: int = 1
 const RESULT_RETRY_LIMIT: int = 200
 const RESULT_RETRY_MSEC: int = 25
+const COMMAND_READ_RETRY_LIMIT: int = 200
 
 var _config: Dictionary = {}
 var _result: Dictionary = {
@@ -23,6 +24,7 @@ var _link: ProtoRealmLink
 var _raw_api: SceneMultiplayer
 var _raw_peer: ENetMultiplayerPeer
 var _next_serial: int = 1
+var _command_read_failures: int = 0
 var _pending_exit: bool = false
 var _result_dirty: bool = true
 var _next_result_retry_msec: int = 0
@@ -147,10 +149,23 @@ func _process_next_command() -> void:
 	var path: String = String(_config.command_dir).path_join("%06d.json" % _next_serial)
 	if not FileAccess.file_exists(path):
 		return
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		_retry_command_read(FileAccess.get_open_error())
+		return
+	var text: String = file.get_as_text()
+	var read_error: Error = file.get_error()
+	file.close()
+	var json := JSON.new()
+	var parse_error: Error = json.parse(text) if read_error == OK else read_error
+	if parse_error != OK:
+		_retry_command_read(parse_error)
+		return
+	var parsed: Variant = json.data
 	if not parsed is Dictionary or not _valid_command_file(parsed, _next_serial):
 		_fail("invalid_command_file:%d" % _next_serial)
 		return
+	_command_read_failures = 0
 	var command: Dictionary = parsed
 	var not_before: int = int(command.not_before_msec)
 	if _unix_msec() < not_before:
@@ -181,6 +196,13 @@ func _valid_command_file(value: Dictionary, serial: int) -> bool:
 	var has_payload: bool = value.has("payload") and value.payload is Dictionary
 	var has_raw: bool = value.has("raw_packet") and value.raw_packet is String
 	return has_payload != has_raw
+
+
+func _retry_command_read(error: Error) -> void:
+	_command_read_failures += 1
+	print("REALM_FIXTURE_CLIENT_COMMAND_RETRY serial=%d failures=%d error=%d" % [_next_serial, _command_read_failures, error])
+	if _command_read_failures >= COMMAND_READ_RETRY_LIMIT:
+		_fail("command_read_exhausted:%d:%d" % [_next_serial, error])
 
 
 func _valid_config(config: Dictionary) -> bool:
@@ -220,7 +242,10 @@ func _try_publish_result() -> void:
 	_result.publish_failures = int(_result.publish_failures) + 1
 	_result.last_publish_error = int(error)
 	_next_result_retry_msec = Time.get_ticks_msec() + RESULT_RETRY_MSEC
-	print("REALM_FIXTURE_CLIENT_RESULT_RETRY failures=%d error=%d messages=%d" % [int(_result.publish_failures), error, int(_result.messages_received)])
+	print("REALM_FIXTURE_CLIENT_RESULT_RETRY failures=%d error=%d messages=%d receipts=%d views=%d" % [
+		int(_result.publish_failures), error, int(_result.messages_received),
+		_message_kind_count("receipt"), _message_kind_count("view")
+	])
 	if int(_result.publish_failures) >= RESULT_RETRY_LIMIT:
 		print("REALM_FIXTURE_CLIENT_REJECT result_publish_exhausted:%d" % error)
 		_close()
@@ -242,6 +267,14 @@ func _publish_result() -> Error:
 	if error != OK:
 		DirAccess.remove_absolute(temporary)
 	return error
+
+
+func _message_kind_count(kind: String) -> int:
+	var count: int = 0
+	for value: Variant in _result.messages:
+		if value is Dictionary and value.get("kind") == kind:
+			count += 1
+	return count
 
 
 func _close() -> void:

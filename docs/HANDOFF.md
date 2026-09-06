@@ -3,8 +3,8 @@
 ## 2026-09-06 — bounded realm purchase process proof
 
 The [independent-process verification](verification/REALM_PURCHASE_2026_09_06.md)
-records two fresh 52/52 loopback runs plus 235/235 protocol/link/ledger/road-life
-regression assertions. Separate Godot clients race through authenticated production
+records two fresh 57/57 loopback runs plus 241/241 protocol/link/ledger/road-life
+regression assertions under a fresh isolated profile. Separate Godot clients race through authenticated production
 realm links; durable replay, exact loser rejection, forged/malformed traffic,
 credential expiry, real write lock/retry, forced server restart, interrupted-send
 recovery, corrupt-state rejection and the explicit server flag are observed. Fixture
