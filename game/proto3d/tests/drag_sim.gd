@@ -24,6 +24,9 @@ func _e(down: bool) -> void:
 	ev.physical_keycode = KEY_E
 	ev.pressed = down
 	Input.parse_input_event(ev)
+	# parse_input_event queues hardware input for the process/input iteration;
+	# physics frames can run first under a loaded headless startup.
+	await get_tree().process_frame
 
 
 func _ready() -> void:
@@ -52,10 +55,10 @@ func _ready() -> void:
 	_check("the body is the current interactable", main._current_interactable == body)
 
 	# --- 1. TAP E = open (the old law, untouched) ------------------------------
-	_e(true)
+	await _e(true)
 	for _i in 3:
 		await get_tree().physics_frame
-	_e(false)
+	await _e(false)
 	for _i in 3:
 		await get_tree().physics_frame
 	_check("TAP still OPENS the container", main.panel.is_open)
@@ -64,11 +67,11 @@ func _ready() -> void:
 		await get_tree().physics_frame
 
 	# --- 2. HOLD E = grab ------------------------------------------------------
-	_e(true)
+	await _e(true)
 	for _i in 30:
 		await get_tree().physics_frame # past the 0.35s grab beat
 	_check("HOLD grabs it (dragging)", main._dragging == body)
-	_e(false)
+	await _e(false)
 	for _i in 3:
 		await get_tree().physics_frame
 	_check("release does NOT drop it (E again does)", main._dragging == body)
@@ -89,10 +92,10 @@ func _ready() -> void:
 	_check("you still covered ground (%.1fm)" % walked, walked > 3.0)
 
 	# --- 4. E again = set it down, it STAYS ------------------------------------
-	_e(true)
+	await _e(true)
 	for _i in 3:
 		await get_tree().physics_frame
-	_e(false)
+	await _e(false)
 	for _i in 3:
 		await get_tree().physics_frame
 	_check("E sets it down", main._dragging == null)

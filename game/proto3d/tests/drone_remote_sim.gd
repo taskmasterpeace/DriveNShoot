@@ -41,6 +41,9 @@ func _tap_interact() -> void:
 	down.physical_keycode = KEY_E
 	down.pressed = true
 	Input.parse_input_event(down)
+	# parse_input_event queues hardware input for the process/input iteration;
+	# physics frames can run first under a loaded headless startup.
+	await get_tree().process_frame
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	var up := InputEventKey.new()
@@ -48,6 +51,7 @@ func _tap_interact() -> void:
 	up.physical_keycode = KEY_E
 	up.pressed = false
 	Input.parse_input_event(up)
+	await get_tree().process_frame
 	await get_tree().physics_frame
 
 

@@ -1,0 +1,17 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+DRAG: start
+DRAG: PASS - the body is the current interactable
+DRAG: PASS - TAP still OPENS the container
+DRAG: PASS - HOLD grabs it (dragging)
+DRAG: PASS - release does NOT drop it (E again does)
+DRAG: PASS - you actually hauled it somewhere (8.7m from spawn)
+DRAG: PASS - it TRAILS at arm's length (1.1m)
+DRAG: PASS - hauling is HEAVY (speed_mult 0.55)
+DRAG: PASS - hauling teaches STRENGTH
+DRAG: PASS - you still covered ground (9.1m)
+DRAG: PASS - E sets it down
+DRAG: PASS - dropped, it STAYS PUT
+DRAG: PASS - speed restores after the drop (1.00)
+DRAG RESULTS: 12 passed, 0 failed
+DRAG: ALL CHECKS PASSED

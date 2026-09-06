@@ -1,0 +1,23 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+REMOTE: start
+REMOTE: PASS - deploy puts a bird in the sky
+REMOTE: PASS - the drone row left the bag (the bird IS the item)
+REMOTE: PASS - THE REMOTE appeared in the pack
+REMOTE: PASS - ONE PRESS flies it - deploy took the stick
+REMOTE: PASS - the split view came up on deploy
+REMOTE: PASS - USE remote while flying is a no-op re-take (still piloting)
+REMOTE: PASS - the bird knows it's piloted
+REMOTE: PASS - the split view is up
+REMOTE: PASS - the remote was NOT consumed by piloting
+REMOTE: PASS - the stick FLIES the bird (moved 17.5 m)
+REMOTE: PASS - E in the air starts a LANDING (not a vanish)
+REMOTE: PASS - the landing completes (pilot OFF)
+REMOTE: PASS - the split folded with the session
+REMOTE: PASS - the bird PARKED where it set down
+REMOTE: PASS - E packs the landed bird (drone row back)
+REMOTE: PASS - the remote folded with it
+REMOTE: PASS - no bird registered
+REMOTE: FAIL - E at the dock launches the ROUTE scout
+REMOTE RESULTS: 17 passed, 1 failed
+REMOTE: FAILURES PRESENT
