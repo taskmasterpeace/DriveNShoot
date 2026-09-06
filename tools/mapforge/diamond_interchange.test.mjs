@@ -181,6 +181,33 @@ test('managed regeneration restores fixed connector fields while keeping custom 
     assert.equal(r.nickname,'Retained local name');assert.deepEqual(r.custom,{keep:true});assert.equal(r.toll,7);
   }
 });
+for(const [name,exitFields,want] of [
+  ['canonical risk without legacy danger',{risk_rating:3},3],
+  ['canonical risk takes precedence',{risk_rating:3,danger:9},3],
+  ['zero canonical risk takes precedence',{risk_rating:0,danger:9},0],
+  ['legacy danger fallback',{danger:4},4],
+])test(`connector danger inherits ${name} without rewriting ramp danger`,()=>{
+  const map=fixture();Object.assign(map.exits[0],exitFields);
+  for(const [i,r] of map.roads.filter(r=>r.kind==='exit').entries())r.danger=[2,2,3,3][i];
+  const before=structuredClone(map),result=build(map,'X',{terrainAt:flat});
+  assert.deepEqual(map,before);assert.deepEqual(result.exit.payload,{key:4});
+  assert.deepEqual(result.roads.filter(r=>r.ramp_role).map(r=>r.danger),[2,2,3,3]);
+  for(const r of result.roads.filter(r=>!r.ramp_role))assert.equal(r.danger,want);
+});
+test('managed regeneration refreshes canonical risk and retains connector and ramp character',()=>{
+  const map=fixture();map.exits[0].risk_rating=3;
+  for(const [i,r] of map.roads.filter(r=>r.kind==='exit').entries())r.danger=[2,2,3,3][i];
+  const first=build(map,'X',{terrainAt:flat});
+  map.exits=[structuredClone(first.exit)];Object.assign(map.exits[0],{risk_rating:5,danger:9});
+  map.roads=map.roads.filter(r=>r.kind!=='exit').concat(structuredClone(first.roads));
+  for(const id of first.exit.connector_ids)Object.assign(map.roads.find(r=>r.id===id),{danger:99,custom:{keep:true},toll:7});
+  const before=structuredClone(map),result=build(map,'X',{terrainAt:flat});
+  assert.deepEqual(map,before);
+  for(const r of result.roads.filter(r=>!r.ramp_role)) {
+    assert.equal(r.danger,5);assert.deepEqual(r.custom,{keep:true});assert.equal(r.toll,7);
+  }
+  assert.deepEqual(result.roads.filter(r=>r.ramp_role).map(r=>r.danger),[2,2,3,3]);
+});
 test('rejects smooth terrain hill intersecting an interior crossroad approach',()=>{
   const map=fixture(),before=structuredClone(map);
   // Compact smooth hill: zero at the local junctions, deck crest, and all ramps.

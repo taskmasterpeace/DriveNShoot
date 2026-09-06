@@ -153,7 +153,7 @@ export function buildDiamondInterchange(map,exitId,{
       throw new Error(`Connector ${id} collides with an unowned or authored road`);
     return {nickname:`${original.name||exitId} ${id===crossId?'Crossroad':'Town Link'}`,
       ...structuredClone(existing||{}),id,kind:'state_road',lanes:2,divided:false,
-      surface:'asphalt',danger:original.danger??0,one_way:false,
+      surface:'asphalt',danger:original.risk_rating??original.danger??0,one_way:false,
       interchange_id:exitId,elev_mode:'structure'};
   };
   const crossBase=connectorBase(crossId),linkBase=connectorBase(linkId);
