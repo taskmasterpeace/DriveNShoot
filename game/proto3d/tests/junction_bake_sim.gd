@@ -64,10 +64,39 @@ func _ready() -> void:
 		if String(j["grade"]) == "separated_pending" or String(j["grade"]) == "deck":
 			pending += 1
 	_check("every kind is in the 0.2 enum", kinds_ok)
-	# THE MOUTH LAW: assert the INVARIANT (every exit owns a ramp_mouth), never a
-	# frozen count — minting a city exit legitimately grows both sides together.
-	_check("every exit has a ramp_mouth node (%d exits / %d mouths)" % [um.exits.size(), mouths],
-		mouths == um.exits.size())
+	# A diamond has separate directional mouths; old exits can share one mouth.
+	# Prove ownership and point-order arcs for EVERY departure, not one-per-exit.
+	var owned_mouths_ok := true
+	var departure_count := 0
+	for exit_row: Dictionary in um.exits:
+		var ports: Array = um.exit_ports(exit_row, "off")
+		if ports.is_empty():
+			owned_mouths_ok = false
+			print("JBAKE: missing departure ports for %s" % exit_row["id"])
+		for port: Dictionary in ports:
+			departure_count += 1
+			var ramp: Dictionary = port["road"]
+			var terminal_arc: float = float(ProtoUSMap._project_road(ramp, port["pos"])["arc_m"])
+			var matched := false
+			for junction: Dictionary in um.junctions:
+				if String(junction["kind"]) != "ramp_mouth":
+					continue
+				var ramp_leg := false
+				var highway_leg := false
+				for leg: Dictionary in junction["legs"]:
+					# Legacy baked legs round to whole metres; the runtime geometry
+					# folds into float32 Vector2, so allow <1m projection error.
+					if String(leg["road"]) == String(ramp["id"]) and absf(float(leg["arc_m"]) - terminal_arc) < 1.0:
+						ramp_leg = true
+					if String(leg["road"]) == String(exit_row["highway_id"]) and absf(float(leg["arc_m"]) - float(port["highway_arc_m"])) < 1.0:
+						highway_leg = true
+				if ramp_leg and highway_leg:
+					matched = true
+					break
+			if not matched:
+				owned_mouths_ok = false
+				print("JBAKE: missing owned mouth for %s / %s at highway arc %.2f" % [exit_row["id"], ramp["id"], port["highway_arc_m"]])
+	_check("every departure owns a ramp_mouth with matching highway/ramp arcs (%d ports / %d mouths)" % [departure_count, mouths], owned_mouths_ok)
 	_check("THE RIRO LAW: no ramp mouth/rejoin EVER opens the median (control never 'gap')", riro_ok)
 	# 1B: the overpass bake DECKS every pending crossing — the triage law now
 	# reads pending+deck together (grade separation exists either way).

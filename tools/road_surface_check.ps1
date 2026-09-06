@@ -1,6 +1,6 @@
 # Isolated real-scene road surface regression and optional actual GPU captures.
 [CmdletBinding()]
-param([switch]$Capture,[ValidateSet('road_surface_sim','roadside_clearance_sim','ramp_profile_sim','city_exit_sim','road_lane_sim','runtime_road_clearance_sim','elevation_sim','terrain_relief_sim','exit_geometry_sim','junction_bake_sim','junction_law_sim','exit_blueprint_sim','town_grid_sim','roadside_band_sim','traffic_sim')][string]$Scene='road_surface_sim')
+param([switch]$Capture,[ValidateSet('road_surface_sim','roadside_clearance_sim','ramp_profile_sim','city_exit_sim','road_lane_sim','runtime_road_clearance_sim','elevation_sim','terrain_relief_sim','exit_geometry_sim','junction_bake_sim','junction_law_sim','exit_blueprint_sim','town_grid_sim','roadside_band_sim','traffic_sim','interchange_ports_sim','atlas_readability_sim','nav_walk_sim')][string]$Scene='road_surface_sim')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell 7 required'}

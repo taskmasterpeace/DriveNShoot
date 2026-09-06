@@ -29,6 +29,8 @@ var _river_segs: Array = [] ## 1B: [[a: Vector2, b: Vector2, width: float], ...]
 ## index a single chunk floor cost 289 full-country scans and wedged headless runs.
 const SEG_BUCKET_M := 256.0
 var _seg_grid: Dictionary = {} ## "bx,bz" -> Array of [road_index, seg_index]
+const EXIT_PORT_CACHE_LIMIT := 128
+var _exit_ports_cache: Dictionary = {} ## complete exit descriptors -> resolved ports; per-map, bounded
 var roads: Array = []             ## [{id, kind, pts: PackedVector2Array (world m)}]
 var rivers: Array = []
 var towns: Array = []             ## [{id, name, pos: Vector2, kind, landmark?}]
@@ -50,6 +52,7 @@ static func get_default() -> ProtoUSMap:
 
 func load_file(path: String) -> bool:
 	ok = false
+	_exit_ports_cache.clear()
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
 		push_warning("usmap: cannot open %s" % path)
@@ -101,9 +104,14 @@ func load_file(path: String) -> bool:
 			"family": String(r.get("family", "")), "nickname": String(r.get("nickname", "")),
 			"toll": int(r.get("toll", 0)),
 			"side": int(r.get("side", 0)), # exit ramps: +1 along the highway's pts order, -1 against (0.18b)
+			"ramp_role": String(r.get("ramp_role", "")),
+			"one_way": bool(r.get("one_way", false)),
+			"interchange_id": String(r.get("interchange_id", "")),
 			"surface": String(r.get("surface", "asphalt")), # 0.17: asphalt|concrete|gravel|dirt
 			"leads_to": (r.get("leads_to", {}) as Dictionary).duplicate(), # dirt spurs: the payload law (0.19)
 			"lanes": lanes, "divided": bool(r.get("divided", lanes >= 6))})
+		if r.has("speed_mps"):
+			roads.back()["speed_mps"] = float(r["speed_mps"])
 	# 1B: rivers become REAL — polyline + width (m). Cached as Vector2s once.
 	rivers = d.get("rivers", [])
 	_river_segs.clear()
@@ -137,6 +145,8 @@ func load_file(path: String) -> bool:
 			"risk_rating": int(e.get("risk_rating", 1)),
 			"has_return_ramp": bool(e.get("has_return_ramp", false)),
 			"ramp_ids": (e.get("ramp_ids", []) as Array).duplicate(), # 0.5: the dead-code fix — resolution by ids, never name patterns
+			"connector_ids": (e.get("connector_ids", []) as Array).duplicate(),
+			"interchange": (e.get("interchange", {}) as Dictionary).duplicate(true),
 			"town_id": String(e.get("town_id", "")),
 			"known_to_player": bool(e.get("known_to_player", false)),
 			"pos": Vector2(float(e["pos"][0]), float(e["pos"][1])),
@@ -179,6 +189,7 @@ func load_file(path: String) -> bool:
 ## interstate span registers in every cell it crosses). Built once per load.
 func _build_seg_grid() -> void:
 	_seg_grid.clear()
+	_exit_ports_cache.clear() # canonical geometry changes cross this same fold boundary
 	for ri in roads.size():
 		var pts: PackedVector2Array = roads[ri]["pts"]
 		for si in range(pts.size() - 1):
@@ -245,6 +256,94 @@ func road_by_id(rid: String) -> Dictionary:
 		if String(r["id"]) == rid:
 			return r
 	return {}
+
+
+## The shared ramp contract. Explicit roles choose the legal terminal even when
+## hundreds of metres from the sign anchor. Legacy inference stays inside the
+## owned ID list; only a genuinely unowned legacy exit may search its anchor.
+## highway_arc_m is point-order arc (the baked junction/traffic convention).
+func exit_ports(e: Dictionary, role: String = "") -> Array:
+	# Full typed descriptor keys include ownership lists, metadata and anchor;
+	# neither a repeated exit ID nor a hash collision can reuse another exit.
+	var key := var_to_str(e)
+	if not _exit_ports_cache.has(key):
+		if _exit_ports_cache.size() >= EXIT_PORT_CACHE_LIMIT:
+			_exit_ports_cache.erase(_exit_ports_cache.keys()[0])
+		_exit_ports_cache[key] = _resolve_exit_ports(e)
+	var out: Array = []
+	for port: Dictionary in _exit_ports_cache[key]:
+		if role == "" or String(port["role"]) == role:
+			# Consumers may edit a returned Dictionary: never expose cached port
+			# payloads or the canonical map road through that writable reference.
+			out.append(port.duplicate(true))
+	return out
+
+
+func _resolve_exit_ports(e: Dictionary) -> Array:
+	var highway := road_by_id(String(e.get("highway_id", "")))
+	if highway.is_empty():
+		return []
+	var ids: Array = e.get("ramp_ids", [])
+	var candidates: Array = []
+	if not ids.is_empty():
+		for rid: Variant in ids:
+			var owned := road_by_id(String(rid))
+			if not owned.is_empty():
+				candidates.append(owned)
+	elif (e.get("interchange", {}) as Dictionary).is_empty():
+		for road: Dictionary in roads:
+			var points: PackedVector2Array = road["pts"]
+			if String(road.get("interchange_id", "")) == "" and String(road.get("ramp_role", "")) == "" and points.size() >= 2 and (points[0].distance_to(e["pos"]) < 30.0 or points[-1].distance_to(e["pos"]) < 30.0):
+				candidates.append(road)
+	var out: Array = []
+	for road: Dictionary in candidates:
+		var pts: PackedVector2Array = road["pts"]
+		if String(road.get("kind", "")) != "exit" or pts.size() < 2:
+			continue
+		var owner := String(road.get("interchange_id", ""))
+		if owner != "" and owner != String(e.get("id", "")):
+			continue
+		var resolved := String(road.get("ramp_role", ""))
+		var mouth_i := 0
+		if resolved == "off":
+			mouth_i = 0
+		elif resolved == "on":
+			mouth_i = pts.size() - 1
+		elif resolved == "" and owner == "":
+			var start := _project_road(highway, pts[0])
+			var end := _project_road(highway, pts[-1])
+			mouth_i = 0 if float(start["dist"]) <= float(end["dist"]) else pts.size() - 1
+			if minf(float(start["dist"]), float(end["dist"])) > 30.0:
+				continue
+			resolved = "off" if pts[mouth_i].distance_to(e["pos"]) < 30.0 else "on"
+		else:
+			continue
+		var projection := _project_road(highway, pts[mouth_i])
+		var side := int(road.get("side", 0))
+		if side == 0:
+			var inward: Vector2 = pts[1] - pts[0] if mouth_i == 0 else pts[-2] - pts[-1]
+			var tangent: Vector2 = projection["dir"]
+			side = int(signf(inward.dot(Vector2(-tangent.y, tangent.x))))
+		out.append({"road": road, "role": resolved, "side": side,
+			"pos": pts[mouth_i], "highway_arc_m": float(projection["arc_m"])})
+	return out
+
+
+## Point-order projection, unlike the address law's south/west-origin arc.
+static func _project_road(road: Dictionary, pos: Vector2) -> Dictionary:
+	var pts: PackedVector2Array = road["pts"]
+	var best: Dictionary = {"arc_m": 0.0, "dist": INF, "pos": Vector2.ZERO, "dir": Vector2.RIGHT}
+	var arc := 0.0
+	for i in range(pts.size() - 1):
+		var delta := pts[i + 1] - pts[i]
+		var length := delta.length()
+		var t := clampf((pos - pts[i]).dot(delta) / maxf(delta.length_squared(), 0.0001), 0.0, 1.0)
+		var projected := pts[i] + delta * t
+		var distance := projected.distance_to(pos)
+		if distance < float(best["dist"]):
+			best = {"arc_m": arc + length * t, "dist": distance, "pos": projected, "dir": delta.normalized()}
+		arc += length
+	return best
 
 
 ## THE GAME-MILE (ADDRESS LAW 0.1): mile markers use the SAME constant the exit
@@ -449,7 +548,7 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 					"elev_a": ep[0], "elev_b": ep[1], "elev_mode": String(road.get("elev_mode", "")),
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
-					"surface": String(road.get("surface", "asphalt")),
+					"surface": String(road.get("surface", "asphalt")), "one_way": bool(road.get("one_way", false)),
 					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 		return best
 	for road in roads:
@@ -463,7 +562,7 @@ func road_near(pos: Vector3, max_d: float) -> Dictionary:
 					"elev_a": ep[0], "elev_b": ep[1], "elev_mode": String(road.get("elev_mode", "")),
 					"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 					"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
-					"surface": String(road.get("surface", "asphalt")),
+					"surface": String(road.get("surface", "asphalt")), "one_way": bool(road.get("one_way", false)),
 					"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 	return best
 
@@ -496,7 +595,7 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 				"elev_mode": String(road.get("elev_mode", "")),
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
-				"surface": String(road.get("surface", "asphalt")),
+				"surface": String(road.get("surface", "asphalt")), "one_way": bool(road.get("one_way", false)),
 				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
 		return out
 	for road in roads:
@@ -515,7 +614,7 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 				"elev_mode": String(road.get("elev_mode", "")),
 				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
-				"surface": String(road.get("surface", "asphalt")),
+				"surface": String(road.get("surface", "asphalt")), "one_way": bool(road.get("one_way", false)),
 				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
 	return out
 
@@ -554,7 +653,7 @@ static func _segment_row(road: Dictionary, si: int, distance: float) -> Dictiona
 		"elev_mode": String(road.get("elev_mode", "")),
 		"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
 		"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
-		"surface": String(road.get("surface", "asphalt")),
+		"surface": String(road.get("surface", "asphalt")), "one_way": bool(road.get("one_way", false)),
 		"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
 
 

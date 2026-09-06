@@ -20,6 +20,9 @@ var usmap: ProtoUSMap = null
 var nodes: Dictionary = {} ## node id -> {pos: Vector2, junction: Dictionary}
 var adj: Dictionary = {}   ## node id -> Array of {to: String, road: String, len_m: float, time_s: float}
 var _road_nodes: Dictionary = {} ## road id -> Array of {node: String, arc_m: float} (arc-sorted)
+var _ports: Dictionary = {} ## ramp id -> shared port, serving highway and terminal arc
+var _carriers: Dictionary = {} ## highways whose through-directions must stay distinct
+var _active_nodes: Dictionary = {} ## edge endpoints, including incoming-only sinks
 
 
 static func build(usmap_ref: ProtoUSMap) -> ProtoRoadGraph:
@@ -32,53 +35,115 @@ static func build(usmap_ref: ProtoUSMap) -> ProtoRoadGraph:
 func _build() -> void:
 	if usmap == null or not usmap.ok:
 		return
-	# 1) Every baked junction is a node; index its legs by road.
+	for exit_row: Dictionary in usmap.exits:
+		for port: Dictionary in usmap.exit_ports(exit_row):
+			if int(port["side"]) == 0:
+				continue # no invented carriageway for a geometrically ambiguous legacy row
+			var ramp: Dictionary = port["road"]
+			var rid := String(ramp["id"])
+			var highway := String(exit_row["highway_id"])
+			var data := port.duplicate()
+			data["highway"] = highway
+			data["terminal_arc"] = float(ProtoUSMap._project_road(ramp, port["pos"])["arc_m"])
+			_ports[rid] = data
+			_carriers[highway] = true
+	# Baked shared nodes remain for ordinary flat intersections. Each ramp's
+	# highway terminal is private, even when an old mouth lists both sides.
 	for j in usmap.junctions:
 		var nid := String(j["id"])
 		nodes[nid] = {"pos": j["pos"], "junction": j}
 		adj[nid] = []
 		for l in j["legs"]:
 			var rid := String(l["road"])
-			if not _road_nodes.has(rid):
-				_road_nodes[rid] = []
-			(_road_nodes[rid] as Array).append({"node": nid, "arc_m": float(l["arc_m"])})
-	# 2) Arcs: consecutive nodes along each road, cost = span / kind speed.
-	#    separated_pending junctions are NODES but allow NO TRANSFER (0.4) —
-	#    they still split arcs (correct: you pass under, you don't turn), and
-	#    because both roads list the node, through-travel on each road works
-	#    while turning costs infinity (no shared arc is ever emitted for them...
-	#    transfer happens by SHARING the node id, so pending nodes get per-road
-	#    CLONE ids and the barrier stays honest in the math too).
+			if _ports.has(rid) and absf(float(l["arc_m"]) - float(_ports[rid]["terminal_arc"])) <= 2.0:
+				continue # indexed once below, at the actual (unrounded) terminal
+			_index(rid, nid, float(l["arc_m"]))
+	for rid: String in _ports:
+		var port: Dictionary = _ports[rid]
+		var nid := "port@%s" % rid
+		nodes[nid] = {"pos": port["pos"], "junction": {}, "port_road": rid}
+		adj[nid] = []
+		_index(rid, nid, float(port["terminal_arc"]))
+		_index(String(port["highway"]), nid, float(port["highway_arc_m"]))
+	# Point-order arcs; separated carriageways pass every limited-access node
+	# independently, not just the newly managed interchange's four mouths.
 	for rid in _road_nodes:
 		var lst: Array = _road_nodes[rid]
 		lst.sort_custom(func(a, b) -> bool: return float(a["arc_m"]) < float(b["arc_m"]))
 		var road: Dictionary = usmap.road_by_id(String(rid))
-		var mps: float = float(road.get("speed_mps", KIND_SPEED.get(String(road.get("kind", "backroad")), 16.0)))
+		var mps: float = maxf(0.1, float(road.get("speed_mps", KIND_SPEED.get(String(road.get("kind", "backroad")), 16.0))))
 		for i in range(lst.size() - 1):
 			var a: Dictionary = lst[i]
 			var b: Dictionary = lst[i + 1]
 			var span: float = absf(float(b["arc_m"]) - float(a["arc_m"]))
-			if span < 1.0:
-				continue
-			var an := _travel_node(String(a["node"]), String(rid))
-			var bn := _travel_node(String(b["node"]), String(rid))
-			(adj[an] as Array).append({"to": bn, "road": String(rid), "len_m": span, "time_s": span / mps})
-			(adj[bn] as Array).append({"to": an, "road": String(rid), "len_m": span, "time_s": span / mps})
+			var an := _travel_node(String(a["node"]), String(rid), float(a["arc_m"]), 1)
+			var bn := _travel_node(String(b["node"]), String(rid), float(b["arc_m"]), 1)
+			_edge(an, bn, String(rid), span, mps)
+			if not bool(road.get("one_way", false)):
+				an = _travel_node(String(a["node"]), String(rid), float(a["arc_m"]), -1)
+				bn = _travel_node(String(b["node"]), String(rid), float(b["arc_m"]), -1)
+				_edge(bn, an, String(rid), span, mps)
+	for rid: String in _ports:
+		var port: Dictionary = _ports[rid]
+		var nid := "port@%s" % rid
+		var highway := String(port["highway"])
+		var carrier := _travel_node(nid, highway, float(port["highway_arc_m"]), int(port["side"]))
+		var distance: float = (nodes[carrier]["pos"] as Vector2).distance_to(port["pos"])
+		if String(port["role"]) == "off":
+			_edge(carrier, nid, highway, distance, 12.0)
+		else:
+			_edge(nid, carrier, highway, distance, 12.0)
+
+
+func _index(rid: String, nid: String, arc: float) -> void:
+	if not _road_nodes.has(rid):
+		_road_nodes[rid] = []
+	(_road_nodes[rid] as Array).append({"node": nid, "arc_m": arc})
+
+
+func _edge(from: String, to: String, rid: String, length: float, mps: float) -> void:
+	if from == to:
+		return
+	(adj[from] as Array).append({"to": to, "road": rid, "len_m": length, "time_s": length / mps})
+	_active_nodes[from] = true
+	_active_nodes[to] = true
 
 
 ## separated_pending AND deck nodes are per-road clones (no transfer): a DECK is
 ## an overpass, not an interchange — you cross ABOVE a road, you don't turn onto
-## it (turning takes ramps, and ramps are exit rows). Every other node is shared
-## (that IS the transfer).
-func _travel_node(nid: String, rid: String) -> String:
+## it (turning takes ramps). Serving highways also split travel directions at
+## every limited-access node; only genuine flat control-gap nodes stay shared.
+func _travel_node(nid: String, rid: String, arc: float, direction: int) -> String:
 	var j: Dictionary = (nodes.get(nid, {}) as Dictionary).get("junction", {})
-	if String(j.get("grade", "flat")) in ["separated_pending", "deck"]:
+	var separate := String(j.get("grade", "flat")) in ["separated_pending", "deck"]
+	var carrier := _carriers.has(rid) and not (String(j.get("control", "none")) == "gap" and not separate)
+	if separate or carrier:
 		var cid := "%s@%s" % [nid, rid]
+		if carrier:
+			cid += ":%d" % direction
 		if not nodes.has(cid):
-			nodes[cid] = {"pos": j["pos"], "junction": j}
+			var road := usmap.road_by_id(rid)
+			var sample := _point_at(road, arc)
+			var pos: Vector2 = sample["pos"]
+			if carrier:
+				var tangent: Vector2 = sample["dir"]
+				pos += Vector2(-tangent.y, tangent.x) * ProtoUSMap.lane_offset(road, 0) * float(direction)
+			nodes[cid] = {"pos": pos, "junction": j}
 			adj[cid] = []
 		return cid
 	return nid
+
+
+static func _point_at(road: Dictionary, arc: float) -> Dictionary:
+	var pts: PackedVector2Array = road["pts"]
+	var remaining := arc
+	for i in range(pts.size() - 1):
+		var delta := pts[i + 1] - pts[i]
+		var length := delta.length()
+		if remaining <= length or i == pts.size() - 2:
+			return {"pos": pts[i].lerp(pts[i + 1], clampf(remaining / maxf(length, 0.0001), 0.0, 1.0)), "dir": delta.normalized()}
+		remaining -= length
+	return {"pos": Vector2.ZERO, "dir": Vector2.RIGHT}
 
 
 ## Nearest graph node to a world position (2D).
@@ -86,6 +151,8 @@ func nearest_node(pos: Vector2) -> String:
 	var best := ""
 	var bd := 1e18
 	for nid in nodes:
+		if not _active_nodes.has(nid):
+			continue
 		var d: float = (nodes[nid]["pos"] as Vector2).distance_squared_to(pos)
 		if d < bd:
 			bd = d

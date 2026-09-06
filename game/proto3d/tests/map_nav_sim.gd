@@ -17,6 +17,7 @@ var home_where := Vector3.ZERO
 var town_name := ""
 var town_pos := Vector3.ZERO
 var n_count := 0
+var n_process_frame := -1
 
 
 func _ready() -> void:
@@ -173,7 +174,11 @@ func _physics_process(delta: float) -> void:
 				_key(KEY_M) # close the atlas
 				_next()
 		7:
-			# N-cycle to HOME: observe the prior press at frame start, then press again.
+			# Physics can catch up several ticks before queued input dispatches.
+			# Observe each real gesture in a new process frame, and wait for the
+			# atlas close/release to unblock. Keep the original full-cycle budget.
+			if main.stream.map_blocks_input() or Engine.get_process_frames() == n_process_frame:
+				return
 			if main.waypoint_idx >= 0 and main.waypoints[main.waypoint_idx][0] == main.HOME_KEY:
 				_check("N can steer you back HOME (in %d presses)" % n_count, true)
 				_next()
@@ -183,6 +188,7 @@ func _physics_process(delta: float) -> void:
 			else:
 				_key(KEY_N)
 				n_count += 1
+				n_process_frame = Engine.get_process_frames()
 		8:
 			print("MAPNAV RESULTS: %d passed, %d failed" % [passed, failed])
 			print("MAPNAV: %s" % ("ALL CHECKS PASSED" if failed == 0 else "FAILURES PRESENT"))

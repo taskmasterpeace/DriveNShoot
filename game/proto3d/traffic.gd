@@ -15,7 +15,7 @@ extends Node3D
 
 const CAR_LEN: float = 4.4
 const ACCEL: float = 7.0          ## m/s² toward the desired speed
-const EXIT_TRIGGER_M: float = 34.0 ## how close to an exit anchor the take-roll happens
+const EXIT_TRIGGER_M: float = 34.0 ## how close to the selected ramp port the take-roll happens
 const HONK_COOLDOWN_S: float = 4.0
 
 static var TRAFFIC: Dictionary = {
@@ -193,6 +193,9 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 	_maybe_take_exit(ag, road)
 	if not is_instance_valid(ag):
 		return
+	if ag.road_id != String(road["id"]):
+		road = _road(ag.road_id)
+		pts = road["pts"] # advance/place on the ramp this frame, not the old highway
 	# --- advance along the polyline (s_ab is a->b; dir signs the step)
 	ag.s_ab += ag.speed * delta * float(ag.dir)
 	while true:
@@ -298,7 +301,7 @@ func _car_travel_arc(ag: TrafficAgent, car: Node3D) -> float:
 	return arc_ab if ag.dir > 0 else (cum[cum.size() - 1] - arc_ab)
 
 
-## EXITS ARE THE CONNECTIONS: near an exit anchor on this road, roll ONCE; on a
+## EXITS ARE THE CONNECTIONS: near the serving off-ramp port, roll ONCE; on a
 ## take, transfer to the ramp polyline (right-side departures only) and ride it
 ## to the location — arrive at its end (the normal end-of-road law). A TRIP
 ## agent doesn't roll dice: it leaves at ITS destination exit, and only there.
@@ -306,22 +309,25 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 	for e in usmap.exits:
 		if String(e["highway_id"]) != ag.road_id or String(e["id"]) == ag._exit_rolled:
 			continue
-		var epos: Vector2 = e["pos"]
-		if Vector2(ag.global_position.x, ag.global_position.z).distance_to(epos) > EXIT_TRIGGER_M:
+		var port := _port_for(e, ag.dir)
+		if port.is_empty():
+			continue
+		var mouth: Vector2 = port["pos"]
+		if Vector2(ag.global_position.x, ag.global_position.z).distance_to(mouth) > EXIT_TRIGGER_M:
 			continue
 		ag._exit_rolled = String(e["id"]) # rolled — never re-rolled on the same pass
 		if ag.dest_exit_id != "" and String(e["id"]) != ag.dest_exit_id:
 			continue # not MY exit — a car with somewhere to be doesn't wander off
-		var ramp := _ramp_for(e, ag.dir)
-		if ramp.is_empty():
-			continue
+		var ramp: Dictionary = port["road"]
 		# the ramp must depart the agent's travel side (never dart across the median)
 		var rpts: PackedVector2Array = ramp["pts"]
-		var mouth_i := 0 if rpts[0].distance_to(epos) <= rpts[rpts.size() - 1].distance_to(epos) else rpts.size() - 1
+		var mouth_i := 0 if rpts[0].distance_to(mouth) <= rpts[rpts.size() - 1].distance_to(mouth) else rpts.size() - 1
+		if bool(ramp.get("one_way", false)) and mouth_i != 0:
+			continue
 		var away := (rpts[1] - rpts[0]).normalized() if mouth_i == 0 else (rpts[rpts.size() - 2] - rpts[rpts.size() - 1]).normalized()
 		var pts: PackedVector2Array = road["pts"]
 		var d := (pts[ag.seg_i + 1] - pts[ag.seg_i]).normalized() * float(ag.dir)
-		if away.dot(Vector2(-d.y, d.x)) < 0.1: # the ramp must depart the RIGHT of travel
+		if String(ramp.get("ramp_role", "")) == "" and away.dot(Vector2(-d.y, d.x)) < 0.1:
 			continue
 		if ag.dest_exit_id == "" and rng.randf() > float(TRAFFIC["exit_take_chance"]):
 			continue # destination-less drifters still roll the old dice
@@ -343,33 +349,22 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 ## mirrors, an exit owns ramps for BOTH directions (`side` = the pts-order sense
 ## a ramp serves) — the old first-in-road-order pick could hand an agent the
 ## opposite carriageway's ramp and the side check would then skip the exit.
-## Law: a mouth-anchored ramp whose side matches wins; a side-less legacy ramp
-## is acceptable for either direction; ON-ramps (mouth downstream) never depart.
+## Explicit role/side ports win even when displaced from the sign. Legacy
+## inference is contained by ProtoUSMap; ON-ramps never depart.
 func _ramp_for(e: Dictionary, want_dir: int = 0) -> Dictionary:
-	var ramp_ids: Array = e.get("ramp_ids", [])
-	var epos: Vector2 = e["pos"]
+	return _port_for(e, want_dir).get("road", {})
+
+
+func _port_for(e: Dictionary, want_dir: int = 0) -> Dictionary:
 	var legacy: Dictionary = {}
-	for rid in ramp_ids:
-		var road: Dictionary = usmap.road_by_id(String(rid))
-		if road.is_empty() or String(road.get("kind", "exit")) != "exit":
-			continue
-		var pts: PackedVector2Array = road["pts"]
-		if pts[0].distance_to(epos) >= 30.0 and pts[pts.size() - 1].distance_to(epos) >= 30.0:
-			continue # rejoins downstream — an ON-ramp, never a departure
-		var side := int(road.get("side", 0))
-		if want_dir != 0 and side == want_dir:
-			return road # the ramp serving MY travel direction
-		if legacy.is_empty() and side == 0:
-			legacy = road # side-less legacy ramp serves either direction
+	for port: Dictionary in usmap.exit_ports(e, "off"):
+		var side := int(port["side"])
+		if want_dir == 0 or side == want_dir:
+			return port
+		if side == 0 and legacy.is_empty():
+			legacy = port
 	if not legacy.is_empty():
 		return legacy
-	# fallback: any exit-kind road whose endpoint sits on this exit's anchor
-	for road in usmap.roads:
-		if String(road["kind"]) != "exit":
-			continue
-		var pts2: PackedVector2Array = road["pts"]
-		if pts2[0].distance_to(epos) < 30.0 or pts2[pts2.size() - 1].distance_to(epos) < 30.0:
-			return road
 	return {}
 
 
