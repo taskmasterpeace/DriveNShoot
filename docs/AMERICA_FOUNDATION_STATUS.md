@@ -6,13 +6,16 @@ Working branch: `codex/america-foundation`, isolated from the original checkout 
 
 - Typed, single-writer property authority: balances, one-owner parcels, purchase receipts, guests, item storage, strict corrupt-state rejection and verified file replacement. Focused regression: 67 checks passed after the Windows buffered-write fix. This is not authentication, interprocess locking or a public service.
 - Original Blender MCP homestead kit: cottage with furnished interior and separate cutaway roof, mailbox, Road Office kiosk, freight crate. Editable `.blend`, source generator and inspected previews are retained. See [asset provenance and contracts](art/HOMESTEAD_KIT.md).
+- Exported-geometry checks: 44 Godot assertions passed, plus the independent Python four-asset contract. The cottage doorway measures 1.40m wide with 2.28m headroom above its actual finished floor; deliberately narrowed, shrunken and floating negative controls fail. These asset checks do not replace the pending runtime collision and traversal test.
 - Real-camera **before** captures from the existing `world_photobooth` tool: 21 saved images, clean output. Examples: [Meridian core](renders/world/roadstead_before/meridian_main.png), [town edge](renders/world/roadstead_before/meridian_edge.png). These show the current surrounding town, not the new assets placed in it.
 
 The baseline also exposes unresolved world-layout problems: the [downtown capture](renders/world/roadstead_before/town_downtown.png) visibly has overlapping road/building geometry and oversized signage. The [Seattle exit capture](renders/world/roadstead_before/seattle_city_exit.png) shows an abrupt road edge and a structure overlapping the approach. These images are evidence of problems to investigate, not a completed reachability diagnosis; existing passing data sims alone do not certify these layouts as polished or driveable.
 
 ## In progress
 
-Exact cottage clearance regression and playable RoadLife integration: accept freight, reach the actual destination carrying cargo, receive a one-time reward, purchase an addressed home and move possessions into storage. Jobs, backpack and property must share an atomic local checkpoint. Runtime collision, controller focus, discoverability and actual camera captures must pass before this is presented as playable.
+Playable RoadLife integration: accept freight, reach the actual destination carrying cargo, receive a one-time reward, purchase an addressed home and move possessions into storage. Jobs, backpack and property must share an atomic local checkpoint. Runtime collision, controller focus, discoverability and actual camera captures must pass before this is presented as playable.
+
+The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [next persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) records the missing two-client, dedicated-authority proof and failure cases; that gate is not yet implemented.
 
 ## What is still required for the requested large MMO
 
