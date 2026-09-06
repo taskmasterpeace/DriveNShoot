@@ -306,6 +306,31 @@ test('mouth-arcs-only stale and malformed ownership inputs reject before write',
 	}
 });
 
+test('mouth-arcs-only rejects displaced or contradictory mouth geometry before write', () => {
+	for (const [name, change, pattern] of [
+		['mouth displaced along highway', (map) => {
+			map.junctions[0].pos = [500, 0];
+			map.junctions[0].legs.find((leg) => leg.road === 'main').arc_m = 1700;
+		}, /mouth|exit/i],
+		['ramp terminal displaced along highway', (map) => {
+			map.roads.find((road) => road.id === 'amber').pts[0] = [500, -14.6];
+		}, /mouth|terminal/i],
+		['malformed mouth position', (map) => { map.junctions[0].pos = [null, 0]; }, /mouth|finite|position/i],
+		['contradictory highway arc', (map) => {
+			map.junctions[0].legs.find((leg) => leg.road === 'main').arc_m = 1700;
+		}, /highway|arc/i],
+	]) {
+		const { directory, path } = staged((map) => { mouthArcFixture(map); change(map); });
+		try {
+			const before = readFileSync(path);
+			const result = run(path, '--write', '--mouth-arcs-only', '--exit=X');
+			assert.notEqual(result.status, 0, `${name} should reject`);
+			assert.match(result.stderr, pattern);
+			assert.deepEqual(readFileSync(path), before, `${name} rejection must precede write`);
+		} finally { cleanup(directory); }
+	}
+});
+
 test('full junction rebakes preserve managed roles, profiles, ports, and deck separation', () => {
 	assert.equal(typeof source.applyDiamondInterchanges, 'function', 'missing selective migration API');
 	const map = fixture();
@@ -339,7 +364,7 @@ test('full junction rebakes preserve managed roles, profiles, ports, and deck se
 test('full bake keeps every shared-mouth off-ramp leg at its known terminal arc zero', () => {
 	const map = sharedMouthBakeFixture();
 	for (let pass = 0; pass < 2; pass++) {
-		bakeJunctions(map);
+		const result = bakeJunctions(map);
 		const mouth = map.junctions.find((row) => row.kind === 'ramp_mouth'
 			&& row.legs.some((leg) => leg.road === 'M-off-r'));
 		assert.ok(mouth, 'shared mouth must retain the second off-ramp leg');
@@ -347,5 +372,6 @@ test('full bake keeps every shared-mouth off-ramp leg at its known terminal arc 
 		assert.equal(mouth.legs.find((leg) => leg.road === 'mouth-main').arc_m, 1200);
 		assert.equal(mouth.legs.find((leg) => leg.road === 'M-off').arc_m, 0);
 		assert.equal(mouth.legs.find((leg) => leg.road === 'M-off-r').arc_m, 0);
+		assert.equal(result.lint.merged_legs, 1, 'the appended shared-mouth ramp leg must be counted');
 	}
 });

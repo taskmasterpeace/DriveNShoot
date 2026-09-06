@@ -70,13 +70,18 @@ function externalRoadConflicts(map, exitIds) {
 	return [...conflicts.values()];
 }
 
-function distanceToRoad(point, road) {
-	let best = Infinity;
+const MOUTH_POSITION_TOLERANCE_M = 0.5;
+const HIGHWAY_ARC_TOLERANCE_M = 1;
+
+function projectToRoad(point, road) {
+	let best = { distance: Infinity, arc_m: 0 }, walked = 0;
 	for (let i = 1; i < road.pts.length; i++) {
 		const a = road.pts[i - 1], b = road.pts[i], dx = b[0] - a[0], dz = b[1] - a[1];
-		const length2 = dx * dx + dz * dz;
+		const length2 = dx * dx + dz * dz, length = Math.sqrt(length2);
 		const t = length2 ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dz) / length2)) : 0;
-		best = Math.min(best, Math.hypot(point[0] - a[0] - dx * t, point[1] - a[1] - dz * t));
+		const distance = Math.hypot(point[0] - a[0] - dx * t, point[1] - a[1] - dz * t);
+		if (distance < best.distance) best = { distance, arc_m: walked + length * t };
+		walked += length;
 	}
 	return best;
 }
@@ -97,6 +102,8 @@ export function repairMouthTerminalArcs(map, exitIds) {
 		const exit = matchingExits[0], highway = roads.get(exit.highway_id);
 		assert.ok(highway && highway.kind !== 'exit' && Array.isArray(highway.pts) && highway.pts.length >= 2,
 			`Exit ${exitId}: missing owning highway ${exit.highway_id}`);
+		assert.ok(Array.isArray(exit.pos) && exit.pos.length === 2 && exit.pos.every(Number.isFinite),
+			`Exit ${exitId}: finite selected anchor position required`);
 		assert.ok(Array.isArray(exit.ramp_ids) && exit.ramp_ids.length && new Set(exit.ramp_ids).size === exit.ramp_ids.length,
 			`Exit ${exitId}: distinct owned ramp IDs required`);
 		const owned = new Set(exit.ramp_ids);
@@ -114,8 +121,8 @@ export function repairMouthTerminalArcs(map, exitIds) {
 				&& ramp.pts.every((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite)),
 				`Ramp ${rampId}: finite terminal polyline required`);
 			const threshold = roadHalfWidth(highway) + 4;
-			const startNear = distanceToRoad(ramp.pts[0], highway) <= threshold;
-			const endNear = distanceToRoad(ramp.pts.at(-1), highway) <= threshold;
+			const startNear = projectToRoad(ramp.pts[0], highway).distance <= threshold;
+			const endNear = projectToRoad(ramp.pts.at(-1), highway).distance <= threshold;
 			let role = ramp.ramp_role;
 			assert.ok(role === undefined || role === 'off' || role === 'on', `Ramp ${rampId}: invalid explicit role`);
 			if (role === undefined) {
@@ -136,6 +143,18 @@ export function repairMouthTerminalArcs(map, exitIds) {
 			const highwayLegs = mouth.legs.filter((leg) => leg.road === exit.highway_id);
 			assert.equal(rampLegs.length, 1, `Ramp ${rampId}: expected one unique mouth leg`);
 			assert.equal(highwayLegs.length, 1, `Ramp ${rampId}: mouth must name owning highway ${exit.highway_id}`);
+			assert.ok(Array.isArray(mouth.pos) && mouth.pos.length === 2 && mouth.pos.every(Number.isFinite),
+				`Ramp ${rampId}: finite ramp mouth position required`);
+			assert.ok(Math.hypot(mouth.pos[0] - exit.pos[0], mouth.pos[1] - exit.pos[1]) <= MOUTH_POSITION_TOLERANCE_M,
+				`Ramp ${rampId}: mouth position contradicts selected exit anchor`);
+			assert.ok(Math.hypot(mouth.pos[0] - ramp.pts[0][0], mouth.pos[1] - ramp.pts[0][1]) <= threshold,
+				`Ramp ${rampId}: mouth position contradicts off-ramp terminal`);
+			const mouthProjection = projectToRoad(mouth.pos, highway);
+			assert.ok(mouthProjection.distance <= MOUTH_POSITION_TOLERANCE_M,
+				`Ramp ${rampId}: mouth position is not on the owning highway`);
+			assert.ok(Number.isFinite(highwayLegs[0].arc_m)
+				&& Math.abs(highwayLegs[0].arc_m - mouthProjection.arc_m) <= HIGHWAY_ARC_TOLERANCE_M,
+				`Ramp ${rampId}: mouth highway arc contradicts its position`);
 			for (const leg of mouth.legs) {
 				const legRoad = roads.get(leg.road);
 				if (legRoad?.kind === 'exit') assert.ok(owned.has(leg.road),

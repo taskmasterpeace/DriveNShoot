@@ -1433,8 +1433,10 @@ export function bakeJunctions(map) {
 					]);
 				else {
 					mergeLegs(dupe, [hwy]);
-					if (!dupe.legs.some((leg) => leg.road === rp.id))
+					if (!dupe.legs.some((leg) => leg.road === rp.id)) {
 						dupe.legs.push({ road: rp.id, arc_m: 0 }); // this branch already proved pts[0] is the mouth
+						lint.merged_legs++;
+					}
 				}
 				lint.ramp_mouths++;
 			}
