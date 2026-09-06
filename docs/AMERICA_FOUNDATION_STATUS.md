@@ -11,9 +11,17 @@ Working branch: `codex/america-foundation`, isolated from the original checkout 
 
 The baseline also exposes unresolved world-layout problems: the [downtown capture](renders/world/roadstead_before/town_downtown.png) visibly has overlapping road/building geometry and oversized signage. The [Seattle exit capture](renders/world/roadstead_before/seattle_city_exit.png) shows an abrupt road edge and a structure overlapping the approach. These images are evidence of problems to investigate, not a completed reachability diagnosis; existing passing data sims alone do not certify these layouts as polished or driveable.
 
-## In progress
+## Playable local loop implemented
 
-Playable RoadLife integration: accept freight, reach the actual destination carrying cargo, receive a one-time reward, purchase an addressed home and move possessions into storage. Jobs, backpack and property must share an atomic local checkpoint. Runtime collision, controller focus, discoverability and actual camera captures must pass before this is presented as playable.
+The real main scene now includes the Road Office, three freight contracts and three addressed cottages. Deliver actual cargo on foot for a one-time reward, buy a deed, store/take possessions and unpack household provisions. All three ramps and doorways have real-input traversal checks; a roof cutaway exposes each furnished interior. LAST LIGHT uses an existing lurker and real corpse loot.
+
+Launch this isolated source build with [PLAY_ROADSTEAD.bat](../PLAY_ROADSTEAD.bat); follow the [walkthrough and controls](PLAY_ROADSTEAD.md). It uses the installed Godot engine and a separate save profile. This is not an installer or distributable release package.
+
+Runtime task review accepted the implementation after fixing a polled WAIT input leak. The covering runtime suite reports 60 passed / 0 failed, plus a separate-process restart probe with 5 / 0. Real-camera [cottage exterior](renders/roadstead/03_cottage_porch.png), [interior](renders/roadstead/04_cottage_inside.png) and [freight desk](renders/roadstead/02_freight_desk.png) show actual integration, not final world-art polish. Some regression runs still emit audio-resource shutdown diagnostics.
+
+## Final verification in progress
+
+The whole-branch review and broad simulation sweep are not finished. The preliminary sweep found failures in audio, vehicle, container, co-op rules and creature tests; the item-pricing check also fails for two existing cartridge IDs. All six failures reproduced with the same symptoms in an independently imported clean `f1290de` snapshot. They predate Roadstead but still prevent an all-green or global-completion claim. See the [verification record](verification/AMERICA_FOUNDATION_2026-09-05.md).
 
 The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [next persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) records the missing two-client, dedicated-authority proof and failure cases; that gate is not yet implemented.
 

@@ -47,14 +47,14 @@
 
 **Interfaces:** Consumes property ledger API and homestead models. First build remains explicitly local-authority until a separately verified authenticated network adapter exists. Do not graft insecure account-string RPCs onto co-op. User saves and authoritative-ledger transactions must agree across restart. Prefer one atomic full-run checkpoint containing ledger, jobs and backpack over two separately acknowledged files: stage candidate state, verify closed bytes and replace before publishing live state. A narrow embedded-ledger persistence callback is allowed so validation/command logic remains shared with Task1. If separate files are used instead, record incomplete inventory transfers and recover before allowing more commands. UI must plainly label local authority status. An old local checkpoint may rewind the entire local run consistently; it must never rewind only the backpack while retaining later storage/rewards. Preserve existing saves; missing RoadLife fields migrate to an empty local ledger only, never silently discard corrupt present fields. Co-op must not present this unnetworked ledger as shared or allow local checkpoint overwrites on behalf of peers.
 
-- [ ] Inspect existing input, actor, item, save, objective, and interact conventions; write real-path tests for job acceptance, destination/cargo requirement, one-time reward, purchase, storage and restart recovery.
-- [ ] Attach a compact RoadLife component to the main game; place discoverable kiosk and three collision-safe parcel sites near the starting town. Use existing road geometry for job destinations. Implement focused inventory/storage UI with pad focus and three close affordances.
-- [ ] Add a small set of freight/household item rows and reuse real actors for a road encounter. Tie risk/reward to jobs without claiming a new countrywide encounter director.
-- [ ] Load Blender GLBs with procedural fallback, roof cutaway, and separate collision. Test physical doorway/porch traversal and capture the real Godot camera.
-- [ ] Run ledger, runtime, save, input, homebase and relevant world regressions; record actual performance observations without invented FPS claims. Provide a direct Windows launcher to this isolated build, with controls and known limitations.
+- [x] Inspect existing input, actor, item, save, objective, and interact conventions; write real-path tests for job acceptance, destination/cargo requirement, one-time reward, purchase, storage and restart recovery.
+- [x] Attach a compact RoadLife component to the main game; place discoverable kiosk and three collision-safe parcel sites near the starting town. Use existing road geometry for job destinations. Implement focused inventory/storage UI with pad focus and three close affordances.
+- [x] Add a small set of freight/household item rows and reuse real actors for a road encounter. Tie risk/reward to jobs without claiming a new countrywide encounter director.
+- [x] Load Blender GLBs with procedural fallback, roof cutaway, and separate collision. Test physical doorway/porch traversal and capture the real Godot camera.
+- [x] Run ledger, runtime, save, input, homebase and relevant world regressions; record actual performance observations without invented FPS claims. Provide a direct Windows launcher to this isolated build, with controls and known limitations.
 
 ### Task 4: Review and next milestone ledger
 
-- [ ] Independent task review of ledger and runtime changes; fix correctness/security/persistence issues and rerun covering tests.
+- [x] Independent task review of ledger and runtime changes; fix correctness/security/persistence issues and rerun covering tests.
 - [ ] Final integration review, original-worktree status check, and honest have-versus-remaining report.
 - [ ] Keep country connectivity, authenticated dedicated realms, multi-process purchase contention, and capacity testing as uncompleted until actually implemented and proven.
