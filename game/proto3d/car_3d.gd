@@ -594,6 +594,8 @@ var _wheel_base_radius: Array = [] ## float, the row's un-punctured radius per w
 ## When true the car reads keyboard/gamepad input itself (while is_active).
 ## The drive_sim test sets this false and feeds the input fields directly.
 var use_player_input: bool = true
+## A modal blocks local hardware, not the AI/driver ownership of this vehicle.
+var player_input_blocked: bool = false
 var is_active: bool = false
 
 ## ROADKILL (goal: any character can be hit by a vehicle). A moving car mauls characters
@@ -1591,10 +1593,10 @@ func _physics_process(delta: float) -> void:
 		return
 
 	if use_player_input:
-		input_throttle = Input.get_action_strength("move_up")
-		input_brake = Input.get_action_strength("move_down")
-		input_steer = Input.get_axis("move_right", "move_left")
-		input_handbrake = Input.is_action_pressed("jump")
+		input_throttle = 0.0 if player_input_blocked else Input.get_action_strength("move_up")
+		input_brake = 0.0 if player_input_blocked else Input.get_action_strength("move_down")
+		input_steer = 0.0 if player_input_blocked else Input.get_axis("move_right", "move_left")
+		input_handbrake = not player_input_blocked and Input.is_action_pressed("jump")
 
 	# SURFACE × TIRES decide how this thing actually DRIVES (VEHICLES.md §2):
 	# off-road bogs you down through the tire's dirt worth, and shredded rubber

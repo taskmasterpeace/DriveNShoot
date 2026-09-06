@@ -520,6 +520,44 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 	return out
 
 
+## EVERY segment within max_d, including both sides of a road vertex. The
+## renderer needs complete coverage; roads_near intentionally stays one entry
+## per road for traffic spawning and GPS selection. Same indexed radius law.
+func road_segments_near(pos: Vector3, max_d: float) -> Array:
+	var p := Vector2(pos.x, pos.z)
+	var out: Array = []
+	if max_d <= SEG_BUCKET_M and not _seg_grid.is_empty():
+		for candidate: Array in _seg_candidates(p):
+			var road: Dictionary = roads[int(candidate[0])]
+			var si: int = int(candidate[1])
+			var pts: PackedVector2Array = road["pts"]
+			var distance := _seg_dist(p, pts[si], pts[si + 1])
+			if distance < max_d:
+				out.append(_segment_row(road, si, distance))
+		return out
+	for road: Dictionary in roads:
+		var pts: PackedVector2Array = road["pts"]
+		for si in range(pts.size() - 1):
+			var distance := _seg_dist(p, pts[si], pts[si + 1])
+			if distance < max_d:
+				out.append(_segment_row(road, si, distance))
+	return out
+
+
+## Segment endpoints and elevations travel together. Never copy the nearest
+## segment's heights onto another leg of the same road at an internal vertex.
+static func _segment_row(road: Dictionary, si: int, distance: float) -> Dictionary:
+	var pts: PackedVector2Array = road["pts"]
+	var ep := _elev_pair(road, si)
+	return {"id": road["id"], "kind": road["kind"], "dist": distance,
+		"a": pts[si], "b": pts[si + 1], "elev_a": ep[0], "elev_b": ep[1],
+		"elev_mode": String(road.get("elev_mode", "")),
+		"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+		"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+		"surface": String(road.get("surface", "asphalt")),
+		"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))}
+
+
 func town_near(pos: Vector3, r: float) -> Dictionary:
 	var p := Vector2(pos.x, pos.z)
 	var best: Dictionary = {}

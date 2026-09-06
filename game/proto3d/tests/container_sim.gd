@@ -104,26 +104,36 @@ func _physics_process(delta: float) -> void:
 				_next()
 		7: # the same panel opens a world CHEST
 			if phase_t > 0.4:
+				# Root child order is not a fixture contract: discovery cartridge
+				# cases may precede the food chest. This phase really needs a meal.
 				for node in main.get_children():
-					if node is ProtoChest:
+					if node is ProtoChest and node.container.count("meat") > 0:
 						_chest = node
 						break
+				_check("meal fixture is a real stocked world chest", _chest != null)
+				if _chest == null:
+					get_tree().quit(1)
+					return
 				main.player.global_position = _chest.global_position + Vector3(1.0, 0.3, 0)
 				main.player.velocity = Vector3.ZERO
 				_next()
 		8:
 			if phase_t > 0.6:
-				_check("chest prompts open", main.hud.current_prompt.contains("chest"))
+				_check("selected chest owns its named open prompt", main._current_interactable == _chest and main.hud.current_prompt.contains(_chest.container.label.to_lower()))
 				_tap_interact()
 				_next()
 		9:
 			if phase_t > 0.4:
-				_check("SAME panel opens the chest", main.panel.is_open and main.panel._theirs.label == "Chest")
+				_check("SAME panel opens the selected chest", main.panel.is_open and main.panel._theirs == _chest.container)
+				var packed_before: int = main.backpack.count("meat")
+				var chest_before: int = _chest.container.count("meat")
 				main.panel._on_move(main.panel._theirs, main.panel._mine, "meat")
+				_check("meal was actually transferred from the selected chest", main.backpack.count("meat") == packed_before + 1 and _chest.container.count("meat") == chest_before - 1)
 				var s0: float = 40.0
 				main.stress = s0
 				main.panel._on_use(main.panel._mine, "meat")
 				_check("ate meat from the chest — stress fell", main.stress < s0 - 10.0)
+				_check("eating consumed the transferred meal", main.backpack.count("meat") == packed_before)
 				_next()
 		10:
 			print("BOX RESULTS: %d passed, %d failed" % [passed, failed])

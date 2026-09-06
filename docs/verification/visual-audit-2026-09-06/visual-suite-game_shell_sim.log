@@ -1,0 +1,27 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_SHELL: start
+GAME_SHELL: PASS - deck and shell implementations exist
+GAME_SHELL: PASS - library opens inside the heavy shell
+GAME_SHELL: PASS - the bezel stays fully inside the rendered frame
+GAME_SHELL: PASS - library buttons are keyboard/pad focusable
+GAME_SHELL: PASS - WASTE HEAP launches through the deck
+GAME_SHELL: PASS - the cartridge is a child of one always-live viewport
+GAME_SHELL: PASS - fullscreen and physical consumers share the exact texture
+GAME_SHELL: PASS - real key input reaches cartridge semantics
+GAME_SHELL: PASS - HELP combines objective and live bindings
+GAME_SHELL: PASS - ABOUT separates lore from real source/license
+GAME_SHELL: PASS - SCORES separates personal house session challenge and offline global scopes
+GAME_SHELL: PASS - active-play pad B reaches cartridge input and does not close
+GAME_SHELL: PASS - Esc pauses into shell state without touching world time
+GAME_SHELL: PASS - menu-state pad B closes fullscreen to the device
+GAME_SHELL: PASS - closing fullscreen keeps the cartridge alive
+GAME_SHELL: PASS - portrait cartridge launches through the same shell
+GAME_SHELL: PASS - portrait games cannot push the bezel, tabs, or status out of frame
+GAME_SHELL: PASS - power off destroys the active cartridge
+GAME_SHELL: PASS - an unknown cartridge is isolated as an error
+GAME_SHELL: PASS - CROWN OF ASH launches into read-only spectator state
+GAME_SHELL: PASS - spectator receives authoritative board snapshots
+GAME_SHELL: PASS - shell lifecycle never pauses DRIVN
+GAME_SHELL RESULTS: 22 passed, 0 failed
+GAME_SHELL: ALL CHECKS PASSED

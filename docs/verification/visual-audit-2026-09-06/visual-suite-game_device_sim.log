@@ -1,0 +1,24 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_DEVICE: start
+GAME_DEVICE: PASS - main owns one physical console and handheld
+GAME_DEVICE: PASS - one handheld shell honors square, portrait, and landscape rows
+GAME_DEVICE: PASS - console uses the ordinary interactable law
+GAME_DEVICE: PASS - real E input opens the shared console library
+GAME_DEVICE: PASS - the real main scene wires the console to one MATCH lobby
+GAME_DEVICE: PASS - real console cartridge selection opens MATCH before play
+GAME_DEVICE: PASS - fullscreen shell locks the body
+GAME_DEVICE: PASS - physical console screen receives the live deck texture
+GAME_DEVICE: PASS - playing grants no world-damage immunity
+GAME_DEVICE: PASS - world clock advances while playing
+GAME_DEVICE: PASS - device never changes Engine.time_scale
+GAME_DEVICE: PASS - couch/device mode gives the body back
+GAME_DEVICE: PASS - starter handheld item opens without being consumed
+GAME_DEVICE: PASS - handheld and shell consume the same live texture
+GAME_DEVICE: PASS - power off clears both physical screens
+GAME_DEVICE RESULTS: 15 passed, 0 failed
+GAME_DEVICE: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

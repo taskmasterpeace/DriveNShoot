@@ -1,0 +1,30 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+STARTER_SPAWN: PASS - fresh profile has no existing save or rebinds (nothing deleted)
+STARTER_SPAWN: PASS - normal main scene transition accepted
+STARTER_SPAWN: PASS - normal main scene entered tree
+STARTER_SPAWN: PASS - normal launch presents title
+STARTER_SPAWN: PASS - real NEW GAME button is visible
+STARTER_SPAWN: PASS - ENTER on NEW GAME dismisses title
+STARTER_SPAWN: PASS - NEW GAME starts the real drive objective
+STARTER_SPAWN: PASS - starter is the active first registered car
+STARTER_SPAWN: launch car=Scavenger position=(48.0, 0.606319, 130.0) surface=dirt
+STARTER_SPAWN: FAIL - starter spawns on interstate at (2.5, 390), not motor pool
+STARTER_SPAWN: FAIL - starter's real tire surface is road
+STARTER_SPAWN: PASS - starter is unlocked and accepts player input
+STARTER_SPAWN: PASS - Meridian car remains physically parked at (95, -284)
+STARTER_SPAWN: FAIL - second registered car is the actual Meridian sedan
+STARTER_SPAWN: FAIL - actual Meridian sedan owns its name and key lock
+STARTER_SPAWN: FAIL - actual Meridian sedan retains its starter rocket loot
+STARTER_SPAWN: PASS - Test Grounds retains all nine motor-pool vehicles
+STARTER_SPAWN: PASS - each motor-pool vehicle remains registered exactly once
+STARTER_SPAWN: FAIL - starter does not commandeer a motor-pool vehicle
+STARTER_SPAWN: PASS - motor-pool motorcycle remains at its own stand
+STARTER_SPAWN: FAIL - motor-pool motorcycle has no stolen sedan lock
+STARTER_SPAWN: PASS - real W key reaches the throttle action
+STARTER_SPAWN: W drive distance=44.86m objective=1 final=(47.9313, 0.660653, 174.8584)
+STARTER_SPAWN: PASS - W drives the actual starter over 40 horizontal meters
+STARTER_SPAWN: PASS - real driving advances onboarding to pull over
+STARTER_SPAWN: PASS - released W leaves no stuck throttle action
+STARTER_SPAWN: PASS - owned main is freed before shutdown
+STARTER_SPAWN RESULTS: 18 passed, 7 failed

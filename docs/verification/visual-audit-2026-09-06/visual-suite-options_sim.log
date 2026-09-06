@@ -1,0 +1,32 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+OPTS: start
+OPTS: PASS - open() sets is_open true
+OPTS: PASS - controller-focus-on-open: a panel child holds focus
+OPTS: PASS - Esc closes the panel
+OPTS: PASS - re-opened for the ✕ test
+OPTS: PASS - ✕ button closes the panel
+OPTS: PASS - re-opened for the pad-B test
+OPTS: PASS - pad B (JOY_BUTTON_B) closes the panel
+OPTS: PASS - Master slider@40% -> bus volume_db matches the pct curve (-36.00 == -36.00)
+OPTS: PASS - Master slider@100%% -> unity gain (0dB)
+OPTS: PASS - Master slider@0%% -> the floor (-60dB)
+OPTS: PASS - Music slider on a MISSING 'Radio' bus is a safe no-op (no crash, sim still alive)
+OPTS: PASS - user://settings.json now exists after a change
+OPTS: PASS - the written file has the values just set (master=62, vsync=false, fullscreen=true)
+OPTS: PASS - a FRESH panel reload reproduces persisted values
+OPTS: PASS - apply_saved() (static boot call) re-applies the persisted Master volume
+OPTS: PASS - fullscreen toggle flips the tracked state var
+OPTS: PASS - DisplayServer name is readable (headless-guard path exercised, no crash)
+OPTS: PASS - a ✕ close button exists
+OPTS: PASS - the badge text reads exactly 'OPTIONS'
+OPTS: PASS - AMBER matches the doc's constant (0.96, 0.72, 0.2)
+OPTS: PASS - BONE matches the doc's constant (0.92, 0.89, 0.82)
+OPTS: PASS - close-button red is the one sanctioned non-amber exception (0.9, 0.4, 0.3)
+OPTS: PASS - frame is the STANDARD weight (2px, AMBER border) per UI law §3
+OPTIONS RESULTS: 23 passed, 0 failed
+OPTIONS: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

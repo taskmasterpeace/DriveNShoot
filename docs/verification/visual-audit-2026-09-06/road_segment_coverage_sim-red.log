@@ -1,0 +1,22 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROAD_SEGMENTS: PASS - indexed: legacy road query retains one nearest segment
+ROAD_SEGMENTS: FAIL - indexed: rendering has an all-segment query
+ROAD_SEGMENTS: PASS - unindexed fallback: legacy road query retains one nearest segment
+ROAD_SEGMENTS: FAIL - unindexed fallback: rendering has an all-segment query
+ROAD_SEGMENTS: PASS - synthetic bend chunk materializes
+ROAD_SEGMENTS: FAIL - bend incoming: actual asphalt covers the carriageway
+ROAD_SEGMENTS: FAIL - bend incoming: asphalt keeps its own segment elevation
+ROAD_SEGMENTS: PASS - bend outgoing: actual asphalt covers the carriageway
+ROAD_SEGMENTS: PASS - bend outgoing: asphalt keeps its own segment elevation
+ROAD_SEGMENTS: PASS - real US map loads
+ROAD_SEGMENTS: PASS - actual stream loads the Appalachian vertex chunk
+ROAD_SEGMENTS: PASS - Appalachian fixture remains a divided I-40 road
+ROAD_SEGMENTS: FAIL - I-40 incoming lane -1: actual asphalt covers the carriageway
+ROAD_SEGMENTS: FAIL - I-40 incoming lane -1: asphalt keeps its own segment elevation
+ROAD_SEGMENTS: FAIL - I-40 incoming lane 1: actual asphalt covers the carriageway
+ROAD_SEGMENTS: FAIL - I-40 incoming lane 1: asphalt keeps its own segment elevation
+ROAD_SEGMENTS: PASS - I-40 outgoing control: actual asphalt covers the carriageway
+ROAD_SEGMENTS: PASS - I-40 outgoing control: asphalt keeps its own segment elevation
+ROAD_SEGMENTS RESULTS: 10 passed, 8 failed
+ROAD_SEGMENTS: FAILURES PRESENT

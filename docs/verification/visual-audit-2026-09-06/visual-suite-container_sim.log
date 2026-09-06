@@ -1,0 +1,23 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+BOX: scene up
+BOX: PASS - rear of car prompts OPEN TRUNK
+BOX: PASS - the ONE panel opens (trunk)
+BOX: PASS - looted bandage into backpack
+BOX: PASS - panel closed
+BOX: PASS - crash wound shows 🤕 moodle
+BOX: PASS - TAB opens your pack
+BOX: PASS - USE bandage cures the wound
+BOX: PASS - bandage consumed
+BOX: PASS - meal fixture is a real stocked world chest
+BOX: PASS - selected chest owns its named open prompt
+BOX: PASS - SAME panel opens the selected chest
+BOX: PASS - meal was actually transferred from the selected chest
+BOX: PASS - ate meat from the chest — stress fell
+BOX: PASS - eating consumed the transferred meal
+BOX RESULTS: 14 passed, 0 failed
+BOX: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

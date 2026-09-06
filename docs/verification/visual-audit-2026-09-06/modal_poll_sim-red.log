@@ -1,0 +1,19 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+MODAL_POLL: PASS - normal transition
+MODAL_POLL: PASS - title gate open
+MODAL_POLL: FAIL - title locks player movement
+MODAL_POLL: FAIL - title blocks throttle without changing driver ownership
+MODAL_POLL: FAIL - title blocks binocular polling
+MODAL_POLL: FAIL - title blocks time acceleration
+MODAL_POLL: FAIL - title blocks zoom polling
+MODAL_POLL: FAIL - title blocks right-stick aiming
+MODAL_POLL: PASS - title still exposes launch
+MODAL_POLL: PASS - real UI dismissal restores gameplay
+MODAL_POLL: PASS - gas resumes after modal closes
+MODAL_POLL: PASS - gameplay Controls opens through real key
+MODAL_POLL: FAIL - Controls also blocks pedals
+MODAL_POLL: FAIL - Controls also blocks binoculars
+MODAL_POLL: PASS - modal preserves AI-driver controls
+MODAL_POLL: PASS - closing Controls releases body
+MODAL_POLL RESULTS: 8 passed, 8 failed

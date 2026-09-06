@@ -1,0 +1,44 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TITLE_MODAL: PASS - normal main scene transition accepted
+TITLE_MODAL: PASS - normal launch owns a live title gate
+TITLE_MODAL: PASS - regression uses the 1280x720 logical viewport
+TITLE_MODAL: PASS - title action face fits inside the viewport gutter
+TITLE_MODAL: PASS - title has an opaque full-viewport backdrop over the live HUD
+TITLE_MODAL: PASS - title face has the shared mechanical bezel
+TITLE_MODAL: PASS - title initially focuses its NEW GAME action
+TITLE_MODAL: PASS - title exposes a Controls action
+TITLE_MODAL: PASS - real title input opens Controls
+TITLE_MODAL: PASS - Controls is presented above the title face
+TITLE_MODAL: PASS - Controls receives initial controller focus
+TITLE_MODAL: PASS - Controls fits the 1280x720 viewport gutter
+TITLE_MODAL: FAIL - initial Controls category is fully inside its scroll viewport
+TITLE_MODAL: FAIL - initial focused binding is fully visible
+TITLE_MODAL: PASS - Controls navigation cannot reach underlying title actions
+TITLE_MODAL: PASS - idle raw Esc closes Controls
+TITLE_MODAL: PASS - Controls Esc restores focus to its title launcher
+TITLE_MODAL: PASS - raw pad B closes Controls
+TITLE_MODAL: PASS - Controls pad close restores launcher focus
+TITLE_MODAL: PASS - Controls exposes a visible header close button
+TITLE_MODAL: PASS - Controls close sits in the top-right header
+TITLE_MODAL: PASS - real pointer hit reaches Controls close above title
+TITLE_MODAL: PASS - Controls pointer close restores launcher focus
+TITLE_MODAL: PASS - Controls exposes a real binding action
+TITLE_MODAL: PASS - real UI activation begins a binding capture
+TITLE_MODAL: PASS - capture Esc cancels without closing Controls
+TITLE_MODAL: PASS - capture cancellation preserves every live binding
+TITLE_MODAL: PASS - capture cancellation restores a focusable binding row
+TITLE_MODAL: PASS - Esc after capture cancellation returns to title
+TITLE_MODAL: PASS - keys capture is active before pointer close
+TITLE_MODAL: FAIL - keys capture closes through the real header pointer
+TITLE_MODAL: FAIL - keys capture header close never changes a binding
+TITLE_MODAL: FAIL - keys capture header close restores title focus
+TITLE_MODAL: PASS - pad capture is active before pointer close
+TITLE_MODAL: FAIL - pad capture closes through the real header pointer
+TITLE_MODAL: PASS - pad capture header close never changes a binding
+TITLE_MODAL: FAIL - pad capture header close restores title focus
+TITLE_MODAL: PASS - title exposes an Options action
+TITLE_MODAL: FAIL - real title input opens Options
+TITLE_MODAL: PASS - subpanel checks leave the title gate intact
+TITLE_MODAL RESULTS: 32 passed, 8 failed
+TITLE_MODAL: FAILURES PRESENT

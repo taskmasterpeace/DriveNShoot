@@ -30,6 +30,9 @@ func _setup(row: Dictionary, available: bool, owned: bool) -> void:
 	name = "CoverCard_%s" % String(row.get("id", "unknown"))
 	focus_mode = Control.FOCUS_ALL
 	clip_contents = true
+	# Semantic metadata stays searchable, but its transparent single line must
+	# not enlarge the card beyond the visible cover/label layout.
+	clip_text = true
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	custom_minimum_size = Vector2(218, 356)
 	tooltip_text = String(row.get("help", row.get("title", "CARTRIDGE")))

@@ -422,7 +422,9 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	var road: Dictionary = {}
 	if usmap != null and usmap.ok:
 		road = usmap.road_near(center, 220.0) # the NEAREST, for the scatter consumers below
-		for row in usmap.roads_near(center, 220.0):
+		# A polyline vertex can lie inside this chunk: build BOTH adjoining
+		# segments, not just the closest one for each road (the I-40 gap).
+		for row in usmap.road_segments_near(center, 220.0):
 			_build_road_stretch(chunk, center, row, key, wet)
 		# THE INTERSECTION SLAB (M1): one per flat tee/cross node — painted ABOVE
 		# every road's per-id lift so the crossing reads as one paved mouth

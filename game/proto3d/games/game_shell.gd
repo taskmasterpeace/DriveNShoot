@@ -22,6 +22,7 @@ var _status: Label
 var _screen: TextureRect
 var _library_scroll: ScrollContainer
 var _library_box: GridContainer
+var _library_reflow_queued := false
 var _text_scroll: ScrollContainer
 var _text_label: RichTextLabel
 var _view_stack: Control
@@ -133,7 +134,11 @@ func _build_ui() -> void:
 
 	_library_scroll = ScrollContainer.new()
 	_library_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_library_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# DISABLED lets the grid minimum expand this anchored control past its body.
+	# Hide the horizontal bar without importing the grid's width as our minimum;
+	# responsive columns below keep the actual cards within the visible interior.
+	_library_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	_library_scroll.follow_focus = true
 	_view_stack.add_child(_library_scroll)
 	_library_box = GridContainer.new()
 	_library_box.columns = 4
@@ -141,6 +146,9 @@ func _build_ui() -> void:
 	_library_box.add_theme_constant_override("h_separation", 10)
 	_library_box.add_theme_constant_override("v_separation", 10)
 	_library_scroll.add_child(_library_box)
+	_library_scroll.resized.connect(_queue_library_reflow)
+	_library_scroll.get_v_scroll_bar().visibility_changed.connect(_queue_library_reflow)
+	_library_box.minimum_size_changed.connect(_queue_library_reflow)
 
 	_text_scroll = ScrollContainer.new()
 	_text_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -240,7 +248,6 @@ func open_library(platform: String = "", context: Dictionary = {}) -> void:
 func _rebuild_library(platform: String) -> void:
 	for child in _library_box.get_children():
 		child.queue_free()
-	_library_box.columns = 4 if get_viewport().get_visible_rect().size.x >= 1000.0 else 2
 	first_library_button = null
 	var card_script := load("res://proto3d/games/game_cover_card.gd") as GDScript
 	for id_value in deck.registry.order:
@@ -275,6 +282,82 @@ func _rebuild_library(platform: String) -> void:
 			first_library_button = button
 	if first_library_button != null:
 		first_library_button.grab_focus()
+	_queue_library_reflow()
+
+
+func _queue_library_reflow() -> void:
+	if _library_reflow_queued:
+		return
+	_library_reflow_queued = true
+	_reflow_library.call_deferred()
+
+
+func _reflow_library() -> void:
+	_library_reflow_queued = false
+	if _library_box.get_child_count() == 0:
+		return
+	var minimum_width := 1.0
+	for card: Control in _library_box.get_children():
+		if not card.is_queued_for_deletion():
+			minimum_width = maxf(minimum_width, card.get_combined_minimum_size().x)
+	var panel := _library_scroll.get_theme_stylebox("panel")
+	var available := _library_scroll.size.x - panel.get_minimum_size().x
+	var scrollbar := _library_scroll.get_v_scroll_bar()
+	if scrollbar.visible:
+		available -= scrollbar.size.x
+	var gap := float(_library_box.get_theme_constant("h_separation"))
+	var columns := clampi(floori((maxf(available, 0.0) + gap) / (minimum_width + gap)), 1, 4)
+	# Relayout only: preserve card instances, acquisition gates and GUI focus.
+	if _library_box.columns != columns:
+		_library_box.columns = columns
+	_link_library_focus_rows()
+	# Column changes queue a container sort; keep the existing focus visible
+	# only after that layout has placed the same card in its new row.
+	_ensure_library_focus_visible.call_deferred()
+
+
+func _link_library_focus_rows() -> void:
+	var cards: Array[Button] = []
+	for card: Button in _library_box.get_children():
+		if not card.is_queued_for_deletion():
+			cards.append(card)
+	# Sparse libraries contain disabled cards between owned ones. Explicit row
+	# links skip those gaps without changing ownership, focus mode or card nodes.
+	var columns := _library_box.columns
+	for i in cards.size():
+		var card := cards[i]
+		card.focus_neighbor_top = NodePath("")
+		card.focus_neighbor_bottom = NodePath("")
+		if card.disabled:
+			continue
+		var row := floori(float(i) / columns)
+		var top: Button = null
+		var bottom: Button = null
+		var top_score := 2147483647
+		var bottom_score := 2147483647
+		for j in cards.size():
+			if cards[j].disabled:
+				continue
+			var other_row := floori(float(j) / columns)
+			var score := absi(other_row - row) * columns + absi(j % columns - i % columns)
+			if other_row < row and score < top_score:
+				top = cards[j]
+				top_score = score
+			elif other_row > row and score < bottom_score:
+				bottom = cards[j]
+				bottom_score = score
+		if top != null:
+			card.focus_neighbor_top = card.get_path_to(top)
+		if bottom != null:
+			card.focus_neighbor_bottom = card.get_path_to(bottom)
+
+
+func _ensure_library_focus_visible() -> void:
+	if not is_open or current_view != "library":
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused != null and _library_box.is_ancestor_of(focused):
+		_library_scroll.ensure_control_visible(focused)
 
 
 func open_game(game_id: String, context: Dictionary = {}) -> bool:

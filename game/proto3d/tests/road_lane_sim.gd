@@ -31,6 +31,13 @@ func _tagged(chunk: Node3D, tag: String, road_id: String = "") -> Array:
 	return out
 
 
+## This level I-35 fixture needs two distinct longitudinal slabs, not copies.
+func _slab_covers_xz(slab: MeshInstance3D, point: Vector2) -> bool:
+	var half: Vector3 = (slab.mesh as BoxMesh).size * 0.5
+	var local: Vector3 = slab.to_local(Vector3(point.x, slab.global_position.y, point.y))
+	return absf(local.x) <= half.x and absf(local.z) <= half.z
+
+
 func _ready() -> void:
 	print("ROADLANE: start")
 	get_tree().create_timer(100.0).timeout.connect(func() -> void:
@@ -136,10 +143,26 @@ func _ready() -> void:
 	_check("grip ENDS at the shoulder (surface 'dirt' 16m out)",
 		ProtoWorldBuilder.surface_at(Vector3(beyond.x, 0.2, beyond.y)) == "dirt")
 
-	# === 6. A 2-LANE CHUNK: one slab, double-yellow, honest width ==================
+	# === 6. A 2-LANE CHUNK: one slab PER SEGMENT, double-yellow, honest width ======
+	# Vertex (-19750,-8250) is inside the chunk: both adjoining I-35 legs exist.
 	var c2: Node3D = main.stream._spawn_chunk(-155, -65) # center (-19776, -8256), ~26m off I-35
 	var slabs2: Array = _tagged(c2, "road_slab", "I-35")
-	_check("a 2-lane lays ONE slab (got %d)" % slabs2.size(), slabs2.size() == 1)
+	_check("a 2-lane vertex chunk lays TWO slabs, one per segment (got %d)" % slabs2.size(), slabs2.size() == 2)
+	var widths_ok := slabs2.size() == 2
+	var incoming_hits := 0
+	var outgoing_hits := 0
+	for slab_node: Node in slabs2:
+		if not (slab_node is MeshInstance3D) or not ((slab_node as MeshInstance3D).mesh is BoxMesh):
+			widths_ok = false
+			continue
+		var slab := slab_node as MeshInstance3D
+		widths_ok = widths_ok and is_equal_approx((slab.mesh as BoxMesh).size.x, 9.2)
+		# Surveyed clipped leg midpoints, outside the shared endpoint's margin.
+		incoming_hits += 1 if _slab_covers_xz(slab, Vector2(-19744.571429, -8288.0)) else 0
+		outgoing_hits += 1 if _slab_covers_xz(slab, Vector2(-19754.571429, -8218.0)) else 0
+	_check("each 2-lane segment retains its full 9.2m undivided width", widths_ok)
+	_check("distinct I-35 incoming/outgoing midpoints each have exactly one slab (%d/%d)" % [incoming_hits, outgoing_hits],
+		incoming_hits == 1 and outgoing_hits == 1)
 	_check("...with a YELLOW center line and NO median barrier",
 		_tagged(c2, "road_center", "I-35").size() >= 1 and _tagged(c2, "road_barrier", "I-35").is_empty())
 

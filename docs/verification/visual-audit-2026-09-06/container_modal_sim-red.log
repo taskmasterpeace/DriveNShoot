@@ -1,0 +1,45 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+CONTAINER_MODAL: PASS - starter pack is the ordinary wrench and five scrip
+CONTAINER_MODAL: PASS - real interact exits the starter car
+CONTAINER_MODAL: PASS - real TAB opens the solo backpack
+CONTAINER_MODAL: FAIL - solo backpack hides the empty THEIRS column
+CONTAINER_MODAL: FAIL - initial focus selects an enabled item action
+CONTAINER_MODAL: PASS - backpack fits 1280x720
+CONTAINER_MODAL: FAIL - ink frame prevents gameplay text bleeding through
+CONTAINER_MODAL: FAIL - container contents have readable internal padding
+CONTAINER_MODAL: FAIL - visible top-right close affordance exists
+CONTAINER_MODAL: FAIL - keyboard navigation reaches DROP from the first USE
+CONTAINER_MODAL: FAIL - controller navigation returns to the first USE
+CONTAINER_MODAL: FAIL - controller activates the real starter weapon USE
+CONTAINER_MODAL: FAIL - equipping consumes the pack copy exactly once
+CONTAINER_MODAL: FAIL - item rebuild retains enabled controller focus
+CONTAINER_MODAL: PASS - TAB still closes after item buttons receive focus
+CONTAINER_MODAL: PASS - TAB reopens for escape
+CONTAINER_MODAL: FAIL - escape closes the real backpack
+CONTAINER_MODAL: FAIL - escape close is consumed before gameplay
+CONTAINER_MODAL: PASS - TAB reopens for pad
+CONTAINER_MODAL: FAIL - pad closes the real backpack
+CONTAINER_MODAL: FAIL - pad close is consumed before gameplay
+CONTAINER_MODAL: PASS - TAB reopens for pointer
+CONTAINER_MODAL: FAIL - pointer closes the real backpack
+CONTAINER_MODAL: PASS - TAB reopens for interact
+CONTAINER_MODAL: PASS - interact closes the real backpack
+CONTAINER_MODAL: PASS - real E opens the shared loot interface
+CONTAINER_MODAL: PASS - loot keeps its second column visible
+CONTAINER_MODAL: PASS - loot layout fits the viewport
+CONTAINER_MODAL: PASS - real item activation transfers one loot unit
+CONTAINER_MODAL: PASS - main-owned E still closes loot
+CONTAINER_MODAL: PASS - real E opens the shared trade interface
+CONTAINER_MODAL: PASS - trade keeps its second column visible
+CONTAINER_MODAL: PASS - trade never exposes loot TAKE ALL
+CONTAINER_MODAL: PASS - trade layout fits the viewport
+CONTAINER_MODAL: PASS - unaffordable purchase preserves stock and scrip
+CONTAINER_MODAL: FAIL - unaffordable purchase remains readable on the opaque panel
+CONTAINER_MODAL: PASS - buy transfers one item and charges the existing quote
+CONTAINER_MODAL: PASS - sell returns one item and pays the existing quote
+CONTAINER_MODAL: PASS - DROP transfers one unit into real dropped gear
+CONTAINER_MODAL: PASS - reopened solo backpack fits 1280x800
+CONTAINER_MODAL: FAIL - returning from trade hides THEIRS again
+CONTAINER_MODAL RESULTS: 24 passed, 17 failed
+CONTAINER_MODAL: FAILURES PRESENT

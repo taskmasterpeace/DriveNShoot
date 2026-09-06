@@ -1,0 +1,12 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+MENU: start
+MENU: PASS - no menu in a SIM context (it knows it's not the launch scene)
+MENU: PASS - no save → NO Continue button
+MENU: PASS - a save exists → Continue appears
+MENU: PASS - NEW GAME dismisses and hands you the wheel
+MENU: PASS - CONTINUE loads the save (scrip 128 back)
+MENU: PASS - HOST opens the net
+MENU: PASS - the menu SWALLOWS gameplay input while up
+MENU RESULTS: 7 passed, 0 failed
+MENU: ALL CHECKS PASSED

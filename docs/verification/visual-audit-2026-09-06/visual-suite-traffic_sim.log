@@ -1,0 +1,43 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRAFFIC: start
+TRAFFIC: PASS - TRAFFIC rows exist (budget/headway_s/exit_take_chance/speed_lanes_2..6/promote_cap)
+TRAFFIC: PASS - data OVERRIDES the floor, number by number
+TRAFFIC: PASS - untouched knobs keep stock
+TRAFFIC: PASS - unknown knobs are welcomed (open schema)
+TRAFFIC: PASS - main owns a ProtoTraffic node
+TRAFFIC: PASS - dir +1 rides the RIGHT of a->b travel (dot 3.8 > 0)
+TRAFFIC: PASS - dir -1 rides the RIGHT of b->a travel (dot 3.8 > 0)
+TRAFFIC: PASS - the lateral magnitude IS the geometry law's lane_offset (3.8 vs 3.8)
+TRAFFIC: PASS - agents MOVE along the path when ticked
+TRAFFIC: PASS - the chaser slowed to its leader (4.4 m/s <= 4.8)
+TRAFFIC: PASS - ...and NEVER passed through (min gap 12.3m >= 4)
+TRAFFIC: PASS - the agent TOOK the exit (transferred onto the ramp polyline)
+TRAFFIC: PASS - ...and despawned at the ramp's end — gone to the location
+TRAFFIC: PASS - take_damage PROMOTES the agent to a real ProtoCar3D
+TRAFFIC: PASS - ...at the agent's own transform (2.8m off)
+TRAFFIC: PASS - ...with the damage FORWARDED (chassis hp below max)
+TRAFFIC: PASS - ...and the agent itself is gone
+TRAFFIC: PASS - at promote_cap a touch DESPAWNS instead (car count held at 18)
+TRAFFIC: PASS - maintenance fills toward the budget near a road (3 in 1..5)
+TRAFFIC: PASS - ...and never exceeds it
+TRAFFIC: PASS - agents beyond the band are CULLED when the player leaves (0 left)
+TRAFFIC: PASS - ambient spawns land on INTERSTATES only, never a ramp (6 agents)
+TRAFFIC: PASS - the ramp agent NEVER enters the hand-built compound (the dirt-driving bug)
+TRAFFIC: PASS - ...and it resolved off-view (despawned at the boundary)
+TRAFFIC: PASS - an arrival IN VIEW promotes to a real PARKED car, never a vanish
+TRAFFIC: PASS - ...stationary at the compound's edge, outside hand-built land
+TRAFFIC: PASS - an agent STOPS behind a PARKED rig in its lane (min gap 96.6m >= 4)
+TRAFFIC: PASS - a TRIP agent leaves at ITS destination exit even at exit_take_chance 0
+TRAFFIC: PASS - ...and resolved at the destination (city-to-city, proven end to end)
+TRAFFIC: PASS - a convoy is a 2-3 truck COLUMN (got 3)
+TRAFFIC: PASS - ...sharing ONE destination and ONE convoy id
+TRAFFIC: PASS - the column HOLDS together on the move (gaps 31m/24m, both 6-40m)
+TRAFFIC: PASS - touching ONE truck makes the WHOLE CONVOY real (+3 cars, got +3)
+TRAFFIC: PASS - ...and the trucks HAUL their cargo row (scrap in a trunk)
+TRAFFIC RESULTS: 34 passed, 0 failed
+TRAFFIC: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 2 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

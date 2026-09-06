@@ -206,6 +206,13 @@ func _ready() -> void:
 			ProtoCar3D.couple(v, trailer)
 			trailer.trunk.add("scrap", 12) # something heavy already riding it
 
+	# The motor pool also registers cars. Build it AFTER the starter/fleet so
+	# cars[0] stays the interstate starter and cars[1] stays the keyed sedan.
+	# The labeled fairground retains its pool, armory, supply, range, stable,
+	# gator pen, dig spot, and signs to what can't move here.
+	test_grounds = ProtoTestGrounds.create(self)
+	add_child(test_grounds)
+
 	# Player starts driving car 0 on the interstate. His LOOK is a data row — a
 	# scavenger by default; character creation (Rung 5) will let you author it.
 	player = ProtoPlayer3D.create(ProtoPuppet.look("scav"))
@@ -666,11 +673,6 @@ func _build_environment() -> void:
 	# HOME: the build board by the safehouse door — scrap's sink, the base game.
 	homebase = ProtoHomebase.create(self)
 	add_child(homebase)
-	# ⚒ THE TEST GROUNDS (owner: "everything there for me to test, named useful"):
-	# the labeled fairground on the south field — motor pool, armory, supply,
-	# range, stable, gator pen, dig spot, and signs to what can't move here.
-	test_grounds = ProtoTestGrounds.create(self)
-	add_child(test_grounds)
 	# DEV EXAMPLE — THE CAROUSEL PORTAL (docs/design/CAROUSEL_PORTAL.md). NOT wired to
 	# the bases/jump yet (owner's call): one live instance out front of the safehouse so
 	# you can walk up, press E, and hear the computer count you down 10→1 as it winds up.
@@ -965,6 +967,12 @@ func _void_net_tick(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# _unhandled_input cannot stop Input polling. Resolve modal ownership before
+	# child physics reads the feet/pedals; keep world simulation and AI running.
+	var input_blocked := _gameplay_input_blocked()
+	player.input_locked = input_blocked
+	if is_instance_valid(active_car):
+		active_car.player_input_blocked = input_blocked
 	_void_net_tick(delta) # THE FLOOR IS LAW (GROUND_INTEGRITY G1/rule 1+6) — first, always
 	if objectives != null:
 		objectives.tick(delta) # THE FIRST RUN watches for its next beat
@@ -1026,7 +1034,7 @@ func _physics_process(delta: float) -> void:
 	# THE WHEEL HOT-WIRE (goal — we already had hot-wiring; now it lives where it belongs):
 	# seated in a keyed car you don't own, holding the GAS works the wires — Mechanics
 	# speeds it — then the crank takes over. Progress rides the prompt chip.
-	if mode == Mode.DRIVE and active_car != null and not active_car.dead \
+	if not input_blocked and mode == Mode.DRIVE and active_car != null and not active_car.dead \
 			and not active_car.engine_on and active_car.ignition == "none":
 		if Input.get_action_strength("move_up") > 0.2:
 			_wire_t += delta
@@ -1043,28 +1051,21 @@ func _physics_process(delta: float) -> void:
 	# A container/loot panel is MODAL: freeze the feet so you can't walk off with it
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
-	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
-		or (road_life != null and road_life.panel.is_open) \
-		or (controls_panel != null and controls_panel.is_open) \
-		or (game_shell != null and game_shell.is_open) \
-		or (drone_pilot != null and drone_pilot.body_immobile()) \
-		or (radio_dial != null and radio_dial.is_open) \
-		or (skill_tree != null and skill_tree.is_open) \
-		or (book_panel != null and book_panel.is_open)
+	player.input_locked = input_blocked
 	# On foot the camera tilts into a real 3D angle; at the wheel it's GTA2 top-down.
 	cam_rig.on_foot = mode == Mode.FOOT
 	_update_signs()
 	_update_pad(delta) # the second stick + mode-aware triggers + rumble decay
 	# Zoom fallback keys (no wheel on some setups) — rebindable actions now.
-	if Input.is_action_pressed("drivn_zoom_in"):
+	if not input_blocked and Input.is_action_pressed("drivn_zoom_in"):
 		cam_rig.add_zoom(-0.02)
-	if Input.is_action_pressed("drivn_zoom_out"):
+	if not input_blocked and Input.is_action_pressed("drivn_zoom_out"):
 		cam_rig.add_zoom(0.02)
 
 	# Binoculars: hold B, right mouse, or R3 — one ACTION, any hardware. One gaze
 	# pipeline: glassing and gunfighting both feed AIM INTENT, and the Look Arc
 	# drags the body when the target is past the head's limit.
-	var binoc := Input.is_action_pressed("drivn_binoculars")
+	var binoc := not input_blocked and Input.is_action_pressed("drivn_binoculars")
 	cam_rig.binoculars = binoc
 	hud.set_binoculars(binoc)
 	# The BODY reads it too — the hand comes to the face so other players know
@@ -1077,7 +1078,7 @@ func _physics_process(delta: float) -> void:
 		var bdir := cam_rig.binocular_aim_dir()
 		if binoc and bdir.length_squared() > 0.01:
 			player.set_aim_intent(bdir)
-		elif not panel.is_open:
+		elif not input_blocked:
 			player.set_aim_intent(aim_direction())
 		else:
 			player.clear_aim_intent()
@@ -2721,6 +2722,16 @@ func _furniture_load(recs: Dictionary) -> void:
 
 # --- THE PAD DRIVER (controller arc) -------------------------------------------
 
+func _gameplay_input_blocked() -> bool:
+	return menu_open or panel.is_open or (media_panel != null and media_panel.is_open) \
+		or (road_life != null and road_life.panel.is_open) \
+		or (controls_panel != null and controls_panel.is_open) \
+		or (game_shell != null and game_shell.is_open) \
+		or (drone_pilot != null and drone_pilot.body_immobile()) \
+		or (radio_dial != null and radio_dial.is_open) \
+		or (skill_tree != null and skill_tree.is_open) \
+		or (book_panel != null and book_panel.is_open)
+
 ## Per-frame pad work: the RIGHT STICK is the second half of twin-stick (it owns
 ## aim_override while deflected — the exact seam the sims aim with), and the
 ## TRIGGERS swap jobs when you take the wheel (RT gas / LT brake, GTA-style).
@@ -2729,6 +2740,10 @@ func _update_pad(_delta: float) -> void:
 	if driving != _pad_prev_drive:
 		_pad_prev_drive = driving
 		_swap_drive_triggers(driving)
+	if _gameplay_input_blocked():
+		_pad_aiming = false
+		aim_override = Vector3.ZERO
+		return
 	# Right-stick aim: deflected = it owns the reticle; released = the mouse resumes.
 	var av := Vector3(Input.get_axis("drivn_aim_left", "drivn_aim_right"), 0,
 		-Input.get_axis("drivn_aim_down", "drivn_aim_up"))

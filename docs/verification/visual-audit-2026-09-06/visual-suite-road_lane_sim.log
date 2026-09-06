@@ -1,0 +1,37 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROADLANE: start
+ROADLANE: PASS - a bare interstate row defaults to 4 lanes, undivided
+ROADLANE: PASS - 6 lanes defaults divided (a six-lane without a median is a death trap)
+ROADLANE: PASS - an exit ramp defaults to 2 lanes
+ROADLANE: PASS - divided is an explicit row override too
+ROADLANE: PASS - 6-lane divided is 27.2m wide (got 27.2)
+ROADLANE: PASS - 4-lane divided is 20.0m
+ROADLANE: PASS - 4-lane undivided is 16.4m
+ROADLANE: PASS - 2-lane is 9.2m
+ROADLANE: PASS - 6-div carriageway is 12.4m with a 2.0m center gap
+ROADLANE: PASS - lane_offset: 6-div lane 1 sits 7.4m out
+ROADLANE: PASS - lane_offset: 4-undiv lane 0 sits 1.8m out
+ROADLANE: PASS - I-95 (THE CRIMSON MILE) is a 6-lane divided interstate
+ROADLANE: PASS - I-35 is a 2-lane country interstate
+ROADLANE: PASS - a 4-lane UNDIVIDED highway exists too (I-5)
+ROADLANE: PASS - all three widths exist on the real map (6/4/2)
+ROADLANE: PASS - the Meridian junction sees BOTH the interstate and its ramp (["I-95", "I-95_X1-off-r", "EXIT-meridian"])
+ROADLANE: PASS - a divided highway lays TWO carriageway slabs (got 2)
+ROADLANE: PASS - ...and raises a PHYSICAL median barrier
+ROADLANE: PASS - each carriageway slab is the row's carriage width 12.4m (got 12.4)
+ROADLANE: PASS - grip reaches the OUTER lane (surface 'road' 11m out)
+ROADLANE: PASS - grip ENDS at the shoulder (surface 'dirt' 16m out)
+ROADLANE: PASS - a 2-lane vertex chunk lays TWO slabs, one per segment (got 2)
+ROADLANE: PASS - each 2-lane segment retains its full 9.2m undivided width
+ROADLANE: PASS - distinct I-35 incoming/outgoing midpoints each have exactly one slab (1/1)
+ROADLANE: PASS - ...with a YELLOW center line and NO median barrier
+ROADLANE: PASS - the junction chunk materializes the INTERSTATE (2 slabs)
+ROADLANE: PASS - ...AND the exit ramp beside it (4 slabs — the old code picked one road only)
+ROADLANE: PASS - both roads registered grip rects (6 >= 2)
+ROADLANE RESULTS: 28 passed, 0 failed
+ROADLANE: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

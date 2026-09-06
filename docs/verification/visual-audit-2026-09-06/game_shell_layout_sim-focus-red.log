@@ -1,0 +1,139 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_SHELL_LAYOUT: PASS - real catalog contains all 22 cartridges
+GAME_SHELL_LAYOUT: PASS - real console shelf retains twelve covers
+GAME_SHELL_LAYOUT: PASS - console_1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - console_1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - console_1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - console_1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - console_1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: console_1280x720 viewport=(1280, 720) shell=[P: (24.0, 20.0), S: (1232.0, 688.0)] scroll=[P: (54.0, 135.0), S: (1172.0, 510.0)] visible_clip=[P: (54.0, 135.0), S: (1164.0, 510.0)] grid=[P: (54.0, 135.0), S: (1164.0, 1088.0)] columns=4 clipped=[]
+GAME_SHELL_LAYOUT: PASS - console_1280x720 all card horizontal bounds fit scroll intersect viewport and body
+GAME_SHELL_LAYOUT: PASS - console_1280x720 complete card state strips remain within their cards
+GAME_SHELL_LAYOUT: PASS - console_1280x720 all real cover textures remain contained and aspect-preserving
+GAME_SHELL_LAYOUT: PASS - console_1280x720 card availability/ownership and focus policy are unchanged
+GAME_SHELL_LAYOUT: PASS - console_1280x720 final card can be scrolled fully into view
+GAME_SHELL_LAYOUT: PASS - unfiltered library retains all twenty-two covers
+GAME_SHELL_LAYOUT: PASS - enabled first card receives controller focus
+GAME_SHELL_LAYOUT: PASS - 1280x720 is the actual logical viewport size
+GAME_SHELL_LAYOUT: PASS - 1280x720 resize retains the same open library and card nodes
+GAME_SHELL_LAYOUT: PASS - 1280x720 resize retains controller focus
+GAME_SHELL_LAYOUT: PASS - 1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: 1280x720 viewport=(1280, 720) shell=[P: (24.0, 20.0), S: (1232.0, 688.0)] scroll=[P: (54.0, 135.0), S: (1172.0, 510.0)] visible_clip=[P: (54.0, 135.0), S: (1164.0, 510.0)] grid=[P: (54.0, 135.0), S: (1164.0, 2186.0)] columns=4 clipped=[]
+GAME_SHELL_LAYOUT: PASS - 1280x720 all card horizontal bounds fit scroll intersect viewport and body
+GAME_SHELL_LAYOUT: PASS - 1280x720 complete card state strips remain within their cards
+GAME_SHELL_LAYOUT: PASS - 1280x720 all real cover textures remain contained and aspect-preserving
+GAME_SHELL_LAYOUT: PASS - 1280x720 card availability/ownership and focus policy are unchanged
+GAME_SHELL_LAYOUT: PASS - 1280x720 live cover shelf includes square portrait and landscape art
+GAME_SHELL_LAYOUT: PASS - 1280x720 final card can be scrolled fully into view
+GAME_SHELL_LAYOUT: PASS - 1280x800 is the actual logical viewport size
+GAME_SHELL_LAYOUT: PASS - 1280x800 resize retains the same open library and card nodes
+GAME_SHELL_LAYOUT: PASS - 1280x800 resize retains controller focus
+GAME_SHELL_LAYOUT: PASS - 1280x800 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - 1280x800 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x800 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x800 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x800 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: 1280x800 viewport=(1280, 800) shell=[P: (24.0, 20.0), S: (1232.0, 760.0)] scroll=[P: (54.0, 135.0), S: (1172.0, 582.0)] visible_clip=[P: (54.0, 135.0), S: (1164.0, 582.0)] grid=[P: (54.0, 135.0), S: (1164.0, 2186.0)] columns=4 clipped=[]
+GAME_SHELL_LAYOUT: PASS - 1280x800 all card horizontal bounds fit scroll intersect viewport and body
+GAME_SHELL_LAYOUT: PASS - 1280x800 complete card state strips remain within their cards
+GAME_SHELL_LAYOUT: PASS - 1280x800 all real cover textures remain contained and aspect-preserving
+GAME_SHELL_LAYOUT: PASS - 1280x800 card availability/ownership and focus policy are unchanged
+GAME_SHELL_LAYOUT: PASS - 1280x800 live cover shelf includes square portrait and landscape art
+GAME_SHELL_LAYOUT: PASS - 1280x800 final card can be scrolled fully into view
+GAME_SHELL_LAYOUT: PASS - 960x720 is the actual logical viewport size
+GAME_SHELL_LAYOUT: PASS - 960x720 resize retains the same open library and card nodes
+GAME_SHELL_LAYOUT: PASS - 960x720 resize retains controller focus
+GAME_SHELL_LAYOUT: PASS - 960x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - 960x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - 960x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 960x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 960x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: 960x720 viewport=(960, 720) shell=[P: (24.0, 20.0), S: (912.0, 688.0)] scroll=[P: (54.0, 135.0), S: (852.0, 510.0)] visible_clip=[P: (54.0, 135.0), S: (844.0, 510.0)] grid=[P: (54.0, 135.0), S: (844.0, 2918.0)] columns=3 clipped=[]
+GAME_SHELL_LAYOUT: PASS - 960x720 all card horizontal bounds fit scroll intersect viewport and body
+GAME_SHELL_LAYOUT: PASS - 960x720 complete card state strips remain within their cards
+GAME_SHELL_LAYOUT: PASS - 960x720 all real cover textures remain contained and aspect-preserving
+GAME_SHELL_LAYOUT: PASS - 960x720 card availability/ownership and focus policy are unchanged
+GAME_SHELL_LAYOUT: PASS - 960x720 live cover shelf includes square portrait and landscape art
+GAME_SHELL_LAYOUT: PASS - 960x720 final card can be scrolled fully into view
+GAME_SHELL_LAYOUT: PASS - narrow resize repacks the existing cards into fewer columns
+GAME_SHELL_LAYOUT: PASS - 1280x720 is the actual logical viewport size
+GAME_SHELL_LAYOUT: PASS - 1280x720 resize retains the same open library and card nodes
+GAME_SHELL_LAYOUT: PASS - 1280x720 resize retains controller focus
+GAME_SHELL_LAYOUT: PASS - 1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - 1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: 1280x720 viewport=(1280, 720) shell=[P: (24.0, 20.0), S: (1232.0, 688.0)] scroll=[P: (54.0, 135.0), S: (1172.0, 510.0)] visible_clip=[P: (54.0, 135.0), S: (1164.0, 510.0)] grid=[P: (54.0, 135.0), S: (1164.0, 2186.0)] columns=4 clipped=[]
+GAME_SHELL_LAYOUT: PASS - 1280x720 all card horizontal bounds fit scroll intersect viewport and body
+GAME_SHELL_LAYOUT: PASS - 1280x720 complete card state strips remain within their cards
+GAME_SHELL_LAYOUT: PASS - 1280x720 all real cover textures remain contained and aspect-preserving
+GAME_SHELL_LAYOUT: PASS - 1280x720 card availability/ownership and focus policy are unchanged
+GAME_SHELL_LAYOUT: PASS - 1280x720 live cover shelf includes square portrait and landscape art
+GAME_SHELL_LAYOUT: PASS - 1280x720 final card can be scrolled fully into view
+GAME_SHELL_LAYOUT: PASS - resizing back restores room for the original column count
+GAME_SHELL_LAYOUT: PASS - D-pad navigation still reaches an enabled control in the shell
+GAME_SHELL_LAYOUT: PASS - library resizing/navigation does not grant or remove cartridges
+GAME_SHELL_LAYOUT: PASS - lower-row regression uses the two real starter-owned cards
+GAME_SHELL_LAYOUT: PASS - lower-row focus starts with four columns
+GAME_SHELL_LAYOUT: PASS - lower-row focused card is fully visible before shrinking
+GAME_SHELL_LAYOUT: PASS - shrinking repacks four columns to three without rebuilding
+GAME_SHELL_LAYOUT: PASS - shrinking retains the same lower-row focused card
+GAME_SHELL_LAYOUT: FAIL - same focused lower-row card remains fully visible after reflow
+GAME_SHELL_LAYOUT: lower focus=@Button@235 card=[P: (339.0, 655.0), S: (275.0, 356.0)] scroll=[P: (54.0, 135.0), S: (852.0, 510.0)] offset=578
+GAME_SHELL_LAYOUT: FAIL - D-pad DOWN crosses rows to the enabled lower cartridge
+GAME_SHELL_LAYOUT: FAIL - D-pad row transition keeps the focused cartridge fully visible
+GAME_SHELL_LAYOUT: PASS - lower-row focus checks leave library ownership unchanged
+GAME_SHELL_LAYOUT: PASS - waste_heap launches a live cartridge through the shell
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - waste_heap_1280x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - waste_heap_960x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - bunker_breaker launches a live cartridge through the shell
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_1280x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - bunker_breaker_960x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - last_mile launches a live cartridge through the shell
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - last_mile_1280x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 entire bezel title tabs and status fit the viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 body remains inside bezel and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 library scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 game screen stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 text scroll stays entirely inside body and viewport
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 retains the real source resolution
+GAME_SHELL_LAYOUT: PASS - last_mile_960x720 keeps aspect-centered letterboxing inside the body
+GAME_SHELL_LAYOUT: PASS - live aspect checks leave library ownership unchanged
+GAME_SHELL_LAYOUT: PASS - owned deck and shell viewport are freed before shutdown
+GAME_SHELL_LAYOUT RESULTS: 127 passed, 3 failed

@@ -39,6 +39,8 @@
 class_name ProtoOptionsPanel
 extends CanvasLayer
 
+signal closed
+
 const AMBER := Color(0.96, 0.72, 0.2)
 const BONE := Color(0.92, 0.89, 0.82)
 const DIM := Color(0.55, 0.52, 0.46)
@@ -85,7 +87,7 @@ var sfx_pct: int = 100
 static func create(main: Node) -> ProtoOptionsPanel:
 	var p := ProtoOptionsPanel.new()
 	p._main = main
-	p.layer = 7 # above HUD(2)/controls_panel(5), below menu.gd's title(8) that opens it
+	p.layer = 7 # standalone default; a title owner promotes its active subpanel
 	p._build()
 	p._load_settings()
 	p._apply_all()
@@ -241,7 +243,7 @@ func _build() -> void:
 	_sfx_slider.value_changed.connect(func(val: float) -> void: _on_sfx_changed(int(val)))
 
 	var hint := Label.new()
-	hint.text = "Close (Esc / B) · settings apply live and save automatically"
+	hint.text = "Close (Esc / B / ◯) · settings apply live and save automatically"
 	hint.add_theme_font_override("font", ProtoHUD.mixed_font())
 	hint.add_theme_font_size_override("font_size", 13)
 	hint.add_theme_color_override("font_color", DIM)
@@ -305,8 +307,11 @@ func open() -> void:
 
 
 func close() -> void:
+	var was_open := is_open
 	is_open = false
 	visible = false
+	if was_open:
+		closed.emit()
 
 
 func toggle() -> void:

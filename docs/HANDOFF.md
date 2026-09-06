@@ -1,5 +1,14 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-06 — screenshot-driven fixes
+
+The [20-piece visual audit](verification/VISUAL_AUDIT_2026_09_06.md) records
+actual before/after renders, corrected highway startup and road-segment coverage,
+title/inventory/controller fixes, and the responsive cartridge shelf. Its 447
+focused assertions pass; shutdown resource diagnostics and substantial art,
+lighting, layout and full-game release work remain. Use PLAY_ROADSTEAD.bat in
+the isolated checkout for these source changes; the earlier ZIP is unchanged.
+
 ## 2026-09-05 — current isolated evaluation status (read first)
 
 The older "shipped in full" entries below describe their individual plans,
