@@ -143,6 +143,37 @@ Source-side cartridge regressions also pass cleanly: registry 19 / 0, license
 final map geometry/migration and packaging/harness changes within their scopes.
 These reviews are not whole-game or redistribution approvals.
 
+## Accepted portable local candidate
+
+Built successfully from clean commit `02d4187a823a05206882e3d39d9210955891e9df`:
+`DRIVN-0.14.0-02d4187a-20260906-033457-655-a70b5d-win64-local-rc`.
+The manifest records zero dirty entries before and after the build. Build exit
+0; actual exported/rendered acceptance **85 passed / 0 failed**, clean stderr.
+Import/export retain pre-existing addon UID fallback warnings, not errors.
+
+The ZIP was then extracted to a fresh temporary directory **outside the
+repository**. All **35 payload hashes** matched. The extracted executable was
+run from its own extracted folder, with no source project path and fresh
+profiles: headless **83 / 0**, rendered **85 / 0**, both exit 0 with empty stderr.
+This verifies packaging independence on this Windows machine, not a separate
+clean-machine or broad hardware certification. Exact acceptance, manifest,
+captures and repeat logs are in [packaging-green/](release-pass-1/packaging-green/).
+
+- ZIP: 180,473,848 bytes (about 180 MB).
+- ZIP SHA256: `5ab0c83af15e6ba5d11714a23e712ec59591f6a2979635296e045b3b5b74c63c`.
+- Executable SHA256: `00ecb71aaeefb996593766a86168ae6e80edc7915cb9d6c9e38bc528a1c85f34`.
+- Local artifact: `build/DRIVN-0.14.0-02d4187a-20260906-033457-655-a70b5d-win64-local-rc/DRIVN-0.14.0-02d4187a-20260906-033457-655-a70b5d-win64-local-rc.zip`.
+- Play: extract the whole ZIP and double-click **PLAY_DRIVN.bat**. Godot is
+  embedded in the executable; the evaluation launcher keeps saves separate.
+
+This is **unsigned and local-evaluation-only**. The packaged checks establish
+availability of 22 cartridge interfaces/covers, four homestead models and
+required rows/notices/fonts, plus real title/NEW GAME input and owned-scene
+cleanup. They are not 22 complete game playthroughs, controller certification,
+a finished MMO, or asset redistribution clearance. The earlier rejected builds
+and intermittent shutdown diagnostic remain recorded; these clean repeats do
+not certify every shutdown path in the full game.
+
 ## Remaining release gates
 
 - Dedicated authenticated authority with two independent clients, persistence,

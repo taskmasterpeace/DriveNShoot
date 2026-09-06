@@ -1,0 +1,90 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+PACKAGED_RELEASE: PASS - running the exported template, not the editor
+PACKAGED_RELEASE: PASS - configured launch is the real main game
+PACKAGED_RELEASE: PASS - evidence directory is writable
+PACKAGED_RELEASE: PASS - packed notice readable: res://THIRD_PARTY_NOTICES.md
+PACKAGED_RELEASE: PASS - packed notice readable: res://LICENSE
+PACKAGED_RELEASE: PASS - packed notice readable: res://third_party/licenses/littlejs-arcade-mit.txt
+PACKAGED_RELEASE: PASS - packed notice readable: res://assets/fonts/game_deck/OFL.txt
+PACKAGED_RELEASE: PASS - packed notice readable: res://assets/input_icons/ATTRIBUTION.md
+PACKAGED_RELEASE: PASS - packed notice readable: res://assets/skins/ATTRIBUTION.md
+PACKAGED_RELEASE: PASS - packed notice readable: res://addons/exit_portal_free/ATTRIBUTION.md
+PACKAGED_RELEASE: PASS - packed notice readable: res://addons/dialogue_manager/LICENSE
+PACKAGED_RELEASE: PASS - packed notice readable: res://addons/tile_bit_tools/LICENSE
+PACKAGED_RELEASE: PASS - packed notice readable: res://addons/exit_portal_free/LICENSE
+PACKAGED_RELEASE: PASS - all 22 cartridge catalog rows load
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: waste_heap
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: radworm
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: dead_ground
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: pack_rat
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: bunker_breaker
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: last_mile
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: iron_dome
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: fall_line
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: tilt_salvage
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: relay_bloom
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: crown_of_ash
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: dial_tanks
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: red_sky
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: black_orbit
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: gridbreach
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: rustball
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: fuel_run
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: skyjoust
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: fight_night_99
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: ashland_command
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: rust_runners
+PACKAGED_RELEASE: PASS - imported cartridge cover loads: black_grid
+PACKAGED_RELEASE: PASS - 22 cartridge scenes pass availability and notice gates (not playthrough)
+PACKAGED_RELEASE: PASS - 22 cartridge scene interfaces instantiate (not playthrough)
+PACKAGED_RELEASE: PASS - source text packed: littlejs_arcade/notice_path
+PACKAGED_RELEASE: PASS - source text packed: littlejs_arcade/license_path
+PACKAGED_RELEASE: PASS - source text packed: godot_demos/notice_path
+PACKAGED_RELEASE: PASS - source text packed: godot_demos/license_path
+PACKAGED_RELEASE: PASS - source text packed: three_bit_games/notice_path
+PACKAGED_RELEASE: PASS - source text packed: three_bit_games/license_path
+PACKAGED_RELEASE: PASS - source text packed: bashball/notice_path
+PACKAGED_RELEASE: PASS - source text packed: bashball/license_path
+PACKAGED_RELEASE: PASS - source text packed: cars_on_road/notice_path
+PACKAGED_RELEASE: PASS - source text packed: cars_on_road/license_path
+PACKAGED_RELEASE: PASS - source text packed: flying_turtles/notice_path
+PACKAGED_RELEASE: PASS - source text packed: flying_turtles/license_path
+PACKAGED_RELEASE: PASS - source text packed: wrathskeller/notice_path
+PACKAGED_RELEASE: PASS - source text packed: wrathskeller/license_path
+PACKAGED_RELEASE: PASS - source text packed: tanks_of_freedom/notice_path
+PACKAGED_RELEASE: PASS - source text packed: tanks_of_freedom/license_path
+PACKAGED_RELEASE: PASS - source text packed: opensoldat/notice_path
+PACKAGED_RELEASE: PASS - source text packed: opensoldat/license_path
+PACKAGED_RELEASE: PASS - source text packed: opensoldat/content_license_path
+PACKAGED_RELEASE: PASS - source text packed: freeinfantry_reference/notice_path
+PACKAGED_RELEASE: PASS - homestead model loads: roadstead_cottage
+PACKAGED_RELEASE: PASS - homestead model instantiates: roadstead_cottage
+PACKAGED_RELEASE: PASS - homestead model loads: parcel_mailbox
+PACKAGED_RELEASE: PASS - homestead model instantiates: parcel_mailbox
+PACKAGED_RELEASE: PASS - homestead model loads: freight_kiosk
+PACKAGED_RELEASE: PASS - homestead model instantiates: freight_kiosk
+PACKAGED_RELEASE: PASS - homestead model loads: delivery_crate
+PACKAGED_RELEASE: PASS - homestead model instantiates: delivery_crate
+PACKAGED_RELEASE: PASS - input binding rows packed
+PACKAGED_RELEASE: PASS - world lighting rows packed
+PACKAGED_RELEASE: PASS - three homestead property rows packed
+PACKAGED_RELEASE: PASS - three freight job rows packed
+PACKAGED_RELEASE: PASS - LCD font loads
+PACKAGED_RELEASE: PASS - Game Deck font loads
+PACKAGED_RELEASE: PASS - main scene transition accepted
+PACKAGED_RELEASE: PASS - normal main scene entered tree
+PACKAGED_RELEASE: PASS - real launch opens the title gate
+PACKAGED_RELEASE: PASS - real NEW GAME button is visible
+PACKAGED_RELEASE: PASS - title real viewport captured
+PACKAGED_RELEASE: PASS - NEW GAME keyboard UI input dismisses title
+PACKAGED_RELEASE: PASS - NEW GAME arms real first-run objectives
+PACKAGED_RELEASE: PASS - real Roadstead life system is present
+PACKAGED_RELEASE: PASS - new_game real viewport captured
+PACKAGED_RELEASE: PASS - evidence written: Godot-engine-LICENSE.txt
+PACKAGED_RELEASE: PASS - evidence written: Godot-third-party-copyright.json
+PACKAGED_RELEASE: PASS - evidence written: Godot-third-party-licenses.json
+PACKAGED_RELEASE: PASS - owned main scene freed before shutdown
+PACKAGED_RELEASE RESULTS: 85 passed, 0 failed
+PACKAGED_RELEASE: ALL CHECKS PASSED
