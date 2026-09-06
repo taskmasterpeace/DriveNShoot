@@ -1,10 +1,13 @@
 extends Node
 ## Real-runtime render regression: daylight must preserve painted surface detail;
 ## midnight must remain readable. No screenshot editing or substitute renderer.
+const CAPTURE_SIZE := Vector2i(1280, 720)
+
 var main: Node
 var passed: int = 0
 var failed: int = 0
 var output: String = "res://../docs/renders/lighting/verified"
+var probe_legacy_mask: bool = false
 
 func _ready() -> void:
 	get_tree().create_timer(100.0).timeout.connect(func() -> void: get_tree().quit(1))
@@ -15,10 +18,19 @@ func _ready() -> void:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--output="):
 			output = argument.trim_prefix("--output=")
+		elif argument == "--probe-legacy-mask":
+			probe_legacy_mask = true
 	check("capture directory writable", DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output)) == OK)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	DisplayServer.window_set_size(CAPTURE_SIZE)
+	get_tree().root.content_scale_size = CAPTURE_SIZE
+	await frames(8)
 	main = load("res://proto3d/proto3d.tscn").instantiate()
 	add_child(main)
 	await frames(10)
+	if probe_legacy_mask:
+		_install_legacy_mask_probe()
+		print("LIGHTING RENDER: legacy mask negative control active")
 	await interact()
 	check("real input exits the car", main.mode == main.Mode.FOOT)
 	var home: Node3D = main.road_life.sites[0]
@@ -44,6 +56,10 @@ func _ready() -> void:
 		main.daynight.hour = preset[1]
 		main.daynight.moon_phase = preset[2]
 		main.daynight._apply()
+		# The full scene is frozen for pixel-stable comparisons, so advance the
+		# real parcel consumers explicitly after holding the clock.
+		for site: ProtoPropertySite in main.road_life.sites:
+			site._physics_process(0.0)
 		main._update_location_label()
 		# Settle the sky radiance update as well as the current color buffer.
 		for i: int in 8:
@@ -56,7 +72,27 @@ func _ready() -> void:
 		check("%s surface remains readable (mean %.3f, detail %.3f)" % [preset[0], stats.mean, stats.detail], stats.mean > 0.055 and stats.mean < 0.8 and stats.detail > 0.035)
 		main.vision_cone.show()
 		main._update_vision_cone(1.0, false)
-		await capture(String(preset[0]) + "_gameplay")
+		if probe_legacy_mask:
+			main.vision_cone._mat.set_shader_parameter("dim_amount", 0.68)
+		var gameplay: Image = await capture(String(preset[0]) + "_gameplay")
+		if String(preset[0]) == "noon":
+			var gameplay_stats: Dictionary = measure(gameplay)
+			check("noon remains readable with the real gameplay mask active (mean %.3f, detail %.3f)" % [gameplay_stats.mean, gameplay_stats.detail],
+				gameplay_stats.mean > 0.055 and gameplay_stats.detail > 0.035)
+			var edge: PackedFloat32Array = mask_edge_profile(frame, gameplay)
+			var feathered: bool = edge.size() == 5
+			if feathered:
+				var has_intermediate: bool = false
+				for i: int in range(1, edge.size() - 1):
+					if edge[i] < edge[0] - 0.01 and edge[i] > edge[4] + 0.01:
+						has_intermediate = true
+						break
+				# 0.78 sits before the old 0.80 feather but within the new broad
+				# transition, so the original hard wedge cannot satisfy this.
+				feathered = edge[0] > edge[4] + 0.04 and has_intermediate and edge[1] < 0.995
+			check("actual gameplay mask has a soft angular falloff %s" % edge, feathered)
+			check("noon peripheral terrain remains readable through the active mask %s" % edge,
+				edge.size() == 5 and edge[4] > 0.90)
 	check("day brighter than midnight", measures.noon.mean > measures.full_moon.mean * 1.2)
 	check("full moon brighter than new moon", measures.full_moon.mean > measures.new_moon.mean + 0.01)
 	main.queue_free()
@@ -83,10 +119,55 @@ func measure(frame: Image) -> Dictionary:
 	return {"clipped":float(clipped)/samples.size(), "mean":total/samples.size(),
 		"detail":samples[int(samples.size()*0.9)]-samples[int(samples.size()*0.1)]}
 
+## Measure the overlay from real gameplay pixels. Each sample compares the same
+## world pixel with/without the active mask, then averages both cone edges and
+## several radii so cottage texture cannot masquerade as a feathered edge.
+func mask_edge_profile(unmasked: Image, gameplay: Image) -> PackedFloat32Array:
+	var result := PackedFloat32Array()
+	if unmasked == null or gameplay == null or unmasked.is_empty() or gameplay.is_empty():
+		return result
+	var apex: Vector2 = main.vision_cone._mat.get_shader_parameter("apex")
+	var direction: Vector2 = main.vision_cone._mat.get_shader_parameter("dir")
+	var aspect: float = float(main.vision_cone._mat.get_shader_parameter("aspect"))
+	var half_angle: float = float(main.vision_cone._mat.get_shader_parameter("half_angle"))
+	var view_range: float = float(main.vision_cone._mat.get_shader_parameter("view_range"))
+	var corrected_dir := Vector2(direction.x * aspect, direction.y).normalized()
+	var radius: float = clampf(view_range * 0.55, 0.10, 0.24)
+	for angle_scale: float in [0.55, 0.78, 0.92, 1.06, 1.25]:
+		var ratio_sum: float = 0.0
+		var ratio_count: int = 0
+		for side: float in [-1.0, 1.0]:
+			for radius_scale: float in [0.82, 1.0, 1.16]:
+				var corrected_offset: Vector2 = corrected_dir.rotated(half_angle * angle_scale * side) * radius * radius_scale
+				var uv := apex + Vector2(corrected_offset.x / aspect, corrected_offset.y)
+				var x: int = clampi(int(uv.x * unmasked.get_width()), 0, unmasked.get_width() - 1)
+				var y: int = clampi(int(uv.y * unmasked.get_height()), 0, unmasked.get_height() - 1)
+				var clear_luminance: float = unmasked.get_pixel(x, y).get_luminance()
+				if clear_luminance > 0.03:
+					ratio_sum += clampf(gameplay.get_pixel(x, y).get_luminance() / clear_luminance, 0.0, 1.25)
+					ratio_count += 1
+		if ratio_count == 0:
+			return PackedFloat32Array()
+		result.append(ratio_sum / float(ratio_count))
+	return result
+
+
+## Mutation control: restore the exact pre-fix shader feather on this material
+## instance only. The capture loop separately restores its fixed 0.68 mask.
+func _install_legacy_mask_probe() -> void:
+	var legacy_code: String = ProtoVisionCone.SHADER_CODE \
+		.replace("half_angle * 0.68, half_angle * 1.12", "half_angle * 0.80, half_angle * 1.06") \
+		.replace("view_range * 0.62, view_range * 1.10", "view_range * 0.72, view_range * 1.05")
+	var legacy_shader: Shader = Shader.new()
+	legacy_shader.code = legacy_code
+	main.vision_cone._mat.shader = legacy_shader
+
 func capture(id: String) -> Image:
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var frame: Image = get_viewport().get_texture().get_image()
+	check("%s is exactly 1280x720 (actual %s)" % [id, frame.get_size() if frame != null else Vector2i.ZERO],
+		frame != null and not frame.is_empty() and frame.get_size() == CAPTURE_SIZE)
 	var error: Error = ERR_INVALID_DATA if frame == null or frame.is_empty() else frame.save_png(ProjectSettings.globalize_path(output.path_join(id + ".png")))
 	check("%s captured" % id, error == OK)
 	return frame

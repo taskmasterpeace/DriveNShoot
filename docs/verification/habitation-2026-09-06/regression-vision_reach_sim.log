@@ -1,0 +1,17 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+VISREACH: start
+VISREACH: PASS - on foot you see FAR in your look direction (MODE_FOOT range 100m >= 90)
+VISREACH: PASS - binoculars reach much farther — toward the horizon (MODE_BINOC 240m >= 200)
+VISREACH: PASS - binoculars out-see the naked eye (240 > 100)
+VISREACH: PASS - the binocular VIEW travels far to the mouse (rig range 240 >= 200)
+VISREACH: PASS - glassing RAISES the hand from rest (1.51 > 0.60)
+VISREACH: PASS - the hand comes to the FACE (within 0.4m of the head: 0.07m)
+VISREACH: PASS - the binocular BIND ROW is cleared (keys+pad empty)
+VISREACH: PASS - HOLD B no longer glasses (cam_rig.binoculars stays off)
+VISREACH RESULTS: 8 passed, 0 failed
+VISREACH: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

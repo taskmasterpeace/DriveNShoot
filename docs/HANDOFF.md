@@ -1,5 +1,16 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-06 — habitation and lighting follow-through
+
+The [new 20-piece screenshot audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md)
+adds an original Blender MCP yard kit, connected gravel office/home approaches,
+local cottage lighting and a daylight-aware soft perception mask. Ten focused
+headless scenes pass 190 assertions; real GPU lighting passes 32, and an exact
+legacy-mask mutation fails the two intended visual checks. Final tour saves 20
+actual frames, cleanly. Older town art/signage, content depth, resource diagnostics,
+authenticated realms and full-game release gates still remain. This is progress,
+not full-game completion; the persistent full-game goal remains active.
+
 ## 2026-09-06 — screenshot-driven fixes
 
 The [20-piece visual audit](verification/VISUAL_AUDIT_2026_09_06.md) records

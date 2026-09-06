@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://proto3d/tests/daylight_mask_sim.gd" id="1"]
+
+[node name="DaylightMaskSim" type="Node"]
+script = ExtResource("1")

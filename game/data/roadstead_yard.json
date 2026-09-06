@@ -1,0 +1,33 @@
+{
+  "surfaces": [
+    {"id":"office_apron","a":[18,-331],"b":[18,-318],"width":14,"color":"82785f","gravel":true},
+    {"id":"yard_access","a":[18,-320],"b":[30,-320],"width":5,"color":"82785f","gravel":true},
+    {"id":"lane_west","a":[30,-320],"b":[30,-350],"width":5,"color":"81775d","gravel":true},
+    {"id":"roadstead_lane","a":[28,-350],"b":[85,-350],"width":5,"color":"81775d","gravel":true},
+    {"id":"lane_street_join","a":[85,-351],"b":[85,-342],"width":5,"color":"81775d","gravel":true},
+    {"id":"house_1_approach","a":[42,-355],"b":[42,-350],"width":2.5,"color":"9c9074","gravel":true},
+    {"id":"house_2_approach","a":[60,-355],"b":[60,-350],"width":2.5,"color":"9c9074","gravel":true},
+    {"id":"house_3_approach","a":[78,-355],"b":[78,-350],"width":2.5,"color":"9c9074","gravel":true},
+    {"id":"parking_left","a":[12,-322],"b":[12,-317.5],"width":0.13,"color":"c4ad71"},
+    {"id":"parking_mid","a":[15,-322],"b":[15,-317.5],"width":0.13,"color":"c4ad71"},
+    {"id":"parking_right","a":[21,-322],"b":[21,-317.5],"width":0.13,"color":"c4ad71"},
+    {"id":"lane_wheel_1","a":[33,-351],"b":[81,-351],"width":0.48,"color":"6e6652"},
+    {"id":"lane_wheel_2","a":[33,-349],"b":[81,-349],"width":0.48,"color":"6e6652"}
+  ],
+  "props": [
+    {"id":"office_shelter","asset":"freight_shelter","position":[18,-328],"cutaway_radius":6,"solids":[[-2.8,1.6,-1.7,0.24,3.2,0.24],[2.8,1.6,-1.7,0.24,3.2,0.24],[-2.8,1.6,1.7,0.24,3.2,0.24],[2.8,1.6,1.7,0.24,3.2,0.24]]},
+    {"id":"outgoing_freight","asset":"delivery_crate","position":[23,-329],"yaw":-8,"solids":[[0,0.4,0,1.0,0.8,0.85]]},
+    {"id":"incoming_freight","asset":"delivery_crate","position":[24,-327.9],"yaw":4,"solids":[[0,0.4,0,1.0,0.8,0.85]]},
+    {"id":"office_lamp","asset":"yard_lamp","position":[23,-332],"solids":[[0,1.7,0,0.2,3.4,0.2]],"light":{"position":[0,3.45,0.42],"range":9,"color":"ffca80","day_energy":0.05,"night_energy":1.7}},
+    {"id":"lane_lamp","asset":"yard_lamp","position":[32,-347],"yaw":90,"solids":[[0,1.7,0,0.2,3.4,0.2]],"light":{"position":[0,3.45,0.42],"range":8,"color":"ffca80","day_energy":0.05,"night_energy":1.4}},
+    {"id":"home_1_west","asset":"reclaimed_fence","position":[34,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_1_back","asset":"reclaimed_fence","position":[38,-369],"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_1_east","asset":"reclaimed_fence","position":[50,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_2_west","asset":"reclaimed_fence","position":[52,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_2_back","asset":"reclaimed_fence","position":[56,-369],"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_2_east","asset":"reclaimed_fence","position":[68,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_3_west","asset":"reclaimed_fence","position":[70,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_3_back","asset":"reclaimed_fence","position":[74,-369],"solids":[[0,0.65,0,4,1.3,0.18]]},
+    {"id":"home_3_east","asset":"reclaimed_fence","position":[86,-363],"yaw":90,"solids":[[0,0.65,0,4,1.3,0.18]]}
+  ]
+}

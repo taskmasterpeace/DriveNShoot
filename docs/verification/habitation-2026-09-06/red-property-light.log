@@ -1,0 +1,14 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+PROPERTY LIGHT: FAIL night practical lights exist on the real Roadstead parcel
+PROPERTY LIGHT: FAIL runtime practicals are direct children of the parcel site
+PROPERTY LIGHT: FAIL night practicals are visibly energized
+PROPERTY LIGHT: FAIL practical light is warm, not blue ambient fill
+PROPERTY LIGHT: FAIL a local practical covers the cottage interior anchor
+PROPERTY LIGHT: FAIL a local practical covers the porch anchor
+PROPERTY LIGHT: FAIL varying a property light row changes the actual runtime light
+PROPERTY LIGHT RESULTS: 0 passed, 7 failed
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

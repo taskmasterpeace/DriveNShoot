@@ -22,7 +22,8 @@ var _sky_mat: ProceduralSkyMaterial = null
 var _env: Environment = null
 const LIGHTING_PATH := "res://data/world_lighting.json"
 const LIGHTING_STOCK := {"day_sun_energy":0.72, "new_moon_ambient":0.30,
-	"full_moon_ambient":0.48, "day_ambient":0.45, "day_sky_contribution":0.65}
+	"full_moon_ambient":0.48, "day_ambient":0.45, "day_sky_contribution":0.65,
+	"vision_mask_day_scale":0.30, "vision_mask_night_scale":1.0}
 var _lighting: Dictionary = LIGHTING_STOCK.duplicate()
 
 ## [top, horizon, fog] color presets the sky lerps through.
@@ -86,6 +87,20 @@ func vision_mult() -> float:
 	var brightness := maxf(daylight(), _twilight() * 0.6)
 	var night_floor := lerpf(0.4, 0.75, moon_phase) # raised: new moon = tense, not blind
 	return lerpf(night_floor, 1.0, clampf(brightness, 0.0, 1.0))
+
+
+## Presentation-only strength for the screen-space perception mask. It follows
+## the same continuous clock as the sky, without changing sight range or LOS.
+func visual_mask_strength() -> float:
+	return lerpf(float(_lighting.vision_mask_day_scale),
+		float(_lighting.vision_mask_night_scale), visual_darkness())
+
+
+## Shared continuous night/day curve for visual practicals. Noon is 0 and deep
+## night is 1; this does not participate in sight, AI, or global illumination.
+func visual_darkness() -> float:
+	var brightness: float = maxf(daylight(), _twilight() * 0.6)
+	return 1.0 - smoothstep(0.0, 1.0, brightness)
 
 
 func moon_icon() -> String:

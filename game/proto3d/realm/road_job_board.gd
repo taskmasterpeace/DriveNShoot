@@ -9,14 +9,16 @@ func setup(owner: Node, id: String = "") -> void:
 	add_to_group("interactable")
 	var model: Node3D = ProtoPropertySite.load_model("res://assets/models/homestead/freight_kiosk.glb", Vector3(3,2,0.4), Color("537873"))
 	add_child(model)
-	var label: Label3D = Label3D.new()
-	label.text = "ROAD OFFICE\nJOBS → HOME" if id == "" else "FREIGHT RECEIVER\n" + id.replace("_", " ").to_upper()
-	label.position.y = 3.5
-	label.font_size = 48
-	label.pixel_size = 0.009
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	add_child(label)
 	if id != "":
+		# The office has an authored physical sign on its shelter. Remote relays
+		# still need their job-specific name above the shared kiosk model.
+		var label: Label3D = Label3D.new()
+		label.text = "FREIGHT RECEIVER\n" + id.replace("_", " ").to_upper()
+		label.position.y = 3.5
+		label.font_size = 48
+		label.pixel_size = 0.009
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		add_child(label)
 		var crate: Node3D = ProtoPropertySite.load_model("res://assets/models/homestead/delivery_crate.glb", Vector3.ONE, Color("927142"))
 		crate.position.x = 2.2
 		add_child(crate)

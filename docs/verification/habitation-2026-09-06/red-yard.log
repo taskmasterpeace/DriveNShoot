@@ -1,0 +1,19 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROADSTEAD YARD: PASS real input exits starter car
+ROADSTEAD YARD: FAIL real road-life scene owns authored yard
+ROADSTEAD YARD: FAIL connected approach has gravel tire response at (30.0, 0.0, -338.0)
+ROADSTEAD YARD: FAIL connected approach has gravel tire response at (54.0, 0.0, -350.0)
+ROADSTEAD YARD: FAIL connected approach has gravel tire response at (78.0, 0.0, -350.0)
+ROADSTEAD YARD: PASS walk through shelter reaches real office interaction
+ROADSTEAD YARD: PASS real lane-to-room walk enters roadstead_001
+ROADSTEAD YARD: PASS entered house keeps roof cutaway
+ROADSTEAD YARD: PASS real room-to-lane walk exits without jumping
+ROADSTEAD YARD: PASS real lane-to-room walk enters roadstead_002
+ROADSTEAD YARD: PASS entered house keeps roof cutaway
+ROADSTEAD YARD: PASS real room-to-lane walk exits without jumping
+ROADSTEAD YARD: PASS real lane-to-room walk enters roadstead_003
+ROADSTEAD YARD: PASS entered house keeps roof cutaway
+ROADSTEAD YARD: PASS real room-to-lane walk exits without jumping
+ROADSTEAD YARD: PASS yard road registration is removed with scene
+ROADSTEAD YARD RESULTS: 12 passed, 4 failed

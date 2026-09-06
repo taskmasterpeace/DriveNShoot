@@ -1311,7 +1311,7 @@ func _update_vision_cone(delta: float, binoc: bool) -> void:
 	var reach: float = maxf(params[2] * clampf(range_mult, 0.12, 2.0), params[1])
 	var occl := _cast_sight_fan(body.global_position, reach)
 	vision_cone.update_cone(cam, body.global_position, facing, params, delta,
-		character.vision_arc_mult, range_mult, occl)
+		character.vision_arc_mult, range_mult, occl, daynight.visual_mask_strength())
 	_percept_origin = body.global_position
 	_percept_facing = facing
 	_update_perception_fade(delta)

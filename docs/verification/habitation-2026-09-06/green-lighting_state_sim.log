@@ -1,0 +1,10 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+LIGHTING STATE: PASS ambient night floor actually participates
+LIGHTING STATE: PASS sunrise and sunset do not switch abruptly (max minute 0.004)
+LIGHTING STATE: PASS sun sky fog and ambient colors blend (max minute 0.017)
+LIGHTING STATE: PASS storm cannot erase ambient night floor
+LIGHTING STATE: PASS moon phase brightens ambient as well as direct light
+LIGHTING STATE: PASS night sight rules unchanged
+LIGHTING STATE: PASS new moon sight rules unchanged
+LIGHTING STATE RESULTS: 7 passed, 0 failed

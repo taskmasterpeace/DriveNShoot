@@ -1,0 +1,13 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+PROPERTY LIGHT: PASS night practical lights exist on the real Roadstead parcel
+PROPERTY LIGHT: PASS runtime practicals are direct children of the parcel site
+PROPERTY LIGHT: PASS night practicals are visibly energized
+PROPERTY LIGHT: PASS practical light is warm, not blue ambient fill
+PROPERTY LIGHT: PASS practical lights cast shadows so cottage walls still matter
+PROPERTY LIGHT: PASS a local practical covers the cottage interior anchor
+PROPERTY LIGHT: PASS a local practical covers the porch anchor
+PROPERTY LIGHT: PASS noon suppresses parcel practical energy
+PROPERTY LIGHT: PASS varying a property light row changes the actual runtime light
+PROPERTY LIGHT: PASS omitting the optional lights row creates no extra practicals without fault
+PROPERTY LIGHT RESULTS: 10 passed, 0 failed

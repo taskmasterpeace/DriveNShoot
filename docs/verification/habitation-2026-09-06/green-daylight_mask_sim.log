@@ -1,0 +1,13 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+DAYLIGHT MASK: PASS real input exits the car
+DAYLIGHT MASK: PASS daylight mask is materially lighter than the night mask (0.204 < 0.680)
+DAYLIGHT MASK: PASS shared practical-light curve is 0 by day and 1 at night (0.00 -> 1.00)
+DAYLIGHT MASK: PASS daytime sight range remains the on-foot 100m rule (100.0m)
+DAYLIGHT MASK: PASS full-moon sight remains 0.75 of daytime (75.0m)
+DAYLIGHT MASK: PASS new-moon sight remains 0.40 of daytime (40.0m)
+DAYLIGHT MASK RESULTS: 6 passed, 0 failed
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

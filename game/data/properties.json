@@ -6,7 +6,11 @@
       "name": "1 Roadstead Lane",
       "price": 150,
       "item_capacity": 120,
-      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+      "model": "res://assets/models/homestead/roadstead_cottage.glb",
+      "lights": [
+        {"id": "interior", "position": [0, 2.35, 0], "color": "ffd08a", "energy": 1.35, "range": 6.5, "attenuation": 1.45},
+        {"id": "porch", "position": [0, 2.45, 4.8], "color": "ffbd72", "energy": 1.6, "range": 5.5, "attenuation": 1.55}
+      ]
     },
     {
       "id": "roadstead_002",
@@ -14,7 +18,11 @@
       "name": "2 Roadstead Lane",
       "price": 225,
       "item_capacity": 180,
-      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+      "model": "res://assets/models/homestead/roadstead_cottage.glb",
+      "lights": [
+        {"id": "interior", "position": [0, 2.35, 0], "color": "ffd08a", "energy": 1.35, "range": 6.5, "attenuation": 1.45},
+        {"id": "porch", "position": [0, 2.45, 4.8], "color": "ffbd72", "energy": 1.6, "range": 5.5, "attenuation": 1.55}
+      ]
     },
     {
       "id": "roadstead_003",
@@ -22,7 +30,11 @@
       "name": "3 Roadstead Lane",
       "price": 300,
       "item_capacity": 240,
-      "model": "res://assets/models/homestead/roadstead_cottage.glb"
+      "model": "res://assets/models/homestead/roadstead_cottage.glb",
+      "lights": [
+        {"id": "interior", "position": [0, 2.35, 0], "color": "ffd08a", "energy": 1.35, "range": 6.5, "attenuation": 1.45},
+        {"id": "porch", "position": [0, 2.45, 4.8], "color": "ffbd72", "energy": 1.6, "range": 5.5, "attenuation": 1.55}
+      ]
     }
   ]
 }

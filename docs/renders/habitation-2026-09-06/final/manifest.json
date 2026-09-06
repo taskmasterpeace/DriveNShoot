@@ -1,0 +1,238 @@
+{
+	"captures": [
+		{
+			"camera": "(2.5, 32.72587, 395.875)",
+			"car": "(2.5, 0.641986, 390.0)",
+			"hour": 9.00611111111109,
+			"id": "01_title",
+			"menu_open": true,
+			"note": "Normal launch; no photographic staging.",
+			"player": "(2.126, 1.151986, 390.35)",
+			"png": "01_title.png",
+			"saved": true
+		},
+		{
+			"camera": "(2.5, 31.88838, 395.875)",
+			"car": "(2.5, 0.644372, 390.0)",
+			"hour": 9.01194444444441,
+			"id": "02_title_controls",
+			"menu_open": true,
+			"note": "Normal launch; no photographic staging.",
+			"player": "(2.126, 1.154372, 390.35)",
+			"png": "02_title_controls.png",
+			"saved": true
+		},
+		{
+			"camera": "(2.5, 31.73572, 395.875)",
+			"car": "(2.5, 0.659747, 390.0)",
+			"hour": 9.01833333333328,
+			"id": "03_title_options",
+			"menu_open": true,
+			"note": "Normal launch; no photographic staging.",
+			"player": "(2.126, 1.169747, 390.35)",
+			"png": "03_title_options.png",
+			"saved": true
+		},
+		{
+			"camera": "(2.5, 31.71094, 395.875)",
+			"car": "(2.5, 0.660925, 390.0)",
+			"hour": 9.04972222222207,
+			"id": "04_new_game_highway",
+			"menu_open": false,
+			"note": "Normal launch; no photographic staging.",
+			"player": "(2.126, 1.170925, 390.35)",
+			"png": "04_new_game_highway.png",
+			"saved": true
+		},
+		{
+			"camera": "(110.0, 13.75045, -304.1866)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "05_meridian",
+			"menu_open": false,
+			"note": "Photographic location staging at (110.0, 1.0, -320.0); real terrain/road height and snapped normal follow camera; 11:00 clock held for comparison.",
+			"player": "(110.0, 0.000447, -319.9991)",
+			"png": "05_meridian.png",
+			"saved": true
+		},
+		{
+			"camera": "(-6500.0, 19.13039, 2890.813)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "06_appalachian_highway",
+			"menu_open": false,
+			"note": "Photographic location staging at (-6500.0, 1.0, 2875.0); real terrain/road height and snapped normal follow camera; 11:00 clock held for comparison.",
+			"player": "(-6500.0, 5.380391, 2875.0)",
+			"png": "06_appalachian_highway.png",
+			"saved": true
+		},
+		{
+			"camera": "(-35125.0, 37.4962, 15.8125)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "07_colorado_highway",
+			"menu_open": false,
+			"note": "Photographic location staging at (-35125.0, 1.0, 0.0); real terrain/road height and snapped normal follow camera; 11:00 clock held for comparison.",
+			"player": "(-35125.0, 23.7462, 0.0)",
+			"png": "07_colorado_highway.png",
+			"saved": true
+		},
+		{
+			"camera": "(18.0, 13.7496, -305.1875)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "08_road_office",
+			"menu_open": false,
+			"note": "Photographic location staging at (18.0, 1.0, -321.0); real terrain/road height and snapped normal follow camera; 11:00 clock held for comparison.",
+			"player": "(18.0, -0.000395, -321.0)",
+			"png": "08_road_office.png",
+			"saved": true
+		},
+		{
+			"camera": "(18.0, 13.74967, -309.9875)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "09_freight_desk",
+			"menu_open": false,
+			"note": "Real interact input at the photographically staged freight desk.",
+			"player": "(18.0, -0.000327, -325.8)",
+			"png": "09_freight_desk.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 13.74967, -338.1875)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "10_home_porch",
+			"menu_open": false,
+			"note": "Photographic location staging at (42.0, 1.0, -354.0); real terrain/road height and snapped normal follow camera; 11:00 clock held for comparison.",
+			"player": "(42.0, -0.000327, -354.0)",
+			"png": "10_home_porch.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10687, -344.1767)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "11_home_inside",
+			"menu_open": false,
+			"note": "Walked through the real cottage doorway using movement input after porch staging.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "11_home_inside.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10533, -344.3111)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "12_backpack",
+			"menu_open": false,
+			"note": "Real TAB inventory input; ordinary starter backpack, no mocked contents.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "12_backpack.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10508, -344.3323)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "13_character_sheet",
+			"menu_open": false,
+			"note": "Real TAB inventory input; ordinary starter backpack, no mocked contents.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "13_character_sheet.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3373)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "14_route_map",
+			"menu_open": false,
+			"note": "Real TAB inventory input; ordinary starter backpack, no mocked contents.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "14_route_map.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "15_console_library",
+			"menu_open": false,
+			"note": "Existing console library UI; directly opened for component photography.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "15_console_library.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "16_waste_heap_square",
+			"menu_open": false,
+			"note": "Cartridge waste_heap; unlocked photographic fixture, fixed solo seed; started=true; no playthrough claim.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "16_waste_heap_square.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "17_bunker_breaker_portrait",
+			"menu_open": false,
+			"note": "Cartridge bunker_breaker; unlocked photographic fixture, fixed solo seed; started=true; no playthrough claim.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "17_bunker_breaker_portrait.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "18_last_mile_landscape",
+			"menu_open": false,
+			"note": "Cartridge last_mile; unlocked photographic fixture, fixed solo seed; started=true; no playthrough claim.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "18_last_mile_landscape.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 11.0,
+			"id": "19_rust_runners_console",
+			"menu_open": false,
+			"note": "Cartridge rust_runners; unlocked photographic fixture, fixed solo seed; started=true; no playthrough claim.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "19_rust_runners_console.png",
+			"saved": true
+		},
+		{
+			"camera": "(42.0, 14.10503, -344.3375)",
+			"car": "none",
+			"hour": 23.0,
+			"id": "20_home_at_night",
+			"menu_open": false,
+			"note": "Same real cottage interior at 23:00; photographed after closing the cartridge shell. No lighting overrides or image edits.",
+			"player": "(42.0, 0.355021, -360.1502)",
+			"png": "20_home_at_night.png",
+			"saved": true
+		}
+	],
+	"engine": {
+		"build": "official",
+		"hash": "f62fdbde15035c5576dad93e586201f4d41ef0cb",
+		"hex": 263425,
+		"major": 4,
+		"minor": 5,
+		"patch": 1,
+		"status": "stable",
+		"string": "4.5.1-stable (official)",
+		"timestamp": 0
+	},
+	"kind": "actual-runtime-visual-audit",
+	"limitations": "Photographic location staging is not driving, combat or all-cartridge playthrough proof. No image retouching; no synthetic HUD. Normal title and New Game use injected UI input.",
+	"viewport": "(1920.0, 1080.0)"
+}

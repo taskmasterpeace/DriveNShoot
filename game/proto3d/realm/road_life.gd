@@ -30,8 +30,9 @@ func setup(owner: Node) -> void:
 		site.setup(self, row)
 		sites.append(site)
 		main.waypoints.append([row.name, site])
-	# A quiet gravel approach, outside the existing town footprints and streets.
-	ProtoWorldBuilder.box_visual(self, Vector3(64,0.035,5), Vector3(54,0.04,-350), Color("706e55"))
+	var yard: Node3D = preload("res://proto3d/realm/roadstead_yard.gd").new()
+	add_child(yard)
+	yard.setup(self)
 	for row: Dictionary in data.jobs:
 		var road: Dictionary = main.stream.usmap.road_by_id(row.road)
 		var points: PackedVector2Array = road.pts

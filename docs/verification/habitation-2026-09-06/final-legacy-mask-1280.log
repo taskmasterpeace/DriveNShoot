@@ -1,0 +1,37 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+LIGHTING RENDER: PASS capture directory writable
+LIGHTING RENDER: legacy mask negative control active
+LIGHTING RENDER: PASS real input exits the car
+LIGHTING RENDER: PASS input reached raised porch and cutaway
+LIGHTING RENDER: PASS noon_unmasked is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS noon_unmasked captured
+LIGHTING RENDER: PASS noon avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS noon surface remains readable (mean 0.635, detail 0.450)
+LIGHTING RENDER: PASS noon_gameplay is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS noon_gameplay captured
+LIGHTING RENDER: PASS noon remains readable with the real gameplay mask active (mean 0.591, detail 0.513)
+LIGHTING RENDER: FAIL actual gameplay mask has a soft angular falloff [1.0, 1.0, 0.87552100419998, 0.85295885801315, 0.85073435306549]
+LIGHTING RENDER: FAIL noon peripheral terrain remains readable through the active mask [1.0, 1.0, 0.87552100419998, 0.85295885801315, 0.85073435306549]
+LIGHTING RENDER: PASS dusk_unmasked is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS dusk_unmasked captured
+LIGHTING RENDER: PASS dusk avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS dusk surface remains readable (mean 0.340, detail 0.484)
+LIGHTING RENDER: PASS dusk_gameplay is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS dusk_gameplay captured
+LIGHTING RENDER: PASS new_moon_unmasked is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS new_moon_unmasked captured
+LIGHTING RENDER: PASS new_moon avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS new_moon surface remains readable (mean 0.245, detail 0.344)
+LIGHTING RENDER: PASS new_moon_gameplay is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS new_moon_gameplay captured
+LIGHTING RENDER: PASS full_moon_unmasked is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS full_moon_unmasked captured
+LIGHTING RENDER: PASS full_moon avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS full_moon surface remains readable (mean 0.287, detail 0.359)
+LIGHTING RENDER: PASS full_moon_gameplay is exactly 1280x720 (actual (1280, 720))
+LIGHTING RENDER: PASS full_moon_gameplay captured
+LIGHTING RENDER: PASS day brighter than midnight
+LIGHTING RENDER: PASS full moon brighter than new moon
+LIGHTING RENDER RESULTS: 30 passed, 2 failed

@@ -48,6 +48,12 @@ The banked Road Office fund is deliberately separate from carried scrip. Network
 
 ## What is still required for the requested large MMO
 
+Latest visual progress: [Roadstead habitation audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md)
+records the original Blender MCP shelter/fence/lamp, navigable gravel yard and
+home approaches, real local practical lights, and daylight-aware perception mask.
+190 focused headless assertions and 32 GPU checks pass; 20 actual game captures
+are retained. The following mission gates remain open.
+
 1. **Connected country:** certify every town's road connections, driveable approaches and streamed terrain seams; country content needs more than map pins or a distance-compression setting.
 2. **Authenticated persistent realms:** dedicated server account identity, authoritative movement/combat/economy, area-of-interest replication, reconnect/session rules and migrations. Current ENet co-op is not that service.
 3. **Real multiplayer ownership proof:** independent authenticated clients compete for the same parcel, survive a server restart and respect revoked access. Sequential local ledger commands prove only the component's serialization rules.

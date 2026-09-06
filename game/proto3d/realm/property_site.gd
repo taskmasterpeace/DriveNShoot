@@ -4,6 +4,7 @@ var row: Dictionary
 var road_life: Node
 var roofs: Array[Node3D] = []
 var plaque: Node3D
+var practical_lights: Array[OmniLight3D] = []
 
 func setup(owner: Node, definition: Dictionary) -> void:
 	road_life = owner
@@ -14,6 +15,7 @@ func setup(owner: Node, definition: Dictionary) -> void:
 	var model: Node3D = load_model(String(row.model), Vector3(10, 3.0, 8), Color("cbbd99"))
 	add_child(model)
 	_find_roofs(model)
+	_build_practical_lights()
 	# Collision matches the finished floor and leaves a full 1.4m door gap.
 	_solid(Vector3(10, 0.355, 8), Vector3(0, 0.1775, 0))
 	_solid(Vector3(0.2, 2.6, 8), Vector3(-5, 1.65, 0))
@@ -69,9 +71,35 @@ func _find_roofs(node: Node) -> void:
 	for child: Node in node.get_children():
 		_find_roofs(child)
 
+func _build_practical_lights() -> void:
+	var definitions: Variant = row.get("lights", [])
+	if not definitions is Array:
+		return
+	for value: Variant in definitions:
+		if not value is Dictionary:
+			continue
+		var definition: Dictionary = value
+		var coords: Variant = definition.get("position", [])
+		if not coords is Array or (coords as Array).size() < 3:
+			continue
+		var light: OmniLight3D = OmniLight3D.new()
+		light.name = "Practical_%s" % String(definition.get("id", practical_lights.size()))
+		light.position = Vector3(float(coords[0]), float(coords[1]), float(coords[2]))
+		light.light_color = Color(String(definition.get("color", "ffd08a")))
+		light.light_energy = maxf(0.0, float(definition.get("energy", 1.2)))
+		light.omni_range = maxf(0.1, float(definition.get("range", 7.0)))
+		light.omni_attenuation = maxf(0.1, float(definition.get("attenuation", 1.4)))
+		light.shadow_enabled = true
+		light.set_meta("night_energy", light.light_energy)
+		add_child(light)
+		practical_lights.append(light)
+
 func _physics_process(_delta: float) -> void:
 	if road_life == null or road_life.main == null:
 		return
+	var practical_strength: float = road_life.main.daynight.visual_darkness() if road_life.main.daynight != null else 1.0
+	for light: OmniLight3D in practical_lights:
+		light.light_energy = float(light.get_meta("night_energy", 0.0)) * practical_strength
 	var local: Vector3 = to_local(road_life.main.player.global_position)
 	var inside: bool = absf(local.x) < 5.2 and local.z > -4.2 and local.z < 6.0
 	for roof: Node3D in roofs:

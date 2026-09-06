@@ -28,8 +28,10 @@ void fragment() {
 	float d = length(p);
 	vec2 dd = normalize(vec2(dir.x * aspect, dir.y));
 	float ang = acos(clamp(dot(normalize(p + vec2(0.00001)), dd), -1.0, 1.0));
-	float arc_ok = 1.0 - smoothstep(half_angle * 0.80, half_angle * 1.06, ang);
-	float range_ok = 1.0 - smoothstep(view_range * 0.72, view_range * 1.05, d);
+	// A broad feather keeps the cue readable without drawing a hard triangle on
+	// top of the world. This is visual only; the CPU perception rules stay exact.
+	float arc_ok = 1.0 - smoothstep(half_angle * 0.68, half_angle * 1.12, ang);
+	float range_ok = 1.0 - smoothstep(view_range * 0.62, view_range * 1.10, d);
 	float in_cone = arc_ok * range_ok;
 	float near = 1.0 - smoothstep(clear_radius * 0.65, clear_radius * 1.2, d);
 	float vis = max(in_cone, near);
@@ -101,7 +103,7 @@ func reveal_at(world_pos: Vector3) -> void:
 ## occl: the LOS ray fan (meters, full 360° starting at -PI) — empty disables it.
 func update_cone(cam: Camera3D, apex_world: Vector3, facing: Vector3, mode_params: Array,
 		delta: float, arc_mult: float = 1.0, range_mult: float = 1.0,
-		occl: PackedFloat32Array = PackedFloat32Array()) -> void:
+		occl: PackedFloat32Array = PackedFloat32Array(), mask_strength: float = 1.0) -> void:
 	if cam == null:
 		return
 	var vp := cam.get_viewport()
@@ -152,7 +154,10 @@ func update_cone(cam: Camera3D, apex_world: Vector3, facing: Vector3, mode_param
 	_mat.set_shader_parameter("half_angle", _half)
 	_mat.set_shader_parameter("clear_radius", _clear_m * uv_per_m)
 	_mat.set_shader_parameter("view_range", _range_m * uv_per_m)
-	_mat.set_shader_parameter("dim_amount", _dim)
+	# Visual-mask strength is deliberately independent of range/LOS. Consumers
+	# that omit it keep the historical presentation; the main scene supplies the
+	# real clock's daylight value.
+	_mat.set_shader_parameter("dim_amount", _dim * clampf(mask_strength, 0.0, 1.0))
 	_mat.set_shader_parameter("aspect", size.x / size.y)
 
 	# Dog-sense reveal bubble (fades out; zero cost when idle)
