@@ -15,10 +15,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { buildRoadCorridors, footprintRoadConflicts, footprintsOverlap, placementFootprint } from "./road_clearance.mjs";
+import { buildDiamondInterchange } from "./diamond_interchange.mjs";
 
 const SNAP_M = 40; // endpoint-onto-segment snap radius (roads are 60x-coarse)
 const MIN_CROSS_ANGLE_DEG = 15; // shallower than this is a merge, not a crossing
 const NETWORK_KINDS = new Set(["interstate", "backroad", "us_route", "state_road", "county", "street", "dirt"]);
+const managedDiamond = (exit) => exit?.interchange?.layout === "diamond_v2";
 
 const v = (p) => ({ x: p[0], y: p[1] });
 const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
@@ -104,6 +106,10 @@ export function rewriteExitGeometry(map) {
 	};
 
 	for (const ex of map.exits || []) {
+		if (managedDiamond(ex)) {
+			stats.skipped += (ex.ramp_ids || []).length;
+			continue;
+		}
 		const hwy = network.find((r) => r.id === ex.highway_id);
 		if (!hwy) continue;
 		const exPos = v(ex.pos);
@@ -819,7 +825,7 @@ export function stampTownStreets(map, finalizeRoads = null) {
 const MACRO_MAX_M = 30.0;
 const MAX_GRADE = 0.06;
 const TOWN_FLAT_M = 150.0, TOWN_FADE_M = 110.0;
-function reliefField(map) {
+export function reliefField(map) {
 	const relief = map.relief || [];
 	const [ox, oz] = map.world_offset, cm = map.cell_m;
 	const cell = (cx, cz) => {
@@ -852,12 +858,118 @@ function reliefField(map) {
 	return { macroY, towns };
 }
 
+function nearestHighwaySegment(highway, point) {
+	let best = null;
+	for (const segment of segs(highway)) {
+		const projection = projectOnSeg(v(point), segment);
+		if (!best || projection.d < best.d) best = { ...projection, segment };
+	}
+	return best;
+}
+
+function stageLegacyDiamondRoles(map, exitIds) {
+	const roads = new Map((map.roads || []).map((road) => [road.id, road]));
+	if (roads.size !== (map.roads || []).length) throw new Error("Duplicate road IDs prevent selective diamond migration");
+	for (const exitId of exitIds) {
+		const exit = (map.exits || []).find((row) => row.id === exitId);
+		if (!exit) throw new Error(`Unknown exit ${exitId}`);
+		if (exit.interchange && !managedDiamond(exit))
+			throw new Error(`Exit ${exitId}: unsupported authored interchange layout ${exit.interchange.layout || "unknown"}`);
+		if (managedDiamond(exit)) continue;
+		if (!Array.isArray(exit.ramp_ids) || exit.ramp_ids.length !== 4 || new Set(exit.ramp_ids).size !== 4)
+			throw new Error(`Exit ${exitId}: exactly four distinct owned ramp IDs are required`);
+		const highway = roads.get(exit.highway_id);
+		if (!highway || highway.kind === "exit") throw new Error(`Exit ${exitId}: missing owning highway ${exit.highway_id}`);
+		const divided = highway.divided !== undefined ? !!highway.divided : (highway.lanes || 4) >= 6;
+		const edge = halfWidth(highway, divided);
+		for (const rampId of exit.ramp_ids) {
+			const ramp = roads.get(rampId);
+			if (!ramp || ramp.kind !== "exit") throw new Error(`Exit ${exitId}: missing owned ramp ${rampId}`);
+			if ((ramp.exit_id && ramp.exit_id !== exitId) || (ramp.interchange_id && ramp.interchange_id !== exitId)
+				|| (map.exits || []).some((other) => other.id !== exitId && other.ramp_ids?.includes(rampId)))
+				throw new Error(`Ramp ${rampId} has foreign ownership`);
+			const roles = new Set();
+			for (const junction of map.junctions || []) {
+				if (junction.kind !== "ramp_mouth" && junction.kind !== "ramp_rejoin") continue;
+				const legIds = (junction.legs || []).map((leg) => leg.road);
+				if (!legIds.includes(rampId)) continue;
+				if (!legIds.includes(exit.highway_id))
+					throw new Error(`Ramp ${rampId}: foreign role junction does not name owning highway ${exit.highway_id}`);
+				roles.add(junction.kind === "ramp_mouth" ? "off" : "on");
+			}
+			if (roles.size !== 1)
+				throw new Error(`Ramp ${rampId}: ${roles.size ? "ambiguous" : "missing"} role junction naming owning highway ${exit.highway_id}`);
+			const role = [...roles][0];
+			if (ramp.side !== -1 && ramp.side !== 1) throw new Error(`Ramp ${rampId}: side must be +1 or -1`);
+			if (!Array.isArray(ramp.pts) || ramp.pts.length < 2) throw new Error(`Ramp ${rampId}: terminal polyline required`);
+			const terminalIndex = role === "off" ? 0 : ramp.pts.length - 1;
+			const terminal = ramp.pts[terminalIndex];
+			const neighbor = ramp.pts[role === "off" ? 1 : terminalIndex - 1];
+			if (![terminal, neighbor].every((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite)))
+				throw new Error(`Ramp ${rampId}: finite terminal coordinates required`);
+			const nearest = nearestHighwaySegment(highway, terminal);
+			if (!nearest || nearest.d > edge + 4)
+				throw new Error(`Ramp ${rampId}: actual ${role} terminal does not meet owning highway ${exit.highway_id}`);
+			const hdx = nearest.segment.b.x - nearest.segment.a.x, hdz = nearest.segment.b.y - nearest.segment.a.y;
+			const rdx = role === "off" ? neighbor[0] - terminal[0] : terminal[0] - neighbor[0];
+			const rdz = role === "off" ? neighbor[1] - terminal[1] : terminal[1] - neighbor[1];
+			const hLength = Math.hypot(hdx, hdz), rLength = Math.hypot(rdx, rdz);
+			const alignment = (hdx * rdx + hdz * rdz) / (hLength * rLength);
+			const rightX = -hdz / hLength * ramp.side, rightZ = hdx / hLength * ramp.side;
+			const lateral = (terminal[0] - nearest.q.x) * rightX + (terminal[1] - nearest.q.y) * rightZ;
+			if (!Number.isFinite(alignment) || alignment * ramp.side < 0.7 || lateral < edge - 2)
+				throw new Error(`Ramp ${rampId}: actual ${role} terminal contradicts highway side ${ramp.side}`);
+			ramp.ramp_role = role;
+		}
+	}
+}
+
+function installDiamondPatch(map, patch) {
+	const roadIds = new Set(patch.roads.map((road) => road.id));
+	const exitIndex = (map.exits || []).findIndex((row) => row.id === patch.exit.id);
+	if (exitIndex < 0) throw new Error(`Unknown exit ${patch.exit.id}`);
+	map.exits[exitIndex] = patch.exit;
+	map.roads = (map.roads || []).filter((road) => !roadIds.has(road.id)).concat(patch.roads);
+	map.junctions = (map.junctions || []).flatMap((junction) => {
+		const affected = (junction.legs || []).some((leg) => roadIds.has(leg.road));
+		if (!affected) return [junction];
+		const legs = junction.legs.filter((leg) => !roadIds.has(leg.road));
+		return legs.length >= 2 ? [{ ...junction, legs }] : [];
+	}).concat(patch.junctions);
+}
+
+export function applyDiamondInterchanges(map, exitIds) {
+	if (!Array.isArray(exitIds)) throw new Error("exitIds array required");
+	if (new Set(exitIds).size !== exitIds.length) throw new Error("Duplicate selected exit IDs");
+	const stats = { exits: 0, roads: 0, junctions: 0 };
+	if (!exitIds.length) return stats;
+	if (!Array.isArray(map.roads) || !Array.isArray(map.exits) || !Array.isArray(map.junctions))
+		throw new Error("Map roads, exits and junctions arrays are required");
+	if (!(map.relief || []).length || !Array.isArray(map.world_offset) || !Number.isFinite(map.cell_m))
+		throw new Error("Painted relief, world offset and cell scale are required");
+	const working = structuredClone(map);
+	stageLegacyDiamondRoles(working, exitIds);
+	for (const exitId of exitIds) {
+		const patch = buildDiamondInterchange(working, exitId, { terrainAt: reliefField(working).macroY });
+		installDiamondPatch(working, patch);
+		stats.exits++;
+		stats.roads += patch.roads.length;
+		stats.junctions += patch.junctions.length;
+	}
+	map.exits = working.exits;
+	map.roads = working.roads;
+	map.junctions = working.junctions;
+	return stats;
+}
+
 export function bakeRoadRelief(map) {
 	const stats = { roads: 0, points: 0, ramps: 0, streets: 0, capped: 0 };
 	if (!(map.relief || []).length) return stats; // unpainted map: law dormant
 	const { macroY, towns } = reliefField(map);
+	const managed = new Set((map.exits || []).filter(managedDiamond).map((exit) => exit.id));
 	const network = new Set(["interstate", "us_route", "state_road", "county", "backroad", "dirt"]);
 	for (const r of map.roads || []) {
+		if (managed.has(r.interchange_id)) continue;
 		const kind = r.kind || "interstate";
 		if (String(r.id).startsWith("ST-")) {
 			// STREETS: the whole town rides one bench — constant elev per row.
@@ -924,6 +1036,7 @@ export function bakeRampRelief(map) {
 	const stats = { ramps: 0, points_added: 0 };
 	if (!(map.relief || []).length) return stats;
 	const { macroY } = reliefField(map);
+	const managed = new Set((map.exits || []).filter(managedDiamond).map((exit) => exit.id));
 	const byId = new Map((map.roads || []).map(r => [r.id,r]));
 	const arcH = (road, p) => {
 		// height of `road` at the polyline point nearest p (linear within segment)
@@ -945,6 +1058,7 @@ export function bakeRampRelief(map) {
 		for (const rid of ex.ramp_ids || []) {
 			const rp = byId.get(rid);
 			if (!rp || rp.kind !== "exit" || rp.pts.length < 2) continue;
+			if (managed.has(rp.interchange_id)) continue;
 			const original=rp.pts;
 			const arcs=[0];
 			for(let i=1;i<original.length;i++) arcs.push(arcs[i-1]+Math.hypot(original[i][0]-original[i-1][0],original[i][1]-original[i-1][1]));
@@ -1171,11 +1285,13 @@ export function bakeJunctions(map) {
 	// town grids, while the buildings see the final off/on-ramp geometry.
 	const fill = fillNetwork(map);
 	const ghosts = mintGhostSites(map); // ghost spurs are roads too
-	let cityx, geo, addr;
+	let cityx, geo, addr, diamondPre;
 	const town = stampTownStreets(map, () => {
 		cityx = mintTownExits(map, MINT_EXITS_ONLY);
 		geo = rewriteExitGeometry(map);
 		addr = renumberExits(map);
+		const ids = (map.exits || []).filter(managedDiamond).map((exit) => exit.id);
+		diamondPre = applyDiamondInterchanges(map, ids);
 	});
 	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
 	const belts = bakeFarmBelts(map); // ARC 2: the farm-belt approach ring
@@ -1185,7 +1301,7 @@ export function bakeJunctions(map) {
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const ramps = roads.filter((r) => r.kind === "exit");
 	const isDivided = (r) => (r.divided !== undefined ? !!r.divided : (r.lanes || (r.kind === "interstate" ? 4 : 2)) >= 6);
-	const junctions = [];
+	let junctions = [];
 	const lint = { tees: 0, crosses: 0, blind_crossings: [], ramp_mouths: 0, ramp_rejoins: 0, end_caps: 0, exits_ramp_ids: 0 };
 	const near = (pos, r) => junctions.find((j) => dist(v(j.pos), pos) <= r);
 	let seq = 0;
@@ -1366,6 +1482,9 @@ export function bakeJunctions(map) {
 	// 1B: raise the overpasses — pending crossings become real decks (idempotent)
 	const op = bakeOverpasses(map, junctions);
 	map.junctions = junctions;
+	const managedIds = (map.exits || []).filter(managedDiamond).map((exit) => exit.id);
+	const diamondFinal = applyDiamondInterchanges(map, managedIds);
+	junctions = map.junctions;
 	lint.overpass_stats = op;
 	lint.town_stats = town;
 	lint.landmark_stats = marks;
@@ -1375,6 +1494,8 @@ export function bakeJunctions(map) {
 	lint.dslot_stats = dslots;
 	lint.addr_stats = addr;
 	lint.geo_stats = geo;
+	lint.diamond_pre_stats = diamondPre;
+	lint.diamond_final_stats = diamondFinal;
 	lint.fill_stats = fill;
 	lint.relief_stats = rel;
 	return { junctions, lint };
