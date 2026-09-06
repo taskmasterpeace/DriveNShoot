@@ -8,6 +8,9 @@ finished world promised by the spec. Stronger authored places, finished
 cartographic art, deeper RPG presentation, richer cartridge visuals and much deeper content remain.
 The character sheet has since received a [screenshot-led repair](CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md);
 the map now has [seven new views and a readability repair](ATLAS_VISUAL_AUDIT_2026_09_06.md).
+The [Seattle roadside follow-up](ROADSIDE_VISUAL_AUDIT_2026_09_06.md) adds three
+before/after pairs, fixes floating/overlapping scenery, and preserves a failing
+physical ramp gate with its remaining visual defects.
 The original tour frames below are retained for comparison.
 The previous overwritten player save is still unrecovered; this tour used
 disposable isolated saves, never that profile.

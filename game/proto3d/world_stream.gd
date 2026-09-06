@@ -278,6 +278,7 @@ func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
 const DRAPE_EXEMPT_METAS: Array = ["road_slab", "road_lane", "road_center", "road_rut",
 	"road_barrier", "road_deck", "road_guardrail", "street_curb", "streetlight",
 	"mile_marker", "route_shield", "road_billboard", "state_line", "road_decel", "road_pillar",
+	"roadside_pole", "roadside_fence", "roadside_fence_post", "road_verge",
 	"river_sheet"] # 1B: water sheets set their own surface height
 func _drape_chunk(chunk: Node3D) -> void:
 	for child in chunk.get_children():
@@ -1095,16 +1096,21 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		var biome_b := biome_at(Vector3(mid.x, 0, mid.y))
 		var pole_side: float = 1.0 if (absi(hash(rid)) % 2 == 0) else -1.0
 		var band_lat := float(g["width"]) * 0.5
+		# Reserve the actual road/building footprints before decorating a shoulder.
+		# An exit must not acquire a utility pole or an unbroken fence across it.
+		var roadside_exclusions := _ruin_exclusions(center, key)
 		# verge: the mowed strip beside the shoulder — green in the wet SE, tan out west
 		var verge_col := Color(0.34, 0.42, 0.24) if biome_b in ["swamp", "farmland", "forest", "plains"] else Color(0.52, 0.46, 0.32)
 		for vsgn: float in [1.0, -1.0]:
-			var verge := ProtoWorldBuilder.box_visual(chunk, Vector3(5.0, 0.02, seg_len),
-				Vector3(mid.x + perp.x * (band_lat + 3.2) * vsgn, 0.015, mid.y + perp.y * (band_lat + 3.2) * vsgn), verge_col, rot)
-			verge.set_meta("road_verge", rid)
+			var voff := perp * (band_lat + 3.2) * vsgn
+			_build_roadside_strip(chunk, a + voff, b + voff, 5.0, 0.02, 0.015,
+				verge_col, "road_verge", rid, false, roadside_exclusions)
 		# utility poles: one side, ~55 m apart, draped on ground_y
 		var n_poles := int(seg_len / 55.0)
 		for pi in range(n_poles):
 			var pt := a + dir * ((float(pi) + 0.5) / maxf(float(n_poles), 1.0)) + perp * (band_lat + 9.0) * pole_side
+			if not _ruin_footprint_clear(Vector3(pt.x,0,pt.y), Vector3(1.28,8,1.28), rot, roadside_exclusions):
+				continue
 			var gy := ProtoWorldBuilder.ground_y(pt.x, pt.y)
 			var pole := ProtoWorldBuilder.box_body(chunk, Vector3(0.28, 8.0, 0.28),
 				Vector3(pt.x, gy + 4.0, pt.y), Color(0.30, 0.24, 0.18), rot)
@@ -1116,19 +1122,20 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			cross.material_override = ProtoWorldBuilder.material(Color(0.30, 0.24, 0.18))
 			cross.position = Vector3(0, 3.4, 0)
 			pole.add_child(cross)
-		# the field fence: ONE thin rail body + visual posts, field side only
+		# The field fence opens at other roads and follows the ground grade.
 		var fence_side := -pole_side
-		var frail_mid := mid + perp * (band_lat + 14.0) * fence_side
-		var fgy := ProtoWorldBuilder.ground_y(frail_mid.x, frail_mid.y)
-		var rail := ProtoWorldBuilder.box_body(chunk, Vector3(0.08, 1.1, seg_len),
-			Vector3(frail_mid.x, fgy + 0.62, frail_mid.y), Color(0.38, 0.32, 0.24), rot)
-		rail.set_meta("roadside_fence", rid)
+		var foff := perp * (band_lat + 14.0) * fence_side
+		_build_roadside_strip(chunk, a + foff, b + foff, 0.08, 1.1, 0.62,
+			Color(0.38,0.32,0.24), "roadside_fence", rid, true, roadside_exclusions)
 		var n_posts := int(seg_len / 12.0)
 		for fi in range(n_posts):
 			var fp := a + dir * ((float(fi) + 0.5) / maxf(float(n_posts), 1.0)) + perp * (band_lat + 14.0) * fence_side
+			if not _ruin_footprint_clear(Vector3(fp.x,0,fp.y), Vector3(1.14,1.2,1.14), rot, roadside_exclusions):
+				continue
 			var fy := ProtoWorldBuilder.ground_y(fp.x, fp.y)
-			ProtoWorldBuilder.box_visual(chunk, Vector3(0.14, 1.2, 0.14),
+			var post := ProtoWorldBuilder.box_visual(chunk, Vector3(0.14, 1.2, 0.14),
 				Vector3(fp.x, fy + 0.6, fp.y), Color(0.33, 0.27, 0.2), rot)
+			post.set_meta("roadside_fence_post", rid)
 		# field patches: the crop-quilt read beyond the fence (farm country only)
 		if biome_b in ["farmland", "plains"] and brng.randf() < 0.7:
 			var fpc := a + dir * brng.randf_range(0.3, 0.7) + perp * (band_lat + 46.0) * fence_side
@@ -1139,10 +1146,9 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		# guardrail where the land rolls (relief chunks) — the shoulder's promise
 		if chunk.has_meta("relief"):
 			for gsgn: float in [1.0, -1.0]:
-				var gr := ProtoWorldBuilder.box_body(chunk, Vector3(0.25, 0.55, seg_len),
-					Vector3(mid.x + perp.x * (band_lat + 0.9) * gsgn, 0.35, mid.y + perp.y * (band_lat + 0.9) * gsgn),
-					Color(0.55, 0.54, 0.5), rot)
-				gr.set_meta("road_guardrail", rid)
+				var goff := perp * (band_lat + 0.9) * gsgn
+				_build_roadside_strip(chunk, a + goff, b + goff, 0.25, 0.55, 0.35,
+					Color(0.55,0.54,0.5), "road_guardrail", rid, true, roadside_exclusions)
 		# M4b — THE ADDRESS FURNITURE (interstates only): mile markers on the
 		# SAME game-mile the exits use (EXIT N stands near MILE N), route
 		# shields every ~2 km, and a WELCOME monument at every state line.
@@ -1272,6 +1278,74 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 ## utility poles would be a lie).
 static func kind_band(row: Dictionary) -> bool:
 	return String(row.get("kind", "")) in ["interstate", "us_route", "state_road"]
+
+
+## Subtract expanded road/building rectangles from a roadside strip centerline.
+## The conservative half-width expansion also reserves 0.5m around open mouths.
+## Returned intervals are in a→b order, so scenery remains deterministic.
+static func _roadside_runs(a: Vector2, b: Vector2, width: float, exclusions: Array) -> Array:
+	var delta := b - a
+	if delta.length_squared() < 0.0001:
+		return []
+	var cuts: Array[Vector2] = []
+	for rect: Array in exclusions:
+		var yaw: float = rect[4]
+		var x_axis := Vector2(cos(yaw), -sin(yaw))
+		var z_axis := Vector2(sin(yaw), cos(yaw))
+		var offset := a - Vector2(rect[0],rect[1])
+		var local_a := Vector2(offset.dot(x_axis),offset.dot(z_axis))
+		var local_d := Vector2(delta.dot(x_axis),delta.dot(z_axis))
+		var half := Vector2(rect[2],rect[3]) + Vector2.ONE * (width * 0.5 + 0.5)
+		var low: float = 0
+		var high: float = 1
+		for axis: int in 2:
+			if absf(local_d[axis]) < 0.00001:
+				if absf(local_a[axis]) > half[axis]:
+					low = 2
+					break
+			else:
+				var t0: float = (-half[axis]-local_a[axis])/local_d[axis]
+				var t1: float = (half[axis]-local_a[axis])/local_d[axis]
+				low = maxf(low,minf(t0,t1))
+				high = minf(high,maxf(t0,t1))
+		if low <= high:
+			cuts.append(Vector2(low,high))
+	cuts.sort_custom(func(x: Vector2,y: Vector2) -> bool: return x.x < y.x)
+	var result: Array = []
+	var cursor: float = 0
+	for cut: Vector2 in cuts:
+		if cut.x > cursor:
+			result.append([a+delta*cursor,a+delta*cut.x])
+		cursor = maxf(cursor,cut.y)
+	if cursor < 1:
+		result.append([a+delta*cursor,b])
+	return result
+
+
+## A roadside strip owns its height once. It is exempt from the later blanket
+## drape; independently sampled endpoint heights pitch each surviving run.
+func _build_roadside_strip(chunk: Node3D, a: Vector2, b: Vector2, width: float,
+		thickness: float, lift: float, color: Color, tag: String, rid: String,
+		solid: bool, exclusions: Array) -> void:
+	for run: Array in _roadside_runs(a,b,width,exclusions):
+		var start: Vector2 = run[0]
+		var end: Vector2 = run[1]
+		var delta := end - start
+		if delta.length() < 1:
+			continue
+		var h0 := ProtoWorldBuilder.ground_y(start.x,start.y)
+		var h1 := ProtoWorldBuilder.ground_y(end.x,end.y)
+		var midpoint := (start+end)*0.5
+		var size := Vector3(width,thickness,Vector2(delta.length(),h1-h0).length())
+		var position := Vector3(midpoint.x,(h0+h1)*0.5+lift,midpoint.y)
+		var yaw := atan2(delta.x,delta.y)
+		var pitch := atan2(h0-h1,delta.length())
+		var node: Node3D
+		if solid:
+			node = ProtoWorldBuilder.box_body(chunk,size,position,color,yaw,pitch)
+		else:
+			node = ProtoWorldBuilder.box_visual(chunk,size,position,color,yaw,pitch)
+		node.set_meta(tag,rid)
 
 
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
@@ -1600,7 +1674,14 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 	chunk.add_to_group("biome_neighborhood")
 
 
-## Nearby exclusion rectangles for anonymous urban filler. A road can bend back
+## The anonymous urban cross has one geometry row source for paint, grip and
+## advance reservations. Road furniture is built BEFORE this cross is painted.
+static func _ruin_street_rects(center: Vector3) -> Array:
+	return [[center.x,center.z,4.0,CHUNK * 0.45,0.0],
+		[center.x,center.z,CHUNK * 0.45,4.0,0.0]]
+
+
+## Nearby exclusion rectangles for urban filler and roadside furniture. A road can bend back
 ## through a chunk: inspect EVERY candidate segment, never road_near/roads_near's
 ## one nearest segment per road. The existing spatial index bounds country-scale
 ## work; a 128m search envelope covers the block's 48m offsets + rotated 14m boxes.
@@ -1616,6 +1697,19 @@ func _ruin_exclusions(center: Vector3, key: String) -> Array:
 			result.append(rect)
 	if usmap == null or not usmap.ok:
 		return result
+	# Predict the same crosses that _spawn_chunk will stamp later. Include the
+	# neighboring cells because corridor strips extend beyond chunk boundaries;
+	# reservations must not change with the streaming order. Fixture-only maps
+	# without a biome grid retain their explicitly supplied street rectangles.
+	if usmap.w > 0 and usmap.h > 0:
+		for dx: int in range(-1,2):
+			for dz: int in range(-1,2):
+				var local_center := center + Vector3(dx * CHUNK,0,dz * CHUNK)
+				if AUTHORED.has_point(Vector2(local_center.x,local_center.z)) or biome_at(local_center) != "urban":
+					continue
+				for rect: Array in _ruin_street_rects(local_center):
+					if not result.has(rect):
+						result.append(rect)
 	var candidates: Array = []
 	if not usmap._seg_grid.is_empty():
 		candidates = usmap._seg_candidates(point)
@@ -1685,11 +1779,12 @@ static func _ruin_footprint_clear(pos: Vector3, size: Vector3, yaw: float, exclu
 
 ## City ruins block (urban biome filler between town anchors).
 func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, key: String) -> void:
-	ProtoWorldBuilder.box_visual(chunk, Vector3(8, 0.04, CHUNK * 0.9), center + Vector3(0, 0.06, 0), ProtoWorldBuilder.COL_ROAD)
-	ProtoWorldBuilder.box_visual(chunk, Vector3(CHUNK * 0.9, 0.04, 8), center + Vector3(0, 0.06, 0), ProtoWorldBuilder.COL_ROAD)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
-	rects.append([center.x, center.z, 4.0, CHUNK * 0.45, 0.0])
-	rects.append([center.x, center.z, CHUNK * 0.45, 4.0, 0.0])
+	for rect: Array in _ruin_street_rects(center):
+		var street := ProtoWorldBuilder.box_visual(chunk,Vector3(float(rect[2]) * 2,0.04,float(rect[3]) * 2),
+			Vector3(rect[0],0.06,rect[1]),ProtoWorldBuilder.COL_ROAD,float(rect[4]))
+		street.set_meta("local_road_slab",key)
+		rects.append(rect)
 	ProtoWorldBuilder.extra_road_rects[key] = rects
 	var exclusions := _ruin_exclusions(center, key)
 	for i in rng.randi_range(4, 7):

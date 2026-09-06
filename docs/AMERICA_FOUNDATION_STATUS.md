@@ -17,6 +17,14 @@ passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Current-source screenshot follow-up — 2026-09-06
 
+The [Seattle roadside audit](verification/ROADSIDE_VISUAL_AUDIT_2026_09_06.md)
+adds three new real captures and three baselines. Grounded poles/posts and
+road/building-aware strip clipping now include local streets reserved before
+streaming decoration. Independent review closed the construction-order finding.
+Final focused checks: 36/0 GPU and 157/0 headless, clean logs. The broader physical
+ramp probe still fails **9/3**, exposing terrain burial and a median crossing;
+this is not a finished interchange or USA. No newer ZIP or save recovery.
+
 The [route atlas audit](verification/ATLAS_VISUAL_AUDIT_2026_09_06.md) adds seven
 new real views and an unchanged-source baseline. Wide planning, readable and
 clickable labels, retained GPS/portrait phone formats and shared modal controls

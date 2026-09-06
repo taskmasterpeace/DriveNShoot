@@ -16,6 +16,20 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — screenshot-led roadside clearance repair
+
+The [Seattle before/after audit](verification/ROADSIDE_VISUAL_AUDIT_2026_09_06.md)
+adds three new real views and their three unchanged-source baselines. Roadside
+poles/posts no longer receive a duplicate terrain lift; fences, guardrails and
+verge strips reserve full road/building footprints and follow endpoint grades.
+Shared advance town-street rows fix the review's streaming-order omission.
+Final checks: 36/0 GPU and 157/0 focused headless, clean logs. A separate physical
+ramp gate remains **9/3 failing**: terrain covers two ramps and another crosses
+a median. The audit records exact fixture limits and unresolved visual defects;
+independent review found no remaining critical/important source findings in this
+bounded repair. No new export or nationwide completion is claimed. The original
+overwritten playthrough remains unrecovered.
+
 ## 2026-09-06 — screenshot-led route atlas repair
 
 The [atlas before/after audit](verification/ATLAS_VISUAL_AUDIT_2026_09_06.md)
