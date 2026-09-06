@@ -1431,7 +1431,11 @@ export function bakeJunctions(map) {
 						{ road: hwy.id, arc_m: Math.round(arcAt(hwy, exPos)) },
 						{ road: rp.id, arc_m: 0 },
 					]);
-				else mergeLegs(dupe, [hwy, rp]); // a shared mouth still lists every ramp
+				else {
+					mergeLegs(dupe, [hwy]);
+					if (!dupe.legs.some((leg) => leg.road === rp.id))
+						dupe.legs.push({ road: rp.id, arc_m: 0 }); // this branch already proved pts[0] is the mouth
+				}
 				lint.ramp_mouths++;
 			}
 		}

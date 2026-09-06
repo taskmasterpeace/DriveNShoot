@@ -57,6 +57,27 @@ function addCrossingExit(map) {
 	);
 }
 
+function sharedMouthBakeFixture() {
+	return {
+		world_offset: [-2000, -2000], cell_m: 500, relief: [], grid: [], legend: {},
+		towns: [], districts: [], placements: [], junctions: [],
+		roads: [
+			{ id: 'mouth-main', kind: 'interstate', pts: [[-1200, 0], [1200, 0]], lanes: 6, divided: true },
+			{ id: 'M-off', kind: 'exit', geom: 'peel_v1', side: 1,
+				pts: [[0, 14.6], [70, 30], [200, 100]], lanes: 2, divided: false },
+			{ id: 'M-off-r', kind: 'exit', geom: 'peel_v1', side: -1,
+				pts: [[0, -14.6], [-70, -30], [0, -1], [-200, -100]], lanes: 2, divided: false },
+		],
+		exits: [{ id: 'M', highway_id: 'mouth-main', pos: [0, 0], dest: [200, 100], ramp_ids: ['M-off', 'M-off-r'] }],
+	};
+}
+
+function mouthArcFixture(map) {
+	delete map.relief; // metadata-only mode must not need the geometry builder's terrain input
+	for (const ramp of map.roads.filter((road) => map.exits[0].ramp_ids.includes(road.id))) ramp.geom = 'peel_v1';
+	map.junctions.find((row) => row.id === 'legacy-mouth').legs.find((leg) => leg.road === 'amber').arc_m = 142;
+}
+
 function staged(change = () => {}) {
 	const root = resolve('build');
 	mkdirSync(root, { recursive: true });
@@ -226,6 +247,65 @@ test('two explicitly selected interchange owners remain external to each other f
 	} finally { cleanup(directory); }
 });
 
+test('mouth-arcs-only CLI is dry by default and changes only selected off-ramp leg arcs', () => {
+	const { directory, path, map } = staged(mouthArcFixture);
+	try {
+		const bytes = readFileSync(path);
+		const missingSelection = run(path, '--mouth-arcs-only');
+		assert.notEqual(missingSelection.status, 0);
+		assert.deepEqual(readFileSync(path), bytes);
+		const dry = run(path, '--mouth-arcs-only', '--exit=X');
+		assert.equal(dry.status, 0, dry.stderr);
+		const dryReport = JSON.parse(dry.stdout);
+		assert.equal(dryReport.operation, 'mouth-arcs-only');
+		assert.deepEqual(dryReport.counts, { junctions: 1, legs: 1 });
+		assert.deepEqual(dryReport.corrections, [{ junction: 'legacy-mouth', road: 'amber', from_arc_m: 142, to_arc_m: 0 }]);
+		assert.equal('building_conflicts' in dryReport, false);
+		assert.equal('external_road_conflicts' in dryReport, false);
+		assert.deepEqual(readFileSync(path), bytes);
+		const write = run(path, '--write', '--mouth-arcs-only', '--exit=X');
+		assert.equal(write.status, 0, write.stderr);
+		const after = JSON.parse(readFileSync(path, 'utf8'));
+		assert.deepEqual(after.roads, map.roads);
+		assert.deepEqual(after.exits, map.exits);
+		assert.deepEqual(after.placements, map.placements);
+		assert.equal(after.junctions.length, map.junctions.length);
+		const repaired = after.junctions.find((row) => row.id === 'legacy-mouth');
+		assert.equal(repaired.legs.find((leg) => leg.road === 'amber').arc_m, 0);
+		repaired.legs.find((leg) => leg.road === 'amber').arc_m = 142;
+		assert.deepEqual(after.junctions, map.junctions, 'no junction collection, row, or non-target leg field may change');
+		const once = readFileSync(path);
+		const repeat = run(path, '--write', '--mouth-arcs-only', '--exit=X');
+		assert.equal(repeat.status, 0, repeat.stderr);
+		assert.deepEqual(JSON.parse(repeat.stdout).counts, { junctions: 0, legs: 0 });
+		assert.deepEqual(readFileSync(path), once);
+	} finally { cleanup(directory); }
+});
+
+test('mouth-arcs-only stale and malformed ownership inputs reject before write', () => {
+	for (const [name, change, extra, pattern] of [
+		['stale', () => {}, ['--expect-source-sha256=' + '0'.repeat(64)], /stale|digest/i],
+		['foreign owner field', (map) => { map.roads.find((road) => road.id === 'amber').interchange_id = 'OTHER'; }, [], /foreign|owner/i],
+		['claimed twice', (map) => { map.exits.push({ id: 'OTHER', highway_id: 'main', ramp_ids: ['amber'] }); }, [], /foreign|claimed|owner/i],
+		['ambiguous mouth', (map) => { map.junctions.push({ id: 'second-mouth', kind: 'ramp_mouth', legs: [{ road: 'main' }, { road: 'amber' }] }); }, [], /ambiguous|unique|mouth/i],
+		['duplicate leg', (map) => { map.junctions[0].legs.push({ road: 'amber', arc_m: 9 }); }, [], /ambiguous|unique|leg/i],
+		['missing mouth', (map) => { map.junctions[0].legs = map.junctions[0].legs.filter((leg) => leg.road !== 'amber'); }, [], /missing|mouth/i],
+		['authored ramp', (map) => { map.roads.find((road) => road.id === 'amber').authored = true; }, [], /authored|generated/i],
+		['contradictory role', (map) => { map.roads.find((road) => road.id === 'amber').ramp_role = 'on'; }, [], /role|contradict/i],
+		['unsupported geometry', (map) => { map.roads.find((road) => road.id === 'amber').geom = 'hand_authored'; }, [], /geom|scheme|support/i],
+		['terminal away from highway', (map) => { map.roads.find((road) => road.id === 'amber').pts[0] = [0, -100]; }, [], /terminal|highway|ambiguous/i],
+	]) {
+		const { directory, path } = staged((map) => { mouthArcFixture(map); change(map); });
+		try {
+			const before = readFileSync(path);
+			const result = run(path, '--write', '--mouth-arcs-only', '--exit=X', ...extra);
+			assert.notEqual(result.status, 0, `${name} should reject`);
+			assert.match(result.stderr, pattern);
+			assert.deepEqual(readFileSync(path), before, `${name} rejection must precede write`);
+		} finally { cleanup(directory); }
+	}
+});
+
 test('full junction rebakes preserve managed roles, profiles, ports, and deck separation', () => {
 	assert.equal(typeof source.applyDiamondInterchanges, 'function', 'missing selective migration API');
 	const map = fixture();
@@ -254,4 +334,18 @@ test('full junction rebakes preserve managed roles, profiles, ports, and deck se
 	const once = JSON.stringify(map);
 	bakeJunctions(map);
 	assert.equal(JSON.stringify(map), once, 'repeated full bake must not collapse managed geometry or metadata');
+});
+
+test('full bake keeps every shared-mouth off-ramp leg at its known terminal arc zero', () => {
+	const map = sharedMouthBakeFixture();
+	for (let pass = 0; pass < 2; pass++) {
+		bakeJunctions(map);
+		const mouth = map.junctions.find((row) => row.kind === 'ramp_mouth'
+			&& row.legs.some((leg) => leg.road === 'M-off-r'));
+		assert.ok(mouth, 'shared mouth must retain the second off-ramp leg');
+		assert.deepEqual(mouth.legs.map((leg) => leg.road), ['mouth-main', 'M-off', 'M-off-r']);
+		assert.equal(mouth.legs.find((leg) => leg.road === 'mouth-main').arc_m, 1200);
+		assert.equal(mouth.legs.find((leg) => leg.road === 'M-off').arc_m, 0);
+		assert.equal(mouth.legs.find((leg) => leg.road === 'M-off-r').arc_m, 0);
+	}
 });
