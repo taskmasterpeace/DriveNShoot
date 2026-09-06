@@ -1,0 +1,17 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_LICENSE: start
+GAME_LICENSE: PASS - every source notice ships inside res://
+GAME_LICENSE: PASS - licensed sources distinguish a local license path
+GAME_LICENSE: PASS - every source is pinned or access-dated
+GAME_LICENSE: PASS - aggregate notices ship
+GAME_LICENSE: PASS - aggregate notice identifies every installed source as material used
+GAME_LICENSE: PASS - no installed source family remains mislabeled as future
+GAME_LICENSE: PASS - Tanks audio exclusion remains explicit
+GAME_LICENSE: PASS - Infantry is reference-only with all client material excluded
+GAME_LICENSE: PASS - OpenSoldat engine and excluded base-content licenses stay separate
+GAME_LICENSE: PASS - no Twemoji, Infantry, or Soldat source asset path ships
+GAME_LICENSE: PASS - Game Deck cartridge art remains original code-drawn primitives
+GAME_LICENSE: PASS - tournament venues posters and brackets add no undeclared media imports
+GAME_LICENSE RESULTS: 12 passed, 0 failed
+GAME_LICENSE: ALL CHECKS PASSED

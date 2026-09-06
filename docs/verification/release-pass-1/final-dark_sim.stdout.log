@@ -1,0 +1,22 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+DRK: scene up
+DRK: PASS - FULL MOON night still sees (75m > 24)
+DRK: PASS - NEW MOON strips toward the 0.4 floor (40m ≤ 0.62×full 75m)
+DRK: PASS - …but TENSE, not BLIND (40m ≥ 20)
+DRK: PASS - the moon is the dial (75m vs 40m)
+DRK: PASS - clock shows the phase (🌑 01:03 · DAY 1)
+DRK: PASS - headlights CARVE the night open (cone 59m > 40 vs 12m on foot)
+DRK: PASS - deep night spawns the HOWLER pack (3)
+DRK: PASS - ...announced by a HOWL
+DRK: PASS - the howler RUNS AT YOU (45m -> 28m)
+DRK: PASS - a hit STAGGERS the charge (stunned)
+DRK: PASS - dawn BURNS the pack off the map
+DRK: PASS - CRITS land ×1.8 (dealt 32, base 18)
+DRK: PASS - reload takes TIME (still reloading, mag unchanged)
+DRK: PASS - fire is BLOCKED mid-reload (mag still 10)
+DRK: PASS - ...then the mag lands full (12)
+DRK: PASS - retired glass never raises (cam_rig.binoculars stays off)
+DRK: PASS - retired glass never sweeps (offset 0m stays home)
+DRK RESULTS: 17 passed, 0 failed
+DRK: ALL CHECKS PASSED

@@ -1,0 +1,14 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+FEEL: start
+FEEL: PASS - driving stays near top-down (pitch 79° > 66°)
+FEEL: PASS - on foot the world is 3D again (pitch 41° in 35–62°)
+FEEL: PASS - foot pitch is clearly shallower than drive pitch
+FEEL: PASS - new-moon sight floor ≥ 0.4 (was 0.32)
+FEEL: PASS - new-moon moonlight energy ≥ 0.05 (was 0.015)
+FEEL: PASS - full moon is brighter than new moon
+FEEL: PASS - a hit spikes camera trauma (1.00)
+FEEL: PASS - trauma SHAKES the camera off its mark
+FEEL: PASS - trauma DECAYS back to calm (0.00 → ~0)
+FEEL RESULTS: 9 passed, 0 failed
+FEEL: ALL CHECKS PASSED

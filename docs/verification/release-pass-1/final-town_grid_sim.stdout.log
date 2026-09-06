@@ -1,0 +1,15 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TOWN: start
+TOWN: PASS - a downtown-tier and a main-street-tier town both exist in the data
+TOWN: PASS - the downtown town holds a GRID (9 street rows: 3+2 across + 4 along, layout v3, got 9)
+TOWN: PASS - the main-street town holds the KIT (3 rows: drag + 2 sides, got 3)
+TOWN: PASS - the downtown grid is JUNCTION-BAKED (25 cross/tee rows inside the grid, >= 8)
+TOWN: PASS - downtown Building-Book slots landed (96 >= 40, layout v2)
+TOWN: PASS - street slabs paint in the built town chunk (5)
+TOWN: PASS - CURBS dress the streets (10)
+TOWN: PASS - STREETLIGHTS stand the blocks (14)
+TOWN: PASS - Building-Book SHELLS materialized in the town chunk (21)
+TOWN: PASS - TOWN DRESSING lives between the shells (junk/wrecks/fences, 9 >= 5)
+TOWN RESULTS: 10 passed, 0 failed
+TOWN: ALL CHECKS PASSED

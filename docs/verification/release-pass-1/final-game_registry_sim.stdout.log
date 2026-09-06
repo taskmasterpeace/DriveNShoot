@@ -1,0 +1,24 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GAME_REG: start
+GAME_REG: PASS - the registry implementation exists
+GAME_REG: PASS - twenty Phase 1 rows
+GAME_REG: PASS - ten handheld rows
+GAME_REG: PASS - ten console rows
+GAME_REG: PASS - two Phase 2 rows
+GAME_REG: PASS - proof rows declared
+GAME_REG: PASS - both proof cartridges pass scene and notice gates
+GAME_REG: PASS - new handheld cartridge clears scene and notice gates
+GAME_REG: PASS - demining cartridge clears scene and notice gates
+GAME_REG: PASS - warehouse cartridge clears scene and notice gates
+GAME_REG: PASS - portrait breaker clears scene and notice gates
+GAME_REG: PASS - landscape racer clears scene and notice gates
+GAME_REG: PASS - missile-defense cartridge clears scene and notice gates
+GAME_REG: PASS - portrait lander clears scene and notice gates
+GAME_REG: PASS - portrait pinball clears scene and notice gates
+GAME_REG: PASS - relay puzzle clears scene and notice gates
+GAME_REG: PASS - RUST RUNNERS clears scene source and cartridge-contract gates
+GAME_REG: PASS - BLACK GRID clears scene source and cartridge-contract gates
+GAME_REG: PASS - catalog validates without row errors
+GAME_REG RESULTS: 19 passed, 0 failed
+GAME_REG: ALL CHECKS PASSED

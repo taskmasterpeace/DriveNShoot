@@ -1,0 +1,10 @@
+WARNING: res://addons/dialogue_manager/components/files_list.tscn:4 - ext_resource, invalid UID: uid://d3lr2uas6ax8v - using text path instead: res://addons/dialogue_manager/assets/icon.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+WARNING: res://addons/dialogue_manager/components/download_update_panel.tscn:4 - ext_resource, invalid UID: uid://d3baj6rygkb3f - using text path instead: res://addons/dialogue_manager/assets/update.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+WARNING: res://addons/dialogue_manager/components/download_update_panel.tscn:4 - ext_resource, invalid UID: uid://d3baj6rygkb3f - using text path instead: res://addons/dialogue_manager/assets/update.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+WARNING: res://addons/dialogue_manager/components/files_list.tscn:4 - ext_resource, invalid UID: uid://d3lr2uas6ax8v - using text path instead: res://addons/dialogue_manager/assets/icon.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+ERROR: Error calling from signal 'text_set' to callable: 'CodeEdit(code_edit.gd)::_on_code_edit_text_set': Method not found.
+   at: emit_signalp (core/object/object.cpp:1310)

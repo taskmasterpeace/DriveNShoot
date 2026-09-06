@@ -1,0 +1,30 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROAD_CLEARANCE: PASS - unobstructed urban block still supplies buildings
+ROAD_CLEARANCE: PASS - diagonal full footprint: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - diagonal full footprint: clear candidates retained (3/3)
+ROAD_CLEARANCE: PASS - diagonal full footprint: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - crossing road, not only nearest: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - crossing road, not only nearest: clear candidates retained (3/3)
+ROAD_CLEARANCE: PASS - crossing road, not only nearest: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - second segment of one road: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - second segment of one road: clear candidates retained (4/4)
+ROAD_CLEARANCE: PASS - second segment of one road: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - divided highway outer lane: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - divided highway outer lane: clear candidates retained (4/4)
+ROAD_CLEARANCE: PASS - divided highway outer lane: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - rotated local street: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - rotated local street: clear candidates retained (4/4)
+ROAD_CLEARANCE: PASS - rotated local street: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - authored footprint: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - authored footprint: clear candidates retained (4/4)
+ROAD_CLEARANCE: PASS - authored footprint: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - named, loot-bearing authored placement survives
+ROAD_CLEARANCE: PASS - diagonal near miss retained: real colliders clear obstacles (0 overlaps)
+ROAD_CLEARANCE: PASS - diagonal near miss retained: clear candidates retained (4/4)
+ROAD_CLEARANCE: PASS - diagonal near miss retained: rejected candidates do not reshuffle geometry or loot
+ROAD_CLEARANCE: PASS - Seattle camera chunk builds through real streaming path
+ROAD_CLEARANCE: PASS - Seattle regression probes real asphalt (6 slabs)
+ROAD_CLEARANCE: PASS - Seattle filler leaves instantiated asphalt clear (4 colliders, 0 overlaps)
+ROAD_CLEARANCE RESULTS: 26 passed, 0 failed
+ROAD_CLEARANCE: ALL CHECKS PASSED

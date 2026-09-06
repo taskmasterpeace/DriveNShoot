@@ -2,6 +2,23 @@
 
 Working branch: `codex/america-foundation`, isolated from the original checkout at `f1290de`. This is a foundation milestone toward the larger DRIVN vision, **not a completed MMO or an assigned quality score**.
 
+## Release-readiness follow-up — 2026-09-05
+
+The [measured follow-up](verification/RELEASE_READINESS_PASS_1.md) fixes cottage
+daylight clipping, unreadable midnight ambient light and palette jumps; prevents
+anonymous city ruins from intersecting roads; and repairs 15 generated Peach
+building positions with stable IDs and payloads. Real render checks and a fresh
+20-location visual survey are retained. The survey still shows unfinished world
+art and road ends; passing footprint tests do not certify the entire country.
+
+`BUILD_ROADSTEAD.ps1 -CaptureSmoke` is the new portable Windows evaluation
+workflow. It uses installed build tools, includes the runtime in the executable,
+checks the actual packaged title/New Game/resources, and only then creates an
+unsigned ZIP with notices, hashes and evidence. Players use the ZIP's
+`PLAY_DRIVN.bat` for separate evaluation saves, with no installed Godot required.
+Consult the verification record for the actual candidate result and remaining
+asset-provenance restrictions. No public upload or signed-release claim is made.
+
 ## Verified foundations
 
 - Typed, single-writer property authority: balances, one-owner parcels, purchase receipts, guests, item storage, strict corrupt-state rejection and verified file replacement. Focused regression: 67 checks passed after the Windows buffered-write fix. This is not authentication, interprocess locking or a public service.

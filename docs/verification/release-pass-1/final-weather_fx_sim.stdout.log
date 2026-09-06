@@ -1,0 +1,16 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+WXFX: PASS - rain streaks exist + emitting
+WXFX: PASS - dust motes stay OFF in rain
+WXFX: PASS - streaks obey the law (own material, no instance color, no ramp)
+WXFX: PASS - sky grade cools + dims in rain (amt 0.42 > 0.2, dim 0.85 < 1.0)
+WXFX: PASS - WET AIR thickens the haze (fog x2.3 > 1.5)
+WXFX: PASS - night floor survives the storm (sun 0.058 >= 0.05)
+WXFX: PASS - dust motes on, rain streaks off
+WXFX: PASS - motes tint on their own material (amber-ish, r 0.70 > 0.5)
+WXFX: PASS - force(clear) clears and STAYS clear (state clear, 0 systems)
+WXFX: PASS - clear kills the grade (amt 0.00 -> 0)
+WXFX: PASS - clear thins the air back (fog x1.0 -> 1)
+WXFX: PASS - clear kills the fx
+WXFX RESULTS: 12 passed, 0 failed
+ALL CHECKS PASSED

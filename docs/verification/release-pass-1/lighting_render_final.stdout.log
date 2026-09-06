@@ -1,0 +1,25 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+LIGHTING RENDER: PASS capture directory writable
+LIGHTING RENDER: PASS real input exits the car
+LIGHTING RENDER: PASS input reached raised porch and cutaway
+LIGHTING RENDER: PASS noon_unmasked captured
+LIGHTING RENDER: PASS noon avoids near-white clipping (0.001 clipped)
+LIGHTING RENDER: PASS noon surface remains readable (mean 0.649, detail 0.436)
+LIGHTING RENDER: PASS noon_gameplay captured
+LIGHTING RENDER: PASS dusk_unmasked captured
+LIGHTING RENDER: PASS dusk avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS dusk surface remains readable (mean 0.245, detail 0.336)
+LIGHTING RENDER: PASS dusk_gameplay captured
+LIGHTING RENDER: PASS new_moon_unmasked captured
+LIGHTING RENDER: PASS new_moon avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS new_moon surface remains readable (mean 0.135, detail 0.109)
+LIGHTING RENDER: PASS new_moon_gameplay captured
+LIGHTING RENDER: PASS full_moon_unmasked captured
+LIGHTING RENDER: PASS full_moon avoids near-white clipping (0.000 clipped)
+LIGHTING RENDER: PASS full_moon surface remains readable (mean 0.178, detail 0.129)
+LIGHTING RENDER: PASS full_moon_gameplay captured
+LIGHTING RENDER: PASS day brighter than midnight
+LIGHTING RENDER: PASS full moon brighter than new moon
+LIGHTING RENDER RESULTS: 21 passed, 0 failed

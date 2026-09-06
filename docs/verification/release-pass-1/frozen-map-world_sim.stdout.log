@@ -1,0 +1,16 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+WLD: start
+WLD: PASS - DUST collapses sight at noon (98m → 18m)
+WLD: PASS - RAIN kills grip (grip_now 0.62)
+WLD: PASS - HEAT cooks a running engine (100.0 → 99.0 hp)
+WLD: PASS - radio distress spawns a REAL cache in the world
+WLD: PASS - …and sets a course to it
+WLD: PASS - lore signal delivers a fragment
+WLD: PASS - standing rose to TRUSTED+
+WLD: PASS - the MARKET GREW (17 → 21 lines)
+WLD: PASS - prices remember you (12 → 7 scrip)
+WLD: PASS - a marked player reads SUSPECT
+WLD: PASS - the trader refuses a suspect
+WLD RESULTS: 11 passed, 0 failed
+WLD: ALL CHECKS PASSED

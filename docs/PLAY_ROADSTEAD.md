@@ -2,6 +2,16 @@
 
 Double-click `PLAY_ROADSTEAD.bat` in this isolated checkout. It runs the installed Godot 4.5.1 against this checkout's `game/` and sets a separate `APPDATA` under `.roadstead-profile/`. Your ordinary DRIVN save is not used. This is a source-build launcher, not a packaged Windows release; it downloads nothing. If Godot lives elsewhere, edit the launcher path.
 
+For the portable Windows evaluation candidate, extract the supplied ZIP and
+double-click its **PLAY_DRIVN.bat**. That executable includes Godot; the player
+does not install the editor. It uses a separate evaluation profile. Directly
+launching `DRIVN.exe` uses the ordinary profile, so use the supplied batch file
+to avoid sharing existing saves. Read the included README and manifest: this
+candidate is unsigned, locally evaluated, and not cleared for public release.
+Builders can run `pwsh -NoProfile -File ./BUILD_ROADSTEAD.ps1 -CaptureSmoke`
+with the already installed engine/templates. The script prints the exact
+versioned ZIP path and never downloads tools or replaces an older candidate.
+
 ## Your first home
 
 1. Choose **NEW GAME**. Keep the existing first-run guide if desired. Find **ROAD OFFICE · JOBS** with **N** (waypoint cycling); the Roadstead objective also shows its distance. The kiosk is on Meridian's west street at `(18, -328)`, just north-west of Roadstead Lane.
@@ -24,7 +34,7 @@ Two more one-time jobs extend the same road: **SPARE PARTS** pays 240 plus real 
 
 This is explicitly **LOCAL AUTHORITY**, not an MMO or shared co-op property system. Roadstead transactions and local checkpoint save/load are blocked while existing co-op networking is online. The local guest key demonstrates ledger storage permissions for a fixed offline guest identity; it is not an authenticated second player, invitation, RPC, or locked physical doorway. Interiors remain walkable regardless of deed ownership; mailbox storage is permission-controlled.
 
-Only these three homes/receivers are in this milestone. Cottage furniture is visual, not a bed/workbench system. No countrywide layout certification, networking adapter, remote authentication, server backup, load-test claim, release installer, or new encounter director is included. The existing world's overexposure/vision cone, plain terrain/road material and unrelated city overlaps remain visible; captures are evidence of integration, not a claim of final art polish. No LOD/performance certification or FPS estimate is asserted.
+Only these three homes/receivers are in this milestone. Cottage furniture is visual, not a bed/workbench system. No countrywide layout certification, networking adapter, remote authentication, server backup, load-test claim, release installer, or new encounter director is included. A [subsequent lighting/clearance pass](verification/RELEASE_READINESS_PASS_1.md) addresses reproduced overexposure and two placement defects, but plain terrain/road material and unreviewed layout problems remain. Captures are evidence of integration, not final art polish. No LOD/performance certification or FPS estimate is asserted.
 
 Actual normal-camera screenshots: `docs/renders/roadstead/`. The photobooth stages positions for photography; the runtime sim separately walks the ramps/doorways and drives using game input.
 

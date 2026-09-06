@@ -1,5 +1,24 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-05 — current isolated evaluation status (read first)
+
+The older "shipped in full" entries below describe their individual plans,
+**not a release-ready full game**. Work is isolated in
+`codex/america-foundation`; this is not a merge or public deployment.
+
+The [America foundation record](AMERICA_FOUNDATION_STATUS.md) contains the
+playable local freight/deed/storage loop and original Blender MCP homestead
+kit. The [release-readiness pass](verification/RELEASE_READINESS_PASS_1.md)
+records corrected daylight/night lighting, runtime ruin clearance, a bounded
+15-building Peach migration, actual render evidence and the portable Windows
+evaluation workflow. Use those evidence records for current acceptance and
+limitations; do not infer a completed MMO from the older plan headings.
+
+Authenticated dedicated realms, nationwide content/layout certification,
+remaining full-suite failures, production performance/operations and asset
+redistribution clearance are still release gates. Local Roadstead ownership
+is not a shared authenticated multiplayer economy.
+
 > ## ⏭ 2026-07-14 (later) — THE_COUNTRY_PLAN SHIPPED IN FULL (read this first)
 >
 > **All three arcs of `docs/design/THE_COUNTRY_PLAN.md` executed and merged to main

@@ -1,0 +1,11 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+VISION: scene up
+VISION: PASS - cone exists under the HUD (layers 1 < 2)
+VISION: PASS - DRIVING cone is wide (1.48 rad)
+VISION: PASS - FOOT cone narrows from drive (1.22 rad)
+VISION: PASS - cone FOLLOWS your aim (aimed east: dir.x=1.00)
+VISION: PASS - retired binoculars leave the cone WIDE (1.22 rad)
+VISION: PASS - the cone stays wide after release (1.22 rad)
+VISION RESULTS: 6 passed, 0 failed
+VISION: ALL CHECKS PASSED

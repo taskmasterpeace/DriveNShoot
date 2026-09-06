@@ -1,0 +1,8 @@
+WARNING: res://addons/dialogue_manager/components/files_list.tscn:4 - ext_resource, invalid UID: uid://d3lr2uas6ax8v - using text path instead: res://addons/dialogue_manager/assets/icon.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+WARNING: res://addons/dialogue_manager/components/download_update_panel.tscn:4 - ext_resource, invalid UID: uid://d3baj6rygkb3f - using text path instead: res://addons/dialogue_manager/assets/update.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+WARNING: res://addons/tile_bit_tools/controls/tiles_inspector/tiles_inspector.tscn:4 - ext_resource, invalid UID: uid://b4qgn53bm6n77 - using text path instead: res://addons/tile_bit_tools/controls/icons/tile_bit_tools_16.svg
+   at: load (scene/resources/resource_format_text.cpp:444)
+ERROR: TLS handshake error: -27648
+   at: _do_handshake (modules/mbedtls/stream_peer_mbedtls.cpp:88)

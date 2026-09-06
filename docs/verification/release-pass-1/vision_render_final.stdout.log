@@ -1,0 +1,16 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+VISION RENDER: PASS wall -1.000m never brightens (0 bright samples)
+VISION RENDER: PASS wall -1.000m retains peripheral dimming
+VISION RENDER: PASS wall 0.000m never brightens (0 bright samples)
+VISION RENDER: PASS wall 0.000m retains peripheral dimming
+VISION RENDER: PASS wall 0.001m never brightens (0 bright samples)
+VISION RENDER: PASS wall 0.001m retains peripheral dimming
+VISION RENDER: PASS wall 2.000m never brightens (0 bright samples)
+VISION RENDER: PASS wall 2.000m retains peripheral dimming
+VISION RENDER: PASS wall 20.000m never brightens (0 bright samples)
+VISION RENDER: PASS wall 20.000m retains peripheral dimming
+VISION RENDER: PASS wall 100.000m never brightens (0 bright samples)
+VISION RENDER: PASS wall 100.000m retains peripheral dimming
+VISION RENDER RESULTS: 12 passed, 0 failed

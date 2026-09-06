@@ -1,0 +1,22 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+CITYLAYOUT: start
+CITYLAYOUT: PASS - map loaded
+CITYLAYOUT: PASS - every generated town carries slots (58 towns)
+CITYLAYOUT: PASS - densest town is a real downtown (the-clearinghouse: 101 >= 45)
+CITYLAYOUT: PASS - smallest town still reads lived-in (the-dry-dock: 19 >= 14)
+CITYLAYOUT: PASS - the-clearinghouse has street rows
+CITYLAYOUT: PASS - the-clearinghouse: buildings FACE their street (99/101 within 0.6 rad, >= 85%)
+CITYLAYOUT: PASS - the-clearinghouse: no two buildings overlap bodies (0 collisions)
+CITYLAYOUT: PASS - the-dry-dock has street rows
+CITYLAYOUT: PASS - the-dry-dock: buildings FACE their street (18/19 within 0.6 rad, >= 85%)
+CITYLAYOUT: PASS - the-dry-dock: no two buildings overlap bodies (0 collisions)
+CITYLAYOUT: PASS - the-clearinghouse core ring is civic/commercial (14/14 >= 70%)
+CITYLAYOUT: PASS - the-clearinghouse edge ring is residential/industrial (26/26 >= 60%)
+CITYLAYOUT: PASS - every town is NAMED by a landmark (59/59)
+CITYLAYOUT: PASS - generated landmark kinds stay in the vocabulary
+CITYLAYOUT: PASS - the landmark register holds (every name is 'THE ...')
+CITYLAYOUT: PASS - the 3 bespoke towns keep their hand-built landmarks (3)
+CITYLAYOUT: PASS - FARM BELTS ring the town approaches (39 towns read farmland nearby, >= 30)
+CITYLAYOUT RESULTS: 17 passed, 0 failed
+CITYLAYOUT: ALL CHECKS PASSED
