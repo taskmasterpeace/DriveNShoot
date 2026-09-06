@@ -16,6 +16,19 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — Meridian signage and refreshed screenshot gallery
+
+The [20-piece gallery](verification/MERIDIAN_GAME_GALLERY_2026_09_06.md) exposes
+current menus, roads, homes, RPG screens and cartridges with explicit judgments.
+The [signage audit](verification/MERIDIAN_SIGNAGE_VISUAL_AUDIT_2026_09_06.md)
+replaces two giant banners with data-authored physical boards and fixes the sign
+floating during the house cutaway. Actual entry/exit, 36 GPU checks, 45 focused
+headless assertions and the 20-image tour pass; two older scenes still emit exit
+resource diagnostics. New signage/tour runtime logs are clean. Production review
+approved `6f5d104`; two minor test gaps now have failing negative controls and
+passing normal runs, with scoped re-review pending. No newer export, public
+deployment or full-game completion is claimed.
+
 ## 2026-09-06 — bounded realm purchase process proof
 
 The [independent-process verification](verification/REALM_PURCHASE_2026_09_06.md)

@@ -1,9 +1,11 @@
 # Isolated Windows/PS7 runner; every invocation owns one fresh profile and child.
 [CmdletBinding()]
-param([switch]$Capture,[ValidateSet('meridian_signage_sim','sign_sim','sign_reader_sim','homebase_sim','visual_audit')][string]$Scene='meridian_signage_sim')
+param([switch]$Capture,[ValidateSet('meridian_signage_sim','sign_sim','sign_reader_sim','homebase_sim','visual_audit')][string]$Scene='meridian_signage_sim',
+    [ValidateSet('none','duplicate-kennel','unshaded','collider')][string]$Mutation='none')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell 7 required'}
+if($Mutation -ne 'none' -and ($Scene -ne 'meridian_signage_sim' -or $Capture)){throw 'Negative controls require the headless signage scene'}
 $checkout=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $build=Join-Path $checkout 'build'
 $run=Join-Path $build ('meridian-signage-'+[guid]::NewGuid().ToString('N'))
@@ -21,6 +23,7 @@ if($Scene -eq 'visual_audit'){
     $arguments+='res://proto3d/tools/visual_audit.tscn'
 }else{$arguments+="res://proto3d/tests/$Scene.tscn"}
 if($Capture){$arguments+=@('--',('--output='+(Join-Path $run 'captures')))}
+elseif($Mutation -ne 'none'){$arguments+=@('--',"--mutation=$Mutation")}
 $record=@{scene=$Scene;engine=$engine;arguments=$arguments;APPDATA=$app;LOCALAPPDATA=$local;pid=0;exited=$false;exit_code=$null;timed_out=$false}
 $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'environment.json')
 $out=Join-Path $run 'stdout.log';$err=Join-Path $run 'stderr.log'

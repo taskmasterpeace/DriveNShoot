@@ -5,6 +5,7 @@ var main: Node3D
 var passed: int = 0
 var failed: int = 0
 var output: String = ""
+var mutation: String = "none" # Negative controls affect disposable scene nodes only.
 var captures: Array[Dictionary] = []
 
 func check(label: String, ok: bool) -> void:
@@ -56,8 +57,13 @@ func _ready() -> void:
 		return
 	get_tree().create_timer(90).timeout.connect(func() -> void: get_tree().quit(2))
 	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--mutation="):
+			mutation = argument.trim_prefix("--mutation=")
 		if argument.begins_with("--output="):
 			output = argument.trim_prefix("--output=").replace("\\", "/").simplify_path()
+	if mutation not in ["none", "duplicate-kennel", "unshaded", "collider"]:
+		get_tree().quit(2)
+		return
 	if not output.is_empty():
 		if not output.to_lower().begins_with(owned) or DisplayServer.get_name() == "headless":
 			get_tree().quit(2)
@@ -75,14 +81,37 @@ func _ready() -> void:
 	main.daynight.hour = 11.0
 	main.daynight.dev_mult = 0.0
 	main.cam_rig.zoom_t = 0.25
+	# These controls simulate actual bad scene output without editing production
+	# files, profiles, or images. Each must make the real regression fail.
+	for candidate: Node in main.find_children("*", "Label3D", true, false):
+		var label := candidate as Label3D
+		if label.text == "SAFEHOUSE" and mutation == "duplicate-kennel":
+			label.text = "KENNEL"
+		elif label.text.begins_with("KENNEL") and mutation == "unshaded":
+			label.shaded = false
+		elif label.text.begins_with("KENNEL") and mutation == "collider":
+			var body := StaticBody3D.new()
+			var shape := CollisionShape3D.new()
+			shape.shape = BoxShape3D.new()
+			body.add_child(shape)
+			label.get_parent().add_child(body)
 	await stage(Vector3(110,1,-320))
 	await capture("01_safehouse_front")
 	var markers: Array[Label3D] = []
+	var safehouse_marker: Label3D = null
+	var house_count: int = 0
+	var kennel_count: int = 0
 	for candidate: Node in main.find_children("*", "Label3D", true, false):
 		var label := candidate as Label3D
 		if label.text == "SAFEHOUSE" or label.text.begins_with("STRAYS") or label.text.begins_with("KENNEL"):
 			markers.append(label)
-	check("safehouse and kennel still have named world destinations", markers.size() == 2)
+			if label.text == "SAFEHOUSE":
+				house_count += 1
+				safehouse_marker = label
+			else:
+				kennel_count += 1
+	check("exactly one SAFEHOUSE destination exists", house_count == 1)
+	check("exactly one KENNEL destination exists", kennel_count == 1)
 	for label: Label3D in markers:
 		var context: String = label.text.replace("\n", " / ")
 		check(context + " is painted on a fixed plane, not a camera-facing banner", label.billboard == BaseMaterial3D.BILLBOARD_DISABLED)
@@ -94,6 +123,8 @@ func _ready() -> void:
 			print("MERIDIAN SIGNAGE bounds: %s text=%s board=%s" % [context,label.get_aabb().size,board_size])
 			check(context + " lettering stays inside the board", label.get_aabb().size.x <= board_size.x - 0.1 and label.get_aabb().size.y <= board_size.y - 0.04)
 		check(context + " retains depth testing", not label.no_depth_test)
+		check(context + " lettering responds to world lighting", label.shaded)
+		check(context + " adds no collision descendants", board != null and board.find_children("*", "CollisionObject3D", true, false).is_empty() and board.find_children("*", "CollisionShape3D", true, false).is_empty())
 	var destinations: Array[String] = []
 	for waypoint: Array in main.waypoints:
 		destinations.append(String(waypoint[0]))
@@ -123,9 +154,7 @@ func _ready() -> void:
 	Input.action_release("move_up")
 	await frames(6)
 	check("actual movement still traverses the safehouse doorway", main.player.global_position.z < -322.0)
-	for marker: Label3D in markers:
-		if marker.text == "SAFEHOUSE":
-			check("front sign clears the interior with the facade cutaway", not marker.is_visible_in_tree())
+	check("front sign clears the interior with the facade cutaway", safehouse_marker != null and not safehouse_marker.is_visible_in_tree())
 	await capture("05_safehouse_entry")
 	Input.action_press("move_down")
 	for i: int in 100:
@@ -135,9 +164,7 @@ func _ready() -> void:
 	Input.action_release("move_down")
 	await frames(6)
 	check("actual movement returns outside the safehouse", main.player.global_position.z > -319.0)
-	for marker: Label3D in markers:
-		if marker.text == "SAFEHOUSE":
-			check("front sign returns after exiting the cutaway", marker.is_visible_in_tree())
+	check("front sign returns after exiting the cutaway", safehouse_marker != null and safehouse_marker.is_visible_in_tree())
 	await capture("06_safehouse_exit")
 	if not output.is_empty():
 		var manifest := FileAccess.open(output.path_join("manifest.json"), FileAccess.WRITE)

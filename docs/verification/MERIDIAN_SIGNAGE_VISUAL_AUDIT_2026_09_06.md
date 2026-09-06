@@ -102,7 +102,27 @@ resources in the final rerun. Their diagnostics are retained, not suppressed or
 declared fixed. The new signage scene and both final GPU workflows exit cleanly.
 This does not replace the previously failed whole-game suite.
 
-Independent code review is pending. No new Windows export was produced; the
+Independent review approved production commit `6f5d104`, with two minor test
+suggestions. The regression now requires exactly one of each destination, keeps
+a non-optional safehouse assertion path, checks shaded lettering, and rejects
+collision descendants. Three test-only negative controls alter disposable scene
+nodes, never production files or saved screenshots:
+
+| Post-review evidence under build/ | Result |
+|---|---|
+| meridian-signage-3fac4b80ea8741d99fc35711f44f72da | Duplicate kennel / missing house: 19 passed, 4 expected failures |
+| meridian-signage-88fb2d6b12c74a1498ae26270516cf38 | Unshaded lettering: 22 passed, 1 expected failure |
+| meridian-signage-b4f37b6fe4444e5680d9bc01a9059bbb | Added collider: 22 passed, 1 expected failure |
+| meridian-signage-d6b9f390ec204cb082301978aa70cfe9 | Normal GPU: 36 passed, 0 failed, six captures |
+| meridian-signage-d0ca27d86e2a44a8a077be70fc2bb337 | Normal headless signage: 23 passed, 0 failed |
+
+All five post-review runs have empty stderr, expected exit codes, fresh isolated
+profiles and terminal owned processes. These add five assertions to the signage
+gate; they do not change production rendering or clear the two older scenes'
+resource diagnostics. The original before/after/tour evidence above stays intact.
+The scoped test-hardening re-review is pending.
+
+No new Windows export was produced; the
 earlier playable ZIP still identifies its older source commit. The full-game
 goal remains active. The [normal-save incident](TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md)
 is still unresolved: preserved affected copies are not recovered pre-test progress.
