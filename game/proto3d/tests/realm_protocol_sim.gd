@@ -29,6 +29,17 @@ func _ready() -> void:
 	if failed > 0:
 		_finish()
 		return
+	_check("shared wire validators are exposed", protocol.has_method("valid_version") and protocol.has_method("valid_id"))
+	if failed > 0:
+		_finish()
+		return
+	_check("shared version validator keeps strict numeric semantics",
+		protocol.valid_version(1) and protocol.valid_version(1.0)
+		and not protocol.valid_version(true) and not protocol.valid_version(1.5)
+		and not protocol.valid_version(INF) and not protocol.valid_version(NAN))
+	_check("shared ID validator keeps exact alphabet and bounds",
+		protocol.valid_id("a:B-0._", 64) and not protocol.valid_id("bad id", 64)
+		and not protocol.valid_id("a".repeat(65), 64) and not protocol.valid_id(false, 64))
 
 	var purchase := {"version": 1, "kind": "purchase", "request_id": "buy-1", "parcel_id": "roadstead_001"}
 	_check("exact purchase command accepted", protocol.command_error(purchase) == "")

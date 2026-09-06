@@ -16,13 +16,13 @@ static func command_error(value: Variant) -> String:
 	for field: String in ["version", "kind", "request_id", "parcel_id"]:
 		if not command.has(field):
 			return "command_fields"
-	if not _version_one(command.version):
+	if not valid_version(command.version):
 		return "command_version"
 	if not command.kind is String or command.kind != "purchase":
 		return "command_kind"
-	if not _valid_id(command.request_id, REQUEST_ID_MAX):
+	if not valid_id(command.request_id, REQUEST_ID_MAX):
 		return "request_id"
-	if not _valid_id(command.parcel_id, REALM_ID_MAX):
+	if not valid_id(command.parcel_id, REALM_ID_MAX):
 		return "parcel_id"
 	return ""
 
@@ -60,13 +60,13 @@ static func project(state: Dictionary, account_id: String) -> Dictionary:
 	}
 
 
-static func _version_one(value: Variant) -> bool:
+static func valid_version(value: Variant) -> bool:
 	if not (value is int or value is float):
 		return false
 	return is_finite(float(value)) and float(value) == 1.0
 
 
-static func _valid_id(value: Variant, maximum: int) -> bool:
+static func valid_id(value: Variant, maximum: int = REALM_ID_MAX) -> bool:
 	if not value is String or value.is_empty() or value.length() > maximum:
 		return false
 	for index: int in value.length():

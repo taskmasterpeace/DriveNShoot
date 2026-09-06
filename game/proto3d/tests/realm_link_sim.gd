@@ -7,6 +7,7 @@ const LEDGER_COMPONENT := "res://proto3d/realm/property_ledger.gd"
 var passed: int = 0
 var failed: int = 0
 var root: String
+var root_created: bool = false
 var ledger: Variant
 var link_script: Script
 var credentials: Dictionary = {}
@@ -27,19 +28,25 @@ func _check(label: String, condition: bool) -> void:
 	print("REALM_LINK: %s - %s" % ["PASS" if condition else "FAIL", label])
 
 
-func _finish() -> void:
+func _finish(quit_after: bool = true) -> void:
 	for client: Node in clients:
 		client.close()
 	ledger = null
-	for file: String in ["ledger.json"]:
-		DirAccess.remove_absolute(root + "/" + file)
-	DirAccess.remove_absolute(root)
+	var owned_root: String = _owned_temp_root()
+	if not owned_root.is_empty():
+		DirAccess.remove_absolute(owned_root + "/ledger.json")
+		DirAccess.remove_absolute(owned_root)
+	root_created = false
+	root = ""
+	if not quit_after:
+		return
 	print("REALM_LINK: %d passed, %d failed" % [passed, failed])
 	get_tree().quit(0 if failed == 0 else 1)
 
 
 func _ready() -> void:
 	get_tree().create_timer(25.0).timeout.connect(func() -> void: get_tree().quit(1))
+	_exercise_early_finish_cleanup()
 	_check("realm link exists", ResourceLoader.exists(COMPONENT))
 	if failed > 0:
 		_finish()
@@ -50,7 +57,8 @@ func _ready() -> void:
 		_finish()
 		return
 	root = "user://realm_link_sim_%s_%s" % [OS.get_process_id(), Time.get_ticks_usec()]
-	DirAccess.make_dir_recursive_absolute(root)
+	root_created = DirAccess.make_dir_recursive_absolute(root) == OK
+	_check("isolated test root created", root_created)
 	var ledger_script: Script = load(LEDGER_COMPONENT)
 	ledger = ledger_script.new()
 	var rows: Array = [{"id": "roadstead_001", "name": "Roadstead", "price": 150,
@@ -72,11 +80,38 @@ func _ready() -> void:
 	_finish()
 
 
+func _exercise_early_finish_cleanup() -> void:
+	var sentinel_root := "user://realm_link_sim_sentinel_%s_%s" % [OS.get_process_id(), Time.get_ticks_usec()]
+	var sentinel_file := sentinel_root + "/ledger.json"
+	DirAccess.make_dir_recursive_absolute(sentinel_root)
+	var file := FileAccess.open(sentinel_file, FileAccess.WRITE)
+	file.store_string("owned sentinel")
+	file.close()
+	root = sentinel_root
+	root_created = false
+	_finish(false)
+	_check("early finish preserves an unowned cleanup sentinel", FileAccess.file_exists(sentinel_file))
+	DirAccess.remove_absolute(sentinel_file)
+	DirAccess.remove_absolute(sentinel_root)
+	# Keep every later early-exit cleanup pointed at this owned sandbox path.
+	root = sentinel_root
+
+
+func _owned_temp_root() -> String:
+	if not root_created or root.is_empty():
+		return ""
+	var user_root: String = ProjectSettings.globalize_path("user://").replace("\\", "/").trim_suffix("/").simplify_path()
+	var candidate: String = ProjectSettings.globalize_path(root).replace("\\", "/").simplify_path()
+	if not candidate.begins_with(user_root + "/") or not candidate.get_file().begins_with("realm_link_sim_"):
+		return ""
+	return candidate
+
+
 func _run_wire_checks() -> void:
 	var tree_api: MultiplayerAPI = get_tree().get_multiplayer()
-	var port: int = 32000 + int(OS.get_process_id()) % 20000
 	var server: Node = _new_link("server")
-	_check("server starts on loopback", server.start_server(ledger, _verify, port) == OK)
+	var port: int = _start_on_available_port(server)
+	_check("server starts on loopback", port > 0)
 	_check("link does not replace SceneTree multiplayer", get_tree().get_multiplayer() == tree_api)
 	_check("duplicate server start rejects without API replacement", server.start_server(ledger, _verify, port + 1) == ERR_ALREADY_IN_USE and get_tree().get_multiplayer() == tree_api)
 	var oversized_auth: Node = _new_link("oversized_auth")
@@ -136,9 +171,9 @@ func _run_wire_checks() -> void:
 	await _wait_until(func() -> bool: return _disconnects("alice") > 0, 4.0)
 	_check("oversized packet disconnects without mutation", _disconnects("alice") > 0 and ledger.snapshot() == before_oversize)
 
-	var stale_port: int = port + 2
 	var stale_server: Node = _new_link("stale_server")
-	_check("second loopback server starts", stale_server.start_server(ledger, _verify, stale_port) == OK)
+	var stale_port: int = _start_on_available_port(stale_server)
+	_check("second loopback server starts", stale_port > 0)
 	credentials["stale-token"] = {"account_id": "bob-secret", "expires_at": int(Time.get_unix_time_from_system()) + 1}
 	var stale: Node = _new_link("stale")
 	_check("short session begins connection", stale.connect_loopback(stale_port, "stale-token") == OK)
@@ -151,9 +186,9 @@ func _run_wire_checks() -> void:
 	_check("expired admitted session cannot mutate", _disconnects("stale") > 0 and ledger.snapshot() == before_stale and not _has_receipt("stale", "stale-buy", true))
 	stale_server.close()
 
-	var rate_port: int = port + 3
 	var rate_server: Node = _new_link("rate_server")
-	_check("rate-limit server starts", rate_server.start_server(ledger, _verify, rate_port) == OK)
+	var rate_port: int = _start_on_available_port(rate_server)
+	_check("rate-limit server starts", rate_port > 0)
 	var rate: Node = _new_link("rate")
 	_check("rate-limit client begins connection", rate.connect_loopback(rate_port, bob_credential) == OK)
 	await _wait_until(func() -> bool: return _auths("rate") == 1, 4.0)
@@ -195,6 +230,14 @@ func _new_link(label: String) -> Node:
 	link.disconnected.connect(func(_reason: String) -> void: disconnect_counts[label] = _disconnects(label) + 1)
 	link.message_received.connect(func(message: Dictionary) -> void: _messages(label).append(message.duplicate(true)))
 	return link
+
+
+func _start_on_available_port(link: Node) -> int:
+	for _attempt: int in 32:
+		var candidate: int = randi_range(20000, 60000)
+		if link.start_server(ledger, _verify, candidate) == OK:
+			return candidate
+	return 0
 
 
 func _verify(credential: String) -> Dictionary:

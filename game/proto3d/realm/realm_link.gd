@@ -141,7 +141,7 @@ func _on_auth_data(peer_id: int, packet: PackedByteArray) -> void:
 		_reject_peer(peer_id)
 		return
 	var auth: Dictionary = decoded
-	if auth.size() != 2 or not auth.has("version") or not auth.has("credential") or not _version_one(auth.version) or not auth.credential is String:
+	if auth.size() != 2 or not auth.has("version") or not auth.has("credential") or not ProtoRealmProtocol.valid_version(auth.version) or not auth.credential is String:
 		_reject_peer(peer_id)
 		return
 	var verified: Variant = _verifier.call(String(auth.credential))
@@ -317,26 +317,26 @@ func _valid_identity(value: Variant) -> bool:
 	var identity: Dictionary = value
 	if identity.size() != 2 or not identity.has("account_id") or not identity.has("expires_at"):
 		return false
-	if not _valid_id(identity.account_id, 64) or not identity.expires_at is int:
+	if not ProtoRealmProtocol.valid_id(identity.account_id, ProtoRealmProtocol.REALM_ID_MAX) or not identity.expires_at is int:
 		return false
 	return int(identity.expires_at) > int(Time.get_unix_time_from_system())
 
 
 func _valid_server_message(value: Dictionary) -> bool:
-	if not _version_one(value.get("version")) or not value.get("kind") is String:
+	if not ProtoRealmProtocol.valid_version(value.get("version")) or not value.get("kind") is String:
 		return false
 	if value.kind == "receipt":
 		if value.size() != 5 or not value.has("request_id") or not value.has("ok") or not value.has("error"):
 			return false
 		if not value.request_id is String or not value.ok is bool or not value.error is String:
 			return false
-		return value.request_id.is_empty() or _valid_id(value.request_id, 48)
+		return value.request_id.is_empty() or ProtoRealmProtocol.valid_id(value.request_id, ProtoRealmProtocol.REQUEST_ID_MAX)
 	if value.kind != "view" or value.size() != 4 or not value.has("balance") or not value.has("parcels"):
 		return false
 	if not _integer(value.balance, 0, 1000000000000) or not value.parcels is Dictionary or value.parcels.size() > 10000:
 		return false
 	for parcel_id: Variant in value.parcels:
-		if not _valid_id(parcel_id, 64):
+		if not ProtoRealmProtocol.valid_id(parcel_id, ProtoRealmProtocol.REALM_ID_MAX):
 			return false
 		var parcel: Variant = value.parcels[parcel_id]
 		if not parcel is Dictionary or parcel.size() != 2 or not parcel.has("ownership") or not parcel.has("can_access"):
@@ -346,22 +346,6 @@ func _valid_server_message(value: Dictionary) -> bool:
 		if parcel.ownership == "self" and not parcel.can_access or parcel.ownership == "unowned" and parcel.can_access:
 			return false
 	return true
-
-
-func _valid_id(value: Variant, maximum: int) -> bool:
-	if not value is String or value.is_empty() or value.length() > maximum:
-		return false
-	for index: int in value.length():
-		var code: int = value.unicode_at(index)
-		if not (code >= 48 and code <= 57 or code >= 65 and code <= 90 or code >= 97 and code <= 122 or code in [45, 46, 58, 95]):
-			return false
-	return true
-
-
-func _version_one(value: Variant) -> bool:
-	if not (value is int or value is float):
-		return false
-	return is_finite(float(value)) and float(value) == 1.0
 
 
 func _integer(value: Variant, minimum: int, maximum: int) -> bool:
