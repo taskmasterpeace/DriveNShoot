@@ -1,0 +1,8 @@
+{
+  "office": [18, -328],
+  "jobs": [
+    {"id":"medicine","name":"MEDICINE · East-road clinic relay","cargo":"freight_medicine","reward":160,"bonus":"household_pantry","road":"CR-meridian-richmond","fraction":0.85,"description":"Carry sealed medicine to the roadside clinic relay. First deed costs 150 banked scrip."},
+    {"id":"spare_parts","name":"SPARE PARTS · Pump repair relay","cargo":"freight_parts","reward":240,"bonus":"car_parts","road":"CR-meridian-richmond","fraction":0.55,"description":"Deliver a sealed pump assembly. A repair kit is yours with the fee."},
+    {"id":"last_light","name":"LAST LIGHT · Radio supply relay","cargo":"freight_cells","reward":320,"bonus":"power_cell","road":"CR-meridian-richmond","fraction":0.25,"encounter":true,"description":"A lurker stalks this relay. Avoid it or fight; its body carries real loot. Deliver the cells on foot."}
+  ]
+}

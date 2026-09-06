@@ -2,6 +2,7 @@
   "properties": [
     {
       "id": "roadstead_001",
+      "position": [42, -363],
       "name": "1 Roadstead Lane",
       "price": 150,
       "item_capacity": 120,
@@ -9,6 +10,7 @@
     },
     {
       "id": "roadstead_002",
+      "position": [60, -363],
       "name": "2 Roadstead Lane",
       "price": 225,
       "item_capacity": 180,
@@ -16,6 +18,7 @@
     },
     {
       "id": "roadstead_003",
+      "position": [78, -363],
       "name": "3 Roadstead Lane",
       "price": 300,
       "item_capacity": 240,

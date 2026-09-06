@@ -382,6 +382,9 @@ func _ready() -> void:
 	add_child(metaworld)
 	metaworld.setup(self)
 	metaworld.come_home.connect(func(text: String) -> void: hud.toast(text))
+	road_life = ProtoRoadLife.new()
+	add_child(road_life)
+	road_life.setup(self)
 
 	house.tracked = player
 	_apply_skill_effects()
@@ -398,6 +401,7 @@ var world_state: ProtoWorldState = null ## THE LIVING WORLD: state control + law
 var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
 var homebase: ProtoHomebase = null
 var objectives: ProtoObjectives = null ## THE FIRST RUN onboarding thread (armed by begin_new_game)
+var road_life: ProtoRoadLife = null ## Offline-only jobs/deeds; one full-run checkpoint.
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -685,6 +689,8 @@ func _build_environment() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if road_life != null and road_life.panel.is_open:
+		return
 	# THE RETURN BRIEFING owns the screen first: any key/click steps you into the day.
 	if hud != null and hud.briefing_shown():
 		if (event is InputEventKey and event.pressed and not event.echo) \
@@ -1036,6 +1042,7 @@ func _physics_process(delta: float) -> void:
 	# glued to the screen (playtest: "open the cache, walk away, it acts weird").
 	# The TV is modal the same way — you sit down to watch. Piloting a drone freezes you too.
 	player.input_locked = panel.is_open or (media_panel != null and media_panel.is_open) \
+		or (road_life != null and road_life.panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
 		or (game_shell != null and game_shell.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
@@ -1980,6 +1987,8 @@ func open_trade(npc: ProtoNPC) -> void:
 ## half, sweetened as the town trusts you more.
 func trade_price(id: String, selling: bool) -> int:
 	var base: int = ProtoNPC.PRICES.get(id, 3)
+	if base == 0:
+		return 0 # explicit no-resale-value rows (replacement contract freight)
 	var mult: float = respect.price_mult(ProtoNPC.FACTION)
 	if selling:
 		return maxi(1, int(floor(base * 0.5 * (2.0 - mult))))
@@ -4031,7 +4040,7 @@ func begin_new_game() -> void:
 		objectives.arm()
 
 
-func save_game() -> Dictionary:
+func capture_save() -> Dictionary:
 	var dogs_out: Array = []
 	for d in get_tree().get_nodes_in_group("proto_dog"): # the group never lies (arrays can)
 		if d is ProtoDog and is_instance_valid(d) and d.adopted and not d.downed:
@@ -4076,7 +4085,6 @@ func save_game() -> Dictionary:
 	# "now" so the next load can size the absence and run offline catch-up.
 	var now_utc := int(Time.get_unix_time_from_system())
 	if world_state != null:
-		world_state.last_played_utc = now_utc
 		data["world"] = {
 			"version": ProtoWorldState.WORLD_VERSION,
 			"state_control": world_state.state_control.duplicate(true),
@@ -4085,20 +4093,37 @@ func save_game() -> Dictionary:
 		}
 	data["last_played_utc"] = now_utc
 	data["version"] = SAVE_VERSION
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	f.store_string(var_to_str(data))
-	f.close()
-	notify("💾 SAVED — day %d · %s · %d dogs · %d nodes lit" % [daynight.day, daynight.clock_text(), dogs_out.size(), carousel.active.size()])
+	if road_life != null:
+		data["road_life"] = road_life.state.record()
+	return data
+
+
+func save_game() -> Dictionary:
+	if net != null and net.online:
+		notify("ROADSTEAD: local checkpoint saves disabled while online")
+		return {}
+	var data: Dictionary = capture_save()
+	var error: Error = ProtoAtomicCheckpoint.write(SAVE_PATH, data)
+	if error != OK:
+		notify("Save failed (%d); previous checkpoint preserved" % error)
+		return {}
+	notify("SAVED — complete local run checkpoint")
 	return data
 
 
 func load_game() -> bool:
+	if net != null and net.online:
+		notify("ROADSTEAD: local checkpoint loads disabled while online")
+		return false
 	if not FileAccess.file_exists(SAVE_PATH):
 		notify("💾 No save on disk yet — F5 writes one")
 		return false
 	var data: Variant = str_to_var(FileAccess.get_file_as_string(SAVE_PATH))
 	if not (data is Dictionary):
 		notify("💾 The save is corrupt — the wasteland ate it")
+		return false
+	if road_life != null and data.has("road_life") and not road_life.state.valid_record(data.road_life):
+		notify("ROADSTEAD checkpoint corrupt; no run state was changed")
 		return false
 	apply_save(data)
 	notify("💾 LOADED — day %d. The road remembers." % daynight.day)
@@ -4165,6 +4190,15 @@ func dismiss_briefing() -> void:
 
 
 func apply_save(data: Dictionary) -> void:
+	if net != null and net.online:
+		notify("ROADSTEAD: local checkpoint apply disabled while online")
+		return
+	if road_life != null:
+		if data.has("road_life") and not road_life.state.valid_record(data.road_life):
+			notify("ROADSTEAD checkpoint corrupt; no run state was changed")
+			return
+		road_life.panel.close()
+		road_life.state.restore(data.get("road_life", {}))
 	player_restore(data.get("player", {}))
 	if game_deck != null:
 		game_deck.restore(data.get("game_deck", {}))

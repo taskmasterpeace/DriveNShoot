@@ -17,6 +17,22 @@ var _path: String = ""
 var _state: Dictionary = {}
 var _parcels: Dictionary = {}
 var _items: Dictionary = {}
+var _embedded_writer: Callable
+
+## Trusted local runtime adapter: validates before replacing live authority.
+## The callback must durably commit the entire run BEFORE returning OK.
+func open_embedded(parcels: Array, state: Dictionary, writer: Callable) -> Error:
+	var definitions: Dictionary = _parcel_definitions(parcels)
+	var catalog: Dictionary = _item_catalog()
+	if definitions.is_empty() or catalog.is_empty() or not _valid_state(state, definitions, catalog):
+		return ERR_FILE_CORRUPT
+	_state = state.duplicate(true)
+	_normalize_numbers(_state)
+	_parcels = definitions
+	_items = catalog
+	_path = ""
+	_embedded_writer = writer
+	return OK
 
 
 func open(path: String, parcels: Array) -> Error:
@@ -57,6 +73,7 @@ func open(path: String, parcels: Array) -> Error:
 	_parcels = definitions
 	_items = catalog
 	_state = candidate
+	_embedded_writer = Callable()
 	return OK
 
 
@@ -178,7 +195,7 @@ func _command(payload: Array, request_id: String) -> Dictionary:
 func _commit(candidate: Dictionary) -> Dictionary:
 	if not _valid_state(candidate, _parcels, _items):
 		return _failure("invalid_state")
-	var error: Error = _persist(_path, candidate)
+	var error: Error = _embedded_writer.call(candidate.duplicate(true)) if _embedded_writer.is_valid() else _persist(_path, candidate)
 	if error != OK:
 		return _failure("persistence_failed:%d" % error)
 	_state = candidate

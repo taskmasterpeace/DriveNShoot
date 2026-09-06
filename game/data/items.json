@@ -1,5 +1,9 @@
 {
  "items": [
+  {"id":"freight_medicine","name":"Sealed medicine freight","category":"tool","desc":"Road Office contract cargo. Hand over at the clinic relay; cannot be stored at home.","emoji":"+","usable":false,"weight":2.0},
+  {"id":"freight_parts","name":"Sealed pump freight","category":"tool","desc":"Road Office contract cargo. Deliver to the pump repair relay.","emoji":"#","usable":false,"weight":4.0},
+  {"id":"freight_cells","name":"Sealed radio-cell freight","category":"tool","desc":"Road Office contract cargo. Deliver to the last-light radio relay.","emoji":"!","usable":false,"weight":3.0},
+  {"id":"household_pantry","name":"Pantry reserve","category":"food","desc":"Road Office household supply. Exchange at your home for three canned meals, or keep in secure storage.","emoji":"H","usable":false,"weight":1.5},
   {
    "category": "weapon",
    "desc": "9mm sidearm. USE equips it.",

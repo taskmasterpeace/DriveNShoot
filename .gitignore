@@ -11,3 +11,4 @@ game/data/laptimes.json
 build/
 .playwright-mcp/
 .worktrees/
+.roadstead-profile/

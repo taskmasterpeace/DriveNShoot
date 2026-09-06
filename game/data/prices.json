@@ -1,6 +1,10 @@
 {
  "_comment": "Base prices (scrip) — folds ADDITIVELY onto ProtoNPC.PRICES at boot (code is the floor; a row here prices a NEW item with no code). See ProtoNPC.ensure_prices().",
  "prices": [
+  {"id":"freight_medicine","price":0},
+  {"id":"freight_parts","price":0},
+  {"id":"freight_cells","price":0},
+  {"id":"household_pantry","price":18},
   {
    "id": "field_ration",
    "price": 6
