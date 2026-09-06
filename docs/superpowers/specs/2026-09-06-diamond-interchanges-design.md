@@ -47,6 +47,9 @@ exits and unrelated authored geometry remain authoritative.
 - Crossroad and town-link are two-way `state_road` rows, two lanes, undivided,
   asphalt, carrying `interchange_id`, with meaningful names and existing exit
   danger. Both endpoints and height profiles are real rows, never draw-only.
+  The exit schema's canonical threat field is `risk_rating`: connector `danger`
+  inherits it. A legacy `danger` field is fallback only when `risk_rating` is
+  absent; existing ramp danger values remain their retained character fields.
 - All six managed road rows use `elev_mode: "structure"`. This preserves their
   explicit physical profiles without ground-road blending lifting terrain
   underneath the crossing deck; local junction endpoints still meet terrain.

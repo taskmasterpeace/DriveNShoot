@@ -39,6 +39,8 @@ export function buildDiamondInterchange(map, exitId, {
 `exit` is a copied exit with retained fields plus the spec's managed metadata.
 All six roads use `elev_mode: "structure"`; metadata names and values in the
 spec's Data contract are binding, including `diamond_v2` and connector IDs.
+Connector danger comes from the canonical exit risk_rating; only fall back to
+legacy exit danger when risk_rating is absent. Do not rewrite retained ramp danger.
 `junctions` contains the four ports, two local crossroad/ramp meetings, deck
 crossing and destination meeting. Highway legs use true projected arcs; ramp
 ports use arc 0 for off and full length for on. Include the crossroad/link
@@ -205,6 +207,14 @@ if not bool(road.get("one_way", false)):
   Prove both town-bound routes and both return routes, reject reverse on/off
   traversal and direct cross-median/under-deck transfers. Retain legacy network
   routes and time-cost weighting. Parent runs focused traffic/graph/atlas tests.
+  Existing legacy ramp_mouth rows can list both sides' off-ramps in one junction.
+  Do not join both carrier directions to that shared node: use per-ramp port
+  transfer nodes, with carrier-to-off and on-to-carrier edges only. Directional
+  through-edges must stay distinct at other limited-access junctions on the
+  serving highway too; an immediately adjacent old port is not permission for
+  a cross-median turn. Flat control-gap intersections retain legal transfers.
+  Exclude unused shared deck/port placeholders from nearest_node selection,
+  but retain legitimate one-way destination sinks that have incoming edges.
 - [ ] Commit after RED/GREEN evidence and independent task review.
 
 ## Task 4: Physical road presentation and four-direction driving proof
@@ -225,6 +235,11 @@ evidence, plus unedited captures under a unique isolated build run.
   Regression-check elevated `road_guard_rail` drape exemption (the existing
   roadside tag is a different `road_guardrail`), and verify column placement
   on densified short deck spans rather than relying on per-span length/30.
+  The disposable preview also shows generated neighborhood homes across the
+  town-side feeder. Probe real bodies before fixing _stamp_neighborhood: it
+  currently checks no road footprint and offsets from chunk center rather
+  than the serving road. Reuse full-footprint/all-segment reservations and
+  preserve deterministic RNG draws; keep valid homes and authored placements.
 - [ ] Drive four staged routes via actual keyboard/pad inputs: each off-ramp to
   the town endpoint and each on-ramp to the correct highway direction. After
   initial staging, never set the car transform/velocity to move it along a path.
