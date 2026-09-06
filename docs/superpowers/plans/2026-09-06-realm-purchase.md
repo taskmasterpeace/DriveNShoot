@@ -79,3 +79,24 @@ if ($state.parcels.roadstead_001.owner_id -notin @('alice','bob')) { throw 'No d
 - [ ] Exercise every numbered acceptance in the design: racing, projections, exact replay and conflict, forged schema, bad/expired tokens, expiry after admission, oversized packet, real exclusive write lock and retry, forced task-server termination after acknowledgment and recovery, corrupt-state startup, omitted explicit flag. Tests must inspect the actual store and both clients' received messages. Do not claim interrupted backpack/guest/AOI proof.
 - [ ] Run the complete workflow twice with fresh fixtures and retain outputs, checks and per-process logs under ignored build directories. Copy non-secret acceptance summaries into verification docs. Run the existing property ledger and local road-life regressions after network proof.
 - [ ] Document exact passing/failed counts and limitations, commit only owned code/docs, request task review and whole-milestone review. Leave full-game goal active.
+
+## Task 3: Fail-closed road-life regression profile guard (incident remediation)
+
+An unisolated component invocation wrote to the existing normal player save.
+See `docs/verification/TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md`; recovery is
+unresolved and must not be hidden by passing assertions. Add a guard before the
+road-life harness loads the game or reads a save, accepting only user-data paths
+inside this checkout's designated `build/` or `.superpowers/sdd/` test roots.
+
+**Files:** `game/proto3d/tests/road_life_sim.gd`, new
+`tools/road_life_profile_guard.ps1`; update only incident prevention status.
+
+- [ ] Test first with a fresh disposable normal-like profile outside approved
+  roots and a save sentinel. Explicit APPDATA/LOCALAPPDATA apply even to RED.
+  Preserve evidence that old behavior modifies only this owned sentinel.
+- [ ] Refuse unsafe paths before either exercise or restart-check; normalize
+  Windows case, separators and dot segments; require full component containment.
+- [ ] GREEN proves rejected-profile sentinel unchanged and allowed fresh-profile
+  real-input road-life71/0. Hidden owned processes, bounded waits and no deletion.
+- [ ] Retain exact commands/profile paths/logs, self-review, commit owned files,
+  independent task review, then whole-milestone review. Do not claim save recovery.
