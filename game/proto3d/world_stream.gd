@@ -276,9 +276,10 @@ func _relief_floor(center: Vector3, biome: String) -> StaticBody3D:
 ## (slab/deck/furniture place themselves against the row height); draping them by
 ## ground_y (= the same macro) would DOUBLE-LIFT every slab on a grade.
 const DRAPE_EXEMPT_METAS: Array = ["road_slab", "road_lane", "road_center", "road_rut",
-	"road_barrier", "road_deck", "road_guardrail", "street_curb", "streetlight",
+	"road_barrier", "road_deck", "road_guardrail", "road_guard_rail", "street_curb", "streetlight",
 	"mile_marker", "route_shield", "road_billboard", "state_line", "road_decel", "road_pillar",
 	"roadside_pole", "roadside_fence", "roadside_fence_post", "road_verge",
+	"road_accel", "road_port_gore", "road_port_sign", "road_reflector", "road_port_transition",
 	"river_sheet"] # 1B: water sheets set their own surface height
 func _drape_chunk(chunk: Node3D) -> void:
 	for child in chunk.get_children():
@@ -443,6 +444,8 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 		var chalf := CHUNK * 0.5
 		for j in usmap.junctions_in(Rect2(center.x - chalf, center.z - chalf, CHUNK, CHUNK)):
 			if String(j["grade"]) == "flat" and ["tee", "cross"].has(String(j["kind"])):
+				if not _junction_roads_meet(j):
+					continue # stale logical links must not invent an asphalt square
 				var wmax := 8.0
 				for l in j["legs"]:
 					var lr: Dictionary = usmap.road_by_id(String(l["road"]))
@@ -452,7 +455,7 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				var jslab := ProtoWorldBuilder.box_visual(chunk, Vector3(wmax + 2.0, 0.05, wmax + 2.0),
 					Vector3(jp.x, 0.13, jp.y), ProtoWorldBuilder.COL_ROAD, 0.0)
 				jslab.set_meta("junction_slab", String(j["id"]))
-			elif String(j["kind"]) == "ramp_mouth" and (j["legs"] as Array).size() >= 2:
+			elif String(j["kind"]) in ["ramp_mouth", "ramp_rejoin"] and (j["legs"] as Array).size() >= 2:
 				# THE EXIT DRESSING (0.18a): painted GORE at the split, crash
 				# barrels at its tip, and the DECEL LANE running the serving
 				# shoulder upstream — the "little angle" now READS at 60 mph.
@@ -460,6 +463,13 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 				var rampr: Dictionary = usmap.road_by_id(String(j["legs"][1]["road"]))
 				if hwyr.is_empty() or rampr.is_empty() or (rampr["pts"] as Array).size() < 2:
 					continue
+				# Explicit folded ownership/roles identify managed ports; geom is
+				# an authoring marker and is intentionally not a runtime field.
+				if String(rampr.get("interchange_id", "")) != "" and String(rampr.get("ramp_role", "")) in ["off", "on"]:
+					_build_diamond_port(chunk, rampr, hwyr, j, center, key)
+					continue
+				if String(j["kind"]) == "ramp_rejoin":
+					continue # Unmanaged legacy rejoins retain their original path.
 				var p0: Vector2 = rampr["pts"][0]
 				var rd: Vector2 = ((rampr["pts"][1] as Vector2) - p0).normalized()
 				var gore := ProtoWorldBuilder.box_visual(chunk, Vector3(2.2, 0.05, 7.0),
@@ -703,6 +713,38 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	return chunk
 
 
+## Synthetic intersection fill is visual only. Every listed road must really
+## reach the node; this does not repair stale links or change median/nav law.
+## Keep the original fill unchanged for valid junctions, including wide roads.
+func _junction_roads_meet(junction: Dictionary) -> bool:
+	var legs: Array = junction.get("legs", [])
+	var point: Vector2 = junction["pos"]
+	if legs.size() < 2 or not point.is_finite():
+		return false
+	for leg: Dictionary in legs:
+		var road := usmap.road_by_id(String(leg.get("road", "")))
+		if road.is_empty():
+			return false
+		var points: PackedVector2Array = road["pts"]
+		var half_width := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5
+		var cap := 0.03 if String(road.get("interchange_id", "")) != "" else 3.0
+		var meets := false
+		for i: int in range(points.size() - 1):
+			var delta := points[i + 1] - points[i]
+			var length := delta.length()
+			if not points[i].is_finite() or not points[i + 1].is_finite() or length < 0.001:
+				continue
+			var direction := delta / length
+			var local := point - points[i]
+			var along := local.dot(direction)
+			if along >= -cap and along <= length + cap and absf(local.cross(direction)) <= half_width:
+				meets = true
+				break
+		if not meets:
+			return false
+	return true
+
+
 ## Spend this chunk's parent cell's banked counts into real actors — budgeted
 ## by the ledger, never a fresh hash-roll. Each spawn is tagged with the
 ## POPULATION cell key (the 500m ledger grid, NOT this chunk's 128m key — the
@@ -828,7 +870,314 @@ func _spawn_placement(chunk: Node3D, p: Dictionary) -> void:
 ## THE EXIT SIGN (World_Structures §18: every exit needs a highway sign): the
 ## big green read at the ramp mouth — number, name, tier — plus the archetype's
 ## glyph always visible. This is what makes an exit a DECISION at 60 mph.
+## Point-order stations: the address law reverses south/west roads and must
+## never be used for elevation or support spacing.
+static func _road_station(road: Dictionary, arc: float) -> Dictionary:
+	var points: PackedVector2Array = road["pts"]
+	var remaining := maxf(arc, 0.0)
+	for i: int in range(points.size() - 1):
+		var delta := points[i + 1] - points[i]
+		var length := delta.length()
+		if remaining <= length or i == points.size() - 2:
+			return {"pos": points[i] + delta.normalized() * clampf(remaining, 0.0, length), "dir": delta.normalized(), "height": ProtoUSMap.elev_at(road, arc)}
+		remaining -= length
+	return {}
+
+
+func _build_diamond_port(chunk: Node3D, ramp: Dictionary, highway: Dictionary, junction: Dictionary, center: Vector3, key: String) -> void:
+	var descriptor: Dictionary = {}
+	for exit_row: Dictionary in usmap.exits:
+		if String(exit_row["id"]) == String(ramp.get("interchange_id", "")):
+			descriptor = exit_row
+			break
+	var port: Dictionary = {}
+	for candidate: Dictionary in usmap.exit_ports(descriptor):
+		if String(candidate["road"]["id"]) == String(ramp["id"]):
+			port = candidate
+			break
+	if port.is_empty():
+		return
+	var off := String(port["role"]) == "off"
+	var side := float(port["side"])
+	var arc := float(port["highway_arc_m"])
+	var mouth: Vector2 = port["pos"]
+	var station := _road_station(highway, arc)
+	var travel: Vector2 = (station["dir"] as Vector2) * side
+	var right := Vector2(-travel.y, travel.x)
+	var exclusions := _ruin_exclusions(center, key)
+	# The existing outside highway lane becomes the signed speed-change lane;
+	# 150m of row-height slices gives a visible 30m opening/closing taper without
+	# inventing wider ground/grip/collision geometry than the serving road row.
+	var lateral := float(ProtoUSMap.road_geometry(highway)["width"]) * 0.5 - 1.5
+	for i: int in 15:
+		var distance := -145.0 + i * 10.0 if off else 5.0 + i * 10.0
+		var sample := _road_station(highway, arc + distance * side)
+		var direction: Vector2 = (sample["dir"] as Vector2) * side
+		var rightward := Vector2(-direction.y, direction.x)
+		var point: Vector2 = sample["pos"] + rightward * lateral
+		var width := 3.0 * minf(1.0, float(i + 1 if off else 15 - i) / 3.0)
+		var a := _road_station(highway, arc + (distance - 5.0) * side)
+		var b := _road_station(highway, arc + (distance + 5.0) * side)
+		var pitch := atan2(float(a["height"]) - float(b["height"]), 10.0)
+		var lane := ProtoWorldBuilder.box_visual(chunk, Vector3(width, 0.05, 10.0),
+			Vector3(point.x, float(sample["height"]) + 0.12, point.y), ProtoWorldBuilder.COL_ROAD.lightened(0.08), atan2(direction.x, direction.y), pitch)
+		lane.set_meta("road_decel" if off else "road_accel", String(junction["id"]))
+		# Give the actual speed-change approach a full serving-carriageway floor
+		# where structure profiles suppress terrain blending at the road edge.
+		# No highway widening and no median removal: this stays inside its row.
+		var geometry := ProtoUSMap.road_geometry(highway)
+		var carriage_width := float(geometry["carriage_w"])
+		var carriage_center: Vector2 = sample["pos"] + rightward * (float(geometry["median_w"]) * 0.5 + carriage_width * 0.5)
+		var floor_body := ProtoWorldBuilder.box_body(chunk, Vector3(carriage_width, 0.5, 10.02),
+			Vector3(carriage_center.x, float(sample["height"]) + 0.09 - 0.25, carriage_center.y), ProtoWorldBuilder.COL_ROAD, atan2(direction.x, direction.y), pitch)
+		floor_body.set_meta("road_deck", highway["id"])
+		for child: Node in floor_body.get_children():
+			if child is MeshInstance3D:
+				child.visible = false # canonical highway pavement remains the visual
+		var edge := point + rightward * width * 0.5
+		var paint := ProtoWorldBuilder.box_visual(chunk, Vector3(0.22, 0.025, 9.8),
+			Vector3(edge.x, float(sample["height"]) + 0.16, edge.y), ProtoWorldBuilder.COL_DASH, atan2(direction.x, direction.y), pitch)
+		paint.set_meta("road_lane", String(ramp["id"]))
+	var sign_position := mouth - travel * 20.0 + right * (9.0 if off else 14.0)
+	if _ruin_footprint_clear(Vector3(sign_position.x, 0, sign_position.y), Vector3(2, 3, 2), 0.0, exclusions):
+		var compass := ("EAST" if travel.x > 0 else "WEST") if absf(travel.x) > absf(travel.y) else ("SOUTH" if travel.y > 0 else "NORTH")
+		var label := "EXIT %d — %s" % [int(descriptor.get("exit_number", 0)), String(descriptor.get("name", "")).to_upper()] if off else "%s %s — MERGE" % [highway["id"], compass]
+		var sign := _highway_sign(label.replace(" — ", "\n") + ("  ↗" if off else "  ↑"))
+		chunk.add_child(sign)
+		sign.add_to_group("exit_sign")
+		sign.set_meta("exit_id", descriptor["id"])
+		sign.set_meta("road_port_sign", ramp["id"])
+		var sign_arc := float(ProtoUSMap._project_road(highway, sign_position)["arc_m"])
+		sign.global_position = Vector3(sign_position.x, ProtoUSMap.elev_at(highway, sign_arc), sign_position.y)
+	_build_port_gore(chunk, ramp, highway, port, exclusions, String(junction["id"]))
+	_build_port_transfer(chunk, ramp, highway, port)
+
+
+## The retained ramp terminal is outside the highway edge. Connect its full
+## cap to the actual speed-change lane, with identical visible/collision
+## vertices; otherwise the outside wheels fall into the triangular gap.
+func _build_port_transfer(chunk: Node3D, ramp: Dictionary, highway: Dictionary, port: Dictionary) -> void:
+	var off := String(port["role"]) == "off"
+	var side := float(port["side"])
+	var sample := _road_station(highway, float(port["highway_arc_m"]) + (-15.0 if off else 15.0) * side)
+	var travel: Vector2 = (sample["dir"] as Vector2) * side
+	var right := Vector2(-travel.y, travel.x)
+	var highway_point: Vector2 = sample["pos"] + right * (float(ProtoUSMap.road_geometry(highway)["width"]) * 0.5 - 1.5)
+	var points: PackedVector2Array = ramp["pts"]
+	var mouth: Vector2 = port["pos"]
+	var inward := (points[1] - points[0]).normalized() if off else (points[-2] - points[-1]).normalized()
+	var ramp_normal := Vector2(-inward.y, inward.x)
+	if ramp_normal.dot(right) < 0.0:
+		ramp_normal = -ramp_normal
+	var ramp_height := float((ramp["elev"] as PackedFloat32Array)[0 if off else -1]) + 0.07 + float(absi(hash(String(ramp["id"]))) % 5) * 0.004
+	var half_width := float(ProtoUSMap.road_geometry(ramp)["width"]) * 0.5
+	var corners: Array[Vector3] = []
+	for sgn: float in [-1.0, 1.0]:
+		var point := highway_point + right * 1.5 * sgn
+		corners.append(Vector3(point.x, float(sample["height"]) + 0.09, point.y))
+	for sgn: float in [-1.0, 1.0]:
+		var point := mouth + inward * 0.03 + ramp_normal * half_width * sgn
+		corners.append(Vector3(point.x, ramp_height, point.y))
+	var transfer := _road_prism(chunk, corners, String(highway["id"]), ProtoWorldBuilder.COL_ROAD, 0.5, true)
+	transfer.set_meta("road_port_transition", ramp["id"])
+
+
+## These managed plates are cruise-readable road furniture, not cone-gated
+## lore boards. Ordinary ProtoSign reading behavior is not changed.
+func _highway_sign(text: String) -> Node3D:
+	var sign := Node3D.new()
+	for x: float in [-2.6, 2.6]:
+		# Stop at the plate's lower edge; billboard rotation must never expose
+		# a tall post through the destination lettering.
+		ProtoWorldBuilder.box_visual(sign, Vector3(0.16, 2.6, 0.16), Vector3(x, 1.3, 0), Color(0.56, 0.57, 0.55))
+	var board := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2(10.0, 3.2)
+	board.mesh = quad
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(0.035, 0.24, 0.12)
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	board.material_override = material
+	board.position.y = 4.2
+	sign.add_child(board)
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = 48
+	label.pixel_size = 0.017
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = Color.WHITE
+	label.outline_size = 3
+	label.position = Vector3(0, 4.2, 0.04)
+	label.render_priority = 1
+	sign.add_child(label)
+	return sign
+
+
+## Shared endpoint mitres join densified VISUAL segments without the old 3m
+## cap spikes. Physical floors retain their tested continuous coverage.
+func _road_ribbon(chunk: Node3D, source: Dictionary, row: Dictionary, a: Vector2, b: Vector2, height_a: float, height_b: float, width: float, color: Color, depth: float, physical: bool = false) -> MeshInstance3D:
+	var points: PackedVector2Array = source["pts"]
+	var index := 0
+	var nearest := INF
+	for i: int in range(points.size() - 1):
+		var distance: float = points[i].distance_squared_to(row["a"])
+		if distance < nearest:
+			nearest = distance
+			index = i
+	var direction := (b - a).normalized()
+	var normal := Vector2(direction.y, -direction.x)
+	var edge_a := _ribbon_mitre(points, index, normal) if a.distance_to(points[index]) < 0.01 else normal
+	var edge_b := _ribbon_mitre(points, index + 1, normal) if b.distance_to(points[index + 1]) < 0.01 else normal
+	# At USA-scale float coordinates, mathematically coincident hull caps
+	# leave millimetre seams (including centreline wheel rays). A 3cm visible
+	# AND physical lap seals them without restoring metre-long box spikes.
+	var grade := (height_b - height_a) / maxf(a.distance_to(b), 0.01)
+	a -= direction * 0.03
+	b += direction * 0.03
+	height_a -= grade * 0.03
+	height_b += grade * 0.03
+	var corners: Array[Vector3] = []
+	for endpoint: Array in [[a, edge_a, height_a], [b, edge_b, height_b]]:
+		for side: float in [-1.0, 1.0]:
+			var point: Vector2 = endpoint[0] + endpoint[1] * width * 0.5 * side
+			corners.append(Vector3(point.x, endpoint[2], point.y))
+	return _road_prism(chunk, corners, String(source["id"]), color, depth, physical)
+
+
+func _road_prism(chunk: Node3D, corners: Array[Vector3], road_id: String, color: Color, depth: float, physical: bool) -> MeshInstance3D:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var origin := (corners[0] + corners[1] + corners[2] + corners[3]) * 0.25
+	# A closed prism: the visible sides/underside and collision share these
+	# exact mitred vertices. No invisible old box caps survive the join.
+	var quads: Array = [[corners[0], corners[1], corners[3], corners[2]],
+		[corners[2] - Vector3.UP * depth, corners[3] - Vector3.UP * depth, corners[1] - Vector3.UP * depth, corners[0] - Vector3.UP * depth],
+		[corners[0], corners[2], corners[2] - Vector3.UP * depth, corners[0] - Vector3.UP * depth],
+		[corners[3], corners[1], corners[1] - Vector3.UP * depth, corners[3] - Vector3.UP * depth],
+		[corners[1], corners[0], corners[0] - Vector3.UP * depth, corners[1] - Vector3.UP * depth],
+		[corners[2], corners[3], corners[3] - Vector3.UP * depth, corners[2] - Vector3.UP * depth]]
+	for face: int in quads.size():
+		var quad: Array = quads[face]
+		var outward := Vector3.UP if face == 0 else Vector3.DOWN
+		if face > 1:
+			outward = Vector3.ZERO
+			for corner: Vector3 in quad:
+				outward += corner - origin
+			outward.y = 0.0
+		# A clipped miter can reverse only one triangle of a quad. Orient
+		# each triangle independently, not the whole face: Godot fronts are
+		# clockwise, so their geometric cross opposes the outward normal.
+		# Corner positions, triangles' covered areas and hulls stay unchanged.
+		for indices: Array in [[0, 1, 2], [0, 2, 3]]:
+			var normal: Vector3 = ((quad[indices[1]] as Vector3) - (quad[indices[0]] as Vector3)).cross((quad[indices[2]] as Vector3) - (quad[indices[0]] as Vector3)).normalized()
+			if normal.dot(outward) > 0.0:
+				indices.reverse()
+				normal = -normal
+			for i: int in indices:
+				vertices.append((quad[i] as Vector3) - origin)
+				normals.append(-normal)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var result := MeshInstance3D.new()
+	result.position = origin
+	result.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.9
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	result.material_override = material
+	chunk.add_child(result)
+	if physical:
+		var body := StaticBody3D.new()
+		body.position = origin
+		var shape := ConvexPolygonShape3D.new()
+		var hull := PackedVector3Array()
+		for corner: Vector3 in corners:
+			hull.append(corner - origin)
+			hull.append(corner - origin - Vector3.UP * depth)
+		shape.points = hull
+		var collision := CollisionShape3D.new()
+		collision.shape = shape
+		body.add_child(collision)
+		body.set_meta("road_deck", road_id)
+		body.set_meta("road_elevated", true)
+		chunk.add_child(body)
+	return result
+
+
+static func _ribbon_mitre(points: PackedVector2Array, index: int, fallback: Vector2) -> Vector2:
+	if index == 0 or index == points.size() - 1:
+		return fallback
+	var incoming := (points[index] - points[index - 1]).normalized()
+	var outgoing := (points[index + 1] - points[index]).normalized()
+	var normal := (Vector2(incoming.y, -incoming.x) + Vector2(outgoing.y, -outgoing.x)).normalized()
+	return normal / maxf(0.35, normal.dot(fallback))
+
+
+## Paint a triangular clear wedge, not a block over the ramp centre. Every
+## barrel reserves ALL nearby road footprints, including segment end caps.
+func _build_port_gore(chunk: Node3D, ramp: Dictionary, highway: Dictionary, port: Dictionary, exclusions: Array, junction_id: String) -> void:
+	var off := String(port["role"]) == "off"
+	var points: PackedVector2Array = ramp["pts"]
+	var total := 0.0
+	for i: int in range(points.size() - 1):
+		total += points[i].distance_to(points[i + 1])
+	var wedge: Array[Vector2] = []
+	for distance: float in [30.0, 65.0]:
+		var sample := _road_station(ramp, distance if off else total - distance)
+		var ramp_point: Vector2 = sample["pos"]
+		var projection := ProtoUSMap._project_road(highway, ramp_point)
+		var outward: Vector2 = (ramp_point - (projection["pos"] as Vector2)).normalized()
+		var inner: Vector2 = projection["pos"] + outward * (float(ProtoUSMap.road_geometry(highway)["width"]) * 0.5 + 0.5)
+		var outer := ramp_point - outward * (float(ProtoUSMap.road_geometry(ramp)["width"]) * 0.5 + 0.5)
+		if distance == 30.0:
+			wedge.append((inner + outer) * 0.5)
+		else:
+			wedge.append(inner)
+			wedge.append(outer)
+	var vertices := PackedVector3Array()
+	for point: Vector2 in wedge:
+		vertices.append(Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y) + 0.13, point.y))
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var paint := MeshInstance3D.new()
+	paint.mesh = mesh
+	var material := ProtoWorldBuilder.material(Color(0.82, 0.80, 0.74))
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	paint.material_override = material
+	paint.set_meta("road_port_gore", junction_id)
+	chunk.add_child(paint)
+	# Dark transverse gaps leave a chevron-like striped gore with reflector
+	# barrels in the protected wedge; no collision is removed to make it fit.
+	for distance: float in [35.0, 40.0, 45.0]:
+		var sample := _road_station(ramp, distance if off else total - distance)
+		var ramp_point: Vector2 = sample["pos"]
+		var projection := ProtoUSMap._project_road(highway, ramp_point)
+		var outward: Vector2 = (ramp_point - (projection["pos"] as Vector2)).normalized()
+		var inner: Vector2 = projection["pos"] + outward * float(ProtoUSMap.road_geometry(highway)["width"]) * 0.5
+		var outer := ramp_point - outward * float(ProtoUSMap.road_geometry(ramp)["width"]) * 0.5
+		var point := (inner + outer) * 0.5
+		if not _ruin_footprint_clear(Vector3(point.x, 0, point.y), Vector3(0.85, 0.9, 0.85), 0.0, exclusions):
+			continue
+		var barrel := ProtoWorldBuilder.box_body(chunk, Vector3(0.55, 0.9, 0.55), Vector3(point.x, 0.45, point.y), Color(0.85, 0.42, 0.08))
+		barrel.set_meta("gore_barrel", junction_id)
+		var stripe := ProtoWorldBuilder.box_visual(chunk, Vector3(maxf(0.4, inner.distance_to(outer) - 1.2), 0.03, 0.4),
+			Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y) + 0.16, point.y), ProtoWorldBuilder.COL_ROAD, atan2(-outward.y, outward.x))
+		stripe.set_meta("road_port_gore", junction_id)
+
+
 func _spawn_exit_sign(chunk: Node3D, e: Dictionary) -> void:
+	if String((e.get("interchange", {}) as Dictionary).get("layout", "")) == "diamond_v2":
+		return # Managed signs are built in their actual mouth chunks, not here.
 	var glyphs: Dictionary = {"service": "⛽", "neighborhood": "🏘️", "county_seat": "⚖️",
 		"industrial": "🏭", "metro": "🌆", "military_spur": "☢️", "dead": "🚫"}
 	var glyph: String = glyphs.get(String(e.get("archetype", "service")), "🛣️")
@@ -866,6 +1215,8 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		return
 	var rid := String(row["id"])
 	var g := ProtoUSMap.road_geometry(row)
+	var source: Dictionary = usmap.road_by_id(rid) if usmap != null else {}
+	var managed := String(source.get("interchange_id", "")) != ""
 	# Z-aligned slab → world yaw. M1 FIX: this was atan2(dir.x, -dir.y), which is
 	# the Z-REFLECTED yaw — invisible on axis-aligned roads and 180°-symmetric
 	# boxes, but every true DIAGONAL rendered (and collided!) mirrored across X.
@@ -977,6 +1328,9 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			slab_col = Color(0.42, 0.36, 0.27)
 		var slab2 := ProtoWorldBuilder.box_visual(chunk, Vector3(float(g["width"]), 0.05, seg_len + 6.0),
 			Vector3(mid.x, y + mid_h, mid.y), slab_col, rot, pitch)
+		if managed:
+			slab2.free()
+			slab2 = _road_ribbon(chunk, source, row, a, b, h0 + y, h1 + y, float(g["width"]), slab_col, 0.5, true)
 		slab2.set_meta("road_slab", rid)
 		if surface == "dirt":
 			# the twin ruts — the read that says "someone drives this, slowly"
@@ -1013,7 +1367,12 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		# or a dirt track (the SURFACE LAW's whole point).
 		if surface == "asphalt" or surface == "concrete":
 			var cl := ProtoWorldBuilder.box_visual(chunk, Vector3(0.35, 0.06, seg_len + 6.0),
-				Vector3(mid.x, y + mid_h + 0.02, mid.y), Color(0.75, 0.62, 0.18), rot, pitch)
+				Vector3(mid.x, y + mid_h + 0.02, mid.y),
+				Color(0.85, 0.85, 0.82) if bool(row.get("one_way", false)) else Color(0.75, 0.62, 0.18), rot, pitch)
+			if managed:
+				cl.free()
+				cl = _road_ribbon(chunk, source, row, a, b, h0 + y + 0.025, h1 + y + 0.025, 0.35,
+					Color(0.85, 0.85, 0.82) if bool(row.get("one_way", false)) else Color(0.75, 0.62, 0.18), 0.02)
 			cl.set_meta("road_center", rid)
 			for side_sgn: float in [1.0, -1.0]:
 				for k2 in range(1, int(g["per_side"])):
@@ -1026,8 +1385,8 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		var rail_lat := float(g["width"]) * 0.5 + 0.4
 		for sgn2: float in [1.0, -1.0]:
 			ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
-				Vector3(mid.x + perp.x * rail_lat * sgn2, 0.5, mid.y + perp.y * rail_lat * sgn2),
-				Color(0.35, 0.33, 0.30), rot)
+				Vector3(mid.x + perp.x * rail_lat * sgn2, y + mid_h + 0.5, mid.y + perp.y * rail_lat * sgn2),
+				Color(0.35, 0.33, 0.30), rot, pitch)
 		# GROUND_INTEGRITY rule 5 (BRIDGES ARE REAL DECKS): the paint was at
 		# y≈0.09 while the physical floor was the water box at −0.23 — cars
 		# crossed rivers sunk 30 cm through the visual. One deck body per
@@ -1037,11 +1396,11 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 			for dsgn: float in [1.0, -1.0]:
 				var doff: Vector2 = perp * deck_half * dsgn
 				var deck := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["carriage_w"]), 0.3, seg_len + 6.0),
-					Vector3(mid.x + doff.x, y + 0.025 - 0.15, mid.y + doff.y), ProtoWorldBuilder.COL_ROAD, rot)
+					Vector3(mid.x + doff.x, y + mid_h + 0.025 - 0.15, mid.y + doff.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
 				deck.set_meta("road_deck", rid)
-		else:
+		elif not managed: # managed ribbons already supply the matching physical deck
 			var deck1 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), 0.3, seg_len + 6.0),
-				Vector3(mid.x, y + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot)
+				Vector3(mid.x, y + mid_h + 0.025 - 0.15, mid.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
 			deck1.set_meta("road_deck", rid)
 	elif elevated:
 		# AN ELEVATED ROAD IS THE FLOOR (RACING_DESTRUCTION_SET P1 — the same law
@@ -1056,33 +1415,25 @@ func _build_road_stretch(chunk: Node3D, center: Vector3, row: Dictionary, key: S
 		var clr_b := h1 - ProtoWorldBuilder.ground_y(b.x, b.y)
 		var clr_mid := mid_h - ProtoWorldBuilder.ground_y(mid.x, mid.y)
 		var max_clr := maxf(maxf(clr_a, clr_b), clr_mid)
-		if max_clr > 0.8:
+		# Structure rows ALWAYS supply a physical pavement floor, including the
+		# .2-.8m approach gap that is too low for bridge hardware. Ground rows
+		# retain their terrain floor. Rails/pillars still need real clearance.
+		if not managed and (max_clr > 0.8 or String(row.get("elev_mode", "")) == "structure"):
 			var deck_thick := 0.5
 			var deck2 := ProtoWorldBuilder.box_body(chunk, Vector3(float(g["width"]), deck_thick, seg_len + 6.0),
 				Vector3(mid.x, y + mid_h - deck_thick * 0.5, mid.y), ProtoWorldBuilder.COL_ROAD, rot, pitch)
 			deck2.set_meta("road_deck", rid)
 			deck2.set_meta("road_elevated", true)
+		if max_clr > 0.8:
 			var rail_lat2 := float(g["width"]) * 0.5 + 0.4
 			for sgn3: float in [1.0, -1.0]:
 				var rail2 := ProtoWorldBuilder.box_body(chunk, Vector3(0.4, 1.0, seg_len + 6.0),
 					Vector3(mid.x + perp.x * rail_lat2 * sgn3, y + mid_h + 0.5, mid.y + perp.y * rail_lat2 * sgn3),
 					Color(0.35, 0.33, 0.30), rot, pitch)
 				rail2.set_meta("road_guard_rail", rid)
-			var n_pillars := int(seg_len / 30.0)
-			var pillar_lat := float(g["width"]) * 0.5 + 2.5 # STRADDLE the lanes — a
-			# dead-center pillar would be a wall in the driving line (caught by
-			# elevation_sim's own drive-up: the car stopped dead on the first one).
-			for pi2 in range(n_pillars):
-				var tt := (float(pi2) + 0.5) / maxf(float(n_pillars), 1.0)
-				var pp := a + dir * tt
-				var ph := lerpf(h0, h1, tt)
-				var pg := ProtoWorldBuilder.ground_y(pp.x, pp.y)
-				if ph - pg > 1.5:
-					for psgn: float in [1.0, -1.0]:
-						var pillar := ProtoWorldBuilder.box_body(chunk, Vector3(1.4, ph - pg, 1.4),
-							Vector3(pp.x + perp.x * pillar_lat * psgn, pg + (ph - pg) * 0.5, pp.y + perp.y * pillar_lat * psgn),
-							Color(0.32, 0.30, 0.28))
-						pillar.set_meta("road_pillar", rid)
+			_build_road_supports(chunk, center, row, a, b, float(g["width"]) * 0.5 + 2.5, y)
+	if managed and bool(row.get("one_way", false)):
+		_build_ramp_reflectors(chunk, center, source, a, b)
 	var rects: Array = ProtoWorldBuilder.extra_road_rects.get(key, [])
 	rects.append([mid.x, mid.y, float(g["width"]) * 0.5 + 1.0, seg_len * 0.5 + 3.0, rot,
 		String(row.get("surface", "asphalt"))]) # index 5: the grip surface (M3b 0.17)
@@ -1350,6 +1701,63 @@ func _build_roadside_strip(chunk: Node3D, a: Vector2, b: Vector2, width: float,
 		node.set_meta(tag,rid)
 
 
+## Reflector posts use global stations and actual row heights, not the gore
+## barrels. Their narrow bodies still reserve every road and authored footprint.
+func _build_ramp_reflectors(chunk: Node3D, center: Vector3, road: Dictionary, a: Vector2, b: Vector2) -> void:
+	var arc_a := float(ProtoUSMap._project_road(road, a)["arc_m"])
+	var arc_b := float(ProtoUSMap._project_road(road, b)["arc_m"])
+	var station := 25.0 + maxf(0.0, ceilf((arc_a - 25.0) / 50.0)) * 50.0
+	var key := "%d,%d" % [floori(center.x / CHUNK), floori(center.z / CHUNK)]
+	var exclusions := _ruin_exclusions(center, key)
+	while station < arc_b - 0.001:
+		var sample := _road_station(road, station)
+		var point: Vector2 = sample["pos"]
+		if floori(point.x / CHUNK) == floori(center.x / CHUNK) and floori(point.y / CHUNK) == floori(center.z / CHUNK):
+			var direction: Vector2 = sample["dir"]
+			var lateral := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 0.7
+			for side: float in [-1.0, 1.0]:
+				var foot := point + Vector2(-direction.y, direction.x) * lateral * side
+				if not _ruin_footprint_clear(Vector3(foot.x, 0, foot.y), Vector3(0.25, 1, 0.25), 0.0, exclusions):
+					continue
+				var ground := ProtoWorldBuilder.ground_y(foot.x, foot.y)
+				var top := maxf(ground, float(sample["height"])) + 0.9
+				var post := ProtoWorldBuilder.box_body(chunk, Vector3(0.12, top - ground, 0.12), Vector3(foot.x, (top + ground) * 0.5, foot.y), Color(0.76, 0.77, 0.72))
+				post.set_meta("road_reflector", road["id"])
+				var reflector := ProtoWorldBuilder.box_visual(post, Vector3(0.19, 0.22, 0.19), Vector3(0, (top - ground) * 0.5 - 0.18, 0), Color(0.96, 0.96, 0.80))
+				reflector.material_override = ProtoWorldBuilder.material(Color(0.96, 0.96, 0.80), 0.3, true)
+		station += 50.0
+
+
+## One global 30m station grid survives densification, reversed highways and
+## chunk clipping. A station belongs to its centreline chunk exactly once;
+## each offset foot meets its OWN terrain and avoids all underlying roads.
+func _build_road_supports(chunk: Node3D, center: Vector3, row: Dictionary, a: Vector2, b: Vector2, lateral: float, lift: float) -> void:
+	var rid := String(row["id"])
+	var road := usmap.road_by_id(rid)
+	var arc_a := float(ProtoUSMap._project_road(road, a)["arc_m"])
+	var arc_b := float(ProtoUSMap._project_road(road, b)["arc_m"])
+	var station := 15.0 + maxf(0.0, ceilf((arc_a - 15.0) / 30.0)) * 30.0
+	var key := "%d,%d" % [floori(center.x / CHUNK), floori(center.z / CHUNK)]
+	var exclusions := _ruin_exclusions(center, key, rid)
+	while station < arc_b - 0.001:
+		var sample := _road_station(road, station)
+		var point: Vector2 = sample["pos"]
+		if floori(point.x / CHUNK) == floori(center.x / CHUNK) and floori(point.y / CHUNK) == floori(center.z / CHUNK):
+			var direction: Vector2 = sample["dir"]
+			var perp := Vector2(-direction.y, direction.x)
+			for side: float in [-1.0, 1.0]:
+				var foot := point + perp * lateral * side
+				var floor_y := ProtoWorldBuilder.ground_y(foot.x, foot.y)
+				var underside := float(sample["height"]) + lift - 0.5
+				var height := underside - floor_y
+				if height <= 1.5 or not _ruin_footprint_clear(Vector3(foot.x, floor_y, foot.y), Vector3(1.8, height, 1.8), 0.0, exclusions):
+					continue
+				var pillar := ProtoWorldBuilder.box_body(chunk, Vector3(1.4, height, 1.4),
+					Vector3(foot.x, floor_y + height * 0.5, foot.y), Color(0.32, 0.30, 0.28))
+				pillar.set_meta("road_pillar", rid)
+		station += 30.0
+
+
 ## Clip the macro road segment a→b to this chunk's box (+margin). [] if outside.
 func _clip_segment_to_chunk(a: Vector2, b: Vector2, center: Vector3) -> Array:
 	var half := CHUNK * 0.5 + 6.0
@@ -1443,6 +1851,8 @@ static func veg(biome: String) -> Dictionary:
 
 func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: int, road: Dictionary, solid_count: int = 5, kind: String = "deciduous", row: Dictionary = {}) -> void:
 	var spots: Array[Vector3] = []
+	var key := "%d,%d" % [floori(center.x / CHUNK), floori(center.z / CHUNK)]
+	var exclusions := _ruin_exclusions(center, key)
 	var guard := 0
 	while spots.size() < count and guard < count * 8:
 		guard += 1
@@ -1451,6 +1861,11 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 			# Clearance follows the ROW's real width (a 6-lane clears further than a 2-lane).
 			if ProtoUSMap._seg_dist(Vector2(p.x, p.z), road["a"], road["b"]) < float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 3.0:
 				continue
+		# The nearest segment is not the only road in a streamed chunk. Reserve
+		# every road/port/placement before accepting BOTH visual and solid trees.
+		# This adds no random draws; keep the existing bounded rejection policy.
+		if not _ruin_footprint_clear(p, Vector3(0.5, 3.0, 0.5), 0.0, exclusions):
+			continue
 		spots.append(p)
 	if spots.is_empty():
 		return
@@ -1660,18 +2075,25 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 	var dir := (b - a).normalized()
 	var side := Vector2(dir.y, -dir.x) * (1.0 if rng.randf() < 0.5 else -1.0)
 	var half_w := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 # setback off the ROW's real edge
-	var base2 := Vector2(center.x, center.z) + side * (half_w + rng.randf_range(14.0, 22.0))
+	var road_center := Geometry2D.get_closest_point_to_segment(Vector2(center.x, center.z), a, b)
+	var base2 := road_center + side * (half_w + rng.randf_range(14.0, 22.0))
 	var n := rng.randi_range(4, 6)
+	var key := "%d,%d" % [floori(center.x / CHUNK), floori(center.z / CHUNK)]
+	var exclusions := _ruin_exclusions(center, key)
 	for i in n:
 		var hpos2 := base2 + dir * ((i - n / 2.0) * rng.randf_range(11.0, 14.0)) + side * rng.randf_range(-3, 5)
 		var hsize := Vector3(rng.randf_range(7, 10), rng.randf_range(3.5, 5), rng.randf_range(7, 9))
 		var hcol := ProtoWorldBuilder.COL_HOUSE_A if rng.randf() < 0.5 else ProtoWorldBuilder.COL_HOUSE_B
 		var hpos := Vector3(hpos2.x, 0, hpos2.y)
+		# Consume ALL existing RNG draws before rejecting a candidate, so later
+		# homes/scatter keep their deterministic sequence. Reserve the roof too.
+		if not _ruin_footprint_clear(hpos, hsize + Vector3(0.6, 0.0, 0.6), atan2(side.x, -side.y), exclusions):
+			continue
 		ProtoWorldBuilder.box_body(chunk, hsize, hpos + Vector3(0, hsize.y / 2.0, 0), hcol, atan2(side.x, -side.y))
 		ProtoWorldBuilder.box_body(chunk, Vector3(hsize.x + 0.6, 0.3, hsize.z + 0.6), hpos + Vector3(0, hsize.y + 0.15, 0), ProtoWorldBuilder.COL_ROOF, atan2(side.x, -side.y))
 		# driveway
-		ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.03, (base2 - Vector2(center.x, center.z)).length()),
-			Vector3(lerpf(hpos2.x, center.x + side.x * half_w, 0.5), 0.05, lerpf(hpos2.y, center.z + side.y * half_w, 0.5)),
+		ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.03, (base2 - road_center).length()),
+			Vector3(lerpf(hpos2.x, road_center.x + side.x * half_w, 0.5), 0.05, lerpf(hpos2.y, road_center.y + side.y * half_w, 0.5)),
 			Color(0.36, 0.32, 0.26), atan2(side.x, -side.y))
 	chunk.add_to_group("biome_neighborhood")
 
@@ -1688,7 +2110,7 @@ static func _ruin_street_rects(center: Vector3) -> Array:
 ## one nearest segment per road. The existing spatial index bounds country-scale
 ## work; a 128m search envelope covers the block's 48m offsets + rotated 14m boxes.
 ## Rect layout matches extra_road_rects: [x, z, half_x, half_z, Godot yaw].
-func _ruin_exclusions(center: Vector3, key: String) -> Array:
+func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "") -> Array:
 	var result: Array = []
 	var point := Vector2(center.x, center.z)
 	# Six-field entries are the macro road GRIP envelope (one metre wider than
@@ -1699,6 +2121,21 @@ func _ruin_exclusions(center: Vector3, key: String) -> Array:
 			result.append(rect)
 	if usmap == null or not usmap.ok:
 		return result
+	# Reserve each actual speed-change lane plus its one-metre safety verge
+	# BEFORE roadside rails/houses are generated, independent of chunk order.
+	for descriptor: Dictionary in usmap.exits:
+		if String((descriptor.get("interchange", {}) as Dictionary).get("layout", "")) != "diamond_v2" or (descriptor["pos"] as Vector2).distance_to(point) > 700.0:
+			continue
+		var highway := usmap.road_by_id(String(descriptor["highway_id"]))
+		for port: Dictionary in usmap.exit_ports(descriptor):
+			var side := float(port["side"])
+			for i: int in 15:
+				var distance := -145.0 + i * 10.0 if String(port["role"]) == "off" else 5.0 + i * 10.0
+				var sample := _road_station(highway, float(port["highway_arc_m"]) + distance * side)
+				var direction: Vector2 = (sample["dir"] as Vector2) * side
+				var p: Vector2 = sample["pos"] + Vector2(-direction.y, direction.x) * (float(ProtoUSMap.road_geometry(highway)["width"]) * 0.5 - 1.5)
+				if p.distance_to(point) <= CHUNK + 10.0:
+					result.append([p.x, p.y, 2.5, 5.1, atan2(direction.x, direction.y)])
 	# Predict the same crosses that _spawn_chunk will stamp later. Include the
 	# neighboring cells because corridor strips extend beyond chunk boundaries;
 	# reservations must not change with the streaming order. Fixture-only maps
@@ -1723,6 +2160,8 @@ func _ruin_exclusions(center: Vector3, key: String) -> Array:
 				candidates.append([ri, si])
 	for candidate: Array in candidates:
 		var road: Dictionary = usmap.roads[candidate[0]]
+		if String(road["id"]) == ignore_road_id:
+			continue
 		var points: PackedVector2Array = road["pts"]
 		var a: Vector2 = points[candidate[1]]
 		var b: Vector2 = points[candidate[1] + 1]
@@ -1812,9 +2251,22 @@ func _stamp_ruined_block(chunk: Node3D, center: Vector3, rng: RandomNumberGenera
 			var rr: Dictionary = ProtoContainer.roll_loot("cache_rare", rng)
 			for k in rr:
 				ruin[k] = int(ruin.get(k, 0)) + int(rr[k])
-		var c := ProtoChest.create("Ruin stash", ruin)
-		chunk.add_child(c)
-		c.position = center + Vector3(rng.randf_range(-30, 30), 0.05, rng.randf_range(-30, 30))
+		var stash_position := center + Vector3(rng.randf_range(-30, 30), 0.05, rng.randf_range(-30, 30))
+		# Preserve loot and original RNG draws. Search deterministic nearby
+		# plots for the solid chest instead of dropping it onto a travel lane.
+		var placed := false
+		for radius: float in [0.0, 4.0, 8.0, 12.0, 20.0, 28.0]:
+			for direction: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+				var candidate := stash_position + direction * radius
+				if not _ruin_footprint_clear(candidate, Vector3(1.5, 0.8, 1.1), 0.0, exclusions):
+					continue
+				var c := ProtoChest.create("Ruin stash", ruin)
+				chunk.add_child(c)
+				c.position = candidate
+				placed = true
+				break
+			if placed:
+				break
 
 
 ## A macro town materializes: welcome sign, husk blocks, a stash — and its

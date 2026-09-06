@@ -22,7 +22,6 @@ const RAMP_Z_HIGH := 11906.0  ## elev 8.0 end (the ramp's "b") — 120 m run, cl
 var passed := 0
 var failed := 0
 var main: Node3D
-var _orig_json := ""
 var _prev_time_scale := 1.0
 var t := 0.0
 var phase := 0
@@ -49,30 +48,25 @@ func _tagged(chunk: Node3D, tag: String, road_id: String = "") -> Array:
 	return out
 
 
-func _restore_map() -> void:
-	if _orig_json != "":
-		var f := FileAccess.open(MAP_PATH, FileAccess.WRITE)
-		f.store_string(_orig_json)
-		f.close()
-		_orig_json = ""
-
-
 func _ready() -> void:
 	print("ELEV: start")
+	var owned := ProjectSettings.globalize_path("res://../build/").replace("\\", "/").simplify_path().to_lower().trim_suffix("/") + "/"
+	if not OS.get_user_data_dir().replace("\\", "/").simplify_path().to_lower().begins_with(owned):
+		print("ELEV: REFUSED non-build profile")
+		get_tree().quit(2)
+		return
 	_prev_time_scale = Engine.time_scale
 	get_tree().create_timer(100.0).timeout.connect(func() -> void:
 		print("ELEV: WATCHDOG")
-		_restore_map()
 		Engine.time_scale = _prev_time_scale
 		print("ELEV: FAILURES PRESENT")
 		get_tree().quit(1))
 
-	# === 1. Inject a synthetic elevated road INTO THE REAL MAP FILE, boot the ===
-	# === game so the singleton loads it, then restore the file immediately. ===
+	# Fold an owned disposable fixture BEFORE main boots. The live map is READ ONLY.
 	var f := FileAccess.open(MAP_PATH, FileAccess.READ)
-	_orig_json = f.get_as_text()
+	var original_json := f.get_as_text()
 	f.close()
-	var data: Dictionary = JSON.parse_string(_orig_json)
+	var data: Dictionary = JSON.parse_string(original_json)
 	var test_road := {
 		"id": TEST_ROAD_ID, "kind": "interstate", "lanes": 2, "divided": false,
 		"surface": "asphalt", "danger": 0,
@@ -80,13 +74,22 @@ func _ready() -> void:
 		"elev": [0.0, 8.0],
 	}
 	(data["roads"] as Array).append(test_road)
-	var wf := FileAccess.open(MAP_PATH, FileAccess.WRITE)
+	(data["roads"] as Array).append({"id": "ELEVSIM-BARE", "kind": "street", "pts": [[90000,90000],[90100,90000],[90200,90000]]})
+	var wf := FileAccess.open("user://elevation-fixture.json", FileAccess.WRITE)
 	wf.store_string(JSON.stringify(data))
 	wf.close()
+	var fixture := ProtoUSMap.new()
+	_check("owned synthetic fixture folds through real loader", fixture.load_file("user://elevation-fixture.json"))
+	if not fixture.ok:
+		get_tree().quit(1)
+		return
+	ProtoUSMap._instance = fixture
+	ProtoWorldBuilder.usmap = fixture
+	ProtoWorldBuilder._deck_zones_built = false
+	ProtoWorldBuilder._deck_zones = PackedVector2Array()
 
 	main = (load("res://proto3d/proto3d.tscn") as PackedScene).instantiate()
-	add_child(main) # ProtoMain._ready() calls stream.setup() synchronously -> the singleton reads our modified file HERE
-	_restore_map() # the file is back to its original bytes before anything else can touch it
+	add_child(main)
 	for _i in 8:
 		await get_tree().process_frame
 
@@ -106,11 +109,6 @@ func _ready() -> void:
 	_check("elev[1] == 8.0 (the high end)", is_equal_approx(elev[1], 8.0))
 	# 1A NOTE: real map roads now CARRY baked relief elev (the country climbs), so
 	# the no-elev fold law is proven on a SYNTHETIC row instead of I-95.
-	usmap.roads.append({"id": "ELEVSIM-BARE", "kind": "street",
-		"pts": PackedVector2Array([Vector2(90000, 90000), Vector2(90100, 90000), Vector2(90200, 90000)]),
-		"elev": PackedFloat32Array([0.0, 0.0, 0.0]),
-		"danger": 0, "family": "", "nickname": "", "toll": 0, "side": 0,
-		"surface": "asphalt", "leads_to": {}, "lanes": 2, "divided": false})
 	var bare_road: Dictionary = usmap.road_by_id("ELEVSIM-BARE")
 	_check("a road with NO elev field at all still folds (defaults to flat)",
 		not bare_road.is_empty() and (bare_road["elev"] as PackedFloat32Array).size() == (bare_road["pts"] as PackedVector2Array).size())

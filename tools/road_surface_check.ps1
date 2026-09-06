@@ -1,11 +1,15 @@
 # Isolated real-scene road surface regression and optional actual GPU captures.
 [CmdletBinding()]
-param([switch]$Capture,[ValidateSet('road_surface_sim','roadside_clearance_sim','ramp_profile_sim','city_exit_sim','road_lane_sim','runtime_road_clearance_sim','elevation_sim','terrain_relief_sim','exit_geometry_sim','junction_bake_sim','junction_law_sim','exit_blueprint_sim','town_grid_sim','roadside_band_sim','traffic_sim','interchange_ports_sim','atlas_readability_sim','nav_walk_sim')][string]$Scene='road_surface_sim')
+param([switch]$Capture,[ValidateSet('road_surface_sim','roadside_clearance_sim','ramp_profile_sim','city_exit_sim','road_lane_sim','runtime_road_clearance_sim','elevation_sim','terrain_relief_sim','exit_geometry_sim','junction_bake_sim','junction_law_sim','exit_blueprint_sim','town_grid_sim','roadside_band_sim','traffic_sim','interchange_ports_sim','interchange_drive_sim','atlas_readability_sim','nav_walk_sim')][string]$Scene='road_surface_sim',
+    [ValidateSet('I-90_X11-off','I-90_X11-off-r','I-90_X11-on','I-90_X11-on-r')][string]$Route='I-90_X11-off')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if($PSVersionTable.PSVersion.Major -lt 7){throw 'PowerShell 7 required'}
-if($Capture -and $Scene -notin @('road_surface_sim','roadside_clearance_sim','ramp_profile_sim')){throw 'Capture requires a road surface scene'}
+if($Capture -and $Scene -notin @('road_surface_sim','roadside_clearance_sim','ramp_profile_sim','interchange_drive_sim')){throw 'Capture requires a road surface or input-drive scene'}
+if($PSBoundParameters.ContainsKey('Route') -and $Scene -ne 'interchange_drive_sim'){throw 'Route applies only to interchange_drive_sim'}
 $checkout=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$mapPath=Join-Path $checkout 'game/data/usmap.json'
+$mapBefore=(Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash
 $build=Join-Path $checkout 'build'
 $run=Join-Path $build ('road-surface-'+[guid]::NewGuid().ToString('N'))
 for($path=$run;$path;$path=Split-Path -Parent $path){
@@ -18,11 +22,14 @@ $engine='C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_conso
 $arguments=@('--path',(Join-Path $checkout 'game'),'--audio-driver','Dummy','--max-fps','60')
 if($Capture){$arguments+=@('--rendering-method','gl_compatibility','--resolution','1280x720')}else{$arguments+='--headless'}
 $arguments+="res://proto3d/tests/$Scene.tscn"
-if($Capture){$arguments+=@('--',('--output='+(Join-Path $run 'captures')))}
-$record=@{scene=$Scene;engine=$engine;arguments=$arguments;APPDATA=$app;LOCALAPPDATA=$local;pid=0;exited=$false;exit_code=$null;timed_out=$false}
+if($Capture -or $Scene -eq 'interchange_drive_sim'){$arguments+='--'}
+if($Capture){$arguments+=('--output='+(Join-Path $run 'captures'))}
+if($Scene -eq 'interchange_drive_sim'){$arguments+="--route=$Route"}
+$wallBudget=if($Capture -and $Scene -eq 'interchange_drive_sim'){360}else{180}
+$record=@{scene=$Scene;route=$Route;engine=$engine;arguments=$arguments;APPDATA=$app;LOCALAPPDATA=$local;map_sha_before=$mapBefore;map_sha_after=$null;pid=0;exited=$false;exit_code=$null;timed_out=$false;wall_budget_s=$wallBudget;wall_elapsed_s=$null}
 $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'environment.json')
 $out=Join-Path $run 'stdout.log';$err=Join-Path $run 'stderr.log'
-$oldA=$env:APPDATA;$oldL=$env:LOCALAPPDATA;$process=$null
+$oldA=$env:APPDATA;$oldL=$env:LOCALAPPDATA;$process=$null;$watch=$null
 try{
     $env:APPDATA=$app;$env:LOCALAPPDATA=$local
     if($env:APPDATA -cne $app -or $env:LOCALAPPDATA -cne $local){throw 'Explicit isolation missing'}
@@ -32,15 +39,18 @@ try{
     $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'environment.json')
     $watch=[Diagnostics.Stopwatch]::StartNew()
     while(-not $process.WaitForExit(1000)){
-        if($watch.Elapsed.TotalSeconds -gt 180){$record.timed_out=$true;throw 'Owned engine timed out'}
+        if($watch.Elapsed.TotalSeconds -gt $wallBudget){$record.timed_out=$true;throw 'Owned engine timed out'}
     }
 }finally{
     $env:APPDATA=$oldA;$env:LOCALAPPDATA=$oldL
     if($null -ne $process){
         if(-not $process.HasExited){$process.Kill($true);if(-not $process.WaitForExit(5000)){throw 'Owned engine cleanup failed'}}
         $record.exited=$process.HasExited;$record.exit_code=$process.ExitCode
+        if($null -ne $watch){$record.wall_elapsed_s=$watch.Elapsed.TotalSeconds}
+        $record.map_sha_after=(Get-FileHash -LiteralPath $mapPath -Algorithm SHA256).Hash
         $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $run 'result.json')
         $process.Dispose()
+        if($record.map_sha_after -cne $mapBefore){throw 'Live map bytes changed during isolated test; evidence retained, no restoration attempted'}
     }
     Write-Output "Evidence: $run"
 }

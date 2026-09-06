@@ -37,6 +37,17 @@ static var TRAFFIC: Dictionary = {
 	"vanish_r_min": 240.0,   # NEVER dissolve inside this of the player — arrivals PARK instead
 	"trip_chance": 1.0,      # share of ambient spawns given a DESTINATION exit ahead (owner: every car is going somewhere)
 	"convoy_chance": 0.18,   # share of ambient spawns that are CONVOYS (balance 2026-07-08: 0.25 read as a parade)
+	"pull_over_approach_m": 80.0,
+	"pull_over_station_1_m": 55.0,
+	"pull_over_station_2_m": 40.0,
+	"pull_over_station_3_m": 25.0,
+	"pull_over_offset_1_m": 5.0,
+	"pull_over_offset_2_m": 8.0,
+	"pull_over_offset_3_m": 11.0,
+	"pull_over_retry_s": 2.0,
+	"pull_over_speed_mps": 5.0,
+	"pull_over_max_grade": 0.06,
+	"pull_over_max_curb_drop_m": 0.10,
 }
 static var _folded: bool = false
 
@@ -96,6 +107,10 @@ class TrafficAgent extends AnimatableBody3D:
 	## the whole convoy real. cargo names the loot the trucks actually haul.
 	var convoy_id: String = ""
 	var cargo: String = ""
+	var _connection: Dictionary = {} # bounded lane-to-lane motion, never a snap
+	var _parking: Dictionary = {} # validated target + final road-aligned yaw
+	var _parking_retry: float = 0.0
+	var _parking_curb_used: bool = false # trip state: retries/previews cannot replenish it
 
 	func take_damage(amount: float) -> void:
 		if traffic != null:
@@ -140,7 +155,13 @@ func _tick(delta: float) -> void:
 		group.sort_custom(func(x, y): return _travel_arc(x) < _travel_arc(y))
 		for i in group.size():
 			var ag: TrafficAgent = group[i]
-			var leader: TrafficAgent = group[i + 1] if i + 1 < group.size() else null
+			var leader: TrafficAgent = null
+			for ahead: int in range(i+1,group.size()):
+				var candidate: TrafficAgent = group[ahead]
+				if _managed_parked_clear(candidate):
+					continue # its real body is outside every road, not a lane leader
+				leader = candidate
+				break
 			_advance(ag, delta, leader)
 
 
@@ -161,8 +182,20 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		despawn_agent(ag)
 		return
 	var pts: PackedVector2Array = road["pts"]
+	var managed := _managed_exit(road)
+	if not managed.is_empty() and ag.dest_exit_id == "":
+		ag.dest_exit_id = String(managed["id"])
+	if not managed.is_empty() and ag.arrived:
+		_finish_managed_arrival(ag)
+		return
+	var connecting := not ag._connection.is_empty()
+	var parking := not connecting and not managed.is_empty() and _final_approach(ag,road,managed)
+	if parking:
+		_prepare_parking(ag,road,delta)
 	# --- the following law: leader agent, or the PLAYER's car projected in-lane
 	var desired := ag.cruise
+	if parking:
+		desired = minf(desired,float(TRAFFIC["pull_over_speed_mps"])) if not ag._parking.is_empty() else 0.0
 	var lead_arc := 1e18
 	var lead_speed := 0.0
 	if leader != null:
@@ -189,6 +222,12 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 			and pcar != null and main != null and "audio" in main and main.audio != null:
 		_honk_t = HONK_COOLDOWN_S
 		main.audio.play_at("horn", ag.global_position, -4.0)
+	if connecting:
+		_step_connection(ag,delta)
+		return
+	if parking and ag.speed<=float(TRAFFIC["pull_over_speed_mps"])+0.001 and (not ag._parking.is_empty() or ag.speed<=0.001):
+		_step_parking(ag,road,delta)
+		return
 	# --- exits: the only doors off the highway (roll once per exit approach)
 	_maybe_take_exit(ag, road)
 	if not is_instance_valid(ag):
@@ -204,12 +243,18 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		var seg_len := a2.distance_to(b2)
 		if ag.s_ab > seg_len and ag.dir > 0:
 			if ag.seg_i + 1 >= pts.size() - 1:
+				if not managed.is_empty():
+					_connect_managed(ag,road,managed,delta)
+					return
 				_arrive(ag) # the road ended under it — it got where it was going
 				return
 			ag.s_ab -= seg_len
 			ag.seg_i += 1
 		elif ag.s_ab < 0.0 and ag.dir < 0:
 			if ag.seg_i <= 0:
+				if not managed.is_empty():
+					_connect_managed(ag,road,managed,delta)
+					return
 				_arrive(ag)
 				return
 			ag.seg_i -= 1
@@ -224,24 +269,365 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		if ProtoWorldStream.AUTHORED.grow(8.0).has_point(nxt):
 			_arrive(ag)
 			return
-	_place(ag, road)
+	if not managed.is_empty():
+		var target := _lane_position(road,ag.seg_i,ag.s_ab,ag.dir,ag.lane)
+		# Lane offsets at a sharp polyline vertex need a physical transition too.
+		ag._connection = {"road":ag.road_id,"seg":ag.seg_i,"s":ag.s_ab,"dir":ag.dir,"target":target}
+		_step_connection(ag,delta)
+	else:
+		_place(ag, road)
 
 
 ## World placement: centerline point + the geometry law's lane offset on the
 ## RIGHT of travel; yaw faces travel. The paint and the traffic can't disagree —
 ## they read the same row.
 func _place(ag: TrafficAgent, road: Dictionary) -> void:
+	ag.global_position = _lane_position(road,ag.seg_i,ag.s_ab,ag.dir,ag.lane)
 	var pts: PackedVector2Array = road["pts"]
-	var a2: Vector2 = pts[ag.seg_i]
-	var b2: Vector2 = pts[ag.seg_i + 1]
+	var heading := (pts[ag.seg_i+1]-pts[ag.seg_i]).normalized()*float(ag.dir)
+	ag.rotation.y = atan2(-heading.x,-heading.y)
+
+
+func _lane_position(road: Dictionary, segment: int, station: float, direction: int, lane: int) -> Vector3:
+	var pts: PackedVector2Array = road["pts"]
+	var a2: Vector2 = pts[segment]
+	var b2: Vector2 = pts[segment + 1]
 	var d := (b2 - a2).normalized()
-	var heading := d * float(ag.dir)
+	var heading := d * float(direction)
 	var right := Vector2(-heading.y, heading.x)
-	var lat := right * ProtoUSMap.lane_offset(road, ag.lane)
-	var p := a2 + d * ag.s_ab + lat
+	var lat := right * ProtoUSMap.lane_offset(road, lane)
+	var p := a2 + d * station + lat
 	var y := ProtoWorldBuilder.ground_y(p.x, p.y) + 0.62
-	ag.global_position = Vector3(p.x, y, p.y)
-	ag.rotation.y = atan2(-heading.x, -heading.y) # -Z forward, same as every rig here
+	if not _managed_exit(road).is_empty() and String(road.get("elev_mode",""))=="structure":
+		y = ProtoUSMap.elev_at(road,float(_cum(road)[segment])+station)+0.09+0.62
+	return Vector3(p.x,y,p.y)
+
+
+## Managed rows are an owned trip, not a general town-routing graph. Only
+## declared connectors whose endpoints actually meet may advance that trip.
+func _managed_exit(road: Dictionary) -> Dictionary:
+	var owner := String(road.get("interchange_id",""))
+	if owner=="":
+		return {}
+	for exit_row: Dictionary in usmap.exits:
+		if String(exit_row["id"])!=owner or String((exit_row.get("interchange",{}) as Dictionary).get("layout",""))!="diamond_v2":
+			continue
+		if String(road.get("ramp_role",""))=="off" or (exit_row.get("connector_ids",[]) as Array).has(String(road["id"])):
+			return exit_row
+	return {}
+
+
+func _connect_managed(ag: TrafficAgent, road: Dictionary, exit_row: Dictionary, delta: float) -> void:
+	var points: PackedVector2Array = road["pts"]
+	var endpoint: Vector2 = points[-1] if ag.dir>0 else points[0]
+	var destination: Vector2 = exit_row["dest"]
+	var best_distance := endpoint.distance_to(destination)
+	var next: Dictionary = {}
+	for id: String in exit_row.get("connector_ids",[]):
+		if id==ag.road_id:
+			continue
+		var candidate := _road(id)
+		if candidate.is_empty() or String(candidate.get("interchange_id",""))!=String(exit_row["id"]):
+			continue
+		var pts: PackedVector2Array = candidate["pts"]
+		for direction: int in [1,-1]:
+			if direction<0 and bool(candidate.get("one_way",false)):
+				continue
+			var start: Vector2 = pts[0] if direction>0 else pts[-1]
+			var finish: Vector2 = pts[-1] if direction>0 else pts[0]
+			if endpoint.distance_to(start)>0.25 or finish.distance_to(destination)>=best_distance-0.01:
+				continue
+			var segment := 0 if direction>0 else pts.size()-2
+			var station := 0.0 if direction>0 else pts[segment].distance_to(pts[segment+1])
+			best_distance = finish.distance_to(destination)
+			next = {"road":id,"seg":segment,"s":station,"dir":direction,"target":_lane_position(candidate,segment,station,direction,0)}
+	if next.is_empty():
+		# Invalid/disconnected managed data is not permission to invent a street
+		# or declare arrival. Leave the actor visible and its trip unresolved.
+		ag.speed = 0.0
+		ag.s_ab = clampf(ag.s_ab,0.0,points[ag.seg_i].distance_to(points[ag.seg_i+1]))
+		return
+	ag._connection = next
+	_step_connection(ag,delta)
+
+
+func _step_connection(ag: TrafficAgent, delta: float) -> void:
+	var target: Vector3 = ag._connection["target"]
+	var before := ag.global_position
+	ag.global_position = before.move_toward(target,ag.speed*delta)
+	var motion := ag.global_position-before
+	if Vector2(motion.x,motion.z).length_squared()>0.000001:
+		ag.rotation.y = atan2(-motion.x,-motion.z)
+	if ag.global_position.distance_to(target)>0.005:
+		return
+	ag.road_id = String(ag._connection["road"])
+	ag.seg_i = int(ag._connection["seg"])
+	ag.s_ab = float(ag._connection["s"])
+	ag.dir = int(ag._connection["dir"])
+	ag.lane = 0
+	ag._connection.clear()
+
+
+func _final_approach(ag: TrafficAgent, road: Dictionary, exit_row: Dictionary) -> bool:
+	var points: PackedVector2Array = road["pts"]
+	var end: Vector2 = points[-1] if ag.dir>0 else points[0]
+	return end.distance_to(exit_row["dest"])<0.25 and float(_cum(road)[-1])-_travel_arc(ag)<=float(TRAFFIC["pull_over_approach_m"])
+
+
+func _parking_size(ag: TrafficAgent) -> Vector3:
+	var size := Vector3(1.9,1.2,CAR_LEN)
+	for child: Node in ag.get_children():
+		if child is CollisionShape3D and child.shape is BoxShape3D:
+			var actual: Vector3 = child.shape.size
+			size = Vector3(maxf(size.x,actual.x),maxf(size.y,actual.y),maxf(size.z,actual.z))
+	for id: String in ["scavenger","pickup","van"]:
+		var actual: Vector3 = ProtoCar3D.VEHICLES[id]["chassis"]
+		size = Vector3(maxf(size.x,actual.x),maxf(size.y,actual.y),maxf(size.z,actual.z))
+	return size+Vector3(1,0,1)
+
+
+func _prepare_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
+	if main==null or not ("stream" in main) or main.stream==null:
+		return
+	if not ag._parking.is_empty():
+		return
+	ag._parking_retry = maxf(0.0,ag._parking_retry-delta)
+	if ag._parking_retry>0:
+		return
+	ag._parking_retry = float(TRAFFIC["pull_over_retry_s"])
+	var cumulative := _cum(road)
+	var points: PackedVector2Array = road["pts"]
+	var total: float = cumulative[-1]
+	var size := _parking_size(ag)
+	for station_index: int in range(1,4):
+		var upstream := float(TRAFFIC["pull_over_station_%d_m" % station_index])
+		var arc := total-upstream if ag.dir>0 else upstream
+		if arc<0 or arc>total:
+			continue
+		var segment := 0
+		while segment+1<cumulative.size()-1 and cumulative[segment+1]<arc:
+			segment += 1
+		var heading := (points[segment+1]-points[segment]).normalized()*float(ag.dir)
+		var yaw := atan2(-heading.x,-heading.y)
+		var right := Vector2(-heading.y,heading.x)
+		var lane := _lane_position(road,segment,arc-cumulative[segment],ag.dir,ag.lane)
+		var center := Vector2(lane.x,lane.z)-right*ProtoUSMap.lane_offset(road,ag.lane)
+		for offset_index: int in range(1,4):
+			var offset := float(ProtoUSMap.road_geometry(road)["width"])*0.5+float(TRAFFIC["pull_over_offset_%d_m" % offset_index])
+			var p := center+right*offset
+			var guess := Vector3(p.x,lane.y,p.y)
+			var key := "%d,%d" % [floori(p.x/128.0),floori(p.y/128.0)]
+			var plot_exclusions: Array = main.stream._ruin_exclusions(guess,key)
+			var entry_exclusions: Array = main.stream._ruin_exclusions(guess,key,ag.road_id)
+			var plot := _parking_sample(ag,guess,yaw,size,plot_exclusions)
+			if plot.is_empty():
+				continue
+			var target: Vector3 = plot["position"]
+			if not _parking_entry_clear(ag,ag.global_position,target,size,entry_exclusions):
+				continue
+			ag._parking = {"target":target,"yaw":yaw,"size":size,"plot_exclusions":plot_exclusions,"entry_exclusions":entry_exclusions,"started":false}
+			return
+
+
+## The footprint and the complete entry corridor require actual loaded floors.
+## Only the subject RID is excluded from supporting-floor rays; the body query
+## retains every collider and distinguishes the subject by exact identity.
+func _parking_sample(ag: TrafficAgent, guess: Vector3, yaw: float, size: Vector3, exclusions: Array) -> Dictionary:
+	if not ProtoWorldStream._ruin_footprint_clear(guess,size,yaw,exclusions):
+		return {}
+	var basis := Basis(Vector3.UP,yaw)
+	var floor_y := 0.0
+	var center_support: Dictionary = {}
+	var grade := float(TRAFFIC["pull_over_max_grade"])
+	var offsets: Array[Vector3] = [Vector3.ZERO,Vector3(-size.x/2,0,-size.z/2),Vector3(size.x/2,0,-size.z/2),Vector3(size.x/2,0,size.z/2),Vector3(-size.x/2,0,size.z/2)]
+	for local: Vector3 in offsets:
+		var point := guess+basis*local
+		var hit := _parking_floor(ag,point)
+		if hit.is_empty():
+			return {}
+		var height: float = hit["position"].y
+		if local==Vector3.ZERO:
+			floor_y = height
+			center_support = hit
+		elif absf(height-floor_y)>local.length()*grade+0.02:
+			return {}
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(size.x,maxf(2.2,size.y),size.z)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(basis,Vector3(guess.x,floor_y+0.25+shape.size.y/2,guess.z))
+	query.collision_mask = 1
+	for hit: Dictionary in get_world_3d().direct_space_state.intersect_shape(query,64):
+		if hit["collider"]!=ag:
+			return {}
+	return {"position":Vector3(guess.x,floor_y+0.62,guess.z),"support":center_support}
+
+
+func _parking_floor(ag: TrafficAgent, guess: Vector3) -> Dictionary:
+	var ray := PhysicsRayQueryParameters3D.create(guess+Vector3.UP,guess-Vector3.UP*2,1)
+	ray.exclude = [ag.get_rid()]
+	var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(ray)
+	if hit.is_empty() or (hit["normal"] as Vector3).y<cos(atan(float(TRAFFIC["pull_over_max_grade"]))):
+		return {}
+	return hit
+
+
+## Return -1 for an unsafe transition, otherwise the number of curb boundaries.
+## A coarse interval's average grade can conceal a step. Refine only changes
+## of physical support or departures from the measured supporting planes;
+## ordinary continuous <=6% slopes retain the original grade law.
+func _parking_floor_transition(ag: TrafficAgent, before: Dictionary, after: Dictionary, depth: int = 0) -> int:
+	var a: Vector3 = before["position"]
+	var b: Vector3 = after["position"]
+	var delta := b-a
+	var horizontal := Vector2(delta.x,delta.z).length()
+	var grade := float(TRAFFIC["pull_over_max_grade"])
+	var ordinary := absf(delta.y)<=horizontal*grade+0.02
+	var na: Vector3 = before["normal"]
+	var nb: Vector3 = after["normal"]
+	var rise_a := -(na.x*delta.x+na.z*delta.z)/na.y
+	var rise_b := -(nb.x*delta.x+nb.z*delta.z)/nb.y
+	var same_plane := absf(delta.y-rise_a)<=0.02 and absf(delta.y-rise_b)<=0.02
+	if ordinary and same_plane and before["collider"]==after["collider"]:
+		return 0
+	if horizontal>0.04 and depth<10:
+		var middle := _parking_floor(ag,(a+b)*0.5+Vector3.UP*0.62)
+		if middle.is_empty():
+			return -1
+		var first := _parking_floor_transition(ag,before,middle,depth+1)
+		if first<0:
+			return -1
+		var second := _parking_floor_transition(ag,middle,after,depth+1)
+		return -1 if second<0 or first+second>1 else first+second
+	if ordinary:
+		return 0
+	# The ray endpoints identify the real serving hull's edge: the first is
+	# supported by that pavement and the second by lower non-road shoulder.
+	# Rightward/outboard geometry rules out its terminal cap or an inward step.
+	var serving := before["collider"] as Node
+	var shoulder := after["collider"] as Node
+	if not is_instance_valid(serving) or not is_instance_valid(shoulder):
+		return -1
+	if String(serving.get_meta("road_deck",""))!=ag.road_id or String(shoulder.get_meta("road_deck",""))!="":
+		return -1
+	if delta.y>=0.0 or -delta.y>float(TRAFFIC["pull_over_max_curb_drop_m"]):
+		return -1
+	var road := _road(ag.road_id)
+	var points: PackedVector2Array = road["pts"]
+	var projection := _arc_of(road,Vector2(a.x,a.z))
+	var segment := int(projection["seg"])
+	var direction := (points[segment+1]-points[segment]).normalized()
+	var right := Vector2(-direction.y,direction.x)*float(ag.dir)
+	var center := points[segment]+direction*float(projection["s_ab"])
+	var half_width := float(ProtoUSMap.road_geometry(road)["width"])*0.5
+	if (Vector2(a.x,a.z)-center).dot(right)<half_width-horizontal-0.02 or Vector2(delta.x,delta.z).dot(right)<=0.0:
+		return -1
+	return 1
+
+
+func _parking_entry_clear(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array) -> bool:
+	return not _parking_entry_path(ag,start,finish,size,exclusions).is_empty()
+
+
+## Validation is read-only. Only a successfully committed motion step spends
+## the single curb allowance; full-path previews and failed retries never do.
+func _parking_entry_path(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array) -> Dictionary:
+	var delta := finish-start
+	var length := Vector2(delta.x,delta.z).length()
+	var yaw := atan2(-delta.x,-delta.z)
+	var count := maxi(1,ceili(length/2.0))
+	var sweep_size := size+Vector3(0,0,length/float(count))
+	# Grade is a relation between supporting floors, not the chassis's residual
+	# ride height while its bounded motion follows a pavement/shoulder change.
+	# Validate the complete starting footprint too; never skip an unsafe step.
+	var start_support := _parking_sample(ag,start,yaw,size,exclusions)
+	if start_support.is_empty():
+		return {}
+	var previous: Dictionary = start_support["support"]
+	var curbs := 0
+	for step: int in range(1,count+2):
+		# Include the true endpoint so a committed step cannot cross a boundary
+		# beyond its last midpoint without recording consumption.
+		var point := finish if step>count else start.lerp(finish,(float(step)-0.5)/float(count))
+		var sample := _parking_sample(ag,point,yaw,sweep_size,exclusions)
+		if sample.is_empty():
+			return {}
+		var boundary := _parking_floor_transition(ag,previous,sample["support"])
+		if boundary<0:
+			return {}
+		curbs += boundary
+		if curbs+int(ag._parking_curb_used)>1:
+			return {}
+		previous = sample["support"]
+	return {"curb":curbs>0}
+
+
+func _step_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
+	if ag._parking.is_empty():
+		# No safe site: decelerate without consuming the remaining road into the
+		# destination junction. Search stays bounded and retries on its own clock.
+		return
+	var target: Vector3 = ag._parking["target"]
+	var size: Vector3 = ag._parking["size"]
+	var yaw := float(ag._parking["yaw"])
+	if not bool(ag._parking["started"]):
+		# The actor may have coasted while braking to its pull-over speed. Check
+		# the complete entry again from its actual departure pose, not the old one.
+		if not _parking_entry_clear(ag,ag.global_position,target,size,ag._parking["entry_exclusions"]):
+			ag._parking.clear()
+			ag.speed = 0.0
+			ag._parking_retry = float(TRAFFIC["pull_over_retry_s"])
+			return
+		ag._parking["started"] = true
+	var next := ag.global_position.move_toward(target,ag.speed*delta)
+	var heading := target-ag.global_position
+	var travel_yaw := atan2(-heading.x,-heading.z) if Vector2(heading.x,heading.z).length_squared()>0.000001 else yaw
+	var support := _parking_sample(ag,next,travel_yaw,size,ag._parking["entry_exclusions"])
+	var plot := _parking_sample(ag,target,yaw,size,ag._parking["plot_exclusions"])
+	if not support.is_empty():
+		next = ag.global_position.move_toward(support["position"],ag.speed*delta)
+	var entry: Dictionary = {}
+	if not support.is_empty() and not plot.is_empty():
+		entry = _parking_entry_path(ag,ag.global_position,next,size,ag._parking["entry_exclusions"])
+	if entry.is_empty():
+		ag._parking.clear()
+		ag.speed = 0.0
+		ag._parking_retry = float(TRAFFIC["pull_over_retry_s"])
+		return
+	var motion := next-ag.global_position
+	if Vector2(motion.x,motion.z).length_squared()>0.000001:
+		ag.rotation.y = atan2(-motion.x,-motion.z)
+	if bool(entry["curb"]):
+		ag._parking_curb_used = true
+	ag.global_position = next
+	var projection := _arc_of(road,Vector2(next.x,next.z))
+	ag.seg_i = int(projection["seg"])
+	ag.s_ab = float(projection["s_ab"])
+	if next.distance_to(target)<=0.005:
+		ag.rotation.y = yaw
+		ag.arrived = true
+		ag.speed = 0.0
+		ag.cruise = 0.0
+		_finish_managed_arrival(ag)
+
+
+## Arrival flags alone cannot exempt a body: the actual current full footprint
+## must still be a supported, clear managed plot outside the road reservations.
+func _managed_parked_clear(ag: TrafficAgent) -> bool:
+	if not ag.arrived or ag._parking.is_empty() or _managed_exit(_road(ag.road_id)).is_empty():
+		return false
+	return not _parking_sample(ag,ag.global_position,ag.rotation.y,_parking_size(ag),ag._parking["plot_exclusions"]).is_empty()
+
+
+func _finish_managed_arrival(ag: TrafficAgent) -> void:
+	if not _managed_parked_clear(ag):
+		return
+	if ag.global_position.distance_to(_anchor())>=float(TRAFFIC["vanish_r_min"]):
+		despawn_agent(ag)
+	elif _promoted.size()<int(TRAFFIC["promote_cap"]) and main!=null:
+		# Arrival is individual: convoy followers still need their own validated
+		# plots. Touch promotion keeps its existing chain and cargo behavior.
+		promote(ag,0.0,true,false)
 
 
 ## The agent's centerline point (2D) — where its lane math anchors this frame.
@@ -270,7 +656,7 @@ func _car_ahead(ag: TrafficAgent) -> Node3D:
 	var best: Node3D = null
 	var best_arc := 1e18
 	for c in main.cars:
-		if not (c is Node3D) or not is_instance_valid(c):
+		if not is_instance_valid(c) or not (c is Node3D):
 			continue
 		var car := c as Node3D
 		if car.global_position.distance_to(ag.global_position) > 90.0:
@@ -570,6 +956,10 @@ func promote(ag: Node3D, dmg: float = 0.0, parked: bool = false, chain: bool = t
 		return
 	if _promoted.size() >= int(TRAFFIC["promote_cap"]) or main == null:
 		var tag0 := ag as TrafficAgent
+		if not tag0.arrived and not _managed_exit(_road(tag0.road_id)).is_empty():
+			# A failed bumper/damage promotion is not arrival. Keep the managed
+			# body/trip/cruise and any in-progress validated pull-over intact.
+			return
 		if is_instance_valid(ag) and ag.global_position.distance_to(_anchor()) < float(TRAFFIC["vanish_r_min"]):
 			tag0.arrived = true
 			tag0.speed = 0.0
