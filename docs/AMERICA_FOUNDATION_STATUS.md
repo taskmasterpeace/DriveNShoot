@@ -17,6 +17,14 @@ passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Current-source screenshot follow-up — 2026-09-06
 
+The [route atlas audit](verification/ATLAS_VISUAL_AUDIT_2026_09_06.md) adds seven
+new real views and an unchanged-source baseline. Wide planning, readable and
+clickable labels, retained GPS/portrait phone formats and shared modal controls
+now pass independent review. Final checks: 76/0 GPU, 190/0 focused headless;
+navigation/horse retain two-/four-resource exit diagnostics. Coarse map art and
+discovery presentation remain open. No new ZIP was built, and this does not
+certify nationwide content, public multiplayer or save recovery.
+
 The [driver dossier audit](verification/CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md)
 shows five new real views and the prior baseline. The K screen now has readable
 width, a separate wound diagram, explicit close/scroll controls and a real

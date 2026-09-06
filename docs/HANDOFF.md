@@ -16,6 +16,21 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — screenshot-led route atlas repair
+
+The [atlas before/after audit](verification/ATLAS_VISUAL_AUDIT_2026_09_06.md)
+adds seven real views: local, state, country, course selection, GPS, portrait
+phone and compact country. A wide default map, measured non-overlapping labels,
+clickable names and explicit keyboard/pad/mouse controls repair the old tiny
+planning surface. All three displays share the existing map/course engine.
+Modal input now also covers mounted movement/fire and held closing gestures.
+Final verification: 76/0 GPU and 190/0 focused headless assertions. Atlas/map/
+dossier logs are clean; navigation and horse scenes retain ObjectDB/two- and
+four-resource exit diagnostics. Independent review approved the bounded repair;
+all seven final images were inspected. Coarse biome art, sparse local maps and
+discovery presentation remain unfinished. No newer export or full-game
+completion is claimed; the original overwritten playthrough remains unrecovered.
+
 ## 2026-09-06 — screenshot-led character dossier repair
 
 The [dossier before/after audit](verification/CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md)

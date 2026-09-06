@@ -63,7 +63,15 @@ var _remat_next_ms: int = 0 ## the F7 gather throttle (banked counts → the chu
 var last_state: String = ""
 
 var _map_layer: CanvasLayer = null
-var _map_panel: PanelContainer = null
+var _map_root: Panel = null
+var _map_device: Control = null
+var _map_title: Label = null
+var _map_status: Label = null
+var _map_hint: Label = null
+var _map_toolbar: HBoxContainer = null
+var _map_close_latch: InputEvent = null
+var _map_label_candidates: Array[Dictionary] = []
+var _map_label_layout: Array[Dictionary] = [] # The actual placed text consumed by the renderer.
 var _map_canvas: Control = null
 var _map_player: Vector3 = Vector3.ZERO
 var _map_mode: int = 0 ## 0 off · 1 local (fog-of-war) · 2 state · 3 country atlas
@@ -198,6 +206,7 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 	if _map_layer != null and _map_layer.visible:
 		_poll_map_pan(get_physics_process_delta_time())
 	if map_open():
+		_update_map_chrome()
 		_map_canvas.queue_redraw()
 
 
@@ -1890,33 +1899,49 @@ func _stamp_landmark(chunk: Node3D, t: Dictionary, base: Vector3, rng: RandomNum
 ## is the dark LCD as fractions of the art (cross-section-scanned, same law as the
 ## brick); the 📱/📟 chip on the LCD swaps skins live, keeping the current view.
 const DEVICE_SKINS: Dictionary = {
+	"atlas": {"png": "", "h": 920.0, "aspect": 16.0 / 9.0,
+		"screen": Rect2(0, 0, 1, 1), "buttons": {}},
 	"gps": {"png": "res://assets/ui/device/gps.png", "h": 940.0, "aspect": 448.0 / 512.0,
 		"screen": Rect2(0.302, 0.273, 0.378, 0.430), "buttons": GPS_BTN},
 	"phone": {"png": "res://assets/ui/device/phone.png", "h": 900.0, "aspect": 181.0 / 288.0,
 		"screen": Rect2(0.10, 0.146, 0.80, 0.729), "buttons": {}},
 }
-var device_skin: String = "gps" ## which handheld frames the map — swapped by the LCD chip
+var device_skin: String = "atlas" ## wide planning display; GPS and phone remain available
 
 func toggle_map() -> void:
 	if _map_layer == null:
 		_map_layer = CanvasLayer.new()
-		_map_layer.layer = 3
+		_map_layer.layer = 4 # Above world-objective HUD, below controls (5).
 		add_child(_map_layer)
+		var shade := ColorRect.new()
+		shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		shade.color = Color(0.04, 0.035, 0.025, 0.76)
+		_map_layer.add_child(shade)
+		_map_root = Panel.new()
+		_map_root.set_anchors_preset(Control.PRESET_CENTER)
+		var cabinet := StyleBoxFlat.new()
+		cabinet.bg_color = Color(0.08, 0.075, 0.06, 1.0) # Opaque: world toasts cannot obscure navigation.
+		cabinet.border_color = Color(0.03, 0.03, 0.03)
+		cabinet.set_border_width_all(16)
+		cabinet.set_corner_radius_all(10)
+		_map_root.add_theme_stylebox_override("panel", cabinet)
+		_map_layer.add_child(_map_root)
 		var skin: Dictionary = DEVICE_SKINS.get(device_skin, DEVICE_SKINS["gps"])
 		var skin_png: String = skin["png"]
-		var dev_tex: Texture2D = load(skin_png) if ResourceLoader.exists(skin_png) else null
+		var dev_tex: Texture2D = load(skin_png) if not skin_png.is_empty() and ResourceLoader.exists(skin_png) else null
 		var host: Control = null ## whatever the canvas mounts into
 		if dev_tex != null:
 			# The handheld: centered, device aspect, map inside the screen rect.
 			var dev_h: float = skin["h"]
 			var dw: float = dev_h * float(skin["aspect"])
 			var root := Control.new()
+			_map_device = root
 			root.set_anchors_preset(Control.PRESET_CENTER)
 			root.offset_left = -dw * 0.5
 			root.offset_right = dw * 0.5
 			root.offset_top = -dev_h * 0.5
 			root.offset_bottom = dev_h * 0.5
-			_map_layer.add_child(root)
+			_map_root.add_child(root)
 			var dev := TextureRect.new()
 			dev.set_anchors_preset(Control.PRESET_FULL_RECT)
 			dev.texture = dev_tex
@@ -1958,29 +1983,29 @@ func toggle_map() -> void:
 				hb.pressed.connect(_on_gps_button.bind(String(bname)))
 				root.add_child(hb)
 		else:
-			_map_panel = PanelContainer.new()
-			_map_panel.set_anchors_preset(Control.PRESET_CENTER)
-			_map_panel.offset_left = -300.0
-			_map_panel.offset_right = 300.0
-			_map_panel.offset_top = -240.0
-			_map_panel.offset_bottom = 240.0
-			var style := StyleBoxFlat.new()
-			style.bg_color = Color(0.08, 0.075, 0.06, 0.96)
-			style.border_color = Color(0.96, 0.72, 0.2)
-			style.set_border_width_all(2)
-			_map_panel.add_theme_stylebox_override("panel", style)
-			_map_layer.add_child(_map_panel)
-			host = _map_panel
+			host = Control.new() # Wide LCD; also the safe missing-art fallback.
+			host.set_anchors_preset(Control.PRESET_FULL_RECT)
+			host.offset_left = 32
+			host.offset_right = -32
+			host.offset_top = 90
+			host.offset_bottom = -148
+			_map_root.add_child(host)
 		_map_canvas = Control.new()
-		if host is PanelContainer:
-			_map_canvas.custom_minimum_size = Vector2(600, 480)
-		else:
-			_map_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_map_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_map_canvas.clip_contents = true # roads at map scale run for kilometers — nothing draws past the frame (playtest: "lines outside the map")
 		_map_canvas.mouse_filter = Control.MOUSE_FILTER_STOP # the atlas is clickable
 		_map_canvas.draw.connect(_draw_map)
 		_map_canvas.gui_input.connect(_on_map_input)
+		_map_canvas.focus_mode = Control.FOCUS_ALL
 		host.add_child(_map_canvas)
+		_build_map_chrome()
+		_layout_map()
+		if not get_viewport().size_changed.is_connected(_layout_map):
+			get_viewport().size_changed.connect(_layout_map)
+		if not Input.joy_connection_changed.is_connected(_map_pad_connection_changed):
+			Input.joy_connection_changed.connect(_map_pad_connection_changed)
+		if _main != null and "character" in _main and not _main.character.died.is_connected(_close_map):
+			_main.character.died.connect(_close_map)
 		_map_layer.visible = false
 	_map_mode = (_map_mode + 1) % 4
 	if _map_mode >= 2 and not (usmap != null and usmap.ok):
@@ -1988,7 +2013,180 @@ func toggle_map() -> void:
 	_reset_view()
 	_map_layer.visible = _map_mode != 0
 	if _map_layer.visible:
+		_map_canvas.grab_focus.call_deferred()
+		_update_map_chrome()
 		_map_canvas.queue_redraw()
+		if _main != null and "audio" in _main and _main.audio != null:
+			_main.audio.play_ui("blip", -12)
+	else:
+		_close_map()
+
+
+func _build_map_chrome() -> void:
+	_map_title = Label.new()
+	_map_title.position = Vector2(36, 26)
+	_map_title.add_theme_font_override("font", ProtoHUD.mixed_font())
+	_map_title.add_theme_font_size_override("font_size", 28) # Large virtual canvas: readable at 720p.
+	_map_title.add_theme_color_override("font_color", Color(0.96, 0.72, 0.2))
+	_map_root.add_child(_map_title)
+	var close := _map_button("✕", _close_map)
+	close.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	close.offset_left = -82
+	close.offset_right = -30
+	close.offset_top = 24
+	close.offset_bottom = 76
+	for state: String in ["font_color", "font_focus_color", "font_hover_color", "font_pressed_color"]:
+		close.add_theme_color_override(state, Color(0.9, 0.4, 0.3))
+	_map_root.add_child(close)
+	_map_status = Label.new()
+	_map_status.add_theme_font_override("font", ProtoHUD.mixed_font())
+	_map_status.add_theme_font_size_override("font_size", 20)
+	_map_status.add_theme_color_override("font_color", Color(0.92, 0.89, 0.82))
+	_map_status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_map_root.add_child(_map_status)
+	_map_toolbar = HBoxContainer.new()
+	_map_toolbar.add_theme_constant_override("separation", 8)
+	_map_root.add_child(_map_toolbar)
+	for row: Array in [["−", func() -> void: zoom_at(_map_canvas.size * 0.5, 1.0 / 1.3)],
+		["+", func() -> void: zoom_at(_map_canvas.size * 0.5, 1.3)],
+		["VIEW", func() -> void: _on_gps_button("menu")],
+		["DEVICE", _swap_device_skin], ["FIT", _reset_view]]:
+		_map_toolbar.add_child(_map_button(String(row[0]), row[1]))
+	_map_hint = Label.new()
+	_map_hint.add_theme_font_override("font", ProtoHUD.mixed_font())
+	_map_hint.add_theme_font_size_override("font_size", 18) # Two-line controls remain legible at 720p.
+	_map_hint.add_theme_color_override("font_color", Color(0.72, 0.68, 0.59))
+	_map_root.add_child(_map_hint)
+
+
+func _map_button(text: String, action: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(52, 42)
+	button.add_theme_font_override("font", ProtoHUD.mixed_font())
+	button.add_theme_font_size_override("font_size", 20)
+	for state: String in ["normal", "hover", "pressed", "focus"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.15, 0.13, 0.08) if state != "normal" else Color(0.09, 0.08, 0.06)
+		style.border_color = Color(0.96, 0.72, 0.2)
+		style.set_border_width_all(2)
+		style.set_corner_radius_all(6)
+		style.content_margin_left = 12
+		style.content_margin_right = 12
+		button.add_theme_stylebox_override(state, style)
+	button.add_theme_color_override("font_color", Color(0.92, 0.89, 0.82))
+	button.pressed.connect(func() -> void:
+		action.call()
+		if map_open():
+			_map_canvas.grab_focus.call_deferred())
+	return button
+
+
+func _layout_map() -> void:
+	if not is_instance_valid(_map_root):
+		return
+	var extent := get_viewport().get_visible_rect().size - Vector2(80, 80)
+	extent = Vector2(minf(1600, extent.x), minf(920, extent.y))
+	_map_root.offset_left = -extent.x * 0.5
+	_map_root.offset_right = extent.x * 0.5
+	_map_root.offset_top = -extent.y * 0.5
+	_map_root.offset_bottom = extent.y * 0.5
+	if is_instance_valid(_map_device):
+		var aspect: float = DEVICE_SKINS[device_skin]["aspect"]
+		var height := minf(extent.y - 238, (extent.x - 64) / aspect)
+		_map_device.offset_left = -height * aspect * 0.5
+		_map_device.offset_right = height * aspect * 0.5
+		_map_device.offset_top = -height * 0.5 - 29
+		_map_device.offset_bottom = height * 0.5 - 29
+	_map_title.size = Vector2(extent.x - 156, 48)
+	_map_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_map_status.position = Vector2(36, extent.y - 138)
+	_map_status.size = Vector2(extent.x - 72, 28)
+	_map_toolbar.position = Vector2(36, extent.y - 104)
+	_map_hint.position = Vector2(36, extent.y - 55)
+	_map_hint.size = Vector2(extent.x - 72, 36)
+	_map_hint.add_theme_font_size_override("font_size", 15 if extent.x < 1100 else 18)
+
+
+func _update_map_chrome() -> void:
+	if _map_title == null:
+		return
+	var mode_name: String = ["OFF", "LOCAL", "STATE", "COUNTRY"][_map_mode]
+	_map_title.text = "ROAD ATLAS  /  %s  /  %s" % [mode_name, "DIVIDED STATES" if _map_mode == 3 else last_state]
+	var navigation := "Arrows / D-pad pan · Wheel / LB RB zoom · Enter / A/✕ course"
+	if _map_mode == 1:
+		navigation = "Local follows you · Wheel / LB RB zoom · Click a named stop · Y/△ opens state planning"
+	_map_hint.text = navigation + "\nM / Y/△ view · X/▢ device · Esc / B/◯ close · WORLD REMAINS LIVE"
+	_map_status.text = "LOCAL SURVEY · Zoom to separate nearby stops" if _map_mode == 1 else "Click a town or open ground · A/✕ sets course at the center crosshair"
+	if _main != null and "waypoint_idx" in _main and _main.waypoint_idx >= 0:
+		_map_status.text = "SELECTED: %s" % String(_main.waypoints[_main.waypoint_idx][0])
+
+
+func _close_map() -> void:
+	_map_mode = 0
+	if _map_layer != null:
+		_map_layer.visible = false
+	if _map_canvas != null:
+		_map_canvas.release_focus()
+	if _main != null and "audio" in _main and _main.audio != null:
+		_main.audio.play_ui("click", -12)
+
+
+func map_blocks_input() -> bool:
+	return map_open() or _map_close_latch != null
+
+
+func _input(event: InputEvent) -> void:
+	if _map_close_latch != null:
+		var released: bool = not event.is_pressed() and _map_close_latch.is_match(event, false)
+		if _map_close_latch is InputEventJoypadMotion:
+			var axis := event as InputEventJoypadMotion
+			released = axis != null and axis.device == _map_close_latch.device and axis.axis == (_map_close_latch as InputEventJoypadMotion).axis and absf(axis.axis_value) <= InputMap.action_get_deadzone("drivn_map")
+		elif _map_close_latch is InputEventJoypadButton:
+			var button := event as InputEventJoypadButton
+			released = button != null and not button.pressed and button.device == _map_close_latch.device and button.button_index == (_map_close_latch as InputEventJoypadButton).button_index
+		if released:
+			_map_close_latch = null
+			get_viewport().set_input_as_handled()
+			return
+	if not map_open():
+		return
+	var key := event as InputEventKey
+	var pad := event as InputEventJoypadButton
+	if (key != null and key.pressed and (key.keycode == KEY_ESCAPE or key.physical_keycode == KEY_ESCAPE)) or (pad != null and pad.pressed and pad.button_index == JOY_BUTTON_B):
+		_map_close_latch = event.duplicate() as InputEvent
+		_close_map()
+	elif event.is_action_pressed("drivn_map"):
+		if _map_mode == 3:
+			_map_close_latch = event.duplicate() as InputEvent
+		toggle_map()
+	elif pad != null and pad.pressed and pad.button_index == JOY_BUTTON_X:
+		_swap_device_skin()
+	elif pad != null and pad.pressed and pad.button_index == JOY_BUTTON_Y:
+		_on_gps_button("menu")
+	elif pad != null and pad.pressed and pad.button_index in [JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_RIGHT_SHOULDER]:
+		zoom_at(_map_canvas.size * 0.5, 1.3 if pad.button_index == JOY_BUTTON_RIGHT_SHOULDER else 1.0 / 1.3)
+	elif event.is_action_pressed("ui_accept") and get_viewport().gui_get_focus_owner() == _map_canvas:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		click.position = _map_canvas.size * 0.5
+		_on_map_input(click)
+	elif get_viewport().gui_get_focus_owner() == _map_canvas and (event.is_action("ui_left") or event.is_action("ui_right") or event.is_action("ui_up") or event.is_action("ui_down")):
+		pass # Held panning owns the D-pad; do not navigate focus out of the LCD.
+	else:
+		return # Mouse and button focus still flow through Godot's GUI pass.
+	get_viewport().set_input_as_handled()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_map_close_latch = null
+
+
+func _map_pad_connection_changed(device: int, connected: bool) -> void:
+	if not connected and (_map_close_latch is InputEventJoypadButton or _map_close_latch is InputEventJoypadMotion) and _map_close_latch.device == device:
+		_map_close_latch = null
 
 
 func map_open() -> bool:
@@ -2030,13 +2228,97 @@ func atlas_exit_markers() -> Array:
 
 
 func _draw_map() -> void:
+	_map_label_candidates.clear()
+	_map_canvas.draw_rect(Rect2(Vector2.ZERO, _map_canvas.size), Color(0.075, 0.08, 0.06))
 	if _map_mode == 3:
 		_draw_country()
 	elif _map_mode == 2:
 		_draw_state()
 	else:
 		_draw_local()
-	_draw_zoom_chips()
+	_draw_map_labels()
+	if device_skin != "atlas":
+		_draw_zoom_chips()
+	if _map_mode >= 2:
+		var center := _map_canvas.size * 0.5
+		var amber := Color(0.96, 0.72, 0.2)
+		for direction: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+			_map_canvas.draw_line(center + direction * 8, center + direction * 18, Color(0.03, 0.03, 0.03), 5)
+			_map_canvas.draw_line(center + direction * 8, center + direction * 18, amber, 2)
+
+
+func _queue_map_label(text: String, point: Vector2, priority: int = 0) -> void:
+	if text.is_empty() or not Rect2(Vector2.ZERO, _map_canvas.size).has_point(point):
+		return
+	# Retain the target belonging to this rendered label. A pan between draw and
+	# click must not reinterpret the old label through a newer view transform.
+	var world := Vector2(_map_player.x, _map_player.z) + (point - _map_canvas.size * 0.5) / (0.10 * _local_zoom)
+	if _map_mode >= 2:
+		var xf := _atlas_transform(_atlas_bounds)
+		if float(xf["px"]) <= 0.0001:
+			return
+		world = (point - Vector2(xf["org"])) / float(xf["px"]) + _atlas_bounds.position
+	_map_label_candidates.append({"text": text, "point": point, "world": world, "priority": priority, "order": _map_label_candidates.size()})
+
+
+func _draw_map_labels() -> void:
+	# Greedy, deterministic cartographic placement. Important/selected stops win;
+	# other pins remain visible when their names cannot fit. Never shrink to mush.
+	_map_label_layout.clear()
+	var font := ProtoHUD.mixed_font()
+	var font_size: int = 20 if device_skin == "atlas" else 18
+	var height := ceilf(font.get_height(font_size)) + 8
+	var view := Rect2(Vector2(8, 8), _map_canvas.size - Vector2(16, 16))
+	var reserved: Array[Rect2] = []
+	if device_skin != "atlas":
+		reserved.append(Rect2(Vector2(_map_canvas.size.x - 40, 0), Vector2(40, 150)))
+	if _map_mode >= 2:
+		reserved.append(Rect2(_map_canvas.size * 0.5 - Vector2(22, 22), Vector2(44, 44)))
+	_map_label_candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a["priority"] != b["priority"]:
+			return int(a["priority"]) > int(b["priority"])
+		return int(a["order"]) < int(b["order"]))
+	for candidate: Dictionary in _map_label_candidates:
+		var text: String = candidate["text"]
+		var point: Vector2 = candidate["point"]
+		var width := ceilf(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x) + 10
+		var offsets: Array[Vector2] = [Vector2(12, -height * 0.5), Vector2(-width - 12, -height * 0.5),
+			Vector2(-width * 0.5, -height - 14), Vector2(-width * 0.5, 14),
+			Vector2(18, -height - 22), Vector2(-width - 18, -height - 22),
+			Vector2(18, 22), Vector2(-width - 18, 22),
+			Vector2(-width * 0.5, 30), Vector2(-width * 0.5, -height - 30)]
+		for offset: Vector2 in offsets:
+			var box := Rect2(point + offset, Vector2(width, height))
+			if not view.encloses(box):
+				continue
+			var clear := true
+			for occupied: Rect2 in reserved:
+				if box.grow(3).intersects(occupied):
+					clear = false
+					break
+			if not clear:
+				continue
+			# A label must not hide another destination's marker.
+			for other: Dictionary in _map_label_candidates:
+				if other["point"] != point and box.grow(5).has_point(other["point"]):
+					clear = false
+					break
+			if not clear:
+				continue
+			reserved.append(box)
+			_map_label_layout.append({"text": text, "point": point, "world": candidate["world"], "rect": box, "priority": candidate["priority"]})
+			break
+	for label: Dictionary in _map_label_layout:
+		var box: Rect2 = label["rect"]
+		var point: Vector2 = label["point"]
+		var nearest := Vector2(clampf(point.x, box.position.x, box.end.x), clampf(point.y, box.position.y, box.end.y))
+		var selected: bool = int(label["priority"]) >= 1000
+		var color := Color(0.96, 0.72, 0.2) if selected else Color(0.92, 0.89, 0.82)
+		_map_canvas.draw_line(point, nearest, Color(0.55, 0.52, 0.46), 1.2)
+		_map_canvas.draw_rect(box, Color(0.06, 0.065, 0.05, 0.94))
+		if selected:
+			_map_canvas.draw_rect(box, Color(0.96, 0.72, 0.2), false, 1)
+		_map_canvas.draw_string(font, box.position + Vector2(5, 4 + font.get_ascent(font_size)), String(label["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
 
 
 ## The LCD's own +/- buttons (owner: "even if you gotta put it on the screen itself") —
@@ -2060,39 +2342,45 @@ func _draw_zoom_chips() -> void:
 	if z > 1.01:
 		_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(size.x - s - pad - 6, pad * 3 + s * 2 + 12),
 			"x%.1f" % z, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82, 0.8))
-	# THE DEVICE SWAP CHIP (owner ask 2026-07-10): flip the GPS brick ↔ the 9:16
-	# phone right on the LCD — the icon shows the OTHER handheld you'd switch to.
+	# The LCD chip names the next display: GPS -> phone -> wide atlas.
 	var dc := Rect2(Vector2(size.x - s - pad, pad * 4 + s * 2 + 22), Vector2(s, s))
 	_map_canvas.draw_rect(dc, Color(0.07, 0.06, 0.05, 0.85))
 	_map_canvas.draw_rect(dc, Color(0.96, 0.72, 0.2), false, 2.0)
-	# The icon shows the OTHER handheld, drawn in primitives (emoji rendered as
-	# mush at chip size): a tall PHONE while on the brick, the BRICK on the phone.
+	# Simple silhouette of the NEXT display, legible at chip size.
 	var icon_col := Color(0.96, 0.72, 0.2)
 	if device_skin == "gps":
 		var pr := Rect2(dc.position + Vector2(7.0, 4.0), Vector2(10.0, 16.0))
 		_map_canvas.draw_rect(pr, icon_col, false, 1.5)
 		_map_canvas.draw_line(pr.position + Vector2(3.0, 13.0), pr.position + Vector2(7.0, 13.0), icon_col, 1.2)
 	else:
-		var br := Rect2(dc.position + Vector2(5.0, 8.0), Vector2(14.0, 11.0))
+		var br := Rect2(dc.position + Vector2(3.5, 7.0), Vector2(17.0, 10.0))
 		_map_canvas.draw_rect(br, icon_col, false, 1.5)
-		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.0, -4.0), Vector2(2.5, 4.0)), icon_col)
-		_map_canvas.draw_rect(Rect2(br.position + Vector2(2.5, 6.5), Vector2(3.0, 2.0)), icon_col)
-		_map_canvas.draw_rect(Rect2(br.position + Vector2(8.0, 6.5), Vector2(3.0, 2.0)), icon_col)
+		_map_canvas.draw_line(br.position + Vector2(3, 7), br.position + Vector2(12, 3), icon_col, 1.2)
 	_device_chip_rect = dc
 
 
-## Flip GPS brick ↔ phone, keeping the current view: rebuild the device UI from
-## its skin row (toggle_map owns construction — re-enter it on the same mode).
+## Cycle wide atlas -> GPS -> phone, retaining mode, zoom and pan.
 func _swap_device_skin() -> void:
-	device_skin = "phone" if device_skin == "gps" else "gps"
+	var order: Array[String] = ["atlas", "gps", "phone"]
+	device_skin = order[(order.find(device_skin) + 1) % order.size()]
 	var keep := _map_mode
+	var zoom := _atlas_zoom
+	var pan := _atlas_pan
+	var local_zoom := _local_zoom
 	if _map_layer != null:
+		_map_layer.visible = false
 		_map_layer.queue_free()
 		_map_layer = null
 		_map_canvas = null
-		_map_panel = null
+		_map_root = null
+		_map_device = null
+		_zoom_chip_rects.clear()
+		_device_chip_rect = Rect2()
 	_map_mode = keep - 1 # toggle_map advances (+1): land back on the same view
 	toggle_map()
+	_atlas_zoom = zoom
+	_atlas_pan = pan
+	_local_zoom = local_zoom
 
 
 # --- Pixel map markers (assets/ui/markers/) — icons replace the old dots on the map ----
@@ -2192,19 +2480,20 @@ func _draw_local() -> void:
 			var ep2 := center + ((e["pos"] as Vector2) - Vector2(_map_player.x, _map_player.z)) * scale
 			if Rect2(Vector2.ZERO, size).has_point(ep2):
 				_map_canvas.draw_rect(Rect2(ep2 - Vector2(3, 3), Vector2(6, 6)), Color(0.96, 0.72, 0.2))
-				_map_canvas.draw_string(ThemeDB.fallback_font, ep2 + Vector2(6, 4), String(e.get("name", "")),
-					HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.92, 0.89, 0.82))
+				_queue_map_label(String(e.get("name", "")), ep2, 20)
 	# POIs
-	for poi in _pois:
+	for i: int in _pois.size():
+		var poi: Array = _pois[i]
 		var tpos: Vector3 = poi[1].global_position if poi[1] is Node3D else poi[1]
 		var p2 := center + (Vector2(tpos.x, tpos.z) - Vector2(_map_player.x, _map_player.z)) * scale
 		if Rect2(Vector2.ZERO, size).has_point(p2):
 			_map_canvas.draw_circle(p2, 4.0, Color(0.96, 0.72, 0.2))
-			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(7, 4), poi[0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.92, 0.89, 0.82))
+			var selected: bool = _main != null and "waypoint_idx" in _main and i == _main.waypoint_idx
+			_queue_map_label(String(poi[0]), p2, 1000 if selected else 80)
 	# You
 	if not _draw_marker(center, "arrow", 22.0, true):
 		_map_canvas.draw_circle(center, 5.0, Color(0.9, 0.25, 0.12))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), "DSA — %s" % last_state, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
+	_queue_map_label("YOU", center, 900)
 
 
 ## Screen⇄world mapping for the atlas (shared by draw + click). world XZ →
@@ -2275,6 +2564,9 @@ func pan_step(dir: Vector2) -> void:
 func _poll_map_pan(delta: float) -> void:
 	if _map_mode < 2 or _map_canvas == null:
 		return
+	if get_viewport().gui_get_focus_owner() != _map_canvas:
+		return
+	_ensure_bounds()
 	var dir := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
 	if dir == Vector2.ZERO:
 		return
@@ -2287,8 +2579,7 @@ func _poll_map_pan(delta: float) -> void:
 func _on_gps_button(bname: String) -> void:
 	match bname:
 		"power":
-			_map_mode = 0
-			_map_layer.visible = false
+			_close_map()
 		"menu":
 			_map_mode = 1 + (_map_mode % 3) # 1→2→3→1, never off (that's POWER's job)
 			if _map_mode >= 2 and not (usmap != null and usmap.ok):
@@ -2307,9 +2598,13 @@ func _on_gps_button(bname: String) -> void:
 
 ## Fresh fit when the view mode changes — zoom/pan don't leak across modes.
 func _reset_view() -> void:
+	_map_label_layout.clear() # No stale hitboxes after a view/fit change.
 	_atlas_zoom = 1.0
 	_atlas_pan = Vector2.ZERO
 	_local_zoom = 1.0
+	_atlas_bounds = Rect2() # A mode change cannot reuse a previously drawn state's bounds.
+	if _map_canvas != null:
+		_map_canvas.queue_redraw()
 
 
 ## The GPS title, short like a real unit: local/state name the state, country is DSA.
@@ -2365,14 +2660,13 @@ func _draw_atlas(bounds: Rect2) -> void:
 		var r := 2.4 if tier == "T3" else (1.9 if tier == "T2" else 1.1)
 		var col := Color(0.96, 0.72, 0.2) if tier != "T1" else Color(0.62, 0.55, 0.42)
 		_map_canvas.draw_rect(Rect2(ep - Vector2(r, r), Vector2(r * 2, r * 2)), col) # the DIAMOND read, cheap
-		if String(mk["label"]) != "":
-			_map_canvas.draw_string(ThemeDB.fallback_font, ep + Vector2(4, -2), String(mk["label"]),
-				HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.92, 0.89, 0.82, 0.85))
+		if _map_mode == 2 or _atlas_zoom >= 2:
+			_queue_map_label(String(mk["label"]), ep, 20)
 	for t in usmap.towns:
 		var p2 := org + ((t["pos"] as Vector2) - bounds.position) * px
 		_map_canvas.draw_circle(p2, 2.5 if t["kind"] == "city" else 1.8, Color(0.96, 0.72, 0.2))
 		if String(t.get("landmark", "")) != "" or t.get("authored", false):
-			_map_canvas.draw_string(ThemeDB.fallback_font, p2 + Vector2(4, 3), t["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.92, 0.89, 0.82))
+			_queue_map_label(String(t["name"]), p2, 70 if t["kind"] == "city" else 40)
 	# THE CAROUSEL LAYER (surfacing pass): every gate on the atlas — teal + ringed
 	# when LIT (yours, permanently), dark sockets when dormant. The map literally
 	# lights up as your network grows — the retention picture, drawn.
@@ -2386,7 +2680,7 @@ func _draw_atlas(bounds: Rect2) -> void:
 				_map_canvas.draw_arc(gp, 7.0, 0.0, TAU, 16, Color(0.95, 0.2, 0.12), 2.0)
 			if lit:
 				_map_canvas.draw_arc(gp, 5.5, 0.0, TAU, 14, Color(0.3, 0.85, 0.75), 1.2)
-				_map_canvas.draw_string(ThemeDB.fallback_font, gp + Vector2(6, 3), String(b["name"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(0.55, 0.9, 0.82))
+				_queue_map_label(String(b["name"]), gp, 110)
 	# Your waypoints (HOME 🏠, the set course 🧭, and the base POIs) ride on the
 	# atlas too — with the SELECTED one ringed so a fresh pick reads instantly.
 	var sel: int = _main.waypoint_idx if _main != null else -1
@@ -2400,13 +2694,11 @@ func _draw_atlas(bounds: Rect2) -> void:
 			_map_canvas.draw_arc(mp, 13.0, 0.0, TAU, 20, Color(0.4, 0.85, 0.4), 2.0)
 		if not _draw_marker(mp, _marker_for_waypoint(String(poi[0])), 22.0 if picked else 18.0, true):
 			_map_canvas.draw_circle(mp, 5.0 if picked else 3.0, Color(0.4, 0.85, 0.4) if picked else Color(0.96, 0.86, 0.55))
-		_map_canvas.draw_string(ThemeDB.fallback_font, mp + Vector2(6, 3), String(poi[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.95, 0.8))
+		_queue_map_label(String(poi[0]), mp, 1000 if picked else 80)
 	var you := org + (Vector2(_map_player.x, _map_player.z) - bounds.position) * px
 	if not _draw_marker(you, "arrow", 22.0, true):
 		_map_canvas.draw_circle(you, 4.0, Color(0.9, 0.25, 0.12))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, 20), atlas_title(), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(0.96, 0.72, 0.2))
-	_map_canvas.draw_string(ThemeDB.fallback_font, Vector2(12, size.y - 12), "click a town to SET COURSE · click open ground to drop a mark · F in the world plants 🏠 HOME",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.85, 0.78, 0.6))
+	_queue_map_label("YOU", you, 900)
 
 
 ## Click the atlas to set your course: nearest town within reach wins, else drop
@@ -2433,16 +2725,28 @@ func _on_map_input(event: InputEvent) -> void:
 			if _device_chip_rect.has_point(mb.position):
 				_swap_device_skin()
 				return
+			for label: Dictionary in _map_label_layout:
+				if not (label["rect"] as Rect2).has_point(mb.position):
+					continue
+				if label["text"] != "YOU":
+					var target: Vector2 = label["world"]
+					var name: String = String(label["text"]).trim_prefix(_main.COURSE_PREFIX)
+					_main.set_map_course(name, Vector3(target.x, 0, target.y))
+					_map_canvas.queue_redraw()
+				return
 	if _map_mode < 2 or usmap == null or not usmap.ok:
 		return
 	if not (event is InputEventMouseButton and event.pressed \
 			and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
 		return
+	_ensure_bounds()
 	var xf := _atlas_transform(_atlas_bounds)
 	var org: Vector2 = xf["org"]
 	var px: float = xf["px"]
 	var bounds: Rect2 = xf["bounds"]
 	var click: Vector2 = (event as InputEventMouseButton).position
+	if px <= 0.0001 or not Rect2(Vector2.ZERO, _map_canvas.size).has_point(click):
+		return
 	# Nearest town within 14 px of the click gets the course; otherwise a mark.
 	var best: Dictionary = {}
 	var best_d := 14.0

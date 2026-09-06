@@ -107,6 +107,7 @@ func _ready() -> void:
 		if horse.riders.get("front") != null:
 			break
 		_tap_interact()
+		await get_tree().process_frame # Input dispatch is a process pass, not a physics tick.
 		for _i in 4:
 			await get_tree().physics_frame
 	_check("REAL E interact mounted the player (front seat)",
@@ -170,6 +171,7 @@ func _ready() -> void:
 		if horse.riders.get("front") != null:
 			break
 		_tap_interact() # mount
+		await get_tree().process_frame
 		for _i in 4:
 			await get_tree().physics_frame
 	_check("re-mounted for the fire-path proof", horse.riders.get("front") != null)

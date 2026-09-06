@@ -4,10 +4,11 @@ Current isolated source, September 6, 2026. These are original 1280x720 game
 screenshots, not concept art. [Fixes, before/after views, tests and limitations](MERIDIAN_SIGNAGE_VISUAL_AUDIT_2026_09_06.md).
 
 My verdict: the road/home/console idea is visible, but this is not yet the
-finished world promised by the spec. Stronger authored places, a clearer
-map, deeper RPG presentation, richer cartridge visuals and much deeper content remain.
+finished world promised by the spec. Stronger authored places, finished
+cartographic art, deeper RPG presentation, richer cartridge visuals and much deeper content remain.
 The character sheet has since received a [screenshot-led repair](CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md);
-the original tour frame below is retained for comparison.
+the map now has [seven new views and a readability repair](ATLAS_VISUAL_AUDIT_2026_09_06.md).
+The original tour frames below are retained for comparison.
 The previous overwritten player save is still unrecovered; this tour used
 disposable isolated saves, never that profile.
 
@@ -98,7 +99,9 @@ retained rather than silently replaced in this historical tour.
 
 ## 14 — Route map
 
-The scavenged GPS device fits the fiction. Crowded tiny labels undermine its navigation value.
+Original tour view: the scavenged GPS fits the fiction, but crowded tiny labels
+undermine navigation. See the [current atlas, GPS and portrait phone views](ATLAS_VISUAL_AUDIT_2026_09_06.md)
+for the subsequent repair. This original frame is retained, not silently replaced.
 
 ![Route map](../renders/meridian-signage-2026-09-06/tour/14_route_map.png)
 

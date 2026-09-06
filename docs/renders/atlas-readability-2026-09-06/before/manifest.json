@@ -1,0 +1,69 @@
+{
+	"captures": [
+		{
+			"id": "01_local",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 1,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "02_virginia",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 2,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "03_divided_states",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 3,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "04_country_course",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 3,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "05_gps",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 1,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "06_phone",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"mode": 1,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(1280, 720)",
+			"saved": true,
+			"skin": "gps"
+		},
+		{
+			"id": "07_compact_country",
+			"logical_viewport": "(960.0, 540.0)",
+			"mode": 3,
+			"note": "Actual game render; real map inputs; isolated fresh profile. No image edits or world-clock hold.",
+			"pixels": "(960, 540)",
+			"saved": true,
+			"skin": "gps"
+		}
+	],
+	"failed": 23,
+	"passed": 21
+}

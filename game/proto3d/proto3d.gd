@@ -693,6 +693,8 @@ func _build_environment() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if stream != null and stream.map_blocks_input():
+		return # Atlas handles navigation/close before gameplay; world simulation stays live.
 	if hud != null and hud.sheet_blocks_input():
 		return # Sheet handles close/scroll in _input; no gameplay verbs underneath.
 	if road_life != null and road_life.panel.is_open:
@@ -855,7 +857,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_grenade"):
 		throw_grenade()
 	elif event.is_action_pressed("drivn_map"):
-		stream.toggle_map()
+		if not _gameplay_input_blocked() and not character.dead and not (char_create != null and char_create.is_open):
+			_cancel_sheet_gestures()
+			stream.toggle_map()
 	elif event.is_action_pressed("drivn_beacon"):
 		set_home()
 	elif event.is_action_pressed("drivn_char_create"):
@@ -2728,7 +2732,7 @@ func _furniture_load(recs: Dictionary) -> void:
 # --- THE PAD DRIVER (controller arc) -------------------------------------------
 
 func _cancel_sheet_gestures() -> void:
-	# The dossier takes ownership mid-gesture. Cancel intent without invoking
+	# Full-attention reading panels take ownership mid-gesture. Cancel intent without invoking
 	# release handlers (which would punch, whistle, open loot or exit the car).
 	_fire_down = false
 	_fist_pressed = false
@@ -2745,6 +2749,7 @@ func _cancel_sheet_gestures() -> void:
 
 func _gameplay_input_blocked() -> bool:
 	return menu_open or panel.is_open or (media_panel != null and media_panel.is_open) \
+		or (stream != null and stream.map_blocks_input()) \
 		or (hud != null and hud.sheet_blocks_input()) \
 		or (road_life != null and road_life.panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \

@@ -436,7 +436,8 @@ func _physics_process(delta: float) -> void:
 	var trot: float = float(row.get("trot_speed", DEFAULT_TROT))
 	var gallop: float = float(row.get("gallop_speed", DEFAULT_GALLOP))
 
-	if front != null and front.is_player and front.node != null and is_instance_valid(front.node):
+	var input_blocked: bool = _main != null and _main.has_method("_gameplay_input_blocked") and _main._gameplay_input_blocked()
+	if front != null and front.is_player and front.node != null and is_instance_valid(front.node) and not input_blocked:
 		# RIDDEN MOVEMENT: WASD/left-stick like driving, but organic — the horse
 		# TURNS at a rate (not an instant snap) and accelerates toward its gait speed.
 		var mv := Vector3(Input.get_axis("move_left", "move_right"), 0.0, -Input.get_axis("move_down", "move_up"))
@@ -473,6 +474,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var front: Rider = riders.get("front")
 	if front == null or not front.is_player or _main == null:
 		return
+	if _main.has_method("_gameplay_input_blocked") and _main._gameplay_input_blocked():
+		return # Mounted player intent obeys the same modal gate as feet and pedals.
 	if event.is_action_pressed("drivn_fire") or event.is_action_pressed("drivn_fire_drive"):
 		var aim: Vector3 = (_main.aim_point() - _main.player.global_position) if _main.has_method("aim_point") else -global_basis.z
 		aim.y = 0.0
