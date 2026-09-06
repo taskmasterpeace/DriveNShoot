@@ -26,7 +26,7 @@ floating during the house cutaway. Actual entry/exit, 36 GPU checks, 45 focused
 headless assertions and the 20-image tour pass; two older scenes still emit exit
 resource diagnostics. New signage/tour runtime logs are clean. Production review
 approved `6f5d104`; two minor test gaps now have failing negative controls and
-passing normal runs, with scoped re-review pending. No newer export, public
+passing normal runs; scoped re-review approved `92d3111`. No newer export, public
 deployment or full-game completion is claimed.
 
 ## 2026-09-06 — bounded realm purchase process proof

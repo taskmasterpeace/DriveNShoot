@@ -120,7 +120,9 @@ All five post-review runs have empty stderr, expected exit codes, fresh isolated
 profiles and terminal owned processes. These add five assertions to the signage
 gate; they do not change production rendering or clear the two older scenes'
 resource diagnostics. The original before/after/tour evidence above stays intact.
-The scoped test-hardening re-review is pending.
+Scoped re-review approved `92d3111`: both minor findings are addressed, with no
+new Critical/Important findings. The full reports are retained under
+`.superpowers/sdd/2026-09-06-meridian-signage/`.
 
 No new Windows export was produced; the
 earlier playable ZIP still identifies its older source commit. The full-game
