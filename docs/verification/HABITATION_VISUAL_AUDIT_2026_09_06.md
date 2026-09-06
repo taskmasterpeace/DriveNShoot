@@ -121,6 +121,43 @@ The new daylight/property/yard final tests and final 20-piece tour exit cleanly.
 This focused pass does not replace the previously recorded failing whole-suite sweep.
 Raw logs: [habitation verification directory](habitation-2026-09-06/).
 
+## Playable Windows candidate — verified after the visual pass
+
+The [portable Windows ZIP](../../build/DRIVN-0.14.0-48b43d40-20260906-071645-739-d30ed1-win64-local-rc/DRIVN-0.14.0-48b43d40-20260906-071645-739-d30ed1-win64-local-rc.zip)
+contains source commit `48b43d40935d668a6fb7c0c931a4d7383cad4940`, with a clean
+source tree before and after export. This includes both screenshot-fix milestones.
+Extract the entire ZIP, then run `PLAY_DRIVN.bat`; Godot does not need to be installed.
+The launcher uses separate evaluation saves. This is an unsigned local-evaluation
+build, not a cleared public distribution or an authenticated MMO service.
+
+`BUILD_ROADSTEAD.ps1 -CaptureSmoke` completed successfully. The actual exported
+executable passed **85 packaging/UI/resource checks, 0 failures**, with clean
+runtime output and two actual 1280×720 captures. All 22 covers and cartridge
+interfaces load; these checks are not 22 complete cartridge playthroughs.
+The export log explicitly includes all three new Blender models and the yard rows.
+Existing Dialogue Manager UID fallback warnings remain in import/export output.
+
+The ZIP was then extracted outside the repository into a fresh temporary folder,
+with no source path supplied and a fresh save profile. Its archive checksum and
+all **35 payload-file checksums** passed. That extracted executable separately
+passed the **19 yard/traversal checks** and the **20-piece GPU screenshot tour**,
+both exit 0 with empty stderr. All 20 PNG headers are 1280×720. The packaged yard
+and night-home images were visually inspected and retain the actual models and
+practical illumination. This is independent extraction on the same machine,
+not clean-machine or broad-hardware testing.
+
+Archive size: 181,054,257 bytes. SHA-256:
+`9b53053cd7fed7fcd2e89a4ad2de3e5c66115ebcb3b7c08b62df69ae32f63a51`.
+The [build manifest](habitation-2026-09-06/packaged-manifest.json),
+[85-check acceptance](habitation-2026-09-06/packaged-acceptance.json),
+[extracted yard log](habitation-2026-09-06/packaged-extracted-yard.stdout.log),
+[extracted tour log](habitation-2026-09-06/packaged-extracted-tour.stdout.log),
+and [tour manifest](habitation-2026-09-06/packaged-extracted-tour-manifest.json)
+are retained. The second set of actual images is retained in the candidate's
+`extracted-evidence/tour/` directory; the source tour above remains versioned.
+The candidate's manifest identifies its exact source commit even after this
+documentation-only follow-up commit.
+
 ## Remaining mission boundary
 
 Authenticated dedicated realms, authoritative movement/combat/economy, independent

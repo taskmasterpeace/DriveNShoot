@@ -2,6 +2,15 @@
 
 Working branch: `codex/america-foundation`, isolated from the original checkout at `f1290de`. This is a foundation milestone toward the larger DRIVN vision, **not a completed MMO or an assigned quality score**.
 
+## Latest playable candidate — 2026-09-06
+
+The [habitation audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md#playable-windows-candidate--verified-after-the-visual-pass)
+links the rebuilt Windows ZIP from clean source commit `48b43d4`, including the
+new Blender yard, real cottage lights and both screenshot-led correction passes.
+Packaged acceptance: 85/0. Independently extracted app: yard traversal 19/0 and
+20 actual 1280×720 game captures, clean exits. Extract all files and use
+`PLAY_DRIVN.bat`. Local evaluation only; all mission gates below still apply.
+
 ## Release-readiness follow-up — 2026-09-05
 
 The [measured follow-up](verification/RELEASE_READINESS_PASS_1.md) fixes cottage

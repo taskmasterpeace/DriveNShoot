@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "classification": "local-evaluation-only",
+  "candidate": "DRIVN-0.14.0-48b43d40-20260906-071645-739-d30ed1-win64-local-rc",
+  "created_utc": "2026-09-06T07:19:56.2383200Z",
+  "game_version": "0.14.0",
+  "source_commit": "48b43d40935d668a6fb7c0c931a4d7383cad4940",
+  "source_dirty": false,
+  "source_status_entries_before": 0,
+  "source_status_entries_after": 0,
+  "source_snapshot_claim": "Commit plus truthful dirty label; uncommitted edits are not a reproducible commit snapshot.",
+  "engine_version": "4.5.1.stable.official.f62fdbde1",
+  "engine_sha256": "F0336C8B2AE039D39767A64C416F01B1B49D95D8DDE87724012874DD4BE1C1A8",
+  "template_sha256": "78CCC576E8F8BFFD7EF6AD6F36EBD72A41E609A1052225A55B3407C96EA84065",
+  "executable_sha256": "BE6B205D1F4378A754ED5F9C1A3EE0377415E187E6853352102E9CAC7D84A3AF",
+  "embedded_pck": true,
+  "main_scene": "res://proto3d/proto3d.tscn",
+  "preset": "Windows Release",
+  "signing": false,
+  "downloads": false,
+  "public_upload": false,
+  "isolated_smoke_profile": true,
+  "evaluation_launcher": "PLAY_DRIVN.bat",
+  "evaluation_profile": "%LOCALAPPDATA%/DRIVN-Roadstead-Evaluation; extracted-folder fallback",
+  "acceptance": {
+    "passed": 85,
+    "capture_requested": true,
+    "failed": 0
+  },
+  "limitations": [
+    "No full-game or all-cartridge playthrough certification.",
+    "No clean-machine or broad hardware compatibility certification.",
+    "Asset redistribution rights remain unverified; local evaluation only.",
+    "Unsigned executable; publisher identity and store approval not established."
+  ]
+}

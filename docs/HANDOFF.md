@@ -1,5 +1,16 @@
 # DRIVN — Engineering Handoff
 
+## 2026-09-06 — playable screenshot-audited Windows build
+
+The [habitation audit and Windows ZIP](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md#playable-windows-candidate--verified-after-the-visual-pass)
+now include a fresh portable build from clean commit `48b43d4`. Its actual
+executable passes 85 packaging checks; after extraction outside the repository,
+it also passes 19 yard checks and captures all 20 game views at 1280×720, cleanly.
+Extract the complete ZIP and run `PLAY_DRIVN.bat`; no installed Godot is required.
+This includes both September 6 visual passes. Unsigned local evaluation only;
+public redistribution clearance, full-game quality and authenticated MMO gates
+remain open. No merge, upload or completion of the persistent goal is claimed.
+
 ## 2026-09-06 — habitation and lighting follow-through
 
 The [new 20-piece screenshot audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md)

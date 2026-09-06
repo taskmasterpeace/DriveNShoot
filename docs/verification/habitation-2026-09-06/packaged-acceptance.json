@@ -1,0 +1,361 @@
+{
+	"capture_requested": true,
+	"checks": [
+		{
+			"name": "running the exported template, not the editor",
+			"passed": true
+		},
+		{
+			"name": "configured launch is the real main game",
+			"passed": true
+		},
+		{
+			"name": "evidence directory is writable",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://THIRD_PARTY_NOTICES.md",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://LICENSE",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://third_party/licenses/littlejs-arcade-mit.txt",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://assets/fonts/game_deck/OFL.txt",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://assets/input_icons/ATTRIBUTION.md",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://assets/skins/ATTRIBUTION.md",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://addons/exit_portal_free/ATTRIBUTION.md",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://addons/dialogue_manager/LICENSE",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://addons/tile_bit_tools/LICENSE",
+			"passed": true
+		},
+		{
+			"name": "packed notice readable: res://addons/exit_portal_free/LICENSE",
+			"passed": true
+		},
+		{
+			"name": "all 22 cartridge catalog rows load",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: waste_heap",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: radworm",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: dead_ground",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: pack_rat",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: bunker_breaker",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: last_mile",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: iron_dome",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: fall_line",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: tilt_salvage",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: relay_bloom",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: crown_of_ash",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: dial_tanks",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: red_sky",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: black_orbit",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: gridbreach",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: rustball",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: fuel_run",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: skyjoust",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: fight_night_99",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: ashland_command",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: rust_runners",
+			"passed": true
+		},
+		{
+			"name": "imported cartridge cover loads: black_grid",
+			"passed": true
+		},
+		{
+			"name": "22 cartridge scenes pass availability and notice gates (not playthrough)",
+			"passed": true
+		},
+		{
+			"name": "22 cartridge scene interfaces instantiate (not playthrough)",
+			"passed": true
+		},
+		{
+			"name": "source text packed: littlejs_arcade/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: littlejs_arcade/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: godot_demos/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: godot_demos/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: three_bit_games/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: three_bit_games/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: bashball/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: bashball/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: cars_on_road/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: cars_on_road/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: flying_turtles/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: flying_turtles/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: wrathskeller/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: wrathskeller/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: tanks_of_freedom/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: tanks_of_freedom/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: opensoldat/notice_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: opensoldat/license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: opensoldat/content_license_path",
+			"passed": true
+		},
+		{
+			"name": "source text packed: freeinfantry_reference/notice_path",
+			"passed": true
+		},
+		{
+			"name": "homestead model loads: roadstead_cottage",
+			"passed": true
+		},
+		{
+			"name": "homestead model instantiates: roadstead_cottage",
+			"passed": true
+		},
+		{
+			"name": "homestead model loads: parcel_mailbox",
+			"passed": true
+		},
+		{
+			"name": "homestead model instantiates: parcel_mailbox",
+			"passed": true
+		},
+		{
+			"name": "homestead model loads: freight_kiosk",
+			"passed": true
+		},
+		{
+			"name": "homestead model instantiates: freight_kiosk",
+			"passed": true
+		},
+		{
+			"name": "homestead model loads: delivery_crate",
+			"passed": true
+		},
+		{
+			"name": "homestead model instantiates: delivery_crate",
+			"passed": true
+		},
+		{
+			"name": "input binding rows packed",
+			"passed": true
+		},
+		{
+			"name": "world lighting rows packed",
+			"passed": true
+		},
+		{
+			"name": "three homestead property rows packed",
+			"passed": true
+		},
+		{
+			"name": "three freight job rows packed",
+			"passed": true
+		},
+		{
+			"name": "LCD font loads",
+			"passed": true
+		},
+		{
+			"name": "Game Deck font loads",
+			"passed": true
+		},
+		{
+			"name": "main scene transition accepted",
+			"passed": true
+		},
+		{
+			"name": "normal main scene entered tree",
+			"passed": true
+		},
+		{
+			"name": "real launch opens the title gate",
+			"passed": true
+		},
+		{
+			"name": "real NEW GAME button is visible",
+			"passed": true
+		},
+		{
+			"name": "title real viewport captured",
+			"passed": true
+		},
+		{
+			"name": "NEW GAME keyboard UI input dismisses title",
+			"passed": true
+		},
+		{
+			"name": "NEW GAME arms real first-run objectives",
+			"passed": true
+		},
+		{
+			"name": "real Roadstead life system is present",
+			"passed": true
+		},
+		{
+			"name": "new_game real viewport captured",
+			"passed": true
+		},
+		{
+			"name": "evidence written: Godot-engine-LICENSE.txt",
+			"passed": true
+		},
+		{
+			"name": "evidence written: Godot-third-party-copyright.json",
+			"passed": true
+		},
+		{
+			"name": "evidence written: Godot-third-party-licenses.json",
+			"passed": true
+		},
+		{
+			"name": "owned main scene freed before shutdown",
+			"passed": true
+		}
+	],
+	"display_driver": "Windows",
+	"engine": {
+		"build": "official",
+		"hash": "f62fdbde15035c5576dad93e586201f4d41ef0cb",
+		"hex": 263425,
+		"major": 4,
+		"minor": 5,
+		"patch": 1,
+		"status": "stable",
+		"string": "4.5.1-stable (official)",
+		"timestamp": 0
+	},
+	"failed": 0,
+	"kind": "local-evaluation-packaged-smoke",
+	"limitations": "Packaging, scene interfaces and title/New Game UI smoke only; not all-cartridge playthrough, full-game certification, clean-machine testing or redistribution clearance.",
+	"passed": 85
+}
