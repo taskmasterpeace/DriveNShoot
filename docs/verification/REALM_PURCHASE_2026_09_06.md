@@ -154,8 +154,10 @@ processes exited. Its literal interrupted outcome is again **not applied,
 unowned, balance 350**; retry reaches balance 50 with one debit. No lost-ack
 after-commit claim is added. Earlier noisy or unsafe runs remain disclosed above.
 
-Scoped final re-review is pending; no full-game or save-recovery completion is
-claimed by these additional checks.
+Scoped final re-review approved both corrections at `26a5407`, with no new
+Critical/Important fix-induced issues. No full-game or save-recovery completion
+is claimed by these additional checks. No merge, deployment or public-service
+authorization is implied by the internal technical approval.
 
 ### Unfinished integration
 

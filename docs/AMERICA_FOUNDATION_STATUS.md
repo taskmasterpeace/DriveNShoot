@@ -8,9 +8,11 @@ An unisolated regression overwrote the existing normal player save. The
 [incident record](verification/TEST_SAVE_ISOLATION_INCIDENT_2026_09_06.md) documents
 the confirmed write and preserved affected files, which are not pre-test backups.
 The original playthrough has not been recovered. A fail-closed road-life harness
-guard now passes its local safety checks and independent task review; final
-milestone review remains pending.
-All future engine/import verification must explicitly isolate both profile paths.
+guard now passes its local safety checks and independent task review. The final
+purchase milestone corrections were approved at `26a5407`; recovery is still open.
+All future verification must explicitly isolate both profile paths. Editor/import
+checks are on hold until the existing MCP wildcard listener is confined; the
+observed import process has exited, with exposure not audited.
 
 ## Latest playable candidate — 2026-09-06
 
@@ -63,7 +65,7 @@ Nineteen failing scenes also failed in a separately imported clean `f1290de` sna
 
 Final title-only boot: 120 real main-scene frames, exit 0, no diagnostics and no save created. Local milestone review is complete; the remaining failures and production gates below still prevent a release-ready or global-completion claim.
 
-The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) is now partially implemented: independent loopback clients authenticate to a dedicated purchase authority and race for a parcel, replay receipts, handle failed writes and recover after server termination. The [process proof](verification/REALM_PURCHASE_2026_09_06.md) passes 57 checks twice. This uses explicit test credentials, not public login; the player-facing property panel remains local. Component assertions passed 241/0, but port-bind and exit-resource diagnostics remain disclosed. Whole-milestone review is pending.
+The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) is now partially implemented: independent loopback clients authenticate to a dedicated purchase authority and race for a parcel, replay receipts, handle failed writes and recover after server termination. The [process proof](verification/REALM_PURCHASE_2026_09_06.md) passes 57 checks twice, plus another 57/0 after the final broadcast correction. This uses explicit test credentials, not public login; the player-facing property panel remains local. Earlier isolated component assertions passed 241/0 with disclosed port-bind/exit-resource diagnostics; the final link/protocol/ledger checks pass 68/49/67 with clean runtime logs. Whole-milestone review and scoped corrections are approved at `26a5407`, without clearing the save incident or remaining mission gates.
 
 ## What is still required for the requested large MMO
 

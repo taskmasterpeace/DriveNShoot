@@ -81,8 +81,9 @@ RED is under `build/profile-guard-positive-701120842baf4ba49915d79d68a5544e/`.
 Runtime stderr was empty in these guard runs. Import stderr retains two existing
 Dialogue Manager invalid-resource-UID warnings; no unrelated addon fix is claimed.
 
-Independent task review approved `1a6976f` with no blocking findings; final
-milestone review remains pending. This guard is bounded
+Independent task review approved `1a6976f` with no blocking findings; the final
+milestone review's two unrelated code/evidence corrections were approved at
+`26a5407`. This guard is bounded
 to this harness, not a general test framework or hostile-filesystem sandbox.
 It does not recover the original player save. Recovery remains unresolved, and
 the full-game goal and release gates remain open.

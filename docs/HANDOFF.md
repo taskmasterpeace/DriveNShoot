@@ -9,8 +9,11 @@ Preservation is not recovery; no verified pre-test playthrough has been restored
 A fail-closed harness guard is implemented in `1a6976f`: both unsafe entry modes
 refuse before loading the game and preserve disposable save sentinels. The driver
 passes 11 checks; isolated gameplay/restart remain 71/0 and 5/0. Independent task
-review is approved; final milestone review is pending. Do not run game/import verification against the normal Godot profile;
-isolate APPDATA and LOCALAPPDATA.
+review is approved, and the final milestone corrections were approved at
+`26a5407`. Do not run verification against the normal Godot profile; isolate
+APPDATA and LOCALAPPDATA. Editor/import verification is additionally on hold
+until the existing MCP addon's wildcard listener is confined to loopback. Its
+observed import process exited; that does not prove the exposure was harmless.
 
 ## 2026-09-06 — bounded realm purchase process proof
 
@@ -27,6 +30,14 @@ The 241 assertion result is not a pristine diagnostic gate: the link component
 logged a failed port-bind attempt, and road-life reported an ObjectDB/one-resource
 exit leak. Both 57-check process workflows had clean child logs. These caveats and
 the save incident remain separate from the successful assertion counts.
+
+Final review reproduced and fixed a broadcast bug: removing one rejected peer
+could skip a later healthy peer. The new regression fails on the old loop and
+passes with a keys snapshot (68/0 link, 49/0 protocol, 67/0 ledger; clean runtime
+logs). An additional separate-process run passes 57/0 with clean child logs.
+All three interrupted-send observations were not applied before retry, not
+already-applied lost acknowledgments; the evidence table is corrected. Scoped
+re-review closed both findings at `26a5407`, without clearing recovery or release.
 
 This is a test-fixture purchase-authority slice, not a player-facing realm. The
 property panel remains offline/local. Public authentication, encrypted and

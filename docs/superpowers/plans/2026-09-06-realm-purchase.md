@@ -79,7 +79,7 @@ if ($state.parcels.roadstead_001.owner_id -notin @('alice','bob')) { throw 'No d
 - [x] Exercise every numbered acceptance in the design: racing, projections, exact replay and conflict, forged schema, bad/expired tokens, expiry after admission, oversized packet, real exclusive write lock and retry, forced task-server termination after acknowledgment and recovery, corrupt-state startup, omitted explicit flag. Tests must inspect the actual store and both clients' received messages. Do not claim interrupted backpack/guest/AOI proof.
 - [x] Run the complete workflow twice with fresh fixtures and retain outputs, checks and per-process logs under ignored build directories. Copy non-secret acceptance summaries into verification docs. Run the existing property ledger and local road-life regressions after network proof.
 - [x] Document exact passing/failed counts and limitations, commit only owned code/docs, and complete task review. Leave full-game goal active.
-- [ ] Complete whole-milestone review after Task 3; do not conflate passing assertions with clean diagnostics or recovery of the overwritten save.
+- [x] Complete whole-milestone review after Task 3; do not conflate passing assertions with clean diagnostics or recovery of the overwritten save.
 
 Task 2 violated profile isolation in two earlier component batches and overwrote
 the existing player save. Corrected isolated evidence does not erase that failure;
@@ -106,4 +106,14 @@ inside this checkout's designated `build/` or `.superpowers/sdd/` test roots.
   real-input road-life71/0. Hidden owned processes, bounded waits and no deletion.
 - [x] Retain exact commands/profile paths/logs, self-review, commit owned files,
   and complete independent task review (approved `1a6976f`).
-- [ ] Complete whole-milestone review. Do not claim save recovery.
+- [x] Complete whole-milestone review. Do not claim save recovery.
+
+## Review completion boundary
+
+Final review found a live-dictionary broadcast removal bug and two incorrect
+interrupted-outcome evidence rows. Fix `7e38533` retains actual RED67/1 and
+GREEN68/0; evidence correction `26a5407` reports the literal not-applied/unowned/350
+pre-retry state. The scoped re-review approved both fixes. Full-game goal, player
+realm integration, public security/operations, original-save recovery and wider
+diagnostics remain open. No more editor/import verification until the existing
+MCP addon's wildcard bind is confined; all observed owned processes have exited.
