@@ -20,6 +20,10 @@ var moon_phase: float = 0.55
 var _sun: DirectionalLight3D = null
 var _sky_mat: ProceduralSkyMaterial = null
 var _env: Environment = null
+const LIGHTING_PATH := "res://data/world_lighting.json"
+const LIGHTING_STOCK := {"day_sun_energy":0.72, "new_moon_ambient":0.30,
+	"full_moon_ambient":0.48, "day_ambient":0.45, "day_sky_contribution":0.65}
+var _lighting: Dictionary = LIGHTING_STOCK.duplicate()
 
 ## [top, horizon, fog] color presets the sky lerps through.
 const SKY_DAY := [Color(0.55, 0.62, 0.7), Color(0.82, 0.72, 0.55), Color(0.78, 0.70, 0.55)]
@@ -31,6 +35,14 @@ func setup(sun: DirectionalLight3D, env: Environment) -> void:
 	_sun = sun
 	_env = env
 	_sky_mat = env.sky.sky_material as ProceduralSkyMaterial
+	if FileAccess.file_exists(LIGHTING_PATH):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(LIGHTING_PATH))
+		if parsed is Dictionary:
+			for key: String in LIGHTING_STOCK:
+				var value: Variant = parsed.get(key)
+				if (value is float or value is int) and is_finite(float(value)):
+					_lighting[key] = clampf(float(value),0.0,1.0)
+	_apply()
 
 
 func _physics_process(delta: float) -> void:
@@ -51,10 +63,16 @@ func daylight() -> float:
 
 ## Twilight ramps so dusk/dawn aren't a light switch (18-20h and 4:30-6h blend).
 func _twilight() -> float:
-	if hour > 18.0 and hour < 20.0:
+	if hour >= 18.0 and hour < 20.0:
 		return 1.0 - (hour - 18.0) / 2.0
-	if hour > 4.5 and hour < 6.0:
+	if hour > 4.5 and hour <= 6.0:
 		return (hour - 4.5) / 1.5
+	# Carry the dusk/dawn envelope across the horizon. Previously the ramp
+	# dropped from 1 to 0 at 06:00 and jumped back to 1 at 18:00.
+	if hour > 6.0 and hour < 7.5:
+		return 1.0 - (hour - 6.0) / 1.5
+	if hour > 16.5 and hour < 18.0:
+		return (hour - 16.5) / 1.5
 	return 0.0
 
 
@@ -104,23 +122,27 @@ func _apply() -> void:
 	# never BLIND. You always keep a sliver of starlight.
 	# THE SKY ANSWERS THE STORM (fidelity loop it.10): weather dims/cools the DAY
 	# term only — the night floor stays un-dimmed (never blind, storm or not).
-	_sun.light_energy = maxf(0.055 + 0.075 * moon_phase, bright * 1.25 * ProtoWeather.sky_dim)
-	_sun.light_color = Color(1.0, 0.92, 0.78).lerp(Color(1.0, 0.6, 0.35), tw)
-	if bright < 0.05:
-		_sun.light_color = Color(0.72, 0.78, 0.95) # cold moon silver
+	_sun.light_energy = maxf(0.055 + 0.075 * moon_phase, bright * float(_lighting.day_sun_energy) * ProtoWeather.sky_dim)
+	var solar_color := Color(1.0, 0.92, 0.78).lerp(Color(1.0, 0.6, 0.35), tw)
+	_sun.light_color = Color(0.72, 0.78, 0.95).lerp(solar_color,smoothstep(0.0,0.15,bright))
 	_sun.light_color = _sun.light_color.lerp(ProtoWeather.sky_tint, ProtoWeather.sky_tint_amt)
 	if _env:
-		_env.ambient_light_energy = (0.06 + 0.085 * moon_phase + 0.5 * bright) \
-			* lerpf(1.0, ProtoWeather.sky_dim, 0.7)
+		# A 100% sky contribution ignored the old ambient-energy "floor" and
+		# sampled an almost black night sky. Keep a real, moon-weighted fill.
+		_env.ambient_light_sky_contribution = bright * float(_lighting.day_sky_contribution)
+		_env.ambient_light_color = Color(0.40,0.48,0.62).lerp(Color(0.68,0.70,0.66),bright)
+		var night_fill: float = lerpf(float(_lighting.new_moon_ambient),float(_lighting.full_moon_ambient),moon_phase)
+		_env.ambient_light_energy = lerpf(night_fill, float(_lighting.day_ambient),bright) \
+			* lerpf(1.0,ProtoWeather.sky_dim,bright * 0.7)
 		# WET AIR (it.12): storms thicken the distance haze — depth you can feel.
 		_env.fog_density = 0.0006 * ProtoWeather.fog_mult
-		_env.fog_light_color = SKY_NIGHT[2].lerp(SKY_DUSK[2] if tw > 0.0 else SKY_DAY[2], bright)
+		_env.fog_light_color = SKY_NIGHT[2].lerp(SKY_DAY[2].lerp(SKY_DUSK[2],tw), bright)
 	if _sky_mat:
 		var moonlit := 0.6 + 0.7 * moon_phase
 		var night_top: Color = SKY_NIGHT[0] * moonlit
 		var night_hor: Color = SKY_NIGHT[1] * moonlit
-		var top: Color = night_top.lerp(SKY_DUSK[0] if tw > 0.0 else SKY_DAY[0], bright)
-		var hor: Color = night_hor.lerp(SKY_DUSK[1] if tw > 0.0 else SKY_DAY[1], bright)
+		var top: Color = night_top.lerp(SKY_DAY[0].lerp(SKY_DUSK[0],tw), bright)
+		var hor: Color = night_hor.lerp(SKY_DAY[1].lerp(SKY_DUSK[1],tw), bright)
 		_sky_mat.sky_top_color = top
 		_sky_mat.sky_horizon_color = hor
 		_sky_mat.ground_horizon_color = hor

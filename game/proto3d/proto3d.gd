@@ -521,7 +521,9 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.6
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# The Compatibility renderer is graded in-range by the clock's lighting
+	# rows; the old Filmic/default-white combination clipped painted surfaces.
+	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.78, 0.70, 0.55)
 	env.fog_density = 0.0006

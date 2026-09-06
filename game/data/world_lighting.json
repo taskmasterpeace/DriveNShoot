@@ -1,0 +1,7 @@
+{
+  "day_sun_energy": 0.72,
+  "new_moon_ambient": 0.30,
+  "full_moon_ambient": 0.48,
+  "day_ambient": 0.45,
+  "day_sky_contribution": 0.65
+}
