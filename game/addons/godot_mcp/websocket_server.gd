@@ -2,6 +2,8 @@
 class_name MCPWebSocketServer
 extends Node
 
+const LOOPBACK_LISTENER: Script = preload("res://addons/godot_mcp/loopback_listener.gd")
+
 signal client_connected(id)
 signal client_disconnected(id)
 signal command_received(client_id, command)
@@ -38,10 +40,10 @@ func start_server() -> int:
 	if is_server_active():
 		return ERR_ALREADY_IN_USE
 	
-	var err = tcp_server.listen(_port)
+	var err = LOOPBACK_LISTENER.listen(tcp_server, _port)
 	if err == OK:
 		set_process(true)
-		print("MCP WebSocket server started on port %d" % _port)
+		print("MCP WebSocket server started on %s:%d" % [LOOPBACK_LISTENER.BIND_ADDRESS, _port])
 	else:
 		print("Failed to start MCP WebSocket server: %d" % err)
 	

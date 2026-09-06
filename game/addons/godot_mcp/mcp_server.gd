@@ -1,6 +1,8 @@
 @tool
 extends EditorPlugin
 
+const LOOPBACK_LISTENER: Script = preload("res://addons/godot_mcp/loopback_listener.gd")
+
 var tcp_server := TCPServer.new()
 var port := 9080
 var handshake_timeout := 3000 # ms
@@ -50,9 +52,9 @@ func _enter_tree():
 	self.connect("command_received", Callable(command_handler, "_handle_command"))
 	
 	# Start WebSocket server
-	var err = tcp_server.listen(port)
+	var err = LOOPBACK_LISTENER.listen(tcp_server, port)
 	if err == OK:
-		print("Listening on port", port)
+		print("MCP LOOPBACK READY port=%d pid=%d address=%s" % [port, OS.get_process_id(), LOOPBACK_LISTENER.BIND_ADDRESS])
 		set_process(true)
 	else:
 		printerr("Failed to listen on port", port, "error:", err)
