@@ -1,5 +1,7 @@
 # Task 5 — legacy input-dispatch verification
 
+Archival note: the historical scratch RED outputs are now retained in [the repeat archive](focus-repeat-a0ff3cd-logs.zip); [drag](trace-drag.stdout.log) and [remote](trace-drone-remote.stdout.log) traces are adjacent. The scoped review accepted this task; see [controller verification and provenance limits](../AMERICA_FOUNDATION_2026-09-05.md). Table log paths below are relative to this report's directory; profile paths are relative to the checkout.
+
 Date: 2026-09-05
 
 Worktree: `D:/git/carworld/.worktrees/america-foundation`

@@ -1,0 +1,22 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROADSTEAD CAPTURE FAILURE: PASS - photobooth exposes checked image-save boundary
+ERROR: ROADSTEAD PHOTOBOOTH: empty_source PNG write failed error=30
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] save_capture_image (res://proto3d/tools/roadstead_photobooth.gd:81)
+       [1] _ready (res://proto3d/tests/roadstead_photobooth_failure_sim.gd:19)
+ROADSTEAD CAPTURE FAILURE: PASS - empty viewport source is an explicit capture failure
+ERROR: Can't save PNG at path: 'D:/git/carworld/.worktrees/america-foundation/.superpowers/sdd/2026-09-05-america-foundation/task4-final-capture-failure-appdata/Godot/app_userdata/DRIVN/roadstead-capture-failure/blocked.png'.
+   at: save_image (drivers/png/resource_saver_png.cpp:56)
+   GDScript backtrace (most recent call first):
+       [0] save_capture_image (res://proto3d/tools/roadstead_photobooth.gd:76)
+       [1] _ready (res://proto3d/tests/roadstead_photobooth_failure_sim.gd:25)
+ERROR: ROADSTEAD PHOTOBOOTH: blocked PNG write failed error=12
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] save_capture_image (res://proto3d/tools/roadstead_photobooth.gd:81)
+       [1] _ready (res://proto3d/tests/roadstead_photobooth_failure_sim.gd:25)
+ROADSTEAD CAPTURE FAILURE: PASS - failed PNG write is accumulated as a capture failure
+ROADSTEAD CAPTURE FAILURE: PASS - any capture failure produces a nonzero process result
+ROADSTEAD CAPTURE FAILURE: 4 passed, 0 failed

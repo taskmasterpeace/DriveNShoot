@@ -1,0 +1,64 @@
+[
+  {
+    "name": "drag_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 10.72,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRAG: FAIL - TAP still OPENS the container",
+      "DRAG: FAIL - HOLD grabs it (dragging)",
+      "DRAG: FAIL - release does NOT drop it (E again does)",
+      "DRAG: FAIL - you actually hauled it somewhere (0.0m from spawn)",
+      "DRAG: FAIL - it TRAILS at arm's length (15.0m)",
+      "DRAG: FAIL - hauling is HEAVY (speed_mult 1.00)",
+      "DRAG: FAIL - hauling teaches STRENGTH",
+      "DRAG RESULTS: 5 passed, 7 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_remote_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "REMOTE: FAIL - E at the dock launches the ROUTE scout",
+      "REMOTE: FAIL - THE EYE: the split follows the scout out",
+      "REMOTE: FAIL - the dock handed you a REMOTE",
+      "REMOTE: FAIL - the dock is CHARGING (a quarter of the day)",
+      "REMOTE: FAIL - the homecoming KEEPS the remote",
+      "REMOTE: FAIL - the charge law holds — no relaunch while charging",
+      "REMOTE RESULTS: 23 passed, 6 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "tv_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 7.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TV: FAIL - E opens the media panel",
+      "TV RESULTS: 24 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "world_walkthrough_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 29.9,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WALKTHRU: FAIL - ≥3 living creatures share the screen at the Alley (2)",
+      "WALKTHRU RESULTS: 15 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  }
+]

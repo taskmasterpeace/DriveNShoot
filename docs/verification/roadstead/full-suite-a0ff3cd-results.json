@@ -1,0 +1,3454 @@
+[
+  {
+    "name": "aero_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 19.43,
+    "stopped_for_script_error": false,
+    "summary": [
+      "AERO RESULTS: 8 passed, 0 failed",
+      "AERO: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "aim_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 14.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "AIM RESULTS: 15 passed, 0 failed",
+      "AIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: Node origin and target are in the same position, look_at() failed."
+    ]
+  },
+  {
+    "name": "arsenal_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 15.25,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GUN RESULTS: 12 passed, 0 failed",
+      "GUN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ashland_command_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.99,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ASHLAND_COMMAND RESULTS: 21 passed, 0 failed",
+      "ASHLAND_COMMAND: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "audio_sim",
+    "status": "FAIL",
+    "exit_code": -1,
+    "seconds": 8.75,
+    "stopped_for_script_error": true,
+    "summary": [
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'."
+    ],
+    "diagnostics": [
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'."
+    ]
+  },
+  {
+    "name": "balance_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BALANCE RESULTS: 16 passed, 0 failed",
+      "BALANCE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: 4 RID allocations of type 'P11GodotBody3D' were leaked at exit.",
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 4 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "bandit_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 6.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BANDIT RESULTS: 18 passed, 0 failed",
+      "BANDIT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "betting_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.95,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BET RESULTS: 12 passed, 0 failed",
+      "BET: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "bike_rider_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.33,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RIDER RESULTS: 10 passed, 0 failed",
+      "RIDER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "bike_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 17.31,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIM RESULTS: 8 passed, 0 failed",
+      "SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "binocular_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.42,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BINOC RESULTS: 6 passed, 0 failed",
+      "BINOC: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "black_grid_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BLACK_GRID RESULTS: 53 passed, 0 failed",
+      "BLACK_GRID: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "black_orbit_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BLACK_ORBIT RESULTS: 18 passed, 0 failed",
+      "BLACK_ORBIT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "bodydoll_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.72,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BODYDOLL RESULTS: 14 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "broadcast_fallback_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BCAST RESULTS: 10 passed, 0 failed",
+      "BCAST: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "bunker_breaker_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.05,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BUNKER_BREAKER RESULTS: 15 passed, 0 failed",
+      "BUNKER_BREAKER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "camera_lab_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.9,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CAMERA_LAB_SIM RESULTS: 50 passed, 0 failed",
+      "CAMERA_LAB_SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "car_combat_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.15,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CARCBT RESULTS: 4 passed, 0 failed",
+      "CARCBT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "car_entry_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 23.1,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ENTRY: DONE — 17 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "car_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 18.31,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CAR: FAIL - tank runs DRY under throttle (fuel 0.6)",
+      "CAR: FAIL - chassis 35% -> SMOKING",
+      "CAR: FAIL - chassis 10% -> ON FIRE",
+      "CAR: FAIL - cook meter rising (0%)",
+      "CAR: FAIL - salvaged the wreck",
+      "CAR RESULTS: 9 passed, 5 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "car_upgrade_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 20.5,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CUP RESULTS: 43 passed, 0 failed",
+      "CUP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "carousel_portal_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 6.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PORTAL: DONE — 23 passed, 0 failed"
+    ],
+    "diagnostics": [
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: 1 RID allocations of type 'P11GodotArea3D' were leaked at exit.",
+      "ERROR: 1 RID allocations of type 'N17RendererSceneCull8InstanceE' were leaked at exit.",
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "carousel_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 15.68,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CRSL RESULTS: 13 passed, 0 failed",
+      "CRSL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "carousel2_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CR2 RESULTS: 13 passed, 0 failed",
+      "CR2: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "char_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CHAR RESULTS: 14 passed, 0 failed",
+      "CHAR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "choir_zone_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.75,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CHOIR RESULTS: 14 passed, 0 failed",
+      "CHOIR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "city_exit_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.43,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CITYEXIT RESULTS: 35 passed, 0 failed",
+      "CITYEXIT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "city_layout_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CITYLAYOUT RESULTS: 17 passed, 0 failed",
+      "CITYLAYOUT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "clone_fever_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.04,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CLONEFEVER RESULTS: 7 passed, 0 failed",
+      "CLONEFEVER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "clone_ritual_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.57,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CLONE RESULTS: 15 passed, 0 failed",
+      "CLONE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "combat_feel_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 10.54,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FEEL RESULTS: 15 passed, 0 failed",
+      "FEEL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "combat_rig_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CRIG RESULTS: 7 passed, 0 failed",
+      "CRIG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "cone_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 16.78,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CONE RESULTS: 8 passed, 0 failed",
+      "CONE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "console_catalog_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 11.14,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CONSOLE_CATALOG RESULTS: 96 passed, 0 failed",
+      "CONSOLE_CATALOG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "container_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 7.48,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BOX: FAIL - chest prompts open",
+      "BOX: FAIL - SAME panel opens the chest",
+      "BOX RESULTS: 9 passed, 2 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "coop_fun_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.64,
+    "stopped_for_script_error": false,
+    "summary": [
+      "COOPFUN: FAIL - F6 cycles to FFA",
+      "COOPFUN RESULTS: 15 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "corpse_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.51,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CORPSE: DONE — 12 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "creatures_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 26.42,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CREATURES: FAIL - F1: unwarned strike DEFERS into a tell (warn_count 0 ≥ 1, not hunting)",
+      "CREATURES: FAIL - A2: the warning is DELIVERED on the threat stack",
+      "CREATURES: FAIL - F1/F2: warned + STARVING → it hunts the player",
+      "CREATURES RESULTS: 52 passed, 3 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "crew_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CRW RESULTS: 11 passed, 0 failed",
+      "CRW: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "crouch_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.74,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CROUCH RESULTS: 22 passed, 0 failed",
+      "CROUCH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "crown_of_ash_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.42,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CROWN RESULTS: 26 passed, 0 failed",
+      "CROWN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dark_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 22.28,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRK RESULTS: 17 passed, 0 failed",
+      "DRK: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dashboard_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DASH RESULTS: 30 passed, 0 failed",
+      "DASH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "data_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.54,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DATA RESULTS: 19 passed, 0 failed",
+      "DATA: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dead_ground_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DEAD_GROUND RESULTS: 16 passed, 0 failed",
+      "DEAD_GROUND: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "death_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 7.5,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DEATH RESULTS: 14 passed, 0 failed",
+      "DEATH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "devmode_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DEV RESULTS: 18 passed, 0 failed",
+      "DEV: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dial_tanks_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.17,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DIAL_TANKS RESULTS: 17 passed, 0 failed",
+      "DIAL_TANKS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "district_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.49,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DISTRICT RESULTS: 13 passed, 0 failed",
+      "DISTRICT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dive_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 5.38,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DIVE: FAIL - a bullet fired MID-DIVE hits (hp 1000 → 1000, state DIVE)",
+      "DIVE: FAIL - a bullet fired PRONE hits (hp 982 → 982)",
+      "DIVE RESULTS: 10 passed, 2 failed"
+    ],
+    "diagnostics": [
+      "ERROR: Node origin and target are in the same position, look_at() failed."
+    ]
+  },
+  {
+    "name": "dog_eye_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.28,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DOGEYE: DONE — 11 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dog_fever_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.91,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DOGFEVER RESULTS: 5 passed, 0 failed",
+      "DOGFEVER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dog_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 19.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DOG RESULTS: 12 passed, 0 failed",
+      "DOG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dogmeta_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.18,
+    "stopped_for_script_error": false,
+    "summary": [
+      "META RESULTS: 11 passed, 0 failed",
+      "META: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "dogverb_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.95,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DOGVERB RESULTS: 11 passed, 0 failed",
+      "DOGVERB: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drag_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 11.42,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRAG: FAIL - TAP still OPENS the container",
+      "DRAG: FAIL - HOLD grabs it (dragging)",
+      "DRAG: FAIL - release does NOT drop it (E again does)",
+      "DRAG: FAIL - you actually hauled it somewhere (0.0m from spawn)",
+      "DRAG: FAIL - it TRAILS at arm's length (15.0m)",
+      "DRAG: FAIL - hauling is HEAVY (speed_mult 1.00)",
+      "DRAG: FAIL - hauling teaches STRENGTH",
+      "DRAG RESULTS: 5 passed, 7 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "drive_in_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 3.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRIVEIN: FAIL - the projector starts again for a returning car",
+      "DRIVEIN RESULTS: 9 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "drive_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 36.98,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIM RESULTS: 8 passed, 0 failed",
+      "SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "driver_visible_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.46,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRIVERVIS RESULTS: 12 passed, 0 failed",
+      "DRIVERVIS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_flight_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 26.37,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FLIGHT RESULTS: 22 passed, 0 failed",
+      "FLIGHT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_pilot_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.14,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PILOT: DONE — 20 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_polish_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.17,
+    "stopped_for_script_error": false,
+    "summary": [
+      "POLISH: DONE — 11 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_recall_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.46,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RECALL RESULTS: 6 passed, 0 failed",
+      "RECALL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "drone_remote_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 5.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "REMOTE: FAIL - E at the dock launches the ROUTE scout",
+      "REMOTE: FAIL - THE EYE: the split follows the scout out",
+      "REMOTE: FAIL - the dock handed you a REMOTE",
+      "REMOTE: FAIL - the dock is CHARGING (a quarter of the day)",
+      "REMOTE: FAIL - the homecoming KEEPS the remote",
+      "REMOTE: FAIL - the charge law holds — no relaunch while charging",
+      "REMOTE RESULTS: 23 passed, 6 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_scout_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 17.44,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRONE: FAIL - E LAUNCHES the scout",
+      "DRONE: FAIL - it flies the ROUTE (mode OUT)",
+      "DRONE: FAIL - the rotor HUM rides the bird from launch (no silent scout)",
+      "DRONE: FAIL - the battery DRAINED",
+      "DRONE RESULTS: 8 passed, 4 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.05,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRN RESULTS: 7 passed, 0 failed",
+      "DRN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ecology_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.66,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ECO RESULTS: 12 passed, 0 failed",
+      "ECO: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "elevation_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 6.4,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ELEV RESULTS: 25 passed, 0 failed",
+      "ELEV: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "empire_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.03,
+    "stopped_for_script_error": false,
+    "summary": [
+      "EMP RESULTS: 13 passed, 0 failed",
+      "EMP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "equip_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.51,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GEAR RESULTS: 31 passed, 0 failed",
+      "GEAR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "exhaust_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.5,
+    "stopped_for_script_error": false,
+    "summary": [
+      "EXHAUST RESULTS: 25 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "exit_address_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.39,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ADDR RESULTS: 7 passed, 0 failed",
+      "ADDR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "exit_blueprint_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "EXIT RESULTS: 9 passed, 0 failed",
+      "EXIT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "exit_geometry_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.31,
+    "stopped_for_script_error": false,
+    "summary": [
+      "XGEO RESULTS: 6 passed, 0 failed",
+      "XGEO: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "fade_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FADE RESULTS: 4 passed, 0 failed",
+      "FADE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "fall_line_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.37,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FALL_LINE RESULTS: 16 passed, 0 failed",
+      "FALL_LINE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "feel_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.71,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FEEL RESULTS: 9 passed, 0 failed",
+      "FEEL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "fight_night_99_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FIGHT_NIGHT_99 RESULTS: 20 passed, 0 failed",
+      "FIGHT_NIGHT_99: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "fight_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FGT RESULTS: 7 passed, 0 failed",
+      "FGT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "frontier_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 4.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FRONTIER: FAIL - the western pass landed (I-70:9 I-5:9 I-35:7 I-25:6 I-80:10 — 91 exits map-wide)",
+      "FRONTIER RESULTS: 14 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "fuel_run_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FUEL_RUN RESULTS: 18 passed, 0 failed",
+      "FUEL_RUN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "furnisher_lod_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.57,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FURNLOD RESULTS: 11 passed, 0 failed",
+      "FURNLOD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "furnisher_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.66,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FSHR RESULTS: 11 passed, 0 failed",
+      "FSHR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "furniture_container_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.08,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FURN RESULTS: 7 passed, 0 failed",
+      "FURN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "furniture_drag_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.5,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FURNDRAG RESULTS: 15 passed, 0 failed",
+      "FURNDRAG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "gadget_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GADGET: DONE — 19 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_acquisition_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_ACQUISITION RESULTS: 20 passed, 0 failed",
+      "GAME_ACQUISITION: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "game_bot_fill_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_BOT_FILL RESULTS: 61 passed, 0 failed",
+      "GAME_BOT_FILL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_catalog_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 18.44,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_CATALOG RESULTS: 158 passed, 0 failed",
+      "GAME_CATALOG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_cleanroom_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_CLEANROOM RESULTS: 10 passed, 0 failed",
+      "GAME_CLEANROOM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_cover_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.78,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_COVER RESULTS: 15 passed, 0 failed",
+      "GAME_COVER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_device_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_DEVICE RESULTS: 15 passed, 0 failed",
+      "GAME_DEVICE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "game_input_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_INPUT RESULTS: 14 passed, 0 failed",
+      "GAME_INPUT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_ledger_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.96,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_LEDGER RESULTS: 23 passed, 0 failed",
+      "GAME_LEDGER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_license_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.51,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_LICENSE RESULTS: 12 passed, 0 failed",
+      "GAME_LICENSE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_lobby_policy_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_LOBBY_POLICY RESULTS: 21 passed, 0 failed",
+      "GAME_LOBBY_POLICY: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_lobby_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.64,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_LOBBY RESULTS: 28 passed, 0 failed",
+      "GAME_LOBBY: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_local_mp_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_LOCAL_MP RESULTS: 6 passed, 0 failed",
+      "GAME_LOCAL_MP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_net_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.06,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_NET RESULTS: 30 passed, 0 failed",
+      "GAME_NET: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_online_mp_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_ONLINE_MP RESULTS: 25 passed, 0 failed",
+      "GAME_ONLINE_MP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "game_passenger_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.48,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_PASSENGER RESULTS: 12 passed, 0 failed",
+      "GAME_PASSENGER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_registry_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_REG RESULTS: 19 passed, 0 failed",
+      "GAME_REG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_save_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_SAVE RESULTS: 7 passed, 0 failed",
+      "GAME_SAVE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_shell_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.06,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_SHELL RESULTS: 22 passed, 0 failed",
+      "GAME_SHELL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_shooter_controls_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.3,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SHOOTER_CONTROLS RESULTS: 10 passed, 0 failed",
+      "SHOOTER_CONTROLS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_shooter_kernel_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.95,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SHOOTER_KERNEL RESULTS: 16 passed, 0 failed",
+      "SHOOTER_KERNEL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "game_spectacle_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.43,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_SPECTACLE RESULTS: 19 passed, 0 failed",
+      "GAME_SPECTACLE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "game_world_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.1,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAME_WORLD RESULTS: 8 passed, 0 failed",
+      "GAME_WORLD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "garage_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.36,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAR RESULTS: 5 passed, 0 failed",
+      "GAR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "gator_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 8.35,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GATOR: FAIL - exit counts match the corridor budgets (I-95:9 I-75:9 I-40:10 I-10:9 I-90:10)",
+      "GATOR RESULTS: 14 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "gauge_hud_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GAUGE RESULTS: 44 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "getup_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.91,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GETUP RESULTS: 3 passed, 0 failed",
+      "GETUP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "gridbreach_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.92,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GRIDBREACH RESULTS: 18 passed, 0 failed",
+      "GRIDBREACH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "grip_ik_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.85,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GRIP_IK RESULTS: 18 passed, 0 failed",
+      "GRIP_IK: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ground_integrity_sim",
+    "status": "FAIL",
+    "exit_code": -1,
+    "seconds": 14.34,
+    "stopped_for_script_error": true,
+    "summary": [
+      "SCRIPT ERROR: Invalid access to property or key 'pos' on a base object of type 'Dictionary'."
+    ],
+    "diagnostics": [
+      "SCRIPT ERROR: Invalid access to property or key 'pos' on a base object of type 'Dictionary'."
+    ]
+  },
+  {
+    "name": "ground_texture_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.14,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GROUND: DONE — 19 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "gun_audio_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.78,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GUNAUDIO RESULTS: 9 passed, 0 failed",
+      "GUNAUDIO: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "gunfeel_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 14.02,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GUNFEEL RESULTS: 37 passed, 0 failed",
+      "GUNFEEL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "handheld_catalog_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.53,
+    "stopped_for_script_error": false,
+    "summary": [
+      "HANDHELD_CATALOG RESULTS: 74 passed, 0 failed",
+      "HANDHELD_CATALOG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "homebase_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.08,
+    "stopped_for_script_error": false,
+    "summary": [
+      "HOME RESULTS: 11 passed, 0 failed",
+      "HOME: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "homestead_asset_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "HOMESTEAD RESULTS: 44 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "horse_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.01,
+    "stopped_for_script_error": false,
+    "summary": [
+      "HORSE: FAIL - REAL E interact mounted the player (front seat)",
+      "HORSE: FAIL - the player is PARENTED to the horse (seat anchor)",
+      "HORSE RESULTS: 27 passed, 2 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "infected_echo_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.64,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ECHO RESULTS: 5 passed, 0 failed",
+      "ECHO: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "infected_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 34.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "INF RESULTS: 10 passed, 0 failed",
+      "INF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "infected_sprinter_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 6.22,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SPRINTER RESULTS: 7 passed, 0 failed",
+      "SPRINTER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "input_map_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.66,
+    "stopped_for_script_error": false,
+    "summary": [
+      "INMAP RESULTS: 15 passed, 0 failed",
+      "INMAP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "interior_skin_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.88,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SKIN RESULTS: 15 passed, 0 failed",
+      "SKIN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "inventory_grid_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.16,
+    "stopped_for_script_error": false,
+    "summary": [
+      "INV: DONE — 63 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "iron_dome_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "IRON_DOME RESULTS: 15 passed, 0 failed",
+      "IRON_DOME: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "item_bridge_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.43,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BRIDGE: DONE — 10 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "items_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 5.17,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ITM: FAIL - every tradeable item has a PRICE (Mercy can stock anything) — MISSING: [\"game_cart_rust_runners\", \"game_cart_black_grid\"]",
+      "ITM RESULTS: 26 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "junction_bake_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.95,
+    "stopped_for_script_error": false,
+    "summary": [
+      "JBAKE RESULTS: 14 passed, 0 failed",
+      "JBAKE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "junction_law_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.8,
+    "stopped_for_script_error": false,
+    "summary": [
+      "JLAW RESULTS: 11 passed, 0 failed",
+      "JLAW: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "key_icons_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "KEYICON: DONE — 27 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "knockback_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.45,
+    "stopped_for_script_error": false,
+    "summary": [
+      "KB RESULTS: 5 passed, 0 failed",
+      "KB: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 4 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "last_mile_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.94,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LAST_MILE RESULTS: 17 passed, 0 failed",
+      "LAST_MILE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "law_loot_override_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.01,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LAW RESULTS: 5 passed, 0 failed",
+      "LAW: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "law_profile_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.35,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LAW RESULTS: 8 passed, 0 failed",
+      "LAW: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "library_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 3.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LIB: FAIL - 7 manuals on the shelf",
+      "LIB: FAIL - every book has 3 pages of real text",
+      "LIB: FAIL - library lists all 7 manuals",
+      "LIB: DONE — 11 passed, 3 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "life_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 19.28,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LIF RESULTS: 19 passed, 0 failed",
+      "LIF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "loot_field_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.61,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LOOT RESULTS: 5 passed, 0 failed",
+      "LOOT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "loot_table_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.32,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LOOT RESULTS: 7 passed, 0 failed",
+      "LOOT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "los_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LOS RESULTS: 9 passed, 0 failed",
+      "LOS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "m1_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 24.45,
+    "stopped_for_script_error": false,
+    "summary": [
+      "M1 RESULTS: 22 passed, 0 failed",
+      "M1: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "map_nav_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MAPNAV RESULTS: 12 passed, 0 failed",
+      "MAPNAV: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "map_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 38.75,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIM RESULTS: 45 passed, 0 failed",
+      "SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW."
+    ]
+  },
+  {
+    "name": "mapforge_v2_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.19,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MF2 RESULTS: 7 passed, 0 failed",
+      "MF2: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "media_registry_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.1,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MEDREG RESULTS: 15 passed, 0 failed",
+      "MEDREG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: MediaRegistry: DUPLICATE media id 'good_film' — row skipped"
+    ]
+  },
+  {
+    "name": "melee_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.81,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MEL RESULTS: 10 passed, 0 failed",
+      "MEL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "melee_wall_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MWALL RESULTS: 3 passed, 0 failed",
+      "MWALL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "menu_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.34,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MENU RESULTS: 7 passed, 0 failed",
+      "MENU: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "meridian_town_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.37,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MER RESULTS: 32 passed, 0 failed",
+      "MER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "mine_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.64,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MINE RESULTS: 5 passed, 0 failed",
+      "MINE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "misfire_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.23,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MISFIRE RESULTS: 3 passed, 0 failed",
+      "MISFIRE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "moodle_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 10.73,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MOODLE RESULTS: 9 passed, 0 failed",
+      "MOODLE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "motion_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MOTION RESULTS: 13 passed, 0 failed",
+      "MOTION: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "motion_stage_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.77,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MOTION_STAGE RESULTS: 13 passed, 0 failed",
+      "MOTION_STAGE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "mount_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.48,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MOUNT RESULTS: 6 passed, 0 failed",
+      "MOUNT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "music_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "MUSIC RESULTS: 9 passed, 0 failed",
+      "MUSIC: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "nav_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 7.23,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NAV: FAIL - N wraps to OFF (after 4 extra stops)",
+      "NAV RESULTS: 7 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "nav_walk_block_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 71.2,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NAVB RESULTS: 4 passed, 0 failed",
+      "NAVB: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "nav_walk_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 71.47,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NAVW RESULTS: 10 passed, 0 failed",
+      "NAVW: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "net_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NET RESULTS: 16 passed, 0 failed",
+      "NET: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "network_fill_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.18,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NETF RESULTS: 17 passed, 0 failed",
+      "NETF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "news_media_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NEWS RESULTS: 11 passed, 0 failed",
+      "NEWS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "noise_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.85,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NOISE RESULTS: 8 passed, 0 failed",
+      "NOISE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "npc_act_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.51,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NACT RESULTS: 6 passed, 0 failed",
+      "NACT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "npc_drive_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 12.45,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRV RESULTS: 11 passed, 0 failed",
+      "DRV: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "objective_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.38,
+    "stopped_for_script_error": false,
+    "summary": [
+      "OBJ RESULTS: 13 passed, 0 failed",
+      "OBJ: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "offline_catchup_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 4.14,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CATCHUP RESULTS: 16 passed, 0 failed",
+      "CATCHUP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "options_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.46,
+    "stopped_for_script_error": false,
+    "summary": [
+      "OPTIONS RESULTS: 23 passed, 0 failed",
+      "OPTIONS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "overpass_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 16.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "OVERPASS RESULTS: 8 passed, 0 failed",
+      "OVERPASS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "pack_rat_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.6,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PACK_RAT RESULTS: 14 passed, 0 failed",
+      "PACK_RAT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "pad_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 7.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PAD RESULTS: 15 passed, 0 failed",
+      "PAD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: 1 RID of type \"CanvasItem\" was leaked.",
+      "ERROR: 28 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.",
+      "ERROR: 2 RID allocations of type 'PN18TextServerAdvanced22ShapedTextDataAdvancedE' were leaked at exit.",
+      "ERROR: 1 RID allocations of type 'PN18TextServerAdvanced12FontAdvancedE' were leaked at exit.",
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "pilot_skill_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PSKILL: DONE — 14 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "placement_wire_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.72,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PWIRE RESULTS: 6 passed, 0 failed",
+      "PWIRE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "population_cell_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.64,
+    "stopped_for_script_error": false,
+    "summary": [
+      "POP RESULTS: 23 passed, 0 failed",
+      "POP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "population_wire_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "POPWIRE RESULTS: 9 passed, 0 failed",
+      "POPWIRE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "pose_drag_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "POSEDRAG RESULTS: 17 passed, 0 failed",
+      "POSEDRAG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "property_ledger_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PROPERTY: 67 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "puppet_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.32,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PUP RESULTS: 20 passed, 0 failed",
+      "PUP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "pvp_prep_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.19,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PVP RESULTS: 11 passed, 0 failed",
+      "PVP: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "quad_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.35,
+    "stopped_for_script_error": false,
+    "summary": [
+      "QUAD RESULTS: 11 passed, 0 failed",
+      "QUAD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "race_controller_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.91,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RCS RESULTS: 23 passed, 0 failed",
+      "RCS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "radio_dial_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DIAL: DONE — 17 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "radio_positional_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RADPOS RESULTS: 19 passed, 0 failed",
+      "RADPOS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "radio_ui_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.15,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RADIO RESULTS: 23 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "radworm_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.58,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RADWORM RESULTS: 13 passed, 0 failed",
+      "RADWORM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "readable_road_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 19.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "READROAD RESULTS: 15 passed, 0 failed",
+      "READROAD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "recoil_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.27,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RECOIL RESULTS: 14 passed, 0 failed",
+      "RECOIL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "recover_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 13.14,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RCV RESULTS: 3 passed, 0 failed",
+      "RCV: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "red_sky_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RED_SKY RESULTS: 19 passed, 0 failed",
+      "RED_SKY: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "relay_bloom_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.81,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RELAY_BLOOM RESULTS: 15 passed, 0 failed",
+      "RELAY_BLOOM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "relief_paint_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 13.48,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RELIEF RESULTS: 16 passed, 0 failed",
+      "RELIEF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "rig_v2_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RIG_V2 RESULTS: 50 passed, 0 failed",
+      "RIG_V2: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ring_event_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.95,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RING RESULTS: 9 passed, 0 failed",
+      "RING: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "river_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 12.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RIVER RESULTS: 12 passed, 0 failed",
+      "RIVER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "road_lane_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.38,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ROADLANE RESULTS: 26 passed, 0 failed",
+      "ROADLANE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "road_life_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 27.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ROAD LIFE: 71 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "road_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ROAD RESULTS: 9 passed, 0 failed",
+      "ROAD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "roadkill_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.29,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ROADKILL: DONE — 7 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "roadside_band_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.02,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BAND: FAIL - camera-facing billboards appear along interstates",
+      "BAND RESULTS: 13 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "roadstead_photobooth_failure_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 1.87,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ROADSTEAD CAPTURE FAILURE: 4 passed, 0 failed"
+    ],
+    "diagnostics": [
+      "ERROR: ROADSTEAD PHOTOBOOTH: empty_source PNG write failed error=30",
+      "ERROR: Can't save PNG at path: 'D:/git/carworld/.worktrees/america-foundation/.superpowers/sdd/2026-09-05-america-foundation/full-suite-a0ff3cd/profiles/roadstead_photobooth_failure_sim/Godot/app_userdata/DRIVN/roadstead-capture-failure/blocked.png'.",
+      "ERROR: ROADSTEAD PHOTOBOOTH: blocked PNG write failed error=12"
+    ]
+  },
+  {
+    "name": "run_form_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RUN_FORM RESULTS: 15 passed, 0 failed",
+      "RUN_FORM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "rust_runners_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.91,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RUST_RUNNERS RESULTS: 46 passed, 0 failed",
+      "RUST_RUNNERS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "rustball_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RUSTBALL RESULTS: 16 passed, 0 failed",
+      "RUSTBALL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "rv_camp_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.01,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RVC RESULTS: 9 passed, 0 failed",
+      "RVC: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "safehouse_spawn_suppression_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.2,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SPS RESULTS: 10 passed, 0 failed",
+      "SPS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "save_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.1,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SAVE RESULTS: 21 passed, 0 failed",
+      "SAVE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "seat_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.8,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SEAT RESULTS: 7 passed, 0 failed",
+      "SEAT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 4 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "showroom_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 19.55,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SHOWROOM_SIM RESULTS: 194 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "sign_reader_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.25,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIGNS RESULTS: 5 passed, 0 failed",
+      "SIGNS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "sign_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.75,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIGN RESULTS: 6 passed, 0 failed",
+      "SIGN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "signature_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIG RESULTS: 17 passed, 0 failed",
+      "SIG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "silhouette_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.15,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SILH RESULTS: 21 passed, 0 failed",
+      "SILH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "skill_tree_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.25,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SKILLTREE: DONE — 13 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "skills_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.22,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SKL RESULTS: 19 passed, 0 failed",
+      "SKL: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "skin_material_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.07,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SKIN: DONE — 13 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "skyjoust_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.71,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SKYJOUST RESULTS: 17 passed, 0 failed",
+      "SKYJOUST: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "sound_map_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SNDMAP: DONE — 12 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "spine_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.88,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SPN RESULTS: 17 passed, 0 failed",
+      "SPN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "split_view_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SPLIT: DONE — 13 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "stage3_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 6.2,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RPG RESULTS: 12 passed, 0 failed",
+      "RPG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "stage4_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 13.79,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CBT RESULTS: 10 passed, 0 failed",
+      "CBT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "stage5_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.03,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WLD RESULTS: 11 passed, 0 failed",
+      "WLD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "stage7_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 12.32,
+    "stopped_for_script_error": false,
+    "summary": [
+      "S7 RESULTS: 11 passed, 0 failed",
+      "S7: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "station_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 4.03,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STATION: FAIL - L turns the DIAL (CHICAGO RADIO → CHICAGO RADIO)",
+      "STATION: FAIL - '.' turns it UP (70 → 70)",
+      "STATION: FAIL - ',' turns it DOWN",
+      "STATION RESULTS: 12 passed, 3 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "stream_budget_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.21,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STREAM: DONE — 12 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "strike_author_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 12.62,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STRIKE_AUTHOR RESULTS: 37 passed, 0 failed",
+      "STRIKE_AUTHOR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "strike_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.89,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STRIKE RESULTS: 63 passed, 0 failed",
+      "STRIKE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "structure_data_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 3.74,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STRUCT RESULTS: 36 passed, 0 failed",
+      "STRUCT: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: StructureBuilder: no profile 'no_such_building' in the catalog"
+    ]
+  },
+  {
+    "name": "surface_handling_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 67.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SURF RESULTS: 10 passed, 0 failed",
+      "SURF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "surfacing_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.59,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SURF RESULTS: 5 passed, 0 failed",
+      "SURF: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "terrain_relief_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.99,
+    "stopped_for_script_error": false,
+    "summary": [
+      "RELIEF: DONE — 13 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "test_grounds_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 11.41,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GROUNDS RESULTS: 16 passed, 0 failed",
+      "GROUNDS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "threat_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.84,
+    "stopped_for_script_error": false,
+    "summary": [
+      "THR RESULTS: 17 passed, 0 failed",
+      "THR: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "tilt_salvage_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.92,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TILT_SALVAGE RESULTS: 16 passed, 0 failed",
+      "TILT_SALVAGE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "town_grid_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.93,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TOWN RESULTS: 10 passed, 0 failed",
+      "TOWN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "town_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 11.8,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TOWN RESULTS: 16 passed, 0 failed",
+      "TOWN: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "track_piece_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.45,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TRACKPIECE RESULTS: 26 passed, 0 failed",
+      "TRACKPIECE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: world_stream: unknown track piece 'track:not_a_real_piece' skipped",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@89:<MeshInstance3D#61102622495>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@90:<MeshInstance3D#61220063013>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@91:<MeshInstance3D#61337503531>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@92:<MeshInstance3D#61454944049>\"."
+    ]
+  },
+  {
+    "name": "track_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 13.48,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TRK RESULTS: 8 passed, 0 failed",
+      "TRK: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "traction_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.99,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TRAC RESULTS: 17 passed, 0 failed",
+      "TRAC: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "traffic_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.03,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TRAFFIC RESULTS: 34 passed, 0 failed",
+      "TRAFFIC: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "tv_face_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.73,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TVFACE RESULTS: 12 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "tv_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 8.94,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TV: FAIL - E opens the media panel",
+      "TV: FAIL - E at the set reopens FULLSCREEN",
+      "TV RESULTS: 23 passed, 2 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "tv_volume_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.58,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TVVOL: DONE — 10 passed, 0 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ui_polish_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.21,
+    "stopped_for_script_error": false,
+    "summary": [
+      "UIPOLISH RESULTS: 10 passed, 0 failed",
+      "UIPOLISH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "unarmed_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 9.84,
+    "stopped_for_script_error": false,
+    "summary": [
+      "UNARMED RESULTS: 14 passed, 0 failed",
+      "UNARMED: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "unlock_media_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.05,
+    "stopped_for_script_error": false,
+    "summary": [
+      "UNLOCK RESULTS: 6 passed, 0 failed",
+      "UNLOCK: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "vegetation_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.71,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VEG RESULTS: 15 passed, 0 failed",
+      "VEG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "vehicle_style_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 5.04,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VEHICLE_STYLE_SIM RESULTS: 88 passed, 0 failed",
+      "VEHICLE_STYLE_SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "vehicles_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 63.71,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VEH RESULTS: 49 passed, 0 failed",
+      "VEH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "visibility_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.49,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VIS RESULTS: 8 passed, 0 failed",
+      "VIS: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "vision_reach_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.5,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VISREACH RESULTS: 8 passed, 0 failed",
+      "VISREACH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "vision_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 12.6,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VISION RESULTS: 6 passed, 0 failed",
+      "VISION: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "voice_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 2.13,
+    "stopped_for_script_error": false,
+    "summary": [
+      "VOICE RESULTS: 23 passed, 0 failed",
+      "VOICE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "walkthrough_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 22.04,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WALKTHROUGH RESULTS: 15 passed, 0 failed",
+      "WALKTHROUGH: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "waste_heap_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 2.26,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WASTE RESULTS: 14 passed, 0 failed",
+      "WASTE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "water_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 10.23,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WATER RESULTS: 12 passed, 0 failed",
+      "WATER: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "weapon_shape_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 1.77,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WPNSHAPE RESULTS: 7 passed, 0 failed",
+      "WPNSHAPE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "weather_fx_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 3.83,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WXFX RESULTS: 12 passed, 0 failed",
+      "ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "world_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 7.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WLD RESULTS: 11 passed, 0 failed",
+      "WLD: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "world_walkthrough_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 57.89,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WALKTHRU: FAIL - drove 500 m of interstate (337 m)",
+      "WALKTHRU RESULTS: 15 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "wx_field_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 4.47,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WX RESULTS: 17 passed, 0 failed",
+      "WX: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  }
+]

@@ -1,0 +1,16 @@
+ERROR: Can't save PNG at path: 'D:\git\carworld\.worktrees\america-foundation\.superpowers\sdd\2026-09-05-america-foundation\task4-actual-capture-fail-output/01_road_office.png'.
+   at: save_image (drivers/png/resource_saver_png.cpp:56)
+   GDScript backtrace (most recent call first):
+       [0] save_capture_image (res://proto3d/tools/roadstead_photobooth.gd:76)
+       [1] capture (res://proto3d/tools/roadstead_photobooth.gd:72)
+ERROR: ROADSTEAD PHOTOBOOTH: 01_road_office PNG write failed error=12
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] save_capture_image (res://proto3d/tools/roadstead_photobooth.gd:81)
+       [1] capture (res://proto3d/tools/roadstead_photobooth.gd:72)
+ERROR: ROADSTEAD PHOTOBOOTH: capture failed; 4 succeeded, 1 failed
+   at: push_error (core/variant/variant_utility.cpp:1024)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://proto3d/tools/roadstead_photobooth.gd:49)
+       [1] shoot (res://proto3d/tools/roadstead_photobooth.gd:63)
+       [2] capture (res://proto3d/tools/roadstead_photobooth.gd:73)

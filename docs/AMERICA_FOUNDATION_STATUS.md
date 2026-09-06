@@ -17,11 +17,15 @@ The real main scene now includes the Road Office, three freight contracts and th
 
 Launch this isolated source build with [PLAY_ROADSTEAD.bat](../PLAY_ROADSTEAD.bat); follow the [walkthrough and controls](PLAY_ROADSTEAD.md). It uses the installed Godot engine and a separate save profile. This is not an installer or distributable release package.
 
-Runtime task review accepted the implementation after fixing a polled WAIT input leak. The covering runtime suite reports 60 passed / 0 failed, plus a separate-process restart probe with 5 / 0. Real-camera [cottage exterior](renders/roadstead/03_cottage_porch.png), [interior](renders/roadstead/04_cottage_inside.png) and [freight desk](renders/roadstead/02_freight_desk.png) show actual integration, not final world-art polish. Some regression runs still emit audio-resource shutdown diagnostics.
+Runtime task review accepted the implementation after fixing a polled WAIT input leak. The final reviewed runtime suite reports 71 passed / 0 failed, plus a separate-process restart probe with 5 / 0. It also checks both outer porch edges, row-driven prices/selection and encounter disabling. Real-camera [cottage exterior](renders/roadstead/03_cottage_porch.png), [interior](renders/roadstead/04_cottage_inside.png) and [freight desk](renders/roadstead/02_freight_desk.png) show actual integration, not final world-art polish. Some regression runs still emit audio-resource shutdown diagnostics.
 
-## Final verification in progress
+## Whole-game verification
 
-The whole-branch review and broad simulation sweep are not finished. The preliminary sweep found failures in audio, vehicle, container, co-op rules and creature tests; the item-pricing check also fails for two existing cartridge IDs. All six failures reproduced with the same symptoms in an independently imported clean `f1290de` snapshot. They predate Roadstead but still prevent an all-green or global-completion claim. See the [verification record](verification/AMERICA_FOUNDATION_2026-09-05.md).
+The whole-branch review is complete: all five findings were fixed in `a0ff3cd`, and the scoped re-review found no remaining issues in that fix diff. The independent **264-scene sweep completed: 199 clean assertion passes, 44 passes with diagnostics, 21 failures**. All new Roadstead tests passed; a fresh process then recovered the actual checkpoint, 5 / 0.
+
+Nineteen failing scenes also failed in a separately imported clean `f1290de` snapshot, though individual symptoms varied in several runs. Two discrepancies, drag and dock-remote input tests, were traced to assertions running before queued key events reached the gameplay handler. The reviewed test-only correction `ba1cab8` passes both scenarios repeatedly (12 / 0 and 29 / 0), including an independent run with the original sweep's exact driver settings. Missing-event controls still fail. No gameplay controls changed. The original sweep remains recorded as a failed run, not retroactively green. See the [verification record](verification/AMERICA_FOUNDATION_2026-09-05.md).
+
+Final title-only boot: 120 real main-scene frames, exit 0, no diagnostics and no save created. Local milestone review is complete; the remaining failures and production gates below still prevent a release-ready or global-completion claim.
 
 The banked Road Office fund is deliberately separate from carried scrip. Network sessions must not present the local ledger as a shared server economy. The [next persistent-realm acceptance gate](design/ROADSTEAD_REALM_NEXT.md) records the missing two-client, dedicated-authority proof and failure cases; that gate is not yet implemented.
 

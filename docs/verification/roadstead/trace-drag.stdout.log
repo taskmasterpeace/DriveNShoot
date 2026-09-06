@@ -1,0 +1,35 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+DRAG: start
+DRAG: PASS - the body is the current interactable
+TRACE DISPATCH true match=true mode=1 foot=0 locked=false road=false briefing=false target=@StaticBody3D@5154:<StaticBody3D#353881829375>
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false menu=false road=false briefing=false mode=1 foot=0 target=@StaticBody3D@5154:<StaticBody3D#353881829375> grab=false
+TRACE DISPATCH false match=false mode=1 foot=0 locked=false road=false briefing=false target=@StaticBody3D@5154:<StaticBody3D#353881829375>
+DRAG: FAIL - TAP still OPENS the container
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false menu=false road=false briefing=false mode=1 foot=0 target=@StaticBody3D@5154:<StaticBody3D#353881829375> grab=true
+TRACE DISPATCH true match=true mode=1 foot=0 locked=false road=false briefing=false target=@StaticBody3D@5154:<StaticBody3D#353881829375>
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false menu=false road=false briefing=false mode=1 foot=0 target=@StaticBody3D@5154:<StaticBody3D#353881829375> grab=false
+DRAG: FAIL - HOLD grabs it (dragging)
+TRACE DISPATCH false match=false mode=1 foot=0 locked=false road=false briefing=false target=@StaticBody3D@5154:<StaticBody3D#353881829375>
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false menu=false road=false briefing=false mode=1 foot=0 target=@StaticBody3D@5154:<StaticBody3D#353881829375> grab=false
+DRAG: FAIL - release does NOT drop it (E again does)
+DRAG: FAIL - you actually hauled it somewhere (0.0m from spawn)
+DRAG: FAIL - it TRAILS at arm's length (15.0m)
+DRAG: FAIL - hauling is HEAVY (speed_mult 1.00)
+DRAG: FAIL - hauling teaches STRENGTH
+DRAG: PASS - you still covered ground (16.2m)
+TRACE DISPATCH true match=true mode=1 foot=0 locked=false road=false briefing=false target=<null>
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=true, echo=false menu=false road=false briefing=false mode=1 foot=0 target=<null> grab=false
+TRACE DISPATCH false match=false mode=1 foot=0 locked=false road=false briefing=false target=<null>
+DRAG: PASS - E sets it down
+TRACE INPUT InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false focus=<Object#null>
+TRACE UNHANDLED InputEventKey: keycode=69 (E), mods=none, physical=false, location=unspecified, pressed=false, echo=false menu=false road=false briefing=false mode=1 foot=0 target=<null> grab=false
+DRAG: PASS - dropped, it STAYS PUT
+DRAG: PASS - speed restores after the drop (1.00)
+DRAG RESULTS: 5 passed, 7 failed
+DRAG: FAILURES PRESENT

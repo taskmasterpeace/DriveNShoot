@@ -1,0 +1,44 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROAD LIFE: PASS - real road-life component exists
+ROAD LIFE: PASS - boot never creates or overwrites player checkpoint
+ROAD LIFE: PASS - main attaches visible office and three parcels
+ROAD LIFE: FAIL - objective reads selected parcel name and price rows
+ROAD LIFE: PASS - replacement freight cannot mint vendor cash
+ROAD LIFE: PASS - real input exits car
+ROAD LIFE: PASS - shared interact opens office
+ROAD LIFE: FAIL - GUI acceptance supplies real cargo
+ROAD LIFE: FAIL - modal stops held movement
+ROAD LIFE: PASS - physical T reaches held input state
+ROAD LIFE: PASS - modal T keeps ordinary clock progression
+ROAD LIFE: PASS - interact closes modal
+ROAD LIFE: PASS - held T resumes normal waiting after modal closes
+ROAD LIFE: physical T clock deltas modal=0.008333h closed=0.500000h
+ROAD LIFE: PASS - releasing physical T ends waiting
+ROAD LIFE: PASS - destination required
+ROAD LIFE: PASS - shared interact takes freight into driver's seat
+ROAD LIFE: FAIL - real gas input drives cargo along existing road
+ROAD LIFE: PASS - park and interact returns driver to foot
+ROAD LIFE: PASS - real walk reaches delivery interaction
+ROAD LIFE: FAIL - failed reward write keeps cargo active and unpaid
+ROAD LIFE: FAIL - one payout consumes cargo and adds supply
+ROAD LIFE: FAIL - completed marker exists before replay
+ROAD LIFE: FAIL - reward replay does not mint supply
+ROAD LIFE: PASS - parcel input opens deed panel
+ROAD LIFE: FAIL - GUI buys addressed home with banked money
+ROAD LIFE: PASS - purchase click does not leak an unarmed fire hold
+ROAD LIFE: FAIL - button available: store:household_pantry
+ROAD LIFE: FAIL - storage conserves backpack item
+ROAD LIFE: FAIL - button available: take:household_pantry
+ROAD LIFE: FAIL - take restores item
+ROAD LIFE: FAIL - explicit store transaction succeeds
+ROAD LIFE: FAIL - explicit take transaction succeeds
+ROAD LIFE: FAIL - historical take replay cannot duplicate backpack
+SCRIPT ERROR: Trying to assign value of type 'Nil' to a variable of type 'Dictionary'.
+   at: exercise (res://proto3d/tests/road_life_sim.gd:148)
+   GDScript backtrace (most recent call first):
+       [0] exercise (res://proto3d/tests/road_life_sim.gd:148)
+       [1] mouse_activate (res://proto3d/tests/road_life_sim.gd:367)
+       [2] frames (res://proto3d/tests/road_life_sim.gd:315)
+ROAD LIFE: FAIL - exercise reached completion without script interruption
+ROAD LIFE: 17 passed, 17 failed

@@ -1,0 +1,11 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+ROADSTEAD PHOTOBOOTH: stage 01_road_office actual=(18.0, 0.000327, -323.0) requested=(18.0, 0.2, -323.0)
+ROADSTEAD PHOTOBOOTH: 01_road_office error=12 capture_ms=969 objects=10998
+ROADSTEAD PHOTOBOOTH: 02_freight_desk error=0 capture_ms=66 objects=11032
+ROADSTEAD PHOTOBOOTH: stage 03_cottage_porch actual=(42.0, -0.000308, -354.0) requested=(42.0, 0.2, -354.0)
+ROADSTEAD PHOTOBOOTH: 03_cottage_porch error=0 capture_ms=251 objects=11038
+ROADSTEAD PHOTOBOOTH: 04_cottage_inside error=0 capture_ms=272 objects=11055
+ROADSTEAD PHOTOBOOTH: stage 05_last_light_receiver actual=(1177.39, 0.000278, -263.594) requested=(1177.39, 0.2, -263.594)
+ROADSTEAD PHOTOBOOTH: 05_last_light_receiver error=0 capture_ms=244 objects=14379

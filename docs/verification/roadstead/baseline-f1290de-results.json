@@ -1,0 +1,98 @@
+[
+  {
+    "name": "audio_sim",
+    "status": "FAIL",
+    "exit_code": -1,
+    "seconds": 10.48,
+    "stopped_for_script_error": true,
+    "summary": [
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'."
+    ],
+    "diagnostics": [
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'.",
+      "SCRIPT ERROR: Invalid access to property or key 'pitch_scale' on a base object of type 'Nil'."
+    ]
+  },
+  {
+    "name": "car_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 15.25,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CAR: FAIL - tank runs DRY under throttle (fuel 0.6)",
+      "CAR: FAIL - chassis 35% -> SMOKING",
+      "CAR: FAIL - chassis 10% -> ON FIRE",
+      "CAR: FAIL - cook meter rising (0%)",
+      "CAR: FAIL - salvaged the wreck",
+      "CAR RESULTS: 9 passed, 5 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "container_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 10.24,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BOX: FAIL - chest prompts open",
+      "BOX: FAIL - SAME panel opens the chest",
+      "BOX RESULTS: 9 passed, 2 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "coop_fun_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 3.76,
+    "stopped_for_script_error": false,
+    "summary": [
+      "COOPFUN: FAIL - F6 cycles to FFA",
+      "COOPFUN RESULTS: 15 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "creatures_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 32.11,
+    "stopped_for_script_error": false,
+    "summary": [
+      "CREATURES: FAIL - F1: unwarned strike DEFERS into a tell (warn_count 0 ≥ 1, not hunting)",
+      "CREATURES: FAIL - A2: the warning is DELIVERED on the threat stack",
+      "CREATURES: FAIL - F1/F2: warned + STARVING → it hunts the player",
+      "CREATURES RESULTS: 52 passed, 3 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "items_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 4.67,
+    "stopped_for_script_error": false,
+    "summary": [
+      "ITM: FAIL - every tradeable item has a PRICE (Mercy can stock anything) — MISSING: [\"game_cart_rust_runners\", \"game_cart_black_grid\"]",
+      "ITM RESULTS: 26 passed, 1 failed"
+    ],
+    "diagnostics": []
+  }
+]

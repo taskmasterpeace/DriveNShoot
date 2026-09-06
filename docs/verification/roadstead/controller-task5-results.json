@@ -1,0 +1,26 @@
+[
+  {
+    "name": "drag_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 10.82,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRAG RESULTS: 12 passed, 0 failed",
+      "DRAG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_remote_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 15.31,
+    "stopped_for_script_error": false,
+    "summary": [
+      "REMOTE RESULTS: 29 passed, 0 failed",
+      "REMOTE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  }
+]

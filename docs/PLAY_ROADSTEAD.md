@@ -33,7 +33,7 @@ Actual normal-camera screenshots: `docs/renders/roadstead/`. The photobooth stag
 Use a disposable process-local `APPDATA`, never your ordinary profile:
 
 ```powershell
-$env:APPDATA = 'D:/git/carworld/.worktrees/america-foundation/.superpowers/sdd/2026-09-05-america-foundation/task3-test-appdata'
+$env:APPDATA = Join-Path $PWD '.verification-roadstead-appdata'
 New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
 $godot = 'C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe'
 & $godot --headless --path game --import

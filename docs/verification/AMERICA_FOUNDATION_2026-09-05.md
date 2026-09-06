@@ -50,7 +50,50 @@ The task review found a real modal bug: polled physical T advanced the world by 
 
 The runtime checks include actual GUI/mouse/controller inputs, cargo/destination requirements, one-time reward, purchase, storage, failed writes, corrupt-present rejection, whole-checkpoint rewind, all three doorway traversals and a real weapon kill producing ordinary corpse loot. The local guest key is an offline ledger demonstration, not an authenticated guest player. Physical entry is open; storage is permission-controlled.
 
-Whole-branch review and the final broad sweep remain in progress; this is not an all-green release certification.
+Whole-branch review is complete. The consolidated final fix wave `a0ff3cd` and scoped independent re-review closed all five findings: receipt-conflict coverage, row-driven objective/encounter behavior, PNG error propagation, outer porch collision and stale status wording. The final runtime check is **71 passed / 0 failed**, with **5 / 0** for separate-process restart. The image-failure regression is **4 / 0** with expected negative-control diagnostics; a real GUI capture exits 1 when a PNG path is blocked and exits 0 when all five files write successfully. See [the review/decision record](roadstead/REVIEW.md) and [final fix report](roadstead/task-4-report.md).
+
+The controller independently repeated the final runtime (71 / 0), ledger (67 / 0), asset geometry (44 / 0) and screenshot-error (4 / 0) checks within the broad sweep. A **new process using that runtime test's actual profile** recovered its persisted checkpoint and passed 5 / 0; its established three-resource shutdown diagnostic remains visible in [the raw restart log](roadstead/controller-final-restart.log). The independent Python binary-geometry contract passed again, exit 0, in [its raw log](roadstead/controller-final-python.log). These are 191 focused Godot assertions plus the Python contract, not an MMO proof.
+
+## Completed broad sweep and targeted comparison
+
+The controller ran all **264 `*_sim.tscn` scenes**, sequentially, against frozen runtime `a0ff3cd`, beginning 2026-09-06 01:13:42 UTC (September 5 local time). Each scene used a fresh, separate APPDATA profile and Dummy audio. The runner checked process exit and assertion output, stopped only its own process tree on script errors or a 240-second watchdog, and verified that every scene restored the original map/motions/strikes bytes. No watchdog timeout occurred; two scenes were stopped early for script errors.
+
+| Initial sweep result | Scenes |
+|---|---:|
+| Assertions passed, no reported diagnostics | 199 |
+| Assertions passed, with diagnostics | 44 |
+| Failed | 21 |
+| Total | 264 |
+
+The overall runner exited **1**, not success. [Machine-readable results](roadstead/full-suite-a0ff3cd-results.json) and [all stdout/stderr plus results](roadstead/full-suite-a0ff3cd-logs.zip) are preserved. All 529 ZIP entries were read back and SHA-256 matched to the originals. This scene sweep is not the separate shell network-loopback test, a manual usability playtest, packaged-app verification or a capacity benchmark.
+
+The clean starting revision was tested in 25 targeted scenes across two batches: the initial six failures below, then 15 additional failures and four non-shutdown diagnostic cases. [Additional results](roadstead/baseline-f1290de-additional-results.json) and [all 50 baseline stdout/stderr files](roadstead/baseline-f1290de-logs.zip) are retained; archive bytes were verified. **Do not label all 21 failures identical baseline failures.** The comparison found:
+
+| Scene(s) | Comparison and remaining issue |
+|---|---|
+| `audio`, `car`, `container`, `coop_fun`, `creatures`, `items` | Same failure assertions as the initial clean-base batch documented below |
+| `drive_in`, `drone_scout`, `frontier`, `gator`, `ground_integrity`, `library`, `nav`, `roadside_band`, `station` | Same failure summaries at clean base: projector return, scout launch, exit budgets, missing dictionary `pos`, manual counts, capped waypoint-ring expectation, billboards, radio keys |
+| `dive` | Same two bullet-hit expectations fail; starting HP values differ |
+| `horse` | Both mount/parent assertions fail at base too; base additionally failed its later remount |
+| `tv` | Initial branch run failed open and reopen; repeat and base failed only initial open. This is variable, not identical output |
+| `world_walkthrough` | Initial branch run drove only 337m. Both branch repeat and base drove 500m but failed the creature-count check (2, expected at least 3). The initial distance failure is intermittent and not certified fixed or baseline-only |
+| `drag`, `drone_remote` | Pass at base (12 / 0 and 29 / 0), initially fail repeatedly on the branch. Instrumentation proves queued E events can arrive after the tests assert their outcomes; reviewed harness correction below |
+
+The [unchanged-source repeat](roadstead/focus-repeat-a0ff3cd-results.json) and its [eight raw output files](roadstead/focus-repeat-a0ff3cd-logs.zip) are preserved, rather than replacing the original results with a favorable rerun. Temporary [drag](roadstead/trace-drag.stdout.log) and [remote](roadstead/trace-drone-remote.stdout.log) traces show the production input handler receiving the events after the premature assertions. During the drag trace, the player is FOOT/NORMAL, the target is correct, and title/briefing/Roadstead panel locks are false. Late release opens the chest after the harness already called close, contaminating the next hold step. All temporary production instrumentation was removed by exact patches; the runtime diff against `a0ff3cd` was empty afterward.
+
+### Bounded harness follow-up
+
+Task 5 is complete in `ba1cab8`, independently reviewed with no Critical or Important findings. Only the two harnesses changed: await the process/input boundary after each queued physical E edge, retaining their physics-duration waits and all behavior assertions. The [task report and raw logs](roadstead/task-5-report.md) record three separate-profile passes per scene (drag 12 / 0, remote 29 / 0), plus bounded omitted-event controls that fail the intended assertions. One initial drag run has a non-repeated cleanup diagnostic; it remains preserved. An exploratory unbounded negative control reached a downstream nil error/watchdog and was explicitly rejected in favor of the bounded control.
+
+The controller independently reran both with the **original sweep's exact Dummy-driver helper**, verified actual Godot log files under two distinct process-local APPDATA roots, and obtained 12 / 0 and 29 / 0, exit 0, no diagnostics. [Exact-driver results](roadstead/controller-task5-results.json), [drag output](roadstead/controller-task5-drag_sim.stdout.log) and [remote output](roadstead/controller-task5-drone_remote_sim.stdout.log) are retained. This is a focused follow-up, **not a second 264-scene sweep**.
+
+Review's cross-diff source-freeze question was resolved with `git diff --exit-code a0ff3cd -- game tools PLAY_ROADSTEAD.bat .gitignore` excluding only the two owned tests: exit 0, no output. For ephemeral-run questions, the controller obtained the implementer's explicit profile paths and exact omitted-event mutations and checked them against the report/log outcomes. Historical worker profiles were used once and cleaned afterward; no separate pre-creation absence check was recorded, so those historical execution details remain reported provenance rather than an independently preserved OS audit. The controller's own isolated-profile verification is direct evidence. No runtime, binding, asset or map change was made to obtain these passes.
+
+Final real-front-door smoke at `ba1cab8`: `Godot_console --headless --path game --audio-driver Dummy res://proto3d/proto3d.tscn --quit-after 120`, a new disposable APPDATA, exit 0 with [clean engine output](roadstead/controller-final-frontdoor.log). The profile contained zero `.save` files after title-only boot. This does not claim a manual graphical playtest or a packaged Windows application.
+
+### Diagnostics are not all shutdown noise
+
+The 44 diagnostic-bearing passes include resource/RID cleanup warnings; intentional duplicate-media, unknown-structure and failed-PNG negative controls; and actual non-shutdown errors. Clean-base runs reproduce the same categories in `aim` (coincident look-at), `carousel_portal` (transform requested outside the tree), `map` (drawing outside the draw notification), and `track_piece` (tweening nonexistent `modulate:a` on a 3D mesh). Those are retained repair items, not pristine passing output. No blanket claim that every resource leak has been diagnosed is made.
 
 ## Clean pre-change comparison
 

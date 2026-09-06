@@ -1,0 +1,378 @@
+[
+  {
+    "name": "aim_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 17.1,
+    "stopped_for_script_error": false,
+    "summary": [
+      "AIM RESULTS: 15 passed, 0 failed",
+      "AIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: Node origin and target are in the same position, look_at() failed."
+    ]
+  },
+  {
+    "name": "carousel_portal_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.08,
+    "stopped_for_script_error": false,
+    "summary": [
+      "PORTAL: DONE — 23 passed, 0 failed"
+    ],
+    "diagnostics": [
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: Condition \"!is_inside_tree()\" is true. Returning: Transform3D()",
+      "ERROR: 1 RID allocations of type 'P11GodotArea3D' were leaked at exit.",
+      "ERROR: 1 RID allocations of type 'N17RendererSceneCull8InstanceE' were leaked at exit.",
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 3 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "dive_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.29,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DIVE: FAIL - a bullet fired MID-DIVE hits (hp 1000 → 1000, state DIVE)",
+      "DIVE: FAIL - a bullet fired PRONE hits (hp 1000 → 1000)",
+      "DIVE RESULTS: 10 passed, 2 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "drag_sim",
+    "status": "PASS",
+    "exit_code": 0,
+    "seconds": 8.7,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRAG RESULTS: 12 passed, 0 failed",
+      "DRAG: ALL CHECKS PASSED"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drive_in_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 3.97,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRIVEIN: FAIL - the projector starts again for a returning car",
+      "DRIVEIN RESULTS: 9 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "drone_remote_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 11.23,
+    "stopped_for_script_error": false,
+    "summary": [
+      "REMOTE RESULTS: 29 passed, 0 failed",
+      "REMOTE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "drone_scout_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 19.52,
+    "stopped_for_script_error": false,
+    "summary": [
+      "DRONE: FAIL - E LAUNCHES the scout",
+      "DRONE: FAIL - it flies the ROUTE (mode OUT)",
+      "DRONE: FAIL - the rotor HUM rides the bird from launch (no silent scout)",
+      "DRONE: FAIL - the battery DRAINED",
+      "DRONE RESULTS: 8 passed, 4 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "frontier_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 4.33,
+    "stopped_for_script_error": false,
+    "summary": [
+      "FRONTIER: FAIL - the western pass landed (I-70:9 I-5:9 I-35:7 I-25:6 I-80:10 — 91 exits map-wide)",
+      "FRONTIER RESULTS: 14 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 2 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "gator_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 10.09,
+    "stopped_for_script_error": false,
+    "summary": [
+      "GATOR: FAIL - exit counts match the corridor budgets (I-95:9 I-75:9 I-40:10 I-10:9 I-90:10)",
+      "GATOR RESULTS: 14 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "ground_integrity_sim",
+    "status": "FAIL",
+    "exit_code": -1,
+    "seconds": 14.53,
+    "stopped_for_script_error": true,
+    "summary": [
+      "SCRIPT ERROR: Invalid access to property or key 'pos' on a base object of type 'Dictionary'."
+    ],
+    "diagnostics": [
+      "SCRIPT ERROR: Invalid access to property or key 'pos' on a base object of type 'Dictionary'."
+    ]
+  },
+  {
+    "name": "horse_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.8,
+    "stopped_for_script_error": false,
+    "summary": [
+      "HORSE: FAIL - REAL E interact mounted the player (front seat)",
+      "HORSE: FAIL - the player is PARENTED to the horse (seat anchor)",
+      "HORSE: FAIL - re-mounted for the fire-path proof",
+      "HORSE RESULTS: 26 passed, 3 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "library_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 4.36,
+    "stopped_for_script_error": false,
+    "summary": [
+      "LIB: FAIL - 7 manuals on the shelf",
+      "LIB: FAIL - every book has 3 pages of real text",
+      "LIB: FAIL - library lists all 7 manuals",
+      "LIB: DONE — 11 passed, 3 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "map_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 39.35,
+    "stopped_for_script_error": false,
+    "summary": [
+      "SIM RESULTS: 45 passed, 0 failed",
+      "SIM: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW.",
+      "ERROR: Drawing is only allowed inside this node's `_draw()`, functions connected to its `draw` signal, or when it receives NOTIFICATION_DRAW."
+    ]
+  },
+  {
+    "name": "nav_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 8.11,
+    "stopped_for_script_error": false,
+    "summary": [
+      "NAV: FAIL - N wraps to OFF (after 4 extra stops)",
+      "NAV RESULTS: 7 passed, 1 failed"
+    ],
+    "diagnostics": [
+      "WARNING: ObjectDB instances leaked at exit (run with --verbose for details).",
+      "ERROR: 1 resources still in use at exit (run with --verbose for details)."
+    ]
+  },
+  {
+    "name": "roadside_band_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 6.44,
+    "stopped_for_script_error": false,
+    "summary": [
+      "BAND: FAIL - camera-facing billboards appear along interstates",
+      "BAND RESULTS: 13 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "station_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 3.39,
+    "stopped_for_script_error": false,
+    "summary": [
+      "STATION: FAIL - L turns the DIAL (CHICAGO RADIO → CHICAGO RADIO)",
+      "STATION: FAIL - '.' turns it UP (70 → 70)",
+      "STATION: FAIL - ',' turns it DOWN",
+      "STATION RESULTS: 12 passed, 3 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "track_piece_sim",
+    "status": "PASS_WITH_DIAGNOSTICS",
+    "exit_code": 0,
+    "seconds": 5.69,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TRACKPIECE RESULTS: 26 passed, 0 failed",
+      "TRACKPIECE: ALL CHECKS PASSED"
+    ],
+    "diagnostics": [
+      "WARNING: world_stream: unknown track piece 'track:not_a_real_piece' skipped",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@89:<MeshInstance3D#61102622495>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@90:<MeshInstance3D#61220063013>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@91:<MeshInstance3D#61337503531>\".",
+      "ERROR: The tweened property \"modulate:a\" does not exist in object \"@MeshInstance3D@92:<MeshInstance3D#61454944049>\"."
+    ]
+  },
+  {
+    "name": "tv_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 8.07,
+    "stopped_for_script_error": false,
+    "summary": [
+      "TV: FAIL - E opens the media panel",
+      "TV RESULTS: 24 passed, 1 failed"
+    ],
+    "diagnostics": []
+  },
+  {
+    "name": "world_walkthrough_sim",
+    "status": "FAIL",
+    "exit_code": 1,
+    "seconds": 31.3,
+    "stopped_for_script_error": false,
+    "summary": [
+      "WALKTHRU: FAIL - ≥3 living creatures share the screen at the Alley (2)",
+      "WALKTHRU RESULTS: 15 passed, 1 failed"
+    ],
+    "diagnostics": []
+  }
+]

@@ -56,8 +56,8 @@
 ### Task 4: Review and next milestone ledger
 
 - [x] Independent task review of ledger and runtime changes; fix correctness/security/persistence issues and rerun covering tests.
-- [ ] Final integration review, original-worktree status check, and honest have-versus-remaining report.
-- [ ] Keep country connectivity, authenticated dedicated realms, multi-process purchase contention, and capacity testing as uncompleted until actually implemented and proven.
+- [x] Final integration review, original-worktree status check, and honest have-versus-remaining report.
+- [x] Keep country connectivity, authenticated dedicated realms, multi-process purchase contention, and capacity testing as uncompleted until actually implemented and proven.
 
 ### Task 5: Verify legacy input dispatch after the full sweep
 
@@ -65,6 +65,6 @@
 
 **Files:** game/proto3d/tests/drag_sim.gd, game/proto3d/tests/drone_remote_sim.gd, one task report. No runtime, asset, map, input-binding, or unrelated test changes.
 
-- [ ] Correct the two harnesses to wait for real input dispatch and the appropriate simulation boundary. Preserve physical key events through the production input path, tap-versus-hold behavior, assertions, watchdogs and time-scale restoration. Do not direct-call gameplay interactions, repeatedly press until an outcome occurs, reset gameplay state to force success, or weaken assertions.
-- [ ] Keep the observed failures as RED evidence. Verify both tests repeatedly with fresh isolated profiles; include a bounded negative control showing a missing/wrong interact event still fails. If tracing reveals an actual runtime defect instead, report the evidence before changing scope.
-- [ ] Commit only owned tests/report, run independent scoped review, and preserve the full sweep plus follow-up results without retroactively calling the original sweep green.
+- [x] Correct the two harnesses to wait for real input dispatch and the appropriate simulation boundary. Preserve physical key events through the production input path, tap-versus-hold behavior, assertions, watchdogs and time-scale restoration. Do not direct-call gameplay interactions, repeatedly press until an outcome occurs, reset gameplay state to force success, or weaken assertions.
+- [x] Keep the observed failures as RED evidence. Verify both tests repeatedly with fresh isolated profiles; include a bounded negative control showing a missing/wrong interact event still fails. If tracing reveals an actual runtime defect instead, report the evidence before changing scope.
+- [x] Commit only owned tests/report, run independent scoped review, and preserve the full sweep plus follow-up results without retroactively calling the original sweep green.
