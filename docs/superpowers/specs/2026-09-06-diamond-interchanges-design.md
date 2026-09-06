@@ -47,6 +47,9 @@ exits and unrelated authored geometry remain authoritative.
 - Crossroad and town-link are two-way `state_road` rows, two lanes, undivided,
   asphalt, carrying `interchange_id`, with meaningful names and existing exit
   danger. Both endpoints and height profiles are real rows, never draw-only.
+- All six managed road rows use `elev_mode: "structure"`. This preserves their
+  explicit physical profiles without ground-road blending lifting terrain
+  underneath the crossing deck; local junction endpoints still meet terrain.
 - Four port junctions use stable IDs based on the exit and ramp ID, retain
   `control: "riro"`, and join the actual highway projection to the actual
   ramp terminal. The highway leg is first for existing consumers.

@@ -37,6 +37,8 @@ export function buildDiamondInterchange(map, exitId, {
 `terrainAt(x,z)` is the caller's real relief field; it is required and finite.
 `roads` contains four preserved-ID ramp replacements and two connector rows.
 `exit` is a copied exit with retained fields plus the spec's managed metadata.
+All six roads use `elev_mode: "structure"`; metadata names and values in the
+spec's Data contract are binding, including `diamond_v2` and connector IDs.
 `junctions` contains the four ports, two local crossroad/ramp meetings, deck
 crossing and destination meeting. Highway legs use true projected arcs; ramp
 ports use arc 0 for off and full length for on. Include the crossroad/link
@@ -135,6 +137,13 @@ profile bake; existing atomic dry-run migration pattern.
   identical, missing/ambiguous ownership and stale source reject before write.
   Use `assert.deepEqual(after.roads.filter(unrelated), before.roads.filter(unrelated))`.
 - [ ] Run RED before implementing the CLI and bake integration.
+- [ ] Stage explicit roles on a private copy for selected legacy exits using
+  their owned ramp IDs and unambiguous existing ramp_mouth/ramp_rejoin junction
+  kinds that also name the owning highway. Validate the corresponding actual
+  terminal against that highway and side; reject contradictory/foreign roles.
+  Do not widen the 80m shared-anchor heuristic or infer roles from ID suffixes.
+  Live on-ramps rejoin 100m or more from the anchor, so the pure builder's
+  contained legacy fallback alone cannot migrate the three POCs.
 - [ ] Integrate the builder without circular imports. Managed layouts bypass
   the legacy peel and ramp-relief rewrites. Regenerate managed geometry before
   town-slot reservations and managed final profiles/junctions after generic
@@ -152,6 +161,17 @@ const patch = buildDiamondInterchange(map, id, {terrainAt: reliefField(map).macr
   conflicts, preserve exact pre-migration bytes under build, then apply only
   feasible reviewed sites. Record site-specific failures; do not overwrite
   authored placements or remove the median. Commit the tested integration.
+
+The parent owns live-map migration review/application and all engines. The
+implementation worker owns the CLI/bake/tests, runs dry probes, and reports
+before any live-map write. Reuse road_clearance.mjs with the actual
+game/data/world/structure_profiles.json, including rendered end caps. Default
+selected IDs are I-90_X11, I-80_X11 and I-75_X10 only when explicitly requested;
+never silently migrate every exit or accept an unknown authored layout.
+Parent preflight at c897e71 found no external road centreline crossing at
+Seattle, one at San Francisco, and five at Atlanta. SF/Atlanta are not eligible
+for a live write until those conflicts have explicit layout/junction treatment;
+do not discard another exit's ramp or road to force the three-site count.
 
 ## Task 3: Shared runtime ports, directed routing and traffic
 
@@ -202,6 +222,9 @@ evidence, plus unedited captures under a unique isolated build run.
   deceleration strips. Place gores/barrels in the clear wedge, reserving full
   highway and ramp footprints. One-way markings use white rather than yellow.
   Keep decks/rails clear of ground-level local turning junctions.
+  Regression-check elevated `road_guard_rail` drape exemption (the existing
+  roadside tag is a different `road_guardrail`), and verify column placement
+  on densified short deck spans rather than relying on per-span length/30.
 - [ ] Drive four staged routes via actual keyboard/pad inputs: each off-ramp to
   the town endpoint and each on-ramp to the correct highway direction. After
   initial staging, never set the car transform/velocity to move it along a path.
