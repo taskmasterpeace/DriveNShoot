@@ -151,9 +151,10 @@ export function buildDiamondInterchange(map,exitId,{
     const existing=map.roads.find(r=>r.id===id);
     if(existing && (existing.interchange_id!==exitId||!original.connector_ids?.includes(id)||existing.authored))
       throw new Error(`Connector ${id} collides with an unowned or authored road`);
-    return {id,kind:'state_road',lanes:2,divided:false,surface:'asphalt',danger:original.danger??0,
-      nickname:`${original.name||exitId} ${id===crossId?'Crossroad':'Town Link'}`,
-      ...structuredClone(existing||{}),interchange_id:exitId,elev_mode:'structure'};
+    return {nickname:`${original.name||exitId} ${id===crossId?'Crossroad':'Town Link'}`,
+      ...structuredClone(existing||{}),id,kind:'state_road',lanes:2,divided:false,
+      surface:'asphalt',danger:original.danger??0,one_way:false,
+      interchange_id:exitId,elev_mode:'structure'};
   };
   const crossBase=connectorBase(crossId),linkBase=connectorBase(linkId);
   const destinationRoads=(map.roads||[]).filter(r=>r.kind!=='exit'&&r.id!==highway.id&&r.id!==crossId&&r.id!==linkId)
@@ -178,6 +179,17 @@ export function buildDiamondInterchange(map,exitId,{
       const d=dot(sub(p,anchor.point),perpendicular),index=d<0?0:1;
       return cm(Math.abs(d)<=crestHalf?crest:crest+(endpoints[index]-crest)*(Math.abs(d)-crestHalf)/(junction_offset_m-crestHalf));
     })};
+  // Validate the actual emitted linear pavement, not just its endpoints/crest.
+  // Reject obstructed sites instead of lifting terrain-level local junctions.
+  for(let i=1;i<crossroad.pts.length;i++) {
+    const a=crossroad.pts[i-1],b=crossroad.pts[i],count=Math.ceil(distance(a,b)/2);
+    for(let j=0;j<=count;j++) {
+      const t=j/count,p=lerp(a,b,t);
+      const surface=crossroad.elev[i-1]*(1-t)+crossroad.elev[i]*t;
+      if(terrain(p)>surface+0.005001)
+        throw new Error(`Crossroad ${crossId} terrain obstructs bridge approach at ${p}; choose another site or approach`);
+    }
+  }
   const radians=12*Math.PI/180,ports=[];
   const ramps=owned.map(({row,role})=>{
     const sign=role==='off'?-1:1,port=atArc(line,anchor.arc+sign*row.side*approach_m);

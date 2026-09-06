@@ -165,6 +165,31 @@ test('managed regeneration is deterministic and retains connector character payl
   delete second.roads.find(r=>r.id==='X-crossroad').custom;
   assert.deepEqual(second,first);
 });
+test('managed regeneration restores fixed connector fields while keeping custom character',()=>{
+  const map=fixture(),first=build(map,'X',{terrainAt:flat});
+  map.exits=[structuredClone(first.exit)];map.exits[0].danger=4;
+  map.roads=map.roads.filter(r=>r.kind!=='exit').concat(structuredClone(first.roads));
+  for(const id of first.exit.connector_ids)Object.assign(map.roads.find(r=>r.id===id),{
+    kind:'dirt',lanes:4,divided:true,surface:'gravel',danger:99,one_way:true,
+    nickname:'Retained local name',custom:{keep:true},toll:7,
+  });
+  const before=structuredClone(map),result=build(map,'X',{terrainAt:flat});
+  assert.deepEqual(map,before);
+  for(const r of result.roads.filter(r=>first.exit.connector_ids.includes(r.id))) {
+    assert.equal(r.kind,'state_road');assert.equal(r.lanes,2);assert.equal(r.divided,false);
+    assert.equal(r.surface,'asphalt');assert.equal(r.danger,4);assert.equal(r.one_way,false);
+    assert.equal(r.nickname,'Retained local name');assert.deepEqual(r.custom,{keep:true});assert.equal(r.toll,7);
+  }
+});
+test('rejects smooth terrain hill intersecting an interior crossroad approach',()=>{
+  const map=fixture(),before=structuredClone(map);
+  // Compact smooth hill: zero at the local junctions, deck crest, and all ramps.
+  // At [0,100] terrain is 8m, while the flat-site linear bridge approach is ~3.09m.
+  const terrainAt=(x,z)=>Math.abs(x)<15&&Math.abs(z-100)<25
+    ? 2*(1+Math.cos(Math.PI*x/15))*(1+Math.cos(Math.PI*(z-100)/25)):0;
+  assert.throws(()=>build(map,'X',{terrainAt}),/crossroad.*terrain|terrain.*approach/i);
+  assert.deepEqual(map,before);
+});
 test('never overwrites unrelated connector ID collisions',()=>{
   const map=fixture();map.roads.push({id:'X-crossroad',kind:'street',pts:[[600,400],[700,400]],custom:'authored'});
   assert.throws(()=>build(map,'X',{terrainAt:flat}),/own|collision|managed/i);
