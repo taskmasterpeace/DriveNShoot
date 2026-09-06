@@ -24,11 +24,11 @@
 
 **Interfaces:** Produces `ProtoPropertyLedger`, a RefCounted authority component. Exact public API: `open(path: String, parcels: Array) -> Error`, `ensure_account(account_id: String) -> Dictionary`, `credit(account_id: String, amount: int, receipt_id: String) -> Dictionary`, `purchase(account_id: String, parcel_id: String, request_id: String) -> Dictionary`, `set_guest(owner_id: String, parcel_id: String, guest_id: String, allowed: bool, request_id: String) -> Dictionary`, `store_item(account_id: String, parcel_id: String, item_id: String, quantity: int, request_id: String) -> Dictionary`, `take_item(account_id: String, parcel_id: String, item_id: String, quantity: int, request_id: String) -> Dictionary`, `snapshot() -> Dictionary`, `can_access(account_id: String, parcel_id: String) -> bool`. Mutation results contain `ok: bool` and `error: String`. `credit`, storage movements, and account creation are trusted server-side APIs, never RPCs. Item storage validates IDs against the existing catalog. Runtime inventory transfer owns backpack debit/credit; do not falsely present store_item as complete inventory anti-duplication. Positive integer amounts only; bounded IDs and request sizes. Initial accounts have zero scrip; content rewards fund purchases.
 
-- [ ] Write real behavior tests first: two accounts credited 200 each compete for a 150-scrip parcel; only one owns it and only that account is debited. Replay the winning receipt leaves balances unchanged; altered payload under that receipt is rejected. Reload from disk preserves ownership/balances/receipts. Guest may access storage until revoked; non-owner cannot grant access. Invalid quantities/items/IDs rejected. Storage addition and removal conserve counts. Corrupt input and a non-writable path do not silently reset or mutate authority state.
-- [ ] Run the sim and record its expected initial failure before implementation. Use dynamic load with an explicit missing-component assertion so this is a useful failing test, not a parser typo.
-- [ ] Implement the ledger using private working-copy mutation, validate before commit, atomic replace of one versioned JSON state file, and no successful response after a failed write. Do not introduce arbitrary broad framework abstractions.
-- [ ] Add three parcel rows with immutable IDs and prices; coordinates and model integration belong to Task 2. Minimum schema: id, name, price, item_capacity, model (`res://assets/models/homestead/roadstead_cottage.glb`).
-- [ ] Run focused sim and existing save/homebase regressions; inspect diff, commit only owned files. Report RED and GREEN output, limitations, and file list.
+- [x] Write real behavior tests first: two accounts credited 200 each compete for a 150-scrip parcel; only one owns it and only that account is debited. Replay the winning receipt leaves balances unchanged; altered payload under that receipt is rejected. Reload from disk preserves ownership/balances/receipts. Guest may access storage until revoked; non-owner cannot grant access. Invalid quantities/items/IDs rejected. Storage addition and removal conserve counts. Corrupt input and a non-writable path do not silently reset or mutate authority state.
+- [x] Run the sim and record its expected initial failure before implementation. Use dynamic load with an explicit missing-component assertion so this is a useful failing test, not a parser typo.
+- [x] Implement the ledger using private working-copy mutation, validate before commit, atomic replace of one versioned JSON state file, and no successful response after a failed write. Do not introduce arbitrary broad framework abstractions.
+- [x] Add three parcel rows with immutable IDs and prices; coordinates and runtime model integration belong to Task 3. Minimum schema: id, name, price, item_capacity, model (`res://assets/models/homestead/roadstead_cottage.glb`).
+- [x] Run focused sim and existing save/homebase regressions; inspect diff, commit only owned files. Report RED and GREEN output, limitations, and file list.
 
 ### Task 2: Blender MCP homestead kit
 
@@ -36,10 +36,10 @@
 
 **Interfaces:** Consumes the installed addon and MCP Python SDK. Produces four GLBs: roadstead_cottage, parcel_mailbox, freight_kiosk, delivery_crate. Export contract comes verbatim from the spec. MCP client starts the installed stdio server, initializes MCP, lists tool schemas, and calls execute_blender_code / get_scene_info. Bind addon only to loopback on a task-specific port; disable MCP telemetry for this child process only. Do not edit user MCP config.
 
-- [ ] Write an asset-contract test that fails on missing GLBs, parses the GLB JSON chunk and verifies metre-scale bounds, mesh/material presence, cottage roof nodes and independently authored door gap test in Blender generation validation.
-- [ ] Start a separate hidden GUI Blender session (addon refuses background mode); call through real MCP SDK, not a socket-only imitation. Verify scene query succeeds.
-- [ ] Author original assets in Blender via execute_blender_code; export GLB and a new .blend source, render useful views. Inspect images and iterate. No overwriting existing vehicle models or user scenes.
-- [ ] Run asset contract, Godot import, and runtime checks; document provenance, MCP call evidence, triangle counts, materials, axes, and limitations. Commit owned files.
+- [x] Write an asset-contract test that fails on missing GLBs, parses the GLB JSON chunk and verifies metre-scale bounds, mesh/material presence, cottage roof nodes and independently authored door gap test in Blender generation validation.
+- [x] Start a separate hidden GUI Blender session (addon refuses background mode); call through real MCP SDK, not a socket-only imitation. Verify scene query succeeds.
+- [x] Author original assets in Blender via execute_blender_code; export GLB and a new .blend source, render useful views. Inspect images and iterate. No overwriting existing vehicle models or user scenes.
+- [x] Run asset contract, Godot import, and runtime checks; document provenance, MCP call evidence, triangle counts, materials, axes, and limitations. Commit owned files.
 
 ### Task 3: Real road-life runtime integration
 
