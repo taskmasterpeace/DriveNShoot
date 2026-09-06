@@ -56,5 +56,32 @@ road-life checks. Test the unsafe original behavior only against a disposable
 sentinel, never the actual player profile. All import/runtime commands must still
 explicitly isolate both profile environment variables.
 
-This prevention gate and final milestone review remain pending at this report's
-creation. The full-game goal and release gates remain open.
+Prevention implementation is now verified locally: `road_life_sim.gd` checks
+the normalized current user-data path before either exercise or restart-check
+can load the main scene or read a checkpoint. Only descendants of this checkout's
+`build/` or `.superpowers/sdd/` are accepted, with Windows case/slash/dot
+normalization and full path-component boundaries. Unsafe profiles emit a
+structured `ROAD LIFE PROFILE: REFUSED` message and exit 2; there is no bypass.
+
+Run `pwsh -NoProfile -File tools/road_life_profile_guard.ps1` on Windows with the
+installed Godot. The persistent driver creates fresh ignored positive/negative
+profiles, explicitly sets both environment variables for every import/runtime
+child, retains sentinel hashes and logs, and cleans up only its own process
+handles. It performs no deletion and rejects reparse-point fixture ancestors.
+
+The test-first RED run demonstrated the old harness overwriting only its fresh
+disposable sentinel while reporting 71/0. Two fresh GREEN runs passed all 11
+driver checks: both unsafe entry modes exited 2 with byte-identical sentinels
+and no gameplay assertions or engine errors; the allowed exercise retained all
+71 passing real-input assertions and a separate allowed restart passed 5/5.
+Fourteen additional literal path-normalization/boundary cases passed. Latest
+evidence is retained under
+`build/profile-guard-positive-0e90942596054cff86b8689f2466f52f/`;
+RED is under `build/profile-guard-positive-701120842baf4ba49915d79d68a5544e/`.
+Runtime stderr was empty in these guard runs. Import stderr retains two existing
+Dialogue Manager invalid-resource-UID warnings; no unrelated addon fix is claimed.
+
+Independent task and final milestone review remain pending. This guard is bounded
+to this harness, not a general test framework or hostile-filesystem sandbox.
+It does not recover the original player save. Recovery remains unresolved, and
+the full-game goal and release gates remain open.

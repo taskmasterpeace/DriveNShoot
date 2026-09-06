@@ -11,6 +11,14 @@ func check(label: String, condition: bool) -> void:
 	print("ROAD LIFE: %s - %s" % ["PASS" if condition else "FAIL", label])
 
 func _ready() -> void:
+	# This harness exercises real transactions; refuse BEFORE either branch can
+	# load the main scene or read a player checkpoint. There is no bypass flag.
+	var checkout: String = _canonical_profile_path(ProjectSettings.globalize_path("res://").path_join(".."))
+	var profile: String = _canonical_profile_path(OS.get_user_data_dir())
+	if not _profile_is_allowed(profile, checkout):
+		print("ROAD LIFE PROFILE: REFUSED " + JSON.stringify({"reason": "unsafe_user_data_dir", "user_data_dir": profile, "allowed_roots": [checkout.path_join("build"), checkout.path_join(".superpowers/sdd")]}))
+		get_tree().quit(2)
+		return
 	get_tree().create_timer(120.0).timeout.connect(func() -> void: get_tree().quit(1))
 	check("real road-life component exists", FileAccess.file_exists("res://proto3d/realm/road_life.gd"))
 	if failed == 0:
@@ -21,6 +29,18 @@ func _ready() -> void:
 		check("exercise reached completion without script interruption", exercised)
 	print("ROAD LIFE: %d passed, %d failed" % [passed, failed])
 	get_tree().quit(0 if failed == 0 else 1)
+
+static func _canonical_profile_path(path: String) -> String:
+	var canonical: String = path.replace("\\", "/").simplify_path().trim_suffix("/")
+	return canonical.to_lower() if OS.get_name() == "Windows" else canonical
+
+static func _profile_is_allowed(profile: String, checkout: String) -> bool:
+	var canonical_profile: String = _canonical_profile_path(profile)
+	var canonical_checkout: String = _canonical_profile_path(checkout)
+	if not canonical_profile.is_absolute_path() or not canonical_checkout.is_absolute_path():
+		return false
+	# Trailing separators enforce whole components, not build-lookalike prefixes.
+	return canonical_profile.begins_with(canonical_checkout + "/build/") or canonical_profile.begins_with(canonical_checkout + "/.superpowers/sdd/")
 
 func exercise() -> void:
 	var disk_before_boot: String = FileAccess.get_file_as_string("user://drivn.save") if FileAccess.file_exists("user://drivn.save") else ""

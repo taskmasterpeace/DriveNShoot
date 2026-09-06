@@ -12,3 +12,4 @@ build/
 .playwright-mcp/
 .worktrees/
 .roadstead-profile/
+/.superpowers/profile-guard-negative-*/
