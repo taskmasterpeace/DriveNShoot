@@ -250,7 +250,9 @@ if not bool(road.get("one_way", false)):
 **Files:** `world_stream.gd`; new `interchange_drive_sim.{gd,tscn}`;
 `road_surface_sim.gd` only to extend coverage honestly; `elevation_sim.gd` only
 to isolate its synthetic map fixture and update verified support expectations
-if required by the global station law; isolated runner.
+if required by the global station law; isolated runner. Narrow integration
+ownership also includes `traffic.gd` lifetime guarding in `_car_ahead` and a
+`traffic_sim.gd` freed-entry regression, discovered by the real input drive.
 **Consumes:** shared ports, same managed rows/geometry as Task 3.
 **Produces:** actual port signs/decel/accel/gore placement and physical traversal
 evidence, plus unedited captures under a unique isolated build run.
@@ -296,6 +298,10 @@ Input.parse_input_event(event)
   reached landmarks, retained positive hp, finite physics, deck underside
   clearance and untouched median collision. Capture approach, crossing, feeder
   and completion through the real camera; disclose clock/location staging.
+  First real route exposed `_car_ahead` testing `c is Node3D` before checking
+  validity on a freed car entry. Add a real freed-entry/valid-leader regression
+  before the narrow lifetime guard; retain traffic, vehicles and following.
+  Do not suppress the errors, disable traffic, or make the check always null.
 - [ ] Parent inspects every final capture, runs broad surface and relevant
   road/junction/traffic/atlas/elevation checks, records baseline failures and
   hashes map bytes after every scene. Commit only with evidence and review.
