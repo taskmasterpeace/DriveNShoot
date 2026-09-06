@@ -1,0 +1,46 @@
+{
+	"captures": [
+		{
+			"camera": "(110.0, 13.75279, -304.1867)",
+			"hour": 11.0,
+			"id": "01_safehouse_front",
+			"note": "Photographic staging, normal game renderer/HUD; no image editing or synthetic scene.",
+			"player": "(110.0, 0.000447, -319.9991)",
+			"saved": true
+		},
+		{
+			"camera": "(110.0, 13.75508, -290.1875)",
+			"hour": 11.0,
+			"id": "02_safehouse_approach",
+			"note": "Photographic staging, normal game renderer/HUD; no image editing or synthetic scene.",
+			"player": "(110.0, -0.000718, -306.0)",
+			"saved": true
+		},
+		{
+			"camera": "(123.0, 13.75503, -293.1875)",
+			"hour": 11.0,
+			"id": "03_kennel_front",
+			"note": "Photographic staging, normal game renderer/HUD; no image editing or synthetic scene.",
+			"player": "(123.0, -0.000773, -309.0)",
+			"saved": true
+		},
+		{
+			"camera": "(110.0, 13.75051, -304.1867)",
+			"hour": 23.0,
+			"id": "04_safehouse_night",
+			"note": "Photographic staging, normal game renderer/HUD; no image editing or synthetic scene.",
+			"player": "(110.0, 0.000447, -319.9991)",
+			"saved": true
+		},
+		{
+			"camera": "(108.5462, 13.75094, -306.4343)",
+			"hour": 11.0,
+			"id": "05_safehouse_entry",
+			"note": "Photographic staging, normal game renderer/HUD; no image editing or synthetic scene.",
+			"player": "(108.5462, 0.000943, -322.6295)",
+			"saved": true
+		}
+	],
+	"failed": 6,
+	"passed": 18
+}

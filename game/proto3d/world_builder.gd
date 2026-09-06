@@ -717,14 +717,6 @@ static func build_world(root: Node3D) -> Dictionary:
 	box_body(world, Vector3(1.0, 1.0, 1.0), Vector3(103.4, 0.5, -321.2), COL_CRATE * 1.1)
 
 	# --- The kennel yard: four strays waiting for a scav (dogs spawn in main) --
-	var kennel_label := Label3D.new()
-	kennel_label.text = "STRAYS — E TO ADOPT"
-	kennel_label.font_size = 140
-	kennel_label.pixel_size = 0.005
-	kennel_label.modulate = Color(0.95, 0.75, 0.25)
-	kennel_label.position = Vector3(123, 3.2, -316)
-	kennel_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	world.add_child(kennel_label)
 	for post_pos in [Vector3(120.5, 0, -313.5), Vector3(125.5, 0, -313.5), Vector3(120.5, 0, -318.5), Vector3(125.5, 0, -318.5)]:
 		box_body(world, Vector3(0.2, 1.2, 0.2), post_pos + Vector3(0, 0.6, 0), Color(0.4, 0.3, 0.2))
 
@@ -740,14 +732,7 @@ static func build_world(root: Node3D) -> Dictionary:
 	# law override) resolve lazily on first interact(), by which point main.stream
 	# exists — see furniture.gd's _state_id_at().
 	house.furnish_interior(root)
-	var house_label := Label3D.new()
-	house_label.text = "SAFEHOUSE"
-	house_label.font_size = 180
-	house_label.pixel_size = 0.005
-	house_label.modulate = Color(0.95, 0.75, 0.25)
-	house_label.position = Vector3(110, 7.4, -325)
-	house_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	world.add_child(house_label)
+	_build_meridian_signage(world, house)
 
 	# --- Spawns ---------------------------------------------------------------
 	# Player's car starts at the north end of the interstate, pointed south (-Z is forward).
@@ -758,3 +743,31 @@ static func build_world(root: Node3D) -> Dictionary:
 	car_spawns.append(parked)
 
 	return {"car_spawns": car_spawns, "house": house}
+
+
+## Fixed signboards replace the old roof-height tutorial billboards. These are
+## visual fixtures on existing walls/posts, not new obstacles or UI prompts.
+## Contextual E/pad verbs and the SAFEHOUSE/KENNEL waypoints remain authoritative.
+static func _build_meridian_signage(world: Node3D, house: ProtoHouse) -> void:
+	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/meridian_signage.json"))
+	for row: Dictionary in data.signs:
+		var size := Vector3(float(row.size[0]), float(row.size[1]), float(row.size[2]))
+		var position := Vector3(float(row.position[0]), float(row.position[1]), float(row.position[2]))
+		var parent: Node3D = house.frontage if String(row.attachment) == "safehouse_frontage" else world
+		var board := box_visual(parent, size, parent.to_local(world.to_global(position)), Color(String(row.color)))
+		board.name = String(row.id).to_pascal_case() + "Wayfinding"
+		var letters := Label3D.new()
+		letters.text = String(row.text)
+		letters.font_size = int(row.font_size)
+		letters.pixel_size = float(row.pixel_size)
+		letters.modulate = Color("ebe3d1")
+		letters.outline_size = 0
+		letters.shaded = true
+		letters.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		letters.position.z = size.z * 0.5 + 0.008
+		board.add_child(letters)
+		# Corner fasteners make the backing read as a mounted, salvaged object.
+		for x: float in [-1.0, 1.0]:
+			for y: float in [-1.0, 1.0]:
+				box_visual(board, Vector3(0.045,0.045,0.018),
+					Vector3(x * (size.x * 0.5 - 0.09), y * (size.y * 0.5 - 0.09), size.z * 0.5 + 0.012), Color("85765c"))

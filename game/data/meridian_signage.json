@@ -1,0 +1,24 @@
+{
+  "signs": [
+    {
+      "id": "safehouse",
+      "attachment": "safehouse_frontage",
+      "text": "SAFEHOUSE",
+      "position": [108.5, 3.55, -320.26],
+      "size": [3.5, 0.65, 0.08],
+      "font_size": 96,
+      "pixel_size": 0.004,
+      "color": "38463a"
+    },
+    {
+      "id": "kennel",
+      "attachment": "world",
+      "text": "KENNEL · ADOPTION",
+      "position": [123.0, 1.4, -313.33],
+      "size": [5.2, 0.7, 0.08],
+      "font_size": 96,
+      "pixel_size": 0.004,
+      "color": "554535"
+    }
+  ]
+}

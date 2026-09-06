@@ -41,6 +41,7 @@ var stash: ProtoStash
 var furniture: Array[ProtoFurniture] = [] ## filled by furnish_interior(); read by sims
 
 var tracked_inside: bool = false ## read by main: clamps sight indoors (no x-ray walls)
+var frontage: Node3D ## Mounted exterior details follow the facade cutaway.
 var _roof: Node3D
 var _front_mat: StandardMaterial3D = null ## front wall fades so you can SEE the stairs
 var _floor2_mat: StandardMaterial3D
@@ -49,6 +50,9 @@ var _floor2_color := Color(0.48, 0.38, 0.26)
 
 
 func build() -> void:
+	frontage = Node3D.new()
+	frontage.name = "Frontage"
+	add_child(frontage)
 	var hw := WIDTH / 2.0
 	var hd := DEPTH / 2.0
 	var full_h := FLOOR_H * 2.0 + 0.2
@@ -196,6 +200,8 @@ func _physics_process(_delta: float) -> void:
 
 func _set_inside(inside: bool, tracked_y: float = 0.0) -> void:
 	tracked_inside = inside
+	if frontage:
+		frontage.visible = not inside
 	if _roof:
 		_roof.visible = not inside
 	if _front_mat:
