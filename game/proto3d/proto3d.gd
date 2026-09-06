@@ -1181,7 +1181,8 @@ func _physics_process(delta: float) -> void:
 	# Hold T to WAIT: the clock sprints (the world doesn't) — sit out the night.
 	# The TV no longer fast-forwards time (owner 2026-07-07: "that's absurd") —
 	# a broadcast runs at 1:1 and the AIR CLOCK keeps the schedule honest.
-	daynight.waiting = Input.is_key_pressed(KEY_T) and not panel.is_open
+	# Polled T must obey the same modal lock as movement, not just input events.
+	daynight.waiting = Input.is_key_pressed(KEY_T) and not player.input_locked
 	# Headlights answer the dark on their own — and tails idle brighter so a rig
 	# reads at distance from BEHIND too (the night-glow law, car_3d).
 	ProtoCar3D.night_glow = 2.0 if daynight.is_dark() else 1.0

@@ -149,3 +149,55 @@ Known limits: three authored homes and three one-shot routes only; no authentica
 - Confirmed discovery/UI input paths and actual travel/doorway/weapon inputs, not reward/purchase teleports as functional behavior. Staging exceptions are comments in the test.
 - Confirmed final captures are real and corrected the faulty initial shot and HUD layering. Existing visual and exit-diagnostic limitations remain explicit.
 - Independent parent review remains required; no self-assigned quality score or broader-suite success claim.
+
+## Review fix round 1 — polled WAIT respects the shared modal lock
+
+Base: `5dafbea`. Parent review found that `daynight.waiting` still polled physical T using only the older container panel predicate. Roadstead's event consumption therefore did not prevent the existing 60× wait clock while its modal was open.
+
+Ownership for this fix was limited to `proto3d.gd`, `road_life_sim.gd`, and this report. The production change replaces `not panel.is_open` with `not player.input_locked` for WAIT; that shared modal predicate is computed earlier in the same physics tick and already includes Roadstead and the other body-locking panels. `daynight.gd`, other production files, baseline item pricing and audio lifecycle were not changed.
+
+The regression sends an actual `InputEventKey` with both `keycode` and `physical_keycode` set to T. It confirms the held input state, measures elapsed game hours over 30 physics frames with the Roadstead panel open, closes through the existing interact input while T remains held, measures again, and releases T. No direct assignment to `daynight.waiting` or the clock substitutes for input.
+
+Commands ran from the isolated checkout with:
+
+```powershell
+$env:APPDATA = 'D:/git/carworld/.worktrees/america-foundation/.superpowers/sdd/2026-09-05-america-foundation/task3-test-appdata'
+$godot = 'C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe'
+& $godot --headless --path game res://proto3d/tests/road_life_sim.tscn
+# After observing RED, apply the one-predicate fix and repeat the command.
+& $godot --headless --path game res://proto3d/tests/road_life_sim.tscn
+& $godot --headless --path game res://proto3d/tests/road_life_sim.tscn -- --restart-check
+```
+
+Actual RED output before the production change (`task3-wait-red.log`, exit 1):
+
+```text
+ROAD LIFE: PASS - physical T reaches held input state
+ROAD LIFE: FAIL - modal T keeps ordinary clock progression
+ROAD LIFE: FAIL - held T resumes normal waiting after modal closes
+ROAD LIFE: physical T clock deltas modal=0.500000h closed=0.500000h
+ROAD LIFE: PASS - releasing physical T ends waiting
+ROAD LIFE: 58 passed, 2 failed
+```
+
+Actual GREEN output (`task3-wait-green.log`, exit 0, clean):
+
+```text
+ROAD LIFE: PASS - physical T reaches held input state
+ROAD LIFE: PASS - modal T keeps ordinary clock progression
+ROAD LIFE: PASS - held T resumes normal waiting after modal closes
+ROAD LIFE: physical T clock deltas modal=0.008333h closed=0.500000h
+ROAD LIFE: PASS - releasing physical T ends waiting
+ROAD LIFE: 60 passed, 0 failed
+```
+
+Separate-process restart: `ROAD LIFE: 5 passed, 0 failed`, exit 0 (`task3-wait-restart.log`). It retains `ObjectDB instances leaked at exit` / `3 resources still in use at exit` diagnostics; not claimed clean.
+
+Existing WAIT/input regressions ran sequentially in separate disposable profiles `.../task3-wait-regression-life_sim` and `.../task3-wait-regression-input_map_sim`, each created with `New-Item -ItemType Directory -Force` before assigning process-local APPDATA:
+
+```powershell
+& $godot --headless --path game res://proto3d/tests/life_sim.tscn
+& $godot --headless --path game res://proto3d/tests/input_map_sim.tscn
+```
+
+`task3-wait-life_sim.log`: `LIF: PASS - holding T sprints the clock (+1.0h in 1s)` and `LIF RESULTS: 19 passed, 0 failed`, exit 0; ObjectDB/three-resource exit diagnostics remain. `task3-wait-input_map_sim.log`: `INMAP RESULTS: 15 passed, 0 failed`, exit 0, clean. No imports, captures, subagents, push, or unrelated fixes were needed. `git diff --check` passed; the final diff contains only the three assigned files. All task-owned Godot processes exited before handoff.

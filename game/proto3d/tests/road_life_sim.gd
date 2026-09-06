@@ -48,8 +48,33 @@ func exercise() -> void:
 	await frames(20)
 	Input.action_release("move_up")
 	check("modal stops held movement", main.player.global_position.distance_to(start) < 0.2)
+	# Physical T remains polled even when the modal consumes gameplay events.
+	var wait_key: InputEventKey = InputEventKey.new()
+	wait_key.keycode = KEY_T
+	wait_key.physical_keycode = KEY_T
+	wait_key.pressed = true
+	Input.parse_input_event(wait_key)
+	await get_tree().process_frame
+	await frames(3)
+	check("physical T reaches held input state", Input.is_key_pressed(KEY_T))
+	var clock_before: float = main.daynight.day * 24.0 + main.daynight.hour
+	await frames(30)
+	var modal_hours: float = main.daynight.day * 24.0 + main.daynight.hour - clock_before
+	check("modal T keeps ordinary clock progression", not main.daynight.waiting and modal_hours > 0.0 and modal_hours < 0.05)
 	await action("interact")
 	check("interact closes modal", not life.panel.is_open)
+	clock_before = main.daynight.day * 24.0 + main.daynight.hour
+	await frames(30)
+	var wait_hours: float = main.daynight.day * 24.0 + main.daynight.hour - clock_before
+	check("held T resumes normal waiting after modal closes", main.daynight.waiting and wait_hours > 0.2 and wait_hours > modal_hours * 20.0)
+	print("ROAD LIFE: physical T clock deltas modal=%.6fh closed=%.6fh" % [modal_hours, wait_hours])
+	wait_key = InputEventKey.new()
+	wait_key.keycode = KEY_T
+	wait_key.physical_keycode = KEY_T
+	Input.parse_input_event(wait_key)
+	await get_tree().process_frame
+	await frames(3)
+	check("releasing physical T ends waiting", not main.daynight.waiting)
 	check("destination required", not state.deliver("medicine", life.receivers.medicine.interact_position()).ok)
 	# Vehicle arrangement on the real Richmond road; input owns the ensuing drive.
 	var car: ProtoCar3D = main.cars[0]
