@@ -4,6 +4,22 @@ extends Node
 const COMPONENT := "res://proto3d/realm/realm_link.gd"
 const LEDGER_COMPONENT := "res://proto3d/realm/property_ledger.gd"
 
+## Test-only outbound-size failure: production serialization and rejection stay real.
+class FailingBroadcastLink extends ProtoRealmLink:
+	var fail_view_peer: int = 0
+	var failure_count: int = 0
+	var injected_packet_size: int = 0
+
+	func _send_message(peer_id: int, message: Dictionary) -> void:
+		if peer_id == fail_view_peer and message.get("kind") == "view":
+			fail_view_peer = 0
+			failure_count += 1
+			var oversized: Dictionary = {"padding": "x".repeat(REPLY_BYTES_MAX + 1)}
+			injected_packet_size = JSON.stringify(oversized).to_utf8_buffer().size()
+			super._send_message(peer_id, oversized)
+			return
+		super._send_message(peer_id, message)
+
 var passed: int = 0
 var failed: int = 0
 var root: String
@@ -66,6 +82,8 @@ func _ready() -> void:
 		{"id": "roadstead_001", "name": "Roadstead", "price": 150,
 			"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"},
 		{"id": "reconnect_site", "name": "Reconnect site", "price": 75,
+			"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"},
+		{"id": "broadcast_site", "name": "Broadcast site", "price": 40,
 			"item_capacity": 10, "model": "res://assets/models/homestead/roadstead_cottage.glb"}
 	]
 	_check("test authority opens", ledger.open(root + "/ledger.json", rows) == OK)
@@ -84,6 +102,7 @@ func _ready() -> void:
 	credentials[extra_credential] = {"account_id": "alice-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60, "role": "admin"}
 	credentials[reconnect_credential] = {"account_id": "reconnect-secret", "expires_at": int(Time.get_unix_time_from_system()) + 60}
 	await _run_wire_checks()
+	await _run_broadcast_rejection_check()
 	_finish()
 
 
@@ -245,8 +264,50 @@ func _run_wire_checks() -> void:
 	_check("close is idempotent and preserves SceneTree multiplayer", get_tree().get_multiplayer() == tree_api)
 
 
-func _new_link(label: String) -> Node:
-	var link: Node = link_script.new()
+func _run_broadcast_rejection_check() -> void:
+	# Admission is sequential: the failed recipient precedes the healthy one.
+	# Iterating live _admitted instead of its keys must break this delivery contract.
+	var server: Node = _new_link("broadcast_server", FailingBroadcastLink.new())
+	var port: int = _start_on_available_port(server)
+	_check("broadcast server starts", port > 0)
+	var failing: Node = _new_link("broadcast_failing")
+	var healthy: Node = _new_link("broadcast_healthy")
+	var buyer: Node = _new_link("broadcast_buyer")
+	_check("failing recipient begins real authentication", failing.connect_loopback(port, reconnect_credential) == OK)
+	await _wait_until(func() -> bool: return _has_view("broadcast_failing", 125, "unowned", "broadcast_site"), 4.0)
+	_check("healthy recipient begins real authentication", healthy.connect_loopback(port, bob_credential) == OK)
+	await _wait_until(func() -> bool: return _has_view("broadcast_healthy", 500, "unowned", "broadcast_site"), 4.0)
+	_check("broadcast buyer begins real authentication", buyer.connect_loopback(port, alice_credential) == OK)
+	await _wait_until(func() -> bool: return _has_view("broadcast_buyer", 350, "unowned", "broadcast_site"), 4.0)
+	var failing_api: SceneMultiplayer = failing.get("_api")
+	var healthy_api: SceneMultiplayer = healthy.get("_api")
+	var buyer_api: SceneMultiplayer = buyer.get("_api")
+	var failing_id: int = failing_api.get_unique_id()
+	var healthy_id: int = healthy_api.get_unique_id()
+	var buyer_id: int = buyer_api.get_unique_id()
+	var admitted: Dictionary = server.get("_admitted")
+	_check("three actual peers admitted in failure healthy buyer order", admitted.keys() == [failing_id, healthy_id, buyer_id] and _auths("broadcast_failing") == 1 and _auths("broadcast_healthy") == 1 and _auths("broadcast_buyer") == 1)
+	server.fail_view_peer = failing_id
+	var command: Dictionary = {"version": 1, "kind": "purchase", "request_id": "broadcast-buy", "parcel_id": "broadcast_site"}
+	_check("broadcast buyer sends actual purchase", buyer.send_command(command) == OK)
+	await _wait_until(func() -> bool: return _has_receipt("broadcast_buyer", "broadcast-buy", true) and _has_view("broadcast_healthy", 500, "other", "broadcast_site"), 4.0)
+	_check("outbound size failure injected exactly once above production limit", server.failure_count == 1 and server.injected_packet_size > ProtoRealmLink.REPLY_BYTES_MAX)
+	_check("production rejection removes failed recipient but preserves later peers", not admitted.has(failing_id) and admitted.has(healthy_id) and admitted.has(buyer_id))
+	_check("later healthy recipient receives updated private view despite removal", _has_view("broadcast_healthy", 500, "other", "broadcast_site"))
+	_check("buyer receives success receipt and own debited view", _has_receipt("broadcast_buyer", "broadcast-buy", true) and _has_view("broadcast_buyer", 310, "self", "broadcast_site"))
+	var state: Dictionary = ledger.snapshot()
+	_check("broadcast failure leaves one owner and exactly one buyer debit", state.parcels.broadcast_site.owner_id == "alice-secret" and state.accounts["alice-secret"].scrip == 310 and state.accounts["bob-secret"].scrip == 500 and state.accounts["reconnect-secret"].scrip == 125)
+	var wire: String = JSON.stringify(_messages("broadcast_healthy"))
+	_check("healthy broadcast preserves private projection", not wire.contains("alice-secret") and not wire.contains("bob-secret") and not wire.contains("owner_id") and not wire.contains("receipts"))
+	var before_replay: int = _messages("broadcast_buyer").size()
+	_check("buyer retries same successful purchase over real link", buyer.send_command(command) == OK)
+	await _wait_until(func() -> bool: return _messages("broadcast_buyer").size() >= before_replay + 2, 4.0)
+	_check("retry receives receipt and view without any further ledger mutation", _messages("broadcast_buyer").size() == before_replay + 2 and ledger.snapshot() == state and server.failure_count == 1)
+	server.close()
+
+
+func _new_link(label: String, supplied: Node = null) -> Node:
+	var link: Node = link_script.new() if supplied == null else supplied
 	link.name = label
 	add_child(link)
 	clients.append(link)
@@ -300,8 +361,8 @@ func _has_receipt(label: String, request_id: String, ok: bool) -> bool:
 	return false
 
 
-func _has_view(label: String, balance: int, ownership: String) -> bool:
+func _has_view(label: String, balance: int, ownership: String, parcel_id: String = "roadstead_001") -> bool:
 	for message: Dictionary in _messages(label):
-		if message.get("kind") == "view" and message.get("balance") == balance and message.get("parcels", {}).get("roadstead_001", {}).get("ownership") == ownership:
+		if message.get("kind") == "view" and message.get("balance") == balance and message.get("parcels", {}).get(parcel_id, {}).get("ownership") == ownership:
 			return true
 	return false

@@ -257,7 +257,7 @@ func _on_peer_packet(peer_id: int, packet: PackedByteArray, generation: int) -> 
 	_send_receipt(peer_id, command.request_id, bool(result.ok), String(result.error))
 	_send_view(peer_id)
 	if result.ok:
-		for other_peer_id: Variant in _admitted:
+		for other_peer_id: Variant in _admitted.keys():
 			if int(other_peer_id) != peer_id:
 				_send_view(int(other_peer_id))
 
