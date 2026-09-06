@@ -81,18 +81,29 @@ func _physics_process(_delta: float) -> void:
 	if state.jobs.active != "":
 		target = receivers[state.jobs.active]
 		message = "Deliver %s · cargo in backpack · E at receiver" % state.jobs.active.replace("_", " ")
-	elif state.balance() >= 150 and not state.ledger.can_access(ProtoRoadLifeState.ACCOUNT, "roadstead_001"):
-		target = sites[0]
-		message = "First deed earned! Buy 1 Roadstead Lane · 150 banked"
+	else:
+		var selected_site: ProtoPropertySite = _selected_site()
+		if selected_site != null and state.balance() >= int(selected_site.row.price):
+			target = selected_site
+			message = "Deed earned! Buy %s · %d banked" % [selected_site.row.name, int(selected_site.row.price)]
 	objective.text = "ROADSTEAD · LOCAL AUTHORITY\n%s · %dm" % [message, main.player.global_position.distance_to(target.global_position)]
-	if state.jobs.active == "last_light" and _encounter_attempt != state.jobs.attempt and main.player.global_position.distance_to(receivers.last_light.global_position) < 55.0:
+	var active_job: String = state.jobs.active
+	var job: Dictionary = state.definitions.get(active_job, {})
+	var encounter_receiver: Node3D = receivers.get(active_job) as Node3D
+	if not job.is_empty() and bool(job.get("encounter", false)) and encounter_receiver != null and _encounter_attempt != state.jobs.attempt and main.player.global_position.distance_to(encounter_receiver.global_position) < 55.0:
 		_encounter_attempt = state.jobs.attempt
 		if is_instance_valid(_encounter):
 			_encounter.queue_free()
 		_encounter = ProtoLurker.create()
 		main.add_child(_encounter)
-		_encounter.global_position = receivers.last_light.global_position + Vector3(8,0.5,8)
-		main.notify("LAST LIGHT: movement by the relay. Fight or deliver and leave.")
+		_encounter.global_position = encounter_receiver.global_position + Vector3(8,0.5,8)
+		main.notify("%s: movement by the relay. Fight or deliver and leave." % String(job.name))
+
+func _selected_site() -> ProtoPropertySite:
+	for site: ProtoPropertySite in sites:
+		if not state.ledger.can_access(ProtoRoadLifeState.ACCOUNT, String(site.row.id)):
+			return site
+	return null
 
 func notify_result(result: Dictionary) -> void:
 	main.notify("ROAD OFFICE: checkpoint saved" if result.ok else "ROAD OFFICE: " + String(result.error))

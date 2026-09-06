@@ -1,0 +1,71 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+PROPERTY: PASS - property authority component exists
+PROPERTY: PASS - property authority can instantiate
+PROPERTY: isolated data root D:/git/carworld/.worktrees/america-foundation/.superpowers/sdd/2026-09-05-america-foundation/task3-regression-property_ledger_sim/Godot/app_userdata/DRIVN/property_ledger_sim_36592_217897
+PROPERTY: PASS - unopened authority fails closed
+PROPERTY: PASS - new authority is durably opened
+PROPERTY: PASS - accounts start unfunded
+PROPERTY: PASS - second account created
+PROPERTY: PASS - unfunded purchase rejected
+PROPERTY: PASS - credits fund two buyers
+PROPERTY: PASS - first buyer wins
+PROPERTY: PASS - second buyer loses without debit
+PROPERTY: PASS - one owner and exact winning debit
+PROPERTY: PASS - winning purchase receipt replays
+PROPERTY: PASS - credit receipt replays without reward
+PROPERTY: PASS - altered purchase receipt rejected
+PROPERTY: PASS - altered credit receipt rejected
+PROPERTY: PASS - cross-operation receipt reuse rejected
+PROPERTY: PASS - snapshot is a detached deep copy
+PROPERTY: PASS - restart preserves complete authority state
+PROPERTY: PASS - receipt survives restart
+PROPERTY: PASS - numeric credit receipt survives restart
+PROPERTY: PASS - owner access only by default
+PROPERTY: PASS - outsider storage denied
+PROPERTY: PASS - non-owner cannot grant
+PROPERTY: PASS - owner grants existing guest
+PROPERTY: PASS - owner stores catalog item
+PROPERTY: PASS - guest adds within capacity
+PROPERTY: PASS - total item count bounds capacity
+PROPERTY: PASS - guest takes and conserves counts
+PROPERTY: PASS - storage receipts prevent double movement
+PROPERTY: PASS - storage receipt rejects changed quantity
+PROPERTY: PASS - cannot remove more than stored
+PROPERTY: PASS - taking whole stack removes empty key
+PROPERTY: PASS - owner revokes access
+PROPERTY: PASS - revoked guest cannot move storage
+PROPERTY: PASS - old grant replay does not restore access
+PROPERTY: PASS - invalid ID rejected: 
+PROPERTY: PASS - invalid ID rejected: ../alice
+PROPERTY: PASS - invalid ID rejected: a b
+PROPERTY: PASS - invalid ID rejected: aaaaaaaaaaaa
+PROPERTY: PASS - invalid quantity rejected: 0
+PROPERTY: PASS - invalid quantity rejected: -1
+PROPERTY: PASS - invalid quantity rejected: 1000000001
+PROPERTY: PASS - unknown item rejected
+PROPERTY: PASS - unknown account rejected
+PROPERTY: PASS - unknown guest rejected
+PROPERTY: PASS - unknown parcel rejected
+PROPERTY: PASS - rejected commands leave no mutations or receipts
+PROPERTY: PASS - account ensure is idempotent
+PROPERTY: PASS - storage and revocation persist
+PROPERTY: PASS - corrupt JSON fails without reset
+PROPERTY: PASS - corrupt version rejected
+PROPERTY: PASS - corrupt accounts rejected
+PROPERTY: PASS - corrupt parcels rejected
+PROPERTY: PASS - corrupt receipts rejected
+PROPERTY: PASS - negative saved balance rejected
+PROPERTY: PASS - non-writable open preserves live state
+PROPERTY: PASS - malformed parcel rows rejected
+PROPERTY: PASS - incomplete or altered closed output rejects publication
+PROPERTY: PASS - incomplete output preserves disk and authority memory
+PROPERTY: PASS - incomplete or altered closed output rejects publication
+PROPERTY: PASS - incomplete output preserves disk and authority memory
+PROPERTY: PASS - exact closed output can replace authority
+PROPERTY: PASS - failed durable commit cannot credit
+PROPERTY: PASS - failed durable commit cannot create account
+PROPERTY: PASS - failed commit preserved previous disk contents
+PROPERTY: PASS - failed receipt can retry after IO recovers
+PROPERTY: PASS - three shipped properties validate
+PROPERTY: 67 passed, 0 failed

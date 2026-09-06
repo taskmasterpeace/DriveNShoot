@@ -1,0 +1,12 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROAD LIFE: PASS - real road-life component exists
+ROAD LIFE: PASS - prior process wrote restart checkpoint
+ROAD LIFE: PASS - new process recovers owner fund cargo and receipt
+ROAD LIFE: PASS - new process replay does not duplicate
+ROAD LIFE: PASS - exercise reached completion without script interruption
+ROAD LIFE: 5 passed, 0 failed
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

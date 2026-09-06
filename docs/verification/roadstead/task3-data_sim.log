@@ -1,0 +1,24 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+DATA: start
+DATA: PASS - DrivnVehicle.from_dict round-trips (engine 7000, armor 50)
+DATA: PASS - DrivnItem builds
+DATA: PASS - DrivnBuilding builds
+DATA: PASS - DrivnNPC builds
+DATA: PASS - DrivnLootTable.roll yields valid items
+DATA: PASS - vehicles.json loaded the full fleet (10 rows, want >=9)
+DATA: PASS - existing 'scavenger' is a DrivnVehicle row
+DATA: PASS - 'pickup_truck' exists ONLY as data (a DrivnVehicle row)
+DATA: PASS - 'pickup_truck' materialized into the engine fleet
+DATA: PASS - 'pickup_truck' drives with its DATA engine force (8600)
+DATA: PASS - 'pickup_truck' trunk holds its DATA volume (70 kg)
+DATA: PASS - 'pickup_truck' carries armor + mounts on its spec (AAA)
+DATA: PASS - 'suv' exists ONLY as data (a DrivnVehicle row)
+DATA: PASS - 'suv' materialized into the engine fleet
+DATA: PASS - 'suv' drives with its DATA engine force (8000)
+DATA: PASS - 'suv' trunk holds its DATA volume (90 kg)
+DATA: PASS - 'suv' carries armor + mounts on its spec (AAA)
+DATA: PASS - existing 'scavenger' engine matches its JSON row (6500)
+DATA: PASS - stamped suv.tres loads as DrivnVehicle (Bulwark)
+DATA RESULTS: 19 passed, 0 failed
+DATA: ALL CHECKS PASSED

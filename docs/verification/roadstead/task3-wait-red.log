@@ -1,0 +1,64 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ROAD LIFE: PASS - real road-life component exists
+ROAD LIFE: PASS - boot never creates or overwrites player checkpoint
+ROAD LIFE: PASS - main attaches visible office and three parcels
+ROAD LIFE: PASS - replacement freight cannot mint vendor cash
+ROAD LIFE: PASS - real input exits car
+ROAD LIFE: PASS - shared interact opens office
+ROAD LIFE: PASS - GUI acceptance supplies real cargo
+ROAD LIFE: PASS - modal stops held movement
+ROAD LIFE: PASS - physical T reaches held input state
+ROAD LIFE: FAIL - modal T keeps ordinary clock progression
+ROAD LIFE: PASS - interact closes modal
+ROAD LIFE: FAIL - held T resumes normal waiting after modal closes
+ROAD LIFE: physical T clock deltas modal=0.500000h closed=0.500000h
+ROAD LIFE: PASS - releasing physical T ends waiting
+ROAD LIFE: PASS - destination required
+ROAD LIFE: PASS - shared interact takes freight into driver's seat
+ROAD LIFE: PASS - real gas input drives cargo along existing road
+ROAD LIFE: PASS - park and interact returns driver to foot
+ROAD LIFE: PASS - real walk reaches delivery interaction
+ROAD LIFE: PASS - failed reward write keeps cargo active and unpaid
+ROAD LIFE: PASS - one payout consumes cargo and adds supply
+ROAD LIFE: PASS - completed marker exists before replay
+ROAD LIFE: PASS - reward replay does not mint supply
+ROAD LIFE: PASS - parcel input opens deed panel
+ROAD LIFE: PASS - GUI buys addressed home with banked money
+ROAD LIFE: PASS - purchase click does not leak an unarmed fire hold
+ROAD LIFE: PASS - storage conserves backpack item
+ROAD LIFE: PASS - take restores item
+ROAD LIFE: PASS - explicit store transaction succeeds
+ROAD LIFE: PASS - explicit take transaction succeeds
+ROAD LIFE: PASS - historical take replay cannot duplicate backpack
+ROAD LIFE: PASS - checkpoint joins all transaction halves
+ROAD LIFE: PASS - restart/load preserves replay receipt
+ROAD LIFE: PASS - old save rewinds storage and backpack together
+ROAD LIFE: PASS - corrupt present field rejects before any main state
+ROAD LIFE: PASS - failed write leaves backpack and ledger unchanged
+ROAD LIFE: PASS - replay conflict rejects different payload
+ROAD LIFE: PASS - guest key grant is local and persisted
+ROAD LIFE: PASS - guest revocation applies
+ROAD LIFE: PASS - household supply has real food purpose
+ROAD LIFE: PASS - second contract accepts
+ROAD LIFE: PASS - missing cargo never pays
+ROAD LIFE: PASS - lost cargo recovery is explicit
+ROAD LIFE: PASS - cannot duplicate already carried cargo
+ROAD LIFE: PASS - cancel allows another attempt without payout
+ROAD LIFE: PASS - online transactions are blocked
+ROAD LIFE: PASS - online direct local load is blocked
+ROAD LIFE: PASS - online save/load refuse local checkpoint overwrite
+ROAD LIFE: PASS - real input walks ramp porch and doorway
+ROAD LIFE: PASS - roof cuts away over entered cottage
+ROAD LIFE: PASS - pad close starts with open panel
+ROAD LIFE: PASS - physical pad B closes without stale movement lock
+ROAD LIFE: PASS - physical Escape closes panel
+ROAD LIFE: PASS - other parcel doorway traversable: roadstead_002
+ROAD LIFE: PASS - other parcel doorway traversable: roadstead_003
+ROAD LIFE: PASS - last-light risk contract accepts
+ROAD LIFE: PASS - contract road encounter is the real actor
+ROAD LIFE: PASS - real weapon inputs kill job-related enemy
+ROAD LIFE: PASS - encounter leaves existing real corpse loot
+ROAD LIFE: PASS - legacy missing field resets only road-life ledger
+ROAD LIFE: PASS - exercise reached completion without script interruption
+ROAD LIFE: 58 passed, 2 failed

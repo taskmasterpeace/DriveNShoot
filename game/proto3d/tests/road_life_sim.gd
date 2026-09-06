@@ -32,6 +32,17 @@ func exercise() -> void:
 	check("main attaches visible office and three parcels", main.road_life != null and main.road_life.sites.size() == 3)
 	var life: Node = main.road_life
 	var state: RefCounted = life.state
+	# Row-variation regression: the objective must advertise the selected parcel,
+	# not a parallel hardcoded first-deed name or price.
+	var first_home: Node3D = life.sites[0]
+	var first_name: String = first_home.row.name
+	var first_price: int = int(first_home.row.price)
+	first_home.row.name = "ROW-VARIANT HOMESTEAD"
+	first_home.row.price = 0
+	await frames(3)
+	check("objective reads selected parcel name and price rows", "ROW-VARIANT HOMESTEAD" in life.objective.text and "0 banked" in life.objective.text)
+	first_home.row.name = first_name
+	first_home.row.price = first_price
 	check("replacement freight cannot mint vendor cash", main.trade_price("freight_medicine", true) == 0 and main.trade_price("freight_parts", true) == 0 and main.trade_price("freight_cells", true) == 0)
 	# Arrangement only: boot is at the wheel; the real interact input exits it.
 	await action("interact")
@@ -126,6 +137,15 @@ func exercise() -> void:
 	await mouse_activate("purchase")
 	check("GUI buys addressed home with banked money", state.balance() == 10 and state.ledger.can_access("local_driver", "roadstead_001"))
 	check("purchase click does not leak an unarmed fire hold", not main._fist_pressed)
+	var second_site: Node3D = life.sites[1]
+	var second_name: String = second_site.row.name
+	var second_price: int = int(second_site.row.price)
+	second_site.row.name = "NEXT ROW-VARIANT HOMESTEAD"
+	second_site.row.price = state.balance()
+	await frames(3)
+	check("objective selects next unowned parcel by row id", "NEXT ROW-VARIANT HOMESTEAD" in life.objective.text and "10 banked" in life.objective.text)
+	second_site.row.name = second_name
+	second_site.row.price = second_price
 	var pre_store: Dictionary = main.capture_save()
 	await activate("store:household_pantry")
 	check("storage conserves backpack item", main.backpack.count("household_pantry") == 0 and state.ledger.snapshot().parcels.roadstead_001.items.get("household_pantry", 0) == 1)
@@ -138,6 +158,13 @@ func exercise() -> void:
 	check("checkpoint joins all transaction halves", disk.player.backpack.household_pantry == 1 and disk.road_life.ledger.parcels.roadstead_001.items.is_empty())
 	main.apply_save(disk)
 	check("restart/load preserves replay receipt", state.transfer("roadstead_001", "household_pantry", true, "sim:take").ok and main.backpack.count("household_pantry") == 1)
+	var receipt_state: Dictionary = state.ledger.snapshot()
+	check("runtime conflict probe has the historical take receipt", receipt_state.receipts.has("sim:take"))
+	var pack_before_conflict: Dictionary = main.backpack.slots.duplicate(true)
+	var ledger_before_conflict: Dictionary = receipt_state.duplicate(true)
+	var conflict: Dictionary = state.transfer("roadstead_001", "scrap", true, "sim:take")
+	check("runtime replay conflict returns exact receipt error", not conflict.ok and conflict.error == "receipt_conflict")
+	check("runtime replay conflict changes neither backpack nor ledger", main.backpack.slots == pack_before_conflict and state.ledger.snapshot() == ledger_before_conflict)
 	state.checkpoint_path = "user://road_restart.save"
 	state.transfer("roadstead_001", "household_pantry", false, "restart:store")
 	state.transfer("roadstead_001", "household_pantry", true, "restart:take")
@@ -156,7 +183,6 @@ func exercise() -> void:
 	var result: Dictionary = state.transfer("roadstead_001", "household_pantry", false, "sim:failed-write")
 	check("failed write leaves backpack and ledger unchanged", not result.ok and main.backpack.count("household_pantry") == 1 and state.ledger.snapshot().parcels.roadstead_001.items.is_empty())
 	state.checkpoint_path = old_path
-	check("replay conflict rejects different payload", not state.transfer("roadstead_001", "scrap", true, "sim:take").ok)
 	check("guest key grant is local and persisted", state.guest("roadstead_001", true).ok and state.ledger.can_access("local_guest", "roadstead_001"))
 	check("guest revocation applies", state.guest("roadstead_001", false).ok and not state.ledger.can_access("local_guest", "roadstead_001"))
 	var meals: int = main.backpack.count("canned_food")
@@ -188,6 +214,25 @@ func exercise() -> void:
 	var local: Vector3 = home.to_local(main.player.global_position)
 	check("real input walks ramp porch and doorway", local.z < 3.5 and local.z > -4.0 and local.y > 0.3)
 	check("roof cuts away over entered cottage", not home.roofs.is_empty() and not home.roofs[0].visible)
+	# Stage on supported decking, then use real input to cross onto each visible
+	# outer strip. Stopping velocity only lets gravity settle the reached point.
+	stage(home.to_global(Vector3(0, 1.3, 5.0)))
+	await frames(45)
+	var porch_y: float = home.to_local(main.player.global_position).y
+	for edge: Dictionary in [
+		{"action": "move_left", "start_x": -3.55, "direction": -1.0, "label": "left"},
+		{"action": "move_right", "start_x": 3.55, "direction": 1.0, "label": "right"},
+	]:
+		stage(home.to_global(Vector3(float(edge.start_x), porch_y + 0.1, 5.0)))
+		await frames(3)
+		await hold_action(String(edge.action), 22)
+		main.player.velocity = Vector3.ZERO
+		await frames(25)
+		var edge_local: Vector3 = home.to_local(main.player.global_position)
+		print("ROAD LIFE: porch %s reference_y=%.3f reached=%s" % [edge.label, porch_y, edge_local])
+		var reached_strip: bool = edge_local.x * float(edge.direction) > 4.05 and edge_local.x * float(edge.direction) < 4.75
+		check("actual input reaches visible %s porch edge" % edge.label, reached_strip)
+		check("visible %s porch edge keeps raised-floor support" % edge.label, reached_strip and edge_local.y >= porch_y - 0.12)
 	# Close paths use physical events, not direct panel callbacks.
 	stage(home.interact_position() + Vector3(0,0,1))
 	await frames(8)
@@ -219,6 +264,14 @@ func exercise() -> void:
 		Input.action_release("move_up")
 		await frames(8)
 		check("other parcel doorway traversable: " + String(next_home.row.id), next_home.to_local(main.player.global_position).z < 3.5)
+	var default_encounter: bool = bool(state.definitions.last_light.get("encounter", false))
+	state.definitions.last_light.encounter = false
+	check("row-disabled risk contract accepts", state.accept("last_light").ok)
+	stage(life.receivers.last_light.global_position + Vector3(0,0.2,12))
+	await frames(15)
+	check("active job encounter flag disables materialization", not is_instance_valid(life._encounter))
+	check("row-disabled risk contract cancels", state.cancel().ok)
+	state.definitions.last_light.encounter = default_encounter
 	check("last-light risk contract accepts", state.accept("last_light").ok)
 	stage(life.receivers.last_light.global_position + Vector3(0,0.2,12))
 	await frames(15)
@@ -277,6 +330,18 @@ func action(id: String) -> void:
 	event.pressed = true
 	Input.parse_input_event(event)
 	await frames(3)
+	event = InputEventAction.new()
+	event.action = id
+	event.pressed = false
+	Input.parse_input_event(event)
+	await frames(3)
+
+func hold_action(id: String, count: int) -> void:
+	var event: InputEventAction = InputEventAction.new()
+	event.action = id
+	event.pressed = true
+	Input.parse_input_event(event)
+	await frames(count)
 	event = InputEventAction.new()
 	event.action = id
 	event.pressed = false

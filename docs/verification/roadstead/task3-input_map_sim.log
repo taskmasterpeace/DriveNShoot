@@ -1,0 +1,20 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+INMAP: start
+INMAP: PASS - the rows LOADED (71 actions)
+INMAP: PASS - new actions exist in the engine map
+INMAP: PASS - move_up carries BOTH the key AND the stick (one action, two worlds)
+INMAP: PASS - the descriptor codec ROUND-TRIPS every kind
+INMAP: PASS - the LEFT STICK moves like W (axis 1.00)
+INMAP: PASS - RT MATCHES fire (the chain's own check)
+INMAP: PASS - A / ✕ MATCHES the dive (jump action)
+INMAP: PASS - D-PAD ↑ MATCHES the radio
+INMAP: PASS - rebind APPLIES (radio Y -> U)
+INMAP: PASS - the live map WEARS the rebind
+INMAP: PASS - the override PERSISTED to user://
+INMAP: PASS - the rebind SURVIVES a reboot
+INMAP: PASS - RESET returns the stock keys (Y)
+INMAP: PASS - the panel surface lists every row
+INMAP: PASS - PS parity is VISIBLE (A / ✕ on the dive)
+INMAP RESULTS: 15 passed, 0 failed
+INMAP: ALL CHECKS PASSED

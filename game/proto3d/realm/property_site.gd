@@ -22,7 +22,8 @@ func setup(owner: Node, definition: Dictionary) -> void:
 	_solid(Vector3(4.3, 2.6, 0.2), Vector3(-2.85, 1.65, 4))
 	_solid(Vector3(4.3, 2.6, 0.2), Vector3(2.85, 1.65, 4))
 	_solid(Vector3(1.4, 0.5, 0.2), Vector3(0, 2.89, 4))
-	_solid(Vector3(8, 0.4, 2), Vector3(0, 0.2, 5))
+	# The authored planks span X=-4.90..4.90; support the complete visible deck.
+	_solid(Vector3(9.8, 0.4, 2), Vector3(0, 0.2, 5))
 	# Convex wedge: 0→0.4m over 2m, so normal walking climbs without jumping.
 	var ramp: StaticBody3D = StaticBody3D.new()
 	var shape: CollisionShape3D = CollisionShape3D.new()

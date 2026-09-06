@@ -1,0 +1,32 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ITM: scene up
+ITM: PASS - catalog grew to a real arsenal (111 items, want >=27)
+ITM: PASS - every item has a category + a tooltip desc
+ITM: FAIL - every tradeable item has a PRICE (Mercy can stock anything) — MISSING: ["game_cart_rust_runners", "game_cart_black_grid"]
+ITM: PASS - a JSON-only row folded in ('field_ration' from items.json)
+ITM: PASS - code stays the floor (pistol still weapon, 1.1kg)
+ITM: PASS - loot table 'chest_common' loads from data
+ITM: PASS - a seeded loot roll is DETERMINISTIC
+ITM: PASS - every rolled item is a real catalog row (["bandage", "scrip", "meat", "scrap"])
+ITM: PASS - a JSON price folded in (field_ration = 6 scrip from prices.json)
+ITM: PASS - Mercy actually stocks the new goods
+ITM: PASS - canteen refills stamina
+ITM: PASS - whiskey calms hard (60->30) but the torso pays
+ITM: PASS - medkit stops bleeding + treats every part
+ITM: PASS - booted at the wheel (rig in reach)
+ITM: PASS - jerry can pours 40% in (45->85)
+ITM: PASS - car parts rebuild the worst component
+ITM: PASS - tire kit patches the rubber
+ITM: PASS - duct tape holds the chassis together
+ITM: PASS - flare drops a burning light
+ITM: PASS - map fragment marks a town on YOUR map (+49 chunks)
+ITM: PASS - the pack reads as a KIT LIST (6 category headers, want >=4)
+ITM: PASS - rows carry tooltips (9)
+ITM: PASS - load line is honest kg
+ITM: PASS - icon_for resolves a direct item icon (pistol)
+ITM: PASS - icon_for resolves an alias (9mm -> ammo)
+ITM: PASS - icon_for is a safe null for an unknown id
+ITM: PASS - the grid bridge stamps icons onto InventoryItems
+ITM RESULTS: 26 passed, 1 failed
+ITM: FAILURES PRESENT

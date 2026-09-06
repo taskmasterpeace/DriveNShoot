@@ -1,0 +1,30 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+SAVE: start
+SAVE: PASS - the save hit the disk
+SAVE: PASS - (the wreck is real: dog gone, pockets empty)
+SAVE: PASS - load succeeds
+SAVE: PASS - the pockets came back (72 scrip)
+SAVE: PASS - the ECO CLOCK re-anchored on load (sentinel set)
+SAVE: PASS - the clock came back (day 3, 21:00)
+SAVE: PASS - the ledger came back (NEVADA HERO)
+SAVE: PASS - the RING came back (bellamy lit)
+SAVE: PASS - the HOME came back (walls 1)
+SAVE: PASS - the DOG came back — bond and memory intact (47 bond, 2 saves)
+SAVE: PASS - the wound came back too (l_arm 70 — saves don't heal you)
+SAVE: PASS - THE CIRCUIT came back (scavenge ✓)
+SAVE: PASS - HUNGER came back (37 — no longer loads full)
+SAVE: PASS - the WEATHER came back (dust, not clear)
+SAVE: PASS - the WAR came back (TEXAS)
+SAVE: PASS - the CREW came back (Sam re-hired, 44 hp)
+SAVE: PASS - the METAWORLD record came back (1 off-screen dog)
+SAVE: PASS - the save is versioned (v1)
+SAVE: PASS - respawn + go-home share ONE safehouse anchor
+SAVE: PASS - double-load doesn't duplicate the pack (1 Keeper)
+SAVE: PASS - old-save jack lands as scrip, additive (40+2=42)
+SAVE RESULTS: 21 passed, 0 failed
+SAVE: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 4 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

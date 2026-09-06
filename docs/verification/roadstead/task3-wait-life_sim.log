@@ -1,0 +1,28 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+LIF: scene up
+LIF: PASS - noon is not dark
+LIF: PASS - full sight in daylight (98m)
+LIF: PASS - clock reads day (☀️ 13:01 · DAY 1)
+LIF: PASS - headlights off in daylight
+LIF: PASS - 2 AM is dark
+LIF: PASS - night taxes your EYES (cone 41m < 60)
+LIF: PASS - …but the floor holds (41m ≥ 20 — tense, not blind)
+LIF: PASS - headlights come on at dark
+LIF: PASS - clock reads night (🌑 02:02 · DAY 1)
+LIF: PASS - holding T sprints the clock (+1.0h in 1s)
+LIF: PASS - Lucky HOPS IN when you drive (riding)
+LIF: PASS - ...and rides hidden in the cab
+LIF: PASS - petting the rider settles nerves (stress 48 < 60)
+LIF: PASS - Lucky hops OUT with you
+LIF: PASS - ...right beside the vehicle (3.2m)
+LIF: PASS - a GUARDING dog holds its post (no auto-board)
+LIF: PASS - the HORN calls the pack off guard duty (Lucky heels)
+LIF: PASS - meat heals the hurt dog (hp 50 ≥ 45)
+LIF: PASS - ...and the meat is EATEN (1 left)
+LIF RESULTS: 19 passed, 0 failed
+LIF: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

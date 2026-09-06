@@ -1,0 +1,13 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+BRIDGE: PASS - code-floor id resolves (pistol)
+BRIDGE: PASS - name + desc carried over
+BRIDGE: PASS - weapons stay chunky (max_stack 12)
+BRIDGE: PASS - ammo piles deep (max_stack 99)
+BRIDGE: PASS - a JSON-only row resolves (walkie, via ensure_items)
+BRIDGE: PASS - an unknown id resolves to null
+BRIDGE: PASS - one shared resource per id (cache)
+BRIDGE: PASS - container fills the grid (3 ids, 4 stacks)
+BRIDGE: PASS - round trip is lossless
+BRIDGE: PASS - serialize→deserialize restores through the bridge
+BRIDGE: DONE — 10 passed, 0 failed

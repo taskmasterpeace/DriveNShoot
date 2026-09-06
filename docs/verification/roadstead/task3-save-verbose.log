@@ -1,0 +1,370 @@
+WorkerThreadPool: 32 threads, 9 max low-priority.
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Unrecognized output string "misc2" in mapping:
+030000000d0f00000202000000000000,Horipad O Nintendo Switch 2 Controller,a:b1,b:b0,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b4,leftstick:b10,lefttrigger:b6,leftx:a0,lefty:a1,misc1:b13,misc2:b14,rightshoulder:b5,rightstick:b11,righttrigger:b7,rightx:a2,righty:a3,start:b9,x:b3,y:b2,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000000d0f00009601000000000000,Horipad Steam,a:b0,b:b1,back:b10,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b6,leftstick:b13,lefttrigger:b8,leftx:a0,lefty:a1,misc2:b2,paddle1:b5,paddle2:b15,paddle3:b18,paddle4:b19,rightshoulder:b7,rightstick:b14,righttrigger:b9,rightx:a3,righty:a4,start:b11,x:b3,y:b4,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000007e0500006920000000000000,Nintendo Switch 2 Pro Controller,a:b0,b:b1,back:b14,dpdown:b8,dpleft:b10,dpright:b9,dpup:b11,guide:b16,leftshoulder:b12,leftstick:b15,lefttrigger:b13,leftx:a0,lefty:a1~,misc1:b17,misc2:b20,paddle1:b18,paddle2:b19,rightshoulder:b4,rightstick:b7,righttrigger:b5,rightx:a2,righty:a3~,start:b6,x:b2,y:b3,platform:Windows,
+Using "default" pen tablet driver...
+
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+Loading resource: res://default_bus_layout.tres
+CORE API HASH: 937899573
+EDITOR API HASH: 1777164193
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: res://addons/dialogue_manager/dialogue_manager.gd
+Loading resource: res://addons/dialogue_manager/test_scene.tscn
+Loading resource: res://addons/dialogue_manager/test_scene.gd
+Loaded system CA certificates
+Loading resource: res://proto3d/tests/save_sim.tscn
+Loading resource: res://proto3d/tests/save_sim.gd
+SAVE: start
+Loading resource: res://proto3d/proto3d.tscn
+Loading resource: res://proto3d/proto3d.gd
+Loading resource: res://assets/ui/tv/crt.png
+Loading resource: res://.godot/imported/crt.png-12aa520cee698fbc4819644ff207ab40.ctex
+Loading resource: res://assets/ui/radio/faceplate.png
+Loading resource: res://.godot/imported/faceplate.png-9f0df9420c1f4aeb7123d584e2c20376.ctex
+Loading resource: res://assets/ui/fonts/radio_lcd.ttf
+Loading resource: res://.godot/imported/radio_lcd.ttf-41074cf24ff3c77058c84d3737190200.fontdata
+Loading resource: res://assets/skins/dirt.png
+Loading resource: res://.godot/imported/dirt.png-3ccc008cd8e6dcd3287cc4741507aaab.ctex
+Loading resource: res://assets/skins/metal.png
+Loading resource: res://.godot/imported/metal.png-ae44fdaeb0fa4fc820ce3daecd6887bb.ctex
+Loading resource: res://assets/skins/road.png
+Loading resource: res://.godot/imported/road.png-86c02a9e12821feb079706b2c6b9a9c1.ctex
+Loading resource: res://assets/skins/rust.png
+Loading resource: res://.godot/imported/rust.png-1fab183d48917912baf79e62e151079a.ctex
+Loading resource: res://assets/skins/wall.png
+Loading resource: res://.godot/imported/wall.png-6b3a17cba61e1527e79b9adedabd37de.ctex
+Loading resource: res://assets/skins/wood.png
+Loading resource: res://.godot/imported/wood.png-29be0963f6a31f1c23945f8af733c9a1.ctex
+Loading resource: res://proto3d/games/game_deck.gd
+Loading resource: res://proto3d/games/game_registry.gd
+Loading resource: res://proto3d/games/score_ledger.gd
+Loading resource: res://proto3d/games/arcade_input_router.gd
+Loading resource: res://proto3d/games/game_shell.gd
+Loading resource: res://proto3d/games/game_console.gd
+Loading resource: res://proto3d/games/game_session_broker.gd
+Loading resource: res://proto3d/games/game_lobby.gd
+Loading resource: res://proto3d/games/game_handheld.gd
+Loading resource: res://proto3d/games/game_shelf.gd
+Loading resource: res://proto3d/games/game_venue.gd
+Loading resource: res://proto3d/games/game_spectator.gd
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/motorcycle.glb
+Loading resource: res://.godot/imported/motorcycle.glb-574ea27b7ed0314d3454fee60da4dbb9.scn
+Loading resource: res://assets/models/vehicles/buggy.glb
+Loading resource: res://.godot/imported/buggy.glb-dad507b958fef40db254e103a5d8cb70.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/semi.glb
+Loading resource: res://.godot/imported/semi.glb-30fdbecb60098135e6b4cfec6b243b46.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/camper.glb
+Loading resource: res://.godot/imported/camper.glb-3f697d2b6eeaf86859b6c92272c1e9b5.scn
+Loading resource: res://assets/models/vehicles/humvee.glb
+Loading resource: res://.godot/imported/humvee.glb-a76f7d4af6b2be56dd60b8a29a875497.scn
+Loading resource: res://addons/exit_portal_free/portal_wobble.gd
+Loading resource: res://addons/exit_portal_free/meshes/wobble.res
+Loading resource: res://addons/exit_portal_free/portal_disk.gdshader
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/motorcycle.glb
+Loading resource: res://.godot/imported/motorcycle.glb-574ea27b7ed0314d3454fee60da4dbb9.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/buggy.glb
+Loading resource: res://.godot/imported/buggy.glb-dad507b958fef40db254e103a5d8cb70.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/semi.glb
+Loading resource: res://.godot/imported/semi.glb-30fdbecb60098135e6b4cfec6b243b46.scn
+Loading resource: res://assets/models/vehicles/trailer.glb
+Loading resource: res://.godot/imported/trailer.glb-9320e974ed8666df3fc4d9fe20cd6c1a.scn
+Loading resource: res://assets/ui/gauges/sport.png
+Loading resource: res://.godot/imported/sport.png-a25f5d0d05bfe1d16dd0ac9cc8221005.ctex
+Loading resource: res://assets/ui/gauges/fuel.png
+Loading resource: res://.godot/imported/fuel.png-ff90118609eca1c52ee77b582fd0c1a1.ctex
+Loading resource: res://assets/ui/gauges/temp.png
+Loading resource: res://.godot/imported/temp.png-4690509f3198c6a26ab578730477fc1d.ctex
+Loading resource: res://assets/ui/gauges/tach.png
+Loading resource: res://.godot/imported/tach.png-eabf3719851440f599b2e456735df7a6.ctex
+Loading resource: res://assets/ui/hudicons/d_engine.png
+Loading resource: res://.godot/imported/d_engine.png-3f7e3a9c94e5add020753908b0176042.ctex
+Loading resource: res://assets/ui/hudicons/d_tires.png
+Loading resource: res://.godot/imported/d_tires.png-6b2c819bc08ed7c5d6b17a83364ad19f.ctex
+Loading resource: res://assets/ui/hudicons/d_battery.png
+Loading resource: res://.godot/imported/d_battery.png-a4268f09ebc9163410732384ebad5056.ctex
+Loading resource: res://assets/ui/hudicons/d_fuel_tank.png
+Loading resource: res://.godot/imported/d_fuel_tank.png-e5af62f34339f17d575e9d4f72ccc6f2.ctex
+Loading resource: res://assets/ui/hudicons/d_chassis.png
+Loading resource: res://.godot/imported/d_chassis.png-111ea3d7597ca77c0afc9fbed21024f0.ctex
+Loading resource: res://assets/sfx/shot.mp3
+Loading resource: res://.godot/imported/shot.mp3-b3c51657e3cf7024c27cbbd2708eef1e.mp3str
+Loading resource: res://assets/sfx/shotgun.mp3
+Loading resource: res://.godot/imported/shotgun.mp3-36bb6a6e821942e98067c80d3a33cf14.mp3str
+Loading resource: res://assets/sfx/explosion.mp3
+Loading resource: res://.godot/imported/explosion.mp3-2f056bf664bfd9780c7112bdeaa3fa79.mp3str
+Loading resource: res://assets/sfx/click.mp3
+Loading resource: res://.godot/imported/click.mp3-0625a102c47e756510f31025be055e4b.mp3str
+Loading resource: res://assets/sfx/bark.mp3
+Loading resource: res://.godot/imported/bark.mp3-d00d68ab745253ecd70728b45e7e3baa.mp3str
+Loading resource: res://assets/sfx/growl.mp3
+Loading resource: res://.godot/imported/growl.mp3-d4659ea2f11583902b8fee7c76447250.mp3str
+Loading resource: res://assets/sfx/hurt.mp3
+Loading resource: res://.godot/imported/hurt.mp3-d628c3a45963fb49c911dd190f89982b.mp3str
+Loading resource: res://assets/sfx/blip.mp3
+Loading resource: res://.godot/imported/blip.mp3-546f4390d95e981e10c2045bf42dffe6.mp3str
+Loading resource: res://assets/sfx/creak.mp3
+Loading resource: res://.godot/imported/creak.mp3-da3f631ae7005bf9025347a9a673d5a8.mp3str
+Loading resource: res://assets/sfx/whoosh.mp3
+Loading resource: res://.godot/imported/whoosh.mp3-c148d058100e6f83f5f17259a1d11a39.mp3str
+Loading resource: res://assets/sfx/thunk.mp3
+Loading resource: res://.godot/imported/thunk.mp3-e8d9d1adcafb66b3363216bf7f807f7f.mp3str
+Loading resource: res://assets/sfx/hitmark.mp3
+Loading resource: res://.godot/imported/hitmark.mp3-c3aef37ba11f6cb0f631759ad85b56d5.mp3str
+Loading resource: res://assets/sfx/honk.mp3
+Loading resource: res://.godot/imported/honk.mp3-fa83269ced8466888b18b6d712534725.mp3str
+Loading resource: res://assets/sfx/howl.mp3
+Loading resource: res://.godot/imported/howl.mp3-78db6a73ea313c9ab356bb33a3f37559.mp3str
+Loading resource: res://assets/sfx/engine.mp3
+Loading resource: res://.godot/imported/engine.mp3-552e9be6249de109ef94b69979263692.mp3str
+Loading resource: res://assets/sfx/fire.mp3
+Loading resource: res://.godot/imported/fire.mp3-4fa09471aedc0878b0425500e7a1d0c9.mp3str
+Loading resource: res://assets/sfx/amb_desert.mp3
+Loading resource: res://.godot/imported/amb_desert.mp3-58a88c67d569dd304049ce4cfae06187.mp3str
+Loading resource: res://assets/sfx/amb_forest.mp3
+Loading resource: res://.godot/imported/amb_forest.mp3-9aa413e8b1cbfa645ff6492a21bf4504.mp3str
+Loading resource: res://assets/sfx/amb_night.mp3
+Loading resource: res://.godot/imported/amb_night.mp3-057308e0f5f58a924fe020dd2abe16bd.mp3str
+Loading resource: res://assets/sfx/amb_plains.mp3
+Loading resource: res://.godot/imported/amb_plains.mp3-7717b0736ca868cb8150eefe57693704.mp3str
+Loading resource: res://assets/sfx/amb_town.mp3
+Loading resource: res://.godot/imported/amb_town.mp3-fbfcb0e32f748ff06ae73f21004a0d7c.mp3str
+Loading resource: res://assets/sfx/amb_wind.mp3
+Loading resource: res://.godot/imported/amb_wind.mp3-a8c4f714b458f5266f4b43e6a074e07f.mp3str
+Loading resource: res://assets/sfx/body_thud.mp3
+Loading resource: res://.godot/imported/body_thud.mp3-edb72a7635c6ccbd1cc038065d5b3353.mp3str
+Loading resource: res://assets/sfx/breath_sprint.mp3
+Loading resource: res://.godot/imported/breath_sprint.mp3-dc8e7da670c00eb5a3185e23c4950279.mp3str
+Loading resource: res://assets/sfx/camera_click.mp3
+Loading resource: res://.godot/imported/camera_click.mp3-0de7cbb3ebdbff15f31e9e33c10f5f23.mp3str
+Loading resource: res://assets/sfx/car_door.mp3
+Loading resource: res://.godot/imported/car_door.mp3-16dd6ef4c5c4b18db36d6da3d6d2aba2.mp3str
+Loading resource: res://assets/sfx/container_open.mp3
+Loading resource: res://.godot/imported/container_open.mp3-27a907593c92b3696fec0d84b9aa07c1.mp3str
+Loading resource: res://assets/sfx/crouch_rustle.mp3
+Loading resource: res://.godot/imported/crouch_rustle.mp3-87e0661bce0f737e8e036253b72dee77.mp3str
+Loading resource: res://assets/sfx/dive.mp3
+Loading resource: res://.godot/imported/dive.mp3-4a1c2aeeef6524b0646bdf16cc3dffe4.mp3str
+Loading resource: res://assets/sfx/dog_whine.mp3
+Loading resource: res://.godot/imported/dog_whine.mp3-b2917154cdddb3cc40164ffafb3fb963.mp3str
+Loading resource: res://assets/sfx/drone_hum.mp3
+Loading resource: res://.godot/imported/drone_hum.mp3-1a989e1744da80fdef79e608e2c60f03.mp3str
+Loading resource: res://assets/sfx/engine_diesel.mp3
+Loading resource: res://.godot/imported/engine_diesel.mp3-f62efdcc5047b4d9d399ac3128de437d.mp3str
+Loading resource: res://assets/sfx/engine_motorcycle.mp3
+Loading resource: res://.godot/imported/engine_motorcycle.mp3-3035d896a26f9f91137f1a5ab261b83c.mp3str
+Loading resource: res://assets/sfx/engine_muscle.mp3
+Loading resource: res://.godot/imported/engine_muscle.mp3-48602252305a9543b3580b1fc2c3fc6e.mp3str
+Loading resource: res://assets/sfx/engine_start.mp3
+Loading resource: res://.godot/imported/engine_start.mp3-8e3afa938abfc4e20412feee73e95e32.mp3str
+Loading resource: res://assets/sfx/fire_whoomp.mp3
+Loading resource: res://.godot/imported/fire_whoomp.mp3-b6b55f127e50b5f1faace6b26ffb27a7.mp3str
+Loading resource: res://assets/sfx/footstep_asphalt.mp3
+Loading resource: res://.godot/imported/footstep_asphalt.mp3-122d0312612570aa47d39c8ac8cd2e80.mp3str
+Loading resource: res://assets/sfx/footstep_dirt.mp3
+Loading resource: res://.godot/imported/footstep_dirt.mp3-313344133ae08c4e3afd6674a2cd17d3.mp3str
+Loading resource: res://assets/sfx/footstep_grass.mp3
+Loading resource: res://.godot/imported/footstep_grass.mp3-4132fcac8edc10f9f2938b0d3fc0bd70.mp3str
+Loading resource: res://assets/sfx/footstep_land.mp3
+Loading resource: res://.godot/imported/footstep_land.mp3-c6f9fcd765b72aad0709d1f39868aced.mp3str
+Loading resource: res://assets/sfx/footstep_wood.mp3
+Loading resource: res://.godot/imported/footstep_wood.mp3-edcf44a4e892472469bb58d833583429.mp3str
+Loading resource: res://assets/sfx/glass_break.mp3
+Loading resource: res://.godot/imported/glass_break.mp3-2fe42206ba5f894d120e7ae6977f1a68.mp3str
+Loading resource: res://assets/sfx/impact_crunch.mp3
+Loading resource: res://.godot/imported/impact_crunch.mp3-7c76010d4fc8530fcdf69c1563980a1e.mp3str
+Loading resource: res://assets/sfx/impact_dirt.mp3
+Loading resource: res://.godot/imported/impact_dirt.mp3-a113730c33d8e35997520acc2b238d9e.mp3str
+Loading resource: res://assets/sfx/impact_metal.mp3
+Loading resource: res://.godot/imported/impact_metal.mp3-98a4f7b6d75e49af7790bbfd00cdd538.mp3str
+Loading resource: res://assets/sfx/impact_wood.mp3
+Loading resource: res://.godot/imported/impact_wood.mp3-3af4e36d91ec843ff73033aeea02244e.mp3str
+Loading resource: res://assets/sfx/metal_debris.mp3
+Loading resource: res://.godot/imported/metal_debris.mp3-21507f4c1e1b2ab92f0df6a2341fe458.mp3str
+Loading resource: res://assets/sfx/portal_arm.mp3
+Loading resource: res://.godot/imported/portal_arm.mp3-0f18637b4f0aa368d2a127e6c838714a.mp3str
+Loading resource: res://assets/sfx/portal_cd_1.mp3
+Loading resource: res://.godot/imported/portal_cd_1.mp3-86ddb1a68c49d5dfa704feeb13277f79.mp3str
+Loading resource: res://assets/sfx/portal_cd_10.mp3
+Loading resource: res://.godot/imported/portal_cd_10.mp3-07857038539c5d8c70080c42df81471e.mp3str
+Loading resource: res://assets/sfx/portal_cd_2.mp3
+Loading resource: res://.godot/imported/portal_cd_2.mp3-eb4b6d8e0055498bcbc32f0cff5efc74.mp3str
+Loading resource: res://assets/sfx/portal_cd_3.mp3
+Loading resource: res://.godot/imported/portal_cd_3.mp3-f8efad4766b7074680febcaa47b4a3d2.mp3str
+Loading resource: res://assets/sfx/portal_cd_4.mp3
+Loading resource: res://.godot/imported/portal_cd_4.mp3-58501dc9505ed9d8c3f035baa0e742f4.mp3str
+Loading resource: res://assets/sfx/portal_cd_5.mp3
+Loading resource: res://.godot/imported/portal_cd_5.mp3-938c0f8bbe9d8b8ca06cd4c643b423e0.mp3str
+Loading resource: res://assets/sfx/portal_cd_6.mp3
+Loading resource: res://.godot/imported/portal_cd_6.mp3-7e2c95e1381a02513f83a6166febdf1b.mp3str
+Loading resource: res://assets/sfx/portal_cd_7.mp3
+Loading resource: res://.godot/imported/portal_cd_7.mp3-a29dfe86e217923e6e9ab09c0cc9727d.mp3str
+Loading resource: res://assets/sfx/portal_cd_8.mp3
+Loading resource: res://.godot/imported/portal_cd_8.mp3-bf16d526e9a317474cc1adaa3325737f.mp3str
+Loading resource: res://assets/sfx/portal_cd_9.mp3
+Loading resource: res://.godot/imported/portal_cd_9.mp3-2cdca9f3b280472550bd96e3d7d38d86.mp3str
+Loading resource: res://assets/sfx/portal_charge.mp3
+Loading resource: res://.godot/imported/portal_charge.mp3-d7435daf9cfe8c96cc94d30f25f1e76f.mp3str
+Loading resource: res://assets/sfx/portal_go.mp3
+Loading resource: res://.godot/imported/portal_go.mp3-007d8e3286ab321f3b325985c7351ee3.mp3str
+Loading resource: res://assets/sfx/radio_static.mp3
+Loading resource: res://.godot/imported/radio_static.mp3-b2e7d33612acfa88fce9b0ce7b8c0014.mp3str
+Loading resource: res://assets/sfx/reload_drop.mp3
+Loading resource: res://.godot/imported/reload_drop.mp3-1d232d2e6f0bbe779c019fc9c01dbb4f.mp3str
+Loading resource: res://assets/sfx/reload_insert.mp3
+Loading resource: res://.godot/imported/reload_insert.mp3-01e66d2a5b3b33722316ce7e4b872ff1.mp3str
+Loading resource: res://assets/sfx/sensor_ping.mp3
+Loading resource: res://.godot/imported/sensor_ping.mp3-023e3d68d9a0415bbdc4e7f16eaa85dd.mp3str
+Loading resource: res://assets/sfx/shell_drop.mp3
+Loading resource: res://.godot/imported/shell_drop.mp3-2f9f500f6d61b0c00df41df984e16af7.mp3str
+Loading resource: res://assets/sfx/shot_mg.mp3
+Loading resource: res://.godot/imported/shot_mg.mp3-f059a8c050facd9bfd2cfccabc0233f8.mp3str
+Loading resource: res://assets/sfx/shot_rocket.mp3
+Loading resource: res://.godot/imported/shot_rocket.mp3-04627d9aa6495cf4fba841cf47f21c60.mp3str
+Loading resource: res://assets/sfx/shotgun_pump.mp3
+Loading resource: res://.godot/imported/shotgun_pump.mp3-7b0b592bd6985b1f3dad5c3addc4135e.mp3str
+Loading resource: res://assets/sfx/skid.mp3
+Loading resource: res://.godot/imported/skid.mp3-bb466a124d2a82725fbc9d7ec5bb46ed.mp3str
+Loading resource: res://assets/sfx/tire_scream.mp3
+Loading resource: res://.godot/imported/tire_scream.mp3-42ee455a6cd8235a2ac367c31e4e6913.mp3str
+Loading resource: res://assets/sfx/ui_cancel.mp3
+Loading resource: res://.godot/imported/ui_cancel.mp3-fe39b96e78f50fa8261488d6fd2985b7.mp3str
+Loading resource: res://assets/sfx/ui_click.mp3
+Loading resource: res://.godot/imported/ui_click.mp3-a044e1545b219f4cf628b8586c266839.mp3str
+Loading resource: res://assets/sfx/ui_confirm.mp3
+Loading resource: res://.godot/imported/ui_confirm.mp3-0a152d3f4ddf74974a6eda03888e54b8.mp3str
+Loading resource: res://assets/sfx/vo_bridger_clean.mp3
+Loading resource: res://.godot/imported/vo_bridger_clean.mp3-c2e8cb1a82dcda6c59cee63224a43731.mp3str
+Loading resource: res://assets/sfx/vo_bridger_refuse.mp3
+Loading resource: res://.godot/imported/vo_bridger_refuse.mp3-d0149a9aa4029f1a346ee18095dab8c3.mp3str
+Loading resource: res://assets/sfx/vo_bridger_work.mp3
+Loading resource: res://.godot/imported/vo_bridger_work.mp3-f031eacf7304db85a12c652f627f8cda.mp3str
+Loading resource: res://assets/sfx/vo_mercy_greet.mp3
+Loading resource: res://.godot/imported/vo_mercy_greet.mp3-3ee30a544d44854d8347d91214856519.mp3str
+Loading resource: res://assets/sfx/vo_mercy_refuse.mp3
+Loading resource: res://.godot/imported/vo_mercy_refuse.mp3-a93fc3f213f74291e61dc3f7af28a114.mp3str
+Loading resource: res://assets/sfx/vo_mercy_trusted.mp3
+Loading resource: res://.godot/imported/vo_mercy_trusted.mp3-e91ca0d77e6dd8aa22403b51a66791ba.mp3str
+Loading resource: res://assets/sfx/vo_radio_blood_moon.mp3
+Loading resource: res://.godot/imported/vo_radio_blood_moon.mp3-33438ae86eec07fc4b46c34706a1d50c.mp3str
+Loading resource: res://assets/sfx/vo_radio_war.mp3
+Loading resource: res://.godot/imported/vo_radio_war.mp3-8bec24ae50c46ff145878ad758a26f66.mp3str
+Loading resource: res://assets/sfx/vo_sam_contact.mp3
+Loading resource: res://.godot/imported/vo_sam_contact.mp3-20246630f299b056279dc1a328ad7b33.mp3str
+Loading resource: res://assets/sfx/vo_sam_hire.mp3
+Loading resource: res://.godot/imported/vo_sam_hire.mp3-4c2197ca08df7e19f7159d124ce923c1.mp3str
+Loading resource: res://assets/sfx/vo_sam_wheel.mp3
+Loading resource: res://.godot/imported/vo_sam_wheel.mp3-49f12a06826fa9e5ae97642b5e73065a.mp3str
+Loading resource: res://assets/sfx/walkie_squelch.mp3
+Loading resource: res://.godot/imported/walkie_squelch.mp3-3b14b18515ba5ff373e438fff37f058e.mp3str
+Loading resource: res://assets/sfx/whistle_double.mp3
+Loading resource: res://.godot/imported/whistle_double.mp3-423587513facb5fa1a3d8f4adb38698f.mp3str
+Loading resource: res://assets/sfx/whistle_long.mp3
+Loading resource: res://.godot/imported/whistle_long.mp3-0ec8851dbd56fd4f3f88bddaa239393d.mp3str
+Loading resource: res://assets/sfx/whistle_short.mp3
+Loading resource: res://.godot/imported/whistle_short.mp3-47811eb3b9b8e7cc98e0ad2cca4c5f64.mp3str
+Loading resource: res://proto3d/split_screen.gdshader
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/ui/gauges/salvage.png
+Loading resource: res://.godot/imported/salvage.png-46803071c69330393479757b55d44608.ctex
+Loading resource: res://assets/ui/vehicles/scavenger.png
+Loading resource: res://.godot/imported/scavenger.png-ce8a2adab0a7096e1dcb71b212ab4ae6.ctex
+Loading resource: res://assets/ui/hud/ammo.png
+Loading resource: res://.godot/imported/ammo.png-6aef300f46da35f4522b9bdffaf327fc.ctex
+Loading resource: res://assets/ui/markers/pin.png
+Loading resource: res://.godot/imported/pin.png-e61d851d111e044f230d75736be5c787.ctex
+Loading resource: res://assets/ui/hud/health.png
+Loading resource: res://.godot/imported/health.png-6daba6726a4f9e8553a0920afcde223e.ctex
+SAVE: PASS - the save hit the disk
+SAVE: PASS - (the wreck is real: dog gone, pockets empty)
+SAVE: PASS - load succeeds
+SAVE: PASS - the pockets came back (72 scrip)
+SAVE: PASS - the ECO CLOCK re-anchored on load (sentinel set)
+SAVE: PASS - the clock came back (day 3, 21:00)
+SAVE: PASS - the ledger came back (NEVADA HERO)
+SAVE: PASS - the RING came back (bellamy lit)
+SAVE: PASS - the HOME came back (walls 1)
+SAVE: PASS - the DOG came back — bond and memory intact (47 bond, 2 saves)
+SAVE: PASS - the wound came back too (l_arm 70 — saves don't heal you)
+SAVE: PASS - THE CIRCUIT came back (scavenge ✓)
+SAVE: PASS - HUNGER came back (37 — no longer loads full)
+SAVE: PASS - the WEATHER came back (dust, not clear)
+SAVE: PASS - the WAR came back (TEXAS)
+SAVE: PASS - the CREW came back (Sam re-hired, 44 hp)
+SAVE: PASS - the METAWORLD record came back (1 off-screen dog)
+SAVE: PASS - the save is versioned (v1)
+SAVE: PASS - respawn + go-home share ONE safehouse anchor
+SAVE: PASS - double-load doesn't duplicate the pack (1 Keeper)
+SAVE: PASS - old-save jack lands as scrip, additive (40+2=42)
+SAVE RESULTS: 21 passed, 0 failed
+SAVE: ALL CHECKS PASSED
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+Leaked instance: AudioStreamMP3:9223372230598072685 - Resource path: res://assets/sfx/amb_plains.mp3
+Leaked instance: AudioStreamMP3:9223372231705368947 - Resource path: res://assets/sfx/car_door.mp3
+Leaked instance: AudioStreamMP3:9223372232443566455 - Resource path: res://assets/sfx/dog_whine.mp3
+Leaked instance: AudioStreamMP3:9223372241671035305 - Resource path: res://assets/sfx/vo_radio_blood_moon.mp3
+Leaked instance: AudioStreamPlaybackMP3:9223372316447091075
+Leaked instance: AudioStreamPlaybackMP3:9223372355387009838
+Leaked instance: AudioStreamPlaybackMP3:9223372358776007668
+Leaked instance: AudioStreamPlaybackMP3:9223372366980066444
+Leaked instance: AudioStreamPlaybackMP3:9223372405483777690
+Hint: Leaked instances typically happen when nodes are removed from the scene tree (with `remove_child()`) but not freed (with `free()` or `queue_free()`).
+ERROR: 4 resources still in use at exit.
+   at: clear (core/io/resource.cpp:790)
+Resource still in use: res://assets/sfx/amb_plains.mp3 (AudioStreamMP3)
+Resource still in use: res://assets/sfx/car_door.mp3 (AudioStreamMP3)
+Resource still in use: res://assets/sfx/dog_whine.mp3 (AudioStreamMP3)
+Resource still in use: res://assets/sfx/vo_radio_blood_moon.mp3 (AudioStreamMP3)
+Orphan StringName: Master (static: 0, total: 14)
+StringName: 1 unclaimed string names at exit.

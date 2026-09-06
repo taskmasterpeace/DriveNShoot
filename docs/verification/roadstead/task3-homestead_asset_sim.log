@@ -1,0 +1,48 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+HOMESTEAD: PASS - imported scene roadstead_cottage
+HOMESTEAD: PASS - loadable PackedScene roadstead_cottage
+HOMESTEAD: PASS - compact draw hierarchy roadstead_cottage
+HOMESTEAD: PASS - imported scene parcel_mailbox
+HOMESTEAD: PASS - loadable PackedScene parcel_mailbox
+HOMESTEAD: PASS - compact draw hierarchy parcel_mailbox
+HOMESTEAD: PASS - imported scene freight_kiosk
+HOMESTEAD: PASS - loadable PackedScene freight_kiosk
+HOMESTEAD: PASS - compact draw hierarchy freight_kiosk
+HOMESTEAD: PASS - imported scene delivery_crate
+HOMESTEAD: PASS - loadable PackedScene delivery_crate
+HOMESTEAD: PASS - compact draw hierarchy delivery_crate
+HOMESTEAD: PASS - body and cutaway roof imported separately
+HOMESTEAD: PASS - cutaway leaves the house visible
+HOMESTEAD: PASS - front porch faces positive Z
+HOMESTEAD: PASS - body has grounded geometry
+HOMESTEAD: PASS - right wall surface preserves 10x8 footprint
+HOMESTEAD: PASS - left wall surface preserves 10x8 footprint
+HOMESTEAD: PASS - front wall surface preserves 10x8 footprint
+HOMESTEAD: PASS - back wall surface preserves 10x8 footprint
+HOMESTEAD: PASS - footprint exterior control 0 stays empty
+HOMESTEAD: PASS - footprint exterior control 1 stays empty
+HOMESTEAD: PASS - footprint exterior control 2 stays empty
+HOMESTEAD: PASS - footprint exterior control 3 stays empty
+HOMESTEAD: PASS - finished floor exists below doorway
+HOMESTEAD: PASS - finished floor is raised 0.355m above ground
+HOMESTEAD: PASS - door jamb measurement has solid control -1
+HOMESTEAD: PASS - door jamb measurement has solid control 1
+HOMESTEAD: PASS - measured doorway width is at least 1.3m
+HOMESTEAD: PASS - measured doorway is centered
+HOMESTEAD: PASS - door overhead measurement has solid control
+HOMESTEAD GEOMETRY: floor=0.355 doorway_height=2.280 jambs=[-0.69999992847443, 0.69989991188049]
+HOMESTEAD: PASS - measured doorway clears 2.2m above actual floor
+HOMESTEAD: PASS - real doorway clear at -0.65, 0.37
+HOMESTEAD: PASS - real doorway clear at -0.65, 1.40
+HOMESTEAD: PASS - real doorway clear at -0.65, 2.56
+HOMESTEAD: PASS - real doorway clear at 0.00, 0.37
+HOMESTEAD: PASS - real doorway clear at 0.00, 1.40
+HOMESTEAD: PASS - real doorway clear at 0.00, 2.56
+HOMESTEAD: PASS - real doorway clear at 0.65, 0.37
+HOMESTEAD: PASS - real doorway clear at 0.65, 1.40
+HOMESTEAD: PASS - real doorway clear at 0.65, 2.56
+HOMESTEAD: PASS - door width control detects casing at -0.72
+HOMESTEAD: PASS - door width control detects casing at 0.72
+HOMESTEAD: PASS - door height control detects header
+HOMESTEAD RESULTS: 44 passed, 0 failed

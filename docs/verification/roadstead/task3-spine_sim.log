@@ -1,0 +1,26 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+SPN: start
+SPN: PASS - three beats in — no premature payoff
+SPN: PASS - all four beats → CIRCUIT COMPLETE (lv 1 → 2)
+SPN: PASS - the payoff FEEDS you (skill xp 0 → 20, +cell 1)
+SPN: PASS - the next lap is armed (beats reset)
+SPN: PASS - rulers.json loaded (14 states)
+SPN: PASS - a SUSPECT border-crossing posts BOUNTY HUNTERS
+SPN: PASS - a TRUSTED name gets the ruler's WELCOME (+scrip)
+SPN: PASS - …and entering states banked the PUSH beat
+SPN: PASS - day 7 = a STATE AT WAR (state_at_war)
+SPN: PASS - war roads run TRIPLE pirates
+SPN: PASS - the calendar deals CARAVANS (day 5)
+SPN: PASS - …and the caravan is REAL (a fat trunk up the road)
+SPN: PASS - …and BLOOD MOONS (day 1 — moon 0.04)
+SPN: PASS - same day = same event (determinism)
+SPN: PASS - a killing crit DROPS time (×0.22)
+SPN: PASS - …and the world EXHALES (restored ×1.00)
+SPN: PASS - one press re-folds the whole content spine (10 vehicles, map true)
+SPN RESULTS: 17 passed, 0 failed
+SPN: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)

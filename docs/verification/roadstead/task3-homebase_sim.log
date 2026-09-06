@@ -1,0 +1,20 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+HOME: start
+HOME: PASS - the board stands at home
+HOME: PASS - no scrap = no walls (the sink pulls you OUT to scavenge)
+HOME: PASS - the whole ladder BUILT (walls 3, 7 upgrades)
+HOME: PASS - the costs were REAL (scrap spent: 14 left)
+HOME: PASS - the WORKBENCH turns scrap into a bandage
+HOME: PASS - the BED sleeps you to DAWN (day 2, 06:00)
+HOME: PASS - …and the weight drops (stress 70 → 40)
+HOME: PASS - the GARAGE works the parked rig (engine 40 → 56)
+HOME: PASS - the KENNEL heals the home dog (20 → 30)
+HOME: PASS - KENNEL law: a home dog gets HURT, never taken (hp 8)
+HOME: PASS - WALLS III thin the raids (11/100 walled vs 44/100 bare)
+HOME RESULTS: 11 passed, 0 failed
+HOME: ALL CHECKS PASSED
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2514)
+ERROR: 3 resources still in use at exit (run with --verbose for details).
+   at: clear (core/io/resource.cpp:795)
