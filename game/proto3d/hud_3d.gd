@@ -684,71 +684,225 @@ func set_hp(hp: float, cap: float, show: bool) -> void:
 			_hp_label.modulate.a = pulse
 var _sheet_panel: Panel = null
 var _sheet_label: Label = null
+var _sheet_shade: ColorRect = null
+var _sheet_scroll: ScrollContainer = null
+var _sheet_close: Button = null
+var _sheet_condition: Label = null
+var _sheet_close_latch: InputEvent = null
 var _death_label: Label = null
 
-## The character sheet (K): one FIXED, screen-centered panel that SCROLLS. It
-## narrates every system, so the text is long — a content-sized panel grew down
-## and off the bottom of the screen (playtest: "K opens at the bottom-left").
-## A fixed Panel + inner ScrollContainer keeps it centered and bounded no matter
-## how much it says.
+## Read-only field dossier. The existing text/body-tier contract is unchanged;
+## the fixed wound column never competes with the scrolling world record.
 var _body_doll: ProtoBodyDoll = null ## the wound silhouette on the K sheet (body_doll.gd)
 
 func toggle_sheet(text: String, body_tiers: Dictionary = {}) -> void:
 	if _sheet_panel == null:
-		var vp := get_viewport().get_visible_rect().size
-		var w: float = minf(540.0, vp.x - 80.0)
-		var h: float = minf(640.0, vp.y - 80.0)
-		_sheet_panel = Panel.new() # Panel, NOT PanelContainer — a fixed rect, never grows to content
+		var presentation := CanvasLayer.new()
+		presentation.layer = 4 # Above world/objective HUD (3), below Controls (5).
+		add_child(presentation)
+		_sheet_shade = ColorRect.new()
+		_sheet_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_sheet_shade.color = Color(0.03, 0.03, 0.03, 0.72)
+		presentation.add_child(_sheet_shade)
+		_sheet_panel = Panel.new() # Fixed rect: variable-length records scroll, never grow the panel.
 		_sheet_panel.set_anchors_preset(Control.PRESET_CENTER)
-		_sheet_panel.offset_left = -w * 0.5
-		_sheet_panel.offset_right = w * 0.5
-		_sheet_panel.offset_top = -h * 0.5
-		_sheet_panel.offset_bottom = h * 0.5
+		_sheet_shade.add_child(_sheet_panel)
 		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.10, 0.09, 0.07, 0.94)
+		# Opaque ink is deliberate: moving road markings/toasts must not cross text.
+		style.bg_color = Color(0.10, 0.09, 0.07, 1.0)
 		style.border_color = AMBER
 		style.set_border_width_all(2)
 		style.set_corner_radius_all(6)
 		_sheet_panel.add_theme_stylebox_override("panel", style)
-		var scroll := ScrollContainer.new()
-		scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-		scroll.offset_left = 18.0
-		scroll.offset_top = 18.0
-		scroll.offset_right = -18.0
-		scroll.offset_bottom = -18.0
-		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		_sheet_panel.add_child(scroll)
+		var title := _sheet_note("DRIVER DOSSIER", 32, AMBER)
+		# 32px is a readability exception for the game's 1920-wide scaled canvas.
+		title.position = Vector2(24, 16)
+		var subtitle := _sheet_note("DRIVN / DIVIDED STATES · FIELD RECORD", 15, BONE)
+		subtitle.position = Vector2(24, 61)
+		_sheet_close = Button.new()
+		_sheet_close.text = "✕"
+		_sheet_close.tooltip_text = "Close dossier (Esc / B / ◯)"
+		_sheet_close.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_sheet_close.offset_left = -76
+		_sheet_close.offset_right = -24
+		_sheet_close.offset_top = 20
+		_sheet_close.offset_bottom = 72
+		_sheet_close.add_theme_font_override("font", mixed_font())
+		_sheet_close.add_theme_font_size_override("font_size", 22)
+		# Close uses the shared warm red exception from UI_DESIGN_LANGUAGE §7.
+		_sheet_close.add_theme_color_override("font_color", Color(0.9, 0.4, 0.3))
+		_sheet_close.add_theme_color_override("font_focus_color", Color(0.9, 0.4, 0.3))
+		_sheet_close.add_theme_color_override("font_hover_color", Color(0.9, 0.4, 0.3))
+		_sheet_close.add_theme_color_override("font_pressed_color", Color(0.9, 0.4, 0.3))
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color(0.15, 0.13, 0.08)
+		normal.set_corner_radius_all(6)
+		_sheet_close.add_theme_stylebox_override("normal", normal)
+		var hover := normal.duplicate() as StyleBoxFlat
+		hover.border_color = AMBER
+		hover.set_border_width_all(2)
+		_sheet_close.add_theme_stylebox_override("hover", hover)
+		_sheet_close.add_theme_stylebox_override("pressed", hover)
+		var focus_style := hover.duplicate() as StyleBoxFlat
+		focus_style.bg_color = Color.TRANSPARENT
+		_sheet_close.add_theme_stylebox_override("focus", focus_style)
+		_sheet_close.pressed.connect(close_sheet)
+		_sheet_panel.add_child(_sheet_close)
+		var condition_title := _sheet_note("CONDITION", 20, AMBER)
+		condition_title.position = Vector2(24, 106)
+		_sheet_scroll = ScrollContainer.new()
+		_sheet_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_sheet_scroll.offset_top = 106
+		_sheet_scroll.offset_right = -24
+		_sheet_scroll.offset_bottom = -88
+		_sheet_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_sheet_panel.add_child(_sheet_scroll)
 		_sheet_label = Label.new()
-		_sheet_label.add_theme_font_override("font", ProtoHUD.mixed_font())
-		_sheet_label.add_theme_font_size_override("font_size", 18)
+		_sheet_label.add_theme_font_override("font", mixed_font())
+		_sheet_label.add_theme_font_size_override("font_size", 22)
 		_sheet_label.add_theme_color_override("font_color", BONE)
+		_sheet_label.add_theme_constant_override("line_spacing", 6)
 		_sheet_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_sheet_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_sheet_label.custom_minimum_size = Vector2(w - 52.0, 0)
-		scroll.add_child(_sheet_label)
-		# THE BODY DOLL (owner ask 2026-07-10): wounds ON the figure, top-right of
-		# the sheet — the text rows say it, the doll SHOWS it.
+		_sheet_scroll.add_child(_sheet_label)
 		_body_doll = ProtoBodyDoll.new()
-		_body_doll.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		_body_doll.offset_left = -134.0
-		_body_doll.offset_right = -16.0
-		_body_doll.offset_top = 16.0
-		_body_doll.offset_bottom = 172.0
 		_sheet_panel.add_child(_body_doll)
-		add_child(_sheet_panel)
+		_sheet_condition = _sheet_note("", 18, BONE)
+		_sheet_condition.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var footer := _sheet_note("SCROLL  Wheel / ↑↓ / D-pad / PgUp·PgDn\nCLOSE  Esc / B/◯   ·   World remains live", 18, BONE)
+		footer.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		footer.offset_left = 24
+		footer.offset_right = -24
+		footer.offset_top = -68
+		footer.offset_bottom = -18
+		get_viewport().size_changed.connect(_fit_sheet)
+		Input.joy_connection_changed.connect(_sheet_pad_connection_changed)
 		_sheet_panel.visible = false
-	_sheet_panel.visible = not _sheet_panel.visible
-	if _sheet_panel.visible:
-		_sheet_label.text = text
-		if _body_doll != null:
-			_body_doll.set_tiers(body_tiers)
+	if sheet_open():
+		close_sheet()
+		return
+	_sheet_panel.visible = true
+	_sheet_shade.visible = true
+	_sheet_label.text = text
+	_body_doll.set_tiers(body_tiers)
+	var wounds: Array[String] = []
+	var worst: int = 0
+	var names: Array[String] = ["GOOD", "WORN", "CRITICAL", "BROKEN"]
+	for part: String in body_tiers:
+		var tier: int = clampi(int(body_tiers[part]), 0, 3)
+		if tier > 0:
+			worst = maxi(worst, tier)
+			wounds.append(part.replace("_", " ").to_upper() + " · " + names[tier])
+	_sheet_condition.text = "ALL PARTS SOUND" if wounds.is_empty() else "\n".join(wounds)
+	if wounds.size() > 1:
+		# The complete part-by-part record stays in the scroll column. This fixed
+		# summary must also fit six injuries on a compact viewport.
+		_sheet_condition.text = "%d PARTS INJURED\nWorst: %s" % [wounds.size(), names[worst]]
+	_fit_sheet()
+	_sheet_scroll.scroll_vertical = 0
+	_sheet_close.grab_focus()
+	if get_parent() != null and "audio" in get_parent() and get_parent().audio != null:
+		get_parent().audio.play_ui("blip", -12)
+
+func _sheet_note(text: String, font_size: int, color: Color) -> Label:
+	var note := Label.new()
+	note.text = text
+	note.add_theme_font_override("font", mixed_font())
+	note.add_theme_font_size_override("font_size", font_size)
+	note.add_theme_color_override("font_color", color)
+	note.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sheet_panel.add_child(note)
+	return note
+
+func _fit_sheet() -> void:
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	var extent := Vector2(minf(1380, vp.x - 80), minf(900, vp.y - 80))
+	_sheet_panel.offset_left = -extent.x * 0.5
+	_sheet_panel.offset_right = extent.x * 0.5
+	_sheet_panel.offset_top = -extent.y * 0.5
+	_sheet_panel.offset_bottom = extent.y * 0.5
+	var side: float = clampf(extent.x * 0.19, 154, 240)
+	_sheet_scroll.offset_left = side + 48
+	_body_doll.position = Vector2(24, 142)
+	_body_doll.size = Vector2(side, minf(320, extent.y - 310))
+	_sheet_condition.position = Vector2(24, _body_doll.position.y + _body_doll.size.y + 16)
+	_sheet_condition.size = Vector2(side, 0) # Shrink stale minimums after a shorter record/resize.
+
+func close_sheet() -> void:
+	if not sheet_open():
+		return
+	_sheet_panel.hide()
+	_sheet_shade.hide()
+	_sheet_close.release_focus()
+	if get_parent() != null and "audio" in get_parent() and get_parent().audio != null:
+		get_parent().audio.play_ui("click", -12)
+
+func _input(event: InputEvent) -> void:
+	# _input consumption alone cannot stop held-key/trigger polling. Keep the
+	# closing gesture modal until its matching release, including rebound K.
+	if _sheet_release_matches(event):
+		_sheet_close_latch = null
+		get_viewport().set_input_as_handled()
+		return
+	if not sheet_open():
+		return
+	var key := event as InputEventKey
+	var pad := event as InputEventJoypadButton
+	var escape: bool = key != null and key.pressed and (key.keycode == KEY_ESCAPE or key.physical_keycode == KEY_ESCAPE)
+	var back: bool = pad != null and pad.pressed and pad.button_index == JOY_BUTTON_B
+	if escape or back or event.is_action_pressed("drivn_sheet"):
+		_sheet_close_latch = event.duplicate() as InputEvent
+		get_viewport().set_input_as_handled()
+		close_sheet()
+		return
+	var amount: int = 0
+	if event.is_action_pressed("ui_down", true): amount = 72
+	if event.is_action_pressed("ui_up", true): amount = -72
+	if key != null and key.pressed:
+		match key.keycode:
+			KEY_PAGEDOWN: amount = int(_sheet_scroll.size.y * 0.85)
+			KEY_PAGEUP: amount = -int(_sheet_scroll.size.y * 0.85)
+			KEY_HOME: amount = -int(_sheet_scroll.get_v_scroll_bar().max_value)
+			KEY_END: amount = int(_sheet_scroll.get_v_scroll_bar().max_value)
+	if amount != 0:
+		_sheet_scroll.scroll_vertical += amount
+		get_viewport().set_input_as_handled()
 
 func sheet_open() -> bool:
 	return _sheet_panel != null and _sheet_panel.visible
 
+func sheet_blocks_input() -> bool:
+	return sheet_open() or _sheet_close_latch != null
+
+func _sheet_release_matches(event: InputEvent) -> bool:
+	if _sheet_close_latch == null:
+		return false
+	if _sheet_close_latch is InputEventJoypadMotion:
+		var axis := event as InputEventJoypadMotion
+		return axis != null and axis.device == _sheet_close_latch.device \
+			and axis.axis == (_sheet_close_latch as InputEventJoypadMotion).axis \
+			and absf(axis.axis_value) <= InputMap.action_get_deadzone("drivn_sheet")
+	if _sheet_close_latch is InputEventJoypadButton:
+		var button := event as InputEventJoypadButton
+		return button != null and not button.pressed and button.device == _sheet_close_latch.device \
+			and button.button_index == (_sheet_close_latch as InputEventJoypadButton).button_index
+	# Modifier releases may precede the base key/mouse release. Physical input
+	# identity matters here, not its earlier Shift/Ctrl/Alt mask.
+	return not event.is_pressed() and _sheet_close_latch.is_match(event, false)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_sheet_close_latch = null # Windows may not deliver the held key's release after alt-tab.
+
+func _sheet_pad_connection_changed(device: int, connected: bool) -> void:
+	if not connected and (_sheet_close_latch is InputEventJoypadButton or _sheet_close_latch is InputEventJoypadMotion) \
+			and _sheet_close_latch.device == device:
+		_sheet_close_latch = null
+
 ## Death screen — you went down. R wakes you at the safehouse (soft respawn).
 var _death_shade: ColorRect = null
 func show_death(text: String) -> void:
+	close_sheet() # A read-only record must not conceal the death presentation.
 	if _death_label == null:
 		_death_shade = ColorRect.new()
 		_death_shade.set_anchors_preset(Control.PRESET_FULL_RECT)

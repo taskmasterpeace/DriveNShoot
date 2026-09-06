@@ -693,6 +693,8 @@ func _build_environment() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if hud != null and hud.sheet_blocks_input():
+		return # Sheet handles close/scroll in _input; no gameplay verbs underneath.
 	if road_life != null and road_life.panel.is_open:
 		return
 	# THE RETURN BRIEFING owns the screen first: any key/click steps you into the day.
@@ -859,7 +861,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("drivn_char_create"):
 		char_create.toggle()
 	elif event.is_action_pressed("drivn_sheet"):
-		hud.toggle_sheet(_sheet_text(), _body_tiers())
+		if not _gameplay_input_blocked() and not stream.map_open() \
+				and not character.dead and not (char_create != null and char_create.is_open):
+			_cancel_sheet_gestures()
+			hud.toggle_sheet(_sheet_text(), _body_tiers())
 	elif event.is_action_pressed("drivn_skill_tree"):
 		skill_tree.toggle() # the visual mastery tree — perks light as skills level by doing
 	elif event.is_action_pressed("drivn_waypoints"):
@@ -2722,8 +2727,25 @@ func _furniture_load(recs: Dictionary) -> void:
 
 # --- THE PAD DRIVER (controller arc) -------------------------------------------
 
+func _cancel_sheet_gestures() -> void:
+	# The dossier takes ownership mid-gesture. Cancel intent without invoking
+	# release handlers (which would punch, whistle, open loot or exit the car).
+	_fire_down = false
+	_fist_pressed = false
+	_fist_hold = 0.0
+	_wh_down = false
+	_wh_hold_fired = false
+	_wh_taps = 0
+	_wh_down_t = 0.0
+	_wh_gap = 0.0
+	_e_down = false
+	_e_t = 0.0
+	_grab_down = false
+	_grab_t = 0.0
+
 func _gameplay_input_blocked() -> bool:
 	return menu_open or panel.is_open or (media_panel != null and media_panel.is_open) \
+		or (hud != null and hud.sheet_blocks_input()) \
 		or (road_life != null and road_life.panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
 		or (game_shell != null and game_shell.is_open) \

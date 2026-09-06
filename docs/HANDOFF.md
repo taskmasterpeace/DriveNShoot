@@ -16,6 +16,20 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — screenshot-led character dossier repair
+
+The [dossier before/after audit](verification/CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md)
+repairs the cramped K sheet, overlapping body diagram and missing close control.
+Actual keyboard/pad/mouse and held-input checks cover scrolling, close gestures,
+modal ownership, compact resizing, death presentation and controller disconnect.
+Final runs pass 67 GPU assertions with five captures and 119 focused headless
+assertions. Dossier/title logs are clean; the older body-doll scene reports
+ObjectDB/three-resource exit diagnostics. Independent review's three important
+input-transition findings are fixed; final visual/evidence re-review approved
+the bounded repair with no remaining source findings. The existing
+record remains snapshot-on-open; deeper RPG presentation still needs work.
+No newer export or full-game completion is claimed; save recovery remains open.
+
 ## 2026-09-06 — Meridian signage and refreshed screenshot gallery
 
 The [20-piece gallery](verification/MERIDIAN_GAME_GALLERY_2026_09_06.md) exposes

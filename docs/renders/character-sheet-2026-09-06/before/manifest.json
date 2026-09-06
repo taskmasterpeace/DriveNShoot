@@ -1,0 +1,41 @@
+{
+	"captures": [
+		{
+			"id": "01_dossier",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"note": "Actual game/HUD; isolated fixture, no image edits. Wound is staged; controls use real input.",
+			"pixels": "(1280, 720)",
+			"saved": true
+		},
+		{
+			"id": "02_world_records",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"note": "Actual game/HUD; isolated fixture, no image edits. Wound is staged; controls use real input.",
+			"pixels": "(1280, 720)",
+			"saved": true
+		},
+		{
+			"id": "03_wounded",
+			"logical_viewport": "(1920.0, 1080.0)",
+			"note": "Actual game/HUD; isolated fixture, no image edits. Wound is staged; controls use real input.",
+			"pixels": "(1280, 720)",
+			"saved": true
+		},
+		{
+			"id": "04_compact_1280x800",
+			"logical_viewport": "(1280.0, 800.0)",
+			"note": "Actual game/HUD; isolated fixture, no image edits. Wound is staged; controls use real input.",
+			"pixels": "(1280, 800)",
+			"saved": true
+		},
+		{
+			"id": "04_compact_960x540",
+			"logical_viewport": "(960.0, 540.0)",
+			"note": "Actual game/HUD; isolated fixture, no image edits. Wound is staged; controls use real input.",
+			"pixels": "(960, 540)",
+			"saved": true
+		}
+	],
+	"failed": 22,
+	"passed": 20
+}

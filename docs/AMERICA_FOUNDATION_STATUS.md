@@ -15,6 +15,17 @@ All future verification must explicitly isolate both profile paths. Reviewed fix
 listeners to loopback; the [live gate](verification/MCP_LOOPBACK_2026_09_06.md)
 passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
+## Current-source screenshot follow-up — 2026-09-06
+
+The [driver dossier audit](verification/CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md)
+shows five new real views and the prior baseline. The K screen now has readable
+width, a separate wound diagram, explicit close/scroll controls and a real
+gameplay-input gate. Final verification: 67/0 GPU and 119/0 focused headless.
+Dossier/title logs are clean; the older body-doll scene retains exit-resource
+diagnostics. The review's input-transition findings are fixed; final visual
+re-review approved this bounded UI repair with no remaining source findings;
+the full-game goal and save recovery remain open, and no new ZIP was built.
+
 ## Latest playable candidate — 2026-09-06
 
 The [habitation audit](verification/HABITATION_VISUAL_AUDIT_2026_09_06.md#playable-windows-candidate--verified-after-the-visual-pass)

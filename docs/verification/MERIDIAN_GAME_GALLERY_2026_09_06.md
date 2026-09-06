@@ -5,7 +5,9 @@ screenshots, not concept art. [Fixes, before/after views, tests and limitations]
 
 My verdict: the road/home/console idea is visible, but this is not yet the
 finished world promised by the spec. Stronger authored places, a clearer
-character sheet/map, richer cartridge visuals and much deeper content remain.
+map, deeper RPG presentation, richer cartridge visuals and much deeper content remain.
+The character sheet has since received a [screenshot-led repair](CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md);
+the original tour frame below is retained for comparison.
 The previous overwritten player save is still unrecovered; this tour used
 disposable isolated saves, never that profile.
 
@@ -87,7 +89,10 @@ Item actions and a visible close affordance are clear. The empty starter pack ma
 
 ## 13 — Character sheet
 
-Below target: cramped prose, weak hierarchy, and no visible header/close control in this view.
+Original tour view: cramped prose, weak hierarchy, and no visible header/close
+control. This has since been repaired; see the [five current dossier views and
+verification](CHARACTER_SHEET_VISUAL_AUDIT_2026_09_06.md). The original image is
+retained rather than silently replaced in this historical tour.
 
 ![Character sheet](../renders/meridian-signage-2026-09-06/tour/13_character_sheet.png)
 
