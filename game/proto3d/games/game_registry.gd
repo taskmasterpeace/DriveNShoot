@@ -100,7 +100,9 @@ func cover_error(row: Dictionary) -> String:
 	var path := String(row.get("cover_path", ""))
 	if path == "":
 		return "game '%s' lacks cover_path" % id
-	if not FileAccess.file_exists(path):
+	# Exported textures are imported/remapped resources, not raw source files.
+	# FileAccess incorrectly rejected every packed WebP while load(path) worked.
+	if not ResourceLoader.exists(path):
 		return "game '%s' cover is missing: %s" % [id, path]
 	return ""
 
