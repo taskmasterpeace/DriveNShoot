@@ -175,10 +175,22 @@ Seattle, one at San Francisco, and five at Atlanta. SF/Atlanta are not eligible
 for a live write until those conflicts have explicit layout/junction treatment;
 do not discard another exit's ramp or road to force the three-site count.
 
+Runtime integration uncovered a separate existing shared-mouth bake defect:
+generic mergeLegs picks an interior ramp arc nearest the anchor instead of the
+known off-ramp terminal0. Repair that emitter and add an explicit dry-by-default
+`--mouth-arcs-only` CLI path using existing atomic/stale-source safeguards.
+Selected I-80_X11 and I-75_X10 corrections change only their two erroneous
+mirrored off-ramp leg arcs (144/142 ->0), never geometry/exits/other legs. Tests
+must prove exact scope, ownership rejection, repeat identity and full-bake
+retention. Parent backs up/applies data only after source review. This does not
+qualify either city for diamond geometry migration or physical acceptance.
+
 ## Task 3: Shared runtime ports, directed routing and traffic
 
 **Files:** `game/proto3d/usmap.gd`, `traffic.gd`, `road_graph.gd`, new
-`game/proto3d/tests/interchange_ports_sim.{gd,tscn}`, runner allowlist.
+`game/proto3d/tests/interchange_ports_sim.{gd,tscn}`, `junction_bake_sim.gd`
+actual-port ownership assertion, `map_nav_sim.gd` dispatch-timing regression,
+runner allowlist.
 **Consumes:** spec row schema and Task 2 managed map.
 **Produces:** `ProtoUSMap.exit_ports(e: Dictionary, role: String = "") -> Array`
 of `{road: Dictionary, role: String, side: int, pos: Vector2, highway_arc_m: float}`.
@@ -194,6 +206,11 @@ of `{road: Dictionary, role: String, side: int, pos: Vector2, highway_arc_m: flo
 - [ ] Make `_ramp_for` and `_maybe_take_exit` consume ports. Trigger distance
   uses the actual selected port; preserve destination choice, one-roll behavior,
   cruise and legal transfer direction.
+  Cache static port resolution at the map fold/grid-rebuild boundary. The actual
+  I-95 workload measured 19.116ms per frame for 12 agents; repeated linear road
+  lookups/projections must not stay in this hot path. Prove bounded cache reuse,
+  reload/rebuild invalidation, modified same-ID descriptor safety and caller
+  mutation safety; remeasure the same workload without a brittle timing assert.
 - [ ] Add directed ramp edges and serving-side highway port transfer nodes to
   `ProtoRoadGraph`. Highway carriageway nodes use their real lateral positions
   so nearest-node selection cannot prefer an unused shared crossing node.
@@ -207,6 +224,9 @@ if not bool(road.get("one_way", false)):
   Prove both town-bound routes and both return routes, reject reverse on/off
   traversal and direct cross-median/under-deck transfers. Retain legacy network
   routes and time-cost weighting. Parent runs focused traffic/graph/atlas tests.
+  Actual Seattle already has a legal shorter flat-gap street route. Prove
+  ordered directed paths through each required ramp separately from ordinary
+  fastest-route availability; never bias time costs or remove that street.
   Existing legacy ramp_mouth rows can list both sides' off-ramps in one junction.
   Do not join both carrier directions to that shared node: use per-ramp port
   transfer nodes, with carrier-to-off and on-to-carrier edges only. Directional
@@ -215,7 +235,15 @@ if not bool(road.get("one_way", false)):
   a cross-median turn. Flat control-gap intersections retain legal transfers.
   Exclude unused shared deck/port placeholders from nearest_node selection,
   but retain legitimate one-way destination sinks that have incoming edges.
-- [ ] Commit after RED/GREEN evidence and independent task review.
+- [ ] Replace junction_bake_sim's obsolete one-mouth-per-exit count assertion with
+  actual owned departure-port/junction-leg and projected-arc validation. Shared
+  legacy mouths remain valid; do not weaken this to a distance/count tolerance.
+- [ ] Repair map_nav_sim's proved input-dispatch race: wait for actual atlas
+  unblock and observe process/input dispatch between individual N gestures.
+  Preserve its original cycle budget and HOME assertion; do not change gameplay
+  input behavior. Remove verbose diagnostic instrumentation after verification.
+- [ ] After RED/GREEN evidence create a scoped local review commit. Acceptance
+  follows independent task review; the review commit is not a push or merge.
 
 ## Task 4: Physical road presentation and four-direction driving proof
 
@@ -228,6 +256,14 @@ evidence, plus unedited captures under a unique isolated build run.
 - [ ] Write physics probes that fail on the original median-crossing data and
   barrels placed on the ramp centre. Sample full ramp widths and bridge
   clearance/deck collision; require successful floor rays at every point.
+  The migrated-data broad baseline is 16/1: its +20m downward ray hits the
+  legitimate overpass (including the currently floating rails) as if it were
+  pavement burial. Separate the near-pavement floor probe from a vehicle-height
+  obstruction volume. Keep medians/barrels/buildings in that volume query;
+  do not exclude them or all bridge hardware to force a pass. Include negative
+  controls for a blocked travel envelope and a bridge with insufficient
+  underside clearance. Spec bridge_clearance_m is deck-top separation (6.2m),
+  not a claim of 6.2m underside headroom: measure/report both independently.
 - [ ] Use actual per-port positions and heights for signs and acceleration/
   deceleration strips. Place gores/barrels in the clear wedge, reserving full
   highway and ramp footprints. One-way markings use white rather than yellow.
