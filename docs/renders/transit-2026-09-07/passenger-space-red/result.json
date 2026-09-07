@@ -1,0 +1,36 @@
+{
+  "exited": true,
+  "arguments": [
+    "--headless",
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "res://proto3d/tests/transit_asset_sim.tscn"
+  ],
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-headless-7337c963c01d4a25a0aaef066da838f0\\profile\\Roaming",
+  "mode": "headless",
+  "wall_budget_s": 120,
+  "source_hashes": {
+    "game/assets/models/transit/lastline_coach.glb": "C6300581B4C8EFBC6AC60B819BAEE57BC476AC2D38A55A6706ADEEA759C75B79",
+    "game/assets/models/transit/kestrel_courier.glb": "8301F03714DD532A351F888CBDCDD10CA5045A96C01C2CCD76CCF46D9385628E",
+    "tools/blenderforge/gen_transit.py": "575AB9B18A165769E62AB2372FDD07EB092C77804377F3ADB9B07613028B71EB",
+    "game/proto3d/tests/transit_asset_sim.gd": "9D98C6927E96779B3D621084F7A9D01FC8120119A22EF94B66F8421186548C8B",
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC"
+  },
+  "source_head": "55ce8d0abff366095919230a9f5ca7fd5ef66bbd",
+  "timed_out": false,
+  "wall_elapsed_s": 2.9498798,
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-headless-7337c963c01d4a25a0aaef066da838f0\\profile\\Local",
+  "source_hashes_after": {
+    "game/assets/models/transit/lastline_coach.glb": "C6300581B4C8EFBC6AC60B819BAEE57BC476AC2D38A55A6706ADEEA759C75B79",
+    "game/assets/models/transit/kestrel_courier.glb": "8301F03714DD532A351F888CBDCDD10CA5045A96C01C2CCD76CCF46D9385628E",
+    "tools/blenderforge/gen_transit.py": "575AB9B18A165769E62AB2372FDD07EB092C77804377F3ADB9B07613028B71EB",
+    "game/proto3d/tests/transit_asset_sim.gd": "9D98C6927E96779B3D621084F7A9D01FC8120119A22EF94B66F8421186548C8B",
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC"
+  },
+  "exit_code": 1,
+  "pid": 53960
+}

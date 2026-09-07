@@ -1,0 +1,38 @@
+{
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-scale-probe-0823e89267ee401c901f924857375513\\profile\\Local",
+  "source_hashes": {
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC",
+    "game/proto3d/tests/transit_asset_sim.gd": "9D98C6927E96779B3D621084F7A9D01FC8120119A22EF94B66F8421186548C8B",
+    "tools/blenderforge/gen_transit.py": "EAC763F0C8DFA5F55F26FE82B9319EF2656AB835FFEFA62C1A341F90DE658B2E",
+    "game/assets/models/transit/kestrel_courier.glb": "C6FE891DADCA9D8598F3BDF73E61276066BC9E2E1C32F25DA5C7698BFFE67A53",
+    "game/assets/models/transit/lastline_coach.glb": "F26D4E623DCCE51AB99EB1D8D5988744BDBBADC7E255A4602C27204A052B3146"
+  },
+  "exit_code": 1,
+  "source_hashes_after": {
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC",
+    "game/proto3d/tests/transit_asset_sim.gd": "9D98C6927E96779B3D621084F7A9D01FC8120119A22EF94B66F8421186548C8B",
+    "tools/blenderforge/gen_transit.py": "EAC763F0C8DFA5F55F26FE82B9319EF2656AB835FFEFA62C1A341F90DE658B2E",
+    "game/assets/models/transit/kestrel_courier.glb": "C6FE891DADCA9D8598F3BDF73E61276066BC9E2E1C32F25DA5C7698BFFE67A53",
+    "game/assets/models/transit/lastline_coach.glb": "F26D4E623DCCE51AB99EB1D8D5988744BDBBADC7E255A4602C27204A052B3146"
+  },
+  "timed_out": false,
+  "exited": true,
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-scale-probe-0823e89267ee401c901f924857375513\\profile\\Roaming",
+  "wall_budget_s": 120,
+  "wall_elapsed_s": 2.6424939,
+  "source_head": "55ce8d0abff366095919230a9f5ca7fd5ef66bbd",
+  "pid": 32720,
+  "arguments": [
+    "--headless",
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "res://proto3d/tests/transit_asset_sim.tscn",
+    "--",
+    "--probe-scale"
+  ],
+  "mode": "scale-probe"
+}

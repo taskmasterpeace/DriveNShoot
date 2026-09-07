@@ -1,0 +1,28 @@
+Server thread started
+BlenderMCP server started on 127.0.0.1:19876
+BlenderMCP addon registered
+DRIVN_BLENDER_MCP_READY 127.0.0.1:19876
+04:18.110  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_front.png'
+04:26.516  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_rear.png'
+04:35.282  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_cabin.png'
+04:43.375  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_front.png'
+04:51.203  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_rear.png'
+04:59.203  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_cabin.png'
+07:14.516  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_front.png'
+07:22.797  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_rear.png'
+07:31.703  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_cabin.png'
+07:39.422  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_front.png'
+07:47.032  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_rear.png'
+07:55.063  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_cabin.png'
+20:22.328  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_front.png'
+20:34.188  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_rear.png'
+20:43.297  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_cabin.png'
+20:53.594  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_front.png'
+21:02.875  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_rear.png'
+21:12.328  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_cabin.png'
+23:27.250  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_front.png'
+23:51.360  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_rear.png'
+24:14.235  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\coach_cabin.png'
+24:28.172  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_front.png'
+24:36.891  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_rear.png'
+24:48.938  render           | Saved: 'D:\git\carworld\.worktrees\america-foundation\tools\blenderforge\previews\transit\helicopter_cabin.png'

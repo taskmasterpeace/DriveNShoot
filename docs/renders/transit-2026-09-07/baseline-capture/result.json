@@ -1,0 +1,41 @@
+{
+  "exited": true,
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-capture-7eeea56263234589881e6248dff3b9b5\\profile\\Roaming",
+  "source_hashes": {
+    "game/assets/models/transit/kestrel_courier.glb": "8301F03714DD532A351F888CBDCDD10CA5045A96C01C2CCD76CCF46D9385628E",
+    "game/proto3d/tests/transit_asset_sim.gd": "4908645022FE3524382AE88808B35C699CC7CC99B3FE05DCD905A2BBBE947973",
+    "game/assets/models/transit/lastline_coach.glb": "C6300581B4C8EFBC6AC60B819BAEE57BC476AC2D38A55A6706ADEEA759C75B79",
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC",
+    "tools/blenderforge/gen_transit.py": "575AB9B18A165769E62AB2372FDD07EB092C77804377F3ADB9B07613028B71EB"
+  },
+  "wall_budget_s": 120,
+  "mode": "capture",
+  "exit_code": 0,
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-capture-7eeea56263234589881e6248dff3b9b5\\profile\\Local",
+  "wall_elapsed_s": 5.7264457,
+  "source_hashes_after": {
+    "game/assets/models/transit/kestrel_courier.glb": "8301F03714DD532A351F888CBDCDD10CA5045A96C01C2CCD76CCF46D9385628E",
+    "game/proto3d/tests/transit_asset_sim.gd": "4908645022FE3524382AE88808B35C699CC7CC99B3FE05DCD905A2BBBE947973",
+    "game/assets/models/transit/lastline_coach.glb": "C6300581B4C8EFBC6AC60B819BAEE57BC476AC2D38A55A6706ADEEA759C75B79",
+    "game/proto3d/tests/transit_asset_sim.tscn": "31E2498B36798DA4C78B05A2B98EC81E35E58C779C4F29EFF1F2DEC91DDA33FC",
+    "tools/blenderforge/gen_transit.py": "575AB9B18A165769E62AB2372FDD07EB092C77804377F3ADB9B07613028B71EB"
+  },
+  "source_head": "55ce8d0abff366095919230a9f5ca7fd5ef66bbd",
+  "timed_out": false,
+  "arguments": [
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "--rendering-method",
+    "gl_compatibility",
+    "--resolution",
+    "1280x720",
+    "res://proto3d/tests/transit_asset_sim.tscn",
+    "--",
+    "--capture-dir=D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-asset-capture-7eeea56263234589881e6248dff3b9b5\\captures"
+  ],
+  "pid": 25732
+}

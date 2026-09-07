@@ -1,0 +1,45 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT ASSET PASS: lastline_coach imports as a real PackedScene
+TRANSIT ASSET PASS: lastline_coach ground origin is actual mesh contact
+TRANSIT ASSET FAIL: lastline_coach metres preserve full vehicle height
+TRANSIT ASSET FAIL: lastline_coach full vehicle length survives import
+TRANSIT ASSET PASS: lastline_coach has usable Seat_driver
+TRANSIT ASSET PASS: lastline_coach has usable Seat_passenger_01
+TRANSIT ASSET PASS: lastline_coach has usable Boarding
+TRANSIT ASSET PASS: lastline_coach has usable Exit
+TRANSIT ASSET PASS: lastline_coach has usable Door_passenger
+TRANSIT ASSET PASS: lastline_coach faces -Z with a left-hand driver
+TRANSIT ASSET PASS: lastline_coach has separately renderable roof
+TRANSIT ASSET PASS: lastline_coach cutaway preserves visible cabin body
+TRANSIT ASSET PASS: Wheel_FL remains a separate imported mesh
+TRANSIT ASSET PASS: Wheel_FL supplies real geometry
+TRANSIT ASSET PASS: Wheel_FL rotates geometry around its fixed attachment pivot
+TRANSIT ASSET PASS: Wheel_FR remains a separate imported mesh
+TRANSIT ASSET PASS: Wheel_FR supplies real geometry
+TRANSIT ASSET PASS: Wheel_FR rotates geometry around its fixed attachment pivot
+TRANSIT ASSET PASS: Wheel_RL remains a separate imported mesh
+TRANSIT ASSET PASS: Wheel_RL supplies real geometry
+TRANSIT ASSET PASS: Wheel_RL rotates geometry around its fixed attachment pivot
+TRANSIT ASSET PASS: Wheel_RR remains a separate imported mesh
+TRANSIT ASSET PASS: Wheel_RR supplies real geometry
+TRANSIT ASSET PASS: Wheel_RR rotates geometry around its fixed attachment pivot
+TRANSIT ASSET PASS: kestrel_courier imports as a real PackedScene
+TRANSIT ASSET PASS: kestrel_courier ground origin is actual mesh contact
+TRANSIT ASSET FAIL: kestrel_courier metres preserve full vehicle height
+TRANSIT ASSET FAIL: kestrel_courier full vehicle length survives import
+TRANSIT ASSET PASS: kestrel_courier has usable Seat_driver
+TRANSIT ASSET PASS: kestrel_courier has usable Seat_passenger_01
+TRANSIT ASSET PASS: kestrel_courier has usable Boarding
+TRANSIT ASSET PASS: kestrel_courier has usable Exit
+TRANSIT ASSET PASS: kestrel_courier has usable Door_passenger
+TRANSIT ASSET PASS: kestrel_courier faces -Z with a left-hand driver
+TRANSIT ASSET PASS: kestrel_courier has separately renderable roof
+TRANSIT ASSET PASS: kestrel_courier cutaway preserves visible cabin body
+TRANSIT ASSET PASS: Rotor_main remains a separate imported mesh
+TRANSIT ASSET PASS: Rotor_main supplies real geometry
+TRANSIT ASSET PASS: Rotor_main rotates geometry around its fixed attachment pivot
+TRANSIT ASSET PASS: Rotor_tail remains a separate imported mesh
+TRANSIT ASSET PASS: Rotor_tail supplies real geometry
+TRANSIT ASSET PASS: Rotor_tail rotates geometry around its fixed attachment pivot
+TRANSIT ASSET RESULTS: 38 passed, 4 failed

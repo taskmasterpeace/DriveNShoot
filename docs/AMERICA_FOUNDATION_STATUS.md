@@ -15,6 +15,17 @@ All future verification must explicitly isolate both profile paths. Reviewed fix
 listeners to loopback; the [live gate](verification/MCP_LOOPBACK_2026_09_06.md)
 passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
+## Transport art checkpoint — 2026-09-07
+
+Blender-MCP-authored coach/helicopter GLBs (`c5c2eca`) now have grounded metre
+scale, separate moving parts, canonical seat/boarding anchors and hollow cabins.
+The screenshot-led correction removed blocked doors/glazing and tire-overlapping
+steps; passenger geometry44/7 RED →51/0 GREEN. Covering Python4/4, GPU54/0;
+half-scale negative38/4 expected. See the [nine-view review and exact evidence](verification/TRANSIT_VISUAL_REVIEW_2026_09_07.md).
+This does not add playable bus routes or flights yet. The [transport delivery contract](design/PUBLIC_TRANSPORT.md)
+keeps fares, physical travel, saves, input and authority gates open. No claim of
+completed game, final AAA art, native stability or Windows export.
+
 ## Traffic follow-up — 2026-09-07
 
 Verified correction `aa77d17`: managed exit entry now travels through the

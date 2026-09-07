@@ -16,6 +16,21 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-07 — transport art and screenshot corrections
+
+Original LASTLINE coach and KESTREL courier assets are authored through the real
+installed Blender MCP bridge and imported into Godot (`c5c2eca`). Screenshot
+inspection exposed blocked doorways/glazing, tire-overlapping steps and a solid
+helicopter cabin around the rear seats. Those geometry faults are corrected;
+passenger-space RED44/7 becomes51/0. Final Python coverage4/4, GPU54/0 and the
+expected half-scale negative38/4 verify the bounded art contract. Nine personally
+inspected views and exact isolated logs are in the [transport visual review](verification/TRANSIT_VISUAL_REVIEW_2026_09_07.md).
+Independent scoped review approves the asset checkpoint with two nonblocking
+coverage notes (door motion and two additional helicopter seat-name assertions).
+These are **assets only**, not playable transport: route/ticket/boarding/flight,
+input, save and host-authority delivery remain open in [PUBLIC_TRANSPORT](design/PUBLIC_TRANSPORT.md).
+No final art/lighting acceptance, performance/stability waiver or new export.
+
 ## 2026-09-07 — traffic follow-up reviewed; overall acceptance open
 
 The screenshot audit's final review exposed a first-tick exit teleport. The
