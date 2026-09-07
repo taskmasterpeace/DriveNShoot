@@ -16,6 +16,24 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-07 — transit ticket foundation reviewed; vehicles next
+
+The physical-transit runtime plan is underway, not yet a playable service.
+Catalog/ticket state is committed in `f4bd74c` and corrected in `b048f58` after
+independent review found approximate schedule admission, corner lane geometry,
+and callback reentrancy faults. Targeted RED105/10 becomes GREEN115/0; the exact
+post-commit run has empty stderr and matching source hashes. The scoped
+re-review accepts all three fixes. Both profile paths are isolated under build.
+
+Rows now define Meridian East and Richmond West, LASTLINE (2 carried scrip) and
+KESTREL (15 carried scrip), with atomic reserve/board/end/refund operations. The
+Richmond site moved off an existing church footprint without editing the world
+map. This state layer is **not wired to player boarding yet**. Original models
+must next become physical service rigs, followed by stops, passenger UI, flights,
+host-session seats and encounters. See [the runtime plan](superpowers/plans/2026-09-07-public-transport-runtime.md).
+The prior screenshots are not relabeled as new journey evidence. Native
+stability, unrecovered normal save, authenticated MMO and release gates stay open.
+
 ## 2026-09-07 — transport art and screenshot corrections
 
 Original LASTLINE coach and KESTREL courier assets are authored through the real

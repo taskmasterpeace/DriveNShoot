@@ -29,7 +29,8 @@ sim `.gd/.tscn/.gd.uid`. Keep runner logic in `tools/transit_runtime_check.ps1`:
 parameters `-Mode import|headless|capture`, `-Sim ticket|vehicle|coach|flight|network|journey`;
 map these to `transit_<Sim>_sim.tscn`. Both profile variables point into a fresh
 UUID `build/transit-runtime-*` directory; reject reparse ancestors and paths
-outside build. Use hidden owned child processes, 180-second wall limit,
+outside build. Use hidden owned child processes, a 120-second wall limit for the
+ticket-only checks and a 180-second wall limit for physical/capture scenarios,
 stdout/stderr/result JSON and source hashes. A sim refuses unsafe profile paths
 before loading the main scene. Never kill unrelated processes. GPU captures
 use `--capture-dir=<run>/captures`; snapshots are from the real viewport.
@@ -56,7 +57,7 @@ check, then return cleanly; after modules exist, test their real behavior.
 - `stops: Dictionary`, `services: Dictionary` contain validated deep-copied rows keyed by ID.
 - `stop_position(id: String) -> Vector3` returns world standing point with ground height.
 - `next_departure(service_id: String, now_minutes: float) -> float` returns the first headway multiple at or after now, using `ceil(now/headway)*headway`.
-- `route_points(service_id: String) -> PackedVector3Array` returns the ordered lane-centre approach/travel/exit path derived from the referenced road and direction. Shared road geometry determines offsets; no map mutation.
+- `route_points(service_id: String) -> PackedVector3Array` returns only the ordered road lane-centre path at the stop fractions, including any intermediate road vertices. The pedestrian stop positions are not body-centre route endpoints; Task 3 composes apron approaches from authored boarding anchors. Shared road geometry determines offsets; no map mutation.
 - `class_name ProtoTransitTicketState extends RefCounted`
 - `setup(catalog: ProtoTransitCatalog, checkpoint_path: String, capture_run: Callable, publish_wallet: Callable) -> void`
 - `record() -> Dictionary`, `valid_record(value: Variant) -> bool`, `restore(value: Dictionary) -> bool`
@@ -92,7 +93,8 @@ board twice; arrival only aboard and at destination; cancellation only reserved;
 failure/restart uses last safe stop and refunds once; voluntary early exit zero;
 failed buy/board/refund leaves memory AND existing checkpoint unchanged; roundtrip
 recovery; reject forged paid amount/unknown phase/extra keys/invalid serial.
-Catalog rejects duplicate IDs, bad road IDs/fractions/directions, nonpositive
+Catalog rejects duplicate IDs, bad road IDs/fractions, same endpoint/fraction,
+cross-road services unsupported by this initial corridor, nonpositive
 headway/speed, negative fare, zero capacity, absent origin/destination, nonfinite
 coordinates and unknown vehicle kinds. Test route points on the correct lane for
 both directions and ensure original map points unchanged.
@@ -107,14 +109,17 @@ reading any normal save. Missing-class stubs must not fake implementation.
 
 Rows use version 1 with `stops` and `services` arrays. Stop fields are `id`,
 `name`, `road`, `fraction` (fraction along source road points), `side` (-1/+1),
-`shoulder_m` (8.0), `pad_offset_m` (18.0). Meridian East fraction 0.96;
-Richmond fraction 0.06 on `CR-meridian-richmond`. Both are initially on the south
+`shoulder_m` (8.0), `pad_offset_m` (18.0). `meridian_east`, named Meridian East,
+uses fraction 0.96; `richmond`, named Richmond West, uses fraction 0.16 on
+`CR-meridian-richmond`. Both are initially on the south
 side; derive `side` correctly from the source road tangent, not its name.
 Service fields: `id`, `name`, `kind` (`coach`/`helicopter`), `origin`, `destination`,
 `fare`, `capacity`, `speed_mps`, `headway_minutes`, `boarding_minutes`, `risk`.
 Create `lastline_east`, `lastline_west`, `kestrel_east`, `kestrel_west`. LASTLINE
 values are 2, 6, 12.0; KESTREL 15, 3, 28.0; all headways 360.0 and boarding 30.0.
 Risk text describes roadside attacks/breakdowns or weather/forced landings.
+Direction is derived from the two stop fractions; do not add a redundant direction
+field. East runs opposite the source road order; west runs with it.
 Read `usmap.gd`'s loaded representation (world coordinates) and
 `ProtoUSMap.road_geometry`, not raw JSON coordinate guesses.
 
@@ -167,10 +172,18 @@ commit `Add validated transit catalog and atomic ticket lifecycle`.
 - Test: `game/proto3d/tests/transit_vehicle_sim.gd`, `.tscn`, `.gd.uid`
 - Modify only if needed: `tools/transit_runtime_check.ps1`.
 
+The Task 1 runner intentionally has only import/headless ticket mode. This task
+adds `vehicle` and GPU capture plus the named compatibility scenes, with the
+planned 180-second physical/capture limit; retain ticket's stricter 120-second
+limit. Record the runner itself and actual scenario production dependencies in
+source hashes. Do not advertise future absent scenario files as runnable.
+
 **Interfaces:**
 - Consumes Task 1 service rows and existing `ProtoCar3D.create`.
 - Extend factory to `static create(vclass_in: String, body_color: Color, instance: ProtoCar3D = null) -> ProtoCar3D`; default preserves every existing caller.
 - New row fields `model_path`, `authored_details: bool`, `model_ground_offset: float`, `chassis`, `cabin`, `cabin_pos`, `wheels`. Fold known vector arrays into Vector3, never leak Array where the engine expects Vector3.
+- Optional `collision_boxes` is an array of `{name:String, size:[x,y,z], position:[x,y,z], door:bool}` in body-local metres; when present it replaces the generic solid chassis collider. Door boxes disable only after an opened-door transition; closed doors remain collision-bearing. Use floor, wall spans, nose/tail and roof boxes matching the hollow GLBs, not one cabin-filling cube.
+- Mark both rows `service_only: true`; `DrivnData.fleet(include_services: bool = false) -> Array` excludes these from the existing ordinary racing selector by default. Explicit tooling may request inclusion. Do not change random traffic selections or add helicopter road racers.
 - `class_name ProtoTransitVehicle extends ProtoCar3D`, `static make(kind: String) -> ProtoTransitVehicle`, `anchor_world(anchor_name: String) -> Vector3`, `set_door_open(open: bool) -> void`, `passenger_anchor(seat: int) -> Node3D`.
 - `service: Node = null`, `service_kind: String`, `doors_open: bool`. `can_disembark() -> bool` requires stopped and doors open; aircraft additionally grounded by a ray/collision contact.
 
@@ -185,7 +198,8 @@ check("moving service rejects exit", not coach.can_disembark())
 ```
 
 Catch half-scale models, duplicate opaque stock cabin windows, missing wheels,
-seat anchors missing, incorrect factory subclass, donor row mutation, wheel
+any of the six coach or three helicopter seat anchors missing, incorrect factory
+subclass, donor row mutation, wheel
 centres at wrong heights, cabin/chassis intersections at seat or entry paths.
 Drive coach through actual throttle/brake on collision ground, assert displacement
 and stopped distance; sample positions every physics frame to reject teleport.
@@ -197,10 +211,13 @@ Render front, open door/cabin and coach driving views with the runtime car body.
 generic details for old rows. For `authored_details=true`, do not add stock
 opaque cabin meshes, fake wheel meshes or unrelated family geometry. Use
 GLB `lastline_coach.glb` and `kestrel_courier.glb` paths already under assets/transit.
-Coach wheel centres are X +/-1.09, Y 0.5, front Z -1.95, rear Z 2.7, radius 0.5.
+Coach wheel centres are X +/-1.10, Y 0.5, front Z -1.95, rear Z 2.7, radius 0.5.
 Calibrate chassis origin/COM/suspension against grounded model, not screen size.
 Coach mass 4800, engine_force 14500, top_speed 16, service cap 12. Helicopter
 mass 1450; no wheel-driven propulsion; flight driver will own its forces.
+Reparent the four authored wheel meshes onto the real suspension wheels and
+preserve their correctly oriented mesh basis. They must roll, steer and compress
+with those wheels, not remain rigid in the body while hidden wheels do the work.
 
 ```gdscript
 var car: ProtoCar3D = instance if instance != null else ProtoCar3D.new()
@@ -262,6 +279,11 @@ Old saves omit transit -> empty state. Stop panels join `_gameplay_input_blocked
 and `_unhandled_input` modal ownership. Public vehicles intercept main's
 `take_wheel`, `_exit_car`, `_pose_cab_driver`; ordinary motorists unchanged.
 `_stop_handheld_session` runs on arrival/death/emergency.
+Seat anchors locate the pelvis, not the character's foot-origin. The existing
+puppet hip joint rests at local Y 0.90; position the rider from its actual hip
+transform so head and shoulders do not protrude through the roof. Verify the
+result visually and with transformed pelvis/seat distance, rather than simply
+assigning the player's root position to a seat anchor.
 
 ```gdscript
 # In main's existing passenger exit/pose paths:
@@ -281,10 +303,19 @@ must be placed clear of road lanes using catalog geometry. Present actual next
 departure, fare, duration, risk, baggage and refund rules; UI colors from spec.
 Unavailable physical coach cannot sell a ticket. Off-line local orchestration
 is explicit until Task 5 supplies host authority; do not spoof online support.
+Compose physical apron paths outside the road lanes. The pedestrian standing
+point is not the coach's parking origin. For both directions the right-side door
+must open toward a protected waiting area, not into a live lane; a shared
+south-side terminus requires a real turning/apron path for westbound departures.
+Test both directions, clear turning radius, and cross-traffic yielding at merges.
 
 - [ ] **Step 3: Run coach/ticket/vehicle and road-life regression; capture and commit.**
 
 Use `-Mode capture -Sim coach` for stop board, boarding, journey and arrival.
+Run outbound and return as separate bounded scenarios (`-Scenario east` and
+`-Scenario west`, added to the runner in this task) so each real approximately
+86-second drive plus boarding fits the original 180-second process limit. Do not
+raise the wall limit or silently shorten the world route to make tests pass.
 Inspect each capture against the ordinary gameplay camera and correct faults.
 Commit `Connect LASTLINE stops tickets and physical passenger journeys`.
 
@@ -354,7 +385,9 @@ Commit `Add KESTREL physical flights and weather-safe landings`.
 - [ ] **Step 1: Add two-process loopback failures for seat arbitration.**
 
 ```gdscript
-check("one seat cannot be assigned twice", host_seat_owners.size() == host_seat_owners.values().size())
+# Arrange a one-seat service row on the HOST, then race host/client requests.
+check("last seat accepts exactly one rider", host_seat_owners.size() == 1 and accepted_requests == 1 and rejected_requests == 1)
+check("last seat belongs to one of the real requesting peers", host_seat_owners.values()[0] in [host_peer, client_peer])
 check("far peer cannot board", far_request_rejected and seat_count_after == seat_count_before)
 check("client cannot change fare or vehicle phase", authoritative_fare == 2 and host_phase == expected_phase)
 check("disconnect frees rider seat", not host_seat_owners.values().has(disconnected_peer))
