@@ -17,6 +17,8 @@ var _busy: bool = false
 
 
 func setup(catalog: ProtoTransitCatalog, checkpoint_path: String, capture_run: Callable, publish_wallet: Callable) -> void:
+	if _busy:
+		return
 	_catalog = catalog
 	_checkpoint_path = checkpoint_path
 	_capture_run = capture_run
@@ -55,6 +57,8 @@ func valid_record(value: Variant) -> bool:
 
 
 func restore(value: Dictionary) -> bool:
+	if _busy:
+		return false
 	var candidate: Dictionary = _empty_record() if value.is_empty() else value
 	if not valid_record(candidate):
 		return false
@@ -80,7 +84,7 @@ func reserve(service_id: String, origin_id: String, departure: float, now: float
 		return _failure("wrong_origin")
 	if not is_finite(departure) or not is_finite(now) or departure < 0.0 or now < 0.0:
 		return _failure("invalid_time")
-	if not is_equal_approx(departure, _catalog.next_departure(service_id, now)):
+	if departure != _catalog.next_departure(service_id, now):
 		return _failure("invalid_departure")
 	if now > departure or now < departure - float(service.boarding_minutes):
 		return _failure("outside_boarding_window")
@@ -204,7 +208,7 @@ func _valid_ticket(ticket: Dictionary) -> bool:
 		return false
 	if String(ticket.last_safe_stop) not in [String(ticket.origin), String(ticket.destination)]:
 		return false
-	return is_equal_approx(float(ticket.departure), _catalog.next_departure(service_id, float(ticket.departure)))
+	return float(ticket.departure) == _catalog.next_departure(service_id, float(ticket.departure))
 
 
 func _valid_end(last_end: Dictionary) -> bool:

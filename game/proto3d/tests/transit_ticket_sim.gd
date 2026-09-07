@@ -41,6 +41,7 @@ func _ready() -> void:
 	root = "user://transit_ticket_%d_%d" % [OS.get_process_id(), Time.get_ticks_usec()]
 	DirAccess.make_dir_recursive_absolute(root)
 	_test_catalog()
+	_test_corner_routes()
 	_test_ticket_validation_and_lifecycle()
 	_test_atomic_failures_and_recovery()
 	_cleanup()
@@ -127,6 +128,33 @@ func _test_catalog() -> void:
 	check("nonfinite authoritative road points reject the catalog", not _accepts(parsed.duplicate(true), broken_map))
 
 
+func _test_corner_routes() -> void:
+	var map: ProtoUSMap = ProtoUSMap.new()
+	check("corner route uses a real loaded map", map.load_file("res://data/usmap.json"))
+	map.roads.append({
+		"id": "TEST-directed-corner", "kind": "county", "lanes": 2, "divided": false,
+		"pts": PackedVector2Array([Vector2(0.0, 0.0), Vector2(10.0, 0.0), Vector2(10.0, 10.0)]),
+		"elev": PackedFloat32Array([0.0, 0.0, 0.0]), "elev_mode": "ground",
+	})
+	var rows: Dictionary = {
+		"version": 1,
+		"stops": [
+			{"id": "corner_a", "name": "Corner A", "road": "TEST-directed-corner", "fraction": 0.0, "side": 1, "shoulder_m": 8.0, "pad_offset_m": 18.0},
+			{"id": "corner_c", "name": "Corner C", "road": "TEST-directed-corner", "fraction": 1.0, "side": 1, "shoulder_m": 8.0, "pad_offset_m": 18.0},
+		],
+		"services": [
+			{"id": "corner_forward", "name": "Corner forward", "kind": "coach", "origin": "corner_a", "destination": "corner_c", "fare": 2, "capacity": 6, "speed_mps": 12.0, "headway_minutes": 360.0, "boarding_minutes": 30.0, "risk": "Corner risk."},
+			{"id": "corner_reverse", "name": "Corner reverse", "kind": "coach", "origin": "corner_c", "destination": "corner_a", "fare": 2, "capacity": 6, "speed_mps": 12.0, "headway_minutes": 360.0, "boarding_minutes": 30.0, "risk": "Corner risk."},
+		],
+	}
+	var corner_catalog: Variant = catalog_script.new()
+	check("three-point corner catalog validates", corner_catalog.setup(rows, map))
+	var forward: PackedVector3Array = corner_catalog.route_points("corner_forward")
+	var reverse: PackedVector3Array = corner_catalog.route_points("corner_reverse")
+	check("forward corner joins incoming and outgoing right lanes", forward.size() == 3 and Vector2(forward[0].x, forward[0].z).is_equal_approx(Vector2(0.0, 1.8)) and Vector2(forward[1].x, forward[1].z).is_equal_approx(Vector2(8.2, 1.8)) and Vector2(forward[2].x, forward[2].z).is_equal_approx(Vector2(8.2, 10.0)))
+	check("reverse corner joins incoming and outgoing right lanes", reverse.size() == 3 and Vector2(reverse[0].x, reverse[0].z).is_equal_approx(Vector2(11.8, 10.0)) and Vector2(reverse[1].x, reverse[1].z).is_equal_approx(Vector2(11.8, -1.8)) and Vector2(reverse[2].x, reverse[2].z).is_equal_approx(Vector2(0.0, -1.8)))
+
+
 func _test_ticket_validation_and_lifecycle() -> void:
 	var path: String = root + "/lifecycle.save"
 	var bundle: Dictionary = _bundle(path, {"scrip": 5, "bandage": 1})
@@ -140,6 +168,10 @@ func _test_ticket_validation_and_lifecycle() -> void:
 	check("stale and future serials reject", not state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 0, {"scrip": 5}).ok and not state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 2, {"scrip": 5}).ok)
 	check("nonfinite times reject", not state.reserve("lastline_east", "meridian_east", NAN, 710.0, 1, {"scrip": 5}).ok and not state.reserve("lastline_east", "meridian_east", 720.0, INF, 1, {"scrip": 5}).ok)
 	check("unscheduled departure rejects", not state.reserve("lastline_east", "meridian_east", 721.0, 710.0, 1, {"scrip": 5}).ok)
+	var near_below: Dictionary = _bundle(root + "/near-below.save", {"scrip": 5})
+	check("departure just below schedule rejects exactly", not near_below.state.reserve("lastline_east", "meridian_east", 719.999999, 710.0, 1, near_below.published).ok)
+	var near_above: Dictionary = _bundle(root + "/near-above.save", {"scrip": 5})
+	check("departure just above schedule rejects exactly", not near_above.state.reserve("lastline_east", "meridian_east", 720.000001, 710.0, 1, near_above.published).ok)
 	check("expired departure rejects", not state.reserve("lastline_east", "meridian_east", 720.0, 721.0, 1, {"scrip": 5}).ok)
 	check("too-early boarding window rejects", not state.reserve("lastline_east", "meridian_east", 720.0, 689.0, 1, {"scrip": 5}).ok)
 	check("negative and malformed wallet counts reject", not state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, {"scrip": -1}).ok and not state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, {"scrip": 5, "scrap": -1}).ok and not state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, {"scrip": 5.0}).ok)
@@ -173,6 +205,9 @@ func _test_ticket_validation_and_lifecycle() -> void:
 	var valid: Dictionary = state.record()
 	var forged: Dictionary = {"version": 1, "next_serial": 6, "ticket": {"serial": 5, "service": "lastline_east", "origin": "meridian_east", "destination": "richmond", "departure": 2160.0, "paid": 2, "phase": "reserved", "last_safe_stop": "meridian_east"}, "last_end": valid.last_end.duplicate(true)}
 	check("well-formed recovered active ticket validates", state.valid_record(forged))
+	var near_schedule: Dictionary = forged.duplicate(true)
+	near_schedule.ticket.departure = 2159.999999
+	check("restore validation rejects a near-scheduled departure", not state.valid_record(near_schedule))
 	var bad_record: Dictionary = forged.duplicate(true)
 	bad_record.ticket.paid = 200
 	check("forged paid amount rejects", not state.valid_record(bad_record))
@@ -261,30 +296,51 @@ func _test_atomic_failures_and_recovery() -> void:
 	var restart: Dictionary = second.state.finish(1, "restart", "meridian_east", second.published)
 	check("restart ends at recorded safe stop and refunds once", restart.ok and restart.refund == 2 and restart.safe_stop == "meridian_east" and second.published == {"scrip": 5, "bandage": 1} and not second.state.finish(1, "restart", "meridian_east", second.published).ok)
 
-	var reentrant_path: String = root + "/reentrant.save"
-	var reentrant: Dictionary = _bundle(reentrant_path, {"scrip": 5})
-	reentrant.flags.reenter = true
-	check("reservation publishes once while rejecting reentrant mutation", reentrant.state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, reentrant.published).ok and not reentrant.reentry.ok and reentrant.reentry.code == "busy")
+	var capture_path: String = root + "/capture-reentrant.save"
+	var capture_hijack: String = root + "/capture-hijacked.save"
+	var capture_reentrant: Dictionary = _bundle(capture_path, {"scrip": 5})
+	capture_reentrant.flags.capture_reenter = true
+	capture_reentrant.flags.hijack_path = capture_hijack
+	var capture_result: Dictionary = capture_reentrant.state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, capture_reentrant.published)
+	check("capture callback cannot restore during publication", capture_result.ok and capture_reentrant.reentry.capture_restore == false and capture_reentrant.state.record().ticket.serial == 1)
+	check("capture callback cannot replace setup during publication", FileAccess.file_exists(capture_path) and not FileAccess.file_exists(capture_hijack) and capture_reentrant.published == {"scrip": 3})
+
+	var publish_path: String = root + "/publish-reentrant.save"
+	var publish_hijack: String = root + "/publish-hijacked.save"
+	var publish_reentrant: Dictionary = _bundle(publish_path, {"scrip": 5})
+	publish_reentrant.flags.publish_reenter = true
+	publish_reentrant.flags.hijack_path = publish_hijack
+	var publish_result: Dictionary = publish_reentrant.state.reserve("lastline_east", "meridian_east", 720.0, 710.0, 1, publish_reentrant.published)
+	check("publish callback cannot restore committed memory", publish_result.ok and publish_reentrant.reentry.publish_restore == false and publish_reentrant.state.record().ticket.serial == 1)
+	check("publish callback cannot replace setup or callbacks", publish_reentrant.state.board(1, publish_reentrant.published).ok and publish_reentrant.state.record().ticket.phase == "aboard" and not FileAccess.file_exists(publish_hijack) and publish_reentrant.published == {"scrip": 3})
+	var publish_disk: Dictionary = str_to_var(FileAccess.get_file_as_string(publish_path))
+	check("reentrant setup leaves original checkpoint authority intact", publish_disk.transit.ticket.phase == "aboard" and publish_disk.player.backpack == {"scrip": 3})
 
 
 func _bundle(path: String, wallet: Dictionary) -> Dictionary:
 	var run: Dictionary = {"version": 77, "player": {"backpack": wallet.duplicate(true)}, "sentinel": {"keep": 17}}
 	var published: Dictionary = wallet.duplicate(true)
-	var flags: Dictionary = {"reenter": false}
+	var flags: Dictionary = {"capture_reenter": false, "publish_reenter": false, "hijack_path": ""}
 	var reentry: Dictionary = {}
 	var state: Variant = ticket_script.new()
 	var state_ref: WeakRef = weakref(state)
 	state.setup(catalog, path,
-		func() -> Dictionary: return run.duplicate(true),
+		func() -> Dictionary:
+			if flags.capture_reenter:
+				var active_state: Variant = state_ref.get_ref()
+				if active_state != null:
+					reentry.capture_restore = active_state.restore({})
+					active_state.setup(catalog, String(flags.hijack_path), func() -> Dictionary: return run.duplicate(true), func(_value: Dictionary) -> void: pass)
+			return run.duplicate(true),
 		func(value: Dictionary) -> void:
 			published.clear()
 			published.merge(value.duplicate(true), true)
 			run.player.backpack = value.duplicate(true)
-			if flags.reenter:
-				reentry.clear()
+			if flags.publish_reenter:
 				var active_state: Variant = state_ref.get_ref()
 				if active_state != null:
-					reentry.merge(active_state.board(1, value), true)
+					reentry.publish_restore = active_state.restore({})
+					active_state.setup(catalog, String(flags.hijack_path), func() -> Dictionary: return run.duplicate(true), func(_value: Dictionary) -> void: pass)
 	)
 	return {"state": state, "run": run, "published": published, "flags": flags, "reentry": reentry}
 

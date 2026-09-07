@@ -141,24 +141,57 @@ func route_points(service_id: String) -> PackedVector3Array:
 	var origin_fraction: float = float(origin.fraction)
 	var destination_fraction: float = float(destination.fraction)
 	var direction: int = 1 if destination_fraction > origin_fraction else -1
-	var fractions: Array[float] = [origin_fraction]
 	var lengths: PackedFloat32Array = _cumulative_lengths(road)
 	var total: float = lengths[lengths.size() - 1]
+	_append_lane_point(route, road, origin_fraction, direction)
+	var vertices: Array[int] = []
 	for index: int in range(1, lengths.size() - 1):
 		var fraction: float = float(lengths[index]) / total
 		if (direction > 0 and fraction > origin_fraction and fraction < destination_fraction) or (direction < 0 and fraction < origin_fraction and fraction > destination_fraction):
-			fractions.append(fraction)
-	if direction < 0 and fractions.size() > 1:
-		fractions.sort()
-		fractions.reverse()
-	fractions.append(destination_fraction)
-	for fraction: float in fractions:
-		var sample: Dictionary = _sample(road, fraction)
-		var heading: Vector2 = sample.tangent * float(direction)
-		var right := Vector2(-heading.y, heading.x)
-		var point: Vector2 = sample.point + right * ProtoUSMap.lane_offset(road, 0)
-		route.append(Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y), point.y))
+			vertices.append(index)
+	if direction < 0:
+		vertices.reverse()
+	for index: int in vertices:
+		for point: Vector2 in _directed_lane_join(road, index, direction):
+			route.append(Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y), point.y))
+	_append_lane_point(route, road, destination_fraction, direction)
 	return route
+
+
+static func _append_lane_point(route: PackedVector3Array, road: Dictionary, fraction: float, direction: int) -> void:
+	var sample: Dictionary = _sample(road, fraction)
+	var heading: Vector2 = sample.tangent * float(direction)
+	var right := Vector2(-heading.y, heading.x)
+	var point: Vector2 = sample.point + right * ProtoUSMap.lane_offset(road, 0)
+	route.append(Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y), point.y))
+
+
+static func _directed_lane_join(road: Dictionary, vertex_index: int, direction: int) -> PackedVector2Array:
+	var points: PackedVector2Array = road["pts"]
+	var vertex: Vector2 = points[vertex_index]
+	var arrival: Vector2
+	var departure: Vector2
+	if direction > 0:
+		arrival = (vertex - points[vertex_index - 1]).normalized()
+		departure = (points[vertex_index + 1] - vertex).normalized()
+	else:
+		arrival = (vertex - points[vertex_index + 1]).normalized()
+		departure = (points[vertex_index - 1] - vertex).normalized()
+	var offset: float = ProtoUSMap.lane_offset(road, 0)
+	var arrival_right := Vector2(-arrival.y, arrival.x)
+	var departure_right := Vector2(-departure.y, departure.x)
+	var arrival_point: Vector2 = vertex + arrival_right * offset
+	var departure_point: Vector2 = vertex + departure_right * offset
+	var cross: float = arrival.cross(departure)
+	if absf(cross) < 0.00001:
+		if arrival.dot(departure) > 0.0:
+			return PackedVector2Array([(arrival_point + departure_point) * 0.5])
+		return PackedVector2Array([arrival_point, departure_point])
+	var distance: float = (departure_point - arrival_point).cross(departure) / cross
+	var miter: Vector2 = arrival_point + arrival * distance
+	if miter.distance_to(vertex) <= offset * 4.0:
+		return PackedVector2Array([miter])
+	return PackedVector2Array([arrival_point, departure_point])
 
 
 static func _sample(road: Dictionary, fraction: float) -> Dictionary:
