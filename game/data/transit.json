@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "stops": [
+    {
+      "id": "meridian_east",
+      "name": "Meridian East",
+      "road": "CR-meridian-richmond",
+      "fraction": 0.96,
+      "side": -1,
+      "shoulder_m": 8.0,
+      "pad_offset_m": 18.0
+    },
+    {
+      "id": "richmond",
+      "name": "Richmond West",
+      "road": "CR-meridian-richmond",
+      "fraction": 0.16,
+      "side": -1,
+      "shoulder_m": 8.0,
+      "pad_offset_m": 18.0
+    }
+  ],
+  "services": [
+    {
+      "id": "lastline_east",
+      "name": "LASTLINE EAST",
+      "kind": "coach",
+      "origin": "meridian_east",
+      "destination": "richmond",
+      "fare": 2,
+      "capacity": 6,
+      "speed_mps": 12.0,
+      "headway_minutes": 360.0,
+      "boarding_minutes": 30.0,
+      "risk": "Roadside attacks and breakdowns may interrupt service."
+    },
+    {
+      "id": "lastline_west",
+      "name": "LASTLINE WEST",
+      "kind": "coach",
+      "origin": "richmond",
+      "destination": "meridian_east",
+      "fare": 2,
+      "capacity": 6,
+      "speed_mps": 12.0,
+      "headway_minutes": 360.0,
+      "boarding_minutes": 30.0,
+      "risk": "Roadside attacks and breakdowns may interrupt service."
+    },
+    {
+      "id": "kestrel_east",
+      "name": "KESTREL EAST",
+      "kind": "helicopter",
+      "origin": "meridian_east",
+      "destination": "richmond",
+      "fare": 15,
+      "capacity": 3,
+      "speed_mps": 28.0,
+      "headway_minutes": 360.0,
+      "boarding_minutes": 30.0,
+      "risk": "Weather and forced landings may interrupt service."
+    },
+    {
+      "id": "kestrel_west",
+      "name": "KESTREL WEST",
+      "kind": "helicopter",
+      "origin": "richmond",
+      "destination": "meridian_east",
+      "fare": 15,
+      "capacity": 3,
+      "speed_mps": 28.0,
+      "headway_minutes": 360.0,
+      "boarding_minutes": 30.0,
+      "risk": "Weather and forced landings may interrupt service."
+    }
+  ]
+}
