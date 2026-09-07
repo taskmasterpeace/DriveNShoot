@@ -72,6 +72,13 @@ func _port_position(ports: Array, rid: String) -> Vector2:
 	return Vector2(INF, INF)
 
 
+func _ports_have_owner_role(ports: Array, owner: String, role: String) -> bool:
+	for port: Dictionary in ports:
+		if String(port["role"]) != role or String(port["road"].get("interchange_id", "")) != owner:
+			return false
+	return true
+
+
 func _cache_cases() -> void:
 	var map := _fold(_fixture())
 	var descriptor: Dictionary = map.exits[0]
@@ -106,6 +113,46 @@ func _cache_cases() -> void:
 	_check("same-file map reload succeeds", map.load_file("user://interchange-ports-fixture.json"))
 	var reloaded: Array = map.call("exit_ports", map.exits[0], "off")
 	_check("map reload invalidates warmed descriptor and geometry", map.lookups > before_reload and _port_position(reloaded, "off+").is_equal_approx(Vector2(200, 8)))
+	_cache_eviction_case()
+
+
+func _cache_eviction_case() -> void:
+	var map := _fold(_fixture())
+	var first_descriptor: Dictionary = map.exits[0].duplicate(true)
+	first_descriptor["cache_probe"] = 0
+	var first_ports: Array = map.call("exit_ports", first_descriptor, "off")
+	_check("eviction fixture resolves both correctly owned off-ramp roles",
+		first_ports.size() == 2 and _ports_have_owner_role(first_ports, "X", "off"))
+	for index: int in range(1, 130):
+		var descriptor: Dictionary = map.exits[0].duplicate(true)
+		descriptor["cache_probe"] = index
+		map.call("exit_ports", descriptor, "off")
+	_check("more than 128 descriptors retain the exact cache bound", map._exit_ports_cache.size() == 128)
+	var lookups_after_pressure := map.lookups
+	var recomputed: Array = map.call("exit_ports", first_descriptor, "off")
+	_check("evicted descriptor recomputes through canonical road ownership",
+		map.lookups > lookups_after_pressure
+		and recomputed.size() == 2
+		and _port_position(recomputed, "off+").is_equal_approx(Vector2(200, 8))
+		and _port_position(recomputed, "off-").is_equal_approx(Vector2(800, -8)))
+	if not recomputed.is_empty():
+		recomputed[0]["role"] = "corrupted"
+		recomputed[0]["road"]["id"] = "intruder"
+		recomputed[0]["pos"] = Vector2(999, 999)
+	var isolated: Array = map.call("exit_ports", first_descriptor, "off")
+	_check("post-eviction caller mutation cannot poison the warmed payload",
+		isolated.size() == 2
+		and _ports_have_owner_role(isolated, "X", "off")
+		and _port_position(isolated, "off+").is_equal_approx(Vector2(200, 8)))
+	var before_reload := map.lookups
+	_check("eviction fixture reloads from the real JSON fold", map.load_file("user://interchange-ports-fixture.json"))
+	var after_reload: Array = map.call("exit_ports", first_descriptor, "off")
+	_check("reload clears pressure state and returns isolated canonical ownership",
+		map._exit_ports_cache.size() == 1
+		and map.lookups > before_reload
+		and after_reload.size() == 2
+		and _ports_have_owner_role(after_reload, "X", "off")
+		and _port_position(after_reload, "off-").is_equal_approx(Vector2(800, -8)))
 
 func _has_road_route(graph: ProtoRoadGraph, from: Vector2, to: Vector2, required: String) -> bool:
 	var route: Dictionary = graph.route(from, to)

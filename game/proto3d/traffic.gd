@@ -233,12 +233,20 @@ func _advance(ag: TrafficAgent, delta: float, leader: TrafficAgent) -> void:
 		_step_parking(ag,road,delta)
 		return
 	# --- exits: the only doors off the highway (roll once per exit approach)
-	_maybe_take_exit(ag, road)
+	_maybe_take_exit(ag, road, true)
 	if not is_instance_valid(ag):
+		return
+	# A managed exit begins as physical lane-to-ramp motion while the highway
+	# still owns the actor. That keeps source-lane following effective until the
+	# ramp entry is actually reached, and this return spends only this tick's
+	# speed * delta budget on the handoff.
+	if not ag._connection.is_empty():
+		_step_connection(ag,delta)
 		return
 	if ag.road_id != String(road["id"]):
 		road = _road(ag.road_id)
 		pts = road["pts"] # advance/place on the ramp this frame, not the old highway
+		managed = _managed_exit(road) # road ownership changed; never retain the source selection
 	# --- advance along the polyline (s_ab is a->b; dir signs the step)
 	ag.s_ab += ag.speed * delta * float(ag.dir)
 	while true:
@@ -362,8 +370,21 @@ func _step_connection(ag: TrafficAgent, delta: float) -> void:
 	var motion := ag.global_position-before
 	if Vector2(motion.x,motion.z).length_squared()>0.000001:
 		ag.rotation.y = atan2(-motion.x,-motion.z)
+	# A managed entry remains source-owned so its lane leader can still stop it.
+	# Keep that source travel arc synchronized across every physical entry leg.
+	if bool(ag._connection.get("track_source_arc",false)):
+		var source := _road(ag.road_id)
+		if not source.is_empty():
+			var source_projection := _arc_of(source,Vector2(ag.global_position.x,ag.global_position.z))
+			ag.seg_i = int(source_projection["seg"])
+			ag.s_ab = float(source_projection["s_ab"])
 	if ag.global_position.distance_to(target)>0.005:
 		return
+	var waypoints: Array = ag._connection.get("entry_waypoints",[])
+	if not waypoints.is_empty():
+		ag._connection["target"] = waypoints.pop_front()
+		ag._connection["entry_waypoints"] = waypoints
+		return # changing entry legs never spends a second distance budget this tick
 	ag.road_id = String(ag._connection["road"])
 	ag.seg_i = int(ag._connection["seg"])
 	ag.s_ab = float(ag._connection["s"])
@@ -797,7 +818,7 @@ func _car_travel_arc(ag: TrafficAgent, car: Node3D) -> float:
 ## take, transfer to the ramp polyline (right-side departures only) and ride it
 ## to the location — arrive at its end (the normal end-of-road law). A TRIP
 ## agent doesn't roll dice: it leaves at ITS destination exit, and only there.
-func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
+func _maybe_take_exit(ag: TrafficAgent, road: Dictionary, defer_managed_handoff: bool = false) -> void:
 	for e in usmap.exits:
 		if String(e["highway_id"]) != ag.road_id or String(e["id"]) == ag._exit_rolled:
 			continue
@@ -823,17 +844,52 @@ func _maybe_take_exit(ag: TrafficAgent, road: Dictionary) -> void:
 			continue
 		if ag.dest_exit_id == "" and rng.randf() > float(TRAFFIC["exit_take_chance"]):
 			continue # destination-less drifters still roll the old dice
+		var next_segment := 0
+		var next_station := 0.0
+		var next_direction := 1
+		if mouth_i == 0:
+			next_direction = 1
+			next_segment = 0
+			next_station = 0.0
+		else:
+			next_direction = -1
+			next_segment = rpts.size() - 2
+			next_station = rpts[next_segment].distance_to(rpts[next_segment + 1])
+		ag.cruise = minf(ag.cruise, float(TRAFFIC["speed_lanes_2"]))
+		if defer_managed_handoff and not _managed_exit(ramp).is_empty():
+			var cumulative := _cum(road)
+			var current_arc: float = cumulative[ag.seg_i]+ag.s_ab
+			var mouth_arc := float(port["highway_arc_m"])
+			# A late actor has missed this physical door; never send it backward up
+			# the highway to manufacture a take after the ramp mouth has passed.
+			if (mouth_arc-current_arc)*float(ag.dir)<-0.02:
+				return
+			var entrance_arc := clampf(mouth_arc-15.0*float(ag.dir),0.0,float(cumulative[-1]))
+			var entrance_segment := 0
+			while entrance_segment+1<cumulative.size()-1 and cumulative[entrance_segment+1]<entrance_arc:
+				entrance_segment += 1
+			var entrance_station: float = entrance_arc-cumulative[entrance_segment]
+			var outer_lane := int(ProtoUSMap.road_geometry(road)["per_side"])-1
+			var entry_targets: Array[Vector3] = []
+			# Actors already inside the renderer's 15m transfer entrance go straight
+			# to its mouth; the first waypoint must never reverse highway progress.
+			if (entrance_arc-current_arc)*float(ag.dir)>0.02:
+				entry_targets.append(_lane_position(road,entrance_segment,entrance_station,ag.dir,outer_lane))
+			var ramp_target := _lane_position(ramp,next_segment,next_station,next_direction,0)
+			var mouth_center := Vector3(mouth.x,ramp_target.y,mouth.y)
+			if ag.global_position.distance_to(mouth_center)>0.005:
+				entry_targets.append(mouth_center)
+			entry_targets.append(ramp_target)
+			var first_target: Vector3 = entry_targets.pop_front()
+			ag._connection = {"road":String(ramp["id"]),"seg":next_segment,"s":next_station,
+				"dir":next_direction,"target":first_target,"entry_waypoints":entry_targets,
+				"track_source_arc":true}
+			return
 		ag.road_id = String(ramp["id"])
 		ag.lane = 0
-		ag.cruise = minf(ag.cruise, float(TRAFFIC["speed_lanes_2"]))
-		if mouth_i == 0:
-			ag.dir = 1
-			ag.seg_i = 0
-			ag.s_ab = 0.0
-		else:
-			ag.dir = -1
-			ag.seg_i = rpts.size() - 2
-			ag.s_ab = rpts[ag.seg_i].distance_to(rpts[ag.seg_i + 1])
+		ag.dir = next_direction
+		ag.seg_i = next_segment
+		ag.s_ab = next_station
 		return
 
 
@@ -919,7 +975,9 @@ func _maintain() -> void:
 	if ag != null and rng.randf() < float(TRAFFIC["convoy_chance"]):
 		var lead := ag as TrafficAgent
 		var cargo: String = ["produce", "diesel", "scrap"][rng.randi() % 3]
-		spawn_convoy_behind(lead, rng.randi_range(1, 2), cargo)
+		var requested_followers := rng.randi_range(1,2)
+		var available_followers := maxi(0,budget-agents.size())
+		spawn_convoy_behind(lead,mini(requested_followers,available_followers),cargo)
 
 
 ## A point on the road inside the spawn ring: project the anchor, walk ±arc.

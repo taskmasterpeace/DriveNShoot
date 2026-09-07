@@ -11,6 +11,37 @@ const script = fileURLToPath(new URL('./repair_diamond_interchanges.mjs', import
 const source = await import('./repair_diamond_interchanges.mjs').catch(() => ({}));
 const managedIds = new Set(['cedar', 'violet', 'amber', 'cobalt', 'X-crossroad', 'X-town-link']);
 
+function contractualRoad(row) {
+	const copy = structuredClone(row);
+	copy.surface ??= 'asphalt'; // bake canonicalizes the first-added road surface
+	return copy;
+}
+
+function managedRoadContract(map) {
+	return new Map([...managedIds].map((id) => {
+		const road = map.roads.find((row) => row.id === id);
+		assert.ok(road, `missing managed road ${id}`);
+		return [id, contractualRoad(road)];
+	}));
+}
+
+function assertManagedOwnership(map, pass) {
+	const exit = map.exits.find((row) => row.id === 'X');
+	assert.ok(exit, `${pass}: missing owned exit`);
+	assert.deepEqual(exit.connector_ids, ['X-crossroad', 'X-town-link'], `${pass}: exit connector ownership changed`);
+	for (const connectorId of exit.connector_ids) {
+		assert.equal(map.roads.find((row) => row.id === connectorId)?.interchange_id, 'X', `${pass}: ${connectorId} lost owner`);
+	}
+	for (const [id, kind] of [['cedar', 'ramp_mouth'], ['violet', 'ramp_rejoin'], ['amber', 'ramp_mouth'], ['cobalt', 'ramp_rejoin']]) {
+		const port = map.junctions.find((row) => row.id === `X-${id}-port`);
+		assert.ok(port, `${pass}: missing owned port X-${id}-port`);
+		assert.equal(port.interchange_id, 'X', `${pass}: X-${id}-port lost owner`);
+		assert.equal(port.kind, kind, `${pass}: X-${id}-port kind changed`);
+		assert.equal(port.control, 'riro', `${pass}: X-${id}-port control changed`);
+		assert.deepEqual(port.legs.map((leg) => leg.road), ['main', id], `${pass}: X-${id}-port identities changed`);
+	}
+}
+
 function fixture() {
 	return {
 		world_offset: [-2000, -2000], cell_m: 500, relief: Array(8).fill('00000000'),
@@ -335,30 +366,22 @@ test('full junction rebakes preserve managed roles, profiles, ports, and deck se
 	assert.equal(typeof source.applyDiamondInterchanges, 'function', 'missing selective migration API');
 	const map = fixture();
 	source.applyDiamondInterchanges(map, ['X']);
-	const before = new Map(map.roads.filter((road) => managedIds.has(road.id))
-		.map((road) => [road.id, { pts: structuredClone(road.pts), elev: structuredClone(road.elev) }]));
-	bakeJunctions(map);
-	for (const road of map.roads.filter((row) => managedIds.has(row.id))) {
-		assert.deepEqual(road.pts, before.get(road.id).pts, `${road.id} geometry changed`);
-		assert.deepEqual(road.elev, before.get(road.id).elev, `${road.id} profile changed`);
+	const before = managedRoadContract(map);
+	for (let pass = 1; pass <= 2; pass++) {
+		bakeJunctions(map);
+		for (const id of managedIds) {
+			const road = map.roads.find((row) => row.id === id);
+			assert.deepEqual(contractualRoad(road), before.get(id), `bake ${pass}: ${id} contractual metadata changed`);
+		}
+		assertManagedOwnership(map, `bake ${pass}`);
+		const transfers = map.junctions.filter((row) => row.legs?.some((leg) => leg.road === 'main')
+			&& row.legs.some((leg) => leg.road === 'X-crossroad'));
+		assert.equal(transfers.length, 1, `bake ${pass}: deck transfer count changed`);
+		assert.equal(transfers[0].id, 'X-deck', `bake ${pass}: deck identity changed`);
+		assert.equal(transfers[0].interchange_id, 'X', `bake ${pass}: deck ownership changed`);
+		assert.equal(transfers[0].grade, 'deck', `bake ${pass}: deck grade changed`);
+		assert.equal(transfers[0].control, 'none', `bake ${pass}: deck control changed`);
 	}
-	for (const id of ['cedar', 'violet', 'amber', 'cobalt']) {
-		const ramp = map.roads.find((road) => road.id === id);
-		assert.ok(['off', 'on'].includes(ramp.ramp_role));
-		assert.equal(ramp.geom, 'diamond_v2');
-		assert.equal(ramp.elev_mode, 'structure');
-		const port = map.junctions.find((row) => row.legs?.[0]?.road === 'main' && row.legs.some((leg) => leg.road === id));
-		assert.ok(port, `${id} must retain its actual highway port`);
-		assert.equal(port.control, 'riro');
-	}
-	const transfers = map.junctions.filter((row) => row.legs?.some((leg) => leg.road === 'main')
-		&& row.legs.some((leg) => leg.road === 'X-crossroad'));
-	assert.equal(transfers.length, 1);
-	assert.equal(transfers[0].grade, 'deck');
-	assert.equal(transfers[0].control, 'none');
-	const once = JSON.stringify(map);
-	bakeJunctions(map);
-	assert.equal(JSON.stringify(map), once, 'repeated full bake must not collapse managed geometry or metadata');
 });
 
 test('full bake keeps every shared-mouth off-ramp leg at its known terminal arc zero', () => {
