@@ -57,6 +57,50 @@ var population: ProtoPopulation = null
 
 var loaded: Dictionary = {} ## "cx,cz" -> Node3D
 var visited: Dictionary = {} ## "cx,cz" -> Vector2 (chunk center) — the map's fog-of-war
+var service_reservations: Dictionary = {} ## Persistent physical service sites, independent of chunk lifetime.
+
+func reserve_service_footprint(id: String, rectangles: Array) -> void:
+	service_reservations[id] = rectangles.duplicate(true)
+	for chunk: Node3D in loaded.values():
+		_clear_service_scatter(chunk)
+
+func _clear_service_scatter(chunk: Node3D) -> void:
+	if not is_instance_valid(chunk):
+		return # Authored cells are deliberately represented by null loaded entries.
+	var exclusions: Array = []
+	for rectangles: Array in service_reservations.values():
+		exclusions.append_array(rectangles)
+	if exclusions.is_empty():
+		return
+	# Compact actual authored instance transforms, not visibility flags: no
+	# invisible obstacle survives and no replacement RNG draws shift the world.
+	for child: Node in chunk.get_children():
+		if child is Node3D and child.has_meta("anonymous_neighborhood"):
+			for footprint: Array in child.get_meta("anonymous_neighborhood"):
+				if not _ruin_footprint_clear(Vector3(footprint[0],0,footprint[1]),Vector3(footprint[2]*2,1,footprint[3]*2),footprint[4],exclusions):
+					chunk.remove_child(child)
+					child.queue_free()
+					break
+		elif child is MultiMeshInstance3D and child.has_meta("procedural_scatter"):
+			var mesh: MultiMesh = child.multimesh
+			var keep: Array[Transform3D] = []
+			for i: int in mesh.instance_count:
+				var transform: Transform3D = mesh.get_instance_transform(i)
+				var world: Transform3D = child.global_transform * transform
+				var bounds: AABB = world * mesh.mesh.get_aabb()
+				if _ruin_footprint_clear(bounds.get_center(),bounds.size,0.0,exclusions):
+					keep.append(transform)
+			mesh.instance_count = keep.size()
+			for i: int in keep.size():
+				mesh.set_instance_transform(i,keep[i])
+		elif child is StaticBody3D and (child.has_meta("dense_trunk") or child.has_meta("biome_filler")):
+			for shape: Node in child.get_children():
+				if shape is CollisionShape3D and shape.shape is BoxShape3D:
+					var bounds: AABB = shape.global_transform * AABB(-shape.shape.size*0.5,shape.shape.size)
+					if not _ruin_footprint_clear(bounds.get_center(),bounds.size,0.0,exclusions):
+						chunk.remove_child(child)
+						child.queue_free()
+						break
 ## STREAMING BUDGET (mined from LittleFernStudio/Chunk-Loader, MIT — its queued
 ## _process_load_queue): steady-state driving spawns at most this many chunks per frame
 ## from a nearest-first queue, so crossing a chunk boundary no longer builds a whole new
@@ -222,6 +266,8 @@ func _spawn_at(cx: int, cz: int) -> void:
 	var ch := _spawn_chunk(cx, cz)
 	if ch != null and ch.has_meta("relief"):
 		_drape_chunk(ch) # scatter/wrecks/caches sit ON the rolled land, not inside it
+	if ch != null:
+		_clear_service_scatter(ch)
 	loaded[key] = ch
 	visited[key] = Vector2((cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK)
 
@@ -1927,6 +1973,7 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 				can_mm.set_instance_transform(ii, Transform3D(b, spots[i] + Vector3(0, toff * s, 0)))
 				ii += 1
 		var cmi := MultiMeshInstance3D.new()
+		cmi.set_meta("procedural_scatter",true)
 		cmi.multimesh = can_mm
 		cmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk.add_child(cmi)
@@ -1935,6 +1982,7 @@ func _trees(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count: i
 		var tb := Basis(Vector3.UP, yaws[i]).scaled(Vector3.ONE * s2)
 		trunk_mm.set_instance_transform(i, Transform3D(tb, spots[i] + Vector3(0, trunk_size.y * 0.5 * s2, 0)))
 	var tmi := MultiMeshInstance3D.new()
+	tmi.set_meta("procedural_scatter",true)
 	tmi.multimesh = trunk_mm
 	tmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	chunk.add_child(tmi)
@@ -2059,6 +2107,7 @@ func _scatter(chunk: Node3D, center: Vector3, rng: RandomNumberGenerator, count:
 			mm.set_instance_transform(ii, Transform3D(b, poss[i] + Vector3(0, 0.25 * scs[i], 0)))
 			ii += 1
 		var mmi := MultiMeshInstance3D.new()
+		mmi.set_meta("procedural_scatter",true)
 		mmi.multimesh = mm
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		chunk.add_child(mmi)
@@ -2076,6 +2125,8 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 	var n := rng.randi_range(4, 6)
 	var key := "%d,%d" % [floori(center.x / CHUNK), floori(center.z / CHUNK)]
 	var exclusions := _ruin_exclusions(center, key)
+	for rectangles: Array in service_reservations.values():
+		exclusions.append_array(rectangles)
 	for i in n:
 		var hpos2 := base2 + dir * ((i - n / 2.0) * rng.randf_range(11.0, 14.0)) + side * rng.randf_range(-3, 5)
 		var hsize := Vector3(rng.randf_range(7, 10), rng.randf_range(3.5, 5), rng.randf_range(7, 9))
@@ -2085,11 +2136,24 @@ func _stamp_neighborhood(chunk: Node3D, center: Vector3, road: Dictionary, rng: 
 		# homes/scatter keep their deterministic sequence. Reserve the roof too.
 		if not _ruin_footprint_clear(hpos, hsize + Vector3(0.6, 0.0, 0.6), atan2(side.x, -side.y), exclusions):
 			continue
-		ProtoWorldBuilder.box_body(chunk, hsize, hpos + Vector3(0, hsize.y / 2.0, 0), hcol, atan2(side.x, -side.y))
-		ProtoWorldBuilder.box_body(chunk, Vector3(hsize.x + 0.6, 0.3, hsize.z + 0.6), hpos + Vector3(0, hsize.y + 0.15, 0), ProtoWorldBuilder.COL_ROOF, atan2(side.x, -side.y))
+		var driveway_position := Vector3(lerpf(hpos2.x,road_center.x+side.x*half_w,0.5),0.05,lerpf(hpos2.y,road_center.y+side.y*half_w,0.5))
+		var driveway_size := Vector3(3.0,0.03,(base2-road_center).length())
+		var footprints: Array = [[hpos.x,hpos.z,(hsize.x+0.6)*0.5,(hsize.z+0.6)*0.5,atan2(side.x,-side.y)],
+			[driveway_position.x,driveway_position.z,driveway_size.x*0.5,driveway_size.z*0.5,atan2(side.x,-side.y)]]
+		var driveway_clear: bool = true
+		for rectangles: Array in service_reservations.values():
+			if not _ruin_footprint_clear(driveway_position,driveway_size,atan2(side.x,-side.y),rectangles):
+				driveway_clear = false
+		if not driveway_clear:
+			continue
+		var assembly := Node3D.new()
+		assembly.position = hpos
+		assembly.set_meta("anonymous_neighborhood",footprints)
+		chunk.add_child(assembly)
+		ProtoWorldBuilder.box_body(assembly, hsize, Vector3(0, hsize.y / 2.0, 0), hcol, atan2(side.x, -side.y))
+		ProtoWorldBuilder.box_body(assembly, Vector3(hsize.x + 0.6, 0.3, hsize.z + 0.6), Vector3(0, hsize.y + 0.15, 0), ProtoWorldBuilder.COL_ROOF, atan2(side.x, -side.y))
 		# driveway
-		ProtoWorldBuilder.box_visual(chunk, Vector3(3.0, 0.03, (base2 - road_center).length()),
-			Vector3(lerpf(hpos2.x, road_center.x + side.x * half_w, 0.5), 0.05, lerpf(hpos2.y, road_center.y + side.y * half_w, 0.5)),
+		ProtoWorldBuilder.box_visual(assembly, driveway_size,driveway_position-hpos,
 			Color(0.36, 0.32, 0.26), atan2(side.x, -side.y))
 	chunk.add_to_group("biome_neighborhood")
 

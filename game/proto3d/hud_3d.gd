@@ -562,12 +562,13 @@ func set_dashboard(d) -> void:
 		_dash_cook.visible = false
 	# The status line: WHICH rig, WHAT ground is doing to you, WHAT you're hauling.
 	var bits: Array[String] = ["🚗 %s" % d.get("name", "car")]
+	var ground_label: String = {"road":"ROAD","gravel":"GRAVEL","dirt_road":"DIRT ROAD","dirt":"DIRT","water":"WATER"}.get(String(d.get("surface","road")),"ROUGH GROUND")
 	if d.get("tires", 0) >= 2:
 		bits.append("🛞 TIRES SHOT — limping")
 	elif d.get("struggling", false):
-		bits.append("🐢 BOGGED — %s tires churning dirt" % d.get("tire_name", ""))
+		bits.append("🐢 BOGGED — %s tires on %s" % [d.get("tire_name", ""),ground_label.to_lower()])
 	elif d.get("surface", "road") != "road":
-		bits.append("⛰️ DIRT — %s tires (%d%% drive)" % [d.get("tire_name", ""), int(d.get("drive_factor", 1.0) * 100.0)])
+		bits.append("⛰️ %s — %s tires (%d%% drive)" % [ground_label,d.get("tire_name", ""), int(d.get("drive_factor", 1.0) * 100.0)])
 	if d.get("load_max", 0.0) > 0.0:
 		bits.append("📦 %.0f/%.0f kg" % [d.get("load", 0.0), d.get("load_max", 0.0)])
 	# P1-2 (occupant roster, dormant until car/proto3d wires seat counts in): a
@@ -623,6 +624,11 @@ func set_mode(driving: bool) -> void:
 		_help_label.text = "W/S throttle · A/D steer · SPACE handbrake · E out · TAB trunk · Y radio · M map · K sheet · F5/F9 save/load · hold B binoculars"
 	else:
 		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact · C whistle ×1-4 · Y radio · TAB pack · M map · K sheet · T wait · F5/F9 save · hold B binocs"
+
+
+func set_service_passenger(status: String) -> void:
+	_help_label.text = "LASTLINE PASSENGER · M map · K sheet · F5 save · driver keeps the wheel"
+	show_prompt(status)
 
 
 var _flash: ColorRect = null

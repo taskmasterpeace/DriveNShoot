@@ -13,6 +13,16 @@ var _door_collisions: Array[CollisionShape3D] = []
 var _roof: MeshInstance3D
 var _roof_faded_materials: Array[Material] = []
 
+func carries_character(body: Node3D) -> bool:
+	return service != null and service.is_riding() and service.main.active_car == self and body == service.main.player
+
+func interact_prompt(_main: Node) -> String:
+	return "E / Y/△ — LASTLINE ticket board" if service != null and not is_active and not dead else ""
+
+func interact(_main: Node) -> void:
+	if service != null:
+		service.panel.open(service.coach_stop)
+
 static func make(kind: String) -> ProtoTransitVehicle:
 	if kind not in ["coach", "helicopter"]:
 		return null
@@ -80,7 +90,7 @@ func can_disembark() -> bool:
 	if not doors_open or linear_velocity.length() >= 0.5 or angular_velocity.length() >= 0.2:
 		return false
 	if service_kind != "helicopter":
-		return true
+		return global_basis.y.dot(Vector3.UP) > 0.9 and _all_wheels.filter(func(w: VehicleWheel3D) -> bool: return w.is_in_contact()).size() >= 2
 	if not is_inside_tree() or global_basis.y.dot(Vector3.UP) < 0.9:
 		return false
 	# Test both skids against actual support, excluding our own hollow body.
@@ -92,3 +102,6 @@ func can_disembark() -> bool:
 		if hit.is_empty() or (hit.normal as Vector3).dot(Vector3.UP) < 0.8:
 			return false
 	return true
+
+func doors_closed() -> bool:
+	return not _door_target and not doors_open and (not is_instance_valid(_door_tween) or not _door_tween.is_running())

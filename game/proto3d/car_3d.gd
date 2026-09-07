@@ -1367,6 +1367,10 @@ func _explode() -> void:
 ## Maul characters the car drives into (goal: no more untouchable pedestrians). Damage
 ## scales with speed; a kill is FLUNG in the car's direction (hit_launch → ProtoCorpse) and
 ## the car feels the thud. A player's car never hits its own driver; an AI car can hit you.
+func carries_character(body: Node3D) -> bool:
+	return use_player_input and body is ProtoPlayer3D
+
+
 func _roadkill(delta: float) -> void:
 	for k in _roadkill_cd.keys():
 		_roadkill_cd[k] -= delta
@@ -1385,7 +1389,7 @@ func _roadkill(delta: float) -> void:
 			seen[n] = true
 			if n == self or n == ai_driver or _roadkill_cd.has(n):
 				continue
-			if use_player_input and n is ProtoPlayer3D:
+			if carries_character(n):
 				continue                                  # your own ride won't run you over
 			if n is ProtoCar3D or not n.has_method("take_damage"):
 				continue

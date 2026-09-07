@@ -5,10 +5,10 @@
       "id": "meridian_east",
       "name": "Meridian East",
       "road": "CR-meridian-richmond",
-      "fraction": 0.96,
+      "fraction": 0.88,
       "side": -1,
       "shoulder_m": 8.0,
-      "pad_offset_m": 18.0
+      "pad_offset_m": 36.0
     },
     {
       "id": "richmond",
@@ -17,7 +17,7 @@
       "fraction": 0.16,
       "side": -1,
       "shoulder_m": 8.0,
-      "pad_offset_m": 18.0
+      "pad_offset_m": 36.0
     }
   ],
   "services": [

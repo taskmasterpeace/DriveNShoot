@@ -392,6 +392,9 @@ func _ready() -> void:
 	road_life = ProtoRoadLife.new()
 	add_child(road_life)
 	road_life.setup(self)
+	transit = ProtoTransitService.new()
+	add_child(transit)
+	transit.setup(self)
 
 	house.tracked = player
 	_apply_skill_effects()
@@ -409,6 +412,7 @@ var rulers: Dictionary = {} ## the Divided States' rulers (data/rulers.json)
 var homebase: ProtoHomebase = null
 var objectives: ProtoObjectives = null ## THE FIRST RUN onboarding thread (armed by begin_new_game)
 var road_life: ProtoRoadLife = null ## Offline-only jobs/deeds; one full-run checkpoint.
+var transit: ProtoTransitService = null ## Offline physical shuttle; ticket and fleet checkpoint together.
 var _sun: DirectionalLight3D = null
 var _env: Environment = null
 var _pet_cd: float = 0.0
@@ -698,6 +702,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if hud != null and hud.sheet_blocks_input():
 		return # Sheet handles close/scroll in _input; no gameplay verbs underneath.
 	if road_life != null and road_life.panel.is_open:
+		return
+	if transit != null and transit.panel.is_open:
 		return
 	# THE RETURN BRIEFING owns the screen first: any key/click steps you into the day.
 	if hud != null and hud.briefing_shown():
@@ -1895,6 +1901,9 @@ func _update_interact_prompt() -> void:
 			hud.show_prompt("🛸 PILOTING — SPACE/CTRL climb/dive · SHIFT boost · E land · B recall")
 		return
 	if mode == Mode.DRIVE:
+		if transit != null and transit.is_riding():
+			hud.set_service_passenger(transit.passenger_status())
+			return
 		if active_car and active_car.current_mph < 8.0:
 			hud.show_prompt("E — Get out")
 		else:
@@ -2752,6 +2761,7 @@ func _gameplay_input_blocked() -> bool:
 		or (stream != null and stream.map_blocks_input()) \
 		or (hud != null and hud.sheet_blocks_input()) \
 		or (road_life != null and road_life.panel.is_open) \
+		or (transit != null and transit.panel.is_open) \
 		or (controls_panel != null and controls_panel.is_open) \
 		or (game_shell != null and game_shell.is_open) \
 		or (drone_pilot != null and drone_pilot.body_immobile()) \
@@ -4140,6 +4150,9 @@ func capture_save() -> Dictionary:
 	data["version"] = SAVE_VERSION
 	if road_life != null:
 		data["road_life"] = road_life.state.record()
+	if transit != null:
+		data["transit"] = transit.record()
+		data["transit_fleet"] = transit.fleet_record()
 	return data
 
 
@@ -4170,7 +4183,8 @@ func load_game() -> bool:
 	if road_life != null and data.has("road_life") and not road_life.state.valid_record(data.road_life):
 		notify("ROADSTEAD checkpoint corrupt; no run state was changed")
 		return false
-	apply_save(data)
+	if not apply_save(data):
+		return false
 	notify("💾 LOADED — day %d. The road remembers." % daynight.day)
 	# THE LIVING WORLD: the world kept moving while you were gone. Size the absence and,
 	# if it crossed the threshold, run offline catch-up + wake to the return briefing.
@@ -4234,14 +4248,21 @@ func dismiss_briefing() -> void:
 		b["heard"] = true # you've read them at home; the dial won't re-interrupt for these
 
 
-func apply_save(data: Dictionary) -> void:
+func apply_save(data: Dictionary) -> bool:
 	if net != null and net.online:
 		notify("ROADSTEAD: local checkpoint apply disabled while online")
-		return
+		return false
+	if transit != null and not transit.valid_run(data):
+		notify("LASTLINE checkpoint corrupt; no run state was changed")
+		return false
 	if road_life != null:
 		if data.has("road_life") and not road_life.state.valid_record(data.road_life):
 			notify("ROADSTEAD checkpoint corrupt; no run state was changed")
-			return
+			return false
+	if transit != null and not transit.restore_run(data):
+		notify("LASTLINE recovery checkpoint failed; no run state was changed")
+		return false
+	if road_life != null:
 		road_life.panel.close()
 		road_life.state.restore(data.get("road_life", {}))
 	player_restore(data.get("player", {}))
@@ -4358,6 +4379,7 @@ func apply_save(data: Dictionary) -> void:
 		comp.global_position = Vector3(float(cp[0]), float(cp[1]), float(cp[2]))
 		comp.hp = float(crd.get("hp", 70.0))
 		companions.append(comp)
+	return true
 
 
 # --- RIDING SHOTGUN (goal: NPCs drive; you can be the passenger) ----------------
@@ -4369,6 +4391,9 @@ var _traffic_cd: float = 60.0
 
 
 func enter_passenger(car: ProtoCar3D) -> void:
+	if car is ProtoTransitVehicle and (transit == null or not transit.is_riding() or car.service != transit):
+		notify("LASTLINE: reserve and board at the ticket board")
+		return
 	mode = Mode.DRIVE
 	active_car = car
 	passenger_of_ai = true
@@ -4378,11 +4403,15 @@ func enter_passenger(car: ProtoCar3D) -> void:
 	player.visible = true
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	var who: String = car.ai_driver.moto_name if (car.ai_driver != null and "moto_name" in car.ai_driver) else "the driver"
-	notify("🚗 You ride shotgun with %s — E out · HOLD E to take the wheel" % who)
+	if not car is ProtoTransitVehicle:
+		notify("🚗 You ride shotgun with %s — E out · HOLD E to take the wheel" % who)
 
 
 ## HOLD E from the passenger seat: the brain lets go, the wheel is yours.
 func take_wheel() -> void:
+	if transit != null and transit.is_riding():
+		notify("LASTLINE: public-service driver keeps the wheel")
+		return
 	if not passenger_of_ai or active_car == null:
 		return
 	passenger_of_ai = false
@@ -4728,6 +4757,9 @@ func _update_location_label() -> void:
 
 
 func enter_car(car: ProtoCar3D) -> void:
+	if car is ProtoTransitVehicle:
+		notify("LASTLINE: public-service driver keeps the wheel")
+		return
 	mode = Mode.DRIVE
 	active_car = car
 	car.is_active = true
@@ -4847,6 +4879,9 @@ func _pose_exposed_rider(delta: float) -> void:
 ## of a roofed cab — visible through the authored glass — hands on the wheel.
 ## Seat anchor derives from the rig's own cabin rows so every archetype sits right.
 func _pose_cab_driver(delta: float) -> void:
+	if transit != null and transit.is_riding():
+		transit.pose_passenger(delta)
+		return
 	if active_car == null or player.puppet == null:
 		return
 	var cabin: Vector3 = active_car.spec.get("cabin", Vector3.ZERO)
@@ -4869,6 +4904,9 @@ func _pose_cab_driver(delta: float) -> void:
 
 
 func _exit_car() -> void:
+	if transit != null and transit.is_riding():
+		transit.request_exit()
+		return
 	if active_car == null:
 		return
 	if passenger_of_ai:
