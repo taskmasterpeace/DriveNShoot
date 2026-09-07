@@ -717,36 +717,10 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 	return chunk
 
 
-## Synthetic intersection fill is visual only. Every listed road must really
-## reach the node; this does not repair stale links or change median/nav law.
-## Keep the original fill unchanged for valid junctions, including wide roads.
+## Intersection fill and graph transfers share the same finite pavement law.
+## Fill eligibility and physical median-gap policy remain unchanged.
 func _junction_roads_meet(junction: Dictionary) -> bool:
-	var legs: Array = junction.get("legs", [])
-	var point: Vector2 = junction["pos"]
-	if legs.size() < 2 or not point.is_finite():
-		return false
-	for leg: Dictionary in legs:
-		var road := usmap.road_by_id(String(leg.get("road", "")))
-		if road.is_empty():
-			return false
-		var points: PackedVector2Array = road["pts"]
-		var half_width := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5
-		var cap := 0.03 if String(road.get("interchange_id", "")) != "" else 3.0
-		var meets := false
-		for i: int in range(points.size() - 1):
-			var delta := points[i + 1] - points[i]
-			var length := delta.length()
-			if not points[i].is_finite() or not points[i + 1].is_finite() or length < 0.001:
-				continue
-			var direction := delta / length
-			var local := point - points[i]
-			var along := local.dot(direction)
-			if along >= -cap and along <= length + cap and absf(local.cross(direction)) <= half_width:
-				meets = true
-				break
-		if not meets:
-			return false
-	return true
+	return usmap.junction_roads_meet(junction)
 
 
 ## Spend this chunk's parent cell's banked counts into real actors — budgeted

@@ -258,6 +258,38 @@ func road_by_id(rid: String) -> Dictionary:
 	return {}
 
 
+## Every listed road must reach the junction's finite pavement footprint.
+## Shared by intersection fill and graph transfers; this neither moves roads
+## nor changes grade/control/median policy. Single-leg endpoints are not joins.
+func junction_roads_meet(junction: Dictionary) -> bool:
+	var legs: Array = junction.get("legs", [])
+	var point: Vector2 = junction["pos"]
+	if legs.size() < 2 or not point.is_finite():
+		return false
+	for leg: Dictionary in legs:
+		var road := road_by_id(String(leg.get("road", "")))
+		if road.is_empty():
+			return false
+		var points: PackedVector2Array = road["pts"]
+		var half_width := float(ProtoUSMap.road_geometry(road)["width"]) * 0.5
+		var cap := 0.03 if String(road.get("interchange_id", "")) != "" else 3.0
+		var meets := false
+		for i: int in range(points.size() - 1):
+			var delta := points[i + 1] - points[i]
+			var length := delta.length()
+			if not points[i].is_finite() or not points[i + 1].is_finite() or length < 0.001:
+				continue
+			var direction := delta / length
+			var local := point - points[i]
+			var along := local.dot(direction)
+			if along >= -cap and along <= length + cap and absf(local.cross(direction)) <= half_width:
+				meets = true
+				break
+		if not meets:
+			return false
+	return true
+
+
 ## The shared ramp contract. Explicit roles choose the legal terminal even when
 ## hundreds of metres from the sign anchor. Legacy inference stays inside the
 ## owned ID list; only a genuinely unowned legacy exit may search its anchor.

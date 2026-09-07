@@ -23,6 +23,7 @@ var _road_nodes: Dictionary = {} ## road id -> Array of {node: String, arc_m: fl
 var _ports: Dictionary = {} ## ramp id -> shared port, serving highway and terminal arc
 var _carriers: Dictionary = {} ## highways whose through-directions must stay distinct
 var _active_nodes: Dictionary = {} ## edge endpoints, including incoming-only sinks
+var _nonmeeting: Dictionary = {} ## junction id -> failed multi-leg meeting, computed once at build
 
 
 static func build(usmap_ref: ProtoUSMap) -> ProtoRoadGraph:
@@ -53,6 +54,10 @@ func _build() -> void:
 		var nid := String(j["id"])
 		nodes[nid] = {"pos": j["pos"], "junction": j}
 		adj[nid] = []
+		# End caps have no transfer to reject. Do not mistake their single leg
+		# for a failed join or move their selectable same-road endpoint.
+		if (j["legs"] as Array).size() >= 2:
+			_nonmeeting[nid] = not usmap.junction_roads_meet(j)
 		for l in j["legs"]:
 			var rid := String(l["road"])
 			if _ports.has(rid) and absf(float(l["arc_m"]) - float(_ports[rid]["terminal_arc"])) <= 2.0:
@@ -71,6 +76,8 @@ func _build() -> void:
 		var lst: Array = _road_nodes[rid]
 		lst.sort_custom(func(a, b) -> bool: return float(a["arc_m"]) < float(b["arc_m"]))
 		var road: Dictionary = usmap.road_by_id(String(rid))
+		if road.is_empty() or (road["pts"] as PackedVector2Array).size() < 2:
+			continue # malformed/missing road cannot create edges or be sampled
 		var mps: float = maxf(0.1, float(road.get("speed_mps", KIND_SPEED.get(String(road.get("kind", "backroad")), 16.0))))
 		for i in range(lst.size() - 1):
 			var a: Dictionary = lst[i]
@@ -109,13 +116,13 @@ func _edge(from: String, to: String, rid: String, length: float, mps: float) -> 
 	_active_nodes[to] = true
 
 
-## separated_pending AND deck nodes are per-road clones (no transfer): a DECK is
-## an overpass, not an interchange — you cross ABOVE a road, you don't turn onto
-## it (turning takes ramps). Serving highways also split travel directions at
-## every limited-access node; only genuine flat control-gap nodes stay shared.
+## Grade-separated and physically nonmeeting nodes are per-road clones, so
+## along-road travel remains intact without inventing cross-road transfers.
+## Serving highways also split travel directions at every limited-access node;
+## only physically meeting flat control-gap nodes can stay shared.
 func _travel_node(nid: String, rid: String, arc: float, direction: int) -> String:
 	var j: Dictionary = (nodes.get(nid, {}) as Dictionary).get("junction", {})
-	var separate := String(j.get("grade", "flat")) in ["separated_pending", "deck"]
+	var separate := String(j.get("grade", "flat")) in ["separated_pending", "deck"] or bool(_nonmeeting.get(nid, false))
 	var carrier := _carriers.has(rid) and not (String(j.get("control", "none")) == "gap" and not separate)
 	if separate or carrier:
 		var cid := "%s@%s" % [nid, rid]
