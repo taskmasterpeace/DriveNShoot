@@ -9,6 +9,10 @@
 class_name ProtoWorldStream
 extends Node3D
 
+## Shared default-off diagnostic switch, fixed-size aggregate state only.
+var reservation_profile_enabled: bool = OS.get_environment("DRIVN_PROFILE_PARKING")=="1"
+var reservation_profile: Dictionary = {"ordinary_calls":0,"ordinary_us":0,"ordinary_max_us":0,"departure_calls":0,"departure_us":0,"departure_max_us":0,"candidates":0,"rectangles":0}
+
 const CHUNK := 128.0
 const RING := 3 ## load radius in chunks
 const WORLD_SEED := 0xD817D
@@ -2110,7 +2114,8 @@ static func _ruin_street_rects(center: Vector3) -> Array:
 ## one nearest segment per road. The existing spatial index bounds country-scale
 ## work; a 128m search envelope covers the block's 48m offsets + rotated 14m boxes.
 ## Rect layout matches extra_road_rects: [x, z, half_x, half_z, Godot yaw].
-func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "") -> Array:
+func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "", departure: Dictionary = {}) -> Array:
+	var profile_start := Time.get_ticks_usec() if reservation_profile_enabled else 0
 	var result: Array = []
 	var point := Vector2(center.x, center.z)
 	# Six-field entries are the macro road GRIP envelope (one metre wider than
@@ -2120,6 +2125,7 @@ func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "")
 		if rect.size() == 5:
 			result.append(rect)
 	if usmap == null or not usmap.ok:
+		_record_reservation_profile(profile_start,not departure.is_empty(),0,result.size())
 		return result
 	# Reserve each actual speed-change lane plus its one-metre safety verge
 	# BEFORE roadside rails/houses are generated, independent of chunk order.
@@ -2171,6 +2177,18 @@ func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "")
 		var delta := b - a
 		if delta.length_squared() < 0.0001:
 			continue
+		if String(road["id"])==String(departure.get("road_id","")) and (departure.get("cuts",{}) as Dictionary).has(int(candidate[1])):
+			# Parking may leave only its frozen, local outward swept arc window.
+			# Keep both remainder rectangles, including original endpoint caps;
+			# clipping must not exempt the rest of a long same-ID segment.
+			var cut: Vector2 = departure["cuts"][int(candidate[1])]
+			var length := delta.length()
+			var direction := delta/length
+			for interval: Vector2 in [Vector2(-3.0,minf(cut.x,length+3.0)),Vector2(maxf(cut.y,-3.0),length+3.0)]:
+				if interval.y>interval.x:
+					var remainder := a+direction*(interval.x+interval.y)*0.5
+					result.append([remainder.x,remainder.y,half_width,(interval.y-interval.x)*0.5,atan2(delta.x,delta.y)])
+			continue
 		var midpoint := (a + b) * 0.5
 		# Asphalt extends 3m past each segment endpoint (_build_road_stretch).
 		result.append([midpoint.x, midpoint.y, half_width, delta.length() * 0.5 + 3.0,
@@ -2190,7 +2208,24 @@ func _ruin_exclusions(center: Vector3, key: String, ignore_road_id: String = "")
 		# The legacy massing-box fallback has no rotation; catalog shells do.
 		var yaw := float(placement.get("rot", 0.0)) if profile != null else 0.0
 		result.append([pos.x, pos.y, half.x, half.y, yaw])
+	_record_reservation_profile(profile_start,not departure.is_empty(),candidates.size(),result.size())
 	return result
+
+
+func _record_reservation_profile(start: int, departure: bool, candidates: int, rectangles: int) -> void:
+	if not reservation_profile_enabled:
+		return
+	var elapsed := Time.get_ticks_usec()-start
+	if departure:
+		reservation_profile["departure_calls"] += 1
+		reservation_profile["departure_us"] += elapsed
+		reservation_profile["departure_max_us"] = maxi(int(reservation_profile["departure_max_us"]),elapsed)
+	else:
+		reservation_profile["ordinary_calls"] += 1
+		reservation_profile["ordinary_us"] += elapsed
+		reservation_profile["ordinary_max_us"] = maxi(int(reservation_profile["ordinary_max_us"]),elapsed)
+	reservation_profile["candidates"] += candidates
+	reservation_profile["rectangles"] += rectangles
 
 
 ## Exact oriented-box SAT in XZ. Godot yaw sends local +X to (cos,-sin)

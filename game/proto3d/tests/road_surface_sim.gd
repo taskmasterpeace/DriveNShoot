@@ -5,6 +5,11 @@ var passed: int = 0
 var failed: int = 0
 var output: String = ""
 var captures: Array[Dictionary] = []
+var timing_enabled: bool = OS.get_environment("DRIVN_PROFILE_PARKING")=="1"
+
+func _timing_marker(phase: String, updates: int = 0, total_us: int = 0, max_us: int = 0) -> void:
+	if timing_enabled:
+		print("SURFACE TIMING phase=%s wall_ms=%d stream_updates=%d update_total_us=%d update_max_us=%d parking=%s reservations=%s" % [phase,Time.get_ticks_msec(),updates,total_us,max_us,main.traffic.parking_profile,main.stream.reservation_profile])
 
 func check(label: String, ok: bool) -> void:
 	passed += int(ok)
@@ -125,14 +130,26 @@ func _height_at(road: Dictionary, point: Vector2) -> float:
 
 
 func _stage_photo(point: Vector2, id: String) -> void:
+	_timing_marker("photo start "+id)
+	var update_total := 0
+	var update_max := 0
 	main.player.global_position = Vector3(point.x, ProtoWorldBuilder.ground_y(point.x, point.y) + 1.2, point.y)
 	main.player.velocity = Vector3.ZERO
 	for i: int in 70:
+		var started := Time.get_ticks_usec() if timing_enabled else 0
 		main.stream.update_stream(main.player.global_position, main)
+		if timing_enabled:
+			var elapsed := Time.get_ticks_usec()-started
+			update_total += elapsed
+			update_max = maxi(update_max,elapsed)
 		await frames(1)
+		if (i+1)%20==0:
+			_timing_marker("photo stream "+id,i+1,update_total,update_max)
 	main.cam_rig.snap_to_target()
+	_timing_marker("photo settle "+id,70,update_total,update_max)
 	await frames(30)
 	await capture(id)
+	_timing_marker("photo end "+id,70,update_total,update_max)
 
 
 func _diamond_physics() -> void:
@@ -249,9 +266,11 @@ func _diamond_physics() -> void:
 		await _full_width_floor(map.road_by_id(id))
 		await _continuous_road_envelope(map.road_by_id(id))
 	_bridge_clearance(map)
+	_timing_marker("owned cleanup start")
 	for chunk: Node3D in owned_chunks:
 		chunk.queue_free()
 	await frames(2)
+	_timing_marker("owned cleanup end")
 	# Exact matched photographic stages used for the four original BEFOREs.
 	await _stage_photo((cross["pts"] as PackedVector2Array)[0], "02_crossroad_ground_approach")
 	await _stage_photo((map.road_by_id("I-90_X11-off")["pts"] as PackedVector2Array)[0], "03_actual_off_ramp_mouth")
@@ -473,26 +492,16 @@ func _port_hardware(map: ProtoUSMap, chunks: Array[Node3D]) -> void:
 		print("ROAD PORT FLOOR %s gaps=%d blocked=%d reflector_posts=%d" % [port["road"]["id"], strip_floor_gaps, strip_blocked, reflector_posts])
 		check("actual %s speed-change lane has full-width physical floor and travel clearance" % port["road"]["id"], strip_floor_gaps == 0 and strip_blocked == 0)
 		check("actual %s ramp has roadside reflector posts" % port["road"]["id"], reflector_posts >= 4)
-	var barrels := 0
-	var bad_barrels := 0
-	var barrel_ports: Dictionary = {}
-	for chunk: Node3D in chunks:
-		for node: Node in chunk.get_children():
-			if not node is StaticBody3D or not node.has_meta("gore_barrel"):
-				continue
-			barrels += 1
-			var port_id := String(node.get_meta("gore_barrel"))
-			barrel_ports[port_id] = int(barrel_ports.get(port_id, 0)) + 1
-			for road: Dictionary in map.road_segments_near(node.global_position, 30.0):
-				var xz := Vector2(node.global_position.x, node.global_position.z)
-				if ProtoUSMap._seg_dist(xz, road["a"], road["b"]) < float(ProtoUSMap.road_geometry(road)["width"]) * 0.5 + 0.4:
-					bad_barrels += 1
-					print("ROAD BAD BARREL id=%s pos=%s overlaps=%s" % [node.get_meta("gore_barrel"), node.global_position, road["id"]])
-	print("ROAD GORE barrels=%d footprint_overlaps=%d" % [barrels, bad_barrels])
+	var inventory := _gore_inventory(map,chunks)
+	var barrel_ports: Dictionary = inventory["ports"]
+	var owned_ports: Array[String] = []
+	print("ROAD GORE barrels=%d footprint_overlaps=%d" % [inventory["total"],inventory["bad"]])
 	print("ROAD GORE PORT COUNTS %s" % barrel_ports)
 	for port: Dictionary in map.exit_ports(descriptor):
 		var ramp: Dictionary = port["road"]
 		var port_id := "I-90_X11-%s-port" % ramp["id"]
+		owned_ports.append(port_id)
+		check("actual owned %s independently has at least three gore barrels" % port_id,int(barrel_ports.get(port_id,0))>=3)
 		if int(barrel_ports.get(port_id, 0)) >= 3:
 			continue
 		var points: PackedVector2Array = ramp["pts"]
@@ -514,7 +523,72 @@ func _port_hardware(map: ProtoUSMap, chunks: Array[Node3D]) -> void:
 				if not main.stream._ruin_footprint_clear(Vector3(candidate.x, 0, candidate.y), Vector3(0.85, 0.9, 0.85), 0.0, [rect]):
 					conflicts.append(rect)
 			print("ROAD GORE CANDIDATE %s d=%.0f pos=%s conflicts=%s" % [ramp["id"], distance, candidate, conflicts])
-	check("actual gore barrels exist outside every full road footprint", barrels >= 12 and bad_barrels == 0)
+	check("actual gore barrels exist outside every full road footprint", _gore_gate(inventory,owned_ports))
+	_gore_ownership_negative(map,chunks,owned_ports)
+
+
+func _gore_inventory(map: ProtoUSMap, chunks: Array[Node3D]) -> Dictionary:
+	var total := 0
+	var bad := 0
+	var ports: Dictionary = {}
+	for chunk: Node3D in chunks:
+		for node: Node in chunk.get_children():
+			if not node is StaticBody3D or not node.has_meta("gore_barrel"):
+				continue
+			total += 1
+			var port_id := String(node.get_meta("gore_barrel"))
+			ports[port_id] = int(ports.get(port_id,0))+1
+			for road: Dictionary in map.road_segments_near(node.global_position,30.0):
+				var xz := Vector2(node.global_position.x,node.global_position.z)
+				if ProtoUSMap._seg_dist(xz,road["a"],road["b"])<float(ProtoUSMap.road_geometry(road)["width"])*0.5+0.4:
+					bad += 1
+					print("ROAD BAD BARREL id=%s pos=%s overlaps=%s" % [port_id,node.global_position,road["id"]])
+	return {"total":total,"bad":bad,"ports":ports}
+
+
+func _gore_gate(inventory: Dictionary, owned_ports: Array[String]) -> bool:
+	if int(inventory["total"])<12 or int(inventory["bad"])!=0 or owned_ports.size()!=4:
+		return false
+	for port_id: String in owned_ports:
+		if int(inventory["ports"].get(port_id,0))<3:
+			return false
+	return true
+
+
+func _gore_ownership_negative(map: ProtoUSMap, chunks: Array[Node3D], owned_ports: Array[String]) -> void:
+	var before := _gore_inventory(map,chunks)
+	var subject: StaticBody3D = null
+	for chunk: Node3D in chunks:
+		for node: Node in chunk.get_children():
+			if node is StaticBody3D and String(node.get_meta("gore_barrel",""))==owned_ports[0]:
+				subject = node
+				break
+		if subject!=null:
+			break
+	check("barrel ownership negative uses an actual owned materialized barrel",subject!=null)
+	if subject==null:
+		return
+	var original_parent := subject.get_parent()
+	var original_index := subject.get_index()
+	var pose := subject.global_transform
+	var holding := Node3D.new()
+	main.add_child(holding)
+	# Synchronous inventory fixture only: no physics/input frame occurs with
+	# the real barrel withheld, and no real-drive scene or road data is altered.
+	subject.reparent(holding,true)
+	var unrelated := subject.duplicate() as StaticBody3D
+	unrelated.set_meta("gore_barrel","UNRELATED-PORT-counterexample")
+	original_parent.add_child(unrelated)
+	unrelated.global_transform = pose
+	var mutated := _gore_inventory(map,chunks)
+	check("missing-port fixture preserves total barrels and full-road overlap result",mutated["total"]==before["total"] and mutated["bad"]==before["bad"])
+	check("missing-port fixture actually removes one owned count and adds unrelated hardware",int(mutated["ports"].get(owned_ports[0],0))==int(before["ports"].get(owned_ports[0],0))-1 and int(mutated["ports"].get("UNRELATED-PORT-counterexample",0))==1)
+	check("actual gore gate rejects a missing owned barrel despite compensating unrelated hardware",not _gore_gate(mutated,owned_ports))
+	unrelated.free()
+	subject.reparent(original_parent,true)
+	original_parent.move_child(subject,original_index)
+	holding.free()
+	check("barrel ownership negative restores every original materialized count",_gore_inventory(map,chunks)==before)
 
 
 ## The driven car's outside wheels fell into this highway-to-ramp gap. Probe

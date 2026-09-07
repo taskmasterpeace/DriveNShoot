@@ -82,6 +82,9 @@ var _promoted: Array = []
 var _maintain_t: float = 0.0
 var _honk_t: float = 0.0
 var _arc_cache: Dictionary = {} ## road_id -> PackedFloat32Array of cumulative seg lengths
+## Shared opt-in diagnostics: fixed-size aggregates, no per-query output.
+var parking_profile_enabled: bool = OS.get_environment("DRIVN_PROFILE_PARKING")=="1"
+var parking_profile: Dictionary = {"searches":0,"selected":0,"candidates":0,"corridor_builds":0,"members":0,"total_us":0,"max_us":0}
 
 
 ## ONE ambient car: an AnimatableBody3D shell the road moves. take_damage is the
@@ -109,6 +112,7 @@ class TrafficAgent extends AnimatableBody3D:
 	var cargo: String = ""
 	var _connection: Dictionary = {} # bounded lane-to-lane motion, never a snap
 	var _parking: Dictionary = {} # validated target + final road-aligned yaw
+	var _parking_departure: Dictionary = {} # frozen initial outward arc window; retries never enlarge it
 	var _parking_retry: float = 0.0
 	var _parking_curb_used: bool = false # trip state: retries/previews cannot replenish it
 
@@ -391,10 +395,17 @@ func _prepare_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
 		return
 	if not ag._parking.is_empty():
 		return
+	# Freeze the real departure pose only after ordinary approach braking.
+	if ag.speed>float(TRAFFIC["pull_over_speed_mps"]):
+		return
 	ag._parking_retry = maxf(0.0,ag._parking_retry-delta)
 	if ag._parking_retry>0:
 		return
 	ag._parking_retry = float(TRAFFIC["pull_over_retry_s"])
+	var profile_start := Time.get_ticks_usec() if parking_profile_enabled else 0
+	var profile_candidates := 0
+	var profile_builds := 0
+	var profile_members := 0
 	var cumulative := _cum(road)
 	var points: PackedVector2Array = road["pts"]
 	var total: float = cumulative[-1]
@@ -413,20 +424,113 @@ func _prepare_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
 		var lane := _lane_position(road,segment,arc-cumulative[segment],ag.dir,ag.lane)
 		var center := Vector2(lane.x,lane.z)-right*ProtoUSMap.lane_offset(road,ag.lane)
 		for offset_index: int in range(1,4):
+			profile_candidates += 1
 			var offset := float(ProtoUSMap.road_geometry(road)["width"])*0.5+float(TRAFFIC["pull_over_offset_%d_m" % offset_index])
 			var p := center+right*offset
 			var guess := Vector3(p.x,lane.y,p.y)
 			var key := "%d,%d" % [floori(p.x/128.0),floori(p.y/128.0)]
 			var plot_exclusions: Array = main.stream._ruin_exclusions(guess,key)
-			var entry_exclusions: Array = main.stream._ruin_exclusions(guess,key,ag.road_id)
 			var plot := _parking_sample(ag,guess,yaw,size,plot_exclusions)
 			if plot.is_empty():
 				continue
 			var target: Vector3 = plot["position"]
-			if not _parking_entry_clear(ag,ag.global_position,target,size,entry_exclusions):
+			var departure := ag._parking_departure
+			if departure.is_empty():
+				profile_builds += 1
+				departure = _departure_corridor(ag,road,target,size)
+				if parking_profile_enabled and not departure.is_empty():
+					profile_members += (departure["cuts"] as Dictionary).size()
+			if departure.is_empty():
+				continue
+			# Freeze before the first entry query: an occupied plot/entry retry
+			# cannot grow the exception by projecting from a later actor pose.
+			ag._parking_departure = departure
+			var entry_exclusions: Array = main.stream._ruin_exclusions(guess,key,"",departure)
+			if not _parking_entry_clear(ag,ag.global_position,target,size,entry_exclusions,departure):
 				continue
 			ag._parking = {"target":target,"yaw":yaw,"size":size,"plot_exclusions":plot_exclusions,"entry_exclusions":entry_exclusions,"started":false}
+			_record_parking_profile(profile_start,profile_candidates,profile_builds,profile_members,true)
 			return
+	_record_parking_profile(profile_start,profile_candidates,profile_builds,profile_members,false)
+
+
+func _record_parking_profile(start: int, candidates: int, builds: int, members: int, selected: bool) -> void:
+	if not parking_profile_enabled:
+		return
+	var elapsed := Time.get_ticks_usec()-start
+	parking_profile["searches"] += 1
+	parking_profile["selected"] += int(selected)
+	parking_profile["candidates"] += candidates
+	parking_profile["corridor_builds"] += builds
+	parking_profile["members"] += members
+	parking_profile["total_us"] += elapsed
+	parking_profile["max_us"] = maxi(int(parking_profile["max_us"]),elapsed)
+
+
+## Excise only the initial outward hull sweep, expressed in the road's arc
+## coordinates. Adjacent tessellation is allowed, not a later bend/return.
+## The same immutable cuts survive retries and the actor's later projection.
+func _departure_corridor(ag: TrafficAgent, road: Dictionary, target: Vector3, size: Vector3) -> Dictionary:
+	var points: PackedVector2Array = road["pts"]
+	var cumulative := _cum(road)
+	var start := Vector2(ag.global_position.x,ag.global_position.z)
+	var motion := Vector2(target.x,target.z)-start
+	var forward := (points[ag.seg_i+1]-points[ag.seg_i]).normalized()*float(ag.dir)
+	var right := Vector2(-forward.y,forward.x)
+	var outward := motion.dot(right)
+	if not start.is_finite() or not motion.is_finite() or outward<=0.0:
+		return {}
+	var yaw := atan2(-motion.x,-motion.y)
+	# Match the existing overlapping full-envelope queries, including their
+	# exact half-interval extension, rather than creating a new safety margin.
+	var interval := motion.length()/float(maxi(1,ceili(motion.length()/2.0)))
+	var along_half := maxf(_departure_extent(size,ag.rotation.y,forward),_departure_extent(size+Vector3(0,0,interval),yaw,forward))
+	var outward_half := maxf(_departure_extent(size,ag.rotation.y,right),_departure_extent(size+Vector3(0,0,interval),yaw,right))
+	var lateral := (start-_centerline_point(ag,road)).dot(right)
+	var crossing := (float(ProtoUSMap.road_geometry(road)["width"])*0.5+outward_half-lateral)/outward
+	if crossing<=0.0 or crossing>1.0:
+		return {}
+	var along_exit := motion.dot(forward)*crossing*float(ag.dir)
+	var arc: float = cumulative[ag.seg_i]+ag.s_ab
+	var low := arc+minf(0.0,along_exit)-along_half
+	var high := arc+maxf(0.0,along_exit)+along_half
+	var cuts: Dictionary = {}
+	var rights: Array[Vector2] = []
+	# Contiguous walks stop at the first nonlocal/opposing shoulder. The 3m
+	# range is the existing reservation's endpoint cap, not new pavement.
+	for walk: int in [-1,1]:
+		var index := ag.seg_i if walk<0 else ag.seg_i+1
+		while index>=0 and index<points.size()-1:
+			var length := points[index].distance_to(points[index+1])
+			if cumulative[index]-3.0>=high or cumulative[index+1]+3.0<=low:
+				break
+			var direction := (points[index+1]-points[index]).normalized()*float(ag.dir)
+			var edge_right := Vector2(-direction.y,direction.x)
+			if length<=0.0 or direction.dot(forward)<=0.0 or (start-points[index]).dot(edge_right)<0.0 or motion.dot(edge_right)<=0.0:
+				break
+			cuts[index] = Vector2(low-cumulative[index],high-cumulative[index])
+			rights.append(edge_right)
+			index += walk
+	if not cuts.has(ag.seg_i):
+		return {}
+	return {"road_id":ag.road_id,"start":start,"rights":rights,"cuts":cuts}
+
+
+func _departure_extent(size: Vector3, yaw: float, axis: Vector2) -> float:
+	var basis := Basis(Vector3.UP,yaw)
+	return absf(Vector2(basis.x.x,basis.x.z).dot(axis))*size.x*0.5+absf(Vector2(basis.z.x,basis.z.z).dot(axis))*size.z*0.5
+
+
+func _departure_outward(start: Vector3, finish: Vector3, departure: Dictionary) -> bool:
+	if departure.is_empty():
+		return true # direct floor/curb controls have no road reservation exception
+	var origin: Vector2 = departure["start"]
+	var current := Vector2(start.x,start.z)
+	var motion := Vector2(finish.x-start.x,finish.z-start.z)
+	for right: Vector2 in departure["rights"]:
+		if (current-origin).dot(right)<-0.00001 or motion.dot(right)<-0.00001:
+			return false
+	return true
 
 
 ## The footprint and the complete entry corridor require actual loaded floors.
@@ -525,13 +629,15 @@ func _parking_floor_transition(ag: TrafficAgent, before: Dictionary, after: Dict
 	return 1
 
 
-func _parking_entry_clear(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array) -> bool:
-	return not _parking_entry_path(ag,start,finish,size,exclusions).is_empty()
+func _parking_entry_clear(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array, departure: Dictionary = {}) -> bool:
+	return not _parking_entry_path(ag,start,finish,size,exclusions,departure).is_empty()
 
 
 ## Validation is read-only. Only a successfully committed motion step spends
 ## the single curb allowance; full-path previews and failed retries never do.
-func _parking_entry_path(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array) -> Dictionary:
+func _parking_entry_path(ag: TrafficAgent, start: Vector3, finish: Vector3, size: Vector3, exclusions: Array, departure: Dictionary = {}) -> Dictionary:
+	if not _departure_outward(start,finish,departure):
+		return {}
 	var delta := finish-start
 	var length := Vector2(delta.x,delta.z).length()
 	var yaw := atan2(-delta.x,-delta.z)
@@ -573,7 +679,7 @@ func _step_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
 	if not bool(ag._parking["started"]):
 		# The actor may have coasted while braking to its pull-over speed. Check
 		# the complete entry again from its actual departure pose, not the old one.
-		if not _parking_entry_clear(ag,ag.global_position,target,size,ag._parking["entry_exclusions"]):
+		if not _parking_entry_clear(ag,ag.global_position,target,size,ag._parking["entry_exclusions"],ag._parking_departure):
 			ag._parking.clear()
 			ag.speed = 0.0
 			ag._parking_retry = float(TRAFFIC["pull_over_retry_s"])
@@ -588,7 +694,7 @@ func _step_parking(ag: TrafficAgent, road: Dictionary, delta: float) -> void:
 		next = ag.global_position.move_toward(support["position"],ag.speed*delta)
 	var entry: Dictionary = {}
 	if not support.is_empty() and not plot.is_empty():
-		entry = _parking_entry_path(ag,ag.global_position,next,size,ag._parking["entry_exclusions"])
+		entry = _parking_entry_path(ag,ag.global_position,next,size,ag._parking["entry_exclusions"],ag._parking_departure)
 	if entry.is_empty():
 		ag._parking.clear()
 		ag.speed = 0.0

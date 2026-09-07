@@ -12,6 +12,23 @@ extends Node
 var passed := 0
 var failed := 0
 var main: Node3D
+var timing_enabled: bool = OS.get_environment("DRIVN_PROFILE_PARKING")=="1"
+var timing_sync: Dictionary = {"calls":0,"frames":0,"total_us":0,"max_us":0}
+
+
+func _timing_marker(phase: String, fixture: ProtoTraffic = null, step: int = 0, tick_us: int = 0) -> void:
+	if timing_enabled:
+		print("TRAFFIC TIMING phase=%s wall_ms=%d step=%d manual_s=%.2f last_tick_us=%d sync=%s parking=%s reservations=%s" % [phase,Time.get_ticks_msec(),step,step*0.05,tick_us,timing_sync,fixture.parking_profile if fixture!=null else {},main.stream.reservation_profile if main!=null else {}])
+
+
+func _record_sync_timing(start: int, frames_waited: int) -> void:
+	if not timing_enabled:
+		return
+	var elapsed := Time.get_ticks_usec()-start
+	timing_sync["calls"] += 1
+	timing_sync["frames"] += frames_waited
+	timing_sync["total_us"] += elapsed
+	timing_sync["max_us"] = maxi(int(timing_sync["max_us"]),elapsed)
 
 
 func _check(check_name: String, ok: bool) -> void:
@@ -503,12 +520,137 @@ func _managed_trip_regressions(map: ProtoUSMap) -> void:
 		chunk.queue_free()
 	await get_tree().physics_frame
 	await _unsafe_parking_regressions(map)
+	await _bent_feeder_entry_regression(map)
 
 
 func _stage_trip_observer(point: Vector2) -> void:
 	# Staging is between independent trips only. No observer movement under tick.
 	main.active_car.global_position = Vector3(point.x,ProtoWorldBuilder.ground_y(point.x,point.y)+1.2,point.y)
 	main.active_car.linear_velocity = Vector3.ZERO
+
+
+func _bent_feeder_entry_regression(live_map: ProtoUSMap) -> void:
+	for mode: String in ["bent","adjacent","returning"]:
+		await _departure_corridor_case(live_map,mode)
+
+
+func _departure_corridor_case(live_map: ProtoUSMap, mode: String) -> void:
+	_timing_marker("corridor start "+mode)
+	# Literal reviewer counterexample, translated away from live authored roads:
+	# east to(0,0), south to(0,20), east to destination(60,20). The first
+	# right-side destination plot(5,29.6) is clear, but getting there recrosses
+	# the SAME road's later eastbound pavement. All floors are level and real.
+	var map := ProtoUSMap.new()
+	_check("bent feeder fixture folds independently",map.load_file(ProtoUSMap.PATH))
+	var origin := Vector2(90304,90048)
+	var id := "TEST-BENT-FEEDER"
+	var points := PackedVector2Array([origin-Vector2(100,0),origin,origin+Vector2(0,20),origin+Vector2(60,20)])
+	if mode=="adjacent":
+		points = PackedVector2Array([origin-Vector2(100,0),origin-Vector2(4,0),origin,origin+Vector2(4,0),origin+Vector2(8,0),origin+Vector2(12,0),origin+Vector2(60,0)])
+	elif mode=="returning":
+		points = PackedVector2Array([origin-Vector2(100,0),origin,origin+Vector2(0,12),origin+Vector2(-4,12),origin+Vector2(-4,22),origin+Vector2(50,22)])
+	var elevation := PackedFloat32Array()
+	elevation.resize(points.size())
+	elevation.fill(4.0)
+	var road: Dictionary = {"id":id,"kind":"county","pts":points,"elev":elevation,"elev_mode":"structure","lanes":2,"divided":false,"one_way":false,"interchange_id":"TEST-BENT"}
+	var owner: Dictionary = {}
+	for exit_row: Dictionary in map.exits:
+		if String(exit_row["id"])=="I-90_X11":
+			owner = exit_row.duplicate(true)
+	owner["id"] = "TEST-BENT"
+	owner["pos"] = points[0]
+	owner["dest"] = points[-1]
+	owner["connector_ids"] = [id]
+	owner["ramp_ids"] = []
+	map.roads = [road,live_map.road_by_id("I-90").duplicate(true)]
+	map.exits = [owner]
+	map.placements = []
+	map.junctions = []
+	map.towns = []
+	map._build_seg_grid()
+	_stage_trip_observer(origin+Vector2(-35,-35))
+	var root := Node3D.new()
+	main.add_child(root)
+	_parking_box(root,Vector3(origin.x-20,3.59,origin.y+20),Vector3(220,1,100),"bent_level_support")
+	for index: int in range(points.size()-1):
+		var direction := (points[index+1]-points[index]).normalized()
+		var right := Vector2(-direction.y,direction.x)*4.6
+		var corners: Array[Vector3] = []
+		for center: Vector2 in [points[index],points[index+1]]:
+			for point: Vector2 in [center-right,center+right]:
+				corners.append(Vector3(point.x,4.09,point.y))
+		main.stream._road_prism(root,corners,id,Color(0.15,0.15,0.15),0.52,true)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var fixture := _trip_fixture(map,true,"I-90",50,25,root)
+	var start_segment := 1 if mode=="adjacent" else 0
+	var start_station := 4.0 if mode=="adjacent" else 100.0
+	var agent := fixture.spawn_agent(id,start_segment,start_station,0,1) as ProtoTraffic.TrafficAgent
+	fixture.set_agent_speed(agent,5)
+	fixture.set_agent_trip(agent,"TEST-BENT")
+	var synced := await _sync_matrix_actors(fixture)
+	_check_matrix_bodies(fixture,"bent feeder staged")
+	var target := Vector3(origin.x+5,4.71,origin.y+29.6)
+	var target_yaw := -PI*0.5
+	if mode=="adjacent":
+		target = Vector3(origin.x+5,4.71,origin.y+9.6)
+	elif mode=="returning":
+		target = Vector3(origin.x-13.6,4.71,origin.y+21)
+		target_yaw = PI
+	var key := "%d,%d" % [floori(target.x/128),floori(target.z/128)]
+	main.stream.usmap = map
+	var plot_exclusions: Array = main.stream._ruin_exclusions(target,key)
+	var plot := fixture._parking_sample(agent,target,target_yaw,fixture._parking_size(agent),plot_exclusions)
+	_check("%s feeder final plot has real level support and clears all roads/bodies" % mode,not plot.is_empty())
+	fixture._prepare_parking(agent,road,0.05)
+	print("TRAFFIC CORRIDOR mode=%s prepared=%s start=%s literal_target=%s" % [mode,agent._parking,agent.global_position,target])
+	_check("%s feeder selects only a locally outward departure" % mode,agent._parking.is_empty()!=(mode=="adjacent"))
+	var frozen_departure: Dictionary = agent._parking_departure.duplicate(true)
+	if mode=="adjacent" and not agent._parking.is_empty():
+		var reserved: Array = agent._parking["entry_exclusions"]
+		_check("adjacent departure admits the actual neighbouring tessellation",ProtoWorldStream._ruin_footprint_clear(Vector3(origin.x+4,4.71,origin.y+1.8),Vector3(0.2,1,0.2),0,reserved))
+		_check("adjacent departure retains both partially clipped road remainders",not ProtoWorldStream._ruin_footprint_clear(Vector3(origin.x-12,4.71,origin.y),Vector3(0.2,1,0.2),0,reserved) and not ProtoWorldStream._ruin_footprint_clear(Vector3(origin.x+30,4.71,origin.y),Vector3(0.2,1,0.2),0,reserved))
+		_check("frozen departure rejects inward motion even over supported floors",not fixture._parking_entry_clear(agent,target,agent.global_position,fixture._parking_size(agent),reserved,frozen_departure))
+	main.stream.usmap = live_map
+	var recrossed := false
+	var bounded := true
+	# Independently specified full later pavement rectangle, not exclusions
+	# generated with the serving-road exception that this test challenges.
+	var later_strip: Array = [[origin.x+30,origin.y+20,4.6,30.0,PI*0.5]]
+	if mode=="returning":
+		later_strip = [[origin.x-2,origin.y+12,4.6,2.0,PI*0.5]]
+	for step: int in 1200:
+		var before := agent.global_position
+		var speed_before := agent.speed
+		main.stream.usmap = map
+		var tick_started := Time.get_ticks_usec() if timing_enabled else 0
+		fixture._tick(0.05)
+		var tick_us := Time.get_ticks_usec()-tick_started if timing_enabled else 0
+		main.stream.usmap = live_map
+		synced = (await _sync_matrix_actors(fixture)) and synced
+		if (step+1)%200==0:
+			_timing_marker("corridor "+mode,fixture,step+1,tick_us)
+		if not fixture.agents.has(agent):
+			break
+		bounded = bounded and before.distance_to(agent.global_position)<=maxf(speed_before,agent.speed)*0.05+0.02
+		if mode!="adjacent":
+			recrossed = recrossed or not ProtoWorldStream._ruin_footprint_clear(agent.global_position,fixture._parking_size(agent),agent.rotation.y,later_strip)
+		if agent.arrived:
+			break
+	_check("%s feeder never recrosses nonlocal same-road pavement" % mode,not recrossed)
+	_check("%s feeder retains its synchronized speed-bounded actor with correct arrival" % mode,synced and bounded and is_instance_valid(agent) and fixture.agents.has(agent) and agent.arrived==(mode=="adjacent"))
+	_check("%s departure cuts never grow across movement or failed retries" % mode,is_instance_valid(agent) and agent._parking_departure==frozen_departure)
+	if mode=="adjacent" and is_instance_valid(agent):
+		main.stream.usmap = map
+		var final_key := "%d,%d" % [floori(agent.global_position.x/128),floori(agent.global_position.z/128)]
+		var final_exclusions: Array = main.stream._ruin_exclusions(agent.global_position,final_key)
+		_check("adjacent tessellations finish outside every full road reservation",not fixture._parking_sample(agent,agent.global_position,agent.rotation.y,fixture._parking_size(agent),final_exclusions).is_empty())
+		main.stream.usmap = live_map
+	_check_matrix_bodies(fixture,"bent feeder final")
+	_timing_marker("corridor end "+mode,fixture)
+	await _free_trip_fixture(fixture)
+	root.queue_free()
+	await get_tree().physics_frame
 
 
 func _final_arrival_regressions(map: ProtoUSMap) -> void:
@@ -713,6 +855,7 @@ func _unsafe_parking_regressions(live_map: ProtoUSMap) -> void:
 		for full_cap: bool in [false,true]:
 			if cap_modes.has(mode) and not full_cap:
 				continue # these regressions require the unchanged stock cap to be full
+			_timing_marker("matrix start %s cap=%s" % [mode,full_cap])
 			var curb := curb_modes.has(mode) or cap_modes.has(mode)
 			var root := Node3D.new()
 			root.name = "ParkingMatrix_"+mode
@@ -782,9 +925,13 @@ func _unsafe_parking_regressions(live_map: ProtoUSMap) -> void:
 				# The same consumer map is visible to reservation helpers only during
 				# this synchronous tick. Restore before yielding to the live scene.
 				main.stream.usmap = map
+				var tick_started := Time.get_ticks_usec() if timing_enabled else 0
 				fixture._tick(0.05)
+				var tick_us := Time.get_ticks_usec()-tick_started if timing_enabled else 0
 				main.stream.usmap = live_map
 				actors_synced = (await _sync_matrix_actors(fixture)) and actors_synced
+				if (step+1)%200==0:
+					_timing_marker("matrix %s cap=%s" % [mode,full_cap],fixture,step+1,tick_us)
 				if not fixture.agents.has(agent):
 					break
 				bounded = bounded and before.distance_to(agent.global_position)<=maxf(speed_before,agent.speed)*0.05+0.02
@@ -857,6 +1004,7 @@ func _unsafe_parking_regressions(live_map: ProtoUSMap) -> void:
 						_check(phase+" actually crossed once before occupied-plot retries",retry_blocked)
 						if retry_blocked and is_instance_valid(agent) and fixture.agents.has(agent):
 							await _check_curb_retry_state(fixture,agent,road,origin,map,live_map,phase)
+			_timing_marker("matrix end %s cap=%s" % [mode,full_cap],fixture)
 			await _free_trip_fixture(fixture)
 			root.queue_free()
 			await get_tree().physics_frame
@@ -874,6 +1022,7 @@ func _request_capped_departure_promotion(fixture: ProtoTraffic, agent: ProtoTraf
 
 
 func _check_parked_follower(fixture: ProtoTraffic, lead: ProtoTraffic.TrafficAgent, follower: ProtoTraffic.TrafficAgent, map: ProtoUSMap, live_map: ProtoUSMap, phase: String) -> void:
+	_timing_marker("follower start "+phase,fixture)
 	# Continue the already-staged convoy; never move/remove the lead to clear a
 	# route or reset its follower. Both actors remain real registered bodies.
 	var actors_synced := await _sync_matrix_actors(fixture)
@@ -886,9 +1035,13 @@ func _check_parked_follower(fixture: ProtoTraffic, lead: ProtoTraffic.TrafficAge
 		var before := follower.global_position
 		var speed_before := follower.speed
 		main.stream.usmap = map
+		var tick_started := Time.get_ticks_usec() if timing_enabled else 0
 		fixture._tick(0.05)
+		var tick_us := Time.get_ticks_usec()-tick_started if timing_enabled else 0
 		main.stream.usmap = live_map
 		actors_synced = (await _sync_matrix_actors(fixture)) and actors_synced
+		if (step+1)%200==0:
+			_timing_marker("follower "+phase,fixture,step+1,tick_us)
 		if not fixture.agents.has(follower):
 			break
 		bounded = bounded and before.distance_to(follower.global_position)<=maxf(speed_before,follower.speed)*0.05+0.02
@@ -896,6 +1049,7 @@ func _check_parked_follower(fixture: ProtoTraffic, lead: ProtoTraffic.TrafficAge
 		if follower.arrived:
 			break
 	actors_synced = (await _sync_matrix_actors(fixture)) and actors_synced
+	_timing_marker("follower end "+phase,fixture)
 	_check(phase+" subsequent follower is physically synchronized throughout",actors_synced)
 	_check_matrix_bodies(fixture,phase+" subsequent final")
 	var retained := is_instance_valid(follower) and fixture.agents.has(follower) and fixture.agents.has(lead)
@@ -930,14 +1084,20 @@ func _matrix_actor_transforms_match(fixture: ProtoTraffic) -> bool:
 
 
 func _sync_matrix_actors(fixture: ProtoTraffic) -> bool:
+	var started := Time.get_ticks_usec() if timing_enabled else 0
+	var waited := 0
 	# The caller restores the live consumer map before any await. Actual engine
 	# integration, not body_set_state/pose writes, updates these kinematic hulls.
 	# Stationary retries consume their normal manual budget without extra waits.
 	for attempt: int in 2:
 		if _matrix_actor_transforms_match(fixture):
+			_record_sync_timing(started,waited)
 			return true
 		await get_tree().physics_frame
-	return _matrix_actor_transforms_match(fixture)
+		waited += 1
+	var matched := _matrix_actor_transforms_match(fixture)
+	_record_sync_timing(started,waited)
+	return matched
 
 
 func _check_matrix_bodies(fixture: ProtoTraffic, phase: String) -> void:
@@ -1097,6 +1257,7 @@ func _parking_motion_clear(body: PhysicsBody3D, full_size: Vector3 = Vector3.ZER
 
 
 func _trip_fixture(map: ProtoUSMap, full_cap: bool, capacity_road: String, start: float, spacing: float, capacity_support: Node3D = null) -> ProtoTraffic:
+	_timing_marker("fixture create cap=%s road=%s" % [full_cap,capacity_road])
 	var fixture := ProtoTraffic.create(main,map)
 	main.add_child(fixture)
 	fixture.set_physics_process(false) # same manual-clock convention as existing traffic_sim
