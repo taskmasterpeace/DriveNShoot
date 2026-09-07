@@ -1,0 +1,14 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+CLONEFEVER: start
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+CLONEFEVER: PASS - the player carries bite fever
+CLONEFEVER: PASS - the clinic REFUSES a fevered body (begin_scan → false)
+CLONEFEVER: PASS - a refused scan takes NO scrip (the chair never hummed)
+CLONEFEVER: PASS - no backup was started
+CLONEFEVER: PASS - the fever is cured
+CLONEFEVER: PASS - a CURED body backs up (begin_scan → true)
+CLONEFEVER: PASS - the healthy scan bought the chair (scrip spent)
+CLONEFEVER RESULTS: 7 passed, 0 failed
+CLONEFEVER: ALL CHECKS PASSED

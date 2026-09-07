@@ -1,0 +1,18 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT COACH PASS: explicit reboard initial fleet checkpoint staging
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: fixture boards through real GUI
+TRANSIT COACH PASS: initial real departure creates the retained driver
+TRANSIT COACH PASS: staged destination reload retains healthy body
+TRANSIT COACH PASS: retained coach detaches freed driver reference
+TRANSIT COACH PASS: GUI action available: reserve:lastline_west
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: retained coach reboards with completed player ownership
+TRANSIT COACH PASS: reboarded reverse service departs through real drivetrain
+TRANSIT COACH: 13 passed, 0 failed

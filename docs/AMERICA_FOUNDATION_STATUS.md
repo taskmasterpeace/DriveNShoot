@@ -15,7 +15,23 @@ All future verification must explicitly isolate both profile paths. Reviewed fix
 listeners to loopback; the [live gate](verification/MCP_LOOPBACK_2026_09_06.md)
 passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
-## Transport art checkpoint — 2026-09-07
+## Playable LASTLINE fix checkpoint — 2026-09-07
+
+Offline coach runtime `7c93002` and review fixes `64e2054` are locally committed.
+Real boarding, travel both ways, passenger death recovery and safe damaged-bus
+exit now have covering evidence:549 passing assertions across12 selected runs.
+One additional west25/2 timing failure remains open despite a later37/0 repeat;
+the repeat changes only test logging, not production or limits. Scoped re-review
+approves all3Important fixes with no new blocking breakage. See
+[the fix-source audit and16 inspected viewport images](verification/TRANSIT_COACH_FIXES_2026_09_07.md).
+
+Flights, early-stop requests, host-owned service seats and route encounters are
+still the active plan, not shipped claims. Operator visibility, night boarding,
+HUD overflow and bare building/world art remain explicit polish work. Persistent
+interiors are designed next; ordinary fixed cabinets currently refill on LOD.
+No new Windows export, public server, push or release acceptance is implied.
+
+## Transport art checkpoint — 2026-09-07 (earlier asset-only stage)
 
 Blender-MCP-authored coach/helicopter GLBs (`c5c2eca`) now have grounded metre
 scale, separate moving parts, canonical seat/boarding anchors and hollow cabins.
@@ -187,7 +203,7 @@ The baseline also exposes unresolved world-layout problems: the [downtown captur
 
 The real main scene now includes the Road Office, three freight contracts and three addressed cottages. Deliver actual cargo on foot for a one-time reward, buy a deed, store/take possessions and unpack household provisions. All three ramps and doorways have real-input traversal checks; a roof cutaway exposes each furnished interior. LAST LIGHT uses an existing lurker and real corpse loot.
 
-Launch this isolated source build with [PLAY_ROADSTEAD.bat](../PLAY_ROADSTEAD.bat); follow the [walkthrough and controls](PLAY_ROADSTEAD.md). It uses the installed Godot engine and a separate save profile. This is not an installer or distributable release package.
+The source-play entry is [PLAY_ROADSTEAD.bat](../PLAY_ROADSTEAD.bat), with a [walkthrough and controls](PLAY_ROADSTEAD.md). September7 preflight found that it redirects APPDATA but not LOCALAPPDATA, so it is not the verified dual-profile engine entry. Do not use it for verification while that correction is pending in transport Task6; the isolated diagnostic runner sets both profile paths. This is source play using the installed Godot engine, not an installer or a new distributable release package.
 
 Runtime task review accepted the implementation after fixing a polled WAIT input leak. The final reviewed runtime suite reports 71 passed / 0 failed, plus a separate-process restart probe with 5 / 0. It also checks both outer porch edges, row-driven prices/selection and encounter disabling. Real-camera [cottage exterior](renders/roadstead/03_cottage_porch.png), [interior](renders/roadstead/04_cottage_inside.png) and [freight desk](renders/roadstead/02_freight_desk.png) show actual integration, not final world-art polish. Some regression runs still emit audio-resource shutdown diagnostics.
 

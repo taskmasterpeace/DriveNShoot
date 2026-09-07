@@ -252,7 +252,10 @@ Record actual results; commit scoped files `Integrate authored transit rigs with
 - Test: `game/proto3d/tests/transit_coach_sim.gd`, `.tscn`, `.gd.uid`
 - Read: `docs/design/UI_DESIGN_LANGUAGE.md` and the controller's corridor scout; this is a player-facing panel, not the test-ground diagnostic overlay.
 - Modify only if its existing API is insufficient: `game/proto3d/hud_3d.gd` for truthful service-passenger hints/state, preserving ordinary driver controls and presentation; also the verified shared surface-label defect below.
-- Modify: `game/proto3d/car_3d.gd` only for the shared occupant-aware roadkill hook described below.
+- Modify: `game/proto3d/car_3d.gd` only for the shared occupant-aware roadkill hook and the later attributed inactive/dead brake seam described below; ordinary body behavior remains unchanged.
+- Modify only as required by the review's death handoff: `game/proto3d/cloning.gd` for shared pure wake preparation used by existing clone wake and transit; no clone schema change. Include the existing clone regression if touched.
+- Modify/test: `game/proto3d/tests/transit_vehicle_sim.gd` only for the inactive-brake default/ordinary-wreck/free-rolling regression, preserving its existing physical brake and ride-height checks.
+- Modify/test: `game/proto3d/tests/clone_ritual_sim.gd` only to free its attributed unparented round-trip probe after the existing assertion; confirm that probe is invalid while main.cloning remains valid. Preserve all ritual checks; no unrelated production teardown change.
 
 **Interfaces:**
 - Consumes exact Task 1 catalog/ticket methods and Task 2 vehicle/anchors.
@@ -283,12 +286,45 @@ recovering at safe origin with one refund, corrupt transit refusing entire save.
 The actual Boarding-anchor range is 3m, distinct from the ticket-counter's
 3.5m reading radius. Assert a valid reserved passenger at 2.99m is admitted and
 at 3.01m is denied; retain the stopped/open/grounded and ticket checks.
+Include the side of the Boarding anchor away from the counter: admission must
+not require the intersection of the two radii. Keep non-spatial eligibility
+separate from counter-reading proximity.
+Prove real interact opens the same Board action at that eligible door-side
+position; a true predicate with an inaccessible counter-gated panel is not
+usable boarding. Initial ticket purchase remains at the counter. Use the
+existing service/panel/vehicle interaction path, never a second panel or
+recursive can_open/can_board predicates.
 Also reject present malformed/extra-key/unknown-stop fleet records before any
 live restore. Test arrival -> save with no active ticket -> reload with exactly
 one coach still at the destination and the reverse service available. A failed
 arrival checkpoint must not publish destination fleet state or ticket completion.
 The west scenario may start from an explicitly staged initial no-ticket fleet
 checkpoint at Richmond, never a teleport after boarding; label this setup.
+Reload lifecycle coverage must continue through actual reverse reserve, boarding
+and departure after the old driver has been freed. Detach the matching vehicle's
+`ai_driver` before freeing it, including when retaining a healthy coach.
+Named `reboard_east`/`reboard_west` fixtures may create a real driver by physical
+departure, then explicitly apply a staged destination checkpoint and exercise
+reverse boarding/departure. These are lifecycle fixtures, not arrival evidence;
+the separate full east/west journey checks remain unchanged.
+
+The named `death` fixture must board through real input, kill the passenger
+through real damage, then press the existing R action for both ordinary and
+clone wake paths. Before any live respawn mutation, atomically stage the final
+safehouse/clone wake position and character, deaths+1, existing 40% scrap/30%
+scrip toll on pre-refund carried inventory, then one full fare refund; finish
+the ticket as `service_failed` with unchanged last-terminal fleet state. This
+is explicit death respawn, not roadside egress. Failed writes preserve the dead
+rider's respawn-owned fields, ticket, wallet, deaths, clone backup/journal and
+disabled ownership until R retry succeeds. Ordinary world time remains live;
+derive expected hunger changes from the actual hunger-cadence clock and existing
+2.8/game-hour law rather than freezing it or ignoring character differences.
+Success clears stale passenger ownership and restores real
+player processing/colliders/camera; actual movement must work after waking.
+Halt/preserve the coach and disable sales for the session; replacement only on
+reload. Never duplicate the clone revival/fever/defect policy; extract shared
+pure preparation if needed. Preserve ordinary non-transit respawn. Scenario
+watchdogs and the180s process cap remain unchanged; record the command/RED/GREEN.
 Regression: the moving AI coach must not roadkill its own seated passenger;
 preserve the ordinary driver exemption and roadkill against non-occupants.
 The first actual trip reproduced self-roadkill destroying the coach; retain
@@ -299,11 +335,48 @@ Require completed physical parking and actual linear speed below 0.1m/s for
 service_failed egress, in addition to the existing grounded/upright/angular/clear
 exit gates. With a driver present, both its completed parking transition and
 measured speed are required. Test a real E request with a valid writer while
-the wreck is still rolling below 0.5m/s but above 0.1m/s: no exit or refund. Only
-after actual parking begins the denied-write/retry fixture. Retain the 0.2m
+the wreck is still rolling below 0.5m/s but above 0.1m/s: no exit or refund. Deny
+the writer before yielding more frames so automatic egress after parking cannot
+consume the later explicit denied-write/retry fixture. After real parking, press
+the real exit action with the denied writer, then restore it and retry. Retain the 0.2m
 post-exit wreck-displacement bound and normal terminal egress rules. Diagnostic
 RED measured 0.347532m drift over 0.73s at roughly 0.34m/s with dead=true and reservation
 correctly unavailable; do not treat this as a teleport or loosen the tolerance.
+
+The review-fix covering pass exposed a separate dead-coach braking defect.
+Focused RED7a128abf14/1 records a real100m approach16.853wall/16.767physics
+seconds, then20.507wall/20.533physics seconds to park after damage. All four
+wheels contact ground, but effective body/wheel brake remains3.0 despite a
+driver demand0.7 and the existing coach max_brake220. The base inactive/dead
+early return ignores the driver's controls. Keep the combined40s fixture
+deadline and165/180s outer caps; report approach and braking clocks separately.
+Add `inactive_brake_force() -> float` to the base car with its exact existing
+3.0 default /0.4 free-rolling result, and use it only at that return. The transit
+override may honor the existing pedal/handbrake demand and surface brake factor
+only for a dead stable LASTLINE body, its owning offline service, and a matching
+running ProtoCoachDriver. Actual VehicleBody/wheel brake physics supplies the
+stop; engine_force stays0. Restore the ordinary idle brake once parking finishes.
+No transform/velocity assignment, extra damping, artificial ground force or
+gravity/damage/collision suppression. Verify effective brakes and real parking,
+ordinary wreck/trailer defaults and the existing stopped suspension check.
+Named `emergency_brakes` diagnostics use the same guarded runner and unchanged
+caps; the complete safety/physical journeys remain required.
+The stronger brake can stop the bus during a multi-frame press/release helper.
+Observe the actual input decision, not the helper's later completion: send real
+E press/release at the rolling boundary and positively verify handler delivery
+on both edges before checking unchanged ticket/wallet/ownership/checkpoint.
+Record wallet-publication speed and driver-running state; no success may publish
+while either stationarity condition is false. A pre-callback physics-frame sample
+of old brake3.0 is not the post-callback effective brake; log the direct hook and
+the real body/wheels after their physics callback. These are expectation/sampling
+corrections, not slower brakes, new production test APIs or looser thresholds.
+
+Clone-ritual covering run03c9170f is15/0 with240bytes of shutdown diagnostics,
+not pristine. Verbose5aae300e identifies a detached probe Node retaining
+cloning.gd, created by the sim's round-trip fixture and never freed. Only this
+owned fixture cleanup is authorized. Preserve both logs and require a normal
+clean covering run; do not attribute the older safety leaks to this different
+fixture without evidence.
 
 - [ ] **Step 2: Run coach RED; implement real service around main interfaces.**
 
@@ -452,19 +525,26 @@ Commit `Connect LASTLINE stops tickets and physical passenger journeys`.
 **Files:**
 - Create: `game/proto3d/transit/flight_driver.gd`
 - Modify: `game/proto3d/transit/service.gd`, `vehicle.gd`, `panel.gd`
+- Modify: `game/proto3d/transit/stop.gd` only for KESTREL pad/walkway identification and practical night boarding light, preserving shared geometry, road clearance, pavement registry and coach apron.
 - Modify: `game/proto3d/car_3d.gd` only for explicit aircraft opt-outs from road-flip recovery and ground-only rolling/roughness forces, plus a vertically correct aircraft roadkill-proximity seam; preserve ordinary car behavior, actual damage and collision.
 - Modify: `game/proto3d/proto3d.gd`, `hud_3d.gd` only for truthful shared-service names/prompts and existing passenger-hook arguments; no unrelated HUD layout or main-loop rewrite.
+- Modify: `game/proto3d/world_stream.gd` only for the bounded physical-service interest contract below; `proto3d.gd` may pass that optional interest into its existing single streaming update. Preserve ordinary streaming, live chunks and player-only exploration state.
 - Modify: `tools/transit_runtime_check.ps1` for isolated flight scenarios/captures, retaining the original 180-second process cap and both profile directories.
 - Test: `game/proto3d/tests/transit_flight_sim.gd`, `.tscn`, `.gd.uid`
 - Modify only if needed: `game/proto3d/tests/transit_coach_sim.gd` for the additional validated fleet member's expected record shape; retain all existing coach behavior checks.
 
 **Interfaces:**
 - `class_name ProtoFlightDriver extends Node`, `setup(car: ProtoTransitVehicle, origin: Vector3, destination: Vector3, speed: float) -> void`, `request_landing() -> void`; signals `arrived`, `failed(reason: String)`.
+- Shared driver lifecycle also requires `running: bool`, `halt(reason: String) -> void` and `detach() -> void`, matching the coach lifecycle from the preceding task rather than relying on coach-only fields. `halt` requests the safe failure/landing path while airborne; it never disables gravity or declares arrival. `detach` clears only its own matching body `ai_driver` reference before freeing; it cannot erase a replacement. Reuse these hooks in the existing service for switch/reload/death and preserve the fixed atomic respawn handoff. Both driver types must survive actual same-session service switching and retained-body reload without stale references; no second passenger ownership implementation.
 - Consumes same ticket/seat service path as coach; `main.weather.intensity_at(pos, kind)` supplies weather.
 - Extend Task 3's `transit_fleet` sibling with optional `helicopter_stop` using the same two validated stop IDs. Omission on a pre-flight save defaults that aircraft to Meridian; known coach state is preserved, all other unknown keys remain rejected. `fleet_record()` now writes both locations. Stable physical aircraft identity is `kestrel_courier`; route ID changes separately. Arrival and interruption recovery update only the corresponding fleet member in the same atomic full-run transaction. Update only affected fleet-shape expectations in the existing coach sim if needed, retaining its behavioral gates.
 - Task 3's orchestrator, vehicle interaction and HUD currently contain coach-specific references. Generalize only these existing service seams to resolve the active ticket's physical vehicle, stop, passenger anchor and driver; preserve the single shared panel/ticket/exit path. KESTREL must not advertise LASTLINE or road-driving controls.
 - Keep the ticket-counter reading radius distinct from actual boarding proximity. Helicopter pads are 36m away from the coach frame: requiring the player to remain at the shelter while also being within 3m of the aircraft would make boarding impossible. The existing interact action at the actual aircraft Boarding anchor must open the same service panel, and boarding must independently require that anchor's 3m range plus the ticket, stationary/open/grounded craft and free-seat gates. A reserved passenger standing at the distant counter cannot board remotely. Prove the walk from counter to pad with real movement inputs after buying the ticket, not a position assignment.
+- The separated pad must be legible from the actual walking camera: KESTREL name/direction at the shared counter, visible pad identification and a clear approach. Existing LASTLINE lamps reach the shelter/apron but not the pad36m away. Add pad-safe practical night lighting outside rotor/landing/boarding clearance; day/night state follows the existing stop lamp rules. Capture counter-to-pad approach and night boarding, labeling any staged night-clock fixture as such. Do not accept a dark anonymous concrete patch as the final boarding presentation.
 - Base-car integration preflight: `_roadkill` currently discards height, and rolling resistance/roughness currently apply from the ground surface regardless of contact. A helicopter cruising above someone must not roadkill them through 25m of air, nor receive dirt suspension judder aloft. Add narrow aircraft-specific seams/overrides for actual 3D proximity and ground-only forces; preserve existing ground-car behavior and real non-occupant/impact/external damage. Keep aerodynamic drag and gravity active. Cover a living person below real cruise, legitimate near-body damage, and ordinary car regression; do not blanket-disable collision or give an airborne service invulnerability.
+- Physical-service streaming must survive explicit passenger respawn. Add `ProtoTransitService.streaming_positions() -> Array[Vector3]` and optional third `service_positions: Array[Vector3] = []` parameter to `ProtoWorldStream.update_stream(body_pos, main, service_positions)`. Main passes the query to its existing single streaming update; old callers remain identical with an empty array. Return only actual locally authoritative service bodies: a running driver even after passenger release, or a preserved failed body away from its verified terminal. At most the two stable service bodies; no client-provided interest or infinite route preloading. The query is frame-local, so restore, teardown and replacement cannot leave an orphan registry. Waiting terminal bodies use the existing permanent apron support and need no extra ring.
+- Retain a3x3 chunk neighborhood around each returned physical position, unioned with the unchanged local player load/unload sets. Load missing current-body center support before its next physical advance; steady edge work retains the existing load budget and nearest-needed ordering. The radius provides at least128m edge lookahead for the35m aircraft probes. Never rebuild a live chunk, replace collision with an invisible proxy, bank/despawn live content merely to satisfy travel, or silently move the host/player. At most18 additional requested chunks for the two bodies, deduplicated with the local set. Remove stale service-only requests and allow normal unload when the query releases them; stopped roadside failures retain their bounded neighborhood until legitimate replacement/reload. Preserve player exploration/fog: service-only materialization must not mark unseen chunks as player-visited; when the player genuinely reaches already materialized chunks, normal reveal must still occur. Keep ordinary empty-interest behavior covered.
+- Streaming verification: cover bounded union/dedup, stale-queue pruning, current-body floor-first support, live-node identity retention, release cleanup and no service-only map reveal. A separately labeled far-terrain fixture may test support beyond the permanent authored slab; it is not a national-route journey claim. In the actual flight death/R case, continue observing the original aircraft to real landing after the player wakes away, with the actual nearby collision still present. The existing12km slab supports this first corridor but does not replace scenery/obstacle lifetime. Task5 reuses this interest path for authoritative remote-only travel instead of creating a competing streamer.
 
 - [ ] **Step 1: Write flight phase, weather and collision behavioral failures.**
 
@@ -502,6 +582,26 @@ Ground departures when dust >=0.55 or rain >=0.85 at either pad. In flight route
 to the nearest unobstructed known pad, mark interruption and refund at safe exit.
 No forced exit before actual touchdown/contact and low speed.
 
+Failure policy: reduced engine health measurably reduces available powered
+thrust/control. Total engine loss, exhausted fuel or a dead/crashed body produces
+zero propulsive lift/thrust; gravity, aerodynamic drag and collision/impact damage
+continue. Do not invent unlimited autorotation or compensation to guarantee a
+pad arrival. A survivable forced touchdown may use real supported/upright/
+low-speed/clear roadside egress, one atomic `service_failed` full refund and the
+actual saved foot position; preserve the last verified terminal as fleet recovery
+metadata, not an asserted arrival. Fatal impact uses the existing explicit R
+death handoff. Test partial-power response and externally caused total loss;
+catastrophic failure is allowed to kill, not required to fake a safe landing.
+
+If both known pads are obstructed, hold only a currently tested clear volume
+while actual power/fuel permit and retry real pad clearance. Expose delay/blocked
+status; keep passenger/ticket ownership, no arrival, airborne exit or refund.
+Fuel consumption remains real under force-based control. A bounded fixture
+observes these facts, removes an obstruction, then verifies a real landing.
+If no clear holding volume or usable power remains, ordinary physical consequences
+apply. Grounding weather blocks departures, not emergency landing at a physically
+clear known pad. Retain existing process/test time limits.
+
 - [ ] **Step 3: Run flight/coach regression and capture; scoped commit.**
 
 Capture takeoff, cabin during cruise, approach/landing and safe exit through real
@@ -513,7 +613,7 @@ Commit `Add KESTREL physical flights and weather-safe landings`.
 **Files:**
 - Create: `game/proto3d/transit/network.gd`
 - Modify: `game/proto3d/transit/service.gd`, `game/proto3d/net.gd`
-- Modify: `game/proto3d/world_stream.gd` only as needed for bounded host-owned transit interest/support, preserving normal player streaming and live chunk contents.
+- Modify: `game/proto3d/world_stream.gd` only if the Task4 bounded interest producer/consumer needs narrow host-authority integration; reuse its physical support path and preserve normal player streaming and live chunk contents.
 - Test: `game/proto3d/tests/transit_network_sim.gd`, `.tscn`, `.gd.uid`
 - Modify: `tools/transit_runtime_check.ps1` for owned loopback pair orchestration.
 
@@ -539,8 +639,8 @@ vehicle positions within interpolation tolerance; verify no local save writes.
 Also exercise an actual remote-only passenger journey while the host stays on
 foot away from the route. The current streamer follows only the local active
 body; endpoint aprons alone cannot support an authoritative moving coach beyond
-that body's chunk ring. Define a bounded service-owned interest lifetime before
-implementation, retaining actual road/terrain collision and nearby obstacles
+that body's chunk ring. Reuse Task4's bounded service-owned interest lifetime,
+retaining actual road/terrain collision and nearby obstacles
 around active host-owned vehicles without rebuilding live chunks or moving the
 host for the test. Verify continuous motion, arrival/grounded exit, unchanged
 host location, client checkpoint prohibition, and interest cleanup after the
@@ -573,17 +673,21 @@ Commit `Synchronize transit seats and journeys through host authority`.
 **Files:**
 - Modify: `game/proto3d/car_3d.gd` and `game/proto3d/tests/transit_vehicle_sim.gd` for the carried Task 2 material-name wear defect and its regression.
 - Modify: `game/proto3d/hud_3d.gd` only for the carried bottom-right status overflow and night glyph presentation; add relevant viewport checks to `transit_journey_sim.gd`.
+- Modify: `game/proto3d/transit/stop.gd`, `vehicle.gd` and the existing service vehicle rows in `game/data/vehicles.json` only for the visual operator/boarding-light gate below, preserving geometry, live damage, seat capacity and the shared vehicle factory. Exact operator-row shape and lifecycle are a required pre-dispatch ruling, not an unspecified data addition.
 - Modify: `game/data/transit.json`, `game/proto3d/transit/service.gd`, `panel.gd`
 - Modify: `game/proto3d/transit/catalog.gd` and the relevant `transit_ticket_sim.gd` catalog cases for the explicitly optional encounter section; retain the reviewed ticket-record schema.
 - Modify: `tools/transit_runtime_check.ps1` only to add the journey scenario and required existing regression names.
 - Test: `game/proto3d/tests/transit_journey_sim.gd`, `.tscn`, `.gd.uid`
 - Create: `docs/verification/TRANSIT_RUNTIME_REVIEW_2026_09_07.md`, `docs/renders/transit-runtime-2026-09-07/*`
 - Update: `docs/HANDOFF.md`, `docs/AMERICA_FOUNDATION_STATUS.md`, `docs/design/PUBLIC_TRANSPORT.md`.
+- Modify/test: `PLAY_ROADSTEAD.bat` only to bring the source-play launcher into dual-profile isolation before recommending it. It currently redirects APPDATA only; verify both APPDATA and LOCALAPPDATA stay worktree-owned without launching against a normal profile. Preserve the existing isolated player save location, reject unsafe/reparse profile targets, and keep verification fixtures separate from human play data. This is not authorization for a new export or to overwrite the isolated playthrough.
 
 **Interfaces:**
 - Same service/ticket paths; existing `main.game_deck`, `main.respect`, real enemy
   `ProtoLurker`/weapon damage and item containers, not a new combat engine.
 - Final contract preflight must also resolve the coach's requested-stop interaction: the runtime spec promises hold-interact requests an early stop, while the Task3 implementation only rejects taking the wheel and moving exits. Flight early-landing requests belong to Task4. Before Task6 dispatch, define the coach's actual safe-stop policy, affected driver/main interfaces and atomic no-refund early-exit behavior; add exact ownership and input/physical-exit regression. A denial toast alone is not the promised request, and no airborne/moving exit, hidden return trip or extra refund is acceptable. Do not call the overall transit spec complete with this gap open.
+- Fresh Task3 east7983dbec camera preflight: the cutaway shows a passenger but no visible operator, while runtime control is a nonvisual driver Node; both original models already provide Seat_driver. Add an original, data-described service operator using the existing puppet/seat-pose system, with measured pelvis/hand/cabin clearance. Do not represent an invisible driver/pilot as final inhabited-world polish. Keep operator identity distinct from passenger capacity and host seat ownership. Before implementation define visible living/disabled/service-state behavior and cleanup; this is service crew presentation, not a new recruitable NPC/combat engine or an invented human network peer. Verify the same cabin at boarding, travel and failure, and that an old driver visual is not duplicated on reload/service switch.
+- The same actual Richmond night capture lights the shelter sign while leaving much of the bus/boarding area very dark. Target practical boarding/cabin illumination and wayfinding, without flooding the surrounding wasteland or concealing the issue by disabling the perception mask. Preserve measured rotor/doorway/foot clearance and day/night rules. Investigate the conspicuous daytime hard wedges separately against a mask-off diagnostic; do not assume lamp shadows, vehicle lights and perception geometry are the same source. Day/night captures must distinguish actual journey evidence from staged clock diagnostics. World-wide lighting and bare buildings remain broader gates, not secretly waived by the transit pass.
 
 - [ ] **Step 1: Write whole-loop input/encounter failures.**
 

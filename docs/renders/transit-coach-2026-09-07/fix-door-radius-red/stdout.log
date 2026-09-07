@@ -1,0 +1,79 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+NEIGHBORHOOD FIXTURE: {"identical":true,"removed":21,"retained":54}
+TRANSIT COACH PASS: late and initial reservations preserve identical outside neighborhood candidates
+TRANSIT COACH PASS: neighborhood reservation preserves exact later random stream
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: deferred old stop teardown cannot erase replacement pavement
+TRANSIT COACH PASS: stop pavement teardown owns only its entries and leaves outside grip unchanged
+TRANSIT COACH PASS: merge probe predicts approaching cross traffic outside front beam
+TRANSIT COACH PASS: cross traffic makes actual drivetrain brake
+CROSS TRAFFIC FIXTURE: {"blocked":false,"chassis":100.0,"coach":"(1295.494, -0.040541, -232.5224)","crossing":"(1301.477, 0.68028, -238.7481)","obstacle":""}
+TRANSIT COACH PASS: yield releases after real cross traffic clears without impact damage
+TRANSIT COACH PASS: real dashboard labels surface gravel
+TRANSIT COACH PASS: real dashboard labels surface dirt_road
+TRANSIT COACH PASS: real dashboard labels surface water
+TRANSIT COACH PASS: reserved apron excludes reproduced neighborhood roof intrusion
+TRANSIT COACH PASS: constructed concrete provides road grip
+TRANSIT COACH PASS: reloaded distant chunk still excludes actual roof intrusion
+TRANSIT COACH PASS: safety board opens from real stop input
+TRANSIT COACH PASS: held movement and fire cannot leak under ticket board
+TRANSIT COACH PASS: Escape closes ticket board
+TRANSIT COACH PASS: B/◯ closes ticket board
+TRANSIT COACH PASS: visible close control responds to actual mouse input
+TRANSIT COACH PASS: ticket rect fits small viewport
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: reserved checkpoint has exact fare
+TRANSIT COACH PASS: reserved rider just inside three metres may board
+TRANSIT COACH PASS: reserved rider just outside three metres cannot board
+TRANSIT COACH FAIL: door radius is independent of counter radius
+ASSERTION DETAILS: {"can_board":false,"counter_m":4.84034872055054,"door_m":2.9900050163269,"expected":"can_board=true outside counter range"}
+TRANSIT COACH PASS: outside door radius away from counter refuses boarding
+TRANSIT COACH FAIL: door-side interact reaches shared Board action away from counter
+ASSERTION DETAILS: {"counter_m":4.64972925186157,"door_m":2.8358678817749,"panel_open":false}
+TRANSIT COACH PASS: remote reservation cannot board
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: failed boarding checkpoint exposes no live passenger mutation
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: boarding succeeds after checkpoint retry
+TRANSIT COACH PASS: public boarding feedback never offers taking the wheel
+TRANSIT COACH PASS: passenger HUD does not claim pedal control
+TRANSIT COACH PASS: unchanged blocked exit queues only one real failure notice
+RECOVERY PRECONDITION BEFORE CLEAR: {"car_dead":false,"dead":false,"ending":"","hp":100.0,"mode":0,"passenger":true,"riding":true,"ticket":{"last_end":{},"next_serial":2,"ticket":{"departure":720.0,"destination":"richmond","last_safe_stop":"meridian_east","origin":"meridian_east","paid":2,"phase":"aboard","serial":1,"service":"lastline_east"},"version":1}}
+TRANSIT COACH PASS: settled blocked-exit inputs retain aboard recovery precondition
+RECOVERY PRECONDITION AFTER CLEAR: {"car_dead":false,"dead":false,"ending":"","hp":100.0,"mode":0,"passenger":true,"riding":true,"ticket":{"last_end":{},"next_serial":2,"ticket":{"departure":720.0,"destination":"richmond","last_safe_stop":"meridian_east","origin":"meridian_east","paid":2,"phase":"aboard","serial":1,"service":"lastline_east"},"version":1}}
+TRANSIT COACH PASS: corrupt transit rejects entire live save
+TRANSIT COACH PASS: present malformed fleet refuses entire save
+TRANSIT COACH PASS: present malformed fleet refuses entire save
+TRANSIT COACH PASS: present malformed fleet refuses entire save
+TRANSIT COACH PASS: present malformed fleet refuses entire save
+TRANSIT COACH PASS: present malformed fleet refuses entire save
+TRANSIT COACH PASS: failed recovery write leaves live passenger untouched
+TRANSIT COACH PASS: aboard restart commits recovery
+TRANSIT COACH PASS: aboard restart refunds once at safe origin
+TRANSIT COACH PASS: reloading recovered disk cannot refund twice
+TRANSIT COACH PASS: reserved save recovery commits incoming wallet
+TRANSIT COACH PASS: old save omissions restore empty ticket and default fleet
+TRANSIT COACH PASS: ordinary player driver's roadkill exemption remains
+TRANSIT COACH PASS: ordinary passenger retains original take-wheel boarding notice
+TRANSIT COACH PASS: waiting public service exempts no pedestrian
+TRANSIT COACH PASS: public occupant exemption still requires active service identity
+TRANSIT COACH PASS: online clients cannot open reserve or apply the local service checkpoint
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: emergency fixture genuinely travels to roadside
+TRANSIT COACH PASS: disabled service physically brakes upright on real roadside ground
+TRANSIT COACH PASS: rolling emergency refuses real exit input and refund
+TRANSIT COACH FAIL: emergency completes real parking before checkpoint retry
+TRANSIT COACH PASS: denied roadside checkpoint publishes neither refund nor exit
+TRANSIT COACH FAIL: roadside retry exits physically with one full refund
+TRANSIT COACH PASS: interrupted wreck remains in place and cannot sell another ticket
+TRANSIT COACH FAIL: emergency checkpoint saves actual foot position and unchanged recovery terminal
+TRANSIT COACH PASS: interruption reload succeeds
+TRANSIT COACH PASS: reload constructs exactly one replacement without second refund
+TRANSIT COACH: 61 passed, 5 failed

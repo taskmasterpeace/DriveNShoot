@@ -16,20 +16,49 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
-## 2026-09-07 — LASTLINE coach candidate committed; independent review pending
+## 2026-09-07 — LASTLINE fixes reviewed; KESTREL implementation active
 
 `7c93002` connects offline LASTLINE ticket counters, physical passenger boarding,
 east/west driving, terminal shelters and safe checkpointed arrival/recovery.
 The user requested this local commit before independent Task 3 review; it is
-not reviewed acceptance. Six recorded isolated runs match the committed runtime
+not reviewed acceptance. That review found passenger-death ownership cleanup,
+retained-driver cleanup and counter-coupled boarding defects. Fix round1 is now
+committed as `64e2054`: selected covering runs549/0 across12 checks, including
+death36/0, expanded safety70/0 and full east36/0/west37/0. Scoped re-review approves
+all3Important fixes with no new blocking breakage. A separate final-source
+west25/2 timing failure is retained; a single
+logging-only repeat passed, without establishing the earlier cause or a fix.
+No timeout, tolerance or production change obtained the passing repeat.
+The predicted freed-driver crash did not
+reproduce in this Godot version; the attached queued-for-deletion reference did.
+The [fix-round diagnostic record](verification/TRANSIT_COACH_FIXES_2026_09_07.md)
+retains failed checks, hunger-cadence attribution and the actual dead-coach
+braking correction. A narrow identical-default base hook restores demanded
+wheel braking for the owned dead service coach; post-hit parking fell from
+20.53 to2.08physics seconds in the focused test without velocity shortcuts.
+All current production hashes and isolated profile paths were independently
+checked. The final west harness adds only phase/time observations; earlier
+coach coverage is explicitly distinguished from that harness revision.
+Six earlier recorded isolated runs match the committed candidate runtime
 source: safety63/0, ticket115/0, vehicle109/0, road-life71/0, east36/0 and west37/0,
 with empty runtime stderr. No new engine run was needed for the commit.
 The [coach visual review](verification/TRANSIT_COACH_VISUAL_REVIEW_2026_09_07.md)
 preserves 40 actual viewport images, failed attempts and exact raw provenance.
 Historical shutdown warnings remain unattributed; clean later runs do not erase
-them. Flights, requested early stops, network authority, route encounters and
+them. The separate clone test probe leak was attributed and cleaned, not the
+historical safety leaks. All16 current fix-source viewport images were personally
+inspected: no visible operator, dark night boarding, right HUD overflow and
+bare building/world presentation remain. Flights, requested early stops, network authority, route encounters and
 the recorded visual debts are unfinished. No push or new export was performed;
 the larger stability, save recovery, national content and MMO gates stay open.
+
+Next building contracts are [inhabited road world](design/INHABITED_ROAD_WORLD.md)
+and [interior persistence](design/INTERIOR_PERSISTENCE.md), not implemented room
+acceptance. Fixed cabinet contents currently reset with furniture LOD; close
+that before expanding room density. `PLAY_ROADSTEAD.bat` currently redirects
+APPDATA only, not LOCALAPPDATA. Do not use it for verified dual-profile runs;
+its correction is assigned to transport Task6. The isolated diagnostic runner
+remains the verified engine entry while that launcher gate is open.
 
 ## 2026-09-07 — physical transit rigs reviewed (earlier checkpoint)
 

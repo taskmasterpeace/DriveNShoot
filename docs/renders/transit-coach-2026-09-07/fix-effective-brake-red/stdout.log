@@ -1,0 +1,24 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: emergency fixture genuinely travels to roadside
+EMERGENCY APPROACH: {"physics_s":16.7666666666669,"position":"(459.5764, -0.040477, -280.3933)","speed":10.9154720306396,"wall_s":16.853}
+DEAD BRAKE TELEMETRY: {"active":true,"dead":true,"driver_running":true,"effective_brake":3.0,"engine_force":0.0,"input_brake":0.7,"input_handbrake":false,"max_brake":220.0,"speed":10.871994972229,"wheels":[{"brake":3.0,"contact":true,"friction":5.05999994277954},{"brake":3.0,"contact":true,"friction":5.05999994277954},{"brake":3.0,"contact":true,"friction":2.52999997138977},{"brake":3.0,"contact":true,"friction":2.52999997138977}]}
+TRANSIT COACH FAIL: destroyed service consumes physical driver's emergency brake
+ASSERTION DETAILS: {"effective_brake":3.0,"expected":"service brake greater than generic idle3, no propulsion","input_brake":0.7,"max_brake":220.0}
+TRANSIT COACH PASS: disabled service physically brakes upright on real roadside ground
+TRANSIT COACH PASS: rolling emergency refuses real exit input and refund
+EMERGENCY TIMING: {"effective_brake":3.0,"input_brake":0.0,"input_handbrake":false,"physics_ticks":2238,"post_damage_physics_s":20.5333333333322,"post_damage_wall_s":20.507,"running":false,"speed":0.0947465375065804,"total_physics_s":37.2999999999991,"total_wall_s":37.36}
+TRANSIT COACH PASS: emergency completes real parking before checkpoint retry
+TRANSIT COACH PASS: denied roadside checkpoint publishes neither refund nor exit
+TRANSIT COACH PASS: roadside retry exits physically with one full refund
+TRANSIT COACH PASS: interrupted wreck remains in place and cannot sell another ticket
+TRANSIT COACH PASS: emergency checkpoint saves actual foot position and unchanged recovery terminal
+TRANSIT COACH PASS: interruption reload succeeds
+TRANSIT COACH PASS: reload constructs exactly one replacement without second refund
+TRANSIT COACH: 14 passed, 1 failed

@@ -84,6 +84,24 @@ offline run may reconstruct one replacement coach at the recorded terminal;
 disclose this interruption-recovery behavior. No player teleport, extra healing,
 or invulnerability is granted. Failed writes must remain safe and retryable.
 
+Passenger death uses the existing explicit R-respawn flow, not roadside egress.
+Before changing the live death count, wallet, character or passenger ownership,
+stage one full-run checkpoint with the existing safehouse/clone wake location
+and revived-character semantics, deaths+1, the ordinary 40% scrap/30% scrip toll
+on the pre-refund carried wallet, then one full fare refund. End the ticket as
+`service_failed`; retain the fleet's last verified terminal. The fare was already
+paid to the operator, so it is not carried inventory for the death toll. A denied
+write leaves respawn-owned dead-rider fields, ticket, wallet, deaths, clone
+backup/journal and ownership unchanged; R retries without another tax or refund.
+Ordinary world time still advances: the existing hunger cadence may drain hunger
+while dead, so input-driven failure checks must account for that independent
+clock effect without ignoring other character differences. Successful commit
+restores player processing/collision/camera at the explicit respawn location and
+discloses interrupted travel. Preserve/halt the coach and disable sales for that
+session; replacement remains reload recovery. Ordinary non-transit death behavior
+and the clone record schema are unchanged. Share clone wake preparation rather
+than maintaining a copied revival/defect policy in transit.
+
 ## Passenger and world rules
 
 Service boarding requires a valid ticket, free seat, stopped/open vehicle and
@@ -101,6 +119,29 @@ gravity, collision and bounded attitude control through takeoff/cruise/approach/
 landing. Dust intensity >= 0.55 or rain intensity >= 0.85 at either pad grounds
 departure. A mid-flight grounding condition redirects to the nearest tested safe
 pad. No invulnerability is granted to vehicle or rider.
+
+Partial engine damage reduces powered flight capability. Total engine loss,
+exhausted fuel or a dead body removes propulsive lift/thrust; gravity, drag and
+impact damage remain. A safe pad arrival is not guaranteed after catastrophe.
+A surviving passenger may leave only after actual supported, upright, low-speed
+and clear egress, checkpointing the real forced-landing position and one full
+service-failure refund. The last verified terminal remains fleet-recovery
+metadata. Fatal outcomes retain explicit R-respawn and its atomic death contract.
+When both known pads are obstructed, the pilot holds tested clear airspace only
+while real fuel and power permit, shows the delay and retries clearance. No
+airborne release or refund occurs. Departure-grounding weather does not prohibit
+an otherwise physically safe emergency landing.
+
+An authoritative service keeps a bounded3x3 real chunk neighborhood while its
+driver is running, including after an explicit passenger death/respawn, or while
+a failed body is preserved away from its terminal. Two stable service bodies
+request at most18 additional chunks, deduplicated with normal player streaming.
+Waiting terminal bodies retain their constructed support. Interest comes from
+actual service bodies each frame, never a client request or the whole route;
+replacement/teardown releases it. Preserve live chunk identity and normal load
+budgets, with immediate missing center support before physical advance.
+Service-only loading does not reveal unexplored player map areas. This is local
+physical support reused by later host-session travel, not nationwide MMO AOI.
 
 Constructed service pavement shares the existing road-grip registry with other
 vehicles, using stop-owned lifetime entries. Procedural trees, scatter and

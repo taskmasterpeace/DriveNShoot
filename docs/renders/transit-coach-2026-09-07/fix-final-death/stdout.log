@@ -1,0 +1,41 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT COACH PASS: death fixture initial checkpoint restore
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: fixture boards through real GUI
+TRANSIT COACH PASS: actual passenger wound kills rider, not coach
+TRANSIT COACH PASS: dead rider cannot bypass R through roadside exit
+TRANSIT COACH PASS: denied respawn keeps ordinary hunger cadence running
+TRANSIT COACH PASS: denied R respawn leaves dead ownership, wallet, deaths and clone unchanged
+TRANSIT COACH PASS: R retry revives at chosen wake with full foot ownership
+TRANSIT COACH PASS: death toll precedes one full fare refund; clone bank survives
+TRANSIT COACH PASS: death checkpoint atomically contains revived player, toll, refund, fleet and death count
+TRANSIT COACH PASS: respawn preserves halted coach and blocks further session sales
+TRANSIT COACH PASS: revived player actually moves under foot input
+TRANSIT COACH PASS: second living R neither refunds nor taxes again
+TRANSIT COACH PASS: death recovery checkpoint reload succeeds
+TRANSIT COACH PASS: reload replaces interrupted coach exactly once and preserves wake/toll
+TRANSIT COACH PASS: death fixture initial checkpoint restore
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: fixture boards through real GUI
+TRANSIT COACH PASS: actual passenger wound kills rider, not coach
+TRANSIT COACH PASS: dead rider cannot bypass R through roadside exit
+TRANSIT COACH PASS: denied respawn keeps ordinary hunger cadence running
+TRANSIT COACH PASS: denied R respawn leaves dead ownership, wallet, deaths and clone unchanged
+TRANSIT COACH PASS: R retry revives at chosen wake with full foot ownership
+TRANSIT COACH PASS: death toll precedes one full fare refund; clone bank survives
+TRANSIT COACH PASS: death checkpoint atomically contains revived player, toll, refund, fleet and death count
+TRANSIT COACH PASS: respawn preserves halted coach and blocks further session sales
+TRANSIT COACH PASS: revived player actually moves under foot input
+TRANSIT COACH PASS: second living R neither refunds nor taxes again
+TRANSIT COACH PASS: death recovery checkpoint reload succeeds
+TRANSIT COACH PASS: reload replaces interrupted coach exactly once and preserves wake/toll
+TRANSIT COACH PASS: non-transit death fixture restores old run
+TRANSIT COACH PASS: ordinary non-transit R keeps existing toll with no transit refund
+TRANSIT COACH: 36 passed, 0 failed

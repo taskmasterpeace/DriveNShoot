@@ -1,0 +1,36 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: emergency fixture genuinely travels to roadside
+EMERGENCY APPROACH: {"physics_s":16.4500000000002,"position":"(459.5702, -0.040541, -280.3935)","speed":10.9154357910156,"wall_s":17.579}
+DEAD BRAKE EARLY PHASE: {"body":3.0,"demand":0.7,"handbrake":false,"hook":100.1,"matching":true,"surface_brake":0.65,"tick":1114}
+DEAD BRAKE TELEMETRY: {"active":true,"dead":true,"driver_running":true,"effective_brake":100.099998474121,"engine_force":0.0,"input_brake":0.7,"input_handbrake":false,"max_brake":220.0,"speed":9.74566459655762,"wheels":[{"brake":100.099998474121,"contact":true,"friction":5.05999994277954},{"brake":100.099998474121,"contact":true,"friction":5.05999994277954},{"brake":100.099998474121,"contact":true,"friction":2.52999997138977},{"brake":100.099998474121,"contact":true,"friction":2.52999997138977}]}
+TRANSIT COACH PASS: destroyed service consumes physical driver's emergency brake
+TRANSIT COACH PASS: disabled service physically brakes upright on real roadside ground
+TRANSIT COACH FAIL: rolling real E edges are positively acknowledged
+ASSERTION DETAILS: {"press_delivered":false,"release_delivered":true,"was_up":true}
+TRANSIT COACH PASS: rolling emergency refuses real exit input and refund
+EMERGENCY INPUT EDGE: {"pressed":true,"riding":true,"running":true,"speed":0.46483239531517,"tick":1227}
+EMERGENCY INPUT EDGE: {"pressed":false,"riding":true,"running":true,"speed":0.46483239531517,"tick":1227}
+EMERGENCY TIMING: {"effective_brake":3.0,"input_brake":0.0,"input_handbrake":false,"physics_ticks":1111,"post_damage_physics_s":2.06666666666655,"post_damage_wall_s":2.155,"running":false,"speed":0.0690249800682068,"total_physics_s":18.5166666666668,"total_wall_s":19.734}
+TRANSIT COACH PASS: emergency completes real parking before checkpoint retry
+EMERGENCY INPUT EDGE: {"pressed":true,"riding":true,"running":false,"speed":0.0690249800682068,"tick":1235}
+EMERGENCY INPUT EDGE: {"pressed":false,"riding":true,"running":false,"speed":0.0167309250682592,"tick":1256}
+TRANSIT COACH PASS: denied roadside checkpoint publishes neither refund nor exit
+TRANSIT COACH PASS: completed emergency parking restores default inactive brake
+EMERGENCY WALLET PUBLICATION: {"running":false,"speed":0.00384042412042618,"tick":1264,"ticket":{"last_end":{"reason":"service_failed","refund":2,"safe_stop":"meridian_east","serial":1},"next_serial":2,"ticket":{},"version":1},"wallet":{"scrip":20,"wrench":1}}
+EMERGENCY INPUT EDGE: {"pressed":true,"riding":false,"running":false,"speed":0.00384042412042618,"tick":1264}
+EMERGENCY INPUT EDGE: {"pressed":false,"riding":false,"running":false,"speed":0.000833330326713622,"tick":1278}
+TRANSIT COACH PASS: roadside retry exits physically with one full refund
+TRANSIT COACH PASS: interrupted wreck remains in place and cannot sell another ticket
+TRANSIT COACH PASS: emergency checkpoint saves actual foot position and unchanged recovery terminal
+EMERGENCY WALLET PUBLICATION: {"running":false,"speed":0.0,"tick":1285,"ticket":{"last_end":{"reason":"service_failed","refund":2,"safe_stop":"meridian_east","serial":1},"next_serial":2,"ticket":{},"version":1},"wallet":{"scrip":20,"wrench":1}}
+TRANSIT COACH PASS: interruption reload succeeds
+TRANSIT COACH PASS: reload constructs exactly one replacement without second refund
+TRANSIT COACH PASS: every emergency wallet publication occurs after actual completed parking
+TRANSIT COACH: 17 passed, 1 failed

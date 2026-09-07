@@ -1,0 +1,22 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+CLONE: start
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+CLONE: PASS - the chair is wired at boot
+CLONE: PASS - no scan without the scrip (price 60)
+CLONE: PASS - ...broke = refused
+CLONE: PASS - the chair takes the scrip and starts the hour
+CLONE: PASS - ...but the backup is NOT instant (the ritual takes the clock)
+CLONE: PASS - an hour later the scan is DONE (backup banked at the chair)
+CLONE: PASS - post-scan life happened (scavenging 0 -> 7)
+CLONE: PASS - death wakes you AT THE SCAN, not the safehouse cot (0 m from the chair)
+CLONE: PASS - THE MEMORY LAW: the post-scan levels are GONE from your head (scavenging back to 0)
+CLONE: PASS - THE JOURNAL SURVIVES the body (2 entries)
+CLONE: PASS - the wasteland still took its cut (scrap taxed)
+CLONE: PASS - the death still counted
+CLONE: PASS - the vat's defect roll lands (deterministic per hour, hit)
+CLONE: PASS - the defective body carries the tax FOREVER (hp 88 < 100)
+CLONE: PASS - backup + journal round-trip the save
+CLONE RESULTS: 15 passed, 0 failed
+CLONE: ALL CHECKS PASSED
