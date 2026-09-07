@@ -450,6 +450,24 @@ func _spawn_chunk(cx: int, cz: int) -> Node3D:
 			if String(j["grade"]) == "flat" and ["tee", "cross"].has(String(j["kind"])):
 				if not _junction_roads_meet(j):
 					continue # stale logical links must not invent an asphalt square
+				# Fully owned undivided managed roads already meet as oriented
+				# visual/physical ribbons. Do not lay an axis-aligned square beyond
+				# their actual footprints; mixed/divided/legacy joins keep the pad.
+				var ribbon_owner := String(j.get("interchange_id", ""))
+				var ribbons_only := true
+				for l in j["legs"]:
+					var incident: Dictionary = usmap.road_by_id(String(l["road"]))
+					var owner := String(incident.get("interchange_id", ""))
+					if incident.is_empty() or owner == "" or bool(ProtoUSMap.road_geometry(incident)["divided"]):
+						ribbons_only = false
+						break
+					if ribbon_owner == "":
+						ribbon_owner = owner
+					elif ribbon_owner != owner:
+						ribbons_only = false
+						break
+				if ribbons_only and ribbon_owner != "":
+					continue
 				var wmax := 8.0
 				for l in j["legs"]:
 					var lr: Dictionary = usmap.road_by_id(String(l["road"]))

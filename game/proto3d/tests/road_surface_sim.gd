@@ -323,6 +323,71 @@ func _pad_meshes(chunks: Array[Node3D], id: String) -> Array[MeshInstance3D]:
 	return found
 
 
+func _triangle_contains_xz(point: Vector2, a: Vector2, b: Vector2, c: Vector2) -> bool:
+	if absf((b - a).cross(c - a)) < 0.00001:
+		return false
+	var ab := (b - a).cross(point - a)
+	var bc := (c - b).cross(point - b)
+	var ca := (a - c).cross(point - c)
+	var has_negative := ab < -0.001 or bc < -0.001 or ca < -0.001
+	var has_positive := ab > 0.001 or bc > 0.001 or ca > 0.001
+	return not (has_negative and has_positive)
+
+
+## Project the mesh's actual final world triangles onto XZ. Both horizontal
+## faces have the same footprint; vertical sides cannot manufacture coverage.
+func _rendered_footprint_covers(mesh: MeshInstance3D, point: Vector2) -> bool:
+	var faces: PackedVector3Array = mesh.mesh.get_faces()
+	for i: int in range(0, faces.size(), 3):
+		var a: Vector3 = mesh.global_transform * faces[i]
+		var b: Vector3 = mesh.global_transform * faces[i + 1]
+		var c: Vector3 = mesh.global_transform * faces[i + 2]
+		var normal := (b - a).cross(c - a).normalized()
+		if absf(normal.y) < 0.5:
+			continue
+		if _triangle_contains_xz(point, Vector2(a.x, a.z), Vector2(b.x, b.z), Vector2(c.x, c.z)):
+			return true
+	return false
+
+
+func _tagged_rendered_coverage(chunks: Array[Node3D], tag: String, ids: Array[String], point: Vector2) -> int:
+	var covered := 0
+	for chunk: Node3D in chunks:
+		for node: Node in chunk.get_children():
+			if not node is MeshInstance3D or String(node.get_meta(tag, "")) not in ids:
+				continue
+			covered += int(_rendered_footprint_covers(node, point))
+	return covered
+
+
+func _mesh_world_bounds(mesh: MeshInstance3D) -> AABB:
+	var faces: PackedVector3Array = mesh.mesh.get_faces()
+	if faces.is_empty():
+		return AABB()
+	var first: Vector3 = mesh.global_transform * faces[0]
+	var bounds := AABB(first, Vector3.ZERO)
+	for local: Vector3 in faces:
+		bounds = bounds.expand(mesh.global_transform * local)
+	return bounds
+
+
+func _incident_floor(point: Vector2, road_ids: Array[String]) -> Dictionary:
+	var query := PhysicsRayQueryParameters3D.create(Vector3(point.x, 40.0, point.y), Vector3(point.x, -10.0, point.y), 1)
+	var excluded: Array[RID] = []
+	for attempt: int in 32:
+		query.exclude = excluded
+		var hit: Dictionary = main.get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty():
+			return {}
+		var collider: Node = hit["collider"]
+		if String(collider.get_meta("road_deck", "")) in road_ids:
+			return hit
+		if not collider is CollisionObject3D:
+			return {}
+		excluded.append((collider as CollisionObject3D).get_rid())
+	return {}
+
+
 ## Exercise actual chunk rendering, not a mocked eligibility predicate. The
 ## stale Seattle tee must not invent asphalt; a genuine junction keeps its fill.
 func _legacy_pad_regressions(map: ProtoUSMap, chunks: Array[Node3D]) -> void:
@@ -370,6 +435,75 @@ func _legacy_pad_regressions(map: ProtoUSMap, chunks: Array[Node3D]) -> void:
 		for node: Node in built.get_children():
 			bodies += int(node is CollisionObject3D)
 		print("ROAD PAD FIXTURE %s pads=%d collision_bodies=%d" % [item["id"], pads.size(), bodies])
+		built.queue_free()
+	# The rejected current capture is a fully owned managed-ribbon join. Its
+	# incident rendered triangles cover the center but not the literal northwest
+	# corner of the old square. Measure the final, draped runtime mesh rather than
+	# inferring visibility from canonical road rectangles or a pad count alone.
+	var managed_id := "I-90_X11-local-1"
+	var managed_center := Vector2(-56109.248888253365, -17713.26500886267)
+	var outside_corner := Vector2(-56114.748888253365, -17707.76500886267)
+	var incident_ids: Array[String] = ["I-90_X11-off-r", "I-90_X11-on-r", "I-90_X11-crossroad"]
+	var managed_pads := _pad_meshes(chunks, managed_id)
+	for pad: MeshInstance3D in managed_pads:
+		print("ROAD MANAGED PAD RUNTIME id=%s transform=%s bounds=%s ground_y=%.4f" % [managed_id, pad.global_transform, _mesh_world_bounds(pad), ProtoWorldBuilder.ground_y(managed_center.x, managed_center.y)])
+	check("actual managed incident rendered triangles exclude photographed outside corner", _tagged_rendered_coverage(chunks, "road_slab", incident_ids, outside_corner) == 0)
+	check("actual managed incident rendered triangles preserve junction center", _tagged_rendered_coverage(chunks, "road_slab", incident_ids, managed_center) > 0)
+	check("actual managed supplemental triangles do not cover off-pavement corner", _tagged_rendered_coverage(chunks, "junction_slab", [managed_id], outside_corner) == 0)
+	check("actual fully owned managed ribbon junction emits no supplemental square", managed_pads.is_empty())
+	var floor_hit := _incident_floor(managed_center, incident_ids)
+	print("ROAD MANAGED CENTER FLOOR %s" % floor_hit)
+	check("actual managed junction center retains incident physical pavement", not floor_hit.is_empty() and (floor_hit["position"] as Vector3).is_finite())
+
+	# Literal producer-path controls. A fully owned rotated endpoint join and an
+	# independent perpendicular cross use only undivided managed ribbons; their
+	# existing oriented triangles are sufficient. Mixed/foreign ownership and a
+	# divided leg do not satisfy that producer boundary and retain the old pad.
+	var managed_cases: Array[Dictionary] = [
+		{"id":"managed-rotated", "owner":"managed-fixture", "want_pad":false, "want_size":11.2,
+			"roads":[
+				{"id":"rot-a", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(-80,-24), origin]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"},
+				{"id":"rot-b", "kind":"exit", "pts":PackedVector2Array([origin, origin + Vector2(80,18)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"},
+				{"id":"rot-c", "kind":"state_road", "pts":PackedVector2Array([origin + Vector2(20,-80), origin]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"}]},
+		{"id":"managed-perpendicular", "owner":"managed-fixture", "want_pad":false, "want_size":11.2,
+			"roads":[
+				{"id":"perp-a", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(-80,0), origin + Vector2(80,0)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"},
+				{"id":"perp-b", "kind":"state_road", "pts":PackedVector2Array([origin + Vector2(0,-80), origin + Vector2(0,80)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"}]},
+		{"id":"managed-mixed", "owner":"managed-fixture", "want_pad":true, "want_size":11.2,
+			"roads":[
+				{"id":"mixed-a", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(-80,0), origin + Vector2(80,0)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"},
+				{"id":"mixed-b", "kind":"state_road", "pts":PackedVector2Array([origin + Vector2(0,-80), origin + Vector2(0,80)]), "lanes":2, "divided":false, "interchange_id":""}]},
+		{"id":"managed-foreign", "owner":"managed-fixture", "want_pad":true, "want_size":11.2,
+			"roads":[
+				{"id":"foreign-a", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(-80,0), origin + Vector2(80,0)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"},
+				{"id":"foreign-b", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(0,-80), origin + Vector2(0,80)]), "lanes":2, "divided":false, "interchange_id":"other-fixture"}]},
+		{"id":"managed-non-ribbon", "owner":"managed-fixture", "want_pad":true, "want_size":29.2,
+			"roads":[
+				{"id":"divided-a", "kind":"interstate", "pts":PackedVector2Array([origin + Vector2(-80,0), origin + Vector2(80,0)]), "lanes":6, "divided":true, "interchange_id":"managed-fixture"},
+				{"id":"divided-b", "kind":"exit", "pts":PackedVector2Array([origin + Vector2(0,-80), origin + Vector2(0,80)]), "lanes":2, "divided":false, "interchange_id":"managed-fixture"}]}]
+	for item: Dictionary in managed_cases:
+		fixture.roads = item["roads"]
+		var legs: Array[Dictionary] = []
+		var road_ids: Array[String] = []
+		for road: Dictionary in fixture.roads:
+			legs.append({"road":road["id"]})
+			road_ids.append(String(road["id"]))
+		fixture.junctions = [{"id":item["id"], "pos":origin, "kind":"cross", "grade":"flat", "control":"none", "interchange_id":item["owner"], "legs":legs}]
+		main.stream.usmap = fixture
+		var built: Node3D = main.stream._spawn_chunk(703, 703)
+		main.stream.usmap = map
+		var pads := _pad_meshes([built], String(item["id"]))
+		var want_pad := bool(item["want_pad"])
+		check("runtime managed boundary %s supplemental pad policy" % item["id"], pads.size() == int(want_pad))
+		check("runtime managed boundary %s rendered incident triangles cover center" % item["id"], _tagged_rendered_coverage([built], "road_slab", road_ids, origin) > 0)
+		if not want_pad:
+			var literal_outside := origin + Vector2(-5.5, 5.5)
+			check("runtime managed boundary %s rendered incident triangles exclude literal outside corner" % item["id"], _tagged_rendered_coverage([built], "road_slab", road_ids, literal_outside) == 0)
+			check("runtime managed boundary %s has no supplemental triangle at literal outside corner" % item["id"], _tagged_rendered_coverage([built], "junction_slab", [String(item["id"])], literal_outside) == 0)
+		elif pads.size() == 1:
+			var pad: MeshInstance3D = pads[0]
+			var want_size := float(item["want_size"])
+			check("runtime managed boundary %s retains exact pad dimensions transform material and no body" % item["id"], pad.mesh is BoxMesh and (pad.mesh as BoxMesh).size.is_equal_approx(Vector3(want_size,0.05,want_size)) and pad.position.is_equal_approx(Vector3(origin.x,0.13,origin.y)) and pad.rotation.is_zero_approx() and pad.material_override.albedo_color.is_equal_approx(ProtoWorldBuilder.COL_ROAD) and pad.get_child_count() == 0)
 		built.queue_free()
 	main.stream.usmap = map
 
