@@ -17,14 +17,22 @@ passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Current-source screenshot follow-up — 2026-09-06
 
-Latest: all four combined-source real-input Seattle drives pass28/0,28/0,24/0,
+Latest draw-only repair `1d49d33`: surface139/0, independent source approval,
+and a completed ON-R verbose repeat28/0 with seven inspected original frames.
+The redundant managed junction square is gone. Driver/chassis100,99.25sim /
+209.37wall, all eleven source/map hashes unchanged. The first ON-R attempt
+native-crashed after112.16wall; five partial images and logs are preserved.
+Its cause remains unresolved. A passing repeat is not a crash fix or release
+acceptance. Whole-milestone/branch review is still pending.
+
+Preceding checkpoint: all four combined-source real-input Seattle drives pass28/0,28/0,24/0,
 24/0 with full driver/chassis health and unchanged eleven-source/map hashes.
 All24 `meeting-fixed-drive-*` PNGs were personally inspected. Shared physical
 road-meeting navigation passes461/0; all four original J135 endpoint pairs take
 legal alternatives. Seven compatibility scenes pass60+11+7+35+10+28+47 checks.
 The parking/barrel fix1498d39 is independently approved (540/0 traffic,117/0
-surface; profiling-off traffic540/0). Navigation review and final visual
-acceptance remain open. The road repairs do not resolve star-like junction
+surface; profiling-off traffic540/0). Navigation commit `cb82d2a` is independently
+approved with no findings; final visual acceptance remains open. The road repairs do not resolve star-like junction
 paving, featureless ruins, abrupt terrain seams, or tiny/debug-like HUD text.
 The following sequence is retained diagnostic history, not the newest status.
 

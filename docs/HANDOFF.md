@@ -18,17 +18,27 @@ The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 
 ## 2026-09-06 — Seattle diamond interchange follow-up (in progress)
 
-Latest checkpoint supersedes the historical sequence below: all four combined-
+Latest draw-only repair `1d49d33` removes the redundant managed junction square;
+surface139/0 and independent source review approve its narrow boundary. Its
+first ON-R capture native-crashed (`0xC0000005`,112.16wall); five partial images
+and logs are retained, with no manifest or pass claimed. One unchanged-source
+verbose repeat completes28/0,99.25simulation /209.37wall,health100; all seven
+new PNGs are inspected and eleven source/map hashes unchanged. The square is
+visibly gone, but the native crash is unexplained, not fixed by nonrecurrence.
+
+The preceding checkpoint supersedes the historical sequence below: all four combined-
 source real-input drives pass28/0,28/0,24/0,24/0, all driver/chassis100;
 all24 new unedited screenshots are personally inspected. Navigation now uses the
 renderer's finite road-meeting law (461/0); all four original J135 endpoint pairs
 remain reachable by legal alternatives. Seven compatibility scenes pass
 60+11+7+35+10+28+47 checks. Parking/barrel fix1498d39 has independent scoped
 approval (traffic540/0, surface117/0; profiling-off traffic repeat540/0).
-Navigation review and final visual acceptance remain open. Large junction pads,
+Navigation commit `cb82d2a` has independent approval with no findings. Final
+visual acceptance remains open. Large junction pads,
 plain ruins, ground seams and HUD presentation still fall short of the world
-spec. The audit's `meeting-fixed-drive-*` images are the newest evidence; the
-earlier `cap-fixed-drive-*` sets and failed runs below are retained history.
+spec. The audit's `overlay-verbose-repeat-on-r` is the newest completed evidence;
+`meeting-fixed-drive-*` holds the prior four-route set, and earlier sets and
+failed runs remain history. Whole-milestone/branch review remains pending.
 
 The [new screenshot diagnostic](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
 contains successive actual, inspected frames, not yet accepted as final.

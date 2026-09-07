@@ -19,14 +19,19 @@ four before/after pairs: corrected ramp heights and a closed I-5 asphalt gap,
 with tangled joins and physical median crossings still explicitly unfinished.
 The original tour frames below are retained for comparison.
 The [current Seattle interchange diagnostic](DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
-now opens with24 newer `meeting-fixed-drive-*` frames from all four completed
-routes on the combined parking/navigation fixes. All were personally inspected;
-the criticism of junction paving, terrain seams, plain buildings and HUD remains
-explicit. Navigation461/0 and seven compatibility scenes pass, with independent
-review still pending. Earlier capture sets are retained below as history.
+now opens with a before/after managed-junction repair and seven new original
+frames from a completed ON-R drive. All were personally inspected. The redundant
+square is gone; surface139/0 and source review pass. The first capture attempt
+native-crashed and remains preserved/unresolved; the unchanged-source repeat
+passes28/0 at full health, not proof that the crash is fixed. The previous24
+`meeting-fixed-drive-*` frames cover all four completed routes on the combined
+parking/navigation fixes. Navigation461/0 and seven compatibility scenes pass;
+independent review approves navigation commit `cb82d2a`. General visual and
+stability acceptance remain open. Earlier capture sets are retained as history.
 
-The same audit
-shows the newer road captures and preserves every failed checkpoint. Joined
+### Earlier road-repair history (not the current checkpoint)
+
+The same audit preserves every failed checkpoint. Joined
 pavement, readable signs, grounded hardware, tree clearance and three precise
 building relocations now pass120 surface checks. The newest four actual-input
 drives all finish with driver and vehicle health100: OFF-R28/0, ON-R28/0,
@@ -48,6 +53,16 @@ disposable isolated saves, never that profile.
 Distant locations are staged for photography. The clock is held for comparison;
 four cartridges are fixture-unlocked. Screenshots do not prove nationwide travel,
 multiplayer authority, complete cartridge playthroughs or release readiness.
+
+## Screenshot-led priorities against the world spec
+
+| Game piece | Visual judgment | Remaining work |
+| --- | --- | --- |
+| Road travel | Roads connect and carry actual driving; nearby scenery still reads as a layout prototype. | Authored roadside stories, natural terrain transitions, finished ruins and readable road names. |
+| Home and interiors | Warm night lighting is the strongest mood; cutaway entry works. | More individual rooms, furnishings and household decisions. |
+| Driver information | Dossier and atlas repairs improve hierarchy and access. | Larger in-drive essentials, fewer internal IDs, clearer item/status symbols. |
+| Cartridge systems | Box art and distinct square/portrait/landscape screens are visible. | Richer playfields, legible game HUDs and full per-game playthrough verification. |
+| Overall spec | The road/home/console loop is recognizable, not a finished national RPG. | More encounters and authored places, stable long sessions, and separately verified MMO infrastructure. |
 
 ## 01 — Title
 

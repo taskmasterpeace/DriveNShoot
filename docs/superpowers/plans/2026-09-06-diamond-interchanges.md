@@ -439,6 +439,15 @@ Input.parse_input_event(event)
 
 ## Task 5: Visual acceptance, publication inside the repo and rollout record
 
+Screenshot rejection reopens Task4 only for the fully-owned managed junction's
+redundant axis-aligned square. Extend road_surface_sim first with actual mesh
+and physical coverage/independent corner controls; then suppress supplemental
+filler only when all incident roads use the same owned managed ribbon path.
+Preserve mixed/unmanaged/non-ribbon fillers exactly, all road physics and map
+bytes. A fresh ON-R input drive/crossing screenshot must verify the visible
+correction. The task-4-visual brief/report records ownership and RED/GREEN;
+this is not permission to redraw the other legacy street strips or terrain.
+
 **Additional prerequisite Task3b — actual graph connectivity:** the parent-only
 read-only J135 diagnostic now reproduces four public graph routes across the
 known38.71m street/highway gap. The earlier no-navigation-change boundary is

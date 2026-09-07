@@ -1,0 +1,93 @@
+{
+  "run": "road-surface-b9d10772665a494a91221e2b089c271b",
+  "source_head": "1d49d3300323081e05e87d92544f3c9282f9484d",
+  "evidence_status": "FAILED native access violation; partial visual evidence only, no manifest or route pass",
+  "note": "Byte-identical original captures and logs. Both profiles isolated. Source hashes match the pre-run record and current files; source mtimes precede capture. No image editing or fabricated manifest.",
+  "source_hashes": [
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "35301b3f96d15803c93aa122c85987e4e089b216ec8ff96a045298ee422a72ff"
+    },
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "62b3d4b5d480e432c7c635e2ed74289cb8a565c3bc25fd024e2ed186ef1550d3"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "b4e93ba54529ad3439927b2c08585f1de75ab402b27bf9ec693e958b79fff608"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "58a019b561be3751c828c868a58686b5fd345677e75dc7964ecf60f1af81e7be"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "390a71743992321621fbd4a66b7e82af13eaa06c2f7bfd1e2e723ee293926f25"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55a431b0ef34de48d754c6209189996d3c082609f29181ba02964c0228b7575e"
+    },
+    {
+      "path": "game/proto3d/tests/roadside_clearance_sim.gd",
+      "sha256": "94fcc34f3dd9b2a150ebc2218da5d04c3d21b90d5448ed6e3328f11188deed58"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2d033cb8389d941e525ab7ad0d0e2e2843d75a83fdd8f3ead5cc681f03d7f69a"
+    },
+    {
+      "path": "game/proto3d/usmap.gd",
+      "sha256": "7cc5e2515ef5e5f0405f46b455a47961454e83fcfed796883a34eb93f68fa994"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "286fd089576391d00e8ab6aaff008c93f85860ee7bc075c5743b70f239204777"
+    },
+    {
+      "path": "game/proto3d/road_graph.gd",
+      "sha256": "b9b03831b845f393ccb9985c82a873518331581a92ab996c5c889517e3f2686b"
+    }
+  ],
+  "map_sha256": "04d975429dd544212438b3d9daef96d61e08b5551f19b622ff14a73bdf0135b9",
+  "capture_hashes": [
+    {
+      "file": "01_seattle_approach.png",
+      "sha256": "c698942dbc88a4ea67818ba452bb9bb14f531fd7574d79e0f3305498ccd6d364"
+    },
+    {
+      "file": "drive_00_I-90_X11-on-r_approach.png",
+      "sha256": "27de6320b82ee7842a8a30c98ae71fd6be10ae54e46d765f8fafedf9da7fa823"
+    },
+    {
+      "file": "drive_I-90_X11-on-r_bridge_crossing.png",
+      "sha256": "cf069865c16e2ee5062dda4a1ed0403a96891eb22011b917247ca38173e9ed86"
+    },
+    {
+      "file": "drive_I-90_X11-on-r_crossing.png",
+      "sha256": "51f0582f4b9254b4077bbd7f679fab140616ba56fea249916e72e664871b4a13"
+    },
+    {
+      "file": "drive_I-90_X11-on-r_town_feeder.png",
+      "sha256": "3cb149e6b2ed8b58870b2ddabe024152664e64e3d6fd069537d1695ea4eff3a7"
+    }
+  ],
+  "evidence_hashes": [
+    {
+      "file": "environment.json",
+      "sha256": "5d22ba424a413d3201f42662b8a42d392771b684afc4f831be4736546d0aa6f1"
+    },
+    {
+      "file": "result.json",
+      "sha256": "d41b938b396f51a6463ef006630f4290745cd7a74c81fb066ade1471bf61ec46"
+    },
+    {
+      "file": "stdout.log",
+      "sha256": "0154aa03898b3cee2e048028e6558a9a9871ebf09fac8a80a44090db7edd4b8a"
+    },
+    {
+      "file": "stderr.log",
+      "sha256": "26cb23f5c26e5eadcd2d29617de723718b061a758b38fac5708e1e06fdade766"
+    }
+  ]
+}

@@ -188,6 +188,15 @@ nearby fill before accepting this renderer-only change.
 
 ## Acceptance
 
+Visual follow-up narrows the earlier preserve-valid-fill rule: a flat junction
+fully owned by one managed interchange, with every incident road rendered by
+the existing undivided managed ribbon path, must not add the old axis-aligned
+square outside those real paved footprints. The ribbons retain their original
+geometry, collision and height. Mixed/unmanaged or non-ribbon junctions keep
+their existing valid filler exactly. Require actual mesh/physical center
+coverage and an independent off-pavement corner regression plus a new real
+ON-R crossing capture; this does not repair unrelated street strips or terrain.
+
 1. Pure production-path tests prove both directions, reversed/diagonal highway
    coordinates, a behind-anchor destination, exact endpoint/role ownership,
    full-width median avoidance, curve continuity, grades, retained fields and

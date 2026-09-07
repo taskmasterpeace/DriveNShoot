@@ -4,7 +4,65 @@
 improvements and remaining defects. This is one Seattle interchange, not a
 finished United States, release-ready game, or public MMO.
 
-## Current combined-source checkpoint — four drives inspected
+## Latest draw-only repair — inspected, earlier crash still unresolved
+
+**First overlay capture, not a driving pass:** commit `1d49d33` passes the
+unchanged tests-first surface regression139/0 and independent source review,
+but its fresh ON-R capture `road-surface-b9d10772665a494a91221e2b089c271b`
+exits with native access violation `0xC0000005` after112.16wall seconds.
+Five completed original PNGs were inspected: the extra square is visibly gone
+at the crossing and town feeder. There is no completed manifest or final drive
+summary. The last driving log is at75.0simulation seconds, health100, with all
+four wheels contacting road bodies. This is **not** a successful route test.
+The existing four passes below predate the draw-only overlay guard.
+
+Windows Application Error records the matching engine launch in `ntdll.dll`;
+the log does not identify a game-code cause. Stderr reports an ObjectDB leak.
+The bounded Event1000 record is2026-09-06T23:01:59.9706123-04:00, report
+`417f45c1-000c-4e71-82c3-1610cacebbe8`, exception0xc0000005 at offset0x2f6a3.
+The standard enginePID27536 started03:00:10.3539175Z, approximately44ms after
+this run's isolated environment was created. This matches the console launch
+timing; a direct parent-child process relation was not recorded. No memory
+dump was analyzed and no game-code fault location is asserted.
+One unchanged-source verbose diagnostic repeat has now completed. No crash
+fix or visual/drive acceptance is claimed from the partial pictures.
+
+The repeat `interchange_drive-verbose-ff3f9efa72ae402389b0040665882388` exits0,
+passes28/0, and completes the ON-R route in99.25simulation /209.37wall seconds
+with driver/chassis100 and maximum deviation6m. All eleven source hashes and
+map04D are unchanged. Original360wall,110drive,130scene and12stall limits,
+bound-pad driver, GL renderer,1280x720 resolution and isolated profiles remain;
+only verbose logging is added. Stderr is empty, with no script/parse/resource
+errors. Verbose startup does report three unsupported `misc2` controller-map
+strings and NVAPI profile creation code-167; no causal connection to the earlier
+crash is established. This is a completed run, **not a crash fix**.
+
+All seven original repeat PNGs were personally inspected. The extra axis-aligned
+square is gone at both managed joins; oriented approaches, center paint and real
+collision-deck travel remain. A thin paving seam, separate broad legacy street
+strips, rectangular terrain transitions, box ruins and cramped HUD remain below
+the spec's visual bar. Independent source review approves the two-file overlay
+change; the fresh repeat resolves its pending screenshot/traversal check only.
+It does not resolve general stability or full-world visual acceptance.
+
+### Exact same-route comparison (camera motion is not pixel-identical)
+
+Before: the supplemental square protrudes beside the angled road.
+
+![Before: excess managed square at ON-R crossing](../renders/diamond-interchange-2026-09-06/meeting-fixed-drive-on-r/drive_I-90_X11-on-r_crossing.png)
+
+After: the supplemental square is removed; separate legacy strips remain.
+
+![After: corrected managed crossing from completed verbose drive](../renders/diamond-interchange-2026-09-06/overlay-verbose-repeat-on-r/drive_I-90_X11-on-r_crossing.png)
+
+![After: completed ON-R highway return, player and car health100](../renders/diamond-interchange-2026-09-06/overlay-verbose-repeat-on-r/drive_99_I-90_X11-on-r_completion.png)
+
+The five partial failed images and original logs are retained in
+`overlay-native-failed-on-r`; seven completed repeat images, manifest and logs
+are in `overlay-verbose-repeat-on-r`. Every archived capture is byte-identical
+to its run output with SHA-256 provenance; no missing manifest was fabricated.
+
+## Previous combined-source checkpoint — four drives inspected
 
 Batch `diamond-final-drives-7a501676f7ba4749929d79aa0b44cf15` supersedes the
 earlier `cap-fixed-drive-*` results below. All four routes completed on the
@@ -54,9 +112,37 @@ navigation-walk10/0, lanes28/0, atlas47/0 and exit geometry7/0. The latter's
 off-ramps, including both explicitly owned Seattle mouths, and preserves all16
 source/map hashes. It repairs the legacy test classifier, not the physical
 thresholds. Earlier5/1 remains the before-fix evidence. Independent navigation
-review and final visual/milestone acceptance are still pending.
+review approves the exact six-file commit `cb82d2a`, with no findings. Final
+visual/milestone acceptance remains open: the fully-owned managed junction's
+extra square overlay is addressed by the newer draw-only checkpoint above. No
+road physics or navigation changed in that visual fix.
 
 ## Earlier checkpoint history — retained, not current-source acceptance
+
+### Current screenshot rejection: managed square overlay
+
+The current ON-R crossing frame identifies `I-90_X11-local-1`. The runtime
+test measures its supplemental axis-aligned square at11.2x11.2m, final draped
+center y7.666062. Its northwest corner extends beyond all three incident road
+meshes. The actual oriented road triangles still cover the junction center,
+with physical floor y7.617951. This is a visual overlay defect, not a missing
+road floor. A preliminary source-only claim that the square sat below the
+deck was wrong: normal chunk draping raises it; the actual runtime measurement
+replaces that assumption.
+
+Tests-first checkpoint `road_surface-verbose-bdac5f826dde4d41a8bfa32953460170`
+is133/6: exactly the unwanted square/corner assertions fail in the photographed,
+rotated and perpendicular cases. Existing road physics and mixed/unmanaged/
+foreign-owner/divided preservation checks pass. The proposed correction skips
+only the redundant visual square where every incident road is an undivided
+managed ribbon with the same owner. The live map has two such local joins;
+the mixed town destination keeps its current pad. The unchanged regression now
+passes139/0 in `road_surface-verbose-a7c7f848708a4a87b7adf272b1f9e64d`,
+61.11wall seconds, PID42632 exit0, empty stderr/no diagnostics and unchanged
+nine-source/map hashes. Local commit `1d49d33` contains only the18-line visual
+guard and its134-line regression extension. The independently approved source
+and completed real-camera ON-R repeat are described at the top of this audit;
+unrelated street strips and ground seams are not included in this fix.
 
 **New screenshot attribution:** the brown shape beside the highway is the top of
 a real procedural ruin body (`biome_filler=ruin`), not a separate roof layer or an
