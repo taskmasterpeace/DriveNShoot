@@ -4,6 +4,52 @@
 improvements and remaining defects. This is one Seattle interchange, not a
 finished United States, release-ready game, or public MMO.
 
+## September 7 — traffic correction verified, independent review pending
+
+The new focused engine test first reproduced a **34.06m jump in one 0.05s
+tick** on both Seattle off-ramps. Cars could also escape a stopped highway
+leader. The correction keeps highway following active while the actor drives
+through the existing paved entrance, mouth center, and ramp lane. Each step
+has one distance budget; ramp ownership changes only on physical arrival.
+
+The unchanged, single-clock test improves from **51 passed / 12 failed** to
+**63 passed / 0 failed**. Maximum entry displacement is 0.6021m against the
+unchanged 0.62m limit. Both moving queues and initially stationary queues hold;
+the moving actors retain at least 0.610m longitudinal body clearance. Center
+and four corner samples remain supported in the tested entry corridor, and
+both physical medians remain intact. This is not an all-vehicle swept-hull,
+all-exit, or public-network certification.
+
+The post-correction exit-port compatibility test passes **67/0**, including
+cache eviction/reload and ownership preservation. All **75** map-building tests
+pass with the stronger repeated-bake metadata assertions. The broader traffic
+matrix initially finished **538/2**, exposing an existing maintenance bug: a
+convoy could add followers beyond the remaining traffic slots. A maintenance-only
+cap now limits those followers; explicit convoy spawning remains unchanged.
+The final frozen-source sequence passes **63/0 handoff, 67/0 ports, and 540/0
+traffic**, in 39.12, 4.92, and 158.58 wall seconds respectively. The original
+180-second wall limit remains unchanged; these are not FPS measurements.
+The last maintenance case ended at three actors, so this run is not a new
+forced-saturation test. The earlier overflow and the bounded source correction
+are preserved for independent review, which is still pending.
+
+Exact original [failing baseline](traffic-handoff-2026-09-07/red/stdout.log),
+[final passing handoff](traffic-handoff-2026-09-07/green-final/stdout.log),
+[final port compatibility](traffic-handoff-2026-09-07/ports-final/stdout.log), and
+[final traffic compatibility](traffic-handoff-2026-09-07/traffic-final/stdout.log) logs include
+source hashes and isolated-profile records in their folders. There are no
+script/parse errors and stderr is empty in these completed runs; verbose
+controller-map diagnostics are retained. Earlier invalid clock/syntax fixtures
+and the first 61/2 correction attempt are documented separately, not called
+successful verification.
+The [failed traffic covering run](traffic-handoff-2026-09-07/traffic/stdout.log)
+is preserved separately with its actual 538/2 result and unchanged-source hashes.
+
+The screenshots below predate this traffic-only correction. The separate
+native crashes, legacy highway height snap, visual shortcomings, and broader
+mission remain open. Passing these focused checks does not grant release
+acceptance or describe a finished national world.
+
 ## Latest draw-only repair — inspected, earlier crash still unresolved
 
 **First overlay capture, not a driving pass:** commit `1d49d33` passes the
@@ -24,6 +70,11 @@ The standard enginePID27536 started03:00:10.3539175Z, approximately44ms after
 this run's isolated environment was created. This matches the console launch
 timing; a direct parent-child process relation was not recorded. No memory
 dump was analyzed and no game-code fault location is asserted.
+The follow-up inspected only that exact WER archive and named temporary dump
+path. The archive contains `Report.wer` only (77,710bytes), repeating the same
+application/module/exception/offset; the named `.mdmp` is absent. No debugger
+was found on PATH or in the checked Windows SDK directory. No debugger install,
+registry change, memory extraction or privilege workaround was attempted.
 One unchanged-source verbose diagnostic repeat has now completed. No crash
 fix or visual/drive acceptance is claimed from the partial pictures.
 
@@ -44,6 +95,20 @@ strips, rectangular terrain transitions, box ruins and cramped HUD remain below
 the spec's visual bar. Independent source review approves the two-file overlay
 change; the fresh repeat resolves its pending screenshot/traversal check only.
 It does not resolve general stability or full-world visual acceptance.
+
+Final risk-based branch review at `0b888f7` also identified a first-tick NPC
+highway-to-ramp teleport in source arithmetic (about30.7m in a0.05s tick).
+The new isolated, single-clock engine regression reproduces a34.06m jump
+on both actual Seattle off-ramps before the correction recorded above;
+the earlier driving photographs do not cover that particular NPC handoff.
+Early diagnostic versions of the test accidentally included automatic ticks;
+those are retained as diagnostic evidence, not the final0.05s contract proof.
+The corrected test also exposes a separate0.63m downward height adjustment
+on the non-taking highway path. Its horizontal speed and five-point pavement
+support pass; that visible vertical roughness remains unresolved world debt.
+Overall milestone acceptance is withheld. Complete bake-metadata and cache-
+eviction coverage were strengthened in the same bounded correction wave.
+No new map/renderer change or national rollout is part of that wave.
 
 ### Exact same-route comparison (camera motion is not pixel-identical)
 

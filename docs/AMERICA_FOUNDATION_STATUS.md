@@ -15,7 +15,20 @@ All future verification must explicitly isolate both profile paths. Reviewed fix
 listeners to loopback; the [live gate](verification/MCP_LOOPBACK_2026_09_06.md)
 passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
-## Current-source screenshot follow-up — 2026-09-06
+## Traffic follow-up — 2026-09-07
+
+Verified working-tree correction: managed exit entry now travels through the
+existing paved connection while retaining highway queues. An existing automatic
+convoy budget overflow found by the covering run is also capped. Frozen checks:
+handoff 51/12 RED → 63/0 GREEN; ports 67/0; traffic 538/2 → 540/0; map-building
+75/0. Final engine runs use isolated profiles, unchanged source/map hashes and
+original limits; stderr is empty. Independent scoped review remains pending.
+Exact evidence and limitations are in the [visual audit](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md).
+The screenshot gallery retains the original September 6 captures. No current
+Windows export or whole-game/MMO acceptance is implied; stability and visual
+quality remain open, including the separately observed highway height snap.
+
+## Screenshot follow-up history — 2026-09-06
 
 Latest draw-only repair `1d49d33`: surface139/0, independent source approval,
 and a completed ON-R verbose repeat28/0 with seven inspected original frames.
@@ -23,7 +36,10 @@ The redundant managed junction square is gone. Driver/chassis100,99.25sim /
 209.37wall, all eleven source/map hashes unchanged. The first ON-R attempt
 native-crashed after112.16wall; five partial images and logs are preserved.
 Its cause remains unresolved. A passing repeat is not a crash fix or release
-acceptance. Whole-milestone/branch review is still pending.
+acceptance. Final risk-based branch review at `0b888f7` is With fixes: one
+first-tick highway-to-ramp NPC teleport needs correction, alongside small
+bake/cache test gaps. The September 7 section supersedes that fix status; stability and the
+full-world visual/content bar remain open.
 
 Preceding checkpoint: all four combined-source real-input Seattle drives pass28/0,28/0,24/0,
 24/0 with full driver/chassis health and unchanged eleven-source/map hashes.

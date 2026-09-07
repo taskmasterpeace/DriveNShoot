@@ -1,0 +1,1296 @@
+WorkerThreadPool: 32 threads, 9 max low-priority.
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Unrecognized output string "misc2" in mapping:
+030000000d0f00000202000000000000,Horipad O Nintendo Switch 2 Controller,a:b1,b:b0,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b4,leftstick:b10,lefttrigger:b6,leftx:a0,lefty:a1,misc1:b13,misc2:b14,rightshoulder:b5,rightstick:b11,righttrigger:b7,rightx:a2,righty:a3,start:b9,x:b3,y:b2,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000000d0f00009601000000000000,Horipad Steam,a:b0,b:b1,back:b10,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b6,leftstick:b13,lefttrigger:b8,leftx:a0,lefty:a1,misc2:b2,paddle1:b5,paddle2:b15,paddle3:b18,paddle4:b19,rightshoulder:b7,rightstick:b14,righttrigger:b9,rightx:a3,righty:a4,start:b11,x:b3,y:b4,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000007e0500006920000000000000,Nintendo Switch 2 Pro Controller,a:b0,b:b1,back:b14,dpdown:b8,dpleft:b10,dpright:b9,dpup:b11,guide:b16,leftshoulder:b12,leftstick:b15,lefttrigger:b13,leftx:a0,lefty:a1~,misc1:b17,misc2:b20,paddle1:b18,paddle2:b19,rightshoulder:b4,rightstick:b7,righttrigger:b5,rightx:a2,righty:a3~,start:b6,x:b2,y:b3,platform:Windows,
+Using "default" pen tablet driver...
+
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+Loading resource: res://default_bus_layout.tres
+CORE API HASH: 937899573
+EDITOR API HASH: 1777164193
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: res://addons/dialogue_manager/dialogue_manager.gd
+Loading resource: res://addons/dialogue_manager/test_scene.tscn
+Loading resource: res://addons/dialogue_manager/test_scene.gd
+Loaded system CA certificates
+Loading resource: res://proto3d/tests/traffic_sim.tscn
+Loading resource: res://proto3d/tests/traffic_sim.gd
+TRAFFIC: start
+TRAFFIC: PASS - TRAFFIC rows exist (budget/headway_s/exit_take_chance/speed_lanes_2..6/promote_cap)
+TRAFFIC: PASS - data OVERRIDES the floor, number by number
+TRAFFIC: PASS - untouched knobs keep stock
+TRAFFIC: PASS - unknown knobs are welcomed (open schema)
+Loading resource: res://proto3d/proto3d.tscn
+Loading resource: res://proto3d/proto3d.gd
+Loading resource: res://assets/ui/tv/crt.png
+Loading resource: res://.godot/imported/crt.png-12aa520cee698fbc4819644ff207ab40.ctex
+Loading resource: res://assets/ui/radio/faceplate.png
+Loading resource: res://.godot/imported/faceplate.png-9f0df9420c1f4aeb7123d584e2c20376.ctex
+Loading resource: res://assets/ui/fonts/radio_lcd.ttf
+Loading resource: res://.godot/imported/radio_lcd.ttf-41074cf24ff3c77058c84d3737190200.fontdata
+Loading resource: res://assets/skins/dirt.png
+Loading resource: res://.godot/imported/dirt.png-3ccc008cd8e6dcd3287cc4741507aaab.ctex
+Loading resource: res://assets/skins/metal.png
+Loading resource: res://.godot/imported/metal.png-ae44fdaeb0fa4fc820ce3daecd6887bb.ctex
+Loading resource: res://assets/skins/road.png
+Loading resource: res://.godot/imported/road.png-86c02a9e12821feb079706b2c6b9a9c1.ctex
+Loading resource: res://assets/skins/rust.png
+Loading resource: res://.godot/imported/rust.png-1fab183d48917912baf79e62e151079a.ctex
+Loading resource: res://assets/skins/wall.png
+Loading resource: res://.godot/imported/wall.png-6b3a17cba61e1527e79b9adedabd37de.ctex
+Loading resource: res://assets/skins/wood.png
+Loading resource: res://.godot/imported/wood.png-29be0963f6a31f1c23945f8af733c9a1.ctex
+Loading resource: res://proto3d/games/game_deck.gd
+Loading resource: res://proto3d/games/game_registry.gd
+Loading resource: res://proto3d/games/score_ledger.gd
+Loading resource: res://proto3d/games/arcade_input_router.gd
+Loading resource: res://proto3d/games/game_shell.gd
+Loading resource: res://proto3d/games/game_console.gd
+Loading resource: res://proto3d/games/game_session_broker.gd
+Loading resource: res://proto3d/games/game_lobby.gd
+Loading resource: res://proto3d/games/game_handheld.gd
+Loading resource: res://proto3d/games/game_shelf.gd
+Loading resource: res://proto3d/games/game_venue.gd
+Loading resource: res://proto3d/games/game_spectator.gd
+Loading resource: res://addons/exit_portal_free/portal_wobble.gd
+Loading resource: res://addons/exit_portal_free/meshes/wobble.res
+Loading resource: res://addons/exit_portal_free/portal_disk.gdshader
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/motorcycle.glb
+Loading resource: res://.godot/imported/motorcycle.glb-574ea27b7ed0314d3454fee60da4dbb9.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/buggy.glb
+Loading resource: res://.godot/imported/buggy.glb-dad507b958fef40db254e103a5d8cb70.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/semi.glb
+Loading resource: res://.godot/imported/semi.glb-30fdbecb60098135e6b4cfec6b243b46.scn
+Loading resource: res://assets/models/vehicles/trailer.glb
+Loading resource: res://.godot/imported/trailer.glb-9320e974ed8666df3fc4d9fe20cd6c1a.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/motorcycle.glb
+Loading resource: res://.godot/imported/motorcycle.glb-574ea27b7ed0314d3454fee60da4dbb9.scn
+Loading resource: res://assets/models/vehicles/buggy.glb
+Loading resource: res://.godot/imported/buggy.glb-dad507b958fef40db254e103a5d8cb70.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/semi.glb
+Loading resource: res://.godot/imported/semi.glb-30fdbecb60098135e6b4cfec6b243b46.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/camper.glb
+Loading resource: res://.godot/imported/camper.glb-3f697d2b6eeaf86859b6c92272c1e9b5.scn
+Loading resource: res://assets/models/vehicles/humvee.glb
+Loading resource: res://.godot/imported/humvee.glb-a76f7d4af6b2be56dd60b8a29a875497.scn
+Loading resource: res://assets/ui/gauges/sport.png
+Loading resource: res://.godot/imported/sport.png-a25f5d0d05bfe1d16dd0ac9cc8221005.ctex
+Loading resource: res://assets/ui/gauges/fuel.png
+Loading resource: res://.godot/imported/fuel.png-ff90118609eca1c52ee77b582fd0c1a1.ctex
+Loading resource: res://assets/ui/gauges/temp.png
+Loading resource: res://.godot/imported/temp.png-4690509f3198c6a26ab578730477fc1d.ctex
+Loading resource: res://assets/ui/gauges/tach.png
+Loading resource: res://.godot/imported/tach.png-eabf3719851440f599b2e456735df7a6.ctex
+Loading resource: res://assets/ui/hudicons/d_engine.png
+Loading resource: res://.godot/imported/d_engine.png-3f7e3a9c94e5add020753908b0176042.ctex
+Loading resource: res://assets/ui/hudicons/d_tires.png
+Loading resource: res://.godot/imported/d_tires.png-6b2c819bc08ed7c5d6b17a83364ad19f.ctex
+Loading resource: res://assets/ui/hudicons/d_battery.png
+Loading resource: res://.godot/imported/d_battery.png-a4268f09ebc9163410732384ebad5056.ctex
+Loading resource: res://assets/ui/hudicons/d_fuel_tank.png
+Loading resource: res://.godot/imported/d_fuel_tank.png-e5af62f34339f17d575e9d4f72ccc6f2.ctex
+Loading resource: res://assets/ui/hudicons/d_chassis.png
+Loading resource: res://.godot/imported/d_chassis.png-111ea3d7597ca77c0afc9fbed21024f0.ctex
+Loading resource: res://assets/sfx/shot.mp3
+Loading resource: res://.godot/imported/shot.mp3-b3c51657e3cf7024c27cbbd2708eef1e.mp3str
+Loading resource: res://assets/sfx/shotgun.mp3
+Loading resource: res://.godot/imported/shotgun.mp3-36bb6a6e821942e98067c80d3a33cf14.mp3str
+Loading resource: res://assets/sfx/explosion.mp3
+Loading resource: res://.godot/imported/explosion.mp3-2f056bf664bfd9780c7112bdeaa3fa79.mp3str
+Loading resource: res://assets/sfx/click.mp3
+Loading resource: res://.godot/imported/click.mp3-0625a102c47e756510f31025be055e4b.mp3str
+Loading resource: res://assets/sfx/bark.mp3
+Loading resource: res://.godot/imported/bark.mp3-d00d68ab745253ecd70728b45e7e3baa.mp3str
+Loading resource: res://assets/sfx/growl.mp3
+Loading resource: res://.godot/imported/growl.mp3-d4659ea2f11583902b8fee7c76447250.mp3str
+Loading resource: res://assets/sfx/hurt.mp3
+Loading resource: res://.godot/imported/hurt.mp3-d628c3a45963fb49c911dd190f89982b.mp3str
+Loading resource: res://assets/sfx/blip.mp3
+Loading resource: res://.godot/imported/blip.mp3-546f4390d95e981e10c2045bf42dffe6.mp3str
+Loading resource: res://assets/sfx/creak.mp3
+Loading resource: res://.godot/imported/creak.mp3-da3f631ae7005bf9025347a9a673d5a8.mp3str
+Loading resource: res://assets/sfx/whoosh.mp3
+Loading resource: res://.godot/imported/whoosh.mp3-c148d058100e6f83f5f17259a1d11a39.mp3str
+Loading resource: res://assets/sfx/thunk.mp3
+Loading resource: res://.godot/imported/thunk.mp3-e8d9d1adcafb66b3363216bf7f807f7f.mp3str
+Loading resource: res://assets/sfx/hitmark.mp3
+Loading resource: res://.godot/imported/hitmark.mp3-c3aef37ba11f6cb0f631759ad85b56d5.mp3str
+Loading resource: res://assets/sfx/honk.mp3
+Loading resource: res://.godot/imported/honk.mp3-fa83269ced8466888b18b6d712534725.mp3str
+Loading resource: res://assets/sfx/howl.mp3
+Loading resource: res://.godot/imported/howl.mp3-78db6a73ea313c9ab356bb33a3f37559.mp3str
+Loading resource: res://assets/sfx/engine.mp3
+Loading resource: res://.godot/imported/engine.mp3-552e9be6249de109ef94b69979263692.mp3str
+Loading resource: res://assets/sfx/fire.mp3
+Loading resource: res://.godot/imported/fire.mp3-4fa09471aedc0878b0425500e7a1d0c9.mp3str
+Loading resource: res://assets/sfx/amb_desert.mp3
+Loading resource: res://.godot/imported/amb_desert.mp3-58a88c67d569dd304049ce4cfae06187.mp3str
+Loading resource: res://assets/sfx/amb_forest.mp3
+Loading resource: res://.godot/imported/amb_forest.mp3-9aa413e8b1cbfa645ff6492a21bf4504.mp3str
+Loading resource: res://assets/sfx/amb_night.mp3
+Loading resource: res://.godot/imported/amb_night.mp3-057308e0f5f58a924fe020dd2abe16bd.mp3str
+Loading resource: res://assets/sfx/amb_plains.mp3
+Loading resource: res://.godot/imported/amb_plains.mp3-7717b0736ca868cb8150eefe57693704.mp3str
+Loading resource: res://assets/sfx/amb_town.mp3
+Loading resource: res://.godot/imported/amb_town.mp3-fbfcb0e32f748ff06ae73f21004a0d7c.mp3str
+Loading resource: res://assets/sfx/amb_wind.mp3
+Loading resource: res://.godot/imported/amb_wind.mp3-a8c4f714b458f5266f4b43e6a074e07f.mp3str
+Loading resource: res://assets/sfx/body_thud.mp3
+Loading resource: res://.godot/imported/body_thud.mp3-edb72a7635c6ccbd1cc038065d5b3353.mp3str
+Loading resource: res://assets/sfx/breath_sprint.mp3
+Loading resource: res://.godot/imported/breath_sprint.mp3-dc8e7da670c00eb5a3185e23c4950279.mp3str
+Loading resource: res://assets/sfx/camera_click.mp3
+Loading resource: res://.godot/imported/camera_click.mp3-0de7cbb3ebdbff15f31e9e33c10f5f23.mp3str
+Loading resource: res://assets/sfx/car_door.mp3
+Loading resource: res://.godot/imported/car_door.mp3-16dd6ef4c5c4b18db36d6da3d6d2aba2.mp3str
+Loading resource: res://assets/sfx/container_open.mp3
+Loading resource: res://.godot/imported/container_open.mp3-27a907593c92b3696fec0d84b9aa07c1.mp3str
+Loading resource: res://assets/sfx/crouch_rustle.mp3
+Loading resource: res://.godot/imported/crouch_rustle.mp3-87e0661bce0f737e8e036253b72dee77.mp3str
+Loading resource: res://assets/sfx/dive.mp3
+Loading resource: res://.godot/imported/dive.mp3-4a1c2aeeef6524b0646bdf16cc3dffe4.mp3str
+Loading resource: res://assets/sfx/dog_whine.mp3
+Loading resource: res://.godot/imported/dog_whine.mp3-b2917154cdddb3cc40164ffafb3fb963.mp3str
+Loading resource: res://assets/sfx/drone_hum.mp3
+Loading resource: res://.godot/imported/drone_hum.mp3-1a989e1744da80fdef79e608e2c60f03.mp3str
+Loading resource: res://assets/sfx/engine_diesel.mp3
+Loading resource: res://.godot/imported/engine_diesel.mp3-f62efdcc5047b4d9d399ac3128de437d.mp3str
+Loading resource: res://assets/sfx/engine_motorcycle.mp3
+Loading resource: res://.godot/imported/engine_motorcycle.mp3-3035d896a26f9f91137f1a5ab261b83c.mp3str
+Loading resource: res://assets/sfx/engine_muscle.mp3
+Loading resource: res://.godot/imported/engine_muscle.mp3-48602252305a9543b3580b1fc2c3fc6e.mp3str
+Loading resource: res://assets/sfx/engine_start.mp3
+Loading resource: res://.godot/imported/engine_start.mp3-8e3afa938abfc4e20412feee73e95e32.mp3str
+Loading resource: res://assets/sfx/fire_whoomp.mp3
+Loading resource: res://.godot/imported/fire_whoomp.mp3-b6b55f127e50b5f1faace6b26ffb27a7.mp3str
+Loading resource: res://assets/sfx/footstep_asphalt.mp3
+Loading resource: res://.godot/imported/footstep_asphalt.mp3-122d0312612570aa47d39c8ac8cd2e80.mp3str
+Loading resource: res://assets/sfx/footstep_dirt.mp3
+Loading resource: res://.godot/imported/footstep_dirt.mp3-313344133ae08c4e3afd6674a2cd17d3.mp3str
+Loading resource: res://assets/sfx/footstep_grass.mp3
+Loading resource: res://.godot/imported/footstep_grass.mp3-4132fcac8edc10f9f2938b0d3fc0bd70.mp3str
+Loading resource: res://assets/sfx/footstep_land.mp3
+Loading resource: res://.godot/imported/footstep_land.mp3-c6f9fcd765b72aad0709d1f39868aced.mp3str
+Loading resource: res://assets/sfx/footstep_wood.mp3
+Loading resource: res://.godot/imported/footstep_wood.mp3-edcf44a4e892472469bb58d833583429.mp3str
+Loading resource: res://assets/sfx/glass_break.mp3
+Loading resource: res://.godot/imported/glass_break.mp3-2fe42206ba5f894d120e7ae6977f1a68.mp3str
+Loading resource: res://assets/sfx/impact_crunch.mp3
+Loading resource: res://.godot/imported/impact_crunch.mp3-7c76010d4fc8530fcdf69c1563980a1e.mp3str
+Loading resource: res://assets/sfx/impact_dirt.mp3
+Loading resource: res://.godot/imported/impact_dirt.mp3-a113730c33d8e35997520acc2b238d9e.mp3str
+Loading resource: res://assets/sfx/impact_metal.mp3
+Loading resource: res://.godot/imported/impact_metal.mp3-98a4f7b6d75e49af7790bbfd00cdd538.mp3str
+Loading resource: res://assets/sfx/impact_wood.mp3
+Loading resource: res://.godot/imported/impact_wood.mp3-3af4e36d91ec843ff73033aeea02244e.mp3str
+Loading resource: res://assets/sfx/metal_debris.mp3
+Loading resource: res://.godot/imported/metal_debris.mp3-21507f4c1e1b2ab92f0df6a2341fe458.mp3str
+Loading resource: res://assets/sfx/portal_arm.mp3
+Loading resource: res://.godot/imported/portal_arm.mp3-0f18637b4f0aa368d2a127e6c838714a.mp3str
+Loading resource: res://assets/sfx/portal_cd_1.mp3
+Loading resource: res://.godot/imported/portal_cd_1.mp3-86ddb1a68c49d5dfa704feeb13277f79.mp3str
+Loading resource: res://assets/sfx/portal_cd_10.mp3
+Loading resource: res://.godot/imported/portal_cd_10.mp3-07857038539c5d8c70080c42df81471e.mp3str
+Loading resource: res://assets/sfx/portal_cd_2.mp3
+Loading resource: res://.godot/imported/portal_cd_2.mp3-eb4b6d8e0055498bcbc32f0cff5efc74.mp3str
+Loading resource: res://assets/sfx/portal_cd_3.mp3
+Loading resource: res://.godot/imported/portal_cd_3.mp3-f8efad4766b7074680febcaa47b4a3d2.mp3str
+Loading resource: res://assets/sfx/portal_cd_4.mp3
+Loading resource: res://.godot/imported/portal_cd_4.mp3-58501dc9505ed9d8c3f035baa0e742f4.mp3str
+Loading resource: res://assets/sfx/portal_cd_5.mp3
+Loading resource: res://.godot/imported/portal_cd_5.mp3-938c0f8bbe9d8b8ca06cd4c643b423e0.mp3str
+Loading resource: res://assets/sfx/portal_cd_6.mp3
+Loading resource: res://.godot/imported/portal_cd_6.mp3-7e2c95e1381a02513f83a6166febdf1b.mp3str
+Loading resource: res://assets/sfx/portal_cd_7.mp3
+Loading resource: res://.godot/imported/portal_cd_7.mp3-a29dfe86e217923e6e9ab09c0cc9727d.mp3str
+Loading resource: res://assets/sfx/portal_cd_8.mp3
+Loading resource: res://.godot/imported/portal_cd_8.mp3-bf16d526e9a317474cc1adaa3325737f.mp3str
+Loading resource: res://assets/sfx/portal_cd_9.mp3
+Loading resource: res://.godot/imported/portal_cd_9.mp3-2cdca9f3b280472550bd96e3d7d38d86.mp3str
+Loading resource: res://assets/sfx/portal_charge.mp3
+Loading resource: res://.godot/imported/portal_charge.mp3-d7435daf9cfe8c96cc94d30f25f1e76f.mp3str
+Loading resource: res://assets/sfx/portal_go.mp3
+Loading resource: res://.godot/imported/portal_go.mp3-007d8e3286ab321f3b325985c7351ee3.mp3str
+Loading resource: res://assets/sfx/radio_static.mp3
+Loading resource: res://.godot/imported/radio_static.mp3-b2e7d33612acfa88fce9b0ce7b8c0014.mp3str
+Loading resource: res://assets/sfx/reload_drop.mp3
+Loading resource: res://.godot/imported/reload_drop.mp3-1d232d2e6f0bbe779c019fc9c01dbb4f.mp3str
+Loading resource: res://assets/sfx/reload_insert.mp3
+Loading resource: res://.godot/imported/reload_insert.mp3-01e66d2a5b3b33722316ce7e4b872ff1.mp3str
+Loading resource: res://assets/sfx/sensor_ping.mp3
+Loading resource: res://.godot/imported/sensor_ping.mp3-023e3d68d9a0415bbdc4e7f16eaa85dd.mp3str
+Loading resource: res://assets/sfx/shell_drop.mp3
+Loading resource: res://.godot/imported/shell_drop.mp3-2f9f500f6d61b0c00df41df984e16af7.mp3str
+Loading resource: res://assets/sfx/shot_mg.mp3
+Loading resource: res://.godot/imported/shot_mg.mp3-f059a8c050facd9bfd2cfccabc0233f8.mp3str
+Loading resource: res://assets/sfx/shot_rocket.mp3
+Loading resource: res://.godot/imported/shot_rocket.mp3-04627d9aa6495cf4fba841cf47f21c60.mp3str
+Loading resource: res://assets/sfx/shotgun_pump.mp3
+Loading resource: res://.godot/imported/shotgun_pump.mp3-7b0b592bd6985b1f3dad5c3addc4135e.mp3str
+Loading resource: res://assets/sfx/skid.mp3
+Loading resource: res://.godot/imported/skid.mp3-bb466a124d2a82725fbc9d7ec5bb46ed.mp3str
+Loading resource: res://assets/sfx/tire_scream.mp3
+Loading resource: res://.godot/imported/tire_scream.mp3-42ee455a6cd8235a2ac367c31e4e6913.mp3str
+Loading resource: res://assets/sfx/ui_cancel.mp3
+Loading resource: res://.godot/imported/ui_cancel.mp3-fe39b96e78f50fa8261488d6fd2985b7.mp3str
+Loading resource: res://assets/sfx/ui_click.mp3
+Loading resource: res://.godot/imported/ui_click.mp3-a044e1545b219f4cf628b8586c266839.mp3str
+Loading resource: res://assets/sfx/ui_confirm.mp3
+Loading resource: res://.godot/imported/ui_confirm.mp3-0a152d3f4ddf74974a6eda03888e54b8.mp3str
+Loading resource: res://assets/sfx/vo_bridger_clean.mp3
+Loading resource: res://.godot/imported/vo_bridger_clean.mp3-c2e8cb1a82dcda6c59cee63224a43731.mp3str
+Loading resource: res://assets/sfx/vo_bridger_refuse.mp3
+Loading resource: res://.godot/imported/vo_bridger_refuse.mp3-d0149a9aa4029f1a346ee18095dab8c3.mp3str
+Loading resource: res://assets/sfx/vo_bridger_work.mp3
+Loading resource: res://.godot/imported/vo_bridger_work.mp3-f031eacf7304db85a12c652f627f8cda.mp3str
+Loading resource: res://assets/sfx/vo_mercy_greet.mp3
+Loading resource: res://.godot/imported/vo_mercy_greet.mp3-3ee30a544d44854d8347d91214856519.mp3str
+Loading resource: res://assets/sfx/vo_mercy_refuse.mp3
+Loading resource: res://.godot/imported/vo_mercy_refuse.mp3-a93fc3f213f74291e61dc3f7af28a114.mp3str
+Loading resource: res://assets/sfx/vo_mercy_trusted.mp3
+Loading resource: res://.godot/imported/vo_mercy_trusted.mp3-e91ca0d77e6dd8aa22403b51a66791ba.mp3str
+Loading resource: res://assets/sfx/vo_radio_blood_moon.mp3
+Loading resource: res://.godot/imported/vo_radio_blood_moon.mp3-33438ae86eec07fc4b46c34706a1d50c.mp3str
+Loading resource: res://assets/sfx/vo_radio_war.mp3
+Loading resource: res://.godot/imported/vo_radio_war.mp3-8bec24ae50c46ff145878ad758a26f66.mp3str
+Loading resource: res://assets/sfx/vo_sam_contact.mp3
+Loading resource: res://.godot/imported/vo_sam_contact.mp3-20246630f299b056279dc1a328ad7b33.mp3str
+Loading resource: res://assets/sfx/vo_sam_hire.mp3
+Loading resource: res://.godot/imported/vo_sam_hire.mp3-4c2197ca08df7e19f7159d124ce923c1.mp3str
+Loading resource: res://assets/sfx/vo_sam_wheel.mp3
+Loading resource: res://.godot/imported/vo_sam_wheel.mp3-49f12a06826fa9e5ae97642b5e73065a.mp3str
+Loading resource: res://assets/sfx/walkie_squelch.mp3
+Loading resource: res://.godot/imported/walkie_squelch.mp3-3b14b18515ba5ff373e438fff37f058e.mp3str
+Loading resource: res://assets/sfx/whistle_double.mp3
+Loading resource: res://.godot/imported/whistle_double.mp3-423587513facb5fa1a3d8f4adb38698f.mp3str
+Loading resource: res://assets/sfx/whistle_long.mp3
+Loading resource: res://.godot/imported/whistle_long.mp3-0ec8851dbd56fd4f3f88bddaa239393d.mp3str
+Loading resource: res://assets/sfx/whistle_short.mp3
+Loading resource: res://.godot/imported/whistle_short.mp3-47811eb3b9b8e7cc98e0ad2cca4c5f64.mp3str
+Loading resource: res://proto3d/split_screen.gdshader
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/roadstead_cottage.glb
+Loading resource: res://.godot/imported/roadstead_cottage.glb-04ddff11c2f622a0263e8c8693841291.scn
+Loading resource: res://assets/models/homestead/parcel_mailbox.glb
+Loading resource: res://.godot/imported/parcel_mailbox.glb-69e4390bca3c3fe92fa2fc3abec01f04.scn
+Loading resource: res://assets/models/homestead/freight_shelter.glb
+Loading resource: res://.godot/imported/freight_shelter.glb-98fd33b3e1f5b575a3a89ddcfc0122a0.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/yard_lamp.glb
+Loading resource: res://.godot/imported/yard_lamp.glb-2e00263f3ce1e02170b6658837c1b0ca.scn
+Loading resource: res://assets/models/homestead/yard_lamp.glb
+Loading resource: res://.godot/imported/yard_lamp.glb-2e00263f3ce1e02170b6658837c1b0ca.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/reclaimed_fence.glb
+Loading resource: res://.godot/imported/reclaimed_fence.glb-113c807c0f0077b8f63ceeae241a8128.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/models/homestead/freight_kiosk.glb
+Loading resource: res://.godot/imported/freight_kiosk.glb-0e1c571d4aba21dc47f8e930fb4e2a49.scn
+Loading resource: res://assets/models/homestead/delivery_crate.glb
+Loading resource: res://.godot/imported/delivery_crate.glb-bc9944ec1aa2c8562b4e7ce38a6ec8a7.scn
+Loading resource: res://assets/ui/gauges/salvage.png
+Loading resource: res://.godot/imported/salvage.png-46803071c69330393479757b55d44608.ctex
+Loading resource: res://assets/ui/vehicles/scavenger.png
+Loading resource: res://.godot/imported/scavenger.png-ce8a2adab0a7096e1dcb71b212ab4ae6.ctex
+Loading resource: res://assets/ui/hud/ammo.png
+Loading resource: res://.godot/imported/ammo.png-6aef300f46da35f4522b9bdffaf327fc.ctex
+Loading resource: res://assets/ui/markers/pin.png
+Loading resource: res://.godot/imported/pin.png-e61d851d111e044f230d75736be5c787.ctex
+Loading resource: res://assets/ui/hud/health.png
+Loading resource: res://.godot/imported/health.png-6daba6726a4f9e8553a0920afcde223e.ctex
+TRAFFIC: PASS - main owns a ProtoTraffic node
+TRAFFIC: PASS - dir +1 rides the RIGHT of a->b travel (dot 3.8 > 0)
+TRAFFIC: PASS - dir -1 rides the RIGHT of b->a travel (dot 3.8 > 0)
+TRAFFIC: PASS - the lateral magnitude IS the geometry law's lane_offset (3.8 vs 3.8)
+TRAFFIC: PASS - agents MOVE along the path when ticked
+TRAFFIC: PASS - the chaser slowed to its leader (4.4 m/s <= 4.8)
+TRAFFIC: PASS - ...and NEVER passed through (min gap 12.3m >= 4)
+TRAFFIC: PASS - the agent TOOK the exit (transferred onto the ramp polyline)
+TRAFFIC: PASS - ...and despawned at the ramp's end — gone to the location
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - take_damage PROMOTES the agent to a real ProtoCar3D
+TRAFFIC: PASS - ...at the agent's own transform (2.8m off)
+TRAFFIC: PASS - ...with the damage FORWARDED (chassis hp below max)
+TRAFFIC: PASS - ...and the agent itself is gone
+TRAFFIC: PASS - at promote_cap a touch DESPAWNS instead (car count held at 18)
+TRAFFIC: FAIL - maintenance fills toward the budget near a road (6 in 1..5)
+TRAFFIC: FAIL - ...and never exceeds it
+TRAFFIC: PASS - agents beyond the band are CULLED when the player leaves (0 left)
+TRAFFIC: PASS - ambient spawns land on INTERSTATES only, never a ramp (7 agents)
+TRAFFIC: PASS - the ramp agent NEVER enters the hand-built compound (the dirt-driving bug)
+TRAFFIC: PASS - ...and it resolved off-view (despawned at the boundary)
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - an arrival IN VIEW promotes to a real PARKED car, never a vanish
+TRAFFIC: PASS - ...stationary at the compound's edge, outside hand-built land
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - freed ledger entry does not hide valid car ahead
+TRAFFIC: PASS - an agent STOPS behind a PARKED rig in its lane (min gap 94.7m >= 4)
+TRAFFIC: PASS - a TRIP agent leaves at ITS destination exit even at exit_take_chance 0
+TRAFFIC: PASS - ...and resolved at the destination (city-to-city, proven end to end)
+TRAFFIC: PASS - a convoy is a 2-3 truck COLUMN (got 3)
+TRAFFIC: PASS - ...sharing ONE destination and ONE convoy id
+TRAFFIC: PASS - the column HOLDS together on the move (gaps 31m/24m, both 6-40m)
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - touching ONE truck makes the WHOLE CONVOY real (+3 cars, got +3)
+TRAFFIC: PASS - ...and the trucks HAUL their cargo row (scrap in a trunk)
+TRAFFIC: PASS - arrival fixture I-90_X11-crossroad has real connecting-road floor
+TRAFFIC: PASS - arrival fixture I-90_X11-town-link has real connecting-road floor
+TRAFFIC: PASS - arrival fixture retains stock promotion cap5
+TRAFFIC: PASS - endpoint fixture starts without a projected real-car leader
+TRAFFIC: PASS - arrival fixture preserves original or genuinely promoted body
+TRAFFIC ARRIVAL phase=capacity-available original=(-56018.68, 8.910927, -18063.54) body=/root/TrafficSim/Proto3D/@Node3D@18096/@AnimatableBody3D@18102 position=(-56018.56, 8.910831, -18063.32) promoted=0
+TRAFFIC ARRIVAL AGENT registered=true road=I-90_X11-off seg=58 s_ab=4.888 dir=1 speed=5.000 cruise=5.000 arrived=false leader=<null>
+TRAFFIC ARRIVAL QUERY phase=capacity-available initial body=/root/TrafficSim/Proto3D/@Node3D@18096/@AnimatableBody3D@18102 position=(-56018.56, 8.910831, -18063.32) target_arrival=true
+TRAFFIC ARRIVAL QUERY phase=capacity-available initial body=/root/TrafficSim/Proto3D/@Node3D@18096/@AnimatableBody3D@18102 position=(-56018.56, 8.910831, -18063.32) target_arrival=true
+TRAFFIC ARRIVAL ENVELOPE phase=capacity-available initial_arrival_boxes=2 final_arrival_boxes=0 exclusions=0
+TRAFFIC: PASS - capacity-available arrival leaves crossroad and feeder free of its parked collider
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - full-cap fixture contains five real production-promoted cars
+TRAFFIC: PASS - endpoint fixture starts without a projected real-car leader
+TRAFFIC: PASS - arrival fixture preserves original or genuinely promoted body
+TRAFFIC ARRIVAL phase=full-cap original=(-56018.68, 8.910927, -18063.54) body=/root/TrafficSim/Proto3D/@Node3D@18103/@AnimatableBody3D@18234 position=(-56018.56, 8.910831, -18063.32) promoted=5
+TRAFFIC ARRIVAL AGENT registered=true road=I-90_X11-off seg=58 s_ab=4.888 dir=1 speed=5.000 cruise=5.000 arrived=false leader=<null>
+TRAFFIC ARRIVAL QUERY phase=full-cap initial body=/root/TrafficSim/Proto3D/@Node3D@18103/@AnimatableBody3D@18234 position=(-56018.56, 8.910831, -18063.32) target_arrival=true
+TRAFFIC ARRIVAL QUERY phase=full-cap initial body=/root/TrafficSim/Proto3D/@Node3D@18103/@AnimatableBody3D@18234 position=(-56018.56, 8.910831, -18063.32) target_arrival=true
+TRAFFIC ARRIVAL ENVELOPE phase=full-cap initial_arrival_boxes=2 final_arrival_boxes=0 exclusions=0
+TRAFFIC: PASS - full-cap arrival leaves crossroad and feeder free of its parked collider
+TRAFFIC MANAGED TRIP I-90_X11-off cap=false visited=["I-90_X11-off", "I-90_X11-town-link"] seconds=53.40 bridge_samples=0 bridge_valid=true
+TRAFFIC: PASS - I-90_X11-off cap=false follows only its declared connectors to town
+TRAFFIC: PASS - I-90_X11-off cap=false lane transitions are speed bounded, not endpoint teleports
+TRAFFIC: PASS - I-90_X11-off cap=false retains its actual trip identity
+TRAFFIC TRIP RESOLUTION I-90_X11-off cap=false last=(-56500.76, 7.286666, -18103.27) body_present=false destination_approach=true off_view=true
+TRAFFIC: PASS - I-90_X11-off cap=false reaches the bounded final destination approach
+TRAFFIC: PASS - I-90_X11-off cap=false resolves only after all connectors and at its destination
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC MANAGED TRIP I-90_X11-off cap=true visited=["I-90_X11-off", "I-90_X11-town-link"] seconds=53.40 bridge_samples=0 bridge_valid=true
+TRAFFIC: PASS - I-90_X11-off cap=true follows only its declared connectors to town
+TRAFFIC: PASS - I-90_X11-off cap=true lane transitions are speed bounded, not endpoint teleports
+TRAFFIC: PASS - I-90_X11-off cap=true retains its actual trip identity
+TRAFFIC TRIP RESOLUTION I-90_X11-off cap=true last=(-56500.76, 7.286666, -18103.27) body_present=false destination_approach=true off_view=true
+TRAFFIC: PASS - I-90_X11-off cap=true reaches the bounded final destination approach
+TRAFFIC: PASS - I-90_X11-off cap=true resolves only after all connectors and at its destination
+TRAFFIC MANAGED TRIP I-90_X11-off-r cap=false visited=["I-90_X11-off-r", "I-90_X11-crossroad", "I-90_X11-town-link"] seconds=84.90 bridge_samples=27 bridge_valid=true
+TRAFFIC: PASS - I-90_X11-off-r cap=false follows only its declared connectors to town
+TRAFFIC: PASS - I-90_X11-off-r cap=false lane transitions are speed bounded, not endpoint teleports
+TRAFFIC: PASS - I-90_X11-off-r cap=false retains its actual trip identity
+TRAFFIC: PASS - I-90_X11-off-r cap=false crosses ON the actual elevated bridge deck
+TRAFFIC TRIP RESOLUTION I-90_X11-off-r cap=false last=(-56500.76, 7.286666, -18103.27) body_present=false destination_approach=true off_view=true
+TRAFFIC: PASS - I-90_X11-off-r cap=false reaches the bounded final destination approach
+TRAFFIC: PASS - I-90_X11-off-r cap=false resolves only after all connectors and at its destination
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC MANAGED TRIP I-90_X11-off-r cap=true visited=["I-90_X11-off-r", "I-90_X11-crossroad", "I-90_X11-town-link"] seconds=84.90 bridge_samples=27 bridge_valid=true
+TRAFFIC: PASS - I-90_X11-off-r cap=true follows only its declared connectors to town
+TRAFFIC: PASS - I-90_X11-off-r cap=true lane transitions are speed bounded, not endpoint teleports
+TRAFFIC: PASS - I-90_X11-off-r cap=true retains its actual trip identity
+TRAFFIC: PASS - I-90_X11-off-r cap=true crosses ON the actual elevated bridge deck
+TRAFFIC TRIP RESOLUTION I-90_X11-off-r cap=true last=(-56500.76, 7.286666, -18103.27) body_present=false destination_approach=true off_view=true
+TRAFFIC: PASS - I-90_X11-off-r cap=true reaches the bounded final destination approach
+TRAFFIC: PASS - I-90_X11-off-r cap=true resolves only after all connectors and at its destination
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - nearby final arrival cap=false retains a visible original or promoted actor
+TRAFFIC: PASS - nearby final arrival cap=false approaches its plot without teleporting
+TRAFFIC: PASS - nearby final arrival cap=false full arrival footprint clears every road and placement
+TRAFFIC: PASS - nearby final arrival cap=false center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - nearby final arrival cap=false actor is supported, not floating above its plot
+TRAFFIC PARKING nearby final arrival cap=false position=(-56500.86, 7.302426, -18103.3) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - nearby final arrival cap=false full parking envelope contains no other body
+TRAFFIC: PASS - nearby final arrival cap=false resolves arrival under the actual stock cap
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC: PASS - nearby final arrival cap=true retains a visible original or promoted actor
+TRAFFIC: PASS - nearby final arrival cap=true approaches its plot without teleporting
+TRAFFIC: PASS - nearby final arrival cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - nearby final arrival cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - nearby final arrival cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING nearby final arrival cap=true position=(-56500.86, 7.286666, -18103.3) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - nearby final arrival cap=true full parking envelope contains no other body
+TRAFFIC: PASS - nearby final arrival cap=true resolves arrival under the actual stock cap
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC MANAGED CONVOY first_arrival_promotions=1 follower_registered_unarrived=true
+TRAFFIC: PASS - managed safe arrival does not chain-park its on-road convoy follower
+TRAFFIC: PASS - managed convoy leader full arrival footprint clears every road and placement
+TRAFFIC: PASS - managed convoy leader center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - managed convoy leader actor is supported, not floating above its plot
+TRAFFIC PARKING managed convoy leader position=(-56500.86, 7.636666, -18103.3) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - managed convoy leader full parking envelope contains no other body
+TRAFFIC: PASS - managed traffic tests preserve every canonical road row
+TRAFFIC: PASS - parking matrix starts from a separate real map fold
+TRAFFIC PARK MATRIX GEOMETRY mode=clear candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - clear matrix has its intended actual floor condition
+TRAFFIC: PASS - clear candidate plot occupancy is independently verified
+TRAFFIC PHYSICS phase=clear staged actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - clear staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - clear observer has actual full-footprint supporting floor
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - parking matrix clear cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix clear cap=false final actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix clear cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix clear cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix clear cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix clear cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=clear cap=false position=(90053.0, 5.057278, 90057.6) original_registered=false promotions=1
+TRAFFIC: PASS - parking matrix clear cap=false full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix clear cap=false center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix clear cap=false actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix clear cap=false position=(90053.0, 5.057278, 90057.6) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix clear cap=false full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix clear cap=false actually pulls over on its right
+TRAFFIC: PASS - parking matrix clear cap=false completes a genuine safe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=clear candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - clear matrix has its intended actual floor condition
+TRAFFIC: PASS - clear candidate plot occupancy is independently verified
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=clear staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - clear staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - clear staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - clear observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix clear cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix clear cap=true final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix clear cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix clear cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix clear cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix clear cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix clear cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=clear cap=true position=(90053.0, 4.71, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix clear cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix clear cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix clear cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix clear cap=true position=(90053.0, 4.71, 90057.6) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix clear cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix clear cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix clear cap=true completes a genuine safe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=occupied candidate_floor_hits=9 steep=0 occupied=9 exclusions=0
+TRAFFIC: PASS - occupied matrix has its intended actual floor condition
+TRAFFIC: PASS - occupied candidate plot occupancy is independently verified
+TRAFFIC PHYSICS phase=occupied staged actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - occupied staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - occupied observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix occupied cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix occupied cap=false final actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix occupied cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix occupied cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix occupied cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix occupied cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=occupied cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix occupied cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix occupied cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=occupied candidate_floor_hits=9 steep=0 occupied=9 exclusions=0
+TRAFFIC: PASS - occupied matrix has its intended actual floor condition
+TRAFFIC: PASS - occupied candidate plot occupancy is independently verified
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=occupied staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - occupied staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - occupied staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - occupied observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix occupied cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix occupied cap=true final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix occupied cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix occupied cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix occupied cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix occupied cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix occupied cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=occupied cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix occupied cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix occupied cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=missing-floor candidate_floor_hits=0 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - missing-floor matrix has its intended actual floor condition
+TRAFFIC PHYSICS phase=missing-floor staged actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - missing-floor staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - missing-floor observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix missing-floor cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix missing-floor cap=false final actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix missing-floor cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix missing-floor cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix missing-floor cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix missing-floor cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=missing-floor cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix missing-floor cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix missing-floor cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=missing-floor candidate_floor_hits=0 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - missing-floor matrix has its intended actual floor condition
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=missing-floor staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - missing-floor staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - missing-floor staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - missing-floor observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix missing-floor cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix missing-floor cap=true final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix missing-floor cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix missing-floor cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix missing-floor cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix missing-floor cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix missing-floor cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=missing-floor cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix missing-floor cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix missing-floor cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=steep candidate_floor_hits=9 steep=9 occupied=9 exclusions=0
+TRAFFIC: PASS - steep matrix has its intended actual floor condition
+TRAFFIC: PASS - steep matrix physically measures >6% at every candidate
+TRAFFIC PHYSICS phase=steep staged actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - steep staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - steep observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix steep cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix steep cap=false final actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix steep cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix steep cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix steep cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix steep cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=steep cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix steep cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix steep cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=steep candidate_floor_hits=9 steep=9 occupied=9 exclusions=0
+TRAFFIC: PASS - steep matrix has its intended actual floor condition
+TRAFFIC: PASS - steep matrix physically measures >6% at every candidate
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=steep staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - steep staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - steep staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - steep observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix steep cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix steep cap=true final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix steep cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix steep cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix steep cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix steep cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix steep cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=steep cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix steep cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix steep cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=entry-blocked candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - entry-blocked matrix has its intended actual floor condition
+TRAFFIC: PASS - entry-blocked candidate plot occupancy is independently verified
+TRAFFIC: PASS - entry-only matrix has a real obstruction before its nine clear plots
+TRAFFIC PHYSICS phase=entry-blocked staged actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - entry-blocked staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - entry-blocked observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix entry-blocked cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix entry-blocked cap=false final actors=1 actual_subject_hits=1 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix entry-blocked cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix entry-blocked cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix entry-blocked cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix entry-blocked cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=entry-blocked cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix entry-blocked cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix entry-blocked cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=entry-blocked candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - entry-blocked matrix has its intended actual floor condition
+TRAFFIC: PASS - entry-blocked candidate plot occupancy is independently verified
+TRAFFIC: PASS - entry-only matrix has a real obstruction before its nine clear plots
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=entry-blocked staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - entry-blocked staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - entry-blocked staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - entry-blocked observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix entry-blocked cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix entry-blocked cap=true final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix entry-blocked cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix entry-blocked cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix entry-blocked cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix entry-blocked cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix entry-blocked cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=entry-blocked cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix entry-blocked cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix entry-blocked cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-0.09 candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-0.09 matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-0.09 uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=curb-0.09 staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-0.09 staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-0.09 observer has actual full-footprint supporting floor
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-0.09 cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=curb-0.09 cap=false position=(90053.0, 4.967278, 90057.6) original_registered=false promotions=1
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix curb-0.09 cap=false position=(90053.0, 4.967278, 90057.6) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false actually pulls over on its right
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix curb-0.09 cap=false does not chain-park its trailing convoy member
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-0.09 candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-0.09 matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-0.09 uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=curb-0.09 staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-0.09 staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-0.09 staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - curb-0.09 observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-0.09 cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=curb-0.09 cap=true position=(90053.0, 4.62, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix curb-0.09 cap=true position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix curb-0.09 cap=true does not chain-park its trailing convoy member
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-phase candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-phase matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-phase uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=curb-phase staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-phase staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-phase observer has actual full-footprint supporting floor
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - parking matrix curb-phase cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-phase cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-phase cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-phase cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-phase cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-phase cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=curb-phase cap=false position=(90053.0, 4.967278, 90057.6) original_registered=false promotions=1
+TRAFFIC: PASS - parking matrix curb-phase cap=false full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix curb-phase cap=false center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix curb-phase cap=false actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix curb-phase cap=false position=(90053.0, 4.967278, 90057.6) envelope=(3.2, 1.5, 6.2) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix curb-phase cap=false full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix curb-phase cap=false actually pulls over on its right
+TRAFFIC: PASS - parking matrix curb-phase cap=false completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix curb-phase cap=false does not chain-park its trailing convoy member
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-phase candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-phase matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-phase uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=curb-phase staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-phase staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-phase staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - curb-phase observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix curb-phase cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-phase cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-phase cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-phase cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix curb-phase cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-phase cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-phase cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=curb-phase cap=true position=(90053.0, 4.62, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix curb-phase cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix curb-phase cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix curb-phase cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix curb-phase cap=true position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix curb-phase cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix curb-phase cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix curb-phase cap=true completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix curb-phase cap=true does not chain-park its trailing convoy member
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-0.15 candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-0.15 matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-0.15 uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=curb-0.15 staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-0.15 staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-0.15 observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-0.15 cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=curb-0.15 cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix curb-0.15 cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=curb-0.15 candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - curb-0.15 matrix has its intended actual floor condition
+TRAFFIC: PASS - curb-0.15 uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=curb-0.15 staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - curb-0.15 staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - curb-0.15 staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - curb-0.15 observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix curb-0.15 cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=curb-0.15 cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix curb-0.15 cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=uphill-step candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - uphill-step matrix has its intended actual floor condition
+TRAFFIC: PASS - uphill-step uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=uphill-step staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - uphill-step staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - uphill-step observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix uphill-step cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix uphill-step cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix uphill-step cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix uphill-step cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix uphill-step cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix uphill-step cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=uphill-step cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix uphill-step cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix uphill-step cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=uphill-step candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - uphill-step matrix has its intended actual floor condition
+TRAFFIC: PASS - uphill-step uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=uphill-step staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - uphill-step staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - uphill-step staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - uphill-step observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix uphill-step cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix uphill-step cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix uphill-step cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix uphill-step cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix uphill-step cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix uphill-step cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix uphill-step cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=uphill-step cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix uphill-step cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix uphill-step cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=untagged-step candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - untagged-step matrix has its intended actual floor condition
+TRAFFIC: PASS - untagged-step uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=untagged-step staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - untagged-step staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - untagged-step observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix untagged-step cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix untagged-step cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix untagged-step cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix untagged-step cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix untagged-step cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix untagged-step cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=untagged-step cap=false position=(90030.05, 4.71, 90049.8) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix untagged-step cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix untagged-step cap=false does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=untagged-step candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - untagged-step matrix has its intended actual floor condition
+TRAFFIC: PASS - untagged-step uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=untagged-step staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - untagged-step staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - untagged-step staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - untagged-step observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix untagged-step cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix untagged-step cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix untagged-step cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix untagged-step cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix untagged-step cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix untagged-step cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix untagged-step cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=untagged-step cap=true position=(90030.05, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix untagged-step cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix untagged-step cap=true does not promote an unsafe arrival
+TRAFFIC PARK MATRIX GEOMETRY mode=retry-curb candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - retry-curb matrix has its intended actual floor condition
+TRAFFIC: PASS - retry-curb uses actual managed serving pavement identity
+TRAFFIC PHYSICS phase=retry-curb staged actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - retry-curb staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - retry-curb observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix retry-curb cap=false keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix retry-curb cap=false final actors=2 actual_subject_hits=2 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix retry-curb cap=false final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix retry-curb cap=false keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix retry-curb cap=false uses speed-bounded motion
+TRAFFIC: PASS - parking matrix retry-curb cap=false never moves through another body
+TRAFFIC PARK MATRIX mode=retry-curb cap=false position=(90038.21, 4.62, 90053.01) original_registered=true promotions=0
+TRAFFIC: PASS - parking matrix retry-curb cap=false waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix retry-curb cap=false does not promote an unsafe arrival
+TRAFFIC: PASS - parking matrix retry-curb cap=false actually crossed once before occupied-plot retries
+TRAFFIC: PASS - parking matrix retry-curb cap=false fresh preview control is physically synchronized
+TRAFFIC PHYSICS phase=parking matrix retry-curb cap=false fresh control actors=3 actual_subject_hits=3 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix retry-curb cap=false fresh control actual body poses match physics and are detected without exclusions
+TRAFFIC CURB RETRY STATE fresh_entry=true repeated_preview=true previously_crossed_entry=false original_position=(90038.21, 4.62, 90053.01)
+TRAFFIC: PASS - parking matrix retry-curb cap=false previews do not spend an unconsumed curb allowance
+TRAFFIC: PASS - parking matrix retry-curb cap=false does not regain a second curb allowance across retries
+TRAFFIC PARK MATRIX GEOMETRY mode=retry-curb candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - retry-curb matrix has its intended actual floor condition
+TRAFFIC: PASS - retry-curb uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=retry-curb staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - retry-curb staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - retry-curb staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - retry-curb observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix retry-curb cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix retry-curb cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix retry-curb cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix retry-curb cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix retry-curb cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix retry-curb cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix retry-curb cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=retry-curb cap=true position=(90038.21, 4.62, 90053.01) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix retry-curb cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix retry-curb cap=true does not promote an unsafe arrival
+TRAFFIC: PASS - parking matrix retry-curb cap=true actually crossed once before occupied-plot retries
+TRAFFIC: PASS - parking matrix retry-curb cap=true fresh preview control is physically synchronized
+TRAFFIC PHYSICS phase=parking matrix retry-curb cap=true fresh control actors=8 actual_subject_hits=8 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix retry-curb cap=true fresh control actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix retry-curb cap=true fresh control retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC CURB RETRY STATE fresh_entry=true repeated_preview=true previously_crossed_entry=false original_position=(90038.21, 4.62, 90053.01)
+TRAFFIC: PASS - parking matrix retry-curb cap=true previews do not spend an unconsumed curb allowance
+TRAFFIC: PASS - parking matrix retry-curb cap=true does not regain a second curb allowance across retries
+TRAFFIC PARK MATRIX GEOMETRY mode=cap-touch-before candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - cap-touch-before matrix has its intended actual floor condition
+TRAFFIC: PASS - cap-touch-before uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=cap-touch-before staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - cap-touch-before staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - cap-touch-before staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - cap-touch-before observer has actual full-footprint supporting floor
+TRAFFIC CAPPED REQUEST phase=cap-touch-before position=(90028.0, 4.71, 90049.8) registered=true arrived=false cruise=5.000 cap=5
+TRAFFIC: PASS - cap-touch-before retains the same real body without exceeding stock cap
+TRAFFIC: PASS - cap-touch-before does not manufacture arrival or erase its managed trip/cruise
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix cap-touch-before cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=cap-touch-before cap=true position=(90053.0, 4.62, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix cap-touch-before cap=true position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix cap-touch-before cap=true does not chain-park its trailing convoy member
+TRAFFIC PARK MATRIX GEOMETRY mode=cap-touch-during candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - cap-touch-during matrix has its intended actual floor condition
+TRAFFIC: PASS - cap-touch-during uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=cap-touch-during staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - cap-touch-during staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - cap-touch-during staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - cap-touch-during observer has actual full-footprint supporting floor
+TRAFFIC: PASS - cap request is exercised during an unfinished pavement departure
+TRAFFIC CAPPED REQUEST phase=cap-touch-during position=(90031.31, 4.71, 90050.86) registered=true arrived=false cruise=5.000 cap=5
+TRAFFIC: PASS - cap-touch-during retains the same real body without exceeding stock cap
+TRAFFIC: PASS - cap-touch-during does not manufacture arrival or erase its managed trip/cruise
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix cap-touch-during cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=cap-touch-during cap=true position=(90053.0, 4.62, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix cap-touch-during cap=true position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true does not chain-park its trailing convoy member
+TRAFFIC: PASS - parking matrix cap-touch-during cap=true actually exercises the mid-departure promotion path
+TRAFFIC PARK MATRIX GEOMETRY mode=cap-follow candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - cap-follow matrix has its intended actual floor condition
+TRAFFIC: PASS - cap-follow uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=cap-follow staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - cap-follow staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - cap-follow staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - cap-follow observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix cap-follow cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix cap-follow cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix cap-follow cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix cap-follow cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix cap-follow cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix cap-follow cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=cap-follow cap=true position=(90053.0, 4.62, 90057.6) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix cap-follow cap=true full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix cap-follow cap=true center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix cap-follow cap=true actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix cap-follow cap=true position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix cap-follow cap=true actually pulls over on its right
+TRAFFIC: PASS - parking matrix cap-follow cap=true completes a genuine safe arrival
+TRAFFIC: PASS - parking matrix cap-follow cap=true does not chain-park its trailing convoy member
+TRAFFIC PHYSICS phase=parking matrix cap-follow cap=true parked handoff actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true parked handoff actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix cap-follow cap=true parked handoff retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent follower is physically synchronized throughout
+TRAFFIC PHYSICS phase=parking matrix cap-follow cap=true subsequent final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix cap-follow cap=true retains both real convoy members at stock cap
+TRAFFIC: PASS - parking matrix cap-follow cap=true keeps follower motion bounded and collision-clear
+TRAFFIC: PASS - parking matrix cap-follow cap=true never moves the safely parked leader
+TRAFFIC PARKED FOLLOWER start_arc=26.500 final_arc=65.000 position=(90053.0, 4.62, 90063.6) arrived=true speed=0.000 lead=(90053.0, 4.62, 90057.6)
+TRAFFIC: PASS - parking matrix cap-follow cap=true follower independently reaches a distinct safe arrival
+TRAFFIC: PASS - parking matrix cap-follow cap=true retained lead full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix cap-follow cap=true retained lead center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix cap-follow cap=true retained lead actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix cap-follow cap=true retained lead position=(90053.0, 4.62, 90057.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true retained lead full parking envelope contains no other body
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent follower full arrival footprint clears every road and placement
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent follower center and all footprint corners have <=6% supporting grade
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent follower actor is supported, not floating above its plot
+TRAFFIC PARKING parking matrix cap-follow cap=true subsequent follower position=(90053.0, 4.62, 90063.6) envelope=(3.3, 1.5, 7.6) other_bodies=0 floor_ray_exclusion=self_only clearance_exclusions=0
+TRAFFIC: PASS - parking matrix cap-follow cap=true subsequent follower full parking envelope contains no other body
+TRAFFIC PARK MATRIX GEOMETRY mode=lane-leader candidate_floor_hits=9 steep=0 occupied=0 exclusions=0
+TRAFFIC: PASS - lane-leader matrix has its intended actual floor condition
+TRAFFIC: PASS - lane-leader uses actual managed serving pavement identity
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=lane-leader staged actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - lane-leader staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - lane-leader staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - lane-leader observer has actual full-footprint supporting floor
+TRAFFIC: PASS - parking matrix lane-leader cap=true keeps every staged/moving actor synchronized with physics
+TRAFFIC PHYSICS phase=parking matrix lane-leader cap=true final actors=7 actual_subject_hits=7 transforms_match=true exclusions=0
+TRAFFIC: PASS - parking matrix lane-leader cap=true final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - parking matrix lane-leader cap=true final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - parking matrix lane-leader cap=true keeps the nearby actor visible
+TRAFFIC: PASS - parking matrix lane-leader cap=true uses speed-bounded motion
+TRAFFIC: PASS - parking matrix lane-leader cap=true never moves through another body
+TRAFFIC PARK MATRIX mode=lane-leader cap=true position=(90028.0, 4.71, 90049.8) original_registered=true promotions=5
+TRAFFIC: PASS - parking matrix lane-leader cap=true waits unarrived upstream rather than parking at the junction
+TRAFFIC: PASS - parking matrix lane-leader cap=true does not promote an unsafe arrival
+TRAFFIC: PASS - parking matrix lane-leader cap=true retains the real stationary in-lane leader
+TRAFFIC: PASS - parking matrix lane-leader cap=true follower progresses then stops behind that physical leader
+TRAFFIC: PASS - parking matrix lane-leader cap=true follower never overlaps the retained in-lane body
+TRAFFIC: PASS - parking matrix restores the actual consumer map
+TRAFFIC: PASS - bent feeder fixture folds independently
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=bent feeder staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - bent feeder final plot has real level support and clears all roads/bodies
+TRAFFIC CORRIDOR mode=bent prepared={  } start=(90304.0, 4.71, 90049.8) literal_target=(90309.0, 4.71, 90077.6)
+TRAFFIC: PASS - bent feeder selects only a locally outward departure
+TRAFFIC: PASS - bent feeder never recrosses nonlocal same-road pavement
+TRAFFIC: PASS - bent feeder retains its synchronized speed-bounded actor with correct arrival
+TRAFFIC: PASS - bent departure cuts never grow across movement or failed retries
+TRAFFIC PHYSICS phase=bent feeder final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - bent feeder fixture folds independently
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=bent feeder staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - adjacent feeder final plot has real level support and clears all roads/bodies
+TRAFFIC CORRIDOR mode=adjacent prepared={ "target": (90309.0, 4.71, 90057.6), "yaw": -1.5707963267949, "size": (3.2, 1.5, 6.2), "plot_exclusions": [[90252.0, 90048.0, 4.6, 51.0, 1.5707963267949], [90302.0, 90048.0, 4.6, 5.0, 1.5707963267949], [90306.0, 90048.0, 4.6, 5.0, 1.5707963267949], [90310.0, 90048.0, 4.6, 5.0, 1.5707963267949], [90314.0, 90048.0, 4.6, 5.0, 1.5707963267949], [90340.0, 90048.0, 4.6, 27.0, 1.5707963267949]], "entry_exclusions": [[90250.7421875, 90048.0, 4.6, 49.7402534484863, 1.5707963267949], [90298.7421875, 90048.0, 4.6, 1.7402525395155, 1.5707963267949], [90313.5234375, 90048.0, 4.6, 1.47976064682007, 1.5707963267949], [90315.5234375, 90048.0, 4.6, 3.47976055927575, 1.5707963267949], [90340.0, 90048.0, 4.6, 27.0, 1.5707963267949]], "started": false } start=(90304.0, 4.71, 90049.8) literal_target=(90309.0, 4.71, 90057.6)
+TRAFFIC: PASS - adjacent feeder selects only a locally outward departure
+TRAFFIC: PASS - adjacent departure admits the actual neighbouring tessellation
+TRAFFIC: PASS - adjacent departure retains both partially clipped road remainders
+TRAFFIC: PASS - frozen departure rejects inward motion even over supported floors
+TRAFFIC: PASS - adjacent feeder never recrosses nonlocal same-road pavement
+TRAFFIC: PASS - adjacent feeder retains its synchronized speed-bounded actor with correct arrival
+TRAFFIC: PASS - adjacent departure cuts never grow across movement or failed retries
+TRAFFIC: PASS - adjacent tessellations finish outside every full road reservation
+TRAFFIC PHYSICS phase=bent feeder final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - bent feeder fixture folds independently
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/scavenger.glb
+Loading resource: res://.godot/imported/scavenger.glb-f1752517870cc6ace92c4e6a3d9c2c75.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+Loading resource: res://assets/models/vehicles/van.glb
+Loading resource: res://.godot/imported/van.glb-252cc8ea472126da7c1ce43eecb7c898.scn
+Loading resource: res://assets/models/vehicles/pickup.glb
+Loading resource: res://.godot/imported/pickup.glb-43492b3575864b29e0d3f28fa8ca1994.scn
+TRAFFIC: PASS - trip fixture fills stock cap with five real promotions
+TRAFFIC PHYSICS phase=bent feeder staged actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder staged actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder staged retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC: PASS - returning feeder final plot has real level support and clears all roads/bodies
+TRAFFIC CORRIDOR mode=returning prepared={  } start=(90304.0, 4.71, 90049.8) literal_target=(90290.4, 4.71, 90069.0)
+TRAFFIC: PASS - returning feeder selects only a locally outward departure
+TRAFFIC: PASS - returning feeder never recrosses nonlocal same-road pavement
+TRAFFIC: PASS - returning feeder retains its synchronized speed-bounded actor with correct arrival
+TRAFFIC: PASS - returning departure cuts never grow across movement or failed retries
+TRAFFIC PHYSICS phase=bent feeder final actors=6 actual_subject_hits=6 transforms_match=true exclusions=0
+TRAFFIC: PASS - bent feeder final actual body poses match physics and are detected without exclusions
+TRAFFIC: PASS - bent feeder final retains the same five real stock-cap cars on their actual full-footprint floors
+TRAFFIC RESULTS: 538 passed, 2 failed
+TRAFFIC: FAILURES PRESENT
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"

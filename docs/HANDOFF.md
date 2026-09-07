@@ -16,7 +16,27 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
-## 2026-09-06 — Seattle diamond interchange follow-up (in progress)
+## 2026-09-07 — traffic follow-up verified; review and overall acceptance open
+
+The screenshot audit's final review exposed a first-tick exit teleport. The
+new single-clock regression reproduces about 34m of motion in one 0.05s tick;
+the corrected entry follows the existing pavement, retains source-lane queues,
+and changes road ownership only on physical arrival. Frozen handoff checks
+improve from 51/12 to 63/0. Covering traffic also exposed an existing convoy
+budget overflow, now capped in automatic maintenance only.
+
+Final combined-source results: handoff 63/0 (39.12s wall), ports 67/0 (4.92s),
+traffic 540/0 (158.58s), plus unchanged map-building coverage 75/0. Both profile
+paths were isolated, original time limits retained, source/map hashes unchanged,
+and stderr empty. Verbose controller-map diagnostics remain disclosed. The
+[audit and exact logs](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
+preserve failed attempts, test-clock corrections, and current evidence.
+Independent scoped review is pending. Earlier screenshots predate this traffic-
+only correction; no new export, national rollout, crash fix, or release acceptance.
+The legacy highway height snap, native crashes, unfinished visuals/content,
+public MMO infrastructure and unrecovered save remain open.
+
+## 2026-09-06 — Seattle diamond interchange screenshot history
 
 Latest draw-only repair `1d49d33` removes the redundant managed junction square;
 surface139/0 and independent source review approve its narrow boundary. Its
@@ -38,7 +58,10 @@ visual acceptance remains open. Large junction pads,
 plain ruins, ground seams and HUD presentation still fall short of the world
 spec. The audit's `overlay-verbose-repeat-on-r` is the newest completed evidence;
 `meeting-fixed-drive-*` holds the prior four-route set, and earlier sets and
-failed runs remain history. Whole-milestone/branch review remains pending.
+failed runs remain history. Final risk-based branch review at `0b888f7` is
+With fixes: a first-tick highway-to-ramp NPC teleport needs a new regression
+and source correction. The September 7 section supersedes that fix status; native failures,
+time margins and broader visual/mission gaps remain separate open gates.
 
 The [new screenshot diagnostic](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
 contains successive actual, inspected frames, not yet accepted as final.

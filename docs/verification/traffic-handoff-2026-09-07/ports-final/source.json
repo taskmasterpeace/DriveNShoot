@@ -1,0 +1,26 @@
+{
+  "original_run": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\connectivity-interchange_ports_sim-40811533ed0c495c91e218f1d0dfcaf5",
+  "label": "ports-final",
+  "expected_passed": 67,
+  "expected_failed": 0,
+  "source_head": "0b888f7afc7c7d06b7d6562b10a081ca54f7fc55",
+  "evidence": {
+    "environment.json": {
+      "bytes": 2655,
+      "sha256": "8e45b4289b562cdfdce7a4a359f655169f7db9f6a3111af02d7554efa53cff34"
+    },
+    "result.json": {
+      "bytes": 4459,
+      "sha256": "db96ce20e7133eec04cb3b733b3ce2647648a85141e57f7bc8a4fb13d474fecd"
+    },
+    "stdout.log": {
+      "bytes": 6070,
+      "sha256": "90d185d97bf92e4c57be44518fcb1d883cfeaf8f773c0efd30b702bb8088ae18"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "note": "Exact original output. RED is an expected assertion failure, not a successful run. Verbose controller-map diagnostics remain visible. No screenshots synthesized."
+}

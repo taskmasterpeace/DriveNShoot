@@ -3,8 +3,10 @@
 [Open the 23-page visual review PDF](../../output/pdf/DRIVN_Visual_Review_2026_09_06.pdf)
 for the complete tour, two later interface views, captions and clickable contents.
 
-Current isolated source, September 6, 2026. These are original 1280x720 game
-screenshots, not concept art. [Fixes, before/after views, tests and limitations](MERIDIAN_SIGNAGE_VISUAL_AUDIT_2026_09_06.md).
+Captured in the isolated branch on September 6, 2026. These are original
+1280x720 game screenshots, not concept art. Later source changes and their
+verification are identified separately in the linked audits; the original tour
+frames are not relabeled as new captures. [Fixes, before/after views, tests and limitations](MERIDIAN_SIGNAGE_VISUAL_AUDIT_2026_09_06.md).
 
 My verdict: the road/home/console idea is visible, but this is not yet the
 finished world promised by the spec. Stronger authored places, finished

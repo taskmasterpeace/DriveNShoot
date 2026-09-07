@@ -1,0 +1,26 @@
+{
+  "original_run": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\traffic-verbose-8ea788f2ff4b4d79b76a82db509d6b0b",
+  "label": "traffic-final",
+  "expected_passed": 540,
+  "expected_failed": 0,
+  "source_head": "0b888f7afc7c7d06b7d6562b10a081ca54f7fc55",
+  "evidence": {
+    "environment.json": {
+      "bytes": 2769,
+      "sha256": "bd72b4aa7eb46956adf64d8ac6df5689a01d5aca2ebf6bcf4c6873c3c503218e"
+    },
+    "result.json": {
+      "bytes": 4078,
+      "sha256": "84dd0ecb8a6b950756eb6b4a48149ff4e7c0e7c954706d6cfdf57a6f07c58ee7"
+    },
+    "stdout.log": {
+      "bytes": 115404,
+      "sha256": "0d9d9190c001dc7514d2cd64b4819aa9b758fbf130a1a3d4d39cec881f57d17a"
+    },
+    "stderr.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "note": "Exact original output. RED is an expected assertion failure, not a successful run. Verbose controller-map diagnostics remain visible. No screenshots synthesized."
+}

@@ -1,0 +1,96 @@
+WorkerThreadPool: 32 threads, 9 max low-priority.
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Unrecognized output string "misc2" in mapping:
+030000000d0f00000202000000000000,Horipad O Nintendo Switch 2 Controller,a:b1,b:b0,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b4,leftstick:b10,lefttrigger:b6,leftx:a0,lefty:a1,misc1:b13,misc2:b14,rightshoulder:b5,rightstick:b11,righttrigger:b7,rightx:a2,righty:a3,start:b9,x:b3,y:b2,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000000d0f00009601000000000000,Horipad Steam,a:b0,b:b1,back:b10,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b6,leftstick:b13,lefttrigger:b8,leftx:a0,lefty:a1,misc2:b2,paddle1:b5,paddle2:b15,paddle3:b18,paddle4:b19,rightshoulder:b7,rightstick:b14,righttrigger:b9,rightx:a3,righty:a4,start:b11,x:b3,y:b4,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000007e0500006920000000000000,Nintendo Switch 2 Pro Controller,a:b0,b:b1,back:b14,dpdown:b8,dpleft:b10,dpright:b9,dpup:b11,guide:b16,leftshoulder:b12,leftstick:b15,lefttrigger:b13,leftx:a0,lefty:a1~,misc1:b17,misc2:b20,paddle1:b18,paddle2:b19,rightshoulder:b4,rightstick:b7,righttrigger:b5,rightx:a2,righty:a3~,start:b6,x:b2,y:b3,platform:Windows,
+Using "default" pen tablet driver...
+
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+Loading resource: res://default_bus_layout.tres
+CORE API HASH: 937899573
+EDITOR API HASH: 1777164193
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: res://addons/dialogue_manager/dialogue_manager.gd
+Loading resource: res://addons/dialogue_manager/test_scene.tscn
+Loading resource: res://addons/dialogue_manager/test_scene.gd
+Loaded system CA certificates
+Loading resource: res://proto3d/tests/interchange_ports_sim.tscn
+Loading resource: res://proto3d/tests/interchange_ports_sim.gd
+PORTS: PASS - real JSON fixture folds
+PORTS: PASS - warm descriptor reuses real road resolution
+PORTS: PASS - caller mutation cannot change canonical road ownership
+PORTS: PASS - caller mutation cannot poison cached port payloads
+PORTS: PASS - cache fixture reloads
+PORTS: PASS - geometry-grid rebuild invalidates port geometry
+PORTS: PASS - same-file map reload succeeds
+PORTS: PASS - map reload invalidates warmed descriptor and geometry
+PORTS: PASS - real JSON fixture folds
+PORTS: PASS - eviction fixture resolves both correctly owned off-ramp roles
+PORTS: PASS - more than 128 descriptors retain the exact cache bound
+PORTS: PASS - evicted descriptor recomputes through canonical road ownership
+PORTS: PASS - post-eviction caller mutation cannot poison the warmed payload
+PORTS: PASS - eviction fixture reloads from the real JSON fold
+PORTS: PASS - reload clears pressure state and returns isolated canonical ownership
+PORTS: PASS - real JSON fixture folds
+PORTS: PASS - displaced owned + off-ramp wins over unrelated ramp
+PORTS: PASS - displaced owned - off-ramp wins
+PORTS: PASS - owned list never falls back to neighbor
+PORTS: PASS - explicit on-ramp never departs as off
+PORTS: PASS - original descriptor remains correct after same-ID ownership changes
+PORTS: PASS - shared port query exists
+PORTS: PASS - two owned departure ports
+PORTS: PASS - port terminal and projected highway arc
+PORTS: PASS - port terminal and projected highway arc
+PORTS: PASS - connector and interchange metadata survive fold
+PORTS: PASS - nearest segment preserves one-way (radius 20)
+PORTS: PASS - segment consumer sees one-way
+PORTS: PASS - segment consumer sees one-way
+PORTS: PASS - nearest segment preserves one-way (radius 400)
+PORTS: PASS - segment consumer sees one-way
+PORTS: PASS - segment consumer sees one-way
+PORTS: PASS - central anchor neither transfers nor consumes roll
+PORTS: PASS - mouth staging reaches the real agent transform
+PORTS: PASS - actual mouth transfers in legal direction
+PORTS: PASS - destination, one-roll and cruise cap preserved
+PORTS: PASS - central anchor neither transfers nor consumes roll
+PORTS: PASS - mouth staging reaches the real agent transform
+PORTS: PASS - actual mouth transfers in legal direction
+PORTS: PASS - destination, one-roll and cruise cap preserved
+PORTS: PASS - town route uses serving off-ramp 1
+PORTS: PASS - return uses serving on-ramp 1
+PORTS: PASS - town route uses serving off-ramp -1
+PORTS: PASS - return uses serving on-ramp -1
+PORTS: PASS - incoming-only destination remains selectable
+PORTS: PASS - unused deck placeholder cannot win nearest
+PORTS: PASS - no cross-median via old shared ramp mouth
+PORTS: PASS - no direct under-deck transfer
+PORTS: PASS - no reverse on/off traversal on off+
+PORTS: PASS - no reverse on/off traversal on off-
+PORTS: PASS - no reverse on/off traversal on on+
+PORTS: PASS - no reverse on/off traversal on on-
+PORTS: PASS - real JSON fixture folds
+PORTS: PASS - flat control-gap retains legal transfer
+PORTS: PASS - real JSON fixture folds
+PORTS: PASS - longer route wins by authored time cost
+PORTS: PASS - managed map folds
+PORTS: PASS - managed Seattle present
+PORTS: PASS - Seattle resolves four owned ports
+PORTS: PASS - Seattle unconstrained fastest route remains available
+PORTS: PASS - Seattle off side -1 has directed owned-ramp path
+PORTS: PASS - Seattle unconstrained fastest route remains available
+PORTS: PASS - Seattle off side 1 has directed owned-ramp path
+PORTS: PASS - Seattle unconstrained fastest route remains available
+PORTS: PASS - Seattle on side -1 has directed owned-ramp path
+PORTS: PASS - Seattle unconstrained fastest route remains available
+PORTS: PASS - Seattle on side 1 has directed owned-ramp path
+PORTS PERF calls=3240 exits=9 agents=12 frames=30 elapsed_ms=94.123 per_frame_ms=3.137
+PORTS RESULTS: 67 passed, 0 failed
+PORTS: ALL CHECKS PASSED
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"

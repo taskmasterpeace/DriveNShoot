@@ -1,0 +1,103 @@
+WorkerThreadPool: 32 threads, 9 max low-priority.
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+TextServer: Added interface "Dummy"
+TextServer: Added interface "ICU / HarfBuzz / Graphite (Built-in)"
+Unrecognized output string "misc2" in mapping:
+030000000d0f00000202000000000000,Horipad O Nintendo Switch 2 Controller,a:b1,b:b0,back:b8,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b4,leftstick:b10,lefttrigger:b6,leftx:a0,lefty:a1,misc1:b13,misc2:b14,rightshoulder:b5,rightstick:b11,righttrigger:b7,rightx:a2,righty:a3,start:b9,x:b3,y:b2,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000000d0f00009601000000000000,Horipad Steam,a:b0,b:b1,back:b10,dpdown:h0.4,dpleft:h0.8,dpright:h0.2,dpup:h0.1,guide:b12,leftshoulder:b6,leftstick:b13,lefttrigger:b8,leftx:a0,lefty:a1,misc2:b2,paddle1:b5,paddle2:b15,paddle3:b18,paddle4:b19,rightshoulder:b7,rightstick:b14,righttrigger:b9,rightx:a3,righty:a4,start:b11,x:b3,y:b4,platform:Windows,
+Unrecognized output string "misc2" in mapping:
+030000007e0500006920000000000000,Nintendo Switch 2 Pro Controller,a:b0,b:b1,back:b14,dpdown:b8,dpleft:b10,dpright:b9,dpup:b11,guide:b16,leftshoulder:b12,leftstick:b15,lefttrigger:b13,leftx:a0,lefty:a1~,misc1:b17,misc2:b20,paddle1:b18,paddle2:b19,rightshoulder:b4,rightstick:b7,righttrigger:b5,rightx:a2,righty:a3~,start:b6,x:b2,y:b3,platform:Windows,
+Using "default" pen tablet driver...
+
+TextServer: Primary interface set to: "ICU / HarfBuzz / Graphite (Built-in)".
+Loading resource: res://default_bus_layout.tres
+CORE API HASH: 937899573
+EDITOR API HASH: 1777164193
+SceneTreeFTI: traversal method DEFAULT
+Loading resource: res://addons/dialogue_manager/dialogue_manager.gd
+Loading resource: res://addons/dialogue_manager/test_scene.tscn
+Loading resource: res://addons/dialogue_manager/test_scene.gd
+Loaded system CA certificates
+Loading resource: res://proto3d/tests/traffic_handoff_sim.tscn
+Loading resource: res://proto3d/tests/traffic_handoff_sim.gd
+TRAFFIC HANDOFF: PASS - real US map loads
+TRAFFIC HANDOFF: PASS - actual Seattle diamond exit loads
+TRAFFIC HANDOFF: PASS - actual Seattle entry corridor streams with body layers
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r keeps the physical highway median intact
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r is the actual owned departure for side 1
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r approach actor spawns
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r approach is a registered physics body before manual ticks
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r begins 40m upstream outside the trigger
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r begins on the correct outer carriageway (actual=10.999696 expected=11.000000 error=-0.000304)
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r retains ordinary body collision layers
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r every handoff displacement through ramp segment zero is <=0.62m (max=34.057713)
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r makes nontrivial progress through the first emitted ramp segment
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r keeps destination, correct ramp direction, and one-roll state
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r keeps all five footprint samples on streamed pavement/shoulder support
+TRAFFIC HANDOFF TAKE ramp=I-90_X11-off-r ticks=24 motion=47.858 road=I-90_X11-off-r seg=1 s=0.024
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r through control is a registered physics body
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r through-highway control does not take the owned ramp
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r through-highway control reaches 40m downstream with nontrivial progress
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r through-highway control keeps every planar displacement <=0.62m (max_xz=0.601147)
+TRAFFIC HANDOFF THROUGH MOTION ramp=I-90_X11-off-r max3d=0.601147 max_xz=0.601147 before=(-56356.34, 7.286667, -17951.57) after=(-56355.76, 7.286667, -17951.42) delta=(0.582031, 0.0, 0.150391)
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r through-highway control keeps five-point streamed support
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r blocked actor and leader are registered physics bodies
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r actual stopped leader remains registered throughout the handoff
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r actor never passes or escapes its leader (minimum longitudinal clearance -150.757m)
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r leader holds the taking actor at zero without later movement
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r blocked handoff never exceeds the same 0.62m tick budget
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r blocked handoff retains five-point streamed road support
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r zero-speed actor and leader are registered physics bodies
+TRAFFIC HANDOFF: PASS - I-90_X11-off-r zero-speed fixture starts inside the actual trigger with a real leader
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r zero-speed take preserves position, leader clearance, destination and one-roll behavior
+TRAFFIC HANDOFF: FAIL - I-90_X11-off-r pending handoff cannot accelerate through its still-present leader
+TRAFFIC HANDOFF: PASS - I-90_X11-off keeps the physical highway median intact
+TRAFFIC HANDOFF: PASS - I-90_X11-off is the actual owned departure for side -1
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off approach actor spawns
+TRAFFIC HANDOFF: PASS - I-90_X11-off approach is a registered physics body before manual ticks
+TRAFFIC HANDOFF: PASS - I-90_X11-off begins 40m upstream outside the trigger
+TRAFFIC HANDOFF: PASS - I-90_X11-off begins on the correct outer carriageway (actual=10.999697 expected=11.000000 error=-0.000303)
+TRAFFIC HANDOFF: PASS - I-90_X11-off retains ordinary body collision layers
+TRAFFIC HANDOFF: FAIL - I-90_X11-off every handoff displacement through ramp segment zero is <=0.62m (max=34.058323)
+TRAFFIC HANDOFF: PASS - I-90_X11-off makes nontrivial progress through the first emitted ramp segment
+TRAFFIC HANDOFF: PASS - I-90_X11-off keeps destination, correct ramp direction, and one-roll state
+TRAFFIC HANDOFF: PASS - I-90_X11-off keeps all five footprint samples on streamed pavement/shoulder support
+TRAFFIC HANDOFF TAKE ramp=I-90_X11-off ticks=24 motion=47.859 road=I-90_X11-off seg=1 s=0.024
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off through control is a registered physics body
+TRAFFIC HANDOFF: PASS - I-90_X11-off through-highway control does not take the owned ramp
+TRAFFIC HANDOFF: PASS - I-90_X11-off through-highway control reaches 40m downstream with nontrivial progress
+TRAFFIC HANDOFF: PASS - I-90_X11-off through-highway control keeps every planar displacement <=0.62m (max_xz=0.601147)
+TRAFFIC HANDOFF THROUGH MOTION ramp=I-90_X11-off max3d=0.870705 max_xz=0.601147 before=(-55799.5, 10.91597, -17830.59) after=(-55800.09, 10.28609, -17830.74) delta=(-0.582031, -0.62988, -0.150391)
+TRAFFIC HANDOFF: PASS - I-90_X11-off through-highway control keeps five-point streamed support
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off blocked actor and leader are registered physics bodies
+TRAFFIC HANDOFF: PASS - I-90_X11-off actual stopped leader remains registered throughout the handoff
+TRAFFIC HANDOFF: FAIL - I-90_X11-off actor never passes or escapes its leader (minimum longitudinal clearance -150.754m)
+TRAFFIC HANDOFF: FAIL - I-90_X11-off leader holds the taking actor at zero without later movement
+TRAFFIC HANDOFF: FAIL - I-90_X11-off blocked handoff never exceeds the same 0.62m tick budget
+TRAFFIC HANDOFF: PASS - I-90_X11-off blocked handoff retains five-point streamed road support
+TRAFFIC HANDOFF CLOCK enabled_on_entry=true disabled_after_add=true
+TRAFFIC HANDOFF: PASS - fixture observes auto-enabled physics then owns one manual clock
+TRAFFIC HANDOFF: PASS - I-90_X11-off zero-speed actor and leader are registered physics bodies
+TRAFFIC HANDOFF: PASS - I-90_X11-off zero-speed fixture starts inside the actual trigger with a real leader
+TRAFFIC HANDOFF: FAIL - I-90_X11-off zero-speed take preserves position, leader clearance, destination and one-roll behavior
+TRAFFIC HANDOFF: FAIL - I-90_X11-off pending handoff cannot accelerate through its still-present leader
+TRAFFIC HANDOFF RESULTS: 51 passed, 12 failed
+TRAFFIC HANDOFF: FAILURES PRESENT
+XR: Clearing primary interface
+XR: Removed interface "Native mobile"
+XR: Removed interface "OpenXR"

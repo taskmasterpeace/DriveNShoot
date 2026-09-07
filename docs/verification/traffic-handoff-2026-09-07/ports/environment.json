@@ -1,0 +1,41 @@
+{
+  "arguments": [
+    "--headless",
+    "--verbose",
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "res://proto3d/tests/interchange_ports_sim.tscn"
+  ],
+  "source_head": "0b888f7afc7c7d06b7d6562b10a081ca54f7fc55",
+  "source_hashes_after": {},
+  "wall_elapsed_s": null,
+  "pid": 43592,
+  "exited": false,
+  "source_hashes": {
+    "game/proto3d/tests/interchange_drive_sim.tscn": "2D033CB8389D941E525AB7AD0D0E2E2843D75A83FDD8F3EAD5CC681F03D7F69A",
+    "game/proto3d/traffic.gd": "ED4C6A02FA421A23EFAC9C55F3EDB042D8FF1CB49F55C06B4537BAFA28700366",
+    "game/proto3d/tests/traffic_sim.gd": "58A019B561BE3751C828C868A58686B5FD345677E75DC7964ECF60F1AF81E7BE",
+    "tools/road_surface_check.ps1": "35301B3F96D15803C93AA122C85987E4E089B216EC8FF96A045298EE422A72FF",
+    "game/proto3d/tests/road_surface_sim.gd": "390A71743992321621FBD4A66B7E82AF13EAA06C2F7BFD1E2E723EE293926F25",
+    "game/proto3d/tests/interchange_ports_sim.tscn": "6FE1AA5B94162B1E9132A9A9CE50196A9291A2E02A7C7BE1CDA1C2DBEA74AC65",
+    "game/proto3d/tests/roadside_clearance_sim.gd": "94FCC34F3DD9B2A150EBC2218DA5D04C3D21B90D5448ED6E3328F11188DEED58",
+    "game/proto3d/road_graph.gd": "B9B03831B845F393CCB9985C82A873518331581A92AB996C5C889517E3F2686B",
+    "game/proto3d/tests/junction_connectivity_sim.gd": "FF5617B5271545DDBCB3D08C8DB64F5EFF226675A79CB0A86F852E1C3408F149",
+    "game/proto3d/tests/interchange_ports_sim.gd": "E21D66B15E8F92739D0F5CF8F4EB9A6AE79E4A5E5DB8C9D9A95BA30BE02D8D41",
+    "game/proto3d/tests/interchange_drive_sim.gd": "286FD089576391D00E8AB6AAFF008C93F85860EE7BC075C5743B70F239204777",
+    "game/proto3d/tests/junction_connectivity_sim.tscn": "49ACBC0D7CAF2CE666B7D68E9D5E09281A20A75E3189CFA57648624B048D5FCD",
+    "game/proto3d/tests/elevation_sim.gd": "55A431B0EF34DE48D754C6209189996D3C082609F29181BA02964C0228B7575E",
+    "game/data/usmap.json": "04D975429DD544212438B3D9DAEF96D61E08B5551F19B622FF14A73BDF0135B9",
+    "game/proto3d/usmap.gd": "7CC5E2515EF5E5F0405F46B455A47961454E83FCFED796883A34EB93F68FA994",
+    "game/proto3d/world_stream.gd": "62B3D4B5D480E432C7C635E2ED74289CB8A565C3BC25FD024E2ED186EF1550D3"
+  },
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\connectivity-interchange_ports_sim-d48f88df90aa4cb6ac020843a47e0ef8\\profile\\Roaming",
+  "scene": "interchange_ports_sim",
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\connectivity-interchange_ports_sim-d48f88df90aa4cb6ac020843a47e0ef8\\profile\\Local",
+  "timed_out": false,
+  "exit_code": null
+}
