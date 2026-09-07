@@ -224,9 +224,14 @@ if not bool(road.get("one_way", false)):
   Prove both town-bound routes and both return routes, reject reverse on/off
   traversal and direct cross-median/under-deck transfers. Retain legacy network
   routes and time-cost weighting. Parent runs focused traffic/graph/atlas tests.
-  Actual Seattle already has a legal shorter flat-gap street route. Prove
+  Actual Seattle already has a shorter flat-gap street route in its graph. Prove
   ordered directed paths through each required ramp separately from ordinary
   fastest-route availability; never bias time costs or remove that street.
+  Later Task4 physical inspection disproves the earlier assumption that every
+  such legacy connection meets its street: J-tee-135 is38.71m displaced. Retaining
+  graph availability is not proof of physical legality. Record this legacy
+  navigation/data limitation explicitly for final review; the four managed
+  paths require their own real-input physical proof.
   Existing legacy ramp_mouth rows can list both sides' off-ramps in one junction.
   Do not join both carrier directions to that shared node: use per-ramp port
   transfer nodes, with carrier-to-off and on-to-carrier edges only. Directional
@@ -251,11 +256,41 @@ if not bool(road.get("one_way", false)):
 `road_surface_sim.gd` only to extend coverage honestly; `elevation_sim.gd` only
 to isolate its synthetic map fixture and update verified support expectations
 if required by the global station law; isolated runner. Narrow integration
-ownership also includes `traffic.gd` lifetime guarding in `_car_ahead` and a
-`traffic_sim.gd` freed-entry regression, discovered by the real input drive.
+ownership also includes `traffic.gd` lifetime guarding and managed connector/
+structure-height/safe-arrival integration, with real `traffic_sim.gd` regressions
+for defects discovered by the input drive. Unmanaged arrival behavior is retained.
 **Consumes:** shared ports, same managed rows/geometry as Task 3.
+**Scoped data exception:** worker proposes and validates the exact
+`seattle-slot-8.pos`, `seattle-slot-26.pos` and subsequently proved
+`seattle-slot-7.pos` relocations using owned read-only plan-workspace helpers;
+parent alone publishes the source-map change after hash/field/clearance checks.
+All other authored rows and every non-position field remain unchanged.
 **Produces:** actual port signs/decel/accel/gore placement and physical traversal
 evidence, plus unedited captures under a unique isolated build run.
+
+**Parent-owned compatibility-test exception:** `roadside_clearance_sim.gd`
+still casts all slabs to BoxMesh and crashes on the joined ArrayMesh pavement.
+Measure literal convex-prism vertex footprints, with translated/rotated/sloped
+hand-authored controls and an empty bounding-box-corner negative. Preserve all
+furniture, full pavement coverage, overlap/grounding/drive assertions and
+interval controls. This is a test-adapter repair, not permission to alter road
+geometry or waive newly exposed failures; outside the worker's eight-file commit.
+Full driving coverage uses all eight actual transformed chassis-box corners and
+the complete projected hull minus the union of finite current-road mesh slabs.
+Independent controls cover roll, pitch, finite ends, transverse/enclosed holes,
+interior-slab-first order, reversed winding, repeated closing points and malformed
+geometry. Convex difference must preserve holes and reject invalid geometry without
+consuming the subject; no positive pavement-gap tolerance is introduced.
+The old fixed driving line is now53.13m from the relocated ON ramp and hits an
+actual roadside pole outside every loaded pavement footprint (diagnostic06aa70ca).
+Retain that evidence and adapt the drive to the nearest point of the current ON
+row: start22m before its projection, initial heading toward a38m-ahead road point,
+actual row elevation. Initial E/W adaptation traverses66.523m but leaves the
+curve by3.364m. Use real E and bound pad steering/pedals to follow the curved
+row, copying the existing four-route driver's proportional15m/s control and a
+12m lookahead. Keep240physics frames and>30m travel gate;
+add full actual chassis-corner pavement membership before/throughout driving.
+Do not remove the lawful off-road pole or certify the old route as passable.
 
 - [ ] Write physics probes that fail on the original median-crossing data and
   barrels placed on the ramp centre. Sample full ramp widths and bridge
@@ -268,6 +303,11 @@ evidence, plus unedited captures under a unique isolated build run.
   controls for a blocked travel envelope and a bridge with insufficient
   underside clearance. Spec bridge_clearance_m is deck-top separation (6.2m),
   not a claim of 6.2m underside headroom: measure/report both independently.
+  Self-review also identifies managed+wet undivided roads creating both their
+  new ribbon floor and a legacy box deck. Add real ocean-chunk managed/unmanaged
+  controls, assert one managed deck, actual endpoint clearance and floor height;
+  gate the minimal legacy wet-undivided branch correction on failing evidence.
+  Retain unmanaged/divided wet decks and all wet rails.
 - [ ] Use actual per-port positions and heights for signs and acceleration/
   deceleration strips. Place gores/barrels in the clear wedge, reserving full
   highway and ramp footprints. One-way markings use white rather than yellow.
@@ -283,6 +323,38 @@ evidence, plus unedited captures under a unique isolated build run.
   currently checks no road footprint and offsets from chunk center rather
   than the serving road. Reuse full-footprint/all-segment reservations and
   preserve deterministic RNG draws; keep valid homes and authored placements.
+- [ ] Follow up on actual GPU rejection: managed short-segment boxes retain
+  3m end overhangs, producing sawtooth bends and fragmented paint. Use joined
+  visual pavement/paint while preserving row geometry, physical collision and
+  honest rendered-surface regression coverage. Managed exit signs need a
+  highway-scale green board and camera-readable number/destination/direction;
+  presence alone and perception-hidden tiny text do not meet spec 0.12. Keep
+  normal ProtoSign behavior elsewhere. Crash barrels may use proved-clear
+  35/40/45m stations while retaining all footprint reservations and three per
+  port; do not waive the failed per-port hardware expectation.
+  Actual wheel-contact diagnosis also proved a roadside rail occupies the
+  speed-change lane. Test and repair full-width physical floors and furniture
+  reservations for all four auxiliary lanes, add required ramp reflector
+  posts, and keep rendered/collision surfaces consistent at joins. For live
+  traffic occupancy, retain all query categories and allow only bounded natural
+  clear/re-probing; report initial occupancy and final obstruction separately,
+  with stationary negative controls. No deleting/freezing traffic to pass.
+  The continuous full-width follow-up must distinguish fixed/unknown blockers
+  from identity-verified living road occupants while still querying every body.
+  Report both initial/final occupancy and fixed blockers; an occupied road is
+  not empty. Default unknown bodies to blockers, with native StaticBody3D,
+  CharacterBody3D and AnimatableBody3D negative controls (including spoofed
+  combat groups). Recognize only actual registered, active production actors,
+  not physics classes or group names alone. Keep the same bounded recheck and
+  independent four-direction real-input traversal requirement. Do not alter
+  actors, seeds, collisions or query layers to obtain a geometry pass.
+- [ ] Remove the photographed legacy square only through a consistent geometric
+  validity guard: flat tee/cross filler requires all incident pavement footprints
+  to meet at the junction position. Preserve every valid pad and all road bodies,
+  road meshes, data, median-gap policy and traffic/nav. Test actual invalid
+  J-tee-135 and valid J-tee-3 plus missing, nonmeeting, diagonal and wide-road
+  runtime cases. Record the wider renderer reach (read-only audit: 141 nonmeeting
+  versus 388 meeting eligible rows) and unresolved stale street connectivity.
 - [ ] Drive four staged routes via actual keyboard/pad inputs: each off-ramp to
   the town endpoint and each on-ramp to the correct highway direction. After
   initial staging, never set the car transform/velocity to move it along a path.
@@ -309,15 +381,96 @@ Input.parse_input_event(event)
   fixture with an owned disposable map loaded through the real ProtoUSMap fold
   before main boot. The same synthetic road and assertions remain; interruption
   must never leave game/data/usmap.json modified. No test may write the live map.
+  The real OFF-R repeat exposed marginal high-speed corner entry by the test
+  driver. Add an actual sharp-vertex entry-speed<=7m/s regression before changing
+  its planner. Anticipatory cap: scan40m ahead for >45degree vertices, target5m/s,
+  deceleration3m/s²,6m waypoint-reach allowance; retain the old15/7 heading cap,
+  steering, pad events, route, physics and110sim/12stall budgets. This is test
+  driving behavior, not a gameplay handling rewrite. Re-run all four routes.
+  Screenshot follow-up: diagnose the next15m of the ON completion carriageway
+  using real streamed full-lane3.6m envelope boxes and floor rays. The captured
+  roof is attributed by source to slot7 police_station; actual collider ancestry
+  and height must confirm whether its walls block the continuation. Keep all
+  bodies/query layers and the same bounded live-occupancy reporting. This is a
+  tests-only diagnostic authorization, not permission to move a third placement.
+  Subsequent actual wall/furniture RED107/1 authorizes a separate position-only
+  correction proposal for slot7 police_station, with the exact same guarded
+  parent publication/full-footprint/all-road/auxiliary/neighbor/doorway checks.
+  Preserve slots8/26 and all other fields. Require continuation GREEN and new
+  ON screenshot. Actual7.086m/s corner failure also changes the test-only braking
+  envelope3→2m/s²; retain target5/lookahead40/reach6/gate7 and all input/budgets.
+  Diagnose actual collided-agent arrival/promotion/leader state before changing
+  production traffic or adding evasive test-driving behavior.
+  Deterministic endpoint follow-up uses existing traffic_sim manual `_tick`,
+  a staged real agent0.11m before the managed off-ramp end, an available-capacity
+  case and a stockcap5 case filled via five actual production promotions.
+  Query real streamed crossroad/feeder floors and full road body envelopes,
+  without exclusions, initially and after12 traffic seconds; require zero
+  arrival-collider obstruction in both cases. Log actual registry/arrival/leader
+  identity. Keep fixture cleanup local and all four real drives unchanged.
+  Confirmed endpoint RED authorizes managed-only continuation/structure-height/
+  safe-pull-over behavior per the updated spec and Task4 brief. Tests first:
+  both directions/deck height/speed-bounded transitions/final arrival at both
+  cap states plus occupied/no-floor/steep rejection. Preserve legacy behavior,
+  canonical rows, visible actors, promotion cap and four-route drive budgets.
+  Search starts80m before feeder end; stations55/40/25m upstream; right offsets
+  half-width+5/+8/+11m; retry2s; approach/pull-over5m/s; grade<=6%; actual maximum
+  folded promoted-rig and ambient footprint plus0.5m clearance. Validate loaded
+  floors, full plot/swept entry road/placement/body clearance and per-step
+  occupancy. Apply the spec's explicit single downward serving-pavement-to-right-
+  shoulder curb policy (<=0.10m), not a general grade relaxation: actual serving
+  collider/footprint identity, full support/clearance, no uphill/larger/untagged
+  or repeated steps, including across retries. Tests first cover0.09m positive,
+  0.15m/untagged/repeated negatives and two fixed entry headings/positions; keep
+  the real Seattle convoy staging and all existing unsafe-site controls.
+  Unsafe candidates cause unarrived waiting upstream, never a hidden
+  vanish or park in the junction. Existing TRAFFIC floor holds the tunables.
+  Each managed convoy member validates its own safe arrival; do not chain-park
+  lane-bound followers when a leader parks. Cover with real-agent regression
+  before changing that managed call; retain on-touch chain/cargo/unmanaged law.
+  Fresh drive160d1763 exposes cap exhaustion manufacturing arrival during a
+  managed pull-over. Add tests-first public damage/promotion requests before
+  and during actual departure at stockcap5: retain registered actor, unfinished
+  trip/cruise, physical checks and eventual road-clear arrival. Continue a real
+  full-cap convoy after its lead safely parks: both actors retained, follower
+  earns a distinct clear plot; a still-in-lane stopped leader must keep blocking.
+  Only then narrowly repair managed cap state and actual-footprint lane-leader
+  membership. No cap, route/controller, budget, actor or unmanaged-law changes.
 
 ## Task 5: Visual acceptance, publication inside the repo and rollout record
+
+**Additional prerequisite Task3b — actual graph connectivity:** the parent-only
+read-only J135 diagnostic now reproduces four public graph routes across the
+known38.71m street/highway gap. The earlier no-navigation-change boundary is
+extended narrowly: share the renderer's existing finite-pavement meeting law
+with the graph and reject nonmeeting multi-road transfers, preserving all map
+bytes, same-road travel, valid junctions, explicit ports and directional lanes.
+Tests-first actual routes plus literal finite/nonmeeting and legitimate controls
+are required. Keep single-leg endpoints valid. Report any lost reachability;
+do not invent geometry or retain a phantom shortcut to make routing pass.
+Implementation details, source ownership and separate review are recorded in
+the Task3b brief. Cost of this ruling: other stale junctions may expose missing
+connections; this is not permission for a country-wide map rebake.
+
+Compatibility follow-up also updates only `exit_geometry_sim.gd`: its old40m
+shared-anchor classifier misses both new managed mouths. Use owned off roles,
+actual finite highway projections, unchanged edge/angle/right-side thresholds,
+explicit managed two-direction coverage and retained legacy/ Meridian guards;
+no production/map changes. The observed5/1 is the before-fix regression evidence.
 
 **Files:** new `docs/verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md`,
 exact screenshot copies under `docs/renders/diamond-interchange-2026-09-06/`,
 `docs/HANDOFF.md`, `docs/AMERICA_FOUNDATION_STATUS.md`, existing 20-piece gallery.
+Parent-owned portability addition: `tools/build_visual_review_pdf.py`, one
+review PDF and its validation JSON under `output/pdf/`, plus the existing atlas
+audit's damaged-capture disclosure. These are outside the worker's8-file commit.
 
 - [ ] Preserve original and final PNGs/manifests, compare their SHA-256 hashes,
   record source commits, selected/missing sites, test commands, exits and limits.
+- [x] Package the existing20-piece tour and two valid later interface views in
+  a23-page PDF with clickable contents and criticism. Validate every embedded
+  image against source pixels and inspect all rendered pages. Preserve the
+  malformed atlas03 original; use separately captured valid04 with disclosure.
 - [ ] Judge the actual world against the spec. If any turn is physically blocked
   or a screenshot exposes malformed geometry, return that concrete failure to
   the owning task instead of issuing acceptance from data-only tests.

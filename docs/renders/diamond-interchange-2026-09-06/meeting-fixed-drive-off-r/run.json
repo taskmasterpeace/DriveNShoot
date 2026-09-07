@@ -1,0 +1,31 @@
+{
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-a23d43d18f494657b569b988a9b92052\\profile\\Local",
+  "pid": 35824,
+  "route": "I-90_X11-off-r",
+  "engine": "C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe",
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-a23d43d18f494657b569b988a9b92052\\profile\\Roaming",
+  "exit_code": 0,
+  "scene": "interchange_drive_sim",
+  "arguments": [
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "--rendering-method",
+    "gl_compatibility",
+    "--resolution",
+    "1280x720",
+    "res://proto3d/tests/interchange_drive_sim.tscn",
+    "--",
+    "--output=D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-a23d43d18f494657b569b988a9b92052\\captures",
+    "--route=I-90_X11-off-r"
+  ],
+  "map_sha_after": "04D975429DD544212438B3D9DAEF96D61E08B5551F19B622FF14A73BDF0135B9",
+  "wall_budget_s": 360,
+  "map_sha_before": "04D975429DD544212438B3D9DAEF96D61E08B5551F19B622FF14A73BDF0135B9",
+  "timed_out": false,
+  "wall_elapsed_s": 208.0503865,
+  "exited": true
+}

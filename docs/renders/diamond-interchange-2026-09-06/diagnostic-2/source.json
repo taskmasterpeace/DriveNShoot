@@ -1,0 +1,38 @@
+{
+  "source_head": "138a1e3ae9204f6536f8e40f505a4b5e41e7f1d1",
+  "source_hashes": [
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "1CD701D7FFEA5EBEE9AC528BC6223AEF8DB4070C8C2636C58DF0B4D188C0EE2A"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "9AA7DFE2FE587320E471EB2D7ABDBD263AC76F4062B5A9558713618C295E4067"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "C20D522B37161EA6E692E85ABD3B61024770190BA0A304BF45261C854CF59B42"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2D033CB8389D941E525AB7AD0D0E2E2843D75A83FDD8F3EAD5CC681F03D7F69A"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "BE180965B151017122958CE1EE03361AABD578F13BB626D9F297E7FA3BD6D2FE"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55A431B0EF34DE48D754C6209189996D3C082609F29181BA02964C0228B7575E"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "92175244442C1AA23D73DD7EFA334774B1D68DF6108D94DE2AF14963819AB207"
+    },
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "3C30D35281FCCA1385FA7197E7368329B0A31E976AF30870BA8DC4F596B4E777"
+    }
+  ],
+  "note": "Task4 combined production pause; no source edits during engine run"
+}

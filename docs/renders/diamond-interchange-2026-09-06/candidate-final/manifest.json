@@ -1,0 +1,43 @@
+{
+	"captures": [
+		{
+			"camera": "(-56064.0, 35.86211, -17856.66)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "01_seattle_approach",
+			"note": "Actual unedited game render. Locations are photographically staged, not continuous-trip evidence. See the named scene for real inputs exercised. Comparison clock held at 11:00. Isolated fresh profile.",
+			"pixels": "(1280, 720)",
+			"player": "(-56064.0, 8.612109, -17888.0)"
+		},
+		{
+			"camera": "(-56019.29, 35.53207, -18030.51)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "02_crossroad_ground_approach",
+			"note": "Actual unedited game render. Locations are photographically staged, not continuous-trip evidence. See the named scene for real inputs exercised. Comparison clock held at 11:00. Isolated fresh profile.",
+			"pixels": "(1280, 720)",
+			"player": "(-56019.29, 8.282068, -18061.85)"
+		},
+		{
+			"camera": "(-55808.87, 37.53223, -17805.38)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "03_actual_off_ramp_mouth",
+			"note": "Actual unedited game render. Locations are photographically staged, not continuous-trip evidence. See the named scene for real inputs exercised. Comparison clock held at 11:00. Isolated fresh profile.",
+			"pixels": "(1280, 720)",
+			"player": "(-55808.87, 10.28223, -17836.72)"
+		},
+		{
+			"camera": "(-56239.62, 34.07249, -18080.04)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "04_town_feeder",
+			"note": "Actual unedited game render. Locations are photographically staged, not continuous-trip evidence. See the named scene for real inputs exercised. Comparison clock held at 11:00. Isolated fresh profile.",
+			"pixels": "(1280, 720)",
+			"player": "(-56239.62, 6.822491, -18111.38)"
+		}
+	],
+	"failed": 0,
+	"passed": 77,
+	"scene": "res://proto3d/tests/road_surface_sim.gd"
+}

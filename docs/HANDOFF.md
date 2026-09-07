@@ -16,6 +16,75 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
+## 2026-09-06 — Seattle diamond interchange follow-up (in progress)
+
+Latest checkpoint supersedes the historical sequence below: all four combined-
+source real-input drives pass28/0,28/0,24/0,24/0, all driver/chassis100;
+all24 new unedited screenshots are personally inspected. Navigation now uses the
+renderer's finite road-meeting law (461/0); all four original J135 endpoint pairs
+remain reachable by legal alternatives. Seven compatibility scenes pass
+60+11+7+35+10+28+47 checks. Parking/barrel fix1498d39 has independent scoped
+approval (traffic540/0, surface117/0; profiling-off traffic repeat540/0).
+Navigation review and final visual acceptance remain open. Large junction pads,
+plain ruins, ground seams and HUD presentation still fall short of the world
+spec. The audit's `meeting-fixed-drive-*` images are the newest evidence; the
+earlier `cap-fixed-drive-*` sets and failed runs below are retained history.
+
+The [new screenshot diagnostic](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
+contains successive actual, inspected frames, not yet accepted as final.
+Two position-only building corrections and triangle winding repair produced a
+77/0 physical/capture result; a stronger continuous-envelope test then caught
+a tree missed by the spaced samples. Full-footprint tree reservations fix it,
+including after normal streaming; the previously blocked ON drive now completes
+22/0 on actual pad inputs with full driver/chassis health. OFF-R also completed
+27/0 before the tree fix. The expanded static/capture checkpoint passes107/0;
+live traffic/enemy occupancy is reported separately from fixed/unknown scenery,
+without suppressing actors or query layers. The false legacy pad is removed and
+the same-route screenshots confirm restored paint. Its disconnected street link
+remains an open navigation defect. Frozen checkpoint drives ON-R27/0, OFF22/0
+and ON22/0 pass; OFF-R20/3 fails a marginal high-speed corner. The wet-deck
+duplication is repaired (GPU116/0). The first advance-braking drive still fails
+25/4 on entry speed and later traffic contact. A photographed police-station wall
+beyond the ON endpoint is runtime-confirmed (107/1) and fixed by position-only
+commit `b3e0578`, with 120/0 GPU checks. Revised corner braking passes OFF-R28/0;
+the original deterministic endpoint test reproduces the traffic stall (43/2): both
+available-capacity parked cars and full-cap arrived agents obstruct the connector.
+Continuation/arrival correction passes170 checks with one convoy failure. Exact
+floor probes identify the real85mm pavement lip. The explicitly approved single
+downward100mm serving-road curb policy passes291/0 after expanded272/15 RED.
+A fresh OFF-R drive nevertheless fails27/1: exhausted-cap promotion marks a
+still-on-road managed car arrived and leaves it physically blocking the feeder.
+Focused tests cover that branch and full-cap parked-leader follower progress;
+the diagnostic correction passes359/0 with measured physics-body synchronization.
+Coherent matrix follow-up is INVALID411/11 plus freed-instance cleanup error:
+five test cap cars lose support when old chunks unload. Actual support/retention
+and validity-safe fixture cleanup now pass503/0; the invalid run remains recorded.
+Fresh actual-input four-route batch3d942 passes OFF-R28/0, ON-R28/0, OFF24/0,
+ON24/0, all driver/chassis100, clean logs and unchanged9source/map04D hashes.
+All24 unedited PNGs inspected, including matching ON police-clearance view.
+Seven compatibility scenes pass523 checks, then the roadside test crashes on
+its obsolete BoxMesh assumption. A parent-owned mesh-footprint adapter and
+current-ramp driving fixture passed37/0 before stronger all8corner/finitepavement/
+hole/malformed/large-coordinate controls. Final roadsideGPU59/0 drives42.751m
+entirely on actual pavement; all3PNG inspected. Newest nine-scene batch includes
+elevation26/0 with3-resource shutdown diagnostics, followed by a clean same-source
+verbose26/0. This warning, earlier one-resource shutdown diagnostics and one native
+startup access violation remain unexplained. The neighboring roof is now attributed
+to a solid procedural ruin; same-stage GPU63/0 proves144 floor probes and48
+full-height volumes clear across all six adjacent lanes. No fourth relocation.
+These failed runs are retained, not hidden by newer passes.
+Sparse scenery and independent review remain open. Worker8 source04b6f6e and
+parent roadside-test25e4e85 are committed locally; Task4 is not accepted yet.
+Independent review requires a same-serving-road recrossing guard during parking
+and actual per-port barrel assertions; tests-first fix round1 is in progress.
+Both regressions are reproduced: surface116/1 and traffic510/3 (the latter with
+the unexplained one-resource shutdown diagnostic). A separate actual graph test
+selects J135's38.71m false transfer in4/4 public routes. Task3b will share the
+existing finite-pavement law between rendering and routing, without map changes.
+Only Seattle has the new layout; selective
+SF/Atlanta metadata repair is not geometric rollout. No new export or release
+claim follows from this in-progress work, and save recovery remains unresolved.
+
 ## 2026-09-06 — screenshot-led ramp profile and pavement repair
 
 The [four-pair visual audit](verification/RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md)

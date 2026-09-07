@@ -1,0 +1,65 @@
+{
+  "run": "road-surface-74743918a21f4b27900933878a5d2904",
+  "base_head": "976c7d919caa71d8fa0cbd4b1f0666bf85b4a8ca",
+  "note": "Working source was held frozen for this run; file mtimes precede environment creation. Source hashes identify the uncommitted implementation, not a final review verdict. PNGs and manifest copied byte-for-byte.",
+  "source_hashes": [
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "67d5d299cac922af1b9b37cc3d5bfd513bd094e40ea1e6057fd70cd6feab7588"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "9aa7dfe2fe587320e471eb2d7abdbd263ac76f4062b5a9558713618c295e4067"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "22dd7fca6aa5034ed9323079b64fbd4d8568e3a716816ba2d74c630c3e7e986b"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2d033cb8389d941e525ab7ad0d0e2e2843d75a83fdd8f3ead5cc681f03d7f69a"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "c91e93a8c423a5d57b9b608d9ef330456e9cbcff15df7e2b6537a83864cd7ef6"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55a431b0ef34de48d754c6209189996d3c082609f29181ba02964c0228b7575e"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "92175244442c1aa23d73dd7efa334774b1d68df6108d94de2af14963819ab207"
+    },
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "35301b3f96d15803c93aa122c85987e4e089b216ec8ff96a045298ee422a72ff"
+    }
+  ],
+  "capture_hashes": [
+    {
+      "file": "01_seattle_approach.png",
+      "sha256": "0645d96b22fab466e8bc05a30729c96b21d17ee4732ae63f428d59822c9da504"
+    },
+    {
+      "file": "02_crossroad_ground_approach.png",
+      "sha256": "f46814f7bf501a484a28b62156af265173029616d8a1dc2810299646011e2acd"
+    },
+    {
+      "file": "03_actual_off_ramp_mouth.png",
+      "sha256": "dadf62c21797e1d64df3efb66f8e1359eb463abff23d60740a50fc3251d72d56"
+    },
+    {
+      "file": "04_town_feeder.png",
+      "sha256": "6ff84ec8b80bea35eb80772a85d6ecb7a31efac3e5a33ade7189ae5748a09e29"
+    },
+    {
+      "file": "05_later_streamed_town_feeder.png",
+      "sha256": "766ea94cc67f18196730be9cb4fae9ad496b1c8fbf3f61aa9a7101f4b35fdffa"
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "b9859901b1efbf6065b6aa3251b4d58b12602acd5c959dfba886d397aedc2946"
+    }
+  ]
+}

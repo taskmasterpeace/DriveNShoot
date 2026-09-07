@@ -1,0 +1,70 @@
+{
+  "run": "road-surface-0eef8a25b3694a209272427a141a3360",
+  "evidence_status": "successful run, review pending",
+  "base_head": "976c7d919caa71d8fa0cbd4b1f0666bf85b4a8ca",
+  "note": "Working source was held frozen for this run; file mtimes precede environment creation. Source hashes identify the uncommitted implementation, not a final review verdict. PNGs and manifest copied byte-for-byte.",
+  "source_hashes": [
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "f69586d9a79e1b7c4ca6e5c5d3d9f86f8ba118a71f439263bfe92b1521364ad1"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "9aa7dfe2fe587320e471eb2d7abdbd263ac76f4062b5a9558713618c295e4067"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "286fd089576391d00e8ab6aaff008c93f85860ee7bc075c5743b70f239204777"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2d033cb8389d941e525ab7ad0d0e2e2843d75a83fdd8f3ead5cc681f03d7f69a"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "8504393b5ee5724425ebfcc88c75a045885c4f2c57321c8c74a7fc5d59f3d33b"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55a431b0ef34de48d754c6209189996d3c082609f29181ba02964c0228b7575e"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "92175244442c1aa23d73dd7efa334774b1d68df6108d94de2af14963819ab207"
+    },
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "35301b3f96d15803c93aa122c85987e4e089b216ec8ff96a045298ee422a72ff"
+    }
+  ],
+  "capture_hashes": [
+    {
+      "file": "01_seattle_approach.png",
+      "sha256": "e94337ff4f5407cf4f413f94f496c3bff0c97108a685f7951aca5669ab42fb89"
+    },
+    {
+      "file": "02_crossroad_ground_approach.png",
+      "sha256": "5bdaa87012a27ff730476ea9649ebf061ab1de921722ac018d716b27129a4092"
+    },
+    {
+      "file": "03_actual_off_ramp_mouth.png",
+      "sha256": "df7901a171481af405b8f948d41ea1bd472baa035d82f9c015a5b6c0a4e75d10"
+    },
+    {
+      "file": "04_town_feeder.png",
+      "sha256": "892e56598fc827a625e6aa9017ebf0407901668c6ae0de33c92535092e4eeda9"
+    },
+    {
+      "file": "05_later_streamed_town_feeder.png",
+      "sha256": "2413388800418d368cafa59862315cb48b16a1a4d5f2d73be3ebfda8fa71b651"
+    },
+    {
+      "file": "06_highway_continuation_police.png",
+      "sha256": "dd6d24430f0d904070d0038fda77fa15ad2f1ba7e90716552e3cb586bac4fb8a"
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "ac54073b919bd90119a46da3cc5ae35ae9b36a73b0ad379b43c33229c81a799d"
+    }
+  ]
+}

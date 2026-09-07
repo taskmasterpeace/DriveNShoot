@@ -1,0 +1,30 @@
+{
+  "wall_budget_s": 180,
+  "timed_out": false,
+  "pid": 47604,
+  "arguments": [
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "--rendering-method",
+    "gl_compatibility",
+    "--resolution",
+    "1280x720",
+    "res://proto3d/tests/road_surface_sim.tscn",
+    "--",
+    "--output=D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-c2efa41643dd4b149d400c39dec03da5\\captures"
+  ],
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-c2efa41643dd4b149d400c39dec03da5\\profile\\Roaming",
+  "map_sha_after": "A840FBECBEA95B7F446813F11862C5ADE5C1FCCEB9361BD1FEE01A3340EBD3C2",
+  "map_sha_before": "A840FBECBEA95B7F446813F11862C5ADE5C1FCCEB9361BD1FEE01A3340EBD3C2",
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\road-surface-c2efa41643dd4b149d400c39dec03da5\\profile\\Local",
+  "engine": "C:/Users/taskm/Downloads/projects/Godot/Godot_v4.5.1-stable_win64_console.exe",
+  "scene": "road_surface_sim",
+  "route": "I-90_X11-off",
+  "wall_elapsed_s": 84.4977809,
+  "exited": true,
+  "exit_code": 0
+}

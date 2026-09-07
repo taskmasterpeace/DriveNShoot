@@ -1,0 +1,43 @@
+{
+	"captures": [
+		{
+			"camera": "(-56064.0, 35.86211, -17856.66)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "01_seattle_approach",
+			"note": "Unedited current-runtime render of disposable proposed Seattle geometry; live map untouched. Locations/11:00 clock staged. Not actual driving, final migration, or accepted bridge presentation.",
+			"pixels": "(1280, 720)",
+			"player": "(-56064.0, 8.612109, -17888.0)"
+		},
+		{
+			"camera": "(-56019.27, 35.43189, -18030.52)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "02_crossroad_ground_approach",
+			"note": "Unedited current-runtime render of disposable proposed Seattle geometry; live map untouched. Locations/11:00 clock staged. Not actual driving, final migration, or accepted bridge presentation.",
+			"pixels": "(1280, 720)",
+			"player": "(-56019.29, 8.204916, -18061.85)"
+		},
+		{
+			"camera": "(-55808.87, 36.85773, -17805.38)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "03_actual_off_ramp_mouth",
+			"note": "Unedited current-runtime render of disposable proposed Seattle geometry; live map untouched. Locations/11:00 clock staged. Not actual driving, final migration, or accepted bridge presentation.",
+			"pixels": "(1280, 720)",
+			"player": "(-55808.87, 9.607728, -17836.72)"
+		},
+		{
+			"camera": "(-56239.62, 33.98609, -18080.04)",
+			"car": "on foot",
+			"hour": 11.0,
+			"id": "04_town_feeder",
+			"note": "Unedited current-runtime render of disposable proposed Seattle geometry; live map untouched. Locations/11:00 clock staged. Not actual driving, final migration, or accepted bridge presentation.",
+			"pixels": "(1280, 720)",
+			"player": "(-56239.62, 6.736086, -18111.38)"
+		}
+	],
+	"failed": 2,
+	"passed": 11,
+	"scene": "D:/git/carworld/.worktrees/america-foundation/build/diamond-preview-dcfe93f6230049e781ec23dd43b62d44/preview.gd"
+}

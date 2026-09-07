@@ -1,5 +1,8 @@
 # DRIVN — 20 actual game pieces
 
+[Open the 23-page visual review PDF](../../output/pdf/DRIVN_Visual_Review_2026_09_06.pdf)
+for the complete tour, two later interface views, captions and clickable contents.
+
 Current isolated source, September 6, 2026. These are original 1280x720 game
 screenshots, not concept art. [Fixes, before/after views, tests and limitations](MERIDIAN_SIGNAGE_VISUAL_AUDIT_2026_09_06.md).
 
@@ -15,6 +18,30 @@ The newer [ramp surface audit](RAMP_PROFILE_VISUAL_AUDIT_2026_09_06.md) shows
 four before/after pairs: corrected ramp heights and a closed I-5 asphalt gap,
 with tangled joins and physical median crossings still explicitly unfinished.
 The original tour frames below are retained for comparison.
+The [current Seattle interchange diagnostic](DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
+now opens with24 newer `meeting-fixed-drive-*` frames from all four completed
+routes on the combined parking/navigation fixes. All were personally inspected;
+the criticism of junction paving, terrain seams, plain buildings and HUD remains
+explicit. Navigation461/0 and seven compatibility scenes pass, with independent
+review still pending. Earlier capture sets are retained below as history.
+
+The same audit
+shows the newer road captures and preserves every failed checkpoint. Joined
+pavement, readable signs, grounded hardware, tree clearance and three precise
+building relocations now pass120 surface checks. The newest four actual-input
+drives all finish with driver and vehicle health100: OFF-R28/0, ON-R28/0,
+OFF24/0 and ON24/0. All24 new original screenshots were inspected, including
+the return-highway view with the police building now clear of its lane.
+**Road acceptance is still open:** traffic now passes503 checks, and the final
+roadside GPU check passes59, with three additional inspected screenshots. Earlier
+invalid/failed runs are retained in the audit. An elevation shutdown warning
+remains unexplained despite a clean repeat. A legacy map link remains physically
+disconnected and has now been proved to offer a false navigation shortcut. The
+questionable roof is now attributed to a solid procedural ruin: all six adjacent
+lanes pass full-height clearance and floor probes, so no relocation was needed. Independent
+review found a same-road parking shortcut and a missing per-port barrel regression
+gate. Both were reproduced by new tests; the correction is in progress. The scene still has plain buildings, abrupt terrain
+tiles, street stubs and tiny HUD text; passing drives do not make that finished art.
 The previous overwritten player save is still unrecovered; this tour used
 disposable isolated saves, never that profile.
 
@@ -103,6 +130,12 @@ retained rather than silently replaced in this historical tour.
 
 ![Character sheet](../renders/meridian-signage-2026-09-06/tour/13_character_sheet.png)
 
+Current repaired view: the condition diagram no longer competes with the record,
+and close/scroll controls are visible. Long prose and placeholder iconography
+still need refinement.
+
+![Current repaired driver dossier](../renders/character-sheet-2026-09-06/final/01_dossier.png)
+
 ## 14 — Route map
 
 Original tour view: the scavenged GPS fits the fiction, but crowded tiny labels
@@ -110,6 +143,13 @@ undermine navigation. See the [current atlas, GPS and portrait phone views](ATLA
 for the subsequent repair. This original frame is retained, not silently replaced.
 
 ![Route map](../renders/meridian-signage-2026-09-06/tour/14_route_map.png)
+
+Current repaired course-planning view: the larger frame exposes selected stops
+and controls. The coarse biome mosaic and thin roads still look unfinished.
+This uses the valid course-planning capture; the separate country-overview PNG
+has an internal compressed-data checksum error, retained and disclosed in the atlas audit.
+
+![Current repaired course-planning atlas](../renders/atlas-readability-2026-09-06/after/04_country_course.png)
 
 ## 15 — Cartridge shelf
 

@@ -1,0 +1,117 @@
+{
+  "pdf": "D:\\git\\carworld\\.worktrees\\america-foundation\\output\\pdf\\DRIVN_Visual_Review_2026_09_06.pdf",
+  "pages": 23,
+  "frames": [
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\01_title.png",
+      "source_sha256": "45f5d6d68fc9dc3990b7f9a93f8a9de322e7fe24cb1d70c170e0f918f5c837f5",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\02_title_controls.png",
+      "source_sha256": "a532b88ec0620d53814d1a81bfc5b8b4b7249e4a6688fad4a9bd2ca803924d57",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\03_title_options.png",
+      "source_sha256": "8a8f50a0e8d2c3f79bed37e13299da79efb291dacb9176fee42bf9d603fac9fc",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\04_new_game_highway.png",
+      "source_sha256": "f8ce39fcf7d4b7ab075faff0ec2ffcb3b236f54218be5524a483271fbd9f0f43",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\05_meridian.png",
+      "source_sha256": "734ef611875421d9d0ecb8f3316cebc0e231c1e3e8e243a6d227e81784bf9824",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\06_appalachian_highway.png",
+      "source_sha256": "690e8988c1329c588941dc5a7f0bee8a7233437de1933ba3063c58f739f37996",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\07_colorado_highway.png",
+      "source_sha256": "090dbfd9fe3f11a6f90b64b0b96f2a06ea4b28102400ac64f9d61ef200a88f12",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\08_road_office.png",
+      "source_sha256": "52c2509388c2cc44f4ac28d2ab00f210dd31728349d92cb27ea3da257d5bbdc9",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\09_freight_desk.png",
+      "source_sha256": "f3f4d7e7bae38290dc0be1b7ae7dc70e0d5bec5612ea23ac35dc9f79c6a6d4ea",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\10_home_porch.png",
+      "source_sha256": "ffc43dd632337ed7cfda9af845a6c0fe8c35fa41843c75ea5ce01774dd37772b",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\11_home_inside.png",
+      "source_sha256": "3ebf39f76852ac78b915d4a9ab39087bc3010088d6b02b47fdac1d2976283ec8",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\12_backpack.png",
+      "source_sha256": "2ab33be0b229ab7b70b24746a22ecb1cdbd09a3b22095b917df82573428fe9aa",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\13_character_sheet.png",
+      "source_sha256": "c3285f75670be008c80c4b9f1bf3851ec84bde2ffb3a21aa055ace3d5808ec9e",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\character-sheet-2026-09-06\\final\\01_dossier.png",
+      "source_sha256": "801011c4a321bbf0e6fbee2f759d3f8728e54249f06fd62d9846cdb9a931ca30",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\14_route_map.png",
+      "source_sha256": "6ce0539782d233036ec0dc217a265920b3d9d841adfaeec142d2bb0e6ba0f66e",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\atlas-readability-2026-09-06\\after\\04_country_course.png",
+      "source_sha256": "ad4fe8ec5ce444723b6e9b83fc77e73c3b8f4667b2fdb729a8dc4ca03e380dec",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\15_console_library.png",
+      "source_sha256": "b4c783d41c8e95d1b268a23e93365e5429e0dbae10ccf9c249abe7f3eb888476",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\16_waste_heap_square.png",
+      "source_sha256": "55ec58cf84ccfe949f0ed9b5c5f50aa3aa2c37bca62e9519aa4440c405ae0899",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\17_bunker_breaker_portrait.png",
+      "source_sha256": "f42f6253e9b64e0a26d73da0ee31af3011bfb8644f78a06931d36339b9ed30a5",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\18_last_mile_landscape.png",
+      "source_sha256": "5292601077f8cd5f5a06b485dd86fe2d7dbed7f56d7c5dad418d7452acfacf1d",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\19_rust_runners_console.png",
+      "source_sha256": "76e2b6e58c241410a00bb6e86a623b9c13322360f95d0955b262a9a94e30aaa7",
+      "embedded_pixels_identical": true
+    },
+    {
+      "source": "docs\\renders\\meridian-signage-2026-09-06\\tour\\20_home_at_night.png",
+      "source_sha256": "bc633bcee7871e717d29c2c536829b02212e6c41ee52984c55abf4a80b7654f3",
+      "embedded_pixels_identical": true
+    }
+  ],
+  "pdf_sha256": "59d9599ed0efc409b891edc4979ea0a9db024e1427dda2174bee9a01bc0052b8"
+}

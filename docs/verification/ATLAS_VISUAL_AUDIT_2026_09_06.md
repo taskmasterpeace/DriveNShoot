@@ -86,6 +86,13 @@ The continental route network and major cities are readable in one view.
 Small exit names are suppressed at this scale. The existing simplified country
 shape is retained; this is not proof of complete nationwide world content.
 
+Subsequent PDF-packaging verification found an internal compressed-data checksum
+error in this PNG, in both the original build capture and its published copy.
+Some viewers display it, but Pillow full decoding and Node zlib reject it.
+The container CRC/header check alone had not detected this. The original remains
+untouched; the portable review pack and gallery instead use the valid, separately
+captured course-planning frame04 below. This is not a repaired/reconstructed image.
+
 ![Divided States country atlas](../renders/atlas-readability-2026-09-06/after/03_divided_states.png)
 
 ## After 04 — course planning

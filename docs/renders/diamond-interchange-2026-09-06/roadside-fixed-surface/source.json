@@ -1,0 +1,62 @@
+{
+  "run": "road-surface-0f7db7f25ac64dad9272cddf92eb03a3",
+  "evidence_status": "successful run, review pending",
+  "base_head": "b3e05785c1b253ad17b118eb5081b214dad4fe45",
+  "note": "Working source was held frozen for this run; file mtimes precede environment creation. Source hashes identify the uncommitted implementation, not a final review verdict. PNGs and manifest copied byte-for-byte.",
+  "source_hashes": [
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "f69586d9a79e1b7c4ca6e5c5d3d9f86f8ba118a71f439263bfe92b1521364ad1"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "88eed43c752a11bd8e9312daffd2b1e74d01ea3ba793be31391e8e9f14b2d93a"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "286fd089576391d00e8ab6aaff008c93f85860ee7bc075c5743b70f239204777"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2d033cb8389d941e525ab7ad0d0e2e2843d75a83fdd8f3ead5cc681f03d7f69a"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "8504393b5ee5724425ebfcc88c75a045885c4f2c57321c8c74a7fc5d59f3d33b"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55a431b0ef34de48d754c6209189996d3c082609f29181ba02964c0228b7575e"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "5d4a62bdf1c8601e99297b74593a8c48e2751b85b7ae2759a3c11f8ca02f050f"
+    },
+    {
+      "path": "game/proto3d/tests/roadside_clearance_sim.gd",
+      "sha256": "94fcc34f3dd9b2a150ebc2218da5d04c3d21b90d5448ed6e3328f11188deed58"
+    },
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "35301b3f96d15803c93aa122c85987e4e089b216ec8ff96a045298ee422a72ff"
+    }
+  ],
+  "capture_hashes": [
+    {
+      "file": "01_seattle_approach.png",
+      "sha256": "86c854e6b629ae9042d19d206cc91d55b1aaa43fbd17c465b738a12fe0bb8ad0"
+    },
+    {
+      "file": "02_return_ramp_before_drive.png",
+      "sha256": "0389cdfbb4220f2570b3049b42337c78178682efcc379a20e7a449915cadf39f"
+    },
+    {
+      "file": "03_return_ramp_after_drive.png",
+      "sha256": "e37e0aa40bf96405d7ced20a0303e60962ce5f3a68288efc6336fbd4829e52d3"
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "a45aa2883e58c4e2d90d7e49e229d01e48af20cc614811714d1025dcc257a5eb"
+    }
+  ]
+}

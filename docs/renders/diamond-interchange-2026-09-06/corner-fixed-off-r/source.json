@@ -1,0 +1,74 @@
+{
+  "run": "road-surface-931511e62d614a28b6a2fd7add54609e",
+  "evidence_status": "successful run, review pending",
+  "base_head": "976c7d919caa71d8fa0cbd4b1f0666bf85b4a8ca",
+  "note": "Working source was held frozen for this run; file mtimes precede environment creation. Source hashes identify the uncommitted implementation, not a final review verdict. PNGs and manifest copied byte-for-byte.",
+  "source_hashes": [
+    {
+      "path": "game/proto3d/world_stream.gd",
+      "sha256": "f69586d9a79e1b7c4ca6e5c5d3d9f86f8ba118a71f439263bfe92b1521364ad1"
+    },
+    {
+      "path": "game/proto3d/traffic.gd",
+      "sha256": "9aa7dfe2fe587320e471eb2d7abdbd263ac76f4062b5a9558713618c295e4067"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.gd",
+      "sha256": "286fd089576391d00e8ab6aaff008c93f85860ee7bc075c5743b70f239204777"
+    },
+    {
+      "path": "game/proto3d/tests/interchange_drive_sim.tscn",
+      "sha256": "2d033cb8389d941e525ab7ad0d0e2e2843d75a83fdd8f3ead5cc681f03d7f69a"
+    },
+    {
+      "path": "game/proto3d/tests/road_surface_sim.gd",
+      "sha256": "8504393b5ee5724425ebfcc88c75a045885c4f2c57321c8c74a7fc5d59f3d33b"
+    },
+    {
+      "path": "game/proto3d/tests/elevation_sim.gd",
+      "sha256": "55a431b0ef34de48d754c6209189996d3c082609f29181ba02964c0228b7575e"
+    },
+    {
+      "path": "game/proto3d/tests/traffic_sim.gd",
+      "sha256": "92175244442c1aa23d73dd7efa334774b1d68df6108d94de2af14963819ab207"
+    },
+    {
+      "path": "tools/road_surface_check.ps1",
+      "sha256": "35301b3f96d15803c93aa122c85987e4e089b216ec8ff96a045298ee422a72ff"
+    }
+  ],
+  "capture_hashes": [
+    {
+      "file": "01_seattle_approach.png",
+      "sha256": "dfd3348c53d486c1e58cdf3aebd436a79cf39ba7fb918a5af15b56e90b653715"
+    },
+    {
+      "file": "drive_00_I-90_X11-off-r_approach.png",
+      "sha256": "e6dfbd8ba59045a7864b58031fe960292e1bfe0bb40f71e0b889668b0f08bef1"
+    },
+    {
+      "file": "drive_99_I-90_X11-off-r_completion.png",
+      "sha256": "059e6a7e5bbf5f0150c81a5a7051503751a186b7a974561fe1e7e3d8aa07b1d7"
+    },
+    {
+      "file": "drive_I-90_X11-off-r_bridge_crossing.png",
+      "sha256": "1ed54ad33016a3a39695998a10de9575fd345a0fbdd3f4566af747f07ed49552"
+    },
+    {
+      "file": "drive_I-90_X11-off-r_crossing.png",
+      "sha256": "5fd33e9c45e01ad856d7bf37eb4aa6f7993897e911c059c140e37a6f6b046b5a"
+    },
+    {
+      "file": "drive_I-90_X11-off-r_mouth.png",
+      "sha256": "38cbe22e168d2a5996d5383f10886420b5f6b41290262832013a373395da4f05"
+    },
+    {
+      "file": "drive_I-90_X11-off-r_off_ramp.png",
+      "sha256": "4a2e7492471fc007283a38b6e5d116e61c3398f0ded1a5b995f1dac61b48b48f"
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "926bc9f3da3dfa8f88216ee4ff620f679bfdd54cf1f4b981c4937c37c3ff1a80"
+    }
+  ]
+}

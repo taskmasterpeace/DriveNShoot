@@ -1,0 +1,91 @@
+{
+	"captures": [
+		{
+			"camera": "(-56064.0, 35.86211, -17856.66)",
+			"car": "on foot",
+			"elapsed_s": 0.0,
+			"hour": 11.0,
+			"id": "01_seattle_approach",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56064.0, 8.612109, -17888.0)",
+			"route": "I-90_X11-off",
+			"route_index": 1
+		},
+		{
+			"camera": "(-56376.87, 53.17433, -17951.74)",
+			"car": "(-56376.87, 7.420802, -17956.87)",
+			"elapsed_s": 0.0,
+			"hour": 11.0,
+			"id": "drive_00_I-90_X11-off-r_approach",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56377.11, 7.930801, -17957.32)",
+			"route": "I-90_X11-off-r",
+			"route_index": 1
+		},
+		{
+			"camera": "(-56341.11, 59.52511, -17941.82)",
+			"car": "(-56338.97, 7.420466, -17946.31)",
+			"elapsed_s": 3.99999999999999,
+			"hour": 11.0,
+			"id": "drive_I-90_X11-off-r_mouth",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56339.2, 7.931002, -17946.77)",
+			"route": "I-90_X11-off-r",
+			"route_index": 3
+		},
+		{
+			"camera": "(-56114.32, 57.15671, -17709.34)",
+			"car": "(-56113.27, 8.255879, -17714.1)",
+			"elapsed_s": 28.7999999999996,
+			"hour": 11.0,
+			"id": "drive_I-90_X11-off-r_off_ramp",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56113.48, 8.765101, -17714.57)",
+			"route": "I-90_X11-off-r",
+			"route_index": 64
+		},
+		{
+			"camera": "(-56063.78, 67.02606, -17879.12)",
+			"car": "(-56063.24, 14.92077, -17886.41)",
+			"elapsed_s": 43.0666666666655,
+			"hour": 11.0,
+			"id": "drive_I-90_X11-off-r_bridge_crossing",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56063.69, 15.42988, -17886.16)",
+			"route": "I-90_X11-off-r",
+			"route_index": 88
+		},
+		{
+			"camera": "(-56017.91, 61.2052, -18052.91)",
+			"car": "(-56017.34, 8.984245, -18060.22)",
+			"elapsed_s": 55.7333333333315,
+			"hour": 11.0,
+			"id": "drive_I-90_X11-off-r_crossing",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56017.79, 9.502295, -18059.99)",
+			"route": "I-90_X11-off-r",
+			"route_index": 112
+		},
+		{
+			"camera": "(-56552.17, 58.89936, -18086.31)",
+			"car": "(-56554.18, 7.405862, -18091.34)",
+			"elapsed_s": 98.9999999999957,
+			"hour": 11.0,
+			"id": "drive_99_I-90_X11-off-r_completion",
+			"note": "Unedited game camera. 11:00 and pre-route car/player staging disclosed; all movement after DRIVE START is real bound pad input. No transform/velocity steering.",
+			"pixels": "(1280, 720)",
+			"player": "(-56553.82, 7.922295, -18090.98)",
+			"route": "I-90_X11-off-r",
+			"route_index": 217
+		}
+	],
+	"failed": 0,
+	"passed": 28,
+	"scene": "res://proto3d/tests/interchange_drive_sim.gd"
+}

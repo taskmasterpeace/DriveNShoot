@@ -1,0 +1,77 @@
+{
+  "status": "Actual runtime roof attribution, not art change or final road acceptance",
+  "source_head": "25e4e850159db92ee74a8d6822450642e0482e74",
+  "source_hashes": {
+    "tools/road_surface_check.ps1": "35301B3F96D15803C93AA122C85987E4E089B216EC8FF96A045298EE422A72FF",
+    "game/proto3d/tests/interchange_drive_sim.tscn": "2D033CB8389D941E525AB7AD0D0E2E2843D75A83FDD8F3EAD5CC681F03D7F69A",
+    ".superpowers/sdd/2026-09-06-diamond-interchanges/roof-diagnostic.gd": "908B1191C0AA93D178E4823AE727A3B95638D04EACD0EB31D8F93563DBC39AD7",
+    "game/proto3d/tests/interchange_drive_sim.gd": "286FD089576391D00E8AB6AAFF008C93F85860EE7BC075C5743B70F239204777",
+    "game/data/usmap.json": "04D975429DD544212438B3D9DAEF96D61E08B5551F19B622FF14A73BDF0135B9",
+    "game/proto3d/usmap.gd": "2D21B5467F3350AB63EFB921699D7514EC3F8C563FBFD241593EAFA6CB865EC8",
+    "game/proto3d/road_graph.gd": "F8C6C4E4C8C673A5C45806DC2ED1C32D9E1856656347BC22A47ABCC859A0CFE8",
+    ".superpowers/sdd/2026-09-06-diamond-interchanges/roof-diagnostic-entry.gd": "ADC053942171F3A475AB82E705F54936E1115AB03A6BDB10C1FC3543256EF59F",
+    "game/proto3d/world_stream.gd": "F69586D9A79E1B7C4CA6E5C5D3D9F86F8BA118A71F439263BFE92B1521364AD1",
+    "game/proto3d/tests/elevation_sim.gd": "55A431B0EF34DE48D754C6209189996D3C082609F29181BA02964C0228B7575E",
+    "game/proto3d/tests/road_surface_sim.gd": "ED00AC7D2E8C943E722D069A816349AC34D455FA52EA12920E76D1B55190D9BF",
+    "game/proto3d/tests/traffic_sim.gd": "0F4355CD7A0EF1B8324E8FBA79558AACC53BC6E48C5C5425F3E6E7999587D594",
+    "game/proto3d/tests/roadside_clearance_sim.gd": "94FCC34F3DD9B2A150EBC2218DA5D04C3D21B90D5448ED6E3328F11188DEED58",
+    "game/proto3d/traffic.gd": "88EED43C752A11BD8E9312DAFFD2B1E74D01EA3BA793BE31391E8E9F14B2D93A",
+    ".superpowers/sdd/2026-09-06-diamond-interchanges/j135-diagnostic.gd": "CF5CE466E9AC33E1CBA13325047A348C56859768D4B227D7CC0BF1824091AA45"
+  },
+  "copies": [
+    {
+      "file": "01_seattle_approach.png",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/captures/01_seattle_approach.png",
+      "sha256": "560dbcb1443f5e876e629dcb5311ec8b826b9a01db8eaefc3b69a8cfa4144f06",
+      "bytes": 478503
+    },
+    {
+      "file": "02_return_ramp_before_drive.png",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/captures/02_return_ramp_before_drive.png",
+      "sha256": "6e2ace343292cfa165be69a7cb411c6a6fe4e0861ff9a624234672e46d544159",
+      "bytes": 767651
+    },
+    {
+      "file": "03_return_ramp_after_drive.png",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/captures/03_return_ramp_after_drive.png",
+      "sha256": "d85ad10fc9dddba360368e213d4d2401b7038e76738243849423eabbdb8ec84e",
+      "bytes": 794526
+    },
+    {
+      "file": "manifest.json",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/captures/manifest.json",
+      "sha256": "6187828d3d1a3fd4bca44263d47b7567e598f6a4a5aa0bbcdea1c9584b847d36",
+      "bytes": 1493
+    },
+    {
+      "file": "result.json",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/result.json",
+      "sha256": "f1fafbce62061f7c8b90ef28adf67864a3f0516ec55db2313826201eab026ce2",
+      "bytes": 2812
+    },
+    {
+      "file": "stdout.log",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/stdout.log",
+      "sha256": "342fcc82d9c9375cb1bd1ba3ed706cd129e082e6158a0a7b20299ea5b19afd9f",
+      "bytes": 38572
+    },
+    {
+      "file": "stderr.log",
+      "source": "build/roof-diagnostic-6c3cb40104744758becdad95aee3cfe8/stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "roof-diagnostic.gd",
+      "source": ".superpowers/sdd/2026-09-06-diamond-interchanges/roof-diagnostic.gd",
+      "sha256": "908b1191c0aa93d178e4823ae727a3b95638d04eacd0eb31d8f93563dbc39ad7",
+      "bytes": 7360
+    },
+    {
+      "file": "roof-diagnostic-entry.gd",
+      "source": ".superpowers/sdd/2026-09-06-diamond-interchanges/roof-diagnostic-entry.gd",
+      "sha256": "adc053942171f3a475ab82e705f54936e1115ab03a6bdb10c1fc3543256ef59f",
+      "bytes": 308
+    }
+  ]
+}
