@@ -90,20 +90,35 @@ func journal_add(line: String) -> void:
 ## level and lesson since is gone from your head; the journal is how you get
 ## the INTEL back (feelings only return by doing). Returns the wake position.
 func wake() -> Vector3:
-	if backup.is_empty():
+	var prepared: Dictionary = prepare_wake()
+	if prepared.is_empty():
 		return Vector3.ZERO
-	_main.character.from_record(backup["record"] as Dictionary)
-	_main.character.revive()
-	_main.character.fever_until_h = -1.0 # a fresh body carries no fever
+	_main.character.from_record(prepared.character)
+	for message: String in prepared.messages:
+		_main.notify(message)
+	return prepared.position
+
+
+## Pure preparation lets a death checkpoint commit before the live body changes.
+## The ordinary wake and transit handoff consume the same memory/fever/defect law.
+func prepare_wake() -> Dictionary:
+	if backup.is_empty():
+		return {}
+	var revived := ProtoCharacter.new()
+	revived.from_record(_main.character.to_record())
+	revived.from_record(backup["record"] as Dictionary)
+	revived.revive()
+	revived.fever_until_h = -1.0 # a fresh body carries no fever
+	var messages: Array[String] = []
 	var defect: Dictionary = backup.get("defect", {})
 	if not defect.is_empty():
 		# the vat's discount, collected forever: a permanent cap tax
-		_main.character.hp = maxf(10.0, _main.character.hp - float(defect["tax"]))
-		_main.notify("🧬 Something in this body sits WRONG — the vat's discount, collected forever.")
+		revived.hp = maxf(10.0, revived.hp - float(defect["tax"]))
+		messages.append("🧬 Something in this body sits WRONG — the vat's discount, collected forever.")
 	var wp: Array = backup["wake_pos"]
-	_main.notify("🧬 You wake at the scan — day %d's you. %d journal entries remember what you don't."
+	messages.append("🧬 You wake at the scan — day %d's you. %d journal entries remember what you don't."
 		% [int(float(backup["day_h"]) / 24.0), journal.size()])
-	return Vector3(float(wp[0]), float(wp[1]) + 0.3, float(wp[2]))
+	return {"character":revived.to_record(),"position":Vector3(float(wp[0]),float(wp[1])+0.3,float(wp[2])),"messages":messages}
 
 
 func serialize() -> Dictionary:

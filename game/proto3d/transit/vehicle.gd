@@ -16,8 +16,25 @@ var _roof_faded_materials: Array[Material] = []
 func carries_character(body: Node3D) -> bool:
 	return service != null and service.is_riding() and service.main.active_car == self and body == service.main.player
 
+func inactive_brake_force() -> float:
+	var idle: float = super.inactive_brake_force()
+	if not dead or service == null or not service.offline() or service.vehicles.get("lastline_coach") != self:
+		return idle
+	if not is_instance_valid(ai_driver) or not ai_driver is ProtoCoachDriver or service._driver != ai_driver or not ai_driver.running:
+		return idle
+	# The dead-body early return still forbids propulsion. Consume the service
+	# driver's demand through actual wheel brakes, including its final parking
+	# demand; never use the ordinary handbrake's low-speed velocity shortcut.
+	var demand: float = maxf(clampf(input_brake,0.0,1.0),float(input_handbrake))
+	return maxf(idle,demand*max_brake*float(current_handling()["brake"]))
+
 func interact_prompt(_main: Node) -> String:
+	if service != null and service.can_board():
+		return "E / Y/△ — Board LASTLINE with reserved ticket"
 	return "E / Y/△ — LASTLINE ticket board" if service != null and not is_active and not dead else ""
+
+func interact_position() -> Vector3:
+	return anchor_world("Boarding") if service != null else super.interact_position()
 
 func interact(_main: Node) -> void:
 	if service != null:

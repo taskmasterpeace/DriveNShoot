@@ -16,6 +16,7 @@ var _ending_reason: String = ""
 var _checkpoint_stop: String = ""
 var _checkpoint_position: Variant = null
 var _exit_notice: String = ""
+var _checkpoint_respawn: Dictionary = {}
 
 func setup(owner: Node) -> void:
 	main = owner
@@ -61,6 +62,8 @@ func fleet_record() -> Dictionary:
 	return {"version":1,"coach_stop":coach_stop}
 
 func capture_run() -> Dictionary:
+	if not _checkpoint_respawn.is_empty():
+		return _checkpoint_respawn.duplicate(true)
 	var run: Dictionary = main.capture_save()
 	if not _checkpoint_stop.is_empty():
 		run.transit_fleet = {"version":1,"coach_stop":_checkpoint_stop}
@@ -75,7 +78,13 @@ func _publish_wallet(wallet: Dictionary) -> void:
 	main.backpack.changed.emit()
 
 func can_open(id: String) -> bool:
-	return offline() and stops.has(id) and stops[id].safe and not main.character.dead and main.mode == main.Mode.FOOT and main.player.global_position.distance_to(catalog.stop_position(id)) < 3.5
+	return _eligible_at_stop(id) and main.player.global_position.distance_to(catalog.stop_position(id)) < 3.5
+
+func _eligible_at_stop(id: String) -> bool:
+	return offline() and stops.has(id) and stops[id].safe and not main.character.dead and main.mode == main.Mode.FOOT
+
+func can_access_panel(id: String) -> bool:
+	return can_open(id) or (id == coach_stop and can_board())
 
 func can_reserve(id: String) -> bool:
 	if not offline() or not _ending_reason.is_empty() or not catalog.services.has(id) or not vehicles.has("lastline_coach") or not state.record().ticket.is_empty():
@@ -100,7 +109,7 @@ func can_board() -> bool:
 	if ticket.is_empty() or not offline() or _riding or not vehicles.has("lastline_coach"):
 		return false
 	var car: ProtoTransitVehicle = vehicles.lastline_coach
-	return ticket.phase == "reserved" and ticket.origin == coach_stop and can_open(coach_stop) and not car.dead and car.global_position.distance_to(stops[coach_stop].bay)<2.0 and car.can_disembark() and main.player.global_position.distance_to(car.anchor_world("Boarding")) < 3.0 and now_minutes() <= float(ticket.departure)
+	return ticket.phase == "reserved" and ticket.origin == coach_stop and _eligible_at_stop(coach_stop) and not car.dead and car.global_position.distance_to(stops[coach_stop].bay)<2.0 and car.can_disembark() and main.player.global_position.distance_to(car.anchor_world("Boarding")) < 3.0 and now_minutes() <= float(ticket.departure)
 
 func board() -> void:
 	if not can_board():
@@ -141,6 +150,8 @@ func passenger_status() -> String:
 	var ticket: Dictionary = state.record().ticket
 	if ticket.is_empty():
 		return "LASTLINE"
+	if main.character.dead:
+		return "PASSENGER LOST · R — respawn + interruption refund"
 	var destination: String = String(catalog.stops[ticket.destination].name)
 	if not _ending_reason.is_empty():
 		return "SERVICE STOPPED · E / Y/△ — safe roadside exit + refund"
@@ -166,7 +177,7 @@ func pose_passenger(delta: float) -> void:
 	main.player.global_position = passenger_position()
 
 func request_exit() -> bool:
-	if not _riding or not offline():
+	if not _riding or not offline() or main.character.dead:
 		return false
 	if not _ending_reason.is_empty():
 		return _finish("service_failed",coach_stop)
@@ -174,6 +185,35 @@ func request_exit() -> bool:
 		main.notify("LASTLINE: remain seated until a safe stop")
 		return false
 	return _finish("arrived" if _arrival else "early_exit",String(state.record().ticket.destination) if _arrival else coach_stop)
+
+func respawn_after_death(run: Dictionary) -> bool:
+	if not _riding or not offline() or not main.character.dead:
+		return false
+	var ticket: Dictionary = state.record().ticket
+	if ticket.is_empty() or ticket.phase != "aboard":
+		return false
+	_checkpoint_respawn = run.duplicate(true)
+	_checkpoint_respawn.transit_fleet = fleet_record()
+	var result: Dictionary = state.finish(int(ticket.serial),"service_failed",coach_stop,run.player.backpack)
+	_checkpoint_respawn = {}
+	if not result.ok:
+		_notify_exit_once("death","LASTLINE: respawn checkpoint failed; press R to retry")
+		return false
+	# Publication follows the single full-run write. This is explicitly death
+	# respawn, not a claim that the corpse safely walked out of the coach.
+	_ending_reason = "Passenger died"
+	var car: ProtoTransitVehicle = vehicles.lastline_coach
+	car.set_door_open(true)
+	if is_instance_valid(_driver):
+		_driver.halt(_ending_reason)
+	main.character.from_record(run.player.character)
+	main.deaths = int(run.deaths)
+	var p: Array = run.player.pos
+	_release(Vector3(float(p[0]),float(p[1]),float(p[2])),"body_unavailable")
+	main.player.dead_vis = false
+	main.hud.hide_death()
+	main.notify("LASTLINE death interruption · full fare refunded · replacement at last terminal on reload")
+	return true
 
 func _finish(reason: String, safe_stop: String) -> bool:
 	var car: ProtoTransitVehicle = vehicles.lastline_coach
@@ -290,7 +330,7 @@ func _physics_process(_delta: float) -> void:
 			return
 		_departed = true
 		if is_instance_valid(_driver):
-			_driver.running = false
+			_driver.detach()
 			_driver.queue_free()
 		_driver = ProtoCoachDriver.new()
 		add_child(_driver)
@@ -340,7 +380,7 @@ func restore_run(data: Dictionary) -> bool:
 	if _riding:
 		_release(catalog.stop_position(stop_id)+Vector3.UP*0.15,"body_unavailable")
 	if is_instance_valid(_driver):
-		_driver.running = false
+		_driver.detach()
 		_driver.queue_free()
 	_driver = null
 	state.restore(staged.record())

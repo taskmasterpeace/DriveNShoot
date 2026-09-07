@@ -3545,6 +3545,9 @@ func _on_death() -> void:
 ## Soft respawn: you come to on the safehouse cot, mended, but lighter. Your rig
 ## stays where it died — go get it. Dogs, lit nodes, respect, the clock: all persist.
 func respawn_at_home() -> void:
+	if transit != null and transit.is_riding():
+		_respawn_transit_passenger()
+		return
 	deaths += 1
 	# THE CLONE WAKE (CLONING.md C1 — THE MEMORY LAW): with a backup banked you
 	# wake AT THE SCAN as the person who sat the chair — everything learned
@@ -4093,6 +4096,42 @@ func begin_new_game() -> void:
 	notify("🚗 The road starts here. Follow the wheel.")
 	if objectives != null:
 		objectives.arm()
+
+
+func _respawn_transit_passenger() -> void:
+	if not character.dead or not transit.offline():
+		return
+	var prepared: Dictionary
+	if cloning != null and cloning.has_backup():
+		prepared = cloning.prepare_wake()
+	else:
+		var revived := ProtoCharacter.new()
+		revived.from_record(character.to_record())
+		revived.revive()
+		prepared = {"character":revived.to_record(),"position":SAFEHOUSE+Vector3.UP*0.3,"messages":[]}
+	var run: Dictionary = capture_save()
+	var wake: Vector3 = prepared.position
+	run.player.character = prepared.character
+	run.player.pos = [wake.x,wake.y,wake.z]
+	run.deaths = deaths+1
+	# The already-paid fare is not carried inventory. Apply the existing death
+	# toll first; ticket completion adds its full interruption refund afterward.
+	var lost_scrap: int = int(backpack.count("scrap")*0.4)
+	var lost_scrip: int = int(backpack.count("scrip")*0.3)
+	for row: Array in [["scrap",lost_scrap],["scrip",lost_scrip]]:
+		if int(row[1]) > 0:
+			run.player.backpack[row[0]] -= int(row[1])
+			if int(run.player.backpack[row[0]]) == 0:
+				run.player.backpack.erase(row[0])
+	if not transit.respawn_after_death(run):
+		return
+	for message: String in prepared.messages:
+		notify(message)
+	if prepared.messages.is_empty():
+		hud.set_circuit(circuit_level,circuit_beats)
+		notify("🩹 You came to on the safehouse cot. Lost %d scrap, %d scrip." % [lost_scrap,lost_scrip])
+	if audio != null:
+		audio.play_ui("blip",-2.0)
 
 
 func capture_save() -> Dictionary:

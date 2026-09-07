@@ -1615,7 +1615,7 @@ func _physics_process(delta: float) -> void:
 	if not is_active or dead:
 		engine_force = 0.0
 		# A towed trailer must ROLL; everything else gets a parking brake.
-		brake = 0.4 if spec.get("free_rolling", false) else 3.0
+		brake = inactive_brake_force()
 		# TWO-RATE STEERING: parked/idle always CENTERS (target is always 0), so
 		# it always takes the faster return rate.
 		steering = move_toward(steering, 0.0, steer_return_speed * delta)
@@ -1868,6 +1868,10 @@ func _physics_process(delta: float) -> void:
 				apply_torque(Vector3(0.0, -wy * mass * yaw_damp, 0.0))
 
 	_emit_skids()
+
+
+func inactive_brake_force() -> float:
+	return 0.4 if spec.get("free_rolling", false) else 3.0
 
 
 ## The aerodynamic drag force for a given velocity: magnitude aero_drag·|v_h|²,

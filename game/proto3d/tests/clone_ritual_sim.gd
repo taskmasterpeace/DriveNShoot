@@ -118,5 +118,7 @@ func _ready() -> void:
 	var probe := ProtoCloning.create(main)
 	probe.restore(dump)
 	_check("backup + journal round-trip the save", probe.has_backup() and probe.journal.size() >= 2)
+	probe.free() # This round-trip probe was never parented; the fixture owns it.
+	_check("round-trip probe freed without touching live cloning",not is_instance_valid(probe) and is_instance_valid(main.cloning) and main.cloning==cl)
 
 	_finish(prev_scale)

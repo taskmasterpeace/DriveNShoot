@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
   [ValidateSet('import','headless','capture')][string]$Mode='headless',
-  [ValidateSet('ticket','vehicle','coach','data','grip_ik','road_life')][string]$Sim='ticket',
-  [ValidateSet('east','west','safety')][string]$Scenario='east',
+  [ValidateSet('ticket','vehicle','coach','data','grip_ik','road_life','clone_ritual','clone_fever')][string]$Sim='ticket',
+  [ValidateSet('east','west','safety','death','reboard_east','reboard_west','emergency')][string]$Scenario='east',
   [switch]$EngineVerbose
 )
 Set-StrictMode -Version Latest

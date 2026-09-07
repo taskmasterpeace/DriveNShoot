@@ -9,12 +9,30 @@ var capture_dir: String = ""
 var tracked: Node3D
 var tracked_previous: Vector3
 var largest_step: float = 0.0
+var physics_elapsed: float = 0.0
+var physics_ticks: int = 0
+var emergency_input_probe: bool = false
+var emergency_publications: Array[Dictionary] = []
+
+func _input(event: InputEvent) -> void:
+	if emergency_input_probe and event.is_action("interact"):
+		var car: ProtoTransitVehicle = main.transit.vehicles.lastline_coach
+		print("EMERGENCY INPUT EDGE: ",JSON.stringify({"pressed":event.is_pressed(),"speed":car.linear_velocity.length(),"running":main.transit._driver.running,"riding":main.transit.is_riding(),"tick":physics_ticks}))
+
+func record_emergency_publication() -> void:
+	var life: ProtoTransitService = main.transit
+	var car: ProtoTransitVehicle = life.vehicles.lastline_coach
+	var observation: Dictionary = {"speed":car.linear_velocity.length(),"running":is_instance_valid(life._driver) and life._driver.running,"wallet":main.backpack.slots.duplicate(true),"ticket":life.record(),"tick":physics_ticks}
+	emergency_publications.append(observation)
+	print("EMERGENCY WALLET PUBLICATION: ",JSON.stringify(observation))
 class RoadVictim extends Node3D:
 	var received: float = 0.0
 	func take_damage(amount: float) -> void:
 		received += amount
 
 func _physics_process(_delta: float) -> void:
+	physics_elapsed += _delta
+	physics_ticks += 1
 	if is_instance_valid(tracked):
 		largest_step = maxf(largest_step,tracked.global_position.distance_to(tracked_previous))
 		tracked_previous = tracked.global_position
@@ -78,6 +96,12 @@ func _ready() -> void:
 		return
 	if scenario == "safety":
 		await safety_checks()
+	elif scenario == "death":
+		await death_checks()
+	elif scenario == "emergency":
+		await emergency_checks(main.transit)
+	elif scenario.begins_with("reboard_"):
+		await reboard_checks()
 	else:
 		await journey()
 	finish()
@@ -138,20 +162,35 @@ func journey() -> void:
 	var arrival_write_armed: bool = false
 	var arrival_write_checked: bool = false
 	var start_ms: int = Time.get_ticks_msec()
+	var journey_physics_start: float = physics_elapsed
+	var journey_ticks_start: int = physics_ticks
+	var road_index: int = main.transit.stops[origin_id].departure(scenario == "west").size()-1
+	var approach_index: int = road_index+maxi(0,route_row.size()-2)+1
+	var observed_edges: Dictionary = {}
+	journey_edge("start",start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 	var telemetry_at: int = start_ms
 	while main.transit.is_riding() and Time.get_ticks_msec() - start_ms < 150000:
 		await frames(1)
 		var pos: Vector3 = coach.global_position
+		var driver: ProtoCoachDriver = main.transit._driver
+		if is_instance_valid(driver):
+			for edge: String in ["departure","road","end_apron","arrival"]:
+				var reached: bool = (edge=="departure" and driver.running) or (edge=="road" and driver.index>=road_index) or (edge=="end_apron" and driver.index>=approach_index) or (edge=="arrival" and main.transit._arrival)
+				if reached and not observed_edges.has(edge):
+					observed_edges[edge] = true
+					journey_edge(edge,start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 		furthest = maxf(furthest, pos.distance_to(start))
 		if furthest>800 and not arrival_write_armed:
 			arrival_write_armed = true
 			set_checkpoint_path("user://absent_directory/refused.save")
 		if main.transit._arrival and coach.can_disembark() and not arrival_write_checked:
 			arrival_write_checked = true
+			journey_edge("denied_arrival_gate",start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 			check("failed arrival checkpoint publishes neither destination fleet nor ticket completion",main.transit.coach_stop==origin_id and main.transit.record().ticket.get("phase")=="aboard" and main.transit.is_riding() and main.backpack.slots.scrip==18)
 			var obstruction: StaticBody3D = ProtoWorldBuilder.box_body(self,Vector3(2,4,2),coach.anchor_world("Exit")+Vector3.UP*1.5,Color(0.5,0.2,0.1))
 			await frames(3)
 			set_checkpoint_path(main.SAVE_PATH)
+			journey_edge("arrival_writer_restored",start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 			await action("interact")
 			check("blocked terminal exit cannot publish foot mode",main.transit.is_riding() and main.transit.coach_stop==origin_id)
 			obstruction.queue_free()
@@ -172,6 +211,7 @@ func journey() -> void:
 			check("moving exit request keeps rider safely aboard", main.transit.is_riding())
 			await capture("03_journey")
 	print("TRANSIT COACH METRICS: " + JSON.stringify({"furthest_m":furthest,"largest_step_m":largest_step,"seconds":(Time.get_ticks_msec()-start_ms)/1000.0,"coach":str(coach.global_position)}))
+	journey_edge("observation_outcome",start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 	tracked = null
 	check("road journey made physical progress without teleport", furthest > 800.0 and largest_step < 2.0)
 	check("world clock advances through journey", main.daynight.hour > clock_start)
@@ -180,6 +220,7 @@ func journey() -> void:
 	check("arrival leaves living rider on clear ground", main.mode == main.Mode.FOOT and main.character.hp > 0 and not main.transit.is_riding())
 	check("arrival is at actual other terminal", main.player.global_position.distance_to(main.transit.catalog.stop_position(destination_id)) < 10.0)
 	await frames(360) # Real toast queue drains normally after the failed-write/blocked-exit fixture.
+	journey_edge("post_toast_outcome",start_ms,journey_physics_start,journey_ticks_start,road_index,approach_index)
 	check("successful arrival settles to truthful foot presentation",not String(main.hud._toast_label.text).contains("remain seated") or main.hud._toast_label.modulate.a<0.05)
 	check("parking releases all inputs without sinking suspension", not coach.is_active and not coach.input_handbrake and coach.input_brake == 0.0 and absf(coach.global_position.y - ProtoWorldBuilder.ground_y(coach.global_position.x,coach.global_position.z)) < 0.2)
 	var terminal: ProtoTransitStop = main.transit.stops[destination_id]
@@ -230,6 +271,15 @@ func event_press(event: InputEvent) -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await frames(3)
+
+func journey_edge(edge: String, start_ms: int, physics_start: float, ticks_start: int, road_index: int, approach_index: int) -> void:
+	var life: ProtoTransitService = main.transit
+	var driver: ProtoCoachDriver = life._driver
+	var index: int = driver.index if is_instance_valid(driver) else -1
+	var phase: String = "waiting" if index<0 else ("departure_apron" if index<road_index else ("road" if index<approach_index else "destination_apron"))
+	if life._arrival:
+		phase = "parked_arrival"
+	print("JOURNEY EDGE: ",JSON.stringify({"edge":edge,"wall_s":float(Time.get_ticks_msec()-start_ms)/1000.0,"physics_s":physics_elapsed-physics_start,"ticks":physics_ticks-ticks_start,"clock_hour":main.daynight.hour,"index":index,"phase":phase,"running":is_instance_valid(driver) and driver.running,"arrival":life._arrival,"riding":life.is_riding(),"ticket_phase":life.record().ticket.get("phase","none"),"checkpoint_path":life.state._checkpoint_path,"position":str(life.vehicles.lastline_coach.global_position),"speed":life.vehicles.lastline_coach.linear_velocity.length()}))
 
 func set_checkpoint_path(path: String) -> void:
 	var before: Dictionary = main.transit.record()
@@ -303,6 +353,16 @@ func safety_checks() -> void:
 	check("reserved rider just inside three metres may board",life.can_board())
 	main.player.global_position = boarding+life.stops.meridian_east.south*3.01
 	check("reserved rider just outside three metres cannot board",not life.can_board())
+	var away: Vector3 = (boarding-origin).normalized()
+	main.player.global_position = boarding+away*2.99
+	check("door radius is independent of counter radius",life.can_board() and not life.can_open("meridian_east"),{"door_m":main.player.global_position.distance_to(boarding),"counter_m":main.player.global_position.distance_to(origin),"can_board":life.can_board(),"expected":"can_board=true outside counter range"})
+	main.player.global_position = boarding+away*3.01
+	check("outside door radius away from counter refuses boarding",not life.can_board())
+	life.panel.close()
+	main.player.global_position = boarding+away*2.8 # Leave margin for real foot settling during input delivery.
+	await frames(3)
+	await action("interact")
+	check("door-side interact reaches shared Board action away from counter",life.panel.is_open and life.panel.actions.has("board") and not life.panel.actions.board.disabled,{"panel_open":life.panel.is_open,"door_m":main.player.global_position.distance_to(boarding),"counter_m":main.player.global_position.distance_to(origin)})
 	main.player.global_position = origin+Vector3.UP*0.15
 	var reserved: Dictionary = main.capture_save()
 	main.player.global_position += Vector3(9,0,0) # Deliberate out-of-range safety fixture.
@@ -492,28 +552,69 @@ func emergency_checks(life: Node) -> void:
 	var coach: ProtoTransitVehicle = life.vehicles.lastline_coach
 	var origin: Vector3 = coach.global_position
 	var timeout: int = Time.get_ticks_msec()+40000
+	var physics_start: float = physics_elapsed
+	var ticks_start: int = physics_ticks
 	while coach.global_position.distance_to(origin)<100 and Time.get_ticks_msec()<timeout:
 		await frames(1)
 	check("emergency fixture genuinely travels to roadside",coach.global_position.distance_to(origin)>100)
+	var damage_wall: int = Time.get_ticks_msec()
+	var damage_physics: float = physics_elapsed
+	print("EMERGENCY APPROACH: ",JSON.stringify({"wall_s":40.0-float(timeout-damage_wall)/1000.0,"physics_s":damage_physics-physics_start,"speed":coach.linear_velocity.length(),"position":str(coach.global_position)}))
 	coach.take_damage(1000.0) # Actual external combat damage entry point, no healing or invulnerability.
+	await frames(3)
+	print("DEAD BRAKE EARLY PHASE: ",JSON.stringify({"hook":coach.inactive_brake_force(),"body":coach.brake,"demand":coach.input_brake,"handbrake":coach.input_handbrake,"matching":coach.ai_driver==life._driver,"surface_brake":coach.current_handling().get("brake"),"tick":physics_ticks}))
+	await get_tree().process_frame
+	await get_tree().process_frame # Observe after body/driver physics callbacks, not only physics_frame's pre-callback signal.
+	var contacts: Array = []
+	for wheel: Node in coach.get_children():
+		if wheel is VehicleWheel3D:
+			contacts.append({"contact":wheel.is_in_contact(),"brake":wheel.brake,"friction":wheel.wheel_friction_slip})
+	print("DEAD BRAKE TELEMETRY: ",JSON.stringify({"dead":coach.dead,"active":coach.is_active,"driver_running":life._driver.running,"input_brake":coach.input_brake,"input_handbrake":coach.input_handbrake,"effective_brake":coach.brake,"max_brake":coach.max_brake,"speed":coach.linear_velocity.length(),"engine_force":coach.engine_force,"wheels":contacts}))
+	check("destroyed service consumes physical driver's emergency brake",coach.dead and coach.input_brake>0.0 and coach.brake>3.0 and coach.engine_force==0.0,{"input_brake":coach.input_brake,"effective_brake":coach.brake,"max_brake":coach.max_brake,"expected":"service brake greater than generic idle3, no propulsion"})
 	while (life._ending_reason.is_empty() or not coach.can_disembark()) and Time.get_ticks_msec()<timeout:
 		await frames(1)
 	check("disabled service physically brakes upright on real roadside ground",coach.dead and coach.can_disembark())
 	var ticket: Dictionary = life.record()
 	var rolling_speed: float = coach.linear_velocity.length()
-	await action("interact") # Valid writer: rolling emergency egress must still refuse.
-	check("rolling emergency refuses real exit input and refund",rolling_speed>=0.1 and life.is_riding() and life.record()==ticket and main.backpack.slots.scrip==18,{"expected":"speed>=0.1 before input; still aboard,unchanged ticket,scrip18","initial_speed":rolling_speed,"riding":life.is_riding(),"record_equal":life.record()==ticket,"scrip":main.backpack.slots.scrip})
+	var rolling_disk: String = FileAccess.get_file_as_string(main.SAVE_PATH)
+	var rolling_driver: bool = life._driver.running
+	emergency_input_probe = true
+	emergency_publications.clear()
+	main.backpack.changed.connect(record_emergency_publication)
+	# Acknowledged real tap at this physics boundary: the usual multi-frame
+	# helper can outlast the now-effective brakes and legitimate auto-egress.
+	var was_up: bool = not main._e_down
+	var tap := InputEventAction.new()
+	tap.action = "interact"
+	tap.pressed = true
+	Input.parse_input_event(tap)
+	Input.flush_buffered_events() # Dispatch the real buffer at the measured unsafe edge.
+	var press_delivered: bool = main._e_down
+	tap = InputEventAction.new()
+	tap.action = "interact"
+	tap.pressed = false
+	Input.parse_input_event(tap)
+	Input.flush_buffered_events()
+	var release_delivered: bool = not main._e_down
+	check("rolling real E edges are positively acknowledged",was_up and press_delivered and release_delivered,{"was_up":was_up,"press_delivered":press_delivered,"release_delivered":release_delivered})
+	check("rolling emergency refuses real exit input and refund",rolling_speed>=0.1 and rolling_speed<0.5 and rolling_driver and life.is_riding() and life.record()==ticket and main.backpack.slots.scrip==18 and FileAccess.get_file_as_string(main.SAVE_PATH)==rolling_disk and emergency_publications.is_empty(),{"expected":"acknowledged unsafe request; still aboard,unchanged ticket/wallet/disk","initial_speed":rolling_speed,"driver_running":rolling_driver,"riding":life.is_riding(),"record_equal":life.record()==ticket,"scrip":main.backpack.slots.scrip,"publications":emergency_publications})
 	if not life.is_riding():
+		main.backpack.changed.disconnect(record_emergency_publication)
+		emergency_input_probe = false
 		return
 	set_checkpoint_path("user://absent_directory/refused.save") # Keep auto-exit retry denied when real parking completes.
+	await get_tree().process_frame
+	await get_tree().process_frame
 	while (coach.linear_velocity.length()>=0.1 or life._driver.running) and Time.get_ticks_msec()<timeout:
 		await frames(1)
-	check("emergency completes real parking before checkpoint retry",coach.linear_velocity.length()<0.1 and not life._driver.running and coach.can_disembark())
+	print("EMERGENCY TIMING: ",JSON.stringify({"total_wall_s":40.0-float(timeout-Time.get_ticks_msec())/1000.0,"total_physics_s":physics_elapsed-physics_start,"post_damage_wall_s":float(Time.get_ticks_msec()-damage_wall)/1000.0,"post_damage_physics_s":physics_elapsed-damage_physics,"physics_ticks":physics_ticks-ticks_start,"speed":coach.linear_velocity.length(),"running":life._driver.running,"effective_brake":coach.brake,"input_brake":coach.input_brake,"input_handbrake":coach.input_handbrake}))
+	check("emergency completes real parking before checkpoint retry",coach.linear_velocity.length()<0.1 and not life._driver.running and coach.can_disembark(),{"speed":coach.linear_velocity.length(),"running":life._driver.running,"can_disembark":coach.can_disembark(),"deadline_remaining_ms":timeout-Time.get_ticks_msec(),"physics_elapsed_s":physics_elapsed-physics_start,"position":str(coach.global_position),"angular":str(coach.angular_velocity)})
 	var roadside: Vector3 = coach.global_position
 	var roadside_started: int = Time.get_ticks_msec()
 	set_checkpoint_path("user://absent_directory/refused.save")
 	await action("interact")
 	check("denied roadside checkpoint publishes neither refund nor exit",life.is_riding() and life.record()==ticket and main.backpack.slots.scrip==18)
+	check("completed emergency parking restores default inactive brake",coach.brake==3.0 and coach.inactive_brake_force()==3.0)
 	set_checkpoint_path(main.SAVE_PATH)
 	await action("interact")
 	check("roadside retry exits physically with one full refund",not life.is_riding() and main.mode==main.Mode.FOOT and main.backpack.slots.scrip==20 and main.player.global_position.distance_to(roadside)<8.0)
@@ -525,6 +626,138 @@ func emergency_checks(life: Node) -> void:
 	check("interruption reload succeeds",main.load_game())
 	await frames(20)
 	check("reload constructs exactly one replacement without second refund",life.vehicles.size()==1 and life.vehicles.lastline_coach.get_instance_id()!=wreck_id and not life.vehicles.lastline_coach.dead and main.backpack.slots.scrip==20 and main.player.global_position.distance_to(foot)<0.5)
+	check("every emergency wallet publication occurs after actual completed parking",not emergency_publications.is_empty() and emergency_publications.all(func(p: Dictionary) -> bool: return float(p.speed)<0.1 and not bool(p.running)),{"publications":emergency_publications})
+	main.backpack.changed.disconnect(record_emergency_publication)
+	emergency_input_probe = false
+
+func fixture_board(id: String) -> void:
+	var life: ProtoTransitService = main.transit
+	main.player.global_position = life.catalog.stop_position(id)+Vector3.UP*0.15 # Explicit lifecycle/death fixture staging, not travel evidence.
+	main.player.velocity = Vector3.ZERO
+	main.daynight.hour = 11.9
+	main.backpack.slots["scrip"] = 20
+	main.backpack.slots["scrap"] = 10
+	main.weather.force("clear")
+	await frames(90)
+	await action("interact")
+	await activate("reserve:lastline_"+("east" if id=="meridian_east" else "west"))
+	await activate("board")
+	check("fixture boards through real GUI",life.is_riding() and main.passenger_of_ai and main.player.process_mode==Node.PROCESS_MODE_DISABLED)
+
+func player_colliders_enabled() -> bool:
+	for child: Node in main.player.get_children():
+		if child is CollisionShape3D and child.disabled:
+			return false
+	return true
+
+func death_checks() -> void:
+	var baseline: Dictionary = main.capture_save()
+	for clone: bool in [false,true]:
+		check("death fixture initial checkpoint restore",main.apply_save(baseline.duplicate(true)))
+		if clone:
+			# Explicit banked scan fixture; actual R must use the existing clone branch.
+			main.cloning.backup = {"record":main.character.to_record(),"wake_pos":[125.0,0.0,-320.0],"day_h":24.0,"vat":true,"defect":{"tax":12.0}}
+			main.cloning.journal = [{"day":1,"line":"retained death regression"}]
+		await fixture_board("meridian_east")
+		var life: ProtoTransitService = main.transit
+		var coach: ProtoTransitVehicle = life.vehicles.lastline_coach
+		var coach_id: int = coach.get_instance_id()
+		var clone_before: Dictionary = main.cloning.serialize()
+		var deaths_before: int = main.deaths
+		main.character.take_wound("torso",1000.0)
+		await frames(5)
+		check("actual passenger wound kills rider, not coach",main.character.dead and not coach.dead and life.is_riding(),{"clone":clone,"dead":main.character.dead,"coach_dead":coach.dead,"riding":life.is_riding()})
+		var ticket: Dictionary = life.record()
+		var corpse: Vector3 = main.player.global_position
+		await action("interact")
+		check("dead rider cannot bypass R through roadside exit",main.character.dead and life.is_riding() and life.record()==ticket and main.backpack.slots.scrip==18)
+		var dead_record: Dictionary = main.character.to_record()
+		var hunger_marker: float = main._last_hunger_hr
+		var disk_before: String = FileAccess.get_file_as_string(main.SAVE_PATH)
+		set_checkpoint_path("user://absent_directory/refused.save")
+		await action("drivn_reload")
+		var expected: Dictionary = dead_record.duplicate(true)
+		expected.hunger = maxf(0.0,float(dead_record.hunger)-2.8*(float(main._last_hunger_hr)-hunger_marker))
+		var after: Dictionary = main.character.to_record()
+		check("denied respawn keeps ordinary hunger cadence running",absf(float(after.hunger)-float(expected.hunger))<0.0000001,{"before":dead_record.hunger,"after":after.hunger,"expected":expected.hunger,"marker_before":hunger_marker,"marker_after":main._last_hunger_hr})
+		# Hunger has its independent exact-law assertion above; every other
+		# character field is compared exactly without suspending world time.
+		expected.erase("hunger")
+		after.erase("hunger")
+		check("denied R respawn leaves dead ownership, wallet, deaths and clone unchanged",main.character.dead and after==expected and life.record()==ticket and life.is_riding() and main.passenger_of_ai and main.player.process_mode==Node.PROCESS_MODE_DISABLED and main.backpack.slots.scrip==18 and main.backpack.slots.scrap==10 and main.deaths==deaths_before and main.cloning.serialize()==clone_before and FileAccess.get_file_as_string(main.SAVE_PATH)==disk_before,{"clone":clone,"dead":main.character.dead,"character_before":expected,"character_after":after,"ticket_equal":life.record()==ticket,"riding":life.is_riding(),"passenger":main.passenger_of_ai,"process":main.player.process_mode,"wallet":main.backpack.slots,"deaths":main.deaths,"expected_deaths":deaths_before,"corpse_displacement":main.player.global_position.distance_to(corpse)})
+		set_checkpoint_path(main.SAVE_PATH)
+		if not main.character.dead:
+			check("R respawn restores all foot ownership",not life.is_riding() and not main.passenger_of_ai and main.player.process_mode==Node.PROCESS_MODE_INHERIT and player_colliders_enabled(),{"riding":life.is_riding(),"passenger":main.passenger_of_ai,"process":main.player.process_mode,"colliders":player_colliders_enabled()})
+			continue # Preserve RED; do not fake another death to make retry pass.
+		await action("drivn_reload")
+		var wake: Vector3 = Vector3(125,0.3,-320) if clone else main.SAFEHOUSE+Vector3.UP*0.3
+		check("R retry revives at chosen wake with full foot ownership",not main.character.dead and not main.player.dead_vis and not life.is_riding() and not main.passenger_of_ai and main.active_car==null and main.mode==main.Mode.FOOT and main.player.process_mode==Node.PROCESS_MODE_INHERIT and player_colliders_enabled() and main.player.global_position.distance_to(wake)<0.5 and main.cam_rig.target==main.player,{"clone":clone,"position":str(main.player.global_position),"expected_wake":str(wake),"riding":life.is_riding(),"process":main.player.process_mode,"colliders":player_colliders_enabled()})
+		if main.character.dead:
+			continue
+		check("death toll precedes one full fare refund; clone bank survives",main.backpack.slots.scrip==15 and main.backpack.slots.scrap==6 and main.deaths==deaths_before+1 and main.cloning.serialize()==clone_before and (not clone or is_equal_approx(main.character.hp,main.character.hp_cap()-12.0)),{"clone":clone,"wallet":main.backpack.slots,"deaths":main.deaths,"hp":main.character.hp,"cap":main.character.hp_cap()})
+		var disk: Dictionary = str_to_var(FileAccess.get_file_as_string(main.SAVE_PATH))
+		var saved_pos := Vector3(float(disk.player.pos[0]),float(disk.player.pos[1]),float(disk.player.pos[2]))
+		check("death checkpoint atomically contains revived player, toll, refund, fleet and death count",not disk.player.character.dead and disk.transit.ticket.is_empty() and disk.transit.last_end.reason=="service_failed" and disk.transit.last_end.refund==2 and disk.transit_fleet.coach_stop=="meridian_east" and disk.player.backpack.scrip==15 and disk.player.backpack.scrap==6 and disk.deaths==deaths_before+1 and saved_pos.distance_to(wake)<0.01)
+		check("respawn preserves halted coach and blocks further session sales",life.vehicles.lastline_coach.get_instance_id()==coach_id and not life._ending_reason.is_empty())
+		var foot: Vector3 = main.player.global_position
+		await action("move_right",30)
+		check("revived player actually moves under foot input",main.player.global_position.distance_to(foot)>0.3,{"distance":main.player.global_position.distance_to(foot)})
+		await action("drivn_reload")
+		check("second living R neither refunds nor taxes again",main.backpack.slots.scrip==15 and main.backpack.slots.scrap==6 and main.deaths==deaths_before+1)
+		check("death recovery checkpoint reload succeeds",main.load_game())
+		await frames(20)
+		check("reload replaces interrupted coach exactly once and preserves wake/toll",life.vehicles.size()==1 and life.vehicles.lastline_coach.get_instance_id()!=coach_id and main.backpack.slots.scrip==15 and main.deaths==deaths_before+1 and main.player.global_position.distance_to(wake)<0.5)
+	check("non-transit death fixture restores old run",main.apply_save(baseline.duplicate(true)))
+	main.backpack.slots["scrip"] = 20
+	main.backpack.slots["scrap"] = 10
+	main.character.take_wound("torso",1000.0)
+	await action("drivn_reload")
+	check("ordinary non-transit R keeps existing toll with no transit refund",not main.character.dead and main.deaths==int(baseline.deaths)+1 and main.backpack.slots.scrip==14 and main.backpack.slots.scrap==6 and main.transit.record().ticket.is_empty())
+
+func reboard_checks() -> void:
+	var life: ProtoTransitService = main.transit
+	var origin: String = "richmond" if scenario=="reboard_west" else "meridian_east"
+	var destination: String = "meridian_east" if origin=="richmond" else "richmond"
+	var initial: Dictionary = main.capture_save()
+	initial.transit_fleet.coach_stop = origin
+	check("explicit reboard initial fleet checkpoint staging",main.apply_save(initial))
+	await fixture_board(origin)
+	var coach: ProtoTransitVehicle = life.vehicles.lastline_coach
+	var start: Vector3 = coach.global_position
+	var deadline: int = Time.get_ticks_msec()+45000
+	while coach.global_position.distance_to(start)<12.0 and Time.get_ticks_msec()<deadline:
+		await frames(1)
+	check("initial real departure creates the retained driver",life._departed and is_instance_valid(life._driver) and coach.global_position.distance_to(start)>12.0)
+	print("DRIVER BEFORE RESTORE: ",JSON.stringify({"service_driver":str(life._driver),"vehicle_driver":str(coach.ai_driver),"same":coach.ai_driver==life._driver}))
+	var id: int = coach.get_instance_id()
+	# Deliberate destination checkpoint fixture, NOT arrival evidence. Full east/west
+	# journeys independently establish physical arrival and no-active-ticket saves.
+	var destination_run: Dictionary = initial.duplicate(true)
+	destination_run.transit_fleet.coach_stop = destination
+	destination_run.clock.hour = 11.9
+	var stand: Vector3 = life.catalog.stop_position(destination)+Vector3.UP*0.15
+	destination_run.player.pos = [stand.x,stand.y,stand.z]
+	check("staged destination reload retains healthy body",main.apply_save(destination_run) and life.vehicles.lastline_coach.get_instance_id()==id)
+	check("restore detaches matching driver before deferred deletion",coach.ai_driver==null,{"vehicle_driver":str(coach.ai_driver),"valid":is_instance_valid(coach.ai_driver),"queued":coach.ai_driver.is_queued_for_deletion() if is_instance_valid(coach.ai_driver) else false})
+	await frames(90)
+	print("DRIVER AFTER DEFERRED FREE: ",JSON.stringify({"vehicle_driver":str(coach.ai_driver),"null_comparison":coach.ai_driver==null,"valid":is_instance_valid(coach.ai_driver)}))
+	check("retained coach detaches freed driver reference",coach.ai_driver==null,{"valid_driver":is_instance_valid(coach.ai_driver),"expected":"null reference before reboarding"})
+	main.daynight.hour = 11.9
+	await action("interact")
+	await activate("reserve:lastline_"+("east" if destination=="meridian_east" else "west"))
+	life.panel.close()
+	var boarding: Vector3 = coach.anchor_world("Boarding")
+	main.player.global_position = boarding+(boarding-life.catalog.stop_position(destination)).normalized()*2.8 # Door-side interaction fixture, not vehicle travel.
+	await frames(3)
+	await action("interact")
+	check("reboarding door input opens the same panel away from counter",life.panel.is_open and not life.can_open(destination))
+	await activate("board")
+	check("retained coach reboards with completed player ownership",life.is_riding() and main.passenger_of_ai and main.player.process_mode==Node.PROCESS_MODE_DISABLED and not player_colliders_enabled() and coach._roof.get_surface_override_material(0)!=null,{"riding":life.is_riding(),"passenger":main.passenger_of_ai,"colliders_enabled":player_colliders_enabled()})
+	start = coach.global_position
+	deadline = Time.get_ticks_msec()+45000
+	while coach.global_position.distance_to(start)<12.0 and Time.get_ticks_msec()<deadline:
+		await frames(1)
+	check("reboarded reverse service departs through real drivetrain",life._departed and is_instance_valid(life._driver) and coach.ai_driver==life._driver and coach.global_position.distance_to(start)>12.0 and not main.character.dead,{"distance":coach.global_position.distance_to(start),"dead":main.character.dead})
 
 func capture(id: String) -> void:
 	if capture_dir.is_empty():

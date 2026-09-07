@@ -29,6 +29,14 @@ func setup(vehicle: ProtoTransitVehicle, route: PackedVector3Array, cruise: floa
 func halt(reason: String) -> void:
 	_failure = reason
 
+func detach() -> void:
+	running = false
+	if is_instance_valid(car) and car.ai_driver == self:
+		car.ai_driver = null # Do not erase a replacement driver's ownership.
+
+func _exit_tree() -> void:
+	detach()
+
 func _physics_process(delta: float) -> void:
 	if not running or not is_instance_valid(car):
 		return

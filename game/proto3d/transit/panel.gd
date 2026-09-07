@@ -76,7 +76,7 @@ func _layout() -> void:
 	frame.offset_bottom = height*0.5
 
 func open(id: String) -> void:
-	if not service.can_open(id):
+	if not service.can_access_panel(id):
 		return
 	stop_id = id
 	is_open = true
@@ -100,7 +100,7 @@ func _input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if not is_open:
 		return
-	if not service.can_open(stop_id):
+	if not service.can_access_panel(stop_id):
 		close()
 		return
 	_refresh_seconds += delta

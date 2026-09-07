@@ -36,7 +36,20 @@ func _ready() -> void:
 	check("service creation never mutates donor", donor == ProtoCar3D.VEHICLES["van"])
 	var ordinary_car: ProtoCar3D = ProtoCar3D.create("scavenger", Color.WHITE)
 	check("ordinary factory retains stock brake strength", ordinary_car.max_brake == 40.0)
+	check("ordinary parked brake remains exactly three",ordinary_car.inactive_brake_force()==3.0)
+	ordinary_car.dead = true # Explicit disconnected policy fixture, no physical journey credit.
+	ordinary_car.input_brake = 1.0
+	ordinary_car.input_handbrake = true
+	check("ordinary wreck ignores service-only brake demand",ordinary_car.inactive_brake_force()==3.0)
+	ordinary_car.spec = ordinary_car.spec.duplicate(true)
+	ordinary_car.spec["free_rolling"] = true
+	check("free rolling trailer default remains exactly point four",ordinary_car.inactive_brake_force()==0.4)
 	ordinary_car.free()
+	coach.dead = true
+	coach.input_brake = 1.0
+	check("unowned service wreck retains ordinary inactive brake",coach.inactive_brake_force()==3.0)
+	coach.dead = false
+	coach.input_brake = 0.0
 	var previous_glb: bool = ProtoCar3D.use_glb_bodies
 	ProtoCar3D.use_glb_bodies = false
 	var service_body: ProtoCar3D = ProtoCar3D.create("lastline_coach", Color.WHITE)
