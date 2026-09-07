@@ -1,2 +1,5 @@
 # Preserve original run logs, JSON and viewport PNG bytes in Git.
 * -text
+# Original Windows CRLF is evidence, not editable source whitespace.
+*.json whitespace=cr-at-eol
+*.log whitespace=cr-at-eol,-blank-at-eof
