@@ -1,0 +1,63 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT LIGHTING: {"coach_headlights":false,"hour":11.9249999999999,"stop_lamps":[false,false],"surface":"road","vision_mask":0.30000007801806}
+TRANSIT COACH PASS: stop opens one shared service panel
+TRANSIT COACH PASS: first actionable control receives focus
+TRANSIT COACH PASS: unimplemented flights cannot be purchased
+TRANSIT COACH PASS: capture 01_ticket_board
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI purchase debits exactly two scrip
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: paid character occupies real passenger seat
+TRANSIT COACH PASS: public service identifies only its actual seated occupant
+TRANSIT COACH PASS: pelvis sits at authored seat rather than root through roof
+TRANSIT COACH PASS: held interact cannot steal public coach
+TRANSIT COACH PASS: capture 02_boarded
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":100.0,"punctured":[false,false,false,false]},"driver_i":-1,"failure":"","pos":"(359.5049, -0.040842, -276.5052)","steer":0.0,"surface":"road","throttle":0.0,"velocity":"(0.001221, -0.000007, 0.000038)","yaw":-1.60174596309662}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":99.4750000000005,"punctured":[false,false,false,false]},"driver_i":0,"failure":"","pos":"(365.327, -0.039026, -276.3255)","steer":-0.000913793532219956,"surface":"road","throttle":1.0,"velocity":"(7.211374, -0.000313, 0.222831)","yaw":-1.60150825977325}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":98.7784292487028,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(409.2909, -0.040996, -282.2217)","steer":-0.220498938190842,"surface":"gravel","throttle":0.776742583081009,"velocity":"(7.853899, 0.023679, 0.138879)","yaw":-1.55745995044708}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":97.8743484883992,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(461.5787, -0.041106, -280.335)","steer":-0.000459353365193905,"surface":"gravel","throttle":0.379401206970215,"velocity":"(10.91141, -0.028509, 0.318081)","yaw":-1.5999128818512}
+TRANSIT COACH PASS: moving exit request keeps rider safely aboard
+TRANSIT COACH PASS: capture 03_journey
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":97.2667069971848,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(511.5963, -0.039953, -278.7996)","steer":0.000280072707304437,"surface":"gravel","throttle":0.378681564331055,"velocity":"(10.9128, 0.041696, 0.338471)","yaw":-1.60183012485504}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":96.6680631301282,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(560.887, -0.04205, -277.2738)","steer":0.00000680698393563174,"surface":"gravel","throttle":0.378688907623291,"velocity":"(10.9128, 0.002921, 0.337837)","yaw":-1.60174405574799}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":95.9860273894734,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(615.2934, -0.041118, -275.5894)","steer":0.00000324331863398832,"surface":"gravel","throttle":0.385355949401855,"velocity":"(10.89423, -0.041898, 0.33722)","yaw":-1.60174119472504}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":95.321735729006,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(669.8466, -0.039874, -273.9005)","steer":-0.00000118774079484584,"surface":"gravel","throttle":0.378703594207764,"velocity":"(10.91276, 0.013179, 0.33784)","yaw":-1.60174405574799}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":94.6590065770408,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(724.412, -0.041147, -272.2111)","steer":0.0000151293636289862,"surface":"gravel","throttle":0.378702259063721,"velocity":"(10.91277, 0.018447, 0.337828)","yaw":-1.60174417495728}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":93.9962786011154,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(778.9775, -0.041148, -270.5218)","steer":0.00000712644532249489,"surface":"gravel","throttle":0.378701591491699,"velocity":"(10.91277, -0.017167, 0.337839)","yaw":-1.60174417495728}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":93.3335506660789,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(833.5429, -0.040701, -268.8325)","steer":0.0000153423378868812,"surface":"gravel","throttle":0.378701591491699,"velocity":"(10.91277, 0.00066, 0.337822)","yaw":-1.60174429416656}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":92.6730318236594,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(887.9265, -0.040802, -267.1488)","steer":-0.00000142938463715708,"surface":"gravel","throttle":0.378701591491699,"velocity":"(10.91277, 0.001255, 0.337839)","yaw":-1.6017439365387}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":92.0103038964112,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(942.4919, -0.040641, -265.4595)","steer":-0.00000113859289471473,"surface":"gravel","throttle":0.37870192527771,"velocity":"(10.91277, 0.010501, 0.337822)","yaw":-1.6017439365387}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":91.3475759574805,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(997.0573, -0.041739, -263.7701)","steer":-0.00000177752834659558,"surface":"gravel","throttle":0.37870192527771,"velocity":"(10.91277, 0.011368, 0.337821)","yaw":-1.6017439365387}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":90.6685974012843,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(1051.49, -0.04137, -262.0848)","steer":0.000021655000102908,"surface":"gravel","throttle":0.379077100753784,"velocity":"(10.91172, -0.035142, 0.337833)","yaw":-1.60174882411957}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":90.0102126108232,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(1105.692, -0.040103, -260.4068)","steer":0.00000734351523920931,"surface":"gravel","throttle":0.378702259063721,"velocity":"(10.91277, 0.019268, 0.337828)","yaw":-1.60174429416656}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":89.3452744012884,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(1160.439, -0.040993, -258.7118)","steer":0.00000708548873443554,"surface":"gravel","throttle":0.378702259063721,"velocity":"(10.91277, 0.036569, 0.337837)","yaw":-1.60174417495728}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":88.6847543984056,"punctured":[false,false,false,false]},"driver_i":2,"failure":"","pos":"(1214.823, -0.04156, -257.0281)","steer":0.0000152563290519621,"surface":"gravel","throttle":0.378702259063721,"velocity":"(10.91277, -0.041664, 0.337821)","yaw":-1.60174417495728}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":88.0445099433014,"punctured":[false,false,false,false]},"driver_i":3,"failure":"","pos":"(1263.345, -0.040412, -251.8662)","steer":-0.0958567096615804,"surface":"gravel","throttle":0.927280902862549,"velocity":"(8.908862, -0.01516, 2.974029)","yaw":-1.88102352619171}
+COACH TRACE: {"blocked":false,"brake":0.0,"damage":{"components":{"battery":60.0,"chassis":100.0,"engine":100.0,"fuel_tank":80.0,"tires":100.0},"cook":0.0,"fire_state":0,"fuel":87.8550617761396,"punctured":[false,false,false,false]},"driver_i":4,"failure":"","pos":"(1288.561, -0.045859, -247.7458)","steer":0.0,"surface":"road","throttle":0.0,"velocity":"(0.001871, 0.037879, 0.000012)","yaw":-1.60361897945404}
+TRANSIT COACH PASS: failed arrival checkpoint publishes neither destination fleet nor ticket completion
+TRANSIT COACH PASS: blocked terminal exit cannot publish foot mode
+TRANSIT COACH METRICS: {"coach":"(1288.56, -0.047217, -247.9543)","furthest_m":929.501586914063,"largest_step_m":0.182023718953133,"seconds":95.302}
+TRANSIT COACH PASS: road journey made physical progress without teleport
+TRANSIT COACH PASS: world clock advances through journey
+TRANSIT COACH PASS: moving coach still roadkills a non-occupant
+TRANSIT COACH PASS: arrival leaves living rider on clear ground
+TRANSIT COACH PASS: arrival is at actual other terminal
+TRANSIT COACH PASS: parking releases all inputs without sinking suspension
+TRANSIT COACH PASS: complete parked body remains inside constructed apron and actual exit is clear
+TRANSIT PARKING: {"exit_clear":true,"heading_error_deg":5.38246178224902,"position_error_m":1.21250343322754,"surface":"road"}
+TRANSIT COACH PASS: capture 04_arrival
+TRANSIT COACH PASS: capture diagnostic_arrival_mask_off_NOT_journey_evidence
+TRANSIT COACH PASS: arrival checkpoint includes completed ticket and destination fleet
+TRANSIT COACH PASS: destination save reload succeeds
+TRANSIT COACH PASS: reload retains exactly one physical shuttle at destination
+TRANSIT COACH PASS: reverse route is available from destination after reload
+TRANSIT COACH PASS: terminal practical lamps are on at night
+TRANSIT COACH PASS: capture 05_terminal_night_POST_journey_fixture
+TRANSIT COACH PASS: exactly one waiting coach remains grounded after distant chunk unload
+TRANSIT COACH: 34 passed, 0 failed

@@ -21,6 +21,15 @@ be at the origin before a ticket can be sold; the board reports unavailable if
 it is travelling or recovering. A ticket is for the next physically available
 departure, never an invisible duplicate vehicle. The simulation's 60x clock
 continues during travel; duration is an estimate, not a guaranteed teleport time.
+LASTLINE uses one physical shuttle with a stable vehicle identity, shared by the
+two directional route rows. Arrival enables the reverse route at the place the
+coach actually reached; it does not spawn a second bus in the same bay.
+The full-run sibling `transit_fleet` records its last safe stop without changing
+the ticket record. Arrival commits fleet location and ticket completion together.
+Normal reload preserves the destination/reverse availability; pending-ticket
+recovery instead uses that ticket's recorded safe stop. Malformed present fleet
+state rejects restoration before live mutation; old saves omitting it use the
+initial Meridian location.
 
 ## Responsibilities
 
@@ -62,6 +71,19 @@ the player airborne or silently consume the fare. Old saves without transit
 start with an empty ticket; malformed transit records reject the whole restore
 before any other run state changes.
 
+For a wrecked or otherwise failed road service, safe physical roadside egress is
+distinct from an arrival: after real braking, grounding and exit clearance,
+checkpoint the actual roadside player position and one full refund before
+releasing the passenger. The ticket's safe-stop metadata remains the last
+verified terminal for fleet recovery, not the player's claimed destination.
+Emergency egress additionally waits for completed driver parking and actual
+speed below 0.1m/s; the normal 0.5m/s terminal exit gate is not enough for a
+still-rolling wreck. No brake/velocity shortcut is used to satisfy that gate.
+The wreck stays roadside and out of service in that session. Reloading this
+offline run may reconstruct one replacement coach at the recorded terminal;
+disclose this interruption-recovery behavior. No player teleport, extra healing,
+or invulnerability is granted. Failed writes must remain safe and retryable.
+
 ## Passenger and world rules
 
 Service boarding requires a valid ticket, free seat, stopped/open vehicle and
@@ -79,6 +101,14 @@ gravity, collision and bounded attitude control through takeoff/cruise/approach/
 landing. Dust intensity >= 0.55 or rain intensity >= 0.85 at either pad grounds
 departure. A mid-flight grounding condition redirects to the nearest tested safe
 pad. No invulnerability is granted to vehicle or rider.
+
+Constructed service pavement shares the existing road-grip registry with other
+vehicles, using stop-owned lifetime entries. Procedural trees, scatter and
+anonymous neighborhood house/roof/driveway filler reserve its full footprint
+without shifting outside generation draws. Late clearance removes only tagged
+intersecting filler; it never rebuilds live chunks or removes authored buildings,
+actors or loot. Teardown removes only that stop's grip entries, preserving any
+replacement stop. Physical clearance and normal grip must survive chunk reload.
 
 ## Visible quality gates
 

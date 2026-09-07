@@ -1,5 +1,11 @@
 # DRIVN — 20 actual game pieces
 
+Current work: the [LASTLINE main-world audit](TRANSIT_COACH_VISUAL_REVIEW_2026_09_07.md)
+preserves failed boarding/turnaround attempts and completed physical trips in
+both directions, with ticket, boarding, road travel, arrival and night views.
+The corrected arrival screenshots no longer show stale blocked-exit warnings;
+final integration review and broader visual acceptance remain in progress.
+
 [Open the 23-page visual review PDF](../../output/pdf/DRIVN_Visual_Review_2026_09_06.pdf)
 for the complete tour, two later interface views, captions and clickable contents.
 
@@ -79,6 +85,14 @@ multiplayer authority, complete cartridge playthroughs or release readiness.
 | Driver information | Dossier and atlas repairs improve hierarchy and access. | Larger in-drive essentials, fewer internal IDs, clearer item/status symbols. |
 | Cartridge systems | Box art and distinct square/portrait/landscape screens are visible. | Richer playfields, legible game HUDs and full per-game playthrough verification. |
 | Overall spec | The road/home/console loop is recognizable, not a finished national RPG. | More encounters and authored places, stable long sessions, and separately verified MMO infrastructure. |
+
+September 7 reinspection of the original interior, Waste Heap and Last Mile
+frames reinforces those priorities; these are not fresh captures. The cottage
+needs denser, purposeful furnishing and a clearer view past its front wall and
+territory text. Waste Heap's number grid is readable but carries little visual
+salvage identity. Last Mile's flat road/car art and bottom HUD competing with the
+vehicle need a dedicated cartridge-art/UI pass. None of these broader defects is
+claimed fixed by the current transport work.
 
 ## 01 — Title
 

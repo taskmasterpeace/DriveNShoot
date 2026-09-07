@@ -16,7 +16,22 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
-## 2026-09-07 — physical transit rigs reviewed; stops and journeys next
+## 2026-09-07 — LASTLINE coach candidate committed; independent review pending
+
+`7c93002` connects offline LASTLINE ticket counters, physical passenger boarding,
+east/west driving, terminal shelters and safe checkpointed arrival/recovery.
+The user requested this local commit before independent Task 3 review; it is
+not reviewed acceptance. Six recorded isolated runs match the committed runtime
+source: safety63/0, ticket115/0, vehicle109/0, road-life71/0, east36/0 and west37/0,
+with empty runtime stderr. No new engine run was needed for the commit.
+The [coach visual review](verification/TRANSIT_COACH_VISUAL_REVIEW_2026_09_07.md)
+preserves 40 actual viewport images, failed attempts and exact raw provenance.
+Historical shutdown warnings remain unattributed; clean later runs do not erase
+them. Flights, requested early stops, network authority, route encounters and
+the recorded visual debts are unfinished. No push or new export was performed;
+the larger stability, save recovery, national content and MMO gates stay open.
+
+## 2026-09-07 — physical transit rigs reviewed (earlier checkpoint)
 
 `e5f83f3` integrates the original LASTLINE/KESTREL models with the shared vehicle
 factory, hollow collision, moving doors and actual suspension wheels. Personal

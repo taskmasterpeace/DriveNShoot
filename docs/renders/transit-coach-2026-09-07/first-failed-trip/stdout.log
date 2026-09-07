@@ -1,0 +1,26 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+TRANSIT SITE: meridian_east safe=true wait=(362.6501, 0.0, -272.606) bay=(359.5093, 0.0, -276.5051) pad=(361.5361, 0.0, -236.6233)
+TRANSIT SITE: richmond safe=true wait=(1292.89, 0.0, -243.806) bay=(1289.749, 0.0, -247.7051) pad=(1291.776, 0.0, -207.8233)
+TRANSIT COACH PASS: initial car exit uses existing interact input
+TRANSIT COACH PASS: main world owns playable transit service
+TRANSIT COACH PASS: stop opens one shared service panel
+TRANSIT COACH PASS: first actionable control receives focus
+TRANSIT COACH PASS: unimplemented flights cannot be purchased
+TRANSIT COACH PASS: capture 01_ticket_board
+TRANSIT COACH PASS: GUI action available: reserve:lastline_east
+TRANSIT COACH PASS: GUI purchase debits exactly two scrip
+TRANSIT COACH PASS: GUI action available: board
+TRANSIT COACH PASS: paid character occupies real passenger seat
+TRANSIT COACH PASS: pelvis sits at authored seat rather than root through roof
+TRANSIT COACH PASS: held interact cannot steal public coach
+TRANSIT COACH PASS: capture 02_boarded
+TRANSIT COACH METRICS: {"coach":"(482.7339, -0.040842, -286.4219)","furthest_m":123.62744140625,"largest_step_m":0.180520728230476,"seconds":135.009}
+TRANSIT COACH FAIL: road journey made physical progress without teleport
+TRANSIT COACH PASS: world clock advances through journey
+TRANSIT COACH FAIL: arrival leaves living rider on clear ground
+TRANSIT COACH FAIL: arrival is at actual other terminal
+TRANSIT COACH PASS: parking releases all inputs without sinking suspension
+TRANSIT COACH PASS: capture 04_arrival
+TRANSIT COACH: 16 passed, 3 failed
