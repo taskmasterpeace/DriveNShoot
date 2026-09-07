@@ -115,12 +115,23 @@ static func _fold_into_engine(row: DrivnVehicle) -> void:
 	spec["armor"] = {"front": row.armor_front, "rear": row.armor_rear, "side": row.armor_side}
 	spec["mounts"] = row.mounts
 	for k in row.extra: # open schema: camper, seats, … flow straight onto the spec
-		spec[k] = row.extra[k]
+		var value: Variant = row.extra[k]
+		if k in ["chassis", "hull", "cabin", "cabin_pos", "tailpipe", "exhaust_dir"] and value is Array and value.size() == 3:
+			spec[k] = Vector3(float(value[0]), float(value[1]), float(value[2]))
+		elif k == "collision_boxes" and value is Array:
+			var boxes: Array = value.duplicate(true)
+			for box: Dictionary in boxes:
+				for field: String in ["size", "position"]:
+					var xyz: Array = box[field]
+					box[field] = Vector3(float(xyz[0]), float(xyz[1]), float(xyz[2]))
+			spec[k] = boxes
+		else:
+			spec[k] = value.duplicate(true) if value is Array or value is Dictionary else value
 
 
 ## Tool/compare hook: the fleet as sorted DrivnVehicle rows (ensure() first).
-static func fleet() -> Array:
+static func fleet(include_services: bool = false) -> Array:
 	ensure()
-	var out: Array = vehicles.values()
+	var out: Array = vehicles.values().filter(func(row: DrivnVehicle) -> bool: return include_services or not bool(row.extra.get("service_only", false)))
 	out.sort_custom(func(a, b): return a.family < b.family or (a.family == b.family and a.name < b.name))
 	return out

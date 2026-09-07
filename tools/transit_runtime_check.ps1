@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('import','headless')][string]$Mode='headless',
-  [ValidateSet('ticket')][string]$Sim='ticket'
+  [ValidateSet('import','headless','capture')][string]$Mode='headless',
+  [ValidateSet('ticket','vehicle','data','grip_ik')][string]$Sim='ticket'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -16,12 +16,23 @@ for($path=$run;$path;$path=Split-Path -Parent $path){
 $profile=@{APPDATA=(Join-Path $run 'profile/Roaming');LOCALAPPDATA=(Join-Path $run 'profile/Local')}
 New-Item -ItemType Directory -Path $profile.APPDATA,$profile.LOCALAPPDATA | Out-Null
 $sources=@(
+  'tools/transit_runtime_check.ps1',
+  'game/project.godot',
   'game/data/transit.json',
   'game/proto3d/transit/catalog.gd',
   'game/proto3d/transit/ticket_state.gd',
   'game/proto3d/tests/transit_ticket_sim.gd',
   'game/proto3d/tests/transit_ticket_sim.tscn'
 )
+# Record the actual shared runtime closure as well as the selected test. This
+# includes data-driven physics/material inputs, never future absent scenarios.
+$sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/proto3d') -Recurse -File | Where-Object { $_.Extension -in @('.gd','.tscn') -and $_.FullName -notmatch '[\\/]tests[\\/]' } | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
+$sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/data') -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
+$sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/assets/models/vehicles') -File -Filter '*.glb' | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
+$scene=if($Sim -in @('ticket','vehicle')){"transit_${Sim}_sim"}else{"${Sim}_sim"}
+$sources += @("game/proto3d/tests/$scene.gd","game/proto3d/tests/$scene.tscn",
+  'game/assets/models/transit/lastline_coach.glb','game/assets/models/transit/kestrel_courier.glb')
+$sources=@($sources | Sort-Object -Unique)
 $hashes=@{}
 foreach($source in $sources){
   $full=Join-Path $root $source
@@ -29,9 +40,14 @@ foreach($source in $sources){
 }
 $args=@('--headless','--path',(Join-Path $root 'game'),'--audio-driver','Dummy','--max-fps','60')
 if($Mode -eq 'import'){$args+=@('--editor','--import')}
-else{$args+=@('res://proto3d/tests/transit_ticket_sim.tscn')}
+elseif($Mode -eq 'capture'){
+  if($Sim -ne 'vehicle'){throw 'GPU capture is available only for the vehicle scenario'}
+  $args=@('--path',(Join-Path $root 'game'),'--audio-driver','Dummy','--max-fps','60',
+    '--rendering-method','gl_compatibility','--resolution','1440x900',
+    "res://proto3d/tests/$scene.tscn",'--',('--capture-dir='+(Join-Path $run 'captures')))
+}else{$args+=@("res://proto3d/tests/$scene.tscn")}
 $record=@{mode=$Mode;sim=$Sim;arguments=$args;APPDATA=$profile.APPDATA;LOCALAPPDATA=$profile.LOCALAPPDATA;
-  source_head=(& git -C $root rev-parse HEAD).Trim();source_hashes=$hashes;wall_budget_s=120;
+  source_head=(& git -C $root rev-parse HEAD).Trim();source_hashes=$hashes;wall_budget_s=$(if($Sim -eq 'ticket'){120}else{180});
   pid=0;exit_code=$null;exited=$false;timed_out=$false;wall_elapsed_s=$null}
 $out=Join-Path $run 'stdout.log';$err=Join-Path $run 'stderr.log'
 $timer=[Diagnostics.Stopwatch]::StartNew();$process=$null

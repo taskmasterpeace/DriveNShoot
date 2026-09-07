@@ -309,9 +309,9 @@ static func _glb_body_name(vclass_in: String, s: Dictionary) -> String:
 
 
 static func _try_glb_body(car: ProtoCar3D, root: Node3D, vclass_in: String, s: Dictionary, body_color: Color) -> bool:
-	if not use_glb_bodies:
+	if not use_glb_bodies and not bool(s.get("authored_details", false)):
 		return false
-	var path := GLB_BODY_DIR + _glb_body_name(vclass_in, s) + ".glb"
+	var path: String = String(s.get("model_path", GLB_BODY_DIR + _glb_body_name(vclass_in, s) + ".glb"))
 	if not ResourceLoader.exists(path):
 		return false
 	var scene := load(path) as PackedScene
@@ -325,7 +325,7 @@ static func _try_glb_body(car: ProtoCar3D, root: Node3D, vclass_in: String, s: D
 	var wheel_rows: Array = s.get("wheels", [])
 	if wheel_rows.size() > 0:
 		r = float(wheel_rows[0][5])
-	inst.position.y = -(0.15 + 0.16 + r)
+	inst.position.y = float(s.get("model_ground_offset", -(0.15 + 0.16 + r)))
 	root.add_child(inst)
 	# Tint every "body"-named surface with the rig color; adopt the biggest
 	# mesh as the hull (shimmy/damage wobble target).
@@ -766,9 +766,10 @@ var _flipped_t: float = 0.0 ## time spent on roof/side — auto-right after a be
 ## NOTE: DrivnData.ensure() (the data-spine overlay) is primed once at bootstrap —
 ## proto3d._ready() and the sims call it — NOT here, so car_3d carries no dependency
 ## on DrivnData (a parse cycle would break DrivnVehicle's static methods).
-static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
-	var car := ProtoCar3D.new()
+static func create(vclass_in: String, body_color: Color, instance: ProtoCar3D = null) -> ProtoCar3D:
+	var car: ProtoCar3D = instance if instance != null else ProtoCar3D.new()
 	var s: Dictionary = VEHICLES[vclass_in]
+	var authored: bool = bool(s.get("authored_details", false))
 	car.vclass = vclass_in
 	car.spec = s
 	car.display_name = s["name"]
@@ -781,6 +782,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	car.continuous_cd = true
 	# Drive feel from the row
 	car.max_engine_force = s["engine"]
+	car.max_brake = float(s.get("max_brake", 40.0))
 	car.armor = float((s.get("armor", {}) as Dictionary).get("front", 30.0)) # the row's front armor, now felt
 	# LIGHTS: fold once onto the shared class spec (idempotent — same law as the rest
 	# of this dict) so a row's partial override survives deep-merged against defaults.
@@ -803,12 +805,23 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		car.add_child(bay)
 
 	# Chassis collision
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = s["chassis"]
-	shape.shape = box
-	shape.position.y = maxf(0.0, (s["chassis"].y - 0.7) * 0.5) # tall classes sit their box higher
-	car.add_child(shape)
+	if s.has("collision_boxes"):
+		for row: Dictionary in s["collision_boxes"]:
+			var shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = row["size"]
+			shape.shape = box
+			shape.name = "Collision" + String(row.get("name", "Box"))
+			shape.position = row["position"]
+			shape.set_meta("transit_door", bool(row.get("door", false)))
+			car.add_child(shape)
+	else:
+		var shape := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = s["chassis"]
+		shape.shape = box
+		shape.position.y = maxf(0.0, (s["chassis"].y - 0.7) * 0.5)
+		car.add_child(shape)
 
 	# Body visuals: modular low-poly parts in the camera-lab style. Physics stays
 	# entirely row-driven by the chassis/wheel data above and below.
@@ -819,7 +832,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# two_wheel rigs (their style block already welds a muffler); a vertical
 	# `exhaust_dir` row (the semi's stack) gets a column instead of a tip.
 	var pipe_at: Vector3 = s.get("tailpipe", Vector3.ZERO)
-	if pipe_at != Vector3.ZERO and not bool(s.get("two_wheel", false)):
+	if not authored and pipe_at != Vector3.ZERO and not bool(s.get("two_wheel", false)):
 		var pipe := MeshInstance3D.new()
 		var pipe_mesh := BoxMesh.new()
 		var pipe_dir: Vector3 = s.get("exhaust_dir", Vector3(0, 0.18, 1.0))
@@ -834,7 +847,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		pipe.material_override = ProtoWorldBuilder.material(Color(0.16, 0.16, 0.17), 0.35)
 		car.add_child(pipe)
 
-	if s["cabin"] != Vector3.ZERO:
+	if not authored and s["cabin"] != Vector3.ZERO:
 		# WINDOWS (owner ask 2026-07-07): a two_wheel rig has no cabin glass worth
 		# reading top-down (it's a fairing, not a windshield) — data-driven skip,
 		# same flag the balance/upright code already reads off the row.
@@ -873,7 +886,7 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 	# Tail lights (emissive) — helps read facing from top-down. Each box gets its
 	# OWN duplicated material (never the shared _mat_cache — brake-glow brightens
 	# THIS car only) plus a reverse-white glow box, both driven live in _physics_process.
-	if s["cabin"] != Vector3.ZERO:
+	if not authored and s["cabin"] != Vector3.ZERO:
 		for tx in [-s["chassis"].x * 0.35, s["chassis"].x * 0.35]:
 			var tail := MeshInstance3D.new()
 			var tmesh := BoxMesh.new()
@@ -940,9 +953,10 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		car.trunk.add("scrap", 2)
 
 	# Wheels from the row: [x, z, steer, traction, visible, radius]
-	for w in s["wheels"]:
+	for wheel_index: int in s["wheels"].size():
+		var w: Array = s["wheels"][wheel_index]
 		var wheel := VehicleWheel3D.new()
-		wheel.position = Vector3(w[0], -0.15, w[1])
+		wheel.position = Vector3(w[0], float(s.get("wheel_attachment_y", -0.15)), w[1])
 		wheel.use_as_steering = w[2]
 		wheel.use_as_traction = w[3]
 		wheel.wheel_radius = w[5]
@@ -954,7 +968,21 @@ static func create(vclass_in: String, body_color: Color) -> ProtoCar3D:
 		wheel.damping_relaxation = 0.4 * 2.0 * sqrt(45.0)
 		wheel.wheel_roll_influence = 0.05
 		var tire_mesh_for_this_wheel: MeshInstance3D = null
-		if w[4]: # visible — bikes render only the centered pair of their stability wheels
+		if authored:
+			var names: Array = s.get("wheel_meshes", [])
+			if wheel_index < names.size():
+				var mesh: MeshInstance3D = car.find_child(String(names[wheel_index]), true, false)
+				if mesh != null:
+					# glTF already supplies the correctly oriented mesh basis. Preserve
+					# it; only the pivot moves to the suspension's wheel centre.
+					var mesh_basis: Basis = mesh.basis
+					mesh.owner = null
+					mesh.get_parent().remove_child(mesh)
+					wheel.add_child(mesh)
+					mesh.transform = Transform3D(mesh_basis, Vector3.ZERO)
+					car._tire_meshes.append(mesh)
+					tire_mesh_for_this_wheel = mesh
+		elif w[4]: # visible — bikes render only the centered pair of their stability wheels
 			var tire := MeshInstance3D.new()
 			var tmesh := CylinderMesh.new()
 			tmesh.top_radius = w[5]
@@ -1972,7 +2000,16 @@ func _update_wear_visuals(delta: float) -> void:
 		var mat := ProtoWorldBuilder.material(TIER_TIRE_COLOR[tier], 1.0)
 		for t in _tire_meshes:
 			if is_instance_valid(t):
-				(t as MeshInstance3D).material_override = mat
+				var tire: MeshInstance3D = t as MeshInstance3D
+				if bool(spec.get("authored_details", false)):
+					# Authored wheels include metallic rims/hubs: recolor rubber only,
+					# and restore original materials when repaired to GOOD.
+					for i: int in tire.mesh.get_surface_count():
+						var original: Material = tire.mesh.surface_get_material(i)
+						if original != null and String(original.resource_name).begins_with("rubber"):
+							tire.set_surface_override_material(i, null if tier == Damageable.Tier.GOOD else mat)
+				else:
+					tire.material_override = mat
 	if _hull_mesh == null or dead:
 		return
 	if tier >= Damageable.Tier.CRITICAL and absf(forward_speed) > 2.0:
