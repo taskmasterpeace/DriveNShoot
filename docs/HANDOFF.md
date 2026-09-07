@@ -16,7 +16,7 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
-## 2026-09-07 — traffic follow-up verified; review and overall acceptance open
+## 2026-09-07 — traffic follow-up reviewed; overall acceptance open
 
 The screenshot audit's final review exposed a first-tick exit teleport. The
 new single-clock regression reproduces about 34m of motion in one 0.05s tick;
@@ -31,7 +31,10 @@ paths were isolated, original time limits retained, source/map hashes unchanged,
 and stderr empty. Verbose controller-map diagnostics remain disclosed. The
 [audit and exact logs](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
 preserve failed attempts, test-clock corrections, and current evidence.
-Independent scoped review is pending. Earlier screenshots predate this traffic-
+The [independent scoped review](verification/FINAL_SCOPED_REVIEW_2026_09_07.md)
+accepts the bounded source correction and added coverage, with no new fix-diff
+defect found. Native stability remains unproved; final convoy coverage did not
+force budget saturation. Earlier screenshots predate this traffic-
 only correction; no new export, national rollout, crash fix, or release acceptance.
 The legacy highway height snap, native crashes, unfinished visuals/content,
 public MMO infrastructure and unrecovered save remain open.

@@ -17,12 +17,14 @@ passed 20 checks. Earlier exposure remains unaudited, and recovery remains open.
 
 ## Traffic follow-up — 2026-09-07
 
-Verified working-tree correction: managed exit entry now travels through the
+Verified correction `aa77d17`: managed exit entry now travels through the
 existing paved connection while retaining highway queues. An existing automatic
 convoy budget overflow found by the covering run is also capped. Frozen checks:
 handoff 51/12 RED → 63/0 GREEN; ports 67/0; traffic 538/2 → 540/0; map-building
 75/0. Final engine runs use isolated profiles, unchanged source/map hashes and
-original limits; stderr is empty. Independent scoped review remains pending.
+original limits; stderr is empty. The [independent scoped review](verification/FINAL_SCOPED_REVIEW_2026_09_07.md)
+accepts the correction and coverage, without closing native stability or
+claiming forced convoy-budget saturation.
 Exact evidence and limitations are in the [visual audit](verification/DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md).
 The screenshot gallery retains the original September 6 captures. No current
 Windows export or whole-game/MMO acceptance is implied; stability and visual

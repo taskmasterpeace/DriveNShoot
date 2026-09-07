@@ -21,7 +21,7 @@ four before/after pairs: corrected ramp heights and a closed I-5 asphalt gap,
 with tangled joins and physical median crossings still explicitly unfinished.
 The original tour frames below are retained for comparison.
 The [current Seattle interchange diagnostic](DIAMOND_INTERCHANGE_VISUAL_AUDIT_2026_09_06.md)
-now opens with a before/after managed-junction repair and seven new original
+includes a before/after managed-junction repair and seven additional original
 frames from a completed ON-R drive. All were personally inspected. The redundant
 square is gone; surface139/0 and source review pass. The first capture attempt
 native-crashed and remains preserved/unresolved; the unchanged-source repeat
@@ -30,6 +30,12 @@ passes28/0 at full health, not proof that the crash is fixed. The previous24
 parking/navigation fixes. Navigation461/0 and seven compatibility scenes pass;
 independent review approves navigation commit `cb82d2a`. General visual and
 stability acceptance remain open. Earlier capture sets are retained as history.
+
+September 7 follow-up: the [independent scoped review](FINAL_SCOPED_REVIEW_2026_09_07.md)
+accepts the traffic-entry correction and strengthened regressions. Its final
+handoff/ports/traffic checks pass 63/0, 67/0, and 540/0, with Node coverage 75/0.
+This traffic-only change does not relabel these photographs as fresh captures
+or resolve the native crashes and remaining visual shortcomings.
 
 ### Earlier road-repair history (not the current checkpoint)
 

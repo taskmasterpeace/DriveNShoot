@@ -4,7 +4,7 @@
 improvements and remaining defects. This is one Seattle interchange, not a
 finished United States, release-ready game, or public MMO.
 
-## September 7 — traffic correction verified, independent review pending
+## September 7 — traffic correction verified and scoped review accepted
 
 The new focused engine test first reproduced a **34.06m jump in one 0.05s
 tick** on both Seattle off-ramps. Cars could also escape a stopped highway
@@ -31,7 +31,10 @@ traffic**, in 39.12, 4.92, and 158.58 wall seconds respectively. The original
 180-second wall limit remains unchanged; these are not FPS measurements.
 The last maintenance case ended at three actors, so this run is not a new
 forced-saturation test. The earlier overflow and the bounded source correction
-are preserved for independent review, which is still pending.
+are preserved. The [independent scoped re-review](FINAL_SCOPED_REVIEW_2026_09_07.md)
+accepts the bounded correction and added coverage; no new fix-diff defect was
+found. That verdict expressly does not close the native-stability gate or
+turn the non-saturating final convoy run into boundary-test proof.
 
 Exact original [failing baseline](traffic-handoff-2026-09-07/red/stdout.log),
 [final passing handoff](traffic-handoff-2026-09-07/green-final/stdout.log),
