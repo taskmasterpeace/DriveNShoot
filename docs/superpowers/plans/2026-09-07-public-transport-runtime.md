@@ -181,7 +181,7 @@ source hashes. Do not advertise future absent scenario files as runnable.
 **Interfaces:**
 - Consumes Task 1 service rows and existing `ProtoCar3D.create`.
 - Extend factory to `static create(vclass_in: String, body_color: Color, instance: ProtoCar3D = null) -> ProtoCar3D`; default preserves every existing caller.
-- New row fields `model_path`, `authored_details: bool`, `model_ground_offset: float`, `chassis`, `cabin`, `cabin_pos`, `wheels`. Fold known vector arrays into Vector3, never leak Array where the engine expects Vector3.
+- New row fields `model_path`, `authored_details: bool`, `model_ground_offset: float`, `max_brake: float`, `chassis`, `cabin`, `cabin_pos`, `wheels`. Fold known vector arrays into Vector3, never leak Array where the engine expects Vector3. The optional brake row retains the existing default 40 for ordinary vehicles.
 - Optional `collision_boxes` is an array of `{name:String, size:[x,y,z], position:[x,y,z], door:bool}` in body-local metres; when present it replaces the generic solid chassis collider. Door boxes disable only after an opened-door transition; closed doors remain collision-bearing. Use floor, wall spans, nose/tail and roof boxes matching the hollow GLBs, not one cabin-filling cube.
 - Mark both rows `service_only: true`; `DrivnData.fleet(include_services: bool = false) -> Array` excludes these from the existing ordinary racing selector by default. Explicit tooling may request inclusion. Do not change random traffic selections or add helicopter road racers.
 - `class_name ProtoTransitVehicle extends ProtoCar3D`, `static make(kind: String) -> ProtoTransitVehicle`, `anchor_world(anchor_name: String) -> Vector3`, `set_door_open(open: bool) -> void`, `passenger_anchor(seat: int) -> Node3D`.
@@ -213,7 +213,12 @@ opaque cabin meshes, fake wheel meshes or unrelated family geometry. Use
 GLB `lastline_coach.glb` and `kestrel_courier.glb` paths already under assets/transit.
 Coach wheel centres are X +/-1.10, Y 0.5, front Z -1.95, rear Z 2.7, radius 0.5.
 Calibrate chassis origin/COM/suspension against grounded model, not screen size.
-Coach mass 4800, engine_force 14500, top_speed 16, service cap 12. Helicopter
+Coach mass 4800, engine_force 14500, top_speed 16, service cap 12, max_brake 220.
+The initial real braking run showed 35.4m travel over four seconds with the
+old brake value and still 3.47m/s. Use the existing pedal then handbrake at low
+speed, preserving ordinary reverse-pedal behavior. Retain the original stopping
+requirement and regression-check that ordinary vehicles still default to 40.
+Do not force linear/angular velocity or transforms to make the stop pass. Helicopter
 mass 1450; no wheel-driven propulsion; flight driver will own its forces.
 Reparent the four authored wheel meshes onto the real suspension wheels and
 preserve their correctly oriented mesh basis. They must roll, steer and compress
@@ -242,7 +247,10 @@ Record actual results; commit scoped files `Integrate authored transit rigs with
 **Files:**
 - Create: `game/proto3d/transit/service.gd`, `coach_driver.gd`, `stop.gd`, `panel.gd`
 - Modify: `game/proto3d/proto3d.gd`, `game/proto3d/transit/vehicle.gd`
+- Modify: `game/data/transit.json`, relevant production-row assertions in `game/proto3d/tests/transit_ticket_sim.gd`; `game/proto3d/world_stream.gd` only as needed for real, persistent service-footprint clearance.
+- Modify: `tools/transit_runtime_check.ps1` to add only the existing/introduced scenarios named below.
 - Test: `game/proto3d/tests/transit_coach_sim.gd`, `.tscn`, `.gd.uid`
+- Read: `docs/design/UI_DESIGN_LANGUAGE.md` and the controller's corridor scout; this is a player-facing panel, not the test-ground diagnostic overlay.
 
 **Interfaces:**
 - Consumes exact Task 1 catalog/ticket methods and Task 2 vehicle/anchors.
@@ -301,6 +309,13 @@ final stop tolerance 2 metres and speed below 0.5. A persistent obstruction
 stops/fails the service rather than teleporting. Stop signage/shelter/lighting
 must be placed clear of road lanes using catalog geometry. Present actual next
 departure, fare, duration, risk, baggage and refund rules; UI colors from spec.
+Follow the UI language's standard panel: viewport-clamped fixed rect, scrollable
+variable content, first-action focus, visible close button and Escape/pad-cancel
+paths, shared prompts/toasts/sounds, and dual Xbox/PlayStation button labels.
+Test each close path and fitting at the supported small viewport. The physical
+destination sign and waiting vehicle introduce the service; exact fare,
+departure minutes and refund terms require the readable ticket board because
+vehicle appearance cannot convey those contractual details.
 Unavailable physical coach cannot sell a ticket. Off-line local orchestration
 is explicit until Task 5 supplies host authority; do not spoof online support.
 Compose physical apron paths outside the road lanes. The pedestrian standing
@@ -308,13 +323,40 @@ point is not the coach's parking origin. For both directions the right-side door
 must open toward a protected waiting area, not into a live lane; a shared
 south-side terminus requires a real turning/apron path for westbound departures.
 Test both directions, clear turning radius, and cross-traffic yielding at merges.
+Finish the inherited drivetrain's braking transition by releasing pedal and
+handbrake inputs and setting `is_active=false` below 0.1m/s. Task 2 diagnostics
+found that indefinitely holding the existing low-speed handbrake fights the
+suspension through its component-wise velocity writes. Verify stable resting
+ride height after arrival; do not zero velocity or retune suspension to conceal
+an incorrect parking transition.
+
+The controller's four main-world baseline captures are recorded in
+`docs/verification/TRANSIT_CORRIDOR_SCOUT_2026_09_07.md`. Before constructing stops,
+move Meridian East from the Task 1 initial fraction 0.96 to 0.88, retaining the
+same road, side, and service IDs. The old proposed pad is only 3.11m from the
+EXIT-meridian centreline and overlaps that road. The new candidate is over 47m
+from other road centrelines at its pad and over 22m from authored building
+footprints at its standing point; verify the complete apron/rotor/boarding
+footprints against actual road widths, terrain, buildings and collisions, not
+just these point distances. If it fails real clearance, resolve the placement
+before dispatching a service; do not move national road points or buildings.
+Keep Richmond West at 0.16; its old 0.06 point was visibly inside the church.
+Reserve the service's real footprint against procedural trees both in already
+loaded and regenerated chunks, including their physics. Waiting/boarding areas
+must also be clear of procedural filler and visual bushes/rocks, not just solid
+tree trunks. Preserve deterministic generation draws outside the reservation.
+Register reservations before first generation where possible; do not rebuild
+live chunks in a way that loses existing occupants or loot. Waiting/boarding areas
+need legible wayfinding and practical night lighting. Do not hide colliders or
+disable the world to clear the site. Add a chunk-reload clearance regression.
 
 - [ ] **Step 3: Run coach/ticket/vehicle and road-life regression; capture and commit.**
 
 Use `-Mode capture -Sim coach` for stop board, boarding, journey and arrival.
 Run outbound and return as separate bounded scenarios (`-Scenario east` and
 `-Scenario west`, added to the runner in this task) so each real approximately
-86-second drive plus boarding fits the original 180-second process limit. Do not
+80-second drive (after the documented road-clearance siting correction) plus
+boarding fits the original 180-second process limit. Do not
 raise the wall limit or silently shorten the world route to make tests pass.
 Inspect each capture against the ordinary gameplay camera and correct faults.
 Commit `Connect LASTLINE stops tickets and physical passenger journeys`.
@@ -420,6 +462,7 @@ Commit `Synchronize transit seats and journeys through host authority`.
 ### Task 6: Encounter, handheld continuity and visual acceptance
 
 **Files:**
+- Modify: `game/proto3d/car_3d.gd` and `game/proto3d/tests/transit_vehicle_sim.gd` for the carried Task 2 material-name wear defect and its regression.
 - Modify: `game/data/transit.json`, `game/proto3d/transit/service.gd`, `panel.gd`
 - Test: `game/proto3d/tests/transit_journey_sim.gd`, `.tscn`, `.gd.uid`
 - Create: `docs/verification/TRANSIT_RUNTIME_REVIEW_2026_09_07.md`, `docs/renders/transit-runtime-2026-09-07/*`
@@ -452,6 +495,12 @@ if encounter_begins and main.game_deck != null:
 
 World clock, hunger, weather and combat continue. Do not make screen reading
 invulnerable. Show concrete risk/consequence and controls in readable UI.
+Resolve Task 2's deferred wear defect: imported wheel material is named
+`DRIVN_rubber`, while the current prefix test expects `rubber`. Match the actual
+rubber surface robustly without recoloring rims. Add a behavioral RED then GREEN
+for damaged and repaired tire tiers: rubber changes at wear, rims stay original,
+and repair restores the original rubber material. Do not treat initial rim
+appearance alone as proof of damage-state rendering.
 
 - [ ] **Step 3: Full relevant suite, screenshot review, documentation and commit.**
 

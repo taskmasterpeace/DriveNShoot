@@ -1,0 +1,36 @@
+{
+  "exited": false,
+  "arguments": [
+    "--path",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\game",
+    "--audio-driver",
+    "Dummy",
+    "--max-fps",
+    "60",
+    "--rendering-method",
+    "gl_compatibility",
+    "--resolution",
+    "1280x720",
+    "--script",
+    "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-scout\\capture.gd",
+    "--",
+    "--capture-dir=D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-scout-07d514e961834881856495637c0d81f5\\captures"
+  ],
+  "pid": 50540,
+  "wall_elapsed_s": null,
+  "source_hashes": {
+    "game/data/transit.json": "B7E816321B91E7ACBE4C9B06AD15C9697712E618752B9F8C4AF61ED68F5EA0BE",
+    "game/data/usmap.json": "04D975429DD544212438B3D9DAEF96D61E08B5551F19B622FF14A73BDF0135B9",
+    "build/transit-scout/capture.ps1": "0D6EC2A7F624F4C071BE726537A50ECCDAFAB466DBB67FAC160FC571C720643F",
+    "game/proto3d/transit/catalog.gd": "17CF9FD85767F6D3BDB6D28585684CED7A9CF3E2218606E6D540A3D818CFD6CA",
+    "build/transit-scout/capture.gd": "DDF3FE2FE6F6407D2CAC5B820657B4FE68E6BAE36A8361ABD91A010CAE6A7DC0",
+    "game/proto3d/proto3d.gd": "20D85880529043C4B060CD111E4C7BC7FECBA2D9C0E80C6D1F2CD7F3B97D0181",
+    "game/proto3d/car_3d.gd": "4BBA5B5814F9A87E2BD85DDDB2857B71AD42165EF92AD7FB5573BA937C5C9A57"
+  },
+  "APPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-scout-07d514e961834881856495637c0d81f5\\profile\\Roaming",
+  "exit_code": null,
+  "LOCALAPPDATA": "D:\\git\\carworld\\.worktrees\\america-foundation\\build\\transit-scout-07d514e961834881856495637c0d81f5\\profile\\Local",
+  "timed_out": false,
+  "wall_budget_s": 120,
+  "source_head": "0f529c1c33cd6bb443c8a06c9013be7bbf353fde"
+}

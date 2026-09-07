@@ -16,7 +16,30 @@ source by reviewed fix `6374687`: both MCP listeners bind to literal loopback.
 The [live socket/protocol gate](verification/MCP_LOOPBACK_2026_09_06.md) passed
 20 checks. Earlier exposure remains unaudited; this does not recover the save.
 
-## 2026-09-07 — transit ticket foundation reviewed; vehicles next
+## 2026-09-07 — physical transit rigs reviewed; stops and journeys next
+
+`e5f83f3` integrates the original LASTLINE/KESTREL models with the shared vehicle
+factory, hollow collision, moving doors and actual suspension wheels. Personal
+screenshot inspection caught opaque cabin cutaways and overwritten rims; both
+are corrected. Real driving/braking exposed weak coach brakes and an incorrect
+parking transition; the coach-only row and tested parking sequence now satisfy
+the unchanged stopping/ride-height gate. Vehicle109/0, GPU113/0, ticket115/0,
+data19/0 and grip18/0 pass with isolated profiles and empty runtime stderr.
+The exact-commit vehicle run is109/0; independent scoped review approves this
+body-layer task. The [runtime visual review](verification/TRANSIT_RUNTIME_VISUAL_REVIEW_2026_09_07.md)
+preserves before/after images and raw results. Authored worn-tire recoloring has
+a minor material-name bug carried to the visual pass; import UID warnings remain.
+
+These are **physical test-ground bodies, not playable scheduled services yet**.
+The [main-world scout](verification/TRANSIT_CORRIDOR_SCOUT_2026_09_07.md) shows
+Meridian's initial pad overlapping an exit road and an unlit waiting point.
+Task 3 must re-site/clear that terminal, add shelter/light/ticket UI, and verify
+authored passenger pose, safe exits and real east/west trips. The original
+national map is unchanged. Main boarding, flights, session seats and encounters
+remain open, as do the larger native stability, unrecovered save, national
+content and authenticated MMO/release gates.
+
+## 2026-09-07 — transit ticket foundation reviewed (earlier checkpoint)
 
 The physical-transit runtime plan is underway, not yet a playable service.
 Catalog/ticket state is committed in `f4bd74c` and corrected in `b048f58` after

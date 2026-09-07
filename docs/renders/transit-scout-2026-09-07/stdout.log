@@ -1,0 +1,8 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+TRANSIT SCOUT FRAME: {"camera":"(259.2902, 13.75028, -259.9935)","hour":11.0,"id":"01_meridian_east_day","note":"Proposed terminal waiting point. Existing world before construction; no coach service shown.","player":"(259.2902, 0.000278, -275.806)","saved":true,"size":"(1280, 720)"}
+TRANSIT SCOUT FRAME: {"camera":"(1292.89, 13.75019, -227.9935)","hour":11.0,"id":"02_richmond_west_day","note":"Proposed western terminal, moved clear of church footprint. Staged for siting review, not a travelled journey.","player":"(1292.89, 0.000186, -243.806)","saved":true,"size":"(1280, 720)"}
+TRANSIT SCOUT FRAME: {"camera":"(1422.09, 13.749, -223.9975)","hour":11.0,"id":"03_richmond_church_day","note":"Rejected terminal candidate at the church footprint. Existing geometry, not a constructed stop.","player":"(1422.09, -0.000996, -239.81)","saved":true,"size":"(1280, 720)"}
+TRANSIT SCOUT FRAME: {"camera":"(259.2902, 13.75059, -259.9935)","hour":22.0,"id":"04_meridian_east_night","note":"Unlit baseline at proposed terminal. Night visibility before transit shelter/practical lights.","player":"(259.2902, 0.000591, -275.806)","saved":true,"size":"(1280, 720)"}
+TRANSIT SCOUT: 4 frames; isolated save unchanged=true; failed=false

@@ -1,0 +1,97 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 591.86 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 4090
+
+TRANSIT VEHICLE PASS: authored service can be created
+TRANSIT VEHICLE PASS: factory preserves subclass
+TRANSIT VEHICLE PASS: service creation never mutates donor
+TRANSIT VEHICLE PASS: ordinary factory retains stock brake strength
+TRANSIT VEHICLE PASS: invalid kind fails closed
+TRANSIT VEHICLE PASS: ordinary race fleet excludes both service rigs
+TRANSIT VEHICLE PASS: lastline_coach model preserves metre scale
+TRANSIT VEHICLE PASS: lastline_coach no stock opaque meshes
+TRANSIT VEHICLE PASS: lastline_coach vector fields folded
+TRANSIT VEHICLE PASS: lastline_coach invalid seats reject
+TRANSIT VEHICLE PASS: lastline_coach passenger 0 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 0 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 0 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 0 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach passenger 1 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 1 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 1 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 1 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach passenger 2 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 2 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 2 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 2 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach passenger 3 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 3 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 3 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 3 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach passenger 4 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 4 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 4 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 4 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach passenger 5 anchor
+TRANSIT VEHICLE PASS: lastline_coach seat 5 at authored cushion height
+TRANSIT VEHICLE PASS: lastline_coach passenger 5 torso clear of chassis collision
+TRANSIT VEHICLE PASS: lastline_coach passenger 5 authored headroom
+TRANSIT VEHICLE PASS: lastline_coach closed door is collision bearing
+TRANSIT VEHICLE PASS: lastline_coach closed door rejects disembark
+TRANSIT VEHICLE PASS: lastline_coach opening transition does not admit exit early
+TRANSIT VEHICLE PASS: lastline_coach actual authored door moves
+TRANSIT VEHICLE PASS: lastline_coach opened doorway collision clear
+TRANSIT VEHICLE PASS: lastline_coach moved door geometry clears passage
+TRANSIT VEHICLE PASS: lastline_coach door closes to original transform
+TRANSIT VEHICLE PASS: kestrel_courier model preserves metre scale
+TRANSIT VEHICLE PASS: kestrel_courier no stock opaque meshes
+TRANSIT VEHICLE PASS: kestrel_courier vector fields folded
+TRANSIT VEHICLE PASS: kestrel_courier invalid seats reject
+TRANSIT VEHICLE PASS: kestrel_courier passenger 0 anchor
+TRANSIT VEHICLE PASS: kestrel_courier seat 0 at authored cushion height
+TRANSIT VEHICLE PASS: kestrel_courier passenger 0 torso clear of chassis collision
+TRANSIT VEHICLE PASS: kestrel_courier passenger 0 authored headroom
+TRANSIT VEHICLE PASS: kestrel_courier passenger 1 anchor
+TRANSIT VEHICLE PASS: kestrel_courier seat 1 at authored cushion height
+TRANSIT VEHICLE PASS: kestrel_courier passenger 1 torso clear of chassis collision
+TRANSIT VEHICLE PASS: kestrel_courier passenger 1 authored headroom
+TRANSIT VEHICLE PASS: kestrel_courier passenger 2 anchor
+TRANSIT VEHICLE PASS: kestrel_courier seat 2 at authored cushion height
+TRANSIT VEHICLE PASS: kestrel_courier passenger 2 torso clear of chassis collision
+TRANSIT VEHICLE PASS: kestrel_courier passenger 2 authored headroom
+TRANSIT VEHICLE PASS: kestrel_courier closed door is collision bearing
+TRANSIT VEHICLE PASS: kestrel_courier closed door rejects disembark
+TRANSIT VEHICLE PASS: kestrel_courier opening transition does not admit exit early
+TRANSIT VEHICLE PASS: kestrel_courier actual authored door moves
+TRANSIT VEHICLE PASS: kestrel_courier opened doorway collision clear
+TRANSIT VEHICLE PASS: kestrel_courier moved door geometry clears passage
+TRANSIT VEHICLE PASS: kestrel_courier door closes to original transform
+TRANSIT VEHICLE PASS: coach settles grounded without half-height sinking
+TRANSIT VEHICLE PASS: helicopter settles on collision skids
+TRANSIT VEHICLE PASS: helicopter has no traction wheels
+TRANSIT VEHICLE PASS: authored suspension wheel 0 grounded and centred
+TRANSIT VEHICLE PASS: wheel 0 suspension compresses under actual body weight
+TRANSIT VEHICLE PASS: authored suspension wheel 1 grounded and centred
+TRANSIT VEHICLE PASS: wheel 1 suspension compresses under actual body weight
+TRANSIT VEHICLE PASS: authored suspension wheel 2 grounded and centred
+TRANSIT VEHICLE PASS: wheel 2 suspension compresses under actual body weight
+TRANSIT VEHICLE PASS: authored suspension wheel 3 grounded and centred
+TRANSIT VEHICLE PASS: wheel 3 suspension compresses under actual body weight
+TRANSIT VEHICLE PASS: 01_front GPU image written
+TRANSIT VEHICLE PASS: grounded helicopter permits disembark
+TRANSIT VEHICLE PASS: lastline_coach faded roof still collision bearing
+TRANSIT VEHICLE PASS: kestrel_courier faded roof still collision bearing
+TRANSIT VEHICLE PASS: 02_coach_cabin GPU image written
+TRANSIT VEHICLE PASS: 03_helicopter_cabin GPU image written
+TRANSIT VEHICLE PASS: aircraft rejects exit while physically airborne
+TRANSIT VEHICLE PASS: throttle drives real coach more than 12 metres
+TRANSIT VEHICLE PASS: every physics-frame displacement stays continuous
+TRANSIT VEHICLE PASS: authored wheels roll with their suspension
+TRANSIT VEHICLE PASS: moving coach rejects exit even with opened doors
+TRANSIT VEHICLE PASS: front authored wheel actually steers
+TRANSIT VEHICLE PASS: 04_driving GPU image written
+PHYSICS displacement=56.274 max_step=0.231 braking_distance=10.986 stopped_speed=0.000 ground_y=-0.367
+TRANSIT VEHICLE PASS: service brake stops coach within 20 metres
+STOP ATTITUDE basis=(0.001659, 3.014601, 7.025433) wheels=[[true, 0.1888964176178], [true, 0.37887281179428], [true, 0.18876200914383], [true, 0.37881731987]]
+TRANSIT VEHICLE FAIL: braked coach remains upright and supported at wheel height
+TRANSIT VEHICLE PASS: stopped open coach permits exit
+TRANSIT VEHICLE RESULTS: 90 passed, 1 failed

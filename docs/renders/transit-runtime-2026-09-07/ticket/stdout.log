@@ -1,0 +1,120 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+TRANSIT TICKET: isolated profile d:/git/carworld/.worktrees/america-foundation/build/transit-runtime-ticket-headless-1a0cf622487f4a969b17f95217d3985a/profile/roaming/godot/app_userdata/drivn
+TRANSIT TICKET: PASS - service cannot exist without runtime catalog
+TRANSIT TICKET: PASS - ticket lifecycle implementation exists
+TRANSIT TICKET: PASS - runtime scripts instantiate
+TRANSIT TICKET: PASS - actual national map loads
+TRANSIT TICKET: PASS - transit rows parse as a dictionary
+TRANSIT TICKET: PASS - shipped transit catalog validates
+TRANSIT TICKET: PASS - catalog exposes two stops and four services
+TRANSIT TICKET: PASS - LASTLINE row keeps literal fare capacity and speed
+TRANSIT TICKET: PASS - KESTREL row keeps literal fare capacity and speed
+TRANSIT TICKET: PASS - schedule returns the first multiple at or after now
+TRANSIT TICKET: PASS - Meridian standing point uses exact south shoulder geometry
+TRANSIT TICKET: PASS - Richmond standing point uses amended clear fraction
+TRANSIT TICKET: PASS - east route follows reverse source order on its right lane
+TRANSIT TICKET: PASS - west route follows source order on its right lane
+TRANSIT TICKET: PASS - catalog never mutates authoritative road points
+TRANSIT TICKET: PASS - independent catalog accepts detached rows
+TRANSIT TICKET: PASS - catalog rows are deep copies
+TRANSIT TICKET: PASS - duplicate stop IDs reject the catalog
+TRANSIT TICKET: PASS - duplicate service IDs reject the catalog
+TRANSIT TICKET: PASS - unknown stop roads reject the catalog
+TRANSIT TICKET: PASS - out-of-range stop fractions reject the catalog
+TRANSIT TICKET: PASS - nonfinite stop coordinates reject the catalog
+TRANSIT TICKET: PASS - invalid stop sides reject the catalog
+TRANSIT TICKET: PASS - nonpositive headways reject the catalog
+TRANSIT TICKET: PASS - nonfinite service speeds reject the catalog
+TRANSIT TICKET: PASS - negative fares reject the catalog
+TRANSIT TICKET: PASS - zero capacity rejects the catalog
+TRANSIT TICKET: PASS - absent service origins reject the catalog
+TRANSIT TICKET: PASS - same service endpoint rejects inferred direction
+TRANSIT TICKET: PASS - unknown vehicle kinds reject the catalog
+TRANSIT TICKET: PASS - cross-road service endpoints reject the first corridor
+TRANSIT TICKET: PASS - nonfinite authoritative road points reject the catalog
+TRANSIT TICKET: PASS - corner route uses a real loaded map
+TRANSIT TICKET: PASS - three-point corner catalog validates
+TRANSIT TICKET: PASS - forward corner joins incoming and outgoing right lanes
+TRANSIT TICKET: PASS - reverse corner joins incoming and outgoing right lanes
+TRANSIT TICKET: PASS - new state does not create a checkpoint
+TRANSIT TICKET: PASS - empty old-save record restores versioned default
+TRANSIT TICKET: PASS - insufficient scrip rejects before staging
+TRANSIT TICKET: PASS - wrong service rejects before staging
+TRANSIT TICKET: PASS - wrong origin rejects before staging
+TRANSIT TICKET: PASS - stale and future serials reject
+TRANSIT TICKET: PASS - nonfinite times reject
+TRANSIT TICKET: PASS - unscheduled departure rejects
+TRANSIT TICKET: PASS - departure just below schedule rejects exactly
+TRANSIT TICKET: PASS - departure just above schedule rejects exactly
+TRANSIT TICKET: PASS - expired departure rejects
+TRANSIT TICKET: PASS - too-early boarding window rejects
+TRANSIT TICKET: PASS - negative and malformed wallet counts reject
+TRANSIT TICKET: PASS - unknown wallet Variant objects reject
+TRANSIT TICKET: PASS - ticket debits carried scrip
+TRANSIT TICKET: PASS - reservation checkpoints ticket wallet and unrelated run fields
+TRANSIT TICKET: PASS - duplicate serial cannot charge
+TRANSIT TICKET: PASS - second active ticket rejects
+TRANSIT TICKET: PASS - arrival requires an aboard ticket
+TRANSIT TICKET: PASS - cancellation requires the origin endpoint
+TRANSIT TICKET: PASS - one cancellation refunds paid fare
+TRANSIT TICKET: PASS - repeat refund rejected
+TRANSIT TICKET: PASS - consumed serial stays stale
+TRANSIT TICKET: PASS - next serial reserves after prior end
+TRANSIT TICKET: PASS - future board serial rejects
+TRANSIT TICKET: PASS - matching serial boards once
+TRANSIT TICKET: PASS - board twice rejects
+TRANSIT TICKET: PASS - aboard cancellation rejects
+TRANSIT TICKET: PASS - arrival requires destination endpoint
+TRANSIT TICKET: PASS - arrival ends without refund
+TRANSIT TICKET: PASS - invalid finish reason rejects
+TRANSIT TICKET: PASS - service failure may finish at either route endpoint
+TRANSIT TICKET: PASS - early exit accepts either endpoint without refund
+TRANSIT TICKET: PASS - well-formed recovered active ticket validates
+TRANSIT TICKET: PASS - restore validation rejects a near-scheduled departure
+TRANSIT TICKET: PASS - forged paid amount rejects
+TRANSIT TICKET: PASS - unknown ticket phase rejects
+TRANSIT TICKET: PASS - extra ticket keys reject
+TRANSIT TICKET: PASS - extra root keys reject
+TRANSIT TICKET: PASS - extra ended-ticket keys reject
+TRANSIT TICKET: PASS - nonrefundable end reasons reject forged refunds
+TRANSIT TICKET: PASS - ended refunds reject values outside catalog fares
+TRANSIT TICKET: PASS - invalid serial ordering rejects
+TRANSIT TICKET: PASS - non-integer serial Variant rejects
+TRANSIT TICKET: PASS - wrong recorded direction rejects
+TRANSIT TICKET: PASS - invalid restore leaves live record untouched
+TRANSIT TICKET: PASS - record returns a detached deep copy
+TRANSIT TICKET: PASS - failed-buy fixture creates an existing checkpoint
+TRANSIT TICKET: PASS - test arrangement preserves checkpoint before denial
+TRANSIT TICKET: PASS - test arrangement makes checkpoint path a directory
+TRANSIT TICKET: PASS - failed buy leaves memory and wallet unpublished
+TRANSIT TICKET: PASS - failed buy leaves denied checkpoint directory intact
+TRANSIT TICKET: PASS - test arrangement removes denied directory
+TRANSIT TICKET: PASS - test arrangement restores checkpoint
+TRANSIT TICKET: PASS - failed buy preserves existing checkpoint bytes
+TRANSIT TICKET: PASS - atomic fixture reserves
+TRANSIT TICKET: PASS - test arrangement preserves checkpoint before denial
+TRANSIT TICKET: PASS - test arrangement makes checkpoint path a directory
+TRANSIT TICKET: PASS - failed board leaves memory and wallet unchanged
+TRANSIT TICKET: PASS - test arrangement removes denied directory
+TRANSIT TICKET: PASS - test arrangement restores checkpoint
+TRANSIT TICKET: PASS - failed board preserves existing checkpoint bytes
+TRANSIT TICKET: PASS - board retries after storage recovery
+TRANSIT TICKET: PASS - test arrangement preserves checkpoint before denial
+TRANSIT TICKET: PASS - test arrangement makes checkpoint path a directory
+TRANSIT TICKET: PASS - failed refund leaves ticket and wallet retryable
+TRANSIT TICKET: PASS - test arrangement removes denied directory
+TRANSIT TICKET: PASS - test arrangement restores checkpoint
+TRANSIT TICKET: PASS - failed refund preserves existing checkpoint bytes
+TRANSIT TICKET: PASS - service failure retries one bounded refund
+TRANSIT TICKET: PASS - recovery fixture reserves and boards
+TRANSIT TICKET: PASS - roundtrip restores exact active ticket
+TRANSIT TICKET: PASS - restart refuses any stop but recorded last safe stop
+TRANSIT TICKET: PASS - restart ends at recorded safe stop and refunds once
+TRANSIT TICKET: PASS - capture callback cannot restore during publication
+TRANSIT TICKET: PASS - capture callback cannot replace setup during publication
+TRANSIT TICKET: PASS - publish callback cannot restore committed memory
+TRANSIT TICKET: PASS - publish callback cannot replace setup or callbacks
+TRANSIT TICKET: PASS - reentrant setup leaves original checkpoint authority intact
+TRANSIT TICKET RESULTS: 115 passed, 0 failed
+TRANSIT TICKET: ALL CHECKS PASSED

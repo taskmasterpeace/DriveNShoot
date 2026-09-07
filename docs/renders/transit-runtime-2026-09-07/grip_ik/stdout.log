@@ -1,0 +1,23 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+GRIP_IK: start
+GRIP_IK: PASS - the shotgun row carries a grip_l fore-grip point
+GRIP_IK: PASS - the pipe rocket row carries a grip_l too
+GRIP_IK: PASS - the pistol row does NOT (one hand, unchanged)
+GRIP_IK: PASS - two-hand gun 'shotgun' carries a NONZERO grip_l (0.0, -0.02, -0.2) (no silent one-shoulder hold)
+GRIP_IK: PASS - two-hand gun 'pipe_rocket' carries a NONZERO grip_l (0.0, -0.12, -0.3) (no silent one-shoulder hold)
+GRIP_IK: PASS - the free hand PLANTS on the fore-grip (0.002m off, wants <0.05)
+GRIP_IK: PASS - the hold is a BENT-elbow hold, not a straight-arm reach (elbow 1.08 rad)
+GRIP_IK: PASS - aim yaw moved the gun (0.36m)
+GRIP_IK: PASS - ...and the free hand FOLLOWED, still planted (0.015m off)
+GRIP_IK: PASS - a grip beyond reach clamps SANE (no NaN anywhere)
+GRIP_IK: PASS - the arm is at full extension, not past it (0.579m of the 0.6m limb)
+GRIP_IK: PASS - a clamped arm is a STRAIGHT arm (elbow 0.089 rad ~ 0)
+GRIP_IK: PASS - a one-hand row returns the free arm home (x=-0.28)
+GRIP_IK: PASS - one-hand: the free arm swings free again (no IK residue on yaw/roll: 0.000/0.000)
+GRIP_IK: PASS - a two-hander WITHOUT a grip still takes the legacy posed hold (arm 1.05, elbow 0.42)
+GRIP_IK: PASS - grip_r seats the gun in the palm (gun.position = -grip_r, got (0.0, 0.0, -0.1))
+GRIP_IK: PASS - muzzle_world still reads off the (re-seated) gun barrel
+GRIP_IK: PASS - a LEFT-handed puppet plants its free (right) hand on the grip too (0.002m off)
+GRIP_IK RESULTS: 18 passed, 0 failed
+GRIP_IK: ALL CHECKS PASSED

@@ -37,6 +37,14 @@ handoff/ports/traffic checks pass 63/0, 67/0, and 540/0, with Node coverage 75/0
 This traffic-only change does not relabel these photographs as fresh captures
 or resolve the native crashes and remaining visual shortcomings.
 
+New transit views: the [main-world corridor scout](TRANSIT_CORRIDOR_SCOUT_2026_09_07.md)
+adds four daytime/nighttime location photographs and identifies a church overlap,
+an exit-road pad conflict and missing night lighting. The
+[runtime vehicle review](TRANSIT_RUNTIME_VISUAL_REVIEW_2026_09_07.md) shows the
+original LASTLINE coach and KESTREL helicopter in Godot, including corrected
+cabin cutaways, doorways and wheels. Those vehicle images are physical test-ground
+captures, not completed main-world journeys or final world-art acceptance.
+
 ### Earlier road-repair history (not the current checkpoint)
 
 The same audit preserves every failed checkpoint. Joined
