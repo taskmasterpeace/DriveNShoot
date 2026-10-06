@@ -626,8 +626,8 @@ func set_mode(driving: bool) -> void:
 		_help_label.text = "WASD move · SHIFT sprint · SPACE dive · E interact · C whistle ×1-4 · Y radio · TAB pack · M map · K sheet · T wait · F5/F9 save · hold B binocs"
 
 
-func set_service_passenger(status: String) -> void:
-	_help_label.text = "LASTLINE PASSENGER · M map · K sheet · F5 save · driver keeps the wheel"
+func set_service_passenger(status: String, name: String = "LASTLINE") -> void:
+	_help_label.text = name+" PASSENGER · M map · K sheet · F5 save · crew keeps the controls"
 	show_prompt(status)
 
 

@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
   [ValidateSet('import','headless','capture')][string]$Mode='headless',
-  [ValidateSet('ticket','vehicle','coach','data','grip_ik','road_life','clone_ritual','clone_fever')][string]$Sim='ticket',
-  [ValidateSet('east','west','safety','death','reboard_east','reboard_west','emergency')][string]$Scenario='east',
+  [ValidateSet('ticket','vehicle','coach','flight','data','grip_ik','road_life','clone_ritual','clone_fever')][string]$Sim='ticket',
+  [ValidateSet('east','west','safety','death','reboard_east','reboard_west','emergency','weather','streaming','early','obstacle','damage','power_loss','restart')][string]$Scenario='east',
   [switch]$EngineVerbose
 )
 Set-StrictMode -Version Latest
@@ -31,7 +31,7 @@ $sources=@(
 $sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/proto3d') -Recurse -File | Where-Object { $_.Extension -in @('.gd','.tscn') -and $_.FullName -notmatch '[\\/]tests[\\/]' } | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
 $sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/data') -Recurse -File | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
 $sources += @(Get-ChildItem -LiteralPath (Join-Path $root 'game/assets/models/vehicles') -File -Filter '*.glb' | ForEach-Object { [IO.Path]::GetRelativePath($root,$_.FullName).Replace('\','/') })
-$scene=if($Sim -in @('ticket','vehicle','coach')){"transit_${Sim}_sim"}else{"${Sim}_sim"}
+$scene=if($Sim -in @('ticket','vehicle','coach','flight')){"transit_${Sim}_sim"}else{"${Sim}_sim"}
 $sources += @("game/proto3d/tests/$scene.gd","game/proto3d/tests/$scene.tscn",
   'game/assets/models/transit/lastline_coach.glb','game/assets/models/transit/kestrel_courier.glb')
 $sources=@($sources | Sort-Object -Unique)
@@ -43,12 +43,12 @@ foreach($source in $sources){
 $args=@('--headless','--path',(Join-Path $root 'game'),'--audio-driver','Dummy','--max-fps','60')
 if($Mode -eq 'import'){$args+=@('--editor','--import')}
 elseif($Mode -eq 'capture'){
-  if($Sim -notin @('vehicle','coach')){throw 'GPU capture is available only for vehicle and coach scenarios'}
+  if($Sim -notin @('vehicle','coach','flight')){throw 'GPU capture is available only for vehicle, coach and flight scenarios'}
   $args=@('--path',(Join-Path $root 'game'),'--audio-driver','Dummy','--max-fps','60',
     '--rendering-method','gl_compatibility','--resolution','1440x900',
     "res://proto3d/tests/$scene.tscn",'--',('--capture-dir='+(Join-Path $run 'captures')))
 }else{$args+=@("res://proto3d/tests/$scene.tscn")}
-if($Sim -eq 'coach' -and $Mode -ne 'import'){
+if($Sim -in @('coach','flight') -and $Mode -ne 'import'){
   if($Mode -ne 'capture'){$args+='--'}
   $args+='--scenario='+$Scenario
 }

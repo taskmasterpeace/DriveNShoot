@@ -1394,7 +1394,8 @@ func _roadkill(delta: float) -> void:
 			if n is ProtoCar3D or not n.has_method("take_damage"):
 				continue
 			var to: Vector3 = n.global_position - global_position
-			to.y = 0.0
+			if not is_service_aircraft():
+				to.y = 0.0
 			if to.length() > reach:
 				continue
 			if "hit_launch" in n:                          # a corpse gets flung the way you're going
@@ -1524,6 +1525,12 @@ func _main_node() -> Node:
 	return walk
 
 
+func is_service_aircraft() -> bool:
+	return false
+
+func ground_forces_enabled() -> bool:
+	return true
+
 func _physics_process(delta: float) -> void:
 	forward_speed = linear_velocity.dot(-global_basis.z)
 	current_mph = absf(forward_speed) * 2.237
@@ -1536,7 +1543,7 @@ func _physics_process(delta: float) -> void:
 
 	# Flip recovery: on the roof or side with no momentum, the car rights itself
 	# after a beat (playtest bug: landed inverted and spun forever).
-	if global_basis.y.dot(Vector3.UP) < 0.35 and linear_velocity.length() < 4.0:
+	if not is_service_aircraft() and global_basis.y.dot(Vector3.UP) < 0.35 and linear_velocity.length() < 4.0:
 		_flipped_t += delta
 		if _flipped_t > 2.2:
 			_flipped_t = 0.0
@@ -1594,7 +1601,7 @@ func _physics_process(delta: float) -> void:
 	# Dirt kicks up dust sooner and browner than asphalt (surface feel). BOGGED
 	# vehicles churn double the dust in fat mud clumps — you SEE the struggle.
 	var dust_speed: float = SURFACE.get(current_surface, SURFACE["road"])["dust_speed"]
-	_dust.emitting = not dead and absf(forward_speed) > (2.5 if is_struggling else dust_speed)
+	_dust.emitting = ground_forces_enabled() and not dead and absf(forward_speed) > (2.5 if is_struggling else dust_speed)
 	# Amount stays FIXED (the restart law); struggle reads through the TINT on
 	# the dust's own material (the old `_dust.color` writes were dead — no
 	# vertex-color material ever read them). MERGE 2026-07-14: main's material
@@ -1613,6 +1620,8 @@ func _physics_process(delta: float) -> void:
 	_update_tail_lights()
 
 	if not is_active or dead:
+		if is_service_aircraft() and aero_drag > 0.0:
+			apply_central_force(aero_force(linear_velocity))
 		engine_force = 0.0
 		# A towed trailer must ROLL; everything else gets a parking brake.
 		brake = inactive_brake_force()
@@ -1805,7 +1814,7 @@ func _physics_process(delta: float) -> void:
 	# a grip cut, so you plough rather than slide. Guarded near-zero speed so a
 	# parked car never gets shoved backward by its own drag.
 	var roll_drag: float = float(h["roll_drag"])
-	if roll_drag > 0.0:
+	if ground_forces_enabled() and roll_drag > 0.0:
 		var roll_vh := Vector3(linear_velocity.x, 0.0, linear_velocity.z)
 		var roll_speed := roll_vh.length()
 		if roll_speed > 0.3:
@@ -1816,7 +1825,7 @@ func _physics_process(delta: float) -> void:
 	# sims stay stable) vertical flutter scaled by speed. A light pad rumble
 	# rides along for the human at the wheel.
 	var roughness: float = float(h["roughness"])
-	if roughness > 0.0 and absf(forward_speed) > 0.5:
+	if ground_forces_enabled() and roughness > 0.0 and absf(forward_speed) > 0.5:
 		var rough_scale := roughness * clampf(absf(forward_speed) / 15.0, 0.0, 1.0)
 		if rough_scale > 0.0:
 			var t_ms := float(Time.get_ticks_msec())

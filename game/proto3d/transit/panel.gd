@@ -125,12 +125,12 @@ func refresh(focus_first: bool = true) -> void:
 		child.queue_free()
 	actions.clear()
 	descriptions.clear()
-	title.text = "LASTLINE · " + String(service.catalog.stops[stop_id].name).to_upper()
+	title.text = "TRANSIT · " + String(service.catalog.stops[stop_id].name).to_upper()
 	_text("CARRIED BAGGAGE ONLY · no vehicles, dogs or crew.\nCancel: full refund. Arrival/voluntary exit: no refund.\nFailure: safe roadside exit + refund. Restart: last terminal + refund.")
 	var ticket: Dictionary = service.record().ticket
 	for id: String in service.catalog.services:
 		var row: Dictionary = service.catalog.services[id]
-		if row.origin != stop_id or row.kind != "coach":
+		if row.origin != stop_id:
 			continue
 		_text(_description(id))
 		descriptions[id] = rows.get_child(rows.get_child_count()-1)
@@ -139,7 +139,7 @@ func refresh(focus_first: bool = true) -> void:
 		elif String(ticket.service) == id and String(ticket.phase) == "reserved":
 			_button("board","BOARD · passenger seat",service.can_board(),func() -> void: service.board())
 			_button("cancel","CANCEL · refund %d scrip" % ticket.paid,true,func() -> void: service.cancel())
-	_text("KESTREL flights: not in service. No flight tickets sold.")
+	_text("KESTREL: follow amber pad markers 36m from counter.\nBoard only at aircraft door. Hold E / Y/△ requests landing; never jump out.\nDust ≥55% / rain ≥85% at either pad grounds departure.")
 	var first: Button
 	for id: String in actions:
 		var button: Button = actions[id]
@@ -154,7 +154,8 @@ func refresh(focus_first: bool = true) -> void:
 func _description(id: String) -> String:
 	var row: Dictionary = service.catalog.services[id]
 	var departure: float = service.catalog.next_departure(id,service.now_minutes())
-	return "%s → %s\n%d SCRIP · %d seats · DEPARTS %02d:%02d (in %d game min)\nRoad running ≥ %d game min; turns / traffic add time.\n%s" % [row.name,service.catalog.stops[row.destination].name,row.fare,row.capacity,int(departure/60.0)%24,int(departure)%60,int(ceil(departure-service.now_minutes())),int(ceil(service.duration_minutes(id))),row.risk]
+	var timing: String = "Flight estimate %d game min; weather / landing add time." if row.kind=="helicopter" else "Road running ≥ %d game min; turns / traffic add time."
+	return "%s → %s\n%d SCRIP · %d seats · DEPARTS %02d:%02d (in %d game min)\n%s\n%s" % [row.name,service.catalog.stops[row.destination].name,row.fare,row.capacity,int(departure/60.0)%24,int(departure)%60,int(ceil(departure-service.now_minutes())),timing % int(ceil(service.duration_minutes(id))),row.risk]
 
 func _text(value: String) -> void:
 	var label := Label.new()

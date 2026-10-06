@@ -1173,7 +1173,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			_pose_cab_driver(delta)
 	var body_pos: Vector3 = (active_car if mode == Mode.DRIVE and active_car else player).global_position
-	stream.update_stream(body_pos, self)
+	stream.update_stream(body_pos,self,transit.streaming_positions() if transit!=null else [])
 	if waypoint_idx >= 0 and cam:
 		var wp: Array = waypoints[waypoint_idx]
 		var tpos: Vector3 = wp[1].global_position if wp[1] is Node3D else wp[1]
@@ -1902,7 +1902,7 @@ func _update_interact_prompt() -> void:
 		return
 	if mode == Mode.DRIVE:
 		if transit != null and transit.is_riding():
-			hud.set_service_passenger(transit.passenger_status())
+			hud.set_service_passenger(transit.passenger_status(),transit.service_name())
 			return
 		if active_car and active_car.current_mph < 8.0:
 			hud.show_prompt("E — Get out")
@@ -4449,7 +4449,7 @@ func enter_passenger(car: ProtoCar3D) -> void:
 ## HOLD E from the passenger seat: the brain lets go, the wheel is yours.
 func take_wheel() -> void:
 	if transit != null and transit.is_riding():
-		notify("LASTLINE: public-service driver keeps the wheel")
+		transit.request_early_stop()
 		return
 	if not passenger_of_ai or active_car == null:
 		return

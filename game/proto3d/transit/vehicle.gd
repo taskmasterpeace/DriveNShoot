@@ -13,6 +13,29 @@ var _door_collisions: Array[CollisionShape3D] = []
 var _roof: MeshInstance3D
 var _roof_faded_materials: Array[Material] = []
 
+func is_service_aircraft() -> bool:
+	return service_kind == "helicopter"
+
+func ground_forces_enabled() -> bool:
+	return not is_service_aircraft() or grounded()
+
+func grounded() -> bool:
+	if not is_inside_tree() or global_basis.y.dot(Vector3.UP) < 0.9:
+		return false
+	for x: float in [-0.94,0.94]:
+		var from: Vector3 = to_global(Vector3(x,0.16,0.15))
+		var query := PhysicsRayQueryParameters3D.create(from,from+Vector3.DOWN*0.24)
+		query.exclude = [get_rid()]
+		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
+		if hit.is_empty() or (hit.normal as Vector3).dot(Vector3.UP)<0.8:
+			return false
+	return true
+
+func flight_power() -> float:
+	if dead or not engine_on or fuel<=0.0 or components.battery.tier()==Damageable.Tier.BROKEN:
+		return 0.0
+	return TIER_ENGINE_MULT[components.engine.tier()] * (0.12 if misfiring else 1.0)
+
 func carries_character(body: Node3D) -> bool:
 	return service != null and service.is_riding() and service.main.active_car == self and body == service.main.player
 
@@ -30,15 +53,15 @@ func inactive_brake_force() -> float:
 
 func interact_prompt(_main: Node) -> String:
 	if service != null and service.can_board():
-		return "E / Y/△ — Board LASTLINE with reserved ticket"
-	return "E / Y/△ — LASTLINE ticket board" if service != null and not is_active and not dead else ""
+		return "E / Y/△ — Board "+display_name+" with reserved ticket"
+	return "E / Y/△ — "+display_name+" ticket board" if service != null and not is_active and not dead else ""
 
 func interact_position() -> Vector3:
 	return anchor_world("Boarding") if service != null else super.interact_position()
 
 func interact(_main: Node) -> void:
 	if service != null:
-		service.panel.open(service.coach_stop)
+		service.panel.open(service.stop_for(service_kind))
 
 static func make(kind: String) -> ProtoTransitVehicle:
 	if kind not in ["coach", "helicopter"]:
@@ -108,17 +131,7 @@ func can_disembark() -> bool:
 		return false
 	if service_kind != "helicopter":
 		return global_basis.y.dot(Vector3.UP) > 0.9 and _all_wheels.filter(func(w: VehicleWheel3D) -> bool: return w.is_in_contact()).size() >= 2
-	if not is_inside_tree() or global_basis.y.dot(Vector3.UP) < 0.9:
-		return false
-	# Test both skids against actual support, excluding our own hollow body.
-	for x: float in [-0.94, 0.94]:
-		var from: Vector3 = to_global(Vector3(x, 0.16, 0.15))
-		var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 0.24)
-		query.exclude = [get_rid()]
-		var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
-		if hit.is_empty() or (hit.normal as Vector3).dot(Vector3.UP) < 0.8:
-			return false
-	return true
+	return grounded()
 
 func doors_closed() -> bool:
 	return not _door_target and not doors_open and (not is_instance_valid(_door_tween) or not _door_tween.is_running())

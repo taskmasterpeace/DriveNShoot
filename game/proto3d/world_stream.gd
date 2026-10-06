@@ -203,10 +203,23 @@ func biome_at(pos: Vector3) -> String:
 	return "scrub"
 
 
-func update_stream(body_pos: Vector3, main: Node) -> void:
+func update_stream(body_pos: Vector3, main: Node, service_positions: Array[Vector3] = []) -> void:
 	_map_player = body_pos
 	var ccx := int(floor(body_pos.x / CHUNK))
 	var ccz := int(floor(body_pos.z / CHUNK))
+	var service_chunks: Dictionary = {}
+	var centers: Array[Vector3] = [body_pos]
+	for pos: Vector3 in service_positions.slice(0,2):
+		if not pos.is_finite():
+			continue
+		centers.append(pos)
+		var cx: int = floori(pos.x/CHUNK)
+		var cz: int = floori(pos.z/CHUNK)
+		for dx: int in range(-1,2):
+			for dz: int in range(-1,2):
+				service_chunks[Vector2i(cx+dx,cz+dz)] = true
+		# Only a missing actual-body center bypasses the normal edge budget.
+		_spawn_at(cx,cz,false)
 	# LOAD (Chunk-Loader mine): a FRESH arrival (spawn/teleport — no ground loaded under
 	# you) fills the whole ring NOW; you need the floor immediately and can't hide a hitch
 	# you asked for by teleporting. Steady-state driving instead ENQUEUES the new edge and
@@ -223,11 +236,20 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 				var c := Vector2i(ccx + dx, ccz + dz)
 				if not loaded.has("%d,%d" % [c.x, c.y]) and not (c in _load_queue):
 					_load_queue.append(c)
-		_drain_load_queue(body_pos, ccx, ccz)
+	for c: Vector2i in service_chunks:
+		if not loaded.has("%d,%d" % [c.x,c.y]) and not c in _load_queue:
+			_load_queue.append(c)
+	_drain_load_queue(body_pos,ccx,ccz,service_chunks,centers)
+	# A player's arrival must reveal a chunk already loaded solely for a service.
+	for dx: int in range(-RING,RING+1):
+		for dz: int in range(-RING,RING+1):
+			var key: String = "%d,%d" % [ccx+dx,ccz+dz]
+			if loaded.has(key):
+				visited[key] = Vector2((ccx+dx+0.5)*CHUNK,(ccz+dz+0.5)*CHUNK)
 	# Unload beyond ring+1
 	for key in loaded.keys().duplicate():
 		var parts: PackedStringArray = key.split(",")
-		if absi(int(parts[0]) - ccx) > RING + 1 or absi(int(parts[1]) - ccz) > RING + 1:
+		if not service_chunks.has(Vector2i(int(parts[0]),int(parts[1]))) and (absi(int(parts[0]) - ccx) > RING + 1 or absi(int(parts[1]) - ccz) > RING + 1):
 			if loaded[key] != null and is_instance_valid(loaded[key]):
 				_bank_chunk_survivors(loaded[key])
 				loaded[key].queue_free()
@@ -259,7 +281,7 @@ func update_stream(body_pos: Vector3, main: Node) -> void:
 
 
 ## Build one chunk and register it in loaded + the fog-of-war visited set. Idempotent.
-func _spawn_at(cx: int, cz: int) -> void:
+func _spawn_at(cx: int, cz: int, reveal: bool = true) -> void:
 	var key := "%d,%d" % [cx, cz]
 	if loaded.has(key):
 		return
@@ -269,7 +291,8 @@ func _spawn_at(cx: int, cz: int) -> void:
 	if ch != null:
 		_clear_service_scatter(ch)
 	loaded[key] = ch
-	visited[key] = Vector2((cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK)
+	if reveal:
+		visited[key] = Vector2((cx + 0.5) * CHUNK, (cz + 0.5) * CHUNK)
 
 
 ## A RELIEF floor: a subdivided plane displaced by the shared ground_y field (both sides
@@ -349,24 +372,29 @@ func _drape_chunk(chunk: Node3D) -> void:
 ## Spawn up to LOAD_BUDGET queued chunks this frame, nearest to the player first, after
 ## dropping any that became stale (already loaded, or fell outside the load ring because
 ## the player kept moving). The heart of the Chunk-Loader mine.
-func _drain_load_queue(body_pos: Vector3, ccx: int, ccz: int) -> void:
+func _drain_load_queue(body_pos: Vector3, ccx: int, ccz: int, service_chunks: Dictionary = {}, centers: Array[Vector3] = []) -> void:
 	if _load_queue.is_empty():
 		return
 	var kept: Array = []
 	for c in _load_queue:
 		if loaded.has("%d,%d" % [c.x, c.y]):
 			continue
-		if absi(c.x - ccx) > RING or absi(c.y - ccz) > RING:
+		if not service_chunks.has(c) and (absi(c.x - ccx) > RING or absi(c.y - ccz) > RING):
 			continue
 		kept.append(c)
 	_load_queue = kept
 	var p := Vector2(body_pos.x, body_pos.z)
 	_load_queue.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		return _chunk_center(a).distance_squared_to(p) < _chunk_center(b).distance_squared_to(p))
+		var da: float = _chunk_center(a).distance_squared_to(p)
+		var db: float = _chunk_center(b).distance_squared_to(p)
+		for pos: Vector3 in centers:
+			da = minf(da,_chunk_center(a).distance_squared_to(Vector2(pos.x,pos.z)))
+			db = minf(db,_chunk_center(b).distance_squared_to(Vector2(pos.x,pos.z)))
+		return da < db)
 	var built := 0
 	while built < LOAD_BUDGET and not _load_queue.is_empty():
 		var c: Vector2i = _load_queue.pop_front()
-		_spawn_at(c.x, c.y)
+		_spawn_at(c.x,c.y,absi(c.x-ccx)<=RING and absi(c.y-ccz)<=RING)
 		built += 1
 
 
