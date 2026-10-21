@@ -24,6 +24,8 @@ export class Combat {
     g.fx.light(ox, 1.8, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x));
     g.noise(ch.x, ch.z, 45, ch);
+    g.ambient?.eject(ch, ang);
+    g.ambient?.onShot(ch.x, ch.z);
     for (let p = 0; p < w.pellets; p++) {
       const a = ang + (Math.random() - 0.5) * 2 * w.spread;
       this.hitscan(ch, ox, oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
@@ -123,7 +125,7 @@ export class Combat {
       if (cause === 'fire') { c.charred = 1; g.charR.paint(c); g.fx.decal(c.x, c.z, 1.6, '#151210'); }
       g.audio.death();
       if (c.npc && attacker !== g.player) { c.downedT = 45; g.emit('downed', { id: c.id, name: c.npc.name, backInSeconds: 45, by: attacker?.id ?? null }); }
-      g.onKill(c, attacker);
+      g.onKill(c, attacker, cause);
       return;
     }
     const g = this.g;

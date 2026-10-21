@@ -243,6 +243,14 @@ export class CharacterRenderer {
         this.part(M.handL, i, -0.33, 1.56 + bob, 0, -Math.PI / 2 + 0.25 + lurch, 0.12);
         this.part(M.handR, i, 0.33, 1.56 + bob, 0, -Math.PI / 2 + 0.15 - lurch, -0.12);
         M.gun.setMatrixAt(i, ZERO);
+      } else if (ch.alive && ch.handsUp) {
+        // Cowering: hands up over the head, shaking.
+        const tr = Math.sin(ch.walk * 9 + i) * 0.06;
+        this.part(M.armL, i, -0.3, 1.58 + bob, 0, Math.PI - 0.15 + tr, 0.35);
+        this.part(M.armR, i, 0.3, 1.58 + bob, 0, Math.PI - 0.15 - tr, -0.35);
+        this.part(M.handL, i, -0.3, 1.58 + bob, 0, Math.PI - 0.15 + tr, 0.35);
+        this.part(M.handR, i, 0.3, 1.58 + bob, 0, Math.PI - 0.15 - tr, -0.35);
+        M.gun.setMatrixAt(i, ZERO);
       } else if (ch.alive && ch.weapon && ch.aiming) {
         // Two-handed aim: both arms forward to the gun.
         this.part(M.armL, i, -0.33, 1.56 + bob, 0, -Math.PI / 2 + 0.08, 0.38);

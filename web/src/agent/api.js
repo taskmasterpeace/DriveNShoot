@@ -414,6 +414,28 @@ function buildCommands(api) {
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.crouchOverride = on; P().crouch = on; return { crouch: on }; } },
+    photo: {
+      group: 'observe', desc: 'Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K.',
+      args: { on: { type: 'boolean', default: true }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' } },
+      run: async ({ on, x, z, zoom, tilt }) => {
+        if (!on) { if (g.qol.photo) g.qol.togglePhoto(false); return { photo: false }; }
+        if (!g.qol.photo) g.qol.togglePhoto(true);
+        const ph = g.qol.photo;
+        if (x !== undefined) ph.x = x; if (z !== undefined) ph.z = z;
+        if (zoom !== undefined) ph.h = Math.max(6, Math.min(160, zoom)); if (tilt !== undefined) ph.tilt = Math.max(0, Math.min(1.6, tilt));
+        g.qol.updatePhoto(0, g.input);
+        return { photo: true, ...ph };
+      },
+    },
+    ambient: {
+      group: 'observe', desc: 'Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
+      run: async () => g.ambient.view(),
+    },
+    honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
+    hud: {
+      group: 'observe', desc: 'What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood.',
+      run: async () => g.feedback.view(),
+    },
     train: {
       group: 'world', desc: 'The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status | board (player climbs onto the nearest car — must be beside the track) | leave (jump off; hurts above ~6 m/s) | summon (put the train 80 m north of the station, arriving) | place (nose at z, cruising south — for staging) | blowTanker.',
       args: { action: { type: 'string', default: 'status' }, z: { type: 'number' } },
@@ -1210,6 +1232,67 @@ async function runSelfTest(api) {
     await C('teleport', { x: 0, z: 200 });
     g.player.hp = g.player.maxHp;
     return rolled && ordered && engaged && looted ? true : JSON.stringify({ rolled, x0, x1: v1.members[0].x, ordered, engaged, looted });
+  });
+  await check('feedback layer: damage arc points at the shooter, kill feed, loot floater, flag tags, compass markers', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('teleport', { x: 40, z: -120 });
+    await C('step', { seconds: 0.2 });
+    const { ids } = await C('spawn', { kind: 'raider', x: 52, z: -120, weapon: 'pistol' });   // due EAST of the player
+    const r = api.findChar(ids[0]);
+    g.combat.damage(g.player, 12, r, -1, 0);
+    g.aim.x = r.x; g.aim.z = r.z;
+    await C('step', { seconds: 0.1 });
+    const h1 = g.feedback.view();
+    const arc = h1.damageIndicators.find((d) => Math.abs(d.bearing - 90) < 15);
+    const tag = h1.nameTags.find((t) => t.id === r.id && t.flag);
+    g.combat.damage(r, 999, g.player, 1, 0);
+    g.dropPickup(g.player.x + 0.3, g.player.z, 'cash');
+    await C('step', { seconds: 0.3 });
+    const h2 = await C('hud');
+    const feed = h2.killFeed.some((k) => k.startsWith('YOU'));
+    const floater = h2.floaters.some((f) => f.startsWith('+$'));
+    await C('waypoint', { x: 40, z: -300 });
+    await C('step', { seconds: 0.1 });
+    const wp = g.feedback.view().compass.markers.find((m) => m.label === '◆');
+    await C('waypoint', {});
+    g.player.hp = g.player.maxHp;
+    return arc && tag && feed && floater && wp && Math.abs(wp.bearing - 0) < 10 ? true : JSON.stringify({ arcs: h1.damageIndicators, tag: !!tag, feed: h2.killFeed, floater: h2.floaters, wp });
+  });
+  await check('details: brass piles up, civilians cower, horn sends people diving, tracks in the sand, brake lights', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('teleport', { x: 140, z: -150 });
+    const b0 = g.ambient.view().brass;
+    const { ids } = await C('spawn', { kind: 'drifter', x: 146, z: -150 });
+    const civ = api.findChar(ids[0]); civ.weapon = null;
+    let cowered = false;
+    for (let k = 0; k < 6 && !cowered; k++) { g.combat.fire(g.player, 'pistol', Math.PI); await C('step', { seconds: 0.25 }); cowered = civ.cowerT > 0; }
+    await C('step', { seconds: 1 });
+    const brass = g.ambient.view().brass > b0 && g.ambient.view().brassAtRest > 0;
+    civ.cowerT = 0; civ.crouch = false; civ.handsUp = false;
+    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 160, z: -175, heading: 0 })).id);
+    await C('enterVehicle', { id: car.id, force: true });
+    const w = await C('spawn', { kind: 'drifter', x: 160.5, z: -166 });
+    const ped = api.findChar(w.ids[0]);
+    const h = await C('honk');
+    await C('step', { seconds: 0.7 });
+    const dodged = h.dodged >= 1 && Math.abs(ped.x - 160) > 1.5;
+    const t0 = g.ambient.view().tracks;
+    await C('drive', { throttle: 1, steer: 0.3, seconds: 2 });
+    const tracks = g.ambient.view().tracks > t0;
+    car.throttle = -1; g.vehiclesSys.update(1 / 60, 0);
+    const brakeLit = car.braking === true || g.vehiclesSys.speed(car) < 0.5;
+    g.exitVehicle(true);
+    for (const id of [...ids, ...w.ids]) await C('remove', { id });
+    return cowered && brass && dodged && tracks && brakeLit ? true : JSON.stringify({ cowered, brass, dodged, honk: h, pedX: ped.x, tracks, brakeLit });
+  });
+  await check('photo mode freezes the sim and frames a free camera', async () => {
+    const t0 = g.time;
+    const r = await C('photo', { x: 0, z: 0, zoom: 90, tilt: 0.4 });
+    await yieldNow(); await yieldNow();
+    const frozen = g.paused && document.getElementById('ui').classList.contains('photo');
+    const camOk = Math.abs(g.camera.position.y - 90) < 0.5;
+    await C('photo', { on: false });
+    return r.photo && frozen && camOk && !g.paused ? true : JSON.stringify({ r, frozen, camOk, paused: g.paused, dt: g.time - t0 });
   });
   await check('A* path around buildings', async () => {
     const r = await C('path', { x: -300, z: 300, fx: 0, fz: -40, mode: 'car' });

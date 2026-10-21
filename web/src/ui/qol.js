@@ -7,6 +7,8 @@ import { snapshot, restore } from '../agent/api.js';
 
 const SETTINGS_KEY = 'deathlands.settings';
 const SAVE_KEY = 'deathlands.quicksave';
+const AUTO_KEY = 'deathlands.autosave';
+const AUTOSAVE_EVERY = 180; // seconds of play
 const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal' };
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 
@@ -32,6 +34,8 @@ export class QOL {
           <button data-a="resume">Resume</button>
           <button data-a="save">Quick save <kbd>F5</kbd></button>
           <button data-a="load">Quick load <kbd>F9</kbd></button>
+          <button data-a="autoload">Load autosave</button>
+          <button data-a="photo">Photo mode <kbd>K</kbd></button>
           <button data-a="map">Map <kbd>M</kbd></button>
         </div>
         <div class="pm-section">SETTINGS</div>
@@ -43,7 +47,7 @@ export class QOL {
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
         <div class="pm-section">CONTROLS</div>
-        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint · R reload · 1-3 weapons · E talk · F drive/exit · Space handbrake · H harpoon · M map · Z zoom · L flashlight · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
+        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · M map · Z zoom · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div>`);
     const q = (s) => root.querySelector(s);
     this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu') };
@@ -54,6 +58,8 @@ export class QOL {
       if (a === 'save') this.quickSave();
       if (a === 'load') { this.quickLoad(); this.toggleMenu(false); }
       if (a === 'map') { this.toggleMenu(false); this.toggleMap(true); }
+      if (a === 'autoload') { this.quickLoad(AUTO_KEY); this.toggleMenu(false); }
+      if (a === 'photo') { this.toggleMenu(false); this.togglePhoto(true); }
     });
     for (const inp of this.el.menu.querySelectorAll('[data-s]')) {
       const k = inp.dataset.s;
@@ -198,9 +204,13 @@ export class QOL {
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot(this.g))); this.g.hud.toast('GAME SAVED', 'job'); this.g.emit('saved'); }
     catch (e) { this.g.hud.toast(`Save failed: ${e.message}`, 'warn'); }
   }
-  quickLoad() {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) { this.g.hud.toast('No quick save yet (F5 saves)', 'warn'); return; }
+  autoSave() {
+    try { localStorage.setItem(AUTO_KEY, JSON.stringify(snapshot(this.g))); this.g.hud.toast('AUTOSAVED', 'info'); this.g.emit('autosaved'); }
+    catch { /* storage full or blocked: skip silently, quick save still works */ }
+  }
+  quickLoad(key = SAVE_KEY) {
+    const raw = localStorage.getItem(key);
+    if (!raw) { this.g.hud.toast(key === AUTO_KEY ? 'No autosave yet' : 'No quick save yet (F5 saves)', 'warn'); return; }
     try { restore(this.g, JSON.parse(raw)); this.g.hud.toast('GAME LOADED', 'job'); this.g.emit('loaded'); }
     catch (e) { this.g.hud.toast(`Load failed: ${e.message}`, 'warn'); }
   }
@@ -222,14 +232,46 @@ export class QOL {
 
   // Keys that work even while paused. Returns nothing; flips g.paused.
   input(I) {
-    if (I.hit('Escape') && !this.g.dialogue.active) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
+    if (I.hit('Escape') && !this.g.dialogue.active && !this.photo) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
     if (I.hit('KeyP')) this.toggleMenu();
     if (I.hit('KeyM')) this.toggleMap();
     if (I.hit('F5')) this.quickSave();
     if (I.hit('F9')) this.quickLoad();
+    if (I.hit('KeyK') && !document.querySelector('.title') && !this.menuOpen && !this.mapOpen) this.togglePhoto();
+  }
+
+  // Photo mode: freeze the world, hide every HUD layer, fly a free camera.
+  // WASD pan · wheel zoom · Q/E tilt · Shift faster · K or Esc to leave.
+  togglePhoto(on = !this.photo) {
+    const g = this.g;
+    if (on) this.photo = { x: g.camLook.x, z: g.camLook.z, h: g.camHeight, tilt: 0.14 };
+    else this.photo = null;
+    document.getElementById('ui').classList.toggle('photo', !!on);
+    g.paused = !!on || this.menuOpen || this.mapOpen;
+    g.emit('photoMode', { on: !!on });
+  }
+  updatePhoto(dt, I) {
+    const ph = this.photo, g = this.g;
+    if (I.hit('Escape')) { this.togglePhoto(false); return; }
+    const sp = (I.key('ShiftLeft') ? 60 : 22) * (ph.h / 33) * dt;
+    if (I.key('KeyW')) ph.z -= sp; if (I.key('KeyS')) ph.z += sp;
+    if (I.key('KeyA')) ph.x -= sp; if (I.key('KeyD')) ph.x += sp;
+    if (I.wheel) ph.h = Math.max(6, Math.min(160, ph.h * (I.wheel > 0 ? 1.12 : 0.89)));
+    if (I.key('KeyQ')) ph.tilt = Math.max(0, ph.tilt - dt * 0.6);
+    if (I.key('KeyE')) ph.tilt = Math.min(1.6, ph.tilt + dt * 0.6);
+    g.camera.position.set(ph.x, ph.h, ph.z + ph.h * ph.tilt);
+    g.camera.lookAt(ph.x, 0, ph.z);
   }
 
   update(dt) {
+    if (this.photo) { this.updatePhoto(dt, this.g.input); return; }
+    // Autosave on a timer, never mid-fight, in a car crash or while dead.
+    const g = this.g;
+    if (!g.paused && !document.querySelector('.title')) {
+      this.autoT = (this.autoT ?? 0) + dt;
+      const calm = g.player.alive && !g.chars.some((c) => c.alive && c.target === g.player) && !g.dialogue.active;
+      if (this.autoT > AUTOSAVE_EVERY && calm) { this.autoT = 0; this.autoSave(); }
+    }
     const obj = this.updateRoute(dt);
     const p = this.g.player;
     const has = !!obj.text && !document.querySelector('.title');

@@ -122,7 +122,8 @@ export class Audio {
   crash(k = 0.5) { this.burst({ dur: 0.5, freq: 700, vol: Math.min(1, 0.4 + k), decay: 0.45, pitchDrop: 0.4 }); this.burst({ dur: 0.3, freq: 4000, type: 'highpass', vol: 0.3 * k, decay: 0.3 }); }
   skid(k) { if (Math.random() < 0.15) this.burst({ dur: 0.15, freq: 1500, type: 'bandpass', q: 6, vol: Math.min(0.25, k * 0.2), decay: 0.14 }); }
   horn(dist = 0) { const v = Math.max(0, 0.15 * (1 - dist / 40)); this.tone(392, 0.35, v, 'square'); this.tone(330, 0.35, v, 'square'); }
-  trainHorn(pan = 0, dist = 0) { this.count('trainHorn'); const v = Math.max(0, 0.32 * (1 - dist / 260)); if (v < 0.01) return; for (const f of [277, 349, 415]) this.tone(f, 1.6, v, 'sawtooth', 0, pan); }
+  trainHorn(pan = 0, dist = 0) { this.count('trainHorn'); const v = Math.max(0, 0.32 * (1 - dist / 260)); if (!(v >= 0.01)) return; if (!Number.isFinite(pan)) pan = 0; for (const f of [277, 349, 415]) this.tone(f, 1.6, v, 'sawtooth', 0, pan); }
+  heartbeat(k = 0.5) { this.count('heartbeat'); const v = 0.18 + k * 0.22; this.tone(52, 0.14, v, 'sine', 0.3); setTimeout(() => this.tone(46, 0.16, v * 0.8, 'sine', 0.3), 170); }
   harpoon() { this.burst({ dur: 0.3, freq: 600, vol: 0.8, decay: 0.25, pitchDrop: 0.3 }); this.tone(220, 0.25, 0.2, 'sawtooth', 2.5); }
   clank() { this.tone(820, 0.15, 0.25, 'square', 0.6); this.burst({ dur: 0.1, freq: 3500, type: 'highpass', vol: 0.4, decay: 0.09 }); }
   yank() { this.tone(90, 0.5, 0.35, 'sawtooth', 0.4); this.burst({ dur: 0.6, freq: 1100, vol: 0.8, decay: 0.55, pitchDrop: 0.2 }); }

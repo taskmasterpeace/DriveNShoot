@@ -226,7 +226,7 @@ export class Vehicles {
       t.translate(sx * (s.wid / 2 - 0.3), 0.2, -s.len / 2 - 0.6);
       tails.push(t);
     }
-    const tailMesh = new THREE.Mesh(mergeGeometries(tails), this.tailMat);
+    const tailMesh = new THREE.Mesh(mergeGeometries(tails), this.tailMat.clone()); // own material: brake lights flare per car
     tailMesh.renderOrder = 3;
     const group = new THREE.Group();
     group.rotation.order = 'YXZ'; // yaw, then wheelie pitch, then bike lean (local roll)
@@ -255,7 +255,7 @@ export class Vehicles {
     for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
     v.driver = null;
     this.g.scene.remove(v.group);
-    v.mesh.geometry.dispose(); v.mesh.material.dispose();
+    v.mesh.geometry.dispose(); v.mesh.material.dispose(); v.tailMesh.material.dispose();
     const i = this.list.indexOf(v);
     if (i >= 0) this.list.splice(i, 1);
     if (this.g.lastVehicle === v) this.g.lastVehicle = null;
@@ -773,6 +773,11 @@ export class Vehicles {
       }
       const lit = !!v.driver && !v.dead;
       v.coneMesh.visible = lit; v.tailMesh.visible = lit || v.throttle < 0;
+      // Brake lights: braking (throttle against the direction of travel) or the handbrake flares them.
+      const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
+      v.braking = lit && (v.handbrake || (v.throttle < 0 && fwd > 0.5) || (v.throttle > 0 && fwd < -0.5));
+      v.tailMesh.material.opacity = this.tailMat.opacity + (v.braking ? 0.75 : 0);
+      v.tailMesh.scale.setScalar(v.braking ? 1.35 : 1);
       // Paint chars and darkens as the vehicle is damaged.
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
       v.group.position.set(v.x, 0, v.z);

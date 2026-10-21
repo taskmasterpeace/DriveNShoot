@@ -120,6 +120,8 @@ export class AI {
         continue;
       }
       if (c.dragged) continue;
+      if (c.leapT > 0) continue;                               // diving out of a car's way (Ambient moves them)
+      if (c.cowerT > 0) { c.speed = 0; c.walk = (c.walk ?? 0) + dt; continue; } // hands up, shaking
       if (c.faction === 'zombie') { g.zombies.think(c, dt); continue; }
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;

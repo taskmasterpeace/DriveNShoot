@@ -8,6 +8,7 @@ import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
 import { RAIL_AVOID } from './world/rail.js';
 import { Train } from './systems/train.js';
 import { Convoy } from './systems/convoy.js';
+import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
@@ -27,6 +28,7 @@ import { FLAG_KEYS } from './ui/portrait.js';
 import { NPCS, randomName } from './data/npcs.js';
 import { AgentAPI, snapshot, restore } from './agent/api.js';
 import { NavGrid } from './engine/nav.js';
+import { Feedback } from './ui/feedback.js';
 import { QOL } from './ui/qol.js';
 import { startBridge } from './agent/bridge.js';
 import { loadContentPacks } from './agent/content.js';
@@ -101,10 +103,12 @@ class Game {
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
+    this.ambient = new Ambient(this);
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
     this.qol = new QOL(this, ui);
+    this.feedback = new Feedback(this, ui);
 
     this.cash = 120;
     this.wanted = 0;
@@ -263,10 +267,11 @@ class Game {
       if (p.alive && !p.inVehicle && Math.abs(it.x - p.x) < 1.3 && Math.abs(it.z - p.z) < 1.3) {
         it.alive = false;
         this.audio.pickup();
-        this.emit('pickup', { kind: it.type });
-        if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; this.hud.toast('+ AMMO'); }
-        else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; this.hud.toast('+ STIMPAK'); }
-        else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; this.hud.toast(`+ $${c}`); }
+        let text;
+        if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
+        else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; text = '+35 HP'; }
+        else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
+        this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
       }
       if (Math.abs(it.x - p.x) > 70 || Math.abs(it.z - p.z) > 70) continue;
@@ -338,6 +343,20 @@ class Game {
   }
 
   // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
+  // NaN sentinel: a non-finite position poisons everything it touches (camera, AI, physics).
+  // Restore the last good position and report WHO went bad, once per entity.
+  nanGuard() {
+    const fix = (o, kind) => {
+      if (Number.isFinite(o.x) && Number.isFinite(o.z)) { o._gx = o.x; o._gz = o.z; return; }
+      const ctx = kind === 'veh' ? `vx=${o.vx} vz=${o.vz} av=${o.av} driver=${o.driver?.id}` : `inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
+      this.reportError(new Error(`NaN position on ${o.id} (${o.type ?? o.faction}) ${ctx}`));
+      o.x = o._gx ?? 0; o.z = o._gz ?? 0;
+      if (kind === 'veh') { o.vx = 0; o.vz = 0; o.av = 0; if (!Number.isFinite(o.h)) o.h = 0; }
+    };
+    for (const c of this.chars) fix(c, 'char');
+    for (const v of this.vehicles) fix(v, 'veh');
+  }
+
   reportError(e) {
     const msg = String(e?.stack ?? e).split(String.fromCharCode(10)).slice(0, 3).join(' | ');
     this.errors ??= [];
@@ -356,8 +375,8 @@ class Game {
     if (this.events.length > 500) this.events.shift();
   }
 
-  onKill(c, attacker) {
-    this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0 });
+  onKill(c, attacker, cause = 'bullet') {
+    this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0, cause });
     if (attacker === this.player) {
       this.stats.kills++;
       if (c.faction === 'raider') {
@@ -483,7 +502,7 @@ class Game {
       }
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
-      if (I.hit('KeyE') && !v.harpoon) this.audio.horn(0);
+      if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       return;
@@ -789,10 +808,12 @@ class Game {
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
-          <div><b>SHIFT</b>sprint</div><div><b>R</b>reload</div><div><b>1-3</b>weapons</div>
-          <div><b>E</b>talk</div><div><b>F</b>drive / exit</div><div><b>SPACE</b>handbrake</div>
-          <div><b>H</b>harpoon / yank</div><div><b>T</b>fast time</div><div><b>Y</b>weather</div>
-          <div><b>L</b>flashlight</div><div><b>Z</b>zoom</div><div><b>F3</b>perf stats</div><div><b>P</b>pause</div>
+          <div><b>SHIFT</b>sprint / boost</div><div><b>R</b>reload</div><div><b>1-3</b>weapons</div>
+          <div><b>E</b>talk / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
+          <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
+          <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
+          <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
+          <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
       </div>`;
     ui.appendChild(t);
@@ -825,6 +846,8 @@ class Game {
       this.vehiclesSys.update(simDt, this.sky.night);
       this.train.update(simDt);
       this.convoy.update(simDt);
+      this.ambient.update(simDt);
+      this.nanGuard();
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
@@ -851,6 +874,7 @@ class Game {
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), p.inVehicle ? this.vehiclesSys.speed(p.inVehicle) : null);
     this.hud.update(dt);
     this.qol.update(dt);
+    this.feedback.update(dt);
     I.endFrame();
   }
 

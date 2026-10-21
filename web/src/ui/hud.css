@@ -154,3 +154,50 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.8em; backgroun
 .reticle.kill { animation: kill 0.35s ease-out; }
 @keyframes hit { 0% { border-color: #fff; transform-origin: center; box-shadow: 0 0 0 3px rgba(255,255,255,0.6); } 100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.6); } }
 @keyframes kill { 0% { border-color: oklch(0.55 0.21 27); box-shadow: 0 0 0 6px oklch(0.55 0.21 27 / 0.7); } 100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.6); } }
+
+/* ---- feedback layer: direction arcs, kill feed, floaters, name tags, compass, lens ---- */
+.fb { position: absolute; inset: 0; }
+.talking .fb-tags, .talking .fb-compass, .photo .fb { opacity: 0; }
+.fb-dirs { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.fb-dir { position: absolute; left: -90px; top: -190px; width: 180px; height: 380px; transform-origin: 90px 190px; pointer-events: none; }
+.fb-dir::before { content: ''; position: absolute; left: 20px; right: 20px; top: 0; height: 46px; border-radius: 50% 50% 0 0 / 100% 100% 0 0; border-top: 7px solid oklch(0.6 0.22 27); filter: drop-shadow(0 0 10px oklch(0.55 0.22 27 / 0.9)); }
+.fb-kills { position: absolute; top: 150px; right: 22px; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.fb-kill { display: flex; align-items: center; gap: 6px; font: 600 14px var(--display); letter-spacing: 0.04em; background: var(--panel); padding: 4px 9px; border-radius: 6px; border-right: 3px solid var(--muted); transition: opacity 0.3s; animation: fb-in 0.18s ease-out; }
+.fb-kill.mine { border-color: var(--gold); }
+.fb-kill.me { border-color: var(--blood); background: oklch(0.2 0.06 27 / 0.85); }
+.fb-kill em { font-style: normal; font-size: 11px; color: var(--muted); letter-spacing: 0.14em; }
+.fb-kill img { width: 21px; height: 14px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
+@keyframes fb-in { from { opacity: 0; transform: translateX(14px); } }
+.fb-float { position: absolute; inset: 0; }
+.fb-floater { position: absolute; left: 0; top: 0; font: 800 22px var(--display); letter-spacing: 0.03em; color: var(--bone); text-shadow: 0 2px 0 #000, 0 0 10px rgba(0,0,0,0.7); white-space: nowrap; will-change: transform; }
+.fb-floater.cash { color: oklch(0.8 0.15 145); }
+.fb-floater.ammo { color: var(--gold); }
+.fb-floater.med { color: oklch(0.7 0.19 27); }
+.fb-floater.hot { color: oklch(0.75 0.19 55); font-size: 30px; }
+.fb-tags { position: absolute; inset: 0; }
+.fb-tag { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px; font: 600 12px var(--display); letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px 2px 2px; background: rgba(12,10,8,0.62); border-radius: 4px; border-bottom: 2px solid var(--acc, var(--muted)); white-space: nowrap; will-change: transform; }
+.fb-tag img { width: 24px; height: 16px; border-radius: 2px; }
+.fb-compass { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(520px, 60vw); height: 34px; background: linear-gradient(90deg, transparent, var(--panel) 18%, var(--panel) 82%, transparent); overflow: hidden; }
+.fb-cstrip { position: absolute; inset: 0; }
+.fb-cb, .fb-ct, .fb-cm { position: absolute; transform: translateX(-50%); }
+.fb-cb { top: 8px; font: 600 12px var(--display); color: var(--muted); letter-spacing: 0.1em; }
+.fb-cb.major { font-size: 16px; top: 6px; color: var(--bone); }
+.fb-ct { top: 12px; width: 1px; height: 8px; background: var(--line); }
+.fb-cm { bottom: 1px; font: 700 10px var(--display); letter-spacing: 0.1em; line-height: 1; text-align: center; color: var(--bone); }
+.fb-cm small { display: block; font-size: 9px; color: var(--muted); font-weight: 600; }
+.fb-cm.wp { color: var(--gold); font-size: 13px; }
+.fb-cm.train { color: oklch(0.78 0.12 80); }
+.fb-cm.convoy { color: oklch(0.66 0.21 32); }
+.fb-cnotch { position: absolute; left: 50%; top: 0; width: 2px; height: 6px; background: var(--gold); transform: translateX(-50%); }
+.fb-cread { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); font: 700 9px var(--display); color: var(--gold); letter-spacing: 0.1em; display: none; }
+.fb-lens { position: absolute; inset: 0; overflow: hidden; }
+.fb-lens i { position: absolute; border-radius: 50% 46% 54% 48%; background: radial-gradient(circle at 40% 35%, oklch(0.42 0.17 27 / 0.75), oklch(0.28 0.12 25 / 0.55) 55%, transparent 72%); filter: blur(1.5px); transform: translate(-50%, -50%); animation: fb-drip linear forwards; }
+@keyframes fb-drip { 0% { opacity: 0.95; } 70% { opacity: 0.7; } 100% { opacity: 0; transform: translate(-50%, -20%) scaleY(1.4); } }
+.w-mag.low { color: oklch(0.65 0.22 27); animation: fb-low 0.5s steps(2) infinite; }
+@keyframes fb-low { 50% { opacity: 0.35; } }
+.fb-cm.out { font-size: 9px; opacity: 0.85; }
+.fb-floater.bark { font: italic 600 15px var(--display); color: var(--bone); background: rgba(12,10,8,0.6); padding: 2px 8px; border-radius: 10px; }
+/* photo mode: everything off, one fading hint */
+#ui.photo > * { opacity: 0 !important; transition: opacity 0.25s; }
+#ui.photo::after { content: 'PHOTO MODE  ·  WASD pan  ·  wheel zoom  ·  Q / E tilt  ·  Shift fast  ·  K exit'; position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); font: 600 13px var(--display); letter-spacing: 0.14em; color: var(--bone); background: var(--panel); padding: 6px 14px; border-radius: 10px; animation: photo-hint 4s forwards; }
+@keyframes photo-hint { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
