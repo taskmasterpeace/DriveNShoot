@@ -237,7 +237,8 @@ export class Vehicles {
       driver: null, ai: opts.ai ?? null, dead: false, steer: 0, throttle: 0, brake: 0, handbrake: false,
       skidT: 0, burn: 0, node: null, lights: true, paint, honk: 0, impact: 0,
     };
-    v.id = `v${this.list.length + 1}`;
+    this.nextVid = (this.nextVid ?? 0) + 1;
+    v.id = `v${this.nextVid}`;
     v.seats = s.seats ?? VEHICLES.interceptor.seats;
     this.g.seats.init(v);
     this.g.vehDamage.init(v);
@@ -248,6 +249,17 @@ export class Vehicles {
   }
 
   speed(v) { return Math.hypot(v.vx, v.vz); }
+
+  // Take a vehicle out of the world entirely (despawn), occupants leave on foot first.
+  remove(v) {
+    for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
+    v.driver = null;
+    this.g.scene.remove(v.group);
+    v.mesh.geometry.dispose(); v.mesh.material.dispose();
+    const i = this.list.indexOf(v);
+    if (i >= 0) this.list.splice(i, 1);
+    if (this.g.lastVehicle === v) this.g.lastVehicle = null;
+  }
 
   // A land vehicle that stayed in deep water floods and goes under. Everyone swims for it.
   sink(v) {
@@ -272,6 +284,7 @@ export class Vehicles {
   damage(v, amt, attacker) {
     if (v.dead || v.onFire) return;
     v.hp -= amt;
+    if (attacker === this.g.player) v.hitByPlayer = true;
     if (v.driver === this.g.player) {
       // Aggregate per attacker so the log stays readable.
       const k = attacker?.id ?? 'impact';
@@ -567,36 +580,8 @@ export class Vehicles {
       const sp = this.speed(v);
       v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
       v.handbrake = false;
-    } else if (v.ai === 'chauffeur') {
-      // An ally at the wheel: drive the player's GPS route, or cruise the grid.
-      const wp = g.qol.waypoint ?? g.qol.objective()?.target;
-      if (!wp) { v.ai = 'traffic'; v.node = null; this.aiDrive(v, dt); v.ai = 'chauffeur'; return; }
-      v.routeT = (v.routeT ?? 0) - dt;
-      if (v.routeT <= 0 || !v.route) { v.routeT = 2; v.route = g.nav.car.find(v.x, v.z, wp.x, wp.z) ?? [{ x: wp.x, z: wp.z }]; v.ri = 0; }
-      let tgt = v.route[v.ri] ?? { x: wp.x, z: wp.z };
-      if (Math.hypot(tgt.x - v.x, tgt.z - v.z) < 8 && v.ri < v.route.length - 1) { v.ri++; tgt = v.route[v.ri]; }
-      const dEnd = Math.hypot(wp.x - v.x, wp.z - v.z);
-      const want = Math.atan2(tgt.x - v.x, tgt.z - v.z);
-      const diff = angleLerp(v.h, want, 1) - v.h;
-      v.steer = clamp(diff * 2.2, -1, 1);
-      const sp = this.speed(v);
-      v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
-      v.handbrake = false;
-    } else if (v.ai === 'chauffeur') {
-      // An ally at the wheel: drive the player's GPS route, or cruise the grid.
-      const wp = g.qol.waypoint ?? g.qol.objective()?.target;
-      if (!wp) { v.ai = 'traffic'; v.node = null; this.aiDrive(v, dt); v.ai = 'chauffeur'; return; }
-      v.routeT = (v.routeT ?? 0) - dt;
-      if (v.routeT <= 0 || !v.route) { v.routeT = 2; v.route = g.nav.car.find(v.x, v.z, wp.x, wp.z) ?? [{ x: wp.x, z: wp.z }]; v.ri = 0; }
-      let tgt = v.route[v.ri] ?? { x: wp.x, z: wp.z };
-      if (Math.hypot(tgt.x - v.x, tgt.z - v.z) < 8 && v.ri < v.route.length - 1) { v.ri++; tgt = v.route[v.ri]; }
-      const dEnd = Math.hypot(wp.x - v.x, wp.z - v.z);
-      const want = Math.atan2(tgt.x - v.x, tgt.z - v.z);
-      const diff = angleLerp(v.h, want, 1) - v.h;
-      v.steer = clamp(diff * 2.2, -1, 1);
-      const sp = this.speed(v);
-      v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
-      v.handbrake = false;
+    } else if (v.ai === 'convoy') {
+      g.convoy.drive(v, dt);
     } else if (v.ai === 'raider') {
       // Hunt the player's vehicle; ram it.
       const p = g.player;

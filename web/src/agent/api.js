@@ -171,7 +171,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
@@ -414,6 +414,30 @@ function buildCommands(api) {
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.crouchOverride = on; P().crouch = on; return { crouch: on }; } },
+    train: {
+      group: 'world', desc: 'The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status | board (player climbs onto the nearest car — must be beside the track) | leave (jump off; hurts above ~6 m/s) | summon (put the train 80 m north of the station, arriving) | place (nose at z, cruising south — for staging) | blowTanker.',
+      args: { action: { type: 'string', default: 'status' }, z: { type: 'number' } },
+      run: async ({ action, z }) => {
+        const T = g.train;
+        if (action === 'board') { if (P().inVehicle) g.exitVehicle(true); need(T.canBoard(P()) || T.speed < 7 && T.present && Math.abs(P().x - T.view().x) < 5, 'not beside a slow/stopped train (walk up to the track, or summon it)'); T.board(P()); await api._step(2); }
+        else if (action === 'leave') { need(P().onTrain, 'not on the train'); T.leave(P()); }
+        else if (action === 'summon') { T.state = 'running'; T.head = T.view().station.z - 80; T.speed = 12; }
+        else if (action === 'place') { need(z !== undefined, 'give z'); T.state = 'running2'; T.head = z; T.speed = 17; }
+        else if (action === 'blowTanker') { const c = T.cars.find((k) => k.kind === 'tanker'); need(T.present && !c.blown, 'no intact tanker in the world right now'); T.hitCar(c, 9999, P()); }
+        return { ...T.view(), onTrain: !!P().onTrain };
+      },
+    },
+    convoy: {
+      group: 'world', desc: 'Dustwolf war convoys on Route 66 (lead buggy, bike outriders, gun-truck with a bed gunner, loot hauler). action: status | spawn (dir=east|west; default rolls toward the player) | engage (break formation now) | clear. Kill the hauler for its cargo.',
+      args: { action: { type: 'string', default: 'status' }, dir: { type: 'string' } },
+      run: async ({ action, dir }) => {
+        const Cv = g.convoy;
+        if (action === 'spawn') Cv.spawn(dir === 'east' ? 1 : dir === 'west' ? -1 : 0);
+        else if (action === 'engage') { need(Cv.active, 'no convoy on the road (spawn one)'); Cv.engage('agent'); }
+        else if (action === 'clear') Cv.despawn();
+        return Cv.view();
+      },
+    },
     water: {
       group: 'observe', desc: 'Water depth at x,z (default: the player) and what it means: dry | wade | swim. Also lists where the water is (river, lake, bridge, dock).',
       args: { x: { type: 'number' }, z: { type: 'number' } },
@@ -1140,6 +1164,52 @@ async function runSelfTest(api) {
     const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
     for (const id of ids) await C('remove', { id });
     return wet === 0 ? true : `${wet} zombies in deep water`;
+  });
+  await check('train: brakes into the station, carries riders, kills on the rails, tanker blows', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const T = g.train;
+    const SZ = T.view().station.z;
+    T.state = 'running'; T.head = SZ - 70; T.speed = 14;
+    for (let i = 0; i < 30 && T.state !== 'dwell'; i++) await C('step', { seconds: 0.5 });
+    const stopped = T.state === 'dwell' && Math.abs(T.head - SZ) < 3;
+    await C('teleport', { x: -357, z: SZ - 20 });
+    await C('train', { action: 'board' });
+    const riding = !!g.player.onTrain && g.player.seatPose?.y > 3;
+    T.dwell = 0; await C('step', { seconds: 4 });
+    const carried = g.player.z > SZ - 18;
+    await C('train', { action: 'leave' });
+    const off = !g.player.onTrain && Math.abs(g.player.x + 360) > 2;
+    const { ids } = await C('spawn', { kind: 'raider', x: -360, z: T.head + 6 });
+    T.speed = 17; T.state = 'running2';
+    await C('step', { seconds: 0.6 });
+    const splat = !api.findChar(ids[0])?.alive;
+    const r = await C('train', { action: 'blowTanker' });
+    g.player.hp = g.player.maxHp;
+    return stopped && riding && carried && off && splat && r.tanker === 'blown' ? true : JSON.stringify({ stopped, state: T.state, head: T.head, riding, carried, z: g.player.z, off, splat, tanker: r.tanker });
+  });
+  await check('convoy: rolls in formation, breaks to engage, hauler spills cargo', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    if (g.player.onTrain) g.train.leave(g.player);
+    await C('teleport', { x: 0, z: 200 });
+    const v0 = await C('convoy', { action: 'spawn', dir: 'east' });
+    const x0 = v0.members[0].x;
+    await C('step', { seconds: 4 });
+    const v1 = await C('convoy');
+    const rolled = v1.members[0].x > x0 + 25 && !v1.engaged;
+    const ordered = v1.members.find((m) => m.role === 'hauler').x < v1.members[0].x;
+    const gun = v1.members.find((m) => m.role === 'gun');
+    await C('teleport', { x: gun.x + 30, z: 30 });
+    await C('step', { seconds: 0.5 });
+    const engaged = g.convoy.active.engaged;
+    const hauler = api.findVeh(v1.members.find((m) => m.role === 'hauler').id);
+    const before = g.pickups.filter((p) => p.alive).length;
+    g.vehiclesSys.explode(hauler, g.player);
+    await C('step', { seconds: 0.3 });
+    const looted = g.convoy.active.looted && g.pickups.filter((p) => p.alive).length >= before + 8;
+    await C('convoy', { action: 'clear' });
+    await C('teleport', { x: 0, z: 200 });
+    g.player.hp = g.player.maxHp;
+    return rolled && ordered && engaged && looted ? true : JSON.stringify({ rolled, x0, x1: v1.members[0].x, ordered, engaged, looted });
   });
   await check('A* path around buildings', async () => {
     const r = await C('path', { x: -300, z: 300, fx: 0, fz: -40, mode: 'car' });

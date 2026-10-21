@@ -5,6 +5,9 @@ import { makeRng, angleLerp, clamp } from './engine/rng.js';
 import { buildWorld, TOWN, roadLines, HALF } from './world/city.js';
 import { buildTerrain, drawTerrainOnMinimap } from './world/terrain.js';
 import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
+import { RAIL_AVOID } from './world/rail.js';
+import { Train } from './systems/train.js';
+import { Convoy } from './systems/convoy.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
@@ -66,7 +69,7 @@ class Game {
     this.statics = new StaticWorld();
     this.world = buildWorld(this.scene, this.statics);
     // Mountains (outer desert ring) and water (east river → lake), before the nav grids.
-    this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID] });
+    this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID, ...RAIL_AVOID] });
     this.water = new Water(this);
     drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
     this.water.drawOnMinimap(this.world.minimap, HALF);
@@ -96,6 +99,8 @@ class Game {
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
     this.zombies = new Zombies(this);
+    this.train = new Train(this);
+    this.convoy = new Convoy(this);
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
@@ -336,7 +341,10 @@ class Game {
   reportError(e) {
     const msg = String(e?.stack ?? e).split(String.fromCharCode(10)).slice(0, 3).join(' | ');
     this.errors ??= [];
-    if (this.errors.length < 50 && !this.errors.some((x) => x.msg === msg)) this.errors.push({ t: +this.time.toFixed(2), msg });
+    const fresh = !this.errors.some((x) => x.msg === msg);
+    if (this.errors.length < 50 && fresh) this.errors.push({ t: +this.time.toFixed(2), msg });
+    // Surface loop exceptions to `dl status` too (once per distinct error), not just the console.
+    if (fresh) try { fetch('/agent/client-error', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'runtime', message: msg.slice(0, 500), at: Date.now() }) }); } catch { /* offline build */ }
     this.emit('error', { msg });
     console.error('[deathlands]', e);
     this.input.endFrame();
@@ -469,11 +477,28 @@ class Game {
         v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake;
         if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
       }
+      if (this.train.canBoard(p)) {
+        this.hud.prompt('<kbd>G</kbd> Jump onto the train');
+        if (I.hit('KeyG')) { this.exitVehicle(true); this.train.board(p); this.hud.prompt(null); return; }
+      }
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) this.audio.horn(0);
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
+      return;
+    }
+
+    // Riding the freight: walk the roofs (W/S), aim and shoot, G jumps off.
+    if (p.onTrain) {
+      p.face = Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
+      p.aiming = true;
+      const walk = ((I.key('KeyS') || I.key('ArrowDown') ? 1 : 0) - (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0)) * 4.2;
+      p.onTrain.off += walk * dt; p.speed = Math.abs(walk);
+      this.hud.prompt(`<kbd>W</kbd>/<kbd>S</kbd> Walk the roofs · <kbd>G</kbd> Jump off${this.train.speed > 6 ? ' (it will hurt)' : ''}`);
+      this.updateThrowAim(dt, I);
+      if (I.hit('KeyG') || I.hit('KeyF')) { this.train.leave(p); this.hud.prompt(null); }
+      else this.handleShooting(dt, p.face);
       return;
     }
 
@@ -615,6 +640,10 @@ class Game {
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
+    else if (!best && !bestV && this.train.canBoard(p)) {
+      this.hud.prompt('<kbd>G</kbd> Climb aboard the train');
+      if (I.hit('KeyG')) { this.train.board(p); this.hud.prompt(null); }
+    }
   }
 
   // Q held: show the arc and cook; release: throw. Works from a car window too.
@@ -794,6 +823,8 @@ class Game {
     if (simDt) {
       this.ai.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night);
+      this.train.update(simDt);
+      this.convoy.update(simDt);
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);

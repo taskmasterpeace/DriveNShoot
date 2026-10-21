@@ -127,6 +127,7 @@ Objective tracker with GPS distance, gold route on the minimap, full map (**M**)
 - For `drive`, `steer` +1 turns left on screen and −1 turns right. `throttle` −1 brakes, then reverses.
 - Entity ids: characters `c<N>`, vehicles `v<N>`. The player is `c1` (or `player`). Named NPCs also answer to their npc id (`okonkwo`, `reyes`, `ike`, `kenji`, `mags`, `saoirse`, `tomas`, `vo`) or their full name. `id=hostile` resolves to the nearest enemy.
 - World map: `node tools/dl.mjs map`. Roads run every 80 m on −320..320. Route 66 is `z=0` and crosses the whole map. Rust Haven (walled town) is `|x|,|z| < 88`, Phoenix ruins are out to ~250, and beyond that is the Glass Flats desert, where the 6 raider camps sit.
+- Set-pieces beyond the grid: **mesas/buttes/ridges** ring the desert at 350–440 m (solid, routed around). The **river** runs north–south on the east edge (x≈410–428) into **the lake** (390, 398, 7 m deep) with a **dock** at (360, 382) and the **Route 66 bridge** at x=416. The **Iron Line** railway runs north–south at **x=−360**: Dust Bowl Station at z=110, a level crossing on Route 66 (z=0). A freight (`train`) cycles every couple of minutes; **Dustwolf convoys** (`convoy`) cross on Route 66 every ~3–5 minutes.
 
 ## Time, determinism & hidden tabs
 
@@ -150,13 +151,23 @@ src/
     city.js            procedural map: roads, districts, buildings (enterable = wall segments + door gaps
                        + hideable roof instances), props, lamps, camps, minimap image. All instanced.
     textures.js        every texture, painted on canvas at boot
+    terrain.js         mesas/buttes/ridges: one merged faceted heightfield mesh + row-merged collision
+    water.js           river + lake depth field, shoreline, bridge/dock, dry|wade|swim states
+    rail.js            the railway line, station and crossings (shared by world gen and the train)
   systems/
     sky.js             time of day, sun/moon light, fog, WEATHER table, rain/dust/ash particles, lightning
     fx.js              blood/sparks/smoke particles, decals (pools, splats, skids), tracers, flashes, pooled lights
     characters.js      Character data + CharacterRenderer (8 InstancedMeshes = all humans)
     combat.js          WEAPONS table, hitscan, damage, death
     ai.js              on-foot AI: faction hostility, scan, fight/strafe/flee/wander, crowd separation
-    vehicles.js        VEHICLES table, arcade driving model, collisions, run-overs, traffic + raider AI, harpoon
+    vehicles.js        VEHICLES table (cars, bike, boats), arcade driving model, collisions, run-overs, traffic/raider/convoy AI, harpoon
+    vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
+    seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)
+    carcombat.js       windows (crack/shatter), shooting from windows, people hanging on, zombies breaking in
+    zombies.js         rotters: hordes, noise attraction, night spawner, car attacks
+    throwables.js      frags, molotovs (fire spreads along fuel leaks), smoke, flashbangs, stickies, arcs + cooking
+    train.js           the Iron Line freight: schedule, station stop, crossing lights/barriers, roof riding, tanker
+    convoy.js          Dustwolf war convoys: formation driving, break-to-engage, gun-truck gunner, loot hauler
     audio.js           synthesized WebAudio (guns, explosions, thunder, rain, engine)
   ui/
     hud.js / hud.css   clock+weather, cash, wanted stars, minimap, health, weapon/speedo, toasts, vignettes

@@ -23,6 +23,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `map` | `(none)` | World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, named NPC homes. |
 | `perf` | `(none)` | Frame rate, draw calls, triangles, entity counts. |
 | `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it. |
+| `water` | `x?:number z?:number` | Water depth at x,z (default: the player) and what it means: dry \| wade \| swim. Also lists where the water is (river, lake, bridge, dock). |
 
 ## player
 
@@ -33,13 +34,36 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `aim` | `x?:number z?:number` | Lock the aim point to x,z (null x to release back to the mouse). |
 | `fire` | `x?:number z?:number id?:string shots?:number` | Fire the current weapon at x,z or entity id (id="hostile" = nearest enemy, re-acquired every shot). Auto-reloads. shots=N fires N rounds, stepping the sim between them. |
 | `engage` | `id?:string seconds?:number radius?:number minHp?:number` | On-foot combat autopilot: repeatedly pick the nearest enemy (or id), path toward it until there is line of sight and it is in range, shoot, reload, repeat. Stops when no enemies within radius, out of ammo, dead, or seconds elapse. |
+| `throw` | `type?:frag\|molotov\|smoke\|flash\|pipe\|sticky\|rock x?:number z?:number id?:string cook?:number wait?:boolean` | Throw a throwable (frag\|molotov\|smoke\|flash\|pipe\|sticky\|rock) at x,z or entity id; works on foot or out of a car window (knocks the glass out). cook = seconds held first (frag only). Steps the sim until it resolves (max 6s) and reports what happened. |
+| `dive` | `x?:number z?:number` | Dive-roll toward x,z (or facing): ~5m burst, most bullets miss mid-air, costs stamina. |
+| `crouch` | `on?:boolean` | Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl. |
+| `submerge` | `on?:boolean` | While swimming: dive under (on=true) — hidden from AI, bullets can't reach, breath drains ~20s — or surface (on=false). |
 | `equip` | `weapon:string` | Switch to an owned weapon. |
-| `give` | `cash?:number weapon?:string pistol?:number smg?:number shells?:number hp?:number` | Grant cash, ammo {pistol,smg,shells}, a weapon key, or health. |
+| `give` | `cash?:number weapon?:string pistol?:number smg?:number shells?:number hp?:number frag?:number molotov?:number smoke?:number flash?:number pipe?:number sticky?:number` | Grant cash, ammo {pistol,smg,shells}, throwables {frag,molotov,smoke,flash,pipe,sticky}, a weapon key, or health. |
 | `difficulty` | `level:story\|normal\|hard` | Set damage-taken difficulty: story (35%), normal (70%), hard (100%). Persists like the pause-menu setting. |
 | `god` | `on?:boolean` | Toggle invulnerability (for testing). |
 | `path` | `x:number z:number fx?:number fz?:number mode?:foot\|car` | A* route from the player (or fx,fz) to x,z. mode=foot\|car. Returns waypoints + length; nothing moves. |
 | `objective` | `(none)` | Current objective text, its target position, and GPS route length (what the HUD tracker shows). |
 | `waypoint` | `x?:number z?:number` | Set (x,z) or clear (no args) the GPS waypoint shown on the minimap/big map. |
+| `recruit` | `id:string` | Make a living non-hostile character your follower (faction ally): follows you, fights your enemies, boards your vehicle, shoots out of their own window, and takes the wheel if you slide seats (C). |
+| `dismiss` | `id:string` | Send a follower on their way. |
+
+## world
+
+| command | args | what it does |
+|---|---|---|
+| `train` | `action?:string z?:number` | The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status \| board (player climbs onto the nearest car — must be beside the track) \| leave (jump off; hurts above ~6 m/s) \| summon (put the train 80 m north of the station, arriving) \| place (nose at z, cruising south — for staging) \| blowTanker. |
+| `convoy` | `action?:string dir?:string` | Dustwolf war convoys on Route 66 (lead buggy, bike outriders, gun-truck with a bed gunner, loot hauler). action: status \| spawn (dir=east\|west; default rolls toward the player) \| engage (break formation now) \| clear. Kill the hauler for its cargo. |
+| `horde` | `x?:number z?:number count?:number runners?:number radius?:number` | Spawn a horde of Rotters (zombies) around x,z (default 30m from the player). runners = fraction that sprint. |
+| `zombies` | `on?:boolean` | Turn night horde spawning on/off (existing Rotters stay). Returns how many are alive. |
+| `setTime` | `hour:number fast?:boolean` | Set hour of day (0-24). fast=true runs time x40. |
+| `setWeather` | `key:CLEAR\|OVERCAST\|RAIN\|STORM\|DUST\|FOG\|ASHFALL instant?:boolean` | Change weather (blends over ~6s; instant=true snaps). |
+| `spawn` | `kind?:raider\|drifter\|warden\|zombie runner?:boolean x?:number z?:number count?:number name?:string flag?:string weapon?:string hp?:number angry?:boolean` | Spawn a character. kind=raider\|drifter\|warden. Optional name, flag (ISO code), weapon, hostile grudge vs player. |
+| `spawnVehicle` | `type?:string x?:number z?:number heading?:number paint?:string ai?:traffic\|raider\|none withDriver?:boolean` | Spawn a vehicle. ai=traffic\|raider\|none. withDriver adds an NPC driver (raider ai = armed Dustwolf). |
+| `kill` | `id:string cause?:bullet\|vehicle\|explosion` | Kill a character (with full gore). |
+| `damage` | `id:string amount?:number` | Damage a character or vehicle by id. |
+| `explode` | `id:string` | Blow up a vehicle by id. |
+| `remove` | `id:string` | Delete a non-player character (no corpse). |
 
 ## vehicle
 
@@ -49,6 +73,11 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `exitVehicle` | `(none)` | Leave the current vehicle. If it is burning, the player automatically sprints clear of the blast (7m). |
 | `drive` | `throttle?:number steer?:number handbrake?:boolean seconds?:number x?:number z?:number` | Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself). |
 | `ram` | `id?:string seconds?:number` | Run a character down (id or "hostile"): steers at their live position at full throttle, reverses out if stuck, until they die or seconds elapse. Returns kills. |
+| `grab` | `id:string side?:left\|right\|front\|rear` | Player grabs onto a vehicle (car-surfing): rides along on that side and can shoot. Must be within ~2m (moveTo id=<vehicle> first). letGo drops off (at speed = tumble damage). |
+| `letGo` | `(none)` | Let go of the vehicle you are hanging on. |
+| `shakeOff` | `seconds?:number` | Swerve hard left/right at speed to fling off anyone hanging on your car. Returns who fell off. |
+| `seat` | `id?:string seat?:string` | Board a vehicle in a specific seat (driver\|shotgun\|backL\|backR\|bedL\|bedR\|pillion\|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report. |
+| `repair` | `id?:string` | Full field repair of a vehicle (testing / mechanic): parts, tyres, dents, panels, hp. |
 | `harpoon` | `x?:number z?:number id?:string` | Fire the War Rig harpoon at x,z or entity id. Call again while hooked to YANK. |
 
 ## dialogue
@@ -59,19 +88,6 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `choose` | `index:number` | Pick a dialogue choice by index (0-based). Returns the next line + choices. |
 | `dialogue` | `(none)` | Current dialogue text + choices. |
 
-## world
-
-| command | args | what it does |
-|---|---|---|
-| `setTime` | `hour:number fast?:boolean` | Set hour of day (0-24). fast=true runs time x40. |
-| `setWeather` | `key:CLEAR\|OVERCAST\|RAIN\|STORM\|DUST\|FOG\|ASHFALL instant?:boolean` | Change weather (blends over ~6s; instant=true snaps). |
-| `spawn` | `kind?:raider\|drifter\|warden x?:number z?:number count?:number name?:string flag?:string weapon?:string hp?:number angry?:boolean` | Spawn a character. kind=raider\|drifter\|warden. Optional name, flag (ISO code), weapon, hostile grudge vs player. |
-| `spawnVehicle` | `type?:string x?:number z?:number heading?:number paint?:string ai?:traffic\|raider\|none withDriver?:boolean` | Spawn a vehicle. ai=traffic\|raider\|none. withDriver adds an NPC driver (raider ai = armed Dustwolf). |
-| `kill` | `id:string cause?:bullet\|vehicle\|explosion` | Kill a character (with full gore). |
-| `damage` | `id:string amount?:number` | Damage a character or vehicle by id. |
-| `explode` | `id:string` | Blow up a vehicle by id. |
-| `remove` | `id:string` | Delete a non-player character (no corpse). |
-
 ## content
 
 | command | args | what it does |
@@ -79,7 +95,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `registerWeapon` | `key:string def:object` | Add/override a weapon row at runtime. def: {name, short, dmg, rate, mag, reload, spread, range, auto, pellets, ammo:pistol\|smg\|shells, sound:pistol\|smg\|shotgun, shake}. Then give {weapon:key}. |
 | `registerVehicle` | `key:string def:object` | Add/override a vehicle handling row. Base body shape is copied from def.base (rig\|interceptor\|buggy\|pickup). |
 | `registerNpc` | `def:object x?:number z?:number` | Create a named NPC with a portrait + branching dialogue and spawn them. def follows src/data/npcs.js (id,name,title,flag,faction,portrait,start,nodes). Node choices may use simple effects: {t, next\|end, cost:N, give:{cash,ammo,weapon}, setQuest:{key:value}, ifQuest:{key:value}, weather:"STORM"} — no functions needed. |
-| `content` | `(none)` | List registered content keys: weapons, vehicles, weather, flags, npcs. |
+| `content` | `(none)` | Content-pack load report (errors + warnings per pack) and registered keys: weapons, vehicles, weather, flags, npcs. |
 
 ## script
 

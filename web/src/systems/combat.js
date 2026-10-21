@@ -51,6 +51,10 @@ export class Combat {
         if (t >= 0 && t < best) { best = t; target = v; kind = 'veh'; }
       }
     }
+    if (g.train && !shooter.onTrain && !target?.onTrain) {
+      const th = g.train.raycast(ox, oz, dx, dz, best);
+      if (th) { best = th.t; target = th.car; kind = 'train'; }
+    }
     const hx = ox + dx * best, hz = oz + dz * best;
     // Near miss on the player: whiz.
     if (shooter !== g.player && target !== g.player && g.player.alive) {
@@ -66,6 +70,9 @@ export class Combat {
       g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
       g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
       if (shooter === g.player) g.qol.hit(false);
+    } else if (kind === 'train') {
+      g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
+      g.train.hitCar(target, dmg, shooter);
     } else if (wallHit) {
       g.fx.sparks(hx, 1.4, hz, wallHit.nx, wallHit.nz, 4);
       if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
