@@ -28,6 +28,7 @@ export class HUD {
           <div class="bars">
             <div class="bar-row"><span class="bar-label">HEALTH</span><div class="bar"><i class="bar-hp"></i></div></div>
             <div class="bar-row"><span class="bar-label">STAMINA</span><div class="bar"><i class="bar-stam"></i></div></div>
+            <div class="bar-row breath-row hidden"><span class="bar-label">BREATH</span><div class="bar"><i class="bar-breath"></i></div></div>
             <div class="bar-row veh-only"><span class="bar-label veh-label">VEHICLE</span><div class="bar"><i class="bar-veh"></i></div></div>
             <div class="bar-row veh-only"><span class="bar-label">FUEL</span><div class="bar"><i class="bar-fuel"></i></div></div>
           </div>
@@ -51,6 +52,7 @@ export class HUD {
         <div class="vignette"></div>
         <div class="hurt"></div>
         <div class="flashbang"></div>
+        <div class="underwater"></div>
         <div class="dead-screen hidden"><div class="dead-title">YOU BLED OUT</div><div class="dead-sub">Doc Reyes found you in the dirt. She took her fee.</div></div>
         <div class="stats hidden"></div>
         <div class="reticle"></div>
@@ -60,7 +62,7 @@ export class HUD {
       time: q('.clock-time'), sub: q('.clock-sub'), wx: q('.wx-icon'), cash: q('.cash'), wanted: q('.wanted'),
       feed: q('.feed'), mm: q('.minimap'), loc: q('.loc-name'), hp: q('.bar-hp'), veh: q('.bar-veh'), vehLabel: q('.veh-label'),
       wname: q('.w-name'), wmag: q('.w-mag'), wres: q('.w-res'), wslots: q('.w-slots'), wpanel: q('.weapon-panel'),
-      speedo: q('.speedo'), stam: q('.bar-stam'), fuel: q('.bar-fuel'), wthrow: q('.w-throw'), flash: q('.flashbang'), winDiagram: q('.win-diagram'), sCanvas: q('.speedo canvas'), sNum: q('.speedo-num'), sName: q('.speedo-name'),
+      speedo: q('.speedo'), breathRow: q('.breath-row'), breath: q('.bar-breath'), under: q('.underwater'), stam: q('.bar-stam'), fuel: q('.bar-fuel'), wthrow: q('.w-throw'), flash: q('.flashbang'), winDiagram: q('.win-diagram'), sCanvas: q('.speedo canvas'), sNum: q('.speedo-num'), sName: q('.speedo-name'),
       prompt: q('.prompt'), subtitle: q('.subtitle'), hurt: q('.hurt'), vignette: q('.vignette'), dead: q('.dead-screen'),
       stats: q('.stats'), reticle: q('.reticle'), hud: q('.hud'),
     };
@@ -107,6 +109,10 @@ export class HUD {
     if (loc !== this.lastLoc) { this.el.loc.textContent = loc; this.lastLoc = loc; }
     this.el.hp.style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
     this.el.stam.style.width = `${Math.round((p.stamina ?? 1) * 100)}%`;
+    this.el.breathRow.classList.toggle('hidden', !p.swim && (p.breath ?? 1) >= 1);
+    this.el.breath.style.width = `${Math.round((p.breath ?? 1) * 100)}%`;
+    this.el.breath.classList.toggle('low', (p.breath ?? 1) < 0.3);
+    this.el.under.style.opacity = p.underwater ? 0.75 : p.swim ? 0.12 : 0;
     if (p.inVehicle) this.el.fuel.style.width = `${Math.round(((p.inVehicle.fuel ?? 1) / (p.inVehicle.fuelCap ?? 1)) * 100)}%`;
     this.flashT = Math.max(0, (this.flashT ?? 0) - dt);
     this.el.flash.style.opacity = this.flashT > 0 ? Math.min(1, this.flashT / Math.max(0.5, (this.flashMax ?? 1) * 0.5)) : 0;

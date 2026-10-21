@@ -37,7 +37,7 @@ function vehView(g, v) {
     dist: r1(Math.hypot(v.x - g.player.x, v.z - g.player.z)),
     ...g.carCombat.view(v),
     ...g.vehDamage.view(v),
-    occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen,
+    occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen, boat: !!v.boat, sunk: !!v.sunk, waterDepth: r1(v.depth ?? 0),
   };
 }
 
@@ -171,7 +171,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
@@ -414,6 +414,19 @@ function buildCommands(api) {
     },
     crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.crouchOverride = on; P().crouch = on; return { crouch: on }; } },
+    water: {
+      group: 'observe', desc: 'Water depth at x,z (default: the player) and what it means: dry | wade | swim. Also lists where the water is (river, lake, bridge, dock).',
+      args: { x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ x, z }) => {
+        const px = x ?? P().x, pz = z ?? P().z;
+        return { depth: r1(g.water.depthAt(px, pz)), state: g.water.stateAt(px, pz), places: { lake: { x: 390, z: 398, r: 52 }, bridge: { x: 416, z: 0 }, dock: { x: 360, z: 382 }, river: 'runs north-south around x≈410-428 on the east edge' } };
+      },
+    },
+    submerge: {
+      group: 'player', desc: 'While swimming: dive under (on=true) — hidden from AI, bullets can\'t reach, breath drains ~20s — or surface (on=false).',
+      args: { on: { type: 'boolean', default: true } },
+      run: async ({ on }) => { need(P().swim || !on, 'not in deep water (find the river or the lake first)'); g.crouchOverride = on; await api._step(2); return { underwater: !!P().underwater, breath: r1(P().breath ?? 1) }; },
+    },
     equip: { group: 'player', desc: 'Switch to an owned weapon.', args: { weapon: { type: 'string', required: true } },
       run: async ({ weapon }) => { need(g.inv.weapons.includes(weapon), `not owned; owned: ${g.inv.weapons.join(',')}`); g.switchWeapon(weapon); return { current: weapon }; } },
     give: {
@@ -1079,6 +1092,54 @@ async function runSelfTest(api) {
     g.player.stamina = 1;
     const d = await C('dive', { x: 430, z: 140 });
     return d.ok && d.moved > 3 && d.stamina < 0.9 ? true : JSON.stringify(d);
+  });
+  await check('terrain: mountains are solid and routed around', async () => {
+    const pk = g.terrain.peaks;
+    const big = pk.reduce((b, p) => (p.r > b.r ? p : b), pk[0]);
+    const blocked = g.statics.pointBlocked(big.x, big.z, 0.5);
+    const path = await C('path', { fx: big.x - big.r - 8, fz: big.z, x: big.x + big.r + 8, z: big.z, mode: 'car' });
+    return pk.length >= 15 && blocked && path.found && path.length > big.r * 2.2 ? true : JSON.stringify({ peaks: pk.length, blocked, path: path.found, len: path.length, r: big.r });
+  });
+  await check('water: lake is deep, bridge deck is dry, swimming + diving hides you', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const deep = g.water.depthAt(390, 398) > 5, deck = g.water.depthAt(416, 0) === 0, underDeck = g.water.depthAt(416, 0, true) > 1;
+    await C('teleport', { x: 372, z: 398 });
+    await C('step', { seconds: 0.3 });
+    const swimming = !!g.player.swim;
+    await C('submerge', { on: true });
+    const { ids } = await C('spawn', { kind: 'raider', x: 365, z: 380, weapon: 'smg' });
+    await C('step', { seconds: 2 });
+    const hidden = !g.chars.find((c) => c.id === ids[0])?.target;
+    const b0 = g.player.breath;
+    await C('submerge', { on: false });
+    g.crouchOverride = false;
+    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden });
+  });
+  await check('cars flood and sink; boats float and beach', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 385, z: 398 })).id);
+    await C('step', { seconds: 6 });
+    const sank = car.sunk;
+    const boat = api.findVeh((await C('spawnVehicle', { type: 'airboat', x: 380, z: 392, heading: 0 })).id);
+    await C('teleport', { x: 380, z: 389 });
+    await C('enterVehicle', { id: boat.id, force: true });
+    await C('drive', { throttle: 1, seconds: 2 });
+    const moved = g.vehiclesSys.speed(boat) > 6;
+    const land = api.findVeh((await C('spawnVehicle', { type: 'jetski', x: 250, z: 250 })).id);
+    land.driver = g.player; land.throttle = 1; // dry land: a jet ski can't go
+    for (let i = 0; i < 60; i++) { g.vehiclesSys.drive(land, 1 / 60); }
+    land.driver = null;
+    const beached = g.vehiclesSys.speed(land) < 1.5;
+    return sank && moved && beached ? true : JSON.stringify({ sank, flood: car.flood, moved: g.vehiclesSys.speed(boat), beached: g.vehiclesSys.speed(land) });
+  });
+  await check('the dead cannot swim: zombies stop at the waterline', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('teleport', { x: 395, z: 398 });
+    const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
+    await C('step', { seconds: 6 });
+    const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
+    for (const id of ids) await C('remove', { id });
+    return wet === 0 ? true : `${wet} zombies in deep water`;
   });
   await check('A* path around buildings', async () => {
     const r = await C('path', { x: -300, z: 300, fx: 0, fz: -40, mode: 'car' });

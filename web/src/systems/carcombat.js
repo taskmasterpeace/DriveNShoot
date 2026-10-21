@@ -20,6 +20,9 @@ const CABINS = {
   pickup: { z: 0.5, len: 1.8, w: 1.96, y: 1.6, h: 0.52, glassHp: 40 },
   buggy: null,
   bike: null,
+  airboat: null,
+  jetski: null,
+  gunboat: { z: 0.4, len: 2.0, w: 2.0, y: 1.95, h: 0.5, glassHp: 60 },
   sedan: { z: -0.2, len: 2.6, w: 1.76, y: 1.6, h: 0.52, glassHp: 35 },
   van: { z: 0.1, len: 4.4, w: 2.0, y: 1.6, h: 0.6, glassHp: 40 },
 };

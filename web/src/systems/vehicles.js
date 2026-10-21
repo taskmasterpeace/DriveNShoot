@@ -20,6 +20,11 @@ export const VEHICLES = {
   sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, maxSpeed: 40, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
   van:         { name: 'VAN', len: 5.4, wid: 2.25, maxSpeed: 32, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75,
                  seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }] },
+  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, maxSpeed: 34, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
+                 seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }] },
+  jetski:      { name: 'JET SKI', len: 2.8, wid: 1.0, maxSpeed: 40, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
+  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, maxSpeed: 28, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
   bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
 };
@@ -98,6 +103,27 @@ function buildBody(type, paint) {
     parts.push(coloredBox(0.5, 0.5, 0.5, -0.45, 1.05, 0.0, '#1d1b19'));
     wheels(0.5, 0.0, L / 2 - 0.7, -L / 2 + 0.7, 0.5);
     bumpers(0.6, 0.22);
+  } else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') {
+    // Hulls: flat-bottomed with a raked bow (two angled boxes), decks, fittings.
+    const hullC = base === 'gunboat' ? '#3a3632' : paint;
+    parts.push(coloredBox(W, base === 'jetski' ? 0.45 : 0.7, L * 0.78, 0, 0.32, -L * 0.1, hullC));
+    for (const s of [-1, 1]) { const g = new THREE.BoxGeometry(W * 0.62, base === 'jetski' ? 0.45 : 0.7, L * 0.36).toNonIndexed(); g.rotateY(s * 0.42); g.translate(s * W * 0.2, 0.32, L * 0.32); parts.push(tag(g, hullC, PART.bumperF)); }
+    if (base === 'airboat') {
+      parts.push(coloredBox(0.9, 0.9, 0.9, 0, 1.0, -0.4, '#2a2826'));                       // raised driver seat
+      const ring = new THREE.TorusGeometry(1.05, 0.08, 6, 20).toNonIndexed(); ring.translate(0, 1.5, -L / 2 + 0.5); parts.push(tag(ring, '#8a8580', PART.frame));
+      for (let k = 0; k < 3; k++) { const b = new THREE.BoxGeometry(0.16, 1.9, 0.06).toNonIndexed(); b.rotateZ(k * Math.PI / 3); b.translate(0, 1.5, -L / 2 + 0.55); parts.push(tag(b, '#5a5550', PART.frame)); }
+      parts.push(coloredBox(0.5, 0.5, 0.5, 0, 1.1, -L / 2 + 0.95, '#3a3632'));            // engine
+    } else if (base === 'jetski') {
+      parts.push(coloredBox(0.4, 0.2, 1.1, 0, 0.7, -0.2, '#1a1816'));                      // saddle
+      parts.push(coloredBox(0.7, 0.06, 0.06, 0, 1.0, 0.55, '#8a8580', PART.frame));         // bars
+    } else {
+      parts.push(coloredBox(W - 0.3, 0.9, 2.2, 0, 1.3, 0.4, '#4a3a2a'));                   // cabin
+      parts.push(coloredBox(W - 0.5, 0.55, 2.0, 0, 1.95, 0.4, '#2a3a44', PART.glass));
+      parts.push(coloredBox(0.6, 0.5, 0.6, 0, 0.95, L / 2 - 1.3, '#2d2a28'));              // gun mount
+      parts.push(coloredBox(0.14, 0.14, 1.4, 0, 1.25, L / 2 - 0.8, '#6a6560'));            // barrel
+      parts.push(coloredBox(0.8, 0.6, 0.8, 0, 0.8, -L / 2 + 0.7, '#7a3a1c'));              // fuel drums
+    }
+    return mergeGeometries(parts);
   } else if (base === 'bike') {
     // Motorcycle: wheels in line, frame, tank, saddle, bars, exhaust.
     wheelAt(0, 0.38, L / 2 - 0.38, 0.38, PART.wheelFL, 0.16);
@@ -223,6 +249,17 @@ export class Vehicles {
 
   speed(v) { return Math.hypot(v.vx, v.vz); }
 
+  // A land vehicle that stayed in deep water floods and goes under. Everyone swims for it.
+  sink(v) {
+    if (v.sunk) return;
+    v.sunk = true; v.dead = true; v.hp = 0;
+    v.coneMesh.visible = false; v.tailMesh.visible = false;
+    for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
+    v.driver = null;
+    this.g.emit('vehicleSank', { vehicle: v.id });
+    if (this.g.lastVehicle === v) this.g.hud.toast(`${v.name} SANK`, 'warn');
+  }
+
   // Collision discs along the body's long axis (reused scratch array per vehicle).
   discs(v) {
     const n = Math.max(2, Math.round(v.len / v.wid) + 1), r = v.wid * 0.52;
@@ -290,7 +327,23 @@ export class Vehicles {
     let side = v.vx * rx + v.vz * rz;
     const sp = Math.abs(fwd);
     const fxm = this.g.vehDamage.effects(v, dt); // engine/radiator/fuel/tyres/lights
-    const topSpeed = v.maxSpeed * fxm.top;
+    let topSpeed = v.maxSpeed * fxm.top;
+    // Water: boats need it, everything else drowns in it.
+    const depth = this.g.water ? this.g.water.depthAt(v.x, v.z) : 0;
+    v.depth = depth;
+    if (v.boat) {
+      const afloat = depth > (v.shallow ? 0.12 : 0.55);
+      if (!afloat) { fwd *= Math.exp(-dt * 5); side *= Math.exp(-dt * 8); fxm.power *= 0.08; } // beached
+    } else if (depth > 0.55) {
+      fwd *= Math.exp(-dt * depth * 1.6); side *= Math.exp(-dt * depth * 2);
+      fxm.power *= Math.max(0, 1 - depth * 0.6);
+      if (depth > 1.1 && !v.dead) {
+        v.flood = (v.flood ?? 0) + dt;
+        if (v.dmg) v.dmg.engine = Math.max(0, v.dmg.engine - dt * 0.35);
+        if (v.flood > 5) this.sink(v);
+      }
+      if (this.speed(v) > 4 && Math.random() < dt * 20) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, 0.4, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3, 2, (Math.random() - 0.5) * 3, 0.7, 0.4, '#d8e4e4', 3);
+    }
     if (!v.dead && v.driver && !v.fallen) {
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
       else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * 0.6) * -v.throttle * dt;
@@ -484,6 +537,21 @@ export class Vehicles {
       const sp = this.speed(v);
       v.throttle = sp < target ? 0.7 : sp > target + 2 ? -0.6 : 0;
       v.handbrake = false;
+    } else if (v.ai === 'boatPatrol') {
+      // Circle the lake; close in and strafe the player when they're near the water.
+      const L = g.water ? { x: 390, z: 398 } : { x: v.x, z: v.z };
+      const p = g.player, px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
+      const pd = Math.hypot(px - v.x, pz - v.z);
+      let tx, tz;
+      if (pd < 60 && g.water.depthAt(px, pz) > 0.4) { tx = px; tz = pz; }
+      else { v.patrolA = (v.patrolA ?? 0) + dt * 0.18; tx = L.x + Math.cos(v.patrolA) * 32; tz = L.z + Math.sin(v.patrolA) * 32; }
+      const want = Math.atan2(tx - v.x, tz - v.z);
+      v.steer = clamp((angleLerp(v.h, want, 1) - v.h) * 2, -1, 1);
+      v.throttle = pd < 12 ? 0.3 : 0.75;
+      for (const o of v.occ ?? []) if (o && o.alive && o.weapon && pd < 35 && g.ai.hostile(o, p)) {
+        o.cool -= dt;
+        if (o.cool <= 0) { o.cool = 0.4 + Math.random() * 0.6; g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.2); }
+      }
     } else if (v.ai === 'chauffeur') {
       // An ally at the wheel: drive the player's GPS route, or cruise the grid.
       const wp = g.qol.waypoint ?? g.qol.objective()?.target;
@@ -725,6 +793,21 @@ export class Vehicles {
       v.group.position.set(v.x, 0, v.z);
       v.group.rotation.y = v.h;
       if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
+      if (v.boat) {
+        // Bob on the swell, bank into turns, throw a wake.
+        const t = g.time + v.x * 0.1;
+        const afloat = (v.depth ?? 0) > 0.12;
+        v.group.position.y = afloat ? -0.18 + Math.sin(t * 2.1) * 0.06 : 0.05;
+        v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
+        v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
+        v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
+        const sp = this.speed(v);
+        if (afloat && sp > 3 && Math.random() < dt * (10 + sp)) {
+          const bx = v.x - Math.sin(v.h) * v.len * 0.5, bz = v.z - Math.cos(v.h) * v.len * 0.5;
+          g.fx.spawn(2, bx + (Math.random() - 0.5) * v.wid, 0.15, bz + (Math.random() - 0.5) * v.wid, -Math.cos(v.h) * (Math.random() - 0.5) * 3, 0.4, Math.sin(v.h) * (Math.random() - 0.5) * 3, 1.6, 0.6, '#e6eeee', 0.2);
+        }
+      }
+      if (v.sunk) { v.group.position.y = Math.max(-1.7, v.group.position.y - dt * 0.6); }
       if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
       if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
       if (v.onFire) {

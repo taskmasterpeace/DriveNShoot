@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { Input } from './engine/input.js';
 import { StaticWorld } from './engine/collision.js';
 import { makeRng, angleLerp, clamp } from './engine/rng.js';
-import { buildWorld, TOWN, roadLines } from './world/city.js';
+import { buildWorld, TOWN, roadLines, HALF } from './world/city.js';
+import { buildTerrain, drawTerrainOnMinimap } from './world/terrain.js';
+import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
@@ -63,8 +65,20 @@ class Game {
     this.audio = new Audio();
     this.statics = new StaticWorld();
     this.world = buildWorld(this.scene, this.statics);
+    // Mountains (outer desert ring) and water (east river → lake), before the nav grids.
+    this.terrain = buildTerrain(this.scene, this.statics, { avoid: [...this.world.spawns.camps.map((c) => ({ x: c.x, z: c.z, r: 34 })), ...WATER_AVOID] });
+    this.water = new Water(this);
+    drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
+    this.water.drawOnMinimap(this.world.minimap, HALF);
     // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
+    // Deep water is off-limits to walkers' and drivers' path planning (you can still swim/boat it).
+    for (const [grid, lim] of [[this.nav.foot, 1.2], [this.nav.car, 0.6]]) {
+      for (let zc = 0; zc < grid.n; zc++) for (let xc = 0; xc < grid.n; xc++) {
+        const x = grid.wx(xc), z = grid.wx(zc);
+        if (x > 290 && this.water.depthAt(x, z) > lim) grid.blocked[zc * grid.n + xc] = 1;
+      }
+    }
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
     this.charR = new CharacterRenderer(this.scene);
@@ -192,6 +206,11 @@ class Game {
       const d = this.addChar({ x, z, faction: 'drifter', colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
       if (d) this.seats.board(d, v, 0);
     }
+    // Watercraft: an airboat and a jet ski tied up at the lake dock; a raider gunboat patrols.
+    this.vehiclesSys.spawn('airboat', DOCK.x + 8, DOCK.z + 5, Math.PI / 2, '#5a6a48');
+    this.vehiclesSys.spawn('jetski', DOCK.x + 14, DOCK.z - 5, Math.PI / 2, '#b0301e');
+    const gb = this.vehiclesSys.spawn('gunboat', LAKE.x + 20, LAKE.z, 0, '#3a3632', { ai: 'boatPatrol' });
+    for (let k = 0; k < 2; k++) { const r = this.spawnRaider(gb.x, gb.z, rng, 'smg'); if (r) this.seats.board(r, gb, k); }
     // Dustwolf buggies at the camps.
     for (const camp of S.camps) {
       const v = this.vehiclesSys.spawn('buggy', camp.x + 22, camp.z - 4, rng() * 6, '#4a2018', { ai: 'raider' });
@@ -492,7 +511,19 @@ class Game {
       this.handleShooting(dt, p.face);
       return;
     }
-    const speed = p.crouch ? 2.2 : sprint ? 7.6 : 4.6;
+    // Water: wade slow, swim slower (no shooting), Ctrl dives under on a breath meter.
+    const wet = this.water.stateAt(p.x, p.z);
+    p.swim = wet === 'swim';
+    p.breath = p.breath ?? 1;
+    p.underwater = p.swim && p.crouch;
+    if (p.underwater) {
+      p.breath = Math.max(0, p.breath - dt / 20);
+      if (p.breath <= 0) this.combat.damage(p, 9 * dt, null, 0, 0, 'drown');
+    } else p.breath = Math.min(1, p.breath + dt / 4);
+    if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
+    if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
+    if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
+    const speed = p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6;
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -560,7 +591,8 @@ class Game {
     if (I.hit('KeyR')) this.reload();
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
-    this.handleShooting(dt, p.face);
+    if (!p.swim) this.handleShooting(dt, p.face);
+    p.aiming = !p.swim;
 
     // Interactions.
     let best = null, bd = 2.8;
@@ -765,6 +797,7 @@ class Game {
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
+      this.water.update(simDt);
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);

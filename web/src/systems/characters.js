@@ -191,7 +191,8 @@ export class CharacterRenderer {
           _r.makeRotationX(1.35 * k); _t.makeTranslation(0, -0.55 * k, 0);
           _base.multiply(_t).multiply(_r);
         } else if (ch.crouch) { _t.makeTranslation(0, -0.32, 0); _base.multiply(_t); }
-        if (ch.underwater) { _t.makeTranslation(0, -1.4, 0); _base.multiply(_t); }
+        if (ch.underwater) { _t.makeTranslation(0, -1.6, 0); _base.multiply(_t); }
+        else if (ch.swim) { _r.makeRotationX(1.2); _t.makeTranslation(0, -0.95, 0); _base.multiply(_t).multiply(_r); } // swimming: flat, head up
       } else {
         // Lying on the back, head away from the killer.
         _q.setFromEuler(_e.set(0, ch.face, 0));

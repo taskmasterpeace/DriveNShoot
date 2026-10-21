@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { makeRng } from '../engine/rng.js';
 import { sandTexture, asphaltTexture, concreteTexture, radialGlow } from './textures.js';
+import { nearWater } from './water.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -260,6 +261,7 @@ export function buildWorld(scene, statics) {
 
   // ---- wrecks, barrels, trees ----------------------------------------------------
   const wreck = (x, z, rot) => {
+    if (nearWater(x, z, 4)) return;
     const col = rng.pick(['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020']);
     const along = Math.abs(Math.sin(rot)) > 0.7; // rotated ~90 degrees
     props.add(x, 0.55, z, 1.9, 0.8, 4.2, col, rot);
@@ -268,11 +270,13 @@ export function buildWorld(scene, statics) {
     else statics.addCentered(x, z, 1.9, 4.2, 'wreck', 1.4);
   };
   const barrel = (x, z, fire = false) => {
+    if (nearWater(x, z, 2)) return;
     barrels.push({ x, z, fire, color: fire ? '#5a2e1a' : rng.pick(['#7a3a1c', '#3f5446', '#6d5a2a', '#4a4a48']) });
     statics.addCentered(x, z, 0.9, 0.9, 'barrel', 1.1);
     if (fire) { fires.push({ x, z }); glows.push({ x, z, r: 9, color: '#ff8a3a' }); }
   };
   const deadTree = (x, z) => {
+    if (nearWater(x, z, 2)) return;
     const h = rng.range(3, 6);
     trunks.push({ x, z, h });
     for (let i = 0; i < 3; i++) {
@@ -391,7 +395,7 @@ export function buildWorld(scene, statics) {
     const x = rng.range(-HALF + 10, HALF - 10), z = rng.range(-HALF + 10, HALF - 10);
     if (Math.max(Math.abs(x), Math.abs(z)) < GRID + 12) continue;
     if (Math.abs(z) < 10) continue; // keep Route 66 clear
-    if (statics.pointBlocked(x, z, 2)) continue;
+    if (statics.pointBlocked(x, z, 2) || nearWater(x, z, 4)) continue;
     const r = rng();
     if (r < 0.55) { cacti.push({ x, z, h: rng.range(1.4, 3.4) }); statics.addCentered(x, z, 0.7, 0.7, 'cactus', 2); }
     else if (r < 0.85) deadTree(x, z);

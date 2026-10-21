@@ -64,6 +64,9 @@ export class AI {
     const px = c.x, pz = c.z;
     const t = this.tmp;
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
+    // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
+    const w = this.g.water;
+    if (w && t.x > 290 && w.depthAt(t.x, t.z) > (c.faction === 'zombie' ? 0.6 : 1.2) && w.depthAt(px, pz) <= (c.faction === 'zombie' ? 0.6 : 1.2)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
     this.g.statics.resolveCircle(t, c.radius);
     c.x = t.x; c.z = t.z;
     const moved = Math.hypot(c.x - px, c.z - pz);
