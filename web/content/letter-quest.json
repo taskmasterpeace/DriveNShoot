@@ -1,0 +1,165 @@
+{
+  "npcs": [
+    {
+      "x": 20,
+      "z": -20,
+      "def": {
+        "id": "rosa",
+        "name": "Rosa Quintero",
+        "title": "Seamstress · Rust Haven",
+        "flag": "CO",
+        "faction": "drifter",
+        "essential": true,
+        "portrait": {
+          "seed": 1201,
+          "skin": "#b07850",
+          "hair": "#20140c",
+          "hat": "wrap",
+          "mood": "smile",
+          "shirt": "#a8642a",
+          "gear": "bandana"
+        },
+        "start": "hi",
+        "nodes": {
+          "hi": {
+            "text": "My brother Mateo went out past the ruins to dig wells. No radio out there. Would you carry him a letter? I'll pay seventy-five when he has it.",
+            "choices": [
+              {
+                "t": "I'll carry the letter.",
+                "ifQuest": {
+                  "letter": null
+                },
+                "setQuest": {
+                  "letter": "carrying"
+                },
+                "toast": "QUEST: Deliver Rosa's letter to Mateo",
+                "next": "accepted"
+              },
+              {
+                "t": "Still on my way.",
+                "ifQuest": {
+                  "letter": "carrying"
+                },
+                "next": "waiting"
+              },
+              {
+                "t": "Mateo has your letter.",
+                "ifQuest": {
+                  "letter": "delivered"
+                },
+                "give": {
+                  "cash": 75
+                },
+                "setQuest": {
+                  "letter": "paid"
+                },
+                "toast": "+$75 LETTER DELIVERED",
+                "next": "thanks"
+              },
+              {
+                "t": "How's the sewing?",
+                "ifQuest": {
+                  "letter": "paid"
+                },
+                "next": "after"
+              },
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          },
+          "accepted": {
+            "text": "He's out in the desert, east and south of the ruins, near the old well site. Here, keep it dry.",
+            "choices": [
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          },
+          "waiting": {
+            "text": "He's out past the ruins, east and south. Please hurry.",
+            "choices": [
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          },
+          "thanks": {
+            "text": "Gracias. Here, seventy-five, as promised.",
+            "choices": [
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          },
+          "after": {
+            "text": "Slow. Everyone wants armor, nobody wants hems. Thank you again for the letter.",
+            "choices": [
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "x": 250,
+      "z": -150,
+      "def": {
+        "id": "mateo",
+        "name": "Mateo Quintero",
+        "title": "Well Digger · Glass Flats",
+        "flag": "CO",
+        "faction": "drifter",
+        "essential": true,
+        "portrait": {
+          "seed": 1202,
+          "skin": "#a8704a",
+          "hair": "#1a120a",
+          "hat": "cowboy",
+          "mood": "neutral",
+          "shirt": "#5a6a3a",
+          "gear": "goggles"
+        },
+        "start": "hi",
+        "nodes": {
+          "hi": {
+            "text": "Forty feet and still dry. You come from town?",
+            "choices": [
+              {
+                "t": "Hand over Rosa's letter.",
+                "ifQuest": {
+                  "letter": "carrying"
+                },
+                "setQuest": {
+                  "letter": "delivered"
+                },
+                "toast": "LETTER DELIVERED - return to Rosa",
+                "next": "read"
+              },
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          },
+          "read": {
+            "text": "From Rosa? ... She says to come home before the storms. Tell her I'm fine. Tell her I'm close.",
+            "choices": [
+              {
+                "t": "[Leave]",
+                "end": true
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

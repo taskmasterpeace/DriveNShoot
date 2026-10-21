@@ -1,0 +1,33 @@
+{
+  "weapons": {
+    "nailgun": { "name": "NAIL REPEATER", "short": "NAILGUN", "dmg": 11, "rate": 0.05, "mag": 60, "reload": 2.2, "spread": 0.12, "range": 30, "auto": true, "pellets": 1, "ammo": "smg", "sound": "smg", "shake": 0.1 }
+  },
+  "vehicles": {
+    "rat_rod": { "base": "buggy", "name": "RAT ROD", "maxSpeed": 48, "accel": 30, "turn": 3.1, "grip": 4.4, "hp": 90 }
+  },
+  "npcs": [
+    {
+      "x": 36, "z": -64,
+      "def": {
+        "id": "carmen", "name": "Carmen \"Nails\" Ortiz", "title": "Scrap Dealer · Rust Haven", "flag": "PR", "faction": "drifter",
+        "portrait": { "seed": 909, "skin": "#c68863", "hair": "#1b1410", "hat": "wrap", "mood": "smile", "shirt": "#6b3a24", "gear": "goggles" },
+        "start": "hi",
+        "nodes": {
+          "hi": {
+            "text": "Everything you see was a car once. Even me, probably. Want the nail repeater? Ugly, loud, never jams.",
+            "choices": [
+              { "t": "Buy the nail repeater ($90)", "cost": 90, "give": { "weapon": "nailgun", "ammo": { "smg": 120 } }, "next": "sold", "setQuest": { "nailgun": "bought" }, "toast": "ACQUIRED: NAIL REPEATER" },
+              { "t": "Where'd you get a rat rod?", "next": "rod" },
+              { "t": "[Leave]", "end": true }
+            ]
+          },
+          "sold": { "text": "Aim low. Nails bounce.", "choices": [ { "t": "[Leave]", "end": true } ] },
+          "rod": { "text": "Built it from three dead buggies and a lawnmower. It's parked out back. Don't tell Kenji.", "choices": [ { "t": "[Leave]", "end": true } ] }
+        }
+      }
+    }
+  ],
+  "vehicleSpawns": [
+    { "type": "rat_rod", "x": 44, "z": -60, "heading": 0, "paint": "#8a5a22" }
+  ]
+}

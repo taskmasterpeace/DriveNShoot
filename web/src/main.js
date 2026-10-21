@@ -1,0 +1,740 @@
+import * as THREE from 'three';
+import { Input } from './engine/input.js';
+import { StaticWorld } from './engine/collision.js';
+import { makeRng, angleLerp, clamp } from './engine/rng.js';
+import { buildWorld, TOWN, roadLines } from './world/city.js';
+import { coneTexture } from './world/textures.js';
+import { Sky } from './systems/sky.js';
+import { FX } from './systems/fx.js';
+import { Character, CharacterRenderer, outfit, MAX_CHARS } from './systems/characters.js';
+import { Combat, WEAPONS } from './systems/combat.js';
+import { AI } from './systems/ai.js';
+import { Vehicles } from './systems/vehicles.js';
+import { CarCombat } from './systems/carcombat.js';
+import { Zombies } from './systems/zombies.js';
+import { Audio } from './systems/audio.js';
+import { HUD } from './ui/hud.js';
+import { Dialogue } from './ui/dialogue.js';
+import { FLAG_KEYS } from './ui/portrait.js';
+import { NPCS, randomName } from './data/npcs.js';
+import { AgentAPI, snapshot, restore } from './agent/api.js';
+import { NavGrid } from './engine/nav.js';
+import { QOL } from './ui/qol.js';
+import { startBridge } from './agent/bridge.js';
+import { loadContentPacks } from './agent/content.js';
+
+const _ray = new THREE.Raycaster();
+const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
+const _hit = new THREE.Vector3();
+const _ndc = new THREE.Vector2();
+const _o = new THREE.Object3D();
+const _col = new THREE.Color();
+const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+
+class Game {
+  constructor() {
+    const canvas = document.getElementById('game');
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 1, 600);
+    addEventListener('resize', () => {
+      this.renderer.setSize(innerWidth, innerHeight);
+      this.camera.aspect = innerWidth / innerHeight;
+      this.camera.updateProjectionMatrix();
+    });
+
+    this.input = new Input(canvas);
+    this.nextId = 0;
+    this.events = [];
+    this.eventSeq = 0;
+    this.audio = new Audio();
+    this.statics = new StaticWorld();
+    this.world = buildWorld(this.scene, this.statics);
+    // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
+    this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
+    this.sky = new Sky(this.scene, this.audio);
+    this.fx = new FX(this.scene);
+    this.charR = new CharacterRenderer(this.scene);
+    this.chars = [];
+    this.freeSlots = [];
+    for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
+    this.vehicles = [];
+    this.combat = new Combat(this);
+    this.ai = new AI(this);
+    this.vehiclesSys = new Vehicles(this);
+    this.carCombat = new CarCombat(this);
+    this.zombies = new Zombies(this);
+    const ui = document.getElementById('ui');
+    this.hud = new HUD(this, ui);
+    this.dialogue = new Dialogue(this, ui);
+    this.qol = new QOL(this, ui);
+
+    this.cash = 120;
+    this.wanted = 0;
+    this.wantedT = 0;
+    this.stats = { kills: 0, raiderKills: 0 };
+    this.quests = {};
+    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 } };
+    this.lastVehicle = null;
+    this.insideBuilding = null;
+    this.paused = true;
+    this.time = 0;
+    this.respawnT = 0;
+    this.camPos = new THREE.Vector3(0, 40, 0);
+    this.camLook = new THREE.Vector3();
+    this.camHeight = 34;
+    this.aim = { x: 0, z: 0 };
+    this.raiderTimer = 10;
+    this.fps = 60;
+
+    this.populate();
+    this.buildPickups();
+    this.buildFlashlight();
+    this.api = new AgentAPI(this);
+    this.title(ui);
+  }
+
+  // ---- population ----------------------------------------------------------------
+  addChar(opts) {
+    if (!this.freeSlots.length) {
+      // Budget full: recycle the longest-dead corpse (blood decals stay), then the farthest idle drifter.
+      const dead = this.chars.filter((c) => !c.alive && c !== this.player && !c.npc).sort((a, b) => b.deadTime - a.deadTime)[0];
+      const far = dead ?? this.chars.filter((c) => c.alive && c.faction === 'drifter' && !c.npc && !c.inVehicle)
+        .sort((a, b) => Math.hypot(b.x - this.player.x, b.z - this.player.z) - Math.hypot(a.x - this.player.x, a.z - this.player.z))[0];
+      if (!far) return null;
+      this.removeChar(far);
+    }
+    const slot = this.freeSlots.pop();
+    const c = new Character(slot, opts);
+    c.id = `c${++this.nextId}`;
+    c.flag = opts.flag ?? 'US';
+    const p = { x: c.x, z: c.z };
+    this.statics.resolveCircle(p, 0.5);
+    c.x = p.x; c.z = p.z;
+    c.mag = c.weapon ? WEAPONS[c.weapon].mag : 0;
+    this.chars.push(c);
+    this.charR.paint(c);
+    return c;
+  }
+
+  removeChar(c) {
+    const i = this.chars.indexOf(c);
+    if (i >= 0) this.chars.splice(i, 1);
+    this.charR.clear(c.slot);
+    this.freeSlots.push(c.slot);
+  }
+
+  randomFlag(rng) {
+    // The Deathlands are mostly American, but everybody's from somewhere.
+    const r = rng();
+    if (r < 0.4) return 'US';
+    if (r < 0.55) return 'MX';
+    return FLAG_KEYS[Math.floor(rng() * FLAG_KEYS.length)];
+  }
+
+  populate() {
+    const rng = makeRng(42);
+    const S = this.world.spawns;
+    this.player = this.addChar({ x: -16, z: -16, faction: 'player', weapon: 'pistol', hp: 100, colors: outfit('player', rng), name: 'You', flag: 'US' });
+    this.player.face = Math.PI;
+
+    // Named characters.
+    for (const n of NPCS) {
+      let x, z;
+      if (n.where === 'gate') {
+        const gate = S.wardens.reduce((b, w) => (Math.hypot(w.x, w.z + TOWN) < Math.hypot(b.x, b.z + TOWN) ? w : b));
+        x = gate.x + 2; z = gate.z + 3;
+      } else if (typeof n.where === 'string') {
+        const b = S.shops[Number(n.where.split(':')[1]) % S.shops.length];
+        x = (b.minX + b.maxX) / 2 + 1.5; z = (b.minZ + b.maxZ) / 2 + 1.5;
+        b.shopName = n.title;
+      } else { x = n.where.x; z = n.where.z; }
+      const p = n.portrait;
+      this.addChar({ x, z, faction: n.faction, weapon: n.weapon ?? null, npc: n, name: n.name, flag: n.flag, hp: 140,
+        colors: { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', hat: '#5a3f24', hatStyle: { cowboy: 'cowboy', cap: 'cap', mohawk: 'mohawk', wrap: 'wrap' }[p.hat] ?? 'short', gearStyle: n.faction === 'warden' ? 'vest' : p.gear === 'bandolier' ? 'vest' : 'none', gear: '#3a3128' } });
+    }
+    for (const w of S.wardens) this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+    for (const d of S.drifters) {
+      for (let k = 0; k < (Math.max(Math.abs(d.x), Math.abs(d.z)) < TOWN ? 2 : 1); k++)
+        this.addChar({ x: d.x + rng.range(-3, 3), z: d.z + rng.range(-3, 3), faction: 'drifter', weapon: rng.chance(0.15) ? 'pistol' : null, colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+    }
+    for (const r of S.raiders) this.spawnRaider(r.x, r.z, rng);
+
+    // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
+    this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
+    this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#1c1f24');
+    this.vehiclesSys.spawn('pickup', 30, 3.5, -Math.PI / 2, '#56603f');
+    // Traffic on the grid.
+    const paints = ['#8a6a2a', '#3f5a62', '#6a2a1a', '#4a4a48', '#7a5a3a', '#2f4a3a', '#c9a24a', '#6a4a2a'];
+    for (let i = 0; i < 9; i++) {
+      const a = 1 + Math.floor(rng() * 7), b = 1 + Math.floor(rng() * 7);
+      const horizontal = rng.chance(0.5);
+      const x = horizontal ? roadLines[a] + 30 : roadLines[a] - 3.5, z = horizontal ? roadLines[b] + 3.5 : roadLines[b] + 30;
+      const v = this.vehiclesSys.spawn(rng.pick(['interceptor', 'pickup', 'buggy']), x, z, horizontal ? Math.PI / 2 : Math.PI, rng.pick(paints), { ai: 'traffic' });
+      const d = this.addChar({ x, z, faction: 'drifter', colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
+      if (d) { d.inVehicle = v; v.driver = d; }
+    }
+    // Dustwolf buggies at the camps.
+    for (const camp of S.camps) {
+      const v = this.vehiclesSys.spawn('buggy', camp.x + 22, camp.z - 4, rng() * 6, '#4a2018', { ai: 'raider' });
+      const d = this.spawnRaider(camp.x + 22, camp.z - 4, rng, 'smg');
+      if (d) { d.inVehicle = v; v.driver = d; }
+    }
+  }
+
+  spawnRaider(x, z, rng = Math.random, weapon) {
+    const wpn = weapon ?? (rng() < 0.5 ? 'smg' : rng() < 0.6 ? 'pistol' : 'shotgun');
+    const names = ['Dustwolf', 'Dustwolf Grunt', 'Dustwolf Cutter', 'Dustwolf Scav'];
+    return this.addChar({ x, z, faction: 'raider', weapon: wpn, hp: 90, colors: outfit('raider', typeof rng === 'function' ? rng : Math.random), name: names[Math.floor(Math.random() * names.length)], flag: Math.random() < 0.6 ? 'US' : FLAG_KEYS[Math.floor(Math.random() * FLAG_KEYS.length)] });
+  }
+
+  // ---- pickups --------------------------------------------------------------------
+  buildPickups() {
+    const rng = makeRng(9);
+    this.pickups = this.world.spawns.loot.map((l) => {
+      const r = rng();
+      const type = r < 0.45 ? 'ammo' : r < 0.75 ? 'med' : 'cash';
+      return { x: l.x, z: l.z, type, alive: true };
+    });
+    this.pickupMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), new THREE.MeshStandardMaterial({ roughness: 0.5, emissive: '#222' }), 300);
+    this.pickupMesh.frustumCulled = false;
+    this.pickupMesh.castShadow = true;
+    for (let i = 0; i < 300; i++) { this.pickupMesh.setMatrixAt(i, ZERO); this.pickupMesh.setColorAt(i, new THREE.Color('#fff')); }
+    this.scene.add(this.pickupMesh);
+    this.pickupsDirty = true;
+  }
+
+  dropPickup(x, z, type) {
+    if (this.pickups.length > 290) this.pickups.shift();
+    this.pickups.push({ x, z, type, alive: true });
+    this.pickupsDirty = true;
+  }
+
+  updatePickups(dt) {
+    const p = this.player;
+    const col = { ammo: '#d4a23a', med: '#d83a2a', cash: '#6fb36a' };
+    let n = 0;
+    for (const it of this.pickups) {
+      if (!it.alive) continue;
+      if (p.alive && !p.inVehicle && Math.abs(it.x - p.x) < 1.3 && Math.abs(it.z - p.z) < 1.3) {
+        it.alive = false;
+        this.audio.pickup();
+        this.emit('pickup', { kind: it.type });
+        if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; this.hud.toast('+ AMMO'); }
+        else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; this.hud.toast('+ STIMPAK'); }
+        else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; this.hud.toast(`+ $${c}`); }
+        continue;
+      }
+      if (Math.abs(it.x - p.x) > 70 || Math.abs(it.z - p.z) > 70) continue;
+      _o.position.set(it.x, 0.5 + Math.sin(this.time * 3 + it.x) * 0.15, it.z);
+      _o.rotation.set(0, this.time * 1.5 + it.z, 0); _o.scale.set(1, 1, 1); _o.updateMatrix();
+      this.pickupMesh.setMatrixAt(n, _o.matrix);
+      this.pickupMesh.setColorAt(n, _col.set(col[it.type]));
+      n++;
+      if (n >= 300) break;
+    }
+    this.pickupMesh.count = n;
+    this.pickupMesh.instanceMatrix.needsUpdate = true;
+    if (this.pickupMesh.instanceColor) this.pickupMesh.instanceColor.needsUpdate = true;
+  }
+
+  buildFlashlight() {
+    const g = new THREE.PlaneGeometry(7, 15); g.rotateX(-Math.PI / 2); g.translate(0, 0.15, 8);
+    this.flashMat = new THREE.MeshBasicMaterial({ map: coneTexture(), color: '#fff3d6', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
+    this.flashlight = new THREE.Mesh(g, this.flashMat);
+    this.flashlight.renderOrder = 3;
+    this.scene.add(this.flashlight);
+  }
+
+  // ---- game rules -------------------------------------------------------------------
+  give({ cash = 0, ammo = {} }) {
+    this.cash += cash;
+    for (const k in ammo) this.inv.ammo[k] += ammo[k];
+    if (cash) this.hud.toast(`+ $${cash}`, 'job');
+  }
+  spend(n) {
+    if (this.cash < n) { this.hud.toast('NOT ENOUGH CASH', 'warn'); return false; }
+    this.cash -= n;
+    return true;
+  }
+  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); }
+  // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
+  footPath(sx, sz, tx, tz) {
+    const discs = [];
+    for (const v of this.vehicles) {
+      if (v.driver === this.player) continue;
+      if (Math.abs(v.x - sx) > 90 && Math.abs(v.x - tx) > 90) continue;
+      if (Math.abs(v.z - sz) > 90 && Math.abs(v.z - tz) > 90) continue;
+      // Approximate the car by discs along its length.
+      const n = Math.max(2, Math.round(v.len / v.wid));
+      for (let k = 0; k < n; k++) { const o = (k / (n - 1) - 0.5) * (v.len - v.wid); discs.push({ x: v.x + Math.sin(v.h) * o, z: v.z + Math.cos(v.h) * o, r: v.wid * 0.55 }); }
+    }
+    // Prefer a route around cars; if a car is sealing a doorway, fall back to the static route.
+    return this.nav.foot.withObstacles(discs, () => this.nav.foot.find(sx, sz, tx, tz)) ?? this.nav.foot.find(sx, sz, tx, tz);
+  }
+
+  // Stereo position of a world x relative to the camera centre (-1..1).
+  pan(x) { return Math.max(-1, Math.min(1, (x - this.camLook.x) / 28)); }
+  raiseWanted(n) {
+    const before = this.wanted;
+    this.wanted = Math.min(5, this.wanted + n);
+    this.wantedT = 0;
+    if (before === 0 && this.wanted > 0) this.hud.toast('RUST HAVEN WARDENS ARE HUNTING YOU', 'hot');
+  }
+
+  // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
+  reportError(e) {
+    const msg = String(e?.stack ?? e).split(String.fromCharCode(10)).slice(0, 3).join(' | ');
+    this.errors ??= [];
+    if (this.errors.length < 50 && !this.errors.some((x) => x.msg === msg)) this.errors.push({ t: +this.time.toFixed(2), msg });
+    this.emit('error', { msg });
+    console.error('[deathlands]', e);
+    this.input.endFrame();
+  }
+
+  // Structured event log for agents (DL.events). Ring buffer, never grows unbounded.
+  emit(type, data = {}) {
+    this.events.push({ seq: ++this.eventSeq, t: +this.time.toFixed(2), type, ...data });
+    if (this.events.length > 500) this.events.shift();
+  }
+
+  onKill(c, attacker) {
+    this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0 });
+    if (attacker === this.player) {
+      this.stats.kills++;
+      if (c.faction === 'raider') {
+        this.stats.raiderKills++;
+        if (this.quests.bounty === 'active') {
+          const k = this.stats.raiderKills - this.quests.bountyStart;
+          this.hud.toast(k >= 6 ? 'BOUNTY COMPLETE — return to Sheriff Okonkwo' : `Dustwolf Bounty ${k}/6`, 'job');
+        }
+      } else if (c.faction !== 'zombie') this.raiseWanted(c.npc ? 3 : 2);
+    }
+    if (c.faction === 'raider' && Math.random() < 0.7) this.dropPickup(c.x + 0.8, c.z, Math.random() < 0.6 ? 'ammo' : 'cash');
+    if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
+  }
+
+  enterVehicle(v) {
+    this.emit('enterVehicle', { vehicle: v.id, vehicleType: v.type });
+    const p = this.player;
+    if (v.driver && v.driver !== p) {
+      const d = v.driver;
+      d.inVehicle = null;
+      d.x = v.x + Math.cos(v.h) * (v.wid / 2 + 1); d.z = v.z - Math.sin(v.h) * (v.wid / 2 + 1);
+      this.ai.onDamaged(d, p);
+      this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
+      if (d.faction !== 'raider') this.raiseWanted(1);
+    }
+    v.driver = p; v.ai = null;
+    p.inVehicle = v;
+    this.lastVehicle = v;
+    if (v.harpoon) this.hud.subtitle('WAR RIG: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
+  }
+
+  exitVehicle(forced = false) {
+    const p = this.player, v = p.inVehicle;
+    if (!v) return;
+    this.emit('exitVehicle', { vehicle: v.id, forced });
+    const pos = { x: v.x + Math.cos(v.h) * (v.wid / 2 + 0.9), z: v.z - Math.sin(v.h) * (v.wid / 2 + 0.9) };
+    this.statics.resolveCircle(pos, 0.5);
+    p.x = pos.x; p.z = pos.z;
+    p.inVehicle = null;
+    if (v.driver === p) v.driver = null;
+    this.vehiclesSys.releaseHarpoon();
+    const sp = this.vehiclesSys.speed(v);
+    if (!forced && sp > 10) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
+  }
+
+  // Walking through a blood pool leaves a trail of bloody footprints for a few steps.
+  updateFootprints() {
+    for (const c of this.chars) {
+      if (!c.alive || c.inVehicle || c.speed < 0.8) continue;
+      if (Math.abs(c.x - this.player.x) > 60 || Math.abs(c.z - this.player.z) > 60) continue;
+      if (this.fx.inPool(c.x, c.z)) c.bloodySteps = 10;
+      const step = Math.floor(c.walk / Math.PI);
+      if (step !== c.lastStep) {
+        c.lastStep = step;
+        if (c.bloodySteps > 0) {
+          c.bloodySteps--;
+          const side = step % 2 ? 0.14 : -0.14;
+          const fx = Math.cos(c.face) * side, fz = -Math.sin(c.face) * side;
+          this.fx.footprint(c.x + fx, c.z + fz, c.face, Math.min(1, c.bloodySteps / 6 + 0.25));
+        }
+      }
+    }
+  }
+
+  // ---- player ---------------------------------------------------------------------------
+  updatePlayer(dt) {
+    const p = this.player, I = this.input;
+    this.qol.highlight(null);
+    if (!p.alive) {
+      this.respawnT -= dt;
+      if (this.respawnT <= 0) {
+        const clinic = this.world.spawns.shops[0];
+        p.alive = true; p.hp = p.maxHp; p.bleed = 0;
+        // Wake up on the clinic's doorstep (never inside a furniture pocket).
+        const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
+        p.x = door.x; p.z = door.z;
+        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
+        const fee = Math.floor(this.cash * 0.15);
+        this.cash -= fee;
+        this.wanted = 0;
+        for (const c of this.chars) if (c.grudge === p) { c.grudge = null; c.target = null; }
+        this.hud.toast(`Doc Reyes patched you up. Fee: $${fee}`, 'warn');
+      }
+      return;
+    }
+    // Mouse -> ground.
+    _ndc.set(I.mouse.nx, I.mouse.ny);
+    _ray.setFromCamera(_ndc, this.camera);
+    if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
+    else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
+
+    if (this.dialogue.active) { p.speed = 0; return; }
+
+    const v = p.inVehicle;
+    if (v) {
+      p.x = v.x; p.z = v.z;
+      v.throttle = (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0) - (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0);
+      v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
+      v.handbrake = I.key('Space');
+      if (this.driveOverride) {
+        // Agent-issued drive controls win over the keyboard until they expire.
+        const o = this.driveOverride;
+        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake;
+        if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
+      }
+      if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
+      if (I.hit('KeyH') && v.harpoon) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
+      if (I.hit('KeyE') && !v.harpoon) this.audio.horn(0);
+      // Drive-by.
+      this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
+      return;
+    }
+
+    // Hanging onto a vehicle: ride along, aim and shoot; G/F lets go.
+    if (p.grabbing) {
+      p.face = Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
+      p.aiming = true;
+      this.hud.prompt(`<kbd>G</kbd> Let go of the ${p.grabbing.v.name}`);
+      if (I.hit('KeyG') || I.hit('KeyF')) { this.carCombat.letGo(p); this.hud.prompt(null); }
+      else this.handleShooting(dt, p.face);
+      return;
+    }
+
+    // On foot.
+    let mx = 0, mz = 0;
+    if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
+    if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
+    if (I.key('KeyA') || I.key('ArrowLeft')) mx -= 1;
+    if (I.key('KeyD') || I.key('ArrowRight')) mx += 1;
+    const sprint = I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run;
+    const speed = sprint ? 7.6 : 4.6;
+    if (this.autopilot) {
+      // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
+      const ap = this.autopilot;
+      const wp = ap.path?.[ap.i] ?? ap;
+      const last = !ap.path || ap.i >= ap.path.length - 1;
+      const dx = wp.x - p.x, dz = wp.z - p.z, d = Math.hypot(dx, dz);
+      // Stuck (someone in the doorway, a crate)? sidestep, then re-plan from here.
+      ap.chkT = (ap.chkT ?? 0) + dt;
+      if (ap.chkT > 0.8) {
+        const moved = Math.hypot(p.x - (ap.lx ?? p.x + 9), p.z - (ap.lz ?? p.z));
+        ap.lx = p.x; ap.lz = p.z; ap.chkT = 0;
+        if (moved < 0.5) {
+          ap.side = 0.45; ap.sideSign = Math.random() < 0.5 ? 1 : -1;
+          if (ap.follow?.alive) { ap.x = ap.follow.x; ap.z = ap.follow.z; }
+          const np = this.footPath(p.x, p.z, ap.x, ap.z);
+          if (np) { ap.path = np; ap.i = 0; }
+        }
+      }
+      if (d < (last ? ap.tolerance ?? 1 : 0.55)) {
+        if (last) { this.autopilot = null; this.emit('arrived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); }
+        else ap.i++;
+      } else if (ap.side > 0) {
+        ap.side -= dt; mx = (-dz / d) * ap.sideSign + (dx / d) * 0.3; mz = (dx / d) * ap.sideSign + (dz / d) * 0.3;
+      } else { mx = dx / d; mz = dz / d; }
+    }
+    const len = Math.hypot(mx, mz);
+    const px = p.x, pz = p.z;
+    if (len) {
+      const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
+      this.statics.resolveCircle(t, p.radius);
+      p.x = t.x; p.z = t.z;
+    }
+    p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
+    const prevStep = Math.floor(p.walk / Math.PI);
+    p.walk += p.speed * dt * 2.2;
+    if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
+      const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
+      this.audio.step(this.insideBuilding ? 'floor' : onRoad ? 'road' : 'sand', 0);
+    }
+    if (this.qol.settings.aimAssist && !this.aimOverride) {
+      // Aim assist: snap to the closest living character within 2.2m of the cursor.
+      let snap = null, sd = 2.2;
+      for (const c of this.chars) {
+        if (c === p || !c.alive || c.inVehicle) continue;
+        const d = Math.hypot(c.x - this.aim.x, c.z - this.aim.z);
+        if (d < sd) { sd = d; snap = c; }
+      }
+      if (snap) { this.aim.x = snap.x; this.aim.z = snap.z; }
+    }
+    const aimAng = Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
+    p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
+    p.aiming = true;
+    // QOL: slow regen to 60% after 6s without taking damage.
+    p.sinceHit = (p.sinceHit ?? 99) + dt;
+    if (p.sinceHit > 6 && p.hp < 60) p.hp = Math.min(60, p.hp + dt * 4);
+    if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606'); }
+    if (sprint && len && Math.random() < dt * 6) this.fx.dust(p.x, p.z, 1);
+
+    // Weapon select.
+    this.inv.weapons.forEach((k, i) => { if (I.hit(`Digit${i + 1}`)) this.switchWeapon(k); });
+    if (I.wheel) {
+      const i = this.inv.weapons.indexOf(this.inv.current);
+      this.switchWeapon(this.inv.weapons[(i + I.wheel + this.inv.weapons.length) % this.inv.weapons.length]);
+    }
+    if (I.hit('KeyR')) this.reload();
+    this.handleShooting(dt, p.face);
+
+    // Interactions.
+    let best = null, bd = 2.8;
+    for (const c of this.chars) {
+      if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.target === p) continue;
+      const d = Math.hypot(c.x - p.x, c.z - p.z);
+      if (d < bd) { bd = d; best = c; }
+    }
+    let bestV = null, bv = 4.2;
+    for (const veh of this.vehicles) {
+      if (veh.dead) continue;
+      const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
+      if (d < bv) { bv = d; bestV = veh; }
+    }
+    this.qol.highlight(best ?? bestV);
+    if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver ? 'Carjack' : 'Drive'} ${bestV.name} · <kbd>G</kbd> Hang on`);
+    else this.hud.prompt(null);
+    if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
+    else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
+    else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
+  }
+
+  switchWeapon(k) {
+    if (k === this.inv.current) return;
+    this.inv.current = k;
+    this.player.weapon = k;
+    this.player.reloading = 0;
+    this.audio.blip();
+  }
+
+  reload() {
+    const p = this.player, k = this.inv.current, w = WEAPONS[k];
+    if (p.reloading > 0 || this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    p.reloading = w.reload;
+    this.audio.reload();
+  }
+
+  handleShooting(dt, ang) {
+    const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
+    p.cool -= dt;
+    if (p.reloading > 0) {
+      p.reloading -= dt;
+      if (p.reloading <= 0) {
+        const need = w.mag - this.inv.mag[k];
+        const take = Math.min(need, this.inv.ammo[w.ammo]);
+        this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+      }
+      return;
+    }
+    const want = w.auto ? I.mouse.left : I.mouse.leftPressed;
+    if (!want || p.cool > 0) return;
+    if (this.inv.mag[k] <= 0) { this.audio.empty(); p.cool = 0.25; this.reload(); return; }
+    // In a car: shoot out of the window on that side (knocks the glass out first).
+    const fired = p.inVehicle ? this.carCombat.fireFromVehicle(p, p.inVehicle, k, ang) : this.combat.fire(p, k, ang);
+    if (fired) {
+      this.inv.mag[k]--;
+      p.cool = w.rate;
+      if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
+      this.hud.shake(w.shake * 0.4);
+    }
+  }
+
+  // ---- camera ----------------------------------------------------------------------------
+  updateCamera(dt) {
+    const p = this.player, v = p.inVehicle;
+    let tx = p.x, tz = p.z, h = this.zoomFar ? 72 : 33;
+    if (v) {
+      const sp = this.vehiclesSys.speed(v);
+      h = (this.zoomFar ? 82 : 40) + sp * 0.75;
+      tx = v.x + v.vx * 0.55; tz = v.z + v.vz * 0.55;
+    } else {
+      // Lean the view toward the cursor so you can see what you shoot.
+      tx += clamp((this.aim.x - p.x) * 0.25, -8, 8);
+      tz += clamp((this.aim.z - p.z) * 0.25, -8, 8);
+      if (this.insideBuilding && !this.zoomFar) h = 26;
+    }
+    this.camHeight += (h - this.camHeight) * Math.min(1, dt * 2);
+    const k = Math.min(1, dt * 5);
+    this.camLook.x += (tx - this.camLook.x) * k;
+    this.camLook.z += (tz - this.camLook.z) * k;
+    const s = this.hud.shakeV;
+    const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
+    this.camera.position.set(this.camLook.x + sx, this.camHeight, this.camLook.z + this.camHeight * 0.14 + sz);
+    this.camera.lookAt(this.camLook.x + sx, 0, this.camLook.z + sz);
+  }
+
+  updateInterior() {
+    const p = this.player;
+    let inside = null;
+    if (!p.inVehicle) {
+      for (const b of this.world.buildings) {
+        if (!b.enterable || !b.roofIdx.length) continue;
+        if (p.x > b.minX && p.x < b.maxX && p.z > b.minZ && p.z < b.maxZ) { inside = b; break; }
+      }
+    }
+    if (inside !== this.insideBuilding) {
+      if (this.insideBuilding) this.world.setRoofVisible(this.insideBuilding, true);
+      if (inside) {
+        this.world.setRoofVisible(inside, false);
+        if (inside.shopName) this.hud.toast(inside.shopName.toUpperCase());
+      }
+      this.insideBuilding = inside;
+    }
+  }
+
+  updatePopulation(dt) {
+    // Bodies far from view eventually get cleaned up (the blood stays).
+    for (let i = this.chars.length - 1; i >= 0; i--) {
+      const c = this.chars[i];
+      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 70) this.removeChar(c);
+    }
+    // Dustwolves keep coming.
+    this.raiderTimer -= dt;
+    if (this.raiderTimer <= 0) {
+      this.raiderTimer = 18;
+      const alive = this.chars.filter((c) => c.alive && c.faction === 'raider').length;
+      if (alive < 30) {
+        const camps = this.world.spawns.camps.filter((c) => Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
+        const camp = camps[Math.floor(Math.random() * camps.length)];
+        if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
+      }
+    }
+    // Wanted level cools off.
+    if (this.wanted > 0) {
+      this.wantedT += dt;
+      if (this.wantedT > 25) { this.wanted--; this.wantedT = 0; if (!this.wanted) this.hud.toast('The wardens lost interest.'); }
+    }
+  }
+
+  // ---- loop ------------------------------------------------------------------------------
+  title(ui) {
+    const t = document.createElement('div');
+    t.className = 'title';
+    t.innerHTML = `
+      <div class="title-inner">
+        <h1>DEATH<span>LANDS</span></h1>
+        <div class="tag">PHOENIX, ARIZONA · 31 YEARS AFTER</div>
+        <button class="play">ENTER THE WASTE</button>
+        <div class="keys">
+          <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
+          <div><b>SHIFT</b>sprint</div><div><b>R</b>reload</div><div><b>1-3</b>weapons</div>
+          <div><b>E</b>talk</div><div><b>F</b>drive / exit</div><div><b>SPACE</b>handbrake</div>
+          <div><b>H</b>harpoon / yank</div><div><b>T</b>fast time</div><div><b>Y</b>weather</div>
+          <div><b>L</b>flashlight</div><div><b>Z</b>zoom</div><div><b>F3</b>perf stats</div><div><b>P</b>pause</div>
+        </div>
+      </div>`;
+    ui.appendChild(t);
+    t.querySelector('.play').onclick = () => {
+      t.remove();
+      this.audio.start();
+      this.paused = false;
+      this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
+      this.hud.subtitle('The War Rig is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+    };
+    this.render(0.016);
+  }
+
+  frame(dt) {
+    const I = this.input;
+    this.qol.input(I);
+    if (I.hit('F3')) { this.showStats = !this.showStats; this.hud.el.stats.classList.toggle('hidden', !this.showStats); }
+    if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
+    if (I.hit('KeyT')) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
+    if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
+    if (I.hit('KeyZ')) this.zoomFar = !this.zoomFar;
+    if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
+    if (this.paused) { this.qol.update(dt); I.endFrame(); return; } // map/menu stay live while paused
+
+    this.time += dt;
+    const simDt = this.dialogue.active ? 0 : dt;
+    this.updatePlayer(dt);
+    if (simDt) {
+      this.ai.update(simDt);
+      this.vehiclesSys.update(simDt, this.sky.night);
+      this.carCombat.update(simDt);
+      this.zombies.update(simDt);
+      this.updatePopulation(simDt);
+    }
+    this.dialogue.update(dt, I);
+    this.fx.update(dt);
+    this.updatePickups(dt);
+    this.updateFootprints();
+    this.updateInterior();
+    this.updateCamera(dt);
+    const p = this.player;
+    this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat);
+    this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
+    this.world.updateFlames(this.time);
+    const flashOn = this.flashOverride ?? this.sky.night > 0.55;
+    this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 : 0;
+    this.flashlight.position.set(p.x, 0, p.z);
+    this.flashlight.rotation.y = p.face;
+    this.charR.sync(this.chars);
+    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), p.inVehicle ? this.vehiclesSys.speed(p.inVehicle) : null);
+    this.hud.update(dt);
+    this.qol.update(dt);
+    I.endFrame();
+  }
+
+  render(dt) {
+    this.renderer.render(this.scene, this.camera);
+    if (this.showStats) {
+      const r = this.renderer.info.render;
+      this.hud.stats(`FPS       ${this.fps.toFixed(0)}\nDRAWS     ${r.calls}\nTRIS      ${(r.triangles / 1000).toFixed(1)}k\nCHARS     ${this.chars.length} (${this.chars.filter((c) => c.alive).length} alive)\nVEHICLES  ${this.vehicles.length}\nSTATICS   ${this.statics.boxes.length}\nPOS       ${this.player.x.toFixed(0)}, ${this.player.z.toFixed(0)}`);
+    }
+  }
+
+  start() {
+    let last = performance.now();
+    const loop = (now) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      this.fps += (1 / Math.max(dt, 0.001) - this.fps) * 0.05;
+      // A bug in one system must never freeze the game: log it, keep the loop alive.
+      try { this.frame(dt); this.render(dt); } catch (e) { this.reportError(e); }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+}
+
+const game = new Game();
+window.game = game;   // raw engine access (debugging)
+window.DL = game.api; // the agent API — see AGENTS.md
+loadContentPacks(game.api).then(async () => {
+  // Dev QOL: a full page reload (code edit) keeps your place in the world.
+  const keep = sessionStorage.getItem('dl.hmr');
+  if (keep) { sessionStorage.removeItem('dl.hmr'); try { restore(game, JSON.parse(keep)); game.emit('hmrRestored'); } catch (e) { console.warn('hmr restore failed', e); } }
+  startBridge(game.api);
+  const sc = new URLSearchParams(location.search).get('scenario');
+  if (sc) console.log('[scenario]', sc, await game.api.call('scenario', { name: sc }));
+});
+if (import.meta.hot) import.meta.hot.on('vite:beforeFullReload', () => { try { if (!document.querySelector('.title')) sessionStorage.setItem('dl.hmr', JSON.stringify(snapshot(game))); } catch {} });
+game.start();

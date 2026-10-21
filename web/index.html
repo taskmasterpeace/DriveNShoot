@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DEATHLANDS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/ui/hud.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="ui"></div>
+  <script>
+    // Agent QOL: forward page errors (syntax errors, crashes) to the dev bridge so
+    // `node tools/dl.mjs status` explains why the game tab is not responding.
+    (function () {
+      const send = (kind, message, where) => { try { fetch('/agent/client-error', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, message: String(message).slice(0, 500), where, at: Date.now() }) }); } catch (e) {} };
+      addEventListener('error', (e) => send('error', e.message, e.filename ? e.filename.replace(location.origin, '') + ':' + e.lineno + ':' + e.colno : ''));
+      addEventListener('unhandledrejection', (e) => send('unhandledrejection', e.reason && (e.reason.stack || e.reason.message) || e.reason, ''));
+    })();
+  </script>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
