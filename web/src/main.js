@@ -12,6 +12,8 @@ import { AI } from './systems/ai.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
+import { VehicleDamage } from './systems/vehicledamage.js';
+import { Seats } from './systems/seats.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -67,6 +69,8 @@ class Game {
     this.vehicles = [];
     this.combat = new Combat(this);
     this.ai = new AI(this);
+    this.vehDamage = new VehicleDamage(this);
+    this.seats = new Seats(this);
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
     this.zombies = new Zombies(this);
@@ -178,13 +182,13 @@ class Game {
       const x = horizontal ? roadLines[a] + 30 : roadLines[a] - 3.5, z = horizontal ? roadLines[b] + 3.5 : roadLines[b] + 30;
       const v = this.vehiclesSys.spawn(rng.pick(['interceptor', 'pickup', 'buggy']), x, z, horizontal ? Math.PI / 2 : Math.PI, rng.pick(paints), { ai: 'traffic' });
       const d = this.addChar({ x, z, faction: 'drifter', colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
-      if (d) { d.inVehicle = v; v.driver = d; }
+      if (d) this.seats.board(d, v, 0);
     }
     // Dustwolf buggies at the camps.
     for (const camp of S.camps) {
       const v = this.vehiclesSys.spawn('buggy', camp.x + 22, camp.z - 4, rng() * 6, '#4a2018', { ai: 'raider' });
       const d = this.spawnRaider(camp.x + 22, camp.z - 4, rng, 'smg');
-      if (d) { d.inVehicle = v; v.driver = d; }
+      if (d) this.seats.board(d, v, 0);
     }
   }
 
@@ -320,19 +324,30 @@ class Game {
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
   }
 
-  enterVehicle(v) {
-    this.emit('enterVehicle', { vehicle: v.id, vehicleType: v.type });
+  // seat: 0 = take the wheel (carjacks a non-ally driver); 'passenger' = ride along.
+  enterVehicle(v, seat = 0) {
+    this.emit('enterVehicle', { vehicle: v.id, vehicleType: v.type, seat });
     const p = this.player;
-    if (v.driver && v.driver !== p) {
-      const d = v.driver;
-      d.inVehicle = null;
-      d.x = v.x + Math.cos(v.h) * (v.wid / 2 + 1); d.z = v.z - Math.sin(v.h) * (v.wid / 2 + 1);
-      this.ai.onDamaged(d, p);
-      this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
-      if (d.faction !== 'raider') this.raiseWanted(1);
+    if (v.fallen) { v.fallen = false; v.lean = 0; } // pick the bike back up
+    if (seat === 'passenger') {
+      const s = this.seats.freeSeat(v, { passengerOnly: true });
+      if (s < 0) { this.hud.toast('No free seat', 'warn'); return false; }
+      this.seats.board(p, v, s);
+      this.lastVehicle = v;
+      this.hud.toast(v.driver ? `Riding with ${v.driver.name ?? 'the driver'} — [C] change seat` : `${v.seats[s].id} seat — [C] change seat`, 'job');
+      return true;
     }
-    v.driver = p; v.ai = null;
-    p.inVehicle = v;
+    const d = v.occ?.[0];
+    if (d && d !== p && d.alive) {
+      if (d.faction === 'ally') { this.seats.leave(d, true); this.seats.board(d, v, this.seats.freeSeat(v, { passengerOnly: true })); }
+      else {
+        this.seats.leave(d);
+        this.ai.onDamaged(d, p);
+        this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
+        if (d.faction !== 'raider') this.raiseWanted(1);
+      }
+    }
+    this.seats.board(p, v, 0); v.ai = null;
     this.lastVehicle = v;
     if (v.harpoon) this.hud.subtitle('WAR RIG: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
   }
@@ -341,11 +356,8 @@ class Game {
     const p = this.player, v = p.inVehicle;
     if (!v) return;
     this.emit('exitVehicle', { vehicle: v.id, forced });
-    const pos = { x: v.x + Math.cos(v.h) * (v.wid / 2 + 0.9), z: v.z - Math.sin(v.h) * (v.wid / 2 + 0.9) };
-    this.statics.resolveCircle(pos, 0.5);
-    p.x = pos.x; p.z = pos.z;
-    p.inVehicle = null;
-    if (v.driver === p) v.driver = null;
+    this.seats.leave(p, true);
+    if (v.ai === 'chauffeur') { v.ai = null; v.throttle = 0; } // allies park when you get out
     this.vehiclesSys.releaseHarpoon();
     const sp = this.vehiclesSys.speed(v);
     if (!forced && sp > 10) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
@@ -402,9 +414,14 @@ class Game {
     const v = p.inVehicle;
     if (v) {
       p.x = v.x; p.z = v.z;
-      v.throttle = (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0) - (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0);
-      v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
-      v.handbrake = I.key('Space');
+      const driving = v.driver === p;
+      if (driving) {
+        v.throttle = (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0) - (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0);
+        v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
+        v.handbrake = I.key('Space');
+        v.boost = I.key('ShiftLeft') || I.key('ShiftRight');
+      }
+      if (I.hit('KeyC')) this.seats.cycle(p);
       if (this.driveOverride) {
         // Agent-issued drive controls win over the keyboard until they expire.
         const o = this.driveOverride;
@@ -412,7 +429,7 @@ class Game {
         if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
       }
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
-      if (I.hit('KeyH') && v.harpoon) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
+      if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) this.audio.horn(0);
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
@@ -519,10 +536,11 @@ class Game {
     }
     this.qol.highlight(best ?? bestV);
     if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
-    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver ? 'Carjack' : 'Drive'} ${bestV.name} · <kbd>G</kbd> Hang on`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
     else this.hud.prompt(null);
     if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
+    else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
   }
 
@@ -679,6 +697,7 @@ class Game {
       this.ai.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night);
       this.carCombat.update(simDt);
+      this.vehDamage.update(simDt);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
     }

@@ -19,6 +19,9 @@ const CABINS = {
   interceptor: { z: -0.2, len: 2.2, w: 1.76, y: 1.6, h: 0.52, glassHp: 35 },
   pickup: { z: 0.5, len: 1.8, w: 1.96, y: 1.6, h: 0.52, glassHp: 40 },
   buggy: null,
+  bike: null,
+  sedan: { z: -0.2, len: 2.6, w: 1.76, y: 1.6, h: 0.52, glassHp: 35 },
+  van: { z: 0.1, len: 4.4, w: 2.0, y: 1.6, h: 0.6, glassHp: 40 },
 };
 
 export class CarCombat {
@@ -62,6 +65,28 @@ export class CarCombat {
     if (side === 'front') lz = cab.z + cab.len / 2 + out;
     else if (side === 'rear') lz = cab.z - cab.len / 2 - out;
     else lx = (side === 'left' ? 1 : -1) * (cab.w / 2 + out);
+    const c = Math.cos(v.h), s = Math.sin(v.h);
+    return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
+  }
+
+  // Where someone hanging on the car stands: just outside the BODY (bumper / doors),
+  // never inside the cabin footprint.
+  hangPos(v, side, off) {
+    let lx = 0, lz = 0;
+    if (side === 'front') lz = v.len / 2 + 0.45;
+    else if (side === 'rear') lz = -v.len / 2 - 0.45;
+    else { lx = (side === 'left' ? 1 : -1) * (v.wid / 2 + 0.42); lz = off * Math.min(1.1, v.len * 0.18); }
+    const c = Math.cos(v.h), s = Math.sin(v.h);
+    return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
+  }
+
+  // Where someone hanging on the car stands: just outside the BODY (bumper / doors),
+  // never inside the cabin footprint.
+  hangPos(v, side, off) {
+    let lx = 0, lz = 0;
+    if (side === 'front') lz = v.len / 2 + 0.45;
+    else if (side === 'rear') lz = -v.len / 2 - 0.45;
+    else { lx = (side === 'left' ? 1 : -1) * (v.wid / 2 + 0.42); lz = off * Math.min(1.1, v.len * 0.18); }
     const c = Math.cos(v.h), s = Math.sin(v.h);
     return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
   }
@@ -128,7 +153,7 @@ export class CarCombat {
     try { fired = this.g.combat.fire(ch, wkey, ang); }
     finally {
       ch.firingFrom = null;
-      if (wasIn && !v.dead && v.driver === ch) { ch.inVehicle = v; ch.x = v.x; ch.z = v.z; }
+      if (wasIn && !v.dead && v.occ?.[ch.seat] === ch) { ch.inVehicle = v; ch.x = v.x; ch.z = v.z; }
       else if (!wasIn) { ch.x = sx; ch.z = sz; }
     }
     if (fired) this.g.emit('windowShot', { shooter: ch.id, vehicle: v.id, side });
@@ -220,7 +245,7 @@ export class CarCombat {
     for (const v of g.vehicles) {
       this.ensure(v);
       // Dead NPC driver: the car just rolls to a stop.
-      if (v.driver && !v.driver.alive && v.driver !== g.player) { v.driver.inVehicle = null; v.driver = null; }
+      if (v.driver && !v.driver.alive && v.driver !== g.player) { const d = v.driver; v.driver = null; if (v.occ) v.occ[0] = null; d.inVehicle = null; d.seat = null; }
       if (v.cslot >= 0) this.syncGlass(v);
       if (v.cslot >= 0) maxIdx = Math.max(maxIdx, v.cslot * 4 + 4);
       const sp = g.vehiclesSys.speed(v);
@@ -278,8 +303,8 @@ export class CarCombat {
       this.g.exitVehicle(true);
       this.g.combat.damage(victim, 12, r, 0, 0);
       this.g.hud.toast(`${r.name ?? 'A raider'} DRAGGED YOU OUT`, 'hot');
-    } else { victim.inVehicle = null; victim.x = v.x + 2; victim.z = v.z; victim.flee = 6; victim.fleeX = v.x; victim.fleeZ = v.z; }
-    r.inVehicle = v; v.driver = r; v.ai = 'raider';
+    } else { this.g.seats.leave(victim); victim.flee = 6; victim.fleeX = v.x; victim.fleeZ = v.z; }
+    this.g.seats.board(r, v, 0); v.ai = 'raider';
     this.g.emit('draggedOut', { vehicle: v.id, victim: victim.id, by: r.id });
   }
 

@@ -6,84 +6,150 @@ import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
 
 // Each vehicle is ONE merged, vertex-coloured mesh (+1 for lights): ~2 draw calls per car.
+// Seats: the driver is always seat 0. side = driver's left/right (left = local +x),
+// row 0 = front. exposed seats (bike pillion, pickup bed) render their rider and
+// can be shot / grabbed directly.
+const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
+const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 export const VEHICLES = {
-  rig:         { name: 'WAR RIG', len: 7.6, wid: 2.7, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1 },
-  interceptor: { name: 'INTERCEPTOR', len: 4.6, wid: 2.0, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3 },
-  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45 },
-  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28 },
+  rig:         { name: 'WAR RIG', len: 7.6, wid: 2.7, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
+  interceptor: { name: 'INTERCEPTOR', len: 4.6, wid: 2.0, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
+  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80,
+                 seats: [...S2, { id: 'bedL', side: 'left', row: 2, exposed: 'stand' }, { id: 'bedR', side: 'right', row: 2, exposed: 'stand' }] },
+  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, maxSpeed: 40, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
+  van:         { name: 'VAN', len: 5.4, wid: 2.25, maxSpeed: 32, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75,
+                 seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }] },
+  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
 };
 
-function coloredBox(sx, sy, sz, x, y, z, color, rotX = 0) {
+// Part ids baked into a per-vertex attribute so damage can dent / drop exact pieces.
+export const PART = { body: 0, bumperF: 1, bumperR: 2, doorL: 3, doorR: 4, doorL2: 5, doorR2: 6, hood: 7, glass: 8, wheelFL: 10, wheelFR: 11, wheelRL: 12, wheelRR: 13, light: 14, frame: 15 };
+
+function coloredBox(sx, sy, sz, x, y, z, color, part = PART.body, rotX = 0) {
   // Chunky parts get bevelled edges so silhouettes read as vehicles, not crates.
   const m = Math.min(sx, sy, sz);
   let g = m > 0.3 ? new RoundedBoxGeometry(sx, sy, sz, 2, Math.min(0.14, m * 0.22)) : new THREE.BoxGeometry(sx, sy, sz);
   if (g.index) g = g.toNonIndexed();
   if (rotX) g.rotateX(rotX);
   g.translate(x, y, z);
+  return tag(g, color, part);
+}
+
+function tag(g, color, part) {
   const c = new THREE.Color(color);
   const n = g.attributes.position.count;
-  const arr = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; }
+  const arr = new Float32Array(n * 3), pa = new Float32Array(n);
+  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; pa[i] = part; }
   g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  g.setAttribute('part', new THREE.BufferAttribute(pa, 1));
   return g;
 }
 
 function buildBody(type, paint) {
-  const s = VEHICLES[type];
+  const s = VEHICLES[type] ?? VEHICLES.interceptor;
+  const base = s.base ?? type; // content-pack vehicles reuse a stock body
   const L = s.len, W = s.wid;
   const parts = [];
   const wheel = '#141312';
-  const wheelAt = (x, y, z, r = 0.46) => {
-    let t = new THREE.CylinderGeometry(r, r, 0.38, 14).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
-    let h = new THREE.CylinderGeometry(r * 0.45, r * 0.45, 0.4, 8).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
-    const tint = (g, hex) => { const c = new THREE.Color(hex), n = g.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; };
-    parts.push(tint(t, wheel), tint(h, '#6a645c'));
+  // Wheels: tyre + hub, tagged per corner so a flat tyre can visibly sag.
+  const wheelAt = (x, y, z, r = 0.46, part = PART.wheelFL, w = 0.38) => {
+    const t = new THREE.CylinderGeometry(r, r, w, 14).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
+    const h = new THREE.CylinderGeometry(r * 0.45, r * 0.45, w + 0.02, 8).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
+    parts.push(tag(t, wheel, part), tag(h, '#6a645c', part));
   };
-  const wheels = (y, inset, front, back) => {
-    for (const zz of [front, back]) for (const xx of [-1, 1]) wheelAt(xx * (W / 2 - inset), y, zz);
+  const wheels = (y, inset, front, back, r) => {
+    wheelAt(W / 2 - inset, y, front, r, PART.wheelFL); wheelAt(-W / 2 + inset, y, front, r, PART.wheelFR);
+    wheelAt(W / 2 - inset, y, back, r, PART.wheelRL); wheelAt(-W / 2 + inset, y, back, r, PART.wheelRR);
   };
-  if (type === 'rig') {
-    parts.push(coloredBox(W, 1.5, 3.0, 0, 1.6, L / 2 - 1.5, paint));          // cab
-    parts.push(coloredBox(W - 0.3, 0.9, 1.9, 0, 2.7, L / 2 - 1.8, '#2a3a44'));  // cab glass
-    parts.push(coloredBox(W + 0.2, 0.4, 0.4, 0, 0.9, L / 2 + 0.1, '#5a5550'));  // ram bar
-    for (let i = -2; i <= 2; i++) parts.push(coloredBox(0.15, 0.15, 0.8, i * 0.5, 0.9, L / 2 + 0.5, '#8a8580')); // spikes
-    parts.push(coloredBox(W, 0.6, L - 3.2, 0, 1.2, -1.4, '#3b3632'));          // flatbed
-    parts.push(coloredBox(W, 0.9, 0.2, 0, 1.9, -L / 2 + 0.2, '#4a3a2a'));
+  const bumpers = (y = 0.7, h = 0.28) => {
+    parts.push(coloredBox(W + 0.06, h, 0.26, 0, y, L / 2 + 0.04, '#2e2c2a', PART.bumperF));
+    parts.push(coloredBox(W + 0.06, h, 0.26, 0, y, -L / 2 - 0.04, '#2e2c2a', PART.bumperR));
+  };
+  const door = (side, z, len, part, y = 1.0, h = 0.62) => {
+    // side: +1 = driver's left (local +x)
+    parts.push(coloredBox(0.08, h, len, side * (W / 2 + 0.02), y, z, paint, part));
+    parts.push(coloredBox(0.05, 0.05, 0.2, side * (W / 2 + 0.07), y + 0.08, z - len * 0.25, '#8a8580', part)); // handle
+  };
+
+  if (base === 'rig') {
+    parts.push(coloredBox(W, 1.5, 3.0, 0, 1.6, L / 2 - 1.5, paint));
+    parts.push(coloredBox(W - 0.3, 0.9, 1.9, 0, 2.7, L / 2 - 1.8, '#2a3a44', PART.glass));
+    parts.push(coloredBox(W + 0.2, 0.4, 0.4, 0, 0.9, L / 2 + 0.1, '#5a5550', PART.bumperF));
+    for (let i = -2; i <= 2; i++) parts.push(coloredBox(0.15, 0.15, 0.8, i * 0.5, 0.9, L / 2 + 0.5, '#8a8580', PART.bumperF));
+    parts.push(coloredBox(W, 0.6, L - 3.2, 0, 1.2, -1.4, '#3b3632'));
+    parts.push(coloredBox(W, 0.9, 0.2, 0, 1.9, -L / 2 + 0.2, '#4a3a2a', PART.bumperR));
     parts.push(coloredBox(0.2, 0.9, L - 3.4, -W / 2 + 0.1, 1.9, -1.4, '#4a3a2a'));
     parts.push(coloredBox(0.2, 0.9, L - 3.4, W / 2 - 0.1, 1.9, -1.4, '#4a3a2a'));
-    parts.push(coloredBox(1.1, 0.9, 1.1, 0, 2.1, -1.8, '#2d2a28'));             // harpoon turret base
-    parts.push(coloredBox(0.3, 0.3, 2.4, 0, 2.7, -1.4, '#6a6560'));             // harpoon barrel
-    parts.push(coloredBox(0.8, 0.8, 0.8, -0.7, 1.9, -3.2, '#7a3a1c'));           // fuel drums
+    parts.push(coloredBox(1.1, 0.9, 1.1, 0, 2.1, -1.8, '#2d2a28'));
+    parts.push(coloredBox(0.3, 0.3, 2.4, 0, 2.7, -1.4, '#6a6560'));
+    parts.push(coloredBox(0.8, 0.8, 0.8, -0.7, 1.9, -3.2, '#7a3a1c'));
     parts.push(coloredBox(0.8, 0.8, 0.8, 0.7, 1.9, -3.2, '#7a3a1c'));
-    wheels(0.55, 0.15, L / 2 - 1.2, -L / 2 + 1.4);
-    wheelAt(-W / 2 + 0.15, 0.55, -L / 2 + 2.6); wheelAt(W / 2 - 0.15, 0.55, -L / 2 + 2.6);
-  } else if (type === 'buggy') {
+    door(1, L / 2 - 1.6, 1.3, PART.doorL, 1.6, 1.0); door(-1, L / 2 - 1.6, 1.3, PART.doorR, 1.6, 1.0);
+    wheels(0.55, 0.15, L / 2 - 1.2, -L / 2 + 1.4, 0.55);
+    wheelAt(W / 2 - 0.15, 0.55, -L / 2 + 2.6, 0.55, PART.wheelRL); wheelAt(-W / 2 + 0.15, 0.55, -L / 2 + 2.6, 0.55, PART.wheelRR);
+  } else if (base === 'buggy') {
     parts.push(coloredBox(W - 0.4, 0.5, L - 0.6, 0, 0.75, 0, paint));
-    parts.push(coloredBox(0.12, 1.1, 0.12, -0.7, 1.5, 0.3, '#2a2a2a'));
-    parts.push(coloredBox(0.12, 1.1, 0.12, 0.7, 1.5, 0.3, '#2a2a2a'));
-    parts.push(coloredBox(0.12, 1.1, 0.12, -0.7, 1.5, -0.9, '#2a2a2a'));
-    parts.push(coloredBox(0.12, 1.1, 0.12, 0.7, 1.5, -0.9, '#2a2a2a'));
-    parts.push(coloredBox(1.6, 0.12, 1.4, 0, 2.05, -0.3, '#2a2a2a'));
-    parts.push(coloredBox(1.2, 0.6, 0.8, 0, 1.0, -L / 2 + 0.5, '#3a3632'));  // engine
-    wheels(0.5, 0.0, L / 2 - 0.7, -L / 2 + 0.7);
+    for (const [x, z] of [[-0.7, 0.3], [0.7, 0.3], [-0.7, -0.9], [0.7, -0.9]]) parts.push(coloredBox(0.12, 1.1, 0.12, x, 1.5, z, '#2a2a2a', PART.frame));
+    parts.push(coloredBox(1.6, 0.12, 1.4, 0, 2.05, -0.3, '#2a2a2a', PART.frame));
+    parts.push(coloredBox(1.2, 0.6, 0.8, 0, 1.0, -L / 2 + 0.5, '#3a3632'));
+    parts.push(coloredBox(0.5, 0.5, 0.5, 0.45, 1.05, 0.0, '#1d1b19')); // seats
+    parts.push(coloredBox(0.5, 0.5, 0.5, -0.45, 1.05, 0.0, '#1d1b19'));
+    wheels(0.5, 0.0, L / 2 - 0.7, -L / 2 + 0.7, 0.5);
+    bumpers(0.6, 0.22);
+  } else if (base === 'bike') {
+    // Motorcycle: wheels in line, frame, tank, saddle, bars, exhaust.
+    wheelAt(0, 0.38, L / 2 - 0.38, 0.38, PART.wheelFL, 0.16);
+    wheelAt(0, 0.38, -L / 2 + 0.38, 0.38, PART.wheelRL, 0.2);
+    parts.push(coloredBox(0.16, 0.16, L - 0.7, 0, 0.62, 0, '#2a2826', PART.frame));
+    parts.push(coloredBox(0.42, 0.3, 0.6, 0, 0.92, 0.28, paint));                 // tank
+    parts.push(coloredBox(0.34, 0.12, 0.75, 0, 0.88, -0.35, '#1a1816'));           // saddle
+    parts.push(coloredBox(0.36, 0.3, 0.42, 0, 0.55, 0.05, '#3a3632'));             // engine
+    parts.push(coloredBox(0.72, 0.06, 0.06, 0, 1.1, L / 2 - 0.55, '#8a8580', PART.frame)); // bars
+    parts.push(coloredBox(0.06, 0.5, 0.06, 0, 0.82, L / 2 - 0.5, '#8a8580', PART.frame));  // fork
+    parts.push(coloredBox(0.1, 0.1, 0.7, -0.22, 0.42, -0.45, '#9a948c', PART.frame));     // exhaust
+    parts.push(coloredBox(0.2, 0.14, 0.08, 0, 0.98, L / 2 - 0.42, '#fff6d8', PART.light));
+    parts.push(coloredBox(0.18, 0.1, 0.06, 0, 0.82, -L / 2 + 0.2, '#b01010', PART.light));
+    return mergeGeometries(parts);
+  } else if (base === 'van') {
+    parts.push(coloredBox(W, 1.5, L, 0, 1.25, 0, paint));
+    parts.push(coloredBox(W - 0.2, 0.08, L - 0.6, 0, 2.04, -0.1, '#cfc8bb'));       // roof
+    parts.push(coloredBox(W - 0.3, 0.55, 0.1, 0, 1.6, L / 2 - 0.4, '#2a3a44', PART.glass));
+    door(1, L / 2 - 1.0, 1.0, PART.doorL, 1.25, 1.2); door(-1, L / 2 - 1.0, 1.0, PART.doorR, 1.25, 1.2);
+    door(-1, -0.5, 1.4, PART.doorR2, 1.25, 1.2); // sliding door
+    bumpers(0.55, 0.3);
+    wheels(0.45, 0.05, L / 2 - 0.9, -L / 2 + 0.9);
   } else {
-    const cabZ = type === 'pickup' ? 0.5 : -0.2;
-    const cabL = type === 'pickup' ? 1.8 : 2.2;
+    // Cars: interceptor / pickup / sedan share a body; the cabin differs.
+    const cabZ = base === 'pickup' ? 0.5 : -0.2;
+    const cabL = base === 'pickup' ? 1.8 : base === 'sedan' ? 2.6 : 2.2;
     parts.push(coloredBox(W, 0.8, L, 0, 0.85, 0, paint));
-    parts.push(coloredBox(W - 0.25, 0.65, cabL, 0, 1.55, cabZ, '#2a3a44'));
+    parts.push(coloredBox(W - 0.25, 0.65, cabL, 0, 1.55, cabZ, '#2a3a44', PART.glass));
     parts.push(coloredBox(W - 0.35, 0.08, cabL - 0.4, 0, 1.9, cabZ, paint));
-    if (type === 'pickup') parts.push(coloredBox(W - 0.2, 0.3, 1.8, 0, 1.35, -L / 2 + 1.0, '#3a3530'));
-    if (type === 'interceptor') {
-      parts.push(coloredBox(0.6, 0.35, 1.0, 0, 1.4, L / 2 - 1.0, '#6a6560')); // blower
+    parts.push(coloredBox(W - 0.3, 0.06, (L / 2 - (cabZ + cabL / 2)) * 0.85, 0, 1.27, cabZ + cabL / 2 + (L / 2 - (cabZ + cabL / 2)) / 2, paint, PART.hood));
+    if (base === 'pickup') {
+      parts.push(coloredBox(W - 0.2, 0.3, 1.8, 0, 1.35, -L / 2 + 1.0, '#3a3530'));
+      parts.push(coloredBox(0.1, 0.4, 2.2, W / 2 - 0.1, 1.45, -L / 2 + 1.2, paint)); // bed rails
+      parts.push(coloredBox(0.1, 0.4, 2.2, -W / 2 + 0.1, 1.45, -L / 2 + 1.2, paint));
+    }
+    if (base === 'interceptor') {
+      parts.push(coloredBox(0.6, 0.35, 1.0, 0, 1.4, L / 2 - 1.0, '#6a6560'));
       parts.push(coloredBox(W + 0.1, 0.2, 0.3, 0, 1.0, -L / 2 + 0.1, '#222'));
     }
+    if (base === 'sedan') {
+      door(1, cabZ + cabL / 4, cabL / 2 - 0.05, PART.doorL); door(-1, cabZ + cabL / 4, cabL / 2 - 0.05, PART.doorR);
+      door(1, cabZ - cabL / 4, cabL / 2 - 0.05, PART.doorL2); door(-1, cabZ - cabL / 4, cabL / 2 - 0.05, PART.doorR2);
+    } else {
+      door(1, cabZ, cabL - 0.2, PART.doorL); door(-1, cabZ, cabL - 0.2, PART.doorR);
+    }
+    bumpers();
     wheels(0.45, 0.05, L / 2 - 0.9, -L / 2 + 0.9);
   }
-  // Headlights / taillights as small boxes in the body.
-  parts.push(coloredBox(0.35, 0.18, 0.08, -W / 2 + 0.35, 1.0, L / 2 + 0.02, '#fff6d8'));
-  parts.push(coloredBox(0.35, 0.18, 0.08, W / 2 - 0.35, 1.0, L / 2 + 0.02, '#fff6d8'));
-  parts.push(coloredBox(0.35, 0.16, 0.08, -W / 2 + 0.3, 1.0, -L / 2 - 0.02, '#b01010'));
-  parts.push(coloredBox(0.35, 0.16, 0.08, W / 2 - 0.3, 1.0, -L / 2 - 0.02, '#b01010'));
+  parts.push(coloredBox(0.35, 0.18, 0.08, -W / 2 + 0.35, 1.0, L / 2 + 0.02, '#fff6d8', PART.light));
+  parts.push(coloredBox(0.35, 0.18, 0.08, W / 2 - 0.35, 1.0, L / 2 + 0.02, '#fff6d8', PART.light));
+  parts.push(coloredBox(0.35, 0.16, 0.08, -W / 2 + 0.3, 1.0, -L / 2 - 0.02, '#b01010', PART.light));
+  parts.push(coloredBox(0.35, 0.16, 0.08, W / 2 - 0.3, 1.0, -L / 2 - 0.02, '#b01010', PART.light));
   return mergeGeometries(parts);
 }
 
@@ -137,6 +203,7 @@ export class Vehicles {
     const tailMesh = new THREE.Mesh(mergeGeometries(tails), this.tailMat);
     tailMesh.renderOrder = 3;
     const group = new THREE.Group();
+    group.rotation.order = 'YXZ'; // yaw, then wheelie pitch, then bike lean (local roll)
     group.add(mesh, coneMesh, tailMesh);
     this.g.scene.add(group);
     const v = {
@@ -145,6 +212,10 @@ export class Vehicles {
       skidT: 0, burn: 0, node: null, lights: true, paint, honk: 0, impact: 0,
     };
     v.id = `v${this.list.length + 1}`;
+    v.seats = s.seats ?? VEHICLES.interceptor.seats;
+    this.g.seats.init(v);
+    this.g.vehDamage.init(v);
+    v.lean = 0; v.wheelie = 0; v.fallen = false;
     this.list.push(v);
     this.g.vehicles = this.list;
     return v;
@@ -174,7 +245,7 @@ export class Vehicles {
       // Catches fire first: a few seconds to bail out before it blows.
       v.hp = 0; v.onFire = 4; v.fireBy = attacker;
       if (v.driver === this.g.player) this.g.hud.toast('VEHICLE ON FIRE — BAIL OUT [F]', 'hot');
-      if (v.driver && v.driver !== this.g.player) { const d = v.driver; d.inVehicle = null; v.driver = null; d.x = v.x + 2.5; d.z = v.z; d.flee = 4; d.fleeX = v.x; d.fleeZ = v.z; }
+      for (const o of [...(v.occ ?? [])]) if (o && o !== this.g.player) { this.g.seats.leave(o); if (o.faction !== 'ally') { o.flee = 4; o.fleeX = v.x; o.fleeZ = v.z; } }
     }
   }
 
@@ -194,13 +265,14 @@ export class Vehicles {
       const d = Math.hypot(cx - v.x, cz - v.z);
       if (c.inVehicle === v) {
         if (c === g.player) g.exitVehicle(true);
-        else { c.inVehicle = null; c.x = v.x + 2; c.z = v.z; }
+        else g.seats.leave(c, true);
         g.combat.damage(c, 999, attacker, 1, 0, 'explosion');
       } else if (d < 7 && !c.inVehicle) {
         g.combat.damage(c, 120 * (1 - d / 7), attacker, (cx - v.x) / (d || 1), (cz - v.z) / (d || 1), 'explosion');
       }
     }
     v.driver = null;
+    if (v.dmg) { for (const z of Object.keys(v.dmg.zones)) v.dmg.zones[z] = Math.min(1, v.dmg.zones[z] + 0.45); v.dmg.dirty = true; v.dmg.deformT = 0; for (const p of ['hood', 'bumperF', 'doorL', 'doorR']) if (Math.random() < 0.6) g.vehDamage.detach(v, p, p === 'hood' || p === 'bumperF' ? 'front' : p === 'doorL' ? 'left' : 'right', 20); g.vehDamage.deform(v); }
     v.vx *= 0.3; v.vz *= 0.3;
     v.av = (Math.random() - 0.5) * 4;
     for (const o of this.list) {
@@ -217,19 +289,28 @@ export class Vehicles {
     let fwd = v.vx * fx + v.vz * fz;
     let side = v.vx * rx + v.vz * rz;
     const sp = Math.abs(fwd);
-    if (!v.dead && v.driver) {
-      if (v.throttle > 0) fwd += v.accel * v.throttle * dt * (1 - clamp(fwd / v.maxSpeed, 0, 1) * 0.85);
+    const fxm = this.g.vehDamage.effects(v, dt); // engine/radiator/fuel/tyres/lights
+    const topSpeed = v.maxSpeed * fxm.top;
+    if (!v.dead && v.driver && !v.fallen) {
+      if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
       else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * 0.6) * -v.throttle * dt;
       if (fwd < -v.maxSpeed * 0.35) fwd = -v.maxSpeed * 0.35;
       // Steering bites with speed, softens at top speed.
-      const steerAmt = v.steer * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35);
+      const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       v.av = angleLerp(v.av, steerAmt * Math.sign(fwd || 1), Math.min(1, dt * 10));
     } else {
       v.av *= Math.exp(-dt * 2);
     }
     v.h += v.av * dt;
     // Rolling drag and lateral grip (handbrake = drift).
-    const grip = v.handbrake ? v.grip * 0.18 : v.grip;
+    const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1);
+    if (v.bike) {
+      // Lean into the turn; wheelie on boost at low speed; a fallen bike just slides.
+      const targetLean = v.fallen ? 1.35 : clamp(-v.av * sp * 0.032, -0.7, 0.7);
+      v.lean += (targetLean - v.lean) * Math.min(1, dt * (v.fallen ? 3 : 8));
+      const wantWheelie = !v.fallen && v.boost && v.throttle > 0 && sp > 3 && sp < 24;
+      v.wheelie += ((wantWheelie ? 0.42 : 0) - v.wheelie) * Math.min(1, dt * (wantWheelie ? 2.5 : 6));
+    }
     fwd *= Math.exp(-dt * (v.driver && !v.dead ? (v.handbrake ? 1.2 : 0.18) : 1.4));
     side *= Math.exp(-dt * grip);
     const nfx = Math.sin(v.h), nfz = Math.cos(v.h);
@@ -266,11 +347,17 @@ export class Vehicles {
         const d = Math.hypot(dx, dz) || 1;
         const nx = dx / d, nz = dz / d;
         const vn = v.vx * nx + v.vz * nz;
-        if (vn < 0) { v.vx -= vn * nx * 1.35; v.vz -= vn * nz * 1.35; hitN = Math.max(hitN, -vn); }
+        if (vn < 0) { v.vx -= vn * nx * 1.35; v.vz -= vn * nz * 1.35; if (-vn > hitN) { v._hitX = t.x - nx * r; v._hitZ = t.z - nz * r; } hitN = Math.max(hitN, -vn); }
         // Glancing hits spin the car.
         v.av += (off > 0 ? 1 : -1) * (nx * fz - nz * fx) * Math.min(3, -vn * 0.08);
       }
     }
+    if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
+    if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
+    if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
+    if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
+    if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
+    if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
     if (hitN > 8) {
       this.damage(v, (hitN - 8) * 2.2 / v.mass * 2, null);
       g.fx.sparks(v.x + fx * v.len * 0.5, 0.8, v.z + fz * v.len * 0.5, -fx, -fz, 8);
@@ -303,6 +390,15 @@ export class Vehicles {
         // Off-centre hits spin the car that got hit.
         const lever = (best.px - o.x) * Math.cos(o.h) - (best.pz - o.z) * Math.sin(o.h);
         o.av += lever * -rv * 0.08 / o.mass + (Math.random() - 0.5) * -rv * 0.1 / o.mass;
+        g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
+        g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
+        for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
+        g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
+        g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
+        for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
+        g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
+        g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
+        for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
         if (-rv > 6) {
           this.damage(o, -rv * 1.6 * (v.mass / o.mass), v.driver);
           this.damage(v, -rv * 1.6 * (o.mass / v.mass), o.driver);
@@ -387,6 +483,51 @@ export class Vehicles {
       }
       const sp = this.speed(v);
       v.throttle = sp < target ? 0.7 : sp > target + 2 ? -0.6 : 0;
+      v.handbrake = false;
+    } else if (v.ai === 'chauffeur') {
+      // An ally at the wheel: drive the player's GPS route, or cruise the grid.
+      const wp = g.qol.waypoint ?? g.qol.objective()?.target;
+      if (!wp) { v.ai = 'traffic'; v.node = null; this.aiDrive(v, dt); v.ai = 'chauffeur'; return; }
+      v.routeT = (v.routeT ?? 0) - dt;
+      if (v.routeT <= 0 || !v.route) { v.routeT = 2; v.route = g.nav.car.find(v.x, v.z, wp.x, wp.z) ?? [{ x: wp.x, z: wp.z }]; v.ri = 0; }
+      let tgt = v.route[v.ri] ?? { x: wp.x, z: wp.z };
+      if (Math.hypot(tgt.x - v.x, tgt.z - v.z) < 8 && v.ri < v.route.length - 1) { v.ri++; tgt = v.route[v.ri]; }
+      const dEnd = Math.hypot(wp.x - v.x, wp.z - v.z);
+      const want = Math.atan2(tgt.x - v.x, tgt.z - v.z);
+      const diff = angleLerp(v.h, want, 1) - v.h;
+      v.steer = clamp(diff * 2.2, -1, 1);
+      const sp = this.speed(v);
+      v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
+      v.handbrake = false;
+    } else if (v.ai === 'chauffeur') {
+      // An ally at the wheel: drive the player's GPS route, or cruise the grid.
+      const wp = g.qol.waypoint ?? g.qol.objective()?.target;
+      if (!wp) { v.ai = 'traffic'; v.node = null; this.aiDrive(v, dt); v.ai = 'chauffeur'; return; }
+      v.routeT = (v.routeT ?? 0) - dt;
+      if (v.routeT <= 0 || !v.route) { v.routeT = 2; v.route = g.nav.car.find(v.x, v.z, wp.x, wp.z) ?? [{ x: wp.x, z: wp.z }]; v.ri = 0; }
+      let tgt = v.route[v.ri] ?? { x: wp.x, z: wp.z };
+      if (Math.hypot(tgt.x - v.x, tgt.z - v.z) < 8 && v.ri < v.route.length - 1) { v.ri++; tgt = v.route[v.ri]; }
+      const dEnd = Math.hypot(wp.x - v.x, wp.z - v.z);
+      const want = Math.atan2(tgt.x - v.x, tgt.z - v.z);
+      const diff = angleLerp(v.h, want, 1) - v.h;
+      v.steer = clamp(diff * 2.2, -1, 1);
+      const sp = this.speed(v);
+      v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
+      v.handbrake = false;
+    } else if (v.ai === 'chauffeur') {
+      // An ally at the wheel: drive the player's GPS route, or cruise the grid.
+      const wp = g.qol.waypoint ?? g.qol.objective()?.target;
+      if (!wp) { v.ai = 'traffic'; v.node = null; this.aiDrive(v, dt); v.ai = 'chauffeur'; return; }
+      v.routeT = (v.routeT ?? 0) - dt;
+      if (v.routeT <= 0 || !v.route) { v.routeT = 2; v.route = g.nav.car.find(v.x, v.z, wp.x, wp.z) ?? [{ x: wp.x, z: wp.z }]; v.ri = 0; }
+      let tgt = v.route[v.ri] ?? { x: wp.x, z: wp.z };
+      if (Math.hypot(tgt.x - v.x, tgt.z - v.z) < 8 && v.ri < v.route.length - 1) { v.ri++; tgt = v.route[v.ri]; }
+      const dEnd = Math.hypot(wp.x - v.x, wp.z - v.z);
+      const want = Math.atan2(tgt.x - v.x, tgt.z - v.z);
+      const diff = angleLerp(v.h, want, 1) - v.h;
+      v.steer = clamp(diff * 2.2, -1, 1);
+      const sp = this.speed(v);
+      v.throttle = dEnd < 10 ? (sp > 1 ? -1 : 0) : Math.abs(diff) > 0.7 && sp > 12 ? -0.3 : 0.85;
       v.handbrake = false;
     } else if (v.ai === 'raider') {
       // Hunt the player's vehicle; ram it.
@@ -564,13 +705,28 @@ export class Vehicles {
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
       this.drive(v, dt);
       this.collide(v, dt);
-      if (v.driver && v.driver !== g.player) { v.driver.x = v.x; v.driver.z = v.z; }
+      // Everyone aboard rides with the car; exposed seats (bike, truck bed) show their rider.
+      if (v.occ) for (let si = 0; si < v.occ.length; si++) {
+        const o = v.occ[si];
+        if (!o) continue;
+        if (!o.alive && o !== g.player) { v.occ[si] = null; if (v.driver === o) v.driver = null; o.inVehicle = null; o.seat = null; o.seatPose = null; continue; }
+        o.x = v.x; o.z = v.z;
+        const seat = v.seats[si];
+        if (seat.exposed) {
+          const lx = v.bike ? 0 : (seat.side === 'left' ? 0.45 : -0.45), lz = v.bike ? (si === 0 ? -0.15 : -0.65) : -v.len / 2 + 1.0;
+          const c = Math.cos(v.h), sn = Math.sin(v.h);
+          o.seatPose = { x: v.x + lx * c + lz * sn, z: v.z - lx * sn + lz * c, y: v.bike ? 0.12 : 1.1, h: o.aiming && seat.exposed === 'stand' ? o.face : v.h, lean: v.lean ?? 0, pitch: -(v.wheelie ?? 0), kind: seat.exposed };
+        } else o.seatPose = null;
+      }
       const lit = !!v.driver && !v.dead;
       v.coneMesh.visible = lit; v.tailMesh.visible = lit || v.throttle < 0;
       // Paint chars and darkens as the vehicle is damaged.
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
       v.group.position.set(v.x, 0, v.z);
       v.group.rotation.y = v.h;
+      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
+      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
+      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
       if (v.onFire) {
         v.onFire -= dt;
         if (Math.random() < dt * 30) this.g.fx.spawn(4, v.x + (Math.random() - 0.5) * v.wid, 1.4, v.z + (Math.random() - 0.5) * v.len * 0.6, 0, 3, 0, 0.45, 0.3, '#ff7a1a', -1);

@@ -36,6 +36,8 @@ function vehView(g, v) {
     hp: Math.round(v.hp), maxHp: v.maxHp, dead: v.dead, onFire: v.onFire > 0, damageBy: v.dmgLog ? Object.fromEntries(Object.entries(v.dmgLog).map(([k, a]) => [k, Math.round(a)])) : undefined, driver: v.driver?.id ?? null, ai: v.ai, harpoon: !!v.harpoon,
     dist: r1(Math.hypot(v.x - g.player.x, v.z - g.player.z)),
     ...g.carCombat.view(v),
+    ...g.vehDamage.view(v),
+    occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen,
   };
 }
 
@@ -571,6 +573,53 @@ function buildCommands(api) {
         return { flung: before.filter((x2) => !still.includes(x2)), stillOn: still, ...vehView(g, v) };
       },
     },
+    recruit: {
+      group: 'player', desc: 'Make a living non-hostile character your follower (faction ally): follows you, fights your enemies, boards your vehicle, shoots out of their own window, and takes the wheel if you slide seats (C).',
+      args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => {
+        const c = api.findChar(id);
+        need(c && c.alive && c !== P(), `no living character ${id}`);
+        need(!['raider', 'zombie'].includes(c.faction), `${c.name} won't ride with you (${c.faction})`);
+        g.seats.recruit(c);
+        return { recruited: c.id, name: c.npc?.name ?? c.name, weapon: c.weapon };
+      },
+    },
+    dismiss: { group: 'player', desc: 'Send a follower on their way.', args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => { const c = api.findChar(id); need(c?.follower, `${id} is not following you`); g.seats.dismiss(c); return { dismissed: c.id }; } },
+    seat: {
+      group: 'vehicle', desc: 'Board a vehicle in a specific seat (driver|shotgun|backL|backR|bedL|bedR|pillion|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report.',
+      args: { id: { type: 'string' }, seat: { type: 'string', default: 'passenger' } },
+      run: async ({ id, seat }) => {
+        const p = P();
+        if (!id && p.inVehicle) {
+          const v = p.inVehicle;
+          if (seat === 'next' || seat === 'passenger') need(g.seats.cycle(p), 'no free seat to move to');
+          else {
+            const si = v.seats.findIndex((s) => s.id === seat);
+            need(si >= 0, `no seat "${seat}" in a ${v.type}; seats: ${v.seats.map((s) => s.id).join(',')}`);
+            need(!v.occ[si] || v.occ[si] === p, `${seat} is taken by ${v.occ[si]?.name}`);
+            while (p.seat !== si) need(g.seats.cycle(p), 'could not reach that seat');
+          }
+          return { seat: v.seats[p.seat].id, driver: v.driver?.id ?? null, ai: v.ai };
+        }
+        const v = api.findVeh(id);
+        need(v && !v.dead, `no live vehicle ${id}`);
+        const d = Math.hypot(v.x - p.x, v.z - p.z) - v.len * 0.5;
+        need(d < 3.5 || p.inVehicle === v, `${v.name} is ${Math.round(d)}m away; moveTo id=${v.id} first`);
+        if (seat === 'driver') { g.enterVehicle(v, 0); return { seat: 'driver' }; }
+        if (seat === 'passenger') { need(g.enterVehicle(v, 'passenger'), 'no free passenger seat'); return { seat: v.seats[p.seat].id, driver: v.driver?.id ?? null }; }
+        const si = v.seats.findIndex((s) => s.id === seat);
+        need(si > 0, `no seat "${seat}"; seats: ${v.seats.map((s) => s.id).join(',')}`);
+        need(g.seats.board(p, v, si), `${seat} is taken`);
+        g.lastVehicle = v;
+        return { seat, driver: v.driver?.id ?? null };
+      },
+    },
+    repair: {
+      group: 'vehicle', desc: 'Full field repair of a vehicle (testing / mechanic): parts, tyres, dents, panels, hp.',
+      args: { id: { type: 'string' } },
+      run: async ({ id }) => { const v = id ? api.findVeh(id) : P().inVehicle ?? g.lastVehicle; need(v && !v.dead, 'no live vehicle'); g.vehDamage.repair(v); return vehView(g, v); },
+    },
     harpoon: {
       group: 'vehicle', desc: 'Fire the War Rig harpoon at x,z or entity id. Call again while hooked to YANK.',
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
@@ -651,7 +700,7 @@ function buildCommands(api) {
         const v = g.vehiclesSys.spawn(type, x ?? P().x + 8, z ?? P().z, heading, paint, { ai: ai === 'none' ? null : ai });
         if (withDriver || ai !== 'none') {
           const d = ai === 'raider' ? g.spawnRaider(v.x, v.z, Math.random, 'smg') : g.addChar({ x: v.x, z: v.z, faction: 'drifter', colors: outfit('drifter'), name: 'Driver', flag: 'US' });
-          if (d) { d.inVehicle = v; v.driver = d; }
+          if (d) g.seats.board(d, v, 0);
         }
         return vehView(g, v);
       },
@@ -918,6 +967,54 @@ async function runSelfTest(api) {
     const b = rig ? await C('moveTo', { id: rig.id, run: true }) : { arrived: true, secondsUsed: 0 };
     return a.arrived && b.arrived && a.secondsUsed < 30 && b.secondsUsed < 30 ? true : `npc ${a.arrived}/${a.secondsUsed}s rig ${b.arrived}/${b.secondsUsed}s`;
   });
+  await check('vehicle damage: crash dents the front, hurts engine/radiator, panels tear off', async () => {
+    const v = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 400, z: 40, heading: 0 })).id);
+    for (let i = 0; i < 4; i++) g.vehDamage.hit(v, v.x, v.z + v.len / 2 + 0.3, 30, 'crash');
+    g.vehDamage.deform(v);
+    const d = v.dmg;
+    return d.zones.front > 0.6 && d.engine < 1 && d.radiator < 0.5 && Object.keys(d.off).length > 0 ? true : JSON.stringify({ front: d.zones.front, engine: d.engine, rad: d.radiator, off: d.off });
+  });
+  await check('vehicle damage: flat tyre pulls, leaking tank drains fuel', async () => {
+    const r = await C('spawnVehicle', { type: 'interceptor', x: 420, z: 40, heading: 0 });
+    const v = api.findVeh(r.id);
+    g.vehDamage.popTyre(v, 'FL');
+    v.dmg.tank = 0.2;
+    const fuel0 = v.fuel;
+    g.vehDamage.effects(v, 1);
+    const fx = g.vehDamage.effects(v, 1);
+    return fx.pull !== 0 && fx.grip < 1 && v.fuel < fuel0 ? true : JSON.stringify({ pull: fx.pull, grip: fx.grip, fuel: [fuel0, v.fuel] });
+  });
+  await check('seats: back seats, passenger boarding, seat swap hands the wheel to an ally', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const r = await C('spawnVehicle', { type: 'sedan', x: 440, z: 40, heading: 0 });
+    const v = api.findVeh(r.id);
+    await C('teleport', { x: 442.5, z: 40 });
+    const { ids } = await C('spawn', { kind: 'drifter', x: 443, z: 41, weapon: 'pistol' });
+    await C('recruit', { id: ids[0] });
+    const e = await C('enterVehicle', { id: r.id });
+    await C('step', { seconds: 1.5 }); // ally walks over and boards
+    const ally = api.findChar(ids[0]);
+    const boarded = ally.inVehicle === v && ally.seat > 0;
+    await C('seat', { seat: 'next' });
+    const allyDriving = v.driver === ally && v.ai === 'chauffeur';
+    return e.ok && v.seats.length === 4 && boarded && allyDriving ? true : JSON.stringify({ seats: v.seats.length, boarded, allySeat: ally.seat, driver: v.driver?.id, ai: v.ai });
+  });
+  await check('motorcycle: leans in turns, wheelies on boost, crash throws the rider', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const r = await C('spawnVehicle', { type: 'bike', x: 460, z: 40, heading: 0 });
+    const v = api.findVeh(r.id);
+    await C('enterVehicle', { id: r.id, force: true });
+    await C('drive', { throttle: 1, steer: 1, seconds: 1.2 });
+    const leaned = Math.abs(v.lean) > 0.05;
+    v.boost = true; g.driveOverride = { throttle: 1, steer: 0 }; await C('step', { seconds: 0.6 }); g.driveOverride = null; v.boost = false;
+    const wheelie = v.wheelie > 0.1;
+    // Crash: slam it into a wall at speed.
+    v.vx = 0; v.vz = 25; v.h = 0;
+    g.statics.add(v.x - 3, v.z + 1.5, v.x + 3, v.z + 2.5, 'wall', 3);
+    await C('step', { seconds: 0.3 });
+    const thrown = !g.player.inVehicle && v.fallen;
+    return leaned && wheelie && thrown ? true : JSON.stringify({ lean: v.lean, wheelie: v.wheelie, inVehicle: !!g.player.inVehicle, fallen: v.fallen });
+  });
   await check('A* path around buildings', async () => {
     const r = await C('path', { x: -300, z: 300, fx: 0, fz: -40, mode: 'car' });
     return r.found && r.waypoints.length > 1 ? true : JSON.stringify(r).slice(0, 120);
@@ -985,7 +1082,7 @@ export function restore(g, s) {
     }
     Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless });
     g.charR.paint(c);
-    if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) { c.inVehicle = v; v.driver = c; } }
+    if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
   Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null });

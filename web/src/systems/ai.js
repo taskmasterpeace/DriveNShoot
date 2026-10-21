@@ -15,6 +15,9 @@ export class AI {
     // The dead hunt every living thing; anyone armed (and the player) fights them.
     if (a.faction === 'zombie') return b.faction !== 'zombie';
     if (b.faction === 'zombie') return !!a.weapon || a === this.g.player;
+    // Allies fight whoever the player fights.
+    if (a.faction === 'ally') return b.faction === 'raider' || b.grudge === this.g.player || b.target === this.g.player;
+    if (b.faction === 'ally' && a.faction === 'raider') return true;
     if (a.grudge === b) return true;
     if (a.faction === 'raider') return b.faction !== 'raider';
     if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > 0);
@@ -114,6 +117,8 @@ export class AI {
       }
       if (c.dragged) continue;
       if (c.faction === 'zombie') { g.zombies.think(c, dt); continue; }
+      if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
+      if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
       if (c.grabbing) { c.cool -= dt; continue; } // riding on a car: CarCombat drives them
       c.cool -= dt;
       if (c.reloading > 0) { c.reloading -= dt; if (c.reloading <= 0) c.mag = WEAPONS[c.weapon].mag; }

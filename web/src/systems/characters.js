@@ -176,8 +176,13 @@ export class CharacterRenderer {
     for (const ch of chars) {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
-      if (ch.hidden || ch.inVehicle) { for (const k in M) if (!(k in this.packed)) M[k].setMatrixAt(i, ZERO); continue; }
-      if (ch.alive) {
+      const sp = ch.inVehicle ? ch.seatPose : null; // exposed seat: bike saddle / truck bed
+      if (ch.hidden || (ch.inVehicle && !sp)) { for (const k in M) if (!(k in this.packed)) M[k].setMatrixAt(i, ZERO); continue; }
+      if (sp) {
+        // Ride the vehicle's yaw, wheelie pitch and lean.
+        _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
+        _base.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
+      } else if (ch.alive) {
         _base.makeRotationY(ch.face).setPosition(ch.x, 0, ch.z);
       } else {
         // Lying on the back, head away from the killer.
@@ -209,8 +214,18 @@ export class CharacterRenderer {
         this.part(gm, k, 0, 1.3 + bob, 0, lean);
         gm.setColorAt(k, _c.set(ch.colors.gear ?? '#3a3128'));
       }
-      this.part(M.legL, i, -0.14, 0.92, 0, sw);
-      this.part(M.legR, i, 0.14, 0.92, 0, -sw);
+      if (sp?.kind === 'bike') {
+        // Astride: legs forward to the pegs, hands on the bars (unless aiming out).
+        this.part(M.legL, i, -0.2, 0.92, 0, -1.15, 0.12); this.part(M.legR, i, 0.2, 0.92, 0, -1.15, -0.12);
+        if (!ch.aiming) {
+          this.part(M.armL, i, -0.3, 1.5, 0, -1.25, 0.3); this.part(M.armR, i, 0.3, 1.5, 0, -1.25, -0.3);
+          this.part(M.handL, i, -0.3, 1.5, 0, -1.25, 0.3); this.part(M.handR, i, 0.3, 1.5, 0, -1.25, -0.3);
+          M.gun.setMatrixAt(i, ZERO);
+          continue;
+        }
+      }
+      this.part(M.legL, i, -0.14, 0.92, 0, sp?.kind === 'bike' ? -1.15 : sw);
+      this.part(M.legR, i, 0.14, 0.92, 0, sp?.kind === 'bike' ? -1.15 : -sw);
       if (ch.alive && ch.faction === 'zombie') {
         // Rotter: arms reaching forward, a lurching sway, no gun.
         const lurch = Math.sin(ch.walk * 0.5) * 0.18;

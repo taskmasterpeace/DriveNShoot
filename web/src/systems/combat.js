@@ -62,6 +62,7 @@ export class Combat {
       g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
       g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
       g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
+      g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
       if (shooter === g.player) g.qol.hit(false);
     } else if (wallHit) {
       g.fx.sparks(hx, 1.4, hz, wallHit.nx, wallHit.nz, 4);
@@ -84,7 +85,7 @@ export class Combat {
     c.bleed = Math.min(1, c.bleed + dmg / 120);
     c.blood = Math.min(1, c.blood + dmg / 140);
     g.charR.paint(c); // clothes soak through
-    if (c.inVehicle) {
+    if (c.inVehicle && !c.seatPose) {
       // Hit through a window: a little blood out of the window toward the attacker, not out of the roof.
       const ax = attacker ? attacker.x - c.x : -dx, az = attacker ? attacker.z - c.z : -dz, al = Math.hypot(ax, az) || 1;
       g.fx.bloodSpray(c.x + (ax / al) * 1.1, 1.3, c.z + (az / al) * 1.1, ax / al, az / al, 3, 0.5);
