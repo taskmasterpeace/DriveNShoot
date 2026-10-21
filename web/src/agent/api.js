@@ -171,7 +171,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
@@ -381,12 +381,47 @@ function buildCommands(api) {
         return { stopped: reason, kills: g.stats.kills - k0, hp: Math.round(p.hp), mag: g.inv.mag[g.inv.current], reserve: g.inv.ammo[WEAPONS[g.inv.current].ammo], weapon: g.inv.current };
       },
     },
+    throw: {
+      group: 'player', desc: 'Throw a throwable (frag|molotov|smoke|flash|pipe|sticky|rock) at x,z or entity id; works on foot or out of a car window (knocks the glass out). cook = seconds held first (frag only). Steps the sim until it resolves (max 6s) and reports what happened.',
+      args: { type: { type: 'string', default: 'frag', enum: ['frag', 'molotov', 'smoke', 'flash', 'pipe', 'sticky', 'rock'] }, x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' }, cook: { type: 'number', default: 0 }, wait: { type: 'boolean', default: true } },
+      run: async ({ type, x, z, id, cook, wait }) => {
+        const p = P();
+        need(p.alive, 'player is dead');
+        if (id) { const t = api.findChar(id) ?? api.findVeh(id); need(t, `no entity ${id}`); x = t.x; z = t.z; }
+        need(x !== undefined && z !== undefined, 'give x,z or id');
+        need((g.inv.throwables[type] ?? 0) > 0, `no ${type} left; inventory: ${JSON.stringify(g.inv.throwables)} (give ${type}=N)`);
+        g.inv.throwables[type]--;
+        const since = g.eventSeq, k0 = g.stats.kills;
+        const proj = g.throwables.throw(p, type, x, z, cook);
+        if (wait) for (let t = 0; t < 6 && g.throwables.list.includes(proj); t += 0.1) await api._step(6);
+        if (wait) await api._step(30);
+        const ev = g.events.filter((e) => e.seq > since && ['detonated', 'ignited', 'windowBroken', 'kill', 'fire'].includes(e.type));
+        return { thrown: type, landed: { x: r1(proj.x), z: r1(proj.z) }, stuckTo: proj.stuck?.ref?.id ?? null, kills: g.stats.kills - k0, effects: ev, left: g.inv.throwables[type] };
+      },
+    },
+    dive: {
+      group: 'player', desc: 'Dive-roll toward x,z (or facing): ~5m burst, most bullets miss mid-air, costs stamina.',
+      args: { x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ x, z }) => {
+        const p = P();
+        need(!p.inVehicle && p.alive, 'must be on foot');
+        need((p.stamina ?? 1) > 0.2, 'too winded to dive (stamina)');
+        const x0 = p.x, z0 = p.z;
+        g.startDive(p, x !== undefined ? x - p.x : 0, z !== undefined ? z - p.z : 0);
+        await api._step(42);
+        return { moved: r1(Math.hypot(p.x - x0, p.z - z0)), x: r1(p.x), z: r1(p.z), stamina: r1(p.stamina) };
+      },
+    },
+    crouch: { group: 'player', desc: 'Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl.', args: { on: { type: 'boolean', default: true } },
+      run: async ({ on }) => { g.crouchOverride = on; P().crouch = on; return { crouch: on }; } },
     equip: { group: 'player', desc: 'Switch to an owned weapon.', args: { weapon: { type: 'string', required: true } },
       run: async ({ weapon }) => { need(g.inv.weapons.includes(weapon), `not owned; owned: ${g.inv.weapons.join(',')}`); g.switchWeapon(weapon); return { current: weapon }; } },
     give: {
-      group: 'player', desc: 'Grant cash, ammo {pistol,smg,shells}, a weapon key, or health.',
-      args: { cash: { type: 'number' }, weapon: { type: 'string' }, pistol: { type: 'number' }, smg: { type: 'number' }, shells: { type: 'number' }, hp: { type: 'number' } },
-      run: async ({ cash, weapon, pistol, smg, shells, hp }) => {
+      group: 'player', desc: 'Grant cash, ammo {pistol,smg,shells}, throwables {frag,molotov,smoke,flash,pipe,sticky}, a weapon key, or health.',
+      args: { cash: { type: 'number' }, weapon: { type: 'string' }, pistol: { type: 'number' }, smg: { type: 'number' }, shells: { type: 'number' }, hp: { type: 'number' },
+        frag: { type: 'number' }, molotov: { type: 'number' }, smoke: { type: 'number' }, flash: { type: 'number' }, pipe: { type: 'number' }, sticky: { type: 'number' } },
+      run: async ({ cash, weapon, pistol, smg, shells, hp, frag, molotov, smoke, flash, pipe, sticky }) => {
+        for (const [k, n] of Object.entries({ frag, molotov, smoke, flash, pipe, sticky })) if (n) g.inv.throwables[k] = (g.inv.throwables[k] ?? 0) + n;
         if (cash) g.cash += cash;
         if (weapon) { need(WEAPONS[weapon], `unknown weapon; known: ${Object.keys(WEAPONS).join(',')}`); if (!g.inv.weapons.includes(weapon)) g.inv.weapons.push(weapon); g.inv.mag[weapon] ??= WEAPONS[weapon].mag; g.inv.ammo[WEAPONS[weapon].ammo] ??= 0; }
         if (pistol) g.inv.ammo.pistol += pistol; if (smg) g.inv.ammo.smg += smg; if (shells) g.inv.ammo.shells += shells;
@@ -1014,6 +1049,36 @@ async function runSelfTest(api) {
     await C('step', { seconds: 0.3 });
     const thrown = !g.player.inVehicle && v.fallen;
     return leaned && wheelie && thrown ? true : JSON.stringify({ lean: v.lean, wheelie: v.wheelie, inVehicle: !!g.player.inVehicle, fallen: v.fallen });
+  });
+  await check('throwables: frag kills a group, molotov burns, smoke blocks sight, flash blinds, sticky sticks', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('teleport', { x: 420, z: 90 });
+    await C('give', { frag: 3, molotov: 2, smoke: 2, flash: 2, sticky: 2 });
+    const a = await C('spawn', { kind: 'zombie', x: 432, z: 90, count: 3 });
+    for (const id of a.ids) { const c = api.findChar(id); c.x = 432 + (Math.random() - 0.5) * 2; c.z = 90 + (Math.random() - 0.5) * 2; c.zSpeed = 0; }
+    const f = await C('throw', { type: 'frag', x: 432, z: 90 });
+    const fragOk = a.ids.every((id) => !api.findChar(id)?.alive);
+    const b = await C('spawn', { kind: 'drifter', x: 426, z: 98 });
+    const m = await C('throw', { type: 'molotov', x: 426, z: 98 });
+    const burned = m.effects.some((e) => e.type === 'ignited') || (api.findChar(b.ids[0])?.burning ?? 0) > 0 || !api.findChar(b.ids[0])?.alive;
+    await C('throw', { type: 'smoke', x: 420, z: 106 });
+    await C('step', { seconds: 2 });
+    const smokeBlocks = !g.los(420, 100, 420, 112);
+    const r = await C('spawn', { kind: 'raider', x: 410, z: 90, weapon: 'pistol' });
+    await C('throw', { type: 'flash', x: 410, z: 90 });
+    const blind = (api.findChar(r.ids[0])?.blind ?? 0) > 0 || !api.findChar(r.ids[0])?.alive;
+    const car = await C('spawnVehicle', { type: 'sedan', x: 414, z: 80 });
+    const st = await C('throw', { type: 'sticky', id: car.id, wait: false });
+    await C('step', { seconds: 0.5 });
+    const stuck = g.throwables.list.some((p) => p.stuck?.ref?.id === car.id);
+    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, st: st.ok });
+  });
+  await check('dive roll covers ground and costs stamina; crouch hides you', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('teleport', { x: 420, z: 140 });
+    g.player.stamina = 1;
+    const d = await C('dive', { x: 430, z: 140 });
+    return d.ok && d.moved > 3 && d.stamina < 0.9 ? true : JSON.stringify(d);
   });
   await check('A* path around buildings', async () => {
     const r = await C('path', { x: -300, z: 300, fx: 0, fz: -40, mode: 'car' });

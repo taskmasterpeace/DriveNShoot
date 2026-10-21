@@ -81,7 +81,8 @@ export class AI {
     for (const o of this.g.chars) {
       if (!this.hostile(c, o) || o.hidden) continue;
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
-      if (d < bd && this.g.statics.lineOfSight(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
+      // Crouching targets are harder to spot; smoke hides everyone.
+      if (d < bd * (o.crouch ? 0.6 : 1) && this.g.los(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }
@@ -149,7 +150,19 @@ export class AI {
         const d = Math.hypot(tx - c.x, tz - c.z);
         if (!t.alive || d > 70 || (!this.hostile(c, t) && c.grudge !== t)) { c.target = null; c.state = 'idle'; continue; }
         const w = WEAPONS[c.weapon];
-        const los = g.statics.lineOfSight(c.x, c.z, tx, tz);
+        if (c.blind > 0) {
+          // Flashbanged: stagger around, can't aim.
+          c.blind -= dt; c.aiming = false;
+          this.move(c, Math.sin(c.blind * 3), Math.cos(c.blind * 2), 1.2, dt);
+          continue;
+        }
+        const los = g.los(c.x, c.z, tx, tz);
+        // Dug-in target out of sight but close: lob a grenade over the cover.
+        if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
+          c.grenades--;
+          g.throwables.throw(c, 'frag', tx + (Math.random() - 0.5) * 3, tz + (Math.random() - 0.5) * 3, Math.random() * 0.8);
+          g.emit('npcThrew', { by: c.id, type: 'frag' });
+        }
         if (los && d < w.range * 0.9) {
           c.aiming = true;
           const want = Math.atan2(tx - c.x, tz - c.z);

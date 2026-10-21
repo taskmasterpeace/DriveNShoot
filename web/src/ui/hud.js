@@ -27,7 +27,9 @@ export class HUD {
           <div class="loc"><span class="loc-bar"></span><span class="loc-name">RUST HAVEN</span></div>
           <div class="bars">
             <div class="bar-row"><span class="bar-label">HEALTH</span><div class="bar"><i class="bar-hp"></i></div></div>
+            <div class="bar-row"><span class="bar-label">STAMINA</span><div class="bar"><i class="bar-stam"></i></div></div>
             <div class="bar-row veh-only"><span class="bar-label veh-label">VEHICLE</span><div class="bar"><i class="bar-veh"></i></div></div>
+            <div class="bar-row veh-only"><span class="bar-label">FUEL</span><div class="bar"><i class="bar-fuel"></i></div></div>
           </div>
         </div>
         <div class="hud-br">
@@ -35,6 +37,7 @@ export class HUD {
             <div class="w-name">.45 REVOLVER</div>
             <div class="w-ammo"><b class="w-mag">6</b><span class="w-res">/ 36</span></div>
             <div class="w-slots"></div>
+            <div class="w-throw"></div>
           </div>
           <div class="speedo hidden">
             <canvas width="150" height="150"></canvas>
@@ -47,6 +50,7 @@ export class HUD {
         <div class="subtitle hidden"></div>
         <div class="vignette"></div>
         <div class="hurt"></div>
+        <div class="flashbang"></div>
         <div class="dead-screen hidden"><div class="dead-title">YOU BLED OUT</div><div class="dead-sub">Doc Reyes found you in the dirt. She took her fee.</div></div>
         <div class="stats hidden"></div>
         <div class="reticle"></div>
@@ -56,7 +60,7 @@ export class HUD {
       time: q('.clock-time'), sub: q('.clock-sub'), wx: q('.wx-icon'), cash: q('.cash'), wanted: q('.wanted'),
       feed: q('.feed'), mm: q('.minimap'), loc: q('.loc-name'), hp: q('.bar-hp'), veh: q('.bar-veh'), vehLabel: q('.veh-label'),
       wname: q('.w-name'), wmag: q('.w-mag'), wres: q('.w-res'), wslots: q('.w-slots'), wpanel: q('.weapon-panel'),
-      speedo: q('.speedo'), winDiagram: q('.win-diagram'), sCanvas: q('.speedo canvas'), sNum: q('.speedo-num'), sName: q('.speedo-name'),
+      speedo: q('.speedo'), stam: q('.bar-stam'), fuel: q('.bar-fuel'), wthrow: q('.w-throw'), flash: q('.flashbang'), winDiagram: q('.win-diagram'), sCanvas: q('.speedo canvas'), sNum: q('.speedo-num'), sName: q('.speedo-name'),
       prompt: q('.prompt'), subtitle: q('.subtitle'), hurt: q('.hurt'), vignette: q('.vignette'), dead: q('.dead-screen'),
       stats: q('.stats'), reticle: q('.reticle'), hud: q('.hud'),
     };
@@ -80,6 +84,7 @@ export class HUD {
   }
 
   subtitle(text, secs = 4) { this.el.subtitle.textContent = text; this.el.subtitle.classList.remove('hidden'); this.subT = secs; }
+  flashbang(secs) { this.flashT = Math.max(this.flashT ?? 0, secs); this.flashMax = this.flashT; }
   hurt(dmg) { this.hurtV = Math.min(1, this.hurtV + dmg / 40); this.shake(Math.min(0.5, dmg / 60)); }
   shake(v) { this.shakeV = Math.max(this.shakeV, v); }
   prompt(text) {
@@ -101,6 +106,10 @@ export class HUD {
     const loc = locationName(px, pz);
     if (loc !== this.lastLoc) { this.el.loc.textContent = loc; this.lastLoc = loc; }
     this.el.hp.style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
+    this.el.stam.style.width = `${Math.round((p.stamina ?? 1) * 100)}%`;
+    if (p.inVehicle) this.el.fuel.style.width = `${Math.round(((p.inVehicle.fuel ?? 1) / (p.inVehicle.fuelCap ?? 1)) * 100)}%`;
+    this.flashT = Math.max(0, (this.flashT ?? 0) - dt);
+    this.el.flash.style.opacity = this.flashT > 0 ? Math.min(1, this.flashT / Math.max(0.5, (this.flashMax ?? 1) * 0.5)) : 0;
     this.el.hp.classList.toggle('low', p.hp < 35);
 
     const v = p.inVehicle;
@@ -123,6 +132,9 @@ export class HUD {
       this.el.wname.textContent = w.name;
       this.el.wmag.textContent = p.reloading > 0 ? '··' : g.inv.mag[g.inv.current];
       this.el.wres.textContent = `/ ${g.inv.ammo[w.ammo]}`;
+      const tk = g.inv.throwable, tn = g.inv.throwables[tk] ?? 0;
+      const tl = `<kbd>Q</kbd>${(window.__THROW_NAMES?.[tk] ?? tk).toUpperCase()} ×${tn} <span class="dim">[X] next</span>`;
+      if (tl !== this.lastThrow) { this.el.wthrow.innerHTML = tl; this.lastThrow = tl; }
       const slots = g.inv.weapons.map((k, i) => `<span class="${k === g.inv.current ? 'on' : ''}"><kbd>${i + 1}</kbd>${WEAPONS[k].short}</span>`).join('');
       if (slots !== this.lastSlots) { this.el.wslots.innerHTML = slots; this.lastSlots = slots; }
     }

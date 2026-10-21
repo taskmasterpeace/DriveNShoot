@@ -50,6 +50,11 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.8em; backgroun
 .bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--green); transition: width 0.2s; }
 .bar i.low { background: var(--blood); }
+.bar-stam { background: var(--gold) !important; }
+.bar-fuel { background: oklch(0.65 0.12 60) !important; }
+.w-throw { font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 4px; letter-spacing: 0.06em; }
+.w-throw .dim { opacity: 0.55; }
+.flashbang { position: absolute; inset: 0; background: #fffdf5; opacity: 0; pointer-events: none; }
 .bar-veh { background: var(--gold) !important; }
 .veh-only { display: none; }
 .driving .veh-only { display: flex; }

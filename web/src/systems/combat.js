@@ -38,6 +38,8 @@ export class Combat {
     let target = null, kind = null;
     for (const c of g.chars) {
       if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
+      if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
+      if (c.underwater) continue;                          // bullets don't reach under water
       const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
       if (t >= 0 && t < best) { best = t; target = c; kind = 'char'; }
     }
@@ -79,6 +81,15 @@ export class Combat {
       return;
     }
     if (c === g.player && g.godMode) return;
+    // Continuous damage (burning, drowning) is "quiet": no blood, no hit sound, no event spam.
+    const quiet = cause === 'fire' || cause === 'drown';
+    if (quiet) {
+      if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.hud.hurt(dmg * 0.5); }
+      c.hp -= dmg; c.lastAttacker = attacker ?? c.lastAttacker;
+      if (cause === 'fire') { c.charred = Math.min(1, (c.charred ?? 0) + dmg / 90); if (Math.random() < 0.05) g.charR.paint(c); }
+      if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);
+      return;
+    }
     if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
     c.lastAttacker = attacker;
@@ -98,6 +109,16 @@ export class Combat {
   }
 
   kill(c, attacker, dx, dz, cause) {
+    if (cause === 'fire' || cause === 'drown') {
+      // Burned or drowned: no blood bath, just the body (charred if it burned).
+      const g = this.g;
+      c.alive = false; c.hp = 0; c.deadTime = 0; c.speed = 0; c.aiming = false; c.burning = 0;
+      if (cause === 'fire') { c.charred = 1; g.charR.paint(c); g.fx.decal(c.x, c.z, 1.6, '#151210'); }
+      g.audio.death();
+      if (c.npc && attacker !== g.player) { c.downedT = 45; g.emit('downed', { id: c.id, name: c.npc.name, backInSeconds: 45, by: attacker?.id ?? null }); }
+      g.onKill(c, attacker);
+      return;
+    }
     const g = this.g;
     c.alive = false;
     c.hp = 0;

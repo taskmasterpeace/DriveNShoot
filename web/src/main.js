@@ -14,6 +14,7 @@ import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
+import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
 import { Audio } from './systems/audio.js';
 import { HUD } from './ui/hud.js';
 import { Dialogue } from './ui/dialogue.js';
@@ -32,6 +33,10 @@ const _ndc = new THREE.Vector2();
 const _o = new THREE.Object3D();
 const _col = new THREE.Color();
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+
+// Raw WASD direction (world space; screen up = -z) — used for dive direction.
+function mx0(I) { return (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0) - (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0); }
+function mz0(I) { return (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0) - (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0); }
 
 class Game {
   constructor() {
@@ -71,6 +76,9 @@ class Game {
     this.ai = new AI(this);
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
+    this.throwables = new Throwables(this);
+    this.fuelTrail = [];
+    window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
     this.zombies = new Zombies(this);
@@ -84,7 +92,7 @@ class Game {
     this.wantedT = 0;
     this.stats = { kills: 0, raiderKills: 0 };
     this.quests = {};
-    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 } };
+    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.insideBuilding = null;
     this.paused = true;
@@ -195,7 +203,9 @@ class Game {
   spawnRaider(x, z, rng = Math.random, weapon) {
     const wpn = weapon ?? (rng() < 0.5 ? 'smg' : rng() < 0.6 ? 'pistol' : 'shotgun');
     const names = ['Dustwolf', 'Dustwolf Grunt', 'Dustwolf Cutter', 'Dustwolf Scav'];
-    return this.addChar({ x, z, faction: 'raider', weapon: wpn, hp: 90, colors: outfit('raider', typeof rng === 'function' ? rng : Math.random), name: names[Math.floor(Math.random() * names.length)], flag: Math.random() < 0.6 ? 'US' : FLAG_KEYS[Math.floor(Math.random() * FLAG_KEYS.length)] });
+    const r = this.addChar({ x, z, faction: 'raider', weapon: wpn, hp: 90, colors: outfit('raider', typeof rng === 'function' ? rng : Math.random), name: names[Math.floor(Math.random() * names.length)], flag: Math.random() < 0.6 ? 'US' : FLAG_KEYS[Math.floor(Math.random() * FLAG_KEYS.length)] });
+    if (r) r.grenades = Math.random() < 0.35 ? 1 : 0;
+    return r;
   }
 
   // ---- pickups --------------------------------------------------------------------
@@ -267,6 +277,17 @@ class Game {
     this.cash -= n;
     return true;
   }
+  // Sight line that respects walls AND smoke.
+  los(ax, az, bx, bz) { return this.statics.lineOfSight(ax, az, bx, bz) && !this.throwables.blocksSight(ax, az, bx, bz); }
+
+  // Throw the selected throwable at the aim point (cooked = seconds already held).
+  throwSelected(cooked = 0) {
+    const k = this.inv.throwable, n = this.inv.throwables[k] ?? 0;
+    if (n <= 0) { this.hud.toast(`No ${THROWABLES[k].name.toLowerCase()} left`, 'warn'); return null; }
+    this.inv.throwables[k] = n - 1;
+    return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
+  }
+
   noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
   footPath(sx, sz, tx, tz) {
@@ -422,6 +443,7 @@ class Game {
         v.boost = I.key('ShiftLeft') || I.key('ShiftRight');
       }
       if (I.hit('KeyC')) this.seats.cycle(p);
+      this.updateThrowAim(dt, I);
       if (this.driveOverride) {
         // Agent-issued drive controls win over the keyboard until they expire.
         const o = this.driveOverride;
@@ -452,8 +474,25 @@ class Game {
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
     if (I.key('KeyA') || I.key('ArrowLeft')) mx -= 1;
     if (I.key('KeyD') || I.key('ArrowRight')) mx += 1;
-    const sprint = I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run;
-    const speed = sprint ? 7.6 : 4.6;
+    p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
+    p.stamina = p.stamina ?? 1;
+    const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
+    const sprint = wantSprint && p.stamina > 0.04;
+    p.stamina = Math.max(0, Math.min(1, p.stamina + (sprint && p.speed > 1 ? -0.16 : 0.22) * dt));
+    // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
+    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
+    p.diveCool = (p.diveCool ?? 0) - dt;
+    if (p.dive > 0) {
+      p.dive -= dt;
+      const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
+      const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
+      this.statics.resolveCircle(t, p.radius);
+      p.x = t.x; p.z = t.z; p.speed = 0;
+      if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
+      this.handleShooting(dt, p.face);
+      return;
+    }
+    const speed = p.crouch ? 2.2 : sprint ? 7.6 : 4.6;
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -519,6 +558,8 @@ class Game {
       this.switchWeapon(this.inv.weapons[(i + I.wheel + this.inv.weapons.length) % this.inv.weapons.length]);
     }
     if (I.hit('KeyR')) this.reload();
+    if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
+    this.updateThrowAim(dt, I);
     this.handleShooting(dt, p.face);
 
     // Interactions.
@@ -542,6 +583,31 @@ class Game {
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
+  }
+
+  // Q held: show the arc and cook; release: throw. Works from a car window too.
+  updateThrowAim(dt, I) {
+    const p = this.player;
+    if (I.key('KeyQ') && !this.dialogue.active) {
+      p.cookT = (p.cookT ?? 0) + dt;
+      const ox = p.inVehicle ? p.inVehicle.x : p.x, oz = p.inVehicle ? p.inVehicle.z : p.z;
+      this.throwables.showArc(this.throwables.previewArc(ox, oz, this.aim.x, this.aim.z));
+      const def = THROWABLES[this.inv.throwable];
+      if (def.cook && p.cookT >= def.fuse - 0.05) { this.throwSelected(p.cookT); p.cookT = 0; this.hud.toast('COOKED TOO LONG!', 'hot'); }
+    } else if (p.cookT > 0) {
+      this.throwSelected(p.cookT);
+      p.cookT = 0;
+      this.throwables.showArc(null);
+    } else this.throwables.showArc(null);
+  }
+
+  startDive(c, dx, dz) {
+    if (!dx && !dz) { dx = Math.sin(c.face); dz = Math.cos(c.face); }
+    const l = Math.hypot(dx, dz) || 1;
+    c.diveDx = dx / l; c.diveDz = dz / l;
+    c.dive = 0.65; c.diveCool = 0.9;
+    c.stamina = Math.max(0, (c.stamina ?? 1) - 0.25);
+    this.audio.throwWhoosh?.(0);
   }
 
   switchWeapon(k) {
@@ -698,6 +764,8 @@ class Game {
       this.vehiclesSys.update(simDt, this.sky.night);
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
+      this.throwables.update(simDt);
+      if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
     }

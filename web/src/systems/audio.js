@@ -89,6 +89,14 @@ export class Audio {
     this.tone(70 + Math.random() * 40, 0.9, v, 'sawtooth', 0.7, pan);
     this.burst({ dur: 0.8, freq: 380, type: 'bandpass', q: 4, vol: v * 1.4, decay: 0.75, pan });
   }
+  throwWhoosh(pan = 0) { this.count('throw'); this.burst({ dur: 0.22, freq: 900, type: 'bandpass', q: 2, vol: 0.18, decay: 0.2, pitchDrop: 1.8, pan }); }
+  clink(pan = 0) { this.count('clink'); this.tone(1400 + Math.random() * 500, 0.06, 0.06, 'triangle', 0.7, pan); }
+  beep(pan = 0) { this.count('beep'); this.tone(1800, 0.05, 0.08, 'square', 0, pan); }
+  whoomp(pan = 0) { this.count('whoomp'); this.burst({ dur: 0.9, freq: 300, vol: 0.7, decay: 0.85, pitchDrop: 0.5, pan }); }
+  hiss(pan = 0) { this.count('hiss'); this.burst({ dur: 1.6, freq: 3200, type: 'highpass', vol: 0.25, decay: 1.5, pan }); }
+  bang(dist = 0) { this.count('bang'); const f = Math.max(0.1, 1 - dist / 60); this.burst({ dur: 0.6, freq: 4000, vol: 1.2 * f, decay: 0.5 }); this.tone(3100, 2.2 * f, 0.05 * f, 'sine'); }
+  tyrePop(pan = 0) { this.count('tyrePop'); this.burst({ dur: 0.25, freq: 1100, vol: 0.8, decay: 0.2, pitchDrop: 0.3, pan }); }
+  backfire(pan = 0) { this.count('backfire'); this.burst({ dur: 0.18, freq: 600, vol: 0.5, decay: 0.15, pitchDrop: 0.4, pan }); }
   whiz(pan = 0) {
     this.count('whiz'); this.burst({ dur: 0.18, freq: 2600, type: 'bandpass', q: 8, vol: 0.35, decay: 0.16, pitchDrop: 0.4, pan }); }
   ricochet(pan = 0, dist = 0) {

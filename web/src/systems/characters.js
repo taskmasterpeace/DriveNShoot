@@ -18,6 +18,7 @@ const _one = new THREE.Vector3(1, 1, 1);
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _c = new THREE.Color();
 const _blood = new THREE.Color('#4a0606');
+const _soot = new THREE.Color('#141110');
 
 export const HATS = ['short', 'cap', 'cowboy', 'mohawk', 'wrap'];
 export const GEAR = ['none', 'vest', 'pack', 'pads'];
@@ -153,8 +154,8 @@ export class CharacterRenderer {
   // Colours: clothes darken toward dried-blood as the character gets hurt.
   paint(ch) {
     const c = ch.colors, M = this.meshes, i = ch.slot;
-    const b = Math.min(0.75, ch.blood * 0.85);
-    const set = (mesh, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); mesh.setColorAt(i, _c); mesh.instanceColor.needsUpdate = true; };
+    const b = Math.min(0.75, ch.blood * 0.85), ch2 = Math.min(0.9, ch.charred ?? 0);
+    const set = (mesh, hex, bloody = true) => { _c.set(hex); if (bloody && b > 0) _c.lerp(_blood, b); if (ch2 > 0) _c.lerp(_soot, ch2); mesh.setColorAt(i, _c); mesh.instanceColor.needsUpdate = true; };
     set(M.torso, c.shirt); set(M.armL, c.shirt); set(M.armR, c.shirt);
     set(M.hips, c.pants); set(M.legL, c.pants, b > 0.3); set(M.legR, c.pants, b > 0.3);
     set(M.head, c.skin, b > 0.5); set(M.handL, c.skin); set(M.handR, c.skin);
@@ -184,6 +185,13 @@ export class CharacterRenderer {
         _base.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
       } else if (ch.alive) {
         _base.makeRotationY(ch.face).setPosition(ch.x, 0, ch.z);
+        if (ch.dive > 0) {
+          // Diving: body thrown flat forward, then sliding on the belly.
+          const k = Math.min(1, ch.dive * 3);
+          _r.makeRotationX(1.35 * k); _t.makeTranslation(0, -0.55 * k, 0);
+          _base.multiply(_t).multiply(_r);
+        } else if (ch.crouch) { _t.makeTranslation(0, -0.32, 0); _base.multiply(_t); }
+        if (ch.underwater) { _t.makeTranslation(0, -1.4, 0); _base.multiply(_t); }
       } else {
         // Lying on the back, head away from the killer.
         _q.setFromEuler(_e.set(0, ch.face, 0));

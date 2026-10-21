@@ -34,6 +34,12 @@ export class FX {
     this.softMesh.frustumCulled = false;
     for (let i = 0; i < P_MAX; i++) { this.softMesh.setMatrixAt(i, ZERO); this.softMesh.setColorAt(i, _c.set(0, 0, 0)); }
     this.softMesh.renderOrder = 4;
+    // Flames: soft additive glows (never cubes). Same index space as particles.
+    this.flameMesh = new THREE.InstancedMesh(softGeo, new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), P_MAX);
+    this.flameMesh.frustumCulled = false;
+    for (let i = 0; i < P_MAX; i++) { this.flameMesh.setMatrixAt(i, ZERO); this.flameMesh.setColorAt(i, _c.set(0, 0, 0)); }
+    this.flameMesh.renderOrder = 5;
+    scene.add(this.flameMesh);
     scene.add(this.softMesh);
     // --- decals: blood pools, splats, skid marks, scorch ---
     const dGeo = new THREE.PlaneGeometry(1, 1); dGeo.rotateX(-Math.PI / 2);
@@ -91,10 +97,13 @@ export class FX {
     this.active[i] = 1;
     if (kind === 2) {
       this.softMesh.setColorAt(i, _c.set(color)); this.softMesh.instanceColor.needsUpdate = true;
-      this.pMesh.setMatrixAt(i, ZERO);
+      this.pMesh.setMatrixAt(i, ZERO); this.flameMesh.setMatrixAt(i, ZERO);
+    } else if (kind === 4) {
+      this.flameMesh.setColorAt(i, _c.set(color)); this.flameMesh.instanceColor.needsUpdate = true;
+      this.pMesh.setMatrixAt(i, ZERO); this.softMesh.setMatrixAt(i, ZERO);
     } else {
       this.pMesh.setColorAt(i, _c.set(color)); this.pMesh.instanceColor.needsUpdate = true;
-      this.softMesh.setMatrixAt(i, ZERO);
+      this.softMesh.setMatrixAt(i, ZERO); this.flameMesh.setMatrixAt(i, ZERO);
     }
   }
 
@@ -223,7 +232,7 @@ export class FX {
       if (p.life[i] <= 0) {
         this.active[i] = 0;
         m.setMatrixAt(i, ZERO);
-        this.softMesh.setMatrixAt(i, ZERO);
+        this.softMesh.setMatrixAt(i, ZERO); this.flameMesh.setMatrixAt(i, ZERO);
         // Blood that lands leaves a drop.
         continue;
       }
@@ -241,6 +250,13 @@ export class FX {
       if (p.kind[i] === 2) { p.vx[i] *= 0.98; p.vz[i] *= 0.98; }
       const t = p.life[i] / p.max[i];
       let s = p.size[i];
+      if (p.kind[i] === 4) {
+        // Flame tongue: flares up, then shrinks and fades as it rises.
+        const fs = s * 3.2 * Math.sin(Math.PI * Math.min(1, (1 - t) * 1.2 + 0.05));
+        _o.position.set(p.x[i], p.y[i], p.z[i]); _o.rotation.set(0, i * 1.7, 0); _o.scale.set(fs, 1, fs); _o.updateMatrix();
+        this.flameMesh.setMatrixAt(i, _o.matrix);
+        continue;
+      }
       if (p.kind[i] === 2) {
         // Puff grows then thins out at the end of its life.
         s *= (1 + (1 - t) * p.grow[i] * 1.6) * 2.2 * Math.min(1, t * 3);
@@ -257,6 +273,7 @@ export class FX {
     }
     m.instanceMatrix.needsUpdate = true;
     this.softMesh.instanceMatrix.needsUpdate = true;
+    this.flameMesh.instanceMatrix.needsUpdate = true;
 
     // Growing pools.
     if (this.growing.length) {
