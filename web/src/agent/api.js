@@ -1117,26 +1117,36 @@ async function runSelfTest(api) {
   });
   await check('throwables: frag kills a group, molotov burns, smoke blocks sight, flash blinds, sticky sticks', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 90 });
+    // Open dry desert. The old spot (420,90) is the river now: the player threw while swimming, the
+    // dead stopped at the bank short of the frag and the target car floated in the channel.
+    const X = 364, Z = 39;
+    const pin = (id, x, z) => { const c = api.findChar(id); c.x = x; c.z = z; return c; }; // spawn jitters ±2 m
+    await C('teleport', { x: X, z: Z });
     await C('give', { frag: 3, molotov: 2, smoke: 2, flash: 2, sticky: 2 });
-    const a = await C('spawn', { kind: 'zombie', x: 432, z: 90, count: 3 });
-    for (const id of a.ids) { const c = api.findChar(id); c.x = 432 + (Math.random() - 0.5) * 2; c.z = 90 + (Math.random() - 0.5) * 2; c.zSpeed = 0; }
-    const f = await C('throw', { type: 'frag', x: 432, z: 90 });
+    // Three rotters staged to stand still (zSpeed 0) round a spot 12 m east, 0.9+ m apart so the crowd doesn't shove them.
+    const a = await C('spawn', { kind: 'zombie', runner: false, x: X + 12, z: Z, count: 3 });
+    a.ids.forEach((id, i) => { pin(id, X + 12 + [-0.6, -0.6, 0.9][i], Z + [-0.8, 0.8, 0][i]).zSpeed = 0; });
+    // Cooked so it bursts as it lands (the 12 m lob is ~1 s in the air). Left to its 2.8 s fuse a frag
+    // bounces on ~3.5 m past where it lands, out of killing range: grenades are cooked into a group.
+    const f = await C('throw', { type: 'frag', x: X + 12, z: Z, cook: 1.7 });
     const fragOk = a.ids.every((id) => !api.findChar(id)?.alive);
-    const b = await C('spawn', { kind: 'drifter', x: 426, z: 98 });
-    const m = await C('throw', { type: 'molotov', x: 426, z: 98 });
+    const b = await C('spawn', { kind: 'drifter', x: X + 6, z: Z + 8 });
+    pin(b.ids[0], X + 6, Z + 8);
+    const m = await C('throw', { type: 'molotov', id: b.ids[0] });
     const burned = m.effects.some((e) => e.type === 'ignited') || (api.findChar(b.ids[0])?.burning ?? 0) > 0 || !api.findChar(b.ids[0])?.alive;
-    await C('throw', { type: 'smoke', x: 420, z: 106 });
+    await C('throw', { type: 'smoke', x: X, z: Z + 16 });
     await C('step', { seconds: 2 });
-    const smokeBlocks = !g.los(420, 100, 420, 112);
-    const r = await C('spawn', { kind: 'raider', x: 410, z: 90, weapon: 'pistol' });
-    await C('throw', { type: 'flash', x: 410, z: 90 });
+    const smokeBlocks = !g.los(X, Z + 10, X, Z + 22);
+    const r = await C('spawn', { kind: 'raider', x: X - 10, z: Z, weapon: 'pistol' });
+    pin(r.ids[0], X - 10, Z);
+    await C('throw', { type: 'flash', x: X - 10, z: Z });
     const blind = (api.findChar(r.ids[0])?.blind ?? 0) > 0 || !api.findChar(r.ids[0])?.alive;
-    const car = await C('spawnVehicle', { type: 'sedan', x: 414, z: 80 });
-    const st = await C('throw', { type: 'sticky', id: car.id, wait: false });
-    await C('step', { seconds: 0.5 });
-    const stuck = g.throwables.list.some((p) => p.stuck?.ref?.id === car.id);
-    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, st: st.ok });
+    const car = await C('spawnVehicle', { type: 'sedan', x: X - 6, z: Z - 10 });
+    // The throw report says what it stuck to. (Peeking 0.5 s after release never could: an 11 m lob
+    // is still in the air at 0.5 s.)
+    const st = await C('throw', { type: 'sticky', id: car.id });
+    const stuck = st.stuckTo === car.id;
+    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, stuckTo: st.stuckTo });
   });
   await check('dive roll covers ground and costs stamina; crouch hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);

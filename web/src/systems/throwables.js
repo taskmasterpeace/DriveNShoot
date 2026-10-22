@@ -43,10 +43,12 @@ export class Throwables {
     this.fireLights = [0, 1].map(() => { const l = new THREE.PointLight('#ff8a3a', 0, 22, 1.5); l.position.set(0, -50, 0); game.scene.add(l); return l; });
   }
 
-  // Launch speed for a target at ground distance d with a ~38° lob, capped.
+  // Launch speed so a ~38° lob released at height `from` comes down ON the target, ground distance d
+  // away (capped). It used to solve for a throw from the ground: released from the hand it landed
+  // ~1.5 m long at 12 m, and the preview arc ended past the cursor.
   launch(ox, oz, tx, tz, from = 1.6) {
     const dx = tx - ox, dz = tz - oz, d = Math.min(30, Math.max(2, Math.hypot(dx, dz)));
-    const th = 0.66, v0 = Math.min(26, Math.sqrt((G * d) / Math.sin(2 * th)));
+    const th = 0.66, c = Math.cos(th), v0 = Math.min(26, Math.sqrt((G * d * d) / (2 * c * c * (d * Math.tan(th) + from))));
     const h = Math.atan2(dx, dz);
     return { vx: Math.sin(h) * Math.cos(th) * v0, vz: Math.cos(h) * Math.cos(th) * v0, vy: Math.sin(th) * v0, y: from };
   }
