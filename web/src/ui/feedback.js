@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { drawFlag, FLAGS } from './portrait.js';
 import { RAIL } from '../world/rail.js';
+import { paintRibbon } from './hudart.js';
 
 // The feedback layer: everything that tells you what just happened without a toast.
 // Damage-direction arcs, a kill feed (with flags), floating loot text, name tags with
@@ -11,6 +12,10 @@ import { RAIL } from '../world/rail.js';
 const _v = new THREE.Vector3();
 const FACTION_COL = { raider: 'var(--blood)', ally: 'var(--green)', zombie: 'oklch(0.62 0.12 125)', drifter: 'var(--muted)', town: 'var(--bone)' };
 const BEARINGS = [['N', 0], ['NE', 45], ['E', 90], ['SE', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
+// The brass ribbon: 540 px of plate, a 488 px window, 3 px per degree (about ±80° in view).
+const RIBBON_W = 540, CW = 488, PXD = 3, EDGE = 71;
+const MARKS = 3;
+const rel = (b, head) => ((b - head + 540) % 360) - 180; // signed degrees from the heading
 
 export class Feedback {
   constructor(game, root) {
@@ -22,10 +27,16 @@ export class Feedback {
         <div class="fb-tags"></div>
         <div class="fb-float"></div>
         <div class="fb-kills"></div>
-        <div class="fb-compass"><div class="fb-cstrip"></div><div class="fb-cnotch"></div><div class="fb-cread"></div></div>
+        <div class="fb-compass"><canvas class="fb-ctex"></canvas><div class="fb-cwin"><div class="fb-cticks"></div>${BEARINGS.map(([n]) => `<span class="fb-cb${n.length === 1 ? ' major' : ''}">${n}</span>`).join('')}${'<span class="fb-cm"><b></b><small></small></span>'.repeat(MARKS)}</div><div class="fb-cnotch"></div><div class="fb-cread"></div></div>
       </div>`);
     const q = (s) => root.querySelector(s);
-    this.el = { lens: q('.fb-lens'), dirs: q('.fb-dirs'), tags: q('.fb-tags'), float: q('.fb-float'), kills: q('.fb-kills'), strip: q('.fb-cstrip'), read: q('.fb-cread') };
+    this.el = { lens: q('.fb-lens'), dirs: q('.fb-dirs'), tags: q('.fb-tags'), float: q('.fb-float'), kills: q('.fb-kills'), ticks: q('.fb-cticks'), read: q('.fb-cread') };
+    // The kill feed hangs under the cash plate in the HUD's right column when the HUD offers a slot.
+    game.hud?.el?.killSlot?.appendChild(this.el.kills);
+    const tex = q('.fb-ctex'), rib = paintRibbon(RIBBON_W, 36);
+    tex.width = rib.width; tex.height = rib.height; tex.getContext('2d').drawImage(rib, 0, 0);
+    this.cLabels = [...root.querySelectorAll('.fb-cb')].map((el) => ({ el, x: null, vis: true }));
+    this.cMarkEls = [...root.querySelectorAll('.fb-cm')].map((el) => ({ el, b: el.firstChild, small: el.lastChild, key: '', x: null, d: null, vis: true }));
     this.seq = 0;
     this.dirs = [];   // {el, t, ang}
     this.floats = []; // {el, x, z, t, y0}
@@ -33,9 +44,12 @@ export class Feedback {
     this.tags = Array.from({ length: 8 }, () => { const el = document.createElement('div'); el.className = 'fb-tag'; el.innerHTML = '<img><span></span>'; this.el.tags.appendChild(el); return { el, img: el.firstChild, name: el.lastChild, id: null }; });
     this.flagUrl = {};
     this.heartT = 0;
-    this.compassMarks = [];
+    // compass markers: a fixed pool of rows, filled in place every frame (no per-frame allocation)
+    this.markPool = Array.from({ length: MARKS }, () => ({ b: 0, label: '', cls: '', d: 0, out: false, side: 1, x: 0 }));
+    this.markN = 0;
     this.lastTags = [];
   }
+  get compassMarks() { return this.markPool.slice(0, this.markN); }
 
   flag(code) {
     if (!FLAGS[code]) code = 'US';
@@ -192,31 +206,55 @@ export class Feedback {
     // Facing: the vehicle's nose when driving, else where you aim.
     const fx = p.inVehicle ? Math.sin(p.inVehicle.h) : g.aim.x - ox, fz = p.inVehicle ? Math.cos(p.inVehicle.h) : g.aim.z - oz;
     const head = (Math.atan2(fx, -fz) * 180 / Math.PI + 360) % 360; // 0 = north
-    const marks = [];
-    const add = (x, z, label, cls) => { const b = (Math.atan2(x - ox, -(z - oz)) * 180 / Math.PI + 360) % 360; marks.push({ b, label, cls, d: Math.round(Math.hypot(x - ox, z - oz)) }); };
+    this.markN = 0;
     const wp = g.qol.waypoint ?? g.qol.objective()?.target;
-    if (wp) add(wp.x, wp.z, '◆', 'wp');
-    if (g.train?.present) add(RAIL.x, Math.max(g.train.head - g.train.length, Math.min(g.train.head, oz)), 'TRAIN', 'train');
+    if (wp) this.addMark(ox, oz, wp.x, wp.z, '◆', 'wp');
+    if (g.train?.present) this.addMark(ox, oz, RAIL.x, Math.max(g.train.head - g.train.length, Math.min(g.train.head, oz)), 'TRAIN', 'train');
     const cv = g.convoy?.active;
-    if (cv) { const l = cv.members.find((m) => !m.v.dead); if (l) add(l.v.x, l.v.z, 'CONVOY', 'convoy'); }
-    this.compassMarks = marks;
-    // Strip spans ±90° around the heading, 3 px per degree.
-    let html = '';
-    const rel = (b) => { let r = b - head; r = ((r + 540) % 360) - 180; return r; };
-    for (const [n, b] of BEARINGS) { const r = rel(b); if (Math.abs(r) < 92) html += `<span class="fb-cb${n.length === 1 ? ' major' : ''}" style="left:${(50 + r / 1.8).toFixed(1)}%">${n}</span>`; }
-    for (let b = 0; b < 360; b += 15) { const r = rel(b); if (Math.abs(r) < 92 && b % 45) html += `<span class="fb-ct" style="left:${(50 + r / 1.8).toFixed(1)}%"></span>`; }
-    // Off-ribbon markers pin to the edge with an arrow, stacked so they never overlap.
-    const edge = { l: 0, r: 0 };
-    for (const m of marks) {
-      const r0 = rel(m.b), out = Math.abs(r0) > 88, side = r0 < 0 ? 'l' : 'r';
-      const r = Math.max(-84, Math.min(84, r0));
-      const label = out ? (side === 'l' ? `‹ ${m.label}` : `${m.label} ›`) : m.label;
-      const lift = out ? `;bottom:${1 + edge[side]++ * 11}px` : '';
-      html += `<span class="fb-cm ${m.cls}${out ? ' out' : ''}" style="left:${(50 + r / 1.8).toFixed(1)}%${lift}">${label}${out ? '' : `<small>${m.d}m</small>`}</span>`;
+    if (cv) { const l = cv.members.find((m) => !m.v.dead); if (l) this.addMark(ox, oz, l.v.x, l.v.z, 'CONVOY', 'convoy'); }
+    // Tick marks are two repeating gradients slid under the window: one style write while you turn.
+    const off = Math.round((CW / 2 - head * PXD) * 10) / 10;
+    if (off !== this.cOff) { this.cOff = off; this.el.ticks.style.backgroundPositionX = `${off}px, ${off}px`; }
+    // Markers first: on the ribbon at their bearing, or pinned to the edge and queued inward so they never overlap.
+    let stackL = 0, stackR = 0;
+    for (let i = 0; i < this.markN; i++) {
+      const m = this.markPool[i], r0 = rel(m.b, head);
+      m.out = Math.abs(r0) > EDGE; m.side = r0 < 0 ? -1 : 1;
+      const n = m.out ? (m.side < 0 ? stackL++ : stackR++) : 0;
+      m.x = Math.round(CW / 2 + Math.max(-EDGE, Math.min(EDGE, r0)) * PXD - m.side * n * 50);
     }
-    if (html !== this.lastStrip) { this.el.strip.innerHTML = html; this.lastStrip = html; }
+    // A bearing letter steps aside for a named marker sitting on it (TRAIN due west hides the W); the waypoint's
+    // needle runs behind the letters instead.
+    for (let i = 0; i < BEARINGS.length; i++) {
+      const L = this.cLabels[i], r = rel(BEARINGS[i][1], head), x = Math.round(CW / 2 + r * PXD);
+      let vis = Math.abs(r) < 86;
+      for (let k = 0; vis && k < this.markN; k++) { const m = this.markPool[k]; if (m.cls !== 'wp' && Math.abs(m.x - x) < 34) vis = false; }
+      if (vis !== L.vis) { L.vis = vis; L.el.style.display = vis ? '' : 'none'; }
+      if (vis && x !== L.x) { L.x = x; L.el.style.transform = `translateX(${x}px)`; }
+    }
+    for (let i = 0; i < MARKS; i++) {
+      const M = this.cMarkEls[i], m = i < this.markN ? this.markPool[i] : null;
+      if (!m) { if (M.vis) { M.vis = false; M.el.style.display = 'none'; } continue; }
+      if (!M.vis) { M.vis = true; M.el.style.display = ''; }
+      const out = m.out, side = m.side;
+      const key = out ? (side < 0 ? 'L' : 'R') + m.cls : m.cls;
+      if (key !== M.key) {
+        M.key = key;
+        M.el.className = `fb-cm ${m.cls}${out ? (side < 0 ? ' out l' : ' out r') : ''}`;
+        // the waypoint is drawn (a red needle and diamond); named markers keep their words
+        const arrow = side < 0 ? '‹' : '›';
+        M.b.textContent = m.cls === 'wp' ? (out ? arrow : '') : out ? (side < 0 ? `‹ ${m.label}` : `${m.label} ›`) : m.label;
+      }
+      if (!out && m.d !== M.d) { M.d = m.d; M.small.textContent = `${m.d}M`; }
+      if (m.x !== M.x) { M.x = m.x; M.el.style.transform = `translateX(${m.x}px)`; }
+    }
     const r = Math.round(head);
     if (r !== this.lastHead) { this.el.read.textContent = String(r).padStart(3, '0'); this.lastHead = r; }
+  }
+  addMark(ox, oz, x, z, label, cls) {
+    if (this.markN >= MARKS) return;
+    const m = this.markPool[this.markN++];
+    m.b = (Math.atan2(x - ox, -(z - oz)) * 180 / Math.PI + 360) % 360; m.label = label; m.cls = cls; m.d = Math.round(Math.hypot(x - ox, z - oz));
   }
 
   view() {

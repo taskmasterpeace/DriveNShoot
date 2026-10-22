@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { HALF } from '../world/city.js';
 import { snapshot, restore } from '../agent/api.js';
+import { paintPaper, paintPin } from './hudart.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -31,8 +32,10 @@ export class QOL {
     this.menuOpen = false;
     this.mapOpen = false;
 
+    // The objective is a pinned paper ORDERS tag at the top of the HUD's left column (or loose in the root).
+    (game.hud?.el?.objSlot ?? root).insertAdjacentHTML('beforeend', `
+      <div class="objective hidden"><canvas class="obj-paper"></canvas><canvas class="obj-pin"></canvas><div class="obj-label">ORDERS</div><div class="obj-text"></div><div class="obj-dist"></div></div>`);
     root.insertAdjacentHTML('beforeend', `
-      <div class="objective hidden"><div class="obj-label">OBJECTIVE</div><div class="obj-text"></div><div class="obj-dist"></div></div>
       <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
@@ -57,6 +60,9 @@ export class QOL {
       </div></div>`);
     const q = (s) => root.querySelector(s);
     this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu') };
+    for (const [sel, art] of [['.obj-paper', paintPaper(316, 252)], ['.obj-pin', paintPin()]]) {
+      const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
+    }
 
     this.el.menu.addEventListener('click', (e) => {
       const a = e.target.closest('button')?.dataset.a;
@@ -285,13 +291,26 @@ export class QOL {
     }
     const obj = this.updateRoute(dt);
     const p = this.g.player;
-    const has = !!obj.text && !document.querySelector('.title');
-    this.el.obj.classList.toggle('hidden', !has);
+    if (!this.titleGone) this.titleGone = !document.querySelector('.title'); // the title never comes back
+    const has = !!obj.text && this.titleGone;
+    if (has !== this.objShown) { this.objShown = has; this.el.obj.classList.toggle('hidden', !has); }
     if (has) {
       const txt = this.waypoint ? 'Waypoint' : obj.text;
-      if (this.el.objText.textContent !== txt) this.el.objText.textContent = txt;
+      if (txt !== this.objTxt) {
+        this.objTxt = txt;
+        this.el.objText.textContent = txt;
+        // a typed order shrinks to fit the tag
+        const n = txt.length;
+        this.el.objText.style.fontSize = `${n <= 10 ? 40 : n <= 18 ? 31 : n <= 32 ? 25 : n <= 52 ? 21 : 18}px`;
+        this.el.obj.animate?.([{ transform: 'rotate(-1.4deg) scale(1.06)', filter: 'brightness(1.35)' }, { transform: 'rotate(-1.4deg) scale(1)', filter: 'brightness(1)' }], { duration: 320, easing: 'ease-out' });
+      }
+      // distance: only rebuilt when the rounded figure or the mode changes
       const len = this.routeLength();
-      this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} ${p.inVehicle ? '· road route' : '· on foot'}` : (obj.target || this.waypoint ? 'no route' : '');
+      const fig = len === null ? (obj.target || this.waypoint ? -1 : -2) : len > 1000 ? Math.round(len / 100) * 100 : Math.round(len), mode = p.inVehicle ? 1 : 0;
+      if (fig !== this.objFig || mode !== this.objMode) {
+        this.objFig = fig; this.objMode = mode;
+        this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} - ${p.inVehicle ? 'road route' : 'on foot'}` : (obj.target || this.waypoint ? 'no route' : '');
+      }
       if (this.waypoint && len !== null && len < 6) this.setWaypoint(null);
     }
     if (this.mapOpen) this.drawBigMap();

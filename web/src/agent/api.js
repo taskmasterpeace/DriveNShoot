@@ -447,8 +447,8 @@ function buildCommands(api) {
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
     hud: {
-      group: 'observe', desc: 'What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood.',
-      run: async () => g.feedback.view(),
+      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips, the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
+      run: async () => ({ ...g.feedback.view(), plates: g.hud.view() }),
     },
     train: {
       group: 'world', desc: 'The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status | board (player climbs onto the nearest car — must be beside the track) | leave (jump off; hurts above ~6 m/s) | summon (put the train 80 m north of the station, arriving) | place (nose at z, cruising south — for staging) | blowTanker.',
