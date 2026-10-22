@@ -459,7 +459,7 @@ function buildCommands(api) {
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
     hud: {
-      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips, the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
+      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips (standing, and the reading your roles colour it to), the role tapes above the flag (what the world calls you: role id, text, chevrons for the tier), the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
       run: async () => ({ ...g.feedback.view(), plates: g.hud.view() }),
     },
     train: {
@@ -2699,6 +2699,189 @@ async function runSelfTest(api) {
       F.standing[fi] = keep.s; F.lifetime[fi] = keep.l; F.retier(fi, false);
       inv.opened = null; inv.changed();
     }
+  });
+  // ---- roles (data/roles.js, systems/roles.js; docs/design/WEB_ROLES.md §8). Staged at STAGE like world memory; every
+  // check clears the roles again, so nothing after it is read through them. `roles renown=` stages a role the way
+  // `standing set=` stages a faction - only where the check is about what the role DOES, never where it is about earning it.
+  const R = g.roles, hurtHere = (dx, dz) => { const c = person('drifter', dx, dz); c.hp = 30; c.bleed = 0.5; return c; };
+  const has = (t, re) => (t.choices ?? []).findIndex((c) => re.test(c.text));
+  await check('roles: patch up three hurt strangers with bandages through the real dialogue and the world starts calling you a medic: a toast, a tape on the HUD, the PACK header', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq, people = [];
+    try {
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); inv.changed();
+      await C('item', { give: 'bandage', n: 3 });
+      people.push(hurtHere(1.6, 0), hurtHere(-1.6, 0.4), hurtHere(0.3, 1.7));
+      const before = R.tier('medic');
+      let patched = 0;
+      for (const c of people) {
+        const t = await C('talk', { id: c.id });
+        const i = has(t, /patch you up/i);
+        if (i >= 0) { await C('choose', { index: i }); if (c.hp > 30 && !(c.bleed > 0)) patched++; }
+        g.dialogue.close();
+      }
+      await C('step', { seconds: 0.5 }); // the HUD's slow lane draws the tape
+      const m = (await C('roles', { id: 'medic' })).role;
+      const earned = g.events.some((e) => e.seq > seq0 && e.type === 'roleEarned' && e.role === 'medic');
+      const toast = g.events.some((e) => e.seq > seq0 && e.type === 'toast' && /MEDIC/.test(e.text));
+      const tape = (await C('hud')).plates.roles?.some((r) => r.id === 'medic' && r.text === 'MEDIC' && r.chevrons === 1);
+      g.invUI.render(); const header = /MEDIC/.test(document.querySelector('.inv-roles')?.textContent ?? '');
+      const heals = g.society.chronicle.query({ verb: 'heal', actor: 'player', limit: 5 }).length;
+      return before === 0 && patched === 3 && m.tier === 'rumoured' && earned && toast && tape && header && heals >= 3 && inv.carried.count('bandage') === 0 ? true
+        : JSON.stringify({ before, patched, tier: m.tier, renown: m.renown, earned, toast, tape, header, heals, bandages: inv.carried.count('bandage') });
+    } finally { for (const c of people) if (g.chars.includes(c)) g.removeChar(c); inv.load(sv); R.reset(); }
+  });
+  await check('roles: time wears a role away, but not at the first dip under the line - still a medic at 18 renown (hysteresis), forgotten under 15', async () => {
+    await stage();
+    const sim = g.society.sim.save(), seq0 = g.eventSeq;
+    try {
+      await C('roles', { id: 'medic', renown: 22 });
+      const held = R.tier('medic') === 1;
+      await C('simTick', { hours: 60 }); // 12 hours' grace, then 48 of fading: 22 -> about 18.5
+      const r1st = R.st.medic.r, dipped = r1st < 20 && r1st > 15 && R.tier('medic') === 1;
+      await C('simTick', { hours: 120 }); // about 12: under 0.75 x 20
+      const gone = R.tier('medic') === 0 && g.events.some((e) => e.seq > seq0 && e.type === 'roleLost' && e.role === 'medic');
+      const toast = g.events.some((e) => e.seq > seq0 && e.type === 'toast' && /NOBODY CALLS YOU A MEDIC/.test(e.text));
+      return held && dipped && gone && toast ? true : JSON.stringify({ held, after60: r1(r1st), dipped, now: r1(R.st.medic.r), tier: R.tier('medic'), gone, toast });
+    } finally { g.society.sim.load(sim); R.reset(); }
+  });
+  await check('roles: a known Dustwolf rider walks into their sights and the guns stay down - standing unmoved at -60, the reading and the counter prices move; lose the role and they open up again', async () => {
+    await stage();
+    const F = g.society.factions, dw = F.index.dustwolves, rh = F.index.rusthaven;
+    const wolf = person('raider', 12, 0, { weapon: 'smg' });
+    try {
+      const s0 = F.standing[dw], before = g.ai.hostile(wolf, g.player);
+      await C('roles', { id: 'rider', renown: 50 });
+      const after = g.ai.hostile(wolf, g.player), s1 = F.standing[dw];
+      wolf.target = null; await C('step', { seconds: 2 }); // the AI's own scan: nobody draws on you
+      const quiet = wolf.target !== g.player, tier = F.tiers[dw];
+      const pm = R.priceMul('dustwolves', wolf), pmRH = R.priceMul('rusthaven'), colder = F.reading(rh) < F.standing[rh];
+      await C('roles', { id: 'rider', renown: 0 });
+      const back = g.ai.hostile(wolf, g.player);
+      return before && !after && quiet && back && s1 === s0 && s0 === -60 && tier === 'wary' && pm < 1 && pmRH > 1 && colder ? true
+        : JSON.stringify({ before, after, quiet, back, s0, s1, tier, pm, pmRH, colder });
+    } finally { g.removeChar(wolf); R.reset(); }
+  });
+  await check("roles: Doc Reyes offers a medic's shift only to a known medic - the kit lands in the pack, and three patients later she pays $90", async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), cash0 = g.cash, people = [];
+    try {
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); inv.changed();
+      const t0 = await C('talk', { id: 'reyes', force: true }); g.dialogue.close();
+      const closed = has(t0, /work for a medic/i) < 0;
+      await C('roles', { id: 'medic', renown: 50 });
+      const t1 = await C('talk', { id: 'reyes', force: true }), i = has(t1, /work for a medic/i);
+      if (i < 0) { g.dialogue.close(); return JSON.stringify({ closed, offered: false, choices: t1.choices }); }
+      const t2 = await C('choose', { index: i });
+      await C('choose', { index: has(t2, /^I will/) }); g.dialogue.close();
+      const kit = inv.carried.count('first_aid') === 1 && inv.carried.count('bandage') === 2 && R.jobActive('medic_shift');
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      people.push(hurtHere(1.5, 0), hurtHere(-1.5, 0), hurtHere(0, 1.5));
+      for (const [c, item] of [[people[0], 'bandage'], [people[1], 'bandage'], [people[2], 'first_aid']]) await C('item', { use: item, on: c.id });
+      const ready = R.jobReady('medic_shift');
+      const t3 = await C('talk', { id: 'reyes', force: true }), k = has(t3, /shift is done/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash0 + 90 && !R.jobActive('medic_shift') && !R.jobOpen('medic_shift'); // once a day
+      return closed && kit && ready && paid ? true : JSON.stringify({ closed, kit, ready, paid, cash: g.cash - cash0, job: R.jobs.medic_shift });
+    } finally { for (const c of people) if (g.chars.includes(c)) g.removeChar(c); inv.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: Rust Haven swears in a known deputy - a star in the pack, one wanted star of slack from the bulls, $20 for a Dustwolf put down; shoot a townsman in front of a bull and the star is taken back', async () => {
+    await stage();
+    const F = g.society.factions, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), cash0 = g.cash, extras = [];
+    try {
+      await C('standing', { faction: 'rusthaven', set: 30 }); // the deputy's gate: Rust Haven has to trust you
+      const bull = person('warden', -8, 0); extras.push(bull);
+      g.wanted = 1; const noSlack = g.ai.hostile(bull, g.player); g.wanted = 0;
+      await C('roles', { id: 'deputy', renown: 50 });
+      const t = await C('talk', { id: 'okonkwo', force: true }), i = has(t, /needs deputies/i);
+      if (i >= 0) { const t2 = await C('choose', { index: i }); await C('choose', { index: has(t2, /swear it/i) }); }
+      g.dialogue.close();
+      const sworn = R.office('deputy'), star = inv.carried.count('tin_star') === 1;
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      bull.x = g.player.x - 8; bull.z = g.player.z;
+      g.wanted = 1; const slack = !g.ai.hostile(bull, g.player); g.wanted = 2; const twoStars = g.ai.hostile(bull, g.player); g.wanted = 0;
+      const wolf = person('raider', 6, 0, { hp: 30 }); extras.push(wolf);
+      await shootDead(wolf);
+      const ready = R.jobReady('deputy_bounty');
+      const t3 = await C('talk', { id: 'okonkwo', force: true }), k = has(t3, /deputy's bounty/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash0 + 20;
+      // A Rust Haven townsman shot dead in front of a bull: the stars rise, the deputy is suspended, the star goes back.
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      bull.x = g.player.x - 6; bull.z = g.player.z; bull.face = Math.atan2(g.player.x - bull.x, 0);
+      const towns = person('drifter', 4, 0, { hp: 30 }); towns.fid = 'rusthaven'; F.assign(towns); extras.push(towns);
+      const seq0 = g.eventSeq;
+      await shootDead(towns);
+      const stripped = !R.office('deputy') && inv.carried.count('tin_star') === 0 && g.events.some((e) => e.seq > seq0 && e.type === 'officeLost' && e.office === 'deputy');
+      // The deputy lapses either way: the shots and the killing wear it under its line, and the stars suspend it.
+      const lapsed = g.events.some((e) => e.seq > seq0 && (e.type === 'roleSuspended' || e.type === 'roleLost') && e.role === 'deputy') && !R.atLeast('deputy', 'rumoured');
+      return noSlack && sworn && star && slack && twoStars && ready && paid && stripped && lapsed ? true
+        : JSON.stringify({ noSlack, sworn, star, slack, twoStars, ready, paid: g.cash - cash0, stripped, lapsed, wanted: g.wanted, deputy: R.view('deputy')?.renown });
+    } finally { for (const c of extras) if (g.chars.includes(c)) g.removeChar(c); g.wanted = 0; inv.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: Kenji offers a known stunt driver a crowd at Wreck Row; a clean clear at 40 mph pays his $150, and the crowd pays a known stunt driver more than $60', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash;
+    try {
+      g.stunts.cleared = {};
+      await C('roles', { id: 'stuntdriver', renown: 50 });
+      const t = await C('talk', { id: 'kenji', force: true }), i = has(t, /stunt driver/i);
+      if (i >= 0) { const t2 = await C('choose', { index: i }); await C('choose', { index: has(t2, /^Deal/) }); }
+      g.dialogue.close();
+      const started = R.jobActive('wreck_show');
+      const run = await jumpRun({ run: 'wreckrow', speed: 18.2 }); jumpDone();
+      const res = run.result ?? {}, clean = res.cleared && res.landing === 'clean', crowd = res.pay > 60;
+      const ready = R.jobReady('wreck_show'), cash1 = g.cash;
+      const t3 = await C('talk', { id: 'kenji', force: true }), k = has(t3, /Wreck Row, clean/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash1 + 150;
+      return started && clean && crowd && ready && paid ? true : JSON.stringify({ started, clean, landing: res.landing, pay: res.pay, ready, paid: g.cash - cash1 });
+    } finally { jumpDone(); g.stunts.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: the director sends a known medic somebody bleeding who walks up asking for one, and patching them ends it well; the morning radio names you by your best-known role', async () => {
+    await stage();
+    const D = g.society.director, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq;
+    let caller = null;
+    try {
+      await C('roles', { id: 'medic', renown: 50 });
+      const offered = D.view().eligible.some((e) => e.tpl === 'role_call');
+      const r = await C('fireEvent', { tpl: 'role_call' });
+      caller = r.ok ? api.findChar(r.spawned?.[0]?.id) : null;
+      if (!caller) return JSON.stringify({ offered, fired: r });
+      const hurt = caller.hp < caller.maxHp * 0.5 && caller.bleed > 0;
+      const dist = () => Math.hypot(caller.x - g.player.x, caller.z - g.player.z), d0 = dist();
+      await C('step', { seconds: 3 });
+      const walks = dist() < d0 - 2;
+      await C('teleport', { x: caller.x + 1.4, z: caller.z }); // meet them (staging), then the real dialogue
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); await C('item', { give: 'bandage', n: 1 });
+      const t = await C('talk', { id: caller.id }), i = has(t, /patch you up/i);
+      if (i >= 0) await C('choose', { index: i });
+      g.dialogue.close();
+      await C('step', { seconds: 1 });
+      const end = g.events.find((e) => e.seq > seq0 && e.type === 'director' && e.tpl === 'role_call' && e.phase === 'end');
+      const well = end?.outcome === 'success';
+      await C('setTime', { hour: 23.9 }); await C('step', { seconds: 0.3 });
+      await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
+      const dg = g.events.find((e) => e.seq > seq0 && e.type === 'radioDigest'), named = !!dg && /patching people up/.test(dg.lines?.[1] ?? '');
+      return offered && hurt && walks && well && named ? true : JSON.stringify({ offered, hurt, walks, d0: r1(d0), outcome: end?.outcome ?? null, digest: dg?.lines ?? null });
+    } finally { if (caller && g.chars.includes(caller)) g.removeChar(caller); inv.load(sv); await C('setTime', { hour: 12 }); R.reset(); }
+  });
+  await check('roles: a new role is a data row - registered at runtime, earned by the deed it names (a trade with Mags), read by the faction and the prices it names', async () => {
+    await stage();
+    const F = g.society.factions, dr = F.index.drifters, cash0 = g.cash;
+    try {
+      const reg = await C('registerRole', { id: 'selftest_hauler', def: { name: 'Water Hauler', short: 'HAULER', color: '#5b8fa8', tiers: [10, 30, 60], halfLife: 5,
+        earn: [{ on: 'deed', verb: 'trade', pts: 12, note: 'water bought' }], opens: { factions: { drifters: { standing: 20 } }, prices: { drifters: 0.8 } } } });
+      const t = await C('talk', { id: 'mags', force: true }), i = has(t, /canteen/i);
+      if (i >= 0) await C('choose', { index: i });
+      g.dialogue.close();
+      const v = R.view('selftest_hauler');
+      const ok = reg.ok && !reg.warnings?.length && v.tier === 'rumoured' && R.priceMul('drifters') < 1 && F.bias[dr] > 0;
+      return ok ? true : JSON.stringify({ reg: reg.ok ? 'ok' : reg.error, warnings: reg.warnings, tier: v?.tier, renown: v?.renown, pm: R.priceMul('drifters'), bias: F.bias[dr] });
+    } finally { R.unregister('selftest_hauler'); g.cash = cash0; R.reset(); }
   });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;

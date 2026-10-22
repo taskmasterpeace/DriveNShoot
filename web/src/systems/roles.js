@@ -70,6 +70,16 @@ export class Roles {
     return { id, warnings };
   }
 
+  // Take a registered role out again (a test's own row; a built-in row stays). Its effects go with it.
+  unregister(id) {
+    if (!this.rows[id] || ROLES[id]) return false;
+    delete this.rows[id]; delete this.st[id];
+    this.ids.splice(this.ids.indexOf(id), 1);
+    this.news = this.news.filter((n) => n.id !== id);
+    this.index(); this.apply(true);
+    return true;
+  }
+
   // Signal -> rules, rebuilt when the rows change.
   index() {
     this.byOn = {}; this.hourly = [];
