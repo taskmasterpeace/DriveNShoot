@@ -8,6 +8,7 @@ import { locationName, districtName, HALF } from '../world/city.js';
 import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
 import { K } from '../systems/chronicle.js';
+import { DOOR, WINDOW } from '../data/interiors.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -233,6 +234,7 @@ function buildCommands(api) {
           chars: g.chars.length, alive: g.chars.filter((c) => c.alive).length, vehicles: g.vehicles.length, statics: g.statics.boxes.length, decalsBudget: 1200, particlesBudget: 2400,
           audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts },
           society: { witnessMsMax: +g.society.deeds.witnessMsMax.toFixed(3), deeds: g.society.deeds.deeds, rumorsPending: g.society.deeds.pending, rumorOverflow: g.society.deeds.overflow },
+          interiors: { doors: g.interiors.doors.length, leaves: g.interiors.leaves.length, windows: g.interiors.windows.length, leavesSimulating: g.interiors.active.length },
           runtimeErrors: g.errors ?? [] };
       },
     },
@@ -479,6 +481,77 @@ function buildCommands(api) {
       run: async ({ x, z }) => {
         const px = x ?? P().x, pz = z ?? P().z;
         return { depth: r1(g.water.depthAt(px, pz)), state: g.water.stateAt(px, pz), places: { lake: { x: 390, z: 398, r: 52 }, bridge: { x: 416, z: 0 }, dock: { x: 360, z: 382 }, river: 'runs north-south around x≈410-428 on the east edge' } };
+      },
+    },
+    doors: {
+      group: 'world', desc: 'Doors near x,z (default: you) within radius: id, kind (front = a shop\'s double door | back | inner), axis the wall runs along, width, leaves, material (wood|metal), locked, state (closed|ajar|open), angle in degrees (the widest leaf, signed by the side it swung to), kicksLeft, lockHp, the outside/inside points 2.5 m off it, its building. locked=true lists only locked ones.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 25 }, limit: { type: 'number', default: 20 }, locked: { type: 'boolean' } },
+      run: async ({ x, z, radius, limit, locked }) => {
+        const cx = x ?? P().x, cz = z ?? P().z, I2 = g.interiors;
+        const near = I2.doors.filter((d) => Math.hypot(d.x - cx, d.z - cz) <= radius && (locked === undefined || d.locked === locked))
+          .sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+        return { count: near.length, total: I2.doors.length, lockedTotal: I2.doors.filter((d) => d.locked).length, items: near.slice(0, limit).map((d) => I2.doorView(d)) };
+      },
+    },
+    door: {
+      group: 'world', desc: `Act on a door by id: status | open (swing it wide, away from you) | close | lock | unlock | kick (one boot from where you stand, as the E key does: a locked door takes 2-3, then bursts open into whoever is behind it; an unlocked one flies open; you must be within ${DOOR.kickReach} m unless force=true). Every kick is a loud noise the AI hears.`,
+      args: { id: { type: 'string', required: true }, action: { type: 'string', default: 'status', enum: ['status', 'open', 'close', 'lock', 'unlock', 'kick'] }, force: { type: 'boolean', default: false } },
+      run: async ({ id, action, force }) => {
+        const I2 = g.interiors, d = I2.byId.get(id);
+        need(d?.leaves, `no door ${id}; list them with doors`);
+        let out = {};
+        if (action === 'open') {
+          if (d.locked) I2.setLocked(d, false);
+          for (const L of d.leaves) { const side = (P().x - L.hx) * L.px + (P().z - L.hz) * L.pz >= 0 ? 1 : -1; L.th = -side * 1.5; L.w = 0; I2.orient(L); }
+          I2.flush();
+        } else if (action === 'close') { for (const L of d.leaves) { L.th = 0; L.w = 0; I2.orient(L); } I2.flush(); }
+        else if (action === 'lock') I2.setLocked(d, true);
+        else if (action === 'unlock') I2.setLocked(d, false);
+        else if (action === 'kick') {
+          need(P().alive && !P().inVehicle, 'kick on foot');
+          const dist = Math.hypot(P().x - d.x, P().z - d.z), v = I2.doorView(d);
+          need(force || dist <= DOOR.kickReach, `${id} is ${r1(dist)} m away; stand within ${DOOR.kickReach} m of it (moveTo x=${(v.outside ?? v).x} z=${(v.outside ?? v).z}) or pass force=true`);
+          if ((P().kickAt ?? -9) > g.time) await api._step(Math.ceil((P().kickAt - g.time) * 60) + 1); // catch your breath between boots
+          out = I2.kick(d, P());
+          await api._step(6);
+        }
+        return { ...I2.doorView(d), ...out };
+      },
+    },
+    windows: {
+      group: 'world', desc: 'Windows near x,z (default: you) within radius: id, state (intact|cracked|shattered|boarded), glassHp, crack 0..1, boardHp, boardedFrom (inside|outside), the outside/inside points 2.2 m off it. state= filters (cracked counts as intact).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 25 }, limit: { type: 'number', default: 20 }, state: { type: 'string', enum: ['intact', 'shattered', 'boarded'] } },
+      run: async ({ x, z, radius, limit, state }) => {
+        const cx = x ?? P().x, cz = z ?? P().z, I2 = g.interiors;
+        const near = I2.windows.filter((w) => Math.hypot(w.x - cx, w.z - cz) <= radius && (!state || w.state === state))
+          .sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+        return { count: near.length, total: I2.windows.length, items: near.slice(0, limit).map((w) => I2.windowView(w)) };
+      },
+    },
+    window: {
+      group: 'world', desc: 'Act on a window by id: status | break (shatter the glass, or the boards) | board (board a broken window up from your side, as holding E does; within 2.5 m unless force=true) | unboard | vault (climb through a broken window; within 2 m) | repair (new glass, for staging).',
+      args: { id: { type: 'string', required: true }, action: { type: 'string', default: 'status', enum: ['status', 'break', 'board', 'unboard', 'vault', 'repair'] }, force: { type: 'boolean', default: false } },
+      run: async ({ id, action, force }) => {
+        const I2 = g.interiors, w = I2.byId.get(id);
+        need(w?.kind === 'window', `no window ${id}; list them with windows`);
+        const p = P(), dist = Math.hypot(p.x - w.x, p.z - w.z), side = (p.x - w.x) * w.nx + (p.z - w.z) * w.nz >= 0 ? 1 : -1;
+        if (action === 'break') { if (w.state === 'boarded') I2.damageBoards(w, 9999, p); else I2.shatter(w, -w.nx * side, -w.nz * side, p); }
+        else if (action === 'board') {
+          need(w.state === 'shattered', `window ${id} is ${w.state}: board a broken one (window action=break first)`);
+          need(force || dist <= 2.5, `${id} is ${r1(dist)} m away; stand within 2.5 m of it or force=true`);
+          I2.board(w, side, p);
+        } else if (action === 'unboard') { need(w.state === 'boarded', `window ${id} is not boarded`); I2.unboard(w, p); }
+        else if (action === 'repair') { w.state = 'intact'; w.hp = WINDOW.hp; w.boardHp = 0; I2.syncGlass(w); I2.syncBoards(w); }
+        else if (action === 'vault') {
+          need(w.state === 'shattered', `window ${id} is ${w.state}: only a broken window can be climbed through`);
+          need(p.alive && !p.inVehicle && !p.vault, 'climb on foot');
+          need(force || dist <= 2, `${id} is ${r1(dist)} m away; stand within 2 m of it`);
+          const x0 = p.x, z0 = p.z;
+          I2.startVault(p, w, side, WINDOW.vaultTime);
+          for (let i = 0; i < 90 && p.vault; i++) await api._step(1);
+          return { ...I2.windowView(w), climbed: true, from: { x: r1(x0), z: r1(z0) }, to: { x: r1(p.x), z: r1(p.z) } };
+        }
+        return I2.windowView(w);
       },
     },
     submerge: {
@@ -1581,6 +1654,139 @@ async function runSelfTest(api) {
     await C('step', { seconds: 4.5 });
     return burning && veh.dead ? true : `burning=${burning} dead=${veh.dead}`;
   });
+  // ---- doors, locks and windows (systems/interiors.js). Staged at buildings in the ruins with the bystanders
+  // cleared away; the player moves and interacts on its own keys (the same input path a person uses).
+  const I2 = g.interiors;
+  const keyFor = (dx, dz) => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'KeyD' : 'KeyA') : dz > 0 ? 'KeyS' : 'KeyW');
+  const holdKey = async (code, seconds, until) => {
+    g.input.down.add(code); g.input.pressed.add(code);
+    try { for (let f = 0; f < seconds * 60; f++) { await api._step(1); if (until?.()) break; } } finally { g.input.down.delete(code); }
+  };
+  const tapKey = async (code) => { g.input.down.add(code); g.input.pressed.add(code); await api._step(1); g.input.down.delete(code); await api._step(1); };
+  const outSide = (o, x, z) => (x - o.x) * o.nx + (z - o.z) * o.nz; // + outside the wall, - inside
+  const clearAt = (o, k) => g.nav.foot.free(o.x + o.nx * k, o.z + o.nz * k) && g.nav.foot.free(o.x - o.nx * k, o.z - o.nz * k);
+  const inRuins = (o) => Math.max(Math.abs(o.x), Math.abs(o.z)) > 100;
+  const backDoor = (pred) => I2.doors.find((d) => d.kind === 'back' && d.leaves.length === 1 && inRuins(d) && clearAt(d, 3) && pred(d));
+  const stageAt = async (o, k) => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    if (g.player.onTrain) g.train.leave(g.player);
+    g.autopilot = null; g.aimOverride = null; g.crouchOverride = false;
+    g.player.knockT = 0; g.player.vault = null; g.player.stamina = 1;
+    await C('setTime', { hour: 12 });
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - o.x, c.z - o.z) < 26) g.removeChar(c);
+    await C('teleport', { x: o.x + o.nx * k, z: o.z + o.nz * k });
+    await api._step(2);
+  };
+  const extra = (kind, x, z, props = {}) => { const c = g.addChar({ x, z, faction: kind, weapon: null, colors: outfit(kind), name: `${kind} (selftest)`, flag: 'US', hp: 300 }); c.x = x; c.z = z; return Object.assign(c, props); };
+  await check('doors: a closed door swings open for whoever walks into it, and they get through (you on your keys, a drifter on its own feet)', async () => {
+    const d = backDoor((x) => !x.locked);
+    if (!d) return 'no unlocked single back door in the ruins';
+    await C('door', { id: d.id, action: 'close' });
+    await stageAt(d, 2.5);
+    let widest = 0;
+    await holdKey(keyFor(-d.nx, -d.nz), 3, () => { widest = Math.max(widest, Math.abs(d.leaves[0].th)); return outSide(d, g.player.x, g.player.z) < -1.6; });
+    const youThrough = outSide(d, g.player.x, g.player.z) < -1.2;
+    // A drifter walking home through the same door, shut again; you wait off to one side.
+    await C('door', { id: d.id, action: 'close' });
+    await C('teleport', { x: d.x + d.nx * 6 + d.ux * 4, z: d.z + d.nz * 6 + d.uz * 4 });
+    const c = extra('drifter', d.x + d.nx * 2.5, d.z + d.nz * 2.5);
+    c.home = { x: d.x - d.nx * 2.5, z: d.z - d.nz * 2.5 }; c.wx = c.home.x; c.wz = c.home.z; c.timer = 99;
+    let npcWidest = 0;
+    for (let t = 0; t < 8 && outSide(d, c.x, c.z) > -1.2; t += 0.1) { await api._step(6); npcWidest = Math.max(npcWidest, Math.abs(d.leaves[0].th)); }
+    const npcThrough = outSide(d, c.x, c.z) < -1.2;
+    g.removeChar(c);
+    return youThrough && widest > 0.6 && npcThrough && npcWidest > 0.4 ? true : JSON.stringify({ door: d.id, youThrough, widest: r1(widest), npcThrough, npcWidest: r1(npcWidest), npc: [r1(c.x), r1(c.z)] });
+  });
+  await check('doors: a door shoved open at a run knocks down whoever stands behind it (door bash), and they get back up', async () => {
+    const d = backDoor((x) => !x.locked);
+    await C('door', { id: d.id, action: 'close' });
+    await stageAt(d, 2.6);
+    const L = d.leaves[0];
+    const v = extra('drifter', L.hx + L.dx * 0.8 - d.nx * 0.7, L.hz + L.dz * 0.8 - d.nz * 0.7, { hold: true }); // just inside, in the leaf's swing
+    const since = g.eventSeq;
+    g.input.down.add('ShiftLeft');
+    try { await holdKey(keyFor(-d.nx, -d.nz), 1.5, () => v.knockT > 0); } finally { g.input.down.delete('ShiftLeft'); }
+    const bash = g.events.find((e) => e.seq > since && e.type === 'doorBash' && e.victim === v.id);
+    const down = v.knockT > 0;
+    await api._step(Math.round((DOOR.knockDown + 0.6) * 60));
+    const up = !(v.knockT > 0) && v.alive;
+    g.removeChar(v);
+    return bash && down && up ? true : JSON.stringify({ door: d.id, bash: bash ?? null, down, up, th: r1(L.th), w: r1(L.w), v: [r1(v.x), r1(v.z)] });
+  });
+  await check('locks: a locked door holds you and the AI until you kick it in (2-3 kicks, each loud enough to scatter a bystander)', async () => {
+    let d = backDoor((x) => x.locked);
+    if (!d) { d = backDoor(() => true); if (!d) return 'no single back door in the ruins'; await C('door', { id: d.id, action: 'lock' }); }
+    await stageAt(d, 2.4);
+    // A drifter heading in through it stays outside: NPCs never open a locked door.
+    const n = extra('drifter', d.x + d.nx * 2.4 + d.ux * 0.2, d.z + d.nz * 2.4 + d.uz * 0.2);
+    n.home = { x: d.x - d.nx * 2.5, z: d.z - d.nz * 2.5 }; n.wx = n.home.x; n.wz = n.home.z; n.timer = 99;
+    await C('teleport', { x: d.x + d.nx * 6 + d.ux * 4, z: d.z + d.nz * 6 + d.uz * 4 });
+    await api._step(150);
+    const npcHeld = outSide(d, n.x, n.z) > 0.2;
+    g.removeChar(n);
+    await C('teleport', { x: d.x + d.nx * 2.4, z: d.z + d.nz * 2.4 });
+    const key = keyFor(-d.nx, -d.nz);
+    await holdKey(key, 1.2);
+    const held = outSide(d, g.player.x, g.player.z) > 0.3 && Math.abs(d.leaves[0].th) < 0.01 && d.locked;
+    const ear = extra('drifter', d.x + d.nx * 8 + d.ux * 8, d.z + d.nz * 8 + d.uz * 8); // hears it from round the corner
+    const since = g.eventSeq;
+    for (let i = 0; i < 5 && d.locked; i++) { await tapKey('KeyE'); await api._step(38); }
+    const kicks = g.events.filter((e) => e.seq > since && e.type === 'doorKick' && e.door === d.id).length;
+    const scattered = ear.flee > 0;
+    g.removeChar(ear);
+    await api._step(20);
+    await holdKey(key, 3, () => outSide(d, g.player.x, g.player.z) < -1.4);
+    const through = outSide(d, g.player.x, g.player.z) < -1;
+    return npcHeld && held && !d.locked && kicks >= 2 && kicks <= 3 && scattered && through ? true : JSON.stringify({ door: d.id, npcHeld, held, locked: d.locked, kicks, scattered, through, th: r1(d.leaves[0].th) });
+  });
+  let pane = null;
+  await check('windows: glass cracks, then shatters under fire, and stops blocking bullets once it is gone', async () => {
+    pane = I2.windows.find((w) => w.state === 'intact' && inRuins(w) && clearAt(w, 3) && g.nav.foot.free(w.x + w.nx * 6, w.z + w.nz * 6));
+    if (!pane) return 'no intact window in the ruins';
+    await stageAt(pane, 6);
+    const t = extra('drifter', pane.x - pane.nx * 3, pane.z - pane.nz * 3, { hold: true });
+    await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
+    const hp0 = t.hp;
+    await C('fire', { id: t.id, shots: 1 });
+    const cracked = pane.state === 'intact' && pane.hp < WINDOW.hp && t.hp === hp0;
+    await C('fire', { id: t.id, shots: 1 });
+    const shattered = pane.state === 'shattered' && t.hp === hp0;
+    await C('fire', { id: t.id, shots: 1 });
+    const through = t.hp < hp0;
+    g.removeChar(t);
+    return cracked && shattered && through ? true : JSON.stringify({ window: pane.id, cracked, shattered, through, state: pane.state, glassHp: pane.hp, hp: [hp0, t.hp] });
+  });
+  await check('windows: hold E at a broken window to board it up; the boards block sight and stop a bullet', async () => {
+    const w = pane?.state === 'shattered' ? pane : I2.windows.find((x) => x.state === 'shattered' && inRuins(x) && clearAt(x, 3) && g.nav.foot.free(x.x + x.nx * 6, x.z + x.nz * 6));
+    if (!w) return 'no broken window to board';
+    await stageAt(w, 1.1);
+    await holdKey('KeyE', WINDOW.holdTap + WINDOW.boardTime + 0.5, () => w.state === 'boarded');
+    const boarded = w.state === 'boarded' && w.boardSide === 1;
+    await C('teleport', { x: w.x + w.nx * 6, z: w.z + w.nz * 6 });
+    const t = extra('drifter', w.x - w.nx * 3, w.z - w.nz * 3, { hold: true });
+    const blind = !g.los(g.player.x, g.player.z, t.x, t.z);
+    const b0 = w.boardHp, hp0 = t.hp;
+    await C('fire', { x: t.x, z: t.z, shots: 1 });
+    const stopped = t.hp === hp0 && w.boardHp < b0 && w.state === 'boarded';
+    g.removeChar(t);
+    return boarded && blind && stopped ? true : JSON.stringify({ window: w.id, boarded, side: w.boardSide, blind, stopped, boardHp: [b0, w.boardHp], hp: [hp0, t.hp] });
+  });
+  await check('windows: walk into a broken window and you climb through it; a dive goes straight through the glass', async () => {
+    const w = I2.windows.find((x) => x.state === 'shattered' && x !== pane && inRuins(x) && clearAt(x, 3));
+    if (!w) return 'no broken window to climb';
+    await stageAt(w, 1.6);
+    let t = 0, started = -1;
+    await holdKey(keyFor(-w.nx, -w.nz), 3, () => { t += 1 / 60; if (g.player.vault && started < 0) started = t; return started >= 0 && !g.player.vault; });
+    const climbed = outSide(w, g.player.x, g.player.z) < -0.6 && started > 0.1;
+    const w2 = I2.windows.find((x) => x.state === 'intact' && x !== pane && inRuins(x) && clearAt(x, 3));
+    if (!w2) return 'no intact window to dive through';
+    await stageAt(w2, 2.4);
+    await C('dive', { x: w2.x - w2.nx * 3, z: w2.z - w2.nz * 3 });
+    for (let i = 0; i < 60 && g.player.vault; i++) await api._step(1);
+    const dove = w2.state === 'shattered' && outSide(w2, g.player.x, g.player.z) < -0.5;
+    return climbed && dove ? true : JSON.stringify({ window: w.id, climbed, started: r1(started), at: r1(outSide(w, g.player.x, g.player.z)), dive: w2.id, glass: w2.state, diveAt: r1(outSide(w2, g.player.x, g.player.z)) });
+  });
+
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
   const STAGE = { x: 280, z: -120 };
@@ -1827,6 +2033,7 @@ export function snapshot(g) {
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
+    interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
   };
 }
 
@@ -1859,13 +2066,13 @@ export function restore(g, s) {
       c.id = sc.id;
       if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
-    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless });
+    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0 });
     if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
-  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null });
+  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   p.weapon = g.inv.current;
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.
@@ -1874,6 +2081,7 @@ export function restore(g, s) {
   if (s.society) g.society.load(s.society);
   if (s.needs) g.survival.load(s.needs);
   if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
+  if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }
