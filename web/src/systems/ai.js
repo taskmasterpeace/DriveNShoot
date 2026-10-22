@@ -1,6 +1,7 @@
 import { WEAPONS } from './combat.js';
 import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
+import { MAX_FACTIONS } from './factions.js';
 
 // On-foot AI: wander, flee, fight. Cheap per-character state machine,
 // target scans are staggered so 150 NPCs cost almost nothing.
@@ -25,6 +26,8 @@ export class AI {
     // friendlier one holds fire; Rust Haven's bulls also answer to the wanted stars. NPC-vs-NPC rules stay below.
     const P = this.g.player, F = this.g.society?.factions;
     if (b === P && F && a.fi >= 0) return F.hostileToPlayer(a) || (a.faction === 'warden' && this.g.wanted > 0);
+    // Soldiers (the Federal Remnant) go by their faction's relations: at war (≤ -50) means shoot on sight.
+    if (a.faction === 'soldier') return !!F && a.fi >= 0 && b.fi >= 0 && F.rel[a.fi * MAX_FACTIONS + b.fi] <= -50;
     if (a.faction === 'raider') return b.faction !== 'raider';
     if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > 0);
     return false;
@@ -59,6 +62,7 @@ export class AI {
   }
 
   move(c, dx, dz, speed, dt) {
+    if (c.perch) { c.speed = 0; return; } // a sentry on a tower deck turns and shoots, but never steps off it
     const len = Math.hypot(dx, dz);
     if (len < 0.001) { c.speed = 0; return; }
     dx /= len; dz /= len;
@@ -222,6 +226,8 @@ export class AI {
         continue;
       }
 
+      // A base's soldiers keep their posts, walk their patrols, close on a trespasser (systems/bases.js).
+      if (c.baseId && g.bases?.think(c, dt)) continue;
       // Idle wander.
       c.timer -= dt;
       const dh = Math.hypot(c.wx - c.x, c.wz - c.z);
@@ -241,10 +247,10 @@ export class AI {
     // Cheap crowd separation (n^2 over awake characters; n is small).
     for (let i = 0; i < chars.length; i++) {
       const a = chars[i];
-      if (!a.alive || a.inVehicle) continue;
+      if (!a.alive || a.inVehicle || a.perch) continue; // nobody shoulders a sentry off a tower deck
       for (let j = i + 1; j < chars.length; j++) {
         const b = chars[j];
-        if (!b.alive || b.inVehicle) continue;
+        if (!b.alive || b.inVehicle || b.perch) continue;
         // Written so a NaN position FAILS the tests (every comparison with NaN is false): a NaN
         // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;

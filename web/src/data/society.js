@@ -4,7 +4,8 @@
 
 // Base magnitude of each verb. Kills are scaled further by who died (see deeds.js).
 // stunt: a named jump cleared clean in front of people (stunts.js) - word of a driver who can fly.
-export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5, stunt: 1 };
+// trespass: you stayed inside a base's wire after the warning, or brought the post down on you (bases.js).
+export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5, stunt: 1, trespass: 1 };
 
 // Standing (-100..100) to tier. Behaviour changes at each line: hostile and hunted shoot on sight.
 export const TIERS = { hunted: -80, hostile: -40, wary: -10, neutral: 20, friendly: 60 };
@@ -83,5 +84,23 @@ export const FACTIONS = {
   infected: {
     name: 'the infected', archetype: 'infected', color: '#7d8a6a', start: -100, memory: 'none',
     relations: { '*': -100 }, values: {},
+  },
+  // The Federal Remnant (docs/WORLD_PILLARS.md): the old government's ghost - troops and continuity officers who
+  // think the Union can still be put back together. Curfews, checkpoints, paperwork, lawful bounties, real armour.
+  // Their post in the Glass Flats is Outpost Nine (data/bases.js). They keep their own law: no wanted stars in Rust
+  // Haven's book (stars: false), a trespass on their wire is theirs to answer. No `sim` row yet: the outpost is a fixed
+  // garrison, outside the off-screen war (docs/design/WEB_MILITARY.md §5).
+  remnant: {
+    name: 'The Federal Remnant', archetype: 'military', color: '#7a8456', start: -5, stars: false, forgivesSelfDefense: true,
+    cohesion: 0.85, memoryDays: 21, rumorDelay: [15, 35], hub: [-292, -397], leaders: [], home: 'outpost_nine',
+    // Who they send when the paperwork says you are a problem (director: hunters) - a lawful bounty.
+    hunters: { faction: 'soldier', name: 'Remnant Trooper', weapons: { rifle: 0.75, smg: 0.25 }, hp: 140 },
+    relations: { dustwolves: -100, infected: -100, rusthaven: -20, drifters: 0 },
+    values: {
+      'kill:self': -10, 'hurt:self': -3, 'carjack:self': -5, 'steal:self': -4, 'destroy:self': -4, 'rob:self': -5, 'silence:self': -8, 'betray:self': -9,
+      'trespass:self': -6, // the wire is the law
+      'kill:enemy': 0.8, 'kill:rusthaven': -1.5, 'kill:drifters': -2, 'hurt:drifters': -0.5, // order matters to them
+      'rescue:any': 2, 'deliver:self': 5, 'trade:self': 0.5, 'defend:self': 5, 'pay:self': 2,
+    },
   },
 };

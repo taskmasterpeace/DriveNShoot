@@ -74,7 +74,15 @@ export class Audio {
     const air = Math.max(0.35, 1 - dist / 120);
     if (kind === 'pistol') { this.burst({ dur: 0.35, freq: 2200 * air, vol: 0.9 * fall, decay: 0.28, pitchDrop: 0.15, pan }); this.tone(110, 0.12, 0.3 * fall, 'sine', 0.4, pan); }
     else if (kind === 'smg') { this.burst({ dur: 0.12, freq: 3000 * air, vol: 0.55 * fall, decay: 0.09, pitchDrop: 0.3, pan }); }
+    else if (kind === 'rifle') { this.burst({ dur: 0.2, freq: 2600 * air, vol: 0.75 * fall, decay: 0.15, pitchDrop: 0.22, pan }); this.tone(150, 0.07, 0.2 * fall, 'sine', 0.5, pan); } // a sharper crack
     else { this.burst({ dur: 0.5, freq: 1400 * air, vol: 1.1 * fall, decay: 0.42, pitchDrop: 0.1, pan }); this.tone(70, 0.2, 0.4 * fall, 'sine', 0.4, pan); }
+  }
+  // A base alarm: a siren winding up and down three times, fading with distance.
+  siren(dist = 0) {
+    this.count('siren');
+    const v = Math.max(0, 0.22 * (1 - dist / 260));
+    if (v < 0.01) return;
+    for (let k = 0; k < 3; k++) setTimeout(() => { this.tone(330, 0.9, v, 'sawtooth', 1.9); setTimeout(() => this.tone(620, 0.9, v, 'sawtooth', 0.55), 900); }, k * 1800);
   }
   glass(pan = 0) {
     this.count('glass');
