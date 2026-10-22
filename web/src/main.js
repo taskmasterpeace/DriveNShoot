@@ -219,6 +219,7 @@ class Game {
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
     this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#4a3a2a'); // faded brown, never the black ex-cop car
     this.vehiclesSys.spawn('pickup', 30, 3.5, -Math.PI / 2, '#56603f');
+    this.vehiclesSys.spawn('atv', 36.5, 3.5, -Math.PI / 2, '#8a5a2a'); // a four-wheeler for the flats
     // Traffic on the grid.
     const paints = ['#8a6a2a', '#3f5a62', '#6a2a1a', '#4a4a48', '#7a5a3a', '#2f4a3a', '#c9a24a', '#6a4a2a'];
     for (let i = 0; i < 9; i++) {

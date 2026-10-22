@@ -6,7 +6,7 @@
 //   node tools/dl.mjs screenshot x=21.5 z=326 zoom=30 --out lineup.jpg   (add setTime hour=23 for lamps)
 // The booth is cleared by AREA, not only by the lineup flag: a hot-reload restore brings the cars
 // back without the flag, and a stale copy parked inside a fresh one hides the damage being shown.
-const BOOTH = { x0: -8, x1: 50, z0: 310, z1: 345 };
+const BOOTH = { x0: -8, x1: 53, z0: 310, z1: 345 };
 export default async (DL, game) => {
   const inBooth = (v) => v.x > BOOTH.x0 && v.x < BOOTH.x1 && v.z > BOOTH.z0 && v.z < BOOTH.z1;
   for (const v of [...game.vehicles]) {
@@ -31,7 +31,7 @@ export default async (DL, game) => {
     }
     return ids;
   };
-  const bodies = await row(320, [['rig', 0], ['interceptor', 9], ['sedan', 16], ['pickup', 23], ['van', 30], ['buggy', 37], ['bike', 43]]);
+  const bodies = await row(320, [['rig', 0], ['interceptor', 9], ['sedan', 16], ['pickup', 23], ['van', 30], ['buggy', 37], ['bike', 43], ['atv', 48]]);
   const damaged = await row(333, [['sedan', 9, { front: 0.3 }], ['sedan', 16, { front: 0.7 }], ['interceptor', 23, { front: 1 }], ['van', 30, { left: 1, front: 0.5 }]]);
   await DL.teleport({ x: 22, z: 350 });
   await DL.step({ seconds: 0.3 });

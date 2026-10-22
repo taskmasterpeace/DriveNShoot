@@ -1902,6 +1902,17 @@ async function runSelfTest(api) {
     sim.load(sv); await C('setTime', { hour: 12 });
     return rode && beaten ? true : JSON.stringify({ rode, n: raiders.length, outcome: ev.outcome, s0, s1 });
   });
+  await check('ATV: rides astride like a bike, drives like a small car, never tips over', async () => {
+    await stage();
+    const v = api.findVeh((await C('spawnVehicle', { type: 'atv', x: g.player.x + 6, z: g.player.z, heading: Math.PI / 2 })).id);
+    await C('enterVehicle', { id: v.id, force: true });
+    const x0 = v.x;
+    await C('drive', { throttle: 1, seconds: 1.5 });
+    const moved = Math.abs(v.x - x0), pose = g.player.seatPose;
+    const astride = pose?.kind === 'bike' && Math.abs(Math.cos(v.h) * (pose.x - v.x) - Math.sin(v.h) * (pose.z - v.z)) < 0.05;
+    g.exitVehicle(true); g.vehiclesSys.remove(v);
+    return moved > 8 && astride && !v.fallen ? true : JSON.stringify({ moved: r1(moved), pose: pose && { kind: pose.kind }, fallen: v.fallen });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;

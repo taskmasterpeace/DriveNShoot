@@ -84,6 +84,7 @@ export function buildBody(s, type, paint) {
   else if (base === 'buggy') buggyBody(parts, s, paint);
   else if (base === 'van') vanBody(parts, s, paint);
   else if (base === 'bike') bikeBody(parts, s, paint);
+  else if (base === 'atv') atvBody(parts, s, paint);
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
   lenses(parts, s, type);
@@ -312,6 +313,33 @@ function buggyBody(parts, s, paint) {
   axle(parts, -L / 2 + 0.72, 0.55, 0.46, hw - 0.12, false);
 }
 
+// ---- the ATV ----------------------------------------------------------------------------------------
+
+// A four-wheeler: tube frame, plastic fenders over fat tyres, a straddle seat, wide bars, racks front and back with
+// a jerry can strapped on. The rider sits it like a bike (seat pose 'bike'), but it doesn't lean.
+function atvBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, za = L / 2 - 0.45;
+  parts.push(slab(-0.26, 0.26, 0.32, 0.5, -0.95, 0.95, CAGE, PART.frame));                         // frame rails
+  parts.push(slab(-hw + 0.02, hw - 0.02, 0.6, 0.7, za - 0.38, L / 2 - 0.02, paint, PART.bumperF));  // front fenders
+  parts.push(slab(-0.32, 0.32, 0.5, 0.74, L / 2 - 0.12, L / 2 + 0.06, paint, PART.bumperF));        // nose cowl
+  parts.push(slab(-hw + 0.02, hw - 0.02, 0.62, 0.72, -L / 2 + 0.02, -za + 0.38, paint, PART.bumperR)); // rear fenders
+  parts.push(slab(-0.24, 0.24, 0.58, 0.84, 0.02, 0.5, paint, PART.hood));                           // tank / body
+  parts.push(slab(-0.2, 0.2, 0.76, 0.9, -0.62, 0.08, '#1a1816'));                                  // seat
+  parts.push(slab(-0.22, 0.22, 0.28, 0.56, -0.24, 0.3, '#3a3632'));                                 // engine
+  parts.push(beam([0, 0.72, 0.5], [0, 1.0, 0.42], 0.05, CHROME));                                   // steering stem
+  parts.push(beam([-0.38, 1.02, 0.42], [0.38, 1.02, 0.42], 0.045, CHROME));                         // bars
+  for (const x of [-0.38, 0.38]) parts.push(slab(x - 0.05, x + 0.05, 0.99, 1.05, 0.36, 0.48, '#151413')); // grips
+  for (const zr of [[za - 0.25, L / 2 - 0.08], [-L / 2 + 0.08, -za + 0.25]]) {                      // racks
+    const y = zr[0] > 0 ? 0.76 : 0.78;
+    for (const x of [-0.42, 0.42]) parts.push(beam([x, y, zr[0]], [x, y, zr[1]], 0.035, CAGE));
+    for (let k = 0; k < 3; k++) { const z = zr[0] + (k / 2) * (zr[1] - zr[0]); parts.push(beam([-0.42, y, z], [0.42, y, z], 0.03, CAGE)); }
+  }
+  parts.push(slab(-0.18, 0.18, 0.8, 1.12, -L / 2 + 0.2, -L / 2 + 0.42, '#7a2a1c'));                // jerry can on the back rack
+  parts.push(beam([-0.24, 0.45, -0.28], [-0.3, 0.6, -L / 2 - 0.02], 0.06, CHROME));                // exhaust
+  axle(parts, za, 0.33, 0.27, hw - 0.14, true);
+  axle(parts, -za, 0.35, 0.3, hw - 0.15, false);
+}
+
 // ---- motorcycle, boats ------------------------------------------------------------------------------
 
 function bikeBody(parts, s, paint) {
@@ -369,6 +397,7 @@ export function lampAnchors(s, type) {
   if (base === 'airboat' || base === 'gunboat') return { head: [[0, 0.95, L / 2 - 0.75]], tail: [[0, 0.9, -L / 2 + 0.25]], beamW: 6, beamL: 26, halo: 1 };
   if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
   if (base === 'buggy') return { head: pair(0.3, 0.72, L / 2 - 0.02), tail: pair(0.32, 1.02, -L / 2 + 0.22), ...car };
+  if (base === 'atv') return { head: pair(0.18, 0.68, L / 2 + 0.07), tail: [[0, 0.68, -L / 2 - 0.01]], beamW: 7, beamL: 15, halo: 0.85 };
   const y = base === 'pickup' ? 1.0 : base === 'van' ? 1.02 : 0.92;
   return { head: pair(W / 2 - 0.35, y, L / 2 + 0.02), tail: pair(W / 2 - 0.3, y, -L / 2 - 0.02), ...car };
 }

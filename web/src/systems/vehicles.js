@@ -26,6 +26,9 @@ export const VEHICLES = {
   jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, maxSpeed: 40, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
   gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, maxSpeed: 28, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
+  // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
+  atv:         { name: 'ATV', len: 2.3, wid: 1.25, maxSpeed: 38, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
+                 seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
   bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
 };
@@ -595,9 +598,10 @@ export class Vehicles {
         o.x = v.x; o.z = v.z;
         const seat = v.seats[si];
         if (seat.exposed) {
-          const lx = v.bike ? 0 : (seat.side === 'left' ? 0.45 : -0.45), lz = v.bike ? (si === 0 ? -0.15 : -0.65) : -v.len / 2 + 1.0;
+          const astride = v.bike || v.quad; // one behind the other, on the centre line
+          const lx = astride ? 0 : (seat.side === 'left' ? 0.45 : -0.45), lz = astride ? (si === 0 ? (v.quad ? -0.22 : -0.15) : (v.quad ? -0.72 : -0.65)) : -v.len / 2 + 1.0;
           const c = Math.cos(v.h), sn = Math.sin(v.h);
-          o.seatPose = { x: v.x + lx * c + lz * sn, z: v.z - lx * sn + lz * c, y: v.bike ? 0.12 : 1.1, h: o.aiming && seat.exposed === 'stand' ? o.face : v.h, lean: v.lean ?? 0, pitch: -(v.wheelie ?? 0), kind: seat.exposed };
+          o.seatPose = { x: v.x + lx * c + lz * sn, z: v.z - lx * sn + lz * c, y: v.bike ? 0.12 : v.quad ? 0.2 : 1.1, h: o.aiming && seat.exposed === 'stand' ? o.face : v.h, lean: v.lean ?? 0, pitch: -(v.wheelie ?? 0), kind: seat.exposed };
         } else o.seatPose = null;
       }
       const lit = !!v.driver && !v.dead;
