@@ -23,7 +23,8 @@ import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { InventoryUI } from './ui/inventory.js';
-import { ITEMS } from './data/items.js';
+import { ITEMS, GUN_CARE } from './data/items.js';
+import { Trade } from './systems/trade.js';
 import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
@@ -137,11 +138,14 @@ class Game {
     this.wantedT = 0;
     this.stats = { kills: 0, raiderKills: 0 };
     this.quests = {};
-    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
+    // The guns on you (loadout), the rounds in each (mag), each one's condition (cond: 1 clean) and jams. ammo is a view
+    // onto the rounds in your pockets once the inventory binds it (36 loose revolver rounds to start).
+    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6 }, cond: { pistol: 0.82 }, jam: {}, ammo: { pistol: 36, smg: 0, shells: 0, rifle: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -307,7 +311,7 @@ class Game {
         it.alive = false;
         this.audio.pickup();
         let text;
-        if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
+        if (it.type === 'ammo') { const A = this.inv.ammo, W = this.inv.weapons; A.pistol += 12; if (W.includes('smg')) A.smg += 32; if (W.includes('shotgun')) A.shells += 4; if (W.includes('rifle')) A.rifle += 10; text = '+ AMMO'; }
         else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
         else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
@@ -448,10 +452,13 @@ class Game {
         }
       }
     }
-    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.6 ? 'ammo' : 'cash'); }
-    if (c.faction === 'soldier' && Math.random() < 0.6) this.dropPickup(c.x + 0.8, c.z, 'ammo'); // a soldier's spare magazines
-    // The dead carry what they carried: a body is a container you can go through (I, standing over it).
-    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+    if (c.faction === 'raider' && Math.random() < 0.45) this.dropPickup(c.x + 0.8, c.z, 'cash'); // the pocket money spills
+    // The dead carry what they carried: a body is a container you can go through (I, standing over it), the gun they
+    // held and its spare rounds in it (a soldier's rifle is the prize).
+    if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
+      const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      this.inventory.armBody(body, c);
+    }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
   }
 
@@ -808,13 +815,17 @@ class Game {
     if (k === this.inv.current) return;
     this.inv.current = k;
     this.player.weapon = k;
-    this.player.reloading = 0;
+    this.player.reloading = 0; this.player.clearing = false;
     this.audio.blip();
   }
 
+  // R: clear a jam if the gun has one (work the action, throw the stuck round), else reload from your pockets.
   reload() {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
-    if (p.reloading > 0 || this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    if (p.reloading > 0) return;
+    if (this.inv.jam[k]) { p.reloading = GUN_CARE.clearTime * this.skills.reloadMul; p.clearing = true; this.audio.reload(); return; }
+    if (this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    p.clearing = false;
     p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
   }
@@ -828,22 +839,35 @@ class Game {
     if (p.reloading > 0) {
       p.reloading -= dt;
       if (p.reloading <= 0) {
-        const need = w.mag - this.inv.mag[k];
-        const take = Math.min(need, this.inv.ammo[w.ammo]);
-        this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
-        this.skillsSys.gain('dexterity', 1.5);
+        if (p.clearing) { p.clearing = false; this.inventory.cleared(k); }
+        else {
+          const need = w.mag - this.inv.mag[k];
+          const take = Math.min(need, this.inv.ammo[w.ammo]); // out of the rounds in your pockets
+          this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+          this.skillsSys.gain('dexterity', 1.5);
+        }
       }
       return;
     }
     const want = w.auto ? I.mouse.left : I.mouse.leftPressed;
     if (!want || p.cool > 0) return;
+    // A jammed gun's trigger goes dead: the pull starts clearing it. A broken one does nothing at all.
+    if (this.inv.jam[k]) { this.audio.empty(); p.cool = 0.3; this.reload(); return; }
+    if (this.inventory.cond(k) <= 0) {
+      this.audio.empty(); p.cool = 0.5;
+      if (this.time - (this.brokeT ?? -9) > 3) { this.brokeT = this.time; this.hud.toast(`${w.short} IS BROKEN · A GUNSMITH CAN FIX IT`, 'warn'); }
+      return;
+    }
     if (this.inv.mag[k] <= 0) { this.audio.empty(); p.cool = 0.25; this.reload(); return; }
     // In a car: shoot out of the window on that side (knocks the glass out first).
     const fired = p.inVehicle ? this.carCombat.fireFromVehicle(p, p.inVehicle, k, ang) : this.combat.fire(p, k, ang);
     if (fired) {
       this.inv.mag[k]--;
       p.cool = w.rate;
-      if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
+      if (this.inventory.shot(k)) { // every round wears it; a worn one may jam on the next
+        this.audio.burst?.({ dur: 0.06, freq: 1500, type: 'bandpass', q: 5, vol: 0.4, decay: 0.05 }); // the action stops short
+        this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
+      } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
       this.hud.shake(w.shake * 0.4);
     }
   }

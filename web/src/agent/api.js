@@ -9,7 +9,7 @@ import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
-import { ITEMS, LOOT } from '../data/items.js';
+import { ITEMS, LOOT, GUN_ITEM, GUN_CARE } from '../data/items.js';
 import { ZOOM } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
@@ -190,7 +190,7 @@ function buildCommands(api) {
           player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
-          inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
+          inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo, cond: g.inv.cond, jam: g.inv.jam },
           cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(), body: g.skillsSys.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
@@ -352,6 +352,8 @@ function buildCommands(api) {
           need(p.alive, 'player died');
           need(tx !== undefined && tz !== undefined, 'give x,z or id');
           const k = g.inv.current, w = WEAPONS[k];
+          if (g.inventory.cond(k) <= 0) return { fired: i, killed: g.stats.kills - before, error: 'gun broken', hint: 'gun fix=true (the gunsmith), or equip another' };
+          if (g.inv.jam[k]) { g.inventory.cleared(k); await api._step(Math.round(GUN_CARE.clearTime * 60)); } // work the action
           if (g.inv.mag[k] <= 0) {
             if (g.inv.ammo[w.ammo] <= 0) return { fired: i, error: 'out of ammo', ammo: g.inv.ammo };
             const take = Math.min(w.mag, g.inv.ammo[w.ammo]); g.inv.mag[k] = take; g.inv.ammo[w.ammo] -= take; await api._step(Math.round(w.reload * 60));
@@ -360,11 +362,11 @@ function buildCommands(api) {
           if (id && !g.statics.lineOfSight(sx, sz, tx, tz)) return { fired: i, killed: g.stats.kills - before, blocked: true, hint: 'no line of sight (wall in the way); use engage to path around it' };
           p.face = ang(tx - sx, tz - sz);
           const car = p.inVehicle;
-          if (car ? g.carCombat.fireFromVehicle(p, car, k, p.face) : g.combat.fire(p, k, p.face)) g.inv.mag[k]--;
+          if (car ? g.carCombat.fireFromVehicle(p, car, k, p.face) : g.combat.fire(p, k, p.face)) { g.inv.mag[k]--; g.inventory.shot(k); }
           await api._step(Math.max(1, Math.round(w.rate * 60)));
         }
         killed = g.stats.kills - before;
-        return { killed, mag: g.inv.mag[g.inv.current], reserve: g.inv.ammo[WEAPONS[g.inv.current].ammo] };
+        return { killed, mag: g.inv.mag[g.inv.current], reserve: g.inv.ammo[WEAPONS[g.inv.current].ammo], cond: +g.inventory.cond(g.inv.current).toFixed(3), jammed: !!g.inv.jam[g.inv.current] };
       },
     },
     engage: {
@@ -382,10 +384,11 @@ function buildCommands(api) {
           const t = api.findChar(id);
           if (!t || Math.hypot(t.x - p.x, t.z - p.z) > radius) { reason = 'no enemies in radius'; break; }
           const k = g.inv.current, w = WEAPONS[k];
-          if (g.inv.mag[k] <= 0 && g.inv.ammo[w.ammo] <= 0) {
-            const other = g.inv.weapons.find((o) => g.inv.mag[o] > 0 || g.inv.ammo[WEAPONS[o].ammo] > 0);
+          const usable = (o) => g.inventory.cond(o) > 0 && (g.inv.mag[o] > 0 || g.inv.ammo[WEAPONS[o].ammo] > 0);
+          if (!usable(k)) {
+            const other = g.inv.weapons.find(usable);
             if (other) { g.switchWeapon(other); continue; }
-            reason = 'out of ammo'; break;
+            reason = g.inventory.cond(k) <= 0 ? 'gun broken' : 'out of ammo'; break;
           }
           const d = Math.hypot(t.x - p.x, t.z - p.z);
           const los = g.statics.lineOfSight(p.x, p.z, t.x, t.z);
@@ -581,14 +584,14 @@ function buildCommands(api) {
     equip: { group: 'player', desc: 'Switch to an owned weapon.', args: { weapon: { type: 'string', required: true } },
       run: async ({ weapon }) => { need(g.inv.weapons.includes(weapon), `not owned; owned: ${g.inv.weapons.join(',')}`); g.switchWeapon(weapon); return { current: weapon }; } },
     give: {
-      group: 'player', desc: 'Grant cash, ammo {pistol,smg,shells}, throwables {frag,molotov,smoke,flash,pipe,sticky}, a weapon key, or health.',
-      args: { cash: { type: 'number' }, weapon: { type: 'string' }, pistol: { type: 'number' }, smg: { type: 'number' }, shells: { type: 'number' }, hp: { type: 'number' },
+      group: 'player', desc: 'Grant cash, rounds {pistol,smg,shells,rifle} (into your pockets: what will not fit lands at your feet), throwables {frag,molotov,smoke,flash,pipe,sticky}, a weapon key (slung and loaded; a spare in your pack if you already carry one), or health.',
+      args: { cash: { type: 'number' }, weapon: { type: 'string' }, pistol: { type: 'number' }, smg: { type: 'number' }, shells: { type: 'number' }, rifle: { type: 'number' }, hp: { type: 'number' },
         frag: { type: 'number' }, molotov: { type: 'number' }, smoke: { type: 'number' }, flash: { type: 'number' }, pipe: { type: 'number' }, sticky: { type: 'number' } },
-      run: async ({ cash, weapon, pistol, smg, shells, hp, frag, molotov, smoke, flash, pipe, sticky }) => {
+      run: async ({ cash, weapon, pistol, smg, shells, rifle, hp, frag, molotov, smoke, flash, pipe, sticky }) => {
         for (const [k, n] of Object.entries({ frag, molotov, smoke, flash, pipe, sticky })) if (n) g.inv.throwables[k] = (g.inv.throwables[k] ?? 0) + n;
         if (cash) g.cash += cash;
-        if (weapon) { need(WEAPONS[weapon], `unknown weapon; known: ${Object.keys(WEAPONS).join(',')}`); if (!g.inv.weapons.includes(weapon)) g.inv.weapons.push(weapon); g.inv.mag[weapon] ??= WEAPONS[weapon].mag; g.inv.ammo[WEAPONS[weapon].ammo] ??= 0; }
-        if (pistol) g.inv.ammo.pistol += pistol; if (smg) g.inv.ammo.smg += smg; if (shells) g.inv.ammo.shells += shells;
+        if (weapon) { need(WEAPONS[weapon], `unknown weapon; known: ${Object.keys(WEAPONS).join(',')}`); if (!g.inv.weapons.includes(weapon)) g.inventory.gainGun(weapon); }
+        if (pistol) g.inv.ammo.pistol += pistol; if (smg) g.inv.ammo.smg += smg; if (shells) g.inv.ammo.shells += shells; if (rifle) g.inv.ammo.rifle += rifle;
         if (hp) P().hp = Math.min(P().maxHp, P().hp + hp);
         return { cash: g.cash, inventory: g.inv };
       },
@@ -1104,6 +1107,47 @@ function buildCommands(api) {
       args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.invUI.toggle(on); return { open: g.invUI.open, other: g.invUI.other ? g.inventory.boxView(g.invUI.other) : null }; },
     },
+    gun: {
+      group: 'player', desc: 'Your guns as things (data/items.js GUN_*). No args: each gun slung on you - condition (1 clean, 0 broken), state (ok | worn | jammed | broken), rounds loaded, rounds for it in your pockets. sling=<gun item id> takes a gun from the other side (the body or box at your feet, else the car you are at, else the ground) or from your pack and slings it, swapped for yours if you carry one of its kind; stow=<weapon> puts a slung gun on the other side, drop=<weapon> on the ground (your last gun stays on you); clean=true uses a cleaning kit on the gun in your hands; fix=true pays the gunsmith\'s rate to make it clean (the agent skips the walk to Ike); cond=0..1 and jam=true|false set the gun in your hands (testing). In the game: R (or a pull of the dead trigger) clears a jam, the PACK screen (I) slings and stows.',
+      args: { sling: { type: 'string' }, stow: { type: 'string' }, drop: { type: 'string' }, clean: { type: 'boolean' }, fix: { type: 'boolean' }, cond: { type: 'number' }, jam: { type: 'boolean' } },
+      run: async ({ sling, stow, drop, clean, fix, cond, jam }) => {
+        const inv = g.inventory, out = {}, k = g.inv.current;
+        if (sling) {
+          need(ITEMS[sling]?.kind === 'gun', `not a gun item; guns: ${Object.values(GUN_ITEM).join(', ')}`);
+          const other = g.invUI.pickOther();
+          let box = other, i = other.slots.findIndex((s) => s.id === sling);
+          if (i < 0) { box = inv.carried; i = box.slots.findIndex((s) => s.id === sling); }
+          need(i >= 0, `no ${sling} in ${other.label} or your pack`);
+          const r = inv.sling(box, i); need(r.ok, r.why); out.slung = r.text; out.from = box.label;
+        }
+        if (stow || drop) {
+          const w = stow ?? drop;
+          need(g.inv.weapons.includes(w), `not slung on you; slung: ${g.inv.weapons.join(', ')}`);
+          const r = inv.stowGun(w, drop ? inv.groundAt(P().x, P().z) : g.invUI.pickOther()); need(r.ok, r.why); out.stowed = r.text;
+        }
+        if (cond !== undefined) { g.inv.cond[g.inv.current] = Math.max(0, Math.min(1, cond)); inv.changed(); }
+        if (jam !== undefined) { if (jam) g.inv.jam[g.inv.current] = true; else delete g.inv.jam[g.inv.current]; }
+        if (clean) { const i = inv.carried.slots.findIndex((s) => s.id === 'cleaning_kit' && s.left > 0); need(i >= 0, 'you carry no cleaning kit'); const r = inv.use(i); need(r.ok, r.why); out.cleaned = r.text; }
+        if (fix) { const cost = inv.smithQuote(g.inv.current), r = inv.smithFix(g.inv.current); need(r.ok, r.why); out.fixed = { weapon: k, cost }; }
+        return { ...out, current: g.inv.current, guns: inv.gunView() };
+      },
+    },
+    trade: {
+      group: 'player', desc: 'Buy and sell over a trader\'s counter (data/trade.js, systems/trade.js): stand at a shelf in their shop with them there (Ike: guns, rounds, tools; Doc Reyes: meds; Kenji: parts, tools, packs; Mags: water, food, valuables). No args: the deal here - who, the standing tier, the buy and sell multipliers, their stock with prices, what of yours they would buy and for how much. buy=<item id> n= buys from the shelf at your feet (as many as fit and you can pay for; a gun you carry none of is slung); sell=<item id> n= sells from your pack; sellgun=<weapon> sells a slung gun. Price = worth (value, less wear, use and age) x the tier multiplier. With the trader away, taking from their shelf is stealing. In the game: the PACK screen at their shelf (Space buys or sells, E buys one and uses it).',
+      args: { buy: { type: 'string' }, sell: { type: 'string' }, sellgun: { type: 'string' }, n: { type: 'number', default: 1 } },
+      run: async ({ buy, sell, sellgun, n }) => {
+        const inv = g.inventory, T = g.trade, box = g.invUI.pickOther(), D = T.at(box);
+        need(D, box?.owner ? `${box.ownerName} is not at the counter (taking from ${box.label} would be stealing)` : `${box?.label ?? 'nothing here'} is nobody's shop: stand at a trader's shelf`);
+        need(!D.refuse, `${D.name} won't deal with you (${D.tier})`);
+        const out = {};
+        if (buy) { const i = box.slots.findIndex((s) => s.id === buy); need(i >= 0, `${D.name} has no ${buy} on this shelf; here: ${box.slots.map((s) => s.id).join(', ') || 'nothing'}`); const r = T.buy(box, i, n, D); need(r.ok, r.why); out.bought = r; }
+        if (sell) { const i = inv.carried.slots.findIndex((s) => s.id === sell); need(i >= 0, `you carry no ${sell}`); const r = T.sell(i, box, n, D); need(r.ok, r.why); out.sold = r; }
+        if (sellgun) { need(g.inv.weapons.includes(sellgun), `not slung on you: ${g.inv.weapons.join(', ')}`); const r = T.sellGun(sellgun, box, D); need(r.ok, r.why); out.soldGun = r; }
+        return { ...out, trader: D.id, name: D.name, tier: D.tier, buy: +D.buy.toFixed(3), sell: +D.sell.toFixed(3), cash: g.cash, shelf: box.label,
+          stock: box.slots.map((s) => ({ id: s.id, n: s.n, price: T.buyPrice(s, s.n, D), each: T.buyPrice(s, 1, D), cond: s.cond })),
+          yours: inv.carried.slots.filter((s) => T.deals(D, s.id)).map((s) => ({ id: s.id, n: s.n, pays: T.sellPrice(s, s.n, D) })) };
+      },
+    },
     zoom: {
       group: 'player', desc: 'The play camera\'s zoom level (data/camera.js): level=0..4 or a name (CLOSE, STREET, WIDE, FAR, HIGH). Returns the level, the target and current camera height, and viewR - the radius of ground on screen, which spawners and clean-ups treat as "in sight". Keyboard: Z out, Shift+Z in (or - and =).',
       args: { level: { type: 'string' } },
@@ -1349,9 +1393,7 @@ function compileNpc(def) {
         do: (g) => {
           if (c.cost && !g.spend(c.cost)) return;
           if (c.give) g.give({ cash: c.give.cash ?? 0, ammo: c.give.ammo ?? {} });
-          if (c.give?.weapon && WEAPONS[c.give.weapon] && !g.inv.weapons.includes(c.give.weapon)) {
-            const w = c.give.weapon; g.inv.weapons.push(w); g.inv.mag[w] = WEAPONS[w].mag; g.inv.ammo[WEAPONS[w].ammo] ??= 0;
-          }
+          if (c.give?.weapon && WEAPONS[c.give.weapon] && !g.inv.weapons.includes(c.give.weapon)) g.inventory.gainGun(c.give.weapon);
           if (c.setQuest) Object.assign(g.quests, c.setQuest);
           if (c.weather) g.sky.setWeather(c.weather);
           if (c.toast) g.hud.toast(c.toast, 'job');
@@ -1400,6 +1442,10 @@ async function runSelfTest(api) {
   });
   await check('SMG registered + auto fire', async () => { await C('give', { weapon: 'smg', smg: 64 }); const r = await C('equip', { weapon: 'smg' }); return r.ok; });
   await check('dialogue tree', async () => {
+    // The raider check before this one can drop her with a stray round (an essential person is downed 45 s, and the
+    // downed do not talk): wait her out rather than read a flake as a failure.
+    const sheriff = g.chars.find((c) => c.npc?.id === 'okonkwo');
+    if (sheriff?.downedT > 0) await C('step', { seconds: sheriff.downedT + 0.5 });
     const t = await C('talk', { id: 'okonkwo', force: true });
     if (!t.open || !t.choices.length) return 'no dialogue';
     const c = await C('choose', { index: t.choices.length - 1 });
@@ -1955,7 +2001,9 @@ async function runSelfTest(api) {
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
-    await C('give', { pistol: 60 }); await C('equip', { weapon: 'pistol' });
+    g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); // topped up, not piled on: rounds weigh now
+    for (const k of g.inv.weapons) { if (g.inventory.cond(k) < 0.7) g.inv.cond[k] = 0.85; delete g.inv.jam[k]; } // no check trips on a worn gun
+    await C('equip', { weapon: 'pistol' });
     await C('step', { seconds: 0.2 });
   };
   const person = (kind, dx, dz, extra = {}) => {
@@ -2156,7 +2204,8 @@ async function runSelfTest(api) {
     await C('skills', { dexterity: 6 });
     const steadier = g.skills.spreadMul < base.spread && g.skills.reloadMul < base.reload;
     await C('skills', { dexterity: lv0 });
-    const shells = g.inv.ammo.shells;
+    const shells = g.inv.ammo.shells, cap0 = g.inventory.carried.cap;
+    g.inventory.carried.cap = 999; // 28 litres of shells fit no pack: room for the weighing only
     g.inv.ammo.shells += 700; S.recompute(); // ~31 kg of shells: over a starting back's 24 kg
     const over = g.skills.overloaded && g.skills.speedMul < 1;
     const x0 = g.player.x, t0 = g.time;
@@ -2165,7 +2214,7 @@ async function runSelfTest(api) {
     // Speed over the game time that actually passed: real-time frames can run during the step loop's
     // yields, so "1 s" of moveTo sometimes walks a little more than 1 s (it read 4.5 m against 4.4).
     const moved = Math.abs(g.player.x - x0), pace = moved / Math.max(0.5, g.time - t0);
-    g.inv.ammo.shells = shells; S.recompute();
+    g.inv.ammo.shells = shells; g.inventory.carried.cap = cap0; S.recompute();
     return learned && steadier && over && pace < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved), pace: r1(pace) });
   });
   await check('garage: a plated nose stops rounds until it is breached, plate slows the car, the hood gun fires where the nose points, oil spins a car', async () => {
@@ -2483,6 +2532,129 @@ async function runSelfTest(api) {
     const back = Math.abs(g.camHeight - ZOOM.levels[lv0].foot) < 3;
     return high && vr > 100 && ringOut && shadowOk && p.drawCalls < 150 && back ? true : JSON.stringify({ high, vr: r1(vr), ringOut, shadow: g.sky.sun.shadow.camera.right, draws: p.drawCalls, back, camHeight: r1(g.camHeight) });
   });
+  // ---- rounds and guns as things (docs/design/WEB_INVENTORY.md, guns) ----
+  await check('rounds are things: a reload takes them out of your pockets, they weigh what they weigh, what will not fit lands at your feet, and an old save\'s numbers become rounds', async () => {
+    await stage();
+    const inv = g.inventory, box = inv.carried, A = g.inv.ammo, p = g.player;
+    const keep = { pistol: A.pistol, mag: g.inv.mag.pistol };
+    A.pistol = 30; g.inv.mag.pistol = 0; p.reloading = 0;
+    const kg0 = inv.kg();
+    g.reload(); await C('step', { seconds: WEAPONS.pistol.reload + 0.5 });
+    const reloaded = g.inv.mag.pistol === 6 && A.pistol === 24 && box.count('ammo_pistol') === 24;
+    const kgDrop = kg0 - inv.kg(), weighs = Math.abs(kgDrop - 6 * ITEMS.ammo_pistol.kg) < 1e-6;
+    // more shells than the pack has room for: the rest spill at your feet
+    const s0 = A.shells, fit = Math.floor((inv.room(box) + 1e-6) / ITEMS.ammo_shells.bulk);
+    A.shells = s0 + fit + 40;
+    const pile = inv.groundAt(p.x, p.z), spilled = pile.count('ammo_shells') === 40 && A.shells === s0 + fit;
+    pile.slots = pile.slots.filter((s) => s.id !== 'ammo_shells'); inv.prune();
+    A.shells = s0;
+    // a save from before rounds were items: none in the pack, the count a plain number
+    const slots = box.slots.map((s) => ({ ...s }));
+    box.slots = box.slots.filter((s) => !ITEMS[s.id]?.ammo);
+    g.inv.ammo = { pistol: 50, smg: 0, shells: 0 };
+    inv.bindAmmo();
+    const migrated = g.inv.ammo.pistol === 50 && box.count('ammo_pistol') === 50 && JSON.parse(JSON.stringify(g.inv)).ammo.pistol === 50;
+    box.slots = slots; // as it was (the view reads the pack, so the count follows it)
+    g.inv.ammo.pistol = keep.pistol; g.inv.mag.pistol = keep.mag; inv.changed();
+    return reloaded && weighs && spilled && migrated ? true : JSON.stringify({ reloaded, mag: g.inv.mag.pistol, reserve: A.pistol, kgDrop: +kgDrop.toFixed(4), spilled, pile: pile.count('ammo_shells'), migrated });
+  });
+  await check('guns are things: a dead soldier leaves his rifle and spare rounds; taken it is slung, loaded as it lay; it stows in a trunk; a worn gun jams, its trigger goes dead and R clears it; a kit cleans; broken will not fire until the gunsmith', async () => {
+    await stage();
+    const inv = g.inventory, p = g.player, I = g.input;
+    const keep = { weapons: g.inv.weapons.slice(), current: g.inv.current, cond: { ...g.inv.cond }, mag: { ...g.inv.mag }, cash: g.cash };
+    const s = g.bases.spawnSoldier(p.x + 1.5, p.z, Math.random, 'rifle');
+    g.combat.damage(s, 9999, null, 0, 0, 'bullet');
+    const body = inv.boxes.get(`body:${s.id}`), lay = body?.slots.find((x) => x.id === 'gun_rifle');
+    const fair = !!lay && lay.cond >= 0.62 && lay.cond <= 0.95 && lay.loaded >= 9 && lay.loaded <= 30 && body.count('ammo_rifle') >= 20;
+    // the PACK screen over the body: Space on the rifle slings it (you carry none) and puts it in your hands
+    g.invUI.toggle(true);
+    const atBody = g.invUI.other === body;
+    g.invUI.side = 1; g.invUI.sel[1] = body.slots.indexOf(lay); g.invUI.act('move');
+    const slung = g.inv.weapons.includes('rifle') && g.inv.current === 'rifle' && g.inv.mag.rifle === lay?.loaded && Math.abs(inv.cond('rifle') - lay?.cond) < 1e-9 && !body.slots.includes(lay);
+    g.invUI.toggle(false);
+    // into the trunk of a car beside you: Space on the slung rifle
+    p.x += 12; await C('step', { seconds: 0.1 });
+    const v = g.vehiclesSys.spawn('sedan', p.x + 2.3, p.z + 2.3, 0), trunk = inv.trunk(v);
+    g.invUI.toggle(true);
+    const atTrunk = g.invUI.other === trunk;
+    g.invUI.side = 0; g.invUI.sel[0] = g.inv.weapons.indexOf('rifle'); g.invUI.act('move');
+    const inTrunk = trunk.slots.find((x) => x.id === 'gun_rifle');
+    const stowed = !!inTrunk && inTrunk.loaded === lay?.loaded && Math.abs(inTrunk.cond - lay?.cond) < 1e-9 && !g.inv.weapons.includes('rifle') && g.inv.current !== 'rifle';
+    g.invUI.toggle(false);
+    // a worn revolver, and the dice say jam: the trigger goes dead (a pull starts clearing it, nothing fires)
+    g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.inv.cond.pistol = 0.2; p.reloading = 0; p.cool = 0;
+    const rnd = Math.random; let jammed;
+    try { Math.random = () => 0; jammed = inv.shot('pistol'); } finally { Math.random = rnd; }
+    const mag0 = g.inv.mag.pistol;
+    I.mouse.leftPressed = true; I.mouse.left = true;
+    g.handleShooting(1 / 60, 0);
+    I.mouse.leftPressed = false; I.mouse.left = false;
+    const dead = jammed && p.clearing && p.reloading > 0 && g.inv.mag.pistol === mag0;
+    await C('step', { seconds: GUN_CARE.clearTime + 0.3 });
+    const cleared = !g.inv.jam.pistol && !p.clearing && g.inv.mag.pistol === mag0 - 1; // the stuck round is thrown away
+    // a kit puts some condition back
+    inv.add(inv.carried, 'cleaning_kit', 1); inv.changed();
+    const c0 = inv.cond('pistol'), used = inv.use(inv.carried.slots.findIndex((x) => x.id === 'cleaning_kit'));
+    const cleaned = used.ok && Math.abs(inv.cond('pistol') - Math.min(GUN_CARE.kitMax, c0 + GUN_CARE.kit)) < 1e-9;
+    // broken: the trigger does nothing, a kit will not touch it, the gunsmith's bench will
+    g.inv.cond.pistol = 0; p.cool = 0;
+    const m1 = g.inv.mag.pistol;
+    I.mouse.leftPressed = true; I.mouse.left = true;
+    g.handleShooting(1 / 60, 0);
+    I.mouse.leftPressed = false; I.mouse.left = false;
+    const kitNo = inv.use(inv.carried.slots.findIndex((x) => x.id === 'cleaning_kit'));
+    const broken = inv.gunState('pistol') === 'broken' && g.inv.mag.pistol === m1 && !(p.reloading > 0) && !kitNo.ok;
+    g.cash = 500;
+    const quote = inv.smithQuote('pistol'), fx = inv.smithFix('pistol');
+    const fixed = fx.ok && inv.cond('pistol') === 1 && g.cash === 500 - quote && quote === Math.round(ITEMS.gun_pistol.value * GUN_CARE.smith);
+    // tidy: the body, the car, the kit; your guns as they were
+    g.removeChar(s); inv.boxes.delete(`body:${s.id}`);
+    g.vehiclesSys.remove(v); inv.trunks.delete(v.id);
+    const ki = inv.carried.slots.findIndex((x) => x.id === 'cleaning_kit'); if (ki >= 0) inv.take(inv.carried, ki, 1);
+    g.inv.weapons = keep.weapons; g.inv.cond = keep.cond; g.inv.mag = keep.mag; g.inv.jam = {}; g.cash = keep.cash; g.switchWeapon(keep.current); inv.changed();
+    const ok = fair && atBody && slung && atTrunk && stowed && dead && cleared && cleaned && broken && fixed;
+    return ok ? true : JSON.stringify({ fair, lay: lay && { cond: lay.cond, loaded: lay.loaded }, spare: body?.count('ammo_rifle'), atBody, slung, atTrunk, stowed, jammed, dead, cleared, mag: g.inv.mag.pistol, cleaned, broken, fixed, quote });
+  });
+  // ---- trade (docs/design/WEB_TRADE.md) ----
+  await check('trade: at Ike\'s shelf with Ike there, taking is buying at his people\'s prices (no theft) and putting is selling what he deals in; hostile, no deal; Ike gone, no counter', async () => {
+    const inv = g.inventory, T = g.trade, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
+    const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
+    if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const F = g.society.factions, fi = ike.fi, keep = { s: F.standing[fi], l: F.lifetime[fi], cash: g.cash, ike: { x: ike.x, z: ike.z }, p: { x: g.player.x, z: g.player.z }, pistol: g.inv.ammo.pistol };
+    inv.open(box);
+    const slots0 = box.slots.map((s) => ({ ...s }));
+    try {
+      F.set(ike.fid, 0); // neutral
+      g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z; // Ike behind his counter
+      box.slots = []; inv.add(box, 'ammo_pistol', 30);
+      const D = T.at(box), stolen0 = box.stolen ?? 0;
+      const counter = !!D && !D.refuse && D.tier === 'neutral' && D.id === 'ike';
+      g.cash = 100;
+      const r = D && T.buy(box, 0, 12, D);
+      const bought = !!r?.ok && r.n === 12 && r.cost === Math.ceil(ITEMS.ammo_pistol.value * 12 * D.buy - 1e-9) && g.cash === 100 - r.cost
+        && box.count('ammo_pistol') === 18 && g.inv.ammo.pistol === keep.pistol + 12 && (box.stolen ?? 0) === stolen0; // paid for: no theft
+      // selling: a wrench is his trade, a photograph is not
+      inv.add(inv.carried, 'photograph', 1); inv.add(inv.carried, 'wrench', 1);
+      const refused = D && !T.sell(inv.carried.slots.findIndex((x) => x.id === 'photograph'), box, 1, D).ok;
+      const cashB = g.cash, sr = D && T.sell(inv.carried.slots.findIndex((x) => x.id === 'wrench'), box, 1, D);
+      const sold = !!sr?.ok && sr.pay === Math.floor(ITEMS.wrench.value * D.sell + 1e-9) && g.cash === cashB + sr.pay && box.count('wrench') === 1;
+      // his people turn hostile: he is there but will not deal (taking would be stealing)
+      F.set(ike.fid, -60);
+      const H = T.at(box), hostile = !!H && H.refuse;
+      F.set(ike.fid, 0);
+      // he walks out of the shop: no counter at all
+      ike.x = box.x + 30;
+      const gone = T.at(box) === null;
+      const pi = inv.carried.slots.findIndex((x) => x.id === 'photograph'); if (pi >= 0) inv.take(inv.carried, pi, 1);
+      return counter && bought && refused && sold && hostile && gone ? true : JSON.stringify({ counter, tier: D?.tier, buy: D?.buy, bought, cost: r?.cost, why: r?.why, refused, sold, pay: sr?.pay, hostile, gone });
+    } finally {
+      box.slots = slots0; g.cash = keep.cash; g.inv.ammo.pistol = keep.pistol;
+      ike.x = keep.ike.x; ike.z = keep.ike.z; g.player.x = keep.p.x; g.player.z = keep.p.z;
+      F.standing[fi] = keep.s; F.lifetime[fi] = keep.l; F.retier(fi, false);
+      inv.opened = null; inv.changed();
+    }
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -2566,6 +2738,7 @@ export function restore(g, s) {
   if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
   if (s.stunts) g.stunts.load(s.stunts);
   if (s.inventory) g.inventory.load(s.inventory);
+  g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.camLook.x = p.x; g.camLook.z = p.z;
