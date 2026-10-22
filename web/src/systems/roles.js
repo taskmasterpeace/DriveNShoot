@@ -14,7 +14,7 @@ import { slotKg } from './inventory.js';
 // Work happens on events (a deed, a jump, a search) and on the clock (a 1 s sample, the hourly tick), never per frame:
 // update() is one subtraction until its second is up.
 const TIER = Object.fromEntries(ROLE_TIERS.map((t, i) => [t, i]));
-const NOT_FILTERS = new Set(['on', 'pts', 'per', 'div', 'max', 'upTo', 'seen', 'scale', 'namedMul', 'note', 'while']);
+const NOT_FILTERS = new Set(['on', 'pts', 'per', 'div', 'max', 'upTo', 'seen', 'seenBy', 'scale', 'namedMul', 'note', 'while']);
 const SIGNALS = ['deed', 'drive', 'jump', 'search', 'loot', 'trade', 'event', 'hour'];
 const tierIdx = (t) => (typeof t === 'number' ? t : TIER[t] ?? 2);
 const article = (name) => (/^[aeiou]/i.test(name) ? 'AN' : 'A');
@@ -138,7 +138,7 @@ export class Roles {
     else if (rule.per === 'value') p *= (d.value ?? 0) / (rule.div ?? 30);
     if (rule.max !== undefined) p = Math.min(p, rule.max);
     if (sign > 0) {
-      if (d.on === 'deed') p *= this.seenOf(d, rule.seen ?? RULES.seen);
+      if (d.on === 'deed') p *= this.seenOf(d, rule.seen ?? RULES.seen, rule.seenBy === 'others');
       if (rule.namedMul && d.named) p *= rule.namedMul;
       if (rule.scale) for (const sk in rule.scale) p *= 1 + rule.scale[sk] * (this.g.skillsSys?.lv[sk] ?? 0);
     }
@@ -146,10 +146,13 @@ export class Roles {
   }
 
   // Who saw it: named you (id), saw something (saw), nobody (none). A deal struck face to face is seen by its counterparty.
-  seenOf(d, seen) {
-    if (d.src === 'dialogue' || d.ws > 0) return seen.id;
+  // byOthers (a rule's seenBy: 'others'): the target's own eyes don't count - a ghost's mark who saw your face and
+  // then died told nobody.
+  seenOf(d, seen, byOthers = false) {
+    if (d.src === 'dialogue') return seen.id;
+    if ((byOthers ? d.wsOthers : d.ws) > 0) return seen.id;
     if (d.un > 0) return seen.saw;
-    return d.unwitnessed ? seen.none : seen.saw;
+    return d.unwitnessed || byOthers ? seen.none : seen.saw;
   }
 
   gain(id, p, rule, d, cap = 100, trickle = false) {
@@ -178,10 +181,14 @@ export class Roles {
   }
 
   // deeds.js, for every deed of yours, after the witness pass.
+  // identified: somebody OTHER than the target put a name to your face (the target's own report dies with them if
+  // they do; a survivor's still travels, through ws).
   onDeed(rec, o, target, hostile) {
+    let others = 0;
+    for (const id of rec.w) if (id !== rec.o) others++;
     this.signal('deed', {
       verb: rec.v, of: rec.of || '', hostile: !!hostile, sd: !!o.sd, named: !!(rec.k & K.named), night: !!(rec.k & K.night),
-      cause: o.cause ?? '', src: rec.src, owner: !!o.owner, identified: rec.ws > 0, mag: rec.m, ws: rec.ws, un: rec.un,
+      cause: o.cause ?? '', src: rec.src, owner: !!o.owner, identified: others > 0, mag: rec.m, ws: rec.ws, wsOthers: others, un: rec.un,
       unwitnessed: !!(rec.k & K.unwitnessed), target: target?.id ?? '',
     });
   }
@@ -463,7 +470,7 @@ export class Roles {
   jobReady(id) {
     const def = ROLE_JOBS[id], j = this.jobs[id];
     if (!def || !j?.active) return false;
-    if (def.deliver) return (this.g.inventory?.carried.count(def.deliver) ?? 0) > 0;
+    if (def.deliver) return (this.g.inventory?.carried.count(def.deliver) ?? 0) >= (def.deliverN ?? 1);
     return def.each ? j.n > 0 : j.n >= (def.need ?? 1);
   }
   jobStart(id) {
@@ -481,7 +488,8 @@ export class Roles {
   jobPay(id, c = this.g.dialogue?.npc) {
     if (!this.jobReady(id)) return 0;
     const def = ROLE_JOBS[id], j = this.jobs[id], g = this.g, inv = g.inventory;
-    if (def.deliver) { const i = inv.carried.slots.findIndex((s) => s.id === def.deliver); if (i >= 0) { inv.take(inv.carried, i, 1); inv.changed(); } }
+    if (def.deliver) for (let k = 0; k < (def.deliverN ?? 1); k++) { const i = inv.carried.slots.findIndex((s) => s.id === def.deliver); if (i >= 0) inv.take(inv.carried, i, 1); }
+    if (def.deliver) inv.changed();
     const pay = def.each ? def.each * j.n : def.pay ?? 0;
     if (def.each) j.n = 0; else { j.active = false; j.day = this.day(); this.clearOrders(id); }
     if (pay) g.give({ cash: pay });
@@ -491,12 +499,15 @@ export class Roles {
     return pay;
   }
   clearOrders(id) { if (this.orders === id && this.g.qol) { this.g.qol.customObjective = null; this.orders = null; } }
+  // Something handed to you: into your pockets; what will not fit goes in the trunk you're in, else at your feet (with
+  // a toast that says so: inventory.stow).
   handOver(item, n) {
     const g = this.g, inv = g.inventory, it = ITEMS[item];
     if (!inv || !it) return 0;
     const state = it.uses ? { left: it.uses } : {};
+    if (inv.stow) return inv.stow(item, n, state);
     const put = inv.add(inv.carried, item, n, state);
-    if (put < n) inv.add(inv.groundAt(g.player.x, g.player.z), item, n - put, state); // no room: at your feet
+    if (put < n) inv.add(inv.groundAt(g.player.x, g.player.z), item, n - put, state);
     inv.changed();
     return put;
   }
@@ -538,6 +549,11 @@ export class Roles {
       if (i !== undefined && F.standing[i] < c.standing[fid]) return `${F.rows[i].short ?? F.rows[i].name} standing ${Math.round(F.standing[i])}, needs ${c.standing[fid]}`;
     }
     if (c.wanted !== undefined && g.wanted > c.wanted) return c.wanted === 0 ? 'wanted' : `wanted ${g.wanted} stars`;
+    // The chronicle's tallies (actorFaction|verb|targetFaction, kept forever): at least so many, or fewer than so many.
+    const T = g.society?.chronicle?.tally;
+    const said = (key, n) => { const [, v, f] = key.split('|'); return `${n} ${v}${n === 1 ? '' : 's'} of ${F?.row(f)?.short ?? F?.row(f)?.name ?? (f || 'nobody')} on record`; };
+    if (c.tally && T) for (const key in c.tally) { const n = T.get(key)?.n ?? 0; if (n < c.tally[key]) return `${said(key, n)}, needs ${c.tally[key]}`; }
+    if (c.tallyUnder && T) for (const key in c.tallyUnder) { const n = T.get(key)?.n ?? 0; if (n >= c.tallyUnder[key]) return said(key, n); }
     if (c.skill) for (const sk in c.skill) if ((g.skillsSys?.lv[sk] ?? 0) < c.skill[sk]) return `${sk} under ${c.skill[sk]}`;
     if (c.carry && !this.carrying(c.carry)) return 'not carrying it';
     if (c.place) {

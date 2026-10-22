@@ -32,7 +32,7 @@ The roles shipped, and what each opens (numbers are at renowned; known gets 0.7 
 | **Wheelman** | km at the wheel, seconds flat out, cars taken, people run down, air time | time (6 d) | Dustwolves read you +6, Remnant −6; Rust Haven's traders −5%; drivers you pull out run instead of fighting (known) |
 | **Medic** | people patched up (`heal`, DEX helps), rescues, Doc Reyes's shifts, hours carrying a full kit | killing somebody harmless; time (8 d) | everyone reads you warmer; traders −5%; patching heals ×1.5; **Doc Reyes's shift** (kit + $90); the director's **role call** sends the hurt to you |
 | **Scavenger** | first searches of crates, shelves, the dead, wrecks, army crates (STR helps); salvage carried off; hours hauling salvage; hours in the ruins | taking from a living person's shelf; time (6 d) | drifters −4, Dustwolves +4; +4 kg carry |
-| **Deputy of Rust Haven** | Dustwolves put down, the sheriff's jobs (the bounty), townsfolk saved, raids beaten off near town, hours inside the wall | hurting, robbing or killing townsfolk; time (10 d). **Gate:** Rust Haven standing ≥ 20 and ≤ 1 wanted star | Rust Haven +15, Dustwolves −15; Rust Haven's traders −10%; raids weigh ×1.5; **Okonkwo swears you in** (a star, $20 a Dustwolf, the bulls give one star of slack) |
+| **Deputy of Rust Haven** | Dustwolves put down, the sheriff's jobs (the bounty), townsfolk saved, raids beaten off near town, hours inside the wall | hurting, robbing or killing townsfolk; time (10 d). **Gate:** Rust Haven standing ≥ 20, ≤ 1 wanted star, and fewer than four records of killing its people in the chronicle's tally (forever) | Rust Haven +15, Dustwolves −15; Rust Haven's traders −10%; raids weigh ×1.5; **Okonkwo swears you in** (a star, $20 a Dustwolf, the bulls give one star of slack) |
 | **Dustwolf Rider** | cars taken, robbery, killing the wolves' enemies, named jumps, km on a buggy/ATV/bike, hours at a camp | killing or shooting Dustwolves, working for Rust Haven; time (8 d). **Gate:** not hunted by the Dustwolves | **the Dustwolves hold fire** (known: a rider walks into camp), reading +40; Rust Haven −15, drifters −10, Remnant −10; wolves' prices −15%, Rust Haven +10% |
 | **Trader** | deals struck, scrip changing hands (trade.js), goods delivered, hours carrying valuables | robbery, theft; time (8 d) | **every trader −8%**; drifters +5, Rust Haven +3; **Mags's water run** to Old Tomás ($60) |
 | **Stunt Driver** | named jumps cleared (clean best, the first of the day best), air time, jumps somebody saw | time (6 d) | Dustwolves +8 (respect, not a welcome), drifters +3; named jumps pay ×1.25; **Kenji's crowd** at Wreck Row ($150 for a clean clear) |
@@ -73,7 +73,13 @@ per, div, max, seen, scale, namedMul, upTo, note }`; the note is the words the `
 | `loot` | `inventory.js move()` out of a box nobody owns into your pockets | per value / div |
 | `trade` | `trade.js deal()` (the counter) | faction, sell; per value |
 | `event` | `director.js resolve()` | tpl, outcome, near (within 150 m of the raided town) |
-| `hour` | `society.js` hourly tick, `simTick` | `while` conditions: carry, place, standing, wanted, skill, driving, night, office |
+| `hour` | `society.js` hourly tick, `simTick` | `while` conditions: carry, place, standing, wanted, tally, skill, driving, night, office |
+
+Conditions (`requires`, `while`): `standing { faction: min }` (raw standing), `wanted` (max stars), `tally` /
+`tallyUnder { 'actor|verb|target': n }` (the chronicle's lifetime counts - each deed and each telling of it that reached a
+faction; they survive the ring), `skill { name: min }`, `carry { kind | ids, n | kg | value }`, `place` (an id or a
+prefix like `camp_`), `driving [types]`, `night`, `office`. The first failing one is the suspension's reason, in words
+(`RUST HAVEN STANDING 12, NEEDS 20`, `4 KILLS OF RUST HAVEN ON RECORD`).
 
 ### 3.3 Tiers, gates, activity
 Renown R (0..100) sets the **tier** with hysteresis (§4.4). A role's `requires` are its **gates**: while one fails the
@@ -104,7 +110,8 @@ only when `g.roles.version` moves.
   day per person per role, known or better), `refuseRole` / `refusedBy` (dialogue and the trade counter close).
 - **Jobs** (`ROLE_JOBS`): offered by a named person to a role at a tier (or an office), counted from the same signals,
   paid on the giver's word: Reyes's shift (3 heals, $90, a kit up front), Kenji's crowd (a clean Wreck Row, $150),
-  Mags's water run (the can to Tomás, $60), the deputy's bounty ($20 a Dustwolf). Daily jobs reopen the next game day.
+  Mags's water run (two canteens to Tomás, $60), the deputy's bounty ($20 a Dustwolf). Daily jobs reopen the next game
+  day. A kit or a star that will not fit in your pockets goes in the trunk you're in, else at your feet (`inventory.stow`).
   A running job takes the ORDERS tag if nothing else holds it.
 - **Offices** (`ROLE_OFFICES`): Okonkwo swears in a known deputy (a `tin_star` in your pack, the bounty job, one wanted
   star of slack in `ai.js`); it lapses with the role and the star is taken back. Vo's lesson makes a known ghost harder
@@ -172,6 +179,8 @@ o > 0.01 shoots on sight, o < −0.01 holds fire, else the tier decides.
 
 - **Several roles move on one deed.** Killing a harmless drifter in front of people: butcher +7, samaritan −20, medic −12,
   ghost −6 (named). All apply; each role re-tiers on its own.
+- **The chronicle never forgets:** the deputy's tally gate counts records for good (the ring may evict them, the tally
+  never does): after four records of killing Rust Haven's people the deputy stays suspended however much renown it has.
 - **A gate fails** (deputy wanted 2 stars, Rust Haven standing under 20): the role is suspended - effects off, a toast
   with the reason, `roleSuspended`; renown still earns and wears. When the gate holds again: `BACK IN GOOD STANDING`. A
   role that fades out entirely while suspended is announced fresh next time, not "back".

@@ -1247,7 +1247,7 @@ function buildCommands(api) {
       },
     },
     registerRole: {
-      group: 'content', desc: 'Add or update a role row (a new role is a row, not code; schema in src/data/roles.js): {name, short, color (never purple), blurb, tiers:[rumoured,known,renowned] (rising, ≤100), halfLife (game days), requires:{standing:{faction:min}, wanted, skill, carry, place, office}, earn:[{on: deed|drive|jump|search|loot|trade|event|hour, ...filters, pts, per, seen, note}], wear:[...], opens:{factions:{id:{standing, hostile, from}}, prices:{id|*:mul}, perks, director, refusedBy, greet, shout, radio}}.',
+      group: 'content', desc: 'Add or update a role row (a new role is a row, not code; schema in src/data/roles.js): {name, short, color (never purple), blurb, tiers:[rumoured,known,renowned] (rising, ≤100), halfLife (game days), requires:{standing:{faction:min}, wanted, tally/tallyUnder:{"player|kill|rusthaven":n}, skill, carry, place, office}, earn:[{on: deed|drive|jump|search|loot|trade|event|hour, ...filters, pts, per, seen, note}], wear:[...], opens:{factions:{id:{standing, hostile, from}}, prices:{id|*:mul}, perks, director, refusedBy, greet, shout, radio}}.',
       args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
       run: async ({ id, def }) => {
         const r = g.roles.register(id, def);

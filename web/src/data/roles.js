@@ -25,6 +25,7 @@
 //   hour   every game hour `while` a condition holds: pts per hour, never past `upTo` renown.
 // CONDITIONS (`requires` gates a role: while one fails its effects are suspended; `while` gates an hour rule):
 //   standing { faction: min } (the raw standing, never the role-coloured reading) · wanted (max stars) ·
+//   tally / tallyUnder { 'actor|verb|target': n } (the chronicle's lifetime counts: at least n / fewer than n) ·
 //   skill { name: min } · carry { kind | ids, n | kg | value } · place (an id, or a prefix like 'camp_') ·
 //   driving [types] · night · office (an id).
 //
@@ -161,7 +162,10 @@ export const ROLES = {
     name: 'Deputy of Rust Haven', short: 'DEPUTY', color: '#d9a441',
     blurb: "Keeps Rust Haven's peace: puts down Dustwolves, carries the sheriff's jobs, stands on the wall when they ride.",
     tiers: [20, 45, 75], halfLife: 10,
-    requires: { standing: { rusthaven: 20 }, wanted: 1 },
+    // Rust Haven has to trust you, you can't be wanted past one star, and the chronicle never forgets: four records of
+    // you killing its people (each killing, and each telling of it that reached a faction) and it will never keep you
+    // as a deputy again.
+    requires: { standing: { rusthaven: 20 }, wanted: 1, tallyUnder: { 'player|kill|rusthaven': 4 } },
     earn: [
       { on: 'deed', verb: 'kill', of: 'dustwolves', pts: 4, note: 'Dustwolves put down' },
       { on: 'deed', verb: 'deliver', of: 'rusthaven', per: 'mag', pts: 2.5, note: "the sheriff's jobs done" },
@@ -291,10 +295,10 @@ export const ROLES = {
     blurb: 'Things happen and nobody sees who. Nobody can say your name, but everybody knows there is one.',
     tiers: [20, 45, 75], halfLife: 4,
     requires: { wanted: 0 },
-    earn: [
-      { on: 'deed', verb: ['kill', 'silence'], sd: false, pts: 6, seen: { id: 0, saw: 0.3, none: 1 }, note: 'work nobody saw' },
-      { on: 'deed', verb: 'steal', pts: 3, seen: { id: 0, saw: 0.3, none: 1 }, note: 'things gone, nobody saw who' },
-      { on: 'deed', verb: ['hurt', 'carjack', 'destroy'], pts: 2, seen: { id: 0, saw: 0.3, none: 1 }, note: 'trouble nobody can pin on you' },
+    earn: [ // seenBy 'others': your mark's own eyes don't count (they told nobody)
+      { on: 'deed', verb: ['kill', 'silence'], sd: false, pts: 6, seen: { id: 0, saw: 0.3, none: 1 }, seenBy: 'others', note: 'work nobody saw' },
+      { on: 'deed', verb: 'steal', pts: 3, seen: { id: 0, saw: 0.3, none: 1 }, seenBy: 'others', note: 'things gone, nobody saw who' },
+      { on: 'deed', verb: ['hurt', 'carjack', 'destroy'], pts: 2, seen: { id: 0, saw: 0.3, none: 1 }, seenBy: 'others', note: 'trouble nobody can pin on you' },
     ],
     wear: [
       { on: 'deed', identified: true, src: ['deed', 'stunt'], pts: 6, note: 'seen and named' },
@@ -377,15 +381,15 @@ export const ROLES = {
 // ifJob / job effects); the role engine counts the work from its own signals and pays on the giver's word.
 //   role/from    the role (and tier) the offer needs        office  ...or an office you hold instead
 //   counts       a signal filter, like an earn rule          need    how many before it pays (each: pay per one)
-//   kit          [[item, n]] handed over when it starts      deliver an item id handed in to finish (to: who takes it)
+//   kit          [[item, n]] handed over when it starts      deliver an item id handed in to finish, deliverN of them (to: who takes it)
 //   daily        offered once a game day                     title   what the ORDERS tag says while it runs
 export const ROLE_JOBS = {
   medic_shift: { role: 'medic', from: 'known', giver: 'reyes', counts: { on: 'deed', verb: 'heal' }, need: 3, pay: 90, daily: true,
     kit: [['first_aid', 1], ['bandage', 2]], deed: { v: 'deliver', m: 2 }, title: "Doc Reyes's shift: patch up three people (bandages: talk to the hurt)" },
   wreck_show: { role: 'stuntdriver', from: 'known', giver: 'kenji', counts: { on: 'jump', jump: 'wreckrow', cleared: true, grade: 'clean' }, need: 1, pay: 150, daily: true,
     deed: { v: 'deliver', m: 2 }, title: "Kenji's crowd: clear Wreck Row clean, about 40 mph at the lip" },
-  water_run: { role: 'trader', from: 'known', giver: 'mags', to: 'tomas', kit: [['water_can', 1]], deliver: 'water_can', pay: 60, daily: true,
-    deed: { v: 'deliver', m: 2 }, title: "Mags's water run: carry the can to Old Tomás on the flats" },
+  water_run: { role: 'trader', from: 'known', giver: 'mags', to: 'tomas', kit: [['canteen', 2]], deliver: 'canteen', deliverN: 2, pay: 60, daily: true,
+    deed: { v: 'deliver', m: 2 }, title: "Mags's water run: two canteens to Old Tomás on the flats" },
   deputy_bounty: { office: 'deputy', giver: 'okonkwo', counts: { on: 'deed', verb: 'kill', of: 'dustwolves' }, each: 20, auto: true,
     title: "Deputy's bounty: $20 a Dustwolf, paid at the gate" },
 };
