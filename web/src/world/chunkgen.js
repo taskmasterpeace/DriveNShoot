@@ -97,6 +97,7 @@ const col = (hex) => (COL[hex] ??= rgb(hex));
 export function mesasOf(W, cx, cz) {
   const key = `${cx},${cz}`;
   W.mesaCache ??= new Map();
+  if (W.mesaCache.size > 4096) W.mesaCache.clear(); // a pure function: forgetting is free
   if (W.mesaCache.has(key)) return W.mesaCache.get(key);
   const rng = rngOf(hash32(W.seed, cx, cz, 4242));
   const out = [];

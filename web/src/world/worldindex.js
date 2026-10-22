@@ -598,6 +598,12 @@ export class WorldIndex {
 
   // What the HUD street sign says out here (city.js answers inside the island).
   nameAt(x, z) {
+    // The HUD asks every frame: the answer only changes when you have moved a few metres.
+    if (Math.abs(x - this._nx) < 4 && Math.abs(z - this._nz) < 4) return this._nn;
+    this._nx = x; this._nz = z;
+    return (this._nn = this.nameAtNow(x, z));
+  }
+  nameAtNow(x, z) {
     const pr = this.project(x, z, 2048);
     for (const X of this.exits) {
       if (Math.hypot(x - X.dest.x, z - X.dest.z) < 260 && !X.dead) return X.name;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { STREAM, POOLS } from '../data/streaming.js';
-import { C, chunkOf, chunkKey, islandChunk, inIsland, Hasher } from './geo.js';
+import { C, chunkOf, chunkKey, chunkId, islandChunk, inIsland, Hasher } from './geo.js';
 import { WorldIndex } from './worldindex.js';
 import { layoutChunk, SURF_CAPS } from './chunkgen.js';
 import { Pool, SurfacePool } from './pools.js';
@@ -36,6 +36,7 @@ export class Streamer {
     this.W = new WorldIndex();
     this.W.signAtlas = this.atlas = new SignAtlas(this.W.signs);
     this.layouts = new Map();   // key -> layout (insertion order = LRU order)
+    this.byId = new Map();      // the same layouts by integer chunk id (the per-frame paths never build a string key)
     this.hot = new Map();       // key -> layout that is on the GPU
     this.pinned = new Set();    // island chunks: never evicted
     this.centre = null;         // { cx, cz }
@@ -110,6 +111,9 @@ export class Streamer {
     for (const o of objs) o.visible = true;
     try { this.g.renderer.compile(this.g.scene, this.g.camera); } catch { /* a headless context without the extension: fine, it compiles on first use */ }
     objs.forEach((o, i) => { o.visible = was[i]; });
+    // And the big textures go up now: the sign atlas is ~19 MB with its mipmaps, a 60 ms hitch the first time a sign
+    // came into view at speed.
+    for (const t of [this.atlas.texture, this.roadMat.map]) try { this.g.renderer.initTexture(t); } catch { /* uploads on first use instead */ }
   }
 
   // ---- the golden hash of the island (§3.4): its static boxes and buildings, as city.js / terrain / stunts / bases made them
@@ -133,7 +137,7 @@ export class Streamer {
   finishBuild(L) {
     const b = this.building;
     this.building = null;
-    this.layouts.set(b.key, L);
+    this.layouts.set(b.key, L); this.byId.set(chunkId(L.cx, L.cz), L);
     this.built++;
     this.buildCosts.push(L.workMs); if (this.buildCosts.length > 200) this.buildCosts.shift();
     this.g.statics.registerChunk(L.cx, L.cz, L.boxes);
@@ -176,7 +180,7 @@ export class Streamer {
     for (const k of ['foot', 'car']) this.g.nav[k].invalidate(L.cx, L.cz);
     this.freeTiles.push(L.tiles); this.freeMM.push(L.mm);
     L.tiles = null; L.mm = null;
-    this.layouts.delete(key);
+    this.layouts.delete(key); this.byId.delete(chunkId(L.cx, L.cz));
     this.evicted++;
     this.mm.dirty = true;
   }
@@ -230,10 +234,11 @@ export class Streamer {
     return Math.hypot(dx, dz);
   }
 
-  // ---- per frame ----------------------------------------------------------------------------------------------------------
+  // ---- per frame (no allocation on this path: scratch objects, integer keys, one comparator) -----------------------------
   focus() {
-    const p = this.g.player, v = p.inVehicle;
-    return v ? { x: v.x, z: v.z, vx: v.vx, vz: v.vz } : { x: p.x, z: p.z, vx: 0, vz: 0 };
+    const p = this.g.player, v = p.inVehicle, f = (this._f ??= { x: 0, z: 0, vx: 0, vz: 0 });
+    if (v) { f.x = v.x; f.z = v.z; f.vx = v.vx; f.vz = v.vz; } else { f.x = p.x; f.z = p.z; f.vx = 0; f.vz = 0; }
+    return f;
   }
 
   update(dt) {
@@ -256,12 +261,6 @@ export class Streamer {
     this.pump(sync, t0);
     // Hot: what should be on the GPU now. A needed chunk with no layout is a stall.
     this.updateHot(f, sync);
-    // Collision for the ring (a cached layout coming back into the ring re-takes its slot).
-    const c = this.centre, rr = STREAM.rL + 1;
-    for (let dx = -rr; dx <= rr; dx++) for (let dz = -rr; dz <= rr; dz++) {
-      const L = this.layouts.get(chunkKey(c.cx + dx, c.cz + dz));
-      if (L && !this.g.statics.hasChunk(L.cx, L.cz)) this.g.statics.registerChunk(L.cx, L.cz, L.boxes);
-    }
     this.lru();
     this.dustWall(f);
     const ms = performance.now() - t0;
@@ -270,11 +269,12 @@ export class Streamer {
   }
 
   // What to lay out: the ring around the centre, then the road ahead (max(600 m, 12 s of speed)).
+  // (Four times a second, or when the centre moves: the only place here that builds keys and lists.)
   plan(f) {
     const c = this.centre, want = new Map(), r = STREAM.rL;
     for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
       const cx = c.cx + dx, cz = c.cz + dz;
-      want.set(chunkKey(cx, cz), { cx, cz, d: Math.hypot((cx + 0.5) * C - f.x, (cz + 0.5) * C - f.z) });
+      want.set(chunkKey(cx, cz), { cx, cz, key: chunkKey(cx, cz), d: Math.hypot((cx + 0.5) * C - f.x, (cz + 0.5) * C - f.z) });
     }
     const sp = Math.hypot(f.vx, f.vz);
     if (sp > 2) {
@@ -283,18 +283,25 @@ export class Streamer {
         const x = f.x + ux * s, z = f.z + uz * s;
         for (const [ox, oz] of [[0, 0], [-uz * 128, ux * 128], [uz * 128, -ux * 128]]) {
           const cx = chunkOf(x + ox), cz = chunkOf(z + oz), k = chunkKey(cx, cz);
-          if (!want.has(k)) want.set(k, { cx, cz, d: s * 0.8 + 140 });
+          if (!want.has(k)) want.set(k, { cx, cz, key: k, d: s * 0.8 + 140 });
         }
       }
     }
     this.wanted = [...want.values()].filter((w) => Math.hypot(w.cx * C + C / 2, w.cz * C + C / 2) < STREAM.dustWall + 1200).sort((a, b) => a.d - b.d);
+    // Collision for the ring: a cached layout coming back into it re-takes its slot.
+    const rr = STREAM.rL + 1;
+    for (let dx = -rr; dx <= rr; dx++) for (let dz = -rr; dz <= rr; dz++) {
+      const L = this.byId.get(chunkId(c.cx + dx, c.cz + dz));
+      if (L && !this.g.statics.hasChunk(L.cx, L.cz)) this.g.statics.registerChunk(L.cx, L.cz, L.boxes);
+    }
   }
 
   pump(sync, t0) {
     const budget = sync ? Infinity : STREAM.pumpMs, slice = STREAM.sliceMs;
     while (performance.now() - t0 < budget) {
       if (!this.building) {
-        const next = this.wanted.find((w) => !this.layouts.has(chunkKey(w.cx, w.cz)));
+        let next = null;
+        for (let i = 0; i < this.wanted.length; i++) if (!this.layouts.has(this.wanted[i].key)) { next = this.wanted[i]; break; }
         if (!next) break;
         this.startBuild(next.cx, next.cz);
       }
@@ -308,10 +315,12 @@ export class Streamer {
 
   updateHot(f, sync) {
     const c = this.centre;
-    const target = [];
+    const target = (this._target ??= []);
+    target.length = 0;
+    this._fx = f.x; this._fz = f.z;
     for (let dx = -STREAM.rH; dx <= STREAM.rH; dx++) for (let dz = -STREAM.rH; dz <= STREAM.rH; dz++) {
-      const cx = c.cx + dx, cz = c.cz + dz, key = chunkKey(cx, cz);
-      let L = this.layouts.get(key);
+      const cx = c.cx + dx, cz = c.cz + dz;
+      let L = this.byId.get(chunkId(cx, cz));
       // Under the player or within the hot radius and not laid out yet: build it now (a stall).
       if (!L) {
         const near = Math.max(Math.abs(f.x - (cx + 0.5) * C), Math.abs(f.z - (cz + 0.5) * C)) <= C / 2 + R_HOT;
@@ -322,7 +331,7 @@ export class Streamer {
       if (this.contentDist(L, f.x, f.z) <= R_HOT) target.push(L);
     }
     // Nearest first; apply as the per-frame caps allow (sync: everything now).
-    target.sort((a, b) => this.contentDist(a, f.x, f.z) - this.contentDist(b, f.x, f.z));
+    target.sort((this._byNear ??= (a, b) => this.contentDist(a, this._fx, this._fz) - this.contentDist(b, this._fx, this._fz)));
     let allHot = true;
     for (const L of target) {
       if (L.hot?.done) continue;
@@ -335,7 +344,7 @@ export class Streamer {
       }
     }
     // Release what has fallen behind, once everything that should be hot is.
-    if (allHot || sync) for (const L of [...this.hot.values()]) if (!target.includes(L) && this.contentDist(L, f.x, f.z) > R_REL) this.release(L);
+    if (allHot || sync) for (const L of this.hot.values()) if (!target.includes(L) && this.contentDist(L, f.x, f.z) > R_REL) this.release(L); // deleting while iterating a Map is safe
   }
   dropFarthestHot(f, keep) {
     let worst = null, wd = -1;
