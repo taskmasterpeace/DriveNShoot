@@ -54,6 +54,7 @@ export class HUD {
             <div class="needs hidden">${gauge('g-food', 'FOOD')}${gauge('g-water', 'WATER')}</div>
           </div>
           <div class="flagpatch"><canvas></canvas></div>
+          <div class="roles"></div>
           <div class="breath-tab hidden"><canvas class="tex"></canvas><span class="st-label">BREATH</span>${segs('seg-breath', SEG_SMALL)}</div>
           <div class="sign"><canvas class="tex"></canvas><div class="loc-name">RUST HAVEN</div><div class="loc-sub">PHOENIX - ARIZONA</div></div>
           <div class="mm"><canvas class="minimap" width="200" height="200"></canvas><canvas class="mm-bezel"></canvas></div>
@@ -97,7 +98,7 @@ export class HUD {
       respect: q('.respect'), cashPlate: q('.cash-plate canvas'), cash: q('.cash'),
       status: q('.status'), statusTex: q('.status canvas'), hpNum: q('.hp-num'), hpSegs: qa('.seg-hp i'), stamSegs: qa('.seg-stam i'),
       needs: q('.needs'), foodDial: q('.g-food canvas'), waterDial: q('.g-water canvas'), foodNeedle: q('.g-food .g-needle'), waterNeedle: q('.g-water .g-needle'),
-      flag: q('.flagpatch'), flagTex: q('.flagpatch canvas'),
+      flag: q('.flagpatch'), flagTex: q('.flagpatch canvas'), roles: q('.hud-bl .roles'),
       breathRow: q('.breath-tab'), breathTex: q('.breath-tab canvas'), breathSegs: qa('.seg-breath i'),
       signTex: q('.sign canvas'), loc: q('.loc-name'), locSub: q('.loc-sub'),
       mm: q('.minimap'), bezel: q('.mm-bezel'),
@@ -121,6 +122,8 @@ export class HUD {
     this.chips = [];
     this.carts = [];
     this.lastWeapons = [];
+    this.tapes = [];        // the role tapes on show: { id, short, tier }
+    this.tapeTier = {};     // id -> tier last drawn (a tape stamps in when it rises)
 
     // Shared sprites ride on CSS custom properties: painted once, used by every chip, tag and cartridge.
     const st = root.style;
@@ -313,6 +316,35 @@ export class HUD {
     const code = g.player?.flag ?? 'US';
     if (code !== s.flag) this.paintFlag(code);
     this.updateRespect();
+    this.updateRoles();
+  }
+
+  // What the world calls you (systems/roles.js): stitched cloth tapes sewn above the flag, one per role you are known
+  // for (best first, up to three), chevrons for the tier. Rebuilt only when the roles' version moves; tucked away
+  // while the breath tab needs the room.
+  updateRoles() {
+    const R = this.g.roles, s = this.s;
+    if (!R) return;
+    this.flag('rolesSwim', this.el.roles, 'hidden', !this.el.breathRow.classList.contains('hidden'));
+    if (R.version === s.rolesV) return;
+    s.rolesV = R.version;
+    const list = R.shown(3), el = this.el.roles;
+    el.textContent = '';
+    list.forEach((r, i) => {
+      const t = document.createElement('div');
+      t.className = 'role-tape';
+      t.dataset.role = r.id;
+      t.style.setProperty('--rc', r.color);
+      t.style.setProperty('--tr', `${[-1.4, 0.9, -0.5][i % 3]}deg`);
+      t.title = `${r.name}: ${['', 'rumoured', 'known', 'renowned'][r.tier]}`;
+      const b = document.createElement('b'); b.textContent = r.short;
+      const k = document.createElement('span'); k.className = 'rank'; k.innerHTML = '<i></i>'.repeat(r.tier);
+      t.append(b, k);
+      el.appendChild(t);
+      if ((this.tapeTier[r.id] ?? 0) < r.tier) t.animate?.([{ transform: `rotate(${[-1.4, 0.9, -0.5][i % 3]}deg) scale(1.35)`, filter: 'brightness(1.9)' }, { transform: `rotate(${[-1.4, 0.9, -0.5][i % 3]}deg) scale(1)`, filter: 'brightness(1)' }], { duration: 560, easing: 'ease-out' });
+    });
+    this.tapeTier = Object.fromEntries(list.map((r) => [r.id, r.tier]));
+    this.tapes = list.map((r) => ({ id: r.id, short: r.short, tier: r.tier }));
   }
 
   // GTA2-style respect: one stamped chip per faction that remembers you (the infected don't).
@@ -321,12 +353,14 @@ export class HUD {
     if (!F) return;
     if (F.ids.length !== this.s.rsN) this.buildRespect(F);
     for (const ch of this.chips) {
-      const i = ch.i, st = Math.round(F.standing[i]), t = F.tiers[i];
-      if (st !== ch.s) {
+      // The meter shows how they read you: your standing as your roles colour it (systems/roles.js).
+      const i = ch.i, st = Math.round(F.reading(i)), t = F.tiers[i];
+      if (st !== ch.s || t !== ch.t) {
         ch.s = st;
         ch.fill.style.left = `${st >= 0 ? 50 : 50 + st / 2}%`;
         ch.fill.style.width = `${Math.abs(st) / 2}%`;
-        ch.el.title = `${ch.name}: ${st > 0 ? '+' : ''}${st} (${t})`;
+        const b = Math.round(F.bias[i]);
+        ch.el.title = `${ch.name}: ${st > 0 ? '+' : ''}${st} (${t})${b ? ` - standing ${Math.round(F.standing[i])}, ${b > 0 ? '+' : ''}${b} for what they call you` : ''}`;
       }
       if (t !== ch.t) {
         const changed = ch.t !== undefined;
@@ -476,7 +510,9 @@ export class HUD {
       health: Math.ceil(Math.max(0, p.hp)), healthSegments: this.s.hp, staminaSegments: this.s.stam,
       needs: g.needs ? { food: +(g.needs.food ?? 1).toFixed(2), water: +(g.needs.water ?? 1).toFixed(2) } : null,
       flag: this.s.flag,
-      respect: this.chips.map((c) => ({ id: c.id, name: c.name, standing: Math.round(F?.standing[c.i] ?? 0), tier: F?.tiers[c.i] })),
+      respect: this.chips.map((c) => ({ id: c.id, name: c.name, standing: Math.round(F?.standing[c.i] ?? 0), reading: Math.round(F?.reading(c.i) ?? 0), tier: F?.tiers[c.i] })),
+      // The role tapes as drawn in the DOM (what the world calls you).
+      roles: [...this.el.roles.children].map((t) => ({ id: t.dataset.role, text: t.querySelector('b')?.textContent, chevrons: t.querySelectorAll('.rank i').length })),
       weapon: v ? null : { name: this.el.wname.textContent, mag: this.el.wmag.textContent, reserve: this.el.wres.textContent.replace('/ ', ''), cartridges: this.carts.length, loaded: this.s.cartsLit, slots: this.lastWeapons, throwable: { kind: g.inv.throwable, count: g.inv.throwables[g.inv.throwable] ?? 0 } },
       dash: v ? { vehicle: v.name, mph: +this.el.sNum.textContent, dialMax: this.s.dialMax, hullSegments: this.s.hull, fuelSegments: this.s.fuel } : null,
     };

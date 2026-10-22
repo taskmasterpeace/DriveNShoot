@@ -24,7 +24,7 @@ export class InventoryUI {
       <div class="invmenu hidden">
         <div class="inv-card">
           <div class="inv-head">
-            <b class="inv-title">PACK</b><span class="inv-worn"></span>
+            <b class="inv-title">PACK</b><div class="inv-who"><span class="inv-worn"></span><span class="inv-roles"></span></div>
             <div class="inv-meters">
               <div class="inv-meter"><span>WEIGHT</span><i><em class="inv-kg"></em></i><b class="inv-kg-t"></b></div>
               <div class="inv-meter"><span>ROOM</span><i><em class="inv-l"></em></i><b class="inv-l-t"></b></div>
@@ -49,7 +49,7 @@ export class InventoryUI {
       </div>`);
     const q = (s) => root.querySelector(`.invmenu ${s}`);
     this.el = {
-      menu: root.querySelector('.invmenu'), worn: q('.inv-worn'), kg: q('.inv-kg'), kgT: q('.inv-kg-t'), l: q('.inv-l'), lT: q('.inv-l-t'),
+      menu: root.querySelector('.invmenu'), worn: q('.inv-worn'), roles: q('.inv-roles'), kg: q('.inv-kg'), kgT: q('.inv-kg-t'), l: q('.inv-l'), lT: q('.inv-l-t'),
       lists: [...root.querySelectorAll('.invmenu .inv-list')], cols: [...root.querySelectorAll('.invmenu .inv-col')], other: q('.inv-other'),
       dname: q('.inv-dname'), desc: q('.inv-desc'), stats: q('.inv-stats'), acts: q('.inv-acts'), moveT: q('.inv-move-t'), say: q('.inv-say'),
     };
@@ -150,6 +150,9 @@ export class InventoryUI {
     if (!this.other) this.other = this.pickOther();
     const C = inv.carried, cap = g.skills?.carryKg ?? 24, kg = inv.kg();
     this.el.worn.textContent = inv.worn ? `WEARING ${ITEMS[inv.worn].name.toUpperCase()} · +${ITEMS[inv.worn].pack} L` : 'NO PACK';
+    // What the world calls you (systems/roles.js), best first.
+    const roles = g.roles?.shown(4) ?? [];
+    this.el.roles.textContent = roles.length ? `KNOWN AS ${roles.map((r) => `${r.short}${['', ' (RUMOURED)', '', ' (RENOWNED)'][r.tier]}`).join(' · ')}` : 'NOBODY CALLS YOU ANYTHING YET';
     this.el.kg.style.width = `${Math.min(100, (100 * (g.skills?.kg ?? kg)) / cap)}%`;
     this.el.kg.className = `inv-kg ${(g.skills?.kg ?? kg) > cap ? 'over' : (g.skills?.kg ?? kg) > cap * 0.75 ? 'heavy' : ''}`;
     this.el.kgT.textContent = `${(g.skills?.kg ?? kg).toFixed(1)} / ${cap.toFixed(0)} KG`;
