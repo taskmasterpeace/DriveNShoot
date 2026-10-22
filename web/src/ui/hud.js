@@ -128,7 +128,10 @@ export class HUD {
     st.setProperty('--carts', `url(${ART.cartridgeSprite()})`);
     st.setProperty('--throws', `url(${ART.throwSprite()})`);
     this.paint();
-    document.fonts?.ready?.then(() => { this.paint(true); this.s.loc = this.s.cash = undefined; });
+    document.fonts?.ready?.then(() => {
+      this.paint(true); this.s.loc = this.s.cash = undefined;
+      if (this.g.player && this.g.paused) this.update(0); // the plates under the title show the real moment, not placeholders
+    });
     this.rescale();
     addEventListener('resize', () => this.rescale());
   }
@@ -226,7 +229,7 @@ export class HUD {
         if (i >= before && i < g.wanted) st.animate?.([{ transform: 'scale(1.9)', filter: 'brightness(2.2)' }, { transform: 'scale(1)', filter: 'brightness(1)' }], { duration: 420, easing: 'ease-out' });
       });
     }
-    if (g.cash !== s.cash) { s.cash = g.cash; this.el.cash.textContent = `$${g.cash.toLocaleString('en-US')}`; this.fit(this.el.cash, `700 80px "Barlow Condensed"`, 80, 186, 46); }
+    if (g.cash !== s.cash) { s.cash = g.cash; this.el.cash.textContent = `$${g.cash.toLocaleString('en-US')}`; this.fit(this.el.cash, `700 80px "Barlow Condensed"`, 80, 186, 34); }
 
     // where you are
     const px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
@@ -382,7 +385,7 @@ export class HUD {
     if (!same) {
       this.lastWeapons = list.slice();
       s.tagCur = cur;
-      this.el.wslots.style.setProperty('--n', list.length);
+      this.el.wslots.dataset.n = list.length;
       this.el.wslots.innerHTML = list.map((k, i) => `<span class="dogtag${k === cur ? ' on' : ''}" style="--r:${[-14, 9, -6, 12, -9][i % 5]}deg"><em>${i + 1} ${WEAPONS[k]?.short ?? k.toUpperCase()}</em></span>`).join('');
     }
     // the throwable in your belt
