@@ -1262,9 +1262,12 @@ async function runSelfTest(api) {
     await C('step', { seconds: 0.2 });
     const { ids } = await C('spawn', { kind: 'raider', x: 52, z: -120, weapon: 'pistol' });   // due EAST of the player
     const r = api.findChar(ids[0]);
-    g.combat.damage(g.player, 12, r, -1, 0);
-    g.aim.x = r.x; g.aim.z = r.z;
+    // The hit has to land: in god mode combat.damage returns before anything happens (no 'hurt' event,
+    // so no arc). And aim through the API: g.aim is re-read from the mouse every frame.
+    g.godMode = false; g.combat.damage(g.player, 12, r, -1, 0); g.godMode = true;
+    await C('aim', { x: r.x, z: r.z });
     await C('step', { seconds: 0.1 });
+    await C('aim', {});
     const h1 = g.feedback.view();
     const arc = h1.damageIndicators.find((d) => Math.abs(d.bearing - 90) < 15);
     const tag = h1.nameTags.find((t) => t.id === r.id && t.flag);
