@@ -1912,6 +1912,9 @@ async function runSelfTest(api) {
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
   const STAGE = { x: 280, z: -120 };
   const stage = async () => {
+    // An event the director had running when the battery started (a raid, hunters) would keep shooting
+    // through every check: send its people home first.
+    for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id);
     if (g.player.inVehicle) g.exitVehicle(true);
     await C('crouch', { on: false });
     await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
