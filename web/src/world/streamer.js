@@ -231,7 +231,12 @@ export class Streamer {
     const b = L.bounds;
     if (!b) return Infinity;
     const dx = x < b.x0 ? b.x0 - x : x > b.x1 ? x - b.x1 : 0, dz = z < b.z0 ? b.z0 - z : z > b.z1 ? z - b.z1 : 0;
-    return Math.hypot(dx, dz);
+    const d = Math.hypot(dx, dz);
+    // An island chunk's content is an L-shaped band outside the island, whose box is the whole chunk: from inside
+    // Phoenix it is at least as far as the island's nearest edge.
+    if (!L.isl) return d;
+    const I = STREAM.island, ex = Math.min(I - Math.abs(x), I - Math.abs(z));
+    return ex > 0 ? Math.max(d, ex) : d;
   }
 
   // ---- per frame (no allocation on this path: scratch objects, integer keys, one comparator) -----------------------------

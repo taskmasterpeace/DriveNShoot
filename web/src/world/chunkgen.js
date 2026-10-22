@@ -679,6 +679,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   out.edgeRoads = { n: crossings.n.length, s: crossings.s.length, w: crossings.w.length, e: crossings.e.length };
   for (const e of ['n', 's', 'w', 'e']) { const h = out.edges[e]; for (const c of crossings[e].sort()) h.str(c); out.edges[e] = h.hex(); }
   out.boxCount = boxes.length;
+  out.isl = isl; // a chunk touching the island: its content is the band outside it
   pause();
   out.workMs = +work.toFixed(2);
   out.buildMs = +(performance.now() - t0).toFixed(2);
