@@ -75,7 +75,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 |---|---|---|
 | `enterVehicle` | `id:string force?:boolean` | Get into a vehicle by id. You must be beside it (moveTo id=<vehicle> first); force=true skips that (testing). Carjacks if occupied. |
 | `exitVehicle` | `(none)` | Leave the current vehicle. If it is burning, the player automatically sprints clear of the blast (7m). |
-| `drive` | `throttle?:number steer?:number handbrake?:boolean seconds?:number x?:number z?:number` | Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself). |
+| `drive` | `throttle?:number steer?:number handbrake?:boolean boost?:boolean seconds?:number x?:number z?:number` | Hold throttle(-1..1)/steer(-1..1, +left)/handbrake/boost (Shift: a bike wheelies under 24 m/s) for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself). |
 | `ram` | `id?:string seconds?:number` | Run a character down (id or "hostile"): steers at their live position at full throttle, reverses out if stuck, until they die or seconds elapse. Returns kills. |
 | `grab` | `id:string side?:left\|right\|front\|rear` | Player grabs onto a vehicle (car-surfing): rides along on that side and can shoot. Must be within ~2m (moveTo id=<vehicle> first). letGo drops off (at speed = tumble damage). |
 | `letGo` | `(none)` | Let go of the vehicle you are hanging on. |

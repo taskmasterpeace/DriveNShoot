@@ -546,9 +546,9 @@ function buildCommands(api) {
       },
     },
     drive: {
-      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
-      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
-      run: async ({ throttle, steer, handbrake, seconds, x, z }) => {
+      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake/boost (Shift: a bike wheelies under 24 m/s) for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
+      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, boost: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ throttle, steer, handbrake, boost, seconds, x, z }) => {
         const v = P().inVehicle;
         need(v, 'not in a vehicle; use enterVehicle');
         if (x !== undefined && z !== undefined) {
@@ -580,7 +580,7 @@ function buildCommands(api) {
           g.driveOverride = { throttle: -1, steer: 0 }; await api._step(30); g.driveOverride = null;
           return { arrived: Math.hypot(x - v.x, z - v.z) < 10, waypoints: path.length, ...vehView(g, v) };
         }
-        g.driveOverride = { throttle, steer, handbrake };
+        g.driveOverride = { throttle, steer, handbrake, boost };
         for (let f = 0; f < Math.round(seconds * 60); f += 6) {
           await api._step(6);
           if (v.onFire) { g.driveOverride = null; return { interrupted: 'vehicle on fire — exitVehicle now', ...vehView(g, v) }; }
@@ -1098,13 +1098,16 @@ async function runSelfTest(api) {
   });
   await check('motorcycle: leans in turns, wheelies on boost, crash throws the rider', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    const r = await C('spawnVehicle', { type: 'bike', x: 460, z: 40, heading: 0 });
+    // Open desert inside the map: x=460 was inside the east boundary wall (x 450..470).
+    const r = await C('spawnVehicle', { type: 'bike', x: -410, z: 405, heading: 0 });
     const v = api.findVeh(r.id);
     await C('enterVehicle', { id: r.id, force: true });
+    // Boost off the line (through the drive command, as the keyboard does): wheelies are a launch thing,
+    // under 24 m/s. After the old order (a 1.2 s full-throttle turn first) the bike was already past that.
+    await C('drive', { throttle: 1, boost: true, seconds: 0.6 });
+    const wheelie = v.wheelie > 0.1;
     await C('drive', { throttle: 1, steer: 1, seconds: 1.2 });
     const leaned = Math.abs(v.lean) > 0.05;
-    v.boost = true; g.driveOverride = { throttle: 1, steer: 0 }; await C('step', { seconds: 0.6 }); g.driveOverride = null; v.boost = false;
-    const wheelie = v.wheelie > 0.1;
     // Crash: slam it into a wall at speed.
     v.vx = 0; v.vz = 25; v.h = 0;
     g.statics.add(v.x - 3, v.z + 1.5, v.x + 3, v.z + 2.5, 'wall', 3);

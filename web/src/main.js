@@ -511,9 +511,10 @@ class Game {
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
       if (this.driveOverride) {
-        // Agent-issued drive controls win over the keyboard until they expire.
+        // Agent-issued drive controls win over the keyboard until they expire. Boost too: the keyboard
+        // read above used to reset it every frame, so an agent could never wheelie a bike.
         const o = this.driveOverride;
-        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake;
+        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake; v.boost = !!o.boost;
         if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
       }
       if (this.train.canBoard(p)) {
