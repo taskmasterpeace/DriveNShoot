@@ -82,6 +82,52 @@ export class Director {
     return { place };
   }
 
+  bind_raid(def, why) {
+    const g = this.g, F = this.S.factions, sim = this.S.sim, P = g.player;
+    if ((g.sky.night ?? 0) < def.nightAtLeast) { why.raid = 'raiders ride after dark'; return null; }
+    for (let i = 0; i < F.ids.length; i++) {
+      const row = F.rows[i], target = row.sim?.raids, ti = F.index[target];
+      if (!target || ti === undefined) continue;
+      if (F.rel[i * 16 + ti] > -50) continue;
+      if (sim.strength[i] < def.strengthAtLeast || sim.resources[i] < def.resourcesAtLeast) { why.raid = `${row.name} too weak to raid (${Math.round(sim.strength[i])} strong)`; continue; }
+      const home = this.S.places[F.rows[ti].home]?.rect;
+      const cx = home ? (home[0] + home[2]) / 2 : 0, cz = home ? (home[1] + home[3]) / 2 : 0;
+      if (Math.hypot(P.x - cx, P.z - cz) > def.playerWithin) { why.raid = `you're too far from ${F.rows[ti].name} to answer`; continue; }
+      if (!this.cooled(`raid:${row.id}`)) continue;
+      return { fid: row.id, target, cx, cz };
+    }
+    why.raid ??= 'nobody strong enough at war';
+    return null;
+  }
+
+  spawn_raid(def, ev) {
+    const g = this.g, F = this.S.factions, b = ev.bind, row = F.row(b.fid), tgt = F.row(b.target);
+    let at = null;
+    for (let k = 0; k < 16 && !at; k++) {
+      const a = Math.random() * Math.PI * 2, r = def.ring[0] + Math.random() * (def.ring[1] - def.ring[0]);
+      const p = { x: b.cx + Math.sin(a) * r, z: b.cz + Math.cos(a) * r }, x0 = p.x, z0 = p.z;
+      if (Math.abs(p.x) > HALF - 12 || Math.abs(p.z) > HALF - 12) continue;
+      g.statics.resolveCircle(p, 0.6);
+      if (Math.hypot(p.x - x0, p.z - z0) < 0.5 && Math.hypot(p.x - g.player.x, p.z - g.player.z) > 60) at = p;
+    }
+    if (!at) throw new Error('no open ground to raid from');
+    const n = def.squad[0] + Math.floor(Math.random() * (def.squad[1] - def.squad[0] + 1));
+    // They ride for the edge of the town facing them, and fight whatever's hostile on the way in.
+    const d = Math.hypot(at.x - b.cx, at.z - b.cz) || 1, edge = 84;
+    const gx = b.cx + ((at.x - b.cx) / d) * edge, gz = b.cz + ((at.z - b.cz) / d) * edge;
+    for (let k = 0; k < n; k++) {
+      const c = g.spawnRaider(at.x + (Math.random() - 0.5) * 8, at.z + (Math.random() - 0.5) * 8, Math.random);
+      if (!c) break;
+      c.home = { x: gx + (Math.random() - 0.5) * 10, z: gz + (Math.random() - 0.5) * 10 }; c.wx = c.home.x; c.wz = c.home.z; c.timer = 99;
+      c.leash = def.leash; c.raidOf = ev.id;
+      ev.members.push(c);
+    }
+    this.cool[`raid:${b.fid}`] = g.time + def.cooldown.self;
+    const say = (s) => s.replaceAll('{raider}', row.name).replaceAll('{target}', tgt.name);
+    g.hud?.toast?.(say(def.toast).toUpperCase(), 'hot');
+    this.radio(say(def.radio), 2);
+  }
+
   bind_radio_news(def, why) {
     const item = this.newsItem(def);
     if (!item) why.radio_news = 'nothing new to report';
@@ -217,6 +263,15 @@ export class Director {
     this.active.splice(this.active.indexOf(ev), 1);
     if (ev.bind.fid) this.cool[`hunters:${ev.bind.fid}`] = g.time + (def.cooldown.perFaction ?? 0);
     if (outcome === 'fail' && def.onPlayerDeath?.standing && ev.bind.fid) F.add(ev.bind.fid, def.onPlayerDeath.standing);
+    if (ev.tpl === 'raid') {
+      // A beaten raid costs the band fighters and stores; one that runs its course empties the town's.
+      const sim = this.S.sim, ri = F.index[ev.bind.fid], ti = F.index[ev.bind.target], e = outcome === 'success' ? def.beaten : outcome === 'timeout' ? def.took : null;
+      if (e) {
+        if (e.raiderStrength) sim.strength[ri] = Math.max(0, sim.strength[ri] + e.raiderStrength);
+        if (e.raiderResources) sim.resources[ri] = Math.max(0, sim.resources[ri] + e.raiderResources);
+        if (e.targetResources) sim.resources[ti] = Math.max(0, Math.min(100, sim.resources[ti] + e.targetResources));
+      }
+    }
     if (outcome === 'timeout' || outcome === 'cancelled') {
       // The trail goes cold: the ones still out there go home (out of sight, they simply leave).
       for (const c of alive) {

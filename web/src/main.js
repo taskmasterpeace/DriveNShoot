@@ -830,8 +830,10 @@ class Game {
     if (this.raiderTimer <= 0) {
       this.raiderTimer = 18;
       const alive = this.chars.filter((c) => c.alive && c.faction === 'raider').length;
-      if (alive < 30) {
-        const camps = this.world.spawns.camps.filter((c) => Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
+      // As many as the band can field (faction sim strength), and only from camps it still holds.
+      const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
+      if (alive < cap) {
+        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
         const camp = camps[Math.floor(Math.random() * camps.length)];
         if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
       }

@@ -159,6 +159,7 @@ export class Deeds {
   // ---- hooks ------------------------------------------------------------------------------------------
   onKill(c, attacker, cause) {
     const g = this.g, P = g.player;
+    if (c.fid && !(c.downedT > 0)) g.society?.sim?.lost(c.fid); // one fewer fighter for their side, whoever did it
     if (attacker !== P) {
       // The world's own violence is history, not gossip about you.
       if (c.faction !== 'zombie' && attacker) this.record('kill', { actor: attacker, target: c, witness: false, src: 'world', flags: c.downedT > 0 ? K.downed : 0 });

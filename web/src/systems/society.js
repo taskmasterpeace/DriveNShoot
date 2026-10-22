@@ -3,6 +3,7 @@ import { Factions } from './factions.js';
 import { Deeds } from './deeds.js';
 import { Memory } from './memory.js';
 import { Director } from './director.js';
+import { FactionSim } from './factionsim.js';
 import { TOWN, districtName } from '../world/city.js';
 
 // The society facade (docs/design/WEB_WORLD_MEMORY.md): owns the chronicle, the factions and the deeds, keeps the
@@ -18,6 +19,7 @@ export class Society {
     this.deeds = new Deeds(game, this.chronicle, this.factions);
     this.memory = new Memory(game, this.factions);
     this.director = new Director(game);
+    this.sim = new FactionSim(game, this.factions, this);
     this.day = 0;
     this.lastHour = null;
     this.hourAcc = 0;
@@ -33,9 +35,9 @@ export class Society {
     camps.forEach((c, i) => {
       const dir = COMPASS[(Math.round(Math.atan2(c.x, -c.z) / (Math.PI / 4)) + 8) % 8];
       used[dir] = (used[dir] ?? 0) + 1;
-      this.places[`camp_${i}`] = { name: `${dir} Camp${used[dir] > 1 ? ` ${used[dir]}` : ''}`, circle: [c.x, c.z, 60], owner: 'dustwolves' };
+      this.places[`camp_${i}`] = { name: `${dir} Camp${used[dir] > 1 ? ` ${used[dir]}` : ''}`, circle: [c.x, c.z, 60], owner: 'dustwolves', yield: 0.5 };
     });
-    this.places.rust_haven = { name: 'Rust Haven', rect: [-TOWN, -TOWN, TOWN, TOWN], owner: 'rusthaven' };
+    this.places.rust_haven = { name: 'Rust Haven', rect: [-TOWN, -TOWN, TOWN, TOWN], owner: 'rusthaven', yield: 3 }; // water, trade, the gate toll
     this.places.old_phoenix = { name: 'the Old Phoenix ruins', owner: null };
     this.places.glass_flats = { name: 'the Glass Flats', owner: null };
     const dw = this.factions.row('dustwolves');
@@ -55,17 +57,17 @@ export class Society {
     const h = this.g.sky.time;
     if (this.lastHour === null) this.lastHour = h;
     let dh = h - this.lastHour;
-    if (dh < -12) { dh += 24; this.day++; this.g.emit('newDay', { day: this.day }); }
+    if (dh < -12) { dh += 24; this.day++; this.g.emit('newDay', { day: this.day }); this.sim.tickDay(); }
     this.lastHour = h;
     if (dh > 0) {
       this.hourAcc += dh;
-      if (this.hourAcc >= 1) { this.factions.tickHours(this.hourAcc); this.hourAcc = 0; }
+      if (this.hourAcc >= 1) { this.factions.tickHours(this.hourAcc); this.sim.advance(this.hourAcc); this.hourAcc = 0; }
     }
     this.deeds.update();
     if (dt > 0) this.director.update(dt);
   }
 
-  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save(), memory: this.memory.save(), director: this.director.save() }; }
+  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save(), memory: this.memory.save(), director: this.director.save(), sim: this.sim.save() }; }
 
   load(s) {
     if (!s) return;
@@ -77,6 +79,7 @@ export class Society {
     this.deeds.load(s.rumors);
     this.memory.load(s.memory);
     this.director.load(s.director);
+    this.sim.load(s.sim);
   }
 
   view() {

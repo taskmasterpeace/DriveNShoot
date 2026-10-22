@@ -38,6 +38,14 @@ export const MEMORY_KINDS = {
   gift: { base: 10, days: 30, say: 'Thanks for the gift.' },
 };
 
+// The world without you (faction sim, phase 4). Per game hour: each place a faction holds brings in `income`
+// resources; a faction with stores recruits (`recruit` strength for `recruitCost` resources). Per game day: every
+// pair at war may skirmish (chance = aggression of the bolder side); casualties scale with the other side's share
+// of strength; a side that falls below `breakAt` while the other is above `holdAt` loses a place to it.
+// Each place has a `yield` (town 3, a camp 0.5); fighters eat `upkeep` stores per point per hour, so a side settles
+// where its places can feed it (Rust Haven ~70, the Dustwolves ~70 with all six camps) unless war or you tip it.
+export const FACTION_SIM = { income: 0.35, upkeep: 0.015, recruit: 0.5, recruitCost: 1.0, reserve: 10, cap: 100, skirmishLoss: 9, breakAt: 30, holdAt: 50, perDeath: 0.6 };
+
 // values: how much one unit of deed magnitude moves this faction's standing. Keys are looked up in order
 // verb:self (done to us) → verb:<faction id> → verb:enemy (relation ≤ -50) → verb:friend (≥ 50) → verb:any.
 export const FACTIONS = {
@@ -46,6 +54,8 @@ export const FACTIONS = {
     cohesion: 0.7, memoryDays: 14, rumorDelay: [20, 45], hub: [0, 0], leaders: ['okonkwo'], home: 'rust_haven',
     // Who comes after you when Rust Haven decides you're a problem (director: hunters).
     hunters: { faction: 'warden', name: 'Rust Haven Bull', weapons: { smg: 0.6, shotgun: 0.4 }, hp: 120 },
+    // Off-screen (faction sim): fighters and stores, 0..100.
+    sim: { strength: 70, resources: 60, aggression: 0.35 },
     relations: { dustwolves: -100, infected: -100, drifters: 40 },
     values: {
       'kill:self': -9, 'hurt:self': -2, 'carjack:self': -4, 'steal:self': -3, 'destroy:self': -3, 'rob:self': -5, 'silence:self': -6, 'betray:self': -8,
@@ -57,6 +67,7 @@ export const FACTIONS = {
     name: 'The Dustwolves', archetype: 'raiders', color: '#b0301e', start: -60, stars: false, forgivesSelfDefense: false,
     cohesion: 0.7, memoryDays: 14, rumorDelay: [20, 45], hub: null, leaders: [],
     hunters: { faction: 'raider', name: 'Dustwolf Tracker', weapons: { smg: 0.5, shotgun: 0.3, pistol: 0.2 }, hp: 100 },
+    sim: { strength: 60, resources: 40, aggression: 0.7, raids: 'rusthaven' },
     relations: { '*': -100 },
     values: { 'kill:self': -8, 'hurt:self': -2, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3 },
   },

@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 56/56 engine checks
+node tools/dl.mjs selftest       # 58/58 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -78,7 +78,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 56/56** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 58/58** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), the faction sim (ten days off-screen, a night raid beaten off), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
@@ -170,7 +170,8 @@ src/
     factions.js        faction rows, standing/tiers toward the player, relations matrix (typed arrays)
     deeds.js           deeds, the witness pass, the rumor pool, witness-gated wanted stars
     memory.js          named people's memories of you: opinion, refusals, vendettas, barks, kin and friends
-    director.js        event director: hunters, dead_draw_dead, radio news; pacing, cooldowns, outcomes
+    director.js        event director: hunters, raids, dead_draw_dead, radio news; pacing, cooldowns, outcomes
+    factionsim.js      the world without you: strength/stores, place yields and upkeep, daily skirmishes, camps changing hands
     vehicles.js        VEHICLES table (cars, bike, boats), arcade driving model, collisions, run-overs, traffic/raider/convoy AI, harpoon
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
     seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)

@@ -21,6 +21,16 @@ export const EVENTS = {
     toast: 'THE DEAD ARE MOVING TOWARD THE NOISE',
     radio: 'Folks out near {place}: something is moving toward all that shooting. Lock your doors.',
   },
+  // A strong band rides on the town it raids (faction sim row `raids`), when you're close enough to answer.
+  raid: {
+    pace: 'threat', weight: 1.2, strengthAtLeast: 55, resourcesAtLeast: 25, nightAtLeast: 0.4, playerWithin: 320,
+    squad: [4, 6], ring: [130, 165], leash: 220,
+    cooldown: { self: 1800, global: 120 }, timeout: 360,
+    toast: '{raider} ARE HITTING {target}',
+    radio: 'Static here. {raider} are riding on {target}. Anyone with a gun and a conscience, now is the time.',
+    beaten: { raiderStrength: -6, raiderResources: -10, targetResources: 5 },
+    took: { targetResources: -12 },
+  },
   // STATIC 1660 AM reads the news: the newest notable thing in the chronicle nobody has broadcast yet.
   radio_news: {
     pace: 'calm', weight: 2,

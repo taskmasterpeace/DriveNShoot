@@ -870,8 +870,8 @@ function buildCommands(api) {
       group: 'society', desc: 'Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances.', args: { id: { type: 'string' } },
       run: async ({ id }) => {
         const F = g.society.factions;
-        if (id) { const v = F.view(id); need(v, `unknown faction; known: ${F.ids.join(',')}`); return v; }
-        return { factions: F.view(), tiers: TIERS };
+        if (id) { const v = F.view(id); need(v, `unknown faction; known: ${F.ids.join(',')}`); return { ...v, sim: g.society.sim.view()[id] ?? null }; }
+        return { factions: F.view(), tiers: TIERS, sim: g.society.sim.view() };
       },
     },
     standing: {
@@ -996,6 +996,18 @@ function buildCommands(api) {
           await api._step(Math.ceil(MOUNTS[v.mounts.front.kind].rate * 60));
         }
         return { fired, ammo: v.mounts.front.ammo, outOfArc, target: t ? { id: t.id, hp: Math.round(t.hp), alive: t.alive ?? !t.dead } : null };
+      },
+    },
+    simTick: {
+      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands. Returns strength/stores before and after and what happened.',
+      args: { hours: { type: 'number', default: 24 } },
+      run: async ({ hours }) => {
+        need(hours > 0 && hours <= 240, 'hours must be in (0,240]');
+        const S = g.society, before = S.sim.view(), seq0 = S.chronicle.seq, t0 = performance.now();
+        for (let d = 0; d < Math.floor(hours / 24); d++) S.sim.tickDay();
+        S.factions.tickHours(hours); S.sim.advance(hours);
+        const ms = +(performance.now() - t0).toFixed(2);
+        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), ms };
       },
     },
     registerFaction: {
@@ -1867,6 +1879,28 @@ async function runSelfTest(api) {
     for (const x of [v, w]) g.vehiclesSys.remove(x);
     g.garage.hazards.length = 0;
     return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
+  });
+  await check('faction sim: ten days off-screen move strength and stores, skirmish at war, and run in under 20 ms', async () => {
+    const S = g.society, sv = S.sim.save();
+    const r = await C('simTick', { hours: 240 });
+    const moved = JSON.stringify(r.before) !== JSON.stringify(r.after);
+    const skirmished = r.records.some((x) => x.verb === 'skirmish');
+    S.sim.load(sv);
+    return moved && skirmished && r.ms < 20 ? true : JSON.stringify({ moved, skirmished, ms: r.ms, n: r.records.length });
+  });
+  await check('faction sim: a strong Dustwolf band raids Rust Haven at night, and beating them off costs the band', async () => {
+    await stage();
+    const S = g.society, sim = S.sim, dw = S.factions.index.dustwolves, sv = sim.save();
+    await C('setTime', { hour: 23 }); await C('step', { seconds: 0.3 }); // (the sim catches up the hours the clock jumped)
+    sim.strength[dw] = 80; sim.resources[dw] = 60;
+    const ev = S.director.fire('raid');
+    const raiders = ev.members, s0 = sim.strength[dw];
+    const rode = raiders.length >= 4 && raiders.every((c) => c.faction === 'raider' && c.raidOf === ev.id);
+    for (const c of raiders) if (c.alive) await C('kill', { id: c.id });
+    await C('step', { seconds: 1 });
+    const s1 = sim.strength[dw], beaten = ev.outcome === 'success' && s1 <= s0 - 6;
+    sim.load(sv); await C('setTime', { hour: 12 });
+    return rode && beaten ? true : JSON.stringify({ rode, n: raiders.length, outcome: ev.outcome, s0, s1 });
   });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
