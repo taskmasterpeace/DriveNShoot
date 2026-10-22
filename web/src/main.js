@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import { Input } from './engine/input.js';
 import { StaticWorld } from './engine/collision.js';
 import { makeRng, angleLerp, clamp } from './engine/rng.js';
-import { buildWorld, TOWN, roadLines, HALF } from './world/city.js';
+import { buildWorld, TOWN, roadLines, HALF, OUTSIDE } from './world/city.js';
+import { Streamer } from './world/streamer.js';
 import { buildTerrain, drawTerrainOnMinimap } from './world/terrain.js';
 import { Water, WATER_AVOID, DOCK, LAKE } from './world/water.js';
 import { RAIL_AVOID } from './world/rail.js';
@@ -90,19 +91,20 @@ class Game {
     // Military bases (data/bases.js): the Federal Remnant's fenced outpost. Its fence, walls and props are solid before
     // the nav grids see them; its doors and windows join the world's rows before the interiors system hangs them.
     this.bases = new Bases(this);
-    // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
+    // Navigation grids: one for people, one dilated for vehicles. The island is rasterised once into each grid's pinned
+    // store; A* runs on a 1 km window that moves with the queries and copies streamed chunks' tiles in (engine/nav.js).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
     // Deep water is off-limits to walkers' and drivers' path planning (you can still swim/boat it).
-    for (const [grid, lim] of [[this.nav.foot, 1.2], [this.nav.car, 0.6]]) {
-      for (let zc = 0; zc < grid.n; zc++) for (let xc = 0; xc < grid.n; xc++) {
-        const x = grid.wx(xc), z = grid.wx(zc);
-        if (x > 290 && this.water.depthAt(x, z) > lim) grid.blocked[zc * grid.n + xc] = 1;
-      }
-    }
+    for (const [grid, lim] of [[this.nav.foot, 1.2], [this.nav.car, 0.6]]) grid.blockStore((x, z) => x > 290 && this.water.depthAt(x, z) > lim);
+    // The streamed world past the island (docs/design/WEB_STREAMING.md, P1): the I-10 corridor from Los Angeles to El
+    // Paso through Phoenix, chunks, pools, chunked collision, the nav window's tiles, the dust wall.
+    this.streamer = new Streamer(this);
+    OUTSIDE.name = (x, z) => this.streamer.W.nameAt(x, z);
+    OUTSIDE.region = (x, z) => this.streamer.W.regionAt(x, z);
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
-    this.charR.groundAt = (x, z) => this.stunts.heightAt(x, z); // people stand on ramps and dunes, not inside them
+    this.charR.groundAt = (x, z, y) => this.stunts.heightAt(x, z, y); // people stand on ramps and dunes, not inside them
     this.chars = [];
     this.freeSlots = [];
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
@@ -365,7 +367,9 @@ class Game {
       const n = Math.max(2, Math.round(v.len / v.wid));
       for (let k = 0; k < n; k++) { const o = (k / (n - 1) - 0.5) * (v.len - v.wid); discs.push({ x: v.x + Math.sin(v.h) * o, z: v.z + Math.cos(v.h) * o, r: v.wid * 0.55 }); }
     }
-    // Prefer a route around cars; if a car is sealing a doorway, fall back to the static route.
+    // Prefer a route around cars; if a car is sealing a doorway, fall back to the static route. (The nav window is set
+    // first: it holds still while the cars are stamped into it.)
+    if (!this.nav.foot.ensureCovers(sx, sz, tx, tz)) return null;
     return this.nav.foot.withObstacles(discs, () => this.nav.foot.find(sx, sz, tx, tz)) ?? this.nav.foot.find(sx, sz, tx, tz);
   }
 
@@ -869,6 +873,17 @@ class Game {
     this.camera.lookAt(this.camLook.x + sx, 0, this.camLook.z + sz);
   }
 
+  // The sun's shadow box grows with what the camera sees (docs/design/WEB_STREAMING.md F7): half the visible width plus
+  // the lead at speed, 70-110 m, so mesas and cacti at the screen's edge keep their shadows at 46 m/s.
+  fitShadows() {
+    const v = this.player.inVehicle, sp = v ? this.vehiclesSys.speed(v) : 0;
+    const half = clamp(this.camHeight * 0.3839 * this.camera.aspect + 0.55 * sp, 70, 110);
+    const sc = this.sky.sun.shadow.camera;
+    if (Math.abs(sc.right - half) < 3) return;
+    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
+    sc.updateProjectionMatrix();
+  }
+
   updateInterior() {
     const p = this.player;
     let inside = null;
@@ -990,8 +1005,11 @@ class Game {
     this.updateFootprints();
     this.updateInterior();
     this.updateCamera(dt);
+    this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
     this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat);
+    this.streamer.postSky();
+    this.fitShadows();
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
     const flashOn = this.flashOverride ?? this.sky.night > 0.55;

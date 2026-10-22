@@ -105,16 +105,22 @@ export class AgentAPI {
     const g = this.g;
     const wasPaused = g.paused;
     g.paused = false;
+    // Streaming in sync mode: whatever a step needs is built in the frame it is needed (reproducible in a hidden tab).
+    const S = g.streamer, wasSync = S?.sync;
     let slice = performance.now();
-    for (let i = 0; i < frames; i++) {
-      try { g.frame(dt); } catch (e) { g.reportError(e); }
-      // Yield to the event loop every ~30ms so the bridge keeps polling and the page stays alive.
-      if (performance.now() - slice > 30) {
-        await yieldNow();
-        slice = performance.now();
-        if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
+    try {
+      for (let i = 0; i < frames; i++) {
+        if (S) S.sync = true;
+        try { g.frame(dt); } catch (e) { g.reportError(e); }
+        if (S) S.sync = wasSync;
+        // Yield to the event loop every ~30ms so the bridge keeps polling and the page stays alive.
+        if (performance.now() - slice > 30) {
+          await yieldNow();
+          slice = performance.now();
+          if (this.deadline && performance.now() > this.deadline) throw new Error(`command exceeded its ${this.budgetS}s wall-clock budget (raise with budget=<s>)`);
+        }
       }
-    }
+    } finally { if (S) S.sync = wasSync; }
     g.paused = wasPaused;
     g.render(dt);
   }
@@ -230,7 +236,55 @@ function buildCommands(api) {
         camps: g.world.spawns.camps,
         bases: g.bases.sites.map((s) => ({ id: s.id, name: s.name, faction: s.faction, x: s.ox, z: s.oz, fence: { ...s.fence }, gate: { x: s.ox + s.row.gate.at, z: s.row.gate.side === 'N' ? s.fence.z0 : s.fence.z1 }, alert: s.alert })),
         namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
+        // Past the island: the streamed I-10 corridor (world for the streamer's state, locate for a place).
+        streamed: (() => { const W = g.streamer.W; return {
+          island: { half: 464, note: 'Phoenix: everything above lies inside |x|,|z| <= 464; past it the world is streamed in 256 m chunks' },
+          road: { id: W.road.id, nickname: W.road.nickname, km: r1(W.cl.L / 1000), miles: Math.round(W.cl.L / 1609.344), from: { name: 'LOS ANGELES', ...W.ends.west }, to: { name: 'THE DUST WALL PAST EL PASO', x: r1(W.ends.east.x), z: r1(W.ends.east.z) }, splice: 'Route 66 (z = 0) runs onto I-10 at x = -464 and x = 464' },
+          exits: W.exits.map((X) => ({ id: X.id, number: X.number, name: X.name, archetype: X.archetype, mile: r1(X.s / 1609.344), x: r1(X.x), z: r1(X.z), community: X.community ? { x: r1(X.dest.x), z: r1(X.dest.z), buildings: X.community.n } : null })),
+          towns: W.towns.filter((t) => t.built).map((t) => ({ id: t.id, name: t.name, x: r1(t.x), z: r1(t.z), mile: r1(W.project(t.x, t.z, 2048).s / 1609.344) })),
+          dustWall: { radius: 45000, note: 'a fog fade and a hard stop for vehicles, 45 km from Phoenix' },
+        }; })(),
       }),
+    },
+    world: {
+      group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot and load are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
+      args: { chunks: { type: 'boolean', default: false } },
+      run: async ({ chunks }) => {
+        const S = g.streamer, v = S.view();
+        return { ...v, islandMatches: v.islandHash === v.golden, ...(chunks ? { chunks: [...S.layouts.values()].map((L) => ({ key: L.key, tier: S.hot.get(L.key)?.hot?.done ? 'hot' : 'layout', hash: L.hash, buildMs: L.buildMs, boxes: L.boxCount, instances: L.instances, biome: L.biome })) } : {}) };
+      },
+    },
+    chunk: {
+      group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] } },
+      run: async ({ x, z, build, fresh, mode }) => {
+        const S = g.streamer, cx0 = x ?? P().x, cz0 = z ?? P().z;
+        if (build || fresh) S.ensureLayout(cx0, cz0, 'test');
+        const out = S.chunkView(cx0, cz0);
+        if (fresh) {
+          const { layoutChunk, makeScratch } = await import('../world/chunkgen.js');
+          const tiles = { foot: { a: new Uint8Array(256 * 256), any: false }, car: { a: new Uint8Array(128 * 128), any: false } };
+          const gen = layoutChunk(S.W, out.cx, out.cz, tiles, null, makeScratch());
+          let r, slices = 0;
+          const t0 = performance.now();
+          do {
+            r = gen.next(); slices++;
+            if (mode === 'sliced') await yieldNow(); // the game loop runs between slices: nothing it does may change the result
+          } while (!r.done);
+          out.fresh = { mode, hash: r.value.hash, slices, ms: +(performance.now() - t0).toFixed(1), matches: r.value.hash === out.hash, edges: r.value.edges };
+        }
+        return out;
+      },
+    },
+    locate: {
+      group: 'world', desc: 'Where a place is: a town or city (any of the 59 rows, built or not), an exit by name, id or "exit N", or an exit\'s community. Returns x,z (world metres), its chunk, kind, state, whether P1 builds it, and its mile on I-10 when it is on the corridor.',
+      args: { name: { type: 'string', required: true } },
+      run: async ({ name }) => {
+        const W = g.streamer.W, L = W.locate(name);
+        need(L, `no town or exit called "${name}"`);
+        const pr = W.project(L.x, L.z, 4096);
+        return { ...L, x: r1(L.x), z: r1(L.z), chunk: [Math.floor(L.x / 256), Math.floor(L.z / 256)], state: W.stateAt(L.x, L.z), mile: pr.d < 1500 ? r1(pr.s / 1609.344) : null, dist: r1(Math.hypot(L.x - P().x, L.z - P().z)) };
+      },
     },
     perf: {
       group: 'observe', desc: 'Frame rate, draw calls, triangles, entity counts.',
@@ -241,6 +295,7 @@ function buildCommands(api) {
           audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts },
           society: { witnessMsMax: +g.society.deeds.witnessMsMax.toFixed(3), deeds: g.society.deeds.deeds, rumorsPending: g.society.deeds.pending, rumorOverflow: g.society.deeds.overflow },
           interiors: { doors: g.interiors.doors.length, leaves: g.interiors.leaves.length, windows: g.interiors.windows.length, leavesSimulating: g.interiors.active.length },
+          stream: { stalls: g.streamer.stalls, byCause: { ...g.streamer.byCause }, pumpMs: g.streamer.pumpStats(), layouts: g.streamer.layouts.size, hot: g.streamer.hot.size, chunkBoxes: g.statics.chunkBoxes },
           runtimeErrors: g.errors ?? [] };
       },
     },
@@ -254,12 +309,17 @@ function buildCommands(api) {
         r.setPixelRatio(1); r.setSize(width, height, false);
         cam.aspect = width / height; cam.updateProjectionMatrix();
         if (g.qol.photo) g.qol.placePhotoCamera(); else g.updateCamera(0.016);
+        // A shot of somewhere far: its chunks go hot first (a `screenshot` stall), and the player's come back after.
+        const far = (x !== undefined || z !== undefined) && Math.hypot((x ?? g.camLook.x) - g.camLook.x, (z ?? g.camLook.z) - g.camLook.z) > 150;
+        if (far) g.streamer.ensureHot(x ?? g.camLook.x, z ?? g.camLook.z, 'screenshot');
         if (x !== undefined || z !== undefined || zoom || tilt !== undefined) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
           const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
           cam.position.set(cx, h, cz + h * t); cam.lookAt(cx, 0, cz);
+          if (far) { g.sky.update(0, { x: cx, z: cz }, g.world.groundMat, g.world.roadMat); g.streamer.postSky(); } // the sun's shadow box goes with the shot
         }
         r.render(g.scene, cam);
+        if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat); g.streamer.postSky(); }
         const image = r.domElement.toDataURL('image/jpeg', quality);
         r.setPixelRatio(prevPR); r.setSize(Math.max(1, prevW / prevPR), Math.max(1, prevH / prevPR), false);
         cam.aspect = prevAspect; cam.updateProjectionMatrix();
@@ -269,16 +329,32 @@ function buildCommands(api) {
 
     // ---------------------------------------------------------------- player
     teleport: {
-      group: 'player', desc: 'Move the player (and their vehicle) to x,z. Snaps out of walls.',
-      args: { x: { type: 'number', required: true }, z: { type: 'number', required: true } },
-      run: async ({ x, z }) => {
+      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] } },
+      run: async ({ x, z, town, mile, dir }) => {
+        const S = g.streamer;
+        let h = null;
+        if (town !== undefined) {
+          const L = S.W.locate(town);
+          need(L, `no place called "${town}" (try locate name=...)`);
+          need(Math.hypot(L.x, L.z) < S.view().dustWall.radius - 200, `${L.name} is past the dust wall (P1 streams the I-10 corridor only)`);
+          x = L.community?.x ?? L.x; z = L.community?.z ?? L.z;
+        } else if (mile !== undefined) {
+          const s = mile * 1609.344, W = S.W;
+          need(s >= 0 && s <= W.cl.L, `mile must be 0..${Math.floor(W.cl.L / 1609.344)} (I-10 from Los Angeles)`);
+          const f = W.at(s), sec = W.section(s), sg = dir === 'west' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+          x = f.x + f.nx * u; z = f.z + f.nz * u; h = Math.atan2(f.tx * sg, f.tz * sg);
+        }
+        need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
+        S.ensureHot(x, z, 'teleport');
         const p = P(), v = p.inVehicle;
         const pos = { x, z };
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
-        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; }
+        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
         p.x = pos.x; p.z = pos.z;
+        if (h !== null && !v) p.face = h;
         g.camLook.x = pos.x; g.camLook.z = pos.z;
-        return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z) };
+        return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z), region: districtName(pos.x, pos.z), ...(h !== null ? { heading: r1(h) } : {}) };
       },
     },
     moveTo: {
@@ -2541,5 +2617,6 @@ export function restore(g, s) {
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.camLook.x = p.x; g.camLook.z = p.z;
+  g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

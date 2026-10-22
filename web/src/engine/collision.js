@@ -11,7 +11,20 @@
 // the glass or boards (the window's op), and a throw does too when it flies higher than the sill.
 // Ray modes: SOLID (default: throwables, the harpoon) meets anything physical; SIGHT (lineOfSight)
 // sees through window holes and glass; BULLET flies through window holes and is stopped by glass.
+//
+// THE STREAMED WORLD (docs/design/WEB_STREAMING.md §3.6): the Phoenix island keeps the grid above, exactly as built.
+// Past it, every streamed chunk's boxes live in a ring of 8 x 8 chunk slots (32 x 32 cells of 8 m each), keyed by
+// chunk, so a query never does a Map lookup: a cell is found by (cx & 7, cz & 7) and a key check. A chunk's boxes are
+// clipped to its own square, so nothing is listed twice; unloaded ground is empty. A query near the island edge visits
+// both, and the shared `mark` stamp counts each box once.
+// A box may FLOAT: `base` > 0 means it starts that high (a bridge's parapet over the interstate). Movers pass under it
+// when their top is below its base (topY), and ground-level rays (sight, bullets) pass under it.
 export const RAY_SOLID = 0, RAY_SIGHT = 1, RAY_BULLET = 2;
+
+const ISQ = 472;   // the island grid answers queries that reach inside |x|,|z| < 472 (the island is 464 + a cell)
+const ICORE = 456; // the chunk ring answers queries that reach outside |x|,|z| > 456
+const CC = 32;     // cells per chunk side (256 m / 8 m)
+const EMPTY = [];
 
 export class StaticWorld {
   constructor(half = 460, cell = 8) {
@@ -24,11 +37,19 @@ export class StaticWorld {
     this.stamp = 1;
     this.hit = { t: 0, nx: 0, nz: 0, box: null };
     this.ops = null; // the Interiors system once it registers (doors, windows)
+    // The streamed chunk ring (empty until the streamer registers chunks).
+    this.ring = [];
+    for (let i = 0; i < 64; i++) {
+      const cells = new Array(CC * CC);
+      for (let k = 0; k < cells.length; k++) cells[k] = [];
+      this.ring.push({ cx: 0x7fffffff, cz: 0x7fffffff, cells, boxes: EMPTY, used: false });
+    }
+    this.chunkBoxes = 0; // boxes registered across the ring (for perf/world reports)
   }
 
   // An opening's entry: bucketed over the area it can ever occupy (a door's whole swing).
   addOp(op, minX, minZ, maxX, maxZ, height = 2.3) {
-    const b = { minX, minZ, maxX, maxZ, tag: op.kind, height, mark: 0, op, holes: null, holeX: false, sill: 0 }; // same shape as add()'s
+    const b = { minX, minZ, maxX, maxZ, tag: op.kind, height, mark: 0, op, holes: null, holeX: false, sill: 0, base: 0, owner: null }; // same shape as add()'s
     for (let x = this.ci(minX); x <= this.ci(maxX); x++)
       for (let z = this.ci(minZ); z <= this.ci(maxZ); z++) this.cells[z * this.n + x].push(b);
     return b;
@@ -42,7 +63,7 @@ export class StaticWorld {
   add(minX, minZ, maxX, maxZ, tag = 'wall', height = 3) {
     // One shape for every entry (op, holes preset) so the hot loops below stay monomorphic.
     // holes: window openings [a0, a1, ...] along x (holeX) or z, with a sill `sill` metres high.
-    const b = { minX, minZ, maxX, maxZ, tag, height, mark: 0, op: null, holes: null, holeX: false, sill: 0 };
+    const b = { minX, minZ, maxX, maxZ, tag, height, mark: 0, op: null, holes: null, holeX: false, sill: 0, base: 0, owner: null };
     this.boxes.push(b);
     for (let x = this.ci(minX); x <= this.ci(maxX); x++)
       for (let z = this.ci(minZ); z <= this.ci(maxZ); z++) this.cells[z * this.n + x].push(b);
@@ -53,48 +74,97 @@ export class StaticWorld {
     return this.add(cx - sx / 2, cz - sz / 2, cx + sx / 2, cz + sz / 2, tag, height);
   }
 
+  // A streamed box record (the same shape as add()'s), for chunk layouts. Not registered anywhere until its chunk is.
+  static box(minX, minZ, maxX, maxZ, tag, height, base = 0) {
+    return { minX, minZ, maxX, maxZ, tag, height, mark: 0, op: null, holes: null, holeX: false, sill: 0, base, owner: null };
+  }
+
+  // ---- the chunk ring ------------------------------------------------------------------------------------------------
+  slotOf(cx, cz) { return this.ring[(cx & 7) | ((cz & 7) << 3)]; }
+  hasChunk(cx, cz) { const s = this.slotOf(cx, cz); return s.cx === cx && s.cz === cz; }
+  // Put a chunk's boxes (already clipped to its square) into its slot, replacing whatever chunk held the slot.
+  registerChunk(cx, cz, boxes) {
+    const s = this.slotOf(cx, cz);
+    if (s.cx === cx && s.cz === cz && s.boxes === boxes) return;
+    this.clearSlot(s);
+    s.cx = cx; s.cz = cz; s.boxes = boxes; s.used = true;
+    const gx0 = cx * CC, gz0 = cz * CC;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      const x0 = Math.max(0, Math.floor(b.minX / this.cell) - gx0), x1 = Math.min(CC - 1, Math.floor(b.maxX / this.cell) - gx0);
+      const z0 = Math.max(0, Math.floor(b.minZ / this.cell) - gz0), z1 = Math.min(CC - 1, Math.floor(b.maxZ / this.cell) - gz0);
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) s.cells[z * CC + x].push(b);
+    }
+    this.chunkBoxes += boxes.length;
+  }
+  unregisterChunk(cx, cz) { const s = this.slotOf(cx, cz); if (s.cx === cx && s.cz === cz) this.clearSlot(s); }
+  clearSlot(s) {
+    if (!s.used) return;
+    for (let i = 0; i < s.cells.length; i++) if (s.cells[i].length) s.cells[i].length = 0;
+    this.chunkBoxes -= s.boxes.length;
+    s.boxes = EMPTY; s.cx = 0x7fffffff; s.cz = 0x7fffffff; s.used = false;
+  }
+  // The list in global 8 m cell (gx, gz), or EMPTY when its chunk is not in the ring.
+  chunkCell(gx, gz) {
+    const cx = gx >> 5, cz = gz >> 5, s = this.ring[(cx & 7) | ((cz & 7) << 3)];
+    if (s.cx !== cx || s.cz !== cz) return EMPTY;
+    return s.cells[((gz - (cz << 5)) << 5) + (gx - (cx << 5))];
+  }
+
   // Push a circle out of every box it overlaps. Returns penetration depth sum.
   // mover: who is walking/driving into things (a character or a vehicle). A door leaf gives way to a
   // mover and swings; to anything else (a spawn check, a crowd shove) it is as solid as a wall.
   // minY: the circle rides this high off the ground (a car in the air), so boxes no taller than that pass under it.
   // skip: boxes with this owner don't count (a ramp's own sides and lip, for the car riding or flying off that ramp).
-  resolveCircle(p, r, mover = null, minY = -Infinity, skip = null) {
+  // topY: the mover's top: a floating box (base > 0) that starts at or above it passes over (people under a bridge).
+  resolveCircle(p, r, mover = null, minY = -Infinity, skip = null, topY = 2.5) {
     const stamp = ++this.stamp;
     let pushed = 0;
-    const x0 = this.ci(p.x - r), x1 = this.ci(p.x + r), z0 = this.ci(p.z - r), z1 = this.ci(p.z + r);
-    for (let cx = x0; cx <= x1; cx++)
-      for (let cz = z0; cz <= z1; cz++) {
-        const list = this.cells[cz * this.n + cx];
-        for (let i = 0; i < list.length; i++) {
-          const b = list[i];
-          if (b.mark === stamp) continue;
-          b.mark = stamp;
-          if (b.height <= minY || (skip && b.owner === skip)) continue;
-          if (b.op) {
-            if (this.ops && p.x + r > b.minX && p.x - r < b.maxX && p.z + r > b.minZ && p.z - r < b.maxZ) pushed += this.ops.circle(b.op, p, r, mover);
-            continue;
-          }
-          const qx = p.x < b.minX ? b.minX : p.x > b.maxX ? b.maxX : p.x;
-          const qz = p.z < b.minZ ? b.minZ : p.z > b.maxZ ? b.maxZ : p.z;
-          let dx = p.x - qx, dz = p.z - qz;
-          const d2 = dx * dx + dz * dz;
-          if (d2 >= r * r) continue;
-          if (d2 > 1e-8) {
-            const d = Math.sqrt(d2);
-            const k = (r - d) / d;
-            p.x += dx * k; p.z += dz * k;
-            pushed += r - d;
-          } else {
-            // Center inside the box: leave by the shallowest side.
-            const l = p.x - b.minX, rr = b.maxX - p.x, t = p.z - b.minZ, bt = b.maxZ - p.z;
-            const m = Math.min(l, rr, t, bt);
-            if (m === l) p.x = b.minX - r; else if (m === rr) p.x = b.maxX + r;
-            else if (m === t) p.z = b.minZ - r; else p.z = b.maxZ + r;
-            pushed += m + r;
-          }
+    const bx0 = p.x - r, bx1 = p.x + r, bz0 = p.z - r, bz1 = p.z + r;
+    if (bx1 > -ISQ && bx0 < ISQ && bz1 > -ISQ && bz0 < ISQ) {
+      const x0 = this.ci(bx0), x1 = this.ci(bx1), z0 = this.ci(bz0), z1 = this.ci(bz1);
+      for (let cx = x0; cx <= x1; cx++)
+        for (let cz = z0; cz <= z1; cz++) {
+          const list = this.cells[cz * this.n + cx];
+          for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
         }
-      }
+    }
+    if (this.chunkBoxes > 0 && (bx0 < -ICORE || bx1 > ICORE || bz0 < -ICORE || bz1 > ICORE)) {
+      const c = this.cell, gx0 = Math.floor(bx0 / c), gx1 = Math.floor(bx1 / c), gz0 = Math.floor(bz0 / c), gz1 = Math.floor(bz1 / c);
+      for (let gx = gx0; gx <= gx1; gx++)
+        for (let gz = gz0; gz <= gz1; gz++) {
+          const list = this.chunkCell(gx, gz);
+          for (let i = 0; i < list.length; i++) pushed += this.circleBox(list[i], stamp, p, r, mover, minY, skip, topY);
+        }
+    }
     return pushed;
+  }
+
+  circleBox(b, stamp, p, r, mover, minY, skip, topY) {
+    if (b.mark === stamp) return 0;
+    b.mark = stamp;
+    if (b.height <= minY || b.base >= topY || (skip && b.owner === skip)) return 0;
+    if (b.op) {
+      if (this.ops && p.x + r > b.minX && p.x - r < b.maxX && p.z + r > b.minZ && p.z - r < b.maxZ) return this.ops.circle(b.op, p, r, mover);
+      return 0;
+    }
+    const qx = p.x < b.minX ? b.minX : p.x > b.maxX ? b.maxX : p.x;
+    const qz = p.z < b.minZ ? b.minZ : p.z > b.maxZ ? b.maxZ : p.z;
+    const dx = p.x - qx, dz = p.z - qz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) return 0;
+    if (d2 > 1e-8) {
+      const d = Math.sqrt(d2);
+      const k = (r - d) / d;
+      p.x += dx * k; p.z += dz * k;
+      return r - d;
+    }
+    // Center inside the box: leave by the shallowest side.
+    const l = p.x - b.minX, rr = b.maxX - p.x, t = p.z - b.minZ, bt = b.maxZ - p.z;
+    const m = Math.min(l, rr, t, bt);
+    if (m === l) p.x = b.minX - r; else if (m === rr) p.x = b.maxX + r;
+    else if (m === t) p.z = b.minZ - r; else p.z = b.maxZ + r;
+    return m + r;
   }
 
   // Ray vs boxes. Returns distance to first hit (or maxDist). Fills this.hit.
@@ -103,55 +173,71 @@ export class StaticWorld {
   raycast(x0, z0, dx, dz, maxDist, mode = RAY_SOLID, y = -1) {
     const stamp = ++this.stamp;
     const step = this.cell * 0.5;
-    let best = maxDist;
+    this.best = maxDist;
     this.hit.box = null;
     const invX = dx !== 0 ? 1 / dx : 1e9, invZ = dz !== 0 ? 1 / dz : 1e9;
-    let lastCell = -1;
+    let lastCell = -1, lastG = 0x7fffffff, lastGz = 0x7fffffff;
+    const chunks = this.chunkBoxes > 0;
     for (let s = 0; s <= maxDist + step; s += step) {
-      if (s > best + this.cell) break;
+      if (s > this.best + this.cell) break;
       const px = x0 + dx * Math.min(s, maxDist), pz = z0 + dz * Math.min(s, maxDist);
-      const cx = this.ci(px), cz = this.ci(pz);
-      // Check the 3x3 neighbourhood once per new cell so diagonal rays never slip through.
-      const id = cz * this.n + cx;
-      if (id === lastCell) continue;
-      lastCell = id;
-      for (let ox = -1; ox <= 1; ox++)
-        for (let oz = -1; oz <= 1; oz++) {
-          const nx = cx + ox, nz = cz + oz;
-          if (nx < 0 || nz < 0 || nx >= this.n || nz >= this.n) continue;
-          const list = this.cells[nz * this.n + nx];
-          for (let i = 0; i < list.length; i++) {
-            const b = list[i];
-            if (b.mark === stamp) continue;
-            b.mark = stamp;
-            if (y >= 0 && b.height <= y) continue;
-            if (b.op !== null) {
-              if (!this.ops) continue;
-              const t = this.ops.ray(b.op, x0, z0, dx, dz, best, mode);
-              if (t < best) { best = t; this.hit.nx = this.ops.nx; this.hit.nz = this.ops.nz; this.hit.box = b; }
-              continue;
+      if (px > -ISQ - this.cell && px < ISQ + this.cell && pz > -ISQ - this.cell && pz < ISQ + this.cell) {
+        const cx = this.ci(px), cz = this.ci(pz);
+        // Check the 3x3 neighbourhood once per new cell so diagonal rays never slip through.
+        const id = cz * this.n + cx;
+        if (id !== lastCell) {
+          lastCell = id;
+          for (let ox = -1; ox <= 1; ox++)
+            for (let oz = -1; oz <= 1; oz++) {
+              const nx = cx + ox, nz = cz + oz;
+              if (nx < 0 || nz < 0 || nx >= this.n || nz >= this.n) continue;
+              this.rayList(this.cells[nz * this.n + nx], stamp, x0, z0, dx, dz, invX, invZ, mode, y);
             }
-            let t1 = (b.minX - x0) * invX, t2 = (b.maxX - x0) * invX;
-            let tmin = Math.min(t1, t2), tmax = Math.max(t1, t2);
-            let nxv = t1 < t2 ? -1 : 1, nzv = 0;
-            const t3 = (b.minZ - z0) * invZ, t4 = (b.maxZ - z0) * invZ;
-            const tzmin = Math.min(t3, t4), tzmax = Math.max(t3, t4);
-            if (tzmin > tmin) { tmin = tzmin; nxv = 0; nzv = t3 < t4 ? -1 : 1; }
-            tmax = Math.min(tmax, tzmax);
-            if (tmax < 0 || tmin > tmax) continue;
-            if (tmin < 0) tmin = 0;
-            // In and out through the same window hole: nothing of this wall in the way (the glass or
-            // boards are the window's own op). Thrown things only when they clear the sill.
-            if (b.holes !== null && (mode !== RAY_SOLID || y > b.sill) && tmin < best && this.throughHole(b, x0, z0, dx, dz, tmin, tmax)) continue;
-            if (tmin < best) {
-              best = tmin;
-              this.hit.nx = nxv; this.hit.nz = nzv; this.hit.box = b;
-            }
-          }
         }
+      }
+      if (chunks && (px < -ICORE + this.cell || px > ICORE - this.cell || pz < -ICORE + this.cell || pz > ICORE - this.cell)) {
+        const gx = Math.floor(px / this.cell), gz = Math.floor(pz / this.cell);
+        if (gx !== lastG || gz !== lastGz) {
+          lastG = gx; lastGz = gz;
+          for (let ox = -1; ox <= 1; ox++) for (let oz = -1; oz <= 1; oz++) this.rayList(this.chunkCell(gx + ox, gz + oz), stamp, x0, z0, dx, dz, invX, invZ, mode, y);
+        }
+      }
     }
-    this.hit.t = best;
-    return best;
+    this.hit.t = this.best;
+    return this.best;
+  }
+
+  rayList(list, stamp, x0, z0, dx, dz, invX, invZ, mode, y) {
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      if (b.mark === stamp) continue;
+      b.mark = stamp;
+      if (y >= 0 && b.height <= y) continue;
+      if (b.base > 0 && y < b.base) continue; // a floating box: ground-level rays and low throws pass under it
+      const best = this.best;
+      if (b.op !== null) {
+        if (!this.ops) continue;
+        const t = this.ops.ray(b.op, x0, z0, dx, dz, best, mode);
+        if (t < best) { this.best = t; this.hit.nx = this.ops.nx; this.hit.nz = this.ops.nz; this.hit.box = b; }
+        continue;
+      }
+      const t1 = (b.minX - x0) * invX, t2 = (b.maxX - x0) * invX;
+      let tmin = Math.min(t1, t2), tmax = Math.max(t1, t2);
+      let nxv = t1 < t2 ? -1 : 1, nzv = 0;
+      const t3 = (b.minZ - z0) * invZ, t4 = (b.maxZ - z0) * invZ;
+      const tzmin = Math.min(t3, t4), tzmax = Math.max(t3, t4);
+      if (tzmin > tmin) { tmin = tzmin; nxv = 0; nzv = t3 < t4 ? -1 : 1; }
+      tmax = Math.min(tmax, tzmax);
+      if (tmax < 0 || tmin > tmax) continue;
+      if (tmin < 0) tmin = 0;
+      // In and out through the same window hole: nothing of this wall in the way (the glass or
+      // boards are the window's own op). Thrown things only when they clear the sill.
+      if (b.holes !== null && (mode !== RAY_SOLID || y > b.sill) && tmin < best && this.throughHole(b, x0, z0, dx, dz, tmin, tmax)) continue;
+      if (tmin < best) {
+        this.best = tmin;
+        this.hit.nx = nxv; this.hit.nz = nzv; this.hit.box = b;
+      }
+    }
   }
 
   throughHole(b, x0, z0, dx, dz, t0, t1) {

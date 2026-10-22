@@ -509,20 +509,19 @@ export class Interiors {
 
   // Nobody's walking route runs through a locked door: its opening is blocked on the foot nav grid
   // until the lock gives (only cells the walls left open, and only those, are restored).
+  // The cells are kept by world position (the nav grid's window moves; its pinned island store does not).
   navBlock(door, on) {
     const n = this.g.nav?.foot;
     if (!n) return;
-    if (!on) { if (door.nav) for (const i of door.nav) if (n.blocked[i] === 3) n.blocked[i] = 0; door.nav = null; return; }
+    if (!on) { if (door.nav) for (let k = 0; k < door.nav.length; k += 2) if (n.getCell(door.nav[k], door.nav[k + 1]) === 3) n.setCell(door.nav[k], door.nav[k + 1], 0); door.nav = null; return; }
     if (door.nav) return;
     door.nav = [];
-    const half = door.width / 2 + 0.1, across = 0.25 + n.radius;
-    const x0 = n.ci(door.x - 2), x1 = n.ci(door.x + 2), z0 = n.ci(door.z - 2), z1 = n.ci(door.z + 2);
-    for (let zc = z0; zc <= z1; zc++) for (let xc = x0; xc <= x1; xc++) {
-      const wx = n.wx(xc) - door.x, wz = n.wx(zc) - door.z;
+    const half = door.width / 2 + 0.1, across = 0.25 + n.radius, c = n.cell;
+    for (let gz = Math.floor((door.z - 2) / c); gz <= Math.floor((door.z + 2) / c); gz++) for (let gx = Math.floor((door.x - 2) / c); gx <= Math.floor((door.x + 2) / c); gx++) {
+      const x = (gx + 0.5) * c, z = (gz + 0.5) * c, wx = x - door.x, wz = z - door.z;
       const along = wx * door.ux + wz * door.uz, acr = wx * door.nx + wz * door.nz;
       if (along > half || along < -half || acr > across || acr < -across) continue;
-      const i = zc * n.n + xc;
-      if (!n.blocked[i]) { n.blocked[i] = 3; door.nav.push(i); }
+      if (!n.getCell(x, z)) { n.setCell(x, z, 3); door.nav.push(x, z); }
     }
   }
 

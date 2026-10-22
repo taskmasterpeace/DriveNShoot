@@ -365,7 +365,8 @@ export class CharacterRenderer {
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
-    const gy = sp || !this.groundAt ? 0 : ch.perchY || this.groundAt(ch.x, ch.z); // a tower deck, a ramp or a dune under their feet
+    const gy = sp || !this.groundAt ? 0 : ch.perchY || this.groundAt(ch.x, ch.z, ch.gy ?? 0); // a tower deck, a ramp or a dune under their feet
+    ch.gy = gy; // remembered: a bridge deck holds whoever is already up on it, the ground under it whoever is not
     if (sp) {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);

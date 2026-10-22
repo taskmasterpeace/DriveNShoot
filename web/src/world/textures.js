@@ -47,13 +47,18 @@ export function sandTexture() {
   const rng = makeRng(11);
   const [c, g] = canvas(512);
   g.fillStyle = '#a77d52'; g.fillRect(0, 0, 512, 512);
-  // Large soft patches for dune variation.
+  // Large soft patches for dune variation. Each one wraps around the tile's edges (drawn again a tile over), so the
+  // texture repeats without a seam: from a highway at 100 m up, kilometres of desert would show every one.
   for (let i = 0; i < 60; i++) {
     const x = rng() * 512, y = rng() * 512, r = rng.range(30, 120);
-    const gr = g.createRadialGradient(x, y, 0, x, y, r);
     const col = rng.pick(['rgba(140,98,60,', 'rgba(184,142,96,', 'rgba(120,84,52,']);
-    gr.addColorStop(0, col + '0.35)'); gr.addColorStop(1, col + '0)');
-    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) {
+      const px = x + ox, py = y + oy;
+      if (px + r < 0 || px - r > 512 || py + r < 0 || py - r > 512) continue;
+      const gr = g.createRadialGradient(px, py, 0, px, py, r);
+      gr.addColorStop(0, col + '0.35)'); gr.addColorStop(1, col + '0)');
+      g.fillStyle = gr; g.fillRect(px - r, py - r, r * 2, r * 2);
+    }
   }
   noise(g, 512, 512, rng, 9000, ['#5e4127', '#c7a074', '#87613d', '#3f2b1a'], [1, 2.5]);
   cracks(g, 512, 512, rng, 14, 'rgba(60,40,24,0.35)', 1);
@@ -96,6 +101,79 @@ export function asphaltTexture() {
     g.fillStyle = gr; g.fillRect(0, side ? 216 : 0, 256, 40);
   }
   return tex(c);
+}
+
+// The streamed roads' atlas (world/chunkgen.js): one texture, strips across V (canvas textures flip Y, so V = 0 is the
+// bottom row). U runs along the road and repeats. Each strip is laid edge to edge across one road:
+//   V 0.004-0.420  an interstate carriageway, inner (median) edge first: inner shoulder, a solid yellow edge line, two
+//                  lanes split by white dashes (3 m dash, 9 m gap: the strip repeats every 24 m), a solid white edge
+//                  line, a rumble-stripped outer shoulder, sand blown onto both edges
+//   V 0.428-0.620  a two-way county road (white edges, a yellow dashed centre), the island's look
+//   V 0.628-0.800  an added lane beside the through lanes (an exit's deceleration lane, an entrance's acceleration
+//                  lane): wide white dashes on its left, a solid white edge, a rumble-stripped shoulder
+//   V 0.808-0.976  a one-way ramp lane (yellow left edge, white right edge, shoulder)
+//   V 0.985-0.997  plain white paint (stop lines)
+export const ROAD_BANDS = { hwy: [0.004, 0.42], county: [0.428, 0.62], aux: [0.628, 0.8], ramp: [0.808, 0.976], white: [0.985, 0.997] };
+export function roadAtlasTexture() {
+  const rng = makeRng(29), W = 512, H = 1024, B = ROAD_BANDS;
+  const [c, g] = canvas(W, H);
+  const vy = (v) => (1 - v) * H;
+  g.fillStyle = '#34312e'; g.fillRect(0, 0, W, H);
+  noise(g, W, H, rng, 22000, ['#1d1c1a', '#4a4641', '#2a2826', '#5a554e'], [1, 2.4]);
+  for (let i = 0; i < 26; i++) {
+    const x = rng() * W, y = rng() * H, r = rng.range(14, 48);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(90,80,66,0.32)'); gr.addColorStop(1, 'rgba(90,80,66,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // A strip: [v0, v1] spanning `width` metres; line(m0, m1, colour, dash) paints from m0 to m1 metres off the left edge.
+  const strip = ([v0, v1], width) => {
+    const y0 = vy(v1), y1 = vy(v0), ppm = (y1 - y0) / width;
+    return {
+      line: (m0, m1, color, dash = null, alpha = 1) => {
+        g.globalAlpha = alpha; g.fillStyle = color;
+        const ya = y1 - m1 * ppm, h = (m1 - m0) * ppm;
+        if (!dash) g.fillRect(0, ya, W, h);
+        else for (let u = dash.off; u < W; u += dash.period) g.fillRect(u, ya, dash.len, h);
+        g.globalAlpha = 1;
+      },
+      sand: (m0, m1, fromLeft) => {
+        const ya = y1 - m1 * ppm, yb = y1 - m0 * ppm, gr = g.createLinearGradient(0, fromLeft ? yb : ya, 0, fromLeft ? ya : yb);
+        gr.addColorStop(0, 'rgba(167,125,82,0.75)'); gr.addColorStop(1, 'rgba(167,125,82,0)');
+        g.fillStyle = gr; g.fillRect(0, ya, W, yb - ya);
+      },
+      rumble: (m0, m1, pu) => { for (let u = 0; u < W; u += pu * 0.6) { g.fillStyle = 'rgba(14,13,12,0.5)'; g.fillRect(u, y1 - m1 * ppm, pu * 0.25, (m1 - m0) * ppm); } },
+    };
+  };
+  // Interstate carriageway: 9.2 m. px per metre along U: 512 px / 24 m.
+  const pu = W / 24, hw = strip(B.hwy, 9.2);
+  hw.line(0.32, 0.47, '#d6a83c', null, 0.8);                                                  // yellow edge, median side
+  hw.line(4.03, 4.17, '#e6e0d0', { off: 6, period: 12 * pu, len: 3 * pu }, 0.7);               // lane dashes
+  hw.line(7.62, 7.78, '#e6e0d0', null, 0.62);                                                   // white edge
+  hw.rumble(8.05, 8.65, pu);
+  hw.sand(0, 0.5, true); hw.sand(8.5, 9.2, false);
+  // County road: 9.2 m.
+  const cu = W / 14, co = strip(B.county, 9.2);
+  co.line(0.42, 0.56, '#d2ccbe', null, 0.4); co.line(8.64, 8.78, '#d2ccbe', null, 0.4);
+  co.line(4.52, 4.68, '#d6aa3c', { off: 8, period: 3.5 * cu, len: 1.9 * cu }, 0.6);
+  co.sand(0, 0.7, true); co.sand(8.4, 9.2, false);
+  // Added lane: 5.6 m (2.1 m left of the lane centre, 3.5 m right of it). U: 512 px / 18 m.
+  const ru = W / 18, ax = strip(B.aux, 5.6);
+  ax.line(0.06, 0.3, '#e6e0d0', { off: 4, period: 3 * ru, len: 1 * ru }, 0.72);               // the wide dashes of a lane that ends
+  ax.line(4.12, 4.28, '#e6e0d0', null, 0.62);
+  ax.rumble(4.5, 5.0, ru);
+  ax.sand(5.0, 5.6, false);
+  // Ramp lane: 5.6 m.
+  const ra = strip(B.ramp, 5.6);
+  ra.line(0.12, 0.26, '#d6a83c', null, 0.75); ra.line(4.12, 4.28, '#e6e0d0', null, 0.62);
+  ra.sand(0, 0.25, true); ra.sand(5.0, 5.6, false);
+  // White paint.
+  g.fillStyle = '#e8e2d2'; g.fillRect(0, vy(B.white[1] + 0.001), W, vy(B.white[0] - 0.001) - vy(B.white[1] + 0.001));
+  cracks(g, W, H, rng, 30, 'rgba(10,10,10,0.55)', 1.1);
+  for (let i = 0; i < 7; i++) { g.fillStyle = 'rgba(14,13,12,0.8)'; g.beginPath(); g.ellipse(rng() * W, rng.range(40, H - 60), rng.range(4, 10), rng.range(3, 8), rng() * 3, 0, 7); g.fill(); }
+  const t = tex(c);
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
 }
 
 export function concreteTexture(base = '#8c8478') {
