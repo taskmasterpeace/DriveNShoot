@@ -79,7 +79,7 @@ export const NPCS = [
     nodes: {
       hi: { text: 'Clean water, three filters deep. Under the Solar King that makes me the richest woman in Arizona.',
         choices: [
-          { t: `Buy a canteen (${money(15)}) — +30 health`, deed: { v: 'trade' }, next: 'drink', do: (g) => { if (g.spend(15)) g.player.hp = Math.min(g.player.maxHp, g.player.hp + 30); } },
+          { t: `Buy a canteen (${money(15)}) — filtered water`, deed: { v: 'trade' }, next: 'drink', do: (g) => { if (g.spend(15)) g.survival.consume('canteen'); } },
           { t: 'Heard any rumors?', next: 'rumor' },
           { t: '[Leave]', end: true },
         ] },

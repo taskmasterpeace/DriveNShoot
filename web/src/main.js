@@ -16,6 +16,7 @@ import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './
 import { Combat, WEAPONS } from './systems/combat.js';
 import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
+import { Survival } from './systems/survival.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -96,6 +97,7 @@ class Game {
     this.ai = new AI(this);
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
+    this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.throwables = new Throwables(this);
@@ -249,7 +251,7 @@ class Game {
     const rng = makeRng(9);
     this.pickups = this.world.spawns.loot.map((l) => {
       const r = rng();
-      const type = r < 0.45 ? 'ammo' : r < 0.75 ? 'med' : 'cash';
+      const type = r < 0.32 ? 'ammo' : r < 0.52 ? 'med' : r < 0.7 ? 'cash' : r < 0.88 ? 'water' : 'food';
       return { x: l.x, z: l.z, type, alive: true };
     });
     this.pickupMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), new THREE.MeshStandardMaterial({ roughness: 0.5, emissive: '#222' }), 300);
@@ -268,7 +270,7 @@ class Game {
 
   updatePickups(dt) {
     const p = this.player;
-    const col = { ammo: '#d4a23a', med: '#d83a2a', cash: '#6fb36a' };
+    const col = { ammo: '#d4a23a', med: '#d83a2a', cash: '#6fb36a', water: '#5b8fa8', food: '#b07a3a' };
     let n = 0;
     for (const it of this.pickups) {
       if (!it.alive) continue;
@@ -278,6 +280,7 @@ class Game {
         let text;
         if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
         else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; text = '+35 HP'; }
+        else if (it.type === 'water' || it.type === 'food') text = this.survival.consume(it.type);
         else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
@@ -417,7 +420,7 @@ class Game {
         }
       }
     }
-    if (c.faction === 'raider' && Math.random() < 0.7) this.dropPickup(c.x + 0.8, c.z, Math.random() < 0.6 ? 'ammo' : 'cash');
+    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.5 ? 'ammo' : r < 0.75 ? 'cash' : r < 0.88 ? 'water' : 'food'); }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
   }
 
@@ -488,6 +491,7 @@ class Game {
       if (this.respawnT <= 0) {
         const clinic = this.world.spawns.shops[0];
         p.alive = true; p.hp = p.maxHp; p.bleed = 0;
+        this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
         // Wake up on the clinic's doorstep (never inside a furniture pocket).
         const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
         p.x = door.x; p.z = door.z;
@@ -573,7 +577,8 @@ class Game {
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
     const sprint = wantSprint && p.stamina > 0.04;
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
-    p.stamina = Math.max(0, Math.min(1, p.stamina + (sprint && p.speed > 1 ? -0.16 : p.dive > 0 ? 0 : 0.22) * dt));
+    // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
+    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
     if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
     p.diveCool = (p.diveCool ?? 0) - dt;
@@ -879,6 +884,7 @@ class Game {
     if (simDt) {
       this.ai.update(simDt); this.nanGuard('ai');
       this.society.update(simDt);
+      this.survival.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');

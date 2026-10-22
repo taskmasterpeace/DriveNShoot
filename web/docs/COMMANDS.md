@@ -51,6 +51,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `waypoint` | `x?:number z?:number` | Set (x,z) or clear (no args) the GPS waypoint shown on the minimap/big map. |
 | `recruit` | `id:string` | Make a living non-hostile character your follower (faction ally): follows you, fights your enemies, boards your vehicle, shoots out of their own window, and takes the wheel if you slide seats (C). |
 | `dismiss` | `id:string` | Send a follower on their way. |
+| `needs` | `water?:number food?:number` | Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them. |
 
 ## world
 

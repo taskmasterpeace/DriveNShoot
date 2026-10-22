@@ -185,7 +185,7 @@ function buildCommands(api) {
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
-          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(),
+          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
           nearby: { hostiles: near.filter((c) => g.ai.hostile(c, p)).length, npcs: near.filter((c) => c.npc).map((c) => c.id), total: near.length },
@@ -937,6 +937,17 @@ function buildCommands(api) {
     cancelEvent: {
       group: 'society', desc: 'End a running director event: anyone it spawned leaves.', args: { id: { type: 'string', required: true } },
       run: async ({ id }) => { const r = g.society.director.cancel(id); need(r, `no running event ${id}`); return r; },
+    },
+    needs: {
+      group: 'player', desc: 'Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them.',
+      args: { water: { type: 'number' }, food: { type: 'number' } },
+      run: async ({ water, food }) => {
+        const N = g.needs, S2 = g.survival;
+        if (water !== undefined) { need(water >= 0 && water <= 1, 'water is 0..1'); N.water = water; N.pips.water = S2.pip(water); }
+        if (food !== undefined) { need(food >= 0 && food <= 1, 'food is 0..1'); N.food = food; N.pips.food = S2.pip(food); }
+        if (water !== undefined || food !== undefined) S2.update(0); // recompute the effects now
+        return S2.view();
+      },
     },
     registerFaction: {
       group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
@@ -1745,6 +1756,19 @@ async function runSelfTest(api) {
     const said = g.events.find((e) => e.seq > since && e.type === 'radio');
     return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
   });
+  await check('survival: thirst wears in pips, slows stamina recovery, and a bottle of water fixes it', async () => {
+    await stage();
+    const before = g.needs.water;
+    await C('step', { seconds: 6 }); // noon heat: 6 s is 0.2 game hours of drain
+    const drained = g.needs.water < before;
+    const parched = await C('needs', { water: 0.1, food: 0.9 });
+    const slowed = parched.pips.water === 2 && parched.effects.staminaRegen < 1;
+    g.dropPickup(g.player.x + 0.4, g.player.z, 'water');
+    await C('step', { seconds: 0.3 });
+    const after = g.survival.view();
+    await C('needs', { water: 0.85, food: 0.8 });
+    return drained && slowed && after.water >= 0.5 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, after: after.water });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1770,6 +1794,7 @@ export function snapshot(g) {
     chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
+    needs: g.survival.save(),
   };
 }
 
@@ -1815,6 +1840,7 @@ export function restore(g, s) {
   g.nextId = Math.max(g.nextId, ...s.chars.map((c) => Number(c.id.slice(1)) || 0));
   // The society last: pending rumors find their witnesses by id among the people just restored.
   if (s.society) g.society.load(s.society);
+  if (s.needs) g.survival.load(s.needs);
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }
