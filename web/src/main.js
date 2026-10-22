@@ -22,6 +22,7 @@ import { Garage } from './systems/garage.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
+import { Roles } from './systems/roles.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS } from './data/items.js';
 import { Vehicles } from './systems/vehicles.js';
@@ -140,6 +141,7 @@ class Game {
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
+    this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
     this.insideBuilding = null;
     this.paused = true;
@@ -375,7 +377,9 @@ class Game {
     const before = this.wanted;
     this.wanted = Math.min(5, this.wanted + n);
     this.wantedT = 0;
-    if (before === 0 && this.wanted > 0) this.hud.toast('RUST HAVEN WARDENS ARE HUNTING YOU', 'hot');
+    const slack = this.roles?.offices.deputy ? 1 : 0; // a sworn deputy's star of slack (roles.js)
+    if (before <= slack && this.wanted > slack) this.hud.toast('RUST HAVEN WARDENS ARE HUNTING YOU', 'hot');
+    else if (before === 0 && this.wanted > 0) this.hud.toast('ONE STAR: THE BULLS GIVE THEIR DEPUTY THAT ONE', 'warn');
   }
 
   // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
@@ -500,7 +504,9 @@ class Game {
       else {
         this.seats.leave(d);
         this.society.deeds.record('carjack', { target: d, stars: d.faction !== 'raider' ? 1 : 0 });
-        this.ai.onDamaged(d, p, true);
+        // A known wheelman's reputation does the talking: the driver runs instead of fighting (roles.js perk).
+        if (this.roles.perk.carjackFlee && !d.npc) { d.flee = 6; d.fleeX = p.x; d.fleeZ = p.z; d.target = null; }
+        else this.ai.onDamaged(d, p, true);
         this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
       }
     }
@@ -968,6 +974,7 @@ class Game {
       this.ai.update(simDt); this.nanGuard('ai');
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.society.update(simDt);
+      this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');

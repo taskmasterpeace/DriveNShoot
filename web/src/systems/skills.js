@@ -48,7 +48,7 @@ export class Skills {
     S.spreadMul = 1 - PER_LEVEL.spread * L.dexterity;
     S.reloadMul = 1 - PER_LEVEL.reload * L.dexterity;
     S.sprintDrainMul = 1 - PER_LEVEL.sprintDrain * L.endurance;
-    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength;
+    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0); // a known scavenger packs smarter
     S.kg = this.g.inv ? this.weigh() : 0;
     S.load = S.kg / S.carryKg;
     S.overloaded = S.load > 1;

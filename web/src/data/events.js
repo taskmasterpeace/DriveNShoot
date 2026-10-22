@@ -31,6 +31,13 @@ export const EVENTS = {
     beaten: { raiderStrength: -6, raiderResources: -10, targetResources: 5 },
     took: { targetResources: -12 },
   },
+  // Somebody comes looking for what you are known for (docs/design/WEB_ROLES.md): a hurt stranger walks up to a known
+  // medic or samaritan (the calls are rows in data/roles.js ROLE_CALLS). Patch them up and it ends well.
+  role_call: {
+    pace: 'calm', weight: 1, ring: [22, 34],
+    cooldown: { self: 600, global: 30 }, timeout: 150,
+    thanks: ['Thank you. God, thank you.', 'I owe you one, stranger.', 'They were right about you.'],
+  },
   // STATIC 1660 AM reads the news: the newest notable thing in the chronicle nobody has broadcast yet.
   radio_news: {
     pace: 'calm', weight: 2,

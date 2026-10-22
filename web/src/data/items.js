@@ -87,6 +87,9 @@ export const ITEMS = {
     desc: 'A spiral-bound atlas of the old states, the borders inked over in three colours of pen.' },
   photograph: { name: 'Photograph', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 1, value: 0,
     desc: 'A family on a porch, squinting into the sun. Nobody you know.' },
+  // Given, never found: Sheriff Okonkwo pins one on a known deputy (docs/design/WEB_ROLES.md) and takes it back.
+  tin_star: { name: "Deputy's star", kind: 'paper', kg: 0.03, bulk: 0.02, stack: 1, value: 0, tags: ['badge'],
+    desc: 'Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace.' },
 };
 
 // Where things are found. Each table: weighted rows [item, weight, countMin, countMax]; a container rolls `rolls`

@@ -28,8 +28,10 @@ export class Deeds {
     let sight = (SIGHT_DAY + (SIGHT_NIGHT - SIGHT_DAY) * (sky.night ?? 0)) * (1 - fogK);
     if (actor.crouch) sight *= 0.6;
     if (actor.inVehicle) sight *= 1.2;
-    const flash = actor === this.g.player && this.g.flashMat?.opacity > 0;
-    return { sight, idRange: ID_FRACTION * sight + (flash ? 6 : 0), night: +(sky.night ?? 0).toFixed(2), fogK: +fogK.toFixed(2), crouch: !!actor.crouch };
+    const P = this.g.player, flash = actor === P && this.g.flashMat?.opacity > 0;
+    // A known ghost (roles.js perk idMul) has to be closer still before a witness can put a name to them.
+    const idMul = actor === P ? this.g.roles?.perk.idMul ?? 1 : 1;
+    return { sight, idRange: (ID_FRACTION * sight + (flash ? 6 : 0)) * idMul, night: +(sky.night ?? 0).toFixed(2), fogK: +fogK.toFixed(2), crouch: !!actor.crouch, idMul: +idMul.toFixed(3) };
   }
 
   // Everyone who saw a deed at (x, z). Identified witnesses fill this.scratch (≤ 8); the rest count in sawOnly.
@@ -62,6 +64,8 @@ export class Deeds {
     if (!Number.isFinite(x) || !Number.isFinite(z)) { g.emit('error', { where: 'deeds.record', verb, why: 'non-finite position' }); return null; }
     const tf = o.tf ?? target?.fid ?? (target ? this.F.fidFor(target) : '') ?? '';
     const mine = actor === P;
+    // Asked before any witness raises a star: was this someone whose people shoot you on sight? (roles.js)
+    const wasHostile = mine && target ? !!g.roles?.wasHostile(target) : false;
     const seen = o.witness !== false && mine ? this.witnessPass(x, z, actor, target) : NO_ONE;
     let k = (o.flags ?? 0) | ((g.sky.night ?? 0) > 0.6 ? K.night : 0) | (target?.npc ? K.named : 0);
     if (mine && o.witness !== false && !seen.length) k |= K.unwitnessed;
@@ -83,6 +87,7 @@ export class Deeds {
         this.queue(rec, c, target, lawful && !c.weapon ? o.stars : 0, o.sd);
       }
     }
+    if (mine) g.roles?.onDeed(rec, o, target, wasHostile); // what the world will call you for it (systems/roles.js)
     g.emit('deed', { record: rec.seq, verb, target: rec.o || null, targetName: rec.on || null, faction: rec.of || null, place: rec.p, mag: rec.m, witnesses: rec.ws, unidentified: rec.un, unwitnessed: !!(rec.k & K.unwitnessed), cause: o.cause });
     return rec;
   }
