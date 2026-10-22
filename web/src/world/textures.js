@@ -1,0 +1,190 @@
+import * as THREE from 'three';
+import { makeRng } from '../engine/rng.js';
+
+// Every texture is painted procedurally at boot: zero downloads, tiny build.
+
+function canvas(w, h = w) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return [c, c.getContext('2d')];
+}
+
+function tex(c, repeat = true) {
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+
+function noise(g, w, h, rng, count, colors, size = [1, 3], alpha = [0.05, 0.25]) {
+  for (let i = 0; i < count; i++) {
+    g.globalAlpha = rng.range(alpha[0], alpha[1]);
+    g.fillStyle = rng.pick(colors);
+    const s = rng.range(size[0], size[1]);
+    g.fillRect(rng() * w, rng() * h, s, s);
+  }
+  g.globalAlpha = 1;
+}
+
+function cracks(g, w, h, rng, n, color, width = 1.2) {
+  g.strokeStyle = color;
+  g.lineWidth = width;
+  for (let i = 0; i < n; i++) {
+    let x = rng() * w, y = rng() * h, a = rng() * Math.PI * 2;
+    g.beginPath(); g.moveTo(x, y);
+    const segs = 4 + ((rng() * 8) | 0);
+    for (let s = 0; s < segs; s++) {
+      a += rng.range(-0.9, 0.9);
+      x += Math.cos(a) * rng.range(6, 18); y += Math.sin(a) * rng.range(6, 18);
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+}
+
+export function sandTexture() {
+  const rng = makeRng(11);
+  const [c, g] = canvas(512);
+  g.fillStyle = '#a77d52'; g.fillRect(0, 0, 512, 512);
+  // Large soft patches for dune variation.
+  for (let i = 0; i < 60; i++) {
+    const x = rng() * 512, y = rng() * 512, r = rng.range(30, 120);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    const col = rng.pick(['rgba(140,98,60,', 'rgba(184,142,96,', 'rgba(120,84,52,']);
+    gr.addColorStop(0, col + '0.35)'); gr.addColorStop(1, col + '0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  noise(g, 512, 512, rng, 9000, ['#5e4127', '#c7a074', '#87613d', '#3f2b1a'], [1, 2.5]);
+  cracks(g, 512, 512, rng, 14, 'rgba(60,40,24,0.35)', 1);
+  // Scrub tufts like the reference footage.
+  for (let i = 0; i < 70; i++) {
+    const x = rng() * 512, y = rng() * 512;
+    g.fillStyle = rng.pick(['rgba(92,88,48,0.8)', 'rgba(70,64,36,0.8)', 'rgba(110,96,58,0.8)']);
+    for (let k = 0; k < 9; k++) g.fillRect(x + rng.range(-4, 4), y + rng.range(-4, 4), 2, 2);
+  }
+  const t = tex(c);
+  return t;
+}
+
+export function asphaltTexture() {
+  const rng = makeRng(23);
+  const [c, g] = canvas(256);
+  g.fillStyle = '#34312e'; g.fillRect(0, 0, 256, 256);
+  noise(g, 256, 256, rng, 5000, ['#1d1c1a', '#4a4641', '#2a2826', '#5a554e'], [1, 2]);
+  // Sun-bleached patches + potholes.
+  for (let i = 0; i < 8; i++) {
+    const x = rng() * 256, y = rng() * 256, r = rng.range(10, 34);
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(90,80,66,0.35)'); gr.addColorStop(1, 'rgba(90,80,66,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  for (let i = 0; i < 3; i++) {
+    g.fillStyle = 'rgba(14,13,12,0.85)';
+    g.beginPath(); g.ellipse(rng() * 256, rng.range(40, 216), rng.range(4, 9), rng.range(3, 7), rng() * 3, 0, 7); g.fill();
+  }
+  cracks(g, 256, 256, rng, 10, 'rgba(10,10,10,0.6)', 1.1);
+  // Faded lane markings: dashed center line (V = 0.5) and solid edge lines.
+  g.fillStyle = 'rgba(214,170,60,0.55)';
+  for (let x = 0; x < 256; x += 64) g.fillRect(x + 8, 125, 34, 5);
+  g.fillStyle = 'rgba(210,205,190,0.32)';
+  g.fillRect(0, 14, 256, 3); g.fillRect(0, 239, 256, 3);
+  // Sand drifting onto the edges.
+  for (let side of [0, 1]) {
+    const gr = g.createLinearGradient(0, side ? 256 : 0, 0, side ? 216 : 40);
+    gr.addColorStop(0, 'rgba(167,125,82,0.7)'); gr.addColorStop(1, 'rgba(167,125,82,0)');
+    g.fillStyle = gr; g.fillRect(0, side ? 216 : 0, 256, 40);
+  }
+  return tex(c);
+}
+
+export function concreteTexture(base = '#8c8478') {
+  const rng = makeRng(31);
+  const [c, g] = canvas(256);
+  g.fillStyle = base; g.fillRect(0, 0, 256, 256);
+  noise(g, 256, 256, rng, 3000, ['#5b554d', '#a49c90', '#6e675e'], [1, 2]);
+  g.strokeStyle = 'rgba(40,36,32,0.35)'; g.lineWidth = 1.5;
+  for (let i = 0; i <= 256; i += 64) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 256); g.moveTo(0, i); g.lineTo(256, i); g.stroke(); }
+  cracks(g, 256, 256, rng, 6, 'rgba(30,26,22,0.45)');
+  return tex(c);
+}
+
+export function floorTexture() {
+  const rng = makeRng(41);
+  const [c, g] = canvas(256);
+  g.fillStyle = '#5c4a3a'; g.fillRect(0, 0, 256, 256);
+  // Old plank floor.
+  for (let y = 0; y < 256; y += 16) {
+    g.fillStyle = rng.pick(['#5a4636', '#64503d', '#4e3d2f', '#6a5542']);
+    g.fillRect(0, y, 256, 15);
+    g.fillStyle = 'rgba(20,14,10,0.6)'; g.fillRect(0, y + 15, 256, 1);
+    for (let x = rng() * 80; x < 256; x += rng.range(60, 120)) g.fillRect(x, y, 1, 15);
+  }
+  noise(g, 256, 256, rng, 2500, ['#2a1f17', '#8a7258'], [1, 2], [0.05, 0.2]);
+  return tex(c);
+}
+
+export function radialGlow() {
+  const [c, g] = canvas(128);
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.25, 'rgba(255,255,255,0.55)');
+  gr.addColorStop(0.6, 'rgba(255,255,255,0.14)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  return tex(c, false);
+}
+
+// Headlight / flashlight cone. Apex at the bottom-center of the texture, opening upward (+V).
+export function coneTexture() {
+  const [c, g] = canvas(128, 256);
+  const img = g.createImageData(128, 256);
+  for (let y = 0; y < 256; y++)
+    for (let x = 0; x < 128; x++) {
+      const v = 1 - y / 255; // 0 at apex (bottom row), 1 at far end
+      const u = (x - 63.5) / 63.5;
+      const halfW = 0.08 + v * 0.92;
+      const across = Math.max(0, 1 - Math.abs(u) / halfW);
+      const along = Math.pow(1 - v, 1.4) * Math.min(1, v * 10);
+      const a = Math.pow(across, 1.6) * along;
+      const i = (y * 128 + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+      img.data[i + 3] = Math.min(255, a * 255);
+    }
+  g.putImageData(img, 0, 0);
+  return tex(c, false);
+}
+
+export function splatTexture(seed = 5) {
+  const rng = makeRng(seed);
+  const [c, g] = canvas(128);
+  g.fillStyle = '#fff';
+  const blob = (x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  blob(64, 64, 22);
+  for (let i = 0; i < 26; i++) {
+    const a = rng() * Math.PI * 2, d = rng.range(10, 44);
+    blob(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, rng.range(2, 10) * (1 - d / 70));
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = rng() * Math.PI * 2;
+    g.strokeStyle = '#fff'; g.lineWidth = rng.range(2, 5); g.lineCap = 'round';
+    g.beginPath(); g.moveTo(64, 64); g.lineTo(64 + Math.cos(a) * rng.range(40, 60), 64 + Math.sin(a) * rng.range(40, 60)); g.stroke();
+  }
+  // Soft alpha falloff so pools read wet, not stamped.
+  const id = g.getImageData(0, 0, 128, 128);
+  for (let i = 3; i < id.data.length; i += 4) id.data[i] *= 0.92;
+  g.putImageData(id, 0, 0);
+  return tex(c, false);
+}
+
+export function corrugatedTexture() {
+  const [c, g] = canvas(64);
+  for (let x = 0; x < 64; x++) {
+    const v = 120 + Math.sin((x / 64) * Math.PI * 8) * 40;
+    g.fillStyle = `rgb(${v},${v * 0.9},${v * 0.8})`;
+    g.fillRect(x, 0, 1, 64);
+  }
+  const rng = makeRng(77);
+  noise(g, 64, 64, rng, 400, ['#6b3a1c', '#8c4a20', '#3b2414'], [1, 4], [0.2, 0.6]);
+  return tex(c);
+}

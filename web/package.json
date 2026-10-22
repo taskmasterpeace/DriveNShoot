@@ -1,0 +1,21 @@
+{
+  "name": "deathlands",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DEATHLANDS — top-down open-world engine set in a post-apocalyptic United States",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 3141",
+    "build": "vite build",
+    "preview": "vite preview --port 3141",
+    "dl": "node tools/dl.mjs",
+    "agent": "node tools/agent.mjs",
+    "docs:commands": "node tools/gen-commands.mjs"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
