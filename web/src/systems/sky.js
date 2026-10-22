@@ -104,7 +104,11 @@ export class Sky {
     return 'NIGHT';
   }
 
-  update(dt, center, ground, roads) {
+  // viewR: the radius of ground on screen (main.js). The shadow box and the fog follow it, so a wide zoom has shadows
+  // to its edges and doesn't wash out under the haze meant for a street-level view.
+  update(dt, center, ground, roads, viewR = 30) {
+    const half = Math.max(70, viewR * 1.05), sc = this.sun.shadow.camera;
+    if (Math.abs(sc.right - half) > 4) { sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half; sc.updateProjectionMatrix(); }
     const gameHours = dt * this.timeScale * (this.fast ? 40 : 1);
     this.time = (this.time + gameHours) % 24;
     this.nextWeatherIn -= dt * (this.fast ? 40 : 1);
@@ -161,7 +165,7 @@ export class Sky {
     if (flicker) _fog.lerp(LIGHTNING, flicker * 0.6);
     this.fog.color.copy(_fog);
     this.scene.background.copy(_fog);
-    this.fog.density = c.fog * (1 + this.night * 0.25);
+    this.fog.density = c.fog * (1 + this.night * 0.25) * Math.max(0.35, Math.min(1, 30 / viewR));
 
     // Wet ground in rain.
     const wet = clamp(c.rain, 0, 1);

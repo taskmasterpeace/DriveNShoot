@@ -84,7 +84,7 @@ export class Dialogue {
     choices.forEach((ch, i) => {
       const b = document.createElement('button');
       b.className = 'dlg-choice';
-      b.innerHTML = `<kbd>${i + 1}</kbd><span>${ch.t}</span>`;
+      b.innerHTML = `<kbd>${i + 1}</kbd><span>${typeof ch.t === 'function' ? ch.t(this.g) : ch.t}</span>`;
       b.onclick = () => this.pick(i);
       this.choicesEl.appendChild(b);
     });
@@ -96,7 +96,7 @@ export class Dialogue {
     if (!ch) return;
     if (this.shown < this.full.length) { this.shown = this.full.length; return; }
     this.g.audio.blip();
-    this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: ch.t });
+    this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: typeof ch.t === 'function' ? ch.t(this.g) : ch.t });
     ch.do?.(this.g);
     // A job paid or a deal struck counts with their people (deliver, trade, pay...).
     if (ch.deed && this.npc) this.g.society?.deeds.direct(ch.deed.v, this.npc, ch.deed.m);

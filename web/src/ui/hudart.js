@@ -620,7 +620,7 @@ export function paintClothFlag(code, w = 132, h = 84, el) {
 
 // ---- sprites: cartridges (full + spent) and throwables -------------------------------------------------------
 export const CART = { w: 14, h: 48 };
-const CART_KINDS = ['smg', 'pistol', 'shell'];
+const CART_KINDS = ['smg', 'pistol', 'shell', 'rifle'];
 function cartridge(g, x0, kind, spent) {
   const { w, h } = CART, cx = x0 + w / 2;
   const cyl = (x, y, ww, hh, cols) => {
@@ -637,6 +637,23 @@ function cartridge(g, x0, kind, spent) {
     g.fillStyle = spent ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.35)'; for (let i = 0; i < 3; i++) g.fillRect(x, 4 + i * 2.2, bw, 0.8); // crimp
     cyl(x - 0.5, h - 12, bw + 1, 10, brass);
     cyl(x - 1, h - 3, bw + 2, 2.5, brass);
+  } else if (kind === 'rifle') {
+    // a bottlenecked case: a long body, a sloped shoulder, a short neck, and a pointed bullet standing tall
+    const bw = w - 3, x = x0 + (w - bw) / 2, shoulder = Math.round(h * 0.4), neck = Math.round(h * 0.31), nw = bw - 3.4, xn = cx - nw / 2;
+    cyl(x, shoulder, bw, h - shoulder - 3, brass);
+    g.save();
+    g.beginPath(); g.moveTo(x, shoulder + 0.5); g.lineTo(xn, neck + 2.5); g.lineTo(xn + nw, neck + 2.5); g.lineTo(x + bw, shoulder + 0.5); g.closePath();
+    g.clip(); cyl(x, neck, bw, shoulder - neck + 1, brass);
+    g.restore();
+    cyl(xn, neck - 1, nw, 4, brass);                                   // the neck
+    cyl(x - 0.6, h - 3.5, bw + 1.2, 3, brass);                         // rim
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(x, h - 5.2, bw, 0.9); // extractor groove
+    const top = 1.5;
+    g.save();
+    g.beginPath(); g.moveTo(xn, neck); g.lineTo(xn, top + nw * 2.4); g.quadraticCurveTo(xn, top + 2, cx, top); g.quadraticCurveTo(xn + nw, top + 2, xn + nw, top + nw * 2.4); g.lineTo(xn + nw, neck); g.closePath();
+    g.clip(); cyl(xn, top, nw, neck - top, copper);
+    g.restore();
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(xn, neck - 1, nw, 0.8);
   } else {
     const short = kind === 'pistol';
     const caseTop = Math.round(h * (short ? 0.39 : 0.43)), bw = short ? w - 2 : w - 3, x = x0 + (w - bw) / 2;

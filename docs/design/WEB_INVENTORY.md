@@ -6,14 +6,17 @@ ground piles, trunks, tools that act on cars. Agent commands `inventory`, `item`
 Phase 2 shipped: every crate and shelf inside a building is a container (114 at boot), its loot fitting the place
 (a clinic's shelves hold medicine, the mechanic's hold parts, a house has kitchen/bedroom/bathroom things); a named
 shopkeeper owns what is in their shop and taking it is a `steal` deed; lockpicks and the crowbar work the interiors
-system's locks (hold E at a locked door: picks quietly, a bar loudly; a tap still kicks). Still open: guns and rounds
-as items, trade, the radio item, refills.
+system's locks (hold E at a locked door: picks quietly, a bar loudly; a tap still kicks). Guns and rounds as items
+shipped 2026-10-22: rounds are items in your pockets (the gun code reads them through a view), each gun has a
+condition that every shot wears, worn guns jam, the dead keep their guns, Ike fixes guns and sells cleaning kits; agent
+command `gun`; selftest "rounds are things…", "guns are things…". Still open: trade, the radio item, refills.
 
 ## 1. Overview
 
-The guns and their rounds stay in `g.inv` (combat reads them every shot). Everything else is an **item** in a
-**container**. You carry one list: pockets and belt (3 L) plus the pack on your back (a satchel 8 L, a backpack 22 L,
-a frame ruck 45 L). The world holds other containers: the trunk or bed of every vehicle (a bike's saddlebags 22 L, a
+Everything you carry is an **item** in a **container**, rounds included. The guns slung on you are your **loadout**
+(`g.inv.weapons`: holster and sling, outside the list, quick to hand with 1–4); a gun you put down becomes an item that
+keeps its condition and the rounds in it. You carry one list: pockets and belt (3 L) plus the pack on your back (a
+satchel 8 L, a backpack 22 L, a frame ruck 45 L). The world holds other containers: the trunk or bed of every vehicle (a bike's saddlebags 22 L, a
 van 1 400 L), the bodies of the dead (what they carried, rolled from a seeded table when first searched), ground piles
 (whatever was dropped or didn't fit), and, in phase 2, cupboards, lockers and crates in rooms.
 
@@ -28,6 +31,11 @@ Your satchel is nearly full and the frame ruck you found is heavy enough to stop
 without a knife. The bread you bought in Rust Haven on Monday is stale by Wednesday. You pull up next to your car, pour
 a can of gas into it and tape the radiator, and you do it in the open with your back to the road, because rummaging
 takes your hands and your eyes.
+
+Your revolver was old when you got it. Somewhere past the three-hundredth round it starts to hang: you pull, nothing,
+and you work the action with a man coming at you. The soldier you dropped at the wire had a rifle with half a magazine
+in it and two more on his belt, and it is the best thing you have ever held. The raider's SMG is junk, but it eats the
+rounds you have the most of. Ike will make your gun right again for a price that depends on how badly you treated it.
 
 ## 3. Detailed rules
 
@@ -52,9 +60,45 @@ takes your hands and your eyes.
   double-clicks do the same.
 - **Pickups** (the world's loot boxes): water → a bottle (80%) or a canteen, part-full; food → beans, jerky, peaches,
   a ration, honey, cactus fruit; med → bandage, painkillers, suture kit, first-aid kit. They go in your pack; with no
-  room they're left on the ground as a pile. Ammo and cash work as before.
+  room they're left on the ground as a pile. An ammo box is rounds for every gun you carry (12 pistol, 32 SMG, 4
+  shells, 10 rifle), into your pockets like any rounds. A raider's pocket money still spills as a cash pickup (45%).
 - **The dead:** every human but the player and named people leaves a container (`body:<id>`, 20 L) rolled from
-  `person` or `raider` loot when first searched; the oldest empty ones are forgotten past 60.
+  `person`, `raider` or `soldier` loot when first searched; the oldest empty ones are forgotten past 60. The gun the
+  dead held is in it (see guns), with spare rounds for it.
+
+### Guns and rounds
+
+- **Rounds are items** (`ammo_pistol`, `ammo_smg`, `ammo_shells`, `ammo_rifle`): they weigh and take room like
+  anything else, sit in trunks and on bodies, and can be dropped. The gun code reads and writes them as
+  `g.inv.ammo[kind]`, which is a view onto the carried list (`inventory.bindAmmo`): reading counts what you carry;
+  adding puts rounds in your pockets (what will not fit goes in the trunk of the car you are in, else on the ground at
+  your feet, with a "NO ROOM" toast); taking removes them, newest stacks first. A reload takes rounds out of your
+  pockets.
+- **The loadout:** the guns slung on you (`g.inv.weapons`) are outside the list. Each has rounds in it
+  (`g.inv.mag`), a **condition** (`g.inv.cond`, 1 clean, 0 broken) and may be **jammed** (`g.inv.jam`). Their weight
+  (`ITEM_KG.weapon`) and the rounds in them count in skills.js as before.
+- **Wear:** every round fired takes `GUN_WEAR[gun].wear` off the condition (the agent's `fire` wears it the same way).
+- **Jams:** below `jamBelow` (0.65), each shot may jam the gun (formula below). A jammed gun's trigger goes dead: a
+  pull clicks and starts clearing it; R clears it too. Clearing takes `clearTime` × dexterity's reload multiplier and
+  throws the stuck round away. The HUD stamps JAMMED · R across the cartridges until it is cleared.
+- **Broken** (condition 0): the trigger does nothing ("BROKEN · A GUNSMITH CAN FIX IT", at most every 3 s). A
+  cleaning kit refuses a broken gun.
+- **Cleaning kit** (5 uses, garages and armories, Ike sells them for $40): one use puts `kit` (0.35) back on the gun in
+  your hands, up to `kitMax` (0.95: worn parts need a gunsmith), and clears a jam.
+- **The gunsmith** (Ike, Rust Haven): "Fix my <gun>" makes the gun in your hands clean (1.0) for the quote below.
+- **The HUD:** a condition gauge on the weapon plate's brass rule (brass ok, amber once it can jam, red jammed or
+  broken), its percent beside it; the rifle has its own bottlenecked cartridge in the round count.
+- **Gun items** (`gun_pistol`, `gun_smg`, `gun_shotgun`, `gun_rifle`): a slot carries `cond` and `loaded`. On the
+  PACK screen the ON YOU side starts with the slung guns (condition, loaded/magazine, JAMMED or BROKEN). E on a slung
+  gun takes it in hand; Space puts it on the other side (trunk, body, box, ground); X puts it down. E on a gun item
+  anywhere **slings** it: into the loadout if you carry none of its kind (and into your hands), else swapped for yours
+  (yours goes where it lay, with its condition and rounds). Space on a gun item on the other side slings it if you
+  carry none of its kind, else takes it into the pack as a spare (room permitting).
+- **The dead keep their guns:** `armBody` puts the gun a dead person held in their body with a condition, a part-full
+  magazine and spare rounds by who they were (`GUN_FOUND`): a raider's gun is junk (18–60%), a Remnant soldier's
+  rifle is good (62–95%, 20–60 spare rounds).
+- **Buying and gifts:** Ike's guns arrive slung, loaded and at 90%; a dialogue gift or the agent's `give weapon=`
+  arrives slung and loaded at 100%; a gun of a kind you already carry arrives as a spare in your pack.
 - **Furniture:** every `crate` and `shelf` static inside an enterable building becomes `box:<x10>:<z10>` (ids from
   position, so saves find them again). A shop's boxes use the shop's table (Clinic → bathroom, Mechanic → garage,
   Water Trader → kitchen, others → office); a home's crates are kitchen or garage, its shelves kitchen, bathroom,
@@ -80,6 +124,13 @@ takes your hands and your eyes.
 | Freshness | age < spoils: fresh; < 2·spoils: stale (×0.5); else rotten (×0.15, −6 hp) | flatbread 70 h old: stale |
 | Loot roll | `rolls ∈ [lo, hi]`, each roll: empty with weight `none`, else a row by weight, count ∈ [min, max], uses 35–100% left, food up to 1.6·spoils old | raider: 1–3 rolls |
 | Repair | `+0.25 (+0.15 wrench)` to the worst of engine/radiator/tank; plugs `+0.45` engine | |
+| Gun wear | `cond ← max(0, cond − wear)` per round; wear: pistol 0.0012, SMG 0.0007, shotgun 0.0018, rifle 0.0009 | the 0.82 starting revolver breaks after ~680 rounds with no care |
+| Jam chance | per shot, if `cond < jamBelow`: `(jamBelow − cond) · jamRate · jam`; jamRate 0.06, jam: pistol 0.5, SMG 1.6, shotgun 0.6, rifle 1 | SMG at 0.3: 0.35·0.06·1.6 = 3.4% a round, a jam every ~30 rounds |
+| Clear time | `clearTime · reloadMul`; the stuck round is lost | 0.9 s at DEX 0 |
+| Kit | `cond ← min(kitMax, cond + kit)` = `min(0.95, cond + 0.35)`; refuses at cond 0 | 0.3 → 0.65 |
+| Gunsmith | `max(smithMin, round((1 − cond) · value · smith))`, smith 0.6, smithMin $10 | broken revolver ($80): $48; rifle ($350) at 0.5: $105 |
+| Found gun | cond ∈ `GUN_FOUND[faction].cond`, loaded = `round(mag · U(loaded))`, spare = `round(U(spare))` rounds | soldier: 62–95%, 9–30 loaded, 20–60 spare |
+| Round weight | `kg · n`; pistol 0.012, SMG 0.008, shell 0.045, rifle 0.025 kg; bulk 0.006 / 0.004 / 0.04 / 0.012 L | 100 rifle rounds: 2.5 kg, 1.2 L |
 
 ## 5. Edge cases
 
@@ -91,6 +142,17 @@ takes your hands and your eyes.
 - **Old saves** without `inventory` load the start kit; trunks are saved by vehicle id and restored onto the same ids.
 - **Items a save names that no longer exist** are dropped on load.
 - **A body that is recycled** (character budget) keeps its container until the 60-body cap forgets it.
+- **A save from before rounds were items:** `g.inv.ammo` comes back as plain numbers and the pack holds no rounds;
+  `bindAmmo` (called after every load) makes the carried count equal those numbers, so the rounds appear in the pack
+  (any that will not fit at your feet). A save from after loads its rounds with the pack and the numbers agree.
+- **Your last gun** stays on you: stowing it is refused ("your last gun stays on you"); the engine has no unarmed mode.
+- **Stowing or swapping a gun clears its jam** (you work the action as you put it down) and cancels a reload or clear in
+  progress; switching guns mid-clear cancels the clear (the jam stays on the gun you put away).
+- **Rounds bought or handed to you with a full pack** go to the trunk of the car you are in, else the ground at your
+  feet; nothing is lost.
+- **A gun taken out of a shop's box** is theft like anything else (one `steal` deed per box per 30 s).
+- **A gun with no rounds in it** is still a gun: it slings empty and you reload it from your pockets.
+- **Old saves** without `cond` treat every gun as clean (1.0); without `jam`, nothing is jammed.
 
 ## 6. Dependencies
 
@@ -100,7 +162,13 @@ takes your hands and your eyes.
 - `web/src/systems/vehicledamage.js`: tyres, engine, radiator, tank, fuel (tools act on them).
 - `web/src/systems/stunts.js`: piles sit on ramp/dune height.
 - `web/src/ui/qol.js`: Esc leaves the PACK screen to close itself; the pause-menu key list names I and V.
-- `web/src/agent/api.js`: `inventory`, `item`, `pack`, save/load, the selftest checks.
+- `web/src/agent/api.js`: `inventory`, `item`, `pack`, `gun`, save/load (restore calls `bindAmmo`), `fire`/`engage`
+  (wear, jams, broken), the selftest checks (stage tops rounds up to 60 rather than adding: rounds weigh now).
+- `web/src/systems/combat.js`: `WEAPONS` (mag, ammo kind, names) for guns as items.
+- `web/src/main.js`: `handleShooting`/`reload` (the jam and broken rules), `onKill` (`armBody`), the ammo pickup.
+- `web/src/data/npcs.js`: Ike sells guns through `gainGun`, fixes guns (`smithQuote`/`smithFix`), sells kits and rifle
+  rounds. `web/src/ui/dialogue.js`: a choice's text may be a function (a price that depends on what you carry).
+- `web/src/ui/hud.js`, `hud.css`, `hudart.js`: the condition gauge, the JAMMED/BROKEN stamp, the rifle cartridge.
 - WEB_WORLD_MEMORY: none yet (phase 2: theft from an owned box is a `steal` deed). WEB_FAN_SERVICE_BIBLE §PZ (the
   survival-sim pack) points here.
 
@@ -116,6 +184,14 @@ takes your hands and your eyes.
 | MAX_BODIES | inventory.js | 60 | 30–120 | searchable dead remembered |
 | TRUNK litres | inventory.js | per type | — | what a car hauls |
 | quick-use thresholds | main.js quickUse | 45% hp / 75% need | — | how eager V is |
+| GUN_WEAR.*.wear | data/items.js | 0.0007–0.0018 | 0.0003–0.004 | how many rounds a gun lasts between cleanings |
+| GUN_WEAR.*.jam | data/items.js | 0.5–1.6 | 0.2–3 | which guns jam readily (the cheap SMG) |
+| GUN_CARE.jamBelow / jamRate | data/items.js | 0.65 / 0.06 | 0.4–0.8 / 0.02–0.12 | when worn guns start to jam, and how often |
+| GUN_CARE.clearTime | data/items.js | 0.9 s | 0.5–2 | how much a jam costs in a fight |
+| GUN_CARE.kit / kitMax | data/items.js | 0.35 / 0.95 | 0.2–0.5 / 0.8–1 | how far a kit goes; whether the gunsmith still matters |
+| GUN_CARE.smith / smithMin | data/items.js | 0.6 / $10 | 0.3–1 | what keeping a gun costs at Ike's |
+| GUN_FOUND | data/items.js | per faction | — | what the dead's guns are worth taking |
+| ammo kg / bulk | ITEMS.ammo_* | see formulas | — | how many rounds you can haul |
 
 ## 8. Acceptance criteria (selftest)
 
@@ -128,9 +204,19 @@ takes your hands and your eyes.
    remembers it (robbedMe).
 5. At a locked back door: lockpicks open it with no noise and five picks left; locked again, a crowbar opens it with a
    noise and is still in the pack.
+6. Rounds: a reload from 30 loose pistol rounds leaves 6 in the gun and 24 in the pack (both the view and the pack
+   say so), and the carried weight drops by exactly 6 × 0.012 kg; adding 40 more shells than the pack has room for
+   leaves exactly 40 at your feet; a pack with no rounds and `ammo.pistol = 50` as a plain number binds to 50 rounds
+   in the pack (and the save JSON says 50).
+7. Guns: a Remnant soldier killed beside you leaves `gun_rifle` at 62–95% with 9–30 rounds in it and ≥ 20 spare rifle
+   rounds; Space on it in the PACK screen slings it into your hands with exactly that condition and those rounds;
+   Space on the slung rifle beside a car puts it in the trunk unchanged; a revolver at 0.2 that jams has a dead
+   trigger (a pull starts clearing, nothing fires) and after the clear time is unjammed with one round fewer; a kit
+   adds 0.35; at 0 a pull does nothing and a kit refuses; Ike's fix makes it 1.0 for `round(80 × 0.6)` = $48.
 
 ## Open (phase 2)
 
-A search time and its noise; locked boxes (a gun safe); guns and rounds as items (condition, jams); trade (sell
-to traders at standing-adjusted prices); a portable radio item that gates STATIC 1660 AM away from cars and the
-station; refilling bottles at pumps and the river.
+A search time and its noise; locked boxes (a gun safe); trade (sell to traders at standing-adjusted prices; guns
+priced by condition); a portable radio item that gates STATIC 1660 AM away from cars and the station; refilling
+bottles at pumps and the river; magazines as things (loading a spare magazine is a reload you can prepare); a
+timed clean (a kit takes a minute you spend standing still).

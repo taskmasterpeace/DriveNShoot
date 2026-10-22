@@ -24,7 +24,9 @@ import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { InventoryUI } from './ui/inventory.js';
-import { ITEMS } from './data/items.js';
+import { ITEMS, GUN_CARE } from './data/items.js';
+import { Trade } from './systems/trade.js';
+import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
@@ -138,11 +140,14 @@ class Game {
     this.wantedT = 0;
     this.stats = { kills: 0, raiderKills: 0 };
     this.quests = {};
-    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
+    // The guns on you (loadout), the rounds in each (mag), each one's condition (cond: 1 clean) and jams. ammo is a view
+    // onto the rounds in your pockets once the inventory binds it (36 loose revolver rounds to start).
+    this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6 }, cond: { pistol: 0.82 }, jam: {}, ammo: { pistol: 36, smg: 0, shells: 0, rifle: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
+    this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -150,6 +155,8 @@ class Game {
     this.camPos = new THREE.Vector3(0, 40, 0);
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
+    this.zoomLevel = ZOOM.start; // index into ZOOM.levels (data/camera.js)
+    this.viewR = 30;             // radius of ground the camera shows (m): what 'out of sight' means right now
     this.aim = { x: 0, z: 0 };
     this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
     this.raiderTimer = 10;
@@ -306,7 +313,7 @@ class Game {
         it.alive = false;
         this.audio.pickup();
         let text;
-        if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
+        if (it.type === 'ammo') { const A = this.inv.ammo, W = this.inv.weapons; A.pistol += 12; if (W.includes('smg')) A.smg += 32; if (W.includes('shotgun')) A.shells += 4; if (W.includes('rifle')) A.rifle += 10; text = '+ AMMO'; }
         else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
         else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
@@ -449,10 +456,13 @@ class Game {
         }
       }
     }
-    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.6 ? 'ammo' : 'cash'); }
-    if (c.faction === 'soldier' && Math.random() < 0.6) this.dropPickup(c.x + 0.8, c.z, 'ammo'); // a soldier's spare magazines
-    // The dead carry what they carried: a body is a container you can go through (I, standing over it).
-    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+    if (c.faction === 'raider' && Math.random() < 0.45) this.dropPickup(c.x + 0.8, c.z, 'cash'); // the pocket money spills
+    // The dead carry what they carried: a body is a container you can go through (I, standing over it), the gun they
+    // held and its spare rounds in it (a soldier's rifle is the prize).
+    if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
+      const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      this.inventory.armBody(body, c);
+    }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
   }
 
@@ -809,13 +819,17 @@ class Game {
     if (k === this.inv.current) return;
     this.inv.current = k;
     this.player.weapon = k;
-    this.player.reloading = 0;
+    this.player.reloading = 0; this.player.clearing = false;
     this.audio.blip();
   }
 
+  // R: clear a jam if the gun has one (work the action, throw the stuck round), else reload from your pockets.
   reload() {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
-    if (p.reloading > 0 || this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    if (p.reloading > 0) return;
+    if (this.inv.jam[k]) { p.reloading = GUN_CARE.clearTime * this.skills.reloadMul; p.clearing = true; this.audio.reload(); return; }
+    if (this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
+    p.clearing = false;
     p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
   }
@@ -829,59 +843,77 @@ class Game {
     if (p.reloading > 0) {
       p.reloading -= dt;
       if (p.reloading <= 0) {
-        const need = w.mag - this.inv.mag[k];
-        const take = Math.min(need, this.inv.ammo[w.ammo]);
-        this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
-        this.skillsSys.gain('dexterity', 1.5);
+        if (p.clearing) { p.clearing = false; this.inventory.cleared(k); }
+        else {
+          const need = w.mag - this.inv.mag[k];
+          const take = Math.min(need, this.inv.ammo[w.ammo]); // out of the rounds in your pockets
+          this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+          this.skillsSys.gain('dexterity', 1.5);
+        }
       }
       return;
     }
     const want = w.auto ? I.mouse.left : I.mouse.leftPressed;
     if (!want || p.cool > 0) return;
+    // A jammed gun's trigger goes dead: the pull starts clearing it. A broken one does nothing at all.
+    if (this.inv.jam[k]) { this.audio.empty(); p.cool = 0.3; this.reload(); return; }
+    if (this.inventory.cond(k) <= 0) {
+      this.audio.empty(); p.cool = 0.5;
+      if (this.time - (this.brokeT ?? -9) > 3) { this.brokeT = this.time; this.hud.toast(`${w.short} IS BROKEN · A GUNSMITH CAN FIX IT`, 'warn'); }
+      return;
+    }
     if (this.inv.mag[k] <= 0) { this.audio.empty(); p.cool = 0.25; this.reload(); return; }
     // In a car: shoot out of the window on that side (knocks the glass out first).
     const fired = p.inVehicle ? this.carCombat.fireFromVehicle(p, p.inVehicle, k, ang) : this.combat.fire(p, k, ang);
     if (fired) {
       this.inv.mag[k]--;
       p.cool = w.rate;
-      if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
+      if (this.inventory.shot(k)) { // every round wears it; a worn one may jam on the next
+        this.audio.burst?.({ dur: 0.06, freq: 1500, type: 'bandpass', q: 5, vol: 0.4, decay: 0.05 }); // the action stops short
+        this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
+      } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
       this.hud.shake(w.shake * 0.4);
     }
   }
 
   // ---- camera ----------------------------------------------------------------------------
+  // Step the zoom (Z out, Shift+Z in; - and =). Clamped at both ends rather than wrapping: a jump from the widest
+  // view back to the closest mid-fight is disorienting.
+  setZoom(i) {
+    const n = Math.max(0, Math.min(ZOOM.levels.length - 1, i));
+    if (n === this.zoomLevel) return this.zoomLevel;
+    this.zoomLevel = n;
+    this.hud.toast(`ZOOM · ${ZOOM.levels[n].name}`);
+    this.emit('zoom', { level: n, name: ZOOM.levels[n].name });
+    return n;
+  }
+
   updateCamera(dt) {
-    const p = this.player, v = p.inVehicle;
-    let tx = p.x, tz = p.z, h = this.zoomFar ? 72 : 33;
+    const p = this.player, v = p.inVehicle, L = ZOOM.levels[this.zoomLevel];
+    let tx = p.x, tz = p.z, h = L.foot;
     if (v) {
       const sp = this.vehiclesSys.speed(v);
-      h = (this.zoomFar ? 82 : 40) + sp * 0.75;
+      h = Math.min(ZOOM.maxHeight, L.drive + sp * ZOOM.speedLift);
       tx = v.x + v.vx * 0.55; tz = v.z + v.vz * 0.55;
     } else {
-      // Lean the view toward the cursor so you can see what you shoot.
-      tx += clamp((this.aim.x - p.x) * 0.25, -8, 8);
-      tz += clamp((this.aim.z - p.z) * 0.25, -8, 8);
-      if (this.insideBuilding && !this.zoomFar) h = 26;
+      // Lean the view toward the cursor so you can see what you shoot (further out at a wider zoom).
+      const lean = 8 * Math.max(1, L.foot / 33);
+      tx += clamp((this.aim.x - p.x) * 0.25, -lean, lean);
+      tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
+      if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
     }
-    this.camHeight += (h - this.camHeight) * Math.min(1, dt * 2);
-    const k = Math.min(1, dt * 5);
+    // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
+    this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
+    const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
+    // How much ground is on screen: the half-diagonal of the footprint, with room for the camera's tilt.
+    const halfZ = this.camHeight * Math.tan((this.camera.fov * Math.PI) / 360), halfX = halfZ * this.camera.aspect;
+    this.viewR = Math.hypot(halfX, halfZ) * 1.15;
     const s = this.hud.shakeV;
     const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
     this.camera.position.set(this.camLook.x + sx, this.camHeight, this.camLook.z + this.camHeight * 0.14 + sz);
     this.camera.lookAt(this.camLook.x + sx, 0, this.camLook.z + sz);
-  }
-
-  // The sun's shadow box grows with what the camera sees (docs/design/WEB_STREAMING.md F7): half the visible width plus
-  // the lead at speed, 70-110 m, so mesas and cacti at the screen's edge keep their shadows at 46 m/s.
-  fitShadows() {
-    const v = this.player.inVehicle, sp = v ? this.vehiclesSys.speed(v) : 0;
-    const half = clamp(this.camHeight * 0.3839 * this.camera.aspect + 0.55 * sp, 70, 110);
-    const sc = this.sky.sun.shadow.camera;
-    if (Math.abs(sc.right - half) < 3) return;
-    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
-    sc.updateProjectionMatrix();
   }
 
   updateInterior() {
@@ -907,7 +939,7 @@ class Game {
     // Bodies far from view eventually get cleaned up (the blood stays).
     for (let i = this.chars.length - 1; i >= 0; i--) {
       const c = this.chars[i];
-      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 70) this.removeChar(c);
+      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
     }
     // Dustwolves keep coming.
     this.raiderTimer -= dt;
@@ -917,7 +949,7 @@ class Game {
       // As many as the band can field (faction sim strength), and only from camps it still holds.
       const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
       if (alive < cap) {
-        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
+        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
         if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
       }
@@ -945,7 +977,7 @@ class Game {
           <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
-          <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
+          <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom out (Shift: in)</div>
           <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
@@ -968,7 +1000,9 @@ class Game {
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT')) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
-    if (I.hit('KeyZ')) this.zoomFar = !this.zoomFar;
+    if (I.hit('KeyZ')) this.setZoom(this.zoomLevel + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
+    if (I.hit('Minus')) this.setZoom(this.zoomLevel + 1);
+    if (I.hit('Equal')) this.setZoom(this.zoomLevel - 1);
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
       this.charR.sync(this.chars, 0); this.qol.update(dt); I.endFrame(); return;
@@ -1007,9 +1041,8 @@ class Game {
     this.updateCamera(dt);
     this.streamer.update(dt); // lay out what is coming, put what is near on the GPU, hold the dust wall
     const p = this.player;
-    this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat);
-    this.streamer.postSky();
-    this.fitShadows();
+    this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat, this.viewR);
+    this.streamer.postSky(); // the dust wall thickens the fog; streamed surfaces follow the sky's wet/dry tint
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
     const flashOn = this.flashOverride ?? this.sky.night > 0.55;

@@ -1,18 +1,22 @@
-import { ITEMS, LOOT, START_KIT, BODY_LITRES } from '../data/items.js';
+import { ITEMS, LOOT, START_KIT, BODY_LITRES, AMMO_ITEM, GUN_ITEM, GUN_WEAR, GUN_CARE, GUN_FOUND } from '../data/items.js';
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
+import { WEAPONS } from './combat.js';
 
-// What you carry and what the world holds (docs/design/WEB_INVENTORY.md). The guns and their rounds stay in g.inv
-// (combat reads them every shot); everything else is an item in a container.
+// What you carry and what the world holds (docs/design/WEB_INVENTORY.md). Everything is an item in a container,
+// rounds included. The guns you carry are your loadout (g.inv.weapons: holster and sling, outside the list, quick
+// to hand); a gun you put down becomes an item that keeps its condition and the rounds in it.
 //   carried   - one list on your person: pockets and belt (BODY_LITRES) plus whatever pack you wear
 //   worn      - the pack on your back (an item id, outside the list; its litres are the list's extra room)
 //   boxes     - the world's containers (cupboards, crates, trunks, the dead): placed by whoever builds the place,
 //               rolled from a seeded loot table the first time anyone opens them, saved once touched
-// A slot is { id, n, left?, made? }: left = uses left in a thing that has uses (stack 1), made = the game hour food
-// was fresh from (it spoils on the game clock, not in real time).
+// A slot is { id, n, left?, made?, cond?, loaded? }: left = uses left in a thing that has uses (stack 1), made = the
+// game hour food was fresh from (it spoils on the game clock, not in real time), cond and loaded = a gun's condition
+// (1 clean, 0 broken) and the rounds in it.
 const MAX_BODIES = 60;
+const BOUND = Symbol('rounds are items');
 // What a shop's shelves and crates hold (by the shopkeeper's trade), and what a home's shelves might.
-const SHOP_LOOT = { Clinic: 'bathroom', Mechanic: 'garage', Gunsmith: 'office', 'Water Trader': 'kitchen', 'Radio DJ': 'office', 'Warden Captain': 'office' };
+const SHOP_LOOT = { Clinic: 'bathroom', Mechanic: 'garage', Gunsmith: 'gunsmith', 'Water Trader': 'kitchen', 'Radio DJ': 'office', 'Warden Captain': 'office' };
 const HOME_LOOT = ['kitchen', 'bathroom', 'bedroom', 'office', 'kitchen'];
 const TRUNK = { rig: 900, interceptor: 260, buggy: 60, pickup: 700, sedan: 380, van: 1400, airboat: 120, jetski: 20, gunboat: 400, atv: 50, bike: 22, patrol: 600, apc: 1200 };
 
@@ -43,6 +47,7 @@ export class Inventory {
     this.buildPiles(game.scene);
     this.wear(START_KIT.pack);
     for (const [id, n] of START_KIT.items) this.add(this.carried, id, n);
+    this.bindAmmo(); // the starting rounds go into your pockets
   }
 
   // ---- the clock food spoils on ----------------------------------------------------------------------------
@@ -79,6 +84,7 @@ export class Inventory {
       const s = { id, n: k };
       if (it.uses) s.left = state.left ?? it.uses;
       if (it.spoils) s.made = made;
+      if (it.kind === 'gun') { s.cond = state.cond ?? 1; s.loaded = state.loaded ?? 0; }
       box.slots.push(s); left -= k;
     }
     return fit;
@@ -89,14 +95,14 @@ export class Inventory {
     const s = box.slots[i];
     if (!s) return null;
     const k = Math.min(n, s.n);
-    const out = { id: s.id, n: k, left: s.left, made: s.made };
+    const out = { id: s.id, n: k, left: s.left, made: s.made, cond: s.cond, loaded: s.loaded };
     s.n -= k;
     if (s.n <= 0) box.slots.splice(i, 1);
     return out;
   }
 
-  // Move n from slot i of one box to another. Returns how many moved.
-  move(from, i, to, n = 1) {
+  // Move n from slot i of one box to another. Returns how many moved. paid: bought over a counter (trade.js), not taken.
+  move(from, i, to, n = 1, paid = false) {
     const s = from.slots[i];
     if (!s || from === to) return 0;
     const it = ITEMS[s.id];
@@ -104,8 +110,9 @@ export class Inventory {
     if (k <= 0) return 0;
     const t = this.take(from, i, k);
     this.add(to, t.id, t.n, t);
-    // Out of somebody's shop and into your pocket: theft, as the world sees it (deeds: witnesses, word, memory).
-    if (from.owner && to === this.carried) this.stole(from, t);
+    // Out of somebody's shop and anywhere not theirs (your pocket, your trunk, the floor): theft, as the world sees it
+    // (deeds: witnesses, word, memory). Bought over the counter, it is not.
+    if (from.owner && to.owner !== from.owner && !paid) this.stole(from, t);
     this.changed();
     return k;
   }
@@ -155,6 +162,7 @@ export class Inventory {
   // Use one of slot i (in the carried list). Returns { ok, text } or { ok: false, why }.
   use(i) {
     const g = this.g, box = this.carried, s = box.slots[i], it = s && ITEMS[s.id];
+    if (it?.kind === 'gun') return this.sling(box, i); // a gun in your pack: sling it (swapped for yours)
     if (!it?.use) return { ok: false, why: it ? `${it.name} is not something you use like that` : 'nothing there' };
     if (it.uses && !(s.left > 0)) return { ok: false, why: `the ${it.name.toLowerCase()} is empty` };
     if (it.needs && !this.hasTag(it.needs)) return { ok: false, why: it.needs === 'blade' ? 'you need a knife or an opener for that' : `you need something with a ${it.needs}` };
@@ -202,6 +210,15 @@ export class Inventory {
       d[part] = Math.min(1, d[part] + amt);
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
+    if (verb === 'clean') { // the gun in your hands
+      const k = g.inv.current, c = this.cond(k), name = WEAPONS[k]?.short ?? k;
+      if (c <= 0) return { ok: false, why: `the ${name.toLowerCase()} is broken, not dirty: a gunsmith can fix it` };
+      if (c >= GUN_CARE.kitMax - 0.005) return { ok: false, why: `the ${name.toLowerCase()} is as clean as a kit gets it` };
+      g.inv.cond[k] = Math.min(GUN_CARE.kitMax, c + GUN_CARE.kit);
+      delete g.inv.jam[k];
+      g.emit('gunCleaned', { weapon: k, cond: +g.inv.cond[k].toFixed(3) });
+      return { ok: true, text: `${name} CLEANED · ${Math.round(g.inv.cond[k] * 100)}%` };
+    }
     if (verb === 'pick' || verb === 'pry') {
       const door = g.interiors?.nearest(P);
       if (!door?.leaves || !door.locked) return { ok: false, why: 'nothing locked within reach' };
@@ -243,6 +260,172 @@ export class Inventory {
       if (score > bScore) { bScore = score; bi = i; }
     });
     return bi;
+  }
+
+  // ---- rounds ------------------------------------------------------------------------------------------------
+  // The gun code reads and writes rounds as g.inv.ammo[kind] (reload, the HUD, pickups, trades, the agent), so
+  // g.inv.ammo is a view onto the carried list: reading counts the rounds you carry, writing adds rounds (what will
+  // not fit goes in the trunk of the car you're in, else at your feet) or takes them out, newest stacks first.
+  // Called on a new game and after every load: the plain numbers g.inv.ammo held become the count, so a save from
+  // before rounds were items migrates by itself.
+  bindAmmo() {
+    const inv = this.g.inv;
+    if (!inv) return;
+    inv.cond ??= {}; inv.jam ??= {};
+    const plain = inv.ammo;
+    if (plain?.[BOUND]) return;
+    const self = this, C = this.carried;
+    inv.ammo = new Proxy({}, {
+      get(_, k) { if (k === BOUND) return true; const id = AMMO_ITEM[k]; return id ? C.count(id) : undefined; },
+      set(_, k, v) { const id = AMMO_ITEM[k]; if (id) self.setCount(id, v); return true; },
+      has(_, k) { return k in AMMO_ITEM; },
+      deleteProperty() { return true; },
+      ownKeys() { return Object.keys(AMMO_ITEM); },
+      getOwnPropertyDescriptor(_, k) { const id = AMMO_ITEM[k]; return id ? { value: C.count(id), writable: true, enumerable: true, configurable: true } : undefined; },
+    });
+    if (plain) for (const k in AMMO_ITEM) if (plain[k] !== undefined) inv.ammo[k] = plain[k];
+  }
+
+  // Make the carried count of an item exactly n.
+  setCount(id, n) {
+    const have = this.carried.count(id), want = Math.max(0, Math.round(Number(n) || 0));
+    if (want > have) this.stow(id, want - have);
+    else if (want < have) this.spend(id, have - want);
+  }
+
+  // Into your pockets; what will not fit goes in the trunk of the car you're in, else on the ground at your feet.
+  // Returns how many of the n you now carry.
+  stow(id, n, state = {}) {
+    const k = this.add(this.carried, id, n, state);
+    if (k < n) {
+      const P = this.g.player, v = P?.inVehicle, it = ITEMS[id];
+      const t = v ? this.add(this.trunk(v), id, n - k, state) : 0;
+      if (n - k - t > 0) this.add(this.groundAt(P?.x ?? 0, P?.z ?? 0), id, n - k - t, state);
+      this.g.hud?.toast?.(`NO ROOM · ${n - k} ${(it?.name ?? id).toUpperCase()} ${t >= n - k ? 'IN THE TRUNK' : 'AT YOUR FEET'}`, 'warn');
+      this.g.emit('noRoom', { item: id, n: n - k, trunk: t });
+    }
+    this.changed();
+    return k;
+  }
+
+  // Out of your pockets, newest stacks first (the part-used box before the full one). Returns how many.
+  spend(id, n) {
+    let left = n;
+    for (let i = this.carried.slots.length - 1; i >= 0 && left > 0; i--) {
+      const s = this.carried.slots[i];
+      if (s.id !== id) continue;
+      const k = Math.min(left, s.n);
+      this.take(this.carried, i, k); left -= k;
+    }
+    this.changed();
+    return n - left;
+  }
+
+  // ---- guns ------------------------------------------------------------------------------------------------
+  // Each gun you carry has a condition (g.inv.cond: 1 clean, 0 broken) that every shot wears (GUN_WEAR). Below
+  // GUN_CARE.jamBelow a shot may jam it (g.inv.jam) until you clear it; at 0 it will not fire until a gunsmith
+  // fixes it. A cleaning kit puts some back.
+  cond(k) { return this.g.inv.cond?.[k] ?? 1; }
+  gunState(k) { const c = this.cond(k); return c <= 0 ? 'broken' : this.g.inv.jam?.[k] ? 'jammed' : c < GUN_CARE.jamBelow ? 'worn' : 'ok'; }
+
+  // A round of gun k went off. Returns true when the next one jammed.
+  shot(k) {
+    const inv = this.g.inv, W = GUN_WEAR[k] ?? { wear: 0.001, jam: 1 };
+    const c = inv.cond[k] = Math.max(0, this.cond(k) - W.wear);
+    if (c <= 0) { this.g.emit('gunBroke', { weapon: k }); return false; }
+    if (c < GUN_CARE.jamBelow && Math.random() < (GUN_CARE.jamBelow - c) * GUN_CARE.jamRate * W.jam) {
+      inv.jam[k] = true;
+      this.g.emit('jam', { weapon: k, cond: +c.toFixed(3) });
+      return true;
+    }
+    return false;
+  }
+
+  // The jam is out: the round that stuck is thrown away.
+  cleared(k) {
+    const inv = this.g.inv;
+    if (!inv.jam?.[k]) return;
+    delete inv.jam[k];
+    if ((inv.mag[k] ?? 0) > 0) inv.mag[k]--;
+    this.g.emit('jamCleared', { weapon: k });
+  }
+
+  // A gun comes to you (bought, given): slung if you have none of its kind, else a spare in your pack. state: { cond,
+  // loaded }. Returns 'slung' | 'spare'.
+  gainGun(k, state = {}) {
+    const inv = this.g.inv, W = WEAPONS[k];
+    if (!W) return null;
+    if (!inv.weapons.includes(k)) {
+      inv.weapons.push(k);
+      inv.cond[k] = state.cond ?? 1; inv.mag[k] = Math.min(W.mag, state.loaded ?? W.mag); delete inv.jam[k];
+      this.changed();
+      return 'slung';
+    }
+    this.stow(GUN_ITEM[k], 1, { cond: state.cond ?? 1, loaded: state.loaded ?? 0 });
+    return 'spare';
+  }
+
+  // Sling the gun in slot i of a box: into your loadout if you have none of its kind, else swapped for yours (yours
+  // goes where it lay, with its condition and its rounds). Out of somebody's shop it is still theft.
+  sling(box, i, paid = false) {
+    const g = this.g, inv = g.inv, s = box?.slots[i], it = s && ITEMS[s.id];
+    if (it?.kind !== 'gun') return { ok: false, why: 'that is not a gun' };
+    const k = it.weapon, had = inv.weapons.includes(k);
+    const t = this.take(box, i, 1);
+    if (had) this.add(box, GUN_ITEM[k], 1, { cond: this.cond(k), loaded: inv.mag[k] ?? 0 });
+    else inv.weapons.push(k);
+    inv.cond[k] = t.cond ?? 1; inv.mag[k] = Math.min(WEAPONS[k].mag, t.loaded ?? 0); delete inv.jam[k];
+    if (box.owner && box !== this.carried && !paid) this.stole(box, t);
+    if (g.player) g.player.reloading = 0; // a reload in progress was for the other gun
+    g.switchWeapon?.(k);
+    this.changed();
+    g.emit('gunSlung', { weapon: k, from: box.id, swapped: had, cond: +inv.cond[k].toFixed(3), loaded: inv.mag[k] });
+    return { ok: true, text: `${had ? 'SWAPPED · ' : ''}${WEAPONS[k].name} · ${Math.round(inv.cond[k] * 100)}%` };
+  }
+
+  // Put a gun from your loadout into a box (a trunk, a body, a shelf, the ground). It keeps its condition and its
+  // rounds. The last one stays on you: the hands need a gun (this engine has no unarmed mode).
+  stowGun(k, box) {
+    const g = this.g, inv = g.inv;
+    if (!inv.weapons.includes(k)) return { ok: false, why: 'you do not carry that' };
+    if (inv.weapons.length <= 1) return { ok: false, why: 'your last gun stays on you' };
+    if (!this.add(box, GUN_ITEM[k], 1, { cond: this.cond(k), loaded: inv.mag[k] ?? 0 })) return { ok: false, why: `no room in ${box.label.toLowerCase()}` };
+    inv.weapons.splice(inv.weapons.indexOf(k), 1);
+    inv.mag[k] = 0; delete inv.cond[k]; delete inv.jam[k];
+    if (inv.current === k) { if (g.player) g.player.reloading = 0; g.switchWeapon(inv.weapons[0]); }
+    this.changed();
+    g.emit('gunStowed', { weapon: k, to: box.id });
+    return { ok: true, text: `${WEAPONS[k].short} ${box.kind === 'ground' ? 'PUT DOWN' : `INTO THE ${box.label.split(' · ')[0]}`}` };
+  }
+
+  // The dead keep the gun they carried (in their body's container), worn and part-loaded by who they were, with a
+  // few spare rounds for it.
+  armBody(box, c) {
+    const k = c.weapon, id = GUN_ITEM[k], W = WEAPONS[k];
+    if (!id || !W) return;
+    const F = GUN_FOUND[c.faction] ?? GUN_FOUND.default, rng = makeRng(box.seed ^ 0x9e3779b9);
+    const r = (a) => a[0] + rng() * (a[1] - a[0]);
+    this.add(box, id, 1, { cond: +r(F.cond).toFixed(3), loaded: Math.round(W.mag * r(F.loaded)) });
+    const spare = Math.round(r(F.spare));
+    if (spare > 0 && AMMO_ITEM[W.ammo]) this.add(box, AMMO_ITEM[W.ammo], spare);
+  }
+
+  // The gunsmith brings a gun back to clean for a share of its worth per point of wear (GUN_CARE.smith).
+  smithQuote(k) { return Math.max(GUN_CARE.smithMin, Math.round((1 - this.cond(k)) * (ITEMS[GUN_ITEM[k]]?.value ?? 100) * GUN_CARE.smith)); }
+  smithFix(k) {
+    const g = this.g;
+    if (!g.inv.weapons.includes(k)) return { ok: false, why: 'you do not carry that' };
+    if (this.cond(k) >= 0.995) return { ok: false, why: 'there is nothing wrong with it' };
+    const cost = this.smithQuote(k);
+    if (!g.spend(cost)) return { ok: false, why: 'not enough cash' };
+    g.inv.cond[k] = 1; delete g.inv.jam[k];
+    g.emit('gunFixed', { weapon: k, cost });
+    return { ok: true, cost };
+  }
+
+  gunView() {
+    const inv = this.g.inv;
+    return inv.weapons.map((k) => ({ weapon: k, name: WEAPONS[k]?.name, cond: +this.cond(k).toFixed(3), state: this.gunState(k), loaded: inv.mag[k] ?? 0, mag: WEAPONS[k]?.mag, reserve: inv.ammo[WEAPONS[k]?.ammo] ?? 0, inHand: inv.current === k }));
   }
 
   // ---- the world's containers ------------------------------------------------------------------------------
@@ -297,6 +480,7 @@ export class Inventory {
         const it = ITEMS[id], count = lo + Math.floor(rng() * (hi - lo + 1));
         // Found things are not new: part-used, and food already some way along.
         const state = { left: it.uses ? Math.max(1, Math.ceil(it.uses * (0.35 + rng() * 0.65))) : undefined, made: it.spoils ? this.hours() - rng() * it.spoils * 1.6 : undefined };
+        if (it.kind === 'gun') { state.cond = +(0.45 + rng() * 0.5).toFixed(3); state.loaded = 0; } // second-hand, and nobody leaves one loaded on a shelf
         this.add(box, id, count, state);
         break;
       }
@@ -360,13 +544,13 @@ export class Inventory {
 
   slotView(s) {
     const it = ITEMS[s.id];
-    return { id: s.id, name: it?.name ?? s.id, n: s.n, kind: it?.kind, kg: +slotKg(s).toFixed(2), litres: +((it?.bulk ?? 0) * s.n).toFixed(2), left: s.left, uses: it?.uses, fresh: this.freshness(s), value: it?.value };
+    return { id: s.id, name: it?.name ?? s.id, n: s.n, kind: it?.kind, kg: +slotKg(s).toFixed(2), litres: +((it?.bulk ?? 0) * s.n).toFixed(2), left: s.left, uses: it?.uses, fresh: this.freshness(s), value: it?.value, cond: s.cond, loaded: s.loaded };
   }
 
   boxView(b) { return b && { id: b.id, label: b.label, kind: b.kind, litres: +b.litres().toFixed(1), cap: b.cap, kg: +b.kg().toFixed(1), items: b.slots.map((s) => this.slotView(s)) }; }
 
   view() {
-    return { worn: this.worn, kg: +this.kg().toFixed(1), carried: this.boxView(this.carried), opened: this.opened ? this.boxView(this.opened) : null, boxes: this.boxes.size, rolled: [...this.boxes.values()].filter((b) => b.rolled).length };
+    return { worn: this.worn, kg: +this.kg().toFixed(1), guns: this.gunView(), carried: this.boxView(this.carried), opened: this.opened ? this.boxView(this.opened) : null, boxes: this.boxes.size, rolled: [...this.boxes.values()].filter((b) => b.rolled).length };
   }
 
   save() {
