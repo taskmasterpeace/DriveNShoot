@@ -9,6 +9,9 @@ import { RAIL } from '../world/rail.js';
 // the hauler floors it. Kill the hauler and it spills its cargo.
 
 const LANE = 3.5, CRUISE = 15, ENGAGE_R = 55;
+// Convoys live by distance to the player (docs/design/WEB_STREAMING.md §3.7): one rolls in from out of sight, crosses
+// Phoenix on Route 66 and runs on out along I-10; it is cleared once every vehicle in it is this far from you.
+const GONE_R = 3500, ISLAND = 464;
 const FORMATION = [
   { role: 'lead', type: 'buggy', paint: '#4a2018', gap: 0, crew: ['smg'] },
   { role: 'outrider', type: 'bike', paint: '#2a2622', gap: 9, side: 1, crew: ['smg'] },
@@ -26,17 +29,30 @@ export class Convoy {
     this.rng = makeRng(661);
   }
 
+  // The corridor (world/worldindex.js), when the streamer is up.
+  get W() { return this.g.streamer?.W ?? null; }
+  outside(x, z) { return Math.abs(x) > ISLAND || Math.abs(z) > ISLAND; }
+  // A point on the convoy's lane of I-10: s along the road, the formation's lateral weave on top.
+  lanePoint(s, dir, weave = 0) {
+    const W = this.W, f = W.at(s), sec = W.section(s), u = dir * (sec.lane0 + (sec.lane1 - sec.lane0) / 2 + weave);
+    return { x: f.x + f.nx * u, z: f.z + f.nz * u, h: Math.atan2(f.tx * dir, f.tz * dir) };
+  }
+
   // dir +1 = rolling east (spawn in the west), -1 = west.
   spawn(dir) {
     const g = this.g, p = g.player;
     if (this.active) this.despawn();
-    if (!dir) dir = p.x > 0 ? 1 : -1; // come from the far side and cross toward the player
-    const x0 = -dir * (HALF - 55), lane = dir * LANE; // whole formation starts inside the map wall
+    const px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
+    // Out on the interstate the convoy rolls in along it from 900 m back, out of sight; in Phoenix it enters on Route 66.
+    const W = this.W, pr = W && this.outside(px, pz) ? W.project(px, pz, 2048) : null, onRoad = pr && pr.d < 1500;
+    if (!dir) dir = onRoad ? (Math.random() < 0.5 ? 1 : -1) : p.x > 0 ? 1 : -1; // come from the far side and cross toward the player
+    const x0 = -dir * (HALF - 55), lane = dir * LANE; // whole formation starts inside the old map edge
     const members = [];
     for (const f of FORMATION) {
-      const x = x0 - dir * f.gap, z = lane + (f.side ?? 0) * 2.4;
-      const v = g.vehiclesSys.spawn(f.type, x, z, dir > 0 ? Math.PI / 2 : -Math.PI / 2, f.paint, { ai: 'convoy' });
-      v.convoy = true; v.vx = dir * CRUISE * 0.8;
+      let x = x0 - dir * f.gap, z = lane + (f.side ?? 0) * 2.4, h = dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      if (onRoad) { const q = this.lanePoint(Math.max(10, Math.min(W.cl.L - 10, pr.s - dir * (900 + f.gap))), dir, (f.side ?? 0) * 2.4); x = q.x; z = q.z; h = q.h; }
+      const v = g.vehiclesSys.spawn(f.type, x, z, h, f.paint, { ai: 'convoy' });
+      v.convoy = true; v.vx = Math.sin(h) * CRUISE * 0.8; v.vz = Math.cos(h) * CRUISE * 0.8;
       f.crew.forEach((w, i) => {
         if (!w) return;
         const c = g.spawnRaider(x, z, this.rng, w);
@@ -46,8 +62,8 @@ export class Convoy {
     }
     this.active = { dir, members, engaged: false, t: 0, looted: false, lane };
     this.count++;
-    g.emit('convoySpotted', { dir: dir > 0 ? 'east' : 'west', vehicles: members.map((m) => m.v.id) });
-    if (Math.abs(p.z) < 120) g.hud.toast(`DUSTWOLF CONVOY ON ROUTE 66 — rolling ${dir > 0 ? 'EAST' : 'WEST'}`, 'hot');
+    g.emit('convoySpotted', { dir: dir > 0 ? 'east' : 'west', vehicles: members.map((m) => m.v.id), road: onRoad ? 'I-10' : 'ROUTE 66' });
+    if (onRoad || Math.abs(p.z) < 120) g.hud.toast(`DUSTWOLF CONVOY ON ${onRoad ? 'I-10' : 'ROUTE 66'} — rolling ${dir > 0 ? 'EAST' : 'WEST'}`, 'hot');
     return this.active;
   }
 
@@ -70,7 +86,21 @@ export class Convoy {
     const dir = a.dir, sp = vs.speed(v);
     const p = g.player, px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
     let tx, tz, want = CRUISE;
-    if (a.engaged && m.role === 'gun') {
+    const W = this.W, L0 = this.lead();
+    // Past the island the formation keeps its slots along I-10 (arc length), not along x.
+    if (W && !(a.engaged && m.role === 'gun') && (this.outside(v.x, v.z) || (L0 && this.outside(L0.x, L0.z)))) {
+      const sv = W.project(v.x, v.z, 400).s;
+      let q;
+      if (a.engaged && m.role === 'hauler') { q = this.lanePoint(sv + dir * 30, dir); want = 30; }
+      else if (!L0 || L0 === v || m.role === 'lead') q = this.lanePoint(sv + dir * 25, dir);
+      else {
+        const slotS = W.project(L0.x, L0.z, 400).s - dir * m.gap;
+        const weave = m.side ? m.side * (2.4 + Math.sin(a.t * 1.7 + m.gap) * 1.6) : 0;
+        q = this.lanePoint(slotS + dir * 12, dir, weave * 0.6);
+        want = CRUISE + Math.max(-8, Math.min(10, (slotS - sv) * dir * 0.7));
+      }
+      tx = q.x; tz = q.z;
+    } else if (a.engaged && m.role === 'gun') {
       // Pull alongside the player and give the gunner a clean line.
       const side = Math.sign(v.z - pz) || 1;
       tx = px + dir * 4; tz = pz + side * 11;
@@ -132,11 +162,11 @@ export class Convoy {
       const v = m.v;
       const d = Math.hypot(v.x - px, v.z - pz);
       if (d < 160) far = false;
+      if (d < GONE_R) gone = false; // left more than 3.5 km behind (or ahead): gone
       if (!v.dead) {
         alive++;
         if (d < ENGAGE_R && p.alive) this.engage('close');
         if (v.hitByPlayer) this.engage('shot');
-        if (v.x * a.dir < HALF - 70) gone = false; // bunched up at the far edge = off the map
       }
       if (m.loot && v.dead && !a.looted) {
         a.looted = true;
@@ -146,8 +176,8 @@ export class Convoy {
         g.hud.toast('THE HAULER SPILLED ITS CARGO', 'job');
       }
     }
-    // Rolled off the map, or dead and forgotten: clear it.
-    if ((gone && far) || (alive === 0 && far)) this.despawn();
+    // Left far behind (3.5 km), or dead and forgotten: clear it.
+    if (gone || (alive === 0 && far)) this.despawn();
   }
 
   view() {
