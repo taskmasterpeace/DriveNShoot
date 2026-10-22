@@ -484,7 +484,7 @@ function buildCommands(api) {
       },
     },
     doors: {
-      group: 'world', desc: 'Doors near x,z (default: you) within radius: id, kind (front = a shop\'s double door | back | inner), axis the wall runs along, width, leaves, material (wood|metal), locked, state (closed|ajar|open), angle in degrees (the widest leaf, signed by the side it swung to), kicksLeft, lockHp, the outside/inside points 2.5 m off it, its building. locked=true lists only locked ones.',
+      group: 'world', desc: 'Doors near x,z (default: you) within radius: id, kind (front = a shop\'s double door | back | inner), axis the wall runs along, width, leaves, material (wood|metal), locked, state (closed|ajar|open), angle in degrees (the widest leaf, signed by the side it swung to), kicksLeft, lockHp, the outside/inside points 2.5 m off it, kickFrom (a spot within a boot\'s reach), its building. locked=true lists only locked ones.',
       args: { x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 25 }, limit: { type: 'number', default: 20 }, locked: { type: 'boolean' } },
       run: async ({ x, z, radius, limit, locked }) => {
         const cx = x ?? P().x, cz = z ?? P().z, I2 = g.interiors;
@@ -510,7 +510,7 @@ function buildCommands(api) {
         else if (action === 'kick') {
           need(P().alive && !P().inVehicle, 'kick on foot');
           const dist = Math.hypot(P().x - d.x, P().z - d.z), v = I2.doorView(d);
-          need(force || dist <= DOOR.kickReach, `${id} is ${r1(dist)} m away; stand within ${DOOR.kickReach} m of it (moveTo x=${(v.outside ?? v).x} z=${(v.outside ?? v).z}) or pass force=true`);
+          need(force || dist <= DOOR.kickReach, `${id} is ${r1(dist)} m away; stand within ${DOOR.kickReach} m of it (moveTo x=${v.kickFrom.x} z=${v.kickFrom.z}) or pass force=true`);
           if ((P().kickAt ?? -9) > g.time) await api._step(Math.ceil((P().kickAt - g.time) * 60) + 1); // catch your breath between boots
           out = I2.kick(d, P());
           await api._step(6);

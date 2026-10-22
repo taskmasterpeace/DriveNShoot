@@ -208,6 +208,7 @@ export class Interiors {
       mover._vwT = g.time; mover._vwP += this.dt;
       if (mover._vwP >= WINDOW.vaultPush) this.startVault(mover, W, side, WINDOW.vaultTime);
     } else if (mover.faction === 'zombie') {
+      mover.stuck = 0; // working at it, not stuck: no detour along the wall
       mover._claw = (mover._claw ?? 0) + this.dt;
       if (mover._claw >= WINDOW.clawEvery) {
         mover._claw = 0;
@@ -220,6 +221,7 @@ export class Interiors {
   // The infected beat on a locked door until the lock gives.
   bang(door, z) {
     const g = this.g;
+    z.stuck = 0; // beating on it, not stuck: no detour along the wall
     z._bang = (z._bang ?? 0) + this.dt;
     if (z._bang < 1.1) return;
     z._bang = 0;
@@ -730,6 +732,7 @@ export class Interiors {
       angles: d.leaves.map((L) => Math.round((L.th * 180) / Math.PI)), moving: d.leaves.some((L) => L.w !== 0),
       kicksLeft: d.locked ? d.kicks : 0, lockHp: d.locked ? Math.max(0, Math.round(d.lockHp)) : 0,
       outside: d.kind === 'inner' ? null : { x: r1(d.x + d.nx * 2.5), z: r1(d.z + d.nz * 2.5) }, inside: d.kind === 'inner' ? null : { x: r1(d.x - d.nx * 2.5), z: r1(d.z - d.nz * 2.5) },
+      kickFrom: { x: r1(d.x + d.nx * 1.3), z: r1(d.z + d.nz * 1.3) }, // within a boot's reach, on its outer (or +x) side
       building: b ? { x: r1((b.minX + b.maxX) / 2), z: r1((b.minZ + b.maxZ) / 2), name: b.shopName ?? null } : null,
       dist: r1(Math.hypot(d.x - p.x, d.z - p.z)),
     };

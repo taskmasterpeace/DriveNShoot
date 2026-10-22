@@ -3,7 +3,7 @@
 A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocalyptic United States: the ruins of Phoenix, Arizona. It's built to be **driven, tested and extended by AI agents** from a shell, with no clicking and no reading engine internals.
 
 - **Stack:** three.js 0.170 + Vite. Plain ES modules, no framework, no asset downloads (every texture, portrait, flag and sound is generated in code).
-- **Features:** on foot plus driving, pistol/SMG/shotgun, an NPC dialogue system with portraits, a day/night cycle, 7 weather types, gore (blood spray, pools, trails, gibs), enterable buildings (the roof cuts away), a wanted level, quests, the Whaler harpoon, traffic and raider AI.
+- **Features:** on foot plus driving, pistol/SMG/shotgun, an NPC dialogue system with portraits, a day/night cycle, 7 weather types, gore (blood spray, pools, trails, gibs), enterable buildings (the roof cuts away) with swinging doors (shove one open into someone and they go down), locked doors you kick in or shoot open, and windows that crack, shatter, get climbed through or boarded up, a wanted level, quests, the Whaler harpoon, traffic and raider AI.
 
 ---
 
@@ -11,7 +11,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 
 | You are... | Use | Setup |
 |---|---|---|
-| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 68 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
+| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 88 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
 | A shell-only agent | **CLI** `node tools/dl.mjs <cmd> k=v` or **HTTP** `POST /agent/cmd` | `npm run agent` (dev server + **headless Chrome**, no window, no human) |
 | Code in the page / a scenario | `DL.call(cmd, args)` / `DL.bind().cmd(args)` | — |
 
@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 55/55 engine checks
+node tools/dl.mjs selftest       # 61/61 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -71,6 +71,7 @@ In the browser console, or inside scenario code: `await DL.call('state')`, or `D
 | `bench` | Honest GPU-synced frame timing (avg/p95/max, draw calls, GPU name) |
 | `chronicle`, `factions`, `rumors`, `witnesses` | The world's memory (docs/design/WEB_WORLD_MEMORY.md): what happened and who saw it, where you stand with every faction, word on its way, and a dry run of who would name you right here. `deed`, `standing`, `relation`, `registerFaction` to stage or extend it |
 | `memory id=`, `director`, `fireEvent` | What a named person remembers about you (and whether they'll still deal); the event director (hunters, the dead drawn to a bloody night, STATIC 1660 AM news): what's running, what could fire and why not |
+| `doors`, `door id= action=`, `windows`, `window id= action=` | Every door and window near a spot (angle, locked, kicks left; glass hp, crack, boards). `door` opens, closes, locks, unlocks or kicks (the E key's boot: 2-3 for a locked one, each a loud noise); `window` breaks, boards, unboards, repairs, or climbs you through. Doors and windows are data rows from `world/city.js`; `scenario name=interior-lineup` shows every state in one building |
 
 **Honest by default:** `talk` and `enterVehicle` require you to actually be there (within about 4 m), and the error tells you where the target is (`moveTo id=... first`). Pass `force=true` only in tests. Named characters dropped by raiders or traffic are downed and back on their feet after 45 s (you get a `downed` event with the countdown). If *you* kill one, they stay dead, except characters marked `essential: true` (the quest-giving sheriff and Doc Reyes), who always come back so the story can't dead-end. Killing them still earns wanted stars. Mark your own quest givers `essential` in content packs.
 
@@ -78,7 +79,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 55/55** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 61/61** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable** (no room is ever locked off), **doors and windows on the player's own keys** (a closed door swings open for you and for a drifter; a door shoved open at a run knocks down whoever is behind it; a locked door holds you and the AI until 2-3 loud kicks; glass cracks, then shatters under fire and stops stopping rounds; held E boards a broken window and the boards block sight and a round; walking into a broken window climbs it, a dive goes straight through glass), `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
@@ -89,6 +90,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 - **People:** instanced low-poly humans (rounded torso, hips, sphere head with a readable face, capsule limbs with hands and boots), 5 hat/hair styles (short, cap, cowboy, mohawk, wrap) and 3 gear styles (vest, backpack, spiked raider pads) picked per faction. They aim two-handed, sway when walking, lean when running. Around 19 draw calls cover all 160 people.
 - **Vehicles:** beveled bodies, cylinder wheels with hubs, tinted glass, ram spikes and a harpoon turret on the Whaler, head and tail lights. Paint chars as the vehicle takes damage, it smokes at low HP, burns for 4 s, then explodes.
 - **Gore:** directional blood spray, growing pools, exit splatter, drip trails from the wounded, clothes that soak through with damage, bloody footprints after walking through a pool, gibs on run-overs and explosions, head pops (explosion, point-blank shotgun, harpoon yank) with an arterial neck spray, and a dragged-body trail on the harpoon.
+- **Interiors (`systems/interiors.js`):** every enterable building hangs real door leaves (a shop's double front door, single back and inner doors; wood or steel) that swing when walked or driven into, keep their angle, and stop sight and rounds while near closed. Shoved open fast, a leaf knocks whoever is behind it flat on their back for a moment (`doorBash`). Locked doors wear a rust-orange chain across the frame. Windows are notches down to a knee-high sill with clear glass on the car glass's crack shader: rounds crack it, then shatter it into a rim of shards and glitter on the floor; boards are crooked planks on the side they were nailed from. The infected claw at glass and boards and batter locked doors. One InstancedMesh each for leaves (plus chains), panes and boards (+3 draw calls); only doors near the player are simulated.
 - **Sound (synthesized, no files):** stereo-panned by screen position, distance falloff that also dulls the high end, per-weapon reports, near-miss whizzes, ricochets, footsteps by surface (sand/road/floor), a 5-gear engine, rain and wind beds, thunder, crashes, skids, horns. `perf.audio.played` counts what was played, so headless runs can verify sound.
 
 ## Robustness features for agents
@@ -103,7 +105,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Player QOL (also exposed to agents)
 
-Objective tracker with GPS distance, gold route on the minimap, full map (**M**) with click-to-waypoint, pause menu (**Esc/P**) with difficulty (story/normal/hard), volume, render scale, shadows, auto-reload, aim assist and perf overlay (all saved), quick save/load (**F5/F9**), hit and kill markers on the reticle, a highlight ring under whatever **E/F** will act on, out-of-combat health regen to 60%, vehicles that burn for 4 s before exploding, respawn on the clinic doorstep.
+Doors and windows on **E** (when nobody to talk to and no car is in reach): kick a door (a locked one takes 2-3), smash glass, tap to climb through a broken window or hold to board it up (hold again on the boards' side to pull them off); sprint into a door to bash it open, dive into a window to go through it. Objective tracker with GPS distance, gold route on the minimap, full map (**M**) with click-to-waypoint, pause menu (**Esc/P**) with difficulty (story/normal/hard), volume, render scale, shadows, auto-reload, aim assist and perf overlay (all saved), quick save/load (**F5/F9**), hit and kill markers on the reticle, a highlight ring under whatever **E/F** will act on, out-of-combat health regen to 60%, vehicles that burn for 4 s before exploding, respawn on the clinic doorstep.
 
 ## The four ways to extend it, cheapest first
 
@@ -148,11 +150,16 @@ src/
   main.js              Game class: boot, population, player control, camera, rules (wanted, kills, respawn), loop
   engine/
     collision.js       StaticWorld: AABB spatial hash. resolveCircle(), raycast(), lineOfSight(). Zero-alloc.
+                       Door leaves and windows are `op` entries in the same hash (handed to systems/interiors.js);
+                       a wall with windows stays one box whose openings are `holes` only rays use.
+                       Ray modes: SOLID (throws, harpoon), SIGHT (lineOfSight: through glass), BULLET (stopped by glass)
     input.js           keyboard/mouse state (pressed-this-frame semantics)
     rng.js             seeded RNG + lerp/smoothstep/angleLerp
   world/
     city.js            procedural map: roads, districts, buildings (enterable = wall segments + door gaps
-                       + hideable roof instances), props, lamps, camps, minimap image. All instanced.
+                       + window notches + hideable roof instances), props, lamps, camps, minimap image. All instanced.
+                       Emits the door and window ROWS (pos, axis, width, hinge, material, locked; window state)
+                       from their own seeded stream, so the rest of the world never moves.
     textures.js        every texture, painted on canvas at boot
     terrain.js         mesas/buttes/ridges: one merged faceted heightfield mesh + row-merged collision
     water.js           river + lake depth field, shoreline, bridge/dock, dry|wade|swim states
@@ -175,6 +182,8 @@ src/
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
     seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)
     carcombat.js       windows (crack/shatter), shooting from windows, people hanging on, zombies breaking in
+    interiors.js       building doors (swing, bash + knockdown, locks, kicks, nav blocking), windows (glass,
+                       climbing through, boards); collision/sight/bullet hooks for the StaticWorld; save/load
     zombies.js         the infected (shamblers, sprinters): herds, noise attraction, night spawner, car attacks
     throwables.js      frags, molotovs (fire spreads along fuel leaks), smoke, flashbangs, sticky bombs, arcs + cooking
     train.js           the Iron Line freight: schedule, station stop, crossing lights/barriers, roof riding, tanker
@@ -187,6 +196,7 @@ src/
   data/npcs.js         named NPCs + dialogue trees, ambient barks, name lists
   data/society.js      verbs, tiers, memory kinds and the built-in factions (Rust Haven, the Dustwolves, drifters, the infected)
   data/events.js       director event templates: numbers and radio lines
+  data/interiors.js    door materials (wood|metal: kicks, lock hp, colours), door physics, window numbers, boot-time mix
   agent/
     api.js             THE agent API: COMMANDS table (single source of truth), selftest
     bridge.js          browser long-poll client for the HTTP bridge
@@ -199,7 +209,7 @@ tools/mcp-server.mjs   zero-dependency MCP stdio server (registered in .mcp.json
 content/*.json         data-only content packs
 ```
 
-Update order per frame (`Game.frame`): player → AI → society (rumors, decay) → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → sky → lights → character instancing → audio → HUD.
+Update order per frame (`Game.frame`): door leaves (swing, bash) → player → AI → society (rumors, decay) → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → sky → lights → character instancing → audio → HUD.
 
 ## Invariants (don't break these)
 
