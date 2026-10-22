@@ -11,7 +11,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 
 | You are... | Use | Setup |
 |---|---|---|
-| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 102 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
+| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 104 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
 | A shell-only agent | **CLI** `node tools/dl.mjs <cmd> k=v` or **HTTP** `POST /agent/cmd` | `npm run agent` (dev server + **headless Chrome**, no window, no human) |
 | Code in the page / a scenario | `DL.call(cmd, args)` / `DL.bind().cmd(args)` | — |
 
@@ -108,7 +108,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Player QOL (also exposed to agents)
 
-Doors and windows on **E** (when nobody to talk to and no car is in reach): kick a door (a locked one takes 2-3), smash glass, tap to climb through a broken window or hold to board it up (hold again on the boards' side to pull them off); sprint into a door to bash it open, dive into a window to go through it. Objective tracker with GPS distance, gold route on the minimap, full map (**M**) with click-to-waypoint, pause menu (**Esc/P**) with difficulty (story/normal/hard), volume, render scale, shadows, auto-reload, aim assist and perf overlay (all saved), quick save/load (**F5/F9**), hit and kill markers on the reticle, a highlight ring under whatever **E/F** will act on, out-of-combat health regen to 60%, vehicles that burn for 4 s before exploding, respawn on the clinic doorstep. **Roles** (docs/design/WEB_ROLES.md): stitched tapes above the flag patch show what the world calls you (chevrons for rumoured, known, renowned), a toast when one is earned, rises, fades or is suspended, the pause menu's WHAT THEY CALL YOU lists each with its renown, why and what it opens, and the PACK header says KNOWN AS ...; talk (**E**) to someone hurt with a med item on you and the first choice patches them up.
+Doors and windows on **E** (when nobody to talk to and no car is in reach): kick a door (a locked one takes 2-3), smash glass, tap to climb through a broken window or hold to board it up (hold again on the boards' side to pull them off); sprint into a door to bash it open, dive into a window to go through it. Objective tracker with GPS distance, gold route on the minimap, full map (**M**) with click-to-waypoint, pause menu (**Esc/P**) with difficulty (story/normal/hard), volume, render scale, shadows, auto-reload, aim assist and perf overlay (all saved), quick save/load (**F5/F9**), hit and kill markers on the reticle, a highlight ring under whatever **E/F** will act on, out-of-combat health regen to 60%, vehicles that burn for 4 s before exploding, respawn on the clinic doorstep. **Roles** (docs/design/WEB_ROLES.md): stitched tapes on the status plate, beside the street sign, show what the world calls you (chevrons for rumoured, known, renowned), a toast when one is earned, rises, fades or is suspended, the pause menu's WHAT THEY CALL YOU lists each with its renown, why and what it opens, and the PACK header says KNOWN AS ...; talk (**E**) to someone hurt with a med item on you and the first choice patches them up.
 
 ## The four ways to extend it, cheapest first
 
@@ -216,7 +216,7 @@ src/
     hud.js / hud.css   the stamped-steel HUD (target: docs/design/hud-target-2026-10-22.jpg): clock/weather/wanted
                        plate, faction respect chips, licence-plate cash, GPS bezel minimap, street sign, health/stamina
                        plate + food/water gauges (shown only when g.needs exists) + cloth flag, weapon plate (cartridges,
-                       dog tags, throwable) or the analog dash when driving, toasts, vignettes, the role tapes above the flag
+                       dog tags, throwable) or the analog dash when driving, toasts, vignettes, the role tapes on the status plate
                        (rebuilt only when g.roles.version moves). Change-only DOM writes.
     hudart.js          every HUD texture (plates, paper, sign, bezel, gauge faces, flags, sprites) painted once at boot
     dialogue.js        dialogue panel: typewriter, numbered choices

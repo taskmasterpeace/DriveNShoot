@@ -2,7 +2,9 @@
 
 **Status:** 2026-10-22. SHIPPED in `web/` on `feat/web-roles` (0a727b1 role engine · 05198d9 people react · 168febb the
 HUD tapes, pause menu, PACK header · a5fb9aa agent commands, save/load, packs · 841a565 merge with feat/web-engine's
-trade · 3dfa15e eight selftest checks). Ten roles, four jobs, two offices, a director role call.
+trade · 3dfa15e eight selftest checks · d6f7298 tuning on the merged game · 4cad534 the ghost's marks, the water run,
+tally gates · dfaaf54 merge with rest, sleep and bite fever). Ten roles, four jobs, two offices, a director role call;
+selftest 92/92 on fresh pages.
 **Owner of the call:** Robert ("the role system should be HIGHLY dynamic and versatile", docs/RESUME_WEB_ENGINE.md,
 Robert's answers). **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** `docs/design/WEB_WORLD_MEMORY.md` (deeds, witnesses, factions, memory, the director, the chronicle),
@@ -22,7 +24,7 @@ the world treats you through systems that already exist.
 |---|---|---|
 | **Rows** | `web/src/data/roles.js` | `ROLES` (ten rows: what earns, what wears, tiers, what opens), `ROLE_JOBS`, `ROLE_OFFICES`, `ROLE_CALLS`, `ROLE_RULES` (tuning) |
 | **Engine** | `web/src/systems/roles.js` | `g.roles`: routes signals to rows, keeps renown/tier per role, fades idle roles on the game clock, applies what the active tiers open, jobs and offices, save/load |
-| **Surface** | `ui/hud.js` + `hud.css`, `ui/qol.js`, `ui/inventory.js` | stitched role tapes above the flag patch, toasts, the pause menu's WHAT THEY CALL YOU, the PACK header |
+| **Surface** | `ui/hud.js` + `hud.css`, `ui/qol.js`, `ui/inventory.js` | stitched role tapes on the status plate beside the street sign, toasts, the pause menu's WHAT THEY CALL YOU, the PACK header |
 | **Agents** | `agent/api.js` | `roles`, `registerRole`, `item use=<med> on=<id>`, `simTick` fades roles, pack dialogue conditions, eight selftest checks |
 
 The roles shipped, and what each opens (numbers are at renowned; known gets 0.7 of them, rumoured 0.4):
@@ -246,7 +248,7 @@ o > 0.01 shoots on sight, o < −0.01 holds fire, else the tier decides.
 | `biasCap` | ROLE_RULES | 50 | 20–80 | the most all roles together move one faction's reading |
 | `priceClamp` | ROLE_RULES | [0.5, 2] | [0.3, 3] | the extremes of priceMul |
 | `shoutEvery` | ROLE_RULES | [14, 26] s | 8–60 | how often strangers call your role out |
-| `shownOnHud` | ROLE_RULES | 3 | 1–4 | role tapes above the flag |
+| `shownOnHud` | ROLE_RULES | 3 | 1–4 | role tapes on the status plate |
 | `tiers` | per row | [20, 45, 75] | lines ≥ 10 apart, keep × line above the line below | how much doing it takes |
 | `halfLife` | per row | 4–14 game days | 2–30 | how fast a role is forgotten (ghost 4, butcher 14) |
 | rule `pts` | per rule | 0.02–30 | keep a role reachable in 3–10 deeds per tier | the weight of each deed |

@@ -345,7 +345,7 @@ export class HUD {
     this.updateRoles();
   }
 
-  // What the world calls you (systems/roles.js): stitched cloth tapes sewn above the flag, one per role you are known
+  // What the world calls you (systems/roles.js): stitched cloth tapes on the status plate beside the street sign, one per role you are known
   // for (best first, up to three), chevrons for the tier. Rebuilt only when the roles' version moves; tucked away
   // while the breath tab needs the room.
   updateRoles() {
