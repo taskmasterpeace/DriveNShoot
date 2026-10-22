@@ -7,7 +7,9 @@ import { HALF } from '../world/city.js';
 // standings, tallies and the chronicle - never the whole log per frame - evaluates every 10 s, paces itself (no
 // threat while someone is already shooting at you, never more than two threats, never past the character budget)
 // and writes every outcome back into the chronicle.
-const EVAL_EVERY = 10, MIN_FREE_SLOTS = 10, MAX_THREATS = 2;
+// ARRIVAL_GRACE: seconds of play before the director sends any threat. The game opens at dusk with "find the
+// sheriff"; without it a Dustwolf raid could hit Rust Haven 20 s into a new game. (fireEvent skips pacing.)
+const EVAL_EVERY = 10, MIN_FREE_SLOTS = 10, MAX_THREATS = 2, ARRIVAL_GRACE = 150;
 
 export class Director {
   constructor(game) {
@@ -86,6 +88,7 @@ export class Director {
     for (const [tpl, def] of Object.entries(EVENTS)) {
       if (!this.cooled(`tpl:${tpl}`)) { why[tpl] = 'cooling down'; continue; }
       if (def.pace === 'threat') {
+        if (g.time < ARRIVAL_GRACE) { why[tpl] = 'the stranger only just got here'; continue; }
         if (!this.cooled('global')) { why[tpl] = 'global cooldown'; continue; }
         if (this.threats() >= MAX_THREATS) { why[tpl] = 'two threats already running'; continue; }
         if (g.freeSlots.length < MIN_FREE_SLOTS) { why[tpl] = 'character budget'; continue; }

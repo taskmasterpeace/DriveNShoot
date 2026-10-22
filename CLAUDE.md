@@ -6,7 +6,20 @@
 
 ---
 
-## 🎯 What this is
+## 🌐 NEW MAINLINE (2026-10-21): the web engine in `web/`
+
+The remake is being built on the **DEATHLANDS three.js engine** in `web/` (agent-drivable: 48-command API, MCP `dl_*` tools, headless runner, `selftest`).
+**Read `web/AGENTS.md` first, then `docs/WEB_ENGINE_PLAN.md`** (the phased plan: vehicle damage/seats/motorcycles, throwables, diving, terrain + water + watercraft, 100+ QOL details, then the CarWorld data/world import).
+The Godot game below stays as the reference spec + data source (`game/data/*.json` is ported through adapters, not rewritten).
+
+```
+cd web && npm install && npm run agent      # dev server + headless game
+node tools/dl.mjs selftest                   # must stay green
+```
+
+---
+
+## 🎯 What this is (Godot reference build)
 
 Top-down 3D vehicular combat + survival in a compressed USA (60×: 4 real hours of driving = 4 in-game minutes).
 **Godot 4.5+, GDScript 2.0, static typing.** Everything is data rows + one engine — adding content ≠ code.

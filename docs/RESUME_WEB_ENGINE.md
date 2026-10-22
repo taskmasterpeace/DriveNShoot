@@ -4,21 +4,14 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 `web/AGENTS.md` (every command, the architecture map, the invariants). Don't touch carworld's main checkout
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
-## Land the 2026-10-22 session first (needs Robert's OK)
-All of it lives on branch `claude/web-engine-handoff-2fceb5` (app worktree `D:/git/carworld/.claude/worktrees/
-animation-fix-30c929`), **not on `feat/web-engine` yet**. Its first commit `014493f` is a byte-identical mirror of
-`feat/web-engine@a8f9a2e`'s `web/`; everything after it (45 commits, two of them merges of subagent branches) is new.
-Cherry-picking the range no longer works (it contains merges). Merge instead; this was dry-run with
-`git merge-tree --write-tree -X theirs feat/web-engine claude/web-engine-handoff-2fceb5` and the result is
-byte-identical to the branch for `web/` and `docs/`:
-```
-cd D:/git/carworld/.worktrees/web-engine
-git status                      # must be clean
-git merge -X theirs claude/web-engine-handoff-2fceb5 -m "merge: the 2026-10-22 session"
-cd web && npm run agent         # then, in a second shell:
-node tools/dl.mjs selftest      # expect 73/73
-git push
-```
+## Landed
+The 2026-10-22 session is on `feat/web-engine` and pushed (`a8f9a2e..866d3ef`): the merge `d486d05` (byte-identical to
+the session branch for `web/` and `docs/`), then two fixes found by running the selftest on the landed tree:
+`5a9abea` (no director threats in the first 150 s of play: a raid could hit Rust Haven 20 s into a new game; the raid
+check stages around pacing) and `866d3ef` (selftest staging cancels director events already running). 73/73 on the
+landed tree, twice (once with a live raid out before the battery, once started 30 s after boot); stress 67 draw calls,
+2.5 ms/frame. The session branch `claude/web-engine-handoff-2fceb5` now equals `feat/web-engine`; keep working there
+and land with `git merge --ff-only claude/web-engine-handoff-2fceb5` inside `.worktrees/web-engine`.
 
 ## Start it again
 ```
@@ -56,18 +49,26 @@ Gotchas (all paid for):
 | Fan service + IP | the clean-room bible (what crosses the wall), the streaming spec (the USA at 1:14), ip-lint | WEB_FAN_SERVICE_BIBLE, WEB_STREAMING | 484df92, 90fb173 |
 | Playtest fixes | gun centred in the hand, every window detailed, cars steer about the rear axle, lights leave the lamps; people rebuilt (knees, elbows, planted boots, a gun per weapon); vehicle bodies and glass that read from above | — | 03011b2, aa501f7, a40291e |
 
+## Robert's answers (2026-10-22)
+- **Scale:** ten minutes Miami→Orlando is **flat out**. (Still open: the MOTORCYCLE at 52 m/s or the LAWMAN at 46 as the
+  reference; WEB_STREAMING uses the LAWMAN, ~1:14.)
+- **Signs read miles**, and **exit ramps must feel real** (real-size ramps; the road between exits is what compresses).
+- **The role system must be highly dynamic and versatile:** not a class picked once. Direction until it gets a spec:
+  roles are earned and lost by what you do (deeds, skills, standing, jobs), several can be held at once, and each one
+  opens its own dialogue, jobs, prices and enemies - the world memory, skills and faction layers are its raw material.
+
 ## Open questions for Robert
-1. **The scale rule's "fastest ground vehicle":** the MOTORCYCLE tops out at 52 m/s, the LAWMAN at 46. WEB_STREAMING
-   assumed the LAWMAN (Miami→Orlando in 10 real minutes ⇒ ~1:14). Which one, and flat-out or a typical trip?
-2. **Exit roads:** how long an exit ramp runs and what units the signs use (miles, like real US signs?).
-3. **The "role system"** from the memo: what is a role (a job you take, a class you are, a crew position)?
-4. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
+1. Which vehicle sets the scale (bike 52 m/s or LAWMAN 46)? How far an exit's access road may run? Bigger cities?
+2. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
    `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484` (a baseline copy for its A/B). It was not allowed to
    delete it, so it's yours to remove (or let the app clean up the worktree).
 
 ## Next blocks (from the 2026-10-22 memo, in a sensible order)
-- **A military base** (now unblocked: doors and locks exist): fenced compound, watchtowers, an armory behind a steel
-  door, a motor pool (military vehicles as rows), soldiers as a faction row, `military` loot already in data/items.js.
+- **A military base:** a subagent got most of the way before the session ended. Its branch
+  `worktree-agent-a32f586079c0fca88` (worktree `.claude/worktrees/agent-a32f586079c0fca88`) has four commits - military
+  vehicles as rows (a patrol truck, an armored carrier), the Federal Remnant faction and soldiers, **Outpost Nine** (a
+  fenced base in the north-west Glass Flats), a `base` command with five checks - plus uncommitted edits to `api.js`,
+  `society.js`, `bases.js` and `hud.js`. Not merged and not verified: resume the agent (or finish it here), then merge.
 - **Inventory 2b:** guns and rounds as items (condition, jams), trade at standing-adjusted prices, a portable radio
   item, refilling bottles and fuel cans, search time and its noise.
 - **Multi-level zoom** (Z is binary today) and **multi-storey buildings / basements**.
