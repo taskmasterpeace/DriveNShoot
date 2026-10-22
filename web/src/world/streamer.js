@@ -24,6 +24,20 @@ import GOLDEN from '../data/golden.json';
 
 const R_HOT = 224, R_REL = 300;
 const _fog = new THREE.Color(), DUST = new THREE.Color('#a87a4c');
+// A weathered boulder: a subdivided icosahedron pushed in and out by a hash of each vertex's position (shared corners
+// move together, so no cracks), flattened a little. Scaled and turned per instance, one shape reads as many.
+function lumpyRock() {
+  const g = new THREE.IcosahedronGeometry(1, 1), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const h = Math.sin(Math.round(x * 997) * 12.9898 + Math.round(y * 991) * 78.233 + Math.round(z * 983) * 37.719) * 43758.5453;
+    const k = 0.78 + (h - Math.floor(h)) * 0.38;
+    p.setXYZ(i, x * k, y * k * (y > 0 ? 0.85 : 0.6), z * k);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
 // Yield to the page without timer throttling (a MessageChannel task, not setTimeout).
 const _mc = new MessageChannel(), _q = [];
 _mc.port1.onmessage = () => _q.shift()?.();
@@ -87,7 +101,7 @@ export class Streamer {
       roofs: P('roofs', box, std({ roughness: 0.85, metalness: 0.1 })),
       cacti: P('cacti', new THREE.CylinderGeometry(0.3, 0.38, 1, 7), std({ roughness: 0.9 })),
       trunks: P('trunks', new THREE.CylinderGeometry(0.16, 0.3, 1, 6), std({ roughness: 0.95 })),
-      boulders: P('boulders', new THREE.IcosahedronGeometry(1, 0), std({ roughness: 0.95, flatShading: true })),
+      boulders: P('boulders', lumpyRock(), std({ roughness: 0.95, flatShading: true })),
       shrubs: P('shrubs', new THREE.IcosahedronGeometry(1, 1), std({ roughness: 1, flatShading: true })),
       signs: P('signs', new THREE.PlaneGeometry(1, 1), sign, { extra: { name: 'aRect', size: 4 } }),
       rails: P('rails', box, std({ roughness: 0.45, metalness: 0.55 }), { cast: false }),

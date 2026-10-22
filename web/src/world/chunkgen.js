@@ -111,22 +111,32 @@ export function mesasOf(W, cx, cz) {
     const x = x0 + rng.range(8, C - 8), z = z0 + rng.range(8, C - 8);
     const h = (kind === 'butte' ? rng.range(14, 30) : kind === 'mesa' ? rng.range(12, 26) : rng.range(18, 42)) * (0.75 + rel * 0.6);
     const m = { x, z, r, h, kind, rot: rng() * Math.PI, seed: rng() * 1000, id: `${key}:${k}` };
-    // Keep rock off the road and its interchanges, out of the towns and the island.
-    if (inIsland(x, z, r + 40)) continue;
-    if (W.project(x, z, r + 120).d < r + 55) continue;
-    if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + r || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + r || (X.access && W.ribbonDist(X.access, x, z) < r + 30))) continue;
-    if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + r)) continue;
+    // Keep rock off the road and its interchanges, out of the towns and the island (by its lobed reach, not r).
+    const R = r * MESA_REACH;
+    if (inIsland(x, z, R + 40)) continue;
+    if (W.project(x, z, R + 120).d < R + 55) continue;
+    if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
+    if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
     out.push(m);
   }
   W.mesaCache.set(key, out);
   return out;
 }
-export function mesaHeight(p, x, z) {
+// The outline is lobed, not a circle: erosion bites into a mesa's rim unevenly. lobe(t) scales the radius by direction
+// (between 0.725 and 1.275), so a feature reaches at most MESA_REACH * r from its centre.
+export const mesaLobe = (p, t) => 1 + 0.15 * Math.sin(3 * t + p.seed) + 0.08 * Math.sin(5 * t + p.seed * 1.7) + 0.045 * Math.sin(11 * t + p.seed * 2.3);
+export const MESA_REACH = 1.3;
+let _lx = 0, _lz = 0;
+// Distance from the centre in the feature's own frame, as a fraction of the outline in that direction (1 = the foot).
+export function mesaNorm(p, x, z) {
   const dx = x - p.x, dz = z - p.z;
   const c = Math.cos(p.rot), s = Math.sin(p.rot);
-  let lx = dx * c - dz * s, lz = dx * s + dz * c;
-  if (p.kind === 'ridge') lz *= 2.2;
-  const d = Math.hypot(lx, lz) / p.r;
+  _lx = dx * c - dz * s; _lz = dx * s + dz * c;
+  if (p.kind === 'ridge') _lz *= 2.2;
+  return Math.hypot(_lx, _lz) / (p.r * mesaLobe(p, Math.atan2(_lz, _lx)));
+}
+export function mesaHeight(p, x, z) {
+  const d = mesaNorm(p, x, z), lx = _lx, lz = _lz;
   if (d >= 1) return 0;
   const n = Math.sin(lx * 0.21 + p.seed) * Math.cos(lz * 0.17 + p.seed * 1.3) * 0.5 + Math.sin(lx * 0.47 - lz * 0.39 + p.seed) * 0.25;
   if (p.kind === 'mesa' || p.kind === 'butte') {
@@ -201,14 +211,14 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     return best;
   };
   const mesas = [];
-  for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) for (const m of mesasOf(W, cx + ix, cz + iz)) if (m.x + m.r > ox - 2 && m.x - m.r < X1 + 2 && m.z + m.r > oz - 2 && m.z - m.r < Z1 + 2) mesas.push(m);
+  for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) for (const m of mesasOf(W, cx + ix, cz + iz)) { const R = m.r * MESA_REACH; if (m.x + R > ox - 2 && m.x - R < X1 + 2 && m.z + R > oz - 2 && m.z - R < Z1 + 2) mesas.push(m); }
   const blocked = (x, z, r) => {
     if (inIsland(x, z, r + 3)) return true;
     if (segs.length && roadD(x, z) < 22 + r) return true;
     for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + 4 + rb.ymax * 2 + r) return true;
     for (const b of F.buildings) if (x > b.x0 - 4 - r && x < b.x1 + 4 + r && z > b.z0 - 4 - r && z < b.z1 + 4 + r) return true;
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
-    for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * 0.95 + r) return true;
+    for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
     return false;
   };
   yield;
@@ -355,32 +365,59 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   // ---- mesas: rock heightfields (owned where their centre is), solid where they stand taller than a step ---------------
   {
     const cRock = new THREE.Color('#8a4a2e'), cBand = new THREE.Color('#a8603a'), cTop = new THREE.Color('#a8684a'), cBase = new THREE.Color('#9c7450'), cDark = new THREE.Color('#4a2c1c'), tmp = new THREE.Color();
+    const shrubTop = col(flora.shrub), ROCKT = [col('#7a4a32'), col('#8a5a3c'), col('#6a4430')];
     for (const m of mesas) {
       if (own(m.x, m.z)) {
-        const step = m.r > 50 ? 2.6 : 2, seg = Math.max(16, Math.ceil((m.r * 2.1) / step)), span = m.r * 2.1;
-        if (K.room((seg + 1) * (seg + 1), seg * seg * 6)) {
-          const base = K.nv;
-          for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
-            const x = m.x - span / 2 + (i / seg) * span, z = m.z - span / 2 + (j / seg) * span;
+        // A polar mesh in the feature's own frame: rings bunched at the cliff band, so the rim is crisp with a few hundred
+        // vertices (a square grid fine enough for that costs thousands, and a coarse one saws the rim into steps). The
+        // outermost ring sits just under the ground: no flat skirt to catch shadow acne.
+        const cliff = m.kind === 'butte' ? 0.72 : m.kind === 'mesa' ? 0.8 : null;
+        const rings = cliff ? [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6].filter((q) => q < cliff - 0.15).concat([cliff - 0.12, cliff - 0.05, cliff - 0.015, cliff, cliff + 0.015, cliff + 0.035, cliff + 0.06, cliff + 0.085, cliff + 0.1, cliff + 0.14, cliff + 0.19, 0.93, 0.97, 1.0, 1.02])
+          : [0, 0.08, 0.16, 0.24, 0.32, 0.4, 0.48, 0.56, 0.64, 0.72, 0.8, 0.86, 0.92, 0.96, 1.0, 1.02];
+        const SEG = 72, R = rings.length, c0 = Math.cos(m.rot), s0 = Math.sin(m.rot), sq = m.kind === 'ridge' ? 1 / 2.2 : 1;
+        if (K.room(1 + (R - 1) * SEG, (R - 1) * SEG * 6)) {
+          const vtx = (lx, lz) => {
+            const dx = lx * c0 + lz * s0, dz = -lx * s0 + lz * c0, x = m.x + dx, z = m.z + dz;
             const h = mesaHeight(m, x, z), k = h / m.h;
             const slope = Math.min(1, (Math.abs(mesaHeight(m, x + 1.2, z) - h) + Math.abs(mesaHeight(m, x, z + 1.2) - h)) / 2.4);
             tmp.copy(cBase).lerp(cRock, Math.min(1, k * 1.4));
-            if (Math.sin(h * 1.7 + m.seed) > 0.55) tmp.lerp(cBand, 0.5);
-            if (k > 0.92) tmp.lerp(cTop, 0.6);
+            if (k > 0.92) {
+              // The cap: weathered rock in patches of desert varnish, never one flat colour.
+              tmp.lerp(cTop, 0.6).multiplyScalar(0.86 + vnoise(x, z, 22, m.seed) * 0.26);
+            } else if (Math.sin(h * 1.7 + m.seed) > 0.55) tmp.lerp(cBand, 0.5); // strata show on the faces only
             tmp.lerp(cDark, slope * 0.55);
-            K.v(x - ox, h > 0.02 ? h : -0.05, z - oz, 0, 1, 0, 0, 0, tmp.r, tmp.g, tmp.b);
+            return K.v(x - ox, h > 0.02 ? h : -0.4, z - oz, 0, 1, 0, 0, 0, tmp.r, tmp.g, tmp.b);
+          };
+          const centre = vtx(0, 0), first = K.nv;
+          for (let ri = 1; ri < R; ri++) for (let a = 0; a < SEG; a++) {
+            const t = (a / SEG) * Math.PI * 2, d = rings[ri] * m.r * mesaLobe(m, t); // t is the angle mesaNorm measures
+            vtx(Math.cos(t) * d, Math.sin(t) * d * sq);
           }
-          for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
-            const a = base + j * (seg + 1) + i, b = a + 1, c = a + seg + 2, d = a + seg + 1;
-            K.tri(a, d, c); K.tri(a, c, b);
+          for (let a = 0; a < SEG; a++) K.tri(centre, first + ((a + 1) % SEG), first + a);
+          for (let ri = 1; ri < R - 1; ri++) for (let a = 0; a < SEG; a++) {
+            const i0 = first + (ri - 1) * SEG, i1 = first + ri * SEG, b = (a + 1) % SEG;
+            K.tri(i0 + a, i0 + b, i1 + b); K.tri(i0 + a, i1 + b, i1 + a);
           }
-          // Normals for a faceted look come from the shader (flatShading); keep a plausible up-normal per vertex.
+        }
+        // Scrub holding on to the cap and the flanks, and the talus: rock the cliff has shed, piled at its foot.
+        const mr = rngOf(hash32(seed, Math.floor(m.seed * 1000), 991));
+        const place = (q, t) => { const d = q * m.r * mesaLobe(m, t), lx = Math.cos(t) * d, lz = Math.sin(t) * d * sq; _p.set(m.x + lx * c0 + lz * s0, 0, m.z - lx * s0 + lz * c0); _p.y = mesaHeight(m, _p.x, _p.z); return _p; };
+        for (let k = 0, n = Math.round(m.r * m.r * 0.006); k < n; k++) {
+          const q = cliff ? Math.sqrt(mr()) * (cliff - 0.06) : mr.range(0.05, 0.9), p = place(q, mr() * Math.PI * 2);
+          const ss = mr.range(0.5, 1.2), v = mr.range(0.7, 1.0);
+          INST.shrubs.push(p.x, p.y + ss * 0.18, p.z, mr() * 6.28, ss * mr.range(0.9, 1.3), ss * 0.5, ss * mr.range(0.9, 1.3), shrubTop[0] * v, shrubTop[1] * v, shrubTop[2] * v);
+        }
+        for (let k = 0, n = Math.round(m.r * (cliff ? 0.9 : 0.35)); k < n; k++) {
+          const q = cliff ? mr.range(cliff + 0.09, 1.08) : mr.range(0.6, 1.05), p = place(q, mr() * Math.PI * 2);
+          const r = mr.range(0.45, 1.5) * (q < 1 ? 1 : 0.7), c = ROCKT[mr.int(0, 2)], v = mr.range(0.82, 1.08);
+          INST.boulders.push(p.x, p.y + r * 0.3, p.z, mr() * 6.28, r * mr.range(0.9, 1.3), r * mr.range(0.55, 0.85), r * mr.range(0.9, 1.3), c[0] * v, c[1] * v, c[2] * v);
         }
       }
       // Collision: the footprint where it stands taller than a step, 4 m cells, row-merged, clipped to this chunk.
       const CELL = 4;
-      const gx0 = Math.floor(Math.max(m.x - m.r, ox - 4) / CELL), gx1 = Math.ceil(Math.min(m.x + m.r, X1 + 4) / CELL);
-      const gz0 = Math.floor(Math.max(m.z - m.r, oz - 4) / CELL), gz1 = Math.ceil(Math.min(m.z + m.r, Z1 + 4) / CELL);
+      const RR = m.r * MESA_REACH;
+      const gx0 = Math.floor(Math.max(m.x - RR, ox - 4) / CELL), gx1 = Math.ceil(Math.min(m.x + RR, X1 + 4) / CELL);
+      const gz0 = Math.floor(Math.max(m.z - RR, oz - 4) / CELL), gz1 = Math.ceil(Math.min(m.z + RR, Z1 + 4) / CELL);
       for (let zc = gz0; zc <= gz1; zc++) {
         let run = null;
         for (let xc = gx0; xc <= gx1 + 1; xc++) {
@@ -506,6 +543,20 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const u = median ? 0 : side * (sec.lane2 + 0.5 + reach);
     if (median && reach > sec.med - 0.2) continue;
     wreck(f.x + f.nx * u, f.z + f.nz * u, rot, WRECK[h % WRECK.length]);
+  }
+  // Dead towns: cars left at the kerb of their streets (the streets are laid square, so the cars are too).
+  for (const rb of F.ribbons) {
+    if (rb.kind !== 'street') continue;
+    for (let i = 0; i < rb.n - 1; i++) {
+      const mx = (rb.x[i] + rb.x[i + 1]) / 2, mz = (rb.z[i] + rb.z[i + 1]) / 2;
+      if (!own(mx, mz)) continue;
+      const h = hash32(seed, i, rb.n, 77);
+      if (h % 100 > 9) continue;
+      const tx = rb.x[i + 1] - rb.x[i], tz = rb.z[i + 1] - rb.z[i], tl = Math.hypot(tx, tz) || 1, side = (h >> 8) & 1 ? 1 : -1;
+      const x = mx - (tz / tl) * side * 5.8, z = mz + (tx / tl) * side * 5.8, rot = Math.atan2(tx, tz) + ((h >> 12) % 100 - 50) / 500;
+      if (!own(x, z) || F.buildings.some((b) => x > b.x0 - 3 && x < b.x1 + 3 && z > b.z0 - 3 && z < b.z1 + 3) || roadD(x, z) < 20) continue;
+      wreck(x, z, rot, WRECK[h % WRECK.length]);
+    }
   }
   pause(); yield; resume();
 
