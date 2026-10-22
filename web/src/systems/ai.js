@@ -20,14 +20,19 @@ export class AI {
     if (a.faction === 'ally') return b.faction === 'raider' || b.grudge === this.g.player || b.target === this.g.player;
     if (b.faction === 'ally' && a.faction === 'raider') return true;
     if (a.grudge === b) return true;
+    // Toward the player, standing decides (WEB_WORLD_MEMORY): a faction at hostile or worse shoots on sight, a
+    // friendlier one holds fire; Rust Haven's bulls also answer to the wanted stars. NPC-vs-NPC rules stay below.
+    const P = this.g.player, F = this.g.society?.factions;
+    if (b === P && F && a.fi >= 0) return F.hostileToPlayer(a) || (a.faction === 'warden' && this.g.wanted > 0);
     if (a.faction === 'raider') return b.faction !== 'raider';
     if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > 0);
     return false;
   }
 
-  onDamaged(c, attacker) {
+  // quiet: the caller already recorded the deed (a carjack is not also an assault).
+  onDamaged(c, attacker, quiet = false) {
     if (!attacker || attacker === c || c === this.g.player) return;
-    if (attacker === this.g.player && c.faction !== 'raider' && c.faction !== 'zombie' && c.grudge !== attacker) this.g.raiseWanted(1);
+    if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
     if (c.faction === 'zombie') { if (attacker.alive) c.ztarget = attacker; return; } // the dead don't flee
     if (c.faction !== attacker.faction || attacker === this.g.player) c.grudge = attacker;
     if (c.weapon) { c.target = attacker; c.state = 'fight'; }
@@ -132,6 +137,9 @@ export class AI {
       if (c.dragged) continue;
       if (c.leapT > 0) continue;                               // diving out of a car's way (Ambient moves them)
       if (c.cowerT > 0) { c.speed = 0; c.walk = (c.walk ?? 0) + dt; continue; } // hands up, shaking
+      // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
+      // hold = true stays until cleared; a number counts down in seconds.
+      if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
       if (c.faction === 'zombie') { g.zombies.think(c, dt); continue; }
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
@@ -176,7 +184,7 @@ export class AI {
         if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
           c.grenades--;
           g.throwables.throw(c, 'frag', tx + (Math.random() - 0.5) * 3, tz + (Math.random() - 0.5) * 3, Math.random() * 0.8);
-          g.emit('npcThrew', { by: c.id, type: 'frag' });
+          g.emit('npcThrew', { by: c.id, kind: 'frag' });
         }
         if (los && d < w.range * 0.9) {
           c.aiming = true;

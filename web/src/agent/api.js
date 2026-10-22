@@ -5,6 +5,8 @@ import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
+import { VERBS, TIERS } from '../data/society.js';
+import { K } from '../systems/chronicle.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -15,6 +17,13 @@ import { locationName, districtName, HALF } from '../world/city.js';
 // ============================================================================
 
 const r1 = (v) => Math.round(v * 10) / 10;
+// A chronicle record in plain words for agents.
+const FLAG_NAMES = Object.entries(K);
+const readRec = (g, r) => ({
+  seq: r.seq, t: r.t, day: r.day, hour: r.hr, actor: r.a, actorFaction: r.af, verb: r.v, target: r.o || null, targetName: r.on || null, targetFaction: r.of || null,
+  place: r.p, placeName: g.society.places[r.p]?.name ?? r.p, x: r.x, z: r.z, mag: r.m, witnesses: r.w.slice(), unidentified: r.un,
+  flags: FLAG_NAMES.filter(([, bit]) => r.k & bit).map(([n]) => n), src: r.src,
+});
 const _mc = new MessageChannel();
 const _q = [];
 _mc.port1.onmessage = () => _q.shift()?.();
@@ -175,7 +184,7 @@ function buildCommands(api) {
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
-          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats,
+          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
           nearby: { hostiles: near.filter((c) => g.ai.hostile(c, p)).length, npcs: near.filter((c) => c.npc).map((c) => c.id), total: near.length },
@@ -221,7 +230,9 @@ function buildCommands(api) {
         const i = g.renderer.info;
         return { fps: Math.round(g.fps), drawCalls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures,
           chars: g.chars.length, alive: g.chars.filter((c) => c.alive).length, vehicles: g.vehicles.length, statics: g.statics.boxes.length, decalsBudget: 1200, particlesBudget: 2400,
-          audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts }, runtimeErrors: g.errors ?? [] };
+          audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts },
+          society: { witnessMsMax: +g.society.deeds.witnessMsMax.toFixed(3), deeds: g.society.deeds.deeds, rumorsPending: g.society.deeds.pending, rumorOverflow: g.society.deeds.overflow },
+          runtimeErrors: g.errors ?? [] };
       },
     },
     screenshot: {
@@ -806,6 +817,94 @@ function buildCommands(api) {
       run: async ({ id, amount }) => { const c = api.findChar(id); if (c) { g.combat.damage(c, amount, null, 1, 0); return { hp: c.hp, alive: c.alive }; } const v = api.findVeh(id); need(v, `no entity ${id}`); g.vehiclesSys.damage(v, amount, null); return { hp: v.hp, dead: v.dead }; } },
     explode: { group: 'world', desc: 'Blow up a vehicle by id.', args: { id: { type: 'string', required: true } }, run: async ({ id }) => { const v = api.findVeh(id); need(v && !v.dead, `no live vehicle ${id}`); g.vehiclesSys.explode(v, null); return { exploded: v.id }; } },
     remove: { group: 'world', desc: 'Delete a non-player character (no corpse).', args: { id: { type: 'string', required: true } }, run: async ({ id }) => { const c = api.findChar(id); need(c && c !== P(), `no character ${id}`); g.removeChar(c); return { removed: id }; } },
+
+    // ---------------------------------------------------------------- society (docs/design/WEB_WORLD_MEMORY.md)
+    chronicle: {
+      group: 'society', desc: "What happened, newest first: your deeds (with who saw them), rumors that reached a faction, the world's own violence. Filters: since (seq), verb, actor, faction (either side), place, legend (notable only), limit.",
+      args: { since: { type: 'number', default: 0 }, verb: { type: 'string' }, actor: { type: 'string' }, faction: { type: 'string' }, place: { type: 'string' }, legend: { type: 'boolean', default: false }, limit: { type: 'number', default: 25 } },
+      run: async (a) => {
+        const C = g.society.chronicle;
+        return { records: C.query({ ...a, limit: Math.max(1, Math.min(200, a.limit)) }).map((r) => readRec(g, r)), last: C.seq, size: C.size, capacity: C.cap, legend: C.legend.length };
+      },
+    },
+    tally: {
+      group: 'society', desc: 'Rolled-up counts per "actorFaction|verb|targetFaction" (they survive the ring), plus the last 7 day digests.', args: { prefix: { type: 'string' } },
+      run: async ({ prefix }) => {
+        const S = g.society;
+        return { tally: Object.fromEntries([...S.chronicle.tally].filter(([k]) => !prefix || k.startsWith(prefix)).map(([k, v]) => [k, { n: v.n, mag: r1(v.m), lastT: v.t }])), day: S.day, digests: S.chronicle.digests.slice(-7) };
+      },
+    },
+    deed: {
+      group: 'society', desc: `Record a deed as if the player did it, through the real witness pass unless witness=false. verb: ${Object.keys(VERBS).join('|')}. target = character id; faction overrides the target's faction.`,
+      args: { verb: { type: 'string', required: true }, target: { type: 'string' }, faction: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, mag: { type: 'number' }, witness: { type: 'boolean', default: true } },
+      run: async ({ verb, target, faction, x, z, mag, witness }) => {
+        need(VERBS[verb] !== undefined, `unknown verb; known: ${Object.keys(VERBS).join(',')}`);
+        const t = target ? api.findChar(target) : null;
+        need(!target || t, `no character ${target}`);
+        const D = g.society.deeds, before = D.pending;
+        const rec = D.record(verb, { target: t, tf: faction, x, z, m: mag, witness });
+        need(rec, 'deed rejected: position not finite');
+        return { seq: rec.seq, witnesses: rec.w.slice(), unidentified: rec.un, unwitnessed: !!(rec.k & K.unwitnessed), rumorsQueued: D.pending - before, place: rec.p };
+      },
+    },
+    witnesses: {
+      group: 'society', desc: 'Dry run of the witness pass at x,z (default: where you stand): who would put a name to your face, how many would only see something, and the sight/ID ranges right now.',
+      args: { x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ x, z }) => {
+        const D = g.society.deeds, p = P(), wx = x ?? p.x, wz = z ?? p.z, rg = D.ranges(p);
+        const identified = D.witnessPass(wx, wz, p, null).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, faction: c.fid, dist: r1(Math.hypot(c.x - wx, c.z - wz)) }));
+        return { identified, sawOnly: D.sawOnly, sight: r1(rg.sight), idRange: r1(rg.idRange), night: rg.night, fogK: rg.fogK, crouch: rg.crouch };
+      },
+    },
+    rumors: {
+      group: 'society', desc: 'Word on its way: each pending report (witness, faction, verb, seconds until it lands). flush=true lands them all now.', args: { flush: { type: 'boolean', default: false } },
+      run: async ({ flush }) => {
+        const D = g.society.deeds;
+        if (flush) { for (const r of D.rumors) if (r.live) r.due = g.time; D.nextDue = g.time; D.update(); }
+        return D.view();
+      },
+    },
+    factions: {
+      group: 'society', desc: 'Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances.', args: { id: { type: 'string' } },
+      run: async ({ id }) => {
+        const F = g.society.factions;
+        if (id) { const v = F.view(id); need(v, `unknown faction; known: ${F.ids.join(',')}`); return v; }
+        return { factions: F.view(), tiers: TIERS };
+      },
+    },
+    standing: {
+      group: 'society', desc: "Read, set or add to a faction's standing toward you (-100..100). Tiers: hunted ≤ -80, hostile ≤ -40 (shoot on sight), wary, neutral, friendly, allied ≥ 60.",
+      args: { faction: { type: 'string', required: true }, set: { type: 'number' }, add: { type: 'number' } },
+      run: async ({ faction, set, add }) => {
+        const F = g.society.factions;
+        need(F.index[faction] !== undefined, `unknown faction; known: ${F.ids.join(',')}`);
+        const tierFrom = F.tiers[F.index[faction]];
+        if (set !== undefined) F.set(faction, set);
+        if (add !== undefined) F.add(faction, add);
+        return { ...F.view(faction), tierFrom, tierTo: F.tiers[F.index[faction]] };
+      },
+    },
+    relation: {
+      group: 'society', desc: 'Read or set how two factions feel about each other (-100..100, mutual): ≤ -50 is war, ≥ 50 an alliance.',
+      args: { a: { type: 'string', required: true }, b: { type: 'string', required: true }, set: { type: 'number' }, add: { type: 'number' } },
+      run: async ({ a, b, set, add }) => {
+        const F = g.society.factions;
+        need(F.index[a] !== undefined && F.index[b] !== undefined, `unknown faction; known: ${F.ids.join(',')}`);
+        need(a !== b, 'a faction always stands with itself');
+        if (set !== undefined || add !== undefined) F.setRelation(a, b, set ?? F.relation(a, b) + add);
+        const v = F.relation(a, b);
+        return { a, b, value: v, war: v <= -50, alliance: v >= 50 };
+      },
+    },
+    registerFaction: {
+      group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
+      args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
+      run: async ({ id, def }) => {
+        const r = g.society.factions.register(id, def);
+        need(!r.error, r.warnings.join('; '));
+        return { id, index: r.index, warnings: r.warnings, faction: g.society.factions.view(id) };
+      },
+    },
 
     // ---------------------------------------------------------------- content (runtime registration)
     registerWeapon: {
@@ -1397,6 +1496,133 @@ async function runSelfTest(api) {
     await C('step', { seconds: 4.5 });
     return burning && veh.dead ? true : `burning=${burning} dead=${veh.dead}`;
   });
+  // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
+  // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
+  const STAGE = { x: 280, z: -120 };
+  const stage = async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('crouch', { on: false });
+    await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
+    await C('teleport', STAGE);
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - STAGE.x, c.z - STAGE.z) < 90) g.removeChar(c);
+    const F = g.society.factions, D = g.society.deeds;
+    for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
+    for (const r of D.rumors) r.live = false;
+    D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
+    await C('give', { pistol: 60 }); await C('equip', { weapon: 'pistol' });
+    await C('step', { seconds: 0.2 });
+  };
+  const person = (kind, dx, dz, extra = {}) => {
+    const p = g.player, c = g.addChar({ x: p.x + dx, z: p.z + dz, faction: kind, weapon: kind === 'warden' ? 'smg' : null, colors: outfit(kind), name: `${kind} (selftest)`, flag: 'US', hp: extra.hp ?? 100 });
+    c.home = { x: c.x, z: c.z }; c.wx = c.x; c.wz = c.z; c.face = Math.atan2(p.x - c.x, p.z - c.z); // looking at the player
+    c.hold = true; // stands its ground: no wandering off, no turning away, no fleeing the gunfire
+    Object.assign(c, extra);
+    g.society.factions.assign(c);
+    return c;
+  };
+  const shootDead = async (c) => { for (let i = 0; i < 6 && c.alive; i++) await C('fire', { id: c.id, shots: 1 }); return !c.alive; };
+  const drifterStanding = () => g.society.factions.standing[g.society.factions.index.drifters];
+  const quickRumors = async (fn) => { const row = g.society.factions.row('drifters'), d = row.rumorDelay; row.rumorDelay = [5, 7]; try { return await fn(); } finally { row.rumorDelay = d; } };
+  await check('world memory: the chronicle keeps its last 512 records, and the tally keeps every count', async () => {
+    const C0 = g.society.chronicle, key = 'player|hurt|', n0 = C0.tally.get(key)?.n ?? 0, s0 = C0.seq;
+    for (let i = 0; i < 600; i++) await C('deed', { verb: 'hurt', witness: false, x: STAGE.x, z: STAGE.z });
+    const recs = (await C('chronicle', { limit: 25 })).records;
+    const mono = recs.every((r, i) => i === 0 || r.seq < recs[i - 1].seq);
+    const n = (C0.tally.get(key)?.n ?? 0) - n0;
+    return C0.size === 512 && n === 600 && C0.seq - s0 === 600 && mono && C0.legend.length <= 96 ? true : JSON.stringify({ size: C0.size, tally: n, seq: C0.seq - s0, mono, legend: C0.legend.length });
+  });
+  await check('world memory: a witness 15 m off names you at noon, but not at 23:00 from a crouch', async () => {
+    await stage();
+    const w = person('drifter', 0, 15);
+    const noon = (await C('witnesses')).identified.some((c) => c.id === w.id);
+    await C('setTime', { hour: 23 }); await C('crouch', { on: true }); await C('step', { seconds: 0.3 }); // the sky reads the new hour
+    w.x = g.player.x; w.z = g.player.z + 15; w.face = Math.PI; // still looking straight at you
+    const r = await C('witnesses');
+    const night = r.identified.some((c) => c.id === w.id);
+    await C('crouch', { on: false }); await C('setTime', { hour: 12 });
+    g.removeChar(w);
+    return noon && !night ? true : JSON.stringify({ noon, night, idRange: r.idRange, sight: r.sight });
+  });
+  await check("world memory: a witnessed killing reaches the victim's people, and their standing drops", async () => quickRumors(async () => {
+    await stage();
+    const victim = person('drifter', 5, 0, { hp: 30 }), w = person('drifter', 5, 10, { hp: 400 });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    const s0 = drifterStanding(), since = g.eventSeq;
+    const dead = await shootDead(victim);
+    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    const named = !!rec?.w.includes(w.id);
+    await C('step', { seconds: 9 });
+    const landed = g.events.some((e) => e.seq > since && e.type === 'rumor' && e.witness === w.id);
+    const s1 = drifterStanding();
+    g.removeChar(w);
+    return dead && named && landed && s1 < s0 ? true : JSON.stringify({ dead, named, landed, s0, s1, rec: rec && { w: rec.w, k: rec.k }, pending: g.society.deeds.view().pending });
+  }));
+  await check('world memory: kill the only witness before they talk, and the word dies with them', async () => quickRumors(async () => {
+    await stage();
+    const victim = person('drifter', 5, 0, { hp: 30 }), w = person('drifter', 5, 10, { hp: 30 });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    const s0 = drifterStanding(), since = g.eventSeq;
+    await shootDead(victim);
+    const queued = g.society.deeds.view().pending.some((r) => r.witness === w.id);
+    await shootDead(w); // well inside the 5-7 s it takes them to tell anyone
+    await C('step', { seconds: 9 });
+    const silenced = g.events.some((e) => e.seq > since && e.type === 'rumorSilenced' && e.witness === w.id);
+    const silence = g.society.chronicle.query({ verb: 'silence', limit: 1 })[0]?.o === w.id;
+    const s1 = drifterStanding();
+    return queued && silenced && silence && Math.abs(s1 - s0) < 0.5 ? true : JSON.stringify({ queued, silenced, silence, s0, s1 });
+  }));
+  await check('world memory: standing decides who shoots you on sight (raise the Dustwolves and their guns go quiet)', async () => {
+    await stage();
+    const r = person('raider', 30, 0, { weapon: 'smg' }), warden = person('warden', -30, 0);
+    await C('standing', { faction: 'dustwolves', set: 70 });
+    const friendly = g.ai.hostile(r, g.player);
+    await C('standing', { faction: 'dustwolves', set: -90 });
+    const hunted = g.ai.hostile(r, g.player);
+    const war = g.ai.hostile(warden, r) && g.ai.hostile(r, warden);
+    await C('standing', { faction: 'dustwolves', set: -60 });
+    g.removeChar(r); g.removeChar(warden);
+    return !friendly && hunted && war ? true : JSON.stringify({ friendly, hunted, war });
+  });
+  await check('world memory: at 23:00, crouched, 25 m from the only bystander - nobody knows, no stars', async () => {
+    await stage();
+    await C('setTime', { hour: 23 }); await C('crouch', { on: true }); await C('step', { seconds: 0.3 });
+    const victim = person('drifter', 3, 0, { hp: 30 }), by = person('drifter', 0, 25);
+    const s0 = drifterStanding();
+    await shootDead(victim);
+    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    await C('step', { seconds: 3 });
+    const s1 = drifterStanding(), stars = g.wanted;
+    await C('crouch', { on: false }); await C('setTime', { hour: 12 });
+    g.removeChar(by);
+    return rec && rec.k & K.unwitnessed && stars === 0 && Math.abs(s1 - s0) < 0.5 ? true : JSON.stringify({ k: rec?.k, w: rec?.w, stars, s0, s1 });
+  });
+  await check('world memory: a Rust Haven bull who sees you shoot someone raises the stars at once', async () => {
+    await stage();
+    const victim = person('drifter', 4, 0, { hp: 400 }), bull = person('warden', -6, 0);
+    await C('fire', { id: victim.id, shots: 1 });
+    const stars = g.wanted;
+    const rec = g.society.chronicle.query({ verb: 'hurt', limit: 1 })[0];
+    g.wanted = 0; g.removeChar(bull); g.removeChar(victim);
+    return stars > 0 && rec?.w.includes(bull.id) ? true : JSON.stringify({ stars, w: rec?.w, bull: bull.id });
+  });
+  await check('world memory: standings, the chronicle and word on its way survive save/load', async () => {
+    await stage();
+    const F = g.society.factions, D = g.society.deeds;
+    await C('standing', { faction: 'drifters', set: -33 });
+    const w = person('drifter', 6, 0), victim = person('drifter', 3, 2, { hp: 400 });
+    await C('fire', { id: victim.id, shots: 1 }); // a hurt the bystander (and the victim) will report
+    const pending = D.pending, seq = g.society.chronicle.seq;
+    const sv = (await C('save')).save;
+    await C('standing', { faction: 'drifters', set: 50 });
+    for (let i = 0; i < 3; i++) await C('deed', { verb: 'trade', witness: false });
+    const r = await C('load', { save: sv });
+    const st = F.standing[F.index.drifters];
+    const ok = r.ok && Math.abs(st + 33) < 0.01 && D.pending === pending && g.society.chronicle.seq === seq;
+    for (const c of [w, victim]) if (g.chars.includes(c)) g.removeChar(c);
+    for (const r2 of D.rumors) r2.live = false;
+    D.pending = 0; D.nextDue = Infinity; F.set('drifters', F.row('drifters').start);
+    return pending > 0 && ok ? true : JSON.stringify({ pending, after: D.pending, seq, seqAfter: g.society.chronicle.seq, standing: st });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1418,8 +1644,9 @@ export function snapshot(g) {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed })),
+    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
+    society: g.society.save(), // additive: a save without it loads with fresh standings
   };
 }
 
@@ -1453,6 +1680,7 @@ export function restore(g, s) {
       if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
     Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless });
+    if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
@@ -1462,6 +1690,8 @@ export function restore(g, s) {
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.
   g.nextId = Math.max(g.nextId, ...s.chars.map((c) => Number(c.id.slice(1)) || 0));
+  // The society last: pending rumors find their witnesses by id among the people just restored.
+  if (s.society) g.society.load(s.society);
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

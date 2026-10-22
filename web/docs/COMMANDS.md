@@ -22,7 +22,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `events` | `since?:number type?:string` | Structured event log (kill, pickup, dialogueOpen, dialogueChoice, enterVehicle, exitVehicle, arrived, toast...). Pass since=<seq>. |
 | `map` | `(none)` | World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, named NPC homes. |
 | `perf` | `(none)` | Frame rate, draw calls, triangles, entity counts. |
-| `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it. |
+| `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number tilt?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot, zoom = camera height (8 = close-up, 33 = default, 90 = overview) and tilt (0.14 = the game camera, 0 = straight down … 1.6 = low angle from the south; negative = from the north, upside down, to see the front of north-facing cars). In photo mode it shoots the photo framing. CLI: --out file.jpg saves it. |
 | `photo` | `on?:boolean x?:number z?:number zoom?:number tilt?:number` | Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K. |
 | `ambient` | `(none)` | Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
 | `hud` | `(none)` | What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood. |
@@ -58,8 +58,8 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 |---|---|---|
 | `train` | `action?:string z?:number` | The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status \| board (player climbs onto the nearest car — must be beside the track) \| leave (jump off; hurts above ~6 m/s) \| summon (put the train 80 m north of the station, arriving) \| place (nose at z, cruising south — for staging) \| blowTanker. |
 | `convoy` | `action?:string dir?:string` | Dustwolf war convoys on Route 66 (lead buggy, bike outriders, gun-truck with a bed gunner, loot hauler). action: status \| spawn (dir=east\|west; default rolls toward the player) \| engage (break formation now) \| clear. Kill the hauler for its cargo. |
-| `horde` | `x?:number z?:number count?:number runners?:number radius?:number` | Spawn a horde of Rotters (zombies) around x,z (default 30m from the player). runners = fraction that sprint. |
-| `zombies` | `on?:boolean` | Turn night horde spawning on/off (existing Rotters stay). Returns how many are alive. |
+| `horde` | `x?:number z?:number count?:number runners?:number radius?:number` | Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters. |
+| `zombies` | `on?:boolean` | Turn night herd spawning on/off (the infected already out stay). Returns how many are alive. |
 | `setTime` | `hour:number fast?:boolean` | Set hour of day (0-24). fast=true runs time x40. |
 | `setWeather` | `key:CLEAR\|OVERCAST\|RAIN\|STORM\|DUST\|FOG\|ASHFALL instant?:boolean` | Change weather (blends over ~6s; instant=true snaps). |
 | `spawn` | `kind?:raider\|drifter\|warden\|zombie runner?:boolean x?:number z?:number count?:number name?:string flag?:string weapon?:string hp?:number angry?:boolean` | Spawn a character. kind=raider\|drifter\|warden. Optional name, flag (ISO code), weapon, hostile grudge vs player. |
@@ -92,10 +92,24 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `choose` | `index:number` | Pick a dialogue choice by index (0-based). Returns the next line + choices. |
 | `dialogue` | `(none)` | Current dialogue text + choices. |
 
+## society
+
+| command | args | what it does |
+|---|---|---|
+| `chronicle` | `since?:number verb?:string actor?:string faction?:string place?:string legend?:boolean limit?:number` | What happened, newest first: your deeds (with who saw them), rumors that reached a faction, the world's own violence. Filters: since (seq), verb, actor, faction (either side), place, legend (notable only), limit. |
+| `tally` | `prefix?:string` | Rolled-up counts per "actorFaction\|verb\|targetFaction" (they survive the ring), plus the last 7 day digests. |
+| `deed` | `verb:string target?:string faction?:string x?:number z?:number mag?:number witness?:boolean` | Record a deed as if the player did it, through the real witness pass unless witness=false. verb: hurt\|carjack\|steal\|rob\|destroy\|kill\|silence\|rescue\|deliver\|trade\|pay\|defend\|betray. target = character id; faction overrides the target's faction. |
+| `witnesses` | `x?:number z?:number` | Dry run of the witness pass at x,z (default: where you stand): who would put a name to your face, how many would only see something, and the sight/ID ranges right now. |
+| `rumors` | `flush?:boolean` | Word on its way: each pending report (witness, faction, verb, seconds until it lands). flush=true lands them all now. |
+| `factions` | `id?:string` | Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances. |
+| `standing` | `faction:string set?:number add?:number` | Read, set or add to a faction's standing toward you (-100..100). Tiers: hunted ≤ -80, hostile ≤ -40 (shoot on sight), wary, neutral, friendly, allied ≥ 60. |
+| `relation` | `a:string b:string set?:number add?:number` | Read or set how two factions feel about each other (-100..100, mutual): ≤ -50 is war, ≥ 50 an alliance. |
+
 ## content
 
 | command | args | what it does |
 |---|---|---|
+| `registerFaction` | `id:string def:object` | Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}. |
 | `registerWeapon` | `key:string def:object` | Add/override a weapon row at runtime. def: {name, short, dmg, rate, mag, reload, spread, range, auto, pellets, ammo:pistol\|smg\|shells, sound:pistol\|smg\|shotgun, shake}. Then give {weapon:key}. |
 | `registerVehicle` | `key:string def:object` | Add/override a vehicle handling row. Base body shape is copied from def.base (rig\|interceptor\|buggy\|pickup). |
 | `registerNpc` | `def:object x?:number z?:number` | Create a named NPC with a portrait + branching dialogue and spawn them. def follows src/data/npcs.js (id,name,title,flag,faction,portrait,start,nodes). Node choices may use simple effects: {t, next\|end, cost:N, give:{cash,ammo,weapon}, setQuest:{key:value}, ifQuest:{key:value}, weather:"STORM"} — no functions needed. |

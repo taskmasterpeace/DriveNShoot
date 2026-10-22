@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 41/41 engine checks
+node tools/dl.mjs selftest       # 49/49 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -69,6 +69,7 @@ In the browser console, or inside scenario code: `await DL.call('state')`, or `D
 | `save` / `load` | Full game state as JSON (including blood/injuries): checkpoint before a risky experiment and roll back |
 | `screenshot x z zoom` | Look at any spot at any camera height (8 = close-up, 90 = overview), even from a hidden tab |
 | `bench` | Honest GPU-synced frame timing (avg/p95/max, draw calls, GPU name) |
+| `chronicle`, `factions`, `rumors`, `witnesses` | The world's memory (docs/design/WEB_WORLD_MEMORY.md): what happened and who saw it, where you stand with every faction, word on its way, and a dry run of who would name you right here. `deed`, `standing`, `relation`, `registerFaction` to stage or extend it |
 
 **Honest by default:** `talk` and `enterVehicle` require you to actually be there (within about 4 m), and the error tells you where the target is (`moveTo id=... first`). Pass `force=true` only in tests. Named characters dropped by raiders or traffic are downed and back on their feet after 45 s (you get a `downed` event with the countdown). If *you* kill one, they stay dead, except characters marked `essential: true` (the quest-giving sheriff and Doc Reyes), who always come back so the story can't dead-end. Killing them still earns wanted stars. Mark your own quest givers `essential` in content packs.
 
@@ -76,7 +77,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 41/41** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 49/49** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
@@ -158,9 +159,15 @@ src/
   systems/
     sky.js             time of day, sun/moon light, fog, WEATHER table, rain/dust/ash particles, lightning
     fx.js              blood/sparks/smoke particles, decals (pools, splats, skids), tracers, flashes, pooled lights
-    characters.js      Character data + CharacterRenderer (8 InstancedMeshes = all humans)
+    characters.js      Character data + CharacterRenderer: one articulated body (two-segment limbs, IK feet and
+                       hands, a model per weapon), left+right limbs packed, variants packed per wearer
     combat.js          WEAPONS table, hitscan, damage, death
-    ai.js              on-foot AI: faction hostility, scan, fight/strafe/flee/wander, crowd separation
+    ai.js              on-foot AI: faction hostility (toward the player: faction standing), scan,
+                       fight/strafe/flee/wander, crowd separation, `hold` (stand still)
+    society.js         world memory facade: day count, places, hourly standing decay, save/load
+    chronicle.js       512-record ring of what happened + tally + legend + day digests
+    factions.js        faction rows, standing/tiers toward the player, relations matrix (typed arrays)
+    deeds.js           deeds, the witness pass, the rumor pool, witness-gated wanted stars
     vehicles.js        VEHICLES table (cars, bike, boats), arcade driving model, collisions, run-overs, traffic/raider/convoy AI, harpoon
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
     seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)
@@ -175,6 +182,7 @@ src/
     dialogue.js        dialogue panel: typewriter, numbered choices
     portrait.js        procedural portraits + real flag drawings (FLAGS table)
   data/npcs.js         named NPCs + dialogue trees, ambient barks, name lists
+  data/society.js      verbs, tiers and the built-in factions (Rust Haven, the Dustwolves, drifters, the infected)
   agent/
     api.js             THE agent API: COMMANDS table (single source of truth), selftest
     bridge.js          browser long-poll client for the HTTP bridge
@@ -187,7 +195,7 @@ tools/mcp-server.mjs   zero-dependency MCP stdio server (registered in .mcp.json
 content/*.json         data-only content packs
 ```
 
-Update order per frame (`Game.frame`): player → AI → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → sky → lights → character instancing → audio → HUD.
+Update order per frame (`Game.frame`): player → AI → society (rumors, decay) → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → sky → lights → character instancing → audio → HUD.
 
 ## Invariants (don't break these)
 

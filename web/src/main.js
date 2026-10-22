@@ -15,6 +15,7 @@ import { FX } from './systems/fx.js';
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { AI } from './systems/ai.js';
+import { Society } from './systems/society.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -93,6 +94,8 @@ class Game {
     this.vehicles = [];
     this.combat = new Combat(this);
     this.ai = new AI(this);
+    this.society = new Society(this); // who saw what, and who now hates you for it
+    this.society.initPlaces();
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.throwables = new Throwables(this);
@@ -153,6 +156,7 @@ class Game {
     this.statics.resolveCircle(p, 0.5);
     c.x = p.x; c.z = p.z;
     c.mag = c.weapon ? WEAPONS[c.weapon].mag : 0;
+    this.society.factions.assign(c);
     this.chars.push(c);
     this.charR.paint(c);
     return c;
@@ -395,12 +399,14 @@ class Game {
 
   // Structured event log for agents (DL.events). Ring buffer, never grows unbounded.
   emit(type, data = {}) {
-    this.events.push({ seq: ++this.eventSeq, t: +this.time.toFixed(2), type, ...data });
+    // The event's own seq/t/type come last: a payload key of the same name must never overwrite them.
+    this.events.push({ ...data, seq: ++this.eventSeq, t: +this.time.toFixed(2), type });
     if (this.events.length > 500) this.events.shift();
   }
 
   onKill(c, attacker, cause = 'bullet') {
     this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0, cause });
+    this.society.deeds.onKill(c, attacker, cause); // witnesses and rumors; wanted stars only on a lawful witness's word
     if (attacker === this.player) {
       this.stats.kills++;
       if (c.faction === 'raider') {
@@ -409,7 +415,7 @@ class Game {
           const k = this.stats.raiderKills - this.quests.bountyStart;
           this.hud.toast(k >= 6 ? 'BOUNTY COMPLETE — return to Sheriff Okonkwo' : `Dustwolf Bounty ${k}/6`, 'job');
         }
-      } else if (c.faction !== 'zombie') this.raiseWanted(c.npc ? 3 : 2);
+      }
     }
     if (c.faction === 'raider' && Math.random() < 0.7) this.dropPickup(c.x + 0.8, c.z, Math.random() < 0.6 ? 'ammo' : 'cash');
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
@@ -433,9 +439,9 @@ class Game {
       if (d.faction === 'ally') { this.seats.leave(d, true); this.seats.board(d, v, this.seats.freeSeat(v, { passengerOnly: true })); }
       else {
         this.seats.leave(d);
-        this.ai.onDamaged(d, p);
+        this.society.deeds.record('carjack', { target: d, stars: d.faction !== 'raider' ? 1 : 0 });
+        this.ai.onDamaged(d, p, true);
         this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
-        if (d.faction !== 'raider') this.raiseWanted(1);
       }
     }
     this.seats.board(p, v, 0); v.ai = null;
@@ -872,6 +878,7 @@ class Game {
     this.nanGuard('player');
     if (simDt) {
       this.ai.update(simDt); this.nanGuard('ai');
+      this.society.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');

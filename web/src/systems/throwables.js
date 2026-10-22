@@ -172,7 +172,7 @@ export class Throwables {
       }
     }
     if (def.noise) { g.noise(p.x, p.z, def.noise, p.owner); g.zombies.onNoise(p.x, p.z, def.noise * 1.5); g.audio.thud?.(g.pan(p.x)); }
-    g.emit('detonated', { type: p.type, x: Math.round(p.x), z: Math.round(p.z) });
+    g.emit('detonated', { kind: p.type, x: Math.round(p.x), z: Math.round(p.z) });
   }
 
   update(dt) {
