@@ -1114,14 +1114,60 @@ function buildCommands(api) {
       run: async ({ id }) => { const r = g.society.director.cancel(id); need(r, `no running event ${id}`); return r; },
     },
     needs: {
-      group: 'player', desc: 'Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them.',
-      args: { water: { type: 'number' }, food: { type: 'number' } },
-      run: async ({ water, food }) => {
-        const N = g.needs, S2 = g.survival;
-        if (water !== undefined) { need(water >= 0 && water <= 1, 'water is 0..1'); N.water = water; N.pips.water = S2.pip(water); }
-        if (food !== undefined) { need(food >= 0 && food <= 1, 'food is 0..1'); N.food = food; N.pips.food = S2.pip(food); }
-        if (water !== undefined || food !== undefined) S2.update(0); // recompute the effects now
+      group: 'player', desc: 'Water, food and rest (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...; tired, weary, exhausted, dead on your feet), what they cost you right now (stamina, sway on your aim, the dark at the edges, a microsleep), game hours left, a fever, and whether you are asleep. water=, food=, rest= set them.',
+      args: { water: { type: 'number' }, food: { type: 'number' }, rest: { type: 'number' } },
+      run: async ({ water, food, rest }) => {
+        const N = g.needs, S2 = g.survival, set = { water, food, rest };
+        for (const k of Object.keys(set)) if (set[k] !== undefined) { need(set[k] >= 0 && set[k] <= 1, `${k} is 0..1`); N[k] = set[k]; N.pips[k] = S2.pip(set[k]); }
+        if (water !== undefined || food !== undefined || rest !== undefined) S2.update(0); // recompute the effects now
         return S2.view();
+      },
+    },
+    sleep: {
+      group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: E at a bed, or use a bedroll from the PACK screen; E gets you up.',
+      args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
+      run: async ({ where, snap, hours, wake }) => {
+        const S2 = g.survival, p = P();
+        if (wake) return { woke: S2.wake(), needs: S2.view() };
+        let bed = null;
+        if (where === 'bed') {
+          if (snap) {
+            let bd = Infinity;
+            for (const b of g.world.spawns.beds ?? []) { const d = Math.hypot(b.x - p.x, b.z - p.z); if (d < bd) { bd = d; bed = b; } }
+            need(bed, 'no beds in this world');
+            if (p.inVehicle) g.exitVehicle(true);
+            p.x = bed.x; p.z = bed.z;
+          } else bed = g.bedNear(p.x, p.z);
+          need(bed, 'no bed within reach: stand at a mattress (or snap=true)');
+        }
+        if (where === 'bedroll') {
+          const i = g.inventory.carried.slots.findIndex((s) => s.id === 'bedroll');
+          need(i >= 0, 'you carry no bedroll');
+          const r = g.inventory.use(i); need(r.ok, r.why);
+        } else { const r = S2.sleepAt(where, bed); need(r.ok, r.why); }
+        S2.lastWake = null;
+        for (let k = 0; k < 4000 && S2.sleep; k++) {
+          await api._step(30);
+          if (hours !== undefined && S2.sleep && S2.sleep.slept >= hours) S2.wake();
+        }
+        return { woke: S2.lastWake, needs: S2.view() };
+      },
+    },
+    fever: {
+      group: 'player', desc: 'BITE FEVER (canon: docs/design/THE_INFECTED.md §3.6; data/survival.js FEVER). No args: whether you have it, game hours left, treated or not. bite=true gives you the dirty wound a landed bite from the infected gives (36 game hours of stamina regen x0.75, hunger x1.3 and a little sway); treat=true takes antibiotics from your pack; clear=true ends it (testing). Antibiotics and then a full night\'s sleep break it early. It never kills, and you never turn.',
+      args: { bite: { type: 'boolean' }, treat: { type: 'boolean' }, clear: { type: 'boolean' } },
+      run: async ({ bite, treat, clear }) => {
+        const S2 = g.survival, out = {};
+        if (bite) S2.bitten();
+        if (treat) {
+          const i = g.inventory.carried.slots.findIndex((s) => s.id === 'antibiotics');
+          need(i >= 0, 'you carry no antibiotics');
+          const r = g.inventory.use(i); need(r.ok, r.why); out.used = r.text;
+        }
+        if (clear) S2.feverEnds('passed');
+        S2.update(0);
+        const v = S2.view();
+        return { ...out, fever: v.fever, effects: v.effects };
       },
     },
     skills: {
@@ -2253,6 +2299,77 @@ async function runSelfTest(api) {
     const said = g.events.find((e) => e.seq > since && e.type === 'radio');
     return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
   });
+  // ---- rest and bite fever (docs/design/WEB_SURVIVAL.md) ----
+  const withNeeds = async (fn) => {
+    const N = g.needs, keep = { water: N.water, food: N.food, rest: N.rest, fever: N.fever };
+    N.water = 0.9; N.food = 0.9; N.rest = 0.9; N.fever = null; N.blackout = 0;
+    try { return await fn(); } finally {
+      if (g.survival.sleep) g.survival.wake();
+      Object.assign(N, keep, { blackout: 0 }); g.survival.update(0);
+      await C('setTime', { hour: 12 });
+    }
+  };
+  await check('rest: hours awake tire you into sway and microsleeps; a bed refills you while the night runs x40; one of the infected walking up wakes you', async () => withNeeds(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player;
+    N.rest = 0.05; await C('step', { seconds: 0.3 });
+    const tired = N.pips.rest === 3 && N.sway >= 1.35 && N.staminaRegen <= 0.6 + 1e-9;
+    N.rest = 0; S.microT = 0.05; await C('step', { seconds: 0.3 });
+    const micro = N.pips.rest === 4 && N.blackout > 0;
+    const x0 = p.x; await holdKey('KeyD', 0.4); // the hands let go: a held key moves nothing
+    const still = Math.abs(p.x - x0) < 0.05;
+    await C('step', { seconds: 1.6 });
+    const back = N.blackout === 0;
+    // a bed: lie down, the night runs, up rested; a full night
+    N.rest = 0.3;
+    const r = await C('sleep', { where: 'bed', snap: true });
+    const slept = r.woke?.why === 'rested' && r.woke.full && N.rest > 0.99 && Math.abs(r.woke.hours - 0.7 / (1 / 7)) < 0.6 && !p.sleeping;
+    // on the bare ground, and one of the infected comes up the street: woken, not rested
+    await stage();
+    N.rest = 0.3;
+    const lay = S.sleepAt('ground');
+    const z = g.zombies.spawn(p.x + 20, p.z, false);
+    for (let i = 0; i < 60 && S.sleep; i++) await C('step', { seconds: 0.25 });
+    const woken = !!lay.ok && !S.sleep && /infected/.test(S.lastWake?.why ?? '') && S.lastWake.full === false;
+    g.removeChar(z);
+    return tired && micro && still && back && slept && woken ? true : JSON.stringify({ tired, sway: N.sway, micro, still, back, slept, woke: r.woke, lay: lay.ok ? true : lay.why, woken, why: S.lastWake?.why });
+  }));
+  await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player, inv = g.inventory;
+    await C('god', { on: false });
+    try {
+      p.hp = p.maxHp;
+      const z = g.zombies.spawn(p.x + 0.9, p.z, false); z.cool = 0;
+      for (let i = 0; i < 30 && !N.fever; i++) await C('step', { seconds: 0.1 });
+      g.removeChar(z);
+      const started = !!N.fever && Math.abs(N.fever.until - S.hours() - 36) < 0.5 && p.alive;
+      await C('step', { seconds: 0.1 });
+      const taxed = Math.abs(N.staminaRegen - 0.75) < 1e-6;
+      // hunger runs 1.3x: over a fast-forwarded stretch, food falls by 1.3 x its waking rate
+      g.sky.fast = true;
+      const h0 = S.hours(), f0 = N.food;
+      await C('step', { seconds: 1.5 });
+      g.sky.fast = false;
+      const dh = S.hours() - h0, df = f0 - N.food, want = dh * (1 / 80) * 1.3;
+      const hungry = dh > 0.5 && Math.abs(df - want) < want * 0.06;
+      // treated, then a full night in a bed: broken
+      inv.add(inv.carried, 'antibiotics', 1); inv.changed();
+      const used = inv.use(inv.carried.slots.findIndex((s) => s.id === 'antibiotics'));
+      const treated = used.ok && N.fever?.treated === true;
+      p.hp = p.maxHp; N.rest = 0.4;
+      const r = await C('sleep', { where: 'bed', snap: true });
+      const broke = r.woke?.full === true && N.fever === null;
+      // untreated, it runs out on its own; it never took a point of health
+      await stage();
+      S.bitten();
+      const hp0 = p.hp;
+      N.fever.until = S.hours() + 0.02;
+      g.sky.fast = true; await C('step', { seconds: 0.5 }); g.sky.fast = false;
+      const passed = N.fever === null && p.hp === hp0;
+      return started && taxed && hungry && treated && broke && passed ? true : JSON.stringify({ started, until: N.fever?.until, taxed, regen: N.staminaRegen, hungry, dh: +dh.toFixed(2), df: +df.toFixed(4), want: +want.toFixed(4), treated, broke, woke: r.woke, passed });
+    } finally { await C('god', { on: true }); }
+  }));
   await check('survival: thirst wears in pips, slows stamina recovery, and a bottle of water fixes it', async () => {
     await stage();
     const before = g.needs.water;

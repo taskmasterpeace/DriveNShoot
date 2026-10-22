@@ -45,8 +45,9 @@ rounds you have the most of. Ike will make your gun right again for a price that
 - **Weight:** each slot weighs `kg × n`, or for things with uses `kgEmpty + (kg − kgEmpty) × left/uses`; the worn pack
   adds its own kg. Total weight joins the guns' weight in skills.js (`carryKg` grows with STRENGTH).
 - **Using** (E on the PACK screen, or V): food and water change `g.needs` (negative amounts cost you: jerky is salty),
-  meds heal and stop bleeding, painkillers ease the shakes, antibiotics cure (for the fever a bite brings, when that
-  lands). A thing that needs a tool tag (`blade`) refuses without one you carry. A spent refillable keeps its shell.
+  meds heal and stop bleeding, painkillers ease the shakes, antibiotics treat BITE FEVER (WEB_SURVIVAL: a full night's
+  sleep after them breaks it), a bedroll puts you to sleep where you stand (kept). A thing that needs a tool tag
+  (`blade`) refuses without one you carry. A spent refillable keeps its shell.
 - **V, quick-use:** bleeding or under 45% health → the best med (a bleed-stopper first); else the lower of water/food
   under 75%; else a med under 85% health. Food that spoils soonest is eaten first; rotten food is never picked.
 - **Freshness:** `spoils` game hours fresh, as long again stale (half the good, half the price), then rotten (15% of

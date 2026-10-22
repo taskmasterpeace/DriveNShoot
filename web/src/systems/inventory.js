@@ -175,6 +175,7 @@ export class Inventory {
     if (u.hp && P) { P.hp = Math.min(P.maxHp, P.hp + u.hp * k); texts.push(`+${Math.round(u.hp * k)} HP`); }
     if (u.bleed && P) { P.bleed = 0; texts.push('BLEEDING STOPPED'); }
     if (u.calm && g.hud) g.hud.hurtV = 0; // the shakes ease off
+    if (u.cure) { const t = g.survival?.antibiotics(); if (t) texts.push(t); } // a fever treated; a full night breaks it
     if (fresh === 'rotten' && P) { g.combat?.damage(P, 6, null, 0, 0, 'sickness'); texts.push('IT WAS OFF'); }
     if (N?.pips && g.survival) for (const k2 of ['water', 'food']) N.pips[k2] = g.survival.pip(N[k2]);
     if (it.uses) { s.left--; if (s.left <= 0 && it.kgEmpty === undefined) this.take(box, i, 1); } // spent; a refillable keeps its shell
@@ -210,6 +211,7 @@ export class Inventory {
       d[part] = Math.min(1, d[part] + amt);
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
+    if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
     if (verb === 'clean') { // the gun in your hands
       const k = g.inv.current, c = this.cond(k), name = WEAPONS[k]?.short ?? k;
       if (c <= 0) return { ok: false, why: `the ${name.toLowerCase()} is broken, not dirty: a gunsmith can fix it` };

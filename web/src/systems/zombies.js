@@ -101,6 +101,7 @@ export class Zombies {
       if (c.cool <= 0) {
         c.cool = 0.85 + Math.random() * 0.3;
         g.combat.damage(t, BITE, c, (t.x - c.x) / (d || 1), (t.z - c.z) / (d || 1), 'bite');
+        if (t === g.player && t.alive && !g.godMode) g.survival?.bitten(); // BITE FEVER (canon: never a turn)
         if (t.grabbing && t === g.player && Math.random() < 0.3) g.carCombat.letGo(t, 0.5);
       }
     } else {

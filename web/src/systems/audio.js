@@ -138,6 +138,26 @@ export class Audio {
   skid(k) { if (Math.random() < 0.15) this.burst({ dur: 0.15, freq: 1500, type: 'bandpass', q: 6, vol: Math.min(0.25, k * 0.2), decay: 0.14 }); }
   horn(dist = 0) { const v = Math.max(0, 0.15 * (1 - dist / 40)); this.tone(392, 0.35, v, 'square'); this.tone(330, 0.35, v, 'square'); }
   trainHorn(pan = 0, dist = 0) { this.count('trainHorn'); const v = Math.max(0, 0.32 * (1 - dist / 260)); if (!(v >= 0.01)) return; if (!Number.isFinite(pan)) pan = 0; for (const f of [277, 349, 415]) this.tone(f, 1.6, v, 'sawtooth', 0, pan); }
+  // A fevered breath (BITE FEVER, canon: a low breathing loop): in, then out - filtered noise that swells and falls,
+  // just under notice. k 0..1: how hard the fever is breathing (treated breathes easier).
+  breath(k = 1) {
+    if (!this.ctx) return;
+    this.count('breath');
+    const ctx = this.ctx, v = 0.05 + 0.06 * k;
+    const swell = (at, dur, freq, vol) => {
+      const t = ctx.currentTime + at;
+      const src = ctx.createBufferSource(); src.buffer = this.noiseBuf;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 0.9;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + dur * 0.45); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+      src.connect(f).connect(g);
+      this.out(g, 0);
+      src.start(t, Math.random() * 1.5, dur);
+    };
+    swell(0, 0.8, 900, v);          // in: a little higher
+    swell(1.0, 1.1, 520, v * 0.85); // out: lower and longer
+  }
+
   heartbeat(k = 0.5) { this.count('heartbeat'); const v = 0.18 + k * 0.22; this.tone(52, 0.14, v, 'sine', 0.3); setTimeout(() => this.tone(46, 0.16, v * 0.8, 'sine', 0.3), 170); }
   harpoon() { this.burst({ dur: 0.3, freq: 600, vol: 0.8, decay: 0.25, pitchDrop: 0.3 }); this.tone(220, 0.25, 0.2, 'sawtooth', 2.5); }
   clank() { this.tone(820, 0.15, 0.25, 'square', 0.6); this.burst({ dur: 0.1, freq: 3500, type: 'highpass', vol: 0.4, decay: 0.09 }); }
