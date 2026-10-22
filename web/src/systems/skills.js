@@ -40,7 +40,7 @@ export class Skills {
     for (const [w, n] of Object.entries(inv.mag)) if (inv.weapons.includes(w)) kg += (ITEM_KG.round[WEAPONS[w]?.ammo] ?? 0.01) * n; // only guns you carry hold rounds
     for (const [a, n] of Object.entries(inv.ammo)) kg += (ITEM_KG.round[a] ?? 0.01) * n;
     for (const [t, n] of Object.entries(inv.throwables)) kg += (ITEM_KG.throwable[t] ?? 0.5) * (t === 'rock' ? 0 : n);
-    return kg;
+    return kg + (this.g.inventory?.kg() ?? 0); // and everything in your pockets and pack (inventory.js)
   }
 
   recompute() {

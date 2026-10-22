@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 63/63 engine checks
+node tools/dl.mjs selftest       # 65/65 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -78,7 +78,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 63/63** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air, the morning digest reading yesterday's dead and a witnessed jump back), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), the faction sim (ten days off-screen, a night raid beaten off), the ATV, **jumps** (Wreck Row at 40 mph lands clean on its deck, pays and gets talked about; too slow meets the deck's face, too fast flies past it; a dune is a bump at a crawl and air at speed; kicker sides are solid; people stand on dirt), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 65/65** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air, the morning digest reading yesterday's dead and a witnessed jump back), survival (thirst wears in pips, slows stamina, a found bottle drunk with V fixes it), the **inventory** (a found bottle rides in the pack, V drinks from it, a tin needs a blade, packs swap; the dead are searchable with the same loot every time; what you carry weighs), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), the faction sim (ten days off-screen, a night raid beaten off), the ATV, **jumps** (Wreck Row at 40 mph lands clean on its deck, pays and gets talked about; too slow meets the deck's face, too fast flies past it; a dune is a bump at a crawl and air at speed; kicker sides are solid; people stand on dirt), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
@@ -174,6 +174,8 @@ src/
     director.js        event director: hunters, raids, dead_draw_dead, radio news; pacing, cooldowns, outcomes
     factionsim.js      the world without you: strength/stores, place yields and upkeep, daily skirmishes, camps changing hands
     vehicles.js        VEHICLES table (cars, bike, boats), arcade driving model, collisions, run-overs, traffic/raider/convoy AI, harpoon
+    inventory.js       items in containers (data/items.js): what you carry (pockets + the worn pack), trunks, the dead, ground
+                       piles, world boxes rolled from seeded loot tables on first open; uses, spoilage on the game clock, tools
     stunts.js          jumps: the ground's relief (kickers, berms, tables from data/stunts.js), ride-height springs, flight, landings
                        graded by closing speed (clean/rough/hard/crash), named jumps that pay and are told about, blob shadows
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
@@ -191,10 +193,12 @@ src/
                        dog tags, throwable) or the analog dash when driving, toasts, vignettes. Change-only DOM writes.
     hudart.js          every HUD texture (plates, paper, sign, bezel, gauge faces, flags, sprites) painted once at boot
     dialogue.js        dialogue panel: typewriter, numbered choices
+    inventory.js       the PACK screen (I / Tab): what's on you beside the other side (trunk, box, body, ground); V quick-use
     portrait.js        procedural portraits + real flag drawings (FLAGS table)
   data/npcs.js         named NPCs + dialogue trees, ambient barks, name lists
   data/society.js      verbs, tiers, memory kinds and the built-in factions (Rust Haven, the Dustwolves, drifters, the infected)
   data/events.js       director event templates: numbers and radio lines
+  data/items.js        every carryable thing (weight, litres, uses, spoilage, what using it does), loot tables, the start kit
   data/stunts.js       ramps, sites (the Thrill Show, the Dunes), props, named jumps, and the jump tuning (gravity, springs' limits, landing lines)
   agent/
     api.js             THE agent API: COMMANDS table (single source of truth), selftest

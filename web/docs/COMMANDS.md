@@ -53,6 +53,9 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `dismiss` | `id:string` | Send a follower on their way. |
 | `needs` | `water?:number food?:number` | Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them. |
 | `skills` | `strength?:number dexterity?:number endurance?:number` | Strength, dexterity, endurance (0-10, grown by doing: hits and reloads, sprinting and swimming, hauling a heavy load), what they do for you now, and what you carry (kg against capacity). strength=, dexterity=, endurance= set a level. |
+| `inventory` | `(none)` | What you carry (data/items.js): the pack you wear, weight and room, every item with uses left and freshness, and the container you have open. In the game: I or Tab opens the PACK screen; V uses whatever you need most (patch up, drink, eat). |
+| `item` | `give?:string use?:string drop?:string wear?:string take?:string stow?:string n?:number quick?:boolean` | Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js. |
+| `pack` | `on?:boolean` | Open or close the PACK screen (what a player sees with I). on=true opens it beside whatever is at your feet; screenshots only show the world, so read the result. |
 
 ## world
 

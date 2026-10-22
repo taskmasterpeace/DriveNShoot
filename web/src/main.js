@@ -20,6 +20,9 @@ import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
 import { Garage } from './systems/garage.js';
 import { Stunts } from './systems/stunts.js';
+import { Inventory } from './systems/inventory.js';
+import { InventoryUI } from './ui/inventory.js';
+import { ITEMS } from './data/items.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -130,6 +133,8 @@ class Game {
     this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
+    this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
+    this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -159,6 +164,7 @@ class Game {
       this.removeChar(far);
     }
     const slot = this.freeSlots.pop();
+    if (!opts.colors) opts = { ...opts, colors: outfit(opts.faction ?? 'drifter') }; // nobody walks out unpainted (a pack or a script that forgot)
     const c = new Character(slot, opts);
     c.id = `c${++this.nextId}`;
     c.flag = opts.flag ?? 'US';
@@ -288,8 +294,7 @@ class Game {
         this.audio.pickup();
         let text;
         if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
-        else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; text = '+35 HP'; }
-        else if (it.type === 'water' || it.type === 'food') text = this.survival.consume(it.type);
+        else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
         else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
@@ -429,8 +434,39 @@ class Game {
         }
       }
     }
-    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.5 ? 'ammo' : r < 0.75 ? 'cash' : r < 0.88 ? 'water' : 'food'); }
+    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.6 ? 'ammo' : 'cash'); }
+    // The dead carry what they carried: a body is a container you can go through (I, standing over it).
+    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
+  }
+
+  // A pickup box is a find: it goes in your pack (or, with no room, you use it on the spot - drink the water, eat
+  // the food, wrap the cut). Returns the floating text.
+  pickItem(kind, x, z) {
+    const r = Math.random();
+    const id = kind === 'water' ? (r < 0.8 ? 'water_bottle' : 'canteen')
+      : kind === 'med' ? (r < 0.55 ? 'bandage' : r < 0.75 ? 'painkillers' : r < 0.92 ? 'suture_kit' : 'first_aid')
+      : r < 0.35 ? 'beans_tin' : r < 0.55 ? 'jerky' : r < 0.7 ? 'peaches_tin' : r < 0.82 ? 'ration' : r < 0.92 ? 'honey' : 'cactus_fruit';
+    const inv = this.inventory, it = ITEMS[id];
+    const state = it.uses ? { left: Math.max(1, Math.ceil(it.uses * (0.5 + Math.random() * 0.5))) } : {};
+    if (inv.add(inv.carried, id, 1, state)) { inv.changed(); this.emit('itemFound', { item: id, x: +x.toFixed(1), z: +z.toFixed(1) }); return `+ ${it.name.toUpperCase()}`; }
+    inv.add(inv.groundAt(x, z), id, 1, state); inv.changed(); // no room: it stays where it lay
+    return `${it.name.toUpperCase()} · NO ROOM`;
+  }
+
+  // V: patch up, drink or eat - whatever you need most - from what you carry.
+  quickUse() {
+    const p = this.player, N = this.needs, inv = this.inventory;
+    const want = (p.bleed > 0.25 || p.hp < p.maxHp * 0.45) ? ['med', 'water', 'food']
+      : N.water < N.food && N.water < 0.75 ? ['water', 'food', 'med'] : N.food < 0.75 ? ['food', 'water', 'med'] : p.hp < p.maxHp * 0.85 ? ['med'] : [];
+    for (const kind of want) {
+      const i = inv.best(kind);
+      if (i < 0) continue;
+      const r = inv.use(i);
+      if (r.ok) { this.emit('pickup', { kind, x: +p.x.toFixed(1), z: +p.z.toFixed(1), text: r.text }); return r; }
+    }
+    this.hud.toast(want.length ? `NOTHING TO ${want[0] === 'med' ? 'PATCH YOU UP' : want[0] === 'water' ? 'DRINK' : 'EAT'}` : 'NOTHING YOU NEED RIGHT NOW', 'warn');
+    return null;
   }
 
   // seat: 0 = take the wheel (carjacks a non-ally driver); 'passenger' = ride along.
@@ -520,6 +556,10 @@ class Game {
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
 
     if (this.dialogue.active) { p.speed = 0; return; }
+    // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
+    if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
+    if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    if (I.hit('KeyV')) this.quickUse();
 
     const v = p.inVehicle;
     if (v) {
@@ -866,6 +906,7 @@ class Game {
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
+          <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
       </div>`;
@@ -935,6 +976,7 @@ class Game {
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.qol.update(dt);
+    this.invUI.update(dt);
     this.feedback.update(dt);
     I.endFrame();
   }

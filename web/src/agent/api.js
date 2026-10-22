@@ -9,6 +9,7 @@ import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
+import { ITEMS } from '../data/items.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -981,6 +982,37 @@ function buildCommands(api) {
       group: 'vehicle', desc: 'Drop whatever your car\'s tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving.',
       run: async () => { const v = P().inVehicle; need(v && v.driver === P(), 'you need to be driving'); const k = g.garage.drop(v); need(k, 'no dropper fitted, or it is empty'); return { dropped: k, left: v.mounts.rear.charges, hazards: g.garage.hazards.length }; },
     },
+    inventory: {
+      group: 'player', desc: 'What you carry (data/items.js): the pack you wear, weight and room, every item with uses left and freshness, and the container you have open. In the game: I or Tab opens the PACK screen; V uses whatever you need most (patch up, drink, eat).',
+      run: async () => g.inventory.view(),
+    },
+    item: {
+      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
+      args: { give: { type: 'string' }, use: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
+      run: async ({ give, use, drop, wear, take, stow, n, quick }) => {
+        const inv = g.inventory, C = inv.carried, idx = (box, id) => box.slots.findIndex((s) => s.id === id);
+        const known = (id) => need(ITEMS[id], `unknown item ${id}; known: ${Object.keys(ITEMS).join(', ')}`);
+        const out = {};
+        if (quick) { const r = g.quickUse(); out.quick = r ? r.text : null; }
+        if (give) { known(give); out.given = inv.add(C, give, n, ITEMS[give].uses ? { left: ITEMS[give].uses } : {}); inv.changed(); }
+        if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
+        if (drop) { known(drop); const i = idx(C, drop); need(i >= 0, `you carry no ${drop}`); out.dropped = inv.move(C, i, inv.groundAt(P().x, P().z), n); inv.prune(); }
+        if (wear) { known(wear); const i = idx(C, wear); need(i >= 0, `you carry no ${wear}`); const r = inv.swapPack(i); need(r.ok, r.why); out.worn = r.worn; }
+        if (take || stow) {
+          const other = g.invUI.pickOther(), id = take ?? stow; known(id);
+          const [from, to] = take ? [other, C] : [C, other], i = idx(from, id);
+          need(i >= 0, take ? `no ${id} in ${other.label}` : `you carry no ${id}`);
+          out.moved = inv.move(from, i, to, n); out.other = other.label;
+          if (!take) inv.prune();
+        }
+        return { ...out, ...inv.view() };
+      },
+    },
+    pack: {
+      group: 'player', desc: 'Open or close the PACK screen (what a player sees with I). on=true opens it beside whatever is at your feet; screenshots only show the world, so read the result.',
+      args: { on: { type: 'boolean', default: true } },
+      run: async ({ on }) => { g.invUI.toggle(on); return { open: g.invUI.open, other: g.invUI.other ? g.inventory.boxView(g.invUI.other) : null }; },
+    },
     stunts: {
       group: 'vehicle', desc: 'Jumps (data/stunts.js): the ramps, the named jumps (gap lip to lip, pay, times cleared), your records, who is in the air, and the last landing. run=<jump id> drives the car you are in (or a fresh type= car) at that jump from back= metres out, holding speed= m/s to the lip like a steady foot, then reports the landing: air time, distance, height, closing speed vn, grade (clean | rough | hard | crash), cleared, pay. ramp=<id> does the same at any ramp. Wreck Row lands soft at about 18 m/s (40 mph).',
       args: { run: { type: 'string' }, ramp: { type: 'string' }, speed: { type: 'number', default: 18 }, type: { type: 'string', default: 'sedan' }, back: { type: 'number', default: 22 } },
@@ -1862,11 +1894,16 @@ async function runSelfTest(api) {
     const drained = g.needs.water < before;
     const parched = await C('needs', { water: 0.1, food: 0.9 });
     const slowed = parched.pips.water === 2 && parched.effects.staminaRegen < 1;
+    // A found bottle goes in your pack; drinking it (V) is what fixes the thirst.
+    const bottles = () => g.inventory.carried.slots.filter((s) => s.id === 'water_bottle' || s.id === 'canteen').length;
+    const b0 = bottles();
     g.dropPickup(g.player.x + 0.4, g.player.z, 'water');
     await C('step', { seconds: 0.3 });
+    const packed = bottles() > b0;
+    for (let k = 0; k < 6 && g.needs.water < 0.5; k++) await C('item', { quick: true });
     const after = g.survival.view();
     await C('needs', { water: 0.85, food: 0.8 });
-    return drained && slowed && after.water >= 0.5 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, after: after.water });
+    return drained && slowed && packed && after.water > 0.35 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, packed, after: after.water });
   });
   await check('skills: hits teach dexterity, dexterity steadies the shot and the reload, a heavy load slows you and stops the sprint', async () => {
     await stage();
@@ -2004,6 +2041,42 @@ async function runSelfTest(api) {
     const ok = !crawl.flew && fast.flew && (fast.result?.air ?? 0) > 0.4 && blocked && Math.abs(standOn - 1.8) < 0.01 && g.stunts.warnings.length === 0;
     return ok ? true : JSON.stringify({ crawl: { flew: crawl.flew }, fast: { flew: fast.flew, air: fast.result?.air }, blocked, z: r1(v.z), y: r1(v.y), standOn, warnings: g.stunts.warnings });
   });
+  await check('inventory: a found bottle rides in the pack, V drinks from it, a tin needs a blade, packs swap', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), water0 = g.needs.water;
+    inv.carried.slots = []; inv.worn = null; inv.wear('satchel');
+    g.needs.water = 0.3; g.needs.food = 0.9; g.player.hp = g.player.maxHp; g.player.bleed = 0;
+    await C('item', { give: 'water_bottle' });
+    const q = await C('item', { quick: true });
+    const bottle = inv.carried.slots.find((s) => s.id === 'water_bottle');
+    const drank = g.needs.water > 0.42 && bottle?.left === 2;
+    await C('item', { give: 'beans_tin' });
+    const tried = await C('item', { use: 'beans_tin' }); // commands answer ok:false rather than throw
+    const blocked = tried.ok === false && /blade|opener/.test(String(tried.error));
+    await C('item', { give: 'knife' }); g.needs.food = 0.5;
+    const ate = !!(await C('item', { use: 'beans_tin' })).used && g.needs.food > 0.75;
+    await C('item', { give: 'backpack' });
+    const worn = (await C('item', { wear: 'backpack' })).worn === 'backpack' && inv.carried.cap > 20 && inv.carried.slots.some((s) => s.id === 'satchel');
+    inv.load(sv); g.needs.water = water0;
+    return q.quick && drank && blocked && ate && worn ? true : JSON.stringify({ quick: q.quick, drank, water: g.needs.water, bottle, blocked, ate, worn });
+  });
+  await check('inventory: the dead can be searched (the same loot every time), and what you carry weighs', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const c = person('raider', 1.2, 0); await C('kill', { id: c.id });
+    const box = inv.boxes.get(`body:${c.id}`);
+    if (!box) { inv.load(sv); return 'no body container'; }
+    inv.open(box);
+    for (let sd = 1; !box.slots.length && sd < 60; sd++) { box.seed = sd; inv.roll(box); } // a body that carried something
+    const items = box.slots.map((x) => x.id);
+    const twin = inv.place('selftest:twin', 'raider', 0, 0, 20, 'TWIN', box.seed); inv.open(twin);
+    const again = twin.slots.map((x) => x.id);
+    const kg0 = g.skills.kg;
+    await C('item', { give: 'scrap', n: 4 }); // 6 kg of steel in 4 litres
+    const heavier = g.skills.kg > kg0 + 5.9;
+    inv.boxes.delete(box.id); inv.boxes.delete(twin.id); inv.opened = null; inv.load(sv);
+    return items.length > 0 && JSON.stringify(items) === JSON.stringify(again) && heavier ? true : JSON.stringify({ items, again, kg0, kg: g.skills.kg });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -2033,6 +2106,7 @@ export function snapshot(g) {
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
+    inventory: g.inventory.save(), // what you carry, and every container anyone has been through
   };
 }
 
@@ -2083,6 +2157,7 @@ export function restore(g, s) {
   if (s.needs) g.survival.load(s.needs);
   if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
   if (s.stunts) g.stunts.load(s.stunts);
+  if (s.inventory) g.inventory.load(s.inventory);
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }
