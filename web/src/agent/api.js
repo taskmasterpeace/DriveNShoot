@@ -1767,9 +1767,10 @@ async function runSelfTest(api) {
     await C('teleport', { x: 395, z: 398 });
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
     await C('step', { seconds: 6 });
-    const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
+    const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && !c.grabbing && g.water.depthAt(c.x, c.z) > 0.7); // hanging off a boat isn't swimming
+    const why = wet.map((c) => ({ id: c.id, x: r1(c.x), z: r1(c.z), depth: r1(g.water.depthAt(c.x, c.z)), target: c.ztarget?.id ?? null }));
     for (const id of ids) await C('remove', { id });
-    return wet === 0 ? true : `${wet} infected in deep water`;
+    return wet.length === 0 ? true : `${wet.length} infected in deep water: ${JSON.stringify(why)}`;
   });
   await check('train: brakes into the station, carries riders, kills on the rails, tanker blows', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -2352,6 +2353,7 @@ async function runSelfTest(api) {
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
     if (g.player.inVehicle) g.exitVehicle(true);
     return hush(async () => { try {
+      for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
       for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
@@ -2364,7 +2366,9 @@ async function runSelfTest(api) {
       const saw = g.society.deeds.witnessPass(box.x, box.z, g.player, null).includes(ike);
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
-      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke });
+      const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0) }));
+      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
     } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {

@@ -74,6 +74,13 @@ When each reports: review, merge into the session branch, selftest twice on fres
    ARMORED CARRIER send troopers after you?
 3. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
    `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484`; it was not allowed to delete it, so it's yours to remove.
+   The role subagent was likewise denied `rm` for its two A/B baseline copies and moved them to the session
+   scratchpad (`...\scratchpad\roles\abbase_worktree_copy`, `abbase2_worktree_copy`); they are yours to delete too.
+4. **Roles** (from the role system's builder): the jump role is called **Stunt Driver** (not "Daredevil": a Marvel
+   hero's name) - fine? Are the paces right (Medic rumoured after 3 patients, known after ~7; Wheelman ~10 minutes of
+   fast driving to rumoured)? Fast time (T) fades roles 40x faster in real time because fading runs on the game clock -
+   keep it? Should the Federal Remnant get a role (a contractor)? Are permanent bars (the deputy's four-killings gate)
+   wanted?
 
 ## Next blocks
 - Merge and land the two subagent branches (above).
