@@ -10,14 +10,16 @@ the session branch for `web/` and `docs/`), then two fixes found by running the 
 `5a9abea` (no director threats in the first 150 s of play: a raid could hit Rust Haven 20 s into a new game; the raid
 check stages around pacing) and `866d3ef` (selftest staging cancels director events already running). 73/73 on the
 landed tree, twice (once with a live raid out before the battery, once started 30 s after boot); stress 67 draw calls,
-2.5 ms/frame. The session branch `claude/web-engine-handoff-2fceb5` now equals `feat/web-engine`; keep working there
-and land with `git merge --ff-only claude/web-engine-handoff-2fceb5` inside `.worktrees/web-engine`.
+2.5 ms/frame. Then the Federal Remnant base landed the same way: subagent branch merged as `c9f6c43`, 78/78 on fresh
+pages twice on the merged tree, stress 70-71 draw calls at 2.1-2.35 ms/frame on fresh pages (no regression), 72 draw
+calls at the base by night. The session branch `claude/web-engine-handoff-2fceb5` equals `feat/web-engine`; keep working
+there and land with `git merge --ff-only claude/web-engine-handoff-2fceb5` inside `.worktrees/web-engine`.
 
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 73/73 green (2026-10-22, fresh page, several runs)
-node tools/dl.mjs scenario name=stress   # 68 draw calls, ~2.4 ms/frame (budget: < 150 draw calls)
+node tools/dl.mjs selftest               # 78/78 green (2026-10-22, fresh page, several runs)
+node tools/dl.mjs scenario name=stress   # ~70 draw calls, ~2.2 ms/frame on a fresh page (budget: < 150 draw calls)
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
 Gotchas (all paid for):
@@ -37,6 +39,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Military (subagent) | **Outpost Nine**, a fenced Federal Remnant base in the north-west Glass Flats (fence x -324..-260, z -427..-367; gate off DEAD MAN RD): four towers with sentries and sweeping searchlights, barracks, command post, a locked steel armory with military loot, a motor pool, a helipad with a burned-out helicopter; twelve soldiers (faction `remnant`, a `trespass` verb: a warning, then fire); a PATROL TRUCK and an ARMORED CARRIER; `base` command | WEB_MILITARY | c9f6c43 |
 | Inventory 2a | every crate and shelf in a building is searchable (114), shopkeepers own theirs (taking is a `steal` deed the owner remembers), lockpicks (silent) and crowbar (loud) work the locks | WEB_INVENTORY | 15afe7f |
 | Interiors (subagent) | a door in every doorway (swing, bash, 12 locked: kick, shoot, blast), 493 windows (crack, shatter, climb, board up) | web/AGENTS.md | 318f5c2 |
 | The pack | 33 item rows (water, food, meds, tools, parts, packs, valuables), weight + litres, uses, spoilage on the game clock, tools need tags; PACK screen (I/Tab); V quick-use; searchable dead; trunks; ground piles; tools act on cars | WEB_INVENTORY | 143c8d1 |
@@ -59,16 +62,16 @@ Gotchas (all paid for):
 
 ## Open questions for Robert
 1. Which vehicle sets the scale (bike 52 m/s or LAWMAN 46)? How far an exit's access road may run? Bigger cities?
+3. **The Federal Remnant** (from the base's builder): should the Remnant join the off-screen faction sim (daily
+   skirmishes with the Dustwolves, places to lose)? Should dust storms and fog shorten a sentry's sight? Should the
+   garrison replace its dead over the days, and should stealing the ARMORED CARRIER send Remnant troopers after you?
 2. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
    `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484` (a baseline copy for its A/B). It was not allowed to
    delete it, so it's yours to remove (or let the app clean up the worktree).
 
 ## Next blocks (from the 2026-10-22 memo, in a sensible order)
-- **A military base:** a subagent got most of the way before the session ended. Its branch
-  `worktree-agent-a32f586079c0fca88` (worktree `.claude/worktrees/agent-a32f586079c0fca88`) has four commits - military
-  vehicles as rows (a patrol truck, an armored carrier), the Federal Remnant faction and soldiers, **Outpost Nine** (a
-  fenced base in the north-west Glass Flats), a `base` command with five checks - plus uncommitted edits to `api.js`,
-  `society.js`, `bases.js` and `hud.js`. Not merged and not verified: resume the agent (or finish it here), then merge.
+- **The military, continued** (Outpost Nine shipped): soldiers drop their rifles (with guns as items), checkpoints on the
+  roads, the Remnant in the faction sim, and the answers to question 3.
 - **Inventory 2b:** guns and rounds as items (condition, jams), trade at standing-adjusted prices, a portable radio
   item, refilling bottles and fuel cans, search time and its noise.
 - **Multi-level zoom** (Z is binary today) and **multi-storey buildings / basements**.
