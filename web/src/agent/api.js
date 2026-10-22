@@ -7,6 +7,7 @@ import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
 import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
+import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 
 // ============================================================================
@@ -959,6 +960,44 @@ function buildCommands(api) {
         return S.view();
       },
     },
+    garage: {
+      group: 'vehicle', desc: 'Fit or read a car\'s armour and mounts (data/parts.js): plates=front|rear|left|right|sides|all with points=N (negative removes), mount=mg|oil|caltrops|smoke, refill=true. vehicle defaults to the one you are in (or last drove). pay=true charges your cash like Kenji does.',
+      args: { vehicle: { type: 'string' }, plates: { type: 'string' }, points: { type: 'number', default: 4 }, mount: { type: 'string' }, refill: { type: 'boolean', default: false }, pay: { type: 'boolean', default: false } },
+      run: async ({ vehicle, plates, points, mount, refill, pay }) => {
+        const v = vehicle ? api.findVeh(vehicle) : P().inVehicle ?? g.lastVehicle;
+        need(v && !v.dead, vehicle ? `no live vehicle ${vehicle}` : 'not in (or near) a vehicle; pass vehicle=');
+        const G = g.garage, out = {};
+        if (plates) {
+          if (pay) need(g.spend(Math.max(0, points) * PLATE.price * (plates === 'sides' ? 2 : plates === 'all' ? 4 : 1)), 'not enough cash');
+          const r = G.plate(v, plates, points); need(r.ok, r.why); out.added = r.added;
+        }
+        if (mount) { if (pay) need(g.spend(MOUNTS[mount]?.price ?? 0), 'not enough cash'); const r = G.mount(v, mount); need(r.ok, r.why); }
+        if (refill) out.refilled = G.refill(v);
+        return { ...G.view(v), ...out };
+      },
+    },
+    dropper: {
+      group: 'vehicle', desc: 'Drop whatever your car\'s tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving.',
+      run: async () => { const v = P().inVehicle; need(v && v.driver === P(), 'you need to be driving'); const k = g.garage.drop(v); need(k, 'no dropper fitted, or it is empty'); return { dropped: k, left: v.mounts.rear.charges, hazards: g.garage.hazards.length }; },
+    },
+    hoodgun: {
+      group: 'vehicle', desc: 'Fire the hood gun of the car you are driving: shots=N at x,z or id (it only fires within its arc of the nose). Keyboard: hold LMB aiming ahead.',
+      args: { shots: { type: 'number', default: 6 }, x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
+      run: async ({ shots, x, z, id }) => {
+        const v = P().inVehicle;
+        need(v && v.driver === P() && v.mounts?.front, 'drive a car with a hood gun (garage mount=mg)');
+        const t = id ? api.findChar(id) ?? api.findVeh(id) : null;
+        let fired = 0, outOfArc = false;
+        for (let i = 0; i < Math.min(60, shots); i++) {
+          const tx = t ? t.x : x ?? v.x + Math.sin(v.h) * 20, tz = t ? t.z : z ?? v.z + Math.cos(v.h) * 20;
+          const before = v.mounts.front.ammo;
+          if (!g.garage.fireFront(v, P(), Math.atan2(tx - v.x, tz - v.z))) { outOfArc = true; break; }
+          if (v.mounts.front.ammo < before) fired++;
+          await api._step(Math.ceil(MOUNTS[v.mounts.front.kind].rate * 60));
+        }
+        return { fired, ammo: v.mounts.front.ammo, outOfArc, target: t ? { id: t.id, hp: Math.round(t.hp), alive: t.alive ?? !t.dead } : null };
+      },
+    },
     registerFaction: {
       group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
       args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
@@ -1800,6 +1839,35 @@ async function runSelfTest(api) {
     g.inv.ammo.shells = shells; S.recompute();
     return learned && steadier && over && moved < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved) });
   });
+  await check('garage: a plated nose stops rounds until it is breached, plate slows the car, the hood gun fires where the nose points, oil spins a car', async () => {
+    await stage();
+    const v = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: g.player.x + 12, z: g.player.z, heading: -Math.PI / 2 })).id); // nose toward you
+    const base = { accel: v.accel, maxSpeed: v.maxSpeed };
+    await C('garage', { vehicle: v.id, plates: 'front', points: 10 });
+    const heavier = v.accel < base.accel && v.maxSpeed < base.maxSpeed;
+    const hp0 = v.hp;
+    await C('fire', { id: v.id, shots: 1 });
+    const absorbed = v.hp === hp0 && v.plates.front < 10;
+    for (let i = 0; i < 8 && v.plates.front > 0; i++) await C('fire', { id: v.id, shots: 1 });
+    const breached = v.plates.front === 0;
+    await C('fire', { id: v.id, shots: 1 });
+    const through = v.hp < hp0;
+    await C('garage', { vehicle: v.id, mount: 'mg' });
+    await C('enterVehicle', { id: v.id, force: true });
+    const target = person('drifter', 0, 0, { hp: 900 });
+    target.x = v.x + Math.sin(v.h) * 14; target.z = v.z + Math.cos(v.h) * 14;
+    const hg = await C('hoodgun', { id: target.id, shots: 12 });
+    const gunned = target.hp < 900;
+    g.exitVehicle(true); g.removeChar(target);
+    // Oil: a car rolling through a fresh slick loses its grip.
+    const w = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: g.player.x - 20, z: g.player.z + 20 })).id);
+    g.garage.hazard('oil', w.x, w.z, 4.5, 30);
+    w.vx = 8; g.garage.update(1 / 60);
+    const slipped = (w.gripMul ?? 1) < 1;
+    for (const x of [v, w]) g.vehiclesSys.remove(x);
+    g.garage.hazards.length = 0;
+    return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1823,7 +1891,8 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
     chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
-    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
+    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
@@ -1842,6 +1911,8 @@ export function restore(g, s) {
     let v = vmap.get(sv.id);
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }
     Object.assign(v, { x: sv.x, z: sv.z, h: sv.h, hp: sv.hp, vx: 0, vz: 0, av: 0, ai: sv.ai, driver: null });
+    v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
+    g.garage.retune(v);
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
   // Characters: remove everyone not in the save, update or recreate the rest.

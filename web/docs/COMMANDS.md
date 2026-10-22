@@ -85,6 +85,9 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `seat` | `id?:string seat?:string` | Board a vehicle in a specific seat (driver\|shotgun\|backL\|backR\|bedL\|bedR\|pillion\|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report. |
 | `repair` | `id?:string` | Full field repair of a vehicle (testing / mechanic): parts, tyres, dents, panels, hp. |
 | `harpoon` | `x?:number z?:number id?:string` | Fire the Whaler's harpoon at x,z or entity id. Call again while hooked to YANK. |
+| `garage` | `vehicle?:string plates?:string points?:number mount?:string refill?:boolean pay?:boolean` | Fit or read a car's armour and mounts (data/parts.js): plates=front\|rear\|left\|right\|sides\|all with points=N (negative removes), mount=mg\|oil\|caltrops\|smoke, refill=true. vehicle defaults to the one you are in (or last drove). pay=true charges your cash like Kenji does. |
+| `dropper` | `(none)` | Drop whatever your car's tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving. |
+| `hoodgun` | `shots?:number x?:number z?:number id?:string` | Fire the hood gun of the car you are driving: shots=N at x,z or id (it only fires within its arc of the nose). Keyboard: hold LMB aiming ahead. |
 
 ## dialogue
 

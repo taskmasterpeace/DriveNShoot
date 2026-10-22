@@ -4,6 +4,22 @@
 
 const money = (n) => `$${n}`;
 
+// Kenji's garage (data/parts.js): your last ride has to be parked close by.
+const nearCar = (g) => { const v = g.lastVehicle; return v && !v.dead && Math.hypot(v.x - g.player.x, v.z - g.player.z) < 40 ? v : null; };
+const buyPlates = (g, face, n, price) => {
+  const v = nearCar(g);
+  if (!v || !g.spend(price)) return;
+  const r = g.garage.plate(v, face, n);
+  if (!r.ok) { g.cash += price; g.hud.toast(r.why.toUpperCase(), 'warn'); } else g.hud.toast(`PLATED: ${face.toUpperCase()} +${r.added}`, 'job');
+};
+const buyMount = (g, kind, price) => {
+  const v = nearCar(g);
+  if (!v || !g.spend(price)) return;
+  const r = g.garage.mount(v, kind);
+  if (!r.ok) { g.cash += price; g.hud.toast(r.why.toUpperCase(), 'warn'); } else g.hud.toast(`FITTED: ${kind.toUpperCase()}`, 'job');
+};
+const plateLine = (v) => { const p = v.plates ?? {}; const r = (x) => Math.round(x ?? 0); return `${v.name}: nose ${r(p.front)}, tail ${r(p.rear)}, sides ${r(p.left)}/${r(p.right)}${v.mounts?.front ? `, hood gun ${v.mounts.front.ammo} rounds` : ''}${v.mounts?.rear ? `, ${v.mounts.rear.kind} x${v.mounts.rear.charges}` : ''}.`; };
+
 export const NPCS = [
   {
     id: 'okonkwo', name: 'Sheriff Adaeze Okonkwo', title: 'Warden Captain · Rust Haven', flag: 'NG', faction: 'warden', weapon: 'smg', essential: true, friends: ['reyes'], // quest giver
@@ -65,11 +81,24 @@ export const NPCS = [
       hi: { text: 'The Whaler out front is mine. Welded the harpoon gun myself. You want to know how it works, or you want to break it?',
         choices: [
           { t: 'How does the harpoon work?', next: 'harpoon' },
+          { t: 'Armor up my ride.', next: 'garage', req: (g) => !!nearCar(g) },
           { t: `Repair my last ride (${money(60)})`, deed: { v: 'trade' }, req: (g) => g.lastVehicle && !g.lastVehicle.dead && g.lastVehicle.hp < g.lastVehicle.maxHp, next: 'fixed', do: (g) => { if (g.spend(60)) g.lastVehicle.hp = g.lastVehicle.maxHp; } },
           { t: '[Leave]', end: true },
         ] },
       harpoon: { text: 'Aim with the mouse, press H. It flies. If it bites a car, the cable holds — you tow them. Press H again and you YANK. Light cars roll. People... do not do well.', choices: [{ t: 'Beautiful.', next: 'hi' }, { t: '[Leave]', end: true }] },
       fixed: { text: 'Good as new. Better, actually. I added more rust.', choices: [{ t: '[Leave]', end: true }] },
+      garage: { text: (g) => { const v = nearCar(g); return v ? `Plate goes on in slabs. Every slab stops a burst and costs you speed. A gun on the hood fires where the nose points; the tail can drop oil, caltrops or smoke. ${plateLine(v)}` : 'Bring it round the front first.'; },
+        choices: [
+          { t: `Four slabs on the nose (${money(48)})`, deed: { v: 'trade' }, next: 'garage', do: (g) => buyPlates(g, 'front', 4, 48) },
+          { t: `Four slabs on the tail (${money(48)})`, deed: { v: 'trade' }, next: 'garage', do: (g) => buyPlates(g, 'rear', 4, 48) },
+          { t: `Four down each side (${money(96)})`, deed: { v: 'trade' }, next: 'garage', do: (g) => buyPlates(g, 'sides', 4, 96) },
+          { t: `Twin MG on the hood (${money(300)})`, deed: { v: 'trade' }, req: (g) => !nearCar(g)?.mounts?.front, next: 'garage', do: (g) => buyMount(g, 'mg', 300) },
+          { t: `Oil sprayer on the tail (${money(150)})`, deed: { v: 'trade' }, req: (g) => !nearCar(g)?.mounts?.rear, next: 'garage', do: (g) => buyMount(g, 'oil', 150) },
+          { t: `Caltrop dropper (${money(120)})`, deed: { v: 'trade' }, req: (g) => !nearCar(g)?.mounts?.rear, next: 'garage', do: (g) => buyMount(g, 'caltrops', 120) },
+          { t: `Smoke layer (${money(100)})`, deed: { v: 'trade' }, req: (g) => !nearCar(g)?.mounts?.rear, next: 'garage', do: (g) => buyMount(g, 'smoke', 100) },
+          { t: `Refill the guns and droppers (${money(40)})`, deed: { v: 'trade' }, req: (g) => !!(nearCar(g)?.mounts), next: 'garage', do: (g) => { const v = nearCar(g); if (v && g.spend(40)) g.garage.refill(v); } },
+          { t: 'That will do.', next: 'hi' },
+        ] },
     },
   },
   {

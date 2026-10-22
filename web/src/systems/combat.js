@@ -71,9 +71,11 @@ export class Combat {
       if (shooter === g.player) g.skillsSys?.onHit();
     } else if (kind === 'veh') {
       g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
-      g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
-      g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
-      g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
+      if (!g.garage?.absorb(target, hx, hz, dmg)) { // a plated face takes the round; a bare one lets it through
+        g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
+        g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
+        g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
+      }
       if (shooter === g.player) g.qol.hit(false);
     } else if (kind === 'train') {
       g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);

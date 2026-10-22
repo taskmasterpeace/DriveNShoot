@@ -18,6 +18,7 @@ import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
+import { Garage } from './systems/garage.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -106,6 +107,7 @@ class Game {
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
+    this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -540,6 +542,7 @@ class Game {
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
+      if (I.hit('KeyB') && driving) this.garage.drop(v); // oil, caltrops or smoke off the tail
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       return;
@@ -747,6 +750,9 @@ class Game {
   handleShooting(dt, ang) {
     const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
     p.cool -= dt;
+    // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
+    const car = p.inVehicle;
+    if (car?.mounts?.front && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return;
     if (p.reloading > 0) {
       p.reloading -= dt;
       if (p.reloading <= 0) {
@@ -890,6 +896,7 @@ class Game {
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
+      this.garage.update(simDt);
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.ambient.update(simDt);
