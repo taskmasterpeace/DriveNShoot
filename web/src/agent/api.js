@@ -2705,7 +2705,7 @@ async function runSelfTest(api) {
   // `standing set=` stages a faction - only where the check is about what the role DOES, never where it is about earning it.
   const R = g.roles, hurtHere = (dx, dz) => { const c = person('drifter', dx, dz); c.hp = 30; c.bleed = 0.5; return c; };
   const has = (t, re) => (t.choices ?? []).findIndex((c) => re.test(c.text));
-  await check('roles: patch up three hurt strangers with bandages through the real dialogue and the world starts calling you a medic: a toast, a tape on the HUD, the PACK header', async () => {
+  await check('roles: patch up three hurt strangers with bandages through the real dialogue and the world starts calling you a medic: a toast, a tape on the HUD, the PACK header, and a save keeps it', async () => {
     await stage();
     const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq, people = [];
     try {
@@ -2727,8 +2727,13 @@ async function runSelfTest(api) {
       const tape = (await C('hud')).plates.roles?.some((r) => r.id === 'medic' && r.text === 'MEDIC' && r.chevrons === 1);
       g.invUI.render(); const header = /MEDIC/.test(document.querySelector('.inv-roles')?.textContent ?? '');
       const heals = g.society.chronicle.query({ verb: 'heal', actor: 'player', limit: 5 }).length;
-      return before === 0 && patched === 3 && m.tier === 'rumoured' && earned && toast && tape && header && heals >= 3 && inv.carried.count('bandage') === 0 ? true
-        : JSON.stringify({ before, patched, tier: m.tier, renown: m.renown, earned, toast, tape, header, heals, bandages: inv.carried.count('bandage') });
+      // ...and a save keeps it: cleared, then loaded back, the medic is the same medic.
+      const sv2 = (await C('save')).save, r0 = R.st.medic.r;
+      R.reset(); const wiped = R.tier('medic') === 0;
+      await C('load', { save: sv2 });
+      const kept = wiped && R.tier('medic') === 1 && Math.abs(R.st.medic.r - r0) < 0.01;
+      return before === 0 && patched === 3 && m.tier === 'rumoured' && earned && toast && tape && header && heals >= 3 && inv.carried.count('bandage') === 0 && kept ? true
+        : JSON.stringify({ before, patched, tier: m.tier, renown: m.renown, earned, toast, tape, header, heals, bandages: inv.carried.count('bandage'), kept });
     } finally { for (const c of people) if (g.chars.includes(c)) g.removeChar(c); inv.load(sv); R.reset(); }
   });
   await check('roles: time wears a role away, but not at the first dip under the line - still a medic at 18 renown (hysteresis), forgotten under 15', async () => {

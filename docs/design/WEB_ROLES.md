@@ -279,8 +279,8 @@ passes or fails.
 6. **The director and the radio:** with a known medic `fireEvent tpl=role_call` spawns one hurt stranger who walks
    toward you; patching them ends the event `success`; the next dawn's digest contains the medic's clause (selftest).
 7. **Prices contract:** `priceMul('dustwolves')` < 1 for a known rider; `trade.js` calls `g.roles.priceMul(c.fid, c)`.
-8. **Save/load:** `save` → change roles → `load` restores renown, tiers, jobs and offices (the selftest's save/load
-   round-trip runs with roles in the save).
+8. **Save/load:** `save` → `roles reset=true` → `load` restores renown, tiers, jobs and offices (the first role check:
+   the medic comes back at the same renown and tier).
 9. **Budget:** selftest green on a fresh page twice in a row; `scenario name=stress` draw calls within 2 of the build
    before roles (no new meshes) and the ms/frame within noise; no per-frame allocation (tapes rebuild on `version`).
 10. **No purple, no IP:** every role colour's hue is outside 270–320 (`registerRole` with `#8a2be2` warns and uses
