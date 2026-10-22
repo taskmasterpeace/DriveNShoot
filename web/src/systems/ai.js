@@ -65,8 +65,7 @@ export class AI {
     const t = this.tmp;
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
     // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
-    const w = this.g.water;
-    if (w && t.x > 290 && w.depthAt(t.x, t.z) > (c.faction === 'zombie' ? 0.6 : 1.2) && w.depthAt(px, pz) <= (c.faction === 'zombie' ? 0.6 : 1.2)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
+    if (this.wades(c, t.x, t.z)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
     this.g.statics.resolveCircle(t, c.radius);
     c.x = t.x; c.z = t.z;
     const moved = Math.hypot(c.x - px, c.z - pz);
@@ -77,6 +76,16 @@ export class AI {
     } else c.stuck = 0;
     if (!c.aiming) c.face = angleLerp(c.face, Math.atan2(dx, dz), Math.min(1, dt * 10));
     c.walk += c.speed * dt * 2.2;
+  }
+
+  // Would stepping c to x,z take it into water it must not enter? The living won't wade in past
+  // 1.2 m. The dead never go deeper once past 0.6 m: the rule used to be "don't cross the waterline",
+  // so a crowd shoving a rotter 1 cm past it freed it to walk out into the lake after its prey.
+  wades(c, x, z) {
+    const w = this.g.water;
+    if (!w || x <= 290) return false;
+    const d = w.depthAt(x, z), d0 = w.depthAt(c.x, c.z);
+    return c.faction === 'zombie' ? d > 0.6 && d > d0 : d > 1.2 && d0 <= 1.2;
   }
 
   scan(c) {
@@ -233,8 +242,10 @@ export class AI {
         const P = this.g.player;
         const wa = a === P ? 0 : b === P ? 2 : 1, wb = b === P ? 0 : a === P ? 2 : 1;
         const ta = { x: a.x - nx * push * wa, z: a.z - nz * push * wa }, tb = { x: b.x + nx * push * wb, z: b.z + nz * push * wb };
-        // Never shove anyone through a wall.
+        // Never shove anyone through a wall, nor the dead into deep water.
         this.g.statics.resolveCircle(ta, a.radius); this.g.statics.resolveCircle(tb, b.radius);
+        if (a.faction === 'zombie' && this.wades(a, ta.x, ta.z)) { ta.x = a.x; ta.z = a.z; }
+        if (b.faction === 'zombie' && this.wades(b, tb.x, tb.z)) { tb.x = b.x; tb.z = b.z; }
         a.x = ta.x; a.z = ta.z; b.x = tb.x; b.z = tb.z;
       }
     }
