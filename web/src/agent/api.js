@@ -278,18 +278,19 @@ function buildCommands(api) {
         // Following: walk right up to the reachable cell beside the target (tolerance 1);
         // "arrived" is then judged against the target itself (outer loop).
         g.autopilot = { x, z, run, tolerance: follow ? 1 : tolerance, path, i: 0, follow };
-        let lastReplan = null;
+        let best = Infinity, bestT = 0, lost = false;
         if (!wait) return { moving: true };
         let t = 0;
         const hp0 = P().hp;
         let interrupted;
         while ((g.autopilot || (follow && Math.hypot(follow.x - P().x, follow.z - P().z) > tolerance)) && t < Math.min(600, maxSeconds)) {
           if (!g.autopilot && follow) {
-            // Reached where they were, but they moved on: re-plan to their live position.
-            // If a re-plan doesn't get us any closer, we're as close as the world allows.
+            // Reached where they were, but they moved on: re-plan to their live position. Give up once
+            // 3 s of chasing hasn't got us 0.5 m closer: as close as the world (or their pace) allows.
+            // One re-plan without progress used to end it, so anyone on the move (an NPC in a gunfight,
+            // you out of breath) shook the follower off while it was still gaining on them.
             const here = Math.hypot(follow.x - P().x, follow.z - P().z);
-            if (lastReplan !== null && here > lastReplan - 0.5) break;
-            lastReplan = here;
+            if (here < best - 0.5) { best = here; bestT = t; } else if (t - bestT >= 3) { lost = true; break; }
             const np = g.footPath(P().x, P().z, follow.x, follow.z);
             if (!np) break;
             g.autopilot = { x: follow.x, z: follow.z, run, tolerance: 1, path: np, i: 0, follow };
@@ -307,7 +308,7 @@ function buildCommands(api) {
         const arrived = follow ? Math.hypot(follow.x - P().x, follow.z - P().z) <= tolerance + 0.5 : !g.autopilot;
         g.autopilot = null;
         g.autopilot = null;
-        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
+        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : lost ? `couldn't close on ${id} (no progress for 3 s): out of reach, or faster than you` : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
       },
     },
     aim: { group: 'player', desc: 'Lock the aim point to x,z (null x to release back to the mouse).', args: { x: { type: 'number' }, z: { type: 'number' } },
