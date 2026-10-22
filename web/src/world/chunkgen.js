@@ -675,6 +675,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (const k of POOL_NAMES) { const r = out.inst[k]; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
   for (const k of Object.keys(out.surf)) { const s = out.surf[k]; H.str(k).int(s?.nv ?? 0).int(s?.ni ?? 0); if (s) for (let i = 0; i < s.pos.length; i += 5) H.num(s.pos[i]); }
   out.hash = H.hex();
+  out.edgeRoads = { n: crossings.n.length, s: crossings.s.length, w: crossings.w.length, e: crossings.e.length };
   for (const e of ['n', 's', 'w', 'e']) { const h = out.edges[e]; for (const c of crossings[e].sort()) h.str(c); out.edges[e] = h.hex(); }
   out.boxCount = boxes.length;
   pause();

@@ -24,6 +24,10 @@ import GOLDEN from '../data/golden.json';
 
 const R_HOT = 224, R_REL = 300;
 const _fog = new THREE.Color(), DUST = new THREE.Color('#a87a4c');
+// Yield to the page without timer throttling (a MessageChannel task, not setTimeout).
+const _mc = new MessageChannel(), _q = [];
+_mc.port1.onmessage = () => _q.shift()?.();
+const yieldPage = () => new Promise((r) => { _q.push(r); _mc.port2.postMessage(0); });
 
 export class Streamer {
   constructor(game) {
@@ -96,6 +100,16 @@ export class Streamer {
     this.roadMat = new THREE.MeshStandardMaterial({ map: roadAtlasTexture(), roughness: 0.9 });
     this.rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, flatShading: true, side: THREE.DoubleSide });
     this.surfaces = new SurfacePool(scene, STREAM.hotMax, SURF_CAPS, { ground: this.groundMat, road: this.roadMat, rock: this.rockMat });
+  }
+
+  // Compile every streamed material now, once, so the first chunk that goes hot in a session doesn't hitch the frame it
+  // shows up in (a pool or a surface layer seen for the first time would compile its shader right then).
+  warmup() {
+    const objs = [...Object.values(this.pools).map((p) => p.mesh), ...this.surfaces.slots.flatMap((s) => Object.values(s.layers).map((L) => L.mesh))];
+    const was = objs.map((o) => o.visible);
+    for (const o of objs) o.visible = true;
+    try { this.g.renderer.compile(this.g.scene, this.g.camera); } catch { /* a headless context without the extension: fine, it compiles on first use */ }
+    objs.forEach((o, i) => { o.visible = was[i]; });
   }
 
   // ---- the golden hash of the island (§3.4): its static boxes and buildings, as city.js / terrain / stunts / bases made them
@@ -428,6 +442,51 @@ export class Streamer {
     return M;
   }
 
+  // ---- a lane-keeping driver for tests and scenarios (pure pursuit along I-10) ------------------------------------------
+  // dir +1 east / -1 west; lane 0 inner, 1 outer. Returns {throttle, steer} for game.driveOverride and how far off the
+  // lane centre the car is. Full throttle unless `speed` asks for less.
+  lanePoint(s, dir, lane = 0) {
+    const W = this.W, f = W.at(Math.max(0, Math.min(W.cl.L, s))), sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2;
+    const u = dir * (sec.lane0 + lw * (lane + 0.5));
+    return { x: f.x + f.nx * u, z: f.z + f.nz * u };
+  }
+  autopilot(v, dir = 1, lane = 0, speed = Infinity) {
+    const W = this.W, pr = W.project(v.x, v.z, 600), sp = Math.hypot(v.vx, v.vz);
+    const q = this.lanePoint(pr.s + dir * Math.max(22, sp * 0.95), dir, lane), here = this.lanePoint(pr.s, dir, lane);
+    const want = Math.atan2(q.x - v.x, q.z - v.z);
+    const diff = Math.atan2(Math.sin(want - v.h), Math.cos(want - v.h));
+    const throttle = sp > speed + 1 ? -0.4 : sp < speed - 1 ? 1 : 0.2;
+    return { throttle, steer: Math.max(-1, Math.min(1, diff * 2.2)), off: Math.hypot(v.x - here.x, v.z - here.z), s: pr.s, d: pr.d };
+  }
+
+  // Run frames the way the real-time loop does (sliced streaming, a render every `renderEvery` frames with GPU-synced
+  // timings, as `bench` measures), at a fixed 60 Hz step, with the rAF loop held off so this is the only clock running.
+  // each(i) runs before frame i (return false to stop). Yields to the page every ~30 ms so the agent bridge stays alive.
+  async runFrames(seconds, each, { renderEvery = 1, sync = false } = {}) {
+    const g = this.g, r = g.renderer, gl = r.getContext(), px = new Uint8Array(4), n = Math.round(seconds * 60);
+    const ms = new Float32Array(Math.ceil(n / renderEvery) + 1);
+    let calls = 0, tris = 0, k = 0, slice = performance.now(), i = 0;
+    const was = { paused: g.paused, hold: g.holdLoop, sync: this.sync };
+    g.paused = false; g.holdLoop = true; this.sync = sync;
+    try {
+      for (; i < n; i++) {
+        if (each && each(i) === false) break;
+        const t0 = performance.now();
+        try { g.frame(1 / 60); } catch (e) { g.reportError(e); }
+        if (i % renderEvery === 0) {
+          g.render(1 / 60);
+          gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); // force the GPU to finish, so the time is honest
+          calls = Math.max(calls, r.info.render.calls); tris = Math.max(tris, r.info.render.triangles);
+          ms[k++] = performance.now() - t0;
+        }
+        if (performance.now() - slice > 30) { await yieldPage(); slice = performance.now(); }
+      }
+    } finally { g.paused = was.paused; g.holdLoop = was.hold; this.sync = was.sync; }
+    const a = Array.from(ms.subarray(0, k)).sort((x, y) => x - y);
+    const st = (q) => +(a[Math.min(a.length - 1, Math.floor(a.length * q))] ?? 0).toFixed(2);
+    return { frames: i, seconds: +(i / 60).toFixed(2), maxDrawCalls: calls, maxTriangles: tris, frameMs: { avg: +(a.reduce((s, v) => s + v, 0) / Math.max(1, a.length)).toFixed(2), p95: st(0.95), max: st(1) } };
+  }
+
   // ---- reports ----------------------------------------------------------------------------------------------------------
   pumpStats() {
     const n = this.pumpN, a = Array.from(this.pumpRing.subarray(0, n)).sort((x, y) => x - y);
@@ -457,6 +516,6 @@ export class Streamer {
     const tier = this.hot.get(key)?.hot?.done ? 'hot' : L ? 'layout' : 'none';
     if (!L) return { key, tier, cx, cz };
     return { key, tier, cx, cz, hash: L.hash, buildMs: L.buildMs, workMs: L.workMs, biome: L.biome, state: L.state, boxes: L.boxCount, buildings: L.buildings,
-      instances: { ...L.counts }, surfaces: Object.fromEntries(Object.entries(L.surf).map(([k, s]) => [k, s ? s.nv : 0])), edges: { ...L.edges }, pinned: this.pinned.has(key), warnings: L.warnings };
+      instances: { ...L.counts }, surfaces: Object.fromEntries(Object.entries(L.surf).map(([k, s]) => [k, s ? s.nv : 0])), edges: { ...L.edges }, edgeRoads: { ...L.edgeRoads }, pinned: this.pinned.has(key), warnings: L.warnings };
   }
 }

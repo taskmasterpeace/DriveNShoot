@@ -167,6 +167,7 @@ class Game {
     this.bases.placeBoxes();         // the base's ammo crates, footlockers and cabinets (data/bases.js boxes)
     this.buildPickups();
     this.buildFlashlight();
+    this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.api = new AgentAPI(this);
     this.title(ui);
   }
@@ -1073,8 +1074,9 @@ class Game {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       this.fps += (1 / Math.max(dt, 0.001) - this.fps) * 0.05;
-      // A bug in one system must never freeze the game: log it, keep the loop alive.
-      try { this.frame(dt); this.render(dt); } catch (e) { this.reportError(e); }
+      // A bug in one system must never freeze the game: log it, keep the loop alive. (holdLoop: a scenario is driving
+      // frames itself at a fixed step, so the clock it measures is the only one running.)
+      if (!this.holdLoop) try { this.frame(dt); this.render(dt); } catch (e) { this.reportError(e); }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
