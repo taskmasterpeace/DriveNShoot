@@ -58,7 +58,7 @@ export class Streamer {
     this.building = null;       // { key, cx, cz, gen, tiles, mm, t0 }
     this.sync = false;          // set by api._step
     this.mode = 'sliced';
-    this.stalls = 0; this.byCause = { cross: 0, promote: 0, teleport: 0, screenshot: 0, load: 0, test: 0 };
+    this.stalls = 0; this.byCause = { cross: 0, promote: 0, teleport: 0, screenshot: 0, load: 0, query: 0, test: 0 };
     this.stallLog = [];
     this.pumpRing = new Float32Array(600); this.pumpI = 0; this.pumpN = 0; this.pumpMax = 0;
     this.built = 0; this.evicted = 0; this.applied = 0; this.released = 0;
@@ -404,6 +404,22 @@ export class Streamer {
     if (this.built > before) this.stall(chunkKey(this.centre.cx, this.centre.cz), ms, cause);
     return { ok: true, built: this.built - before, ms: +ms.toFixed(1) };
   }
+
+  // An agent's route query (path, moveTo, drive) over ground that is not laid out yet: lay out every chunk between the two
+  // ends (plus a margin), so the nav window sees real ground there instead of unknown, blocked chunks. One window at
+  // most: ends farther apart are the road graph's job (P3). Each chunk built is a `query` stall (expected, not a gate).
+  ensureSpan(ax, az, bx, bz, margin = 64) {
+    if (![ax, az, bx, bz].every(Number.isFinite)) return false;
+    const x0 = chunkOf(Math.min(ax, bx) - margin), x1 = chunkOf(Math.max(ax, bx) + margin);
+    const z0 = chunkOf(Math.min(az, bz) - margin), z1 = chunkOf(Math.max(az, bz) + margin);
+    if (x1 - x0 > 3 || z1 - z0 > 3) return false;
+    for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
+      if (this.layouts.has(chunkKey(cx, cz)) || Math.hypot(cx * C + C / 2, cz * C + C / 2) > STREAM.dustWall + 1200) continue;
+      this.buildNow(cx, cz, 'query');
+    }
+    return true;
+  }
+
   ensureLayout(x, z, cause = 'test') {
     const cx = chunkOf(x), cz = chunkOf(z);
     if (this.layouts.has(chunkKey(cx, cz))) return this.layouts.get(chunkKey(cx, cz));

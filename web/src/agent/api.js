@@ -26,6 +26,7 @@ import { STREAM } from '../data/streaming.js';
 // ============================================================================
 
 const r1 = (v) => Math.round(v * 10) / 10;
+const TOO_FAR = 'farther apart than one nav window (1,024 m): a route that long needs the road graph (WEB_STREAMING P3); go by way of a nearer point';
 // A chronicle record in plain words for agents.
 const FLAG_NAMES = Object.entries(K);
 const readRec = (g, r) => ({
@@ -250,7 +251,7 @@ function buildCommands(api) {
       }),
     },
     world: {
-      group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot and load are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
+      group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot, load, query and test are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
       args: { chunks: { type: 'boolean', default: false } },
       run: async ({ chunks }) => {
         const S = g.streamer, v = S.view();
@@ -372,7 +373,9 @@ function buildCommands(api) {
         tolerance ??= 1;
         need(!P().inVehicle, 'player is in a vehicle; use drive or exitVehicle');
         need(P().alive, 'player is dead; step ~5s to respawn at the clinic');
+        const near = g.streamer.ensureSpan(P().x, P().z, x, z); // past the island: lay out the ground in between first
         const path = g.footPath(P().x, P().z, x, z);
+        need(path || near, `(${r1(x)}, ${r1(z)}) is ${Math.round(Math.hypot(x - P().x, z - P().z))} m away: ${TOO_FAR}`);
         need(path, `no walkable path from (${r1(P().x)}, ${r1(P().z)}) to (${r1(x)}, ${r1(z)}) — target inside a solid building or walled off?`);
         // Following: walk right up to the reachable cell beside the target (tolerance 1);
         // "arrived" is then judged against the target itself (outer loop).
@@ -682,9 +685,10 @@ function buildCommands(api) {
       group: 'player', desc: 'A* route from the player (or fx,fz) to x,z. mode=foot|car. Returns waypoints + length; nothing moves.',
       args: { x: { type: 'number', required: true }, z: { type: 'number', required: true }, fx: { type: 'number' }, fz: { type: 'number' }, mode: { type: 'string', default: 'foot', enum: ['foot', 'car'] } },
       run: async ({ x, z, fx, fz, mode }) => {
+        const near = g.streamer.ensureSpan(fx ?? P().x, fz ?? P().z, x, z); // lays out unbuilt ground between the ends (a `query` stall)
         const t0 = performance.now();
         const pts = g.nav[mode].find(fx ?? P().x, fz ?? P().z, x, z);
-        if (!pts) return { found: false, ms: +(performance.now() - t0).toFixed(1) };
+        if (!pts) return { found: false, ms: +(performance.now() - t0).toFixed(1), ...(near ? {} : { why: TOO_FAR }) };
         let len = 0, px = fx ?? P().x, pz = fz ?? P().z;
         for (const p of pts) { len += Math.hypot(p.x - px, p.z - pz); px = p.x; pz = p.z; }
         return { found: true, length: Math.round(len), searchMs: +(performance.now() - t0).toFixed(1), waypoints: pts.map((p) => ({ x: r1(p.x), z: r1(p.z) })) };
@@ -739,6 +743,7 @@ function buildCommands(api) {
         need(v, 'not in a vehicle; use enterVehicle');
         if (x !== undefined && z !== undefined) {
           // Follow an A* route on the vehicle nav grid (dilated for car width).
+          g.streamer.ensureSpan(v.x, v.z, x, z);
           const path = g.nav.car.find(v.x, v.z, x, z) ?? [{ x, z }];
           let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z;
           while (t < Math.max(seconds, 90) && i < path.length) {
@@ -2901,7 +2906,7 @@ async function runSelfTest(api) {
     return ok ? true : JSON.stringify({ a: a.hash, b: b.hash, sync: fs, sliced: { matches: fl.matches, slices: fl.slices }, seam: [a.edges.e, n.edges.w], roadSeam });
   });
   await check('streaming: the nav window paths from the island over its edge and a chunk seam (300,0 to 900,0 by car: a route of at most 690 m found in under 5 ms)', async () => {
-    for (const x of [600, 900]) for (const z of [-384, -128, 128, 384]) SW.ensureLayout(x, z, 'test');
+    // No staging: `path` lays out the ground it has not seen yet between the two ends (a `query` stall), then searches.
     const r = await C('path', { fx: 300, fz: 0, x: 900, z: 0, mode: 'car' });
     return r.found && r.length <= 690 && r.searchMs < 5 ? true : JSON.stringify({ found: r.found, length: r.length, ms: r.searchMs });
   });
