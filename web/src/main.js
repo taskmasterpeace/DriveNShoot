@@ -12,11 +12,20 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
-import { Character, CharacterRenderer, outfit, MAX_CHARS } from './systems/characters.js';
+import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { AI } from './systems/ai.js';
+import { Society } from './systems/society.js';
+import { Survival } from './systems/survival.js';
+import { Skills } from './systems/skills.js';
+import { Garage } from './systems/garage.js';
+import { Stunts } from './systems/stunts.js';
+import { Inventory } from './systems/inventory.js';
+import { InventoryUI } from './ui/inventory.js';
+import { ITEMS } from './data/items.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
+import { Interiors } from './systems/interiors.js';
 import { Zombies } from './systems/zombies.js';
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
@@ -75,6 +84,8 @@ class Game {
     this.water = new Water(this);
     drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
     this.water.drawOnMinimap(this.world.minimap, HALF);
+    // Ramps, dunes and the Thrill Show (data/stunts.js): drivable relief, built before the nav grids see its solids.
+    this.stunts = new Stunts(this);
     // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
     // Deep water is off-limits to walkers' and drivers' path planning (you can still swim/boat it).
@@ -86,13 +97,17 @@ class Game {
     }
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
-    this.charR = new CharacterRenderer(this.scene);
+    this.charR = new CharacterRenderer(this.scene, WEAPONS);
+    this.charR.groundAt = (x, z) => this.stunts.heightAt(x, z); // people stand on ramps and dunes, not inside them
     this.chars = [];
     this.freeSlots = [];
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
     this.vehicles = [];
     this.combat = new Combat(this);
     this.ai = new AI(this);
+    this.society = new Society(this); // who saw what, and who now hates you for it
+    this.society.initPlaces();
+    this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
     this.throwables = new Throwables(this);
@@ -100,6 +115,8 @@ class Game {
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
+    this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
+    this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -117,6 +134,9 @@ class Game {
     this.quests = {};
     this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
+    this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
+    this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
+    this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -125,10 +145,12 @@ class Game {
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
     this.aim = { x: 0, z: 0 };
+    this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
     this.raiderTimer = 10;
     this.fps = 60;
 
     this.populate();
+    this.inventory.placeFurniture(); // crates and shelves become containers; shopkeepers own theirs
     this.buildPickups();
     this.buildFlashlight();
     this.api = new AgentAPI(this);
@@ -146,6 +168,7 @@ class Game {
       this.removeChar(far);
     }
     const slot = this.freeSlots.pop();
+    if (!opts.colors) opts = { ...opts, colors: outfit(opts.faction ?? 'drifter') }; // nobody walks out unpainted (a pack or a script that forgot)
     const c = new Character(slot, opts);
     c.id = `c${++this.nextId}`;
     c.flag = opts.flag ?? 'US';
@@ -153,6 +176,7 @@ class Game {
     this.statics.resolveCircle(p, 0.5);
     c.x = p.x; c.z = p.z;
     c.mag = c.weapon ? WEAPONS[c.weapon].mag : 0;
+    this.society.factions.assign(c);
     this.chars.push(c);
     this.charR.paint(c);
     return c;
@@ -166,7 +190,7 @@ class Game {
   }
 
   randomFlag(rng) {
-    // The Deathlands are mostly American, but everybody's from somewhere.
+    // Most people out here are American, but everybody's from somewhere.
     const r = rng();
     if (r < 0.4) return 'US';
     if (r < 0.55) return 'MX';
@@ -190,9 +214,13 @@ class Game {
         x = (b.minX + b.maxX) / 2 + 1.5; z = (b.minZ + b.maxZ) / 2 + 1.5;
         b.shopName = n.title;
       } else { x = n.where.x; z = n.where.z; }
+      // The body wears what the portrait shows: same hair or hat, same goggles, mask, eyepatch, bandolier.
       const p = n.portrait;
       this.addChar({ x, z, faction: n.faction, weapon: n.weapon ?? null, npc: n, name: n.name, flag: n.flag, hp: 140,
-        colors: { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', hat: '#5a3f24', hatStyle: { cowboy: 'cowboy', cap: 'cap', mohawk: 'mohawk', wrap: 'wrap' }[p.hat] ?? 'short', gearStyle: n.faction === 'warden' ? 'vest' : p.gear === 'bandolier' ? 'vest' : 'none', gear: '#3a3128' } });
+        colors: { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', boots: '#2b241e', hat: '#5a3f24',
+          hatStyle: ['cowboy', 'cap', 'mohawk', 'wrap', 'long', 'bald'].includes(p.hat) ? p.hat : 'short',
+          gearStyle: p.gear === 'bandolier' ? 'bandolier' : n.faction === 'warden' ? 'vest' : 'none', gear: '#3a3128',
+          accStyle: { goggles: 'goggles', bandana: 'mask', eyepatch: 'eyepatch' }[p.gear] ?? 'none', mask: '#6a2a1e', sleeves: 'long' } });
     }
     for (const w of S.wardens) this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) });
     for (const d of S.drifters) {
@@ -203,8 +231,9 @@ class Game {
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
-    this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#1c1f24');
+    this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#4a3a2a'); // faded brown, never the black ex-cop car
     this.vehiclesSys.spawn('pickup', 30, 3.5, -Math.PI / 2, '#56603f');
+    this.vehiclesSys.spawn('atv', 36.5, 3.5, -Math.PI / 2, '#8a5a2a'); // a four-wheeler for the flats
     // Traffic on the grid.
     const paints = ['#8a6a2a', '#3f5a62', '#6a2a1a', '#4a4a48', '#7a5a3a', '#2f4a3a', '#c9a24a', '#6a4a2a'];
     for (let i = 0; i < 9; i++) {
@@ -215,7 +244,7 @@ class Game {
       const d = this.addChar({ x, z, faction: 'drifter', colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
       if (d) this.seats.board(d, v, 0);
     }
-    // Watercraft: an airboat and a jet ski tied up at the lake dock; a raider gunboat patrols.
+    // Watercraft: an airboat and a waterbike tied up at the lake dock; a raider gunboat patrols.
     this.vehiclesSys.spawn('airboat', DOCK.x + 8, DOCK.z + 5, Math.PI / 2, '#5a6a48');
     this.vehiclesSys.spawn('jetski', DOCK.x + 14, DOCK.z - 5, Math.PI / 2, '#b0301e');
     const gb = this.vehiclesSys.spawn('gunboat', LAKE.x + 20, LAKE.z, 0, '#3a3632', { ai: 'boatPatrol' });
@@ -241,7 +270,7 @@ class Game {
     const rng = makeRng(9);
     this.pickups = this.world.spawns.loot.map((l) => {
       const r = rng();
-      const type = r < 0.45 ? 'ammo' : r < 0.75 ? 'med' : 'cash';
+      const type = r < 0.32 ? 'ammo' : r < 0.52 ? 'med' : r < 0.7 ? 'cash' : r < 0.88 ? 'water' : 'food';
       return { x: l.x, z: l.z, type, alive: true };
     });
     this.pickupMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.45, 0.6), new THREE.MeshStandardMaterial({ roughness: 0.5, emissive: '#222' }), 300);
@@ -260,7 +289,7 @@ class Game {
 
   updatePickups(dt) {
     const p = this.player;
-    const col = { ammo: '#d4a23a', med: '#d83a2a', cash: '#6fb36a' };
+    const col = { ammo: '#d4a23a', med: '#d83a2a', cash: '#6fb36a', water: '#5b8fa8', food: '#b07a3a' };
     let n = 0;
     for (const it of this.pickups) {
       if (!it.alive) continue;
@@ -269,7 +298,7 @@ class Game {
         this.audio.pickup();
         let text;
         if (it.type === 'ammo') { this.inv.ammo.pistol += 12; if (this.inv.weapons.includes('smg')) this.inv.ammo.smg += 32; if (this.inv.weapons.includes('shotgun')) this.inv.ammo.shells += 4; text = '+ AMMO'; }
-        else if (it.type === 'med') { p.hp = Math.min(p.maxHp, p.hp + 35); p.bleed = 0; text = '+35 HP'; }
+        else if (it.type === 'med' || it.type === 'water' || it.type === 'food') text = this.pickItem(it.type, it.x, it.z);
         else { const c = 10 + Math.floor(Math.random() * 30); this.cash += c; text = `+$${c}`; }
         this.emit('pickup', { kind: it.type, x: +it.x.toFixed(1), z: +it.z.toFixed(1), text }); // floating text says it; no toast spam
         continue;
@@ -343,18 +372,38 @@ class Game {
   }
 
   // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
-  // NaN sentinel: a non-finite position poisons everything it touches (camera, AI, physics).
-  // Restore the last good position and report WHO went bad, once per entity.
-  nanGuard() {
-    const fix = (o, kind) => {
-      if (Number.isFinite(o.x) && Number.isFinite(o.z)) { o._gx = o.x; o._gz = o.z; return; }
-      const ctx = kind === 'veh' ? `vx=${o.vx} vz=${o.vz} av=${o.av} driver=${o.driver?.id}` : `inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
-      this.reportError(new Error(`NaN position on ${o.id} (${o.type ?? o.faction}) ${ctx}`));
+  // NaN sentinel: a non-finite number poisons everything it touches (camera, AI, physics), and it
+  // spreads: a NaN facing becomes a NaN dive, a NaN heading a NaN position, and whatever reads a
+  // poisoned position (vultures, tumbleweeds) latches on for good. frame() runs this after EVERY
+  // system that moves entities, so nothing downstream reads a NaN and the report names the culprit.
+  // (The bug it caught: restore() rebuilt zombies without zSpeed, they walked at NaN m/s, and crowd
+  // separation spread the NaN to whoever stood next to them, the player included: NaN * 0 is NaN.)
+  nanGuard(phase = '') {
+    for (let i = 0; i < this.chars.length; i++) this.nanFix(this.chars[i], false, phase);
+    for (let i = 0; i < this.vehicles.length; i++) this.nanFix(this.vehicles[i], true, phase);
+    const drop = this.nanDrop;
+    if (drop?.length) { for (const o of drop) if (o.anchors) this.vehiclesSys.remove(o); else this.removeChar(o); drop.length = 0; }
+    // The aim point steers facing, dives and throws: a NaN there starts the whole chain.
+    const a = this.aim;
+    if (a && !(Number.isFinite(a.x) && Number.isFinite(a.z))) { a.x = this.player.x; a.z = this.player.z + 1; }
+  }
+
+  nanFix(o, veh, phase) {
+    const posOk = Number.isFinite(o.x) && Number.isFinite(o.z);
+    const motionOk = veh ? Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.h ?? 0) + (o.av ?? 0)) : o.face == null || Number.isFinite(o.face);
+    if (posOk && motionOk) { o._gx = o.x; o._gz = o.z; return; }
+    const ctx = veh ? `vx=${o.vx} vz=${o.vz} h=${o.h} av=${o.av} driver=${o.driver?.id}` : `face=${o.face} inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
+    this.reportError(new Error(`NaN ${posOk ? 'motion' : 'position'} on ${o.id} (${o.type ?? o.faction}) after '${phase}' ${ctx}`));
+    if (!posOk) {
+      // Never had a good position (broken on its first frame): remove it rather than teleport it to 0,0.
+      if (o._gx === undefined && o !== this.player) { (this.nanDrop ??= []).push(o); return; }
       o.x = o._gx ?? 0; o.z = o._gz ?? 0;
-      if (kind === 'veh') { o.vx = 0; o.vz = 0; o.av = 0; if (!Number.isFinite(o.h)) o.h = 0; }
-    };
-    for (const c of this.chars) fix(c, 'char');
-    for (const v of this.vehicles) fix(v, 'veh');
+    }
+    if (veh) {
+      if (!Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.av ?? 0))) { o.vx = 0; o.vz = 0; o.av = 0; }
+      if (!Number.isFinite(o.h ?? 0)) o.h = 0;
+    } else if (o.face != null && !Number.isFinite(o.face)) o.face = 0;
+    o._gx = o.x; o._gz = o.z;
   }
 
   reportError(e) {
@@ -365,18 +414,20 @@ class Game {
     // Surface loop exceptions to `dl status` too (once per distinct error), not just the console.
     if (fresh) try { fetch('/agent/client-error', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'runtime', message: msg.slice(0, 500), at: Date.now() }) }); } catch { /* offline build */ }
     this.emit('error', { msg });
-    console.error('[deathlands]', e);
+    console.error('[dsoa]', e);
     this.input.endFrame();
   }
 
   // Structured event log for agents (DL.events). Ring buffer, never grows unbounded.
   emit(type, data = {}) {
-    this.events.push({ seq: ++this.eventSeq, t: +this.time.toFixed(2), type, ...data });
+    // The event's own seq/t/type come last: a payload key of the same name must never overwrite them.
+    this.events.push({ ...data, seq: ++this.eventSeq, t: +this.time.toFixed(2), type });
     if (this.events.length > 500) this.events.shift();
   }
 
   onKill(c, attacker, cause = 'bullet') {
     this.emit('kill', { victim: c.id, victimName: c.npc?.name ?? c.name, faction: c.faction, by: attacker?.id ?? null, downed: c.downedT > 0, cause });
+    this.society.deeds.onKill(c, attacker, cause); // witnesses and rumors; wanted stars only on a lawful witness's word
     if (attacker === this.player) {
       this.stats.kills++;
       if (c.faction === 'raider') {
@@ -385,10 +436,41 @@ class Game {
           const k = this.stats.raiderKills - this.quests.bountyStart;
           this.hud.toast(k >= 6 ? 'BOUNTY COMPLETE — return to Sheriff Okonkwo' : `Dustwolf Bounty ${k}/6`, 'job');
         }
-      } else if (c.faction !== 'zombie') this.raiseWanted(c.npc ? 3 : 2);
+      }
     }
-    if (c.faction === 'raider' && Math.random() < 0.7) this.dropPickup(c.x + 0.8, c.z, Math.random() < 0.6 ? 'ammo' : 'cash');
+    if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.6 ? 'ammo' : 'cash'); }
+    // The dead carry what they carried: a body is a container you can go through (I, standing over it).
+    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
+  }
+
+  // A pickup box is a find: it goes in your pack (or, with no room, you use it on the spot - drink the water, eat
+  // the food, wrap the cut). Returns the floating text.
+  pickItem(kind, x, z) {
+    const r = Math.random();
+    const id = kind === 'water' ? (r < 0.8 ? 'water_bottle' : 'canteen')
+      : kind === 'med' ? (r < 0.55 ? 'bandage' : r < 0.75 ? 'painkillers' : r < 0.92 ? 'suture_kit' : 'first_aid')
+      : r < 0.35 ? 'beans_tin' : r < 0.55 ? 'jerky' : r < 0.7 ? 'peaches_tin' : r < 0.82 ? 'ration' : r < 0.92 ? 'honey' : 'cactus_fruit';
+    const inv = this.inventory, it = ITEMS[id];
+    const state = it.uses ? { left: Math.max(1, Math.ceil(it.uses * (0.5 + Math.random() * 0.5))) } : {};
+    if (inv.add(inv.carried, id, 1, state)) { inv.changed(); this.emit('itemFound', { item: id, x: +x.toFixed(1), z: +z.toFixed(1) }); return `+ ${it.name.toUpperCase()}`; }
+    inv.add(inv.groundAt(x, z), id, 1, state); inv.changed(); // no room: it stays where it lay
+    return `${it.name.toUpperCase()} · NO ROOM`;
+  }
+
+  // V: patch up, drink or eat - whatever you need most - from what you carry.
+  quickUse() {
+    const p = this.player, N = this.needs, inv = this.inventory;
+    const want = (p.bleed > 0.25 || p.hp < p.maxHp * 0.45) ? ['med', 'water', 'food']
+      : N.water < N.food && N.water < 0.75 ? ['water', 'food', 'med'] : N.food < 0.75 ? ['food', 'water', 'med'] : p.hp < p.maxHp * 0.85 ? ['med'] : [];
+    for (const kind of want) {
+      const i = inv.best(kind);
+      if (i < 0) continue;
+      const r = inv.use(i);
+      if (r.ok) { this.emit('pickup', { kind, x: +p.x.toFixed(1), z: +p.z.toFixed(1), text: r.text }); return r; }
+    }
+    this.hud.toast(want.length ? `NOTHING TO ${want[0] === 'med' ? 'PATCH YOU UP' : want[0] === 'water' ? 'DRINK' : 'EAT'}` : 'NOTHING YOU NEED RIGHT NOW', 'warn');
+    return null;
   }
 
   // seat: 0 = take the wheel (carjacks a non-ally driver); 'passenger' = ride along.
@@ -409,14 +491,14 @@ class Game {
       if (d.faction === 'ally') { this.seats.leave(d, true); this.seats.board(d, v, this.seats.freeSeat(v, { passengerOnly: true })); }
       else {
         this.seats.leave(d);
-        this.ai.onDamaged(d, p);
+        this.society.deeds.record('carjack', { target: d, stars: d.faction !== 'raider' ? 1 : 0 });
+        this.ai.onDamaged(d, p, true);
         this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
-        if (d.faction !== 'raider') this.raiseWanted(1);
       }
     }
     this.seats.board(p, v, 0); v.ai = null;
     this.lastVehicle = v;
-    if (v.harpoon) this.hud.subtitle('WAR RIG: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
+    if (v.harpoon) this.hud.subtitle('WHALER: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
   }
 
   exitVehicle(forced = false) {
@@ -458,6 +540,7 @@ class Game {
       if (this.respawnT <= 0) {
         const clinic = this.world.spawns.shops[0];
         p.alive = true; p.hp = p.maxHp; p.bleed = 0;
+        this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
         // Wake up on the clinic's doorstep (never inside a furniture pocket).
         const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
         p.x = door.x; p.z = door.z;
@@ -477,6 +560,10 @@ class Game {
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
 
     if (this.dialogue.active) { p.speed = 0; return; }
+    // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
+    if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
+    if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    if (I.hit('KeyV')) this.quickUse();
 
     const v = p.inVehicle;
     if (v) {
@@ -491,9 +578,10 @@ class Game {
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
       if (this.driveOverride) {
-        // Agent-issued drive controls win over the keyboard until they expire.
+        // Agent-issued drive controls win over the keyboard until they expire. Boost too: the keyboard
+        // read above used to reset it every frame, so an agent could never wheelie a bike.
         const o = this.driveOverride;
-        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake;
+        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake; v.boost = !!o.boost;
         if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
       }
       if (this.train.canBoard(p)) {
@@ -503,6 +591,7 @@ class Game {
       if (I.hit('KeyF') || I.hit('Enter')) { this.exitVehicle(); return; }
       if (I.hit('KeyH') && v.harpoon && driving) this.vehiclesSys.fireHarpoon(v, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       if (I.hit('KeyE') && !v.harpoon) { this.audio.horn(0); this.ambient.honk(v); }
+      if (I.hit('KeyB') && driving) this.garage.drop(v); // oil, caltrops or smoke off the tail
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
       return;
@@ -531,7 +620,10 @@ class Game {
       return;
     }
 
-    // On foot.
+    // On foot. A door to the face puts you on the floor for a moment; climbing through a window
+    // takes its time. Neither lets you shoot.
+    if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
+    if (p.vault) { this.interiors.stepVault(p, dt); this.hud.prompt(null); return; }
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
@@ -540,8 +632,10 @@ class Game {
     p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
     p.stamina = p.stamina ?? 1;
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
-    const sprint = wantSprint && p.stamina > 0.04;
-    p.stamina = Math.max(0, Math.min(1, p.stamina + (sprint && p.speed > 1 ? -0.16 : 0.22) * dt));
+    const sprint = wantSprint && p.stamina > 0.04 && !this.skills.overloaded; // over your carry weight: no sprinting
+    // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
+    // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
+    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
     if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
     p.diveCool = (p.diveCool ?? 0) - dt;
@@ -549,8 +643,9 @@ class Game {
       p.dive -= dt;
       const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
       const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
-      this.statics.resolveCircle(t, p.radius);
+      this.statics.resolveCircle(t, p.radius, p); // a dive shoulders doors open and goes through windows
       p.x = t.x; p.z = t.z; p.speed = 0;
+      if (p.vault) return; // dove into a window: through it
       if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
       this.handleShooting(dt, p.face);
       return;
@@ -567,7 +662,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6;
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul; // a heavy pack slows you
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -597,12 +692,13 @@ class Game {
     const px = p.x, pz = p.z;
     if (len) {
       const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
-      this.statics.resolveCircle(t, p.radius);
+      this.statics.resolveCircle(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
       p.x = t.x; p.z = t.z;
+      if (p.vault) return;
     }
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
     const prevStep = Math.floor(p.walk / Math.PI);
-    p.walk += p.speed * dt * 2.2;
+    p.walk += stridePhase(p.speed, dt);
     if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
       const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
       this.audio.step(this.insideBuilding ? 'floor' : onRoad ? 'road' : 'sand', 0);
@@ -651,15 +747,22 @@ class Game {
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
-    this.qol.highlight(best ?? bestV);
+    // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
+    const op = !best && !bestV ? this.interiors.playerInteract(p, I, dt) : null;
+    // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
+    const box = !best && !bestV && !op ? this.inventory.nearest(p.x, p.z, 2.6) : null;
+    if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
+    this.qol.highlight(best ?? bestV ?? op ?? (box ? this.boxRing : null));
     if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
-    else this.hud.prompt(null);
+    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
+    else if (!op) this.hud.prompt(null);
     if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
+    else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
-    else if (!best && !bestV && this.train.canBoard(p)) {
+    else if (!best && !bestV && !op && this.train.canBoard(p)) {
       this.hud.prompt('<kbd>G</kbd> Climb aboard the train');
       if (I.hit('KeyG')) { this.train.board(p); this.hud.prompt(null); }
     }
@@ -701,19 +804,23 @@ class Game {
   reload() {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
     if (p.reloading > 0 || this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
-    p.reloading = w.reload;
+    p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
   }
 
   handleShooting(dt, ang) {
     const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
     p.cool -= dt;
+    // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
+    const car = p.inVehicle;
+    if (car?.mounts?.front && car.driver === p && I.mouse.left && this.garage.fireFront(car, p, ang)) return;
     if (p.reloading > 0) {
       p.reloading -= dt;
       if (p.reloading <= 0) {
         const need = w.mag - this.inv.mag[k];
         const take = Math.min(need, this.inv.ammo[w.ammo]);
         this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+        this.skillsSys.gain('dexterity', 1.5);
       }
       return;
     }
@@ -784,8 +891,10 @@ class Game {
     if (this.raiderTimer <= 0) {
       this.raiderTimer = 18;
       const alive = this.chars.filter((c) => c.alive && c.faction === 'raider').length;
-      if (alive < 30) {
-        const camps = this.world.spawns.camps.filter((c) => Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
+      // As many as the band can field (faction sim strength), and only from camps it still holds.
+      const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
+      if (alive < cap) {
+        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
         const camp = camps[Math.floor(Math.random() * camps.length)];
         if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
       }
@@ -803,16 +912,18 @@ class Game {
     t.className = 'title';
     t.innerHTML = `
       <div class="title-inner">
-        <h1>DEATH<span>LANDS</span></h1>
-        <div class="tag">PHOENIX, ARIZONA · 31 YEARS AFTER</div>
+        <h1>DIVIDED <span>STATES</span></h1>
+        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
           <div><b>SHIFT</b>sprint / boost</div><div><b>R</b>reload</div><div><b>1-3</b>weapons</div>
-          <div><b>E</b>talk / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
+          <div><b>E</b>talk / kick doors / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
+          <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
+          <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
       </div>`;
@@ -822,7 +933,7 @@ class Game {
       this.audio.start();
       this.paused = false;
       this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
-      this.hud.subtitle('The War Rig is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+      this.hud.subtitle('The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
     this.render(0.016);
   }
@@ -836,18 +947,25 @@ class Game {
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
     if (I.hit('KeyZ')) this.zoomFar = !this.zoomFar;
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
-    if (this.paused) { this.qol.update(dt); I.endFrame(); return; } // map/menu stay live while paused
+    if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
+      this.charR.sync(this.chars, 0); this.qol.update(dt); I.endFrame(); return;
+    }
 
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
+    if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
     this.updatePlayer(dt);
+    this.nanGuard('player');
     if (simDt) {
-      this.ai.update(simDt);
-      this.vehiclesSys.update(simDt, this.sky.night);
-      this.train.update(simDt);
-      this.convoy.update(simDt);
+      this.ai.update(simDt); this.nanGuard('ai');
+      this.society.update(simDt);
+      this.survival.update(simDt);
+      this.skillsSys.update(simDt);
+      this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
+      this.garage.update(simDt);
+      this.train.update(simDt); this.nanGuard('train');
+      this.convoy.update(simDt); this.nanGuard('convoy');
       this.ambient.update(simDt);
-      this.nanGuard();
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
@@ -855,6 +973,7 @@ class Game {
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
+      this.nanGuard('late');
     }
     this.dialogue.update(dt, I);
     this.fx.update(dt);
@@ -870,10 +989,12 @@ class Game {
     this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 : 0;
     this.flashlight.position.set(p.x, 0, p.z);
     this.flashlight.rotation.y = p.face;
-    this.charR.sync(this.chars);
-    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), p.inVehicle ? this.vehiclesSys.speed(p.inVehicle) : null);
+    this.charR.sync(this.chars, dt);
+    const pv = p.inVehicle;
+    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.qol.update(dt);
+    this.invUI.update(dt);
     this.feedback.update(dt);
     I.endFrame();
   }

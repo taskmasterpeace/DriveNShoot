@@ -1,4 +1,5 @@
 import { WEAPONS } from './combat.js';
+import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
 
 // On-foot AI: wander, flee, fight. Cheap per-character state machine,
@@ -19,14 +20,20 @@ export class AI {
     if (a.faction === 'ally') return b.faction === 'raider' || b.grudge === this.g.player || b.target === this.g.player;
     if (b.faction === 'ally' && a.faction === 'raider') return true;
     if (a.grudge === b) return true;
+    if (a.vendetta && a.weapon && b === this.g.player) return true; // they remember what you did to theirs
+    // Toward the player, standing decides (WEB_WORLD_MEMORY): a faction at hostile or worse shoots on sight, a
+    // friendlier one holds fire; Rust Haven's bulls also answer to the wanted stars. NPC-vs-NPC rules stay below.
+    const P = this.g.player, F = this.g.society?.factions;
+    if (b === P && F && a.fi >= 0) return F.hostileToPlayer(a) || (a.faction === 'warden' && this.g.wanted > 0);
     if (a.faction === 'raider') return b.faction !== 'raider';
     if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > 0);
     return false;
   }
 
-  onDamaged(c, attacker) {
+  // quiet: the caller already recorded the deed (a carjack is not also an assault).
+  onDamaged(c, attacker, quiet = false) {
     if (!attacker || attacker === c || c === this.g.player) return;
-    if (attacker === this.g.player && c.faction !== 'raider' && c.faction !== 'zombie' && c.grudge !== attacker) this.g.raiseWanted(1);
+    if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
     if (c.faction === 'zombie') { if (attacker.alive) c.ztarget = attacker; return; } // the dead don't flee
     if (c.faction !== attacker.faction || attacker === this.g.player) c.grudge = attacker;
     if (c.weapon) { c.target = attacker; c.state = 'fight'; }
@@ -65,10 +72,10 @@ export class AI {
     const t = this.tmp;
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
     // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
-    const w = this.g.water;
-    if (w && t.x > 290 && w.depthAt(t.x, t.z) > (c.faction === 'zombie' ? 0.6 : 1.2) && w.depthAt(px, pz) <= (c.faction === 'zombie' ? 0.6 : 1.2)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
-    this.g.statics.resolveCircle(t, c.radius);
+    if (this.wades(c, t.x, t.z)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
+    this.g.statics.resolveCircle(t, c.radius, c); // doors swing open for them (never a locked one)
     c.x = t.x; c.z = t.z;
+    if (c.vault) return; // walked into a broken window while hunting: climbing through
     const moved = Math.hypot(c.x - px, c.z - pz);
     c.speed = moved / dt;
     if (moved < speed * dt * 0.3) {
@@ -76,13 +83,23 @@ export class AI {
       if (c.stuck > 0.35) { c.detour = 0.7; c.detourA = (Math.random() < 0.5 ? 1 : -1) * (1 + Math.random()); c.stuck = 0; }
     } else c.stuck = 0;
     if (!c.aiming) c.face = angleLerp(c.face, Math.atan2(dx, dz), Math.min(1, dt * 10));
-    c.walk += c.speed * dt * 2.2;
+    c.walk += stridePhase(c.speed, dt);
+  }
+
+  // Would stepping c to x,z take it into water it must not enter? The living won't wade in past
+  // 1.2 m. The dead never go deeper once past 0.6 m: the rule used to be "don't cross the waterline",
+  // so a crowd shoving one of the infected 1 cm past it freed it to walk out into the lake after its prey.
+  wades(c, x, z) {
+    const w = this.g.water;
+    if (!w || x <= 290) return false;
+    const d = w.depthAt(x, z), d0 = w.depthAt(c.x, c.z);
+    return c.faction === 'zombie' ? d > 0.6 && d > d0 : d > 1.2 && d0 <= 1.2;
   }
 
   scan(c) {
     let best = null, bd = c.faction === 'raider' ? 34 : 30;
     for (const o of this.g.chars) {
-      if (!this.hostile(c, o) || o.hidden) continue;
+      if (!this.hostile(c, o) || o.hidden || o.underwater) continue; // dived under: out of sight
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
       if (d < bd * (o.crouch ? 0.6 : 1) && this.g.los(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
@@ -120,8 +137,13 @@ export class AI {
         continue;
       }
       if (c.dragged) continue;
+      if (c.knockT > 0) { c.knockT -= dt; c.speed = 0; c.aiming = false; continue; } // on the floor after a door to the face
+      if (c.vault) { g.interiors.stepVault(c, dt); continue; }                       // climbing through a window
       if (c.leapT > 0) continue;                               // diving out of a car's way (Ambient moves them)
       if (c.cowerT > 0) { c.speed = 0; c.walk = (c.walk ?? 0) + dt; continue; } // hands up, shaking
+      // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
+      // hold = true stays until cleared; a number counts down in seconds.
+      if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
       if (c.faction === 'zombie') { g.zombies.think(c, dt); continue; }
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
@@ -136,6 +158,8 @@ export class AI {
       const pd = Math.hypot(g.player.x - c.x, g.player.z - c.z);
       // Far-away NPCs sleep (simulation LOD).
       if (pd > 150 && !c.target) continue;
+      // A named person you've wronged (or helped) says so when you come close - once a minute at most.
+      if (c.npc && pd < 9 && g.time > (c.barkAt ?? 0)) g.society?.memory.maybeBark(c);
 
       if (g.dialogue.active && g.dialogue.npc === c) {
         c.face = angleLerp(c.face, Math.atan2(g.player.x - c.x, g.player.z - c.z), Math.min(1, dt * 8));
@@ -153,7 +177,7 @@ export class AI {
         const t = c.target;
         const tx = t.inVehicle ? t.inVehicle.x : t.x, tz = t.inVehicle ? t.inVehicle.z : t.z;
         const d = Math.hypot(tx - c.x, tz - c.z);
-        if (!t.alive || d > 70 || (!this.hostile(c, t) && c.grudge !== t)) { c.target = null; c.state = 'idle'; continue; }
+        if (!t.alive || d > (c.leash ?? 70) || (!this.hostile(c, t) && c.grudge !== t)) { c.target = null; c.state = 'idle'; continue; } // hunters run a longer leash
         const w = WEAPONS[c.weapon];
         if (c.blind > 0) {
           // Flashbanged: stagger around, can't aim.
@@ -161,12 +185,12 @@ export class AI {
           this.move(c, Math.sin(c.blind * 3), Math.cos(c.blind * 2), 1.2, dt);
           continue;
         }
-        const los = g.los(c.x, c.z, tx, tz);
+        const los = !t.underwater && g.los(c.x, c.z, tx, tz); // under water: lost sight (they wait at the shore)
         // Dug-in target out of sight but close: lob a grenade over the cover.
         if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
           c.grenades--;
           g.throwables.throw(c, 'frag', tx + (Math.random() - 0.5) * 3, tz + (Math.random() - 0.5) * 3, Math.random() * 0.8);
-          g.emit('npcThrew', { by: c.id, type: 'frag' });
+          g.emit('npcThrew', { by: c.id, kind: 'frag' });
         }
         if (los && d < w.range * 0.9) {
           c.aiming = true;
@@ -221,18 +245,22 @@ export class AI {
       for (let j = i + 1; j < chars.length; j++) {
         const b = chars[j];
         if (!b.alive || b.inVehicle) continue;
+        // Written so a NaN position FAILS the tests (every comparison with NaN is false): a NaN
+        // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;
-        if (Math.abs(dx) > 1 || Math.abs(dz) > 1) continue;
+        if (!(Math.abs(dx) <= 1 && Math.abs(dz) <= 1)) continue;
         const d2 = dx * dx + dz * dz;
-        if (d2 > 0.64 || d2 < 1e-6) continue;
+        if (!(d2 > 1e-6 && d2 <= 0.64)) continue;
         const d = Math.sqrt(d2), push = (0.8 - d) * 0.5;
         const nx = dx / d, nz = dz / d;
         // The player has right of way: they shoulder NPCs aside instead of being blocked in doorways.
         const P = this.g.player;
         const wa = a === P ? 0 : b === P ? 2 : 1, wb = b === P ? 0 : a === P ? 2 : 1;
         const ta = { x: a.x - nx * push * wa, z: a.z - nz * push * wa }, tb = { x: b.x + nx * push * wb, z: b.z + nz * push * wb };
-        // Never shove anyone through a wall.
+        // Never shove anyone through a wall, nor the dead into deep water.
         this.g.statics.resolveCircle(ta, a.radius); this.g.statics.resolveCircle(tb, b.radius);
+        if (a.faction === 'zombie' && this.wades(a, ta.x, ta.z)) { ta.x = a.x; ta.z = a.z; }
+        if (b.faction === 'zombie' && this.wades(b, tb.x, tb.z)) { tb.x = b.x; tb.z = b.z; }
         a.x = ta.x; a.z = ta.z; b.x = tb.x; b.z = tb.z;
       }
     }

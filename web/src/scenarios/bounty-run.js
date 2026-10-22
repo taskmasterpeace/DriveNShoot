@@ -49,11 +49,11 @@ export default async function (DL, game) {
   if (crate >= 0) { d = await DL.choose({ index: crate }); note(`Bought ammo crate, cash left $${d.cash}`); }
   if ((await DL.dialogue()).open) await DL.choose({ index: (await DL.dialogue()).choices.length - 1 });
 
-  // 3. Into the War Rig.
+  // 3. Into the Whaler.
   const rig = (await DL.query({ type: 'vehicle', radius: 300, limit: 60 })).items.find((v) => v.type === 'rig');
   await walk(rig.id);
   const took = await DL.enterVehicle({ id: rig.id });
-  note(took.ok ? 'Took the War Rig' : `Could not take the War Rig: ${took.error}`);
+  note(took.ok ? 'Took the Whaler' : `Could not take the Whaler: ${took.error}`);
 
   const kills = () => game.stats.raiderKills - game.quests.bountyStart;
   const getRide = async () => {
@@ -106,7 +106,7 @@ export default async function (DL, game) {
       }
     }
     note(`Bounty progress ${kills()}/6`);
-    // Between fights: loot what the Dustwolves dropped (ammo, stimpaks, cash).
+    // Between fights: loot what the Dustwolves dropped (ammo, med kits, cash).
     s = await st();
     if (s.player.alive && !s.vehicle && kills() < 6) {
       const loot = (await DL.query({ type: 'pickup', radius: 35 })).items.slice(0, 4);

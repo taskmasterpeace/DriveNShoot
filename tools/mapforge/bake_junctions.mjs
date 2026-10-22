@@ -68,28 +68,42 @@ function arcAt(road, pos) {
 	return best.arc;
 }
 
-// half-width of a road (mirrors ProtoUSMap.road_geometry: LANE_W 3.6, shoulder
-// 2.0, divided carriage +1.6 inner, median 2.4).
+// THE ONE GEOMETRY LAW — half-width of a road.
+// `ProtoUSMap.road_geometry()` in game/proto3d/usmap.gd is the SINGLE SOURCE OF
+// TRUTH for lane math (LANE_W 3.6, SHOULDER_W 1.0, MEDIAN_W 2.4). This function
+// returns exactly HALF of that function's `width` for the same road row, and the
+// two MUST STAY EQUAL — if road_geometry() ever changes, change this in the same
+// commit, or the baked ramps/junctions drift off the road the engine paints.
+//   divided:   width = 2*(per_side*3.6 + 1.6) + 2.4  ->  half = per_side*3.6 + 1.6 + 1.2
+//   undivided: width = lanes*3.6 + 2.0*SHOULDER_W    ->  half = (lanes*3.6 + 2.0) / 2
 function halfWidth(r, divided) {
 	const lanes = r.lanes || (r.kind === "interstate" ? 4 : 2);
-	const per = Math.max(1, Math.floor(lanes / 2));
-	if (divided) return per * 3.6 + 1.6 + 1.2;
-	return (lanes * 3.6 + 4.0) / 2;
+	const per = Math.max(1, Math.floor(lanes / 2)); // mirrors maxi(1, lanes / 2) (integer division)
+	if (divided) return per * 3.6 + 1.6 + 1.2; // half of 2*carriage_w + MEDIAN_W
+	return (lanes * 3.6 + 2.0) / 2;            // half of lanes*LANE_W + 2*SHOULDER_W
 }
 
-// THE EXIT GEOMETRY LAW (0.18a/b): rewrite every off-ramp to START at the
-// carriageway EDGE of the direction it serves and PEEL at ~12° (the owner's
-// "little angle"); stamp a `side` (+1 = along pts order, -1 = against) on every
-// ramp; and generate the MISSING mirrored off/on ramps on divided highways so
-// each travel direction is served from its own carriageway. Idempotent: rows
-// already carrying geom:"peel_v1" are left alone; mirrors are keyed by id.
+// THE EXIT GEOMETRY LAW v2 (0.18a/b + owner /goal 2026-07-18 "no misaligned exits,
+// no dead ends"): every non-authored exit becomes a real DIAMOND INTERCHANGE, built
+// deterministically from the exit's on-highway anchor (pos) and its town (dest) —
+// so the pass is idempotent and self-repairing (stale ramps are swept, then rebuilt):
+//   * TOWN-SIDE half: an off-ramp peels right off the town-side carriageway to dest,
+//     and an ON-ramp returns from dest onto that carriageway downstream (kills the
+//     one-way-exit trap — you can always get back on).
+//   * DIVIDED highways also get the FAR-side half: an off/on pair on the far
+//     carriageway landing on the far side (NEVER slicing across the median — the old
+//     mirror bug), plus a DECKED cross-street (`-xr`, interchange:true) that bridges
+//     the highway to carry the far direction into town. The cross-street is the
+//     street INTO town and ties the far side into the connected net (no dead end).
+// Authored towns (Meridian) keep their hand-built ramps untouched.
 export function rewriteExitGeometry(map) {
-	const roads = map.roads || [];
-	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
 	const isDiv = (r) => (r.divided !== undefined ? !!r.divided : (r.lanes || (r.kind === "interstate" ? 4 : 2)) >= 6);
-	const stats = { rewritten: 0, mirrors_off: 0, mirrors_on: 0, skipped: 0 };
+	const stats = { rebuilt: 0, off: 0, on: 0, far_off: 0, far_on: 0, crossroads: 0, authored: 0 };
 	const right = (d) => ({ x: -d.y, y: d.x }); // right of travel, top-down
 	const norm = (d) => { const l = Math.hypot(d.x, d.y) || 1; return { x: d.x / l, y: d.y / l }; };
+	const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+	const mul = (a, s) => ({ x: a.x * s, y: a.y * s });
+	const th = (12 * Math.PI) / 180; // the little peel angle
 
 	// local highway direction (along pts order) at the segment nearest to p
 	const dirAt = (road, p) => {
@@ -102,88 +116,132 @@ export function rewriteExitGeometry(map) {
 		return { d, foot: best.q ?? best.s.a };
 	};
 
+	const authoredTown = new Set((map.towns || []).filter((t) => t.authored).map((t) => t.id));
+	// ids WE generate (swept + rebuilt each run so the pass is idempotent). Authored
+	// exits KEEP their canon primary off-ramp (ruling 0.5: ids never change —
+	// EXIT-meridian survives), but their stale generated mirror/return/cross ARE
+	// swept and rebuilt with correct geometry.
+	const genIds = (ex) => [`${ex.id}-off`, `${ex.id}-on`, `${ex.id}-off-r`, `${ex.id}-on-r`, `${ex.id}-xr`];
+	const managed = new Set();
+	const keepPrimary = new Map(); // authored exit id -> its canon primary ramp id
+	for (const ex of map.exits || []) {
+		for (const id of genIds(ex)) managed.add(id);
+		if (authoredTown.has(ex.town_id)) {
+			const prim = (ex.ramp_ids || []).find((rid) => !genIds(ex).includes(rid));
+			if (prim) keepPrimary.set(ex.id, prim);
+		} else {
+			for (const rid of ex.ramp_ids || []) managed.add(rid); // sweep the old primary too
+		}
+	}
+	map.roads = (map.roads || []).filter((r) => !managed.has(r.id));
+	const R = map.roads;
+	const network = R.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
+
 	for (const ex of map.exits || []) {
 		const hwy = network.find((r) => r.id === ex.highway_id);
 		if (!hwy) continue;
+		const authored = authoredTown.has(ex.town_id);
 		const exPos = v(ex.pos);
 		const dest = v(ex.dest || ex.pos);
 		const { d: dAlong, foot } = dirAt(hwy, exPos);
-		const edge = halfWidth(hwy, isDiv(hwy)) + 1.0;
-		// serving sense: the travel direction with dest on its RIGHT
+		const divided = isDiv(hwy);
+		const edge = halfWidth(hwy, divided) + 1.0;
+		// town side: the travel direction with dest on its RIGHT
 		const toDest = norm(sub(dest, foot));
 		const sSign = (right(dAlong).x * toDest.x + right(dAlong).y * toDest.y) >= 0 ? 1 : -1;
-		const mk = (sgn) => {
-			const dS = { x: dAlong.x * sgn, y: dAlong.y * sgn };
-			const rS = right(dS);
-			const peel = { x: foot.x + rS.x * edge, y: foot.y + rS.y * edge };
-			const th = (12 * Math.PI) / 180; // the little angle
-			const out = {
-				x: peel.x + (dS.x * Math.cos(th) + rS.x * Math.sin(th)) * 70,
-				y: peel.y + (dS.y * Math.cos(th) + rS.y * Math.sin(th)) * 70,
-			};
-			return { peel, out };
+
+		// off-ramp: peel right off the carriageway of direction `sgn`, run to `target`
+		const offRamp = (id, sgn, target) => {
+			const dS = mul(dAlong, sgn), rS = right(dS);
+			const peel = add(foot, mul(rS, edge));
+			const out = add(peel, mul({ x: dS.x * Math.cos(th) + rS.x * Math.sin(th), y: dS.y * Math.cos(th) + rS.y * Math.sin(th) }, 70));
+			R.push({ id, kind: "exit", pts: [[peel.x, peel.y], [out.x, out.y], [target.x, target.y]],
+				danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false, side: sgn, geom: "peel_v1" });
 		};
-		const rampIds = ex.ramp_ids || [];
-		for (const rid of rampIds) {
-			const rp = roads.find((r) => r.id === rid);
-			if (!rp) continue;
-			if (rp.geom === "peel_v1") { stats.skipped++; continue; }
-			const p0 = v(rp.pts[0]);
-			const isOff = dist(p0, exPos) <= SNAP_M * 2;
-			if (isOff) {
-				const { peel, out } = mk(sSign);
-				const tail = rp.pts.slice(1).map((p) => [p[0], p[1]]);
-				rp.pts = [[peel.x, peel.y], [out.x, out.y], ...tail];
-				rp.side = sSign;
-				rp.geom = "peel_v1";
-				stats.rewritten++;
-			} else {
-				// on-ramp: end at the edge of its serving carriageway + a merge run
-				const pN = v(rp.pts[rp.pts.length - 1]);
-				const { d: dEnd, foot: footN } = dirAt(hwy, pN);
-				const fromDest = norm(sub(footN, dest));
-				const sIn = (right(dEnd).x * fromDest.x + right(dEnd).y * fromDest.y) <= 0 ? 1 : -1;
-				const dS = { x: dEnd.x * sIn, y: dEnd.y * sIn };
-				const rS = right(dS);
-				const merge = { x: footN.x + rS.x * edge, y: footN.y + rS.y * edge };
-				const mergeEnd = { x: merge.x + dS.x * 100, y: merge.y + dS.y * 100 };
-				const front = rp.pts.slice(0, -1).map((p) => [p[0], p[1]]);
-				rp.pts = [...front, [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]];
-				rp.side = sIn;
-				rp.geom = "peel_v1";
-				stats.rewritten++;
-			}
+		// on-ramp (return): rise from `source`, merge right onto the carriageway of
+		// `sgn`. The merge point is PROJECTED ~180 m downstream onto the REAL highway
+		// polyline (dirAt), so a curving highway near the exit never makes the ramp
+		// slice back across the carriageways (the I-70_X2 curve case).
+		const onRamp = (id, sgn, source) => {
+			const dTravel = mul(dAlong, sgn);
+			const alongSrc = (source.x - foot.x) * dTravel.x + (source.y - foot.y) * dTravel.y;
+			const build = (lead) => {
+				const provisional = add(foot, mul(dTravel, lead));
+				const { d: dM, foot: footM } = dirAt(hwy, provisional);
+				const dS = mul(dM, sgn), rS = right(dS);
+				const merge = add(footM, mul(rS, edge));
+				const mergeEnd = add(merge, mul(dS, 100));
+				return [[source.x, source.y], [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]];
+			};
+			const crossesHwy = (pp) => {
+				for (let i = 0; i < pp.length - 1; i++) {
+					const s1 = { a: { x: pp[i][0], y: pp[i][1] }, b: { x: pp[i + 1][0], y: pp[i + 1][1] } };
+					for (let k = 0; k < hwy.pts.length - 1; k++) {
+						if (segIntersect(s1, { a: v(hwy.pts[k]), b: v(hwy.pts[k + 1]) })) return true;
+					}
+				}
+				return false;
+			};
+			// THE MERGE SHOULD LIE DOWNSTREAM OF THE SOURCE. A fixed 180 m from the exit's
+			// foot puts it BEHIND the town whenever the town sits further downstream: the
+			// car leaves town driving one way, meets the highway, and the 100 m taper runs
+			// back the other — a wrong-way merge on a polyline that doubles back (3 of 88
+			// on-ramps). Reaching past the town fixes those, but on a CURVING highway the
+			// longer chord can cut clean across the carriageways, and a ramp crossing its
+			// own highway is far worse than a backward taper. So: prefer the corrected
+			// merge, and fall back to the standard one when it would cross.
+			let pts = build(Math.max(180, alongSrc + 180));
+			if (crossesHwy(pts)) pts = build(180);
+			R.push({ id, kind: "exit", pts,
+				danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false, side: sgn, geom: "peel_v1" });
+		};
+
+		const ramp_ids = [];
+		if (authored && keepPrimary.has(ex.id)) {
+			// AUTHORED (Meridian): keep the interchange EXACTLY as hand-built (just the
+			// canon primary, ruling 0.5) — no generated road may touch the authored
+			// core (dest sits metres from the safehouse). Its county roads (CR-*)
+			// already connect it outward, so it is not a dead end. The stale crossing
+			// mirror was swept above and is simply not rebuilt.
+			ramp_ids.push(keepPrimary.get(ex.id));
+			stats.authored++;
+			ex.ramp_ids = ramp_ids;
+			stats.rebuilt++;
+			continue;
 		}
-		// mirrored OFF-ramp: a divided highway serves BOTH directions (0.18b);
-		// today every exit has one off — mint the reverse-side twin.
-		if (isDiv(hwy)) {
-			const mirrorId = `${ex.id}-off-r`;
-			if (!roads.find((r) => r.id === mirrorId)) {
-				const { peel, out } = mk(-sSign);
-				roads.push({ id: mirrorId, kind: "exit", pts: [[peel.x, peel.y], [out.x, out.y], [dest.x, dest.y]],
-					danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false,
-					side: -sSign, geom: "peel_v1" });
-				ex.ramp_ids = [...(ex.ramp_ids || []), mirrorId];
-				stats.mirrors_off++;
-			}
-			// mirrored ON-ramp only where a return ramp already exists (mirror the pair)
-			const hasOn = (ex.ramp_ids || []).some((rid2) => {
-				const rp2 = roads.find((r) => r.id === rid2);
-				return rp2 && !rid2.endsWith("-off-r") && dist(v(rp2.pts[0]), exPos) > SNAP_M * 2;
-			});
-			const mirrorOnId = `${ex.id}-on-r`;
-			if (hasOn && !roads.find((r) => r.id === mirrorOnId)) {
-				const dS = { x: -dAlong.x * sSign, y: -dAlong.y * sSign };
-				const rS = right(dS);
-				const merge = { x: foot.x + rS.x * edge + dS.x * 180, y: foot.y + rS.y * edge + dS.y * 180 };
-				const mergeEnd = { x: merge.x + dS.x * 100, y: merge.y + dS.y * 100 };
-				roads.push({ id: mirrorOnId, kind: "exit", pts: [[dest.x, dest.y], [merge.x, merge.y], [mergeEnd.x, mergeEnd.y]],
-					danger: ex.risk_rating || 1, family: "", nickname: "", lanes: 2, divided: false,
-					side: -sSign, geom: "peel_v1" });
-				ex.ramp_ids = [...(ex.ramp_ids || []), mirrorOnId];
-				stats.mirrors_on++;
-			}
+		// TOWN-SIDE half-diamond: off (arrive) + on (return — kills the one-way trap)
+		offRamp(`${ex.id}-off`, sSign, dest);
+		ramp_ids.push(`${ex.id}-off`);
+		onRamp(`${ex.id}-on`, sSign, dest);
+		ramp_ids.push(`${ex.id}-on`);
+		stats.off++; stats.on++;
+
+		if (divided) {
+			// reflect dest across the highway LINE (keep the along component, flip the
+			// perpendicular) so the far landing sits on the far carriageway's side.
+			const vv = sub(dest, foot);
+			const alongC = mul(dAlong, vv.x * dAlong.x + vv.y * dAlong.y);
+			const perpC = sub(vv, alongC);
+			const farLand = add(add(foot, alongC), mul(perpC, -1));
+			offRamp(`${ex.id}-off-r`, -sSign, farLand);
+			onRamp(`${ex.id}-on-r`, -sSign, farLand);
+			// the cross-street INTO town: far landing -> over the highway (at grade,
+			// median gapped at the crossing) -> town. Ties the far side into the net.
+			// BRIDGE WHERE THE TOWN IS, not at the exit anchor. Crossing at `foot` makes a V
+			// whenever the town sits far ALONG the highway from the anchor: I-90_X11-xr ran
+			// 531 m out to the anchor and 531 m back to a point 147 m from where it started
+			// — 1,062 m of street to go nowhere. The town's own projection gives a real
+			// perpendicular crossing, and the far ramps still land on its far end.
+			const xrFoot = dirAt(hwy, dest).foot;
+			R.push({ id: `${ex.id}-xr`, kind: "street", surface: "asphalt",
+				pts: [[farLand.x, farLand.y], [xrFoot.x, xrFoot.y], [dest.x, dest.y]],
+				danger: 0, family: "", nickname: "", lanes: 2, divided: false, interchange: true });
+			ramp_ids.push(`${ex.id}-off-r`, `${ex.id}-on-r`);
+			stats.far_off++; stats.far_on++; stats.crossroads++;
 		}
+		ex.ramp_ids = ramp_ids;
+		ex.has_return_ramp = true;
+		stats.rebuilt++;
 	}
 	return stats;
 }
@@ -1117,9 +1175,229 @@ export function fillNetwork(map) {
 	return stats;
 }
 
+// HEAL DEAD ENDS (owner /goal 2026-07-18 "no roads should have dead ends"): every
+// network road endpoint that stops in open country — not at the map edge, not at a
+// town, not at a payload placement, and not already meeting another road — is EXTENDED
+// to whichever is nearest: another road (a real junction), a town centre (it arrives
+// somewhere), or the map edge (it leaves the country). The 8 interstates that died
+// mid-map and the stray dirt spurs all connect. Run before the junction bake so the
+// new meetings bake as tees. Exit ramps are handled by the diamond law, not here.
+function nearestEdgePt(p, mn, mx) {
+	const dl = p.x - mn[0], dr = mx[0] - p.x, dt = p.y - mn[1], db = mx[1] - p.y;
+	const m = Math.min(dl, dr, dt, db);
+	if (m === dl) return { x: mn[0], y: p.y };
+	if (m === dr) return { x: mx[0], y: p.y };
+	if (m === dt) return { x: p.x, y: mn[1] };
+	return { x: p.x, y: mx[1] };
+}
+export function healDeadEnds(map) {
+	const roads = map.roads || [], towns = map.towns || [], place = map.placements || [];
+	const stats = { healed: 0, to_road: 0, to_town: 0, to_edge: 0 };
+	const mn = map.world_offset || [-60000, -20500], cell = map.cell_m || 500;
+	const mx = [mn[0] + (map.w || 150) * cell, mn[1] + (map.h || 85) * cell];
+	const EDGE = 1600, TOWN_TOL = 1300, PAY_TOL = 130, HEAL_R = 5200;
+	const nearEdge = (p) => p.x - mn[0] < EDGE || mx[0] - p.x < EDGE || p.y - mn[1] < EDGE || mx[1] - p.y < EDGE;
+	// TWO DIFFERENT ROLES, TWO DIFFERENT SETS:
+	//  * the CONNECTED test scans ALL roads, ramps included — an endpoint that meets
+	//    an exit ramp IS connected. (Scanning only non-exit roads wrongly judged an
+	//    interchange cross-street (`-xr`) a dead end even though its far landing is
+	//    served by its own off/on RAMPS; heal then prepended the nearest point on the
+	//    highway — already a vertex of that very road — producing doubled-back
+	//    polylines like [foot, farLand, foot, dest].)
+	//  * heal TARGETS stay non-exit roads only — we still never EXTEND a road onto a ramp.
+	const targets = roads.filter((r) => r.kind !== "exit");
+	const isTarget = new Set(targets.map((r) => r.id));
+	for (const r of roads) {
+		if (r.kind === "exit" || !r.pts || r.pts.length < 2) continue;
+		for (const which of [0, 1]) {
+			// recompute the index each time: healing the start with unshift shifts all
+			// indices, so a captured length-1 would then read the wrong (interior) vertex.
+			const endIdx = which === 0 ? 0 : r.pts.length - 1;
+			const p = { x: r.pts[endIdx][0], y: r.pts[endIdx][1] };
+			if (nearEdge(p)) continue;
+			if (towns.some((t) => Math.hypot(t.pos[0] - p.x, t.pos[1] - p.y) <= TOWN_TOL)) continue;
+			if (place.some((q) => Math.hypot(q.pos[0] - p.x, q.pos[1] - p.y) <= PAY_TOL)) continue;
+			let connected = false, bestRoad = null;
+			for (const o of roads) {
+				if (o.id === r.id) continue;
+				const canTarget = isTarget.has(o.id); // a ramp SATISFIES "connected", but is never extended onto
+				for (const s of segs(o)) {
+					const pr = projectOnSeg(p, s);
+					if (pr.d <= SNAP_M) { connected = true; break; }
+					if (canTarget && (!bestRoad || pr.d < bestRoad.d)) bestRoad = { d: pr.d, pt: pr.q ?? s.a };
+				}
+				if (connected) break;
+			}
+			if (connected) continue;
+			const cands = [];
+			if (bestRoad) cands.push({ d: bestRoad.d, pt: bestRoad.pt, kind: "road" });
+			let bt = null;
+			for (const t of towns) {
+				const d = Math.hypot(t.pos[0] - p.x, t.pos[1] - p.y);
+				if (!bt || d < bt.d) bt = { d, pt: { x: t.pos[0], y: t.pos[1] } };
+			}
+			if (bt) cands.push({ d: bt.d, pt: bt.pt, kind: "town" });
+			const ep = nearestEdgePt(p, mn, mx);
+			cands.push({ d: Math.hypot(ep.x - p.x, ep.y - p.y), pt: ep, kind: "edge" });
+			cands.sort((a, b) => a.d - b.d);
+			const c = cands.find((x) => x.d <= HEAL_R);
+			if (!c) continue;
+			const np = [c.pt.x, c.pt.y];
+			// BELT AND BRACES: never add a vertex this road ALREADY has. Re-adding one
+			// doubles the polyline back on itself ([foot, farLand, foot, dest]) instead
+			// of extending it; within ~1 m the extension is a no-op anyway.
+			if (r.pts.some((q) => Math.hypot(q[0] - np[0], q[1] - np[1]) <= 1.0)) continue;
+			if (which === 0) r.pts.unshift(np); else r.pts.push(np);
+			stats.healed++; stats["to_" + c.kind]++;
+		}
+	}
+	return stats;
+}
+
+// REPAIR: drop any vertex that revisits an earlier point on the SAME road. A road is a
+// simple path — a repeat is damage (6 DR- spurs were closed loops, pts[0] == pts[3],
+// legacy breakage that predates the heal fix and which fillNetwork's idempotency guard
+// preserves rather than rebuilds). Never drops below 2 points.
+// --- THE OVERLAP LAW (doubled-back polylines) --------------------------------------
+// A road is a simple path. One that REVERSES and drives back along the pavement it just
+// laid is DAMAGE: traffic and motorists walk arc-length, so a retrace flips their travel
+// direction mid-road, junctions bake at the self-intersection, and the streamer lays
+// overlapping slabs on the same tarmac. I-75 carried a 1.9 km return at ZERO separation;
+// I-35 an 839 m one.
+// But a road that turns back and SEPARATES is a legitimate spur, cross-street or mountain
+// switchback and must survive untouched. So the test is NOT the turn angle (a switchback
+// reverses through 180 degrees too) — it is whether the two runs SHARE PAVEMENT: mean
+// separation below the road's own width, straight off THE ONE GEOMETRY LAW.
+function ptSegDist(p, a, b) {
+	const dx = b[0] - a[0], dy = b[1] - a[1];
+	const L = dx * dx + dy * dy;
+	const t = L < 1e-9 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L));
+	return Math.hypot(p[0] - (a[0] + dx * t), p[1] - (a[1] + dy * t));
+}
+
+// mean distance from samples along segment ia->ia+1 to the run of segments [0, k1)
+function meanSepToRun(pts, ia, k1) {
+	const a = pts[ia], b = pts[ia + 1];
+	let sum = 0, n = 0;
+	for (const t of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+		const p = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+		let best = Infinity;
+		for (let k = 0; k < k1; k++) best = Math.min(best, ptSegDist(p, pts[k], pts[k + 1]));
+		sum += best; n++;
+	}
+	return n ? sum / n : Infinity;
+}
+
+function angDiff(a, b) {
+	let d = b - a;
+	while (d > Math.PI) d -= 2 * Math.PI;
+	while (d < -Math.PI) d += 2 * Math.PI;
+	return Math.abs(d);
+}
+
+const LOBE_RATIO = 0.15;    // straight-line gap / path travelled — below this the stretch goes nowhere
+const LOBE_MIN_PATH = 200;  // metres; shorter than this is a ramp stub, not a lobe
+
+function fixDoubleBacks(r, stats) {
+	const divided = r.divided !== undefined ? !!r.divided : (r.lanes || (r.kind === "interstate" ? 4 : 2)) >= 6;
+	const width = halfWidth(r, divided) * 2;
+	for (let guard = 0; guard < 8; guard++) {
+		const pts = r.pts;
+		if (!pts || pts.length < 4) return;
+		let cut = null;
+		for (let i = 1; i < pts.length - 1 && !cut; i++) {
+			const h1 = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]);
+			const h2 = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+			if (angDiff(h1, h2) <= (150 * Math.PI) / 180) continue;   // not a reversal
+			if (meanSepToRun(pts, i, i) >= width) continue;           // separates — a real spur
+			// walk the RETURN for as long as it keeps riding the outbound corridor
+			let e = i + 1;
+			while (e + 1 < pts.length && meanSepToRun(pts, e, i) < width) e++;
+			// where on the OUTBOUND run did the retrace get back to?
+			let k = 0, best = Infinity;
+			for (let m = 0; m <= i; m++) {
+				const d = Math.hypot(pts[m][0] - pts[e][0], pts[m][1] - pts[e][1]);
+				if (d < best) { best = d; k = m; }
+			}
+			if (e - k < 2) continue; // nothing enclosed — leave it alone
+			cut = { k, e };
+		}
+		// THE LOBE LAW. "Shares pavement" only catches a retrace laid exactly on top of the
+		// outbound run. I-35 returned 10 m to the SIDE — parallel, not overlapping, so one
+		// road width could never see it. What actually makes it damage is that the stretch
+		// GOES NOWHERE: 3,355 m of interstate to end up 111 m from where it started. That
+		// is scale-free and needs no magic distance — measure straight-line gap against
+		// path travelled. Real geometry is nowhere near: the lobes score 0.016 / 0.033 /
+		// 0.095 and the first legitimate spur scores 0.623, a 4x margin. Short generated
+		// ramp stubs never reach LOBE_MIN_PATH, so their generator keeps ownership of them.
+		if (!cut) {
+			const cum = [0];
+			for (let m = 1; m < pts.length; m++) cum.push(cum[m - 1] + Math.hypot(pts[m][0] - pts[m - 1][0], pts[m][1] - pts[m - 1][1]));
+			let best = null;
+			for (let i = 1; i < pts.length - 1 && !best; i++) {
+				const h1 = Math.atan2(pts[i][1] - pts[i - 1][1], pts[i][0] - pts[i - 1][0]);
+				const h2 = Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]);
+				if (angDiff(h1, h2) <= (150 * Math.PI) / 180) continue;
+				for (let k = 0; k <= i; k++) {
+					for (let e = i + 1; e < pts.length; e++) {
+						const path = cum[e] - cum[k];
+						if (path < LOBE_MIN_PATH) continue;
+						const ratio = Math.hypot(pts[k][0] - pts[e][0], pts[k][1] - pts[e][1]) / path;
+						if (ratio < LOBE_RATIO && (!best || ratio < best.ratio)) best = { k, e, ratio };
+					}
+				}
+			}
+			if (best && best.e - best.k >= 2) cut = best;
+		}
+		if (!cut) return;
+		// splice the excursion out. pts[0] and the tail are NEVER touched: a road's
+		// endpoints anchor its junctions, towns and exit addresses.
+		stats.points_dropped += cut.e - cut.k - 1;
+		stats.doubled_back++;
+		if (!stats.roads.includes(r.id)) stats.roads.push(r.id);
+		r.pts = pts.slice(0, cut.k + 1).concat(pts.slice(cut.e));
+		// CLEAN THE JOIN. Removing an excursion can leave a VESTIGIAL STUB at the splice:
+		// I-75's lobe left a 103 m spur pointing SSW before the road reversed NE, and the
+		// exit's far ramp then crossed the carriageways right at it. If the join vertex is
+		// a short segment that immediately doubles back, it is leftover from the excursion,
+		// not road. Scoped to the join alone, so untouched switchbacks can never be hit.
+		const j = cut.k + 1;
+		if (j > 0 && j < r.pts.length - 1) {
+			const A = r.pts[j - 1], B = r.pts[j], C = r.pts[j + 1];
+			const hIn = Math.atan2(B[1] - A[1], B[0] - A[0]);
+			const hOut = Math.atan2(C[1] - B[1], C[0] - B[0]);
+			if (angDiff(hIn, hOut) > (150 * Math.PI) / 180 && Math.hypot(B[0] - A[0], B[1] - A[1]) < 250) {
+				r.pts.splice(j, 1);
+				stats.points_dropped++;
+			}
+		}
+	}
+}
+
+export function repairPolylines(map) {
+	const stats = { roads_fixed: 0, points_dropped: 0, doubled_back: 0, roads: [] };
+	for (const r of map.roads || []) {
+		if (!r.pts || r.pts.length < 3) continue;
+		const kept = [];
+		for (const p of r.pts) {
+			const dupe = kept.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 1.0);
+			if (dupe && kept.length >= 2) { stats.points_dropped++; continue; }
+			if (dupe) continue;
+			kept.push(p);
+		}
+		if (kept.length >= 2 && kept.length !== r.pts.length) {
+			r.pts = kept;
+			stats.roads_fixed++;
+		}
+		fixDoubleBacks(r, stats);
+	}
+	return stats;
+}
+
 export function bakeJunctions(map) {
 	// towns first (their streets join the junction bake), then exit geometry,
 	// then addresses, then the junction rows read the corrected polylines
+	const repair = repairPolylines(map);
 	const fill = fillNetwork(map);
 	const town = stampTownStreets(map);
 	const marks = bakeTownLandmarks(map); // ARC 2: town identity rows
@@ -1129,6 +1407,7 @@ export function bakeJunctions(map) {
 	const cityx = mintTownExits(map, MINT_EXITS_ONLY); // CITY EXITS: give exit-less towns an off-ramp
 	const geo = rewriteExitGeometry(map);
 	const addr = renumberExits(map);
+	const heal = healDeadEnds(map);
 	const rel = bakeRoadRelief(map); // 1A: roads climb the painted macro (after ramps exist)
 	const roads = map.roads || [];
 	const network = roads.filter((r) => NETWORK_KINDS.has(r.kind || "interstate"));
@@ -1210,8 +1489,9 @@ export function bakeJunctions(map) {
 					// a divided highway's median at grade — it passes UNDER, walled
 					// until a deck makes it real (the crossing-only-via-exits law).
 					const minorCross = (isDivided(A) && MINOR.has(B.kind)) || (isDivided(B) && MINOR.has(A.kind));
-					const grade = bothDivided || minorCross ? "separated_pending" : "flat";
-					const control = grade === "flat" ? (isDivided(A) || isDivided(B) ? "gap" : "none") : "none";
+					const interchange = !!A.interchange || !!B.interchange;
+					const grade = interchange ? "flat" : (bothDivided || minorCross ? "separated_pending" : "flat");
+					const control = interchange ? "gap" : (grade === "flat" ? (isDivided(A) || isDivided(B) ? "gap" : "none") : "none");
 					push("cross", grade, control, hit.q, [
 						{ road: A.id, arc_m: Math.round(arcAt(A, hit.q)) },
 						{ road: B.id, arc_m: Math.round(arcAt(B, hit.q)) },
@@ -1326,6 +1606,8 @@ export function bakeJunctions(map) {
 	lint.geo_stats = geo;
 	lint.fill_stats = fill;
 	lint.relief_stats = rel;
+	lint.heal_stats = heal;
+	lint.repair_stats = repair;
 	return { junctions, lint };
 }
 
@@ -1350,6 +1632,7 @@ if (isMain) {
 	if (lint.relief_stats) console.log(`BAKE: road relief — ${lint.relief_stats.roads} roads climbed (${lint.relief_stats.points} pts, ${lint.relief_stats.capped} grade-capped) · ${lint.relief_stats.ramps} ramps blended · ${lint.relief_stats.streets} streets benched`);
 	console.log(`BAKE: network fill — ${lint.fill_stats.reclassed} reclassed · ${lint.fill_stats.county_links} county links · ` +
 		`${lint.fill_stats.spurs} dirt spurs (every one with a payload: ${lint.fill_stats.payloads})`);
+	console.log(`BAKE: repaired polylines — ${lint.repair_stats.roads_fixed} roads deduped, ${lint.repair_stats.doubled_back} doubled-back runs spliced out, ${lint.repair_stats.points_dropped} vertices dropped ${JSON.stringify(lint.repair_stats.roads)}`);
 	for (const bc of lint.blind_crossings) console.log(`  BLIND (walled, pending deck): ${bc.roads.join(" x ")} at ${bc.pos}`);
 	if (!process.argv.includes("--dry")) {
 		writeFileSync(MAP_PATH, JSON.stringify(map));

@@ -520,6 +520,31 @@ func roads_near(pos: Vector3, max_d: float) -> Array:
 	return out
 
 
+## EVERY road segment within max_d — one row PER SEGMENT, not per road.
+##
+## roads_near() returns only each road's NEAREST segment, which is right for "which
+## roads are around me?" (traffic spawn candidates) but wrong for BUILDING geometry:
+## a road that bends inside a chunk would draw exactly one of the two segments meeting
+## at the bend, so 459 segments across the map never rendered at all. The streamer uses
+## this one; roads_near keeps its per-road contract for its own callers.
+func road_segments_near(pos: Vector3, max_d: float) -> Array:
+	var p := Vector2(pos.x, pos.z)
+	var out: Array = []
+	for road in roads:
+		var pts: PackedVector2Array = road["pts"]
+		for i in range(pts.size() - 1):
+			var d := _seg_dist(p, pts[i], pts[i + 1])
+			if d >= max_d:
+				continue
+			out.append({"id": road["id"], "kind": road["kind"], "dist": d,
+				"a": pts[i], "b": pts[i + 1], "seg": i,
+				"danger": int(road.get("danger", 0)), "family": String(road.get("family", "")),
+				"nickname": String(road.get("nickname", "")), "toll": int(road.get("toll", 0)),
+				"surface": String(road.get("surface", "asphalt")),
+				"lanes": int(road.get("lanes", 4)), "divided": bool(road.get("divided", false))})
+	return out
+
+
 func town_near(pos: Vector3, r: float) -> Dictionary:
 	var p := Vector2(pos.x, pos.z)
 	var best: Dictionary = {}

@@ -1,13 +1,18 @@
 import * as THREE from 'three';
 import { HALF } from '../world/city.js';
 import { snapshot, restore } from '../agent/api.js';
+import { paintPaper, paintPin } from './hudart.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
 
-const SETTINGS_KEY = 'deathlands.settings';
-const SAVE_KEY = 'deathlands.quicksave';
-const AUTO_KEY = 'deathlands.autosave';
+const SETTINGS_KEY = 'dsoa.settings';
+const SAVE_KEY = 'dsoa.quicksave';
+const AUTO_KEY = 'dsoa.autosave';
+// The engine's old code name keyed storage as 'deathlands.*': carry players' settings and saves over once.
+for (const k of ['settings', 'quicksave', 'autosave']) {
+  try { const old = localStorage.getItem(`deathlands.${k}`); if (old !== null && localStorage.getItem(`dsoa.${k}`) === null) localStorage.setItem(`dsoa.${k}`, old); } catch { /* storage blocked */ }
+}
 const AUTOSAVE_EVERY = 180; // seconds of play
 const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal' };
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
@@ -15,6 +20,8 @@ const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
 
 export class QOL {
+  saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* storage blocked */ } }
+
   constructor(game, root) {
     this.g = game;
     this.settings = load(SETTINGS_KEY, DEFAULTS);
@@ -25,9 +32,11 @@ export class QOL {
     this.menuOpen = false;
     this.mapOpen = false;
 
+    // The objective is a pinned paper ORDERS tag at the top of the HUD's left column (or loose in the root).
+    (game.hud?.el?.objSlot ?? root).insertAdjacentHTML('beforeend', `
+      <div class="objective hidden"><canvas class="obj-paper"></canvas><canvas class="obj-pin"></canvas><div class="obj-label">ORDERS</div><div class="obj-text"></div><div class="obj-dist"></div></div>`);
     root.insertAdjacentHTML('beforeend', `
-      <div class="objective hidden"><div class="obj-label">OBJECTIVE</div><div class="obj-text"></div><div class="obj-dist"></div></div>
-      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>THE DEATHLANDS</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
+      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
         <div class="pm-buttons">
@@ -47,10 +56,13 @@ export class QOL {
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
         <div class="pm-section">CONTROLS</div>
-        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · M map · Z zoom · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
+        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · B drop oil/caltrops · M map · Z zoom · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div>`);
     const q = (s) => root.querySelector(s);
     this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu') };
+    for (const [sel, art] of [['.obj-paper', paintPaper(316, 252)], ['.obj-pin', paintPin()]]) {
+      const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
+    }
 
     this.el.menu.addEventListener('click', (e) => {
       const a = e.target.closest('button')?.dataset.a;
@@ -66,7 +78,7 @@ export class QOL {
       if (inp.type === 'checkbox') inp.checked = !!this.settings[k]; else inp.value = this.settings[k];
       inp.addEventListener('input', () => {
         this.settings[k] = inp.type === 'checkbox' ? inp.checked : inp.tagName === 'SELECT' && Number.isNaN(Number(inp.value)) ? inp.value : Number(inp.value);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch {}
+        this.saveSettings();
         this.apply();
       });
     }
@@ -169,6 +181,13 @@ export class QOL {
     const T = (x, z) => [(x + HALF) * k, (z + HALF) * k];
     c.drawImage(g.world.minimap, 0, 0, S, S);
     for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 16px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
+    // Jump sites (data/stunts.js): a little ramp glyph and the name.
+    for (const s of Object.values(g.stunts?.sites ?? {})) {
+      const [x, y] = T(s.x, s.z);
+      c.fillStyle = '#d9a441'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x - 7, y + 4); c.lineTo(x + 6, y + 4); c.lineTo(x + 6, y - 4); c.closePath(); c.fill(); c.stroke();
+      c.font = '700 11px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeText(s.name, x + 10, y + 4); c.fillText(s.name, x + 10, y + 4);
+    }
     for (const ch of g.chars) if (ch.npc && ch.alive) {
       const [x, y] = T(ch.x, ch.z);
       c.fillStyle = '#f5c542'; c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();
@@ -232,7 +251,7 @@ export class QOL {
 
   // Keys that work even while paused. Returns nothing; flips g.paused.
   input(I) {
-    if (I.hit('Escape') && !this.g.dialogue.active && !this.photo) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
+    if (I.hit('Escape') && !this.g.dialogue.active && !this.photo && !this.g.invUI?.open) { if (this.mapOpen) this.toggleMap(false); else this.toggleMenu(); }
     if (I.hit('KeyP')) this.toggleMenu();
     if (I.hit('KeyM')) this.toggleMap();
     if (I.hit('F5')) this.quickSave();
@@ -259,8 +278,13 @@ export class QOL {
     if (I.wheel) ph.h = Math.max(6, Math.min(160, ph.h * (I.wheel > 0 ? 1.12 : 0.89)));
     if (I.key('KeyQ')) ph.tilt = Math.max(0, ph.tilt - dt * 0.6);
     if (I.key('KeyE')) ph.tilt = Math.min(1.6, ph.tilt + dt * 0.6);
-    g.camera.position.set(ph.x, ph.h, ph.z + ph.h * ph.tilt);
-    g.camera.lookAt(ph.x, 0, ph.z);
+    this.placePhotoCamera();
+  }
+  // Also called by the agent's screenshot, so a photo-mode shot keeps its framing.
+  placePhotoCamera() {
+    const ph = this.photo, cam = this.g.camera;
+    cam.position.set(ph.x, ph.h, ph.z + ph.h * ph.tilt);
+    cam.lookAt(ph.x, 0, ph.z);
   }
 
   update(dt) {
@@ -274,13 +298,26 @@ export class QOL {
     }
     const obj = this.updateRoute(dt);
     const p = this.g.player;
-    const has = !!obj.text && !document.querySelector('.title');
-    this.el.obj.classList.toggle('hidden', !has);
+    if (!this.titleGone) this.titleGone = !document.querySelector('.title'); // the title never comes back
+    const has = !!obj.text && this.titleGone;
+    if (has !== this.objShown) { this.objShown = has; this.el.obj.classList.toggle('hidden', !has); }
     if (has) {
       const txt = this.waypoint ? 'Waypoint' : obj.text;
-      if (this.el.objText.textContent !== txt) this.el.objText.textContent = txt;
+      if (txt !== this.objTxt) {
+        this.objTxt = txt;
+        this.el.objText.textContent = txt;
+        // a typed order shrinks to fit the tag
+        const n = txt.length;
+        this.el.objText.style.fontSize = `${n <= 10 ? 40 : n <= 18 ? 31 : n <= 32 ? 25 : n <= 52 ? 21 : 18}px`;
+        this.el.obj.animate?.([{ transform: 'rotate(-1.4deg) scale(1.06)', filter: 'brightness(1.35)' }, { transform: 'rotate(-1.4deg) scale(1)', filter: 'brightness(1)' }], { duration: 320, easing: 'ease-out' });
+      }
+      // distance: only rebuilt when the rounded figure or the mode changes
       const len = this.routeLength();
-      this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} ${p.inVehicle ? '· road route' : '· on foot'}` : (obj.target || this.waypoint ? 'no route' : '');
+      const fig = len === null ? (obj.target || this.waypoint ? -1 : -2) : len > 1000 ? Math.round(len / 100) * 100 : Math.round(len), mode = p.inVehicle ? 1 : 0;
+      if (fig !== this.objFig || mode !== this.objMode) {
+        this.objFig = fig; this.objMode = mode;
+        this.el.objDist.textContent = len !== null ? `${len > 1000 ? (len / 1000).toFixed(1) + ' km' : Math.round(len) + ' m'} - ${p.inVehicle ? 'road route' : 'on foot'}` : (obj.target || this.waypoint ? 'no route' : '');
+      }
       if (this.waypoint && len !== null && len < 6) this.setWaypoint(null);
     }
     if (this.mapOpen) this.drawBigMap();

@@ -43,10 +43,12 @@ export class Throwables {
     this.fireLights = [0, 1].map(() => { const l = new THREE.PointLight('#ff8a3a', 0, 22, 1.5); l.position.set(0, -50, 0); game.scene.add(l); return l; });
   }
 
-  // Launch speed for a target at ground distance d with a ~38° lob, capped.
+  // Launch speed so a ~38° lob released at height `from` comes down ON the target, ground distance d
+  // away (capped). It used to solve for a throw from the ground: released from the hand it landed
+  // ~1.5 m long at 12 m, and the preview arc ended past the cursor.
   launch(ox, oz, tx, tz, from = 1.6) {
     const dx = tx - ox, dz = tz - oz, d = Math.min(30, Math.max(2, Math.hypot(dx, dz)));
-    const th = 0.66, v0 = Math.min(26, Math.sqrt((G * d) / Math.sin(2 * th)));
+    const th = 0.66, c = Math.cos(th), v0 = Math.min(26, Math.sqrt((G * d * d) / (2 * c * c * (d * Math.tan(th) + from))));
     const h = Math.atan2(dx, dz);
     return { vx: Math.sin(h) * Math.cos(th) * v0, vz: Math.cos(h) * Math.cos(th) * v0, vy: Math.sin(th) * v0, y: from };
   }
@@ -104,6 +106,7 @@ export class Throwables {
     g.audio.explosion(Math.hypot(x - g.player.x, z - g.player.z));
     g.hud.shake(Math.max(0, 1.2 - Math.hypot(x - g.player.x, z - g.player.z) / 30));
     g.noise(x, z, 80, by);
+    g.interiors?.blast(x, z, r, by); // glass blows in, boards splinter, doors fly open, locks give
     for (const c of g.chars) {
       if (!c.alive || c.inVehicle) continue;
       const d = Math.hypot(c.x - x, c.z - z);
@@ -170,7 +173,7 @@ export class Throwables {
       }
     }
     if (def.noise) { g.noise(p.x, p.z, def.noise, p.owner); g.zombies.onNoise(p.x, p.z, def.noise * 1.5); g.audio.thud?.(g.pan(p.x)); }
-    g.emit('detonated', { type: p.type, x: Math.round(p.x), z: Math.round(p.z) });
+    g.emit('detonated', { kind: p.type, x: Math.round(p.x), z: Math.round(p.z) });
   }
 
   update(dt) {
@@ -187,8 +190,9 @@ export class Throwables {
         const sp = Math.hypot(p.vx, p.vz);
         if (sp > 0.01) {
           const step = sp * dt, ux = p.vx / sp, uz = p.vz / sp;
-          const hitT = g.statics.raycast(p.x, p.z, ux, uz, step + 0.1);
-          if (hitT < step + 0.1 && g.statics.hit.box && p.y < (g.statics.hit.box.height ?? 3)) {
+          const hitT = g.statics.raycast(p.x, p.z, ux, uz, step + 0.1, 0, p.y); // flies over sills and crates lower than it
+          const op = g.statics.hit.box?.op;
+          if (hitT < step + 0.1 && g.statics.hit.box && p.y < (g.statics.hit.box.height ?? 3) && !(op && g.interiors.thrownHit(op, p, ux, uz))) {
             if (def.impact) { p.x += ux * hitT; p.z += uz * hitT; this.detonate(p); this.list.splice(i, 1); continue; }
             const nx = g.statics.hit.nx, nz = g.statics.hit.nz;
             if (nx) p.vx = -p.vx * (def.bounce ?? 0.3); if (nz) p.vz = -p.vz * (def.bounce ?? 0.3);

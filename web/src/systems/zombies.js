@@ -1,6 +1,6 @@
 import { outfit } from './characters.js';
 
-// Rotters: the Deathlands' dead. They hunt by smell (no line of sight needed), swarm to
+// The infected (canon: docs/design/THE_INFECTED.md - shamblers, and the rare sprinter; never "zombies" on screen). They hunt by smell (no line of sight needed), swarm to
 // noise (gunfire, engines, horns), claw at cars until the glass gives, reach in for the
 // driver, and latch onto slow vehicles. Night brings hordes; Rust Haven's wall keeps
 // them out of town.
@@ -19,7 +19,7 @@ export class Zombies {
 
   spawn(x, z, runner = Math.random() < 0.2) {
     const g = this.g;
-    const c = g.addChar({ x, z, faction: 'zombie', weapon: null, hp: runner ? 55 : 75, colors: outfit('zombie'), name: runner ? 'Runner' : 'Rotter', flag: g.randomFlag(Math.random) });
+    const c = g.addChar({ x, z, faction: 'zombie', weapon: null, hp: runner ? 55 : 75, colors: outfit('zombie'), name: runner ? 'Sprinter' : 'Shambler', flag: g.randomFlag(Math.random) });
     if (!c) return null;
     c.zSpeed = runner ? 5.2 + Math.random() * 0.6 : 2.0 + Math.random() * 0.7;
     c.runner = runner;
@@ -39,7 +39,7 @@ export class Zombies {
     return ids;
   }
 
-  // Noise draws every rotter in range toward it.
+  // Noise draws every infected in range toward it.
   onNoise(x, z, r) {
     for (const c of this.g.chars) {
       if (c.faction !== 'zombie' || !c.alive || c.ztarget) continue;
@@ -51,7 +51,7 @@ export class Zombies {
   pickTarget(c) {
     let best = null, bd = SMELL;
     for (const o of this.g.chars) {
-      if (!o.alive || o.faction === 'zombie' || o.hidden || o === c) continue;
+      if (!o.alive || o.faction === 'zombie' || o.hidden || o.underwater || o === c) continue; // no scent under water
       const ox = o.inVehicle ? o.inVehicle.x : o.x, oz = o.inVehicle ? o.inVehicle.z : o.z;
       let d = Math.abs(ox - c.x) + Math.abs(oz - c.z);
       if (o === this.g.player) d *= 0.8; // the living hero smells best
@@ -65,6 +65,11 @@ export class Zombies {
     const g = this.g;
     if (c.grabbing) return; // CarCombat drives grabbers
     c.aiming = false;
+    // One of the infected made by anything but spawn() (an old save, a content pack) still needs a pace,
+    // or it walks at NaN m/s and its NaN spreads through crowd separation. 0 is a real pace (one staged
+    // to stand still); only a missing or broken one is repaired.
+    if (!(c.zSpeed >= 0)) c.zSpeed = c.runner ? 5.5 : 2.35;
+    if (!Number.isFinite(c.timer)) c.timer = 0;
     c.zt = (c.zt ?? 0) - dt;
     if (c.zt <= 0) {
       c.zt = 0.4 + Math.random() * 0.3;
@@ -108,7 +113,7 @@ export class Zombies {
   update(dt) {
     const g = this.g;
     if (!this.enabled) return;
-    // Groans from nearby rotters.
+    // Groans from the infected nearby.
     this.groanT -= dt;
     if (this.groanT <= 0) {
       this.groanT = 1.5 + Math.random() * 2.5;
@@ -126,7 +131,7 @@ export class Zombies {
     const night = g.sky.night;
     const alive = g.chars.reduce((n, c) => n + (c.faction === 'zombie' && c.alive ? 1 : 0), 0);
     if (night < 0.6) {
-      // Daylight: far-off rotters crawl back into the ruins.
+      // Daylight: the far-off infected crawl back into the ruins.
       for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && Math.hypot(c.x - g.player.x, c.z - g.player.z) > 140 && Math.random() < 0.3) g.removeChar(c);
       return;
     }

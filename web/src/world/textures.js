@@ -135,24 +135,109 @@ export function radialGlow() {
   return tex(c, false);
 }
 
-// Headlight / flashlight cone. Apex at the bottom-center of the texture, opening upward (+V).
+// Headlight / flashlight cone. Apex at the TOP-centre of the texture (UV v=1), opening toward v=0:
+// every cone in the game is a PlaneGeometry laid flat with rotateX(-π/2), which puts its v=1 edge
+// at the near end, so the light leaves the lamp. (It was the other way up: every beam's narrow end
+// hung in the air 20 m out with a dark gap back to the car, the flashlight's too.)
 export function coneTexture() {
   const [c, g] = canvas(128, 256);
   const img = g.createImageData(128, 256);
   for (let y = 0; y < 256; y++)
     for (let x = 0; x < 128; x++) {
-      const v = 1 - y / 255; // 0 at apex (bottom row), 1 at far end
+      const v = y / 255; // 0 at the apex (top row; canvas textures flipY, so that is UV v=1), 1 at the far end
       const u = (x - 63.5) / 63.5;
-      const halfW = 0.08 + v * 0.92;
+      const halfW = 0.1 + 0.9 * Math.sqrt(v); // fans out fast near the lamp: a low beam's pool, not a pencil
       const across = Math.max(0, 1 - Math.abs(u) / halfW);
-      const along = Math.pow(1 - v, 1.4) * Math.min(1, v * 10);
-      const a = Math.pow(across, 1.6) * along;
+      const along = Math.pow(1 - v, 1.7) * Math.min(1, 0.35 + v * 6); // lit at the lens, hottest a few metres out
+      const a = Math.pow(across, 1.15) * along;
       const i = (y * 128 + x) * 4;
       img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
       img.data[i + 3] = Math.min(255, a * 255);
     }
   g.putImageData(img, 0, 0);
   return tex(c, false);
+}
+
+// Tinted safety glass from above: a sky-sheen gradient and a soft diagonal reflection streak.
+export function glassTexture() {
+  const [c, g] = canvas(64, 128);
+  const gr = g.createLinearGradient(0, 128, 0, 0);
+  gr.addColorStop(0, '#141e24'); gr.addColorStop(1, '#2e4048');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+  g.fillStyle = 'rgba(170, 196, 206, 0.22)';
+  g.beginPath(); g.moveTo(8, 128); g.lineTo(26, 128); g.lineTo(56, 0); g.lineTo(38, 0); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(170, 196, 206, 0.1)';
+  g.beginPath(); g.moveTo(32, 128); g.lineTo(37, 128); g.lineTo(64, 6); g.lineTo(64, 0); g.lineTo(59, 0); g.closePath(); g.fill();
+  return tex(c, false);
+}
+
+// Window glass in a building: clearer and paler than a car's tint (you see the room through it),
+// grimy at the bottom, with two sky-sheen streaks so it reads as glass from above and at an angle.
+export function windowGlassTexture() {
+  const [c, g] = canvas(64, 128);
+  const gr = g.createLinearGradient(0, 128, 0, 0);
+  gr.addColorStop(0, '#6f7f7c'); gr.addColorStop(0.35, '#93a9ab'); gr.addColorStop(1, '#bcd0d2');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+  g.fillStyle = 'rgba(235, 244, 246, 0.45)';
+  g.beginPath(); g.moveTo(6, 128); g.lineTo(22, 128); g.lineTo(52, 0); g.lineTo(36, 0); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(235, 244, 246, 0.25)';
+  g.beginPath(); g.moveTo(30, 128); g.lineTo(36, 128); g.lineTo(64, 10); g.lineTo(64, 0); g.lineTo(58, 0); g.closePath(); g.fill();
+  const rng = makeRng(53);
+  noise(g, 64, 128, rng, 160, ['#5a5a4a', '#7a6a50'], [1, 2], [0.1, 0.3]); // dust and grime
+  return tex(c, false);
+}
+
+// Safety-glass crack web for vehicle panes. A DATA texture, not colour: R = the order each pixel
+// cracks in (0 at the impact point, rising outward, so mounting damage spreads the web), G = the
+// crack lines themselves. Seeded: every pane breaks the same way.
+export function crackTexture() {
+  const S = 256, rng = makeRng(47), [c, g] = canvas(S);
+  const cx = S * 0.42, cy = S * 0.4;
+  g.fillStyle = '#000'; g.fillRect(0, 0, S, S);
+  g.strokeStyle = '#fff'; g.lineCap = 'round'; g.lineJoin = 'round';
+  for (let k = 0; k < 14; k++) { // radial cracks: jagged walks out from the impact point
+    let a = (k / 14) * Math.PI * 2 + rng.range(-0.2, 0.2), x = cx, y = cy;
+    g.lineWidth = rng.range(1.1, 2.4); g.beginPath(); g.moveTo(x, y);
+    for (let s = 0; s < 14; s++) { a += rng.range(-0.35, 0.35); const st = rng.range(7, 16); x += Math.cos(a) * st; y += Math.sin(a) * st; g.lineTo(x, y); }
+    g.stroke();
+  }
+  for (const r of [16, 34, 58, 88, 122]) { // ring cracks: broken arcs around it
+    g.lineWidth = rng.range(0.8, 1.5);
+    for (let a = rng() * 0.6; a < Math.PI * 2; a += rng.range(0.35, 0.8)) {
+      if (!rng.chance(0.65)) continue;
+      const a1 = a + rng.range(0.2, 0.5);
+      g.beginPath();
+      for (let t = 0; t <= 6; t++) { const aa = a + (a1 - a) * (t / 6), rr = r * rng.range(0.92, 1.08); const px = cx + Math.cos(aa) * rr, py = cy + Math.sin(aa) * rr; if (t) g.lineTo(px, py); else g.moveTo(px, py); }
+      g.stroke();
+    }
+  }
+  // B: which glass is still in the frame once the pane is shot out. Polygonal shards (a jittered-grid
+  // Voronoi); a shard clings when its centre sits close enough to the frame, deeper ones fell in.
+  const C = 20, n = Math.ceil(S / C), seeds = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const sx = (i + rng.range(0.15, 0.85)) * C, sy = (j + rng.range(0.15, 0.85)) * C;
+    const edge = Math.min(sx, S - sx, sy, S - sy) / S;
+    seeds.push([sx, sy, edge < 0.02 + 0.1 * rng() ? 255 : 0]);
+  }
+  const img = g.getImageData(0, 0, S, S), d = img.data, far = Math.hypot(S, S) * 0.62;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = (y * S + x) * 4, line = d[i];
+    d[i] = Math.min(255, (Math.hypot(x - cx, y - cy) / far) * 255);
+    d[i + 1] = line; d[i + 3] = 255;
+    let best = Infinity, cling = 0;
+    const gi = Math.floor(x / C), gj = Math.floor(y / C);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const ii = gi + di, jj = gj + dj;
+      if (ii < 0 || jj < 0 || ii >= n || jj >= n) continue;
+      const s = seeds[jj * n + ii], d2 = (s[0] - x) ** 2 + (s[1] - y) ** 2;
+      if (d2 < best) { best = d2; cling = s[2]; }
+    }
+    d[i + 2] = cling;
+  }
+  g.putImageData(img, 0, 0);
+  const t = tex(c, false);
+  t.colorSpace = THREE.NoColorSpace; // data, not colour: no sRGB decode
+  return t;
 }
 
 export function splatTexture(seed = 5) {

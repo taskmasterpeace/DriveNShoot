@@ -5,9 +5,15 @@ import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
+import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
+import { EVENTS } from '../data/events.js';
+import { PLATE, MOUNTS } from '../data/parts.js';
+import { K } from '../systems/chronicle.js';
+import { ITEMS } from '../data/items.js';
+import { DOOR, WINDOW } from '../data/interiors.js';
 
 // ============================================================================
-// DEATHLANDS AGENT API
+// DSOA AGENT API
 // Every command: JSON args in -> JSON-serialisable result out. Never throws:
 // failures come back as { ok:false, error, hint }. The COMMANDS table below is
 // the single source of truth: `help` prints it, the HTTP bridge + CLI route
@@ -15,6 +21,13 @@ import { locationName, districtName, HALF } from '../world/city.js';
 // ============================================================================
 
 const r1 = (v) => Math.round(v * 10) / 10;
+// A chronicle record in plain words for agents.
+const FLAG_NAMES = Object.entries(K);
+const readRec = (g, r) => ({
+  seq: r.seq, t: r.t, day: r.day, hour: r.hr, actor: r.a, actorFaction: r.af, verb: r.v, target: r.o || null, targetName: r.on || null, targetFaction: r.of || null,
+  place: r.p, placeName: g.society.places[r.p]?.name ?? r.p, x: r.x, z: r.z, mag: r.m, witnesses: r.w.slice(), unidentified: r.un,
+  flags: FLAG_NAMES.filter(([, bit]) => r.k & bit).map(([n]) => n), src: r.src,
+});
 const _mc = new MessageChannel();
 const _q = [];
 _mc.port1.onmessage = () => _q.shift()?.();
@@ -175,7 +188,7 @@ function buildCommands(api) {
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
-          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats,
+          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(), body: g.skillsSys.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
           nearby: { hostiles: near.filter((c) => g.ai.hostile(c, p)).length, npcs: near.filter((c) => c.npc).map((c) => c.id), total: near.length },
@@ -221,23 +234,26 @@ function buildCommands(api) {
         const i = g.renderer.info;
         return { fps: Math.round(g.fps), drawCalls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures,
           chars: g.chars.length, alive: g.chars.filter((c) => c.alive).length, vehicles: g.vehicles.length, statics: g.statics.boxes.length, decalsBudget: 1200, particlesBudget: 2400,
-          audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts }, runtimeErrors: g.errors ?? [] };
+          audio: { context: g.audio.ctx?.state ?? 'not started', played: g.audio.counts },
+          society: { witnessMsMax: +g.society.deeds.witnessMsMax.toFixed(3), deeds: g.society.deeds.deeds, rumorsPending: g.society.deeds.pending, rumorOverflow: g.society.deeds.overflow },
+          interiors: { doors: g.interiors.doors.length, leaves: g.interiors.leaves.length, windows: g.interiors.windows.length, leavesSimulating: g.interiors.active.length },
+          runtimeErrors: g.errors ?? [] };
       },
     },
     screenshot: {
-      group: 'observe', desc: 'Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it.',
-      args: { quality: { type: 'number', default: 0.82 }, width: { type: 'number', default: 1280 }, height: { type: 'number', default: 720 }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' } },
-      run: async ({ quality, width, height, x, z, zoom }) => {
+      group: 'observe', desc: 'Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot, zoom = camera height (8 = close-up, 33 = default, 90 = overview) and tilt (0.14 = the game camera, 0 = straight down … 1.6 = low angle from the south; negative = from the north, upside down, to see the front of north-facing cars). In photo mode it shoots the photo framing. CLI: --out file.jpg saves it.',
+      args: { quality: { type: 'number', default: 0.82 }, width: { type: 'number', default: 1280 }, height: { type: 'number', default: 720 }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' } },
+      run: async ({ quality, width, height, x, z, zoom, tilt }) => {
         // Render at a fixed size so it works even when the tab is hidden / 0x0.
         const r = g.renderer, cam = g.camera;
         const prevPR = r.getPixelRatio(), prevW = r.domElement.width, prevH = r.domElement.height, prevAspect = cam.aspect;
         r.setPixelRatio(1); r.setSize(width, height, false);
         cam.aspect = width / height; cam.updateProjectionMatrix();
-        g.updateCamera(0.016);
-        if (x !== undefined || z !== undefined || zoom) {
+        if (g.qol.photo) g.qol.placePhotoCamera(); else g.updateCamera(0.016);
+        if (x !== undefined || z !== undefined || zoom || tilt !== undefined) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
-          const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight;
-          cam.position.set(cx, h, cz + h * 0.14); cam.lookAt(cx, 0, cz);
+          const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
+          cam.position.set(cx, h, cz + h * t); cam.lookAt(cx, 0, cz);
         }
         r.render(g.scene, cam);
         const image = r.domElement.toDataURL('image/jpeg', quality);
@@ -278,18 +294,19 @@ function buildCommands(api) {
         // Following: walk right up to the reachable cell beside the target (tolerance 1);
         // "arrived" is then judged against the target itself (outer loop).
         g.autopilot = { x, z, run, tolerance: follow ? 1 : tolerance, path, i: 0, follow };
-        let lastReplan = null;
+        let best = Infinity, bestT = 0, lost = false;
         if (!wait) return { moving: true };
         let t = 0;
         const hp0 = P().hp;
         let interrupted;
         while ((g.autopilot || (follow && Math.hypot(follow.x - P().x, follow.z - P().z) > tolerance)) && t < Math.min(600, maxSeconds)) {
           if (!g.autopilot && follow) {
-            // Reached where they were, but they moved on: re-plan to their live position.
-            // If a re-plan doesn't get us any closer, we're as close as the world allows.
+            // Reached where they were, but they moved on: re-plan to their live position. Give up once
+            // 3 s of chasing hasn't got us 0.5 m closer: as close as the world (or their pace) allows.
+            // One re-plan without progress used to end it, so anyone on the move (an NPC in a gunfight,
+            // you out of breath) shook the follower off while it was still gaining on them.
             const here = Math.hypot(follow.x - P().x, follow.z - P().z);
-            if (lastReplan !== null && here > lastReplan - 0.5) break;
-            lastReplan = here;
+            if (here < best - 0.5) { best = here; bestT = t; } else if (t - bestT >= 3) { lost = true; break; }
             const np = g.footPath(P().x, P().z, follow.x, follow.z);
             if (!np) break;
             g.autopilot = { x: follow.x, z: follow.z, run, tolerance: 1, path: np, i: 0, follow };
@@ -307,7 +324,7 @@ function buildCommands(api) {
         const arrived = follow ? Math.hypot(follow.x - P().x, follow.z - P().z) <= tolerance + 0.5 : !g.autopilot;
         g.autopilot = null;
         g.autopilot = null;
-        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
+        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : lost ? `couldn't close on ${id} (no progress for 3 s): out of reach, or faster than you` : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
       },
     },
     aim: { group: 'player', desc: 'Lock the aim point to x,z (null x to release back to the mouse).', args: { x: { type: 'number' }, z: { type: 'number' } },
@@ -428,13 +445,13 @@ function buildCommands(api) {
       },
     },
     ambient: {
-      group: 'observe', desc: 'Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
+      group: 'observe', desc: 'Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
       run: async () => g.ambient.view(),
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
     hud: {
-      group: 'observe', desc: 'What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood.',
-      run: async () => g.feedback.view(),
+      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips, the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
+      run: async () => ({ ...g.feedback.view(), plates: g.hud.view() }),
     },
     train: {
       group: 'world', desc: 'The Iron Line freight (rail x=-360, Dust Bowl Station z=110, Route 66 crossing z=0). action: status | board (player climbs onto the nearest car — must be beside the track) | leave (jump off; hurts above ~6 m/s) | summon (put the train 80 m north of the station, arriving) | place (nose at z, cruising south — for staging) | blowTanker.',
@@ -468,6 +485,77 @@ function buildCommands(api) {
         return { depth: r1(g.water.depthAt(px, pz)), state: g.water.stateAt(px, pz), places: { lake: { x: 390, z: 398, r: 52 }, bridge: { x: 416, z: 0 }, dock: { x: 360, z: 382 }, river: 'runs north-south around x≈410-428 on the east edge' } };
       },
     },
+    doors: {
+      group: 'world', desc: 'Doors near x,z (default: you) within radius: id, kind (front = a shop\'s double door | back | inner), axis the wall runs along, width, leaves, material (wood|metal), locked, state (closed|ajar|open), angle in degrees (the widest leaf, signed by the side it swung to), kicksLeft, lockHp, the outside/inside points 2.5 m off it, kickFrom (a spot within a boot\'s reach), its building. locked=true lists only locked ones.',
+      args: { x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 25 }, limit: { type: 'number', default: 20 }, locked: { type: 'boolean' } },
+      run: async ({ x, z, radius, limit, locked }) => {
+        const cx = x ?? P().x, cz = z ?? P().z, I2 = g.interiors;
+        const near = I2.doors.filter((d) => Math.hypot(d.x - cx, d.z - cz) <= radius && (locked === undefined || d.locked === locked))
+          .sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+        return { count: near.length, total: I2.doors.length, lockedTotal: I2.doors.filter((d) => d.locked).length, items: near.slice(0, limit).map((d) => I2.doorView(d)) };
+      },
+    },
+    door: {
+      group: 'world', desc: `Act on a door by id: status | open (swing it wide, away from you) | close | lock | unlock | kick (one boot from where you stand, as the E key does: a locked door takes 2-3, then bursts open into whoever is behind it; an unlocked one flies open; you must be within ${DOOR.kickReach} m unless force=true). Every kick is a loud noise the AI hears.`,
+      args: { id: { type: 'string', required: true }, action: { type: 'string', default: 'status', enum: ['status', 'open', 'close', 'lock', 'unlock', 'kick'] }, force: { type: 'boolean', default: false } },
+      run: async ({ id, action, force }) => {
+        const I2 = g.interiors, d = I2.byId.get(id);
+        need(d?.leaves, `no door ${id}; list them with doors`);
+        let out = {};
+        if (action === 'open') {
+          if (d.locked) I2.setLocked(d, false);
+          for (const L of d.leaves) { const side = (P().x - L.hx) * L.px + (P().z - L.hz) * L.pz >= 0 ? 1 : -1; L.th = -side * 1.5; L.w = 0; I2.orient(L); }
+          I2.flush();
+        } else if (action === 'close') { for (const L of d.leaves) { L.th = 0; L.w = 0; I2.orient(L); } I2.flush(); }
+        else if (action === 'lock') I2.setLocked(d, true);
+        else if (action === 'unlock') I2.setLocked(d, false);
+        else if (action === 'kick') {
+          need(P().alive && !P().inVehicle, 'kick on foot');
+          const dist = Math.hypot(P().x - d.x, P().z - d.z), v = I2.doorView(d);
+          need(force || dist <= DOOR.kickReach, `${id} is ${r1(dist)} m away; stand within ${DOOR.kickReach} m of it (moveTo x=${v.kickFrom.x} z=${v.kickFrom.z}) or pass force=true`);
+          if ((P().kickAt ?? -9) > g.time) await api._step(Math.ceil((P().kickAt - g.time) * 60) + 1); // catch your breath between boots
+          out = I2.kick(d, P());
+          await api._step(6);
+        }
+        return { ...I2.doorView(d), ...out };
+      },
+    },
+    windows: {
+      group: 'world', desc: 'Windows near x,z (default: you) within radius: id, state (intact|cracked|shattered|boarded), glassHp, crack 0..1, boardHp, boardedFrom (inside|outside), the outside/inside points 2.2 m off it. state= filters (cracked counts as intact).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 25 }, limit: { type: 'number', default: 20 }, state: { type: 'string', enum: ['intact', 'shattered', 'boarded'] } },
+      run: async ({ x, z, radius, limit, state }) => {
+        const cx = x ?? P().x, cz = z ?? P().z, I2 = g.interiors;
+        const near = I2.windows.filter((w) => Math.hypot(w.x - cx, w.z - cz) <= radius && (!state || w.state === state))
+          .sort((a, b) => Math.hypot(a.x - cx, a.z - cz) - Math.hypot(b.x - cx, b.z - cz));
+        return { count: near.length, total: I2.windows.length, items: near.slice(0, limit).map((w) => I2.windowView(w)) };
+      },
+    },
+    window: {
+      group: 'world', desc: 'Act on a window by id: status | break (shatter the glass, or the boards) | board (board a broken window up from your side, as holding E does; within 2.5 m unless force=true) | unboard | vault (climb through a broken window; within 2 m) | repair (new glass, for staging).',
+      args: { id: { type: 'string', required: true }, action: { type: 'string', default: 'status', enum: ['status', 'break', 'board', 'unboard', 'vault', 'repair'] }, force: { type: 'boolean', default: false } },
+      run: async ({ id, action, force }) => {
+        const I2 = g.interiors, w = I2.byId.get(id);
+        need(w?.kind === 'window', `no window ${id}; list them with windows`);
+        const p = P(), dist = Math.hypot(p.x - w.x, p.z - w.z), side = (p.x - w.x) * w.nx + (p.z - w.z) * w.nz >= 0 ? 1 : -1;
+        if (action === 'break') { if (w.state === 'boarded') I2.damageBoards(w, 9999, p); else I2.shatter(w, -w.nx * side, -w.nz * side, p); }
+        else if (action === 'board') {
+          need(w.state === 'shattered', `window ${id} is ${w.state}: board a broken one (window action=break first)`);
+          need(force || dist <= 2.5, `${id} is ${r1(dist)} m away; stand within 2.5 m of it or force=true`);
+          I2.board(w, side, p);
+        } else if (action === 'unboard') { need(w.state === 'boarded', `window ${id} is not boarded`); I2.unboard(w, p); }
+        else if (action === 'repair') { w.state = 'intact'; w.hp = WINDOW.hp; w.boardHp = 0; I2.syncGlass(w); I2.syncBoards(w); }
+        else if (action === 'vault') {
+          need(w.state === 'shattered', `window ${id} is ${w.state}: only a broken window can be climbed through`);
+          need(p.alive && !p.inVehicle && !p.vault, 'climb on foot');
+          need(force || dist <= 2, `${id} is ${r1(dist)} m away; stand within 2 m of it`);
+          const x0 = p.x, z0 = p.z;
+          I2.startVault(p, w, side, WINDOW.vaultTime);
+          for (let i = 0; i < 90 && p.vault; i++) await api._step(1);
+          return { ...I2.windowView(w), climbed: true, from: { x: r1(x0), z: r1(z0) }, to: { x: r1(p.x), z: r1(p.z) } };
+        }
+        return I2.windowView(w);
+      },
+    },
     submerge: {
       group: 'player', desc: 'While swimming: dive under (on=true) — hidden from AI, bullets can\'t reach, breath drains ~20s — or surface (on=false).',
       args: { on: { type: 'boolean', default: true } },
@@ -489,7 +577,7 @@ function buildCommands(api) {
       },
     },
     difficulty: { group: 'player', desc: 'Set damage-taken difficulty: story (35%), normal (70%), hard (100%). Persists like the pause-menu setting.', args: { level: { type: 'string', required: true, enum: ['story', 'normal', 'hard'] } },
-      run: async ({ level }) => { g.qol.settings.difficulty = level; try { localStorage.setItem('deathlands.settings', JSON.stringify(g.qol.settings)); } catch {} return { difficulty: level, damageTaken: g.qol.damageTaken() }; } },
+      run: async ({ level }) => { g.qol.settings.difficulty = level; g.qol.saveSettings(); return { difficulty: level, damageTaken: g.qol.damageTaken() }; } },
     god: { group: 'player', desc: 'Toggle invulnerability (for testing).', args: { on: { type: 'boolean', default: true } }, run: async ({ on }) => { g.godMode = on; return { god: on }; } },
 
     path: {
@@ -546,9 +634,9 @@ function buildCommands(api) {
       },
     },
     drive: {
-      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
-      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
-      run: async ({ throttle, steer, handbrake, seconds, x, z }) => {
+      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake/boost (Shift: a bike wheelies under 24 m/s) for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
+      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, boost: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ throttle, steer, handbrake, boost, seconds, x, z }) => {
         const v = P().inVehicle;
         need(v, 'not in a vehicle; use enterVehicle');
         if (x !== undefined && z !== undefined) {
@@ -580,7 +668,7 @@ function buildCommands(api) {
           g.driveOverride = { throttle: -1, steer: 0 }; await api._step(30); g.driveOverride = null;
           return { arrived: Math.hypot(x - v.x, z - v.z) < 10, waypoints: path.length, ...vehView(g, v) };
         }
-        g.driveOverride = { throttle, steer, handbrake };
+        g.driveOverride = { throttle, steer, handbrake, boost };
         for (let f = 0; f < Math.round(seconds * 60); f += 6) {
           await api._step(6);
           if (v.onFire) { g.driveOverride = null; return { interrupted: 'vehicle on fire — exitVehicle now', ...vehView(g, v) }; }
@@ -624,12 +712,12 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a horde of Rotters (zombies) around x,z (default 30m from the player). runners = fraction that sprint.',
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters.',
       args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
       run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
     },
     zombies: {
-      group: 'world', desc: 'Turn night horde spawning on/off (existing Rotters stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
+      group: 'world', desc: 'Turn night herd spawning on/off (the infected already out stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.zombies.enabled = on; return { nightHordes: on, alive: g.chars.filter((c) => c.faction === 'zombie' && c.alive).length }; },
     },
     grab: {
@@ -715,7 +803,7 @@ function buildCommands(api) {
       run: async ({ id }) => { const v = id ? api.findVeh(id) : P().inVehicle ?? g.lastVehicle; need(v && !v.dead, 'no live vehicle'); g.vehDamage.repair(v); return vehView(g, v); },
     },
     harpoon: {
-      group: 'vehicle', desc: 'Fire the War Rig harpoon at x,z or entity id. Call again while hooked to YANK.',
+      group: 'vehicle', desc: 'Fire the Whaler\'s harpoon at x,z or entity id. Call again while hooked to YANK.',
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
       run: async ({ x, z, id }) => {
         const v = P().inVehicle;
@@ -805,6 +893,275 @@ function buildCommands(api) {
       run: async ({ id, amount }) => { const c = api.findChar(id); if (c) { g.combat.damage(c, amount, null, 1, 0); return { hp: c.hp, alive: c.alive }; } const v = api.findVeh(id); need(v, `no entity ${id}`); g.vehiclesSys.damage(v, amount, null); return { hp: v.hp, dead: v.dead }; } },
     explode: { group: 'world', desc: 'Blow up a vehicle by id.', args: { id: { type: 'string', required: true } }, run: async ({ id }) => { const v = api.findVeh(id); need(v && !v.dead, `no live vehicle ${id}`); g.vehiclesSys.explode(v, null); return { exploded: v.id }; } },
     remove: { group: 'world', desc: 'Delete a non-player character (no corpse).', args: { id: { type: 'string', required: true } }, run: async ({ id }) => { const c = api.findChar(id); need(c && c !== P(), `no character ${id}`); g.removeChar(c); return { removed: id }; } },
+
+    // ---------------------------------------------------------------- society (docs/design/WEB_WORLD_MEMORY.md)
+    chronicle: {
+      group: 'society', desc: "What happened, newest first: your deeds (with who saw them), rumors that reached a faction, the world's own violence. Filters: since (seq), verb, actor, faction (either side), place, legend (notable only), limit.",
+      args: { since: { type: 'number', default: 0 }, verb: { type: 'string' }, actor: { type: 'string' }, faction: { type: 'string' }, place: { type: 'string' }, legend: { type: 'boolean', default: false }, limit: { type: 'number', default: 25 } },
+      run: async (a) => {
+        const C = g.society.chronicle;
+        return { records: C.query({ ...a, limit: Math.max(1, Math.min(200, a.limit)) }).map((r) => readRec(g, r)), last: C.seq, size: C.size, capacity: C.cap, legend: C.legend.length };
+      },
+    },
+    tally: {
+      group: 'society', desc: 'Rolled-up counts per "actorFaction|verb|targetFaction" (they survive the ring), plus the last 7 day digests.', args: { prefix: { type: 'string' } },
+      run: async ({ prefix }) => {
+        const S = g.society;
+        return { tally: Object.fromEntries([...S.chronicle.tally].filter(([k]) => !prefix || k.startsWith(prefix)).map(([k, v]) => [k, { n: v.n, mag: r1(v.m), lastT: v.t }])), day: S.day, digests: S.chronicle.digests.slice(-7) };
+      },
+    },
+    deed: {
+      group: 'society', desc: `Record a deed as if the player did it, through the real witness pass unless witness=false. verb: ${Object.keys(VERBS).join('|')}. target = character id; faction overrides the target's faction.`,
+      args: { verb: { type: 'string', required: true }, target: { type: 'string' }, faction: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, mag: { type: 'number' }, witness: { type: 'boolean', default: true } },
+      run: async ({ verb, target, faction, x, z, mag, witness }) => {
+        need(VERBS[verb] !== undefined, `unknown verb; known: ${Object.keys(VERBS).join(',')}`);
+        const t = target ? api.findChar(target) : null;
+        need(!target || t, `no character ${target}`);
+        const D = g.society.deeds, before = D.pending;
+        const rec = D.record(verb, { target: t, tf: faction, x, z, m: mag, witness });
+        need(rec, 'deed rejected: position not finite');
+        return { seq: rec.seq, witnesses: rec.w.slice(), unidentified: rec.un, unwitnessed: !!(rec.k & K.unwitnessed), rumorsQueued: D.pending - before, place: rec.p };
+      },
+    },
+    witnesses: {
+      group: 'society', desc: 'Dry run of the witness pass at x,z (default: where you stand): who would put a name to your face, how many would only see something, and the sight/ID ranges right now.',
+      args: { x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ x, z }) => {
+        const D = g.society.deeds, p = P(), wx = x ?? p.x, wz = z ?? p.z, rg = D.ranges(p);
+        const identified = D.witnessPass(wx, wz, p, null).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, faction: c.fid, dist: r1(Math.hypot(c.x - wx, c.z - wz)) }));
+        return { identified, sawOnly: D.sawOnly, sight: r1(rg.sight), idRange: r1(rg.idRange), night: rg.night, fogK: rg.fogK, crouch: rg.crouch };
+      },
+    },
+    rumors: {
+      group: 'society', desc: 'Word on its way: each pending report (witness, faction, verb, seconds until it lands). flush=true lands them all now.', args: { flush: { type: 'boolean', default: false } },
+      run: async ({ flush }) => {
+        const D = g.society.deeds;
+        if (flush) { for (const r of D.rumors) if (r.live) r.due = g.time; D.nextDue = g.time; D.update(); }
+        return D.view();
+      },
+    },
+    factions: {
+      group: 'society', desc: 'Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances.', args: { id: { type: 'string' } },
+      run: async ({ id }) => {
+        const F = g.society.factions;
+        if (id) { const v = F.view(id); need(v, `unknown faction; known: ${F.ids.join(',')}`); return { ...v, sim: g.society.sim.view()[id] ?? null }; }
+        return { factions: F.view(), tiers: TIERS, sim: g.society.sim.view() };
+      },
+    },
+    standing: {
+      group: 'society', desc: "Read, set or add to a faction's standing toward you (-100..100). Tiers: hunted ≤ -80, hostile ≤ -40 (shoot on sight), wary, neutral, friendly, allied ≥ 60.",
+      args: { faction: { type: 'string', required: true }, set: { type: 'number' }, add: { type: 'number' } },
+      run: async ({ faction, set, add }) => {
+        const F = g.society.factions;
+        need(F.index[faction] !== undefined, `unknown faction; known: ${F.ids.join(',')}`);
+        const tierFrom = F.tiers[F.index[faction]];
+        if (set !== undefined) F.set(faction, set);
+        if (add !== undefined) F.add(faction, add);
+        return { ...F.view(faction), tierFrom, tierTo: F.tiers[F.index[faction]] };
+      },
+    },
+    relation: {
+      group: 'society', desc: 'Read or set how two factions feel about each other (-100..100, mutual): ≤ -50 is war, ≥ 50 an alliance.',
+      args: { a: { type: 'string', required: true }, b: { type: 'string', required: true }, set: { type: 'number' }, add: { type: 'number' } },
+      run: async ({ a, b, set, add }) => {
+        const F = g.society.factions;
+        need(F.index[a] !== undefined && F.index[b] !== undefined, `unknown faction; known: ${F.ids.join(',')}`);
+        need(a !== b, 'a faction always stands with itself');
+        if (set !== undefined || add !== undefined) F.setRelation(a, b, set ?? F.relation(a, b) + add);
+        const v = F.relation(a, b);
+        return { a, b, value: v, war: v <= -50, alliance: v >= 50 };
+      },
+    },
+    memory: {
+      group: 'society', desc: "What a named person remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
+      args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => { need(g.chars.some((c) => c.npc?.id === id) || g.society.memory.byNpc.has(id), `no named person ${id}`); return g.society.memory.view(id); },
+    },
+    remember: {
+      group: 'society', desc: `Give a named person a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
+      args: { id: { type: 'string', required: true }, kind: { type: 'string' }, weight: { type: 'number', default: 1 }, about: { type: 'string', default: '' }, heard: { type: 'boolean', default: false }, forget: { type: 'boolean', default: false } },
+      run: async ({ id, kind, weight, about, heard, forget }) => {
+        need(g.chars.some((c) => c.npc?.id === id), `no named person ${id}`);
+        need(forget || MEMORY_KINDS[kind], `unknown kind; known: ${Object.keys(MEMORY_KINDS).join(',')}`);
+        if (forget) g.society.memory.forget(id, kind); else g.society.memory.remember(id, kind, { weight, about, heard });
+        return g.society.memory.view(id);
+      },
+    },
+    director: {
+      group: 'society', desc: 'The event director: running events, cooldowns, what could fire now and why the rest can\'t. action=eval fires the pick now; pause/resume stop or restart it; digest reads a day back on the radio now (day=, default yesterday) the way STATIC 1660 AM does every dawn.',
+      args: { action: { type: 'string', default: 'status', enum: ['status', 'eval', 'pause', 'resume', 'digest'] }, day: { type: 'number' } },
+      run: async ({ action, day }) => {
+        const D = g.society.director;
+        if (action === 'digest') { D.digestDay = day ?? Math.max(0, g.society.day - 1); return { day: D.digestDay, lines: D.readDigest() }; }
+        if (action === 'pause') D.paused = true;
+        if (action === 'resume') D.paused = false;
+        const fired = action === 'eval' ? D.evaluate() : null;
+        return { ...D.view(), fired: fired ? { event: fired.id, tpl: fired.tpl } : null };
+      },
+    },
+    fireEvent: {
+      group: 'society', desc: `Fire a director event now, skipping pacing: tpl = ${Object.keys(EVENTS).join('|')}. hunters takes faction= (it must have a hunters row); the rest bind themselves. Returns the event and who it spawned.`,
+      args: { tpl: { type: 'string', required: true }, faction: { type: 'string' } },
+      run: async ({ tpl, faction }) => {
+        need(EVENTS[tpl], `unknown event; known: ${Object.keys(EVENTS).join(',')}`);
+        let bind;
+        if (faction) { const F = g.society.factions; need(F.row(faction)?.hunters, `${faction} has no hunters row`); bind = { i: F.index[faction], fid: faction }; }
+        const ev = g.society.director.fire(tpl, bind);
+        return { event: ev.id, tpl, bind: g.society.director.plainBind(ev), spawned: ev.members.map((c) => ({ id: c.id, name: c.name, faction: c.fid, dist: r1(Math.hypot(c.x - P().x, c.z - P().z)) })) };
+      },
+    },
+    cancelEvent: {
+      group: 'society', desc: 'End a running director event: anyone it spawned leaves.', args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => { const r = g.society.director.cancel(id); need(r, `no running event ${id}`); return r; },
+    },
+    needs: {
+      group: 'player', desc: 'Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them.',
+      args: { water: { type: 'number' }, food: { type: 'number' } },
+      run: async ({ water, food }) => {
+        const N = g.needs, S2 = g.survival;
+        if (water !== undefined) { need(water >= 0 && water <= 1, 'water is 0..1'); N.water = water; N.pips.water = S2.pip(water); }
+        if (food !== undefined) { need(food >= 0 && food <= 1, 'food is 0..1'); N.food = food; N.pips.food = S2.pip(food); }
+        if (water !== undefined || food !== undefined) S2.update(0); // recompute the effects now
+        return S2.view();
+      },
+    },
+    skills: {
+      group: 'player', desc: 'Strength, dexterity, endurance (0-10, grown by doing: hits and reloads, sprinting and swimming, hauling a heavy load), what they do for you now, and what you carry (kg against capacity). strength=, dexterity=, endurance= set a level.',
+      args: { strength: { type: 'number' }, dexterity: { type: 'number' }, endurance: { type: 'number' } },
+      run: async (a) => {
+        const S = g.skillsSys;
+        for (const k of ['strength', 'dexterity', 'endurance']) if (a[k] !== undefined) { need(a[k] >= 0 && a[k] <= 10, `${k} is 0..10`); S.lv[k] = Math.round(a[k]); S.xp[k] = 0; }
+        S.recompute();
+        return S.view();
+      },
+    },
+    garage: {
+      group: 'vehicle', desc: 'Fit or read a car\'s armour and mounts (data/parts.js): plates=front|rear|left|right|sides|all with points=N (negative removes), mount=mg|oil|caltrops|smoke, refill=true. vehicle defaults to the one you are in (or last drove). pay=true charges your cash like Kenji does.',
+      args: { vehicle: { type: 'string' }, plates: { type: 'string' }, points: { type: 'number', default: 4 }, mount: { type: 'string' }, refill: { type: 'boolean', default: false }, pay: { type: 'boolean', default: false } },
+      run: async ({ vehicle, plates, points, mount, refill, pay }) => {
+        const v = vehicle ? api.findVeh(vehicle) : P().inVehicle ?? g.lastVehicle;
+        need(v && !v.dead, vehicle ? `no live vehicle ${vehicle}` : 'not in (or near) a vehicle; pass vehicle=');
+        const G = g.garage, out = {};
+        if (plates) {
+          if (pay) need(g.spend(Math.max(0, points) * PLATE.price * (plates === 'sides' ? 2 : plates === 'all' ? 4 : 1)), 'not enough cash');
+          const r = G.plate(v, plates, points); need(r.ok, r.why); out.added = r.added;
+        }
+        if (mount) { if (pay) need(g.spend(MOUNTS[mount]?.price ?? 0), 'not enough cash'); const r = G.mount(v, mount); need(r.ok, r.why); }
+        if (refill) out.refilled = G.refill(v);
+        return { ...G.view(v), ...out };
+      },
+    },
+    dropper: {
+      group: 'vehicle', desc: 'Drop whatever your car\'s tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving.',
+      run: async () => { const v = P().inVehicle; need(v && v.driver === P(), 'you need to be driving'); const k = g.garage.drop(v); need(k, 'no dropper fitted, or it is empty'); return { dropped: k, left: v.mounts.rear.charges, hazards: g.garage.hazards.length }; },
+    },
+    inventory: {
+      group: 'player', desc: 'What you carry (data/items.js): the pack you wear, weight and room, every item with uses left and freshness, and the container you have open. In the game: I or Tab opens the PACK screen; V uses whatever you need most (patch up, drink, eat).',
+      run: async () => g.inventory.view(),
+    },
+    item: {
+      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
+      args: { give: { type: 'string' }, use: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
+      run: async ({ give, use, drop, wear, take, stow, n, quick }) => {
+        const inv = g.inventory, C = inv.carried, idx = (box, id) => box.slots.findIndex((s) => s.id === id);
+        const known = (id) => need(ITEMS[id], `unknown item ${id}; known: ${Object.keys(ITEMS).join(', ')}`);
+        const out = {};
+        if (quick) { const r = g.quickUse(); out.quick = r ? r.text : null; }
+        if (give) { known(give); out.given = inv.add(C, give, n, ITEMS[give].uses ? { left: ITEMS[give].uses } : {}); inv.changed(); }
+        if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
+        if (drop) { known(drop); const i = idx(C, drop); need(i >= 0, `you carry no ${drop}`); out.dropped = inv.move(C, i, inv.groundAt(P().x, P().z), n); inv.prune(); }
+        if (wear) { known(wear); const i = idx(C, wear); need(i >= 0, `you carry no ${wear}`); const r = inv.swapPack(i); need(r.ok, r.why); out.worn = r.worn; }
+        if (take || stow) {
+          const other = g.invUI.pickOther(), id = take ?? stow; known(id);
+          const [from, to] = take ? [other, C] : [C, other], i = idx(from, id);
+          need(i >= 0, take ? `no ${id} in ${other.label}` : `you carry no ${id}`);
+          out.moved = inv.move(from, i, to, n); out.other = other.label;
+          if (!take) inv.prune();
+        }
+        return { ...out, ...inv.view() };
+      },
+    },
+    pack: {
+      group: 'player', desc: 'Open or close the PACK screen (what a player sees with I). on=true opens it beside whatever is at your feet; screenshots only show the world, so read the result.',
+      args: { on: { type: 'boolean', default: true } },
+      run: async ({ on }) => { g.invUI.toggle(on); return { open: g.invUI.open, other: g.invUI.other ? g.inventory.boxView(g.invUI.other) : null }; },
+    },
+    stunts: {
+      group: 'vehicle', desc: 'Jumps (data/stunts.js): the ramps, the named jumps (gap lip to lip, pay, times cleared), your records, who is in the air, and the last landing. run=<jump id> drives the car you are in (or a fresh type= car) at that jump from back= metres out, holding speed= m/s to the lip like a steady foot, then reports the landing: air time, distance, height, closing speed vn, grade (clean | rough | hard | crash), cleared, pay. ramp=<id> does the same at any ramp. Wreck Row lands soft at about 18 m/s (40 mph).',
+      args: { run: { type: 'string' }, ramp: { type: 'string' }, speed: { type: 'number', default: 18 }, type: { type: 'string', default: 'sedan' }, back: { type: 'number', default: 22 } },
+      run: async ({ run, ramp, speed, type, back }) => {
+        const S = g.stunts;
+        if (!run && !ramp) return S.view();
+        const J = run ? S.jumps.find((j) => j.id === run) : null;
+        need(!run || J, `no jump ${run}; known: ${S.jumps.map((j) => j.id).join(', ')}`);
+        const r = S.byId[J ? J.from : ramp];
+        need(r, `no ramp ${ramp}; known: ${S.ramps.map((x) => x.id).join(', ')}`);
+        need(VEHICLES[type] && !VEHICLES[type].boat, `type must be a land vehicle: ${Object.keys(VEHICLES).filter((k) => !VEHICLES[k].boat).join(', ')}`);
+        // Cars this command left parked (on a landing deck, say) would be in the next run's way: clear them first.
+        for (const o of [...g.vehicles]) if (o.stuntCar && o !== P().inVehicle && !o.occ?.some(Boolean)) g.vehiclesSys.remove(o);
+        let v = P().inVehicle;
+        if (!v || v.driver !== P() || v.boat) {
+          if (P().inVehicle) g.exitVehicle(true);
+          v = g.vehiclesSys.spawn(type, r.x, r.z, r.h);
+          v.stuntCar = true;
+          await api.call('enterVehicle', { id: v.id, force: true });
+        }
+        // Line up on the ramp's centre line, `back` metres before its foot, nose along it, already rolling.
+        const d = r.hl + back;
+        Object.assign(v, { x: r.x - r.fx * d, z: r.z - r.fz * d, h: r.h, vx: r.fx * speed, vz: r.fz * speed, av: 0, y: 0, vy: 0, gy: 0, pitch: 0, roll: 0, air: false, fallen: false, wheelie: 0, lean: 0 });
+        const n0 = S.count;
+        let t = 0, flew = false, lip = 0, first = null;
+        while (t < 8) {
+          const fwd = v.vx * r.fx + v.vz * r.fz;
+          g.driveOverride = !flew ? { throttle: Math.max(-1, Math.min(1, (speed - fwd) * 2.5)), steer: 0 } : { throttle: 0, steer: 0 };
+          await api._step(1); t += 1 / 60;
+          if (v.air && !flew) { flew = true; lip = Math.hypot(v.vx, v.vz); }
+          if (flew && !v.air) { first = S.count > n0 ? S.last : null; break; } // the first touchdown is the jump (not a bounce after it)
+          if (v.dead || !P().inVehicle) break;
+        }
+        g.driveOverride = { throttle: -1, steer: 0 }; await api._step(40); g.driveOverride = null;
+        return { jump: J?.id ?? null, ramp: r.id, flew, lipSpeed: r1(lip), result: first, ...vehView(g, v) };
+      },
+    },
+    hoodgun: {
+      group: 'vehicle', desc: 'Fire the hood gun of the car you are driving: shots=N at x,z or id (it only fires within its arc of the nose). Keyboard: hold LMB aiming ahead.',
+      args: { shots: { type: 'number', default: 6 }, x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
+      run: async ({ shots, x, z, id }) => {
+        const v = P().inVehicle;
+        need(v && v.driver === P() && v.mounts?.front, 'drive a car with a hood gun (garage mount=mg)');
+        const t = id ? api.findChar(id) ?? api.findVeh(id) : null;
+        let fired = 0, outOfArc = false;
+        for (let i = 0; i < Math.min(60, shots); i++) {
+          const tx = t ? t.x : x ?? v.x + Math.sin(v.h) * 20, tz = t ? t.z : z ?? v.z + Math.cos(v.h) * 20;
+          const before = v.mounts.front.ammo;
+          if (!g.garage.fireFront(v, P(), Math.atan2(tx - v.x, tz - v.z))) { outOfArc = true; break; }
+          if (v.mounts.front.ammo < before) fired++;
+          await api._step(Math.ceil(MOUNTS[v.mounts.front.kind].rate * 60));
+        }
+        return { fired, ammo: v.mounts.front.ammo, outOfArc, target: t ? { id: t.id, hp: Math.round(t.hp), alive: t.alive ?? !t.dead } : null };
+      },
+    },
+    simTick: {
+      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands. Returns strength/stores before and after and what happened.',
+      args: { hours: { type: 'number', default: 24 } },
+      run: async ({ hours }) => {
+        need(hours > 0 && hours <= 240, 'hours must be in (0,240]');
+        const S = g.society, before = S.sim.view(), seq0 = S.chronicle.seq, t0 = performance.now();
+        for (let d = 0; d < Math.floor(hours / 24); d++) S.sim.tickDay();
+        S.factions.tickHours(hours); S.sim.advance(hours);
+        const ms = +(performance.now() - t0).toFixed(2);
+        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), ms };
+      },
+    },
+    registerFaction: {
+      group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
+      args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
+      run: async ({ id, def }) => {
+        const r = g.society.factions.register(id, def);
+        need(!r.error, r.warnings.join('; '));
+        return { id, index: r.index, warnings: r.warnings, faction: g.society.factions.view(id) };
+      },
+    },
 
     // ---------------------------------------------------------------- content (runtime registration)
     registerWeapon: {
@@ -929,15 +1286,34 @@ export function validateNpc(def) {
 }
 
 // Turn declarative choice effects into the function hooks the dialogue system uses.
+// Society conditions for pack dialogue (WEB_WORLD_MEMORY phase 2), checked against the person you're talking to:
+//   ifMemory / ifNotMemory: a memory kind they hold of you ("killedKin")
+//   ifOpinion: { atLeast, atMost }   ifTier: { faction (default theirs), atLeast, atMost } with tiers hunted..allied
+const TIER_ORDER = ['hunted', 'hostile', 'wary', 'neutral', 'friendly', 'allied'];
+function societyMatch(g, c) {
+  const who = g.dialogue?.npc, S = g.society;
+  if (!who || !S) return !(c.ifMemory || c.ifOpinion || c.ifTier);
+  const holds = (kind) => !!S.memory.byNpc.get(who.npc?.id)?.mems.some((m) => m.kind === kind && Math.abs(S.memory.value(m)) >= 1);
+  if (c.ifMemory && !holds(c.ifMemory)) return false;
+  if (c.ifNotMemory && holds(c.ifNotMemory)) return false;
+  if (c.ifOpinion) { const o = S.memory.opinion(who); if (c.ifOpinion.atLeast !== undefined && o < c.ifOpinion.atLeast) return false; if (c.ifOpinion.atMost !== undefined && o > c.ifOpinion.atMost) return false; }
+  if (c.ifTier) {
+    const F = S.factions, i = F.index[c.ifTier.faction ?? who.fid], t = TIER_ORDER.indexOf(F.tiers[i]);
+    if (c.ifTier.atLeast && t < TIER_ORDER.indexOf(c.ifTier.atLeast)) return false;
+    if (c.ifTier.atMost && t > TIER_ORDER.indexOf(c.ifTier.atMost)) return false;
+  }
+  return true;
+}
+
 function compileNpc(def) {
   const nodes = {};
   for (const [id, n] of Object.entries(def.nodes)) {
     nodes[id] = {
       text: n.text,
       choices: (n.choices ?? [{ t: '[Leave]', end: true }]).map((c) => ({
-        t: c.t, next: c.next, end: c.end ?? !c.next,
-        req: c.ifQuest || c.ifNotQuest
-          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest))
+        t: c.t, next: c.next, end: c.end ?? !c.next, deed: c.deed,
+        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier
+          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c)
           : c.req,
         do: (g) => {
           if (c.cost && !g.spend(c.cost)) return;
@@ -966,12 +1342,18 @@ async function runSelfTest(api) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
-    try { const v = await fn(); results.push({ name, pass: v !== false, detail: v === true || v === undefined ? '' : v }); }
+    // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
+    // to be `v !== false`, which counted every such string as a PASS: the suite read green while
+    // several checks were failing.
+    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
     catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
   };
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
   await C('god', { on: true });
+  // The director would drop hunters or a herd into unrelated checks: its own checks fire events by hand.
+  const directorWas = g.society.director.paused;
+  g.society.director.paused = true;
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -999,7 +1381,7 @@ async function runSelfTest(api) {
     await C('choose', { index: 0 });
     return r.ok && g.cash === cash + 5;
   });
-  await check('enter War Rig + drive', async () => {
+  await check('enter the Whaler + drive', async () => {
     const rig = g.vehicles.find((v) => v.type === 'rig');
     await C('teleport', { x: rig.x + 4, z: rig.z });
     const e = await C('enterVehicle', { id: rig.id, force: true });
@@ -1095,13 +1477,16 @@ async function runSelfTest(api) {
   });
   await check('motorcycle: leans in turns, wheelies on boost, crash throws the rider', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    const r = await C('spawnVehicle', { type: 'bike', x: 460, z: 40, heading: 0 });
+    // Open desert inside the map: x=460 was inside the east boundary wall (x 450..470).
+    const r = await C('spawnVehicle', { type: 'bike', x: -410, z: 405, heading: 0 });
     const v = api.findVeh(r.id);
     await C('enterVehicle', { id: r.id, force: true });
+    // Boost off the line (through the drive command, as the keyboard does): wheelies are a launch thing,
+    // under 24 m/s. After the old order (a 1.2 s full-throttle turn first) the bike was already past that.
+    await C('drive', { throttle: 1, boost: true, seconds: 0.6 });
+    const wheelie = v.wheelie > 0.1;
     await C('drive', { throttle: 1, steer: 1, seconds: 1.2 });
     const leaned = Math.abs(v.lean) > 0.05;
-    v.boost = true; g.driveOverride = { throttle: 1, steer: 0 }; await C('step', { seconds: 0.6 }); g.driveOverride = null; v.boost = false;
-    const wheelie = v.wheelie > 0.1;
     // Crash: slam it into a wall at speed.
     v.vx = 0; v.vz = 25; v.h = 0;
     g.statics.add(v.x - 3, v.z + 1.5, v.x + 3, v.z + 2.5, 'wall', 3);
@@ -1111,32 +1496,42 @@ async function runSelfTest(api) {
   });
   await check('throwables: frag kills a group, molotov burns, smoke blocks sight, flash blinds, sticky sticks', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 90 });
+    // Open dry desert. The old spot (420,90) is the river now: the player threw while swimming, the
+    // dead stopped at the bank short of the frag and the target car floated in the channel.
+    const X = 364, Z = 39;
+    const pin = (id, x, z) => { const c = api.findChar(id); c.x = x; c.z = z; return c; }; // spawn jitters ±2 m
+    await C('teleport', { x: X, z: Z });
     await C('give', { frag: 3, molotov: 2, smoke: 2, flash: 2, sticky: 2 });
-    const a = await C('spawn', { kind: 'zombie', x: 432, z: 90, count: 3 });
-    for (const id of a.ids) { const c = api.findChar(id); c.x = 432 + (Math.random() - 0.5) * 2; c.z = 90 + (Math.random() - 0.5) * 2; c.zSpeed = 0; }
-    const f = await C('throw', { type: 'frag', x: 432, z: 90 });
+    // Three infected staged to stand still (zSpeed 0) round a spot 12 m east, 0.9+ m apart so the crowd doesn't shove them.
+    const a = await C('spawn', { kind: 'zombie', runner: false, x: X + 12, z: Z, count: 3 });
+    a.ids.forEach((id, i) => { pin(id, X + 12 + [-0.6, -0.6, 0.9][i], Z + [-0.8, 0.8, 0][i]).zSpeed = 0; });
+    // Cooked so it bursts as it lands (the 12 m lob is ~1 s in the air). Left to its 2.8 s fuse a frag
+    // bounces on ~3.5 m past where it lands, out of killing range: grenades are cooked into a group.
+    const f = await C('throw', { type: 'frag', x: X + 12, z: Z, cook: 1.7 });
     const fragOk = a.ids.every((id) => !api.findChar(id)?.alive);
-    const b = await C('spawn', { kind: 'drifter', x: 426, z: 98 });
-    const m = await C('throw', { type: 'molotov', x: 426, z: 98 });
+    const b = await C('spawn', { kind: 'drifter', x: X + 6, z: Z + 8 });
+    pin(b.ids[0], X + 6, Z + 8).hold = true; // stands still: a wandering target walked out of the 3.4 m fire (a flaky check)
+    const m = await C('throw', { type: 'molotov', id: b.ids[0] });
     const burned = m.effects.some((e) => e.type === 'ignited') || (api.findChar(b.ids[0])?.burning ?? 0) > 0 || !api.findChar(b.ids[0])?.alive;
-    await C('throw', { type: 'smoke', x: 420, z: 106 });
+    await C('throw', { type: 'smoke', x: X, z: Z + 16 });
     await C('step', { seconds: 2 });
-    const smokeBlocks = !g.los(420, 100, 420, 112);
-    const r = await C('spawn', { kind: 'raider', x: 410, z: 90, weapon: 'pistol' });
-    await C('throw', { type: 'flash', x: 410, z: 90 });
+    const smokeBlocks = !g.los(X, Z + 10, X, Z + 22);
+    const r = await C('spawn', { kind: 'raider', x: X - 10, z: Z, weapon: 'pistol' });
+    pin(r.ids[0], X - 10, Z);
+    await C('throw', { type: 'flash', x: X - 10, z: Z });
     const blind = (api.findChar(r.ids[0])?.blind ?? 0) > 0 || !api.findChar(r.ids[0])?.alive;
-    const car = await C('spawnVehicle', { type: 'sedan', x: 414, z: 80 });
-    const st = await C('throw', { type: 'sticky', id: car.id, wait: false });
-    await C('step', { seconds: 0.5 });
-    const stuck = g.throwables.list.some((p) => p.stuck?.ref?.id === car.id);
-    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, st: st.ok });
+    const car = await C('spawnVehicle', { type: 'sedan', x: X - 6, z: Z - 10 });
+    // The throw report says what it stuck to. (Peeking 0.5 s after release never could: an 11 m lob
+    // is still in the air at 0.5 s.)
+    const st = await C('throw', { type: 'sticky', id: car.id });
+    const stuck = st.stuckTo === car.id;
+    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, stuckTo: st.stuckTo });
   });
   await check('dive roll covers ground and costs stamina; crouch hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 140 });
+    await C('teleport', { x: 365, z: -240 }); // dry ground: (420,140) is in the river now
     g.player.stamina = 1;
-    const d = await C('dive', { x: 430, z: 140 });
+    const d = await C('dive', { x: 375, z: -240 });
     return d.ok && d.moved > 3 && d.stamina < 0.9 ? true : JSON.stringify(d);
   });
   await check('terrain: mountains are solid and routed around', async () => {
@@ -1149,17 +1544,23 @@ async function runSelfTest(api) {
   await check('water: lake is deep, bridge deck is dry, swimming + diving hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     const deep = g.water.depthAt(390, 398) > 5, deck = g.water.depthAt(416, 0) === 0, underDeck = g.water.depthAt(416, 0, true) > 1;
-    await C('teleport', { x: 372, z: 398 });
+    // Swim mid-river with a raider on the bank 8 m off: close enough to spot even a crouching swimmer, so
+    // only being under the water can hide you. (The old raider stood in deep water by the dock, 25 m out:
+    // it couldn't see a crouching player anyway, and the lake patrol boat's route ran it over.)
+    await C('teleport', { x: 417.4, z: 200 });
     await C('step', { seconds: 0.3 });
     const swimming = !!g.player.swim;
     await C('submerge', { on: true });
-    const { ids } = await C('spawn', { kind: 'raider', x: 365, z: 380, weapon: 'smg' });
+    const { ids } = await C('spawn', { kind: 'raider', x: 409.4, z: 200, weapon: 'smg' });
+    const rd = api.findChar(ids[0]); rd.x = 409.4; rd.z = 200; // spawn jitters ±2 m
     await C('step', { seconds: 2 });
-    const hidden = !g.chars.find((c) => c.id === ids[0])?.target;
+    const hidden = !rd.target;
     const b0 = g.player.breath;
     await C('submerge', { on: false });
     g.crouchOverride = false;
-    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden });
+    await C('step', { seconds: 1 });
+    const spotted = rd.target === g.player; // up for air: there you are
+    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden && spotted ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden, target: rd.target?.id ?? null, spotted });
   });
   await check('cars flood and sink; boats float and beach', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -1172,20 +1573,20 @@ async function runSelfTest(api) {
     await C('drive', { throttle: 1, seconds: 2 });
     const moved = g.vehiclesSys.speed(boat) > 6;
     const land = api.findVeh((await C('spawnVehicle', { type: 'jetski', x: 250, z: 250 })).id);
-    land.driver = g.player; land.throttle = 1; // dry land: a jet ski can't go
+    land.driver = g.player; land.throttle = 1; // dry land: a waterbike can't go
     for (let i = 0; i < 60; i++) { g.vehiclesSys.drive(land, 1 / 60); }
     land.driver = null;
     const beached = g.vehiclesSys.speed(land) < 1.5;
     return sank && moved && beached ? true : JSON.stringify({ sank, flood: car.flood, moved: g.vehiclesSys.speed(boat), beached: g.vehiclesSys.speed(land) });
   });
-  await check('the dead cannot swim: zombies stop at the waterline', async () => {
+  await check('the infected cannot swim: they stop at the waterline', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     await C('teleport', { x: 395, z: 398 });
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
     await C('step', { seconds: 6 });
     const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
     for (const id of ids) await C('remove', { id });
-    return wet === 0 ? true : `${wet} zombies in deep water`;
+    return wet === 0 ? true : `${wet} infected in deep water`;
   });
   await check('train: brakes into the station, carries riders, kills on the rails, tanker blows', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -1202,6 +1603,7 @@ async function runSelfTest(api) {
     await C('train', { action: 'leave' });
     const off = !g.player.onTrain && Math.abs(g.player.x + 360) > 2;
     const { ids } = await C('spawn', { kind: 'raider', x: -360, z: T.head + 6 });
+    const rr = api.findChar(ids[0]); rr.x = -360; rr.z = T.head + 6; // on the rails: spawn jitters ±2 m and the train only hits within 1.9 m
     T.speed = 17; T.state = 'running2';
     await C('step', { seconds: 0.6 });
     const splat = !api.findChar(ids[0])?.alive;
@@ -1239,9 +1641,12 @@ async function runSelfTest(api) {
     await C('step', { seconds: 0.2 });
     const { ids } = await C('spawn', { kind: 'raider', x: 52, z: -120, weapon: 'pistol' });   // due EAST of the player
     const r = api.findChar(ids[0]);
-    g.combat.damage(g.player, 12, r, -1, 0);
-    g.aim.x = r.x; g.aim.z = r.z;
+    // The hit has to land: in god mode combat.damage returns before anything happens (no 'hurt' event,
+    // so no arc). And aim through the API: g.aim is re-read from the mouse every frame.
+    g.godMode = false; g.combat.damage(g.player, 12, r, -1, 0); g.godMode = true;
+    await C('aim', { x: r.x, z: r.z });
     await C('step', { seconds: 0.1 });
+    await C('aim', {});
     const h1 = g.feedback.view();
     const arc = h1.damageIndicators.find((d) => Math.abs(d.bearing - 90) < 15);
     const tag = h1.nameTags.find((t) => t.id === r.id && t.flag);
@@ -1260,30 +1665,93 @@ async function runSelfTest(api) {
   });
   await check('details: brass piles up, civilians cower, horn sends people diving, tracks in the sand, brake lights', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 140, z: -150 });
-    const b0 = g.ambient.view().brass;
-    const { ids } = await C('spawn', { kind: 'drifter', x: 146, z: -150 });
-    const civ = api.findChar(ids[0]); civ.weapon = null;
+    // Open sand off every road. The car used to start on Iron St (x=160) and roll onto the z=-160
+    // crossing: tarmac all the way, so no tracks, whatever the tyres did.
+    const X = 232, Z = -380, A = g.ambient;
+    await C('teleport', { x: X, z: Z });
+    const e0 = A.view().brassEjected;
+    const { ids } = await C('spawn', { kind: 'drifter', x: X + 6, z: Z });
+    const civ = api.findChar(ids[0]); civ.weapon = null; civ.x = X + 6; civ.z = Z;
+    // A close shot makes a civilian cower 55% of the time: up to 16 quick shots, all while they're still
+    // in earshot even if they bolt (6 shots a quarter-second apart missed about 1 run in 120).
     let cowered = false;
-    for (let k = 0; k < 6 && !cowered; k++) { g.combat.fire(g.player, 'pistol', Math.PI); await C('step', { seconds: 0.25 }); cowered = civ.cowerT > 0; }
+    const mine = [], newest = () => A.shells[(A.bNext + A.shells.length - 1) % A.shells.length]; // the ring's last write
+    for (let k = 0; k < 16 && !cowered; k++) {
+      if (g.combat.fire(g.player, 'pistol', Math.PI)) mine.push(newest());
+      await C('step', { seconds: 1 / 15 }); cowered = civ.cowerT > 0;
+    }
     await C('step', { seconds: 1 });
-    const brass = g.ambient.view().brass > b0 && g.ambient.view().brassAtRest > 0;
+    // Our own shells landed and lie still. The on-ground count can't show it: the 240-shell ring is
+    // full long before this check, so it never goes up.
+    const brass = mine.length > 0 && mine.every((s) => s.rest) && A.view().brassEjected >= e0 + mine.length;
     civ.cowerT = 0; civ.crouch = false; civ.handsUp = false;
-    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 160, z: -175, heading: 0 })).id);
+    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: X + 20, z: Z - 25, heading: 0 })).id);
     await C('enterVehicle', { id: car.id, force: true });
-    const w = await C('spawn', { kind: 'drifter', x: 160.5, z: -166 });
-    const ped = api.findChar(w.ids[0]);
+    const w = await C('spawn', { kind: 'drifter', x: X + 20.5, z: Z - 16 });
+    const ped = api.findChar(w.ids[0]); ped.x = X + 20.5; ped.z = Z - 16;
     const h = await C('honk');
     await C('step', { seconds: 0.7 });
-    const dodged = h.dodged >= 1 && Math.abs(ped.x - 160) > 1.5;
-    const t0 = g.ambient.view().tracks;
+    const dodged = h.dodged >= 1 && Math.abs(ped.x - (X + 20)) > 1.5;
+    const t0 = A.view().tracksLaid;
     await C('drive', { throttle: 1, steer: 0.3, seconds: 2 });
-    const tracks = g.ambient.view().tracks > t0;
+    const tracks = A.view().tracksLaid > t0;
     car.throttle = -1; g.vehiclesSys.update(1 / 60, 0);
     const brakeLit = car.braking === true || g.vehiclesSys.speed(car) < 0.5;
     g.exitVehicle(true);
     for (const id of [...ids, ...w.ids]) await C('remove', { id });
     return cowered && brass && dodged && tracks && brakeLit ? true : JSON.stringify({ cowered, brass, dodged, honk: h, pedX: ped.x, tracks, brakeLit });
+  });
+  await check('NaN sentinel: a poisoned position is healed and named by phase; ambient never latches on', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const caught = [];
+    g.reportError = (e) => caught.push(String(e?.message ?? e)); // capture: this check poisons on purpose
+    try {
+      const { ids } = await C('spawn', { kind: 'drifter', x: g.player.x + 6, z: g.player.z });
+      const c = api.findChar(ids[0]);
+      await C('step', { seconds: 0.1 });
+      const x0 = c.x, b = g.ambient.birds[0], w = g.ambient.weeds[0];
+      c.x = NaN; c.face = NaN; g.player.face = NaN; b.x = b.cx = NaN; w.x = NaN;
+      await C('step', { seconds: 0.2 });
+      const healed = Math.abs(c.x - x0) < 2 && Number.isFinite(c.face) && Number.isFinite(g.player.face);
+      const named = caught.some((m) => m.includes(`on ${c.id} `) && m.includes("after '"));
+      const amb = Number.isFinite(b.x + b.cx) && Number.isFinite(w.x);
+      await C('remove', { id: c.id });
+      return healed && named && amb ? true : JSON.stringify({ healed, x: c.x, x0, named, amb, caught: caught.slice(0, 2) });
+    } finally { delete g.reportError; }
+  });
+  await check('save/load rebuilds the infected with their pace (they once came back at NaN m/s and spread it)', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const { ids } = await C('horde', { x: g.player.x + 25, z: g.player.z, count: 3, runners: 1, radius: 2 });
+    const sv = (await C('save')).save;
+    for (const id of ids) await C('remove', { id });
+    const caught = [];
+    g.reportError = (e) => caught.push(String(e?.message ?? e));
+    try {
+      await C('load', { save: sv });
+      await C('step', { seconds: 1 });
+      const back = ids.map((id) => api.findChar(id)).filter(Boolean);
+      const paced = back.every((c) => c.zSpeed > 0 && Number.isFinite(c.x + c.z));
+      for (const c of back) await C('remove', { id: c.id });
+      return back.length === 3 && paced && !caught.length ? true : JSON.stringify({ back: back.length, paced, caught: caught.slice(0, 2) });
+    } finally { delete g.reportError; }
+  });
+  await check('cars turn about the rear axle: the nose swings in, the tail follows (not forklift steering)', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const v = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: -200, z: -262, heading: 0 })).id);
+    await C('enterVehicle', { id: v.id, force: true });
+    await C('drive', { throttle: 1, seconds: 0.6 });
+    // A tight, slow turn (~5 m radius). About the centre, both ends travel the same distance; about
+    // the rear axle the tail runs an inner arc, ~13% shorter at this radius.
+    const end = (s) => [v.x + Math.sin(v.h) * v.len * 0.3 * s, v.z + Math.cos(v.h) * v.len * 0.3 * s];
+    let front = 0, rear = 0, pf = end(1), pr = end(-1);
+    for (let i = 0; i < 10; i++) {
+      await C('drive', { throttle: 0.3, steer: 1, seconds: 0.1 });
+      const f = end(1), r = end(-1);
+      front += Math.hypot(f[0] - pf[0], f[1] - pf[1]); rear += Math.hypot(r[0] - pr[0], r[1] - pr[1]);
+      pf = f; pr = r;
+    }
+    g.exitVehicle(true);
+    return rear < front * 0.94 ? true : JSON.stringify({ front: +front.toFixed(2), rear: +rear.toFixed(2) });
   });
   await check('photo mode freezes the sim and frames a free camera', async () => {
     const t0 = g.time;
@@ -1307,6 +1775,552 @@ async function runSelfTest(api) {
     await C('step', { seconds: 4.5 });
     return burning && veh.dead ? true : `burning=${burning} dead=${veh.dead}`;
   });
+  // ---- doors, locks and windows (systems/interiors.js). Staged at buildings in the ruins with the bystanders
+  // cleared away; the player moves and interacts on its own keys (the same input path a person uses).
+  const I2 = g.interiors;
+  const keyFor = (dx, dz) => (Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'KeyD' : 'KeyA') : dz > 0 ? 'KeyS' : 'KeyW');
+  const holdKey = async (code, seconds, until) => {
+    g.input.down.add(code); g.input.pressed.add(code);
+    try { for (let f = 0; f < seconds * 60; f++) { await api._step(1); if (until?.()) break; } } finally { g.input.down.delete(code); }
+  };
+  const tapKey = async (code) => { g.input.down.add(code); g.input.pressed.add(code); await api._step(1); g.input.down.delete(code); await api._step(1); };
+  const outSide = (o, x, z) => (x - o.x) * o.nx + (z - o.z) * o.nz; // + outside the wall, - inside
+  const clearAt = (o, k) => g.nav.foot.free(o.x + o.nx * k, o.z + o.nz * k) && g.nav.foot.free(o.x - o.nx * k, o.z - o.nz * k);
+  const inRuins = (o) => Math.max(Math.abs(o.x), Math.abs(o.z)) > 100;
+  const backDoor = (pred) => I2.doors.find((d) => d.kind === 'back' && d.leaves.length === 1 && inRuins(d) && clearAt(d, 3) && pred(d));
+  const stageAt = async (o, k) => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    if (g.player.onTrain) g.train.leave(g.player);
+    g.autopilot = null; g.aimOverride = null; g.crouchOverride = false;
+    g.player.knockT = 0; g.player.vault = null; g.player.stamina = 1;
+    await C('setTime', { hour: 12 });
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - o.x, c.z - o.z) < 26) g.removeChar(c);
+    await C('teleport', { x: o.x + o.nx * k, z: o.z + o.nz * k });
+    await api._step(2);
+  };
+  const extra = (kind, x, z, props = {}) => { const c = g.addChar({ x, z, faction: kind, weapon: null, colors: outfit(kind), name: `${kind} (selftest)`, flag: 'US', hp: 300 }); c.x = x; c.z = z; return Object.assign(c, props); };
+  await check('doors: a closed door swings open for whoever walks into it, and they get through (you on your keys, a drifter on its own feet)', async () => {
+    const d = backDoor((x) => !x.locked);
+    if (!d) return 'no unlocked single back door in the ruins';
+    await C('door', { id: d.id, action: 'close' });
+    await stageAt(d, 2.5);
+    let widest = 0;
+    await holdKey(keyFor(-d.nx, -d.nz), 3, () => { widest = Math.max(widest, Math.abs(d.leaves[0].th)); return outSide(d, g.player.x, g.player.z) < -1.6; });
+    const youThrough = outSide(d, g.player.x, g.player.z) < -1.2;
+    // A drifter walking home through the same door, shut again; you wait off to one side.
+    await C('door', { id: d.id, action: 'close' });
+    await C('teleport', { x: d.x + d.nx * 6 + d.ux * 4, z: d.z + d.nz * 6 + d.uz * 4 });
+    const c = extra('drifter', d.x + d.nx * 2.5, d.z + d.nz * 2.5);
+    c.home = { x: d.x - d.nx * 2.5, z: d.z - d.nz * 2.5 }; c.wx = c.home.x; c.wz = c.home.z; c.timer = 99;
+    let npcWidest = 0;
+    for (let t = 0; t < 8 && outSide(d, c.x, c.z) > -1.2; t += 0.1) { await api._step(6); npcWidest = Math.max(npcWidest, Math.abs(d.leaves[0].th)); }
+    const npcThrough = outSide(d, c.x, c.z) < -1.2;
+    g.removeChar(c);
+    return youThrough && widest > 0.6 && npcThrough && npcWidest > 0.4 ? true : JSON.stringify({ door: d.id, youThrough, widest: r1(widest), npcThrough, npcWidest: r1(npcWidest), npc: [r1(c.x), r1(c.z)] });
+  });
+  await check('doors: a door shoved open at a run knocks down whoever stands behind it (door bash), and they get back up', async () => {
+    const d = backDoor((x) => !x.locked);
+    await C('door', { id: d.id, action: 'close' });
+    await stageAt(d, 2.6);
+    const L = d.leaves[0];
+    const v = extra('drifter', L.hx + L.dx * 0.8 - d.nx * 0.7, L.hz + L.dz * 0.8 - d.nz * 0.7, { hold: true }); // just inside, in the leaf's swing
+    const since = g.eventSeq;
+    g.input.down.add('ShiftLeft');
+    try { await holdKey(keyFor(-d.nx, -d.nz), 1.5, () => v.knockT > 0); } finally { g.input.down.delete('ShiftLeft'); }
+    const bash = g.events.find((e) => e.seq > since && e.type === 'doorBash' && e.victim === v.id);
+    const down = v.knockT > 0;
+    await api._step(Math.round((DOOR.knockDown + 0.6) * 60));
+    const up = !(v.knockT > 0) && v.alive;
+    g.removeChar(v);
+    return bash && down && up ? true : JSON.stringify({ door: d.id, bash: bash ?? null, down, up, th: r1(L.th), w: r1(L.w), v: [r1(v.x), r1(v.z)] });
+  });
+  await check('locks: a locked door holds you and the AI until you kick it in (2-3 kicks, each loud enough to scatter a bystander)', async () => {
+    let d = backDoor((x) => x.locked);
+    if (!d) { d = backDoor(() => true); if (!d) return 'no single back door in the ruins'; await C('door', { id: d.id, action: 'lock' }); }
+    await stageAt(d, 2.4);
+    // A drifter heading in through it stays outside: NPCs never open a locked door.
+    const n = extra('drifter', d.x + d.nx * 2.4 + d.ux * 0.2, d.z + d.nz * 2.4 + d.uz * 0.2);
+    n.home = { x: d.x - d.nx * 2.5, z: d.z - d.nz * 2.5 }; n.wx = n.home.x; n.wz = n.home.z; n.timer = 99;
+    await C('teleport', { x: d.x + d.nx * 6 + d.ux * 4, z: d.z + d.nz * 6 + d.uz * 4 });
+    await api._step(150);
+    const npcHeld = outSide(d, n.x, n.z) > 0.2;
+    g.removeChar(n);
+    await C('teleport', { x: d.x + d.nx * 2.4, z: d.z + d.nz * 2.4 });
+    const key = keyFor(-d.nx, -d.nz);
+    await holdKey(key, 1.2);
+    const held = outSide(d, g.player.x, g.player.z) > 0.3 && Math.abs(d.leaves[0].th) < 0.01 && d.locked;
+    const ear = extra('drifter', d.x + d.nx * 8 + d.ux * 8, d.z + d.nz * 8 + d.uz * 8); // hears it from round the corner
+    const since = g.eventSeq;
+    for (let i = 0; i < 5 && d.locked; i++) { await tapKey('KeyE'); await api._step(38); }
+    const kicks = g.events.filter((e) => e.seq > since && e.type === 'doorKick' && e.door === d.id).length;
+    const scattered = ear.flee > 0;
+    g.removeChar(ear);
+    await api._step(20);
+    await holdKey(key, 3, () => outSide(d, g.player.x, g.player.z) < -1.4);
+    const through = outSide(d, g.player.x, g.player.z) < -1;
+    return npcHeld && held && !d.locked && kicks >= 2 && kicks <= 3 && scattered && through ? true : JSON.stringify({ door: d.id, npcHeld, held, locked: d.locked, kicks, scattered, through, th: r1(d.leaves[0].th) });
+  });
+  let pane = null;
+  await check('windows: glass cracks, then shatters under fire, and stops blocking bullets once it is gone', async () => {
+    pane = I2.windows.find((w) => w.state === 'intact' && inRuins(w) && clearAt(w, 3) && g.nav.foot.free(w.x + w.nx * 6, w.z + w.nz * 6));
+    if (!pane) return 'no intact window in the ruins';
+    await stageAt(pane, 6);
+    const t = extra('drifter', pane.x - pane.nx * 3, pane.z - pane.nz * 3, { hold: true });
+    await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
+    const hp0 = t.hp;
+    await C('fire', { id: t.id, shots: 1 });
+    const cracked = pane.state === 'intact' && pane.hp < WINDOW.hp && t.hp === hp0;
+    await C('fire', { id: t.id, shots: 1 });
+    const shattered = pane.state === 'shattered' && t.hp === hp0;
+    await C('fire', { id: t.id, shots: 1 });
+    const through = t.hp < hp0;
+    g.removeChar(t);
+    return cracked && shattered && through ? true : JSON.stringify({ window: pane.id, cracked, shattered, through, state: pane.state, glassHp: pane.hp, hp: [hp0, t.hp] });
+  });
+  await check('windows: hold E at a broken window to board it up; the boards block sight and stop a bullet', async () => {
+    const w = pane?.state === 'shattered' ? pane : I2.windows.find((x) => x.state === 'shattered' && inRuins(x) && clearAt(x, 3) && g.nav.foot.free(x.x + x.nx * 6, x.z + x.nz * 6));
+    if (!w) return 'no broken window to board';
+    await stageAt(w, 1.1);
+    await holdKey('KeyE', WINDOW.holdTap + WINDOW.boardTime + 0.5, () => w.state === 'boarded');
+    const boarded = w.state === 'boarded' && w.boardSide === 1;
+    await C('teleport', { x: w.x + w.nx * 6, z: w.z + w.nz * 6 });
+    const t = extra('drifter', w.x - w.nx * 3, w.z - w.nz * 3, { hold: true });
+    const blind = !g.los(g.player.x, g.player.z, t.x, t.z);
+    const b0 = w.boardHp, hp0 = t.hp;
+    await C('fire', { x: t.x, z: t.z, shots: 1 });
+    const stopped = t.hp === hp0 && w.boardHp < b0 && w.state === 'boarded';
+    g.removeChar(t);
+    return boarded && blind && stopped ? true : JSON.stringify({ window: w.id, boarded, side: w.boardSide, blind, stopped, boardHp: [b0, w.boardHp], hp: [hp0, t.hp] });
+  });
+  await check('windows: walk into a broken window and you climb through it; a dive goes straight through the glass', async () => {
+    const w = I2.windows.find((x) => x.state === 'shattered' && x !== pane && inRuins(x) && clearAt(x, 3));
+    if (!w) return 'no broken window to climb';
+    await stageAt(w, 1.6);
+    let t = 0, started = -1;
+    await holdKey(keyFor(-w.nx, -w.nz), 3, () => { t += 1 / 60; if (g.player.vault && started < 0) started = t; return started >= 0 && !g.player.vault; });
+    const climbed = outSide(w, g.player.x, g.player.z) < -0.6 && started > 0.1;
+    const w2 = I2.windows.find((x) => x.state === 'intact' && x !== pane && inRuins(x) && clearAt(x, 3));
+    if (!w2) return 'no intact window to dive through';
+    await stageAt(w2, 2.4);
+    await C('dive', { x: w2.x - w2.nx * 3, z: w2.z - w2.nz * 3 });
+    for (let i = 0; i < 60 && g.player.vault; i++) await api._step(1);
+    const dove = w2.state === 'shattered' && outSide(w2, g.player.x, g.player.z) < -0.5;
+    return climbed && dove ? true : JSON.stringify({ window: w.id, climbed, started: r1(started), at: r1(outSide(w, g.player.x, g.player.z)), dive: w2.id, glass: w2.state, diveAt: r1(outSide(w2, g.player.x, g.player.z)) });
+  });
+
+  // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
+  // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
+  const STAGE = { x: 280, z: -120 };
+  const stage = async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    await C('crouch', { on: false });
+    await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
+    await C('teleport', STAGE);
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - STAGE.x, c.z - STAGE.z) < 90) g.removeChar(c);
+    const F = g.society.factions, D = g.society.deeds;
+    for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
+    for (const r of D.rumors) r.live = false;
+    D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
+    await C('give', { pistol: 60 }); await C('equip', { weapon: 'pistol' });
+    await C('step', { seconds: 0.2 });
+  };
+  const person = (kind, dx, dz, extra = {}) => {
+    const p = g.player, c = g.addChar({ x: p.x + dx, z: p.z + dz, faction: kind, weapon: kind === 'warden' ? 'smg' : null, colors: outfit(kind), name: `${kind} (selftest)`, flag: 'US', hp: extra.hp ?? 100 });
+    c.home = { x: c.x, z: c.z }; c.wx = c.x; c.wz = c.z; c.face = Math.atan2(p.x - c.x, p.z - c.z); // looking at the player
+    c.hold = true; // stands its ground: no wandering off, no turning away, no fleeing the gunfire
+    Object.assign(c, extra);
+    g.society.factions.assign(c);
+    return c;
+  };
+  const shootDead = async (c) => { for (let i = 0; i < 6 && c.alive; i++) await C('fire', { id: c.id, shots: 1 }); return !c.alive; };
+  const drifterStanding = () => g.society.factions.standing[g.society.factions.index.drifters];
+  const quickRumors = async (fn) => { const row = g.society.factions.row('drifters'), d = row.rumorDelay; row.rumorDelay = [5, 7]; try { return await fn(); } finally { row.rumorDelay = d; } };
+  await check('world memory: the chronicle keeps its last 512 records, and the tally keeps every count', async () => {
+    const C0 = g.society.chronicle, key = 'player|hurt|', n0 = C0.tally.get(key)?.n ?? 0, s0 = C0.seq;
+    for (let i = 0; i < 600; i++) await C('deed', { verb: 'hurt', witness: false, x: STAGE.x, z: STAGE.z });
+    const recs = (await C('chronicle', { limit: 25 })).records;
+    const mono = recs.every((r, i) => i === 0 || r.seq < recs[i - 1].seq);
+    const n = (C0.tally.get(key)?.n ?? 0) - n0;
+    return C0.size === 512 && n === 600 && C0.seq - s0 === 600 && mono && C0.legend.length <= 96 ? true : JSON.stringify({ size: C0.size, tally: n, seq: C0.seq - s0, mono, legend: C0.legend.length });
+  });
+  await check('world memory: a witness 15 m off names you at noon, but not at 23:00 from a crouch', async () => {
+    await stage();
+    const w = person('drifter', 0, 15);
+    const noon = (await C('witnesses')).identified.some((c) => c.id === w.id);
+    await C('setTime', { hour: 23 }); await C('crouch', { on: true }); await C('step', { seconds: 0.3 }); // the sky reads the new hour
+    w.x = g.player.x; w.z = g.player.z + 15; w.face = Math.PI; // still looking straight at you
+    const r = await C('witnesses');
+    const night = r.identified.some((c) => c.id === w.id);
+    await C('crouch', { on: false }); await C('setTime', { hour: 12 });
+    g.removeChar(w);
+    return noon && !night ? true : JSON.stringify({ noon, night, idRange: r.idRange, sight: r.sight });
+  });
+  await check("world memory: a witnessed killing reaches the victim's people, and their standing drops", async () => quickRumors(async () => {
+    await stage();
+    const victim = person('drifter', 5, 0, { hp: 30 }), w = person('drifter', 5, 10, { hp: 400 });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    const s0 = drifterStanding(), since = g.eventSeq;
+    const dead = await shootDead(victim);
+    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    const named = !!rec?.w.includes(w.id);
+    await C('step', { seconds: 9 });
+    const landed = g.events.some((e) => e.seq > since && e.type === 'rumor' && e.witness === w.id);
+    const s1 = drifterStanding();
+    g.removeChar(w);
+    return dead && named && landed && s1 < s0 ? true : JSON.stringify({ dead, named, landed, s0, s1, rec: rec && { w: rec.w, k: rec.k }, pending: g.society.deeds.view().pending });
+  }));
+  await check('world memory: kill the only witness before they talk, and the word dies with them', async () => quickRumors(async () => {
+    await stage();
+    const victim = person('drifter', 5, 0, { hp: 30 }), w = person('drifter', 5, 10, { hp: 30 });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    const s0 = drifterStanding(), since = g.eventSeq;
+    await shootDead(victim);
+    const queued = g.society.deeds.view().pending.some((r) => r.witness === w.id);
+    await shootDead(w); // well inside the 5-7 s it takes them to tell anyone
+    await C('step', { seconds: 9 });
+    const silenced = g.events.some((e) => e.seq > since && e.type === 'rumorSilenced' && e.witness === w.id);
+    const silence = g.society.chronicle.query({ verb: 'silence', limit: 1 })[0]?.o === w.id;
+    const s1 = drifterStanding();
+    return queued && silenced && silence && Math.abs(s1 - s0) < 0.5 ? true : JSON.stringify({ queued, silenced, silence, s0, s1 });
+  }));
+  await check('world memory: standing decides who shoots you on sight (raise the Dustwolves and their guns go quiet)', async () => {
+    await stage();
+    const r = person('raider', 30, 0, { weapon: 'smg' }), warden = person('warden', -30, 0);
+    await C('standing', { faction: 'dustwolves', set: 70 });
+    const friendly = g.ai.hostile(r, g.player);
+    await C('standing', { faction: 'dustwolves', set: -90 });
+    const hunted = g.ai.hostile(r, g.player);
+    const war = g.ai.hostile(warden, r) && g.ai.hostile(r, warden);
+    await C('standing', { faction: 'dustwolves', set: -60 });
+    g.removeChar(r); g.removeChar(warden);
+    return !friendly && hunted && war ? true : JSON.stringify({ friendly, hunted, war });
+  });
+  await check('world memory: at 23:00, crouched, 25 m from the only bystander - nobody knows, no stars', async () => {
+    await stage();
+    await C('setTime', { hour: 23 }); await C('crouch', { on: true }); await C('step', { seconds: 0.3 });
+    const victim = person('drifter', 3, 0, { hp: 30 }), by = person('drifter', 0, 25);
+    const s0 = drifterStanding();
+    await shootDead(victim);
+    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    await C('step', { seconds: 3 });
+    const s1 = drifterStanding(), stars = g.wanted;
+    await C('crouch', { on: false }); await C('setTime', { hour: 12 });
+    g.removeChar(by);
+    return rec && rec.k & K.unwitnessed && stars === 0 && Math.abs(s1 - s0) < 0.5 ? true : JSON.stringify({ k: rec?.k, w: rec?.w, stars, s0, s1 });
+  });
+  await check('world memory: a Rust Haven bull who sees you shoot someone raises the stars at once', async () => {
+    await stage();
+    const victim = person('drifter', 4, 0, { hp: 400 }), bull = person('warden', -6, 0);
+    await C('fire', { id: victim.id, shots: 1 });
+    const stars = g.wanted;
+    const rec = g.society.chronicle.query({ verb: 'hurt', limit: 1 })[0];
+    g.wanted = 0; g.removeChar(bull); g.removeChar(victim);
+    return stars > 0 && rec?.w.includes(bull.id) ? true : JSON.stringify({ stars, w: rec?.w, bull: bull.id });
+  });
+  await check('world memory: standings, the chronicle and word on its way survive save/load', async () => {
+    await stage();
+    const F = g.society.factions, D = g.society.deeds;
+    await C('standing', { faction: 'drifters', set: -33 });
+    const w = person('drifter', 6, 0), victim = person('drifter', 3, 2, { hp: 400 });
+    await C('fire', { id: victim.id, shots: 1 }); // a hurt the bystander (and the victim) will report
+    const pending = D.pending, seq = g.society.chronicle.seq;
+    const sv = (await C('save')).save;
+    await C('standing', { faction: 'drifters', set: 50 });
+    for (let i = 0; i < 3; i++) await C('deed', { verb: 'trade', witness: false });
+    const r = await C('load', { save: sv });
+    const st = F.standing[F.index.drifters];
+    const ok = r.ok && Math.abs(st + 33) < 0.01 && D.pending === pending && g.society.chronicle.seq === seq;
+    for (const c of [w, victim]) if (g.chars.includes(c)) g.removeChar(c);
+    for (const r2 of D.rumors) r2.live = false;
+    D.pending = 0; D.nextDue = Infinity; F.set('drifters', F.row('drifters').start);
+    return pending > 0 && ok ? true : JSON.stringify({ pending, after: D.pending, seq, seqAfter: g.society.chronicle.seq, standing: st });
+  });
+  await check('world memory: a killed-kin memory closes the shop, forgetting reopens it, and a vendetta turns a gun on you', async () => {
+    await stage();
+    const since = g.eventSeq;
+    await C('remember', { id: 'ike', kind: 'killedKin', about: 'Mateo' });
+    const shut = await C('talk', { id: 'ike', force: true });
+    const refused = g.events.some((e) => e.seq > since && e.type === 'refused' && e.npc === 'ike');
+    g.dialogue.close();
+    await C('remember', { id: 'ike', forget: true });
+    const open = await C('talk', { id: 'ike', force: true });
+    g.dialogue.close();
+    const vo = g.chars.find((c) => c.npc?.id === 'vo');
+    await C('remember', { id: 'vo', kind: 'killedKin', about: 'his brother' });
+    const hunt = !!vo && g.ai.hostile(vo, g.player);
+    await C('remember', { id: 'vo', forget: true });
+    const calm = !!vo && !g.ai.hostile(vo, g.player);
+    return refused && shut.choices?.length === 1 && open.choices?.length > 1 && hunt && calm ? true : JSON.stringify({ refused, shut: shut.choices?.length, open: open.choices?.length, hunt, calm, vo: !!vo });
+  });
+  await check("world memory: Mateo remembers being shot, and the word reaches his sister Rosa", async () => quickRumors(async () => {
+    await stage();
+    const mateo = g.chars.find((c) => c.npc?.id === 'mateo'), rosa = g.chars.find((c) => c.npc?.id === 'rosa');
+    if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
+    await C('teleport', { x: mateo.x - 6, z: mateo.z });
+    mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
+    await C('fire', { id: mateo.id, shots: 1 });
+    const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
+    await C('step', { seconds: 9 });
+    const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
+    mateo.hold = false; mateo.hp = mateo.maxHp;
+    for (const id of ['mateo', 'rosa']) g.society.memory.forget(id);
+    return firsthand && heard ? true : JSON.stringify({ firsthand, heard, mateo: (await C('memory', { id: 'mateo' })).memories, rosa: (await C('memory', { id: 'rosa' })).memories, rumors: g.society.deeds.view() });
+  }));
+  await check('director: an enraged Rust Haven sends hunters from out of sight, and killing them goes in the chronicle', async () => {
+    await stage();
+    const D = g.society.director;
+    await C('standing', { faction: 'rusthaven', set: -70 });
+    const r = await C('fireEvent', { tpl: 'hunters', faction: 'rusthaven' });
+    const ev = D.active.find((e) => e.id === r.event), hunters = ev?.members ?? [];
+    const mean = () => hunters.reduce((s, c) => s + Math.hypot(c.x - g.player.x, c.z - g.player.z), 0) / Math.max(1, hunters.length);
+    const spawned = hunters.length >= 2 && hunters.every((c) => c.fid === 'rusthaven' && c.target === g.player);
+    const d0 = mean();
+    await C('step', { seconds: 2 });
+    const d1 = mean();
+    for (const c of hunters) if (c.alive) await C('kill', { id: c.id });
+    await C('step', { seconds: 1 });
+    const resolved = !!ev && ev.outcome === 'success' && !D.active.includes(ev);
+    const rec = g.society.chronicle.query({ verb: 'hunters_success', limit: 1 })[0];
+    await C('standing', { faction: 'rusthaven', set: 10 });
+    return spawned && d0 >= 85 && d1 < d0 && resolved && !!rec ? true : JSON.stringify({ spawned, n: hunters.length, d0: r1(d0), d1: r1(d1), outcome: ev?.outcome, rec: !!rec });
+  });
+  await check('director: STATIC 1660 AM reads the chronicle on air', async () => {
+    const vo = g.chars.find((c) => c.npc?.id === 'vo');
+    if (!vo) return 'no Vo to report on';
+    await C('deed', { verb: 'kill', target: vo.id, witness: false });
+    const since = g.eventSeq;
+    await C('fireEvent', { tpl: 'radio_news' });
+    const said = g.events.find((e) => e.seq > since && e.type === 'radio');
+    return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
+  });
+  await check('survival: thirst wears in pips, slows stamina recovery, and a bottle of water fixes it', async () => {
+    await stage();
+    const before = g.needs.water;
+    await C('step', { seconds: 6 }); // noon heat: 6 s is 0.2 game hours of drain
+    const drained = g.needs.water < before;
+    const parched = await C('needs', { water: 0.1, food: 0.9 });
+    const slowed = parched.pips.water === 2 && parched.effects.staminaRegen < 1;
+    // A found bottle goes in your pack; drinking it (V) is what fixes the thirst.
+    const bottles = () => g.inventory.carried.slots.filter((s) => s.id === 'water_bottle' || s.id === 'canteen').length;
+    const b0 = bottles();
+    g.dropPickup(g.player.x + 0.4, g.player.z, 'water');
+    await C('step', { seconds: 0.3 });
+    const packed = bottles() > b0;
+    for (let k = 0; k < 6 && g.needs.water < 0.5; k++) await C('item', { quick: true });
+    const after = g.survival.view();
+    await C('needs', { water: 0.85, food: 0.8 });
+    return drained && slowed && packed && after.water > 0.35 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, packed, after: after.water });
+  });
+  await check('skills: hits teach dexterity, dexterity steadies the shot and the reload, a heavy load slows you and stops the sprint', async () => {
+    await stage();
+    const S = g.skillsSys, xp0 = S.xp.dexterity, lv0 = S.lv.dexterity;
+    const target = person('drifter', 6, 0, { hp: 900 });
+    await C('fire', { id: target.id, shots: 1 });
+    const learned = S.xp.dexterity > xp0 || S.lv.dexterity > lv0;
+    g.removeChar(target);
+    const base = { spread: g.skills.spreadMul, reload: g.skills.reloadMul };
+    await C('skills', { dexterity: 6 });
+    const steadier = g.skills.spreadMul < base.spread && g.skills.reloadMul < base.reload;
+    await C('skills', { dexterity: lv0 });
+    const shells = g.inv.ammo.shells;
+    g.inv.ammo.shells += 700; S.recompute(); // ~31 kg of shells: over a starting back's 24 kg
+    const over = g.skills.overloaded && g.skills.speedMul < 1;
+    const x0 = g.player.x, t0 = g.time;
+    g.autopilot = null; g.aimOverride = null;
+    await C('moveTo', { x: g.player.x + 30, z: g.player.z, maxSeconds: 1 }).catch(() => null);
+    // Speed over the game time that actually passed: real-time frames can run during the step loop's
+    // yields, so "1 s" of moveTo sometimes walks a little more than 1 s (it read 4.5 m against 4.4).
+    const moved = Math.abs(g.player.x - x0), pace = moved / Math.max(0.5, g.time - t0);
+    g.inv.ammo.shells = shells; S.recompute();
+    return learned && steadier && over && pace < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved), pace: r1(pace) });
+  });
+  await check('garage: a plated nose stops rounds until it is breached, plate slows the car, the hood gun fires where the nose points, oil spins a car', async () => {
+    await stage();
+    const v = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: g.player.x + 12, z: g.player.z, heading: -Math.PI / 2 })).id); // nose toward you
+    const base = { accel: v.accel, maxSpeed: v.maxSpeed };
+    await C('garage', { vehicle: v.id, plates: 'front', points: 10 });
+    const heavier = v.accel < base.accel && v.maxSpeed < base.maxSpeed;
+    const hp0 = v.hp;
+    await C('fire', { id: v.id, shots: 1 });
+    const absorbed = v.hp === hp0 && v.plates.front < 10;
+    for (let i = 0; i < 8 && v.plates.front > 0; i++) await C('fire', { id: v.id, shots: 1 });
+    const breached = v.plates.front === 0;
+    await C('fire', { id: v.id, shots: 1 });
+    const through = v.hp < hp0;
+    await C('garage', { vehicle: v.id, mount: 'mg' });
+    await C('enterVehicle', { id: v.id, force: true });
+    const target = person('drifter', 0, 0, { hp: 900 });
+    target.x = v.x + Math.sin(v.h) * 14; target.z = v.z + Math.cos(v.h) * 14;
+    const hg = await C('hoodgun', { id: target.id, shots: 12 });
+    const gunned = target.hp < 900;
+    g.exitVehicle(true); g.removeChar(target);
+    // Oil: a car rolling through a fresh slick loses its grip.
+    const w = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: g.player.x - 20, z: g.player.z + 20 })).id);
+    g.garage.hazard('oil', w.x, w.z, 4.5, 30);
+    w.vx = 8; g.garage.update(1 / 60);
+    const slipped = (w.gripMul ?? 1) < 1;
+    for (const x of [v, w]) g.vehiclesSys.remove(x);
+    g.garage.hazards.length = 0;
+    return heavier && absorbed && breached && through && gunned && slipped ? true : JSON.stringify({ heavier, absorbed, breached, through, gunned, hg, slipped, plates: v.plates });
+  });
+  await check('faction sim: ten days off-screen move strength and stores, skirmish at war, and run in under 20 ms', async () => {
+    const S = g.society, sv = S.sim.save();
+    const r = await C('simTick', { hours: 240 });
+    const moved = JSON.stringify(r.before) !== JSON.stringify(r.after);
+    const skirmished = r.records.some((x) => x.verb === 'skirmish');
+    S.sim.load(sv);
+    return moved && skirmished && r.ms < 20 ? true : JSON.stringify({ moved, skirmished, ms: r.ms, n: r.records.length });
+  });
+  await check('the morning radio reads yesterday back: the dead, and a jump somebody saw', async () => {
+    await stage();
+    const S = g.society, seq0 = g.eventSeq;
+    const c = person('raider', 7, 0); await C('kill', { id: c.id });
+    S.deeds.record('stunt', { x: 355, z: 28, m: 1, label: 'Wreck Row', flags: K.feat, witness: false, src: 'stunt' });
+    await C('setTime', { hour: 23.9 }); await C('step', { seconds: 0.3 });
+    await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
+    const ev = g.events.find((e) => e.seq > seq0 && e.type === 'radioDigest');
+    const body = ev?.lines?.[1] ?? '';
+    await C('setTime', { hour: 12 });
+    return ev && /dead/.test(body) && body.includes('Wreck Row') && ev.lines.length === 3 ? true : JSON.stringify({ ev: ev ?? null, day: S.day });
+  });
+  await check('faction sim: a strong Dustwolf band raids Rust Haven at night, and beating them off costs the band', async () => {
+    await stage();
+    const S = g.society, sim = S.sim, dw = S.factions.index.dustwolves, sv = sim.save();
+    await C('setTime', { hour: 23 }); await C('step', { seconds: 0.3 }); // (the sim catches up the hours the clock jumped)
+    sim.strength[dw] = 80; sim.resources[dw] = 60;
+    const ev = S.director.fire('raid');
+    const raiders = ev.members, s0 = sim.strength[dw];
+    const rode = raiders.length >= 4 && raiders.every((c) => c.faction === 'raider' && c.raidOf === ev.id);
+    for (const c of raiders) if (c.alive) await C('kill', { id: c.id });
+    await C('step', { seconds: 1 });
+    const s1 = sim.strength[dw], beaten = ev.outcome === 'success' && s1 <= s0 - 6;
+    sim.load(sv); await C('setTime', { hour: 12 });
+    return rode && beaten ? true : JSON.stringify({ rode, n: raiders.length, outcome: ev.outcome, s0, s1 });
+  });
+  await check('ATV: rides astride like a bike, drives like a small car, never tips over', async () => {
+    await stage();
+    const v = api.findVeh((await C('spawnVehicle', { type: 'atv', x: g.player.x + 6, z: g.player.z, heading: Math.PI / 2 })).id);
+    await C('enterVehicle', { id: v.id, force: true });
+    const x0 = v.x;
+    await C('drive', { throttle: 1, seconds: 1.5 });
+    const moved = Math.abs(v.x - x0), pose = g.player.seatPose;
+    const astride = pose?.kind === 'bike' && Math.abs(Math.cos(v.h) * (pose.x - v.x) - Math.sin(v.h) * (pose.z - v.z)) < 0.05;
+    g.exitVehicle(true); g.vehiclesSys.remove(v);
+    return moved > 8 && astride && !v.fallen ? true : JSON.stringify({ moved: r1(moved), pose: pose && { kind: pose.kind }, fallen: v.fallen });
+  });
+  // Jumps (data/stunts.js): staged runs at real speed through real physics; only the start line is placed.
+  const jumpRun = async (args) => {
+    for (const o of [...g.vehicles]) if (o.ai && !o.occ?.includes(g.player) && Math.abs(o.z - 28) < 40 && Math.abs(o.x - 330) < 40) g.vehiclesSys.remove(o); // no traffic on the run-up
+    return C('stunts', { back: 12, ...args });
+  };
+  const jumpDone = () => { if (g.player.inVehicle) g.exitVehicle(true); for (const o of [...g.vehicles]) if (o.stuntCar && !o.occ?.some(Boolean)) g.vehiclesSys.remove(o); };
+  await check('jumps: Wreck Row at 40 mph flies five wrecks, lands clean on the deck, pays and gets talked about', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash, seq0 = g.eventSeq;
+    g.stunts.cleared = {};
+    const r = await jumpRun({ run: 'wreckrow', speed: 18.2 });
+    const res = r.result ?? {}, paid = g.cash - cash0;
+    const talked = g.events.some((e) => e.seq > seq0 && e.type === 'deed' && e.verb === 'stunt');
+    jumpDone(); g.stunts.load(sv); g.cash = cash0;
+    return r.flew && res.cleared && res.landing === 'clean' && res.landedOn === 'wreckrow_down' && res.dist > 22 && paid === 60 && talked ? true
+      : JSON.stringify({ flew: r.flew, lip: r.lipSpeed, res, paid, talked });
+  });
+  await check('jumps: too slow meets the landing deck\'s face (a crash, no clear); too fast flies past the deck (cleared, hard)', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash;
+    const slow = (await jumpRun({ run: 'wreckrow', speed: 16 })).result ?? {}; jumpDone();
+    const fast = (await jumpRun({ run: 'wreckrow', speed: 22 })).result ?? {}; jumpDone();
+    g.stunts.load(sv); g.cash = cash0;
+    const ok = !slow.cleared && slow.landing === 'crash' && fast.cleared && fast.landedOn === null && (fast.landing === 'hard' || fast.landing === 'rough');
+    return ok ? true : JSON.stringify({ slow, fast });
+  });
+  await check('jumps: a dune is a bump at a crawl and air at speed; kickers are solid from the side; people stand on dirt', async () => {
+    await stage();
+    const crawl = await jumpRun({ ramp: 'dune1', speed: 5, back: 8 }); jumpDone();
+    const fast = await jumpRun({ ramp: 'dune1', speed: 25, back: 8 }); jumpDone();
+    // A car driven square into the side of the takeoff kicker, near its lip, stops against it instead of climbing on.
+    const v = g.vehiclesSys.spawn('sedan', 337.5, 18, 0); v.stuntCar = true;
+    await C('enterVehicle', { id: v.id, force: true });
+    v.vz = 10;
+    g.driveOverride = { throttle: 0.6, steer: 0 }; await api._step(90); g.driveOverride = null;
+    const blocked = v.z < 24.2 && v.y < 0.2;
+    jumpDone();
+    const standOn = g.charR.groundAt(349, 58); // the table's flat top
+    const ok = !crawl.flew && fast.flew && (fast.result?.air ?? 0) > 0.4 && blocked && Math.abs(standOn - 1.8) < 0.01 && g.stunts.warnings.length === 0;
+    return ok ? true : JSON.stringify({ crawl: { flew: crawl.flew }, fast: { flew: fast.flew, air: fast.result?.air }, blocked, z: r1(v.z), y: r1(v.y), standOn, warnings: g.stunts.warnings });
+  });
+  await check('inventory: a found bottle rides in the pack, V drinks from it, a tin needs a blade, packs swap', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), water0 = g.needs.water;
+    inv.carried.slots = []; inv.worn = null; inv.wear('satchel');
+    g.needs.water = 0.3; g.needs.food = 0.9; g.player.hp = g.player.maxHp; g.player.bleed = 0;
+    await C('item', { give: 'water_bottle' });
+    const q = await C('item', { quick: true });
+    const bottle = inv.carried.slots.find((s) => s.id === 'water_bottle');
+    const drank = g.needs.water > 0.42 && bottle?.left === 2;
+    await C('item', { give: 'beans_tin' });
+    const tried = await C('item', { use: 'beans_tin' }); // commands answer ok:false rather than throw
+    const blocked = tried.ok === false && /blade|opener/.test(String(tried.error));
+    await C('item', { give: 'knife' }); g.needs.food = 0.5;
+    const ate = !!(await C('item', { use: 'beans_tin' })).used && g.needs.food > 0.75;
+    await C('item', { give: 'backpack' });
+    const worn = (await C('item', { wear: 'backpack' })).worn === 'backpack' && inv.carried.cap > 20 && inv.carried.slots.some((s) => s.id === 'satchel');
+    inv.load(sv); g.needs.water = water0;
+    return q.quick && drank && blocked && ate && worn ? true : JSON.stringify({ quick: q.quick, drank, water: g.needs.water, bottle, blocked, ate, worn });
+  });
+  await check('inventory: the dead can be searched (the same loot every time), and what you carry weighs', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const c = person('raider', 1.2, 0); await C('kill', { id: c.id });
+    const box = inv.boxes.get(`body:${c.id}`);
+    if (!box) { inv.load(sv); return 'no body container'; }
+    inv.open(box);
+    for (let sd = 1; !box.slots.length && sd < 60; sd++) { box.seed = sd; inv.roll(box); } // a body that carried something
+    const items = box.slots.map((x) => x.id);
+    const twin = inv.place('selftest:twin', 'raider', 0, 0, 20, 'TWIN', box.seed); inv.open(twin);
+    const again = twin.slots.map((x) => x.id);
+    const kg0 = g.skills.kg;
+    await C('item', { give: 'scrap', n: 4 }); // 6 kg of steel in 4 litres
+    const heavier = g.skills.kg > kg0 + 5.9;
+    inv.boxes.delete(box.id); inv.boxes.delete(twin.id); inv.opened = null; inv.load(sv);
+    return items.length > 0 && JSON.stringify(items) === JSON.stringify(again) && heavier ? true : JSON.stringify({ items, again, kg0, kg: g.skills.kg });
+  });
+  await check('inventory: shop shelves are searchable and owned - take from Doc Reyes\'s shelf in front of her and she remembers it', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const box = [...inv.boxes.values()].find((b) => b.ownerName === 'Doc Lupe Reyes');
+    const reyes = g.chars.find((c) => c.npc?.id === 'reyes');
+    if (!box || !reyes) { inv.load(sv); return JSON.stringify({ box: !!box, reyes: !!reyes }); }
+    const mems0 = (await C('memory', { id: 'reyes' })).memories.filter((m) => m.kind === 'robbedMe').length;
+    await C('teleport', { x: box.x + 1, z: box.z + 0.6 });
+    const home = { x: reyes.x, z: reyes.z };
+    reyes.x = g.player.x + 0.7; reyes.z = g.player.z + 0.3; reyes.hold = 1.5; // at your shoulder
+    inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
+    const seq0 = g.eventSeq;
+    const took = (await C('item', { take: 'bandage', n: 2 })).moved;
+    const deed = g.events.find((e) => e.seq > seq0 && e.type === 'deed' && e.verb === 'steal');
+    const mems = (await C('memory', { id: 'reyes' })).memories.filter((m) => m.kind === 'robbedMe').length;
+    reyes.x = home.x; reyes.z = home.z; inv.opened = null; box.stealT = -99; inv.load(sv);
+    g.society.memory.entry('reyes').mems = g.society.memory.entry('reyes').mems.filter((m) => m.kind !== 'robbedMe');
+    return took === 2 && deed?.witnesses >= 1 && mems > mems0 ? true : JSON.stringify({ took, deed: deed ?? null, mems0, mems });
+  });
+  await check('locks: lockpicks open a locked door without a sound (one pick spent); a crowbar opens it loud and stays in your pack', async () => {
+    await stage();
+    const I = g.interiors, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const door = I.doors.find((d) => d.locked && d.kind === 'back') ?? I.doors.find((d) => d.kind === 'back');
+    if (!door) { inv.load(sv); return 'no back door'; }
+    I.setLocked(door, true);
+    const out = { x: door.x + door.nx * 1.3, z: door.z + door.nz * 1.3 }, out2 = { x: door.x - door.nx * 1.3, z: door.z - door.nz * 1.3 };
+    await C('teleport', I.nearest({ x: out.x, z: out.z }) === door ? out : out2); await C('step', { seconds: 0.1 });
+    let noises = 0; const noise = g.noise; g.noise = (...a) => { noises++; return noise.apply(g, a); };
+    try {
+      inv.carried.slots = []; await C('item', { give: 'lockpicks' });
+      const picked = (await C('item', { use: 'lockpicks' })).used === 'LOCK PICKED' && !door.locked && noises === 0 && inv.carried.slots.find((s) => s.id === 'lockpicks')?.left === 5;
+      I.setLocked(door, true); inv.carried.slots = []; await C('item', { give: 'crowbar' });
+      const pried = (await C('item', { use: 'crowbar' })).used === 'PRIED OPEN' && !door.locked && noises > 0 && inv.carried.slots.some((s) => s.id === 'crowbar');
+      return picked && pried ? true : JSON.stringify({ picked, pried, noises, locked: door.locked });
+    } finally { g.noise = noise; inv.load(sv); I.setLocked(door, false); }
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1316,6 +2330,7 @@ async function runSelfTest(api) {
   });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
+  g.society.director.paused = directorWas;
   await C('god', { on: false });
   const passed = results.filter((r) => r.pass).length;
   return { passed, total: results.length, results };
@@ -1328,8 +2343,15 @@ export function snapshot(g) {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless })),
-    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
+    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
+    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+      plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
+    society: g.society.save(), // additive: a save without it loads with fresh standings
+    needs: g.survival.save(),
+    skills: g.skillsSys.save(),
+    stunts: g.stunts.save(), // jump records and which named jumps you have cleared
+    inventory: g.inventory.save(), // what you carry, and every container anyone has been through
+    interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
   };
 }
 
@@ -1345,6 +2367,8 @@ export function restore(g, s) {
     let v = vmap.get(sv.id);
     if (!v) { v = g.vehiclesSys.spawn(sv.type, sv.x, sv.z, sv.h, sv.paint, { ai: sv.ai }); v.id = sv.id; }
     Object.assign(v, { x: sv.x, z: sv.z, h: sv.h, hp: sv.hp, vx: 0, vz: 0, av: 0, ai: sv.ai, driver: null });
+    v.plates = sv.plates ? { ...sv.plates } : undefined; v.mounts = sv.mounts ? JSON.parse(JSON.stringify(sv.mounts)) : undefined;
+    g.garage.retune(v);
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
   // Characters: remove everyone not in the save, update or recreate the rest.
@@ -1355,20 +2379,31 @@ export function restore(g, s) {
     let c = cmap.get(sc.id);
     if (!c) {
       const npc = sc.npc ? NPCS.find((n) => n.id === sc.npc) : null;
-      c = g.addChar({ x: sc.x, z: sc.z, faction: sc.faction, weapon: sc.weapon, npc, name: sc.name, flag: sc.flag, colors: sc.colors });
+      // The infected come from their own factory: addChar alone left them without zSpeed (NaN walkers).
+      c = sc.faction === 'zombie' ? g.zombies.spawn(sc.x, sc.z, !!sc.runner)
+        : g.addChar({ x: sc.x, z: sc.z, faction: sc.faction, weapon: sc.weapon, npc, name: sc.name, flag: sc.flag, colors: sc.colors });
       if (!c) continue;
       c.id = sc.id;
+      if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
-    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless });
+    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0 });
+    if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
-  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null });
+  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   p.weapon = g.inv.current;
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.
   g.nextId = Math.max(g.nextId, ...s.chars.map((c) => Number(c.id.slice(1)) || 0));
+  // The society last: pending rumors find their witnesses by id among the people just restored.
+  if (s.society) g.society.load(s.society);
+  if (s.needs) g.survival.load(s.needs);
+  if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
+  if (s.stunts) g.stunts.load(s.stunts);
+  if (s.inventory) g.inventory.load(s.inventory);
+  if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

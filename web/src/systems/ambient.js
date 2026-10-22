@@ -56,6 +56,7 @@ export class Ambient {
     const rx = Math.cos(ang), rz = -Math.sin(ang); // shooter's right
     const s = { x: ch.x + rx * 0.3, z: ch.z + rz * 0.3, y: 1.3, vx: rx * (2 + Math.random() * 1.5) - Math.sin(ang) * 0.6, vz: rz * (2 + Math.random() * 1.5) - Math.cos(ang) * 0.6, vy: 2.4 + Math.random(), spin: Math.random() * 6, rot: Math.random() * 6, rest: false, i: this.bNext };
     this.bNext = (this.bNext + 1) % BRASS_MAX;
+    this.ejected = (this.ejected ?? 0) + 1;
     this.shells[s.i] = s;
     this.brass.count = Math.min(BRASS_MAX, Math.max(this.brass.count, s.i + 1));
   }
@@ -158,6 +159,7 @@ export class Ambient {
     const gust = g.sky.weather === 'dust' ? 2.2 : 1;
     for (let i = 0; i < WEEDS; i++) {
       const w = this.weeds[i];
+      if (!Number.isFinite(w.x + w.z + w.rx + w.rz)) { w.x = w.z = 9999; w.rx = w.rz = 0; w.v = 0; } // poisoned: respawn below
       const dx = w.x - p.x, dz = w.z - p.z;
       if (dx * dx + dz * dz > 85 * 85) {
         // Respawn upwind, just outside view, in open desert.
@@ -186,6 +188,7 @@ export class Ambient {
     // Circle the freshest dead near the player; otherwise drift high over the desert.
     const dead = g.chars.filter((c) => !c.alive && c.deadTime > 4 && c.deadTime < 240 && Math.abs(c.x - p.x) < 70 && Math.abs(c.z - p.z) < 70);
     this.birds.forEach((b, i) => {
+      if (!Number.isFinite(b.x + b.z + b.y + b.cx + b.cz + b.a)) { b.cx = b.x = p.x; b.cz = b.z = p.z; b.y = 30; b.a = (i / BIRDS) * Math.PI * 2; } // poisoned: re-roost
       const tgt = dead.length ? dead[i % dead.length] : null;
       const cx = tgt ? tgt.x : p.x + Math.sin(i * 2.3 + g.time * 0.01) * 55, cz = tgt ? tgt.z : p.z + Math.cos(i * 1.7) * 55;
       b.cx += (cx - b.cx) * Math.min(1, dt * 0.25); b.cz += (cz - b.cz) * Math.min(1, dt * 0.25);
@@ -206,9 +209,13 @@ export class Ambient {
 
   view() {
     const p = this.g.player;
+    // tracks/brass count what's on the ground, so they top out at the ring sizes (1400 / 240) and a busy
+    // fight fills them. tracksLaid/brassEjected never stop counting: compare those for "did it happen".
     return {
       tracks: Math.min(TRACK_MAX, this.laid ?? 0),
+      tracksLaid: this.laid ?? 0,
       brass: this.shells.filter(Boolean).length,
+      brassEjected: this.ejected ?? 0,
       brassAtRest: this.shells.filter((s) => s?.rest).length,
       tumbleweeds: this.weeds.filter((w) => Math.hypot(w.x - p.x, w.z - p.z) < 85).map((w) => ({ x: Math.round(w.x), z: Math.round(w.z) })),
       vultures: this.birds.map((b) => ({ x: Math.round(b.x), z: Math.round(b.z), y: Math.round(b.y), spooked: b.spook > 0 })),

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DEATHLANDS agent CLI — drive the running game from any shell.
+// DSOA agent CLI — drive the running game from any shell.
 //
 //   node tools/dl.mjs status
 //   node tools/dl.mjs help

@@ -138,10 +138,17 @@ func _ready() -> void:
 	var vpos := victim.global_position
 	var cars_before: int = main.cars.size()
 	victim.take_damage(12.0)
+	# promote() is SYNCHRONOUS off take_damage, so read the spawn transform HERE. Reading it
+	# after a process_frame measured one frame of legitimate 29 m/s highway travel and called
+	# it a teleport. This is the STRICTER check (0.5 m, not 3.0), not the looser one.
+	var promoted: bool = main.cars.size() > cars_before
+	var promoted_at: Vector3 = Vector3(9e9, 0.0, 0.0)
+	if promoted:
+		promoted_at = main.cars[-1].global_position
 	await get_tree().process_frame
 	_check("take_damage PROMOTES the agent to a real ProtoCar3D", main.cars.size() == cars_before + 1)
-	_check("...at the agent's own transform (%.1fm off)" % (main.cars[-1].global_position.distance_to(vpos) if main.cars.size() > cars_before else 999.0),
-		main.cars.size() > cars_before and main.cars[-1].global_position.distance_to(vpos) < 3.0)
+	_check("...at the agent's own transform (%.2fm off)" % promoted_at.distance_to(vpos),
+		promoted and promoted_at.distance_to(vpos) < 0.5)
 	_check("...with the damage FORWARDED (chassis hp below max)",
 		main.cars.size() > cars_before
 		and (main.cars[-1].components["chassis"] as Damageable).hp < (main.cars[-1].components["chassis"] as Damageable).max_hp)
@@ -218,7 +225,11 @@ func _ready() -> void:
 	_check("...and it resolved off-view (despawned at the boundary)", not traffic.agents.has(ramper))
 
 	# 7c. IN VIEW an arrival never vanishes — it becomes a real PARKED car.
-	main.active_car.global_position = Vector3(340.0, 1.0, -180.0) # near the compound edge, in view of the ramp mouth
+	# WATCHING, NOT BLOCKING. (340, -180) sat EXACTLY on the EXIT-meridian centreline, so
+	# once agents learned to actually stop for cars (the stopping-distance law) the arrival
+	# queued behind the player forever instead of arriving. Park 40 m off the tarmac —
+	# clear of the 6.6 m in-lane band, still 148 m inside the 240 m vanish_r_min view.
+	main.active_car.global_position = Vector3(361.3, 1.0, -213.8)
 	var cars_n: int = main.cars.size()
 	traffic._promoted.clear() # free the promote cap for the arrival
 	var ramper2: Node3D = traffic.spawn_agent("EXIT-meridian", 0, 0.0, 0, 1)

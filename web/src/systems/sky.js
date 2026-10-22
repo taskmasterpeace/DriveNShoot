@@ -14,6 +14,14 @@ export const WEATHER = {
 const ORDER = ['CLEAR', 'OVERCAST', 'RAIN', 'STORM', 'DUST', 'FOG', 'ASHFALL'];
 
 const RAIN_N = 2600, MOTE_N = 2400, BOX = 110, BOX_H = 50;
+// update() runs every frame, so its colour blends use these constants and scratch objects instead
+// of allocating ~10 THREE.Colors (and regex-parsing hex strings) per frame.
+const BLENDED = ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm'];
+const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52'), MOON = new THREE.Color('#a3b6cc');
+const HEMI_DAY = new THREE.Color('#d9c7a6'), HEMI_NIGHT = new THREE.Color('#5c7189');
+const GROUND_DAY = new THREE.Color('#5a4230'), GROUND_NIGHT = new THREE.Color('#2a2622');
+const FOG_DAY = new THREE.Color('#d6bf96'), FOG_DUSK = new THREE.Color('#e08850'), FOG_NIGHT = new THREE.Color('#1c232b'), LIGHTNING = new THREE.Color('#dfe8ee');
+const _fog = new THREE.Color(), _night = new THREE.Color();
 
 export class Sky {
   constructor(scene, audio) {
@@ -26,6 +34,7 @@ export class Sky {
     this.target = { ...WEATHER.CLEAR };
     this.cur = { ...WEATHER.CLEAR };
     this.curTint = new THREE.Color(WEATHER.CLEAR.tint);
+    this.targetTint = new THREE.Color(WEATHER.CLEAR.tint); this.tintKey = WEATHER.CLEAR.tint;
     this.nextWeatherIn = 60 * 4;
     this.flash = 0;
     this.thunderQueue = [];
@@ -106,8 +115,9 @@ export class Sky {
 
     // Ease weather parameters (~6s blend).
     const k = 1 - Math.exp(-dt / 2.5);
-    for (const p of ['fog', 'clouds', 'rain', 'dust', 'ash', 'storm']) this.cur[p] = lerp(this.cur[p], this.target[p], k);
-    this.curTint.lerp(new THREE.Color(this.target.tint), k);
+    for (let i = 0; i < BLENDED.length; i++) { const p = BLENDED[i]; this.cur[p] = lerp(this.cur[p], this.target[p], k); }
+    if (this.target.tint !== this.tintKey) { this.tintKey = this.target.tint; this.targetTint.set(this.tintKey); } // parse once per weather change
+    this.curTint.lerp(this.targetTint, k);
 
     // Sun path: up at 6:00, zenith at 12:00, down at 18:00.
     const ang = ((this.time - 6) / 12) * Math.PI;
@@ -125,9 +135,7 @@ export class Sky {
     this.sun.target.position.set(center.x, 0, center.z);
 
     const low = 1 - smoothstep(0.05, 0.5, elev);
-    const sunCol = new THREE.Color('#fff4e0').lerp(new THREE.Color('#ff9a52'), low * 0.85);
-    const moonCol = new THREE.Color('#a3b6cc');
-    this.sun.color.copy(sunCol).lerp(moonCol, this.night);
+    this.sun.color.copy(SUN_DAY).lerp(SUN_LOW, low * 0.85).lerp(MOON, this.night);
     this.sun.intensity = lerp(1.1, 2.7, day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);
 
     // Lightning.
@@ -143,17 +151,16 @@ export class Sky {
     const flicker = this.flash > 0 ? this.flash * (0.6 + Math.random() * 0.4) : 0;
 
     this.hemi.intensity = lerp(1.0, 1.05, day) * (1 - 0.25 * c.clouds) + flicker * 2.5;
-    this.hemi.color.set('#d9c7a6').lerp(new THREE.Color('#5c7189'), this.night);
-    this.hemi.groundColor.set('#5a4230').lerp(new THREE.Color('#2a2622'), this.night);
+    this.hemi.color.copy(HEMI_DAY).lerp(HEMI_NIGHT, this.night);
+    this.hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, this.night);
 
     // Fog / sky colour.
-    const dayFog = new THREE.Color('#d6bf96').lerp(this.curTint, Math.min(1, c.clouds + c.dust + c.ash));
-    dayFog.lerp(new THREE.Color('#e08850'), low * day * 0.35);
-    const nightFog = new THREE.Color('#1c232b').lerp(this.curTint.clone().multiplyScalar(0.2), 0.4);
-    const fogCol = dayFog.lerp(nightFog, this.night);
-    if (flicker) fogCol.lerp(new THREE.Color('#dfe8ee'), flicker * 0.6);
-    this.fog.color.copy(fogCol);
-    this.scene.background.copy(fogCol);
+    _fog.copy(FOG_DAY).lerp(this.curTint, Math.min(1, c.clouds + c.dust + c.ash)).lerp(FOG_DUSK, low * day * 0.35);
+    _night.copy(this.curTint).multiplyScalar(0.2).lerp(FOG_NIGHT, 0.6); // night fog: dark blue with 40% of the dimmed weather tint
+    _fog.lerp(_night, this.night);
+    if (flicker) _fog.lerp(LIGHTNING, flicker * 0.6);
+    this.fog.color.copy(_fog);
+    this.scene.background.copy(_fog);
     this.fog.density = c.fog * (1 + this.night * 0.25);
 
     // Wet ground in rain.

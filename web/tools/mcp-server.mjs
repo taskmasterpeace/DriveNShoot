@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// DEATHLANDS MCP server (stdio, zero dependencies). Exposes every agent command as an MCP tool
+// DSOA MCP server (stdio, zero dependencies). Exposes every agent command as an MCP tool
 // named `dl_<command>`, with JSON Schemas generated from the live COMMANDS table, plus:
 //   dl_launch  - start dev server + headless browser (if not already connected)
 //   dl_call    - generic {cmd, args} escape hatch
@@ -51,8 +51,8 @@ function toJsonSchema(spec = {}) {
 let cachedTools = null;
 async function tools() {
   const base = [
-    { name: 'dl_launch', description: 'Start the DEATHLANDS dev server and a headless browser running the game (no-op if already connected). Call this first.', inputSchema: { type: 'object', properties: {} } },
-    { name: 'dl_call', description: 'Run any DEATHLANDS agent command: {cmd, args}. Use dl_help to list commands.', inputSchema: { type: 'object', properties: { cmd: { type: 'string' }, args: { type: 'object' } }, required: ['cmd'] } },
+    { name: 'dl_launch', description: 'Start the DSOA dev server and a headless browser running the game (no-op if already connected). Call this first.', inputSchema: { type: 'object', properties: {} } },
+    { name: 'dl_call', description: 'Run any DSOA agent command: {cmd, args}. Use dl_help to list commands.', inputSchema: { type: 'object', properties: { cmd: { type: 'string' }, args: { type: 'object' } }, required: ['cmd'] } },
     { name: 'dl_batch', description: 'Run several commands in one round trip: {batch:[{cmd,args},...]}. Stops at first failure.', inputSchema: { type: 'object', properties: { batch: { type: 'array', items: { type: 'object' } } }, required: ['batch'] } },
   ];
   if (cachedTools) return [...base, ...cachedTools];
@@ -109,8 +109,8 @@ async function handle(msg) {
     return ok(id, {
       protocolVersion: params?.protocolVersion ?? '2024-11-05',
       capabilities: { tools: { listChanged: true } },
-      serverInfo: { name: 'deathlands', version: '0.1.0' },
-      instructions: 'DEATHLANDS game engine. Call dl_launch first, then dl_selftest / dl_state. Advance time with dl_step; look with dl_screenshot. Read AGENTS.md in the repo for conventions.',
+      serverInfo: { name: 'dsoa', version: '0.1.0' },
+      instructions: 'DSOA game engine. Call dl_launch first, then dl_selftest / dl_state. Advance time with dl_step; look with dl_screenshot. Read AGENTS.md in the repo for conventions.',
     });
   }
   if (method === 'notifications/initialized' || method?.startsWith('notifications/')) return;

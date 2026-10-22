@@ -139,7 +139,25 @@ func _ready() -> void:
 	# === 6. A 2-LANE CHUNK: one slab, double-yellow, honest width ==================
 	var c2: Node3D = main.stream._spawn_chunk(-155, -65) # center (-19776, -8256), ~26m off I-35
 	var slabs2: Array = _tagged(c2, "road_slab", "I-35")
-	_check("a 2-lane lays ONE slab (got %d)" % slabs2.size(), slabs2.size() == 1)
+	# A BEND VERTEX INSIDE THE CHUNK IS TWO SEGMENTS. Counting MESHES encoded the very
+	# bug the per-segment fix removed: a chunk holding a bend drew ONE of its segments and
+	# silently dropped the other (459 segments were never drawn map-wide, and main's I-35
+	# bends at (-19750,-8250) — inside this chunk). What makes a road UNDIVIDED is one
+	# carriageway at the honest width with no median, not the mesh count.
+	_check("a 2-lane lays a carriageway per segment (got %d, >= 1)" % slabs2.size(),
+		slabs2.size() >= 1)
+	var w2_bad := 0
+	for sl in slabs2:
+		var sn := sl as Node3D
+		var mi: MeshInstance3D = sn as MeshInstance3D
+		if sn.get_child_count() > 0 and sn.get_child(0) is MeshInstance3D:
+			mi = sn.get_child(0) as MeshInstance3D
+		if mi == null or not (mi.mesh is BoxMesh):
+			w2_bad += 1
+		elif not is_equal_approx((mi.mesh as BoxMesh).size.x, 9.2):
+			w2_bad += 1
+	_check("...each at the UNDIVIDED width 9.2m (2*3.6 + 2.0 shoulders), never a twin carriageway",
+		w2_bad == 0)
 	_check("...with a YELLOW center line and NO median barrier",
 		_tagged(c2, "road_center", "I-35").size() >= 1 and _tagged(c2, "road_barrier", "I-35").is_empty())
 

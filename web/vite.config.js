@@ -27,7 +27,7 @@ function agentBridge() {
   const dispatch = () => { while (queue.length && waiters.length) waiters.shift()(queue.shift()); };
 
   return {
-    name: 'deathlands-agent-bridge',
+    name: 'dsoa-agent-bridge',
     configureServer(server) {
       // Compile errors never reach the page (the module fails to load), so capture Vite's
       // own error broadcasts too: agents see them in /agent/status and 503 replies.
