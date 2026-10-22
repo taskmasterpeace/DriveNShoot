@@ -162,9 +162,12 @@ export class VehicleDamage {
       d.misfire -= dt;
       if (d.misfire <= 0) { d.misfire = 0.4 + Math.random() * (d.engine * 3); power *= 0.1; g.audio.backfire?.(g.pan(v.x)); g.fx.smoke(v.x + Math.sin(v.h) * v.len * 0.4, 1.2, v.z + Math.cos(v.h) * v.len * 0.4, true); }
     }
-    // Radiator: holed radiators overheat under throttle; boiling cooks the engine.
-    const leakRate = 1 - d.radiator;
-    d.temp = Math.max(0, d.temp + dt * (v.throttle > 0 ? 0.02 + leakRate * 0.09 : -0.05));
+    // Radiator: holed radiators overheat under throttle; boiling cooks the engine. A sound one sheds its heat: flat out
+    // the temperature settles at 0.4, under the boil, so an hour on the interstate never cooks a healthy engine (it used
+    // to climb 0.02 a second whatever the radiator, and every car died about a minute into a highway run). A holed one
+    // can't keep up: half gone, it boils in about 20 s of throttle.
+    const leakRate = 1 - d.radiator, cool = 0.05 * (1 - leakRate * 0.8);
+    d.temp = Math.max(0, d.temp + dt * (v.throttle > 0 ? 0.02 + leakRate * 0.09 - cool * d.temp : -cool));
     if (d.temp > 1) { d.engine = Math.max(0, d.engine - dt * 0.05); if (Math.random() < dt * 8) g.fx.spawn(2, v.x + Math.sin(v.h) * v.len * 0.45, 1.4, v.z + Math.cos(v.h) * v.len * 0.45, 0, 2.5, 0, 1.2, 0.5, '#e8e4dc', -0.8); }
     if (d.temp > 1 && !d.warnedHot && v.driver === g.player) { d.warnedHot = true; g.hud.toast('ENGINE OVERHEATING', 'warn'); }
     if (d.temp < 0.8) d.warnedHot = false;
