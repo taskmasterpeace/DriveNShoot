@@ -13,6 +13,7 @@ import { ITEMS, LOOT } from '../data/items.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
+import { ROLE_TIERS } from '../data/roles.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1077,15 +1078,18 @@ function buildCommands(api) {
       run: async () => g.inventory.view(),
     },
     item: {
-      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
-      args: { give: { type: 'string' }, use: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
-      run: async ({ give, use, drop, wear, take, stow, n, quick }) => {
+      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); use=<med> on=<character> patches somebody else up instead (within 4.5 m, hurt or bleeding: a heal deed, the medic\'s work - in the game, talk to them); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
+      args: { give: { type: 'string' }, use: { type: 'string' }, on: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
+      run: async ({ give, use, on, drop, wear, take, stow, n, quick }) => {
         const inv = g.inventory, C = inv.carried, idx = (box, id) => box.slots.findIndex((s) => s.id === id);
         const known = (id) => need(ITEMS[id], `unknown item ${id}; known: ${Object.keys(ITEMS).join(', ')}`);
         const out = {};
         if (quick) { const r = g.quickUse(); out.quick = r ? r.text : null; }
         if (give) { known(give); out.given = inv.add(C, give, n, ITEMS[give].uses ? { left: ITEMS[give].uses } : {}); inv.changed(); }
-        if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
+        if (use && on) {
+          known(use); const c = api.findChar(on); need(c && c !== P(), `no character ${on}`);
+          const r = inv.treat(c, use); need(r.ok, r.why); out.used = r.text; out.patient = { id: c.id, hp: Math.round(c.hp), maxHp: c.maxHp, bleeding: (c.bleed ?? 0) > 0.1 };
+        } else if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
         if (drop) { known(drop); const i = idx(C, drop); need(i >= 0, `you carry no ${drop}`); out.dropped = inv.move(C, i, inv.groundAt(P().x, P().z), n); inv.prune(); }
         if (wear) { known(wear); const i = idx(C, wear); need(i >= 0, `you carry no ${wear}`); const r = inv.swapPack(i); need(r.ok, r.why); out.worn = r.worn; }
         if (take || stow) {
@@ -1159,15 +1163,38 @@ function buildCommands(api) {
       },
     },
     simTick: {
-      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands. Returns strength/stores before and after and what happened.',
+      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands; standings drift and roles you are not working at fade (docs/design/WEB_ROLES.md). Returns strength/stores before and after, what happened, and the roles you hold after.',
       args: { hours: { type: 'number', default: 24 } },
       run: async ({ hours }) => {
         need(hours > 0 && hours <= 240, 'hours must be in (0,240]');
         const S = g.society, before = S.sim.view(), seq0 = S.chronicle.seq, t0 = performance.now();
         for (let d = 0; d < Math.floor(hours / 24); d++) S.sim.tickDay();
-        S.factions.tickHours(hours); S.sim.advance(hours);
+        S.factions.tickHours(hours); S.sim.advance(hours); g.roles.tickHours(hours);
         const ms = +(performance.now() - t0).toFixed(2);
-        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), ms };
+        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), roles: g.roles.ids.filter((id) => g.roles.st[id].r > 0.05).map((id) => ({ id, renown: r1(g.roles.st[id].r), tier: ROLE_TIERS[g.roles.st[id].tier] })), ms };
+      },
+    },
+    roles: {
+      group: 'society', desc: "What the world calls you (docs/design/WEB_ROLES.md): no class is picked, you become what you keep doing. Every role with its tier (none, rumoured, known, renowned; `active` is what the world acts on, 0 while suspended), renown and how far to the next tier (and the line it would fall back under), why you hold it (what earned it, what wore it), what it opens (how each faction reads you, prices, perks, the dialogue and jobs it unlocks, offices), your jobs and offices, and priceMul per faction. id= one role; brief=true just the held ones. renown= sets that role's renown (staging, like standing set=; the tier still follows the hysteresis). reset=true clears every role.",
+      args: { id: { type: 'string' }, brief: { type: 'boolean', default: false }, renown: { type: 'number' }, reset: { type: 'boolean', default: false } },
+      run: async ({ id, brief, renown, reset }) => {
+        const R = g.roles;
+        if (reset) R.reset();
+        if (id) need(R.rows[id], `unknown role; known: ${R.ids.join(',')}`);
+        if (renown !== undefined) { need(id, 'renown= needs id='); need(renown >= 0 && renown <= 100, 'renown is 0..100'); R.setRenown(id, renown); }
+        if (id) return { role: R.view(id, NPCS), perks: { ...R.perk }, priceMul: Object.fromEntries(g.society.factions.ids.map((f) => [f, r1(R.priceMul(f) * 100) / 100])) };
+        const v = R.view(null, NPCS);
+        if (brief) return { held: v.held, best: v.best, renown: Object.fromEntries(v.roles.filter((r) => r.renown > 0).map((r) => [r.id, { renown: r.renown, tier: r.tier, active: r.active, next: r.next, suspended: r.suspended }])), priceMul: v.priceMul, jobs: v.jobs, offices: v.offices };
+        return v;
+      },
+    },
+    registerRole: {
+      group: 'content', desc: 'Add or update a role row (a new role is a row, not code; schema in src/data/roles.js): {name, short, color (never purple), blurb, tiers:[rumoured,known,renowned] (rising, ≤100), halfLife (game days), requires:{standing:{faction:min}, wanted, skill, carry, place, office}, earn:[{on: deed|drive|jump|search|loot|trade|event|hour, ...filters, pts, per, seen, note}], wear:[...], opens:{factions:{id:{standing, hostile, from}}, prices:{id|*:mul}, perks, director, refusedBy, greet, shout, radio}}.',
+      args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
+      run: async ({ id, def }) => {
+        const r = g.roles.register(id, def);
+        need(!r.error, r.error);
+        return { id, warnings: r.warnings, role: g.roles.view(id, NPCS) };
       },
     },
     registerFaction: {
@@ -1322,6 +1349,18 @@ function societyMatch(g, c) {
   return true;
 }
 
+// Role conditions (docs/design/WEB_ROLES.md): ifRole { role, atLeast (default known) } · ifNotRole { role, atLeast
+// (default rumoured) } · ifJob { job, is: open | active | ready } · ifOffice: an office id you hold.
+function roleMatch(g, c) {
+  const R = g.roles;
+  if (!R) return !(c.ifRole || c.ifJob || c.ifOffice);
+  if (c.ifRole && !R.atLeast(c.ifRole.role, c.ifRole.atLeast ?? 'known')) return false;
+  if (c.ifNotRole && R.atLeast(c.ifNotRole.role, c.ifNotRole.atLeast ?? 'rumoured')) return false;
+  if (c.ifJob) { const is = c.ifJob.is ?? 'open', j = c.ifJob.job; if (!(is === 'open' ? R.jobOpen(j) : is === 'active' ? R.jobActive(j) : R.jobReady(j))) return false; }
+  if (c.ifOffice && !R.office(c.ifOffice)) return false;
+  return true;
+}
+
 function compileNpc(def) {
   const nodes = {};
   for (const [id, n] of Object.entries(def.nodes)) {
@@ -1329,10 +1368,15 @@ function compileNpc(def) {
       text: n.text,
       choices: (n.choices ?? [{ t: '[Leave]', end: true }]).map((c) => ({
         t: c.t, next: c.next, end: c.end ?? !c.next, deed: c.deed,
-        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier
-          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c)
+        role: c.ifRole?.role, from: c.ifRole ? c.ifRole.atLeast ?? 'known' : undefined, // read by the roles command (what a role opens)
+        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier || c.ifRole || c.ifNotRole || c.ifJob || c.ifOffice
+          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c) && roleMatch(g, c)
           : c.req,
         do: (g) => {
+          // Role effects: start or pay out a role job, take an office (data/roles.js ROLE_JOBS / ROLE_OFFICES).
+          if (c.job?.start) g.roles?.jobStart(c.job.start);
+          if (c.job?.pay) g.roles?.jobPay(c.job.pay);
+          if (c.swear) g.roles?.swear(c.swear, def.id);
           if (c.cost && !g.spend(c.cost)) return;
           if (c.give) g.give({ cash: c.give.cash ?? 0, ammo: c.give.ammo ?? {} });
           if (c.give?.weapon && WEAPONS[c.give.weapon] && !g.inv.weapons.includes(c.give.weapon)) {
@@ -1938,6 +1982,7 @@ async function runSelfTest(api) {
     await C('teleport', STAGE);
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - STAGE.x, c.z - STAGE.z) < 90) g.removeChar(c);
     const F = g.society.factions, D = g.society.deeds;
+    g.roles.reset(); // what the battery did so far (kills, drives, searches) must not colour how the factions read you
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
@@ -2487,6 +2532,7 @@ export function snapshot(g) {
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
+    roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
   };
 }
 
@@ -2540,6 +2586,7 @@ export function restore(g, s) {
   if (s.inventory) g.inventory.load(s.inventory);
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
+  if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }
