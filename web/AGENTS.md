@@ -102,6 +102,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 - **Compile errors are visible:** a file that fails to parse shows up in `status.recentErrors` with file:line:col, even though the page can't load it.
 
 - **One active tab:** if several game tabs are open, the newest one gets the commands and the rest stand by (`status` shows `tabs` and `activeTab`).
+- **After a long command, let the tab poll again:** a tab running `selftest` does not poll the bridge, so 25 s in `status` shows `tabs: 0`, and a command sent the moment the long one returns can get 503 "no game tab connected". A fresh-page reload lost that way means the next selftest runs on the same page (on a reused page the trade check can meet a shelf restocked for a later day). Wait until `status` shows `lastPollMsAgo` under a few seconds, reload, and check the page is fresh (`game.time` under ~30, `game.society.day` 0) before the next battery.
 - **Page errors are reported:** syntax errors and crashes in the page are forwarded to the bridge and appear in `status.recentErrors` and in 503 replies, so a broken edit never shows up as just "no game tab".
 - **Code edits keep your place:** a full-page reload in dev snapshots and restores the game state (position, inventory, quests, time, every entity).
 - **`?scenario=<name>` in the URL** runs a scenario on load. `?agent=1` skips the title screen.

@@ -2976,10 +2976,15 @@ async function runSelfTest(api) {
   await check('roles: the director sends a known medic somebody bleeding who walks up asking for one, and patching them ends it well; the morning radio names you by your best-known role', async () => {
     await stage();
     const D = g.society.director, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq;
+    // Pacing isn't what this checks (a role call fired earlier on this page leaves a 10-minute cooldown): clear the
+    // role call's and put the director's cooldowns back after, as the raid check does.
+    const cool0 = { ...D.cool };
+    delete D.cool['tpl:role_call'];
     let caller = null;
     try {
       await C('roles', { id: 'medic', renown: 50 });
-      const offered = D.view().eligible.some((e) => e.tpl === 'role_call');
+      const dv = D.view(), offered = dv.eligible.some((e) => e.tpl === 'role_call');
+      if (!offered) return JSON.stringify({ offered, blocked: dv.blocked, active: dv.active, cooldowns: dv.cooldowns, alive: g.player.alive, talking: g.dialogue.active, medic: R.view('medic')?.active });
       const r = await C('fireEvent', { tpl: 'role_call' });
       caller = r.ok ? api.findChar(r.spawned?.[0]?.id) : null;
       if (!caller) return JSON.stringify({ offered, fired: r });
@@ -2999,7 +3004,7 @@ async function runSelfTest(api) {
       await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
       const dg = g.events.find((e) => e.seq > seq0 && e.type === 'radioDigest'), named = !!dg && /patching people up/.test(dg.lines?.[1] ?? '');
       return offered && hurt && walks && well && named ? true : JSON.stringify({ offered, hurt, walks, d0: r1(d0), outcome: end?.outcome ?? null, digest: dg?.lines ?? null });
-    } finally { if (caller && g.chars.includes(caller)) g.removeChar(caller); inv.load(sv); await C('setTime', { hour: 12 }); R.reset(); }
+    } finally { if (caller && g.chars.includes(caller)) g.removeChar(caller); inv.load(sv); await C('setTime', { hour: 12 }); R.reset(); D.cool = cool0; }
   });
   await check('roles: a new role is a data row - registered at runtime, earned by the deed it names (a trade with Mags), read by the faction and the prices it names', async () => {
     await stage();
