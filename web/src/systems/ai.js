@@ -20,6 +20,7 @@ export class AI {
     if (a.faction === 'ally') return b.faction === 'raider' || b.grudge === this.g.player || b.target === this.g.player;
     if (b.faction === 'ally' && a.faction === 'raider') return true;
     if (a.grudge === b) return true;
+    if (a.vendetta && a.weapon && b === this.g.player) return true; // they remember what you did to theirs
     // Toward the player, standing decides (WEB_WORLD_MEMORY): a faction at hostile or worse shoots on sight, a
     // friendlier one holds fire; Rust Haven's bulls also answer to the wanted stars. NPC-vs-NPC rules stay below.
     const P = this.g.player, F = this.g.society?.factions;
@@ -154,6 +155,8 @@ export class AI {
       const pd = Math.hypot(g.player.x - c.x, g.player.z - c.z);
       // Far-away NPCs sleep (simulation LOD).
       if (pd > 150 && !c.target) continue;
+      // A named person you've wronged (or helped) says so when you come close - once a minute at most.
+      if (c.npc && pd < 9 && g.time > (c.barkAt ?? 0)) g.society?.memory.maybeBark(c);
 
       if (g.dialogue.active && g.dialogue.npc === c) {
         c.face = angleLerp(c.face, Math.atan2(g.player.x - c.x, g.player.z - c.z), Math.min(1, dt * 8));

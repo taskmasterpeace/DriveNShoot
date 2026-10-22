@@ -17,6 +17,27 @@ export function tierOf(s, t = TIERS) {
   return 'allied';
 }
 
+// What a named person can remember about the player (phase 2). base: opinion points at full weight; days: the
+// half-life; revenge ≥ 0.8 starts a vendetta (an armed person attacks on sight); stack: same-kind memories add up to
+// this weight instead of refreshing; clears: remembering this one wipes that kind. `say` lines are spoken to you:
+// {about} is the person it concerns.
+export const MEMORY_KINDS = {
+  killedKin: { base: -70, days: 120, revenge: 1, say: 'You put my {about} in the ground. Get out of my sight.' },
+  shotKin: { base: -45, days: 60, revenge: 0.5, say: 'You shot my {about}. Doc Reyes dug the lead out. I have not forgotten.' },
+  killedFriend: { base: -45, days: 90, revenge: 0.5, say: '{about} was my friend. You killed {about}.' },
+  shotMe: { base: -40, days: 30, revenge: 0.5, say: 'You shot me. Keep your distance.' },
+  robbedMe: { base: -35, days: 30, say: 'You took what was mine.' },
+  betrayed: { base: -50, days: 90, revenge: 0.8, say: 'I trusted you once.' },
+  sawKill: { base: -25, days: 30, say: 'I saw what you did to {about}.' },
+  owesMe: { base: -10, days: 30, say: 'You still owe me.' },
+  savedMe: { base: 45, days: 60, say: 'You pulled me out of that. I do not forget.' },
+  savedKin: { base: 35, days: 60, say: 'You saved my {about}. Anything you need.' },
+  helped: { base: 15, days: 45, say: 'Good work out there.' },
+  paidDebt: { base: 15, days: 45, clears: 'owesMe', say: 'We are square.' },
+  traded: { base: 2, days: 30, stack: 5, say: '' },
+  gift: { base: 10, days: 30, say: 'Thanks for the gift.' },
+};
+
 // values: how much one unit of deed magnitude moves this faction's standing. Keys are looked up in order
 // verb:self (done to us) → verb:<faction id> → verb:enemy (relation ≤ -50) → verb:friend (≥ 50) → verb:any.
 export const FACTIONS = {

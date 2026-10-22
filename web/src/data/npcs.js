@@ -6,14 +6,14 @@ const money = (n) => `$${n}`;
 
 export const NPCS = [
   {
-    id: 'okonkwo', name: 'Sheriff Adaeze Okonkwo', title: 'Warden Captain · Rust Haven', flag: 'NG', faction: 'warden', weapon: 'smg', essential: true, // quest giver
+    id: 'okonkwo', name: 'Sheriff Adaeze Okonkwo', title: 'Warden Captain · Rust Haven', flag: 'NG', faction: 'warden', weapon: 'smg', essential: true, friends: ['reyes'], // quest giver
     where: 'gate', portrait: { seed: 101, skin: '#5a321b', hair: '#1b1410', hat: 'cowboy', mood: 'neutral', shirt: '#4d5a3e', gear: 'bandolier', beard: false },
     start: 'hi',
     nodes: {
       hi: { text: (g) => g.quests.bounty === 'done' ? 'Dustwolves are quieter since you went out there. Haven owes you.' : g.quests.bounty === 'active' ? (g.stats.raiderKills - g.quests.bountyStart >= 6 ? 'Word on the wire says six Dustwolves will not ride again. That your work?' : `Dustwolves down: ${g.stats.raiderKills - g.quests.bountyStart} of 6. Keep going.`) : 'Stranger. You walk in my gate armed, you walk by my rules. No shooting townsfolk. Understood?',
         choices: [
           { t: 'Understood. Got any work?', next: 'work', req: (g) => !g.quests.bounty },
-          { t: 'Six Dustwolves are dead. Pay up.', next: 'pay', req: (g) => g.quests.bounty === 'active' && g.stats.raiderKills - g.quests.bountyStart >= 6, do: (g) => { g.quests.bounty = 'done'; g.give({ cash: 250 }); g.emit('questComplete', { quest: 'bounty', reward: 250 }); } },
+          { t: 'Six Dustwolves are dead. Pay up.', next: 'pay', deed: { v: 'deliver', m: 8 }, req: (g) => g.quests.bounty === 'active' && g.stats.raiderKills - g.quests.bountyStart >= 6, do: (g) => { g.quests.bounty = 'done'; g.give({ cash: 250 }); g.emit('questComplete', { quest: 'bounty', reward: 250 }); } },
           { t: 'What happened to this place?', next: 'lore' },
           { t: '[Leave]', end: true },
         ] },
@@ -28,13 +28,13 @@ export const NPCS = [
     },
   },
   {
-    id: 'reyes', name: 'Doc Lupe Reyes', title: 'Clinic · Rust Haven', flag: 'MX', faction: 'drifter', essential: true, // healer + respawn point
+    id: 'reyes', name: 'Doc Lupe Reyes', title: 'Clinic · Rust Haven', flag: 'MX', faction: 'drifter', essential: true, friends: ['okonkwo'], // healer + respawn point
     where: 'shop:0', portrait: { seed: 202, skin: '#c68863', hair: '#2a1a12', hat: 'long', mood: 'smile', shirt: '#d8d2c4', gear: 'none', beard: false },
     start: 'hi',
     nodes: {
       hi: { text: (g) => g.player.hp < g.player.maxHp ? 'Mira, you are leaking all over my floor. Sit down.' : 'Clean hands, clean needles, fair prices. That is the whole clinic.',
         choices: [
-          { t: `Patch me up (${money(40)})`, req: (g) => g.player.hp < g.player.maxHp, next: 'healed', do: (g) => { if (g.spend(40)) { g.player.hp = g.player.maxHp; g.player.bleed = 0; } } },
+          { t: `Patch me up (${money(40)})`, deed: { v: 'trade' }, req: (g) => g.player.hp < g.player.maxHp, next: 'healed', do: (g) => { if (g.spend(40)) { g.player.hp = g.player.maxHp; g.player.bleed = 0; } } },
           { t: 'Seen a lot of gunshot wounds lately?', next: 'wounds' },
           { t: '[Leave]', end: true },
         ] },
@@ -43,29 +43,29 @@ export const NPCS = [
     },
   },
   {
-    id: 'ike', name: 'Ike "Two-Hands" Mercer', title: 'Gunsmith · Rust Haven', flag: 'US', faction: 'drifter',
+    id: 'ike', name: 'Ike "Two-Hands" Mercer', title: 'Gunsmith · Rust Haven', flag: 'US', faction: 'drifter', friends: ['kenji'],
     where: 'shop:1', portrait: { seed: 303, skin: '#e0ac85', hair: '#8a8682', hat: 'cap', mood: 'neutral', shirt: '#5a4a38', gear: 'goggles', beard: true },
     start: 'hi',
     nodes: {
       hi: { text: 'Everything here shoots. Some of it even shoots straight. What do you need?',
         choices: [
-          { t: `Rust-9 SMG (${money(150)})`, req: (g) => !g.inv.weapons.includes('smg'), next: 'sold', do: (g) => { if (g.spend(150)) { g.inv.weapons.push('smg'); g.inv.ammo.smg += 64; g.hud.toast('ACQUIRED: RUST-9 SMG', 'job'); } } },
-          { t: `Sawn-off shotgun (${money(200)})`, req: (g) => !g.inv.weapons.includes('shotgun'), next: 'sold', do: (g) => { if (g.spend(200)) { g.inv.weapons.push('shotgun'); g.inv.ammo.shells += 16; g.hud.toast('ACQUIRED: SAWN-OFF', 'job'); } } },
-          { t: `Ammo crate (${money(50)})`, next: 'sold', do: (g) => { if (g.spend(50)) { g.inv.ammo.pistol += 24; g.inv.ammo.smg += 64; g.inv.ammo.shells += 8; } } },
+          { t: `Rust-9 SMG (${money(150)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('smg'), next: 'sold', do: (g) => { if (g.spend(150)) { g.inv.weapons.push('smg'); g.inv.ammo.smg += 64; g.hud.toast('ACQUIRED: RUST-9 SMG', 'job'); } } },
+          { t: `Sawn-off shotgun (${money(200)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('shotgun'), next: 'sold', do: (g) => { if (g.spend(200)) { g.inv.weapons.push('shotgun'); g.inv.ammo.shells += 16; g.hud.toast('ACQUIRED: SAWN-OFF', 'job'); } } },
+          { t: `Ammo crate (${money(50)})`, deed: { v: 'trade' }, next: 'sold', do: (g) => { if (g.spend(50)) { g.inv.ammo.pistol += 24; g.inv.ammo.smg += 64; g.inv.ammo.shells += 8; } } },
           { t: '[Leave]', end: true },
         ] },
       sold: { text: 'Pleasure. Don\'t point it at my wall, the wall\'s load-bearing.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
     },
   },
   {
-    id: 'kenji', name: 'Kenji Mori', title: 'Mechanic · Rust Haven', flag: 'JP', faction: 'drifter',
+    id: 'kenji', name: 'Kenji Mori', title: 'Mechanic · Rust Haven', flag: 'JP', faction: 'drifter', friends: ['ike'],
     where: 'shop:2', portrait: { seed: 404, skin: '#e0ac85', hair: '#1b1410', hat: 'wrap', mood: 'neutral', shirt: '#2f3b42', gear: 'goggles', beard: false },
     start: 'hi',
     nodes: {
       hi: { text: 'The Whaler out front is mine. Welded the harpoon gun myself. You want to know how it works, or you want to break it?',
         choices: [
           { t: 'How does the harpoon work?', next: 'harpoon' },
-          { t: `Repair my last ride (${money(60)})`, req: (g) => g.lastVehicle && !g.lastVehicle.dead && g.lastVehicle.hp < g.lastVehicle.maxHp, next: 'fixed', do: (g) => { if (g.spend(60)) g.lastVehicle.hp = g.lastVehicle.maxHp; } },
+          { t: `Repair my last ride (${money(60)})`, deed: { v: 'trade' }, req: (g) => g.lastVehicle && !g.lastVehicle.dead && g.lastVehicle.hp < g.lastVehicle.maxHp, next: 'fixed', do: (g) => { if (g.spend(60)) g.lastVehicle.hp = g.lastVehicle.maxHp; } },
           { t: '[Leave]', end: true },
         ] },
       harpoon: { text: 'Aim with the mouse, press H. It flies. If it bites a car, the cable holds — you tow them. Press H again and you YANK. Light cars roll. People... do not do well.', choices: [{ t: 'Beautiful.', next: 'hi' }, { t: '[Leave]', end: true }] },
@@ -73,13 +73,13 @@ export const NPCS = [
     },
   },
   {
-    id: 'mags', name: 'Mags Delacroix', title: 'Water Trader · Rust Haven', flag: 'HT', faction: 'drifter',
+    id: 'mags', name: 'Mags Delacroix', title: 'Water Trader · Rust Haven', flag: 'HT', faction: 'drifter', friends: ['saoirse', 'tomas'],
     where: 'shop:3', portrait: { seed: 505, skin: '#6e3f22', hair: '#1b1410', hat: 'wrap', mood: 'smile', shirt: '#6b3a24', gear: 'none', beard: false },
     start: 'hi',
     nodes: {
       hi: { text: 'Clean water, three filters deep. Under the Solar King that makes me the richest woman in Arizona.',
         choices: [
-          { t: `Buy a canteen (${money(15)}) — +30 health`, next: 'drink', do: (g) => { if (g.spend(15)) g.player.hp = Math.min(g.player.maxHp, g.player.hp + 30); } },
+          { t: `Buy a canteen (${money(15)}) — +30 health`, deed: { v: 'trade' }, next: 'drink', do: (g) => { if (g.spend(15)) g.player.hp = Math.min(g.player.maxHp, g.player.hp + 30); } },
           { t: 'Heard any rumors?', next: 'rumor' },
           { t: '[Leave]', end: true },
         ] },
@@ -88,7 +88,7 @@ export const NPCS = [
     },
   },
   {
-    id: 'saoirse', name: 'Saoirse "Static" Byrne', title: 'Radio DJ · STATIC 1660 AM', flag: 'IE', faction: 'drifter',
+    id: 'saoirse', name: 'Saoirse "Static" Byrne', title: 'Radio DJ · STATIC 1660 AM', flag: 'IE', faction: 'drifter', friends: ['mags'],
     where: 'shop:4', portrait: { seed: 606, skin: '#f1c9a5', hair: '#b0301e', hat: 'long', mood: 'smile', shirt: '#2f3b42', gear: 'none', beard: false },
     start: 'hi',
     nodes: {
@@ -104,7 +104,7 @@ export const NPCS = [
     },
   },
   {
-    id: 'tomas', name: 'Old Tomás Varela', title: 'Wanderer · The Glass Flats', flag: 'CU', faction: 'drifter',
+    id: 'tomas', name: 'Old Tomás Varela', title: 'Wanderer · The Glass Flats', flag: 'CU', faction: 'drifter', friends: ['mags'],
     where: { x: 120, z: 352 }, portrait: { seed: 707, skin: '#a86b45', hair: '#d8d4cc', hat: 'cowboy', mood: 'neutral', shirt: '#5a4a38', gear: 'scar', beard: true },
     start: 'hi',
     nodes: {

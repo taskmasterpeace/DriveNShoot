@@ -14,7 +14,7 @@ const NO_ONE = Object.freeze([]);
 export class Deeds {
   constructor(game, chronicle, factions) {
     this.g = game; this.chron = chronicle; this.F = factions;
-    this.rumors = Array.from({ length: MAX_RUMORS }, () => ({ live: false, echo: false, seq: 0, due: 0, witness: null, wid: '', fid: '', verb: '', of: '', o: '', on: '', p: '', x: 0, z: 0, m: 0, learn: 1, sd: false, stars: 0 }));
+    this.rumors = Array.from({ length: MAX_RUMORS }, () => ({ live: false, echo: false, seq: 0, due: 0, witness: null, wid: '', fid: '', verb: '', of: '', o: '', on: '', onpc: '', downed: false, p: '', x: 0, z: 0, m: 0, learn: 1, sd: false, stars: 0 }));
     this.pending = 0; this.nextDue = Infinity;
     this.scratch = []; this.sawOnly = 0;
     this.landed = 0; this.silenced = 0; this.overflow = 0;
@@ -74,7 +74,9 @@ export class Deeds {
     if (mine && seen.length) {
       // The law answers at once to what its own armed people saw; the rest of the word travels.
       let starsNow = false;
+      const mem = g.society?.memory;
       for (const c of seen) {
+        if (c.npc && mem) mem.witnessed(c, verb, target); // a named witness remembers it firsthand
         const row = this.F.rows[c.fi], lawful = row.stars && (o.stars ?? 0) > 0;
         if (lawful && c.weapon && !starsNow) { g.raiseWanted(o.stars); starsNow = true; }
         this.queue(rec, c, target, lawful && !c.weapon ? o.stars : 0, o.sd);
@@ -93,6 +95,7 @@ export class Deeds {
     Object.assign(slot, {
       live: true, echo: false, seq: rec.seq, due: this.g.time + (lo + Math.random() * (hi - lo)) * Math.max(0.5, Math.min(2, far / 200)),
       witness: c, wid: c.id, fid: c.fid, verb: rec.v, of: rec.of, o: rec.o, on: rec.on, p: rec.p, x: rec.x, z: rec.z, m: rec.m,
+      onpc: target?.npc?.id ?? '', downed: (target?.downedT ?? 0) > 0,
       learn: c === target ? 1 : row.cohesion ?? 0.5, sd: !!sd, stars: stars ?? 0,
     });
     this.pending++;
@@ -128,10 +131,23 @@ export class Deeds {
     const before = this.F.standing[this.F.index[r.fid]];
     const d = this.F.learn(r.fid, r.verb, r.of, r.m, r.learn, r.sd);
     if (r.stars) g.raiseWanted(r.stars);
+    g.society?.memory?.heard(r); // the victim's kin and friends, and the faction's leaders, hear it too
     this.chron.add({ t: +g.time.toFixed(2), day: g.society?.day ?? 0, hr: +(g.sky.time ?? 0).toFixed(2), a: 'player', af: 'player', v: r.verb, o: r.o, on: r.on, of: r.of, p: r.p, x: r.x, z: r.z, m: r.m, w: [w.id], ws: 1, k: K.reported, src: 'rumor' });
     const row = this.F.row(r.fid);
     if (d) g.hud?.toast?.(`WORD SPREADS — ${row.name.toUpperCase()} HEARD`, d < 0 ? 'hot' : 'job');
     g.emit('rumor', { record: r.seq, witness: w.id, witnessName: w.npc?.name ?? w.name, faction: r.fid, verb: r.verb, delta: +d.toFixed(1), standing: +(before + d).toFixed(1) });
+  }
+
+  // A job done or a deal struck face to face: the counterparty is the witness, so their people learn at once.
+  direct(verb, c, m) {
+    const g = this.g, fid = c?.fid;
+    if (!fid) return null;
+    const rec = this.record(verb, { target: c, m, witness: false, src: 'dialogue' });
+    const d = this.F.learn(fid, verb, fid, rec?.m ?? 0, 1);
+    g.society?.memory?.dealt(c, verb);
+    if (rec) rec.k |= K.reported;
+    g.emit('dealt', { verb, npc: c.npc?.id ?? c.id, faction: fid, delta: +d.toFixed(1) });
+    return rec;
   }
 
   find(seq) { const c = this.chron; for (let n = 0; n < c.size; n++) { const r = c.ring[(c.head - 1 - n + c.cap) % c.cap]; if (r.seq === seq) return r; if (r.seq < seq) break; } return null; }
@@ -181,7 +197,7 @@ export class Deeds {
     };
   }
 
-  save() { return this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, dueIn: +(r.due - this.g.time).toFixed(2), wid: r.wid, fid: r.fid, verb: r.verb, of: r.of, o: r.o, on: r.on, p: r.p, x: r.x, z: r.z, m: r.m, learn: r.learn, sd: r.sd, stars: r.stars, echo: r.echo })); }
+  save() { return this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, dueIn: +(r.due - this.g.time).toFixed(2), wid: r.wid, fid: r.fid, verb: r.verb, of: r.of, o: r.o, on: r.on, onpc: r.onpc, downed: r.downed, p: r.p, x: r.x, z: r.z, m: r.m, learn: r.learn, sd: r.sd, stars: r.stars, echo: r.echo })); }
 
   load(list) {
     for (const r of this.rumors) r.live = false;

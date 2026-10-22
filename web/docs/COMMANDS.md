@@ -104,6 +104,8 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `factions` | `id?:string` | Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances. |
 | `standing` | `faction:string set?:number add?:number` | Read, set or add to a faction's standing toward you (-100..100). Tiers: hunted ≤ -80, hostile ≤ -40 (shoot on sight), wary, neutral, friendly, allied ≥ 60. |
 | `relation` | `a:string b:string set?:number add?:number` | Read or set how two factions feel about each other (-100..100, mutual): ≤ -50 is war, ≥ 50 an alliance. |
+| `memory` | `id:string` | What a named person remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead. |
+| `remember` | `id:string kind?:string weight?:number about?:string heard?:boolean forget?:boolean` | Give a named person a memory of you (or forget=true to clear it; no kind clears all). kind: killedKin\|shotKin\|killedFriend\|shotMe\|robbedMe\|betrayed\|sawKill\|owesMe\|savedMe\|savedKin\|helped\|paidDebt\|traded\|gift. |
 
 ## content
 

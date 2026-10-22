@@ -53,6 +53,16 @@ export class Dialogue {
     this.flagEl.appendChild(label);
     this.el.classList.remove('hidden');
     this.g.audio.blip();
+    // They remember you (WEB_WORLD_MEMORY phase 2): too low an opinion and there is no business to do.
+    const mem = this.g.society?.memory;
+    if (c.npc && mem?.refuses(c)) {
+      const top = mem.top(c);
+      this.say(c.npc.refuse?.text ?? (top && top.value < 0 && top.line ? top.line : 'I have nothing to say to you.'), [{ t: '[Leave]', end: true }]);
+      this.g.emit('refused', { npc: c.npc.id, opinion: +mem.opinion(c).toFixed(1), kind: top?.kind ?? null });
+      return;
+    }
+    const remark = c.npc && mem?.remark(c);
+    if (remark) this.g.hud.subtitle(`${c.npc.name}: ${remark}`, 4);
     if (c.npc) this.show(c.npc.startFor?.(this.g) ?? c.npc.start);
     else {
       const lines = BARKS[c.faction] ?? BARKS.drifter;
@@ -88,6 +98,8 @@ export class Dialogue {
     this.g.audio.blip();
     this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: ch.t });
     ch.do?.(this.g);
+    // A job paid or a deal struck counts with their people (deliver, trade, pay...).
+    if (ch.deed && this.npc) this.g.society?.deeds.direct(ch.deed.v, this.npc, ch.deed.m);
     if (ch.end) this.close();
     else if (ch.next) this.show(ch.next);
   }

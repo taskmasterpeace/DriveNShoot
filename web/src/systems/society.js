@@ -1,6 +1,7 @@
 import { Chronicle } from './chronicle.js';
 import { Factions } from './factions.js';
 import { Deeds } from './deeds.js';
+import { Memory } from './memory.js';
 import { TOWN, districtName } from '../world/city.js';
 
 // The society facade (docs/design/WEB_WORLD_MEMORY.md): owns the chronicle, the factions and the deeds, keeps the
@@ -14,6 +15,7 @@ export class Society {
     this.chronicle = new Chronicle();
     this.factions = new Factions(game);
     this.deeds = new Deeds(game, this.chronicle, this.factions);
+    this.memory = new Memory(game, this.factions);
     this.day = 0;
     this.lastHour = null;
     this.hourAcc = 0;
@@ -60,7 +62,7 @@ export class Society {
     this.deeds.update();
   }
 
-  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save() }; }
+  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save(), memory: this.memory.save() }; }
 
   load(s) {
     if (!s) return;
@@ -70,6 +72,7 @@ export class Society {
     this.factions.load(s.factions);
     for (const c of this.g.chars) this.factions.assign(c);
     this.deeds.load(s.rumors);
+    this.memory.load(s.memory);
   }
 
   view() {

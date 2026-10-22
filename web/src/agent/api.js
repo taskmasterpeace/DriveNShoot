@@ -5,7 +5,7 @@ import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
-import { VERBS, TIERS } from '../data/society.js';
+import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { K } from '../systems/chronicle.js';
 
 // ============================================================================
@@ -896,6 +896,21 @@ function buildCommands(api) {
         return { a, b, value: v, war: v <= -50, alliance: v >= 50 };
       },
     },
+    memory: {
+      group: 'society', desc: "What a named person remembers about you: each memory (kind, who it's about, firsthand or heard, what it's worth now), their opinion, whether they refuse to deal and whether they want you dead.",
+      args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => { need(g.chars.some((c) => c.npc?.id === id) || g.society.memory.byNpc.has(id), `no named person ${id}`); return g.society.memory.view(id); },
+    },
+    remember: {
+      group: 'society', desc: `Give a named person a memory of you (or forget=true to clear it; no kind clears all). kind: ${Object.keys(MEMORY_KINDS).join('|')}.`,
+      args: { id: { type: 'string', required: true }, kind: { type: 'string' }, weight: { type: 'number', default: 1 }, about: { type: 'string', default: '' }, heard: { type: 'boolean', default: false }, forget: { type: 'boolean', default: false } },
+      run: async ({ id, kind, weight, about, heard, forget }) => {
+        need(g.chars.some((c) => c.npc?.id === id), `no named person ${id}`);
+        need(forget || MEMORY_KINDS[kind], `unknown kind; known: ${Object.keys(MEMORY_KINDS).join(',')}`);
+        if (forget) g.society.memory.forget(id, kind); else g.society.memory.remember(id, kind, { weight, about, heard });
+        return g.society.memory.view(id);
+      },
+    },
     registerFaction: {
       group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
       args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
@@ -1029,15 +1044,34 @@ export function validateNpc(def) {
 }
 
 // Turn declarative choice effects into the function hooks the dialogue system uses.
+// Society conditions for pack dialogue (WEB_WORLD_MEMORY phase 2), checked against the person you're talking to:
+//   ifMemory / ifNotMemory: a memory kind they hold of you ("killedKin")
+//   ifOpinion: { atLeast, atMost }   ifTier: { faction (default theirs), atLeast, atMost } with tiers hunted..allied
+const TIER_ORDER = ['hunted', 'hostile', 'wary', 'neutral', 'friendly', 'allied'];
+function societyMatch(g, c) {
+  const who = g.dialogue?.npc, S = g.society;
+  if (!who || !S) return !(c.ifMemory || c.ifOpinion || c.ifTier);
+  const holds = (kind) => !!S.memory.byNpc.get(who.npc?.id)?.mems.some((m) => m.kind === kind && Math.abs(S.memory.value(m)) >= 1);
+  if (c.ifMemory && !holds(c.ifMemory)) return false;
+  if (c.ifNotMemory && holds(c.ifNotMemory)) return false;
+  if (c.ifOpinion) { const o = S.memory.opinion(who); if (c.ifOpinion.atLeast !== undefined && o < c.ifOpinion.atLeast) return false; if (c.ifOpinion.atMost !== undefined && o > c.ifOpinion.atMost) return false; }
+  if (c.ifTier) {
+    const F = S.factions, i = F.index[c.ifTier.faction ?? who.fid], t = TIER_ORDER.indexOf(F.tiers[i]);
+    if (c.ifTier.atLeast && t < TIER_ORDER.indexOf(c.ifTier.atLeast)) return false;
+    if (c.ifTier.atMost && t > TIER_ORDER.indexOf(c.ifTier.atMost)) return false;
+  }
+  return true;
+}
+
 function compileNpc(def) {
   const nodes = {};
   for (const [id, n] of Object.entries(def.nodes)) {
     nodes[id] = {
       text: n.text,
       choices: (n.choices ?? [{ t: '[Leave]', end: true }]).map((c) => ({
-        t: c.t, next: c.next, end: c.end ?? !c.next,
-        req: c.ifQuest || c.ifNotQuest
-          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest))
+        t: c.t, next: c.next, end: c.end ?? !c.next, deed: c.deed,
+        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier
+          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c)
           : c.req,
         do: (g) => {
           if (c.cost && !g.spend(c.cost)) return;
@@ -1623,6 +1657,37 @@ async function runSelfTest(api) {
     D.pending = 0; D.nextDue = Infinity; F.set('drifters', F.row('drifters').start);
     return pending > 0 && ok ? true : JSON.stringify({ pending, after: D.pending, seq, seqAfter: g.society.chronicle.seq, standing: st });
   });
+  await check('world memory: a killed-kin memory closes the shop, forgetting reopens it, and a vendetta turns a gun on you', async () => {
+    await stage();
+    const since = g.eventSeq;
+    await C('remember', { id: 'ike', kind: 'killedKin', about: 'Mateo' });
+    const shut = await C('talk', { id: 'ike', force: true });
+    const refused = g.events.some((e) => e.seq > since && e.type === 'refused' && e.npc === 'ike');
+    g.dialogue.close();
+    await C('remember', { id: 'ike', forget: true });
+    const open = await C('talk', { id: 'ike', force: true });
+    g.dialogue.close();
+    const vo = g.chars.find((c) => c.npc?.id === 'vo');
+    await C('remember', { id: 'vo', kind: 'killedKin', about: 'his brother' });
+    const hunt = !!vo && g.ai.hostile(vo, g.player);
+    await C('remember', { id: 'vo', forget: true });
+    const calm = !!vo && !g.ai.hostile(vo, g.player);
+    return refused && shut.choices?.length === 1 && open.choices?.length > 1 && hunt && calm ? true : JSON.stringify({ refused, shut: shut.choices?.length, open: open.choices?.length, hunt, calm, vo: !!vo });
+  });
+  await check("world memory: Mateo remembers being shot, and the word reaches his sister Rosa", async () => quickRumors(async () => {
+    await stage();
+    const mateo = g.chars.find((c) => c.npc?.id === 'mateo'), rosa = g.chars.find((c) => c.npc?.id === 'rosa');
+    if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
+    await C('teleport', { x: mateo.x - 6, z: mateo.z });
+    mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
+    await C('fire', { id: mateo.id, shots: 1 });
+    const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
+    await C('step', { seconds: 9 });
+    const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
+    mateo.hold = false; mateo.hp = mateo.maxHp;
+    for (const id of ['mateo', 'rosa']) g.society.memory.forget(id);
+    return firsthand && heard ? true : JSON.stringify({ firsthand, heard, mateo: (await C('memory', { id: 'mateo' })).memories, rosa: (await C('memory', { id: 'rosa' })).memories, rumors: g.society.deeds.view() });
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
