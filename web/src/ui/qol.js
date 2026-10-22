@@ -188,6 +188,15 @@ export class QOL {
       c.beginPath(); c.moveTo(x - 7, y + 4); c.lineTo(x + 6, y + 4); c.lineTo(x + 6, y - 4); c.closePath(); c.fill(); c.stroke();
       c.font = '700 11px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeText(s.name, x + 10, y + 4); c.fillText(s.name, x + 10, y + 4);
     }
+    // Military bases (data/bases.js): a five-point star in the Remnant's olive, the name, red while the post is on alert.
+    for (const s of g.bases?.sites ?? []) {
+      const [x, y] = T((s.fence.x0 + s.fence.x1) / 2, (s.fence.z0 + s.fence.z1) / 2);
+      c.fillStyle = s.alert === 'hostile' ? '#d8452e' : '#a8b070'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+      c.beginPath();
+      for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? 3.2 : 8; c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+      c.closePath(); c.fill(); c.stroke();
+      c.font = '700 11px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeText(s.name, x + 11, y + 4); c.fillText(s.name, x + 11, y + 4);
+    }
     for (const ch of g.chars) if (ch.npc && ch.alive) {
       const [x, y] = T(ch.x, ch.z);
       c.fillStyle = '#f5c542'; c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();

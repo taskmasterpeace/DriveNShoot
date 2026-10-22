@@ -347,7 +347,7 @@ export class HUD {
       const el = document.createElement('div');
       el.className = 'chip t-neutral';
       el.innerHTML = '<div class="chip-head"><b class="chip-pip"></b><span class="chip-name"></span></div><div class="chip-foot"><div class="chip-meter"><i></i></div><span class="chip-tier"></span></div>';
-      const name = String(row.name ?? id).replace(/^the\s+/i, '').toUpperCase();
+      const name = String(row.short ?? row.name ?? id).replace(/^the\s+/i, '').toUpperCase(); // a row's `short` fits the chip
       el.querySelector('.chip-name').textContent = name;
       el.querySelector('.chip-pip').style.background = row.color ?? '#9a8a6a';
       this.el.respect.appendChild(el);

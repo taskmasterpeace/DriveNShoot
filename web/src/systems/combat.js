@@ -6,6 +6,9 @@ export const WEAPONS = {
   pistol:  { name: '.45 REVOLVER', short: 'PISTOL', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25 },
   smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15 },
   shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6 },
+  // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
+  // SMG, fires slower. Generic by design: no make, no model.
+  rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22 },
 };
 
 export class Combat {

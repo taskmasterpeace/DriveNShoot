@@ -9,8 +9,10 @@ import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
-import { ITEMS } from '../data/items.js';
-import { DOOR, WINDOW } from '../data/interiors.js';
+import { ITEMS, LOOT } from '../data/items.js';
+import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
+import { BASE_RULES } from '../data/bases.js';
+import { RAY_BULLET } from '../engine/collision.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -219,13 +221,15 @@ function buildCommands(api) {
       run: async ({ since, type }) => ({ events: g.events.filter((e) => e.seq > since && (!type || e.type === type)), last: g.eventSeq }),
     },
     map: {
-      group: 'observe', desc: 'World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, named NPC homes.',
+      group: 'observe', desc: 'World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, military bases (base for the detail), named NPC homes.',
       run: async () => ({
         bounds: { min: -HALF, max: HALF }, units: 'metres; +x east, +z south (screen down); heading 0 = facing +z',
-        districts: [{ name: 'RUST HAVEN', rule: 'max(|x|,|z|) < 88, walled settlement, gates on roads' }, { name: 'OLD PHOENIX RUINS', rule: '88 <= max < 250' }, { name: 'THE GLASS FLATS', rule: 'max >= 250, desert, raider camps' }],
+        districts: [{ name: 'RUST HAVEN', rule: 'max(|x|,|z|) < 88, walled settlement, gates on roads' }, { name: 'OLD PHOENIX RUINS', rule: '88 <= max < 250' }, { name: 'THE GLASS FLATS', rule: 'max >= 250, desert, raider camps, the Federal Remnant outpost' }],
         roads: { spacing: 80, lines: [-320, -240, -160, -80, 0, 80, 160, 240, 320], route66: 'z = 0, spans the whole map' },
         shops: g.world.spawns.shops.filter((b) => b.shopName).map((b) => ({ name: b.shopName, x: r1((b.minX + b.maxX) / 2), z: r1((b.minZ + b.maxZ) / 2) })),
-        camps: g.world.spawns.camps, namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
+        camps: g.world.spawns.camps,
+        bases: g.bases.sites.map((s) => ({ id: s.id, name: s.name, faction: s.faction, x: s.ox, z: s.oz, fence: { ...s.fence }, gate: { x: s.ox + s.row.gate.at, z: s.row.gate.side === 'N' ? s.fence.z0 : s.fence.z1 }, alert: s.alert })),
+        namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
       }),
     },
     perf: {
@@ -556,6 +560,18 @@ function buildCommands(api) {
         return I2.windowView(w);
       },
     },
+    base: {
+      group: 'world', desc: "A military base (data/bases.js; the Federal Remnant's OUTPOST NINE in the north-west Glass Flats by default): where it is (fence, gate), the alert (calm | warned | hostile) and why, how many seconds of grace are left after a warning, where you stand (inside? seen by whom? in a pool of light? your standing and tier with its faction), every soldier (post or patrol, alive, perched on a tower, hostile to you), its buildings, its doors (the armory's steel door: locked, kicks left), its searchable boxes (searched yet, what was in them), its parked vehicles and its lights. action=alarm brings the post down on you now, action=calm stands it down (clears every grudge it holds against you), action=warn makes a sentry warn you as if you had just walked in.",
+      args: { id: { type: 'string', default: 'outpost9' }, action: { type: 'string', default: 'status', enum: ['status', 'alarm', 'calm', 'warn'] } },
+      run: async ({ id, action }) => {
+        const B = g.bases, s = B.byId[id];
+        need(s, `unknown base; known: ${Object.keys(B.byId).join(',')}`);
+        if (action === 'alarm') B.alarm(s, 'agent', B.nearestGuard(s, P().x, P().z));
+        else if (action === 'calm') { B.calm(s, 'agent'); s.warnedAt = -1e9; s.cleared = false; s.shotWarned = false; }
+        else if (action === 'warn') B.warn(s, B.nearestGuard(s, P().x, P().z));
+        return B.view(s);
+      },
+    },
     submerge: {
       group: 'player', desc: 'While swimming: dive under (on=true) — hidden from AI, bullets can\'t reach, breath drains ~20s — or surface (on=false).',
       args: { on: { type: 'boolean', default: true } },
@@ -852,8 +868,8 @@ function buildCommands(api) {
     setWeather: { group: 'world', desc: 'Change weather (blends over ~6s; instant=true snaps).', args: { key: { type: 'string', required: true, enum: Object.keys(WEATHER) }, instant: { type: 'boolean', default: false } },
       run: async ({ key, instant }) => { g.sky.setWeather(key); if (instant) Object.assign(g.sky.cur, WEATHER[key]); return { weather: key, label: WEATHER[key].label }; } },
     spawn: {
-      group: 'world', desc: 'Spawn a character. kind=raider|drifter|warden. Optional name, flag (ISO code), weapon, hostile grudge vs player.',
-      args: { kind: { type: 'string', default: 'raider', enum: ['raider', 'drifter', 'warden', 'zombie'] }, runner: { type: 'boolean' }, x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 1 },
+      group: 'world', desc: 'Spawn a character. kind=raider|drifter|warden|soldier (a Federal Remnant soldier with a service rifle, faction remnant). Optional name, flag (ISO code), weapon, hostile grudge vs player.',
+      args: { kind: { type: 'string', default: 'raider', enum: ['raider', 'drifter', 'warden', 'soldier', 'zombie'] }, runner: { type: 'boolean' }, x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 1 },
         name: { type: 'string' }, flag: { type: 'string' }, weapon: { type: 'string' }, hp: { type: 'number' }, angry: { type: 'boolean', default: false } },
       run: async ({ kind, x, z, count, name, flag, weapon, hp, angry, runner }) => {
         const ids = [];
@@ -862,6 +878,7 @@ function buildCommands(api) {
           const c = kind === 'raider'
             ? g.spawnRaider(sx, sz, Math.random, weapon)
             : kind === 'zombie' ? g.zombies.spawn(sx, sz, runner)
+            : kind === 'soldier' ? g.bases.spawnSoldier(sx, sz, Math.random, weapon ?? 'rifle')
             : g.addChar({ x: sx, z: sz, faction: kind, weapon: weapon ?? (kind === 'warden' ? 'smg' : null), hp: hp ?? 100, colors: outfit(kind), name: name ?? `${kind[0].toUpperCase()}${kind.slice(1)}`, flag: flag ?? g.randomFlag(Math.random) });
           need(c, 'character budget full (160)');
           if (name) c.name = name;
@@ -2330,6 +2347,114 @@ async function runSelfTest(api) {
       return picked && pried ? true : JSON.stringify({ picked, pried, noises, locked: door.locked });
     } finally { g.noise = noise; inv.load(sv); I.setLocked(door, false); }
   });
+  // ---- the military base (data/bases.js, systems/bases.js; docs/design/WEB_MILITARY.md §8). Staged at OUTPOST NINE with
+  // the player on their own keys; the Remnant's standing, the post's alert and anything opened are put back after.
+  const OB = g.bases.byId.outpost9, RF = g.society.factions, RI = RF.index.remnant;
+  const baseReset = () => { g.bases.calm(OB, 'selftest', true); OB.warnedAt = -1e9; OB.cleared = false; OB.shotWarned = false; };
+  const withRemnant = async (standing, fn) => {
+    const s0 = RF.standing[RI], l0 = RF.lifetime[RI];
+    if (g.player.inVehicle) g.exitVehicle(true);
+    g.autopilot = null; g.aimOverride = null; g.crouchOverride = false; g.player.crouch = false;
+    baseReset(); RF.set('remnant', standing);
+    try { return await fn(); } finally { baseReset(); RF.standing[RI] = s0; RF.lifetime[RI] = l0; RF.retier(RI, false); await C('setTime', { hour: 12 }); await C('teleport', STAGE); }
+  };
+  await check('base: the chain-link stops you on foot and a car at speed, but not sight or a round; the way in is the gate', async () => withRemnant(40, async () => {
+    const f = OB.fence;
+    await C('setTime', { hour: 12 });
+    await C('teleport', { x: f.x1 + 2.2, z: OB.oz - 3 });
+    await holdKey('KeyA', 2.5); // walk west, into the east fence
+    const walker = g.player.x > f.x1;
+    const v = g.vehiclesSys.spawn('sedan', f.x1 + 15, OB.oz - 9, -Math.PI / 2); v.stuntCar = true;
+    await C('enterVehicle', { id: v.id, force: true });
+    v.vx = -13; g.driveOverride = { throttle: 1, steer: 0 }; await api._step(150); g.driveOverride = null;
+    const car = v.x > f.x1, carX = v.x;
+    g.exitVehicle(true); g.vehiclesSys.remove(v);
+    const path = g.nav.foot.find(f.x1 + 3, OB.oz - 3, OB.ox, OB.oz), gx = OB.ox + OB.row.gate.at;
+    const viaGate = !!path && path.some((p) => Math.abs(p.x - gx) < 5 && Math.abs(p.z - f.z1) < 3);
+    const see = g.los(f.x1 + 6, OB.oz - 3, f.x1 - 6, OB.oz - 3);
+    const round = g.statics.raycast(f.x1 + 6, OB.oz - 3, -1, 0, 12, RAY_BULLET) >= 11.9;
+    return walker && car && viaGate && see && round ? true : JSON.stringify({ walker, x: r1(g.player.x), car, carX: r1(carX), fence: f.x1, viaGate, see, round });
+  }));
+  await check('base: a sentry warns you once inside the wire, stay and the post opens fire; a Remnant-friendly player is waved through; a shot inside brings it down at once', async () => withRemnant(RF.row('remnant').start, async () => {
+    const gx = OB.ox + OB.row.gate.at, gz = OB.fence.z1;
+    await C('setTime', { hour: 12 });
+    await C('teleport', { x: gx, z: gz + 3.5 }); // on the spur, past the chicane, facing the gate
+    const seq0 = g.eventSeq;
+    await holdKey('KeyW', 3, () => g.player.z < gz - 4); // in through the gate on your own feet
+    await api._step(20);
+    const warned = OB.alert === 'warned' && g.events.some((e) => e.seq > seq0 && e.type === 'baseWarning');
+    const heldFire = OB.guards.every((c) => !g.ai.hostile(c, g.player));
+    await api._step(Math.round((BASE_RULES.grace + 1) * 60));
+    const hostile = OB.alert === 'hostile' && OB.guards.filter((c) => c.alive && g.ai.hostile(c, g.player)).length >= 6;
+    const alarm = g.events.find((e) => e.seq > seq0 && e.type === 'baseAlarm');
+    const warnings = g.events.filter((e) => e.seq > seq0 && e.type === 'baseWarning').length;
+    // Friendly: the same walk is waved through.
+    baseReset(); RF.set('remnant', 40);
+    await C('teleport', { x: gx, z: gz + 3.5 });
+    const seq1 = g.eventSeq;
+    await holdKey('KeyW', 3, () => g.player.z < gz - 4);
+    await api._step(Math.round((BASE_RULES.grace + 1) * 60));
+    const waved = OB.alert === 'calm' && g.events.some((e) => e.seq > seq1 && e.type === 'baseCleared') && !g.events.some((e) => e.seq > seq1 && e.type === 'baseWarning');
+    // Neutral again and inside: one shot fired and the post comes down without a warning.
+    baseReset(); RF.set('remnant', RF.row('remnant').start);
+    await C('give', { pistol: 12 }); await C('equip', { weapon: 'pistol' });
+    const seq2 = g.eventSeq;
+    await C('fire', { x: g.player.x + 4, z: g.player.z - 9, shots: 1 });
+    const shot = OB.alert === 'hostile' && g.events.some((e) => e.seq > seq2 && e.type === 'baseAlarm' && e.why === 'shots');
+    return warned && heldFire && hostile && alarm?.why === 'stayed' && warnings === 1 && waved && shot ? true
+      : JSON.stringify({ warned, heldFire, hostile, alarm: alarm ?? null, warnings, waved, shot, alert: OB.alert, at: [r1(g.player.x), r1(g.player.z)] });
+  }));
+  await check('base: the armory is a locked steel door that holds you, and its ammo crates roll military loot', async () => withRemnant(40, async () => {
+    const d = OB.doors.find((x) => x.building === 'armory'), door = g.interiors.byId.get(d.id);
+    await C('teleport', { x: door.x + door.nx * 1.6 + door.ux * 0.3, z: door.z + door.nz * 1.6 + door.uz * 0.3 });
+    await api._step(6);
+    await holdKey(keyFor(-door.nx, -door.nz), 1.5);
+    const held = outSide(door, g.player.x, g.player.z) > 0.2 && door.locked && Math.abs(door.leaves[0].th) < 0.01;
+    const steel = door.material === 'metal' && DOOR_MATERIALS.metal.name === 'steel door' && door.kicks === DOOR_MATERIALS.metal.kicks;
+    const allowed = new Set(LOOT.military.rows.map((r) => r[0]));
+    const crates = [...g.inventory.boxes.values()].filter((b) => b.id.startsWith('box:base:outpost9:armory'));
+    const rolls = crates.map((b) => { const was = b.rolled; g.inventory.open(b); const ids = b.slots.map((x) => x.id); if (!was) { b.rolled = false; b.slots = []; } return ids; });
+    g.inventory.opened = null;
+    const military = crates.length === 3 && crates.every((b) => b.kind === 'military') && rolls.every((r) => r.length > 0 && r.every((id) => allowed.has(id)));
+    const sealed = !g.world.buildings.find((b) => b.baseBuilding === 'armory').doors.length; // no unlocked way in
+    // placeFurniture() gives every crate/shelf in a building a home or shop table: inside the wire, only the base's own
+    // boxes (and bodies, ground piles) may be containers.
+    const f = OB.fence, strays = [...g.inventory.boxes.values()].filter((b) => b.x > f.x0 && b.x < f.x1 && b.z > f.z0 && b.z < f.z1 && !b.id.startsWith('box:base:') && b.kind !== 'ground' && !b.id.startsWith('body:')).map((b) => `${b.id}=${b.kind}`);
+    return held && steel && military && sealed && !strays.length ? true : JSON.stringify({ door: d.id, held, at: r1(outSide(door, g.player.x, g.player.z)), locked: door.locked, steel, rolls, sealed, strays });
+  }));
+  await check('base: the motor pool parks a PATROL TRUCK and an ARMORED CARRIER; both are vehicle rows that spawn anywhere and drive', async () => {
+    const parked = OB.vehicles.filter((v) => !v.dead && Math.hypot(v.x - OB.ox, v.z - OB.oz) < 45).map((v) => v.type).sort().join(',');
+    const out = {};
+    for (const [type, need2] of [['patrol', 14], ['apc', 8]]) {
+      await stage();
+      const r = await C('spawnVehicle', { type, x: STAGE.x + 6, z: STAGE.z - 14, heading: Math.PI / 2 });
+      const v = api.findVeh(r.id);
+      await C('enterVehicle', { id: v.id, force: true });
+      const x0 = v.x;
+      await C('drive', { throttle: 1, seconds: 2.5 });
+      out[type] = { name: r.name, moved: r1(v.x - x0), ok: v.x - x0 > need2 && !v.dead };
+      g.exitVehicle(true); g.vehiclesSys.remove(v);
+    }
+    return parked === 'apc,patrol' && out.patrol.ok && out.apc.ok && out.patrol.name === 'PATROL TRUCK' && out.apc.name === 'ARMORED CARRIER' ? true : JSON.stringify({ parked, out });
+  });
+  await check('base: at night the searchlights sweep and the floodlights burn; a sentry picks you out further in a beam than in the dark', async () => withRemnant(40, async () => {
+    const tw = OB.towers.find((t) => t.id === 'tower_nw'), sentry = OB.guards.find((c) => c.post?.id === 'tower_nw' && c.alive);
+    await C('setTime', { hour: 23 }); await api._step(20);
+    const on = OB.poolMesh.visible && OB.beamMesh.visible;
+    const p0 = { x: tw.poolX, z: tw.poolZ };
+    await api._step(240);
+    const swept = Math.hypot(tw.poolX - p0.x, tw.poolZ - p0.z) > 1;
+    // 25 m down the west fence from the tower, in the open: dark, then under its beam.
+    await C('teleport', { x: tw.x, z: tw.z + 25 });
+    const search = OB.pools.filter((p) => p.kind === 'search');
+    for (const p of search) { p.x = OB.ox + 200; p.z = OB.oz; }
+    const dark = !g.bases.lit(OB, g.player.x, g.player.z) && !g.bases.spotter(OB, [sentry]);
+    const beam = search.find((p) => p.tower === tw); beam.x = g.player.x; beam.z = g.player.z;
+    const lit = g.bases.lit(OB, g.player.x, g.player.z) && g.bases.spotter(OB, [sentry]) === sentry;
+    await C('setTime', { hour: 12 }); await api._step(10);
+    const off = !OB.poolMesh.visible && !OB.beamMesh.visible;
+    return on && swept && dark && lit && off && sentry ? true : JSON.stringify({ on, swept, dark, lit, off, sentry: sentry?.id ?? null, range: r1(g.bases.spotRange(OB)) });
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -2361,6 +2486,7 @@ export function snapshot(g) {
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
+    bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
   };
 }
 
@@ -2413,6 +2539,7 @@ export function restore(g, s) {
   if (s.stunts) g.stunts.load(s.stunts);
   if (s.inventory) g.inventory.load(s.inventory);
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
+  if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

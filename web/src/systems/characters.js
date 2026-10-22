@@ -365,7 +365,7 @@ export class CharacterRenderer {
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false, knocked = false;
-    const gy = sp || !this.groundAt ? 0 : this.groundAt(ch.x, ch.z); // a ramp or a dune under their feet
+    const gy = sp || !this.groundAt ? 0 : ch.perchY || this.groundAt(ch.x, ch.z); // a tower deck, a ramp or a dune under their feet
     if (sp) {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
@@ -615,14 +615,16 @@ export class CharacterRenderer {
 // ---- wardrobe --------------------------------------------------------------------------------------
 const SKINS = ['#f1c9a5', '#e0ac85', '#c68863', '#a86b45', '#8d5532', '#6e3f22', '#4f2c17'];
 const HAIR = ['#1b1410', '#3b2516', '#6a4428', '#a0794a', '#c9b48a', '#7a7672', '#2a2a2a'];
-const SHIRT = { drifter: ['#7d6a52', '#5f6a5a', '#8a5a3a', '#6b6156', '#4f5a62', '#9a7a52', '#7a3e2a', '#5a5040'], raider: ['#2b2420', '#4a2018', '#3a3530', '#5a3020', '#3d2a1e'], warden: ['#4d5a3e', '#56603f'], player: ['#2f4a52'] };
-const PANTS = { drifter: ['#3b3a36', '#4c4232', '#2f3438', '#5a4a36', '#3e4a52'], raider: ['#1f1c1a', '#2a2622', '#3a2a20'], warden: ['#2e3328'], player: ['#2a2622'] };
+// soldier: the Federal Remnant's old-issue fatigues, olive and faded desert tan, never matched.
+const SHIRT = { drifter: ['#7d6a52', '#5f6a5a', '#8a5a3a', '#6b6156', '#4f5a62', '#9a7a52', '#7a3e2a', '#5a5040'], raider: ['#2b2420', '#4a2018', '#3a3530', '#5a3020', '#3d2a1e'], warden: ['#4d5a3e', '#56603f'], soldier: ['#5c6146', '#676549', '#7a7253', '#555a40'], player: ['#2f4a52'] };
+const PANTS = { drifter: ['#3b3a36', '#4c4232', '#2f3438', '#5a4a36', '#3e4a52'], raider: ['#1f1c1a', '#2a2622', '#3a2a20'], warden: ['#2e3328'], soldier: ['#4c5038', '#5d5a43', '#6a634a'], player: ['#2a2622'] };
 const BOOTS = ['#2b241e', '#3a2a1c', '#1c1a18', '#5a4630'];
 const HAT_COLORS = ['#5a3f24', '#3d3530', '#6b5a3a', '#7a4a2a', '#2f3b42', '#4a4a38'];
 const STYLE = {
   drifter: { hats: ['short', 'short', 'cap', 'wrap', 'cowboy', 'long', 'beanie', 'bald'], gear: ['none', 'none', 'pack', 'vest', 'poncho', 'bandolier'], acc: ['none', 'none', 'none', 'goggles', 'mask'], bare: 0.35 },
   raider: { hats: ['mohawk', 'mohawk', 'bandana', 'short', 'bald', 'long'], gear: ['pads', 'pads', 'vest', 'bandolier'], acc: ['none', 'goggles', 'mask', 'eyepatch'], bare: 0.7 },
   warden: { hats: ['cowboy', 'cap', 'helmet'], gear: ['vest', 'vest', 'pack'], acc: ['none'], bare: 0.1 },
+  soldier: { hats: ['helmet', 'helmet', 'helmet', 'cap'], gear: ['vest', 'vest', 'pack'], acc: ['none', 'none', 'none', 'goggles'], bare: 0.12 },
   player: { hats: ['cap'], gear: ['vest'], acc: ['none'], bare: 0 },
 };
 // The infected wear what they turned in: civilian, worker and soldier clothes, torn and stained.
@@ -640,8 +642,8 @@ export function outfit(faction, rng = Math.random) {
   return {
     skin: pick(SKINS), hair: faction === 'raider' && rng() < 0.4 ? '#b0301e' : pick(HAIR),
     shirt: pick(SHIRT[faction] ?? SHIRT.drifter), pants: pick(PANTS[faction] ?? PANTS.drifter), boots: pick(BOOTS),
-    hat: faction === 'warden' ? pick(['#4a4f38', '#5a3f24']) : pick(HAT_COLORS), hatStyle: pick(st.hats), gearStyle: pick(st.gear), accStyle: pick(st.acc),
-    gear: faction === 'raider' ? '#2a2420' : faction === 'warden' ? '#3d4a32' : pick(['#4a3a2a', '#5a4a32', '#3a3a30', '#6a5034']),
+    hat: faction === 'warden' ? pick(['#4a4f38', '#5a3f24']) : faction === 'soldier' ? pick(['#4d5338', '#5b5a42', '#6b6448']) : pick(HAT_COLORS), hatStyle: pick(st.hats), gearStyle: pick(st.gear), accStyle: pick(st.acc),
+    gear: faction === 'raider' ? '#2a2420' : faction === 'warden' ? '#3d4a32' : faction === 'soldier' ? pick(['#454a36', '#58553f']) : pick(['#4a3a2a', '#5a4a32', '#3a3a30', '#6a5034']),
     mask: pick(['#6a2a1e', '#3a3a3a', '#5a4a32']), sleeves: rng() < st.bare ? 'short' : 'long',
   };
 }

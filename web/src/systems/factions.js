@@ -83,6 +83,7 @@ export class Factions {
     switch (c.faction) {
       case 'warden': return 'rusthaven';
       case 'raider': return 'dustwolves';
+      case 'soldier': return 'remnant';
       case 'zombie': return 'infected';
       case 'player': return null;
       default: return Math.max(Math.abs(c.home?.x ?? c.x), Math.abs(c.home?.z ?? c.z)) < TOWN ? 'rusthaven' : 'drifters';
