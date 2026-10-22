@@ -178,7 +178,11 @@ src/
     convoy.js          Dustwolf war convoys: formation driving, break-to-engage, gun-truck gunner, loot hauler
     audio.js           synthesized WebAudio (guns, explosions, thunder, rain, engine)
   ui/
-    hud.js / hud.css   clock+weather, cash, wanted stars, minimap, health, weapon/speedo, toasts, vignettes
+    hud.js / hud.css   the stamped-steel HUD (target: docs/design/hud-target-2026-10-22.jpg): clock/weather/wanted
+                       plate, faction respect chips, licence-plate cash, GPS bezel minimap, street sign, health/stamina
+                       plate + food/water gauges (shown only when g.needs exists) + cloth flag, weapon plate (cartridges,
+                       dog tags, throwable) or the analog dash when driving, toasts, vignettes. Change-only DOM writes.
+    hudart.js          every HUD texture (plates, paper, sign, bezel, gauge faces, flags, sprites) painted once at boot
     dialogue.js        dialogue panel: typewriter, numbered choices
     portrait.js        procedural portraits + real flag drawings (FLAGS table)
   data/npcs.js         named NPCs + dialogue trees, ambient barks, name lists
