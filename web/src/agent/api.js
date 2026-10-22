@@ -185,7 +185,7 @@ function buildCommands(api) {
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo },
-          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(),
+          cash: g.cash, wanted: g.wanted, quests: g.quests, stats: g.stats, society: g.society.view(), needs: g.survival.view(), body: g.skillsSys.view(),
           world: { time: g.sky.clock, hour: r1(g.sky.time), phase: g.sky.phase, weather: g.sky.weatherKey, night: r1(g.sky.night) },
           dialogue: api.dialogueState(),
           nearby: { hostiles: near.filter((c) => g.ai.hostile(c, p)).length, npcs: near.filter((c) => c.npc).map((c) => c.id), total: near.length },
@@ -947,6 +947,16 @@ function buildCommands(api) {
         if (food !== undefined) { need(food >= 0 && food <= 1, 'food is 0..1'); N.food = food; N.pips.food = S2.pip(food); }
         if (water !== undefined || food !== undefined) S2.update(0); // recompute the effects now
         return S2.view();
+      },
+    },
+    skills: {
+      group: 'player', desc: 'Strength, dexterity, endurance (0-10, grown by doing: hits and reloads, sprinting and swimming, hauling a heavy load), what they do for you now, and what you carry (kg against capacity). strength=, dexterity=, endurance= set a level.',
+      args: { strength: { type: 'number' }, dexterity: { type: 'number' }, endurance: { type: 'number' } },
+      run: async (a) => {
+        const S = g.skillsSys;
+        for (const k of ['strength', 'dexterity', 'endurance']) if (a[k] !== undefined) { need(a[k] >= 0 && a[k] <= 10, `${k} is 0..10`); S.lv[k] = Math.round(a[k]); S.xp[k] = 0; }
+        S.recompute();
+        return S.view();
       },
     },
     registerFaction: {
@@ -1769,6 +1779,27 @@ async function runSelfTest(api) {
     await C('needs', { water: 0.85, food: 0.8 });
     return drained && slowed && after.water >= 0.5 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, after: after.water });
   });
+  await check('skills: hits teach dexterity, dexterity steadies the shot and the reload, a heavy load slows you and stops the sprint', async () => {
+    await stage();
+    const S = g.skillsSys, xp0 = S.xp.dexterity, lv0 = S.lv.dexterity;
+    const target = person('drifter', 6, 0, { hp: 900 });
+    await C('fire', { id: target.id, shots: 1 });
+    const learned = S.xp.dexterity > xp0 || S.lv.dexterity > lv0;
+    g.removeChar(target);
+    const base = { spread: g.skills.spreadMul, reload: g.skills.reloadMul };
+    await C('skills', { dexterity: 6 });
+    const steadier = g.skills.spreadMul < base.spread && g.skills.reloadMul < base.reload;
+    await C('skills', { dexterity: lv0 });
+    const shells = g.inv.ammo.shells;
+    g.inv.ammo.shells += 700; S.recompute(); // ~31 kg of shells: over a starting back's 24 kg
+    const over = g.skills.overloaded && g.skills.speedMul < 1;
+    const x0 = g.player.x;
+    g.autopilot = null; g.aimOverride = null;
+    await C('moveTo', { x: g.player.x + 30, z: g.player.z, maxSeconds: 1 }).catch(() => null);
+    const moved = Math.abs(g.player.x - x0);
+    g.inv.ammo.shells = shells; S.recompute();
+    return learned && steadier && over && moved < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved) });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1795,6 +1826,7 @@ export function snapshot(g) {
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
+    skills: g.skillsSys.save(),
   };
 }
 
@@ -1841,6 +1873,7 @@ export function restore(g, s) {
   // The society last: pending rumors find their witnesses by id among the people just restored.
   if (s.society) g.society.load(s.society);
   if (s.needs) g.survival.load(s.needs);
+  if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

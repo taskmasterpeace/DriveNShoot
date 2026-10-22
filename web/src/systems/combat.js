@@ -29,7 +29,7 @@ export class Combat {
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
     for (let p = 0; p < w.pellets; p++) {
-      const a = ang + (Math.random() - 0.5) * 2 * w.spread;
+      const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? g.skills?.spreadMul ?? 1 : 1); // dexterity steadies the player's hands
       this.hitscan(ch, ox, oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
     }
     return true;
@@ -68,6 +68,7 @@ export class Combat {
     g.fx.tracer(ox, oz, hx, hz, 1.45);
     if (kind === 'char') {
       this.damage(target, dmg, shooter, dx, dz);
+      if (shooter === g.player) g.skillsSys?.onHit();
     } else if (kind === 'veh') {
       g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
       g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);

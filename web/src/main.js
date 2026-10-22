@@ -17,6 +17,7 @@ import { Combat, WEAPONS } from './systems/combat.js';
 import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
+import { Skills } from './systems/skills.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -122,6 +123,7 @@ class Game {
     this.quests = {};
     this.inv = { weapons: ['pistol'], current: 'pistol', mag: { pistol: 6, smg: 32, shotgun: 2 }, ammo: { pistol: 36, smg: 0, shells: 0 }, throwables: { frag: 2, molotov: 2, smoke: 1, flash: 1, pipe: 0, sticky: 0, rock: 99 }, throwable: 'frag' };
     this.lastVehicle = null;
+    this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -575,10 +577,10 @@ class Game {
     p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
     p.stamina = p.stamina ?? 1;
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
-    const sprint = wantSprint && p.stamina > 0.04;
+    const sprint = wantSprint && p.stamina > 0.04 && !this.skills.overloaded; // over your carry weight: no sprinting
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
-    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
+    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
     if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
     p.diveCool = (p.diveCool ?? 0) - dt;
@@ -604,7 +606,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6;
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul; // a heavy pack slows you
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -738,7 +740,7 @@ class Game {
   reload() {
     const p = this.player, k = this.inv.current, w = WEAPONS[k];
     if (p.reloading > 0 || this.inv.mag[k] >= w.mag || this.inv.ammo[w.ammo] <= 0) return;
-    p.reloading = w.reload;
+    p.reloading = w.reload * this.skills.reloadMul; // dexterity makes quick hands
     this.audio.reload();
   }
 
@@ -751,6 +753,7 @@ class Game {
         const need = w.mag - this.inv.mag[k];
         const take = Math.min(need, this.inv.ammo[w.ammo]);
         this.inv.mag[k] += take; this.inv.ammo[w.ammo] -= take;
+        this.skillsSys.gain('dexterity', 1.5);
       }
       return;
     }
@@ -885,6 +888,7 @@ class Game {
       this.ai.update(simDt); this.nanGuard('ai');
       this.society.update(simDt);
       this.survival.update(simDt);
+      this.skillsSys.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');

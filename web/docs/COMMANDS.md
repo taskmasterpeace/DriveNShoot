@@ -52,6 +52,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `recruit` | `id:string` | Make a living non-hostile character your follower (faction ally): follows you, fights your enemies, boards your vehicle, shoots out of their own window, and takes the wheel if you slide seats (C). |
 | `dismiss` | `id:string` | Send a follower on their way. |
 | `needs` | `water?:number food?:number` | Water and food (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...), what they cost you right now, and game hours left. water=, food= set them. |
+| `skills` | `strength?:number dexterity?:number endurance?:number` | Strength, dexterity, endurance (0-10, grown by doing: hits and reloads, sprinting and swimming, hauling a heavy load), what they do for you now, and what you carry (kg against capacity). strength=, dexterity=, endurance= set a level. |
 
 ## world
 
