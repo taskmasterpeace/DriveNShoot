@@ -2745,21 +2745,31 @@ async function runSelfTest(api) {
       return held && dipped && gone && toast ? true : JSON.stringify({ held, after60: r1(r1st), dipped, now: r1(R.st.medic.r), tier: R.tier('medic'), gone, toast });
     } finally { g.society.sim.load(sim); R.reset(); }
   });
-  await check('roles: a known Dustwolf rider walks into their sights and the guns stay down - standing unmoved at -60, the reading and the counter prices move; lose the role and they open up again', async () => {
+  await check("roles: a known Dustwolf rider walks into their sights and the guns stay down - standing unmoved at -60; Rust Haven reads the rider colder and Ike's counter charges more (priceMul through trade.js); lose the role and the wolves open up again", async () => {
     await stage();
     const F = g.society.factions, dw = F.index.dustwolves, rh = F.index.rusthaven;
     const wolf = person('raider', 12, 0, { weapon: 'smg' });
+    const ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive), box = ike && [...g.inventory.boxes.values()].find((b) => b.owner === ike.id);
+    // Ike's price for one box of rounds, at his own counter (staged: you and Ike at his shelf, then back).
+    const counter = () => {
+      if (!box) return null;
+      const keep = { p: { x: g.player.x, z: g.player.z }, i: { x: ike.x, z: ike.z } };
+      g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z;
+      const D = g.trade?.at(box);
+      g.player.x = keep.p.x; g.player.z = keep.p.z; ike.x = keep.i.x; ike.z = keep.i.z;
+      return D && !D.refuse ? D.buy : null;
+    };
     try {
-      const s0 = F.standing[dw], before = g.ai.hostile(wolf, g.player);
+      const s0 = F.standing[dw], before = g.ai.hostile(wolf, g.player), buy0 = counter();
       await C('roles', { id: 'rider', renown: 50 });
-      const after = g.ai.hostile(wolf, g.player), s1 = F.standing[dw];
+      const after = g.ai.hostile(wolf, g.player), s1 = F.standing[dw], buy1 = counter();
       wolf.target = null; await C('step', { seconds: 2 }); // the AI's own scan: nobody draws on you
       const quiet = wolf.target !== g.player, tier = F.tiers[dw];
-      const pm = R.priceMul('dustwolves', wolf), pmRH = R.priceMul('rusthaven'), colder = F.reading(rh) < F.standing[rh];
+      const pm = R.priceMul('dustwolves', wolf), colder = F.reading(rh) < F.standing[rh], dearer = buy0 > 0 && buy1 > buy0;
       await C('roles', { id: 'rider', renown: 0 });
       const back = g.ai.hostile(wolf, g.player);
-      return before && !after && quiet && back && s1 === s0 && s0 === -60 && tier === 'wary' && pm < 1 && pmRH > 1 && colder ? true
-        : JSON.stringify({ before, after, quiet, back, s0, s1, tier, pm, pmRH, colder });
+      return before && !after && quiet && back && s1 === s0 && s0 === -60 && tier === 'wary' && pm < 1 && colder && dearer ? true
+        : JSON.stringify({ before, after, quiet, back, s0, s1, tier, pm, colder, buy0, buy1 });
     } finally { g.removeChar(wolf); R.reset(); }
   });
   await check("roles: Doc Reyes offers a medic's shift only to a known medic - the kit lands in the pack, and three patients later she pays $90", async () => {

@@ -3,7 +3,7 @@ import { HALF } from '../world/city.js';
 import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
-import { ROLE_TIERS } from '../data/roles.js';
+import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -236,11 +236,13 @@ export class QOL {
     el.innerHTML = rows.length ? rows.map((r) => {
       const state = r.suspended ? `SUSPENDED · ${r.suspended}` : r.tier === 'none' ? 'TALK OF IT' : r.tier.toUpperCase();
       const why = r.why.filter((w) => w.renown > 0.05).slice(0, 2).map((w) => w.what).join(', ');
-      const F = this.g.society?.factions, o = r.opens, seen = new Set(), opens = [
-        ...Object.entries(o.factions).filter(([, f]) => f.holdFire || f.shootOnSight).map(([fid, f]) => `${(F?.row(fid)?.short ?? F?.row(fid)?.name ?? fid).replace(/^The /, '')} ${f.holdFire ? 'hold fire' : 'shoot on sight'}`),
+      const F = this.g.society?.factions, o = r.opens, seen = new Set(), k = ROLE_RULES.scale[ROLE_TIERS.indexOf(r.active)] || ROLE_RULES.scale[2];
+      const fname = (fid) => (fid === '*' ? 'every trader' : (F?.row(fid)?.short ?? F?.row(fid)?.name ?? fid).replace(/^The /, ''));
+      const opens = [
+        ...Object.entries(o.factions).filter(([, f]) => f.holdFire || f.shootOnSight).map(([fid, f]) => `${fname(fid)} ${f.holdFire ? 'hold fire' : 'shoot on sight'}`),
         ...o.offices.map((f) => f.name),
         ...o.dialogue.filter((d) => d.choice && !seen.has(d.npc) && seen.add(d.npc)).map((d) => `${d.short}: "${d.choice}"`),
-        ...Object.keys(o.prices).length ? ['prices'] : [],
+        ...Object.entries(o.prices).map(([fid, m]) => { const pct = Math.round((m - 1) * k * 100); return `${fname(fid)} ${pct < 0 ? '' : '+'}${pct}% prices`; }),
       ].slice(0, 3).join(' · ');
       return `<div class="pm-role${r.tier === 'none' ? ' faint' : ''}${r.suspended ? ' susp' : ''}" style="--rc:${r.color}">
         <div class="pm-role-head"><b>${esc(r.name)}</b><span>${esc(state)}</span></div>

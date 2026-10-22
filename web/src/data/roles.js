@@ -80,8 +80,8 @@ export const ROLES = {
     ],
     wear: [],
     opens: {
-      factions: { dustwolves: { standing: 10 }, remnant: { standing: -6 } },
-      prices: { drifters: 0.95 },
+      factions: { dustwolves: { standing: 6 }, remnant: { standing: -6 } },
+      prices: { rusthaven: 0.95 }, // the town's traders (Kenji first) like a customer who keeps a car running
       perks: { carjackFlee: true },
       greet: {
         any: ['You drive like the road owes you money.', 'Heard about your driving. Keep it off my street.'],
@@ -110,8 +110,8 @@ export const ROLES = {
       { on: 'deed', verb: 'kill', hostile: false, sd: false, pts: 12, note: 'killed somebody harmless' },
     ],
     opens: {
-      factions: { drifters: { standing: 10 }, rusthaven: { standing: 8 }, dustwolves: { standing: 6 }, remnant: { standing: 4 } },
-      prices: { drifters: 0.95, rusthaven: 0.97 },
+      factions: { drifters: { standing: 10 }, rusthaven: { standing: 8 }, dustwolves: { standing: 4 }, remnant: { standing: 4 } },
+      prices: { drifters: 0.95, rusthaven: 0.95 },
       perks: { healMul: 1.5 },
       director: { role_call: 1.5 },
       greet: {
@@ -272,7 +272,7 @@ export const ROLES = {
     ],
     wear: [],
     opens: {
-      factions: { dustwolves: { standing: 12 }, drifters: { standing: 3 } },
+      factions: { dustwolves: { standing: 8 }, drifters: { standing: 3 } }, // respect, not a welcome: only a rider gets into camp
       perks: { jumpPay: 1.25 },
       greet: {
         any: ['Saw you fly Wreck Row. Or heard about it. Same thing.'],
