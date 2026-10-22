@@ -221,13 +221,15 @@ function buildCommands(api) {
       run: async ({ since, type }) => ({ events: g.events.filter((e) => e.seq > since && (!type || e.type === type)), last: g.eventSeq }),
     },
     map: {
-      group: 'observe', desc: 'World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, named NPC homes.',
+      group: 'observe', desc: 'World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, military bases (base for the detail), named NPC homes.',
       run: async () => ({
         bounds: { min: -HALF, max: HALF }, units: 'metres; +x east, +z south (screen down); heading 0 = facing +z',
-        districts: [{ name: 'RUST HAVEN', rule: 'max(|x|,|z|) < 88, walled settlement, gates on roads' }, { name: 'OLD PHOENIX RUINS', rule: '88 <= max < 250' }, { name: 'THE GLASS FLATS', rule: 'max >= 250, desert, raider camps' }],
+        districts: [{ name: 'RUST HAVEN', rule: 'max(|x|,|z|) < 88, walled settlement, gates on roads' }, { name: 'OLD PHOENIX RUINS', rule: '88 <= max < 250' }, { name: 'THE GLASS FLATS', rule: 'max >= 250, desert, raider camps, the Federal Remnant outpost' }],
         roads: { spacing: 80, lines: [-320, -240, -160, -80, 0, 80, 160, 240, 320], route66: 'z = 0, spans the whole map' },
         shops: g.world.spawns.shops.filter((b) => b.shopName).map((b) => ({ name: b.shopName, x: r1((b.minX + b.maxX) / 2), z: r1((b.minZ + b.maxZ) / 2) })),
-        camps: g.world.spawns.camps, namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
+        camps: g.world.spawns.camps,
+        bases: g.bases.sites.map((s) => ({ id: s.id, name: s.name, faction: s.faction, x: s.ox, z: s.oz, fence: { ...s.fence }, gate: { x: s.ox + s.row.gate.at, z: s.row.gate.side === 'N' ? s.fence.z0 : s.fence.z1 }, alert: s.alert })),
+        namedNpcs: g.chars.filter((c) => c.npc).map((c) => ({ id: c.id, npc: c.npc.id, name: c.npc.name, x: r1(c.x), z: r1(c.z) })),
       }),
     },
     perf: {

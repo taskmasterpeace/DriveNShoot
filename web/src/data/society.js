@@ -91,7 +91,7 @@ export const FACTIONS = {
   // Haven's book (stars: false), a trespass on their wire is theirs to answer. No `sim` row yet: the outpost is a fixed
   // garrison, outside the off-screen war (docs/design/WEB_MILITARY.md §5).
   remnant: {
-    name: 'The Federal Remnant', archetype: 'military', color: '#7a8456', start: -5, stars: false, forgivesSelfDefense: true,
+    name: 'The Federal Remnant', short: 'Remnant', archetype: 'military', color: '#7a8456', start: -5, stars: false, forgivesSelfDefense: true,
     cohesion: 0.85, memoryDays: 21, rumorDelay: [15, 35], hub: [-292, -397], leaders: [], home: 'outpost_nine',
     // Who they send when the paperwork says you are a problem (director: hunters) - a lawful bounty.
     hunters: { faction: 'soldier', name: 'Remnant Trooper', weapons: { rifle: 0.75, smg: 0.25 }, hp: 140 },
