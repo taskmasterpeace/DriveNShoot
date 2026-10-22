@@ -12,7 +12,7 @@ import { Ambient } from './systems/ambient.js';
 import { coneTexture } from './world/textures.js';
 import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
-import { Character, CharacterRenderer, outfit, MAX_CHARS } from './systems/characters.js';
+import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
 import { AI } from './systems/ai.js';
 import { Vehicles } from './systems/vehicles.js';
@@ -86,7 +86,7 @@ class Game {
     }
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
-    this.charR = new CharacterRenderer(this.scene);
+    this.charR = new CharacterRenderer(this.scene, WEAPONS);
     this.chars = [];
     this.freeSlots = [];
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
@@ -190,9 +190,13 @@ class Game {
         x = (b.minX + b.maxX) / 2 + 1.5; z = (b.minZ + b.maxZ) / 2 + 1.5;
         b.shopName = n.title;
       } else { x = n.where.x; z = n.where.z; }
+      // The body wears what the portrait shows: same hair or hat, same goggles, mask, eyepatch, bandolier.
       const p = n.portrait;
       this.addChar({ x, z, faction: n.faction, weapon: n.weapon ?? null, npc: n, name: n.name, flag: n.flag, hp: 140,
-        colors: { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', hat: '#5a3f24', hatStyle: { cowboy: 'cowboy', cap: 'cap', mohawk: 'mohawk', wrap: 'wrap' }[p.hat] ?? 'short', gearStyle: n.faction === 'warden' ? 'vest' : p.gear === 'bandolier' ? 'vest' : 'none', gear: '#3a3128' } });
+        colors: { skin: p.skin, hair: p.hair, shirt: p.shirt ?? '#5a4a38', pants: '#2f2a24', boots: '#2b241e', hat: '#5a3f24',
+          hatStyle: ['cowboy', 'cap', 'mohawk', 'wrap', 'long', 'bald'].includes(p.hat) ? p.hat : 'short',
+          gearStyle: p.gear === 'bandolier' ? 'bandolier' : n.faction === 'warden' ? 'vest' : 'none', gear: '#3a3128',
+          accStyle: { goggles: 'goggles', bandana: 'mask', eyepatch: 'eyepatch' }[p.gear] ?? 'none', mask: '#6a2a1e', sleeves: 'long' } });
     }
     for (const w of S.wardens) this.addChar({ x: w.x, z: w.z, faction: 'warden', weapon: 'smg', hp: 130, colors: outfit('warden', rng), name: randomName(rng), flag: this.randomFlag(rng) });
     for (const d of S.drifters) {
@@ -622,7 +626,7 @@ class Game {
     }
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
     const prevStep = Math.floor(p.walk / Math.PI);
-    p.walk += p.speed * dt * 2.2;
+    p.walk += stridePhase(p.speed, dt);
     if (Math.floor(p.walk / Math.PI) !== prevStep && p.speed > 0.5) {
       const onRoad = roadLines.some((c) => Math.abs(p.z - c) < 7 || Math.abs(p.x - c) < 7);
       this.audio.step(this.insideBuilding ? 'floor' : onRoad ? 'road' : 'sand', 0);
@@ -856,7 +860,9 @@ class Game {
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
     if (I.hit('KeyZ')) this.zoomFar = !this.zoomFar;
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
-    if (this.paused) { this.qol.update(dt); I.endFrame(); return; } // map/menu stay live while paused
+    if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
+      this.charR.sync(this.chars, 0); this.qol.update(dt); I.endFrame(); return;
+    }
 
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
@@ -891,7 +897,7 @@ class Game {
     this.flashMat.opacity = flashOn && p.alive && !p.inVehicle ? 0.55 : 0;
     this.flashlight.position.set(p.x, 0, p.z);
     this.flashlight.rotation.y = p.face;
-    this.charR.sync(this.chars);
+    this.charR.sync(this.chars, dt);
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), p.inVehicle ? this.vehiclesSys.speed(p.inVehicle) : null);
     this.hud.update(dt);
     this.qol.update(dt);

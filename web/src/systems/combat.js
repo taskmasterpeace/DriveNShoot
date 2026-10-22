@@ -1,5 +1,5 @@
 import { rayCircle } from '../engine/collision.js';
-import { MUZZLE_FORWARD } from './characters.js';
+import { muzzleForward } from './characters.js';
 
 // Data-driven weapons. Add a row, get a gun.
 export const WEAPONS = {
@@ -19,7 +19,7 @@ export class Combat {
     const g = this.g;
     const fx = Math.sin(ang), fz = Math.cos(ang);
     // The shot leaves the muzzle, on the body's centre line (the aim pose in characters.js).
-    const ox = ch.x + fx * MUZZLE_FORWARD, oz = ch.z + fz * MUZZLE_FORWARD;
+    const mf = muzzleForward(w), ox = ch.x + fx * mf, oz = ch.z + fz * mf;
     // Muzzle can't poke through a wall we're hugging.
     if (!g.statics.lineOfSight(ch.x, ch.z, ox, oz)) return false;
     g.fx.flash(ox, 1.5, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);

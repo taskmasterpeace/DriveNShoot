@@ -1,4 +1,5 @@
 import { WEAPONS } from './combat.js';
+import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
 
 // On-foot AI: wander, flee, fight. Cheap per-character state machine,
@@ -76,7 +77,7 @@ export class AI {
       if (c.stuck > 0.35) { c.detour = 0.7; c.detourA = (Math.random() < 0.5 ? 1 : -1) * (1 + Math.random()); c.stuck = 0; }
     } else c.stuck = 0;
     if (!c.aiming) c.face = angleLerp(c.face, Math.atan2(dx, dz), Math.min(1, dt * 10));
-    c.walk += c.speed * dt * 2.2;
+    c.walk += stridePhase(c.speed, dt);
   }
 
   scan(c) {
