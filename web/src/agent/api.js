@@ -1155,17 +1155,23 @@ async function runSelfTest(api) {
   await check('water: lake is deep, bridge deck is dry, swimming + diving hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     const deep = g.water.depthAt(390, 398) > 5, deck = g.water.depthAt(416, 0) === 0, underDeck = g.water.depthAt(416, 0, true) > 1;
-    await C('teleport', { x: 372, z: 398 });
+    // Swim mid-river with a raider on the bank 8 m off: close enough to spot even a crouching swimmer, so
+    // only being under the water can hide you. (The old raider stood in deep water by the dock, 25 m out:
+    // it couldn't see a crouching player anyway, and the lake patrol boat's route ran it over.)
+    await C('teleport', { x: 417.4, z: 200 });
     await C('step', { seconds: 0.3 });
     const swimming = !!g.player.swim;
     await C('submerge', { on: true });
-    const { ids } = await C('spawn', { kind: 'raider', x: 365, z: 380, weapon: 'smg' });
+    const { ids } = await C('spawn', { kind: 'raider', x: 409.4, z: 200, weapon: 'smg' });
+    const rd = api.findChar(ids[0]); rd.x = 409.4; rd.z = 200; // spawn jitters ±2 m
     await C('step', { seconds: 2 });
-    const hidden = !g.chars.find((c) => c.id === ids[0])?.target;
+    const hidden = !rd.target;
     const b0 = g.player.breath;
     await C('submerge', { on: false });
     g.crouchOverride = false;
-    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden });
+    await C('step', { seconds: 1 });
+    const spotted = rd.target === g.player; // up for air: there you are
+    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden && spotted ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden, target: rd.target?.id ?? null, spotted });
   });
   await check('cars flood and sink; boats float and beach', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);

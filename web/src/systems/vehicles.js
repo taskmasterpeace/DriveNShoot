@@ -554,14 +554,14 @@ export class Vehicles {
       // Circle the lake; close in and strafe the player when they're near the water.
       const L = g.water ? { x: 390, z: 398 } : { x: v.x, z: v.z };
       const p = g.player, px = p.inVehicle ? p.inVehicle.x : p.x, pz = p.inVehicle ? p.inVehicle.z : p.z;
-      const pd = Math.hypot(px - v.x, pz - v.z);
+      const pd = Math.hypot(px - v.x, pz - v.z), seen = !p.underwater; // dived under: lost
       let tx, tz;
-      if (pd < 60 && g.water.depthAt(px, pz) > 0.4) { tx = px; tz = pz; }
+      if (seen && pd < 60 && g.water.depthAt(px, pz) > 0.4) { tx = px; tz = pz; }
       else { v.patrolA = (v.patrolA ?? 0) + dt * 0.18; tx = L.x + Math.cos(v.patrolA) * 32; tz = L.z + Math.sin(v.patrolA) * 32; }
       const want = Math.atan2(tx - v.x, tz - v.z);
       v.steer = clamp((angleLerp(v.h, want, 1) - v.h) * 2, -1, 1);
       v.throttle = pd < 12 ? 0.3 : 0.75;
-      for (const o of v.occ ?? []) if (o && o.alive && o.weapon && pd < 35 && g.ai.hostile(o, p)) {
+      for (const o of v.occ ?? []) if (o && o.alive && o.weapon && seen && pd < 35 && g.ai.hostile(o, p)) {
         o.cool -= dt;
         if (o.cool <= 0) { o.cool = 0.4 + Math.random() * 0.6; g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.2); }
       }

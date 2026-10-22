@@ -82,7 +82,7 @@ export class AI {
   scan(c) {
     let best = null, bd = c.faction === 'raider' ? 34 : 30;
     for (const o of this.g.chars) {
-      if (!this.hostile(c, o) || o.hidden) continue;
+      if (!this.hostile(c, o) || o.hidden || o.underwater) continue; // dived under: out of sight
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
       if (d < bd * (o.crouch ? 0.6 : 1) && this.g.los(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
@@ -161,7 +161,7 @@ export class AI {
           this.move(c, Math.sin(c.blind * 3), Math.cos(c.blind * 2), 1.2, dt);
           continue;
         }
-        const los = g.los(c.x, c.z, tx, tz);
+        const los = !t.underwater && g.los(c.x, c.z, tx, tz); // under water: lost sight (they wait at the shore)
         // Dug-in target out of sight but close: lob a grenade over the cover.
         if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
           c.grenades--;
