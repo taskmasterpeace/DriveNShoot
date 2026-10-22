@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { coneTexture } from '../world/textures.js';
+import { PART, buildBody, lampAnchors } from './vehiclebodies.js';
 import { VehicleLights } from './vehiclelights.js';
 import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
@@ -31,177 +30,8 @@ export const VEHICLES = {
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
 };
 
-// Part ids baked into a per-vertex attribute so damage can dent / drop exact pieces.
-export const PART = { body: 0, bumperF: 1, bumperR: 2, doorL: 3, doorR: 4, doorL2: 5, doorR2: 6, hood: 7, glass: 8, wheelFL: 10, wheelFR: 11, wheelRL: 12, wheelRR: 13, light: 14, frame: 15 };
-
-function coloredBox(sx, sy, sz, x, y, z, color, part = PART.body, rotX = 0) {
-  // Chunky parts get bevelled edges so silhouettes read as vehicles, not crates.
-  const m = Math.min(sx, sy, sz);
-  let g = m > 0.3 ? new RoundedBoxGeometry(sx, sy, sz, 2, Math.min(0.14, m * 0.22)) : new THREE.BoxGeometry(sx, sy, sz);
-  if (g.index) g = g.toNonIndexed();
-  if (rotX) g.rotateX(rotX);
-  g.translate(x, y, z);
-  return tag(g, color, part);
-}
-
-function tag(g, color, part) {
-  const c = new THREE.Color(color);
-  const n = g.attributes.position.count;
-  const arr = new Float32Array(n * 3), pa = new Float32Array(n);
-  for (let i = 0; i < n; i++) { arr[i * 3] = c.r; arr[i * 3 + 1] = c.g; arr[i * 3 + 2] = c.b; pa[i] = part; }
-  g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
-  g.setAttribute('part', new THREE.BufferAttribute(pa, 1));
-  return g;
-}
-
-function buildBody(type, paint) {
-  const s = VEHICLES[type] ?? VEHICLES.interceptor;
-  const base = s.base ?? type; // content-pack vehicles reuse a stock body
-  const L = s.len, W = s.wid;
-  const parts = [];
-  const wheel = '#141312';
-  // Wheels: tyre + hub, tagged per corner so a flat tyre can visibly sag.
-  const wheelAt = (x, y, z, r = 0.46, part = PART.wheelFL, w = 0.38) => {
-    const t = new THREE.CylinderGeometry(r, r, w, 14).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
-    const h = new THREE.CylinderGeometry(r * 0.45, r * 0.45, w + 0.02, 8).rotateZ(Math.PI / 2).translate(x, y, z).toNonIndexed();
-    parts.push(tag(t, wheel, part), tag(h, '#6a645c', part));
-  };
-  const wheels = (y, inset, front, back, r) => {
-    wheelAt(W / 2 - inset, y, front, r, PART.wheelFL); wheelAt(-W / 2 + inset, y, front, r, PART.wheelFR);
-    wheelAt(W / 2 - inset, y, back, r, PART.wheelRL); wheelAt(-W / 2 + inset, y, back, r, PART.wheelRR);
-  };
-  const bumpers = (y = 0.7, h = 0.28) => {
-    parts.push(coloredBox(W + 0.06, h, 0.26, 0, y, L / 2 + 0.04, '#2e2c2a', PART.bumperF));
-    parts.push(coloredBox(W + 0.06, h, 0.26, 0, y, -L / 2 - 0.04, '#2e2c2a', PART.bumperR));
-  };
-  const door = (side, z, len, part, y = 1.0, h = 0.62) => {
-    // side: +1 = driver's left (local +x)
-    parts.push(coloredBox(0.08, h, len, side * (W / 2 + 0.02), y, z, paint, part));
-    parts.push(coloredBox(0.05, 0.05, 0.2, side * (W / 2 + 0.07), y + 0.08, z - len * 0.25, '#8a8580', part)); // handle
-  };
-
-  if (base === 'rig') {
-    parts.push(coloredBox(W, 1.5, 3.0, 0, 1.6, L / 2 - 1.5, paint));
-    parts.push(coloredBox(W - 0.3, 0.9, 1.9, 0, 2.7, L / 2 - 1.8, '#2a3a44', PART.glass));
-    parts.push(coloredBox(W + 0.2, 0.4, 0.4, 0, 0.9, L / 2 + 0.1, '#5a5550', PART.bumperF));
-    for (let i = -2; i <= 2; i++) parts.push(coloredBox(0.15, 0.15, 0.8, i * 0.5, 0.9, L / 2 + 0.5, '#8a8580', PART.bumperF));
-    parts.push(coloredBox(W, 0.6, L - 3.2, 0, 1.2, -1.4, '#3b3632'));
-    parts.push(coloredBox(W, 0.9, 0.2, 0, 1.9, -L / 2 + 0.2, '#4a3a2a', PART.bumperR));
-    parts.push(coloredBox(0.2, 0.9, L - 3.4, -W / 2 + 0.1, 1.9, -1.4, '#4a3a2a'));
-    parts.push(coloredBox(0.2, 0.9, L - 3.4, W / 2 - 0.1, 1.9, -1.4, '#4a3a2a'));
-    parts.push(coloredBox(1.1, 0.9, 1.1, 0, 2.1, -1.8, '#2d2a28'));
-    parts.push(coloredBox(0.3, 0.3, 2.4, 0, 2.7, -1.4, '#6a6560'));
-    parts.push(coloredBox(0.8, 0.8, 0.8, -0.7, 1.9, -3.2, '#7a3a1c'));
-    parts.push(coloredBox(0.8, 0.8, 0.8, 0.7, 1.9, -3.2, '#7a3a1c'));
-    door(1, L / 2 - 1.6, 1.3, PART.doorL, 1.6, 1.0); door(-1, L / 2 - 1.6, 1.3, PART.doorR, 1.6, 1.0);
-    wheels(0.55, 0.15, L / 2 - 1.2, -L / 2 + 1.4, 0.55);
-    wheelAt(W / 2 - 0.15, 0.55, -L / 2 + 2.6, 0.55, PART.wheelRL); wheelAt(-W / 2 + 0.15, 0.55, -L / 2 + 2.6, 0.55, PART.wheelRR);
-  } else if (base === 'buggy') {
-    parts.push(coloredBox(W - 0.4, 0.5, L - 0.6, 0, 0.75, 0, paint));
-    for (const [x, z] of [[-0.7, 0.3], [0.7, 0.3], [-0.7, -0.9], [0.7, -0.9]]) parts.push(coloredBox(0.12, 1.1, 0.12, x, 1.5, z, '#2a2a2a', PART.frame));
-    parts.push(coloredBox(1.6, 0.12, 1.4, 0, 2.05, -0.3, '#2a2a2a', PART.frame));
-    parts.push(coloredBox(1.2, 0.6, 0.8, 0, 1.0, -L / 2 + 0.5, '#3a3632'));
-    parts.push(coloredBox(0.5, 0.5, 0.5, 0.45, 1.05, 0.0, '#1d1b19')); // seats
-    parts.push(coloredBox(0.5, 0.5, 0.5, -0.45, 1.05, 0.0, '#1d1b19'));
-    wheels(0.5, 0.0, L / 2 - 0.7, -L / 2 + 0.7, 0.5);
-    bumpers(0.6, 0.22);
-  } else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') {
-    // Hulls: flat-bottomed with a raked bow (two angled boxes), decks, fittings.
-    const hullC = base === 'gunboat' ? '#3a3632' : paint;
-    parts.push(coloredBox(W, base === 'jetski' ? 0.45 : 0.7, L * 0.78, 0, 0.32, -L * 0.1, hullC));
-    for (const s of [-1, 1]) { const g = new THREE.BoxGeometry(W * 0.62, base === 'jetski' ? 0.45 : 0.7, L * 0.36).toNonIndexed(); g.rotateY(s * 0.42); g.translate(s * W * 0.2, 0.32, L * 0.32); parts.push(tag(g, hullC, PART.bumperF)); }
-    if (base === 'airboat') {
-      parts.push(coloredBox(0.9, 0.9, 0.9, 0, 1.0, -0.4, '#2a2826'));                       // raised driver seat
-      const ring = new THREE.TorusGeometry(1.05, 0.08, 6, 20).toNonIndexed(); ring.translate(0, 1.5, -L / 2 + 0.5); parts.push(tag(ring, '#8a8580', PART.frame));
-      for (let k = 0; k < 3; k++) { const b = new THREE.BoxGeometry(0.16, 1.9, 0.06).toNonIndexed(); b.rotateZ(k * Math.PI / 3); b.translate(0, 1.5, -L / 2 + 0.55); parts.push(tag(b, '#5a5550', PART.frame)); }
-      parts.push(coloredBox(0.5, 0.5, 0.5, 0, 1.1, -L / 2 + 0.95, '#3a3632'));            // engine
-    } else if (base === 'jetski') {
-      parts.push(coloredBox(0.4, 0.2, 1.1, 0, 0.7, -0.2, '#1a1816'));                      // saddle
-      parts.push(coloredBox(0.7, 0.06, 0.06, 0, 1.0, 0.55, '#8a8580', PART.frame));         // bars
-    } else {
-      parts.push(coloredBox(W - 0.3, 0.9, 2.2, 0, 1.3, 0.4, '#4a3a2a'));                   // cabin
-      parts.push(coloredBox(W - 0.5, 0.55, 2.0, 0, 1.95, 0.4, '#2a3a44', PART.glass));
-      parts.push(coloredBox(0.6, 0.5, 0.6, 0, 0.95, L / 2 - 1.3, '#2d2a28'));              // gun mount
-      parts.push(coloredBox(0.14, 0.14, 1.4, 0, 1.25, L / 2 - 0.8, '#6a6560'));            // barrel
-      parts.push(coloredBox(0.8, 0.6, 0.8, 0, 0.8, -L / 2 + 0.7, '#7a3a1c'));              // fuel drums
-    }
-    lenses(parts, type, 0.3, 0.16);
-    return mergeGeometries(parts);
-  } else if (base === 'bike') {
-    // Motorcycle: wheels in line, frame, tank, saddle, bars, exhaust.
-    wheelAt(0, 0.38, L / 2 - 0.38, 0.38, PART.wheelFL, 0.16);
-    wheelAt(0, 0.38, -L / 2 + 0.38, 0.38, PART.wheelRL, 0.2);
-    parts.push(coloredBox(0.16, 0.16, L - 0.7, 0, 0.62, 0, '#2a2826', PART.frame));
-    parts.push(coloredBox(0.42, 0.3, 0.6, 0, 0.92, 0.28, paint));                 // tank
-    parts.push(coloredBox(0.34, 0.12, 0.75, 0, 0.88, -0.35, '#1a1816'));           // saddle
-    parts.push(coloredBox(0.36, 0.3, 0.42, 0, 0.55, 0.05, '#3a3632'));             // engine
-    parts.push(coloredBox(0.72, 0.06, 0.06, 0, 1.1, L / 2 - 0.55, '#8a8580', PART.frame)); // bars
-    parts.push(coloredBox(0.06, 0.5, 0.06, 0, 0.82, L / 2 - 0.5, '#8a8580', PART.frame));  // fork
-    parts.push(coloredBox(0.1, 0.1, 0.7, -0.22, 0.42, -0.45, '#9a948c', PART.frame));     // exhaust
-    parts.push(coloredBox(0.2, 0.14, 0.08, 0, 0.98, L / 2 - 0.42, '#fff6d8', PART.light));
-    parts.push(coloredBox(0.18, 0.1, 0.06, 0, 0.82, -L / 2 + 0.2, '#b01010', PART.light));
-    return mergeGeometries(parts);
-  } else if (base === 'van') {
-    parts.push(coloredBox(W, 1.5, L, 0, 1.25, 0, paint));
-    parts.push(coloredBox(W - 0.2, 0.08, L - 0.6, 0, 2.04, -0.1, '#cfc8bb'));       // roof
-    parts.push(coloredBox(W - 0.3, 0.55, 0.1, 0, 1.6, L / 2 - 0.4, '#2a3a44', PART.glass));
-    door(1, L / 2 - 1.0, 1.0, PART.doorL, 1.25, 1.2); door(-1, L / 2 - 1.0, 1.0, PART.doorR, 1.25, 1.2);
-    door(-1, -0.5, 1.4, PART.doorR2, 1.25, 1.2); // sliding door
-    bumpers(0.55, 0.3);
-    wheels(0.45, 0.05, L / 2 - 0.9, -L / 2 + 0.9);
-  } else {
-    // Cars: interceptor / pickup / sedan share a body; the cabin differs.
-    const cabZ = base === 'pickup' ? 0.5 : -0.2;
-    const cabL = base === 'pickup' ? 1.8 : base === 'sedan' ? 2.6 : 2.2;
-    parts.push(coloredBox(W, 0.8, L, 0, 0.85, 0, paint));
-    parts.push(coloredBox(W - 0.25, 0.65, cabL, 0, 1.55, cabZ, '#2a3a44', PART.glass));
-    parts.push(coloredBox(W - 0.35, 0.08, cabL - 0.4, 0, 1.9, cabZ, paint));
-    parts.push(coloredBox(W - 0.3, 0.06, (L / 2 - (cabZ + cabL / 2)) * 0.85, 0, 1.27, cabZ + cabL / 2 + (L / 2 - (cabZ + cabL / 2)) / 2, paint, PART.hood));
-    if (base === 'pickup') {
-      parts.push(coloredBox(W - 0.2, 0.3, 1.8, 0, 1.35, -L / 2 + 1.0, '#3a3530'));
-      parts.push(coloredBox(0.1, 0.4, 2.2, W / 2 - 0.1, 1.45, -L / 2 + 1.2, paint)); // bed rails
-      parts.push(coloredBox(0.1, 0.4, 2.2, -W / 2 + 0.1, 1.45, -L / 2 + 1.2, paint));
-    }
-    if (base === 'interceptor') {
-      parts.push(coloredBox(0.6, 0.35, 1.0, 0, 1.4, L / 2 - 1.0, '#6a6560'));
-      parts.push(coloredBox(W + 0.1, 0.2, 0.3, 0, 1.0, -L / 2 + 0.1, '#222'));
-    }
-    if (base === 'sedan') {
-      door(1, cabZ + cabL / 4, cabL / 2 - 0.05, PART.doorL); door(-1, cabZ + cabL / 4, cabL / 2 - 0.05, PART.doorR);
-      door(1, cabZ - cabL / 4, cabL / 2 - 0.05, PART.doorL2); door(-1, cabZ - cabL / 4, cabL / 2 - 0.05, PART.doorR2);
-    } else {
-      door(1, cabZ, cabL - 0.2, PART.doorL); door(-1, cabZ, cabL - 0.2, PART.doorR);
-    }
-    bumpers();
-    wheels(0.45, 0.05, L / 2 - 0.9, -L / 2 + 0.9);
-  }
-  lenses(parts, type);
-  return mergeGeometries(parts);
-}
-
-// Lamp lenses at the type's anchors, so the light (vehiclelights.js) leaves from the glass.
-function lenses(parts, type, w = 0.35, h = 0.18) {
-  const A = lampAnchors(type);
-  for (const [x, y, z] of A.head) parts.push(coloredBox(w, h, 0.08, x, y, z, '#fff6d8', PART.light));
-  for (const [x, y, z] of A.tail) parts.push(coloredBox(w, h * 0.9, 0.08, x, y, z, '#b01010', PART.light));
-}
-
-// Lamp lens anchors [x, y, z] in the body's local frame (+x = driver's left, +z = forward) plus the
-// beam footprint. buildBody puts the lenses here and vehiclelights.js throws the light from here, so
-// the glass and the light can't drift apart (they had: the buggy's lamps floated 0.3 m ahead of its
-// nose, the Whaler's were buried in its ram bumper and its tail lamps hung behind the chassis).
-export function lampAnchors(type) {
-  const s = VEHICLES[type] ?? VEHICLES.interceptor;
-  const base = s.base ?? type, L = s.len, W = s.wid;
-  const pair = (x, y, z) => [[x, y, z], [-x, y, z]];
-  const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
-  if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };
-  if (base === 'jetski') return { head: [[0, 0.75, L / 2 - 0.45]], tail: [], beamW: 5, beamL: 20, halo: 0.7 };
-  if (base === 'airboat' || base === 'gunboat') return { head: [[0, 0.95, L / 2 - 0.75]], tail: [[0, 0.9, -L / 2 + 0.25]], beamW: 6, beamL: 26, halo: 1 }; // bow searchlight
-  if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
-  if (base === 'buggy') return { head: pair(W / 2 - 0.45, 0.86, L / 2 - 0.27), tail: pair(W / 2 - 0.45, 0.86, -L / 2 + 0.27), ...car };
-  return { head: pair(W / 2 - 0.35, 1.0, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.0, -L / 2 - 0.02), ...car };
-}
+// Bodies (geometry, lamp anchors, glass layout) are built in vehiclebodies.js; PART is re-exported for damage.
+export { PART };
 
 const _v = new THREE.Vector3();
 
@@ -230,7 +60,7 @@ export class Vehicles {
 
   spawn(type, x, z, h, paint = '#6a2a1a', opts = {}) {
     const s = VEHICLES[type];
-    const geo = buildBody(type, paint);
+    const geo = buildBody(s, type, paint);
     const mesh = new THREE.Mesh(geo, this.bodyMat.clone()); // own material: paint chars with damage
     mesh.castShadow = true; mesh.receiveShadow = true;
     const group = new THREE.Group();
@@ -238,7 +68,7 @@ export class Vehicles {
     group.add(mesh);
     this.g.scene.add(group);
     const v = {
-      type, ...s, x, z, h, vx: 0, vz: 0, av: 0, hp: s.hp, maxHp: s.hp, group, mesh, anchors: lampAnchors(type),
+      type, ...s, x, z, h, vx: 0, vz: 0, av: 0, hp: s.hp, maxHp: s.hp, group, mesh, anchors: lampAnchors(s, type),
       driver: null, ai: opts.ai ?? null, dead: false, steer: 0, throttle: 0, brake: 0, handbrake: false,
       skidT: 0, burn: 0, node: null, lights: true, paint, honk: 0, impact: 0,
     };

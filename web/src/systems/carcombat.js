@@ -1,55 +1,75 @@
 import * as THREE from 'three';
 import { VEHICLES } from './vehicles.js';
+import { glassLayout } from './vehiclebodies.js';
+import { glassTexture, crackTexture } from '../world/textures.js';
 
 // Car combat: breakable windows, shooting out of windows, people grabbing onto cars
 // (zombies, raiders, the player), shaking them off, and being dragged out.
 //
-// Every window of every vehicle is one instance of a single InstancedMesh (1 draw call).
+// Every pane of every vehicle is an instance of ONE InstancedMesh (1 draw call), packed afresh each
+// frame: no per-vehicle slots to run out or leak, no ghost panes left hanging where a car despawned.
+// Panes are unit quads the glass shader cuts into the trapezoids glassLayout() (vehiclebodies.js)
+// fits between the pillars, raked like real glass so they read from the top-down camera; damage
+// grows a crack web out from the impact point.
 // Local vehicle frame: +z forward. 'left'/'right' are the DRIVER's left/right
 // (left = up x forward = local +x in this y-up, +z-forward frame). Sides: front | rear | left | right.
 
-const MAX_VEH = 96, SIDES = ['front', 'rear', 'left', 'right'];
-const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
-const _m = new THREE.Matrix4(), _t = new THREE.Matrix4(), _s = new THREE.Matrix4(), _o = new THREE.Matrix4();
-const _glass = new THREE.Color('#7fa3b6'), _crack = new THREE.Color('#e6eef0'), _c = new THREE.Color();
+const MAX_PANES = 384, SIDES = ['front', 'rear', 'left', 'right'];
+const _m = new THREE.Matrix4(), _o = new THREE.Matrix4(), ONE = new THREE.Vector3(1, 1, 1);
 
-// Cabin glass box per body type (local). null = open vehicle (roll cage): no glass at all.
-const CABINS = {
-  rig: { z: 2.0, len: 1.9, w: 2.4, y: 2.75, h: 0.72, glassHp: 80 },
-  interceptor: { z: -0.2, len: 2.2, w: 1.76, y: 1.6, h: 0.52, glassHp: 35 },
-  pickup: { z: 0.5, len: 1.8, w: 1.96, y: 1.6, h: 0.52, glassHp: 40 },
-  buggy: null,
-  bike: null,
-  airboat: null,
-  jetski: null,
-  gunboat: { z: 0.4, len: 2.0, w: 2.0, y: 1.95, h: 0.5, glassHp: 60 },
-  sedan: { z: -0.2, len: 2.6, w: 1.76, y: 1.6, h: 0.52, glassHp: 35 },
-  van: { z: 0.1, len: 4.4, w: 2.0, y: 1.6, h: 0.6, glassHp: 40 },
-};
+// Tinted safety glass. Instance attributes: aShape (taper, skew) cuts the quad to its pane; aCrack
+// (0 intact .. 1 about to give) reveals the crack web from the impact point outward, and 2 means shot
+// out: only the crazed shards still caught in the frame are drawn (crack texture B), so a broken
+// pane reads as broken from above instead of as a pane that was never there.
+function glassMaterial() {
+  const mat = new THREE.MeshStandardMaterial({ map: glassTexture(), roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.86, depthWrite: false, side: THREE.DoubleSide });
+  const crackMap = crackTexture();
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.crackMap = { value: crackMap };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float aCrack;\nattribute vec2 aShape;\nvarying float vCrack;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  transformed.x = transformed.x * mix(1.0, aShape.x, uv.y) + aShape.y * uv.y;\n  vCrack = aCrack;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D crackMap;\nvarying float vCrack;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+  vec4 ck = texture2D(crackMap, vMapUv);
+  if (vCrack > 1.5) {
+    float edge = min(min(vMapUv.x, 1.0 - vMapUv.x), min(vMapUv.y, 1.0 - vMapUv.y));
+    if (ck.b < 0.5 && edge > 0.016) discard;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.7, 0.78, 0.8), 0.3); // crazed, so it catches light
+  }
+  float crack = vCrack > 0.0 ? ck.g * step(ck.r, vCrack) : 0.0;
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.84, 0.9, 0.93), crack * 0.9);
+  diffuseColor.a = max(diffuseColor.a, crack * 0.95);`);
+  };
+  mat.customProgramCacheKey = () => 'dsoa-glass';
+  return mat;
+}
 
 export class CarCombat {
   constructor(game) {
     this.g = game;
-    this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.62, roughness: 0.08, metalness: 0.5 }), MAX_VEH * 4);
+    const geo = new THREE.PlaneGeometry(1, 1);
+    this.aCrack = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PANES), 1).setUsage(THREE.DynamicDrawUsage);
+    this.aShape = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PANES * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('aCrack', this.aCrack);
+    geo.setAttribute('aShape', this.aShape);
+    this.mesh = new THREE.InstancedMesh(geo, glassMaterial(), MAX_PANES);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
-    for (let i = 0; i < MAX_VEH * 4; i++) { this.mesh.setMatrixAt(i, ZERO); this.mesh.setColorAt(i, _glass); }
     this.mesh.renderOrder = 2;
+    this.mesh.count = 0;
     game.scene.add(this.mesh);
-    this.slots = 0;
   }
 
-  cabin(v) {
-    if (v.type in CABINS) return CABINS[v.type];
-    return CABINS[VEHICLES[v.type]?.base] ?? CABINS.interceptor;
-  }
+  layout(v) { return glassLayout(VEHICLES[v.type] ?? VEHICLES.interceptor, v.type); }
 
   // Lazily give each vehicle its windows + grabber list.
   ensure(v) {
     if (v.windows !== undefined) return;
-    const cab = this.cabin(v);
-    v.cslot = this.slots < MAX_VEH ? this.slots++ : -1;
+    const lay = this.layout(v);
     v.grabbers = [];
-    v.windows = cab ? Object.fromEntries(SIDES.map((s) => [s, { hp: cab.glassHp, max: cab.glassHp }])) : null;
+    v.windows = lay ? Object.fromEntries(SIDES.map((s) => [s, { hp: lay.hp, max: lay.hp }])) : null;
   }
 
   // Which side of the car faces world point (x,z)?
@@ -61,35 +81,15 @@ export class CarCombat {
     return lx > 0 ? 'left' : 'right';
   }
 
-  // World position of a window (or of the car side when it's an open vehicle).
+  // World position of a window's centre, pushed `out` along its outward normal (or of the car's side
+  // when it's an open vehicle).
   windowPos(v, side, out = 0) {
-    const cab = this.cabin(v) ?? { z: 0, len: v.len * 0.5, w: v.wid };
-    let lx = 0, lz = cab.z;
-    if (side === 'front') lz = cab.z + cab.len / 2 + out;
-    else if (side === 'rear') lz = cab.z - cab.len / 2 - out;
-    else lx = (side === 'left' ? 1 : -1) * (cab.w / 2 + out);
-    const c = Math.cos(v.h), s = Math.sin(v.h);
-    return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
-  }
-
-  // Where someone hanging on the car stands: just outside the BODY (bumper / doors),
-  // never inside the cabin footprint.
-  hangPos(v, side, off) {
+    const lay = this.layout(v);
     let lx = 0, lz = 0;
-    if (side === 'front') lz = v.len / 2 + 0.45;
-    else if (side === 'rear') lz = -v.len / 2 - 0.45;
-    else { lx = (side === 'left' ? 1 : -1) * (v.wid / 2 + 0.42); lz = off * Math.min(1.1, v.len * 0.18); }
-    const c = Math.cos(v.h), s = Math.sin(v.h);
-    return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
-  }
-
-  // Where someone hanging on the car stands: just outside the BODY (bumper / doors),
-  // never inside the cabin footprint.
-  hangPos(v, side, off) {
-    let lx = 0, lz = 0;
-    if (side === 'front') lz = v.len / 2 + 0.45;
-    else if (side === 'rear') lz = -v.len / 2 - 0.45;
-    else { lx = (side === 'left' ? 1 : -1) * (v.wid / 2 + 0.42); lz = off * Math.min(1.1, v.len * 0.18); }
+    if (lay) { const p = lay.panes[side], hn = Math.hypot(p.n.x, p.n.z) || 1; lx = p.c.x + (p.n.x / hn) * out; lz = p.c.z + (p.n.z / hn) * out; }
+    else if (side === 'front') lz = v.len / 4 + out;
+    else if (side === 'rear') lz = -v.len / 4 - out;
+    else lx = (side === 'left' ? 1 : -1) * (v.wid / 2 + out);
     const c = Math.cos(v.h), s = Math.sin(v.h);
     return { x: v.x + lx * c + lz * s, z: v.z - lx * s + lz * c };
   }
@@ -125,7 +125,7 @@ export class CarCombat {
     // Shards fly away from whoever broke it (outward when shot from inside).
     const fx = p.x - v.x, fz = p.z - v.z, d = Math.hypot(fx, fz) || 1;
     const k = outward ? 1 : -1;
-    for (let i = 0; i < 16; i++) g.fx.spawn(1, p.x, (this.cabin(v)?.y ?? 1.5), p.z, (fx / d) * k * (2 + Math.random() * 4) + (Math.random() - 0.5) * 3, 1 + Math.random() * 3, (fz / d) * k * (2 + Math.random() * 4) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
+    for (let i = 0; i < 16; i++) g.fx.spawn(1, p.x, (this.layout(v)?.panes[side].c.y ?? 1.5), p.z, (fx / d) * k * (2 + Math.random() * 4) + (Math.random() - 0.5) * 3, 1 + Math.random() * 3, (fz / d) * k * (2 + Math.random() * 4) + (Math.random() - 0.5) * 3, 0.9, 0.06, Math.random() < 0.5 ? '#cfe6ee' : '#9fc2d0', 18);
     g.fx.decal(p.x + (fx / d) * k * 0.8, p.z + (fz / d) * k * 0.8, 0.45, '#8f9ea4'); // glitter of glass on the road
     g.audio.glass?.(g.pan(p.x));
     g.emit('windowBroken', { vehicle: v.id, side, by: by?.id ?? null, fromInside: !!outward });
@@ -244,13 +244,12 @@ export class CarCombat {
   update(dt) {
     const g = this.g;
     const M = this.mesh;
-    let maxIdx = 0;
+    let n = 0;
     for (const v of g.vehicles) {
       this.ensure(v);
       // Dead NPC driver: the car just rolls to a stop.
       if (v.driver && !v.driver.alive && v.driver !== g.player) { const d = v.driver; v.driver = null; if (v.occ) v.occ[0] = null; d.inVehicle = null; d.seat = null; }
-      if (v.cslot >= 0) this.syncGlass(v);
-      if (v.cslot >= 0) maxIdx = Math.max(maxIdx, v.cslot * 4 + 4);
+      n = this.syncGlass(v, n);
       const sp = g.vehiclesSys.speed(v);
       // Raiders on foot jump onto the player's car when it's crawling.
       if (v.driver === g.player && sp < 5 && v.grabbers.length < 6) {
@@ -286,9 +285,9 @@ export class CarCombat {
         else if (c !== g.player && c.faction === 'raider') this.raiderOnCar(c, gr, v, dt);
       }
     }
-    M.count = maxIdx;
+    M.count = n;
     M.instanceMatrix.needsUpdate = true;
-    if (M.instanceColor) M.instanceColor.needsUpdate = true;
+    this.aCrack.needsUpdate = this.aShape.needsUpdate = true;
   }
 
   // Raider hanging on: smash the glass, then drag the driver out and take the wheel.
@@ -311,22 +310,22 @@ export class CarCombat {
     this.g.emit('draggedOut', { vehicle: v.id, victim: victim.id, by: r.id });
   }
 
-  syncGlass(v) {
-    const cab = this.cabin(v);
-    const base = v.cslot * 4;
-    if (!cab || !v.windows) { for (let k = 0; k < 4; k++) this.mesh.setMatrixAt(base + k, ZERO); return; }
-    _m.makeRotationY(v.h).setPosition(v.x, 0, v.z);
-    SIDES.forEach((side, k) => {
-      const w = v.windows[side];
-      if (w.hp <= 0 || v.dead) { this.mesh.setMatrixAt(base + k, ZERO); return; }
-      let px = 0, pz = cab.z, sx, sy = cab.h, sz;
-      if (side === 'front') { pz = cab.z + cab.len / 2 + 0.03; sx = cab.w * 0.88; sz = 0.06; }
-      else if (side === 'rear') { pz = cab.z - cab.len / 2 - 0.03; sx = cab.w * 0.88; sz = 0.06; }
-      else { px = (side === 'left' ? 1 : -1) * (cab.w / 2 + 0.03); sx = 0.06; sy = cab.h * 0.85; sz = cab.len * 0.8; }
-      _t.makeTranslation(px, cab.y, pz); _s.makeScale(sx, sy, sz);
-      this.mesh.setMatrixAt(base + k, _o.multiplyMatrices(_m, _t).multiply(_s));
-      this.mesh.setColorAt(base + k, _c.copy(_glass).lerp(_crack, (1 - w.hp / w.max) * 0.85));
-    });
+  // Write this vehicle's panes (a shot-out one as its rim of shards) from instance n on; returns the
+  // next free instance. Uses the body group's real pose, so a gunboat's glass rolls with its hull.
+  syncGlass(v, n) {
+    const lay = this.layout(v);
+    if (!lay || !v.windows || v.dead) return n;
+    _m.compose(v.group.position, v.group.quaternion, ONE);
+    for (let k = 0; k < 4; k++) {
+      const w = v.windows[SIDES[k]];
+      if (n >= MAX_PANES) break;
+      const p = lay.panes[SIDES[k]];
+      this.mesh.setMatrixAt(n, _o.multiplyMatrices(_m, p.m));
+      this.aCrack.array[n] = w.hp <= 0 ? 2 : 1 - w.hp / w.max;
+      this.aShape.array[n * 2] = p.taper; this.aShape.array[n * 2 + 1] = p.skew;
+      n++;
+    }
+    return n;
   }
 
   // Tiny top-down diagram for the HUD: glass state per side + hangers-on.

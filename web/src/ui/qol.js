@@ -265,8 +265,13 @@ export class QOL {
     if (I.wheel) ph.h = Math.max(6, Math.min(160, ph.h * (I.wheel > 0 ? 1.12 : 0.89)));
     if (I.key('KeyQ')) ph.tilt = Math.max(0, ph.tilt - dt * 0.6);
     if (I.key('KeyE')) ph.tilt = Math.min(1.6, ph.tilt + dt * 0.6);
-    g.camera.position.set(ph.x, ph.h, ph.z + ph.h * ph.tilt);
-    g.camera.lookAt(ph.x, 0, ph.z);
+    this.placePhotoCamera();
+  }
+  // Also called by the agent's screenshot, so a photo-mode shot keeps its framing.
+  placePhotoCamera() {
+    const ph = this.photo, cam = this.g.camera;
+    cam.position.set(ph.x, ph.h, ph.z + ph.h * ph.tilt);
+    cam.lookAt(ph.x, 0, ph.z);
   }
 
   update(dt) {

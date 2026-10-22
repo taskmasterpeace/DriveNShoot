@@ -225,19 +225,19 @@ function buildCommands(api) {
       },
     },
     screenshot: {
-      group: 'observe', desc: 'Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it.',
-      args: { quality: { type: 'number', default: 0.82 }, width: { type: 'number', default: 1280 }, height: { type: 'number', default: 720 }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' } },
-      run: async ({ quality, width, height, x, z, zoom }) => {
+      group: 'observe', desc: 'Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot, zoom = camera height (8 = close-up, 33 = default, 90 = overview) and tilt (0.14 = the game camera, 0 = straight down … 1.6 = low angle from the south; negative = from the north, upside down, to see the front of north-facing cars). In photo mode it shoots the photo framing. CLI: --out file.jpg saves it.',
+      args: { quality: { type: 'number', default: 0.82 }, width: { type: 'number', default: 1280 }, height: { type: 'number', default: 720 }, x: { type: 'number' }, z: { type: 'number' }, zoom: { type: 'number' }, tilt: { type: 'number' } },
+      run: async ({ quality, width, height, x, z, zoom, tilt }) => {
         // Render at a fixed size so it works even when the tab is hidden / 0x0.
         const r = g.renderer, cam = g.camera;
         const prevPR = r.getPixelRatio(), prevW = r.domElement.width, prevH = r.domElement.height, prevAspect = cam.aspect;
         r.setPixelRatio(1); r.setSize(width, height, false);
         cam.aspect = width / height; cam.updateProjectionMatrix();
-        g.updateCamera(0.016);
-        if (x !== undefined || z !== undefined || zoom) {
+        if (g.qol.photo) g.qol.placePhotoCamera(); else g.updateCamera(0.016);
+        if (x !== undefined || z !== undefined || zoom || tilt !== undefined) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
-          const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight;
-          cam.position.set(cx, h, cz + h * 0.14); cam.lookAt(cx, 0, cz);
+          const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
+          cam.position.set(cx, h, cz + h * t); cam.lookAt(cx, 0, cz);
         }
         r.render(g.scene, cam);
         const image = r.domElement.toDataURL('image/jpeg', quality);

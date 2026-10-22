@@ -52,7 +52,9 @@ export class VehicleLights {
   // After every vehicle has its final position for the frame.
   update(night, time) {
     this.nb = this.ng = 0;
-    const beamK = 0.03 + night * 0.5, headK = 0.22 + night * 0.85, tailK = 0.2 + night * 0.6;
+    // The two beams of a pair overlap down the middle, so each carries about half the pool: their
+    // sum peaks near 0.45 linear, a lit patch of road at night rather than a blown-out white sheet.
+    const beamK = 0.02 + night * 0.27, headK = 0.22 + night * 0.85, tailK = 0.2 + night * 0.6;
     const beams = night > 0.08; // by day a beam on sunlit sand is invisible: don't spend the draw call
     const halo = 0.7 + night * 0.45; // a lit lens is a glint by day, a halo by night
     const blink = Math.sin(time * Math.PI * 3) > 0; // turn signals at 1.5 Hz
