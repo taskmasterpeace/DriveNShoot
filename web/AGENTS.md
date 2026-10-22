@@ -11,7 +11,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 
 | You are... | Use | Setup |
 |---|---|---|
-| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 39 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
+| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 68 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
 | A shell-only agent | **CLI** `node tools/dl.mjs <cmd> k=v` or **HTTP** `POST /agent/cmd` | `npm run agent` (dev server + **headless Chrome**, no window, no human) |
 | Code in the page / a scenario | `DL.call(cmd, args)` / `DL.bind().cmd(args)` | — |
 
@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 23/23 engine checks
+node tools/dl.mjs selftest       # 39/39 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -76,7 +76,8 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 23/23**: state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, War Rig drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 39/39**: state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, War Rig drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
 - **`scenario name=bounty-run`: an agent plays the main quest end to end** using only public commands (no god mode, no teleport, no exec). It walks to the sheriff, takes the job, buys ammo from Ike, drives the War Rig to raider camps, rams and shoots six Dustwolves, swaps wrecked cars, returns, and gets paid $250. That's about 30–100 s of real time for 7–12 in-game minutes. **13 of 15 valid runs completed the whole quest (87%) across the two final batches.** Every run logs why each walk stopped; all stops were the intended interrupts (`under fire`, `player died`). There were 0 timeouts, 0 path failures and 0 runtime errors. Of the two failures, one was a dead end (the player ran over the sheriff), fixed since by `essential` quest givers, and the other was a lost firefight. The run log reads like a play-by-play.

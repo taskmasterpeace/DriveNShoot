@@ -23,6 +23,9 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `map` | `(none)` | World layout summary: bounds, districts, road lines, shops (named buildings), raider camps, named NPC homes. |
 | `perf` | `(none)` | Frame rate, draw calls, triangles, entity counts. |
 | `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it. |
+| `photo` | `on?:boolean x?:number z?:number zoom?:number tilt?:number` | Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K. |
+| `ambient` | `(none)` | Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
+| `hud` | `(none)` | What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood. |
 | `water` | `x?:number z?:number` | Water depth at x,z (default: the player) and what it means: dry \| wade \| swim. Also lists where the water is (river, lake, bridge, dock). |
 
 ## player
@@ -37,6 +40,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `throw` | `type?:frag\|molotov\|smoke\|flash\|pipe\|sticky\|rock x?:number z?:number id?:string cook?:number wait?:boolean` | Throw a throwable (frag\|molotov\|smoke\|flash\|pipe\|sticky\|rock) at x,z or entity id; works on foot or out of a car window (knocks the glass out). cook = seconds held first (frag only). Steps the sim until it resolves (max 6s) and reports what happened. |
 | `dive` | `x?:number z?:number` | Dive-roll toward x,z (or facing): ~5m burst, most bullets miss mid-air, costs stamina. |
 | `crouch` | `on?:boolean` | Hold a crouch on/off (slower, quieter, harder to spot). Keyboard: hold Ctrl. |
+| `honk` | `(none)` | Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving. |
 | `submerge` | `on?:boolean` | While swimming: dive under (on=true) — hidden from AI, bullets can't reach, breath drains ~20s — or surface (on=false). |
 | `equip` | `weapon:string` | Switch to an owned weapon. |
 | `give` | `cash?:number weapon?:string pistol?:number smg?:number shells?:number hp?:number frag?:number molotov?:number smoke?:number flash?:number pipe?:number sticky?:number` | Grant cash, ammo {pistol,smg,shells}, throwables {frag,molotov,smoke,flash,pipe,sticky}, a weapon key, or health. |
