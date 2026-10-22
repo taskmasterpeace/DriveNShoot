@@ -20,6 +20,7 @@ import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
 import { Garage } from './systems/garage.js';
 import { Stunts } from './systems/stunts.js';
+import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS } from './data/items.js';
@@ -86,6 +87,9 @@ class Game {
     this.water.drawOnMinimap(this.world.minimap, HALF);
     // Ramps, dunes and the Thrill Show (data/stunts.js): drivable relief, built before the nav grids see its solids.
     this.stunts = new Stunts(this);
+    // Military bases (data/bases.js): the Federal Remnant's fenced outpost. Its fence, walls and props are solid before
+    // the nav grids see them; its doors and windows join the world's rows before the interiors system hangs them.
+    this.bases = new Bases(this);
     // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
     // Deep water is off-limits to walkers' and drivers' path planning (you can still swim/boat it).
@@ -151,6 +155,7 @@ class Game {
 
     this.populate();
     this.inventory.placeFurniture(); // crates and shelves become containers; shopkeepers own theirs
+    this.bases.placeBoxes();         // the base's ammo crates, footlockers and cabinets (data/bases.js boxes)
     this.buildPickups();
     this.buildFlashlight();
     this.api = new AgentAPI(this);
@@ -255,6 +260,8 @@ class Game {
       const d = this.spawnRaider(camp.x + 22, camp.z - 4, rng, 'smg');
       if (d) this.seats.board(d, v, 0);
     }
+    // Last, from their own seed (so nobody above moves): the base's sentries, patrols and motor pool.
+    this.bases.populate();
   }
 
   spawnRaider(x, z, rng = Math.random, weapon) {
@@ -346,7 +353,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); }
+  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
   footPath(sx, sz, tx, tz) {
     const discs = [];
@@ -439,8 +446,9 @@ class Game {
       }
     }
     if (c.faction === 'raider' && Math.random() < 0.7) { const r = Math.random(); this.dropPickup(c.x + 0.8, c.z, r < 0.6 ? 'ammo' : 'cash'); }
+    if (c.faction === 'soldier' && Math.random() < 0.6) this.dropPickup(c.x + 0.8, c.z, 'ammo'); // a soldier's spare magazines
     // The dead carry what they carried: a body is a container you can go through (I, standing over it).
-    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+    if (c !== this.player && c.faction !== 'zombie' && !c.npc) this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
   }
 
@@ -958,6 +966,7 @@ class Game {
     this.nanGuard('player');
     if (simDt) {
       this.ai.update(simDt); this.nanGuard('ai');
+      this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.society.update(simDt);
       this.survival.update(simDt);
       this.skillsSys.update(simDt);

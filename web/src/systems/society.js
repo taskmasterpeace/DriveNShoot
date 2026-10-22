@@ -38,6 +38,8 @@ export class Society {
       this.places[`camp_${i}`] = { name: `${dir} Camp${used[dir] > 1 ? ` ${used[dir]}` : ''}`, circle: [c.x, c.z, 60], owner: 'dustwolves', yield: 0.5 };
     });
     this.places.rust_haven = { name: 'Rust Haven', rect: [-TOWN, -TOWN, TOWN, TOWN], owner: 'rusthaven', yield: 3 }; // water, trade, the gate toll
+    // Military bases (systems/bases.js): the ground inside the wire, held by whoever built it.
+    for (const s of this.g.bases?.sites ?? []) this.places[s.row.place] = { name: s.row.spoken, rect: [s.fence.x0, s.fence.z0, s.fence.x1, s.fence.z1], owner: s.faction, yield: 0 };
     this.places.old_phoenix = { name: 'the Old Phoenix ruins', owner: null };
     this.places.glass_flats = { name: 'the Glass Flats', owner: null };
     const dw = this.factions.row('dustwolves');

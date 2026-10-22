@@ -615,7 +615,7 @@ export function buildWorld(scene, statics) {
   const minimap = drawMinimap(buildings, glows);
 
   return {
-    buildings, spawns, glows, fires, roofs, glowMat, flames, groundMat, roadMat, minimap,
+    buildings, spawns, glows, fires, roofs, props, glowMat, flames, groundMat, roadMat, minimap, // props: a set-piece clears its lot of loose rubble (bases.js)
     doors: doorRows, windows: windowRows, // data rows: systems/interiors.js hangs the leaves and glass
     updateFlames(time) {
       fires.forEach((f, i) => {
@@ -626,6 +626,7 @@ export function buildWorld(scene, statics) {
       flames.instanceMatrix.needsUpdate = true;
     },
     setRoofVisible(b, visible) {
+      if (b.setRoof) { b.setRoof(visible); return; } // a building that keeps its own roofs (systems/bases.js)
       if (!b.roofIdx.length) return;
       const mesh = roofs.mesh;
       b.roofIdx.forEach((idx) => {
