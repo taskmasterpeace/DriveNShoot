@@ -52,7 +52,7 @@ Hooks call `g.deeds.*` synchronously at the moment of the deed so the witness pa
 |---|---|---|
 | hurt | 1 | `ai.onDamaged`, coalesced per actor/victim pair over 4 s |
 | carjack | 2 | taking an occupied vehicle |
-| steal | 2 | an owned vehicle or pickup |
+| steal | 2 | an owned vehicle or pickup; anything taken from a shopkeeper's shelf or crate (WEB_INVENTORY, sized by worth) |
 | rob | 3 | (phase 2 dialogue) |
 | destroy | 2 | blowing up an owned vehicle |
 | kill | 4 | `onKill` (×2 named, ×3 leader, ×0.25 self-defense) |

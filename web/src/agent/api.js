@@ -2285,6 +2285,42 @@ async function runSelfTest(api) {
     inv.boxes.delete(box.id); inv.boxes.delete(twin.id); inv.opened = null; inv.load(sv);
     return items.length > 0 && JSON.stringify(items) === JSON.stringify(again) && heavier ? true : JSON.stringify({ items, again, kg0, kg: g.skills.kg });
   });
+  await check('inventory: shop shelves are searchable and owned - take from Doc Reyes\'s shelf in front of her and she remembers it', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const box = [...inv.boxes.values()].find((b) => b.ownerName === 'Doc Lupe Reyes');
+    const reyes = g.chars.find((c) => c.npc?.id === 'reyes');
+    if (!box || !reyes) { inv.load(sv); return JSON.stringify({ box: !!box, reyes: !!reyes }); }
+    const mems0 = (await C('memory', { id: 'reyes' })).memories.filter((m) => m.kind === 'robbedMe').length;
+    await C('teleport', { x: box.x + 1, z: box.z + 0.6 });
+    const home = { x: reyes.x, z: reyes.z };
+    reyes.x = g.player.x + 0.7; reyes.z = g.player.z + 0.3; reyes.hold = 1.5; // at your shoulder
+    inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
+    const seq0 = g.eventSeq;
+    const took = (await C('item', { take: 'bandage', n: 2 })).moved;
+    const deed = g.events.find((e) => e.seq > seq0 && e.type === 'deed' && e.verb === 'steal');
+    const mems = (await C('memory', { id: 'reyes' })).memories.filter((m) => m.kind === 'robbedMe').length;
+    reyes.x = home.x; reyes.z = home.z; inv.opened = null; box.stealT = -99; inv.load(sv);
+    g.society.memory.entry('reyes').mems = g.society.memory.entry('reyes').mems.filter((m) => m.kind !== 'robbedMe');
+    return took === 2 && deed?.witnesses >= 1 && mems > mems0 ? true : JSON.stringify({ took, deed: deed ?? null, mems0, mems });
+  });
+  await check('locks: lockpicks open a locked door without a sound (one pick spent); a crowbar opens it loud and stays in your pack', async () => {
+    await stage();
+    const I = g.interiors, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
+    const door = I.doors.find((d) => d.locked && d.kind === 'back') ?? I.doors.find((d) => d.kind === 'back');
+    if (!door) { inv.load(sv); return 'no back door'; }
+    I.setLocked(door, true);
+    const out = { x: door.x + door.nx * 1.3, z: door.z + door.nz * 1.3 }, out2 = { x: door.x - door.nx * 1.3, z: door.z - door.nz * 1.3 };
+    await C('teleport', I.nearest({ x: out.x, z: out.z }) === door ? out : out2); await C('step', { seconds: 0.1 });
+    let noises = 0; const noise = g.noise; g.noise = (...a) => { noises++; return noise.apply(g, a); };
+    try {
+      inv.carried.slots = []; await C('item', { give: 'lockpicks' });
+      const picked = (await C('item', { use: 'lockpicks' })).used === 'LOCK PICKED' && !door.locked && noises === 0 && inv.carried.slots.find((s) => s.id === 'lockpicks')?.left === 5;
+      I.setLocked(door, true); inv.carried.slots = []; await C('item', { give: 'crowbar' });
+      const pried = (await C('item', { use: 'crowbar' })).used === 'PRIED OPEN' && !door.locked && noises > 0 && inv.carried.slots.some((s) => s.id === 'crowbar');
+      return picked && pried ? true : JSON.stringify({ picked, pried, noises, locked: door.locked });
+    } finally { g.noise = noise; inv.load(sv); I.setLocked(door, false); }
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;

@@ -156,7 +156,8 @@ export class InventoryUI {
     this.el.l.style.width = `${Math.min(100, (100 * C.litres()) / C.cap)}%`;
     this.el.lT.textContent = `${C.litres().toFixed(1)} / ${C.cap} L`;
     const o = this.other;
-    this.el.other.textContent = o ? `${o.label}${o.kind === 'ground' ? '' : ` · ${o.litres().toFixed(0)} / ${o.cap} L`}` : '';
+    this.el.other.textContent = o ? `${o.label}${o.kind === 'ground' ? '' : ` · ${o.litres().toFixed(0)} / ${o.cap} L`}${o.owner ? ` · ${o.ownerName.toUpperCase()}'S: TAKING IS STEALING` : ''}` : '';
+    this.el.other.classList.toggle('owned', !!o?.owner);
     for (let side = 0; side < 2; side++) {
       const box = this.box(side), sel = this.sel[side];
       this.el.cols[side].classList.toggle('active', this.side === side);

@@ -1,9 +1,13 @@
 # WEB_INVENTORY — what you carry, and what the world holds (web engine)
 
-**Status:** phase 1 SHIPPED 2026-10-22 in `web/`: items as rows (`web/src/data/items.js`), the container model
+**Status:** phase 1 and the first half of phase 2 SHIPPED 2026-10-22 in `web/`: items as rows (`web/src/data/items.js`), the container model
 (`web/src/systems/inventory.js`), the PACK screen (`web/src/ui/inventory.js`), V quick-use, searchable bodies,
 ground piles, trunks, tools that act on cars. Agent commands `inventory`, `item`, `pack`; selftest "inventory: …" (2).
-Phase 2 (below, Open) puts boxes inside buildings, guns and rounds into the item model, and trade.
+Phase 2 shipped: every crate and shelf inside a building is a container (114 at boot), its loot fitting the place
+(a clinic's shelves hold medicine, the mechanic's hold parts, a house has kitchen/bedroom/bathroom things); a named
+shopkeeper owns what is in their shop and taking it is a `steal` deed; lockpicks and the crowbar work the interiors
+system's locks (hold E at a locked door: picks quietly, a bar loudly; a tap still kicks). Still open: guns and rounds
+as items, trade, the radio item, refills.
 
 ## 1. Overview
 
@@ -51,6 +55,18 @@ takes your hands and your eyes.
   room they're left on the ground as a pile. Ammo and cash work as before.
 - **The dead:** every human but the player and named people leaves a container (`body:<id>`, 20 L) rolled from
   `person` or `raider` loot when first searched; the oldest empty ones are forgotten past 60.
+- **Furniture:** every `crate` and `shelf` static inside an enterable building becomes `box:<x10>:<z10>` (ids from
+  position, so saves find them again). A shop's boxes use the shop's table (Clinic → bathroom, Mechanic → garage,
+  Water Trader → kitchen, others → office); a home's crates are kitchen or garage, its shelves kitchen, bathroom,
+  bedroom or office. In reach and nothing else claiming E: the prompt reads "E Search the shelf" (with the owner's
+  name in red when it is somebody's) and E opens the PACK screen on it.
+- **Theft:** moving anything from an owned box into your pack records one `steal` deed per box per 30 s at the
+  thief's position (witnesses need to see you, not the inside of the shelf), sized `1 + worth/40` (max 4), worth one
+  wanted star to a lawful witness. The owner who sees it remembers it (`robbedMe`); the PACK screen warns
+  "TAKING IS STEALING".
+- **Locks:** at a locked door with lockpicks in your pack, hold E 2.6 s to pick it (silent; one pick of six snaps; the
+  door stays shut); with a crowbar (and no picks), hold E 1.3 s to pry it (an 18 m noise; the door bursts open; the bar
+  is kept). A tap of E still kicks. From the PACK screen, using either acts on the locked door in front of you.
 - **Ground piles** render as one canvas bundle each (one draw call for all, 96 max); an empty pile is pruned when the
   PACK screen closes.
 
@@ -108,10 +124,13 @@ takes your hands and your eyes.
 2. A killed raider leaves a searchable body; searching twice from the same seed gives the same things; carrying 6 kg of
    scrap raises the carried weight by 6 kg.
 3. The survival check: thirst fixed by drinking a found bottle with V (pips back to 0).
+4. Taking two bandages from Doc Reyes's shelf with her at your shoulder: a `steal` deed with a witness, and she
+   remembers it (robbedMe).
+5. At a locked back door: lockpicks open it with no noise and five picks left; locked again, a crowbar opens it with a
+   noise and is still in the pack.
 
 ## Open (phase 2)
 
-Boxes in rooms (kitchen/bathroom/bedroom/garage/office tables) placed from the interiors system's rooms, with a search
-time and noise; locked boxes and the lockpick/crowbar wiring; guns and rounds as items (condition, jams); trade (sell
+A search time and its noise; locked boxes (a gun safe); guns and rounds as items (condition, jams); trade (sell
 to traders at standing-adjusted prices); a portable radio item that gates STATIC 1660 AM away from cars and the
 station; refilling bottles at pumps and the river.

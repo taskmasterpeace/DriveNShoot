@@ -11,6 +11,9 @@ import { makeRng } from '../engine/rng.js';
 // A slot is { id, n, left?, made? }: left = uses left in a thing that has uses (stack 1), made = the game hour food
 // was fresh from (it spoils on the game clock, not in real time).
 const MAX_BODIES = 60;
+// What a shop's shelves and crates hold (by the shopkeeper's trade), and what a home's shelves might.
+const SHOP_LOOT = { Clinic: 'bathroom', Mechanic: 'garage', Gunsmith: 'office', 'Water Trader': 'kitchen', 'Radio DJ': 'office', 'Warden Captain': 'office' };
+const HOME_LOOT = ['kitchen', 'bathroom', 'bedroom', 'office', 'kitchen'];
 const TRUNK = { rig: 900, interceptor: 260, buggy: 60, pickup: 700, sedan: 380, van: 1400, airboat: 120, jetski: 20, gunboat: 400, atv: 50, bike: 22 };
 
 export class Container {
@@ -101,8 +104,23 @@ export class Inventory {
     if (k <= 0) return 0;
     const t = this.take(from, i, k);
     this.add(to, t.id, t.n, t);
+    // Out of somebody's shop and into your pocket: theft, as the world sees it (deeds: witnesses, word, memory).
+    if (from.owner && to === this.carried) this.stole(from, t);
     this.changed();
     return k;
+  }
+
+  // A theft: one deed per box per half-minute however many things you take, sized by what they were worth. The
+  // owner, if they're alive and see it, remembers it (robbedMe); anyone else who saw it talks.
+  stole(box, t) {
+    const g = this.g, owner = g.chars.find((c) => c.id === box.owner && c.alive);
+    const worth = (ITEMS[t.id]?.value ?? 1) * t.n;
+    box.stolen = (box.stolen ?? 0) + worth;
+    if ((box.stealT ?? -99) > g.time - 30) return;
+    box.stealT = g.time;
+    const P = g.player; // witnesses see the thief, not the inside of the shelf
+    const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? 'rusthaven', stars: 1 });
+    g.emit('stole', { box: box.id, owner: box.owner, item: t.id, n: t.n, worth, witnesses: rec?.ws ?? 0 });
   }
 
   // ---- the pack on your back -------------------------------------------------------------------------------
@@ -152,7 +170,7 @@ export class Inventory {
     if (fresh === 'rotten' && P) { g.combat?.damage(P, 6, null, 0, 0, 'sickness'); texts.push('IT WAS OFF'); }
     if (N?.pips && g.survival) for (const k2 of ['water', 'food']) N.pips[k2] = g.survival.pip(N[k2]);
     if (it.uses) { s.left--; if (s.left <= 0 && it.kgEmpty === undefined) this.take(box, i, 1); } // spent; a refillable keeps its shell
-    else this.take(box, i, 1);
+    else if (!(u.act && it.kind === 'tool')) this.take(box, i, 1); // a crowbar is not used up; a tyre or a tin is
     this.changed();
     g.emit('itemUsed', { item: s.id, fresh, text: texts.join(' · ') });
     return { ok: true, text: texts.join(' · ') || it.name.toUpperCase() };
@@ -185,10 +203,28 @@ export class Inventory {
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
     if (verb === 'pick' || verb === 'pry') {
-      const r = g.interiors?.forceLock?.(P, verb);
-      return r?.ok ? { ok: true, text: verb === 'pick' ? 'LOCK PICKED' : 'PRIED OPEN' } : { ok: false, why: r?.why ?? 'nothing locked within reach' };
+      const door = g.interiors?.nearest(P);
+      if (!door?.leaves || !door.locked) return { ok: false, why: 'nothing locked within reach' };
+      this.forceLock(door, verb, false);
+      return { ok: true, text: verb === 'pick' ? 'LOCK PICKED' : 'PRIED OPEN' };
     }
     return { ok: false, why: 'not here' };
+  }
+
+  // Open a locked door with what you carry: picks are quiet and leave it shut (a pick snaps: one use), a crowbar
+  // is loud and bursts it open. spend: take the pick's use here (false when use() already counts it).
+  forceLock(door, how, spend = true) {
+    const g = this.g, P = g.player, I = g.interiors;
+    if (how === 'pick') {
+      if (spend) { const i = this.carried.slots.findIndex((s) => s.id === 'lockpicks' && s.left > 0); if (i < 0) return false; const s = this.carried.slots[i]; if (--s.left <= 0) this.take(this.carried, i, 1); this.changed(); }
+      g.audio.burst?.({ dur: 0.08, freq: 3200, type: 'bandpass', q: 6, vol: 0.12, decay: 0.07 }); // a click
+      I.unlock(door, 'picked', P, false);
+    } else {
+      g.audio.burst?.({ dur: 0.45, freq: 520, type: 'bandpass', q: 2, vol: 0.55, decay: 0.4, pitchDrop: 0.6 }); // wood and steel giving
+      g.noise(door.x, door.z, 18, P);
+      I.unlock(door, 'pried', P, true);
+    }
+    return true;
   }
 
   // The best thing you carry for a need ('water' | 'food' | 'med'): food that spoils soonest first, the smallest
@@ -210,6 +246,26 @@ export class Inventory {
   }
 
   // ---- the world's containers ------------------------------------------------------------------------------
+  // Every crate and shelf inside a building is a container (world/city.js furnishes them), its loot fitting the
+  // place: a clinic's shelves hold medicine, the mechanic's hold parts, a house has kitchen, bedroom and bathroom
+  // things. A named shopkeeper owns what is in their shop: taking from it is a `steal` deed (move()).
+  // Called once the people are placed (shop buildings learn their names then). Ids come from positions, so a save
+  // finds the same box again.
+  placeFurniture() {
+    const g = this.g, B = g.world?.buildings ?? [], keepers = g.chars.filter((c) => c.npc?.title);
+    for (const b of g.statics.boxes) {
+      if (b.tag !== 'crate' && b.tag !== 'shelf') continue;
+      const x = (b.minX + b.maxX) / 2, z = (b.minZ + b.maxZ) / 2;
+      const bld = B.find((q) => q.enterable && x > q.minX && x < q.maxX && z > q.minZ && z < q.maxZ);
+      if (!bld) continue;
+      const id = `box:${Math.round(x * 10)}:${Math.round(z * 10)}`, h = hash(id);
+      const shop = bld.shopName?.split(' · ')[0] ?? null;
+      const table = SHOP_LOOT[shop] ?? (b.tag === 'crate' ? (h % 3 ? 'kitchen' : 'garage') : HOME_LOOT[h % HOME_LOOT.length]);
+      const box = this.place(id, table, x, z, b.tag === 'crate' ? 60 : 40, `${b.tag === 'crate' ? 'CRATE' : 'SHELF'}${shop ? ` · ${shop.toUpperCase()}` : ''}`, h);
+      const keeper = shop && keepers.find((c) => c.npc.title === bld.shopName);
+      if (keeper) { box.owner = keeper.id; box.ownerName = keeper.npc.name; }
+    }
+  }
   // Register a container (loot rolls the first time it's opened). kind names its LOOT table.
   place(id, kind, x, z, cap, label, seed) {
     // The dead are remembered as containers until there are too many; the oldest unsearched go first.

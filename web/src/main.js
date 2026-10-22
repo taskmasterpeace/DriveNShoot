@@ -145,10 +145,12 @@ class Game {
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
     this.aim = { x: 0, z: 0 };
+    this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
     this.raiderTimer = 10;
     this.fps = 60;
 
     this.populate();
+    this.inventory.placeFurniture(); // crates and shelves become containers; shopkeepers own theirs
     this.buildPickups();
     this.buildFlashlight();
     this.api = new AgentAPI(this);
@@ -747,11 +749,16 @@ class Game {
     }
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const op = !best && !bestV ? this.interiors.playerInteract(p, I, dt) : null;
-    this.qol.highlight(best ?? bestV ?? op);
+    // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
+    const box = !best && !bestV && !op ? this.inventory.nearest(p.x, p.z, 2.6) : null;
+    if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
+    this.qol.highlight(best ?? bestV ?? op ?? (box ? this.boxRing : null));
     if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
+    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (!op) this.hud.prompt(null);
     if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
+    else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }

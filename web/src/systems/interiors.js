@@ -570,6 +570,23 @@ export class Interiors {
     const ring = this.ring;
     if (t.leaves) {
       ring.x = t.x; ring.z = t.z; ring.len = 2.4;
+      // Carrying picks or a crowbar (inventory.js): a held E works the lock (picks quietly, a bar loudly);
+      // a tap still kicks. Without either, E kicks on the press as before.
+      const inv = g.inventory, tool = !t.locked || !inv ? null : inv.carried.slots.some((s) => s.id === 'lockpicks' && s.left > 0) ? 'pick' : inv.hasTag('pry') ? 'pry' : null;
+      if (tool) {
+        const need = tool === 'pick' ? 2.6 : 1.3, verb = tool === 'pick' ? 'Picking the lock' : 'Prying it';
+        if (down && this.hold >= 0) {
+          this.hold += dt;
+          const k = (this.hold - WINDOW.holdTap) / need;
+          if (k >= 1) { inv.forceLock(t, tool); this.hold = -1; }
+          g.hud.prompt(k > 0 ? `${verb}… ${Math.round(Math.min(1, k) * 100)}%` : `<kbd>E</kbd> Kick · hold <kbd>E</kbd> ${tool === 'pick' ? 'Pick the lock (quiet)' : 'Pry it open (loud)'}`);
+          return ring;
+        }
+        if (!down && this.hold > 0 && this.hold < WINDOW.holdTap) this.kick(t, p);
+        if (!down) this.hold = 0;
+        g.hud.prompt(`<kbd>E</kbd> Kick the door in · locked (${t.kicks} more) · hold <kbd>E</kbd> ${tool === 'pick' ? 'Pick the lock (quiet)' : 'Pry it open (loud)'}`);
+        return ring;
+      }
       g.hud.prompt(t.locked ? `<kbd>E</kbd> Kick the door in · locked (${t.kicks} more)` : '<kbd>E</kbd> Kick the door open');
       if (hit) this.kick(t, p);
       return ring;
