@@ -44,6 +44,7 @@ export const EVENTS = {
         hurt: 'Shots fired at {place}. {who} is walking around with somebody else\'s lead in them.',
         carjack: 'Somebody yanked {who} out of their own car at {place}. Lock it or lose it.',
         rescue: 'Good news for once: a stranger pulled {who} out of a bad fight at {place}.',
+        stunt: 'Word from the old thrill show off Route 66: a stranger flew a car clean over {who}. Somebody saw it, so now everybody knows.',
       },
       unwitnessed: {
         kill: 'Somebody put {who} in the dirt out at {place}. Nobody saw a thing. Nobody ever does.',
@@ -53,6 +54,19 @@ export const EVENTS = {
         kill: '{who} is dead at {place}. The flats take another one.',
       },
       tier: '{faction} are calling a certain stranger {tier} now. Strange days.',
+    },
+    // The morning digest: at dawn the station reads yesterday back from the chronicle's day totals. Clauses join
+    // with commas into one sentence between the open and the close; any clause with nothing to say is left out.
+    digest: {
+      at: 6.5, // game hour
+      open: 'Static here with the morning news. Yesterday on the flats:',
+      dead: ['nobody died that I heard about', 'one dead', 'two dead', 'three dead', 'four dead', '{n} dead'],
+      worst: 'the worst of it at {place}',
+      took: '{a} took {place} off {b}',
+      skirmish: '{a} and {b} traded lead',
+      stunt: 'and some fool flew {who} at the old thrill show',
+      quiet: 'quiet, for once',
+      close: ['That is the news. Keep your water close.', 'That is the news. Check your mirrors.', 'That is the news. Do not trust a stranger with a full tank.'],
     },
   },
 };

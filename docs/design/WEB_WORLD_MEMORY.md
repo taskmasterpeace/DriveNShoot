@@ -1,6 +1,6 @@
 # WEB_WORLD_MEMORY — the world keeps score
 
-**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 (HUD respect chips, radio digests, witnesses who run home, rumors hopping between allies) is next.
+**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. Still to come: witnesses who run home, rumors hopping between allies.
 **Owner of the call:** Robert. **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** a read-only architecture pass over `web/src` (2026-10-22), the fan-service bible
 (`docs/design/WEB_FAN_SERVICE_BIBLE.md` — FEUD MATH, PAPER LADDER, SCORE TO SETTLE, WANTED WITH YOUR PAINT), canon

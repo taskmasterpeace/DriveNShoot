@@ -54,7 +54,8 @@ export class Deeds {
   }
 
   // Record a deed. o: { actor, target, x, z, m, witness, src, flags, tf (target faction), stars (wanted stars it is
-  // worth to a lawful faction), sd (self-defense) }. Returns the chronicle record.
+  // worth to a lawful faction), sd (self-defense), label (what the record names when there is no target: a jump) }.
+  // Returns the chronicle record.
   record(verb, o = {}) {
     const g = this.g, P = g.player, actor = o.actor ?? P, target = o.target ?? null;
     const x = o.x ?? target?.x ?? actor?.x, z = o.z ?? target?.z ?? actor?.z;
@@ -67,7 +68,7 @@ export class Deeds {
     const rec = this.chron.add({
       t: +g.time.toFixed(2), day: g.society?.day ?? 0, hr: +(g.sky.time ?? 0).toFixed(2),
       a: mine ? 'player' : actor?.id ?? '', af: mine ? 'player' : actor?.fid ?? '', v: verb,
-      o: target?.id ?? '', on: target?.npc?.name ?? target?.name ?? '', of: tf ?? '', p: g.society?.placeAt(x, z) ?? '',
+      o: target?.id ?? '', on: target?.npc?.name ?? target?.name ?? o.label ?? '', of: tf ?? '', p: g.society?.placeAt(x, z) ?? '',
       x: +x.toFixed(1), z: +z.toFixed(1), m: o.m ?? VERBS[verb] ?? 1, w: seen.map((c) => c.id), ws: seen.length, un: mine ? this.sawOnly : 0, k, src: o.src ?? (mine ? 'deed' : 'world'),
     });
     this.deeds++;

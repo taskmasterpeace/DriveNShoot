@@ -914,10 +914,11 @@ function buildCommands(api) {
       },
     },
     director: {
-      group: 'society', desc: 'The event director: running events, cooldowns, what could fire now and why the rest can\'t. action=eval fires the pick now; pause/resume stop or restart it.',
-      args: { action: { type: 'string', default: 'status', enum: ['status', 'eval', 'pause', 'resume'] } },
-      run: async ({ action }) => {
+      group: 'society', desc: 'The event director: running events, cooldowns, what could fire now and why the rest can\'t. action=eval fires the pick now; pause/resume stop or restart it; digest reads a day back on the radio now (day=, default yesterday) the way STATIC 1660 AM does every dawn.',
+      args: { action: { type: 'string', default: 'status', enum: ['status', 'eval', 'pause', 'resume', 'digest'] }, day: { type: 'number' } },
+      run: async ({ action, day }) => {
         const D = g.society.director;
+        if (action === 'digest') { D.digestDay = day ?? Math.max(0, g.society.day - 1); return { day: D.digestDay, lines: D.readDigest() }; }
         if (action === 'pause') D.paused = true;
         if (action === 'resume') D.paused = false;
         const fired = action === 'eval' ? D.evaluate() : null;
@@ -1924,6 +1925,18 @@ async function runSelfTest(api) {
     const skirmished = r.records.some((x) => x.verb === 'skirmish');
     S.sim.load(sv);
     return moved && skirmished && r.ms < 20 ? true : JSON.stringify({ moved, skirmished, ms: r.ms, n: r.records.length });
+  });
+  await check('the morning radio reads yesterday back: the dead, and a jump somebody saw', async () => {
+    await stage();
+    const S = g.society, seq0 = g.eventSeq;
+    const c = person('raider', 7, 0); await C('kill', { id: c.id });
+    S.deeds.record('stunt', { x: 355, z: 28, m: 1, label: 'Wreck Row', flags: K.feat, witness: false, src: 'stunt' });
+    await C('setTime', { hour: 23.9 }); await C('step', { seconds: 0.3 });
+    await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
+    const ev = g.events.find((e) => e.seq > seq0 && e.type === 'radioDigest');
+    const body = ev?.lines?.[1] ?? '';
+    await C('setTime', { hour: 12 });
+    return ev && /dead/.test(body) && body.includes('Wreck Row') && ev.lines.length === 3 ? true : JSON.stringify({ ev: ev ?? null, day: S.day });
   });
   await check('faction sim: a strong Dustwolf band raids Rust Haven at night, and beating them off costs the band', async () => {
     await stage();

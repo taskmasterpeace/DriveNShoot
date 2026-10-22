@@ -20,14 +20,52 @@ export class Director {
     this.seq = 0;
     this.lastNewsSeq = 0;
     this.lastTiers = null;
+    this.digestDay = null;   // a day whose digest is due at dawn
   }
 
   get S() { return this.g.society; }
 
   update(dt) {
     if ((this.checkT -= dt) <= 0) { this.checkT = 0.5; this.track(); }
+    // The morning digest waits for dawn on the day after (and is dropped if the clock has run past that day).
+    if (this.digestDay !== null && this.S.day === this.digestDay + 1 && this.g.sky.time >= EVENTS.radio_news.digest.at) this.readDigest();
+    else if (this.digestDay !== null && this.S.day > this.digestDay + 1) this.digestDay = null;
     if (this.paused) return;
     if ((this.nextEval -= dt) <= 0) { this.nextEval = EVAL_EVERY; this.evaluate(); }
+  }
+
+  // ---- the morning digest (phase 5) --------------------------------------------------------------------
+  newDay(day) { this.digestDay = day - 1; }
+
+  // Yesterday in one breath, from the chronicle's day totals and its records of that day: how many died, where it
+  // was worst, a camp that changed hands, a fight between factions, a feat. Returns the lines (open, body, close).
+  digestLines(day) {
+    const S = this.S, F = S.factions, T = EVENTS.radio_news.digest, C = S.chronicle;
+    const d = C.digests.find((x) => x.day === day);
+    const name = (fid) => (F.row(fid)?.name ?? 'somebody').replace(/^The /, 'the '); // mid-sentence: "the Dustwolves"
+    const place = (p) => S.places[p]?.name ?? 'the flats';
+    const ofDay = (verb) => C.query({ verb, limit: 64 }).filter((r) => r.day === day);
+    const parts = [];
+    const dead = d ? Object.values(d.kills).reduce((a, b) => a + b, 0) : 0;
+    parts.push(dead < T.dead.length - 1 ? T.dead[dead] : T.dead[T.dead.length - 1].replace('{n}', dead));
+    if (d?.worst && dead > 0 && d.worst.p) parts.push(T.worst.replace('{place}', place(d.worst.p)));
+    const took = ofDay('took')[0];
+    if (took) parts.push(T.took.replace('{a}', name(took.af)).replace('{place}', took.on || place(took.p)).replace('{b}', name(took.of)));
+    else { const sk = ofDay('skirmish')[0]; if (sk) parts.push(T.skirmish.replace('{a}', name(sk.af)).replace('{b}', name(sk.of))); }
+    const stunt = ofDay('stunt').find((r) => !(r.k & K.unwitnessed));
+    if (stunt) parts.push(T.stunt.replace('{who}', stunt.on || 'a row of dead cars'));
+    if (parts.length === 1 && dead === 0) parts[0] = T.quiet;
+    const body = parts.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.';
+    return [T.open, body, T.close[day % T.close.length]];
+  }
+
+  readDigest() {
+    const day = this.digestDay;
+    this.digestDay = null;
+    const lines = this.digestLines(day);
+    lines.forEach((l, i) => this.radio(l, i * 7));
+    this.g.emit('radioDigest', { day, lines });
+    return lines;
   }
 
   // ---- eligibility -------------------------------------------------------------------------------------
@@ -305,12 +343,13 @@ export class Director {
     };
   }
 
-  save() { return { cool: Object.fromEntries(Object.entries(this.cool).map(([k, t]) => [k, +(t - this.g.time).toFixed(1)])), lastNewsSeq: this.lastNewsSeq, lastTiers: this.lastTiers, seq: this.seq }; }
+  save() { return { cool: Object.fromEntries(Object.entries(this.cool).map(([k, t]) => [k, +(t - this.g.time).toFixed(1)])), lastNewsSeq: this.lastNewsSeq, lastTiers: this.lastTiers, seq: this.seq, digestDay: this.digestDay }; }
 
   load(s) {
     if (!s) return;
     this.active = [];
     this.cool = Object.fromEntries(Object.entries(s.cool ?? {}).map(([k, dt]) => [k, this.g.time + dt]));
     this.lastNewsSeq = s.lastNewsSeq ?? 0; this.lastTiers = s.lastTiers ?? null; this.seq = s.seq ?? this.seq;
+    this.digestDay = s.digestDay ?? null;
   }
 }

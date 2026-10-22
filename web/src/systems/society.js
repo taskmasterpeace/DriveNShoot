@@ -57,7 +57,7 @@ export class Society {
     const h = this.g.sky.time;
     if (this.lastHour === null) this.lastHour = h;
     let dh = h - this.lastHour;
-    if (dh < -12) { dh += 24; this.day++; this.g.emit('newDay', { day: this.day }); this.sim.tickDay(); }
+    if (dh < -12) { dh += 24; this.day++; this.g.emit('newDay', { day: this.day }); this.sim.tickDay(); this.director.newDay(this.day); }
     this.lastHour = h;
     if (dh > 0) {
       this.hourAcc += dh;

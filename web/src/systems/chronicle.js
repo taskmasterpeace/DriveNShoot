@@ -2,11 +2,11 @@
 //   ring    - 512 pooled records, the oldest overwritten;
 //   tally   - actorFaction|verb|targetFaction → {n, m, t}, kept on insert, so losing a record from the ring never
 //             loses a count a query relies on;
-//   legend  - up to 96 notable records (mag ≥ 8, a named or leader target, a director outcome);
+//   legend  - up to 96 notable records (mag ≥ 8, a named or leader target, a director outcome, a feat people saw);
 //   digests - per-day totals for the last 30 days (the radio's raw material).
 // Records are only written at deed time; nothing here runs per frame.
 
-export const K = { named: 1, leader: 2, night: 4, unwitnessed: 8, reported: 16, silenced: 32, director: 64, coalesced: 128, downed: 256, selfDefense: 512, overflow: 1024 };
+export const K = { named: 1, leader: 2, night: 4, unwitnessed: 8, reported: 16, silenced: 32, director: 64, coalesced: 128, downed: 256, selfDefense: 512, overflow: 1024, feat: 2048 };
 const FIELDS = ['seq', 't', 'day', 'hr', 'a', 'af', 'v', 'o', 'on', 'of', 'p', 'x', 'z', 'm', 'w', 'ws', 'un', 'k', 'src'];
 const blank = () => ({ seq: 0, t: 0, day: 0, hr: 0, a: '', af: '', v: '', o: '', on: '', of: '', p: '', x: 0, z: 0, m: 0, w: [], ws: 0, un: 0, k: 0, src: '' });
 const BLANK = blank();
@@ -33,7 +33,7 @@ export class Chronicle {
     const key = `${rec.af}|${rec.v}|${rec.of}`;
     const ty = this.tally.get(key);
     if (ty) { ty.n++; ty.m += rec.m; ty.t = rec.t; } else this.tally.set(key, { n: 1, m: rec.m, t: rec.t });
-    if (rec.m >= 8 || rec.k & (K.named | K.leader | K.director)) this.toLegend(rec);
+    if (rec.m >= 8 || rec.k & (K.named | K.leader | K.director) || (rec.k & K.feat && !(rec.k & K.unwitnessed))) this.toLegend(rec);
     this.digest(rec);
     return rec;
   }

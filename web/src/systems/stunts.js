@@ -4,6 +4,7 @@ import { RAMPS, PROPS, JUMPS, SITES, STUNT } from '../data/stunts.js';
 import { radialGlow } from '../world/textures.js';
 import { makeRng } from '../engine/rng.js';
 import { HALF as WORLD_HALF } from '../world/city.js';
+import { K } from './chronicle.js';
 
 // Jumps (docs/design/WEB_JUMPS.md). The world is flat except where a ramp row (data/stunts.js) says otherwise. A
 // vehicle rides that ground on its springs; it flies when the ground falls away faster than gravity and the springs
@@ -60,6 +61,7 @@ function dside(kind, u) {
   return a < SHOULDER ? 0 : ((-0.5 * Math.PI) / (1 - SHOULDER)) * Math.sin((Math.PI * (a - SHOULDER)) / (1 - SHOULDER)) * Math.sign(u);
 }
 
+const spoken = (s) => s.toLowerCase().replace(/\b\w/g, (ch) => ch.toUpperCase()); // 'WRECK ROW' -> 'Wreck Row', for the radio
 const _sl = { gx: 0, gz: 0 };
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _c = new THREE.Color();
 
@@ -279,7 +281,8 @@ export class Stunts {
           res.pay = c.n === 0 ? J.first : fresh ? J.again : 0;
           c.n++; c.day = day; c.best = Math.max(c.best, dist);
           if (res.pay) g.give({ cash: res.pay });
-          if (fresh) g.society?.deeds?.record('stunt', { x: v.x, z: v.z, m: grade === 'clean' ? 1.5 : 1, src: 'stunt' }); // a clean one is told bigger
+          // A feat: the legend keeps it if anyone saw it, so the radio can tell it. A clean one is told bigger.
+          if (fresh) g.society?.deeds?.record('stunt', { x: v.x, z: v.z, m: grade === 'clean' ? 1.5 : 1, src: 'stunt', label: spoken(J.name), flags: K.feat });
           g.hud.toast(`${J.name} CLEARED · ${dist.toFixed(0)} M · ${grade.toUpperCase()}${res.pay ? ` · +$${res.pay}` : ''}`, 'job');
         } else g.hud.toast(`${J.name} · ${grade === 'crash' ? 'WIPED OUT' : J.land === J.from && landedOn?.id === J.land ? 'CASED IT' : 'SHORT'}`, 'warn');
       } else if (airT >= STUNT.showAir) g.hud.toast(`AIR ${airT.toFixed(1)} S · ${dist.toFixed(0)} M · ${grade === 'crash' ? 'WIPED OUT' : grade.toUpperCase()}${res.record ? ' · BEST YET' : ''}`, grade === 'crash' ? 'warn' : 'info');
