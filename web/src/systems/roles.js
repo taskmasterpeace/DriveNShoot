@@ -621,6 +621,8 @@ export class Roles {
   }
 
   reset() {
+    for (const off of Object.keys(this.offices)) this.strip(off, true); // the star goes back too
+    if (this.orders) this.clearOrders(this.orders);
     for (const id of this.ids) this.st[id] = blank();
     this.jobs = {}; this.offices = {}; this.dailyUsed = {}; this.news = []; this.said.clear();
     this.odoV = null; this.shoutT = 0;
