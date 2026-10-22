@@ -310,22 +310,22 @@ export function buildWorld(scene, statics) {
       }
     }
     buildSpans(b, inner ? px : null);
-    // Door leaves (ruins lose some), locks, and the rule that no room is ever locked off: every room
-    // keeps an unlocked way in from outside. Front doors never lock.
+    // A leaf in every doorway (but one whose wall has fallen: nothing left to hang it on), locks, and the
+    // rule that no room is ever locked off: every room keeps an unlocked way in from outside. Front
+    // doors never lock.
     const fixedOf = { N: minZ, S: maxZ, W: minX, E: maxX };
     const roomOf = (x) => (inner && x > px ? 1 : 0);
     const entrances = [], mine = [];
     for (const s of ['N', 'S', 'W', 'E']) for (const g of gaps[s]) {
       const horiz = s === 'N' || s === 'S';
       const x = horiz ? g.at : fixedOf[s], z = horiz ? fixedOf[s] : g.at;
-      const leaf = !g.broken && !(ruined && orng.chance(0.3));
-      const row = leaf ? addDoor(b, g.kind, horiz ? 'x' : 'z', x, z, g.w, OUT[s][0], OUT[s][1]) : null;
+      const row = g.broken ? null : addDoor(b, g.kind, horiz ? 'x' : 'z', x, z, g.w, OUT[s][0], OUT[s][1]);
       if (row?.kind === 'back' && orng.chance(0.45)) row.locked = true;
       if (row) mine.push(row);
       entrances.push({ room: roomOf(x), row });
     }
     let innerRow = null;
-    if (inner && !(ruined && orng.chance(0.3))) {
+    if (inner) {
       innerRow = addDoor(b, 'inner', 'z', px, inner.at, SINGLE_GAP, 1, 0);
       if (orng.chance(0.35)) innerRow.locked = true;
       mine.push(innerRow);
