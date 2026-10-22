@@ -89,7 +89,7 @@ export function buildWorld(scene, statics) {
   const glows = []; // {x,z,r,color}
   const fires = []; // {x,z}
   const buildings = [];
-  const spawns = { drifters: [], raiders: [], camps: [], wardens: [], loot: [], parking: [], shops: [] };
+  const spawns = { drifters: [], raiders: [], camps: [], wardens: [], loot: [], parking: [], shops: [], beds: [] };
   const sidewalkGeos = [];
 
   // ---- ground --------------------------------------------------------------
@@ -255,6 +255,7 @@ export function buildWorld(scene, statics) {
         statics.addCentered(x, z, 1.8, 1.1, 'table', 0.9);
       } else if (kind === 2) { // bedroll / mattress
         props.add(x, 0.12, z, 1, 0.22, 2, rng2.pick(['#6d6552', '#4f5a4f', '#7a6048']));
+        spawns.beds.push({ x, z, face: 0, bedY: 0.2 }); // somewhere to sleep (survival.js): the body lies along it
       } else { // shelf against nothing in particular
         props.add(x, 0.9, z, 2.2, 1.8, 0.5, '#4d3a29'); statics.addCentered(x, z, 2.2, 0.5, 'shelf', 1.8);
       }

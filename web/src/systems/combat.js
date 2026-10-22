@@ -35,7 +35,7 @@ export class Combat {
     g.ambient?.eject(ch, ang);
     g.ambient?.onShot(ch.x, ch.z);
     for (let p = 0; p < w.pellets; p++) {
-      const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? g.skills?.spreadMul ?? 1 : 1); // dexterity steadies the player's hands
+      const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
       this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
     }
     return true;
@@ -113,7 +113,7 @@ export class Combat {
       if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);
       return;
     }
-    if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
+    if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
     c.lastAttacker = attacker;
     c.bleed = Math.min(1, c.bleed + dmg / 120);

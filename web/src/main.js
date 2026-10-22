@@ -50,6 +50,7 @@ const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
 const _hit = new THREE.Vector3();
 const _ndc = new THREE.Vector2();
 const _o = new THREE.Object3D();
+const NO_BEDS = [];
 const _col = new THREE.Color();
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
@@ -360,7 +361,13 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); }
+  // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
+  bedNear(x, z) {
+    let best = null, bd = 1.8;
+    for (const b of this.world.spawns.beds ?? NO_BEDS) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    return best;
+  }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
   footPath(sx, sz, tx, tz) {
     const discs = [];
@@ -578,6 +585,19 @@ class Game {
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
 
     if (this.dialogue.active) { p.speed = 0; return; }
+    // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
+    if (this.survival.sleep) {
+      p.speed = 0;
+      this.hud.prompt(null); // the sleep screen says how to get up
+      if (I.hit('KeyE')) this.survival.wake();
+      return;
+    }
+    // Dead on your feet: a microsleep takes the hands for a second or two (a car coasts on, unsteered).
+    if (this.needs.blackout > 0) {
+      const mv = p.inVehicle;
+      if (mv?.driver === p) { mv.throttle = 0; mv.steer = 0; mv.handbrake = false; mv.boost = false; } else p.speed = 0;
+      return;
+    }
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
@@ -769,14 +789,19 @@ class Game {
     const op = !best && !bestV ? this.interiors.playerInteract(p, I, dt) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     const box = !best && !bestV && !op ? this.inventory.nearest(p.x, p.z, 2.6) : null;
+    // Or a bed (a mattress in a house): E lies down on it.
+    const bed = !best && !bestV && !op && !box ? this.bedNear(p.x, p.z) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
-    this.qol.highlight(best ?? bestV ?? op ?? (box ? this.boxRing : null));
+    else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
+    this.qol.highlight(best ?? bestV ?? op ?? (box || bed ? this.boxRing : null));
     if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
+    else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
     if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
+    else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
@@ -994,7 +1019,7 @@ class Game {
     this.qol.input(I);
     if (I.hit('F3')) { this.showStats = !this.showStats; this.hud.el.stats.classList.toggle('hidden', !this.showStats); }
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
-    if (I.hit('KeyT')) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
+    if (I.hit('KeyT') && !this.survival.sleep) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
     if (I.hit('KeyZ')) this.setZoom(this.zoomLevel + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
     if (I.hit('Minus')) this.setZoom(this.zoomLevel + 1);

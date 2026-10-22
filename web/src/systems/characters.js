@@ -376,6 +376,9 @@ export class CharacterRenderer {
         const lie = Math.min(1, ((ch.knockMax ?? 1.5) - ch.knockT) / 0.2, ch.knockT / 0.45);
         if (lie > 0) _root.multiply(_t.makeTranslation(0, 0.16 * lie, 0)).multiply(_r.makeRotationX(-Math.PI / 2 * lie)).multiply(_t.makeTranslation(0, -0.95 * lie, 0));
         lying = knocked = lie > 0.55;
+      } else if (ch.sleeping) { // asleep: flat on the back, on the mattress (bedY) if there is one
+        _root.multiply(_t.makeTranslation(0, 0.16 + (ch.bedY ?? 0), 0)).multiply(_r.makeRotationX(-Math.PI / 2)).multiply(_t.makeTranslation(0, -0.95, 0));
+        lying = true;
       } else if (ch.vaultY) _root.multiply(_t.makeTranslation(0, ch.vaultY, 0)); // over the sill
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
