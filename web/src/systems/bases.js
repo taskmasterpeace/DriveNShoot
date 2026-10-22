@@ -64,10 +64,11 @@ export class Bases {
     for (const p of row.props) this.buildProp(s, p, P, statics);
     for (const b of row.boxes) this.buildBox(s, b, P, statics);
     for (const t of row.tracks ?? []) {
-      // Packed gravel, two darker ruts where every tyre has run.
+      // Packed gravel on a scuffed shoulder, two darker ruts where every tyre has run.
       const cx = ox + (t.x0 + t.x1) / 2, cz = oz + (t.z0 + t.z1) / 2, w = t.x1 - t.x0, d = t.z1 - t.z0, along = d >= w;
-      solid.push(ground(cx, cz, w, d, '#8d7c62', 0.022, 7 + t.z0));
-      for (const sd of [-1, 1]) solid.push(at(box(along ? 0.55 : w, 0.012, along ? d : 0.55, '#6f604c'), cx + (along ? sd * 1.15 : 0), 0.026, cz + (along ? 0 : sd * 1.15)));
+      solid.push(ground(cx, cz, w + (along ? 1.6 : 0), d + (along ? 0 : 1.6), '#b08f66', 0.014, 3 + t.z0));
+      solid.push(ground(cx, cz, w, d, '#9c8665', 0.022, 7 + t.z0));
+      for (const sd of [-1, 1]) solid.push(at(box(along ? 0.5 : w, 0.01, along ? d : 0.5, '#86714f'), cx + (along ? sd * 1.15 : 0), 0.027, cz + (along ? 0 : sd * 1.15)));
     }
     this.buildSign(s, row.sign, P);
     this.clearLot(s, row);
@@ -457,7 +458,7 @@ export class Bases {
         const ax = ox + (p.x0 + p.x1) / 2, az = oz + (p.z0 + p.z1) / 2, aw = p.x1 - p.x0, ad = p.z1 - p.z0;
         S.push(ground(ax, az, aw, ad, '#8a8579', 0.03, 11));
         for (let t = p.x0 + 2; t < p.x1 - 1; t += 4.6) S.push(at(box(0.15, 0.01, ad * 0.55, '#bfa64a'), ox + t, 0.042, az - ad * 0.1)); // worn parking lines
-        for (const [a, b, r] of [[0.3, 0.2, 0.9], [0.62, 0.55, 1.2], [0.8, 0.3, 0.7]]) S.push(flatDisc(ox + p.x0 + aw * a, oz + p.z0 + ad * b, r, '#3b3832', 0.04)); // oil
+        for (const [a, b, r] of [[0.3, 0.2, 0.7], [0.62, 0.55, 0.9], [0.8, 0.3, 0.55], [0.66, 0.6, 0.5]]) S.push(flatDisc(ox + p.x0 + aw * a, oz + p.z0 + ad * b, r, '#6b665c', 0.04)); // old oil
         break;
       }
       case 'sandbags': {
@@ -491,22 +492,28 @@ export class Bases {
   // A crashed transport helicopter, burned out, lying on its side off the pad: fuselage, glazing, tail boom snapped,
   // rotor blades in the dirt, skids bent, a scorch round it.
   heliWreck(x, z, h, S, statics) {
-    const parts = [];
-    parts.push(flatDiscGeo(0, 0, 4.2, '#2a2420', 0.02));
-    const hull = new THREE.CylinderGeometry(1.15, 1.25, 5.2, 10).toNonIndexed().rotateX(Math.PI / 2);
-    parts.push(paint(hull, '#4c5038').rotateZ(1.15).translate(0, 1.05, 0));
-    parts.push(paint(new THREE.SphereGeometry(1.15, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2).toNonIndexed().rotateX(Math.PI / 2), '#2a3236').rotateZ(1.15).translate(0, 1.05, 2.6)); // the nose glazing, smashed dark
-    parts.push(paint(new THREE.CylinderGeometry(0.28, 0.55, 4.6, 8).toNonIndexed().rotateX(-Math.PI / 2), '#454935').rotateY(0.25).translate(-0.55, 0.85, -4.6)); // tail boom, snapped
-    parts.push(box(0.12, 1.2, 0.8, '#3d4030').rotateY(0.25).translate(-1.1, 1.0, -6.8));
-    parts.push(box(0.35, 0.35, 0.35, '#232220').translate(-0.35, 1.9, 0.2)); // rotor head
-    parts.push(box(0.3, 0.06, 7.2, '#252522').rotateY(0.9).rotateZ(0.12).translate(1.8, 0.35, 1.0)); // a blade in the sand
-    parts.push(box(0.3, 0.06, 4.0, '#252522').rotateY(-0.5).rotateX(0.35).translate(-1.6, 0.7, 1.6)); // a blade snapped and propped
-    parts.push(box(0.3, 0.06, 2.6, '#252522').rotateY(2.1).translate(3.4, 0.05, -2.2));
-    for (const sd of [-1, 1]) parts.push(box(0.1, 0.1, 3.2, '#2c2c28').rotateZ(0.5).translate(sd * 0.9 + 0.8, 0.25 + sd * 0.15, 0.3)); // skids
-    parts.push(box(1.0, 0.04, 0.9, '#1d1b19').translate(2.1, 0.03, -1.4), box(0.6, 0.3, 0.5, '#3a3a34').rotateY(0.6).translate(-2.6, 0.15, 2.4)); // debris
-    const g2 = mergeGeometries(parts).rotateY(h).translate(x, 0, z);
-    S.push(g2);
-    statics.addCentered(x, z, 3.0, 5.2, 'wreck', 2.0);
+    // The airframe is built upright round its own centre (nose +z), then rolled onto its left side.
+    const olive = '#4f5339', char = '#2c2a24', glass = '#1f272a', body = [];
+    body.push(box(2.2, 1.9, 4.2, olive));                                                         // the cabin
+    body.push(box(1.9, 1.35, 1.2, olive).translate(0, -0.2, 2.65));                              // the nose
+    body.push(box(1.7, 0.08, 1.1, glass).rotateX(-0.75).translate(0, 0.62, 2.85));               // windshield, smashed dark
+    for (const sd of [-1, 1]) body.push(box(0.04, 0.42, 2.6, glass).translate(sd * 1.11, 0.45, -0.1)); // cabin windows
+    body.push(box(0.04, 1.4, 1.5, '#16191a').translate(1.11, -0.1, 0.4));                        // the door, slid open
+    body.push(box(1.25, 0.7, 2.5, '#454934').translate(0, 1.3, -0.4));                           // engine housing
+    body.push(box(0.4, 0.5, 0.4, '#232220').translate(0, 1.85, 0.2));                            // rotor head
+    for (const [px, py, pz, sx, sz] of [[0.6, 0.96, -1.3, 1.0, 1.4], [-0.7, 0.5, 1.2, 0.9, 1.2], [0.2, 1.66, -1.0, 0.8, 1.1]]) body.push(box(sx, 0.03, sz, char).translate(px, py, pz)); // scorched
+    for (const sd of [-1, 1]) { body.push(box(0.09, 0.09, 3.6, '#2c2c28').translate(sd * 0.95, -1.35, 0.2)); for (const zz of [-0.9, 1.0]) body.push(box(0.07, 0.42, 0.07, '#2c2c28').translate(sd * 0.95, -1.1, zz)); } // skids
+    const hull = mergeGeometries(body).rotateZ(1.2).translate(0, 1.25, 0);
+    const parts = [flatDiscGeo(0, 0, 4.6, '#3a3128', 0.018), flatDiscGeo(0.8, -1.0, 2.6, '#2a241e', 0.022), hull];
+    parts.push(paint(new THREE.CylinderGeometry(0.3, 0.55, 3.6, 8).toNonIndexed().rotateX(-Math.PI / 2), '#454935').rotateZ(1.2).translate(-0.3, 0.75, -3.9)); // tail boom, snapped off here
+    parts.push(paint(new THREE.CylinderGeometry(0.22, 0.3, 1.8, 8).toNonIndexed().rotateX(-Math.PI / 2), '#454935').rotateY(0.6).translate(-1.4, 0.3, -6.6)); // ...and the end of it
+    parts.push(box(0.12, 1.3, 0.9, '#3d4030').rotateY(0.6).rotateZ(1.3).translate(-2.0, 0.25, -7.3));                           // the fin, flat in the sand
+    parts.push(box(0.32, 0.06, 7.0, '#252522').rotateY(0.9).rotateZ(0.1).translate(2.2, 0.32, 1.2)); // a blade in the sand
+    parts.push(box(0.32, 0.06, 3.8, '#252522').rotateY(-0.5).rotateX(0.32).translate(-1.9, 0.7, 2.0)); // a blade snapped and propped
+    parts.push(box(0.32, 0.06, 2.4, '#252522').rotateY(2.1).translate(3.6, 0.05, -2.4));
+    parts.push(box(1.0, 0.04, 0.9, '#1d1b19').translate(2.4, 0.03, -1.6), box(0.6, 0.3, 0.5, '#3a3a34').rotateY(0.6).translate(-2.8, 0.15, 2.6), box(0.5, 0.25, 0.7, olive).rotateY(1.2).translate(3.1, 0.12, 1.0)); // debris
+    S.push(mergeGeometries(parts).rotateY(h).translate(x, 0, z));
+    statics.addCentered(x, z, 3.2, 5.4, 'wreck', 2.0);
   }
 
   // The old flag on the pole: thirteen stripes and the canton, hung with a little ripple.
@@ -646,7 +653,7 @@ export class Bases {
     if (!on) return;
     const P = g.player, px = P.inVehicle ? P.inVehicle.x : P.x, pz = P.inVehicle ? P.inVehicle.z : P.z, R = BASE_RULES;
     s.poolMat.opacity = Math.min(1, night * 0.95);
-    s.beamMat.opacity = night * 0.13;
+    s.beamMat.opacity = night * 0.2;
     const t = g.time, first = s.pools.length - s.towers.length;
     for (let i = 0; i < s.towers.length; i++) {
       const tw = s.towers[i];
