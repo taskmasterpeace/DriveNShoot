@@ -132,13 +132,13 @@ export class Zombies {
     const alive = g.chars.reduce((n, c) => n + (c.faction === 'zombie' && c.alive ? 1 : 0), 0);
     if (night < 0.6) {
       // Daylight: the far-off infected crawl back into the ruins.
-      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && Math.hypot(c.x - g.player.x, c.z - g.player.z) > 140 && Math.random() < 0.3) g.removeChar(c);
+      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
       return;
     }
     if (alive >= CAP_NIGHT) return;
     const px = g.player.x, pz = g.player.z;
     for (let tries = 0; tries < 8; tries++) {
-      const a = Math.random() * Math.PI * 2, r = 55 + Math.random() * 55;
+      const a = Math.random() * Math.PI * 2, r = Math.max(55, (g.viewR ?? 0) + 8) + Math.random() * 55; // out of sight at any zoom
       const x = px + Math.cos(a) * r, z = pz + Math.sin(a) * r;
       if (Math.max(Math.abs(x), Math.abs(z)) < 92 || Math.max(Math.abs(x), Math.abs(z)) > 440) continue;
       if (!g.nav.foot.free(x, z)) continue;

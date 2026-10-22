@@ -65,6 +65,8 @@ export class HUD {
             <div class="w-ammo"><b class="w-mag">6</b><span class="w-res">/ 36</span></div>
             <div class="w-carts"></div>
             <div class="w-rule"></div>
+            <div class="w-cond" data-state="ok" title="Condition: every round wears a gun; a worn one jams"><i><em></em></i><b>100%</b></div>
+            <div class="w-stamp hidden"></div>
             <div class="w-slots"></div>
             <div class="w-throw"><i class="w-ticon"></i><b class="w-tcount">×2</b><span class="w-tname">FRAG</span><span class="w-tkeys"><kbd>Q</kbd>throw <kbd>X</kbd>next</span></div>
           </div>
@@ -102,7 +104,7 @@ export class HUD {
       breathRow: q('.breath-tab'), breathTex: q('.breath-tab canvas'), breathSegs: qa('.seg-breath i'),
       signTex: q('.sign canvas'), loc: q('.loc-name'), locSub: q('.loc-sub'),
       mm: q('.minimap'), bezel: q('.mm-bezel'),
-      wpanel: q('.weapon-panel'), wTex: q('.weapon-panel canvas'), wname: q('.w-name'), wmag: q('.w-mag'), wres: q('.w-res'), wcarts: q('.w-carts'), wslots: q('.w-slots'),
+      wpanel: q('.weapon-panel'), wTex: q('.weapon-panel canvas'), wname: q('.w-name'), wmag: q('.w-mag'), wres: q('.w-res'), wcarts: q('.w-carts'), wslots: q('.w-slots'), wcond: q('.w-cond'), wcondFill: q('.w-cond em'), wcondT: q('.w-cond b'), wstamp: q('.w-stamp'),
       wthrow: q('.w-throw'), tIcon: q('.w-ticon'), tCount: q('.w-tcount'), tName: q('.w-tname'),
       speedo: q('.speedo'), spTex: q('.speedo canvas'), spDial: q('.sp-dial canvas'), spNeedle: q('.sp-needle'), sNum: q('.speedo-num'), sName: q('.speedo-name'), spHint: q('.sp-hint'),
       winDiagram: q('.win-diagram'), vehLabel: q('.veh-label'), hullSegs: qa('.seg-hull i'), fuelSegs: qa('.seg-fuel i'),
@@ -397,7 +399,7 @@ export class HUD {
       s.wcur = cur;
       this.el.wname.textContent = w.name;
       // one cartridge per round, or per pair once the magazine gets long
-      const n = Math.min(w.mag, 16), kind = w.ammo === 'shells' ? 'shell' : w.ammo === 'pistol' ? 'pistol' : 'smg';
+      const n = Math.min(w.mag, 16), kind = w.ammo === 'shells' ? 'shell' : w.ammo === 'pistol' ? 'pistol' : w.ammo === 'rifle' ? 'rifle' : 'smg';
       this.el.wcarts.innerHTML = `<i class="c-${kind}"></i>`.repeat(n);
       this.carts = [...this.el.wcarts.children];
       this.cartPer = w.mag / n;
@@ -411,6 +413,16 @@ export class HUD {
       const was = s.cartsLit;
       s.cartsLit = lit;
       for (let i = 0; i < this.carts.length; i++) { const spent = i >= lit; if (was < 0 || (i >= was) !== spent) this.carts[i].classList.toggle('spent', spent); }
+    }
+    // the gun's condition: the gauge on the rule, and a stamp across the rounds when it jams or breaks
+    const st = g.inventory.gunState(cur), pct = Math.round(g.inventory.cond(cur) * 100);
+    if (pct !== s.wcond) { s.wcond = pct; this.el.wcondFill.style.height = `${pct}%`; this.el.wcondT.textContent = `${pct}%`; }
+    if (st !== s.wstate) {
+      s.wstate = st;
+      this.el.wcond.dataset.state = st;
+      this.el.wstamp.textContent = st === 'jammed' ? 'JAMMED · R' : st === 'broken' ? 'BROKEN' : '';
+      this.el.wstamp.classList.toggle('hidden', st !== 'jammed' && st !== 'broken');
+      this.el.wstamp.classList.toggle('jam', st === 'jammed');
     }
     // dog tags, one per slot; the one in your hands is brass
     const list = inv.weapons;
@@ -513,7 +525,7 @@ export class HUD {
       respect: this.chips.map((c) => ({ id: c.id, name: c.name, standing: Math.round(F?.standing[c.i] ?? 0), reading: Math.round(F?.reading(c.i) ?? 0), tier: F?.tiers[c.i] })),
       // The role tapes as drawn in the DOM (what the world calls you).
       roles: [...this.el.roles.children].map((t) => ({ id: t.dataset.role, text: t.querySelector('b')?.textContent, chevrons: t.querySelectorAll('.rank i').length })),
-      weapon: v ? null : { name: this.el.wname.textContent, mag: this.el.wmag.textContent, reserve: this.el.wres.textContent.replace('/ ', ''), cartridges: this.carts.length, loaded: this.s.cartsLit, slots: this.lastWeapons, throwable: { kind: g.inv.throwable, count: g.inv.throwables[g.inv.throwable] ?? 0 } },
+      weapon: v ? null : { name: this.el.wname.textContent, mag: this.el.wmag.textContent, reserve: this.el.wres.textContent.replace('/ ', ''), cartridges: this.carts.length, loaded: this.s.cartsLit, cond: this.s.wcond, state: this.s.wstate, slots: this.lastWeapons, throwable: { kind: g.inv.throwable, count: g.inv.throwables[g.inv.throwable] ?? 0 } },
       dash: v ? { vehicle: v.name, mph: +this.el.sNum.textContent, dialMax: this.s.dialMax, hullSegments: this.s.hull, fuelSegments: this.s.fuel } : null,
     };
   }

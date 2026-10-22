@@ -560,7 +560,7 @@ export class Roles {
     const factions = {};
     for (const [fid, e] of Object.entries(o.factions ?? {})) factions[fid] = { readsYou: +((e.standing ?? 0) * k).toFixed(1), atRenowned: e.standing ?? 0, ...(e.hostile !== undefined ? { [e.hostile ? 'shootOnSight' : 'holdFire']: `from ${e.from ?? 'known'}` } : {}) };
     const dialogue = [];
-    for (const n of npcs) for (const [node, def] of Object.entries(n.nodes ?? {})) for (const ch of def.choices ?? []) if (ch.role === id) dialogue.push({ npc: n.id, who: n.name, short: callName(n.name), choice: ch.t, from: ch.from ?? 'known', node });
+    for (const n of npcs) for (const [node, def] of Object.entries(n.nodes ?? {})) for (const ch of def.choices ?? []) if (ch.role === id) dialogue.push({ npc: n.id, who: n.name, short: callName(n.name), choice: typeof ch.t === 'function' ? ch.t(this.g) : ch.t, from: ch.from ?? 'known', node });
     for (const n of npcs) {
       if (n.roleLines?.[id]) dialogue.push({ npc: n.id, who: n.name, short: callName(n.name), greets: n.roleLines[id], from: 'known' });
       if (n.refuseRole?.[id]) dialogue.push({ npc: n.id, who: n.name, short: callName(n.name), refuses: n.refuseRole[id], from: o.refusedBy?.from ?? 'known' });

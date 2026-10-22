@@ -105,7 +105,7 @@ export class Dialogue {
     choices.forEach((ch, i) => {
       const b = document.createElement('button');
       b.className = 'dlg-choice';
-      b.innerHTML = `<kbd>${i + 1}</kbd><span>${ch.t}</span>`;
+      b.innerHTML = `<kbd>${i + 1}</kbd><span>${typeof ch.t === 'function' ? ch.t(this.g) : ch.t}</span>`;
       b.onclick = () => this.pick(i);
       this.choicesEl.appendChild(b);
     });
@@ -117,7 +117,7 @@ export class Dialogue {
     if (!ch) return;
     if (this.shown < this.full.length) { this.shown = this.full.length; return; }
     this.g.audio.blip();
-    this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: ch.t });
+    this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: typeof ch.t === 'function' ? ch.t(this.g) : ch.t });
     if (ch.treat) {
       const c = this.npc, r = this.g.inventory.treat(c);
       const back = c.npc ? [{ t: 'Anything else?', next: c.npc.startFor?.(this.g) ?? c.npc.start }, { t: '[Leave]', end: true }] : [{ t: '[Leave]', end: true }];

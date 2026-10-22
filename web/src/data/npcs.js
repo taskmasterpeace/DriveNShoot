@@ -1,9 +1,11 @@
 // Named characters of the Divided States. Pure data + small hooks into game state.
 // `where`: 'shop:N' = inside Rust Haven building N, or {x,z}.
-// Dialogue nodes: { text, choices: [{ t, next | end, req(g), do(g) }] }
+// Dialogue nodes: { text, choices: [{ t, next | end, req(g), do(g) }] }; a choice's t may be a function of the game
+// (a price that depends on what you carry).
 // Roles (data/roles.js, docs/design/WEB_ROLES.md): a choice tagged { role, from } is opened by what you are known for
 // (the `roles` command lists them); roleLines are what this person says about your best-known role, in their voice;
 // refuseRole: the roles they will not deal with, and what they say instead.
+import { WEAPONS } from '../systems/combat.js';
 
 const money = (n) => `$${n}`;
 
@@ -90,12 +92,18 @@ export const NPCS = [
     nodes: {
       hi: { text: 'Everything here shoots. Some of it even shoots straight. What do you need?',
         choices: [
-          { t: `Rust-9 SMG (${money(150)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('smg'), next: 'sold', do: (g) => { if (g.spend(150)) { g.inv.weapons.push('smg'); g.inv.ammo.smg += 64; g.hud.toast('ACQUIRED: RUST-9 SMG', 'job'); } } },
-          { t: `Sawn-off shotgun (${money(200)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('shotgun'), next: 'sold', do: (g) => { if (g.spend(200)) { g.inv.weapons.push('shotgun'); g.inv.ammo.shells += 16; g.hud.toast('ACQUIRED: SAWN-OFF', 'job'); } } },
+          { t: `Rust-9 SMG (${money(150)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('smg'), next: 'sold', do: (g) => { if (g.spend(150)) { g.inventory.gainGun('smg', { cond: 0.9 }); g.inv.ammo.smg += 64; g.hud.toast('ACQUIRED: RUST-9 SMG', 'job'); } } },
+          { t: `Sawn-off shotgun (${money(200)})`, deed: { v: 'trade' }, req: (g) => !g.inv.weapons.includes('shotgun'), next: 'sold', do: (g) => { if (g.spend(200)) { g.inventory.gainGun('shotgun', { cond: 0.9 }); g.inv.ammo.shells += 16; g.hud.toast('ACQUIRED: SAWN-OFF', 'job'); } } },
           { t: `Ammo crate (${money(50)})`, deed: { v: 'trade' }, next: 'sold', do: (g) => { if (g.spend(50)) { g.inv.ammo.pistol += 24; g.inv.ammo.smg += 64; g.inv.ammo.shells += 8; } } },
+          // His bench: the gun in your hands back to clean, priced by how worn it is and what it is worth.
+          { t: (g) => `Fix my ${WEAPONS[g.inv.current]?.short.toLowerCase() ?? 'gun'} (${money(g.inventory.smithQuote(g.inv.current))})`, deed: { v: 'trade' }, req: (g) => g.inventory.cond(g.inv.current) < 0.995, next: 'fixed', do: (g) => { const r = g.inventory.smithFix(g.inv.current); if (r.ok) g.hud.toast(`${WEAPONS[g.inv.current].short} FIXED · 100%`, 'job'); } },
+          { t: `Gun cleaning kit (${money(40)})`, deed: { v: 'trade' }, next: 'sold', do: (g) => { if (g.spend(40)) g.inventory.stow('cleaning_kit', 1); } },
+          { t: `Rifle rounds, a box of 30 (${money(45)})`, deed: { v: 'trade' }, req: (g) => g.inv.weapons.includes('rifle'), next: 'rifle', do: (g) => { if (g.spend(45)) g.inv.ammo.rifle += 30; } },
           { t: '[Leave]', end: true },
         ] },
       sold: { text: 'Pleasure. Don\'t point it at my wall, the wall\'s load-bearing.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
+      fixed: { text: 'Stripped it, scrubbed it, new spring, filed the catch. It\'ll feed now. Keep it out of the sand and it\'ll stay that way a while.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
+      rifle: { text: 'Government brass. Don\'t ask me where it came from and I won\'t ask you where you got the rifle.', choices: [{ t: 'One more thing...', next: 'hi' }, { t: '[Leave]', end: true }] },
     },
   },
   {
@@ -249,7 +257,10 @@ const FIRST = ['Jesse', 'Marisol', 'Dwayne', 'Ana', 'Kofi', 'Liam', 'Rosa', 'Tar
 const LAST = ['Holt', 'Vega', 'Okafor', 'Price', 'Nguyen', 'Kowalski', 'Ramos', 'Diaz', 'Byrne', 'Silva', 'Park', 'Mensah', 'Rossi', 'Baptiste', 'Cruz'];
 // Pairs that already belong to someone famous, real or fictional, are rolled again.
 const FAMOUS = new Set(['Rosa Diaz', 'Ray Holt', 'Rosa Park', 'Ray Park', 'Ray Price', 'Bo Diaz', 'Lena Park']);
-export function randomName(rng) {
-  for (let k = 0; k < 6; k++) { const n = `${rng.pick(FIRST)} ${rng.pick(LAST)}`; if (!FAMOUS.has(n)) return n; }
+// Any rng will do: a seeded one (engine/rng.js, the same draws its pick() makes) or Math.random. Passing Math.random
+// once threw here (no .pick), which broke `spawn kind=soldier`.
+export function randomName(rng = Math.random) {
+  const pick = (a) => a[Math.floor(rng() * a.length)];
+  for (let k = 0; k < 6; k++) { const n = `${pick(FIRST)} ${pick(LAST)}`; if (!FAMOUS.has(n)) return n; }
   return 'Jesse Okafor';
 }

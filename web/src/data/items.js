@@ -76,6 +76,30 @@ export const ITEMS = {
     desc: 'A school pack, the zip mended with wire. Twenty-odd litres.' },
   ruck: { name: 'Frame ruck', kind: 'pack', kg: 2.3, bulk: 6, stack: 1, value: 90, pack: 45, tags: ['military'],
     desc: 'An army ruck on an alloy frame. Carries like a mule; you will feel every kilo of it.' },
+  // ---- rounds and guns ---------------------------------------------------------------------------------------
+  // Rounds are real things in your pack: they weigh, take room, sit in a trunk, get looted and traded. The gun you
+  // fire draws them through g.inv.ammo (inventory.bindAmmo), so a reload takes rounds out of the pack. Bulk is per
+  // round (a box of fifty pistol rounds is about a third of a litre; a shotgun shell is fat).
+  ammo_pistol: { name: 'Pistol rounds', kind: 'ammo', kg: 0.012, bulk: 0.006, stack: 200, value: 0.4, ammo: 'pistol',
+    desc: 'Big, slow revolver rounds, loose in a paper box gone soft at the corners.' },
+  ammo_smg: { name: 'SMG rounds', kind: 'ammo', kg: 0.008, bulk: 0.004, stack: 300, value: 0.3, ammo: 'smg',
+    desc: 'Small, fast rounds for a submachine gun. Some are reloads; you can tell by the dents.' },
+  ammo_shells: { name: 'Shotgun shells', kind: 'ammo', kg: 0.045, bulk: 0.04, stack: 50, value: 1.2, ammo: 'shells',
+    desc: 'Twelve-gauge buckshot in faded red hulls. Bulky; every one counts.' },
+  ammo_rifle: { name: 'Rifle rounds', kind: 'ammo', kg: 0.025, bulk: 0.012, stack: 150, value: 0.9, ammo: 'rifle',
+    desc: 'Long brass rounds on stripper clips, the old government\'s issue.', tags: ['military'] },
+  // A gun as a thing: in a trunk, on a body, on the ground. On you, a gun is in your loadout (g.inv.weapons), not the
+  // list: it hangs on a sling or sits in a holster. `cond` 1 = clean, 0 = broken; `loaded` = rounds in it.
+  gun_pistol: { name: '.45 revolver', kind: 'gun', kg: 1.2, bulk: 0.8, stack: 1, value: 80, weapon: 'pistol',
+    desc: 'A six-shot revolver, the bluing worn to grey where a hand has held it for twenty years.' },
+  gun_smg: { name: 'Rust-9 SMG', kind: 'gun', kg: 3.2, bulk: 2.6, stack: 1, value: 220, weapon: 'smg',
+    desc: 'A stamped-steel submachine gun from a backyard shop. Eats rounds; jams when it is dirty.' },
+  gun_shotgun: { name: 'Sawn-off', kind: 'gun', kg: 3.3, bulk: 3.5, stack: 1, value: 160, weapon: 'shotgun',
+    desc: 'A double barrel cut down to the forestock with a hacksaw. Two shots, then a long minute.' },
+  gun_rifle: { name: 'Service rifle', kind: 'gun', kg: 3.8, bulk: 5.5, stack: 1, value: 350, weapon: 'rifle',
+    desc: 'The Federal Remnant\'s issue rifle, serial filed off. Reaches further than anything else out here.', tags: ['military'] },
+  cleaning_kit: { name: 'Gun cleaning kit', kind: 'tool', kg: 0.35, bulk: 0.4, stack: 1, value: 25, uses: 5, use: { act: 'clean' },
+    desc: 'A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding.' },
   // ---- valuables and keepsakes -----------------------------------------------------------------------------
   wristwatch: { name: 'Wristwatch', kind: 'valuable', kg: 0.08, bulk: 0.05, stack: 1, value: 20,
     desc: 'It still ticks. Somebody wound it every morning until they didn\'t.' },
@@ -98,18 +122,48 @@ export const LOOT = {
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },
   bathroom: { rolls: [1, 2], none: 3, rows: [['bandage', 4, 1, 2], ['rag', 3, 1, 3], ['painkillers', 2, 1, 1], ['antibiotics', 1, 1, 1], ['suture_kit', 1, 1, 1]] },
   bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1]] },
-  garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1]] },
-  office: { rolls: [1, 2], none: 5, rows: [['photograph', 2, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 3], ['lockpicks', 1, 1, 1], ['road_atlas', 2, 1, 1], ['painkillers', 1, 1, 1]] },
-  military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1]] },
+  garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
+  // Ike's shop: rounds of every kind, the odd second-hand gun, the kit to keep one running.
+  gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_rifle', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
+  office: { rolls: [1, 2], none: 5, rows: [['photograph', 2, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 3], ['lockpicks', 1, 1, 1], ['road_atlas', 2, 1, 1], ['painkillers', 1, 1, 1], ['ammo_pistol', 1, 6, 18]] },
+  military: { rolls: [2, 4], none: 2, rows: [['ration', 5, 1, 3], ['canteen', 3, 1, 1], ['first_aid', 2, 1, 1], ['bandage', 3, 2, 4], ['antibiotics', 1, 1, 2], ['ruck', 1, 1, 1], ['crowbar', 1, 1, 1], ['ammo_rifle', 4, 15, 60], ['cleaning_kit', 1, 1, 1]] },
   wreck: { rolls: [0, 2], none: 5, rows: [['scrap', 5, 1, 3], ['fuel_can', 1, 1, 1], ['water_bottle', 2, 1, 1], ['jerky', 2, 1, 2], ['duct_tape', 1, 1, 1], ['photograph', 1, 1, 1]] },
   desert: { rolls: [1, 1], none: 1, rows: [['cactus_fruit', 6, 1, 3], ['water_bottle', 1, 1, 1], ['jerky', 1, 1, 2]] },
   person: { rolls: [0, 2], none: 3, rows: [['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
-  raider: { rolls: [1, 3], none: 2, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1]] },
+  raider: { rolls: [1, 3], none: 2, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 3, 8, 30], ['ammo_pistol', 2, 4, 14], ['ammo_shells', 1, 2, 6]] },
   // A Federal Remnant soldier's pockets and webbing (bases.js): issue kit, nothing personal left.
-  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1]] },
+  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1], ['ammo_rifle', 4, 10, 40]] },
 };
 
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).
+
+// The rounds each gun's ammo type is (g.inv.ammo keys) and the item a loadout gun becomes when you put it down.
+export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', rifle: 'ammo_rifle' };
+export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle' };
+// What each gun loses per shot (condition: 1 clean, 0 broken) and how readily it jams once worn (x the base rate).
+// A revolver at 0.82 has ~680 shots in it before it breaks; the stamped SMG wears least per shot but fires the most.
+export const GUN_WEAR = {
+  pistol: { wear: 0.0012, jam: 0.5 },  // a revolver rarely truly jams: a dud, and the cylinder turns past it
+  smg: { wear: 0.0007, jam: 1.6 },     // a cheap spring and an open action: dirt stops it
+  shotgun: { wear: 0.0018, jam: 0.6 }, // a swollen shell that will not fire
+  rifle: { wear: 0.0009, jam: 1 },
+};
+// Keeping a gun working (docs/design/WEB_INVENTORY.md, guns):
+//   jamBelow   - below this condition every shot may jam: chance (jamBelow - cond) x jamRate x the gun's jam
+//   clearTime  - seconds to clear a jam (x dexterity's reload multiplier); the stuck round is thrown away
+//   kit        - condition one use of a cleaning kit puts back, up to kitMax (worn parts need a gunsmith)
+//   smith      - the gunsmith's price to restore a whole point of condition (to 1.0), as a share of the gun's
+//                value (fixing a rifle takes rifle parts); smithMin is his least charge
+export const GUN_CARE = { jamBelow: 0.65, jamRate: 0.06, clearTime: 0.9, kit: 0.35, kitMax: 0.95, smith: 0.6, smithMin: 10 };
+// The guns the dead leave: condition range, how full the gun was (of its magazine), and the spare rounds for it they
+// had on them, by who carried it. A raider's gun is junk held together with tape; a Remnant soldier's rifle is the
+// best thing on the road, and soldiers carry spare magazines.
+export const GUN_FOUND = {
+  raider: { cond: [0.18, 0.6], loaded: [0, 0.6], spare: [0, 12] },
+  soldier: { cond: [0.62, 0.95], loaded: [0.3, 1], spare: [20, 60] },
+  warden: { cond: [0.55, 0.9], loaded: [0.4, 1], spare: [6, 24] },
+  default: { cond: [0.3, 0.8], loaded: [0, 0.8], spare: [0, 8] },
+};
 export const START_KIT = { pack: 'satchel', items: [['water_bottle', 1], ['jerky', 2], ['rag', 2], ['knife', 1]] };
 
 // Room on your person before any pack: pockets and belt.
