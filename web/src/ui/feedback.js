@@ -95,7 +95,7 @@ export class Feedback {
     const el = document.createElement('div');
     el.className = `fb-kill${e.by === p.id ? ' mine' : ''}${e.victim === p.id ? ' me' : ''}`;
     const kf = killer ? `<img src="${this.flag(killer.flag)}">` : '';
-    const how = e.cause === 'vehicle' ? 'ROADKILL' : e.cause === 'fire' ? 'BURNED' : e.cause === 'explosion' ? 'BLOWN UP' : e.cause === 'drown' ? 'DROWNED' : e.downed ? 'DOWNED' : killer === p ? String(g.inv.current).toUpperCase() : killer?.weapon ? killer.weapon.toUpperCase() : 'KILLED';
+    const how = e.cause === 'vehicle' ? 'ROADKILL' : e.cause === 'fire' ? 'BURNED' : e.cause === 'explosion' ? 'BLOWN UP' : e.cause === 'drown' ? 'DROWNED' : e.cause === 'bash' ? 'DOORED' : e.cause === 'glass' ? 'CUT' : e.downed ? 'DOWNED' : killer === p ? String(g.inv.current).toUpperCase() : killer?.weapon ? killer.weapon.toUpperCase() : 'KILLED';
     el.innerHTML = `${kf}<b>${who(killer, e.cause === 'vehicle' ? 'TRAFFIC' : 'THE WASTES')}</b><em>${how}</em><img src="${this.flag(victim?.flag)}"><b style="color:${FACTION_COL[e.faction] ?? 'var(--bone)'}">${who(victim, e.victimName ?? '?')}</b>`;
     this.el.kills.prepend(el);
     this.kills.push({ el, t: 0 });

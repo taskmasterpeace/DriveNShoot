@@ -20,6 +20,7 @@ import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
+import { Interiors } from './systems/interiors.js';
 import { Zombies } from './systems/zombies.js';
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
@@ -106,6 +107,7 @@ class Game {
     window.__THROW_NAMES = Object.fromEntries(Object.entries(THROWABLES).map(([k, d]) => [k, d.name]));
     this.vehiclesSys = new Vehicles(this);
     this.carCombat = new CarCombat(this);
+    this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -568,7 +570,10 @@ class Game {
       return;
     }
 
-    // On foot.
+    // On foot. A door to the face puts you on the floor for a moment; climbing through a window
+    // takes its time. Neither lets you shoot.
+    if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
+    if (p.vault) { this.interiors.stepVault(p, dt); this.hud.prompt(null); return; }
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
@@ -588,8 +593,9 @@ class Game {
       p.dive -= dt;
       const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
       const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
-      this.statics.resolveCircle(t, p.radius);
+      this.statics.resolveCircle(t, p.radius, p); // a dive shoulders doors open and goes through windows
       p.x = t.x; p.z = t.z; p.speed = 0;
+      if (p.vault) return; // dove into a window: through it
       if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
       this.handleShooting(dt, p.face);
       return;
@@ -636,8 +642,9 @@ class Game {
     const px = p.x, pz = p.z;
     if (len) {
       const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
-      this.statics.resolveCircle(t, p.radius);
+      this.statics.resolveCircle(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
       p.x = t.x; p.z = t.z;
+      if (p.vault) return;
     }
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
     const prevStep = Math.floor(p.walk / Math.PI);
@@ -690,15 +697,17 @@ class Game {
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
-    this.qol.highlight(best ?? bestV);
+    // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
+    const op = !best && !bestV ? this.interiors.playerInteract(p, I, dt) : null;
+    this.qol.highlight(best ?? bestV ?? op);
     if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
-    else this.hud.prompt(null);
+    else if (!op) this.hud.prompt(null);
     if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
-    else if (!best && !bestV && this.train.canBoard(p)) {
+    else if (!best && !bestV && !op && this.train.canBoard(p)) {
       this.hud.prompt('<kbd>G</kbd> Climb aboard the train');
       if (I.hit('KeyG')) { this.train.board(p); this.hud.prompt(null); }
     }
@@ -849,7 +858,8 @@ class Game {
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
           <div><b>SHIFT</b>sprint / boost</div><div><b>R</b>reload</div><div><b>1-3</b>weapons</div>
-          <div><b>E</b>talk / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
+          <div><b>E</b>talk / kick doors / horn</div><div><b>F</b>drive / exit</div><div><b>C</b>ride / swap seat</div>
+          <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
@@ -882,6 +892,7 @@ class Game {
 
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
+    if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
     this.updatePlayer(dt);
     this.nanGuard('player');
     if (simDt) {

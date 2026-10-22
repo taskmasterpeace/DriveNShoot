@@ -90,6 +90,10 @@ export class HUD {
   hurt(dmg) { this.hurtV = Math.min(1, this.hurtV + dmg / 40); this.shake(Math.min(0.5, dmg / 60)); }
   shake(v) { this.shakeV = Math.max(this.shakeV, v); }
   prompt(text) {
+    // Called every frame while something is in reach: only touch the DOM when the text changes.
+    text = text || null;
+    if (text === this.lastPrompt) return;
+    this.lastPrompt = text;
     if (!text) { this.el.prompt.classList.add('hidden'); return; }
     this.el.prompt.innerHTML = text;
     this.el.prompt.classList.remove('hidden');

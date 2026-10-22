@@ -106,6 +106,7 @@ export class Throwables {
     g.audio.explosion(Math.hypot(x - g.player.x, z - g.player.z));
     g.hud.shake(Math.max(0, 1.2 - Math.hypot(x - g.player.x, z - g.player.z) / 30));
     g.noise(x, z, 80, by);
+    g.interiors?.blast(x, z, r, by); // glass blows in, boards splinter, doors fly open, locks give
     for (const c of g.chars) {
       if (!c.alive || c.inVehicle) continue;
       const d = Math.hypot(c.x - x, c.z - z);
@@ -189,8 +190,9 @@ export class Throwables {
         const sp = Math.hypot(p.vx, p.vz);
         if (sp > 0.01) {
           const step = sp * dt, ux = p.vx / sp, uz = p.vz / sp;
-          const hitT = g.statics.raycast(p.x, p.z, ux, uz, step + 0.1);
-          if (hitT < step + 0.1 && g.statics.hit.box && p.y < (g.statics.hit.box.height ?? 3)) {
+          const hitT = g.statics.raycast(p.x, p.z, ux, uz, step + 0.1, 0, p.y); // flies over sills and crates lower than it
+          const op = g.statics.hit.box?.op;
+          if (hitT < step + 0.1 && g.statics.hit.box && p.y < (g.statics.hit.box.height ?? 3) && !(op && g.interiors.thrownHit(op, p, ux, uz))) {
             if (def.impact) { p.x += ux * hitT; p.z += uz * hitT; this.detonate(p); this.list.splice(i, 1); continue; }
             const nx = g.statics.hit.nx, nz = g.statics.hit.nz;
             if (nx) p.vx = -p.vx * (def.bounce ?? 0.3); if (nz) p.vz = -p.vz * (def.bounce ?? 0.3);

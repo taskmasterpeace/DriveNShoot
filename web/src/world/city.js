@@ -4,6 +4,7 @@ import { makeRng } from '../engine/rng.js';
 import { sandTexture, asphaltTexture, concreteTexture, radialGlow } from './textures.js';
 import { nearWater } from './water.js';
 import { nearRail } from './rail.js';
+import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -74,6 +75,10 @@ const ROOF_TOWN = ['#5a3a26', '#3f4a48', '#6a5440', '#4c3424', '#55493c'];
 
 export function buildWorld(scene, statics) {
   const rng = makeRng(1977);
+  // Doors, locks and windows draw from their own stream: the main one must make exactly the same
+  // calls as it always has, or every building, prop and spawn in the world would shift.
+  const orng = makeRng(2718);
+  const doorRows = [], windowRows = [];
   const walls = new BoxBatch();
   const roofs = new BoxBatch();
   const floors = new BoxBatch();
@@ -128,27 +133,47 @@ export function buildWorld(scene, statics) {
     statics.add(minX, minZ, maxX, maxZ, tag, h);
   };
 
-  // Side wall from a to b along one axis, with door gaps (positions along the side).
-  const sideWithGaps = (horizontal, fixed, a, b, gaps, h, color, ruined) => {
-    let cur = a;
-    const sorted = gaps.slice().sort((p, q) => p - q);
-    const DOOR = 2.6;
+  // The visible piece of a wall span with EXACT extents along its axis (addWall grows a span by half
+  // the wall's thickness at each end so corners overlap; the pieces between windows must not).
+  const wallPiece = (horizontal, fixed, a0, a1, y0, y1, color) => {
+    if (a1 - a0 < 0.05) return;
+    const minX = horizontal ? a0 : fixed - WALL_T / 2, maxX = horizontal ? a1 : fixed + WALL_T / 2;
+    const minZ = horizontal ? fixed - WALL_T / 2 : a0, maxZ = horizontal ? fixed + WALL_T / 2 : a1;
+    walls.add((minX + maxX) / 2, (y0 + y1) / 2, (minZ + maxZ) / 2, maxX - minX, y1 - y0, maxZ - minZ, color);
+  };
+
+  // Door gaps: a shop's double front door keeps the old 2.6 m gap (2.1 m clear between the wall
+  // ends); back doors and inner doorways are single doors in a 1.9 m gap (1.4 m clear), centred on a
+  // half-metre so a 1 m nav cell always sits in the opening (walkers' paths go through it).
+  const DOOR_GAP = 2.6, SINGLE_GAP = 1.9;
+  const snapHalf = (v) => Math.round(v - 0.5) + 0.5;
+  const OUT = { N: [0, -1], S: [0, 1], W: [-1, 0], E: [1, 0] };
+
+  // Side wall from a to b along one axis, with door gaps [{ at, w }]. The collapse rolls keep the old
+  // 2.6 m geometry so the seeded ruins never move; intact spans are queued on the building (b.pend)
+  // and built once its partition is known, so windows can be cut into them.
+  const sideWithGaps = (bld, side, horizontal, fixed, a, b, gaps, h, color, ruined) => {
+    let cur = a, curA = a, prev = null;
+    const sorted = gaps.slice().sort((p, q) => p.at - q.at);
     const segs = [];
-    for (const g of sorted) { segs.push([cur, g - DOOR / 2]); cur = g + DOOR / 2; }
-    segs.push([cur, b]);
-    for (const [s, e] of segs) {
+    for (const g of sorted) { segs.push({ s: cur, e: g.at - DOOR_GAP / 2, sa: curA, ea: g.at - g.w / 2, gl: prev, gr: g }); cur = g.at + DOOR_GAP / 2; curA = g.at + g.w / 2; prev = g; }
+    segs.push({ s: cur, e: b, sa: curA, ea: b, gl: prev, gr: null });
+    for (const sg of segs) {
+      const { s, e } = sg;
       if (e - s < 0.3) continue;
       if (ruined && rng.chance(0.3)) {
-        // Collapsed span: leave a low stub and rubble.
-        const mid = (s + e) / 2;
+        // Collapsed span: leave a low stub and rubble. A doorway in a fallen wall has no door left.
+        if (sg.gl) sg.gl.broken = true;
+        if (sg.gr) sg.gr.broken = true;
+        const mid = (s + e) / 2, S = sg.sa, E = sg.ea;
         const hh = rng.range(0.6, 1.6);
         if (hh > 1.1) {
-          if (horizontal) addWall(s, fixed, e, fixed, hh, color);
-          else addWall(fixed, s, fixed, e, hh, color);
+          if (horizontal) addWall(S, fixed, E, fixed, hh, color);
+          else addWall(fixed, S, fixed, E, hh, color);
         } else {
           // Knee-high rubble: visible, but you can step over it (a breach in the ruin).
-          const lx = horizontal ? (s + e) / 2 : fixed, lz = horizontal ? fixed : (s + e) / 2;
-          walls.add(lx, hh / 2, lz, horizontal ? e - s : WALL_T, hh, horizontal ? WALL_T : e - s, color);
+          const lx = horizontal ? (S + E) / 2 : fixed, lz = horizontal ? fixed : (S + E) / 2;
+          walls.add(lx, hh / 2, lz, horizontal ? E - S : WALL_T, hh, horizontal ? WALL_T : E - S, color);
         }
         for (let r = 0; r < 3; r++) {
           const ox = horizontal ? mid + rng.range(-2, 2) : fixed + rng.range(-1.5, 1.5);
@@ -157,9 +182,61 @@ export function buildWorld(scene, statics) {
         }
         continue;
       }
-      if (horizontal) addWall(s, fixed, e, fixed, h, color);
-      else addWall(fixed, s, fixed, e, h, color);
+      bld.pend.push({ side, horizontal, fixed, s: sg.sa, e: sg.ea, h, color });
     }
+  };
+
+  // Window: the wall gives way to a knee-high sill and an opening up to the wall top, so it reads from
+  // the top-down camera. For collision the wall stays whole (nobody walks through a window, so the nav
+  // grid is honest); the opening is a hole in it that sight, bullets and high throws pass (buildSpans).
+  // The glass, boards and their state live in systems/interiors.js.
+  const SILL_TINT = new THREE.Color('#c9b896');
+  const addWindow = (bld, side, horizontal, fixed, c, color) => {
+    const W2 = WINDOW.width / 2;
+    wallPiece(horizontal, fixed, c - W2, c + W2, 0, WINDOW.sill, `#${new THREE.Color(color).lerp(SILL_TINT, 0.32).getHexString()}`);
+    const x = horizontal ? c : fixed, z = horizontal ? fixed : c;
+    const mix = WINDOW_MIX[bld.ruined ? 'ruined' : bld.district === 'town' ? 'town' : 'ruins'];
+    const r = orng();
+    const state = r < mix[0] ? 'intact' : r < mix[0] + mix[1] ? 'shattered' : 'boarded';
+    windowRows.push({ id: `w${windowRows.length + 1}`, x, z, axis: horizontal ? 'x' : 'z', width: WINDOW.width, nx: OUT[side][0], nz: OUT[side][1],
+      state, boardSide: orng.chance(0.75) ? -1 : 1, b: buildings.length, wallH: bld.h });
+  };
+
+  // Build a building's queued wall spans, windows cut in: centred in equal sub-spans of >= 5 m (so
+  // >= 1.7 m of wall to each corner or door frame), at most 3 a span, never where the partition meets.
+  // Each span is ONE collision box (as before windows) carrying its window openings as holes.
+  const buildSpans = (bld, px) => {
+    for (const sp of bld.pend) {
+      const { side, horizontal, fixed, h, color } = sp;
+      const p0 = sp.s - WALL_T / 2, p1 = sp.e + WALL_T / 2, len = p1 - p0;
+      const n = Math.min(3, Math.floor(len / 5));
+      const holes = [];
+      let cur = p0;
+      for (let k = 0; k < n; k++) {
+        const c = p0 + (k + 0.5) * (len / n);
+        if (horizontal && px !== null && Math.abs(c - px) < WINDOW.width / 2 + 0.7) continue;
+        if (!orng.chance(0.75)) continue;
+        wallPiece(horizontal, fixed, cur, c - WINDOW.width / 2, 0, h, color);
+        addWindow(bld, side, horizontal, fixed, c, color);
+        holes.push(c - WINDOW.width / 2, c + WINDOW.width / 2);
+        cur = c + WINDOW.width / 2;
+      }
+      wallPiece(horizontal, fixed, cur, p1, 0, h, color);
+      const box = statics.add(horizontal ? p0 : fixed - WALL_T / 2, horizontal ? fixed - WALL_T / 2 : p0, horizontal ? p1 : fixed + WALL_T / 2, horizontal ? fixed + WALL_T / 2 : p1, 'wall', h);
+      if (holes.length) { box.holes = holes; box.holeX = horizontal; box.sill = WINDOW.sill; }
+    }
+    bld.pend = null;
+  };
+
+  // A door row: the data systems/interiors.js hangs leaves from. width = the clear opening.
+  const addDoor = (bld, kind, axis, x, z, gapW, nx, nz) => {
+    const row = {
+      id: `d${doorRows.length + 1}`, kind, x, z, axis, width: gapW - WALL_T, leaves: kind === 'front' ? 2 : 1, hinge: orng.chance(0.5) ? -1 : 1,
+      material: orng.chance(bld.district === 'town' ? 0.3 : 0.5) ? 'metal' : 'wood', locked: false, open: 0, nx, nz, b: buildings.length,
+    };
+    row.color = orng.pick(DOOR_MATERIALS[row.material].colors);
+    doorRows.push(row);
+    return row;
   };
 
   const furnish = (b, rng2, district) => {
@@ -193,37 +270,72 @@ export function buildWorld(scene, statics) {
     const ruined = district === 'ruins' && rng.chance(0.55);
     const h = district === 'town' ? rng.range(4.2, 5.2) : rng.range(4, 6);
     const color = district === 'town' ? rng.pick(TOWN_COLORS) : rng.pick(RUIN_COLORS);
-    const b = { minX, maxX, minZ, maxZ, enterable: true, roofIdx: [], doors: [], innerDoors: [], ruined, district, h, shopName, inside: false };
+    const b = { minX, maxX, minZ, maxZ, enterable: true, roofIdx: [], doors: [], innerDoors: [], ruined, district, h, shopName, inside: false, pend: [] };
     // Doors: always face the nearest road on at least one side.
     const nearestRoad = (v) => roadLines.reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), roadLines[0]);
     const dxRoad = Math.abs(nearestRoad(cx) - cx) - w / 2, dzRoad = Math.abs(nearestRoad(cz) - cz) - d / 2;
     const sides = { N: [], S: [], E: [], W: [] };
-    if (dxRoad < dzRoad) sides[nearestRoad(cx) > cx ? 'E' : 'W'].push(cz + rng.range(-d / 4, d / 4));
-    else sides[nearestRoad(cz) > cz ? 'S' : 'N'].push(cx + rng.range(-w / 4, w / 4));
+    const front = dxRoad < dzRoad ? (nearestRoad(cx) > cx ? 'E' : 'W') : (nearestRoad(cz) > cz ? 'S' : 'N');
+    if (dxRoad < dzRoad) sides[front].push(cz + rng.range(-d / 4, d / 4));
+    else sides[front].push(cx + rng.range(-w / 4, w / 4));
     if (rng.chance(0.5)) { // back door
       const s = rng.pick(['N', 'S', 'E', 'W']);
       if (!sides[s].length) sides[s].push((s === 'N' || s === 'S' ? cx : cz) + rng.range(-1.5, 1.5));
     }
-    sideWithGaps(true, minZ, minX, maxX, sides.N, h, color, ruined);
-    sideWithGaps(true, maxZ, minX, maxX, sides.S, h, color, ruined);
-    sideWithGaps(false, minX, minZ, maxZ, sides.W, h, color, ruined);
-    sideWithGaps(false, maxX, minZ, maxZ, sides.E, h, color, ruined);
+    // The shop front is a double door; a back door is a single one, its gap on a nav cell centre.
+    const gaps = {};
+    for (const s of ['N', 'S', 'W', 'E']) gaps[s] = sides[s].map((at) => (s === front ? { at, w: DOOR_GAP, kind: 'front', side: s } : { at: snapHalf(at), w: SINGLE_GAP, kind: 'back', side: s }));
+    sideWithGaps(b, 'N', true, minZ, minX, maxX, gaps.N, h, color, ruined);
+    sideWithGaps(b, 'S', true, maxZ, minX, maxX, gaps.S, h, color, ruined);
+    sideWithGaps(b, 'W', false, minX, minZ, maxZ, gaps.W, h, color, ruined);
+    sideWithGaps(b, 'E', false, maxX, minZ, maxZ, gaps.E, h, color, ruined);
     for (const x of sides.N) b.doors.push({ x, z: minZ - 1.2 });
     for (const x of sides.S) b.doors.push({ x, z: maxZ + 1.2 });
     for (const z of sides.W) b.doors.push({ x: minX - 1.2, z });
     for (const z of sides.E) b.doors.push({ x: maxX + 1.2, z });
     // Interior partition with a doorway for bigger buildings.
+    let px = null, inner = null;
     if (w > 15) {
-      let px = cx + rng.range(-w / 6, w / 6);
+      px = cx + rng.range(-w / 6, w / 6);
       // Never run a partition into a doorway on the north/south walls.
       for (const d of [...sides.N, ...sides.S]) if (Math.abs(d - px) < 2.8) px = d + (px >= d ? 2.8 : -2.8);
       px = Math.min(maxX - 2, Math.max(minX + 2, px));
       const gap = cz + rng.range(-d / 4, d / 4);
       b.innerDoors.push({ x: px, z: gap });
       if (!(ruined && rng.chance(0.4))) {
-        addWall(px, minZ, px, gap - 1.3, h * 0.92, color);
-        addWall(px, gap + 1.3, px, maxZ, h * 0.92, color);
+        const gs = snapHalf(gap); // a single door, its gap on a nav cell centre like a back door's
+        addWall(px, minZ, px, gs - SINGLE_GAP / 2, h * 0.92, color);
+        addWall(px, gs + SINGLE_GAP / 2, px, maxZ, h * 0.92, color);
+        inner = { at: gs };
       }
+    }
+    buildSpans(b, inner ? px : null);
+    // Door leaves (ruins lose some), locks, and the rule that no room is ever locked off: every room
+    // keeps an unlocked way in from outside. Front doors never lock.
+    const fixedOf = { N: minZ, S: maxZ, W: minX, E: maxX };
+    const roomOf = (x) => (inner && x > px ? 1 : 0);
+    const entrances = [], mine = [];
+    for (const s of ['N', 'S', 'W', 'E']) for (const g of gaps[s]) {
+      const horiz = s === 'N' || s === 'S';
+      const x = horiz ? g.at : fixedOf[s], z = horiz ? fixedOf[s] : g.at;
+      const leaf = !g.broken && !(ruined && orng.chance(0.3));
+      const row = leaf ? addDoor(b, g.kind, horiz ? 'x' : 'z', x, z, g.w, OUT[s][0], OUT[s][1]) : null;
+      if (row?.kind === 'back' && orng.chance(0.45)) row.locked = true;
+      if (row) mine.push(row);
+      entrances.push({ room: roomOf(x), row });
+    }
+    let innerRow = null;
+    if (inner && !(ruined && orng.chance(0.3))) {
+      innerRow = addDoor(b, 'inner', 'z', px, inner.at, SINGLE_GAP, 1, 0);
+      if (orng.chance(0.35)) innerRow.locked = true;
+      mine.push(innerRow);
+    }
+    // A doorway whose leaf is gone, or an unlocked door, is a way in.
+    const open = (room) => entrances.some((e) => e.room === room && !e.row?.locked);
+    if (innerRow?.locked && !(open(0) && open(1))) innerRow.locked = false;
+    for (const row of mine) {
+      // Ruins hang doors ajar; Rust Haven keeps them shut.
+      if (!row.locked && (ruined ? orng.chance(0.5) : district !== 'town' && orng.chance(0.25))) row.open = (orng.chance(0.5) ? 1 : -1) * orng.range(0.5, 1.6);
     }
     floors.add(cx, 0.07, cz, w, 0.1, d, district === 'town' ? rng.pick(['#5c4a3a', '#544638', '#4a4038']) : '#4a4540');
     if (!ruined) {
@@ -504,6 +616,7 @@ export function buildWorld(scene, statics) {
 
   return {
     buildings, spawns, glows, fires, roofs, glowMat, flames, groundMat, roadMat, minimap,
+    doors: doorRows, windows: windowRows, // data rows: systems/interiors.js hangs the leaves and glass
     updateFlames(time) {
       fires.forEach((f, i) => {
         const s = 1.4 + Math.sin(time * 13 + i * 7) * 0.25 + Math.sin(time * 29 + i) * 0.15;
