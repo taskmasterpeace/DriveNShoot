@@ -46,6 +46,7 @@ export const REVIEW = {
   'Walking Dead zombie word': ['walker', 'walkers'],
   'Walking Dead / We\'re Alive creature and gang names': ['biter', 'biters', 'roamer', 'roamers', 'lurker', 'lurkers', 'burner', 'burners', 'big ones', 'screamer', 'screamers'],
   'GTA2 gang names that are also words': ['loonies', 'zaibatsu corporation'],
+  'Fallout 3 faction name that is also a word': ['regulator', 'regulators'],
 };
 
 const flat = (groups) => Object.entries(groups).flatMap(([src, terms]) => terms.map((t) => ({ t, src })));
