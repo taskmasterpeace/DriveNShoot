@@ -17,6 +17,10 @@ export class Factions {
     this.lifetime = new Float32Array(MAX_FACTIONS); // every delta ever applied: big deeds partly stick
     this.rel = new Int8Array(MAX_FACTIONS * MAX_FACTIONS);
     this.playerHostile = new Uint8Array(MAX_FACTIONS);
+    // Roles (systems/roles.js) colour how a faction reads you: a bias added to the standing it acts on, and an override
+    // (+1 shoot on sight anyway, -1 hold fire anyway). The raw standing is untouched: deeds, decay and saves see it alone.
+    this.bias = new Float32Array(MAX_FACTIONS);
+    this.roleHostile = new Int8Array(MAX_FACTIONS);
     this.tiers = [];
     for (const [id, def] of Object.entries(FACTIONS)) this.register(id, def);
   }
@@ -63,11 +67,25 @@ export class Factions {
     return this.relation(a, b);
   }
 
+  // The standing a faction acts on: what you did, as your roles colour it (clamped to -100..100).
+  reading(i) { return Math.max(-100, Math.min(100, this.standing[i] + this.bias[i])); }
+
+  // The roles' bias and override per faction (systems/roles.js apply()). quiet: no tier toasts (a load, a reset).
+  setRoleReading(bias, host, quiet = false) {
+    for (let i = 0; i < this.ids.length; i++) {
+      const b = bias[i] ?? 0, h = host[i] ?? 0;
+      if (b === this.bias[i] && h === this.roleHostile[i]) continue;
+      this.bias[i] = b; this.roleHostile[i] = h;
+      this.retier(i, !quiet);
+    }
+  }
+
   retier(i, announce = true) {
     const row = this.rows[i], before = this.tiers[i];
-    const t = row.memory === 'none' ? 'hunted' : tierOf(this.standing[i], row.tiers ?? TIERS);
+    const t = row.memory === 'none' ? 'hunted' : tierOf(this.reading(i), row.tiers ?? TIERS);
     this.tiers[i] = t;
-    this.playerHostile[i] = t === 'hostile' || t === 'hunted' ? 1 : 0;
+    const o = row.memory === 'none' ? 0 : this.roleHostile[i];
+    this.playerHostile[i] = o > 0 ? 1 : o < 0 ? 0 : t === 'hostile' || t === 'hunted' ? 1 : 0;
     if (announce && before && before !== t) {
       this.g.emit?.('standing', { faction: row.id, name: row.name, standing: Math.round(this.standing[i]), tierFrom: before, tierTo: t });
       const worse = ['hunted', 'hostile', 'wary', 'neutral', 'friendly', 'allied'];
@@ -150,6 +168,7 @@ export class Factions {
       const rel = {};
       for (let b = 0; b < this.ids.length; b++) if (b !== i) rel[this.ids[b]] = this.rel[i * MAX_FACTIONS + b];
       return { id: r.id, name: r.name, archetype: r.archetype, color: r.color, standing: +this.standing[i].toFixed(1), tier: this.tiers[i], hostileToPlayer: !!this.playerHostile[i],
+        reading: +this.reading(i).toFixed(1), roleBias: +this.bias[i].toFixed(1), roleOverride: this.roleHostile[i] > 0 ? 'shoot on sight' : this.roleHostile[i] < 0 ? 'hold fire' : null,
         rest: +(r.start + Math.max(-40, Math.min(40, 0.25 * this.lifetime[i]))).toFixed(1), stars: !!r.stars, leaders: r.leaders, relations: rel,
         wars: Object.keys(rel).filter((k) => rel[k] <= -50), alliances: Object.keys(rel).filter((k) => rel[k] >= 50) };
     };
@@ -172,7 +191,7 @@ export class Factions {
 }
 
 // Hue 270-320 is purple: the art law bans it in any UI or asset.
-function purple(hex) {
+export function purple(hex) {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex ?? '');
   if (!m) return false;
   const n = parseInt(m[1], 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;

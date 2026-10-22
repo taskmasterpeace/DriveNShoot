@@ -63,7 +63,7 @@ export class Memory {
   weightOf(m, t) { return Math.abs(this.value(m, t)); }
 
   opinion(c) {
-    const standing = c.fi >= 0 ? this.F.standing[c.fi] : 0;
+    const standing = c.fi >= 0 ? this.F.reading(c.fi) : 0; // their people's reading of you: standing as your roles colour it
     const id = c.npc?.id, e = id && this.byNpc.get(id);
     if (!e) return 0.3 * standing;
     const day = Math.floor(this.now());
@@ -99,11 +99,18 @@ export class Memory {
     return top.line;
   }
 
-  // A named person near the player says the thing on their mind - once a minute at most, only if it matters.
+  // A named person near the player says the thing on their mind - once a minute at most, only if it matters. With
+  // nothing personal to say, they say what you are known for (roles.js: once a game day per role).
   maybeBark(c) {
     c.barkAt = this.g.time + 60;
     const top = this.top(c);
-    if (!top || !top.line || Math.abs(top.value) < 18) return false;
+    if (!top || !top.line || Math.abs(top.value) < 18) {
+      const line = this.g.roles?.greet(c);
+      if (!line) return false;
+      this.g.hud?.subtitle?.(`${c.npc.name}: ${line}`, 4);
+      this.g.emit('bark', { npc: c.npc.id, kind: 'role', line });
+      return true;
+    }
     this.g.hud?.subtitle?.(`${c.npc.name}: ${top.line}`, 4);
     this.g.emit('bark', { npc: c.npc.id, kind: top.kind, line: top.line });
     return true;
@@ -121,10 +128,12 @@ export class Memory {
       if (verb === 'hurt' || verb === 'kill') this.remember(id, 'shotMe');
       else if (verb === 'carjack' || verb === 'steal' || verb === 'rob') this.remember(id, 'robbedMe');
       else if (verb === 'rescue') this.remember(id, 'savedMe');
+      else if (verb === 'heal') this.remember(id, 'helped'); // you patched them up (roles: the medic's work)
     } else if (kin) {
       if (verb === 'kill') this.remember(id, downed ? 'shotKin' : 'killedKin', { about });
       else if (verb === 'hurt') this.remember(id, 'shotKin', { about, weight: 0.6 });
       else if (verb === 'rescue') this.remember(id, 'savedKin', { about });
+      else if (verb === 'heal') this.remember(id, 'savedKin', { about, weight: 0.5 });
     } else if (friend) {
       if (verb === 'kill') this.remember(id, downed ? 'shotKin' : 'killedFriend', { about, weight: downed ? 0.6 : 1 });
       else if (verb === 'rescue') this.remember(id, 'helped', { about });

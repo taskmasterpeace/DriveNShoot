@@ -271,6 +271,7 @@ export class Stunts {
       takeoffSpeed: +(v.toSpeed ?? 0).toFixed(1), landedOn: landedOn?.id ?? null, pay: 0, record: false,
     };
     this.count++;
+    let freshClear = false;
     if (mine) {
       const R = this.records;
       if (grade !== 'crash' && (airT > R.air || dist > R.dist)) { res.record = R.air > 0 || R.dist > 0; R.air = Math.max(R.air, airT); R.dist = Math.max(R.dist, dist); R.height = Math.max(R.height, height); }
@@ -278,7 +279,9 @@ export class Stunts {
         const day = g.society?.day ?? 0, c = (this.cleared[J.id] ??= { n: 0, day: -1, best: 0 });
         if (cleared) {
           const fresh = c.day !== day;
-          res.pay = c.n === 0 ? J.first : fresh ? J.again : 0;
+          freshClear = fresh;
+          // A known stunt driver draws a bigger crowd: named jumps pay more (roles.js perk jumpPay).
+          res.pay = Math.round((c.n === 0 ? J.first : fresh ? J.again : 0) * (g.roles?.perk.jumpPay ?? 1));
           c.n++; c.day = day; c.best = Math.max(c.best, dist);
           if (res.pay) g.give({ cash: res.pay });
           // A feat: the legend keeps it if anyone saw it, so the radio can tell it. A clean one is told bigger.
@@ -289,6 +292,7 @@ export class Stunts {
     }
     this.last = res;
     g.emit('jump', res);
+    if (mine) g.roles?.onJump(res, freshClear); // the stunt driver's (and the wheelman's) work
   }
 
   // Lip to lip: how far a named jump asks you to fly.

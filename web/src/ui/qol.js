@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { HALF } from '../world/city.js';
 import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
+import { NPCS } from '../data/npcs.js';
+import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -47,6 +49,8 @@ export class QOL {
           <button data-a="photo">Photo mode <kbd>K</kbd></button>
           <button data-a="map">Map <kbd>M</kbd></button>
         </div>
+        <div class="pm-section">WHAT THEY CALL YOU</div>
+        <div class="pm-roles"></div>
         <div class="pm-section">SETTINGS</div>
         <label>Difficulty <select data-s="difficulty"><option value="story">Story (35% damage taken)</option><option value="normal">Normal (70%)</option><option value="hard">Hard (100%)</option></select></label>
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
@@ -59,7 +63,7 @@ export class QOL {
         <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · N sleep (a bed, a bedroll, a parked car) · B drop oil/caltrops · M map · Z zoom out (Shift+Z or = in, - out) · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div>`);
     const q = (s) => root.querySelector(s);
-    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu') };
+    this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu'), roles: q('.pm-roles') };
     for (const [sel, art] of [['.obj-paper', paintPaper(316, 252)], ['.obj-pin', paintPin()]]) {
       const c = q(sel); c.width = art.width; c.height = art.height; c.getContext('2d').drawImage(art, 0, 0);
     }
@@ -216,9 +220,36 @@ export class QOL {
   toggleMenu(on = !this.menuOpen) {
     if (document.querySelector('.title')) return;
     this.menuOpen = on;
-    if (on) this.toggleMap(false);
+    if (on) { this.toggleMap(false); this.renderRoles(); }
     this.el.menu.classList.toggle('hidden', !on);
     this.g.paused = on || this.mapOpen;
+  }
+
+  // What the world calls you (systems/roles.js), drawn when the menu opens: each role you are known for (or on your
+  // way to), how far along, why, and what it has opened. Roles you have no renown in stay off the list.
+  renderRoles() {
+    const R = this.g.roles, el = this.el.roles;
+    if (!R || !el) return;
+    const v = R.view(null, NPCS);
+    const rows = v.roles.filter((r) => r.renown >= 3 || r.tier !== 'none').sort((a, b) => ROLE_TIERS.indexOf(b.tier) - ROLE_TIERS.indexOf(a.tier) || b.renown - a.renown);
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    el.innerHTML = rows.length ? rows.map((r) => {
+      const state = r.suspended ? `SUSPENDED · ${r.suspended}` : r.tier === 'none' ? 'TALK OF IT' : r.tier.toUpperCase();
+      const why = r.why.filter((w) => w.renown > 0.05).slice(0, 2).map((w) => w.what).join(', ');
+      const F = this.g.society?.factions, o = r.opens, seen = new Set(), k = ROLE_RULES.scale[ROLE_TIERS.indexOf(r.active)] || ROLE_RULES.scale[2];
+      const fname = (fid) => (fid === '*' ? 'every trader' : (F?.row(fid)?.short ?? F?.row(fid)?.name ?? fid).replace(/^The /, ''));
+      const opens = [
+        ...Object.entries(o.factions).filter(([, f]) => f.holdFire || f.shootOnSight).map(([fid, f]) => `${fname(fid)} ${f.holdFire ? 'hold fire' : 'shoot on sight'}`),
+        ...o.offices.map((f) => f.name),
+        ...o.dialogue.filter((d) => d.choice && !seen.has(d.npc) && seen.add(d.npc)).map((d) => `${d.short}: "${d.choice}"`),
+        ...Object.entries(o.prices).map(([fid, m]) => { const pct = Math.round((m - 1) * k * 100); return `${fname(fid)} ${pct < 0 ? '' : '+'}${pct}% prices`; }),
+      ].slice(0, 3).join(' · ');
+      return `<div class="pm-role${r.tier === 'none' ? ' faint' : ''}${r.suspended ? ' susp' : ''}" style="--rc:${r.color}">
+        <div class="pm-role-head"><b>${esc(r.name)}</b><span>${esc(state)}</span></div>
+        <div class="pm-role-bar"><i style="width:${r.renown.toFixed(1)}%"></i>${r.tiers.map((t) => `<u style="left:${t}%"></u>`).join('')}</div>
+        <div class="pm-role-why">${esc(why ? `For: ${why}.` : r.blurb)}${opens ? ` <em>Opens: ${esc(opens)}</em>` : ''}</div>
+      </div>`;
+    }).join('') : '<div class="pm-role-none">Nobody calls you anything yet. Do something worth talking about.</div>';
   }
   toggleMap(on = !this.mapOpen) {
     if (document.querySelector('.title')) return;

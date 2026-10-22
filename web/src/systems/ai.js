@@ -30,12 +30,13 @@ export class AI {
     if (a.vendetta && a.weapon && b === this.g.player) return true; // they remember what you did to theirs
     // Toward the player, standing decides (WEB_WORLD_MEMORY): a faction at hostile or worse shoots on sight, a
     // friendlier one holds fire; Rust Haven's bulls also answer to the wanted stars. NPC-vs-NPC rules stay below.
-    const P = this.g.player, F = this.g.society?.factions;
-    if (b === P && F && a.fi >= 0) return F.hostileToPlayer(a) || (a.faction === 'warden' && this.g.wanted > 0);
+    // A sworn deputy (roles.js office) gets one star of slack from the bulls.
+    const P = this.g.player, F = this.g.society?.factions, slack = this.g.roles?.offices.deputy ? 1 : 0;
+    if (b === P && F && a.fi >= 0) return F.hostileToPlayer(a) || (a.faction === 'warden' && this.g.wanted > slack);
     // Soldiers (the Federal Remnant) go by their faction's relations: at war (≤ -50) means shoot on sight.
     if (a.faction === 'soldier') return !!F && a.fi >= 0 && b.fi >= 0 && F.rel[a.fi * MAX_FACTIONS + b.fi] <= -50;
     if (a.faction === 'raider') return b.faction !== 'raider';
-    if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > 0);
+    if (a.faction === 'warden') return b.faction === 'raider' || (b === this.g.player && this.g.wanted > slack);
     return false;
   }
 

@@ -16,7 +16,8 @@ export class Trade {
     if (!row || !c.alive || c.downedT > 0 || c.sleeping) return null; // asleep: no counter (and no witness, deeds.js)
     if (Math.hypot(c.x - g.player.x, c.z - g.player.z) > TRADE.reach) return null;
     const F = g.society?.factions, tier = F && c.fi >= 0 ? F.tiers[c.fi] : 'neutral', T = PRICE_TIER[tier];
-    const refuse = !T || !!g.society?.memory?.refuses(c);
+    // ...or what you are known for closes the counter (docs/design/WEB_ROLES.md: a known butcher at Ike's).
+    const refuse = !T || !!g.society?.memory?.refuses(c) || !!g.roles?.refusal?.(c);
     const mul = g.roles?.priceMul?.(c.fid, c) ?? 1; // a role that buys cheaper (a known trader, a Remnant quartermaster's friend)
     this.restock(box);
     return { c, id: c.npc.id, name: row.name, deals: row.deals, tier, refuse, buy: T ? T.buy * mul : 0, sell: T ? T.sell / mul : 0 };
@@ -91,6 +92,7 @@ export class Trade {
   deal(D, side, id, n, cash) {
     const g = this.g, c = D.c;
     if ((c.tradeDeedT ?? -1e9) < g.time - TRADE.deedEvery) { c.tradeDeedT = g.time; g.society?.deeds?.direct('trade', c); }
+    g.roles?.signal?.('trade', { faction: c.fid, value: cash, sell: side === 'sell' }); // scrip changing hands: the trader's role
     g.inventory.changed();
     g.audio?.blip?.();
     g.emit('trade', { trader: D.id, side, item: id, n, cash, tier: D.tier });

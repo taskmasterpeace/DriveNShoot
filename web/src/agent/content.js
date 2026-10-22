@@ -8,6 +8,7 @@
 //   "spawns":   [ { "kind": "raider", "x": 0, "z": 0, "count": 3 } ],     -> spawn
 //   "vehicleSpawns": [ { "type": "rig", "x": 0, "z": 0, "heading": 0 } ], -> spawnVehicle
 //   "startingKit": { "cash": 100, "weapon": "smg", "smg": 64 }            -> give
+//   "roles":    { "<id>": { name, tiers, earn, wear, opens, ... } }  -> registerRole (docs/design/WEB_ROLES.md)
 // }
 
 const packs = import.meta.glob('/content/*.json', { eager: true, import: 'default' });
@@ -20,6 +21,7 @@ export async function loadContentPacks(api) {
     const run = async (cmd, args) => { const r = await api.call(cmd, args); if (!r.ok) errors.push(`${cmd}: ${r.error}`); for (const w of r.warnings ?? []) warnings.push(`${args?.def?.id ?? cmd}: ${w}`); };
     for (const [key, def] of Object.entries(pack.weapons ?? {})) await run('registerWeapon', { key, def });
     for (const [key, def] of Object.entries(pack.vehicles ?? {})) await run('registerVehicle', { key, def });
+    for (const [id, def] of Object.entries(pack.roles ?? {})) await run('registerRole', { id, def }); // before the people who react to them
     for (const n of pack.npcs ?? []) await run('registerNpc', n);
     for (const s of pack.spawns ?? []) await run('spawn', s);
     for (const v of pack.vehicleSpawns ?? []) await run('spawnVehicle', v);
