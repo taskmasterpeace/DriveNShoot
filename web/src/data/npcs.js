@@ -1,4 +1,4 @@
-// Named characters of the Deathlands. Pure data + small hooks into game state.
+// Named characters of the Divided States. Pure data + small hooks into game state.
 // `where`: 'shop:N' = inside Rust Haven building N, or {x,z}.
 // Dialogue nodes: { text, choices: [{ t, next | end, req(g), do(g) }] }
 
@@ -22,7 +22,7 @@ export const NPCS = [
           { t: 'Consider it done.', next: 'accepted', do: (g) => { g.quests.bounty = 'active'; g.quests.bountyStart = g.stats.raiderKills; g.hud.toast('NEW JOB: Dustwolf Bounty (0/6)', 'job'); } },
           { t: 'Not my fight.', end: true },
         ] },
-      accepted: { text: 'Take the War Rig if Kenji lets you. It has the harpoon. Hook one, yank it, watch it roll.', choices: [{ t: '[Leave]', end: true }] },
+      accepted: { text: 'Take the Whaler if Kenji lets you. It has the harpoon. Hook one, yank it, watch it roll.', choices: [{ t: '[Leave]', end: true }] },
       pay: { text: 'Counted the ears myself. $250, as promised. Rust Haven remembers.', choices: [{ t: 'Pleasure doing business.', end: true }] },
       lore: { text: 'Phoenix died in a week. Grid went, then the water, then the fires. We built a wall out of the car lots and called it home. Most nights it holds.', choices: [{ t: 'Back to business.', next: 'hi' }, { t: '[Leave]', end: true }] },
     },
@@ -62,7 +62,7 @@ export const NPCS = [
     where: 'shop:2', portrait: { seed: 404, skin: '#e0ac85', hair: '#1b1410', hat: 'wrap', mood: 'neutral', shirt: '#2f3b42', gear: 'goggles', beard: false },
     start: 'hi',
     nodes: {
-      hi: { text: 'The War Rig out front is mine. Welded the harpoon gun myself. You want to know how it works, or you want to break it?',
+      hi: { text: 'The Whaler out front is mine. Welded the harpoon gun myself. You want to know how it works, or you want to break it?',
         choices: [
           { t: 'How does the harpoon work?', next: 'harpoon' },
           { t: `Repair my last ride (${money(60)})`, req: (g) => g.lastVehicle && !g.lastVehicle.dead && g.lastVehicle.hp < g.lastVehicle.maxHp, next: 'fixed', do: (g) => { if (g.spend(60)) g.lastVehicle.hp = g.lastVehicle.maxHp; } },
@@ -77,7 +77,7 @@ export const NPCS = [
     where: 'shop:3', portrait: { seed: 505, skin: '#6e3f22', hair: '#1b1410', hat: 'wrap', mood: 'smile', shirt: '#6b3a24', gear: 'none', beard: false },
     start: 'hi',
     nodes: {
-      hi: { text: 'Clean water, three filters deep. In the Deathlands that makes me the richest woman alive.',
+      hi: { text: 'Clean water, three filters deep. Under the Solar King that makes me the richest woman in Arizona.',
         choices: [
           { t: `Buy a canteen (${money(15)}) — +30 health`, next: 'drink', do: (g) => { if (g.spend(15)) g.player.hp = Math.min(g.player.maxHp, g.player.hp + 30); } },
           { t: 'Heard any rumors?', next: 'rumor' },

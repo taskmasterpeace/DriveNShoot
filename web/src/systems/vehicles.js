@@ -12,8 +12,8 @@ import { clamp, angleLerp } from '../engine/rng.js';
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 export const VEHICLES = {
-  rig:         { name: 'WAR RIG', len: 7.6, wid: 2.7, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
-  interceptor: { name: 'INTERCEPTOR', len: 4.6, wid: 2.0, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
+  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
   buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
   pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80,
                  seats: [...S2, { id: 'bedL', side: 'left', row: 2, exposed: 'stand' }, { id: 'bedR', side: 'right', row: 2, exposed: 'stand' }] },

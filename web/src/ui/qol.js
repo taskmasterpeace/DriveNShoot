@@ -5,9 +5,13 @@ import { snapshot, restore } from '../agent/api.js';
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
 
-const SETTINGS_KEY = 'deathlands.settings';
-const SAVE_KEY = 'deathlands.quicksave';
-const AUTO_KEY = 'deathlands.autosave';
+const SETTINGS_KEY = 'dsoa.settings';
+const SAVE_KEY = 'dsoa.quicksave';
+const AUTO_KEY = 'dsoa.autosave';
+// The engine's old code name keyed storage as 'deathlands.*': carry players' settings and saves over once.
+for (const k of ['settings', 'quicksave', 'autosave']) {
+  try { const old = localStorage.getItem(`deathlands.${k}`); if (old !== null && localStorage.getItem(`dsoa.${k}`) === null) localStorage.setItem(`dsoa.${k}`, old); } catch { /* storage blocked */ }
+}
 const AUTOSAVE_EVERY = 180; // seconds of play
 const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal' };
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
@@ -15,6 +19,8 @@ const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
 
 export class QOL {
+  saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch { /* storage blocked */ } }
+
   constructor(game, root) {
     this.g = game;
     this.settings = load(SETTINGS_KEY, DEFAULTS);
@@ -27,7 +33,7 @@ export class QOL {
 
     root.insertAdjacentHTML('beforeend', `
       <div class="objective hidden"><div class="obj-label">OBJECTIVE</div><div class="obj-text"></div><div class="obj-dist"></div></div>
-      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>THE DEATHLANDS</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
+      <div class="bigmap hidden"><div class="bigmap-card"><div class="bigmap-head"><b>ARIZONA · THE SUN COURT</b><span>Click to set a waypoint · right-click clears · M closes</span></div><canvas width="760" height="760"></canvas></div></div>
       <div class="pausemenu hidden"><div class="pm-card">
         <div class="pm-title">PAUSED</div>
         <div class="pm-buttons">
@@ -66,7 +72,7 @@ export class QOL {
       if (inp.type === 'checkbox') inp.checked = !!this.settings[k]; else inp.value = this.settings[k];
       inp.addEventListener('input', () => {
         this.settings[k] = inp.type === 'checkbox' ? inp.checked : inp.tagName === 'SELECT' && Number.isNaN(Number(inp.value)) ? inp.value : Number(inp.value);
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(this.settings)); } catch {}
+        this.saveSettings();
         this.apply();
       });
     }

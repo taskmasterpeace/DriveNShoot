@@ -376,7 +376,7 @@ class Game {
     // Surface loop exceptions to `dl status` too (once per distinct error), not just the console.
     if (fresh) try { fetch('/agent/client-error', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'runtime', message: msg.slice(0, 500), at: Date.now() }) }); } catch { /* offline build */ }
     this.emit('error', { msg });
-    console.error('[deathlands]', e);
+    console.error('[dsoa]', e);
     this.input.endFrame();
   }
 
@@ -427,7 +427,7 @@ class Game {
     }
     this.seats.board(p, v, 0); v.ai = null;
     this.lastVehicle = v;
-    if (v.harpoon) this.hud.subtitle('WAR RIG: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
+    if (v.harpoon) this.hud.subtitle('WHALER: aim with the mouse, [H] fires the harpoon — [H] again to YANK.', 6);
   }
 
   exitVehicle(forced = false) {
@@ -814,8 +814,8 @@ class Game {
     t.className = 'title';
     t.innerHTML = `
       <div class="title-inner">
-        <h1>DEATH<span>LANDS</span></h1>
-        <div class="tag">PHOENIX, ARIZONA · 31 YEARS AFTER</div>
+        <h1>DIVIDED <span>STATES</span></h1>
+        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · 31 YEARS AFTER THE FRACTURE</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
@@ -833,7 +833,7 @@ class Game {
       this.audio.start();
       this.paused = false;
       this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
-      this.hud.subtitle('The War Rig is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+      this.hud.subtitle('The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
     this.render(0.016);
   }

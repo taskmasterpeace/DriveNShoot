@@ -1,0 +1,4 @@
+[
+  { "term": "deathlands", "file": "src/ui/qol.js", "why": "one-time localStorage migration from the engine's old code name; read once, never displayed" },
+  { "term": "interceptor", "file": "*", "why": "internal vehicle TYPE id kept so saves and content packs stay valid; players only ever see the display name LAWMAN" }
+]

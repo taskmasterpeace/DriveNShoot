@@ -43,7 +43,7 @@ export class HUD {
           <div class="speedo hidden">
             <canvas width="150" height="150"></canvas>
             <div class="speedo-num">0</div><div class="speedo-unit">MPH</div>
-            <div class="speedo-name">WAR RIG</div>
+            <div class="speedo-name">WHALER</div>
             <canvas class="win-diagram" width="64" height="96" title="Windows: blue intact · white cracked · red broken · dots = people hanging on"></canvas>
           </div>
         </div>

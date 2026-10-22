@@ -489,7 +489,7 @@ function buildCommands(api) {
       },
     },
     difficulty: { group: 'player', desc: 'Set damage-taken difficulty: story (35%), normal (70%), hard (100%). Persists like the pause-menu setting.', args: { level: { type: 'string', required: true, enum: ['story', 'normal', 'hard'] } },
-      run: async ({ level }) => { g.qol.settings.difficulty = level; try { localStorage.setItem('deathlands.settings', JSON.stringify(g.qol.settings)); } catch {} return { difficulty: level, damageTaken: g.qol.damageTaken() }; } },
+      run: async ({ level }) => { g.qol.settings.difficulty = level; g.qol.saveSettings(); return { difficulty: level, damageTaken: g.qol.damageTaken() }; } },
     god: { group: 'player', desc: 'Toggle invulnerability (for testing).', args: { on: { type: 'boolean', default: true } }, run: async ({ on }) => { g.godMode = on; return { god: on }; } },
 
     path: {
@@ -715,7 +715,7 @@ function buildCommands(api) {
       run: async ({ id }) => { const v = id ? api.findVeh(id) : P().inVehicle ?? g.lastVehicle; need(v && !v.dead, 'no live vehicle'); g.vehDamage.repair(v); return vehView(g, v); },
     },
     harpoon: {
-      group: 'vehicle', desc: 'Fire the War Rig harpoon at x,z or entity id. Call again while hooked to YANK.',
+      group: 'vehicle', desc: 'Fire the Whaler\'s harpoon at x,z or entity id. Call again while hooked to YANK.',
       args: { x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
       run: async ({ x, z, id }) => {
         const v = P().inVehicle;
@@ -999,7 +999,7 @@ async function runSelfTest(api) {
     await C('choose', { index: 0 });
     return r.ok && g.cash === cash + 5;
   });
-  await check('enter War Rig + drive', async () => {
+  await check('enter the Whaler + drive', async () => {
     const rig = g.vehicles.find((v) => v.type === 'rig');
     await C('teleport', { x: rig.x + 4, z: rig.z });
     const e = await C('enterVehicle', { id: rig.id, force: true });

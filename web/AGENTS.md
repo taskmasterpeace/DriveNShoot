@@ -1,9 +1,9 @@
-# DEATHLANDS — Agent Guide
+# DIVIDED STATES OF AMERICA — Agent Guide
 
 A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocalyptic United States: the ruins of Phoenix, Arizona. It's built to be **driven, tested and extended by AI agents** from a shell, with no clicking and no reading engine internals.
 
 - **Stack:** three.js 0.170 + Vite. Plain ES modules, no framework, no asset downloads (every texture, portrait, flag and sound is generated in code).
-- **Features:** on foot plus driving, pistol/SMG/shotgun, an NPC dialogue system with portraits, a day/night cycle, 7 weather types, gore (blood spray, pools, trails, gibs), enterable buildings (the roof cuts away), a wanted level, quests, the War Rig harpoon, traffic and raider AI.
+- **Features:** on foot plus driving, pistol/SMG/shotgun, an NPC dialogue system with portraits, a day/night cycle, 7 weather types, gore (blood spray, pools, trails, gibs), enterable buildings (the roof cuts away), a wanted level, quests, the Whaler harpoon, traffic and raider AI.
 
 ---
 
@@ -76,16 +76,16 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 39/39**: state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, War Rig drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 39/39**: state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
-- **`scenario name=bounty-run`: an agent plays the main quest end to end** using only public commands (no god mode, no teleport, no exec). It walks to the sheriff, takes the job, buys ammo from Ike, drives the War Rig to raider camps, rams and shoots six Dustwolves, swaps wrecked cars, returns, and gets paid $250. That's about 30–100 s of real time for 7–12 in-game minutes. **13 of 15 valid runs completed the whole quest (87%) across the two final batches.** Every run logs why each walk stopped; all stops were the intended interrupts (`under fire`, `player died`). There were 0 timeouts, 0 path failures and 0 runtime errors. Of the two failures, one was a dead end (the player ran over the sheriff), fixed since by `essential` quest givers, and the other was a lost firefight. The run log reads like a play-by-play.
+- **`scenario name=bounty-run`: an agent plays the main quest end to end** using only public commands (no god mode, no teleport, no exec). It walks to the sheriff, takes the job, buys ammo from Ike, drives the Whaler to raider camps, rams and shoots six Dustwolves, swaps wrecked cars, returns, and gets paid $250. That's about 30–100 s of real time for 7–12 in-game minutes. **13 of 15 valid runs completed the whole quest (87%) across the two final batches.** Every run logs why each walk stopped; all stops were the intended interrupts (`under fire`, `player died`). There were 0 timeouts, 0 path failures and 0 runtime errors. Of the two failures, one was a dead end (the player ran over the sheriff), fixed since by `essential` quest givers, and the other was a lost firefight. The run log reads like a play-by-play.
 
 ## Look & feel
 
 - **People:** instanced low-poly humans (rounded torso, hips, sphere head with a readable face, capsule limbs with hands and boots), 5 hat/hair styles (short, cap, cowboy, mohawk, wrap) and 3 gear styles (vest, backpack, spiked raider pads) picked per faction. They aim two-handed, sway when walking, lean when running. Around 19 draw calls cover all 160 people.
-- **Vehicles:** beveled bodies, cylinder wheels with hubs, tinted glass, ram spikes and a harpoon turret on the War Rig, head and tail lights. Paint chars as the vehicle takes damage, it smokes at low HP, burns for 4 s, then explodes.
+- **Vehicles:** beveled bodies, cylinder wheels with hubs, tinted glass, ram spikes and a harpoon turret on the Whaler, head and tail lights. Paint chars as the vehicle takes damage, it smokes at low HP, burns for 4 s, then explodes.
 - **Gore:** directional blood spray, growing pools, exit splatter, drip trails from the wounded, clothes that soak through with damage, bloody footprints after walking through a pool, gibs on run-overs and explosions, head pops (explosion, point-blank shotgun, harpoon yank) with an arterial neck spray, and a dragged-body trail on the harpoon.
 - **Sound (synthesized, no files):** stereo-panned by screen position, distance falloff that also dulls the high end, per-weapon reports, near-miss whizzes, ricochets, footsteps by surface (sand/road/floor), a 5-gear engine, rain and wind beds, thunder, crashes, skids, horns. `perf.audio.played` counts what was played, so headless runs can verify sound.
 
@@ -198,10 +198,12 @@ Update order per frame (`Game.frame`): player → AI → vehicles (drive, collid
 5. **Content as data.** New weapons, vehicles, NPCs and weather are rows in their tables or JSON packs, not new code paths.
 6. **Art direction:** dusty post-apocalyptic palette (rust, sand, bone, gold). **Never purple** (hues ~270–320 are banned). Every person shown in UI (portraits, dialogue) shows their **country flag** as a real drawing (`ui/portrait.js` `FLAGS`), never emoji letters.
 7. **Run `node tools/dl.mjs selftest` after engine changes.** It must stay green. Add a check there when you add a system.
+8. **IP hygiene: borrow mechanics, never names.** The game is fan service for GTA2, Autoduel, Project Zomboid, We're Alive, 28 Days Later and the Deathlands novels, so their verbs, loops and genre shapes are fair game; their titles, coined slang, characters and catchphrases are not. `node tools/ip-lint.mjs` scans every player-facing string and must report **0 deny** before a commit. A deliberate exception goes in `tools/ip-allow.json` with a reason. Canon names come from `docs/DIVIDED_STATES.md` (scrip, holdouts, Carousel Stations, the 50 rulers).
 
 ## Verification loop for agents
 
 ```bash
+node tools/ip-lint.mjs                          # no borrowed names in player-facing text
 node tools/dl.mjs selftest                      # systems still work
 node tools/dl.mjs scenario name=stress          # msPerFrame + drawCalls
 node tools/dl.mjs scenario name=highway-heist   # set the scene

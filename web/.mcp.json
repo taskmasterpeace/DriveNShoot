@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "deathlands": {
+    "dsoa": {
       "command": "node",
       "args": ["tools/mcp-server.mjs"]
     }
