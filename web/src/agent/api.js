@@ -1046,8 +1046,8 @@ function buildCommands(api) {
       },
     },
     sleep: {
-      group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: E at a bed, or use a bedroll from the PACK screen; E gets you up.',
-      args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
+      group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=car tips back the seat of the car you sit in (it must be parked), where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: N sleeps (a bed you stand at, a bedroll you carry, a parked car), E at a bed, a bedroll from the PACK screen; E gets you up.',
+      args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'car', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
       run: async ({ where, snap, hours, wake }) => {
         const S2 = g.survival, p = P();
         if (wake) return { woke: S2.wake(), needs: S2.view() };
@@ -2255,6 +2255,25 @@ async function runSelfTest(api) {
     const woken = !!lay.ok && !S.sleep && /infected/.test(S.lastWake?.why ?? '') && S.lastWake.full === false;
     g.removeChar(z);
     return tired && micro && still && back && slept && woken ? true : JSON.stringify({ tired, sway: N.sway, micro, still, back, slept, woke: r.woke, lay: lay.ok ? true : lay.why, woken, why: S.lastWake?.why });
+  }));
+  await check('sleep in a parked car: N tips the seat back, the car stays parked, a night in the seat rests you slower than a bed; it will not do it rolling', async () => withNeeds(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player;
+    const v = g.vehiclesSys.spawn('sedan', p.x + 4, p.z, 0);
+    await C('enterVehicle', { id: v.id, force: true });
+    const x0 = v.x, z0 = v.z;
+    N.rest = 0.3;
+    v.vx = 6; // rolling: no
+    const rolling = g.trySleep();
+    v.vx = 0; v.vz = 0; await C('step', { seconds: 0.5 });
+    const r = g.trySleep(); // N, parked
+    for (let k = 0; k < 4000 && S.sleep; k++) await api._step(30);
+    const w = S.lastWake, moved = Math.hypot(v.x - x0, v.z - z0);
+    const want = 0.7 / (1 / 7 * 0.65); // 7.5 game hours in the seat, against 4.9 in a bed
+    const ok = !rolling.ok && r.ok && w?.why === 'rested' && Math.abs(w.hours - want) < 0.8 && moved < 0.6 && p.inVehicle === v;
+    if (p.inVehicle) g.exitVehicle(true);
+    g.vehiclesSys.remove(v);
+    return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
   }));
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();

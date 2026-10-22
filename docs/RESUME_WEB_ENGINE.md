@@ -1,80 +1,85 @@
-# RESUME HERE: web engine (updated 2026-10-22, late)
+# RESUME HERE: web engine (updated 2026-10-22, night)
 
 The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/WEB_ENGINE_PLAN.md`; the agent guide is
 `web/AGENTS.md` (every command, the architecture map, the invariants). Don't touch carworld's main checkout
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-The 2026-10-22 session is on `feat/web-engine` and pushed (`a8f9a2e..866d3ef`): the merge `d486d05` (byte-identical to
-the session branch for `web/` and `docs/`), then two fixes found by running the selftest on the landed tree:
-`5a9abea` (no director threats in the first 150 s of play: a raid could hit Rust Haven 20 s into a new game; the raid
-check stages around pacing) and `866d3ef` (selftest staging cancels director events already running). 73/73 on the
-landed tree, twice (once with a live raid out before the battery, once started 30 s after boot); stress 67 draw calls,
-2.5 ms/frame. Then the Federal Remnant base landed the same way: subagent branch merged as `c9f6c43`, 78/78 on fresh
-pages twice on the merged tree, stress 70-71 draw calls at 2.1-2.35 ms/frame on fresh pages (no regression), 72 draw
-calls at the base by night. The session branch `claude/web-engine-handoff-2fceb5` equals `feat/web-engine`; keep working
-there and land with `git merge --ff-only claude/web-engine-handoff-2fceb5` inside `.worktrees/web-engine`.
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`a242a5db`**: everything below, landed by fast-forward
+from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
+`.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
+`git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
+a real merge (a subagent branch) gets its selftest on the merged tree, twice, on fresh pages.
 
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 78/78 green (2026-10-22, fresh page, several runs)
-node tools/dl.mjs scenario name=stress   # ~70 draw calls, ~2.2 ms/frame on a fresh page (budget: < 150 draw calls)
+node tools/dl.mjs selftest               # 84/84 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
 Gotchas (all paid for):
 - **Run the selftest on a fresh page:** `exec code="(setTimeout(() => location.reload(), 50), 'reloading')"`, wait ~15 s.
-- **One game tab.** The bridge is sticky to the tab that has the job; a second tab (the Browser pane) sits on standby,
-  so commands keep going to the headless tab. To look at the DOM (the HUD, the PACK screen) open the pane at
-  `localhost:3141/?agent=1` and drive *that* page with the Browser tool's JavaScript (`window.DL`, `window.game`);
-  the `screenshot` command only renders the 3D canvas. Close the pane tab afterwards.
-- **A dev reload restores the game state** (snapshot in sessionStorage). A bad object you created survives the reload
-  with it (a character with no colours broke every frame once; `addChar` now paints anyone unpainted).
-- **Patch scripts:** `node -e` inside bash strips backslashes (`\b` became a backspace byte in a regex once). Write
-  scripts and code snippets to files and splice them in; the Edit tool is fine on CRLF files.
-- **Vite can serve a stale transform** after rapid multi-edits ("X is not defined" with the import present):
-  `touch src/main.js`.
+  Don't edit `web/src` while it runs (vite reloads the page mid-battery).
+- **Perf is an A/B, not a remembered number.** Other agents' headless Chromes moved stress from 2.2 to 4.3 ms/frame in
+  one evening. Check out the previous commit inside the session worktree (`git worktree add --detach .ab-base <sha>`;
+  esbuild can't walk up through `C:\WINDOWS\TEMP`), junction its `web/node_modules` to the live one (`mklink /J`), run
+  it with `DL_URL=http://localhost:3150 node tools/agent.mjs`, and alternate stress runs between :3150 and :3141. Kill
+  its vite and Chrome by PID afterwards, `rmdir` the junction, `git worktree remove --force .ab-base`.
+- **Seeing the DOM HUD:** the `screenshot` command renders only the 3D canvas. Use Playwright: open
+  `localhost:3141/?agent=0`, drive it with `window.DL.call(...)` / `window.game` in `browser_evaluate`, screenshot into
+  `.playwright-mcp/` (gitignored), `browser_close` afterwards. Element shots (`target: '.weapon-panel'`) for details.
+- **A dev reload restores the game state** (snapshot in sessionStorage). A bad object you created survives the reload.
+- **Patch scripts:** `node -e` inside bash strips backslashes; template literals full of `${}` break when nested in
+  another template. Write find/replace snippets as files and apply them (scratchpad `edits.mjs`: `{find, repl}` or
+  `{from, to, repl}` per entry).
+- **Selftest checks** see `C` (commands) and `g`, not `P()`: use `g.player`.
 - Game-loop exceptions: `node tools/dl.mjs status` → `recentErrors`.
 
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
-| Military (subagent) | **Outpost Nine**, a fenced Federal Remnant base in the north-west Glass Flats (fence x -324..-260, z -427..-367; gate off DEAD MAN RD): four towers with sentries and sweeping searchlights, barracks, command post, a locked steel armory with military loot, a motor pool, a helipad with a burned-out helicopter; twelve soldiers (faction `remnant`, a `trespass` verb: a warning, then fire); a PATROL TRUCK and an ARMORED CARRIER; `base` command | WEB_MILITARY | c9f6c43 |
-| Inventory 2a | every crate and shelf in a building is searchable (114), shopkeepers own theirs (taking is a `steal` deed the owner remembers), lockpicks (silent) and crowbar (loud) work the locks | WEB_INVENTORY | 15afe7f |
-| Interiors (subagent) | a door in every doorway (swing, bash, 12 locked: kick, shoot, blast), 493 windows (crack, shatter, climb, board up) | web/AGENTS.md | 318f5c2 |
-| The pack | 33 item rows (water, food, meds, tools, parts, packs, valuables), weight + litres, uses, spoilage on the game clock, tools need tags; PACK screen (I/Tab); V quick-use; searchable dead; trunks; ground piles; tools act on cars | WEB_INVENTORY | 143c8d1 |
-| Morning digest | STATIC 1660 AM reads yesterday back at dawn; witnessed feats join the legend | WEB_WORLD_MEMORY | 5be7ef7 |
-| Jumps | ramps/berms/tables as rows, ride-height springs, takeoff by physics, landings graded by closing speed; the Thrill Show (Wreck Row, the Table, the Whoops) and the Dunes; named jumps pay and are told about | WEB_JUMPS | eac5ddd |
-| HUD (subagent) | the stamped-steel HUD to the dream target: ORDERS tag, brass compass, riveted clock/wanted, licence-plate cash, GPS bezel, street sign, segmented vitals, food/water dials, cloth flag, cartridge weapon plate, analog dash, respect chips | web/AGENTS.md | 76b5ff1 |
-| ATV, garage | a quad you sit like a bike; armour by facing, a hood gun, oil/caltrops/smoke off the tail (Kenji) | web/AGENTS.md | 4a15a58, b893e3f |
-| Survival, skills | water and food on the game clock (pips, effects); STR/DEX/END grown by doing; carried weight | web/AGENTS.md | 558148b, 2747de5 |
-| World memory 1-4 | deeds, witnesses, rumors, factions, the chronicle; people remember (refusals, vendettas); the director (hunters, raids, radio); the faction sim (the world moves without you) | WEB_WORLD_MEMORY | a406754 … 55e9a43 |
-| Fan service + IP | the clean-room bible (what crosses the wall), the streaming spec (the USA at 1:14), ip-lint | WEB_FAN_SERVICE_BIBLE, WEB_STREAMING | 484df92, 90fb173 |
-| Playtest fixes | gun centred in the hand, every window detailed, cars steer about the rear axle, lights leave the lamps; people rebuilt (knees, elbows, planted boots, a gun per weapon); vehicle bodies and glass that read from above | — | 03011b2, aa501f7, a40291e |
+| Rest, sleep, bite fever | REST as a third need (sway, darkened edges, microsleeps that take the screen and the hands, at the wheel too); sleep in a bed, on a bedroll or in a parked car's seat (N) while time runs x40 and danger, pain or noise wakes you; BITE FEVER per the canon (36 game hours of taxes, antibiotics + a full night break it, never a turn, a laboured breath you can hear); a REST dial and ailment tags on the HUD; `sleep`, `fever` commands | WEB_SURVIVAL | a242a5db (+ car sleep, pending) |
+| Storeys (spec) | levels as layers (`lv`), stairs as flight rows, the inside view, basements under a dark overlay, per-storey nav | WEB_STOREYS | 35906fa0 |
+| Guns and rounds as things | rounds live in the pack (a view the gun code reads), gun condition, wear, jams (R clears, a round lost), broken guns, cleaning kits, Ike's bench; the dead keep their guns (a soldier's rifle is the prize); the PACK screen's slung guns | WEB_INVENTORY | 9d8e644b |
+| Trade | a trader's own shelves are the counter while they're there: worth x the standing tier, refusals, daily restock; theft from an owned box to the floor closed | WEB_TRADE | 9d8e644b |
+| Zoom | five zoom levels; "out of sight" (spawners, clean-ups) follows the ground on screen | web/AGENTS.md | c462d6e |
+| Military (subagent) | Outpost Nine, the Federal Remnant base | WEB_MILITARY | c9f6c43 |
+| Inventory 2a | every crate and shelf searchable, owned shelves (theft is a deed), lockpicks and crowbar | WEB_INVENTORY | 15afe7f |
+| Interiors (subagent) | doors, locks, 493 windows | web/AGENTS.md | 318f5c2 |
+| The pack | 33 items, weight + litres, uses, spoilage, PACK screen, V quick-use, searchable dead, trunks | WEB_INVENTORY | 143c8d1 |
+| Morning digest, jumps, HUD, ATV, garage, survival, skills, world memory 1-4, fan service + IP, playtest fixes | see each doc | — | eac5ddd … 03011b2 |
+
+## In flight (subagents, branches of their own)
+- **Streaming P1** (`worktree-agent-a222c78142bb03d72`, worktree `.claude/worktrees/agent-a222c78142bb03d72`): streamed
+  Arizona (chunks, pools, chunked collision, a nav window, I-10 with real interchanges, the usmap importer). Merged
+  feat/web-engine at 9d8e644b into itself; merges into the session branch with no conflicts (preview).
+- **Roles** (`feat/web-roles`, worktree `.claude/worktrees/agent-a88fa23d4f7993a96`): roles as data rows earned and lost
+  by what you do (renown, tiers with hysteresis), people reacting to them, role tapes on the HUD, eight checks.
+  Merging it into the session branch conflicts only in `ui/hud.js` and `ui/hud.css` (the REST dial and ailment tags vs
+  the role tapes): keep both.
+When each reports: review, merge into the session branch, selftest twice on fresh pages + stress A/B, land.
 
 ## Robert's answers (2026-10-22)
 - **Scale:** ten minutes Miami→Orlando is **flat out**. (Still open: the MOTORCYCLE at 52 m/s or the LAWMAN at 46 as the
   reference; WEB_STREAMING uses the LAWMAN, ~1:14.)
 - **Signs read miles**, and **exit ramps must feel real** (real-size ramps; the road between exits is what compresses).
-- **The role system must be highly dynamic and versatile:** not a class picked once. Direction until it gets a spec:
-  roles are earned and lost by what you do (deeds, skills, standing, jobs), several can be held at once, and each one
-  opens its own dialogue, jobs, prices and enemies - the world memory, skills and faction layers are its raw material.
+- **The role system must be highly dynamic and versatile:** not a class picked once; earned and lost by what you do,
+  several at once, each opening its own dialogue, jobs, prices and enemies.
 
 ## Open questions for Robert
 1. Which vehicle sets the scale (bike 52 m/s or LAWMAN 46)? How far an exit's access road may run? Bigger cities?
-3. **The Federal Remnant** (from the base's builder): should the Remnant join the off-screen faction sim (daily
-   skirmishes with the Dustwolves, places to lose)? Should dust storms and fog shorten a sentry's sight? Should the
-   garrison replace its dead over the days, and should stealing the ARMORED CARRIER send Remnant troopers after you?
-2. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
-   `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484` (a baseline copy for its A/B). It was not allowed to
-   delete it, so it's yours to remove (or let the app clean up the worktree).
+2. **The Federal Remnant:** should it join the off-screen faction sim (skirmishes with the Dustwolves, places to lose)?
+   Should storms and fog shorten a sentry's sight? Should the garrison replace its dead, and should stealing the
+   ARMORED CARRIER send troopers after you?
+3. **Housekeeping:** the interiors subagent left an untracked `.basecopy/` folder in
+   `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484`; it was not allowed to delete it, so it's yours to remove.
 
-## Next blocks (from the 2026-10-22 memo, in a sensible order)
-- **The military, continued** (Outpost Nine shipped): soldiers drop their rifles (with guns as items), checkpoints on the
-  roads, the Remnant in the faction sim, and the answers to question 3.
-- **Inventory 2b:** guns and rounds as items (condition, jams), trade at standing-adjusted prices, a portable radio
-  item, refilling bottles and fuel cans, search time and its noise.
-- **Multi-level zoom** (Z is binary today) and **multi-storey buildings / basements**.
+## Next blocks
+- Merge and land the two subagent branches (above).
+- **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
+  city, characters, interiors).
+- NPCs who sleep at night in the town's beds (night burglary: a sleeping shopkeeper sees nothing).
 - **World memory phase 5, rest:** witnesses who run home to report (interceptable), rumors hopping between allies.
-- **The USA at scale:** WEB_STREAMING phase P1 (the I-10 corridor out of Phoenix).
-- Then the power suit, jets, more watercraft, the role system (after question 3).
+- The military continued (checkpoints, the Remnant in the faction sim, the answers to question 2).
+- Then the power suit, jets, more watercraft.

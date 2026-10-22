@@ -39,11 +39,13 @@ pip 3: x1.35, pip 4: x1.6), microsleep (rest pip 4).
 **Microsleeps:** dead on your feet, every 35–80 s (uniform) your eyes close for 1.4 s: the screen goes black, the keys do
 nothing, and a car you are driving loses gas and steering (it coasts on in a straight line).
 
-**Sleeping.** Where: a **bed** (every mattress in a building, `world.spawns.beds`, E within 1.8 m), a **bedroll**
-(an item, used from the PACK screen, sleeps you where you stand), or the bare ground (agent only in v1). Allowed when
+**Sleeping.** **N** sleeps wherever you can: a **bed** (every mattress in a building, `world.spawns.beds`, within
+1.8 m; E there too), a **bedroll** you carry (also from the PACK screen: it sleeps you where you stand), or the
+**seat of a parked car** (driver or passenger, under 0.4 m/s; the car is held on the handbrake while you sleep). The
+bare ground is agent-only in v1. The first TIRED toast says "N TO SLEEP". Allowed when
 REST is below 0.85, not in a vehicle, and with nobody hostile and none of the infected within 18 m. Asleep: you lie on
 it (the body flat on its back on the mattress), time runs x40, REST refills `1/7 x quality` per game hour (bed 1,
-bedroll 0.8, ground 0.5), water and food drain at half their waking rate, and nothing else you do counts. You wake:
+bedroll 0.8, a car seat 0.65, ground 0.5), water and food drain at half their waking rate, and nothing else you do counts. You wake:
 **rested** (REST ≥ 0.995, or 11 game hours), **woken** (hurt; a hostile or one of the infected within 12 m, checked
 twice a second; a noise that reaches you, at most 40 m), or **getting up** (E). A **full night** is one you wake from
 rested after at least 3 game hours. The sleep screen shows the clock running and the REST bar filling.
@@ -110,7 +112,7 @@ REST 0.9 and no fever. A load never resumes a sleep.
 |---|---|---|---|---|
 | rest.drainPerHour | data/survival.js | 1/20 | 1/30–1/14 | how often you must sleep (once a game day) |
 | SLEEP.perHour | data/survival.js | 1/7 | 1/10–1/5 | how long a night takes |
-| SLEEP.quality | data/survival.js | bed 1, bedroll 0.8, ground 0.5 | 0.3–1.2 | why a bed is worth finding |
+| SLEEP.quality | data/survival.js | bed 1, bedroll 0.8, car 0.65, ground 0.5 | 0.3–1.2 | why a bed is worth finding |
 | SLEEP.drain | data/survival.js | 0.5 | 0.2–1 | what a night costs in water and food |
 | SLEEP.wakeR / wakeNoise | data/survival.js | 12 / 40 m | 6–20 / 20–80 | how jumpy sleep is |
 | SLEEP.fullNight | data/survival.js | 3 h | 2–6 | what counts as a night (the fever cure) |
@@ -129,4 +131,6 @@ REST 0.9 and no fever. A load never resumes a sleep.
    reads exactly 0.75 with every need full; over a fast-forwarded stretch food falls by `hours · 1.3/80` (± 6%);
    antibiotics mark it treated; a night in a bed (a full night) clears it; a second, untreated fever whose clock is run
    out passes and has taken no health.
-3. **Survival (water):** thirst wears in pips, slows stamina recovery, and a found bottle drunk with V fixes it.
+3. **A parked car:** N refuses while the car rolls (6 m/s); parked, the player sleeps in the seat, wakes rested after
+   0.7 / (0.65/7) = 7.5 ± 0.8 game hours (a bed takes 4.9), still in the car, the car moved under 0.6 m.
+4. **Survival (water):** thirst wears in pips, slows stamina recovery, and a found bottle drunk with V fixes it.

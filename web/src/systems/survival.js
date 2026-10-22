@@ -46,7 +46,7 @@ export class Survival {
       if (pip !== N.pips[key]) {
         const worse = pip > N.pips[key];
         N.pips[key] = pip;
-        if (pip > 0 && worse && !S) g.hud?.toast?.(def.words[pip], pip >= 3 ? 'hot' : 'warn');
+        if (pip > 0 && worse && !S) g.hud?.toast?.(`${def.words[pip]}${key === 'rest' ? ' · N TO SLEEP' : ''}`, pip >= 3 ? 'hot' : 'warn');
         g.emit('need', { need: key, pip, value: +N[key].toFixed(3), word: def.words[pip] || null });
       }
       const e = EFFECTS[key][pip];
@@ -97,7 +97,8 @@ export class Survival {
     const g = this.g, p = g.player, N = g.needs;
     if (this.sleep) return { ok: false, why: 'you are already asleep' };
     if (!p.alive) return { ok: false, why: 'dead' };
-    if (p.inVehicle) return { ok: false, why: 'not in a vehicle' };
+    if (p.inVehicle && kind !== 'car') return { ok: false, why: 'not in a vehicle' };
+    if (kind === 'car' && (!p.inVehicle || g.vehiclesSys.speed(p.inVehicle) > 0.4)) return { ok: false, why: p.inVehicle ? 'not while it rolls' : 'not in a car' };
     if (N.rest > SLEEP.tiredBelow) return { ok: false, why: 'you are not tired' };
     const t = this.threat(SLEEP.wakeR * 1.5);
     if (t) return { ok: false, why: `not with ${t} this close` };
@@ -108,7 +109,7 @@ export class Survival {
     p.sleeping = true; p.speed = 0; p.reloading = 0; p.bedY = bed?.bedY ?? (kind === 'bedroll' ? 0.05 : 0); // the body lies on what it lies on
     g.sky.fast = true; // the night goes by
     g.emit('sleep', { kind, quality: this.sleep.quality, rest: +N.rest.toFixed(3) });
-    return { ok: true, text: kind === 'bed' ? 'YOU LIE DOWN' : kind === 'bedroll' ? 'YOU ROLL OUT THE BEDROLL' : 'YOU LIE DOWN ON THE BARE GROUND' };
+    return { ok: true, text: kind === 'bed' ? 'YOU LIE DOWN' : kind === 'bedroll' ? 'YOU ROLL OUT THE BEDROLL' : kind === 'car' ? 'YOU TIP THE SEAT BACK' : 'YOU LIE DOWN ON THE BARE GROUND' };
   }
 
   // Up again: rested, woken (why says by what), or on your own (E). A full night, woken by nothing, breaks a fever

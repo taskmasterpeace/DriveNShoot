@@ -30,7 +30,7 @@ export const EFFECTS = {
 // (REST pip 4), every `every` seconds the eyes close for `secs`: the screen goes and the hands let go, at the wheel too.
 export const SLEEP = {
   perHour: 1 / 7, drain: 0.5, fullNight: 3, maxHours: 11, wakeR: 12, wakeNoise: 40, tiredBelow: 0.85,
-  quality: { bed: 1, bedroll: 0.8, ground: 0.5 },
+  quality: { bed: 1, bedroll: 0.8, car: 0.65, ground: 0.5 }, // a car: a parked one, in its seat (N)
   microsleep: { every: [35, 80], secs: 1.4 },
 };
 

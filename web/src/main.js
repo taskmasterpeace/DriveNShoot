@@ -362,6 +362,18 @@ class Game {
   }
 
   noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); }
+  // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
+  trySleep() {
+    const p = this.player, S = this.survival;
+    let r;
+    if (p.inVehicle) r = S.sleepAt('car');
+    else {
+      const bed = this.bedNear(p.x, p.z);
+      r = bed ? S.sleepAt('bed', bed) : this.inventory.carried.count('bedroll') ? S.sleepAt('bedroll') : { ok: false, why: 'nowhere to sleep: a bed, a bedroll or a parked car' };
+    }
+    if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn');
+    return r;
+  }
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
   bedNear(x, z) {
     let best = null, bd = 1.8;
@@ -588,6 +600,8 @@ class Game {
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
     if (this.survival.sleep) {
       p.speed = 0;
+      const sv = p.inVehicle;
+      if (sv?.driver === p) { sv.throttle = 0; sv.steer = 0; sv.handbrake = true; sv.boost = false; } // asleep in the seat: parked
       this.hud.prompt(null); // the sleep screen says how to get up
       if (I.hit('KeyE')) this.survival.wake();
       return;
@@ -601,6 +615,7 @@ class Game {
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    if (I.hit('KeyN')) { this.trySleep(); return; }
     if (I.hit('KeyV')) this.quickUse();
 
     const v = p.inVehicle;
