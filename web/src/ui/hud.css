@@ -208,7 +208,7 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .dead-screen { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; background: rgba(40,0,0,0.35); }
 .dead-title { font: 900 110px var(--stencil); color: var(--blood); letter-spacing: 0.04em; text-shadow: 4px 6px 0 rgba(0,0,0,0.75); }
 .dead-sub { font: 400 19px var(--type); color: var(--bone); text-shadow: 2px 2px 0 #000; }
-.stats { position: absolute; top: 140px; right: 22px; font: 12px ui-monospace, monospace; background: oklch(0.15 0.01 60 / 0.92); border: 1px solid oklch(0.3 0.01 60); box-shadow: 3px 4px 0 rgba(0,0,0,0.5); padding: 8px 10px; white-space: pre; text-align: left; }
+.stats { position: absolute; top: calc(92px * var(--s)); left: 50%; transform: translateX(-50%); font: 12px ui-monospace, monospace; background: oklch(0.15 0.01 60 / 0.92); border: 1px solid oklch(0.3 0.01 60); box-shadow: 3px 4px 0 rgba(0,0,0,0.5); padding: 8px 10px; white-space: pre; text-align: left; }
 .reticle { position: absolute; top: -14px; left: -14px; width: 28px; height: 28px; border: 2px solid var(--bone); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.6); }
 .reticle::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: var(--blood); border-radius: 50%; }
 

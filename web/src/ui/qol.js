@@ -301,7 +301,7 @@ export class QOL {
         this.el.objText.textContent = txt;
         // a typed order shrinks to fit the tag
         const n = txt.length;
-        this.el.objText.style.fontSize = `${n <= 10 ? 36 : n <= 18 ? 30 : n <= 32 ? 25 : n <= 52 ? 21 : 18}px`;
+        this.el.objText.style.fontSize = `${n <= 10 ? 40 : n <= 18 ? 31 : n <= 32 ? 25 : n <= 52 ? 21 : 18}px`;
         this.el.obj.animate?.([{ transform: 'rotate(-1.4deg) scale(1.06)', filter: 'brightness(1.35)' }, { transform: 'rotate(-1.4deg) scale(1)', filter: 'brightness(1)' }], { duration: 320, easing: 'ease-out' });
       }
       // distance: only rebuilt when the rounded figure or the mode changes
