@@ -33,7 +33,7 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
    ===================================================================================================== */
 .hud-tl { position: absolute; left: 14px; top: 0; width: 336px; transform: scale(var(--s)); transform-origin: 0 0; display: flex; flex-direction: column; align-items: flex-start; }
 .hud-tr { position: absolute; right: 12px; top: 10px; width: 284px; transform: scale(var(--s)); transform-origin: 100% 0; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
-.hud-bl { position: absolute; left: 8px; bottom: 6px; width: 860px; height: 280px; transform: scale(var(--s)); transform-origin: 0 100%; }
+.hud-bl { position: absolute; left: 8px; bottom: 6px; width: 940px; height: 280px; transform: scale(var(--s)); transform-origin: 0 100%; }
 .hud-br { position: absolute; right: 10px; bottom: 10px; transform: scale(var(--s)); transform-origin: 100% 100%; }
 
 /* ---- ORDERS: a torn, pinned paper tag (markup from qol.js) ---- */
@@ -107,7 +107,7 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .sign { position: absolute; left: 242px; bottom: 141px; width: 352px; height: 112px; }
 .loc-name { position: absolute; left: 0; right: 0; top: 13px; text-align: center; font: 700 64px var(--road); line-height: 1; letter-spacing: 0.005em; color: oklch(0.96 0.008 120); text-shadow: 0 1px 0 rgba(0,0,0,0.35), 0 0 1px rgba(0,0,0,0.3); white-space: nowrap; }
 .loc-sub { position: absolute; left: 0; right: 0; bottom: 17px; text-align: center; font: 600 22px var(--road); letter-spacing: 0.02em; color: oklch(0.95 0.008 120); text-shadow: 0 1px 0 rgba(0,0,0,0.35); }
-.status { position: absolute; left: 200px; bottom: 6px; width: 588px; height: 132px; }
+.status { position: absolute; left: 200px; bottom: 6px; width: 670px; height: 132px; }
 .st-bars { position: absolute; left: 52px; top: 12px; width: 272px; }
 .st-row { display: flex; align-items: flex-end; justify-content: space-between; height: 23px; }
 .st-label { font: 700 19px var(--display); letter-spacing: 0.02em; color: var(--sand); text-shadow: 1px 2px 0 rgba(0,0,0,0.8); }
@@ -128,14 +128,16 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .g-dial canvas { width: 70px; height: 70px; display: block; }
 .g-needle { position: absolute; left: 50%; bottom: 50%; width: 3px; height: 25px; margin-left: -1.5px; transform-origin: 50% 100%; transform: rotate(-115deg); background: linear-gradient(90deg, oklch(0.42 0.17 27), oklch(0.6 0.2 28), oklch(0.4 0.15 27)); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
 .g-water .g-needle { background: linear-gradient(90deg, oklch(0.3 0.1 245), oklch(0.5 0.14 245), oklch(0.3 0.1 245)); }
+.g-rest .g-needle { background: linear-gradient(90deg, oklch(0.42 0.05 75), oklch(0.66 0.07 80), oklch(0.42 0.05 75)); }
 .g-hub { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, oklch(0.6 0.02 70), oklch(0.18 0.01 60)); box-shadow: 0 1px 1px rgba(0,0,0,0.6); }
 .g-dial.low { animation: seg-pulse 0.9s steps(2) infinite; }
-.flagpatch { position: absolute; bottom: 24px; left: 702px; width: 132px; height: 86px; transform: rotate(-2.2deg); filter: drop-shadow(2px 4px 3px rgba(0,0,0,0.55)); }
+.flagpatch { position: absolute; bottom: 24px; left: 784px; width: 132px; height: 86px; transform: rotate(-2.2deg); filter: drop-shadow(2px 4px 3px rgba(0,0,0,0.55)); }
 .flagpatch canvas { width: 132px; height: 86px; display: block; }
-/* ---- role tapes: what the world calls you (systems/roles.js), stitched cloth name tapes sewn above the flag.
-   Olive drab weave, a dashed thread inset like a stitch line, the role's colour as a bar of thread at the left,
-   gold chevrons for the tier (one rumoured, two known, three renowned). ---- */
-.roles { position: absolute; left: 690px; bottom: 141px; width: 168px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 6px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.6)); }
+/* ---- role tapes: what the world calls you (systems/roles.js), stitched cloth name tapes on top of the status plate,
+   between the street sign and the ailments stacked over the flag. Olive drab weave, a dashed thread inset like a
+   stitch line, the role's colour as a bar of thread at the left, gold chevrons for the tier (one rumoured, two
+   known, three renowned). Tucked away while the breath tab needs the room. ---- */
+.roles { position: absolute; left: 616px; bottom: 141px; width: 168px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 6px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.6)); }
 .roles:empty { display: none; }
 .role-tape { --rc: oklch(0.7 0.13 70); --tr: -1deg; position: relative; display: flex; align-items: center; gap: 8px; height: 26px; min-width: 152px; padding: 0 9px 0 15px; transform: rotate(var(--tr)); transform-origin: 30% 50%;
   background: var(--speckle), repeating-linear-gradient(90deg, rgba(0,0,0,0.09) 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, rgba(255,245,215,0.05) 0 1px, transparent 1px 3px), linear-gradient(oklch(0.43 0.045 100), oklch(0.33 0.04 98));
@@ -145,6 +147,10 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .role-tape b { font: 800 15px var(--stencil); letter-spacing: 0.09em; line-height: 1; color: oklch(0.93 0.03 88); text-shadow: 0 1px 0 rgba(0,0,0,0.85), 0 -1px 0 rgba(0,0,0,0.25); white-space: nowrap; }
 .role-tape .rank { margin-left: auto; display: flex; flex-direction: column; gap: 1px; }
 .role-tape .rank i { width: 14px; height: 6px; background: linear-gradient(oklch(0.92 0.12 90), oklch(0.68 0.14 72)); clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); filter: drop-shadow(0 1px 0 rgba(0,0,0,0.7)); }
+/* ailments: what's wrong with you, stamped beside the vitals, stacking upward */
+.ailments { position: absolute; left: 790px; bottom: 118px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 4px; }
+.md { font: 700 13px var(--display); letter-spacing: 0.1em; padding: 3px 9px 2px; color: var(--bone); background: oklch(0.17 0.015 60 / 0.92); border-left: 3px solid oklch(0.74 0.15 70); box-shadow: 1px 2px 0 rgba(0,0,0,0.6); white-space: nowrap; }
+.md.hot { border-left-color: oklch(0.6 0.21 28); color: oklch(0.86 0.08 40); }
 .breath-tab { position: absolute; left: 608px; bottom: 140px; width: 186px; height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 22px; }
 .breath-tab .st-label { position: relative; font-size: 15px; }
 .breath-tab .seg { position: relative; flex: 1; height: 20px; margin: 0; padding: 2px; gap: 2px; }
@@ -233,6 +239,17 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .subtitle { position: absolute; left: 50%; top: calc(62px * var(--s)); transform: translateX(-50%); font: 400 calc(19px * var(--s)) var(--type); color: oklch(0.94 0.02 82); text-shadow: 2px 2px 0 #000, 0 0 8px rgba(0,0,0,0.9); max-width: min(56vw, 900px); text-align: center; }
 .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%); }
 .hurt { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(120,0,0,0.75) 100%); }
+/* tiredness and fever darken the edges (g.needs.vignette); a microsleep takes the whole screen */
+.tired { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 45%, rgba(8,6,4,0.85) 100%); transition: opacity 1.2s; pointer-events: none; }
+.blackout { position: absolute; inset: 0; opacity: 0; background: #000; transition: opacity 0.12s; pointer-events: none; }
+/* asleep: the night goes by on a dark screen with the clock running */
+.sleep-screen { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 10px; background: radial-gradient(ellipse at center, oklch(0.16 0.02 70 / 0.82), oklch(0.08 0.01 60 / 0.95)); pointer-events: none; }
+.sl-title { font: 900 72px var(--stencil); letter-spacing: 0.12em; color: oklch(0.8 0.05 80); text-shadow: 2px 3px 0 rgba(0,0,0,0.7); }
+.sl-clock { font: 700 46px var(--display); color: oklch(0.9 0.03 82); text-shadow: 1px 2px 0 rgba(0,0,0,0.8); }
+.sl-rest { display: flex; align-items: center; gap: 10px; font: 700 15px var(--display); letter-spacing: 0.12em; color: var(--sand); }
+.sl-rest i { width: 260px; height: 10px; background: oklch(0.2 0.02 60); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6); }
+.sl-rest em { display: block; height: 100%; background: linear-gradient(90deg, oklch(0.55 0.07 75), oklch(0.8 0.09 85)); transition: width 0.25s; }
+.sl-sub { font: 600 14px var(--display); letter-spacing: 0.1em; color: oklch(0.7 0.03 75); }
 .underwater { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(40,90,100,0.35), rgba(10,40,50,0.85)); opacity: 0; transition: opacity 0.4s; pointer-events: none; }
 .flashbang { position: absolute; inset: 0; background: #fffdf5; opacity: 0; pointer-events: none; }
 .dead-screen { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; background: rgba(40,0,0,0.35); }

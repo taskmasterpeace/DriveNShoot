@@ -70,6 +70,9 @@ export const ITEMS = {
   spark_plugs: { name: 'Spark plugs', kind: 'part', kg: 0.2, bulk: 0.1, stack: 4, value: 12, use: { act: 'repair' },
     desc: 'A set of four, wrapped in an oily rag. A misfiring engine wants these.' },
   // ---- packs (worn on your back) ---------------------------------------------------------------------------
+  // Sleep anywhere (survival.js): worse than a bed, better than the ground. Bulky: it wants a backpack.
+  bedroll: { name: 'Bedroll', kind: 'tool', kg: 1.6, bulk: 7, stack: 1, value: 18, use: { act: 'sleep' },
+    desc: 'A rolled blanket and a sheet of foam, tied with cord. Better than the ground; not much better.' },
   satchel: { name: 'Satchel', kind: 'pack', kg: 0.5, bulk: 2, stack: 1, value: 12, pack: 8,
     desc: 'A canvas bag on a strap. Room for a few days of water and food.' },
   backpack: { name: 'Backpack', kind: 'pack', kg: 1.2, bulk: 4, stack: 1, value: 35, pack: 22,
@@ -121,7 +124,7 @@ export const ITEMS = {
 export const LOOT = {
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },
   bathroom: { rolls: [1, 2], none: 3, rows: [['bandage', 4, 1, 2], ['rag', 3, 1, 3], ['painkillers', 2, 1, 1], ['antibiotics', 1, 1, 1], ['suture_kit', 1, 1, 1]] },
-  bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1]] },
+  bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },
   garage: { rolls: [1, 3], none: 3, rows: [['wrench', 3, 1, 1], ['duct_tape', 3, 1, 1], ['scrap', 4, 1, 4], ['spark_plugs', 2, 1, 1], ['fuel_can', 2, 1, 1], ['crowbar', 1, 1, 1], ['spare_tyre', 1, 1, 1], ['cleaning_kit', 1, 1, 1]] },
   // Ike's shop: rounds of every kind, the odd second-hand gun, the kit to keep one running.
   gunsmith: { rolls: [2, 4], none: 1, rows: [['ammo_pistol', 5, 12, 36], ['ammo_smg', 4, 20, 60], ['ammo_shells', 3, 4, 12], ['ammo_rifle', 1, 10, 30], ['cleaning_kit', 3, 1, 1], ['gun_pistol', 1, 1, 1], ['gun_smg', 1, 1, 1], ['wrench', 1, 1, 1], ['duct_tape', 1, 1, 1]] },
@@ -132,7 +135,7 @@ export const LOOT = {
   person: { rolls: [0, 2], none: 3, rows: [['water_bottle', 4, 1, 1], ['jerky', 3, 1, 2], ['rag', 3, 1, 2], ['photograph', 3, 1, 1], ['flatbread', 2, 1, 1], ['wristwatch', 1, 1, 1], ['gold_ring', 1, 1, 1], ['painkillers', 1, 1, 1], ['knife', 1, 1, 1]] },
   raider: { rolls: [1, 3], none: 2, rows: [['jerky', 4, 1, 3], ['water_bottle', 3, 1, 1], ['rag', 3, 1, 2], ['scrap', 2, 1, 2], ['gold_ring', 1, 1, 2], ['knife', 1, 1, 1], ['canteen', 1, 1, 1], ['ammo_smg', 3, 8, 30], ['ammo_pistol', 2, 4, 14], ['ammo_shells', 1, 2, 6]] },
   // A Federal Remnant soldier's pockets and webbing (bases.js): issue kit, nothing personal left.
-  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1], ['ammo_rifle', 4, 10, 40]] },
+  soldier: { rolls: [1, 3], none: 2, rows: [['ration', 4, 1, 1], ['canteen', 3, 1, 1], ['bandage', 4, 1, 2], ['first_aid', 1, 1, 1], ['knife', 1, 1, 1], ['photograph', 1, 1, 1], ['ammo_rifle', 4, 10, 40], ['bedroll', 1, 1, 1]] },
 };
 
 // What you start with: pockets, a satchel on your back, a bottle and a little food (plus the guns in g.inv).

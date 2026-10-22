@@ -1,6 +1,9 @@
 import { HALF, locationName, districtName } from '../world/city.js';
 import { WEAPONS } from '../systems/combat.js';
 import * as ART from './hudart.js';
+import { NEEDS } from '../data/survival.js';
+
+const NEED_WORDS = Object.fromEntries(Object.entries(NEEDS).map(([k, v]) => [k, v.words])); // the ailments' words: one source
 
 // The HUD: stamped steel, rust, paper and brass, laid out like the 2026-10-22 target
 // (docs/design/hud-target-2026-10-22.jpg). Every texture is painted once at boot (hudart.js); per frame
@@ -24,7 +27,7 @@ const SEG = 15;           // health / stamina segments
 const SEG_SMALL = 10;     // breath, fuel, hull
 const TIER_CLASS = { hunted: 't-bad', hostile: 't-bad', wary: 't-wary', neutral: 't-neutral', friendly: 't-good', allied: 't-good' };
 const DASH = [5, 3.5], SOLID = [];
-const STATUS_W = { needs: 588, bare: 432 };
+const STATUS_W = { needs: 670, bare: 432 }; // three dials (food, water, rest) on the plate
 const segs = (cls, n) => `<div class="seg ${cls}">${'<i></i>'.repeat(n)}</div>`;
 const gauge = (cls, label) => `<div class="gauge ${cls}"><span class="g-label">${label}</span><div class="g-dial"><canvas></canvas><i class="g-needle"></i><b class="g-hub"></b></div></div>`;
 
@@ -51,9 +54,10 @@ export class HUD {
               <div class="st-row"><span class="st-label">HEALTH</span><b class="hp-num">100</b></div>${segs('seg-hp', SEG)}
               <div class="st-row"><span class="st-label">STAMINA</span></div>${segs('seg-stam', SEG)}
             </div>
-            <div class="needs hidden">${gauge('g-food', 'FOOD')}${gauge('g-water', 'WATER')}</div>
+            <div class="needs hidden">${gauge('g-food', 'FOOD')}${gauge('g-water', 'WATER')}${gauge('g-rest', 'REST')}</div>
           </div>
           <div class="flagpatch"><canvas></canvas></div>
+          <div class="ailments"></div>
           <div class="roles"></div>
           <div class="breath-tab hidden"><canvas class="tex"></canvas><span class="st-label">BREATH</span>${segs('seg-breath', SEG_SMALL)}</div>
           <div class="sign"><canvas class="tex"></canvas><div class="loc-name">RUST HAVEN</div><div class="loc-sub">PHOENIX - ARIZONA</div></div>
@@ -88,6 +92,9 @@ export class HUD {
         <div class="hurt"></div>
         <div class="flashbang"></div>
         <div class="underwater"></div>
+        <div class="tired"></div>
+        <div class="sleep-screen hidden"><div class="sl-title">ASLEEP</div><div class="sl-clock"></div><div class="sl-rest"><span>REST</span><i><em></em></i><b></b></div><div class="sl-sub"><kbd>E</kbd> GET UP</div></div>
+        <div class="blackout"></div>
         <div class="dead-screen hidden"><div class="dead-title">YOU BLED OUT</div><div class="dead-sub">Doc Reyes found you in the dirt. She took her fee.</div></div>
         <div class="stats hidden"></div>
         <div class="reticle"></div>
@@ -99,7 +106,8 @@ export class HUD {
       wxPlate: q('.wx-plate canvas'), time: q('.clock-time'), sub: q('.clock-sub'), wx: q('.wx-icon'), wanted: q('.wanted'), stars: qa('.wanted i'),
       respect: q('.respect'), cashPlate: q('.cash-plate canvas'), cash: q('.cash'),
       status: q('.status'), statusTex: q('.status canvas'), hpNum: q('.hp-num'), hpSegs: qa('.seg-hp i'), stamSegs: qa('.seg-stam i'),
-      needs: q('.needs'), foodDial: q('.g-food canvas'), waterDial: q('.g-water canvas'), foodNeedle: q('.g-food .g-needle'), waterNeedle: q('.g-water .g-needle'),
+      needs: q('.needs'), foodDial: q('.g-food canvas'), waterDial: q('.g-water canvas'), foodNeedle: q('.g-food .g-needle'), waterNeedle: q('.g-water .g-needle'), restDial: q('.g-rest canvas'), restNeedle: q('.g-rest .g-needle'),
+      ailments: q('.ailments'), tired: q('.tired'), sleep: q('.sleep-screen'), slClock: q('.sl-clock'), slRest: q('.sl-rest em'), slRestT: q('.sl-rest b'), blackout: q('.blackout'),
       flag: q('.flagpatch'), flagTex: q('.flagpatch canvas'), roles: q('.hud-bl .roles'),
       breathRow: q('.breath-tab'), breathTex: q('.breath-tab canvas'), breathSegs: qa('.seg-breath i'),
       signTex: q('.sign canvas'), loc: q('.loc-name'), locSub: q('.loc-sub'),
@@ -167,6 +175,7 @@ export class HUD {
     const needs = { sweep: 115, ticks: 4, minor: 4, zone: [0, 0.22], labelY: -0.38, labelSize: 0.13 };
     ART.paintGauge(64, { ...needs, label: 'FOOD', seed: 62 }, e.foodDial);
     ART.paintGauge(64, { ...needs, label: 'WATER', seed: 63 }, e.waterDial);
+    ART.paintGauge(64, { ...needs, label: 'REST', seed: 64 }, e.restDial);
     this.s.dialMax = undefined; // the speedometer face is painted per vehicle
   }
   swapCanvas(target, painted) {
@@ -279,6 +288,17 @@ export class HUD {
       this.updateWeapon();
     }
 
+    // asleep, tired, a microsleep
+    const nd = g.needs, S = g.survival?.sleep;
+    this.flag('sleepHidden', this.el.sleep, 'hidden', !S);
+    if (S) {
+      this.text('slClock', this.el.slClock, sky.clock);
+      const rp = Math.round((nd?.rest ?? 0) * 100);
+      if (rp !== s.slRest) { s.slRest = rp; this.el.slRest.style.width = `${rp}%`; this.el.slRestT.textContent = `${rp}%`; }
+    }
+    this.opacity('tired', this.el.tired, S ? 0 : nd?.vignette ?? 0);
+    this.opacity('blackout', this.el.blackout, nd?.blackout > 0 ? 1 : 0);
+
     // hurt / low-health vignette
     this.hurtV = Math.max(0, this.hurtV - dt * 1.4);
     const low = p.alive ? Math.max(0, 1 - p.hp / 45) : 1;
@@ -314,6 +334,10 @@ export class HUD {
       this.needle('water', this.el.waterNeedle, -115 + 230 * w);
       this.flag('foodLow', this.el.foodNeedle.parentNode, 'low', f < 0.22);
       this.flag('waterLow', this.el.waterNeedle.parentNode, 'low', w < 0.22);
+      const r = Math.max(0, Math.min(1, nd.rest ?? 1));
+      this.needle('rest', this.el.restNeedle, -115 + 230 * r);
+      this.flag('restLow', this.el.restNeedle.parentNode, 'low', r < 0.22);
+      this.updateAilments(nd);
     }
     const code = g.player?.flag ?? 'US';
     if (code !== s.flag) this.paintFlag(code);
@@ -347,6 +371,21 @@ export class HUD {
     });
     this.tapeTier = Object.fromEntries(list.map((r) => [r.id, r.tier]));
     this.tapes = list.map((r) => ({ id: r.id, short: r.short, tier: r.tier }));
+  }
+
+  // What's wrong with you, in words, beside the vitals: a fever, bleeding, and any need two pips down or worse.
+  updateAilments(nd) {
+    const p = this.g.player, F = nd.fever, tags = [];
+    if (F) tags.push(F.treated ? ['warn', 'FEVER · TREATED'] : ['hot', 'FEVER · DIRTY WOUND']);
+    if (p?.bleed > 0.2) tags.push(['hot', 'BLEEDING']);
+    for (const k of ['water', 'food', 'rest']) {
+      const pip = nd.pips?.[k] ?? 0;
+      if (pip >= 2) tags.push([pip >= 3 ? 'hot' : 'warn', NEED_WORDS[k][pip]]);
+    }
+    const key = tags.map((t) => t[1]).join('|');
+    if (key === this.s.ailments) return;
+    this.s.ailments = key;
+    this.el.ailments.innerHTML = tags.map(([cls, t]) => `<span class="md ${cls}">${t}</span>`).join('');
   }
 
   // GTA2-style respect: one stamped chip per faction that remembers you (the infected don't).
