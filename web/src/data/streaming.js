@@ -51,8 +51,8 @@ export const STREAM = {
   },
   crossRoad: { halfW: 4.6, reach: 300 },   // a two-lane county road over the bridge, 300 m each side of the centreline
   access: { halfW: 4.6, cornerR: 150, maxM: null },  // EXIT_ACCESS_MAX_M (decision 4: open; null keeps the rows as they are)
-  townScale: 2.6,           // town layouts (streets, placement slots) spread at this scale around the town, not at K:
-                            // a city stays an island of about 1 km (decision 5: city size is still Robert's call)
+  townScale: 1,             // town layouts (streets, placement slots) keep their authored scale around the town, not K:
+                            // the Godot game's own layout, a few hundred metres across (decision 5, city size, is Robert's)
 
   // ---- signs (Robert: signs read MILES, game miles along the built road)
   mile: 1609.344,

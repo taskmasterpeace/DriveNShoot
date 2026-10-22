@@ -223,21 +223,28 @@ export class WorldIndex {
     return { med, in0: med, lane0: med + sIn, lane1: med + sIn + lane, lane2: med + sIn + 2 * lane, out: med + sIn + 2 * lane + sOut };
   }
 
-  // ---- interchanges -----------------------------------------------------------------------------------------------
-  buildExits() {
-    const S = STREAM, R = S.ramp, X = S.crossRoad, D = this.data;
-    this.exits = []; this.ribbons = []; this.pieces = []; this.rails = []; this.structs = []; this.stops = [];
-    // The mainline as two ribbons (one per carriageway), each painted inner shoulder -> outer shoulder.
+  // The mainline as two ribbons (one per carriageway), each painted inner shoulder -> outer shoulder, from corridor
+  // point i0 on (the west end can be trimmed back to where the road meets its town's first street).
+  buildMainline(i0) {
     const c = this.cl;
+    this.ribbons = this.ribbons.filter((r) => !r.mainline);
     for (const side of [1, -1]) {
       const pts = [];
-      for (let i = 0; i < c.n; i++) {
+      for (let i = i0; i < c.n; i++) {
         const sec = this.section(c.s[i]);
         pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03, wl: 0, wr: sec.out - sec.med });
       }
       // Eastbound: the ribbon's own right is +N (outward). Westbound runs the other way so its right is -N, also outward.
       this.ribbons.push(ribbon(side > 0 ? 'I-10 E' : 'I-10 W', 'hwy', 'hwy', side > 0 ? pts : pts.reverse(), { mainline: true }));
     }
+    this.mainlineFrom = c.s[i0];
+  }
+
+  // ---- interchanges -----------------------------------------------------------------------------------------------
+  buildExits() {
+    const S = STREAM, R = S.ramp, X = S.crossRoad, D = this.data;
+    this.exits = []; this.ribbons = []; this.pieces = []; this.rails = []; this.structs = []; this.stops = [];
+    this.buildMainline(0);
     for (const e of D.exits.filter((r) => r.highway_id === 'I-10')) {
       const [ex, ez] = toWorld(e.pos);
       if (Math.hypot(ex, ez) > S.dustWall - 1500 || inIsland(ex, ez, 600)) continue; // past the P1 wall or inside Phoenix
@@ -425,16 +432,28 @@ export class WorldIndex {
         this.ribbons.push(ribbon(r.id, 'street', 'county', sp, { town: t.id }));
       }
       const rng = rngOf(hash32(this.seed, ...[...t.id].map((ch) => ch.charCodeAt(0))));
+      const mine = this.ribbons.filter((rb) => rb.town === t.id), placed = [];
+      // The interstate's own end town (Los Angeles: the row starts there): the freeway ends where it meets the town's
+      // first street, rather than running on over the street grid to the town's middle.
+      if (this.project(t.x, t.z, 2048).s < 50) {
+        const c = this.cl;
+        let last = -1;
+        for (let i = 0; i < c.n && c.s[i] < 800; i++) if (mine.some((rb) => this.ribbonDist(rb, c.x[i], c.z[i]) < 4.6 + 0.5)) last = i;
+        if (last >= 0) this.buildMainline(last + 1);
+      }
       for (const p of slots) {
         const st = this.structById[p.building] ?? { footprint_m: [10, 10], category: 'residential', floors: 1, display_name: p.building };
         const q = local(p.pos);
         const r90 = Math.round((p.rot + rot) / (Math.PI / 2)) & 1; // quarter turns: swap the footprint
-        const [fw, fd] = st.footprint_m;
-        // Keep buildings off the interstate and off the streets.
-        const pr = this.project(q.x, q.z, 200);
-        if (pr.d < 30 + Math.max(fw, fd) / 2) continue;
-        if (this.ribbons.some((rb) => rb.town === t.id && this.ribbonDist(rb, q.x, q.z) < 4.6 + Math.max(fw, fd) / 2 + 1)) continue;
-        this.addBuilding({ id: p.id, kind: p.building, cx: q.x, cz: q.z, w: r90 ? fd : fw, d: r90 ? fw : fd, st, rng, place: t.id });
+        const [fw, fd] = st.footprint_m, w = r90 ? fd : fw, d = r90 ? fw : fd;
+        const x0 = q.x - w / 2, x1 = q.x + w / 2, z0 = q.z - d / 2, z1 = q.z + d / 2;
+        // Keep buildings off the interstate, off the streets (the footprint, not just its centre) and off each other.
+        if (this.project(q.x, q.z, 300).d < 18 + Math.max(w, d) / 2) continue;
+        const hits = (rb, m) => { for (let i = 0; i < rb.n; i++) if (rb.x[i] > x0 - m && rb.x[i] < x1 + m && rb.z[i] > z0 - m && rb.z[i] < z1 + m) return true; return false; };
+        if (mine.some((rb) => hits(rb, 4.6 + 0.8))) continue;
+        if (placed.some((o) => x0 < o.x1 + 2 && x1 > o.x0 - 2 && z0 < o.z1 + 2 && z1 > o.z0 - 2)) continue;
+        placed.push({ x0, x1, z0, z1 });
+        this.addBuilding({ id: p.id, kind: p.building, cx: q.x, cz: q.z, w, d, st, rng, place: t.id });
       }
     }
   }
