@@ -65,6 +65,10 @@ export class Zombies {
     const g = this.g;
     if (c.grabbing) return; // CarCombat drives grabbers
     c.aiming = false;
+    // A rotter made by anything but spawn() (an old save, a content pack) still needs a pace,
+    // or it walks at NaN m/s and its NaN spreads through crowd separation.
+    if (!(c.zSpeed > 0)) c.zSpeed = c.runner ? 5.5 : 2.35;
+    if (!Number.isFinite(c.timer)) c.timer = 0;
     c.zt = (c.zt ?? 0) - dt;
     if (c.zt <= 0) {
       c.zt = 0.4 + Math.random() * 0.3;

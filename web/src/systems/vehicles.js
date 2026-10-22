@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { coneTexture, radialGlow } from '../world/textures.js';
+import { coneTexture } from '../world/textures.js';
+import { VehicleLights } from './vehiclelights.js';
 import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
 
-// Each vehicle is ONE merged, vertex-coloured mesh (+1 for lights): ~2 draw calls per car.
+// Each vehicle is ONE merged, vertex-coloured mesh: 1 draw call per car (every lamp in the game
+// shares 2 more, in vehiclelights.js).
 // Seats: the driver is always seat 0. side = driver's left/right (left = local +x),
 // row 0 = front. exposed seats (bike pillion, pickup bed) render their rider and
 // can be shot / grabbed directly.
@@ -123,6 +125,7 @@ function buildBody(type, paint) {
       parts.push(coloredBox(0.14, 0.14, 1.4, 0, 1.25, L / 2 - 0.8, '#6a6560'));            // barrel
       parts.push(coloredBox(0.8, 0.6, 0.8, 0, 0.8, -L / 2 + 0.7, '#7a3a1c'));              // fuel drums
     }
+    lenses(parts, type, 0.3, 0.16);
     return mergeGeometries(parts);
   } else if (base === 'bike') {
     // Motorcycle: wheels in line, frame, tank, saddle, bars, exhaust.
@@ -172,11 +175,32 @@ function buildBody(type, paint) {
     bumpers();
     wheels(0.45, 0.05, L / 2 - 0.9, -L / 2 + 0.9);
   }
-  parts.push(coloredBox(0.35, 0.18, 0.08, -W / 2 + 0.35, 1.0, L / 2 + 0.02, '#fff6d8', PART.light));
-  parts.push(coloredBox(0.35, 0.18, 0.08, W / 2 - 0.35, 1.0, L / 2 + 0.02, '#fff6d8', PART.light));
-  parts.push(coloredBox(0.35, 0.16, 0.08, -W / 2 + 0.3, 1.0, -L / 2 - 0.02, '#b01010', PART.light));
-  parts.push(coloredBox(0.35, 0.16, 0.08, W / 2 - 0.3, 1.0, -L / 2 - 0.02, '#b01010', PART.light));
+  lenses(parts, type);
   return mergeGeometries(parts);
+}
+
+// Lamp lenses at the type's anchors, so the light (vehiclelights.js) leaves from the glass.
+function lenses(parts, type, w = 0.35, h = 0.18) {
+  const A = lampAnchors(type);
+  for (const [x, y, z] of A.head) parts.push(coloredBox(w, h, 0.08, x, y, z, '#fff6d8', PART.light));
+  for (const [x, y, z] of A.tail) parts.push(coloredBox(w, h * 0.9, 0.08, x, y, z, '#b01010', PART.light));
+}
+
+// Lamp lens anchors [x, y, z] in the body's local frame (+x = driver's left, +z = forward) plus the
+// beam footprint. buildBody puts the lenses here and vehiclelights.js throws the light from here, so
+// the glass and the light can't drift apart (they had: the buggy's lamps floated 0.3 m ahead of its
+// nose, the Whaler's were buried in its ram bumper and its tail lamps hung behind the chassis).
+export function lampAnchors(type) {
+  const s = VEHICLES[type] ?? VEHICLES.interceptor;
+  const base = s.base ?? type, L = s.len, W = s.wid;
+  const pair = (x, y, z) => [[x, y, z], [-x, y, z]];
+  const car = { beamW: 6 + W * 2.4, beamL: 15 + W * 2, halo: 1.15 };
+  if (base === 'bike') return { head: [[0, 0.98, L / 2 - 0.42]], tail: [[0, 0.82, -L / 2 + 0.2]], beamW: 7, beamL: 16, halo: 0.8 };
+  if (base === 'jetski') return { head: [[0, 0.75, L / 2 - 0.45]], tail: [], beamW: 5, beamL: 20, halo: 0.7 };
+  if (base === 'airboat' || base === 'gunboat') return { head: [[0, 0.95, L / 2 - 0.75]], tail: [[0, 0.9, -L / 2 + 0.25]], beamW: 6, beamL: 26, halo: 1 }; // bow searchlight
+  if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
+  if (base === 'buggy') return { head: pair(W / 2 - 0.45, 0.86, L / 2 - 0.27), tail: pair(W / 2 - 0.45, 0.86, -L / 2 + 0.27), ...car };
+  return { head: pair(W / 2 - 0.35, 1.0, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.0, -L / 2 - 0.02), ...car };
 }
 
 const _v = new THREE.Vector3();
@@ -187,8 +211,8 @@ export class Vehicles {
     this.list = [];
     this.bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.35 });
     this.wreckMat = new THREE.MeshStandardMaterial({ color: '#1a1714', roughness: 1 });
-    this.coneMat = new THREE.MeshBasicMaterial({ map: coneTexture(), color: '#fff1cc', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
-    this.tailMat = new THREE.MeshBasicMaterial({ map: radialGlow(), color: '#ff2a1a', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
+    this.coneMat = new THREE.MeshBasicMaterial({ map: coneTexture(), color: '#fff1cc', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }); // the train's headlight
+    this.lights = new VehicleLights(game);
     this.tmp = { x: 0, z: 0 };
     // Harpoon rope.
     const rg = new THREE.BufferGeometry();
@@ -209,31 +233,12 @@ export class Vehicles {
     const geo = buildBody(type, paint);
     const mesh = new THREE.Mesh(geo, this.bodyMat.clone()); // own material: paint chars with damage
     mesh.castShadow = true; mesh.receiveShadow = true;
-    // Light cones: two headlight cones + taillight glow, one merged mesh.
-    const cones = [];
-    for (const sx of [-1, 1]) {
-      const c = new THREE.PlaneGeometry(9, 22);
-      c.rotateX(-Math.PI / 2);
-      c.translate(sx * (s.wid / 2 - 0.4), 0.15, s.len / 2 + 10.5);
-      cones.push(c);
-    }
-    const coneMesh = new THREE.Mesh(mergeGeometries(cones), this.coneMat);
-    coneMesh.renderOrder = 3;
-    const tails = [];
-    for (const sx of [-1, 1]) {
-      const t = new THREE.PlaneGeometry(2.2, 2.2);
-      t.rotateX(-Math.PI / 2);
-      t.translate(sx * (s.wid / 2 - 0.3), 0.2, -s.len / 2 - 0.6);
-      tails.push(t);
-    }
-    const tailMesh = new THREE.Mesh(mergeGeometries(tails), this.tailMat.clone()); // own material: brake lights flare per car
-    tailMesh.renderOrder = 3;
     const group = new THREE.Group();
     group.rotation.order = 'YXZ'; // yaw, then wheelie pitch, then bike lean (local roll)
-    group.add(mesh, coneMesh, tailMesh);
+    group.add(mesh);
     this.g.scene.add(group);
     const v = {
-      type, ...s, x, z, h, vx: 0, vz: 0, av: 0, hp: s.hp, maxHp: s.hp, group, mesh, coneMesh, tailMesh,
+      type, ...s, x, z, h, vx: 0, vz: 0, av: 0, hp: s.hp, maxHp: s.hp, group, mesh, anchors: lampAnchors(type),
       driver: null, ai: opts.ai ?? null, dead: false, steer: 0, throttle: 0, brake: 0, handbrake: false,
       skidT: 0, burn: 0, node: null, lights: true, paint, honk: 0, impact: 0,
     };
@@ -255,7 +260,7 @@ export class Vehicles {
     for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
     v.driver = null;
     this.g.scene.remove(v.group);
-    v.mesh.geometry.dispose(); v.mesh.material.dispose(); v.tailMesh.material.dispose();
+    v.mesh.geometry.dispose(); v.mesh.material.dispose();
     const i = this.list.indexOf(v);
     if (i >= 0) this.list.splice(i, 1);
     if (this.g.lastVehicle === v) this.g.lastVehicle = null;
@@ -265,7 +270,6 @@ export class Vehicles {
   sink(v) {
     if (v.sunk) return;
     v.sunk = true; v.dead = true; v.hp = 0;
-    v.coneMesh.visible = false; v.tailMesh.visible = false;
     for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
     v.driver = null;
     this.g.emit('vehicleSank', { vehicle: v.id });
@@ -303,7 +307,6 @@ export class Vehicles {
     const g = this.g;
     v.dead = true; v.hp = 0;
     v.mesh.material = this.wreckMat;
-    v.coneMesh.visible = false; v.tailMesh.visible = false;
     v.burn = 25;
     g.fx.explosion(v.x, v.z);
     g.audio.explosion(Math.hypot(v.x - g.player.x, v.z - g.player.z));
@@ -367,7 +370,14 @@ export class Vehicles {
     } else {
       v.av *= Math.exp(-dt * 2);
     }
-    v.h += v.av * dt;
+    // Turn about the rear axle, not the body's centre: the nose swings into the turn and the tail
+    // follows, the way front-wheel steering looks. Rotating about the centre swings the tail out as
+    // far as the nose swings in, which reads as forklift steering. A handbrake drift, a spin from a
+    // hit or a driverless roll still turns about the centre of mass; a hull's stern swings out.
+    const dh = v.av * dt;
+    const pivot = !v.driver || v.dead || v.fallen || v.handbrake ? 0 : v.len * (v.boat ? -0.2 : v.bike ? 0.32 : 0.3);
+    if (pivot) { v.x += pivot * (Math.sin(v.h + dh) - Math.sin(v.h)); v.z += pivot * (Math.cos(v.h + dh) - Math.cos(v.h)); }
+    v.h += dh;
     // Rolling drag and lateral grip (handbrake = drift).
     const grip = (v.handbrake ? v.grip * 0.18 : v.grip) * fxm.grip * (v.fallen ? 0.3 : 1);
     if (v.bike) {
@@ -420,10 +430,6 @@ export class Vehicles {
     }
     if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
     if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
-    if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
-    if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
-    if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
-    if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
     if (hitN > 8) {
       this.damage(v, (hitN - 8) * 2.2 / v.mass * 2, null);
       g.fx.sparks(v.x + fx * v.len * 0.5, 0.8, v.z + fz * v.len * 0.5, -fx, -fz, 8);
@@ -456,12 +462,6 @@ export class Vehicles {
         // Off-centre hits spin the car that got hit.
         const lever = (best.px - o.x) * Math.cos(o.h) - (best.pz - o.z) * Math.sin(o.h);
         o.av += lever * -rv * 0.08 / o.mass + (Math.random() - 0.5) * -rv * 0.1 / o.mass;
-        g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
-        g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
-        for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
-        g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
-        g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
-        for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
         g.vehDamage.hit(v, best.px, best.pz, -rv, 'crash');
         g.vehDamage.hit(o, best.px, best.pz, -rv, 'crash');
         for (const b of [v, o]) if (b.bike && -rv > 5 && b.occ?.some(Boolean)) { b.fallen = true; g.seats.ejectAll(b, 1.4); }
@@ -752,7 +752,6 @@ export class Vehicles {
   update(dt, night) {
     const g = this.g;
     this.coneMat.opacity = 0.04 + night * 0.62;
-    this.tailMat.opacity = 0.2 + night * 0.7;
     for (const v of this.list) {
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
@@ -772,12 +771,9 @@ export class Vehicles {
         } else o.seatPose = null;
       }
       const lit = !!v.driver && !v.dead;
-      v.coneMesh.visible = lit; v.tailMesh.visible = lit || v.throttle < 0;
       // Brake lights: braking (throttle against the direction of travel) or the handbrake flares them.
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
       v.braking = lit && (v.handbrake || (v.throttle < 0 && fwd > 0.5) || (v.throttle > 0 && fwd < -0.5));
-      v.tailMesh.material.opacity = this.tailMat.opacity + (v.braking ? 0.75 : 0);
-      v.tailMesh.scale.setScalar(v.braking ? 1.35 : 1);
       // Paint chars and darkens as the vehicle is damaged.
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
       v.group.position.set(v.x, 0, v.z);
@@ -798,8 +794,6 @@ export class Vehicles {
         }
       }
       if (v.sunk) { v.group.position.y = Math.max(-1.7, v.group.position.y - dt * 0.6); }
-      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
-      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
       if (v.onFire) {
         v.onFire -= dt;
         if (Math.random() < dt * 30) this.g.fx.spawn(4, v.x + (Math.random() - 0.5) * v.wid, 1.4, v.z + (Math.random() - 0.5) * v.len * 0.6, 0, 3, 0, 0.45, 0.3, '#ff7a1a', -1);
@@ -813,6 +807,7 @@ export class Vehicles {
         if (Math.random() < dt * 6) g.fx.smoke(v.x, 2, v.z, true);
       }
     }
+    this.lights.update(night, g.time);
     this.updateHarpoon(dt);
   }
 }

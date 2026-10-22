@@ -135,18 +135,21 @@ export function radialGlow() {
   return tex(c, false);
 }
 
-// Headlight / flashlight cone. Apex at the bottom-center of the texture, opening upward (+V).
+// Headlight / flashlight cone. Apex at the TOP-centre of the texture (UV v=1), opening toward v=0:
+// every cone in the game is a PlaneGeometry laid flat with rotateX(-π/2), which puts its v=1 edge
+// at the near end, so the light leaves the lamp. (It was the other way up: every beam's narrow end
+// hung in the air 20 m out with a dark gap back to the car, the flashlight's too.)
 export function coneTexture() {
   const [c, g] = canvas(128, 256);
   const img = g.createImageData(128, 256);
   for (let y = 0; y < 256; y++)
     for (let x = 0; x < 128; x++) {
-      const v = 1 - y / 255; // 0 at apex (bottom row), 1 at far end
+      const v = y / 255; // 0 at the apex (top row; canvas textures flipY, so that is UV v=1), 1 at the far end
       const u = (x - 63.5) / 63.5;
-      const halfW = 0.08 + v * 0.92;
+      const halfW = 0.1 + 0.9 * Math.sqrt(v); // fans out fast near the lamp: a low beam's pool, not a pencil
       const across = Math.max(0, 1 - Math.abs(u) / halfW);
-      const along = Math.pow(1 - v, 1.4) * Math.min(1, v * 10);
-      const a = Math.pow(across, 1.6) * along;
+      const along = Math.pow(1 - v, 1.7) * Math.min(1, 0.35 + v * 6); // lit at the lens, hottest a few metres out
+      const a = Math.pow(across, 1.15) * along;
       const i = (y * 128 + x) * 4;
       img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
       img.data[i + 3] = Math.min(255, a * 255);

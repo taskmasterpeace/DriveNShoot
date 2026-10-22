@@ -347,25 +347,34 @@ class Game {
   // spreads: a NaN facing becomes a NaN dive, a NaN heading a NaN position, and whatever reads a
   // poisoned position (vultures, tumbleweeds) latches on for good. frame() runs this after EVERY
   // system that moves entities, so nothing downstream reads a NaN and the report names the culprit.
+  // (The bug it caught: restore() rebuilt zombies without zSpeed, they walked at NaN m/s, and crowd
+  // separation spread the NaN to whoever stood next to them, the player included: NaN * 0 is NaN.)
   nanGuard(phase = '') {
-    const fix = (o, kind) => {
-      const veh = kind === 'veh', posOk = Number.isFinite(o.x) && Number.isFinite(o.z);
-      const motionOk = veh ? Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.h ?? 0) + (o.av ?? 0)) : o.face == null || Number.isFinite(o.face);
-      if (posOk && motionOk) { o._gx = o.x; o._gz = o.z; return; }
-      const ctx = veh ? `vx=${o.vx} vz=${o.vz} h=${o.h} av=${o.av} driver=${o.driver?.id}` : `face=${o.face} inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
-      this.reportError(new Error(`NaN ${posOk ? 'motion' : 'position'} on ${o.id} (${o.type ?? o.faction}) after '${phase}' ${ctx}`));
-      if (!posOk) { o.x = o._gx ?? 0; o.z = o._gz ?? 0; }
-      if (veh) {
-        if (!Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.av ?? 0))) { o.vx = 0; o.vz = 0; o.av = 0; }
-        if (!Number.isFinite(o.h ?? 0)) o.h = 0;
-      } else if (o.face != null && !Number.isFinite(o.face)) o.face = 0;
-      o._gx = o.x; o._gz = o.z;
-    };
-    for (const c of this.chars) fix(c, 'char');
-    for (const v of this.vehicles) fix(v, 'veh');
+    for (let i = 0; i < this.chars.length; i++) this.nanFix(this.chars[i], false, phase);
+    for (let i = 0; i < this.vehicles.length; i++) this.nanFix(this.vehicles[i], true, phase);
+    const drop = this.nanDrop;
+    if (drop?.length) { for (const o of drop) if (o.anchors) this.vehiclesSys.remove(o); else this.removeChar(o); drop.length = 0; }
     // The aim point steers facing, dives and throws: a NaN there starts the whole chain.
     const a = this.aim;
     if (a && !(Number.isFinite(a.x) && Number.isFinite(a.z))) { a.x = this.player.x; a.z = this.player.z + 1; }
+  }
+
+  nanFix(o, veh, phase) {
+    const posOk = Number.isFinite(o.x) && Number.isFinite(o.z);
+    const motionOk = veh ? Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.h ?? 0) + (o.av ?? 0)) : o.face == null || Number.isFinite(o.face);
+    if (posOk && motionOk) { o._gx = o.x; o._gz = o.z; return; }
+    const ctx = veh ? `vx=${o.vx} vz=${o.vz} h=${o.h} av=${o.av} driver=${o.driver?.id}` : `face=${o.face} inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
+    this.reportError(new Error(`NaN ${posOk ? 'motion' : 'position'} on ${o.id} (${o.type ?? o.faction}) after '${phase}' ${ctx}`));
+    if (!posOk) {
+      // Never had a good position (broken on its first frame): remove it rather than teleport it to 0,0.
+      if (o._gx === undefined && o !== this.player) { (this.nanDrop ??= []).push(o); return; }
+      o.x = o._gx ?? 0; o.z = o._gz ?? 0;
+    }
+    if (veh) {
+      if (!Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.av ?? 0))) { o.vx = 0; o.vz = 0; o.av = 0; }
+      if (!Number.isFinite(o.h ?? 0)) o.h = 0;
+    } else if (o.face != null && !Number.isFinite(o.face)) o.face = 0;
+    o._gx = o.x; o._gz = o.z;
   }
 
   reportError(e) {

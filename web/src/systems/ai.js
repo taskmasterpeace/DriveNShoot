@@ -221,10 +221,12 @@ export class AI {
       for (let j = i + 1; j < chars.length; j++) {
         const b = chars[j];
         if (!b.alive || b.inVehicle) continue;
+        // Written so a NaN position FAILS the tests (every comparison with NaN is false): a NaN
+        // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;
-        if (Math.abs(dx) > 1 || Math.abs(dz) > 1) continue;
+        if (!(Math.abs(dx) <= 1 && Math.abs(dz) <= 1)) continue;
         const d2 = dx * dx + dz * dz;
-        if (d2 > 0.64 || d2 < 1e-6) continue;
+        if (!(d2 > 1e-6 && d2 <= 0.64)) continue;
         const d = Math.sqrt(d2), push = (0.8 - d) * 0.5;
         const nx = dx / d, nz = dz / d;
         // The player has right of way: they shoulder NPCs aside instead of being blocked in doorways.

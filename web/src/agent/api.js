@@ -966,7 +966,10 @@ async function runSelfTest(api) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
-    try { const v = await fn(); results.push({ name, pass: v !== false, detail: v === true || v === undefined ? '' : v }); }
+    // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
+    // to be `v !== false`, which counted every such string as a PASS: the suite read green while
+    // several checks were failing.
+    try { const v = await fn(); const pass = v === true || v === undefined; results.push({ name, pass, detail: pass ? '' : v }); }
     catch (e) { results.push({ name, pass: false, detail: String(e.message ?? e) }); }
   };
   const C = (cmd, a) => api.call(cmd, a);
@@ -1303,6 +1306,40 @@ async function runSelfTest(api) {
       return healed && named && amb ? true : JSON.stringify({ healed, x: c.x, x0, named, amb, caught: caught.slice(0, 2) });
     } finally { delete g.reportError; }
   });
+  await check('save/load rebuilds the infected with their pace (they once came back at NaN m/s and spread it)', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const { ids } = await C('horde', { x: g.player.x + 25, z: g.player.z, count: 3, runners: 1, radius: 2 });
+    const sv = (await C('save')).save;
+    for (const id of ids) await C('remove', { id });
+    const caught = [];
+    g.reportError = (e) => caught.push(String(e?.message ?? e));
+    try {
+      await C('load', { save: sv });
+      await C('step', { seconds: 1 });
+      const back = ids.map((id) => api.findChar(id)).filter(Boolean);
+      const paced = back.every((c) => c.zSpeed > 0 && Number.isFinite(c.x + c.z));
+      for (const c of back) await C('remove', { id: c.id });
+      return back.length === 3 && paced && !caught.length ? true : JSON.stringify({ back: back.length, paced, caught: caught.slice(0, 2) });
+    } finally { delete g.reportError; }
+  });
+  await check('cars turn about the rear axle: the nose swings in, the tail follows (not forklift steering)', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const v = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: -200, z: -262, heading: 0 })).id);
+    await C('enterVehicle', { id: v.id, force: true });
+    await C('drive', { throttle: 1, seconds: 0.6 });
+    // A tight, slow turn (~5 m radius). About the centre, both ends travel the same distance; about
+    // the rear axle the tail runs an inner arc, ~13% shorter at this radius.
+    const end = (s) => [v.x + Math.sin(v.h) * v.len * 0.3 * s, v.z + Math.cos(v.h) * v.len * 0.3 * s];
+    let front = 0, rear = 0, pf = end(1), pr = end(-1);
+    for (let i = 0; i < 10; i++) {
+      await C('drive', { throttle: 0.3, steer: 1, seconds: 0.1 });
+      const f = end(1), r = end(-1);
+      front += Math.hypot(f[0] - pf[0], f[1] - pf[1]); rear += Math.hypot(r[0] - pr[0], r[1] - pr[1]);
+      pf = f; pr = r;
+    }
+    g.exitVehicle(true);
+    return rear < front * 0.94 ? true : JSON.stringify({ front: +front.toFixed(2), rear: +rear.toFixed(2) });
+  });
   await check('photo mode freezes the sim and frames a free camera', async () => {
     const t0 = g.time;
     const r = await C('photo', { x: 0, z: 0, zoom: 90, tilt: 0.4 });
@@ -1346,7 +1383,7 @@ export function snapshot(g) {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless })),
+    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai })),
   };
 }
@@ -1373,9 +1410,12 @@ export function restore(g, s) {
     let c = cmap.get(sc.id);
     if (!c) {
       const npc = sc.npc ? NPCS.find((n) => n.id === sc.npc) : null;
-      c = g.addChar({ x: sc.x, z: sc.z, faction: sc.faction, weapon: sc.weapon, npc, name: sc.name, flag: sc.flag, colors: sc.colors });
+      // Rotters come from their own factory: addChar alone left them without zSpeed (NaN walkers).
+      c = sc.faction === 'zombie' ? g.zombies.spawn(sc.x, sc.z, !!sc.runner)
+        : g.addChar({ x: sc.x, z: sc.z, faction: sc.faction, weapon: sc.weapon, npc, name: sc.name, flag: sc.flag, colors: sc.colors });
       if (!c) continue;
       c.id = sc.id;
+      if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
     Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless });
     g.charR.paint(c);

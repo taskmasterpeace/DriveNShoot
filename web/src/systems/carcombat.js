@@ -10,7 +10,7 @@ import { VEHICLES } from './vehicles.js';
 
 const MAX_VEH = 96, SIDES = ['front', 'rear', 'left', 'right'];
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
-const _m = new THREE.Matrix4(), _t = new THREE.Matrix4(), _s = new THREE.Matrix4();
+const _m = new THREE.Matrix4(), _t = new THREE.Matrix4(), _s = new THREE.Matrix4(), _o = new THREE.Matrix4();
 const _glass = new THREE.Color('#7fa3b6'), _crack = new THREE.Color('#e6eef0'), _c = new THREE.Color();
 
 // Cabin glass box per body type (local). null = open vehicle (roll cage): no glass at all.
@@ -324,8 +324,7 @@ export class CarCombat {
       else if (side === 'rear') { pz = cab.z - cab.len / 2 - 0.03; sx = cab.w * 0.88; sz = 0.06; }
       else { px = (side === 'left' ? 1 : -1) * (cab.w / 2 + 0.03); sx = 0.06; sy = cab.h * 0.85; sz = cab.len * 0.8; }
       _t.makeTranslation(px, cab.y, pz); _s.makeScale(sx, sy, sz);
-      const out = new THREE.Matrix4().multiplyMatrices(_m, _t).multiply(_s);
-      this.mesh.setMatrixAt(base + k, out);
+      this.mesh.setMatrixAt(base + k, _o.multiplyMatrices(_m, _t).multiply(_s));
       this.mesh.setColorAt(base + k, _c.copy(_glass).lerp(_crack, (1 - w.hp / w.max) * 0.85));
     });
   }

@@ -1,4 +1,5 @@
 import { rayCircle } from '../engine/collision.js';
+import { MUZZLE_FORWARD } from './characters.js';
 
 // Data-driven weapons. Add a row, get a gun.
 export const WEAPONS = {
@@ -17,7 +18,8 @@ export class Combat {
     const w = WEAPONS[wkey];
     const g = this.g;
     const fx = Math.sin(ang), fz = Math.cos(ang);
-    const ox = ch.x + fx * 0.9 + fz * 0.08, oz = ch.z + fz * 0.9 - fx * 0.08;
+    // The shot leaves the muzzle, on the body's centre line (the aim pose in characters.js).
+    const ox = ch.x + fx * MUZZLE_FORWARD, oz = ch.z + fz * MUZZLE_FORWARD;
     // Muzzle can't poke through a wall we're hugging.
     if (!g.statics.lineOfSight(ch.x, ch.z, ox, oz)) return false;
     g.fx.flash(ox, 1.5, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
@@ -152,6 +154,6 @@ export class Combat {
     // Named characters are essential: if anyone but the player drops them they're only
     // downed — Doc Reyes gets them back on their feet a bit later. The player's kills stick.
     if (c.npc && (attacker !== g.player || c.npc.essential)) { c.downedT = 45; g.hud.toast(`${c.npc.name} is down — Doc Reyes will patch them up`, 'warn'); g.emit('downed', { id: c.id, name: c.npc.name, backInSeconds: 45, by: attacker?.id ?? null }); }
-    g.onKill(c, attacker);
+    g.onKill(c, attacker, cause); // without the cause every kill logged as 'bullet': no ROADKILL or BLOWN UP in the feed
   }
 }

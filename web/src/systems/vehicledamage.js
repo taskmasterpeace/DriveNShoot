@@ -181,9 +181,12 @@ export class VehicleDamage {
       pull += (t[1] === 'L' ? 1 : -1) * 0.18; // drags toward the flat side
       if (Math.random() < dt * 10 * Math.min(1, g.vehiclesSys.speed(v) / 10)) g.fx.spawn(1, v.x, 0.3, v.z, (Math.random() - 0.5) * 4, 1, (Math.random() - 0.5) * 4, 0.25, 0.05, '#ffd060', 14);
     }
-    // Lights: flicker when hurt, dead at zero.
-    const lights = d.lights <= 0.05 ? 0 : d.lights < 0.4 ? (Math.random() < 0.15 ? 0 : 1) : 1;
-    v.coneMesh.scale.setScalar(lights ? 1 : 0.0001);
+    // Lamps: one dies before the other (which one is fixed per car), both flicker once the wiring is
+    // hurt, all dark at zero; a crushed tail takes the tail lamps. vehiclelights.js reads these.
+    const flick = d.lights < 0.4 && Math.random() < 0.15, weakLeft = (v.id.charCodeAt(v.id.length - 1) & 1) === 0;
+    v.lampL = !flick && d.lights > (weakLeft ? 0.55 : 0.05);
+    v.lampR = !flick && d.lights > (weakLeft ? 0.05 : 0.55);
+    v.tailsOn = d.zones.rear < 0.8;
     // Rebuild the crumpled mesh at most ~5x/s.
     d.deformT -= dt;
     if (d.dirty && d.deformT <= 0) { d.deformT = 0.2; this.deform(v); }

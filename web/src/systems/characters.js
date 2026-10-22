@@ -18,6 +18,14 @@ const _one = new THREE.Vector3(1, 1, 1);
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _c = new THREE.Color();
 const _blood = new THREE.Color('#4a0606');
+// Isosceles two-hand hold: shoulders at ±0.33 and a 0.6 reach (G.hand). Rolling each arm in by
+// AIM_ROLL brings the hands together 3.5 cm either side of the body line, and the gun's grip (0.12
+// behind its origin) sits between them, so barrel, shot (combat.fire spawns at MUZZLE_FORWARD) and
+// reticle share one line instead of the gun riding out on the right side.
+const AIM_ROLL = Math.asin((0.33 - 0.035) / 0.6);
+const AIM_PITCH = -Math.PI / 2 + 0.04;
+const AIM_GUN_Z = 0.6 * Math.cos(AIM_ROLL) + 0.12;
+export const MUZZLE_FORWARD = AIM_GUN_Z + 0.42;
 const _soot = new THREE.Color('#141110');
 
 export const HATS = ['short', 'cap', 'cowboy', 'mohawk', 'wrap'];
@@ -163,7 +171,8 @@ export class CharacterRenderer {
 
   part(mesh, slot, x, y, z, rx = 0, rz = 0) {
     _t.makeTranslation(x, y, z);
-    if (rx || rz) { _e.set(rx, 0, rz); _q.setFromEuler(_e); _r.makeRotationFromQuaternion(_q); _m.multiplyMatrices(_base, _t).multiply(_r); }
+    // Explicit 'XYZ': _e is shared with the seat code, which sets 'YXZ'.
+    if (rx || rz) { _e.set(rx, 0, rz, 'XYZ'); _q.setFromEuler(_e); _r.makeRotationFromQuaternion(_q); _m.multiplyMatrices(_base, _t).multiply(_r); }
     else _m.multiplyMatrices(_base, _t);
     mesh.setMatrixAt(slot, _m);
   }
@@ -252,12 +261,12 @@ export class CharacterRenderer {
         this.part(M.handR, i, 0.3, 1.58 + bob, 0, Math.PI - 0.15 - tr, -0.35);
         M.gun.setMatrixAt(i, ZERO);
       } else if (ch.alive && ch.weapon && ch.aiming) {
-        // Two-handed aim: both arms forward to the gun.
-        this.part(M.armL, i, -0.33, 1.56 + bob, 0, -Math.PI / 2 + 0.08, 0.38);
-        this.part(M.armR, i, 0.33, 1.56 + bob, 0, -Math.PI / 2, -0.12);
-        this.part(M.handL, i, -0.33, 1.56 + bob, 0, -Math.PI / 2 + 0.08, 0.38);
-        this.part(M.handR, i, 0.33, 1.56 + bob, 0, -Math.PI / 2, -0.12);
-        this.part(M.gun, i, 0.1, 1.55 + bob, 0.78);
+        // Two-handed aim: both arms converge on a gun centred on the body line.
+        this.part(M.armL, i, -0.33, 1.56 + bob, 0, AIM_PITCH, AIM_ROLL);
+        this.part(M.armR, i, 0.33, 1.56 + bob, 0, AIM_PITCH, -AIM_ROLL);
+        this.part(M.handL, i, -0.33, 1.56 + bob, 0, AIM_PITCH, AIM_ROLL);
+        this.part(M.handR, i, 0.33, 1.56 + bob, 0, AIM_PITCH, -AIM_ROLL);
+        this.part(M.gun, i, 0, 1.55 + bob, AIM_GUN_Z);
       } else {
         const armSw = ch.alive ? -sw * 0.8 : -0.5;
         this.part(M.armL, i, -0.38, 1.56 + bob, 0, armSw, 0.1);
