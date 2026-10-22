@@ -1,5 +1,6 @@
 import { drawPortrait, FLAGS, drawFlag } from './portrait.js';
 import { BARKS } from '../data/npcs.js';
+import { ITEMS } from '../data/items.js';
 
 // Conversation panel: portrait (flag backdrop) + typewriter line + numbered choices.
 export class Dialogue {
@@ -40,6 +41,7 @@ export class Dialogue {
     this.g.emit('dialogueOpen', { npc: c.id, name: c.npc?.name ?? c.name });
     this.active = true;
     this.npc = c;
+    this.extra = null;
     const src = this.portraitFor(c);
     this.canvas.width = src.width; this.canvas.height = src.height;
     this.canvas.getContext('2d').drawImage(src, 0, 0);
@@ -54,20 +56,38 @@ export class Dialogue {
     this.el.classList.remove('hidden');
     this.g.audio.blip();
     // They remember you (WEB_WORLD_MEMORY phase 2): too low an opinion and there is no business to do.
-    const mem = this.g.society?.memory;
+    const mem = this.g.society?.memory, roles = this.g.roles;
     if (c.npc && mem?.refuses(c)) {
       const top = mem.top(c);
       this.say(c.npc.refuse?.text ?? (top && top.value < 0 && top.line ? top.line : 'I have nothing to say to you.'), [{ t: '[Leave]', end: true }]);
       this.g.emit('refused', { npc: c.npc.id, opinion: +mem.opinion(c).toFixed(1), kind: top?.kind ?? null });
       return;
     }
+    // ...or they won't deal with what you are known as (WEB_ROLES: a known butcher at a trader's counter).
+    const no = roles?.refusal(c);
+    if (no) {
+      this.say(no.line, [{ t: '[Leave]', end: true }]);
+      this.g.emit('refused', { npc: c.npc.id, role: no.role });
+      return;
+    }
+    // Somebody hurt in front of you, and something in your pack to patch them with: the first choice is yours to make.
+    this.extra = this.g.inventory?.hurtEnough(c) && this.g.inventory.bestFor(c) >= 0 ? [this.treatChoice(c)] : null;
     const remark = c.npc && mem?.remark(c);
     if (remark) this.g.hud.subtitle(`${c.npc.name}: ${remark}`, 4);
+    else if (c.npc) { const line = roles?.greet(c); if (line) this.g.hud.subtitle(`${c.npc.name}: ${line}`, 4); } // what you are known for
     if (c.npc) this.show(c.npc.startFor?.(this.g) ?? c.npc.start);
     else {
-      const lines = BARKS[c.faction] ?? BARKS.drifter;
-      this.say(lines[(c.slot * 7 + Math.floor(this.g.sky.time)) % lines.length], [{ t: '[Leave]', end: true }]);
+      // A stranger: their own small talk, or (every other hour, if you are known for something) what they make of you.
+      const k = c.slot * 7 + Math.floor(this.g.sky.time), lines = BARKS[c.faction] ?? BARKS.drifter;
+      const known = k % 2 === 0 ? roles?.lineFor(c) : null;
+      this.say(known?.line ?? lines[k % lines.length], [{ t: '[Leave]', end: true }]);
     }
+  }
+
+  // Patch them up with the best thing you carry for it (inventory.js treat: a `heal` deed, the medic's work).
+  treatChoice(c) {
+    const inv = this.g.inventory, s = inv.carried.slots[inv.bestFor(c)];
+    return { t: `Let me patch you up (${(ITEMS[s.id]?.name ?? 'bandage').toLowerCase()})`, treat: true };
   }
 
   show(id) {
@@ -79,6 +99,7 @@ export class Dialogue {
   say(text, choices) {
     this.full = text; this.shown = 0;
     this.textEl.textContent = '';
+    if (this.extra) { choices = [...this.extra, ...choices]; this.extra = null; } // only on the first screen
     this.choices = choices;
     this.choicesEl.innerHTML = '';
     choices.forEach((ch, i) => {
@@ -97,6 +118,13 @@ export class Dialogue {
     if (this.shown < this.full.length) { this.shown = this.full.length; return; }
     this.g.audio.blip();
     this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: ch.t });
+    if (ch.treat) {
+      const c = this.npc, r = this.g.inventory.treat(c);
+      const back = c.npc ? [{ t: 'Anything else?', next: c.npc.startFor?.(this.g) ?? c.npc.start }, { t: '[Leave]', end: true }] : [{ t: '[Leave]', end: true }];
+      this.say(r.ok ? (c.npc?.thanks ?? 'That is... better. Thank you, stranger.') : `(${r.why})`, back);
+      this.shown = this.full.length; this.textEl.textContent = this.full; this.choicesEl.style.opacity = 1;
+      return;
+    }
     ch.do?.(this.g);
     // A job paid or a deal struck counts with their people (deliver, trade, pay...).
     if (ch.deed && this.npc) this.g.society?.deeds.direct(ch.deed.v, this.npc, ch.deed.m);

@@ -1,6 +1,9 @@
 // Named characters of the Divided States. Pure data + small hooks into game state.
 // `where`: 'shop:N' = inside Rust Haven building N, or {x,z}.
 // Dialogue nodes: { text, choices: [{ t, next | end, req(g), do(g) }] }
+// Roles (data/roles.js, docs/design/WEB_ROLES.md): a choice tagged { role, from } is opened by what you are known for
+// (the `roles` command lists them); roleLines are what this person says about your best-known role, in their voice;
+// refuseRole: the roles they will not deal with, and what they say instead.
 
 const money = (n) => `$${n}`;
 
@@ -24,15 +27,25 @@ export const NPCS = [
   {
     id: 'okonkwo', name: 'Sheriff Adaeze Okonkwo', title: 'Warden Captain · Rust Haven', flag: 'NG', faction: 'warden', weapon: 'smg', essential: true, friends: ['reyes'], // quest giver
     where: 'gate', portrait: { seed: 101, skin: '#5a321b', hair: '#1b1410', hat: 'cowboy', mood: 'neutral', shirt: '#4d5a3e', gear: 'bandolier', beard: false },
+    roleLines: { deputy: 'Deputy. The wall is quieter with you on it.', rider: 'I know who you ride with. One wrong move inside my gate.', butcher: 'Give me one reason not to hang you where you stand.', medic: 'Doc says you have been patching folks up out there. Good.', samaritan: 'People keep telling me about you. Good things, for once.' },
     start: 'hi',
     nodes: {
       hi: { text: (g) => g.quests.bounty === 'done' ? 'Dustwolves are quieter since you went out there. Haven owes you.' : g.quests.bounty === 'active' ? (g.stats.raiderKills - g.quests.bountyStart >= 6 ? 'Word on the wire says six Dustwolves will not ride again. That your work?' : `Dustwolves down: ${g.stats.raiderKills - g.quests.bountyStart} of 6. Keep going.`) : 'Stranger. You walk in my gate armed, you walk by my rules. No shooting townsfolk. Understood?',
         choices: [
           { t: 'Understood. Got any work?', next: 'work', req: (g) => !g.quests.bounty },
           { t: 'Six Dustwolves are dead. Pay up.', next: 'pay', deed: { v: 'deliver', m: 8 }, req: (g) => g.quests.bounty === 'active' && g.stats.raiderKills - g.quests.bountyStart >= 6, do: (g) => { g.quests.bounty = 'done'; g.give({ cash: 250 }); g.emit('questComplete', { quest: 'bounty', reward: 250 }); } },
+          { t: 'I hear Rust Haven needs deputies.', role: 'deputy', from: 'known', req: (g) => !!g.roles?.canSwear('deputy'), next: 'swear' },
+          { t: "Collect the deputy's bounty.", role: 'deputy', from: 'known', req: (g) => !!g.roles?.jobReady('deputy_bounty'), next: 'bountyPaid', do: (g) => g.roles.jobPay('deputy_bounty') },
           { t: 'What happened to this place?', next: 'lore' },
           { t: '[Leave]', end: true },
         ] },
+      swear: { text: 'Folks say you have been keeping my peace without a badge. Raise your right hand. You keep my peace, you do not shoot my people, and every Dustwolf you put down pays twenty.',
+        choices: [
+          { t: 'I swear it.', role: 'deputy', from: 'known', next: 'sworn', do: (g) => g.roles?.swear('deputy', 'okonkwo') },
+          { t: 'Not my kind of work.', next: 'hi' },
+        ] },
+      sworn: { text: 'Wear it where they can see it. One star, deputy, and my bulls look the other way. Two, and you are just another stranger with a gun.', choices: [{ t: '[Leave]', end: true }] },
+      bountyPaid: { text: 'Counted them. Here is yours. Rust Haven pays its debts.', choices: [{ t: 'Back to work.', end: true }] },
       work: { text: 'The Dustwolves raid our water convoys out on the Glass Flats. Six of them in the dirt and I pay you $250. Their camps burn fires at night. Easy to find, hard to leave.',
         choices: [
           { t: 'Consider it done.', next: 'accepted', do: (g) => { g.quests.bounty = 'active'; g.quests.bountyStart = g.stats.raiderKills; g.hud.toast('NEW JOB: Dustwolf Bounty (0/6)', 'job'); } },
@@ -46,14 +59,24 @@ export const NPCS = [
   {
     id: 'reyes', name: 'Doc Lupe Reyes', title: 'Clinic · Rust Haven', flag: 'MX', faction: 'drifter', essential: true, friends: ['okonkwo'], // healer + respawn point
     where: 'shop:0', portrait: { seed: 202, skin: '#c68863', hair: '#2a1a12', hat: 'long', mood: 'smile', shirt: '#d8d2c4', gear: 'none', beard: false },
+    roleLines: { medic: 'There you are. My second pair of hands.', butcher: 'Whatever you did out there, do not bring it in here.', samaritan: 'You keep bringing me fewer patients. I could get used to that.' },
     start: 'hi',
     nodes: {
       hi: { text: (g) => g.player.hp < g.player.maxHp ? 'Mira, you are leaking all over my floor. Sit down.' : 'Clean hands, clean needles, fair prices. That is the whole clinic.',
         choices: [
           { t: `Patch me up (${money(40)})`, deed: { v: 'trade' }, req: (g) => g.player.hp < g.player.maxHp, next: 'healed', do: (g) => { if (g.spend(40)) { g.player.hp = g.player.maxHp; g.player.bleed = 0; } } },
+          { t: 'Any work for a medic?', role: 'medic', from: 'known', req: (g) => !!g.roles?.jobOpen('medic_shift'), next: 'shift' },
+          { t: 'Three people patched up. The shift is done.', role: 'medic', from: 'known', req: (g) => !!g.roles?.jobReady('medic_shift'), next: 'shiftPaid', do: (g) => g.roles.jobPay('medic_shift') },
           { t: 'Seen a lot of gunshot wounds lately?', next: 'wounds' },
           { t: '[Leave]', end: true },
         ] },
+      shift: { text: 'Good hands, they tell me. Take this kit. People are bleeding out there and they will not all make it to my door: patch up three of them, then come back. Thirty a head.',
+        choices: [
+          { t: 'I will.', role: 'medic', from: 'known', next: 'shiftOn', do: (g) => g.roles?.jobStart('medic_shift') },
+          { t: 'Not today.', next: 'hi' },
+        ] },
+      shiftOn: { text: 'Talk to them, see where it hurts, use what you carry. And do not waste the good gauze on scratches.', choices: [{ t: '[Leave]', end: true }] },
+      shiftPaid: { text: 'Ninety. You earned it. Come back tomorrow: there is always more blood.', choices: [{ t: '[Leave]', end: true }] },
       healed: { text: (g) => g.player.hp === g.player.maxHp ? 'There. Try to keep the blood on the inside this time.' : 'No money, no stitches. I am sorry.', choices: [{ t: '[Leave]', end: true }] },
       wounds: { text: 'Every night. The raiders use cheap nine-mil from a factory out east. If you come back with lead in you, come here first.', choices: [{ t: '[Leave]', end: true }] },
     },
@@ -61,6 +84,8 @@ export const NPCS = [
   {
     id: 'ike', name: 'Ike "Two-Hands" Mercer', title: 'Gunsmith · Rust Haven', flag: 'US', faction: 'drifter', friends: ['kenji'],
     where: 'shop:1', portrait: { seed: 303, skin: '#e0ac85', hair: '#8a8682', hat: 'cap', mood: 'neutral', shirt: '#5a4a38', gear: 'goggles', beard: true },
+    roleLines: { wheelman: 'Heard you drive like a crazy person. Want something that shoots from a moving car?', trader: 'A trader. Finally somebody who understands markup.', deputy: 'Deputy. The gunsmith discount is a myth, before you ask.' },
+    refuseRole: { butcher: 'No. I heard what you did. Get out of my shop.' },
     start: 'hi',
     nodes: {
       hi: { text: 'Everything here shoots. Some of it even shoots straight. What do you need?',
@@ -76,6 +101,8 @@ export const NPCS = [
   {
     id: 'kenji', name: 'Kenji Mori', title: 'Mechanic · Rust Haven', flag: 'JP', faction: 'drifter', friends: ['ike'],
     where: 'shop:2', portrait: { seed: 404, skin: '#e0ac85', hair: '#1b1410', hat: 'wrap', mood: 'neutral', shirt: '#2f3b42', gear: 'goggles', beard: false },
+    roleLines: { wheelman: 'You drive my cars like you hate them. I respect it.', stuntdriver: 'There is my stunt driver. Bent an axle yet?', scavenger: 'Bring me scrap and I will make you plate.' },
+    refuseRole: { butcher: 'Not my cars. Not for you.' },
     start: 'hi',
     nodes: {
       hi: { text: 'The Whaler out front is mine. Welded the harpoon gun myself. You want to know how it works, or you want to break it?',
@@ -83,8 +110,17 @@ export const NPCS = [
           { t: 'How does the harpoon work?', next: 'harpoon' },
           { t: 'Armor up my ride.', next: 'garage', req: (g) => !!nearCar(g) },
           { t: `Repair my last ride (${money(60)})`, deed: { v: 'trade' }, req: (g) => g.lastVehicle && !g.lastVehicle.dead && g.lastVehicle.hp < g.lastVehicle.maxHp, next: 'fixed', do: (g) => { if (g.spend(60)) g.lastVehicle.hp = g.lastVehicle.maxHp; } },
+          { t: 'Got anything for a stunt driver?', role: 'stuntdriver', from: 'known', req: (g) => !!g.roles?.jobOpen('wreck_show'), next: 'show' },
+          { t: 'Wreck Row, clean. Your cousins saw it.', role: 'stuntdriver', from: 'known', req: (g) => !!g.roles?.jobReady('wreck_show'), next: 'showPaid', do: (g) => g.roles.jobPay('wreck_show') },
           { t: '[Leave]', end: true },
         ] },
+      show: { text: 'My cousins run a crowd at the old thrill show off Route 66. Clear Wreck Row clean while they watch and there is a hundred and fifty in it. Clean, mind. I do not pay for wreckage.',
+        choices: [
+          { t: 'Deal.', role: 'stuntdriver', from: 'known', next: 'showOn', do: (g) => g.roles?.jobStart('wreck_show') },
+          { t: 'Maybe later.', next: 'hi' },
+        ] },
+      showOn: { text: 'Forty miles an hour at the lip. Not thirty-five, not fifty. Forty.', choices: [{ t: '[Leave]', end: true }] },
+      showPaid: { text: 'My cousins are still yelling about it. Here. Do not tell Ike I pay this well.', choices: [{ t: '[Leave]', end: true }] },
       harpoon: { text: 'Aim with the mouse, press H. It flies. If it bites a car, the cable holds — you tow them. Press H again and you YANK. Light cars roll. People... do not do well.', choices: [{ t: 'Beautiful.', next: 'hi' }, { t: '[Leave]', end: true }] },
       fixed: { text: 'Good as new. Better, actually. I added more rust.', choices: [{ t: '[Leave]', end: true }] },
       garage: { text: (g) => { const v = nearCar(g); return v ? `Plate goes on in slabs. Every slab stops a burst and costs you speed. A gun on the hood fires where the nose points; the tail can drop oil, caltrops or smoke. ${plateLine(v)}` : 'Bring it round the front first.'; },
@@ -104,14 +140,25 @@ export const NPCS = [
   {
     id: 'mags', name: 'Mags Delacroix', title: 'Water Trader · Rust Haven', flag: 'HT', faction: 'drifter', friends: ['saoirse', 'tomas'],
     where: 'shop:3', portrait: { seed: 505, skin: '#6e3f22', hair: '#1b1410', hat: 'wrap', mood: 'smile', shirt: '#6b3a24', gear: 'none', beard: false },
+    roleLines: { trader: 'A trader. Water is the only money that never lies.', samaritan: 'There is my samaritan. Sit, drink something.' },
+    refuseRole: { butcher: 'No water for butchers. Not one drop.' },
     start: 'hi',
     nodes: {
       hi: { text: 'Clean water, three filters deep. Under the Solar King that makes me the richest woman in Arizona.',
         choices: [
           { t: `Buy a canteen (${money(15)}) — filtered water`, deed: { v: 'trade' }, next: 'drink', do: (g) => { if (g.spend(15)) g.survival.consume('canteen'); } },
+          { t: 'Need anything hauled?', role: 'trader', from: 'known', req: (g) => !!g.roles?.jobOpen('water_run'), next: 'run' },
+          { t: 'Got a drink for a friend?', role: 'samaritan', from: 'known', req: (g) => !!g.roles?.atLeast('samaritan', 'known') && g.roles.dailyFree('mags_water'), next: 'gift', do: (g) => { if (g.roles.daily('mags_water')) g.roles.handOver('canteen', 1); } },
           { t: 'Heard any rumors?', next: 'rumor' },
           { t: '[Leave]', end: true },
         ] },
+      run: { text: 'Old Tomás walks the flats south of the highway and drinks less than he should. Carry him this can. He pays sixty when it is in his hands, and do not let him tell you he does not need it.',
+        choices: [
+          { t: 'I will carry it.', role: 'trader', from: 'known', next: 'runOn', do: (g) => g.roles?.jobStart('water_run') },
+          { t: 'Not today.', next: 'hi' },
+        ] },
+      runOn: { text: 'Ten litres. It is heavy. That is why it is worth sixty.', choices: [{ t: '[Leave]', end: true }] },
+      gift: { text: 'For what you did out there, this one is on me. No, put your money away.', choices: [{ t: 'Thank you, Mags.', end: true }] },
       drink: { text: 'Slow sips. Your stomach forgot what water is.', choices: [{ t: '[Leave]', end: true }] },
       rumor: { text: 'Old Tomas walks the Flats south of the highway. Swears there\'s a bunker cache under the old gas station. Also: Saoirse on the radio says a storm\'s coming. She\'s never wrong.', choices: [{ t: 'Thanks, Mags.', end: true }] },
     },
@@ -119,6 +166,7 @@ export const NPCS = [
   {
     id: 'saoirse', name: 'Saoirse "Static" Byrne', title: 'Radio DJ · STATIC 1660 AM', flag: 'IE', faction: 'drifter', friends: ['mags'],
     where: 'shop:4', portrait: { seed: 606, skin: '#f1c9a5', hair: '#b0301e', hat: 'long', mood: 'smile', shirt: '#2f3b42', gear: 'none', beard: false },
+    roleLines: { wheelman: 'The Wheelman, live in my studio! Well. Standing in it.', ghost: '...I never heard you come in.', stuntdriver: 'You are the one the thrill show crowd will not shut up about!' },
     start: 'hi',
     nodes: {
       hi: { text: (g) => `You're live on Static, sixteen-sixty AM, the last radio station in Arizona! Current conditions: ${g.sky.label}, ${g.sky.clock}. What can the wasteland's favourite voice do for you?`,
@@ -135,14 +183,17 @@ export const NPCS = [
   {
     id: 'tomas', name: 'Old Tomás Varela', title: 'Wanderer · The Glass Flats', flag: 'CU', faction: 'drifter', friends: ['mags'],
     where: { x: 120, z: 352 }, portrait: { seed: 707, skin: '#a86b45', hair: '#d8d4cc', hat: 'cowboy', mood: 'neutral', shirt: '#5a4a38', gear: 'scar', beard: true },
+    roleLines: { scavenger: 'Forty years on this road. You find the things I dropped.', trader: 'A trader on foot? Brave or broke.' },
     start: 'hi',
     nodes: {
       hi: { text: 'Sit, sit. Forty years I drive trucks on this road. Now I walk it. The road does not care either way.',
         choices: [
           { t: 'Mags says you know about a cache.', next: 'cache', req: (g) => !g.quests.cache },
+          { t: 'Mags sent water.', role: 'trader', from: 'known', req: (g) => !!g.roles?.jobReady('water_run'), next: 'water', do: (g) => g.roles.jobPay('water_run') },
           { t: 'What\'s out past the Flats?', next: 'past' },
           { t: '[Leave]', end: true },
         ] },
+      water: { text: 'Ten litres! That woman. Here, sixty, and tell her she worries too much.', choices: [{ t: '[Leave]', end: true }] },
       cache: { text: 'Under the station on Route 66, far east. I am too old to dig. Take this key. Whatever is in there, share a little with Rust Haven, eh?',
         choices: [{ t: 'Deal.', end: true, do: (g) => { g.quests.cache = 'active'; g.give({ cash: 60, ammo: { pistol: 18 } }); g.hud.toast('Tomás gave you $60 and some rounds', 'job'); } }] },
       past: { text: 'More dust. More dead towns. They say Denver still has power. They say a lot of things.', choices: [{ t: '[Leave]', end: true }] },
@@ -151,14 +202,22 @@ export const NPCS = [
   {
     id: 'vo', name: 'Vo Thanh "Ghost"', title: 'Dustwolf Deserter', flag: 'VN', faction: 'drifter', weapon: 'pistol',
     where: { x: -168, z: -176 }, portrait: { seed: 808, skin: '#c68863', hair: '#1b1410', hat: 'mohawk', mood: 'angry', shirt: '#2b2420', gear: 'bandana', beard: false },
+    roleLines: { ghost: 'They call me Ghost. Seems the flats have a new one.', rider: 'Rider. I used to be you. Get out while you can.' },
     start: 'hi',
     nodes: {
       hi: { text: 'Easy. EASY. I\'m out. I don\'t ride with the Dustwolves anymore. You gonna shoot me or listen?',
         choices: [
           { t: 'Talk.', next: 'intel' },
           { t: 'Why\'d you leave?', next: 'why' },
+          { t: 'They say you move without being seen.', role: 'ghost', from: 'known', req: (g) => !!g.roles?.canSwear('vo_lesson'), next: 'lesson' },
           { t: '[Leave]', end: true },
         ] },
+      lesson: { text: 'Takes one to know one. Low and slow, keep the light behind you, never stop in a doorway. Do it right and they look straight at you and see a shadow.',
+        choices: [
+          { t: 'Show me.', role: 'ghost', from: 'known', next: 'taught', do: (g) => g.roles?.swear('vo_lesson', 'vo') },
+          { t: 'Some other time.', next: 'hi' },
+        ] },
+      taught: { text: 'That is all there is. The rest is nerve.', choices: [{ t: '[Leave]', end: true }] },
       intel: { text: 'They run six camps out on the Flats, all at the corners of the map — junk walls, fire barrels. Buggies patrol at night. They hate the harpoon rig. Use that.', choices: [{ t: 'Good to know.', end: true }] },
       why: { text: 'They took a water convoy last month. Kids were on it. Some lines, you don\'t cross twice.', choices: [{ t: '[Leave]', end: true }] },
     },
