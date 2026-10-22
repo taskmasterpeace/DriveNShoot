@@ -2417,7 +2417,10 @@ async function runSelfTest(api) {
     g.inventory.opened = null;
     const military = crates.length === 3 && crates.every((b) => b.kind === 'military') && rolls.every((r) => r.length > 0 && r.every((id) => allowed.has(id)));
     const sealed = !g.world.buildings.find((b) => b.baseBuilding === 'armory').doors.length; // no unlocked way in
-    return held && steel && military && sealed ? true : JSON.stringify({ door: d.id, held, at: r1(outSide(door, g.player.x, g.player.z)), locked: door.locked, steel, rolls, sealed });
+    // placeFurniture() gives every crate/shelf in a building a home or shop table: inside the wire, only the base's own
+    // boxes (and bodies, ground piles) may be containers.
+    const f = OB.fence, strays = [...g.inventory.boxes.values()].filter((b) => b.x > f.x0 && b.x < f.x1 && b.z > f.z0 && b.z < f.z1 && !b.id.startsWith('box:base:') && b.kind !== 'ground' && !b.id.startsWith('body:')).map((b) => `${b.id}=${b.kind}`);
+    return held && steel && military && sealed && !strays.length ? true : JSON.stringify({ door: d.id, held, at: r1(outSide(door, g.player.x, g.player.z)), locked: door.locked, steel, rolls, sealed, strays });
   }));
   await check('base: the motor pool parks a PATROL TRUCK and an ARMORED CARRIER; both are vehicle rows that spawn anywhere and drive', async () => {
     const parked = OB.vehicles.filter((v) => !v.dead && Math.hypot(v.x - OB.ox, v.z - OB.oz) < 45).map((v) => v.type).sort().join(',');
