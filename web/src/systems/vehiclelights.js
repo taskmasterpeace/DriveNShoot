@@ -64,11 +64,23 @@ export class VehicleLights {
       const lit = !!v.driver;
       if (!lit && !v.braking) continue;
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
-      _veh.makeRotationY(v.h).setPosition(v.x, 0, v.z);
+      // Beams are painted on the ground under the car (yaw only), and thin out as it leaves the ground: in the air
+      // the light is going somewhere else.
+      if (lit && beams) {
+        const alt = Math.max(0, (v.y ?? 0) - (v.gy ?? 0)), k = beamK / (1 + alt * 0.9);
+        _veh.makeRotationY(v.h).setPosition(v.x, v.gy ?? 0, v.z);
+        for (let i = 0; i < A.head.length; i++) {
+          if (i === 0 ? v.lampL === false : v.lampR === false) continue;
+          const a = A.head[i];
+          this.beam(a[0], a[2] - 0.08, A.head.length > 1 ? Math.sign(a[0]) * TOE : 0, A.beamW, A.beamL, k);
+        }
+      }
+      // Lenses ride the body: pitched over a jump, leaned with a bike, bobbing with a hull.
+      v.group.updateMatrix();
+      _veh.copy(v.group.matrix);
       if (lit) for (let k = 0; k < A.head.length; k++) {
         if (k === 0 ? v.lampL === false : v.lampR === false) continue;
         const a = A.head[k];
-        if (beams) this.beam(a[0], a[2] - 0.08, A.head.length > 1 ? Math.sign(a[0]) * TOE : 0, A.beamW, A.beamL, beamK);
         this.glow(a[0], a[1] + 0.04, a[2], A.halo * halo, HEAD, headK);
       }
       if (v.tailsOn !== false) for (let k = 0; k < A.tail.length; k++) {

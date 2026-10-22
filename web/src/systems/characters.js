@@ -360,11 +360,12 @@ export class CharacterRenderer {
 
     // ---- root frame --------------------------------------------------------------------------
     let lying = false;
+    const gy = sp || !this.groundAt ? 0 : this.groundAt(ch.x, ch.z); // a ramp or a dune under their feet
     if (sp) {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
     } else if (alive) {
-      _root.makeRotationY(ch.face).setPosition(ch.x, 0, ch.z);
+      _root.makeRotationY(ch.face).setPosition(ch.x, gy, ch.z);
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
         _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
@@ -375,7 +376,7 @@ export class CharacterRenderer {
       // Lying on the back, head away from the killer.
       lying = true;
       _q.setFromEuler(_e.set(0, ch.face, 0, 'XYZ'));
-      _root.compose(_v.set(ch.x, 0.16, ch.z), _q, _one);
+      _root.compose(_v.set(ch.x, 0.16 + gy, ch.z), _q, _one);
       _root.multiply(_r.makeRotationX(-Math.PI / 2)).multiply(_t.makeTranslation(0, -0.95, 0));
     }
 

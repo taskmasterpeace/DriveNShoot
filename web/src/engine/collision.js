@@ -31,8 +31,10 @@ export class StaticWorld {
     return this.add(cx - sx / 2, cz - sz / 2, cx + sx / 2, cz + sz / 2, tag, height);
   }
 
-  // Push a circle out of every box it overlaps. Returns penetration depth sum.
-  resolveCircle(p, r) {
+  // Push a circle out of every box it overlaps. Returns penetration depth sum. minY: the circle rides this high off
+  // the ground (a car in the air), so boxes no taller than that pass under it. skip: boxes with this owner don't
+  // count (a ramp's own sides and lip, for the car riding or flying off that ramp).
+  resolveCircle(p, r, minY = -Infinity, skip = null) {
     const stamp = ++this.stamp;
     let pushed = 0;
     const x0 = this.ci(p.x - r), x1 = this.ci(p.x + r), z0 = this.ci(p.z - r), z1 = this.ci(p.z + r);
@@ -43,6 +45,7 @@ export class StaticWorld {
           const b = list[i];
           if (b.mark === stamp) continue;
           b.mark = stamp;
+          if (b.height <= minY || (skip && b.owner === skip)) continue;
           const qx = p.x < b.minX ? b.minX : p.x > b.maxX ? b.maxX : p.x;
           const qz = p.z < b.minZ ? b.minZ : p.z > b.maxZ ? b.maxZ : p.z;
           let dx = p.x - qx, dz = p.z - qz;

@@ -21,7 +21,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 npm install
 npm run agent &                  # dev server + headless browser; prints READY (or open http://localhost:3141/?agent=1 yourself)
 node tools/dl.mjs status         # {"connected": true}
-node tools/dl.mjs selftest       # 59/59 engine checks
+node tools/dl.mjs selftest       # 62/62 engine checks
 node tools/dl.mjs state          # everything about the current moment
 node tools/dl.mjs help           # every command, args, description
 ```
@@ -78,7 +78,7 @@ Blocking commands return early with an `interrupted` reason rather than failing 
 
 ## Proof it works (measured on this machine, RTX 4090, headless Chrome)
 
-- **`selftest`: 59/59** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), the faction sim (ten days off-screen, a night raid beaten off), the ATV, A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
+- **`selftest`: 62/62** (honest: only `true` passes): state, step, teleport, weather, day/night, gunfight + gore, weapons, dialogue, data-only NPC, Whaler drive, harpoon, exit, roof cutaway, positional audio, blood soak / head pop / footprints, **every building interior and NPC home walkable**, `moveTo id=` reaches a vehicle/NPC promptly, vehicle part damage, seats, motorcycles, throwables, dive/crouch, terrain, water + diving, flooding cars and boats, the train, convoys, the HUD feedback layer (`hud`), ambient details (`ambient`, `honk`), photo mode (`photo`), the **NaN sentinel** (poisoned positions heal, the report names the phase), cars turn about the rear axle, save/load rebuilds the infected's pace, **world memory** (the chronicle ring + tally, witness ranges by day and night, a witnessed killing reaching the victim's people, a silenced witness, standing deciding who shoots on sight, the unwitnessed night kill, a lawful witness raising stars, society save/load, a remembered killing that closes a shop and starts a vendetta, a shooting Rosa hears about from the road, the director sending hunters and the radio reading the chronicle on air), survival (thirst wears in pips, slows stamina, water fixes it), skills and carry weight, the garage (plate that stops rounds until breached, weight that slows, the hood gun, an oil slick), the faction sim (ten days off-screen, a night raid beaten off), the ATV, **jumps** (Wreck Row at 40 mph lands clean on its deck, pays and gets talked about; too slow meets the deck's face, too fast flies past it; a dune is a bump at a crawl and air at speed; kicker sides are solid; people stand on dirt), A* path, objective, burning vehicle, save/load, perf budget, **no runtime errors**.
 - **`scenario name=stress`** (2026-10-22): 160 characters, **52 draw calls**, 2.6 ms/frame.
 - **`bench` in a night acid storm with a full cast of characters, 19 vehicles and an active firefight:** 5.9 ms/frame at 1080p (~170 fps), **43 draw calls**, about 278k triangles, about 2.2 ms simulation. That's with the full character models; hidden variants are packed out and small parts skip the shadow pass.
 - **Pathfinding:** a 535 m cross-map foot route takes 1.8 ms, and 400 m routes take under 1 ms.
@@ -131,6 +131,7 @@ Objective tracker with GPS distance, gold route on the minimap, full map (**M**)
 - Entity ids: characters `c<N>`, vehicles `v<N>`. The player is `c1` (or `player`). Named NPCs also answer to their npc id (`okonkwo`, `reyes`, `ike`, `kenji`, `mags`, `saoirse`, `tomas`, `vo`) or their full name. `id=hostile` resolves to the nearest enemy.
 - World map: `node tools/dl.mjs map`. Roads run every 80 m on −320..320. Route 66 is `z=0` and crosses the whole map. Rust Haven (walled town) is `|x|,|z| < 88`, Phoenix ruins are out to ~250, and beyond that is the Glass Flats desert, where the 6 raider camps sit.
 - Set-pieces beyond the grid: **mesas/buttes/ridges** ring the desert at 350–440 m (solid, routed around). The **river** runs north–south on the east edge (x≈410–428) into **the lake** (390, 398, 7 m deep) with a **dock** at (360, 382) and the **Route 66 bridge** at x=416. The **Iron Line** railway runs north–south at **x=−360**: Dust Bowl Station at z=110, a level crossing on Route 66 (z=0). A freight (`train`) cycles every couple of minutes; **Dustwolf convoys** (`convoy`) cross on Route 66 every ~3–5 minutes.
+- Jumps (`stunts`, rows in `src/data/stunts.js`): **the Thrill Show** in the open strip east of the x=320 road, just south of Route 66 (x 330–400, z 13–76): **Wreck Row** (z=28, a steel kicker, five wrecks side by side, a landing deck 25 m on; ~40 mph at the lip lands clean), **the Table** (z=58) and **the Whoops** (z=70), bleachers, whitewashed-stone letters. **The Dunes** in the south-west Glass Flats (x −310..−250, z 250..310): wind-built mounds with slip faces to the east. `stunts run=wreckrow speed=18` drives a car at a jump and reports the landing.
 
 ## Time, determinism & hidden tabs
 
@@ -173,6 +174,8 @@ src/
     director.js        event director: hunters, raids, dead_draw_dead, radio news; pacing, cooldowns, outcomes
     factionsim.js      the world without you: strength/stores, place yields and upkeep, daily skirmishes, camps changing hands
     vehicles.js        VEHICLES table (cars, bike, boats), arcade driving model, collisions, run-overs, traffic/raider/convoy AI, harpoon
+    stunts.js          jumps: the ground's relief (kickers, berms, tables from data/stunts.js), ride-height springs, flight, landings
+                       graded by closing speed (clean/rough/hard/crash), named jumps that pay and are told about, blob shadows
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
     seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)
     carcombat.js       windows (crack/shatter), shooting from windows, people hanging on, zombies breaking in
@@ -192,6 +195,7 @@ src/
   data/npcs.js         named NPCs + dialogue trees, ambient barks, name lists
   data/society.js      verbs, tiers, memory kinds and the built-in factions (Rust Haven, the Dustwolves, drifters, the infected)
   data/events.js       director event templates: numbers and radio lines
+  data/stunts.js       ramps, sites (the Thrill Show, the Dunes), props, named jumps, and the jump tuning (gravity, springs' limits, landing lines)
   agent/
     api.js             THE agent API: COMMANDS table (single source of truth), selftest
     bridge.js          browser long-poll client for the HTTP bridge

@@ -119,6 +119,13 @@ export class Audio {
     this.burst({ dur: 2.5, freq: 260, vol: 1.0, decay: 2.4, pitchDrop: 0.3 });
     this.burst({ dur: 0.4, freq: 1800, vol: 0.4, decay: 0.3, at: 0.02 });
   }
+  // A vehicle coming down off a jump: the springs bottoming out (a low boom) and the body slapping its stops; k 0..1.
+  land(k = 0.5) {
+    this.count('land');
+    this.burst({ dur: 0.35, freq: 150 + k * 60, vol: 0.25 + k * 0.55, decay: 0.3, pitchDrop: 0.45 });
+    this.tone(48 + k * 20, 0.18, 0.12 + k * 0.2, 'sine', 0.6);
+    if (k > 0.45) this.burst({ dur: 0.18, freq: 2600, type: 'bandpass', q: 3, vol: 0.12 + (k - 0.45) * 0.5, decay: 0.16, at: 0.03 }); // metal on metal
+  }
   crash(k = 0.5) { this.burst({ dur: 0.5, freq: 700, vol: Math.min(1, 0.4 + k), decay: 0.45, pitchDrop: 0.4 }); this.burst({ dur: 0.3, freq: 4000, type: 'highpass', vol: 0.3 * k, decay: 0.3 }); }
   skid(k) { if (Math.random() < 0.15) this.burst({ dur: 0.15, freq: 1500, type: 'bandpass', q: 6, vol: Math.min(0.25, k * 0.2), decay: 0.14 }); }
   horn(dist = 0) { const v = Math.max(0, 0.15 * (1 - dist / 40)); this.tone(392, 0.35, v, 'square'); this.tone(330, 0.35, v, 'square'); }
@@ -132,7 +139,8 @@ export class Audio {
   reload() { this.tone(300, 0.05, 0.08, 'square'); setTimeout(() => this.tone(240, 0.06, 0.08, 'square'), 120); }
   empty() { this.tone(1200, 0.03, 0.06, 'square'); }
 
-  ambience(rain, dust, engine) {
+  // free: 0..1, the driven wheels are off the ground under throttle (a jump) - nothing to push on, the revs flare.
+  ambience(rain, dust, engine, free = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     this.rainGain.gain.setTargetAtTime(Math.min(1, rain) * 0.35, t, 0.5);
@@ -141,8 +149,8 @@ export class Audio {
       // Five-speed box: rpm climbs through each gear band, drops on the shift.
       const sp = Math.abs(engine), bands = [0, 9, 17, 25, 33, 60];
       let gear = 0; while (gear < 4 && sp > bands[gear + 1]) gear++;
-      const rpm = (sp - bands[gear]) / (bands[gear + 1] - bands[gear]);
-      this.engGain.gain.setTargetAtTime(0.06 + rpm * 0.05, t, 0.1);
+      const rpm = Math.min(1, (sp - bands[gear]) / (bands[gear + 1] - bands[gear]) + free * 0.55);
+      this.engGain.gain.setTargetAtTime(0.06 + rpm * 0.05 + free * 0.02, t, 0.1);
       this.engOsc.frequency.setTargetAtTime(34 + rpm * 70 + gear * 6, t, 0.06);
     } else this.engGain.gain.setTargetAtTime(0, t, 0.2);
   }

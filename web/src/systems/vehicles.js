@@ -4,6 +4,7 @@ import { PART, buildBody, lampAnchors } from './vehiclebodies.js';
 import { VehicleLights } from './vehiclelights.js';
 import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
+import { STUNT } from '../data/stunts.js';
 
 // Each vehicle is ONE merged, vertex-coloured mesh: 1 draw call per car (every lamp in the game
 // shares 2 more, in vehiclelights.js).
@@ -13,30 +14,42 @@ import { clamp, angleLerp } from '../engine/rng.js';
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
 export const VEHICLES = {
-  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
-  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
-  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
-  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80,
+  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
+  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
+  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80,
                  seats: [...S2, { id: 'bedL', side: 'left', row: 2, exposed: 'stand' }, { id: 'bedR', side: 'right', row: 2, exposed: 'stand' }] },
-  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, maxSpeed: 40, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
-  van:         { name: 'VAN', len: 5.4, wid: 2.25, maxSpeed: 32, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75,
+  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
+  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75,
                  seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }] },
-  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, maxSpeed: 34, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
+  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
                  seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }] },
-  jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, maxSpeed: 40, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
+  jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, maxSpeed: 28, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
+  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
   // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
-  atv:         { name: 'ATV', len: 2.3, wid: 1.25, maxSpeed: 38, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
+  atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
+  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, tall: 1.25, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
 };
 
 // Bodies (geometry, lamp anchors, glass layout) are built in vehiclebodies.js; PART is re-exported for damage.
 export { PART };
 
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _seat = [0, 0, 0];
+
+// Where an exposed seat's rider sits or stands, in the body's frame (+x the driver's left, +z forward, tyres on y=0).
+// Astride machines put riders one behind the other on the centre line; a pickup's bed stands them side by side; an
+// airboat stands its bow rider up front and its driver at the controls before the raised seat.
+function seatLocal(v, si, seat, out) {
+  if (v.bike) { out[0] = 0; out[1] = 0.12; out[2] = si === 0 ? -0.15 : -0.65; return out; }
+  if (v.quad) { out[0] = 0; out[1] = 0.2; out[2] = si === 0 ? -0.22 : -0.72; return out; }
+  if (v.type === 'jetski') { out[0] = 0; out[1] = 0.15; out[2] = si === 0 ? -0.05 : -0.6; return out; }
+  if (v.type === 'airboat') { out[0] = seat.side === 'left' ? 0.35 : -0.35; out[1] = 0.67; out[2] = seat.row === 0 ? 1.0 : 0.35; return out; }
+  out[0] = seat.side === 'left' ? 0.45 : -0.45; out[1] = 1.1; out[2] = -v.len / 2 + 1.0;
+  return out;
+}
 
 export class Vehicles {
   constructor(game) {
@@ -81,6 +94,8 @@ export class Vehicles {
     this.g.seats.init(v);
     this.g.vehDamage.init(v);
     v.lean = 0; v.wheelie = 0; v.fallen = false;
+    // Vertical state (stunts.js): ride height and its speed, the ground under the wheels, body pitch/roll, in the air.
+    v.y = 0; v.vy = 0; v.gy = 0; v.pitch = 0; v.roll = 0; v.air = false;
     this.list.push(v);
     this.g.vehicles = this.list;
     return v;
@@ -176,6 +191,17 @@ export class Vehicles {
     let side = v.vx * rx + v.vz * rz;
     const sp = Math.abs(fwd);
     const fxm = this.g.vehDamage.effects(v, dt); // engine/radiator/fuel/tyres/lights
+    if (v.air) {
+      // Off the ground there is nothing to push on: no throttle, no steering, no grip. The ramp chose your line;
+      // a spin you took off with keeps turning. stunts.js flies the vertical half and lands it.
+      const drag = Math.exp(-dt * STUNT.airDrag);
+      v.vx *= drag; v.vz *= drag;
+      v.h += v.av * dt; v.av *= Math.exp(-dt * 0.5);
+      v.x += v.vx * dt; v.z += v.vz * dt;
+      if (v.bike) { v.lean *= Math.exp(-dt * 2); v.wheelie = 0; }
+      v.depth = 0;
+      return { fwd, side };
+    }
     let topSpeed = v.maxSpeed * fxm.top;
     // Water: boats need it, everything else drowns in it.
     const depth = this.g.water ? this.g.water.depthAt(v.x, v.z) : 0;
@@ -245,12 +271,15 @@ export class Vehicles {
     const pre = this.speed(v);
     let hitN = 0;
     const n = Math.max(2, Math.round(v.len / v.wid));
+    const vy0 = v.y, sinP = Math.sin(v.pitch), own = v.air ? v.toRamp : v.ramp; // a ramp never blocks the car using it
     for (let k = 0; k < n; k++) {
       const off = (k / (n - 1) - 0.5) * (v.len - r * 1.6);
       const t = this.tmp;
       t.x = v.x + fx * off; t.z = v.z + fz * off;
       const ox = t.x, oz = t.z;
-      if (g.statics.resolveCircle(t, r) > 0) {
+      // Each disc rides as high as that end of the body: the nose of a car climbing a ramp, or the whole car in
+      // the air, passes over whatever is lower than it (a wreck, a ramp's own lip).
+      if (g.statics.resolveCircle(t, r, vy0 + sinP * off, own) > 0) {
         const dx = t.x - ox, dz = t.z - oz;
         v.x += dx; v.z += dz;
         const d = Math.hypot(dx, dz) || 1;
@@ -261,6 +290,7 @@ export class Vehicles {
         v.av += (off > 0 ? 1 : -1) * (nx * fz - nz * fx) * Math.min(3, -vn * 0.08);
       }
     }
+    if (v.air && hitN > (v.airHit ?? 0)) v.airHit = hitN; // a jump that meets a wall on the way down is a crash
     if (hitN > 4 && v.dmg) g.vehDamage.hit(v, v._hitX, v._hitZ, hitN, 'crash'); // dent where it actually hit
     if (v.bike && hitN > 7 && v.occ?.some(Boolean)) { v.fallen = true; g.seats.ejectAll(v, 1.2); g.audio.crash(0.8); }
     if (hitN > 8) {
@@ -274,6 +304,7 @@ export class Vehicles {
       if (o === v) continue;
       const reach = (v.len + o.len) * 0.5 + 1;
       if (Math.abs(o.x - v.x) > reach || Math.abs(o.z - v.z) > reach) continue;
+      if (v.y > o.y + o.tall * 0.85 || o.y > v.y + v.tall * 0.85) continue; // one is flying over the other
       const vd = this.discs(v), od = this.discs(o);
       let best = null;
       for (const a of vd) for (const b of od) {
@@ -314,6 +345,7 @@ export class Vehicles {
       if (Math.abs(dx) > v.len || Math.abs(dz) > v.len) continue;
       const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
       if (Math.abs(along) < v.len / 2 + 0.3 && Math.abs(across) < v.wid / 2 + 0.3) {
+        if (v.y > 0.3 && Math.abs(v.y - (g.stunts?.heightAt(c.x, c.z) ?? 0)) > 1.5) continue; // over their head
         if (sp > 6) {
           const dn = sp || 1;
           g.combat.damage(c, sp * 7, v.driver, v.vx / dn, v.vz / dn, 'vehicle');
@@ -590,29 +622,18 @@ export class Vehicles {
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
       this.drive(v, dt);
       this.collide(v, dt);
-      // Everyone aboard rides with the car; exposed seats (bike, truck bed) show their rider.
-      if (v.occ) for (let si = 0; si < v.occ.length; si++) {
-        const o = v.occ[si];
-        if (!o) continue;
-        if (!o.alive && o !== g.player) { v.occ[si] = null; if (v.driver === o) v.driver = null; o.inVehicle = null; o.seat = null; o.seatPose = null; continue; }
-        o.x = v.x; o.z = v.z;
-        const seat = v.seats[si];
-        if (seat.exposed) {
-          const astride = v.bike || v.quad; // one behind the other, on the centre line
-          const lx = astride ? 0 : (seat.side === 'left' ? 0.45 : -0.45), lz = astride ? (si === 0 ? (v.quad ? -0.22 : -0.15) : (v.quad ? -0.72 : -0.65)) : -v.len / 2 + 1.0;
-          const c = Math.cos(v.h), sn = Math.sin(v.h);
-          o.seatPose = { x: v.x + lx * c + lz * sn, z: v.z - lx * sn + lz * c, y: v.bike ? 0.12 : v.quad ? 0.2 : 1.1, h: o.aiming && seat.exposed === 'stand' ? o.face : v.h, lean: v.lean ?? 0, pitch: -(v.wheelie ?? 0), kind: seat.exposed };
-        } else o.seatPose = null;
-      }
+      g.stunts?.step(v, dt); // the vertical half: ride the ground on its springs, fly, land
       const lit = !!v.driver && !v.dead;
       // Brake lights: braking (throttle against the direction of travel) or the handbrake flares them.
       const fwd = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h);
       v.braking = lit && (v.handbrake || (v.throttle < 0 && fwd > 0.5) || (v.throttle > 0 && fwd < -0.5));
       // Paint chars and darkens as the vehicle is damaged.
       if (!v.dead) { const dmg = 1 - v.hp / v.maxHp; v.mesh.material.color.setRGB(1 - dmg * 0.6, 1 - dmg * 0.65, 1 - dmg * 0.7); }
-      v.group.position.set(v.x, 0, v.z);
-      v.group.rotation.y = v.h;
-      if (v.bike) { v.group.rotation.z = v.lean; v.group.rotation.x = -v.wheelie; v.group.position.y = v.wheelie * 0.25; }
+      // The body: ride height (a landing can sink it into its springs, but never the tyres into the dirt), pitched and
+      // rolled to the ground or to the arc it is flying; a bike adds its lean and its wheelie.
+      v.group.position.set(v.x, Math.max(v.y, v.gy - 0.07), v.z);
+      v.group.rotation.set(-v.pitch, v.h, v.roll);
+      if (v.bike) { v.group.rotation.z += v.lean; v.group.rotation.x -= v.wheelie; v.group.position.y += v.wheelie * 0.25; }
       if (v.boat) {
         // Bob on the swell, bank into turns, throw a wake.
         const t = g.time + v.x * 0.1;
@@ -627,7 +648,28 @@ export class Vehicles {
           g.fx.spawn(2, bx + (Math.random() - 0.5) * v.wid, 0.15, bz + (Math.random() - 0.5) * v.wid, -Math.cos(v.h) * (Math.random() - 0.5) * 3, 0.4, Math.sin(v.h) * (Math.random() - 0.5) * 3, 1.6, 0.6, '#e6eeee', 0.2);
         }
       }
-      if (v.sunk) { v.group.position.y = Math.max(-1.7, v.group.position.y - dt * 0.6); }
+      // Going under: the hull settles a little more each frame (it used to restart from the surface every frame).
+      if (v.sunk) { v.sinkY = Math.max(-1.7, (v.sinkY ?? v.group.position.y) - dt * 0.6); v.group.position.y = v.sinkY; }
+      // Everyone aboard rides with the car; exposed seats (saddle, truck bed, boat deck) show their rider, placed
+      // through the body's own transform so a rider pitches over a jump and bobs with a hull.
+      if (v.occ) {
+        v.group.updateMatrix();
+        for (let si = 0; si < v.occ.length; si++) {
+          const o = v.occ[si];
+          if (!o) continue;
+          if (!o.alive && o !== g.player) { v.occ[si] = null; if (v.driver === o) v.driver = null; o.inVehicle = null; o.seat = null; o.seatPose = null; continue; }
+          o.x = v.x; o.z = v.z;
+          const seat = v.seats[si];
+          if (!seat.exposed) { o.seatPose = null; continue; }
+          seatLocal(v, si, seat, _seat);
+          _v.set(_seat[0], _seat[1], _seat[2]).applyMatrix4(v.group.matrix);
+          const sp = (o._seatPose ??= { x: 0, y: 0, z: 0, h: 0, lean: 0, pitch: 0, kind: '' });
+          sp.x = _v.x; sp.y = _v.y; sp.z = _v.z;
+          sp.h = o.aiming && seat.exposed === 'stand' ? o.face : v.h;
+          sp.lean = v.group.rotation.z; sp.pitch = v.group.rotation.x; sp.kind = seat.exposed;
+          o.seatPose = sp;
+        }
+      }
       if (v.onFire) {
         v.onFire -= dt;
         if (Math.random() < dt * 30) this.g.fx.spawn(4, v.x + (Math.random() - 0.5) * v.wid, 1.4, v.z + (Math.random() - 0.5) * v.len * 0.6, 0, 3, 0, 0.45, 0.3, '#ff7a1a', -1);
@@ -641,6 +683,7 @@ export class Vehicles {
         if (Math.random() < dt * 6) g.fx.smoke(v.x, 2, v.z, true);
       }
     }
+    g.stunts?.update(); // blob shadows under whatever is in the air
     this.lights.update(night, g.time);
     this.updateHarpoon(dt);
   }

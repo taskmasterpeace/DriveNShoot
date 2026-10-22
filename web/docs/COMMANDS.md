@@ -87,6 +87,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `harpoon` | `x?:number z?:number id?:string` | Fire the Whaler's harpoon at x,z or entity id. Call again while hooked to YANK. |
 | `garage` | `vehicle?:string plates?:string points?:number mount?:string refill?:boolean pay?:boolean` | Fit or read a car's armour and mounts (data/parts.js): plates=front\|rear\|left\|right\|sides\|all with points=N (negative removes), mount=mg\|oil\|caltrops\|smoke, refill=true. vehicle defaults to the one you are in (or last drove). pay=true charges your cash like Kenji does. |
 | `dropper` | `(none)` | Drop whatever your car's tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving. |
+| `stunts` | `run?:string ramp?:string speed?:number type?:string back?:number` | Jumps (data/stunts.js): the ramps, the named jumps (gap lip to lip, pay, times cleared), your records, who is in the air, and the last landing. run=<jump id> drives the car you are in (or a fresh type= car) at that jump from back= metres out, holding speed= m/s to the lip like a steady foot, then reports the landing: air time, distance, height, closing speed vn, grade (clean \| rough \| hard \| crash), cleared, pay. ramp=<id> does the same at any ramp. Wreck Row lands soft at about 18 m/s (40 mph). |
 | `hoodgun` | `shots?:number x?:number z?:number id?:string` | Fire the hood gun of the car you are driving: shots=N at x,z or id (it only fires within its arc of the nose). Keyboard: hold LMB aiming ahead. |
 
 ## dialogue
@@ -103,7 +104,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 |---|---|---|
 | `chronicle` | `since?:number verb?:string actor?:string faction?:string place?:string legend?:boolean limit?:number` | What happened, newest first: your deeds (with who saw them), rumors that reached a faction, the world's own violence. Filters: since (seq), verb, actor, faction (either side), place, legend (notable only), limit. |
 | `tally` | `prefix?:string` | Rolled-up counts per "actorFaction\|verb\|targetFaction" (they survive the ring), plus the last 7 day digests. |
-| `deed` | `verb:string target?:string faction?:string x?:number z?:number mag?:number witness?:boolean` | Record a deed as if the player did it, through the real witness pass unless witness=false. verb: hurt\|carjack\|steal\|rob\|destroy\|kill\|silence\|rescue\|deliver\|trade\|pay\|defend\|betray. target = character id; faction overrides the target's faction. |
+| `deed` | `verb:string target?:string faction?:string x?:number z?:number mag?:number witness?:boolean` | Record a deed as if the player did it, through the real witness pass unless witness=false. verb: hurt\|carjack\|steal\|rob\|destroy\|kill\|silence\|rescue\|deliver\|trade\|pay\|defend\|betray\|stunt. target = character id; faction overrides the target's faction. |
 | `witnesses` | `x?:number z?:number` | Dry run of the witness pass at x,z (default: where you stand): who would put a name to your face, how many would only see something, and the sight/ID ranges right now. |
 | `rumors` | `flush?:boolean` | Word on its way: each pending report (witness, faction, verb, seconds until it lands). flush=true lands them all now. |
 | `factions` | `id?:string` | Every faction (or one by id): your standing, tier, whether they shoot you on sight, relations, wars, alliances. |

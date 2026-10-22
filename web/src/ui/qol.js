@@ -181,6 +181,13 @@ export class QOL {
     const T = (x, z) => [(x + HALF) * k, (z + HALF) * k];
     c.drawImage(g.world.minimap, 0, 0, S, S);
     for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 16px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
+    // Jump sites (data/stunts.js): a little ramp glyph and the name.
+    for (const s of Object.values(g.stunts?.sites ?? {})) {
+      const [x, y] = T(s.x, s.z);
+      c.fillStyle = '#d9a441'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x - 7, y + 4); c.lineTo(x + 6, y + 4); c.lineTo(x + 6, y - 4); c.closePath(); c.fill(); c.stroke();
+      c.font = '700 11px Barlow Condensed'; c.textAlign = 'left'; c.lineWidth = 3; c.strokeText(s.name, x + 10, y + 4); c.fillText(s.name, x + 10, y + 4);
+    }
     for (const ch of g.chars) if (ch.npc && ch.alive) {
       const [x, y] = T(ch.x, ch.z);
       c.fillStyle = '#f5c542'; c.beginPath(); c.arc(x, y, 4, 0, 7); c.fill();

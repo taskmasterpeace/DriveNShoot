@@ -3,7 +3,8 @@
 // field, including its own tier lines.
 
 // Base magnitude of each verb. Kills are scaled further by who died (see deeds.js).
-export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5 };
+// stunt: a named jump cleared clean in front of people (stunts.js) - word of a driver who can fly.
+export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 4, silence: 6, rescue: 3, deliver: 2, trade: 0.5, pay: 2, defend: 3, betray: 5, stunt: 1 };
 
 // Standing (-100..100) to tier. Behaviour changes at each line: hostile and hunted shoot on sight.
 export const TIERS = { hunted: -80, hostile: -40, wary: -10, neutral: 20, friendly: 60 };
@@ -61,6 +62,7 @@ export const FACTIONS = {
       'kill:self': -9, 'hurt:self': -2, 'carjack:self': -4, 'steal:self': -3, 'destroy:self': -3, 'rob:self': -5, 'silence:self': -6, 'betray:self': -8,
       'kill:friend': -4, 'hurt:friend': -1, 'carjack:friend': -2,
       'kill:enemy': 1, 'rescue:self': 5, 'rescue:friend': 3, 'deliver:self': 4, 'trade:self': 0.5, 'defend:self': 4, 'pay:self': 2,
+      'stunt:any': 0.3, // folks still like a show
     },
   },
   dustwolves: {
@@ -69,14 +71,14 @@ export const FACTIONS = {
     hunters: { faction: 'raider', name: 'Dustwolf Tracker', weapons: { smg: 0.5, shotgun: 0.3, pistol: 0.2 }, hp: 100 },
     sim: { strength: 60, resources: 40, aggression: 0.7, raids: 'rusthaven' },
     relations: { '*': -100 },
-    values: { 'kill:self': -8, 'hurt:self': -2, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3 },
+    values: { 'kill:self': -8, 'hurt:self': -2, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3, 'stunt:any': 2 }, // they respect a driver who can fly
   },
   drifters: {
     name: 'Drifters', archetype: 'loose', color: '#9a8a6a', start: 0, stars: false, forgivesSelfDefense: true,
     cohesion: 0.35, memoryDays: 10, rumorDelay: [30, 70], hub: null, leaders: [],
     // Drifters only run from raiders; they don't hunt them, so the relation stays above the -50 war line.
     relations: { rusthaven: 40, dustwolves: -45, infected: -100 },
-    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5 },
+    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5 },
   },
   infected: {
     name: 'the infected', archetype: 'infected', color: '#7d8a6a', start: -100, memory: 'none',

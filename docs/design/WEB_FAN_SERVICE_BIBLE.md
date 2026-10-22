@@ -82,6 +82,7 @@ Ask three questions of anything you add. Order matters.
 | Hidden timed kill quotas with a loaned weapon | **CULL TICKETS** — quarantine bounty slips on mile markers: 90 s, a loaned flamethrower or plow truck, paid per head | infected |
 | 50 hidden collectibles; a job-streak multiplier | **BENCHMARKS** — 50 brass survey disks per state reveal its true roads; back-to-back jobs build a ×1–×5 pay streak | atlas |
 | Respray clears heat | **PAINT & PLATES** — clears the vehicle half of a witness description, never your face | wanted |
+| Bonus for a big jump | **THE THRILL SHOW** — a dead auto daredevil lot off Route 66: Wreck Row (five wrecks, a landing deck), the Table, the Whoops; named jumps pay and witnesses tell it (SHIPPED, WEB_JUMPS.md) | vehicles |
 
 #### Autoduel / Car Wars
 | Shape | Ours | Extends |

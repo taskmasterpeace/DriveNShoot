@@ -980,6 +980,43 @@ function buildCommands(api) {
       group: 'vehicle', desc: 'Drop whatever your car\'s tail carries (oil slick, caltrops, smoke) behind it. Keyboard: B while driving.',
       run: async () => { const v = P().inVehicle; need(v && v.driver === P(), 'you need to be driving'); const k = g.garage.drop(v); need(k, 'no dropper fitted, or it is empty'); return { dropped: k, left: v.mounts.rear.charges, hazards: g.garage.hazards.length }; },
     },
+    stunts: {
+      group: 'vehicle', desc: 'Jumps (data/stunts.js): the ramps, the named jumps (gap lip to lip, pay, times cleared), your records, who is in the air, and the last landing. run=<jump id> drives the car you are in (or a fresh type= car) at that jump from back= metres out, holding speed= m/s to the lip like a steady foot, then reports the landing: air time, distance, height, closing speed vn, grade (clean | rough | hard | crash), cleared, pay. ramp=<id> does the same at any ramp. Wreck Row lands soft at about 18 m/s (40 mph).',
+      args: { run: { type: 'string' }, ramp: { type: 'string' }, speed: { type: 'number', default: 18 }, type: { type: 'string', default: 'sedan' }, back: { type: 'number', default: 22 } },
+      run: async ({ run, ramp, speed, type, back }) => {
+        const S = g.stunts;
+        if (!run && !ramp) return S.view();
+        const J = run ? S.jumps.find((j) => j.id === run) : null;
+        need(!run || J, `no jump ${run}; known: ${S.jumps.map((j) => j.id).join(', ')}`);
+        const r = S.byId[J ? J.from : ramp];
+        need(r, `no ramp ${ramp}; known: ${S.ramps.map((x) => x.id).join(', ')}`);
+        need(VEHICLES[type] && !VEHICLES[type].boat, `type must be a land vehicle: ${Object.keys(VEHICLES).filter((k) => !VEHICLES[k].boat).join(', ')}`);
+        // Cars this command left parked (on a landing deck, say) would be in the next run's way: clear them first.
+        for (const o of [...g.vehicles]) if (o.stuntCar && o !== P().inVehicle && !o.occ?.some(Boolean)) g.vehiclesSys.remove(o);
+        let v = P().inVehicle;
+        if (!v || v.driver !== P() || v.boat) {
+          if (P().inVehicle) g.exitVehicle(true);
+          v = g.vehiclesSys.spawn(type, r.x, r.z, r.h);
+          v.stuntCar = true;
+          await api.call('enterVehicle', { id: v.id, force: true });
+        }
+        // Line up on the ramp's centre line, `back` metres before its foot, nose along it, already rolling.
+        const d = r.hl + back;
+        Object.assign(v, { x: r.x - r.fx * d, z: r.z - r.fz * d, h: r.h, vx: r.fx * speed, vz: r.fz * speed, av: 0, y: 0, vy: 0, gy: 0, pitch: 0, roll: 0, air: false, fallen: false, wheelie: 0, lean: 0 });
+        const n0 = S.count;
+        let t = 0, flew = false, lip = 0, first = null;
+        while (t < 8) {
+          const fwd = v.vx * r.fx + v.vz * r.fz;
+          g.driveOverride = !flew ? { throttle: Math.max(-1, Math.min(1, (speed - fwd) * 2.5)), steer: 0 } : { throttle: 0, steer: 0 };
+          await api._step(1); t += 1 / 60;
+          if (v.air && !flew) { flew = true; lip = Math.hypot(v.vx, v.vz); }
+          if (flew && !v.air) { first = S.count > n0 ? S.last : null; break; } // the first touchdown is the jump (not a bounce after it)
+          if (v.dead || !P().inVehicle) break;
+        }
+        g.driveOverride = { throttle: -1, steer: 0 }; await api._step(40); g.driveOverride = null;
+        return { jump: J?.id ?? null, ramp: r.id, flew, lipSpeed: r1(lip), result: first, ...vehView(g, v) };
+      },
+    },
     hoodgun: {
       group: 'vehicle', desc: 'Fire the hood gun of the car you are driving: shots=N at x,z or id (it only fires within its arc of the nose). Keyboard: hold LMB aiming ahead.',
       args: { shots: { type: 'number', default: 6 }, x: { type: 'number' }, z: { type: 'number' }, id: { type: 'string' } },
@@ -1913,6 +1950,47 @@ async function runSelfTest(api) {
     g.exitVehicle(true); g.vehiclesSys.remove(v);
     return moved > 8 && astride && !v.fallen ? true : JSON.stringify({ moved: r1(moved), pose: pose && { kind: pose.kind }, fallen: v.fallen });
   });
+  // Jumps (data/stunts.js): staged runs at real speed through real physics; only the start line is placed.
+  const jumpRun = async (args) => {
+    for (const o of [...g.vehicles]) if (o.ai && !o.occ?.includes(g.player) && Math.abs(o.z - 28) < 40 && Math.abs(o.x - 330) < 40) g.vehiclesSys.remove(o); // no traffic on the run-up
+    return C('stunts', { back: 12, ...args });
+  };
+  const jumpDone = () => { if (g.player.inVehicle) g.exitVehicle(true); for (const o of [...g.vehicles]) if (o.stuntCar && !o.occ?.some(Boolean)) g.vehiclesSys.remove(o); };
+  await check('jumps: Wreck Row at 40 mph flies five wrecks, lands clean on the deck, pays and gets talked about', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash, seq0 = g.eventSeq;
+    g.stunts.cleared = {};
+    const r = await jumpRun({ run: 'wreckrow', speed: 18.2 });
+    const res = r.result ?? {}, paid = g.cash - cash0;
+    const talked = g.events.some((e) => e.seq > seq0 && e.type === 'deed' && e.verb === 'stunt');
+    jumpDone(); g.stunts.load(sv); g.cash = cash0;
+    return r.flew && res.cleared && res.landing === 'clean' && res.landedOn === 'wreckrow_down' && res.dist > 22 && paid === 60 && talked ? true
+      : JSON.stringify({ flew: r.flew, lip: r.lipSpeed, res, paid, talked });
+  });
+  await check('jumps: too slow meets the landing deck\'s face (a crash, no clear); too fast flies past the deck (cleared, hard)', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash;
+    const slow = (await jumpRun({ run: 'wreckrow', speed: 16 })).result ?? {}; jumpDone();
+    const fast = (await jumpRun({ run: 'wreckrow', speed: 22 })).result ?? {}; jumpDone();
+    g.stunts.load(sv); g.cash = cash0;
+    const ok = !slow.cleared && slow.landing === 'crash' && fast.cleared && fast.landedOn === null && (fast.landing === 'hard' || fast.landing === 'rough');
+    return ok ? true : JSON.stringify({ slow, fast });
+  });
+  await check('jumps: a dune is a bump at a crawl and air at speed; kickers are solid from the side; people stand on dirt', async () => {
+    await stage();
+    const crawl = await jumpRun({ ramp: 'dune1', speed: 5, back: 8 }); jumpDone();
+    const fast = await jumpRun({ ramp: 'dune1', speed: 25, back: 8 }); jumpDone();
+    // A car driven square into the side of the takeoff kicker, near its lip, stops against it instead of climbing on.
+    const v = g.vehiclesSys.spawn('sedan', 337.5, 18, 0); v.stuntCar = true;
+    await C('enterVehicle', { id: v.id, force: true });
+    v.vz = 10;
+    g.driveOverride = { throttle: 0.6, steer: 0 }; await api._step(90); g.driveOverride = null;
+    const blocked = v.z < 24.2 && v.y < 0.2;
+    jumpDone();
+    const standOn = g.charR.groundAt(349, 58); // the table's flat top
+    const ok = !crawl.flew && fast.flew && (fast.result?.air ?? 0) > 0.4 && blocked && Math.abs(standOn - 1.8) < 0.01 && g.stunts.warnings.length === 0;
+    return ok ? true : JSON.stringify({ crawl: { flew: crawl.flew }, fast: { flew: fast.flew, air: fast.result?.air }, blocked, z: r1(v.z), y: r1(v.y), standOn, warnings: g.stunts.warnings });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1941,6 +2019,7 @@ export function snapshot(g) {
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
+    stunts: g.stunts.save(), // jump records and which named jumps you have cleared
   };
 }
 
@@ -1990,6 +2069,7 @@ export function restore(g, s) {
   if (s.society) g.society.load(s.society);
   if (s.needs) g.survival.load(s.needs);
   if (s.skills) g.skillsSys.load(s.skills); else g.skillsSys.recompute(); // the restored inventory has its own weight
+  if (s.stunts) g.stunts.load(s.stunts);
   g.camLook.x = p.x; g.camLook.z = p.z;
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

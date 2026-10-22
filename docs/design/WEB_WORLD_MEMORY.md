@@ -61,6 +61,7 @@ Hooks call `g.deeds.*` synchronously at the moment of the deed so the witness pa
 | deliver | 2 | a finished job (dialogue effect) |
 | trade | 0.5 | a purchase (dialogue effect) |
 | pay, defend, betray | 2, 3, 5 | dialogue effects |
+| stunt | 1 (1.5 clean) | the first clear of a named jump each game day (WEB_JUMPS.md); Dustwolves value it most |
 
 Only deeds whose actor is the player (or a follower) run a witness pass. NPC-vs-NPC kills go straight to the chronicle
 with `src:'world'` (no rumor, no standing change).

@@ -19,6 +19,7 @@ import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
 import { Skills } from './systems/skills.js';
 import { Garage } from './systems/garage.js';
+import { Stunts } from './systems/stunts.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Zombies } from './systems/zombies.js';
@@ -79,6 +80,8 @@ class Game {
     this.water = new Water(this);
     drawTerrainOnMinimap(this.world.minimap, this.terrain, HALF);
     this.water.drawOnMinimap(this.world.minimap, HALF);
+    // Ramps, dunes and the Thrill Show (data/stunts.js): drivable relief, built before the nav grids see its solids.
+    this.stunts = new Stunts(this);
     // Navigation grids: one for people, one dilated for vehicles (built once, ~10ms each).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
     // Deep water is off-limits to walkers' and drivers' path planning (you can still swim/boat it).
@@ -91,6 +94,7 @@ class Game {
     this.sky = new Sky(this.scene, this.audio);
     this.fx = new FX(this.scene);
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
+    this.charR.groundAt = (x, z) => this.stunts.heightAt(x, z); // people stand on ramps and dunes, not inside them
     this.chars = [];
     this.freeSlots = [];
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
@@ -927,7 +931,8 @@ class Game {
     this.flashlight.position.set(p.x, 0, p.z);
     this.flashlight.rotation.y = p.face;
     this.charR.sync(this.chars, dt);
-    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), p.inVehicle ? this.vehiclesSys.speed(p.inVehicle) : null);
+    const pv = p.inVehicle;
+    this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
     this.qol.update(dt);
     this.feedback.update(dt);
