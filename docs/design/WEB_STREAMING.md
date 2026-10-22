@@ -49,6 +49,11 @@ all its roads total about 5,200 km. That cannot be loaded, drawn or even held in
 stays global). Anything faster than the ceiling in §4 F6, such as aircraft. Downloaded assets (everything is procedural).
 
 ### 1.1 Decisions that stay Robert's call
+**Answered 2026-10-22 (Robert):** ten minutes is **flat out** (2); signs read **miles** (3, this spec's game miles along
+the built road); **exit ramps must feel real** (4: the ramp itself is built near real size and shape - a long
+deceleration lane, a curved ramp at a real grade, a stop at the cross road - while the road between exits is what
+compresses). Still open: which vehicle defines "fastest" (1), the access-road cap (4), and city size (5).
+
 1. **Which vehicle defines "fastest".** This spec uses the LAWMAN (46 m/s), the fastest car-class rig. The MOTORCYCLE row
    is faster: `maxSpeed` 52 m/s, so Miami to Orlando takes it 8.8 minutes. If the bike is the reference, K becomes 5.9
    and the world is 13% bigger.
