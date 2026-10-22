@@ -43,7 +43,9 @@ export const MEMORY_KINDS = {
 export const FACTIONS = {
   rusthaven: {
     name: 'Rust Haven', archetype: 'town', color: '#d9a441', start: 10, stars: true, forgivesSelfDefense: true,
-    cohesion: 0.7, memoryDays: 14, rumorDelay: [20, 45], hub: [0, 0], leaders: ['okonkwo'],
+    cohesion: 0.7, memoryDays: 14, rumorDelay: [20, 45], hub: [0, 0], leaders: ['okonkwo'], home: 'rust_haven',
+    // Who comes after you when Rust Haven decides you're a problem (director: hunters).
+    hunters: { faction: 'warden', name: 'Rust Haven Bull', weapons: { smg: 0.6, shotgun: 0.4 }, hp: 120 },
     relations: { dustwolves: -100, infected: -100, drifters: 40 },
     values: {
       'kill:self': -9, 'hurt:self': -2, 'carjack:self': -4, 'steal:self': -3, 'destroy:self': -3, 'rob:self': -5, 'silence:self': -6, 'betray:self': -8,
@@ -54,6 +56,7 @@ export const FACTIONS = {
   dustwolves: {
     name: 'The Dustwolves', archetype: 'raiders', color: '#b0301e', start: -60, stars: false, forgivesSelfDefense: false,
     cohesion: 0.7, memoryDays: 14, rumorDelay: [20, 45], hub: null, leaders: [],
+    hunters: { faction: 'raider', name: 'Dustwolf Tracker', weapons: { smg: 0.5, shotgun: 0.3, pistol: 0.2 }, hp: 100 },
     relations: { '*': -100 },
     values: { 'kill:self': -8, 'hurt:self': -2, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3 },
   },

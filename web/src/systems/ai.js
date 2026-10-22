@@ -174,7 +174,7 @@ export class AI {
         const t = c.target;
         const tx = t.inVehicle ? t.inVehicle.x : t.x, tz = t.inVehicle ? t.inVehicle.z : t.z;
         const d = Math.hypot(tx - c.x, tz - c.z);
-        if (!t.alive || d > 70 || (!this.hostile(c, t) && c.grudge !== t)) { c.target = null; c.state = 'idle'; continue; }
+        if (!t.alive || d > (c.leash ?? 70) || (!this.hostile(c, t) && c.grudge !== t)) { c.target = null; c.state = 'idle'; continue; } // hunters run a longer leash
         const w = WEAPONS[c.weapon];
         if (c.blind > 0) {
           // Flashbanged: stagger around, can't aim.

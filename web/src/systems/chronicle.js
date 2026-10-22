@@ -51,13 +51,14 @@ export class Chronicle {
   digest(rec) {
     let d = this.digests[this.digests.length - 1];
     if (!d || d.day !== rec.day) {
-      d = { day: rec.day, deeds: 0, kills: {}, verbs: {}, places: {}, worst: null };
+      d = { day: rec.day, deeds: 0, kills: {}, verbs: {}, places: {}, placeKills: {}, worst: null };
       this.digests.push(d);
       if (this.digests.length > this.digestDays) this.digests.shift();
     }
     d.deeds++;
     d.verbs[rec.v] = (d.verbs[rec.v] ?? 0) + 1;
     if (rec.v === 'kill' && rec.of) d.kills[rec.of] = (d.kills[rec.of] ?? 0) + 1;
+    if ((rec.v === 'kill' || rec.v === 'silence') && rec.p && rec.src !== 'rumor') d.placeKills[rec.p] = (d.placeKills[rec.p] ?? 0) + 1;
     if (rec.p) d.places[rec.p] = (d.places[rec.p] ?? 0) + 1;
     if (!d.worst || rec.m > d.worst.m) d.worst = { seq: rec.seq, v: rec.v, on: rec.on, of: rec.of, p: rec.p, m: rec.m, af: rec.af, unwitnessed: !!(rec.k & K.unwitnessed) };
   }

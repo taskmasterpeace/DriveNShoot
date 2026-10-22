@@ -2,6 +2,7 @@ import { Chronicle } from './chronicle.js';
 import { Factions } from './factions.js';
 import { Deeds } from './deeds.js';
 import { Memory } from './memory.js';
+import { Director } from './director.js';
 import { TOWN, districtName } from '../world/city.js';
 
 // The society facade (docs/design/WEB_WORLD_MEMORY.md): owns the chronicle, the factions and the deeds, keeps the
@@ -16,6 +17,7 @@ export class Society {
     this.factions = new Factions(game);
     this.deeds = new Deeds(game, this.chronicle, this.factions);
     this.memory = new Memory(game, this.factions);
+    this.director = new Director(game);
     this.day = 0;
     this.lastHour = null;
     this.hourAcc = 0;
@@ -49,7 +51,7 @@ export class Society {
     return { 'RUST HAVEN': 'rust_haven', 'OLD PHOENIX RUINS': 'old_phoenix' }[districtName(x, z)] ?? 'glass_flats';
   }
 
-  update() {
+  update(dt = 0) {
     const h = this.g.sky.time;
     if (this.lastHour === null) this.lastHour = h;
     let dh = h - this.lastHour;
@@ -60,9 +62,10 @@ export class Society {
       if (this.hourAcc >= 1) { this.factions.tickHours(this.hourAcc); this.hourAcc = 0; }
     }
     this.deeds.update();
+    if (dt > 0) this.director.update(dt);
   }
 
-  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save(), memory: this.memory.save() }; }
+  save() { return { day: this.day, chronicle: this.chronicle.save(), factions: this.factions.save(), rumors: this.deeds.save(), memory: this.memory.save(), director: this.director.save() }; }
 
   load(s) {
     if (!s) return;
@@ -73,6 +76,7 @@ export class Society {
     for (const c of this.g.chars) this.factions.assign(c);
     this.deeds.load(s.rumors);
     this.memory.load(s.memory);
+    this.director.load(s.director);
   }
 
   view() {

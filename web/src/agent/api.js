@@ -6,6 +6,7 @@ import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
 import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
+import { EVENTS } from '../data/events.js';
 import { K } from '../systems/chronicle.js';
 
 // ============================================================================
@@ -911,6 +912,32 @@ function buildCommands(api) {
         return g.society.memory.view(id);
       },
     },
+    director: {
+      group: 'society', desc: 'The event director: running events, cooldowns, what could fire now and why the rest can\'t. action=eval fires the pick now; pause/resume stop or restart it.',
+      args: { action: { type: 'string', default: 'status', enum: ['status', 'eval', 'pause', 'resume'] } },
+      run: async ({ action }) => {
+        const D = g.society.director;
+        if (action === 'pause') D.paused = true;
+        if (action === 'resume') D.paused = false;
+        const fired = action === 'eval' ? D.evaluate() : null;
+        return { ...D.view(), fired: fired ? { event: fired.id, tpl: fired.tpl } : null };
+      },
+    },
+    fireEvent: {
+      group: 'society', desc: `Fire a director event now, skipping pacing: tpl = ${Object.keys(EVENTS).join('|')}. hunters takes faction= (it must have a hunters row); the rest bind themselves. Returns the event and who it spawned.`,
+      args: { tpl: { type: 'string', required: true }, faction: { type: 'string' } },
+      run: async ({ tpl, faction }) => {
+        need(EVENTS[tpl], `unknown event; known: ${Object.keys(EVENTS).join(',')}`);
+        let bind;
+        if (faction) { const F = g.society.factions; need(F.row(faction)?.hunters, `${faction} has no hunters row`); bind = { i: F.index[faction], fid: faction }; }
+        const ev = g.society.director.fire(tpl, bind);
+        return { event: ev.id, tpl, bind: g.society.director.plainBind(ev), spawned: ev.members.map((c) => ({ id: c.id, name: c.name, faction: c.fid, dist: r1(Math.hypot(c.x - P().x, c.z - P().z)) })) };
+      },
+    },
+    cancelEvent: {
+      group: 'society', desc: 'End a running director event: anyone it spawned leaves.', args: { id: { type: 'string', required: true } },
+      run: async ({ id }) => { const r = g.society.director.cancel(id); need(r, `no running event ${id}`); return r; },
+    },
     registerFaction: {
       group: 'content', desc: 'Add or update a faction row (max 16): {name, archetype, color (never purple), start, stars, forgivesSelfDefense, cohesion, memoryDays, rumorDelay:[lo,hi], hub:[x,z], leaders, relations:{id:n,"*":n}, values:{"verb:self":n, "verb:enemy":n, ...}}.',
       args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
@@ -1109,6 +1136,9 @@ async function runSelfTest(api) {
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
   await C('god', { on: true });
+  // The director would drop hunters or a herd into unrelated checks: its own checks fire events by hand.
+  const directorWas = g.society.director.paused;
+  g.society.director.paused = true;
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -1688,6 +1718,33 @@ async function runSelfTest(api) {
     for (const id of ['mateo', 'rosa']) g.society.memory.forget(id);
     return firsthand && heard ? true : JSON.stringify({ firsthand, heard, mateo: (await C('memory', { id: 'mateo' })).memories, rosa: (await C('memory', { id: 'rosa' })).memories, rumors: g.society.deeds.view() });
   }));
+  await check('director: an enraged Rust Haven sends hunters from out of sight, and killing them goes in the chronicle', async () => {
+    await stage();
+    const D = g.society.director;
+    await C('standing', { faction: 'rusthaven', set: -70 });
+    const r = await C('fireEvent', { tpl: 'hunters', faction: 'rusthaven' });
+    const ev = D.active.find((e) => e.id === r.event), hunters = ev?.members ?? [];
+    const mean = () => hunters.reduce((s, c) => s + Math.hypot(c.x - g.player.x, c.z - g.player.z), 0) / Math.max(1, hunters.length);
+    const spawned = hunters.length >= 2 && hunters.every((c) => c.fid === 'rusthaven' && c.target === g.player);
+    const d0 = mean();
+    await C('step', { seconds: 2 });
+    const d1 = mean();
+    for (const c of hunters) if (c.alive) await C('kill', { id: c.id });
+    await C('step', { seconds: 1 });
+    const resolved = !!ev && ev.outcome === 'success' && !D.active.includes(ev);
+    const rec = g.society.chronicle.query({ verb: 'hunters_success', limit: 1 })[0];
+    await C('standing', { faction: 'rusthaven', set: 10 });
+    return spawned && d0 >= 85 && d1 < d0 && resolved && !!rec ? true : JSON.stringify({ spawned, n: hunters.length, d0: r1(d0), d1: r1(d1), outcome: ev?.outcome, rec: !!rec });
+  });
+  await check('director: STATIC 1660 AM reads the chronicle on air', async () => {
+    const vo = g.chars.find((c) => c.npc?.id === 'vo');
+    if (!vo) return 'no Vo to report on';
+    await C('deed', { verb: 'kill', target: vo.id, witness: false });
+    const since = g.eventSeq;
+    await C('fireEvent', { tpl: 'radio_news' });
+    const said = g.events.find((e) => e.seq > since && e.type === 'radio');
+    return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -1697,6 +1754,7 @@ async function runSelfTest(api) {
   });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
+  g.society.director.paused = directorWas;
   await C('god', { on: false });
   const passed = results.filter((r) => r.pass).length;
   return { passed, total: results.length, results };
