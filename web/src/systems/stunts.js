@@ -29,7 +29,7 @@ const SUSPENSION = {
   quad: { k: 230, c: 18, travel: 0.3, bump: 0.22 },
   bike: { k: 175, c: 15, travel: 0.33, bump: 0.24 },
 };
-const springsOf = (v) => SUSPENSION[v.bike ? 'bike' : v.quad ? 'quad' : v.type === 'buggy' ? 'buggy' : v.type === 'rig' ? 'rig' : 'car'];
+const springsOf = (v) => SUSPENSION[v.springs ?? (v.bike ? 'bike' : v.quad ? 'quad' : v.type === 'buggy' ? 'buggy' : v.type === 'rig' ? 'rig' : 'car')]; // a row may name its springs
 
 // Height fraction along a ramp (s: 0 at the foot/back .. 1 at the lip/front) and across it (u: -1..1), and slopes.
 // A kicker's `curve` (0 straight .. 1 all bowl, default 0.65) sets how much the slope steepens toward its lip.

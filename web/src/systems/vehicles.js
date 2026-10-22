@@ -32,6 +32,13 @@ export const VEHICLES = {
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
   bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, tall: 1.25, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
+  // Military (the Federal Remnant's motor pool, data/bases.js). Generic on purpose: no make, no model, no designation.
+  // A seat's `at` puts an exposed rider exactly there in the body frame: the roof-ring gunner stands in the cab with
+  // head and shoulders out of the hatch.
+  patrol:      { name: 'PATROL TRUCK', len: 4.9, wid: 2.3, tall: 2.05, maxSpeed: 37, accel: 17, turn: 2.0, grip: 6.6, mass: 2.4, hp: 330, armor: 0.2, fuelCap: 95,
+                 seats: [...S4, { id: 'gunner', side: 'left', row: 1, exposed: 'stand', at: [0, 0.78, -0.35] }] },
+  apc:         { name: 'ARMORED CARRIER', len: 7.0, wid: 2.85, tall: 2.6, maxSpeed: 26, accel: 10, turn: 1.25, grip: 7.2, mass: 6, hp: 720, armor: 0.06, fuelCap: 220, springs: 'rig',
+                 seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }, { id: 'hatch', side: 'left', row: 3, exposed: 'stand', at: [0, 1.3, 0.05] }] },
 };
 
 // Bodies (geometry, lamp anchors, glass layout) are built in vehiclebodies.js; PART is re-exported for damage.
@@ -43,6 +50,7 @@ const _v = new THREE.Vector3(), _seat = [0, 0, 0];
 // Astride machines put riders one behind the other on the centre line; a pickup's bed stands them side by side; an
 // airboat stands its bow rider up front and its driver at the controls before the raised seat.
 function seatLocal(v, si, seat, out) {
+  if (seat.at) { out[0] = seat.at[0]; out[1] = seat.at[1]; out[2] = seat.at[2]; return out; } // the row says where
   if (v.bike) { out[0] = 0; out[1] = 0.12; out[2] = si === 0 ? -0.15 : -0.65; return out; }
   if (v.quad) { out[0] = 0; out[1] = 0.2; out[2] = si === 0 ? -0.22 : -0.72; return out; }
   if (v.type === 'jetski') { out[0] = 0; out[1] = 0.15; out[2] = si === 0 ? -0.05 : -0.6; return out; }

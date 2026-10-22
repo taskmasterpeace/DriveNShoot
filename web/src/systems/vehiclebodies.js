@@ -29,6 +29,9 @@ const GREENHOUSE = {
   van:         { zA: 2.25, roofF: 1.7, roofR: -2.665, zC: -2.665, yB: 1.32, yR: 2.02, wB: 2.15, wR: 2.0, sideRear: 0.95, hp: 40 },
   rig:         { zA: 2.62, roofF: 2.18, roofR: 1.25, zC: 1.18, yB: 2.0, yR: 2.78, wB: 2.5, wR: 2.3, hp: 80 },
   gunboat:     { zA: 1.42, roofF: 1.1, roofR: -0.45, zC: -0.62, yB: 1.75, yR: 2.25, wB: 2.42, wR: 2.2, hp: 60 },
+  // Military: thick laminated glass. The carrier's "greenhouse" is its driver's cupola: slits of armoured glass.
+  patrol:      { zA: 0.92, roofF: 0.74, roofR: -1.22, zC: -1.32, yB: 1.36, yR: 1.96, wB: 2.14, wR: 2.0, hp: 75 },
+  apc:         { zA: 2.12, roofF: 2.02, roofR: 1.42, zC: 1.32, yB: 2.17, yR: 2.44, wB: 0.96, wR: 0.88, hp: 320 },
 };
 
 function tag(g, color, part) {
@@ -86,6 +89,8 @@ export function buildBody(s, type, paint) {
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
+  else if (base === 'patrol') patrolBody(parts, s, paint);
+  else if (base === 'apc') apcBody(parts, s, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
   lenses(parts, s, type);
   return mergeGeometries(parts);
@@ -340,6 +345,111 @@ function atvBody(parts, s, paint) {
   axle(parts, -za, 0.35, 0.3, hw - 0.15, false);
 }
 
+// ---- military (the Federal Remnant's motor pool) ----------------------------------------------------
+// Generic shapes, no make or model: a high-riding four-door utility truck and an eight-wheeled armoured carrier.
+
+// The patrol truck: flat hood and slab fenders, a four-door armoured cab with a ring mount on the roof, a canvas-topped
+// cargo box behind, a winch bumper and brush guard in front, big off-road tyres, the spare on the tail.
+function patrolBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, G = GREENHOUSE.patrol, yHood = 1.24, yFloor = 0.78, r = 0.5, zf = L / 2 - 0.98, zr = -L / 2 + 1.0;
+  const dark = '#3c3f2e', plate = '#4e523a', canvas = '#7b7456';
+  // Tub, hood (tears off), a raised intake, the grille.
+  parts.push(slab(-hw + 0.06, hw - 0.06, 0.62, yHood - 0.06, -L / 2 + 0.12, L / 2 - 0.06, paint));
+  parts.push(slab(-hw + 0.1, hw - 0.1, yHood - 0.06, yHood, G.zA + 0.02, L / 2 - 0.18, paint, PART.hood));
+  parts.push(slab(-0.4, 0.4, yHood, yHood + 0.06, G.zA + 0.25, L / 2 - 0.45, plate, PART.hood));
+  parts.push(slab(-hw + 0.3, hw - 0.3, 0.72, yHood - 0.1, L / 2 - 0.1, L / 2 - 0.02, GRILLE));
+  for (let k = 0; k < 7; k++) { const x = -hw + 0.38 + k * ((2 * hw - 0.76) / 6); parts.push(slab(x - 0.025, x + 0.025, 0.74, yHood - 0.13, L / 2 - 0.04, L / 2 + 0.005, dark)); }
+  // Slab fenders over the wheels, flat-topped and wide.
+  for (const sd of [1, -1]) for (const z of [zf, zr]) {
+    parts.push(slab(sd * (hw - 0.4), sd * (hw + 0.06), 1.04, 1.12, z - 0.62, z + 0.62, paint));
+    parts.push(slab(sd * (hw - 0.02), sd * (hw + 0.06), 0.82, 1.06, z - 0.62, z - 0.54, paint));
+  }
+  // Winch bumper, brush guard, tow hooks.
+  parts.push(slab(-hw - 0.02, hw + 0.02, 0.5, 0.82, L / 2 - 0.04, L / 2 + 0.24, '#2b2d26', PART.bumperF));
+  parts.push(tag(new THREE.CylinderGeometry(0.13, 0.13, 0.7, 10).rotateZ(Math.PI / 2).translate(0, 0.66, L / 2 + 0.14).toNonIndexed(), '#1c1c1a', PART.bumperF));
+  for (const x of [-0.6, 0.6]) parts.push(beam([x, 0.8, L / 2 + 0.2], [x, 1.32, L / 2 + 0.06], 0.07, '#232320', PART.bumperF));
+  parts.push(beam([-0.6, 1.3, L / 2 + 0.08], [0.6, 1.3, L / 2 + 0.08], 0.07, '#232320', PART.bumperF));
+  for (const x of [-0.8, 0.8]) parts.push(slab(x - 0.06, x + 0.06, 0.55, 0.7, L / 2 + 0.24, L / 2 + 0.34, '#8a2e20', PART.bumperF));
+  // The cab: floor, four armoured doors (a bolted plate on each), mirrors, the interior, the glass frame.
+  const zB = (G.roofF + G.roofR) / 2 - 0.05;
+  parts.push(slab(-hw + 0.1, hw - 0.1, 0.62, yFloor, G.zC, G.zA, CARPET));
+  for (const sd of [1, -1]) {
+    const x0 = sd * (hw - 0.1), x1 = sd * hw;
+    parts.push(slab(x0, x1, 0.62, G.yB, zB, G.zA, paint, sd > 0 ? PART.doorL : PART.doorR));
+    parts.push(slab(x0, x1, 0.62, G.yB, G.zC, zB, paint, sd > 0 ? PART.doorL2 : PART.doorR2));
+    parts.push(slab(x1, sd * (hw + 0.035), 0.75, G.yB - 0.1, zB + 0.08, G.zA - 0.08, plate, sd > 0 ? PART.doorL : PART.doorR));
+    parts.push(slab(x1, sd * (hw + 0.035), 0.75, G.yB - 0.1, G.zC + 0.08, zB - 0.08, plate, sd > 0 ? PART.doorL2 : PART.doorR2));
+    parts.push(slab(sd * (hw + 0.01), sd * (hw + 0.045), G.yB - 0.2, G.yB - 0.15, G.zA - 0.45, G.zA - 0.28, '#1c1c1a', sd > 0 ? PART.doorL : PART.doorR)); // handle
+    mirror(parts, sd, hw, G);
+  }
+  interior(parts, G, hw, yFloor, true);
+  greenhouse(parts, G, paint, paint, zB);
+  // Roof: an armour plate, the ring mount with a gun on its pintle and a shield in front of it.
+  parts.push(slab(-G.wR / 2 + 0.05, G.wR / 2 - 0.05, G.yR + 0.07, G.yR + 0.12, G.roofR + 0.1, G.roofF - 0.1, plate));
+  const rz = -0.35, ry = G.yR + 0.2;
+  parts.push(tag(new THREE.TorusGeometry(0.55, 0.06, 6, 20).rotateX(Math.PI / 2).translate(0, ry, rz).toNonIndexed(), '#2a2b25', PART.frame));
+  parts.push(slab(-0.05, 0.05, ry, ry + 0.42, rz + 0.45, rz + 0.55, '#222220'));
+  parts.push(beam([0, ry + 0.45, rz + 0.3], [0, ry + 0.48, rz + 1.45], 0.07, '#1a1a18'));
+  parts.push(slab(-0.12, 0.12, ry + 0.36, ry + 0.56, rz + 0.25, rz + 0.62, '#1a1a18'));
+  parts.push(slab(-0.42, 0.42, ry + 0.15, ry + 0.75, rz + 0.66, rz + 0.7, plate));
+  // The cargo box: low steel sides, a canvas top on bows.
+  const zb0 = -L / 2 + 0.12, zb1 = G.zC - 0.1;
+  for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.08), sd * hw, 0.62, yHood + 0.05, zb0, zb1, paint));
+  parts.push(slab(-hw + 0.08, hw - 0.08, 0.62, yHood + 0.05, zb0, zb0 + 0.08, paint, PART.bumperR));
+  parts.push(slab(-hw + 0.04, hw - 0.04, yHood + 0.05, 1.82, zb0 + 0.02, zb1, canvas));
+  parts.push(slab(-hw + 0.24, hw - 0.24, 1.82, 1.9, zb0 + 0.02, zb1, canvas));
+  for (let k = 0; k < 3; k++) { const z = zb0 + 0.15 + k * ((zb1 - zb0 - 0.3) / 2); parts.push(slab(-hw + 0.02, hw - 0.02, 1.84, 1.91, z - 0.04, z + 0.04, '#5d5842')); }
+  // The tail: bumper and plate, the spare on a carrier, jerry cans, a whip antenna on the corner.
+  parts.push(slab(-hw - 0.02, hw + 0.02, 0.5, 0.74, -L / 2 - 0.12, -L / 2 + 0.1, '#2b2d26', PART.bumperR));
+  parts.push(slab(-0.22, 0.22, 0.55, 0.68, -L / 2 - 0.14, -L / 2 - 0.12, PLATE, PART.bumperR));
+  parts.push(tag(new THREE.CylinderGeometry(0.44, 0.44, 0.3, 14).rotateX(Math.PI / 2).translate(-0.55, 1.05, -L / 2 - 0.08).toNonIndexed(), TYRE, PART.bumperR));
+  for (const x of [0.45, 0.75]) parts.push(slab(x - 0.12, x + 0.12, 0.8, 1.25, -L / 2 - 0.14, -L / 2 - 0.02, '#4e5438'));
+  parts.push(beam([hw - 0.15, yHood, -L / 2 + 0.25], [hw - 0.25, yHood + 2.1, -L / 2 + 0.45], 0.025, '#111'));
+  axle(parts, zf, r, 0.36, hw - 0.12, true);
+  axle(parts, zr, r, 0.36, hw - 0.12, false);
+}
+
+// The armoured carrier: a boat-shaped hull on eight wheels (four axles), a long sloped glacis, the driver's cupola with
+// its vision slits, a small turret behind it, roof hatches, stowage bins down the sides, a ramp at the back.
+function apcBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, G = GREENHOUSE.apc, r = 0.58, top = G.yB;
+  const dark = '#45432f', bins = '#5e5a40', hatch = '#585540';
+  const axles = [L / 2 - 1.15, L / 2 - 2.55, -L / 2 + 2.45, -L / 2 + 1.05];
+  // Lower hull between the wheels, the upper hull over them, a sloped glacis in front.
+  parts.push(slab(-hw + 0.38, hw - 0.38, 0.45, 1.35, -L / 2 + 0.35, L / 2 - 0.55, paint));
+  parts.push(slab(-hw, hw, 1.25, top, -L / 2 + 0.12, L / 2 - 1.35, paint));
+  const gl = Math.hypot(1.35, top - 0.62), ga = Math.atan2(top - 0.62, 1.35);
+  parts.push(coloredBox(2 * hw - 0.04, 0.14, gl, 0, (top + 0.62) / 2 - 0.06, L / 2 - 0.68, paint, PART.hood, ga));
+  parts.push(slab(-hw + 0.38, hw - 0.38, 0.45, 0.66, L / 2 - 0.6, L / 2 - 0.02, dark, PART.bumperF));
+  for (const sd of [1, -1]) parts.push(coloredBox(0.12, 0.6, gl, sd * (hw - 0.06), (top + 0.62) / 2 - 0.3, L / 2 - 0.68, paint, PART.bumperF, ga)); // the glacis' side cheeks
+  // Sponson lips over the wheels (dark skirts), stowage bins on top of them, vision blocks.
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (hw - 0.04), sd * (hw + 0.04), 1.2, 1.32, -L / 2 + 0.2, L / 2 - 1.4, dark, sd > 0 ? PART.doorL : PART.doorR));
+    for (const z of [-1.8, -0.2, 1.1]) parts.push(slab(sd * (hw - 0.5), sd * (hw - 0.06), top, top + 0.32, z - 0.55, z + 0.55, bins, sd > 0 ? PART.doorL : PART.doorR));
+    for (const z of [-1.2, 0.4]) parts.push(slab(sd * hw, sd * (hw + 0.03), 1.75, 1.92, z - 0.12, z + 0.12, '#1f2526'));
+  }
+  // Rear: the ramp door with its hinge line and a towing pintle.
+  parts.push(slab(-hw + 0.3, hw - 0.3, 0.5, top - 0.05, -L / 2 + 0.05, -L / 2 + 0.16, dark, PART.bumperR));
+  parts.push(slab(-hw + 0.32, hw - 0.32, 0.52, 0.6, -L / 2 + 0.02, -L / 2 + 0.06, '#2a2a26', PART.bumperR));
+  parts.push(slab(-0.15, 0.15, 0.6, 0.78, -L / 2 - 0.12, -L / 2 + 0.05, '#1c1c1a', PART.bumperR));
+  // Roof: the driver's cupola (glass slits from glassLayout, carcombat draws them), two troop hatches, the turret.
+  parts.push(slab(-G.wB / 2, G.wB / 2, top - 0.02, top + 0.02, G.zC, G.zA, dark));
+  greenhouse(parts, G, paint, paint);
+  for (const z of [-1.0, -2.3]) for (const sd of [1, -1]) parts.push(slab(sd * 0.12, sd * 0.88, top, top + 0.06, z - 0.42, z + 0.42, hatch));
+  const tz = 0.25, ty = top;
+  parts.push(tag(new THREE.CylinderGeometry(0.62, 0.72, 0.42, 14).translate(0, ty + 0.21, tz).toNonIndexed(), paint, PART.frame));
+  parts.push(tag(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 12).translate(0, ty + 0.46, tz - 0.12).toNonIndexed(), hatch, PART.frame));
+  parts.push(slab(-0.24, 0.24, ty + 0.12, ty + 0.36, tz + 0.5, tz + 0.82, dark));
+  parts.push(beam([0, ty + 0.25, tz + 0.8], [0, ty + 0.27, tz + 2.65], 0.11, '#1c1c1a'));
+  parts.push(slab(-0.55, -0.32, ty + 0.15, ty + 0.36, tz - 0.1, tz + 0.25, dark)); // smoke dischargers
+  parts.push(slab(0.32, 0.55, ty + 0.15, ty + 0.36, tz - 0.1, tz + 0.25, dark));
+  // Lamp guards on the glacis, a tow cable along the side, an exhaust grille.
+  for (const x of [-0.95, 0.95]) parts.push(slab(x - 0.2, x + 0.2, 1.0, 1.04, L / 2 - 0.42, L / 2 - 0.18, '#222220', PART.bumperF));
+  parts.push(beam([-hw + 0.15, top + 0.05, -L / 2 + 0.6], [-hw + 0.15, top + 0.05, L / 2 - 1.6], 0.06, '#2a2622'));
+  parts.push(slab(0.5, 1.15, top, top + 0.03, -L / 2 + 0.5, -L / 2 + 1.1, '#1c1c1a'));
+  for (let i = 0; i < axles.length; i++) axle(parts, axles[i], r, 0.46, hw - 0.24, i < 2);
+}
+
 // ---- motorcycle, boats ------------------------------------------------------------------------------
 
 function bikeBody(parts, s, paint) {
@@ -398,6 +508,8 @@ export function lampAnchors(s, type) {
   if (base === 'rig') return { head: pair(W / 2 - 0.35, 1.3, L / 2 + 0.02), tail: pair(W / 2 - 0.3, 1.22, -L / 2 + 0.18), ...car };
   if (base === 'buggy') return { head: pair(0.3, 0.72, L / 2 - 0.02), tail: pair(0.32, 1.02, -L / 2 + 0.22), ...car };
   if (base === 'atv') return { head: pair(0.18, 0.68, L / 2 + 0.07), tail: [[0, 0.68, -L / 2 - 0.01]], beamW: 7, beamL: 15, halo: 0.85 };
+  if (base === 'patrol') return { head: pair(W / 2 - 0.32, 1.02, L / 2 + 0.01), tail: pair(W / 2 - 0.22, 0.98, -L / 2 - 0.03), ...car };
+  if (base === 'apc') return { head: pair(0.95, 1.08, L / 2 - 0.36), tail: pair(W / 2 - 0.3, 1.7, -L / 2 + 0.06), ...car };
   const y = base === 'pickup' ? 1.0 : base === 'van' ? 1.02 : 0.92;
   return { head: pair(W / 2 - 0.35, y, L / 2 + 0.02), tail: pair(W / 2 - 0.3, y, -L / 2 - 0.02), ...car };
 }
