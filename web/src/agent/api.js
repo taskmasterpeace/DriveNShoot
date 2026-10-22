@@ -2188,7 +2188,13 @@ async function runSelfTest(api) {
     const S = g.society, sim = S.sim, dw = S.factions.index.dustwolves, sv = sim.save();
     await C('setTime', { hour: 23 }); await C('step', { seconds: 0.3 }); // (the sim catches up the hours the clock jumped)
     sim.strength[dw] = 80; sim.resources[dw] = 60;
-    const ev = S.director.fire('raid');
+    // Pacing isn't what this checks: a raid the director already sent (one can ride in before the battery
+    // starts) leaves its 30-minute cooldown, so clear the raid's cooldowns and put them back after.
+    const D = S.director, cool0 = { ...D.cool };
+    for (const k of ['raid:dustwolves', 'tpl:raid', 'global']) D.cool[k] = 0;
+    let ev;
+    try { ev = D.fire('raid'); } catch (e) { sim.load(sv); D.cool = cool0; await C('setTime', { hour: 12 }); return String(e.message ?? e); }
+    D.cool = cool0;
     const raiders = ev.members, s0 = sim.strength[dw];
     const rode = raiders.length >= 4 && raiders.every((c) => c.faction === 'raider' && c.raidOf === ev.id);
     for (const c of raiders) if (c.alive) await C('kill', { id: c.id });

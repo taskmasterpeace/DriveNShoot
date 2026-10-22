@@ -126,6 +126,9 @@ Record flags `k`: 1 named · 2 leader · 4 night · 8 unwitnessed · 16 reported
   `npcWithMemory`) and spawners mapped onto existing calls (squad → `spawnRaider`/`addChar`, vehicle, convoy, herd,
   npc, weather, broadcast on STATIC 1660 AM, pickup, quest). Shipped templates: `hunters`, `raid_on_favored`,
   `trader_caravan`, `radio_compound`, `dead_draw_dead`, `debt_collector`.
+  Pacing: at most two threats at once, never while you're already under fire, never past the character budget, and
+  **no threat in the first 150 s of play** (`ARRIVAL_GRACE`: the game opens at dusk with "find the sheriff", and a raid
+  could otherwise ride in 20 s into a new game). `fireEvent` skips all of it.
 - **Faction sim:** hourly income/recruiting, daily skirmishes between factions at war, territory flips at camps,
   retaliation. **Leaders change only from an authored `successors` list** — no procedural promotion of a character who
   beat the player, no follower armies (Warner Bros. US 10,926,179, see the bible; counsel reads the claims before ship).
