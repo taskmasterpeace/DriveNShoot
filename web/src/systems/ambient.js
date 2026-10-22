@@ -158,6 +158,7 @@ export class Ambient {
     const gust = g.sky.weather === 'dust' ? 2.2 : 1;
     for (let i = 0; i < WEEDS; i++) {
       const w = this.weeds[i];
+      if (!Number.isFinite(w.x + w.z + w.rx + w.rz)) { w.x = w.z = 9999; w.rx = w.rz = 0; w.v = 0; } // poisoned: respawn below
       const dx = w.x - p.x, dz = w.z - p.z;
       if (dx * dx + dz * dz > 85 * 85) {
         // Respawn upwind, just outside view, in open desert.
@@ -186,6 +187,7 @@ export class Ambient {
     // Circle the freshest dead near the player; otherwise drift high over the desert.
     const dead = g.chars.filter((c) => !c.alive && c.deadTime > 4 && c.deadTime < 240 && Math.abs(c.x - p.x) < 70 && Math.abs(c.z - p.z) < 70);
     this.birds.forEach((b, i) => {
+      if (!Number.isFinite(b.x + b.z + b.y + b.cx + b.cz + b.a)) { b.cx = b.x = p.x; b.cz = b.z = p.z; b.y = 30; b.a = (i / BIRDS) * Math.PI * 2; } // poisoned: re-roost
       const tgt = dead.length ? dead[i % dead.length] : null;
       const cx = tgt ? tgt.x : p.x + Math.sin(i * 2.3 + g.time * 0.01) * 55, cz = tgt ? tgt.z : p.z + Math.cos(i * 1.7) * 55;
       b.cx += (cx - b.cx) * Math.min(1, dt * 0.25); b.cz += (cz - b.cz) * Math.min(1, dt * 0.25);

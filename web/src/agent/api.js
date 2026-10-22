@@ -1285,6 +1285,24 @@ async function runSelfTest(api) {
     for (const id of [...ids, ...w.ids]) await C('remove', { id });
     return cowered && brass && dodged && tracks && brakeLit ? true : JSON.stringify({ cowered, brass, dodged, honk: h, pedX: ped.x, tracks, brakeLit });
   });
+  await check('NaN sentinel: a poisoned position is healed and named by phase; ambient never latches on', async () => {
+    if (g.player.inVehicle) g.exitVehicle(true);
+    const caught = [];
+    g.reportError = (e) => caught.push(String(e?.message ?? e)); // capture: this check poisons on purpose
+    try {
+      const { ids } = await C('spawn', { kind: 'drifter', x: g.player.x + 6, z: g.player.z });
+      const c = api.findChar(ids[0]);
+      await C('step', { seconds: 0.1 });
+      const x0 = c.x, b = g.ambient.birds[0], w = g.ambient.weeds[0];
+      c.x = NaN; c.face = NaN; g.player.face = NaN; b.x = b.cx = NaN; w.x = NaN;
+      await C('step', { seconds: 0.2 });
+      const healed = Math.abs(c.x - x0) < 2 && Number.isFinite(c.face) && Number.isFinite(g.player.face);
+      const named = caught.some((m) => m.includes(`on ${c.id} `) && m.includes("after '"));
+      const amb = Number.isFinite(b.x + b.cx) && Number.isFinite(w.x);
+      await C('remove', { id: c.id });
+      return healed && named && amb ? true : JSON.stringify({ healed, x: c.x, x0, named, amb, caught: caught.slice(0, 2) });
+    } finally { delete g.reportError; }
+  });
   await check('photo mode freezes the sim and frames a free camera', async () => {
     const t0 = g.time;
     const r = await C('photo', { x: 0, z: 0, zoom: 90, tilt: 0.4 });

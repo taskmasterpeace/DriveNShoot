@@ -343,18 +343,29 @@ class Game {
   }
 
   // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
-  // NaN sentinel: a non-finite position poisons everything it touches (camera, AI, physics).
-  // Restore the last good position and report WHO went bad, once per entity.
-  nanGuard() {
+  // NaN sentinel: a non-finite number poisons everything it touches (camera, AI, physics), and it
+  // spreads: a NaN facing becomes a NaN dive, a NaN heading a NaN position, and whatever reads a
+  // poisoned position (vultures, tumbleweeds) latches on for good. frame() runs this after EVERY
+  // system that moves entities, so nothing downstream reads a NaN and the report names the culprit.
+  nanGuard(phase = '') {
     const fix = (o, kind) => {
-      if (Number.isFinite(o.x) && Number.isFinite(o.z)) { o._gx = o.x; o._gz = o.z; return; }
-      const ctx = kind === 'veh' ? `vx=${o.vx} vz=${o.vz} av=${o.av} driver=${o.driver?.id}` : `inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
-      this.reportError(new Error(`NaN position on ${o.id} (${o.type ?? o.faction}) ${ctx}`));
-      o.x = o._gx ?? 0; o.z = o._gz ?? 0;
-      if (kind === 'veh') { o.vx = 0; o.vz = 0; o.av = 0; if (!Number.isFinite(o.h)) o.h = 0; }
+      const veh = kind === 'veh', posOk = Number.isFinite(o.x) && Number.isFinite(o.z);
+      const motionOk = veh ? Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.h ?? 0) + (o.av ?? 0)) : o.face == null || Number.isFinite(o.face);
+      if (posOk && motionOk) { o._gx = o.x; o._gz = o.z; return; }
+      const ctx = veh ? `vx=${o.vx} vz=${o.vz} h=${o.h} av=${o.av} driver=${o.driver?.id}` : `face=${o.face} inVehicle=${o.inVehicle?.id} onTrain=${!!o.onTrain} grabbing=${!!o.grabbing} dive=${o.dive} leap=${o.leapT} swim=${!!o.swim}`;
+      this.reportError(new Error(`NaN ${posOk ? 'motion' : 'position'} on ${o.id} (${o.type ?? o.faction}) after '${phase}' ${ctx}`));
+      if (!posOk) { o.x = o._gx ?? 0; o.z = o._gz ?? 0; }
+      if (veh) {
+        if (!Number.isFinite((o.vx ?? 0) + (o.vz ?? 0) + (o.av ?? 0))) { o.vx = 0; o.vz = 0; o.av = 0; }
+        if (!Number.isFinite(o.h ?? 0)) o.h = 0;
+      } else if (o.face != null && !Number.isFinite(o.face)) o.face = 0;
+      o._gx = o.x; o._gz = o.z;
     };
     for (const c of this.chars) fix(c, 'char');
     for (const v of this.vehicles) fix(v, 'veh');
+    // The aim point steers facing, dives and throws: a NaN there starts the whole chain.
+    const a = this.aim;
+    if (a && !(Number.isFinite(a.x) && Number.isFinite(a.z))) { a.x = this.player.x; a.z = this.player.z + 1; }
   }
 
   reportError(e) {
@@ -841,13 +852,13 @@ class Game {
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     this.updatePlayer(dt);
+    this.nanGuard('player');
     if (simDt) {
-      this.ai.update(simDt);
-      this.vehiclesSys.update(simDt, this.sky.night);
-      this.train.update(simDt);
-      this.convoy.update(simDt);
+      this.ai.update(simDt); this.nanGuard('ai');
+      this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');
+      this.train.update(simDt); this.nanGuard('train');
+      this.convoy.update(simDt); this.nanGuard('convoy');
       this.ambient.update(simDt);
-      this.nanGuard();
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
@@ -855,6 +866,7 @@ class Game {
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
+      this.nanGuard('late');
     }
     this.dialogue.update(dt, I);
     this.fx.update(dt);
