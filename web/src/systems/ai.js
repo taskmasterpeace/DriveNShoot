@@ -73,8 +73,9 @@ export class AI {
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
     // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
     if (this.wades(c, t.x, t.z)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
-    this.g.statics.resolveCircle(t, c.radius);
+    this.g.statics.resolveCircle(t, c.radius, c); // doors swing open for them (never a locked one)
     c.x = t.x; c.z = t.z;
+    if (c.vault) return; // walked into a broken window while hunting: climbing through
     const moved = Math.hypot(c.x - px, c.z - pz);
     c.speed = moved / dt;
     if (moved < speed * dt * 0.3) {
@@ -136,6 +137,8 @@ export class AI {
         continue;
       }
       if (c.dragged) continue;
+      if (c.knockT > 0) { c.knockT -= dt; c.speed = 0; c.aiming = false; continue; } // on the floor after a door to the face
+      if (c.vault) { g.interiors.stepVault(c, dt); continue; }                       // climbing through a window
       if (c.leapT > 0) continue;                               // diving out of a car's way (Ambient moves them)
       if (c.cowerT > 0) { c.speed = 0; c.walk = (c.walk ?? 0) + dt; continue; } // hands up, shaking
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.

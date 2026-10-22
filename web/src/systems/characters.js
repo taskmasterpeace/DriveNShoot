@@ -81,6 +81,11 @@ export class Character {
     this.dragged = null;
     this.flee = 0;
     this.wx = this.x; this.wz = this.z;
+    // Doors and windows (systems/interiors.js), set from birth so a character's shape never changes
+    // mid-fight: on the floor after a door to the face, climbing through a window, boots and claws.
+    this.knockT = 0; this.knockMax = 0; this.knockCool = 0;
+    this.vault = null; this.vaultY = 0;
+    this.kickAt = -9; this._vw = null; this._vwT = -9; this._vwP = 0; this._claw = 0; this._bang = 0;
   }
 }
 
@@ -359,13 +364,19 @@ export class CharacterRenderer {
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
 
     // ---- root frame --------------------------------------------------------------------------
-    let lying = false;
+    let lying = false, knocked = false;
     const gy = sp || !this.groundAt ? 0 : this.groundAt(ch.x, ch.z); // a ramp or a dune under their feet
     if (sp) {
       _e.set(sp.pitch ?? 0, sp.h, sp.lean ?? 0, 'YXZ'); _q.setFromEuler(_e);
       _root.compose(_v.set(sp.x, sp.y, sp.z), _q, _one);
     } else if (alive) {
       _root.makeRotationY(ch.face).setPosition(ch.x, gy, ch.z);
+      if (ch.knockT > 0) {
+        // Knocked down (a door to the face): over backwards fast, flat on the floor, up at the end.
+        const lie = Math.min(1, ((ch.knockMax ?? 1.5) - ch.knockT) / 0.2, ch.knockT / 0.45);
+        if (lie > 0) _root.multiply(_t.makeTranslation(0, 0.16 * lie, 0)).multiply(_r.makeRotationX(-Math.PI / 2 * lie)).multiply(_t.makeTranslation(0, -0.95 * lie, 0));
+        lying = knocked = lie > 0.55;
+      } else if (ch.vaultY) _root.multiply(_t.makeTranslation(0, ch.vaultY, 0)); // over the sill
       if (ch.dive > 0) {
         const k = Math.min(1, ch.dive * 3);
         _root.multiply(_t.makeTranslation(0, -0.55 * k, 0)).multiply(_r.makeRotationX(1.35 * k));
@@ -384,7 +395,8 @@ export class CharacterRenderer {
     // The legs face where the body is going; the torso faces ch.face. Backpedalling walks the
     // cycle in reverse instead of twisting the hips round.
     let legYaw = 0, dirSign = 1;
-    const moving = alive && !sp && !ch.swim && !ch.dive && ch.speed > 0.4;
+    const downed = ch.knockT > 0;
+    const moving = alive && !sp && !ch.swim && !ch.dive && !downed && !ch.vault && ch.speed > 0.4;
     if (moving && ch._rx !== undefined) {
       const dx = ch.x - ch._rx, dz = ch.z - ch._rz;
       if (dx * dx + dz * dz > 1e-6) {
@@ -400,8 +412,8 @@ export class CharacterRenderer {
 
     const v = moving ? ch.speed : 0;
     const k = clamp01(v / 1.2), run = clamp01((v - 3.2) / 3.2);
-    const crouch = alive && !sp && ch.crouch ? 1 : 0;
-    const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected);
+    const crouch = alive && !sp && !downed && (ch.crouch || ch.vault) ? 1 : 0;
+    const aim = alive && !!gm && ch.aiming && !ch.handsUp && !(infected) && !downed && !ch.vault;
     const limp = infected ? (ch.limp ?? (i % 5 < 2 ? (i % 2 ? 1 : -1) : 0)) : 0; // ~40% of the infected drag a leg
     const phase = ch.walk * dirSign;
     const sigma = 0.6 - 0.24 * run;                       // stance share of the cycle
@@ -461,7 +473,7 @@ export class CharacterRenderer {
     M.hips.setMatrixAt(i, _m.multiplyMatrices(_LF, _t.makeTranslation(0, hipY + 0.02, 0)));
 
     // ---- upper body (root frame through _U) -----------------------------------------------------
-    let lean = alive ? 0.05 * k + 0.2 * run + 0.28 * crouch : 0, twist = 0, headTilt = 0;
+    let lean = alive && !knocked ? 0.05 * k + 0.2 * run + 0.28 * crouch : 0, twist = 0, headTilt = 0;
     if (aim) lean = 0.03 + 0.12 * crouch;
     else if (infected && alive) { lean = 0.32 + 0.2 * run; headTilt = 0.22 * Math.sin(ch.walk * 0.5 + i); }
     else if (moving && !gm) twist = -0.1 * Math.sin(phase) * k;
@@ -493,6 +505,7 @@ export class CharacterRenderer {
     // Targets are set in the upper-body frame, then everything is solved in the root frame.
     let mode = 'swing';
     if (!alive) mode = 'dead';
+    else if (knocked) mode = 'knocked';
     else if (bike && !(aim)) mode = 'bars';
     else if (ch.handsUp) mode = 'handsUp';
     else if (infected) mode = 'infected';
@@ -531,6 +544,11 @@ export class CharacterRenderer {
       }
       case 'dead': {
         ikArm(0, 0.6, 1.0, 0.1); ikArm(1, -0.88, 0.32, 0.14);
+        break;
+      }
+      case 'knocked': {
+        // Down but alive: forearms up over the face.
+        ikArm(0, 0.2, 0.86, 0.34); ikArm(1, -0.24, 0.8, 0.3);
         break;
       }
       default: useIK = false;

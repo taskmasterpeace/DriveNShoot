@@ -56,7 +56,7 @@ export class QOL {
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
         <div class="pm-section">CONTROLS</div>
-        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · B drop oil/caltrops · M map · Z zoom · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
+        <div class="pm-keys">WASD move · Mouse aim · LMB shoot · Shift sprint/boost · Ctrl crouch · Space dive/handbrake · R reload · 1-3 weapons · Q hold+release throw · X next throwable · E talk/horn/kick a door/smash glass/climb through (hold E: board up a broken window) · F drive/exit · C ride/swap seat · G hang on/board train · H harpoon · I/Tab pack · V patch up/drink/eat · B drop oil/caltrops · M map · Z zoom · L flashlight · K photo mode · T fast time · Y weather · F5/F9 save/load · Esc pause</div>
       </div></div>`);
     const q = (s) => root.querySelector(s);
     this.el = { obj: q('.objective'), objText: q('.obj-text'), objDist: q('.obj-dist'), map: q('.bigmap'), mapCanvas: q('.bigmap canvas'), menu: q('.pausemenu') };

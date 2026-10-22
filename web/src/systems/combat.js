@@ -1,4 +1,4 @@
-import { rayCircle } from '../engine/collision.js';
+import { rayCircle, RAY_BULLET, RAY_SOLID } from '../engine/collision.js';
 import { muzzleForward } from './characters.js';
 
 // Data-driven weapons. Add a row, get a gun.
@@ -22,6 +22,9 @@ export class Combat {
     const mf = muzzleForward(w), ox = ch.x + fx * mf, oz = ch.z + fz * mf;
     // Muzzle can't poke through a wall we're hugging.
     if (!g.statics.lineOfSight(ch.x, ch.z, ox, oz)) return false;
+    // Pressed against a window or a door, the barrel reaches past the glass, boards or leaf: the round
+    // starts at the hand, so it still meets them.
+    const hug = !g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SOLID);
     g.fx.flash(ox, 1.5, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
     g.fx.light(ox, 1.8, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x));
@@ -30,15 +33,16 @@ export class Combat {
     g.ambient?.onShot(ch.x, ch.z);
     for (let p = 0; p < w.pellets; p++) {
       const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? g.skills?.spreadMul ?? 1 : 1); // dexterity steadies the player's hands
-      this.hitscan(ch, ox, oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
+      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
     }
     return true;
   }
 
   hitscan(shooter, ox, oz, dx, dz, range, dmg) {
     const g = this.g;
-    let best = g.statics.raycast(ox, oz, dx, dz, range);
-    const wallHit = g.statics.hit.box ? { nx: g.statics.hit.nx, nz: g.statics.hit.nz } : null;
+    // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
+    let best = g.statics.raycast(ox, oz, dx, dz, range, RAY_BULLET);
+    const wallHit = g.statics.hit.box ? { nx: g.statics.hit.nx, nz: g.statics.hit.nz, op: g.statics.hit.box.op ?? null } : null;
     let target = null, kind = null;
     for (const c of g.chars) {
       if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
@@ -80,6 +84,8 @@ export class Combat {
     } else if (kind === 'train') {
       g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
       g.train.hitCar(target, dmg, shooter);
+    } else if (wallHit?.op) {
+      g.interiors.onBullet(wallHit.op, hx, hz, dx, dz, dmg, shooter); // cracks glass, splinters boards, shoots locks
     } else if (wallHit) {
       g.fx.sparks(hx, 1.4, hz, wallHit.nx, wallHit.nz, 4);
       if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
@@ -114,7 +120,8 @@ export class Combat {
       // Hit through a window: a little blood out of the window toward the attacker, not out of the roof.
       const ax = attacker ? attacker.x - c.x : -dx, az = attacker ? attacker.z - c.z : -dz, al = Math.hypot(ax, az) || 1;
       g.fx.bloodSpray(c.x + (ax / al) * 1.1, 1.3, c.z + (az / al) * 1.1, ax / al, az / al, 3, 0.5);
-    } else g.fx.bloodSpray(c.x, 1.3, c.z, dx, dz, cause === 'bullet' ? 10 : 18, cause === 'bullet' ? 1 : 1.4);
+    } else if (cause === 'bash' || cause === 'glass') g.fx.bloodSpray(c.x, 1.4, c.z, dx, dz, 5, 0.6); // a bloody nose, glass cuts
+    else g.fx.bloodSpray(c.x, 1.3, c.z, dx, dz, cause === 'bullet' ? 10 : 18, cause === 'bullet' ? 1 : 1.4);
     g.audio.hit();
     if (c === g.player) g.hud.hurt(dmg);
     g.ai.onDamaged(c, attacker);

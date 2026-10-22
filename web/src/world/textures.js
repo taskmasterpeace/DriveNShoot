@@ -171,6 +171,22 @@ export function glassTexture() {
   return tex(c, false);
 }
 
+// Window glass in a building: clearer and paler than a car's tint (you see the room through it),
+// grimy at the bottom, with two sky-sheen streaks so it reads as glass from above and at an angle.
+export function windowGlassTexture() {
+  const [c, g] = canvas(64, 128);
+  const gr = g.createLinearGradient(0, 128, 0, 0);
+  gr.addColorStop(0, '#6f7f7c'); gr.addColorStop(0.35, '#93a9ab'); gr.addColorStop(1, '#bcd0d2');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 128);
+  g.fillStyle = 'rgba(235, 244, 246, 0.45)';
+  g.beginPath(); g.moveTo(6, 128); g.lineTo(22, 128); g.lineTo(52, 0); g.lineTo(36, 0); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(235, 244, 246, 0.25)';
+  g.beginPath(); g.moveTo(30, 128); g.lineTo(36, 128); g.lineTo(64, 10); g.lineTo(64, 0); g.lineTo(58, 0); g.closePath(); g.fill();
+  const rng = makeRng(53);
+  noise(g, 64, 128, rng, 160, ['#5a5a4a', '#7a6a50'], [1, 2], [0.1, 0.3]); // dust and grime
+  return tex(c, false);
+}
+
 // Safety-glass crack web for vehicle panes. A DATA texture, not colour: R = the order each pixel
 // cracks in (0 at the impact point, rising outward, so mounting damage spreads the web), G = the
 // crack lines themselves. Seeded: every pane breaks the same way.

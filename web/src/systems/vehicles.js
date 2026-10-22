@@ -173,6 +173,7 @@ export class Vehicles {
       }
     }
     v.driver = null;
+    g.interiors?.blast(v.x, v.z, 9, attacker); // windows blow in, doors fly, locks give
     if (v.dmg) { for (const z of Object.keys(v.dmg.zones)) v.dmg.zones[z] = Math.min(1, v.dmg.zones[z] + 0.45); v.dmg.dirty = true; v.dmg.deformT = 0; for (const p of ['hood', 'bumperF', 'doorL', 'doorR']) if (Math.random() < 0.6) g.vehDamage.detach(v, p, p === 'hood' || p === 'bumperF' ? 'front' : p === 'doorL' ? 'left' : 'right', 20); g.vehDamage.deform(v); }
     v.vx *= 0.3; v.vz *= 0.3;
     v.av = (Math.random() - 0.5) * 4;
@@ -278,8 +279,9 @@ export class Vehicles {
       t.x = v.x + fx * off; t.z = v.z + fz * off;
       const ox = t.x, oz = t.z;
       // Each disc rides as high as that end of the body: the nose of a car climbing a ramp, or the whole car in
-      // the air, passes over whatever is lower than it (a wreck, a ramp's own lip).
-      if (g.statics.resolveCircle(t, r, vy0 + sinP * off, own) > 0) {
+      // the air, passes over whatever is lower than it (a wreck, a ramp's own lip). A car flings doors open and
+      // smashes window glass.
+      if (g.statics.resolveCircle(t, r, v, vy0 + sinP * off, own) > 0) {
         const dx = t.x - ox, dz = t.z - oz;
         v.x += dx; v.z += dz;
         const d = Math.hypot(dx, dz) || 1;

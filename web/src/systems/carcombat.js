@@ -21,9 +21,11 @@ const _m = new THREE.Matrix4(), _o = new THREE.Matrix4(), ONE = new THREE.Vector
 // (0 intact .. 1 about to give) reveals the crack web from the impact point outward, and 2 means shot
 // out: only the crazed shards still caught in the frame are drawn (crack texture B), so a broken
 // pane reads as broken from above instead of as a pane that was never there.
-function glassMaterial() {
-  const mat = new THREE.MeshStandardMaterial({ map: glassTexture(), roughness: 0.08, metalness: 0.3, transparent: true, opacity: 0.86, depthWrite: false, side: THREE.DoubleSide });
-  const crackMap = crackTexture();
+// Building windows (systems/interiors.js) use the same shader with clearer glass: pass map/opacity.
+let crackMapShared = null; // the crack web is a seeded data texture: paint it once for every glass material
+export function glassMaterial({ map = glassTexture(), opacity = 0.86 } = {}) {
+  const mat = new THREE.MeshStandardMaterial({ map, roughness: 0.08, metalness: 0.3, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+  const crackMap = (crackMapShared ??= crackTexture());
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.crackMap = { value: crackMap };
     sh.vertexShader = sh.vertexShader
