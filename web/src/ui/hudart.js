@@ -216,9 +216,9 @@ export function paintPaper(w, h, seed = 11) {
   g.beginPath(); g.rect(0, 0, w, h); g.moveTo(fx0 - 6, 0); g.lineTo(w, w - fx0); g.lineTo(w, 0); g.closePath();
   g.clip('evenodd');
   const base = g.createRadialGradient(w * 0.45, h * 0.42, 10, w / 2, h / 2, w * 0.75);
-  base.addColorStop(0, '#f0e0b4'); base.addColorStop(0.55, '#e2cb98'); base.addColorStop(1, '#b8975c');
+  base.addColorStop(0, '#f4e9cc'); base.addColorStop(0.55, '#e8d7ae'); base.addColorStop(1, '#c6a874');
   g.fillStyle = base; g.fillRect(0, 0, w, h);
-  grain(g, w, h, 0.28, 0.5, 0.5, 'multiply');
+  grain(g, w, h, 0.2, 0.5, 0.5, 'multiply');
   grain(g, w, h, 0.18, 3, 0.4, 'soft-light');
   // water stains, rings, foxing
   for (let i = 0; i < 9; i++) soft(g, rng() * w, rng() * h, rng.range(14, 50), '120,84,40', rng.range(0.05, 0.14));
@@ -234,7 +234,7 @@ export function paintPaper(w, h, seed = 11) {
   g.beginPath(); g.moveTo(0, h * 0.63); g.quadraticCurveTo(w * 0.5, h * 0.6, w, h * 0.66); g.stroke();
   g.strokeStyle = 'rgba(90,64,30,0.22)';
   g.beginPath(); g.moveTo(0, h * 0.63 + 1.2); g.quadraticCurveTo(w * 0.5, h * 0.6 + 1.2, w, h * 0.66 + 1.2); g.stroke();
-  edgeGrime(g, paper, w, h, 0.55);
+  edgeGrime(g, paper, w, h, 0.48);
   g.restore();
   g.save(); g.strokeStyle = 'rgba(70,48,22,0.55)'; g.lineWidth = 0.8; g.stroke(paper); g.restore();
   // the folded flap: shadow, then the paler back of the sheet
@@ -282,7 +282,7 @@ export function paintRibbon(w, h) {
   const path = new Path2D(); path.roundRect(0.5, 0.5, w - 1, h - 1, 4);
   g.save(); g.clip(path);
   const base = g.createLinearGradient(0, 0, 0, h);
-  base.addColorStop(0, '#d9c287'); base.addColorStop(0.18, '#c2a462'); base.addColorStop(0.6, '#a2833f'); base.addColorStop(1, '#6d5424');
+  base.addColorStop(0, '#d2bc84'); base.addColorStop(0.18, '#bb9f62'); base.addColorStop(0.6, '#9a7f43'); base.addColorStop(1, '#634d24');
   g.fillStyle = base; g.fillRect(0, 0, w, h);
   grain(g, w, h, 0.4, 7, 0.3);
   grain(g, w, h, 0.2, 0.5, 0.5, 'multiply');
@@ -402,7 +402,7 @@ export function paintBezel(S = 232, glassR = 84, font = 'Barlow Condensed') {
   const R = cx - 6;
   g.fillStyle = 'rgba(0,0,0,0.55)'; g.beginPath(); g.arc(cx + 1.5, cy + 3, R + 2, 0, TAU); g.fill();
   const ring = g.createLinearGradient(0, 0, S, S);
-  ring.addColorStop(0, '#77736a'); ring.addColorStop(0.5, '#47443f'); ring.addColorStop(1, '#1f1d1a');
+  ring.addColorStop(0, '#928c80'); ring.addColorStop(0.45, '#5c5850'); ring.addColorStop(1, '#25231f');
   g.fillStyle = ring; g.beginPath(); g.arc(cx, cy, R, 0, TAU); g.fill();
   // knurled grip
   g.lineWidth = 1.4;
@@ -471,17 +471,29 @@ export function paintRadarMesh(S = 200) {
   }
   g.fillStyle = 'rgba(0,0,0,0.12)';
   for (let y = 0; y < S; y += 3) g.fillRect(0, y, S, 1);
+  const glow = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S * 0.55);
+  glow.addColorStop(0, 'rgba(190,230,120,0.10)'); glow.addColorStop(0.6, 'rgba(190,230,120,0.03)'); glow.addColorStop(1, 'rgba(0,0,0,0.25)');
+  g.fillStyle = glow; g.fillRect(0, 0, S, S);
   return c;
 }
-// One-off olive "radar glass" grade of the world minimap (it's static after boot).
+// One-off GPS grade of the world minimap (static after boot): a dark olive screen where the roads (the darkest
+// thing on the source map) light up as pale lines, ground sinks, blocks glow faintly, and anything with real colour
+// (the town wall, water) keeps a muted version of it. One pass over the pixels, done once.
 export function tintMap(src) {
   const c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(src, 0, 0);
-  g.globalCompositeOperation = 'saturation'; g.fillStyle = '#808080'; g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'multiply'; g.fillStyle = '#8fae5a'; g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'screen'; g.fillStyle = '#16200c'; g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'source-over';
+  const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], gg = d[i + 1], b = d[i + 2];
+    const l = (r * 0.3 + gg * 0.59 + b * 0.11) / 255, sat = (Math.max(r, gg, b) - Math.min(r, gg, b)) / 255;
+    let R, G, B;
+    if (l < 0.11) { R = 112; G = 140; B = 72; }                                   // road: pale olive line
+    else { const k = Math.min(1, (l - 0.11) / 0.45); R = 22 + 70 * k; G = 32 + 88 * k; B = 14 + 34 * k; } // ground → blocks
+    const keep = Math.max(0, sat - 0.25) * 1.2;                                   // saturated features keep some hue
+    d[i] = R + (r - R) * keep; d[i + 1] = G + (gg - G) * keep; d[i + 2] = B + (b - B) * keep;
+  }
+  g.putImageData(img, 0, 0);
   return c;
 }
 
@@ -607,7 +619,7 @@ export function paintClothFlag(code, w = 132, h = 84, el) {
 }
 
 // ---- sprites: cartridges (full + spent) and throwables -------------------------------------------------------
-export const CART = { w: 13, h: 44 };
+export const CART = { w: 14, h: 48 };
 const CART_KINDS = ['smg', 'pistol', 'shell'];
 function cartridge(g, x0, kind, spent) {
   const { w, h } = CART, cx = x0 + w / 2;
@@ -627,12 +639,12 @@ function cartridge(g, x0, kind, spent) {
     cyl(x - 1, h - 3, bw + 2, 2.5, brass);
   } else {
     const short = kind === 'pistol';
-    const caseTop = short ? 17 : 19, bw = short ? w - 2 : w - 3, x = x0 + (w - bw) / 2;
+    const caseTop = Math.round(h * (short ? 0.39 : 0.43)), bw = short ? w - 2 : w - 3, x = x0 + (w - bw) / 2;
     cyl(x, caseTop, bw, h - caseTop - 3, brass);
     cyl(x - 0.6, h - 3.5, bw + 1.2, 3, brass);                       // rim
     g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(x, h - 5.2, bw, 0.9); // extractor groove
     // the bullet: an ogive on a short shank
-    const top = short ? 6 : 4, bwB = bw - 1.4, xb = cx - bwB / 2;
+    const top = Math.round(h * (short ? 0.13 : 0.09)), bwB = bw - 1.4, xb = cx - bwB / 2;
     g.save();
     g.beginPath(); g.moveTo(xb, caseTop + 1); g.lineTo(xb, top + bwB * 0.9); g.quadraticCurveTo(xb, top, cx, top); g.quadraticCurveTo(xb + bwB, top, xb + bwB, top + bwB * 0.9); g.lineTo(xb + bwB, caseTop + 1); g.closePath();
     g.clip();

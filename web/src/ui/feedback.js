@@ -45,7 +45,7 @@ export class Feedback {
     this.flagUrl = {};
     this.heartT = 0;
     // compass markers: a fixed pool of rows, filled in place every frame (no per-frame allocation)
-    this.markPool = Array.from({ length: MARKS }, () => ({ b: 0, label: '', cls: '', d: 0 }));
+    this.markPool = Array.from({ length: MARKS }, () => ({ b: 0, label: '', cls: '', d: 0, out: false, side: 1, x: 0 }));
     this.markN = 0;
     this.lastTags = [];
   }
@@ -215,19 +215,28 @@ export class Feedback {
     // Tick marks are two repeating gradients slid under the window: one style write while you turn.
     const off = Math.round((CW / 2 - head * PXD) * 10) / 10;
     if (off !== this.cOff) { this.cOff = off; this.el.ticks.style.backgroundPositionX = `${off}px, ${off}px`; }
+    // Markers first: on the ribbon at their bearing, or pinned to the edge and queued inward so they never overlap.
+    let stackL = 0, stackR = 0;
+    for (let i = 0; i < this.markN; i++) {
+      const m = this.markPool[i], r0 = rel(m.b, head);
+      m.out = Math.abs(r0) > EDGE; m.side = r0 < 0 ? -1 : 1;
+      const n = m.out ? (m.side < 0 ? stackL++ : stackR++) : 0;
+      m.x = Math.round(CW / 2 + Math.max(-EDGE, Math.min(EDGE, r0)) * PXD - m.side * n * 50);
+    }
+    // A bearing letter steps aside for a named marker sitting on it (TRAIN due west hides the W); the waypoint's
+    // needle runs behind the letters instead.
     for (let i = 0; i < BEARINGS.length; i++) {
-      const L = this.cLabels[i], r = rel(BEARINGS[i][1], head), vis = Math.abs(r) < 86;
+      const L = this.cLabels[i], r = rel(BEARINGS[i][1], head), x = Math.round(CW / 2 + r * PXD);
+      let vis = Math.abs(r) < 86;
+      for (let k = 0; vis && k < this.markN; k++) { const m = this.markPool[k]; if (m.cls !== 'wp' && Math.abs(m.x - x) < 34) vis = false; }
       if (vis !== L.vis) { L.vis = vis; L.el.style.display = vis ? '' : 'none'; }
-      const x = Math.round(CW / 2 + r * PXD);
       if (vis && x !== L.x) { L.x = x; L.el.style.transform = `translateX(${x}px)`; }
     }
-    // Markers: on the ribbon with their distance, or pinned to the edge with an arrow, stacked so they never overlap.
-    let stackL = 0, stackR = 0;
     for (let i = 0; i < MARKS; i++) {
       const M = this.cMarkEls[i], m = i < this.markN ? this.markPool[i] : null;
       if (!m) { if (M.vis) { M.vis = false; M.el.style.display = 'none'; } continue; }
       if (!M.vis) { M.vis = true; M.el.style.display = ''; }
-      const r0 = rel(m.b, head), out = Math.abs(r0) > EDGE, side = r0 < 0 ? -1 : 1;
+      const out = m.out, side = m.side;
       const key = out ? (side < 0 ? 'L' : 'R') + m.cls : m.cls;
       if (key !== M.key) {
         M.key = key;
@@ -237,10 +246,7 @@ export class Feedback {
         M.b.textContent = m.cls === 'wp' ? (out ? arrow : '') : out ? (side < 0 ? `‹ ${m.label}` : `${m.label} ›`) : m.label;
       }
       if (!out && m.d !== M.d) { M.d = m.d; M.small.textContent = `${m.d}M`; }
-      // pinned markers on the same edge queue inward along the ribbon instead of piling up
-      const n = out ? (side < 0 ? stackL++ : stackR++) : 0;
-      const x = Math.round(CW / 2 + Math.max(-EDGE, Math.min(EDGE, r0)) * PXD - side * n * 50);
-      if (x !== M.x) { M.x = x; M.el.style.transform = `translateX(${x}px)`; }
+      if (m.x !== M.x) { M.x = m.x; M.el.style.transform = `translateX(${m.x}px)`; }
     }
     const r = Math.round(head);
     if (r !== this.lastHead) { this.el.read.textContent = String(r).padStart(3, '0'); this.lastHead = r; }

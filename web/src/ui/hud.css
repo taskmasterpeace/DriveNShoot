@@ -41,7 +41,7 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .objective .obj-pin { position: absolute; left: 50%; top: -12px; width: 72px; height: 86px; margin-left: -40px; }
 .obj-label { position: relative; font: 400 22px var(--type); letter-spacing: 0.1em; color: oklch(0.48 0.17 27); padding-bottom: 6px; }
 .obj-label::after { content: ''; position: absolute; left: -4%; right: -2%; bottom: 0; height: 2px; background: oklch(0.5 0.17 27 / 0.85); transform: rotate(-0.8deg); box-shadow: 0 1px 0 oklch(0.4 0.1 27 / 0.3); }
-.obj-text { position: relative; margin-top: 18px; font: 400 36px var(--type); line-height: 1.04; color: oklch(0.2 0.012 60); text-transform: uppercase; -webkit-text-stroke: 0.5px oklch(0.2 0.012 60); overflow-wrap: anywhere; }
+.obj-text { position: relative; margin-top: 16px; font: 400 36px var(--type); line-height: 1.04; color: oklch(0.19 0.012 60); text-transform: uppercase; -webkit-text-stroke: 0.9px oklch(0.19 0.012 60); overflow-wrap: anywhere; }
 .obj-dist { position: relative; margin-top: 10px; font: 400 21px var(--type); color: oklch(0.42 0.012 60); text-transform: uppercase; letter-spacing: 0.01em; }
 
 /* ---- toasts: typed paper slips under the orders ---- */
@@ -65,8 +65,8 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .wx-rule { position: absolute; left: 24px; right: 24px; top: 114px; height: 2px; border-top: 1px solid rgba(0,0,0,0.75); border-bottom: 1px solid rgba(255,245,225,0.14); }
 .wanted-row { position: absolute; left: 26px; right: 24px; top: 121px; height: 34px; display: flex; align-items: center; justify-content: space-between; }
 .wanted-label { font: 700 27px var(--display); letter-spacing: 0.02em; color: var(--sand); text-shadow: 1px 2px 0 rgba(0,0,0,0.75); }
-.wanted { display: flex; gap: 2px; filter: drop-shadow(0 1px 0 rgba(255,245,225,0.2)) drop-shadow(0 -1px 0 rgba(0,0,0,0.7)); }
-.wanted i { width: 25px; height: 25px; clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); background: linear-gradient(oklch(0.24 0.008 70), oklch(0.34 0.008 70)); }
+.wanted { display: flex; gap: 2px; filter: drop-shadow(0 1px 0 rgba(255,245,225,0.32)) drop-shadow(0 -1px 0 rgba(0,0,0,0.8)); }
+.wanted i { width: 25px; height: 25px; clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); background: linear-gradient(oklch(0.19 0.006 70), oklch(0.27 0.006 70)); }
 .wanted i.on { background: linear-gradient(oklch(0.93 0.12 92), oklch(0.78 0.16 78) 45%, oklch(0.6 0.14 65)); }
 
 /* ---- respect chips (GTA2-style faction standing), stamped tabs under the wanted plate ---- */
@@ -142,18 +142,19 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 /* ---- bottom right: weapon plate ---- */
 .weapon-panel { position: relative; width: 307px; height: 252px; }
 .w-name { position: absolute; top: 15px; right: 38px; left: 40px; text-align: right; font: 700 27px var(--display); letter-spacing: 0.02em; color: var(--sand); text-shadow: 1px 2px 0 rgba(0,0,0,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.w-ammo { position: absolute; top: 39px; right: 34px; display: flex; align-items: baseline; gap: 8px; }
-.w-mag { font: 900 88px var(--stencil); line-height: 0.9; color: oklch(0.92 0.025 82); text-shadow: 2px 3px 0 rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.6); }
+.w-ammo { position: absolute; top: 45px; right: 34px; display: flex; align-items: baseline; gap: 8px; }
+.w-mag { font: 900 84px var(--stencil); line-height: 0.88; color: oklch(0.92 0.025 82); text-shadow: 2px 3px 0 rgba(0,0,0,0.6), 0 0 1px rgba(0,0,0,0.6); }
 .w-res { font: 600 36px var(--display); color: oklch(0.88 0.03 80); text-shadow: 1px 2px 0 rgba(0,0,0,0.8); }
 .w-mag.low { color: oklch(0.65 0.22 27); animation: fb-low 0.5s steps(2) infinite; }
 @keyframes fb-low { 50% { opacity: 0.35; } }
-.w-carts { position: absolute; left: 16px; right: 16px; top: 124px; height: 46px; display: flex; justify-content: center; gap: 4px; filter: drop-shadow(1px 2px 1px rgba(0,0,0,0.7)); }
-.w-carts i { flex: none; width: 13px; height: 44px; background-image: var(--carts); background-size: 78px 44px; }
-.w-carts .c-smg { background-position: 0 0; } .w-carts .c-smg.spent { background-position: -13px 0; }
-.w-carts .c-pistol { background-position: -26px 0; } .w-carts .c-pistol.spent { background-position: -39px 0; }
-.w-carts .c-shell { background-position: -52px 0; } .w-carts .c-shell.spent { background-position: -65px 0; }
+.w-carts { position: absolute; left: 12px; right: 12px; top: 126px; height: 50px; display: flex; justify-content: center; gap: 3px; filter: drop-shadow(1px 2px 1px rgba(0,0,0,0.7)); }
+.w-carts i { flex: none; width: 14px; height: 48px; background-image: var(--carts); background-size: 84px 48px; }
+.w-carts .c-smg { background-position: 0 0; } .w-carts .c-smg.spent { background-position: -14px 0; }
+.w-carts .c-pistol { background-position: -28px 0; } .w-carts .c-pistol.spent { background-position: -42px 0; }
+.w-carts .c-shell { background-position: -56px 0; } .w-carts .c-shell.spent { background-position: -70px 0; }
+.w-carts .c-pistol, .w-carts .c-shell { margin: 0 2px; }
 .w-carts i.spent { opacity: 0.85; }
-.w-rule { position: absolute; top: 177px; left: 27%; right: 27%; height: 2px; background: linear-gradient(90deg, transparent, oklch(0.74 0.11 80), transparent); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
+.w-rule { position: absolute; top: 180px; left: 27%; right: 27%; height: 2px; background: linear-gradient(90deg, transparent, oklch(0.74 0.11 80), transparent); box-shadow: 0 1px 0 rgba(0,0,0,0.6); }
 .w-slots { position: absolute; left: 30px; bottom: 13px; height: 70px; display: flex; align-items: flex-end; }
 .dogtag { position: relative; width: 40px; height: 68px; margin-right: 13px; transform: rotate(var(--r)); border-radius: 11px 11px 12px 12px / 13px 13px 15px 15px; background: linear-gradient(130deg, oklch(0.88 0.008 100), oklch(0.62 0.008 100) 42%, oklch(0.8 0.008 100) 58%, oklch(0.5 0.008 100)); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.28), inset 0 0 0 3.5px rgba(0,0,0,0.28), 2px 4px 3px rgba(0,0,0,0.65); }
 .dogtag::before { content: ''; position: absolute; left: 50%; top: 5px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: oklch(0.2 0.01 60); box-shadow: inset 0 1px 1px #000, 0 1px 0 rgba(255,255,255,0.4); }
@@ -289,13 +290,13 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 /* 3 px a degree: a fine tick every 5°, a heavier one at 15° and 30° of every 45° (the labels sit on the 45s).
    Tiles are 540 px (a multiple of both periods) so the repeat never shows a seam. */
 .fb-cticks { position: absolute; inset: 0; background-image: repeating-linear-gradient(90deg, oklch(0.25 0.03 70 / 0.8) 0 0.75px, transparent 0.75px 14.25px, oklch(0.25 0.03 70 / 0.8) 14.25px 15px), repeating-linear-gradient(90deg, transparent 0 44px, oklch(0.22 0.03 70 / 0.85) 44px 46px, transparent 46px 89px, oklch(0.22 0.03 70 / 0.85) 89px 91px, transparent 91px 135px); background-size: 540px 8px, 540px 12px; background-position: 0 4px, 0 15px; background-repeat: repeat-x; }
-.fb-cb { position: absolute; z-index: 2; left: 0; top: 14px; width: 40px; margin-left: -20px; text-align: center; font: 700 14px var(--display); letter-spacing: 0.04em; color: oklch(0.24 0.03 70); text-shadow: 0 1px 0 oklch(0.88 0.08 85 / 0.55); }
-.fb-cb.major { top: 9px; font-size: 25px; font-weight: 800; color: oklch(0.2 0.03 65); }
+.fb-cb { position: absolute; z-index: 2; left: 0; top: 12px; width: 40px; margin-left: -20px; text-align: center; font: 700 17px var(--display); letter-spacing: 0.04em; color: oklch(0.24 0.03 70); text-shadow: 0 1px 0 oklch(0.88 0.08 85 / 0.55); }
+.fb-cb.major { top: 6px; font-size: 29px; font-weight: 800; color: oklch(0.2 0.03 65); }
 .fb-cm { position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: 70px; margin-left: -35px; text-align: center; font: 800 12px var(--display); letter-spacing: 0.06em; line-height: 1; color: oklch(0.2 0.03 65); text-shadow: 0 1px 0 oklch(0.88 0.08 85 / 0.5); }
 .fb-cm b { position: absolute; left: 0; right: 0; top: 10px; font-weight: 800; }
 .fb-cm small { position: absolute; left: 0; right: 0; top: 22px; font-size: 10px; font-weight: 700; color: oklch(0.28 0.03 65); }
 /* the waypoint: a blood-red needle through the ribbon with a diamond at its foot, the range beside it */
-.fb-cm.wp { z-index: 3; }
+.fb-cm.wp { z-index: 1; }
 .fb-cm.wp::before { content: ''; position: absolute; left: 50%; top: 1px; bottom: 8px; width: 2px; margin-left: -1px; background: oklch(0.5 0.2 27 / 0.9); }
 .fb-cm.wp::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 8px; height: 8px; margin-left: -4px; background: oklch(0.55 0.2 27); transform: rotate(45deg); box-shadow: 0 0 0 1px oklch(0.25 0.1 27 / 0.7), 0 0 4px oklch(0.6 0.2 30 / 0.5); }
 .fb-cm.wp small { top: 2px; left: 50%; right: auto; margin-left: 4px; text-align: left; font-size: 10px; color: oklch(0.4 0.16 27); }
