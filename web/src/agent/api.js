@@ -1389,7 +1389,7 @@ async function runSelfTest(api) {
     const f = await C('throw', { type: 'frag', x: X + 12, z: Z, cook: 1.7 });
     const fragOk = a.ids.every((id) => !api.findChar(id)?.alive);
     const b = await C('spawn', { kind: 'drifter', x: X + 6, z: Z + 8 });
-    pin(b.ids[0], X + 6, Z + 8);
+    pin(b.ids[0], X + 6, Z + 8).hold = true; // stands still: a wandering target walked out of the 3.4 m fire (a flaky check)
     const m = await C('throw', { type: 'molotov', id: b.ids[0] });
     const burned = m.effects.some((e) => e.type === 'ignited') || (api.findChar(b.ids[0])?.burning ?? 0) > 0 || !api.findChar(b.ids[0])?.alive;
     await C('throw', { type: 'smoke', x: X, z: Z + 16 });
@@ -1999,12 +1999,14 @@ async function runSelfTest(api) {
     const shells = g.inv.ammo.shells;
     g.inv.ammo.shells += 700; S.recompute(); // ~31 kg of shells: over a starting back's 24 kg
     const over = g.skills.overloaded && g.skills.speedMul < 1;
-    const x0 = g.player.x;
+    const x0 = g.player.x, t0 = g.time;
     g.autopilot = null; g.aimOverride = null;
     await C('moveTo', { x: g.player.x + 30, z: g.player.z, maxSeconds: 1 }).catch(() => null);
-    const moved = Math.abs(g.player.x - x0);
+    // Speed over the game time that actually passed: real-time frames can run during the step loop's
+    // yields, so "1 s" of moveTo sometimes walks a little more than 1 s (it read 4.5 m against 4.4).
+    const moved = Math.abs(g.player.x - x0), pace = moved / Math.max(0.5, g.time - t0);
     g.inv.ammo.shells = shells; S.recompute();
-    return learned && steadier && over && moved < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved) });
+    return learned && steadier && over && pace < 4.4 ? true : JSON.stringify({ learned, steadier, over, load: +g.skills.load.toFixed(2), moved: r1(moved), pace: r1(pace) });
   });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
