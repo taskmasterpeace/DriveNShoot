@@ -1205,6 +1205,7 @@ async function runSelfTest(api) {
     await C('train', { action: 'leave' });
     const off = !g.player.onTrain && Math.abs(g.player.x + 360) > 2;
     const { ids } = await C('spawn', { kind: 'raider', x: -360, z: T.head + 6 });
+    const rr = api.findChar(ids[0]); rr.x = -360; rr.z = T.head + 6; // on the rails: spawn jitters ±2 m and the train only hits within 1.9 m
     T.speed = 17; T.state = 'running2';
     await C('step', { seconds: 0.6 });
     const splat = !api.findChar(ids[0])?.alive;
