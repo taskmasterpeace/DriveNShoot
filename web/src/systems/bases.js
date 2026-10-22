@@ -575,6 +575,11 @@ export class Bases {
     s.beamMesh.renderOrder = 3; s.beamMesh.frustumCulled = false; s.beamMesh.visible = false;
     s.beamMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     scene.add(s.beamMesh);
+    // Both move every frame, so neither computes its bounds from its instances: one fixed sphere round the compound
+    // (the fence's half-diagonal plus the farthest a beam reaches out of a corner tower when it tracks you) lets the
+    // camera cull them, so a base out of view costs no draw call at night.
+    const f = s.fence, sphere = new THREE.Sphere(new THREE.Vector3((f.x0 + f.x1) / 2, 3, (f.z0 + f.z1) / 2), Math.hypot(f.x1 - f.x0, f.z1 - f.z0) / 2 + BASE_RULES.beamReach[1] + 16);
+    for (const m of [s.poolMesh, s.beamMesh]) { m.boundingSphere = sphere; m.frustumCulled = true; }
   }
 
   writePool(s, i, x, z, rx, rz, h) {
