@@ -38,7 +38,7 @@ export class Deeds {
     const room = actor === P ? g.insideBuilding : null;
     this.scratch.length = 0; this.sawOnly = 0;
     for (const c of g.chars) {
-      if (!c.alive || c === actor || c === P || c.faction === 'ally' || (c.inVehicle && !c.seatPose)) continue;
+      if (!c.alive || c.sleeping || c === actor || c === P || c.faction === 'ally' || (c.inVehicle && !c.seatPose)) continue; // asleep: saw nothing
       if (!(c.fi >= 0) || this.F.rows[c.fi].memory === 'none') continue; // the infected never testify
       const dx = x - c.x, dz = z - c.z;
       if (Math.abs(dx) + Math.abs(dz) > sight * 1.415) continue;

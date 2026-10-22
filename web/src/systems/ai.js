@@ -2,11 +2,17 @@ import { WEAPONS } from './combat.js';
 import { stridePhase } from './characters.js';
 import { angleLerp } from '../engine/rng.js';
 import { MAX_FACTIONS } from './factions.js';
+import { TOWN_NIGHT } from '../data/survival.js';
+
+const NO_BEDS = [];
+// Floor spots tried around home, nearest first: a body lies along z (2 m), so rows sit 1.2 m apart across and 2.2 along.
+const FLOOR_RING = [[0, 0], [1.2, 0], [-1.2, 0], [2.4, 0], [-2.4, 0], [0, 2.2], [0, -2.2], [1.2, 2.2], [-1.2, 2.2], [1.2, -2.2], [-1.2, -2.2], [3.6, 0], [-3.6, 0]];
 
 // On-foot AI: wander, flee, fight. Cheap per-character state machine,
 // target scans are staggered so 150 NPCs cost almost nothing.
 export class AI {
   constructor(game) {
+    this.floor = []; this.floorNight = -1; // tonight's floor spots (floorSpot)
     this.g = game;
     this.scanIdx = 0;
     this.tmp = { x: 0, z: 0 };
@@ -35,6 +41,7 @@ export class AI {
 
   // quiet: the caller already recorded the deed (a carjack is not also an assault).
   onDamaged(c, attacker, quiet = false) {
+    if (c.sleeping) this.wake(c, 'hurt');
     if (!attacker || attacker === c || c === this.g.player) return;
     if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
     if (c.faction === 'zombie') { if (attacker.alive) c.ztarget = attacker; return; } // the dead don't flee
@@ -56,9 +63,75 @@ export class AI {
       if (!c.alive || c === this.g.player || c === src || c.inVehicle) continue;
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
+      if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear
       if (!c.weapon) { if (c.flee <= 0) { c.flee = 5 + Math.random() * 4; c.fleeX = x; c.fleeZ = z; } }
       else if (!c.target && src && this.hostile(c, src)) { c.target = src; c.state = 'fight'; }
     }
+  }
+
+  // ---- the town at night (data/survival.js TOWN_NIGHT) ------------------------------------------------------------
+  sleeper(c) { return (c.faction === 'drifter' || (!!c.npc && c.faction !== 'warden')) && !c.follower && !c.baseId && !c.hunt && !!c.home; }
+  night() { const h = this.g.sky.time; return h >= TOWN_NIGHT.from || h < TOWN_NIGHT.to; }
+  // Which night it is (the one that began on this calendar day): a bed's claim holds only for tonight.
+  nightId() { return (this.g.society?.day ?? 0) - (this.g.sky.time < TOWN_NIGHT.to ? 1 : 0); }
+
+  // A bed within reach of home nobody has claimed tonight, else the floor at home.
+  claimBed(c) {
+    const n = this.nightId(), R = TOWN_NIGHT.bedR;
+    let best = null, bd = R;
+    for (const b of this.g.world.spawns.beds ?? NO_BEDS) {
+      if (b.night === n && b.by && b.by !== c.id) continue; // somebody's tonight
+      const d = Math.hypot(b.x - c.home.x, b.z - c.home.z);
+      if (d < bd) { bd = d; best = b; }
+    }
+    if (best) { best.by = c.id; best.night = n; return best; }
+    return this.floorSpot(c);
+  }
+
+  // No bed: the floor near home, a body's length clear of anyone else sleeping there tonight and of the walls.
+  floorSpot(c) {
+    const g = this.g, n = this.nightId();
+    if (this.floorNight !== n) { this.floorNight = n; this.floor.length = 0; }
+    for (let k = 0; k < FLOOR_RING.length; k++) {
+      const x = c.home.x + FLOOR_RING[k][0], z = c.home.z + FLOOR_RING[k][1];
+      let clear = !g.statics.pointBlocked(x, z, 0.45);
+      for (let i = 0; clear && i < this.floor.length; i++) if (Math.abs(this.floor[i].x - x) < 1.1 && Math.abs(this.floor[i].z - z) < 2.1) clear = false;
+      for (const b of g.world.spawns.beds ?? NO_BEDS) if (clear && Math.abs(b.x - x) < 1.1 && Math.abs(b.z - z) < 2.1) clear = false;
+      if (!clear) continue;
+      const spot = { x, z, bedY: 0, floor: true, face: 0 };
+      this.floor.push(spot);
+      return spot;
+    }
+    return { x: c.home.x, z: c.home.z, bedY: 0, floor: true, face: 0 }; // nowhere better: home it is
+  }
+
+  // Bedtime: walk to the bed (giving up after a while: the floor will do) and sleep; asleep, lie still. Someone who
+  // stands at the bedside long enough wakes them (and they take it as the intrusion it is).
+  toBed(c, dt, pd) {
+    if (!c.bed) { c.bed = this.claimBed(c); c.bedT = 0; }
+    c.speed = 0;
+    if (!c.sleeping) {
+      const b = c.bed, d = Math.hypot(b.x - c.x, b.z - c.z);
+      c.bedT += dt;
+      if (d > 0.6 && c.bedT < TOWN_NIGHT.giveUp) { this.move(c, b.x - c.x, b.z - c.z, 1.3, dt); return; }
+      if (d <= 0.6) { c.x = b.x; c.z = b.z; c.face = b.face ?? c.face; c.bedY = b.bedY ?? 0; } else c.bedY = 0;
+      c.sleeping = true; c.standT = 0; c.aiming = false;
+      this.g.emit('npcSleep', { id: c.id, name: c.npc?.name ?? c.name, bed: !b.floor && d <= 0.6 });
+      return;
+    }
+    if (pd < 1.6 && !this.g.player.inVehicle) {
+      if ((c.standT += dt) > TOWN_NIGHT.wakeStand) {
+        this.wake(c, 'someone at the bed');
+        this.g.society?.deeds?.record('trespass', { target: c, x: this.g.player.x, z: this.g.player.z, m: 1, stars: 0 });
+      }
+    } else c.standT = 0;
+  }
+
+  wake(c, why = 'woke') {
+    if (!c.sleeping) return;
+    c.sleeping = false; c.bedY = 0;
+    if (why !== 'dawn') c.restless = TOWN_NIGHT.restless;
+    this.g.emit('npcWoke', { id: c.id, name: c.npc?.name ?? c.name, why });
   }
 
   move(c, dx, dz, speed, dt) {
@@ -165,6 +238,7 @@ export class AI {
       // A named person you've wronged (or helped) says so when you come close - once a minute at most.
       if (c.npc && pd < 9 && g.time > (c.barkAt ?? 0)) g.society?.memory.maybeBark(c);
 
+      if (c.sleeping && (c.target || c.flee > 0)) this.wake(c, 'trouble');
       if (g.dialogue.active && g.dialogue.npc === c) {
         c.face = angleLerp(c.face, Math.atan2(g.player.x - c.x, g.player.z - c.z), Math.min(1, dt * 8));
         c.speed = 0;
@@ -226,6 +300,11 @@ export class AI {
         continue;
       }
 
+      // Night: the town's own people go to bed and sleep till dawn (WEB_SURVIVAL); a woken one stays up a while.
+      if (c.restless > 0) c.restless -= dt;
+      if (this.sleeper(c) && this.night() && !(c.restless > 0)) { this.toBed(c, dt, pd); continue; }
+      if (c.sleeping) this.wake(c, 'dawn');
+      if (c.bed && !this.night()) { if (c.bed.by === c.id) c.bed.by = null; c.bed = null; } // the claim ends with the night
       // A base's soldiers keep their posts, walk their patrols, close on a trespasser (systems/bases.js).
       if (c.baseId && g.bases?.think(c, dt)) continue;
       // Idle wander.
@@ -247,10 +326,10 @@ export class AI {
     // Cheap crowd separation (n^2 over awake characters; n is small).
     for (let i = 0; i < chars.length; i++) {
       const a = chars[i];
-      if (!a.alive || a.inVehicle || a.perch) continue; // nobody shoulders a sentry off a tower deck
+      if (!a.alive || a.inVehicle || a.perch || a.sleeping) continue; // nobody shoulders a sentry off a tower deck, or a sleeper out of bed
       for (let j = i + 1; j < chars.length; j++) {
         const b = chars[j];
-        if (!b.alive || b.inVehicle || b.perch) continue;
+        if (!b.alive || b.inVehicle || b.perch || b.sleeping) continue;
         // Written so a NaN position FAILS the tests (every comparison with NaN is false): a NaN
         // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;

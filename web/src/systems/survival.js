@@ -1,4 +1,8 @@
+import * as THREE from 'three';
 import { NEEDS, STAGES, EFFECTS, CONSUMABLES, SLEEP, FEVER } from '../data/survival.js';
+
+const MATS = 48;
+const _m = new THREE.Object3D();
 
 // The player's needs and body (data/survival.js; docs/design/WEB_SURVIVAL.md). g.needs holds the live values the
 // HUD, the movement and the gun code read:
@@ -18,6 +22,8 @@ export class Survival {
     this.microT = 60;    // seconds to the next microsleep while dead on your feet
     this.watchT = 0;     // asleep: seconds to the next look around for danger
     this.breathT = 0;    // fevered: seconds to the next laboured breath
+    this.matT = 0;       // seconds to the next look at who sleeps on the floor (the mats)
+    this.buildMats(game.scene);
   }
 
   pip(v) { let p = 0; for (const line of STAGES) if (v <= line) p++; return p; }
@@ -25,6 +31,7 @@ export class Survival {
 
   update(dt) {
     const g = this.g, p = g.player, N = g.needs;
+    this.layMats(dt);
     if (!p.alive) { if (this.sleep) this.wake('dead'); return; } // (god mode still gets thirsty; it just can't be hurt by it)
     const hours = dt * g.sky.timeScale * (g.sky.fast ? 40 : 1);
     const S = this.sleep;
@@ -77,6 +84,31 @@ export class Survival {
         g.combat.damage(p, n, null, 0, 0, N.water <= 0 ? 'thirst' : 'hunger');
       }
     }
+  }
+
+  // A rolled-out bedroll under everyone asleep on the floor or the ground (bedY under 0.1: no mattress), re-laid four
+  // times a second. One InstancedMesh, hidden when nobody needs one.
+  buildMats(scene) {
+    if (!scene) return;
+    const geo = new THREE.BoxGeometry(0.82, 0.05, 2.05); geo.translate(0, 0.025, 0);
+    this.mats = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.95 }), MATS);
+    this.mats.count = 0; this.mats.visible = false; this.mats.receiveShadow = true;
+    const cols = ['#4a5236', '#5a4a34', '#3f4a44', '#5d5440'].map((c) => new THREE.Color(c));
+    for (let i = 0; i < MATS; i++) this.mats.setColorAt(i, cols[i % cols.length]);
+    scene.add(this.mats);
+  }
+  layMats(dt) {
+    const m = this.mats;
+    if (!m || (this.matT -= dt) > 0) return;
+    this.matT = 0.25;
+    let n = 0;
+    for (const c of this.g.chars) {
+      if (!c.sleeping || c.inVehicle || (c.bedY ?? 0) > 0.1 || n >= MATS) continue;
+      if (c === this.g.player && this.sleep?.kind !== 'bedroll') continue; // the bare ground has no mat
+      _m.position.set(c.x, this.g.stunts?.heightAt(c.x, c.z) ?? 0, c.z); _m.rotation.set(0, c.face, 0); _m.updateMatrix();
+      m.setMatrixAt(n++, _m.matrix);
+    }
+    if (n !== m.count || n) { m.count = n; m.visible = n > 0; m.instanceMatrix.needsUpdate = true; }
   }
 
   // ---- sleep -------------------------------------------------------------------------------------------------

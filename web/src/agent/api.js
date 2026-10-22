@@ -1045,6 +1045,22 @@ function buildCommands(api) {
         return S2.view();
       },
     },
+    town: {
+      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does).',
+      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' } },
+      run: async ({ radius, wake }) => {
+        const p = P();
+        if (wake) { const c = api.findChar(wake); need(c, `no character ${wake}`); g.ai.wake(c, 'shaken awake'); }
+        const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < radius && g.ai.sleeper(c));
+        const beds = g.world.spawns.beds ?? [], n = g.ai.nightId();
+        return {
+          night: g.ai.night(), hour: r1(g.sky.time),
+          asleep: near.filter((c) => c.sleeping).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, bed: !!(c.bed && !c.bed.floor), x: r1(c.x), z: r1(c.z) })),
+          awake: near.filter((c) => !c.sleeping).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, restless: r1(Math.max(0, c.restless ?? 0)), going: !!c.bed })),
+          beds: { total: beds.length, claimedTonight: beds.filter((b) => b.night === n && b.by).length },
+        };
+      },
+    },
     sleep: {
       group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=car tips back the seat of the car you sit in (it must be parked), where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: N sleeps (a bed you stand at, a bedroll you carry, a parked car), E at a bed, a bedroll from the PACK screen; E gets you up.',
       args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'car', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
@@ -2222,7 +2238,17 @@ async function runSelfTest(api) {
     return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
   });
   // ---- rest and bite fever (docs/design/WEB_SURVIVAL.md) ----
-  const withNeeds = async (fn) => {
+  // Sleep checks test sleep, not the war: Rust Haven's wardens trade fire with Dustwolf raiders at the edge of town most
+  // of the day, and the night brings hordes to the wall, and a shot that close wakes anyone. Hush pauses the raids and
+  // the hordes, clears the raiders and the infected, and puts everything back afterwards.
+  const hush = async (fn) => {
+    const zOn = g.zombies.enabled, rt = g.raiderTimer;
+    g.zombies.enabled = false; g.raiderTimer = 1e9;
+    for (const c of [...g.chars]) if (c.faction === 'zombie' || c.faction === 'raider') g.removeChar(c);
+    for (const c of g.chars) c.restless = 0;
+    try { return await fn(); } finally { g.zombies.enabled = zOn; g.raiderTimer = rt; }
+  };
+  const withNeeds = async (fn) => hush(async () => {
     const N = g.needs, keep = { water: N.water, food: N.food, rest: N.rest, fever: N.fever };
     N.water = 0.9; N.food = 0.9; N.rest = 0.9; N.fever = null; N.blackout = 0;
     try { return await fn(); } finally {
@@ -2230,7 +2256,7 @@ async function runSelfTest(api) {
       Object.assign(N, keep, { blackout: 0 }); g.survival.update(0);
       await C('setTime', { hour: 12 });
     }
-  };
+  });
   await check('rest: hours awake tire you into sway and microsleeps; a bed refills you while the night runs x40; one of the infected walking up wakes you', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player;
@@ -2275,6 +2301,27 @@ async function runSelfTest(api) {
     g.vehiclesSys.remove(v);
     return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
   }));
+  await check('the town sleeps: at 23:00 Ike goes to bed and most of the town with him; asleep he keeps no counter and witnesses nothing; a gunshot wakes him', async () => {
+    const inv = g.inventory, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
+    const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
+    if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
+    if (g.player.inVehicle) g.exitVehicle(true);
+    return hush(async () => { try {
+      await C('setTime', { hour: 23 });
+      await C('teleport', { x: box.x + 7, z: box.z });
+      for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
+      const asleep = ike.sleeping === true;
+      await C('step', { seconds: 4 });
+      const town = await C('town', { radius: 150 });
+      const most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6);
+      g.player.x = box.x + 0.8; g.player.z = box.z;
+      const noCounter = g.trade.at(box) === null;
+      const saw = g.society.deeds.witnessPass(box.x, box.z, g.player, null).includes(ike);
+      g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
+      const woke = !ike.sleeping && ike.restless > 0;
+      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke });
+    } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
+  });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player, inv = g.inventory;
@@ -2857,7 +2904,7 @@ export function restore(g, s) {
       c.id = sc.id;
       if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
-    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0 });
+    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0, sleeping: false, bedY: 0, bed: null, restless: 0 });
     if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }

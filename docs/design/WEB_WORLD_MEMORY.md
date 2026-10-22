@@ -210,6 +210,7 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 | `convoy.js` *(phase 3)* | — | convoy kinds with an owning faction |
 | `WEB_FAN_SERVICE_BIBLE.md` | names this system as the home of FEUD MATH, PAPER LADDER, SCORE TO SETTLE, WANTED WITH YOUR PAINT | — |
 | `WEB_STREAMING.md` | places beyond Rust Haven register as place rows when their chunks stream in | — |
+| `systems/ai.js` (WEB_SURVIVAL, the sleeping town) | — | a sleeping person is skipped by the witness pass (asleep, they saw nothing); waking a sleeper by standing at the bed is a `trespass` deed |
 | `systems/trade.js` (WEB_TRADE) | a trader's people's tier sets the price multiplier (hostile/hunted: no deal); `memory.refuses` ends a deal like a conversation | a run of deals records `deeds.direct('trade', trader)`, one per 30 s |
 | `systems/inventory.js` (WEB_INVENTORY) | — | taking from an owned box to anywhere not the owner's records a `steal` deed (unless paid for over a counter) |
 

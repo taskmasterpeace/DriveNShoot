@@ -13,7 +13,7 @@ export class Trade {
   at(box) {
     if (!box?.owner) return null;
     const g = this.g, c = g.chars.find((x) => x.id === box.owner), row = c?.npc && TRADERS[c.npc.id];
-    if (!row || !c.alive || c.downedT > 0) return null;
+    if (!row || !c.alive || c.downedT > 0 || c.sleeping) return null; // asleep: no counter (and no witness, deeds.js)
     if (Math.hypot(c.x - g.player.x, c.z - g.player.z) > TRADE.reach) return null;
     const F = g.society?.factions, tier = F && c.fi >= 0 ? F.tiers[c.fi] : 'neutral', T = PRICE_TIER[tier];
     const refuse = !T || !!g.society?.memory?.refuses(c);

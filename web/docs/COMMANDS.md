@@ -83,6 +83,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `damage` | `id:string amount?:number` | Damage a character or vehicle by id. |
 | `explode` | `id:string` | Blow up a vehicle by id. |
 | `remove` | `id:string` | Delete a non-player character (no corpse). |
+| `town` | `radius?:number wake?:string` | The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town's own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does). |
 
 ## vehicle
 

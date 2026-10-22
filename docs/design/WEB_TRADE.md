@@ -28,7 +28,7 @@ you could have walked off with the whole crate, and the town would have known.
   Kenji (mechanic: parts, tools, packs), Mags (water trader: water, food, valuables, paper). Each sells whatever is on
   their own shelves; each buys only what they deal in.
 - **The counter is live** when, for the box on the other side of the PACK screen: it has an owner; the owner is a
-  trader; they are alive and not downed; they are within `TRADE.reach` (9 m) of you. Otherwise there is no counter.
+  trader; they are alive, not downed and **not asleep** (WEB_SURVIVAL: the town sleeps 22:00–06:00); they are within `TRADE.reach` (9 m) of you. Otherwise there is no counter.
 - **Willing:** the tier of the trader's people with you (`data/society.js` tiers) must have a price row (`hostile`
   and `hunted` have none), and the trader must not personally refuse you (`memory.refuses`, the same rule that ends a
   conversation). Unwilling: the header reads "<NAME> WON'T DEAL WITH YOU: TAKING IS STEALING", and taking is theft.
