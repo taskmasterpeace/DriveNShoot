@@ -24,7 +24,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `perf` | `(none)` | Frame rate, draw calls, triangles, entity counts. |
 | `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it. |
 | `photo` | `on?:boolean x?:number z?:number zoom?:number tilt?:number` | Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K. |
-| `ambient` | `(none)` | Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
+| `ambient` | `(none)` | Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
 | `hud` | `(none)` | What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood. |
 | `water` | `x?:number z?:number` | Water depth at x,z (default: the player) and what it means: dry \| wade \| swim. Also lists where the water is (river, lake, bridge, dock). |
 

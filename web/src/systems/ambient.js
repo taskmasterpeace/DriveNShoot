@@ -56,6 +56,7 @@ export class Ambient {
     const rx = Math.cos(ang), rz = -Math.sin(ang); // shooter's right
     const s = { x: ch.x + rx * 0.3, z: ch.z + rz * 0.3, y: 1.3, vx: rx * (2 + Math.random() * 1.5) - Math.sin(ang) * 0.6, vz: rz * (2 + Math.random() * 1.5) - Math.cos(ang) * 0.6, vy: 2.4 + Math.random(), spin: Math.random() * 6, rot: Math.random() * 6, rest: false, i: this.bNext };
     this.bNext = (this.bNext + 1) % BRASS_MAX;
+    this.ejected = (this.ejected ?? 0) + 1;
     this.shells[s.i] = s;
     this.brass.count = Math.min(BRASS_MAX, Math.max(this.brass.count, s.i + 1));
   }
@@ -208,9 +209,13 @@ export class Ambient {
 
   view() {
     const p = this.g.player;
+    // tracks/brass count what's on the ground, so they top out at the ring sizes (1400 / 240) and a busy
+    // fight fills them. tracksLaid/brassEjected never stop counting: compare those for "did it happen".
     return {
       tracks: Math.min(TRACK_MAX, this.laid ?? 0),
+      tracksLaid: this.laid ?? 0,
       brass: this.shells.filter(Boolean).length,
+      brassEjected: this.ejected ?? 0,
       brassAtRest: this.shells.filter((s) => s?.rest).length,
       tumbleweeds: this.weeds.filter((w) => Math.hypot(w.x - p.x, w.z - p.z) < 85).map((w) => ({ x: Math.round(w.x), z: Math.round(w.z) })),
       vultures: this.birds.map((b) => ({ x: Math.round(b.x), z: Math.round(b.z), y: Math.round(b.y), spooked: b.spook > 0 })),

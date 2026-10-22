@@ -428,7 +428,7 @@ function buildCommands(api) {
       },
     },
     ambient: {
-      group: 'observe', desc: 'Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
+      group: 'observe', desc: 'Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
       run: async () => g.ambient.view(),
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
@@ -1286,25 +1286,36 @@ async function runSelfTest(api) {
   });
   await check('details: brass piles up, civilians cower, horn sends people diving, tracks in the sand, brake lights', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 140, z: -150 });
-    const b0 = g.ambient.view().brass;
-    const { ids } = await C('spawn', { kind: 'drifter', x: 146, z: -150 });
-    const civ = api.findChar(ids[0]); civ.weapon = null;
+    // Open sand off every road. The car used to start on Iron St (x=160) and roll onto the z=-160
+    // crossing: tarmac all the way, so no tracks, whatever the tyres did.
+    const X = 232, Z = -380, A = g.ambient;
+    await C('teleport', { x: X, z: Z });
+    const e0 = A.view().brassEjected;
+    const { ids } = await C('spawn', { kind: 'drifter', x: X + 6, z: Z });
+    const civ = api.findChar(ids[0]); civ.weapon = null; civ.x = X + 6; civ.z = Z;
+    // A close shot makes a civilian cower 55% of the time: up to 16 quick shots, all while they're still
+    // in earshot even if they bolt (6 shots a quarter-second apart missed about 1 run in 120).
     let cowered = false;
-    for (let k = 0; k < 6 && !cowered; k++) { g.combat.fire(g.player, 'pistol', Math.PI); await C('step', { seconds: 0.25 }); cowered = civ.cowerT > 0; }
+    const mine = [], newest = () => A.shells[(A.bNext + A.shells.length - 1) % A.shells.length]; // the ring's last write
+    for (let k = 0; k < 16 && !cowered; k++) {
+      if (g.combat.fire(g.player, 'pistol', Math.PI)) mine.push(newest());
+      await C('step', { seconds: 1 / 15 }); cowered = civ.cowerT > 0;
+    }
     await C('step', { seconds: 1 });
-    const brass = g.ambient.view().brass > b0 && g.ambient.view().brassAtRest > 0;
+    // Our own shells landed and lie still. The on-ground count can't show it: the 240-shell ring is
+    // full long before this check, so it never goes up.
+    const brass = mine.length > 0 && mine.every((s) => s.rest) && A.view().brassEjected >= e0 + mine.length;
     civ.cowerT = 0; civ.crouch = false; civ.handsUp = false;
-    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 160, z: -175, heading: 0 })).id);
+    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: X + 20, z: Z - 25, heading: 0 })).id);
     await C('enterVehicle', { id: car.id, force: true });
-    const w = await C('spawn', { kind: 'drifter', x: 160.5, z: -166 });
-    const ped = api.findChar(w.ids[0]);
+    const w = await C('spawn', { kind: 'drifter', x: X + 20.5, z: Z - 16 });
+    const ped = api.findChar(w.ids[0]); ped.x = X + 20.5; ped.z = Z - 16;
     const h = await C('honk');
     await C('step', { seconds: 0.7 });
-    const dodged = h.dodged >= 1 && Math.abs(ped.x - 160) > 1.5;
-    const t0 = g.ambient.view().tracks;
+    const dodged = h.dodged >= 1 && Math.abs(ped.x - (X + 20)) > 1.5;
+    const t0 = A.view().tracksLaid;
     await C('drive', { throttle: 1, steer: 0.3, seconds: 2 });
-    const tracks = g.ambient.view().tracks > t0;
+    const tracks = A.view().tracksLaid > t0;
     car.throttle = -1; g.vehiclesSys.update(1 / 60, 0);
     const brakeLit = car.braking === true || g.vehiclesSys.speed(car) < 0.5;
     g.exitVehicle(true);
