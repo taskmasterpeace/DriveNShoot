@@ -166,7 +166,7 @@ class Game {
   }
 
   randomFlag(rng) {
-    // The Deathlands are mostly American, but everybody's from somewhere.
+    // Most people out here are American, but everybody's from somewhere.
     const r = rng();
     if (r < 0.4) return 'US';
     if (r < 0.55) return 'MX';
@@ -207,7 +207,7 @@ class Game {
 
     // Vehicles: the War Rig (harpoon) and an Interceptor wait in town.
     this.vehiclesSys.spawn('rig', 3.5, -30, Math.PI, '#7a3a1c');
-    this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#1c1f24');
+    this.vehiclesSys.spawn('interceptor', -3.5, -48, 0, '#4a3a2a'); // faded brown, never the black ex-cop car
     this.vehiclesSys.spawn('pickup', 30, 3.5, -Math.PI / 2, '#56603f');
     // Traffic on the grid.
     const paints = ['#8a6a2a', '#3f5a62', '#6a2a1a', '#4a4a48', '#7a5a3a', '#2f4a3a', '#c9a24a', '#6a4a2a'];
@@ -219,7 +219,7 @@ class Game {
       const d = this.addChar({ x, z, faction: 'drifter', colors: outfit('drifter', rng), name: randomName(rng), flag: this.randomFlag(rng) });
       if (d) this.seats.board(d, v, 0);
     }
-    // Watercraft: an airboat and a jet ski tied up at the lake dock; a raider gunboat patrols.
+    // Watercraft: an airboat and a waterbike tied up at the lake dock; a raider gunboat patrols.
     this.vehiclesSys.spawn('airboat', DOCK.x + 8, DOCK.z + 5, Math.PI / 2, '#5a6a48');
     this.vehiclesSys.spawn('jetski', DOCK.x + 14, DOCK.z - 5, Math.PI / 2, '#b0301e');
     const gb = this.vehiclesSys.spawn('gunboat', LAKE.x + 20, LAKE.z, 0, '#3a3632', { ai: 'boatPatrol' });
@@ -828,7 +828,7 @@ class Game {
     t.innerHTML = `
       <div class="title-inner">
         <h1>DIVIDED <span>STATES</span></h1>
-        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · 31 YEARS AFTER THE FRACTURE</div>
+        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>

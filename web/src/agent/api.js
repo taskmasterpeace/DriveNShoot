@@ -7,7 +7,7 @@ import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
 
 // ============================================================================
-// DEATHLANDS AGENT API
+// DSOA AGENT API
 // Every command: JSON args in -> JSON-serialisable result out. Never throws:
 // failures come back as { ok:false, error, hint }. The COMMANDS table below is
 // the single source of truth: `help` prints it, the HTTP bridge + CLI route
@@ -624,12 +624,12 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a horde of Rotters (zombies) around x,z (default 30m from the player). runners = fraction that sprint.',
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters.',
       args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
       run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
     },
     zombies: {
-      group: 'world', desc: 'Turn night horde spawning on/off (existing Rotters stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
+      group: 'world', desc: 'Turn night herd spawning on/off (the infected already out stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.zombies.enabled = on; return { nightHordes: on, alive: g.chars.filter((c) => c.faction === 'zombie' && c.alive).length }; },
     },
     grab: {
@@ -1175,20 +1175,20 @@ async function runSelfTest(api) {
     await C('drive', { throttle: 1, seconds: 2 });
     const moved = g.vehiclesSys.speed(boat) > 6;
     const land = api.findVeh((await C('spawnVehicle', { type: 'jetski', x: 250, z: 250 })).id);
-    land.driver = g.player; land.throttle = 1; // dry land: a jet ski can't go
+    land.driver = g.player; land.throttle = 1; // dry land: a waterbike can't go
     for (let i = 0; i < 60; i++) { g.vehiclesSys.drive(land, 1 / 60); }
     land.driver = null;
     const beached = g.vehiclesSys.speed(land) < 1.5;
     return sank && moved && beached ? true : JSON.stringify({ sank, flood: car.flood, moved: g.vehiclesSys.speed(boat), beached: g.vehiclesSys.speed(land) });
   });
-  await check('the dead cannot swim: zombies stop at the waterline', async () => {
+  await check('the infected cannot swim: they stop at the waterline', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     await C('teleport', { x: 395, z: 398 });
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
     await C('step', { seconds: 6 });
     const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
     for (const id of ids) await C('remove', { id });
-    return wet === 0 ? true : `${wet} zombies in deep water`;
+    return wet === 0 ? true : `${wet} infected in deep water`;
   });
   await check('train: brakes into the station, carries riders, kills on the rails, tanker blows', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -1410,7 +1410,7 @@ export function restore(g, s) {
     let c = cmap.get(sc.id);
     if (!c) {
       const npc = sc.npc ? NPCS.find((n) => n.id === sc.npc) : null;
-      // Rotters come from their own factory: addChar alone left them without zSpeed (NaN walkers).
+      // The infected come from their own factory: addChar alone left them without zSpeed (NaN walkers).
       c = sc.faction === 'zombie' ? g.zombies.spawn(sc.x, sc.z, !!sc.runner)
         : g.addChar({ x: sc.x, z: sc.z, faction: sc.faction, weapon: sc.weapon, npc, name: sc.name, flag: sc.flag, colors: sc.colors });
       if (!c) continue;

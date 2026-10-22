@@ -165,8 +165,8 @@ src/
     vehicledamage.js   per-part dents, scraped paint, detached panels, tyres/engine/tank effects you feel at the wheel
     seats.js           front/back/bed seats, boarding, seat cycling, allies who take the wheel (chauffeur)
     carcombat.js       windows (crack/shatter), shooting from windows, people hanging on, zombies breaking in
-    zombies.js         rotters: hordes, noise attraction, night spawner, car attacks
-    throwables.js      frags, molotovs (fire spreads along fuel leaks), smoke, flashbangs, stickies, arcs + cooking
+    zombies.js         the infected (shamblers, sprinters): herds, noise attraction, night spawner, car attacks
+    throwables.js      frags, molotovs (fire spreads along fuel leaks), smoke, flashbangs, sticky bombs, arcs + cooking
     train.js           the Iron Line freight: schedule, station stop, crossing lights/barriers, roof riding, tanker
     convoy.js          Dustwolf war convoys: formation driving, break-to-engage, gun-truck gunner, loot hauler
     audio.js           synthesized WebAudio (guns, explosions, thunder, rain, engine)

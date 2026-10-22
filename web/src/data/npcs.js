@@ -88,11 +88,11 @@ export const NPCS = [
     },
   },
   {
-    id: 'saoirse', name: 'Saoirse "Static" Byrne', title: 'Radio DJ · KDTH 66.6', flag: 'IE', faction: 'drifter',
+    id: 'saoirse', name: 'Saoirse "Static" Byrne', title: 'Radio DJ · STATIC 1660 AM', flag: 'IE', faction: 'drifter',
     where: 'shop:4', portrait: { seed: 606, skin: '#f1c9a5', hair: '#b0301e', hat: 'long', mood: 'smile', shirt: '#2f3b42', gear: 'none', beard: false },
     start: 'hi',
     nodes: {
-      hi: { text: (g) => `You're live on KDTH, the last radio station in Arizona! Current conditions: ${g.sky.label}, ${g.sky.clock}. What can the wasteland's favourite voice do for you?`,
+      hi: { text: (g) => `You're live on Static, sixteen-sixty AM, the last radio station in Arizona! Current conditions: ${g.sky.label}, ${g.sky.clock}. What can the wasteland's favourite voice do for you?`,
         choices: [
           { t: `Call in a storm (${money(20)})`, next: 'storm', do: (g) => { if (g.spend(20)) g.sky.setWeather('STORM'); } },
           { t: `Call in a dust storm (${money(20)})`, next: 'storm', do: (g) => { if (g.spend(20)) g.sky.setWeather('DUST'); } },
@@ -159,4 +159,9 @@ export const BARKS = {
 
 const FIRST = ['Jesse', 'Marisol', 'Dwayne', 'Ana', 'Kofi', 'Liam', 'Rosa', 'Tariq', 'Hyun', 'Pedro', 'Nia', 'Gus', 'Ines', 'Bo', 'Esme', 'Ray', 'Yuki', 'Kwame', 'Lena', 'Mateo'];
 const LAST = ['Holt', 'Vega', 'Okafor', 'Price', 'Nguyen', 'Kowalski', 'Ramos', 'Diaz', 'Byrne', 'Silva', 'Park', 'Mensah', 'Rossi', 'Baptiste', 'Cruz'];
-export function randomName(rng) { return `${rng.pick(FIRST)} ${rng.pick(LAST)}`; }
+// Pairs that already belong to someone famous, real or fictional, are rolled again.
+const FAMOUS = new Set(['Rosa Diaz', 'Ray Holt', 'Rosa Park', 'Ray Park', 'Ray Price', 'Bo Diaz', 'Lena Park']);
+export function randomName(rng) {
+  for (let k = 0; k < 6; k++) { const n = `${rng.pick(FIRST)} ${rng.pick(LAST)}`; if (!FAMOUS.has(n)) return n; }
+  return 'Jesse Okafor';
+}

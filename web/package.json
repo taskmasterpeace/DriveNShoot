@@ -1,8 +1,8 @@
 {
-  "name": "deathlands",
+  "name": "dsoa",
   "version": "0.1.0",
   "private": true,
-  "description": "DEATHLANDS — top-down open-world engine set in a post-apocalyptic United States",
+  "description": "DIVIDED STATES OF AMERICA — top-down open-world engine set in a fractured, post-collapse United States",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3141",

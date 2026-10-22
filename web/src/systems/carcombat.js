@@ -185,7 +185,7 @@ export class CarCombat {
     v.grabbers.push(c.grabbing);
     c.grabbing.c = c;
     this.g.emit('grabbed', { vehicle: v.id, by: c.id, faction: c.faction, side: slot.side });
-    if (v.driver === this.g.player && c !== this.g.player) this.g.hud.toast(c.faction === 'zombie' ? 'ROTTER ON THE CAR — SWERVE TO SHAKE IT' : 'SOMEONE GRABBED THE CAR', 'hot');
+    if (v.driver === this.g.player && c !== this.g.player) this.g.hud.toast(c.faction === 'zombie' ? 'INFECTED ON THE CAR — SWERVE TO SHAKE IT' : 'SOMEONE GRABBED THE CAR', 'hot');
     if (c === this.g.player) this.g.hud.toast(`Hanging on the ${v.name} — [G] let go`, 'job');
     return true;
   }

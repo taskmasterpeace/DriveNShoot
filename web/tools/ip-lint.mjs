@@ -28,6 +28,14 @@ export const DENY = {
   'Car Wars / Autoduel': ['car wars', 'autoduel', 'aada', 'american autoduel association', "uncle al's", 'uncle albert', 'dueltrack'],
   'Fallout': ['fallout', 'vault-tec', 'vault boy', 'pip-boy', 'pipboy', 'nuka', 'brotherhood of steel', 'super mutant', 'deathclaw', 'radaway', 'rad-x'],
   'Walking Dead / Left 4 Dead / Twisted Metal': ['rick grimes', 'negan', 'left 4 dead', 'sweet tooth', 'calypso'],
+  // Our own canon (docs/design/THE_INFECTED.md): the infected are living; the Z-word never reaches the screen.
+  'DSOA canon - never on screen': ['zombie', 'zombies', 'rotter', 'rotters', 'undead'],
+  'Deathlands slang (more)': ['scalie', 'scalies', 'cannie', 'cannies', 'chem storm', 'chem-storm', 'chem storms', 'j.b. dix', 'jb dix', 'dean cawdor', 'front royal', 'deathlander', 'deathlanders'],
+  'Mad Max (more)': ['humungus', 'toecutter', 'feral kid', 'immortan joe', 'rictus erectus', 'nux', 'the wretched'],
+  'Car Wars (more)': ['duel track', 'gold cross', 'midville', 'autoduellist', 'autoduellists'],
+  'Fallout (more)': ['stimpak', 'stimpaks', 'stimpack', 'stimpacks', 'mentats', 'feral ghoul', 'feral ghouls', 'nuka-cola'],
+  // Trademarks that read like plain words. A licensed game can't ship them unlicensed.
+  'Real-world trademarks': ['jet ski', 'jet skis', 'waverunner', 'wave runner', 'sea-doo', 'seadoo', 'police interceptor', 'humvee', 'humvees', 'hummer', 'jeep', 'jeeps', 'kevlar', 'taser', 'tasers', 'zippo', 'band-aid', 'uzi', 'uzis', 'glock', 'glocks', 'kalashnikov', 'winnebago', 'peterbilt', 'kenworth', 'mack truck', 'harley-davidson', 'harley', 'airstream', 'thermos', 'jacuzzi', 'styrofoam', 'kdth'],
 };
 
 export const REVIEW = {
@@ -36,6 +44,8 @@ export const REVIEW = {
   'Deathlands slang that is also plain English': ['ville', 'jolt', 'dark night', 'redoubt', 'blaster', 'blasters'],
   "Left 4 Dead special infected": ['boomer', 'smoker', 'spitter', 'jockey', 'witch', 'charger'],
   'Walking Dead zombie word': ['walker', 'walkers'],
+  'Walking Dead / We\'re Alive creature and gang names': ['biter', 'biters', 'roamer', 'roamers', 'lurker', 'lurkers', 'burner', 'burners', 'big ones', 'screamer', 'screamers'],
+  'GTA2 gang names that are also words': ['loonies', 'zaibatsu corporation'],
 };
 
 const flat = (groups) => Object.entries(groups).flatMap(([src, terms]) => terms.map((t) => ({ t, src })));
@@ -96,6 +106,10 @@ for (const file of SCAN.flatMap((p) => walk(p)).map((p) => p.replace(/\\/g, '/')
   const src = readFileSync(join(ROOT, file), 'utf8');
   const strs = file.endsWith('.html') ? htmlStrings(src) : jsStrings(src);
   for (const { s: raw, line } of strs) {
+    // A lone lowercase token ('zombie', 'jetski', 'interceptor') is an id the player never reads:
+    // faction keys, row keys, event names. Display text has capitals, spaces or punctuation.
+    if (/^[a-z][a-zA-Z0-9_]*$/.test(raw)) continue;
+    if (/^\.{1,2}\/[\w./-]+$/.test(raw)) continue; // a module path ('./systems/zombies.js') is code, not text
     const s = raw.replace(/<[^>]*>/g, ''); // markup must not hide a word: DEATH<span>LANDS</span>
     for (const [list, bucket] of [[DENY_LIST, hits.deny], [REVIEW_LIST, hits.review]]) {
       for (const { t, src: from, re } of list) {

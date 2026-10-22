@@ -106,7 +106,7 @@ export default async function (DL, game) {
       }
     }
     note(`Bounty progress ${kills()}/6`);
-    // Between fights: loot what the Dustwolves dropped (ammo, stimpaks, cash).
+    // Between fights: loot what the Dustwolves dropped (ammo, med kits, cash).
     s = await st();
     if (s.player.alive && !s.vehicle && kills() < 6) {
       const loot = (await DL.query({ type: 'pickup', radius: 35 })).items.slice(0, 4);
