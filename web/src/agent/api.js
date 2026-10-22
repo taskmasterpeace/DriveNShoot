@@ -1140,9 +1140,9 @@ async function runSelfTest(api) {
   });
   await check('dive roll covers ground and costs stamina; crouch hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 140 });
+    await C('teleport', { x: 365, z: -240 }); // dry ground: (420,140) is in the river now
     g.player.stamina = 1;
-    const d = await C('dive', { x: 430, z: 140 });
+    const d = await C('dive', { x: 375, z: -240 });
     return d.ok && d.moved > 3 && d.stamina < 0.9 ? true : JSON.stringify(d);
   });
   await check('terrain: mountains are solid and routed around', async () => {
