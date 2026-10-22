@@ -1,6 +1,9 @@
 # WEB_WORLD_MEMORY — the world keeps score
 
 **Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. Still to come: witnesses who run home, rumors hopping between allies.
+**Roles** (2026-10-22, `docs/design/WEB_ROLES.md`): what the world knows about you also becomes what it calls you. Deeds,
+jobs, jumps and searches build roles (medic, deputy, Dustwolf rider, butcher...), and a role colours how each faction
+reads your standing (`factions.reading`), who greets or refuses you, what the director sends and what the radio says.
 **Owner of the call:** Robert. **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** a read-only architecture pass over `web/src` (2026-10-22), the fan-service bible
 (`docs/design/WEB_FAN_SERVICE_BIBLE.md` — FEUD MATH, PAPER LADDER, SCORE TO SETTLE, WANTED WITH YOUR PAINT), canon
@@ -211,6 +214,7 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 | `WEB_FAN_SERVICE_BIBLE.md` | names this system as the home of FEUD MATH, PAPER LADDER, SCORE TO SETTLE, WANTED WITH YOUR PAINT | — |
 | `WEB_STREAMING.md` | places beyond Rust Haven register as place rows when their chunks stream in | — |
 | `systems/trade.js` (WEB_TRADE) | a trader's people's tier sets the price multiplier (hostile/hunted: no deal); `memory.refuses` ends a deal like a conversation | a run of deals records `deeds.direct('trade', trader)`, one per 30 s |
+| `systems/roles.js` (**WEB_ROLES**) | every deed of yours (`roles.onDeed` from `record()`, with whether the target's people shot you on sight, asked before the witnesses raise stars), the chronicle's flags, the hourly tick, director outcomes; the `heal` verb | a bias on the standing each faction acts on (`factions.reading(i)`: tiers, the AI's bit, chips, `ifTier`, trade, opinion and the hunters all read it) and a shoot/hold override; the ghost's ID range; director weights, the role call, the digest's role clause and role news |
 | `systems/inventory.js` (WEB_INVENTORY) | — | taking from an owned box to anywhere not the owner's records a `steal` deed (unless paid for over a counter) |
 
 ## 7. Tuning Knobs
