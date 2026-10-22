@@ -24,6 +24,7 @@ import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS } from './data/items.js';
+import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
@@ -148,6 +149,8 @@ class Game {
     this.camPos = new THREE.Vector3(0, 40, 0);
     this.camLook = new THREE.Vector3();
     this.camHeight = 34;
+    this.zoomLevel = ZOOM.start; // index into ZOOM.levels (data/camera.js)
+    this.viewR = 30;             // radius of ground the camera shows (m): what 'out of sight' means right now
     this.aim = { x: 0, z: 0 };
     this.boxRing = { x: 0, z: 0, len: 1.6 }; // the highlight ring on a container in reach
     this.raiderTimer = 10;
@@ -846,23 +849,39 @@ class Game {
   }
 
   // ---- camera ----------------------------------------------------------------------------
+  // Step the zoom (Z out, Shift+Z in; - and =). Clamped at both ends rather than wrapping: a jump from the widest
+  // view back to the closest mid-fight is disorienting.
+  setZoom(i) {
+    const n = Math.max(0, Math.min(ZOOM.levels.length - 1, i));
+    if (n === this.zoomLevel) return this.zoomLevel;
+    this.zoomLevel = n;
+    this.hud.toast(`ZOOM · ${ZOOM.levels[n].name}`);
+    this.emit('zoom', { level: n, name: ZOOM.levels[n].name });
+    return n;
+  }
+
   updateCamera(dt) {
-    const p = this.player, v = p.inVehicle;
-    let tx = p.x, tz = p.z, h = this.zoomFar ? 72 : 33;
+    const p = this.player, v = p.inVehicle, L = ZOOM.levels[this.zoomLevel];
+    let tx = p.x, tz = p.z, h = L.foot;
     if (v) {
       const sp = this.vehiclesSys.speed(v);
-      h = (this.zoomFar ? 82 : 40) + sp * 0.75;
+      h = Math.min(ZOOM.maxHeight, L.drive + sp * ZOOM.speedLift);
       tx = v.x + v.vx * 0.55; tz = v.z + v.vz * 0.55;
     } else {
-      // Lean the view toward the cursor so you can see what you shoot.
-      tx += clamp((this.aim.x - p.x) * 0.25, -8, 8);
-      tz += clamp((this.aim.z - p.z) * 0.25, -8, 8);
-      if (this.insideBuilding && !this.zoomFar) h = 26;
+      // Lean the view toward the cursor so you can see what you shoot (further out at a wider zoom).
+      const lean = 8 * Math.max(1, L.foot / 33);
+      tx += clamp((this.aim.x - p.x) * 0.25, -lean, lean);
+      tz += clamp((this.aim.z - p.z) * 0.25, -lean, lean);
+      if (this.insideBuilding) h = Math.min(h, ZOOM.indoor);
     }
-    this.camHeight += (h - this.camHeight) * Math.min(1, dt * 2);
-    const k = Math.min(1, dt * 5);
+    // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
+    this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
+    const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
+    // How much ground is on screen: the half-diagonal of the footprint, with room for the camera's tilt.
+    const halfZ = this.camHeight * Math.tan((this.camera.fov * Math.PI) / 360), halfX = halfZ * this.camera.aspect;
+    this.viewR = Math.hypot(halfX, halfZ) * 1.15;
     const s = this.hud.shakeV;
     const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
     this.camera.position.set(this.camLook.x + sx, this.camHeight, this.camLook.z + this.camHeight * 0.14 + sz);
@@ -892,7 +911,7 @@ class Game {
     // Bodies far from view eventually get cleaned up (the blood stays).
     for (let i = this.chars.length - 1; i >= 0; i--) {
       const c = this.chars[i];
-      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 70) this.removeChar(c);
+      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
     }
     // Dustwolves keep coming.
     this.raiderTimer -= dt;
@@ -902,7 +921,7 @@ class Game {
       // As many as the band can field (faction sim strength), and only from camps it still holds.
       const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
       if (alive < cap) {
-        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > 80);
+        const camps = this.world.spawns.camps.filter((c, i) => S.places[`camp_${i}`]?.owner === 'dustwolves' && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(80, this.viewR + 10));
         const camp = camps[Math.floor(Math.random() * camps.length)];
         if (camp) for (let k = 0; k < 2; k++) this.spawnRaider(camp.x + (Math.random() - 0.5) * 10, camp.z + (Math.random() - 0.5) * 10);
       }
@@ -930,7 +949,7 @@ class Game {
           <div><b>E</b>at a window: smash · climb</div><div><b>hold E</b>board a broken window</div><div><b>SHIFT</b>into a door: bash it open</div>
           <div><b>G</b>hang on / train</div><div><b>Q</b>hold: aim throw</div><div><b>X</b>next throwable</div>
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
-          <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom</div>
+          <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom out (Shift: in)</div>
           <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
           <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
@@ -953,7 +972,9 @@ class Game {
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
     if (I.hit('KeyT')) { this.sky.fast = !this.sky.fast; this.hud.toast(this.sky.fast ? 'TIME ×40' : 'TIME NORMAL'); }
     if (I.hit('KeyY')) { this.sky.cycleWeather(); this.hud.toast(`WEATHER → ${this.sky.label}`); }
-    if (I.hit('KeyZ')) this.zoomFar = !this.zoomFar;
+    if (I.hit('KeyZ')) this.setZoom(this.zoomLevel + (I.key('ShiftLeft') || I.key('ShiftRight') ? -1 : 1));
+    if (I.hit('Minus')) this.setZoom(this.zoomLevel + 1);
+    if (I.hit('Equal')) this.setZoom(this.zoomLevel - 1);
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
       this.charR.sync(this.chars, 0); this.qol.update(dt); I.endFrame(); return;
@@ -991,7 +1012,7 @@ class Game {
     this.updateInterior();
     this.updateCamera(dt);
     const p = this.player;
-    this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat);
+    this.sky.update(dt, this.camLook, this.world.groundMat, this.world.roadMat, this.viewR);
     this.world.glowMat.opacity = 0.03 + this.sky.night * 0.8;
     this.world.updateFlames(this.time);
     const flashOn = this.flashOverride ?? this.sky.night > 0.55;

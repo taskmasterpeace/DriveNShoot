@@ -56,6 +56,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `inventory` | `(none)` | What you carry (data/items.js): the pack you wear, weight and room, every item with uses left and freshness, and the container you have open. In the game: I or Tab opens the PACK screen; V uses whatever you need most (patch up, drink, eat). |
 | `item` | `give?:string use?:string drop?:string wear?:string take?:string stow?:string n?:number quick?:boolean` | Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js. |
 | `pack` | `on?:boolean` | Open or close the PACK screen (what a player sees with I). on=true opens it beside whatever is at your feet; screenshots only show the world, so read the result. |
+| `zoom` | `level?:string` | The play camera's zoom level (data/camera.js): level=0..4 or a name (CLOSE, STREET, WIDE, FAR, HIGH). Returns the level, the target and current camera height, and viewR - the radius of ground on screen, which spawners and clean-ups treat as "in sight". Keyboard: Z out, Shift+Z in (or - and =). |
 
 ## world
 

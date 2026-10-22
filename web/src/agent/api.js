@@ -10,6 +10,7 @@ import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 import { ITEMS, LOOT } from '../data/items.js';
+import { ZOOM } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
@@ -1102,6 +1103,19 @@ function buildCommands(api) {
       group: 'player', desc: 'Open or close the PACK screen (what a player sees with I). on=true opens it beside whatever is at your feet; screenshots only show the world, so read the result.',
       args: { on: { type: 'boolean', default: true } },
       run: async ({ on }) => { g.invUI.toggle(on); return { open: g.invUI.open, other: g.invUI.other ? g.inventory.boxView(g.invUI.other) : null }; },
+    },
+    zoom: {
+      group: 'player', desc: 'The play camera\'s zoom level (data/camera.js): level=0..4 or a name (CLOSE, STREET, WIDE, FAR, HIGH). Returns the level, the target and current camera height, and viewR - the radius of ground on screen, which spawners and clean-ups treat as "in sight". Keyboard: Z out, Shift+Z in (or - and =).',
+      args: { level: { type: 'string' } },
+      run: async ({ level }) => {
+        if (level !== undefined) {
+          const n = /^\d+$/.test(level) ? Number(level) : ZOOM.levels.findIndex((l) => l.name === String(level).toUpperCase());
+          need(n >= 0 && n < ZOOM.levels.length, `unknown zoom level; known: ${ZOOM.levels.map((l, i) => `${i}=${l.name}`).join(', ')}`);
+          g.setZoom(n);
+        }
+        const L = ZOOM.levels[g.zoomLevel];
+        return { level: g.zoomLevel, name: L.name, target: P().inVehicle ? L.drive : L.foot, camHeight: r1(g.camHeight), viewR: r1(g.viewR), shadowHalf: r1(g.sky.sun.shadow.camera.right) };
+      },
     },
     stunts: {
       group: 'vehicle', desc: 'Jumps (data/stunts.js): the ramps, the named jumps (gap lip to lip, pay, times cleared), your records, who is in the air, and the last landing. run=<jump id> drives the car you are in (or a fresh type= car) at that jump from back= metres out, holding speed= m/s to the lip like a steady foot, then reports the landing: air time, distance, height, closing speed vn, grade (clean | rough | hard | crash), cleared, pay. ramp=<id> does the same at any ramp. Wreck Row lands soft at about 18 m/s (40 mph).',
@@ -2455,6 +2469,20 @@ async function runSelfTest(api) {
     const off = !OB.poolMesh.visible && !OB.beamMesh.visible;
     return on && swept && dark && lit && off && sentry ? true : JSON.stringify({ on, swept, dark, lit, off, sentry: sentry?.id ?? null, range: r1(g.bases.spotRange(OB)) });
   }));
+  await check('zoom: Z steps out to HIGH; squads still arrive from out of sight, shadows reach the edge, still under 150 draw calls', async () => {
+    await stage();
+    const lv0 = g.zoomLevel;
+    for (let k = 0; k < 6; k++) g.setZoom(g.zoomLevel + 1); // past the end: it stops at HIGH
+    await C('step', { seconds: 4 }); // the height settles
+    const high = g.zoomLevel === ZOOM.levels.length - 1, vr = g.viewR;
+    const ring = g.society.director.ringPoint(90, 125); // the hunters' ring
+    const ringOut = !ring || Math.hypot(ring.x - g.player.x, ring.z - g.player.z) > vr;
+    const shadowOk = g.sky.sun.shadow.camera.right >= vr;
+    g.render(0); const p = await C('perf');
+    g.setZoom(lv0); await C('step', { seconds: 4 });
+    const back = Math.abs(g.camHeight - ZOOM.levels[lv0].foot) < 3;
+    return high && vr > 100 && ringOut && shadowOk && p.drawCalls < 150 && back ? true : JSON.stringify({ high, vr: r1(vr), ringOut, shadow: g.sky.sun.shadow.camera.right, draws: p.drawCalls, back, camHeight: r1(g.camHeight) });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;

@@ -202,6 +202,8 @@ export class Director {
 
   ringPoint(lo, hi) {
     const g = this.g, P = g.player, p = { x: 0, z: 0 };
+    // Squads arrive from out of sight: at a wide zoom the whole ring moves out past the edge of the view.
+    const push = Math.max(0, (g.viewR ?? 0) + 10 - lo); lo += push; hi += push;
     for (let k = 0; k < 16; k++) {
       const a = Math.random() * Math.PI * 2, r = lo + Math.random() * (hi - lo);
       p.x = P.x + Math.sin(a) * r; p.z = P.z + Math.cos(a) * r;
