@@ -51,7 +51,7 @@ export class Zombies {
   pickTarget(c) {
     let best = null, bd = SMELL;
     for (const o of this.g.chars) {
-      if (!o.alive || o.faction === 'zombie' || o.hidden || o === c) continue;
+      if (!o.alive || o.faction === 'zombie' || o.hidden || o.underwater || o === c) continue; // no scent under water
       const ox = o.inVehicle ? o.inVehicle.x : o.x, oz = o.inVehicle ? o.inVehicle.z : o.z;
       let d = Math.abs(ox - c.x) + Math.abs(oz - c.z);
       if (o === this.g.player) d *= 0.8; // the living hero smells best
@@ -66,8 +66,9 @@ export class Zombies {
     if (c.grabbing) return; // CarCombat drives grabbers
     c.aiming = false;
     // One of the infected made by anything but spawn() (an old save, a content pack) still needs a pace,
-    // or it walks at NaN m/s and its NaN spreads through crowd separation.
-    if (!(c.zSpeed > 0)) c.zSpeed = c.runner ? 5.5 : 2.35;
+    // or it walks at NaN m/s and its NaN spreads through crowd separation. 0 is a real pace (one staged
+    // to stand still); only a missing or broken one is repaired.
+    if (!(c.zSpeed >= 0)) c.zSpeed = c.runner ? 5.5 : 2.35;
     if (!Number.isFinite(c.timer)) c.timer = 0;
     c.zt = (c.zt ?? 0) - dt;
     if (c.zt <= 0) {

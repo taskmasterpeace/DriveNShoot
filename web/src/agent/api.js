@@ -278,18 +278,19 @@ function buildCommands(api) {
         // Following: walk right up to the reachable cell beside the target (tolerance 1);
         // "arrived" is then judged against the target itself (outer loop).
         g.autopilot = { x, z, run, tolerance: follow ? 1 : tolerance, path, i: 0, follow };
-        let lastReplan = null;
+        let best = Infinity, bestT = 0, lost = false;
         if (!wait) return { moving: true };
         let t = 0;
         const hp0 = P().hp;
         let interrupted;
         while ((g.autopilot || (follow && Math.hypot(follow.x - P().x, follow.z - P().z) > tolerance)) && t < Math.min(600, maxSeconds)) {
           if (!g.autopilot && follow) {
-            // Reached where they were, but they moved on: re-plan to their live position.
-            // If a re-plan doesn't get us any closer, we're as close as the world allows.
+            // Reached where they were, but they moved on: re-plan to their live position. Give up once
+            // 3 s of chasing hasn't got us 0.5 m closer: as close as the world (or their pace) allows.
+            // One re-plan without progress used to end it, so anyone on the move (an NPC in a gunfight,
+            // you out of breath) shook the follower off while it was still gaining on them.
             const here = Math.hypot(follow.x - P().x, follow.z - P().z);
-            if (lastReplan !== null && here > lastReplan - 0.5) break;
-            lastReplan = here;
+            if (here < best - 0.5) { best = here; bestT = t; } else if (t - bestT >= 3) { lost = true; break; }
             const np = g.footPath(P().x, P().z, follow.x, follow.z);
             if (!np) break;
             g.autopilot = { x: follow.x, z: follow.z, run, tolerance: 1, path: np, i: 0, follow };
@@ -307,7 +308,7 @@ function buildCommands(api) {
         const arrived = follow ? Math.hypot(follow.x - P().x, follow.z - P().z) <= tolerance + 0.5 : !g.autopilot;
         g.autopilot = null;
         g.autopilot = null;
-        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
+        return { arrived, interrupted, x: r1(P().x), z: r1(P().z), secondsUsed: t, remaining: arrived ? 0 : Math.round(Math.hypot(x - P().x, z - P().z)), hint: arrived || interrupted ? undefined : lost ? `couldn't close on ${id} (no progress for 3 s): out of reach, or faster than you` : `ran out of time (${maxSeconds}s game time) — raise maxSeconds, or find a vehicle for long trips` };
       },
     },
     aim: { group: 'player', desc: 'Lock the aim point to x,z (null x to release back to the mouse).', args: { x: { type: 'number' }, z: { type: 'number' } },
@@ -428,7 +429,7 @@ function buildCommands(api) {
       },
     },
     ambient: {
-      group: 'observe', desc: 'Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
+      group: 'observe', desc: 'Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering.',
       run: async () => g.ambient.view(),
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
@@ -546,9 +547,9 @@ function buildCommands(api) {
       },
     },
     drive: {
-      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
-      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
-      run: async ({ throttle, steer, handbrake, seconds, x, z }) => {
+      group: 'vehicle', desc: 'Hold throttle(-1..1)/steer(-1..1, +left)/handbrake/boost (Shift: a bike wheelies under 24 m/s) for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself).',
+      args: { throttle: { type: 'number', default: 1 }, steer: { type: 'number', default: 0 }, handbrake: { type: 'boolean', default: false }, boost: { type: 'boolean', default: false }, seconds: { type: 'number', default: 1 }, x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ throttle, steer, handbrake, boost, seconds, x, z }) => {
         const v = P().inVehicle;
         need(v, 'not in a vehicle; use enterVehicle');
         if (x !== undefined && z !== undefined) {
@@ -580,7 +581,7 @@ function buildCommands(api) {
           g.driveOverride = { throttle: -1, steer: 0 }; await api._step(30); g.driveOverride = null;
           return { arrived: Math.hypot(x - v.x, z - v.z) < 10, waypoints: path.length, ...vehView(g, v) };
         }
-        g.driveOverride = { throttle, steer, handbrake };
+        g.driveOverride = { throttle, steer, handbrake, boost };
         for (let f = 0; f < Math.round(seconds * 60); f += 6) {
           await api._step(6);
           if (v.onFire) { g.driveOverride = null; return { interrupted: 'vehicle on fire — exitVehicle now', ...vehView(g, v) }; }
@@ -1098,13 +1099,16 @@ async function runSelfTest(api) {
   });
   await check('motorcycle: leans in turns, wheelies on boost, crash throws the rider', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    const r = await C('spawnVehicle', { type: 'bike', x: 460, z: 40, heading: 0 });
+    // Open desert inside the map: x=460 was inside the east boundary wall (x 450..470).
+    const r = await C('spawnVehicle', { type: 'bike', x: -410, z: 405, heading: 0 });
     const v = api.findVeh(r.id);
     await C('enterVehicle', { id: r.id, force: true });
+    // Boost off the line (through the drive command, as the keyboard does): wheelies are a launch thing,
+    // under 24 m/s. After the old order (a 1.2 s full-throttle turn first) the bike was already past that.
+    await C('drive', { throttle: 1, boost: true, seconds: 0.6 });
+    const wheelie = v.wheelie > 0.1;
     await C('drive', { throttle: 1, steer: 1, seconds: 1.2 });
     const leaned = Math.abs(v.lean) > 0.05;
-    v.boost = true; g.driveOverride = { throttle: 1, steer: 0 }; await C('step', { seconds: 0.6 }); g.driveOverride = null; v.boost = false;
-    const wheelie = v.wheelie > 0.1;
     // Crash: slam it into a wall at speed.
     v.vx = 0; v.vz = 25; v.h = 0;
     g.statics.add(v.x - 3, v.z + 1.5, v.x + 3, v.z + 2.5, 'wall', 3);
@@ -1114,32 +1118,42 @@ async function runSelfTest(api) {
   });
   await check('throwables: frag kills a group, molotov burns, smoke blocks sight, flash blinds, sticky sticks', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 90 });
+    // Open dry desert. The old spot (420,90) is the river now: the player threw while swimming, the
+    // dead stopped at the bank short of the frag and the target car floated in the channel.
+    const X = 364, Z = 39;
+    const pin = (id, x, z) => { const c = api.findChar(id); c.x = x; c.z = z; return c; }; // spawn jitters ±2 m
+    await C('teleport', { x: X, z: Z });
     await C('give', { frag: 3, molotov: 2, smoke: 2, flash: 2, sticky: 2 });
-    const a = await C('spawn', { kind: 'zombie', x: 432, z: 90, count: 3 });
-    for (const id of a.ids) { const c = api.findChar(id); c.x = 432 + (Math.random() - 0.5) * 2; c.z = 90 + (Math.random() - 0.5) * 2; c.zSpeed = 0; }
-    const f = await C('throw', { type: 'frag', x: 432, z: 90 });
+    // Three infected staged to stand still (zSpeed 0) round a spot 12 m east, 0.9+ m apart so the crowd doesn't shove them.
+    const a = await C('spawn', { kind: 'zombie', runner: false, x: X + 12, z: Z, count: 3 });
+    a.ids.forEach((id, i) => { pin(id, X + 12 + [-0.6, -0.6, 0.9][i], Z + [-0.8, 0.8, 0][i]).zSpeed = 0; });
+    // Cooked so it bursts as it lands (the 12 m lob is ~1 s in the air). Left to its 2.8 s fuse a frag
+    // bounces on ~3.5 m past where it lands, out of killing range: grenades are cooked into a group.
+    const f = await C('throw', { type: 'frag', x: X + 12, z: Z, cook: 1.7 });
     const fragOk = a.ids.every((id) => !api.findChar(id)?.alive);
-    const b = await C('spawn', { kind: 'drifter', x: 426, z: 98 });
-    const m = await C('throw', { type: 'molotov', x: 426, z: 98 });
+    const b = await C('spawn', { kind: 'drifter', x: X + 6, z: Z + 8 });
+    pin(b.ids[0], X + 6, Z + 8);
+    const m = await C('throw', { type: 'molotov', id: b.ids[0] });
     const burned = m.effects.some((e) => e.type === 'ignited') || (api.findChar(b.ids[0])?.burning ?? 0) > 0 || !api.findChar(b.ids[0])?.alive;
-    await C('throw', { type: 'smoke', x: 420, z: 106 });
+    await C('throw', { type: 'smoke', x: X, z: Z + 16 });
     await C('step', { seconds: 2 });
-    const smokeBlocks = !g.los(420, 100, 420, 112);
-    const r = await C('spawn', { kind: 'raider', x: 410, z: 90, weapon: 'pistol' });
-    await C('throw', { type: 'flash', x: 410, z: 90 });
+    const smokeBlocks = !g.los(X, Z + 10, X, Z + 22);
+    const r = await C('spawn', { kind: 'raider', x: X - 10, z: Z, weapon: 'pistol' });
+    pin(r.ids[0], X - 10, Z);
+    await C('throw', { type: 'flash', x: X - 10, z: Z });
     const blind = (api.findChar(r.ids[0])?.blind ?? 0) > 0 || !api.findChar(r.ids[0])?.alive;
-    const car = await C('spawnVehicle', { type: 'sedan', x: 414, z: 80 });
-    const st = await C('throw', { type: 'sticky', id: car.id, wait: false });
-    await C('step', { seconds: 0.5 });
-    const stuck = g.throwables.list.some((p) => p.stuck?.ref?.id === car.id);
-    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, st: st.ok });
+    const car = await C('spawnVehicle', { type: 'sedan', x: X - 6, z: Z - 10 });
+    // The throw report says what it stuck to. (Peeking 0.5 s after release never could: an 11 m lob
+    // is still in the air at 0.5 s.)
+    const st = await C('throw', { type: 'sticky', id: car.id });
+    const stuck = st.stuckTo === car.id;
+    return f.ok && fragOk && burned && smokeBlocks && blind && stuck ? true : JSON.stringify({ frag: fragOk, fk: f.kills, burned, smokeBlocks, blind, stuck, stuckTo: st.stuckTo });
   });
   await check('dive roll covers ground and costs stamina; crouch hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 420, z: 140 });
+    await C('teleport', { x: 365, z: -240 }); // dry ground: (420,140) is in the river now
     g.player.stamina = 1;
-    const d = await C('dive', { x: 430, z: 140 });
+    const d = await C('dive', { x: 375, z: -240 });
     return d.ok && d.moved > 3 && d.stamina < 0.9 ? true : JSON.stringify(d);
   });
   await check('terrain: mountains are solid and routed around', async () => {
@@ -1152,17 +1166,23 @@ async function runSelfTest(api) {
   await check('water: lake is deep, bridge deck is dry, swimming + diving hides you', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
     const deep = g.water.depthAt(390, 398) > 5, deck = g.water.depthAt(416, 0) === 0, underDeck = g.water.depthAt(416, 0, true) > 1;
-    await C('teleport', { x: 372, z: 398 });
+    // Swim mid-river with a raider on the bank 8 m off: close enough to spot even a crouching swimmer, so
+    // only being under the water can hide you. (The old raider stood in deep water by the dock, 25 m out:
+    // it couldn't see a crouching player anyway, and the lake patrol boat's route ran it over.)
+    await C('teleport', { x: 417.4, z: 200 });
     await C('step', { seconds: 0.3 });
     const swimming = !!g.player.swim;
     await C('submerge', { on: true });
-    const { ids } = await C('spawn', { kind: 'raider', x: 365, z: 380, weapon: 'smg' });
+    const { ids } = await C('spawn', { kind: 'raider', x: 409.4, z: 200, weapon: 'smg' });
+    const rd = api.findChar(ids[0]); rd.x = 409.4; rd.z = 200; // spawn jitters ±2 m
     await C('step', { seconds: 2 });
-    const hidden = !g.chars.find((c) => c.id === ids[0])?.target;
+    const hidden = !rd.target;
     const b0 = g.player.breath;
     await C('submerge', { on: false });
     g.crouchOverride = false;
-    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden });
+    await C('step', { seconds: 1 });
+    const spotted = rd.target === g.player; // up for air: there you are
+    return deep && deck && underDeck && swimming && g.player.underwater === false && b0 < 1 && hidden && spotted ? true : JSON.stringify({ deep, deck, underDeck, swimming, b0, hidden, target: rd.target?.id ?? null, spotted });
   });
   await check('cars flood and sink; boats float and beach', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -1205,6 +1225,7 @@ async function runSelfTest(api) {
     await C('train', { action: 'leave' });
     const off = !g.player.onTrain && Math.abs(g.player.x + 360) > 2;
     const { ids } = await C('spawn', { kind: 'raider', x: -360, z: T.head + 6 });
+    const rr = api.findChar(ids[0]); rr.x = -360; rr.z = T.head + 6; // on the rails: spawn jitters ±2 m and the train only hits within 1.9 m
     T.speed = 17; T.state = 'running2';
     await C('step', { seconds: 0.6 });
     const splat = !api.findChar(ids[0])?.alive;
@@ -1242,9 +1263,12 @@ async function runSelfTest(api) {
     await C('step', { seconds: 0.2 });
     const { ids } = await C('spawn', { kind: 'raider', x: 52, z: -120, weapon: 'pistol' });   // due EAST of the player
     const r = api.findChar(ids[0]);
-    g.combat.damage(g.player, 12, r, -1, 0);
-    g.aim.x = r.x; g.aim.z = r.z;
+    // The hit has to land: in god mode combat.damage returns before anything happens (no 'hurt' event,
+    // so no arc). And aim through the API: g.aim is re-read from the mouse every frame.
+    g.godMode = false; g.combat.damage(g.player, 12, r, -1, 0); g.godMode = true;
+    await C('aim', { x: r.x, z: r.z });
     await C('step', { seconds: 0.1 });
+    await C('aim', {});
     const h1 = g.feedback.view();
     const arc = h1.damageIndicators.find((d) => Math.abs(d.bearing - 90) < 15);
     const tag = h1.nameTags.find((t) => t.id === r.id && t.flag);
@@ -1263,25 +1287,36 @@ async function runSelfTest(api) {
   });
   await check('details: brass piles up, civilians cower, horn sends people diving, tracks in the sand, brake lights', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 140, z: -150 });
-    const b0 = g.ambient.view().brass;
-    const { ids } = await C('spawn', { kind: 'drifter', x: 146, z: -150 });
-    const civ = api.findChar(ids[0]); civ.weapon = null;
+    // Open sand off every road. The car used to start on Iron St (x=160) and roll onto the z=-160
+    // crossing: tarmac all the way, so no tracks, whatever the tyres did.
+    const X = 232, Z = -380, A = g.ambient;
+    await C('teleport', { x: X, z: Z });
+    const e0 = A.view().brassEjected;
+    const { ids } = await C('spawn', { kind: 'drifter', x: X + 6, z: Z });
+    const civ = api.findChar(ids[0]); civ.weapon = null; civ.x = X + 6; civ.z = Z;
+    // A close shot makes a civilian cower 55% of the time: up to 16 quick shots, all while they're still
+    // in earshot even if they bolt (6 shots a quarter-second apart missed about 1 run in 120).
     let cowered = false;
-    for (let k = 0; k < 6 && !cowered; k++) { g.combat.fire(g.player, 'pistol', Math.PI); await C('step', { seconds: 0.25 }); cowered = civ.cowerT > 0; }
+    const mine = [], newest = () => A.shells[(A.bNext + A.shells.length - 1) % A.shells.length]; // the ring's last write
+    for (let k = 0; k < 16 && !cowered; k++) {
+      if (g.combat.fire(g.player, 'pistol', Math.PI)) mine.push(newest());
+      await C('step', { seconds: 1 / 15 }); cowered = civ.cowerT > 0;
+    }
     await C('step', { seconds: 1 });
-    const brass = g.ambient.view().brass > b0 && g.ambient.view().brassAtRest > 0;
+    // Our own shells landed and lie still. The on-ground count can't show it: the 240-shell ring is
+    // full long before this check, so it never goes up.
+    const brass = mine.length > 0 && mine.every((s) => s.rest) && A.view().brassEjected >= e0 + mine.length;
     civ.cowerT = 0; civ.crouch = false; civ.handsUp = false;
-    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 160, z: -175, heading: 0 })).id);
+    const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: X + 20, z: Z - 25, heading: 0 })).id);
     await C('enterVehicle', { id: car.id, force: true });
-    const w = await C('spawn', { kind: 'drifter', x: 160.5, z: -166 });
-    const ped = api.findChar(w.ids[0]);
+    const w = await C('spawn', { kind: 'drifter', x: X + 20.5, z: Z - 16 });
+    const ped = api.findChar(w.ids[0]); ped.x = X + 20.5; ped.z = Z - 16;
     const h = await C('honk');
     await C('step', { seconds: 0.7 });
-    const dodged = h.dodged >= 1 && Math.abs(ped.x - 160) > 1.5;
-    const t0 = g.ambient.view().tracks;
+    const dodged = h.dodged >= 1 && Math.abs(ped.x - (X + 20)) > 1.5;
+    const t0 = A.view().tracksLaid;
     await C('drive', { throttle: 1, steer: 0.3, seconds: 2 });
-    const tracks = g.ambient.view().tracks > t0;
+    const tracks = A.view().tracksLaid > t0;
     car.throttle = -1; g.vehiclesSys.update(1 / 60, 0);
     const brakeLit = car.braking === true || g.vehiclesSys.speed(car) < 0.5;
     g.exitVehicle(true);

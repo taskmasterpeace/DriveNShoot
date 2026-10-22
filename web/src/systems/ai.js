@@ -66,8 +66,7 @@ export class AI {
     const t = this.tmp;
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
     // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
-    const w = this.g.water;
-    if (w && t.x > 290 && w.depthAt(t.x, t.z) > (c.faction === 'zombie' ? 0.6 : 1.2) && w.depthAt(px, pz) <= (c.faction === 'zombie' ? 0.6 : 1.2)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
+    if (this.wades(c, t.x, t.z)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
     this.g.statics.resolveCircle(t, c.radius);
     c.x = t.x; c.z = t.z;
     const moved = Math.hypot(c.x - px, c.z - pz);
@@ -80,10 +79,20 @@ export class AI {
     c.walk += stridePhase(c.speed, dt);
   }
 
+  // Would stepping c to x,z take it into water it must not enter? The living won't wade in past
+  // 1.2 m. The dead never go deeper once past 0.6 m: the rule used to be "don't cross the waterline",
+  // so a crowd shoving one of the infected 1 cm past it freed it to walk out into the lake after its prey.
+  wades(c, x, z) {
+    const w = this.g.water;
+    if (!w || x <= 290) return false;
+    const d = w.depthAt(x, z), d0 = w.depthAt(c.x, c.z);
+    return c.faction === 'zombie' ? d > 0.6 && d > d0 : d > 1.2 && d0 <= 1.2;
+  }
+
   scan(c) {
     let best = null, bd = c.faction === 'raider' ? 34 : 30;
     for (const o of this.g.chars) {
-      if (!this.hostile(c, o) || o.hidden) continue;
+      if (!this.hostile(c, o) || o.hidden || o.underwater) continue; // dived under: out of sight
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
       if (d < bd * (o.crouch ? 0.6 : 1) && this.g.los(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
@@ -162,7 +171,7 @@ export class AI {
           this.move(c, Math.sin(c.blind * 3), Math.cos(c.blind * 2), 1.2, dt);
           continue;
         }
-        const los = g.los(c.x, c.z, tx, tz);
+        const los = !t.underwater && g.los(c.x, c.z, tx, tz); // under water: lost sight (they wait at the shore)
         // Dug-in target out of sight but close: lob a grenade over the cover.
         if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
           c.grenades--;
@@ -234,8 +243,10 @@ export class AI {
         const P = this.g.player;
         const wa = a === P ? 0 : b === P ? 2 : 1, wb = b === P ? 0 : a === P ? 2 : 1;
         const ta = { x: a.x - nx * push * wa, z: a.z - nz * push * wa }, tb = { x: b.x + nx * push * wb, z: b.z + nz * push * wb };
-        // Never shove anyone through a wall.
+        // Never shove anyone through a wall, nor the dead into deep water.
         this.g.statics.resolveCircle(ta, a.radius); this.g.statics.resolveCircle(tb, b.radius);
+        if (a.faction === 'zombie' && this.wades(a, ta.x, ta.z)) { ta.x = a.x; ta.z = a.z; }
+        if (b.faction === 'zombie' && this.wades(b, tb.x, tb.z)) { tb.x = b.x; tb.z = b.z; }
         a.x = ta.x; a.z = ta.z; b.x = tb.x; b.z = tb.z;
       }
     }

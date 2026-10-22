@@ -515,9 +515,10 @@ class Game {
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
       if (this.driveOverride) {
-        // Agent-issued drive controls win over the keyboard until they expire.
+        // Agent-issued drive controls win over the keyboard until they expire. Boost too: the keyboard
+        // read above used to reset it every frame, so an agent could never wheelie a bike.
         const o = this.driveOverride;
-        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake;
+        v.throttle = o.throttle ?? 0; v.steer = o.steer ?? 0; v.handbrake = !!o.handbrake; v.boost = !!o.boost;
         if (o.until !== undefined && this.time >= o.until) this.driveOverride = null;
       }
       if (this.train.canBoard(p)) {
@@ -565,7 +566,8 @@ class Game {
     p.stamina = p.stamina ?? 1;
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
     const sprint = wantSprint && p.stamina > 0.04;
-    p.stamina = Math.max(0, Math.min(1, p.stamina + (sprint && p.speed > 1 ? -0.16 : 0.22) * dt));
+    // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
+    p.stamina = Math.max(0, Math.min(1, p.stamina + (sprint && p.speed > 1 ? -0.16 : p.dive > 0 ? 0 : 0.22) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
     if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
     p.diveCool = (p.diveCool ?? 0) - dt;

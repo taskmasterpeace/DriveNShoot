@@ -214,11 +214,14 @@ export class Train {
     else {
       const stopAt = STATION.z;
       if (this.state === 'running') {
+        // Brake on the curve that ends AT the platform (v² = 2·a·d) and creep the last metre, so the
+        // train always arrives. It used to brake for a point 2 m short but only count an arrival within
+        // 1.5 m: it stalled ~1.9 m out at 0 m/s, never dwelled, and the Iron Line froze there for good.
         const toStop = stopAt - this.head;
-        const brake = (this.speed * this.speed) / (2 * 2.4);
-        if (toStop > 0 && toStop < brake + 2) this.speed = Math.max(0, this.speed - 2.4 * dt);
-        else this.speed = Math.min(CRUISE, this.speed + 1.4 * dt);
-        if (toStop > -1 && toStop < 1.5 && this.speed < 0.6) { this.state = 'dwell'; this.speed = 0; this.dwell = 14; g.emit('trainArrived', { station: STATION.name }); }
+        let v = Math.min(CRUISE, this.speed + 1.4 * dt);
+        if (toStop > 0) v = Math.min(v, Math.max(0.8, Math.sqrt(2 * 2.4 * toStop)));
+        this.speed = Math.max(v, this.speed - 4.8 * dt); // strong brakes, not instant ones
+        if (toStop > -1.5 && toStop < 0.3 && this.speed < 2) { this.state = 'dwell'; this.speed = 0; this.dwell = 14; g.emit('trainArrived', { station: STATION.name }); }
       } else if (this.state === 'dwell') {
         this.dwell -= dt;
         if (this.dwell <= 0) { this.state = 'leaving'; g.emit('trainDeparted', { station: STATION.name }); }

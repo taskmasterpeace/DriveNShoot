@@ -24,7 +24,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `perf` | `(none)` | Frame rate, draw calls, triangles, entity counts. |
 | `screenshot` | `quality?:number width?:number height?:number x?:number z?:number zoom?:number` | Render the world as a JPEG data URL (fixed size, works in hidden tabs). Optional x,z to look at a spot and zoom = camera height (8 = close-up, 33 = default, 90 = overview). CLI: --out file.jpg saves it. |
 | `photo` | `on?:boolean x?:number z?:number zoom?:number tilt?:number` | Photo mode: on=true freezes the world and hides the HUD; x,z,zoom (camera height 6-160), tilt (0 = straight down … 1.6 = low angle) frame the shot. Take it with screenshot, then on=false. Keyboard: K. |
-| `ambient` | `(none)` | Ambient detail state: tyre tracks laid, brass on the ground, tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
+| `ambient` | `(none)` | Ambient detail state: tyre tracks and brass on the ground (capped by their ring buffers; tracksLaid/brassEjected are running totals for before/after checks), tumbleweeds near you, vultures (and whether gunfire spooked them), who is cowering. |
 | `hud` | `(none)` | What the HUD feedback layer is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood. |
 | `water` | `x?:number z?:number` | Water depth at x,z (default: the player) and what it means: dry \| wade \| swim. Also lists where the water is (river, lake, bridge, dock). |
 
@@ -75,7 +75,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 |---|---|---|
 | `enterVehicle` | `id:string force?:boolean` | Get into a vehicle by id. You must be beside it (moveTo id=<vehicle> first); force=true skips that (testing). Carjacks if occupied. |
 | `exitVehicle` | `(none)` | Leave the current vehicle. If it is burning, the player automatically sprints clear of the blast (7m). |
-| `drive` | `throttle?:number steer?:number handbrake?:boolean seconds?:number x?:number z?:number` | Hold throttle(-1..1)/steer(-1..1, +left)/handbrake for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself). |
+| `drive` | `throttle?:number steer?:number handbrake?:boolean boost?:boolean seconds?:number x?:number z?:number` | Hold throttle(-1..1)/steer(-1..1, +left)/handbrake/boost (Shift: a bike wheelies under 24 m/s) for N seconds of sim time, or give x,z to auto-drive there along an A* route (unsticks itself). |
 | `ram` | `id?:string seconds?:number` | Run a character down (id or "hostile"): steers at their live position at full throttle, reverses out if stuck, until they die or seconds elapse. Returns kills. |
 | `grab` | `id:string side?:left\|right\|front\|rear` | Player grabs onto a vehicle (car-surfing): rides along on that side and can shoot. Must be within ~2m (moveTo id=<vehicle> first). letGo drops off (at speed = tumble damage). |
 | `letGo` | `(none)` | Let go of the vehicle you are hanging on. |
