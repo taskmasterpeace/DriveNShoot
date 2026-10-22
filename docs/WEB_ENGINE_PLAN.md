@@ -8,6 +8,8 @@
 - a scenario that shows it off,
 - and no change to the performance budget: under 150 draw calls, 1080p under 8 ms, zero runtime errors.
 
+**Status (2026-10-22, late):** the game is DIVIDED STATES OF AMERICA. Phases 0-4 are done and well past (world memory, survival, skills, the garage, jumps, the inventory, interiors, the stamped-steel HUD); 73/73 selftest. What landed, how to land it on `feat/web-engine`, and the next blocks are in `docs/RESUME_WEB_ENGINE.md`; the design docs are WEB_WORLD_MEMORY, WEB_FAN_SERVICE_BIBLE, WEB_STREAMING, WEB_JUMPS and WEB_INVENTORY in `docs/design/`.
+
 ---
 
 ## Phase 0 — Move in (foundation)
