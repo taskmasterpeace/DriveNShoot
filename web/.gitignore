@@ -1,3 +1,6 @@
 node_modules
 dist
 .dream-loop/
+
+# clean-room study notes: research only, never shipped
+.study/
