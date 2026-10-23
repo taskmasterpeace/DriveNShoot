@@ -51,6 +51,14 @@ export class Clone {
   // Where a vat stands: a world point on the map ({x, z, wake, onMap: true}) or a node off it ({onMap: false, node}).
   vatPlace(row) {
     if (!row) return null;
+    // A vat does not move: worked out once the world is up (main.js asks every frame, for the E prompt).
+    const hit = this.placeCache?.get(row.id);
+    if (hit) return hit;
+    const pl = this.vatPlaceNow(row);
+    if (this.W) (this.placeCache ??= new Map()).set(row.id, pl);
+    return pl;
+  }
+  vatPlaceNow(row) {
     if (row.at) return { x: row.at.x, z: row.at.z, wake: row.wake ?? { x: row.at.x, z: row.at.z + 2 }, onMap: true };
     const T = this.g.travel, n = row.port ? T?.node(row.port) : null;
     if (n?.onMap) return { x: n.counter.x, z: n.counter.z, wake: { x: n.counter.x + 1.5, z: n.counter.z + 1.5 }, onMap: true, node: row.port };

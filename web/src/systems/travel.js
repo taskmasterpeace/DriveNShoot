@@ -761,7 +761,6 @@ export class Travel {
     const geo = poleKit();
     this.poleMesh = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0.25 }), 48);
     this.poleMesh.count = 0; this.poleMesh.visible = false; this.poleMesh.castShadow = true; this.poleMesh.receiveShadow = true;
-    this.poleMesh.frustumCulled = false;
     g.scene.add(this.poleMesh);
     // The board: one canvas, drawn for the nearest pole.
     const cv = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -787,12 +786,13 @@ export class Travel {
         if (!nd.onMap) continue;
         const spots = nd.road ? [nd.poles[1], nd.poles[-1], ...(nd.air ? [nd.counter] : [])] : [nd.counter];
         for (const q of spots) {
-          if (!q || n >= 48 || Math.hypot(q.x - cx, q.z - cz) > 900) continue;
+          if (!q || n >= 48 || Math.hypot(q.x - cx, q.z - cz) > 400) continue;
           o.position.set(q.x, g.stunts?.heightAt?.(q.x, q.z) ?? 0, q.z); o.rotation.set(0, q.h ?? 0, 0); o.scale.set(1, 1, 1); o.updateMatrix();
           this.poleMesh.setMatrixAt(n++, o.matrix);
         }
       }
       this.poleMesh.count = n; this.poleMesh.visible = n > 0; this.poleMesh.instanceMatrix.needsUpdate = true;
+      if (n) this.poleMesh.computeBoundingSphere(); // culled like any mesh: no draw call (or shadow pass) unless a pole is on screen
     }
     // The board at the nearest pole within 120 m, redrawn when the stop or the clock's ten minutes change.
     if (!this.boardMesh) return;
