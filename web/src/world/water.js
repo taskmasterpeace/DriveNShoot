@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { WATER } from '../data/water.js';
 
 // Water: the Colorado Remnant (a river down the east flank, under the Route 66 bridge)
 // emptying into Lake Mead Remnant in the south-east corner. depthAt() is THE water
 // authority: wading, swimming, diving, drowning, flooding cars, boats, zombie behaviour.
+// Past the island (|x| or |z| > 464) it hands over to the streamed world's L1 water (world/rivers.js, rows in
+// data/water.js): the same questions, the same answers (dry | wade | swim), real rivers, washes and lakes.
+const OUT = 464; // the island rectangle (world/geo.js ISLAND)
+const outside = (x, z) => x > OUT || x < -OUT || z > OUT || z < -OUT;
 
 const RIVER = [[418, -452], [424, -360], [410, -280], [428, -190], [414, -110], [420, -40], [416, 0], [412, 60], [428, 150], [418, 240], [406, 320], [399, 348]]; // ends at the lake shore (no overlap → no z-fighting)
 const RIVER_HALF = 11;
@@ -61,6 +66,46 @@ export class Water {
     // White base: the depth tint comes from vertex colours. No metalness (there's no sky to reflect,
     // metal water reads as tar); low roughness gives sun/moon glints off the ripples.
     this.mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.18, metalness: 0, normalMap: this.normal, normalScale: new THREE.Vector2(0.45, 0.45), vertexColors: true }); // opaque: overlapping river/lake pieces would double-darken
+    // The streamed world's water sheets (world/rivers.js, drawn per chunk by the streamer): the same ripples, scrolled
+    // along each river's own length (UV v = metres downstream / 7), so they run with the current.
+    this.flowTex = this.normal.clone();
+    this.flowTex.wrapS = this.flowTex.wrapT = THREE.RepeatWrapping; this.flowTex.needsUpdate = true;
+    this.streamMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.34, metalness: 0, normalMap: this.flowTex, normalScale: new THREE.Vector2(0.26, 0.26), vertexColors: true }); // silty water: a duller glint than the island's
+    // Its colour per pixel: the sheet's vertex colour carries (signed metres from the water's edge, depth) instead of a
+    // colour (world/chunkgen.js), so the shore's foam line is crisp and the depth bands follow the real shore.
+    const C = WATER.colour, lin = (h) => new THREE.Color(h);
+    // The same layer draws a dry wash's bed (vertex blue = 1): pale sand and gravel, a dark lip at its edge, no ripples,
+    // no shine.
+    const U = { uShallow: { value: lin(C.shallow) }, uMid: { value: lin(C.mid) }, uDeep: { value: lin(C.deep) }, uFoam: { value: lin(C.foam) }, uSand: { value: lin(C.washBed) }, uLip: { value: lin(C.washLip) } };
+    this.streamMat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, U);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+uniform vec3 uShallow, uMid, uDeep, uFoam, uSand, uLip;
+float wH2(vec2 q) { return fract(sin(dot(q, vec2(12.9898, 78.233))) * 43758.5453); }
+float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f); return mix(mix(wH2(i), wH2(i + vec2(1.0, 0.0)), f.x), mix(wH2(i + vec2(0.0, 1.0)), wH2(i + 1.0), f.x), f.y); }`)
+        .replace('#include <color_fragment>', `#if defined( USE_COLOR )
+  float wEdge = vColor.r, wDepth = vColor.g;
+  vec3 wc;
+  if (vColor.b > 0.5) {
+    // A wash's bed (uv = metres across / 6, along / 6): braided streaks of finer and coarser sand along the flow,
+    // gravel speckle, and the dark lip of the cut bank at its edge.
+    vec2 p = vNormalMapUv * 6.0;
+    float braid = wVn(vec2(p.x * 0.32, p.y * 0.045)) * 0.65 + wVn(vec2(p.x * 0.9, p.y * 0.12)) * 0.35;
+    float grit = step(0.82, wH2(floor(p * 2.6)));
+    wc = uSand * (0.8 + 0.3 * braid) * (1.0 - 0.18 * grit);
+    wc = mix(uLip, wc, smoothstep(0.5, 3.2, wEdge));
+  } else {
+    wc = mix(uShallow, uMid, smoothstep(0.15, 1.5, wDepth));
+    wc = mix(wc, uDeep, smoothstep(1.5, 4.0, wDepth));
+    float foam = 1.0 - smoothstep(0.0, 1.4, wEdge);
+    wc = mix(wc, uFoam, foam * 0.75);
+  }
+  diffuseColor.rgb *= wc;
+#endif`)
+        .replace('#include <normal_fragment_maps>', 'if (vColor.b < 0.5) {\n#include <normal_fragment_maps>\n}')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vColor.b > 0.5) roughnessFactor = 1.0;');
+    };
+    this.streamMat.customProgramCacheKey = () => 'dsoa-stream-water-3';
 
     // River ribbon + lake disc, vertex-tinted deeper toward the middle; one mesh.
     const geos = [];
@@ -112,7 +157,18 @@ export class Water {
   }
 
   // Depth of water at a point (0 = dry). ignoreBridge for rendering the channel under the deck.
-  depthAt(x, z, ignoreBridge = false) { return waterDepth(x, z, ignoreBridge); }
+  // y (optional, absolute): how high the asker is. Past the island a bridge deck counts only for someone up on it (a
+  // swimmer under it is still in the river); without y a deck is dry ground (the 2-D question, as on the island).
+  depthAt(x, z, ignoreBridge = false, y) {
+    if (outside(x, z)) { const R = this.g.streamer?.W?.water; return R ? (ignoreBridge ? R.sample(x, z).depth : R.depthAt(x, z, y)) : 0; }
+    return waterDepth(x, z, ignoreBridge);
+  }
+  // The water's surface height at (x, z) (absolute; the island's is 0), or `fallback` where there is none.
+  surfaceAt(x, z, fallback = 0) {
+    if (!outside(x, z)) return 0;
+    const s = this.g.streamer?.W?.water?.surfaceAt(x, z);
+    return Number.isFinite(s) ? s : fallback;
+  }
 
   // The road itself runs across (it's drawn above the water); the bridge adds what makes it
   // read as a bridge from above: rails, edge girders, a shadow on the water, piers.
@@ -144,15 +200,16 @@ export class Water {
   }
 
   // Wading/swimming state for a character at its position.
-  stateAt(x, z) {
+  stateAt(x, z, y) {
     if (this.dockDeck && x > this.dockDeck.minX && x < this.dockDeck.maxX && z > this.dockDeck.minZ && z < this.dockDeck.maxZ) return 'dry';
-    const d = this.depthAt(x, z);
-    return d <= 0.25 ? 'dry' : d < 1.3 ? 'wade' : 'swim';
+    const d = this.depthAt(x, z, false, y);
+    return d <= 0.25 ? 'dry' : d < WATER.swimDepth ? 'wade' : 'swim';
   }
 
   update(dt) {
     this.time += dt;
     this.normal.offset.set(this.time * 0.012, this.time * 0.007);
+    this.flowTex.offset.set(Math.sin(this.time * 0.13) * 0.02, -this.time * WATER.flow / 7); // downstream, with a little wander
   }
 
   drawOnMinimap(canvas, half) {

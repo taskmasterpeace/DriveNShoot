@@ -28,6 +28,8 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { waterCommands } from './water-api.js';
+import { waterChecks } from './water-selftest.js';
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
@@ -1888,6 +1890,9 @@ function buildCommands(api) {
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
+    // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
+    // row above, same answers there), rivers, bridges.
+    ...waterCommands(api, need),
   };
 }
 
@@ -5359,6 +5364,7 @@ async function runSelfTest(api, only = null, skip = null) {
     const r = await C('load', { save: sv });
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
+  await waterChecks(api, check, C); // L1 water and its L2 crossings (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));

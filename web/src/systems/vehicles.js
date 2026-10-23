@@ -217,7 +217,7 @@ export class Vehicles {
     }
     let topSpeed = v.maxSpeed * fxm.top;
     // Water: boats need it, everything else drowns in it.
-    const depth = this.g.water ? this.g.water.depthAt(v.x, v.z) : 0;
+    const depth = this.g.water ? this.g.water.depthAt(v.x, v.z, false, v.boat ? -Infinity : v.y) : 0; // y: a car up on a river's deck is dry; a boat under it is not
     v.depth = depth;
     if (v.boat) {
       const afloat = depth > (v.shallow ? 0.12 : 0.55);
@@ -230,7 +230,11 @@ export class Vehicles {
         if (v.dmg) v.dmg.engine = Math.max(0, v.dmg.engine - dt * 0.35);
         if (v.flood > 5) this.sink(v);
       }
-      if (this.speed(v) > 4 && Math.random() < dt * 20) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, 0.4, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3, 2, (Math.random() - 0.5) * 3, 0.7, 0.4, '#d8e4e4', 3);
+      if (this.speed(v) > 4 && Math.random() < dt * 20) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, v.y + 0.4, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3, 2, (Math.random() - 0.5) * 3, 0.7, 0.4, '#d8e4e4', 3);
+    } else if (depth > 0.15) {
+      // A ford (WEB_RIVERS: shallower than `ford`): the water drags at the wheels and sprays off them.
+      fwd *= Math.exp(-dt * depth * 2.2); side *= Math.exp(-dt * depth * 1.4); fxm.power *= 1 - depth * 0.6;
+      if (this.speed(v) > 3 && Math.random() < dt * (10 + this.speed(v))) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, v.y + 0.3, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3.5, 2.6, (Math.random() - 0.5) * 3.5, 0.6, 0.35, '#d6dccc', 3);
     }
     if (!v.dead && v.driver && !v.fallen) {
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
@@ -659,7 +663,11 @@ export class Vehicles {
         // Bob on the swell, bank into turns, throw a wake.
         const t = g.time + v.x * 0.1;
         const afloat = (v.depth ?? 0) > 0.12;
-        v.group.position.y = afloat ? -0.18 + Math.sin(t * 2.1) * 0.06 : 0.05;
+        // On the water's own surface (0 on the island; a streamed river's or lake's surface past it, world/rivers.js), on
+        // the ground when beached. v.y follows, so a deck and the piers know where the hull is.
+        const wy = g.water.surfaceAt ? g.water.surfaceAt(v.x, v.z, NaN) : 0, base = Number.isFinite(wy) ? wy : (g.stunts?.ext && g.stunts.outside(v.x, v.z) ? g.stunts.heightAt(v.x, v.z) : 0);
+        if (afloat || g.stunts?.outside?.(v.x, v.z)) { v.y = base; v.gy = base; }
+        v.group.position.y = afloat ? base - 0.18 + Math.sin(t * 2.1) * 0.06 : base + 0.05;
         v.group.rotation.x = afloat ? Math.sin(t * 1.7) * 0.03 - Math.min(0.12, this.speed(v) * 0.004) : 0;
         v.group.rotation.z = afloat ? Math.sin(t * 1.3) * 0.04 + clamp(-v.av * this.speed(v) * 0.01, -0.2, 0.2) : 0.06;
         v.lean = v.group.rotation.z; v.wheelie = -v.group.rotation.x;
@@ -670,7 +678,7 @@ export class Vehicles {
         }
       }
       // Going under: the hull settles a little more each frame (it used to restart from the surface every frame).
-      if (v.sunk) { v.sinkY = Math.max(-1.7, (v.sinkY ?? v.group.position.y) - dt * 0.6); v.group.position.y = v.sinkY; }
+      if (v.sunk) { v.sinkFloor ??= v.group.position.y - 1.7; v.sinkY = Math.max(v.sinkFloor, (v.sinkY ?? v.group.position.y) - dt * 0.6); v.group.position.y = v.sinkY; } // 1.7 m under where it went down (the island's surface is 0)
       // Everyone aboard rides with the car; exposed seats (saddle, truck bed, boat deck) show their rider, placed
       // through the body's own transform so a rider pitches over a jump and bobs with a hull.
       if (v.occ) {

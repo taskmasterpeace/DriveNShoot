@@ -119,7 +119,10 @@ export class Streamer {
     this.groundMat = w.groundMat.clone(); this.groundMat.vertexColors = true;
     this.roadMat = new THREE.MeshStandardMaterial({ map: roadAtlasTexture(), roughness: 0.9 });
     this.rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, flatShading: true, side: THREE.DoubleSide });
-    this.surfaces = new SurfacePool(scene, STREAM.hotMax, SURF_CAPS, { ground: this.groundMat, road: this.roadMat, rock: this.rockMat });
+    // L1 water's sheet (world/rivers.js): world/water.js owns the material (its ripples flow downstream).
+    this.waterMat = g.water?.streamMat ?? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.2 });
+    this.surfaces = new SurfacePool(scene, STREAM.hotMax, SURF_CAPS, { ground: this.groundMat, road: this.roadMat, rock: this.rockMat, water: this.waterMat });
+    for (const s of this.surfaces.slots) s.layers.water.mesh.renderOrder = 1; // after the ground it sits in
   }
 
   // Compile every streamed material now, once, so the first chunk that goes hot in a session doesn't hitch the frame it
@@ -212,11 +215,12 @@ export class Streamer {
     const h = L.hot;
     const ox = L.cx * C, oz = L.cz * C;
     if (!h.slot) { h.slot = this.surfaces.acquire(); if (!h.slot) return false; h.slot.chunk = L.key; }
-    const order = ['ground', 'road', 'rock'];
+    const order = ['ground', 'road', 'rock', 'water'];
     while (h.step < order.length) {
-      if (!sync && this.frameUploads >= STREAM.surfUploads) return false;
-      this.surfaces.upload(h.slot, order[h.step], L.surf[order[h.step]], ox, oz);
-      if (L.surf[order[h.step]]) this.frameUploads++;
+      const d = L.surf[order[h.step]];
+      if (d && !sync && this.frameUploads >= STREAM.surfUploads) return false; // an empty layer (most chunks' water) costs no frame
+      this.surfaces.upload(h.slot, order[h.step], d, ox, oz);
+      if (d) this.frameUploads++;
       h.step++;
     }
     const names = Object.keys(L.inst);
@@ -494,6 +498,9 @@ export class Streamer {
     }
     W.terrain = T;
     W.mesaCache?.clear(); // mesas read the biome, which reads the landcover now
+    // L1 water sits in the land now (its surfaces and beds from the real heights); L2 plans its decks again (a river far
+    // below a road on a fill is a gorge: a deck, not a culvert).
+    if (W.water) { W.water.setGround(T); W.applyWater(); }
     if (this.g.fx) this.g.fx.ground = T ? (x, z) => T.at(x, z) : null; // blood, skids, smoke, tracers on the land
     // Lay out every chunk again: drop them all (the pinned island chunks are built again at once), then let the
     // streamer plan the ring round the player as on any arrival.

@@ -190,7 +190,7 @@ export class AI {
   // so a crowd shoving one of the infected 1 cm past it freed it to walk out into the lake after its prey.
   wades(c, x, z) {
     const w = this.g.water;
-    if (!w || x <= 290) return false;
+    if (!w || (x <= 290 && x >= -464 && z >= -464 && z <= 464)) return false; // the island's water is all east of x 290; the streamed world's is anywhere
     const d = w.depthAt(x, z), d0 = w.depthAt(c.x, c.z);
     return c.faction === 'zombie' ? d > 0.6 && d > d0 : d > 1.2 && d0 <= 1.2;
   }
