@@ -1,0 +1,113 @@
+{
+ "note": "Written by tools/blenderforge/gen_flora.py. h: model height (m), radius: widest crown reach from the trunk (m), tris: triangles per variant.",
+ "species": {
+  "paloverde": {
+   "h": 4.6,
+   "radius": 3.81,
+   "tris": [
+    458,
+    466,
+    458
+   ]
+  },
+  "mesquite": {
+   "h": 4.4,
+   "radius": 4.54,
+   "tris": [
+    460,
+    460,
+    424
+   ]
+  },
+  "fanpalm": {
+   "h": 11.0,
+   "radius": 2.97,
+   "tris": [
+    292,
+    281,
+    303
+   ]
+  },
+  "datepalm": {
+   "h": 9.5,
+   "radius": 6.22,
+   "tris": [
+    544,
+    536,
+    518
+   ]
+  },
+  "citrus": {
+   "h": 3.6,
+   "radius": 1.73,
+   "tris": [
+    484,
+    460,
+    460
+   ]
+  },
+  "saguaro": {
+   "h": 7.5,
+   "radius": 1.88,
+   "tris": [
+    196,
+    336,
+    266
+   ]
+  },
+  "joshua": {
+   "h": 5.4,
+   "radius": 2.89,
+   "tris": [
+    256,
+    248,
+    248
+   ]
+  },
+  "ocotillo": {
+   "h": 4.6,
+   "radius": 3.24,
+   "tris": [
+    317,
+    398,
+    317
+   ]
+  },
+  "deadtree": {
+   "h": 5.2,
+   "radius": 3.34,
+   "tris": [
+    415,
+    480,
+    495
+   ]
+  },
+  "tumbleweed": {
+   "h": 0.9,
+   "radius": 0.52,
+   "tris": [
+    416,
+    416,
+    416
+   ]
+  },
+  "creosote": {
+   "h": 1.5,
+   "radius": 1.22,
+   "tris": [
+    284,
+    242,
+    284
+   ]
+  },
+  "pricklypear": {
+   "h": 1.3,
+   "radius": 1.85,
+   "tris": [
+    400,
+    368,
+    384
+   ]
+  }
+ }
+}

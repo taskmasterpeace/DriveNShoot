@@ -7,6 +7,7 @@ import { Pool, SurfacePool } from './pools.js';
 import { SignAtlas } from './signs.js';
 import { roadAtlasTexture, radialGlow } from './textures.js';
 import { roofSurface, wallSurface } from './surfaces.js';
+import { poolName } from './flora.js';
 import GOLDEN from '../data/golden.json';
 
 // The streamer (docs/design/WEB_STREAMING.md §3.2-3.3, P1 "Streamed Arizona").
@@ -110,6 +111,8 @@ export class Streamer {
       barrels: P('barrels', new THREE.CylinderGeometry(0.45, 0.45, 1.1, 10), std({ roughness: 0.7, metalness: 0.3 })),
       glows: P('glows', flatPlane, glowMat, { cast: false, receive: false }),
     };
+    // Trees and desert plants (world/flora.js): one pool per species, shared with the island (it holds a permanent range).
+    for (const [k, p] of Object.entries(w.flora.pools)) this.pools[poolName(k)] = p;
     this.pools.glows.mesh.renderOrder = 2;
     for (const p of Object.values(this.pools)) scene.add(p.mesh);
     // Surfaces share the island's ground and road look (sky.js tints them every frame: synced in update()).
