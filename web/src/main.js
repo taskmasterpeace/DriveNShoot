@@ -55,6 +55,7 @@ import { NavGrid } from './engine/nav.js';
 import { Feedback } from './ui/feedback.js';
 import { QOL } from './ui/qol.js';
 import { startBridge } from './agent/bridge.js';
+import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
 
@@ -193,6 +194,7 @@ class Game {
     this.buildPickups();
     this.buildFlashlight();
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
+    this.recorder = new Recorder(this); // the session ring the observer replays (agent/recorder.js, WEB_OBSERVER.md)
     this.api = new AgentAPI(this);
     this.title(ui);
   }
@@ -1191,6 +1193,7 @@ class Game {
     this.qol.update(dt);
     this.invUI.update(dt);
     this.feedback.update(dt);
+    this.recorder.tick(); // a time check; 4 times a game second, one sample into preallocated arrays
     I.endFrame();
   }
 
