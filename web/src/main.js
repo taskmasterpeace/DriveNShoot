@@ -445,7 +445,7 @@ class Game {
   bedNear(x, z, y = 0) {
     let best = null, bd = 1.8;
     for (const b of this.world.spawns.beds ?? NO_BEDS) { if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
-    return best;
+    return best ?? this.decks.bedNear(x, z, y); // or the bunk in a van or an RV you stand in (systems/decks.js)
   }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
   footPath(sx, sz, tx, tz) {
@@ -617,11 +617,11 @@ class Game {
     const p = this.player, v = p.inVehicle;
     if (!v) return;
     this.emit('exitVehicle', { vehicle: v.id, forced });
-    this.seats.leave(p, true);
-    if (v.ai === 'chauffeur') { v.ai = null; v.throttle = 0; } // allies park when you get out
+    this.seats.leave(p, true, !forced); // a van's or an RV's cab: up from the wheel onto its deck (systems/decks.js)
+    if (v.ai === 'chauffeur' && p.onDeck?.v !== v) { v.ai = null; v.throttle = 0; } // allies park when you get out
     this.vehiclesSys.releaseHarpoon();
     const sp = this.vehiclesSys.speed(v);
-    if (!forced && sp > 10) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
+    if (!forced && sp > 10 && !p.onDeck) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
   }
 
   // Walking through a blood pool leaves a trail of bloody footprints for a few steps.
@@ -707,11 +707,13 @@ class Game {
       const driving = v.driver === p;
       if (driving) {
         v.throttle = (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0) - (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0);
-        v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
         v.handbrake = I.key('Space');
         v.boost = I.key('ShiftLeft') || I.key('ShiftRight');
         const pd = this.controls.drive; // the pad: RT gas, LT brake, the left stick steers (analog)
-        if (pd.throttle || pd.steer) { v.throttle = clamp(v.throttle + pd.throttle, -1, 1); v.steer = clamp(v.steer + pd.steer, -1, 1); }
+        if (pd.throttle) v.throttle = clamp(v.throttle + pd.throttle, -1, 1);
+        // Keys and stick together, through one left-is-left rule (the pause menu's Steering setting: screen-left, or the car's own).
+        const sIn = clamp((I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0) + pd.steer, -1, 1);
+        v.steer = this.vehiclesSys.screenSteer(v, sIn);
       }
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
@@ -890,6 +892,7 @@ class Game {
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
       if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same)) continue; // the street's cars, from upstairs: no
+      if (veh === p.onDeck?.v) continue; // the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
@@ -897,20 +900,23 @@ class Game {
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     const dog = !best && !bestV ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
+    const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
+    const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
-    const op = !best && !bestV && !dog && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    const op = !best && !bestV && !dog && !dk && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
-    const box = !best && !bestV && !op && !dog ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    const box = !best && !bestV && !op && !dog && !dk ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !dk && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
-    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
+    else if (dk) this.hud.prompt(dk.text);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
@@ -920,6 +926,8 @@ class Game {
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
+    else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
+    else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
     else if (!best && !bestV && !op && this.train.canBoard(p)) {

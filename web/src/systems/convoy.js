@@ -56,7 +56,12 @@ export class Convoy {
       f.crew.forEach((w, i) => {
         if (!w) return;
         const c = g.spawnRaider(x, z, this.rng, w);
-        if (c) { g.seats.board(c, v, i); c.convoy = true; }
+        if (!c) return;
+        c.convoy = true;
+        // A crew slot past the seats stands on the deck (the pickup's bed, systems/decks.js): held still, it fires when
+        // the convoy does.
+        if (i < v.seats.length) g.seats.board(c, v, i);
+        else if (v.deck) { g.decks.mount(c, v, 0, (v.deck.floor[2] + v.deck.floor[3]) / 2 - 0.3, 'load'); c.hold = true; }
       });
       members.push({ v, role: f.role, gap: f.gap, side: f.side ?? 0, loot: !!f.loot });
     }
@@ -70,7 +75,7 @@ export class Convoy {
   despawn() {
     const a = this.active; if (!a) return;
     for (const m of a.members) {
-      for (const o of [...(m.v.occ ?? [])]) if (o && o !== this.g.player) this.g.removeChar(o);
+      for (const o of [...(m.v.occ ?? []), ...(m.v.deckRiders ?? [])]) if (o && o !== this.g.player) { if (o.onDeck) this.g.decks.dismount(o, 'gone', true); this.g.removeChar(o); }
       if (!m.v.occ?.includes(this.g.player)) this.g.vehiclesSys.remove(m.v);
     }
     this.active = null;
@@ -137,6 +142,14 @@ export class Convoy {
         g.carCombat.fireFromVehicle(o, v, o.weapon, Math.atan2(px - v.x, pz - v.z) + (Math.random() - 0.5) * 0.22);
       }
     }
+    // The bed gunner stands up on the deck and shoots over the side (a round from the bed never hits its own truck).
+    for (const o of v.deckRiders ?? []) {
+      if (!o.alive || !o.weapon || dP > 45 || o.knockT > 0) continue;
+      o.cool -= dt;
+      const ang = Math.atan2(px - o.x, pz - o.z);
+      o.face = ang; o.aiming = true;
+      if (o.cool <= 0 && g.statics.lineOfSight(o.x, o.z, px, pz)) { o.cool = 0.3 + Math.random() * 0.45; g.combat.fire(o, o.weapon, ang + (Math.random() - 0.5) * (0.12 + sp * 0.004)); }
+    }
   }
 
   engage(why) {
@@ -185,7 +198,7 @@ export class Convoy {
     if (!a) return { active: false, nextIn: Math.round(this.next), total: this.count };
     return {
       active: true, dir: a.dir > 0 ? 'east' : 'west', engaged: a.engaged, looted: a.looted, total: this.count,
-      members: a.members.map((m) => ({ id: m.v.id, role: m.role, type: m.v.type, x: Math.round(m.v.x), z: Math.round(m.v.z), hp: Math.round(m.v.hp), dead: m.v.dead, crew: (m.v.occ ?? []).filter(Boolean).map((o) => o.id) })),
+      members: a.members.map((m) => ({ id: m.v.id, role: m.role, type: m.v.type, x: Math.round(m.v.x), z: Math.round(m.v.z), hp: Math.round(m.v.hp), dead: m.v.dead, crew: [...(m.v.occ ?? []).filter(Boolean), ...(m.v.deckRiders ?? [])].map((o) => o.id) })),
     };
   }
 }

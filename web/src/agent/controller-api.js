@@ -1,3 +1,4 @@
+import { DRIVING } from '../systems/vehicles.js';
 import * as THREE from 'three';
 import { WEAPONS } from '../systems/combat.js';
 import { STANCE, GUNPOINT } from '../data/arms.js';
@@ -499,8 +500,10 @@ export async function controllerChecks(x) {
     }
   }));
 
-  await check('driving: left is left - A and the stick pushed left turn the car to its own left (west facing north, east facing south, the same on keys and pad), right is right; reverse pulls away briskly', async () => hush(async () => {
+  await check('driving: left is left - with Steering set to the car own-left mode, A and the stick pushed left turn the car to its own left (west facing north, east facing south, the same on keys and pad), right is right; reverse pulls away briskly', async () => hush(async () => {
     await stage(); await reset();
+    const screen0 = DRIVING.screenSteer; DRIVING.screenSteer = false; // this check is the car's-own-left mode (WEB_WALK_VEHICLES tests screen-left)
+
     const p = g.player, out = {};
     const v = (await C('spawnVehicle', { type: 'pickup', x: p.x + 4, z: p.z, ai: 'none' })).id, car = api.findVeh(v);
     await C('enterVehicle', { id: v, force: true });
@@ -525,7 +528,7 @@ export async function controllerChecks(x) {
       out.reverse = +g.vehiclesSys.speed(car).toFixed(1);
       const ok = out.northA.east < -2 && out.northA.left > 2 && out.northD.east > 2 && out.southA.east > 2 && out.southA.left > 2 && out.padNorthL.east < -2 && out.padNorthR.east > 2 && out.reverse > car.maxSpeed * 0.3;
       return ok ? true : JSON.stringify(out);
-    } finally { await padOff(); if (p.inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(car); }
+    } finally { DRIVING.screenSteer = screen0; await padOff(); if (p.inVehicle) g.exitVehicle(true); g.vehiclesSys.remove(car); }
   }));
 
   await check('motorcycle: the rider shoots any way - the pad aims all round and LB fires out in every direction, the rider twisting at the waist', async () => hush(async () => {

@@ -5,6 +5,7 @@ import { VehicleLights } from './vehiclelights.js';
 import { roadLines, SPACING, GRID } from '../world/city.js';
 import { clamp, angleLerp } from '../engine/rng.js';
 import { STUNT } from '../data/stunts.js';
+import { Decks } from './decks.js';
 
 // Each vehicle is ONE merged, vertex-coloured mesh: 1 draw call per car (every lamp in the game
 // shares 2 more, in vehiclelights.js).
@@ -13,35 +14,57 @@ import { STUNT } from '../data/stunts.js';
 // can be shot / grabbed directly.
 const S2 = [{ id: 'driver', side: 'left', row: 0 }, { id: 'shotgun', side: 'right', row: 0 }];
 const S4 = [...S2, { id: 'backL', side: 'left', row: 1 }, { id: 'backR', side: 'right', row: 1 }];
-// Reverse gear: acceleration (x the rig's accel) and top speed (x its maxSpeed). Was 0.6 / 0.35.
-export const REVERSE = { accel: 0.95, top: 0.45 };
+// `reverse`: top speed backing up (m/s). `deck`: a floor you walk on while it drives (data/decks.js: the pickup's bed,
+// the van's cargo box, the RV's coach; systems/decks.js carries the people on it) - a walkable vehicle is a row.
 export const VEHICLES = {
-  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
-  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
-  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
-  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80,
-                 seats: [...S2, { id: 'bedL', side: 'left', row: 2, exposed: 'stand' }, { id: 'bedR', side: 'right', row: 2, exposed: 'stand' }] },
-  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
-  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75,
-                 seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }] },
-  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
+  rig:         { name: 'WHALER', len: 7.6, wid: 2.7, tall: 3.1, maxSpeed: 30, reverse: 11, accel: 13, turn: 1.5, grip: 5, mass: 4, hp: 450, harpoon: true, armor: 0.1, fuelCap: 160, seats: S2 },
+  interceptor: { name: 'LAWMAN', len: 4.6, wid: 2.0, tall: 1.76, maxSpeed: 46, reverse: 15, accel: 22, turn: 2.4, grip: 6.5, mass: 1.4, hp: 180, armor: 0.3, fuelCap: 60, seats: S2 },
+  buggy:       { name: 'DUNE BUGGY', len: 3.6, wid: 1.9, tall: 1.6, maxSpeed: 40, reverse: 14, accel: 26, turn: 2.9, grip: 5.2, mass: 1, hp: 110, armor: 0.45, fuelCap: 35, open: true, seats: S2 },
+  // The pickup's bed is a deck now (data/decks.js pickupBed): stand in it, crouch behind its sides, shoot any way, fall
+  // out. Its old standing seats (bedL, bedR) are gone: the bed is somewhere you are, not a seat.
+  pickup:      { name: 'PICKUP', len: 5.0, wid: 2.2, tall: 1.95, maxSpeed: 36, reverse: 13, accel: 17, turn: 2.1, grip: 6, mass: 1.8, hp: 220, armor: 0.28, fuelCap: 80, seats: S2, deck: 'pickupBed' },
+  sedan:       { name: 'SEDAN', len: 4.8, wid: 2.0, tall: 1.8, maxSpeed: 40, reverse: 14, accel: 18, turn: 2.2, grip: 6.2, mass: 1.5, hp: 170, armor: 0.32, fuelCap: 55, seats: S4 },
+  // Two seats up front, then a cargo box you walk round in (data/decks.js vanCargo): a bench, a locker, a mattress.
+  van:         { name: 'VAN', len: 5.4, wid: 2.25, tall: 2.1, maxSpeed: 32, reverse: 12, accel: 14, turn: 1.8, grip: 5.6, mass: 2.2, hp: 240, armor: 0.26, fuelCap: 75, seats: S2, deck: 'vanCargo' },
+  // A home on wheels (data/decks.js rvCoach): slow, heavy, tall, and somewhere to live. Parked, it makes camp.
+  rv:          { name: 'RV', len: 8.0, wid: 2.5, tall: 3.3, maxSpeed: 27, reverse: 10, accel: 10, turn: 1.35, grip: 5.4, mass: 3.6, hp: 380, armor: 0.22, fuelCap: 200, springs: 'rig', seats: S2, deck: 'rvCoach' },
+  airboat:     { name: 'AIRBOAT', len: 4.6, wid: 2.4, tall: 2.2, maxSpeed: 34, reverse: 7, accel: 18, turn: 2.0, grip: 2.2, mass: 1.2, hp: 140, armor: 0.4, fuelCap: 50, open: true, boat: true, shallow: true,
                  seats: [{ id: 'driver', side: 'left', row: 1, exposed: 'stand' }, { id: 'bow', side: 'right', row: 0, exposed: 'stand' }] },
-  jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
+  jetski:      { name: 'WATERBIKE', len: 2.8, wid: 1.0, tall: 1.1, maxSpeed: 40, reverse: 5, accel: 26, turn: 3.2, grip: 2.6, mass: 0.5, hp: 60, armor: 0.6, fuelCap: 20, open: true, boat: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
+  gunboat:     { name: 'RAIDER GUNBOAT', len: 7.2, wid: 2.8, tall: 2.6, maxSpeed: 28, reverse: 6, accel: 12, turn: 1.3, grip: 1.8, mass: 3, hp: 380, armor: 0.15, fuelCap: 120, boat: true, seats: S4 },
   // A quad sits its rider like a bike but drives like a small car: no lean, no falling over.
-  atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
+  atv:         { name: 'ATV', len: 2.3, wid: 1.25, tall: 1.2, maxSpeed: 38, reverse: 12, accel: 28, turn: 3.0, grip: 5.8, mass: 0.35, hp: 85, armor: 0.6, fuelCap: 15, open: true, quad: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
-  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, tall: 1.25, maxSpeed: 52, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
+  // The rider and the pillion shoot any way they look (carcombat.fireFromVehicle; DRIVING.shootSpread when moving).
+  bike:        { name: 'MOTORCYCLE', len: 2.15, wid: 0.8, tall: 1.25, maxSpeed: 52, reverse: 10, accel: 30, turn: 3.0, grip: 6.4, mass: 0.45, hp: 70, armor: 0.6, fuelCap: 18, open: true, bike: true,
                  seats: [{ id: 'driver', side: 'left', row: 0, exposed: 'bike' }, { id: 'pillion', side: 'right', row: 1, exposed: 'bike' }] },
   // Military (the Federal Remnant's motor pool, data/bases.js). Generic on purpose: no make, no model, no designation.
   // A seat's `at` puts an exposed rider exactly there in the body frame: the roof-ring gunner stands in the cab with
   // head and shoulders out of the hatch.
-  patrol:      { name: 'PATROL TRUCK', len: 4.9, wid: 2.3, tall: 2.05, maxSpeed: 37, accel: 17, turn: 2.0, grip: 6.6, mass: 2.4, hp: 330, armor: 0.2, fuelCap: 95,
+  patrol:      { name: 'PATROL TRUCK', len: 4.9, wid: 2.3, tall: 2.05, maxSpeed: 37, reverse: 13, accel: 17, turn: 2.0, grip: 6.6, mass: 2.4, hp: 330, armor: 0.2, fuelCap: 95,
                  seats: [...S4, { id: 'gunner', side: 'left', row: 1, exposed: 'stand', at: [0, 0.78, -0.35] }] },
-  apc:         { name: 'ARMORED CARRIER', len: 7.0, wid: 2.85, tall: 2.6, maxSpeed: 26, accel: 10, turn: 1.25, grip: 7.2, mass: 6, hp: 720, armor: 0.06, fuelCap: 220, springs: 'rig',
+  apc:         { name: 'ARMORED CARRIER', len: 7.0, wid: 2.85, tall: 2.6, maxSpeed: 26, reverse: 10, accel: 10, turn: 1.25, grip: 7.2, mass: 6, hp: 720, armor: 0.06, fuelCap: 220, springs: 'rig',
                  seats: [...S4, { id: 'rearL', side: 'left', row: 2 }, { id: 'rearR', side: 'right', row: 2 }, { id: 'hatch', side: 'left', row: 3, exposed: 'stand', at: [0, 1.3, 0.05] }] },
 };
+
+// How driving answers the wheel (docs/design/WEB_WALK_VEHICLES.md §Steering and reverse).
+//   screenSteer   the keyboard's left and right are SCREEN-true: at the moment you press left, the car turns toward the
+//                 left of the screen, whichever way it points and in reverse too (a car pointing down the screen turns
+//                 clockwise). The choice is latched while the key is held, so holding it still turns a full circle.
+//                 Agents and the AI keep the car's own frame (`steer` +1 = the car's left, counter-clockwise).
+//   reverseAccel  backing up pulls at this share of the row's `accel` (it was 0.6, now brisker)
+//   reverseShare / reverseCap   a row without `reverse` backs up at this share of its top speed, within these m/s
+//   shootSpread   shooting from anything that moves: extra spread (radians, +-) per m/s, its cap, and x driver (one hand)
+//   aimHold       an exposed rider (a bike, a quad, a deck seat) keeps aiming this long after a shot
+export const DRIVING = {
+  screenSteer: true,
+  reverseAccel: 0.85, reverseShare: 0.4, reverseCap: [6, 15],
+  shootSpread: { perMs: 0.004, max: 0.1, driver: 1.5 },
+  aimHold: 1.2,
+  parkBrake: 14, // m/s^2: a car its driver got out of brakes to a stop (it no longer rolls off out of reach)
+};
+export const reverseOf = (v) => v.reverse ?? clamp(v.maxSpeed * DRIVING.reverseShare, DRIVING.reverseCap[0], DRIVING.reverseCap[1]);
 
 // Bodies (geometry, lamp anchors, glass layout) are built in vehiclebodies.js; PART is re-exported for damage.
 export { PART };
@@ -69,6 +92,7 @@ export class Vehicles {
     this.wreckMat = new THREE.MeshStandardMaterial({ color: '#1a1714', roughness: 1 });
     this.coneMat = new THREE.MeshBasicMaterial({ map: coneTexture(), color: '#fff1cc', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }); // the train's headlight
     this.lights = new VehicleLights(game);
+    this.decks = game.decks = new Decks(game); // walkable floors (data/decks.js): the pickup's bed, the van, the RV
     this.tmp = { x: 0, z: 0 };
     // Harpoon rope.
     const rg = new THREE.BufferGeometry();
@@ -86,7 +110,8 @@ export class Vehicles {
 
   spawn(type, x, z, h, paint = '#6a2a1a', opts = {}) {
     const s = VEHICLES[type];
-    const geo = buildBody(s, type, paint);
+    const built = {};
+    const geo = buildBody(s, type, paint, built); // built.roof: a walkable cabin's roof, apart (it cuts away inside)
     const mesh = new THREE.Mesh(geo, this.bodyMat.clone()); // own material: paint chars with damage
     mesh.castShadow = true; mesh.receiveShadow = true;
     const group = new THREE.Group();
@@ -108,6 +133,7 @@ export class Vehicles {
     v.y = 0; v.vy = 0; v.gy = 0; v.pitch = 0; v.roll = 0; v.air = false;
     const TW = this.g.streamer?.W; // real terrain (flag): it is made standing on the land, not under it
     if (TW?.terrain) { v.y = v.gy = TW.groundAt(x, z); }
+    this.decks.init(v, built.roof); // a deck: its riders list, its roof to cut away, its camp gear
     this.list.push(v);
     this.g.vehicles = this.list;
     return v;
@@ -115,10 +141,43 @@ export class Vehicles {
 
   speed(v) { return Math.hypot(v.vx, v.vz); }
 
+  // ---- steering for a person at the wheel --------------------------------------------------------------------------
+  // Left is left (DRIVING.screenSteer). s: the input's left/right, +1 = screen-left (A), -1 = screen-right (D), any
+  // value between for a stick. Returns the car-frame steer drive() uses (+1 = the car's left, counter-clockwise). At
+  // the moment the input goes left (or right) we look at where the nose points ON SCREEN, through the real camera (so
+  // any camera yaw or zoom is answered): nose up the screen, the car's left IS screen-left; nose down the screen, it is
+  // screen-right, so the sign flips. drive() already turns the tail the car's way in reverse, so the same rule makes
+  // a reversing car's tail swing to screen-left. Latched while held: hold A and the car keeps turning, full circle.
+  screenSteer(v, s) {
+    if (!s || !DRIVING.screenSteer) { v.steerLatch = 0; return s; }
+    const dir = Math.sign(s);
+    if (!v.steerLatch || v.steerDir !== dir) { v.steerDir = dir; v.steerLatch = this.noseUp(v) ? 1 : -1; }
+    return s * v.steerLatch;
+  }
+
+  // Does v's nose point up the screen (through the camera that draws it)?
+  noseUp(v) {
+    const cam = this.g.camera;
+    if (!cam) return Math.cos(v.h) <= 0;
+    cam.updateMatrixWorld();
+    _v.set(v.x, 0, v.z).project(cam); const y0 = _v.y;
+    _v.set(v.x + Math.sin(v.h) * 2, 0, v.z + Math.cos(v.h) * 2).project(cam);
+    return _v.y >= y0; // NDC y grows up the screen
+  }
+
+  // A car-frame steer that turns v toward world direction (dx, dz): for a stick that points where you want to go (the
+  // controller's lane). Backing up, it swings the tail that way.
+  steerToward(v, dx, dz) {
+    const rev = v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h) < -0.5;
+    const want = Math.atan2(rev ? -dx : dx, rev ? -dz : dz);
+    return clamp((angleLerp(v.h, want, 1) - v.h) * 2.5 * (rev ? -1 : 1), -1, 1);
+  }
+
   // Take a vehicle out of the world entirely (despawn), occupants leave on foot first.
   remove(v) {
     for (const o of [...(v.occ ?? [])]) if (o) { if (o === this.g.player) this.g.exitVehicle(true); else this.g.seats.leave(o, true); }
     v.driver = null;
+    this.decks.drop(v); // whoever stands on its deck steps down; its boxes go with it
     this.g.scene.remove(v.group);
     v.mesh.geometry.dispose(); v.mesh.material.dispose();
     const i = this.list.indexOf(v);
@@ -233,11 +292,15 @@ export class Vehicles {
       if (this.speed(v) > 4 && Math.random() < dt * 20) this.g.fx.spawn(2, v.x + (Math.random() - 0.5) * v.wid, 0.4, v.z + (Math.random() - 0.5) * v.len, (Math.random() - 0.5) * 3, 2, (Math.random() - 0.5) * 3, 0.7, 0.4, '#d8e4e4', 3);
     }
     if (!v.dead && v.driver && !v.fallen) {
+      // Backing up: the row's own reverse speed (reverseOf), pulling at DRIVING.reverseAccel of its accel and tapering
+      // near the top as the forward gears do. It was a flat 0.6 x accel to 35% of top speed for every rig.
+      const rev = reverseOf(v) * fxm.top;
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
-      // Reverse (WEB_CONTROLLER §3.1, tuned 2026-10-23: it read as "super slow"): REVERSE.accel x the rig's accel off the
-      // line, up to REVERSE.top x its top speed.
-      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 * (fxm.brake ?? 1) : -v.accel * REVERSE.accel) * -v.throttle * dt; // fxm.brake: worn brakes (upkeep.js)
-      if (fwd < -v.maxSpeed * REVERSE.top) fwd = -v.maxSpeed * REVERSE.top;
+      else if (v.throttle < 0) {
+        if (fwd > 0.5) fwd -= v.accel * 2.2 * (fxm.brake ?? 1) * -v.throttle * dt; // the brakes (fxm.brake: worn, upkeep.js)
+        else fwd -= (v.reverseAccel ?? v.accel * DRIVING.reverseAccel) * fxm.power * -v.throttle * dt * (1 - clamp(-fwd / rev, 0, 1) * 0.6);
+      }
+      if (fwd < -rev) fwd = -rev;
       // Steering bites with speed, softens at top speed.
       const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
       // A plain lerp: av is a rate, not an angle. angleLerp wrapped the gap into ±π, so a car kicked past π rad/s (a
@@ -246,6 +309,9 @@ export class Vehicles {
       v.av += (steerAmt * Math.sign(fwd || 1) - v.av) * Math.min(1, dt * 10);
     } else {
       v.av *= Math.exp(-dt * 2);
+      // Left in park (Seats.leave: you got out of the driver's seat): the brakes hold it. A car you stepped out of
+      // used to coast on at 1.4/s drag - 7 m from 10 m/s - out of the 4 m you can get back in from.
+      if (v.parked && !v.dead) { const s = Math.sign(fwd), b = DRIVING.parkBrake * dt; fwd = Math.abs(fwd) > b ? fwd - s * b : 0; }
     }
     // Turn about the rear axle, not the body's centre: the nose swings into the turn and the tail
     // follows, the way front-wheel steering looks. Rotating about the centre swings the tail out as
@@ -361,7 +427,7 @@ export class Vehicles {
     // Run people over.
     const sp = this.speed(v);
     for (const c of g.chars) {
-      if (!c.alive || c.inVehicle || c.dragged || c.grabbing) continue;
+      if (!c.alive || c.inVehicle || c.dragged || c.grabbing || c.onDeck) continue; // a deck's riders are up on a vehicle, not on the road
       const dx = c.x - v.x, dz = c.z - v.z;
       if (Math.abs(dx) > v.len || Math.abs(dz) > v.len) continue;
       const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
@@ -638,7 +704,9 @@ export class Vehicles {
   update(dt, night) {
     const g = this.g;
     this.coneMat.opacity = 0.04 + night * 0.62;
+    if (!this.decks.placed) this.decks.placeWorld(); // the RV in the middle of nowhere (data/decks.js PLACED)
     for (const v of this.list) {
+      this.decks.capture(v); // its deck's riders back into its frame before it moves (systems/decks.js)
       if (v.driver && v.driver !== g.player && !v.dead) this.aiDrive(v, dt);
       if (!v.driver) { v.throttle = 0; v.steer = 0; }
       this.drive(v, dt);
@@ -671,6 +739,7 @@ export class Vehicles {
       }
       // Going under: the hull settles a little more each frame (it used to restart from the surface every frame).
       if (v.sunk) { v.sinkY = Math.max(-1.7, (v.sinkY ?? v.group.position.y) - dt * 0.6); v.group.position.y = v.sinkY; }
+      this.decks.carry(v, dt); // and out again through where it is now: the deck carries them
       // Everyone aboard rides with the car; exposed seats (saddle, truck bed, boat deck) show their rider, placed
       // through the body's own transform so a rider pitches over a jump and bobs with a hull.
       if (v.occ) {
@@ -684,9 +753,13 @@ export class Vehicles {
           if (!seat.exposed) { o.seatPose = null; continue; }
           seatLocal(v, si, seat, _seat);
           _v.set(_seat[0], _seat[1], _seat[2]).applyMatrix4(v.group.matrix);
-          const sp = (o._seatPose ??= { x: 0, y: 0, z: 0, h: 0, lean: 0, pitch: 0, kind: '' });
+          const sp = (o._seatPose ??= { x: 0, y: 0, z: 0, h: 0, lean: 0, pitch: 0, kind: '', twist: 0 });
           sp.x = _v.x; sp.y = _v.y; sp.z = _v.z;
+          // Shooting from an exposed seat: a standing gunner turns whole; a rider astride (a bike, a quad) turns at the
+          // waist, legs on the machine, up to all but straight back (characters.js twists the upper body).
+          o.aiming = g.time - (o.lastShotT ?? -99) < DRIVING.aimHold;
           sp.h = o.aiming && seat.exposed === 'stand' ? o.face : v.h;
+          sp.twist = o.aiming && seat.exposed === 'bike' ? clamp(angleLerp(v.h, o.face, 1) - v.h, -2.7, 2.7) : 0;
           sp.lean = v.group.rotation.z; sp.pitch = v.group.rotation.x; sp.kind = seat.exposed;
           o.seatPose = sp;
         }
