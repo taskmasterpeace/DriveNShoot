@@ -125,6 +125,45 @@ grille. Ribs and courses run across the long side.
   Every wall also gets a dirt band at its foot and grime run down from its top. Measured with the GPU flushed every
   frame: 0.60 ms per frame with it, 0.65 without, so no measurable cost.
 
+### 3.4c Windows and the ring's working doors and windows
+
+**What a window looks like** (`data/interiors.js` WINDOW_LOOK, `systems/interiors.js` buildFrames). A window used to be
+a slot from the sill to the roof with a thin slab of glass in it; from the game camera it read as a gap in the wall
+(Robert, 2026-10-23: "this doesn't have good windows"). Now every window has:
+- a **lintel** that closes the wall over it, in the building's own colour;
+- a **painted frame**: Rust Haven's in cream or teal, the ruins' bare;
+- a **mullion and a transom** across the glass, which go when the glass is shot out;
+- a **sill** that sticks out;
+- **shutters**: painted ones in Rust Haven (60%); in the ruins (15%), one may hang off a hinge.
+
+This adds two draw calls in all, and costs nothing measurable.
+
+**The Phoenix ring's openings are real near you** (`RING_OPENINGS`). A ring building's doors and windows used to be
+gaps. Now, within `near` (110 m) of the player, a building's rows from `world/ring.js` geo become the same leaves and
+windows the island has:
+- **Leaves** swing for walkers and cars, bash people, and are kicked.
+- **Glass** cracks and shatters.
+- **Boards** go up and are torn off.
+- **Climbing through** windows works.
+- **Inside doors** hang between rooms.
+
+How it works:
+- Their ops go into the chunk ring's cells (`StaticWorld.addRingOp`). They are removed again on detach, and put back if a chunk's slot changes hands (a slot `gen`).
+- Meshes come from fixed pools: 480 windows and 220 doors, after the island's slots. Nothing is allocated at runtime.
+- Past `far` (150 m) a building detaches, and what happened to its openings waits in `ringState` under their ids (`<lot>:d|i|w<k>`). The save carries it.
+- **Doors:**
+  - A lived-in house keeps its doors open and hangs no inner leaves. Its residents come and go all day, and a closed inner leaf wedged one of them on the way to bed.
+  - The empty houses are shut or ajar, and a ruin has lost some of its doors.
+
+Measured:
+- a scan every 0.5 s costs 0.16 ms;
+- attaching 38 buildings at once costs 18 ms (once, when you arrive);
+- a selftest check shatters a ring pane, leaves (it detaches, its state kept), comes back (still shattered), and walks through a ring door.
+
+**Not done:**
+- Ring doors don't lock yet (no padlock slots, and the foot nav's lock-blocking is island-only).
+- A building past `far` is gaps again, by design: a level of detail.
+
 ### 3.5 How a real city is laid out (the study that drives the next layouts)
 
 | real Phoenix | from the air | what we build from it |
