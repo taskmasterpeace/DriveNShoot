@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 112/112 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 115/115 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| The infected's kinds | the canon's taxonomy as rows (data/infected.js): Sprinter (a shambler until something living runs inside 20 m or a shot goes off: 6 s at 9 m/s, 3 s bent double, a shambler again), Echo (works at boarded windows and locked doors only unobserved, never advances), Choir-Touched at the dead relay mast (hum 45 m, aura x1.25 + shared target 30 m); `infected` command | WEB_INFECTED | (pending) |
 | Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | 5226f237 |
 | Streamed Arizona (subagent) | WEB_STREAMING P1: chunks, pools, chunked collision, a 1 km nav window, I-10 from Los Angeles to El Paso through Phoenix with real interchanges (deceleration lanes, gores, EXIT signs in miles), mesas, convoys on the interstate, radar + big map past the island; 9 checks; 60 s flat out on the bike = 2.6 km with 0 stalls, ~73 draw calls | WEB_STREAMING §1.2 | a85b2092 |
 | Long commands | the CLI and the MCP server wait out a scenario (node:http, not fetch's 300 s) | web/AGENTS.md | 61967fa6 |

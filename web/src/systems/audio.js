@@ -97,6 +97,27 @@ export class Audio {
     this.tone(70 + Math.random() * 40, 0.9, v, 'sawtooth', 0.7, pan);
     this.burst({ dur: 0.8, freq: 380, type: 'bandpass', q: 4, vol: v * 1.4, decay: 0.75, pan });
   }
+  // The infected (data/infected.js). hum: the Choir-Touched - two low tones a fraction apart, a broadcast heard wrong
+  // (k = distance / its reach). wheeze: a sprinter overheating. murmur: an Echo's phrase, a voice with no words left.
+  hum(pan = 0, k = 0) {
+    const v = Math.max(0, 0.09 * (1 - k));
+    if (v < 0.005) return;
+    this.count('hum');
+    this.tone(213, 2.2, v, 'sine', 0.985, pan); this.tone(240, 2.2, v * 0.8, 'sine', 1.01, pan);
+  }
+  wheeze(pan = 0, dist = 0) {
+    const v = Math.max(0, 0.12 * (1 - dist / 30));
+    if (v < 0.01) return;
+    this.count('wheeze');
+    this.burst({ dur: 0.5, freq: 1900, type: 'bandpass', q: 6, vol: v, decay: 0.45, pitchDrop: 0.7, pan });
+    this.burst({ dur: 0.6, freq: 1400, type: 'bandpass', q: 5, vol: v * 0.8, decay: 0.55, pitchDrop: 1.2, at: 0.55, pan });
+  }
+  murmur(pan = 0, dist = 0) {
+    const v = Math.max(0, 0.1 * (1 - dist / 26));
+    if (v < 0.005) return;
+    this.count('murmur');
+    for (let i = 0; i < 4; i++) this.burst({ dur: 0.22, freq: 500 + Math.random() * 400, type: 'bandpass', q: 7, vol: v, decay: 0.2, pitchDrop: 0.85, at: i * 0.26, pan });
+  }
   throwWhoosh(pan = 0) { this.count('throw'); this.burst({ dur: 0.22, freq: 900, type: 'bandpass', q: 2, vol: 0.18, decay: 0.2, pitchDrop: 1.8, pan }); }
   clink(pan = 0) { this.count('clink'); this.tone(1400 + Math.random() * 500, 0.06, 0.06, 'triangle', 0.7, pan); }
   beep(pan = 0) { this.count('beep'); this.tone(1800, 0.05, 0.08, 'square', 0, pan); }
