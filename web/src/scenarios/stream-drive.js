@@ -72,13 +72,25 @@ export default async function (DL, game) {
     }
     const hold = (sp) => () => { const a = S.autopilot(v, 1, 0); game.driveOverride = { throttle: 1, steer: a.steer }; v.vx = Math.sin(v.h) * sp; v.vz = Math.cos(v.h) * sp; };
     await S.runFrames(15, hold(46)); // the warm-up lap
-    const heap0 = performance.memory?.usedJSHeapSize ?? 0, st0 = stalls();
+    const st0 = stalls();
     S.pumpN = 0; S.pumpMax = 0;
     const x0 = v.x, z0 = v.z;
-    const run = await S.runFrames(120, hold(46));
-    const heap1 = performance.memory?.usedJSHeapSize ?? 0, st = stalls(), pump = S.pumpStats();
+    // Heap growth: on a page that exposes gc() (Chrome with --js-flags=--expose-gc) the live heap after a full GC before
+    // and after the run; otherwise the lowest reading in the first and last 20 s, a rough floor (one reading either side
+    // swung by +-40 MB with a major GC landing between them).
+    const gcNow = typeof globalThis.gc === 'function' ? globalThis.gc : null;
+    let heap0 = Infinity, heap1 = Infinity;
+    if (gcNow) { gcNow(); heap0 = performance.memory.usedJSHeapSize; }
+    const drive = hold(46);
+    const run = await S.runFrames(120, (i) => {
+      drive(i);
+      if (!gcNow && i % 15 === 0 && performance.memory) { const h = performance.memory.usedJSHeapSize; if (i < 1200) heap0 = Math.min(heap0, h); else if (i >= 6000) heap1 = Math.min(heap1, h); }
+    });
+    if (gcNow) { gcNow(); heap1 = performance.memory.usedJSHeapSize; }
+    if (!performance.memory) heap0 = heap1 = 0;
+    const st = stalls(), pump = S.pumpStats();
     out.perf = { vehicle: v.name, heldAt: 46, metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), to: `mile ${(W.project(v.x, v.z, 600).s / 1609.344).toFixed(1)}`, maxDrawCalls: run.maxDrawCalls, maxTriangles: run.maxTriangles,
-      frameMs: run.frameMs, pumpMs: pump, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, heapGrowthMB: +((heap1 - heap0) / 1048576).toFixed(1),
+      frameMs: run.frameMs, pumpMs: pump, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, heapGrowthMB: +((heap1 - heap0) / 1048576).toFixed(1), heapMethod: gcNow ? 'gc' : 'floor',
       pass: run.maxDrawCalls < 150 && run.frameMs.p95 < 8 && run.frameMs.max < 25 && pump.p95 <= 2.5 && st.cross === st0.cross && st.promote === st0.promote && (heap1 - heap0) < 15 * 1048576 };
     clear();
   }
