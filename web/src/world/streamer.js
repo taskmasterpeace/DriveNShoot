@@ -255,10 +255,12 @@ export class Streamer {
     this.g.inventory?.registerRing(R.boxes);
     const beds = this.g.world?.spawns?.beds;
     if (beds) for (const b of R.beds) beds.push({ ...b, ring: L.key });
+    this.g.residents?.chunkOn(L); // R2: the households' shelves are theirs (systems/residents.js)
   }
   ringOff(L) {
     const R = L.ring;
     if (!R) return;
+    this.g.residents?.chunkOff(L); // R2: its people go back onto their records (their bodies' boxes first)
     this.g.inventory?.unregisterRing(R.boxes);
     const beds = this.g.world?.spawns?.beds;
     if (beds && R.beds.length) for (let i = beds.length - 1; i >= 0; i--) if (beds[i].ring === L.key) beds.splice(i, 1);

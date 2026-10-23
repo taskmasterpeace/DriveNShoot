@@ -43,6 +43,9 @@ export const ZONE_RULES = [
 // density: the share of lots built; ruin: the share of buildings left as ruined shells; loot: [table, weight] for a
 // container with no table of its own; colours for walls, roofs, floors (jittered per building); wrecks: a car left at
 // the kerb per street segment (chance); yard: junk per lot (props, looks only).
+// R2: residents: [[kind, weight]] (rows in RESIDENTS below) and occupancy: the share of the zone's eligible buildings
+// somebody lives in. A kind with `perQuarter` ignores occupancy: one building per quarter (a 4 x 4 block square between
+// arterials) at most, at that chance.
 export const ZONES = {
   residential: {
     name: 'THE DEAD HOUSES', lots: 'houses', kinds: [['house', 6], ['bungalow', 3], ['duplex', 2]],
@@ -50,6 +53,7 @@ export const ZONES = {
     walls: ['#b39b78', '#a8876a', '#9c8462', '#c2a882', '#8f7a62', '#a0703f', '#7e8a7a', '#b08a64'],
     roofs: ['#7a4a32', '#5a3a26', '#6a5440', '#4a4440', '#80553a'], floors: ['#5c4a3a', '#6b5a48', '#4a4038', '#5e5446'],
     tint: [0.94, 0.9, 0.84], wrecks: 0.18, yard: 3, fence: 0.45,
+    residents: [['family', 1]], occupancy: 0.11,
   },
   industrial: {
     name: 'THE YARDS', lots: 'yards', kinds: [['warehouse', 4], ['shop', 4]],
@@ -57,6 +61,7 @@ export const ZONES = {
     walls: ['#6e6a62', '#5f5a53', '#7a5a3a', '#80786a', '#5a6260', '#6b5a48'],
     roofs: ['#3d4544', '#4a4a46', '#5e5a54', '#55493c'], floors: ['#5a5650', '#625e57', '#4f4c47'],
     tint: [0.86, 0.85, 0.82], wrecks: 0.3, yard: 6, fence: 0,
+    residents: [['chopshop', 1]], occupancy: 0, // per quarter only (RESIDENTS.chopshop.perQuarter)
   },
   strip: {
     name: 'THE STRIP', lots: 'strip', kinds: [['mall', 5], ['gas', 2], ['diner', 2]],
@@ -64,6 +69,7 @@ export const ZONES = {
     walls: ['#a99c88', '#b7a68a', '#8a5a3c', '#9c8462', '#6f7f78', '#a37a52'],
     roofs: ['#4c4a46', '#3f3c38', '#55504a'], floors: ['#6a645a', '#5e594f', '#726a5c'],
     tint: [0.88, 0.86, 0.82], wrecks: 0.34, yard: 2, fence: 0,
+    residents: [['squatters', 1]], occupancy: 0.16,
   },
   ruins: {
     name: 'THE BURN', lots: 'houses', kinds: [['house', 6], ['bungalow', 3], ['shop', 1]],
@@ -71,6 +77,7 @@ export const ZONES = {
     walls: ['#6e6a62', '#7c756a', '#5f5a53', '#857c6e', '#6a625a', '#4f4b46', '#3d3a36'],
     roofs: ['#4a4440', '#3d3a36', '#55493c'], floors: ['#4a4540', '#3f3b36'],
     tint: [0.9, 0.86, 0.8], wrecks: 0.24, yard: 4, fence: 0.15,
+    residents: [['nest', 1]], occupancy: 0, // per quarter only (RESIDENTS.nest.perQuarter)
   },
 };
 
@@ -108,6 +115,95 @@ export const FURNITURE = {
   table: { size: [1.8, 1.1, 0.9], colors: ['#5a3e28', '#4d3a29'], solid: true },
   couch: { size: [2.0, 0.9, 0.8], colors: ['#5a4a3a', '#4a5048', '#6a5038'], solid: true },
   bench: { size: [2.4, 0.8, 0.95], colors: ['#4a4440', '#5e5a54'], solid: true },
+  // R2: a mattress on the floor, one for each resident the house's own beds do not cover (and a Dustwolf's cot).
+  mattress: { size: [2.0, 0.9, 0.22], colors: ['#7a6a52', '#6a604c', '#5e6450', '#7a5a44'], bed: true, solid: false },
+};
+
+// ---- R2, the residents (docs/design/WEB_STREAMING.md §1.3 "R2 as built") ---------------------------------------------
+// Who lives in the ring, as rows. A household is a record keyed by its building's id (R<k>.<j>.<n>): which buildings are
+// lived in, who lives there (names, flags, faces, guns) and where they sleep are a pure function of these rows and the
+// seed; what happens to them (hp, grudges, what they carry, deaths) is kept on the record, across a chunk going and
+// coming back and across a save. They are promoted to real characters when their chunk is hot and they are within
+// RES_RULES.promoteR of you, and demoted (written back to the record) past demoteR, when the chunk goes cold, or first of
+// all when the character budget is full (residents yield before anyone else).
+//   faction/fid  the character archetype (ai.js) and the society faction that hears what they saw (deeds.js)
+//   kinds        building kinds it can live in (data KINDS); intact: never a ruined shell
+//   perQuarter   one per quarter at this chance (else the zone's occupancy share)
+//   size         how many; hp; armed: who carries a gun (share of members, at most max, weapons by weight)
+//   loot         what a body carries (data/items.js LOOT), rolled from the person's own seed
+//   sleep        [from, to] game hours asleep in their own beds (a mattress each where the beds run out); watch: how
+//                many stay up all night (a guard at the bay door)
+//   out          by day some go out scavenging and come home: share of members, leave and back hours, stops (doors of
+//                buildings within reach metres), lingering seconds at each, and the loot table a find comes from
+//   barricade    the front door is boarded up (a solid barricade; they use a back door)
+//   car          a stripped car on blocks inside (the chop shop)
+//   night/roam   the nest: out between these hours, roaming streets within roam metres; lairs: how many buildings of
+//                its chunk it moves between (a different one most dawns); echo: an Echo works at its boards; sprinters
+//   lines        what they say (floating barks): walking into their place, taking from their shelves, a greeting
+export const RESIDENTS = {
+  family: {
+    name: 'SCAVENGER FAMILY', faction: 'drifter', fid: 'drifters', kinds: ['house', 'bungalow', 'duplex'], intact: true,
+    size: [2, 4], hp: [70, 100], armed: { share: 0.35, max: 1, weapons: [['pistol', 3], ['shotgun', 1]] }, loot: 'person',
+    sleep: [22.5, 6.5],
+    out: { share: 0.5, leave: [7.5, 10.5], back: [14.5, 17.5], stops: [2, 3], reach: [30, 110], linger: [12, 30], finds: 'wreck' },
+    lines: {
+      enter: ['This is our house.', 'Easy. We live here.', 'Nothing in here for you.', 'Wipe your boots or keep walking.'],
+      steal: ['That is ours!', 'Put it back.', 'Thief!', 'We saw that.'],
+      greet: ['Morning.', 'Water is two streets over, if you are asking.', 'Stay off the Burn after dark.'],
+    },
+  },
+  squatters: {
+    name: 'SQUATTERS', faction: 'drifter', fid: 'drifters', kinds: ['mall', 'diner', 'gas'], intact: true, barricade: true,
+    size: [2, 4], hp: [65, 95], armed: { share: 0.5, max: 2, weapons: [['pistol', 3], ['shotgun', 2], ['smg', 1]] }, loot: 'person',
+    sleep: [23.5, 7.5],
+    out: { share: 0.35, leave: [9, 12], back: [15, 18.5], stops: [1, 3], reach: [25, 90], linger: [15, 35], finds: 'storefront' },
+    lines: {
+      enter: ['Round the back is ours. You are in it.', 'Boards are up for a reason.', 'We got here first.'],
+      steal: ['Hands off our stock!', 'That is ours, scav!', 'Drop it.'],
+      greet: ['Keep moving.', 'The wolves work the yards. Mind yourself.'],
+    },
+  },
+  chopshop: {
+    name: 'DUSTWOLF CHOP SHOP', faction: 'raider', fid: 'dustwolves', kinds: ['warehouse', 'shop'], perQuarter: 0.85, car: true,
+    size: [3, 5], hp: [85, 100], armed: { share: 1, max: 9, weapons: [['smg', 5], ['pistol', 3], ['shotgun', 2]] }, loot: 'raider',
+    names: ['Dustwolf Stripper', 'Dustwolf Wrench', 'Dustwolf Cutter', 'Dustwolf Lookout'],
+    sleep: [2.5, 10.5], watch: 1,
+    out: { share: 0.4, leave: [11, 14], back: [17, 20], stops: [1, 2], reach: [20, 70], linger: [10, 25], finds: 'garage' },
+    lines: {
+      enter: ['Wrong door, meat.', 'You lost? You are about to be.', 'This yard is the pack\'s.'],
+      steal: ['That is pack parts!', 'Cut him!'],
+      greet: [],
+    },
+  },
+  nest: {
+    name: 'INFECTED NEST', faction: 'zombie', fid: 'infected', kinds: ['house', 'bungalow'], intact: true, perQuarter: 0.9, barricade: true,
+    size: [5, 8], sprinters: 0.2, echo: 1, night: [20.5, 5.5], roam: [40, 140], lairs: 3,
+  },
+};
+
+// Their names: a household is a pure function of the seed, so it draws from its own pools (never the world's running
+// name list). Ordinary given names and surnames from everywhere people came from; no pairing on purpose.
+export const RES_NAMES = {
+  first: ['Amara', 'Bilal', 'Carmen', 'Dmitri', 'Efua', 'Farid', 'Graciela', 'Hamid', 'Ingrid', 'Jomo', 'Keiko', 'Lucia', 'Malik', 'Noor', 'Oskar',
+    'Paulo', 'Quynh', 'Renata', 'Sione', 'Tamsin', 'Uche', 'Valeria', 'Wendell', 'Ximena', 'Yaw', 'Zainab', 'Arturo', 'Beatriz', 'Cormac', 'Dalia',
+    'Emeka', 'Fiona', 'Goran', 'Halima', 'Ivo', 'Jasmin', 'Kalani', 'Leopold', 'Marta', 'Nikhil', 'Odette', 'Pilar', 'Rashid', 'Soraya', 'Teodor',
+    'Ulla', 'Vikram', 'Wanjiru', 'Yesenia', 'Zoltan', 'Abel', 'Brigid', 'Cyrus', 'Delphine', 'Elias', 'Fatima', 'Gideon', 'Hana', 'Isidro', 'June'],
+  last: ['Achterberg', 'Balogun', 'Castellanos', 'Dlamini', 'Echeverria', 'Fonseca', 'Gallagher', 'Haddad', 'Iwasaki', 'Jaramillo', 'Kariuki',
+    'Lindqvist', 'Machado', 'Nakashima', 'Obuya', 'Petrakis', 'Quintero', 'Rahimi', 'Sandoval', 'Tembo', 'Uribe', 'Varga', 'Wojcik', 'Yilmaz',
+    'Zamora', 'Abernathy', 'Bergstrom', 'Cardenas', 'Delacroix', 'Esposito', 'Fairweather', 'Gutierrez', 'Halvorsen', 'Ibarra', 'Jovanovic',
+    'Kaczmarek', 'Lozano', 'Mwangi', 'Navarro', 'Oyelaran', 'Pacheco', 'Rinaldi', 'Szabo', 'Tavares', 'Underhill', 'Villalobos', 'Whitlock'],
+};
+
+// The knobs. promoteR / demoteR: metres from you (the streamer's hot reach is 224, its release 300); reserve: character
+// slots residents never take (the island's own people, hunters, hordes come first); max: residents promoted at most;
+// perFrame: households promoted per frame while streaming (sync: all); paths: foot paths planned per frame across all
+// residents; engaged: seconds after a hit, a fight or a flight that a resident is never demoted out from under you;
+// grudgeHours: how long a member who saw you wrong them remembers it; barkEvery: seconds between a household's lines;
+// barricade: the boards' colours and hp (an Echo chips at it), promoteStallMs: one household's promotion slower than this
+// counts as a `promote` stall.
+export const RES_RULES = {
+  promoteR: 210, demoteR: 300, reserve: 4, max: 40, perFrame: 1, paths: 3, engaged: 20, grudgeHours: 48, barkEvery: 25,
+  barricade: { colors: ['#8a6a44', '#7a5e3e', '#9a7a52', '#6e5236'], hp: 120 }, promoteStallMs: 4,
 };
 
 // Street names past the island's own (world/city.js names its nine lines each way; a line it names keeps its name out

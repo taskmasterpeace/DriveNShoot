@@ -11,7 +11,7 @@
 // collision is clipped into every chunk it overlaps. A chunk builds at most RING.budget.buildings of its own lots, in id
 // order, so any chunk can tell which of a neighbour's lots stand. Everything is cached, and every cache may be dropped:
 // the answer is the same when it is computed again.
-import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES } from '../data/ring.js';
+import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES, RESIDENTS, RES_RULES } from '../data/ring.js';
 import { C, hash32, rngOf } from './geo.js';
 import { H_NAMES, V_NAMES } from './city.js';
 
@@ -433,6 +433,15 @@ export class Ring {
     }
     // A back door (single) on the opposite side, sometimes: never where a wall inside meets the back wall.
     if (backRoll < (K.back ?? 0) && !inner.some((P) => P.horizontal !== ns && Math.abs(P.fixed - backAt) < RING.backDoor / 2 + T + 0.6)) doors[opp].push({ at: backAt, w: RING.backDoor, kind: 'back' });
+    // R2: who lives here (data/ring.js RESIDENTS). A barricaded household boards up its unit's front door and goes in and
+    // out by a back door of its own. No geo rng is spent on it: every other building comes out exactly as before.
+    const hh = this.household(L), HR = hh ? RESIDENTS[hh.kind] : null, resUnit = hh ? (units > 1 ? hh.unit % units : 0) : -1;
+    if (HR?.barricade) {
+      doors[L.front][resUnit].barricade = true;
+      const lo = uA + uw * resUnit, hi = lo + uw, mid = snap(lo + uw / 2), bw = RING.backDoor;
+      const clash = (at) => at - bw / 2 < lo + 0.7 || at + bw / 2 > hi - 0.7 || doors[opp].some((q) => Math.abs(q.at - at) < bw + 0.6) || inner.some((P) => P.horizontal !== ns && Math.abs(P.fixed - at) < bw / 2 + T + 0.6);
+      if (!doors[opp].some((q) => q.at > lo && q.at < hi)) for (const o of [0, 2, -2, 3.5, -3.5]) if (!clash(mid + o)) { doors[opp].push({ at: mid + o, w: bw, kind: 'back' }); break; }
+    }
     // ---- the walls, side by side: spans between doors; an intact span gets window holes, a ruined one may be down.
     const side = (S, horizontal, fixed, a0, a1) => {
       const gaps = doors[S].slice().sort((p, q) => p.at - q.at);
@@ -443,8 +452,9 @@ export class Ring {
       for (const gp of gaps) {
         const nx = S === 'W' ? -1 : S === 'E' ? 1 : 0, nz = S === 'N' ? -1 : S === 'S' ? 1 : 0;
         const x = horizontal ? gp.at : fixed, z = horizontal ? fixed : gp.at;
-        g.doors.push({ x, z, nx, nz, w: gp.w, kind: gp.kind });
+        g.doors.push({ x, z, nx, nz, w: gp.w, kind: gp.kind, barricade: !!gp.barricade });
         keep.push([x - nx * 1.2, z - nz * 1.2]);
+        if (gp.barricade) this.barricade(g, L, horizontal, fixed, gp.at, gp.w, nx, nz);
       }
       for (const [s, e] of spans) {
         if (e - s < 0.2) continue;
@@ -561,7 +571,7 @@ export class Ring {
     }
     // The yard: a fence round a house's back yard (solid: the front stays open), junk for looks.
     const lot = L.lot;
-    if (Z.fence && rng() < Z.fence && (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex')) {
+    if (Z.fence && !HR?.barricade && rng() < Z.fence && (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex')) { // a boarded-up house keeps its back yard open: its back door is the way in
       const fc = rng.pick(['#6e5a40', '#5a4a36', '#7a6a50', '#6a6660']);
       const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(0.12, Math.abs(bx - ax)), sz = Math.max(0.12, Math.abs(bz - az)); g.props.push([x, 0.6, z, sx, 1.2, sz, fc, 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: 1.2, tag: 'fence', holes: null }); };
       const m = 0.4;
@@ -582,8 +592,124 @@ export class Ring {
       else if (kind < 0.7) g.decor.push([x, 0.5, z, 0.9, 1.0, 0.9, rng.pick(['#7a3a1c', '#3f5446', '#6d5a2a']), 0, 1]);
       else g.decor.push([x, 0.15, z, rng.range(1.4, 3), 0.3, rng.range(1.4, 3), '#4f4b46', rng() * 3, 0.9]);
     }
+    if (hh) this.homeOf(L, g, hh, HR, rooms, resUnit, units, keep, placed);
     L.containers = g.boxesIn.length;
     return g;
+  }
+
+  // ---- R2: who lives here (data/ring.js RESIDENTS) -------------------------------------------------------------------
+  // The household in building L, or null: { kind, size, unit, seed }. A pure function of the rows and the seed (its own
+  // stream, so nothing else moves), cached on the lot.
+  household(L) {
+    if (L.hh !== undefined) return L.hh;
+    L.hh = null;
+    const Z = ZONES[L.zone];
+    if (L.empty || !Z?.residents?.length) return null;
+    const rng = rngOf(hash32(this.seed, L.seed, 0x52455331));
+    const kind = pickW(rng, Z.residents), R = RESIDENTS[kind];
+    if (!R || !R.kinds.includes(L.kind) || (R.intact && L.ruined)) return null;
+    if (R.perQuarter) { if (this.quarterPick(L.zone, kind, Math.floor(L.cx / G), Math.floor(L.cz / G)) !== L.id) return null; }
+    else if (rng() >= (Z.occupancy ?? 0)) return null;
+    return (L.hh = { kind, size: rng.int(R.size[0], R.size[1]), unit: rng.int(0, 11), seed: hash32(this.seed, L.seed, 0x484f4d45) });
+  }
+  // One building per quarter (the 4 x 4 blocks between arterials) for a perQuarter kind: the eligible standing lot of
+  // that zone with the lowest hash, at the row's chance. Returns its id or null.
+  quarterPick(zone, kind, k, j) {
+    const qk = Math.floor(k / 4), qj = Math.floor(j / 4), key = `${zone}|${kind}|${qk},${qj}`;
+    const Q = (this.qCache ??= new Map());
+    if (Q.has(key)) return Q.get(key);
+    const R = RESIDENTS[kind];
+    let best = null, bs = Infinity;
+    const cand = [];
+    for (let a = qk * 4; a < qk * 4 + 4; a++) for (let b = qj * 4; b < qj * 4 + 4; b++) {
+      const B = this.block(a, b);
+      if (B.city && B.zone === zone) for (const L of B.lots) if (!L.empty && R.kinds.includes(L.kind) && !(R.intact && L.ruined)) cand.push(L);
+    }
+    for (const L of cand) {
+      this.owned(Math.floor(L.cx / C), Math.floor(L.cz / C)); // over its chunk's budget: it does not stand
+      if (L.cut) continue;
+      const s = hash32(this.seed, L.seed, 0x51554152);
+      if (s < bs) { bs = s; best = L.id; }
+    }
+    const pick = best && rngOf(hash32(this.seed, qk + 9000, qj + 9000, 0x5150))() < R.perQuarter ? best : null;
+    if (Q.size > 2000) Q.clear();
+    Q.set(key, pick);
+    return pick;
+  }
+  // Boards nailed across a door gap (a solid barricade, sight and rounds stopped too) and a few crates piled behind it.
+  barricade(g, L, horizontal, fixed, at, w, nx, nz) {
+    const rng = rngOf(hash32(L.seed, Math.round(at * 10), 0x42415231)), cols = RES_RULES.barricade.colors;
+    g.boxes.push(this.wallBox(horizontal, fixed, at - w / 2, at + w / 2, 2.1, 'barricade', null));
+    const out = 0.24, x0 = horizontal ? at : fixed + nx * out, z0 = horizontal ? fixed + nz * out : at;
+    for (const y of [0.4, 0.85, 1.3, 1.75, 2.05]) {
+      const len = w + rng.range(0.3, 0.7), dy = rng.range(-0.06, 0.06), shift = rng.range(-0.15, 0.15);
+      g.props.push([x0 + (horizontal ? shift : 0), y + dy, z0 + (horizontal ? 0 : shift), horizontal ? len : 0.1, 0.22, horizontal ? 0.1 : len, rng.pick(cols), 0, 1]);
+    }
+    for (let i = 0; i < 2; i++) {
+      const s = (i ? 1 : -1) * w * 0.25, x = horizontal ? at + s : fixed - nx * 0.75, z = horizontal ? fixed - nz * 0.75 : at + s;
+      g.props.push([x, 0.45 + i * 0.12, z, 0.85, 0.9 + i * 0.24, 0.85, '#6b4e2e', rng() * 0.5, 0.95]);
+    }
+    g.barricade = { x: horizontal ? at : fixed, z: horizontal ? fixed : at, nx, nz, w };
+  }
+  // Where a household lives inside its shell: the rooms that are theirs (their unit, or the whole house), a bed for each
+  // of them (a mattress on the floor where the house's own beds run out), a stripped car in a chop shop. Recorded on the
+  // geo as g.home: { rooms, beds: [bed index], unit }. Its own rng: nothing else in the building moves.
+  homeOf(L, g, hh, HR, rooms, resUnit, units, keep, placed) {
+    const rng = rngOf(hash32(L.seed, 0x6d617474));
+    const unitRooms = rooms.filter((r) => !r.office);
+    const mine = units > 1 ? [unitRooms[resUnit] ?? unitRooms[0]] : rooms.slice();
+    const inMine = (b) => mine.some((r) => b.x > r.x0 && b.x < r.x1 && b.z > r.z0 && b.z < r.z1);
+    const clear = (r, wall, far, kd = 1.5) => {
+      if (keep.some(([kx, kz]) => kx > r.x0 - kd && kx < r.x1 + kd && kz > r.z0 - kd && kz < r.z1 + kd)) return false;
+      for (const p of placed) {
+        const gap = Math.max(p.r.x0 - r.x1, r.x0 - p.r.x1, p.r.z0 - r.z1, r.z0 - p.r.z1);
+        if (gap < (p.wall === wall ? 0.3 : far)) return false;
+      }
+      return true;
+    };
+    // A chop shop's car on blocks, in the big room, clear of every doorway.
+    if (HR.car) {
+      const room = mine.find((r) => r.frontRoom) ?? mine[0], along = L.front === 'N' || L.front === 'S';
+      const cx = (room.x0 + room.x1) / 2, cz = (room.z0 + room.z1) / 2, lx = along ? 4.4 : 1.9, lz = along ? 1.9 : 4.4;
+      for (const [ox, oz] of [[0, 0], [3, 0], [-3, 0], [0, 2.5], [0, -2.5], [4, 2], [-4, -2]]) {
+        const x = cx + ox, z = cz + oz, r = { x0: x - lx / 2, x1: x + lx / 2, z0: z - lz / 2, z1: z + lz / 2 };
+        if (r.x0 < room.x0 + 1.4 || r.x1 > room.x1 - 1.4 || r.z0 < room.z0 + 1.4 || r.z1 > room.z1 - 1.4 || !clear(r, 'car', 1.4)) continue;
+        if (keep.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < 3.2)) continue;
+        const col = rng.pick(['#6a3a22', '#4f5a52', '#704a2a', '#5a4a36']);
+        g.props.push([x, 0.85, z, lx, 0.8, lz, col, 0, 1]); // the body, up on stands (no wheels: they went first)
+        g.props.push([x + (along ? -0.3 : 0), 1.5, z + (along ? 0 : -0.3), along ? 2.1 : 1.7, 0.5, along ? 1.7 : 2.1, col, 0, 0.8]); // the cab
+        for (const [a, b] of [[-1.5, -0.7], [1.5, -0.7], [-1.5, 0.7], [1.5, 0.7]]) g.props.push([x + (along ? a : b), 0.22, z + (along ? b : a), 0.3, 0.44, 0.3, '#3d3a36', 0, 1]); // axle stands
+        g.boxes.push({ x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, h: 1.8, tag: 'wreck', holes: null });
+        placed.push({ r, wall: 'car' });
+        break;
+      }
+    }
+    // Beds: theirs, and a mattress for each of them the beds do not cover.
+    const own = [];
+    g.beds.forEach((b, i) => { if (inMine(b)) own.push(i); });
+    const F = FURNITURE.mattress, [fw, fd, fh] = F.size;
+    let need = HR.faction === 'zombie' ? 0 : hh.size - own.length;
+    const order = mine.slice().sort((a, b) => (b.back ? 1 : 0) - (a.back ? 1 : 0) || (b.office ? 1 : 0) - (a.office ? 1 : 0));
+    const lay = (r, wall) => {
+      const x = (r.x0 + r.x1) / 2, z = (r.z0 + r.z1) / 2, sx = r.x1 - r.x0, sz = r.z1 - r.z0;
+      placed.push({ r, wall });
+      g.props.push([x, fh / 2, z, sx, fh, sz, rng.pick(F.colors), 0, 1]);
+      own.push(g.beds.length);
+      g.beds.push({ x, z, face: sx > sz ? Math.PI / 2 : 0, bedY: fh * 0.55, mattress: true });
+    };
+    for (let pass = 0; pass < 2 && need > 0; pass++) for (const room of order) {
+      if (need <= 0) break;
+      // Along the walls first; then out on the floor (a mattress is not in anyone's way: walkers step over it).
+      const cands = pass === 0 ? this.slots(room, fw, fd, rng) : [];
+      // Out on the floor: either way round, a hand's width off the walls.
+      if (pass === 1) for (const [sx, sz] of [[fw, fd], [fd, fw]]) for (let x = room.x0 + 0.15 + sx / 2; x <= room.x1 - 0.15 - sx / 2; x += 0.8) for (let z = room.z0 + 0.15 + sz / 2; z <= room.z1 - 0.15 - sz / 2; z += 0.8) cands.push({ r: { x0: x - sx / 2, x1: x + sx / 2, z0: z - sz / 2, z1: z + sz / 2 }, wall: 'floor' });
+      for (const c of cands) {
+        if (need <= 0) break;
+        if (!(pass ? clear(c.r, c.wall, 0.35, 0.9) : clear(c.r, c.wall, 1.0))) continue;
+        lay(c.r, c.wall); need--;
+      }
+    }
+    g.home = { rooms: mine, beds: own, unit: resUnit };
   }
   // A wall's visual piece (exact extents along its axis), into list as [cx, cy, cz, sx, sy, sz, hex, rot, shade].
   piece(list, horizontal, fixed, a0, a1, y0, y1, hex, shade) {

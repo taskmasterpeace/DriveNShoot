@@ -35,6 +35,7 @@ import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { Zombies } from './systems/zombies.js';
+import { Residents } from './systems/residents.js';
 import { VehicleDamage } from './systems/vehicledamage.js';
 import { Seats } from './systems/seats.js';
 import { Throwables, THROWABLES, THROW_ORDER } from './systems/throwables.js';
@@ -141,6 +142,7 @@ class Game {
     this.train = new Train(this);
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
+    this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
@@ -187,6 +189,10 @@ class Game {
 
   // ---- population ----------------------------------------------------------------
   addChar(opts) {
+    // Budget full: the Phoenix ring's residents yield first (written back to their records, systems/residents.js); they
+    // never push anyone else out themselves (opts.res: no slot, no resident).
+    if (!this.freeSlots.length && !opts.res) this.residents?.yieldSlot();
+    if (!this.freeSlots.length && opts.res) return null;
     if (!this.freeSlots.length) {
       // Budget full: recycle the longest-dead corpse (blood decals stay), then the farthest idle drifter.
       const dead = this.chars.filter((c) => !c.alive && c !== this.player && !c.npc).sort((a, b) => b.deadTime - a.deadTime)[0];
@@ -519,6 +525,7 @@ class Game {
       this.inventory.armBody(body, c);
     }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
+    if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
   }
 
   // A pickup box is a find: it goes in your pack (or, with no room, you use it on the spot - drink the water, eat
@@ -1031,13 +1038,13 @@ class Game {
     // Bodies far from view eventually get cleaned up (the blood stays).
     for (let i = this.chars.length - 1; i >= 0; i--) {
       const c = this.chars[i];
-      if (!c.alive && c !== this.player && !c.npc && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
+      if (!c.alive && c !== this.player && !c.npc && !c.res && c.deadTime > 90 && Math.hypot(c.x - this.player.x, c.z - this.player.z) > Math.max(70, this.viewR + 10)) this.removeChar(c);
     }
     // Dustwolves keep coming.
     this.raiderTimer -= dt;
     if (this.raiderTimer <= 0) {
       this.raiderTimer = 18;
-      const alive = this.chars.filter((c) => c.alive && c.faction === 'raider').length;
+      const alive = this.chars.filter((c) => c.alive && c.faction === 'raider' && !c.res).length; // a chop shop's wolves live in the ring, not the camps
       // As many as the band can field (faction sim strength), and only from camps it still holds.
       const S = this.society, cap = Math.round(30 * S.sim.str('dustwolves') / 100);
       if (alive < cap) {
@@ -1125,6 +1132,7 @@ class Game {
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
+      this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.nanGuard('late');
     }
     this.dialogue.update(dt, I);

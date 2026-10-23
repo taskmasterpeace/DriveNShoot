@@ -42,6 +42,7 @@ export class AI {
 
   // quiet: the caller already recorded the deed (a carjack is not also an assault).
   onDamaged(c, attacker, quiet = false) {
+    c.hitAt = this.g.time; // a resident hit in the last seconds is never demoted out from under you (systems/residents.js)
     if (c.sleeping) this.wake(c, 'hurt');
     if (!attacker || attacker === c || c === this.g.player) return;
     if (!quiet) this.g.society?.deeds.onHurt(c, attacker); // witnesses decide whether the law hears of it
@@ -225,7 +226,7 @@ export class AI {
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
       // hold = true stays until cleared; a number counts down in seconds.
       if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
-      if (c.faction === 'zombie') { g.zombies.think(c, dt); continue; }
+      if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;
       if (c.grabbing) { c.cool -= dt; continue; } // riding on a car: CarCombat drives them
@@ -308,6 +309,8 @@ export class AI {
         continue;
       }
 
+      // The Phoenix ring's residents keep their own day (systems/residents.js): their beds, their runs, their rooms.
+      if (c.res && g.residents) { g.residents.think(c, dt, pd); continue; }
       // Night: the town's own people go to bed and sleep till dawn (WEB_SURVIVAL); a woken one stays up a while.
       if (c.restless > 0) c.restless -= dt;
       if (this.sleeper(c) && this.night() && !(c.restless > 0)) { this.toBed(c, dt, pd); continue; }

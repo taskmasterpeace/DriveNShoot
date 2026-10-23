@@ -123,13 +123,15 @@ export class Inventory {
   // A theft: one deed per box per half-minute however many things you take, sized by what they were worth. The
   // owner, if they're alive and see it, remembers it (robbedMe); anyone else who saw it talks.
   stole(box, t) {
-    const g = this.g, owner = g.chars.find((c) => c.id === box.owner && c.alive);
+    // The owner: a named shopkeeper by id, or (a Phoenix ring household, systems/residents.js) whichever of them is nearest.
+    const g = this.g, owner = g.chars.find((c) => c.id === box.owner && c.alive) ?? g.residents?.ownerOf(box) ?? null;
     const worth = (ITEMS[t.id]?.value ?? 1) * t.n;
     box.stolen = (box.stolen ?? 0) + worth;
     if ((box.stealT ?? -99) > g.time - 30) return;
     box.stealT = g.time;
     const P = g.player; // witnesses see the thief, not the inside of the shelf
-    const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? 'rusthaven', stars: 1, owner: true });
+    const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? box.ownerFid ?? 'rusthaven', stars: 1, owner: true });
+    if (box.ownerFid) g.residents?.onSteal(box, rec);
     g.emit('stole', { box: box.id, owner: box.owner, item: t.id, n: t.n, worth, witnesses: rec?.ws ?? 0 });
   }
 

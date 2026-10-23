@@ -148,9 +148,12 @@ export class Zombies {
     if (this.watched(c)) { c.speed = 0; c.frozen = true; return; } // hands still on the wire
     c.frozen = false;
     // What it is at: the nearest boarded window or locked door to its post.
-    if (!c.work || (c.work.W && c.work.W.state !== 'boarded') || (c.work.door && !c.work.door.locked)) {
+    if (!c.work || (c.work.W && c.work.W.state !== 'boarded') || (c.work.door && !c.work.door.locked) || (c.work.B && c.work.B.hp <= 0)) {
       c.work = null;
       let bd = EC.reach;
+      // A Phoenix ring nest's boards (systems/residents.js): a barricade with hp on its household's record.
+      const B = post.boards;
+      if (B && B.hp > 0) { const d = Math.hypot(B.x - post.x, B.z - post.z); if (d < bd) { bd = d; c.work = { B, x: B.x + B.nx * 0.85, z: B.z + B.nz * 0.85 }; } }
       for (const W of I?.windows ?? []) if (W.state === 'boarded') { const d = Math.hypot(W.x - post.x, W.z - post.z); if (d < bd) { bd = d; c.work = { W, x: W.x + W.nx * 0.85 * (W.boardSide || 1), z: W.z + W.nz * 0.85 * (W.boardSide || 1) }; } }
       for (const door of I?.doors ?? []) if (door.locked) { const d = Math.hypot(door.x - post.x, door.z - post.z); if (d < bd) { bd = d; c.work = { door, x: door.x + door.nx * 0.9, z: door.z + door.nz * 0.9 }; } }
     }
@@ -158,11 +161,12 @@ export class Zombies {
     if (d > 0.4) { g.ai.move(c, tx - c.x, tz - c.z, 1.1, dt); return; }
     c.speed = 0;
     if (!c.work) return;
-    const at = c.work.W ?? c.work.door;
+    const at = c.work.W ?? c.work.door ?? c.work.B;
     c.face = Math.atan2(at.x - c.x, at.z - c.z);
     c.workT = (c.workT ?? 0) - dt;
     if (c.workT > 0) return;
-    if (c.work.W) { c.workT = EC.workEvery; I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
+    if (c.work.B) { c.workT = EC.workEvery; c.work.B.hp = Math.max(0, c.work.B.hp - EC.boards); if (c.res) c.res.rec.dirty = true; this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, boards: c.res?.rec.id ?? 'ring', boardHp: Math.round(c.work.B.hp) }); }
+    else if (c.work.W) { c.workT = EC.workEvery; I.damageBoards(c.work.W, EC.boards, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, window: c.work.W.id, boardHp: Math.round(c.work.W.boardHp) }); }
     else { c.workT = EC.kickEvery; I.kick(c.work.door, c); this.counts.echoStrikes++; g.emit('echoStrike', { id: c.id, door: c.work.door.id, locked: c.work.door.locked }); }
   }
 
@@ -194,6 +198,7 @@ export class Zombies {
       if (c.zkind === 'sprinter' && Math.abs(c.x - x) < SP.ear && Math.abs(c.z - z) < SP.ear && Math.hypot(c.x - x, c.z - z) <= Math.min(r, SP.ear)) this.burst(c, 'noise');
       if (c.ztarget || c.zkind === 'echo' || c.zkind === 'choir') continue;
       if (Math.abs(c.x - x) > r || Math.abs(c.z - z) > r) continue;
+      if (c.res) c.res.roused = this.g.time + 20; // a nest's own (systems/residents.js): roused, it goes to look
       c.wx = x + (Math.random() - 0.5) * 6; c.wz = z + (Math.random() - 0.5) * 6; c.timer = 10;
     }
   }
@@ -320,7 +325,7 @@ export class Zombies {
     const alive = g.chars.reduce((n, c) => n + (c.faction === 'zombie' && c.alive ? 1 : 0), 0);
     if (night < 0.6) {
       // Daylight: the far-off infected crawl back into the ruins.
-      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
+      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && !c.res && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
       return;
     }
     if (alive >= CAP_NIGHT) return;

@@ -100,14 +100,14 @@ export const FACTIONS = {
     hunters: { faction: 'raider', name: 'Dustwolf Tracker', weapons: { smg: 0.5, shotgun: 0.3, pistol: 0.2 }, hp: 100 },
     sim: { strength: 60, resources: 40, aggression: 0.7, raids: 'rusthaven' },
     relations: { '*': -100 },
-    values: { 'kill:self': -8, 'hurt:self': -2, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3, 'stunt:any': 2, 'heal:self': 3 }, // they respect a driver who can fly
+    values: { 'kill:self': -8, 'hurt:self': -2, 'steal:self': -3, 'kill:enemy': 0.6, 'carjack:any': 0.5, 'rob:any': 0.5, 'deliver:self': 5, 'trade:self': 1, 'pay:self': 3, 'stunt:any': 2, 'heal:self': 3 }, // they respect a driver who can fly
   },
   drifters: {
     name: 'Drifters', archetype: 'loose', color: '#9a8a6a', start: 0, stars: false, forgivesSelfDefense: true,
     cohesion: 0.35, memoryDays: 10, rumorDelay: [30, 70], hub: null, leaders: [],
     // Drifters only run from raiders; they don't hunt them, so the relation stays above the -50 war line.
     relations: { rusthaven: 40, dustwolves: -45, infected: -100 },
-    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1, 'threaten:self': -1.5, 'kill:rusthaven': -2, 'rescue:rusthaven': 2 },
+    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'steal:self': -2.5, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1, 'threaten:self': -1.5, 'kill:rusthaven': -2, 'rescue:rusthaven': 2 },
   },
   infected: {
     name: 'the infected', archetype: 'infected', color: '#7d8a6a', start: -100, memory: 'none',

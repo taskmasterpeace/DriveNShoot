@@ -317,11 +317,33 @@ function buildCommands(api) {
           survey: sv, densest: dense,
           here: { x: r1(px), z: r1(pz), inCity: RG.inCity(px, pz), depth: r1(RG.depth(px, pz)), name: locationName(px, pz), block: b.city ? { k: b.k, j: b.j, zone: b.zone, district: b.Z.name, lots: b.lots.length } : null,
             building: L ? { id: L.id, kind: L.kind, zone: L.zone, ruined: !!L.ruined, x0: r1(L.x0), z0: r1(L.z0), x1: r1(L.x1), z1: r1(L.z1), front: L.front, height: r1(L.h ?? 0), owner: L.owner,
-              doors: geo.doors.map((d) => ({ x: r1(d.x), z: r1(d.z), faces: d.nx ? (d.nx > 0 ? 'E' : 'W') : (d.nz > 0 ? 'S' : 'N'), width: d.w, kind: d.kind })),
+              doors: geo.doors.map((d) => ({ x: r1(d.x), z: r1(d.z), faces: d.nx ? (d.nx > 0 ? 'E' : 'W') : (d.nz > 0 ? 'S' : 'N'), width: d.w, kind: d.kind, barricaded: d.barricade || undefined })),
               rooms: geo.rooms.length, containers: geo.boxesIn.map((q) => ({ id: q.id, label: q.label, table: q.table, x: r1(q.x), z: r1(q.z), registered: inv.boxes.has(q.id), opened: !!inv.boxes.get(q.id)?.rolled || !!inv.ringKept?.has(q.id) })), beds: geo.beds.length } : null,
             chunk: { key: ch.key, tier: ch.tier, ring: ch.ring ?? null, buildMs: ch.buildMs } },
           containersRegistered: [...inv.boxes.values()].filter((q) => q.ring).length, containersKept: inv.ringKept?.size ?? 0,
+          household: L && RG.household(L) ? (({ members, ...h }) => ({ ...h, people: members.map((m) => `${m.name}${m.dead ? ' (dead)' : ''}`) }))(g.residents.view(g.residents.rec(L))) : null,
         };
+      },
+    },
+    residents: {
+      group: 'world', desc: 'The Phoenix ring\'s residents (R2, docs/design/WEB_STREAMING.md §1.3; rows in data/ring.js RESIDENTS): households as records keyed by building id (R<k>.<j>.<n>) - scavenger families in dead houses, squatters behind a boarded-up shop front, a Dustwolf chop shop per quarter of THE YARDS, an infected nest in THE BURN that moves most dawns (an Echo at its boards). No id: the budget (characters, free slots, the reserve residents never take, their cap), how many are promoted, promotion ms, yields, deaths, thefts, and the households within radius of x,z (default where you are), nearest first. id=<building>: one household in full - every member (name, flag, gun, hp, dead and by whom and when, asleep, where the clock has them: bed, home, out, coming home, watch, lair, roaming; their plan for today; what they carry; their body\'s box), its beds, its boxes and how many are owned, the barricade\'s hp, the nest\'s lair today and tomorrow. action=promote makes them characters now (their chunk must be hot), action=demote writes them back to the record.',
+      args: { id: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, radius: { type: 'number', default: 250 }, action: { type: 'string', default: 'status', enum: ['status', 'promote', 'demote'] } },
+      run: async ({ id, x, z, radius, action }) => {
+        const R = g.residents;
+        if (id) {
+          const L = R.lotById(id);
+          need(L, `nobody lives in building ${id} (households near a spot: residents x= z=; building ids are R<k>.<j>.<n>)`);
+          const rec = R.rec(L);
+          if (action === 'promote') { need(g.streamer.layouts.get(rec.owner)?.hot?.done, `its chunk ${rec.owner} is not hot: be within ~200 m first`); R.promote(rec); }
+          if (action === 'demote') R.demote(rec, true);
+          return R.view(rec);
+        }
+        const px = x ?? P().x, pz = z ?? P().z, near = [], rr = Math.min(1200, radius);
+        for (let cx = Math.floor((px - rr) / 256); cx <= Math.floor((px + rr) / 256); cx++) for (let cz = Math.floor((pz - rr) / 256); cz <= Math.floor((pz + rr) / 256); cz++) {
+          for (const L of R.households(cx, cz)) { const d = Math.hypot(L.cx - px, L.cz - pz); if (d <= rr) near.push([d, L]); }
+        }
+        near.sort((a, b) => a[0] - b[0]);
+        return { ...R.summary(), near: near.slice(0, 20).map(([d, L]) => { const v = R.view(R.rec(L)); return { dist: r1(d), id: v.id, kind: v.kind, name: v.name, x: v.x, z: v.z, promoted: v.promoted, alive: v.alive, dead: v.dead, beds: v.beds, people: v.members.map((m) => `${m.name} [${m.flag}]${m.dead ? ' dead' : m.asleep ? ' asleep' : m.where ? ` ${m.where}` : ''}`) }; }), more: Math.max(0, near.length - 20) };
       },
     },
     locate: {
@@ -1605,8 +1627,9 @@ function buildCommands(api) {
       run: async ({ save }) => restore(g, save),
     },
     selftest: {
-      group: 'script', budget: 300, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page.',
-      run: async () => runSelfTest(api),
+      group: 'script', budget: 300, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery).',
+      args: { only: { type: 'string' } },
+      run: async ({ only } = {}) => runSelfTest(api, only),
     },
   };
 }
@@ -1694,10 +1717,11 @@ function compileNpc(def) {
 }
 
 
-async function runSelfTest(api) {
+async function runSelfTest(api, only = null) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
+    if (only && !name.includes(only)) return;
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
@@ -3306,6 +3330,11 @@ async function runSelfTest(api) {
   // ---- the streamed world (docs/design/WEB_STREAMING.md, P1 "Streamed Arizona"). The drives run the way the real-time
   // loop runs (sliced streaming: a stall here is a real one), at a fixed 60 Hz step.
   const SW = g.streamer, WI = SW.W;
+  // The Phoenix ring is lived in now (R2): its squatters and families are drifters, and the battery's earlier fights can
+  // leave the drifters shooting you on sight - a corridor drive through THE STRIP would be a gunfight. These checks are
+  // about the ground, not that grudge: the drifters' standing as it starts, given back after the ring's checks.
+  const FS = g.society.factions, standS = FS.standing.slice(), lifeS = FS.lifetime.slice();
+  FS.set('drifters', FS.row('drifters').start);
   // Home to Rust Haven, and the rig a check drove is taken away (nothing left parked in a lane the next check uses).
   // These checks drive for minutes: by now the battery has kept you up for hours, and a microsleep takes the hands off the
   // wheel (survival.js). Rested for the streaming checks; the battery's own state comes back after them.
@@ -3588,6 +3617,188 @@ async function runSelfTest(api) {
     const ok = sv.buildings > 2000 && zones.length === 4 && lobed && lattice && !inIsl && fs.matches && fl.matches && a.ring?.buildings > 20;
     return ok ? true : JSON.stringify({ buildings: sv.buildings, zones, edge: e.map(Math.round), lattice, inIsl, sync: fs.matches, sliced: fl.matches, ring: a.ring });
   });
+  // ---- the Phoenix ring, R2 (WEB_STREAMING §1.3 "R2 as built"): the people who live in it (systems/residents.js) ----
+  // What these checks set off in the world's memory (a theft and a killing the family saw) is taken back after them, so
+  // word of it never lands in a later check: the factions' standing, the roles, the rumors still on their way.
+  const RS = g.residents, F0 = g.society.factions, D0 = g.society.deeds, seq0 = g.society.chronicle.seq;
+  const roles0 = g.roles.save(), hour0 = g.sky.time;
+  const HH = (() => { const out = [], n = Math.ceil(RG.reach / 256) + 1; for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of RS.households(cx, cz)) out.push(L); return out.sort((a, b) => (a.id < b.id ? -1 : 1)); })();
+  // The battery's own leftovers out of the budget (bodies, strays): what the clean-up does in play, done now.
+  const freeUp = () => { for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.res && !c.alive) g.removeChar(c); };
+  // A family of three or more with a shelf of its own; the street 6 m out from its front door.
+  const famL = HH.find((L) => { if (RG.household(L).kind !== 'family') return false; const r = RS.rec(L); return r.members.length >= 3 && r.boxIds.length > 0; });
+  const front = (L) => { const d = RG.geo(L).doors.find((q) => q.kind === 'front' && !q.barricade) ?? RG.geo(L).doors[0]; return { x: d.x + d.nx * 6, z: d.z + d.nz * 6 }; };
+  const atFamily = async (hour) => { await streamHome(); freeUp(); await C('setTime', { hour }); await C('teleport', front(famL)); await C('step', { seconds: 2 }); return RS.rec(famL); };
+  let sv0 = null;
+  await check('ring residents: a scavenger family is home at night, each asleep in their own bed (walked there on the game clock; a mattress each where the house runs short)', async () => {
+    if (!famL) return 'no family of three with a shelf in the ring';
+    const rec = await atFamily(19);
+    const promoted = rec.members.filter((m) => m.c?.alive).length;
+    await C('setTime', { hour: 22.7 });
+    const inBed = (m) => { const c = m.c, b = RS.bedOf(rec, m); return !!c?.alive && !!c.sleeping && Math.hypot(c.x - b.x, c.z - b.z) < 0.15 && RS.inside(rec, c); };
+    let t = 0;
+    for (; t < 90 && !rec.members.every(inBed); t += 2) await C('step', { seconds: 2 });
+    const beds = new Set(rec.members.map((m) => rec.beds.indexOf(RS.bedOf(rec, m))));
+    const walked = g.events.some((e) => e.type === 'npcSleep' && rec.members.some((m) => m.c?.id === e.id));
+    const ok = promoted === rec.members.length && rec.members.every(inBed) && beds.size === rec.members.length && !beds.has(-1) && walked;
+    return ok ? true : JSON.stringify({ id: rec.id, promoted, n: rec.members.length, secs: t, walked, free: g.freeSlots.length, beds: rec.beds.length, members: rec.members.map((m) => ({ c: m.c?.id, asleep: !!m.c?.sleeping, d: m.c ? +Math.hypot(m.c.x - RS.bedOf(rec, m).x, m.c.z - RS.bedOf(rec, m).z).toFixed(2) : null, where: m.c?.res?.where })) });
+  });
+  await check('ring residents: by day one of a family goes out on a run on foot (out of the house, down the street) and comes back in when the run is over', async () => {
+    await streamHome(); await C('setTime', { hour: 7 }); await C('step', { seconds: 0.5 }); // the morning: a new day, a new plan each
+    const d = g.society.day;
+    let L = null, m = null;
+    for (const q of [famL, ...HH]) { if (!q || RG.household(q).kind !== 'family') continue; const r = RS.rec(q); m = r.members.find((x) => !x.dead && RS.plan(r, x, d).out); if (m) { L = q; break; } }
+    if (!m) return `nobody in any family goes out on day ${d}`;
+    const rec = RS.rec(L), p = RS.plan(rec, m, d);
+    await C('setTime', { hour: p.leave - 0.15 }); await C('teleport', front(L)); await C('step', { seconds: 2 });
+    if (!m.c) return JSON.stringify({ id: rec.id, why: 'not promoted', free: g.freeSlots.length, n: RS.n });
+    const homeFirst = RS.inside(rec, m.c);
+    await C('setTime', { hour: p.leave + 0.02 });
+    let t = 0;
+    for (; t < 60 && RS.inside(rec, m.c); t++) await C('step', { seconds: 1 });
+    await C('step', { seconds: 8 });
+    const left = !RS.inside(rec, m.c), out = m.c.res.where, far = Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz);
+    await C('setTime', { hour: p.back + 0.02 });
+    let u = 0;
+    for (; u < 120 && !RS.inside(rec, m.c); u++) await C('step', { seconds: 1 });
+    const back = RS.inside(rec, m.c);
+    return homeFirst && left && out === 'out' && far > 8 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: m.c.res.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length } });
+  });
+  let thief = null;
+  await check('ring residents: taking from a lived-in house\'s shelf in front of one of them is a `steal` they witness: the box is theirs, the record names them, their people hear of it, and they hold it against you', async () => {
+    const rec = await atFamily(12.5), inv = g.inventory, P = g.player;
+    const box = rec.boxIds.map((id) => inv.boxes.get(id)).find((b) => b && b.owner === rec.id);
+    if (!box) return JSON.stringify({ id: rec.id, why: 'no box owned', boxes: rec.boxIds.map((id) => inv.boxes.get(id)?.owner ?? null) });
+    await C('teleport', { x: box.x, z: box.z }); await C('step', { seconds: 0.3 });
+    // One of them home, awake, a couple of metres off in the same room, looking at you (staged: the documented exception).
+    const room = rec.rooms.find((r) => box.x > r.x0 - 0.5 && box.x < r.x1 + 0.5 && box.z > r.z0 - 0.5 && box.z < r.z1 + 0.5) ?? rec.rooms[0];
+    const m = rec.members.find((q) => q.c?.alive);
+    if (!m) return 'nobody of theirs promoted';
+    const w = m.c;
+    g.ai.wake(w, 'test'); w.restless = 0;
+    w.x = (room.x0 + room.x1) / 2; w.z = (room.z0 + room.z1) / 2; w.face = Math.atan2(P.x - w.x, P.z - w.z); w.hold = 3;
+    const seq = g.eventSeq;
+    const opened = await C('pack', { on: true });
+    if (opened.other?.id !== box.id) { await C('pack', { on: false }); return JSON.stringify({ why: 'the pack opened something else', other: opened.other?.id, box: box.id }); }
+    if (!box.slots.length) inv.add(box, 'water_bottle', 1); // an empty shelf: one thing on it to take (staged)
+    const took = box.slots[0].id;
+    await C('item', { take: took, n: 1 });
+    await C('pack', { on: false });
+    const deed = g.events.find((e) => e.seq > seq && e.type === 'deed' && e.verb === 'steal');
+    const crec = deed ? D0.find(deed.record) : null;
+    const grudge = m.grudge > RS.gh() && w.grudge === P;
+    thief = { rec: rec.id };
+    const ok = !!deed && crec?.w.includes(w.id) && crec.of === 'drifters' && box.owner === rec.id && rec.wronged >= 1 && grudge && g.insideBuilding?.id === rec.id;
+    return ok ? true : JSON.stringify({ deed: !!deed, witnesses: crec?.w, w: w.id, of: crec?.of, owner: box.owner, wronged: rec.wronged, grudge, inside: g.insideBuilding?.id ?? null, house: rec.id });
+  });
+  let victim = null;
+  await check('ring residents: kill one of the family, leave, the chunk evicted outright, come back: still dead where they fell, the record says so, their body still holds what you left on it; the rest of them alive', async () => {
+    const rec = await atFamily(12.5), inv = g.inventory;
+    sv0 = (await C('save')).save; // (the next check loads it: before the killing)
+    const m = rec.members.find((q) => q.c?.alive);
+    if (!m) return 'nobody of theirs promoted';
+    for (const q of rec.members) { q.grudge = 0; if (q.c) { q.c.grudge = null; q.c.target = null; q.c.hold = 0; } } // the theft forgiven: a quiet house for this one
+    g.combat.damage(m.c, 9999, g.player, 1, 0, 'bullet');
+    const body = inv.boxes.get(m.bodyId);
+    if (!body) return JSON.stringify({ why: 'no body box', bodyId: m.bodyId, dead: m.dead });
+    if (!body.slots.length) inv.add(body, 'rag', 2); // something on the body to leave there (staged)
+    const keep = body.slots.map((s) => `${s.id}x${s.n}`).join(','), at = { x: m.x, z: m.z };
+    victim = { rec: rec.id, n: m.n, keep, at };
+    await C('teleport', { mile: 31 }); await C('step', { seconds: 0.5 });
+    const [cx, cz] = rec.owner.split(',').map(Number);
+    await C('chunk', { x: cx * 256 + 128, z: cz * 256 + 128, evict: true });
+    const away = !SW.layouts.has(rec.owner) && !m.c && !inv.boxes.has(m.bodyId) && m.dead;
+    await C('teleport', front(famL)); await C('step', { seconds: 2 });
+    const c = m.c, back = inv.boxes.get(m.bodyId);
+    const still = !!c && !c.alive && Math.hypot(c.x - at.x, c.z - at.z) < 0.05 && m.dead && m.by === 'player';
+    const sameBody = !!back && back.slots.map((s) => `${s.id}x${s.n}`).join(',') === keep;
+    const rest = rec.members.filter((q) => q !== m).every((q) => !q.dead && q.c?.alive);
+    const view = RS.view(rec).members[m.n];
+    return away && still && sameBody && rest && view.dead ? true : JSON.stringify({ id: rec.id, away, still, sameBody, rest, view, keep, back: back?.slots.map((s) => `${s.id}x${s.n}`) ?? null, body: m.body?.map((s) => s.id) ?? null, bodies: [...inv.boxes.keys()].filter((k) => k.startsWith('body:res:')), stats: RS.stats.yielded });
+  });
+  await check('ring residents: the same across a save: a load from before the killing has them alive again, the load after it has them dead where they fell with what was on the body', async () => {
+    if (!victim || !sv0) return 'the killing check did not run';
+    const rec = RS.rec(famL), m = rec.members[victim.n], inv = g.inventory;
+    const sv1 = (await C('save')).save;
+    await C('load', { save: sv0 }); await C('step', { seconds: 2 });
+    const m0 = RS.recs.get(rec.id)?.members[victim.n]; // a load starts the records again: the new one
+    const before = !!m0 && !m0.dead && !!m0.c?.alive && m !== m0;
+    await C('load', { save: sv1 }); await C('step', { seconds: 2 });
+    const rec2 = RS.recs.get(rec.id), m2 = rec2?.members[victim.n], body = inv.boxes.get(m2?.bodyId);
+    const after = !!m2?.dead && !!m2.c && !m2.c.alive && Math.hypot(m2.c.x - victim.at.x, m2.c.z - victim.at.z) < 0.05 && body?.slots.map((s) => `${s.id}x${s.n}`).join(',') === victim.keep;
+    return before && after ? true : JSON.stringify({ before, after, m0: m0 && { dead: m0.dead, c: m0.c?.id, alive: m0.c?.alive }, dead: m2?.dead, c: m2?.c?.id, alive: m2?.c?.alive, body: body?.slots.map((s) => `${s.id}x${s.n}`), keep: victim.keep });
+  });
+  await check('ring residents: the 160-character cap holds with the ring full: residents take only the free slots, and yield first when anyone else needs one (no one else is recycled while a resident could go)', async () => {
+    const rec = await atFamily(12.5);
+    for (const r of RS.live) for (const m of r.members) { m.grudge = 0; if (m.c) { m.c.grudge = null; m.c.target = null; m.c.flee = 0; m.c.hitAt = -99; } } // the killing's anger staged away: anyone may yield
+    await C('step', { seconds: 2 });
+    const n0 = RS.n, y0 = RS.stats.yielded, others = g.chars.filter((c) => c.alive && !c.res && c !== g.player);
+    // Every free slot, and k more than that: k residents nobody is busy with (not fighting, not carrying word) must go.
+    const idle = [...RS.live].reduce((s, r) => s + r.members.filter((m) => m.c && !RS.engaged(m.c)).length, 0);
+    const k = Math.max(1, Math.min(idle, Math.floor(n0 / 2))), want = g.freeSlots.length + k;
+    const ids = [];
+    for (let left = want; left > 0; left -= 40) { const r = await C('spawn', { kind: 'drifter', x: 0, z: -60, count: Math.min(40, left) }); ids.push(...(r.ids ?? [])); if ((r.ids ?? []).length < Math.min(40, left)) break; } // (spawn makes 40 a call at most)
+    const spawned = ids.length === want && ids.every((id) => api.findChar(id)?.alive);
+    const kept = others.every((c) => g.chars.includes(c));
+    const cap = g.chars.length <= 160 && g.freeSlots.length >= 0;
+    const yielded = RS.stats.yielded - y0, n1 = RS.n;
+    for (const id of ids) { const c = api.findChar(id); if (c) g.removeChar(c); }
+    await C('step', { seconds: 2 });
+    const again = RS.n > 0;
+    return n0 > 0 && spawned && kept && cap && yielded >= k && n1 <= n0 - k && again ? true : JSON.stringify({ house: rec.id, n0, n1, want, k, spawned: ids.length, kept, cap, chars: g.chars.length, yielded, again: RS.n });
+  });
+  await check('ring residents: under 150 draw calls at the widest zoom over a lived-in block (the family and its neighbours promoted)', async () => {
+    await atFamily(12.5);
+    const lv0 = g.zoomLevel, live = RS.n;
+    g.setZoom(ZOOM.levels.length - 1); await C('step', { seconds: 3 });
+    g.render(0); const p = await C('perf');
+    g.setZoom(lv0); await C('step', { seconds: 1 });
+    return live > 0 && p.drawCalls < 150 ? true : JSON.stringify({ live, draws: p.drawCalls });
+  });
+  await check('ring residents by zone, as rows: families in THE DEAD HOUSES, squatters behind a boarded-up front door with a back way in on THE STRIP, a Dustwolf chop shop a quarter at most in THE YARDS, an infected nest in THE BURN that moves between lairs; every one of them with a real flag; the same people from the same seed', async () => {
+    const zoneOf = { family: 'residential', squatters: 'strip', chopshop: 'industrial', nest: 'ruins' }, bad = [], quarters = new Map(), kinds = {};
+    let flags = 0, lairsMove = 0, nests = 0;
+    for (const L of HH) {
+      const h = RG.household(L), geo = RG.geo(L), rec = RS.rec(L);
+      kinds[h.kind] = (kinds[h.kind] ?? 0) + 1;
+      if (L.zone !== zoneOf[h.kind]) bad.push(`${L.id} ${h.kind} in ${L.zone}`);
+      if (h.kind === 'squatters' || h.kind === 'nest') { if (!geo.doors.some((d) => d.barricade) || !geo.doors.some((d) => d.kind === 'back') || !geo.boxes.some((b) => b.tag === 'barricade')) bad.push(`${L.id} barricade/back`); }
+      if (h.kind === 'chopshop' || h.kind === 'nest') { const q = `${h.kind}|${Math.floor(Math.floor(L.cx / 80) / 4)},${Math.floor(Math.floor(L.cz / 80) / 4)}`; quarters.set(q, (quarters.get(q) ?? 0) + 1); }
+      if (h.kind === 'nest' && RS.lairsOf(rec).length > 1) { nests++; if (new Set([0, 1, 2, 3, 4, 5, 6].map((d) => RS.lair(rec, d).id)).size > 1) lairsMove++; } // a nest with somewhere to go
+      for (const m of rec.members) if (FLAGS[m.flag]) flags++; else bad.push(`${m.key} flag ${m.flag}`);
+      if (h.kind === 'chopshop' && rec.fid !== 'dustwolves') bad.push(`${L.id} not Dustwolves`);
+      if (h.kind !== 'nest' && rec.beds.length < rec.members.length) bad.push(`${L.id} beds ${rec.beds.length}/${rec.members.length}`);
+    }
+    const twice = HH.slice(0, 12).every((L) => { const a = RS.make(L), b = RS.make(L); return JSON.stringify(a.members.map((m) => [m.name, m.flag, m.weapon, m.maxHp, m.zkind])) === JSON.stringify(b.members.map((m) => [m.name, m.flag, m.weapon, m.maxHp, m.zkind])) && a.beds.length === b.beds.length; });
+    const perQ = [...quarters.values()].every((v) => v === 1);
+    const ok = !bad.length && Object.keys(kinds).length === 4 && perQ && nests > 0 && lairsMove === nests && twice && flags > 300;
+    return ok ? true : JSON.stringify({ kinds, bad: bad.slice(0, 8), more: bad.length, perQ, nests, lairsMove, twice, flags });
+  });
+  await check('ring residents: a nest\'s Echo works at its boards while nobody watches it (their hp, kept on the record, goes down) and freezes while you do', async () => {
+    const L = HH.find((q) => RG.household(q).kind === 'nest');
+    if (!L) return 'no nest';
+    const rec = RS.rec(L), post = RS.echoPost(rec);
+    await streamHome(); freeUp(); await C('setTime', { hour: 12 });
+    // Out of the Echo's reach of you, behind you: 22 m off, looking the other way.
+    const dx = post.x - rec.cx, dz = post.z - rec.cz, dl = Math.hypot(dx, dz) || 1, sx = post.x + (dx / dl) * 22, sz = post.z + (dz / dl) * 22;
+    await C('teleport', { x: sx, z: sz }); g.aimOverride = { x: sx + (dx / dl) * 10, z: sz + (dz / dl) * 10 };
+    await C('step', { seconds: 4 });
+    const echo = rec.members.find((m) => m.zkind === 'echo')?.c;
+    const hp0 = rec.barricade.hp;
+    await C('step', { seconds: 6 });
+    const worked = rec.barricade.hp < hp0;
+    g.aimOverride = { x: echo?.x ?? post.x, z: echo?.z ?? post.z }; await C('step', { seconds: 1 });
+    const hp1 = rec.barricade.hp;
+    await C('step', { seconds: 5 });
+    const froze = rec.barricade.hp === hp1 && !!echo?.frozen;
+    g.aimOverride = null;
+    return !!echo?.alive && worked && froze ? true : JSON.stringify({ id: rec.id, echo: echo?.id, alive: echo?.alive, hp0, hp1, hp: rec.barricade.hp, worked, froze, frozen: echo?.frozen, d: echo ? +Math.hypot(echo.x - post.x, echo.z - post.z).toFixed(1) : null });
+  });
+  // What the R2 checks set off in the world's memory is taken back (see above), and the hour.
+  for (const r of D0.rumors) if (r.live && r.seq > seq0) { r.live = false; D0.pending--; }
+  F0.standing.set(standS); F0.lifetime.set(lifeS); for (let i = 0; i < F0.ids.length; i++) F0.retier(i, false); // as before the streaming checks (see there)
+  g.roles.load(roles0);
+  await C('setTime', { hour: hour0 });
   await streamHome();
   g.convoy.next = convoyNext;
   if (g.needs && rest0 !== undefined) { g.needs.rest = rest0; g.needs.blackout = 0; }
@@ -3879,7 +4090,8 @@ export function snapshot(g) {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
+    chars: g.chars.filter((c) => c !== p && !c.res).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
@@ -3890,6 +4102,7 @@ export function snapshot(g) {
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
+    residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
   };
 }
 
@@ -3909,6 +4122,8 @@ export function restore(g, s) {
     g.garage.retune(v);
     if (sv.dead && !v.dead) { v.dead = true; v.mesh.material = g.vehiclesSys.wreckMat; }
   }
+  // The ring's residents first: their characters go, their records start again from the save (promoted again near you).
+  g.residents.load(s.residents);
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);
