@@ -9,8 +9,24 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
+import { request } from 'node:http';
 
 const BASE = process.env.DL_URL ?? 'http://localhost:3141';
+// POST JSON and wait as long as the game takes. Not fetch(): Node's fetch gives up after 300 s with no response headers,
+// and a scenario may run 15 minutes (its budget) - bounty-run used to come back "fetch failed" while it was still going.
+function postJson(url, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = request(url, { method: 'POST', autoSelectFamily: true, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } }, (res) => {
+      let s = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { s += c; });
+      res.on('end', () => { try { resolve(JSON.parse(s)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.end(data);
+  });
+}
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 let launcher = null;
 
@@ -19,7 +35,8 @@ const ok = (id, result) => send({ jsonrpc: '2.0', id, result });
 const fail = (id, code, message) => send({ jsonrpc: '2.0', id, error: { code, message } });
 
 async function http(path, body) {
-  const res = await fetch(`${BASE}${path}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) } : undefined);
+  if (body) return postJson(`${BASE}${path}`, body); // commands: as long as they take
+  const res = await fetch(`${BASE}${path}`);
   return res.json();
 }
 async function status() { try { return await http('/agent/status'); } catch { return { connected: false, serverDown: true }; } }

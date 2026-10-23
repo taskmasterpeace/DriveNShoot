@@ -15,8 +15,24 @@
 // Env: DL_URL (default http://localhost:3141)
 
 import { writeFileSync, readFileSync } from 'node:fs';
+import { request } from 'node:http';
 
 const BASE = process.env.DL_URL ?? 'http://localhost:3141';
+// POST JSON and wait as long as the game takes. Not fetch(): Node's fetch gives up after 300 s with no response headers,
+// and a scenario may run 15 minutes (its budget) - bounty-run used to come back "fetch failed" while it was still going.
+function postJson(url, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = request(url, { method: 'POST', autoSelectFamily: true, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) } }, (res) => {
+      let s = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { s += c; });
+      res.on('end', () => { try { resolve(JSON.parse(s)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.end(data);
+  });
+}
 const argv = process.argv.slice(2);
 const flags = {};
 const rest = [];
@@ -64,8 +80,7 @@ async function main() {
     }
     body = { cmd, args };
   }
-  const res = await fetch(`${BASE}/agent/cmd`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  const out = await res.json();
+  const out = await postJson(`${BASE}/agent/cmd`, body);
   if (out.image && flags.out) {
     writeFileSync(flags.out, Buffer.from(out.image.split(',')[1], 'base64'));
     out.image = `saved to ${flags.out}`;
