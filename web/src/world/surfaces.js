@@ -145,3 +145,86 @@ export function roofSurface(mat) {
   mat.customProgramCacheKey = () => 'roofSurface6';
   return mat;
 }
+
+// Wall surfaces. From the game camera a wall shows as a band under every roof edge; one flat colour read as cardboard.
+// wallSurface(mat) gives the SIDE faces of every instance of a walls batch (the island's walls, the streamed walls pool) a
+// finish picked by a hash of the instance's centre, over its own colour: 0-5 stucco (Phoenix is a stucco city: a trowel
+// texture and patched repairs), 6-8 concrete block (coursing every 0.2 m, joints every 0.4 m staggered), 9 brick. Every
+// wall gets a dirt band at its foot (splash and dust) and grime streaks run down from its top. No texture, no draw call.
+const WALL_VERT_HEAD = /* glsl */`
+varying vec3 vWallW;
+varying vec3 vWallN;
+varying vec3 vWallC;
+varying float vWallH;
+`;
+const WALL_VERT_BODY = /* glsl */`
+  {
+    vec4 wp = vec4(transformed, 1.0);
+    mat4 im = mat4(1.0);
+    #ifdef USE_INSTANCING
+      im = instanceMatrix;
+    #endif
+    wp = modelMatrix * im * wp;
+    vWallW = wp.xyz;
+    vWallN = normalize(mat3(modelMatrix) * mat3(im) * objectNormal);
+    vec4 wc = modelMatrix * im * vec4(0.0, 0.0, 0.0, 1.0);
+    vWallC = wc.xyz;
+    vWallH = length(im[1].xyz);
+  }
+`;
+const WALL_FRAG_HEAD = /* glsl */`
+varying vec3 vWallW;
+varying vec3 vWallN;
+varying vec3 vWallC;
+varying float vWallH;
+float wh1(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float wn(vec2 p) {
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(wh1(i), wh1(i + vec2(1.0, 0.0)), f.x), mix(wh1(i + vec2(0.0, 1.0)), wh1(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+vec3 wallSide(vec3 c) {
+  // Along the face (world x or z, whichever the face runs on) and up it from the instance's foot.
+  float s = abs(vWallN.x) > abs(vWallN.z) ? vWallW.z : vWallW.x;
+  float y = vWallW.y - (vWallC.y - vWallH * 0.5);
+  float kind = floor(wh1(floor(vWallC.xz * 0.25) + 7.1) * 10.0);
+  float k = 1.0;
+  if (kind < 6.0) {
+    k = 0.93 + 0.1 * wn(vec2(s, y) * 2.2) + 0.05 * wn(vec2(s, y) * 9.0);       // trowelled stucco
+    float rep = step(0.78, wn(vec2(s * 0.35, y * 0.6) + kind * 3.0));
+    k *= mix(1.0, 1.08, rep);                                                    // a patched repair, lighter
+  } else if (kind < 9.0) {
+    float course = fract(y / 0.2), row = floor(y / 0.2);
+    float joint = fract(s / 0.4 + mod(row, 2.0) * 0.5);
+    float mortar = max(smoothstep(0.06, 0.0, course), smoothstep(0.035, 0.0, min(joint, 1.0 - joint)));
+    k = (0.92 + 0.12 * wh1(vec2(floor(s / 0.4 + mod(row, 2.0) * 0.5), row))) * (1.0 - 0.22 * mortar);
+  } else {
+    float course = fract(y / 0.15), row = floor(y / 0.15);
+    float joint = fract(s / 0.3 + mod(row, 2.0) * 0.5);
+    float mortar = max(smoothstep(0.1, 0.0, course), smoothstep(0.05, 0.0, min(joint, 1.0 - joint)));
+    vec3 brick = vec3(0.62, 0.32, 0.22) * (0.85 + 0.25 * wh1(vec2(floor(s / 0.3 + mod(row, 2.0) * 0.5), row)));
+    c = mix(c, brick * 0.55, 0.65);
+    k = 1.0 - 0.3 * mortar;
+  }
+  // Dirt splashed up the foot, grime run down from the top.
+  k *= mix(0.7, 1.0, smoothstep(0.0, 0.7, y));
+  float streak = wn(vec2(s * 1.7, 0.0)) * smoothstep(1.4, 0.0, vWallH - y);
+  k *= 1.0 - 0.18 * streak;
+  return c * k;
+}
+`;
+const WALL_FRAG_BODY = /* glsl */`
+  if (abs(vWallN.y) < 0.5) diffuseColor.rgb = wallSide(diffuseColor.rgb);
+`;
+
+export function wallSurface(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>\n${WALL_VERT_HEAD}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${WALL_VERT_BODY}`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WALL_FRAG_HEAD}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>\n${WALL_FRAG_BODY}`);
+  };
+  mat.customProgramCacheKey = () => 'wallSurface1';
+  return mat;
+}

@@ -5,7 +5,7 @@ import { sandTexture, asphaltTexture, concreteTexture, radialGlow } from './text
 import { nearWater } from './water.js';
 import { nearRail } from './rail.js';
 import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
-import { roofSurface } from './surfaces.js';
+import { roofSurface, wallSurface } from './surfaces.js';
 import { HOLDOUT } from '../data/holdout.js';
 
 // ---------------------------------------------------------------------------
@@ -683,7 +683,7 @@ export function buildWorld(scene, statics) {
 
   // ---- build GPU batches ------------------------------------------------------------
   const box = new THREE.BoxGeometry(1, 1, 1);
-  const wallMat = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.04 });
+  const wallMat = wallSurface(new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.04 })); // world/surfaces.js: stucco, block, brick, dirt
   scene.add(walls.build(box, wallMat));
   const roofMat = roofSurface(new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.1 })); // world/surfaces.js: what a roof looks like from above
   scene.add(roofs.build(box, roofMat));

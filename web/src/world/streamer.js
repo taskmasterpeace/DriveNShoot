@@ -6,7 +6,7 @@ import { layoutChunk, SURF_CAPS } from './chunkgen.js';
 import { Pool, SurfacePool } from './pools.js';
 import { SignAtlas } from './signs.js';
 import { roadAtlasTexture, radialGlow } from './textures.js';
-import { roofSurface } from './surfaces.js';
+import { roofSurface, wallSurface } from './surfaces.js';
 import GOLDEN from '../data/golden.json';
 
 // The streamer (docs/design/WEB_STREAMING.md §3.2-3.3, P1 "Streamed Arizona").
@@ -98,7 +98,7 @@ export class Streamer {
     const P = (name, geo, mat, o) => new Pool(name, geo, mat, POOLS[name], o);
     this.pools = {
       props: P('props', box, std({ roughness: 0.88, metalness: 0.08 })),
-      walls: P('walls', box, std({ roughness: 0.92, metalness: 0.04 })),
+      walls: P('walls', box, wallSurface(std({ roughness: 0.92, metalness: 0.04 }))), // world/surfaces.js
       roofs: P('roofs', box, roofSurface(std({ roughness: 0.85, metalness: 0.1 }))), // world/surfaces.js
       floors: P('floors', box, std({ roughness: 0.95 }), { cast: false }), // the Phoenix ring's floors (world/ring.js)
       cacti: P('cacti', new THREE.CylinderGeometry(0.3, 0.38, 1, 7), std({ roughness: 0.9 })),

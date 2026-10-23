@@ -601,10 +601,10 @@ export class Ring {
     // The yard: a fence round a house's back yard (solid: the front stays open), junk for looks.
     const lot = L.lot;
     if (Z.fence && !HR?.barricade && rng() < Z.fence && (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex')) { // a boarded-up house keeps its back yard open: its back door is the way in
-      // A block wall (YARD.wall): Phoenix walls its back yards in 1.8 m of concrete block, the strongest read of the city
+      // A block wall (YARD.wall, in the walls pool so world/surfaces.js gives it coursing): Phoenix walls its back yards in 1.8 m of concrete block, the strongest read of the city
       // from above. It stops sight at eye height, as a real one does.
       const fc = rng.pick(YARD.wall.colors), WH = YARD.wall.h, WT = YARD.wall.t;
-      const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(WT, Math.abs(bx - ax)), sz = Math.max(WT, Math.abs(bz - az)); g.props.push([x, WH / 2, z, sx, WH, sz, fc, 0, 1]); g.props.push([x, WH + 0.04, z, sx + 0.06, 0.08, sz + 0.06, '#d8cfbc', 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: WH, tag: 'fence', holes: null }); };
+      const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(WT, Math.abs(bx - ax)), sz = Math.max(WT, Math.abs(bz - az)); g.walls.push([x, WH / 2, z, sx, WH, sz, fc, 0, 1]); g.props.push([x, WH + 0.04, z, sx + 0.06, 0.08, sz + 0.06, '#d8cfbc', 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: WH, tag: 'fence', holes: null }); };
       // m: the side walls' inset; b: the back wall's, so back-to-back lots leave an alley between their walls (YARD.alley).
       const m = 0.4, b = YARD.alley;
       if (L.front === 'N') { fence(lot.x0 + m, lot.z1 - b, lot.x1 - m, lot.z1 - b); fence(lot.x0 + m, z1 - 1, lot.x0 + m, lot.z1 - b); fence(lot.x1 - m, z1 - 1, lot.x1 - m, lot.z1 - b); }
