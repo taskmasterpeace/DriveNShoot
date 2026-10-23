@@ -3004,6 +3004,8 @@ async function runSelfTest(api, only = null, skip = null) {
       g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
       await api._step(60);
       const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
+      // The revolver, loaded, with rounds in the pocket: earlier checks can leave another gun in hand or an empty cylinder.
+      g.switchWeapon('pistol'); g.inv.mag.pistol = 6; g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 36); g.player.reloading = 0; g.player.cool = 0;
       // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
       // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
       // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
