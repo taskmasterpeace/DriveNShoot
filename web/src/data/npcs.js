@@ -70,6 +70,8 @@ export const NPCS = [
       hi: { text: (g) => g.player.hp < g.player.maxHp ? 'Mira, you are leaking all over my floor. Sit down.' : 'Clean hands, clean needles, fair prices. That is the whole clinic.',
         choices: [
           { t: `Patch me up (${money(40)})`, deed: { v: 'trade' }, req: (g) => g.player.hp < g.player.maxHp, next: 'healed', do: (g) => { if (g.spend(40)) { g.player.hp = g.player.maxHp; g.player.bleed = 0; } } },
+          // The brine room in her back (systems/clone.js): a pressing, the brine book (docs/design/WEB_CLONE_TRAVEL.md).
+          { t: (g) => g.clone?.pressing ? 'The brine room. My pressing, my brine book.' : 'The brine room. I need to get pressed.', end: true, do: (g) => g.travel?.openVat('rust_haven') },
           { t: 'Any work for a medic?', role: 'medic', from: 'known', req: (g) => !!g.roles?.jobOpen('medic_shift'), next: 'shift' },
           { t: 'Three people patched up. The shift is done.', role: 'medic', from: 'known', req: (g) => !!g.roles?.jobReady('medic_shift'), next: 'shiftPaid', do: (g) => g.roles.jobPay('medic_shift') },
           { t: 'Seen a lot of gunshot wounds lately?', next: 'wounds' },

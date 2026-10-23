@@ -59,7 +59,7 @@ export class Fauna {
   regionAt(x, z) {
     const g = this.g;
     let r = null;
-    try { r = g.regions?.regionAt?.(x, z) ?? null; } catch { r = null; }
+    try { r = g.streamer?.W?.regionOf?.(x, z) ?? g.regions?.regionAt?.(x, z) ?? null; } catch { r = null; }
     const id = typeof r === 'string' ? r : r?.id ?? null;
     if (id) return REGION_ALIAS[id] ?? id;
     const st = g.streamer?.W?.stateAt?.(x, z);
@@ -87,6 +87,12 @@ export class Fauna {
       const d = Math.abs(t.x - x) + Math.abs(t.z - z);
       if (d > (P.town.r + P.town.fade) * 1.5) continue;
       p = Math.max(p, P.town.v * (1 - clamp01((Math.hypot(t.x - x, t.z - z) - P.town.r) / P.town.fade)));
+    }
+    // A region's walled holdouts (world/holdout.js: Meridian) count as towns: full inside the walls, fading past them.
+    if (W0?.holdouts) for (const H of W0.holdouts) {
+      if (H.cx === undefined || Math.abs(H.cx - x) > 2000 || Math.abs(H.cz - z) > 2000) continue;
+      const half = Math.max(H.hw ?? 0, H.hd ?? 0), d = Math.hypot(H.cx - x, H.cz - z);
+      p = Math.max(p, 1 - clamp01((d - half - 40) / P.town.fade));
     }
     if (W0?.project && (Math.abs(x) > 464 || Math.abs(z) > 464)) { const pr = W0.project(x, z, 160); if (pr.d < Infinity) p = Math.max(p, P.road.v * (1 - clamp01((pr.d - P.road.d) / P.road.fade))); }
     p = Math.max(p, Math.min(1, this.heatAt(x, z) * P.heat.heatK));
@@ -232,7 +238,7 @@ export class Fauna {
     if (B0.coats) body.coat = B0.coats[Math.floor(v * B0.coats.length) % B0.coats.length];
     const scale = (B0.scale ?? 1) * (0.9 + v * 0.2);
     const a = {
-      fauna: true, id: rec.id, sp: rec.sp, S, rec, cell: rec.cell, form: f,
+      isFauna: true, id: rec.id, sp: rec.sp, S, rec, cell: rec.cell, form: f,
       x: rec.x, z: rec.z, y: 0, vx: 0, vz: 0, vy: 0, face: v * TAU, speed: 0, air: false,
       hp: rec.hp ?? S.hp ?? 30, maxHp: S.hp ?? 30, alive: !rec.dead, dead: !!rec.dead, deadT: rec.dead ? 999 : 0, deadAt: rec.deadAt ?? null, butchered: !!rec.butchered, picked: rec.picked ?? 0,
       state: rec.dead ? 'dead' : 'idle', stT: 0, grp: null, home: { x: rec.hx ?? rec.x, z: rec.hz ?? rec.z }, goal: null, goalT: 0,
@@ -466,7 +472,7 @@ export class Fauna {
     const look = Math.max(sight, smell * 0.6) + 4;
     for (const c of g.chars) {
       if (!c.alive || c.hidden || c.inVehicle || Math.abs(c.x - a.x) > look || Math.abs(c.z - a.z) > look) continue;
-      if (c.hf) continue; // the hot ground's own
+      if (c.hf || c.fauna) continue; // the hot ground's own, and a region's animals (systems/regions.js)
       let d = Math.hypot(c.x - a.x, c.z - a.z);
       const crouch = c === P && (P.crouch || P.crouched) ? 0.55 : 1;
       const seen = d < sight * crouch && g.statics.lineOfSight(a.x, a.z, c.x, c.z, RAY_SOLID);
@@ -614,7 +620,7 @@ export class Fauna {
     let best = null, bs = 0.35, bk = null;
     const consider = (t, k, score) => { if (score > bs) { bs = score; best = t; bk = k; } };
     for (const c of g.chars) {
-      if (!c.alive || c.inVehicle || c.hidden || c.hf || Math.abs(c.x - a.x) > R0 || Math.abs(c.z - a.z) > R0) continue;
+      if (!c.alive || c.inVehicle || c.hidden || c.hf || c.fauna || Math.abs(c.x - a.x) > R0 || Math.abs(c.z - a.z) > R0) continue;
       const d = Math.hypot(c.x - a.x, c.z - a.z);
       if (d > R0) continue;
       if (c.faction === 'zombie') { if (S.temper === 'predator' && pack >= 2) consider(c, 'zombie', 0.2 + (1 - c.hp / (c.maxHp || 100)) * 0.3); continue; }
@@ -696,7 +702,7 @@ export class Fauna {
       const m = gr.meal, k = Math.hypot(m.x - a.x, m.z - a.z);
       if (m.alive && !m.dead) { gr.mode = 'roam'; gr.meal = null; }
       else if (k > 1.4) { a.state = 'toFood'; return W(a, m.x + Math.sin(idx * 2.1) * 0.9, m.z + Math.cos(idx * 2.1) * 0.9, k > 8 ? S.speed.run * 0.5 : S.speed.walk); }
-      else { a.state = 'eat'; A.eat = Math.min(1, A.eat + dt * 4); a.eatT += dt; if (m.fauna) m.picked = (m.picked ?? 0) + dt; if (a.eatT > R.scavenge[1]) { a.eatT = 0; gr.mode = 'roam'; gr.meal = null; g.emit('faunaAte', { id: a.id, species: a.sp, body: m.id ?? null }); } return W(a, a.x, a.z, 0, Math.atan2(m.x - a.x, m.z - a.z)); }
+      else { a.state = 'eat'; A.eat = Math.min(1, A.eat + dt * 4); a.eatT += dt; if (m.isFauna) m.picked = (m.picked ?? 0) + dt; if (a.eatT > R.scavenge[1]) { a.eatT = 0; gr.mode = 'roam'; gr.meal = null; g.emit('faunaAte', { id: a.id, species: a.sp, body: m.id ?? null }); } return W(a, a.x, a.z, 0, Math.atan2(m.x - a.x, m.z - a.z)); }
     }
     if (q && gr.mode === 'stalk') {
       // Out at stalking distance, each on its own flank, low and slow, closing.
@@ -765,7 +771,7 @@ export class Fauna {
     const g = this.g, S = a.S, A = a.a;
     // The nearest thing on the ground within its warning range (people, the infected, dogs, game).
     let t = null, k = Infinity, tk = null;
-    for (const c of g.chars) { if (!c.alive || c.inVehicle || c.hf || Math.abs(c.x - a.x) > 6 || Math.abs(c.z - a.z) > 6) continue; const d = Math.hypot(c.x - a.x, c.z - a.z); if (d < k) { k = d; t = c; tk = c.faction === 'zombie' ? 'zombie' : 'person'; } }
+    for (const c of g.chars) { if (!c.alive || c.inVehicle || c.hf || c.fauna || Math.abs(c.x - a.x) > 6 || Math.abs(c.z - a.z) > 6) continue; const d = Math.hypot(c.x - a.x, c.z - a.z); if (d < k) { k = d; t = c; tk = c.faction === 'zombie' ? 'zombie' : 'person'; } }
     for (const d of g.dogs?.dogs ?? []) { if (d.dead || d.ride || Math.abs(d.x - a.x) > 6 || Math.abs(d.z - a.z) > 6) continue; const e = Math.hypot(d.x - a.x, d.z - a.z); if (e < k) { k = e; t = d; tk = 'dog'; } }
     for (const o of this.live) { if (o === a || o.dead || o.form === 'bird' || o.form === 'swarm' || o.form === 'snake' || Math.abs(o.x - a.x) > 6 || Math.abs(o.z - a.z) > 6) continue; const e = Math.hypot(o.x - a.x, o.z - a.z); if (e < k) { k = e; t = o; tk = 'animal'; } }
     const WN = S.warn;
@@ -814,7 +820,7 @@ export class Fauna {
     // Something on the bank within its lunge: off the edge it comes.
     let best = null, bd = AT.reach, bk = null;
     const consider = (t, k) => { const d = Math.hypot(t.x - a.x, t.z - a.z); if (d < bd && this.depthAt(t.x, t.z) < 0.9) { bd = d; best = t; bk = k; } };
-    for (const c of g.chars) if (c.alive && !c.inVehicle && !c.hf && Math.abs(c.x - a.x) < 6 && Math.abs(c.z - a.z) < 6) consider(c, c.faction === 'zombie' ? 'zombie' : 'person');
+    for (const c of g.chars) if (c.alive && !c.inVehicle && !c.hf && !c.fauna && Math.abs(c.x - a.x) < 6 && Math.abs(c.z - a.z) < 6) consider(c, c.faction === 'zombie' ? 'zombie' : 'person');
     for (const d of g.dogs?.dogs ?? []) if (!d.dead && !d.ride && Math.abs(d.x - a.x) < 6 && Math.abs(d.z - a.z) < 6) consider(d, 'dog');
     for (const o of this.live) if (o !== a && !o.dead && o.form !== 'gator' && o.form !== 'swarm' && !(o.form === 'bird' && o.air) && Math.abs(o.x - a.x) < 6 && Math.abs(o.z - a.z) < 6) consider(o, 'animal');
     if (best && a.atkCd <= 0 && Math.hypot(a.x - a.home.x, a.z - a.home.z) < S.leash) {
@@ -897,7 +903,7 @@ export class Fauna {
     // On the ground: a vulture at a body pecks at it; someone close and it goes back up. A wading bird wades.
     const t = a.threat;
     if (t && a.tdist < (a.state === 'feed' ? R.vulture.flush : S.alarm)) { this.bolt(a, t.x, t.z, 5 + Math.random() * 3, t, a.tk); return null; }
-    if (a.state === 'feed' && a.circ?.body) { A.eat = Math.min(1, A.eat + dt * 3); const b = a.circ.body.ref; if (b?.fauna) b.picked = (b.picked ?? 0) + dt; return W(a, a.x, a.z, 0, Math.atan2(a.circ.x - a.x, a.circ.z - a.z)); }
+    if (a.state === 'feed' && a.circ?.body) { A.eat = Math.min(1, A.eat + dt * 3); const b = a.circ.body.ref; if (b?.isFauna) b.picked = (b.picked ?? 0) + dt; return W(a, a.x, a.z, 0, Math.atan2(a.circ.x - a.x, a.circ.z - a.z)); }
     if (a.state === 'feed' && !a.circ?.body) { this.takeOff(a, a.x - 1, a.z); return null; }
     a.state = B.wader ? 'wade' : 'perch';
     A.eat = 0.5 + Math.sin(this.t * 1.3 + a.seed) * 0.5;
@@ -930,7 +936,7 @@ export class Fauna {
     const fire = this.fireNear(a.x, a.z, S.fear.fire);
     if (fire) { a.state = 'scattered'; const dx = a.x - fire.x, dz = a.z - fire.z, l = Math.hypot(dx, dz) || 1; return W(a, a.x + (dx / l) * 8, a.z + (dz / l) * 8, S.speed.run * 1.4); }
     let t = null, k = S.senses.smell, tk = null;
-    for (const c of g.chars) { if (!c.alive || c.hf || c.faction === 'zombie' || (c.inVehicle && !c.seatPose) || Math.abs(c.x - a.x) > k || Math.abs(c.z - a.z) > k) continue; const d = Math.hypot(c.x - a.x, c.z - a.z); if (d < k) { k = d; t = c; tk = 'person'; } }
+    for (const c of g.chars) { if (!c.alive || c.hf || c.fauna || c.faction === 'zombie' || (c.inVehicle && !c.seatPose) || Math.abs(c.x - a.x) > k || Math.abs(c.z - a.z) > k) continue; const d = Math.hypot(c.x - a.x, c.z - a.z); if (d < k) { k = d; t = c; tk = 'person'; } }
     for (const d of g.dogs?.dogs ?? []) { if (d.dead || d.ride || Math.abs(d.x - a.x) > k || Math.abs(d.z - a.z) > k) continue; const e = Math.hypot(d.x - a.x, d.z - a.z); if (e < k) { k = e; t = d; tk = 'dog'; } }
     if (t && Math.hypot(t.x - a.home.x, t.z - a.home.z) < S.leash) {
       a.state = 'swarm';
@@ -954,7 +960,7 @@ export class Fauna {
   hit(a, t, dmg, kind, cause, quiet = false) {
     const g = this.g, P = g.player, AT = a.S.attack ?? {};
     const k = Math.hypot(t.x - a.x, t.z - a.z) || 1, dx = (t.x - a.x) / k, dz = (t.z - a.z) / k;
-    if (t.fauna) this.hurt(t, dmg, a, dx, dz, cause);
+    if (t.isFauna) this.hurt(t, dmg, a, dx, dz, cause);
     else if (kind === 'dog' || (t.breed && t.bond !== undefined)) g.dogs?.hurt(t, dmg, null, dx, dz, 'bite');
     else {
       g.combat.damage(t, dmg, null, dx, dz, cause);
@@ -982,7 +988,7 @@ export class Fauna {
     if (a.hold) a.hold.dmg += dmg;
     if (S.form === 'bird') { if (!a.air) this.takeOff(a, sx, sz); }
     else if (S.temper === 'prey') this.bolt(a, sx, sz, 8, by, by?.h !== undefined ? 'car' : null);
-    else if (S.temper === 'territorial' && a.hp / a.maxHp > S.flee && by && by.x !== undefined && !by.inVehicle && Math.hypot(by.x - a.x, by.z - a.z) < 18) { a.charge = { t: by, k: by.fauna ? 'animal' : by.breed ? 'dog' : 'person', T: 3.5 }; this.stats.charges++; g.emit('faunaCharge', { id: a.id, species: a.sp, target: by.id ?? null, kind: 'revenge', dist: +Math.hypot(by.x - a.x, by.z - a.z).toFixed(1) }); }
+    else if (S.temper === 'territorial' && a.hp / a.maxHp > S.flee && by && by.x !== undefined && !by.inVehicle && Math.hypot(by.x - a.x, by.z - a.z) < 18) { a.charge = { t: by, k: by.isFauna ? 'animal' : by.breed ? 'dog' : 'person', T: 3.5 }; this.stats.charges++; g.emit('faunaCharge', { id: a.id, species: a.sp, target: by.id ?? null, kind: 'revenge', dist: +Math.hypot(by.x - a.x, by.z - a.z).toFixed(1) }); }
     else if (a.hp / a.maxHp < S.flee || S.form === 'gator') { a.fleeT = 6; a.fx = sx; a.fz = sz; }
     else if (S.form === 'snake') { a.fleeT = 3; a.fx = sx; a.fz = sz; }
   }
@@ -993,7 +999,7 @@ export class Fauna {
     a.rec.dead = true; a.rec.deadAt = a.deadAt;
     this.stats.killed++;
     if (S.form === 'bird' && a.air) { a.vy = 0; a.y = a.alt; }
-    const byId = by === g.player ? g.player.id : by?.fauna ? `animal:${by.sp}` : by?.id ?? null;
+    const byId = by === g.player ? g.player.id : by?.isFauna ? `animal:${by.sp}` : by?.id ?? null;
     g.emit('faunaKilled', { id: a.id, species: a.sp, by: byId, cause, x: +a.x.toFixed(1), z: +a.z.toFixed(1), roadkill: cause === 'vehicle' });
     if (cause === 'vehicle') { this.stats.roadkill++; g.emit('roadkill', { id: a.id, species: a.sp, vehicle: by?.id ?? null, x: +a.x.toFixed(1), z: +a.z.toFixed(1) }); }
     if (by === g.player && S.butcher && Math.hypot(a.x - g.player.x, a.z - g.player.z) < 40) g.hud?.toast?.(`${S.name.toUpperCase()} DOWN · E WITH A BLADE TO BUTCHER IT`, 'job');
@@ -1134,7 +1140,7 @@ export class Fauna {
     if (a.air) {
       a.y += a.vy * dt; a.vy -= 13 * dt;
       const gr = this.ground(a);
-      if (a.y <= gr) { a.y = gr; a.vy = 0; a.air = false; a.vx *= 0.4; a.vz *= 0.4; if (a.pounce) { const q = a.pounce; a.pounce = null; if ((q.alive !== false) && !q.dead && Math.hypot(q.x - a.x, q.z - a.z) < S.attack.reach + 0.8) { a.atkCd = 0; this.strike(a, q, q.fauna ? 'animal' : q.breed ? 'dog' : 'person'); } } }
+      if (a.y <= gr) { a.y = gr; a.vy = 0; a.air = false; a.vx *= 0.4; a.vz *= 0.4; if (a.pounce) { const q = a.pounce; a.pounce = null; if ((q.alive !== false) && !q.dead && Math.hypot(q.x - a.x, q.z - a.z) < S.attack.reach + 0.8) { a.atkCd = 0; this.strike(a, q, q.isFauna ? 'animal' : q.breed ? 'dog' : 'person'); } } }
     } else a.y = S.form === 'gator' && a.water ? -0.16 : this.ground(a);
     a.speed = moved / Math.max(dt, 1e-4);
     // Stuck on a wall: a new way round.
@@ -1473,7 +1479,7 @@ class FaunaRenderer {
     }
     // The hot ground's creatures (characters in hotground.js): drawn here, the stand-in person hidden.
     for (const Z of g.hotground?.zones ?? []) for (const c of Z.fauna) {
-      c.bodyless = true;
+      c.ownMesh = true; // characters.js skips its person (the engine's flag for an animal drawn by its own renderer)
       if (Math.abs(c.x - cx) > Rr || Math.abs(c.z - cz) > Rr) continue;
       const kind = c.hf?.kind;
       if (kind === 'glassling') this.crawler(c, t, night);

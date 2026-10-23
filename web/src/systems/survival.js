@@ -100,7 +100,7 @@ export class Survival {
     const S = this.sleep;
     if (S) {
       S.slept += hours;
-      if ((this.watchT -= dt) <= 0) { this.watchT = 0.5; const t = this.threat(SLEEP.wakeR); if (t) { this.wake(`${t} close by`); this.ui?.update(dt); return; } }
+      if ((this.watchT -= dt) <= 0) { this.watchT = 0.5; const t = this.threat(SLEEP.wakeR * (g.sheet?.fx.wakeMul ?? 1)); if (t) { this.wake(`${t} close by`); this.ui?.update(dt); return; } } // a light sleeper hears them sooner (data/creator.js)
     }
     const sprinting = !S && p.speed > 5 && !p.inVehicle, hot = g.sky.phase === 'DAY', F = N.fever;
     if ((this.scanT -= dt) <= 0) { this.scanT = 0.25; this.look(); }
@@ -128,7 +128,7 @@ export class Survival {
 
     // Wounds bleed, gather dirt, mend; a dirty one turns into an infection; food poisoning runs its hours.
     if (PR.injuries) this.tendWounds(hours, S);
-    if (N.sick && this.hours() >= N.sick.until) { N.sick = null; g.hud?.toast?.('YOUR STOMACH SETTLES', 'job'); g.emit('sick', { state: 'over' }); }
+    if (N.sick && this.hours() >= N.sick.until) { const over = SICKNESS[N.sick.kind]?.over ?? 'YOUR STOMACH SETTLES'; N.sick = null; g.hud?.toast?.(over, 'job'); g.emit('sick', { state: 'over' }); } // a row may say how it ends (brine sickness, systems/clone.js)
 
     // Mood: the pressures of the moment push the drives; the moods settle on their own.
     if (PR.mood) this.moodTick(dt, hours, S, kind);
@@ -145,6 +145,7 @@ export class Survival {
         if (key === 'food' && F) mul *= FEVER.foodDrain;
         if (key === 'water') mul *= this.waterMul;
         if (key === 'food') mul *= this.foodMul;
+        mul *= g.sheet?.fx.drain[key] ?? 1; // an iron gut, a dry mouth (the traits you were made with, data/creator.js)
         N[key] = Math.max(0, N[key] - def.drainPerHour * mul * hours);
       }
       const pip = this.pip(N[key]);

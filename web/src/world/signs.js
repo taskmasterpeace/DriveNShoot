@@ -11,22 +11,32 @@ import { hash32, rngOf } from './geo.js';
 const SW = 512, SH = 256, COLS = 4;
 
 export class SignAtlas {
-  constructor(signs) {
-    const faces = [...signs.map((s) => ({ id: s.id, style: s.style, lines: s.lines, aspect: s.w / s.hgt })), { id: 'STOP', style: 'stop', lines: ['STOP'], aspect: 1, octagon: true }];
+  // opts.scale: a smaller slot (a region's atlas: docs/design/WEB_FLORIDA.md §3.1); opts.dedupe: faces with the same
+  // style, words and shape share one slot (an exit's EXIT 9 / 1 MILE reads the same both ways). P1's atlas uses neither.
+  constructor(signs, opts = {}) {
+    const k = opts.scale ?? 1, SWk = Math.round(SW * k), SHk = Math.round(SH * k);
+    let faces = [...signs.map((s) => ({ id: s.id, style: s.style, lines: s.lines, aspect: s.w / s.hgt })), { id: 'STOP', style: 'stop', lines: ['STOP'], aspect: 1, octagon: true }];
+    const alias = new Map();
+    if (opts.dedupe) {
+      const seen = new Map(), kept = [];
+      for (const f of faces) { const key = `${f.style}|${f.lines.join('/')}|${f.aspect.toFixed(3)}|${!!f.octagon}`; const o = seen.get(key); if (o) alias.set(f.id, o.id); else { seen.set(key, f); kept.push(f); } }
+      faces = kept;
+    }
     const rows = Math.ceil(faces.length / COLS);
     const c = (this.canvas = document.createElement('canvas'));
-    c.width = SW * COLS; c.height = SH * rows;
+    c.width = SWk * COLS; c.height = SHk * rows;
     const g = c.getContext('2d');
     g.fillStyle = '#20201c'; g.fillRect(0, 0, c.width, c.height);
     this.rects = new Map();
     faces.forEach((f, i) => {
-      const px = (i % COLS) * SW, py = Math.floor(i / COLS) * SH;
+      const px = (i % COLS) * SWk, py = Math.floor(i / COLS) * SHk;
       // The face is drawn at its own aspect inside the slot; the rect covers just that part.
-      const fw = f.aspect >= SW / SH ? SW : Math.round(SH * f.aspect), fh = f.aspect >= SW / SH ? Math.round(SW / f.aspect) : SH;
-      const fx = px + (SW - fw) / 2, fy = py + (SH - fh) / 2;
+      const fw = f.aspect >= SWk / SHk ? SWk : Math.round(SHk * f.aspect), fh = f.aspect >= SWk / SHk ? Math.round(SWk / f.aspect) : SHk;
+      const fx = px + (SWk - fw) / 2, fy = py + (SHk - fh) / 2;
       this.paint(g, f, fx, fy, fw, fh);
       this.rects.set(f.id, [fx / c.width, 1 - (fy + fh) / c.height, fw / c.width, fh / c.height]);
     });
+    for (const [id, to] of alias) this.rects.set(id, this.rects.get(to));
     const t = (this.texture = new THREE.CanvasTexture(c));
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
     this.count = faces.length;
@@ -59,7 +69,7 @@ export class SignAtlas {
     const lines = f.lines.filter(Boolean), n = lines.length;
     const lh = (h - 40) / Math.max(1, n);
     lines.forEach((ln, i) => {
-      const big = i === 0 && n > 1 && /^EXIT|^I-10|^STATE|^DUST/.test(ln);
+      const big = i === 0 && n > 1 && /^EXIT|^I-\d|^STATE|^DUST|^SQUALL/.test(ln);
       let size = Math.min(lh * (big ? 0.62 : 0.74), f.octagon ? h * 0.3 : 80);
       g.font = `700 ${size}px "Arial Narrow", "Roboto Condensed", "Barlow Condensed", Arial, sans-serif`;
       while (g.measureText(ln).width > w - 44 && size > 12) { size -= 2; g.font = `700 ${size}px "Arial Narrow", "Roboto Condensed", "Barlow Condensed", Arial, sans-serif`; }

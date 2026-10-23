@@ -79,6 +79,15 @@ export const ZONES = {
     tint: [0.9, 0.86, 0.8], wrecks: 0.24, yard: 4, fence: 0.15,
     residents: [['nest', 1]], occupancy: 0, // per quarter only (RESIDENTS.nest.perQuarter)
   },
+  // A rebuilt Florida holdout (Meridian, data/holdouts.js): sun-faded pastel stucco and whitewash, tin and barrel-tile
+  // roofs, kept up. Its people are the holdout's own (systems/regions.js), not ring households. No purple.
+  holdout: {
+    name: 'MERIDIAN', lots: 'houses', kinds: [['house', 1]], density: 1, ruin: 0, loot: [['kitchen', 3], ['bedroom', 3], ['storefront', 2]],
+    walls: ['#e6c9a8', '#a8cdb8', '#e8dcc0', '#9cc0cc', '#e8c886', '#e3a989', '#ece6d6', '#7fb0a8', '#d9b48c'],
+    roofs: ['#8e938c', '#a85a3a', '#7d827c', '#b8664a', '#6f7a74'], floors: ['#a08a6a', '#9a8670', '#8e7a62', '#b0a28a'],
+    tint: [0.86, 0.9, 0.78], wrecks: 0, yard: 0, fence: 0,
+    residents: [], occupancy: 0,
+  },
 };
 
 // A Phoenix house lot from above (docs/design/WEB_LOOK.md §3.5): a gravel front yard with a desert tree, a concrete
@@ -123,6 +132,20 @@ export const KINDS = {
   mall: { w: [38, 52], d: [12, 14.5], h: [4.2, 4.8], plan: true, units: [3, 4], back: 0.5 },
   gas: { w: [11, 13.5], d: [8, 9.5], h: [3.8, 4.2], plan: true, canopy: true, back: 0.4, label: 'FUEL STOP', loot: 'pumps' },
   diner: { w: [14, 18], d: [10, 12], h: [3.6, 4.2], plan: true, back: 0.7, label: 'DINER', loot: 'kitchen' },
+  // ---- a holdout's programmes (Meridian, docs/design/WEB_FLORIDA.md §3.4; data/holdouts.js): kinds no ring zone picks,
+  // so the ring's plans never move. Their plans are the island's (data/floorplans.js) and Meridian's own rows.
+  clinic: { w: [15, 17], d: [15, 17], h: [3.8, 4.2], plan: true, back: 0.8, label: 'CLINIC', loot: 'bathroom' },
+  clonewing: { w: [13, 15], d: [14, 16], h: [3.8, 4.2], plan: true, back: 0.5, label: 'CLONE BAY', loot: 'bathroom' },
+  sheriff: { w: [15, 17], d: [13, 15], h: [3.8, 4.4], plan: true, back: 0.9, label: "SHERIFF'S OFFICE", loot: 'office' },
+  townhall: { w: [17, 19], d: [14, 16], h: [4.4, 5.0], plan: true, back: 0.6, label: 'TOWN HALL', loot: 'office' },
+  chapel: { w: [12, 14], d: [16, 18], h: [5.0, 5.6], plan: true, back: 0.3, label: 'CHAPEL', loot: 'office' },
+  radio: { w: [13, 14], d: [14, 16], h: [3.6, 4.0], plan: true, back: 0.5, label: 'RADIO', loot: 'office' },
+  store: { w: [15, 17], d: [13, 15], h: [4.0, 4.4], plan: true, back: 0.8, label: 'GENERAL STORE', loot: 'storefront' },
+  gunsmith: { w: [13, 14], d: [14, 16], h: [3.8, 4.2], plan: true, back: 0.6, label: 'GUNSMITH', loot: 'gunsmith' },
+  water: { w: [13, 14], d: [14, 16], h: [3.8, 4.2], plan: true, back: 0.6, label: 'WATER', loot: 'kitchen' },
+  mechanic: { w: [15, 17], d: [14, 16], h: [4.4, 5.0], plan: true, bay: 4.4, back: 0.7, label: 'GARAGE', loot: 'garage' },
+  cantina: { w: [15, 17], d: [13, 15], h: [3.8, 4.2], plan: true, back: 0.8, label: 'CANTINA', loot: 'kitchen' },
+  boarding: { w: [12, 12.5], d: [15.6, 17], h: [3.6, 4.0], plan: true, back: 0.6, label: 'BOARDING HOUSE', loot: 'bedroom' },
 };
 
 // A strip mall's units: what each sold, so its shelves say so and hold it.
@@ -229,6 +252,9 @@ export const FURNITURE = {
   gondola: { size: [2.4, 0.9, 1.5], colors: ['#6a6e6a', '#5e625e', '#7a6a50'], box: { label: 'SHELVES', cap: 40 }, solid: true,
     parts: [[0, 1, 0.42, 0.58, 0, 1.5, 0.85], [0, 1, 0, 1, 0, 0.12, 1], [0.03, 0.97, 0, 0.42, 0.45, 0.5, 1], [0.03, 0.97, 0.58, 1, 0.45, 0.5, 1], [0.03, 0.97, 0, 0.42, 0.95, 1.0, 1], [0.03, 0.97, 0.58, 1, 0.95, 1.0, 1],
       [0.06, 0.3, 0.05, 0.4, 1.0, 1.22, '#c9a24a'], [0.36, 0.62, 0.05, 0.4, 1.0, 1.18, '#b8443a'], [0.7, 0.94, 0.6, 0.95, 1.0, 1.2, '#5e7a52'], [0.1, 0.4, 0.6, 0.95, 0.5, 0.7, '#d8d0bc']] },
+  // Meridian's clone bay (docs/design/WEB_FLORIDA.md §3.4): a vat on its plinth, green-lit glass, a shape asleep in it.
+  vat: { size: [1.4, 1.4, 2.3], colors: ['#5a6466', '#4f5a5c'], solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.35, 1], [0.08, 0.92, 0.08, 0.92, 0.35, 2.05, '#7fb8a6'], [0.32, 0.68, 0.38, 0.62, 0.6, 1.85, '#c8b49a'], [0, 1, 0, 1, 2.05, 2.3, 1.15], [0.42, 0.58, 0.9, 1.0, 0.2, 2.25, '#3d4648']] },
   ctable: { size: [1.9, 1.9, 0.78], colors: ['#5a3e28', '#6b4a32'], solid: true, centre: true,
     parts: [[0.25, 0.75, 0.25, 0.75, 0, 0.74, 1], [0.22, 0.78, 0.22, 0.78, 0.74, 0.78, 1.2], [0.36, 0.64, 0, 0.18, 0, 0.48, 0.8], [0.36, 0.64, 0.82, 1, 0, 0.48, 0.8], [0, 0.18, 0.36, 0.64, 0, 0.48, 0.8], [0.82, 1, 0.36, 0.64, 0, 0.48, 0.8]] },
 };

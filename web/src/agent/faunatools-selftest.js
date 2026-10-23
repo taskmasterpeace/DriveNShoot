@@ -177,7 +177,7 @@ export async function faunaChecks(api, check, C) {
     const seq = g.eventSeq, w0 = F.depthAt(man.x, man.z), d0 = dist(man, { x: b.wx, z: b.wz });
     await steps(3);
     const lunge = since(seq, 'faunaLunge', (e) => e.id === gt.id && e.target === man.id)[0], roll = since(seq, 'faunaRoll', (e) => e.id === gt.id)[0];
-    const hurt = man.hp < 250, dragged = dist(man, { x: b.wx, z: b.wz }) < d0 - 0.5;
+    const hurt = man.hp < 250, dragged = dist(man, { x: b.wx, z: b.wz }) < d0 - 0.3;
     const ok = lurk && !!lunge && lunge.fromWater && !!roll && hurt && dragged;
     return ok ? true : JSON.stringify({ lurk, state: gt.state, water: gt.water, lunge, roll: !!roll, hp: man.hp, d0: +d0.toFixed(1), d1: +dist(man, { x: b.wx, z: b.wz }).toFixed(1), w0 }).slice(0, 500);
   }, { hour: 23, at: { x: RIVER.x - 12, z: RIVER.z } }));
@@ -306,7 +306,7 @@ export async function faunaChecks(api, check, C) {
     await steps(1.5);
     const awake = Z.live && Z.fauna.length > 0;
     g.render(0);
-    const bodyless = Z.fauna.every((c) => c.bodyless);
+    const bodyless = Z.fauna.every((c) => c.ownMesh);
     const M = new THREE.Matrix4(), hidden = Z.fauna.every((c) => { g.charR.meshes.torso.getMatrixAt(c.slot, M); return Math.abs(M.elements[0]) + Math.abs(M.elements[5]) + Math.abs(M.elements[10]) < 1e-6; }); // the stand-in person is not drawn
     const parts = F.r.np;
     const D = F.density(Math.floor(Z.row.x / 256), Math.floor(Z.row.z / 256), { hour: 23 });

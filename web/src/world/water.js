@@ -11,8 +11,12 @@ export const LAKE = { x: 390, z: 398, r: 52, depth: 7 };
 export const BRIDGE = { x: 416, z: 0, halfW: 7.6, halfL: 16 };
 export const DOCK = { x: 360, z: 382 };
 
+// Past the island the streamed regions own the water (world/regions.js: Florida's sea, lagoon, canals and sloughs). The
+// streamer plugs their depth query in here; the island's own water below is untouched.
+export const EXT = { depth: null };
 // Standalone so world generation can keep props out of the water before the Water object exists.
 export function waterDepth(x, z, ignoreBridge = false) {
+  if (EXT.depth && (x > 470 || x < -470 || z > 470 || z < -470)) return EXT.depth(x, z);
   if (x < 300 || z < -460) return 0; // fast reject: all water is on the east side
   if (!ignoreBridge && Math.abs(z - BRIDGE.z) < BRIDGE.halfW && Math.abs(x - BRIDGE.x) < BRIDGE.halfL) return 0; // on the deck
   let d = 0;

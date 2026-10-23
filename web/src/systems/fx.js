@@ -54,6 +54,10 @@ export class FX {
     for (let i = 0; i < D_MAX; i++) { this.dMesh.setMatrixAt(i, ZERO); this.dMesh.setColorAt(i, _c.set(0, 0, 0)); }
     scene.add(this.dMesh);
     this.dNext = 0;
+    // Which decals are blood, when they were laid (systems/blood.js's game-hour clock) and their fresh colour: blood.js
+    // dries them darker over game hours and rain washes the outdoor ones away.
+    this.dBlood = new Uint8Array(D_MAX); this.dBorn = new Float32Array(D_MAX); this.dRGB = new Float32Array(D_MAX * 3);
+    this.dSize = new Float32Array(D_MAX); this.clock = 0;
     this.growing = []; // {i,x,z,rot,cur,target,y}
     this.pools = [];   // {x,z,r}
     // Skids use a plain quad (no splat shape).
@@ -166,7 +170,8 @@ export class FX {
     }
     this.flash(x, 2, z, 14, 0.35);
     this.light(x, 3, z, '#ff9a3a', 60, 0.6);
-    this.decal(x, z, 7, '#151210', Math.random() * 6, 0.12);
+    if (this.scorch) this.scorch(x, z, 7.5, '#151210'); // a soft burn (systems/blood.js), not an ink splat
+    else this.decal(x, z, 7, '#151210', Math.random() * 6, 0.12);
   }
 
   decal(x, z, size, color, rot = Math.random() * Math.PI * 2, y = 0.13) {
@@ -175,9 +180,17 @@ export class FX {
     _o.position.set(x, y + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(size, 1, size); _o.updateMatrix();
     this.dMesh.setMatrixAt(i, _o.matrix);
     this.dMesh.setColorAt(i, _c.set(color));
+    this.markDecal(i, size);
     this.dMesh.instanceMatrix.needsUpdate = true;
     this.dMesh.instanceColor.needsUpdate = true;
     return i;
+  }
+
+  // Bookkeeping for drying (systems/blood.js): a decal whose colour (in _c) is blood red is blood.
+  markDecal(i, size) {
+    const blood = _c.r > 0.02 && _c.r > _c.g * 4 && _c.r > _c.b * 4;
+    this.dBlood[i] = blood ? 1 : 0;
+    if (blood) { this.dBorn[i] = this.clock; this.dRGB[i * 3] = _c.r; this.dRGB[i * 3 + 1] = _c.g; this.dRGB[i * 3 + 2] = _c.b; this.dSize[i] = size; }
   }
 
   // A pool that keeps spreading under a body for a few seconds.
@@ -193,6 +206,7 @@ export class FX {
     _o.position.set(x, 0.135 + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(0.16, 1, 0.32); _o.updateMatrix();
     this.dMesh.setMatrixAt(i, _o.matrix);
     this.dMesh.setColorAt(i, _c.set('#5a0606').multiplyScalar(0.6 + strength * 0.4));
+    this.markDecal(i, 0.32);
     this.dMesh.instanceMatrix.needsUpdate = true;
     this.dMesh.instanceColor.needsUpdate = true;
   }

@@ -127,7 +127,7 @@ hogs, cats, hares and the twinback, and per-row proportions (`legK`, `lenK`, `wi
 one rounded-box InstancedMesh posed per part (snakes along their trail or wound in a coil; gators in overlapped
 segments with a dorsal ridge, an opening jaw and a roll; birds' bodies, heads, tails and primaries; the Glassling; the
 Lantern), one InstancedMesh of tapered wing panels, one additive InstancedMesh for eyeshine, the swarm and the Lantern's
-lamp. The hot ground's creatures are marked `bodyless` (`characters.js` skips them).
+lamp. The hot ground's creatures are marked `c.ownMesh` (, the engine's flag: `characters.js` skips them).
 
 ## 4. Formulas
 
@@ -199,14 +199,19 @@ is `(strength - 4) x 0.035`); butcher time `T x blade x max(0.5, 1 - 0.04 dex)`;
 **Written into (shared files, each a hook):** `main.js` (construct, update, draw, `noise`, the E chain: butcher and
 cook), `systems/combat.js` (a round's line crosses an animal), `systems/throwables.js` (blasts), `systems/dogs.js`
 (`DogRenderer` exported with optional proportion knobs and head kinds; a dog's bite on game; SIC on game under the aim),
-`systems/characters.js` (`bodyless` skips the stand-in person), `systems/inventory.js` (the `snare` act),
+`systems/inventory.js` (the `snare` act), `systems/regions.js` (its lair gators wait while this layer is on; its canal job counts this layer's gators),
 `data/trade.js` (Mags deals in hides), `agent/api.js` (the commands, the checks, save/load, the battery turns the
 animals off).
 
 **Feeds / is read by:** the vultures read every death; the dogs read game; the hot ground's dose takes twinback bites,
-hot meat and the swarm's stings. Florida (`feat/web-florida`, `data/regions.js`): its `life.fauna` rows become habitat
-rows through `fauna.absorbRegion('florida', REGIONS.florida.life)` (`habitatsFromRegion`); its own interim gators
-(`systems/regions.js`, characters of faction `fauna`) should hand over to this layer when both land (see the hand-back).
+hot meat and the swarm's stings. Florida (`data/regions.js`) is taken over at import: its `FAUNA.gator` row becomes the
+gator species' numbers (`speciesFromRegionRow`: hp, bite, bite interval, lunge speed and range, notice, size, colours,
+drag) and its `life.fauna` rows become habitat rows (`habitatsFromRegion`: biomes s w F p, 3.2 a km², at a water's
+edge). The region is `WorldIndex.regionOf(x, z).id` (else the state through `REGION_OF_STATE`). `systems/regions.js`
+spawns its own lair gators (characters of faction `fauna`) only while this layer is off (the battery, `fauna on=false`);
+its sheriff's canal job counts this layer's gator kills too (`faunaKilled` with species gator). A walled holdout
+(`WorldIndex.holdouts`: Meridian) is presence 1 inside its walls, fading over the town fade past them. Characters with
+`c.fauna` (the region's own animals) are skipped by this layer's senses; an animal of this layer carries `isFauna`.
 
 ## 7. Tuning knobs
 
@@ -247,7 +252,7 @@ rows through `fauna.absorbRegion('florida', REGIONS.florida.life)` (`habitatsFro
 4. **The rattlesnake:** you walk up to it (`moveTo`); it rattles at <= 4.2 m (`rattle` event, the rattle heard:
    `audio.counts['fauna:rattle']`), and its strike on you comes after the rattle and at least `warn.hold` later.
 5. **The gator:** lying in the river at the edge at night (`lurk`, in water), it lunges at a man 4.1 m off on the bank
-   (`faunaLunge` from the water), holds and rolls him (`faunaRoll`), he is hurt and dragged toward the water.
+   (`faunaLunge` from the water), holds and rolls him (`faunaRoll`), he is hurt and dragged at least 0.3 m toward the water (the region row's drag, 0.6 m/s).
 6. **The hunt:** a pinned mule deer shot with the rifle dies by your hand (`faunaKilled` by you); `butcher` with a knife
    gives at least 3 raw venison and exactly one hide (clean or torn), fresh; 13 game hours on it is stale, 25 rotten;
    `cook` at a struck flare turns every raw cut into cooked venison, fresh; eating one takes food from 0.30 to 0.66.
@@ -260,7 +265,7 @@ rows through `fauna.absorbRegion('florida', REGIONS.florida.life)` (`habitatsFro
    aim runs it down and bites it (`dogBite` on the deer, its hp down).
 10. **Roadkill:** a deer standing 40 m ahead of a buggy you drive at it is hit (`faunaCarHit`), killed (`roadkill`) and
     the car takes a dent.
-11. **The hot ground:** at night beside the Fused Flat its creatures are awake, every one `bodyless` with its stand-in
+11. **The hot ground:** at night beside the Fused Flat its creatures are awake, every one `ownMesh` with its stand-in
     person's torso instance zero-scaled and more than 20 fauna parts drawn; the density there lists twinbacks and the
     cinder swarm; a swarm 6 m off stings you (`faunaAttack`) and glows (more than 20 sparks).
 12. **Records:** a javelina killed and one hurt to 25 hp 106 m off; you go 900 m away (both gone as bodies), save, load,

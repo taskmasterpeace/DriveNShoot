@@ -463,10 +463,10 @@ export class Dogs {
     if (!g.statics.lineOfSight(d.x, d.z, t.x, t.z, RAY_SOLID)) return false; // a wall between: no teeth (the melee law)
     d.biteCd = R.biteCd; d.bites++;
     const k = Math.hypot(t.x - d.x, t.z - d.z) || 1;
-    if (t.fauna) g.fauna.hurt(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite', d); // game (systems/fauna.js)
+    if (t.isFauna) g.fauna.hurt(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite', d); // game (systems/fauna.js)
     else g.combat.damage(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite');
     // Down they go (not the infected: nothing puts those on their back for long).
-    if (t.alive && !t.fauna && t !== g.player && t.faction !== 'zombie' && Math.random() < p.biteKd * (pounce ? R.pounceKdMul : 1)) { t.knockT = 1.3; t.knockMax = 1.3; g.emit('dogKnockdown', { dog: d.id, target: t.id }); }
+    if (t.alive && !t.isFauna && t !== g.player && t.faction !== 'zombie' && Math.random() < p.biteKd * (pounce ? R.pounceKdMul : 1)) { t.knockT = 1.3; t.knockMax = 1.3; g.emit('dogKnockdown', { dog: d.id, target: t.id }); }
     g.emit('dogBite', { dog: d.id, target: t.id, pounce, hp: Math.round(t.hp) });
     return true;
   }

@@ -41,11 +41,15 @@ import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
+import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
+import { Regions } from './systems/regions.js';
+import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
+import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
 const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
@@ -65,6 +69,8 @@ import { startBridge } from './agent/bridge.js';
 import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
+import { Creator } from './systems/creator.js';
+import { CreatorUI } from './ui/creator.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -158,11 +164,13 @@ class Game {
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
+    this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
     this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
+    this.regions = new Regions(this); // Florida (WEB_FLORIDA.md): where a new game starts, Meridian's people, the gators, the region's infected
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
@@ -186,6 +194,8 @@ class Game {
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
+    this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
+    this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
     this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.insideBuilding = null;
     this.paused = true;
@@ -208,8 +218,11 @@ class Game {
     this.buildFlashlight();
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.recorder = new Recorder(this); // the session ring the observer replays (agent/recorder.js, WEB_OBSERVER.md)
+    this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
     this.api = new AgentAPI(this);
     this.title(ui);
+    this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
+    this.creatorUI = new CreatorUI(this); // its screen, and MAKE A SURVIVOR on the title
   }
 
   // ---- population ----------------------------------------------------------------
@@ -548,11 +561,11 @@ class Game {
     // The dead carry what they carried: a body is a container you can go through (I, standing over it), the gun they
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
-      const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
       if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
       this.inventory.armBody(body, c);
     }
-    if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
+    if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); this.clone.onDeath(c); } // the husk lies where you fell
     if (c.res) this.residents.onKill(c, attacker); // a ring resident: the death goes on their household's record
   }
 
@@ -651,25 +664,12 @@ class Game {
     this.qol.highlight(null);
     if (!p.alive) {
       this.respawnT -= dt;
-      if (this.respawnT <= 0) {
-        const clinic = this.world.spawns.shops[0];
-        p.alive = true; p.hp = p.maxHp; p.bleed = 0;
-        this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
-        // Wake up on the clinic's doorstep (never inside a furniture pocket).
-        const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
-        p.x = door.x; p.z = door.z; p.gy = 0; p.storey = null;
-        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
-        const fee = Math.floor(this.cash * 0.15);
-        this.cash -= fee;
-        this.wanted = 0;
-        // Whoever was after you lets it go (they saw you fall), and you get RESPAWN_GRACE s on your feet before anything can
-        // hurt you: a review found the player killed twice at the clinic door inside 21 s by the raider who killed them.
-        for (const c of this.chars) {
-          if (c.grudge === p || c.target === p) { c.grudge = null; c.target = null; c.state = 'idle'; }
-          if (c.ztarget === p) c.ztarget = null;
-        }
-        p.graceT = RESPAWN_GRACE;
-        this.hud.toast(`Doc Reyes patched you up. Fee: $${fee}`, 'warn');
+      // Coming up in the brine (systems/clone.js): your pressing's vat, its skills, nothing on you, brine-sick; no pressing:
+      // you die flat. Whoever was after you lets it go, and you get RESPAWN_GRACE s on your feet before anything can hurt
+      // you (a review found the player killed twice at the clinic door inside 21 s by the raider who killed them).
+      if (this.respawnT <= 0 && !this.clone.flat) {
+        this.clone.wake();
+        if (p.alive && !this.travel.away) p.graceT = RESPAWN_GRACE;
       }
       return;
     }
@@ -700,7 +700,7 @@ class Game {
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
-    if (I.hit('KeyN')) { this.trySleep(); return; }
+    if (I.hit('KeyN')) { if (!this.travel.napRide()) this.trySleep(); return; } // on the trundle with a punch: sleep through the trip
     if (I.hit('KeyV')) this.quickUse();
 
     const v = p.inVehicle;
@@ -909,9 +909,11 @@ class Game {
     // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
     const game = !best && !bestV && !op && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
-    const box = !best && !bestV && !op && !dog && !dk && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
+    const spot = !best && !bestV && !op && !dog && !dk && !game ? this.travel.spotNear(p) : null;
+    const box = !best && !bestV && !op && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !dk && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
@@ -922,13 +924,15 @@ class Game {
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
     else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
-    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
+    else if (spot) this.hud.prompt(spot.label);
+    else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
+    else if (spot && I.hit('KeyE')) { this.travel.interact(spot); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
@@ -1138,7 +1142,7 @@ class Game {
     t.innerHTML = `
       <div class="title-inner">
         <h1>DIVIDED <span>STATES</span></h1>
-        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.</div>
+        <div class="tag">${this.regions?.intro()?.tag ?? 'OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.'}</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
@@ -1159,8 +1163,9 @@ class Game {
       t.remove();
       this.audio.start();
       this.paused = false;
-      this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
-      this.hud.subtitle('The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+      const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words
+      this.hud.toast(intro?.toast ?? 'You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
+      this.hud.subtitle(intro?.sub ?? 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
     this.render(0.016);
   }
@@ -1200,11 +1205,14 @@ class Game {
       this.garage.update(simDt);
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
+      this.travel.update(simDt); this.nanGuard('travel'); // the trundle on the road, the iron's riders, the boards
+      this.clone.update(simDt); // brine money, the pickers on your husks, the husk drawn near you
       this.ambient.update(simDt);
       this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
+      this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
@@ -1212,6 +1220,7 @@ class Game {
       this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
+      this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.nanGuard('late');
     }
     this.dialogue.update(dt, I);

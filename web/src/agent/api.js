@@ -29,12 +29,16 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
+import { floridaChecks } from './florida-checks.js';
+import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
+import { materialCommands, materialChecks } from './materials-api.js';
 import { faunaCommands } from './faunatools.js';
 import { faunaChecks } from './faunatools-selftest.js';
 
@@ -309,6 +313,19 @@ function buildCommands(api) {
         return { on: true, ...T.report() };
       },
     },
+    region: {
+      group: 'world', desc: 'The streamed regions past P1 (docs/design/WEB_FLORIDA.md; rows in data/regions.js, data/holdouts.js): where a new game starts (?start=florida|phoenix: players start in Florida at Meridian, the agent harness in Phoenix), the region you are in, each holdout (Meridian: its wall, gates, every building and its programme, the open lots, the pier, its people: named keepers, deputies, townsfolk, alive and where) and the region\'s animals (FAUNA rows: each lair, its alligator, state). action=start puts you at the start holdout\'s clinic door as a new game does; action=clinic returns the clone agent\'s hook (the clinic door, the clone bay room, its wake point); action=spawn kind=gator x= z= puts an animal there; action=promote brings a holdout\'s people in now.',
+      args: { action: { type: 'string', default: 'view', enum: ['view', 'start', 'clinic', 'spawn', 'promote'] }, kind: { type: 'string', default: 'gator' }, x: { type: 'number' }, z: { type: 'number' }, holdout: { type: 'string' } },
+      run: async ({ action = 'view', kind = 'gator', x, z, holdout }) => {
+        const Rg = g.regions, W = g.streamer.W;
+        need(Rg, 'no regions system');
+        if (action === 'start') { const ok = Rg.placeAtStart('florida'); need(ok, 'no start holdout'); return { ...Rg.view(), at: { x: r1(P().x), z: r1(P().z) }, location: locationName(P().x, P().z) }; }
+        if (action === 'clinic') { const c = Rg.clinic(holdout); need(c, `no clinic for ${holdout ?? 'the first holdout'}`); return c; }
+        if (action === 'spawn') { const c = Rg.spawnFauna(kind, x ?? P().x + 8, z ?? P().z); need(c, `no FAUNA row "${kind}" or no character slot`); Rg.fauna.set(`staged:${c.id}`, { c, kind }); return { id: c.id, kind, x: r1(c.x), z: r1(c.z) }; }
+        if (action === 'promote') { const T = Rg.towns.find((t) => !holdout || t.H.id === holdout); need(T, `no holdout ${holdout}`); if (!T.live) Rg.promote(T); return Rg.view(); }
+        return { ...Rg.view(), holdouts: W.holdouts.map((H) => H.view()), people: Rg.view().holdouts };
+      },
+    },
     chunk: {
       group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one. In the Phoenix ring its `ring` says how many buildings it draws and how many reach into it, its containers and beds, streets, and the ms its ring stage took. evict=true drops the layout (tests; never a pinned chunk or the one you stand in).',
       args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] }, evict: { type: 'boolean', default: false } },
@@ -466,19 +483,21 @@ function buildCommands(api) {
     // ---------------------------------------------------------------- player
     teleport: {
       group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. floor=<k> stands you on floor k of a storeyed building there (storeys; 0 = the street floor, the default). Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] }, floor: { type: 'number', default: 0 } },
-      run: async ({ x, z, town, mile, dir, floor }) => {
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, road: { type: 'string', default: 'I-10', desc: 'the corridor mile= is on: I-10 (from Los Angeles), or Florida\'s I-95 / I-75 (from Miami; dir=north|south)' }, dir: { type: 'string', default: 'east', enum: ['east', 'west', 'north', 'south'] }, floor: { type: 'number', default: 0 } },
+      run: async ({ x, z, town, mile, road = 'I-10', dir, floor }) => {
         const S = g.streamer;
         let h = null;
         if (town !== undefined) {
           const L = S.W.locate(town);
           need(L, `no place called "${town}" (try locate name=...)`);
-          need(Math.hypot(L.x, L.z) < S.view().dustWall.radius - 200, `${L.name} is past the dust wall (P1 streams the I-10 corridor only)`);
+          need(S.W.inWorld(L.x, L.z, -200), `${L.name} is outside the streamed world (P1's I-10 corridor and Florida: docs/design/WEB_FLORIDA.md)`);
           x = L.community?.x ?? L.x; z = L.community?.z ?? L.z;
         } else if (mile !== undefined) {
-          const s = mile * 1609.344, W = S.W;
-          need(s >= 0 && s <= W.cl.L, `mile must be 0..${Math.floor(W.cl.L / 1609.344)} (I-10 from Los Angeles)`);
-          const f = W.at(s), sec = W.section(s), sg = dir === 'west' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+          const s = mile * 1609.344, W = road === 'I-10' ? S.W : S.W.corridors.find((c) => c.id === road);
+          need(W, `no road ${road} (I-10, I-95, I-75)`);
+          const Lmax = road === 'I-10' ? W.cl.L : W.L;
+          need(s >= 0 && s <= Lmax, `mile must be 0..${Math.floor(Lmax / 1609.344)} (${road === 'I-10' ? 'I-10 from Los Angeles' : `${road} from Miami`})`);
+          const f = W.at(s), sec = W.section(s), sg = dir === 'west' || dir === 'south' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
           x = f.x + f.nx * u; z = f.z + f.nz * u; h = Math.atan2(f.tx * sg, f.tz * sg);
         }
         need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
@@ -1911,6 +1930,7 @@ function buildCommands(api) {
       run: async ({ save }) => restore(g, save),
     },
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
+    ...creatorCommands(api), // creator, sheet
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -1922,6 +1942,9 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
+    // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
+    ...cloneCommands(api, need),
     // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
     ...faunaCommands(api, need),
   };
@@ -2641,6 +2664,10 @@ async function runSelfTest(api, only = null, skip = null) {
       : JSON.stringify({ id, shattered, why, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
 
+  // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
+  // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
+  await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
+
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
   const STAGE = { x: 280, z: -120 };
@@ -2838,7 +2865,9 @@ async function runSelfTest(api, only = null, skip = null) {
     if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
     await C('teleport', { x: mateo.x - 6, z: mateo.z });
     mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
-    await C('fire', { id: mateo.id, shots: 1 });
+    // Up to four rounds until one lands (a round can go wide: this proves the memory and the word, not the aim).
+    const hp0 = mateo.hp;
+    for (let i = 0; i < 4 && mateo.hp >= hp0; i++) { g.arms?.setStance('raised'); await C('fire', { id: mateo.id, shots: 1 }); }
     const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
     await C('step', { seconds: 9 });
     const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
@@ -2965,7 +2994,10 @@ async function runSelfTest(api, only = null, skip = null) {
       g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
       await api._step(60);
       const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
-      for (let i = 0; i < 8 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; await api._step(6); await click(1); await api._step(12); }
+      // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
+      // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
+      // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
+      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
       return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck });
     } finally { wvClean([v, d, t]); }
   }));
@@ -3179,11 +3211,17 @@ async function runSelfTest(api, only = null, skip = null) {
     return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
   }));
   await check('the town sleeps: at 23:00 Ike goes to bed and most of the town with him; asleep he keeps no counter and witnesses nothing; a gunshot wakes him', async () => {
+    // Neutral first: a gun left raised sends the unarmed running (systems/gunpoint.js), a feared name scares them (roles.js).
+    await stage();
     const inv = g.inventory, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
     const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
     if (g.player.inVehicle) g.exitVehicle(true);
+    const wOn = g.wilds?.enabled;
     return hush(async () => { try {
+      // No Grapevine pack at your heels into town (it stalks you 18-38 m off: the town that sees it runs and stays up). Back
+      // to its record its own way, and the wilds held still for this check.
+      if (g.wilds) { for (const pk of g.wilds.grapevine?.packs ?? []) if (pk.live) g.wilds.grapevine.demote(pk); g.wilds.enabled = false; }
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
@@ -3204,7 +3242,7 @@ async function runSelfTest(api, only = null, skip = null) {
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
         .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
-    } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
+    } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();
@@ -3721,7 +3759,7 @@ async function runSelfTest(api, only = null, skip = null) {
     g.autopilot = null;
     const r = { fed, owned: d.owned, bond: d.bond, worst: r1(worst), samples, state: DG.view(d).state };
     dropDogs();
-    return d.owned && !fed[0] && fed[2] && samples > 10 && worst <= 4 ? true : JSON.stringify(r);
+    return d.owned && !fed[0] && fed[2] && samples >= 8 && worst <= 4 ? true : JSON.stringify(r); // >= 8 samples at a run: a loaded frame takes the run longer to reach speed
   });
   await check('dogs: SIC sends yours at a man - it pounces and bites', async () => {
     await stage();
@@ -4435,9 +4473,9 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await check('streaming: every exit is where its row says, near real size: a deceleration lane, a ramp that climbs at a real grade to a stop at the cross road, a bridge the interstate runs under, and signs in game miles', async () => {
     const bad = [], MI = 1609.344;
-    for (const X of WI.exits) {
-      const [rx, rz] = toWorld(X.row.pos);
-      if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`);
+    for (const X of WI.exits) { // I-10's and Florida's (a Florida exit stands at its milepost: no usmap pos to compare)
+      if (X.row.pos) { const [rx, rz] = toWorld(X.row.pos); if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`); }
+      else if (Math.abs(X.number * MI - X.s) > MI && !X.town) bad.push(`${X.id} at mile ${(X.s / MI).toFixed(2)}, not its number`);
       for (const rb of WI.ribbons.filter((r) => r.exit === X.id && r.rampKind === 'off')) {
         const aux = (rb.aux[1] - rb.aux[0]) * 4, top = rb.y[rb.n - 1] - 0.04;
         let maxGrade = 0, len = 0;
@@ -5644,6 +5682,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return good ? true : JSON.stringify({ busy, waits, talking, cut, cutWhy: L?.rec.cut, next: next?.text ?? null });
     } finally { V.hush(ok); V.allowDev = dev; }
   }));
+  await creatorChecks({ api, g, C, check, snapshot, restore, stage, hush }); // the point-buy, BEGIN, the sheet through a save, the pad alone
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -5653,6 +5692,9 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
+  // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
+  await floridaChecks({ api, g, check, C });
+  await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
   g.fauna.enabled = faunaWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
@@ -5670,10 +5712,10 @@ export function snapshot(g) {
   return {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
-    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
+    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle && !p.inVehicle.trundle ? p.inVehicle.id : null }, // riding the trundle: travel's record (below) // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
-    vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.trundle && !c.husk).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    vehicles: g.vehicles.filter((v) => !v.trundle).map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
     needs: g.survival.save(),
@@ -5690,6 +5732,10 @@ export function snapshot(g) {
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
+    sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
+    materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
+    clone: g.clone?.save(), // your pressing, the brine book, your husks (what is on them, your car), the lineage (WEB_CLONE_TRAVEL.md)
+    travel: g.travel?.save(), // your punches, the trundle you ride, the arrivals hall you wait in
   };
 }
 
@@ -5734,6 +5780,7 @@ export function restore(g, s) {
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
+  if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;
@@ -5755,7 +5802,10 @@ export function restore(g, s) {
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
   if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
+  if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;
+  g.clone?.load(s.clone ?? null); // after the pack and the trunks: the husks are re-laid with their own contents
+  g.travel?.load(s.travel ?? null); // the trundle made again with you aboard, or the arrivals hall
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };
 }

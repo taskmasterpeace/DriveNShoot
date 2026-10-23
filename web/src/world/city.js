@@ -863,6 +863,7 @@ export function buildWorld(scene, statics) {
 
   return {
     buildings, spawns, glows, fires, roofs, props, glowMat, flames, groundMat, roadMat, minimap, // props: a set-piece clears its lot of loose rubble (bases.js)
+    walls, // the wall batch: systems/materials.js hides a partition that is breached and draws what is left of it
     doors: doorRows, windows: windowRows, // data rows: systems/interiors.js hangs the leaves and glass
     flora, // world/flora.js: one pool per species, the streamer shares them
     updateFlames(time) {

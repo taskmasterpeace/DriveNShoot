@@ -7,6 +7,7 @@
 // groves a, prairie p, dead suburbs u, wetland w, coast .) drop in as rows: the region key is whatever the region layer
 // reports at a point ('west' when there is none). Our own words; no purple (hue 270-320); real animals are ours to use.
 import { ITEMS, LOOT } from './items.js';
+import { REGIONS, FAUNA as REGION_FAUNA } from './regions.js';
 
 // ---- when an animal is about ----------------------------------------------------------------------------------------
 // The day in four phases by game hour, and each activity pattern's factor in each phase (the formula's time term).
@@ -90,6 +91,8 @@ export const SPECIES = {
     body: { span: 1.75, len: 0.62, coat: '#2e2620', wing: '#3e342a', tipc: '#6e665a', head: '#b04a34', soar: true, alt: [7, 11], circle: [6, 11] },
   },
   // ---- Florida (rows for the start region's biomes) ---------------------------------------------------------------
+  // The alligator is Florida's row (data/regions.js FAUNA.gator: hp, bite, lunge, notice, size, colours), taken over
+  // here (gatorFromRegion below): these are only the numbers that row does not carry.
   gator: {
     name: 'Alligator', form: 'gator', group: { kind: 'solo', size: [1, 1] }, active: 'any', temper: 'ambush',
     senses: { sight: 14, smell: 30, hear: 30, night: 1 }, speed: { walk: 2.4, run: 9.5 }, turn: 2.2, hp: 160,
@@ -178,7 +181,6 @@ export const HABITATS = [
   { region: 'west', biomes: 'd', species: 'mule_deer', perKm2: 1.6 },
   { region: 'west', biomes: 'dfmw', species: 'rattlesnake', perKm2: 6 },
   { region: 'west', biomes: 'dfpmwau', species: 'vulture', perKm2: 0.5 },
-  { region: 'florida', biomes: 'swFp', species: 'gator', perKm2: 3.2, near: 'water' },
   { region: 'florida', biomes: 'sFfpau', species: 'hog', perKm2: 6 },
   { region: 'florida', biomes: 'Ffpa', species: 'whitetail', perKm2: 8 },
   { region: 'florida', biomes: 'sF', species: 'panther', perKm2: 0.25 },
@@ -283,3 +285,21 @@ export function habitatsFromRegion(regionId, life) {
   for (const L of life?.fauna ?? []) if (SPECIES[L.kind]) out.push({ region: regionId, biomes: Array.isArray(L.biomes) ? L.biomes.join('') : L.biomes, species: L.kind, perKm2: L.perKm2, near: L.near ? 'water' : undefined });
   return out;
 }
+
+// A region's FAUNA row (data/regions.js: { hp, bite, land, swim, lunge, lungeRange, notice, leash, biteEvery, size,
+// colors, belly }) onto a SPECIES row: the region's numbers win, ours fill the rest.
+export function speciesFromRegionRow(S, F) {
+  if (!S || !F) return S;
+  S.name = F.name ?? S.name; S.hp = F.hp ?? S.hp;
+  S.senses = { ...S.senses, sight: F.notice ?? S.senses.sight };
+  S.speed = { walk: F.land ?? S.speed.walk, run: F.lunge ?? S.speed.run, swim: F.swim };
+  S.attack = { ...S.attack, dmg: F.bite ?? S.attack.dmg, every: F.biteEvery ?? S.attack.every, reach: F.lungeRange ?? S.attack.reach, drag: F.drag ?? S.attack.drag };
+  S.body = { ...S.body, len: F.size ?? S.body.len, coat: F.colors ?? S.body.coat, belly: F.belly ?? S.body.belly };
+  return S;
+}
+
+// Florida (data/regions.js) taken over: its alligator row becomes the gator species, its `life.fauna` rows become
+// habitat rows (so the region's density, biomes and water are the region's own). systems/regions.js keeps its own
+// lair-spawned gators only while this layer is off.
+for (const [kind, F] of Object.entries(REGION_FAUNA ?? {})) speciesFromRegionRow(SPECIES[kind], F);
+for (const [id, R] of Object.entries(REGIONS ?? {})) if (R.life?.fauna) HABITATS.push(...habitatsFromRegion(id, R.life));
