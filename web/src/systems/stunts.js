@@ -163,6 +163,10 @@ export class Stunts {
     }
     const S = STUNT, G = S.gravity, sp = springsOf(v);
     const gh = this.surface(v.x, v.z, _sl, v.y), ramp = this.hitRamp, rs = this.hitS;
+    // Real terrain (flag, world/realterrain.js): a car the land came up over (the flag turned on, a teleport, a spawn at 0)
+    // is set on it, and one left above it (a teleport to lower ground) is put down - not a jump, not a wall, not a crash.
+    // (A car going over a crest is `air` first: stunts.takeoff.)
+    if (this.ext?.terrain && !v.air && Math.abs(gh - v.y) > 2.5) { v.y = gh; v.vy = 0; v.gy = gh; }
     const vg = _sl.gx * v.vx + _sl.gz * v.vz; // how fast the ground under the car is rising
     // A ledge taller than a tyre climbs, met on the ground: it's a wall (kickers are boxed in; this catches the rest).
     if (!v.air && gh - v.y > S.step + sp.bump) {

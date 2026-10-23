@@ -479,6 +479,36 @@ export class Streamer {
     return true;
   }
 
+  // ---- real terrain (docs/design/WEB_TERRAIN.md), behind a flag: OFF by default -------------------------------------------
+  // on: load the baked asset (once), survey the road and the pads onto it, and lay every chunk out again on the land.
+  // off: back to the flat world, every chunk laid out again exactly as before. The island never changes (it stands on
+  // Phoenix's pad at 0), so its golden hash holds either way.
+  async setTerrain(on) {
+    const W = this.W;
+    if (!!on === !!W.terrain) return { on: !!W.terrain, changed: false };
+    let T = null;
+    if (on) {
+      const { loadTerrain, RealTerrain } = await import('./realterrain.js');
+      this.terrainAsset ??= await loadTerrain(new URL('../data/terrain/i10.bin', import.meta.url).href);
+      T = new RealTerrain(this.terrainAsset, W);
+    }
+    W.terrain = T;
+    W.mesaCache?.clear(); // mesas read the biome, which reads the landcover now
+    if (this.g.fx) this.g.fx.ground = T ? (x, z) => T.at(x, z) : null; // blood, skids, smoke, tracers on the land
+    // Lay out every chunk again: drop them all (the pinned island chunks are built again at once), then let the
+    // streamer plan the ring round the player as on any arrival.
+    if (this.building) this.abandonBuild();
+    for (const key of [...this.layouts.keys()]) this.evict(key);
+    for (const key of this.pinned) { const [cx, cz] = key.split(',').map(Number); this.buildNow(cx, cz, null); }
+    const f = this.focus();
+    this.centre = null;
+    const r = this.ensureHot(f.x, f.z, 'load');
+    // Whatever stands on the ground goes onto the new ground (cars drop or rise onto it in stunts.step; people here).
+    for (const ch of this.g.chars) if (!ch.inVehicle && !ch.storey) ch.gy = this.g.stunts?.heightAt(ch.x, ch.z, ch.gy ?? 0) ?? 0;
+    this.g.emit('terrain', { on: !!T });
+    return { on: !!T, changed: true, ms: r.ms, ...(T ? T.report() : {}) };
+  }
+
   ensureLayout(x, z, cause = 'test') {
     const cx = chunkOf(x), cz = chunkOf(z);
     if (this.layouts.has(chunkKey(cx, cz))) return this.layouts.get(chunkKey(cx, cz));

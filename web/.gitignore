@@ -7,3 +7,5 @@ dist
 # the shard's live data (accounts, characters, the world) and the dev accounts file: never committed
 server/data/
 server/.dev-accounts.json
+# the terrain bake's downloads (tools/terrain-bake.mjs): public data, re-fetched on demand, never committed
+.terrain-cache/
