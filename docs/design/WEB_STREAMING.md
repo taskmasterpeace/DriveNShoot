@@ -306,7 +306,10 @@ rows: `src/data/ring.js` `RESIDENTS`, `RES_RULES`, `RES_NAMES`; who lives where 
 the count reached 161 once in a battery: `removeChar` now ignores someone already gone and records the call in
 `g.doubleRemoves` (empty in every battery since). The battery's earlier fights can leave the drifters shooting on sight,
 and with squats on THE STRIP a corridor drive became a gunfight: the streaming checks now run with the drifters' standing
-as it starts and give it back after the ring's checks.
+as it starts and give it back after the ring's checks. A save (and the autosave, every 3 minutes of calm play) wrote the
+residents back onto their records with the same call a demote uses, which also took a promoted body's box out of the world:
+the corpse lay there with nothing on it until the next demote and promote. A save now only copies the body; the killing check
+saves over the body every time (it failed only on the runs the autosave happened to hit).
 
 **Not in R2:** residents talking about their own house or family (they get the strangers' three topics); ring buildings'
 door leaves and glass (a squat's barricade is static collision, and the Echo's work never brings it down: the hp is on the
