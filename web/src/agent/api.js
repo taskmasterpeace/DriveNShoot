@@ -749,7 +749,8 @@ function buildCommands(api) {
           // Follow an A* route on the vehicle nav grid (dilated for car width).
           g.streamer.ensureSpan(v.x, v.z, x, z);
           const path = g.nav.car.find(v.x, v.z, x, z) ?? [{ x, z }];
-          let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z;
+          let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z, bestGoal = Infinity, bestT = 0, pedT = 0;
+          const rest = path.map((_, k) => 0); for (let k = path.length - 2; k >= 0; k--) rest[k] = rest[k + 1] + Math.hypot(path[k + 1].x - path[k].x, path[k + 1].z - path[k].z);
           while (t < Math.max(seconds, 90) && i < path.length) {
             const wp = path[i], isLast = i === path.length - 1;
             const d = Math.hypot(wp.x - v.x, wp.z - v.z);
@@ -761,7 +762,15 @@ function buildCommands(api) {
             // Brake for non-hostile people in the lane ahead (don't run over townsfolk).
             const fx = Math.sin(v.h), fz = Math.cos(v.h);
             const ped = g.chars.some((c) => c.alive && !c.inVehicle && c !== P() && !g.ai.hostile(c, P()) && (() => { const ox = c.x - v.x, oz = c.z - v.z, al = ox * fx + oz * fz; return al > 0 && al < 7 + sp * 0.6 && Math.abs(ox * fz - oz * fx) < v.wid; })());
-            if (ped && !stuckT) { g.driveOverride = { throttle: sp > 2 ? -1 : 0, steer: 0 }; await api._step(6); t += 0.1; continue; }
+            if (ped && !stuckT) {
+              // Wait for them, honking every 2 s (people leap aside); someone who never moves (asleep in the road, downed)
+              // ends the drive after 10 s instead of holding it for its whole budget.
+              pedT += 0.1;
+              if (pedT > 10) { g.driveOverride = null; return { arrived: false, interrupted: 'stuck: someone in the road will not move (asleep or down?)', ...vehView(g, v) }; }
+              if (Math.abs(pedT % 2 - 1) < 0.05) { g.audio.horn(0); g.ambient.honk(v); }
+              g.driveOverride = { throttle: sp > 2 ? -1 : 0, steer: 0 }; await api._step(6); t += 0.1; bestT = t; continue;
+            }
+            pedT = 0;
             g.driveOverride = { throttle: stuckT > 1 ? -1 : corner ? -0.3 : isLast && d < 25 ? 0.5 : 1, steer: Math.max(-1, Math.min(1, (stuckT > 1 ? -diff : diff) * 2.2)), handbrake: Math.abs(diff) > 1.5 && sp > 8 };
             await api._step(6); t += 0.1;
             // Unstick: if barely moving for a while, reverse briefly.
@@ -772,6 +781,10 @@ function buildCommands(api) {
             if (v.onFire) { g.driveOverride = null; return { arrived: false, interrupted: 'vehicle on fire — exitVehicle now', ...vehView(g, v) }; }
             if (!P().alive) { g.driveOverride = null; return { arrived: false, interrupted: 'player died' }; }
             if (deadCar(v)) { g.driveOverride = null; return { arrived: false, interrupted: deadCar(v), ...vehView(g, v) }; }
+            // Grinding against the same wall: every unstick goes back into it, and each tap costs the engine (a front hit
+            // is engine damage). No 3 m off the route left in 15 s: stop and say so rather than wreck the car on it.
+            const goal = i < path.length ? Math.hypot(path[i].x - v.x, path[i].z - v.z) + rest[i] : 0; // route left, not the crow's line
+            if (goal < bestGoal - 3) { bestGoal = goal; bestT = t; } else if (t - bestT > 15) { g.driveOverride = { throttle: -1, steer: 0 }; await api._step(20); g.driveOverride = null; return { arrived: false, interrupted: 'stuck: no headway for 15 s (a wall or a wreck in the way?)', ...vehView(g, v) }; }
           }
           g.driveOverride = { throttle: -1, steer: 0 }; await api._step(30); g.driveOverride = null;
           return { arrived: Math.hypot(x - v.x, z - v.z) < 10, waypoints: path.length, ...vehView(g, v) };

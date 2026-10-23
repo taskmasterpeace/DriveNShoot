@@ -16,7 +16,11 @@ export default async function (DL) { // public commands only: it never touches t
   const wall0 = Date.now();
   const WALL_LIMIT = 6.5 * 60 * 1000;                     // leave time to go home inside the scenario's 900 s budget
   let clock = '--:--', lastPos = null;
-  const note = (m) => log.push(`[${clock}] ${m}`);
+  let lastNote = '', repeats = 0;
+  const note = (m) => {
+    if (m === lastNote) { repeats++; log[log.length - 1] = log[log.length - 1].replace(/ \(x\d+\)$/, '') + ` (x${repeats + 1})`; return; }
+    lastNote = m; repeats = 0; log.push(`[${clock}] ${m}`);
+  };
   const st = () => DL.state();
   const tick = async () => { const s = await st(); clock = s.world.time; if (s.player.alive) lastPos = { x: s.player.x, z: s.player.z, where: s.player.location }; return s; };
   const d2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -88,18 +92,18 @@ export default async function (DL) { // public commands only: it never touches t
   };
 
   // ---- fighting on foot ----------------------------------------------------------------------------------------------
-  const fight = async (why, radius = 70) => {
+  const fight = async (why, radius = 70, minHp = 40) => {
     await onFoot('to fight');
     footFights++;
     const k0 = kills(await st());
     note(`Fighting on foot: ${why}.`);
     let out = 'time';
     for (let i = 0; i < 8; i++) {
-      const e = await DL.engage({ seconds: 15, radius, minHp: 40 });
+      const e = await DL.engage({ seconds: 15, radius, minHp });
       if (!e.ok) { out = e.error; break; }
       if (e.stopped === 'no enemies in radius') { out = 'clear'; break; }
       if (e.stopped === 'died') { out = 'died'; break; }
-      if (e.stopped === 'low health') { await patchUp('low in a fight'); if ((await st()).player.hp < 45) { out = 'hurt'; break; } continue; }
+      if (e.stopped === 'low health') { await patchUp('low in a fight'); if ((await st()).player.hp < minHp + 5) { out = 'hurt'; break; } continue; }
       if (e.stopped === 'out of ammo' || e.stopped === 'gun broken') { out = e.stopped; break; }
       if (e.stopped === 'unreachable target') { out = 'unreachable'; break; }
     }
@@ -115,6 +119,7 @@ export default async function (DL) { // public commands only: it never touches t
     const dx = here.x - from.x, dz = here.z - from.z, dd = Math.hypot(dx, dz) || 1;
     const back = { x: Math.max(-440, Math.min(440, here.x + (dx / dd) * 80)), z: Math.max(-440, Math.min(440, here.z + (dz / dd) * 80)) };
     note(`Pulling back (${why}), hp ${s.player.hp}.`);
+    if (s.vehicle && !usable(s.vehicle)) { await onFoot(`the ${carState(s.vehicle)} will not take me anywhere`); s = await st(); }
     if (!s.vehicle) {
       const ride = ((await DL.query({ type: 'vehicle', radius: 25, limit: 10 })).items ?? []).find((v) => free(v) || (v.id === myRide && usable(v)));
       if (ride) { const m = await DL.moveTo({ id: ride.id, run: true, maxSeconds: 12 }); if (m.arrived && (await DL.enterVehicle({ id: ride.id })).ok) { myRide = ride.id; note(`Back in the ${ride.name}.`); } }
@@ -259,12 +264,28 @@ export default async function (DL) { // public commands only: it never touches t
     note('No running, empty vehicle within reach.');
     return null;
   };
+  // A car needs a road there: ask for a car route first (a point inside the ruins' walls has none, and `drive` would
+  // beeline into the wall). No route: try nearer points on the way, then give up and let the caller walk.
+  const carSpot = async (x, z) => {
+    const s = await st(), from = s.vehicle ?? s.player;
+    for (const f of [1, 0.85, 0.7, 0.5]) {
+      for (const side of [0, 14, -14]) {
+        const dx = x - from.x, dz = z - from.z, dd = Math.hypot(dx, dz) || 1;
+        const px = from.x + dx * f + (-dz / dd) * side, pz = from.z + dz * f + (dx / dd) * side;
+        if ((await DL.path({ x: px, z: pz, mode: 'car' })).found) return { x: px, z: pz, moved: f < 1 || side !== 0 };
+      }
+    }
+    return null;
+  };
   const driveTo = async (x, z, label) => {
     let r = null;
     for (let k = 0; k < 3; k++) {
       const s = await alive();
       if (!s.vehicle) { note(`Drive to ${label}: on foot (no ride).`); return { arrived: false, interrupted: 'no vehicle' }; }
       if (Math.hypot(s.vehicle.x - x, s.vehicle.z - z) < 14) { r = { arrived: true }; break; }
+      const spot = await carSpot(x, z);
+      if (!spot) { note(`No road for a car to ${label}; going on foot from here.`); return { arrived: false, interrupted: 'no road' }; }
+      if (spot.moved) { x = spot.x; z = spot.z; }
       r = await DL.drive({ x, z, seconds: 90 });
       if (!r.ok) { note(`Drive to ${label}: ${r.error}`); return r; }
       if (r.arrived || r.interrupted) break;
@@ -276,12 +297,15 @@ export default async function (DL) { // public commands only: it never touches t
   };
   // Get somewhere far: by road while a ride runs (swapping a dead one), on foot for the rest.
   const travel = async (x, z, label) => {
+    let r = null;
     for (let k = 0; k < 3; k++) {
       if (!(await getRide())) break;
-      const r = await driveTo(x, z, label);
+      r = await driveTo(x, z, label);
       if (r.arrived || r.interrupted === 'player died') return r;
+      if (r.interrupted === 'no road' || /^stuck/.test(r.interrupted ?? '')) break;
     }
     const s = await alive();
+    if (s.vehicle && usable(s.vehicle) && d2(s.vehicle, { x, z }) < 90) return r ?? { arrived: false }; // close enough to fight from the cab
     if (d2(s.vehicle ?? s.player, { x, z }) > 14) return walk({ x, z }, label);
     return { arrived: true };
   };
@@ -364,7 +388,7 @@ export default async function (DL) { // public commands only: it never touches t
     await travel(here.x + (tgt.c.x - here.x) * k, here.z + (tgt.c.z - here.z) * k, placeName(tgt.c));
     // Fight here until the pack is down: the harpoon from the cab, the bumper while the engine holds, `engage` on
     // foot when they are dug in where a car cannot go.
-    let stuck = 0, misses = 0;
+    let stuck = 0, misses = 0, pulls = 0;
     for (let t = 0; t < 30 && kills(s = await alive()) < 6 && !late(); t++) {
       const at = s.vehicle ?? s.player;
       const near = (await wolves()).filter((c) => d2(c, at) < 80);
@@ -389,7 +413,15 @@ export default async function (DL) { // public commands only: it never touches t
       // On foot: they are dug in where a car cannot go, or the ride is done.
       const dry = s.inventory.weapons.every((w) => (s.inventory.mag[w] ?? 0) + (s.inventory.ammo[AMMO[w]] ?? 0) === 0);
       if (dry) { note('No rounds left for a fight on foot; pulling out.'); await retreat(near[0], 'out of rounds'); break; }
-      if (s.player.hp < 50) { await retreat(near[0], 'too hurt to walk into their guns'); continue; }
+      // Hurt: pull back and rest; if they keep coming (three pull-backs and still no rest), it is a fight anyway.
+      if (s.player.hp < 50 && pulls < 3) { pulls++; await retreat(near[0], 'too hurt to walk into their guns'); continue; }
+      if (s.player.hp < 50) {
+        pulls = 0;
+        const f = await fight('cornered: they keep coming, so it is a fight anyway', 60, 12);
+        if (f === 'died') break;
+        continue;
+      }
+      pulls = 0;
       const why = s.vehicle && !usable(s.vehicle) ? `the ${carState(s.vehicle)} is done` : stuck >= 2 ? 'they are dug in where the car cannot reach' : 'no ride here';
       const f = await fight(why, 80);
       stuck = 0;
