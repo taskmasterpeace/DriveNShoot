@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| bounty-run (subagent) | the end-to-end playthrough finishes again (6/6, $250 on fresh pages, 28-180 s wall): wakes sleepers, picks locks, finds live Dustwolves through query, harpoons from the cab, engages on foot, heals with meds, takes only parked rides. Game fixes it found: spun cars locked at ~28 rad/s (a turn rate smoothed as an angle), ram from a standing start, drive/ram on dead cars and walls, engage on corpses, talk wakes a sleeper, Kenji repairs the whole car | web/src/scenarios/bounty-run.js | dc562a66 |
 | The infected's kinds | the canon's taxonomy as rows (data/infected.js): Sprinter (a shambler until something living runs inside 20 m or a shot goes off: 6 s at 9 m/s, 3 s bent double, a shambler again), Echo (works at boarded windows and locked doors only unobserved, never advances), Choir-Touched at the dead relay mast (hum 45 m, aura x1.25 + shared target 30 m); `infected` command | WEB_INFECTED | 20eb9eb4 |
 | Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | 5226f237 |
 | Streamed Arizona (subagent) | WEB_STREAMING P1: chunks, pools, chunked collision, a 1 km nav window, I-10 from Los Angeles to El Paso through Phoenix with real interchanges (deceleration lanes, gores, EXIT signs in miles), mesas, convoys on the interstate, radar + big map past the island; 9 checks; 60 s flat out on the bike = 2.6 km with 0 stalls, ~73 draw calls | WEB_STREAMING §1.2 | a85b2092 |
@@ -89,6 +90,9 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
    `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484`; it was not allowed to delete it, so it's yours to remove.
    The role subagent was likewise denied `rm` for its two A/B baseline copies and moved them to the session
    scratchpad (`...\scratchpad\roles\abbase_worktree_copy`, `abbase2_worktree_copy`); they are yours to delete too.
+5. **Vehicle feel** (from the bounty-run rework): engines die fast - a front crash takes 0.55 x its damage off the
+   engine (a 19 m/s arrival into a camp wall cost a LAWMAN 41% of its engine), so most rides last one or two fights. Is
+   that the design? And `drive` still arrives at half throttle inside 25 m and can overshoot into what is past the target.
 4. **Roles** (from the role system's builder): the jump role is called **Stunt Driver** (not "Daredevil": a Marvel
    hero's name) - fine? Are the paces right (Medic rumoured after 3 patients, known after ~7; Wheelman ~10 minutes of
    fast driving to rumoured)? Fast time (T) fades roles 40x faster in real time because fading runs on the game clock -
@@ -99,10 +103,6 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
 - Storeys v2: basements, shooting between floors through windows, noise and blasts through floors (WEB_STOREYS §0.4).
 - **Then the Phoenix ring** (Robert, 2026-10-22: metros ~3 km, cities ~1.5 km, holdouts as they are; WEB_STREAMING
   decision 5): the 920 m island stays downtown, a generated living ring out to ~1.5 km, then LA, El Paso, the cities.
-- **bounty-run no longer completes** (critic sweep, 2026-10-22): 3/6 kills, $0. The game outgrew the scenario - Ike
-  asleep behind a locked door at night (it retried for game days), walking into a firefight, every camp empty on a full
-  lap (the faction sim moves the Dustwolves), `walk` while still in a car. Make it play like a person (wake/kick, engage,
-  find live Dustwolves through `map`/`query`, exit before walking) so it's a real end-to-end check again.
 - Merge and land the two subagent branches (above).
 - **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
   city, characters, interiors).
