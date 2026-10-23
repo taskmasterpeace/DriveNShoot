@@ -37,7 +37,7 @@ export class Survival {
     const S = this.sleep;
     if (S) {
       S.slept += hours;
-      if ((this.watchT -= dt) <= 0) { this.watchT = 0.5; const t = this.threat(SLEEP.wakeR); if (t) { this.wake(`${t} close by`); return; } }
+      if ((this.watchT -= dt) <= 0) { this.watchT = 0.5; const t = this.threat(SLEEP.wakeR * (g.sheet?.fx.wakeMul ?? 1)); if (t) { this.wake(`${t} close by`); return; } } // a light sleeper hears them sooner (data/creator.js)
     }
     const sprinting = !S && p.speed > 5 && !p.inVehicle, hot = g.sky.phase === 'DAY', F = N.fever;
     let regen = 1, maxSt = 1, vig = 0, hpPerMin = 0, sway = 1, micro = false;
@@ -47,6 +47,7 @@ export class Survival {
       else {
         let mul = S ? SLEEP.drain : (sprinting ? def.sprint : 1) * (hot ? def.dayHeat : 1);
         if (key === 'food' && F) mul *= FEVER.foodDrain;
+        mul *= g.sheet?.fx.drain[key] ?? 1; // an iron gut, a dry mouth (the traits you were made with, data/creator.js)
         N[key] = Math.max(0, N[key] - def.drainPerHour * mul * hours);
       }
       const pip = this.pip(N[key]);

@@ -57,6 +57,8 @@ import { QOL } from './ui/qol.js';
 import { startBridge } from './agent/bridge.js';
 import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
+import { Creator } from './systems/creator.js';
+import { CreatorUI } from './ui/creator.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -195,6 +197,8 @@ class Game {
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.api = new AgentAPI(this);
     this.title(ui);
+    this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
+    this.creatorUI = new CreatorUI(this); // its screen, and MAKE A SURVIVOR on the title
   }
 
   // ---- population ----------------------------------------------------------------

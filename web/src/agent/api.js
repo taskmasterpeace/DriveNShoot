@@ -25,6 +25,7 @@ import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/au
 import { LAB_SAMPLES } from '../data/authored.js';
 import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
+import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -1727,6 +1728,7 @@ function buildCommands(api) {
       args: { save: { type: 'object', required: true } },
       run: async ({ save }) => restore(g, save),
     },
+    ...creatorCommands(api), // creator, sheet
     selftest: {
       group: 'script', budget: 300, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery).',
       args: { only: { type: 'string' } },
@@ -4670,6 +4672,7 @@ async function runSelfTest(api, only = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  await creatorChecks({ api, g, C, check, snapshot, restore, stage, hush }); // the point-buy, BEGIN, the sheet through a save, the pad alone
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -4707,6 +4710,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
   };
 }
 
@@ -4750,6 +4754,7 @@ export function restore(g, s) {
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
+  if ('sheet' in s) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;
