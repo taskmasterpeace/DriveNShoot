@@ -5,7 +5,7 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`3a86f7b3`** (word that hops; 97/97 twice on fresh pages): everything below, landed by fast-forward
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`a85b2092`** (streamed Arizona merged; 106/106 twice on fresh pages): everything below, landed by fast-forward
 from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
 `.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
 `git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 97/97 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 106/106 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,9 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Streamed Arizona (subagent) | WEB_STREAMING P1: chunks, pools, chunked collision, a 1 km nav window, I-10 from Los Angeles to El Paso through Phoenix with real interchanges (deceleration lanes, gores, EXIT signs in miles), mesas, convoys on the interstate, radar + big map past the island; 9 checks; 60 s flat out on the bike = 2.6 km with 0 stalls, ~73 draw calls | WEB_STREAMING §1.2 | a85b2092 |
+| Long commands | the CLI and the MCP server wait out a scenario (node:http, not fetch's 300 s) | web/AGENTS.md | 61967fa6 |
+| Golden hour, siege, minimap ring | the hour around sunset stays readable from above (sky fill); zombie-siege waits for the first pane; a running witness reads on the minimap | — | da4d36e3 · 51f008e5 · 1ea6cd88 |
 | Word that hops | when a faction first learns a deed, the factions on speaking terms with it (relation ≥ 30) hear it secondhand 1-2.5 minutes later at cohesion x relation/100 (Rust Haven hears a drifter killing from the drifters at 0.28); no stars, one hop, a faction learns a deed once; Rust Haven and the drifters now mind each other's dead | WEB_WORLD_MEMORY §3.8 | 3a86f7b3 |
 | Witnesses run home | a witness to a theft, carjack, robbery or killing runs to their people's hub to tell it (red ring on the minimap, WITNESS tag); the word lands when they arrive. Stop them: kill them (a silence), hold a gun on them (most fold: a threat in the book instead), or catch them and pay ($20 + $15 a deed's weight, x2 named). `runners` command | WEB_WORLD_MEMORY §3.7 | 25d4d3e6 |
 | Roles (subagent) | ten roles you become by what you keep doing (wheelman, medic, scavenger, deputy, Dustwolf rider, trader, stunt driver, ghost, good Samaritan, butcher): renown, tiers with hysteresis, game-clock fading, standing bias, prices, refusals, greetings, jobs and offices, the role call, role tapes on the HUD, WHAT THEY CALL YOU in the pause menu | WEB_ROLES | 18745046 |
@@ -60,11 +63,9 @@ Gotchas (all paid for):
 | The pack | 33 items, weight + litres, uses, spoilage, PACK screen, V quick-use, searchable dead, trunks | WEB_INVENTORY | 143c8d1 |
 | Morning digest, jumps, HUD, ATV, garage, survival, skills, world memory 1-4, fan service + IP, playtest fixes | see each doc | — | eac5ddd … 03011b2 |
 
-## In flight (subagents, branches of their own)
-- **Streaming P1** (`worktree-agent-a222c78142bb03d72`, worktree `.claude/worktrees/agent-a222c78142bb03d72`): streamed
-  Arizona (chunks, pools, chunked collision, a nav window, I-10 with real interchanges, the usmap importer). Merged
-  feat/web-engine at 9d8e644b into itself; merges into the session branch with no conflicts (preview).
-When each reports: review, merge into the session branch, selftest twice on fresh pages + stress A/B, land.
+## In flight
+Nothing: streaming P1 merged (a85b2092). Its own list of what P1 left out (people/traffic/loot past Phoenix, saves out
+there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREAMING §1.2.
 
 ## Robert's answers (2026-10-22)
 - **Scale:** ten minutes Miami→Orlando is **flat out**. (Still open: the MOTORCYCLE at 52 m/s or the LAWMAN at 46 as the
@@ -74,7 +75,11 @@ When each reports: review, merge into the session branch, selftest twice on fres
   several at once, each opening its own dialogue, jobs, prices and enemies.
 
 ## Open questions for Robert
-1. Which vehicle sets the scale (bike 52 m/s or LAWMAN 46)? How far an exit's access road may run? Bigger cities?
+1. **Scale, measured** (streaming P1): no rig reaches its row's top speed flat out on I-10 - LAWMAN 37.5 m/s (row 46),
+   MOTORCYCLE 44.7 (row 52), DUNE BUGGY 35.5. Which vehicle sets the scale, and do we scale to the measured speed
+   (K ~4.2 on the LAWMAN, 5.05 on the bike) or tune the driving model up to the rows? Cap exit access roads (the data's
+   median is 2.7 km)? Bigger cities (towns are the Godot layout's few hundred metres)? Is I-10 ending at Los Angeles'
+   first street fine until P4?
 2. **The Federal Remnant:** should it join the off-screen faction sim (skirmishes with the Dustwolves, places to lose)?
    Should storms and fog shorten a sentry's sight? Should the garrison replace its dead, and should stealing the
    ARMORED CARRIER send troopers after you?
@@ -89,6 +94,10 @@ When each reports: review, merge into the session branch, selftest twice on fres
    wanted?
 
 ## Next blocks
+- **bounty-run no longer completes** (critic sweep, 2026-10-22): 3/6 kills, $0. The game outgrew the scenario - Ike
+  asleep behind a locked door at night (it retried for game days), walking into a firefight, every camp empty on a full
+  lap (the faction sim moves the Dustwolves), `walk` while still in a car. Make it play like a person (wake/kick, engage,
+  find live Dustwolves through `map`/`query`, exit before walking) so it's a real end-to-end check again.
 - Merge and land the two subagent branches (above).
 - **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
   city, characters, interiors).
