@@ -157,8 +157,8 @@ everything past the island. From the street the island reads as a walled holdout
 the whole arc is that **the ring must be alive, not scenery**. R1 (this section) is the city itself, which you can walk
 into and search. R2 (residents) and R3 (traffic) are designed below but not built.
 
-**What is there.** The ring has __BLOCKS__ blocks and __BUILDINGS__ buildings (__RUINED__ of them ruined shells open to
-the sky, __EMPTY__ lots left empty). By kind: __KINDS__. By zone: __ZONES__ blocks.
+**What is there.** The ring has 901 blocks and 2,477 buildings (926 of them ruined shells open to
+the sky, 1,294 lots left empty). By kind: 1,093 houses, 541 bungalows, 243 duplexes, 152 workshops, 99 warehouses, 82 strip malls, 117 fuel stops and 150 diners. By zone: 288 THE BURN, 249 THE DEAD HOUSES, 190 THE STRIP and 174 THE YARDS blocks.
 - **Streets** follow the island's own lattice (`world/city.js`: a road every 80 m, 14 m wide), carried outward. Every
   fourth line is a 20 m arterial (x or z = 0, ±320, ±640, ±960, ±1,280). A street exists wherever a city block lies
   beside it, so the grid starts with a road that hugs the island 16 m off its edge and stops where the blocks stop.
@@ -221,17 +221,17 @@ the world seed and the I-10 centreline, and every cache can be dropped.
   yields every 6 buildings. Kerb wrecks and the rail come last, and the minimap tile is painted as before. Ring street
   crossings join the edge signatures.
 
-**The gates, measured** (__DATE__, RTX 4090, headless Chrome, a fresh page or a fresh browser per run).
+**The gates, measured** (2026-10-22, RTX 4090, headless Chrome, a fresh page or a fresh browser per run).
 
 | Gate | Measured |
 |---|---|
-| island golden hash | __GOLDEN__ |
-| chunk layout cost | __LAYOUT__ |
-| pool fills | __POOLS__ |
-| draw calls, widest zoom over the densest chunk | __DRAWS__ |
-| stream-drive | __SD__ |
-| stress A/B (ABBA, a fresh Chrome per leg, against `feat/web-engine` a605cf45) | __AB__ |
-| selftest | __ST__ |
+| island golden hash | `islandMatches: true`; nothing streamed inside the island (the existing check, now with the ring around it) |
+| chunk layout cost | the live streamer over 453 chunks built in a battery: p50 1.3, p95 4.4, max 10.2 ms. Dense ring chunks laid out cold (8 chunks × 3 runs, every ring cache dropped first): p50 4.3 and p95 9.2 ms of work, of which the ring stage is p50 2.3 and max 6.4 ms, in slices of p50 0.7 ms (the stage yields every 3 buildings). The whole ring cold (212 chunks): p50 5.1, p95 11.9 ms. Single 28 to 49 ms outliers were major GCs from the survey's own allocations, and do not repeat |
+| pool fills | per chunk at most (all 212 ring chunks): 866 walls, 610 props, 90 roofs, 54 floors (budget 84 buildings; the densest has 54). The caps were set from that × 12 hot chunks: walls 12,000, roofs 4,000, floors 1,000, props 24,000. Hot over the densest chunk: walls 3,238/12,000, props 2,351/24,000, roofs 273/4,000, floors 184/1,000, never full (here or in stream-drive) |
+| draw calls, widest zoom over the densest chunk | 73 by day, 75 at night in an acid storm (HIGH zoom, chunk 0,-3, 54 buildings). In stream-drive's ring phase at HIGH plus the speed lift (camera at 175 m): 118 on the freeway, 86 up the arterial |
+| stream-drive | gate: 2,601 m on the MOTORCYCLE, 0 cross and 0 promote stalls, 78-79 draw calls (73 before the ring), frame p95 9.9-10.1 ms against 8.9-9.1. The frame max of 44-52 ms is the same before the ring. The perf phase (past the ring) is unchanged: 75 calls, 0 stalls. The ring phase: 0 cross and 0 promote stalls, pump p95 0.2 ms, max 4.6 |
+| stress A/B (ABBA, a fresh Chrome per leg, against `feat/web-engine` a605cf45) | against a605cf45, 16 legs on a loaded machine: 5.47 against 5.45 ms per frame (mean), 70-71 calls on both. Against 20a7758c after the last merge, 8 legs: 3.37 against 3.27 ms (medians 3.44 against 3.26), 70.75 calls on both. No cost: stress stands in the island, and the ring chunks it lays out on its first step cost about 5 ms each |
+| selftest | **120/120** (115 + 5 ring checks), twice on fresh pages on the merged tree |
 
 **Not in R1** (deliberately): door leaves, locks and glass on ring buildings (the island's `interiors.js` stays
 island-only: thousands of door rows streamed in and out need the interiors system to take chunk-registered rows first),
