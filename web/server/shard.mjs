@@ -181,6 +181,7 @@ async function handle(S, msg) {
     case 'enter': {
       const c = store.charsOf(S.user).find((x) => x.id === msg.char || x.name.toLowerCase() === String(msg.char ?? '').toLowerCase());
       if (!c) return err(S, 'char', 'no such character on this account', t);
+      if (c.gone) return err(S, 'gone', `${c.name} died flat (no pressing in the brine): that character is over`, t); // WEB_CLONE_TRAVEL.md
       for (const o of inWorld()) if (o !== S && o.char.id === c.id) { send(o, { t: 'kicked', why: `${c.name} logged in somewhere else` }); leaveWorld(o, 'logged in elsewhere'); }
       leaveWorld(S, 'switched character');
       S.char = c; S.enteredAt = Date.now(); S.pres = c.data?.pos ? { x: c.data.pos.x, z: c.data.pos.z, y: c.data.pos.gy ?? 0, f: c.data.pos.face ?? 0, s: 0, w: null, a: 0, hp: c.data.hp ?? 100, d: 0 } : null; S.presAt = Date.now();
@@ -200,6 +201,7 @@ async function handle(S, msg) {
       if (sizeOf(d) > LIMITS.saveBytes) return err(S, 'save', `a character save is ${LIMITS.saveBytes} bytes at most`, t);
       if (!d.pos || !num(d.pos.x) || !num(d.pos.z)) return err(S, 'save', 'save needs pos {x, z}', t);
       S.char.data = d; S.char.lastSeen = new Date().toISOString();
+      if (d.clone?.flat && !S.char.gone) { S.char.gone = { at: S.char.lastSeen }; log(`${S.char.name} died flat: gone for good`); } // no pressing in the brine (WEB_CLONE_TRAVEL.md)
       if (d.standing && typeof d.standing === 'object') {
         const st = {};
         for (const [f, v] of Object.entries(d.standing)) if (id40(f) && num(v, 1000)) st[f] = Math.round(v * 10) / 10;

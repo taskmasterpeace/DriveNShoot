@@ -263,6 +263,7 @@ export class Shard {
       house: this.char?.house ?? null,
       sheet: g.creator?.save() ?? null, gear: g.gear?.save(), // who you were made as (data/creator.js) and what you wear (additive: an older record has neither)
       ...(g.creator?.pending ? { sheetPending: true } : {}), // made on the shard, the creator not finished yet: it opens again at the next login
+      clone: g.clone?.save() ?? null, // your pressing, the brine book, your husks; flat: the shard lets this character in no more (WEB_CLONE_TRAVEL.md)
     };
   }
 
@@ -287,6 +288,7 @@ export class Shard {
     if (d.roles) g.roles.load(d.roles);
     if (d.society?.factions) { g.society.factions.load(d.society.factions); for (const c of g.chars) g.society.factions.assign(c); }
     if (d.society?.memory) g.society.memory.load(d.society.memory);
+    if (d.clone) g.clone?.load(d.clone);
     g.camLook.x = p.x; g.camLook.z = p.z;
     g.streamer?.ensureHot(p.x, p.z, 'load');
     // Your car, where you left it.
