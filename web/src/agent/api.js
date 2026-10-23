@@ -828,9 +828,28 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters.',
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected).',
       args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
       run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
+    },
+    infected: {
+      group: 'world', desc: "The infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md). With no args: every sprinter (dormant / burst / overheat), Echo (frozen while you watch it, what it is at) and Choir-Touched (its aura) alive, the choir sites, the counters. kind=sprinter|echo|choir|shambler spawns one at x,z (an Echo works at the boarded window or locked door nearest it); site=<id> wakes a choir site now; burst=<id> breaks a sprinter.",
+      args: { kind: { type: 'string', enum: ['shambler', 'sprinter', 'echo', 'choir'] }, x: { type: 'number' }, z: { type: 'number' }, site: { type: 'string' }, burst: { type: 'string' } },
+      run: async ({ kind, x, z, site, burst }) => {
+        const Z = g.zombies;
+        if (kind) { const c = Z.spawnKind(kind, x ?? P().x + 12, z ?? P().z); need(c, 'character budget full'); return { id: c.id, kind }; }
+        if (site) { const s = Z.sites.find((q) => q.id === site); need(s, `no choir site ${site} (${Z.sites.map((q) => q.id).join(', ')})`); const r = Z.wakeSite(s, true); need(r, 'that site already has its Choir-Touched'); return r; }
+        if (burst) { const c = api.findChar(burst); need(c?.zkind === 'sprinter', `${burst} is not a sprinter`); return { broke: Z.burst(c, 'agent'), state: c.zs.state }; }
+        const near = (c) => r1(Math.hypot(c.x - P().x, c.z - P().z));
+        const live = g.chars.filter((c) => c.alive && c.faction === 'zombie' && c.zkind);
+        return {
+          sprinters: live.filter((c) => c.zkind === 'sprinter').map((c) => ({ id: c.id, state: c.zs.state, t: r1(c.zs.t), pace: r1(c.zSpeed), dist: near(c) })),
+          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
+          choir: live.filter((c) => c.zkind === 'choir').map((c) => ({ id: c.id, site: c.site ?? null, target: c.ztarget?.id ?? null, inAura: g.chars.filter((o) => o.alive && o.faction === 'zombie' && o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 30).length, dist: near(c) })),
+          sites: Z.sites.map((q) => ({ id: q.id, name: q.name, x: q.x, z: q.z, lastNight: q.night })),
+          counts: { ...Z.counts },
+        };
+      },
     },
     zombies: {
       group: 'world', desc: 'Turn night herd spawning on/off (the infected already out stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
@@ -1873,8 +1892,9 @@ async function runSelfTest(api) {
   });
   await check('the infected cannot swim: they stop at the waterline', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 395, z: 398 });
+    await C('teleport', { x: 372, z: 398 }); // swimming, 6 m deep, 42 m off the shore: inside their 45 m smell, so they come
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
+    for (const id of ids) { const c = api.findChar(id); if (c) { g.zombies.burst(c, 'check'); c.ztarget = g.player; } } // at full tilt (sprinters wait for a reason)
     await C('step', { seconds: 6 });
     const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && !c.grabbing && g.water.depthAt(c.x, c.z) > 0.7); // hanging off a boat isn't swimming
     const why = wet.map((c) => ({ id: c.id, x: r1(c.x), z: r1(c.z), depth: r1(g.water.depthAt(c.x, c.z)), target: c.ztarget?.id ?? null }));
@@ -2750,6 +2770,7 @@ async function runSelfTest(api) {
     await C('teleport', { x: box.x + 1, z: box.z + 0.6 });
     const home = { x: reyes.x, z: reyes.z };
     reyes.x = g.player.x + 0.7; reyes.z = g.player.z + 0.3; reyes.hold = 1.5; // at your shoulder
+    reyes.gy = 0; g.standOn(reyes); // on your floor: her clinic has stairs now, and a stale height would keep her upstairs (world/storeys.js)
     inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
     const seq0 = g.eventSeq;
     const took = (await C('item', { take: 'bandage', n: 2 })).moved;
@@ -3598,6 +3619,80 @@ async function runSelfTest(api) {
     const street = +p.gy.toFixed(2);
     return upstairs === +S.Y[1].toFixed(2) && street === 0 ? true : JSON.stringify({ upstairs, street, want: S.Y[1] });
   });
+  // ---- the infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md) ----
+  const zdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  await check('infected: a sprinter walks like a shambler until you run near it - then 6 s at 9 m/s, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    const p = g.player, c = g.zombies.spawn(p.x + 14, p.z, true);
+    try {
+      await C('step', { seconds: 2 }); // you stand still: it comes at a shambler's walk
+      const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler';
+      g.input.down.add('ShiftLeft');
+      await holdKey('KeyA', 1.5, () => c.zs.state === 'burst'); // you run (away)
+      g.input.down.delete('ShiftLeft');
+      const broke = c.zs.state === 'burst';
+      let top = 0;
+      for (let t = 0; t < 1.5; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); }
+      let over = false;
+      for (let t = 0; t < 7 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
+      await C('step', { seconds: 0.5 });
+      const still = over && c.speed < 0.1 && c.crouch;
+      let back = false;
+      for (let t = 0; t < 5 && !back; t += 0.25) { await C('step', { seconds: 0.25 }); back = c.zs.state === 'dormant'; }
+      return dormant && walk < 3 && broke && top > 8 && still && back && c.zSpeed < 3 ? true : JSON.stringify({ dormant, walk, broke, top: +top.toFixed(2), over, still, back, pace: c.zSpeed });
+    } finally { g.input.down.delete('ShiftLeft'); g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
+  }));
+  await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {
+    const I = g.interiors, n = g.nav.foot;
+    const W = I.windows.find((w) => w.state === 'boarded' && w.boardSide === 1 && n.free(w.x + w.nx * 1.2, w.z + w.nz * 1.2) && n.free(w.x + w.nx * 8, w.z + w.nz * 8) && g.los(w.x + w.nx * 1.2, w.z + w.nz * 1.2, w.x + w.nx * 8, w.z + w.nz * 8));
+    if (!W) return 'no window boarded from outside with clear ground in front';
+    const hp0 = W.boardHp, post = { x: W.x + W.nx * 0.85, z: W.z + W.nz * 0.85 };
+    await C('teleport', { x: W.x + W.nx * 8, z: W.z + W.nz * 8 });
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && zdist(c, W) < 30) g.removeChar(c);
+    const e = g.zombies.spawnKind('echo', post.x, post.z, post);
+    let drift = 0;
+    try {
+      g.aimOverride = { x: e.x, z: e.z }; // you watch it
+      for (let t = 0; t < 4; t += 0.25) { await C('step', { seconds: 0.25 }); drift = Math.max(drift, zdist(e, post)); }
+      const watched = { frozen: !!e.frozen, hp: W.boardHp };
+      const P = g.player;
+      g.aimOverride = { x: P.x - (e.x - P.x), z: P.z - (e.z - P.z) }; // you look away
+      for (let t = 0; t < 4; t += 0.25) { await C('step', { seconds: 0.25 }); drift = Math.max(drift, zdist(e, post)); }
+      const away = { frozen: !!e.frozen, hp: W.boardHp };
+      const near = zdist(e, g.player);
+      return watched.frozen && watched.hp === hp0 && !away.frozen && away.hp < hp0 && drift < 1.6 && near > 6 ? true : JSON.stringify({ hp0, watched, away, drift: +drift.toFixed(2), near: +near.toFixed(1), work: e.work ? (e.work.W?.id ?? e.work.door?.id) : null });
+    } finally {
+      g.aimOverride = null;
+      if (g.chars.includes(e)) g.removeChar(e);
+      if (W.state === 'boarded') { W.boardHp = hp0; I.syncBoards(W); } else I.board(W, 1);
+    }
+  }));
+  await check('infected: the Choir-Touched hums; the infected in its aura move x1.25 and share its target; kill it and the hum and the aura die together', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    const Z = g.zombies, S = Z.sites[0];
+    const r = Z.wakeSite(S, true);
+    if (!r) return 'the site did not wake';
+    const q = api.findChar(r.choir), herd = r.herd.map((id) => api.findChar(id)).filter(Boolean);
+    try {
+      await C('teleport', { x: S.x + 22, z: S.z });
+      await C('step', { seconds: 2 });
+      const inAura = herd.filter((c) => c.alive && zdist(c, q) < 30);
+      const fast = inAura.length > 0 && inAura.every((c) => c.auraMul === 1.25);
+      const shared = q.ztarget === g.player && inAura.every((c) => c.ztarget === g.player);
+      const h0 = Z.counts.hums;
+      await C('step', { seconds: 3 });
+      const humming = Z.counts.hums > h0;
+      await C('kill', { id: q.id });
+      await C('step', { seconds: 0.2 });
+      const slow = herd.filter((c) => c.alive).every((c) => c.auraMul === 1);
+      const h1 = Z.counts.hums;
+      await C('step', { seconds: 3 });
+      const silent = Z.counts.hums === h1;
+      return fast && shared && humming && slow && silent ? true : JSON.stringify({ inAura: inAura.length, fast, shared, target: q.ztarget?.id ?? null, humming, slow, silent });
+    } finally { g.godMode = false; for (const c of [q, ...herd]) if (c && g.chars.includes(c)) g.removeChar(c); S.night = -1; }
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;

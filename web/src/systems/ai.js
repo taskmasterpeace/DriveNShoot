@@ -205,6 +205,7 @@ export class AI {
           // Revive essential NPC at home.
           c.alive = true; c.hp = c.maxHp; c.headless = false; c.blood = 0.3; c.neckSpray = 0; c.bleed = 0;
           c.x = c.home.x; c.z = c.home.z; c.target = null; c.grudge = null;
+          c.gy = 0; c.storey = null; this.g.standOn(c); // home is on the street floor, whatever floor they went down on (world/storeys.js)
           g.charR.paint(c); g.emit('revived', { id: c.id, name: c.npc.name });
           continue;
         }
