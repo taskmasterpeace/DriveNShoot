@@ -169,7 +169,10 @@ export class MapView {
       const L = this.land, k = L ? Math.min(1, Math.max(0, (this.view.s - (this.landFrom ?? 0.03)) / 0.05)) : 0;
       if (k > 0) {
         const K = STREAM.K, [px, py] = STREAM.PHX, lx0 = this.sx(L.x0 / K + px), ly0 = this.sy(L.z0 / K + py);
-        g.globalAlpha = k; g.drawImage(L.canvas, lx0, ly0, (L.w / K) * this.view.s, (L.h / K) * this.view.s); g.globalAlpha = 1;
+        // Close in, a baked sample (two cells, 64 m) spans many pixels: soften it so the landcover reads as country, not camo.
+        const pxs = ((L.w / K) * this.view.s) / L.canvas.width;
+        if (pxs > 3) g.filter = `blur(${Math.min(8, pxs * 0.45).toFixed(1)}px)`;
+        g.globalAlpha = k; g.drawImage(L.canvas, lx0, ly0, (L.w / K) * this.view.s, (L.h / K) * this.view.s); g.globalAlpha = 1; g.filter = 'none';
       }
       // Graticule every 2.5 km of usmap (a surveyor's grid), faint.
       const step = this.view.s > 0.12 ? 500 : this.view.s > 0.03 ? 2500 : 10000;

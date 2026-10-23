@@ -14,7 +14,9 @@ import { SPECIES, FLORA_KINDS, floraHash, floraVariant, poolName } from './flora
 
 const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const keyOf = (cx, cz) => `${cx},${cz}`;
-const hexRgb = (h) => { const n = parseInt(String(h).replace('#', ''), 16); return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]; };
+// Instance colours are LINEAR (three.js colour management, as chunkgen's col() gives them): sRGB hex -> linear.
+const lin = (v) => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+const hexRgb = (h) => { const n = parseInt(String(h).replace('#', ''), 16); return [lin(((n >> 16) & 255) / 255), lin(((n >> 8) & 255) / 255), lin((n & 255) / 255)]; };
 function fnv(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16).padStart(8, '0'); }
 
 // One stroke in world metres: its segments, bounds and falloff.
@@ -186,6 +188,11 @@ export function* brushStage(B, ctx) {
     }
     n.cleared = gone.length / 2;
   }
+  // A hot zone withers what grows in it: the desert's shrubs go a dead grey-brown (no draws, colour only).
+  if (L.has('rad')) {
+    const SICK = K.radWither ?? [0.11, 0.085, 0.045], b = INST.shrubs; // linear: dead grey-brown
+    for (let i = 0; i < b.n; i++) { const r = B.sample('rad', b.m[i * 16 + 12], b.m[i * 16 + 14], 0); if (r > 0) for (let c = 0; c < 3; c++) b.c[i * 3 + c] += (SICK[c] - b.c[i * 3 + c]) * r; }
+  }
   // Trees on a jittered grid (forest), each cell four draws whatever happens there.
   if (L.has('forest')) {
     const cell = 100 / Math.sqrt(K.forestPerHa ?? 92), N = Math.floor(C / cell), step = C / N;
@@ -243,7 +250,7 @@ export function* brushStage(B, ctx) {
       const x = ox + rng() * C, z = oz + rng() * C, s = 6 + rng() * 10, v = rng();
       const r = B.sample('rad', x, z, 0);
       if (v >= r || blocked(x, z, 2)) continue;
-      INST.glows.push(x, 0.11, z, 0, s, 1, s, 0.62, 0.95, 0.2);
+      INST.glows.push(x, 0.11, z, 0, s, 1, s, 0.3, 0.85, 0.06); // acid green (additive, linear)
       n.glows++;
     }
     for (let q = 0, m = Math.ceil((K.radDrumPerHa ?? 0.7) * ha); q < m; q++) {
@@ -252,10 +259,10 @@ export function* brushStage(B, ctx) {
       if (v >= r || blocked(x, z, 2.2)) continue;
       for (let d = 0; d < cnt; d++) {
         const px = x + Math.cos(rot + d * 1.9) * (d ? 1.1 : 0), pz = z + Math.sin(rot + d * 1.9) * (d ? 1.1 : 0), tip = d === 3;
-        INST.barrels.push(px, tip ? 0.45 : 0.55, pz, rot + d, 1, tip ? 0.82 : 1, 1, 0.42 + 0.1 * d, 0.36 + 0.05 * d, 0.12);
+        INST.barrels.push(px, tip ? 0.45 : 0.55, pz, rot + d, 1, tip ? 0.82 : 1, 1, 0.2 + 0.05 * d, 0.13 + 0.03 * d, 0.03); // rusted yellow drums (linear)
         addBox(px - 0.45, pz - 0.45, px + 0.45, pz + 0.45, 'barrel', 1.1);
       }
-      INST.glows.push(x, 0.12, z, 0, 7, 1, 7, 0.55, 0.9, 0.15);
+      INST.glows.push(x, 0.12, z, 0, 7, 1, 7, 0.28, 0.8, 0.05);
       n.drums++;
     }
   }
