@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
 import { WEAPONS } from './combat.js';
 import { LEVEL } from '../data/storeys.js';
+import { PROGRAMMES } from '../data/floorplans.js';
 
 // What you carry and what the world holds (docs/design/WEB_INVENTORY.md). Everything is an item in a container,
 // rounds included. The guns you carry are your loadout (g.inv.weapons: holster and sling, outside the list, quick
@@ -487,8 +488,12 @@ export class Inventory {
       if (!bld) continue;
       const id = `box:${Math.round(x * 10)}:${Math.round(z * 10)}${b.storeyLv ? `:L${b.storeyLv}` : ''}`, h = hash(id); // upstairs (world/storeys.js): its floor in the id
       const shop = bld.shopName?.split(' · ')[0] ?? null;
-      const table = SHOP_LOOT[shop] ?? (b.tag === 'crate' ? (h % 3 ? 'kitchen' : 'garage') : HOME_LOOT[h % HOME_LOOT.length]);
-      const box = this.place(id, table, x, z, b.tag === 'crate' ? 60 : 40, `${b.tag === 'crate' ? 'CRATE' : 'SHELF'}${shop ? ` · ${shop.toUpperCase()}` : ''}`, h);
+      // A planned building's pieces carry their room's table and their own label (world/city.js, world/storeys.js): a
+      // keeper's shop rooms keep the trade's (SHOP_LOOT); their kitchen, bedroom and bath upstairs or behind are their home.
+      const work = !b.storeyLv && (!b.room || PROGRAMMES.working.includes(b.room));
+      const table = (work ? SHOP_LOOT[shop] : null) ?? b.loot ?? SHOP_LOOT[shop] ?? (b.tag === 'crate' ? (h % 3 ? 'kitchen' : 'garage') : HOME_LOOT[h % HOME_LOOT.length]);
+      const what = b.label ?? (b.tag === 'crate' ? 'CRATE' : 'SHELF');
+      const box = this.place(id, table, x, z, b.tag === 'crate' ? 60 : 40, `${what}${shop ? ` · ${shop.toUpperCase()}` : bld.label ? ` · ${bld.label}` : ''}`, h);
       if (b.base > 0) box.y = b.base; // reachable from its own floor only (nearest)
       const keeper = shop && keepers.find((c) => c.npc.title === bld.shopName);
       if (keeper) { box.owner = keeper.id; box.ownerName = keeper.npc.name; }

@@ -118,3 +118,122 @@ their walls are mostly doors and glass.
   parts per piece, or building furniture only when a chunk goes hot (collision boxes would have to come later too).
 - Warehouses keep the old shell (one floor and a corner office). The ring still has no door leaves, locks or glass, and
   no upstairs (`storeys.js` is the island's).
+
+## The island (built 2026-10-23, the same day)
+
+The ring got its floor plans first; the Phoenix island's own enterable buildings - Rust Haven's 12, 55 Old Phoenix ruins
+and 9 shacks out in the Glass Flats, 76 in all - were still the old shell: one or two rooms split by a single wall, crates,
+tables and bedrolls dropped at random. Now every one of them has a **programme** (what the building is) and a floor plan
+from the same solver, the same furniture rows and the same nav proof as the ring, laid out for its own footprint.
+
+### What each building is
+
+| Building | Programme | Rooms |
+|---|---|---|
+| shop 0 | Doc Reyes's **clinic** (the respawn point) | waiting room (the desk, rows of chairs, armchairs), a ward of cots, two exam rooms (exam table, basin, medicine cabinet), the pharmacy (shelves, a medicine cabinet), Doc's office and a restroom, the exam rooms off their own hall |
+| shop 1 | Ike's **gun shop** | the shop (counter and display counters, gun racks on the walls, a bench with a vise, shelves), a stock room and an office behind it; Ike's quarters across the back off their own hall: kitchen, bathroom, bedroom, a living room when the building is wide |
+| shop 2 | Kenji's **garage** | the garage (tool benches, stacked tyres, racks, crates) + the same stock room, office and quarters |
+| shop 3 | Mags's **water shop** | the shop (counter, water tanks - containers, the water is in them) + the same |
+| shop 4 | **STATIC 1660 AM** | the studio (broadcast desk, record shelves, a couch and armchairs for guests) + the same |
+| shops 5, 9 | **TRADING POST**, **GENERAL STORE** | sales floor (counter, wall shelves, gondolas down the middle), stock room(s), office, restroom |
+| shops 6, 11 | **CANTINA** | bar room (the bar with its bottles, booths along the walls, tables set for four down the middle), kitchen, stock room, restroom |
+| shops 7, 8, 10 | **BOARDING HOUSE** | lobby (the desk, armchairs, a table), a parlour and a kitchen, a hall of five rooms to let (a single bed, nightstand, dresser each), a shared bath |
+| the ruins | **OLD HOUSE / OLD OFFICES / OLD SHOP**, by weight 5 : 2.5 : 2.5 from the building's own seed | a house of 2-4 bedrooms and a bath off a side hall, living room and kitchen across from them (a family room beside the kitchen when wide); an open office floor of desks with offices, a restroom and a store room off a hall; a shop with its stock room, restroom and office |
+| the flats | **SHACK** | one room (a mattress, a stove, a table, crates), or two |
+
+Rows, not code: `PROGRAMMES` (which building is what, the HUD's name for the keeperless ones, a ruin's chance of losing
+each partition), `PLANS` (the layouts) and the island's `ROOMS` and `SCATTER` in `web/src/data/floorplans.js`; the new
+pieces (`seats`, `cot`, `extable`, `medcab`, `gunrack`, `workbench`, `tyres`, `tank`, `console`, `records`, `bar`,
+`gondola`, `ctable`) are `FURNITURE` rows in `web/src/data/ring.js`, which the ring never places; `QUARTERS` (upstairs)
+in `web/src/data/storeys.js`.
+
+### Sizes, and why
+
+Rust Haven's buildings are 16-24 x 14-22 m, the ruins 13-24 x 12-22 and the shacks 9-13 x 8-12: too big for the ring's
+house trees (a 22 m deep house would have a 15 m living room) and too varied for one tree. So an island plan row may say
+what footprint it is for (`size`: interior metres along the front and from front to back, a stair hall's 4.5 m left out),
+and a column of rooms that must stay room-sized carries a cap (`{ max }`): bedrooms, baths, exam rooms and kitchens keep
+their rows' sizes, and the big public room - the shop, the bar room, the ward, the lobby, the living room - takes the
+spare metres. The room minimums are the ring's (bedroom 3.0, bath 2.4, kitchen 3.0, living 4.0, a hall exactly 1.3 m
+clear) plus the island's (exam room 3.0-4.2, ward 4.0, a room to let 2.8-3.6, shared bath 2.6-4.0, restroom 2.4-2.8: a
+doorway's 2.4 m of shared wall needs that).
+
+Seen on the island now (interior, short x long): bedroom 3.3-4.5 x 3.6-4.7, bath 2.4-2.9 x 3.3-4.6, room to let 3.0-3.4 x
+3.4-3.8, exam room 3.3 x 4.2, ward 4.9 x 7.4, the keepers' kitchens 3.2-4.6 x 4.8-9.1, gun shop 11.6 x 12.2, garage 10.1 x
+17, bar rooms 14-14.6 x 16-16.4, lobbies 10-12.9 x 13-15.6. 76 buildings, 486 rooms, 1,517 pieces of furniture, 152
+beds; 345 inside doors (16 locked), 613 windows.
+
+### Living above the shop: the stair hall
+
+A building that will rise (world/storeys.js `riseOf`: the same roll from the building's own seed, now asked before the
+plan is laid) gets a **stair hall** in its plan: 4.0 m wide, the full depth of the building along a side wall (or the full
+width along the back when the building is narrow), off the plan's own hall or front room. Not the side a rolled back door
+is on; a building no hall fits does not rise (`b.noRise`; none on the island today). The flight runs up the hall's outside
+wall, standing off it by up to 0.56 m (a stringer shuts the gap) so a 1 m nav cell's centre line runs up its band: flush
+to the wall, the 1.4 m between wall and flank held no cell centre at all about half the time, and nobody's route reached
+the foot of the stairs. The foot is a nav cell on the landing; the hunting AI routes there on the nav grid (rooms and
+doorways away), then onto the first step, then up (`steer`).
+
+Upstairs is **living quarters** (`QUARTERS`): the hall's partition carried up with a doorway off the top landing, a living
+room with the kitchen along its walls (fridge, stove, sink, cupboards, couch, armchairs, TV, rug, a table in the middle
+when it is big) and, beyond a second partition, a bedroom (a double bed, nightstands, dresser, rug, shelf, armchair). The
+floors above that keep the old crates, shelves and mattresses. 19 buildings rise: the clinic, Mags's, a boarding house,
+a cantina and 15 ruins.
+
+### The rules that did not move
+
+- **The main stream**: `world/city.js` makes exactly the draws it always made, so no building, spawn, wreck, tree, lamp
+  or camp moves (checked: every building's bounds and every main-stream static and spawn outside the buildings hash the
+  same as on 1109205b; the only differences are seven trees and five water tanks in Rust Haven's yards, which the
+  holdout's own stream places clear of the doors, and the doors moved). The door rolls are still drawn (a plan moves a
+  door within its wall, never more than 1.65 m from a corner, so a ruin's collapse rolls keep their count); the old
+  partition's rolls and the old furniture's are replayed and thrown away. Plans, inner doors and furniture draw from
+  their own seeded streams (the building's position). Door and window state (`orng`) drifts: windows follow the rooms.
+- **The ring**: its plans are byte for byte what they were. The island borrows the ring's `furnish` / `placeOne` on a
+  furnisher of its own (`world/furnish.js`: `Object.create(Ring.prototype)`; nothing in ring.js changed), and the
+  solver's new options (`stair`, a row's `size`) are ones the ring never passes. The selftest pins it: a fresh ring's
+  every planned building (rooms, partitions, doors, walls, furniture, beds, containers) hashes to `golden.json ringPlans`.
+- **Locks**: some back and inner doors still lock, but a lock is decided after the furniture is in, on the furnished
+  building's probe: every open cell inside must be reached from a door that is not locked, or the lock comes off (an
+  early version decided locks before the furniture, and a sofa plus a locked door sealed a ruin's bedrooms).
+- **Keepers** stand at a post on their front room's open floor (`b.post`), not the building's middle (a closet, now).
+  Their shops' working rooms keep the trade's loot table (inventory.js SHOP_LOOT) and everything in the building is
+  theirs, so trade and theft-as-a-deed are as they were; their kitchen, bedroom and bath roll their rooms' tables.
+- **Loot on the floor**: the old pickups keep their count, each on a reached cell of a room.
+
+### Proof
+
+- `selftest` **140/140 twice on fresh pages** (135 + 5 new): every room of every island building reached by A* from
+  outside its front door and every bed with an open cell beside it; Rust Haven's twelve programmes in order, each with
+  its rooms (a ward with cots, a bed in every keeper's bedroom and every room to let), every room at least its row's
+  size, each keeper at a post in their front room; no furniture in any doorway's clearance, upstairs too; every flight
+  and its landings clear (no furniture, partition or bed on them, no doorway's clearance on the street flight or its
+  foot, nothing upstairs on the top landing) and every flight's foot reached from the front door; the ring's plans
+  unchanged (the pinned hash). One older check follows the new rooms: the keepers sleep behind their shops now, so
+  "a gunshot wakes him" is fired at the one of his shelves nearest his bed (a half-asleep ear reaches 13.5 m).
+- The island's golden hash moved, deliberately: `f0cfcd28` (it was `c3f0f6ca`), the same across reloads.
+- `scenario name=stress`, ABBA with a fresh dev server and Chrome per leg, 16 legs against 1109205b (this branch's parent; the A/B the brief named was against 053b7745, which 1109205b fast-forwards with the lead's wall materials): **5.11 against 4.99 ms per frame (mean), medians 4.66 against 4.81**, 70-71 draw calls on both (A 70-72). Under the 0.2 ms gate; the legs are noisy on this machine (4.0-6.6 ms on both sides). Stress stands in the ruins, whose buildings now hold furniture: more boxes in the island's one props batch, no new draw call.
+
+Renders (`screenshot zoom=16 tilt=0`, standing inside so the roof is hidden; noon; a building deeper than one frame in a
+front and a back shot), in `docs/renders/web/island-rooms/`: `clinic-front/back`, `gunsmith-front/back`,
+`store-trading-post-front/back`, `cantina-front/back`, `boarding-house-front/back`, `ruin-old-house-front/back`,
+`ruin-old-offices-front/back` (a roofless one), `desert-shack`, and the clinic's first floor: `clinic-upstairs-living`,
+`clinic-upstairs-bedroom`.
+
+Read as a critic: the ward (a row of white cots), the cantina (the bar and its bottles, booths, tables set for four), the
+stores (gondolas down the floor), the boarding house (a row of small rooms each with a bed and a coloured blanket, the
+shared bath's two toilets), the old houses (bedrooms down the hall, a bath, a living room with its rug, couch and TV) and
+the offices (desks across the floor) read at a glance. The gun shop reads by its racks and display counters, the garage
+by its tyre stacks and benches. Weaker: the exam rooms (an exam table and a basin, small at this height), the waiting
+room (rows of seats read as low blocks), and the upstairs floors, which are big rooms with their pieces along the walls
+and a lot of bare boards between.
+
+### Open
+
+- **Big rooms**: a ruin's living room can be 12 x 18 m and an office floor 14 x 23 (the absorbers of a big footprint);
+  more rows (a second family room, a conference room) would break them up.
+- **Upstairs** is one living room and one bedroom whatever the floor's size; a bath and a second bedroom upstairs want a
+  second partition row.
+- **Narrow buildings** (14 m) do not fit a stair hall beside a clinic or a boarding house; none of today's rising ones is
+  that narrow.
+- The ring's doc open items stand (loot volume, cost of a furnished shell).

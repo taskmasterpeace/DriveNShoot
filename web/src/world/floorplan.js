@@ -44,10 +44,14 @@ function parse(t) {
   const opt = rest[0] && typeof rest[0] === 'object' && !Array.isArray(rest[0]) ? rest.shift() : {};
   return { split: split === 'u' ? 's' : 'v', opt, kids: rest.map(parse) };
 }
-export function plansOf(kind) {
+// stair (the island's buildings that rise, world/storeys.js): every tree gets a STAIR HALL laid beside it, full depth along
+// a side wall (['u', 'stair', tree]; 'side') or full width along the back wall (['v', tree, 'stair']; 'back'). The ring
+// never asks for one, so its plans are exactly what they were.
+export function plansOf(kind, stair = null) {
   if (!PLANS[kind]) return null;
-  let p = parsed.get(kind);
-  if (!p) parsed.set(kind, (p = PLANS[kind].map((P) => ({ id: P.id, w: P.w, node: parse(P.tree) }))));
+  const key = stair ? `${kind}|${stair}` : kind;
+  let p = parsed.get(key);
+  if (!p) parsed.set(key, (p = PLANS[kind].map((P) => ({ id: stair ? `${P.id}+stair` : P.id, w: P.w, size: P.size, node: parse(stair === 'side' ? ['u', 'stair', P.tree] : stair === 'back' ? ['v', P.tree, 'stair'] : P.tree) }))));
   return p;
 }
 const entryOf = (n) => (n.room ? (n.R.entry ? n.room : null) : n.kids.map(entryOf).find(Boolean) ?? null);
@@ -190,14 +194,15 @@ function join(out, ctx) {
 
 // ---- floorplan() ----------------------------------------------------------------------------------------------------
 // opts: { x0, z0, x1, z1 (wall centre lines), front: 'N'|'S'|'W'|'E', kind, units (count), seed, T (wall), door (front
-// door width), innerDoor, backDoor }. Returns null for a kind with no PLANS row, else:
+// door width), innerDoor, backDoor, stair ('lo' | 'hi' | 'back': the island's stair hall, plansOf above) }. Returns null
+// for a kind with no PLANS row, else:
 //   rooms   [{ type, name, x0, z0, x1, z1 (interior faces), unit, entry }]
 //   inner   partition walls in geo()'s format { horizontal, fixed, a0, a1, gaps: [{ at, w }] } (party walls included)
 //   front   [at] the front door's centre along the front wall, one per unit (inside its entry room)
 //   back    [{ side, at, unit, pref }] where a back door may go (outside walls of rooms with a `back` row), best first
 //   plans   [template id per unit]
 export function floorplan(o) {
-  const list = plansOf(o.kind);
+  const sk = o.stair === 'back' ? 'back' : o.stair ? 'side' : null, list = plansOf(o.kind, sk);
   if (!list) return null;
   const { x0, z0, x1, z1, front, T } = o, ns = front === 'N' || front === 'S';
   const Uc = ns ? x1 - x0 : z1 - z0, Vc = ns ? z1 - z0 : x1 - x0, n = Math.max(1, o.units ?? 1), uw = Uc / n;
@@ -216,7 +221,15 @@ export function floorplan(o) {
       let p = urng() * tw, k = left.length - 1;
       for (let i = 0; i < left.length; i++) if ((p -= left[i].P.w) < 0) { k = i; break; }
       const { P, t } = left.splice(k, 1)[0];
-      const mirrors = urng() < 0.5 ? [false, true] : [true, false];
+      const order = urng() < 0.5 ? [false, true] : [true, false];
+      // A plan row may say what it is for (size: interior metres along u and v, the stair hall's share left out): a
+      // footprint outside that skips it. o.stair puts the stair hall at the low ('lo') or high ('hi') end of u, no mirror
+      // choice, or across the back ('back').
+      if (P.size) {
+        const su = Wi - (sk === 'side' ? ROOMS.stair.fix + T : 0), sv = Vi - (sk === 'back' ? ROOMS.stair.fix + T : 0), z = P.size;
+        if ((z.u && (su < z.u[0] || su > z.u[1])) || (z.v && (sv < z.v[0] || sv > z.v[1]))) continue;
+      }
+      const mirrors = sk === 'side' ? [o.stair === 'hi'] : order;
       for (const mirror of mirrors) {
         const rng = planRng(mix(o.seed >>> 0, (t * 4 + (mirror ? 1 : 0)) * 64 + u + 1));
         // local s, v (interior) -> centre-line u, v -> world; and back.

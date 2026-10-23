@@ -2606,9 +2606,13 @@ async function runSelfTest(api, only = null) {
       // The rest walk to their beds from across town: give them up to 20 s to settle (a bed 90 m off is ~20 s at a walk).
       let town, most = false;
       for (let i = 0; i < 10 && !most; i++) { await C('step', { seconds: 2 }); town = await C('town', { radius: 150 }); most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6); }
-      g.player.x = box.x + 0.8; g.player.z = box.z;
-      const noCounter = g.trade.at(box) === null;
-      const saw = g.society.deeds.witnessPass(box.x, box.z, g.player, null).includes(ike);
+      // He sleeps in his own bedroom behind the shop now (world/city.js, the island's floor plans): the shot is in his place,
+      // at the one of his shelves and cupboards nearest his bed (a half-asleep ear reaches 13.5 m).
+      const mine = [...inv.boxes.values()].filter((b) => b.owner === ike.id && !(b.y > 0.5)).sort((a, b) => Math.hypot(a.x - ike.x, a.z - ike.z) - Math.hypot(b.x - ike.x, b.z - ike.z));
+      const box2 = mine[0] ?? box;
+      g.player.x = box2.x + 0.8; g.player.z = box2.z;
+      const noCounter = g.trade.at(box2) === null && g.trade.at(box) === null;
+      const saw = g.society.deeds.witnessPass(box2.x, box2.z, g.player, null).includes(ike);
       g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
       const woke = !ike.sleeping && ike.restless > 0;
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
@@ -3721,6 +3725,104 @@ async function runSelfTest(api, only = null) {
       if (a !== b || b !== c) diff.push(id);
     }
     return sample.length > 40 && !diff.length ? true : JSON.stringify({ sample: sample.length, differ: diff.slice(0, 8) });
+  });
+  // ---- the island's floor plans (WEB_FLOORPLANS.md "The island"; world/city.js makeEnterable, rows in data/floorplans.js) ----
+  const islandPlanned = () => g.world.buildings.filter((b) => b.enterable && b.plan);
+  const frontOut = (b) => { const d = b.plan.doors.find((q) => q.kind === 'front') ?? b.plan.doors[0]; return { x: d.x + d.nx * 1.6, z: d.z + d.nz * 1.6 }; };
+  await check('floor plans: the island - every room of every enterable island building (Rust Haven, the ruins, the shacks) is reached on foot from outside its front door (A* on the nav grid, through its doorways) and every bed has an open cell beside it', async () => {
+    await streamHome();
+    const n = g.nav.foot, bad = [], beds = [];
+    let rooms = 0, nb = 0;
+    const B = islandPlanned();
+    for (const b of B) {
+      const s = frontOut(b);
+      for (const r of b.plan.rooms) {
+        let at = null;
+        for (let z = Math.ceil(r.z0 - 0.5) + 0.5; z < r.z1 && !at; z += 1) for (let x = Math.ceil(r.x0 - 0.5) + 0.5; x < r.x1 && !at; x += 1) if (n.ensureCovers(s.x, s.z, x, z) && n.free(x, z) && n.find(s.x, s.z, x, z)) at = [x, z];
+        rooms++;
+        if (!at) bad.push(`${b.programme}@${Math.round((b.minX + b.maxX) / 2)},${Math.round((b.minZ + b.maxZ) / 2)} ${r.type}`);
+      }
+      for (const q of b.plan.beds) {
+        nb++;
+        let ok = false;
+        for (let z = Math.floor(q.z - 1.1) + 0.5; z <= q.z + 1.1 && !ok; z += 1) for (let x = Math.floor(q.x - 1.1) + 0.5; x <= q.x + 1.1 && !ok; x += 1) if (Math.hypot(x - q.x, z - q.z) <= 1.1 && n.free(x, z) && n.find(s.x, s.z, x, z)) ok = true;
+        if (!ok) beds.push(`${b.programme} bed (${q.x.toFixed(1)},${q.z.toFixed(1)})`);
+      }
+    }
+    return B.length >= 60 && rooms > B.length * 4 && nb > 40 && !bad.length && !beds.length ? true : JSON.stringify({ buildings: B.length, rooms, beds: nb, sealed: bad.slice(0, 8), more: bad.length, bedsCut: beds.slice(0, 6) });
+  });
+  await check('floor plans: Rust Haven\'s programmes have their rooms - the clinic its waiting room, ward of cots, exam rooms, pharmacy, office and restroom; each keeper\'s shop a working front room, a stock room and quarters (kitchen, bedroom with a bed, bath); the cantina its bar room, kitchen, stock room and restroom; a boarding house its lobby, rooms to let with a bed each, shared bath and kitchen; every room at least its row\'s size and every keeper at a post in their front room', async () => {
+    const S = g.world.spawns.shops, bad = [], seen = {};
+    const need = {
+      clinic: ['waiting', 'ward', 'exam', 'pharmacy', 'study', 'wc'], store: ['sales', 'backroom', 'wc', 'study'], cantina: ['barroom', 'ckitchen', 'backroom', 'wc'], boarding: ['lobby', 'corridor', 'cell', 'sbath', 'qkitchen'],
+      gunsmith: ['gunshop', 'backroom', 'qkitchen', 'qbed', 'qbath'], mechanic: ['garage', 'backroom', 'qkitchen', 'qbed', 'qbath'], water: ['watershop', 'backroom', 'qkitchen', 'qbed', 'qbath'], radio: ['studio', 'backroom', 'qkitchen', 'qbed', 'qbath'],
+    };
+    const keepers = ['reyes', 'ike', 'kenji', 'mags', 'saoirse'];
+    S.forEach((b, i) => {
+      const rs = b.plan.rooms, has = (t) => rs.filter((r) => r.type === t), inR = (r, p) => p.x > r.x0 && p.x < r.x1 && p.z > r.z0 && p.z < r.z1;
+      const bedsIn = (r) => b.plan.beds.filter((q) => inR(r, q)).length;
+      seen[i] = `${b.programme}:${b.plan.id}`;
+      for (const t of need[b.programme] ?? ['?']) if (!has(t).length) bad.push(`${i} ${b.programme} no ${t}`);
+      if (b.programme === 'clinic' && has('ward').reduce((s, r) => s + bedsIn(r), 0) < 2) bad.push(`${i} ward has under 2 cots`);
+      if (has('qbed').some((r) => !bedsIn(r))) bad.push(`${i} a bedroom without a bed`);
+      if (b.programme === 'boarding' && (has('cell').length < 3 || has('cell').some((r) => !bedsIn(r)))) bad.push(`${i} rooms to let ${has('cell').length}, not each with a bed`);
+      if (b.programme === 'cantina' && !b.plan.furniture.some((f) => f.room === 'barroom' && f.x1 - f.x0 > 3 || f.room === 'barroom' && f.z1 - f.z0 > 3)) bad.push(`${i} no bar`);
+      for (const r of rs) { const R = ROOMS_FP[r.type], mn = Math.min(r.x1 - r.x0, r.z1 - r.z0), want = R.fix ? R.fix : Math.min(R.min, R.max ?? R.min); if (mn < want - 0.05) bad.push(`${i} ${r.type} ${mn.toFixed(2)} < ${want}`); }
+      const entry = rs.find((r) => r.frontRoom);
+      if (!entry || !inR(entry, b.post)) bad.push(`${i} post not in the front room`);
+      if (i < keepers.length) { const c = g.chars.find((q) => q.npc?.id === keepers[i]); if (!c || Math.hypot(c.home.x - b.post.x, c.home.z - b.post.z) > 1.5 || !b.shopName) bad.push(`${i} keeper ${keepers[i]} not posted here`); }
+    });
+    const progs = S.map((b) => b.programme).join(',');
+    return S.length === 12 && progs === 'clinic,gunsmith,mechanic,water,radio,store,cantina,boarding,boarding,store,boarding,cantina' && !bad.length ? true : JSON.stringify({ shops: S.length, progs, bad: bad.slice(0, 10), plans: seen });
+  });
+  await check('floor plans: no furniture stands in a doorway\'s clearance in any island building (an outside door\'s, both sides of every inside doorway, and the doorways upstairs)', async () => {
+    const bad = [];
+    let pieces = 0, gaps = 0;
+    for (const b of islandPlanned()) {
+      const zones = [];
+      for (const d of b.plan.doors) { const hw = d.w / 2 + 0.1, dep = 1.0; zones.push(d.nz ? [d.x - hw, d.z - dep, d.x + hw, d.z + dep] : [d.x - dep, d.z - hw, d.x + dep, d.z + hw]); }
+      for (const d of b.innerDoors) { gaps++; const hw = d.w / 2 + 0.1, dep = 0.25 + 0.9; zones.push(d.horizontal ? [d.x - hw, d.z - dep, d.x + hw, d.z + dep] : [d.x - dep, d.z - hw, d.x + dep, d.z + hw]); }
+      for (const f of b.plan.furniture) { pieces++; if (zones.some((z) => f.x0 < z[2] && f.x1 > z[0] && f.z0 < z[3] && f.z1 > z[1])) bad.push(`${b.programme} ${f.tag} (${((f.x0 + f.x1) / 2).toFixed(1)},${((f.z0 + f.z1) / 2).toFixed(1)})`); }
+      const S = b.storey;
+      if (S?.doorways) {
+        const up = S.doorways.map((d) => { gaps++; const hw = d.w / 2 + 0.1, dep = 0.25 + 0.9; return d.alongX ? [d.x - hw, d.z - dep, d.x + hw, d.z + dep] : [d.x - dep, d.z - hw, d.x + dep, d.z + hw]; });
+        for (const s of g.statics.boxes) if (s.storeyLv === 1 && s.minX < b.maxX && s.maxX > b.minX && s.minZ < b.maxZ && s.maxZ > b.minZ) { pieces++; if (up.some((z) => s.minX < z[2] && s.maxX > z[0] && s.minZ < z[3] && s.maxZ > z[1])) bad.push(`${b.programme} upstairs ${s.tag}`); }
+      }
+    }
+    return pieces > 900 && gaps > 250 && !bad.length ? true : JSON.stringify({ pieces, gaps, bad: bad.slice(0, 8), more: bad.length });
+  });
+  await check('storeys: every flight and its landings are clear - no furniture, partition or bed on them, no inside doorway\'s clearance on the street flight or its foot, nothing upstairs on the top landing - and the foot of every street flight is reached on foot from the front door', async () => {
+    await streamHome();
+    const n = g.nav.foot, bad = [];
+    const over = (a, x0, z0, x1, z1) => x1 > a.minX && x0 < a.maxX && z1 > a.minZ && z0 < a.maxZ;
+    for (const S of g.storeys.list) {
+      const b = S.b, f = S.flights[0], fr = S.frame, land = 1.4, L0 = f.len, id = `${b.programme}@${Math.round((b.minX + b.maxX) / 2)},${Math.round((b.minZ + b.maxZ) / 2)}`;
+      const run = fr.rect(-land, L0, 0, 1.4), top = fr.rect(L0, L0 + land, 0, S.depth);
+      for (const s of g.statics.boxes) {
+        if (!over(S.area, s.minX, s.minZ, s.maxX, s.maxZ)) continue;
+        if (!s.base && ['crate', 'shelf', 'furniture', 'table', 'wreck'].includes(s.tag)) bad.push(`${id} ${s.tag} on the stairs`);
+        if ((s.storeyLv === 1 || (s.tag === 'storey-wall' && Math.abs(s.base - S.Y[1]) < 0.01)) && over(top, s.minX, s.minZ, s.maxX, s.maxZ)) bad.push(`${id} ${s.tag} on the top landing`);
+      }
+      for (const P of b.plan?.inner ?? []) if (P.horizontal ? over(S.area, P.a0, P.fixed - 0.25, P.a1, P.fixed + 0.25) : over(S.area, P.fixed - 0.25, P.a0, P.fixed + 0.25, P.a1)) bad.push(`${id} a partition across the stairs`);
+      for (const d of b.innerDoors) { const hw = d.w / 2, dep = 1.25; if (d.horizontal ? over(run, d.x - hw, d.z - dep, d.x + hw, d.z + dep) : over(run, d.x - dep, d.z - hw, d.x + dep, d.z + hw)) bad.push(`${id} a doorway onto the flight`); }
+      for (const q of g.world.spawns.beds) if (!q.y && over(S.area, q.x - 0.5, q.z - 0.5, q.x + 0.5, q.z + 0.5)) bad.push(`${id} a bed on the stairs`);
+      const s = frontOut(b);
+      if (!(n.free(f.bottomOut.x, f.bottomOut.z) && n.find(s.x, s.z, f.bottomOut.x, f.bottomOut.z))) bad.push(`${id} the stairs' foot not reached`);
+    }
+    return g.storeys.list.length >= 12 && g.storeys.list.every((S) => S.b.stair) && !bad.length ? true : JSON.stringify({ storeyed: g.storeys.list.length, hall: g.storeys.list.filter((S) => S.b.stair).length, bad: bad.slice(0, 8), more: bad.length });
+  });
+  await check('floor plans: the ring\'s plans are unchanged by the island\'s - every planned building of a fresh ring (rooms, partitions, doors, walls, furniture, beds, containers) hashes to the pinned value (data/golden.json ringPlans)', async () => {
+    const R2 = new RG.constructor(WI, RG.names), n = Math.ceil(R2.reach / 256) + 1;
+    let h = 0x811c9dc5, lots = 0;
+    const str = (s) => { for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } };
+    for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of R2.owned(cx, cz)) {
+      const geo = R2.geo(L);
+      if (!geo.plan) continue;
+      lots++;
+      str(L.id); str(JSON.stringify([geo.plan, geo.rooms, geo.inner, geo.doors, geo.props, geo.boxes, geo.beds, geo.boxesIn, geo.walls, geo.decor, geo.floor, geo.roof]));
+    }
+    const hex = (h >>> 0).toString(16).padStart(8, '0');
+    return hex === g.streamer.golden.ringPlans && lots > 2000 ? true : JSON.stringify({ hash: hex, pinned: g.streamer.golden.ringPlans, lots });
   });
   // ---- the Phoenix ring, R2 (WEB_STREAMING §1.3 "R2 as built"): the people who live in it (systems/residents.js) ----
   // What these checks set off in the world's memory (a theft and a killing the family saw) is taken back after them, so

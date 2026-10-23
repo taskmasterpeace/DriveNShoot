@@ -30,3 +30,14 @@ export const RISE = {
 // Upstairs is furnished from its own rows: crates and shelves become containers (inventory.js placeFurniture), a
 // mattress is somewhere to sleep. per = one piece per this many m² of floor.
 export const UPSTAIRS = { per: 60, crate: 0.4, shelf: 0.3, bed: 0.3 };
+
+// The first floor of an island building with a stair hall (world/storeys.js quarters): living quarters, the keeper's in
+// Rust Haven. The hall's partition goes on up with a doorway off the top landing (door: its gap, jamb: wall either side);
+// the rest is a living room with the kitchen along its walls and, when the floor is long enough (bedroom / living: the
+// least each needs along the hall), a bedroom beyond a second partition. Pieces from data/ring.js FURNITURE, placed by the
+// ring's rules (world/furnish.js). The floors above that keep UPSTAIRS.
+export const QUARTERS = {
+  door: 1.9, jamb: 0.3, bedroom: 3.2, living: 4.0,
+  living_list: ['fridge', 'stove', 'sink', 'kcounter', 'kcounter', 'couch', 'armchair', 'armchair', 'tv', 'rug', 'shelf'],
+  bedroom_list: ['bed', 'nightstand', 'nightstand', 'dresser', 'rug', 'shelf', 'armchair'],
+};

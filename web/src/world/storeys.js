@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
 import { Hasher } from './geo.js';
-import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS } from '../data/storeys.js';
+import { STOREY, FLIGHT, RAIL, WINDOWS, LEVEL, RISE, UPSTAIRS, QUARTERS } from '../data/storeys.js';
+import { ROOMS, SCATTER } from '../data/floorplans.js';
+import { FURNITURE } from '../data/ring.js';
+import { placePiece } from './furnish.js';
 
 // Buildings with floors above the street (docs/design/WEB_STOREYS.md), on the streaming branch's vertical model:
 // a floor is a DECK that counts only for someone already up near it (heightAt), its walls are static boxes with a
@@ -42,13 +45,10 @@ export class Storeys {
   build() {
     const g = this.g, W = g.world;
     for (const b of W.buildings) {
-      if (!b.enterable || b.ruined || !b.roofIdx?.length) continue;
-      const R = RISE[b.district];
-      const w = b.maxX - b.minX, d = b.maxZ - b.minZ;
-      if (!R || w * d < R.minArea) continue;
-      const rng = makeRng(seedOf(b));
-      if (rng() >= R.share) continue;
-      const n = rng.int(R.storeys[0], R.storeys[1]);
+      if (!b.enterable || b.ruined || !b.roofIdx?.length || b.noRise) continue; // noRise: city.js found no room for a stair hall
+      const rise = riseOf(b);
+      if (!rise) continue;
+      const { rng, n } = rise;
       const S = this.plan(b, n, rng);
       if (!S) continue; // no wall has room for a staircase clear of doors, the partition and the furniture
       this.raise(S, rng);
@@ -66,15 +66,16 @@ export class Storeys {
     this.hash = this.hashAll();
   }
 
-  // Where the staircase goes: along one inside wall, starting at a corner, clear of that wall's doors, the partition,
-  // every piece of furniture and every bed. Candidates are tried in a seeded order; the first that fits wins.
+  // Where the staircase goes: along one inside wall, starting at a corner, clear of that wall's doors, every partition and
+  // inner doorway, every piece of furniture and every bed. A building with a stair hall (city.js: the island's floor plans
+  // lay one, 4.0 m wide, along the wall the flight climbs) takes its flight against that hall's outside wall only, from
+  // either end. Candidates are tried in a seeded order; the first that fits wins.
   plan(b, n, rng) {
     const g = this.g, h = b.h, up = STOREY.up;
     const L0 = h / FLIGHT.pitch, Lu = up / FLIGHT.pitch, fw = FLIGHT.w, land = FLIGHT.landing;
     const depth = n > 1 ? fw * 2 : fw, need = land + L0 + land;
-    const px = b.innerDoors?.[0]?.x ?? null;
     const cands = [];
-    for (const side of ['N', 'S', 'W', 'E']) {
+    for (const side of b.stair ? [b.stair.side] : ['N', 'S', 'W', 'E']) {
       const alongX = side === 'N' || side === 'S';
       const lo = (alongX ? b.minX : b.minZ) + IN, hi = (alongX ? b.maxX : b.maxZ) - IN;
       if (hi - lo < need + 0.2) continue;
@@ -85,9 +86,13 @@ export class Storeys {
     for (let i = cands.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cands[i], cands[j]] = [cands[j], cands[i]]; }
     for (const c of cands) {
       // The footprint the stairs and their landings take: run r in [-land, L0 + land], band [0, depth] from the wall.
-      const fr = this.frame(b, c);
+      // In a stair hall the flight stands off its wall by g (< 0.56 m: nobody fits in it) so a 1 m nav cell's centre line
+      // runs up its band: the foot nav grid reaches the foot of the stairs whatever the building's alignment (flush, a
+      // band 1.4 m wide between the wall and its flank holds no cell centre at all about half the time).
+      const g = b.stair ? this.standOff(b, c) : 0;
+      const fr = this.frame(b, c, g);
       const area = fr.rect(-land, L0 + land, 0, depth);
-      if (!this.clear(b, c, area, px)) continue;
+      if (!this.clear(b, c, area, fr.rect(-land, L0, 0, fw))) continue;
       const Y = [0, h];
       for (let k = 2; k <= n; k++) Y.push(h + (k - 1) * up);
       const flights = [];
@@ -101,19 +106,41 @@ export class Storeys {
         f.s0 = fr.along(climbsOut ? r0 : r1);
         const aEnd = (s) => fr.point(s, (band + 0.5) * fw);
         f.bottomOut = aEnd(climbsOut ? r0 - 0.8 : r1 + 0.8);
+        if (i === 0 && b.stair) { f.bottomOut = this.footCell(fr, c, g); f.entry = fr.point(0.25, 0.7); } // the open nav cell on the landing at its foot; its first step
         f.topOut = aEnd(climbsOut ? r1 + 0.8 : r0 - 0.8);
         f.rBottom = climbsOut ? r0 : r1; f.rTop = climbsOut ? r1 : r0;
         flights.push(f);
       }
-      return { b, n, Y, flights, frame: fr, c, depth, area, color: b.color ?? '#7c756a',
+      const S = { b, n, Y, flights, frame: fr, c, depth, area, color: b.color ?? '#7c756a',
         ix0: b.minX + IN, ix1: b.maxX - IN, iz0: b.minZ + IN, iz1: b.maxZ - IN, top: Y[n] + up, idx: [] };
+      S.g = g;
+      if (b.stair) { S.wframe = this.frame(b, c, 0); S.quarters = this.layQuarters(S, L0); }
+      return S;
     }
     return null;
   }
 
   // A staircase's own frame: run r along the wall from the origin in the climb direction, band q in from the wall.
-  frame(b, c) {
+  // How far a flight stands off its wall (a stair hall's): the least g >= 0 that puts a nav cell centre (whole metres +
+  // 0.5) in band 0's walkable strip, [g + 0.46, g + 0.88] in from the wall (a walker's 0.45 m off the wall's face and off
+  // the flank's).
+  standOff(b, c) {
     const wall = c.side === 'N' ? b.minZ + IN : c.side === 'S' ? b.maxZ - IN : c.side === 'W' ? b.minX + IN : b.maxX - IN;
+    const inward = c.side === 'N' || c.side === 'W' ? 1 : -1, phi = (((inward * (0.5 - wall)) % 1) + 1) % 1;
+    return Math.max(0, (phi >= 0.46 ? phi : phi + 1) - 0.88);
+  }
+  // The foot of the street flight as a nav cell centre: on the landing (r in [-0.93, 0.6], clear of the end wall and short
+  // of the flank), in band 0's walkable strip.
+  footCell(fr, c, g) {
+    const a = fr.along(-0.4), as = Math.round(a - 0.5) + 0.5;
+    let r = (as - c.o) / c.dir;
+    if (r < -0.93) r += 1; else if (r > 0.6) r -= 1;
+    const wq = fr.point(0, 0.67), q0 = fr.point(0, 0), across = c.alongX ? 'z' : 'x', inward = Math.sign(wq[across] - q0[across]);
+    const qc = Math.round(wq[across] - 0.5) + 0.5, q = (qc - q0[across]) * inward;
+    return fr.point(r, q);
+  }
+  frame(b, c, g = 0) {
+    const wall = (c.side === 'N' ? b.minZ + IN : c.side === 'S' ? b.maxZ - IN : c.side === 'W' ? b.minX + IN : b.maxX - IN) + (c.side === 'N' || c.side === 'W' ? g : -g);
     const inward = c.side === 'N' || c.side === 'W' ? 1 : -1;
     const along = (r) => c.o + c.dir * r;
     const across = (q) => wall + inward * q;
@@ -128,15 +155,27 @@ export class Storeys {
     };
   }
 
-  clear(b, c, area, px) {
+  // area: the stairs and both landings; run: the street flight and the landing at its foot (where an inside doorway's
+  // clearance may not reach: the landing at the top is a floor up).
+  clear(b, c, area, run) {
     const g = this.g, pad = 0.3;
-    const hit = (x0, z0, x1, z1) => x1 > area.minX - pad && x0 < area.maxX + pad && z1 > area.minZ - pad && z0 < area.maxZ + pad;
-    // The wall's own doors (and a metre either side), the partition, the inner door.
+    const over = (r, x0, z0, x1, z1) => x1 > r.minX - pad && x0 < r.maxX + pad && z1 > r.minZ - pad && z0 < r.maxZ + pad;
+    const hit = (x0, z0, x1, z1) => over(area, x0, z0, x1, z1);
+    // The outside doors (and a metre either side).
     for (const d of b.doors) if (hit(d.x - 1.4, d.z - 1.4, d.x + 1.4, d.z + 1.4)) return false;
-    for (const d of b.innerDoors ?? []) if (hit(d.x - 1.6, d.z - 1.6, d.x + 1.6, d.z + 1.6)) return false;
-    if (px !== null && hit(px - 0.5, b.minZ, px + 0.5, b.maxZ)) return false;
+    // Every inner doorway: the floor it keeps clear each side of its wall (a planned one), or 1.6 m round it (the old shell).
+    for (const d of b.innerDoors ?? []) {
+      if (d.horizontal === undefined) { if (hit(d.x - 1.6, d.z - 1.6, d.x + 1.6, d.z + 1.6)) return false; continue; }
+      const hw = (d.w ?? 1.9) / 2, dep = 1.25;
+      if (d.horizontal ? over(run, d.x - hw, d.z - dep, d.x + hw, d.z + dep) : over(run, d.x - dep, d.z - hw, d.x + dep, d.z + hw)) return false;
+    }
+    // Every partition (none may cross the stairs or a landing).
+    for (const P of b.plan?.inner ?? []) {
+      const t = 0.25;
+      if (P.horizontal ? hit(P.a0, P.fixed - t, P.a1, P.fixed + t) : hit(P.fixed - t, P.a0, P.fixed + t, P.a1)) return false;
+    }
     for (const s of g.statics.boxes) {
-      if (s.tag !== 'crate' && s.tag !== 'table' && s.tag !== 'shelf') continue;
+      if (s.tag !== 'crate' && s.tag !== 'table' && s.tag !== 'shelf' && s.tag !== 'furniture' && s.tag !== 'wreck') continue;
       if (s.maxX < b.minX || s.minX > b.maxX || s.maxZ < b.minZ || s.minZ > b.maxZ) continue;
       if (hit(s.minX, s.minZ, s.maxX, s.maxZ)) return false;
     }
@@ -164,6 +203,8 @@ export class Storeys {
       const nw = Math.max(0, Math.floor((len - 1.6) / WINDOWS.every));
       const centres = [];
       for (let k = 0; k < nw; k++) centres.push(p0 + 0.8 + (k + 0.5) * ((len - 1.6) / nw));
+      const qj = S.quarters?.junctions.filter((j) => j.horiz === sd.horiz && Math.abs(j.fixed - sd.fixed) < 0.01) ?? [];
+      for (let k = centres.length - 1; k >= 0; k--) if (qj.some((j) => Math.abs(j.at - centres[k]) < WINDOWS.w / 2 + 0.6)) centres.splice(k, 1);
       const holes = [];
       for (const c of centres) holes.push(c - WINDOWS.w / 2, c + WINDOWS.w / 2);
       const box = sd.horiz ? add(p0, sd.fixed - IN, p1, sd.fixed + IN, h, top, 'storey-wall') : add(sd.fixed - IN, p0, sd.fixed + IN, p1, h, top, 'storey-wall');
@@ -205,10 +246,13 @@ export class Storeys {
       const q0 = f.band * FLIGHT.w, q1 = q0 + FLIGHT.w;
       for (let s = 0; s < steps; s++) {
         const ra = f.rBottom + ((f.rTop - f.rBottom) * s) / steps, rb = f.rBottom + ((f.rTop - f.rBottom) * (s + 1)) / steps;
-        const rr = fr.rect(ra, rb, q0 + 0.05, q1 - 0.05), yTop = f.from + (rise * (s + 1)) / steps;
+        const rr = fr.rect(ra, rb, q0 + 0.05 - (f.band === 0 ? S.g : 0), q1 - 0.05), yTop = f.from + (rise * (s + 1)) / steps; // band 0's treads run on to the wall
         const y0 = f.i === 0 ? 0 : yTop - 0.18; // the street flight is built up solid; the ones above are treads
         vis((rr.minX + rr.maxX) / 2, (y0 + yTop) / 2, (rr.minZ + rr.maxZ) / 2, rr.maxX - rr.minX, yTop - y0, rr.maxZ - rr.minZ, s % 2 ? '#5b4a3a' : '#655241', f.i);
       }
+      // A flight standing off its wall (a stair hall's, S.g): the strip between is shut under it (a stringer), so nobody
+      // walks along under the stairs beside the wall.
+      if (f.band === 0 && S.g > 0.02) { const sg = fr.rect(f.rBottom, f.rTop, -S.g, 0); add(sg.minX, sg.minZ, sg.maxX, sg.maxZ, f.from, f.to); }
       // Flanks: the long sides not against the outside wall, over the flight's own height range. They start FLANK_OPEN m
       // up the flight: stepping onto the first steps from the side is a rise under half a metre, and a flank from the
       // very bottom left a corner landing too narrow for the nav grid (a sealed pocket on the street floor).
@@ -235,9 +279,13 @@ export class Storeys {
     // ---- the roof goes up on top of the top storey (it hides with the rest when you walk in).
     this.g.world.raiseRoof?.(b, top - h);
 
-    // ---- upstairs: crates and shelves (containers: inventory.js placeFurniture reads the 'crate'/'shelf' boxes), a mattress.
+    // ---- upstairs, the first floor: the keeper's (or the old tenants') living quarters (world/furnish.js, data/storeys.js
+    // QUARTERS): the stair hall goes on up, a partition with a doorway off the top landing, a living room with the kitchen
+    // along its walls and a bedroom beyond. Containers (inventory.js placeFurniture reads 'crate'/'shelf' boxes) and beds.
+    if (S.quarters) this.quarters(S, rng, add, vis);
+    // ---- the floors above that: crates and shelves, a mattress.
     const area = (S.ix1 - S.ix0) * (S.iz1 - S.iz0);
-    for (let k = 1; k <= n; k++) {
+    for (let k = S.quarters ? 2 : 1; k <= n; k++) {
       const count = Math.max(1, Math.floor(area / UPSTAIRS.per));
       for (let i = 0; i < count; i++) {
         const x = rng.range(S.ix0 + 1.2, S.ix1 - 1.2), z = rng.range(S.iz0 + 1.2, S.iz1 - 1.2);
@@ -256,6 +304,79 @@ export class Storeys {
         }
       }
     }
+  }
+
+  // The first floor's rooms (a building with a stair hall): the hall's partition carried up with a doorway off the top
+  // landing, and the rest split across into a living room (the doorway's end) and a bedroom (the far end) when it is long
+  // enough, else one room. Coordinates in the hall's frame: r along it from the flight's foot, q in from its outside wall.
+  layQuarters(S, L0) {
+    const b = S.b, fr = S.wframe, c = S.c, Q = QUARTERS, hw = ROOMS.stair.fix, T = WALL_T;
+    const lo = (c.alongX ? b.minX : b.minZ) + IN, hi = (c.alongX ? b.maxX : b.maxZ) - IN;
+    const rA = c.dir > 0 ? -(c.o - lo) : -(hi - c.o), rB = c.dir > 0 ? hi - c.o : c.o - lo; // the interior's ends in r
+    const qFar = c.alongX ? b.maxZ - b.minZ - 2 * IN : b.maxX - b.minX - 2 * IN;              // the far wall's face in q
+    const walls = [], rooms = [], junctions = [];
+    const wall = (r0, r1, q0, q1, gapAt, gapW, gapAlongR) => walls.push({ rect: fr.rect(r0, r1, q0, q1), gapAt, gapW, gapAlongR });
+    // The hall's partition: q = hw .. hw + T, the whole length, its doorway centred on the top landing.
+    const rd = L0 + FLIGHT.landing / 2;
+    wall(rA, rB, hw, hw + T, rd, Q.door, true);
+    // The split: across the loft from the hall's partition to the far wall, its doorway by the hall.
+    const rs = rd + Q.door / 2 + Q.jamb + T / 2;
+    const split = rB - (rs + T / 2) >= Q.bedroom && rs - T / 2 - rA >= Q.living;
+    if (split) wall(rs - T / 2, rs + T / 2, hw + T, qFar, hw + T + Q.jamb + Q.door / 2, Q.door, false);
+    const room = (r0, r1, q0, q1, type, list) => { const R = fr.rect(r0, r1, q0, q1); rooms.push({ type, x0: R.minX, z0: R.minZ, x1: R.maxX, z1: R.maxZ, ui: 0, list }); };
+    if (split) { room(rA, rs - T / 2, hw + T, qFar, 'qliving', Q.living_list); room(rs + T / 2, rB, hw + T, qFar, 'qbed', Q.bedroom_list); }
+    else room(rA, rB, hw + T, qFar, 'qliving', [...Q.living_list, ...Q.bedroom_list]);
+    // Where these partitions meet the outside walls (no window there).
+    for (const wl of walls) {
+      const R = wl.rect, horiz = R.maxX - R.minX > R.maxZ - R.minZ; // a wall's long axis
+      if (horiz) { junctions.push({ horiz: false, fixed: b.minX, at: (R.minZ + R.maxZ) / 2 }, { horiz: false, fixed: b.maxX, at: (R.minZ + R.maxZ) / 2 }); }
+      else { junctions.push({ horiz: true, fixed: b.minZ, at: (R.minX + R.maxX) / 2 }, { horiz: true, fixed: b.maxZ, at: (R.minX + R.maxX) / 2 }); }
+    }
+    return { walls, rooms, junctions, split };
+  }
+
+  quarters(S, rng, add, vis) {
+    const b = S.b, y = S.Y[1], top = S.n > 1 ? S.Y[2] - STOREY.slab : S.top, fr = S.wframe, k = 1, Q = S.quarters;
+    const shade = (col, f) => { const cc = new THREE.Color(col); return cc.setRGB(Math.min(1, cc.r * f), Math.min(1, cc.g * f), Math.min(1, cc.b * f)); };
+    // The partitions, a doorway each (a gap; no leaf upstairs), and the clear zones the furniture keeps out of.
+    const zones = [];
+    for (const wl of Q.walls) {
+      const R = wl.rect, alongX = R.maxX - R.minX > R.maxZ - R.minZ;
+      const a0 = alongX ? R.minX : R.minZ, a1 = alongX ? R.maxX : R.maxZ, gc = wl.gapAlongR ? fr.along(wl.gapAt) : fr.point(0, wl.gapAt)[alongX ? 'x' : 'z'];
+      for (const [s0, s1] of [[a0, gc - wl.gapW / 2], [gc + wl.gapW / 2, a1]]) {
+        if (s1 - s0 < 0.1) continue;
+        const r = alongX ? { minX: s0, maxX: s1, minZ: R.minZ, maxZ: R.maxZ } : { minX: R.minX, maxX: R.maxX, minZ: s0, maxZ: s1 };
+        add(r.minX, r.minZ, r.maxX, r.maxZ, y, top, 'storey-wall');
+        vis((r.minX + r.maxX) / 2, (y + top) / 2, (r.minZ + r.maxZ) / 2, r.maxX - r.minX, top - y, r.maxZ - r.minZ, shade(S.color, 0.94), k);
+      }
+      const hwz = wl.gapW / 2 + 0.15, dep = WALL_T / 2 + 1.0, cx = alongX ? gc : (R.minX + R.maxX) / 2, cz = alongX ? (R.minZ + R.maxZ) / 2 : gc;
+      zones.push(alongX ? { x0: cx - hwz, x1: cx + hwz, z0: cz - dep, z1: cz + dep } : { x0: cx - dep, x1: cx + dep, z0: cz - hwz, z1: cz + hwz });
+      (S.doorways ??= []).push({ x: cx, z: cz, alongX, w: wl.gapW });
+    }
+    // Floor finishes and the furniture, through the ring's placement rules (no probe: there is no nav grid upstairs; the
+    // middle of every room stays open and the doorways clear).
+    const g = { props: [], boxes: [], beds: [], boxesIn: [] }, ctx = { zones, zr: new Map(), placed: [], spots: [], on: false };
+    for (const r of Q.rooms) {
+      const f = ROOMS[r.type]?.floor; if (f) vis((r.x0 + r.x1) / 2, y + 0.006, (r.z0 + r.z1) / 2, r.x1 - r.x0, 0.012, r.z1 - r.z0, f, k);
+      for (const t of r.list) placePiece(t, r, g, { label: null, loot: 'bedroom' }, { loot: [['bedroom', 1]] }, rng, ctx);
+      const sc = SCATTER[r.type]; // a table in the middle of a big living room, as downstairs (data/floorplans.js SCATTER)
+      if (sc) {
+        const [t, every, inset, max] = sc, [fw, fd] = FURNITURE[t].size;
+        let n = 0;
+        for (let x = r.x0 + inset + fw / 2; x <= r.x1 - inset - fw / 2 && n < max; x += every) for (let z = r.z0 + inset + fd / 2; z <= r.z1 - inset - fd / 2 && n < max; z += every)
+          if (placePiece(t, r, g, { label: null, loot: 'kitchen' }, { loot: [['kitchen', 1]] }, rng, ctx, { cands: [{ r: { x0: x - fw / 2, z0: z - fd / 2, x1: x + fw / 2, z1: z + fd / 2 } }], gap: 0.9 })) n++;
+      }
+    }
+    // A part drawn to lie on the street floor's slab (its top is 0.12: a rug, a floor finish) comes down onto this floor.
+    for (const p of g.props) vis(p[0], y + p[1] - (p[1] - p[4] / 2 > 0.11 && p[1] < 0.2 ? 0.12 : 0), p[2], p[3], p[4], p[5], shade(p[6], p[8] ?? 1), k);
+    for (const q of g.boxes) {
+      const x = (q.x0 + q.x1) / 2, z = (q.z0 + q.z1) / 2, box = add(q.x0, q.z0, q.x1, q.z1, y, y + q.h, q.tag);
+      box.storeyLv = k;
+      const ci = g.boxesIn.find((cc) => Math.abs(cc.x - x) < 0.01 && Math.abs(cc.z - z) < 0.01);
+      if (ci) { box.loot = ci.table; box.label = ci.label; }
+    }
+    for (const q of g.beds) this.g.world.spawns.beds.push({ x: q.x, z: q.z, face: q.face, bedY: y + q.bedY, y, upstairs: true }); // somewhere to sleep (survival.js); not a townsfolk's bed (ai.js)
+    S.upstairs = { rooms: Q.rooms.map((r) => ({ type: r.type, x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1 })), pieces: g.boxes.length, beds: g.beds.length };
   }
 
   batch() {
@@ -337,7 +458,19 @@ export class Storeys {
     const f = up ? S.flights[k] : S.flights[k - 1];
     if (!f) return null;
     const near = up ? f.bottomOut : f.topOut, far = up ? f.topOut : f.bottomOut;
-    return Math.hypot(near.x - c.x, near.z - c.z) < 0.9 ? far : near;
+    if (Math.hypot(near.x - c.x, near.z - c.z) < 0.9) return up && f.entry ? f.entry : far; // a stair hall's foot: onto the first step square, then up
+    // On the street floor of a planned building the stairs are in their own hall, rooms and doorways away: the way to
+    // their foot is a route on the foot nav grid (kept a second, then asked again), not a straight line through the walls.
+    if (k === 0 && S.b.stair) return this.route(c, near) ?? near;
+    return near;
+  }
+  route(c, to) {
+    const t = this.g.time ?? 0, R = c.stairWay;
+    if (!R || R.to !== to || t - R.t > 1 || !R.path?.length) c.stairWay = { to, t, path: this.g.nav?.foot?.find(c.x, c.z, to.x, to.z) ?? null };
+    const P = c.stairWay.path;
+    if (!P) return null;
+    while (P.length > 1 && Math.hypot(P[0].x - c.x, P[0].z - c.z) < 0.7) P.shift();
+    return P[0];
   }
 
   // Inside S at height y: what is above that floor is not drawn (walls, floors, flights, furniture); leaving shows it all.
@@ -366,6 +499,16 @@ export class Storeys {
         flights: S.flights.map((f) => ({ from: +f.from.toFixed(2), to: +f.to.toFixed(2), len: +f.len.toFixed(2), bottom: [+f.bottomOut.x.toFixed(2), +f.bottomOut.z.toFixed(2)], top: [+f.topOut.x.toFixed(2), +f.topOut.z.toFixed(2)], axis: f.ax, u: f.u })) })),
     };
   }
+}
+
+// The rise roll (city.js asks it before it lays a building's plan, so a building that will rise gets a stair hall): null,
+// or { rng, n } - n floors above the street, rng the building's own stream, read on by plan() and raise().
+export function riseOf(b) {
+  const R = RISE[b.district];
+  if (!R || (b.maxX - b.minX) * (b.maxZ - b.minZ) < R.minArea) return null;
+  const rng = makeRng(seedOf(b));
+  if (rng() >= R.share) return null;
+  return { rng, n: rng.int(R.storeys[0], R.storeys[1]) };
 }
 
 // A building's own seed: from its position, so it never draws from the city's stream.

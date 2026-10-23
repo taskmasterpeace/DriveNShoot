@@ -252,7 +252,8 @@ class Game {
         x = gate.x + 2; z = gate.z + 3;
       } else if (typeof n.where === 'string') {
         const b = S.shops[Number(n.where.split(':')[1]) % S.shops.length];
-        x = (b.minX + b.maxX) / 2 + 1.5; z = (b.minZ + b.maxZ) / 2 + 1.5;
+        // Their post: the front room's open floor (world/city.js b.post), not the middle of the building (a closet now).
+        x = b.post?.x ?? (b.minX + b.maxX) / 2 + 1.5; z = b.post?.z ?? (b.minZ + b.maxZ) / 2 + 1.5;
         b.shopName = n.title;
       } else { x = n.where.x; z = n.where.z; }
       // The body wears what the portrait shows: same hair or hat, same goggles, mask, eyepatch, bandolier.
@@ -1046,6 +1047,8 @@ class Game {
       if (inside) {
         this.world.setRoofVisible(inside, false);
         if (inside.shopName) this.hud.toast(inside.shopName.toUpperCase());
+        else if (inside.label && inside.district === 'town') this.hud.toast(inside.label); // Rust Haven's keeperless houses: a cantina, a boarding house, a store
+
       }
       this.insideBuilding = inside;
     }
