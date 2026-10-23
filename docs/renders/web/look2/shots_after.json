@@ -11,18 +11,28 @@
  },
  {
   "name": "meridian_houses_wide",
-  "luma": 167.2,
+  "luma": 167.3,
   "drawCalls": 81
  },
  {
   "name": "meridian_over",
-  "luma": 151.8,
+  "luma": 152.1,
   "drawCalls": 85
  },
  {
   "name": "meridian_west_wide",
-  "luma": 156.4,
+  "luma": 156.6,
   "drawCalls": 83
+ },
+ {
+  "name": "meridian_opening",
+  "luma": 104.1,
+  "drawCalls": 85
+ },
+ {
+  "name": "meridian_opening_wide",
+  "luma": 98.1,
+  "drawCalls": 85
  },
  {
   "name": "forest_game",
@@ -46,33 +56,33 @@
  },
  {
   "name": "swamp_dusk",
-  "luma": 16,
+  "luma": 2.7,
   "drawCalls": 74
  },
  {
   "name": "swamp_noon",
-  "luma": 104,
-  "drawCalls": 73
+  "luma": 104.1,
+  "drawCalls": 74
  },
  {
   "name": "swamp_vulture_dusk",
-  "luma": 16.1,
-  "drawCalls": 74
+  "luma": 2.7,
+  "drawCalls": 75
  },
  {
   "name": "swamp_vulture_noon",
   "luma": 104.3,
-  "drawCalls": 73
+  "drawCalls": 74
  },
  {
   "name": "terrain_hills_over",
   "luma": 190.5,
-  "drawCalls": 66
+  "drawCalls": 67
  },
  {
   "name": "terrain_hills_game",
   "luma": 191.8,
-  "drawCalls": 66
+  "drawCalls": 67
  },
  {
   "name": "terrain_climb_over",

@@ -1,0 +1,12 @@
+[
+ {
+  "name": "meridian_opening",
+  "luma": 104.1,
+  "drawCalls": 84
+ },
+ {
+  "name": "meridian_opening_wide",
+  "luma": 98,
+  "drawCalls": 84
+ }
+]
