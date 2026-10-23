@@ -134,7 +134,8 @@ export class Streamer {
   hashIsland() {
     const g = this.g, H = new Hasher();
     let max = 0;
-    for (const b of g.statics.boxes) { H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).num(b.height).str(b.tag); max = Math.max(max, Math.abs(b.minX), Math.abs(b.maxX), Math.abs(b.minZ), Math.abs(b.maxZ)); }
+    for (const b of g.statics.boxes) { if (b.tag.startsWith('storey') || b.storeyLv) continue; // the floors above: world/storeys.js keeps its own hash
+      H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).num(b.height).str(b.tag); max = Math.max(max, Math.abs(b.minX), Math.abs(b.maxX), Math.abs(b.minZ), Math.abs(b.maxZ)); }
     for (const b of g.world.buildings) H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).int(b.enterable ? 1 : 0).int(b.doors?.length ?? 0);
     this.islandExtent = +max.toFixed(2);
     return H.hex();

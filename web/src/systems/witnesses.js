@@ -104,7 +104,7 @@ export class Witnesses {
       const R = c.runner;
       if (R.brave) continue;
       const d = Math.hypot(c.x - P.x, c.z - P.z);
-      if (d > bd || Math.hypot(g.aim.x - c.x, g.aim.z - c.z) > W.aimSlack || !g.los(P.x, P.z, c.x, c.z)) continue;
+      if (d > bd || Math.hypot(g.aim.x - c.x, g.aim.z - c.z) > W.aimSlack || !g.sees(P, c)) continue;
       best = c; bd = d;
     }
     if (best !== this.aimAt) { this.aimAt = best; this.aimT = 0; }

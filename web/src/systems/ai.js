@@ -82,6 +82,7 @@ export class AI {
     let best = null, bd = R;
     for (const b of this.g.world.spawns.beds ?? NO_BEDS) {
       if (b.night === n && b.by && b.by !== c.id) continue; // somebody's tonight
+      if (b.upstairs) continue; // a mattress upstairs is a traveller's (world/storeys.js): the town walks to beds it can reach on its floor
       const d = Math.hypot(b.x - c.home.x, b.z - c.home.z);
       if (d < bd) { bd = d; best = b; }
     }
@@ -151,8 +152,9 @@ export class AI {
     t.x = c.x + dx * speed * dt; t.z = c.z + dz * speed * dt;
     // Stay out of deep water (zombies can't swim at all: the river is a moat against them).
     if (this.wades(c, t.x, t.z)) { c.speed = 0; c.stuck = (c.stuck || 0) + dt; return; }
-    this.g.statics.resolveCircle(t, c.radius, c); // doors swing open for them (never a locked one)
+    this.g.statics.resolveBody(t, c.radius, c); // doors swing open for them (never a locked one); upstairs, only their floor's walls
     c.x = t.x; c.z = t.z;
+    this.g.standOn(c); // up a stair, onto a floor
     if (c.vault) return; // walked into a broken window while hunting: climbing through
     const moved = Math.hypot(c.x - px, c.z - pz);
     c.speed = moved / dt;
@@ -180,7 +182,7 @@ export class AI {
       if (!this.hostile(c, o) || o.hidden || o.underwater) continue; // dived under: out of sight
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
-      if (d < bd * (o.crouch ? 0.6 : 1) && this.g.los(c.x, c.z, o.x, o.z)) { bd = d; best = o; }
+      if (d < bd * (o.crouch ? 0.6 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }
@@ -266,7 +268,7 @@ export class AI {
           this.move(c, Math.sin(c.blind * 3), Math.cos(c.blind * 2), 1.2, dt);
           continue;
         }
-        const los = !t.underwater && g.los(c.x, c.z, tx, tz); // under water: lost sight (they wait at the shore)
+        const los = !t.underwater && (t.inVehicle ? g.los(c.x, c.z, tx, tz) : g.sees(c, t)); // under water: lost sight (they wait at the shore); another floor: lost too
         // Dug-in target out of sight but close: lob a grenade over the cover.
         if (!los && d < 26 && d > 7 && (c.grenades ?? 0) > 0 && Math.random() < dt * 0.35) {
           c.grenades--;
@@ -298,7 +300,9 @@ export class AI {
             }
           }
         } else {
-          this.move(c, tx - c.x, tz - c.z, 4.6, dt);
+          const wp = t.inVehicle ? null : g.storeys.steer(c, tx, tz, t.gy ?? 0); // upstairs (or down): by the stairs
+          if (wp) this.move(c, wp.x - c.x, wp.z - c.z, 4.6, dt);
+          else this.move(c, tx - c.x, tz - c.z, 4.6, dt);
         }
         continue;
       }
@@ -321,7 +325,11 @@ export class AI {
       }
       // Named characters wait for you when you walk up to them (instead of wandering off).
       if (c.npc && pd < 6) { c.speed = 0; c.wx = c.x; c.wz = c.z; }
-      else if (dh > 0.6) this.move(c, c.wx - c.x, c.wz - c.z, c.npc ? 1.2 : 1.6, dt);
+      else if (dh > 0.6) {
+        const wp = c.storey ? g.storeys.steer(c, c.wx, c.wz, 0) : null; // home is on the street floor
+        if (wp) this.move(c, wp.x - c.x, wp.z - c.z, c.npc ? 1.2 : 1.6, dt);
+        else this.move(c, c.wx - c.x, c.wz - c.z, c.npc ? 1.2 : 1.6, dt);
+      }
       else c.speed = 0;
       if (c.npc && pd < 5) c.face = angleLerp(c.face, Math.atan2(g.player.x - c.x, g.player.z - c.z), Math.min(1, dt * 4));
     }
@@ -337,6 +345,7 @@ export class AI {
         // neighbour used to slip through and make everyone it touched NaN, the player included.
         const dx = b.x - a.x, dz = b.z - a.z;
         if (!(Math.abs(dx) <= 1 && Math.abs(dz) <= 1)) continue;
+        if ((a.storey || b.storey) && Math.abs((a.gy ?? 0) - (b.gy ?? 0)) > 1.6) continue; // one upstairs, one below: the floor between them
         const d2 = dx * dx + dz * dz;
         if (!(d2 > 1e-6 && d2 <= 0.64)) continue;
         const d = Math.sqrt(d2), push = (0.8 - d) * 0.5;
@@ -346,7 +355,7 @@ export class AI {
         const wa = a === P ? 0 : b === P ? 2 : 1, wb = b === P ? 0 : a === P ? 2 : 1;
         const ta = { x: a.x - nx * push * wa, z: a.z - nz * push * wa }, tb = { x: b.x + nx * push * wb, z: b.z + nz * push * wb };
         // Never shove anyone through a wall, nor the dead into deep water.
-        this.g.statics.resolveCircle(ta, a.radius); this.g.statics.resolveCircle(tb, b.radius);
+        this.g.statics.resolveBody(ta, a.radius, a, null); this.g.statics.resolveBody(tb, b.radius, b, null);
         if (a.faction === 'zombie' && this.wades(a, ta.x, ta.z)) { ta.x = a.x; ta.z = a.z; }
         if (b.faction === 'zombie' && this.wades(b, tb.x, tb.z)) { tb.x = b.x; tb.z = b.z; }
         a.x = ta.x; a.z = ta.z; b.x = tb.x; b.z = tb.z;

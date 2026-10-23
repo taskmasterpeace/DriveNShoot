@@ -1,8 +1,34 @@
 # WEB_STOREYS — buildings with floors above and basements below (web engine)
 
-**Status:** SPEC (2026-10-22). Not built. Build after the streaming (P1) and role-system branches are merged: it
-touches `engine/collision.js`, `engine/nav.js`, `systems/characters.js`, `systems/interiors.js`, `world/city.js`,
-`systems/ai.js`, `systems/combat.js` and `main.js`, all of which those branches also touch.
+**Status:** v1 BUILT (2026-10-22, `world/storeys.js`, data `data/storeys.js`): upper storeys on the streaming vertical
+model, as §0 below records. Basements, shooting between floors (an upper window down at the street), noise and blasts
+through floors are v2 (§0.4).
+
+## 0. As built (v1) - where it differs from the spec below
+1. **Heights.** A building's street storey keeps the wall height city.js rolled for it (4.2-6 m; its RNG must not
+   move), so floor 1 stands on that wall top: `Y[1] = h`, `Y[k] = h + (k-1)·3.2`. Every flight keeps the one pitch
+   (3.2 / 4.4 = 36°), so the street flight is longer: `h / 0.727` = 5.8-8.3 m. Upper flights switch back in a second
+   1.4 m band beside the first.
+2. **No `lv` field.** A person's floor is where their `gy` sits (`storeys.levelOf`); the sim keeps `gy` (`main.js
+   standOn`, called from the player's and `ai.move`'s movement), so someone off screen climbs too. `c.storey` names the
+   storeyed building they are in.
+3. **Collision, sight, bullets by height range, inside storeyed buildings only.** `statics.resolveBody(p, r, c)` asks
+   only the boxes across `[gy + 0.25, gy + 2.4]` once a person is off the street floor; `g.sees(a, b)` and the shot
+   (`combat`) run at the floor's eye height (`gy + 1.2/1.3`); `storeys.sameFloor(a, b)` gates sight, bullets, bites,
+   reach (talk, search, beds, cars, doors), crowd shoves and witnesses. Everywhere else - dunes, ramps, bridge decks -
+   the old flat rules hold exactly.
+4. **v1 leaves out:** basements (and the dark overlay), shooting up or down through windows, noise and blasts muffled by
+   floors (they still reach every floor), ruined slabs, fire escapes. Blood pools and footprints upstairs are drawn on
+   the street floor's ground (under the slab). Melee and throws do not check floors.
+5. **Which buildings:** by district, not shop (shop names are assigned after the world is built): 30% of the intact town
+   houses rise one storey, 45% of the larger ruins 1-3 (`RISE`), rolled from each building's own seed (its position);
+   18 buildings in Phoenix today, the Clinic among them. A staircase goes along an inside wall from a corner, clear of
+   that wall's doors, the partition, furniture and beds; a building with no such wall stays one storey.
+6. **The island's golden hash does not move:** storeys build with their own seed after the city, and `hashIsland` skips
+   `storey*` boxes; `storeys.view().hash` guards them instead.
+7. **Agent API:** `storeys` (the list, floors, flights with landings), `teleport floor=k`, `state` reports `gy` and
+   `floor`; saves carry `gy` (an old save loads you on the street floor).
+
 
 **Build on the streaming branch's vertical model, not a parallel one** (read once it lands): static boxes carry a
 `base` (they can float: a bridge parapet) as well as a `height`, and `resolveCircle(p, r, mover, minY, skip, topY)`

@@ -14,6 +14,7 @@ import { ZOOM } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
+import { makeRng } from '../engine/rng.js';
 import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
@@ -197,7 +198,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo, cond: g.inv.cond, jam: g.inv.jam },
@@ -250,6 +251,15 @@ function buildCommands(api) {
           dustWall: { radius: 45000, note: 'a fog fade and a hard stop for vehicles, 45 km from Phoenix' },
         }; })(),
       }),
+    },
+    storeys: {
+      group: 'world', desc: 'Buildings with floors above the street (docs/design/WEB_STOREYS.md): each one (centre, district, storeys, the floor heights, every flight with its bottom and top landings, the axis and climb direction u), the colliders and visual pieces, a hash. id=<i> for one. Stand on a floor with teleport floor=; walk a flight with held keys (W/A/S/D along its axis).',
+      args: { id: { type: 'number' } },
+      run: async ({ id }) => {
+        const v = g.storeys.view(), p = P();
+        if (id !== undefined) { need(v.list[id], `no storeyed building ${id} (0..${v.list.length - 1})`); return v.list[id]; }
+        return { ...v, list: v.list.map((b) => ({ i: b.i, x: b.x, z: b.z, district: b.district, shop: b.shop, storeys: b.storeys })), you: { gy: r1(p.gy ?? 0), in: p.storey ? g.storeys.list.indexOf(p.storey) : null, floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0 } };
+      },
     },
     world: {
       group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot, load, query and test are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
@@ -334,9 +344,9 @@ function buildCommands(api) {
 
     // ---------------------------------------------------------------- player
     teleport: {
-      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] } },
-      run: async ({ x, z, town, mile, dir }) => {
+      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. floor=<k> stands you on floor k of a storeyed building there (storeys; 0 = the street floor, the default). Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] }, floor: { type: 'number', default: 0 } },
+      run: async ({ x, z, town, mile, dir, floor }) => {
         const S = g.streamer;
         let h = null;
         if (town !== undefined) {
@@ -357,6 +367,8 @@ function buildCommands(api) {
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
         if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
         p.x = pos.x; p.z = pos.z;
+        // The street floor, or floor= of a storeyed building there (world/storeys.js; staging for checks and shots).
+        { const Sb = g.storeys.at(p.x, p.z); p.gy = !v && Sb && floor > 0 ? Sb.Y[Math.min(floor, Sb.n)] : 0; g.standOn(p); }
         if (h !== null && !v) p.face = h;
         g.camLook.x = pos.x; g.camLook.z = pos.z;
         return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z), region: districtName(pos.x, pos.z), ...(h !== null ? { heading: r1(h) } : {}) };
@@ -3475,6 +3487,117 @@ async function runSelfTest(api) {
     g.removeChar(w);
     return ran && cowed && gaveUp && handsUp && !runner && threat && !gun.killLanded && ran2 && paid && cash === 500 - cost && !bribe.runner && !bribe.killLanded ? true : JSON.stringify({ gun, bribe, runners: g.witnesses.view() });
   }));
+  // ---- storeys (docs/design/WEB_STOREYS.md, world/storeys.js) ----
+  // A flight is walked on held keys (W/A/S/D along its axis); people are staged on a floor by position and gy (staging).
+  const stairKey = (f, up) => { const k = f.ax === 'z' ? (f.u < 0 ? 'KeyW' : 'KeyS') : (f.u < 0 ? 'KeyA' : 'KeyD'); return up ? k : { KeyW: 'KeyS', KeyS: 'KeyW', KeyA: 'KeyD', KeyD: 'KeyA' }[k]; };
+  const clearAround = (S, r = 45) => { const cx = (S.b.minX + S.b.maxX) / 2, cz = (S.b.minZ + S.b.maxZ) / 2; for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - cx, c.z - cz) < r) g.removeChar(c); };
+  const storeyed = (pred) => g.storeys.list.find(pred);
+  // A spot on floor k of S clear of the stairwell, its landings and the walls and furniture of both floors.
+  const floorSpot = (S, k, dx = 0) => {
+    const rng = makeRng(77 + k);
+    for (let i = 0; i < 200; i++) {
+      const x = S.ix0 + 1.5 + rng() * (S.ix1 - S.ix0 - 3), z = S.iz0 + 1.5 + rng() * (S.iz1 - S.iz0 - 3);
+      const ok = (px) => { const a = S.area; if (px > a.minX - 1.2 && px < a.maxX + 1.2 && z > a.minZ - 1.2 && z < a.maxZ + 1.2) return false; if (px < S.ix0 + 1 || px > S.ix1 - 1) return false;
+        const t = { x: px, z }; if (g.statics.resolveCircle(t, 0.5) > 0) return false; // the street floor
+        const u = { x: px, z }; return g.statics.resolveCircle(u, 0.5, null, S.Y[k] + 0.25, null, S.Y[k] + 2.4) === 0; }; // floor k
+      if (ok(x) && ok(x + dx)) return { x, z };
+    }
+    return null;
+  };
+  await check('storeys: walk up a flight on held keys - height climbs to the floor above exactly at the top, over the street floor\'s end-block - and back down', async () => {
+    await stage();
+    const S = storeyed((s) => s.n >= 1), f = S.flights[0], p = g.player;
+    clearAround(S);
+    await C('teleport', { x: f.bottomOut.x, z: f.bottomOut.z });
+    const g0 = p.gy;
+    let maxGy = 0;
+    await holdKey(stairKey(f, true), 4, () => { maxGy = Math.max(maxGy, p.gy); return Math.abs(p.gy - f.to) < 0.01 && Math.hypot(p.x - f.topOut.x, p.z - f.topOut.z) < 0.5; });
+    const up = { gy: +p.gy.toFixed(2), floor: g.storeys.levelOf(S, p.gy), atTop: Math.hypot(p.x - f.topOut.x, p.z - f.topOut.z) < 0.9, view: g.storeys.viewL };
+    await holdKey(stairKey(f, false), 4, () => p.gy < 0.01 && Math.hypot(p.x - f.bottomOut.x, p.z - f.bottomOut.z) < 0.5);
+    const down = { gy: +p.gy.toFixed(2), atFoot: Math.hypot(p.x - f.bottomOut.x, p.z - f.bottomOut.z) < 0.9 };
+    return g0 === 0 && up.floor === 1 && Math.abs(up.gy - f.to) < 0.02 && up.atTop && up.view === 1 && down.gy === 0 && down.atFoot ? true : JSON.stringify({ g0, up, down, maxGy, to: f.to });
+  });
+  await check('storeys: floors do not touch - a drifter upstairs and one right below share x,z but not a shove, a line of sight or a bullet', async () => {
+    const S = storeyed((s) => s.n >= 1);
+    clearAround(S);
+    const spot = floorSpot(S, 1, 3);
+    if (!spot) return 'no clear spot on both floors';
+    const up = person('drifter', 0, 0, { hp: 400 }), down = person('drifter', 0, 0, { hp: 400 });
+    up.x = spot.x; up.z = spot.z; up.gy = S.Y[1]; g.standOn(up);
+    down.x = spot.x; down.z = spot.z; down.gy = 0; g.standOn(down);
+    for (const c of [up, down]) { c.home = { x: c.x, z: c.z }; c.wx = c.x; c.wz = c.z; }
+    await C('step', { seconds: 1 });
+    const moved = +(Math.hypot(up.x - spot.x, up.z - spot.z) + Math.hypot(down.x - spot.x, down.z - spot.z)).toFixed(2);
+    const floors = [+up.gy.toFixed(2), +down.gy.toFixed(2)];
+    const sight = g.sees(up, down) || g.sees(down, up);
+    // Below, 3 m along: the one upstairs fires straight at it - the round stays on its own floor.
+    down.x = spot.x + 3; down.home = { x: down.x, z: down.z }; down.wx = down.x;
+    const hp0 = down.hp;
+    for (let i = 0; i < 4; i++) { g.combat.fire(up, 'pistol', Math.atan2(down.x - up.x, down.z - up.z)); await C('step', { seconds: 0.05 }); }
+    const hit = hp0 - down.hp;
+    g.removeChar(up); g.removeChar(down);
+    return moved < 0.15 && floors[0] === +S.Y[1].toFixed(2) && floors[1] === 0 && !sight && hit === 0 ? true : JSON.stringify({ moved, floors, sight, hit });
+  });
+  await check('storeys: a raider with a grudge on the street floor finds the stairs and reaches you upstairs within 20 s', async () => {
+    const S = storeyed((s) => s.n >= 1 && s.b.district === 'ruins') ?? storeyed(() => true), f = S.flights[0], p = g.player;
+    clearAround(S, 70);
+    g.godMode = true;
+    let r = null;
+    try {
+      await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+      const spot = floorSpot(S, 1) ?? f.bottomOut;
+      r = g.spawnRaider(spot.x, spot.z, Math.random, 'pistol');
+      r.gy = 0; g.standOn(r);
+      r.target = p; r.grudge = p; r.state = 'fight'; r.leash = 90;
+      let t = 0, onStair = false;
+      for (; t < 20; t += 0.5) {
+        await C('step', { seconds: 0.5 });
+        if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
+        if (Math.abs(r.gy - S.Y[1]) < 0.05 && g.storeys.sameFloor(r, p)) break;
+      }
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+    } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
+  });
+  await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {
+    const S = storeyed((s) => s.n >= 2);
+    if (!S) return 'no building with two floors above the street';
+    const f = S.flights[0], A = g.storeys.mesh.instanceMatrix.array, shown = (i) => A[i * 16] !== 0;
+    clearAround(S);
+    await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+    await C('step', { seconds: 0.3 });
+    const above = S.idx.filter((i) => g.storeys.items[i].lv > 1), mine = S.idx.filter((i) => g.storeys.items[i].lv <= 1);
+    const inside = { hiddenAbove: above.every((i) => !shown(i)), shownBelow: mine.every((i) => shown(i)), above: above.length, mine: mine.length };
+    // Someone on floor 2 is not drawn while you stand on floor 1.
+    const spot2 = floorSpot(S, 2);
+    const up2 = spot2 ? person('drifter', 0, 0) : null;
+    if (up2) { up2.x = spot2.x; up2.z = spot2.z; up2.gy = S.Y[2]; g.standOn(up2); }
+    await C('step', { seconds: 0.2 });
+    const culled = up2 ? g.charR.cullAbove && up2.gy > g.charR.cullAbove.y : null;
+    if (up2) g.removeChar(up2);
+    await C('teleport', { x: S.b.maxX + 6, z: (S.b.minZ + S.b.maxZ) / 2 });
+    await C('step', { seconds: 0.3 });
+    const outside = S.idx.every((i) => shown(i));
+    return inside.hiddenAbove && inside.shownBelow && inside.above > 0 && culled !== false && outside ? true : JSON.stringify({ inside, culled, outside });
+  });
+  await check('storeys: an upstairs crate is a container reached from its own floor, not from the street floor under it', async () => {
+    const box = [...g.inventory.boxes.values()].find((b) => (b.y ?? 0) > 0.5 && /:L\d$/.test(b.id));
+    if (!box) return 'no upstairs container';
+    const fromFloor = g.inventory.nearest(box.x, box.z, 1.5, false, box.y) === box;
+    const fromStreet = g.inventory.nearest(box.x, box.z, 1.5, false, 0) === box;
+    return fromFloor && !fromStreet ? true : JSON.stringify({ id: box.id, y: box.y, fromFloor, fromStreet });
+  });
+  await check('storeys: a save taken upstairs loads you upstairs (and an old save without a height, on the street floor)', async () => {
+    const S = storeyed((s) => s.n >= 1), f = S.flights[0], p = g.player;
+    await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+    const save = (await C('save')).save;
+    await C('teleport', { x: f.bottomOut.x, z: f.bottomOut.z });
+    await C('load', { save });
+    const upstairs = +p.gy.toFixed(2);
+    const old = JSON.parse(JSON.stringify(save)); delete old.player.gy; old.player.x = f.bottomOut.x; old.player.z = f.bottomOut.z;
+    await C('load', { save: old });
+    const street = +p.gy.toFixed(2);
+    return upstairs === +S.Y[1].toFixed(2) && street === 0 ? true : JSON.stringify({ upstairs, street, want: S.Y[1] });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -3496,8 +3619,8 @@ export function snapshot(g) {
   return {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
-    player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
+    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
+    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
@@ -3544,11 +3667,13 @@ export function restore(g, s) {
     }
     Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0, sleeping: false, bedY: 0, bed: null, restless: 0 });
     if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
+    c.gy = sc.gy ?? 0; g.standOn(c); // back on the floor they were on
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
-  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
+  Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
+  g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.

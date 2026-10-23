@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Input } from './engine/input.js';
-import { StaticWorld } from './engine/collision.js';
+import { StaticWorld, RAY_SIGHT } from './engine/collision.js';
 import { makeRng, angleLerp, clamp } from './engine/rng.js';
 import { buildWorld, TOWN, roadLines, HALF, OUTSIDE } from './world/city.js';
 import { Streamer } from './world/streamer.js';
@@ -25,6 +25,8 @@ import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
 import { Roles } from './systems/roles.js';
 import { Witnesses } from './systems/witnesses.js';
+import { Storeys } from './world/storeys.js';
+import { LEVEL } from './data/storeys.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -96,6 +98,12 @@ class Game {
     // Military bases (data/bases.js): the Federal Remnant's fenced outpost. Its fence, walls and props are solid before
     // the nav grids see them; its doors and windows join the world's rows before the interiors system hangs them.
     this.bases = new Bases(this);
+    // Floors above the street (world/storeys.js): after the city, the ramps and the base (the staircases keep clear of their
+    // furniture), before the nav grids (the street floor's walkers route round a stairwell). Its own seed: the island's
+    // golden hash does not move.
+    this.storeys = new Storeys(this);
+    this.storeys.build();
+    this.stunts.storeys = this.storeys;
     // Navigation grids: one for people, one dilated for vehicles. The island is rasterised once into each grid's pinned
     // store; A* runs on a 1 km window that moves with the queries and copies streamed chunks' tiles in (engine/nav.js).
     this.nav = { foot: new NavGrid(this.statics, { radius: 0.45, cell: 1 }), car: new NavGrid(this.statics, { radius: 1.9, cell: 2 }) };
@@ -359,6 +367,17 @@ class Game {
   }
   // Sight line that respects walls AND smoke.
   los(ax, az, bx, bz) { return this.statics.lineOfSight(ax, az, bx, bz) && !this.throwables.blocksSight(ax, az, bx, bz); }
+  // The same at a floor's height (world/storeys.js): y = the floor (0 on the street, where it is exactly los()).
+  losAt(ax, az, bx, bz, y = 0) {
+    if (y < 0.5) return this.los(ax, az, bx, bz);
+    return this.statics.lineOfSight(ax, az, bx, bz, RAY_SIGHT, y + LEVEL.eye) && !this.throwables.blocksSight(ax, az, bx, bz);
+  }
+  // Can person a see person b: on their floor, and nothing in the way at its height. Outside the storeyed buildings,
+  // exactly the old flat line of sight.
+  sees(a, b) {
+    if (!this.storeys.sameFloor(a, b)) return false;
+    return this.losAt(a.x, a.z, b.x, b.z, a.storey || b.storey ? Math.min(a.gy ?? 0, b.gy ?? 0) : 0);
+  }
 
   // Throw the selected throwable at the aim point (cooked = seconds already held).
   throwSelected(cooked = 0) {
@@ -381,10 +400,19 @@ class Game {
     if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn');
     return r;
   }
+  // Where a person stands - the floor or stair under them (world/storeys.js), a ramp, a dune, a bridge deck - and whether
+  // that is inside a storeyed building. Kept by the sim (here and ai.move), so someone off screen climbs stairs too;
+  // characters.js only draws it. A sentry on a tower deck keeps the deck.
+  standOn(c) {
+    if (c.perchY) { c.gy = c.perchY; return; }
+    c.gy = this.stunts.heightAt(c.x, c.z, c.gy ?? 0);
+    c.storey = this.storeys.at(c.x, c.z);
+  }
+
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
-  bedNear(x, z) {
+  bedNear(x, z, y = 0) {
     let best = null, bd = 1.8;
-    for (const b of this.world.spawns.beds ?? NO_BEDS) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.world.spawns.beds ?? NO_BEDS) { if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     return best;
   }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
@@ -487,6 +515,7 @@ class Game {
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
       const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
       this.inventory.armBody(body, c);
     }
     if (c === this.player) { this.respawnT = 4; if (this.player.inVehicle) this.exitVehicle(true); }
@@ -593,7 +622,7 @@ class Game {
         this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
         // Wake up on the clinic's doorstep (never inside a furniture pocket).
         const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
-        p.x = door.x; p.z = door.z;
+        p.x = door.x; p.z = door.z; p.gy = 0; p.storey = null;
         this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
         const fee = Math.floor(this.cash * 0.15);
         this.cash -= fee;
@@ -709,8 +738,9 @@ class Game {
       p.dive -= dt;
       const f = p.dive > 0.25 ? 9.5 : 3; // flight, then belly slide
       const t = { x: p.x + p.diveDx * f * dt, z: p.z + p.diveDz * f * dt };
-      this.statics.resolveCircle(t, p.radius, p); // a dive shoulders doors open and goes through windows
+      this.statics.resolveBody(t, p.radius, p); // a dive shoulders doors open and goes through windows
       p.x = t.x; p.z = t.z; p.speed = 0;
+      this.standOn(p);
       if (p.vault) return; // dove into a window: through it
       if (p.dive <= 0) { this.emit('dived', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) }); this.fx.dust(p.x, p.z, 3); }
       this.handleShooting(dt, p.face);
@@ -758,8 +788,9 @@ class Game {
     const px = p.x, pz = p.z;
     if (len) {
       const t = { x: p.x + (mx / len) * speed * dt, z: p.z + (mz / len) * speed * dt };
-      this.statics.resolveCircle(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
+      this.statics.resolveBody(t, p.radius, p); // doors swing open ahead of you; broken windows get climbed
       p.x = t.x; p.z = t.z;
+      this.standOn(p); // up a stair, onto a floor, down off a ramp
       if (p.vault) return;
     }
     p.speed = Math.hypot(p.x - px, p.z - pz) / dt;
@@ -804,21 +835,22 @@ class Game {
     let best = null, bd = 2.8;
     for (const c of this.chars) {
       if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.target === p) continue;
+      if (!this.storeys.sameFloor(p, c)) continue; // the floor between you
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       if (d < bd) { bd = d; best = c; }
     }
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
-      if (veh.dead) continue;
+      if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same)) continue; // the street's cars, from upstairs: no
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
-    const op = !best && !bestV ? this.interiors.playerInteract(p, I, dt) : null;
+    const op = !best && !bestV && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
-    const box = !best && !bestV && !op ? this.inventory.nearest(p.x, p.z, 2.6) : null;
+    const box = !best && !bestV && !op ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !box ? this.bedNear(p.x, p.z) : null;
+    const bed = !best && !bestV && !op && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? op ?? (box || bed ? this.boxRing : null));
@@ -956,6 +988,9 @@ class Game {
     }
     // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
     this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
+    // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
+    const floorY = this.insideBuilding?.storey && !v ? p.gy ?? 0 : 0;
+    this.camFloor = (this.camFloor ?? 0) + (floorY - (this.camFloor ?? 0)) * (1 - Math.exp(-dt * ZOOM.heightRate));
     const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
@@ -964,8 +999,8 @@ class Game {
     this.viewR = Math.hypot(halfX, halfZ) * 1.15;
     const s = this.hud.shakeV;
     const sx = (Math.random() - 0.5) * s * 1.2, sz = (Math.random() - 0.5) * s * 1.2;
-    this.camera.position.set(this.camLook.x + sx, this.camHeight, this.camLook.z + this.camHeight * 0.14 + sz);
-    this.camera.lookAt(this.camLook.x + sx, 0, this.camLook.z + sz);
+    this.camera.position.set(this.camLook.x + sx, this.camHeight + this.camFloor, this.camLook.z + this.camHeight * 0.14 + sz);
+    this.camera.lookAt(this.camLook.x + sx, this.camFloor, this.camLook.z + sz);
   }
 
   updateInterior() {
@@ -977,6 +1012,9 @@ class Game {
         if (p.x > b.minX && p.x < b.maxX && p.z > b.minZ && p.z < b.maxZ) { inside = b; break; }
       }
     }
+    const S = inside?.storey ?? null;
+    this.storeys.setView(S, p.gy ?? 0);
+    this.charR.cullAbove = S ? { b: inside, y: (p.gy ?? 0) + LEVEL.same } : null;
     if (inside !== this.insideBuilding) {
       if (this.insideBuilding) this.world.setRoofVisible(this.insideBuilding, true);
       if (inside) {

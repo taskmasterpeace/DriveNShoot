@@ -285,7 +285,7 @@ export function buildWorld(scene, statics) {
     const ruined = district === 'ruins' && rng.chance(0.55);
     const h = district === 'town' ? rng.range(4.2, 5.2) : rng.range(4, 6);
     const color = district === 'town' ? rng.pick(TOWN_COLORS) : rng.pick(RUIN_COLORS);
-    const b = { minX, maxX, minZ, maxZ, enterable: true, roofIdx: [], doors: [], innerDoors: [], ruined, district, h, shopName, inside: false, pend: [] };
+    const b = { minX, maxX, minZ, maxZ, enterable: true, roofIdx: [], doors: [], innerDoors: [], ruined, district, h, shopName, inside: false, pend: [], color }; // color: world/storeys.js builds the floors above in it
     // Doors: always face the nearest road on at least one side.
     const nearestRoad = (v) => roadLines.reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), roadLines[0]);
     const dxRoad = Math.abs(nearestRoad(cx) - cx) - w / 2, dzRoad = Math.abs(nearestRoad(cz) - cz) - d / 2;
@@ -635,6 +635,18 @@ export function buildWorld(scene, statics) {
         flames.setMatrixAt(i, o.matrix);
       });
       flames.instanceMatrix.needsUpdate = true;
+    },
+    // A building that rose (world/storeys.js): its roof and the clutter on it move up by dy, onto the top storey.
+    raiseRoof(b, dy) {
+      const mesh = roofs.mesh;
+      for (const idx of b.roofIdx) {
+        const it = roofs.items[idx];
+        it.cy += dy;
+        o.position.set(it.cx, it.cy, it.cz); o.rotation.set(0, it.rotY, 0); o.scale.set(it.sx, it.sy, it.sz); o.updateMatrix();
+        mesh.setMatrixAt(idx, o.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
     },
     setRoofVisible(b, visible) {
       if (b.setRoof) { b.setRoof(visible); return; } // a building that keeps its own roofs (systems/bases.js)

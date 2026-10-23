@@ -2,6 +2,7 @@ import { ITEMS, LOOT, START_KIT, BODY_LITRES, AMMO_ITEM, GUN_ITEM, GUN_WEAR, GUN
 import * as THREE from 'three';
 import { makeRng } from '../engine/rng.js';
 import { WEAPONS } from './combat.js';
+import { LEVEL } from '../data/storeys.js';
 
 // What you carry and what the world holds (docs/design/WEB_INVENTORY.md). Everything is an item in a container,
 // rounds included. The guns you carry are your loadout (g.inv.weapons: holster and sling, outside the list, quick
@@ -482,10 +483,11 @@ export class Inventory {
       const x = (b.minX + b.maxX) / 2, z = (b.minZ + b.maxZ) / 2;
       const bld = B.find((q) => q.enterable && x > q.minX && x < q.maxX && z > q.minZ && z < q.maxZ);
       if (!bld) continue;
-      const id = `box:${Math.round(x * 10)}:${Math.round(z * 10)}`, h = hash(id);
+      const id = `box:${Math.round(x * 10)}:${Math.round(z * 10)}${b.storeyLv ? `:L${b.storeyLv}` : ''}`, h = hash(id); // upstairs (world/storeys.js): its floor in the id
       const shop = bld.shopName?.split(' · ')[0] ?? null;
       const table = SHOP_LOOT[shop] ?? (b.tag === 'crate' ? (h % 3 ? 'kitchen' : 'garage') : HOME_LOOT[h % HOME_LOOT.length]);
       const box = this.place(id, table, x, z, b.tag === 'crate' ? 60 : 40, `${b.tag === 'crate' ? 'CRATE' : 'SHELF'}${shop ? ` · ${shop.toUpperCase()}` : ''}`, h);
+      if (b.base > 0) box.y = b.base; // reachable from its own floor only (nearest)
       const keeper = shop && keepers.find((c) => c.npc.title === bld.shopName);
       if (keeper) { box.owner = keeper.id; box.ownerName = keeper.npc.name; }
     }
@@ -528,18 +530,21 @@ export class Inventory {
     }
   }
 
-  nearest(x, z, reach = 2.2, notGround = false) {
+  // y: the asker's height. A box on another floor (world/storeys.js) is out of reach whatever its x, z. Without y, any floor.
+  nearest(x, z, reach = 2.2, notGround = false, y = undefined) {
     let best = null, bd = reach;
-    for (const b of this.boxes.values()) { if (notGround && b.kind === 'ground') continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) { if (notGround && b.kind === 'ground') continue; if (y !== undefined && Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     return best;
   }
 
   // What's on the ground here: the pile within reach, or a fresh empty one (pruned again if nothing is left in it).
-  groundAt(x, z) {
+  // y: the floor it lies on (upstairs: world/storeys.js); by default the player's.
+  groundAt(x, z, y = this.g.player?.gy ?? 0) {
     let best = null, bd = 1.6;
-    for (const b of this.boxes.values()) if (b.kind === 'ground') { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
+    for (const b of this.boxes.values()) if (b.kind === 'ground' && Math.abs((b.y ?? 0) - y) <= LEVEL.same) { const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
     if (best) return best;
     const b = this.place(`ground:${++this.piles}`, 'ground', x, z, 999, 'THE GROUND');
+    if (y > 0.5) b.y = y;
     b.rolled = true;
     return b;
   }

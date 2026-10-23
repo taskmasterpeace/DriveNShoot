@@ -140,6 +140,15 @@ export class StaticWorld {
     return pushed;
   }
 
+  // A person moving. Inside a storeyed building and up off the street floor (c.storey, c.gy: world/storeys.js, kept by
+  // main.js standOn), only the boxes across their own height range count: the floor below's walls pass under their feet,
+  // the floor above's over their head. Everywhere else, the old flat rule (dunes, ramps and bridges as they were).
+  // mover: who pushes doors (the person by default; null for a shove in a crowd, where a door is as solid as a wall).
+  resolveBody(p, r, c, mover = c) {
+    const y = c?.storey ? c.gy ?? 0 : 0;
+    return y > 0.5 ? this.resolveCircle(p, r, mover, y + 0.25, null, y + 2.4) : this.resolveCircle(p, r, mover);
+  }
+
   circleBox(b, stamp, p, r, mover, minY, skip, topY) {
     if (b.mark === stamp) return 0;
     b.mark = stamp;
@@ -247,12 +256,13 @@ export class StaticWorld {
     return false;
   }
 
-  // Sight by default: glass and window holes don't block it, boards and closed doors do.
-  lineOfSight(ax, az, bx, bz, mode = RAY_SIGHT) {
+  // Sight by default: glass and window holes don't block it, boards and closed doors do. y >= 0: the ray's height (an
+  // upper floor's eye line: the walls of the floor below pass under it, the floor above's over it).
+  lineOfSight(ax, az, bx, bz, mode = RAY_SIGHT, y = -1) {
     const dx = bx - ax, dz = bz - az;
     const d = Math.hypot(dx, dz);
     if (d < 0.01) return true;
-    return this.raycast(ax, az, dx / d, dz / d, d, mode) >= d - 0.05;
+    return this.raycast(ax, az, dx / d, dz / d, d, mode, y) >= d - 0.05;
   }
 
   pointBlocked(x, z, r = 0.5) {

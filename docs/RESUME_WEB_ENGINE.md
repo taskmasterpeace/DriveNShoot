@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 106/106 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 112/112 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | (pending) |
 | Streamed Arizona (subagent) | WEB_STREAMING P1: chunks, pools, chunked collision, a 1 km nav window, I-10 from Los Angeles to El Paso through Phoenix with real interchanges (deceleration lanes, gores, EXIT signs in miles), mesas, convoys on the interstate, radar + big map past the island; 9 checks; 60 s flat out on the bike = 2.6 km with 0 stalls, ~73 draw calls | WEB_STREAMING §1.2 | a85b2092 |
 | Long commands | the CLI and the MCP server wait out a scenario (node:http, not fetch's 300 s) | web/AGENTS.md | 61967fa6 |
 | Golden hour, siege, minimap ring | the hour around sunset stays readable from above (sky fill); zombie-siege waits for the first pane; a running witness reads on the minimap | — | da4d36e3 · 51f008e5 · 1ea6cd88 |
@@ -94,7 +95,7 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
    wanted?
 
 ## Next blocks
-- **Multi-storey buildings** (WEB_STOREYS, on the streaming branch's vertical model) - in progress.
+- Storeys v2: basements, shooting between floors through windows, noise and blasts through floors (WEB_STOREYS §0.4).
 - **Then the Phoenix ring** (Robert, 2026-10-22: metros ~3 km, cities ~1.5 km, holdouts as they are; WEB_STREAMING
   decision 5): the 920 m island stays downtown, a generated living ring out to ~1.5 km, then LA, El Paso, the cities.
 - **bounty-run no longer completes** (critic sweep, 2026-10-22): 3/6 kills, $0. The game outgrew the scenario - Ike

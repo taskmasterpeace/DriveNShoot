@@ -94,6 +94,13 @@ export class Zombies {
       return;
     }
     const d = Math.hypot(t.x - c.x, t.z - c.z);
+    // Upstairs or down (world/storeys.js): no bite through a floor; they find the stairs.
+    if (!g.storeys.sameFloor(c, t)) {
+      const wp = g.storeys.steer(c, t.x, t.z, t.gy ?? 0);
+      if (wp) g.ai.move(c, wp.x - c.x, wp.z - c.z, c.zSpeed, dt);
+      else g.ai.move(c, t.x - c.x, t.z - c.z, c.zSpeed, dt);
+      return;
+    }
     if (d < 1.25) {
       c.speed = 0;
       c.face = Math.atan2(t.x - c.x, t.z - c.z);
