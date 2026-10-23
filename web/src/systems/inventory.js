@@ -20,7 +20,7 @@ const BOUND = Symbol('rounds are items');
 // What a shop's shelves and crates hold (by the shopkeeper's trade), and what a home's shelves might.
 const SHOP_LOOT = { Clinic: 'bathroom', Mechanic: 'garage', Gunsmith: 'gunsmith', 'Water Trader': 'kitchen', 'Radio DJ': 'office', 'Warden Captain': 'office' };
 const HOME_LOOT = ['kitchen', 'bathroom', 'bedroom', 'office', 'kitchen'];
-const TRUNK = { rig: 900, interceptor: 260, buggy: 60, pickup: 700, sedan: 380, van: 1400, airboat: 120, jetski: 20, gunboat: 400, atv: 50, bike: 22, patrol: 600, apc: 1200 };
+const TRUNK = { rig: 900, interceptor: 260, buggy: 60, pickup: 700, sedan: 380, van: 1400, rv: 600, airboat: 120, jetski: 20, gunboat: 400, atv: 50, bike: 22, patrol: 600, apc: 1200 };
 
 export class Container {
   constructor(id, label, cap, kind = 'box') { this.id = id; this.label = label; this.cap = cap; this.kind = kind; this.slots = []; }

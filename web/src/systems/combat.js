@@ -20,6 +20,7 @@ export class Combat {
   fire(ch, wkey, ang) {
     const w = WEAPONS[wkey];
     const g = this.g;
+    if (ch.onDeck && !g.decks.muzzleClear(ch, ang)) return false; // inside a van or an RV: out of a window or a door only
     const fx = Math.sin(ang), fz = Math.cos(ang);
     // The shot leaves the muzzle, on the body's centre line (the aim pose in characters.js).
     const mf = muzzleForward(w), ox = ch.x + fx * mf, oz = ch.z + fz * mf;
@@ -61,6 +62,7 @@ export class Combat {
     }
     for (const v of g.vehicles) {
       if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
+      if (target?.onDeck?.v === v && !g.decks.covered(v, target)) continue;   // a rider standing in its open bed: above its sides
       for (const s of [-1, 1]) {
         const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
         const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);

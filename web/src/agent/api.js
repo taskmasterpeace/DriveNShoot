@@ -1,5 +1,6 @@
 import { WEAPONS } from '../systems/combat.js';
-import { VEHICLES } from '../systems/vehicles.js';
+import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
+import { DECK_RULES, CAMP } from '../data/decks.js';
 import { WEATHER } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
@@ -67,6 +68,7 @@ function vehView(g, v) {
     ...g.carCombat.view(v),
     ...g.vehDamage.view(v),
     occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen, boat: !!v.boat, sunk: !!v.sunk, waterDepth: r1(v.depth ?? 0),
+    reverse: r1(reverseOf(v)), deck: g.decks.view(v) ?? undefined,
   };
 }
 
@@ -1011,7 +1013,7 @@ function buildCommands(api) {
     dismiss: { group: 'player', desc: 'Send a follower on their way.', args: { id: { type: 'string', required: true } },
       run: async ({ id }) => { const c = api.findChar(id); need(c?.follower, `${id} is not following you`); g.seats.dismiss(c); return { dismissed: c.id }; } },
     seat: {
-      group: 'vehicle', desc: 'Board a vehicle in a specific seat (driver|shotgun|backL|backR|bedL|bedR|pillion|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report.',
+      group: 'vehicle', desc: 'Board a vehicle in a specific seat (driver|shotgun|backL|backR|pillion|gunner|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report. A pickup\'s bed, a van\'s cargo box and an RV\'s coach are not seats but decks you stand on: see `deck`.',
       args: { id: { type: 'string' }, seat: { type: 'string', default: 'passenger' } },
       run: async ({ id, seat }) => {
         const p = P();
@@ -1037,6 +1039,32 @@ function buildCommands(api) {
         need(g.seats.board(p, v, si), `${seat} is taken`);
         g.lastVehicle = v;
         return { seat, driver: v.driver?.id ?? null };
+      },
+    },
+    deck: {
+      group: 'vehicle', desc: 'Walkable vehicles (docs/design/WEB_WALK_VEHICLES.md; data/decks.js): a pickup\'s bed, a van\'s cargo box, an RV\'s coach are floors that ride with the vehicle. No args: every deck in the world with its riders. id=<vehicle>: that deck - riders and where they stand in its frame (lx: the driver\'s left, lz: forward), its boxes, beds, tank, camp, whether its roof is cut away. mount=<char id|player> puts someone aboard (lx, lz: where; default its middle; force=true skips the reach check for the player); leave=<char id|player> steps them off where they are. In the game: E climbs into a bed or steps in a door (walking into a door works too), Space over the side, walk out a door, F at the wheel drives, F at the wheel again stands you back up inside.',
+      args: { id: { type: 'string' }, mount: { type: 'string' }, leave: { type: 'string' }, lx: { type: 'number' }, lz: { type: 'number' }, force: { type: 'boolean', default: false } },
+      run: async ({ id, mount, leave, lx, lz, force }) => {
+        if (!id && !mount && !leave) return { decks: g.decks.list.filter((v) => !v.dead).map((v) => ({ id: v.id, type: v.type, x: r1(v.x), z: r1(v.z), ...g.decks.view(v) })), rules: DECK_RULES };
+        if (leave) {
+          const c = api.findChar(leave);
+          need(c?.onDeck, `${leave} is not on a deck`);
+          const v = c.onDeck.v;
+          g.decks.dismount(c, 'walked');
+          return { left: c.id, vehicle: v.id, x: r1(c.x), z: r1(c.z) };
+        }
+        const v = id ? api.findVeh(id) : null;
+        need(v?.deck, `${id} has no deck (pickup, van and rv do)`);
+        if (mount) {
+          const c = api.findChar(mount);
+          need(c?.alive, `no living character ${mount}`);
+          if (c === P() && !force) need(Math.hypot(v.x - c.x, v.z - c.z) < v.len * 0.5 + 3.5, `${v.name} is out of reach; moveTo id=${v.id} first (or force=true)`);
+          need(g.decks.room(v), `${v.name}'s deck is full`);
+          const F = v.deck.floor;
+          g.decks.mount(c, v, lx ?? (F[0] + F[1]) / 2, lz ?? (F[2] + F[3]) / 2, 'command');
+          return { mounted: c.id, ...g.decks.view(v) };
+        }
+        return { id: v.id, type: v.type, ...g.decks.view(v) };
       },
     },
     repair: {
@@ -2612,6 +2640,243 @@ async function runSelfTest(api, only = null) {
       await C('setTime', { hour: 12 });
     }
   });
+  // ---- walkable vehicles (docs/design/WEB_WALK_VEHICLES.md, systems/decks.js) and the driving fixes. The player acts on
+  // held keys (and the mouse button) only; vehicles, drivers and targets are staged. Open desert at WV (the south-east flats); the road run is
+  // Route 66's eastbound lane between the Iron Line (x = -360) and the town wall.
+  const WV = { x: 250, z: 430 }; // far from every raider camp (a camp's shots 30 m off wake a sleeper, as they should)
+  const hk = async (codes, seconds, until) => {
+    codes = [].concat(codes);
+    for (const k of codes) { g.input.down.add(k); g.input.pressed.add(k); }
+    try { for (let f = 0; f < seconds * 60; f++) { await api._step(1); if (until?.()) break; } } finally { for (const k of codes) g.input.down.delete(k); }
+  };
+  const tk = async (code) => { g.input.down.add(code); g.input.pressed.add(code); await api._step(1); g.input.down.delete(code); await api._step(1); };
+  const click = async (frames = 1) => { g.input.mouse.left = true; g.input.mouse.leftPressed = true; await api._step(frames); g.input.mouse.left = false; await api._step(1); };
+  const wvClean = (list) => {
+    if (g.player.onDeck) g.decks.dismount(g.player, 'test', true);
+    if (g.player.inVehicle) g.exitVehicle(true);
+    for (const o of list) if (o) { if (o.anchors) { if (g.vehicles.includes(o)) g.vehiclesSys.remove(o); } else if (g.chars.includes(o)) g.removeChar(o); }
+    g.aimOverride = null; g.input.mouse.left = false; g.qol.setWaypoint(null); g.player.knockT = 0; g.zoomLevel = ZOOM.start;
+  };
+  // A vehicle with an ally at the wheel, parked (ai off) until the check sends it.
+  const crewed = (type, x, z, h) => {
+    const v = g.vehiclesSys.spawn(type, x, z, h, '#5a4a32');
+    const d = g.addChar({ x, z: z + 4, faction: 'drifter', colors: outfit('drifter'), name: 'Driver (selftest)', flag: 'MX', hp: 400 });
+    g.seats.recruit(d); g.seats.board(d, v, 0); v.ai = null; v.throttle = 0;
+    return { v, d };
+  };
+  const wvReady = () => {
+    for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id); // no hunters walking in on a check
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.inVehicle && (Math.hypot(c.x - WV.x, c.z - WV.z) < 90 || Math.hypot(c.x + 330, c.z - 3.5) < 60)) g.removeChar(c);
+    for (const v of [...g.vehicles]) if (!v.occ?.some(Boolean) && (Math.hypot(v.x - WV.x, v.z - WV.z) < 25 || Math.hypot(v.x + 330, v.z - 3.5) < 15)) g.vehiclesSys.remove(v); // an earlier check's leftovers
+    const p = g.player; p.hp = p.maxHp; p.knockT = 0; p.crouch = false; g.inv.mag.pistol = 6; g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); delete g.inv.jam.pistol; if (g.inventory.cond('pistol') < 0.7) g.inv.cond.pistol = 0.9; g.switchWeapon('pistol'); };
+  await check('walk vehicles: E climbs into a pickup\'s bed; walking it on held keys, you stay in the bed while it drives 200 m', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
+    try {
+      await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v;
+      g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
+      const x0 = v.x, F = v.deck.floor, r = DECK_RULES.radius;
+      let off = 0, outside = 0, low = 0, maxSp = 0;
+      const keys = ['KeyW', 'KeyD', 'KeyS', 'KeyA'];
+      for (let f = 0; f < 60 * 25 && v.x - x0 < 205; f++) {
+        const k = keys[Math.floor(f / 40) % 4];
+        for (const q of keys) g.input.down.delete(q);
+        g.input.down.add(k);
+        await api._step(1);
+        const o = g.player.onDeck;
+        if (o?.v !== v) { off++; continue; }
+        if (o.lx < F[0] + r - 0.01 || o.lx > F[1] - r + 0.01 || o.lz < F[2] + r - 0.01 || o.lz > F[3] - r + 0.01) outside++;
+        if (Math.abs(g.player.gy - g.decks.floorYCached(v)) > 0.05) low++;
+        maxSp = Math.max(maxSp, g.vehiclesSys.speed(v));
+      }
+      for (const q of keys) g.input.down.delete(q);
+      const drove = v.x - x0;
+      return climbed && drove >= 200 && !off && !outside && !low && maxSp > 12 ? true : JSON.stringify({ climbed, drove: +drove.toFixed(1), off, outside, low, maxSp: +maxSp.toFixed(1) });
+    } finally { wvClean([v, d]); }
+  }));
+  await check('walk vehicles: shooting from the bed of a moving pickup hits a target beside the road', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
+    const t = person('raider', 0, 0, { hp: 600 });
+    t.x = -300; t.z = -10; t.home = { x: t.x, z: t.z };
+    try {
+      await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v;
+      g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
+      await api._step(60);
+      const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
+      for (let i = 0; i < 8 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; await api._step(6); await click(1); await api._step(12); }
+      return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck });
+    } finally { wvClean([v, d, t]); }
+  }));
+  await check('walk vehicles: a crash throws you out of the bed (standing), hurt and on your back', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', WV.x, WV.z, 0);
+    let wall = null;
+    try {
+      await C('teleport', { x: WV.x - 1.6, z: WV.z - 1.5 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v, hp0 = g.player.hp, god = g.godMode;
+      g.godMode = false; // the battery runs in god mode: the fall must hurt here
+      wall = g.statics.add(v.x - 3, v.z + 6, v.x + 3, v.z + 7, 'wall', 3);
+      v.vx = 0; v.vz = 20; // staged: 20 m/s at a wall 3.5 m off the bumper
+      const seq = g.eventSeq;
+      await api._step(12);
+      const down = g.player.knockT > 0;
+      await api._step(40);
+      g.godMode = god;
+      const ev = g.events.find((e) => e.seq > seq && e.type === 'thrown' && e.from === 'deck' && e.id === g.player.id);
+      return climbed && ev && down && !g.player.onDeck && g.player.hp < hp0 && Math.abs(g.player.gy ?? 0) < 0.3 ? true : JSON.stringify({ climbed, thrown: !!ev, down, onDeck: !!g.player.onDeck, hp: [hp0, g.player.hp], gy: g.player.gy });
+    } finally { if (wall) { wall.minX = wall.maxX = wall.minZ = wall.maxZ = 1e6; } wvClean([v, d]); }
+  }));
+  await check('walk vehicles: an RV - walk in its door and down to the bed on held keys (the roof cuts away), N sleeps there: a full rest', async () => withNeeds(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('rv', WV.x, WV.z, Math.PI, '#7a6a52'); // nose up the screen: its door (kerb side) faces screen-right
+    try {
+      await api._step(5);
+      await C('teleport', { x: v.x + 2.9, z: v.z - 1.05 }); await api._step(3);
+      await hk('KeyA', 3, () => g.player.onDeck);
+      const inside = g.player.onDeck?.v === v, roofCut = v.roof && !v.roof.visible;
+      await hk('KeyA', 0.18);
+      await hk('KeyS', 3, () => (g.player.onDeck?.lz ?? 0) < -2.0);
+      const at = g.player.onDeck ? [+g.player.onDeck.lx.toFixed(2), +g.player.onDeck.lz.toFixed(2)] : null;
+      g.needs.rest = 0.3;
+      const seq = g.eventSeq;
+      await tk('KeyN');
+      const slept = g.events.find((e) => e.seq > seq && e.type === 'sleep');
+      for (let i = 0; i < 40 && g.survival.sleep; i++) await api._step(30);
+      const w = g.survival.lastWake;
+      return inside && roofCut && slept?.kind === 'bed' && slept.quality === 1 && w?.why === 'rested' && g.needs.rest > 0.99 && g.player.onDeck?.v === v ? true
+        : JSON.stringify({ inside, roofCut, at, slept: slept ?? null, wake: w, rest: +g.needs.rest.toFixed(3), still: g.player.onDeck?.v === v });
+    } finally { wvClean([v]); }
+  }));
+  await check('walk vehicles: a van - walk in its side door, put something in its locker; it holds it across a save', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('van', WV.x, WV.z, Math.PI, '#5a5a48');
+    try {
+      await api._step(5);
+      await C('teleport', { x: v.x + 2.6, z: v.z }); await api._step(3);
+      await hk('KeyA', 3, () => g.player.onDeck);
+      const inside = g.player.onDeck?.v === v;
+      await hk('KeyS', 0.35);
+      await tk('KeyE'); // E at the locker: the PACK screen opens on it
+      const other = g.invUI.other?.id ?? null;
+      if (g.invUI.open) g.invUI.toggle(false);
+      const box = g.inventory.boxes.get(`deck:${v.id}:locker`);
+      g.inventory.add(box, 'wrench', 1); g.inventory.add(box, 'water_bottle', 2, { left: 1 });
+      const sv = (await C('save')).save;
+      box.slots = [];
+      const r = await C('load', { save: sv });
+      const back = g.inventory.boxes.get(`deck:${v.id}:locker`);
+      const ok = back?.count('wrench') === 1 && back?.count('water_bottle') === 2;
+      return inside && other === box.id && r.ok && ok && g.player.onDeck?.v === v ? true : JSON.stringify({ inside, other, load: r.ok, items: back?.slots, onDeck: !!g.player.onDeck });
+    } finally { wvClean([v]); }
+  }));
+  await check('walk vehicles: an ally climbs into the bed after you and shoots from it', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', WV.x, WV.z, 0);
+    const a = g.addChar({ x: WV.x + 3, z: WV.z - 2, faction: 'drifter', weapon: 'pistol', colors: outfit('drifter'), name: 'Ally (selftest)', flag: 'CA', hp: 300 });
+    g.seats.recruit(a);
+    let t = null;
+    try {
+      await C('teleport', { x: WV.x - 1.6, z: WV.z - 1.5 }); await api._step(5);
+      await tk('KeyE');
+      await api._step(120);
+      const aboard = a.onDeck?.v === v;
+      t = person('raider', 0, 0, { hp: 600 }); // then something to shoot at, 18 m off
+      t.x = WV.x + 12; t.z = WV.z - 14; t.home = { x: t.x, z: t.z };
+      const hp0 = t.hp;
+      await api._step(180);
+      return g.player.onDeck?.v === v && aboard && t.hp < hp0 ? true : JSON.stringify({ player: !!g.player.onDeck, aboard, hp: [hp0, t.hp], allyAt: [+a.x.toFixed(1), +a.z.toFixed(1)] });
+    } finally { wvClean([v, d, a, t]); }
+  }));
+  await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
+    const bad = [];
+    let runs = 0;
+    for (let zl = 0; zl < ZOOM.levels.length; zl++) {
+      for (const [name, h] of [['up', Math.PI], ['down', 0]]) for (const [key, sign] of [['KeyA', -1], ['KeyD', 1]]) {
+        const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, h, '#4a4a48');
+        try {
+          await C('enterVehicle', { id: v.id, force: true }); g.zoomLevel = zl;
+          await hk('KeyW', 0.5);
+          const nose = () => { const a = scr(v.x, v.z), b = scr(v.x + Math.sin(v.h) * 3, v.z + Math.cos(v.h) * 3); return b.x - a.x; };
+          const n0 = nose();
+          await hk(['KeyW', key], 0.35);
+          const dn = nose() - n0;
+          runs++;
+          if (Math.sign(dn) !== sign) bad.push(`${zl}/${name}/${key}:${dn.toFixed(3)}`);
+        } finally { wvClean([v]); }
+      }
+    }
+    // Backing up, nose up the screen: A swings the tail (the end leading the way) to screen-left.
+    const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, Math.PI, '#4a4a48');
+    let tailDx = 0;
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      await hk('KeyS', 0.7);
+      const tail = () => { const a = scr(v.x, v.z), b = scr(v.x - Math.sin(v.h) * 3, v.z - Math.cos(v.h) * 3); return b.x - a.x; };
+      const t0 = tail();
+      await hk(['KeyS', 'KeyA'], 0.35);
+      tailDx = tail() - t0;
+    } finally { wvClean([v]); }
+    return runs === ZOOM.levels.length * 4 && !bad.length && tailDx < 0 ? true : JSON.stringify({ runs, bad, tailDx });
+  }));
+  await check('reverse: held S backs each rig up to its own row speed (reverse), no faster', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const out = {};
+    let ok = true;
+    for (const type of ['sedan', 'pickup', 'van', 'rv', 'rig', 'bike']) {
+      const v = g.vehiclesSys.spawn(type, WV.x, WV.z, Math.PI, '#4a4a48');
+      try {
+        await C('enterVehicle', { id: v.id, force: true });
+        const want = reverseOf(v);
+        let max = 0, t = null;
+        await hk('KeyS', 7, () => { const b = -(v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h)); max = Math.max(max, b); if (t === null && b >= want * 0.97) t = g.time; return t !== null && max >= want * 0.995; });
+        out[type] = { want, got: +max.toFixed(2) };
+        if (max < want * 0.97 || max > want + 0.05) ok = false;
+      } finally { wvClean([v]); }
+    }
+    return ok ? true : JSON.stringify(out);
+  }));
+  await check('motorcycle: the rider aims and hits a target behind them while riding (turned at the waist)', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('bike', WV.x, WV.z, 0, '#2a2622');
+    const t = person('raider', 0, 0, { hp: 600 });
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      t.x = WV.x; t.z = WV.z - 9; t.home = { x: t.x, z: t.z };
+      await hk('KeyW', 0.22);
+      const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
+      let twist = 0;
+      for (let i = 0; i < 8 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; await click(1); twist = Math.max(twist, Math.abs(g.player.seatPose?.twist ?? 0)); await api._step(14); }
+      const behind = Math.cos(v.h) * (t.z - v.z) + Math.sin(v.h) * (t.x - v.x) < 0;
+      return sp > 3 && behind && t.hp < hp0 && twist > 2 ? true : JSON.stringify({ sp: +sp.toFixed(1), behind, hp: [hp0, t.hp], twist: +twist.toFixed(2) });
+    } finally { wvClean([v, t]); }
+  }));
+  await check('enter/exit: get out of a rolling car (F) and back in after a step (F), five times in a row - every time', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, Math.PI, '#4a4a48');
+    const res = [];
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      for (let i = 0; i < 5; i++) {
+        await hk('KeyW', 0.5 + i * 0.12);
+        const sp = g.vehiclesSys.speed(v);
+        await tk('KeyF');
+        const out = !g.player.inVehicle;
+        await hk('KeyA', 0.3); await api._step(20);
+        await tk('KeyF');
+        res.push({ sp: +sp.toFixed(1), out, back: g.player.inVehicle === v });
+        if (g.player.inVehicle !== v) await C('enterVehicle', { id: v.id, force: true });
+      }
+    } finally { wvClean([v]); }
+    return res.every((r) => r.out && r.back) ? true : JSON.stringify(res);
+  }));
   await check('rest: hours awake tire you into sway and microsleeps; a bed refills you while the night runs x40; one of the infected walking up wakes you', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player;
@@ -4461,6 +4726,7 @@ export function snapshot(g) {
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
+    decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
   };
 }
 
@@ -4520,6 +4786,7 @@ export function restore(g, s) {
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
+  g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

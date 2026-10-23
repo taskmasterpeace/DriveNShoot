@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { deckOf } from '../data/decks.js';
 
 // Vehicle bodies, built to measurements in code: ONE merged, vertex-coloured mesh per vehicle with a
 // per-vertex `part` id, so damage (vehicledamage.js) can dent, scrape and drop exact pieces.
@@ -25,8 +26,12 @@ const SEAT = '#4a3a2c', DASH = '#2b2825', CARPET = '#3d362f', WHEEL = '#1d1b19',
 const GREENHOUSE = {
   sedan:       { zA: 1.05, roofF: 0.35, roofR: -0.85, zC: -1.5, yB: 1.17, yR: 1.8, wB: 1.86, wR: 1.56, hp: 35 },
   interceptor: { zA: 0.95, roofF: 0.3, roofR: -0.6, zC: -1.2, yB: 1.17, yR: 1.76, wB: 1.86, wR: 1.56, hp: 35 },
-  pickup:      { zA: 1.05, roofF: 0.45, roofR: -0.45, zC: -0.55, yB: 1.27, yR: 1.92, wB: 2.06, wR: 1.76, hp: 40 },
+  // The pickup's cab sits 0.25 m further forward than it used to: the bed behind it is a floor you stand in now
+  // (data/decks.js pickupBed), and 1.27 m of it was not enough to turn round in.
+  pickup:      { zA: 1.3, roofF: 0.7, roofR: -0.2, zC: -0.3, yB: 1.27, yR: 1.92, wB: 2.06, wR: 1.76, hp: 40 },
   van:         { zA: 2.25, roofF: 1.7, roofR: -2.665, zC: -2.665, yB: 1.32, yR: 2.02, wB: 2.15, wR: 2.0, sideRear: 0.95, hp: 40 },
+  // The RV's cab: a van's windshield and doors; behind the seats a glass partition into the coach (the rear pane).
+  rv:          { zA: 3.2, roofF: 2.62, roofR: 1.85, zC: 1.85, yB: 1.45, yR: 2.2, wB: 2.34, wR: 2.18, sideRear: 1.97, hp: 40 },
   rig:         { zA: 2.62, roofF: 2.18, roofR: 1.25, zC: 1.18, yB: 2.0, yR: 2.78, wB: 2.5, wR: 2.3, hp: 80 },
   gunboat:     { zA: 1.42, roofF: 1.1, roofR: -0.45, zC: -0.62, yB: 1.75, yR: 2.25, wB: 2.42, wR: 2.2, hp: 60 },
   // Military: thick laminated glass. The carrier's "greenhouse" is its driver's cupola: slits of armoured glass.
@@ -80,12 +85,18 @@ function axle(parts, z, r, w, x, front) {
   wheel(parts, -x, z, r, w, front ? PART.wheelFR : PART.wheelRR);
 }
 
-export function buildBody(s, type, paint) {
+// A walkable vehicle's roof (data/decks.js: a cabin deck) is built apart from the body and handed back in out.roof, so it
+// can hide while someone is inside (systems/decks.js): the coach seen from above with its roof cut away, as a building's
+// is. Everything a builder pushes into ROOF while it runs ends up there (the greenhouse's roof panel too).
+let ROOF = null;
+export function buildBody(s, type, paint, out = null) {
   const base = s.base ?? type;
   const parts = [];
+  const roof = ROOF = deckOf(s.deck)?.open === false ? [] : null;
   if (base === 'rig') rigBody(parts, s, paint);
   else if (base === 'buggy') buggyBody(parts, s, paint);
   else if (base === 'van') vanBody(parts, s, paint);
+  else if (base === 'rv') rvBody(parts, s, paint);
   else if (base === 'bike') bikeBody(parts, s, paint);
   else if (base === 'atv') atvBody(parts, s, paint);
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
@@ -93,6 +104,8 @@ export function buildBody(s, type, paint) {
   else if (base === 'apc') apcBody(parts, s, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
   lenses(parts, s, type);
+  ROOF = null;
+  if (out) out.roof = roof?.length ? mergeGeometries(roof) : null;
   return mergeGeometries(parts);
 }
 
@@ -167,7 +180,7 @@ function interior(parts, G, hw, yFloor, rearBench) {
 // Roof panel, A/C (and B) pillars, the beltline seal: the frame the panes are cut to fit.
 function greenhouse(parts, G, roof, pillar, zB) {
   const bx = G.wB / 2 - 0.035, rx = G.wR / 2 - 0.035, top = G.yR + 0.02;
-  parts.push(slab(-G.wR / 2, G.wR / 2, G.yR, G.yR + 0.07, G.roofR, G.roofF, roof));
+  (ROOF ?? parts).push(slab(-G.wR / 2, G.wR / 2, G.yR, G.yR + 0.07, G.roofR, G.roofF, roof));
   for (const sd of [1, -1]) {
     parts.push(beam([sd * bx, G.yB, G.zA], [sd * rx, top, G.roofF], 0.07, pillar, PART.body));
     parts.push(beam([sd * bx, G.yB, G.zC], [sd * rx, top, G.roofR], 0.07, pillar, PART.body));
@@ -184,7 +197,8 @@ function bed(parts, L, hw, G, paint) {
   for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.08), sd * hw, 0.42, top, z0, z1, paint));       // sides
   parts.push(slab(-hw + 0.08, hw - 0.08, 0.92, top, z1 - 0.08, z1, paint));                                // bulkhead
   parts.push(slab(-hw + 0.08, hw - 0.08, 0.92, top - 0.04, z0, z0 + 0.07, paint, PART.bumperR));           // tailgate
-  parts.push(slab(-hw + 0.16, hw - 0.16, 0.95, 1.28, z1 - 0.5, z1 - 0.1, '#7c776e'));                     // diamond-plate toolbox
+  parts.push(slab(-hw + 0.16, hw - 0.16, 0.93, 1.29, z1 - 0.42, z1 - 0.04, '#7c776e'));                    // diamond-plate toolbox (data/decks.js pickupBed: a container)
+  parts.push(slab(-hw + 0.2, hw - 0.2, 1.29, 1.3, z1 - 0.38, z1 - 0.08, '#9a958b'));                       // its lid
 }
 
 function lightBar(parts, G) {
@@ -224,23 +238,139 @@ function vanBody(parts, s, paint) {
     mirror(parts, sd, hw, G);
   }
   interior(parts, G, hw, yFloor, false);
-  // Cargo box: solid sides, a sliding-door seam on the kerb (right) side, split rear doors.
-  parts.push(slab(-hw, hw, 0.42, G.yR, -L / 2 + 0.06, G.sideRear, paint));
-  parts.push(slab(-hw - 0.012, -hw + 0.004, 0.5, G.yR - 0.1, -0.62, -0.58, '#151515', PART.doorR2));
-  parts.push(slab(-0.015, 0.015, 0.5, G.yR - 0.08, -L / 2 + 0.03, -L / 2 + 0.065, '#151515', PART.bumperR));
+  // The cargo box, hollow now (data/decks.js vanCargo: a floor you walk): a floor at 0.62, walls up to the roof, the
+  // sliding door run back open on the kerb (right) side, the split rear doors swung round flat against the sides.
+  const zr = -L / 2 + 0.06, zs = G.sideRear, top = G.yR, yf = 0.62, wall = '#4b4640';
+  parts.push(slab(-hw + 0.06, hw - 0.06, 0.42, yf, zr, zs, '#3a3530'));                                  // cargo floor
+  for (let k = 0; k < 6; k++) { const z = zr + 0.3 + k * ((zs - zr - 0.6) / 5); parts.push(slab(-hw + 0.1, hw - 0.1, yf, yf + 0.012, z - 0.025, z + 0.025, '#2a2622')); } // floor battens
+  parts.push(slab(hw - 0.08, hw, 0.42, top, zr, zs, paint));                                              // left wall
+  parts.push(slab(hw - 0.1, hw - 0.08, yf, top - 0.05, zr + 0.05, zs, wall));                             // its lining
+  parts.push(slab(-hw, -hw + 0.08, 0.42, top, zr, -0.55, paint));                                        // right wall, behind the door
+  parts.push(slab(-hw, -hw + 0.08, 0.42, top, 0.5, zs, paint));                                          // and in front of it
+  parts.push(slab(-hw, -hw + 0.08, top - 0.16, top, -0.55, 0.5, paint));                                 // over the door
+  parts.push(slab(-hw - 0.07, -hw - 0.01, 0.5, top - 0.12, -1.65, -0.55, paint, PART.doorR2));           // the sliding door, run back
+  parts.push(slab(-hw - 0.075, -hw - 0.068, 1.1, 1.16, -0.95, -0.75, CHROME, PART.doorR2));              // its handle
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * 0.82, sd * hw, 0.42, top, zr, zr + 0.08, paint, PART.bumperR));                 // rear corner posts
+    parts.push(slab(sd * (hw + 0.01), sd * (hw + 0.06), 0.5, top - 0.1, zr - 0.02, zr + 0.8, paint, PART.bumperR)); // rear door, swung flat
+    parts.push(slab(sd * (hw + 0.06), sd * (hw + 0.075), 1.1, 1.6, zr + 0.6, zr + 0.75, '#22313a', PART.bumperR)); // its window
+  }
+  parts.push(slab(-0.82, 0.82, top - 0.14, top, zr, zr + 0.08, paint));                                   // over the rear doors
+  // Inside: a bench down the driver's side, a steel locker at the back, a mattress on the floor across from it, a
+  // jerry can, a crate, a lantern. Seen from above once the roof cuts away.
+  parts.push(slab(0.56, 1.0, yf, yf + 0.42, -0.95, 0.35, SEAT));                                          // bench
+  parts.push(slab(0.92, 1.0, yf + 0.42, yf + 0.95, -0.95, 0.35, SEAT));                                   // its back
+  parts.push(slab(0.5, 1.0, yf, yf + 1.25, -2.56, -1.72, '#5d5850'));                                     // locker
+  for (const z of [-2.43, -2.15, -1.86]) parts.push(slab(0.49, 0.5, yf + 0.1, yf + 1.15, z - 0.005, z + 0.005, '#2c2a27')); // its door seams
+  parts.push(slab(0.5, 0.97, yf + 1.25, yf + 1.27, -2.53, -1.75, '#7a756c'));
+  parts.push(slab(-1.0, -0.12, yf, yf + 0.16, -2.56, -0.95, '#8c816b'));                                  // mattress
+  parts.push(slab(-0.98, -0.14, yf + 0.16, yf + 0.19, -1.85, -0.97, '#56663f'));                          // a blanket over half of it
+  parts.push(slab(-0.92, -0.2, yf + 0.16, yf + 0.24, -2.52, -2.22, '#ddd5c2'));                           // pillow
+  parts.push(slab(0.1, 0.42, yf, yf + 0.42, -2.55, -2.25, '#7a2a1c'));                                    // jerry can
+  parts.push(slab(0.06, 0.48, yf, yf + 0.36, -2.2, -1.82, '#6b5537'));                                    // crate
+  parts.push(tag(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 8).translate(0.75, yf + 0.53, 0.1).toNonIndexed(), '#c9a24a', PART.body)); // lantern on the bench
   greenhouse(parts, G, '#cfc8bb', paint);
   parts.push(slab(-hw - 0.03, hw + 0.03, 0.46, 0.72, -L / 2 - 0.12, -L / 2 + 0.08, BUMPER, PART.bumperR));
   parts.push(slab(-0.22, 0.22, 0.55, 0.68, -L / 2 - 0.14, -L / 2 - 0.12, PLATE, PART.bumperR));
-  // Roof rack with a load: two crates, a spare lying flat, a rolled tarp.
+  // The roof rack and its load ride the roof panel (greenhouse() put it in ROOF): they lift away with it.
+  const R = ROOF ?? parts;
   const y = G.yR + 0.15;
-  for (const x of [-hw + 0.25, hw - 0.25]) parts.push(beam([x, y, G.roofR + 0.25], [x, y, G.roofF - 0.35], 0.05, '#1e1e1e'));
-  for (let k = 0; k < 5; k++) { const z = G.roofR + 0.25 + k * ((G.roofF - G.roofR - 0.6) / 4); parts.push(beam([-hw + 0.25, y, z], [hw - 0.25, y, z], 0.04, '#1e1e1e')); }
-  parts.push(slab(-0.6, 0.15, y + 0.03, y + 0.43, -1.6, -0.9, '#6b5537'));
-  parts.push(slab(0.25, 0.75, y + 0.03, y + 0.33, -1.5, -1.05, '#5c4a32'));
-  parts.push(tag(new THREE.CylinderGeometry(0.36, 0.36, 0.22, 14).translate(0.2, y + 0.14, 0.1).toNonIndexed(), TYRE, PART.body));
-  parts.push(slab(-0.8, 0.8, y + 0.03, y + 0.25, -2.3, -1.85, '#4b5338'));
+  for (const x of [-hw + 0.25, hw - 0.25]) R.push(beam([x, y, G.roofR + 0.25], [x, y, G.roofF - 0.35], 0.05, '#1e1e1e'));
+  for (let k = 0; k < 5; k++) { const z = G.roofR + 0.25 + k * ((G.roofF - G.roofR - 0.6) / 4); R.push(beam([-hw + 0.25, y, z], [hw - 0.25, y, z], 0.04, '#1e1e1e')); }
+  R.push(slab(-0.6, 0.15, y + 0.03, y + 0.43, -1.6, -0.9, '#6b5537'));
+  R.push(slab(0.25, 0.75, y + 0.03, y + 0.33, -1.5, -1.05, '#5c4a32'));
+  R.push(tag(new THREE.CylinderGeometry(0.36, 0.36, 0.22, 14).translate(0.2, y + 0.14, 0.1).toNonIndexed(), TYRE, PART.body));
+  R.push(slab(-0.8, 0.8, y + 0.03, y + 0.25, -2.3, -1.85, '#4b5338'));
   axle(parts, L / 2 - 0.9, 0.42, 0.32, hw - 0.1, true);
   axle(parts, -L / 2 + 0.9, 0.42, 0.32, hw - 0.1, false);
+}
+
+// ---- the RV --------------------------------------------------------------------------------------------
+
+// A home on wheels (data/decks.js rvCoach): a van's cab, then a tall coach you walk round in. Built to the deck's
+// numbers so what you see is what you bump into: the bed across the back, the wardrobe, the kitchenette down the
+// driver's side (stove, sink, cupboards), the dinette across from it, a locker by the door on the kerb side. The coach
+// roof, the bunk over the cab and the cab's own roof lift away while you are inside (ROOF). Painted window strips,
+// a faded stripe, a ladder and a spare on the back wall, a solar panel and a vent on the roof.
+function rvBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, G = GREENHOUSE.rv, yCab = 0.75, yf = 0.95, top = 3.05;
+  const zr = -L / 2 + 0.1, zc = G.zC, low = '#5d4c3a', cream = '#d8cfbd', glass = '#1f2b33', stripe = '#b8742c';
+  const R = ROOF ?? parts;
+  // Nose, hood, grille, bumper; the cab tub, its doors, mirrors, seats and dash; the greenhouse.
+  parts.push(slab(-hw + 0.05, hw - 0.05, 0.42, 1.38, G.zA - 0.05, L / 2 - 0.06, paint));
+  parts.push(slab(-hw + 0.1, hw - 0.1, 1.38, 1.43, G.zA + 0.02, L / 2 - 0.15, paint, PART.hood));
+  grille(parts, hw - 0.05, L, 1.43);
+  parts.push(slab(-hw - 0.02, hw + 0.02, 0.46, 0.74, L / 2 - 0.08, L / 2 + 0.12, BUMPER, PART.bumperF));
+  parts.push(slab(-hw + 0.1, hw - 0.1, 0.42, yCab, zc, G.zA, CARPET));
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (hw - 0.1), sd * hw, 0.42, G.yB, zc + 0.1, G.zA, paint, sd > 0 ? PART.doorL : PART.doorR));
+    mirror(parts, sd, hw, G);
+  }
+  interior(parts, G, hw, yCab, false);
+  greenhouse(parts, G, cream, paint);
+  // The coach: a skirt, the floor, the walls (a door gap on the kerb side), the back wall.
+  parts.push(slab(-hw, hw, 0.42, 0.88, zr, zc, low));
+  parts.push(slab(-hw + 0.08, hw - 0.08, 0.88, yf, zr + 0.08, zc, '#6e6250'));                             // linoleum
+  parts.push(slab(hw - 0.08, hw, 0.88, top, zr, zc + 0.12, paint));                                         // left wall
+  parts.push(slab(-hw, -hw + 0.08, 0.88, top, zr, 0.62, paint));                                            // right wall, behind the door
+  parts.push(slab(-hw, -hw + 0.08, 0.88, top, 1.48, zc + 0.12, paint));                                     // and in front of it
+  parts.push(slab(-hw, -hw + 0.08, 2.7, top, 0.62, 1.48, paint));                                           // over the door
+  parts.push(slab(-hw - 0.07, -hw - 0.01, yf, 2.68, -0.24, 0.62, paint, PART.doorR2));                     // the door, open flat against the wall
+  parts.push(slab(-hw - 0.08, -hw - 0.07, 1.9, 2.35, -0.12, 0.3, glass, PART.doorR2));                      // its window
+  parts.push(slab(-hw - 0.36, -hw, 0.45, 0.6, 0.66, 1.44, '#2a2724'));                                      // the step
+  parts.push(slab(-hw, hw, 0.88, top, zr, zr + 0.08, paint, PART.bumperR));                                 // back wall
+  parts.push(slab(-hw + 0.08, hw - 0.08, 2.75, top, zc - 0.04, zc + 0.12, paint));                          // header over the cab
+  for (const sd of [1, -1]) {
+    // Windows (painted glass in a pale frame) where the deck says you can shoot out, and the stripe down the side.
+    for (const [z0, z1] of sd > 0 ? [[-3.5, -2.6], [-1.55, -0.35], [0.6, 1.5]] : [[-3.5, -2.6], [-2.2, -1.05]]) {
+      parts.push(slab(sd * hw, sd * (hw + 0.012), 1.62, 2.48, z0 - 0.05, z1 + 0.05, cream));
+      parts.push(slab(sd * (hw + 0.012), sd * (hw + 0.022), 1.67, 2.43, z0, z1, glass));
+    }
+    parts.push(slab(sd * hw, sd * (hw + 0.012), 1.18, 1.34, zr + 0.1, zc + 0.1, stripe));
+    parts.push(slab(sd * hw, sd * (hw + 0.012), 1.38, 1.44, zr + 0.1, zc + 0.1, '#8a5a2a'));
+  }
+  parts.push(slab(-0.85, 0.85, 1.62, 2.48, zr - 0.012, zr, cream));                                         // rear window
+  parts.push(slab(-0.8, 0.8, 1.67, 2.43, zr - 0.022, zr - 0.012, glass));
+  // The tail: bumper, plate, a spare on the back wall, a ladder up to the roof.
+  parts.push(slab(-hw - 0.02, hw + 0.02, 0.46, 0.72, -L / 2 - 0.12, -L / 2 + 0.1, BUMPER, PART.bumperR));
+  parts.push(slab(-0.22, 0.22, 0.55, 0.68, -L / 2 - 0.14, -L / 2 - 0.12, PLATE, PART.bumperR));
+  parts.push(tag(new THREE.CylinderGeometry(0.42, 0.42, 0.26, 14).rotateX(Math.PI / 2).translate(-0.55, 1.3, zr - 0.15).toNonIndexed(), TYRE, PART.bumperR));
+  for (const x of [0.55, 0.95]) parts.push(beam([x, 0.8, zr - 0.08], [x, top + 0.1, zr - 0.08], 0.04, CHROME));
+  for (let k = 0; k < 7; k++) { const y = 1.0 + k * 0.3; parts.push(beam([0.55, y, zr - 0.08], [0.95, y, zr - 0.08], 0.03, CHROME)); }
+  // Inside (body frame, floor at yf): the bed, the wardrobe, the kitchenette, the dinette, the locker, a rug, a cooler.
+  parts.push(slab(-1.17, 1.17, yf, yf + 0.4, zr + 0.08, -2.42, '#4a3f33'));                                 // bed frame
+  parts.push(slab(-1.12, 1.12, yf + 0.4, yf + 0.57, zr + 0.12, -2.46, '#c8bda3'));                          // mattress
+  parts.push(slab(-0.55, 1.12, yf + 0.57, yf + 0.61, zr + 0.14, -2.48, '#5c6b4a'));                         // a blanket, turned down
+  for (const z of [-3.6, -2.95]) parts.push(slab(-1.08, -0.72, yf + 0.57, yf + 0.66, z - 0.25, z + 0.25, '#e2dccb')); // pillows
+  parts.push(slab(0.66, 1.17, yf, yf + 1.9, -2.38, -1.86, '#7a6248'));                                      // wardrobe
+  parts.push(slab(0.65, 0.66, yf + 0.1, yf + 1.8, -2.125, -2.115, '#3a2e22'));
+  parts.push(slab(0.62, 1.17, yf, yf + 0.88, -1.62, -0.2, '#8a7458'));                                      // counter and cupboards
+  parts.push(slab(0.6, 1.17, yf + 0.88, yf + 0.92, -1.64, -0.18, '#bdb3a0'));                               // worktop
+  for (const z of [-1.37, -0.91, -0.46]) parts.push(slab(0.61, 0.62, yf + 0.1, yf + 0.8, z - 0.005, z + 0.005, '#4a3c2c'));
+  for (const [x, z] of [[0.95, -0.6], [0.95, -0.33], [0.78, -0.6], [0.78, -0.33]])                       // stove: four burners
+    parts.push(tag(new THREE.CylinderGeometry(0.075, 0.075, 0.02, 10).translate(x, yf + 0.93, z).toNonIndexed(), '#1c1a18', PART.body));
+  parts.push(slab(0.72, 1.06, yf + 0.86, yf + 0.925, -1.05, -0.8, '#8e9696'));                              // sink
+  parts.push(beam([1.08, yf + 0.92, -0.92], [1.0, yf + 1.12, -0.92], 0.03, CHROME));                         // tap
+  parts.push(slab(-1.17, -0.5, yf + 0.66, yf + 0.74, -2.05, -1.3, '#9a7a52'));                              // table
+  parts.push(slab(-0.86, -0.8, yf, yf + 0.66, -1.7, -1.64, '#3a2e22'));
+  for (const [z0, z1, zb] of [[-2.36, -2.08, -2.36], [-1.27, -0.98, -1.06]]) {                             // dinette benches
+    parts.push(slab(-1.17, -0.5, yf, yf + 0.45, z0, z1, SEAT));
+    parts.push(slab(-1.17, -0.5, yf + 0.45, yf + 1.0, zb, zb + 0.08, SEAT));
+  }
+  parts.push(tag(new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8).translate(-0.8, yf + 0.84, -1.5).toNonIndexed(), '#c9a24a', PART.body)); // lantern
+  parts.push(slab(0.66, 1.17, yf, yf + 1.8, 0.05, 0.62, '#6b5a44'));                                        // locker
+  parts.push(slab(0.65, 0.66, yf + 0.1, yf + 1.7, 0.33, 0.34, '#3a2e22'));
+  parts.push(slab(-0.42, 0.5, yf, yf + 0.012, -1.95, 1.3, '#6a3b2a'));                                      // rug
+  parts.push(slab(-1.1, -0.75, yf, yf + 0.4, 1.55, 1.78, '#3f6a6e'));                                       // a cooler by the cab
+  // The roof (it lifts away while you are inside): the coach roof, the bunk over the cab, a vent, a solar panel.
+  R.push(slab(-hw, hw, top, top + 0.1, zr, zc + 0.12, cream));
+  R.push(slab(-hw + 0.04, hw - 0.04, 2.24, top + 0.06, zc, G.roofF + 0.42, cream));
+  R.push(slab(-hw + 0.1, hw - 0.1, 2.3, 2.62, G.roofF + 0.42, G.roofF + 0.5, glass));                        // the bunk's front window
+  R.push(slab(-0.35, 0.35, top + 0.1, top + 0.32, -1.2, -0.6, '#bdb6a8'));                                  // vent hood
+  R.push(slab(-0.95, 0.95, top + 0.1, top + 0.16, -3.4, -1.9, '#2a3640'));                                  // solar panel
+  for (let k = 0; k < 4; k++) { const z = -3.38 + k * 0.37; R.push(slab(-0.93, 0.93, top + 0.16, top + 0.17, z, z + 0.01, '#55646e')); }
+  axle(parts, L / 2 - 0.95, 0.5, 0.34, hw - 0.14, true);
+  axle(parts, -1.75, 0.52, 0.44, hw - 0.18, false);
 }
 
 // ---- the Whaler -------------------------------------------------------------------------------------
@@ -510,6 +640,7 @@ export function lampAnchors(s, type) {
   if (base === 'atv') return { head: pair(0.18, 0.68, L / 2 + 0.07), tail: [[0, 0.68, -L / 2 - 0.01]], beamW: 7, beamL: 15, halo: 0.85 };
   if (base === 'patrol') return { head: pair(W / 2 - 0.32, 1.02, L / 2 + 0.01), tail: pair(W / 2 - 0.22, 0.98, -L / 2 - 0.03), ...car };
   if (base === 'apc') return { head: pair(0.95, 1.08, L / 2 - 0.36), tail: pair(W / 2 - 0.3, 1.7, -L / 2 + 0.06), ...car };
+  if (base === 'rv') return { head: pair(W / 2 - 0.38, 1.05, L / 2 + 0.02), tail: pair(W / 2 - 0.25, 1.2, -L / 2 - 0.02), ...car };
   const y = base === 'pickup' ? 1.0 : base === 'van' ? 1.02 : 0.92;
   return { head: pair(W / 2 - 0.35, y, L / 2 + 0.02), tail: pair(W / 2 - 0.3, y, -L / 2 - 0.02), ...car };
 }

@@ -483,7 +483,8 @@ export class CharacterRenderer {
     if (aim) lean = 0.03 + 0.12 * crouch;
     else if (infected && alive) { lean = 0.32 + 0.2 * run; headTilt = 0.22 * Math.sin(ch.walk * 0.5 + i); }
     else if (moving && !gm) twist = -0.1 * Math.sin(phase) * k;
-    if (bike) lean = 0.7;
+    if (bike) lean = aim ? 0.12 : 0.7; // over the tank on the bars; sat up to shoot
+    if (sp?.twist) twist += sp.twist;   // shooting from the saddle: the upper body turns, the legs stay on the machine
     if (ch.swim || ch.underwater) lean = 0;
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
