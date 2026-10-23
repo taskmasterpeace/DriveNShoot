@@ -308,9 +308,8 @@ export async function controllerChecks(x) {
       const h = g.gunpoint.entry(timid);
       const state = h?.state, up = !!timid.handsUp, threatened = deeds(timid, 'threaten');
       const cash0 = g.cash;
-      mouseAt(timid.x, timid.z);
-      await key('KeyE', 0.1); // tap E: hand it over
-      await frames(3);
+      // tap E: hand it over (up to three taps: E is shared with dogs, decks, traps and containers in reach)
+      for (let t = 0; t < 3 && !h?.robbed; t++) { mouseAt(timid.x, timid.z); await key('KeyE', 0.1); await frames(3); }
       const robbed = !!h?.robbed && g.cash > cash0 && deeds(timid, 'rob') === 1 && [...g.inventory.boxes.keys()].some((k) => k.startsWith(`drop:${timid.id}`));
       // the bold one: aim at him and he bolts
       const b0 = { x: bold.x, z: bold.z };

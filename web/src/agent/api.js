@@ -3194,6 +3194,8 @@ async function runSelfTest(api, only = null, skip = null) {
     return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
   }));
   await check('the town sleeps: at 23:00 Ike goes to bed and most of the town with him; asleep he keeps no counter and witnesses nothing; a gunshot wakes him', async () => {
+    // Neutral first: a gun left raised sends the unarmed running (systems/gunpoint.js), a feared name scares them (roles.js).
+    await stage();
     const inv = g.inventory, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
     const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
