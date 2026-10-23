@@ -5,6 +5,7 @@ import { StaticWorld } from '../engine/collision.js';
 import { ROAD_BANDS } from './textures.js';
 import { RING } from '../data/ring.js';
 import { SPECIES, FLORA_KINDS, poolName, floraVariant, floraHash, crownScale } from './flora.js';
+import { brushField, brushStage } from './brush.js'; // THE BRUSH: painted density rows (docs/design/WEB_FORGE.md §3.4)
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -86,7 +87,7 @@ export function makeScratch() {
     INST: {
       props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
       boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
-      ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(400, 1)])), // extra: the variant (world/flora.js)
+      ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(SPECIES[k].chunk ?? 400, 1)])), // extra: the variant (world/flora.js); a forest species holds more
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true) },
   };
@@ -178,6 +179,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const centre = { x: ox + C / 2, z: oz + C / 2 };
   const biomeKey = W.biomeAt(centre.x, centre.z), state = W.stateAt(centre.x, centre.z) ?? '_';
   const flora = FLORA[state] ?? FLORA._;
+  const BR = brushField.chunk(cx, cz); // THE BRUSH (world/brush.js): the painted strokes that reach this chunk, or null
   out.biome = BIOMES[biomeKey]?.name ?? biomeKey; out.state = state;
   // A plant from world/flora.js: scale x its model's height, the variant and a shade from where it stands (no draws on rng).
   const plant = (kind, x, z, scale, rot, shade = 1) => { const b = INST[poolName(kind)], i = b.push(x, 0, z, rot, scale, scale, scale, shade, shade, shade); if (i >= 0) b.e[i] = floraVariant(x, z); };
@@ -261,12 +263,13 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       // The Phoenix ring: the desert goes grey-brown with the dust of a dead city.
       const ck = W.ring ? W.ring.cityK(x, z) * 0.55 : 0;
       if (ck > 0) { r += (URBAN[0] * bright - r) * ck; g += (URBAN[1] * bright - g) * ck; b += (URBAN[2] * bright - b) * ck; }
+      if (BR) { BT[0] = r; BT[1] = g; BT[2] = b; BR.tint(x, z, BT); r = BT[0]; g = BT[1]; b = BT[2]; } // painted: leaf litter, sick ground
       // At the island edge the ground fades to the island's own plain sand (no seam).
       const de = Math.max(Math.abs(x), Math.abs(z)) - ISLAND;
       const k = de < 0 ? 0 : de > 220 ? 1 : de / 220;
       outc[0] = 1 + (r - 1) * k; outc[1] = 1 + (g - 1) * k; outc[2] = 1 + (b - 1) * k;
     };
-    const tc = [0, 0, 0];
+    const tc = [0, 0, 0], BT = [0, 0, 0];
     // Real terrain: a vertex's height from the grid, its normal from its neighbours' (across a seam, the neighbour chunk's
     // grid: both chunks agree on every edge vertex and its normal), and steep ground going to bare rock.
     const hAt = TG ? (i, j) => {
@@ -793,6 +796,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       INST.glows.push(x, 0.12, z, 0, 18, 1, 18, 1, 0.54, 0.23);
     }
   }
+  // THE BRUSH (world/brush.js): woods, undergrowth and hot zones where strokes reach (its own random stream).
+  if (BR) out.brush = yield* brushStage(BR, { INST, addBox, blocked, boxes, ox, oz, cx, cz, seed, state, pause, resume });
   pause(); yield; resume();
 
   // ---- nav tiles: owned boxes plus the halo (features a little past the edge) -------------------------------------------
@@ -880,6 +885,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   for (const r of Object.values(out.inst)) for (let i = 0; i < r.n; i++) { const x = r.m[i * 16 + 12], z = r.m[i * 16 + 14]; grow(x - 3, z - 3, x + 3, z + 3); }
   out.bounds = bx0 === Infinity ? null : { x0: bx0, z0: bz0, x1: bx1, z1: bz1 };
   const H = new Hasher().int(cx).int(cz).str(W.dataHash);
+  if (BR) H.str(BR.hash); // the painted strokes are data too
   for (const b of boxes) H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).num(b.height).num(b.base).str(b.tag);
   for (const k of POOL_NAMES) { const r = out.inst[k]; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
   for (const k of Object.keys(out.surf)) { const s = out.surf[k]; H.str(k).int(s?.nv ?? 0).int(s?.ni ?? 0); if (s) for (let i = 0; i < s.pos.length; i += 5) H.num(s.pos[i]); }

@@ -8,6 +8,7 @@ import USMAP from '../data/usmap.json';
 import { STREAM, KIT_OF } from '../data/streaming.js';
 import { toWorld, toWorldX, toWorldZ, toUsmap, C, ISLAND, inIsland, hash32, rngOf, chunkOf } from './geo.js';
 import { Ring } from './ring.js';
+import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md §3.4)
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -408,7 +409,7 @@ export class WorldIndex {
   addBuilding(b) {
     const kit = KIT_OF(b.st.category);
     const floors = b.st.floors ?? 1;
-    const ruined = b.rng.chance(kit.ruin);
+    const ruined = b.rng.chance(brushField.ruinAt(b.cx, b.cz) ?? kit.ruin); // the painted ruin share (world/brush.js), one draw either way
     const h = kit.storey * floors * b.rng.range(0.9, 1.15);
     this.buildings ??= [];
     this.buildings.push({ ...b, rng: undefined, h, ruined, color: b.rng.pick(kit.walls), roof: kit.roof, canopy: !!kit.canopy && b.kind.startsWith('gas'), seed: b.rng.int(0, 1e9),

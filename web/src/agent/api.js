@@ -33,6 +33,8 @@ import { controllerCommands, controllerChecks } from './controller-api.js'; // t
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
+import { forgetoolsCommands } from './forgetools.js';
+import { forgeChecks } from './forgetools-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1916,6 +1918,8 @@ function buildCommands(api) {
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
+    // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
+    ...forgetoolsCommands(api, need),
   };
 }
 
@@ -5640,6 +5644,7 @@ async function runSelfTest(api, only = null, skip = null) {
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
+  await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
