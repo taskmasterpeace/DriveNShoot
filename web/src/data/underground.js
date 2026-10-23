@@ -30,7 +30,7 @@ export const UG = {
 // down to a breath. dark: the fill with nothing running; powered: with the generator on (the strips); cone: the
 // flashlight's opacity below (0.55 up top).
 export const LIGHT = {
-  dark: 0.02, powered: 0.5, cone: 0.9,
+  dark: 0.02, powered: 0.8, cone: 0.9,
   sky: '#2e3236', ground: '#120f0c', poweredSky: '#c9c2a8', poweredGround: '#3a3226',
   strip: '#ffd9a0', stripOff: '#2a2622', emergency: '#ff7a3a', chem: ['#9ef08a', '#f0c050', '#ff6a3a'], eye: '#f2e8b0',
   eyeR: 15, eyeCone: 40, // m and degrees: the infected's eyes catch your light this far, this close to the beam

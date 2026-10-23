@@ -51,15 +51,18 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   const y = L.y, wallH = UG.wallH, built = !!L.walls, W = L.W, H = L.H;
   const walls = [], lumps = [], fill = [], floors = [], water = [], props = [], strips = [], stripItems = [], glows = [], glowItems = [];
   // The solid rock between the passages: black, a metre up (it stops your light where a wall would).
-  { const mask = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === ROCK && !L.edge[q]) mask[q] = 1; for (const [i0, j0, i1, j1] of mergeRects(mask, W, H)) fill.push(span(L.ox + i0, L.oz + j0, L.ox + i1, L.oz + j1, y, y + 1.2, '#000000'));
+  // In a cave, black a metre up; in a built level, the solid mass between the rooms level with the wall tops, dark.
+  const fh = built ? wallH : 1.2, fc = built ? '#5a564d' : '#000000';
+  { const mask = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === ROCK && !L.edge[q]) mask[q] = 1; for (const [i0, j0, i1, j1] of mergeRects(mask, W, H)) fill.push(span(L.ox + i0, L.oz + j0, L.ox + i1, L.oz + j1, y, y + fh, fc));
     // ...and the rock past the level's own grid, as far as any view reaches
     const R = 90, x0 = L.ox, z0 = L.oz, x1 = L.ox + W, z1 = L.oz + H;
-    fill.push(span(x0 - R, z0 - R, x1 + R, z0, y, y + 1.2, '#000000'), span(x0 - R, z1, x1 + R, z1 + R, y, y + 1.2, '#000000'), span(x0 - R, z0, x0, z1, y, y + 1.2, '#000000'), span(x1, z0, x1 + R, z1, y, y + 1.2, '#000000')); }
+    fill.push(span(x0 - R, z0 - R, x1 + R, z0, y, y + fh, fc), span(x0 - R, z1, x1 + R, z1 + R, y, y + fh, fc), span(x0 - R, z0, x0, z1, y, y + fh, fc), span(x1, z0, x1 + R, z1, y, y + fh, fc)); }
   // Walls: a built level's concrete as merged runs; a cave's rock cell by cell, uneven.
   if (built) {
     for (const [x0, z0, x1, z1] of L.walls) {
       const k = hash(x0, z0);
-      walls.push(span(x0, z0, x1, z1, y, y + wallH, k < 0.33 ? '#6e6a60' : k < 0.66 ? '#66625a' : '#726d63'));
+      walls.push(span(x0, z0, x1, z1, y, y + wallH, k < 0.33 ? '#8a867c' : k < 0.66 ? '#827e74' : '#8f8a7f')); // poured concrete, the formwork's shade varying run to run
+      walls.push(span(x0 + 0.04, z0 + 0.04, x1 - 0.04, z1 - 0.04, y + wallH, y + wallH + 0.02, '#a29d92')); // the cut top, a shade lighter: the plan reads
     }
   } else {
     for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
@@ -77,7 +80,7 @@ export function buildLevel(L, plan, site, rec, lr, M) {
       const t = L.cells[j * W + i];
       if (t !== OPEN && t !== POOL && t !== DEEP) continue;
       const x = L.ox + i + 0.5, z = L.oz + j + 0.5, k = hash(x, z, 3);
-      if (t === OPEN) { const v = 0.9 + 0.2 * (0.5 * k + 0.5 * hash(Math.floor(x / 3), Math.floor(z / 3), 4)); floors.push([x, y - 0.05, z, 1.01, 0.1, 1.01, `#${_c.setRGB(0.29 * v, 0.24 * v, 0.19 * v).getHexString()}`]); }
+      if (t === OPEN) { const v = 0.94 + 0.06 * k + 0.1 * hash(Math.floor(x / 4), Math.floor(z / 4), 4); floors.push([x, y - 0.05, z, 1.01, 0.1, 1.01, `#${_c.setRGB(0.29 * v, 0.24 * v, 0.19 * v).getHexString()}`]); }
       else water.push([x, y + (t === POOL ? 0.04 : -0.06), z, 1.01, 0.04, 1.01, t === POOL ? '#30464a' : '#14232a']);
       if (t !== OPEN) floors.push([x, y - 0.25, z, 1.01, 0.1, 1.01, '#241e19']);
     }
@@ -85,7 +88,7 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   // Props: furniture and fittings.
   for (const p of L.props) {
     const P = PROPS[p.kind], h = p.h, x0 = p.x0, z0 = p.z0, x1 = p.x1, z1 = p.z1;
-    if (p.kind === 'rock') { const k = hash(x0, z0, 5); props.push([(x0 + x1) / 2, y + h / 2, (z0 + z1) / 2, x1 - x0, h, z1 - z0, k < 0.5 ? '#5d4a3a' : '#6b5644', k * 2]); continue; }
+    if (p.kind === 'rock') { const k = hash(x0, z0, 5); lumps.push([(x0 + x1) / 2, y + h * 0.4, (z0 + z1) / 2, (x1 - x0) * 1.3, h * 1.1, (z1 - z0) * 1.3, k < 0.5 ? '#5d4a3a' : '#6b5644', k * 6.28]); continue; } // fallen rock
     if (p.kind === 'bunk' || p.kind === 'cot') {
       props.push(span(x0, z0, x1, z1, y + 0.3, y + 0.42, '#4a4f3e'));                              // the frame
       props.push(span(x0 + 0.05, z0 + 0.05, x1 - 0.05, z1 - 0.05, y + 0.42, y + 0.55, p.kind === 'cot' ? '#8a8a78' : '#6e6a52')); // the mattress
@@ -102,6 +105,14 @@ export function buildLevel(L, plan, site, rec, lr, M) {
       continue;
     }
     props.push(span(x0, z0, x1, z1, y, y + h, p.round ? '#6a3a24' : P?.color ?? '#5a5248'));
+    // what is on it or in it, so a room reads as what it was
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, w = x1 - x0, d = z1 - z0, long = w >= d, k = hash(x0, z0, 11);
+    const along = (t, s) => (long ? [x0 + w * t, cz, s, d * 0.6] : [cx, z0 + d * t, d * 0.6, s]);
+    if (p.kind === 'labbench') { for (const [t, c] of [[0.2, '#c8c4b8'], [0.5, '#4a6a62'], [0.78, '#b0a890']]) { const [ax, az, sx, sz] = along(t, 0.35); props.push([ax, y + h + 0.12, az, long ? sx : sx * 0.6, 0.24, long ? sz * 0.6 : sz, c]); } }
+    else if (p.kind === 'shelf') { for (let i = 0; i < 4; i++) { const [ax, az, sx, sz] = along(0.15 + i * 0.23, 0.3); props.push([ax, y + h + 0.06, az, long ? sx : sx * 0.7, 0.12, long ? sz * 0.7 : sz, ['#7a6a4a', '#5a6a52', '#8a5a3a', '#6a6a62'][(i + Math.floor(k * 4)) % 4]]); } }
+    else if (p.kind === 'locker' || p.kind === 'cabinet') props.push(long ? [cx, y + h + 0.005, cz, 0.03, 0.01, d * 0.9, '#2a2c28'] : [cx, y + h + 0.005, cz, w * 0.9, 0.01, 0.03, '#2a2c28']);
+    else if (p.kind === 'crate') props.push(long ? [cx, y + h + 0.005, cz, w * 0.95, 0.01, 0.12, '#4a3a22'] : [cx, y + h + 0.005, cz, 0.12, 0.01, d * 0.95, '#4a3a22']);
+    else if (p.kind === 'desk' || p.kind === 'table' || p.kind === 'maptable') { props.push([cx + (k - 0.5) * w * 0.4, y + h + 0.01, cz + (hash(x1, z1, 3) - 0.5) * d * 0.3, 0.32, 0.015, 0.24, '#d4cdb8', k * 3]); if (p.kind === 'maptable') props.push([cx, y + h + 0.005, cz, w * 0.8, 0.01, d * 0.75, '#8a8a6a']); }
     if (p.screen) { const sx = (x0 + x1) / 2, sz = (z0 + z1) / 2; strips.push([sx, y + h + 0.01, sz, (x1 - x0) * 0.6, 0.02, (z1 - z0) * 0.5, LIGHT.stripOff]); stripItems.push({ kind: 'screen' }); }
   }
   // The flights that stand on this level (their stair mass) and the holes on it (their rails).
@@ -168,7 +179,7 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   const add = (m) => { if (m) group.add(m); return m; };
   add(batch(walls, M.solid, BOX, { receive: true }));
   add(batch(lumps, M.rock, ROCKG, { receive: true }));
-  add(batch(fill, M.black, BOX));
+  add(batch(fill, built ? M.solid : M.black, BOX));
   add(batch(floors, M.floor, BOX, { receive: true }));
   add(batch(water, M.water, BOX));
   add(batch(props, M.props, BOX, { receive: true }));
@@ -219,8 +230,12 @@ export function buildEntrance(site, plan, M) {
   const coaming = E.look === 'mouth' ? '#6a5442' : E.look === 'culvert' ? '#8a8476' : '#6e6c62';
   if (E.look === 'mouth') {
     // a cave mouth: boulders round a dark pit that slopes into the hill, an overhang of rock at its far end
-    for (const s of sides) { const n = Math.max(2, Math.round(Math.max(s.x1 - s.x0, s.z1 - s.z0) / 1.1)); for (let i = 0; i < n; i++) { const k = (i + 0.5) / n, x = s.x0 + (s.x1 - s.x0) * (ax ? k : 0.5), z = s.z0 + (s.z1 - s.z0) * (ax ? 0.5 : k); const r = 1.3 + hash(x, z) * 0.9; rocks.push([x, r * 0.35, z, r * 1.2, r * 0.9, r * 1.3, hash(x, z, 2) < 0.5 ? '#7a6048' : '#6a523e', hash(x, z, 1) * 6.28]); } }
-    const ov = rect(f.u > 0 ? a1 - 1.4 : a0, f.u > 0 ? a1 : a0 + 1.4, b0 - 1.2, b1 + 1.2);
+    // the boulders stand back from the edge (the pit stays open to the eye), smaller near the way in
+    const bc = (b0 + b1) / 2;
+    for (const [si, s] of sides.slice(0, 2).entries()) { const n = Math.max(3, Math.round(open / 1.2)); for (let i = 0; i < n; i++) { const k = (i + 0.5) / n, a = a0 + (a1 - a0) * k, out = (si ? 1 : -1) * (f.wc / 2 + t + 0.55 + hash(a, si) * 0.4), r = 0.75 + hash(a, si, 3) * 0.55 + k * 0.4; const x = ax ? a : bc + out, z = ax ? bc + out : a; rocks.push([x, r * 0.3, z, r * 1.25, r * 0.85, r * 1.3, hash(x, z, 2) < 0.5 ? '#7a6048' : '#6a523e', hash(x, z, 1) * 6.28]); } }
+    // the slope going down into the dark: earth bands, each a shade blacker
+    for (let k = 0; k < Math.floor(open / 0.6); k++) { const s0 = f.aTop + f.u * k * 0.6, s1 = s0 + f.u * 0.6, r = rect(Math.min(s0, s1), Math.max(s0, s1), b0 + 0.05, b1 - 0.05), v = Math.max(0, 0.26 - k * 0.032); props.push(span(r.x0, r.z0, r.x1, r.z1, y + 0.02, y + 0.05, `#${new THREE.Color(v * 0.8, v * 0.58, v * 0.4).getHexString()}`)); }
+    const ov = f.u > 0 ? rect(a1 - 0.4, a1 + 1.2, b0 - 1.4, b1 + 1.4) : rect(a0 - 1.2, a0 + 0.4, b0 - 1.4, b1 + 1.4);
     for (let i = 0; i < 4; i++) { const k = (i + 0.5) / 4; const x = ax ? (ov.x0 + ov.x1) / 2 : ov.x0 + (ov.x1 - ov.x0) * k, z = ax ? ov.z0 + (ov.z1 - ov.z0) * k : (ov.z0 + ov.z1) / 2; rocks.push([x, y + 1.6, z, 2.2, 1.6, 2.0, '#634c3a', hash(x, z, 4) * 6.28]); }
   } else {
     for (const s of sides) props.push(span(s.x0, s.z0, s.x1, s.z1, y, y + (E.look === 'culvert' ? H : 0.55), coaming));
@@ -280,18 +295,18 @@ export function buildPlatform(plan, M) {
 
 // Eyes that catch your light: a pair of tiny bright quads at each infected's head (one mesh, a fixed pool).
 export function buildEyes(M, n = 48) {
-  const geo = new THREE.PlaneGeometry(0.07, 0.05).rotateX(-Math.PI / 2);
-  const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: LIGHT.eye, toneMapped: false }), n * 2);
+  const geo = new THREE.PlaneGeometry(0.16, 0.1).rotateX(-Math.PI / 2);
+  const m = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ color: LIGHT.eye, toneMapped: false, fog: false, depthTest: false }), n * 2);
   m.count = 0; m.frustumCulled = false; m.renderOrder = 3;
   return m;
 }
 
 // The holdout's drone: a body, four rotors, a red lamp and the beam it sweeps the floor with (each a small pool).
 export function buildDrones(M, n = 4) {
-  const body = new THREE.InstancedMesh(BOX, M.props, n * 6);
+  const body = new THREE.InstancedMesh(BOX, M.props, n * 8);
   const beam = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), M.glow, n);
   body.count = 0; beam.count = 0; body.frustumCulled = false; beam.frustumCulled = false; beam.renderOrder = 2;
-  for (let i = 0; i < n * 6; i++) body.setColorAt(i, _c.set(i % 6 === 0 ? '#4e5444' : i % 6 === 5 ? '#ff3a22' : '#2e2e2a'));
+  for (let i = 0; i < n * 8; i++) body.setColorAt(i, _c.set(i % 8 === 0 ? '#6c735a' : i % 8 < 3 ? '#3e4036' : i % 8 === 7 ? '#ff3a22' : '#9a9a90'));
   for (let i = 0; i < n; i++) beam.setColorAt(i, _c.set('#ffe7b0'));
   return { body, beam };
 }

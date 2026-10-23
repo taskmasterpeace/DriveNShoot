@@ -800,12 +800,14 @@ export class Underground {
   // a blast door, a door down here, a log. Returns the ring target (or null: nothing of ours in reach).
   playerInteract(p, I, dt) {
     const A = this.A, g = this.g;
-    if (!A || p.ug !== A.site.id) { this.holdT = 0; return null; }
+    if (!A || p.ug !== A.site.id) { this.holdT = 0; this.holdOn = null; return null; }
     const P = A.levels.get(this.levelOf(p.gy));
     if (!P) return null;
     const down = I.key('KeyE'), hit = I.hit('KeyE'), y = P.L.y;
     const ring = this._ring ?? (this._ring = { x: 0, z: 0, len: 2 });
-    const hold = (need, label, done) => {
+    // A held E counts for one thing at a time: a new thing in reach starts the count again (a finished hold waits for E up).
+    const hold = (key, need, label, done) => {
+      if (this.holdOn !== key) { this.holdOn = key; this.holdT = 0; }
       if (down && this.holdT >= 0) { this.holdT = (this.holdT ?? 0) + dt; const k = Math.min(1, this.holdT / need); g.hud.prompt(`${label}… ${Math.round(k * 100)}%`); if (k >= 1) { this.holdT = -1; done(); } return true; }
       if (!down) this.holdT = 0;
       return false;
@@ -825,9 +827,9 @@ export class Underground {
     const G = P.L.generator;
     if (G && Math.hypot(G.x - p.x, G.z - p.z) < 2.4) {
       ring.x = G.x; ring.z = G.z; ring.len = 2.8;
-      if (A.rec.power) { g.hud.prompt(`The generator runs · tank ${Math.round(A.rec.fuel * 100)}% · hold <kbd>E</kbd> Shut it down`); hold(1.2, 'Shutting it down', () => this.setPower(false, 'shut down')); return ring; }
+      if (A.rec.power) { g.hud.prompt(`The generator runs · tank ${Math.round(A.rec.fuel * 100)}% · hold <kbd>E</kbd> Shut it down`); hold('gen-off', 1.2, 'Shutting it down', () => this.setPower(false, 'shut down')); return ring; }
       const dry = A.rec.fuel <= 0.001, can = g.inventory.carried.count('fuel_can') > 0;
-      if (!hold(GENERATOR.hold, dry && can ? 'Pouring the can, cranking' : 'Priming, cranking', () => { const r = this.startGenerator(p); if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); }))
+      if (!hold('gen', GENERATOR.hold, dry && can ? 'Pouring the can, cranking' : 'Priming, cranking', () => { const r = this.startGenerator(p); if (!r.ok) g.hud.toast(r.why.toUpperCase(), 'warn'); }))
         g.hud.prompt(dry && !can ? 'The generator · DRY · a fuel can fills it' : `hold <kbd>E</kbd> Start the generator · tank ${Math.round(A.rec.fuel * 100)}%${dry ? ' (pour your can)' : ''}`);
       return ring;
     }
@@ -843,18 +845,18 @@ export class Underground {
         const what = door.blast ? 'BLAST DOOR' : 'KEYPAD';
         if (A.rec.power) {
           if (known && hit) { this.keypad(door, p); return ring; }
-          if (charge && hold(BLAST.charge.hold, 'Setting the charge', () => this.plant(door, p, charge))) return ring;
+          if (charge && hold(`charge:${door.id}`, BLAST.charge.hold, 'Setting the charge', () => this.plant(door, p, charge))) return ring;
           g.hud.prompt(known ? `<kbd>E</kbd> Key in ${code}` : `${what} · the keypad wants a code${charge ? ` · hold <kbd>E</kbd> Set a charge (${charge})` : ''}`);
           return ring;
         }
-        if (bar && hold(BLAST.crank, 'Cranking the manual release (loud)', () => this.crank(door, p))) return ring;
-        if (!bar && charge && hold(BLAST.charge.hold, 'Setting the charge', () => this.plant(door, p, charge))) return ring;
+        if (bar && hold(`crank:${door.id}`, BLAST.crank, 'Cranking the manual release (loud)', () => this.crank(door, p))) return ring;
+        if (!bar && charge && hold(`charge:${door.id}`, BLAST.charge.hold, 'Setting the charge', () => this.plant(door, p, charge))) return ring;
         g.hud.prompt(`${what} · keypad dead (no power)${bar ? ' · hold <kbd>E</kbd> Crank the manual release' : charge ? ` · hold <kbd>E</kbd> Set a charge (${charge})` : ' · a crowbar or a charge'}`);
         return ring;
       }
       // an ordinary door: the interiors rules (kick; picks or a bar on a held E)
       const tool = door.locked ? (picks ? 'pick' : bar ? 'pry' : null) : null;
-      if (tool && hold(tool === 'pick' ? 2.6 : 1.3, tool === 'pick' ? 'Picking the lock' : 'Prying it', () => inv.forceLock(door, tool))) return ring;
+      if (tool && hold(`${tool}:${door.id}`, tool === 'pick' ? 2.6 : 1.3, tool === 'pick' ? 'Picking the lock' : 'Prying it', () => inv.forceLock(door, tool))) return ring;
       if (hit && !tool) g.interiors.kick(door, p);
       if (!down && this.holdTap > 0 && this.holdTap < 0.3 && tool) g.interiors.kick(door, p);
       this.holdTap = down ? (this.holdTap ?? 0) + dt : 0;
@@ -1004,7 +1006,7 @@ export class Underground {
         if (!this.lampWas) this.lampWas = { color: lamp.color.getHex(), distance: lamp.distance, decay: lamp.decay };
         lamp.color.set(Lm.color); lamp.distance = Lm.distance; lamp.decay = Lm.decay;
         lamp.position.set(p.x + Math.sin(p.face) * Lm.ahead, (p.gy ?? 0) + Lm.up, p.z + Math.cos(p.face) * Lm.ahead);
-        lamp.intensity = Lm.intensity;
+        lamp.intensity = Lm.intensity * (this.A?.rec.power ? 0.45 : 1); // under the strips your lamp matters less
       } else if (this.lampWas) { lamp.color.setHex(this.lampWas.color); lamp.distance = this.lampWas.distance; lamp.decay = this.lampWas.decay; lamp.intensity = 0; this.lampWas = null; }
     }
     // the light below (eased so the step from the street is not a jump cut)
@@ -1027,10 +1029,14 @@ export class Underground {
         if (n >= 96 || !c.alive || c.faction !== 'zombie' || c.ug !== A.site.id || this.levelOf(c.gy) !== this.viewK) continue;
         const dx = c.x - p.x, dz = c.z - p.z, d = Math.hypot(dx, dz);
         if (d > LIGHT.eyeR || d < 1) continue;
+        // your light reaches them (in front of you, or close enough for its spill) and they are looking back at you
         let da = Math.abs(Math.atan2(dx, dz) - p.face); if (da > Math.PI) da = Math.PI * 2 - da;
-        if (da > (LIGHT.eyeCone * Math.PI) / 180) continue;
-        const fx = Math.sin(c.face), fz = Math.cos(c.face), y = (c.gy ?? 0) + 1.6;
-        for (const s of [-1, 1]) { _o.position.set(c.x + fx * 0.14 + fz * 0.06 * s, y, c.z + fz * 0.14 - fx * 0.06 * s); _o.rotation.set(0, c.face, 0); _o.scale.set(1, 1, 1); _o.updateMatrix(); M.setMatrixAt(n++, _o.matrix); }
+        if (da > (LIGHT.eyeCone * Math.PI) / 180 && d > 5) continue;
+        const fx = Math.sin(c.face), fz = Math.cos(c.face);
+        if ((-dx * fx - dz * fz) / d < 0.35) continue;
+        if (!this.g.statics.lineOfSight(p.x, p.z, c.x, c.z, RAY_SIGHT, (p.gy ?? 0) + 1.5)) continue;
+        const y = (c.gy ?? 0) + 1.55;
+        for (const s of [-1, 1]) { _o.position.set(c.x + fx * 0.24 + fz * 0.08 * s, y, c.z + fz * 0.24 - fx * 0.08 * s); _o.rotation.set(0, c.face, 0); _o.scale.set(1, 1, 1); _o.updateMatrix(); M.setMatrixAt(n++, _o.matrix); }
       }
     }
     M.count = n; M.visible = n > 0;
@@ -1040,14 +1046,15 @@ export class Underground {
     const g = this.g, A = this.A, B = this.drones.body, Bm = this.drones.beam;
     let n = 0, m = 0;
     if (A) for (const P of A.levels.values()) for (const c of P.occ) {
-      if (c.ugRole !== 'drone' || !g.chars.includes(c) || n + 6 > B.instanceMatrix.count * 1e9) continue;
+      if (c.ugRole !== 'drone' || !g.chars.includes(c)) continue;
       if (P.k !== this.viewK && g.player.ug) continue;
-      if (n / 6 >= 4) break;
+      if (n + 8 > B.instanceMatrix.count) break;
       const t = g.time * 9, alive = c.alive, y = (c.gy ?? 0) + (alive ? HOLDOUT.drone.alt + Math.sin(g.time * 2.1 + c.slot) * 0.08 : 0.15);
       const put = (x, yy, z, sx, sy, sz, ry = c.face) => { _o.position.set(x, yy, z); _o.rotation.set(alive ? 0 : 0.4, ry, 0); _o.scale.set(sx, sy, sz); _o.updateMatrix(); B.setMatrixAt(n++, _o.matrix); };
-      put(c.x, y, c.z, 0.55, 0.18, 0.7);
-      for (const [ox, oz] of [[0.45, 0.45], [-0.45, 0.45], [0.45, -0.45], [-0.45, -0.45]]) { const cs = Math.cos(c.face), sn = Math.sin(c.face); put(c.x + ox * cs + oz * sn, y + 0.06, c.z - ox * sn + oz * cs, 0.42, 0.02, 0.06, alive ? t + ox : 0); }
-      put(c.x + Math.sin(c.face) * 0.32, y - 0.05, c.z + Math.cos(c.face) * 0.32, 0.1, 0.08, 0.1);
+      put(c.x, y, c.z, 0.62, 0.22, 0.8);                                                   // the body
+      put(c.x, y + 0.04, c.z, 1.25, 0.05, 0.1, c.face + 0.785); put(c.x, y + 0.04, c.z, 1.25, 0.05, 0.1, c.face - 0.785); // the arms
+      for (const [ox, oz] of [[0.45, 0.45], [-0.45, 0.45], [0.45, -0.45], [-0.45, -0.45]]) { const cs = Math.cos(c.face), sn = Math.sin(c.face); put(c.x + ox * cs + oz * sn, y + 0.1, c.z - ox * sn + oz * cs, 0.5, 0.02, 0.08, alive ? t + ox : 0); } // the rotors, a blur
+      put(c.x + Math.sin(c.face) * 0.36, y - 0.06, c.z + Math.cos(c.face) * 0.36, 0.14, 0.12, 0.14); // the gun's eye
       if (alive) { const fx = Math.sin(c.face), fz = Math.cos(c.face); _o.position.set(c.x + fx * 3.6, (c.gy ?? 0) + 0.04, c.z + fz * 3.6); _o.rotation.set(0, c.face, 0); _o.scale.set(3.2, 1, 6); _o.updateMatrix(); Bm.setMatrixAt(m++, _o.matrix); }
     }
     B.count = n; Bm.count = m; B.visible = n > 0; Bm.visible = m > 0;

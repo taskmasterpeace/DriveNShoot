@@ -211,7 +211,9 @@ export async function undergroundChecks({ api, g, check, C }) {
     g.inventory.add(g.inventory.carried, 'fuel_can', 1, { left: 1 }); g.inventory.changed();
     p.x = G.x + (G.x > (P.L.ox + P.L.W / 2) ? -1.9 : 1.9); p.z = G.z; g.standOn(p);
     for (const c of P.occ) if (c.alive && Math.hypot(c.x - G.x, c.z - G.z) < 8) { c.x = P.L.arrival.x; c.z = P.L.arrival.z; c.hold = true; } // the dead out of the way for the staging
-    await holdKey('KeyE', 4, () => A.rec.power);
+    g.input.down.delete('KeyE'); await api._step(2); // E up first: a fresh press
+    const prompts = [], pr = g.hud.prompt; g.hud.prompt = (t) => { if (t && prompts.length < 4 && !prompts.includes(t)) prompts.push(t); return pr.call(g.hud, t); };
+    try { await holdKey('KeyE', 4, () => A.rec.power); } finally { g.hud.prompt = pr; }
     const powered = A.rec.power, fuel = A.rec.fuel;
     P.look.strips.getColorAt(stripAt, col); const lit = col.getHexString();
     const y0 = A.rec.lift.y, call = U.callLift(A.plan.n - 1);
@@ -221,7 +223,7 @@ export async function undergroundChecks({ api, g, check, C }) {
     for (const c of P.occ) c.hold = 0;
     if (worn) g.inventory.wear(worn);
     await home();
-    return !deadLift.ok && powered && fuel > 0.3 && dark !== lit && lit === new THREE.Color(LIGHT.strip).getHexString() && call.ok && Math.abs(y1 - y0) > 3 && arrived ? true : JSON.stringify({ deadLift, powered, fuel, dark, lit, call, y0, y1, arrived });
+    return !deadLift.ok && powered && fuel > 0.3 && dark !== lit && lit === new THREE.Color(LIGHT.strip).getHexString() && call.ok && Math.abs(y1 - y0) > 3 && arrived ? true : JSON.stringify({ deadLift, powered, fuel, dark, lit, call, y0, y1, arrived, prompts, cans: g.inventory.carried.count('fuel_can') });
   });
 
   await check('underground: a level remembers - what you took from a box and who you killed down there stay so after you leave (the level written back) and come back (promoted again)', async () => {
