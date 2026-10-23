@@ -305,7 +305,7 @@ export class QOL {
     c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore();
     c.font = '700 13px Barlow Condensed'; c.fillStyle = '#f2e6d0'; c.textAlign = 'right';
     const here = locationName(px, pz);
-    c.fillText(`${here.startsWith('PHOENIX') ? here : `PHOENIX · ${here}`} · 3.8 KM ACROSS`, S - 10, S - 12);
+    c.fillText(`${(/^phoenix/i.test(here) ? here : `Phoenix · ${here}`).toUpperCase()} · 3.8 KM ACROSS`, S - 10, S - 12); // the ring's names already start "Phoenix": never twice
   }
   drawBigMap() {
     const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;

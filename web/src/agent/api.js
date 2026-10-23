@@ -2305,6 +2305,9 @@ async function runSelfTest(api) {
     g.society.factions.assign(c);
     return c;
   };
+  // Your killing of c in the chronicle - by its victim, never "the latest kill": the world's own killings (a raider and a
+  // bull trading fire somewhere) land in the same ring, and one can come between the shot and the query.
+  const killOf = (c) => g.society.chronicle.query({ verb: 'kill', limit: 30 }).find((r) => r.o === c.id && r.a === 'player' && r.src !== 'rumor'); // the deed, not the word of it landing
   const shootDead = async (c) => { for (let i = 0; i < 6 && c.alive; i++) await C('fire', { id: c.id, shots: 1 }); return !c.alive; };
   const drifterStanding = () => g.society.factions.standing[g.society.factions.index.drifters];
   const quickRumors = async (fn) => { const row = g.society.factions.row('drifters'), d = row.rumorDelay; row.rumorDelay = [5, 7]; try { return await fn(); } finally { row.rumorDelay = d; } };
@@ -2334,7 +2337,7 @@ async function runSelfTest(api) {
     w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
     const s0 = drifterStanding(), since = g.eventSeq;
     const dead = await shootDead(victim);
-    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    const rec = killOf(victim);
     const named = !!rec?.w.includes(w.id);
     await C('step', { seconds: 9 });
     const landed = g.events.some((e) => e.seq > since && e.type === 'rumor' && e.witness === w.id);
@@ -2364,7 +2367,7 @@ async function runSelfTest(api) {
       w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
       const F = g.society.factions, rh = () => F.standing[F.index.rusthaven], r0 = rh(), since = g.eventSeq;
       await shootDead(victim);
-      const seq = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0]?.seq;
+      const seq = killOf(victim)?.seq;
       const ev = (f) => g.events.filter((e) => e.seq > since && f(e));
       const landedD = () => ev((e) => e.type === 'rumor' && e.record === seq && e.faction === 'drifters' && !e.via).length;
       for (let t = 0; t < 12 && !landedD(); t += 0.25) await C('step', { seconds: 0.25 });
@@ -2399,7 +2402,7 @@ async function runSelfTest(api) {
     const victim = person('drifter', 3, 0, { hp: 30 }), by = person('drifter', 0, 25);
     const s0 = drifterStanding();
     await shootDead(victim);
-    const rec = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0];
+    const rec = killOf(victim);
     await C('step', { seconds: 3 });
     const s1 = drifterStanding(), stars = g.wanted;
     await C('crouch', { on: false }); await C('setTime', { hour: 12 });

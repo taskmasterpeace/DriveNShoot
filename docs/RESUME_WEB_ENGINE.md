@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 115/115 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 120/120 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Phoenix ring R1 (subagent) | the dead metro round the island out to a lobed edge near 1.5 km: 2,477 walk-in buildings in four zones (THE STRIP on I-10 and the arterials, THE YARDS by the Iron Line and the wash, THE DEAD HOUSES, THE BURN at the edge), streets on the island's own 80 m lattice, roofs that hide inside, real containers whose takings persist (ringKept), the metro map (3.8 km); `ring` command, `chunk evict=`; 73 draw calls over the densest chunk, stream-drive 0 stalls, stress level | WEB_STREAMING §1.3 | 2041424d |
 | bounty-run (subagent) | the end-to-end playthrough finishes again (6/6, $250 on fresh pages, 28-180 s wall): wakes sleepers, picks locks, finds live Dustwolves through query, harpoons from the cab, engages on foot, heals with meds, takes only parked rides. Game fixes it found: spun cars locked at ~28 rad/s (a turn rate smoothed as an angle), ram from a standing start, drive/ram on dead cars and walls, engage on corpses, talk wakes a sleeper, Kenji repairs the whole car | web/src/scenarios/bounty-run.js | dc562a66 |
 | The infected's kinds | the canon's taxonomy as rows (data/infected.js): Sprinter (a shambler until something living runs inside 20 m or a shot goes off: 6 s at 9 m/s, 3 s bent double, a shambler again), Echo (works at boarded windows and locked doors only unobserved, never advances), Choir-Touched at the dead relay mast (hum 45 m, aura x1.25 + shared target 30 m); `infected` command | WEB_INFECTED | 20eb9eb4 |
 | Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | 5226f237 |
@@ -90,6 +91,11 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
    `D:/git/carworld/.claude/worktrees/agent-a50561b0595ce1484`; it was not allowed to delete it, so it's yours to remove.
    The role subagent was likewise denied `rm` for its two A/B baseline copies and moved them to the session
    scratchpad (`...\scratchpad\roles\abbase_worktree_copy`, `abbase2_worktree_copy`); they are yours to delete too.
+6. **The ring** (from its builder): arterials cross I-10 at grade inside the city - overpasses instead (the P1 deck
+   builder)? About 37% of buildings ruined and 34% of lots empty - denser or more intact? When do ring buildings get door
+   leaves and glass (interiors.js taking streamed rows)? Should the island's grid run on across the flats to meet the ring
+   (it would move the golden hash on purpose; today the flats separate the walled holdout from the dead metro)? LA or
+   El Paso next?
 5. **Vehicle feel** (from the bounty-run rework): engines die fast - a front crash takes 0.55 x its damage off the
    engine (a 19 m/s arrival into a camp wall cost a LAWMAN 41% of its engine), so most rides last one or two fights. Is
    that the design? And `drive` still arrives at half throttle inside 25 m and can overshoot into what is past the target.
@@ -101,8 +107,8 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
 
 ## Next blocks
 - Storeys v2: basements, shooting between floors through windows, noise and blasts through floors (WEB_STOREYS §0.4).
-- **Then the Phoenix ring** (Robert, 2026-10-22: metros ~3 km, cities ~1.5 km, holdouts as they are; WEB_STREAMING
-  decision 5): the 920 m island stays downtown, a generated living ring out to ~1.5 km, then LA, El Paso, the cities.
+- **The Phoenix ring, R2 and R3** (WEB_STREAMING §1.3 notes): residents (scavengers, squatters, raiders and infected by
+  zone), then traffic. Then LA, El Paso and the 1.5 km cities from the same generator.
 - Merge and land the two subagent branches (above).
 - **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
   city, characters, interiors).
