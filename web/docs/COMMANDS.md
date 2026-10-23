@@ -166,7 +166,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `bench` | `frames?:number width?:number height?:number` | Measure real frame cost: runs N frames of sim + full render, returns avg/p95/max ms, est. fps, draw calls, triangles. |
 | `save` | `(none)` | Serialise the full game state (player, inventory, quests, time, weather, every character + vehicle) to JSON. Pass the result to load. |
 | `load` | `save:object` | Restore a state produced by save (positions, health, deaths, inventory, quests, time, weather, vehicles). |
-| `selftest` | `only?:string` | Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). |
+| `selftest` | `only?:string skip?:string` | Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one). |
 
 ## shard
 

@@ -98,11 +98,13 @@ export class AgentAPI {
     }
     try {
       // Watchdog: every command gets a wall-clock budget (default 90s) so nothing can hang the page.
-      this.budgetS = Number(args?.budget ?? spec.budget ?? 90);
-      const outer = this.deadline;
-      this.deadline = Math.min(outer ?? Infinity, performance.now() + this.budgetS * 1000);
+      // An inner command never outlives the outer one (a check's step inside selftest): min of the two, and both are put
+      // back after, so the error names the budget that really ran out.
+      const outer = this.deadline, outerS = this.budgetS, mine = Number(args?.budget ?? spec.budget ?? 90);
+      const end = performance.now() + mine * 1000;
+      if (outer === undefined || outer === null || end < outer) { this.deadline = end; this.budgetS = mine; }
       let out;
-      try { out = await spec.run(a); } finally { this.deadline = outer; }
+      try { out = await spec.run(a); } finally { this.deadline = outer; this.budgetS = outerS; }
       return { ok: true, ...(out && typeof out === 'object' && !Array.isArray(out) ? out : { result: out }) };
     } catch (e) {
       return { ok: false, error: String(e?.message ?? e), hint: `${cmd} args: ${fmtArgs(spec.args)}` };
@@ -1728,9 +1730,11 @@ function buildCommands(api) {
       run: async ({ save }) => restore(g, save),
     },
     selftest: {
-      group: 'script', budget: 300, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery).',
-      args: { only: { type: 'string' } },
-      run: async ({ only } = {}) => runSelfTest(api, only),
+      // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
+      // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
+      group: 'script', budget: 1800, desc: 'Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). skip=<text> runs all but those (to find which earlier checks leave state that breaks a later one).',
+      args: { only: { type: 'string' }, skip: { type: 'string' } },
+      run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
     },
   };
 }
@@ -1818,11 +1822,12 @@ function compileNpc(def) {
 }
 
 
-async function runSelfTest(api, only = null) {
+async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
     if (only && !name.includes(only)) return;
+    if (skip && name.includes(skip)) return;
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
