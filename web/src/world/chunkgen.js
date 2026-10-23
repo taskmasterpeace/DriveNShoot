@@ -241,7 +241,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     pause(); yield; resume();
     // Trees by the biome's rows (cypress may stand in a slough's shallows).
     // In stands (hammocks), not sprinkled: a slow noise decides where the trees crowd and where the marsh stays open.
-    for (let k = 0, n = pois(B.trees * ha * wild * 1.9); k < n; k++) {
+    for (let k = 0, n = pois(B.trees * ha * wild * 2.6); k < n; k++) {
       const kind = pick(B.flora), p = spot(1.4, kind === 'cypress' ? 0.9 : 0);
       if (!p) continue;
       const stand = vnoise(p[0], p[1], 150, seed + 5);

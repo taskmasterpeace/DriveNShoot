@@ -89,6 +89,8 @@ export class Holdout {
       this.blocks.push(blk);
       let used = null;
       if (B.lots) used = this.packLots(blk, B, rng, () => `${this.id}.${k++}`);
+      // The back of the block faces the next street: a second row of lots, facing it (half the depth each).
+      if (B.back) this.packLots(blk, { lots: B.back, front: { N: 'S', S: 'N', W: 'E', E: 'W' }[B.front], open: 'half' }, rng, () => `${this.id}.${k++}`);
       if (B.open) this.openLot(blk, B.open, used, rng);
     }
     this.gatesAndWall(rng);
@@ -117,7 +119,7 @@ export class Holdout {
     const list = [];
     for (const it of B.lots) { if (Array.isArray(it)) for (let i = 0; i < it[1]; i++) list.push(it[0]); else list.push(it); }
     const F = B.front, ns = F === 'N' || F === 'S', u0 = ns ? blk.x0 : blk.z0, u1 = ns ? blk.x1 : blk.z1, depth = ns ? blk.z1 - blk.z0 : blk.x1 - blk.x0;
-    const half = B.open ? depth * 0.55 : depth;
+    const half = B.open === 'half' || B.back ? depth * 0.5 : B.open ? depth * 0.55 : depth;
     const set = 3.5, gapMin = 3.2;
     const sizes = list.map((kind) => { const K = KINDS[kind]; const w = rng.range(K.w[0], K.w[1]), d = Math.min(rng.range(K.d[0], K.d[1]), half - set - 2); return { kind, w, d }; });
     while (sizes.length && sizes.reduce((s, q) => s + q.w, 0) + gapMin * (sizes.length + 1) > u1 - u0) sizes.pop();
@@ -137,7 +139,7 @@ export class Holdout {
       u = a1 + gap;
     }
     // What the lots leave of the block (the open half behind them, for a yard or a tower).
-    if (!B.open || !sizes.length) return null;
+    if (!B.open || B.open === 'half' || !sizes.length) return null;
     const back = F === 'N' ? { x0: blk.x0, x1: blk.x1, z0: blk.z0 + half + 1, z1: blk.z1 } : F === 'S' ? { x0: blk.x0, x1: blk.x1, z0: blk.z0, z1: blk.z1 - half - 1 } : null;
     return back;
   }
@@ -149,11 +151,11 @@ export class Holdout {
     const b = area ?? blk, M = HOLDOUT.market, Y = HOLDOUT.yard, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, w = b.x1 - b.x0, d = b.z1 - b.z0;
     if (kind === 'market') {
       // A paved square: stall rows round a fire, canvas awnings, rugs and goods (data/holdout.js market), a well.
-      blk.pads.push({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, band: 'lot' });
-      const rows = [cz - M.aisle - 6, cz + M.aisle + 6];
+      blk.pads.push({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, band: 'walk' }); // a paved plaza
+      const rows = [cz - M.aisle - 6, cz + M.aisle + 6, cz - M.aisle - 17, cz + M.aisle + 17].filter((z) => z > b.z0 + 4 && z < b.z1 - 4); // four rows of stalls
       for (const rz of rows) for (let sx = b.x0 + 7; sx < b.x1 - 6; sx += 7.2) {
         if (rng() > M.fill) continue;
-        const aw = rng.pick(M.awnings), across = rz < cz ? 1 : -1;
+        const aw = rng.pick(M.awnings), across = Math.abs(rz - cz) < M.aisle + 10 ? (rz < cz ? 1 : -1) : (rz < cz ? -1 : 1);
         this.P('roofs', sx, 2.6, rz, 4.6, 0.12, 3.6, aw, 0, 1);                           // the awning
         for (const px of [-2.1, 2.1]) for (const pz of [-1.6, 1.6]) this.P('props', sx + px, 1.3, rz + pz, 0.12, 2.6, 0.12, '#5a4632');
         this.P('props', sx, 0.5, rz + across * 1.2, 3.8, 1.0, 0.8, rng.pick(M.counter));   // the counter

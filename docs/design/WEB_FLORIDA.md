@@ -100,7 +100,7 @@ burnt exits, to Jacksonville and Miami. Florida reads as flat, wet and green: bu
   floor plans (`world/floorplan.js`), furniture, PACK-screen containers and beds, roofs that hide when you walk in. The
   civic row faces Main Street: CLINIC, CLONE BAY (the clinic's wing: vats), SHERIFF'S OFFICE (holding cells), TOWN HALL,
   CHAPEL, RADIO. Across it: GENERAL STORE, CANTINA, GUNSMITH, WATER, BOARDING HOUSE, DINER. The GARAGE and a FUEL STOP with
-  a yard of cars; a warehouse; houses, bungalows and duplexes on the rows. New kinds and plans are rows (`data/ring.js`
+  a yard of cars; a warehouse; houses, bungalows, duplexes and boarding houses on the rows and on the backs of the civic and Main Street blocks (59 walk-in buildings in all). New kinds and plans are rows (`data/ring.js`
   KINDS and ZONES.holdout, `data/floorplans.js` clonebay, jail, nave and their PLANS); no ring zone picks them.
 - **Open lots** (Rust Haven's holdout fill, `data/holdout.js` rows): THE MARKET (stalls round a fire, a well, live oaks),
   THE GARDENS and THE FIELDS (raised beds, a rain tank, a shade tarp), THE PIT (a ring of fence and tyres, bleachers), THE

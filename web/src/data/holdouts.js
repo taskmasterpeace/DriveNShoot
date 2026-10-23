@@ -30,12 +30,12 @@ export const HOLDOUTS = {
     // front (a kind in data/ring.js KINDS; ['house', 3] = three of them); open: an open lot instead (market, garden,
     // arena, yard, junk, tower) laid out by world/holdout.js from data/holdout.js rows.
     blocks: [
-      { at: [1, 1], front: 'S', name: 'THE CIVIC ROW', lots: ['clinic', 'clonewing', 'sheriff', 'townhall', 'chapel', 'radio'] },
-      { at: [1, 2], front: 'N', name: 'MAIN STREET', lots: ['store', 'cantina', 'gunsmith', 'water', 'boarding', 'diner'] },
+      { at: [1, 1], front: 'S', name: 'THE CIVIC ROW', lots: ['clinic', 'clonewing', 'sheriff', 'townhall', 'chapel', 'radio'], back: ['house', 'duplex', 'house', 'bungalow', 'house', 'boarding', 'house'] },
+      { at: [1, 2], front: 'N', name: 'MAIN STREET', lots: ['store', 'cantina', 'gunsmith', 'water', 'boarding', 'diner'], back: ['house', 'bungalow', 'house', 'duplex', 'house', 'house', 'bungalow'] },
       { at: [2, 1], open: 'market', name: 'THE MARKET' },
       { at: [2, 2], front: 'N', name: 'THE GARAGE', lots: ['mechanic', 'gas'], open: 'yard' },
-      { at: [0, 1], front: 'S', lots: ['boarding', 'house', 'house'] },
-      { at: [0, 2], front: 'N', lots: [['house', 3]] },
+      { at: [0, 1], front: 'S', lots: ['boarding', 'house', 'house'], back: [['house', 3]] },
+      { at: [0, 2], front: 'N', lots: [['house', 3]], back: ['bungalow', 'house', 'duplex'] },
       { at: [3, 1], front: 'S', lots: ['house'], open: 'tower' },
       { at: [3, 2], front: 'N', lots: ['warehouse'] },
       { at: [0, 0], front: 'S', lots: [['house', 2], 'bungalow'] },
