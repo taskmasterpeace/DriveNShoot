@@ -104,6 +104,8 @@ export class Vehicles {
     v.lean = 0; v.wheelie = 0; v.fallen = false;
     // Vertical state (stunts.js): ride height and its speed, the ground under the wheels, body pitch/roll, in the air.
     v.y = 0; v.vy = 0; v.gy = 0; v.pitch = 0; v.roll = 0; v.air = false;
+    const TW = this.g.streamer?.W; // real terrain (flag): it is made standing on the land, not under it
+    if (TW?.terrain) { v.y = v.gy = TW.groundAt(x, z); }
     this.list.push(v);
     this.g.vehicles = this.list;
     return v;
@@ -283,7 +285,9 @@ export class Vehicles {
     const pre = this.speed(v);
     let hitN = 0;
     const n = Math.max(2, Math.round(v.len / v.wid));
-    const vy0 = v.y, sinP = Math.sin(v.pitch), own = v.air ? v.toRamp : v.ramp; // a ramp never blocks the car using it
+    // Collision heights are measured from the ground the box stands on: on real terrain (flag) the car's height is
+    // taken from the ground under it too (groundAt is 0 when the flag is off).
+    const W = g.streamer?.W, vy0 = W?.terrain ? v.y - W.groundAt(v.x, v.z) : v.y, sinP = Math.sin(v.pitch), own = v.air ? v.toRamp : v.ramp; // a ramp never blocks the car using it
     for (let k = 0; k < n; k++) {
       const off = (k / (n - 1) - 0.5) * (v.len - r * 1.6);
       const t = this.tmp;

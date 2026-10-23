@@ -144,8 +144,9 @@ export class Sky {
     if (elev > -0.05) { dirX = Math.cos(ang) * 0.8; dirY = Math.max(0.18, elev); dirZ = 0.35; }
     else { const ma = ang - Math.PI; dirX = Math.cos(ma) * 0.6; dirY = Math.max(0.35, Math.sin(ma)); dirZ = -0.3; }
     const len = Math.hypot(dirX, dirY, dirZ);
-    this.sun.position.set(center.x + (dirX / len) * 120, (dirY / len) * 120, center.z + (dirZ / len) * 120);
-    this.sun.target.position.set(center.x, 0, center.z);
+    const cy = center.y ?? 0; // real terrain (flag): the ground under the view is not at 0
+    this.sun.position.set(center.x + (dirX / len) * 120, cy + (dirY / len) * 120, center.z + (dirZ / len) * 120);
+    this.sun.target.position.set(center.x, cy, center.z);
 
     const low = 1 - smoothstep(0.05, 0.5, elev);
     this.sun.color.copy(SUN_DAY).lerp(SUN_LOW, low * 0.85).lerp(MOON, this.night);

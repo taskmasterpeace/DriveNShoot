@@ -23,6 +23,7 @@ function segPoint(px, pz, ax, az, bx, bz, out) {
   return out;
 }
 const _sp = { t: 0, d: 0 };
+const NO_RELIEF = []; // nearRelief with real terrain on, where no ramp or fill is near: the ground itself
 
 // Resample a polyline [{x,z}] at a fixed step (the last point is kept). Returns {x:Float64Array, z, s}.
 function resample(pts, step) {
@@ -98,6 +99,7 @@ export class WorldIndex {
     this.K = STREAM.K;
     this.seed = STREAM.seed;
     this.warnings = [];
+    this.terrain = null; // real terrain (world/realterrain.js, Streamer.setTerrain): off by default
     this.structById = Object.fromEntries(D.structures.map((s) => [s.id, s]));
     this.archById = Object.fromEntries(D.exit_archetypes.map((a) => [a.id, a]));
     this.buildCorridor();
@@ -116,7 +118,10 @@ export class WorldIndex {
     const i = Math.floor((ux - D.world_offset[0]) / D.cell_m), j = Math.floor((uy - D.world_offset[1]) / D.cell_m);
     return i < 0 || j < 0 || i >= D.w || j >= D.h ? null : [i, j];
   }
-  biomeAt(x, z) { const c = this.cell(x, z); return c ? this.data.grid[c[1]][c[0]] : '.'; }
+  biomeAt(x, z) {
+    if (this.terrain) { const b = this.terrain.biomeAt(x, z); if (b) return b; } // real landcover (flag: world/realterrain.js)
+    const c = this.cell(x, z); return c ? this.data.grid[c[1]][c[0]] : '.';
+  }
   stateAt(x, z) { const c = this.cell(x, z); const k = c ? this.data.states_grid[c[1]][c[0]] : '.'; return this.data.state_legend[k] ?? null; }
   // Relief 0..1, bilinear between cell centres (the digits run 0-9).
   reliefAt(x, z) {
@@ -566,9 +571,20 @@ export class WorldIndex {
   // ---- the ride-height relief of ramps, fills and the deck ----------------------------------------------------------
   // y: how high the asker is now (a car's ride height, a person's last ground). Fills are solid ground, so they count
   // whatever y is; the deck over the interstate is open below, so it counts only for someone already up near it.
-  nearRelief(x, z) { return this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z)) ?? null; }
+  // With real terrain on (world/realterrain.js) the ground itself has height everywhere: there is always relief near.
+  nearRelief(x, z) { const l = this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z)) ?? null; return l || !this.terrain ? l : NO_RELIEF; }
+  // The ground (real terrain, when on) plus the ramps, fills and decks laid on it; y is absolute, the relief is measured
+  // from the ground it stands on.
   heightAt(x, z, y = 0) {
-    const list = this.nearRelief(x, z);
+    const T = this.terrain;
+    if (!T) return this.rampAt(x, z, y);
+    const b = T.at(x, z);
+    return b + this.rampAt(x, z, y - b);
+  }
+  // The ground under (x, z): 0, or the real terrain's (the base the collision boxes' heights are measured from).
+  groundAt(x, z) { return this.terrain ? this.terrain.at(x, z) : 0; }
+  rampAt(x, z, y = 0) {
+    const list = this.reliefBuckets.get(chunkOf(x) * 100003 + chunkOf(z));
     if (!list) return 0;
     let best = 0;
     for (let k = 0; k < list.length; k++) {

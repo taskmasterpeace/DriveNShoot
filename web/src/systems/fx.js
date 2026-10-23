@@ -18,7 +18,10 @@ export class FX {
       vx: new Float32Array(P_MAX), vy: new Float32Array(P_MAX), vz: new Float32Array(P_MAX),
       life: new Float32Array(P_MAX), max: new Float32Array(P_MAX), size: new Float32Array(P_MAX),
       grav: new Float32Array(P_MAX), kind: new Uint8Array(P_MAX), grow: new Float32Array(P_MAX),
+      base: new Float32Array(P_MAX), // the ground under a particle (0 unless real terrain is on)
     };
+    // Real terrain (flag, docs/design/WEB_TERRAIN.md): the streamer sets ground(x, z) while it is on, null otherwise.
+    this.ground = null;
     this.pNext = 0;
     this.pMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ toneMapped: false }), P_MAX);
     this.pMesh.frustumCulled = false;
@@ -88,8 +91,13 @@ export class FX {
   }
 
   // kind: 0 blood, 1 spark, 2 smoke, 3 debris, 4 fire, 5 gib
+  // A height given from the ground (a muzzle at 1.3, a gib thrown from 1) goes up onto the real terrain; one already taken
+  // from someone's own ground (blood at c.gy + 1.3) stays where it is.
+  up(x, y, z) { const G = this.ground; if (!G) return y; const b = G(x, z), d = y - b; return d < -0.5 || d > 6 ? y + b : y; }
+
   spawn(kind, x, y, z, vx, vy, vz, life, size, color, grav = 22) {
     const p = this.p, i = this.pNext;
+    if (this.ground) { y = this.up(x, y, z); p.base[i] = this.ground(x, z); } else p.base[i] = 0;
     this.pNext = (i + 1) % P_MAX;
     p.x[i] = x; p.y[i] = y; p.z[i] = z; p.vx[i] = vx; p.vy[i] = vy; p.vz[i] = vz;
     p.life[i] = life; p.max[i] = life; p.size[i] = size; p.grav[i] = grav; p.kind[i] = kind;
@@ -164,7 +172,7 @@ export class FX {
   decal(x, z, size, color, rot = Math.random() * Math.PI * 2, y = 0.13) {
     const i = this.dNext;
     this.dNext = (i + 1) % D_MAX;
-    _o.position.set(x, y + (i % 7) * 0.002, z); _o.rotation.set(0, rot, 0); _o.scale.set(size, 1, size); _o.updateMatrix();
+    _o.position.set(x, y + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(size, 1, size); _o.updateMatrix();
     this.dMesh.setMatrixAt(i, _o.matrix);
     this.dMesh.setColorAt(i, _c.set(color));
     this.dMesh.instanceMatrix.needsUpdate = true;
@@ -182,7 +190,7 @@ export class FX {
   footprint(x, z, rot, strength = 1) {
     const i = this.dNext;
     this.dNext = (i + 1) % D_MAX;
-    _o.position.set(x, 0.135 + (i % 7) * 0.002, z); _o.rotation.set(0, rot, 0); _o.scale.set(0.16, 1, 0.32); _o.updateMatrix();
+    _o.position.set(x, 0.135 + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0), z); _o.rotation.set(0, rot, 0); _o.scale.set(0.16, 1, 0.32); _o.updateMatrix();
     this.dMesh.setMatrixAt(i, _o.matrix);
     this.dMesh.setColorAt(i, _c.set('#5a0606').multiplyScalar(0.6 + strength * 0.4));
     this.dMesh.instanceMatrix.needsUpdate = true;
@@ -193,14 +201,14 @@ export class FX {
     this.pools.push({ x, z, r: target * 0.4 });
     if (this.pools.length > 64) this.pools.shift();
     const i = this.decal(x, z, 0.3, '#4e0303');
-    this.growing.push({ i, x, z, rot: Math.random() * 6, cur: 0.3, target, y: 0.14 + (i % 7) * 0.002 });
+    this.growing.push({ i, x, z, rot: Math.random() * 6, cur: 0.3, target, y: 0.14 + (i % 7) * 0.002 + (this.ground ? this.ground(x, z) : 0) });
     if (this.growing.length > 40) this.growing.shift();
   }
 
   skid(x, z, rot) {
     const i = this.sNext;
     this.sNext = (i + 1) % 900;
-    _o.position.set(x, 0.1, z); _o.rotation.set(0, rot, 0); _o.scale.set(0.32, 1, 0.9); _o.updateMatrix();
+    _o.position.set(x, this.ground ? 0.1 + this.ground(x, z) : 0.1, z); _o.rotation.set(0, rot, 0); _o.scale.set(0.32, 1, 0.9); _o.updateMatrix();
     this.sMesh.setMatrixAt(i, _o.matrix);
     this.sMesh.instanceMatrix.needsUpdate = true;
   }
@@ -208,19 +216,19 @@ export class FX {
   tracer(ax, az, bx, bz, y = 1.3, w = 0.06) {
     const t = this.tracers[this.tNext];
     this.tNext = (this.tNext + 1) % T_MAX;
-    t.life = 0.06; t.ax = ax; t.az = az; t.bx = bx; t.bz = bz; t.y = y; t.w = w;
+    t.life = 0.06; t.ax = ax; t.az = az; t.bx = bx; t.bz = bz; t.y = this.ground ? this.up(ax, y, az) : y; t.w = w;
   }
 
   flash(x, y, z, s, life = 0.05) {
     const f = this.flashes[this.fNext];
     this.fNext = (this.fNext + 1) % 48;
-    f.life = life; f.max = life; f.x = x; f.y = y; f.z = z; f.s = s;
+    f.life = life; f.max = life; f.x = x; f.y = this.ground ? this.up(x, y, z) : y; f.z = z; f.s = s;
   }
 
   light(x, y, z, color, power, life) {
     const L = this.lights[this.lNext];
     this.lNext = (this.lNext + 1) % LIGHTS;
-    L.l.position.set(x, y, z); L.l.color.set(color); L.power = power; L.life = life; L.max = life;
+    L.l.position.set(x, this.ground ? this.up(x, y, z) : y, z); L.l.color.set(color); L.power = power; L.life = life; L.max = life;
   }
 
   update(dt) {
@@ -238,13 +246,13 @@ export class FX {
       }
       p.vy[i] -= p.grav[i] * dt;
       p.x[i] += p.vx[i] * dt; p.y[i] += p.vy[i] * dt; p.z[i] += p.vz[i] * dt;
-      if (p.y[i] < 0.08) {
+      if (p.y[i] < p.base[i] + 0.08) {
         if (p.kind[i] === 0) {
           // Blood droplet hits the ground: small stain, then dies.
           if (Math.random() < 0.35) this.decal(p.x[i], p.z[i], 0.18 + Math.random() * 0.3, '#5a0606');
           p.life[i] = 0; this.active[i] = 0; m.setMatrixAt(i, ZERO); continue;
         }
-        p.y[i] = 0.08; p.vy[i] *= -0.25; p.vx[i] *= 0.6; p.vz[i] *= 0.6;
+        p.y[i] = p.base[i] + 0.08; p.vy[i] *= -0.25; p.vx[i] *= 0.6; p.vz[i] *= 0.6;
         if (p.kind[i] === 5 && Math.abs(p.vy[i]) < 1 && Math.random() < 0.08) this.decal(p.x[i], p.z[i], 0.4, '#5a0606');
       }
       if (p.kind[i] === 2) { p.vx[i] *= 0.98; p.vz[i] *= 0.98; }

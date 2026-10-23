@@ -1013,8 +1013,11 @@ class Game {
     // Exponential smoothing: the same feel at 30 fps and at 144 (a per-frame blend factor is not).
     this.camHeight += (h - this.camHeight) * (1 - Math.exp(-dt * ZOOM.heightRate));
     // Upstairs, the camera keeps its height above the floor you stand on (not above the street).
-    const floorY = this.insideBuilding?.storey && !v ? p.gy ?? 0 : 0;
+    // On real terrain (flag, world/realterrain.js) it keeps its height above the ground it looks at.
+    const T = this.streamer?.W?.terrain;
+    const floorY = this.insideBuilding?.storey && !v ? p.gy ?? 0 : T ? T.at(this.camLook.x, this.camLook.z) : 0;
     this.camFloor = (this.camFloor ?? 0) + (floorY - (this.camFloor ?? 0)) * (1 - Math.exp(-dt * ZOOM.heightRate));
+    if (T) this.camLook.y = this.camFloor; // the sun's shadow box follows it up and down (sky.js)
     const k = 1 - Math.exp(-dt * ZOOM.follow);
     this.camLook.x += (tx - this.camLook.x) * k;
     this.camLook.z += (tz - this.camLook.z) * k;
@@ -1208,6 +1211,8 @@ loadContentPacks(game.api).then(async () => {
   // Dev QOL: a full page reload (code edit) keeps your place in the world.
   const keep = sessionStorage.getItem('dl.hmr');
   if (keep) { sessionStorage.removeItem('dl.hmr'); try { restore(game, JSON.parse(keep)); game.emit('hmrRestored'); } catch (e) { console.warn('hmr restore failed', e); } }
+  // Real terrain (docs/design/WEB_TERRAIN.md) is a flag, off by default: ?terrain=real turns it on before agents connect.
+  if (new URLSearchParams(location.search).get('terrain') === 'real') try { await game.streamer.setTerrain(true); } catch (e) { console.warn('terrain', e); }
   startBridge(game.api);
   const sc = new URLSearchParams(location.search).get('scenario');
   if (sc) console.log('[scenario]', sc, await game.api.call('scenario', { name: sc }));
