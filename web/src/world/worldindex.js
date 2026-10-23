@@ -9,6 +9,9 @@ import { STREAM, KIT_OF } from '../data/streaming.js';
 import { toWorld, toWorldX, toWorldZ, toUsmap, C, ISLAND, inIsland, hash32, rngOf, chunkOf } from './geo.js';
 import { Ring } from './ring.js';
 import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md §3.4)
+import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
+import { Holdout } from './holdout.js';
+import { HOLDOUTS } from '../data/holdouts.js';
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -91,6 +94,115 @@ function ribbon(id, kind, band, pts, opts = {}) {
   return { id, kind, band, x, z, y, s, wl, wr, n, L: s[n - 1], x0, z0, x1, z1, ymax, ...opts };
 }
 
+// ---- a corridor past P1 (docs/design/WEB_FLORIDA.md §3.1): the same interstate law as I-10 (two carriageways of two
+// 3.6 m lanes, shoulders, a 6 m median, corners filleted at cornerR, a seeded meander tapered to nothing at every exit),
+// built from a region row's overlay line. No island splice, no dust wall: it is clipped to its region's box. Runs south
+// to north, so its arc length is miles from its start town and an exit's number is its milepost.
+export class Corridor {
+  constructor(W, R, row) {
+    const S = STREAM;
+    this.W = W; this.region = R; this.id = row.id; this.row = row; this.salt = row.salt ?? 1;
+    this.dirs = row.dirs ?? ['NORTH', 'SOUTH']; this.canal = row.canal ? { ...row.canal } : null; this.startTown = row.startTown ?? null;
+    const usrow = W.data.interstates.find((r) => r.id === row.id);
+    this.road = { id: row.id, nickname: usrow?.nickname ?? row.id, lanes: usrow?.lanes ?? 4, divided: true };
+    this.exits = []; this.sIslW = -1e9; this.sIslE = -1e9; this.mainlineFrom = 0;
+    // Clip the overlay to the region box (with the wall's fade inside it), then fillet and meander.
+    const pts = [];
+    const inB = (p) => R.inBox(p.x, p.z, -400);
+    const P = row.pts.map((p) => ({ x: toWorldX(p[0]), z: toWorldZ(p[1]) }));
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i];
+      if (inB(p)) { pts.push(p); continue; }
+      if (i && inB(P[i - 1])) { // leaving: cut at the box
+        const a = P[i - 1]; let lo = 0, hi = 1;
+        for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (inB({ x: a.x + (p.x - a.x) * m, z: a.z + (p.z - a.z) * m })) lo = m; else hi = m; }
+        pts.push({ x: a.x + (p.x - a.x) * lo, z: a.z + (p.z - a.z) * lo });
+      }
+      if (pts.length) break;
+    }
+    const base = resample(fillet(pts, S.cornerR), 4);
+    const rng = rngOf(hash32(W.seed, 1010, this.salt));
+    const l1 = rng.range(S.meanderL[0], S.meanderL[1]), l2 = rng.range(S.meanderL[0], S.meanderL[1]) * 1.7, p1 = rng() * TAU, p2 = rng() * TAU;
+    // Exits by milepost (their s on the built line is ~ their mile: the meander is tiny against a mile); a town exit
+    // tapers round its town's projection.
+    const exitS = [];
+    for (const e of R.row.exits ?? []) if (e.road === row.id) {
+      if (e.mile !== undefined) exitS.push(e.mile * S.mile);
+      else if (e.town) { const t = W.data.towns.find((q) => q.id === e.town); if (t) exitS.push(projectPolyline(base, toWorldX(t.pos[0]), toWorldZ(t.pos[1])).s); }
+    }
+    const taper = (s) => { let k = smooth((Math.min(s, base.L - s) - 300) / 900); for (const se of exitS) k = Math.min(k, smooth((Math.abs(s - se) - 900) / 700)); return k; };
+    const off = [];
+    for (let i = 0; i < base.n; i++) {
+      const s = base.s[i], i0 = Math.max(0, i - 1), i1 = Math.min(base.n - 1, i + 1);
+      const tx = base.x[i1] - base.x[i0], tz = base.z[i1] - base.z[i0], tl = Math.hypot(tx, tz) || 1;
+      const m = S.meanderA * taper(s) * (0.68 * Math.sin((TAU * s) / l1 + p1) + 0.32 * Math.sin((TAU * s) / l2 + p2));
+      off.push({ x: base.x[i] - (tz / tl) * m, z: base.z[i] + (tx / tl) * m });
+    }
+    const c = resample(off, S.step);
+    c.tx = new Float64Array(c.n); c.tz = new Float64Array(c.n);
+    for (let i = 0; i < c.n; i++) {
+      const i0 = Math.max(0, i - 1), i1 = Math.min(c.n - 1, i + 1), dx = c.x[i1] - c.x[i0], dz = c.z[i1] - c.z[i0], l = Math.hypot(dx, dz) || 1;
+      c.tx[i] = dx / l; c.tz[i] = dz / l;
+    }
+    this.cl = c; this.L = c.L;
+    this.clBuckets = new Map();
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (let i = 0; i < c.n - 1; i++) {
+      const mx = (c.x[i] + c.x[i + 1]) / 2, mz = (c.z[i] + c.z[i + 1]) / 2;
+      const k = `${Math.floor(mx / BUCKET)},${Math.floor(mz / BUCKET)}`;
+      let b = this.clBuckets.get(k); if (!b) this.clBuckets.set(k, (b = [])); b.push(i);
+      x0 = Math.min(x0, c.x[i]); x1 = Math.max(x1, c.x[i]); z0 = Math.min(z0, c.z[i]); z1 = Math.max(z1, c.z[i]);
+    }
+    this.bbox = { x0, z0, x1, z1 };
+    this.ends = { start: { x: c.x[0], z: c.z[0] }, end: { x: c.x[c.n - 1], z: c.z[c.n - 1] } };
+  }
+  // Nearest point on the centreline: {s, d, side (+1 right of travel in +s), i, x, z}. Same rule as WorldIndex.project.
+  project(x, z, maxD = Infinity) {
+    const c = this.cl;
+    let best = Infinity, bi = -1, bt = 0;
+    const bx = Math.floor(x / BUCKET), bz = Math.floor(z / BUCKET), r = maxD === Infinity ? 99 : Math.ceil(maxD / BUCKET);
+    if (r < 99) {
+      for (let ox = -r; ox <= r; ox++) for (let oz = -r; oz <= r; oz++) {
+        const list = this.clBuckets.get(`${bx + ox},${bz + oz}`);
+        if (!list) continue;
+        for (const i of list) { segPoint(x, z, c.x[i], c.z[i], c.x[i + 1], c.z[i + 1], _sp); if (_sp.d < best) { best = _sp.d; bi = i; bt = _sp.t; } }
+      }
+    } else for (let i = 0; i < c.n - 1; i++) { segPoint(x, z, c.x[i], c.z[i], c.x[i + 1], c.z[i + 1], _sp); if (_sp.d < best) { best = _sp.d; bi = i; bt = _sp.t; } }
+    if (bi < 0) return { s: 0, d: Infinity, side: 0, i: -1, x: 0, z: 0, cor: this };
+    const px = c.x[bi] + (c.x[bi + 1] - c.x[bi]) * bt, pz = c.z[bi] + (c.z[bi + 1] - c.z[bi]) * bt;
+    const nx = -c.tz[bi], nz = c.tx[bi];
+    return { s: c.s[bi] + (c.s[bi + 1] - c.s[bi]) * bt, d: best, side: (x - px) * nx + (z - pz) * nz >= 0 ? 1 : -1, i: bi, x: px, z: pz, cor: this };
+  }
+  at(s) {
+    const c = this.cl, i = Math.max(0, Math.min(c.n - 2, Math.floor(s / STREAM.step)));
+    const f = Math.max(0, Math.min(1, (s - c.s[i]) / (c.s[i + 1] - c.s[i] || 1)));
+    const tx = c.tx[i] + (c.tx[i + 1] - c.tx[i]) * f, tz = c.tz[i] + (c.tz[i + 1] - c.tz[i]) * f, l = Math.hypot(tx, tz) || 1;
+    return { x: c.x[i] + (c.x[i + 1] - c.x[i]) * f, z: c.z[i] + (c.z[i + 1] - c.z[i]) * f, tx: tx / l, tz: tz / l, nx: -tz / l, nz: tx / l };
+  }
+  section() {
+    const S = STREAM, med = S.median / 2;
+    return { med, in0: med, lane0: med + S.shoulderIn, lane1: med + S.shoulderIn + S.lane, lane2: med + S.shoulderIn + 2 * S.lane, out: med + S.shoulderIn + 2 * S.lane + S.shoulderOut };
+  }
+  // Is there no canal at arc length s (an interchange, the corridor's trimmed end at its town)?
+  noCanal(s) {
+    if (s < this.mainlineFrom + 400 || s > this.L - 300) return true;
+    for (const X of this.exits) if (Math.abs(X.s - s) < 700) return true;
+    return false;
+  }
+  // The two carriageways as ribbons from corridor point i0 on (the start town trims it back to its first street).
+  buildMainline(i0) {
+    const W = this.W, c = this.cl;
+    W.ribbons = W.ribbons.filter((r) => !(r.mainline && r.cor === this));
+    for (const side of [1, -1]) {
+      const pts = [], sec = this.section();
+      for (let i = i0; i < c.n; i++) pts.push({ x: c.x[i] + -c.tz[i] * side * sec.med, z: c.z[i] + c.tx[i] * side * sec.med, y: 0.03, wl: 0, wr: sec.out - sec.med });
+      W.ribbons.push(ribbon(`${this.id} ${side > 0 ? this.dirs[0][0] : this.dirs[1][0]}`, 'hwy', 'hwy', side > 0 ? pts : pts.reverse(), { mainline: true, cor: this }));
+    }
+    this.mainlineFrom = c.s[i0];
+  }
+}
+function projectPolyline(L, x, z) { let best = Infinity, bs = 0; for (let i = 1; i < L.n; i++) { segPoint(x, z, L.x[i - 1], L.z[i - 1], L.x[i], L.z[i], _sp); if (_sp.d < best) { best = _sp.d; bs = L.s[i - 1] + (L.s[i] - L.s[i - 1]) * _sp.t; } } return { s: bs, d: best }; }
+
 export class WorldIndex {
   constructor() {
     const t0 = performance.now();
@@ -103,14 +215,90 @@ export class WorldIndex {
     this.terrain = null; // real terrain (world/realterrain.js, Streamer.setTerrain): off by default
     this.structById = Object.fromEntries(D.structures.map((s) => [s.id, s]));
     this.archById = Object.fromEntries(D.exit_archetypes.map((a) => [a.id, a]));
+    this.towns = D.towns.map((t) => { const [x, z] = toWorld(t.pos); return { id: t.id, name: t.name, kind: t.kind, x, z, landmark: t.landmark, landmark_kind: t.landmark_kind }; });
     this.buildCorridor();
+    // I-10 as a corridor like any other (docs/design/WEB_FLORIDA.md §3.1): the same methods, its own exits.
+    const W = this;
+    this.i10 = { id: 'I-10', W, region: null, salt: 0, dirs: ['EAST', 'WEST'], exits: [], canal: null, get cl() { return W.cl; }, get L() { return W.cl.L; }, get road() { return W.road; },
+      get sIslW() { return W.sIslW; }, get sIslE() { return W.sIslE; }, get mainlineFrom() { return W.mainlineFrom; },
+      project: (x, z, m) => W.project(x, z, m), at: (s) => W.at(s), section: (s) => W.section(s), noCanal: () => true };
+    this.corridors = [this.i10];
+    // Regions past P1 (world/regions.js, data/regions.js): Florida, the start region.
+    this.regions = buildRegions(this);
     this.buildExits();
+    this.buildRegionWorld();
     this.buildTowns();
     this.buildSigns();
+    for (const R of Object.values(this.regions)) for (const cor of R.corridors) this.buildCorridorSigns(cor);
+    for (const H of this.holdouts) this.signs.push(...H.signList); // the name boards over a holdout's gates
     this.bucketFeatures();
     // The Phoenix ring (world/ring.js, data/ring.js): the dead metro round the island, laid out lazily by the chunks.
     this.ring = new Ring(this);
+    // The holdouts' own generators (world/holdout.js): Meridian. Ring-like: chunks ask each what they hold.
+    this.towners = [this.ring, ...this.holdouts];
+    this.depthAt = makeDepthAt(this);
     this.buildMs = +(performance.now() - t0).toFixed(1);
+  }
+
+  // ---- regions past P1 -------------------------------------------------------------------------------------------------
+  // The region a world point is in (null: Arizona's P1 corridor, or nowhere).
+  regionOf(x, z, pad = 0) { return regionAt(this.regions, x, z, pad); }
+  // Inside the streamed world at all: P1's dust-wall circle, or a region's box (with a margin past its edge).
+  inWorld(x, z, pad = 0) { return Math.hypot(x, z) < STREAM.dustWall + pad || !!regionAt(this.regions, x, z, pad); }
+  // The nearest corridor's projection (any interstate): {s, d, side, i, x, z, cor}.
+  projectAny(x, z, maxD = Infinity) {
+    let best = null;
+    for (const cor of this.corridors) { const p = cor.project(x, z, maxD); if (p.d !== Infinity && (!best || p.d < best.d)) { best = p; if (!best.cor) best.cor = cor; } }
+    return best ?? { s: 0, d: Infinity, side: 0, i: -1, x: 0, z: 0, cor: null };
+  }
+  // Corridors whose centreline comes within m of the rectangle.
+  corridorsNear(x0, z0, x1, z1, m = 0) {
+    const out = [];
+    for (const cor of this.corridors) { if (cor === this.i10) { out.push(cor); continue; } const b = cor.bbox; if (b.x1 + m >= x0 && b.x0 - m <= x1 && b.z1 + m >= z0 && b.z0 - m <= z1) out.push(cor); }
+    return out;
+  }
+
+  buildRegionWorld() {
+    const S = STREAM, D = this.data;
+    this.holdouts = [];
+    for (const R of Object.values(this.regions)) {
+      for (const row of R.row.corridors ?? []) {
+        const cor = new Corridor(this, R, row);
+        R.corridors.push(cor); this.corridors.push(cor);
+        cor.buildMainline(0);
+      }
+      for (const e of R.row.exits ?? []) {
+        const cor = R.corridors.find((c) => c.id === e.road);
+        if (!cor) { this.warnings.push(`${R.id} exit ${e.name}: no corridor ${e.road}`); continue; }
+        let s, dest = null, town = null;
+        if (e.town) {
+          town = this.towns.find((t) => t.id === e.town);
+          if (!town) { this.warnings.push(`${R.id} exit ${e.name}: no town ${e.town}`); continue; }
+          s = cor.project(town.x, town.z).s; dest = { x: town.x, z: town.z };
+        } else s = e.mile * S.mile;
+        if (s < 1200 || s > cor.L - 1200) { this.warnings.push(`${R.id} exit ${e.name}: mile ${(s / S.mile).toFixed(1)} is off ${cor.id}`); continue; }
+        const f = cor.at(s), number = e.mile ?? Math.floor(s / S.mile);
+        let H = null;
+        if (e.holdout) {
+          H = new Holdout(this, R, HOLDOUTS[e.holdout], f);
+          this.holdouts.push(H); R.holdouts.push(H);
+          dest = H.approach;
+        } else if (!dest && e.archetype !== 'dead') {
+          const v = { E: [1, 0], W: [-1, 0], N: [0, -1], S: [0, 1] }[e.side ?? 'E'];
+          dest = { x: f.x + v[0] * e.m, z: f.z + v[1] * e.m };
+        }
+        if (!dest) { const v = { E: [1, 0], W: [-1, 0], N: [0, -1], S: [0, 1] }[e.side ?? 'E']; dest = { x: f.x + v[0] * 900, z: f.z + v[1] * 900 }; }
+        const row = { id: `FL-${cor.id}-X${number}`, exit_number: number, name: e.name, archetype: e.archetype, community_tier: e.tier, service_tags: e.tags, risk_rating: e.risk };
+        const X0 = this.addExit(cor, row, f.x, f.z, dest.x, dest.z, { town: town?.id ?? null, holdout: H });
+        if (X0) { X0.region = R; R.exits.push(X0); if (H) H.exit = X0; }
+      }
+      for (const cor of R.corridors) cor.exits.sort((a, b) => a.s - b.s);
+      // A town row this region moves (Meridian: Godot put it in Virginia): its name now answers here.
+      for (const [id, how] of Object.entries(R.row.relocate ?? {})) {
+        const t = this.towns.find((q) => q.id === id), H = this.holdouts.find((h) => h.id === id);
+        if (t && how === 'holdout' && H) { t.x = H.cx; t.z = H.cz; t.region = R; t.holdout = H; t.relocated = true; }
+      }
+    }
   }
 
   // ---- samplers over the 500 m usmap grids -----------------------------------------------------------------------
@@ -260,8 +448,20 @@ export class WorldIndex {
       const p = this.project(ex, ez, 2048);
       if (p.d > 400) { this.warnings.push(`exit ${e.id} is ${Math.round(p.d)} m off I-10: skipped`); continue; }
       if (!e.dest) { this.warnings.push(`exit ${e.id} has no dest: skipped`); continue; }
-      const f = this.at(p.s), arch = this.archById[e.archetype] ?? {};
       const [dx0, dz0] = toWorld(e.dest);
+      this.addExit(this.i10, e, ex, ez, dx0, dz0);
+    }
+    this.exits.sort((a, b) => a.s - b.s);
+    this.i10.exits.sort((a, b) => a.s - b.s);
+  }
+
+  // One interchange on corridor `cor` (I-10's rows, or a region's): a diamond of real-size ramps, the cross road on its
+  // deck, the access road to dest and the community there (or the town or holdout the exit serves: opts).
+  addExit(cor, e, ex, ez, dx0, dz0, opts = {}) {
+    const S = STREAM, R = S.ramp, X = S.crossRoad;
+    {
+      const p = cor.project(ex, ez, 2048);
+      const f = cor.at(p.s), arch = this.archById[e.archetype] ?? {};
       let dx = dx0, dz = dz0;
       if (S.access.maxM) { const ax = dx - f.x, az = dz - f.z, l = Math.hypot(ax, az); if (l > S.access.maxM) { dx = f.x + (ax / l) * S.access.maxM; dz = f.z + (az / l) * S.access.maxM; } }
       const sigma = (dx - f.x) * f.nx + (dz - f.z) * f.nz >= 0 ? 1 : -1;
@@ -269,7 +469,7 @@ export class WorldIndex {
         s: p.s, x: f.x, z: f.z, tx: f.tx, tz: f.tz, nx: f.nx, nz: f.nz, side: sigma, dest: { x: dx, z: dz }, dead: e.archetype === 'dead', signStyle: arch.sign_style ?? 'services', row: e };
       // Local frame: L(a, u) = C + a*T + u*N.
       const L = (a, u, y = 0, wl, wr) => ({ x: f.x + f.tx * a + f.nx * u, z: f.z + f.tz * a + f.nz * u, y, wl, wr });
-      const Wb = this.section(p.s).out + R.shoulder + 2.4;   // the bridge spans the paved mainline plus a clear zone
+      const Wb = cor.section(p.s).out + R.shoulder + 2.4;   // the bridge spans the paved mainline plus a clear zone
       const hx = (u) => { const a = Math.abs(u); return a <= Wb ? R.deckH : Math.max(0, R.deckH - R.grade * (a - Wb)); };
       X0.Wb = Wb; X0.hx = hx;
       // The cross road: straight across the interstate along N, on a deck over it and fills either side.
@@ -279,7 +479,7 @@ export class WorldIndex {
       this.ribbons.push(cross);
       this.pieces.push({ kind: 'cross', exit: X0, rib: cross, halfW: X.halfW + 0.6, deck: Wb, x0: cross.x0, z0: cross.z0, x1: cross.x1, z1: cross.z1 });
       // Four ramps (a diamond): decel lane and gore, an S-curve that climbs to a stop at the cross road; on-ramps mirror.
-      const sec = this.section(p.s), u0 = sec.lane2 + R.laneW / 2, ut = R.terminal, ht = hx(ut), lw = R.laneW / 2, so = R.shoulder;
+      const sec = cor.section(p.s), u0 = sec.lane2 + R.laneW / 2, ut = R.terminal, ht = hx(ut), lw = R.laneW / 2, so = R.shoulder;
       const at = X.halfW + 0.6, far = R.gore + R.aux + R.taper, climb0 = R.gore - 40;
       for (const dir of [1, -1]) for (const kind of ['off', 'on']) {
         // q = metres from the cross road along the mainline. An off-ramp is upstream of it (a = -dir*q) and is driven from
@@ -329,11 +529,15 @@ export class WorldIndex {
           this.ribbons.push(acc);
           X0.access = acc;
         }
-        this.community(X0);
+        if (opts.holdout) X0.holdout = opts.holdout.id;
+        else if (opts.town) X0.town = opts.town;
+        else this.community(X0);
       }
+      X0.cor = cor;
       this.exits.push(X0);
+      cor.exits.push(X0);
+      return X0;
     }
-    this.exits.sort((a, b) => a.s - b.s);
   }
 
   // The bridge: deck slab, parapets, the median pier and the abutment faces; guardrails along every fill taller than
@@ -420,10 +624,12 @@ export class WorldIndex {
   buildTowns() {
     const S = STREAM, D = this.data;
     this.buildings ??= [];
-    this.towns = D.towns.map((t) => { const [x, z] = toWorld(t.pos); return { id: t.id, name: t.name, kind: t.kind, x, z, landmark: t.landmark, landmark_kind: t.landmark_kind }; });
     this.townStreets = [];
     for (const t of this.towns) {
-      if (inIsland(t.x, t.z, 200) || Math.hypot(t.x, t.z) > S.dustWall - 1000) continue;
+      // P1: towns inside the dust wall. A region's towns: inside its box (a town row a region moved, as Meridian, is
+      // built by its holdout generator, not from Godot's placements).
+      const RG = t.relocated ? null : this.regionOf(t.x, t.z, -800);
+      if (t.relocated || inIsland(t.x, t.z, 200) || (!RG && Math.hypot(t.x, t.z) > S.dustWall - 1000)) continue;
       const slots = D.placements.filter((p) => p.id.startsWith(`${t.id}-`));
       const streets = D.streets.filter((r) => r.id.startsWith(`ST-${t.id}-`));
       if (!slots.length && !streets.length) continue;
@@ -444,7 +650,8 @@ export class WorldIndex {
       const mine = this.ribbons.filter((rb) => rb.town === t.id), placed = [];
       // The interstate's own end town (Los Angeles: the row starts there): the freeway ends where it meets the town's
       // first street, rather than running on over the street grid to the town's middle.
-      if (this.project(t.x, t.z, 2048).s < 50) {
+      if (RG) { t.region = RG; this.trimAtTown(t, mine); }
+      else if (this.project(t.x, t.z, 2048).s < 50) {
         const c = this.cl;
         let last = -1;
         for (let i = 0; i < c.n && c.s[i] < 800; i++) if (mine.some((rb) => this.ribbonDist(rb, c.x[i], c.z[i]) < 4.6 + 0.5)) last = i;
@@ -457,13 +664,27 @@ export class WorldIndex {
         const [fw, fd] = st.footprint_m, w = r90 ? fd : fw, d = r90 ? fw : fd;
         const x0 = q.x - w / 2, x1 = q.x + w / 2, z0 = q.z - d / 2, z1 = q.z + d / 2;
         // Keep buildings off the interstate, off the streets (the footprint, not just its centre) and off each other.
-        if (this.project(q.x, q.z, 300).d < 18 + Math.max(w, d) / 2) continue;
+        if ((RG ? this.projectAny(q.x, q.z, 300) : this.project(q.x, q.z, 300)).d < 18 + Math.max(w, d) / 2) continue;
+        if (RG && (regionWater(RG, q.x, q.z).d > 0.05 || RG.holdouts.some((h) => h.overlaps(x0 - 20, z0 - 20, x1 + 20, z1 + 20)))) continue; // not in the bay, not in a holdout
         const hits = (rb, m) => { for (let i = 0; i < rb.n; i++) if (rb.x[i] > x0 - m && rb.x[i] < x1 + m && rb.z[i] > z0 - m && rb.z[i] < z1 + m) return true; return false; };
         if (mine.some((rb) => hits(rb, 4.6 + 0.8))) continue;
         if (placed.some((o) => x0 < o.x1 + 2 && x1 > o.x0 - 2 && z0 < o.z1 + 2 && z1 > o.z0 - 2)) continue;
         placed.push({ x0, x1, z0, z1 });
         this.addBuilding({ id: p.id, kind: p.building, cx: q.x, cz: q.z, w, d, st, rng, place: t.id });
       }
+    }
+  }
+
+  // A region corridor that starts in this town (I-95 and I-75 both start in Miami) ends at the town's first street, as
+  // I-10 does at Los Angeles, rather than running on over its grid to the middle.
+  trimAtTown(t, mine) {
+    for (const cor of t.region.corridors) {
+      if (cor.startTown !== t.id) continue;
+      const c = cor.cl;
+      let last = -1;
+      for (let i = 0; i < c.n && c.s[i] < 1600; i++) if (mine.some((rb) => this.ribbonDist(rb, c.x[i], c.z[i]) < 4.6 + 0.5)) last = i;
+      if (last < 0) for (let i = 0; i < c.n && c.s[i] < 1600; i++) if (Math.hypot(c.x[i] - t.x, c.z[i] - t.z) < 260) last = i; // no street on it: stop at the town's edge
+      if (last >= 0) cor.buildMainline(last + 1);
     }
   }
 
@@ -489,7 +710,7 @@ export class WorldIndex {
     };
     // Only the towns the road actually reaches (a town off in the desert is not on this road's signs).
     const towns = this.towns.filter((t) => t.built || t.id === 'phoenix').map((t) => ({ ...t, ...this.project(t.x, t.z, 2048) })).filter((t) => t.d < 1500);
-    for (const X of this.exits) {
+    for (const X of this.i10.exits) {
       const style = X.dead ? 'faded' : 'guide';
       for (const dir of [1, -1]) {
         const g = X.s - dir * S.ramp.gore;
@@ -499,7 +720,7 @@ export class WorldIndex {
         place(g + dir * 18, dir, 6.5, style, [`EXIT ${X.number}`, nm, X.dead ? 'NO SERVICES' : X.tags?.filter((t) => t !== 'unknown').slice(0, 3).join(' · ').toUpperCase() || ''], `${X.id}-${dir > 0 ? 'E' : 'W'}-gore`, 6.4, 3.4);
         // Past the on-ramp: how far to what is next, in game miles along this road.
         const sd = X.s + dir * (S.ramp.gore + S.ramp.aux + S.ramp.taper + 350);
-        const ahead = [...this.exits.filter((o) => (o.s - sd) * dir > 400).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((o) => [o.name, Math.abs(o.s - sd)]),
+        const ahead = [...this.i10.exits.filter((o) => (o.s - sd) * dir > 400).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((o) => [o.name, Math.abs(o.s - sd)]),
           ...towns.filter((t) => (t.s - sd) * dir > 400).sort((a, b) => (a.s - b.s) * dir).slice(0, 2).map((t) => [t.name, Math.abs(t.s - sd)])];
         if (ahead.length) place(sd, dir, 3.2, 'guide', ahead.map(([n, m]) => `${n}  ${miles(m)}`), `${X.id}-${dir > 0 ? 'E' : 'W'}-dist`, 7.8, 3.6);
       }
@@ -507,7 +728,7 @@ export class WorldIndex {
     // Leaving Phoenix on Route 66: the interstate shield and the miles to the next places.
     for (const dir of [1, -1]) {
       const s0 = dir > 0 ? this.sIslE + 420 : this.sIslW - 420;
-      const ahead = [...this.exits.filter((o) => (o.s - s0) * dir > 0).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((o) => [o.name, Math.abs(o.s - s0)]),
+      const ahead = [...this.i10.exits.filter((o) => (o.s - s0) * dir > 0).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((o) => [o.name, Math.abs(o.s - s0)]),
         ...towns.filter((t) => (t.s - s0) * dir > 400).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((t) => [t.name, Math.abs(t.s - s0)])];
       place(s0, dir, 3.2, 'guide', [`I-10 ${dir > 0 ? 'EAST' : 'WEST'} · ${this.road.nickname}`, ...ahead.map(([n, m]) => `${n}  ${miles(m)}`)], `phx-${dir > 0 ? 'E' : 'W'}`, 8.6, 4.0);
     }
@@ -538,6 +759,50 @@ export class WorldIndex {
     }
   }
 
+  // A region corridor's signs (WEB_FLORIDA §3.1): the same faces as I-10's (game miles along the built road), plus the
+  // road's own name leaving its start town and the squall line's warning where it runs into the region's edge. Each sign
+  // carries its region, so the streamer paints the region's faces into the region's own atlas.
+  buildCorridorSigns(cor) {
+    const S = STREAM, MI = S.mile, R = cor.region, signs = this.signs, [D0, D1] = cor.dirs;
+    const miles = (m) => { const v = m / MI; return v < 0.75 ? '1/2' : String(Math.round(v)); };
+    const place = (s, dir, off, style, lines, id, w = 7.2, hgt = 3.6) => {
+      if (s < cor.mainlineFrom + 40 || s > cor.L - 40) return;
+      const f = cor.at(s), sec = cor.section(s), u = dir * (sec.out + off);
+      signs.push({ id: `${cor.id}:${id}`, x: f.x + f.nx * u, z: f.z + f.nz * u, y: 0, h: Math.atan2(-f.tx * dir, -f.tz * dir), w, hgt, style, lines, s, dir, region: R.id });
+    };
+    const towns = this.towns.filter((t) => (t.built || t.holdout) && t.region === R).map((t) => ({ ...t, ...cor.project(t.x, t.z, 4096) })).filter((t) => t.d < 3200);
+    for (const X of cor.exits) {
+      const style = X.dead ? 'faded' : 'guide', nm = X.name;
+      for (const dir of [1, -1]) {
+        const g = X.s - dir * S.ramp.gore, dn = dir > 0 ? D0[0] : D1[0];
+        place(g - dir * MI, dir, 3.2, style, [`EXIT ${X.number}`, nm, '1 MILE'], `${X.id}-${dn}-1`);
+        place(g - dir * MI / 2, dir, 3.2, style, [`EXIT ${X.number}`, nm, '1/2 MILE'], `${X.id}-${dn}-half`);
+        place(g + dir * 18, dir, 6.5, style, [`EXIT ${X.number}`, nm, X.dead ? 'NO SERVICES' : X.tags?.slice(0, 3).join(' · ').toUpperCase() || ''], `${X.id}-${dn}-gore`, 6.4, 3.4);
+        const sd = X.s + dir * (S.ramp.gore + S.ramp.aux + S.ramp.taper + 350);
+        const ahead = [...cor.exits.filter((o) => (o.s - sd) * dir > 400 && !o.dead).sort((a, b) => (a.s - b.s) * dir).slice(0, 2).map((o) => [o.name, Math.abs(o.s - sd)]),
+          ...towns.filter((t) => (t.s - sd) * dir > 400 && !cor.exits.some((o) => o.town === t.id || o.holdout === t.id)).sort((a, b) => (a.s - b.s) * dir).slice(0, 1).map((t) => [t.name, Math.abs(t.s - sd)])];
+        if (ahead.length) place(sd, dir, 3.2, 'guide', ahead.map(([n, m]) => `${n}  ${miles(m)}`), `${X.id}-${dn}-dist`, 7.8, 3.6);
+      }
+    }
+    // Leaving the start town: the road's name and what is up it.
+    const s0 = cor.mainlineFrom + 380;
+    const ahead = cor.exits.filter((o) => o.s > s0 && !o.dead).sort((a, b) => a.s - b.s).slice(0, 2).map((o) => `${o.name}  ${miles(o.s - s0)}`);
+    place(s0, 1, 3.2, 'guide', [`${cor.id} ${D0} · ${cor.road.nickname}`, ...ahead], `start-${D0[0]}`, 8.6, 4.0);
+    // The squall line: the last warning before the region's edge (where the road runs out of the box).
+    for (const dir of [1, -1]) {
+      const c = cor.cl;
+      let s = null;
+      for (let k = 0; k < c.n; k++) { const i = dir > 0 ? c.n - 1 - k : k; const f = { x: c.x[i], z: c.z[i] }; if (R.edgeFade(f.x, f.z) <= 0.05) { s = c.s[i] - dir * 600; break; } }
+      if (s !== null && R.edgeFade(cor.at(dir > 0 ? cor.L : 0).x, cor.at(dir > 0 ? cor.L : 0).z) > 0.3) place(s, dir, 3.2, 'warn', R.wall.sign, `squall-${dir > 0 ? D0[0] : D1[0]}`, 6.4, 3.2);
+    }
+    // Mileposts every game mile (miles from the start town).
+    for (let m = 1; m * MI < cor.L; m++) for (const dir of [1, -1]) {
+      if (m * MI < cor.mainlineFrom + 60) continue;
+      const f = cor.at(m * MI), u = dir * (cor.section(m * MI).out + 1.6);
+      this.mileposts.push({ x: f.x + f.nx * u, z: f.z + f.nz * u, h: Math.atan2(-f.tx * dir, -f.tz * dir), mile: m, cor: cor.id });
+    }
+  }
+
   // ---- per-chunk feature buckets: everything a chunk must clip against or own ----------------------------------------
   bucketFeatures() {
     const B = (this.chunkFeat = new Map());
@@ -548,7 +813,8 @@ export class WorldIndex {
         b[f.list].push(f.item);
       }
     };
-    for (const r of this.ribbons) add(r.x0, r.z0, r.x1, r.z1, { list: 'ribbons', item: r });
+    // (A region's ribbons reach 60 m further: its water keeps that far back from a road it does not cross.)
+    for (const r of this.ribbons) { const m = this.regionOf(r.x0, r.z0, 3000) ? 60 : 0; add(r.x0 - m, r.z0 - m, r.x1 + m, r.z1 + m, { list: 'ribbons', item: r }); }
     for (const p of this.pieces) add(p.x0, p.z0, p.x1, p.z1, { list: 'pieces', item: p });
     for (const r of this.rails) {
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -567,7 +833,7 @@ export class WorldIndex {
       const k = cx * 100003 + cz; let b = this.reliefBuckets.get(k); if (!b) this.reliefBuckets.set(k, (b = [])); b.push(p);
     }
   }
-  featuresOf(cx, cz) { return this.chunkFeat.get(`${cx},${cz}`) ?? null; }
+  featuresOf(cx, cz) { return this.chunkFeat?.get(`${cx},${cz}`) ?? null; }
 
   // ---- the ride-height relief of ramps, fills and the deck ----------------------------------------------------------
   // y: how high the asker is now (a car's ride height, a person's last ground). Fills are solid ground, so they count
@@ -627,7 +893,7 @@ export class WorldIndex {
     const q = String(name).trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
     const t = this.towns.find((x) => norm(x.id) === q || norm(x.name) === q) ?? this.towns.find((x) => norm(x.name).startsWith(q));
-    if (t) return { kind: t.kind === 'city' ? 'city' : 'town', id: t.id, name: t.name, x: t.x, z: t.z, built: !!t.built || t.id === 'phoenix', inP1: !!t.built || t.id === 'phoenix' };
+    if (t) return { kind: t.holdout ? 'holdout' : t.kind === 'city' ? 'city' : 'town', id: t.id, name: t.name, x: t.x, z: t.z, built: !!t.built || t.id === 'phoenix' || !!t.holdout, inP1: !!t.built || t.id === 'phoenix', region: t.region?.id ?? (t.built || t.id === 'phoenix' ? 'arizona' : null) };
     const X = this.exits.find((x) => norm(x.name) === q || norm(x.id) === q || `exit ${x.number}` === q);
     if (X) return { kind: 'exit', id: X.id, name: X.name, x: X.x, z: X.z, built: true, inP1: true, community: X.community ? { x: X.dest.x, z: X.dest.z } : null };
     const row = this.data.exits.find((x) => norm(x.name) === q || norm(x.id) === q);
@@ -643,10 +909,12 @@ export class WorldIndex {
     return (this._nn = this.nameAtNow(x, z));
   }
   nameAtNow(x, z) {
+    const RG = this.regionOf(x, z, 3000);
+    if (RG) return this.regionNameAt(RG, x, z);
     const pr = this.project(x, z, 2048);
     // In the Phoenix ring: the street you are on, else the part of the dead city (off the freeway itself).
     if (pr.d >= 16) { const rn = this.ring?.nameAt(x, z); if (rn) return rn; }
-    for (const X of this.exits) {
+    for (const X of this.i10.exits) {
       if (Math.hypot(x - X.dest.x, z - X.dest.z) < 260 && !X.dead) return X.name;
       if (Math.abs(pr.s - X.s) < 700 && pr.d > 14 && pr.d < 340) return `EXIT ${X.number} · ${X.name}`;
     }
@@ -656,4 +924,23 @@ export class WorldIndex {
     return b === 'm' ? 'THE HIGH ROCK' : b === 'f' ? 'THE SCRUBLANDS' : b === 'u' ? 'THE DEAD SPRAWL' : b === 'w' ? 'A DRY RIVERBED' : 'THE OPEN DESERT';
   }
   regionAt(x, z) { return this.stateAt(x, z) ?? 'NO MAN\'S LAND'; }
+
+  // The HUD street sign in a region: the holdout's street, an exit, a town, the road and its mile, the water, the land.
+  regionNameAt(R, x, z) {
+    for (const H of R.holdouts) { const n = H.nameAt(x, z); if (n) return n; }
+    const pr = this.projectAny(x, z, 2048), cor = pr.cor;
+    for (const X of R.exits) {
+      if (!X.dead && !X.holdout && Math.hypot(x - X.dest.x, z - X.dest.z) < 260) return X.name;
+      if (X.cor === cor && Math.abs(pr.s - X.s) < 700 && pr.d > 14 && pr.d < 340) return `EXIT ${X.number} · ${X.name}`;
+    }
+    for (const t of this.towns) if (t.built && t.region === R && Math.hypot(x - t.x, z - t.z) < 800) return t.name;
+    if (cor && pr.d < 16) return `${cor.id} ${pr.side > 0 ? cor.dirs[0] : cor.dirs[1]} · MILE ${Math.floor(pr.s / STREAM.mile)}`;
+    const w = regionWater(R, x, z);
+    if (w.d > 0.3) return ['', 'A SLOUGH', 'THE CANAL', 'THE LAGOON', 'THE OPEN SEA'][w.k] || 'THE WATER';
+    const sh = R.shoreAt?.(z);
+    if (sh && x > sh.x - sh.b - 20 && x < sh.x + 30) return 'THE BARRIER ISLAND';
+    if (cor?.id === 'I-75' && pr.d < 1200 && pr.s > 6 * STREAM.mile && pr.s < 22 * STREAM.mile) return 'ALLIGATOR ALLEY';
+    const b = this.biomeAt(x, z);
+    return { s: 'THE SWAMP', F: 'THE PINE FLATWOODS', u: 'THE DEAD SUBURBS', a: 'THE OLD GROVES', p: 'THE WET PRAIRIE', f: 'THE SCRUB', w: 'THE WETLANDS', '.': 'THE COAST' }[b] ?? R.name;
+  }
 }

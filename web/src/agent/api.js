@@ -35,6 +35,7 @@ import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
+import { floridaChecks } from './florida-checks.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -307,6 +308,19 @@ function buildCommands(api) {
         return { on: true, ...T.report() };
       },
     },
+    region: {
+      group: 'world', desc: 'The streamed regions past P1 (docs/design/WEB_FLORIDA.md; rows in data/regions.js, data/holdouts.js): where a new game starts (?start=florida|phoenix: players start in Florida at Meridian, the agent harness in Phoenix), the region you are in, each holdout (Meridian: its wall, gates, every building and its programme, the open lots, the pier, its people: named keepers, deputies, townsfolk, alive and where) and the region\'s animals (FAUNA rows: each lair, its alligator, state). action=start puts you at the start holdout\'s clinic door as a new game does; action=clinic returns the clone agent\'s hook (the clinic door, the clone bay room, its wake point); action=spawn kind=gator x= z= puts an animal there; action=promote brings a holdout\'s people in now.',
+      args: { action: { type: 'string', default: 'view', enum: ['view', 'start', 'clinic', 'spawn', 'promote'] }, kind: { type: 'string', default: 'gator' }, x: { type: 'number' }, z: { type: 'number' }, holdout: { type: 'string' } },
+      run: async ({ action = 'view', kind = 'gator', x, z, holdout }) => {
+        const Rg = g.regions, W = g.streamer.W;
+        need(Rg, 'no regions system');
+        if (action === 'start') { const ok = Rg.placeAtStart('florida'); need(ok, 'no start holdout'); return { ...Rg.view(), at: { x: r1(P().x), z: r1(P().z) }, location: locationName(P().x, P().z) }; }
+        if (action === 'clinic') { const c = Rg.clinic(holdout); need(c, `no clinic for ${holdout ?? 'the first holdout'}`); return c; }
+        if (action === 'spawn') { const c = Rg.spawnFauna(kind, x ?? P().x + 8, z ?? P().z); need(c, `no FAUNA row "${kind}" or no character slot`); Rg.fauna.set(`staged:${c.id}`, { c, kind }); return { id: c.id, kind, x: r1(c.x), z: r1(c.z) }; }
+        if (action === 'promote') { const T = Rg.towns.find((t) => !holdout || t.H.id === holdout); need(T, `no holdout ${holdout}`); if (!T.live) Rg.promote(T); return Rg.view(); }
+        return { ...Rg.view(), holdouts: W.holdouts.map((H) => H.view()), people: Rg.view().holdouts };
+      },
+    },
     chunk: {
       group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one. In the Phoenix ring its `ring` says how many buildings it draws and how many reach into it, its containers and beds, streets, and the ms its ring stage took. evict=true drops the layout (tests; never a pinned chunk or the one you stand in).',
       args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] }, evict: { type: 'boolean', default: false } },
@@ -464,19 +478,21 @@ function buildCommands(api) {
     // ---------------------------------------------------------------- player
     teleport: {
       group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. floor=<k> stands you on floor k of a storeyed building there (storeys; 0 = the street floor, the default). Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] }, floor: { type: 'number', default: 0 } },
-      run: async ({ x, z, town, mile, dir, floor }) => {
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, road: { type: 'string', default: 'I-10', desc: 'the corridor mile= is on: I-10 (from Los Angeles), or Florida\'s I-95 / I-75 (from Miami; dir=north|south)' }, dir: { type: 'string', default: 'east', enum: ['east', 'west', 'north', 'south'] }, floor: { type: 'number', default: 0 } },
+      run: async ({ x, z, town, mile, road = 'I-10', dir, floor }) => {
         const S = g.streamer;
         let h = null;
         if (town !== undefined) {
           const L = S.W.locate(town);
           need(L, `no place called "${town}" (try locate name=...)`);
-          need(Math.hypot(L.x, L.z) < S.view().dustWall.radius - 200, `${L.name} is past the dust wall (P1 streams the I-10 corridor only)`);
+          need(S.W.inWorld(L.x, L.z, -200), `${L.name} is outside the streamed world (P1's I-10 corridor and Florida: docs/design/WEB_FLORIDA.md)`);
           x = L.community?.x ?? L.x; z = L.community?.z ?? L.z;
         } else if (mile !== undefined) {
-          const s = mile * 1609.344, W = S.W;
-          need(s >= 0 && s <= W.cl.L, `mile must be 0..${Math.floor(W.cl.L / 1609.344)} (I-10 from Los Angeles)`);
-          const f = W.at(s), sec = W.section(s), sg = dir === 'west' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+          const s = mile * 1609.344, W = road === 'I-10' ? S.W : S.W.corridors.find((c) => c.id === road);
+          need(W, `no road ${road} (I-10, I-95, I-75)`);
+          const Lmax = road === 'I-10' ? W.cl.L : W.L;
+          need(s >= 0 && s <= Lmax, `mile must be 0..${Math.floor(Lmax / 1609.344)} (${road === 'I-10' ? 'I-10 from Los Angeles' : `${road} from Miami`})`);
+          const f = W.at(s), sec = W.section(s), sg = dir === 'west' || dir === 'south' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
           x = f.x + f.nx * u; z = f.z + f.nz * u; h = Math.atan2(f.tx * sg, f.tz * sg);
         }
         need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
@@ -4430,9 +4446,9 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await check('streaming: every exit is where its row says, near real size: a deceleration lane, a ramp that climbs at a real grade to a stop at the cross road, a bridge the interstate runs under, and signs in game miles', async () => {
     const bad = [], MI = 1609.344;
-    for (const X of WI.exits) {
-      const [rx, rz] = toWorld(X.row.pos);
-      if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`);
+    for (const X of WI.exits) { // I-10's and Florida's (a Florida exit stands at its milepost: no usmap pos to compare)
+      if (X.row.pos) { const [rx, rz] = toWorld(X.row.pos); if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`); }
+      else if (Math.abs(X.number * MI - X.s) > MI && !X.town) bad.push(`${X.id} at mile ${(X.s / MI).toFixed(2)}, not its number`);
       for (const rb of WI.ribbons.filter((r) => r.exit === X.id && r.rampKind === 'off')) {
         const aux = (rb.aux[1] - rb.aux[0]) * 4, top = rb.y[rb.n - 1] - 0.04;
         let maxGrade = 0, len = 0;
@@ -5648,6 +5664,8 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
+  // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
+  await floridaChecks({ api, g, check, C });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
