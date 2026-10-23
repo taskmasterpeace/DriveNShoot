@@ -2793,8 +2793,8 @@ async function runSelfTest(api, only = null) {
       t = person('raider', 0, 0, { hp: 600 }); // then something to shoot at, 18 m off
       t.x = WV.x + 12; t.z = WV.z - 14; t.home = { x: t.x, z: t.z };
       const hp0 = t.hp;
-      await api._step(180);
-      return g.player.onDeck?.v === v && aboard && t.hp < hp0 ? true : JSON.stringify({ player: !!g.player.onDeck, aboard, hp: [hp0, t.hp], allyAt: [+a.x.toFixed(1), +a.z.toFixed(1)] });
+      for (let i = 0; i < 40 && t.hp === hp0; i++) await api._step(15); // its own aim is deliberately sloppy (ai.js): up to 10 s
+      return g.player.onDeck?.v === v && a.onDeck?.v === v && aboard && t.hp < hp0 ? true : JSON.stringify({ player: !!g.player.onDeck, aboard, hp: [hp0, t.hp], allyAt: [+a.x.toFixed(1), +a.z.toFixed(1)] });
     } finally { wvClean([v, d, a, t]); }
   }));
   await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
