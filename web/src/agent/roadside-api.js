@@ -163,7 +163,11 @@ export async function roadsideChecks(api, check, C) {
       const hand = S.strip(hk.id);
       give('wrench');
       const scrap0 = count('scrap'), left0 = S.scrapLeft(hk);
+      // Anyone at your elbow (a follower, a stray, your dog) takes E first, as everywhere: step them back a few metres.
+      for (const c of g.chars) if (c !== g.player && c.alive && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 4) { c.x += 12; c.z += 12; }
+      if (g.dialogue.active) g.dialogue.close?.();
       await tapE();
+      const why = S.job ? null : { dialogue: !!g.dialogue.active, near: g.chars.filter((c) => c !== g.player && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 4).map((c) => c.name), veh: !!g.player.inVehicle, spot: S.spotNear(g.player)?.id };
       const started = S.job?.id === hk.id;
       const per = RR.hulk.hoursPer / (g.sky.timeScale ?? 1 / 30); // real seconds a piece takes
       await C('step', { seconds: per * 1.5 });
@@ -175,7 +179,7 @@ export async function roadsideChecks(api, check, C) {
       for (const s of tools) I.carried.slots.push(s);
       I.changed();
       const ok = !hand.ok && started && mid === 1 && got === left0 && done === 0 && !job && !again.ok;
-      return ok ? true : JSON.stringify({ hand: hand.why, started, mid, got, left0, done, job, again: again.why });
+      return ok ? true : JSON.stringify({ hand: hand.why, started, why, mid, got, left0, done, job, again: again.why });
     });
     await check('roadside: the dam - a car drives up the abutment onto the crest road; with the gates shut the cistern stays dry, opened it fills on the clock and fills your bottles', async () => {
       await home();
