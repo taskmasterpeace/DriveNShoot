@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { forgeIO } from './tools/forge-io.mjs'; // THE WORLD FORGE's file side (docs/design/WEB_FORGE.md)
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
@@ -231,8 +232,9 @@ function agentBridge() {
 }
 
 export default defineConfig({
-  plugins: [agentBridge()],
+  plugins: [agentBridge(), forgeIO()],
   server: { port: 3141, watch: { ignored: ['**/sessions/**'] } },
-  // Three pages: the game, the Building Lab (docs/design/WEB_BUILDING_LAB.md) and THE OBSERVER (docs/design/WEB_OBSERVER.md).
-  build: { chunkSizeWarningLimit: 1200, rollupOptions: { input: { main: join(ROOT, 'index.html'), lab: join(ROOT, 'lab.html'), observe: join(ROOT, 'observe.html') } } },
+  // Pages: the game, the Building Lab (docs/design/WEB_BUILDING_LAB.md), the observer (docs/design/WEB_OBSERVER.md) and
+  // THE WORLD FORGE that gathers them (docs/design/WEB_FORGE.md).
+  build: { chunkSizeWarningLimit: 1200, rollupOptions: { input: { main: join(ROOT, 'index.html'), lab: join(ROOT, 'lab.html'), observe: join(ROOT, 'observe.html'), forge: join(ROOT, 'forge.html') } } },
 });

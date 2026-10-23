@@ -4,6 +4,7 @@ import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
 import { ROLE_TIERS, ROLE_RULES } from '../data/roles.js';
+import { DRIVING } from '../systems/vehicles.js';
 
 // Quality-of-life layer: objective tracker + GPS route, full map with click-to-waypoint,
 // pause menu with persistent settings, quick save/load, hit markers, interaction ring.
@@ -16,7 +17,9 @@ for (const k of ['settings', 'quicksave', 'autosave']) {
   try { const old = localStorage.getItem(`deathlands.${k}`); if (old !== null && localStorage.getItem(`dsoa.${k}`) === null) localStorage.setItem(`dsoa.${k}`, old); } catch { /* storage blocked */ }
 }
 const AUTOSAVE_EVERY = 180; // seconds of play
-const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal' };
+// steer: 'screen' = A turns toward the left of the SCREEN whichever way the car points (Robert: "left is left"); 'car' = A
+// turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
+const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen' };
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
@@ -56,6 +59,7 @@ export class QOL {
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
+        <label>Steering <select data-s="steer"><option value="screen">Left is screen-left (whichever way the car points)</option><option value="car">Left is the car's left (classic top-down)</option></select></label>
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
         <label><input type="checkbox" data-s="showFps"> Performance overlay</label>
@@ -116,6 +120,7 @@ export class QOL {
     if (g.audio.master) g.audio.master.gain.value = s.volume;
     g.audio.volume = s.volume;
     g.showStats = !!s.showFps;
+    DRIVING.screenSteer = s.steer !== 'car';
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
   }
 

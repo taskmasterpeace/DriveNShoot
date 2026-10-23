@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VEHICLES } from './vehicles.js';
+import { VEHICLES, DRIVING } from './vehicles.js';
 import { glassLayout } from './vehiclebodies.js';
 import { glassTexture, crackTexture } from '../world/textures.js';
 
@@ -149,6 +149,11 @@ export class CarCombat {
   // Shoot out of a vehicle window. Knocks out that window first if it's intact.
   fireFromVehicle(ch, v, wkey, ang, w) {
     this.ensure(v);
+    // Shooting from something that moves (vehicles.js DRIVING.shootSpread): the faster, the wilder; the one at the wheel
+    // (or the bars) shoots one-handed. Any direction: a bike's rider and pillion turn at the waist (vehicles.js twist).
+    const S = DRIVING.shootSpread, sp = this.g.vehiclesSys.speed(v);
+    ang += (Math.random() - 0.5) * 2 * Math.min(S.max, sp * S.perMs) * (v.driver === ch ? S.driver : 1);
+    ch.face = ang; ch.lastShotT = this.g.time;
     const side = this.sideOfAngle(v, ang);
     if (v.windows && v.windows[side].hp > 0) this.damageWindow(v, side, 9999, ch, true);
     const p = this.windowPos(v, side, -0.6); // just inside the frame: muzzle ends ~0.3m outside

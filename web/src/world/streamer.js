@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { STREAM, POOLS } from '../data/streaming.js';
-import { C, chunkOf, chunkKey, chunkId, islandChunk, inIsland, Hasher } from './geo.js';
+import { C, chunkOf, chunkKey, chunkId, islandChunk, inIsland, Hasher, hash32, rngOf } from './geo.js';
 import { WorldIndex } from './worldindex.js';
 import { layoutChunk, SURF_CAPS } from './chunkgen.js';
 import { Pool, SurfacePool } from './pools.js';
@@ -9,6 +9,7 @@ import { roadAtlasTexture, radialGlow } from './textures.js';
 import { roofSurface, wallSurface } from './surfaces.js';
 import { poolName } from './flora.js';
 import GOLDEN from '../data/golden.json';
+import { EXT as WATER_EXT } from './water.js';
 
 // The streamer (docs/design/WEB_STREAMING.md §3.2-3.3, P1 "Streamed Arizona").
 //   LAYOUT tier - pure data per 256 m chunk (chunkgen.js), a 5 x 5 ring around the centre chunk plus a prefetch along
@@ -25,6 +26,7 @@ import GOLDEN from '../data/golden.json';
 // and the ride-height relief of ramps and bridges (stunts.js asks it outside the island).
 
 const R_HOT = 224, R_REL = 300;
+const SURF_ORDER = ['ground', 'road', 'rock', 'water'];
 const _fog = new THREE.Color(), DUST = new THREE.Color('#a87a4c');
 // A weathered boulder: a subdivided icosahedron pushed in and out by a hash of each vertex's position (shared corners
 // move together, so no cracks), flattened a little. Scaled and turned per instance, one shape reads as many.
@@ -40,6 +42,25 @@ function lumpyRock() {
   return g;
 }
 
+// A region's ground texture (Florida): near-neutral grass and earth speckle, so the chunk's vertex colours (its biome
+// rows, the beach, the mud) carry the colour and this only carries the grain. Repeats every ~40 m, as the island's sand.
+function marshTexture() {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), rng = rngOf(hash32(1977, 0x464c));
+  g.fillStyle = '#c9c9be'; g.fillRect(0, 0, S, S);
+  for (let k = 0; k < 9000; k++) { // grass blades and earth specks, wrapped at the edges so the tile is seamless
+    const x = rng() * S, y = rng() * S, l = rng.range(1.5, 5), a = rng() * 6.28, v = rng.range(0.72, 1.12), warm = rng() < 0.3;
+    g.strokeStyle = warm ? `rgba(${Math.round(190 * v)},${Math.round(176 * v)},${Math.round(150 * v)},0.55)` : `rgba(${Math.round(176 * v)},${Math.round(196 * v)},${Math.round(168 * v)},0.5)`;
+    g.lineWidth = rng.range(0.6, 1.4);
+    for (const [dx, dy] of [[0, 0], [S, 0], [-S, 0], [0, S], [0, -S]]) { g.beginPath(); g.moveTo(x + dx, y + dy); g.lineTo(x + dx + Math.cos(a) * l, y + dy + Math.sin(a) * l); g.stroke(); }
+  }
+  for (let k = 0; k < 60; k++) { const x = rng() * S, y = rng() * S, r = rng.range(6, 22); const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(120,120,104,${rng.range(0.08, 0.18)})`); gr.addColorStop(1, 'rgba(120,120,104,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.repeat.set(33, 33);
+  return t;
+}
+
 // Yield to the page without timer throttling (a MessageChannel task, not setTimeout).
 const _mc = new MessageChannel(), _q = [];
 _mc.port1.onmessage = () => _q.shift()?.();
@@ -50,7 +71,10 @@ export class Streamer {
     const t0 = performance.now();
     this.g = game;
     this.W = new WorldIndex();
-    this.W.signAtlas = this.atlas = new SignAtlas(this.W.signs);
+    // P1's faces in its own atlas, exactly as before; a region's (Florida) in a second, smaller one with repeats shared.
+    this.W.signAtlas = this.atlas = new SignAtlas(this.W.signs.filter((s) => !s.region));
+    this.W.signAtlasFL = this.atlasFL = new SignAtlas(this.W.signs.filter((s) => s.region), { scale: 0.75, dedupe: true });
+    this.region = null; // the region the player is in (world/regions.js), null on P1's corridor
     this.layouts = new Map();   // key -> layout (insertion order = LRU order)
     this.byId = new Map();      // the same layouts by integer chunk id (the per-frame paths never build a string key)
     this.hot = new Map();       // key -> layout that is on the GPU
@@ -79,6 +103,8 @@ export class Streamer {
     for (const k of ['foot', 'car']) { const grid = game.nav[k]; grid.tiles = (cx, cz) => this.layouts.get(chunkKey(cx, cz))?.tiles?.[k] ?? null; grid.dirty = true; }
     // Stunts asks for ramp and bridge heights outside the island.
     if (game.stunts) game.stunts.ext = this.W;
+    // The water authority past the island: a region's sea, lagoon, canals and sloughs (world/water.js asks here).
+    WATER_EXT.depth = this.W.depthAt; WATER_EXT.surface = this.W.surfaceAt; // ONE authority: world/rivers.js (L1 rows + a region's own water)
     this.bootMs = +(performance.now() - t0).toFixed(1);
   }
 
@@ -93,6 +119,8 @@ export class Streamer {
         .replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\n  vMapUv = aRect.xy + vMapUv * aRect.zw;\n#endif\n#ifdef USE_EMISSIVEMAP\n  vEmissiveMapUv = aRect.xy + vEmissiveMapUv * aRect.zw;\n#endif');
     };
     this.signMat = sign;
+    const signFL = sign.clone(); signFL.map = this.atlasFL.texture; signFL.emissiveMap = this.atlasFL.texture; signFL.onBeforeCompile = sign.onBeforeCompile;
+    this.signMatFL = signFL;
     const glowMat = new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
     this.glowMat = glowMat;
     const flatPlane = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
@@ -110,6 +138,7 @@ export class Streamer {
       rails: P('rails', box, std({ roughness: 0.45, metalness: 0.55 }), { cast: false }),
       barrels: P('barrels', new THREE.CylinderGeometry(0.45, 0.45, 1.1, 10), std({ roughness: 0.7, metalness: 0.3 })),
       glows: P('glows', flatPlane, glowMat, { cast: false, receive: false }),
+      signsfl: P('signsfl', new THREE.PlaneGeometry(1, 1), signFL, { extra: { name: 'aRect', size: 4 } }),
     };
     // Trees and desert plants (world/flora.js): one pool per species, shared with the island (it holds a permanent range).
     for (const [k, p] of Object.entries(w.flora.pools)) this.pools[poolName(k)] = p;
@@ -119,8 +148,11 @@ export class Streamer {
     this.groundMat = w.groundMat.clone(); this.groundMat.vertexColors = true;
     this.roadMat = new THREE.MeshStandardMaterial({ map: roadAtlasTexture(), roughness: 0.9 });
     this.rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, flatShading: true, side: THREE.DoubleSide });
-    // L1 water's sheet (world/rivers.js): world/water.js owns the material (its ripples flow downstream).
-    this.waterMat = g.water?.streamMat ?? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.2 });
+    // A region's ground (Florida): a neutral grass-and-earth texture its vertex colours paint (world/regions.js rows).
+    this.groundMatFL = new THREE.MeshStandardMaterial({ map: marshTexture(), roughness: 0.94, metalness: 0, vertexColors: true });
+    // ONE water material for every streamed sheet (world/water.js streamMat): L1's rivers, lakes and wash beds and a
+    // region's swamp, canal, lagoon and sea, each a mode of its per-pixel colour (the vertex colour's blue says which).
+    this.waterMat = g.water?.streamMat ?? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4 });
     this.surfaces = new SurfacePool(scene, STREAM.hotMax, SURF_CAPS, { ground: this.groundMat, road: this.roadMat, rock: this.rockMat, water: this.waterMat });
     for (const s of this.surfaces.slots) s.layers.water.mesh.renderOrder = 1; // after the ground it sits in
   }
@@ -135,7 +167,7 @@ export class Streamer {
     objs.forEach((o, i) => { o.visible = was[i]; });
     // And the big textures go up now: the sign atlas is ~19 MB with its mipmaps, a 60 ms hitch the first time a sign
     // came into view at speed.
-    for (const t of [this.atlas.texture, this.roadMat.map]) try { this.g.renderer.initTexture(t); } catch { /* uploads on first use instead */ }
+    for (const t of [this.atlas.texture, this.roadMat.map, this.atlasFL.texture, this.groundMatFL.map]) try { this.g.renderer.initTexture(t); } catch { /* uploads on first use instead */ }
   }
 
   // ---- the golden hash of the island (§3.4): its static boxes and buildings, as city.js / terrain / stunts / bases made them
@@ -165,6 +197,8 @@ export class Streamer {
     this.buildCosts.push(L.workMs); if (this.buildCosts.length > 200) this.buildCosts.shift();
     this.g.statics.registerChunk(L.cx, L.cz, L.boxes);
     for (const k of ['foot', 'car']) this.g.nav[k].invalidate(L.cx, L.cz);
+    // A region chunk's water grid answers the depth queries while the layout lives (world/regions.js makeDepthAt).
+    if (L.region && L.water) this.W.regions[L.region]?.cache.set(chunkId(L.cx, L.cz), L.water);
     this.mm.dirty = true;
     return L;
   }
@@ -203,6 +237,7 @@ export class Streamer {
     for (const k of ['foot', 'car']) this.g.nav[k].invalidate(L.cx, L.cz);
     this.freeTiles.push(L.tiles); this.freeMM.push(L.mm);
     L.tiles = null; L.mm = null;
+    if (L.region) this.W.regions[L.region]?.cache.delete(chunkId(L.cx, L.cz));
     this.layouts.delete(key); this.byId.delete(chunkId(L.cx, L.cz));
     this.evicted++;
     this.mm.dirty = true;
@@ -214,8 +249,8 @@ export class Streamer {
     if (!L.hot) { L.hot = { slot: null, step: 0, ranges: {}, missing: [] }; this.ringOn(L); }
     const h = L.hot;
     const ox = L.cx * C, oz = L.cz * C;
-    if (!h.slot) { h.slot = this.surfaces.acquire(); if (!h.slot) return false; h.slot.chunk = L.key; }
-    const order = ['ground', 'road', 'rock', 'water'];
+    if (!h.slot) { h.slot = this.surfaces.acquire(); if (!h.slot) return false; h.slot.chunk = L.key; h.slot.layers.ground.mesh.material = L.region ? this.groundMatFL : this.groundMat; }
+    const order = SURF_ORDER;
     while (h.step < order.length) {
       const d = L.surf[order[h.step]];
       if (d && !sync && this.frameUploads >= STREAM.surfUploads) return false; // an empty layer (most chunks' water) costs no frame
@@ -369,7 +404,7 @@ export class Streamer {
         }
       }
     }
-    this.wanted = [...want.values()].filter((w) => Math.hypot(w.cx * C + C / 2, w.cz * C + C / 2) < STREAM.dustWall + 1200).sort((a, b) => a.d - b.d);
+    this.wanted = [...want.values()].filter((w) => this.W.inWorld(w.cx * C + C / 2, w.cz * C + C / 2, 1200)).sort((a, b) => a.d - b.d);
     // Collision for the ring: a cached layout coming back into it re-takes its slot.
     const rr = STREAM.rL + 1;
     for (let dx = -rr; dx <= rr; dx++) for (let dz = -rr; dz <= rr; dz++) {
@@ -407,7 +442,7 @@ export class Streamer {
       if (!L) {
         const near = Math.max(Math.abs(f.x - (cx + 0.5) * C), Math.abs(f.z - (cz + 0.5) * C)) <= C / 2 + R_HOT;
         if (!near) continue;
-        if (Math.hypot(cx * C + C / 2, cz * C + C / 2) > STREAM.dustWall + 1200) continue;
+        if (!this.W.inWorld(cx * C + C / 2, cz * C + C / 2, 1200)) continue;
         L = this.buildNow(cx, cz, sync ? null : 'cross');
       }
       if (this.contentDist(L, f.x, f.z) <= R_HOT) target.push(L);
@@ -457,7 +492,7 @@ export class Streamer {
     // Lay out the hot neighbourhood synchronously (counted once, as one stall of this cause), then apply it.
     for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
       const cx = this.centre.cx + dx, cz = this.centre.cz + dz;
-      if (Math.hypot(cx * C + C / 2, cz * C + C / 2) > STREAM.dustWall + 1200) continue;
+      if (!this.W.inWorld(cx * C + C / 2, cz * C + C / 2, 1200)) continue;
       if (!this.layouts.has(chunkKey(cx, cz))) this.buildNow(cx, cz, null);
     }
     this.updateHot(f, true);
@@ -477,7 +512,7 @@ export class Streamer {
     const z0 = chunkOf(Math.min(az, bz) - margin), z1 = chunkOf(Math.max(az, bz) + margin);
     if (x1 - x0 > 3 || z1 - z0 > 3) return false;
     for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
-      if (this.layouts.has(chunkKey(cx, cz)) || Math.hypot(cx * C + C / 2, cz * C + C / 2) > STREAM.dustWall + 1200) continue;
+      if (this.layouts.has(chunkKey(cx, cz)) || !this.W.inWorld(cx * C + C / 2, cz * C + C / 2, 1200)) continue;
       this.buildNow(cx, cz, 'query');
     }
     return true;
@@ -524,6 +559,10 @@ export class Streamer {
 
   // ---- the P1 edge of the world: fog thickens into a dust wall, vehicles cannot pass it ----------------------------------
   dustWall(f) {
+    // In a region (Florida): its own edge (the squall line), the same rule on its box. Else P1's dust wall.
+    const RG = this.W.regionOf(f.x, f.z, 4000);
+    if (RG !== this.region) { this.region = RG; this.g.emit('regionChanged', { region: RG?.id ?? 'arizona' }); }
+    if (RG) return this.regionWall(RG, f);
     const S = STREAM, d = Math.hypot(f.x, f.z);
     this.wall.fade = Math.max(0, Math.min(1, (d - (S.dustWall - S.dustFade)) / S.dustFade));
     const lim = S.dustWall;
@@ -542,18 +581,35 @@ export class Streamer {
     }
     if (d < lim - S.dustFade) this.wall.warned = false;
   }
+  // A region's edge: a box, faded over wall.fade metres; past it nothing gets through (vehicles held, people too).
+  regionWall(RG, f) {
+    this.wall.fade = RG.edgeFade(f.x, f.z);
+    const clampIn = (o) => { const x = Math.max(RG.x0, Math.min(RG.x1, o.x)), z = Math.max(RG.z0, Math.min(RG.z1, o.z)); const out = x !== o.x || z !== o.z; o.x = x; o.z = z; return out; };
+    for (const v of this.g.vehicles) {
+      if (!RG.inBox(v.x, v.z, 3000) || RG.inBox(v.x, v.z)) continue;
+      const nx = v.x < RG.x0 ? 1 : v.x > RG.x1 ? -1 : 0, nz = v.z < RG.z0 ? 1 : v.z > RG.z1 ? -1 : 0;
+      clampIn(v);
+      if (nx && v.vx * nx < 0) v.vx *= -0.4; if (nz && v.vz * nz < 0) v.vz *= -0.4;
+      if (v.driver === this.g.player && !this.wall.warned) { this.wall.warned = true; this.g.hud.toast(RG.wall.toast, 'warn'); }
+    }
+    for (const ch of this.g.chars) if (!ch.inVehicle && RG.inBox(ch.x, ch.z, 3000) && !RG.inBox(ch.x, ch.z)) clampIn(ch);
+    if (this.wall.fade < 0.5) this.wall.warned = false;
+  }
+
   // After the sky has set this frame's fog: the wall thickens it toward a dust storm's brown (and the surfaces follow
   // the sky's wet/dry tint like the island's ground and roads).
   postSky() {
     const w = this.g.world, sky = this.g.sky;
     this.groundMat.color.copy(w.groundMat.color); this.groundMat.roughness = w.groundMat.roughness;
+    this.groundMatFL.color.copy(w.groundMat.color); this.groundMatFL.roughness = Math.min(0.94, w.groundMat.roughness + 0.02);
     this.roadMat.color.copy(w.roadMat.color); this.roadMat.roughness = w.roadMat.roughness; this.roadMat.metalness = w.roadMat.metalness;
     this.glowMat.opacity = 0.03 + sky.night * 0.8;
     this.signMat.emissiveIntensity = sky.night * 0.32; // retroreflective faces catch the headlights
+    this.signMatFL.emissiveIntensity = sky.night * 0.32;
     const k = this.wall.fade;
     if (k > 0) {
       sky.fog.density += k * k * 0.03;
-      _fog.copy(DUST).multiplyScalar(1 - sky.night * 0.7);
+      _fog.copy(this.region ? (this._wallCol ??= new THREE.Color(this.region.wall.color)) : DUST).multiplyScalar(1 - sky.night * 0.7);
       sky.fog.color.lerp(_fog, k * 0.85);
       this.g.scene.background.copy(sky.fog.color);
     }
@@ -585,14 +641,15 @@ export class Streamer {
   // ---- a lane-keeping driver for tests and scenarios (pure pursuit along I-10) ------------------------------------------
   // dir +1 east / -1 west; lane 0 inner, 1 outer. Returns {throttle, steer} for game.driveOverride and how far off the
   // lane centre the car is. Full throttle unless `speed` asks for less.
-  lanePoint(s, dir, lane = 0) {
-    const W = this.W, f = W.at(Math.max(0, Math.min(W.cl.L, s))), sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2;
+  // cor: any corridor (default I-10; a region's: W.corridors, docs/design/WEB_FLORIDA.md §3.1).
+  lanePoint(s, dir, lane = 0, cor = null) {
+    const W = cor ?? this.W, L = cor ? cor.L : this.W.cl.L, f = W.at(Math.max(0, Math.min(L, s))), sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2;
     const u = dir * (sec.lane0 + lw * (lane + 0.5));
     return { x: f.x + f.nx * u, z: f.z + f.nz * u };
   }
-  autopilot(v, dir = 1, lane = 0, speed = Infinity) {
-    const W = this.W, pr = W.project(v.x, v.z, 600), sp = Math.hypot(v.vx, v.vz);
-    const q = this.lanePoint(pr.s + dir * Math.max(22, sp * 0.95), dir, lane), here = this.lanePoint(pr.s, dir, lane);
+  autopilot(v, dir = 1, lane = 0, speed = Infinity, cor = null) {
+    const W = cor ?? this.W, pr = W.project(v.x, v.z, 600), sp = Math.hypot(v.vx, v.vz);
+    const q = this.lanePoint(pr.s + dir * Math.max(22, sp * 0.95), dir, lane, cor), here = this.lanePoint(pr.s, dir, lane, cor);
     const want = Math.atan2(q.x - v.x, q.z - v.z);
     const diff = Math.atan2(Math.sin(want - v.h), Math.cos(want - v.h));
     const throttle = sp > speed + 1 ? -0.4 : sp < speed - 1 ? 1 : 0.2;
@@ -649,6 +706,10 @@ export class Streamer {
       dustWall: { radius: STREAM.dustWall, fade: +this.wall.fade.toFixed(3) },
       corridor: { road: this.W.road.id, nickname: this.W.road.nickname, km: +(this.W.cl.L / 1000).toFixed(2), west: this.W.ends.west, east: this.W.ends.east, exits: this.W.exits.length, signs: this.W.signs.length },
       warnings: this.W.warnings, bootMs: this.bootMs, indexMs: this.W.buildMs,
+      region: this.region?.id ?? 'arizona',
+      regions: Object.fromEntries(Object.values(this.W.regions).map((R) => [R.id, { name: R.name, box: [Math.round(R.x0), Math.round(R.z0), Math.round(R.x1), Math.round(R.z1)], wall: R.wall.name,
+        corridors: R.corridors.map((c) => ({ id: c.id, km: +(c.L / 1000).toFixed(2), miles: +(c.L / STREAM.mile).toFixed(1), from: c.startTown, trimmedAt: Math.round(c.mainlineFrom), exits: c.exits.map((X) => ({ id: X.id, number: X.number, name: X.name, archetype: X.archetype, holdout: X.holdout ?? null, town: X.town ?? null })) })),
+        holdouts: R.holdouts.map((h) => h.id), waterChunks: R.cache.size, signFaces: this.atlasFL.count }])),
     };
   }
   chunkView(x, z) {
@@ -656,7 +717,7 @@ export class Streamer {
     const tier = this.hot.get(key)?.hot?.done ? 'hot' : L ? 'layout' : 'none';
     if (!L) return { key, tier, cx, cz };
     const R = L.ring;
-    return { key, tier, cx, cz, hash: L.hash, buildMs: L.buildMs, workMs: L.workMs, biome: L.biome, state: L.state, boxes: L.boxCount, buildings: L.buildings,
+    return { key, tier, cx, cz, hash: L.hash, buildMs: L.buildMs, workMs: L.workMs, biome: L.biome, state: L.state, region: L.region ?? null, water: L.water ? { wet: L.water.d.reduce((n, v) => n + (v > 0 ? 1 : 0), 0), deep: L.water.d.reduce((n, v) => n + (v > 1.3 ? 1 : 0), 0), max: +Math.max(...L.water.d).toFixed(2) } : null, life: L.life ?? null, boxes: L.boxCount, buildings: L.buildings,
       instances: { ...L.counts }, surfaces: Object.fromEntries(Object.entries(L.surf).map(([k, s]) => [k, s ? s.nv : 0])), edges: { ...L.edges }, edgeRoads: { ...L.edgeRoads }, pinned: this.pinned.has(key), warnings: L.warnings,
       ring: R ? { buildings: R.owned, reaching: R.near, containers: R.boxes.length, beds: R.beds.length, streets: R.streets, decor: R.decor, ms: R.ms, zones: [...new Set(R.bld.map((b) => b.zone))] } : null };
   }

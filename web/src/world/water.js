@@ -16,8 +16,14 @@ export const LAKE = { x: 390, z: 398, r: 52, depth: 7 };
 export const BRIDGE = { x: 416, z: 0, halfW: 7.6, halfL: 16 };
 export const DOCK = { x: 360, z: 382 };
 
+// Past the island ONE authority answers (the streamer plugs it in: WorldIndex.depthAt -> world/rivers.js depthAt): L1's
+// rows (rivers, washes, canals, lakes: data/water.js) and a region's own water (Florida's sea, lagoon, canals and
+// sloughs: world/regions.js), the deeper of the two, a river bridge's deck dry for whoever is up on it.
+// depth(x, z, y, ignoreDeck); surface(x, z) -> the water's surface height, or NaN. The island's own water is untouched.
+export const EXT = { depth: null, surface: null };
 // Standalone so world generation can keep props out of the water before the Water object exists.
 export function waterDepth(x, z, ignoreBridge = false) {
+  if (EXT.depth && outside(x, z)) return EXT.depth(x, z, undefined, ignoreBridge);
   if (x < 300 || z < -460) return 0; // fast reject: all water is on the east side
   if (!ignoreBridge && Math.abs(z - BRIDGE.z) < BRIDGE.halfW && Math.abs(x - BRIDGE.x) < BRIDGE.halfL) return 0; // on the deck
   let d = 0;
@@ -76,17 +82,21 @@ export class Water {
     const C = WATER.colour, lin = (h) => new THREE.Color(h);
     // The same layer draws a dry wash's bed (vertex blue = 1): pale sand and gravel, a dark lip at its edge, no ripples,
     // no shine.
-    const U = { uShallow: { value: lin(C.shallow) }, uMid: { value: lin(C.mid) }, uDeep: { value: lin(C.deep) }, uFoam: { value: lin(C.foam) }, uSand: { value: lin(C.washBed) }, uLip: { value: lin(C.washLip) } };
+    // And a region's water (blue 0.4 + kind / 100: Florida's swamp, canal, lagoon, sea): shallow to deep by kind.
+    const RG = [1, 2, 3, 4].map((k) => C.region[k]);
+    const U = { uShallow: { value: lin(C.shallow) }, uMid: { value: lin(C.mid) }, uDeep: { value: lin(C.deep) }, uFoam: { value: lin(C.foam) }, uSand: { value: lin(C.washBed) }, uLip: { value: lin(C.washLip) },
+      uRg0: { value: RG.map((c) => lin(c[0])) }, uRg1: { value: RG.map((c) => lin(c[1])) } };
     this.streamMat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, U);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 uniform vec3 uShallow, uMid, uDeep, uFoam, uSand, uLip;
+uniform vec3 uRg0[4], uRg1[4];
 float wH2(vec2 q) { return fract(sin(dot(q, vec2(12.9898, 78.233))) * 43758.5453); }
 float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f); return mix(mix(wH2(i), wH2(i + vec2(1.0, 0.0)), f.x), mix(wH2(i + vec2(0.0, 1.0)), wH2(i + 1.0), f.x), f.y); }`)
         .replace('#include <color_fragment>', `#if defined( USE_COLOR )
   float wEdge = vColor.r, wDepth = vColor.g;
   vec3 wc;
-  if (vColor.b > 0.5) {
+  if (vColor.b > 0.95) {
     // A wash's bed (uv = metres across / 6, along / 6): braided streaks of finer and coarser sand along the flow,
     // gravel speckle, and the dark lip of the cut bank at its edge.
     vec2 p = vNormalMapUv * 6.0;
@@ -94,6 +104,12 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
     float grit = step(0.82, wH2(floor(p * 2.6)));
     wc = uSand * (0.8 + 0.3 * braid) * (1.0 - 0.18 * grit);
     wc = mix(uLip, wc, smoothstep(0.5, 3.2, wEdge));
+  } else if (vColor.b > 0.35) {
+    // A region's water (world/regions.js WK): shallow to deep over 2.2 m (the sea over 6 m).
+    int k = int(floor((vColor.b - 0.4) * 100.0 + 0.5)) - 1;
+    vec3 c0 = uRg0[0], c1 = uRg1[0];
+    if (k == 1) { c0 = uRg0[1]; c1 = uRg1[1]; } else if (k == 2) { c0 = uRg0[2]; c1 = uRg1[2]; } else if (k >= 3) { c0 = uRg0[3]; c1 = uRg1[3]; }
+    wc = mix(c0, c1, min(1.0, wDepth / (k >= 3 ? 6.0 : 2.2)));
   } else {
     wc = mix(uShallow, uMid, smoothstep(0.15, 1.5, wDepth));
     wc = mix(wc, uDeep, smoothstep(1.5, 4.0, wDepth));
@@ -102,11 +118,11 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
   }
   diffuseColor.rgb *= wc;
 #endif`)
-        // No ripples on a wash's sand (blue 1); a lake's (blue 0.2) calmer than a river's.
-        .replace('#include <normal_fragment_maps>', `if (vColor.b < 0.5) {\n${THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * (vColor.b > 0.1 ? 0.4 : 1.0);')}\n}`)
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vColor.b > 0.5) roughnessFactor = 1.0; else if (vColor.b > 0.1) roughnessFactor = 0.5;');
+        // No ripples on a wash's sand (blue 1); a lake's (blue 0.2) calmer than a river's; a region's as a river's.
+        .replace('#include <normal_fragment_maps>', `if (vColor.b < 0.95) {\n${THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', 'mapN.xy *= normalScale * (vColor.b > 0.1 && vColor.b < 0.35 ? 0.4 : 1.0);')}\n}`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vColor.b > 0.95) roughnessFactor = 1.0; else if (vColor.b > 0.1) roughnessFactor = 0.5;');
     };
-    this.streamMat.customProgramCacheKey = () => 'dsoa-stream-water-4';
+    this.streamMat.customProgramCacheKey = () => 'dsoa-stream-water-5';
 
     // River ribbon + lake disc, vertex-tinted deeper toward the middle; one mesh.
     const geos = [];
@@ -161,13 +177,13 @@ float wVn(vec2 q) { vec2 i = floor(q), f = fract(q); f = f * f * (3.0 - 2.0 * f)
   // y (optional, absolute): how high the asker is. Past the island a bridge deck counts only for someone up on it (a
   // swimmer under it is still in the river); without y a deck is dry ground (the 2-D question, as on the island).
   depthAt(x, z, ignoreBridge = false, y) {
-    if (outside(x, z)) { const R = this.g.streamer?.W?.water; return R ? (ignoreBridge ? R.sample(x, z).depth : R.depthAt(x, z, y)) : 0; }
+    if (outside(x, z)) return EXT.depth ? EXT.depth(x, z, y, ignoreBridge) : 0; // THE authority past the island (see EXT)
     return waterDepth(x, z, ignoreBridge);
   }
   // The water's surface height at (x, z) (absolute; the island's is 0), or `fallback` where there is none.
   surfaceAt(x, z, fallback = 0) {
     if (!outside(x, z)) return 0;
-    const s = this.g.streamer?.W?.water?.surfaceAt(x, z);
+    const s = EXT.surface ? EXT.surface(x, z) : NaN;
     return Number.isFinite(s) ? s : fallback;
   }
 

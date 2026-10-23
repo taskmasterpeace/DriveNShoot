@@ -21,25 +21,28 @@ export class Seats {
   board(c, v, seat = -1) {
     if (!v.occ) this.init(v);
     if (seat < 0) seat = this.freeSeat(v);
-    if (seat < 0 || (v.occ[seat] && v.occ[seat].alive && v.occ[seat] !== c)) return false;
+    if (seat < 0 || !v.seats[seat] || (v.occ[seat] && v.occ[seat].alive && v.occ[seat] !== c)) return false; // no such seat (a row without it), or taken
     if (c.inVehicle) this.leave(c, true);
+    if (c.onDeck) this.g.decks.dismount(c, 'seat', true); // off the deck and into the seat
     v.occ[seat] = c;
     c.inVehicle = v; c.seat = seat;
-    if (seat === 0) v.driver = c;
+    if (seat === 0) { v.driver = c; v.parked = false; }
     c.x = v.x; c.z = v.z;
     this.g.emit('boarded', { id: c.id, vehicle: v.id, seat: v.seats[seat].id });
     return true;
   }
 
-  // Step out through the seat's own door.
-  leave(c, silent = false) {
+  // Step out through the seat's own door. inside: a vehicle whose cab opens onto its deck (data/decks.js seatsInside:
+  // the van, the RV) puts you on your feet at its wheel instead (main.js exitVehicle passes it for a chosen exit).
+  leave(c, silent = false, inside = false) {
     const v = c.inVehicle;
     if (!v) return;
     if (!v.occ) this.init(v);
     const seat = c.seat ?? 0;
     if (v.occ[seat] === c) v.occ[seat] = null;
-    if (v.driver === c) v.driver = null;
+    if (v.driver === c) { v.driver = null; v.parked = true; } // getting out of the driver's seat leaves it braked (vehicles.js)
     c.inVehicle = null; c.seat = null; c.seatPose = null;
+    if (inside && this.g.decks?.fromSeat(c, v, seat)) { if (!silent) this.g.emit('leftVehicle', { id: c.id, vehicle: v.id, to: 'deck' }); return; }
     const p = this.doorPos(v, seat, 1.0);
     const t = { x: p.x, z: p.z };
     this.g.statics.resolveCircle(t, 0.45);
@@ -83,6 +86,7 @@ export class Seats {
     for (const c of [...v.occ]) {
       if (!c) continue;
       this.leave(c, true);
+      v.parked = false; // thrown off: nobody's foot on the brake, it slides on
       if (c === this.g.player) this.g.lastVehicle = v;
       const sp = this.g.vehiclesSys.speed(v);
       const d = Math.hypot(v.vx, v.vz) || 1;
@@ -110,6 +114,7 @@ export class Seats {
   // Called from AI.update for allies that have no current fight.
   followThink(c, dt) {
     const g = this.g, p = g.player;
+    if (c.onDeck) return g.decks.followThink(c, dt); // aboard a deck (systems/decks.js): shoot from it, hop off when you do
     if (c.inVehicle) {
       // Passenger: shoot hostiles out of our window.
       c.cool -= dt;
@@ -131,13 +136,17 @@ export class Seats {
       if (!p.inVehicle && v.driver !== c) this.leave(c);
       return true;
     }
-    // On foot: board the player's vehicle, else trail behind.
-    if (p.inVehicle) {
-      const v = p.inVehicle;
-      const seat = this.freeSeat(v, { passengerOnly: true });
-      if (seat < 0) return false;
+    // On foot: board the player's vehicle (a seat, else its deck: the pickup's bed, the van, the RV), else trail behind.
+    if (p.inVehicle || p.onDeck) {
+      const v = p.inVehicle ?? p.onDeck.v;
+      const seat = p.inVehicle ? this.freeSeat(v, { passengerOnly: true }) : -1;
+      if (seat < 0 && !g.decks.room(v)) return false;
       const d = Math.hypot(v.x - c.x, v.z - c.z);
-      if (d < v.len * 0.5 + 2.5 && g.vehiclesSys.speed(v) < 4) { this.board(c, v, seat); return true; }
+      if (d < v.len * 0.5 + 2.5 && g.vehiclesSys.speed(v) < 4) {
+        if (seat >= 0) this.board(c, v, seat);
+        else g.decks.climb(c, v);
+        return true;
+      }
       g.ai.move(c, v.x - c.x, v.z - c.z, 6.2, dt);
       return true;
     }

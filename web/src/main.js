@@ -45,6 +45,7 @@ import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Gear } from './systems/gear.js';
+import { Regions } from './systems/regions.js';
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
 const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
@@ -64,6 +65,8 @@ import { startBridge } from './agent/bridge.js';
 import { Recorder } from './agent/recorder.js';
 import { loadContentPacks } from './agent/content.js';
 import { attachShard } from './net/shard.js';
+import { Creator } from './systems/creator.js';
+import { CreatorUI } from './ui/creator.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -162,6 +165,7 @@ class Game {
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
     this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
+    this.regions = new Regions(this); // Florida (WEB_FLORIDA.md): where a new game starts, Meridian's people, the gators, the region's infected
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
@@ -206,8 +210,11 @@ class Game {
     this.buildFlashlight();
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
     this.recorder = new Recorder(this); // the session ring the observer replays (agent/recorder.js, WEB_OBSERVER.md)
+    this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
     this.api = new AgentAPI(this);
     this.title(ui);
+    this.creator = new Creator(this); // point-buy survivors (data/creator.js, docs/design/WEB_CREATOR.md): the draft, the sheet, BEGIN
+    this.creatorUI = new CreatorUI(this); // its screen, and MAKE A SURVIVOR on the title
   }
 
   // ---- population ----------------------------------------------------------------
@@ -445,7 +452,7 @@ class Game {
   bedNear(x, z, y = 0) {
     let best = null, bd = 1.8;
     for (const b of this.world.spawns.beds ?? NO_BEDS) { if (Math.abs((b.y ?? 0) - y) > LEVEL.same) continue; const d = Math.hypot(b.x - x, b.z - z); if (d < bd) { bd = d; best = b; } }
-    return best;
+    return best ?? this.decks.bedNear(x, z, y); // or the bunk in a van or an RV you stand in (systems/decks.js)
   }
   // Foot path that also routes around vehicles near the walker (they're dynamic, not in the grid).
   footPath(sx, sz, tx, tz) {
@@ -546,7 +553,7 @@ class Game {
     // The dead carry what they carried: a body is a container you can go through (I, standing over it), the gun they
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
-      const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
       if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
       this.inventory.armBody(body, c);
     }
@@ -617,11 +624,11 @@ class Game {
     const p = this.player, v = p.inVehicle;
     if (!v) return;
     this.emit('exitVehicle', { vehicle: v.id, forced });
-    this.seats.leave(p, true);
-    if (v.ai === 'chauffeur') { v.ai = null; v.throttle = 0; } // allies park when you get out
+    this.seats.leave(p, true, !forced); // a van's or an RV's cab: up from the wheel onto its deck (systems/decks.js)
+    if (v.ai === 'chauffeur' && p.onDeck?.v !== v) { v.ai = null; v.throttle = 0; } // allies park when you get out
     this.vehiclesSys.releaseHarpoon();
     const sp = this.vehiclesSys.speed(v);
-    if (!forced && sp > 10) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
+    if (!forced && sp > 10 && !p.onDeck) { this.combat.damage(p, sp * 1.2, null, 0, 0); this.hud.toast('BAILED OUT', 'warn'); }
   }
 
   // Walking through a blood pool leaves a trail of bloody footprints for a few steps.
@@ -651,13 +658,15 @@ class Game {
       this.respawnT -= dt;
       if (this.respawnT <= 0) {
         const clinic = this.world.spawns.shops[0];
+        // Fallen in a region (Florida): its holdout's clinic (systems/regions.js); else Rust Haven's.
+        const rp = this.regions?.respawnPoint(p);
         p.alive = true; p.hp = p.maxHp; p.bleed = 0;
         this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
         // Wake up on the clinic's doorstep (never inside a furniture pocket).
-        const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
+        const door = rp ?? clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
         p.x = door.x; p.z = door.z; p.gy = 0; p.storey = null;
-        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
-        const fee = Math.floor(this.cash * 0.15);
+        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1), ...(rp ? { holdout: rp.holdout } : {}) });
+        const fee = Math.floor(this.cash * (rp?.fee ?? 0.15));
         this.cash -= fee;
         this.wanted = 0;
         // Whoever was after you lets it go (they saw you fall), and you get RESPAWN_GRACE s on your feet before anything can
@@ -667,7 +676,7 @@ class Game {
           if (c.ztarget === p) c.ztarget = null;
         }
         p.graceT = RESPAWN_GRACE;
-        this.hud.toast(`Doc Reyes patched you up. Fee: $${fee}`, 'warn');
+        this.hud.toast(`${rp ? rp.who : 'Doc Reyes'} patched you up. Fee: $${fee}`, 'warn');
       }
       return;
     }
@@ -707,11 +716,13 @@ class Game {
       const driving = v.driver === p;
       if (driving) {
         v.throttle = (I.key('KeyW') || I.key('ArrowUp') ? 1 : 0) - (I.key('KeyS') || I.key('ArrowDown') ? 1 : 0);
-        v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
         v.handbrake = I.key('Space');
         v.boost = I.key('ShiftLeft') || I.key('ShiftRight');
         const pd = this.controls.drive; // the pad: RT gas, LT brake, the left stick steers (analog)
-        if (pd.throttle || pd.steer) { v.throttle = clamp(v.throttle + pd.throttle, -1, 1); v.steer = clamp(v.steer + pd.steer, -1, 1); }
+        if (pd.throttle) v.throttle = clamp(v.throttle + pd.throttle, -1, 1);
+        // Keys and stick together, through one left-is-left rule (the pause menu's Steering setting: screen-left, or the car's own).
+        const sIn = clamp((I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0) + pd.steer, -1, 1);
+        v.steer = this.vehiclesSys.screenSteer(v, sIn);
       }
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
@@ -890,6 +901,7 @@ class Game {
     let bestV = null, bv = 4.2;
     for (const veh of this.vehicles) {
       if (veh.dead || (p.storey && (p.gy ?? 0) > LEVEL.same)) continue; // the street's cars, from upstairs: no
+      if (veh === p.onDeck?.v) continue; // the one you stand in: its wheel is a spot on its deck (systems/decks.js)
       const d = Math.hypot(veh.x - p.x, veh.z - p.z) - veh.len * 0.3;
       if (d < bv) { bv = d; bestV = veh; }
     }
@@ -897,20 +909,23 @@ class Game {
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
     const dog = !best && !bestV ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
+    const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
+    const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
-    const op = !best && !bestV && !dog && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    const op = !best && !bestV && !dog && !dk && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
-    const box = !best && !bestV && !op && !dog ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    const box = !best && !bestV && !op && !dog && !dk ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !dk && !box ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
     const runner = best?.telling && this.witnesses.canBribe(best) ? best : null; // a witness running home: buy their silence
     if (runner) this.hud.prompt(`<kbd>E</kbd> Pay <b>$${this.witnesses.bribeCost(runner)}</b> to forget what they saw`);
     else if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
-    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
+    else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
+    else if (dk) this.hud.prompt(dk.text);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
@@ -920,6 +935,8 @@ class Game {
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
+    else if (bestV && climb && I.hit('KeyE')) { this.decks.climb(p, bestV); this.hud.prompt(null); }
+    else if (dk && I.hit(dk.key)) { this.decks.use(p, dk); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyC')) { this.enterVehicle(bestV, 'passenger'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyG')) { this.carCombat.grab(p, bestV, this.carCombat.sideToward(bestV, p.x, p.z)); this.hud.prompt(null); }
     else if (!best && !bestV && !op && this.train.canBoard(p)) {
@@ -1124,7 +1141,7 @@ class Game {
     t.innerHTML = `
       <div class="title-inner">
         <h1>DIVIDED <span>STATES</span></h1>
-        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.</div>
+        <div class="tag">${this.regions?.intro()?.tag ?? 'OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.'}</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
@@ -1145,8 +1162,9 @@ class Game {
       t.remove();
       this.audio.start();
       this.paused = false;
-      this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
-      this.hud.subtitle('The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+      const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words
+      this.hud.toast(intro?.toast ?? 'You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
+      this.hud.subtitle(intro?.sub ?? 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
     this.render(0.016);
   }
@@ -1197,6 +1215,7 @@ class Game {
       this.dogs.update(simDt);
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
+      this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.nanGuard('late');
     }
     this.dialogue.update(dt, I);

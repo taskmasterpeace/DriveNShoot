@@ -1,5 +1,6 @@
 import { WEAPONS } from '../systems/combat.js';
-import { VEHICLES } from '../systems/vehicles.js';
+import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
+import { DECK_RULES, CAMP } from '../data/decks.js';
 import { WEATHER } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
@@ -34,6 +35,10 @@ import { controllerCommands, controllerChecks } from './controller-api.js'; // t
 import { GARAGE_BAYS } from '../data/survival.js';
 import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
+import { forgetoolsCommands } from './forgetools.js';
+import { forgeChecks } from './forgetools-selftest.js';
+import { floridaChecks } from './florida-checks.js';
+import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -78,6 +83,7 @@ function vehView(g, v) {
     ...g.carCombat.view(v),
     ...g.vehDamage.view(v),
     occupants: g.seats.occupants(v), seatsTotal: v.seats?.length ?? 0, fallen: !!v.fallen, boat: !!v.boat, sunk: !!v.sunk, waterDepth: r1(v.depth ?? 0),
+    reverse: r1(reverseOf(v)), deck: g.decks.view(v) ?? undefined,
   };
 }
 
@@ -305,6 +311,19 @@ function buildCommands(api) {
         return { on: true, ...T.report() };
       },
     },
+    region: {
+      group: 'world', desc: 'The streamed regions past P1 (docs/design/WEB_FLORIDA.md; rows in data/regions.js, data/holdouts.js): where a new game starts (?start=florida|phoenix: players start in Florida at Meridian, the agent harness in Phoenix), the region you are in, each holdout (Meridian: its wall, gates, every building and its programme, the open lots, the pier, its people: named keepers, deputies, townsfolk, alive and where) and the region\'s animals (FAUNA rows: each lair, its alligator, state). action=start puts you at the start holdout\'s clinic door as a new game does; action=clinic returns the clone agent\'s hook (the clinic door, the clone bay room, its wake point); action=spawn kind=gator x= z= puts an animal there; action=promote brings a holdout\'s people in now.',
+      args: { action: { type: 'string', default: 'view', enum: ['view', 'start', 'clinic', 'spawn', 'promote'] }, kind: { type: 'string', default: 'gator' }, x: { type: 'number' }, z: { type: 'number' }, holdout: { type: 'string' } },
+      run: async ({ action = 'view', kind = 'gator', x, z, holdout }) => {
+        const Rg = g.regions, W = g.streamer.W;
+        need(Rg, 'no regions system');
+        if (action === 'start') { const ok = Rg.placeAtStart('florida'); need(ok, 'no start holdout'); return { ...Rg.view(), at: { x: r1(P().x), z: r1(P().z) }, location: locationName(P().x, P().z) }; }
+        if (action === 'clinic') { const c = Rg.clinic(holdout); need(c, `no clinic for ${holdout ?? 'the first holdout'}`); return c; }
+        if (action === 'spawn') { const c = Rg.spawnFauna(kind, x ?? P().x + 8, z ?? P().z); need(c, `no FAUNA row "${kind}" or no character slot`); Rg.fauna.set(`staged:${c.id}`, { c, kind }); return { id: c.id, kind, x: r1(c.x), z: r1(c.z) }; }
+        if (action === 'promote') { const T = Rg.towns.find((t) => !holdout || t.H.id === holdout); need(T, `no holdout ${holdout}`); if (!T.live) Rg.promote(T); return Rg.view(); }
+        return { ...Rg.view(), holdouts: W.holdouts.map((H) => H.view()), people: Rg.view().holdouts };
+      },
+    },
     chunk: {
       group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one. In the Phoenix ring its `ring` says how many buildings it draws and how many reach into it, its containers and beds, streets, and the ms its ring stage took. evict=true drops the layout (tests; never a pinned chunk or the one you stand in).',
       args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] }, evict: { type: 'boolean', default: false } },
@@ -462,19 +481,21 @@ function buildCommands(api) {
     // ---------------------------------------------------------------- player
     teleport: {
       group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. floor=<k> stands you on floor k of a storeyed building there (storeys; 0 = the street floor, the default). Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] }, floor: { type: 'number', default: 0 } },
-      run: async ({ x, z, town, mile, dir, floor }) => {
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, road: { type: 'string', default: 'I-10', desc: 'the corridor mile= is on: I-10 (from Los Angeles), or Florida\'s I-95 / I-75 (from Miami; dir=north|south)' }, dir: { type: 'string', default: 'east', enum: ['east', 'west', 'north', 'south'] }, floor: { type: 'number', default: 0 } },
+      run: async ({ x, z, town, mile, road = 'I-10', dir, floor }) => {
         const S = g.streamer;
         let h = null;
         if (town !== undefined) {
           const L = S.W.locate(town);
           need(L, `no place called "${town}" (try locate name=...)`);
-          need(Math.hypot(L.x, L.z) < S.view().dustWall.radius - 200, `${L.name} is past the dust wall (P1 streams the I-10 corridor only)`);
+          need(S.W.inWorld(L.x, L.z, -200), `${L.name} is outside the streamed world (P1's I-10 corridor and Florida: docs/design/WEB_FLORIDA.md)`);
           x = L.community?.x ?? L.x; z = L.community?.z ?? L.z;
         } else if (mile !== undefined) {
-          const s = mile * 1609.344, W = S.W;
-          need(s >= 0 && s <= W.cl.L, `mile must be 0..${Math.floor(W.cl.L / 1609.344)} (I-10 from Los Angeles)`);
-          const f = W.at(s), sec = W.section(s), sg = dir === 'west' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
+          const s = mile * 1609.344, W = road === 'I-10' ? S.W : S.W.corridors.find((c) => c.id === road);
+          need(W, `no road ${road} (I-10, I-95, I-75)`);
+          const Lmax = road === 'I-10' ? W.cl.L : W.L;
+          need(s >= 0 && s <= Lmax, `mile must be 0..${Math.floor(Lmax / 1609.344)} (${road === 'I-10' ? 'I-10 from Los Angeles' : `${road} from Miami`})`);
+          const f = W.at(s), sec = W.section(s), sg = dir === 'west' || dir === 'south' ? -1 : 1, u = sg * (sec.lane0 + (sec.lane1 - sec.lane0) / 2);
           x = f.x + f.nx * u; z = f.z + f.nz * u; h = Math.atan2(f.tx * sg, f.tz * sg);
         }
         need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
@@ -1081,7 +1102,7 @@ function buildCommands(api) {
     dismiss: { group: 'player', desc: 'Send a follower on their way.', args: { id: { type: 'string', required: true } },
       run: async ({ id }) => { const c = api.findChar(id); need(c?.follower, `${id} is not following you`); g.seats.dismiss(c); return { dismissed: c.id }; } },
     seat: {
-      group: 'vehicle', desc: 'Board a vehicle in a specific seat (driver|shotgun|backL|backR|bedL|bedR|pillion|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report.',
+      group: 'vehicle', desc: 'Board a vehicle in a specific seat (driver|shotgun|backL|backR|pillion|gunner|any passenger), or switch seats inside your current vehicle. Seat list is in each vehicle report. A pickup\'s bed, a van\'s cargo box and an RV\'s coach are not seats but decks you stand on: see `deck`.',
       args: { id: { type: 'string' }, seat: { type: 'string', default: 'passenger' } },
       run: async ({ id, seat }) => {
         const p = P();
@@ -1107,6 +1128,32 @@ function buildCommands(api) {
         need(g.seats.board(p, v, si), `${seat} is taken`);
         g.lastVehicle = v;
         return { seat, driver: v.driver?.id ?? null };
+      },
+    },
+    deck: {
+      group: 'vehicle', desc: 'Walkable vehicles (docs/design/WEB_WALK_VEHICLES.md; data/decks.js): a pickup\'s bed, a van\'s cargo box, an RV\'s coach are floors that ride with the vehicle. No args: every deck in the world with its riders. id=<vehicle>: that deck - riders and where they stand in its frame (lx: the driver\'s left, lz: forward), its boxes, beds, tank, camp, whether its roof is cut away. mount=<char id|player> puts someone aboard (lx, lz: where; default its middle; force=true skips the reach check for the player); leave=<char id|player> steps them off where they are. In the game: E climbs into a bed or steps in a door (walking into a door works too), Space over the side, walk out a door, F at the wheel drives, F at the wheel again stands you back up inside.',
+      args: { id: { type: 'string' }, mount: { type: 'string' }, leave: { type: 'string' }, lx: { type: 'number' }, lz: { type: 'number' }, force: { type: 'boolean', default: false } },
+      run: async ({ id, mount, leave, lx, lz, force }) => {
+        if (!id && !mount && !leave) return { decks: g.decks.list.filter((v) => !v.dead).map((v) => ({ id: v.id, type: v.type, x: r1(v.x), z: r1(v.z), ...g.decks.view(v) })), rules: DECK_RULES };
+        if (leave) {
+          const c = api.findChar(leave);
+          need(c?.onDeck, `${leave} is not on a deck`);
+          const v = c.onDeck.v;
+          g.decks.dismount(c, 'walked');
+          return { left: c.id, vehicle: v.id, x: r1(c.x), z: r1(c.z) };
+        }
+        const v = id ? api.findVeh(id) : null;
+        need(v?.deck, `${id} has no deck (pickup, van and rv do)`);
+        if (mount) {
+          const c = api.findChar(mount);
+          need(c?.alive, `no living character ${mount}`);
+          if (c === P() && !force) need(Math.hypot(v.x - c.x, v.z - c.z) < v.len * 0.5 + 3.5, `${v.name} is out of reach; moveTo id=${v.id} first (or force=true)`);
+          need(g.decks.room(v), `${v.name}'s deck is full`);
+          const F = v.deck.floor;
+          g.decks.mount(c, v, lx ?? (F[0] + F[1]) / 2, lz ?? (F[2] + F[3]) / 2, 'command');
+          return { mounted: c.id, ...g.decks.view(v) };
+        }
+        return { id: v.id, type: v.type, ...g.decks.view(v) };
       },
     },
     repair: {
@@ -1881,6 +1928,7 @@ function buildCommands(api) {
       run: async ({ save }) => restore(g, save),
     },
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
+    ...creatorCommands(api), // creator, sheet
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -1890,6 +1938,8 @@ function buildCommands(api) {
     },
     // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
     ...devtoolsCommands(api, need),
+    // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
+    ...forgetoolsCommands(api, need),
     // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
@@ -1983,8 +2033,10 @@ async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
-    if (only && !name.includes(only)) return;
-    if (skip && name.includes(skip)) return;
+    // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
+    const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
+    if (only && !any(only)) return;
+    if (skip && any(skip)) return;
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
@@ -2612,6 +2664,15 @@ async function runSelfTest(api, only = null, skip = null) {
     // through every check: send its people home first.
     for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id);
     if (g.player.inVehicle) g.exitVehicle(true);
+    // How you carry (systems/arms.js) and who you hold (systems/gunpoint.js) are states now: a check that raised a gun or
+    // held a man must not leave the next one walking slow behind a raised two-hand gun, or still in a standoff.
+    g.gunpoint?.clear(); g.aimOverride = null;
+    // An open conversation freezes you AND the world (main.js: simDt is 0 while dialogue.active): a check that talked must not
+    // leave every later one standing still with its clock stopped.
+    if (g.dialogue?.active) g.dialogue.close();
+    if (g.invUI?.open) g.invUI.toggle(false); // and the PACK screen: open, you stand still and the keys work the pack
+    g.inventory.opened = null;
+    if (g.arms) { g.arms.lower('stage'); g.arms.drawT = 0; if (g.arms.stance === 'holstered') g.arms.stance = 'lowered'; }
     await C('crouch', { on: false });
     await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
     await C('teleport', STAGE);
@@ -2792,7 +2853,9 @@ async function runSelfTest(api, only = null, skip = null) {
     if (!mateo || !rosa) return `letter-quest pack not loaded (mateo=${!!mateo}, rosa=${!!rosa})`;
     await C('teleport', { x: mateo.x - 6, z: mateo.z });
     mateo.hold = true; mateo.face = Math.atan2(g.player.x - mateo.x, g.player.z - mateo.z);
-    await C('fire', { id: mateo.id, shots: 1 });
+    // Up to four rounds until one lands (a round can go wide: this proves the memory and the word, not the aim).
+    const hp0 = mateo.hp;
+    for (let i = 0; i < 4 && mateo.hp >= hp0; i++) { g.arms?.setStance('raised'); await C('fire', { id: mateo.id, shots: 1 }); }
     const firsthand = (await C('memory', { id: 'mateo' })).memories.some((m) => m.kind === 'shotMe' && !m.heard);
     await C('step', { seconds: 9 });
     const heard = (await C('memory', { id: 'rosa' })).memories.some((m) => m.kind === 'shotKin' && m.heard && m.about === 'Mateo Quintero');
@@ -2847,6 +2910,250 @@ async function runSelfTest(api, only = null, skip = null) {
       await C('setTime', { hour: 12 });
     }
   });
+  // ---- walkable vehicles (docs/design/WEB_WALK_VEHICLES.md, systems/decks.js) and the driving fixes. The player acts on
+  // held keys (and the mouse button) only; vehicles, drivers and targets are staged. Open desert at WV (the south-east flats); the road run is
+  // Route 66's eastbound lane between the Iron Line (x = -360) and the town wall.
+  const WV = { x: 250, z: 430 }; // far from every raider camp (a camp's shots 30 m off wake a sleeper, as they should)
+  const hk = async (codes, seconds, until) => {
+    codes = [].concat(codes);
+    for (const k of codes) { g.input.down.add(k); g.input.pressed.add(k); }
+    try { for (let f = 0; f < seconds * 60; f++) { await api._step(1); if (until?.()) break; } } finally { for (const k of codes) g.input.down.delete(k); }
+  };
+  const tk = async (code) => { g.input.down.add(code); g.input.pressed.add(code); await api._step(1); g.input.down.delete(code); await api._step(1); };
+  const click = async (frames = 1) => { g.input.mouse.left = true; g.input.mouse.leftPressed = true; await api._step(frames); g.input.mouse.left = false; await api._step(1); };
+  const wvClean = (list) => {
+    if (g.player.onDeck) g.decks.dismount(g.player, 'test', true);
+    if (g.player.inVehicle) g.exitVehicle(true);
+    for (const o of list) if (o) { if (o.anchors) { if (g.vehicles.includes(o)) g.vehiclesSys.remove(o); } else if (g.chars.includes(o)) g.removeChar(o); }
+    g.aimOverride = null; g.input.mouse.left = false; g.qol.setWaypoint(null); g.player.knockT = 0; g.zoomLevel = ZOOM.start;
+  };
+  // A vehicle with an ally at the wheel, parked (ai off) until the check sends it.
+  const crewed = (type, x, z, h) => {
+    const v = g.vehiclesSys.spawn(type, x, z, h, '#5a4a32');
+    const d = g.addChar({ x, z: z + 4, faction: 'drifter', colors: outfit('drifter'), name: 'Driver (selftest)', flag: 'MX', hp: 400 });
+    g.seats.recruit(d); g.seats.board(d, v, 0); v.ai = null; v.throttle = 0;
+    return { v, d };
+  };
+  const wvReady = () => {
+    for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id); // no hunters walking in on a check
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.inVehicle && (Math.hypot(c.x - WV.x, c.z - WV.z) < 90 || Math.hypot(c.x + 330, c.z - 3.5) < 60)) g.removeChar(c);
+    for (const v of [...g.vehicles]) if (!v.occ?.some(Boolean) && (Math.hypot(v.x - WV.x, v.z - WV.z) < 25 || Math.hypot(v.x + 330, v.z - 3.5) < 15)) g.vehiclesSys.remove(v); // an earlier check's leftovers
+    // The road run (Route 66, x -340..-90): traffic and a passing convoy out of the lane, so a check's truck meets nobody.
+    if (g.convoy.active) g.convoy.despawn();
+    for (const v of [...g.vehicles]) if (v.x > -345 && v.x < -80 && Math.abs(v.z) < 14 && v.driver !== g.player) { for (const o of [...(v.occ ?? [])]) if (o && o !== g.player) g.removeChar(o); g.vehiclesSys.remove(v); }
+    const p = g.player; p.hp = p.maxHp; p.knockT = 0; p.crouch = false; g.inv.mag.pistol = 6; g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); delete g.inv.jam.pistol; if (g.inventory.cond('pistol') < 0.7) g.inv.cond.pistol = 0.9; g.switchWeapon('pistol'); };
+  await check('walk vehicles: E climbs into a pickup\'s bed; walking it on held keys, you stay in the bed while it drives 200 m', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
+    try {
+      await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v;
+      g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
+      const x0 = v.x, F = v.deck.floor, r = DECK_RULES.radius;
+      let off = 0, outside = 0, low = 0, maxSp = 0;
+      const keys = ['KeyW', 'KeyD', 'KeyS', 'KeyA'];
+      for (let f = 0; f < 60 * 25 && v.x - x0 < 205; f++) {
+        const k = keys[Math.floor(f / 40) % 4];
+        for (const q of keys) g.input.down.delete(q);
+        g.input.down.add(k);
+        await api._step(1);
+        const o = g.player.onDeck;
+        if (o?.v !== v) { off++; continue; }
+        if (o.lx < F[0] + r - 0.01 || o.lx > F[1] - r + 0.01 || o.lz < F[2] + r - 0.01 || o.lz > F[3] - r + 0.01) outside++;
+        if (Math.abs(g.player.gy - g.decks.floorYCached(v)) > 0.05) low++;
+        maxSp = Math.max(maxSp, g.vehiclesSys.speed(v));
+      }
+      for (const q of keys) g.input.down.delete(q);
+      const drove = v.x - x0;
+      const why = g.events.filter((e) => /deck|thrown/.test(e.type) && e.id === g.player.id).slice(-3);
+      return climbed && drove >= 200 && !off && !outside && !low && maxSp > 12 ? true : JSON.stringify({ climbed, drove: +drove.toFixed(1), off, outside, low, maxSp: +maxSp.toFixed(1), why });
+    } finally { wvClean([v, d]); }
+  }));
+  await check('walk vehicles: shooting from the bed of a moving pickup hits a target beside the road', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', -330, 3.5, Math.PI / 2);
+    const t = person('raider', 0, 0, { hp: 600 });
+    t.x = -300; t.z = -10; t.home = { x: t.x, z: t.z };
+    try {
+      await C('teleport', { x: -331.5, z: 5.1 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v;
+      g.qol.setWaypoint({ x: -100, z: 3.5 }); v.ai = 'chauffeur';
+      await api._step(60);
+      const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
+      // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
+      // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
+      // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
+      for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
+      return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck });
+    } finally { wvClean([v, d, t]); }
+  }));
+  await check('walk vehicles: a crash throws you out of the bed (standing), hurt and on your back', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', WV.x, WV.z, 0);
+    let wall = null;
+    try {
+      await C('teleport', { x: WV.x - 1.6, z: WV.z - 1.5 }); await api._step(5);
+      await tk('KeyE');
+      const climbed = g.player.onDeck?.v === v, hp0 = g.player.hp, god = g.godMode;
+      g.godMode = false; // the battery runs in god mode: the fall must hurt here
+      wall = g.statics.add(v.x - 3, v.z + 6, v.x + 3, v.z + 7, 'wall', 3);
+      v.vx = 0; v.vz = 20; // staged: 20 m/s at a wall 3.5 m off the bumper
+      const seq = g.eventSeq;
+      await api._step(12);
+      const down = g.player.knockT > 0;
+      await api._step(40);
+      g.godMode = god;
+      const ev = g.events.find((e) => e.seq > seq && e.type === 'thrown' && e.from === 'deck' && e.id === g.player.id);
+      return climbed && ev && down && !g.player.onDeck && g.player.hp < hp0 && Math.abs(g.player.gy ?? 0) < 0.3 ? true : JSON.stringify({ climbed, thrown: !!ev, down, onDeck: !!g.player.onDeck, hp: [hp0, g.player.hp], gy: g.player.gy });
+    } finally { if (wall) { wall.minX = wall.maxX = wall.minZ = wall.maxZ = 1e6; } wvClean([v, d]); }
+  }));
+  await check('walk vehicles: an RV - walk in its door and down to the bed on held keys (the roof cuts away), N sleeps there: a full rest', async () => withNeeds(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('rv', WV.x, WV.z, Math.PI, '#7a6a52'); // nose up the screen: its door (kerb side) faces screen-right
+    try {
+      await api._step(5);
+      await C('teleport', { x: v.x + 2.9, z: v.z - 1.05 }); await api._step(3);
+      await hk('KeyA', 3, () => g.player.onDeck);
+      const inside = g.player.onDeck?.v === v, roofCut = v.roof && !v.roof.visible;
+      await hk('KeyA', 0.18);
+      await hk('KeyS', 3, () => (g.player.onDeck?.lz ?? 0) < -2.0);
+      const at = g.player.onDeck ? [+g.player.onDeck.lx.toFixed(2), +g.player.onDeck.lz.toFixed(2)] : null;
+      g.needs.rest = 0.3;
+      const seq = g.eventSeq;
+      await tk('KeyN');
+      const slept = g.events.find((e) => e.seq > seq && e.type === 'sleep');
+      for (let i = 0; i < 40 && g.survival.sleep; i++) await api._step(30);
+      const w = g.survival.lastWake;
+      return inside && roofCut && slept?.kind === 'bed' && slept.quality === 1 && w?.why === 'rested' && g.needs.rest > 0.99 && g.player.onDeck?.v === v ? true
+        : JSON.stringify({ inside, roofCut, at, slept: slept ?? null, wake: w, rest: +g.needs.rest.toFixed(3), still: g.player.onDeck?.v === v });
+    } finally { wvClean([v]); }
+  }));
+  await check('walk vehicles: a van - walk in its side door, put something in its locker; it holds it across a save', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('van', WV.x, WV.z, Math.PI, '#5a5a48');
+    try {
+      await api._step(5);
+      await C('teleport', { x: v.x + 2.6, z: v.z }); await api._step(3);
+      await hk('KeyA', 3, () => g.player.onDeck);
+      const inside = g.player.onDeck?.v === v;
+      await hk('KeyS', 0.35);
+      await tk('KeyE'); // E at the locker: the PACK screen opens on it
+      const other = g.invUI.other?.id ?? null;
+      if (g.invUI.open) g.invUI.toggle(false);
+      const box = g.inventory.boxes.get(`deck:${v.id}:locker`);
+      g.inventory.add(box, 'wrench', 1); g.inventory.add(box, 'water_bottle', 2, { left: 1 });
+      const sv = (await C('save')).save;
+      box.slots = [];
+      const r = await C('load', { save: sv });
+      const back = g.inventory.boxes.get(`deck:${v.id}:locker`);
+      const ok = back?.count('wrench') === 1 && back?.count('water_bottle') === 2;
+      return inside && other === box.id && r.ok && ok && g.player.onDeck?.v === v ? true : JSON.stringify({ inside, other, load: r.ok, items: back?.slots, onDeck: !!g.player.onDeck });
+    } finally { wvClean([v]); }
+  }));
+  await check('walk vehicles: an ally climbs into the bed after you and shoots from it', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const { v, d } = crewed('pickup', WV.x, WV.z, 0);
+    const a = g.addChar({ x: WV.x + 3, z: WV.z - 2, faction: 'drifter', weapon: 'pistol', colors: outfit('drifter'), name: 'Ally (selftest)', flag: 'CA', hp: 300 });
+    g.seats.recruit(a);
+    let t = null;
+    try {
+      await C('teleport', { x: WV.x - 1.6, z: WV.z - 1.5 }); await api._step(5);
+      await tk('KeyE');
+      await api._step(120);
+      const aboard = a.onDeck?.v === v;
+      t = person('raider', 0, 0, { hp: 600 }); // then something to shoot at, 18 m off
+      t.x = WV.x + 12; t.z = WV.z - 14; t.home = { x: t.x, z: t.z };
+      const hp0 = t.hp;
+      for (let i = 0; i < 40 && t.hp === hp0; i++) await api._step(15); // its own aim is deliberately sloppy (ai.js): up to 10 s
+      return g.player.onDeck?.v === v && a.onDeck?.v === v && aboard && t.hp < hp0 ? true : JSON.stringify({ player: !!g.player.onDeck, aboard, hp: [hp0, t.hp], allyAt: [+a.x.toFixed(1), +a.z.toFixed(1)] });
+    } finally { wvClean([v, d, a, t]); }
+  }));
+  await check('steering: left is screen-left - A turns the nose toward the left of the screen (D right) at every zoom, nose up or down; backing up, the tail swings left', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const cam = g.camera, scr = (x, z) => { cam.updateMatrixWorld(); const q = { x: 0, y: 0 }; const v3 = cam.position.clone().set(x, 0, z).project(cam); q.x = v3.x; q.y = v3.y; return q; };
+    const bad = [];
+    let runs = 0;
+    for (let zl = 0; zl < ZOOM.levels.length; zl++) {
+      for (const [name, h] of [['up', Math.PI], ['down', 0]]) for (const [key, sign] of [['KeyA', -1], ['KeyD', 1]]) {
+        const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, h, '#4a4a48');
+        try {
+          await C('enterVehicle', { id: v.id, force: true }); g.zoomLevel = zl;
+          await hk('KeyW', 0.5);
+          const nose = () => { const a = scr(v.x, v.z), b = scr(v.x + Math.sin(v.h) * 3, v.z + Math.cos(v.h) * 3); return b.x - a.x; };
+          const n0 = nose();
+          await hk(['KeyW', key], 0.35);
+          const dn = nose() - n0;
+          runs++;
+          if (Math.sign(dn) !== sign) bad.push(`${zl}/${name}/${key}:${dn.toFixed(3)}`);
+        } finally { wvClean([v]); }
+      }
+    }
+    // Backing up, nose up the screen: A swings the tail (the end leading the way) to screen-left.
+    const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, Math.PI, '#4a4a48');
+    let tailDx = 0;
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      await hk('KeyS', 0.7);
+      const tail = () => { const a = scr(v.x, v.z), b = scr(v.x - Math.sin(v.h) * 3, v.z - Math.cos(v.h) * 3); return b.x - a.x; };
+      const t0 = tail();
+      await hk(['KeyS', 'KeyA'], 0.35);
+      tailDx = tail() - t0;
+    } finally { wvClean([v]); }
+    return runs === ZOOM.levels.length * 4 && !bad.length && tailDx < 0 ? true : JSON.stringify({ runs, bad, tailDx });
+  }));
+  await check('reverse: held S backs each rig up to its own row speed (reverse), no faster', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const out = {};
+    let ok = true;
+    for (const type of ['sedan', 'pickup', 'van', 'rv', 'rig', 'bike']) {
+      const v = g.vehiclesSys.spawn(type, WV.x, WV.z, Math.PI, '#4a4a48');
+      try {
+        await C('enterVehicle', { id: v.id, force: true });
+        const want = reverseOf(v);
+        let max = 0, t = null;
+        await hk('KeyS', 7, () => { const b = -(v.vx * Math.sin(v.h) + v.vz * Math.cos(v.h)); max = Math.max(max, b); if (t === null && b >= want * 0.97) t = g.time; return t !== null && max >= want * 0.995; });
+        out[type] = { want, got: +max.toFixed(2) };
+        if (max < want * 0.97 || max > want + 0.05) ok = false;
+      } finally { wvClean([v]); }
+    }
+    return ok ? true : JSON.stringify(out);
+  }));
+  await check('motorcycle: the rider aims and hits a target behind them while riding (turned at the waist)', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('bike', WV.x, WV.z, 0, '#2a2622');
+    const t = person('raider', 0, 0, { hp: 600 });
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      t.x = WV.x; t.z = WV.z - 9; t.home = { x: t.x, z: t.z };
+      await hk('KeyW', 0.22);
+      const hp0 = t.hp, sp = g.vehiclesSys.speed(v);
+      let twist = 0;
+      for (let i = 0; i < 8 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; await click(1); twist = Math.max(twist, Math.abs(g.player.seatPose?.twist ?? 0)); await api._step(14); }
+      const behind = Math.cos(v.h) * (t.z - v.z) + Math.sin(v.h) * (t.x - v.x) < 0;
+      return sp > 3 && behind && t.hp < hp0 && twist > 2 ? true : JSON.stringify({ sp: +sp.toFixed(1), behind, hp: [hp0, t.hp], twist: +twist.toFixed(2) });
+    } finally { wvClean([v, t]); }
+  }));
+  await check('enter/exit: get out of a rolling car (F) and back in after a step (F), five times in a row - every time', async () => hush(async () => {
+    wvClean([]); wvReady();
+    const v = g.vehiclesSys.spawn('sedan', WV.x, WV.z, Math.PI, '#4a4a48');
+    const res = [];
+    try {
+      await C('enterVehicle', { id: v.id, force: true });
+      for (let i = 0; i < 5; i++) {
+        await hk('KeyW', 0.5 + i * 0.12);
+        const sp = g.vehiclesSys.speed(v);
+        await tk('KeyF');
+        const out = !g.player.inVehicle;
+        await hk('KeyA', 0.3); await api._step(20);
+        await tk('KeyF');
+        res.push({ sp: +sp.toFixed(1), out, back: g.player.inVehicle === v });
+        if (g.player.inVehicle !== v) await C('enterVehicle', { id: v.id, force: true });
+      }
+    } finally { wvClean([v]); }
+    return res.every((r) => r.out && r.back) ? true : JSON.stringify(res);
+  }));
   await check('rest: hours awake tire you into sway and microsleeps; a bed refills you while the night runs x40; one of the infected walking up wakes you', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player;
@@ -2896,7 +3203,11 @@ async function runSelfTest(api, only = null, skip = null) {
     const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
     if (g.player.inVehicle) g.exitVehicle(true);
+    const wOn = g.wilds?.enabled;
     return hush(async () => { try {
+      // No Grapevine pack at your heels into town (it stalks you 18-38 m off: the town that sees it runs and stays up). Back
+      // to its record its own way, and the wilds held still for this check.
+      if (g.wilds) { for (const pk of g.wilds.grapevine?.packs ?? []) if (pk.live) g.wilds.grapevine.demote(pk); g.wilds.enabled = false; }
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
@@ -2917,7 +3228,7 @@ async function runSelfTest(api, only = null, skip = null) {
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
         .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
-    } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
+    } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();
@@ -3434,7 +3745,7 @@ async function runSelfTest(api, only = null, skip = null) {
     g.autopilot = null;
     const r = { fed, owned: d.owned, bond: d.bond, worst: r1(worst), samples, state: DG.view(d).state };
     dropDogs();
-    return d.owned && !fed[0] && fed[2] && samples > 10 && worst <= 4 ? true : JSON.stringify(r);
+    return d.owned && !fed[0] && fed[2] && samples >= 8 && worst <= 4 ? true : JSON.stringify(r); // >= 8 samples at a run: a loaded frame takes the run longer to reach speed
   });
   await check('dogs: SIC sends yours at a man - it pounces and bites', async () => {
     await stage();
@@ -4148,9 +4459,9 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await check('streaming: every exit is where its row says, near real size: a deceleration lane, a ramp that climbs at a real grade to a stop at the cross road, a bridge the interstate runs under, and signs in game miles', async () => {
     const bad = [], MI = 1609.344;
-    for (const X of WI.exits) {
-      const [rx, rz] = toWorld(X.row.pos);
-      if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`);
+    for (const X of WI.exits) { // I-10's and Florida's (a Florida exit stands at its milepost: no usmap pos to compare)
+      if (X.row.pos) { const [rx, rz] = toWorld(X.row.pos); if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`); }
+      else if (Math.abs(X.number * MI - X.s) > MI && !X.town) bad.push(`${X.id} at mile ${(X.s / MI).toFixed(2)}, not its number`);
       for (const rb of WI.ribbons.filter((r) => r.exit === X.id && r.rampKind === 'off')) {
         const aux = (rb.aux[1] - rb.aux[0]) * 4, top = rb.y[rb.n - 1] - 0.04;
         let maxGrade = 0, len = 0;
@@ -5358,6 +5669,7 @@ async function runSelfTest(api, only = null, skip = null) {
       return good ? true : JSON.stringify({ busy, waits, talking, cut, cutWhy: L?.rec.cut, next: next?.text ?? null });
     } finally { V.hush(ok); V.allowDev = dev; }
   }));
+  await creatorChecks({ api, g, C, check, snapshot, restore, stage, hush }); // the point-buy, BEGIN, the sheet through a save, the pad alone
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -5366,6 +5678,9 @@ async function runSelfTest(api, only = null, skip = null) {
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
+  await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
+  // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
+  await floridaChecks({ api, g, check, C });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
@@ -5399,6 +5714,8 @@ export function snapshot(g) {
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
+    decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
+    sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
   };
 }
 
@@ -5443,6 +5760,7 @@ export function restore(g, s) {
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
+  if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;
@@ -5462,6 +5780,7 @@ export function restore(g, s) {
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
+  g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

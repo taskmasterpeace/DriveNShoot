@@ -37,7 +37,10 @@ export const WATER = {
   bankTint: [0.42, 0.38, 0.3],  // wet mud on a river's banks (12 m out from the water, fading)
   playaTint: [1.16, 1.12, 1.04], // a dry lakebed's white crust
   colour: { deep: '#323627', mid: '#4f4d33', shallow: '#76694a', foam: '#cbbf9f', // muddy green-brown, darker with depth
-    washBed: '#b39d79', washLip: '#76593e' },                                       // a wash's pale bed, its dark cut lip
+    washBed: '#b39d79', washLip: '#76593e',                                         // a wash's pale bed, its dark cut lip
+    // A region's water by kind (world/regions.js WK: 1 swamp, 2 canal, 3 lagoon, 4 ocean), shallow -> deep (over 2.2 m;
+    // the ocean over 6 m): tea-dark swamp water, a canal, the lagoon, the sea (Florida's, docs/design/WEB_FLORIDA.md).
+    region: { 1: ['#4a4a2c', '#1d2518'], 2: ['#465236', '#1c2e26'], 3: ['#3d6f68', '#1c4648'], 4: ['#4f8e90', '#16445e'] } },
   flow: 0.9,                // m/s: how fast the ripples run downstream (0.3-2)
 
   // ---- where water may stand (the bake clips, the validator warns, the engine never carves inside these)
@@ -55,7 +58,10 @@ export const AUTHORED = {
   lakes: [],
 };
 
-// The sea (a hook for Florida): a level in world metres and coastline polygons whose inside is open water. Off for I-10.
+// The sea as rows: a level in world metres and coastline polygons whose inside is open water. Off for I-10. Florida's
+// sea, lagoon, canals and sloughs are a REGION's water (data/regions.js `water`, world/regions.js regionWater), the second
+// source of the same authority (world/rivers.js depthAt: the deeper of the rows and the region wins); its sheet is a mode
+// of the same water material. A coast drawn as rows instead would come in here.
 export const SEA = { on: false, level: -0.6, d: 8, shelf: 0.02, coast: [] };
 
 const REGIONS = [I10];

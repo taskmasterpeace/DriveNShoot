@@ -16,6 +16,8 @@ export async function devtoolsChecks(api, check, C) {
     g.zombies.enabled = false; g.raiderTimer = 1e9; g.society.director.paused = true;
     for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id);
     if (g.player.inVehicle) g.exitVehicle(true);
+    if (g.dialogue?.active) g.dialogue.close(); // a talk left open stops the world's clock (main.js simDt)
+    if (g.invUI?.open) g.invUI.toggle(false); // the PACK screen left open: you stand still
     await C('teleport', STAGE);
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - STAGE.x, c.z - STAGE.z) < 120) g.removeChar(c);
     await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });

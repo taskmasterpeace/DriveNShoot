@@ -66,8 +66,10 @@ export const STREAM = {
 // over the densest chunk at the widest zoom holds about 10,500 props and 5,400 walls); a pool draws only up to its
 // high-water mark, so the headroom costs memory (about 3 MB), not frames.
 export const POOLS = {
-  props: 40000, walls: 20000, roofs: 4000, floors: 1000, cacti: 6000, trunks: 3000, boulders: 3600, shrubs: 9000,
+  props: 52000, walls: 20000, roofs: 4000, floors: 1000, cacti: 14000, // (props and cacti grew for Florida's palmetto fronds and sawgrass blades: WEB_FLORIDA §7)
+  trunks: 3000, boulders: 3600, shrubs: 9000,
   signs: 256, rails: 9000, barrels: 600, glows: 800,
+  signsfl: 256, // a region's signs (Florida's own atlas: docs/design/WEB_FLORIDA.md §3.1)
 };
 
 // Biomes (usmap legend letters) as rows: ground tint, scatter per hectare (10,000 m2), how much rock.
@@ -112,4 +114,5 @@ export const SIGN_STYLE = {
   state: { bg: '#3a4a5a', fg: '#ece6d2', border: '#d8d2bc', fade: 0.22 },  // a slate blue-grey: never purple
   warn: { bg: '#c99a2a', fg: '#1d1a16', border: '#1d1a16', fade: 0.25 },
   stop: { bg: '#b0301e', fg: '#f2ece0', border: '#f2ece0', fade: 0.2 },
+  town: { bg: '#5e4630', fg: '#f0e2c0', border: '#c9a24a', fade: 0.3 },        // a holdout's painted gate board (Meridian)
 };

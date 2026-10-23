@@ -2,5 +2,20 @@
   "note": "The Phoenix island golden hash (docs/design/WEB_STREAMING.md §3.4, §8 item 6): FNV-1a over every island static box (min/max x z, height, tag; mm) and every building (bounds, enterable, door count), in build order. It guards the RNG sequence in world/city.js: if a change moves anything in Phoenix, this no longer matches and the selftest says so. Re-pin it ONLY for a deliberate change to the island.",
   "islandHash": "f0cfcd28",
   "ringPlansNote": "FNV-1a over the JSON of every planned building of a fresh Phoenix ring (rooms, partitions, doors, walls, furniture, beds, containers), pinned on 1109205b before the island got its floor plans (docs/design/WEB_FLOORPLANS.md 'The island'): the island's plan rows and the shared furniture code must leave the ring's byte for byte. Re-pin it ONLY for a deliberate change to the ring.",
-  "ringPlans": "c7d34839"
+  "ringPlans": "c7d34839",
+  "p1ChunksNote": "Layout hashes of twelve P1 chunks (the island edge, the Phoenix ring, I-10 near Los Angeles and El Paso, exits, open desert) pinned before Florida came in (docs/design/WEB_FLORIDA.md section 5): a region added past P1 must leave every P1 chunk byte for byte. Re-pin ONLY for a deliberate change to P1. Re-pinned 2026-10-23 for one deliberate P1 change: chunk -25,-4 carries L1 water (the Central Arizona Project aqueduct, docs/design/WEB_RIVERS.md); the other eleven are byte for byte.",
+  "p1Chunks": {
+    "-8,-8": "0418f18d",
+    "-7,-7": "16f3448f",
+    "-6,0": "cf357a80",
+    "-2,-4": "e8f3fb63",
+    "3,-4": "010ffae0",
+    "7,7": "e4b0a302",
+    "-128,-21": "2ee91d5c",
+    "-25,-4": "758696a8",
+    "102,38": "753ac0e1",
+    "157,59": "08b1274e",
+    "-80,-30": "f9df869f",
+    "150,30": "6ee3a5b1"
+  }
 }

@@ -19,7 +19,7 @@ Bridges, culverts and fords are part of L2 (the network): they are generated whe
 | The rows | `web/src/data/water.js` | Every knob (§7), the authored rows, the sea hook, `WATER_ROWS` (baked + authored), and `validateWater(rows, ctx)` (the World Forge's water tab calls it). |
 | The baked rows | `web/src/data/water/i10.json` (125 KB) | 23 river, wash and canal runs (211 km of channel) and the Salton Sea along the I-10 corridor, from USGS hydrography. One JSON file per region: Florida's goes beside it. |
 | The bake | `web/tools/water-bake.mjs` (+ `web/tools/strip-map.mjs`) | Fetches the USGS NHD flowlines and waterbodies, maps them onto our road through the terrain's strip map run backwards, writes the rows and `docs/renders/web/rivers/l1-water-map.svg`. Cache: `web/.water-cache/` (gitignored). |
-| The engine | `web/src/world/rivers.js` | `Rivers`: the rows resampled every 8 m and bucketed per 256 m chunk; `sample(x, z)` (depth, the carved bed, the floor movers stand on, the surface); `depthAt(x, z, y)` THE water authority past the island; `plan(W)`: every crossing classified and built. |
+| The engine | `web/src/world/rivers.js` | `Rivers`: the rows resampled every 8 m and bucketed per 256 m chunk; `sample(x, z)` (depth, the carved bed, the floor movers stand on, the surface); `depthAt(x, z, y)` THE water authority past the island, with two sources (L1 rows, and a region's own water: §3.6); `plan(W)`: every crossing classified and built. |
 | Wiring | `world/worldindex.js`, `world/chunkgen.js`, `world/streamer.js`, `world/pools.js`, `world/water.js` | The ground is carved, a water sheet and wash beds drawn per chunk (one new surface layer), nav tiles block deep water, the mainline is lifted over its decks, heightAt reads the water's floor, the island's `Water` hands over past \|x\|,\|z\| 464. |
 | The agent | `web/src/agent/water-api.js`, `water-selftest.js` | `water`, `rivers`, `bridges`; ten selftest checks. |
 
@@ -141,6 +141,17 @@ chunk is laid out. The road profile (WEB_TERRAIN T4) rides on fills and vertical
 5-14 m below the road: every crossing becomes a deck (a viaduct over the gorge the carve cuts through the fill), most at
 lift 0 (the road's own level over a dry gorge).
 
+### 3.6 One authority, two sources (merged with Florida, 2026-10-23)
+- `world/water.js` EXT.depth = `WorldIndex.depthAt` = `Rivers.depthAt(x, z, y, ignoreDeck)`: a deck holds the asker, else the deeper of
+  **L1** (`sample()`: this doc's rows) and **the region** (`W.regionDepth` = world/regions.js `makeDepthAt`: a region chunk's 4 m grid,
+  else `regionWater`). `waterDepth()` (the standalone), `Water.depthAt/stateAt/surfaceAt`, vehicles, the AI and both nav rasters all read it.
+  A region's surface is its flat ground (0); L1's is its own `Y`.
+- **One water layer** per chunk (`pools.js` LAYERS.water, one `SURF.water` buffer, one material: `world/water.js` streamMat). The
+  vertex colour's blue picks the mode: 0 river, 0.2 lake (calmer), 0.4 + kind/100 a region's swamp, canal, lagoon or sea (shallow to
+  deep from `WATER.colour.region`, as Florida painted it per vertex), 1 a dry wash's bed. A region chunk writes its 4 m marching-squares
+  sheet, an L1 chunk its 8 m sheet and wash strips; a chunk in both would write both into the same buffer.
+- Names: a region's 4 m grid size stays `WG` (chunkgen) and its grid `L.water`; L1's 8 m grid is `LW` and its stats `L.l1water`.
+
 ### 3.5 Boats, swimming, cars
 - **Boats** (the airboat, the waterbike, the raider gunboat) float on the streamed water's own surface (world/water.js
   `surfaceAt`), bob, and beach where depth drops under their draft; under a deck they are in the river (depthAt asks with y
@@ -219,7 +230,7 @@ of 5.1 m over 191 m has curvature 6 · 5.1 / 191² = 8.4e-4 per metre, v² κ = 
 | `world/worldindex.js` | heightAt/nearRelief/rampAt read the floor and the decks; the mainline reads `liftAt` | the corridor, sections, exits, towns, ribbons, `clBuckets`, `project` |
 | `world/water.js` (the island) | `depthAt`, `stateAt`, `surfaceAt` hand over past the island; the streamed sheet's material lives there | nothing: its own river and lake are untouched |
 | `systems/vehicles.js`, `systems/stunts.js`, `main.js`, `systems/ai.js` | cars ask with their y (a deck), boats ride the surface, the player's wet state asks with gy, the AI's wade test works out on the corridor | `depthAt`, `surfaceAt` |
-| Florida (another agent) | none | rows: a `data/water/florida.json` and one line in `data/water.js` REGIONS; `SEA.on` with coast polygons |
+| Florida (`world/regions.js`, WEB_FLORIDA.md) | its sea, lagoon, canals and sloughs answer through the one authority; its sheet is a mode of the one water material | `makeDepthAt` (its 4 m grids) as the region source; L1 rows for Florida rivers go in a `data/water/florida.json` |
 | THE WORLD FORGE (another agent) | `WATER_ROWS`, `validateWater(rows, ctx)`, the knobs | a TERRAIN/water tab that edits rows and calls the validator |
 | Materials / destruction (another agent) | each deck's `hp`, `hpMax`, `state` and the `bridge` event | what a blown deck does |
 | `agent/api.js` | `water` (replaces the island-only row, same answers there), `rivers`, `bridges`; the checks run before devtools' | `C`, `check`, `need` |

@@ -108,6 +108,15 @@ export const ROOMS = {
     furniture: [['mattress', 1, 1], ['stove', 0, 1], ['table', 0, 1], ['crate', 1, 2], ['shelf', 0, 1]] },
   shackback: { name: 'BACK ROOM', min: 2.6, max: 4.0, grow: 0.6, via: ['shack'], back: 1, floor: null, stay: true,
     furniture: [['mattress', 0, 1], ['crate', 1, 2]] },
+  // ---- Meridian, the Florida holdout (docs/design/WEB_FLORIDA.md §3.4). Rows the ring and the island never use.
+  // The clone bay behind the clinic's waiting room: the vats (data/ring.js FURNITURE.vat) where a clone wakes (the clone
+  // agent's hook: data/holdouts.js meridian.clinic). The sheriff's holding cells. The chapel's nave.
+  clonebay: { name: 'CLONE BAY', min: 4.0, grow: 2, via: ['waiting', 'corridor'], back: 3, floor: '#c9d2c8', loot: 'bathroom', stay: true,
+    furniture: [['vat', 2, 3], ['cot', 1, 1], ['medcab', 0, 1]] },
+  jail: { name: 'HOLDING CELL', min: 2.8, max: 3.8, grow: 0.4, via: ['corridor'], floor: '#9a968c', stay: true,
+    furniture: [['cot', 1, 1], ['toilet', 0, 1]] },
+  nave: { name: 'CHAPEL', min: 6.0, grow: 3, entry: true, back: 4, floor: '#a08a6a', stay: true,
+    furniture: [['bench', 3, 6], ['shelf', 0, 1], ['ctable', 0, 1]] },
 };
 
 // PLANS: per building kind, the layouts it may take, as slicing trees in the building's own frame: u runs along the front
@@ -208,6 +217,20 @@ export const PLANS = {
   shack: [
     { id: 'shack-two', w: 3, tree: ['v', 'shack', 'shackback'] },
     { id: 'shack-one', w: 1, tree: 'shack' },
+  ],
+  // ---- Meridian (docs/design/WEB_FLORIDA.md §3.4): the clone wing, the sheriff's office, town hall, the chapel.
+  clonewing: [
+    { id: 'clone-wing', w: 3, tree: ['v', 'waiting', ['u', { max: 5.6 }, 'clonebay', 'study', 'wc']] },
+  ],
+  sheriff: [
+    { id: 'sheriff-cells', w: 3, tree: ['u', ['v', 'lobby', 'study'], 'corridor', ['v', { max: 3.8 }, 'jail', 'jail', 'wc']] },
+    { id: 'sheriff-wide', w: 2, size: { u: [13, 99] }, tree: ['u', ['v', 'lobby', ['u', 'study', 'study']], 'corridor', ['v', { max: 3.8 }, 'jail', 'jail', 'jail', 'wc']] },
+  ],
+  townhall: [
+    { id: 'town-hall', w: 3, tree: ['u', 'offices', 'corridor', ['v', { max: 4.4 }, 'study', 'wc', 'backroom']] },
+  ],
+  chapel: [
+    { id: 'chapel', w: 3, tree: 'nave' },
   ],
 };
 // What the island's enterable buildings are (world/city.js makeEnterable). Rust Haven's twelve by their shop index, the

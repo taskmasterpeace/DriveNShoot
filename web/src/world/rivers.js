@@ -353,12 +353,20 @@ export class Rivers {
 
   // ---- THE WATER AUTHORITY (world/water.js asks past the island) ---------------------------------------------------
   // y: the asker's absolute height (a deck counts only for someone up on it); undefined = 2-D (a deck is dry ground).
-  depthAt(x, z, y) {
-    if (this.deckAt(x, z, y) >= 0) return 0;
-    return this.sample(x, z).depth;
+  // Two sources answer, the deeper wins: L1's rows (sample) and a region's own water (Florida's sea, lagoon, canals and
+  // sloughs: world/regions.js, plugged in as this.region by WorldIndex). ignoreDeck: the water under a deck (drawing).
+  depthAt(x, z, y, ignoreDeck = false) {
+    if (!ignoreDeck && this.deckAt(x, z, y) >= 0) return 0;
+    const d = this.sample(x, z).depth, r = this.region ? this.region(x, z) : 0;
+    return r > d ? r : d;
   }
-  // The water's surface at (x, z), absolute, or NaN where there is no water near.
-  surfaceAt(x, z) { const q = this.sample(x, z); return q.depth > 0 || q.near ? q.surf : NaN; }
+  // The water's surface at (x, z), absolute, or NaN where there is no water near (a region's sheet lies on its flat
+  // ground: 0).
+  surfaceAt(x, z) {
+    const q = this.sample(x, z);
+    if (q.depth > 0 || q.near) return q.surf;
+    return this.region && this.region(x, z) > 0 ? 0 : NaN;
+  }
   // Keep scatter, poles and wrecks off the water, the banks and the bridges.
   keepOut(x, z, r = 0) {
     if (!this.near(x, z)) return false;
