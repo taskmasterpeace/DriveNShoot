@@ -779,7 +779,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul; // a heavy pack slows you
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.needs.speedMul; // a heavy pack slows you; so do a bad leg, the cold, the gloom (survival.js)
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -836,7 +836,7 @@ class Game {
     p.aiming = true;
     // QOL: slow regen to 60% after 6s without taking damage.
     p.sinceHit = (p.sinceHit ?? 99) + dt;
-    if (p.sinceHit > 6 && p.hp < 60) p.hp = Math.min(60, p.hp + dt * 4);
+    if (p.sinceHit > 6 && p.hp < 60) p.hp = Math.min(60, p.hp + dt * 4 * this.needs.healMul); // healMul: hunger, cold, gloom, an infection (survival.js)
     if (p.bleed > 0) { p.bleed = Math.max(0, p.bleed - dt * 0.05); if (Math.random() < dt * 5 * p.bleed) this.fx.decal(p.x, p.z, 0.2 + Math.random() * 0.25, '#5a0606'); }
     if (sprint && len && Math.random() < dt * 6) this.fx.dust(p.x, p.z, 1);
 

@@ -193,7 +193,8 @@ export class VehicleDamage {
     // Rebuild the crumpled mesh at most ~5x/s.
     d.deformT -= dt;
     if (d.dirty && d.deformT <= 0) { d.deformT = 0.2; this.deform(v); }
-    return { power, grip: Math.max(0.35, grip), pull, top: Math.max(0.5, top) };
+    const fx = { power, grip: Math.max(0.35, grip), pull, top: Math.max(0.5, top), brake: 1 };
+    return g.upkeep ? g.upkeep.tick(v, dt, fx) : fx; // oil, the desert's heat, wear (systems/upkeep.js)
   }
 
   repair(v) {

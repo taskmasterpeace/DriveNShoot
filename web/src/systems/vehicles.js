@@ -230,7 +230,7 @@ export class Vehicles {
     }
     if (!v.dead && v.driver && !v.fallen) {
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
-      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * 0.6) * -v.throttle * dt;
+      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 * (fxm.brake ?? 1) : -v.accel * 0.6) * -v.throttle * dt; // fxm.brake: worn brakes (upkeep.js)
       if (fwd < -v.maxSpeed * 0.35) fwd = -v.maxSpeed * 0.35;
       // Steering bites with speed, softens at top speed.
       const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);
