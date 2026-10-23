@@ -451,9 +451,18 @@ export class Residents {
     if (Math.hypot(tx - c.x, tz - c.z) < 0.7) { c.speed = 0; return true; }
     S.repath -= dt;
     const goalMoved = !(Math.abs(S.gx - tx) < 0.5 && Math.abs(S.gz - tz) < 0.5);
+    // A watchdog on progress: no closer by 0.3 m in 4 s (wedged on a corner the slide and the detours cannot get round)
+    // plans again from where they stand.
+    const dist = Math.hypot(tx - c.x, tz - c.z);
+    if (goalMoved || !(dist < S.best - 0.3)) { if (goalMoved || (S.noGain = (S.noGain ?? 0) + dt) > 4) { S.best = dist; S.noGain = 0; if (!goalMoved) { S.route = null; S.wedged = (S.wedged ?? 0) + 1; this.stats.wedged = (this.stats.wedged ?? 0) + 1; c.detour = 0.6; c.detourA = (Math.random() < 0.5 ? 1 : -1) * (1.2 + Math.random()); } } }
+    else { S.best = dist; S.noGain = 0; }
     if ((goalMoved || !S.route || (S.repath <= 0 && (c.stuck ?? 0) > 0.25)) && this.pathsLeft > 0) {
       this.pathsLeft--;
-      S.route = g.footPath(c.x, c.z, tx, tz) ?? [{ x: tx, z: tz }]; S.ri = 0; S.repath = 3; S.gx = tx; S.gz = tz;
+      // A goal in a cell the grid calls blocked (a bed against a wall, a stop by a kerb wreck) gets no path of its own:
+      // then a path to a free spot a step from it, and the last step straight.
+      let route = g.footPath(c.x, c.z, tx, tz);
+      for (let k = 0; !route && k < 4 && Math.hypot(tx - c.x, tz - c.z) < 30; k++) route = g.footPath(c.x, c.z, tx + NEAR8[k][0], tz + NEAR8[k][1]);
+      S.route = route ?? [{ x: tx, z: tz }]; S.ri = 0; S.repath = 3; S.gx = tx; S.gz = tz; S.lost = route ? 0 : (S.lost ?? 0) + 1;
     }
     if (!S.route) { c.speed = 0; return false; } // waiting for a plan this frame
     let wp = S.route[S.ri];
@@ -619,4 +628,5 @@ export class Residents {
   }
 }
 
+const NEAR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
 function pickW(rng, rows) { let t = 0; for (const r of rows) t += r[1]; let p = rng() * t; for (const r of rows) if ((p -= r[1]) < 0) return r[0]; return rows[rows.length - 1][0]; }
