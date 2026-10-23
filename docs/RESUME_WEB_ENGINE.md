@@ -5,7 +5,7 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`5226f237`** (storeys; 112/112 twice on fresh pages): everything below, landed by fast-forward
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`edf3b5d1`** (the Phoenix ring R1; 120/120 twice on fresh pages): everything below, landed by fast-forward
 from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
 `.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
 `git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
