@@ -589,7 +589,7 @@ function awningGeometry(v) {
   };
   const canvas = new THREE.PlaneGeometry(2.6, 3.2).toNonIndexed();
   canvas.rotateX(-Math.PI / 2); canvas.rotateZ(-0.12); canvas.translate(-hw - 1.3, 2.62, -0.9);
-  const cc = new THREE.Color('#b4602e'), n = canvas.attributes.position.count, ca = new Float32Array(n * 3);
+  const cc = new THREE.Color('#9a5a36'), n = canvas.attributes.position.count, ca = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { ca[i * 3] = cc.r; ca[i * 3 + 1] = cc.g; ca[i * 3 + 2] = cc.b; }
   canvas.setAttribute('color', new THREE.BufferAttribute(ca, 3));
   canvas.deleteAttribute('uv'); canvas.deleteAttribute('normal'); canvas.computeVertexNormals();

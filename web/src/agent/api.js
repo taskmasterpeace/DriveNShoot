@@ -2668,6 +2668,9 @@ async function runSelfTest(api, only = null) {
     for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id); // no hunters walking in on a check
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.inVehicle && (Math.hypot(c.x - WV.x, c.z - WV.z) < 90 || Math.hypot(c.x + 330, c.z - 3.5) < 60)) g.removeChar(c);
     for (const v of [...g.vehicles]) if (!v.occ?.some(Boolean) && (Math.hypot(v.x - WV.x, v.z - WV.z) < 25 || Math.hypot(v.x + 330, v.z - 3.5) < 15)) g.vehiclesSys.remove(v); // an earlier check's leftovers
+    // The road run (Route 66, x -340..-90): traffic and a passing convoy out of the lane, so a check's truck meets nobody.
+    if (g.convoy.active) g.convoy.despawn();
+    for (const v of [...g.vehicles]) if (v.x > -345 && v.x < -80 && Math.abs(v.z) < 14 && v.driver !== g.player) { for (const o of [...(v.occ ?? [])]) if (o && o !== g.player) g.removeChar(o); g.vehiclesSys.remove(v); }
     const p = g.player; p.hp = p.maxHp; p.knockT = 0; p.crouch = false; g.inv.mag.pistol = 6; g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 60); delete g.inv.jam.pistol; if (g.inventory.cond('pistol') < 0.7) g.inv.cond.pistol = 0.9; g.switchWeapon('pistol'); };
   await check('walk vehicles: E climbs into a pickup\'s bed; walking it on held keys, you stay in the bed while it drives 200 m', async () => hush(async () => {
     wvClean([]); wvReady();
@@ -2693,7 +2696,8 @@ async function runSelfTest(api, only = null) {
       }
       for (const q of keys) g.input.down.delete(q);
       const drove = v.x - x0;
-      return climbed && drove >= 200 && !off && !outside && !low && maxSp > 12 ? true : JSON.stringify({ climbed, drove: +drove.toFixed(1), off, outside, low, maxSp: +maxSp.toFixed(1) });
+      const why = g.events.filter((e) => /deck|thrown/.test(e.type) && e.id === g.player.id).slice(-3);
+      return climbed && drove >= 200 && !off && !outside && !low && maxSp > 12 ? true : JSON.stringify({ climbed, drove: +drove.toFixed(1), off, outside, low, maxSp: +maxSp.toFixed(1), why });
     } finally { wvClean([v, d]); }
   }));
   await check('walk vehicles: shooting from the bed of a moving pickup hits a target beside the road', async () => hush(async () => {
