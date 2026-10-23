@@ -236,7 +236,7 @@ export class Vehicles {
       if (v.throttle > 0) fwd += v.accel * fxm.power * v.throttle * dt * (1 - clamp(fwd / topSpeed, 0, 1) * 0.85);
       // Reverse (WEB_CONTROLLER §3.1, tuned 2026-10-23: it read as "super slow"): REVERSE.accel x the rig's accel off the
       // line, up to REVERSE.top x its top speed.
-      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 : -v.accel * REVERSE.accel) * -v.throttle * dt;
+      else if (v.throttle < 0) fwd += (fwd > 0.5 ? -v.accel * 2.2 * (fxm.brake ?? 1) : -v.accel * REVERSE.accel) * -v.throttle * dt; // fxm.brake: worn brakes (upkeep.js)
       if (fwd < -v.maxSpeed * REVERSE.top) fwd = -v.maxSpeed * REVERSE.top;
       // Steering bites with speed, softens at top speed.
       const steerAmt = (v.steer + fxm.pull * clamp(sp / 10, 0, 1)) * v.turn * clamp(sp / 7, 0, 1) * (1 - clamp(sp / v.maxSpeed, 0, 1) * 0.35) * (v.wheelie > 0.15 ? 0.35 : 1);

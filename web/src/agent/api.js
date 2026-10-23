@@ -28,6 +28,7 @@ import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
+import { GARAGE_BAYS } from '../data/survival.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1292,13 +1293,77 @@ function buildCommands(api) {
       run: async ({ id }) => { const r = g.society.director.cancel(id); need(r, `no running event ${id}`); return r; },
     },
     needs: {
-      group: 'player', desc: 'Water, food and rest (0 empty .. 1 full), their wear pips (0-4: thirsty, parched...; tired, weary, exhausted, dead on your feet), what they cost you right now (stamina, sway on your aim, the dark at the edges, a microsleep), game hours left, a fever, and whether you are asleep. water=, food=, rest= set them.',
-      args: { water: { type: 'number' }, food: { type: 'number' }, rest: { type: 'number' } },
-      run: async ({ water, food, rest }) => {
-        const N = g.needs, S2 = g.survival, set = { water, food, rest };
-        for (const k of Object.keys(set)) if (set[k] !== undefined) { need(set[k] >= 0 && set[k] <= 1, `${k} is 0..1`); N[k] = set[k]; N.pips[k] = S2.pip(set[k]); }
-        if (water !== undefined || food !== undefined || rest !== undefined) S2.update(0); // recompute the effects now
+      group: 'player', desc: 'The body (docs/design/WEB_SURVIVAL.md): water, food and rest (0 empty .. 1 full); warmth (0 frozen .. 0.5 comfortable .. 1 cooked) against the air and what you feel (shelter, wet clothes, sprinting); wet (0..1); mood (fear, gloom, boredom 0..10, the appraisal of what happens to you); wounds, a wound infection, food poisoning and bite fever; every pip (0-4) and its word; what it all costs right now through the single consumers (staminaRegen, maxStamina, sway, speedMul, healMul, sight, vignette, a microsleep); the CONDITION reading; the telltales the HUD shows. water=, food=, rest=, warmth=, wet= (0..1) and fear=, gloom=, boredom= (0..10) set them; profile=full|battery picks the layers that run (battery: climate, wounds, mood, shelter and car upkeep hold still).',
+      args: { water: { type: 'number' }, food: { type: 'number' }, rest: { type: 'number' }, warmth: { type: 'number' }, wet: { type: 'number' }, fear: { type: 'number' }, gloom: { type: 'number' }, boredom: { type: 'number' }, profile: { type: 'string', enum: ['full', 'battery'] } },
+      run: async ({ water, food, rest, warmth, wet, fear, gloom, boredom, profile }) => {
+        const N = g.needs, S2 = g.survival, set = { water, food, rest, warmth, wet }, mood = { fear, gloom, boredom };
+        if (profile) need(S2.setProfile(profile), `no profile ${profile}`);
+        let any = !!profile;
+        for (const k of Object.keys(set)) if (set[k] !== undefined) { need(set[k] >= 0 && set[k] <= 1, `${k} is 0..1`); N[k] = set[k]; if (['water', 'food', 'rest'].includes(k)) N.pips[k] = S2.pip(set[k]); any = true; }
+        for (const k of Object.keys(mood)) if (mood[k] !== undefined) { need(mood[k] >= 0 && mood[k] <= 10, `${k} is 0..10`); N.mood[k] = mood[k]; any = true; }
+        if (any) S2.update(0); // recompute the pips and the effects now
         return S2.view();
+      },
+    },
+    wound: {
+      group: 'player', desc: 'Wounds (data/survival.js INJURIES; docs/design/WEB_SURVIVAL.md §3.7): a laceration bleeds until bandaged and gathers dirt until disinfected (then WOUND INFECTION, which only antibiotics clear); a bite wants a bandage (its dirt is the bite fever); a sprain or a fracture wants a splint (unset, a break barely knits and the leg costs you speed); a burn hurts until it is dressed and wants cleaning. They come from the hits that land on you (bullets, glass, bites, a car, a blast, a fall, fire). No args: your wounds, an infection, food poisoning. add=<kind> gives you one (testing); treat=<item> uses that item from your pack (give=true puts one there first): bandage, rag, suture_kit, first_aid, splint, disinfectant, burn_salve, antibiotics, painkillers; clear=true heals everything (testing).',
+      args: { add: { type: 'string', enum: ['laceration', 'bite', 'sprain', 'fracture', 'burn'] }, treat: { type: 'string' }, give: { type: 'boolean', default: false }, clear: { type: 'boolean', default: false } },
+      run: async ({ add, treat, give, clear }) => {
+        const S2 = g.survival, N = g.needs, inv = g.inventory, out = {};
+        if (clear) { N.wounds.length = 0; N.infection = null; N.sick = null; g.player.bleed = 0; }
+        if (add) { const w = S2.wound(add); need(w, `no wound kind ${add}`); }
+        if (treat) {
+          if (give) { inv.add(inv.carried, treat, 1); inv.changed(); }
+          const i = inv.carried.slots.findIndex((s) => s.id === treat);
+          need(i >= 0, `you carry no ${treat} (give=true to put one in your pack)`);
+          const r = inv.use(i); out.used = r.ok ? r.text : null; if (!r.ok) out.refused = r.why;
+        }
+        S2.update(0);
+        const v = S2.view();
+        return { ...out, wounds: v.wounds, infection: v.infection, sick: v.sick, effects: v.effects, condition: v.condition };
+      },
+    },
+    shelter: {
+      group: 'player', desc: 'Shelter as survival (data/survival.js SHELTER, HOLD; docs/design/WEB_SURVIVAL.md §3.10): you live out of your car, out of a house, or not for long. No args: where you are (hold | house | car | rough), the air and what you feel here, what a night here is worth (the rest multiplier, the comfort of the cold or heat, the danger a game hour while asleep), and the house you hold: its doors (they bar from inside while you sleep) and the drinks stored in its boxes. A full night in a bed under a roof makes that house yours. claim=true makes the building you stand in your hold now (testing); clear=true gives it up; store=<n> puts n water bottles in the nearest box inside it (testing).',
+      args: { claim: { type: 'boolean', default: false }, clear: { type: 'boolean', default: false }, store: { type: 'number' } },
+      run: async ({ claim, clear, store }) => {
+        const S2 = g.survival, p = P();
+        if (clear) S2.hold = null;
+        if (claim) { g.updateInterior(); need(g.insideBuilding, 'not inside a building: walk in first'); S2.claim(g.insideBuilding); }
+        if (store) {
+          g.updateInterior(); const b = g.insideBuilding; need(b, 'not inside a building');
+          let box = null, bd = Infinity;
+          for (const x of g.inventory.boxes.values()) if (x.x > b.minX && x.x < b.maxX && x.z > b.minZ && x.z < b.maxZ) { const d = Math.hypot(x.x - p.x, x.z - p.z); if (d < bd) { bd = d; box = x; } }
+          need(box, 'no box in this building to store water in');
+          if (!box.rolled) { g.inventory.roll(box); box.rolled = true; }
+          for (let k = 0; k < store; k++) g.inventory.add(box, 'water_bottle', 1);
+          g.inventory.changed();
+        }
+        S2.update(0);
+        const kind = S2.shelterKind(), sh = S2.shelterFor(kind), N = g.needs;
+        return {
+          here: kind, air: r1(N.air), felt: r1(N.felt), warmth: +N.warmth.toFixed(3),
+          night: { rest: +sh.rest.toFixed(2), danger: sh.danger, parts: sh.parts ? { door: sh.parts.door, water: sh.parts.water, stored: sh.parts.stored } : null },
+          hold: S2.view().hold, inside: g.insideBuilding ? { x: r1((g.insideBuilding.minX + g.insideBuilding.maxX) / 2), z: r1((g.insideBuilding.minZ + g.insideBuilding.maxZ) / 2), ring: !!g.insideBuilding.ring } : null,
+          asleep: S2.view().asleep,
+        };
+      },
+    },
+    upkeep: {
+      group: 'vehicle', desc: 'Car upkeep (data/survival.js CAR_UPKEEP, GARAGE_BAYS; systems/upkeep.js; docs/design/WEB_SURVIVAL.md §3.12): the oil (burns while the engine runs; low runs hot and wears, dry kills the engine), the engine heat against the air (a car flat out at noon in the desert runs near the boil), wear on tyres (grip), brakes (stopping) and the engine (power), the km driven, and the garage it stands in (parked inside one, a car is put right over time; parked out, it weathers). id= a vehicle (default: yours, else the nearest); oil=, tyres=, brakes=, engine= (0..1) and temp= set them (testing). bays=true lists the garages near you.',
+      args: { id: { type: 'string' }, oil: { type: 'number' }, tyres: { type: 'number' }, brakes: { type: 'number' }, engine: { type: 'number' }, temp: { type: 'number' }, bays: { type: 'boolean', default: false } },
+      run: async ({ id, oil, tyres, brakes, engine, temp, bays }) => {
+        const U = g.upkeep, p = P();
+        let v = id ? g.vehicles.find((x) => x.id === id) : p.inVehicle;
+        if (!v) { let bd = Infinity; for (const x of g.vehicles) { if (x.dead) continue; const d = Math.hypot(x.x - p.x, x.z - p.z); if (d < bd) { bd = d; v = x; } } }
+        need(v, 'no vehicle');
+        U.init(v);
+        if (oil !== undefined) v.oil = Math.max(0, Math.min(1, oil));
+        for (const [k, x] of [['tyres', tyres], ['brakes', brakes], ['engine', engine]]) if (x !== undefined) v.wear[k] = Math.max(0, Math.min(1, x));
+        if (temp !== undefined && v.dmg) v.dmg.temp = temp;
+        const out = { id: v.id, name: v.name, ...U.view(v), fuel: Math.round(v.fuel), fuelCap: v.fuelCap, parts: g.vehDamage.view(v).parts };
+        if (bays) out.bays = GARAGE_BAYS.places.map((P2) => ({ id: P2.id, name: P2.name, at: U.post(P2), yard: P2.yard }));
+        return out;
       },
     },
     town: {
@@ -1861,6 +1926,11 @@ async function runSelfTest(api, only = null, skip = null) {
   const C = (cmd, a) => api.call(cmd, a);
   await C('start');
   await C('god', { on: true });
+  // The body's deeper layers (climate, wounds, mood, shelter, car upkeep) hold still through the battery and start it
+  // comfortable, dry, calm and whole: its checks are about other systems. The survival checks switch them on (bodyFull).
+  const profile0 = g.survival.profileName;
+  const bodyNeutral = () => { const N = g.needs; N.warmth = 0.5; N.wet = 0; N.mood.fear = N.mood.gloom = N.mood.boredom = 0; N.wounds.length = 0; N.infection = null; N.sick = null; g.player.bleed = 0; g.survival.update(0); };
+  g.survival.setProfile('battery'); bodyNeutral();
   // The director would drop hunters or a herd into unrelated checks: its own checks fire events by hand.
   const directorWas = g.society.director.paused;
   g.society.director.paused = true;
@@ -2835,6 +2905,247 @@ async function runSelfTest(api, only = null, skip = null) {
     await C('needs', { water: 0.85, food: 0.8 });
     return drained && slowed && packed && after.water > 0.35 && after.pips.water === 0 ? true : JSON.stringify({ drained, before, parched: parched.pips, regen: parched.effects.staminaRegen, packed, after: after.water });
   });
+
+  // ---- the body, deepened (docs/design/WEB_SURVIVAL.md §3.6-3.13): the climate, wounds, mood, shelter, car upkeep and
+  // the telltales. Each runs with the full profile, staged on open sand with the hordes and raiders hushed, and puts the
+  // body back comfortable, dry, calm and whole afterwards. Every check reads a need decaying on the clock, its effect on
+  // a consumer's real number (the walk, the mend, the aim, the sight), and its remedy.
+  const bodyFull = async (fn) => withNeeds(async () => {
+    g.survival.setProfile('full'); bodyNeutral();
+    try { return await fn(); } finally {
+      g.driveOverride = null;
+      if (g.dialogue.active) g.dialogue.close();
+      if (g.player.inVehicle) g.exitVehicle(true);
+      await C('setWeather', { key: 'CLEAR', instant: true }); await C('god', { on: true });
+      bodyNeutral(); g.survival.setProfile('battery'); g.player.hp = g.player.maxHp;
+    }
+  });
+  // Game hours on the clock at x40 (a real second is 1.33 of them).
+  const fastHours = async (h) => { g.sky.fast = true; try { await C('step', { seconds: h * 0.75 }); } finally { g.sky.fast = false; } };
+  const walk = async (secs) => { const p = g.player, x0 = p.x, z0 = p.z; g.player.stamina = 1; await holdKey('KeyD', secs); return Math.hypot(p.x - x0, p.z - z0); };
+  // Island houses (world/city.js) out past the town: a bed on the ground floor, its building, its doors, its boxes.
+  const houses = () => {
+    const out = [];
+    for (const b of g.world.spawns.beds ?? []) {
+      if (b.upstairs || Math.max(Math.abs(b.x), Math.abs(b.z)) < 100) continue;
+      const bi = g.world.buildings.findIndex((B) => B.enterable && B.roofIdx.length && !B.ruined && b.x > B.minX && b.x < B.maxX && b.z > B.minZ && b.z < B.maxZ);
+      if (bi < 0 || g.world.buildings[bi].shopName || out.some((h) => h.bi === bi)) continue;
+      const B = g.world.buildings[bi];
+      let boxes = 0; for (const x of g.inventory.boxes.values()) if (x.x > B.minX && x.x < B.maxX && x.z > B.minZ && x.z < B.maxZ) boxes++;
+      out.push({ bed: b, bi, B, doors: I2.doors.filter((d) => d.bi === bi && d.leaves.length), boxes });
+    }
+    return out;
+  };
+  const toBed = async (bed) => { if (g.player.inVehicle) g.exitVehicle(true); g.player.x = bed.x; g.player.z = bed.z; g.updateInterior(); await C('step', { seconds: 0.1 }); g.updateInterior(); };
+  await check('climate: the desert noon heats you and the night chills you, soaked clothes faster; the cold slows the walk and shakes the aim; wet dries; a roof brings you back', async () => bodyFull(async () => {
+    await stage();
+    const S = g.survival, N = g.needs;
+    await C('setTime', { hour: 13 }); await fastHours(1.5);
+    const noon = { air: +N.air.toFixed(1), warmth: +N.warmth.toFixed(3) }, heated = N.air > 34 && N.warmth > 0.6;
+    N.wet = 0.8; await fastHours(1); const dried = N.wet < 0.2;
+    await C('setTime', { hour: 2 }); N.warmth = 0.5; N.wet = 0; await fastHours(1);
+    const dryW = N.warmth;
+    N.warmth = 0.5; N.wet = 1; await fastHours(1);
+    const wetW = N.warmth, chilled = dryW < 0.45 && wetW < dryW - 0.02;
+    N.warmth = 0.5; N.wet = 0; N.mood.fear = 0; S.update(0);
+    const d0 = await walk(1);
+    N.warmth = 0.1; N.mood.fear = 0; S.update(0);
+    const sway = N.sway, sp = N.speedMul;
+    const d1 = await walk(1);
+    const slowed = N.pips.cold === 3 && sp < 0.9 && sway >= 1.25 && d1 < d0 * 0.92;
+    const h = houses()[0];
+    if (!h) return 'no house to shelter in';
+    await toBed(h.bed);
+    N.warmth = 0.12; await fastHours(2);
+    const warmed = N.shelter !== 'rough' && N.warmth > 0.25 && N.pips.cold <= 1;
+    return heated && dried && chilled && slowed && warmed ? true : JSON.stringify({ noon, heated, dried, wet: N.wet, dryW: +dryW.toFixed(3), wetW: +wetW.toFixed(3), chilled, sway, sp, d0: r1(d0), d1: r1(d1), slowed, shelter: N.shelter, warmth: +N.warmth.toFixed(3), warmed });
+  }));
+  await check('wounds: a hit cuts and the cut bleeds until bandaged; dirt turns an unclean cut into an infection antibiotics clear, a cleaned one never; a break slows the walk until splinted; a bite wants a bandage; wounds mend on the clock', async () => bodyFull(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player;
+    const by = person('drifter', 8, 0, { hp: 400 });
+    const hit = async (dmg, cause) => { p.hp = p.maxHp; g.combat.damage(p, dmg, by, 1, 0, cause); await C('step', { seconds: 0.05 }); };
+    const d0 = await walk(1);
+    await C('god', { on: false });
+    for (let k = 0; k < 14 && !N.wounds.some((w) => w.kind === 'laceration'); k++) await hit(12, 'bullet');
+    const cut = N.wounds.find((w) => w.kind === 'laceration');
+    if (!cut) return `no cut after 14 hits: ${JSON.stringify(N.wounds)}`;
+    N.wounds = N.wounds.filter((w) => w === cut); N.mood.fear = 0;
+    p.hp = p.maxHp; let hp0 = p.hp; await C('step', { seconds: 12 });
+    const bled = p.hp < hp0;
+    const dressed = (await C('wound', { treat: 'bandage', give: true })).used;
+    p.hp = p.maxHp; hp0 = p.hp; await C('step', { seconds: 12 });
+    const stopped = !cut.open && p.hp === hp0;
+    cut.dirt = 0.9; await fastHours(3);
+    const infected = !!N.infection, heal0 = N.healMul;
+    const cured = (await C('wound', { treat: 'antibiotics', give: true })).used && N.infection === null;
+    S.wound('laceration'); const cut2 = N.wounds[N.wounds.length - 1];
+    await C('wound', { treat: 'disinfectant', give: true });
+    await fastHours(3);
+    const cleanStays = cut2.clean && cut2.dirt === 0 && N.infection === null;
+    // a car's blow breaks a bone (or sprains); a break slows the walk until it is splinted
+    for (let k = 0; k < 14 && !N.wounds.some((w) => w.kind === 'fracture'); k++) await hit(30, 'vehicle');
+    const brk = N.wounds.find((w) => w.kind === 'fracture');
+    if (!brk) return `no break after 14 blows: ${JSON.stringify(N.wounds.map((w) => w.kind))}`;
+    await C('god', { on: true });
+    N.wounds = [brk]; N.mood.fear = 0; N.warmth = 0.5; S.update(0);
+    const d1 = await walk(1);
+    const setOk = (await C('wound', { treat: 'splint', give: true })).used && brk.set;
+    N.mood.fear = 0; S.update(0);
+    const d2 = await walk(1);
+    const legs = d1 < d0 * 0.7 && d2 > d1 * 1.15 && d2 < d0;
+    const refused = (await C('wound', { treat: 'splint', give: true })).refused; // nothing left to set: not used up
+    // a bite wants a bandage; a sprain mends on the clock
+    await C('god', { on: false }); await hit(8, 'bite'); await C('god', { on: true });
+    const bite = N.wounds.find((w) => w.kind === 'bite' && w.open);
+    S.wound('sprain'); const spr = N.wounds[N.wounds.length - 1]; spr.left = 1;
+    await fastHours(2.5);
+    const mended = !N.wounds.includes(spr);
+    g.removeChar(by);
+    return bled && dressed && stopped && infected && heal0 <= 0.5 && cured && cleanStays && setOk && legs && !!refused && !!bite && mended ? true
+      : JSON.stringify({ bled, dressed, stopped, open: cut.open, infected, heal0, cured, cleanStays, setOk, d0: r1(d0), d1: r1(d1), d2: r1(d2), legs, refused, bite: !!bite, mended });
+  }));
+  await check('mood: the infected close by frighten you into shaky aim and a narrowing view; painkillers and a roof calm you; idle hours bore you and a few on the move cure it; gloom slows the mend and a conversation lifts it', async () => bodyFull(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player;
+    const zs = [0, 1, 2].map((i) => g.zombies.spawn(p.x + 7, p.z - 2 + i * 2, false));
+    await C('step', { seconds: 4.5 });
+    const afraid = N.pips.fear >= 3 && N.sway >= 1.35 && N.sight <= 0.75;
+    await C('step', { seconds: 0.3 });
+    const tunnel = (S.ui?.view().sight ?? 99) < 40;
+    for (const z of zs) g.removeChar(z);
+    const f0 = N.mood.fear;
+    await C('wound', { treat: 'painkillers', give: true });
+    const calmed = N.mood.fear <= f0 - 2.9;
+    const h = houses()[0]; await toBed(h.bed);
+    const f1 = N.mood.fear; await C('step', { seconds: 5 });
+    const settled = N.mood.fear < f1 - 1.5;
+    await stage();
+    N.mood.boredom = 0; await fastHours(6);
+    const bored = N.pips.boredom >= 2;
+    const b0 = N.mood.boredom; g.sky.fast = true; await holdKey('KeyD', 3); g.sky.fast = false;
+    const busy = N.mood.boredom < b0 - 3;
+    N.mood.boredom = 0; N.mood.gloom = 0; S.update(0);
+    p.hp = 40; p.sinceHit = 99; await C('step', { seconds: 2 }); const gain0 = p.hp - 40;
+    N.mood.gloom = 7; S.update(0);
+    p.hp = 40; p.sinceHit = 99; await C('step', { seconds: 2 }); const gain1 = p.hp - 40;
+    const slowMend = N.pips.gloom === 3 && gain1 < gain0 * 0.8;
+    p.hp = p.maxHp;
+    const gl0 = N.mood.gloom;
+    await C('talk', { id: 'ike', force: true }); // (the world holds still while you talk: it lands when you are done)
+    if (g.dialogue.active) g.dialogue.close();
+    await C('step', { seconds: 0.1 });
+    const lifted = N.mood.gloom <= gl0 - 2;
+    return afraid && tunnel && calmed && settled && bored && busy && slowMend && lifted ? true
+      : JSON.stringify({ afraid, fear: r1(f0), sway: N.sway, tunnel, sight: S.ui?.view().sight, calmed, settled, f1: r1(f1), now: r1(N.mood.fear), bored, b0: r1(b0), busy, gain0: r1(gain0), gain1: r1(gain1), slowMend, lifted, gloom: r1(N.mood.gloom) });
+  }));
+  await check('shelter: a full night in a bed under a roof makes it your hold; your hold (doors barred, water stored) rests you best, a house well, a car cramped and cold, the open ground worst; out there the danger rolls send something to find you', async () => bodyFull(async () => {
+    const S = g.survival, N = g.needs, p = g.player, H = houses();
+    const hold = H.find((h) => h.doors.length && h.boxes), house = H.find((h) => h !== hold);
+    if (!hold || !house) return `houses: ${H.length}, one with doors and a box: ${!!hold}`;
+    await C('setTime', { hour: 21 }); S.hold = null;
+    await toBed(hold.bed); N.rest = 0.3;
+    const night = await C('sleep', { where: 'bed' });
+    const claimed = night.woke?.claimed === true && S.isHold(hold.B);
+    // an hour's sleep in each place, from the same tiredness at the same hour: how much rest it gave
+    const hour = async (kind, bed) => {
+      await C('setTime', { hour: 22 }); N.rest = 0.3; N.warmth = 0.5; N.wet = 0;
+      if (bed) await toBed(bed);
+      const r = S.sleepAt(kind, bed); if (!r.ok) return { why: r.why };
+      const doors = [...S.sleep.barred];
+      const info = { shelter: S.sleep.shelter, rest: S.sleep.rest, danger: S.sleep.danger, barred: doors.length, locked: doors.every((d) => d.locked) };
+      for (let k = 0; k < 400 && S.sleep && S.sleep.slept < 1; k++) await api._step(10);
+      const slept = S.sleep?.slept ?? 0; S.wake();
+      return { ...info, gain: +((N.rest - 0.3) / Math.max(0.01, slept)).toFixed(4), unbarred: doors.every((d) => !d.locked) };
+    };
+    await C('shelter', { store: 6 });
+    const inHold = await hour('bed', hold.bed);
+    const inHouse = await hour('bed', house.bed);
+    await stage(); await C('setTime', { hour: 22 });
+    const v = g.vehiclesSys.spawn('sedan', p.x + 4, p.z, 0);
+    g.enterVehicle(v); v.vx = v.vz = 0; await C('step', { seconds: 0.4 });
+    const inCar = await hour('car', null);
+    await C('setTime', { hour: 3 }); S.update(0); const carFelt = N.felt;
+    if (p.inVehicle) g.exitVehicle(true);
+    g.vehiclesSys.remove(v);
+    await toBed(house.bed); S.update(0); const houseFelt = N.felt;
+    await stage(); await C('setTime', { hour: 22 });
+    const rough = await hour('ground', null);
+    const ladder = inHold.gain > inHouse.gain && inHouse.gain > inCar.gain && inCar.gain > rough.gain && inHold.shelter === 'hold' && inHold.rest >= 1.14 && inHold.barred > 0 && inHold.locked && inHold.unbarred && inHold.danger === 0;
+    const carCold = carFelt < houseFelt - 4;
+    // danger rolls: on the bare ground at night the risk comes due and one of the infected walks up and wakes you
+    await C('setTime', { hour: 23 }); N.rest = 0.3;
+    S.sleepAt('ground'); S.sleep.risk = 0.999;
+    const seq0 = g.eventSeq;
+    for (let i = 0; i < 80 && S.sleep; i++) await C('step', { seconds: 0.25 });
+    const prowled = g.events.some((e) => e.type === 'prowler' && e.seq > seq0) && /close by/.test(S.lastWake?.why ?? '');
+    for (const c of [...g.chars]) if (c.prowler) g.removeChar(c);
+    S.hold = null;
+    return claimed && ladder && carCold && prowled ? true : JSON.stringify({ claimed, woke: night.woke, inHold, inHouse, inCar, rough, ladder, carFelt: r1(carFelt), houseFelt: r1(houseFelt), prowled, why: S.lastWake?.why });
+  }));
+  await check('car upkeep: flat out at noon an engine runs hot, at night cool, on low oil it boils; oil burns as it runs and motor oil tops it up; worn brakes stop longer and worn tyres grip less; a garage puts a parked car right, the open weathers it', async () => bodyFull(async () => {
+    await stage();
+    const S = g.survival, U = g.upkeep, p = g.player, inv = g.inventory;
+    const v = g.vehiclesSys.spawn('sedan', p.x + 4, p.z, 0);
+    g.enterVehicle(v); // by the object: an id can be shared after a dev reload's restore
+    if (p.inVehicle !== v || v.driver !== p) return 'could not take the wheel';
+    U.init(v);
+    const run = async (hour, oil, secs = 90) => {
+      await C('setTime', { hour }); S.update(0);
+      v.oil = oil; v.dmg.temp = 0; v.dmg.engine = 1; v.fuel = v.fuelCap;
+      let peak = 0;
+      for (let f = 0; f < secs * 60; f++) { v.throttle = 1; g.vehDamage.effects(v, 1 / 60); peak = Math.max(peak, v.dmg.temp); }
+      v.throttle = 0;
+      return peak; // (a boiling engine cooks itself dead and cools off again: the peak is the reading)
+    };
+    const noon = await run(15, 0.9), night = await run(3, 0.9), dry = await run(15, 0.1);
+    const heat = noon > 0.8 && noon <= 1 && night < 0.5 && dry > 1;
+    v.dmg.engine = 1; v.dmg.temp = 0;
+    v.oil = 0.8; g.sky.fast = true; for (let f = 0; f < 240; f++) { v.throttle = 1; g.vehDamage.effects(v, 1 / 60); } g.sky.fast = false; v.throttle = 0;
+    const burnt = v.oil < 0.77; v.oil = 0.4; const o0 = v.oil;
+    inv.add(inv.carried, 'motor_oil', 1); inv.changed();
+    const poured = inv.use(inv.carried.slots.findIndex((s) => s.id === 'motor_oil')).ok && v.oil > o0 + 0.35;
+    // worn tyres grip less (the modifier vehicledamage.effects hands the driving model)
+    v.wear.tyres = 0; const g0 = g.vehDamage.effects(v, 0).grip; v.wear.tyres = 1; const g1 = g.vehDamage.effects(v, 0).grip; v.wear.tyres = 0;
+    const grip = g1 < g0 * 0.7;
+    // worn brakes: the same stop from 18 m/s, on the car's own brakes
+    await C('setTime', { hour: 12 });
+    const stop = async (wear) => {
+      g.vehDamage.repair(v); v.wear.brakes = wear;
+      v.x = p.x = 280; v.z = p.z = -150; v.h = 0; v.av = 0; v.vx = 0; v.vz = 18;
+      const z0 = v.z; g.driveOverride = { throttle: -1, until: g.time + 30 };
+      for (let i = 0; i < 120 && Math.hypot(v.vx, v.vz) > 0.5; i++) await C('step', { seconds: 0.05 });
+      g.driveOverride = null;
+      return v.z - z0;
+    };
+    const s0 = await stop(0), s1 = await stop(1);
+    const brakes = s1 > s0 * 1.5;
+    // a garage: Kenji's yard; and a car left out in the open
+    g.exitVehicle(true);
+    const post = U.post({ id: 'kenji', npc: 'kenji' }) ?? { x: -24, z: -55 };
+    const v2 = g.vehiclesSys.spawn('sedan', p.x + 8, p.z + 8, 0); U.init(v2); v2.wear.engine = 0.1;
+    v.x = post.box ? post.box.maxX - 5.4 : post.x; v.z = post.z; v.h = 0; v.vx = v.vz = 0; // parked at the workshop's wall v.wear.engine = 0.8; v.oil = 0.2; v.dmg.zones.front = 0.6; v.dmg.engine = 0.4;
+    await fastHours(4.5);
+    const fixed = v.bay != null && v.wear.engine < 0.65 && v.oil > 0.8 && v.dmg.zones.front < 0.3 && v.dmg.engine > 0.6;
+    const weathered = v2.wear.engine > 0.1 && v2.bay == null;
+    g.vehiclesSys.remove(v); g.vehiclesSys.remove(v2);
+    return heat && burnt && poured && grip && brakes && fixed && weathered ? true
+      : JSON.stringify({ noon: +noon.toFixed(2), night: +night.toFixed(2), dry: +dry.toFixed(2), heat, burnt, oil: +v.oil.toFixed(2), poured, g0: +g0.toFixed(2), g1: +g1.toFixed(2), s0: r1(s0), s1: r1(s1), brakes, bay: v.bay, wear: v.wear, dents: v.dmg.zones.front, fixed, weathered });
+  }));
+  await check('telltales: what is wrong lights up on the HUD in its own words and severity, the CONDITION reading falls with it, and the body round-trips a save', async () => bodyFull(async () => {
+    await stage();
+    const S = g.survival, N = g.needs;
+    N.water = 0.1; N.warmth = 0.1; N.mood.fear = 7; S.wound('laceration'); S.update(0);
+    await C('step', { seconds: 0.6 });
+    const ui = S.ui?.view(), ids = (ui?.lamps ?? []).map((l) => l.id);
+    const lit = ui?.shown && ['water', 'cold', 'w_laceration', 'fear'].every((k) => ids.includes(k)) && ui.lamps.find((l) => l.id === 'w_laceration')?.word === 'BLEEDING';
+    const cond = N.condition.value < 65;
+    const sv = JSON.parse(JSON.stringify(S.save()));
+    N.wounds.length = 0; N.warmth = 0.5; N.mood.fear = 0;
+    S.load(sv);
+    const kept = N.wounds.length === 1 && N.wounds[0].kind === 'laceration' && N.warmth === sv.warmth && N.mood.fear === sv.mood.fear && sv.mood.fear > 6;
+    return lit && cond && kept ? true : JSON.stringify({ ui, cond: N.condition, kept });
+  }));
   await check('skills: hits teach dexterity, dexterity steadies the shot and the reload, a heavy load slows you and stops the sprint', async () => {
     await stage();
     const S = g.skillsSys, xp0 = S.xp.dexterity, lv0 = S.lv.dexterity;
@@ -2899,7 +3210,9 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('the morning radio reads yesterday back: the dead, and a jump somebody saw', async () => {
     await stage();
     const S = g.society, seq0 = g.eventSeq;
-    const c = person('raider', 7, 0); await C('kill', { id: c.id });
+    // Somebody's hand on it: a death with no killer is no deed (deeds.onKill), and this check used to lean on the gate's
+    // own gunfights earlier the same day for its dead (it failed alone on a fresh page, or once the clock had moved on).
+    const c = person('raider', 7, 0), hand = person('drifter', 9, 0); g.combat.damage(c, 9999, hand, 1, 0, 'bullet'); g.removeChar(hand);
     S.deeds.record('stunt', { x: 355, z: 28, m: 1, label: 'Wreck Row', flags: K.feat, witness: false, src: 'stunt' });
     await C('setTime', { hour: 23.9 }); await C('step', { seconds: 0.3 });
     await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
@@ -3202,6 +3515,9 @@ async function runSelfTest(api, only = null, skip = null) {
     const home = { x: reyes.x, z: reyes.z };
     reyes.x = g.player.x + 0.7; reyes.z = g.player.z + 0.3; reyes.hold = 1.5; // at your shoulder
     reyes.gy = 0; g.standOn(reyes); // on your floor: her clinic has stairs now, and a stale height would keep her upstairs (world/storeys.js)
+    g.player.gy = 0; g.standOn(g.player); // and you on hers (a stale height from an earlier check's ramp reads as another floor)
+    if (reyes.sleeping) g.ai.wake(reyes, 'staged'); // awake at noon, whatever night an earlier check left her in
+    const diag = { sleeping: !!reyes.sleeping, rgy: reyes.gy ?? 0, pgy: g.player.gy ?? 0, faction: reyes.faction, inside: !!g.insideBuilding };
     inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
     const seq0 = g.eventSeq;
     const took = (await C('item', { take: 'bandage', n: 2 })).moved;
@@ -3209,7 +3525,7 @@ async function runSelfTest(api, only = null, skip = null) {
     const mems = (await C('memory', { id: 'reyes' })).memories.filter((m) => m.kind === 'robbedMe').length;
     reyes.x = home.x; reyes.z = home.z; inv.opened = null; box.stealT = -99; inv.load(sv);
     g.society.memory.entry('reyes').mems = g.society.memory.entry('reyes').mems.filter((m) => m.kind !== 'robbedMe');
-    return took === 2 && deed?.witnesses >= 1 && mems > mems0 ? true : JSON.stringify({ took, deed: deed ?? null, mems0, mems });
+    return took === 2 && deed?.witnesses >= 1 && mems > mems0 ? true : JSON.stringify({ took, deed: deed ?? null, mems0, mems, diag });
   });
   await check('locks: lockpicks open a locked door without a sound (one pick spent); a crowbar opens it loud and stays in your pack', async () => {
     await stage();
@@ -4713,6 +5029,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
   await C('god', { on: false });
+  bodyNeutral(); g.survival.setProfile(profile0);
   const passed = results.filter((r) => r.pass).length;
   return { passed, total: results.length, results };
 }

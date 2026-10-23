@@ -173,6 +173,7 @@ export class Inventory {
     if (it.uses && !(s.left > 0)) return { ok: false, why: `the ${it.name.toLowerCase()} is empty` };
     if (it.needs && !this.hasTag(it.needs)) return { ok: false, why: it.needs === 'blade' ? 'you need a knife or an opener for that' : `you need something with a ${it.needs}` };
     const u = it.use, texts = [];
+    const sv = g.survival?.useItem?.(s.id); if (sv && !sv.ok) return sv; if (sv?.text) texts.push(sv.text); // wounds, mood, motor oil (survival.js TREATMENTS)
     if (u.act) { const r = this.act(u.act, s, it); if (!r.ok) return r; texts.push(r.text); }
     const fresh = this.freshness(s), k = fresh === 'stale' ? 0.5 : fresh === 'rotten' ? 0.15 : 1;
     const P = g.player, N = g.needs;
