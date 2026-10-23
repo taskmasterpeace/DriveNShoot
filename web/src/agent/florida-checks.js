@@ -156,6 +156,9 @@ export async function floridaChecks({ g, check, C }) {
     const free = g.nav.car.free?.(cxz.x, cxz.z);
     if (free !== false && free !== undefined) bad.push('canal on the car nav grid');
     // A car driven into the canal floods (vehicles.js reads the same depth).
+    // Stand beside it first: a car 4 km from you is not simulated, so whether it floods depended on where an earlier check
+    // left you.
+    await C('teleport', { x: cxz.x + 30, z: cxz.z });
     const r = await C('spawnVehicle', { type: 'interceptor', x: cxz.x, z: cxz.z, heading: 0 });
     await C('step', { seconds: 2 });
     const car = g.vehicles.find((o) => o.id === r.id);
