@@ -4,3 +4,6 @@ dist
 
 # clean-room study notes: research only, never shipped
 .study/
+# the shard's live data (accounts, characters, the world) and the dev accounts file: never committed
+server/data/
+server/.dev-accounts.json
