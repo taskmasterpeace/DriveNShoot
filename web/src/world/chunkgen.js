@@ -633,6 +633,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       if (INST.roofs.n > r0) rs.roofs[L.id] = [r0, INST.roofs.n - r0];
       for (const e of geo.canopy) I('roofs', e);
       for (const e of geo.props) I('props', e);
+      for (const e of geo.trunks ?? []) I('trunks', e);  // yard trees (ring.js yardOf)
+      for (const e of geo.crowns ?? []) I('shrubs', e);
       for (const e of geo.decor) { if (rs.decor >= RING.budget.decor) break; I('props', e); rs.decor++; }
       for (const q of geo.boxesIn) rs.boxes.push(q);
       for (const q of geo.beds) rs.beds.push(q);

@@ -52,7 +52,7 @@ export const ZONES = {
     density: 0.84, ruin: 0.24, loot: [['kitchen', 4], ['bedroom', 3], ['bathroom', 2]],
     walls: ['#d6c09a', '#c98e62', '#e4d3b0', '#a8b89a', '#d2a46a', '#b9705a', '#8fb0a8', '#e0bd8a'], // stucco the old paint still shows on
     roofs: ['#8a5a3a', '#7a5236', '#9a8060', '#6e6a62', '#9a6a46'], floors: ['#8a6a4a', '#9a8670', '#7a6a58', '#8e7a62'],
-    tint: [0.94, 0.9, 0.84], wrecks: 0.18, yard: 3, fence: 0.45,
+    tint: [0.94, 0.9, 0.84], wrecks: 0.18, yard: 3, fence: 0.8,
     residents: [['family', 1]], occupancy: 0.11,
   },
   industrial: {
@@ -79,6 +79,31 @@ export const ZONES = {
     tint: [0.9, 0.86, 0.8], wrecks: 0.24, yard: 4, fence: 0.15,
     residents: [['nest', 1]], occupancy: 0, // per quarter only (RESIDENTS.nest.perQuarter)
   },
+};
+
+// A Phoenix house lot from above (docs/design/WEB_LOOK.md §3.5): a gravel front yard with a desert tree, a concrete
+// driveway up the side to a carport, and a back yard behind a block wall (YARD.wall), a third of them with a pool (in a
+// dead city: drained, gone green, or kept by whoever still lives there). world/ring.js yardOf() lays it out on its own
+// stream (the lot's seed), so nothing placed before it moves. Houses, bungalows and duplexes only; a ruin keeps its
+// slabs, walls and pool and loses its carport roof. No purple (hue 270-320 is banned).
+export const YARD = {
+  wall: { h: 1.8, t: 0.22, colors: ['#b8ad98', '#a89e8a', '#c4b8a0', '#9c9484'] }, // the back yard's block wall
+  alley: 1.8,                // m each back wall stands in from the lot's back line: back-to-back lots leave a 3.6 m alley
+  gravel: ['#b89a74', '#a88c6a', '#c4a682', '#9e8a6c'],   // decomposed granite, the Phoenix front yard
+  drive: { w: 3.0, min: 3.6, color: '#b9b1a1' },           // a driveway needs this much side yard
+  carport: { chance: 0.55, len: 6.0, h: 2.6, roof: ['#8a8780', '#7a6a58', '#6e7472'], post: '#5a5650' },
+  shed: { chance: 0.3, w: 2.6, d: 2.2, h: 2.2, colors: ['#8a7a62', '#7a8a7a', '#9a8a6a'], roof: '#6e6a62' },
+  patio: { chance: 0.6, d: 2.6, color: '#c9bfae' },
+  pool: { chance: 0.33, w: 7.2, d: 3.6, gap: 3.0, minYard: 10, coping: '#d6cdb8',
+    water: [['#4f7a5a', 4], ['#9fb8b8', 3], ['#3f8aa8', 1]] }, // gone green, drained to its painted shell, kept
+  trees: { front: 0.6, back: 0.45,
+    front_kinds: [['paloverde', 3], ['mesquite', 2]], back_kinds: [['citrus', 3], ['paloverde', 1]],
+    kinds: {
+      paloverde: { h: [3.2, 4.2], r: [2.0, 2.8], squash: 0.5, clump: 3, trunk: '#7a8a4a', canopy: ['#9ab052', '#8aa848', '#a8b860'] },
+      citrus: { h: [2.3, 2.9], r: [1.4, 1.8], squash: 0.8, trunk: '#5a4632', canopy: ['#3f6a2a', '#4a7a30', '#36602a'] },
+      mesquite: { h: [3.4, 4.4], r: [2.2, 3.0], squash: 0.45, clump: 3, trunk: '#4a3a2a', canopy: ['#5a7a3a', '#6a8a42', '#506e34'] },
+    },
+    dead: ['#6a5a44', '#5a4c3a'] }, // a ruin's trees are dead: bare canopy colour, no leaves to speak of
 };
 
 // Building kinds. w, d: footprint ranges (metres; w runs along the street); h: wall height. plan: its rooms come from

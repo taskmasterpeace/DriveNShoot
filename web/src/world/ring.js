@@ -11,7 +11,7 @@
 // collision is clipped into every chunk it overlaps. A chunk builds at most RING.budget.buildings of its own lots, in id
 // order, so any chunk can tell which of a neighbour's lots stand. Everything is cached, and every cache may be dropped:
 // the answer is the same when it is computed again.
-import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES, RESIDENTS, RES_RULES } from '../data/ring.js';
+import { RING, ZONE_RULES, ZONES, KINDS, UNITS, FURNITURE, STREET_NAMES, RESIDENTS, RES_RULES, YARD } from '../data/ring.js';
 import { C, hash32, rngOf } from './geo.js';
 import { H_NAMES, V_NAMES } from './city.js';
 import { floorplan, NavProbe } from './floorplan.js';
@@ -392,7 +392,7 @@ export class Ring {
     if (L.geo) return L.geo;
     this.geoBuilt++;
     const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
-    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [] });
+    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [] });
     const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
     const h = rng.range(K.h[0], K.h[1]);
     const wall = rng.pick(Z.walls), roof = rng.pick(Z.roofs), floor = rng.pick(Z.floors);
@@ -601,14 +601,18 @@ export class Ring {
     // The yard: a fence round a house's back yard (solid: the front stays open), junk for looks.
     const lot = L.lot;
     if (Z.fence && !HR?.barricade && rng() < Z.fence && (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex')) { // a boarded-up house keeps its back yard open: its back door is the way in
-      const fc = rng.pick(['#6e5a40', '#5a4a36', '#7a6a50', '#6a6660']);
-      const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(0.12, Math.abs(bx - ax)), sz = Math.max(0.12, Math.abs(bz - az)); g.props.push([x, 0.6, z, sx, 1.2, sz, fc, 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: 1.2, tag: 'fence', holes: null }); };
-      const m = 0.4;
-      if (L.front === 'N') { fence(lot.x0 + m, lot.z1 - m, lot.x1 - m, lot.z1 - m); fence(lot.x0 + m, z1 - 1, lot.x0 + m, lot.z1 - m); fence(lot.x1 - m, z1 - 1, lot.x1 - m, lot.z1 - m); }
-      else if (L.front === 'S') { fence(lot.x0 + m, lot.z0 + m, lot.x1 - m, lot.z0 + m); fence(lot.x0 + m, lot.z0 + m, lot.x0 + m, z0 + 1); fence(lot.x1 - m, lot.z0 + m, lot.x1 - m, z0 + 1); }
-      else if (L.front === 'W') { fence(lot.x1 - m, lot.z0 + m, lot.x1 - m, lot.z1 - m); fence(x1 - 1, lot.z0 + m, lot.x1 - m, lot.z0 + m); fence(x1 - 1, lot.z1 - m, lot.x1 - m, lot.z1 - m); }
-      else { fence(lot.x0 + m, lot.z0 + m, lot.x0 + m, lot.z1 - m); fence(lot.x0 + m, lot.z0 + m, x0 + 1, lot.z0 + m); fence(lot.x0 + m, lot.z1 - m, x0 + 1, lot.z1 - m); }
+      // A block wall (YARD.wall): Phoenix walls its back yards in 1.8 m of concrete block, the strongest read of the city
+      // from above. It stops sight at eye height, as a real one does.
+      const fc = rng.pick(YARD.wall.colors), WH = YARD.wall.h, WT = YARD.wall.t;
+      const fence = (ax, az, bx, bz) => { const x = (ax + bx) / 2, z = (az + bz) / 2, sx = Math.max(WT, Math.abs(bx - ax)), sz = Math.max(WT, Math.abs(bz - az)); g.props.push([x, WH / 2, z, sx, WH, sz, fc, 0, 1]); g.props.push([x, WH + 0.04, z, sx + 0.06, 0.08, sz + 0.06, '#d8cfbc', 0, 1]); g.boxes.push({ x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2, h: WH, tag: 'fence', holes: null }); };
+      // m: the side walls' inset; b: the back wall's, so back-to-back lots leave an alley between their walls (YARD.alley).
+      const m = 0.4, b = YARD.alley;
+      if (L.front === 'N') { fence(lot.x0 + m, lot.z1 - b, lot.x1 - m, lot.z1 - b); fence(lot.x0 + m, z1 - 1, lot.x0 + m, lot.z1 - b); fence(lot.x1 - m, z1 - 1, lot.x1 - m, lot.z1 - b); }
+      else if (L.front === 'S') { fence(lot.x0 + m, lot.z0 + b, lot.x1 - m, lot.z0 + b); fence(lot.x0 + m, lot.z0 + b, lot.x0 + m, z0 + 1); fence(lot.x1 - m, lot.z0 + b, lot.x1 - m, z0 + 1); }
+      else if (L.front === 'W') { fence(lot.x1 - b, lot.z0 + m, lot.x1 - b, lot.z1 - m); fence(x1 - 1, lot.z0 + m, lot.x1 - b, lot.z0 + m); fence(x1 - 1, lot.z1 - m, lot.x1 - b, lot.z1 - m); }
+      else { fence(lot.x0 + b, lot.z0 + m, lot.x0 + b, lot.z1 - m); fence(lot.x0 + b, lot.z0 + m, x0 + 1, lot.z0 + m); fence(lot.x0 + b, lot.z1 - m, x0 + 1, lot.z1 - m); }
     }
+    if (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex') this.yardOf(L, g);
     for (let i = 0, n = rng.int(0, Z.yard); i < n; i++) {
       // Behind the building, in its own lot.
       const bx0 = lot.x0 + 1.5, bx1 = lot.x1 - 1.5, bz0 = lot.z0 + 1.5, bz1 = lot.z1 - 1.5;
@@ -746,6 +750,84 @@ export class Ring {
   }
   // Candidate spots for a piece w x d against the walls of a room (the wall it backs onto: 0 N, 1 S, 2 W, 3 E), leaving
   // `aisle` of floor in front of it, appended to the shared candidate buffer (CB: x0, z0, x1, z1; CW: wall) from n.
+  // A house lot's yard (data/ring.js YARD): gravel front yard and a tree, a driveway up the side to a carport, a pool and a
+  // tree behind. Its own stream (the lot's seed), after everything else geo() places, so nothing placed before moves.
+  // Laid out in the lot's own frame: u along the street, v from the street into the lot.
+  yardOf(L, g) {
+    const Y = YARD, rng = rngOf(L.seed ^ 0x59415244), lot = L.lot, f = L.front, ruined = !!L.ruined;
+    const ns = f === 'N' || f === 'S';
+    const toW = (u, v) => (f === 'N' ? [u, lot.z0 + v] : f === 'S' ? [u, lot.z1 - v] : f === 'W' ? [lot.x0 + v, u] : [lot.x1 - v, u]);
+    const lu0 = ns ? lot.x0 : lot.z0, lu1 = ns ? lot.x1 : lot.z1, LV = ns ? lot.z1 - lot.z0 : lot.x1 - lot.x0;
+    const bu0 = ns ? L.x0 : L.z0, bu1 = ns ? L.x1 : L.z1;
+    const bv = (a, b) => [Math.min(a, b), Math.max(a, b)];
+    const [bv0, bv1] = f === 'N' ? bv(L.z0 - lot.z0, L.z1 - lot.z0) : f === 'S' ? bv(lot.z1 - L.z1, lot.z1 - L.z0) : f === 'W' ? bv(L.x0 - lot.x0, L.x1 - lot.x0) : bv(lot.x1 - L.x1, lot.x1 - L.x0);
+    // A box in lot coordinates: [u0, u1] x [v0, v1], y centre, height.
+    const box = (list, u0, u1, v0, v1, y, h, color, shade = 1) => {
+      const [ax, az] = toW(u0, v0), [bx, bz] = toW(u1, v1);
+      list.push([(ax + bx) / 2, y, (az + bz) / 2, Math.abs(bx - ax), h, Math.abs(bz - az), color, 0, shade]);
+    };
+    const solid = (u0, u1, v0, v1, h, tag) => { const [ax, az] = toW(u0, v0), [bx, bz] = toW(u1, v1); g.boxes.push({ x0: Math.min(ax, bx), z0: Math.min(az, bz), x1: Math.max(ax, bx), z1: Math.max(az, bz), h, tag, holes: null }); };
+    const near = (u, v, r) => { const [x, z] = toW(u, v); return g.doors.some((d) => Math.hypot(d.x - x, d.z - z) < r); };
+    const pickW2 = (rows) => { let t = 0; for (const r of rows) t += r[1]; let p = rng() * t; for (const r of rows) if ((p -= r[1]) < 0) return r[0]; return rows[rows.length - 1][0]; };
+    const tree = (u, v, kinds) => {
+      if (near(u, v, 3)) return;
+      const K = Y.trees.kinds[pickW2(kinds)], h = rng.range(K.h[0], K.h[1]), r = rng.range(K.r[0], K.r[1]);
+      const [x, z] = toW(u, v), canopy = ruined ? rng.pick(Y.trees.dead) : rng.pick(K.canopy);
+      g.trunks.push([x, h / 2, z, 0.8, h, 0.8, K.trunk, 0, 1]);
+      // A palo verde or a mesquite is a clump of crowns, not a ball; a citrus is round.
+      const n = K.clump ?? 1, k = ruined ? 0.65 : 1;
+      for (let i = 0; i < n; i++) {
+        const a = rng() * 6.28, d = n > 1 ? r * 0.42 : 0, rr = (n > 1 ? r * 0.68 : r) * k;
+        g.crowns.push([x + Math.cos(a) * d, h + rng.range(-0.3, 0.25), z + Math.sin(a) * d, rr, rr * K.squash * (ruined ? 0.8 : 1), rr * 0.92, i ? (ruined ? canopy : rng.pick(K.canopy)) : canopy, rng() * 6.28, 1]);
+      }
+      g.boxes.push({ x0: x - 0.25, z0: z - 0.25, x1: x + 0.25, z1: z + 0.25, h, tag: 'tree', holes: null });
+    };
+    // Front yard: decomposed granite to the building's face.
+    if (bv0 > 1.2) box(g.decor, lu0 + 0.3, lu1 - 0.3, 0.2, bv0 - 0.15, 0.02, 0.03, rng.pick(Y.gravel));
+    // The driveway up the wider side, a carport over it beside the house.
+    const left = bu0 - lu0, right = lu1 - bu1, side = right >= left ? 1 : -1, gap = Math.max(left, right);
+    let driveU = null;
+    if (gap >= Y.drive.min) {
+      const du0 = side > 0 ? bu1 + 0.3 : bu0 - 0.3 - Y.drive.w, du1 = du0 + Y.drive.w;
+      driveU = [du0, du1];
+      box(g.decor, du0, du1, 0, Math.max(bv0 + 1, bv1 - 0.6), 0.035, 0.04, Y.drive.color);
+      if (rng() < Y.carport.chance && !ruined) {
+        const cv0 = bv0 + 0.4, cv1 = Math.min(bv1 - 0.4, cv0 + Y.carport.len), H = Y.carport.h;
+        box(g.props, du0 - 0.1, du1 + 0.1, cv0, cv1, H, 0.1, rng.pick(Y.carport.roof));
+        const pu = side > 0 ? du1 - 0.1 : du0 + 0.1;
+        for (const pv of [cv0 + 0.15, cv1 - 0.15]) box(g.props, pu - 0.08, pu + 0.08, pv - 0.08, pv + 0.08, H / 2, H, Y.carport.post);
+      }
+    }
+    if (rng() < Y.trees.front && bv0 >= 2.4) {
+      const tu = driveU ? (side > 0 ? Math.max(lu0 + 2, bu0 + 1.5) : Math.min(lu1 - 2, bu1 - 1.5)) : rng.range(bu0 + 1.5, bu1 - 1.5);
+      tree(tu, bv0 * 0.5, Y.trees.front_kinds);
+    }
+    // The back yard: a patio by the house, a pool, a shed and a tree in the corners. Its usable depth stops at the back
+    // wall (the alley is beyond it).
+    const back = LV - YARD.alley - bv1;
+    if (rng() < Y.patio.chance && back > Y.patio.d + 1) box(g.decor, bu0 + 0.5, bu1 - 0.5, bv1 + 0.05, bv1 + Y.patio.d, 0.03, 0.04, Y.patio.color);
+    const P = Y.pool;
+    if (back >= P.minYard && rng() < P.chance) {
+      const uc = (bu0 + bu1) / 2 + rng.range(-1, 1), v0 = bv1 + P.gap, pw = Math.min(P.w, bu1 - bu0 - 1);
+      if (v0 + P.d < LV - YARD.alley - 1.2 && !near(uc, v0, 2.6)) {
+        box(g.props, uc - pw / 2 - 0.4, uc + pw / 2 + 0.4, v0 - 0.4, v0 + P.d + 0.4, 0.06, 0.12, P.coping);
+        box(g.props, uc - pw / 2, uc + pw / 2, v0, v0 + P.d, 0.13, 0.04, ruined ? '#5a6a5a' : pickW2(P.water));
+        solid(uc - pw / 2, uc + pw / 2, v0, v0 + P.d, 0.4, 'pool');
+      }
+    }
+    const corner = rng() < 0.5, cu = corner ? lu0 + 2.2 : lu1 - 2.2, cv = LV - YARD.alley - 2.0;
+    if (rng() < Y.trees.back && back >= 6) tree(cu, cv, Y.trees.back_kinds);
+    const S = Y.shed;
+    if (rng() < S.chance && back >= 7) {
+      const su = corner ? lu1 - 1.0 - S.w : lu0 + 1.0, sv = LV - YARD.alley - 0.6 - S.d; // the other back corner
+      if (!near(su + S.w / 2, sv + S.d / 2, 3)) {
+        box(g.props, su, su + S.w, sv, sv + S.d, S.h / 2, S.h, rng.pick(S.colors));
+        box(g.props, su - 0.15, su + S.w + 0.15, sv - 0.15, sv + S.d + 0.15, S.h + 0.06, 0.12, S.roof);
+        solid(su, su + S.w, sv, sv + S.d, S.h, 'shed');
+      }
+    }
+  }
+
   wallSlots(room, w, d, aisle, step, n) {
     const gap = 0.04, RW = room.x1 - room.x0, RD = room.z1 - room.z0;
     const put = (x0, z0, x1, z1, wl) => { if (n >= CMAX) return; const o = n * 4; CB[o] = x0; CB[o + 1] = z0; CB[o + 2] = x1; CB[o + 3] = z1; CW[n++] = wl; };

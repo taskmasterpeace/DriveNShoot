@@ -95,18 +95,19 @@ vec3 roofTop(vec3 tint) {
     vec2 cell = floor(vec2(a / 1.25, b / 2.5));
     float r = rh1(cell + seed * 31.0);
     vec2 f = vec2(fract(a / 1.25), fract(b / 2.5));
-    if (r < 0.20) c = vec3(0.16, 0.38, 0.62);            // blue tarp
-    else if (r < 0.30) c = vec3(0.30, 0.48, 0.26);       // green tarp
-    else if (r < 0.38) c = vec3(0.86, 0.50, 0.16);       // orange tarp
-    else if (r < 0.55) c = vec3(0.52, 0.32, 0.20);       // rust sheet
-    else if (r < 0.72) c = vec3(0.70, 0.56, 0.38);       // plywood
-    else if (r < 0.84) {                                  // a solar panel: cells in a frame, a glint
+    // Mostly salvaged sheet and plywood; a tarp is the exception, sun-faded (a roof of loud tarps read as a quilt).
+    if (r < 0.10) c = vec3(0.26, 0.42, 0.56);            // blue tarp
+    else if (r < 0.15) c = vec3(0.36, 0.46, 0.32);       // green tarp
+    else if (r < 0.19) c = vec3(0.72, 0.50, 0.28);       // orange tarp
+    else if (r < 0.44) c = vec3(0.52, 0.34, 0.22);       // rust sheet
+    else if (r < 0.66) c = vec3(0.66, 0.54, 0.38);       // plywood
+    else if (r < 0.76) {                                  // a solar panel: cells in a frame, a glint
       vec2 g = fract(vec2(a / 0.31, b / 0.31));
       float line = step(0.9, max(g.x, g.y));
       c = mix(vec3(0.07, 0.12, 0.20), vec3(0.62, 0.64, 0.66), line);
     } else c = vec3(0.64, 0.62, 0.58);                   // bare sheet metal
     // Tarps lie in folds; every sheet has a lapped edge.
-    if (r < 0.38) c *= 0.86 + 0.18 * sin(a * 9.0 + b * 3.0 + r * 40.0);
+    if (r < 0.19) c *= 0.86 + 0.18 * sin(a * 9.0 + b * 3.0 + r * 40.0);
     float edge = step(min(min(f.x, 1.0 - f.x) * 1.25, min(f.y, 1.0 - f.y) * 2.5), 0.06);
     c *= 1.0 - 0.28 * edge;
   } else {
@@ -141,6 +142,6 @@ export function roofSurface(mat) {
       .replace('#include <common>', `#include <common>\n${FRAG_HEAD}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${FRAG_BODY}`);
   };
-  mat.customProgramCacheKey = () => 'roofSurface5';
+  mat.customProgramCacheKey = () => 'roofSurface6';
   return mat;
 }
