@@ -11,9 +11,10 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 
 | You are... | Use | Setup |
 |---|---|---|
-| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 113 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
+| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 125 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
 | A shell-only agent | **CLI** `node tools/dl.mjs <cmd> k=v` or **HTTP** `POST /agent/cmd` | `npm run agent` (dev server + **headless Chrome**, no window, no human) |
 | Code in the page / a scenario | `DL.call(cmd, args)` / `DL.bind().cmd(args)` | — |
+| A person at a browser | **THE OBSERVER** `http://localhost:3141/observe.html`: a live map of everyone, the event wire, a card for whoever you click, perf and factions, every control as a button, replay with heatmaps | the dev server running and a game tab (yours, a friend's, or `npm run agent`'s) |
 
 ## 60-second quickstart (for agents)
 
@@ -54,6 +55,36 @@ curl -s "localhost:3141/agent/cmd?cmd=teleport&x=0&z=0"
 In the browser console, or inside scenario code: `await DL.call('state')`, or `DL.bind()` and then `await DL.teleport({x:0,z:0})`.
 
 **Full command reference:** [docs/COMMANDS.md](docs/COMMANDS.md), generated from the code. Regenerate it with `node tools/gen-commands.mjs` after adding commands.
+
+## The observer, the recorder and the three multipliers (docs/design/WEB_OBSERVER.md)
+
+**For a person:** open `http://localhost:<port>/observe.html` in its own window beside the game (a hidden tab's frames
+stop) or beside the headless harness. It attaches to the tab the bridge drives (the chip in the bar picks another:
+`/agent/status` lists them as `tabList`, `?tab=<id>` pins one) and shows: the map (wheel zoom from all of I-10 to a
+doorway, drag, people in faction colour with real flags, vehicles, doors, event ripples), the WIRE (kills, deeds,
+witnesses, rumours, the director, roles, trades, deaths; filterable), a card for whoever you click (AI state, target,
+needs, memory of you, inventory, FOLLOW, a live CAM), PERF, FACTIONS, CENSUS and a CONTROL LOG. The bar's buttons and
+modals (pause, step, time, weather, spawn, give, god, director events, teleport, record) and the map's right-click menu
+are each one COMMANDS row. REPLAY opens any recorded session (the live ring or `web/sessions/*.json`) with a scrubber,
+the keys held at that moment, and WENT / FOUGHT / DIED heatmaps (one session or all of them).
+
+**The feed** never goes through the command queue: while somebody watches, the game tab pushes a frame every 200 ms
+(`/agent/feed`), so the map stays live while an agent runs `selftest` or a scenario in the same tab.
+
+**The recorder** (`record`, `session`, `replay`): a 4 Hz ring of the player's position, heading, hp, speed, flags and
+keys plus every event, on the game clock; a person's tab writes it to `web/sessions/<id>.json` every 2 minutes
+(`record save=true` any time). `replay at=<t>` gives where they were; `replay heat=went|fought|died` the hot cells.
+It costs a frame nothing measurable (`scenario name=recorder-cost`).
+
+| Multiplier | Instead of | Example |
+|---|---|---|
+| `look` | `screenshot` + `state` + `query` x2 + `doors`, then guessing which dot is who | `node tools/dl.mjs look --out a.jpg` → the image, a caption, every person in frame (name, faction, flag, state, hp, hostile, target, pixel position), vehicles, doors, containers |
+| `snap` + `diff` | dumping state twice and diffing JSON by hand | `snap name=before` … `diff from=before` → who died/appeared/moved/got hurt, vehicles, doors, your hp/cash/pack, standings, roles, quests, events by type, a one-line summary |
+| `watch` | a `step` + `events since=` + filter loop | `watch type=kill id=okonkwo seconds=30` (stepped) · `node tools/dl.mjs watch type=kill,downed --follow` (streams lines) |
+
+Also: `observe` (the observer's frame as JSON), `person id=` (one person's card), `heal id=`, `mapBase`, `mapTiles`.
+Address one tab from the shell with `--tab <id>` (or `DL_TAB`; the MCP server reads `DL_TAB` too).
+`node tools/observer-shots.mjs --step <name> "<js>" <ms>` screenshots the observer page from a private headless Chrome.
 
 ## High-level verbs (use these before hand-rolling loops)
 
@@ -296,18 +327,25 @@ src/
   data/golden.json     the island's golden hash (world.islandHash must equal it)
   agent/
     api.js             THE agent API: COMMANDS table (single source of truth), selftest
-    bridge.js          browser long-poll client for the HTTP bridge
+    bridge.js          browser long-poll client for the HTTP bridge; the observer feed (pushes only while watched); session autosave
+    observe.js         the observer's reads: feedSnapshot, personDetail, aiState, mapBase, mapTiles
+    recorder.js        the session recorder (g.recorder: a 4 Hz ring + events), parseSession, sessionAt, heatmap
+    devtools.js        COMMANDS rows: observe, person, mapBase, mapTiles, heal, record, session, replay, look, snap, diff, watch
+    devtools-selftest.js  their selftest checks
     content.js         loads content/*.json packs through the API at boot
   scenarios/*.js       scripted setups (DL, game) => summary
-vite.config.js         dev server + agent HTTP bridge (/agent/cmd, /agent/status)
+vite.config.js         dev server + agent HTTP bridge (/agent/cmd with optional tab, /agent/status with tabList, /agent/feed,
+                       /agent/session(s): web/sessions/, gitignored)
 tools/dl.mjs           CLI     tools/gen-commands.mjs  regenerates docs/COMMANDS.md
 tools/import-usmap.mjs copies the usmap rows P1 needs into src/data/usmap.json (`--check`: is the copy current?)
 tools/agent.mjs        npm run agent: dev server + headless Chrome/Edge (DL_HEADED=1 to watch)
 tools/mcp-server.mjs   zero-dependency MCP stdio server (registered in .mcp.json)
+tools/observer-shots.mjs  screenshots of observe.html from a private headless Chrome (DevTools protocol, no deps)
+observe.html + src/observer/  THE OBSERVER page (map.js draws, observer.js wires); docs/design/WEB_OBSERVER.md
 content/*.json         data-only content packs
 ```
 
-Update order per frame (`Game.frame`): door leaves (swing, bash) → player → AI → bases (sentries, the trespass rule, searchlights) → society (rumors, decay) → roles (a counter; once a second the odometer, the gates, the street) → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → streamer (plan, pump, the hot set) → sky → streamer.postSky (tints, sign glow, dust) → lights → character instancing → audio → HUD.
+Update order per frame (`Game.frame`): door leaves (swing, bash) → player → AI → bases (sentries, the trespass rule, searchlights) → society (rumors, decay) → roles (a counter; once a second the odometer, the gates, the street) → vehicles (drive, collide, harpoon) → population → dialogue → fx → pickups → interior/roof → camera → streamer (plan, pump, the hot set) → sky → streamer.postSky (tints, sign glow, dust) → lights → character instancing → audio → HUD → the recorder (a time check; a sample 4 times a game second).
 
 ## Invariants (don't break these)
 

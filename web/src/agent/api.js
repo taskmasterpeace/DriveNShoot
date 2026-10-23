@@ -21,6 +21,8 @@ import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
 import { KINDS as KINDS_RING } from '../data/ring.js';
 import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
+import { devtoolsCommands } from './devtools.js';
+import { devtoolsChecks } from './devtools-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1634,6 +1636,8 @@ function buildCommands(api) {
       args: { only: { type: 'string' } },
       run: async ({ only } = {}) => runSelfTest(api, only),
     },
+    // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
+    ...devtoolsCommands(api, need),
   };
 }
 
@@ -4228,6 +4232,7 @@ async function runSelfTest(api, only = null) {
     const r = await C('load', { save: sv });
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
+  await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;

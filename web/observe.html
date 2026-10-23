@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DSOA Observer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%231c1712'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23e3a72f' stroke-width='2.4'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23e3a72f'/%3E%3Cpath d='M16 2v6M16 24v6M2 16h6M24 16h6' stroke='%23e3a72f' stroke-width='2.4'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Big+Shoulders+Stencil+Display:wght@800;900&family=Special+Elite&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/observer/observer.css" />
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/><path d="M16 1.5v7M16 23.5v7M1.5 16h7M23.5 16h7" stroke="currentColor" stroke-width="2.4"/></svg>
+      <div class="brand-text"><b>OBSERVER</b><span>DIVIDED STATES · FIELD MONITOR</span></div>
+    </div>
+    <button class="tabchip" id="tabchip" title="Which game tab this page watches and drives"><i class="led" id="led"></i><span id="tabname">NO GAME</span><small id="tabkind"></small></button>
+    <div class="clock plate-sm" id="clock"><b id="clk">--:--</b><span id="clkSub">—</span></div>
+    <nav class="controls" id="controls">
+      <button class="btn" data-act="pause" id="btnPause" title="Pause or resume the game (pause)"><svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg><span>PAUSE</span></button>
+      <div class="split"><button class="btn" data-act="step1" title="Advance 1 s at 60 Hz (step)"><svg viewBox="0 0 24 24"><path d="M6 5l9 7-9 7zM18 5v14"/></svg><span>STEP 1s</span></button><button class="btn mini" data-act="step5" title="Advance 5 s">5s</button></div>
+      <button class="btn" data-act="time" title="Set the hour (setTime)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>TIME</span></button>
+      <button class="btn" data-act="weather" title="Change the weather (setWeather)"><svg viewBox="0 0 24 24"><path d="M7 17h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 7 17z"/></svg><span>WEATHER</span></button>
+      <button class="btn" data-act="spawn" title="Spawn people (spawn)"><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/></svg><span>SPAWN</span></button>
+      <button class="btn" data-act="give" title="Give the player cash, guns, rounds, health (give)"><svg viewBox="0 0 24 24"><path d="M4 9h16v12H4zM2 5h20v4H2zM12 5v16"/></svg><span>GIVE</span></button>
+      <button class="btn" data-act="god" id="btnGod" title="Invulnerable player (god)"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg><span>GOD</span></button>
+      <button class="btn" data-act="event" title="Fire a director event (fireEvent)"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg><span>EVENT</span></button>
+      <button class="btn" data-act="teleport" title="Teleport the player (or right-click the map)"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-7 11-7 11z"/></svg><span>TELEPORT</span></button>
+    </nav>
+    <div class="rec" id="rec">
+      <i class="recdot"></i><b id="recTime">REC --:--</b>
+      <button class="btn ghost mini" data-act="recSave" title="Write this tab's session to web/sessions (record save=true)">SAVE</button>
+      <button class="btn ghost mini" data-act="recNew" title="Start a new session id (record reset=true)">NEW</button>
+    </div>
+    <div class="mode" role="tablist">
+      <button class="pill on" data-mode="live" id="modeLive">LIVE</button>
+      <button class="pill" data-mode="replay" id="modeReplay">REPLAY</button>
+    </div>
+  </header>
+
+  <main class="deck">
+    <section class="mapwrap" id="mapwrap">
+      <canvas id="map"></canvas>
+      <div class="maptools">
+        <div class="layers" id="layers">
+          <button class="chip on" data-layer="people">PEOPLE</button>
+          <button class="chip on" data-layer="vehicles">VEHICLES</button>
+          <button class="chip on" data-layer="doors">DOORS</button>
+          <button class="chip on" data-layer="events">EVENTS</button>
+          <button class="chip on" data-layer="labels">LABELS</button>
+          <button class="chip" data-layer="flags">ALL FLAGS</button>
+        </div>
+        <div class="heatbar hidden" id="heatbar">
+          <span class="lbl">HEAT</span>
+          <button class="chip" data-heat="off">OFF</button>
+          <button class="chip" data-heat="went">WENT</button>
+          <button class="chip" data-heat="fought">FOUGHT</button>
+          <button class="chip" data-heat="died">DIED</button>
+          <label class="tog"><input type="checkbox" id="heatAll" /> ALL SESSIONS</label>
+        </div>
+      </div>
+      <div class="zoomer">
+        <button class="btn icon" data-zoom="in" title="Zoom in">+</button>
+        <button class="btn icon" data-zoom="out" title="Zoom out">−</button>
+        <button class="btn icon" data-zoom="you" title="Centre on the player">◎</button>
+      </div>
+      <div class="follow hidden" id="followTag">FOLLOWING <b id="followName"></b> <button class="x" data-act="unfollow" title="Stop following">×</button></div>
+      <div class="hover hidden" id="hover"></div>
+      <div class="cursor" id="cursorPos">—</div>
+      <div class="scale" id="scale"><i></i><span>100 m</span></div>
+      <div class="stale hidden" id="stale"><b>NO SIGNAL</b><span id="staleWhy">waiting for a game tab…</span></div>
+      <div class="timeline hidden" id="timeline">
+        <button class="btn icon" id="tlPlay" title="Play / pause the replay">▶</button>
+        <select id="tlSpeed" title="Replay speed"><option value="1">1×</option><option value="4" selected>4×</option><option value="16">16×</option><option value="64">64×</option></select>
+        <div class="track" id="tlTrack"><canvas id="tlTicks"></canvas><i class="head" id="tlHead"></i><input type="range" id="tlRange" min="0" max="1000" value="0" step="1" /></div>
+        <b class="tlTime" id="tlTime">0:00</b>
+        <button class="btn ghost mini" id="tlPick">SESSIONS</button>
+      </div>
+    </section>
+
+    <aside class="rail">
+      <section class="plate card" id="card"></section>
+      <section class="plate feed">
+        <header class="ph"><h2>WIRE</h2><span class="sub" id="feedCount">0</span>
+          <div class="filters" id="feedFilters">
+            <button class="chip on" data-f="all">ALL</button><button class="chip" data-f="combat">COMBAT</button><button class="chip" data-f="society">WORD</button><button class="chip" data-f="director">DIRECTOR</button><button class="chip" data-f="trade">TRADE</button><button class="chip" data-f="world">WORLD</button>
+          </div>
+        </header>
+        <ol class="feedlist" id="feed"></ol>
+      </section>
+    </aside>
+
+    <footer class="dock">
+      <section class="plate perf"><header class="ph"><h2>PERF</h2><span class="sub" id="perfSub"></span></header><div class="perfgrid" id="perf"></div></section>
+      <section class="plate factions"><header class="ph"><h2>FACTIONS</h2><span class="sub">standing toward the player</span></header><div id="factions" class="facs"></div></section>
+      <section class="plate census"><header class="ph"><h2>CENSUS</h2><span class="sub" id="censusSub"></span></header><div id="census" class="census-grid"></div></section>
+      <section class="plate wire"><header class="ph"><h2>CONTROL LOG</h2><span class="sub">every click is a COMMANDS row</span></header><ol id="cmdlog" class="cmdlog"></ol></section>
+    </footer>
+  </main>
+
+  <dialog id="modal" class="modal"><form method="dialog" id="modalForm"><header class="mh"><h3 id="modalTitle">—</h3><button class="x" value="cancel" title="Close">×</button></header><div class="mb" id="modalBody"></div><footer class="mf" id="modalFoot"></footer></form></dialog>
+  <div class="ctx hidden" id="ctx"></div>
+  <script type="module" src="/src/observer/observer.js"></script>
+</body>
+</html>

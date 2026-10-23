@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { request } from 'node:http';
 
 const BASE = process.env.DL_URL ?? 'http://localhost:3141';
+const TAB = process.env.DL_TAB || null; // address one game tab (status lists them); default: the one the bridge drives
 // POST JSON and wait as long as the game takes. Not fetch(): Node's fetch gives up after 300 s with no response headers,
 // and a scenario may run 15 minutes (its budget) - bounty-run used to come back "fetch failed" while it was still going.
 function postJson(url, body) {
@@ -95,6 +96,7 @@ async function callTool(name, args = {}) {
   if (name === 'dl_call') body = { cmd: args.cmd, args: args.args ?? {} };
   else if (name === 'dl_batch') body = { batch: args.batch };
   else body = { cmd: name.replace(/^dl_/, ''), args };
+  if (TAB) body.tab = TAB;
   const r = await http('/agent/cmd', body);
   if (r.image?.startsWith('data:image')) {
     const data = r.image.split(',')[1];
@@ -127,7 +129,7 @@ async function handle(msg) {
       protocolVersion: params?.protocolVersion ?? '2024-11-05',
       capabilities: { tools: { listChanged: true } },
       serverInfo: { name: 'dsoa', version: '0.1.0' },
-      instructions: 'DSOA game engine. Call dl_launch first, then dl_selftest / dl_state. Advance time with dl_step; look with dl_screenshot. Read AGENTS.md in the repo for conventions.',
+      instructions: 'DSOA game engine. Call dl_launch first, then dl_selftest / dl_state. Advance time with dl_step; see a frame and what is in it with dl_look (screenshot + who/what/where); wait for events with dl_watch; compare moments with dl_snap + dl_diff. A person can watch live at /observe.html. Read AGENTS.md in the repo for conventions.',
     });
   }
   if (method === 'notifications/initialized' || method?.startsWith('notifications/')) return;
