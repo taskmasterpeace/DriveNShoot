@@ -262,7 +262,7 @@ export class MilBase {
             const [qx, qz] = r.horiz ? [t2, r.fixed + out * 0.1] : [r.fixed + out * 0.1, t2];
             this.P('props', qx, H + 0.28, qz, 0.05, 0.05, 1.0, '#a8a89e', rot + Math.PI / 2, 0.95);
           }
-          this.P('props', mx, 0.02, mz, r.horiz ? len : 3.2, 0.03, r.horiz ? 3.2 : len, '#8a7a5e', 0, 0.8); // the strip kept bare along the wire
+          this.P('props', mx, 0.02, mz, r.horiz ? len : 1.8, 0.03, r.horiz ? 1.8 : len, this.region === 'arizona' ? '#8a7a5e' : '#6a6a4c', 0, 0.75); // the strip kept bare along the wire
         }
       }
     }
@@ -387,8 +387,8 @@ export class MilBase {
     const free = (x, z, r) => !this.lots.some((L) => x > L.lot.x0 - r && x < L.lot.x1 + r && z > L.lot.z0 - r && z < L.lot.z1 + r) && this.inBase(x, z, -6);
     // Floodlight masts along the street, alternate sides.
     for (let v = c.v0 + 10, k = 0; v < c.v1; v += 42, k++) {
-      const u = this.gateU + (k % 2 ? 1 : -1) * (S + 1.2), x = this.wx(u, v), z = this.wz(u, v);
-      if (!free(x, z, 1)) continue;
+      const u = this.gateU + (k % 2 ? 1 : -1) * (S - 0.5), x = this.wx(u, v), z = this.wz(u, v);
+      if (!free(x, z, 0)) continue;
       this.P('props', x, 3.75, z, 0.18, 7.5, 0.18, '#4a4a44'); this.P('props', x, 7.5, z, 1.6, 0.4, 0.5, '#2e2e2a'); this.boxC(x, z, 0.4, 0.4, 7.5, 'mast');
       if (H.garrison > 0 || H.gate === 'shut') this.floods.push({ x, z, r: 12 });
     }
@@ -478,7 +478,7 @@ export class MilBase {
       const u0 = -len / 2, u1 = len / 2, along = this.tx ? 'x' : 'z';
       const rw = this.rect(u0, u1, v0, v1);
       this.runwayR = rw;
-      this.blocks.push({ id: `${this.id}:runway`, pads: [{ ...rw, band: 'lot' }], ...rw, lots: [] });
+      this.streetList.push({ ...rw, axis: along, line: `${this.id}:runway`, name: `${this.name} · THE RUNWAY`, art: false }); // plain asphalt (the street band), not a lined lot
       this.clear(rw, 6);
       // Markings: the centreline dashes, threshold bars, edge lights (paint, flat).
       for (let a = u0 + 30; a < u1 - 30; a += 30) { const x = this.wx(a, (v0 + v1) / 2), z = this.wz(a, (v0 + v1) / 2); this.P('floors', x, 0.045, z, along === 'x' ? 14 : 0.9, 0.01, along === 'x' ? 0.9 : 14, '#e2dccb', 0, 0.9); }
@@ -495,8 +495,8 @@ export class MilBase {
         this.addLot(kind, r, sideOf(-this.nx, -this.nz), rng, k++);
         u += w2 + 12;
       }
-      const ap = this.rect(Math.max(-hs + 30, u0 + 20), Math.min(hs - 30, Math.max(u, c.u1)), av0, v0 - 3);
-      this.blocks.push({ id: `${this.id}:apron`, pads: [{ ...ap, band: 'lot' }], ...ap, lots: [] });
+      const ap = this.rect(c.u0, Math.min(hs - 30, Math.max(u - 8, c.u0 + 60)), av0, v0 - 3); // in front of the hangars only
+      this.streetList.push({ ...ap, axis: this.tx ? 'z' : 'x', line: `${this.id}:apron`, name: `${this.name} · THE APRON`, art: false });
       this.apronR = ap; this.clear(ap, 2);
       // A taxiway from the apron to the runway's end.
       // Dead aircraft parked on the apron; the Sun Court's field is the boneyard, rows of them past the runway.
