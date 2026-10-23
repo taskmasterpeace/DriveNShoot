@@ -96,7 +96,7 @@ every instance at least `SMALL` across draws one of five roofs, picked by a hash
 | 0 corrugated sheet | ribs and sheet seams; some sheets fresh galvanised, some rusted through |
 | 1 cool-coated flat | white elastomeric coat peeling in flakes over grey membrane |
 | 2 clay tile | barrel-tile courses in terracotta |
-| 3 rebuilt from salvage | corrugated sheets of every age in staggered courses (0.9 × 2.4 m, ribbed and lapped: rust, weathered and fresh galvanised, an old dark sheet, a plywood patch), one tarp lashed over a leak, a bank of six salvaged solar panels on some. Was a grid of coloured 1.25 × 2.5 m cells, which read as a quilt from above (look pass 2) |
+| 3 rebuilt from salvage | one roof of weathered corrugated sheet in staggered courses (0.9 × 2.4 m, ribbed and lapped, a shade either way per sheet), rust bleeding across it, the odd sheet rusted through, replaced fresh, older and darker, or patched in plywood (under a third in all), one tarp lashed over a leak, a bank of six salvaged solar panels on some. Was a grid of coloured 1.25 × 2.5 m cells, which read as a quilt from above (look pass 2) |
 | 4 tar and gravel | speckled tar with darker patches |
 
 Every roof also gets:
@@ -333,7 +333,8 @@ people and checks are unchanged; what changed (`world/holdout.js`, rows in `data
   behind the counters, sacks, blankets of goods on the ground, benches round the fire, fire barrels in the aisles (lit at
   night), a handcart, washing strung across the row ends, a cook tarp with a table, a trough at the well, tyres and scrap.
   The square's trees are right-sized (4.6–6.2 m, two corners, not four oaks at 7–9 m).
-- **Roofs** are salvaged sheet (§3.3, kind 3), not a quilt.
+- **Roofs** are salvaged sheet (§3.3, kind 3), not a quilt. That matters most at the clinic: a person's new game opens
+  at 08:00 on its doorstep, and its roof is the first thing they see (`look2/meridian_opening_*`).
 
 ### 3.9 The vulture slab (look pass 2)
 
@@ -503,9 +504,10 @@ dusk 18:36), same zoom: `docs/renders/web/look2/<shot>_before.jpg` and `_after.j
 | `meridian_market_street` (zoom 22), `meridian_market_game` (33) | white plaza and one oak → the town's earth, striped canvas, stock, blankets of goods, benches, trough | 192 → 171, 182 → 167 |
 | `meridian_houses_wide`, `meridian_west_wide` (60) | lawns with a bed or two → packed earth, junk fences, back houses, sheds, beds, hulks, coops | 173 → 167, 170 → 156 |
 | `meridian_over` (150) | a model suburb under quilt roofs → a walled holdout: salvage roofs, burnt shells, yards full | 157 → 152 |
+| `meridian_opening`, `_wide` (33, 55; 08:00 at the clinic door: a person's first frame, f71f81fe) | the clinic's quilt-bright roof on a lawn → one tin roof with rusted and replaced sheets, a tarp, panels, on the town's earth | 107 → 104, 102 → 98 |
 | `forest_game` (33), `forest_wide` (90) | desert sand between the trees → litter, needles, loam and moss, ferns, logs | 85 → 72, 91 → 74 |
 | `palms_market` (33), `palms_close` (16) | flat bright paddles → drooping feather fronds, dead fronds, a feathered shadow | 173 → 171, 158 → 144 |
-| `swamp_vulture_dusk`, `_noon` (33; a bird put on the camera's ray) | the black slab → a vulture | 15 → 16, 101 → 104 |
+| `swamp_vulture_dusk`, `_noon` (33; a bird put on the camera's ray) | the black slab → a vulture | 15 → 16 (before the merge of f71f81fe's dark nights; 2.7 after it, too dark to judge by eye: the noon pair is the proof), 101 → 104 |
 | `terrain_hills_over`, `terrain_climb_over` (260, tilt 0.55, `?terrain=real`) | the egg-crate → irregular desert | 192 → 191, 189 → 188 |
 
 - **Draw calls at the widest zoom (HIGH, `bench` 90 frames), before → after:** Meridian's centre 84 → 86 by day, 87 → 89
@@ -517,7 +519,7 @@ dusk 18:36), same zoom: `docs/renders/web/look2/<shot>_before.jpg` and `_after.j
   floors are colour, the ground's no-tiling is a shader). Meridian's and the painted woods' chunk hashes changed on purpose
   (their new instances and boxes); none of them is pinned.
 - `terrain-check.mjs` is unaffected: the heights are not touched.
-- **Selftest:** BATTERY_RESULTS. `node tools/ip-lint.mjs`: 0 deny.
+- **Selftest:** BATTERY_RESULTS `node tools/ip-lint.mjs`: 0 deny.
 
 **Not done (look pass 2).** Meridian's street grid and its civic row are as they were (the programmes and the checks are
 built on them): the town is denser and rougher, but its blocks are still a grid. Burnt shells use the zone's smoke-dark
