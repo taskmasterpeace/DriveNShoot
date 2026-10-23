@@ -1,3 +1,5 @@
+import { GEAR, GEAR_LOOT, GEAR_LOOT_ADD, gearKg, gearBulk, gearValue } from './gear.js';
+
 // Things you can carry (docs/design/WEB_INVENTORY.md). Our own goods and our own words; no brand names.
 // A row is what a thing is, what it weighs and how much room it takes, how many share a slot, and what using it does.
 //   kg       weight full; kgEmpty: weight once its uses are gone (a canteen still weighs something dry)
@@ -25,13 +27,20 @@ export const ITEMS = {
     desc: 'Beans in sauce, label long gone. Keeps forever. You need a blade or an opener to get in.' },
   peaches_tin: { name: 'Tin of peaches', kind: 'food', kg: 0.48, bulk: 0.45, stack: 6, value: 10, use: { need: 'food', amount: 0.22, water: 0.06 }, needs: 'blade',
     desc: 'Peaches in syrup. Drink the syrup; out here nobody wastes it.' },
-  jerky: { name: 'Jerky', kind: 'food', kg: 0.08, bulk: 0.1, stack: 10, value: 4, use: { need: 'food', amount: 0.12, water: -0.03 },
+  jerky: { name: 'Jerky', kind: 'food', kg: 0.08, bulk: 0.1, stack: 10, value: 4, use: { need: 'food', amount: 0.12, water: -0.03 }, dog: { bond: 6, hp: 12 },
     desc: 'A strip of dried meat. What kind of meat is a question you stop asking. Salty: it costs you water.' },
+  // From the original game's larder. `dog`: what feeding it to a dog does (systems/dogs.js): bond earned, hp mended.
+  dried_meat: { name: 'Dried meat', kind: 'food', kg: 0.4, bulk: 0.4, stack: 6, value: 9, spoils: 120, use: { need: 'food', amount: 0.32, hp: 2, water: -0.04 }, dog: { bond: 10, hp: 30 },
+    desc: 'A slab of smoke-dried meat wrapped in paper. A dog will follow you a mile for it. So will people.' },
+  coffee: { name: 'Trail coffee', kind: 'food', kg: 0.3, bulk: 0.3, stack: 4, value: 12, use: { need: 'rest', amount: 0.12, water: 0.04 },
+    desc: 'Ground coffee in a twist of foil, boiled black in a can. It buys you an hour on your feet.' },
+  rotgut: { name: 'Rotgut', kind: 'food', kg: 0.9, kgEmpty: 0.3, bulk: 0.8, stack: 1, value: 14, uses: 4, use: { hp: 3, calm: true, water: -0.05 },
+    desc: 'Clear liquor from a still behind somebody\'s garage. Steadies the hands, then doesn\'t.' },
   flatbread: { name: 'Flatbread', kind: 'food', kg: 0.2, bulk: 0.3, stack: 4, value: 5, spoils: 48, use: { need: 'food', amount: 0.25 },
     desc: 'Baked on a steel plate in Rust Haven this week. Eat it before it turns.' },
   cactus_fruit: { name: 'Cactus fruit', kind: 'food', kg: 0.1, bulk: 0.15, stack: 8, value: 2, spoils: 36, use: { need: 'food', amount: 0.08, water: 0.06 },
     desc: 'Red pear off a paddle cactus, spines rubbed off in the sand. Wet and sweet.' },
-  ration: { name: 'Ration pack', kind: 'food', kg: 0.65, bulk: 0.8, stack: 4, value: 40, use: { need: 'food', amount: 0.55, hp: 8 },
+  ration: { name: 'Ration pack', kind: 'food', kg: 0.65, bulk: 0.8, stack: 4, value: 40, use: { need: 'food', amount: 0.55, hp: 8 }, dog: { bond: 8, hp: 20 },
     desc: 'A sealed meal in olive foil, stamped with a date from before the split. Still good. Probably.', tags: ['military'] },
   honey: { name: 'Jar of honey', kind: 'food', kg: 0.5, bulk: 0.4, stack: 4, value: 15, use: { need: 'food', amount: 0.3, hp: 4 },
     desc: 'Honey does not go off. Somebody kept bees out here once.' },
@@ -59,6 +68,14 @@ export const ITEMS = {
     desc: 'Forged steel, the paint worn off the end that does the work. Opens what keys don\'t. Loudly.' },
   wrench: { name: 'Wrench', kind: 'tool', kg: 0.6, bulk: 0.3, stack: 1, value: 14, tags: ['wrench', 'steel'],
     desc: 'An adjustable wrench. Any repair goes faster with one.' },
+  // The original's blades and the axe: no bare-hands or melee mode in this engine yet, so they are tools first.
+  machete: { name: 'Machete', kind: 'tool', kg: 0.9, bulk: 0.7, stack: 1, value: 22, tags: ['blade', 'steel'],
+    desc: 'A cane knife with a taped grip. Opens tins, cuts brush, settles arguments.' },
+  fire_axe: { name: 'Fire axe', kind: 'tool', kg: 2.8, bulk: 1.6, stack: 1, value: 26, use: { act: 'pry' }, tags: ['pry', 'blade', 'steel'],
+    desc: 'A red-handled axe off a firehouse wall. Takes a locked door off its hinges, loudly.' },
+  // A road flare (the original's): struck and dropped, it burns where you stand for a minute. Dogs and the dead keep off it.
+  flare: { name: 'Road flare', kind: 'tool', kg: 0.25, bulk: 0.2, stack: 6, value: 6, use: { act: 'flare' },
+    desc: 'A red flare in a paper tube. Strike it and put it down: a minute of fire nothing with sense walks into.' },
   duct_tape: { name: 'Duct tape', kind: 'tool', kg: 0.3, bulk: 0.3, stack: 1, value: 10, uses: 4, use: { act: 'repair' },
     desc: 'Half a roll. Holds a radiator, a tank, a cracked hose until it doesn\'t.' },
   fuel_can: { name: 'Fuel can', kind: 'part', kg: 8.4, kgEmpty: 1.2, bulk: 11, stack: 1, value: 40, uses: 1, refill: 'fuel', use: { act: 'refuel', litres: 10 },
@@ -101,6 +118,11 @@ export const ITEMS = {
     desc: 'A double barrel cut down to the forestock with a hacksaw. Two shots, then a long minute.' },
   gun_rifle: { name: 'Service rifle', kind: 'gun', kg: 3.8, bulk: 5.5, stack: 1, value: 350, weapon: 'rifle',
     desc: 'The Federal Remnant\'s issue rifle, serial filed off. Reaches further than anything else out here.', tags: ['military'] },
+  // The original game's pistol and pump shotgun, carried over (combat.js WEAPONS rows 'auto' and 'pump').
+  gun_auto: { name: 'Self-loader', kind: 'gun', kg: 1.0, bulk: 0.7, stack: 1, value: 120, weapon: 'auto',
+    desc: 'A twelve-round semi-automatic pistol in the small, fast calibre the SMGs eat. Quick to hand, quick to empty.' },
+  gun_pump: { name: 'Pump shotgun', kind: 'gun', kg: 3.4, bulk: 4.5, stack: 1, value: 190, weapon: 'pump',
+    desc: 'A full-length pump gun with five in the tube. Slower to fire than the sawn-off, slower to run dry.' },
   cleaning_kit: { name: 'Gun cleaning kit', kind: 'tool', kg: 0.35, bulk: 0.4, stack: 1, value: 25, uses: 5, use: { act: 'clean' },
     desc: 'A rod, brushes, patches and a little can of oil. Takes the grit out of whatever you are holding.' },
   // ---- valuables and keepsakes -----------------------------------------------------------------------------
@@ -114,6 +136,9 @@ export const ITEMS = {
     desc: 'A spiral-bound atlas of the old states, the borders inked over in three colours of pen.' },
   photograph: { name: 'Photograph', kind: 'paper', kg: 0.01, bulk: 0.01, stack: 1, value: 0,
     desc: 'A family on a porch, squinting into the sun. Nobody you know.' },
+  // What is left of a dog that did not make it (systems/dogs.js): on its remains, never found anywhere else.
+  dog_collar: { name: 'Dog collar', kind: 'paper', kg: 0.08, bulk: 0.05, stack: 1, value: 0, tags: ['keepsake'],
+    desc: 'A worn leather collar with a name scratched into the buckle. You know the name.' },
   // Given, never found: Sheriff Okonkwo pins one on a known deputy (docs/design/WEB_ROLES.md) and takes it back.
   tin_star: { name: "Deputy's star", kind: 'paper', kg: 0.03, bulk: 0.02, stack: 1, value: 0, tags: ['badge'],
     desc: 'Pressed tin, the points filed round, RUST HAVEN stamped in a ring. Okonkwo pins one on the people who keep her peace.' },
@@ -145,7 +170,7 @@ export const LOOT = {
 
 // The rounds each gun's ammo type is (g.inv.ammo keys) and the item a loadout gun becomes when you put it down.
 export const AMMO_ITEM = { pistol: 'ammo_pistol', smg: 'ammo_smg', shells: 'ammo_shells', rifle: 'ammo_rifle' };
-export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle' };
+export const GUN_ITEM = { pistol: 'gun_pistol', smg: 'gun_smg', shotgun: 'gun_shotgun', rifle: 'gun_rifle', auto: 'gun_auto', pump: 'gun_pump' };
 // What each gun loses per shot (condition: 1 clean, 0 broken) and how readily it jams once worn (x the base rate).
 // A revolver at 0.82 has ~680 shots in it before it breaks; the stamped SMG wears least per shot but fires the most.
 export const GUN_WEAR = {
@@ -153,6 +178,8 @@ export const GUN_WEAR = {
   smg: { wear: 0.0007, jam: 1.6 },     // a cheap spring and an open action: dirt stops it
   shotgun: { wear: 0.0018, jam: 0.6 }, // a swollen shell that will not fire
   rifle: { wear: 0.0009, jam: 1 },
+  auto: { wear: 0.001, jam: 0.9 },    // a slide that wants oil
+  pump: { wear: 0.0014, jam: 0.7 },   // a short-stroked pump feeds nothing
 };
 // Keeping a gun working (docs/design/WEB_INVENTORY.md, guns):
 //   jamBelow   - below this condition every shot may jam: chance (jamBelow - cond) x jamRate x the gun's jam
@@ -174,3 +201,12 @@ export const START_KIT = { pack: 'satchel', items: [['water_bottle', 1], ['jerky
 
 // Room on your person before any pack: pockets and belt.
 export const BODY_LITRES = 3;
+
+// ---- the paperdoll's gear as items (data/gear.js): one catalog, so a piece is found, carried, traded and worn like any
+// thing. kind 'armor' (it soaks) or 'gear' (a mod); `slot` is what F on the PACK screen wears it in.
+for (const [id, r] of Object.entries(GEAR)) {
+  if (ITEMS[id]) continue; // a row of its own in ITEMS wins
+  ITEMS[id] = { name: r.name, kind: r.soak ? 'armor' : 'gear', kg: gearKg(r), bulk: gearBulk(r), stack: 1, value: gearValue(r), slot: r.slot, tags: r.tags, desc: r.desc };
+}
+for (const [table, row] of Object.entries(GEAR_LOOT)) LOOT[table] ??= row;
+for (const [table, rows] of Object.entries(GEAR_LOOT_ADD)) if (LOOT[table]) LOOT[table].rows.push(...rows);

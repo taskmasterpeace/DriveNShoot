@@ -176,7 +176,7 @@ export class Inventory {
     if (u.act) { const r = this.act(u.act, s, it); if (!r.ok) return r; texts.push(r.text); }
     const fresh = this.freshness(s), k = fresh === 'stale' ? 0.5 : fresh === 'rotten' ? 0.15 : 1;
     const P = g.player, N = g.needs;
-    if (u.need && N) { N[u.need] = Math.max(0, Math.min(1, N[u.need] + u.amount * k)); texts.push(u.need === 'water' ? '+ WATER' : '+ FOOD'); }
+    if (u.need && N) { N[u.need] = Math.max(0, Math.min(1, N[u.need] + u.amount * k)); texts.push(u.need === 'water' ? '+ WATER' : u.need === 'rest' ? '+ AWAKE' : '+ FOOD'); }
     if (u.water && N) N.water = Math.max(0, Math.min(1, N.water + u.water * k));
     if (u.hp && P) { P.hp = Math.min(P.maxHp, P.hp + u.hp * k); texts.push(`+${Math.round(u.hp * k)} HP`); }
     if (u.bleed && P) { P.bleed = 0; texts.push('BLEEDING STOPPED'); }
@@ -212,12 +212,17 @@ export class Inventory {
       if (!d) return { ok: false, why: 'no vehicle close enough to work on' };
       const part = ['engine', 'radiator', 'tank'].reduce((a, b) => (d[b] < d[a] ? b : a));
       if (d[part] > 0.92) return { ok: false, why: 'nothing on it needs patching' };
-      const amt = (s.id === 'spark_plugs' ? (part === 'engine' ? 0.45 : 0) : 0.25) + (this.hasTag('wrench') ? 0.15 : 0);
+      const amt = ((s.id === 'spark_plugs' ? (part === 'engine' ? 0.45 : 0) : 0.25) + (this.hasTag('wrench') ? 0.15 : 0)) * (g.gear?.repairMul() ?? 1); // mechanic's wraps on the wrist
       if (!amt) return { ok: false, why: 'plugs only help an engine' };
       d[part] = Math.min(1, d[part] + amt);
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
     if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
+    if (verb === 'flare') { // struck and put down: a small fire at your feet for a minute (dogs keep off it, systems/dogs.js)
+      if (!g.throwables || P.inVehicle) return { ok: false, why: 'not from in here' };
+      g.throwables.startFire(P.x + Math.sin(P.face) * 0.9, P.z + Math.cos(P.face) * 0.9, 0.7, 60, P);
+      return { ok: true, text: 'FLARE LIT' };
+    }
     if (verb === 'clean') { // the gun in your hands
       const k = g.inv.current, c = this.cond(k), name = WEAPONS[k]?.short ?? k;
       if (c <= 0) return { ok: false, why: `the ${name.toLowerCase()} is broken, not dirty: a gunsmith can fix it` };
@@ -534,17 +539,18 @@ export class Inventory {
   }
 
   open(box) {
-    if (!box.rolled) { this.roll(box); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search
+    if (!box.rolled) { this.roll(box, this.g.gear?.luckRolls() ?? 0); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search (a lucky charm: more turns up)
     this.opened = box;
     this.g.emit('containerOpened', { id: box.id, kind: box.kind, items: box.slots.length });
     return box;
   }
 
-  roll(box) {
+  // extra: rolls on top (the player's luck, systems/gear.js): drawn after the box's own, so they only ever add.
+  roll(box, extra = 0) {
     const T = LOOT[box.kind];
     if (!T) return;
     const rng = makeRng(box.seed);
-    const n = T.rolls[0] + Math.floor(rng() * (T.rolls[1] - T.rolls[0] + 1));
+    const n = T.rolls[0] + Math.floor(rng() * (T.rolls[1] - T.rolls[0] + 1)) + extra;
     const total = T.none + T.rows.reduce((a, r) => a + r[1], 0);
     for (let k = 0; k < n; k++) {
       let pick = rng() * total;
@@ -616,7 +622,7 @@ export class Inventory {
   }
 
   // ---- what it weighs, what the agent sees ---------------------------------------------------------------
-  kg() { return this.carried.kg() + (this.worn ? ITEMS[this.worn].kg : 0); }
+  kg() { return this.carried.kg() + (this.worn ? ITEMS[this.worn].kg : 0) + (this.g.gear?.wornKg() ?? 0); } // and what you wear (systems/gear.js)
   changed() { this.g.skillsSys?.recompute?.(); this.dirty = true; this.drawPiles(); }
 
   slotView(s) {

@@ -201,7 +201,8 @@ export class AI {
       if (!this.hostile(c, o) || o.hidden || o.underwater) continue; // dived under: out of sight
       const d = Math.abs(o.x - c.x) + Math.abs(o.z - c.z);
       // Crouching targets are harder to spot; smoke hides everyone.
-      if (d < bd * (o.crouch ? 0.6 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
+      // A coat that breaks your outline (systems/gear.js seenMul): they have to be closer to pick you out.
+      if (d < bd * (o.crouch ? 0.6 : 1) * (o === this.g.player ? this.g.gear?.seenMul() ?? 1 : 1) && this.g.sees(c, o)) { bd = d; best = o; }
     }
     if (best) { c.target = best; c.state = 'fight'; c.react = 0.45 + Math.random() * 0.5; }
   }

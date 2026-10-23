@@ -9,6 +9,11 @@ export const WEAPONS = {
   // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
   // SMG, fires slower. Generic by design: no make, no model.
   rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22 },
+  // The original game's pistol and pump shotgun (game/proto3d/weapon.gd rows), at this engine's scale: its pistol hit for
+  // 18 against a 9-a-pellet pump; here the revolver hits 38, so both scale by about two. The self-loader eats the SMG's
+  // small fast rounds; the pump takes shells, five in the tube, a slower pump between shots than the sawn-off's two.
+  auto:    { name: 'SELF-LOADER', short: 'AUTO', dmg: 22, rate: 0.17, mag: 12, reload: 1.2, spread: 0.04, range: 50, auto: false, pellets: 1, ammo: 'smg', sound: 'pistol', shake: 0.18, model: 'auto' },
+  pump:    { name: 'PUMP SHOTGUN', short: 'PUMP', dmg: 15, rate: 0.95, mag: 5, reload: 2.4, spread: 0.16, range: 26, auto: false, pellets: 7, ammo: 'shells', sound: 'shotgun', shake: 0.55, model: 'pump' },
 };
 
 export class Combat {
@@ -67,6 +72,9 @@ export class Combat {
         if (t >= 0 && t < best) { best = t; target = v; kind = 'veh'; }
       }
     }
+    // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
+    const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, best) : null;
+    if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
     if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
       const th = g.train.raycast(ox, oz, dx, dz, best);
       if (th) { best = th.t; target = th.car; kind = 'train'; }
@@ -89,6 +97,8 @@ export class Combat {
         g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
       }
       if (shooter === g.player) g.qol.hit(false);
+    } else if (kind === 'dog') {
+      g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
     } else if (kind === 'train') {
       g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
       g.train.hitCar(target, dmg, shooter);
@@ -101,7 +111,8 @@ export class Combat {
     }
   }
 
-  damage(c, dmg, attacker, dx = 0, dz = 0, cause = 'bullet') {
+  // part: the body part the hit lands on (head | torso | arms | legs), else rolled from the cause (data/gear.js HIT_ODDS).
+  damage(c, dmg, attacker, dx = 0, dz = 0, cause = 'bullet', part = null) {
     const g = this.g;
     if (!c.alive) {
       // Shooting corpses still sprays. Gratuitous, as ordered.
@@ -118,6 +129,8 @@ export class Combat {
       if (c.hp <= 0) this.kill(c, attacker, dx, dz, cause);
       return;
     }
+    // Worn armor eats its share first (systems/gear.js): the one place a hit is cut, for anyone wearing anything.
+    if (g.gear && (c === g.player || c.worn)) { const s = g.gear.soak(c, cause, part); if (s.cut > 0) { if (c === g.player) g.gear.soaked += dmg * s.cut; dmg *= 1 - s.cut; } }
     if (c === g.player) { dmg *= g.qol?.damageTaken() ?? 1; c.sinceHit = 0; g.survival?.hurt(); g.emit('hurt', { amount: Math.round(dmg), by: attacker?.id ?? null, byFaction: attacker?.faction ?? null, cause, hp: Math.round(c.hp - dmg) }); }
     c.hp -= dmg;
     c.lastAttacker = attacker;
@@ -159,7 +172,7 @@ export class Combat {
     g.fx.bloodSpray(c.x, 1.0 + (c.gy ?? 0), c.z, dx, dz, 26, 1.3);
     if (cause === 'vehicle' || cause === 'explosion') g.fx.gibs(c.x, c.z, dx, dz, cause === 'explosion' ? 14 : 8);
     // Head pops: explosions, high-speed impacts, or a point-blank shotgun.
-    const pointBlank = attacker && attacker.weapon === 'shotgun' && Math.hypot(attacker.x - c.x, attacker.z - c.z) < 5;
+    const pointBlank = attacker && (WEAPONS[attacker.weapon]?.pellets ?? 1) > 1 && Math.hypot(attacker.x - c.x, attacker.z - c.z) < 5;
     if (cause === 'explosion' || (cause === 'vehicle' && Math.random() < 0.5) || pointBlank) {
       c.headless = true;
       c.neckSpray = 2.5;

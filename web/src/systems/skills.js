@@ -45,13 +45,14 @@ export class Skills {
   recompute() {
     const S = this.g.skills, L = this.lv;
     S.spreadMul = 1 - PER_LEVEL.spread * L.dexterity;
-    S.reloadMul = 1 - PER_LEVEL.reload * L.dexterity;
+    const G = this.g.gear; // what you wear (systems/gear.js): a sash's loops, a belt's pouches, boots
+    S.reloadMul = (1 - PER_LEVEL.reload * L.dexterity) * (G?.reloadMul() ?? 1);
     S.sprintDrainMul = 1 - PER_LEVEL.sprintDrain * L.endurance;
-    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0); // a known scavenger packs smarter
+    S.carryKg = CARRY.baseKg + PER_LEVEL.carryKg * L.strength + (this.g.roles?.perk.carryKg ?? 0) + (G?.carryKg() ?? 0); // a known scavenger packs smarter; a belt carries
     S.kg = this.g.inv ? this.weigh() : 0;
     S.load = S.kg / S.carryKg;
     S.overloaded = S.load > 1;
-    S.speedMul = S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1;
+    S.speedMul = (S.overloaded ? CARRY.overSpeed : S.load > CARRY.slowAt ? CARRY.slowSpeed : 1) * (G?.speedMul() ?? 1);
     S.drainMul = S.load > CARRY.slowAt ? CARRY.slowDrain : 1;
   }
 
@@ -70,7 +71,7 @@ export class Skills {
     const S = this.g.skills;
     return {
       skills: Object.fromEntries(Object.keys(SKILLS).map((k) => [k, { level: this.lv[k], xp: +this.xp[k].toFixed(1), next: this.lv[k] >= MAX_LEVEL ? null : +this.need(this.lv[k]).toFixed(1), what: SKILLS[k].what }])),
-      effects: { spreadMul: +S.spreadMul.toFixed(3), reloadMul: +S.reloadMul.toFixed(3), sprintDrainMul: +S.sprintDrainMul.toFixed(3) },
+      effects: { spreadMul: +S.spreadMul.toFixed(3), reloadMul: +S.reloadMul.toFixed(3), sprintDrainMul: +S.sprintDrainMul.toFixed(3), speedMul: +S.speedMul.toFixed(3) },
       carry: { kg: +S.kg.toFixed(1), capacityKg: +S.carryKg.toFixed(1), load: +S.load.toFixed(2), speedMul: S.speedMul, overloaded: S.overloaded },
     };
   }

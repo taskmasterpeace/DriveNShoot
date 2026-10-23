@@ -1,6 +1,8 @@
 import { ITEMS, GUN_ITEM } from '../data/items.js';
 import { slotKg } from '../systems/inventory.js';
 import { WEAPONS } from '../systems/combat.js';
+import { SLOTS, SLOT_LABEL, ARMOR_SLOTS, PARTS, GEAR } from '../data/gear.js';
+import { BREEDS, BOND_TIERS } from '../data/dogs.js';
 
 // The PACK screen (I or Tab): what's on you beside the other side - the trunk of the car you're at, a box or a
 // body you opened, or the ground at your feet. The world keeps running while you rummage (you stand still), so a
@@ -21,6 +23,8 @@ const ICON = {
   paper: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   gun: '<path d="M2 7h19v4H11l-2 9H5l2-9H2z"/><path d="M11 11l1 3h2"/>',
   ammo: '<path d="M5 21V11l1.5-5L8 11v10zM10.5 21V11L12 6l1.5 5v10zM16 21V11l1.5-5 1.5 5v10z"/><path d="M5 17h3M10.5 17h3M16 17h3"/>',
+  armor: '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>',
+  gear: '<path d="M8 3h8l1 4-2 14H9L7 7z"/><path d="M7 7h10"/>',
 };
 const icon = (kind) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[kind] ?? ICON.paper}</svg>`;
 const STATE = { ok: '', worn: 'WORN', jammed: 'JAMMED', broken: 'BROKEN' };
@@ -38,6 +42,8 @@ export class InventoryUI {
               <div class="inv-meter"><span>ROOM</span><i><em class="inv-l"></em></i><b class="inv-l-t"></b></div>
             </div>
           </div>
+          <div class="inv-doll"></div>
+          <div class="inv-dogs"></div>
           <div class="inv-cols">
             <section class="inv-col" data-side="0"><h4>ON YOU</h4><ol class="inv-list"></ol></section>
             <section class="inv-col" data-side="1"><h4 class="inv-other"></h4><ol class="inv-list"></ol></section>
@@ -59,7 +65,7 @@ export class InventoryUI {
     this.el = {
       menu: root.querySelector('.invmenu'), worn: q('.inv-worn'), roles: q('.inv-roles'), kg: q('.inv-kg'), kgT: q('.inv-kg-t'), l: q('.inv-l'), lT: q('.inv-l-t'),
       lists: [...root.querySelectorAll('.invmenu .inv-list')], cols: [...root.querySelectorAll('.invmenu .inv-col')], other: q('.inv-other'),
-      dname: q('.inv-dname'), desc: q('.inv-desc'), stats: q('.inv-stats'), acts: q('.inv-acts'), useT: q('.inv-use-t'), moveT: q('.inv-move-t'), say: q('.inv-say'),
+      doll: q('.inv-doll'), dogs: q('.inv-dogs'), dname: q('.inv-dname'), desc: q('.inv-desc'), stats: q('.inv-stats'), acts: q('.inv-acts'), useT: q('.inv-use-t'), moveT: q('.inv-move-t'), say: q('.inv-say'),
     };
     this.open = false; this.side = 0; this.sel = [0, 0]; this.other = null; this.sayT = 0;
     this.el.lists.forEach((ol, side) => ol.addEventListener('click', (e) => {
@@ -68,6 +74,8 @@ export class InventoryUI {
     }));
     this.el.lists.forEach((ol, side) => ol.addEventListener('dblclick', (e) => { const li = e.target.closest('li[data-i]'); if (!li) return; this.side = side; this.sel[side] = +li.dataset.i; this.act('move'); }));
     this.el.acts.addEventListener('click', (e) => { const b = e.target.closest('button[data-a]'); if (b) this.act(b.dataset.a); });
+    // A worn slot's chip: click takes it off (into the pack; at your feet with no room).
+    this.el.doll.addEventListener('click', (e) => { const b = e.target.closest('[data-slot]'); if (!b || !this.g.gear.worn[b.dataset.slot]) return; const r = this.g.gear.takeOff(b.dataset.slot); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); this.render(); });
   }
 
   // The other side: whatever is opened, else a box or body at your feet, else the car you're in or standing at,
@@ -127,11 +135,12 @@ export class InventoryUI {
       if (a === 'use') { g.switchWeapon(e.gun); this.tell(`${WEAPONS[e.gun].name} IN HAND`); }
       else if (a === 'move' && D) say(g.trade.sellGun(e.gun, other, D));
       else if (a === 'move' || a === 'drop') say(inv.stowGun(e.gun, a === 'drop' ? ground : other));
-      else if (a === 'wear') this.tell('ONLY A PACK GOES ON YOUR BACK', true);
+      else if (a === 'wear') this.tell('A GUN GOES ON THE SLING, NOT IN A SLOT', true);
     } else {
       const s = e.s, it = ITEMS[s.id], gun = it?.kind === 'gun', theirs = this.side === 1 && D;
       if (a === 'use') {
         if (gun) say(theirs ? g.trade.buy(box, e.i, 1, D) : inv.sling(box, e.i)); // straight to your hands, wherever it lies
+        else if (it?.slot && this.side === 0) { const r = g.gear.wear(e.i); say(r); } // E on armor or clothes: put it on
         else {
           let j = e.i;
           if (this.side !== 0) { // into your hands first (bought, over a counter), where it may join a stack you carry
@@ -151,7 +160,8 @@ export class InventoryUI {
         if (theirs) return this.tell(`THAT'S ${D.name.toUpperCase()}'S · SPACE BUYS IT`, true);
         inv.move(box, e.i, ground, s.n);
       } else if (a === 'wear') {
-        if (this.side !== 0 || !it?.pack) return this.tell('ONLY A PACK GOES ON YOUR BACK', true);
+        if (this.side === 0 && it?.slot) { const r = g.gear.wear(e.i); this.tell(r.ok ? r.text : r.why.toUpperCase(), !r.ok); return this.render(); } // armor, clothes, a charm: into its slot
+        if (this.side !== 0 || !it?.pack) return this.tell(it?.slot ? 'TAKE IT FIRST, THEN WEAR IT' : 'NOT SOMETHING YOU WEAR', true);
         const r = inv.swapPack(e.i);
         this.tell(r.ok ? `WEARING THE ${ITEMS[r.worn].name.toUpperCase()}` : r.why.toUpperCase(), !r.ok);
       }
@@ -194,6 +204,21 @@ export class InventoryUI {
     return `<li data-i="${i}" class="${sel ? 'sel' : ''} k-${it.kind}${cls}">${icon(it.kind)}<span class="nm">${it.name}${s.n > 1 ? ` <i>×${s.n}</i>` : ''}</span>${tags.join('')}<span class="w">${slotKg(s).toFixed(s.n * it.kg < 1 ? 2 : 1)} kg</span></li>`;
   }
 
+  // The paperdoll: 19 slots in three rows (armor, clothing, accessories), what is in each, the soak per body part; and
+  // your dogs (name, breed, bond tier, health, what it is doing).
+  renderDoll() {
+    const g = this.g, G = g.gear, inv = g.inventory, esc = (t) => String(t).replace(/[<>&]/g, '');
+    const chip = (s) => {
+      const id = s === 'back' ? inv.worn : G.worn[s], name = id ? (GEAR[id]?.name ?? ITEMS[id]?.name ?? id) : '';
+      return `<button class="doll-slot${ARMOR_SLOTS.includes(s) ? ' armor' : ''}${id ? ' worn' : ''}" data-slot="${s}" title="${id ? 'click to take it off' : 'bare'}"><i>${SLOT_LABEL[s]}</i><b>${id ? esc(name) : '—'}</b></button>`;
+    };
+    const soak = PARTS.map((p) => `<span>${p.toUpperCase()} <b>${Math.round(G.soakBy[p] * 100)}%</b></span>`).join('');
+    this.el.doll.innerHTML = `<div class="doll-row">${SLOTS.slice(0, 6).map(chip).join('')}</div><div class="doll-row">${SLOTS.slice(6, 13).map(chip).join('')}</div><div class="doll-row">${SLOTS.slice(13).map(chip).join('')}<div class="doll-soak">SOAK ${soak}</div></div>`;
+    const mine = g.dogs?.mine() ?? [];
+    this.el.dogs.innerHTML = mine.length ? mine.map((d) => `<span class="dog${d.downed ? ' down' : ''}"><b>${esc(d.name.toUpperCase())}</b> ${BREEDS[d.breed].name.toUpperCase()} · ${BOND_TIERS[g.dogs.tier(d)]} · ${d.downed ? `DOWN ${Math.ceil(d.bleedT)} S` : `${Math.round(d.hp)}/${d.maxHp} HP`} · ${d.ride ? 'RIDING' : d.cmd.toUpperCase()}</span>`).join('') + '<em>C WHISTLES · TAP HEEL · ×2 GUARD · ×3 SEEK · HOLD SIC</em>'
+      : `<span class="nodog">NO DOG${(g.dogs?.fallen.length ?? 0) ? ` · REMEMBERED: ${g.dogs.fallen.map((f) => esc(f.name.toUpperCase())).join(', ')}` : ' · FEED A STRAY (JERKY, DRIED MEAT) UNTIL IT FOLLOWS YOU'}</span>`;
+  }
+
   render() {
     const g = this.g, inv = g.inventory;
     inv.dirty = false;
@@ -214,6 +239,7 @@ export class InventoryUI {
     this.el.other.textContent = o ? `${o.label}${o.kind === 'ground' ? '' : ` · ${o.litres().toFixed(0)} / ${o.cap} L`}${whose}` : '';
     this.el.other.classList.toggle('owned', !!o?.owner && !D);
     this.el.other.classList.toggle('trade', !!D);
+    this.renderDoll();
     for (let side = 0; side < 2; side++) {
       const box = this.box(side), sel = this.sel[side], G = this.guns(side);
       this.el.cols[side].classList.toggle('active', this.side === side);
@@ -239,14 +265,20 @@ export class InventoryUI {
       if (it.uses) bits.push(`${s.left} of ${it.uses} left`);
       if (it.needs) bits.push(`needs a ${it.needs}${inv.hasTag(it.needs) ? ' ✓' : ' (you have none)'}`);
       if (it.pack) bits.push(`+${it.pack} L worn`);
+      const gr = GEAR[s.id];
+      if (gr) {
+        bits.unshift(`worn: ${SLOT_LABEL[gr.slot].toLowerCase()}${g.gear.worn[gr.slot] ? ` (swaps the ${GEAR[g.gear.worn[gr.slot]].name.toLowerCase()})` : ''}`);
+        if (gr.soak) bits.push(`soaks ${Math.round(gr.soak * 100)}% of a hit on the ${gr.covers.join(', ')}`);
+        for (const [k, t] of [['carry', (v) => `+${v} kg carried`], ['speed', (v) => `${Math.round(v * 100)}% quicker on foot`], ['reload', (v) => `${Math.round(v * 100)}% quicker reloads`], ['stealth', (v) => `seen ${Math.round(v * 100)}% closer`], ['repair', (v) => `patches ${Math.round(v * 100)}% better`], ['luck', (v) => `+${v} find in every box you open first`], ['unarmed', () => 'teeth for bare fists (no bare-hands fighting yet)']]) if (gr[k]) bits.push(t(gr[k]));
+      }
       if (it.kind === 'gun') { bits.unshift(`${Math.round((s.cond ?? 1) * 100)}% condition`, `${s.loaded ?? 0} rounds in it`); useT = g.inv.weapons.includes(it.weapon) ? 'SWAP FOR YOURS' : 'SLING IT'; canUse = true; }
-      else canUse = !!it.use;
+      else { canUse = !!it.use || (!!it.slot && this.side === 0); if (it.slot && this.side === 0) useT = 'WEAR'; }
       if (it.ammo) bits.push(g.inv.weapons.some((k) => WEAPONS[k]?.ammo === it.ammo) ? 'fits a gun you carry' : 'fits none of your guns');
       if (D) bits.push(this.side === 1 ? `${D.name} sells ${s.n > 1 ? `all ${s.n} for` : 'it for'} $${g.trade.buyPrice(s, s.n, D)}` : g.trade.deals(D, s.id) ? `${D.name} pays $${g.trade.sellPrice(s, s.n, D)}${s.n > 1 ? ` for all ${s.n}` : ''}` : `${D.name} doesn't deal in it`);
       this.el.dname.textContent = it.name.toUpperCase();
       this.el.desc.textContent = it.desc;
       this.el.stats.textContent = bits.join(' · ');
-      isPack = !!it.pack && this.side === 0;
+      isPack = (!!it.pack || !!it.slot) && this.side === 0;
     } else { this.el.dname.textContent = ''; this.el.desc.textContent = ''; this.el.stats.textContent = ''; }
     this.el.useT.textContent = useT;
     const put = `PUT ${o?.kind === 'ground' ? 'DOWN' : o?.kind === 'trunk' ? 'IN THE TRUNK' : o?.id?.startsWith('body:') ? 'ON THE BODY' : 'IN THE BOX'}`;

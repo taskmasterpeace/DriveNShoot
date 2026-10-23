@@ -25,6 +25,8 @@ const GUN_MODELS = {
   smg: { muzzle: 0.34, grip: 0.36, support: 0.52, carry: 'low' },
   sawnoff: { muzzle: 0.36, grip: 0.34, support: 0.54, carry: 'low' },
   rifle: { muzzle: 0.68, grip: 0.26, support: 0.53, carry: 'low' },
+  auto: { muzzle: 0.2, grip: 0.5, support: 0.5, carry: 'hand' },   // the self-loader: a slide, a grip, a magazine
+  pump: { muzzle: 0.6, grip: 0.28, support: 0.56, carry: 'low' },  // the pump shotgun: long barrel, tube, forend
 };
 const GUN_KEYS = Object.keys(GUN_MODELS);
 // A weapon row may name its model; otherwise its ammo says what it looks like.
@@ -177,6 +179,19 @@ function gunGeos() {
       b(0.052, 0.045, 0.32, 0, 0.022, 0.3, W),            // fore-end
       b(0.045, 0.09, 0.36, 0, 0, -0.2, W, -0.12),         // stock
       b(0.04, 0.05, 0.2, 0, 0.115, 0.08, D),              // scope
+    ]),
+    auto: mergeGeometries([
+      b(0.03, 0.04, 0.19, 0, 0.055, 0.05, D),             // slide
+      b(0.026, 0.025, 0.15, 0, 0.025, 0.04, M),           // frame
+      b(0.03, 0.11, 0.045, 0, -0.03, -0.025, M, 0.22),    // grip with the magazine in it
+      b(0.012, 0.012, 0.02, 0, 0.08, 0.13, D),            // front sight
+    ]),
+    pump: mergeGeometries([
+      tube(0.019, 0.56, 0, 0.065, 0.32, M),               // barrel
+      tube(0.016, 0.42, 0, 0.03, 0.26, D),                // magazine tube under it
+      tube(0.03, 0.15, 0, 0.035, 0.3, W),                 // the pump (forend)
+      b(0.05, 0.07, 0.17, 0, 0.05, 0.0, D),               // receiver
+      b(0.045, 0.095, 0.34, 0, 0.0, -0.22, W, -0.1),      // stock
     ]),
   };
 }

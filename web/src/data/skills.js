@@ -20,7 +20,7 @@ export const PER_LEVEL = { spread: 0.035, reload: 0.03, sprintDrain: 0.04, carry
 // What things weigh (kg). Rocks are free: they're on the ground wherever you are.
 export const CARRY = { baseKg: 24, slowAt: 0.75, slowSpeed: 0.9, slowDrain: 1.3, overSpeed: 0.72 };
 export const ITEM_KG = {
-  weapon: { pistol: 1.2, smg: 3.2, shotgun: 3.3, rifle: 3.8 },
+  weapon: { pistol: 1.2, smg: 3.2, shotgun: 3.3, rifle: 3.8, auto: 1.0, pump: 3.4 },
   round: { pistol: 0.012, smg: 0.008, shells: 0.045, rifle: 0.025 },
   throwable: { frag: 0.4, molotov: 0.8, smoke: 0.45, flash: 0.3, pipe: 0.7, sticky: 0.5, rock: 0 },
 };
