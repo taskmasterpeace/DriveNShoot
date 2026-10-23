@@ -101,5 +101,6 @@ function agentBridge() {
 export default defineConfig({
   plugins: [agentBridge()],
   server: { port: 3141 },
-  build: { chunkSizeWarningLimit: 1200 },
+  // Two pages: the game, and the Building Lab (docs/design/WEB_BUILDING_LAB.md) on the game's own generators.
+  build: { chunkSizeWarningLimit: 1200, rollupOptions: { input: { main: 'index.html', lab: 'lab.html' } } },
 });
