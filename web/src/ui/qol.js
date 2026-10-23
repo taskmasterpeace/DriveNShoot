@@ -19,7 +19,7 @@ for (const k of ['settings', 'quicksave', 'autosave']) {
 const AUTOSAVE_EVERY = 180; // seconds of play
 // steer: 'screen' = A turns toward the left of the SCREEN whichever way the car points (Robert: "left is left"); 'car' = A
 // turns the car to its own left, GTA2's tank steering (systems/vehicles.js DRIVING.screenSteer).
-const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen' };
+const DEFAULTS = { volume: 0.55, shadows: true, renderScale: 1, showFps: false, autoReload: true, aimAssist: true, difficulty: 'normal', steer: 'screen', nightLight: 0.12 };
 const DIFFICULTY = { story: 0.35, normal: 0.7, hard: 1 };
 
 const load = (k, d) => { try { return { ...d, ...JSON.parse(localStorage.getItem(k) ?? '{}') }; } catch { return { ...d }; } };
@@ -59,6 +59,7 @@ export class QOL {
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-s="volume"></label>
         <label>Render scale <select data-s="renderScale"><option value="0.6">0.6× (fast)</option><option value="0.8">0.8×</option><option value="1">1× </option><option value="1.5">1.5× (sharp)</option></select></label>
         <label><input type="checkbox" data-s="shadows"> Sun shadows</label>
+        <label>Night <select data-s="nightLight"><option value="0">Pitch dark (only your light)</option><option value="0.12">Dark and scary</option><option value="0.5">Readable</option><option value="1">Bright</option></select></label>
         <label>Steering <select data-s="steer"><option value="screen">Left is screen-left (whichever way the car points)</option><option value="car">Left is the car's left (classic top-down)</option></select></label>
         <label><input type="checkbox" data-s="autoReload"> Auto-reload when empty</label>
         <label><input type="checkbox" data-s="aimAssist"> Aim assist (snaps to targets near the cursor)</label>
@@ -121,6 +122,7 @@ export class QOL {
     g.audio.volume = s.volume;
     g.showStats = !!s.showFps;
     DRIVING.screenSteer = s.steer !== 'car';
+    g.sky.nightLight = Math.max(0, Math.min(1, Number(s.nightLight ?? 0.12)));
     g.hud.el.stats.classList.toggle('hidden', !g.showStats);
   }
 
@@ -128,6 +130,16 @@ export class QOL {
   objective() {
     const g = this.g, q = g.quests;
     if (this.customObjective) return this.customObjective;
+    // In Florida (systems/regions.js): Meridian's own chain - Sheriff Duarte's canal job (data/meridian-talk.js), not Rust
+    // Haven's. The sheriff is a person only while the town is promoted; otherwise the clinic door stands in for the town.
+    const P = g.player, R = g.streamer?.W?.regionOf?.(P.x, P.z, 3000);
+    if (R && g.regions) {
+      const duarte = g.chars.find((c) => c.npc?.id === 'mer_sheriff' && c.alive), door = g.regions.clinic('meridian')?.door ?? null, at = duarte ?? door;
+      const gators = (g.stats.gators ?? 0) - (q.canalStart ?? 0);
+      if (!q.canal) return { text: `Talk to Sheriff Duarte: the office on Meridian's Main Street`, target: at };
+      if (q.canal === 'active') return gators < 2 ? { text: `Clear the canal: gators in the reeds by the pumps, west of I-95 (${gators}/2)`, target: null } : { text: 'Back to Sheriff Duarte for your $120', target: at };
+      return { text: 'Meridian knows your name. The SALT LINE runs north from the knot; the clone bay presses you a spare.', target: null };
+    }
     const sheriff = g.chars.find((c) => c.npc?.id === 'okonkwo');
     const nearestCamp = () => g.world.spawns.camps.reduce((b, c) => (Math.hypot(c.x - g.player.x, c.z - g.player.z) < Math.hypot(b.x - g.player.x, b.z - g.player.z) ? c : b));
     if (!q.bounty) return { text: 'Talk to Sheriff Okonkwo at Rust Haven\'s north gate', target: sheriff };

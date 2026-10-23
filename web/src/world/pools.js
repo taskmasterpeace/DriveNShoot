@@ -92,7 +92,7 @@ export const LAYERS = {
   ground: { uv: true, color: true, floor: true, cast: false, receive: true },
   road: { uv: true, color: false, cast: false, receive: true },
   rock: { uv: false, color: true, cast: true, receive: true },
-  water: { uv: true, color: true, cast: false, receive: true }, // a region's water sheet (world/regions.js)
+  water: { uv: true, color: true, cast: false, receive: true }, // ONE water sheet (world/water.js streamMat): a region's (world/regions.js) and L1's (world/rivers.js); only a chunk with water fills it
 };
 
 export class SurfacePool {

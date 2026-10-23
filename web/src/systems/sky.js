@@ -21,8 +21,12 @@ const SUN_DAY = new THREE.Color('#fff4e0'), SUN_LOW = new THREE.Color('#ff9a52')
 const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82a0'), HEMI_LOW = new THREE.Color('#f0b884');
 // Light levels. three.js r155+ no longer multiplies a light by pi, and these were never raised to match: noon in Rust
 // Haven measured a mean of 53/255 on screen and the hour after sunset 11/255 (2026-10-23, Robert: "it's too dark, bro").
-// [night, day] for the sun (the moon at night) and the sky fill. Night stays dark enough to need a light, not black.
+// [night, day] for the sun (the moon at night) and the sky fill. The night end is a range, picked by the pause menu's Night
+// setting (Robert: nights "truly dark and scary"): NIGHT_I.sun/hemi [pitch, bright] at nightLight 0..1. The old night
+// (1.5 / 1.55) is nightLight 1; the default 0.2 needs your light to see past a few metres.
 const SUN_I = [1.5, 4.6], HEMI_I = [1.55, 2.0];
+export const NEW_GAME_HOUR = 8; // a person's first day starts here (agents keep 18.6)
+export const NIGHT_I = { sun: [0.1, 1.5], hemi: [0.16, 1.55], dflt: 0.12 };
 // Golden-hour fill: the camera looks straight down, so nearly everything on screen is flat ground, and a sun a few
 // degrees up lights flat ground at a fifth of noon. Without help the hour either side of sunset read nearly black
 // (Playwright capture, 17:42). The sky fill rises (x1 + GOLDEN_FILL) and warms while the sun is low but up; the long
@@ -36,7 +40,11 @@ export class Sky {
   constructor(scene, audio) {
     this.scene = scene;
     this.audio = audio;
-    this.time = 18.6;          // hours; start at dusk so night arrives fast
+    // Hours. A person's new game opens on a morning (the first hours by daylight; the dark comes after you know the place,
+    // and nights are truly dark now: WEB_LOOK §3.1b). Agents and the selftest (?agent=1, ?autostart) keep the old dusk
+    // start their checks were written against. A loaded save brings its own clock.
+    const agentPage = typeof location !== 'undefined' && /[?&](agent|autostart)/.test(location.search);
+    this.time = agentPage ? 18.6 : NEW_GAME_HOUR;
     this.timeScale = 1 / 30;   // in-game hours per real second (= 2 game min / s)
     this.fast = false;
     this.weatherKey = 'CLEAR';
@@ -48,6 +56,7 @@ export class Sky {
     this.flash = 0;
     this.thunderQueue = [];
     this.night = 0;
+    this.nightLight = NIGHT_I.dflt; // 0 pitch .. 1 bright (the pause menu's Night setting, ui/qol.js)
 
     this.hemi = new THREE.HemisphereLight('#d9c7a6', '#4a3626', 0.9);
     scene.add(this.hemi);
@@ -150,7 +159,8 @@ export class Sky {
 
     const low = 1 - smoothstep(0.05, 0.5, elev);
     this.sun.color.copy(SUN_DAY).lerp(SUN_LOW, low * 0.85).lerp(MOON, this.night);
-    this.sun.intensity = lerp(SUN_I[0], SUN_I[1], day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);
+    const nl = this.nightLight;
+    this.sun.intensity = lerp(lerp(NIGHT_I.sun[0], NIGHT_I.sun[1], nl), SUN_I[1], day) * lerp(1, cloudDim, day * 0.7 + 0.3) * (1 - c.dust * 0.4);
 
     // Lightning.
     if (c.storm > 0.5 && Math.random() < dt * 0.12) {
@@ -165,7 +175,7 @@ export class Sky {
     const flicker = this.flash > 0 ? this.flash * (0.6 + Math.random() * 0.4) : 0;
 
     const golden = low * day; // 0 at noon and in the night, ~0.75 at 17:30
-    this.hemi.intensity = lerp(HEMI_I[0], HEMI_I[1], day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
+    this.hemi.intensity = lerp(lerp(NIGHT_I.hemi[0], NIGHT_I.hemi[1], nl), HEMI_I[1], day) * (1 + GOLDEN_FILL * golden) * (1 - 0.25 * c.clouds) + flicker * 2.5;
     this.hemi.color.copy(HEMI_DAY).lerp(HEMI_LOW, golden * 0.45).lerp(HEMI_NIGHT, this.night);
     this.hemi.groundColor.copy(GROUND_DAY).lerp(GROUND_NIGHT, this.night);
 

@@ -65,38 +65,48 @@ export class Travel {
     for (const [id, row] of Object.entries(NODES)) {
       const n = { id, ...row, onMap: false, road: false };
       let x, z, s = null;
-      const at = row.at;
+      const at = row.at, R = this.roadById(at?.road ?? row.roadId ?? 'I-10');
+      if (!R) { out[id] = n; continue; } // a road the world has not built (a region not laid out): off the map
+      n.cor = R;
       if (at?.s !== undefined) s = at.s;
-      else if (at?.exit) { const X = W.exits.find((e) => e.name === at.exit) ?? null; if (X) s = X.s; else { const L = W.locate(at.exit); if (L?.built) s = W.project(L.x, L.z, 4096).s; } }
-      else if (at?.town) { const L = W.locate(at.town); if (L?.built) { const pr = W.project(L.x, L.z, 4096); if (pr.d < 1500) s = Math.min(pr.s, W.cl.L - 120); else { x = L.x; z = L.z; } } }
-      else if (at && at.x !== undefined) { x = at.x; z = at.z; const pr = W.project(x, z, 600); if (pr.d < 30 && !row.rail) s = pr.s; }
-      else if (row.town) { const L = W.locate(row.town); if (L?.built && Math.hypot(L.x, L.z) < STREAM.dustWall - 1500) { x = L.x; z = L.z; } }
-      if (s !== null) { const f = W.at(s); x = f.x; z = f.z; n.s = s; n.road = true; }
-      if (x !== undefined && Math.hypot(x, z) < STREAM.dustWall - 1500) {
+      else if (at?.exit) { const X = (R === W ? W.exits : R.exits).find((e) => e.name === at.exit) ?? null; if (X) s = X.s; else { const L = W.locate(at.exit); if (L?.built) s = R.project(L.x, L.z, 4096).s; } }
+      else if (at?.town) { const L = W.locate(at.town); if (L?.built) { const pr = R.project(L.x, L.z, 4096); if (pr.d < 1500) s = Math.min(pr.s, this.roadLen(R) - 120); else { x = L.x; z = L.z; } } }
+      else if (at && at.x !== undefined) { x = at.x; z = at.z; const pr = R.project(x, z, 600); if (pr.d < 30 && !row.rail) s = pr.s; }
+      else if (row.town) { const L = W.locate(row.town); if (L?.built && this.inWorld(L.x, L.z)) { x = L.x; z = L.z; } }
+      if (s !== null) { const f = R.at(s); x = f.x; z = f.z; n.s = s; n.road = true; }
+      if (x !== undefined && this.inWorld(x, z)) {
         n.onMap = true; n.x = x; n.z = z;
         if (n.road) {
-          n.poles = { 1: this.poleAt(s, 1), [-1]: this.poleAt(s, -1) };
+          n.poles = { 1: this.poleAt(s, 1, 0, R), [-1]: this.poleAt(s, -1, 0, R) };
           const side = row.side ?? 1, off = row.off ?? 0;
-          n.counter = off ? this.poleAt(s, side, off) : n.poles[side];
+          n.counter = off ? this.poleAt(s, side, off, R) : n.poles[side];
         } else n.counter = { x, z, h: 0 };
       }
       out[id] = n;
     }
     // A field that shares a knot's spot stands off the road on the far side (Los Angeles: the trundle's pole and the field).
-    for (const n of Object.values(out)) if (n.air && n.road && n.counter) { const c = this.poleAt(n.s, n.side ?? -1, 26); n.counter = c; }
+    for (const n of Object.values(out)) if (n.air && n.road && n.counter) { const c = this.poleAt(n.s, n.side ?? -1, 26, n.cor); n.counter = c; }
     return (this.nodesR = out);
   }
   node(id) { return this.nodes()[id] ?? null; }
-  poleAt(s, dir, extra = 0) {
-    const W = this.W, f = W.at(s), sec = W.section(s), u = dir * (sec.out + VB.poleOffset + extra);
+  // The road a line or a node runs on: I-10 is the world index itself, a region's interstate one of W.corridors.
+  roadById(id) { const W = this.W; return !id || id === 'I-10' ? W : W.corridors?.find((c) => c.id === id) ?? null; }
+  roadOf(L) { return this.roadById(L?.road); }
+  roadLen(R) { return R === this.W ? this.W.cl.L : R.L; }
+  // On the map: inside P1's dust-wall circle or a region's box, well clear of its edge.
+  inWorld(x, z) { const W = this.W; return W.inWorld ? W.inWorld(x, z, -1500) : Math.hypot(x, z) < STREAM.dustWall - 1500; }
+  poleAt(s, dir, extra = 0, R = this.W) {
+    const W = R, f = W.at(s), sec = W.section(s), u = dir * (sec.out + VB.poleOffset + extra);
     return { x: f.x + f.nx * u, z: f.z + f.nz * u, h: Math.atan2(-f.nx * dir, -f.nz * dir), dir };
   }
   // The stop point on the outer lane, in the direction of travel.
-  stopPoint(s, dir) {
-    const W = this.W, f = W.at(s), sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2, u = dir * (sec.lane0 + lw * 1.5);
+  stopPoint(s, dir, R = this.W) {
+    const W = R, f = W.at(s), sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2, u = dir * (sec.lane0 + lw * 1.5);
     return { x: f.x + f.nx * u, z: f.z + f.nz * u, h: Math.atan2(f.tx * dir, f.tz * dir) };
   }
   nodeName(id) { return NODES[id]?.short ?? id; }
+  // EAST > / < WEST on I-10, NORTH > / < SOUTH on a road that runs south to north (a line row's dirs).
+  dirLabel(lineId, dir) { const d = this.line(lineId)?.dirs ?? ['EAST', 'WEST']; return dir > 0 ? `${d[0]} ▸ ` : `◂ ${d[1]} `; }
 
   // ---- timetables -----------------------------------------------------------------------------------------------------
   // The trundle: hours from each end's departure to each stop (the road at cruise, plus a dwell at every pole before).
@@ -244,7 +254,7 @@ export class Travel {
         title: n.name, sub: `${lines} · NOW ${fmt(now)}`,
         note: this.away ? null : this.punches.length ? `YOUR PUNCHES: ${this.punches.map((p) => `${this.line(p.line).name} TO ${this.nodeName(p.to)}`).join(' · ')}` : null,
         head: ['TO', 'LEAVES', 'ARRIVES', 'FARE'],
-        rows: shown.map((r, k) => ({ key: String(k + 1), cols: [`${r.kind === 'bus' ? (r.dir > 0 ? 'EAST ▸ ' : '◂ WEST ') : r.kind === 'air' ? '✈ ' : '▸ '}${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`],
+        rows: shown.map((r, k) => ({ key: String(k + 1), cols: [`${r.kind === 'bus' ? this.dirLabel(r.line, r.dir) : r.kind === 'air' ? '✈ ' : '▸ '}${this.nodeName(r.to)}${r.offMap ? ' (PAST THE DUST)' : ''}`, fmt(r.dep), fmt(r.arr), `$${r.fare}`],
           mark: this.punches.some((p) => p.line === r.line && p.from === nodeId && p.to === r.to) ? 'PUNCHED' : '', hot: this.punches.some((p) => p.line === r.line && p.from === nodeId && p.to === r.to) })),
         foot: [['1-9', 'Buy a punch'], ['N', 'Sleep through the trip (the clock runs)'], ['ESC', 'Wait here in real time']],
         onKey: (code) => {
@@ -384,7 +394,7 @@ export class Travel {
     if (L.kind === 'bus') {
       const st = L.stops, i = st.indexOf(P.from), j = st.indexOf(P.to);
       if (aboard) {
-        const v = p.inVehicle, s = this.W.project(v.x, v.z, 600).s, sj = this.node(P.to).s;
+        const v = p.inVehicle, s = this.roadOf(L).project(v.x, v.z, 600).s, sj = this.node(P.to).s;
         miles = Math.abs(sj - s) / MILE;
         const left = Math.max(0, (sj - s) * P.dir);
         let stops = 0; for (let k = i + P.dir; k !== j && k >= 0 && k < st.length; k += P.dir) if ((this.node(st[k]).s - s) * P.dir > 0) stops++;
@@ -470,9 +480,10 @@ export class Travel {
     const first = dir > 0 ? 0 : st.length - 1;
     let s = st[i].s - dir * VB.busSpawnAhead, next = i;
     if (atStop || i === first) { s = st[i].s; atStop = true; }
-    s = Math.max(30, Math.min(this.W.cl.L - 30, s));
+    const RD = this.roadOf(L);
+    s = Math.max(30, Math.min(this.roadLen(RD) - 30, s));
     if (!atStop) { next = i; for (let q = first; q !== i; q += dir) if ((st[q].s - s) * dir > 2) { next = q; break; } }
-    const q = this.stopPoint(s, dir);
+    const q = this.stopPoint(s, dir, RD);
     const v = g.vehiclesSys.spawn('bus', q.x, q.z, q.h, L.vehicle.paint, { ai: 'bus' });
     v.trundle = L.id;
     if (!atStop) { v.vx = Math.sin(q.h) * L.speed * 0.85; v.vz = Math.cos(q.h) * L.speed * 0.85; }
@@ -558,7 +569,7 @@ export class Travel {
       g.emit('trundleTaken', { vehicle: v.id }); v.ai = null; v.trundle = null; if (this.ride) this.endRide('took the wheel'); this.bus = null; return;
     }
     const st = this.table(L), sp = g.vehiclesSys.speed(v);
-    const pr = this.W.project(v.x, v.z, 600), s = pr.s;
+    const RD = this.roadOf(L), pr = RD.project(v.x, v.z, 600), s = pr.s;
     if (!v.driver || !v.driver.alive || B.state === 'dead') { v.throttle = 0; v.steer = 0; v.handbrake = sp < 2; if (B.state !== 'dead' && B.state !== 'stranded') { B.state = 'stranded'; g.emit('trundleStranded', { vehicle: v.id }); if (aboard) g.hud?.toast?.('THE TRUNDLE IS DEAD IN THE ROAD · [F] GET OFF, OR TAKE THE WHEEL', 'hot'); } return; }
     // The guard: shoots at anything coming for the coach.
     this.guard(v, dt);
@@ -579,7 +590,7 @@ export class Travel {
     let want = Math.min(L.speed, Math.sqrt(2 * 2.4 * Math.max(0, along - 1.2)) + 0.6);
     // Its lane: the outer one; round a car stopped in it by the inner lane, or the oncoming one when that is clear for a
     // long way (parked cars on Rust Haven's main street, a wreck on the interstate); back to the outer lane once past.
-    const W = this.W, sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2, U = (B.u ??= { 1: 0, 0: 0, [-1]: 0 });
+    const W = RD, sec = W.section(s), lw = (sec.lane2 - sec.lane0) / 2, U = (B.u ??= { 1: 0, 0: 0, [-1]: 0 });
     for (const l of LANES) U[l] = B.dir * (sec.lane0 + lw * (l + 0.5)); // each lane's offset from the centreline
     const blocked = (B.blk ??= { 1: 99, 0: 99, [-1]: 99 }); blocked[1] = blocked[0] = blocked[-1] = 99; // reused: no per-frame garbage
     let beside = false;
@@ -615,7 +626,7 @@ export class Travel {
     // Anyone on foot in its path: stop and lean on the horn.
     const fx = Math.sin(v.h), fz = Math.cos(v.h);
     for (const c of g.chars) { if (!c.alive || c.inVehicle) continue; const ox = c.x - v.x, oz = c.z - v.z; if (Math.abs(ox) > 18 || Math.abs(oz) > 18) continue; const a = ox * fx + oz * fz, w = Math.abs(ox * fz - oz * fx); if (a > 2 && a < 15 && w < 2.2) { want = 0; v.honk = (v.honk ?? 0) - dt; if (v.honk <= 0) { g.audio?.horn?.(Math.hypot(c.x - p.x, c.z - p.z)); v.honk = 2.5; } } }
-    const ap = g.streamer.autopilot(v, B.dir, B.lane, want);
+    const ap = g.streamer.autopilot(v, B.dir, B.lane, want, RD === this.W ? null : RD);
     v.steer = ap.steer; v.handbrake = false;
     v.throttle = want < 0.5 ? (sp > 0.4 ? -1 : 0) : ap.throttle;
     if (along < 1.6 && sp < 1.6 || along < -6) { B.state = 'dwell'; B.dwellT = L.dwell; this.atPole(target.id, v); }
@@ -649,7 +660,7 @@ export class Travel {
     R.event = ev.id;
     g.emit('enRoute', { event: ev.id, vehicle: v.id });
     g.hud?.toast?.(ev.text, 'hot');
-    const B = this.bus, f = this.W.at(this.W.project(v.x, v.z, 600).s + B.dir * 240);
+    const B = this.bus, RD = this.roadOf(L), f = RD.at(RD.project(v.x, v.z, 600).s + B.dir * 240);
     if (ev.id === 'ambush') { for (let k = 0; k < 3; k++) { const c = g.spawnRaider?.(f.x + (k - 1) * 4, f.z + (k - 1) * 3, Math.random, k ? 'pistol' : 'smg'); if (c) { c.target = g.player; c.grudge = g.player; } } }
     else if (ev.id === 'breakdown') B.broke = 20;
     else if (ev.id === 'toll') { B.broke = 8; const t = 15; if (g.cash >= t) { g.cash -= t; g.hud?.toast?.(`TOLL PAID · $${t}`, 'warn'); } }
@@ -693,7 +704,7 @@ export class Travel {
       // Aboard without a punch for this coach: off you get.
       if (v && p.inVehicle === v && !this.ride) {
         const B = this.bus, L = this.line(B.line), st = L.stops;
-        const P = this.punches.find((q) => q.line === L.id && q.dir === B.dir && (this.node(q.to).s - this.W.project(v.x, v.z, 600).s) * B.dir > 0);
+        const P = this.punches.find((q) => q.line === L.id && q.dir === B.dir && (this.node(q.to).s - this.roadOf(L).project(v.x, v.z, 600).s) * B.dir > 0);
         if (P) {
           this.usePunch(P);
           this.ride = { punch: P, line: L.id, kind: 'bus', vid: v.id, from: P.from, at: +this.hours().toFixed(2), event: null };
@@ -708,7 +719,7 @@ export class Travel {
       if (this.ride && this.ride.kind === 'bus' && p.inVehicle !== v) { this.endRide(p.alive ? 'got off' : 'died'); }
       // Gone from the story once it has passed you and is well up the road (or very far), or its run is over out of reach.
       if (!this.ride && this.bus) {
-        const d = v ? Math.hypot(v.x - p.x, v.z - p.z) : Infinity, W = this.W;
+        const d = v ? Math.hypot(v.x - p.x, v.z - p.z) : Infinity, W = this.roadOf(this.line(this.bus.line));
         const passed = v && (W.project(v.x, v.z, 900).s - W.project(p.x, p.z, 900).s) * this.bus.dir > 0;
         const over = this.bus.state === 'end' || this.bus.state === 'dead' || this.bus.state === 'stranded';
         if (!v || d > 1500 || (passed && d > 400) || (over && d > 120)) this.despawnBus();
@@ -832,7 +843,7 @@ export class Travel {
     shown.slice(0, 4).forEach((r, k) => {
       const y = 152 + k * 36;
       const last = r.kind === 'bus' ? this.line(r.line).stops[r.dir > 0 ? this.line(r.line).stops.length - 1 : 0] : r.to;
-      c.fillStyle = '#efe6d6'; c.fillText(`${r.kind === 'bus' ? (r.dir > 0 ? 'EAST ▸ ' : '◂ WEST ') : r.kind === 'air' ? '✈ ' : '▸ '}${this.nodeName(last)}`, 26, y);
+      c.fillStyle = '#efe6d6'; c.fillText(`${r.kind === 'bus' ? this.dirLabel(r.line, r.dir) : r.kind === 'air' ? '✈ ' : '▸ '}${this.nodeName(last)}`, 26, y);
       const cd = clock(r.dep), d0 = Math.floor(now / 24), when = cd.day === d0 ? cd.text : cd.day === d0 + 1 ? `TMRW ${cd.text}` : `DAY ${cd.day} ${cd.text}`;
       c.fillStyle = '#f0b43a'; c.textAlign = 'right'; c.fillText(when, W - 26, y); c.textAlign = 'left';
     });

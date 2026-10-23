@@ -23,6 +23,9 @@ export class Seats {
     if (seat < 0) seat = this.freeSeat(v);
     if (seat < 0 || !v.seats[seat] || (v.occ[seat] && v.occ[seat].alive && v.occ[seat] !== c)) return false; // no such seat (a row without it), or taken
     if (c.inVehicle) this.leave(c, true);
+    // Off any other vehicle's deck first: on a deck and in a seat at once kept the deck's window rules on a bike rider's gun
+    // (combat.fire's muzzleClear), and some directions never fired. (The same van's wheel, from its deck, is the deck's own path.)
+    if (c.onDeck && c.onDeck.v !== v) this.g.decks?.dismount(c, 'boarded', true);
     if (c.onDeck) this.g.decks.dismount(c, 'seat', true); // off the deck and into the seat
     v.occ[seat] = c;
     c.inVehicle = v; c.seat = seat;

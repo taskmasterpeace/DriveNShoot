@@ -219,7 +219,9 @@ export async function devtoolsChecks(api, check, C) {
       R.tick = function () { hook(); return orig.call(this); }; // the frame's own hook point: the kill lands mid-step
       let r;
       try { r = await C('watch', { type: 'kill', id: d.id, seconds: 6 }); } finally { delete R.tick; }
-      const late = await C('watch', { type: 'kill', since: r.cursor, seconds: 0.5 });
+      // The same kill is not reported again past the cursor (filtered to it: the world's own kills elsewhere - dogs, traps,
+      // gators, a gate fight - are not this check's business).
+      const late = await C('watch', { type: 'kill', id: d.id, since: r.cursor, seconds: 0.5 });
       const ok = r.ok && r.done && r.matches.length === 1 && r.matches[0].victim === d.id && r.gameSeconds >= 1.8 && r.gameSeconds < 4 && late.ok && !late.done && late.matched === 0;
       return ok ? true : JSON.stringify({ r: { done: r.done, n: r.matches?.length, v: r.matches?.[0]?.victim, gs: r.gameSeconds }, late: { done: late.done, n: late.matched } });
     } finally { for (const c of [d, e]) if (g.chars.includes(c)) g.removeChar(c); }
