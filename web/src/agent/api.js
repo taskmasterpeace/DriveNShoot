@@ -283,6 +283,21 @@ function buildCommands(api) {
         return { ...v, islandMatches: v.islandHash === v.golden, ...(chunks ? { chunks: [...S.layouts.values()].map((L) => ({ key: L.key, tier: S.hot.get(L.key)?.hot?.done ? 'hot' : 'layout', hash: L.hash, buildMs: L.buildMs, boxes: L.boxCount, instances: L.instances, biome: L.biome })) } : {}) };
       },
     },
+    terrain: {
+      group: 'world', desc: 'Real terrain (docs/design/WEB_TERRAIN.md), a flag that is OFF by default: on=true loads the baked land (src/data/terrain/i10.bin: real elevation and landcover strip-mapped from the real I-10, held to a 10% grade), surveys the road and the pads (Phoenix, the towns, the exit communities) onto it and lays every chunk out again on it; on=false goes back to the flat world exactly as before. No args: whether it is on, and its report (asset, sources, the road survey: max grade, deepest cut and fill, the pinned stretches). With x,z (on): the ground, the raw land, the biome and the slope there. Also ?terrain=real in the page URL.',
+      args: { on: { type: 'boolean' }, x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ on, x, z }) => {
+        const S = g.streamer;
+        if (on !== undefined) return await S.setTerrain(on);
+        const T = S.W.terrain;
+        if (!T) return { on: false };
+        if (x !== undefined || z !== undefined) {
+          const px = x ?? P().x, pz = z ?? P().z, e = 1, gx = (T.at(px + e, pz) - T.at(px - e, pz)) / (2 * e), gz = (T.at(px, pz + e) - T.at(px, pz - e)) / (2 * e);
+          return { x: px, z: pz, ground: r1(T.at(px, pz)), land: r1(T.landAt(px, pz)), height: r1(S.W.heightAt(px, pz, 1e9)), real: r1(T.at(px, pz) + T.header.datum), biome: T.biomeAt(px, pz), slope: +Math.hypot(gx, gz).toFixed(3) };
+        }
+        return { on: true, ...T.report() };
+      },
+    },
     chunk: {
       group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one. In the Phoenix ring its `ring` says how many buildings it draws and how many reach into it, its containers and beds, streets, and the ms its ring stage took. evict=true drops the layout (tests; never a pinned chunk or the one you stand in).',
       args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] }, evict: { type: 'boolean', default: false } },
@@ -424,8 +439,9 @@ function buildCommands(api) {
         if (x !== undefined || z !== undefined || zoom || tilt !== undefined) {
           // Camera override for close-ups / inspecting a spot: zoom = camera height in metres.
           const cx = x ?? g.camLook.x, cz = z ?? g.camLook.z, h = zoom ?? g.camHeight, t = Math.max(-1.6, Math.min(1.6, tilt ?? 0.14));
-          cam.position.set(cx, h, cz + h * t); cam.lookAt(cx, 0, cz);
-          if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
+          const by = g.streamer.W.terrain ? g.streamer.W.groundAt(cx, cz) : 0; // real terrain (flag): above the ground there
+          cam.position.set(cx, by + h, cz + h * t); cam.lookAt(cx, by, cz);
+          if (far) { const vr = Math.hypot(h * 0.3839, h * 0.3839 * cam.aspect) * 1.15; g.sky.update(0, by ? { x: cx, y: by, z: cz } : { x: cx, z: cz }, g.world.groundMat, g.world.roadMat, vr); g.streamer.postSky(); } // the sun's shadow box and the haze go with the shot
         }
         r.render(g.scene, cam);
         if (far) { const f = g.streamer.focus(); g.streamer.ensureHot(f.x, f.z, 'screenshot'); g.sky.update(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); g.streamer.postSky(); }
@@ -459,7 +475,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const pos = { x, z };
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
-        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
+        if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = g.streamer.W.terrain ? g.streamer.W.groundAt(pos.x, pos.z) : 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
         p.x = pos.x; p.z = pos.z;
         // The street floor, or floor= of a storeyed building there (world/storeys.js; staging for checks and shots).
         { const Sb = g.storeys.at(p.x, p.z); p.gy = !v && Sb && floor > 0 ? Sb.Y[Math.min(floor, Sb.n)] : 0; g.standOn(p); }
@@ -3754,7 +3770,8 @@ async function runSelfTest(api, only = null, skip = null) {
         const stop = WI.stops.find((s) => s.exit === X.id && Math.hypot(s.x - rb.x[rb.n - 1], s.z - rb.z[rb.n - 1]) < 2);
         if (aux < 200 || top < 4 || maxGrade > 0.07 || maxGrade < 0.025 || len < 200 || !stop) bad.push(`${rb.id}: aux ${aux} m, ramp ${Math.round(len)} m to ${top.toFixed(1)} m, max grade ${(maxGrade * 100).toFixed(1)}%, stop ${!!stop}`);
       }
-      const deck = WI.heightAt(X.x, X.z, 7), under = WI.heightAt(X.x, X.z, 0);
+      // Heights from the ground there (real terrain, a flag; groundAt is 0 without it).
+      const gb = WI.groundAt(X.x, X.z), deck = WI.heightAt(X.x, X.z, gb + 7) - gb, under = WI.heightAt(X.x, X.z, gb) - gb;
       if (Math.abs(deck - STREAM.ramp.deckH) > 0.01 || under !== 0) bad.push(`${X.id} bridge: deck ${deck}, under ${under}`);
       for (const dir of [1, -1]) {
         const one = WI.signs.find((s) => s.id === `${X.id}-${dir > 0 ? 'E' : 'W'}-1`), gore = X.s - dir * STREAM.ramp.gore;
@@ -3780,14 +3797,14 @@ async function runSelfTest(api, only = null, skip = null) {
       const left = Math.hypot(rb.x[rb.n - 1] - v.x, rb.z[rb.n - 1] - v.z);
       const vWant = Math.min(14, Math.max(0, (left - 1.5) * 0.6)); // ease down to the stop line
       g.driveOverride = { throttle: left < 2 ? (sp > 0.3 ? -1 : 0) : sp < vWant - 0.5 ? 0.8 : sp > vWant + 0.5 ? -0.6 : 0.1, steer: Math.max(-1, Math.min(1, diff * 2.2)) };
-      peak = Math.max(peak, v.y); if (v.air) air++;
+      peak = Math.max(peak, v.y - WI.groundAt(v.x, v.z)); if (v.air) air++;
       if (left < 4 && sp < 0.5) return false;
     }, { renderEvery: 15 });
     const stopped = Math.hypot(rb.x[rb.n - 1] - v.x, rb.z[rb.n - 1] - v.z);
     g.driveOverride = null; g.exitVehicle(true); g.vehiclesSys.remove(v);
     const u = await onI10('interceptor', X.s - 300, 1);
     let underMax = 0;
-    await SW.runFrames(16, () => { g.driveOverride = { throttle: 1, steer: SW.autopilot(u, 1).steer }; underMax = Math.max(underMax, u.y); }, { renderEvery: 15 });
+    await SW.runFrames(16, () => { g.driveOverride = { throttle: 1, steer: SW.autopilot(u, 1).steer }; underMax = Math.max(underMax, u.y - WI.groundAt(u.x, u.z)); }, { renderEvery: 15 });
     const past = WI.project(u.x, u.z, 600).s > X.s + 50;
     await streamHome();
     if (peak < 4 || air || stopped > 6) bad.push(`ramp drive: peak ${peak.toFixed(2)} m, air ${air}, stopped ${stopped.toFixed(1)} m from the stop`);

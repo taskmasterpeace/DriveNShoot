@@ -23,6 +23,8 @@ const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
 const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName)]; // fl_<kind>: world/flora.js
 const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
+const ROCK_TONE = [0.9, 0.8, 0.72]; // real terrain (flag): steep ground goes to bare, ruddier rock
+const HILLSHADE = 0.24;            // real terrain (flag): how much a slope at the full grade lightens or darkens
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
 class InstBuf {
@@ -167,6 +169,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const own = (x, z) => x >= ox && x < X1 && z >= oz && z < Z1;
   const isl = cx * C < ISLAND && X1 > -ISLAND && cz * C < ISLAND && Z1 > -ISLAND;
   const out = { cx, cz, key: `${cx},${cz}`, boxes: [], counts: {}, warnings: [], hash: '', edges: {}, buildMs: 0, workMs: 0 };
+  // Real terrain (flag, world/realterrain.js; null when off): this chunk's ground on the 8 m grid. Everything is laid out
+  // on flat ground as before and lifted onto it at the end (the lift pass below); collision heights stay measured from it.
+  const T = W.terrain ?? null, TG = T ? T.gridOf(cx, cz) : null;
   for (const k of POOL_NAMES) INST[k].reset();
   for (const k of Object.keys(SURF)) SURF[k].reset();
   const boxes = out.boxes, halo = []; // halo: boxes from features that only reach this chunk's nav margin
@@ -233,6 +238,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   };
   yield;
 
+  // Real terrain (flag): the eight neighbours' ground grids (the ground's normals at the seams read them), a slice each.
+  if (T) for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) { if (dx || dz) { T.gridOf(cx + dx, cz + dz); pause(); yield; resume(); } }
+
   // ---- ground: an 8 m grid tinted by biome, relief and noise, fading to the island's plain sand at its edge ------------
   {
     const G = SURF.ground, idx = new Int32Array(N_G * N_G);
@@ -241,7 +249,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const u = (x / W.K + STREAM.PHX[0] - W.data.world_offset[0]) / W.data.cell_m - 0.5, v = (z / W.K + STREAM.PHX[1] - W.data.world_offset[1]) / W.data.cell_m - 0.5;
       const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
       let r = 0, g = 0, b = 0;
-      for (let k = 0; k < 4; k++) {
+      if (T && T.tintAt(x, z, outc)) { r = outc[0]; g = outc[1]; b = outc[2]; } // the real landcover's tint (flag)
+      else for (let k = 0; k < 4; k++) {
         const ii = Math.max(0, Math.min(W.data.w - 1, i + (k & 1))), jj = Math.max(0, Math.min(W.data.h - 1, j + (k >> 1)));
         const t = (BIOMES[W.data.grid[jj][ii]] ?? BIOMES.d).tint, wgt = (k & 1 ? fu : 1 - fu) * (k >> 1 ? fv : 1 - fv);
         r += t[0] * wgt; g += t[1] * wgt; b += t[2] * wgt;
@@ -258,9 +267,26 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       outc[0] = 1 + (r - 1) * k; outc[1] = 1 + (g - 1) * k; outc[2] = 1 + (b - 1) * k;
     };
     const tc = [0, 0, 0];
+    // Real terrain: a vertex's height from the grid, its normal from its neighbours' (across a seam, the neighbour chunk's
+    // grid: both chunks agree on every edge vertex and its normal), and steep ground going to bare rock.
+    const hAt = TG ? (i, j) => {
+      const di = i < 0 ? -1 : i >= N_G ? 1 : 0, dj = j < 0 ? -1 : j >= N_G ? 1 : 0;
+      const gr = di || dj ? T.gridOf(cx + di, cz + dj) : TG;
+      return gr[(dj < 0 ? N_G - 2 : dj > 0 ? 1 : j) * N_G + (di < 0 ? N_G - 2 : di > 0 ? 1 : i)];
+    } : null;
     for (let j = 0; j < N_G; j++) for (let i = 0; i < N_G; i++) {
       const x = ox + i * 8, z = oz + j * 8;
       tintAt(x, z, tc);
+      if (TG) {
+        const sx = (hAt(i + 1, j) - hAt(i - 1, j)) / 16, sz = (hAt(i, j + 1) - hAt(i, j - 1)) / 16, l = Math.hypot(sx, 1, sz);
+        const rock = Math.min(1, Math.hypot(sx, sz) / T.g) * 0.3;
+        // A map-maker's hillshade (light from the north-west, whatever the sun is doing): a slope at the full grade is
+        // HILLSHADE brighter facing the light and as much darker facing away, so the land reads from straight above.
+        const hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
+        for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs;
+        idx[j * N_G + i] = G.v(i * 8, TG[j * N_G + i], j * 8, -sx / l, 1 / l, -sz / l, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
+        continue;
+      }
       idx[j * N_G + i] = G.v(i * 8, 0, j * 8, 0, 1, 0, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
     }
     for (let j = 0; j < N_G - 1; j++) for (let i = 0; i < N_G - 1; i++) {
@@ -270,7 +296,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       G.tri(a, d, c); G.tri(a, c, b);
     }
     // The edge signature: the ground along each edge (what the neighbour must agree with).
-    const edgeHash = (pick) => { const h = new Hasher(); for (let k = 0; k < N_G; k++) { const v = pick(k); h.num(G.col[v * 3]).num(G.col[v * 3 + 1]).num(G.col[v * 3 + 2]); } return h; };
+    const edgeHash = (pick) => { const h = new Hasher(); for (let k = 0; k < N_G; k++) { const v = pick(k); h.num(G.col[v * 3]).num(G.col[v * 3 + 1]).num(G.col[v * 3 + 2]); if (TG) h.num(G.pos[v * 3 + 1]).num(G.nrm[v * 3]).num(G.nrm[v * 3 + 2]); } return h; };
     out.edges = { n: edgeHash((k) => idx[k]), s: edgeHash((k) => idx[(N_G - 1) * N_G + k]), w: edgeHash((k) => idx[k * N_G]), e: edgeHash((k) => idx[k * N_G + N_G - 1]) };
   }
   pause(); yield; resume();
@@ -450,8 +476,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const a = r.pts[k - 1], b = r.pts[k], mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
       const len = Math.hypot(b.x - a.x, b.z - a.z), rot = Math.atan2(b.x - a.x, b.z - a.z), y = (a.y + b.y) / 2;
       if (own(mx, mz)) {
-        _e.set(Math.atan2(a.y - b.y, len), rot, 0); _q.setFromEuler(_e);
-        _m.compose(_p.set(mx, y + 0.62, mz), _q, _s.set(0.16, 0.32, len + 0.05));
+        // On real terrain the rail is pitched to the ground under its ends (and the lift pass leaves it alone).
+        const ya = T ? a.y + T.at(a.x, a.z) : a.y, yb = T ? b.y + T.at(b.x, b.z) : b.y;
+        _e.set(Math.atan2(ya - yb, len), rot, 0); _q.setFromEuler(_e);
+        _m.compose(_p.set(mx, (T ? (ya + yb) / 2 : y) + 0.62, mz), _q, _s.set(0.16, 0.32, len + 0.05));
         INST.rails.pushMatrix(_m, RAILC[0], RAILC[1], RAILC[2]);
         if (k % 1 === 0) INST.props.push(a.x, a.y + 0.36, a.z, rot, 0.14, 0.72, 0.14, POSTC[0], POSTC[1], POSTC[2]);
       }
@@ -820,6 +848,20 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       for (const b of out.ring.bld) { g.fillStyle = b.ruined ? '#4f6234' : '#6a8a3e'; g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k); }
     }
     if (isl) g.clearRect(Math.max(0, (-ISLAND - ox) * k), Math.max(0, (-ISLAND - oz) * k), Math.max(0, (Math.min(X1, ISLAND) - Math.max(ox, -ISLAND)) * k), Math.max(0, (Math.min(Z1, ISLAND) - Math.max(oz, -ISLAND)) * k));
+  }
+
+  // ---- real terrain (flag): lift everything onto the ground ------------------------------------------------------------
+  // Every instance and every road, rock and fill vertex was laid out over flat ground: each goes up by the ground under
+  // it (the same grid and triangles the drawn ground uses, so nothing floats or sinks). The rails were pitched above.
+  // Collision boxes keep heights measured from the ground (movers ask from their own ground: vehicles.js, stunts.js).
+  if (T) {
+    for (const k of POOL_NAMES) {
+      if (k === 'rails') continue;
+      const B2 = INST[k], m = B2.m;
+      for (let i = 0; i < B2.n; i++) { const o = i * 16; m[o + 13] += T.at(m[o + 12], m[o + 14]); }
+    }
+    for (const L2 of [SURF.road, SURF.rock]) { const p = L2.pos; for (let i = 0; i < L2.nv; i++) p[i * 3 + 1] += T.at(p[i * 3] + ox, p[i * 3 + 2] + oz); }
+    pause(); yield; resume();
   }
 
   // ---- take the results, hash them -----------------------------------------------------------------------------------
