@@ -86,7 +86,7 @@ export class Creator {
     const b = backgroundById(p.background);
     return {
       picks: JSON.parse(JSON.stringify(p)), tally: tally(p), errors: validate(p), effects: effects(p), skills: startSkills(p), maxHp: 100 + effects(p).hp,
-      kit: kitOf(p), knowing: knowing(p, NPCS), background: b ? { id: b.id, label: b.label } : null,
+      kit: kitOf(p), knowing: knowing(p, NPCS, this.g.regions?.start ?? 'phoenix'), background: b ? { id: b.id, label: b.label } : null,
       origin: { flag: p.flag, country: FLAGS[p.flag]?.name ?? p.flag, state: p.state, stateName: STATES[p.state], ruler: RULERS[p.state] ?? null },
       locked: this.lock ? { ...this.lock } : null,
     };
@@ -123,7 +123,7 @@ export class Creator {
     inv.changed();
     g.cash = K.cash;
     // Who already knows you.
-    const W = knowing(P, NPCS), F = g.society.factions;
+    const W = knowing(P, NPCS, g.regions?.start ?? 'phoenix'), F = g.society.factions;
     for (const [fid, d] of Object.entries(W.standing)) F.add(fid, d);
     for (const n of W.npcs) g.society.memory.remember(n.id, n.kind, { weight: n.weight ?? 1, about: n.about ?? '' });
     for (const [rid, r] of Object.entries(W.renown)) g.roles?.setRenown?.(rid, r);

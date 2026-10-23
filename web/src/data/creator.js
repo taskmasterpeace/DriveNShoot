@@ -36,6 +36,9 @@ export const CREATOR = {
 // agent sets place {x, z} and state 'FL' here, or calls g.creator.onStart). state: a survivor from the start's own
 // state is a local there (localStanding with localFaction).
 export const START = { place: null, state: 'AZ', localFaction: 'rusthaven', localStanding: 5 };
+// By the region the game started in (systems/regions.js `start`: ?start=florida|phoenix, players default to Florida): a
+// Floridian starting at Meridian is a local of Meridian's people, an Arizonan at Rust Haven of Rust Haven's.
+export const START_BY = { phoenix: START, florida: { place: null, state: 'FL', localFaction: 'meridian', localStanding: 5 } };
 
 // ---- attributes: the rank ladder -------------------------------------------------------------------------------------
 // Cumulative cost to HOLD a rank (index = rank). Rank 1 is free, each rung dearer than the last (LSW's ATTR_COST shape).
@@ -282,7 +285,8 @@ export function startSkills(p) {
 }
 
 // Who already knows you: the background's, the flaws', the home state's (a local), and your countrymen.
-export function knowing(p, npcs = []) {
+export function knowing(p, npcs = [], where = 'phoenix') {
+  const S = START_BY[where] ?? START;
   const b = backgroundById(p.background), out = { standing: {}, npcs: [], renown: {}, lines: [] };
   const addSt = (s) => { for (const [f, v] of Object.entries(s ?? {})) out.standing[f] = (out.standing[f] ?? 0) + v; };
   if (b) {
@@ -292,7 +296,7 @@ export function knowing(p, npcs = []) {
     out.lines.push(b.knowing.line);
   }
   for (const id of p.traits ?? []) { const k = traitById(id)?.knowing; if (k) { addSt(k.standing); if (k.line) out.lines.push(k.line); } }
-  if (p.state === START.state) { addSt({ [START.localFaction]: START.localStanding }); out.lines.push(`You are from ${STATES[p.state]}: a local here.`); }
+  if (p.state === S.state) { addSt({ [S.localFaction]: S.localStanding }); out.lines.push(`You are from ${STATES[p.state]}: a local here.`); }
   const kin = [];
   for (const n of npcs) if (n.id && n.flag === p.flag && !kin.some((x) => x.id === n.id || x.name === n.name) && !out.npcs.some((x) => x.id === n.id)) kin.push(n);
   for (const n of kin) out.npcs.push({ id: n.id, kind: 'traded', weight: COUNTRYMAN, about: 'home', countryman: true });
