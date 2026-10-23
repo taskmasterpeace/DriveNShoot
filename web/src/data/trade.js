@@ -7,7 +7,7 @@ export const TRADERS = {
   ike: { name: 'Ike', deals: ['gun', 'ammo', 'tool'] },
   reyes: { name: 'Doc Reyes', deals: ['med'] },
   kenji: { name: 'Kenji', deals: ['part', 'tool', 'pack'] },
-  mags: { name: 'Mags', deals: ['water', 'food', 'valuable', 'paper'] },
+  mags: { name: 'Mags', deals: ['water', 'food', 'valuable', 'paper', 'hide'] }, // hides: the fauna layer's (data/fauna.js)
 };
 
 // What a thing costs and fetches, by the standing of the trader's people with you (data/society.js tiers): buy is

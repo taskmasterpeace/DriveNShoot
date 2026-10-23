@@ -35,6 +35,8 @@ import { LINES, SITUATIONS } from '../data/dialogue.js';
 import { castVoice, clipKey } from '../data/voices.js';
 import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
+import { faunaCommands } from './faunatools.js';
+import { faunaChecks } from './faunatools-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1920,6 +1922,8 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    // L5 LIFE: the regional animals (src/agent/faunatools.js, docs/design/WEB_FAUNA.md).
+    ...faunaCommands(api, need),
   };
 }
 
@@ -2031,6 +2035,10 @@ async function runSelfTest(api, only = null, skip = null) {
   // The director would drop hunters or a herd into unrelated checks: its own checks fire events by hand.
   const directorWas = g.society.director.paused;
   g.society.director.paused = true;
+  // The animals (systems/fauna.js) would wander into unrelated checks (a coyote pack on a wounded test dummy at night):
+  // they are off for the battery; their own checks turn them on in a stage of their own.
+  const faunaWas = g.fauna.enabled;
+  g.fauna.enabled = false; g.fauna.clear();
   await check('state readable', async () => (await C('state')).player.alive === true);
   await check('step returns state + events', async () => { const r = await C('step', { seconds: 0.1 }); return r.ok && r.player && Array.isArray(r.events) ? true : JSON.stringify(r).slice(0, 80); });
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
@@ -5645,6 +5653,8 @@ async function runSelfTest(api, only = null, skip = null) {
   });
   await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
+  await faunaChecks(api, check, C); // L5: the animals - the formula, flight, the stalk, the rattle, the lunge, the hunt (src/agent/faunatools-selftest.js)
+  g.fauna.enabled = faunaWas;
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
@@ -5676,6 +5686,7 @@ export function snapshot(g) {
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
     gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
     dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
+    fauna: g.fauna?.save(), // the animals' chunk records (who lives where, hurt, dead, butchered) and the gunfire heat
     arms: g.arms?.save(), // how you carry: holstered or not, the grip you chose, each gun's fire mode
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
@@ -5742,6 +5753,7 @@ export function restore(g, s) {
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
+  if (s.fauna) g.fauna?.load(s.fauna); // an older save leaves the animals as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first

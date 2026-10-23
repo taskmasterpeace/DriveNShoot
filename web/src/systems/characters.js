@@ -362,7 +362,7 @@ export class CharacterRenderer {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
       const sp = ch.inVehicle ? ch.seatPose : null; // exposed seat: bike saddle / truck bed / train roof
-      if (ch.hidden || (ch.inVehicle && !sp)) { this.hideSlot(i); ch._rx = undefined; continue; }
+      if (ch.hidden || ch.bodyless || (ch.inVehicle && !sp)) { this.hideSlot(i); ch._rx = undefined; continue; } // bodyless: drawn by its own renderer (systems/fauna.js: the hot ground's creatures)
       if (cu && (ch.gy ?? 0) > cu.y && ch.x > cu.b.minX && ch.x < cu.b.maxX && ch.z > cu.b.minZ && ch.z < cu.b.maxZ) { this.hideSlot(i); ch._rx = undefined; continue; }
       this.pose(ch, sp, dt);
     }

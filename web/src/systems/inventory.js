@@ -219,6 +219,7 @@ export class Inventory {
       return { ok: true, text: `${part.toUpperCase()} PATCHED` };
     }
     if (verb === 'sleep') return g.survival?.sleepAt('bedroll') ?? { ok: false, why: 'not now' }; // where you stand
+    if (verb === 'snare') return g.fauna?.setSnare() ?? { ok: false, why: 'not here' }; // a snare a stride ahead (systems/fauna.js)
     if (verb === 'flare') { // struck and put down: a small fire at your feet for a minute (dogs keep off it, systems/dogs.js)
       if (!g.throwables || P.inVehicle) return { ok: false, why: 'not from in here' };
       g.throwables.startFire(P.x + Math.sin(P.face) * 0.9, P.z + Math.cos(P.face) * 0.9, 0.7, 60, P);
