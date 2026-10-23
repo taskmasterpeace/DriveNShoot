@@ -51,7 +51,10 @@ export function buildLevel(L, plan, site, rec, lr, M) {
   const y = L.y, wallH = UG.wallH, built = !!L.walls, W = L.W, H = L.H;
   const walls = [], lumps = [], fill = [], floors = [], water = [], props = [], strips = [], stripItems = [], glows = [], glowItems = [];
   // The solid rock between the passages: black, a metre up (it stops your light where a wall would).
-  { const mask = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === ROCK && !L.edge[q]) mask[q] = 1; for (const [i0, j0, i1, j1] of mergeRects(mask, W, H)) fill.push(span(L.ox + i0, L.oz + j0, L.ox + i1, L.oz + j1, y, y + 1.2, '#000000')); }
+  { const mask = new Uint8Array(W * H); for (let q = 0; q < W * H; q++) if (L.cells[q] === ROCK && !L.edge[q]) mask[q] = 1; for (const [i0, j0, i1, j1] of mergeRects(mask, W, H)) fill.push(span(L.ox + i0, L.oz + j0, L.ox + i1, L.oz + j1, y, y + 1.2, '#000000'));
+    // ...and the rock past the level's own grid, as far as any view reaches
+    const R = 90, x0 = L.ox, z0 = L.oz, x1 = L.ox + W, z1 = L.oz + H;
+    fill.push(span(x0 - R, z0 - R, x1 + R, z0, y, y + 1.2, '#000000'), span(x0 - R, z1, x1 + R, z1 + R, y, y + 1.2, '#000000'), span(x0 - R, z0, x0, z1, y, y + 1.2, '#000000'), span(x1, z0, x1 + R, z1, y, y + 1.2, '#000000')); }
   // Walls: a built level's concrete as merged runs; a cave's rock cell by cell, uneven.
   if (built) {
     for (const [x0, z0, x1, z1] of L.walls) {
@@ -221,13 +224,20 @@ export function buildEntrance(site, plan, M) {
     for (let i = 0; i < 4; i++) { const k = (i + 0.5) / 4; const x = ax ? (ov.x0 + ov.x1) / 2 : ov.x0 + (ov.x1 - ov.x0) * k, z = ax ? ov.z0 + (ov.z1 - ov.z0) * k : (ov.z0 + ov.z1) / 2; rocks.push([x, y + 1.6, z, 2.2, 1.6, 2.0, '#634c3a', hash(x, z, 4) * 6.28]); }
   } else {
     for (const s of sides) props.push(span(s.x0, s.z0, s.x1, s.z1, y, y + (E.look === 'culvert' ? H : 0.55), coaming));
+    if (E.look === 'hatch' || E.look === 'lift') {
+      // a concrete apron round the opening (four pieces: the opening itself stays dark), the steps going down into it
+      const m = 1.4, A0 = a0 - (f.u > 0 ? m : t), A1 = a1 + (f.u > 0 ? t : m), B0 = b0 - t - m, B1 = b1 + t + m;
+      for (const r of [rect(A0, A1, B0, b0 - t), rect(A0, A1, b1 + t, B1), rect(A0, a0, b0 - t, b1 + t), rect(a1, A1, b0 - t, b1 + t)]) if (r.x1 - r.x0 > 0.05 && r.z1 - r.z0 > 0.05) props.push(span(r.x0, r.z0, r.x1, r.z1, y, y + 0.05, '#7c776c'));
+      const steps = Math.floor(open / 0.5);
+      for (let k = 0; k < steps; k++) { const s0 = f.aTop + f.u * k * 0.5, s1 = s0 + f.u * 0.5, r = rect(Math.min(s0, s1), Math.max(s0, s1), b0 + 0.05, b1 - 0.05), v = Math.max(0, 0.16 - k * 0.04); props.push(span(r.x0, r.z0, r.x1, r.z1, y + 0.02, y + 0.045 + 0.001 * k, `#${new THREE.Color(v, v * 0.97, v * 0.9).getHexString()}`)); }
+    }
     if (E.look === 'hatch') {
-      // the lid, thrown back past the near end; two vent pipes; a stencilled plate
-      const lid = rect(f.u > 0 ? f.aTop - 1.6 : f.aTop, f.u > 0 ? f.aTop : f.aTop + 1.6, b0, b1);
-      props.push(span(lid.x0, lid.z0, lid.x1, lid.z1, y + 0.05, y + 0.16, '#5f6a52'));
-      const hinge = rect(f.u > 0 ? f.aTop - 0.1 : f.aTop, f.u > 0 ? f.aTop : f.aTop + 0.1, b0, b1);
-      props.push(span(hinge.x0, hinge.z0, hinge.x1, hinge.z1, y, y + 0.25, '#3c3e36'));
-      for (const s of [-1, 1]) { const p = ax ? [(a0 + a1) / 2 + s * 0.6, b1 + 1.1] : [b1 + 1.1, (a0 + a1) / 2 + s * 0.6]; props.push([p[0], y + 0.6, p[1], 0.22, 1.2, 0.22, '#5a5850']); props.push([p[0], y + 1.25, p[1], 0.36, 0.12, 0.36, '#4a4842']); }
+      // the lid thrown open flat beside it, hazard paint on the far lip, two vent pipes
+      const lid = rect(a0, a1, b0 - t - 1.45, b0 - t - 0.05);
+      props.push(span(lid.x0, lid.z0, lid.x1, lid.z1, y + 0.05, y + 0.17, '#5f6a52'), span(lid.x0 + 0.2, lid.z0 + 0.2, lid.x1 - 0.2, lid.z1 - 0.2, y + 0.17, y + 0.2, '#56604a'));
+      const lip = sides[2], n = 6;
+      for (let i = 0; i < n; i++) { const k0 = i / n, k1 = (i + 1) / n; const r = ax ? { x0: lip.x0, x1: lip.x1, z0: lip.z0 + (lip.z1 - lip.z0) * k0, z1: lip.z0 + (lip.z1 - lip.z0) * k1 } : { x0: lip.x0 + (lip.x1 - lip.x0) * k0, x1: lip.x0 + (lip.x1 - lip.x0) * k1, z0: lip.z0, z1: lip.z1 }; props.push(span(r.x0, r.z0, r.x1, r.z1, y + 0.55, y + 0.58, i % 2 ? '#1c1a16' : '#d8a520')); }
+      for (const s of [-1, 1]) { const p = ax ? [(a0 + a1) / 2 + s * 0.6, b1 + t + 0.8] : [b1 + t + 0.8, (a0 + a1) / 2 + s * 0.6]; props.push([p[0], y + 0.6, p[1], 0.22, 1.2, 0.22, '#5a5850']); props.push([p[0], y + 1.25, p[1], 0.36, 0.12, 0.36, '#4a4842']); }
     }
     if (E.look === 'culvert') { const hw = rect(f.u > 0 ? a1 : a0 - 0.5, f.u > 0 ? a1 + 0.5 : a0, b0 - 1.2, b1 + 1.2); props.push(span(hw.x0, hw.z0, hw.x1, hw.z1, y, y + 2.2, '#8a8476')); }
   }
@@ -243,6 +253,9 @@ export function buildEntrance(site, plan, M) {
     const fence = ax2 ? [{ x0: R.minX, x1: R.maxX, z0: R.minZ - 0.12, z1: R.minZ }, { x0: R.minX, x1: R.maxX, z0: R.maxZ, z1: R.maxZ + 0.12 }, { x0: far - 0.12 * Math.max(0, -plan.lift.u), x1: far + 0.12 * Math.max(0, plan.lift.u), z0: R.minZ, z1: R.maxZ }]
       : [{ x0: R.minX - 0.12, x1: R.minX, z0: R.minZ, z1: R.maxZ }, { x0: R.maxX, x1: R.maxX + 0.12, z0: R.minZ, z1: R.maxZ }, { x0: R.minX, x1: R.maxX, z0: far - 0.12 * Math.max(0, -plan.lift.u), z1: far + 0.12 * Math.max(0, plan.lift.u) }];
     for (const s of fence) { collar.push({ ...s, h: 1.2 }); props.push(span(s.x0, s.z0, s.x1, s.z1, y, y + 1.2, '#c9a032')); }
+    const pad = { x0: R.minX - 1.5, x1: R.maxX + 1.5, z0: R.minZ - 1.5, z1: R.maxZ + 1.5 };
+    for (const r of [{ ...pad, z1: R.minZ }, { ...pad, z0: R.maxZ }, { x0: pad.x0, x1: R.minX, z0: R.minZ, z1: R.maxZ }, { x0: R.maxX, x1: pad.x1, z0: R.minZ, z1: R.maxZ }]) props.push(span(r.x0, r.z0, r.x1, r.z1, y, y + 0.05, '#7c776c'));
+    for (const [x0, z0, x1, z1] of [[R.minX, R.minZ, R.maxX, R.minZ], [R.minX, R.maxZ, R.maxX, R.maxZ], [R.minX, R.minZ, R.minX, R.maxZ], [R.maxX, R.minZ, R.maxX, R.maxZ]]) { const len = Math.hypot(x1 - x0, z1 - z0), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, ry = Math.atan2(z1 - z0, x1 - x0); props.push([mx, y + 3.4, mz, len, 0.14, 0.14, '#6a4e2c', -ry]); props.push([mx, y + 5.4, mz, len, 0.14, 0.14, '#6a4e2c', -ry]); }
     const wh = ax2 ? { x0: R.minX - 0.5, x1: R.maxX + 0.5, z0: R.maxZ + 2.2, z1: R.maxZ + 5.2 } : { x0: R.maxX + 2.2, x1: R.maxX + 5.2, z0: R.minZ - 0.5, z1: R.maxZ + 0.5 };
     props.push(span(wh.x0, wh.z0, wh.x1, wh.z1, y, y + 3, '#6a6658'));
     collar.push({ ...wh, h: 3 });
