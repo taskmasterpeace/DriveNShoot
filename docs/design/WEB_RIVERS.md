@@ -285,7 +285,15 @@ machine's shared RTX 4090 with other agents' browsers running.
 
 ## 9. Measured (2026-10-23)
 
-See the hand-back for the battery results (full selftest twice on fresh pages) and the stress A/B.
+- **selftest, full battery, two fresh pages:** 205/208 and 205/208; every `water:` check passed both times. The failures
+  were outside this lane and differ run to run: `grapevine` (rush on the third reload) and `recorder` (a walk) fail on the
+  base build too (base: 195/198 with `controller`, `grapevine`, `recorder`); `storeys` (stops at gy 0.006, reported 0.01),
+  `gunpoint` and `weapon bar` once each.
+- **`scenario name=stress`, ABBA x 4 (fresh page per leg, base = 6420c7b7):** base 7.51 ms / 85.5 calls, rivers 7.74 ms /
+  85.5 calls (spread 7.1-8.5 ms on a busy shared machine: no difference in draw calls, frame time within noise).
+- **Boot:** `Rivers` 20-30 ms, `plan()` about 90 ms (node, warm), so WorldIndex +~110 ms.
+- **Chunk layout** with water: 9-25 ms of work in 36-49 slices (a dry chunk 7.7 ms); `sample()` 0.7-0.8 µs.
+- **Island golden hash** `f0cfcd28` = golden, `islandMatches: true`, flag off and after terrain on/off.
 
 ## 10. Renders
 
