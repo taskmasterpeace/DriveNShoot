@@ -136,8 +136,9 @@ Buildings are axis-aligned (the ring's walls and doors are): a site turns its fr
   for 120 scrip x your price tier, shuts them for free, and sells water.
 - **The cistern**: fills `tank.cistern.perDay` litres a game day while the gates are open, up to `cap`; none while shut.
   E at it fills your water containers and lets you drink.
-- The river: the row names it (`river: 'COLORADO'`). Its water belongs to the rivers lane (L1, world/rivers.js, not yet
-  landed on this tree): the reservoir and the river bed are drawn dry until it does (section 6).
+- The river: the row names it (`river: 'COLORADO', channel: 'dead'`). Water belongs to the rivers lane (L1,
+  world/rivers.js), which lays the live Colorado 17 km east at mile 16.4: the dam's bed is dry until L1 gives it a
+  reservoir (section 9).
 
 ### 3.8 Keepers
 - `KEEPERS` rows: name, title, real flag, job (`fuel`, `guard`, `squatter`, `sluice`), post (`counter` just in from the
@@ -206,8 +207,9 @@ sites), `world/streamer.js` (the `bills` pool and its atlas), `data/streaming.js
 its update, E at a roadside spot), `agent/api.js` (the commands, the checks, save/load).
 
 **What depends on it / what it waits for:**
-- **The rivers lane (L1, `world/rivers.js`):** the dam's reservoir and river, and wet farm canals in Arizona, need its depth
-  authority. Asked in the hand-back: adopt the dam row (`river`, the crest line) and the `dry` canals as L1 sources.
+- **The rivers lane (L1, `world/rivers.js`, landed):** towers, rows and trees keep off its water by `keepOut`; Florida's
+  own water (sea, lagoon, canals) is read from world/regions.js. The dam's reservoir and wet farm canals in Arizona need rows in it (asked in
+  the hand-back, section 9).
 - **The World Forge** (SITE and MAP tabs): the rows are pure data with `validateRoadside(W, rows, built, pinned)` exported;
   the tabs can draw and edit them later.
 - **Traffic (R3)** and **the director**: a toll checkpoint on the dam road and raiders at a downed line are natural events.
@@ -259,4 +261,36 @@ renders in `docs/renders/web/roadside/` reviewed (section 9).
 
 ## 9. As built (2026-10-23)
 
-(Measured numbers and the critic's pass: filled in below at hand-back.)
+**Built:** 16 sites (4 stations, 2 junkyards, 5 farm belts, 2 substations, the dam and its fields), 2 lines (312
+towers, one down), 18 billboards, 6 adverts, 7 keepers; about 22,000 instance records and 8,300 collision boxes over
+~236 chunks. Boot cost (Roadside's layout inside WorldIndex): 65-83 ms on this machine under load (`roadside
+action=list` buildMs; the per-site split is in `W.roadside.prof`): the Colorado tie and the farm belts are most of it.
+
+**Measured:** the FURNACE MILE 9 cluster at the widest zoom (HIGH): **86 draw calls**, no pool allocation failing; the
+`bills` pool is the one draw call the layer adds. Every roadside chunk tested hashes the same sync and sliced and agrees
+at its seams. The pinned P1 chunks and the island golden are untouched (the florida and streaming checks, and
+`roadside action=validate`: no roadside chunk is a pinned one).
+
+**L1 landed during the build** (rivers, washes and the aqueduct in `world/rivers.js`): towers slide off the water (one
+skipped at the aqueduct, mile 21: a gap in the line there), farm rows and trees keep off it, three furnace fields that
+reached a wash are skipped (warnings), and the Mesilla substation moved off the Rio Grande. The Colorado as L1 lays it
+crosses I-10 at mile 16.4, seventeen kilometres east of the dam: the dam stands on the river's dead channel (lore: the river
+walked). **Asked of the rivers lane:** a reservoir row behind the dam (an L1 lake over the drained bed, its surface below
+the crest) or the dam moved onto the live Colorado north of mile 16.4 with its crest treated as a deck by `depthAt` (a car
+on a fill across live water must read dry); and whether the `dry` farm canals should become L1 canal rows.
+
+**Renders** (`docs/renders/web/roadside/`, the game camera, noon, clear): `station.jpg` (FURNACE MILE 9 FUEL),
+`cluster.jpg` (the boneyard and the fields from the widest zoom), `junkyard.jpg`, `farm.jpg` (a farmstead), `downed.jpg`
+(the tower down across the westbound lanes, its wires across the road), `pylons.jpg`, `dam.jpg`, `damclose.jpg`,
+`billboard.jpg` (EXIT 2 FURNACE MILE 9 3 MILES), `billboardw.jpg` (TURN BACK), `sub.jpg`, `post.jpg` (LAS PALMAS),
+`sebastian.jpg` (Florida's trading post), `cane.jpg`, `groves.jpg`, `locks.jpg`, `pecans.jpg`.
+
+**The critic's pass (the three worst things, and what is next):**
+1. **The dam reads as a road on an embankment, not a dam.** Without water behind it the upstream concrete face and the
+   spillway are the only tells. It needs L1's reservoir (above) and spill water in the chute when the gates are open.
+2. **The farmstead's yard pad is too big and too grey** (it reads as a parking lot round the barn and silo), and the
+   sugarcane is a perfectly regular green carpet. Next: a dirt yard of the right size, a ragged edge and a few gaps in
+   worked fields, a crop's colour drifting across a field.
+3. **The fallen tower is thin from above** (two chords and a few girts): a car sees it late. Next: a crumpled mass at its
+   foot, sparks and a torn-up shoulder at its tip, and its conductors as a hazard for a motorcycle rider (a clothesline).
+Also: billboard faces do not light at night yet; the hoist house wears the roof patchwork texture; substations are scenery.
