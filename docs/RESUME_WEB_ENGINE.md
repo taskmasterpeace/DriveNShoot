@@ -5,7 +5,7 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`25d4d3e6`** (witnesses who run home; 96/96 twice on fresh pages): everything below, landed by fast-forward
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`3a86f7b3`** (word that hops; 97/97 twice on fresh pages): everything below, landed by fast-forward
 from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
 `.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
 `git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
@@ -14,7 +14,7 @@ a real merge (a subagent branch) gets its selftest on the merged tree, twice, on
 ## Start it again
 ```
 cd web && npm run agent                  # dev server :3141 + headless Chrome
-node tools/dl.mjs selftest               # 96/96 green (2026-10-22, fresh page, twice)
+node tools/dl.mjs selftest               # 97/97 green (2026-10-22, fresh page, twice)
 node tools/dl.mjs scenario name=stress   # ~70 draw calls; ms/frame depends on machine load - compare A/B, see below
 node tools/ip-lint.mjs                   # 0 deny, 0 review
 ```
@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Word that hops | when a faction first learns a deed, the factions on speaking terms with it (relation ≥ 30) hear it secondhand 1-2.5 minutes later at cohesion x relation/100 (Rust Haven hears a drifter killing from the drifters at 0.28); no stars, one hop, a faction learns a deed once; Rust Haven and the drifters now mind each other's dead | WEB_WORLD_MEMORY §3.8 | 3a86f7b3 |
 | Witnesses run home | a witness to a theft, carjack, robbery or killing runs to their people's hub to tell it (red ring on the minimap, WITNESS tag); the word lands when they arrive. Stop them: kill them (a silence), hold a gun on them (most fold: a threat in the book instead), or catch them and pay ($20 + $15 a deed's weight, x2 named). `runners` command | WEB_WORLD_MEMORY §3.7 | 25d4d3e6 |
 | Roles (subagent) | ten roles you become by what you keep doing (wheelman, medic, scavenger, deputy, Dustwolf rider, trader, stunt driver, ghost, good Samaritan, butcher): renown, tiers with hysteresis, game-clock fading, standing bias, prices, refusals, greetings, jobs and offices, the role call, role tapes on the HUD, WHAT THEY CALL YOU in the pause menu | WEB_ROLES | 18745046 |
 | The town sleeps | 22:00-06:00 townsfolk go to bed (a mattress near home or a floor spot of their own, on a bedroll mat); asleep they witness nothing and traders keep no counter; noise within 45% of its reach, pain, a fight or someone at the bedside wakes them | WEB_SURVIVAL | 2855e98c |
@@ -91,6 +92,6 @@ When each reports: review, merge into the session branch, selftest twice on fres
 - Merge and land the two subagent branches (above).
 - **Multi-storey buildings and basements** (WEB_STOREYS spec; after the streaming merge: it shares collision, nav,
   city, characters, interiors).
-- **World memory phase 5, rest:** rumors hopping between allies (witnesses who run home shipped).
+- World memory phase 5 is complete (witnesses who run home, word that hops).
 - The military continued (checkpoints, the Remnant in the faction sim, the answers to question 2).
 - Then the power suit, jets, more watercraft.

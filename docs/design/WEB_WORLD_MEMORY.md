@@ -1,6 +1,6 @@
 # WEB_WORLD_MEMORY — the world keeps score
 
-**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. **Witnesses who run home** shipped (§3.7, `systems/witnesses.js`): the one who put a name to your face runs to their people's hub, and you can stop them on the way. Still to come: rumors hopping between allies.
+**Status:** 2026-10-22. Phases 1-4 SHIPPED in `web/` (branch `claude/web-engine-handoff-2fceb5`): a406754 the world keeps score · 691fd39 people remember · 1b7e6f2 the director (hunters, dead_draw_dead, radio news) · 55e9a43 the world moves without you (faction sim, camps changing hands, raids). Phase 5 in progress: the HUD respect chips shipped with the stamped-steel HUD (76b5ff1); **the morning digest** shipped - at 06:30 STATIC 1660 AM reads yesterday back from the day totals (the dead, where it was worst, a camp that changed hands or a fight between factions, a witnessed feat), and witnessed feats (`K.feat`, the `stunt` deed from WEB_JUMPS) join the legend so the regular news can tell them. **Witnesses who run home** shipped (§3.7, `systems/witnesses.js`): the one who put a name to your face runs to their people's hub, and you can stop them on the way. **Word that hops** shipped (§3.8): what one people learns, the people on speaking terms with them hear later and lighter. Phase 5 is complete.
 **Roles** (2026-10-22, `docs/design/WEB_ROLES.md`): what the world knows about you also becomes what it calls you. Deeds,
 jobs, jumps and searches build roles (medic, deputy, Dustwolf rider, butcher...), and a role colours how each faction
 reads your standing (`factions.reading`), who greets or refuses you, what the director sends and what the radio says.
@@ -115,6 +115,17 @@ and `maxHub` metres away, they **run home** instead of gossiping:
   The other witnesses of the same faction still tell it, late (at the runner's fallback): a runner stopped buys time,
   not innocence, unless they were the only one.
 
+### 3.8 Word that hops (phase 5, `deeds.hop`, data `HOP`)
+When a faction **first** learns one of your deeds (its own witness's report lands, not an echo), every faction whose
+relation **toward it** is at least `minRel` hears it secondhand `delay` seconds later, unless its own witnesses are
+already carrying it. A secondhand report:
+- learns at `cohesion(hearer) · relation / 100` (§4), looked up in the hearer's own values (`kill:drifters` for Rust
+  Haven, `kill:rusthaven` for the drifters: the two peoples trade at the gate and mind what's done to each other);
+- carries **no stars** and **never hops again** (one hop: no echo chamber);
+- toasts **WORD SPREADS — RUST HAVEN HEARD FROM DRIFTERS** and writes a chronicle record with no witness;
+- counts once: a faction learns a deed once, whichever way it reaches them first (`heard` mask per deed).
+Silencing a witness before their report lands also stops every hop that report would have started.
+
 ### 3.4 Factions, standing, tiers
 Factions are data rows (built-ins in `data/society.js`, packs may add up to 16 in total). Each has a standing toward the
 player in [−100, 100], a tier derived from it, relations to every other faction (−100..100), and values that say how
@@ -208,6 +219,10 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
   `U(20,45) · 0.6` ≈ 12-27 s - the same window, but now you can see it closing.
 - `nerve` (chance to keep running at gunpoint): drifter 0.15, named 0.5, soldier 0.7, else 0.25.
 
+**Word that hops** (`HOP`): `learn = cohesion(B) · rel(B→A) / 100` when `rel ≥ minRel` (30); `due = t + U(60, 150) s`.
+- Example: you kill a drifter in front of a drifter. The drifters learn it (`kill:self −7 · 4 · 0.35 = −9.8`); ~2 minutes
+  later Rust Haven (rel 40, cohesion 0.7) hears it from them: `learn = 0.28`, `kill:drifters −3 · 4 · 0.28 = −3.4`.
+
 **Opinion** *(phase 2)*: `opinion = 0.3 · standing(fid) + Σ weight · base · 0.5^(ageDays / halfLifeDays)`, clamped ±100.
 
 ## 5. Edge Cases
@@ -235,6 +250,13 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
   tells it, or on its own at the fallback if the runner is stopped).
 - **Save/load mid-run:** runs are not saved; the report is (as a rumor with its remaining time), so it lands the slow way.
 - **A gun on a runner from a car:** doesn't count (on foot only). Not holding a gun: doesn't count.
+- **A hop to a faction that already heard it** (its own witness got there first, or the other way round): nothing; the
+  per-deed `heard` mask (last 256 deeds) keeps it to once. The mask is not saved: after a load, a hop still in flight
+  can land on a faction that heard the deed before the save (a rare double count, accepted).
+- **A report's slot is held until it has been fully told** (`land` → `tell`, freed in `finally`): a hop, a star, a memory
+  or a deed set off by the telling must never take the slot it is still being read from (the first hop build did, and
+  wrote "Rust Haven told Rust Haven" - the selftest's second run caught it).
+- **Hops and the rumor pool:** a hop takes a slot like any report; with the pool full it is dropped (`overflow`).
 - **Chronicle ring full:** the oldest record is overwritten; tallies, legend and digests are unaffected.
 - **Save/load mid-rumor:** pending rumors save with their remaining delay and witness id; a witness missing after load
   (despawned) drops the rumor as silenced.
@@ -280,6 +302,8 @@ hunted ≤ −80 · hostile ≤ −40 · wary < −10 · neutral < 20 · friendl
 | ring / legend / digests | 512 / 96 / 30 | 256–4096 / 32–256 / 7–90 | memory size vs save size (~60 KB at defaults) |
 | rumor pool | 64 | 32–256 | simultaneous gossip |
 | witness cap | 8 | 4–16 | CPU per deed |
+| `HOP.minRel` | 30 | 10–60 | who talks to whom (at 50 only allies; at 10 nearly everyone not at war) |
+| `HOP.delay` | [60, 150] s | [20, 60] – [120, 600] | how long before the neighbours know |
 | `WITNESS_RUN.minVerb` | 2 | 1–4 | which deeds send someone running (1: even a punch) |
 | `WITNESS_RUN.speed` / `fallback` | 5.2 m/s / 240 s | 3.5–6.5 / 120–600 | whether you can catch them on foot; how long a stuck runner sits on it |
 | `WITNESS_RUN.cowerR` / `aimFor` | 9 m / 1.2 s | 5–15 / 0.5–3 | how close and how long a gun has to be held |
@@ -313,3 +337,6 @@ All are selftest checks or `node tools/dl.mjs` sequences against the running gam
 12. **Gun and cash:** aiming at a runner inside 9 m for 1.2 s with their nerve failing → `witnessCowed`, `rumorSilenced`
     `how: 'cowed'`, hands up, a `threaten` record, no kill rumor. Catching a runner and pressing E with $500 → `witnessPaid`,
     cash down by exactly `cost`, no kill rumor (selftest).
+13. **Word hops:** a witnessed killing of a drifter at STAGE (hop delay cut to 3-4 s): the drifters' `rumor` lands, one
+    `rumorHop` drifters→rusthaven, Rust Haven unchanged until then, then a `rumor` with `via: 'drifters'` whose delta is
+    `−3 · 4 · 0.7 · 0.4 = −3.36` (±0.2), and no hop onward from Rust Haven (selftest).

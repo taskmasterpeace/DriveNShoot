@@ -1,4 +1,4 @@
-import { VERBS } from '../data/society.js';
+import { VERBS, HOP } from '../data/society.js';
 import { K } from './chronicle.js';
 
 // Deeds: what the player does, who saw it, and the word that spreads (docs/design/WEB_WORLD_MEMORY.md §3.1-3.3).
@@ -14,7 +14,8 @@ const NO_ONE = Object.freeze([]);
 export class Deeds {
   constructor(game, chronicle, factions) {
     this.g = game; this.chron = chronicle; this.F = factions;
-    this.rumors = Array.from({ length: MAX_RUMORS }, () => ({ live: false, echo: false, seq: 0, due: 0, witness: null, wid: '', fid: '', verb: '', of: '', o: '', on: '', onpc: '', downed: false, p: '', x: 0, z: 0, m: 0, learn: 1, sd: false, stars: 0 }));
+    this.rumors = Array.from({ length: MAX_RUMORS }, () => ({ live: false, echo: false, seq: 0, due: 0, witness: null, wid: '', fid: '', verb: '', of: '', o: '', on: '', onpc: '', downed: false, p: '', x: 0, z: 0, m: 0, learn: 1, sd: false, stars: 0, runner: null, hop: '' }));
+    this.heard = new Map(); // deed seq -> bitmask of faction indices that have learned it (a faction learns a deed once)
     this.pending = 0; this.nextDue = Infinity;
     this.scratch = []; this.sawOnly = 0;
     this.landed = 0; this.silenced = 0; this.overflow = 0;
@@ -102,7 +103,7 @@ export class Deeds {
       live: true, echo: false, seq: rec.seq, due: this.g.time + (lo + Math.random() * (hi - lo)) * Math.max(0.5, Math.min(2, far / 200)),
       witness: c, wid: c.id, fid: c.fid, verb: rec.v, of: rec.of, o: rec.o, on: rec.on, p: rec.p, x: rec.x, z: rec.z, m: rec.m,
       onpc: target?.npc?.id ?? '', downed: (target?.downedT ?? 0) > 0,
-      learn: c === target ? 1 : row.cohesion ?? 0.5, sd: !!sd, stars: stars ?? 0, runner: null,
+      learn: c === target ? 1 : row.cohesion ?? 0.5, sd: !!sd, stars: stars ?? 0, runner: null, hop: '',
     });
     this.pending++;
     // A witness who runs home carries their people's word (systems/witnesses.js); the others of the same people who saw
@@ -137,10 +138,17 @@ export class Deeds {
   }
 
   land(r) {
-    const g = this.g, w = r.witness;
-    if (w && !w.alive && w.downedT > 0) { r.due = g.time + 5; return; } // down but not out: they tell it when they're up
-    r.live = false; this.pending--;
-    if (!w || !w.alive || !g.chars.includes(w)) {
+    const w = r.witness;
+    if (w && !w.alive && w.downedT > 0) { r.due = this.g.time + 5; return; } // down but not out: they tell it when they're up
+    this.pending--;
+    // r stays live while it is read: whatever the telling sets off (stars, memories, a hop, a deed) must not take its
+    // slot mid-read (a hop once did, and turned "the drifters told Rust Haven" into "Rust Haven told Rust Haven").
+    try { this.tell(r, w); } finally { r.live = false; r.runner = null; }
+  }
+
+  tell(r, w) {
+    const g = this.g;
+    if (!r.hop && (!w || !w.alive || !g.chars.includes(w))) {
       this.silenced++;
       const rec = this.find(r.seq); if (rec) rec.k |= K.silenced;
       g.emit('rumorSilenced', { record: r.seq, witness: r.wid, faction: r.fid, verb: r.verb });
@@ -150,14 +158,40 @@ export class Deeds {
     const rec = this.find(r.seq); if (rec) rec.k |= K.reported;
     if (r.echo) return; // their faction already heard this one
     for (const o of this.rumors) if (o.live && o.seq === r.seq && o.fid === r.fid) o.echo = true;
-    const before = this.F.standing[this.F.index[r.fid]];
+    const fi = this.F.index[r.fid], mask = this.heard.get(r.seq) ?? 0;
+    if (mask & (1 << fi)) return; // heard it already, another way (a hop before their own witness, or the other way round)
+    this.heard.set(r.seq, mask | (1 << fi));
+    if (this.heard.size > 256) this.heard.delete(this.heard.keys().next().value); // the oldest deed's word is long settled
+    const before = this.F.standing[fi];
     const d = this.F.learn(r.fid, r.verb, r.of, r.m, r.learn, r.sd);
     if (r.stars) g.raiseWanted(r.stars);
-    g.society?.memory?.heard(r); // the victim's kin and friends, and the faction's leaders, hear it too
-    this.chron.add({ t: +g.time.toFixed(2), day: g.society?.day ?? 0, hr: +(g.sky.time ?? 0).toFixed(2), a: 'player', af: 'player', v: r.verb, o: r.o, on: r.on, of: r.of, p: r.p, x: r.x, z: r.z, m: r.m, w: [w.id], ws: 1, k: K.reported, src: 'rumor' });
-    const row = this.F.row(r.fid);
-    if (d) g.hud?.toast?.(`WORD SPREADS — ${row.name.toUpperCase()} HEARD`, d < 0 ? 'hot' : 'job');
-    g.emit('rumor', { record: r.seq, witness: w.id, witnessName: w.npc?.name ?? w.name, faction: r.fid, verb: r.verb, delta: +d.toFixed(1), standing: +(before + d).toFixed(1) });
+    if (!r.hop) g.society?.memory?.heard(r); // the victim's kin and friends, and the faction's leaders, hear it too (once)
+    this.chron.add({ t: +g.time.toFixed(2), day: g.society?.day ?? 0, hr: +(g.sky.time ?? 0).toFixed(2), a: 'player', af: 'player', v: r.verb, o: r.o, on: r.on, of: r.of, p: r.p, x: r.x, z: r.z, m: r.m, w: w ? [w.id] : [], ws: w ? 1 : 0, k: K.reported, src: 'rumor' });
+    const row = this.F.row(r.fid), via = r.hop ? this.F.row(r.hop) : null;
+    if (d) g.hud?.toast?.(`WORD SPREADS — ${row.name.toUpperCase()} HEARD${via ? ` FROM ${(via.short ?? via.name).toUpperCase()}` : ''}`, d < 0 ? 'hot' : 'job');
+    g.emit('rumor', { record: r.seq, witness: w?.id ?? null, witnessName: w ? w.npc?.name ?? w.name : null, faction: r.fid, via: r.hop || null, verb: r.verb, delta: +d.toFixed(1), standing: +(before + d).toFixed(1) });
+    if (!r.hop) this.hop(r);
+  }
+
+  // Word that hops (HOP): the factions on speaking terms with r's hear it secondhand, later and lighter. One hop only.
+  hop(r) {
+    const g = this.g, F = this.F, mask = this.heard.get(r.seq) ?? 0;
+    for (let b = 0; b < F.ids.length; b++) {
+      const fid = F.ids[b];
+      if (fid === r.fid || mask & (1 << b) || F.row(fid).memory === 'none') continue;
+      const rel = F.relation(fid, r.fid);
+      if (rel < HOP.minRel) continue;
+      if (this.rumors.some((o) => o.live && !o.echo && o.seq === r.seq && o.fid === fid)) continue; // their own witnesses are carrying it
+      const slot = this.rumors.find((o) => !o.live && o !== r); // never r itself: it was freed by landing, and it is the source
+      if (!slot) { this.overflow++; return; }
+      Object.assign(slot, r, {
+        live: true, echo: false, hop: r.fid, fid, witness: null, wid: '', runner: null, stars: 0,
+        due: g.time + HOP.delay[0] + Math.random() * (HOP.delay[1] - HOP.delay[0]), learn: (F.row(fid).cohesion ?? 0.5) * rel / 100,
+      });
+      this.pending++;
+      if (slot.due < this.nextDue) this.nextDue = slot.due;
+      g.emit('rumorHop', { record: r.seq, from: r.fid, to: fid, verb: r.verb, dueIn: +(slot.due - g.time).toFixed(1), learn: +slot.learn.toFixed(2) });
+    }
   }
 
   // A job done or a deal struck face to face: the counterparty is the witness, so their people learn at once.
@@ -215,21 +249,22 @@ export class Deeds {
 
   view() {
     return {
-      pending: this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, verb: r.verb, witness: r.wid, witnessName: r.witness?.npc?.name ?? r.witness?.name ?? null, faction: r.fid, dueIn: +(r.due - this.g.time).toFixed(1), alive: !!r.witness?.alive, echo: r.echo })),
+      pending: this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, verb: r.verb, witness: r.wid, witnessName: r.witness?.npc?.name ?? r.witness?.name ?? null, faction: r.fid, dueIn: +(r.due - this.g.time).toFixed(1), alive: !!r.witness?.alive, echo: r.echo, via: r.hop || null })),
       landed: this.landed, silenced: this.silenced, overflow: this.overflow,
     };
   }
 
-  save() { return this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, dueIn: +(r.due - this.g.time).toFixed(2), wid: r.wid, fid: r.fid, verb: r.verb, of: r.of, o: r.o, on: r.on, onpc: r.onpc, downed: r.downed, p: r.p, x: r.x, z: r.z, m: r.m, learn: r.learn, sd: r.sd, stars: r.stars, echo: r.echo })); }
+  save() { return this.rumors.filter((r) => r.live).map((r) => ({ seq: r.seq, dueIn: +(r.due - this.g.time).toFixed(2), wid: r.wid, fid: r.fid, verb: r.verb, of: r.of, o: r.o, on: r.on, onpc: r.onpc, downed: r.downed, p: r.p, x: r.x, z: r.z, m: r.m, learn: r.learn, sd: r.sd, stars: r.stars, echo: r.echo, hop: r.hop })); }
 
   load(list) {
     for (const r of this.rumors) r.live = false;
+    this.heard.clear();
     this.g.witnesses?.clear(); // a saved runner tells it the slow way (their report is in the list, due as saved)
     this.pending = 0; this.nextDue = Infinity;
     for (const s of list ?? []) {
       const slot = this.rumors.find((r) => !r.live);
       if (!slot) break;
-      Object.assign(slot, s, { live: true, runner: null, due: this.g.time + s.dueIn, witness: this.g.chars.find((c) => c.id === s.wid) ?? null });
+      Object.assign(slot, s, { live: true, runner: null, hop: s.hop ?? '', due: this.g.time + s.dueIn, witness: this.g.chars.find((c) => c.id === s.wid) ?? null });
       this.pending++;
       if (slot.due < this.nextDue) this.nextDue = slot.due;
     }

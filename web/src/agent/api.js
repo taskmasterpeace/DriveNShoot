@@ -5,7 +5,7 @@ import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
 import { locationName, districtName, HALF } from '../world/city.js';
-import { VERBS, TIERS, MEMORY_KINDS } from '../data/society.js';
+import { VERBS, TIERS, MEMORY_KINDS, HOP } from '../data/society.js';
 import { EVENTS } from '../data/events.js';
 import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
@@ -2269,6 +2269,31 @@ async function runSelfTest(api) {
     const silence = g.society.chronicle.query({ verb: 'silence', limit: 1 })[0]?.o === w.id;
     const s1 = drifterStanding();
     return queued && silenced && silence && Math.abs(s1 - s0) < 0.5 ? true : JSON.stringify({ queued, silenced, silence, s0, s1 });
+  }));
+  await check('world memory: word hops - once the drifters hear of a killing, Rust Haven (on speaking terms) hears it from them later and lighter, and it hops no further', async () => quickRumors(async () => {
+    await stage();
+    const delay = HOP.delay; HOP.delay = [3, 4]; // the minute or two it takes, cut for the check
+    try {
+      const victim = person('drifter', 5, 0, { hp: 30 }), w = person('drifter', 5, 10, { hp: 400 });
+      w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+      const F = g.society.factions, rh = () => F.standing[F.index.rusthaven], r0 = rh(), since = g.eventSeq;
+      await shootDead(victim);
+      const seq = g.society.chronicle.query({ verb: 'kill', limit: 1 })[0]?.seq;
+      const ev = (f) => g.events.filter((e) => e.seq > since && f(e));
+      const landedD = () => ev((e) => e.type === 'rumor' && e.record === seq && e.faction === 'drifters' && !e.via).length;
+      for (let t = 0; t < 12 && !landedD(); t += 0.25) await C('step', { seconds: 0.25 });
+      const drifters = landedD();
+      const hopped = ev((e) => e.type === 'rumorHop' && e.record === seq && e.from === 'drifters' && e.to === 'rusthaven').length;
+      const r1v = rh(); // the drifters have it; Rust Haven doesn't yet
+      await C('step', { seconds: 6 });
+      const heard = ev((e) => e.type === 'rumor' && e.record === seq && e.faction === 'rusthaven' && e.via === 'drifters');
+      const r2 = rh();
+      const further = ev((e) => e.type === 'rumorHop' && e.record === seq && e.from === 'rusthaven').length;
+      g.removeChar(w);
+      const want = -3 * 4 * (F.row('rusthaven').cohesion * F.relation('rusthaven', 'drifters') / 100); // kill:drifters x m x learn
+      return drifters === 1 && hopped === 1 && Math.abs(r1v - r0) < 0.3 && heard.length === 1 && Math.abs(heard[0].delta - want) < 0.2 && r2 < r1v && !further ? true
+        : JSON.stringify({ drifters, hopped, r0, r1: r1v, r2, want: +want.toFixed(2), heard: heard.map((e) => e.delta), further, seq, trail: ev((e) => e.type === 'rumor' || e.type === 'rumorHop' || e.type === 'deed' || e.type === 'witnessRuns').map((e) => [e.type, e.record, e.verb, e.faction ?? e.from, e.via ?? e.to, e.witness, e.t]), pending: g.society.deeds.view().pending });
+    } finally { HOP.delay = delay; }
   }));
   await check('world memory: standing decides who shoots you on sight (raise the Dustwolves and their guns go quiet)', async () => {
     await stage();

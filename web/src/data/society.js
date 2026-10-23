@@ -17,6 +17,13 @@ export const VERBS = { hurt: 1, carjack: 2, steal: 2, rob: 3, destroy: 2, kill: 
 // them inside `cowerR` m with your aim within `aimSlack` m of them for `aimFor` s (they give the report up and stand
 // with their hands up `cowerSecs` s, unless their `nerve` holds - then they won't stop for a gun again), or catch them
 // and pay them to forget (`bribe`: base + perVerb x the deed's weight, x namedMul for a named person).
+// Word that hops (systems/deeds.js hop; WEB_WORLD_MEMORY.md §3.8). When a faction first learns one of your deeds, every
+// faction whose relation toward it is at least `minRel` (on speaking terms - Rust Haven and the drifters at 40) hears it
+// secondhand after `delay` seconds, at learn = its own cohesion x relation / 100 (a drifter hearing from Rust Haven:
+// 0.35 x 0.4 = 0.14, against 0.35 for a drifter's own eyewitness). Secondhand word never hops again, carries no stars,
+// and a faction that already heard the deed (from its own witnesses, or another hop) takes nothing from it.
+export const HOP = { minRel: 30, delay: [60, 150] };
+
 export const WITNESS_RUN = {
   minVerb: 2, maxHub: 700, arriveR: 8, speed: 5.2, fallback: 240,
   cowerR: 9, aimSlack: 1.6, aimFor: 1.2, cowerSecs: 3,
@@ -83,6 +90,7 @@ export const FACTIONS = {
       'kill:friend': -4, 'hurt:friend': -1, 'carjack:friend': -2,
       'kill:enemy': 1, 'rescue:self': 5, 'rescue:friend': 3, 'deliver:self': 4, 'trade:self': 0.5, 'defend:self': 4, 'pay:self': 2,
       'heal:self': 3, 'heal:any': 1, 'threaten:self': -2,
+      'kill:drifters': -3, 'rescue:drifters': 2, // the drifters trade at the gate: Rust Haven minds what's done to them
       'stunt:any': 0.3, // folks still like a show
     },
   },
@@ -99,7 +107,7 @@ export const FACTIONS = {
     cohesion: 0.35, memoryDays: 10, rumorDelay: [30, 70], hub: null, leaders: [],
     // Drifters only run from raiders; they don't hunt them, so the relation stays above the -50 war line.
     relations: { rusthaven: 40, dustwolves: -45, infected: -100 },
-    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1, 'threaten:self': -1.5 },
+    values: { 'kill:self': -7, 'hurt:self': -1.5, 'carjack:self': -3, 'rob:self': -4, 'rescue:self': 4, 'kill:enemy': 0.5, 'trade:self': 0.5, 'stunt:any': 0.5, 'heal:self': 3, 'heal:any': 1, 'threaten:self': -1.5, 'kill:rusthaven': -2, 'rescue:rusthaven': 2 },
   },
   infected: {
     name: 'the infected', archetype: 'infected', color: '#7d8a6a', start: -100, memory: 'none',
