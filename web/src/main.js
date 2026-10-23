@@ -23,6 +23,7 @@ import { Garage } from './systems/garage.js';
 import { Stunts } from './systems/stunts.js';
 import { Bases } from './systems/bases.js';
 import { Inventory } from './systems/inventory.js';
+import { Roles } from './systems/roles.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
 import { Trade } from './systems/trade.js';
@@ -147,6 +148,7 @@ class Game {
     this.lastVehicle = null;
     this.skillsSys = new Skills(this); // strength, dexterity, endurance grown by doing; carried weight (g.skills)
     this.inventory = new Inventory(this); // items in containers: what you carry, trunks, the dead, the ground (data/items.js)
+    this.roles = new Roles(this); // what the world calls you, earned by what you keep doing (data/roles.js, WEB_ROLES.md)
     this.invUI = new InventoryUI(this, ui); // the PACK screen (I / Tab)
     this.trade = new Trade(this); // a trader's own shelves are a counter while they're there (systems/trade.js)
     this.insideBuilding = null;
@@ -365,6 +367,18 @@ class Game {
   }
 
   noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); }
+  // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
+  trySleep() {
+    const p = this.player, S = this.survival;
+    let r;
+    if (p.inVehicle) r = S.sleepAt('car');
+    else {
+      const bed = this.bedNear(p.x, p.z);
+      r = bed ? S.sleepAt('bed', bed) : this.inventory.carried.count('bedroll') ? S.sleepAt('bedroll') : { ok: false, why: 'nowhere to sleep: a bed, a bedroll or a parked car' };
+    }
+    if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn');
+    return r;
+  }
   // The bed (a mattress in a house; world/city.js spawns.beds) within reach of (x, z), or null.
   bedNear(x, z) {
     let best = null, bd = 1.8;
@@ -394,7 +408,9 @@ class Game {
     const before = this.wanted;
     this.wanted = Math.min(5, this.wanted + n);
     this.wantedT = 0;
-    if (before === 0 && this.wanted > 0) this.hud.toast('RUST HAVEN WARDENS ARE HUNTING YOU', 'hot');
+    const slack = this.roles?.offices.deputy ? 1 : 0; // a sworn deputy's star of slack (roles.js)
+    if (before <= slack && this.wanted > slack) this.hud.toast('RUST HAVEN WARDENS ARE HUNTING YOU', 'hot');
+    else if (before === 0 && this.wanted > 0) this.hud.toast('ONE STAR: THE BULLS GIVE THEIR DEPUTY THAT ONE', 'warn');
   }
 
   // Runtime errors are collected (not swallowed): DL.perf / status / selftest surface them.
@@ -522,7 +538,9 @@ class Game {
       else {
         this.seats.leave(d);
         this.society.deeds.record('carjack', { target: d, stars: d.faction !== 'raider' ? 1 : 0 });
-        this.ai.onDamaged(d, p, true);
+        // A known wheelman's reputation does the talking: the driver runs instead of fighting (roles.js perk).
+        if (this.roles.perk.carjackFlee && !d.npc) { d.flee = 6; d.fleeX = p.x; d.fleeZ = p.z; d.target = null; }
+        else this.ai.onDamaged(d, p, true);
         this.hud.toast(`CARJACKED: ${v.name}`, 'hot');
       }
     }
@@ -593,6 +611,8 @@ class Game {
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
     if (this.survival.sleep) {
       p.speed = 0;
+      const sv = p.inVehicle;
+      if (sv?.driver === p) { sv.throttle = 0; sv.steer = 0; sv.handbrake = true; sv.boost = false; } // asleep in the seat: parked
       this.hud.prompt(null); // the sleep screen says how to get up
       if (I.hit('KeyE')) this.survival.wake();
       return;
@@ -606,6 +626,7 @@ class Game {
     // Rummaging in your pack: you stand still (a car coasts), and the keys work the PACK screen.
     if (this.invUI.open) { p.speed = 0; if (p.inVehicle?.driver === p) { p.inVehicle.throttle = 0; p.inVehicle.steer = 0; } this.invUI.input(I); return; }
     if (I.hit('KeyI') || I.hit('Tab')) { this.invUI.toggle(true); return; }
+    if (I.hit('KeyN')) { this.trySleep(); return; }
     if (I.hit('KeyV')) this.quickUse();
 
     const v = p.inVehicle;
@@ -799,12 +820,12 @@ class Game {
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? op ?? (box || bed ? this.boxRing : null));
-    if (best) this.hud.prompt(`<kbd>E</kbd> Talk to ${best.npc ? best.npc.name : best.name}`);
+    if (best) this.hud.prompt(`<kbd>E</kbd> ${best.sleeping ? 'Wake' : 'Talk to'} ${best.npc ? best.npc.name : best.name}`);
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on`);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
     else if (!op) this.hud.prompt(null);
-    if (best && I.hit('KeyE')) { this.dialogue.open(best); this.hud.prompt(null); }
+    if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
     else if (bestV && I.hit('KeyF')) { this.enterVehicle(bestV); this.hud.prompt(null); }
@@ -1043,6 +1064,7 @@ class Game {
       this.ai.update(simDt); this.nanGuard('ai');
       this.bases.update(simDt); // sentries watch the wire, searchlights sweep
       this.society.update(simDt);
+      this.roles.update(simDt); // a counter until its second is up: the odometer, the gates, the street's reaction
       this.survival.update(simDt);
       this.skillsSys.update(simDt);
       this.vehiclesSys.update(simDt, this.sky.night); this.nanGuard('vehicles');

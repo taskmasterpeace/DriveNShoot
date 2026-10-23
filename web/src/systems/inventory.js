@@ -113,6 +113,8 @@ export class Inventory {
     // Out of somebody's shop and anywhere not theirs (your pocket, your trunk, the floor): theft, as the world sees it
     // (deeds: witnesses, word, memory). Bought over the counter, it is not.
     if (from.owner && to.owner !== from.owner && !paid) this.stole(from, t);
+    // Out of a box nobody owns (a crate, the dead, a wreck) into your pocket: salvage, the scavenger's living (roles.js).
+    else if (!from.owner && to === this.carried && from !== this.carried && from.kind !== 'ground' && from.kind !== 'trunk') this.g.roles?.onLoot((ITEMS[t.id]?.value ?? 0) * t.n);
     this.changed();
     return k;
   }
@@ -126,7 +128,7 @@ export class Inventory {
     if ((box.stealT ?? -99) > g.time - 30) return;
     box.stealT = g.time;
     const P = g.player; // witnesses see the thief, not the inside of the shelf
-    const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? 'rusthaven', stars: 1 });
+    const rec = g.society?.deeds?.record('steal', { target: owner ?? null, x: P.x, z: P.z, m: Math.min(4, 1 + worth / 40), label: box.ownerName, tf: owner?.fid ?? 'rusthaven', stars: 1, owner: true });
     g.emit('stole', { box: box.id, owner: box.owner, item: t.id, n: t.n, worth, witnesses: rec?.ws ?? 0 });
   }
 
@@ -262,6 +264,43 @@ export class Inventory {
       if (score > bScore) { bScore = score; bi = i; }
     });
     return bi;
+  }
+
+  // ---- patching somebody else up (the medic's work, docs/design/WEB_ROLES.md) ----------------------------------
+  // Is c someone you could patch up right now (hurt or bleeding, close, alive), and with what? Returns a slot index.
+  hurtEnough(c) { return !!c?.alive && (c.hp < c.maxHp * 0.85 || (c.bleed ?? 0) > 0.1); }
+  bestFor(c, id = null) {
+    const missing = c.maxHp - c.hp, bleeding = (c.bleed ?? 0) > 0.1;
+    let bi = -1, bScore = -Infinity;
+    this.carried.slots.forEach((s, i) => {
+      const it = ITEMS[s.id], u = it?.use;
+      if (it?.kind !== 'med' || !u?.hp || (id && s.id !== id) || (it.uses && !(s.left > 0))) return;
+      const score = (bleeding && u.bleed ? 50 : 0) + Math.min(u.hp * 1.5, missing) - it.value * 0.3; // the smallest thing that does the job
+      if (score > bScore) { bScore = score; bi = i; }
+    });
+    return bi;
+  }
+  // Use one med item on c: it heals half again what it does for you (both hands free, they hold still) times the medic's
+  // healMul, and stops their bleeding if it stops yours. A `heal` deed: the patient sees your face, and so does anyone
+  // watching. Returns { ok, text, item, healed } or { ok: false, why }.
+  treat(c, id = null) {
+    const g = this.g, P = g.player, name = c?.npc?.name ?? c?.name ?? 'them';
+    if (!c?.alive || c === P) return { ok: false, why: 'nobody there to patch up' };
+    if (Math.hypot(c.x - P.x, c.z - P.z) > 4.5) return { ok: false, why: `${name} is too far away` };
+    if (!this.hurtEnough(c)) return { ok: false, why: `${name} is not hurt` };
+    const i = this.bestFor(c, id);
+    if (i < 0) return { ok: false, why: id ? `you carry no ${ITEMS[id]?.name.toLowerCase() ?? id} to use` : 'you carry nothing to patch them up with' };
+    const s = this.carried.slots[i], it = ITEMS[s.id], u = it.use;
+    const healed = Math.min(c.maxHp - c.hp, u.hp * 1.5 * (g.roles?.perk.healMul ?? 1));
+    c.hp += healed;
+    if (u.bleed) c.bleed = 0;
+    c.treated = true; c.flee = 0;
+    if (c.grudge === P && !c.weapon) c.grudge = null; // you shot them once; now you are stitching them up
+    if (it.uses) { if (--s.left <= 0 && it.kgEmpty === undefined) this.take(this.carried, i, 1); } else this.take(this.carried, i, 1);
+    this.changed();
+    g.society?.deeds?.record('heal', { target: c });
+    g.emit('treated', { npc: c.id, name, item: s.id, healed: Math.round(healed), hp: Math.round(c.hp) });
+    return { ok: true, text: `PATCHED UP ${name.toUpperCase()}`, item: s.id, healed: Math.round(healed) };
   }
 
   // ---- rounds ------------------------------------------------------------------------------------------------
@@ -462,7 +501,7 @@ export class Inventory {
   }
 
   open(box) {
-    if (!box.rolled) { this.roll(box); box.rolled = true; }
+    if (!box.rolled) { this.roll(box); box.rolled = true; this.g.roles?.onSearch(box); } // first time through: a search
     this.opened = box;
     this.g.emit('containerOpened', { id: box.id, kind: box.kind, items: box.slots.length });
     return box;

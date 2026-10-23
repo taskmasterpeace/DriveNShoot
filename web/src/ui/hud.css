@@ -133,6 +133,20 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .g-dial.low { animation: seg-pulse 0.9s steps(2) infinite; }
 .flagpatch { position: absolute; bottom: 24px; left: 784px; width: 132px; height: 86px; transform: rotate(-2.2deg); filter: drop-shadow(2px 4px 3px rgba(0,0,0,0.55)); }
 .flagpatch canvas { width: 132px; height: 86px; display: block; }
+/* ---- role tapes: what the world calls you (systems/roles.js), stitched cloth name tapes on top of the status plate,
+   between the street sign and the ailments stacked over the flag. Olive drab weave, a dashed thread inset like a
+   stitch line, the role's colour as a bar of thread at the left, gold chevrons for the tier (one rumoured, two
+   known, three renowned). Tucked away while the breath tab needs the room. ---- */
+.roles { position: absolute; left: 616px; bottom: 141px; width: 168px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 6px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.6)); }
+.roles:empty { display: none; }
+.role-tape { --rc: oklch(0.7 0.13 70); --tr: -1deg; position: relative; display: flex; align-items: center; gap: 8px; height: 26px; min-width: 152px; padding: 0 9px 0 15px; transform: rotate(var(--tr)); transform-origin: 30% 50%;
+  background: var(--speckle), repeating-linear-gradient(90deg, rgba(0,0,0,0.09) 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, rgba(255,245,215,0.05) 0 1px, transparent 1px 3px), linear-gradient(oklch(0.43 0.045 100), oklch(0.33 0.04 98));
+  box-shadow: inset 0 0 0 1px oklch(0.24 0.03 95), inset 0 1px 0 oklch(0.55 0.04 95 / 0.6), 0 0 0 1px oklch(0.15 0.02 90 / 0.9);
+  outline: 1px dashed oklch(0.82 0.06 88 / 0.55); outline-offset: -5px; }
+.role-tape::before { content: ''; position: absolute; left: 5px; top: 5px; bottom: 5px; width: 4px; background: var(--rc); box-shadow: 0 0 0 1px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.25); }
+.role-tape b { font: 800 15px var(--stencil); letter-spacing: 0.09em; line-height: 1; color: oklch(0.93 0.03 88); text-shadow: 0 1px 0 rgba(0,0,0,0.85), 0 -1px 0 rgba(0,0,0,0.25); white-space: nowrap; }
+.role-tape .rank { margin-left: auto; display: flex; flex-direction: column; gap: 1px; }
+.role-tape .rank i { width: 14px; height: 6px; background: linear-gradient(oklch(0.92 0.12 90), oklch(0.68 0.14 72)); clip-path: polygon(50% 0, 100% 55%, 100% 100%, 50% 45%, 0 100%, 0 55%); filter: drop-shadow(0 1px 0 rgba(0,0,0,0.7)); }
 /* ailments: what's wrong with you, stamped beside the vitals, stacking upward */
 .ailments { position: absolute; left: 790px; bottom: 118px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 4px; }
 .md { font: 700 13px var(--display); letter-spacing: 0.1em; padding: 3px 9px 2px; color: var(--bone); background: oklch(0.17 0.015 60 / 0.92); border-left: 3px solid oklch(0.74 0.15 70); box-shadow: 1px 2px 0 rgba(0,0,0,0.6); white-space: nowrap; }
@@ -298,6 +312,20 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .pm-card input[type=checkbox] { accent-color: oklch(0.8 0.16 75); width: 16px; height: 16px; }
 .pm-card select { background: oklch(0.2 0.01 60); color: var(--bone); border: 1px solid oklch(0.1 0.01 60); border-radius: 2px; padding: 4px 6px; font: 13px var(--body); box-shadow: inset 0 1px 2px rgba(0,0,0,0.6); }
 .pm-keys { font-size: 13px; color: var(--muted); line-height: 1.6; }
+/* what the world calls you (systems/roles.js): a row per role, a renown bar notched at the three tier lines */
+.pm-roles { display: grid; gap: 8px; }
+.pm-role { --rc: var(--brass); padding: 7px 10px 8px 12px; background: oklch(0.15 0.01 60 / 0.75); border-left: 4px solid var(--rc); box-shadow: inset 0 1px 3px rgba(0,0,0,0.6), 0 1px 0 oklch(0.4 0.012 70 / 0.35); }
+.pm-role.faint { opacity: 0.6; }
+.pm-role.susp .pm-role-head span { color: oklch(0.72 0.16 45); }
+.pm-role-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pm-role-head b { font: 800 18px var(--display); letter-spacing: 0.03em; color: var(--bone); }
+.pm-role-head span { font: 700 11px var(--display); letter-spacing: 0.16em; color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-role-bar { position: relative; height: 7px; margin: 5px 0 6px; background: oklch(0.11 0.01 60); box-shadow: inset 0 1px 2px rgba(0,0,0,0.85), 0 1px 0 oklch(0.4 0.012 70 / 0.4); }
+.pm-role-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(var(--rc), oklch(0.45 0.05 70)); transition: width 0.25s; }
+.pm-role-bar u { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: oklch(0.85 0.05 85 / 0.8); box-shadow: 0 0 0 1px rgba(0,0,0,0.5); }
+.pm-role-why { font: 400 13px/1.4 var(--type); color: oklch(0.86 0.02 82); }
+.pm-role-why em { font-style: normal; color: var(--muted); }
+.pm-role-none { font: 400 14px var(--type); color: var(--muted); padding: 4px 2px; }
 
 /* ---- QOL: hit markers ---- */
 .reticle.hit { animation: hit 0.18s ease-out; }
@@ -364,6 +392,8 @@ kbd { font-family: var(--display); font-weight: 700; font-size: 0.82em; backgrou
 .inv-head { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid oklch(0.1 0.01 60); box-shadow: 0 1px 0 oklch(0.4 0.012 70 / 0.5); padding-bottom: 8px; }
 .inv-title { font: 900 40px var(--stencil); letter-spacing: 0.04em; color: var(--gold); text-shadow: 2px 3px 0 rgba(0,0,0,0.6); line-height: 1; }
 .inv-worn { font: 700 12px var(--display); letter-spacing: 0.14em; color: var(--muted); }
+.inv-who { display: grid; gap: 3px; min-width: 0; }
+.inv-roles { font: 700 12px var(--display); letter-spacing: 0.14em; color: var(--brass); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-meters { margin-left: auto; display: grid; gap: 5px; min-width: 330px; }
 .inv-meter { display: grid; grid-template-columns: 64px 1fr 116px; align-items: center; gap: 8px; font: 700 11px var(--display); letter-spacing: 0.16em; color: var(--muted); }
 .inv-meter i { height: 9px; background: oklch(0.12 0.01 60); box-shadow: inset 0 1px 2px rgba(0,0,0,0.8), 0 1px 0 oklch(0.4 0.012 70 / 0.4); position: relative; }

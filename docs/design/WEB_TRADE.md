@@ -28,7 +28,7 @@ you could have walked off with the whole crate, and the town would have known.
   Kenji (mechanic: parts, tools, packs), Mags (water trader: water, food, valuables, paper). Each sells whatever is on
   their own shelves; each buys only what they deal in.
 - **The counter is live** when, for the box on the other side of the PACK screen: it has an owner; the owner is a
-  trader; they are alive and not downed; they are within `TRADE.reach` (9 m) of you. Otherwise there is no counter.
+  trader; they are alive, not downed and **not asleep** (WEB_SURVIVAL: the town sleeps 22:00–06:00); they are within `TRADE.reach` (9 m) of you. Otherwise there is no counter.
 - **Willing:** the tier of the trader's people with you (`data/society.js` tiers) must have a price row (`hostile`
   and `hunted` have none), and the trader must not personally refuse you (`memory.refuses`, the same rule that ends a
   conversation). Unwilling: the header reads "<NAME> WON'T DEAL WITH YOU: TAKING IS STEALING", and taking is theft.
@@ -52,7 +52,9 @@ you could have walked off with the whole crate, and the town would have known.
   button reads BUY $n / SELL +$n / <NAME> WON'T BUY IT; the detail line reads "Ike sells all 42 for $17" or "Ike pays
   $5 for all 36".
 - **Roles:** if the role system offers `g.roles.priceMul(fid, trader)`, buy prices are multiplied by it and sell
-  prices divided by it (a known trader, a quartermaster's friend).
+  prices divided by it (a known trader, a quartermaster's friend). Shipped (docs/design/WEB_ROLES.md §4.6): the town's
+  four traders are Rust Haven people, so a role's `rusthaven` price is theirs; a role refusal (`g.roles.refusal(c)`,
+  a known butcher at Ike's) closes the counter like a grudge; every deal signals the trader role.
 
 ## 4. Formulas
 
@@ -89,7 +91,8 @@ you could have walked off with the whole crate, and the town would have known.
   `refuses(c)`. `web/src/systems/deeds.js`: `direct('trade', c)`. WEB_WORLD_MEMORY names `trade` as a verb.
 - `web/src/ui/inventory.js`: the counter mode. `web/src/ui/hud.css`: `.trade`, `.price`, `.no-deal`.
 - `web/src/main.js`: constructs `g.trade`. `web/src/agent/api.js`: the `trade` command and the selftest check.
-- Optional: the role system's `g.roles.priceMul(fid, trader)`.
+- The role system (WEB_ROLES): `g.roles.priceMul(fid, trader)` and `g.roles.refusal(c)`; `deal()` calls
+  `g.roles.signal('trade', { faction, value, sell })`.
 
 ## 7. Tuning knobs
 

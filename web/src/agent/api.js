@@ -16,6 +16,7 @@ import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
+import { ROLE_TIERS } from '../data/roles.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -539,7 +540,7 @@ function buildCommands(api) {
     },
     honk: { group: 'player', desc: 'Sound the horn of the vehicle you are in: people in front leap aside. Keyboard: E while driving.', run: async () => { need(P().inVehicle, 'not in a vehicle'); g.audio.horn(0); return { dodged: g.ambient.honk(P().inVehicle) }; } },
     hud: {
-      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips, the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
+      group: 'observe', desc: 'What the HUD is showing right now (screenshots only capture the 3D world): kill feed, damage-direction arcs (bearing 0 = north/screen-up, clockwise), name tags with flags, compass heading + markers (waypoint, train, convoy), floating texts, lens blood, and under plates: clock/weather, wanted, cash, street sign, health/stamina segments, food/water gauges (null without a needs system), the flag patch, the faction respect chips (standing, and the reading your roles colour it to), the role tapes on the status plate (what the world calls you: role id, text, chevrons for the tier), the weapon plate (mag, reserve, cartridges, dog tags, throwable) or the dash gauge.',
       run: async () => ({ ...g.feedback.view(), plates: g.hud.view() }),
     },
     train: {
@@ -1128,9 +1129,25 @@ function buildCommands(api) {
         return S2.view();
       },
     },
+    town: {
+      group: 'world', desc: 'The town at night (data/survival.js TOWN_NIGHT): from 22:00 to 06:00 the town\'s own people (drifters, named townsfolk; not the wardens, soldiers, raiders or your followers) go to a bed near home (a mattress, else the floor) and sleep; asleep they witness nothing and a trader keeps no counter; a noise, pain, a fight or someone standing at the bedside wakes them. Reports who is asleep within radius= m, who is up and why, and the beds (claimed tonight / all). wake=<id> shakes one awake (as E does).',
+      args: { radius: { type: 'number', default: 150 }, wake: { type: 'string' } },
+      run: async ({ radius, wake }) => {
+        const p = P();
+        if (wake) { const c = api.findChar(wake); need(c, `no character ${wake}`); g.ai.wake(c, 'shaken awake'); }
+        const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < radius && g.ai.sleeper(c));
+        const beds = g.world.spawns.beds ?? [], n = g.ai.nightId();
+        return {
+          night: g.ai.night(), hour: r1(g.sky.time),
+          asleep: near.filter((c) => c.sleeping).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, bed: !!(c.bed && !c.bed.floor), x: r1(c.x), z: r1(c.z) })),
+          awake: near.filter((c) => !c.sleeping).map((c) => ({ id: c.id, name: c.npc?.name ?? c.name, restless: r1(Math.max(0, c.restless ?? 0)), going: !!c.bed })),
+          beds: { total: beds.length, claimedTonight: beds.filter((b) => b.night === n && b.by).length },
+        };
+      },
+    },
     sleep: {
-      group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: E at a bed, or use a bedroll from the PACK screen; E gets you up.',
-      args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
+      group: 'player', desc: 'Sleep (data/survival.js SLEEP; docs/design/WEB_SURVIVAL.md). where=bed lies down on the bed within reach (a mattress in a house; snap=true puts you on the nearest one first, for testing), where=bedroll uses a bedroll from your pack, where=car tips back the seat of the car you sit in (it must be parked), where=ground lies on the bare ground (the worst rest). You can lie down only when tired, and never with danger close. Steps the game (time runs x40 asleep) until you wake - rested, woken by danger, pain or a noise, or at hours= game hours if given - and reports why, how long, whether it was a full night (one that breaks a treated fever), and your needs. wake=true gets you up. In the game: N sleeps (a bed you stand at, a bedroll you carry, a parked car), E at a bed, a bedroll from the PACK screen; E gets you up.',
+      args: { where: { type: 'string', default: 'bed', enum: ['bed', 'bedroll', 'car', 'ground'] }, snap: { type: 'boolean', default: false }, hours: { type: 'number' }, wake: { type: 'boolean', default: false } },
       run: async ({ where, snap, hours, wake }) => {
         const S2 = g.survival, p = P();
         if (wake) return { woke: S2.wake(), needs: S2.view() };
@@ -1210,15 +1227,18 @@ function buildCommands(api) {
       run: async () => g.inventory.view(),
     },
     item: {
-      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
-      args: { give: { type: 'string' }, use: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
-      run: async ({ give, use, drop, wear, take, stow, n, quick }) => {
+      group: 'player', desc: 'Work your pack. give=<id> n= adds; use=<id> uses one (food, water, meds; tools act on what is near: a fuel can on the car you are at, duct tape on its worst part); use=<med> on=<character> patches somebody else up instead (within 4.5 m, hurt or bleeding: a heal deed, the medic\'s work - in the game, talk to them); drop=<id> n= puts it on the ground; wear=<id> swaps your pack; take=<id> n= / stow=<id> n= move between you and the other side (the box or body at your feet, else the car you are at, else the ground); quick=true is the V key. Item ids: see data/items.js.',
+      args: { give: { type: 'string' }, use: { type: 'string' }, on: { type: 'string' }, drop: { type: 'string' }, wear: { type: 'string' }, take: { type: 'string' }, stow: { type: 'string' }, n: { type: 'number', default: 1 }, quick: { type: 'boolean', default: false } },
+      run: async ({ give, use, on, drop, wear, take, stow, n, quick }) => {
         const inv = g.inventory, C = inv.carried, idx = (box, id) => box.slots.findIndex((s) => s.id === id);
         const known = (id) => need(ITEMS[id], `unknown item ${id}; known: ${Object.keys(ITEMS).join(', ')}`);
         const out = {};
         if (quick) { const r = g.quickUse(); out.quick = r ? r.text : null; }
         if (give) { known(give); out.given = inv.add(C, give, n, ITEMS[give].uses ? { left: ITEMS[give].uses } : {}); inv.changed(); }
-        if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
+        if (use && on) {
+          known(use); const c = api.findChar(on); need(c && c !== P(), `no character ${on}`);
+          const r = inv.treat(c, use); need(r.ok, r.why); out.used = r.text; out.patient = { id: c.id, hp: Math.round(c.hp), maxHp: c.maxHp, bleeding: (c.bleed ?? 0) > 0.1 };
+        } else if (use) { known(use); const i = idx(C, use); need(i >= 0, `you carry no ${use}`); const r = inv.use(i); need(r.ok, r.why); out.used = r.text; }
         if (drop) { known(drop); const i = idx(C, drop); need(i >= 0, `you carry no ${drop}`); out.dropped = inv.move(C, i, inv.groundAt(P().x, P().z), n); inv.prune(); }
         if (wear) { known(wear); const i = idx(C, wear); need(i >= 0, `you carry no ${wear}`); const r = inv.swapPack(i); need(r.ok, r.why); out.worn = r.worn; }
         if (take || stow) {
@@ -1346,15 +1366,38 @@ function buildCommands(api) {
       },
     },
     simTick: {
-      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands. Returns strength/stores before and after and what happened.',
+      group: 'society', desc: 'Run the off-screen world forward N game hours (≤240): income from held places, recruits, a skirmish roll each day for factions at war, camps changing hands; standings drift and roles you are not working at fade (docs/design/WEB_ROLES.md). Returns strength/stores before and after, what happened, and the roles you hold after.',
       args: { hours: { type: 'number', default: 24 } },
       run: async ({ hours }) => {
         need(hours > 0 && hours <= 240, 'hours must be in (0,240]');
         const S = g.society, before = S.sim.view(), seq0 = S.chronicle.seq, t0 = performance.now();
         for (let d = 0; d < Math.floor(hours / 24); d++) S.sim.tickDay();
-        S.factions.tickHours(hours); S.sim.advance(hours);
+        S.factions.tickHours(hours); S.sim.advance(hours); g.roles.tickHours(hours);
         const ms = +(performance.now() - t0).toFixed(2);
-        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), ms };
+        return { hours, before, after: S.sim.view(), records: S.chronicle.query({ since: seq0, limit: 50 }).map((r) => readRec(g, r)), roles: g.roles.ids.filter((id) => g.roles.st[id].r > 0.05).map((id) => ({ id, renown: r1(g.roles.st[id].r), tier: ROLE_TIERS[g.roles.st[id].tier] })), ms };
+      },
+    },
+    roles: {
+      group: 'society', desc: "What the world calls you (docs/design/WEB_ROLES.md): no class is picked, you become what you keep doing. Every role with its tier (none, rumoured, known, renowned; `active` is what the world acts on, 0 while suspended), renown and how far to the next tier (and the line it would fall back under), why you hold it (what earned it, what wore it), what it opens (how each faction reads you, prices, perks, the dialogue and jobs it unlocks, offices), your jobs and offices, and priceMul per faction. id= one role; brief=true just the held ones. renown= sets that role's renown (staging, like standing set=; the tier still follows the hysteresis). reset=true clears every role.",
+      args: { id: { type: 'string' }, brief: { type: 'boolean', default: false }, renown: { type: 'number' }, reset: { type: 'boolean', default: false } },
+      run: async ({ id, brief, renown, reset }) => {
+        const R = g.roles;
+        if (reset) R.reset();
+        if (id) need(R.rows[id], `unknown role; known: ${R.ids.join(',')}`);
+        if (renown !== undefined) { need(id, 'renown= needs id='); need(renown >= 0 && renown <= 100, 'renown is 0..100'); R.setRenown(id, renown); }
+        if (id) return { role: R.view(id, NPCS), perks: { ...R.perk }, priceMul: Object.fromEntries(g.society.factions.ids.map((f) => [f, r1(R.priceMul(f) * 100) / 100])) };
+        const v = R.view(null, NPCS);
+        if (brief) return { held: v.held, best: v.best, renown: Object.fromEntries(v.roles.filter((r) => r.renown > 0).map((r) => [r.id, { renown: r.renown, tier: r.tier, active: r.active, next: r.next, suspended: r.suspended }])), priceMul: v.priceMul, jobs: v.jobs, offices: v.offices };
+        return v;
+      },
+    },
+    registerRole: {
+      group: 'content', desc: 'Add or update a role row (a new role is a row, not code; schema in src/data/roles.js): {name, short, color (never purple), blurb, tiers:[rumoured,known,renowned] (rising, ≤100), halfLife (game days), requires:{standing:{faction:min}, wanted, tally/tallyUnder:{"player|kill|rusthaven":n}, skill, carry, place, office}, earn:[{on: deed|drive|jump|search|loot|trade|event|hour, ...filters, pts, per, seen, note}], wear:[...], opens:{factions:{id:{standing, hostile, from}}, prices:{id|*:mul}, perks, director, refusedBy, greet, shout, radio}}.',
+      args: { id: { type: 'string', required: true }, def: { type: 'object', required: true } },
+      run: async ({ id, def }) => {
+        const r = g.roles.register(id, def);
+        need(!r.error, r.error);
+        return { id, warnings: r.warnings, role: g.roles.view(id, NPCS) };
       },
     },
     registerFaction: {
@@ -1509,6 +1552,18 @@ function societyMatch(g, c) {
   return true;
 }
 
+// Role conditions (docs/design/WEB_ROLES.md): ifRole { role, atLeast (default known) } · ifNotRole { role, atLeast
+// (default rumoured) } · ifJob { job, is: open | active | ready } · ifOffice: an office id you hold.
+function roleMatch(g, c) {
+  const R = g.roles;
+  if (!R) return !(c.ifRole || c.ifJob || c.ifOffice);
+  if (c.ifRole && !R.atLeast(c.ifRole.role, c.ifRole.atLeast ?? 'known')) return false;
+  if (c.ifNotRole && R.atLeast(c.ifNotRole.role, c.ifNotRole.atLeast ?? 'rumoured')) return false;
+  if (c.ifJob) { const is = c.ifJob.is ?? 'open', j = c.ifJob.job; if (!(is === 'open' ? R.jobOpen(j) : is === 'active' ? R.jobActive(j) : R.jobReady(j))) return false; }
+  if (c.ifOffice && !R.office(c.ifOffice)) return false;
+  return true;
+}
+
 function compileNpc(def) {
   const nodes = {};
   for (const [id, n] of Object.entries(def.nodes)) {
@@ -1516,10 +1571,15 @@ function compileNpc(def) {
       text: n.text,
       choices: (n.choices ?? [{ t: '[Leave]', end: true }]).map((c) => ({
         t: c.t, next: c.next, end: c.end ?? !c.next, deed: c.deed,
-        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier
-          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c)
+        role: c.ifRole?.role, from: c.ifRole ? c.ifRole.atLeast ?? 'known' : undefined, // read by the roles command (what a role opens)
+        req: c.ifQuest || c.ifNotQuest || c.ifMemory || c.ifNotMemory || c.ifOpinion || c.ifTier || c.ifRole || c.ifNotRole || c.ifJob || c.ifOffice
+          ? (g) => (!c.ifQuest || questMatch(g, c.ifQuest)) && (!c.ifNotQuest || !questMatch(g, c.ifNotQuest)) && societyMatch(g, c) && roleMatch(g, c)
           : c.req,
         do: (g) => {
+          // Role effects: start or pay out a role job, take an office (data/roles.js ROLE_JOBS / ROLE_OFFICES).
+          if (c.job?.start) g.roles?.jobStart(c.job.start);
+          if (c.job?.pay) g.roles?.jobPay(c.job.pay);
+          if (c.swear) g.roles?.swear(c.swear, def.id);
           if (c.cost && !g.spend(c.cost)) return;
           if (c.give) g.give({ cash: c.give.cash ?? 0, ammo: c.give.ammo ?? {} });
           if (c.give?.weapon && WEAPONS[c.give.weapon] && !g.inv.weapons.includes(c.give.weapon)) g.inventory.gainGun(c.give.weapon);
@@ -1790,9 +1850,10 @@ async function runSelfTest(api) {
     await C('teleport', { x: 395, z: 398 });
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
     await C('step', { seconds: 6 });
-    const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && g.water.depthAt(c.x, c.z) > 0.7).length;
+    const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && !c.grabbing && g.water.depthAt(c.x, c.z) > 0.7); // hanging off a boat isn't swimming
+    const why = wet.map((c) => ({ id: c.id, x: r1(c.x), z: r1(c.z), depth: r1(g.water.depthAt(c.x, c.z)), target: c.ztarget?.id ?? null }));
     for (const id of ids) await C('remove', { id });
-    return wet === 0 ? true : `${wet} infected in deep water`;
+    return wet.length === 0 ? true : `${wet.length} infected in deep water: ${JSON.stringify(why)}`;
   });
   await check('train: brakes into the station, carries riders, kills on the rails, tanker blows', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
@@ -2127,6 +2188,7 @@ async function runSelfTest(api) {
     await C('teleport', STAGE);
     for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - STAGE.x, c.z - STAGE.z) < 90) g.removeChar(c);
     const F = g.society.factions, D = g.society.deeds;
+    g.roles.reset(); // what the battery did so far (kills, drives, searches) must not colour how the factions read you
     for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     for (const r of D.rumors) r.live = false;
     D.pending = 0; D.nextDue = Infinity; g.wanted = 0;
@@ -2305,7 +2367,17 @@ async function runSelfTest(api) {
     return said && /Ghost/.test(said.line) ? true : JSON.stringify({ said: said?.line ?? null });
   });
   // ---- rest and bite fever (docs/design/WEB_SURVIVAL.md) ----
-  const withNeeds = async (fn) => {
+  // Sleep checks test sleep, not the war: Rust Haven's wardens trade fire with Dustwolf raiders at the edge of town most
+  // of the day, and the night brings hordes to the wall, and a shot that close wakes anyone. Hush pauses the raids and
+  // the hordes, clears the raiders and the infected, and puts everything back afterwards.
+  const hush = async (fn) => {
+    const zOn = g.zombies.enabled, rt = g.raiderTimer;
+    g.zombies.enabled = false; g.raiderTimer = 1e9;
+    for (const c of [...g.chars]) if (c.faction === 'zombie' || c.faction === 'raider') g.removeChar(c);
+    for (const c of g.chars) c.restless = 0;
+    try { return await fn(); } finally { g.zombies.enabled = zOn; g.raiderTimer = rt; }
+  };
+  const withNeeds = async (fn) => hush(async () => {
     const N = g.needs, keep = { water: N.water, food: N.food, rest: N.rest, fever: N.fever };
     N.water = 0.9; N.food = 0.9; N.rest = 0.9; N.fever = null; N.blackout = 0;
     try { return await fn(); } finally {
@@ -2313,7 +2385,7 @@ async function runSelfTest(api) {
       Object.assign(N, keep, { blackout: 0 }); g.survival.update(0);
       await C('setTime', { hour: 12 });
     }
-  };
+  });
   await check('rest: hours awake tire you into sway and microsleeps; a bed refills you while the night runs x40; one of the infected walking up wakes you', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player;
@@ -2339,6 +2411,49 @@ async function runSelfTest(api) {
     g.removeChar(z);
     return tired && micro && still && back && slept && woken ? true : JSON.stringify({ tired, sway: N.sway, micro, still, back, slept, woke: r.woke, lay: lay.ok ? true : lay.why, woken, why: S.lastWake?.why });
   }));
+  await check('sleep in a parked car: N tips the seat back, the car stays parked, a night in the seat rests you slower than a bed; it will not do it rolling', async () => withNeeds(async () => {
+    await stage();
+    const S = g.survival, N = g.needs, p = g.player;
+    const v = g.vehiclesSys.spawn('sedan', p.x + 4, p.z, 0);
+    await C('enterVehicle', { id: v.id, force: true });
+    const x0 = v.x, z0 = v.z;
+    N.rest = 0.3;
+    v.vx = 6; // rolling: no
+    const rolling = g.trySleep();
+    v.vx = 0; v.vz = 0; await C('step', { seconds: 0.5 });
+    const r = g.trySleep(); // N, parked
+    for (let k = 0; k < 4000 && S.sleep; k++) await api._step(30);
+    const w = S.lastWake, moved = Math.hypot(v.x - x0, v.z - z0);
+    const want = 0.7 / (1 / 7 * 0.65); // 7.5 game hours in the seat, against 4.9 in a bed
+    const ok = !rolling.ok && r.ok && w?.why === 'rested' && Math.abs(w.hours - want) < 0.8 && moved < 0.6 && p.inVehicle === v;
+    if (p.inVehicle) g.exitVehicle(true);
+    g.vehiclesSys.remove(v);
+    return ok ? true : JSON.stringify({ rolling: rolling.ok ? 'slept rolling' : rolling.why, slept: r.ok ? true : r.why, woke: w, want: +want.toFixed(2), moved: +moved.toFixed(2) });
+  }));
+  await check('the town sleeps: at 23:00 Ike goes to bed and most of the town with him; asleep he keeps no counter and witnesses nothing; a gunshot wakes him', async () => {
+    const inv = g.inventory, ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive);
+    const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
+    if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
+    if (g.player.inVehicle) g.exitVehicle(true);
+    return hush(async () => { try {
+      for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
+      await C('setTime', { hour: 23 });
+      await C('teleport', { x: box.x + 7, z: box.z });
+      for (let i = 0; i < 60 && !ike.sleeping; i++) await C('step', { seconds: 0.5 });
+      const asleep = ike.sleeping === true;
+      await C('step', { seconds: 4 });
+      const town = await C('town', { radius: 150 });
+      const most = town.asleep.length >= Math.ceil((town.asleep.length + town.awake.length) * 0.6);
+      g.player.x = box.x + 0.8; g.player.z = box.z;
+      const noCounter = g.trade.at(box) === null;
+      const saw = g.society.deeds.witnessPass(box.x, box.z, g.player, null).includes(ike);
+      g.noise(g.player.x, g.player.z, 30, g.player); // a shot in the shop
+      const woke = !ike.sleeping && ike.restless > 0;
+      const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
+        .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0) }));
+      return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
+    } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
+  });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();
     const S = g.survival, N = g.needs, p = g.player, inv = g.inventory;
@@ -2828,6 +2943,7 @@ async function runSelfTest(api) {
       F.set(ike.fid, 0); // neutral
       g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z; // Ike behind his counter
       box.slots = []; inv.add(box, 'ammo_pistol', 30);
+      box.stockDay = g.society?.day ?? 0; // stocked today: no restock rolls goods into the shelf mid-check (a reused page is days on)
       const D = T.at(box), stolen0 = box.stolen ?? 0;
       const counter = !!D && !D.refuse && D.tier === 'neutral' && D.id === 'ike';
       g.cash = 100;
@@ -2854,6 +2970,209 @@ async function runSelfTest(api) {
       F.standing[fi] = keep.s; F.lifetime[fi] = keep.l; F.retier(fi, false);
       inv.opened = null; inv.changed();
     }
+  });
+  // ---- roles (data/roles.js, systems/roles.js; docs/design/WEB_ROLES.md §8). Staged at STAGE like world memory; every
+  // check clears the roles again, so nothing after it is read through them. `roles renown=` stages a role the way
+  // `standing set=` stages a faction - only where the check is about what the role DOES, never where it is about earning it.
+  const R = g.roles, hurtHere = (dx, dz) => { const c = person('drifter', dx, dz); c.hp = 30; c.bleed = 0.5; return c; };
+  const has = (t, re) => (t.choices ?? []).findIndex((c) => re.test(c.text));
+  await check('roles: patch up three hurt strangers with bandages through the real dialogue and the world starts calling you a medic: a toast, a tape on the HUD, the PACK header, and a save keeps it', async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq, people = [];
+    try {
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); inv.changed();
+      await C('item', { give: 'bandage', n: 3 });
+      people.push(hurtHere(1.6, 0), hurtHere(-1.6, 0.4), hurtHere(0.3, 1.7));
+      const before = R.tier('medic');
+      let patched = 0;
+      for (const c of people) {
+        const t = await C('talk', { id: c.id });
+        const i = has(t, /patch you up/i);
+        if (i >= 0) { await C('choose', { index: i }); if (c.hp > 30 && !(c.bleed > 0)) patched++; }
+        g.dialogue.close();
+      }
+      await C('step', { seconds: 0.5 }); // the HUD's slow lane draws the tape
+      const m = (await C('roles', { id: 'medic' })).role;
+      const earned = g.events.some((e) => e.seq > seq0 && e.type === 'roleEarned' && e.role === 'medic');
+      const toast = g.events.some((e) => e.seq > seq0 && e.type === 'toast' && /MEDIC/.test(e.text));
+      const tape = (await C('hud')).plates.roles?.some((r) => r.id === 'medic' && r.text === 'MEDIC' && r.chevrons === 1);
+      g.invUI.render(); const header = /MEDIC/.test(document.querySelector('.inv-roles')?.textContent ?? '');
+      const heals = g.society.chronicle.query({ verb: 'heal', actor: 'player', limit: 5 }).length;
+      // ...and a save keeps it: cleared, then loaded back, the medic is the same medic.
+      const sv2 = (await C('save')).save, r0 = R.st.medic.r;
+      R.reset(); const wiped = R.tier('medic') === 0;
+      await C('load', { save: sv2 });
+      const kept = wiped && R.tier('medic') === 1 && Math.abs(R.st.medic.r - r0) < 0.01;
+      return before === 0 && patched === 3 && m.tier === 'rumoured' && earned && toast && tape && header && heals >= 3 && inv.carried.count('bandage') === 0 && kept ? true
+        : JSON.stringify({ before, patched, tier: m.tier, renown: m.renown, earned, toast, tape, header, heals, bandages: inv.carried.count('bandage'), kept });
+    } finally { for (const c of people) if (g.chars.includes(c)) g.removeChar(c); inv.load(sv); R.reset(); }
+  });
+  await check('roles: time wears a role away, but not at the first dip under the line - still a medic at 18 renown (hysteresis), forgotten under 15', async () => {
+    await stage();
+    const sim = g.society.sim.save(), seq0 = g.eventSeq;
+    try {
+      await C('roles', { id: 'medic', renown: 22 });
+      const held = R.tier('medic') === 1;
+      await C('simTick', { hours: 60 }); // 12 hours' grace, then 48 of fading: 22 -> about 18.5
+      const r1st = R.st.medic.r, dipped = r1st < 20 && r1st > 15 && R.tier('medic') === 1;
+      await C('simTick', { hours: 120 }); // about 12: under 0.75 x 20
+      const gone = R.tier('medic') === 0 && g.events.some((e) => e.seq > seq0 && e.type === 'roleLost' && e.role === 'medic');
+      const toast = g.events.some((e) => e.seq > seq0 && e.type === 'toast' && /NOBODY CALLS YOU A MEDIC/.test(e.text));
+      return held && dipped && gone && toast ? true : JSON.stringify({ held, after60: r1(r1st), dipped, now: r1(R.st.medic.r), tier: R.tier('medic'), gone, toast });
+    } finally { g.society.sim.load(sim); R.reset(); }
+  });
+  await check("roles: a known Dustwolf rider walks into their sights and the guns stay down - standing unmoved at -60; Rust Haven reads the rider colder and Ike's counter charges more (priceMul through trade.js); lose the role and the wolves open up again", async () => {
+    await stage();
+    const F = g.society.factions, dw = F.index.dustwolves, rh = F.index.rusthaven;
+    const wolf = person('raider', 12, 0, { weapon: 'smg' });
+    const ike = g.chars.find((c) => c.npc?.id === 'ike' && c.alive), box = ike && [...g.inventory.boxes.values()].find((b) => b.owner === ike.id);
+    // Ike's price for one box of rounds, at his own counter (staged: you and Ike at his shelf, then back).
+    const counter = () => {
+      if (!box) return null;
+      const keep = { p: { x: g.player.x, z: g.player.z }, i: { x: ike.x, z: ike.z } };
+      g.player.x = box.x + 0.8; g.player.z = box.z; ike.x = box.x + 3; ike.z = box.z;
+      const D = g.trade?.at(box);
+      g.player.x = keep.p.x; g.player.z = keep.p.z; ike.x = keep.i.x; ike.z = keep.i.z;
+      return D && !D.refuse ? D.buy : null;
+    };
+    try {
+      const s0 = F.standing[dw], before = g.ai.hostile(wolf, g.player), buy0 = counter();
+      await C('roles', { id: 'rider', renown: 50 });
+      const after = g.ai.hostile(wolf, g.player), s1 = F.standing[dw], buy1 = counter();
+      wolf.target = null; await C('step', { seconds: 2 }); // the AI's own scan: nobody draws on you
+      const quiet = wolf.target !== g.player, tier = F.tiers[dw];
+      const pm = R.priceMul('dustwolves', wolf), colder = F.reading(rh) < F.standing[rh], dearer = buy0 > 0 && buy1 > buy0;
+      await C('roles', { id: 'rider', renown: 0 });
+      const back = g.ai.hostile(wolf, g.player);
+      return before && !after && quiet && back && s1 === s0 && s0 === -60 && tier === 'wary' && pm < 1 && colder && dearer ? true
+        : JSON.stringify({ before, after, quiet, back, s0, s1, tier, pm, colder, buy0, buy1 });
+    } finally { g.removeChar(wolf); R.reset(); }
+  });
+  await check("roles: Doc Reyes offers a medic's shift only to a known medic - the kit lands in the pack, and three patients later she pays $90", async () => {
+    await stage();
+    const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), cash0 = g.cash, people = [];
+    try {
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); inv.changed();
+      const t0 = await C('talk', { id: 'reyes', force: true }); g.dialogue.close();
+      const closed = has(t0, /work for a medic/i) < 0;
+      await C('roles', { id: 'medic', renown: 50 });
+      const t1 = await C('talk', { id: 'reyes', force: true }), i = has(t1, /work for a medic/i);
+      if (i < 0) { g.dialogue.close(); return JSON.stringify({ closed, offered: false, choices: t1.choices }); }
+      const t2 = await C('choose', { index: i });
+      await C('choose', { index: has(t2, /^I will/) }); g.dialogue.close();
+      const kit = inv.carried.count('first_aid') === 1 && inv.carried.count('bandage') === 2 && R.jobActive('medic_shift');
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      people.push(hurtHere(1.5, 0), hurtHere(-1.5, 0), hurtHere(0, 1.5));
+      for (const [c, item] of [[people[0], 'bandage'], [people[1], 'bandage'], [people[2], 'first_aid']]) await C('item', { use: item, on: c.id });
+      const ready = R.jobReady('medic_shift');
+      const t3 = await C('talk', { id: 'reyes', force: true }), k = has(t3, /shift is done/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash0 + 90 && !R.jobActive('medic_shift') && !R.jobOpen('medic_shift'); // once a day
+      return closed && kit && ready && paid ? true : JSON.stringify({ closed, kit, ready, paid, cash: g.cash - cash0, job: R.jobs.medic_shift });
+    } finally { for (const c of people) if (g.chars.includes(c)) g.removeChar(c); inv.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: Rust Haven swears in a known deputy - a star in the pack, one wanted star of slack from the bulls, $20 for a Dustwolf put down; shoot a townsman in front of a bull and the star is taken back', async () => {
+    await stage();
+    const F = g.society.factions, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), cash0 = g.cash, extras = [];
+    try {
+      await C('standing', { faction: 'rusthaven', set: 30 }); // the deputy's gate: Rust Haven has to trust you
+      const bull = person('warden', -8, 0); extras.push(bull);
+      g.wanted = 1; const noSlack = g.ai.hostile(bull, g.player); g.wanted = 0;
+      await C('roles', { id: 'deputy', renown: 50 });
+      const t = await C('talk', { id: 'okonkwo', force: true }), i = has(t, /needs deputies/i);
+      if (i >= 0) { const t2 = await C('choose', { index: i }); await C('choose', { index: has(t2, /swear it/i) }); }
+      g.dialogue.close();
+      const sworn = R.office('deputy'), star = inv.carried.count('tin_star') === 1;
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      bull.x = g.player.x - 8; bull.z = g.player.z;
+      g.wanted = 1; const slack = !g.ai.hostile(bull, g.player); g.wanted = 2; const twoStars = g.ai.hostile(bull, g.player); g.wanted = 0;
+      const wolf = person('raider', 6, 0, { hp: 30 }); extras.push(wolf);
+      await shootDead(wolf);
+      const ready = R.jobReady('deputy_bounty');
+      const t3 = await C('talk', { id: 'okonkwo', force: true }), k = has(t3, /deputy's bounty/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash0 + 20;
+      // A Rust Haven townsman shot dead in front of a bull: the stars rise, the deputy is suspended, the star goes back.
+      await C('teleport', STAGE); await C('step', { seconds: 0.2 });
+      bull.x = g.player.x - 6; bull.z = g.player.z; bull.face = Math.atan2(g.player.x - bull.x, 0);
+      const towns = person('drifter', 4, 0, { hp: 30 }); towns.fid = 'rusthaven'; F.assign(towns); extras.push(towns);
+      const seq0 = g.eventSeq;
+      await shootDead(towns);
+      const stripped = !R.office('deputy') && inv.carried.count('tin_star') === 0 && g.events.some((e) => e.seq > seq0 && e.type === 'officeLost' && e.office === 'deputy');
+      // The deputy lapses either way: the shots and the killing wear it under its line, and the stars suspend it.
+      const lapsed = g.events.some((e) => e.seq > seq0 && (e.type === 'roleSuspended' || e.type === 'roleLost') && e.role === 'deputy') && !R.atLeast('deputy', 'rumoured');
+      return noSlack && sworn && star && slack && twoStars && ready && paid && stripped && lapsed ? true
+        : JSON.stringify({ noSlack, sworn, star, slack, twoStars, ready, paid: g.cash - cash0, stripped, lapsed, wanted: g.wanted, deputy: R.view('deputy')?.renown });
+    } finally { for (const c of extras) if (g.chars.includes(c)) g.removeChar(c); g.wanted = 0; inv.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: Kenji offers a known stunt driver a crowd at Wreck Row; a clean clear at 40 mph pays his $150, and the crowd pays a known stunt driver more than $60', async () => {
+    await stage();
+    const sv = JSON.parse(JSON.stringify(g.stunts.save())), cash0 = g.cash;
+    try {
+      g.stunts.cleared = {};
+      await C('roles', { id: 'stuntdriver', renown: 50 });
+      const t = await C('talk', { id: 'kenji', force: true }), i = has(t, /stunt driver/i);
+      if (i >= 0) { const t2 = await C('choose', { index: i }); await C('choose', { index: has(t2, /^Deal/) }); }
+      g.dialogue.close();
+      const started = R.jobActive('wreck_show');
+      const run = await jumpRun({ run: 'wreckrow', speed: 18.2 }); jumpDone();
+      const res = run.result ?? {}, clean = res.cleared && res.landing === 'clean', crowd = res.pay > 60;
+      const ready = R.jobReady('wreck_show'), cash1 = g.cash;
+      const t3 = await C('talk', { id: 'kenji', force: true }), k = has(t3, /Wreck Row, clean/i);
+      if (k >= 0) await C('choose', { index: k });
+      g.dialogue.close();
+      const paid = g.cash === cash1 + 150;
+      return started && clean && crowd && ready && paid ? true : JSON.stringify({ started, clean, landing: res.landing, pay: res.pay, ready, paid: g.cash - cash1 });
+    } finally { jumpDone(); g.stunts.load(sv); g.cash = cash0; R.reset(); }
+  });
+  await check('roles: the director sends a known medic somebody bleeding who walks up asking for one, and patching them ends it well; the morning radio names you by your best-known role', async () => {
+    await stage();
+    const D = g.society.director, inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save())), seq0 = g.eventSeq;
+    // Pacing isn't what this checks (a role call fired earlier on this page leaves a 10-minute cooldown): clear the
+    // role call's and put the director's cooldowns back after, as the raid check does.
+    const cool0 = { ...D.cool };
+    delete D.cool['tpl:role_call'];
+    let caller = null;
+    try {
+      await C('roles', { id: 'medic', renown: 50 });
+      const dv = D.view(), offered = dv.eligible.some((e) => e.tpl === 'role_call');
+      if (!offered) return JSON.stringify({ offered, blocked: dv.blocked, active: dv.active, cooldowns: dv.cooldowns, alive: g.player.alive, talking: g.dialogue.active, medic: R.view('medic')?.active });
+      const r = await C('fireEvent', { tpl: 'role_call' });
+      caller = r.ok ? api.findChar(r.spawned?.[0]?.id) : null;
+      if (!caller) return JSON.stringify({ offered, fired: r });
+      const hurt = caller.hp < caller.maxHp * 0.5 && caller.bleed > 0;
+      const dist = () => Math.hypot(caller.x - g.player.x, caller.z - g.player.z), d0 = dist();
+      await C('step', { seconds: 3 });
+      const walks = dist() < d0 - 2;
+      await C('teleport', { x: caller.x + 1.4, z: caller.z }); // meet them (staging), then the real dialogue
+      inv.carried.slots = inv.carried.slots.filter((s) => ITEMS[s.id]?.kind !== 'med'); await C('item', { give: 'bandage', n: 1 });
+      const t = await C('talk', { id: caller.id }), i = has(t, /patch you up/i);
+      if (i >= 0) await C('choose', { index: i });
+      g.dialogue.close();
+      await C('step', { seconds: 1 });
+      const end = g.events.find((e) => e.seq > seq0 && e.type === 'director' && e.tpl === 'role_call' && e.phase === 'end');
+      const well = end?.outcome === 'success';
+      await C('setTime', { hour: 23.9 }); await C('step', { seconds: 0.3 });
+      await C('setTime', { hour: 7 }); await C('step', { seconds: 0.3 }); // the day rolls; dawn has come
+      const dg = g.events.find((e) => e.seq > seq0 && e.type === 'radioDigest'), named = !!dg && /patching people up/.test(dg.lines?.[1] ?? '');
+      return offered && hurt && walks && well && named ? true : JSON.stringify({ offered, hurt, walks, d0: r1(d0), outcome: end?.outcome ?? null, digest: dg?.lines ?? null });
+    } finally { if (caller && g.chars.includes(caller)) g.removeChar(caller); inv.load(sv); await C('setTime', { hour: 12 }); R.reset(); D.cool = cool0; }
+  });
+  await check('roles: a new role is a data row - registered at runtime, earned by the deed it names (a trade with Mags), read by the faction and the prices it names', async () => {
+    await stage();
+    const F = g.society.factions, dr = F.index.drifters, cash0 = g.cash;
+    try {
+      const reg = await C('registerRole', { id: 'selftest_hauler', def: { name: 'Water Hauler', short: 'HAULER', color: '#5b8fa8', tiers: [10, 30, 60], halfLife: 5,
+        earn: [{ on: 'deed', verb: 'trade', pts: 12, note: 'water bought' }], opens: { factions: { drifters: { standing: 20 } }, prices: { drifters: 0.8 } } } });
+      const t = await C('talk', { id: 'mags', force: true }), i = has(t, /canteen/i);
+      if (i >= 0) await C('choose', { index: i });
+      g.dialogue.close();
+      const v = R.view('selftest_hauler');
+      const ok = reg.ok && !reg.warnings?.length && v.tier === 'rumoured' && R.priceMul('drifters') < 1 && F.bias[dr] > 0;
+      return ok ? true : JSON.stringify({ reg: reg.ok ? 'ok' : reg.error, warnings: reg.warnings, tier: v?.tier, renown: v?.renown, pm: R.priceMul('drifters'), bias: F.bias[dr] });
+    } finally { R.unregister('selftest_hauler'); g.cash = cash0; R.reset(); }
   });
   // ---- the streamed world (docs/design/WEB_STREAMING.md, P1 "Streamed Arizona"). The drives run the way the real-time
   // loop runs (sliced streaming: a stall here is a real one), at a fixed 60 Hz step.
@@ -3063,6 +3382,7 @@ export function snapshot(g) {
     inventory: g.inventory.save(), // what you carry, and every container anyone has been through
     interiors: g.interiors.save(), // doors swung, locks kicked in, glass broken, windows boarded (only what changed)
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
+    roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
   };
 }
 
@@ -3097,7 +3417,7 @@ export function restore(g, s) {
       c.id = sc.id;
       if (sc.faction === 'zombie') { c.name = sc.name ?? c.name; c.flag = sc.flag ?? c.flag; c.colors = sc.colors ?? c.colors; if (sc.zSpeed > 0) c.zSpeed = sc.zSpeed; }
     }
-    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0 });
+    Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0, sleeping: false, bedY: 0, bed: null, restless: 0 });
     if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
@@ -3117,6 +3437,7 @@ export function restore(g, s) {
   g.inventory.bindAmmo(); // g.inv came back as plain numbers: they become the rounds you carry
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
+  if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

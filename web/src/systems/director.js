@@ -2,6 +2,8 @@ import { EVENTS } from '../data/events.js';
 import { outfit } from './characters.js';
 import { K } from './chronicle.js';
 import { HALF } from '../world/city.js';
+import { randomName } from '../data/npcs.js';
+import { makeRng } from '../engine/rng.js';
 
 // The director (docs/design/WEB_WORLD_MEMORY.md §3.6, phase 3): events that answer what the world knows. It reads
 // standings, tallies and the chronicle - never the whole log per frame - evaluates every 10 s, paces itself (no
@@ -57,6 +59,9 @@ export class Director {
     const stunt = ofDay('stunt').find((r) => !(r.k & K.unwitnessed));
     if (stunt) parts.push(T.stunt.replace('{who}', stunt.on || 'a row of dead cars'));
     if (parts.length === 1 && dead === 0) parts[0] = T.quiet;
+    // The station names you by what you are best known for (roles.js, known or better).
+    const role = this.g.roles?.radioDigest();
+    if (role) parts.push(role);
     const body = parts.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.';
     return [T.open, body, T.close[day % T.close.length]];
   }
@@ -95,23 +100,59 @@ export class Director {
         if (!this.calm()) { why[tpl] = 'already under fire'; continue; }
       } else if (this.threats() > 0) { why[tpl] = 'a threat is running'; continue; }
       const bind = this[`bind_${tpl}`]?.(def, why);
-      if (bind) out.push({ tpl, weight: def.weight ?? 1, bind });
+      // What you are known for tilts the odds (roles.js: a butcher draws hunters, a deputy draws the raids).
+      if (bind) out.push({ tpl, weight: (def.weight ?? 1) * (this.g.roles?.weight(tpl) ?? 1), bind });
     }
     return out;
   }
 
+  // Anger is read through your roles too: a faction that reads you as a butcher hunts you sooner.
   bind_hunters(def, why) {
     const F = this.S.factions, P = this.g.player;
     let best = null;
     for (let i = 0; i < F.ids.length; i++) {
-      const row = F.rows[i], s = F.standing[i];
+      const row = F.rows[i], s = F.reading(i);
       if (!row.hunters || s > def.angerAtMost || s > row.start - def.angerBelowStart) continue;
       if (!this.cooled(`hunters:${row.id}`)) continue;
       if (row.home && this.S.placeAt(P.x, P.z) === row.home) continue; // in their own town they just shoot you
-      if (!best || s < F.standing[best.i]) best = { i, fid: row.id };
+      if (!best || s < F.reading(best.i)) best = { i, fid: row.id };
     }
     if (!best) why.hunters = 'no faction angry enough to hunt';
     return best;
+  }
+
+  // ---- the role call (docs/design/WEB_ROLES.md) -----------------------------------------------------------------
+  // Somebody comes looking for what you are known for: a hurt stranger walks up to a known medic or samaritan.
+  bind_role_call(def, why) {
+    const pick = this.g.roles?.callFor();
+    if (!pick) { why.role_call = 'nobody needs what you are known for (a medic or a samaritan, known or better)'; return null; }
+    return pick;
+  }
+
+  spawn_role_call(def, ev) {
+    const g = this.g, P = g.player, call = ev.bind.call;
+    const at = this.ringPoint(def.ring[0], def.ring[1]);
+    if (!at) throw new Error('no open ground for anyone to come from');
+    const rng = makeRng((Math.random() * 1e9) | 0);
+    const c = g.addChar({ x: at.x, z: at.z, faction: 'drifter', hp: 100, colors: outfit('drifter', rng), name: randomName(rng), flag: g.randomFlag(rng) });
+    if (!c) throw new Error('character budget full');
+    c.hp = Math.max(8, Math.round(c.maxHp * (call.hp ?? 0.3))); c.bleed = 0.5; c.callOf = ev.id;
+    c.home = { x: P.x, z: P.z }; c.wx = P.x; c.wz = P.z; c.timer = 99; // straight to you
+    ev.bind.from = { x: at.x, z: at.z };
+    ev.members.push(c);
+    g.hud?.toast?.(call.toast ?? 'SOMEBODY IS LOOKING FOR YOU', 'job');
+    g.hud?.subtitle?.(`${c.name}: ${call.line}`, 6);
+    g.emit('roleCall', { event: ev.id, role: ev.bind.role, caller: c.id, name: c.name, line: call.line });
+  }
+
+  // Tracked twice a second: they keep walking to you until somebody patches them up; dead is a failure.
+  outcome_role_call(ev, alive) {
+    const c = ev.members[0], P = this.g.player;
+    if (!c || !alive.includes(c)) return 'fail';
+    if (c.treated) return 'success';
+    const d = Math.hypot(P.x - c.x, P.z - c.z);
+    if (d > 2.2) { c.wx = P.x + ((c.x - P.x) / d) * 1.6; c.wz = P.z + ((c.z - P.z) / d) * 1.6; c.home.x = c.wx; c.home.z = c.wz; c.timer = 99; }
+    return null;
   }
 
   bind_dead_draw_dead(def, why) {
@@ -175,6 +216,7 @@ export class Director {
     return item;
   }
 
+
   // ---- picking and firing ----------------------------------------------------------------------------
   evaluate() {
     const list = this.eligible();
@@ -198,7 +240,7 @@ export class Director {
     return ev;
   }
 
-  plainBind(ev) { const b = ev.bind; return b.fid ? { faction: b.fid } : b.place ? { place: b.place } : b.seq ? { record: b.seq } : {}; }
+  plainBind(ev) { const b = ev.bind; return b.fid ? { faction: b.fid } : b.place ? { place: b.place } : b.seq ? { record: b.seq } : b.role ? { role: b.role } : {}; }
 
   ringPoint(lo, hi) {
     const g = this.g, P = g.player, p = { x: 0, z: 0 };
@@ -251,6 +293,7 @@ export class Director {
 
   spawn_radio_news(def, ev) {
     this.radio(ev.bind.line, 0);
+    if (ev.bind.role) this.g.roles?.newsRead(ev.bind.role);
     if (ev.bind.seq) this.lastNewsSeq = Math.max(this.lastNewsSeq, ev.bind.seq);
     if (ev.bind.tiers) this.lastTiers = ev.bind.tiers;
   }
@@ -260,9 +303,12 @@ export class Director {
     if (delay > 0) setTimeout(say, delay * 1000); else say();
   }
 
-  // The newest notable thing nobody has broadcast: a legend record, or a faction that changed its mind about you.
+  // The newest notable thing nobody has broadcast: a role the world now knows you by, a faction that changed its mind
+  // about you, or a legend record.
   newsItem(def) {
     const S = this.S, F = S.factions, L = def.lines;
+    const role = this.g.roles?.news.length ? this.g.roles.peekNews() : null; // read (and dropped) when it airs
+    if (role) return { line: role.line, role: role.role };
     const tiers = F.ids.map((_, i) => F.tiers[i]).join(',');
     if (this.lastTiers && this.lastTiers !== tiers) {
       const before = this.lastTiers.split(',');
@@ -292,10 +338,11 @@ export class Director {
     const g = this.g;
     for (const ev of [...this.active]) {
       const def = EVENTS[ev.tpl], alive = ev.members.filter((c) => c.alive && g.chars.includes(c));
-      let outcome = null;
-      if (ev.members.length && !alive.length) outcome = 'success';
-      else if (!g.player.alive) outcome = 'fail';
-      else if (def.timeout && g.time - ev.t0 > def.timeout) outcome = 'timeout';
+      // A template may judge its own outcome (a role call succeeds when its caller is patched up, not dead).
+      const own = this[`outcome_${ev.tpl}`];
+      let outcome = own ? own.call(this, ev, alive) : ev.members.length && !alive.length ? 'success' : null;
+      if (!outcome && !g.player.alive) outcome = 'fail';
+      else if (!outcome && def.timeout && g.time - ev.t0 > def.timeout) outcome = 'timeout';
       if (outcome) this.resolve(ev, outcome, alive);
     }
   }
@@ -326,6 +373,13 @@ export class Director {
       this.S.chronicle.add({ t: +g.time.toFixed(2), day: this.S.day, hr: +g.sky.time.toFixed(2), a: ev.bind.fid ?? 'world', af: ev.bind.fid ?? '', v: `${ev.tpl}_${outcome}`,
         o: 'player', on: 'you', of: 'player', p: this.S.placeAt(g.player.x, g.player.z), x: +g.player.x.toFixed(1), z: +g.player.z.toFixed(1), m: ev.members.length, w: [], ws: 0, un: 0, k: K.director, src: 'director' });
     }
+    if (ev.tpl === 'role_call') {
+      // A caller you patched up says so, then goes back the way they came.
+      const c = ev.members[0];
+      if (c && outcome === 'success') { const T = def.thanks; g.hud?.subtitle?.(`${c.name}: ${T[Math.floor(Math.random() * T.length)]}`, 4); }
+      if (c && ev.bind.from && outcome !== 'cancelled') { c.home = { ...ev.bind.from }; c.wx = c.home.x; c.wz = c.home.z; c.timer = 20; c.callOf = undefined; }
+    }
+    g.roles?.onEvent(ev, outcome); // a raid beaten off near the town is the deputy's and the samaritan's work
     g.emit('director', { event: ev.id, tpl: ev.tpl, phase: 'end', outcome, bind: this.plainBind(ev) });
   }
 
@@ -343,7 +397,7 @@ export class Director {
       paused: this.paused, nextEvalIn: +this.nextEval.toFixed(1), calm: this.calm(), freeSlots: g.freeSlots.length,
       active: this.active.map((e) => ({ id: e.id, tpl: e.tpl, bind: this.plainBind(e), alive: e.members.filter((c) => c.alive).length, members: e.members.length, age: +(g.time - e.t0).toFixed(1) })),
       cooldowns: Object.fromEntries(Object.entries(this.cool).filter(([, t]) => t > g.time).map(([k, t]) => [k, +(t - g.time).toFixed(0)])),
-      eligible: this.eligible(why).map((e) => ({ tpl: e.tpl, weight: e.weight, bind: e.bind.fid ? { faction: e.bind.fid } : e.bind.place ? { place: e.bind.place } : { line: e.bind.line } })),
+      eligible: this.eligible(why).map((e) => ({ tpl: e.tpl, weight: +e.weight.toFixed(2), bind: e.bind.fid ? { faction: e.bind.fid } : e.bind.place ? { place: e.bind.place } : e.bind.call ? { role: e.bind.role } : { line: e.bind.line } })),
       blocked: why,
     };
   }

@@ -63,7 +63,7 @@ export class Society {
     this.lastHour = h;
     if (dh > 0) {
       this.hourAcc += dh;
-      if (this.hourAcc >= 1) { this.factions.tickHours(this.hourAcc); this.sim.advance(this.hourAcc); this.hourAcc = 0; }
+      if (this.hourAcc >= 1) { this.factions.tickHours(this.hourAcc); this.sim.advance(this.hourAcc); this.g.roles?.tickHours(this.hourAcc); this.hourAcc = 0; }
     }
     this.deeds.update();
     if (dt > 0) this.director.update(dt);

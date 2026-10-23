@@ -30,9 +30,17 @@ export const EFFECTS = {
 // (REST pip 4), every `every` seconds the eyes close for `secs`: the screen goes and the hands let go, at the wheel too.
 export const SLEEP = {
   perHour: 1 / 7, drain: 0.5, fullNight: 3, maxHours: 11, wakeR: 12, wakeNoise: 40, tiredBelow: 0.85,
-  quality: { bed: 1, bedroll: 0.8, ground: 0.5 },
+  quality: { bed: 1, bedroll: 0.8, car: 0.65, ground: 0.5 }, // a car: a parked one, in its seat (N)
   microsleep: { every: [35, 80], secs: 1.4 },
 };
+
+// The town sleeps too (systems/ai.js). From `from` to `to` o'clock its own people (drifters, named townsfolk; never
+// the law on night shift, soldiers, raiders or your followers) go to a bed within `bedR` m of home nobody has claimed
+// tonight, else the floor at home (given `giveUp` s to get there), and sleep till dawn. A noise wakes them only within
+// `hearAsleep` of its reach (asleep, behind walls: gunfire at the town wall doesn't wake the far side of town), and
+// pain, a fight they're pulled into, or someone standing at the bedside for `wakeStand` s does; then they stay up
+// `restless` s. Asleep, they witness nothing (deeds.js) and a trader keeps no counter (trade.js).
+export const TOWN_NIGHT = { from: 22, to: 6, bedR: 25, giveUp: 25, wakeStand: 1.5, restless: 45, hearAsleep: 0.45 };
 
 // BITE FEVER (canon: docs/design/THE_INFECTED.md §3.6). A bite from the infected that lands starts it, or starts its
 // clock again. It runs `hours` game hours and taxes the body (stamina regen, hunger, a little sway and a little dark at

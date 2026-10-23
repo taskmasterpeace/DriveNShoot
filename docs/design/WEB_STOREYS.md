@@ -4,6 +4,16 @@
 touches `engine/collision.js`, `engine/nav.js`, `systems/characters.js`, `systems/interiors.js`, `world/city.js`,
 `systems/ai.js`, `systems/combat.js` and `main.js`, all of which those branches also touch.
 
+**Build on the streaming branch's vertical model, not a parallel one** (read once it lands): static boxes carry a
+`base` (they can float: a bridge parapet) as well as a `height`, and `resolveCircle(p, r, mover, minY, skip, topY)`
+skips a box that starts at or above the mover's top or ends at or below its feet; people remember the height they
+stand at (`c.gy`), and `heightAt(x, z, y)` answers a **deck** only for someone already up near it (`y > deckH − 2.2`),
+so traffic passes under a bridge while the cross road goes over. A storey's floor is exactly such a deck (with a hole
+at the stairwell), a flight of stairs is a ramp between two decks, and a storey's walls are boxes with
+`base = k·3.2, height = (k+1)·3.2`. The integer `lv` below then becomes a derived name for `floor(gy / 3.2)` (for
+saves, deeds and the rendering rule) rather than a second source of truth, and `lvMask` is not needed: the y-range
+does that job. Rays (sight, bullets) need a height argument (`gy + 1.2`) so they meet only the boxes that span it.
+
 ## 1. Overview
 
 Every building in the web engine today is one storey: walls, a floor slab at 0, a roof that hides when you walk in.
