@@ -2,7 +2,8 @@
 
 **Status:** **P1 Streamed Arizona SHIPPED 2026-10-22** (what was built, the gate numbers and what it taught: §1.2).
 P2 to P5 are still spec; P2 (render origin, K calibration, Florida) is next. **The Phoenix ring, R1 (the city itself)
-SHIPPED 2026-10-22** (decision 5 for Phoenix; §1.3); R2 residents and R3 traffic are designed there, not built.
+SHIPPED 2026-10-22** (decision 5 for Phoenix; §1.3); **R2, the residents, built 2026-10-23** (§1.3 "R2 as built"); R3
+traffic is designed there, not built.
 **Owner of the call:** Robert. **Engine:** the three.js web engine (`web/`, see `web/AGENTS.md`).
 **Sources:** a read-only research pass over `web/src` and `game/data/usmap.json` (2026-10-22). The numbers that come from the
 data or the code were re-derived from the repo for this document; real-world distances and chunk costs are planning
@@ -155,7 +156,7 @@ Decision 5 for Phoenix: the authored 920 m island stays the core (Rust Haven, th
 the rail), and a generated ring of dead city surrounds it out to a lobed edge near 1.5 km, streamed in chunks like
 everything past the island. From the street the island reads as a walled holdout in the middle of a dead metro. The law for
 the whole arc is that **the ring must be alive, not scenery**. R1 (this section) is the city itself, which you can walk
-into and search. R2 (residents) and R3 (traffic) are designed below but not built.
+into and search. R2 (the residents) is built ("R2 as built", below); R3 (traffic) is designed below but not built.
 
 **What is there.** The ring has 901 blocks and 2,477 buildings (926 of them ruined shells open to
 the sky, 1,294 lots left empty). By kind: 1,093 houses, 541 bungalows, 243 duplexes, 152 workshops, 99 warehouses, 82 strip malls, 117 fuel stops and 150 diners. By zone: 288 THE BURN, 249 THE DEAD HOUSES, 190 THE STRIP and 174 THE YARDS blocks.
@@ -239,15 +240,82 @@ storeys in the ring, people and traffic (R2, R3), named places and signs on shop
 shelves), LA, El Paso and the 1.5 km cities from the same generator, and persistence beyond containers (destroyed
 things, bodies, piles dropped out there).
 
-**R2, residents (design note, not built).** The ring is lived in, thinly. Each zone row gains `residents: [[kind,
-weight]]` and an occupancy share. A house holds a scavenger family (2-4, a mattress each from the ring beds that already
-register), the strip holds squatters behind a barricaded unit, THE YARDS hold a Dustwolf chop shop in one warehouse per
-quarter, and THE BURN holds an infected nest that moves at night. People are ghost records keyed by building id
-(`R<k>.<j>.<n>`, §3.7): promoted when their chunk goes hot, demoted at 300 m, with hp, grudges and what they carry kept
-on the record. Their containers become theirs (taking from a lived-in house is a `steal` deed, as on the island), they
-sleep in their own beds on the game clock, they scavenge the street by day and come home, and they witness. Gates:
-the 160-character cap holds with the island full, promotion stalls stay 0, and a family killed is still dead (its house's
-record says so) after the chunk goes and comes back.
+**R2, the residents, as built (2026-10-23).** The ring is lived in, thinly and memorably (Robert: Project Zomboid's
+lived-in houses, Deathlands' frontier holdouts, GTA2's districts with their own people). Code: `src/systems/residents.js`;
+rows: `src/data/ring.js` `RESIDENTS`, `RES_RULES`, `RES_NAMES`; who lives where is `world/ring.js` `household()` and
+`homeOf()`; the agent command is `residents` (and `ring x z` names a building's household).
+- **Who, by zone (rows).** Each zone row has `residents: [[kind, weight]]` and an `occupancy` share; a kind with
+  `perQuarter` is one building per quarter (the 4 × 4 blocks between arterials) at that chance instead. Across the whole
+  ring: **108 scavenger families** in intact houses, bungalows and duplexes of THE DEAD HOUSES (occupancy 0.11, 2-4
+  people, at most one armed); **35 squats** in intact strip malls, diners and fuel stops of THE STRIP (0.16, 2-4, up to
+  two armed); **18 Dustwolf chop shops**, one per quarter of THE YARDS at 0.85 (3-5 wolves, all armed, faction
+  `dustwolves`, a stripped car up on stands in the bay, cots, a lookout who stays up all night at the bay door); **34
+  infected nests**, one per quarter of THE BURN at 0.9 (5-8: shamblers, a sprinter in five, and an Echo). About 710 people.
+  Every one has a name from the ring's own pools (never npcs.js randomName: its running list of used names would make a
+  household come out different the second time), a real flag (`g.randomFlag` on the household's seed; a family shares one
+  85% of the time), a face from `outfit` on their own seed, and a gun or not from the row.
+- **Records, not characters.** A household is a record keyed by its building's id (`R<k>.<j>.<n>`, §3.7's ghost tier).
+  Everything pure (names, flags, guns, beds, rooms, shelves, the day's plans) is a function of the rows and the seed, so a
+  record can be dropped and made again; what happens to them (hp, grudges, deaths and by whom, what they carry, their
+  bodies' contents, the Echo's work on the boards, thefts) is kept on the record, across a chunk going and coming back and
+  across a save (`residents` in the snapshot; residents are never saved as characters).
+- **Promote and demote.** A household is promoted when its chunk is hot (layout done) and it is within `promoteR` 210 m of
+  you, nearest first, one household a frame in real time (all at once in a stepped run); members go where the game clock
+  has them (asleep in bed, at home, on a run at the stop the hour says, the nest in its lair or roaming). Demoted past 300
+  m, when the chunk goes cold (`ringOff`), or on a load - never while engaged (a fight, a flight, a hit in the last 20 s, a
+  witness carrying word), except when the chunk's layout itself goes. The dead come back as bodies where they fell, with
+  what was left on them.
+- **The budget.** Residents are ambient: they never take the last 16 character slots (`AMBIENT_RESERVE`, the director's
+  events need room) and are 40 at most; they may clear a body long dead out of sight to make room (the clean-up's own rule,
+  sooner), never anyone alive. When anyone else needs a slot and none is free, **residents yield first** (`addChar` →
+  `residents.yieldSlot()`: the farthest one nobody is busy with, the dead before the living). A promotion asks for no
+  layout (only hot chunks), so it can never stall the streamer.
+- **Homes, beds, boards.** A household's rooms are its unit (a duplex half, a mall unit) or the whole house; `homeOf()`
+  gives each member a bed, laying a mattress on the floor where the house's own beds run out (a household is never bigger
+  than the beds it has). Squats and nests board up their front door: planks nailed across the gap, solid to walkers, sight
+  and rounds, with crates piled behind, and a back door of their own forced into their unit; a boarded house keeps its back
+  yard unfenced so the back door is a real way in (the walkability check holds). The chop shop gets its stripped car. All of
+  it from its own rng stream: no other building moves.
+- **Their day.** Families and squats sleep 22:30-06:30 and 23:30-07:30 in their own beds, walked to on foot paths (`ai.toBed`
+  lies them down; someone at the bedside wakes them as on the island). By day about half of a family (a third of a squat)
+  goes out on a run between its leave and back hours, walking to two or three building fronts within 30-110 m, lingering
+  there, then coming home with a find in their pockets; the rest potter about their rooms. Wolves sleep 02:30-10:30 with one
+  lookout awake. The nest holes up by day in its lair (it only notices what comes within 9 m in sight; a noise rouses it) and
+  roams the streets 20:30-05:30 toward a point that changes every game hour, then holes up at dawn in a lair picked for that
+  day from up to three buildings of its chunk: it moves. Its Echo stays at the boards of the origin house and works them
+  while unwatched (the boards' hp is on the record). Paths are planned three a frame across everyone; a walker who gets no
+  closer for 4 s plans again (a progress watchdog).
+- **Their things, their eyes.** While one of them lives, the shelves in their rooms are theirs (`box.owner` = the
+  household): taking from one is a `steal` deed (`inventory.stole` finds the nearest of them), witnessed under their
+  faction's row (drifters for families and squats - who now mind `steal:self` - Dustwolves for the chop shop; the infected
+  witness nothing). Whoever saw it holds a grudge (48 game hours, on the record) and says so. They witness everything else
+  the way anyone does. Strangers in the ring warn you of the nearest nest or chop shop (`talk.js` road topic).
+
+**R2's gates, measured** (2026-10-23, RTX 4090, headless Chrome, on a machine shared with other agents' browsers).
+
+| Gate | Measured |
+|---|---|
+| selftest | **131/131 twice on fresh pages** on the merged tree (122 on `feat/web-engine` 5f0ebe9d + 9 R2 checks) |
+| stress A/B (ABBA, a fresh Chrome per leg, 16 legs, against 5f0ebe9d) | 4.55 against 4.50 ms per frame (mean, +0.05), medians 4.93 against 4.70 on a loaded machine (legs ranged 3.0-6.4 ms), 70-71 draw calls on both. Stress stands in the island: no resident is ever promoted there. An earlier 8-leg A/B against 2b6fe839: 5.37 against 5.84 |
+| stream-drive (ABBA, 4 legs) | 0 cross and **0 promote** stalls in every phase on both builds; the gate 2,601 m on the bike; 79 / 75 / 118 / 86 draw calls (gate, perf, ring freeway, ring arterial) on both. One household's promotion: p50 0.1, p95 0.3, max 1.2 ms |
+| draw calls over a lived-in block, widest zoom | 78 by day with the family and its neighbours promoted (selftest checks it under 150) |
+| the cap | holds: a check spawns every free slot and four more with residents up; the residents yield (no one else is recycled), the count never passes 160, and they come back when the slots are free again |
+| island golden hash | still matches (nothing of R2 touches the island) |
+
+**Learned on the way.** A character removed twice pushed its slot onto the free list twice, so two people shared a slot and
+the count reached 161 once in a battery: `removeChar` now ignores someone already gone and records the call in
+`g.doubleRemoves` (empty in every battery since). The battery's earlier fights can leave the drifters shooting on sight,
+and with squats on THE STRIP a corridor drive became a gunfight: the streaming checks now run with the drifters' standing
+as it starts and give it back after the ring's checks.
+
+**Not in R2:** residents talking about their own house or family (they get the strangers' three topics); ring buildings'
+door leaves and glass (a squat's barricade is static collision, and the Echo's work never brings it down: the hp is on the
+record, nothing breaks); traffic (R3); residents of LA and El Paso; the island's own population as records (see the
+question below).
+
+**Open (for Robert):** with the island populated (136-156 of the 160 characters at any time) and the 16-slot reserve,
+residents near you are about 7-20 people at once - thin. Should the island's people far behind you (1 km away, frozen by the
+AI's distance cut) be demoted to records the same way, so the ring near you gets the slots?
 
 **R3, traffic (design note, not built).** The ring's lattice is a road graph almost for free: nodes at the
 intersections, an edge per street segment (arterials faster), joined to I-10 at the arterial crossings and to Route 66 at

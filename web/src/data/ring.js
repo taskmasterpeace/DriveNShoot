@@ -2,7 +2,7 @@
 // across; Phoenix keeps its authored 920 m island (Rust Haven and the flats around it) as the core and gains a generated
 // ring out to ~1.5 km, streamed in chunks like everything past the island. The island reads as a walled holdout in the
 // middle of a dead metro. The ring must be ALIVE, not scenery: R1 is the city you can walk into and search (this file);
-// R2 residents and R3 traffic come later.
+// R2, the residents, are rows at the end of this file (RESIDENTS; systems/residents.js); R3 traffic comes later.
 // Everything here is data: change a row, not world/ring.js. No purple anywhere (hue 270-320 is banned), no brand names.
 
 export const RING = {
