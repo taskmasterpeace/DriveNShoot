@@ -3879,6 +3879,23 @@ async function runSelfTest(api) {
       S.night = -1;
     }
   });
+  await check('talk: a stranger has three topics from the live world - the killing they saw, the herd near them, what their people make of you', async () => hush(async () => {
+    await stage();
+    const w = person('drifter', 5, 10, { hp: 400 }), victim = person('drifter', 5, 0, { hp: 30 });
+    w.face = Math.atan2(victim.x - w.x, victim.z - w.z);
+    await shootDead(victim);
+    const herd = g.zombies.horde(w.x, w.z - 70, 4, 0, 3);
+    for (const id of herd) { const z = api.findChar(id); if (z) { z.zSpeed = 0; z.hold = true; } } // standing where they were put
+    try {
+      const t = await C('talk', { id: w.id, force: true });
+      const topics = (t.choices ?? []).map((c) => c.text);
+      const ask = async (re) => { const d = await C('dialogue'); const i = d.choices.findIndex((c) => re.test(c.text)); return i >= 0 ? (await C('choose', { index: i })).text : null; };
+      const news = await ask(/Heard anything/), road = await ask(/like out there/), you = await ask(/make of me/);
+      g.dialogue.close();
+      const ok = topics.length === 4 && news?.includes(victim.name) && /^I was there/.test(news) && /dead/.test(road ?? '') && /north/.test(road ?? '') && !!you;
+      return ok ? true : JSON.stringify({ topics, news, road, you });
+    } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
