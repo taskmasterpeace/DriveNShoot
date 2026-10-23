@@ -223,7 +223,9 @@ class Game {
 
   removeChar(c) {
     const i = this.chars.indexOf(c);
-    if (i >= 0) this.chars.splice(i, 1);
+    // Someone already gone: their slot is free already (pushing it twice gave two people one slot and the cap 161).
+    if (i < 0) { (this.doubleRemoves ??= []).push(new Error().stack?.split('\n').slice(2, 5).join(' <- ')); return; }
+    this.chars.splice(i, 1);
     this.charR.clear(c.slot);
     this.freeSlots.push(c.slot);
   }
