@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { Input } from './engine/input.js';
+import { Controls } from './engine/controls.js'; // the controller: binding rows, the pad, rebinds (docs/design/WEB_CONTROLLER.md)
+import { PAD } from './data/controls.js';
 import { StaticWorld, RAY_SIGHT } from './engine/collision.js';
 import { makeRng, angleLerp, clamp } from './engine/rng.js';
 import { buildWorld, TOWN, roadLines, HALF, OUTSIDE } from './world/city.js';
@@ -15,6 +17,10 @@ import { Sky } from './systems/sky.js';
 import { FX } from './systems/fx.js';
 import { Character, CharacterRenderer, outfit, MAX_CHARS, stridePhase } from './systems/characters.js';
 import { Combat, WEAPONS } from './systems/combat.js';
+import { Arms } from './systems/arms.js';
+import { Gunpoint } from './systems/gunpoint.js';
+import { Melee } from './systems/melee.js';
+import { WeaponBar } from './ui/weaponbar.js';
 import { AI } from './systems/ai.js';
 import { Society } from './systems/society.js';
 import { Survival } from './systems/survival.js';
@@ -87,6 +93,7 @@ class Game {
     });
 
     this.input = new Input(canvas);
+    this.controls = new Controls(this); // folds the binding rows into the input layer; polls the pad
     this.nextId = 0;
     this.events = [];
     this.eventSeq = 0;
@@ -128,6 +135,9 @@ class Game {
     for (let i = MAX_CHARS - 1; i >= 0; i--) this.freeSlots.push(i);
     this.vehicles = [];
     this.combat = new Combat(this);
+    this.arms = new Arms(this);         // stance, grip, fire modes, recoil (WEB_CONTROLLER §3.2-3.4)
+    this.gunpoint = new Gunpoint(this); // a raised gun held on a person is a state (§3.5)
+    this.melee = new Melee(this);       // shove, strike, kick (§3.6)
     this.ai = new AI(this);
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
@@ -153,6 +163,7 @@ class Game {
     this.dialogue = new Dialogue(this, ui);
     this.qol = new QOL(this, ui);
     this.feedback = new Feedback(this, ui);
+    this.weaponBar = new WeaponBar(this, ui); // the weapon bar, the pad's weapon wheel, the CONTROLS panel (F2)
 
     this.cash = 120;
     this.wanted = 0;
@@ -658,6 +669,7 @@ class Game {
     _ray.setFromCamera(_ndc, this.camera);
     if (this.aimOverride) { this.aim.x = this.aimOverride.x; this.aim.z = this.aimOverride.z; }
     else if (_ray.ray.intersectPlane(_plane, _hit)) { this.aim.x = _hit.x; this.aim.z = _hit.z; }
+    if (!this.aimOverride) this.controls.aimAt(p, dt, p.inVehicle ?? p); // the pad in hand: the right stick aims
 
     if (this.dialogue.active) { p.speed = 0; return; }
     // Asleep: the night runs x40 and you lie still; E gets you up (survival.js wakes you for danger).
@@ -690,6 +702,8 @@ class Game {
         v.steer = (I.key('KeyA') || I.key('ArrowLeft') ? 1 : 0) - (I.key('KeyD') || I.key('ArrowRight') ? 1 : 0);
         v.handbrake = I.key('Space');
         v.boost = I.key('ShiftLeft') || I.key('ShiftRight');
+        const pd = this.controls.drive; // the pad: RT gas, LT brake, the left stick steers (analog)
+        if (pd.throttle || pd.steer) { v.throttle = clamp(v.throttle + pd.throttle, -1, 1); v.steer = clamp(v.steer + pd.steer, -1, 1); }
       }
       if (I.hit('KeyC')) this.seats.cycle(p);
       this.updateThrowAim(dt, I);
@@ -710,6 +724,7 @@ class Game {
       if (I.hit('KeyB') && driving) this.garage.drop(v); // oil, caltrops or smoke off the tail
       // Drive-by.
       this.handleShooting(dt, Math.atan2(this.aim.x - v.x, this.aim.z - v.z));
+      p.aiming = this.arms.stance === 'raised'; // a rider (bike saddle, truck bed) shows the gun up only when it is
       return;
     }
 
@@ -739,21 +754,23 @@ class Game {
     // On foot. A door to the face puts you on the floor for a moment; climbing through a window
     // takes its time. Neither lets you shoot.
     if (p.knockT > 0) { p.knockT -= dt; p.speed = 0; p.aiming = false; p.dive = 0; this.hud.prompt(null); return; }
-    if (p.vault) { this.interiors.stepVault(p, dt); this.hud.prompt(null); return; }
+    if (p.vault) { this.interiors.stepVault(p, dt * this.arms.vaultMul()); this.hud.prompt(null); return; } // free hands climb faster
     let mx = 0, mz = 0;
     if (I.key('KeyW') || I.key('ArrowUp')) mz -= 1;
     if (I.key('KeyS') || I.key('ArrowDown')) mz += 1;
     if (I.key('KeyA') || I.key('ArrowLeft')) mx -= 1;
     if (I.key('KeyD') || I.key('ArrowRight')) mx += 1;
+    const pm = this.controls.move, tilt = !mx && !mz && pm.mag ? Math.max(PAD.walkMin, pm.mag) : 1; // the left stick: a light tilt creeps
+    if (pm.mag) { mx += pm.x; mz += pm.z; }
     p.crouch = I.key('ControlLeft') || I.key('ControlRight') || !!this.crouchOverride;
     p.stamina = p.stamina ?? 1;
     const wantSprint = (I.key('ShiftLeft') || I.key('ShiftRight') || !!this.autopilot?.run) && !p.crouch;
     const sprint = wantSprint && p.stamina > 0.04 && !this.skills.overloaded; // over your carry weight: no sprinting
     // No regen mid-dive: the roll is exertion. It used to refund most of its 0.25 cost before you landed.
     // Thirst and hunger slow the recovery and cap how full the tank gets (data/survival.js).
-    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
+    p.stamina = Math.max(0, Math.min(this.needs.maxStamina, p.stamina + (sprint && p.speed > 1 ? -0.16 * this.skills.sprintDrainMul * this.skills.drainMul * this.arms.sprintDrain() : p.dive > 0 ? 0 : 0.22 * this.needs.staminaRegen) * dt));
     // Dive roll: a burst forward along your movement (or facing), harder to hit mid-air.
-    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I), mz0(I));
+    if (I.hit('Space') && !(p.dive > 0) && (p.diveCool ?? 0) <= 0 && p.stamina > 0.2) this.startDive(p, mx0(I) + pm.x, mz0(I) + pm.z);
     p.diveCool = (p.diveCool ?? 0) - dt;
     if (p.dive > 0) {
       p.dive -= dt;
@@ -779,7 +796,7 @@ class Game {
     if (p.swim) p.stamina = Math.max(0, p.stamina - dt * 0.03);
     if (wet !== 'dry' && p.speed > 1 && Math.random() < dt * 8) this.fx.spawn(2, p.x, 0.2, p.z, (Math.random() - 0.5) * 2, 0.6, (Math.random() - 0.5) * 2, 0.6, 0.35, '#dfe9ea', 2);
     if (wet !== this.lastWet) { if (wet === 'swim') this.hud.toast('Swimming — [Ctrl] dive under (hold your breath)', 'job'); this.emit('water', { state: wet }); this.lastWet = wet; }
-    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul; // a heavy pack slows you
+    const speed = (p.underwater ? 2.0 : p.swim ? 2.8 : wet === 'wade' ? 2.9 : p.crouch ? 2.2 : sprint ? 7.6 : 4.6) * this.skills.speedMul * this.arms.moveMul() * (sprint ? 1 : tilt); // a heavy pack slows you; two hands on a gun too
     if (this.autopilot) {
       // moveTo: follow the A* waypoint list; the last point uses the caller's tolerance.
       const ap = this.autopilot;
@@ -831,7 +848,8 @@ class Game {
       }
       if (snap) { this.aim.x = snap.x; this.aim.z = snap.z; }
     }
-    const aimAng = Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
+    const wk = this.arms.work; // hands busy at something (systems/arms.js): face it, not the aim
+    const aimAng = wk ? Math.atan2(wk.x - p.x, wk.z - p.z) : Math.atan2(this.aim.x - p.x, this.aim.z - p.z);
     p.face = angleLerp(p.face, aimAng, Math.min(1, dt * 18));
     p.aiming = true;
     // QOL: slow regen to 60% after 6s without taking damage.
@@ -841,7 +859,7 @@ class Game {
     if (sprint && len && Math.random() < dt * 6) this.fx.dust(p.x, p.z, 1);
 
     // Weapon select.
-    this.inv.weapons.forEach((k, i) => { if (I.hit(`Digit${i + 1}`)) this.switchWeapon(k); });
+    this.arms.slotKeys(I, dt); // a new number selects the slot; the same number again (or held) steps its fire modes
     if (I.wheel) {
       const i = this.inv.weapons.indexOf(this.inv.current);
       this.switchWeapon(this.inv.weapons[(i + I.wheel + this.inv.weapons.length) % this.inv.weapons.length]);
@@ -850,9 +868,10 @@ class Game {
     if (I.hit('KeyX')) { const i = THROW_ORDER.indexOf(this.inv.throwable); for (let k = 1; k <= THROW_ORDER.length; k++) { const n = THROW_ORDER[(i + k) % THROW_ORDER.length]; if ((this.inv.throwables[n] ?? 0) > 0) { this.inv.throwable = n; break; } } this.audio.blip(); }
     this.updateThrowAim(dt, I);
     if (!p.swim) this.handleShooting(dt, p.face);
-    p.aiming = !p.swim;
+    p.aiming = !p.swim && this.arms.stance === 'raised'; // lowered or holstered: no aim pose (systems/arms.js)
 
-    // Interactions.
+    // Interactions. A person held at gunpoint takes E first (hand it over, open the door, walk with me).
+    if (this.gunpoint.playerInteract(p, I, dt)) return;
     let best = null, bd = 2.8;
     for (const c of this.chars) {
       if (c === p || !c.alive || c.inVehicle || c.faction === 'raider' || c.target === p) continue;
@@ -941,6 +960,7 @@ class Game {
 
   handleShooting(dt, ang) {
     const p = this.player, I = this.input, k = this.inv.current, w = WEAPONS[k];
+    const fm = this.arms.row(k); // the gun as it fires: its fire mode, your grip, the recoil bloom (systems/arms.js)
     p.cool -= dt;
     // At the wheel of a car with a hood gun: aim ahead and the gun fires; aim aside and you shoot out of the window.
     const car = p.inVehicle;
@@ -961,7 +981,7 @@ class Game {
     // Auto-reload: an empty gun loads itself as soon as there are rounds for it in the pack (bought, looted, picked up
     // after it ran dry) - not only at the trigger. It used to sit at 0 over 60 spare until you pulled.
     if (this.inv.mag[k] === 0 && this.inv.ammo[w.ammo] > 0 && this.qol.settings.autoReload && !this.inv.jam[k] && this.inventory.cond(k) > 0) this.reload();
-    const want = w.auto ? I.mouse.left : I.mouse.leftPressed;
+    const want = this.arms.trigger(I, k); // raises or draws the gun; single, burst or automatic by the mode
     if (!want || p.cool > 0) return;
     // A jammed gun's trigger goes dead: the pull starts clearing it. A broken one does nothing at all.
     if (this.inv.jam[k]) { this.audio.empty(); p.cool = 0.3; this.reload(); return; }
@@ -972,15 +992,16 @@ class Game {
     }
     if (this.inv.mag[k] <= 0) { this.audio.empty(); p.cool = 0.25; this.reload(); return; }
     // In a car: shoot out of the window on that side (knocks the glass out first).
-    const fired = p.inVehicle ? this.carCombat.fireFromVehicle(p, p.inVehicle, k, ang) : this.combat.fire(p, k, ang);
+    const fired = p.inVehicle ? this.carCombat.fireFromVehicle(p, p.inVehicle, k, ang, fm) : this.combat.fire(p, k, ang, fm);
     if (fired) {
       this.inv.mag[k]--;
-      p.cool = w.rate;
+      p.cool = this.arms.afterShot(fm);
+      this.controls.rumble('shot', w.shake);
       if (this.inventory.shot(k)) { // every round wears it; a worn one may jam on the next
         this.audio.burst?.({ dur: 0.06, freq: 1500, type: 'bandpass', q: 5, vol: 0.4, decay: 0.05 }); // the action stops short
         this.hud.toast(`${w.short} JAMMED · R TO CLEAR`, 'warn');
       } else if (this.inv.mag[k] === 0 && this.qol.settings.autoReload) this.reload();
-      this.hud.shake(w.shake * 0.4);
+      this.hud.shake(w.shake * 0.4 * this.arms.kickMul()); // one hand kicks harder
     }
   }
 
@@ -1095,6 +1116,8 @@ class Game {
           <div><b>SPACE</b>dive / handbrake</div><div><b>CTRL</b>crouch / dive under</div><div><b>H</b>harpoon / yank</div>
           <div><b>M</b>map</div><div><b>L</b>flashlight</div><div><b>Z</b>zoom out (Shift: in)</div>
           <div><b>I / TAB</b>pack</div><div><b>V</b>patch up / drink / eat</div><div><b>B</b>drop from the tail</div>
+          <div><b>H</b>gun up/down · hold: holster</div><div><b>J</b>one / two hands</div><div><b>RMB</b>melee · hold: kick</div>
+          <div><b>1-4 again</b>fire mode</div><div><b>PAD</b>twin-stick, RT fire</div><div><b>F2</b>controls</div>
           <div><b>T</b>fast time</div><div><b>Y</b>weather</div><div><b>P</b>pause</div>
         </div>
       </div>`;
@@ -1111,6 +1134,7 @@ class Game {
 
   frame(dt) {
     const I = this.input;
+    this.controls.poll(dt); // the pad's buttons become the codes below; its sticks the analog move, aim and drive
     this.qol.input(I);
     if (I.hit('F3')) { this.showStats = !this.showStats; this.hud.el.stats.classList.toggle('hidden', !this.showStats); }
     if (I.hit('F4')) { this.sky.sun.castShadow = !this.sky.sun.castShadow; this.hud.toast(`Shadows ${this.sky.sun.castShadow ? 'ON' : 'OFF'}`); }
@@ -1121,13 +1145,15 @@ class Game {
     if (I.hit('Equal')) this.setZoom(this.zoomLevel - 1);
     if (I.hit('KeyL')) { this.flashOverride = this.flashOverride === undefined ? !(this.sky.night > 0.5) : !this.flashOverride; }
     if (this.paused) { // map/menu stay live while paused; people keep their poses (photo mode shoots anyone placed while frozen)
-      this.charR.sync(this.chars, 0); this.qol.update(dt); I.endFrame(); return;
+      this.charR.sync(this.chars, 0); this.qol.update(dt); this.weaponBar.update(dt); I.endFrame(); return;
     }
 
     this.time += dt;
     const simDt = this.dialogue.active ? 0 : dt;
     if (simDt) this.interiors.update(simDt); // door leaves swing (and bash) before anyone moves
     this.updatePlayer(dt);
+    this.arms.update(dt);  // H, J, B, RB: stance, grip, fire mode, the wheel; who has noticed your gun
+    this.melee.update(dt); // RMB / R3: the blow in flight lands at its moment of contact
     this.nanGuard('player');
     if (simDt) {
       this.ai.update(simDt); this.nanGuard('ai');
@@ -1142,6 +1168,7 @@ class Game {
       this.train.update(simDt); this.nanGuard('train');
       this.convoy.update(simDt); this.nanGuard('convoy');
       this.ambient.update(simDt);
+      this.gunpoint.update(simDt); // after ambient: the held keep their hands up
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
@@ -1172,6 +1199,7 @@ class Game {
     const pv = p.inVehicle;
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
+    this.weaponBar.update(dt);
     this.qol.update(dt);
     this.invUI.update(dt);
     this.feedback.update(dt);

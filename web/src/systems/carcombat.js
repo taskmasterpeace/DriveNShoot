@@ -147,7 +147,7 @@ export class CarCombat {
   }
 
   // Shoot out of a vehicle window. Knocks out that window first if it's intact.
-  fireFromVehicle(ch, v, wkey, ang) {
+  fireFromVehicle(ch, v, wkey, ang, w) {
     this.ensure(v);
     const side = this.sideOfAngle(v, ang);
     if (v.windows && v.windows[side].hp > 0) this.damageWindow(v, side, 9999, ch, true);
@@ -155,7 +155,7 @@ export class CarCombat {
     const sx = ch.x, sz = ch.z, wasIn = ch.inVehicle;
     ch.inVehicle = null; ch.firingFrom = v; ch.x = p.x; ch.z = p.z;
     let fired = false;
-    try { fired = this.g.combat.fire(ch, wkey, ang); }
+    try { fired = this.g.combat.fire(ch, wkey, ang, w); }
     finally {
       ch.firingFrom = null;
       if (wasIn && !v.dead && v.occ?.[ch.seat] === ch) { ch.inVehicle = v; ch.x = v.x; ch.z = v.z; }

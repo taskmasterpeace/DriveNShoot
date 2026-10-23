@@ -2,13 +2,22 @@ import { rayCircle, RAY_BULLET, RAY_SOLID, RAY_SIGHT } from '../engine/collision
 import { muzzleForward } from './characters.js';
 
 // Data-driven weapons. Add a row, get a gun.
+// modes (docs/design/WEB_CONTROLLER.md §3.4): the fire modes or alternate uses the weapon bar raises above the slot.
+//   burst  rounds per pull: 1 single, n a burst (fired at `rate`, then `after` s before the next pull), 0 automatic
+//   rate   s between rounds (cyclic); spread x the row's spread; kick: the recoil bloom one round adds
+//   dmg / pellets / range: an alternate use replaces the row's (the sawn-off's slug)
+// A row with no modes gets one from `auto` (systems/arms.js). `mode` names the default.
 export const WEAPONS = {
-  pistol:  { name: '.45 REVOLVER', short: 'PISTOL', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25 },
-  smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15 },
-  shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6 },
+  pistol:  { name: '.45 REVOLVER', short: 'PISTOL', dmg: 38, rate: 0.26, mag: 6, reload: 1.3, spread: 0.025, range: 55, auto: false, pellets: 1, ammo: 'pistol', sound: 'pistol', shake: 0.25,
+    modes: [{ id: 'single', name: 'SINGLE', burst: 1, rate: 0.26, spread: 1, kick: 0.35 }, { id: 'fan', name: 'FAN', burst: 3, rate: 0.085, spread: 2.6, kick: 0.45, after: 0.5 }] },
+  smg:     { name: 'RUST-9 SMG', short: 'SMG', dmg: 17, rate: 0.075, mag: 32, reload: 1.7, spread: 0.075, range: 42, auto: true, pellets: 1, ammo: 'smg', sound: 'smg', shake: 0.15, mode: 'auto',
+    modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.12, spread: 0.6, kick: 0.22 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.065, spread: 0.85, kick: 0.2, after: 0.3 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.075, spread: 1, kick: 0.18 }] },
+  shotgun: { name: 'SAWN-OFF', short: 'SHOTGUN', dmg: 14, rate: 0.75, mag: 2, reload: 1.9, spread: 0.2, range: 22, auto: false, pellets: 8, ammo: 'shells', sound: 'shotgun', shake: 0.6,
+    modes: [{ id: 'buck', name: 'BUCK', burst: 1, rate: 0.75, spread: 1, kick: 0.8 }, { id: 'slug', name: 'SLUG', burst: 1, rate: 0.85, spread: 0.11, kick: 1.0, dmg: 82, pellets: 1, range: 40 }] },
   // The Federal Remnant's issue rifle (systems/bases.js arms its sentries): reaches further and hits harder than the
   // SMG, fires slower. Generic by design: no make, no model.
-  rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22 },
+  rifle:   { name: 'SERVICE RIFLE', short: 'RIFLE', dmg: 24, rate: 0.12, mag: 30, reload: 2.1, spread: 0.035, range: 68, auto: true, pellets: 1, ammo: 'rifle', sound: 'rifle', shake: 0.22, mode: 'auto',
+    modes: [{ id: 'semi', name: 'SEMI', burst: 1, rate: 0.17, spread: 0.55, kick: 0.26 }, { id: 'burst', name: 'BURST', burst: 3, rate: 0.09, spread: 0.8, kick: 0.24, after: 0.35 }, { id: 'auto', name: 'AUTO', burst: 0, rate: 0.12, spread: 1, kick: 0.22 }] },
 };
 
 export class Combat {
@@ -16,9 +25,9 @@ export class Combat {
     this.g = game;
   }
 
-  // Fire `wkey` from character `ch` along angle `ang`. Returns true if a shot left the barrel.
-  fire(ch, wkey, ang) {
-    const w = WEAPONS[wkey];
+  // Fire `wkey` from character `ch` along angle `ang`. Returns true if a shot left the barrel. `w`: the row as fired (the
+  // player's fire mode, grip and recoil folded in by systems/arms.js); the table's row when not given.
+  fire(ch, wkey, ang, w = WEAPONS[wkey]) {
     const g = this.g;
     const fx = Math.sin(ang), fz = Math.cos(ang);
     // The shot leaves the muzzle, on the body's centre line (the aim pose in characters.js).
@@ -31,6 +40,7 @@ export class Combat {
     // Pressed against a window or a door, the barrel reaches past the glass, boards or leaf: the round
     // starts at the hand, so it still meets them.
     const hug = !g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SOLID, ry);
+    if (ch === g.player) g.arms?.onShot(); // a shot raises the gun, whatever path fired it
     g.fx.flash(ox, 1.5 + fy, oz, w.pellets > 1 ? 2.2 : 1.4, 0.05);
     g.fx.light(ox, 1.8 + fy, oz, '#ffb35a', w.pellets > 1 ? 30 : 18, 0.07);
     g.audio.gun(w.sound, Math.hypot(ch.x - g.player.x, ch.z - g.player.z), g.pan(ch.x));

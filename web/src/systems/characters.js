@@ -362,7 +362,7 @@ export class CharacterRenderer {
 
   pose(ch, sp, dt) {
     const M = this.meshes, i = ch.slot, alive = ch.alive;
-    const w = ch.weapon ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null;
+    const w = ch.weapon && !ch.holstered && !ch.work ? this.weapons[ch.weapon] : null, model = w ? gunModel(w) : null, gm = model ? GUN_MODELS[model] : null; // holstered: hands empty (systems/arms.js)
     const infected = ch.faction === 'zombie', bike = sp?.kind === 'bike';
 
     // ---- root frame --------------------------------------------------------------------------
@@ -483,7 +483,8 @@ export class CharacterRenderer {
     if (aim) lean = 0.03 + 0.12 * crouch;
     else if (infected && alive) { lean = 0.32 + 0.2 * run; headTilt = 0.22 * Math.sin(ch.walk * 0.5 + i); }
     else if (moving && !gm) twist = -0.1 * Math.sin(phase) * k;
-    if (bike) lean = 0.7;
+    if (bike) lean = aim ? 0.25 : 0.7;
+    if (bike && aim && sp) twist = wrap(ch.face - sp.h); // the rider turns at the waist to shoot any way
     if (ch.swim || ch.underwater) lean = 0;
     _U.makeTranslation(0, hipY + WAIST_UP, 0);
     if (twist) _U.multiply(_r.makeRotationY(twist));
@@ -514,11 +515,14 @@ export class CharacterRenderer {
     else if (knocked) mode = 'knocked';
     else if (bike && !(aim)) mode = 'bars';
     else if (ch.handsUp) mode = 'handsUp';
+    else if (ch.work) mode = 'work';         // both hands on an interaction: boards, a lock, a shelf (systems/arms.js)
+    else if (ch.meleeT > 0) mode = 'melee'; // a blow in flight (systems/melee.js)
     else if (infected) mode = 'infected';
     else if (ch.swim || ch.underwater) mode = 'swim';
     else if (ch.dive > 0) mode = 'dive';
     else if (aim) mode = 'aim';
     else if (gm && gm.carry === 'low') mode = 'low';
+    ch._pose = mode; // what the arms are doing (the selftest reads it)
     let gunKey = null, gunHand = false;
     for (let s = 0; s < 2; s++) sh[s].set(SIDE[s] * SHOULDER_X, SHOULDER_UP, 0);
     const ikArm = (s, x, y, z) => { tgt[s].set(x, y, z); };
@@ -526,8 +530,27 @@ export class CharacterRenderer {
     switch (mode) {
       case 'aim': {
         ikArm(1, -0.03, AIM_Y - 0.01, gm.grip);
-        ikArm(0, gm.support === gm.grip ? 0.03 : 0.02, AIM_Y, gm.support);
+        // One hand (systems/arms.js): the support hand drops to the side; two hands: it cups the grip or the fore-end.
+        if (ch.oneHand) ikArm(0, SIDE[0] * 0.36, 0.06, 0.08);
+        else ikArm(0, gm.support === gm.grip ? 0.03 : 0.02, AIM_Y, gm.support);
         gunKey = model;
+        break;
+      }
+      case 'work': {
+        // Both hands out in front at chest height, working (a hammer rhythm while boarding).
+        const beat = Math.sin((ch.workT ?? 0) * 11) * 0.05;
+        ikArm(0, 0.15, 0.32 + beat, 0.42); ikArm(1, -0.15, 0.32 - beat, 0.42);
+        break;
+      }
+      case 'melee': {
+        // Wind up, strike out at the moment of contact, come back: a punch or a butt-stroke on the right, a two-handed
+        // push for a shove, arms out for balance on a kick.
+        const t = ch.meleeT, hit = ch.meleeHit ?? 0.35, k = ch.meleeKind;
+        const ext = t < hit ? -0.25 * (t / hit) : Math.max(0, 1 - (t - hit) / (1 - hit)) * 1.0;
+        if (k === 'shove') { ikArm(0, 0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); ikArm(1, -0.16, AIM_Y, 0.22 + 0.35 * Math.max(0, ext)); }
+        else if (k === 'kick') { ikArm(0, 0.42, 0.42, -0.05); ikArm(1, -0.42, 0.4, 0.1 - 0.2 * Math.max(0, ext)); }
+        else { ikArm(1, -0.04, AIM_Y + 0.04, 0.2 + 0.36 * Math.max(0, ext) - 0.1 * Math.max(0, -ext)); ikArm(0, 0.12, AIM_Y + 0.08, 0.2); }
+        if (gm && k === 'butt') { gunKey = model; ch._buttExt = Math.max(0, ext); }
         break;
       }
       case 'low': {
@@ -603,6 +626,7 @@ export class CharacterRenderer {
     }
     if (gunKey && !gunHand) {
       if (mode === 'aim') this.put(`gun_${gunKey}`, _g, 0, AIM_Y, gm.grip, -lean, null); // level, even from a crouch
+      else if (mode === 'melee') this.put(`gun_${gunKey}`, _g, 0, AIM_Y + 0.04, 0.2 + 0.36 * (ch._buttExt ?? 0), -lean, null); // the butt-stroke
       else {
         // Low ready: orient the gun along its carry line through the right hand.
         _Z.set(0.3, -0.4, 0.87).normalize(); _X.crossVectors(_v.set(0, 1, 0), _Z).normalize(); _Y.crossVectors(_Z, _X);
