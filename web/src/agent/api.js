@@ -1978,8 +1978,10 @@ async function runSelfTest(api, only = null, skip = null) {
   const g = api.g;
   const results = [];
   const check = async (name, fn) => {
-    if (only && !name.includes(only)) return;
-    if (skip && name.includes(skip)) return;
+    // a|b|c: any of them (only="witnesses|storeys" replays a pair in battery order).
+    const any = (pat) => pat.split('|').some((s) => s && name.includes(s));
+    if (only && !any(only)) return;
+    if (skip && any(skip)) return;
     // Only true/undefined pass. Checks report failure by returning a diagnostic string, and this used
     // to be `v !== false`, which counted every such string as a PASS: the suite read green while
     // several checks were failing.
@@ -2607,6 +2609,15 @@ async function runSelfTest(api, only = null, skip = null) {
     // through every check: send its people home first.
     for (const ev of [...g.society.director.active]) g.society.director.cancel(ev.id);
     if (g.player.inVehicle) g.exitVehicle(true);
+    // How you carry (systems/arms.js) and who you hold (systems/gunpoint.js) are states now: a check that raised a gun or
+    // held a man must not leave the next one walking slow behind a raised two-hand gun, or still in a standoff.
+    g.gunpoint?.clear(); g.aimOverride = null;
+    // An open conversation freezes you AND the world (main.js: simDt is 0 while dialogue.active): a check that talked must not
+    // leave every later one standing still with its clock stopped.
+    if (g.dialogue?.active) g.dialogue.close();
+    if (g.invUI?.open) g.invUI.toggle(false); // and the PACK screen: open, you stand still and the keys work the pack
+    g.inventory.opened = null;
+    if (g.arms) { g.arms.lower('stage'); g.arms.drawT = 0; if (g.arms.stance === 'holstered') g.arms.stance = 'lowered'; }
     await C('crouch', { on: false });
     await C('setTime', { hour: 12 }); await C('setWeather', { key: 'CLEAR', instant: true });
     await C('teleport', STAGE);

@@ -148,6 +148,10 @@ export class Dialogue {
   update(dt, input) {
     this.g.voice?.update(dt); // the voices follow their speakers every frame, talking or not (made in systems/talk.js)
     if (!this.active) return;
+    // Whoever you were talking to is gone (removed, streamed out, killed mid-sentence): the talk ends. Left open, it froze you
+    // and the world's clock (main.js runs the sim at dt 0 while a talk is open).
+    const n = this.npc;
+    if (n && (!n.alive || !this.g.chars.includes(n))) { this.close(); return; }
     if (this.shown < this.full.length) {
       this.shown = Math.min(this.full.length, this.shown + dt * 70);
       this.textEl.textContent = this.full.slice(0, Math.floor(this.shown));
