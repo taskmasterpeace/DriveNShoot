@@ -218,6 +218,6 @@ Measured on this machine (RTX 4090, headless Chrome, shared with other agents' h
 4. **Phoenix is untouched.** The island golden hash, the ring plans hash, twelve pinned P1 chunk hashes (and a 324-chunk
    sweep before/after) all match.
 5. **The water is real, the gators bite, the infected come.** Selftest checks for each.
-6. `selftest` green twice on fresh pages (see the branch's report for the run), `node tools/ip-lint.mjs` 0 deny.
+6. `selftest` **150/150 twice in a row on proved-fresh pages** (game.time under 40 s, day 0) on the final tree (328 s and 367 s); `node tools/ip-lint.mjs` 0 deny. The selftest budget is now 900 s (the battery outgrew 300 s on this busy machine). Seen flaky on other runs, not tied to Florida: the single-shot Mateo memory check (a miss), and a battery run on a reused page.
 7. Screenshots in `docs/renders/web/florida/` at the game camera and from above, by noon and at dusk: Meridian, I-95
    through the swamp, the coast.
