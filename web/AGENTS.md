@@ -11,7 +11,7 @@ A top-down open-world engine (GTA-1/2 camera, 3D rendering) set in a post-apocal
 
 | You are... | Use | Setup |
 |---|---|---|
-| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 107 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
+| An MCP client (Claude Code, etc.) | **MCP tools** `dl_*`: 108 commands with JSON Schemas, plus `dl_launch`, `dl_call`, `dl_batch`. `dl_screenshot` returns an image you can see. | Already registered in `.mcp.json`. Call `dl_launch` first. |
 | A shell-only agent | **CLI** `node tools/dl.mjs <cmd> k=v` or **HTTP** `POST /agent/cmd` | `npm run agent` (dev server + **headless Chrome**, no window, no human) |
 | Code in the page / a scenario | `DL.call(cmd, args)` / `DL.bind().cmd(args)` | — |
 
