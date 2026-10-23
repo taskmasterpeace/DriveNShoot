@@ -31,7 +31,7 @@ export const FILES = {
     },
   },
   brush: {
-    path: 'src/data/brush.json', style: 'rows', kind: 'dsoa-brush',
+    path: 'src/data/brush.json', style: 'rows', kind: 'dsoa-brush', top: ['knobs', 'palettes'],
     colls: { strokes: { geom: 'line', label: 'Brush stroke', engine: 'world/brush.js -> world/chunkgen.js' } },
   },
 };
@@ -65,6 +65,19 @@ export function applyOps(doc, ops, spec = null) {
 
 function applyOne(doc, op, spec, inverse, changed) {
   if (!op || typeof op !== 'object') return 'not an op';
+  // A file-level settings object (the brush's knobs and palettes): merge keys into it, field-preserving like a row.
+  if (op.op === 'top') {
+    if (!spec?.top?.includes(op.key)) return `top: key must be one of ${(spec?.top ?? []).join(', ') || '(none for this file)'}`;
+    const obj = doc[op.key];
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return `${op.key} is not an object`;
+    const set = op.set ?? {}, back = {}, backUnset = [];
+    for (const k of Object.keys(set)) { if (Object.prototype.hasOwnProperty.call(obj, k)) back[k] = clone(obj[k]); else backUnset.push(k); }
+    for (const [k, v] of Object.entries(set)) obj[k] = clone(v);
+    for (const k of op.unset ?? []) { if (Object.prototype.hasOwnProperty.call(obj, k)) back[k] = clone(obj[k]); delete obj[k]; }
+    inverse.push({ op: 'top', key: op.key, set: back, unset: backUnset });
+    changed.push({ coll: op.key, id: '*' });
+    return null;
+  }
   const { coll } = op;
   if (typeof coll !== 'string' || !/^[a-z_][a-z0-9_]*$/i.test(coll)) return 'coll must name a collection';
   if (spec && !spec.colls[coll]) return `unknown collection (this file has: ${Object.keys(spec.colls).join(', ')})`;

@@ -19,8 +19,10 @@ import { FILES, applyOps, serialize, fnv, checkFile, stampEdits, findRow } from 
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const REPO = resolve(WEB, '..');
-const READONLY = ['docs/renders/web/', 'web/public/models/flora/flora.json'];
+const READONLY = ['docs/renders/web/', 'docs/design/', 'docs/skills/', 'web/public/models/flora/flora.json'];
 const norm = (p) => normalize(p).replace(/\\/g, '/').toLowerCase();
+// Keep the file's own line ends (a Windows checkout may hand us CRLF): an untouched file must round-trip byte for byte.
+const ser = (doc, style, raw) => { const out = serialize(doc, style); return raw?.includes('\r\n') ? out.replace(/\r?\n/g, '\r\n') : out; };
 
 export function forgeIO() {
   const recent = new Map(); // normalized abs path -> ms of our last write
@@ -45,7 +47,7 @@ export function forgeIO() {
     try {
       const { p, raw, doc } = read(name); if (!raw) return [name, { path: `web/${spec.path}`, missing: true }];
       const st = statSync(p);
-      return [name, { path: `web/${spec.path}`, bytes: st.size, mtime: st.mtimeMs, hash: fnv(raw), rows: counts(doc, spec), roundTrips: serialize(doc, spec.style) === raw }];
+      return [name, { path: `web/${spec.path}`, bytes: st.size, mtime: st.mtimeMs, hash: fnv(raw), rows: counts(doc, spec), roundTrips: ser(doc, spec.style, raw) === raw }];
     } catch (e) { return [name, { path: `web/${spec.path}`, error: String(e.message) }]; }
   }));
 
@@ -59,6 +61,12 @@ export function forgeIO() {
         try {
           if (url.pathname === '/forge/status') return json(res, 200, { ok: true, files: status(), log: log.slice(-12) });
           if (url.pathname === '/forge/log') return json(res, 200, { ok: true, log });
+          // The shard's health for the forge's dot (server-side: no CORS to argue with). ?port= (default 3280).
+          if (url.pathname === '/forge/shard') {
+            const port = Number(url.searchParams.get('port') ?? 3280);
+            try { const r = await fetch(`http://localhost:${port}/health`, { signal: AbortSignal.timeout(1200) }); return json(res, 200, { ...(await r.json()), port }); }
+            catch { return json(res, 200, { ok: false, port, error: `no shard on :${port} (node tools/shard.mjs start)` }); }
+          }
           if (url.pathname === '/forge/data') {
             const name = url.searchParams.get('file') ?? '';
             if (!FILES[name]) return json(res, 400, { ok: false, error: `file must be one of ${Object.keys(FILES).join(', ')}` });
@@ -72,7 +80,7 @@ export function forgeIO() {
             const abs = resolve(REPO, rel);
             if (!READONLY.some((p) => rel.startsWith(p)) || rel.includes('..') || !abs.startsWith(REPO + sep) || !existsSync(abs)) return json(res, 404, { ok: false, error: `not a forge reference file (${READONLY.join(', ')})` });
             const ext = rel.split('.').pop().toLowerCase();
-            res.setHeader('content-type', { json: 'application/json', png: 'image/png', jpg: 'image/jpeg', svg: 'image/svg+xml' }[ext] ?? 'application/octet-stream');
+            res.setHeader('content-type', { json: 'application/json', md: 'text/plain; charset=utf-8', png: 'image/png', jpg: 'image/jpeg', svg: 'image/svg+xml' }[ext] ?? 'application/octet-stream');
             res.setHeader('cache-control', 'max-age=60');
             return res.end(readFileSync(abs));
           }
@@ -99,7 +107,7 @@ export function forgeIO() {
             const removed = body.ops.filter((o) => o.op === 'remove').map((o) => ({ coll: o.coll, id: o.id }));
             if (body.file === 'usmap') stampEdits(doc, r.changed.filter((c) => !removed.some((x) => x.coll === c.coll && x.id === c.id)), when, removed);
             if (body.file === 'brush') { doc.version = (doc.version ?? 0) + 1; }
-            const out = serialize(doc, spec.style);
+            const out = ser(doc, spec.style, raw);
             const st = write(body.file, out);
             const rows = {};
             for (const c of r.changed) rows[`${c.coll}/${c.id}`] = rowHash(findRow(doc, c.coll, c.id).row);

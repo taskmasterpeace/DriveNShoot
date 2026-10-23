@@ -74,6 +74,10 @@ PAL = {
     "tumble": ["#bc9e66", "#a88a58", "#caae76"], "tumble_core": "#8a7048",
     "creo": ["#56623a", "#606e40", "#4c5734"], "creo_stem": "#4a4030", "creo_flower": "#d8c03e",
     "pear": ["#6c8c48", "#7a9852", "#5f7f40"], "pear_rim": "#86a25c", "pear_fruit": "#c23a2c",
+    # THE WOODS (the World Forge's BRUSH paints them: docs/design/WEB_FORGE.md 3.4) - a closed canopy from above
+    "pine_bark": "#6e4a30", "pine_bark_dk": "#553826", "pine": ["#2c4a2a", "#335430", "#284226", "#3a5a32"],
+    "oak_bark": "#4c3c2c", "oak_bark_dk": "#3a2e22", "oak": ["#3a5424", "#44602a", "#324a20", "#4e6a2e"],
+    "cyp_bark": "#7a6450", "cyp_bark_dk": "#5e4c3c", "cyp": ["#56683a", "#607442", "#4c5e32"], "moss": "#8a8e74",
 }
 
 
@@ -707,6 +711,96 @@ def build_pricklypear(g, rng):
     return H
 
 
+def build_pine(g, rng):
+    """A ponderosa-like pine: a straight red-brown trunk under a tall narrow spire of ragged needle tiers, each tier a
+    drooping star of boughs with a lighter upper face, so from above it reads as a dark star nested in stars, and a
+    stand of them closes into a rough dark canopy."""
+    H = 14.0
+    bark_dk = hexc(PAL["pine_bark_dk"])
+    cols = [hexc(c) for c in PAL["pine"]]
+    lean = Vector((rng.uniform(-0.25, 0.25), rng.uniform(-0.25, 0.25), 0))
+    tube(g, [(0, 0, 0), lean * 0.3 + Vector((0, 0, 5)), lean + Vector((0, 0, 12.6))], [0.42, 0.3, 0.12], 6, bark_dk, cap=None)
+    tiers = 6
+    z0, z1 = rng.uniform(3.6, 4.4), 13.4
+    for t in range(tiers):
+        f = t / (tiers - 1)
+        zb = z0 + (z1 - z0) * f * 0.86
+        R = (3.4 - 2.5 * f) * rng.uniform(0.9, 1.08)
+        sides = 9
+        c = lean * (zb / 12.6) + Vector((0, 0, zb))
+        ph = rng.random() * 6.283
+        outer, inner = [], []
+        for k in range(sides):
+            a = ph + 2 * math.pi * k / sides
+            rr = R * rng.uniform(0.78, 1.12)
+            outer.append(g.vert(c + Vector((math.cos(a) * rr, math.sin(a) * rr, -rng.uniform(0.35, 0.7)))))
+            a2 = a + math.pi / sides
+            ri = rr * 0.55
+            inner.append(g.vert(c + Vector((math.cos(a2) * ri, math.sin(a2) * ri, 0.55 + 0.25 * (1 - f)))))
+        apex = g.vert(c + Vector((0, 0, 1.6 + 1.1 * (1 - f))))
+        col = tone(cols[t % len(cols)], 0.86 + 0.22 * f)
+        for k in range(sides):
+            k1 = (k + 1) % sides
+            g.face((outer[k], outer[k1], inner[k]), tone(col, 0.82))
+            g.face((outer[k1], inner[k1], inner[k]), col)
+            g.face((inner[k], inner[k1], apex), tone(col, 1.08))
+        g.face(tuple(reversed(outer)), tone(col, 0.6))
+    return H
+
+
+def build_oak(g, rng):
+    """A broad oak: a short heavy trunk splitting low into spreading limbs under a wide, flattened dome of dark
+    rounded masses, wider than twice its height, lit on top and dark underneath. Side by side they close into a
+    canopy you cannot see the ground through."""
+    H = 9.0
+    bark = hexc(PAL["oak_bark"]); bark_dk = hexc(PAL["oak_bark_dk"])
+    cols = [hexc(c) for c in PAL["oak"]]
+    fork = Vector((rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), rng.uniform(2.0, 2.6)))
+    tube(g, [(0, 0, 0), Vector((0, 0, 1.1)), fork], [0.62, 0.48, 0.4], 6, bark_dk, cap=None)
+    n = rng.randint(4, 5)
+    for i, a in enumerate(ring_dirs(n, rng, 0.22)):
+        d = Vector((math.cos(a), math.sin(a), 0))
+        reach = rng.uniform(3.4, 4.6)
+        mid = fork + d * reach * 0.45 + Vector((0, 0, rng.uniform(1.2, 1.7)))
+        end = fork + d * reach + Vector((0, 0, rng.uniform(2.2, 3.0)))
+        tube(g, [fork, mid, end], [0.26, 0.17, 0.1], 4, bark, cap=None)
+        r = rng.uniform(2.4, 3.0)
+        blob(g, end + Vector((0, 0, 0.6)), (r, r * 0.9, r * 0.55), cols, 0, jitter=0.2, dark=0.55)
+    blob(g, fork + Vector((0, 0, 4.4)), (3.6, 3.3, 1.9), cols, 1, jitter=0.15, dark=0.55)
+    for _ in range(3):
+        a = rng.random() * 6.283
+        c = fork + Vector((math.cos(a) * 1.6, math.sin(a) * 1.6, 5.2 + rng.uniform(0, 0.6)))
+        blob(g, c, (1.7, 1.5, 0.9), cols, 0, jitter=0.2, dark=0.7)
+    return H
+
+
+def build_cypress(g, rng):
+    """A bald cypress out of the swamp: a flared, fluted foot with knees standing round it, a tall straight grey-brown
+    trunk, and a flat-topped crown in a few wide thin layers of feathery olive green, hung with grey moss. From above:
+    broad flat olive plates."""
+    H = 15.0
+    bark = hexc(PAL["cyp_bark"]); bark_dk = hexc(PAL["cyp_bark_dk"])
+    cols = [hexc(c) for c in PAL["cyp"]]
+    moss = hexc(PAL["moss"])
+    tube(g, [(0, 0, 0), (0, 0, 0.9), (0, 0, 2.2), (0, 0, 13.5)], [1.05, 0.62, 0.42, 0.18], 7, bark_dk, cap=None,
+         profile=lambda k: 1.0 + 0.22 * (k % 2))
+    for a in ring_dirs(rng.randint(3, 4), rng, 0.4):
+        d = rng.uniform(1.6, 2.4)
+        spike(g, (math.cos(a) * d, math.sin(a) * d, 0), (0.08, 0.05, 1), rng.uniform(0.5, 0.9), 0.16, bark)
+    for t in range(4):
+        z = 8.6 + t * 1.55 + rng.uniform(-0.2, 0.2)
+        a = rng.random() * 6.283
+        off = 1.0 * (1 - t / 4)
+        c = Vector((math.cos(a) * off, math.sin(a) * off, z))
+        r = (4.4 - 0.6 * t) * rng.uniform(0.9, 1.1)
+        blob(g, c, (r, r * rng.uniform(0.75, 0.95), 0.75), cols, 0, jitter=0.24, dark=0.6)
+        for _ in range(2):
+            b = rng.random() * 6.283
+            p = c + Vector((math.cos(b) * r * 0.7, math.sin(b) * r * 0.7, -0.3))
+            spike(g, p, (0, 0, -1), rng.uniform(1.0, 1.8), 0.14, moss)
+    return H
+
+
 SPECIES = {
     # name: (builder, nominal height m) — heights mirror web/src/world/flora.js SPECIES
     "paloverde": (build_paloverde, 4.6),
@@ -721,6 +815,9 @@ SPECIES = {
     "tumbleweed": (build_tumbleweed, 0.9),
     "creosote": (build_creosote, 1.5),
     "pricklypear": (build_pricklypear, 1.3),
+    "pine": (build_pine, 14.0),
+    "oak": (build_oak, 9.0),
+    "cypress": (build_cypress, 15.0),
 }
 
 

@@ -102,7 +102,7 @@ export async function pushUsmap(g, rows = null) {
   const set = all ? null : new Set([...keysIn(oldBox), ...keysIn(newBox)]);
   const r = relayout(g, set);
   g.emit?.('forgePush', { file: 'usmap', rows: keys?.length ?? 'all', chunks: set ? set.size : 'all' });
-  return { ok: true, live: true, file: 'usmap', hash, rows: keys ?? 'all', chunks: set ? [...set] : 'all', evicted: r.evicted, signsRepainted: rx.signs, warnings: W.warnings.slice(0, 12), ms: +(performance.now() - t0).toFixed(1) };
+  return { ok: true, live: true, file: 'usmap', hash, rows: keys ?? 'all', chunks: set ? set.size : 'all', chunkKeys: set ? [...set].slice(0, 8) : undefined, evicted: r.evicted, signsRepainted: rx.signs, warnings: W.warnings.slice(0, 12), ms: +(performance.now() - t0).toFixed(1) };
 }
 
 // The brush rows from disk into the running game: only the chunks an added, removed or changed stroke reaches.
@@ -121,6 +121,6 @@ export async function pushBrush(g) {
   // A ruin stroke changes the corridor's buildings, which WorldIndex built at boot: rebuild them too.
   if (ruin) reindex(S);
   const r = relayout(g, set);
-  return { ok: true, live: true, file: 'brush', hash, version: doc.version, strokes: doc.strokes?.length ?? 0, changed: touched.map((s) => s.id), chunks: set ? [...set] : 'all', evicted: r.evicted, ms: +(performance.now() - t0).toFixed(1) };
+  return { ok: true, live: true, file: 'brush', hash, version: doc.version, strokes: doc.strokes?.length ?? 0, changed: touched.map((s) => s.id), chunks: set ? set.size : 'all', chunkKeys: set ? [...set].slice(0, 8) : undefined, evicted: r.evicted, ms: +(performance.now() - t0).toFixed(1) };
 }
 

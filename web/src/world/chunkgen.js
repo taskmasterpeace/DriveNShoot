@@ -797,7 +797,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
   }
   // THE BRUSH (world/brush.js): woods, undergrowth and hot zones where strokes reach (its own random stream).
-  if (BR) out.brush = yield* brushStage(BR, { INST, plant, addBox, blocked, ox, oz, cx, cz, seed, state, pause, resume });
+  if (BR) out.brush = yield* brushStage(BR, { INST, addBox, blocked, boxes, ox, oz, cx, cz, seed, state, pause, resume });
   pause(); yield; resume();
 
   // ---- nav tiles: owned boxes plus the halo (features a little past the edge) -------------------------------------------

@@ -10,7 +10,7 @@
 import BRUSH from '../data/brush.json';
 import { toWorldX, toWorldZ, C, hash32, rngOf } from './geo.js';
 import { STREAM } from '../data/streaming.js';
-import { SPECIES, FLORA_KINDS, floraHash } from './flora.js';
+import { SPECIES, FLORA_KINDS, floraHash, floraVariant, poolName } from './flora.js';
 
 const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const keyOf = (cx, cz) => `${cx},${cz}`;
@@ -68,6 +68,7 @@ export class BrushField {
     this.byChunk = new Map();
     for (const s of this.strokes) {
       for (let cx = Math.floor((s.x0 - 9) / C); cx <= Math.floor((s.x1 + 9) / C); cx++) for (let cz = Math.floor((s.z0 - 9) / C); cz <= Math.floor((s.z1 + 9) / C); cz++) {
+        if (dist(s, (cx + 0.5) * C, (cz + 0.5) * C) > s.r + C * 0.72 + 9) continue; // the capsule never reaches this chunk
         const k = keyOf(cx, cz); let b = this.byChunk.get(k); if (!b) this.byChunk.set(k, (b = [])); b.push(s);
       }
     }
@@ -99,7 +100,13 @@ export class BrushField {
   // The chunks a set of strokes touches (the forge's push: lay out only what changed).
   chunksOf(rows) {
     const out = new Set();
-    for (const r of rows) { const s = compile(r, 0); for (let cx = Math.floor((s.x0 - 9) / C); cx <= Math.floor((s.x1 + 9) / C); cx++) for (let cz = Math.floor((s.z0 - 9) / C); cz <= Math.floor((s.z1 + 9) / C); cz++) out.add(keyOf(cx, cz)); }
+    for (const r of rows) {
+      const s = compile(r, 0);
+      for (let cx = Math.floor((s.x0 - 9) / C); cx <= Math.floor((s.x1 + 9) / C); cx++) for (let cz = Math.floor((s.z0 - 9) / C); cz <= Math.floor((s.z1 + 9) / C); cz++) {
+        // Only the chunks the capsule itself reaches (its centre within r + half a chunk's diagonal), not its whole box.
+        if (dist(s, (cx + 0.5) * C, (cz + 0.5) * C) <= s.r + C * 0.72 + 9) out.add(keyOf(cx, cz));
+      }
+    }
     return out;
   }
 }
@@ -135,7 +142,7 @@ export function reloadBrush(data) {
 // ctx: { INST, plant, addBox, blocked, ox, oz, cx, cz, seed, state, pause, resume }. Its own random stream (never the
 // chunk's), a fixed number of draws per grid cell, so a stroke changes only the cells it covers.
 export function* brushStage(B, ctx) {
-  const { INST, plant, addBox, blocked, ox, oz, cx, cz, seed, pause, resume } = ctx;
+  const { INST, addBox, blocked, ox, oz, cx, cz, seed, pause, resume, boxes } = ctx;
   const K = B.F.knobs, rng = rngOf(hash32(seed, cx, cz, 0xb2054));
   const have = (k) => FLORA_KINDS.includes(k);
   const pal0 = B.F.palettes[ctx.state] ?? B.F.palettes._ ?? {};
@@ -147,6 +154,38 @@ export function* brushStage(B, ctx) {
   const L = B.layers;
   let k = 0;
   const tick = function* () { if ((++k & 63) === 63) { pause(); yield; resume(); } };
+  // A plant (world/flora.js), its crown spread wider than it stands tall where the row says (a canopy, not a wall).
+  const plant = (kind, x, z, s, spread, rot, shade) => { const b = INST[poolName(kind)], i = b.push(x, 0, z, rot, s * spread, s, s * spread, shade, shade, shade); if (i >= 0) b.e[i] = floraVariant(x, z); };
+  // Under a wood the desert gives way: cacti and desert plants go (and their collision with them), rocks and the desert
+  // shrubs take moss and shade. Only what this chunk laid out before the stage, only where the wood is.
+  if (L.has('forest')) {
+    const gone = [];
+    for (const name of ['cacti', 'fl_saguaro', 'fl_joshua', 'fl_pricklypear', 'fl_ocotillo', 'fl_tumbleweed']) {
+      const b = INST[name]; if (!b?.n) continue;
+      let w = 0;
+      for (let i = 0; i < b.n; i++) {
+        const x = b.m[i * 16 + 12], z = b.m[i * 16 + 14];
+        if (B.sample('forest', x, z, 0) > 0.35) { gone.push(x, z); continue; }
+        if (w !== i) { b.m.copyWithin(w * 16, i * 16, i * 16 + 16); b.c.copyWithin(w * 3, i * 3, i * 3 + 3); if (b.e) b.e.copyWithin(w * b.k, i * b.k, i * b.k + b.k); }
+        w++;
+      }
+      b.n = w;
+    }
+    if (gone.length && boxes) for (let i = boxes.length - 1; i >= 0; i--) {
+      const bx = boxes[i]; if (bx.tag !== 'cactus' && bx.tag !== 'tree') continue;
+      const mx = (bx.minX + bx.maxX) / 2, mz = (bx.minZ + bx.maxZ) / 2;
+      for (let q = 0; q < gone.length; q += 2) if (Math.abs(gone[q] - mx) < 0.2 && Math.abs(gone[q + 1] - mz) < 0.2) { boxes.splice(i, 1); break; }
+    }
+    const MOSS = K.moss ?? [0.5, 0.58, 0.42];
+    for (const name of ['boulders', 'shrubs']) {
+      const b = INST[name];
+      for (let i = 0; i < b.n; i++) {
+        const f = B.sample('forest', b.m[i * 16 + 12], b.m[i * 16 + 14], 0);
+        if (f > 0) for (let c = 0; c < 3; c++) b.c[i * 3 + c] *= 1 + (MOSS[c] - 1) * f;
+      }
+    }
+    n.cleared = gone.length / 2;
+  }
   // Trees on a jittered grid (forest), each cell four draws whatever happens there.
   if (L.has('forest')) {
     const cell = 100 / Math.sqrt(K.forestPerHa ?? 92), N = Math.floor(C / cell), step = C / N;
@@ -161,10 +200,12 @@ export function* brushStage(B, ctx) {
       const tall = !dead && c < 0.4 + 0.55 * can;
       const kind = dead ? (have('deadtree') ? 'deadtree' : canopyKinds[0]) : tall ? canopyKinds[Math.floor(d * canopyKinds.length) % canopyKinds.length] : underKinds[Math.floor(d * underKinds.length) % underKinds.length];
       if (blocked(x, z, tall ? 1.4 : 1)) continue;
-      const span = (K.crownMax ?? 1.55) - (K.crownMin ?? 0.85);
-      const scale = tall ? ((K.crownMin ?? 0.85) + span * ((d * 7.31) % 1)) * (0.8 + 0.4 * can) : 0.75 + 0.35 * ((d * 5.17) % 1);
-      const shade = dead ? 0.92 : 0.82 + 0.26 * floraHash(x, z);
-      plant(kind, x, z, scale, floraHash(z, x) * 6.283, shade);
+      // Under the camera (34 m up) a 20 m tree is a wall: canopy trees stand 0.6-1.05 of their model, the understory
+      // (young trees, scrub) half that. Canopies are shaded deeper than desert flora: a wood reads dark from above.
+      const span = (K.crownMax ?? 1.05) - (K.crownMin ?? 0.62);
+      const scale = tall ? ((K.crownMin ?? 0.62) + span * ((d * 7.31) % 1)) * (0.85 + 0.25 * can) : 0.42 + 0.3 * ((d * 5.17) % 1);
+      const shade = (dead ? 0.92 : tall ? 0.6 + 0.24 * floraHash(x, z) : 0.72 + 0.2 * floraHash(x, z)) * (K.shade?.[kind] ?? 1);
+      plant(kind, x, z, scale, tall ? (K.spread?.[kind] ?? 1) : 1, floraHash(z, x) * 6.283, shade);
       const h = (SPECIES[kind]?.h ?? 5) * scale, tr = Math.min(0.55, 0.22 + 0.04 * h);
       addBox(x - tr, z - tr, x + tr, z + tr, 'tree', h);
       if (dead) n.dead++; else if (tall) n.trees++; else n.under++;
@@ -188,8 +229,8 @@ export function* brushStage(B, ctx) {
       const x = ox + rng() * C, z = oz + rng() * C, s = 0.5 + rng() * 1.0, a = rng() * 6.283, v = 0.8 + rng() * 0.3, pick = rng();
       const b = B.sample('brush', x, z, 0);
       if (rng() >= b || blocked(x, z, 0.6)) continue;
-      if (pick < 0.22 && have('creosote')) plant('creosote', x, z, 0.7 + s * 0.4, a, v);
-      else if (pick < 0.27 && have('tumbleweed')) plant('tumbleweed', x, z, 0.8 + s * 0.4, a, v);
+      if (pick < 0.22 && have('creosote')) plant('creosote', x, z, 0.7 + s * 0.4, 1, a, v);
+      else if (pick < 0.27 && have('tumbleweed')) plant('tumbleweed', x, z, 0.8 + s * 0.4, 1, a, v);
       else INST.shrubs.push(x, s * 0.2, z, a, s * 1.2, s * 0.55, s * 1.2, shrubC[0] * v * 1.12, shrubC[1] * v * 1.08, shrubC[2] * v);
       n.shrubs++;
       yield* tick();

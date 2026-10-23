@@ -28,6 +28,11 @@ export const SPECIES = {
   tumbleweed: { h: 0.9, cap: 600 },
   creosote: { h: 1.5, cap: 600 },
   pricklypear: { h: 1.3, cap: 600 },
+  // THE WOODS (the World Forge's BRUSH paints them: world/brush.js): a closed canopy needs many to a chunk (chunk: the
+  // per-chunk instance budget, beside the world cap).
+  pine: { h: 14.0, cap: 9000, chunk: 900 },
+  oak: { h: 9.0, cap: 9000, chunk: 900 },
+  cypress: { h: 15.0, cap: 6000, chunk: 900 },
 };
 export const FLORA_KINDS = Object.keys(SPECIES);
 export const VARIANTS = 3;

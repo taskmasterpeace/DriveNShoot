@@ -1,6 +1,6 @@
 {
   "kind": "dsoa-brush",
-  "version": 1,
+  "version": 5,
   "note": "THE BRUSH (docs/design/WEB_FORGE.md 3.4): density painted over the land, read by the chunk generator (src/world/brush.js -> src/world/chunkgen.js). Paint it in the World Forge's BRUSH tab (web/forge.html) or with the brushPaint command. A stroke is a capsule along pts (usmap metres, the map's own frame) of radius r; v 0..1; op add | sub | set; soft 0..1 is how much of r fades out. Strokes apply in order.",
   "layers": {
     "forest": "tree stems: 0 none .. 1 a closed wood",
@@ -10,27 +10,30 @@
     "rad": "radiation: poisoned ground, dead trees, glowing seeps, leaking drums"
   },
   "knobs": {
-    "forestPerHa": 92,
+    "forestPerHa": 135,
     "forestGamma": 1.15,
     "canopyDefault": 0.7,
-    "crownMin": 0.85,
-    "crownMax": 1.55,
-    "underShrubPerHa": 70,
+    "crownMin": 0.62,
+    "crownMax": 1.05,
+    "underShrubPerHa": 110,
     "brushPerHa": 150,
     "radGlowPerHa": 1.6,
     "radDrumPerHa": 0.7,
     "radDead": 0.85,
-    "tintForest": [0.58,0.68,0.46],
+    "tintForest": [0.32,0.38,0.22],
     "tintRad": [1,0.94,0.5],
-    "tintForestK": 0.62,
-    "tintRadK": 0.55
+    "tintForestK": 1,
+    "tintRadK": 0.55,
+    "spread": {"oak":1.5,"pine":1.12,"cypress":1.3},
+    "moss": [0.42,0.5,0.36],
+    "shade": {"oak":0.8,"pine":1,"cypress":0.92}
   },
   "palettes": {
-    "_": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#3f4a2c"},
-    "CALIFORNIA": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#3f4a2c"},
-    "ARIZONA": {"canopy":["pine","oak"],"under":["paloverde","mesquite"],"shrub":"#424a2e"},
-    "NEW MEXICO": {"canopy":["pine","oak"],"under":["mesquite","deadtree"],"shrub":"#454a30"},
-    "TEXAS": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#404a2c"},
+    "_": {"canopy":["oak","pine"],"under":["mesquite","pine"],"shrub":"#3f4a2c"},
+    "CALIFORNIA": {"canopy":["oak","pine"],"under":["mesquite","oak"],"shrub":"#3f4a2c"},
+    "ARIZONA": {"canopy":["pine","oak"],"under":["mesquite","pine"],"shrub":"#424a2e"},
+    "NEW MEXICO": {"canopy":["pine","oak"],"under":["mesquite","pine"],"shrub":"#454a30"},
+    "TEXAS": {"canopy":["oak","pine"],"under":["mesquite","oak"],"shrub":"#404a2c"},
     "FLORIDA": {"canopy":["cypress","oak"],"under":["fanpalm","datepalm"],"shrub":"#34442a"},
     "LOUISIANA": {"canopy":["cypress","oak"],"under":["fanpalm","deadtree"],"shrub":"#34442a"}
   },
