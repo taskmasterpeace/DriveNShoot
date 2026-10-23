@@ -120,21 +120,24 @@ Exit 9, the Seaboard Line, Miami Central), the Living World specs, and THE_COUNT
 
 Each agent gets its own worktree, branch and port, and stays in its lane; I merge, run the battery twice and land.
 
-| Agent | Builds | Status (2026-10-23 09:50) |
+| Agent | Builds | Status (2026-10-23 11:45) |
 |---|---|---|
 | World Forge gateway | the forge shell, plus tabs for the Lab, Observer, terrain and brush as they land | **merged**: `web/forge.html`, nine tabs; MAP and BRUSH edit rows live, TERRAIN/BUILDING/OBSERVE mounted, TOWN/SITE/LIFE/VOICE are cards (WEB_FORGE.md) |
 | Florida | the start region: streaming, Meridian holdout, I-95 | **merged**: I-95 + Alligator Alley stream, Meridian at exit 9 (59 walk-in buildings, 9 named people), new games start at its clinic; I-4, the Keys road and a Miami metro still to do (WEB_FLORIDA.md) |
 | The new infected | the Greyborn (societies, traps) and the Grapevine (watch, learn, strike only when they win, know only what they saw) | **merged**: traps, ASH HOLLOW, two Grapevine packs with their model of you, THE FUSED FLAT hot ground (WEB_GREYBORN_GRAPEVINE.md) |
 | Walkable vehicles | ride in a pickup's bed; walk around inside a van and an RV; the RV as a home | **merged**: decks, the RV camp, the bike rider who shoots every way, screen-true steering as a setting (WEB_WALK_VEHICLES.md) |
-| Rivers and bridges | L1 + L2: rivers carved into terrain, bridges generated at every crossing | **built, reconciling**: 211 km of real USGS rivers/washes/canals, 9 decks + 8 culverts + fords on I-10; being merged with Florida's water into one authority (WEB_RIVERS.md) |
+| Rivers and bridges | L1 + L2: rivers carved into terrain, bridges generated at every crossing | **landed**: 211 km of real USGS rivers/washes/canals, 9 decks + 8 culverts + fords on I-10; ONE water authority (`Rivers.depthAt`) with Florida's region water as its second source, one water layer (WEB_RIVERS.md) |
 | Fauna | L5 animals by biome, and the radiation-zone creatures | running |
 | Voice groundwork | dialogue rows with variations, voice casting, a batch TTS pipeline | **merged**: 172 rows, casting by flag, the VoiceForge pipeline; real voices wait on Robert setting `CUPCAKE_GATEWAY_KEY` (WEB_VOICE.md) |
-| Clone and travel | clone backups at the clinic; bus, train and air routes back to your body | running |
+| Clone and travel | clone backups at the clinic; bus, train and air routes back to your body | **landed**: pressings, husks, pickers, the SUN LINE (I-10) and SALT LINE (I-95) buses, the IRON LINE, FIVE CITY AIR; a Florida start is pressed and comes up at Meridian (WEB_CLONE_TRAVEL.md) |
 | Point-buy creator | ported from the superhero game's ORIGIN creator | **merged**: six pad-first steps, the real body on the card, saved with the game and the shard record (WEB_CREATOR.md) |
 | Underground | caves, bunker levels and secret facilities (storeys v2: basements) | running |
-| Materials (added) | what everything is made of; bullets, blasts and fire by material; blood on walls | running |
+| Materials (added) | what everything is made of; bullets, blasts and fire by material; blood on walls | **landed** (WEB_MATERIALS.md) |
 | Survival 2 (added) | climate, wounds, mood, shelter, car upkeep, dash telltales | **merged** (WEB_SURVIVAL.md) |
 | Controller (added) | pad first, the weapon bar with fire modes, grip, holster, gunpoint, melee | **merged** (WEB_CONTROLLER.md) |
+| Human-made / roadside (added: ladder rung 3) | power lines, billboards naming the real next exit, gas stations to siphon, junkyards, farm belts, a dam | running |
+| Look pass 2 (added) | the critic's list: Meridian's grit, forest floors, palms, the swamp's black slab, terrain repetition | running |
+| Dark nights (lead) | the Night setting (Dark and scary by default), a flashlight that carries | **landed** (WEB_LOOK.md §3.1b) |
 | Observer, terrain, dogs + gear (added) | watching and replaying players; real elevation; dogs that behave like dogs; the 19-slot paperdoll | **merged** |
 
 ## 4. Formulas

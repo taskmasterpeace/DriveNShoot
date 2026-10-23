@@ -1,3 +1,4 @@
+import { knowing as knowingFor } from '../data/creator.js'; // where you start decides where you are a local
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
@@ -5695,6 +5696,13 @@ async function runSelfTest(api, only = null, skip = null) {
     } finally { V.hush(ok); V.allowDev = dev; }
   }));
   await creatorChecks({ api, g, C, check, snapshot, restore, stage, hush }); // the point-buy, BEGIN, the sheet through a save, the pad alone
+  await check('creator: where you start decides where you are a local - a Floridian starting at Meridian is known to the Meridian folk, an Arizonan at Rust Haven to the Rust Haven folk, and neither the other way round', async () => {
+    const pick = (state) => ({ background: null, traits: [], state, flag: 'US' });
+    const fl = knowingFor(pick('FL'), [], 'florida').standing, az = knowingFor(pick('AZ'), [], 'phoenix').standing;
+    const flAtAz = knowingFor(pick('FL'), [], 'phoenix').standing, azAtFl = knowingFor(pick('AZ'), [], 'florida').standing;
+    const ok = fl.meridian > 0 && !fl.rusthaven && az.rusthaven > 0 && !az.meridian && !flAtAz.meridian && !flAtAz.rusthaven && !azAtFl.rusthaven && !azAtFl.meridian;
+    return ok ? true : JSON.stringify({ fl, az, flAtAz, azAtFl });
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
