@@ -11,7 +11,7 @@ import { PLATE, MOUNTS } from '../data/parts.js';
 import { K } from '../systems/chronicle.js';
 import { ITEMS, LOOT, GUN_ITEM, GUN_CARE } from '../data/items.js';
 import { ZOOM } from '../data/camera.js';
-import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
+import { DOOR, WINDOW, DOOR_MATERIALS, RING_OPENINGS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
 import { makeRng } from '../engine/rng.js';
@@ -2303,6 +2303,38 @@ async function runSelfTest(api, only = null) {
     for (let i = 0; i < 60 && g.player.vault; i++) await api._step(1);
     const dove = w2.state === 'shattered' && outSide(w2, g.player.x, g.player.z) < -0.5;
     return climbed && dove ? true : JSON.stringify({ window: w.id, climbed, started: r1(started), at: r1(outSide(w, g.player.x, g.player.z)), dive: w2.id, glass: w2.state, diveAt: r1(outSide(w2, g.player.x, g.player.z)) });
+  });
+  await check('windows: the Phoenix ring\'s windows and doors are real near you - glass and a frame, a pane shot out stays shot out after you leave and come back, a closed door swings open for you', async () => {
+    // A ring street of houses (docs/design/WEB_LOOK.md; RING_OPENINGS attach within `near` m).
+    await C('teleport', { x: 40, z: -600 }); await api._step(60);
+    // A pane whose shot line (6 m out to 3 m in) meets the pane first: ring houses stand close, and 6 m out can be the
+    // neighbour's kitchen.
+    const shotLine = (x) => { const ax = x.x + x.nx * 6, az = x.z + x.nz * 6, d = 9; g.statics.raycast(ax, az, -x.nx, -x.nz, d, RAY_BULLET); return g.statics.hit.box === x.box; };
+    const ringWin = I2.windows.find((x) => x.ring && x.state === 'intact' && clearAt(x, 3) && g.nav.foot.free(x.x + x.nx * 6, x.z + x.nz * 6) && shotLine(x));
+    if (!ringWin) return JSON.stringify({ attached: I2.ringOpen.size, windows: I2.windows.filter((x) => x.ring).length, why: 'no intact ring window with clear ground both sides' });
+    const id = ringWin.id;
+    await stageAt(ringWin, 6);
+    const t = extra('drifter', ringWin.x - ringWin.nx * 3, ringWin.z - ringWin.nz * 3, { hold: true });
+    await C('give', { pistol: 30 }); await C('equip', { weapon: 'pistol' });
+    for (let k = 0; k < 4 && ringWin.state === 'intact'; k++) await C('fire', { id: t.id, shots: 1 });
+    const shattered = ringWin.state === 'shattered';
+    g.removeChar(t);
+    // Out of range (it detaches, its state kept), then back (it attaches again as it was).
+    await C('teleport', { x: 40, z: -600 + RING_OPENINGS.far + 260 }); await api._step(60);
+    const detached = !I2.byId.has(id) && I2.ringState.get(id)?.s === 'shattered';
+    await C('teleport', { x: 40, z: -600 }); await api._step(60);
+    const back = I2.byId.get(id), kept = back?.state === 'shattered';
+    // A closed ring door, walked into.
+    const d = I2.doors.find((x) => x.ring && x.leaves.length === 1 && x.kind !== 'inner' && clearAt(x, 3));
+    let widest = 0, through = false;
+    if (d) {
+      await C('door', { id: d.id, action: 'close' });
+      await stageAt(d, 2.5);
+      await holdKey(keyFor(-d.nx, -d.nz), 3, () => { widest = Math.max(widest, Math.abs(d.leaves[0].th)); return outSide(d, g.player.x, g.player.z) < -1.6; });
+      through = outSide(d, g.player.x, g.player.z) < -1.2;
+    }
+    return shattered && detached && kept && d && widest > 0.6 && through ? true
+      : JSON.stringify({ id, shattered, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,

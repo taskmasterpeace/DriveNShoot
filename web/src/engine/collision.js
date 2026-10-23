@@ -42,7 +42,7 @@ export class StaticWorld {
     for (let i = 0; i < 64; i++) {
       const cells = new Array(CC * CC);
       for (let k = 0; k < cells.length; k++) cells[k] = [];
-      this.ring.push({ cx: 0x7fffffff, cz: 0x7fffffff, cells, boxes: EMPTY, used: false });
+      this.ring.push({ cx: 0x7fffffff, cz: 0x7fffffff, cells, boxes: EMPTY, used: false, gen: 0 });
     }
     this.chunkBoxes = 0; // boxes registered across the ring (for perf/world reports)
   }
@@ -87,7 +87,7 @@ export class StaticWorld {
     const s = this.slotOf(cx, cz);
     if (s.cx === cx && s.cz === cz && s.boxes === boxes) return;
     this.clearSlot(s);
-    s.cx = cx; s.cz = cz; s.boxes = boxes; s.used = true;
+    s.cx = cx; s.cz = cz; s.boxes = boxes; s.used = true; s.gen++;
     const gx0 = cx * CC, gz0 = cz * CC;
     for (let i = 0; i < boxes.length; i++) {
       const b = boxes[i];
@@ -102,8 +102,31 @@ export class StaticWorld {
     if (!s.used) return;
     for (let i = 0; i < s.cells.length; i++) if (s.cells[i].length) s.cells[i].length = 0;
     this.chunkBoxes -= s.boxes.length;
-    s.boxes = EMPTY; s.cx = 0x7fffffff; s.cz = 0x7fffffff; s.used = false;
+    s.boxes = EMPTY; s.cx = 0x7fffffff; s.cz = 0x7fffffff; s.used = false; s.gen++;
   }
+  // A streamed opening (a ring building's door leaf or window, systems/interiors.js) in the chunk ring: pushed into the
+  // cells of the chunks it covers that are in the ring now, and taken out again when its building detaches. A slot that
+  // changes hands (or empties) bumps its gen, so ringOpStale() tells interiors to put it back in.
+  addRingOp(op, minX, minZ, maxX, maxZ, height = 2.3) {
+    const b = { minX, minZ, maxX, maxZ, tag: op.kind, height, mark: 0, op, holes: null, holeX: false, sill: 0, base: 0, owner: null, lists: [], slots: [] };
+    this.insertRingOp(b);
+    return b;
+  }
+  insertRingOp(b) {
+    b.lists.length = 0; b.slots.length = 0;
+    const c = this.cell;
+    for (let gx = Math.floor(b.minX / c); gx <= Math.floor(b.maxX / c); gx++) for (let gz = Math.floor(b.minZ / c); gz <= Math.floor(b.maxZ / c); gz++) {
+      const s = this.ring[((gx >> 5) & 7) | (((gz >> 5) & 7) << 3)];
+      if (!b.slots.includes(s)) b.slots.push(s, s.gen);
+      const list = this.chunkCell(gx, gz);
+      if (list !== EMPTY) { list.push(b); b.lists.push(list); }
+    }
+  }
+  removeRingOp(b) {
+    for (const list of b.lists) { const i = list.indexOf(b); if (i >= 0) { list[i] = list[list.length - 1]; list.pop(); } }
+    b.lists.length = 0;
+  }
+  ringOpStale(b) { for (let i = 0; i < b.slots.length; i += 2) if (b.slots[i].gen !== b.slots[i + 1]) return true; return false; }
   // The list in global 8 m cell (gx, gz), or EMPTY when its chunk is not in the ring.
   chunkCell(gx, gz) {
     const cx = gx >> 5, cz = gz >> 5, s = this.ring[(cx & 7) | ((cz & 7) << 3)];

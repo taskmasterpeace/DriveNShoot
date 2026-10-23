@@ -44,6 +44,27 @@ export const WINDOW = {
   diveCut: 7,          // damage from diving through intact glass
 };
 
+// What a window looks like (systems/interiors.js buildMeshes): a window was a slot from the sill to the roof with a thin
+// slab of glass in it, and from the game camera it read as a gap in the wall (Robert, 2026-10-23: "this doesn't have
+// good windows... make sure they look like windows"). Now: the wall closes over it (a lintel in the building's own
+// colour), a painted frame round the opening, a mullion and a transom across the glass (gone with the glass when it is
+// shot out), a sill that sticks out, and in Rust Haven painted shutters. A ruin's frame is bare and a shutter may hang
+// off one hinge. Colours: no purple (hue 270-320 is banned).
+export const WINDOW_LOOK = {
+  frame: { w: 0.09, depth: 0.5, town: ['#e8dcc0', '#d9c9a4', '#f0e6cf', '#2f6f78'], ruins: ['#8a857c', '#7a746a', '#9a8f7c'] },
+  sill: { out: 0.22, depth: 0.3, h: 0.07, color: '#d8cfbc' },
+  bars: { w: 0.06, transom: 0.68, color: '#4a3a2a' },   // mullion and transom; transom at this share of the opening
+  shutter: { town: 0.6, ruins: 0.15, w: 0.55, out: 0.27, colors: ['#2f7f8a', '#3f6fa8', '#5f7f22', '#b8452f', '#d9861a', '#e8dcc0'] },
+};
+
+// The Phoenix ring's doors and windows (systems/interiors.js, the streamed section). The ring has thousands of buildings,
+// so their openings are real (leaves that swing, glass that breaks, boards, climbing through) only round the player: a
+// building's openings attach within `near` m of you and detach past `far` (checked every `every` s), into a fixed pool
+// (`windows`, `doors`) so nothing allocates a mesh at runtime. What happened to them is kept by id (a shattered window
+// stays shattered when you come back, and in the save). Past `far` a ring opening is the gap it always was.
+//   innerOpen: the share of a ring building's inside doors left standing open (nobody shuts doors in a dead city)
+export const RING_OPENINGS = { near: 110, far: 150, every: 0.5, buildPerScan: 6, windows: 480, doors: 220, innerOpen: 0.6, ajar: 0.35, metal: 0.2 };
+
 // Opening states at boot, per district: [intact, shattered, boarded] weights.
 export const WINDOW_MIX = {
   town: [0.72, 0.0, 0.28],

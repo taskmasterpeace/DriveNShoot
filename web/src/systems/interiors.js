@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RAY_SOLID, RAY_SIGHT, RAY_BULLET } from '../engine/collision.js';
-import { DOOR, DOOR_MATERIALS, WINDOW } from '../data/interiors.js';
+import { DOOR, DOOR_MATERIALS, WINDOW, WINDOW_LOOK, WINDOW_MIX, RING_OPENINGS as RO } from '../data/interiors.js';
 import { glassMaterial } from './carcombat.js';
 import { windowGlassTexture } from '../world/textures.js';
 
@@ -27,6 +27,8 @@ const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _p = { x: 0, z: 0 };
 const r1 = (v) => Math.round(v * 10) / 10;
 const frac = (v) => v - Math.floor(v);
+const drop = (arr, x) => { const i = arr.indexOf(x); if (i >= 0) { arr[i] = arr[arr.length - 1]; arr.pop(); } };
+const FRAME_N = 8; // frame pieces a ring window may need (frameItems)
 
 export class Interiors {
   constructor(game) {
@@ -42,54 +44,66 @@ export class Interiors {
     const statics = game.statics;
     const world = game.world;
 
-    // ---- doors ----------------------------------------------------------------------------------
-    for (const row of world.doors) {
-      const mat = DOOR_MATERIALS[row.material] ?? DOOR_MATERIALS.wood;
-      const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
-      const door = {
-        id: row.id, row, kind: row.kind, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width,
-        material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
-        bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1,
-      };
-      const half = row.width / 2;
-      // Hinges sit just inside each end of the opening, so an open leaf clears the wall's face.
-      const ends = row.leaves === 2 ? [-1, 1] : [row.hinge];
-      for (const e of ends) {
-        const len = row.leaves === 2 ? half - 0.08 : row.width - 0.1;
-        const hx = row.x + ux * e * (half - 0.06), hz = row.z + uz * e * (half - 0.06);
-        // Closed, the leaf points from its hinge into the opening.
-        const phi0 = Math.atan2(-uz * e, -ux * e);
-        const L = { kind: 'leaf', door, hx, hz, phi0, len, th: 0, w: 0, slot: this.leaves.length, dx: 1, dz: 0, px: 0, pz: 1,
-          pusher: null, pushT: -9, jamT: 0, active: false, isDirty: false, th0: 0 };
-        door.leaves.push(L);
-        this.leaves.push(L);
-        statics.addOp(L, hx - len - 0.2, hz - len - 0.2, hx + len + 0.2, hz + len + 0.2, DOOR.height);
-      }
-      if (row.leaves === 1) { const L = door.leaves[0]; door.lockX = L.hx + Math.cos(L.phi0) * (L.len - 0.12); door.lockZ = L.hz + Math.sin(L.phi0) * (L.len - 0.12); }
-      // Ruins hang some doors ajar (split between the leaves of a double door).
-      door.leaves.forEach((L, k) => { L.th0 = L.th = (row.open ?? 0) * (k ? -0.8 : 1); this.orient(L); });
-      this.doors.push(door);
-      this.byId.set(door.id, door);
-    }
-
-    // ---- windows --------------------------------------------------------------------------------
-    for (const row of world.windows) {
-      const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
-      const W = {
-        kind: 'window', id: row.id, row, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
-        ax: row.x - ux * row.width / 2, az: row.z - uz * row.width / 2, state: row.state, hp: row.state === 'intact' ? WINDOW.hp : 0,
-        boardHp: row.state === 'boarded' ? WINDOW.boardHp : 0, boardSide: row.boardSide ?? -1, hits: 0, slot: this.windows.length, bi: row.b, planks: row.state === 'boarded' ? 3 : 0,
-        roll: [frac(row.x * 7.3 + row.z * 3.1) * 0.3 - 0.15, frac(row.x * 1.7 + row.z * 9.7) * 0.3 - 0.15, frac(row.x * 5.1 + row.z * 2.3) * 0.3 - 0.15], // planks nailed up crooked
-      };
-      this.windows.push(W);
-      this.byId.set(W.id, W);
-      // Its entry covers the opening and the sill's faces: what a mover pressing against it overlaps.
-      statics.addOp(W, row.x - ux * (W.half + 0.1) - uz * 0.5, row.z - uz * (W.half + 0.1) - ux * 0.5, row.x + ux * (W.half + 0.1) + uz * 0.5, row.z + uz * (W.half + 0.1) + ux * 0.5, WINDOW.top);
-    }
+    // ---- doors and windows: the island's at boot (the ring's attach near the player: ringScan) ------------------
+    const reg = (op, x0, z0, x1, z1, h) => statics.addOp(op, x0, z0, x1, z1, h);
+    for (const row of world.doors) this.makeDoor(row, reg, () => this.leaves.length);
+    for (const row of world.windows) this.makeWindow(row, reg, this.windows.length);
+    this.nIslandDoors = this.doors.length; this.nIslandLeaves = this.leaves.length; this.nIslandWindows = this.windows.length;
+    // The ring's pool (data/interiors.js RING_OPENINGS): leaf and window slots after the island's, handed out and back.
+    this.ringOpen = new Map();      // building id -> { doors, windows, boxes }
+    this.ringState = new Map();     // opening id -> what happened to it (kept while its building is detached, and saved)
+    this.ringT = 0;
+    this.freeLeaf = []; this.freeWin = [];
 
     this.buildMeshes(game.scene);
     statics.ops = this;
     for (const d of this.doors) if (d.locked) this.navBlock(d, true);
+  }
+
+  // One door row: its leaves on their hinges, each an op registered by reg (the island grid, or the chunk ring).
+  makeDoor(row, reg, slotOf) {
+    const mat = DOOR_MATERIALS[row.material] ?? DOOR_MATERIALS.wood;
+    const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
+    const door = {
+      id: row.id, row, kind: row.kind, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width,
+      material: row.material, mat, color: row.color, locked: !!row.locked, lockHp: mat.lockHp, kicks: mat.kicks,
+      bi: row.b, leaves: [], lockX: row.x, lockZ: row.z, nav: null, lockSlot: -1, boxes: [],
+    };
+    const half = row.width / 2;
+    // Hinges sit just inside each end of the opening, so an open leaf clears the wall's face.
+    const ends = row.leaves === 2 ? [-1, 1] : [row.hinge];
+    for (const e of ends) {
+      const len = row.leaves === 2 ? half - 0.08 : row.width - 0.1;
+      const hx = row.x + ux * e * (half - 0.06), hz = row.z + uz * e * (half - 0.06);
+      // Closed, the leaf points from its hinge into the opening.
+      const phi0 = Math.atan2(-uz * e, -ux * e);
+      const L = { kind: 'leaf', door, hx, hz, phi0, len, th: 0, w: 0, slot: slotOf(), dx: 1, dz: 0, px: 0, pz: 1,
+        pusher: null, pushT: -9, jamT: 0, active: false, isDirty: false, th0: 0 };
+      door.leaves.push(L);
+      this.leaves.push(L);
+      door.boxes.push(reg(L, hx - len - 0.2, hz - len - 0.2, hx + len + 0.2, hz + len + 0.2, DOOR.height));
+    }
+    if (row.leaves === 1) { const L = door.leaves[0]; door.lockX = L.hx + Math.cos(L.phi0) * (L.len - 0.12); door.lockZ = L.hz + Math.sin(L.phi0) * (L.len - 0.12); }
+    // Ruins hang some doors ajar (split between the leaves of a double door).
+    door.leaves.forEach((L, k) => { L.th0 = L.th = (row.open ?? 0) * (k ? -0.8 : 1); this.orient(L); });
+    this.doors.push(door);
+    this.byId.set(door.id, door);
+    return door;
+  }
+
+  makeWindow(row, reg, slot) {
+    const ux = row.axis === 'x' ? 1 : 0, uz = row.axis === 'x' ? 0 : 1;
+    const W = {
+      kind: 'window', id: row.id, row, x: row.x, z: row.z, axis: row.axis, ux, uz, nx: row.nx, nz: row.nz, width: row.width, half: row.width / 2,
+      ax: row.x - ux * row.width / 2, az: row.z - uz * row.width / 2, state: row.state, hp: row.state === 'intact' ? WINDOW.hp : 0,
+      boardHp: row.state === 'boarded' ? WINDOW.boardHp : 0, boardSide: row.boardSide ?? -1, hits: 0, slot, bi: row.b, planks: row.state === 'boarded' ? 3 : 0,
+      roll: [frac(row.x * 7.3 + row.z * 3.1) * 0.3 - 0.15, frac(row.x * 1.7 + row.z * 9.7) * 0.3 - 0.15, frac(row.x * 5.1 + row.z * 2.3) * 0.3 - 0.15], // planks nailed up crooked
+    };
+    this.windows.push(W);
+    this.byId.set(W.id, W);
+    // Its entry covers the opening and the sill's faces: what a mover pressing against it overlaps.
+    W.box = reg(W, row.x - ux * (W.half + 0.1) - uz * 0.5, row.z - uz * (W.half + 0.1) - ux * 0.5, row.x + ux * (W.half + 0.1) + uz * 0.5, row.z + uz * (W.half + 0.1) + ux * 0.5, WINDOW.top);
+    return W;
   }
 
   // ---- geometry -----------------------------------------------------------------------------------
@@ -234,6 +248,7 @@ export class Interiors {
   update(dt) {
     if (!(dt > 0)) return;
     this.dt = dt;
+    if ((this.ringT -= dt) <= 0) { this.ringT = RO.every; this.ringScan(); }
     const g = this.g, P = g.player, time = g.time, A = this.active;
     for (let i = A.length - 1; i >= 0; i--) {
       const L = A[i];
@@ -531,8 +546,11 @@ export class Interiors {
     let best = null, bd = 1.9;
     const S = this.g.statics, x0 = S.ci(p.x - 2), x1 = S.ci(p.x + 2), z0 = S.ci(p.z - 2), z1 = S.ci(p.z + 2);
     const stamp = ++S.stamp;
-    for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
-      const list = S.cells[cz * S.n + cx];
+    const lists = this._lists ?? (this._lists = []);
+    lists.length = 0;
+    for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) lists.push(S.cells[cz * S.n + cx]);
+    if (this.ringOpen.size) for (let gx = Math.floor((p.x - 2) / S.cell); gx <= Math.floor((p.x + 2) / S.cell); gx++) for (let gz = Math.floor((p.z - 2) / S.cell); gz <= Math.floor((p.z + 2) / S.cell); gz++) lists.push(S.chunkCell(gx, gz));
+    for (const list of lists) {
       for (let i = 0; i < list.length; i++) {
         const b = list[i];
         if (!b.op || b.mark === stamp) continue;
@@ -628,48 +646,127 @@ export class Interiors {
   buildMeshes(scene) {
     const box = new THREE.BoxGeometry(1, 1, 1);
     const nd = this.doors.length, nl = this.leaves.length, nw = this.windows.length;
-    // Leaves and padlocks: one mesh.
+    const WR = RO.windows, LR = RO.doors * 2, NW = nw + WR; // the ring's pool after the island's slots
+    // Leaves and padlocks: one mesh (the island's leaves, its padlocks, then the ring's leaf pool).
     // No shadow pass for leaves or boards: from the top-down camera it never reads, and each pass is a
     // draw call.
-    this.leafMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0.18 }), Math.max(1, nl + nd));
+    this.leafMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0.18 }), nl + nd + LR);
+    for (let i = nl + nd + LR - 1; i >= nl + nd; i--) { this.leafMesh.setMatrixAt(i, ZERO); this.leafMesh.setColorAt(i, _c.set('#8a6a44')); this.freeLeaf.push(i); }
+    for (let i = NW - 1; i >= nw; i--) this.freeWin.push(i);
     this.leafMesh.receiveShadow = true;
     for (const L of this.leaves) { this.leafMesh.setColorAt(L.slot, _c.set(L.door.color)); this.writeLeaf(L); }
     this.doors.forEach((d, k) => { d.lockSlot = nl + k; this.leafMesh.setColorAt(d.lockSlot, _c.set(d.mat.lock)); this.syncLock(d, true); });
     this.leafMesh.instanceColor.needsUpdate = true;
     this.leafMesh.computeBoundingSphere();
+    this.leafMesh.frustumCulled = false; // the ring's leaves attach anywhere
     scene.add(this.leafMesh);
 
     // Glass: the car glass's crack and shatter shader (clearer glass) on a thin slab, so it also
     // reads from straight above.
     const gGeo = new THREE.BoxGeometry(1, 1, 1);
-    this.aCrack = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, nw)), 1);
-    const shape = new Float32Array(Math.max(1, nw) * 2);
-    for (let i = 0; i < nw; i++) shape[i * 2] = 1;
+    this.aCrack = new THREE.InstancedBufferAttribute(new Float32Array(NW), 1);
+    const shape = new Float32Array(NW * 2);
+    for (let i = 0; i < NW; i++) shape[i * 2] = 1;
     gGeo.setAttribute('aCrack', this.aCrack);
     gGeo.setAttribute('aShape', new THREE.InstancedBufferAttribute(shape, 2));
     const gMat = glassMaterial({ map: windowGlassTexture(), opacity: 0.5 });
     gMat.forceSinglePass = true; // a thin slab needs no back-faces-first pass: one draw call, not two
-    this.glassMesh = new THREE.InstancedMesh(gGeo, gMat, Math.max(1, nw));
+    this.glassMesh = new THREE.InstancedMesh(gGeo, gMat, NW);
+    for (let i = nw; i < NW; i++) this.glassMesh.setMatrixAt(i, ZERO);
     this.glassMesh.renderOrder = 2;
-    for (const W of this.windows) {
-      _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z);
-      _o.rotation.set(0, W.axis === 'x' ? 0 : Math.PI / 2, 0);
-      _o.scale.set(W.width - 0.04, WINDOW.top - WINDOW.sill, 0.1);
-      _o.updateMatrix();
-      this.glassMesh.setMatrixAt(W.slot, _o.matrix);
-      this.syncGlass(W, true);
-    }
+    for (const W of this.windows) this.placeGlass(W, true);
     this.glassMesh.computeBoundingSphere();
+    this.glassMesh.frustumCulled = false;
     scene.add(this.glassMesh);
+
+    this.buildFrames(scene);
 
     // Boards: three planks a window, nailed across the side they were put up from. Packed: only planks
     // that are up are instances (re-packed when a window is boarded or its boards break).
-    this.boardMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.92 }), Math.max(1, nw * 3));
+    this.boardMesh = new THREE.InstancedMesh(box, new THREE.MeshStandardMaterial({ roughness: 0.92 }), NW * 3);
     this.boardMesh.receiveShadow = true;
     this.boardMesh.setColorAt(0, _c.set('#8a6a44'));
     this.packBoards();
     this.boardMesh.frustumCulled = false;
     scene.add(this.boardMesh);
+  }
+
+  // What makes a window read as one (data/interiors.js WINDOW_LOOK): the lintel closing the wall above it, the painted
+  // frame, the sill, shutters; one static mesh. The mullion and transom are their own mesh: they go when the glass does.
+  buildFrames(scene) {
+    const items = [], nw = this.windows.length;
+    for (const W of this.windows) this.frameItems(W, items);
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.05 });
+    // The island's frames packed, then FRAME_N slots for each of the ring's window slots (written when one attaches).
+    this.frameBase = items.length;
+    const total = items.length + RO.windows * FRAME_N;
+    this.frameMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, total);
+    items.forEach((it, i) => this.writeFrame(i, it));
+    for (let i = items.length; i < total; i++) { this.frameMesh.setMatrixAt(i, ZERO); this.frameMesh.setColorAt(i, _c.set('#8a857c')); }
+    this.frameMesh.count = total;
+    this.frameMesh.receiveShadow = true; this.frameMesh.castShadow = true;
+    this.frameMesh.computeBoundingSphere();
+    this.frameMesh.frustumCulled = false; // ring windows come and go anywhere
+    scene.add(this.frameMesh);
+    // Mullion and transom: two bars a window, in the glass's plane.
+    const NW = nw + RO.windows;
+    this.barMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: WINDOW_LOOK.bars.color, roughness: 0.8 }), NW * 2);
+    this.barMesh.count = NW * 2;
+    for (let i = nw * 2; i < NW * 2; i++) this.barMesh.setMatrixAt(i, ZERO);
+    for (const W of this.windows) this.syncBars(W, true);
+    this.barMesh.frustumCulled = false;
+    scene.add(this.barMesh);
+  }
+
+  // A window's frame pieces (WINDOW_LOOK), at most FRAME_N: lintel, two jambs, head, sill, two shutters.
+  frameItems(W, items) {
+    const L = WINDOW_LOOK, b = W.bi >= 0 ? this.g.world.buildings[W.bi] : null, town = b?.district === 'town';
+    const hash = (k) => frac(W.x * (3.7 + k) + W.z * (1.3 + k * 2.1));
+    // A box in the window's own frame: a along the wall from its centre, y up, n out of the wall.
+    const put = (a, y, n, sa, sy, sn, color, roll = 0) => items.push({ x: W.x + W.ux * a + W.nx * n, y, z: W.z + W.uz * a + W.nz * n, sa, sy, sn, color, yaw: W.axis === 'x' ? 0 : Math.PI / 2, roll });
+    const wallH = W.row.wallH ?? b?.h ?? WINDOW.top, T = W.row.t ?? 0.5;
+    const pal = town ? L.frame.town : L.frame.ruins, frame = pal[Math.floor(hash(0) * pal.length)];
+    const oh = WINDOW.top - WINDOW.sill, fw = L.frame.w;
+    if (wallH > WINDOW.top + 0.05) put(0, (WINDOW.top + wallH) / 2, 0, W.width, wallH - WINDOW.top, T, W.row.color ?? b?.color ?? '#a39b8d'); // the lintel: the wall goes on over the window
+    for (const s of [-1, 1]) put(s * (W.half - fw / 2), (WINDOW.sill + WINDOW.top) / 2, 0, fw, oh, L.frame.depth, frame);
+    put(0, WINDOW.top - fw / 2, 0, W.width, fw, L.frame.depth, frame);
+    put(0, WINDOW.sill, L.sill.out, W.width + 0.24, L.sill.h, L.sill.depth, L.sill.color);
+    // Shutters, outside, either side: Rust Haven paints them; a ruin's may hang off one hinge.
+    if (hash(3) < (town ? L.shutter.town : L.shutter.ruins)) {
+      const col = L.shutter.colors[Math.floor(hash(4) * L.shutter.colors.length)];
+      for (const s of [-1, 1]) {
+        const loose = !town && s > 0;
+        put(s * (W.half + L.shutter.w / 2 + 0.04), (WINDOW.sill + WINDOW.top) / 2 - (loose ? 0.25 : 0), T / 2 + 0.05, L.shutter.w, oh, 0.05, col, loose ? 0.5 : 0);
+      }
+    }
+    return items;
+  }
+
+  writeFrame(i, it) {
+    if (!it) { this.frameMesh.setMatrixAt(i, ZERO); return; }
+    _o.position.set(it.x, it.y, it.z); _o.rotation.set(0, it.yaw, it.roll); _o.scale.set(it.sa, it.sy, it.sn); _o.updateMatrix();
+    this.frameMesh.setMatrixAt(i, _o.matrix); this.frameMesh.setColorAt(i, _c.set(it.color));
+  }
+
+  placeGlass(W, boot = false) {
+    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z);
+    _o.rotation.set(0, W.axis === 'x' ? 0 : Math.PI / 2, 0);
+    _o.scale.set(W.width - 0.04, WINDOW.top - WINDOW.sill, 0.1);
+    _o.updateMatrix();
+    this.glassMesh.setMatrixAt(W.slot, _o.matrix);
+    this.syncGlass(W, boot);
+  }
+
+  syncBars(W, boot = false) {
+    if (!this.barMesh) return;
+    const L = WINDOW_LOOK.bars, oh = WINDOW.top - WINDOW.sill, on = W.state !== 'shattered' ? 1 : 0;
+    const yaw = W.axis === 'x' ? 0 : Math.PI / 2;
+    _o.rotation.set(0, yaw, 0);
+    _o.position.set(W.x, (WINDOW.sill + WINDOW.top) / 2, W.z); _o.scale.set(L.w * on, oh * on, 0.12 * on); _o.updateMatrix();
+    this.barMesh.setMatrixAt(W.slot * 2, _o.matrix);
+    _o.position.set(W.x, WINDOW.sill + oh * L.transom, W.z); _o.scale.set(W.width * on, L.w * on, 0.12 * on); _o.updateMatrix();
+    this.barMesh.setMatrixAt(W.slot * 2 + 1, _o.matrix);
+    if (!boot) this.barMesh.instanceMatrix.needsUpdate = true;
   }
 
   packBoards() {
@@ -712,6 +809,7 @@ export class Interiors {
   // A locked door is chained shut: a rust-orange chain bar across the opening on its outer face, past
   // the frame onto the wall, so it reads from straight above. Gone (in pieces) once the lock is.
   syncLock(door, boot = false) {
+    if (door.lockSlot < 0) return; // a ring door: never locked, no padlock slot
     if (door.locked) {
       _o.position.set(door.x + door.nx * 0.32, 1.15, door.z + door.nz * 0.32);
       _o.rotation.set(0, door.axis === 'x' ? 0 : Math.PI / 2, 0);
@@ -725,7 +823,7 @@ export class Interiors {
   syncGlass(W, boot = false) {
     // 0..1 the crack web spreading; 2 shot out (the shards still in the frame).
     this.aCrack.array[W.slot] = W.state === 'intact' ? 1 - W.hp / WINDOW.hp : 2;
-    if (!boot) this.aCrack.needsUpdate = true;
+    if (!boot) { this.aCrack.needsUpdate = true; this.syncBars(W); }
   }
 
   // A window's boards changed (put up, splintered down a plank, torn off): re-pack the planks.
@@ -734,6 +832,134 @@ export class Interiors {
     if (up === W.planks) return;
     W.planks = up;
     if (this.boardMesh) this.packBoards();
+  }
+
+  // ---- the Phoenix ring's openings (streamed) -------------------------------------------------------------------------
+  // A ring building's doors and windows are gaps in its walls until you come near (RING_OPENINGS): within `near` m its
+  // rows (world/ring.js geo: doors, innerDoors, windows) become leaves and windows like the island's, their ops in the
+  // chunk ring's cells (StaticWorld.addRingOp), their meshes in the pool slots; past `far` they detach, and whatever
+  // happened to them waits in ringState under their ids.
+  ringScan() {
+    const g = this.g, S = g.streamer, RG = S?.W?.ring, P = g.player;
+    if (!RG || !S.hot) return;
+    const near = RO.near, far = RO.far, seen = this._seen ?? (this._seen = new Set());
+    seen.clear();
+    let builds = RO.buildPerScan; // a lot whose shell the ring's cache dropped is rebuilt here, a few a scan (0.1-1 ms each)
+    for (const L of S.hot.values()) {
+      const list = L.ring?.bld;
+      if (!list) continue;
+      for (const b of list) {
+        if (seen.has(b.id)) continue;
+        seen.add(b.id);
+        const dx = Math.max(b.x0 - P.x, 0, P.x - b.x1), dz = Math.max(b.z0 - P.z, 0, P.z - b.z1);
+        if (dx > near || dz > near || dx * dx + dz * dz > near * near || this.ringOpen.has(b.id)) continue;
+        const lot = RG.lotById(b.id);
+        if (!lot) continue;
+        if (!lot.geo) { if (builds <= 0) continue; builds--; }
+        this.attachRing(b.id, lot, RG.geo(lot));
+      }
+    }
+    for (const [id, rec] of this.ringOpen) {
+      const dx = Math.max(rec.x0 - P.x, 0, P.x - rec.x1), dz = Math.max(rec.z0 - P.z, 0, P.z - rec.z1);
+      if (!seen.has(id) || dx * dx + dz * dz > far * far) { this.detachRing(id); continue; }
+      // A chunk slot that changed hands emptied its cells: put the openings back.
+      for (const box of rec.boxes) if (g.statics.ringOpStale(box)) { g.statics.removeRingOp(box); g.statics.insertRingOp(box); }
+    }
+  }
+
+  attachRing(id, lot, geo) {
+    const g = this.g, st = g.statics, rec = { id, x0: lot.x0, z0: lot.z0, x1: lot.x1, z1: lot.z1, doors: [], windows: [], boxes: [] };
+    const reg = (op, x0, z0, x1, z1, h) => { const b = st.addRingOp(op, x0, z0, x1, z1, h); rec.boxes.push(b); return b; };
+    const h01 = (x, z, k) => frac(Math.sin(x * (12.9898 + k) + z * (78.233 - k)) * 43758.5453);
+    const ruined = !!lot.ruined;
+    // Doors: the front and back doors in the outer walls (a bay's roll-up and a barricaded door stay as they are), and
+    // the inside doorways between rooms.
+    const rows = [];
+    geo.doors.forEach((d, k) => {
+      if (d.kind === 'bay' || d.barricade) return;
+      rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
+        leaves: d.kind === 'front' && d.w >= 2.3 ? 2 : 1, inner: false });
+    });
+    (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, axis: d.axis, width: d.w - 0.1,
+      nx: d.axis === 'x' ? 0 : 1, nz: d.axis === 'x' ? 1 : 0, leaves: 1, inner: true }));
+    for (const r of rows) {
+      if (this.freeLeaf.length < r.leaves) break; // the pool is full: these stay gaps
+      if (ruined && h01(r.x, r.z, 1) < 0.4) continue; // a ruin lost some of its doors
+      r.hinge = h01(r.x, r.z, 2) < 0.5 ? -1 : 1;
+      r.material = h01(r.x, r.z, 3) < RO.metal && !r.inner ? 'metal' : 'wood';
+      r.color = DOOR_MATERIALS[r.material].colors[Math.floor(h01(r.x, r.z, 4) * DOOR_MATERIALS[r.material].colors.length)];
+      r.locked = false; r.b = -1;
+      const swing = (h01(r.x, r.z, 5) < 0.5 ? 1 : -1) * (1.1 + 0.6 * h01(r.x, r.z, 6));
+      r.open = r.inner ? (h01(r.x, r.z, 7) < RO.innerOpen ? swing : 0) : (h01(r.x, r.z, 8) < (ruined ? 0.5 : RO.ajar) ? swing * 0.7 : 0);
+      const door = this.makeDoor(r, reg, () => this.freeLeaf.pop());
+      door.ring = id;
+      for (const L of door.leaves) this.leafMesh.setColorAt(L.slot, _c.set(door.color));
+      const v = this.ringState.get(r.id);
+      if (v) door.leaves.forEach((L, k) => { L.th = v.a[k] ?? L.th; this.orient(L); });
+      rec.doors.push(door);
+    }
+    // Windows: glass, frame, boards.
+    geo.windows.forEach((w, k) => {
+      if (!this.freeWin.length) return;
+      const mix = WINDOW_MIX[w.ruined ? 'ruined' : 'ruins'], q = h01(w.x, w.z, 9);
+      const row = { ...w, id: `${id}:w${k}`, state: q < mix[0] ? 'intact' : q < mix[0] + mix[1] ? 'shattered' : 'boarded', boardSide: h01(w.x, w.z, 10) < 0.75 ? -1 : 1, b: -1 };
+      const W = this.makeWindow(row, reg, this.freeWin.pop());
+      W.ring = id;
+      const v = this.ringState.get(row.id);
+      if (v) { W.state = v.s; W.hp = W.state === 'intact' ? v.hp : 0; W.boardHp = W.state === 'boarded' ? v.b : 0; W.boardSide = v.sd; }
+      W.planks = W.state === 'boarded' ? Math.ceil(3 * W.boardHp / WINDOW.boardHp) : 0;
+      this.placeGlass(W, true);
+      this.syncBars(W, true);
+      const items = this.frameItems(W, []), base = this.frameBase + (W.slot - this.nIslandWindows) * FRAME_N;
+      for (let i = 0; i < FRAME_N; i++) this.writeFrame(base + i, items[i]);
+      rec.windows.push(W);
+    });
+    this.ringOpen.set(id, rec);
+    this.flushRing(rec.windows.some((W) => W.state === 'boarded'));
+  }
+
+  detachRing(id) {
+    const rec = this.ringOpen.get(id);
+    if (!rec) return;
+    const st = this.g.statics;
+    for (const b of rec.boxes) st.removeRingOp(b);
+    for (const door of rec.doors) {
+      const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
+      if (moved) this.ringState.set(door.id, { a: door.leaves.map((L) => +L.th.toFixed(3)) }); else this.ringState.delete(door.id);
+      for (const L of door.leaves) {
+        this.leafMesh.setMatrixAt(L.slot, ZERO); this.freeLeaf.push(L.slot);
+        L.active = false; L.isDirty = false;
+        drop(this.leaves, L); drop(this.active, L); drop(this.dirty, L);
+      }
+      drop(this.doors, door); this.byId.delete(door.id);
+    }
+    let boards = false;
+    for (const W of rec.windows) {
+      if (W.state !== W.row.state || (W.state === 'intact' && W.hp < WINDOW.hp) || (W.state === 'boarded' && W.boardHp < WINDOW.boardHp))
+        this.ringState.set(W.id, { s: W.state, hp: Math.round(W.hp), b: Math.round(W.boardHp), sd: W.boardSide });
+      else this.ringState.delete(W.id);
+      if (W.state === 'boarded') boards = true;
+      this.glassMesh.setMatrixAt(W.slot, ZERO);
+      this.barMesh.setMatrixAt(W.slot * 2, ZERO); this.barMesh.setMatrixAt(W.slot * 2 + 1, ZERO);
+      const base = this.frameBase + (W.slot - this.nIslandWindows) * FRAME_N;
+      for (let i = 0; i < FRAME_N; i++) this.frameMesh.setMatrixAt(base + i, ZERO);
+      this.freeWin.push(W.slot);
+      drop(this.windows, W); this.byId.delete(W.id);
+      if (this.holdOn === W) { this.holdOn = null; this.hold = 0; }
+    }
+    this.ringOpen.delete(id);
+    this.flushRing(boards);
+  }
+
+  flushRing(boards) {
+    this.leafMesh.instanceMatrix.needsUpdate = true;
+    if (this.leafMesh.instanceColor) this.leafMesh.instanceColor.needsUpdate = true;
+    this.glassMesh.instanceMatrix.needsUpdate = true; this.aCrack.needsUpdate = true;
+    this.barMesh.instanceMatrix.needsUpdate = true;
+    this.frameMesh.instanceMatrix.needsUpdate = true;
+    if (this.frameMesh.instanceColor) this.frameMesh.instanceColor.needsUpdate = true;
+    if (boards) this.packBoards();
+    this.flush();
   }
 
   // ---- agent views + save -------------------------------------------------------------------------
@@ -776,10 +1002,18 @@ export class Interiors {
     for (const W of this.windows)
       if (W.state !== W.row.state || (W.state === 'intact' && W.hp < WINDOW.hp) || (W.state === 'boarded' && W.boardHp < WINDOW.boardHp))
         w[W.id] = { s: W.state, hp: Math.round(W.hp), b: Math.round(W.boardHp), sd: W.boardSide };
+    // The ring's openings that are detached now: what happened to them waits in ringState (ids are `<lot>:d|i|w<k>`).
+    for (const [id, v] of this.ringState) if (!this.byId.has(id)) (/:w\d+$/.test(id) ? w : d)[id] = v;
     return { d, w };
   }
 
   load(s) {
+    // The ring's: detach every one (the save is the truth), keep the save's entries for when they attach again.
+    for (const id of [...this.ringOpen.keys()]) this.detachRing(id);
+    this.ringState.clear();
+    for (const [k, v] of Object.entries(s?.d ?? {})) if (k.includes(':')) this.ringState.set(k, v);
+    for (const [k, v] of Object.entries(s?.w ?? {})) if (k.includes(':')) this.ringState.set(k, v);
+    this.ringT = 0;
     for (const door of this.doors) {
       const v = s?.d?.[door.id];
       door.leaves.forEach((L, k) => { L.th = v ? v.a[k] ?? 0 : L.th0; L.w = 0; L.jamT = 0; this.orient(L); });

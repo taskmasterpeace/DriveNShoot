@@ -228,6 +228,13 @@ export class Ring {
     for (const L of b.lots) if (!L.empty) { L.ruined = rngOf(L.seed)() < Z.ruin * (b.zone === 'ruins' ? 1 : 1); L.blockKey = `${b.k},${b.j}`; }
   }
 
+  // A lot by its id (R<k>.<j>.<n>): its block's lots (cached).
+  lotById(id) {
+    const m = /^R(-?\d+)\.(-?\d+)\./.exec(id);
+    if (!m) return null;
+    return this.block(+m[1], +m[2]).lots.find((L) => L.id === id) ?? null;
+  }
+
   // ---- ownership and the per-chunk budget ---------------------------------------------------------------------------
   blocksOver(x0, z0, x1, z1, fn) {
     for (let k = Math.floor(x0 / G); k <= Math.floor(x1 / G); k++) for (let j = Math.floor(z0 / G); j <= Math.floor(z1 / G); j++) fn(this.block(k, j));
@@ -392,7 +399,7 @@ export class Ring {
     if (L.geo) return L.geo;
     this.geoBuilt++;
     const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
-    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [] });
+    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [], windows: [], innerDoors: [] });
     const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
     const h = rng.range(K.h[0], K.h[1]);
     const wall = rng.pick(Z.walls), roof = rng.pick(Z.roofs), floor = rng.pick(Z.floors);
@@ -502,6 +509,9 @@ export class Ring {
           this.piece(g.walls, horizontal, fixed, c0, c - W2, 0, h, wall, 1);
           this.piece(g.walls, horizontal, fixed, c - W2, c + W2, 0, RING.sill, wall, 1.18);
           holes.push(c - W2, c + W2);
+          // The window as a row (systems/interiors.js attaches glass, frame, boards near the player).
+          g.windows.push({ x: horizontal ? c : fixed, z: horizontal ? fixed : c, axis: horizontal ? 'x' : 'z', width: RING.window,
+            nx: S === 'W' ? -1 : S === 'E' ? 1 : 0, nz: S === 'N' ? -1 : S === 'S' ? 1 : 0, wallH: h, t: T, color: wall, ruined });
           c0 = c + W2;
         }
         this.piece(g.walls, horizontal, fixed, c0, e, 0, h, wall, 1);
@@ -523,6 +533,7 @@ export class Ring {
         if (e - cur > 0.2) { this.piece(g.walls, P.horizontal, P.fixed, cur, e, 0, hh, wall, 0.94); g.boxes.push(this.wallBox(P.horizontal, P.fixed, cur, e, hh, 'wall', null)); }
         cur = gp.at + gp.w / 2;
         const x = P.horizontal ? gp.at : P.fixed, z = P.horizontal ? P.fixed : gp.at;
+        g.innerDoors.push({ x, z, axis: P.horizontal ? 'x' : 'z', w: gp.w }); // a leaf hangs here near the player (interiors.js)
         keep.push([x + (P.horizontal ? 0 : 1.1), z + (P.horizontal ? 1.1 : 0)], [x - (P.horizontal ? 0 : 1.1), z - (P.horizontal ? 1.1 : 0)]);
       }
       const end = P.a1 - T / 2;
