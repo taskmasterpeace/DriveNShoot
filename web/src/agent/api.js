@@ -3194,7 +3194,11 @@ async function runSelfTest(api, only = null, skip = null) {
     const box = ike && [...inv.boxes.values()].find((b) => b.owner === ike.id);
     if (!ike || !box) return `ike: ${!!ike}, a shelf of his: ${!!box}`;
     if (g.player.inVehicle) g.exitVehicle(true);
+    const wOn = g.wilds?.enabled;
     return hush(async () => { try {
+      // No Grapevine pack at your heels into town (it stalks you 18-38 m off: the town that sees it runs and stays up). Back
+      // to its record its own way, and the wilds held still for this check.
+      if (g.wilds) { for (const pk of g.wilds.grapevine?.packs ?? []) if (pk.live) g.wilds.grapevine.demote(pk); g.wilds.enabled = false; }
       for (const c of g.chars) if (g.ai.sleeper(c)) { c.target = null; c.grudge = null; c.flee = 0; c.hold = 0; } // earlier checks' fights and staging
       await C('setTime', { hour: 23 });
       await C('teleport', { x: box.x + 7, z: box.z });
@@ -3215,7 +3219,7 @@ async function runSelfTest(api, only = null, skip = null) {
       const up = g.chars.filter((c) => c !== g.player && c.alive && g.ai.sleeper(c) && !c.sleeping && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 150).slice(0, 8)
         .map((c) => ({ n: c.name, restless: r1(c.restless ?? 0), target: !!c.target, flee: r1(c.flee ?? 0), hold: !!c.hold, bed: !!c.bed, bedT: r1(c.bedT ?? 0), telling: !!c.telling }));
       return asleep && most && noCounter && !saw && woke ? true : JSON.stringify({ asleep, most, asleepN: town.asleep.length, awakeN: town.awake.length, noCounter, saw, woke, up });
-    } finally { await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
+    } finally { if (g.wilds && wOn !== undefined) g.wilds.enabled = wOn; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.5 }); } });
   });
   await check('fever: a bite that lands starts a 36-hour fever (stamina regen x0.75, hunger x1.3); antibiotics then a full night break it; untreated it passes and never kills', async () => withNeeds(async () => {
     await stage();
