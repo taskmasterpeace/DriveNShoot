@@ -30,7 +30,7 @@ export class AI {
       const along = ox * fx + oz * fz;
       if (along <= 0.3 || along >= d) continue;
       if (Math.abs(ox * fz - oz * fx) >= (o.radius ?? 0.45) + 0.4) continue;
-      if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || this.hostile(c, o)) continue;
+      if (o === c || o === t || !o.alive || o.inVehicle || o.hidden || (o.ug ?? null) !== (c.ug ?? null) || this.hostile(c, o)) continue; // a floor of earth between: not in the way
       return false;
     }
     return true;
@@ -80,7 +80,7 @@ export class AI {
   // Gunfire is heard: civilians scatter, fighters investigate.
   onNoise(x, z, r, src) {
     for (const c of this.g.chars) {
-      if (!c.alive || c === this.g.player || c === src || c.inVehicle) continue;
+      if (!c.alive || c === this.g.player || c === src || c.inVehicle || c.ug) continue; // below the street: it never reaches them (systems/underground.js)
       const d = Math.hypot(c.x - x, c.z - z);
       if (d > r) continue;
       if (c.sleeping) { if (d > r * TOWN_NIGHT.hearAsleep) continue; this.wake(c, 'a noise'); } // asleep: half an ear
@@ -157,6 +157,11 @@ export class AI {
 
   move(c, dx, dz, speed, dt) {
     if (c.perch) { c.speed = 0; return; } // a sentry on a tower deck turns and shoots, but never steps off it
+    if (c.ug && this.g.under) { // below the street: the level's own grid round its walls, a flight's pace (systems/underground.js)
+      const w = this.g.under.waypoint(c, c.x + dx, c.z + dz);
+      if (w) { dx = w.x - c.x; dz = w.z - c.z; }
+      speed *= this.g.under.speedMul(c);
+    }
     const len = Math.hypot(dx, dz);
     if (len < 0.001) { c.speed = 0; return; }
     dx /= len; dz /= len;
@@ -245,6 +250,7 @@ export class AI {
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
       // hold = true stays until cleared; a number counts down in seconds.
       if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
+      if (c.ugRole && g.under?.think(c, dt)) continue; // below the street: the holdout's posts and its drone (systems/underground.js)
       if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.gv) { g.grapevine.think(c, dt); continue; } // a Grapevine pack's own mind (systems/grapevine.js)

@@ -294,7 +294,7 @@ export class Interiors {
       if (speed > DOOR.bashSpeed && !(c.knockT > 0) && (c.knockCool ?? 0) <= time) { this.bash(L, c, speed, sg); continue; }
       const need = rr - Math.abs(off) + 0.01;
       _p.x = c.x + L.px * sg * need; _p.z = c.z + L.pz * sg * need;
-      g.statics.resolveCircle(_p, c.radius ?? 0.4);
+      g.statics.resolveBody(_p, c.radius ?? 0.4, c, null); // below the street: that level's walls (resolveBody routes them)
       const ox = _p.x - L.hx, oz = _p.z - L.hz, still = ox * L.px + oz * L.pz;
       if (still < rr && still > -rr && ox * L.dx + oz * L.dz < L.len) { L.th = prev; this.orient(L); L.w = 0; L.jamT = 0.2; return; }
       c.x = _p.x; c.z = _p.z;
@@ -305,7 +305,7 @@ export class Interiors {
     const g = this.g;
     const by = L.pusher && g.time - L.pushT < 1.5 && L.pusher !== c ? L.pusher : null;
     _p.x = c.x + L.px * sg * 0.75; _p.z = c.z + L.pz * sg * 0.75;
-    g.statics.resolveCircle(_p, c.radius ?? 0.4);
+    g.statics.resolveBody(_p, c.radius ?? 0.4, c, null);
     c.x = _p.x; c.z = _p.z;
     c.face = Math.atan2(-L.px * sg, -L.pz * sg); // facing the door, so they go over backwards
     this.knockDown(c, DOOR.knockDown);
@@ -355,7 +355,7 @@ export class Interiors {
       if (door.locked) {
         // Rounds into the lock (or near it) break it.
         const near = Math.hypot(hx - door.lockX, hz - door.lockZ) < 0.6;
-        door.lockHp -= dmg * (near ? 1 : 0.4);
+        door.lockHp -= dmg * (near ? 1 : 0.4) * (door.mat.bulletLock ?? 1); // a blast door's lock does not shoot off (systems/underground.js)
         g.emit('lockHit', { door: door.id, lockHp: Math.max(0, Math.round(door.lockHp)), by: shooter?.id ?? null });
         if (door.lockHp <= 0) {
           // The lock's shot off: the door swings ajar the way the rounds were going.
@@ -458,6 +458,7 @@ export class Interiors {
       else if (W.state === 'boarded') this.damageBoards(W, 260 * f, by);
     }
     for (const door of this.doors) {
+      if (door.ug) continue; // a door below the street: a blast up top never reaches it (a charge set on it does: systems/underground.js)
       const dx = door.x - x, dz = door.z - z;
       if (dx > R || dx < -R || dz > R || dz < -R) continue;
       const d = Math.hypot(dx, dz);
@@ -527,7 +528,7 @@ export class Interiors {
   // The cells are kept by world position (the nav grid's window moves; its pinned island store does not).
   navBlock(door, on) {
     const n = this.g.nav?.foot;
-    if (!n) return;
+    if (!n || door.ug) return; // a door below the street is on its level's own grid (systems/underground.js), not the street's
     if (!on) { if (door.nav) for (let k = 0; k < door.nav.length; k += 2) if (n.getCell(door.nav[k], door.nav[k + 1]) === 3) n.setCell(door.nav[k], door.nav[k + 1], 0); door.nav = null; return; }
     if (door.nav) return;
     door.nav = [];
@@ -792,7 +793,7 @@ export class Interiors {
   }
 
   writeLeaf(L) {
-    _o.position.set(L.hx + L.dx * L.len / 2, DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2);
+    _o.position.set(L.hx + L.dx * L.len / 2, (L.door.y ?? 0) + DOOR.height / 2 + 0.03, L.hz + L.dz * L.len / 2); // y: a door below the street hangs on its own floor
     _o.rotation.set(0, Math.atan2(-L.dz, L.dx), 0);
     _o.scale.set(L.len, DOOR.height, DOOR.thick);
     _o.updateMatrix();
@@ -999,6 +1000,7 @@ export class Interiors {
   save() {
     const d = {}, w = {};
     for (const door of this.doors) {
+      if (door.ug) continue; // the underground's doors are on its own records (systems/underground.js)
       const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
       if (moved || door.locked !== !!door.row.locked || (door.locked && (door.kicks !== door.mat.kicks || door.lockHp !== door.mat.lockHp)))
         d[door.id] = { a: door.leaves.map((L) => +L.th.toFixed(3)), l: door.locked ? 1 : 0, h: Math.round(door.lockHp), k: door.kicks };

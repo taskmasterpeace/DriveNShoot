@@ -136,7 +136,7 @@ export class Voice {
 
   // THE API: voice.say(c, key, vars). Returns what was said (and whether it was heard as audio), or null.
   say(c, key, vars = {}, opts = {}) {
-    if (!c || (c !== 'radio' && (c.faction === 'zombie' || c === this.g.player))) return null;
+    if (!c || (c !== 'radio' && (c.faction === 'zombie' || c === this.g.player || c.drone))) return null; // a drone (systems/underground.js) has no voice
     const l = this.line(c, key, vars);
     if (!l) return null;
     const kind = opts.kind ?? l.row.kind ?? DIRECTION[key]?.kind ?? 'talk';

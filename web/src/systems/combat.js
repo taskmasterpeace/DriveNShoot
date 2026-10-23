@@ -40,7 +40,7 @@ export class Combat {
     const mf = muzzleForward(w), ox = ch.x + fx * mf, oz = ch.z + fz * mf;
     // Upstairs (world/storeys.js) the shot flies at that floor's height: its walls stop it, the floors' walls below and
     // above do not. On the street, ry = -1 and everything is as it was.
-    const fy = ch.storey ? ch.gy ?? 0 : 0, ry = fy > 0.5 ? fy + 1.3 : -1;
+    const fy = ch.storey || ch.ug ? ch.gy ?? 0 : 0, ry = fy > 0.5 || fy < -0.5 ? fy + 1.3 : -1; // below the street too (systems/underground.js)
     // Muzzle can't poke through a wall we're hugging.
     if (!g.statics.lineOfSight(ch.x, ch.z, ox, oz, RAY_SIGHT, ry)) return false;
     // Pressed against a window or a door, the barrel reaches past the glass, boards or leaf: the round
@@ -64,7 +64,7 @@ export class Combat {
   hitscan(shooter, ox, oz, dx, dz, range, dmg) {
     const g = this.g;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
-    const fy = shooter.storey ? shooter.gy ?? 0 : 0, up = fy > 0.5; // upstairs: the round stays on that floor
+    const fy = shooter.storey || shooter.ug ? shooter.gy ?? 0 : 0, up = fy > 0.5 || fy < -0.5; // upstairs (or below): the round stays on that floor
     let best = g.statics.raycast(ox, oz, dx, dz, range, RAY_BULLET, up ? fy + 1.3 : -1);
     const wallHit = g.statics.hit.box ? { nx: g.statics.hit.nx, nz: g.statics.hit.nz, op: g.statics.hit.box.op ?? null } : null;
     let target = null, kind = null;

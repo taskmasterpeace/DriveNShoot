@@ -37,6 +37,7 @@ import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
+import { undergroundCommands, undergroundChecks } from './underground-api.js'; // caves, bunkers, the secret facilities (WEB_UNDERGROUND.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -223,7 +224,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, under: p.ug ? { site: p.ug, level: g.under.levelOf(p.gy ?? 0) } : null, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo, cond: g.inv.cond, jam: g.inv.jam },
@@ -1927,6 +1928,7 @@ function buildCommands(api) {
     },
     ...controllerCommands(api), // controls, pad, stance, firemode, gunpoint, melee, weaponbar
     ...creatorCommands(api), // creator, sheet
+    ...undergroundCommands(api, need), // underground, generator (WEB_UNDERGROUND.md)
     selftest: {
       // The whole battery: about 5 min on a loaded machine and growing with every system. Past its budget every check that
       // steps the sim throws (it read as a cluster of 'walking' failures late in the battery), so it is a ceiling, not a pace.
@@ -5673,6 +5675,8 @@ async function runSelfTest(api, only = null, skip = null) {
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
   // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
   await floridaChecks({ api, g, check, C });
+  // The underground (docs/design/WEB_UNDERGROUND.md §8): agent/underground-api.js.
+  await undergroundChecks({ api, g, check, C, snapshot, restore });
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
@@ -5690,10 +5694,11 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild && !c.ug).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
+    under: g.under?.save(), // the underground: every site's power, fuel, lift, alert, codes, logs read; every level's people and doors (who is below is there, not in chars)
     needs: g.survival.save(),
     skills: g.skillsSys.save(),
     stunts: g.stunts.save(), // jump records and which named jumps you have cleared
@@ -5751,6 +5756,9 @@ export function restore(g, s) {
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
+  // The underground before the player: a save that has you below makes your site live and your level promoted, so the
+  // floor is under your feet when you stand again (an older save: every site as it was made).
+  g.under?.load(s.under ?? null, s.player);
   const p = g.player;
   if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
