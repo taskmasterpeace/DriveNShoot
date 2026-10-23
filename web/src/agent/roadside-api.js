@@ -169,10 +169,11 @@ export async function roadsideChecks(api, check, C) {
       await tapE();
       const why = S.job ? null : { dialogue: !!g.dialogue.active, near: g.chars.filter((c) => c !== g.player && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 4).map((c) => c.name), veh: !!g.player.inVehicle, spot: S.spotNear(g.player)?.id };
       const started = S.job?.id === hk.id;
-      const per = RR.hulk.hoursPer / (g.sky.timeScale ?? 1 / 30); // real seconds a piece takes
-      await C('step', { seconds: per * 1.5 });
+      // On the game clock (whatever its rate is right now): 1.5 pieces' worth of game hours, then the rest.
+      const hrs = () => S.hours(), until = async (dh) => { const h0 = hrs(); for (let k = 0; k < 600 && hrs() - h0 < dh; k++) await C('step', { seconds: 0.5 }); };
+      await until(RR.hulk.hoursPer * 1.5);
       const mid = count('scrap') - scrap0;
-      await C('step', { seconds: per * (left0 + 1) });
+      await until(RR.hulk.hoursPer * (left0 + 0.5));
       const got = count('scrap') - scrap0 + (I.groundAt(g.player.x, g.player.z).slots.find((s) => s.id === 'scrap')?.n ?? 0);
       const done = S.scrapLeft(hk), job = S.job;
       const again = S.strip(hk.id);
