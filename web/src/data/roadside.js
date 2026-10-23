@@ -18,7 +18,7 @@
 export const ROADSIDE_RULES = {
   // A lattice transmission tower and the conductors it carries (metres). span: between towers along a line; sag: the
   // conductor's lowest point below its ends, as a share of the span; segs: straight pieces drawn per conductor per span.
-  pylon: { h: 22, base: 4.2, arm: 6.4, armY: [17.5, 21], span: 112, slide: 48, clear: 9 },
+  pylon: { h: 22, base: 4.2, arm: 6.4, armY: [17.5, 21], span: 112, slide: 96, clear: 9 },
   wire: { segs: 4, sag: 0.05, thick: 0.08, droop: 0.6 },
   // A fallen tower: lying on its side across whatever it hit, crumpled near its foot. Solid to people and cars.
   fallen: { h: 1.7, w: 3.2 },
@@ -70,7 +70,7 @@ export const POWER_LINES = [
   {
     id: 'paso_tie', name: 'THE PASO TIE', road: 'I-10', from: 'paso_sub', to: 'palmas_post',
     // El Paso's west edge out to the Las Palmas strip, south of the road (the old valley line).
-    route: [[81250, 150], [79000, 120], [77400, 130], [77050, 210]],
+    route: [[80450, 150], [79000, 120], [77400, 130], [77050, 210]],
     down: [],
   },
 ];
@@ -123,13 +123,15 @@ export const SITES = [
   { id: 'furnace_boneyard', kind: 'junkyard', name: 'FURNACE BONEYARD', anchor: { exit: 'I-10_X1', along: 110, side: -1, set: 22 }, w: 64, d: 52, rows: 7, crane: true, guard: { dog: 'rottweiler', name: 'Rivet' } },
   { id: 'furnace_fields', kind: 'farm', name: 'FURNACE FIELDS', anchor: { exit: 'I-10_X1', along: 200, side: 1, set: 0 }, len: 1100, crops: ['cotton', 'alfalfa', 'cotton'], worked: 0.45, keptR: 420, stead: { along: 420, side: -1 }, canal: 'dry', water: 'windmill' },
   // The dam on the Colorado and the fields below it, watered off its canal while the gates are open.
-  { id: 'palo_verde', kind: 'dam', name: 'PALO VERDE DAM', holdout: 'THE SLUICE', river: 'COLORADO', anchor: { road: 'I-10', s: 8200, u: -650 }, len: 220, from: { s: 8420 }, keepers: 'sluice' },
+  // (The river walked: the Colorado cut a new channel east a century ago - L1 lays it at mile 16.4 - and left this dam on its dead
+  // bed. The cistern is fed off the old wells; a live reservoir waits on the rivers lane: docs/design/WEB_ROADSIDE.md §6.)
+  { id: 'palo_verde', kind: 'dam', name: 'PALO VERDE DAM', holdout: 'THE SLUICE', river: 'COLORADO', channel: 'dead', anchor: { road: 'I-10', s: 8200, u: -650 }, len: 220, from: { s: 8420 }, keepers: 'sluice' },
   { id: 'river_fields', kind: 'farm', name: 'RIVER BEND FIELDS', anchor: { rib: 'palo_verde road', along: 40, side: 1, set: 0 }, len: 300, crops: ['alfalfa', 'alfalfa'], worked: 0.8, sides: [1], stead: null, canal: 'dam', water: 'cistern' },
   // Phoenix's west substation, where the Colorado tie comes in at the edge of the dead city.
   { id: 'phx_west_sub', kind: 'substation', name: 'WEST VALLEY SUBSTATION', anchor: { road: 'I-10', s: 39640, u: -196 }, w: 46, d: 34 },
   // EXIT 4 THE SAND TRAP is dead: nothing built off it. EXIT 6 LAS PALMAS: a station a holdout still keeps.
   { id: 'palmas_post', kind: 'station', name: 'LAS PALMAS TRADING POST', anchor: { exit: 'I-10_X3', along: 120, side: -1, set: 26 }, state: 'holdout', keepers: 'palmas', brand: 'GOLD COAST' },
-  { id: 'paso_sub', kind: 'substation', name: 'MESILLA SUBSTATION', anchor: { road: 'I-10', s: 81300, u: 196 }, w: 40, d: 30 },
+  { id: 'paso_sub', kind: 'substation', name: 'MESILLA SUBSTATION', anchor: { road: 'I-10', s: 80520, u: 196 }, w: 40, d: 30 },
   { id: 'paso_orchards', kind: 'farm', name: 'MESILLA PECANS', anchor: { exit: 'I-10_X3', along: 480, side: 1, set: 0 }, len: 700, crops: ['pecan', 'cotton'], worked: 0.3, sides: [1, -1], stead: { along: 300, side: 1 }, canal: 'dry', water: 'windmill' },
   // Florida (the start region): a holdout's trading post at Sebastian, a junkyard with squatters at the canal locks,
   // sugarcane along Alligator Alley's canal (real water: the region's own canal), a citrus belt inland of the coast road.

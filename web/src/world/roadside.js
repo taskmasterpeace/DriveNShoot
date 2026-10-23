@@ -414,7 +414,9 @@ export class Roadside {
       const wetField = corners.some(([x, z]) => this.wet(x, z) > 0);
       const corFar = corners.every(([x, z]) => this.corGap(x, z, 60) > 8); // the interstate, asked at the corners (a straight road: the field between them is as clear)
       const roadNear = corners.some(([x, z]) => this.nearRoad(x, z, 20, own, corFar)) || !!this.nearRoad(f.cx, f.cz, f.depth / 2, own, corFar);
-      const bad = (x, z) => (wetField && this.wet(x, z) > 0) || (roadNear && this.nearRoad(x, z, 5, own, corFar)) || inIsland(x, z, 20);
+      const L1 = this.W.water, l1Near = !!L1?.near && corners.some(([x, z]) => L1.near(x, z)); // L1's rivers, washes and canals (world/rivers.js)
+      const bad = (x, z) => (wetField && this.wet(x, z) > 0) || (l1Near && L1.keepOut(x, z, 0.5)) || (roadNear && this.nearRoad(x, z, 5, own, corFar)) || inIsland(x, z, 20);
+      if (l1Near && corners.some(([x, z]) => L1.keepOut(x, z, 4))) { this.warnings.push(`${S.id}: a field at ${Math.round(f.cx)},${Math.round(f.cz)} reaches a river or a wash: skipped`); continue; }
       if (bad(f.cx, f.cz)) { this.warnings.push(`${S.id}: a field at ${Math.round(f.cx)},${Math.round(f.cz)} is on water or a road: skipped`); continue; }
       this.keepOriented(f.cx, f.cz, f.fl + 4, f.depth + 4, f.tx, f.tz);
       this.foot(`${S.id}:field${fields.indexOf(f)}`, f.cx - 4, f.cz - 4, f.cx + 4, f.cz + 4, own);
@@ -427,7 +429,7 @@ export class Roadside {
         for (let u = -f.depth / 2 + pitch / 2; u < f.depth / 2; u += pitch) for (let v = -f.fl / 2 + pitch / 2; v < f.fl / 2; v += pitch) {
           if (fr() < (f.worked ? 0.06 : 0.3)) continue;
           const [x, z] = P(u + fr.range(-0.4, 0.4), v + fr.range(-0.4, 0.4));
-          if ((wetField && this.wet(x, z, 8) > 0) || (roadNear && this.nearRoad(x, z, 5, own, corFar)) || inIsland(x, z, 20)) continue; // (water on an 8 m grid: a tree, not a row)
+          if ((wetField && this.wet(x, z, 8) > 0) || (l1Near && L1.keepOut(x, z, 1)) || (roadNear && this.nearRoad(x, z, 5, own, corFar)) || inIsland(x, z, 20)) continue; // (water on an 8 m grid: a tree, not a row)
           const dead = !f.worked && fr() < 0.25;
           this.flor(dead ? 'deadtree' : cr.tree, x, z, dead ? fr.range(3, 5) : fr.range(cr.treeH[0], cr.treeH[1]) * (f.worked ? 1 : 0.85));
           trees++;
@@ -688,6 +690,7 @@ export class Roadside {
       if (Math.abs(q.u) < cor.section(q.s).out + 6 && !Lr.down?.some((d) => Math.abs(d.s - q.s) < 30)) return 'interstate';
       const rb = this.nearRoad(q.x, q.z, P.clear, null, true); if (rb) return rb.id;
       if (this.solid(q.x, q.z, P.base / 2 + 1)) return 'site';
+      if (this.W.water?.keepOut?.(q.x, q.z, P.base / 2 + 1)) return 'water'; // L1 (world/rivers.js): no tower in a river, a wash or on its bank
       return null;
     };
     const towers = []; const tT0 = performance.now();
