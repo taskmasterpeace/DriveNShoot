@@ -125,8 +125,8 @@ export async function faunaChecks(api, check, C) {
     const seq = g.eventSeq;
     let stalked = false, closest = Infinity;
     const start = pack.reduce((k, a) => k + dist(a, w), 0) / pack.length;
-    for (let i = 0; i < 24 && !stalked; i++) { await C('step', { seconds: 0.5 }); stalked = pack[0].grp?.quarry === w && (pack[0].grp.mode === 'stalk' || pack[0].grp.mode === 'attack'); }
-    for (let i = 0; i < 16; i++) { await C('step', { seconds: 0.5 }); closest = Math.min(closest, pack.reduce((k, a) => k + dist(a, w), 0) / pack.length); }
+    for (let i = 0; i < 24 && !stalked; i++) { await C('step', { seconds: 0.5 }); if (w.alive) w.hp = 30; stalked = pack[0].grp?.quarry === w && (pack[0].grp.mode === 'stalk' || pack[0].grp.mode === 'attack'); }
+    for (let i = 0; i < 16; i++) { await C('step', { seconds: 0.5 }); if (w.alive) w.hp = 30; closest = Math.min(closest, pack.reduce((k, a) => k + dist(a, w), 0) / pack.length); }
     const stalkEv = since(seq, 'faunaStalk', (e) => e.target === w.id).length > 0;
     // A fire where the man stands: the pack keeps off it.
     g.throwables.startFire(w.x, w.z, 1.6, 30, null);
