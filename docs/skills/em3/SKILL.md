@@ -5,7 +5,7 @@ description: Use for any design, build, review or content decision on DIVIDED ST
 
 # EM3: Deathlands-true, GTA2-tight, nothing borrowed
 
-**Status: v0 (2026-10-23).** Drafted the night Robert asked for it. To install it, copy this folder to
+**Status: v1 (2026-10-23): settled calls filled from Robert's answers.** Drafted the night Robert asked for it. To install it, copy this folder to
 `~/.claude/skills/em3/`. Finalize it from his answers in the EM3 Briefing artifact
 (https://claude.ai/artifact/LWi2uQbNt7n1KeYAw8je8A: read the `answers` collection with ArtifactData) and fold every
 decision into "Settled calls" below.
@@ -85,13 +85,39 @@ The game should feel like the books to someone who loves them, and read as our o
   - Holdouts you can build in and rebuild from.
 - **Rebuild the United States:** players claim, fortify and build, and towns grow back.
 
-## Settled calls (fill from the briefing answers)
+## Settled calls (Robert's EM3 Briefing answers, 2026-10-23; full table in docs/design/WEB_WORLD_EDITOR_PLAN.md §1.1)
 
-_Pending Robert's answers. Until then: survival-action; persistent shards; open PvP with the murderer's mark from
-evidence; Autoduel cloning; pick an origin, then learn by doing; bright days and scary nights; the pad and keyboard both
-first-class; Robert's hotbar plus a pad radial; the full gunpoint standoff; melee by timing and stamina; claim and
-fortify first, free-build later; full car design; party of six with loyalty; power suits as rare bunker tech; Phoenix
-first._
+- **Core:** survival-action. Persistent shards with logins.
+- **PvP:** open PvP, and a murderer is marked by evidence.
+- **Death:** Autoduel cloning. You wake as your clone and must travel back to your body:
+  - buses and bus stations, trains;
+  - one rare airline (New York, Los Angeles, New Orleans, Ohio, Chicago);
+  - travel ports.
+
+  Our own slang throughout, influenced by the books but ours.
+- **Characters:** point-buy, from the creator in his superhero game.
+- **Night:** dark and scary; bring over what fits from the superhero game.
+- **Military:** military rail, secret facilities with secret projects, military holdouts with real guns and drones. Pitch him ideas.
+- **Controls:**
+  - the pad and keyboard both first-class;
+  - his hotbar with mode boxes plus a pad radial;
+  - pistols one- or two-handed;
+  - the full gunpoint standoff;
+  - melee by timing and stamina, with knockback; a car hit throws you, not under the car.
+- **Dialogue is required:** living characters with generated, production-level voice and variations. Lay the groundwork without sinking all the time into it.
+- **The infected are three kinds of our own:**
+  - **the Greyborn:** traps and societies;
+  - **the Grapevine:** watch and learn, eat bodies, strike only when they can win, know only what they saw;
+  - plus "Wardens are zombies too": unresolved, ask him.
+- **The land:** mountains, valleys, underground, water, thick forests, radiation zones with strange creatures, dark underground facilities.
+- **Building:** house deeds plus claim and fortify plus free-build, customised in our creator (resize rooms, move stairs). Later, build from iPhone photos.
+- **Cars and shelter:**
+  - full Car Wars-style car design;
+  - the car as shelter: walk-in RV, van and pickup bed; an RV full of stuff in the middle of nowhere.
+- **Party:** six. **Water:** boats, the need, swimming. **Tech:** rare pre-war power suits and augmentations.
+- **START IN FLORIDA.**
+- **Terrain:** real (public data). Long drives with the radio. Rare solar cars, plug-in motorcycles, shoot every way from a bike. Reverse must not crawl; left is left when steering.
+- **EM3:** all six roles. **Sounds:** `N:/assets/audio`.
 
 ## Where the work lives
 
