@@ -13,6 +13,7 @@ import { floorplan } from './floorplan.js';
 import { furnishRooms, placePiece } from './furnish.js';
 import { hash32, rngOf } from './geo.js';
 import { riseOf } from './storeys.js';
+import { plantIsland } from './flora.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -537,10 +538,7 @@ export function buildWorld(scene, statics) {
     if (nearWater(x, z, 2) || nearRail(x, z, 2)) return;
     const h = rng.range(3, 6);
     trunks.push({ x, z, h });
-    for (let i = 0; i < 3; i++) {
-      const a = rng() * Math.PI * 2;
-      props.add(x + Math.cos(a) * 0.8, h * rng.range(0.55, 0.9), z + Math.sin(a) * 0.8, 1.8, 0.16, 0.16, '#3b2c20', a);
-    }
+    for (let i = 0; i < 3; i++) { rng(); rng.range(0.55, 0.9); } // the old box limbs' draws, kept so nothing after them moves (world/flora.js draws the tree)
     statics.addCentered(x, z, 0.6, 0.6, 'tree', h);
   };
 
@@ -834,21 +832,9 @@ export function buildWorld(scene, statics) {
     return m;
   };
   cyl(barrels, new THREE.CylinderGeometry(0.45, 0.45, 1.1, 10), new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.3 }), (o, b) => { o.position.set(b.x, 0.55, b.z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); });
-  // Living trees (data/holdout.js): trunks, round canopies (palo verde, citrus, mesquite) and palm crowns, three draws.
-  {
-    const trunk = cyl(liveTrees.map((t) => ({ ...t, color: t.trunk })), new THREE.CylinderGeometry(0.14, 0.24, 1, 6), new THREE.MeshStandardMaterial({ roughness: 0.92 }), (o, t) => { o.position.set(t.x, t.h / 2, t.z); o.scale.set(t.kind === 'palm' ? 1.4 : 1, t.h, t.kind === 'palm' ? 1.4 : 1); o.rotation.set(0, 0, 0); });
-    trunk.name = 'liveTrunks';
-    const crowns = liveTrees.filter((t) => t.kind !== 'palm'), palms = liveTrees.filter((t) => t.kind === 'palm');
-    const canopy = cyl(crowns, new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }), (o, t) => { o.position.set(t.x, t.h, t.z); o.scale.set(t.r, t.r * t.squash, t.r * 0.92); o.rotation.set(0, t.rot, 0); });
-    canopy.name = 'canopies';
-    const blades = [];
-    // Eleven fronds of two lengths drooping at two angles: a palm from above, not a star.
-    for (let k = 0; k < 11; k++) { const L = k % 2 ? 2.6 : 3.3, b = new THREE.BoxGeometry(L, 0.05, 0.36); b.translate(L / 2, 0, 0); b.rotateZ(k % 3 ? -0.5 : -0.75); b.rotateY((k / 11) * Math.PI * 2 + (k % 2) * 0.2); blades.push(b); }
-    const crown = cyl(palms, mergeGeometries(blades), new THREE.MeshStandardMaterial({ roughness: 0.9, side: THREE.DoubleSide }), (o, t) => { o.position.set(t.x, t.h, t.z); o.scale.set(1, 1, 1); o.rotation.set(0, t.rot, 0); });
-    crown.name = 'palmCrowns';
-  }
-  cyl(cacti, new THREE.CylinderGeometry(0.3, 0.38, 1, 7), new THREE.MeshStandardMaterial({ color: '#56653a', roughness: 0.9 }), (o, c) => { o.position.set(c.x, c.h / 2, c.z); o.scale.set(1, c.h, 1); });
-  cyl(trunks, new THREE.CylinderGeometry(0.16, 0.3, 1, 6), new THREE.MeshStandardMaterial({ color: '#3b2c20', roughness: 0.95 }), (o, t) => { o.position.set(t.x, t.h / 2, t.z); o.scale.set(1, t.h, 1); });
+  // Living trees (data/holdout.js), cacti and dead trees: Blender-built models (tools/blenderforge/gen_flora.py) drawn by
+  // world/flora.js, one draw per species shared with the streamed world. Positions, turns and collision stay as laid out above.
+  const flora = plantIsland(scene, { liveTrees, cacti, trunks });
 
   // Light pools: additive decals on the ground. Opacity driven by night factor.
   const glowMat = new THREE.MeshBasicMaterial({ map: radialGlow(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 });
@@ -878,6 +864,7 @@ export function buildWorld(scene, statics) {
   return {
     buildings, spawns, glows, fires, roofs, props, glowMat, flames, groundMat, roadMat, minimap, // props: a set-piece clears its lot of loose rubble (bases.js)
     doors: doorRows, windows: windowRows, // data rows: systems/interiors.js hangs the leaves and glass
+    flora, // world/flora.js: one pool per species, the streamer shares them
     updateFlames(time) {
       fires.forEach((f, i) => {
         const s = 1.4 + Math.sin(time * 13 + i * 7) * 0.25 + Math.sin(time * 29 + i) * 0.15;

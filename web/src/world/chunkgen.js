@@ -4,6 +4,7 @@ import { C, ISLAND, inIsland, hash32, rngOf, vnoise, Hasher } from './geo.js';
 import { StaticWorld } from '../engine/collision.js';
 import { ROAD_BANDS } from './textures.js';
 import { RING } from '../data/ring.js';
+import { SPECIES, FLORA_KINDS, poolName, floraVariant, floraHash, crownScale } from './flora.js';
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -20,7 +21,7 @@ const N_G = C / 8 + 1;          // ground vertices per side (33)
 const RAD_FOOT = 0.45, RAD_CAR = 1.9;
 const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
-const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows'];
+const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName)]; // fl_<kind>: world/flora.js
 const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
@@ -83,6 +84,7 @@ export function makeScratch() {
     INST: {
       props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
       boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
+      ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(400, 1)])), // extra: the variant (world/flora.js)
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true) },
   };
@@ -172,6 +174,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const biomeKey = W.biomeAt(centre.x, centre.z), state = W.stateAt(centre.x, centre.z) ?? '_';
   const flora = FLORA[state] ?? FLORA._;
   out.biome = BIOMES[biomeKey]?.name ?? biomeKey; out.state = state;
+  // A plant from world/flora.js: scale x its model's height, the variant and a shade from where it stands (no draws on rng).
+  const plant = (kind, x, z, scale, rot, shade = 1) => { const b = INST[poolName(kind)], i = b.push(x, 0, z, rot, scale, scale, scale, shade, shade, shade); if (i >= 0) b.e[i] = floraVariant(x, z); };
 
   // Collision: clip a box to the chunk square (and to the nav margin for the halo list).
   const addBox = (x0, z0, x1, z1, tag, height, base = 0) => {
@@ -633,8 +637,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       if (INST.roofs.n > r0) rs.roofs[L.id] = [r0, INST.roofs.n - r0];
       for (const e of geo.canopy) I('roofs', e);
       for (const e of geo.props) I('props', e);
-      for (const e of geo.trunks ?? []) I('trunks', e);  // yard trees (ring.js yardOf)
-      for (const e of geo.crowns ?? []) I('shrubs', e);
+      for (const [kind, x, z, h, r, sq] of geo.flora ?? []) // yard trees (ring.js yardOf): a ruin's are dead trees
+        plant(kind, x, z, kind === 'deadtree' ? h * 1.15 / SPECIES.deadtree.h : crownScale(kind, h, r, sq), floraHash(z, x) * 6.283, 0.92 + 0.16 * floraHash(x, z));
       for (const e of geo.decor) { if (rs.decor >= RING.budget.decor) break; I('props', e); rs.decor++; }
       for (const q of geo.boxesIn) rs.boxes.push(q);
       for (const q of geo.beds) rs.beds.push(q);
@@ -684,15 +688,11 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const p = spot(1.2); if (!p) continue;
     const [x, z] = p, v = rng.range(0.85, 1.12);
     if (flora.cactus === 'saguaro' && rng() < 0.75) {
-      // A saguaro: a tall trunk and up to three arms that bend up.
+      // A saguaro (world/flora.js: ribs, arms that leave level and turn up). The old box arms' draws are kept so
+      // nothing laid out after it moves.
       const h = rng.range(4.5, 9.5);
-      INST.cacti.push(x, h / 2, z, 0, 1.25, h, 1.25, CACT[0] * v, CACT[1] * v, CACT[2] * v);
-      for (let a = 0, na = rng.int(0, 3); a < na; a++) {
-        const ang = rng() * 6.28, ay = h * rng.range(0.42, 0.7), reach = rng.range(0.9, 1.4), up = rng.range(1.4, 2.6);
-        const ex = x + Math.cos(ang) * reach, ez = z + Math.sin(ang) * reach;
-        INST.cacti.push(x + Math.cos(ang) * reach * 0.5, ay, z + Math.sin(ang) * reach * 0.5, -ang + Math.PI / 2, 0.85, 0.85, reach, CACT[0] * v, CACT[1] * v, CACT[2] * v);
-        INST.cacti.push(ex, ay + up / 2, ez, 0, 0.85, up, 0.85, CACT[0] * v, CACT[1] * v, CACT[2] * v);
-      }
+      for (let a = 0, na = rng.int(0, 3); a < na; a++) { rng(); rng.range(0.42, 0.7); rng.range(0.9, 1.4); rng.range(1.4, 2.6); }
+      plant('saguaro', x, z, h / SPECIES.saguaro.h, floraHash(z, x) * 6.283, v);
       addBox(x - 0.45, z - 0.45, x + 0.45, z + 0.45, 'cactus', h);
     } else {
       // Barrel cactus or cholla: low and stout.
@@ -710,25 +710,30 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     INST.boulders.push(p[0], r * 0.35, p[1], rng() * 6.28, r * rng.range(0.9, 1.3), r * rng.range(0.55, 0.9), r * rng.range(0.9, 1.3), c[0] * v, c[1] * v, c[2] * v);
     if (big) addBox(p[0] - r * 0.8, p[1] - r * 0.8, p[0] + r * 0.8, p[1] + r * 0.8, 'boulder', r * 0.7);
   }
-  const TRUNK = col('#3b2c20'), JOSH = col('#4a4628'), YUC = col('#5c6438'), PALO = col('#5d6a3c');
+  const YUC = col('#5c6438');
   for (let k = 0; k < nTree; k++) {
     const p = spot(1.5); if (!p) continue;
     const [x, z] = p;
-    if (flora.tree === 'joshua' || flora.tree === 'yucca') {
-      // Joshua trees and yucca: a shaggy trunk that forks into spiky heads.
-      const h = flora.tree === 'joshua' ? rng.range(3, 6.5) : rng.range(1.2, 2.6), hc = flora.tree === 'joshua' ? JOSH : YUC;
+    if (flora.tree === 'joshua') {
+      // A Joshua tree (world/flora.js); the old trunk-and-heads draws are kept so nothing after it moves.
+      const h = rng.range(3, 6.5);
+      for (let a = 0, na = rng.int(1, 4); a < na; a++) { rng(); rng.range(0.6, 1.4); }
+      plant('joshua', x, z, h / SPECIES.joshua.h, floraHash(z, x) * 6.283, 0.92 + 0.16 * floraHash(x, z));
+      addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h);
+    } else if (flora.tree === 'yucca') {
+      // Yucca: a shaggy trunk under a spiky head (no flora model for it yet).
+      const h = rng.range(1.2, 2.6);
       INST.trunks.push(x, h / 2, z, 0, 1.2, h, 1.2, 0.33, 0.27, 0.2);
-      for (let a = 0, na = rng.int(1, flora.tree === 'joshua' ? 4 : 1); a < na; a++) {
-        const ang = rng() * 6.28, rr = flora.tree === 'joshua' ? rng.range(0.6, 1.4) : 0;
-        INST.shrubs.push(x + Math.cos(ang) * rr, h + 0.2, z + Math.sin(ang) * rr, ang, 0.9, 0.7, 0.9, hc[0], hc[1], hc[2]);
-      }
+      for (let a = 0, na = rng.int(1, 1); a < na; a++) { const ang = rng() * 6.28; INST.shrubs.push(x, h + 0.2, z, ang, 0.9, 0.7, 0.9, YUC[0], YUC[1], YUC[2]); }
       addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h);
     } else {
-      // A dead mesquite or palo verde: a trunk and a few bare limbs (green-barked palo verde keeps a thin crown).
+      // A dead mesquite or palo verde, or a green-barked palo verde still alive (world/flora.js). The old box limbs'
+      // draws are kept so nothing after it moves.
       const h = rng.range(2.5, 5.5);
-      INST.trunks.push(x, h / 2, z, 0, 1, h, 1, TRUNK[0], TRUNK[1], TRUNK[2]);
-      for (let i = 0; i < 3; i++) { const a = rng() * Math.PI * 2; INST.props.push(x + Math.cos(a) * 0.8, h * rng.range(0.55, 0.9), z + Math.sin(a) * 0.8, a, 1.8, 0.16, 0.16, TRUNK[0], TRUNK[1], TRUNK[2]); }
-      if (flora.tree === 'paloverde' && rng() < 0.6) INST.shrubs.push(x, h * 0.85, z, rng() * 6, 2.6, 1.1, 2.6, PALO[0], PALO[1], PALO[2]);
+      for (let i = 0; i < 3; i++) { rng(); rng.range(0.55, 0.9); }
+      const live = flora.tree === 'paloverde' && rng() < 0.6;
+      if (live) rng(); // the old crown's turn
+      plant(live ? 'paloverde' : 'deadtree', x, z, live ? (h + 0.8) / SPECIES.paloverde.h : h / SPECIES.deadtree.h, floraHash(z, x) * 6.283, 0.92 + 0.16 * floraHash(x, z));
       addBox(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 'tree', h);
     }
   }

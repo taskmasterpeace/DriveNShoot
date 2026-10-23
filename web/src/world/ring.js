@@ -399,7 +399,7 @@ export class Ring {
     if (L.geo) return L.geo;
     this.geoBuilt++;
     const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
-    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [], windows: [], innerDoors: [] });
+    const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [], flora: [], windows: [], innerDoors: [] });
     const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
     const h = rng.range(K.h[0], K.h[1]);
     const wall = rng.pick(Z.walls), roof = rng.pick(Z.roofs), floor = rng.pick(Z.floors);
@@ -782,7 +782,7 @@ export class Ring {
     const pickW2 = (rows) => { let t = 0; for (const r of rows) t += r[1]; let p = rng() * t; for (const r of rows) if ((p -= r[1]) < 0) return r[0]; return rows[rows.length - 1][0]; };
     const tree = (u, v, kinds) => {
       if (near(u, v, 3)) return;
-      const K = Y.trees.kinds[pickW2(kinds)], h = rng.range(K.h[0], K.h[1]), r = rng.range(K.r[0], K.r[1]);
+      const kind = pickW2(kinds), K = Y.trees.kinds[kind], h = rng.range(K.h[0], K.h[1]), r = rng.range(K.r[0], K.r[1]);
       const [x, z] = toW(u, v), canopy = ruined ? rng.pick(Y.trees.dead) : rng.pick(K.canopy);
       g.trunks.push([x, h / 2, z, 0.8, h, 0.8, K.trunk, 0, 1]);
       // A palo verde or a mesquite is a clump of crowns, not a ball; a citrus is round.
@@ -791,6 +791,7 @@ export class Ring {
         const a = rng() * 6.28, d = n > 1 ? r * 0.42 : 0, rr = (n > 1 ? r * 0.68 : r) * k;
         g.crowns.push([x + Math.cos(a) * d, h + rng.range(-0.3, 0.25), z + Math.sin(a) * d, rr, rr * K.squash * (ruined ? 0.8 : 1), rr * 0.92, i ? (ruined ? canopy : rng.pick(K.canopy)) : canopy, rng() * 6.28, 1]);
       }
+      g.flora.push([ruined ? 'deadtree' : kind, x, z, h, r, K.squash]); // what chunkgen draws (world/flora.js); trunks/crowns above stay as rows
       g.boxes.push({ x0: x - 0.25, z0: z - 0.25, x1: x + 0.25, z1: z + 0.25, h, tag: 'tree', holes: null });
     };
     // Front yard: decomposed granite to the building's face.
