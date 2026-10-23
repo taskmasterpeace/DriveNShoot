@@ -1,0 +1,12 @@
+[
+ {
+  "name": "swamp_vulture_dusk",
+  "luma": 15.4,
+  "drawCalls": 76
+ },
+ {
+  "name": "swamp_vulture_noon",
+  "luma": 101.1,
+  "drawCalls": 75
+ }
+]

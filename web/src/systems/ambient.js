@@ -16,6 +16,35 @@ const _o = new THREE.Object3D(), _c = new THREE.Color();
 const COWER_BARKS = ["Don't shoot!", 'Please — I got kids!', 'Not me! NOT ME!', 'Get down!', 'Oh God, oh God…', "I ain't got nothing!"];
 const onRoad = (x, z) => roadLines.some((c) => Math.abs(z - c) < 7 || Math.abs(x - c) < 7) || Math.abs(z) < 7;
 
+// A soaring vulture from above (head toward +z), about 1.8 m across: fans of triangles with vertex colours (linear).
+// Wing outline from the shoulder out: a broad arm, fingered primaries at the tip, held in a shallow V (the dihedral).
+function vultureGeometry() {
+  const pos = [], col = [], lin = (h) => new THREE.Color(h);
+  const DARK = lin('#3a2e24'), MID = lin('#4a3c30'), PALE = lin('#6e6254'), HEAD = lin('#a8503e'), BILL = lin('#d8ccb4');
+  const tri = (a, b, c, k) => { for (const p of [a, b, c]) { pos.push(p[0], p[1], p[2]); col.push(k.r, k.g, k.b); } };
+  const W = [[0.10, 0.14], [0.42, 0.19], [0.74, 0.15], [0.96, 0.09], [0.88, 0.04], [1.0, 0.0], [0.87, -0.03], [0.96, -0.08], [0.83, -0.09], [0.9, -0.15], [0.62, -0.2], [0.35, -0.21], [0.1, -0.14]];
+  const S = 0.92; // wingspan / 2 in metres
+  for (const s of [1, -1]) {
+    const P = (q) => [s * q[0] * S, 0.16 * q[0] * S, q[1] * S];
+    const root = [s * 0.08 * S, 0.01, 0];
+    for (let i = 0; i < W.length - 1; i++) {
+      const outer = Math.max(W[i][0], W[i + 1][0]) > 0.7, back = W[i][1] < -0.05 && W[i + 1][1] < -0.05;
+      tri(root, P(W[i]), P(W[i + 1]), outer ? PALE : back ? MID : DARK);
+    }
+  }
+  // Body, tail fan, head and bill.
+  tri([0, 0.06, 0.42], [0.12, 0.03, 0.02], [-0.12, 0.03, 0.02], DARK);
+  tri([0.12, 0.03, 0.02], [0, 0.04, -0.3], [-0.12, 0.03, 0.02], DARK);
+  tri([0, 0.03, -0.24], [0.14, 0.02, -0.52], [-0.14, 0.02, -0.52], MID);
+  tri([0.06, 0.07, 0.4], [0, 0.08, 0.56], [-0.06, 0.07, 0.4], HEAD);
+  tri([0.02, 0.07, 0.55], [0, 0.07, 0.62], [-0.02, 0.07, 0.55], BILL);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+
 export class Ambient {
   constructor(game) {
     this.g = game;
@@ -38,11 +67,10 @@ export class Ambient {
     this.weedMesh.castShadow = true; this.weedMesh.frustumCulled = false;
     scene.add(this.weedMesh);
     this.weeds = Array.from({ length: WEEDS }, () => ({ x: 9999, z: 9999, rx: 0, rz: 0, s: 0.8 + Math.random() * 0.6, v: 0, hop: Math.random() * 6 }));
-    // Vultures: body + wings in one geometry; wings flap by scaling X.
-    const body = new THREE.BoxGeometry(0.28, 0.16, 0.9);
-    const wing = new THREE.BoxGeometry(2.6, 0.04, 0.55); wing.translate(0, 0.05, -0.05);
-    const head = new THREE.BoxGeometry(0.14, 0.12, 0.22); head.translate(0, 0.04, 0.52);
-    this.birdMesh = new THREE.InstancedMesh(mergeGeometries([body, wing, head]), new THREE.MeshStandardMaterial({ color: '#1e1a17', roughness: 0.9 }), BIRDS);
+    // Vultures: one flat silhouette seen from above (docs/design/WEB_LOOK.md §3.9): broad wings held in a shallow V with
+    // fingered tips and paler flight feathers, a fan tail, a bare red head; wings flap by scaling X. The old box slab (a
+    // 2.6 m board in near-black) flew right under the lens and read as a stray black slab in the marsh at dusk.
+    this.birdMesh = new THREE.InstancedMesh(vultureGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, side: THREE.DoubleSide }), BIRDS);
     this.birdMesh.castShadow = true; this.birdMesh.frustumCulled = false;
     scene.add(this.birdMesh);
     this.birds = Array.from({ length: BIRDS }, (_, i) => ({ a: (i / BIRDS) * Math.PI * 2, r: 9 + Math.random() * 6, h: 15 + Math.random() * 6, cx: 0, cz: 0, x: 0, z: 0, y: 30, spook: 0, flap: Math.random() * 6, sp: 0.35 + Math.random() * 0.2 }));
@@ -193,7 +221,8 @@ export class Ambient {
       const cx = tgt ? tgt.x : p.x + Math.sin(i * 2.3 + g.time * 0.01) * 55, cz = tgt ? tgt.z : p.z + Math.cos(i * 1.7) * 55;
       b.cx += (cx - b.cx) * Math.min(1, dt * 0.25); b.cz += (cz - b.cz) * Math.min(1, dt * 0.25);
       b.spook = Math.max(0, b.spook - dt);
-      const r = b.r * (b.spook > 0 ? 2.4 : 1), h = (tgt ? b.h : b.h + 10) + (b.spook > 0 ? 10 : 0);
+      // Never up against the lens: at most 55% of the camera's height (a bird 2 m under it filled the frame as a slab).
+      const r = b.r * (b.spook > 0 ? 2.4 : 1), h = Math.min((tgt ? b.h : b.h + 10) + (b.spook > 0 ? 10 : 0), Math.max(9, (g.camHeight ?? 34) * 0.55));
       b.a += dt * b.sp * (b.spook > 0 ? 2.2 : 1);
       const nx = b.cx + Math.cos(b.a) * r, nz = b.cz + Math.sin(b.a) * r;
       const head = Math.atan2(nx - b.x, nz - b.z);

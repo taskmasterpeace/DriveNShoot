@@ -1,0 +1,72 @@
+[
+ {
+  "name": "meridian_market_street",
+  "luma": 192.3,
+  "drawCalls": 83
+ },
+ {
+  "name": "meridian_market_game",
+  "luma": 181.6,
+  "drawCalls": 83
+ },
+ {
+  "name": "meridian_houses_wide",
+  "luma": 172.6,
+  "drawCalls": 82
+ },
+ {
+  "name": "meridian_over",
+  "luma": 156.6,
+  "drawCalls": 86
+ },
+ {
+  "name": "meridian_west_wide",
+  "luma": 169.6,
+  "drawCalls": 84
+ },
+ {
+  "name": "forest_game",
+  "luma": 84.7,
+  "drawCalls": 72
+ },
+ {
+  "name": "forest_wide",
+  "luma": 91.3,
+  "drawCalls": 72
+ },
+ {
+  "name": "palms_market",
+  "luma": 173.1,
+  "drawCalls": 86
+ },
+ {
+  "name": "palms_close",
+  "luma": 157.8,
+  "drawCalls": 86
+ },
+ {
+  "name": "swamp_dusk",
+  "luma": 15.4,
+  "drawCalls": 75
+ },
+ {
+  "name": "swamp_noon",
+  "luma": 102,
+  "drawCalls": 74
+ },
+ {
+  "name": "terrain_hills_over",
+  "luma": 191.9,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_hills_game",
+  "luma": 193.3,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_climb_over",
+  "luma": 188.6,
+  "drawCalls": 74
+ }
+]

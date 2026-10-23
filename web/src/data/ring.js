@@ -88,6 +88,15 @@ export const ZONES = {
     tint: [0.86, 0.9, 0.78], wrecks: 0, yard: 0, fence: 0,
     residents: [], occupancy: 0,
   },
+  // A holdout's burnt shells (Meridian's grit.burn, world/holdout.js): the houses that went up in the fall and were left
+  // standing, walk-in and roofless, smoke-dark stucco. Nobody lives in them (no households). No purple.
+  holdout_burnt: {
+    name: 'MERIDIAN BURNT', lots: 'houses', kinds: [['house', 1]], density: 1, ruin: 1, loot: [['wreck', 2], ['kitchen', 2], ['bedroom', 1]],
+    walls: ['#6a625a', '#5a534c', '#7a7066', '#4f4a44', '#6e665c'],
+    roofs: ['#4a443e'], floors: ['#4a423a', '#3e3832'],
+    tint: [0.86, 0.9, 0.78], wrecks: 0, yard: 0, fence: 0,
+    residents: [], occupancy: 0,
+  },
 };
 
 // A Phoenix house lot from above (docs/design/WEB_LOOK.md §3.5): a gravel front yard with a desert tree, a concrete

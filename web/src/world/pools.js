@@ -89,7 +89,7 @@ export class Pool {
 // Layers of a surface slot: what each stores per vertex. Every layer has position + normal; ground and road have uv;
 // ground and rock have colour.
 export const LAYERS = {
-  ground: { uv: true, color: true, cast: false, receive: true },
+  ground: { uv: true, color: true, floor: true, cast: false, receive: true },
   road: { uv: true, color: false, cast: false, receive: true },
   rock: { uv: false, color: true, cast: true, receive: true },
   water: { uv: true, color: true, cast: false, receive: true }, // ONE water sheet (world/water.js streamMat): a region's (world/regions.js) and L1's (world/rivers.js); only a chunk with water fills it
@@ -109,6 +109,7 @@ export class SurfacePool {
         attr('position', 3); attr('normal', 3);
         if (L.uv) attr('uv', 2);
         if (L.color) attr('color', 3);
+        if (L.floor) attr('aFloor', 2); // the ground's floor weights (world/surfaces.js groundSurface)
         const idx = new THREE.BufferAttribute(new Uint32Array(mi), 1); idx.setUsage(THREE.DynamicDrawUsage); g.setIndex(idx);
         g.setDrawRange(0, 0);
         g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1);
@@ -142,6 +143,7 @@ export class SurfacePool {
     put('position', d.pos, 3); put('normal', d.nrm, 3);
     if (g.attributes.uv) put('uv', d.uv, 2);
     if (g.attributes.color) put('color', d.col, 3);
+    if (g.attributes.aFloor && d.flr) put('aFloor', d.flr, 2);
     g.index.array.set(d.idx.subarray(0, d.ni));
     g.index.clearUpdateRanges(); g.index.addUpdateRange(0, d.ni); g.index.needsUpdate = true;
     g.setDrawRange(0, d.ni);

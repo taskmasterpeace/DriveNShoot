@@ -7,11 +7,13 @@
 // A chunk no stroke reaches is built exactly as before: the stage below never runs and draws nothing from the chunk's
 // own random stream (it has its own), so painting one place never moves a tree anywhere else. A chunk is still a pure
 // function of the data: the strokes that reach it go into its hash.
+import * as THREE from 'three';
 import BRUSH from '../data/brush.json';
 import { toWorldX, toWorldZ, C, hash32, rngOf } from './geo.js';
 import { STREAM } from '../data/streaming.js';
 import { SPECIES, FLORA_KINDS, floraHash, floraVariant, poolName } from './flora.js';
 
+const _q = new THREE.Quaternion(), _eu = new THREE.Euler(), _mx = new THREE.Matrix4(), _v3 = new THREE.Vector3(), _sc = new THREE.Vector3(); // the floor's logs (no per-instance allocation)
 const sm = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const keyOf = (cx, cz) => `${cx},${cz}`;
 // Instance colours are LINEAR (three.js colour management, as chunkgen's col() gives them): sRGB hex -> linear.
@@ -227,6 +229,40 @@ export function* brushStage(B, ctx) {
       INST.shrubs.push(x, s * 0.22, z, a, s * 1.25, s * 0.6, s * 1.15, shrubC[0] * v, shrubC[1] * v, shrubC[2] * v);
       n.shrubs++;
       yield* tick();
+    }
+    // THE FLOOR (docs/design/WEB_LOOK.md §3.7): what lies between the trunks, so a wood reads as a wood from above.
+    // The ground's own floor (leaf litter, needles, loam, moss) is the ground shader's (world/surfaces.js); here, on a
+    // stream of its own after everything above (no tree moves for it): ferns in rosettes, fallen logs, stumps.
+    const rf = rngOf(hash32(seed, cx, cz, 0xf1002)), FERN = K.fern ?? ['#3f5a26', '#4a6a2c', '#36502a', '#557434'];
+    const fernC = FERN.map(hexRgb), logC = hexRgb(K.logColor ?? '#857462'), mossC = hexRgb(K.mossColor ?? '#5a6a34');
+    for (let q = 0, m = Math.round((K.fernPerHa ?? 150) * (C * C) / 10000); q < m; q++) {
+      const x = ox + rf() * C, z = oz + rf() * C, s = 1.0 + rf() * 0.9, a0 = rf() * 6.283, nf = 5 + Math.floor(rf() * 3), c = fernC[Math.floor(rf() * fernC.length)], v = 0.8 + rf() * 0.35;
+      const f = B.sample('forest', x, z, 0);
+      if (rf() >= f || blocked(x, z, 0.5)) continue;
+      // A rosette of fronds: flat strips from the heart, each reaching out from its own centre.
+      for (let k = 0; k < nf; k++) {
+        const a = a0 + (k / nf) * 6.283 + (rf() - 0.5) * 0.4, L = s * (0.75 + rf() * 0.4);
+        INST.props.push(x + Math.sin(a) * L * 0.5, 0.16 + 0.07 * (k & 1), z + Math.cos(a) * L * 0.5, a, 0.3 * s, 0.05, L, c[0] * v, c[1] * v, c[2] * v);
+      }
+      n.ferns = (n.ferns ?? 0) + 1;
+      yield* tick();
+    }
+    for (let q = 0, m = Math.round((K.logPerHa ?? 8) * (C * C) / 10000); q < m; q++) {
+      const x = ox + rf() * C, z = oz + rf() * C, L = 3.5 + rf() * 5.5, r = 0.28 + rf() * 0.2, yaw = rf() * 3.1416, stump = rf() < 0.3, v = 0.75 + rf() * 0.3, mo = rf();
+      const f = B.sample('forest', x, z, 0), dx = Math.cos(yaw) * L / 2, dz = -Math.sin(yaw) * L / 2; // the log's axis (laid down below)
+      if (rf() >= f || blocked(x, z, 1.2) || (!stump && (blocked(x + dx, z + dz, 0.8) || blocked(x - dx, z - dz, 0.8)))) continue;
+      const cr = (logC[0] + (mossC[0] - logC[0]) * mo * 0.6) * v, cg = (logC[1] + (mossC[1] - logC[1]) * mo * 0.6) * v, cb = (logC[2] + (mossC[2] - logC[2]) * mo * 0.6) * v;
+      if (stump) { // a cut or broken stump: short, wide, a lighter top
+        INST.trunks.push(x, 0.3, z, yaw, r * 3.2, 0.6, r * 3.2, cr, cg, cb);
+        addBox(x - r * 0.9, z - r * 0.9, x + r * 0.9, z + r * 0.9, 'stump', 0.6);
+      } else { // a fallen trunk on its side (the trunks pool's cylinder, laid down), and its collision along it
+        _q.setFromEuler(_eu.set(0, yaw, Math.PI / 2, 'YXZ'));
+        _mx.compose(_v3.set(x, r * 0.8, z), _q, _sc.set(r * 3.2, L, r * 3.2));
+        INST.trunks.pushMatrix(_mx, cr, cg, cb);
+        const hx = Math.abs(Math.cos(yaw)) * L / 2 + r, hz = Math.abs(Math.sin(yaw)) * L / 2 + r;
+        if (Math.min(hx, hz) < 1.2) addBox(x - hx, z - hz, x + hx, z + hz, 'log', r * 3.2); // a diagonal log stays looks-only
+      }
+      n.logs = (n.logs ?? 0) + 1;
     }
   }
   // Undergrowth on its own (brush): olive clumps, creosote and the odd tumbleweed.
