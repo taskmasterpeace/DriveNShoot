@@ -3508,9 +3508,9 @@ async function runSelfTest(api, only = null) {
   });
   await check('streaming: every exit is where its row says, near real size: a deceleration lane, a ramp that climbs at a real grade to a stop at the cross road, a bridge the interstate runs under, and signs in game miles', async () => {
     const bad = [], MI = 1609.344;
-    for (const X of WI.exits) {
-      const [rx, rz] = toWorld(X.row.pos);
-      if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`);
+    for (const X of WI.exits) { // I-10's and Florida's (a Florida exit stands at its milepost: no usmap pos to compare)
+      if (X.row.pos) { const [rx, rz] = toWorld(X.row.pos); if (Math.hypot(rx - X.x, rz - X.z) > 400) bad.push(`${X.id} built ${Math.round(Math.hypot(rx - X.x, rz - X.z))} m from its row`); }
+      else if (Math.abs(X.number * MI - X.s) > MI && !X.town) bad.push(`${X.id} at mile ${(X.s / MI).toFixed(2)}, not its number`);
       for (const rb of WI.ribbons.filter((r) => r.exit === X.id && r.rampKind === 'off')) {
         const aux = (rb.aux[1] - rb.aux[0]) * 4, top = rb.y[rb.n - 1] - 0.04;
         let maxGrade = 0, len = 0;
