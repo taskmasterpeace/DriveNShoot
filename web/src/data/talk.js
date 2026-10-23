@@ -45,7 +45,10 @@ export const ROAD = {
   camp: 'Dustwolves hold the camp {dir} of here. They\'ll see you before you see them.',
   weather: { STORM: 'Acid\'s coming down. Get under a roof and stay there.', RAIN: 'Rain\'s acid this season. Don\'t drink it, don\'t stand in it.', DUST: 'Dust like this, you can\'t see a buggy till it\'s on top of you.', FOG: 'Fog brings them close before you know it. The dead don\'t need eyes.' },
   quiet: 'Roads are as quiet as they get. That\'s not very.',
-  near: { herd: 150, choir: 700, camp: 400 },
+  // The Phoenix ring's own (systems/residents.js): what the people who live out there warn you of.
+  nest: 'There\'s a house {dir} of here where the dead sleep the day off. Something scratches at the boards. Don\'t knock.',
+  chop: 'Dustwolves strip cars in a yard {dir} of here. Park anywhere near it and you walk home.',
+  near: { herd: 150, choir: 700, camp: 400, nest: 260, chop: 320 },
 };
 
 // What their people make of you: by the tier their faction reads you at.

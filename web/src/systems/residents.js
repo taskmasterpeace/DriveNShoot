@@ -52,6 +52,20 @@ export class Residents {
     this.byChunk.set(key, list);
     return list;
   }
+  // The nearest household of a kind within r of (x, z) that still has someone in it (systems/talk.js: what a stranger
+  // warns you of), or null. Pure lots; a record only when one exists already.
+  nearest(kind, x, z, r) {
+    if (!this.RG?.inCity(x, z, r)) return null;
+    let best = null, bd = r;
+    for (let cx = Math.floor((x - r) / 256); cx <= Math.floor((x + r) / 256); cx++) for (let cz = Math.floor((z - r) / 256); cz <= Math.floor((z + r) / 256); cz++) {
+      for (const L of this.households(cx, cz)) {
+        if (L.hh.kind !== kind) continue;
+        const d = Math.hypot(L.cx - x, L.cz - z), rec = this.recs.get(L.id);
+        if (d < bd && (!rec || this.alive(rec))) { bd = d; best = L; }
+      }
+    }
+    return best;
+  }
   // The lot with this building id (R<k>.<j>.<n>), or null.
   lotById(id) {
     const m = /^R(-?\d+)\.(-?\d+)\.(\d+)$/.exec(id ?? ''), RG = this.RG;

@@ -53,6 +53,11 @@ export class Talk {
     let camp = null, bd = N.camp;
     (g.world.spawns.camps ?? []).forEach((k, i) => { const d = Math.hypot(k.x - c.x, k.z - c.z); if (d < bd && g.society.places[`camp_${i}`]?.owner === 'dustwolves') { bd = d; camp = k; } });
     if (camp) return ROAD.camp.replace('{dir}', this.dir(c, camp.x, camp.z));
+    // Out in the Phoenix ring: the nest in the Burn, the chop shop in the yards (systems/residents.js households).
+    for (const kind of ['nest', 'chopshop']) {
+      const h = g.residents?.nearest(kind, c.x, c.z, kind === 'nest' ? N.nest : N.chop);
+      if (h && h.id !== c.house) return ROAD[kind === 'nest' ? 'nest' : 'chop'].replace('{dir}', this.dir(c, h.cx, h.cz));
+    }
     return ROAD.weather[g.sky.weatherKey] ?? ROAD.quiet;
   }
 
