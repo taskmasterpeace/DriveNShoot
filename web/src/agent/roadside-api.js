@@ -162,7 +162,9 @@ export async function roadsideChecks(api, check, C) {
       for (const s of tools) I.carried.slots.splice(I.carried.slots.indexOf(s), 1);
       const hand = S.strip(hk.id);
       give('wrench');
-      const scrap0 = count('scrap'), left0 = S.scrapLeft(hk);
+      // Scrap you got: in your pack, or on the ground at your feet when the pack is full (a battery-worn pack often is).
+      const scrapAll = () => count('scrap') + (I.groundAt(g.player.x, g.player.z).slots.find((q) => q.id === 'scrap')?.n ?? 0);
+      const scrap0 = scrapAll(), left0 = S.scrapLeft(hk);
       // Anyone at your elbow (a follower, a stray, your dog) takes E first, as everywhere: step them back a few metres.
       for (const c of g.chars) if (c !== g.player && c.alive && Math.hypot(c.x - g.player.x, c.z - g.player.z) < 4) { c.x += 12; c.z += 12; }
       if (g.dialogue.active) g.dialogue.close?.();
@@ -172,9 +174,9 @@ export async function roadsideChecks(api, check, C) {
       // On the game clock (whatever its rate is right now): 1.5 pieces' worth of game hours, then the rest.
       const hrs = () => S.hours(), until = async (dh) => { const h0 = hrs(); for (let k = 0; k < 600 && hrs() - h0 < dh; k++) await C('step', { seconds: 0.5 }); };
       await until(RR.hulk.hoursPer * 1.5);
-      const mid = count('scrap') - scrap0;
+      const mid = scrapAll() - scrap0;
       await until(RR.hulk.hoursPer * (left0 + 0.5));
-      const got = count('scrap') - scrap0 + (I.groundAt(g.player.x, g.player.z).slots.find((s) => s.id === 'scrap')?.n ?? 0);
+      const got = scrapAll() - scrap0;
       const done = S.scrapLeft(hk), job = S.job;
       const again = S.strip(hk.id);
       for (const s of tools) I.carried.slots.push(s);
