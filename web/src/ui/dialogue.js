@@ -80,7 +80,8 @@ export class Dialogue {
       // A stranger: their own small talk, or (every other hour, if you are known for something) what they make of you.
       const k = c.slot * 7 + Math.floor(this.g.sky.time), lines = BARKS[c.faction] ?? BARKS.drifter;
       const known = k % 2 === 0 ? roles?.lineFor(c) : null;
-      this.say(known?.line ?? lines[k % lines.length], [{ t: '[Leave]', end: true }]);
+      // ...then three things they'll talk about, from the live world (systems/talk.js), and [Leave].
+      this.say(known?.line ?? lines[k % lines.length], [...(this.g.talk?.topics(c) ?? []), { t: '[Leave]', end: true }]);
     }
   }
 
@@ -125,6 +126,8 @@ export class Dialogue {
       this.shown = this.full.length; this.textEl.textContent = this.full; this.choicesEl.style.opacity = 1;
       return;
     }
+    // A topic (systems/talk.js): its reply, with the other topics still on offer.
+    if (ch.reply) { const text = ch.reply(this.g); this.say(text, this.choices.filter((x) => x !== ch)); return; }
     ch.do?.(this.g);
     // A job paid or a deal struck counts with their people (deliver, trade, pay...).
     if (ch.deed && this.npc) this.g.society?.deeds.direct(ch.deed.v, this.npc, ch.deed.m);

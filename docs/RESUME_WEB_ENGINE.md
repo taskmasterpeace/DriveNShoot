@@ -44,6 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
+| Strangers talk | every stranger has three topics from the live world after their opening line: the news (a deed of yours they saw, one their people heard, a named death), the road (a herd near them, the relay's Choir, a Dustwolf camp, the weather), and what their people make of you (tier + what you're known as); data/talk.js, systems/talk.js | WEB_WORLD_MEMORY | (this commit) |
 | Phoenix ring R1 (subagent) | the dead metro round the island out to a lobed edge near 1.5 km: 2,477 walk-in buildings in four zones (THE STRIP on I-10 and the arterials, THE YARDS by the Iron Line and the wash, THE DEAD HOUSES, THE BURN at the edge), streets on the island's own 80 m lattice, roofs that hide inside, real containers whose takings persist (ringKept), the metro map (3.8 km); `ring` command, `chunk evict=`; 73 draw calls over the densest chunk, stream-drive 0 stalls, stress level | WEB_STREAMING §1.3 | 2041424d |
 | bounty-run (subagent) | the end-to-end playthrough finishes again (6/6, $250 on fresh pages, 28-180 s wall): wakes sleepers, picks locks, finds live Dustwolves through query, harpoons from the cab, engages on foot, heals with meds, takes only parked rides. Game fixes it found: spun cars locked at ~28 rad/s (a turn rate smoothed as an angle), ram from a standing start, drive/ram on dead cars and walls, engage on corpses, talk wakes a sleeper, Kenji repairs the whole car | web/src/scenarios/bounty-run.js | dc562a66 |
 | The infected's kinds | the canon's taxonomy as rows (data/infected.js): Sprinter (a shambler until something living runs inside 20 m or a shot goes off: 6 s at 9 m/s, 3 s bent double, a shambler again), Echo (works at boarded windows and locked doors only unobserved, never advances), Choir-Touched at the dead relay mast (hum 45 m, aura x1.25 + shared target 30 m); `infected` command | WEB_INFECTED | 20eb9eb4 |
@@ -110,8 +111,7 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
   this line). Still open: Ike's dialogue sells guns his counter doesn't stock (one price source, dialogue opens the
   counter); some Dustwolves read non-hostile while the faction is hostile (no repro yet); the HUD collides at phone width
   (412 px: Orders over the compass, the dash over the vitals); the infected kinds need visual tells (an aura on the
-  ground for the Choir, the Echo's frozen/working state, its window); townsfolk give one line and [Leave] (topics from
-  the chronicle); a theft seen at 2 m gets no bark or pursuit until the word lands; Reyes has no treatment option;
+  ground for the Choir, the Echo's frozen/working state, its window); a theft seen at 2 m gets no bark or pursuit until the word lands; Reyes has no treatment option;
   `memory id=c3` should accept a char id; `harpoon` out of range should say why; raiders barely pressure a moving
   shooter. A question for Robert: the game opens at 18:36 dusk - a dark first impression; start in late light?
 - Storeys v2: basements, shooting between floors through windows, noise and blasts through floors (WEB_STOREYS §0.4).

@@ -26,6 +26,7 @@ import { Inventory } from './systems/inventory.js';
 import { Roles } from './systems/roles.js';
 import { Witnesses } from './systems/witnesses.js';
 import { Storeys } from './world/storeys.js';
+import { Talk } from './systems/talk.js';
 import { LEVEL } from './data/storeys.js';
 import { InventoryUI } from './ui/inventory.js';
 import { ITEMS, GUN_CARE } from './data/items.js';
@@ -130,7 +131,8 @@ class Game {
     this.ai = new AI(this);
     this.society = new Society(this); // who saw what, and who now hates you for it
     this.society.initPlaces();
-    this.witnesses = new Witnesses(this); // the one who saw it runs home to tell it (catch them on the way)
+    this.witnesses = new Witnesses(this);
+    this.talk = new Talk(this); // what a stranger talks about: the news, the road, what their people make of you // the one who saw it runs home to tell it (catch them on the way)
     this.survival = new Survival(this); // water and food on the game clock (g.needs)
     this.vehDamage = new VehicleDamage(this);
     this.seats = new Seats(this);
