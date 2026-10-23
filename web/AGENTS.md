@@ -134,6 +134,7 @@ Address one tab from the shell with `--tab <id>` (or `DL_TAB`; the MCP server re
 | `world`, `chunk x z`, `locate name=`, `teleport town=` / `mile=` | The streamed world (docs/design/WEB_STREAMING.md): K, seed and data hash, the island's golden hash and whether it still matches, layouts and hot chunks, every pool's fill, stalls by cause (`cross` and `promote` are the perf gates), the pump's ms. `chunk` reads one chunk (tier, hash, boxes, instances, edge signatures) and can build a throwaway copy (`fresh=true mode=sync\|sliced`) to prove it is a pure function, or drop its layout (`evict=true`). `locate` finds any of the 59 towns or an exit (`exit 4`) and says its mile on I-10. `scenario name=stream-drive` is the P1 proof (the 60 s flat-out gate, a night storm at speed, the Phoenix ring at the widest zoom, the 60 m/s ceiling) |
 | `ring`, `ring x z` | The Phoenix ring (docs/design/WEB_STREAMING.md §1.3, rows in `src/data/ring.js`): the dead metro round the island out to a lobed edge near 1.5 km. No args: the footprint and the whole ring counted (blocks, buildings by zone and kind, ruins, empty lots), the densest chunk. With x,z: the street or district there, the block and its zone, the building at that spot (doors, rooms, every container with its loot table and whether it has been opened, beds) and its chunk. Walk into one (`moveTo`) and its roof hides; `pack on=true` beside a shelf or crate opens it |
 | `dogs`, `dog id=`, `whistle call=`, `cache` | Dogs (docs/design/WEB_DOGS.md, rows in `src/data/dogs.js`): stray packs on the island and the one you feed until it is yours (bond 15). `dogs` lists yours and the strays near you (breed, type, bond and tier, command, what it is doing, what it remembers of you); `dog id= feed=true` / `bandage=true` / `stay=true` (within 2.6 m, as E does); `whistle call=heel\|guard\|seek\|sic\|shield target=` is the C key; `cache` lists the buried caches a dog digs up (`place=true x z` buries one) |
+| `fauna`, `faunaSpawn`, `faunaKill`, `butcher`, `cook` | The animals (docs/design/WEB_FAUNA.md, rows in `src/data/fauna.js`): `fauna` lists what is near (species, state, group mode and quarry, threat, lit by a beam) and the summary (bodies, chunk records, counts: roadkill, rattles, strikes, lunges, death rolls, scatters, yips); `fauna density=true x z hour=` shows the formula's every term for a chunk; `on=false` stops them. `faunaSpawn species= x z count= hold=true` stages a group; `butcher` (E at a carcass with a blade) steps until the meat, hide and bone are in your pack; `cook` turns the raw meat you carry into cooked at a fire or a camped RV (`light=true` strikes a flare) |
 | `gear`, `gear wear=` / `off=` | The 19-slot paperdoll (WEB_INVENTORY.md §Gear, rows in `src/data/gear.js`): every slot, the soak per body part (armor is cut at `combat.damage`), the mods and the number each moves (carry, speed, reload, how close you are spotted, repairs, luck). `scenario name=pack-gear` stages a kitted-out PACK screen |
 | `residents`, `residents id=` | The ring's people (R2, WEB_STREAMING §1.3 "R2 as built", rows in `src/data/ring.js` RESIDENTS): households as records keyed by building id. No id: the character budget (free slots, the 16 they never take, their cap of 40), how many are promoted, promotion ms, yields, deaths, thefts, and the households near x,z with everyone in them (name, flag, asleep, at home, out on a run, in the lair). `id=R<k>.<j>.<n>`: one household in full - each member's hp, gun, death (by whom, when), grudge, where the clock has them and today's plan, what they carry, their body's box; its beds, owned shelves, the boards' hp, a nest's lair today and tomorrow. `action=promote|demote` |
 | `author row= x= z=` / `lot=` / `remove=` / `list=true` | Authored buildings (docs/design/WEB_BUILDING_LAB.md): stands a Building Lab export in the Phoenix ring now, in place of the generator's lots there (the chunks round it laid out again), and returns where, its rooms, the street point in front of its door and the reachability proof floor by floor; `sample=office2` is the fixture in `data/authored.js` |
@@ -328,6 +329,13 @@ src/
     dogs.js            dogs (data/dogs.js, WEB_DOGS.md): records, not characters; stray packs (wander, sniff and eat, mark,
                        bark, cower, flee fire and beams) and yours (bond by feeding; heel, guard, seek, SIC + pounce, shield;
                        jumps, digs caches, rides along, downed/bandaged/grave); one four-legged body in 5 InstancedMeshes
+                       (DogRenderer, exported: the fauna layer draws its four-legged game with another instance of it)
+    fauna.js           L5 LIFE, the regional animals (data/fauna.js, docs/design/WEB_FAUNA.md): a director that rolls each
+                       chunk's animals by perKm2 x km2 x biome share x time of day x (1 - presence) as RECORDS, bodies
+                       within 300 m; brains by temper (prey bolt, predators stalk the weak and back off fire and beams,
+                       hogs warn and charge, a rattlesnake warns then strikes, a gator lunges and rolls, vultures circle the
+                       dead, wading birds scatter, a cinder swarm); roadkill and the dent; traps catch game; butcher (E +
+                       a blade), cook (a fire, a camped RV), spoil; the hot ground's Glasslings and Lantern drawn as bodies
     gear.js            the 19-slot paperdoll (data/gear.js): wear/take off, soak per body part for combat.damage, the mods
                        each read by one consumer (skills carry/speed/reload, ai scan, inventory repair/luck), the body's look
     throwables.js      frags, molotovs (fire spreads along fuel leaks), smoke, flashbangs, sticky bombs, arcs + cooking
@@ -351,6 +359,8 @@ src/
                        rounds and guns (AMMO_ITEM, GUN_ITEM), gun wear and jams (GUN_WEAR, GUN_CARE), what the dead carry (GUN_FOUND)
   data/gear.js         the paperdoll's SLOTS, GEAR rows (soak + covers, or a mod), where a hit lands (HIT_ODDS), caps, gear loot
   data/dogs.js         DOG_TYPES, BREEDS, the BOND, the WHISTLE, GAIT, DOG_RULES, the island's STRAY_PACKS and buried CACHES
+  data/fauna.js        SPECIES (form, group, active, temper, senses, speed, attack, fear, butcher, body), HABITATS (region +
+                       biome letters or hot ground, perKm2), PHASES/ACTIVE, PRESENCE, FAUNA_RULES, FAUNA_ITEMS (meat, hides)
   data/trade.js        who trades in what (TRADERS), prices by standing tier (PRICE_TIER), reach/restock/deed pacing (TRADE)
   data/roles.js        roles as rows (ROLES: earn, wear, tiers, gates, opens), the jobs and offices they open (ROLE_JOBS,
                        ROLE_OFFICES), the director's role calls (ROLE_CALLS), the tuning and the toast words (ROLE_RULES)
@@ -385,6 +395,7 @@ src/
     devtools.js        COMMANDS rows: observe, person, mapBase, mapTiles, heal, record, session, replay, look, snap, diff, watch
     devtools-selftest.js  their selftest checks
     forgetools.js      COMMANDS rows of THE WORLD FORGE: forge, forgePatch, forgePush, mapEdit, mapCheck, brush, brushPaint
+    faunatools.js      COMMANDS rows of the fauna layer: fauna, faunaSpawn, faunaKill, butcher, cook; faunatools-selftest.js its checks
     forgetools-selftest.js  its checks: the page boots and mounts, a MAP round trip that streams, a BRUSH stroke that thickens
     content.js         loads content/*.json packs through the API at boot
   scenarios/*.js       scripted setups (DL, game) => summary
