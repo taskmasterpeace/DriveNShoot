@@ -21,6 +21,8 @@ import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
 import { KINDS as KINDS_RING } from '../data/ring.js';
 import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
+import { GEAR, SLOTS } from '../data/gear.js';
+import { BREEDS, BOND } from '../data/dogs.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1398,6 +1400,72 @@ function buildCommands(api) {
         if (clean) { const i = inv.carried.slots.findIndex((s) => s.id === 'cleaning_kit' && s.left > 0); need(i >= 0, 'you carry no cleaning kit'); const r = inv.use(i); need(r.ok, r.why); out.cleaned = r.text; }
         if (fix) { const cost = inv.smithQuote(g.inv.current), r = inv.smithFix(g.inv.current); need(r.ok, r.why); out.fixed = { weapon: k, cost }; }
         return { ...out, current: g.inv.current, guns: inv.gunView() };
+      },
+    },
+    gear: {
+      group: 'player', desc: 'What you wear: the 19-slot paperdoll (data/gear.js, WEB_INVENTORY.md §Gear). No args: every slot (head, neck, chest, arms, hands, legs; coat, under, belt, feet, sash, face, back = your pack; ears, rings, charm, wrist) with what is in it, the soak per body part (head, torso, arms, legs; capped at 75%), the summed mods and the number each one moves (carryKg, speedMul, reloadMul, seenMul, repairMul, luckRolls). give=<gear id> puts one in your pack; wear=<gear id> wears one from your pack (what was in its slot goes back in the pack); off=<slot> takes a slot off into the pack (at your feet with no room). In the game: the PACK screen (I): F wears the gear picked in your list, a worn slot\'s chip (click, or F on it) takes it off.',
+      args: { give: { type: 'string' }, wear: { type: 'string' }, off: { type: 'string' } },
+      run: async ({ give, wear, off }) => {
+        const inv = g.inventory, out = {};
+        const known = (id) => need(GEAR[id], `unknown gear ${id}; gear: ${Object.keys(GEAR).join(', ')}`);
+        if (give) { known(give); out.given = inv.add(inv.carried, give, 1); inv.changed(); need(out.given, `no room in your pack for the ${GEAR[give].name.toLowerCase()}`); }
+        if (wear) { known(wear); const i = inv.carried.slots.findIndex((s) => s.id === wear); need(i >= 0, `you carry no ${wear} (give=${wear} first)`); const r = g.gear.wear(i); need(r.ok, r.why); out.wore = r.text; }
+        if (off) { need(SLOTS.includes(off), `slot must be one of ${SLOTS.join(', ')}`); need(off !== 'back', 'the back slot is your pack: item wear=<pack> swaps it'); const r = g.gear.takeOff(off); need(r.ok, r.why); out.off = r.text; }
+        return { ...out, ...g.gear.view() };
+      },
+    },
+    dogs: {
+      group: 'world', desc: 'The world\'s dogs (data/dogs.js, docs/design/WEB_DOGS.md). No args: yours first, then the strays near you (radius, default 120 m): id, name, breed, type, owned, bond (0-100) and tier (STRAY, COMPANION, PARTNER, SOULBOUND), the command it is on (heel, stay, guard, seek, sic, shield), what it is doing (wander, pack, sniff, eat, mark, bark, growl, cower, flee, wary, beg, heel, alert, attack, seek, dig, point, riding, downed, dead), hp, its pack, the threat it has on you, what it remembers of you (fed, saves, shot by you), counts (jumps, pounces, bites, ate, marks, barks, digs); the buried caches (dug or not), graves and the fallen. id=<dog id or name> for one.',
+      args: { id: { type: 'string' }, radius: { type: 'number', default: 120 } },
+      run: async ({ id, radius }) => {
+        const D = g.dogs, P0 = P();
+        if (id) { const d = D.byId(id); need(d, `no dog ${id}`); return { dog: D.view(d) }; }
+        const list = D.dogs.filter((d) => d.owned || Math.hypot(d.x - P0.x, d.z - P0.z) <= radius).sort((a, b) => (b.owned - a.owned) || Math.hypot(a.x - P0.x, a.z - P0.z) - Math.hypot(b.x - P0.x, b.z - P0.z));
+        return { yours: D.mine().length, total: D.dogs.length, dogs: list.map((d) => D.view(d)), caches: D.caches.map((c) => ({ id: c.id, x: c.x, z: c.z, table: c.table, dug: c.dug })), graves: D.graves, fallen: D.fallen, lastWhistle: D.wh.last };
+      },
+    },
+    dog: {
+      group: 'world', desc: 'Do something with one dog (id = its id or name, "mine" = your first dog, "nearest"). feed=true feeds it the best dog food you carry (item=<id> to choose: jerky, dried meat, a ration): a stray fed up to bond 15 is yours; bandage=true binds a downed dog of yours (a bandage, rag, suture kit or first-aid kit); stay=true / heel=true tells yours to stay or follow (the E key on a dog does all of these). You must be within 2.6 m (force=true skips that, for tests). Testing: spawn=<breed> at x,z makes a stray (pack= to join one); bond=<0..100> sets its bond (owned when ≥ 15); hurt=<n> hurts it; at x,z moves it there.',
+      args: { id: { type: 'string', default: 'nearest' }, feed: { type: 'boolean' }, item: { type: 'string' }, bandage: { type: 'boolean' }, stay: { type: 'boolean' }, heel: { type: 'boolean' }, force: { type: 'boolean', default: false },
+        spawn: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, name: { type: 'string' }, pack: { type: 'string' }, bond: { type: 'number' }, hurt: { type: 'number' } },
+      run: async ({ id, feed, item, bandage, stay, heel, force, spawn, x, z, name, pack, bond, hurt }) => {
+        const D = g.dogs, out = {};
+        let d;
+        if (spawn) {
+          need(BREEDS[spawn], `unknown breed ${spawn}; breeds: ${Object.keys(BREEDS).join(', ')}`);
+          need(Number.isFinite(x) && Number.isFinite(z), 'spawn needs x,z');
+          d = D.make(spawn, x, z, { name, pack: pack ?? null });
+          need(d, `the dog budget is full (${D.dogs.length})`);
+          d.leader = pack ? D.dogs.find((o) => o.pack === pack && o !== d && !o.dead) ?? d : d; d.home = { x: d.x, z: d.z };
+          out.spawned = d.id;
+        } else { d = D.byId(id); need(d, `no dog ${id}${D.mine().length ? '' : ' (you have no dog yet: feed a stray)'}`); }
+        if (!spawn && Number.isFinite(x) && Number.isFinite(z)) { d.x = x; d.z = z; d.vx = d.vz = 0; d.y = D.ground(d); d.path = null; }
+        if (bond !== undefined) { d.bond = Math.max(0, Math.min(100, bond)); if (d.bond >= BOND.adoptAt && !d.owned) D.adopt(d); }
+        if (hurt) D.hurt(d, hurt, null, 0, 0, 'bullet');
+        const far = Math.hypot(d.x - P().x, d.z - P().z);
+        if (feed || bandage || stay || heel) need(force || far <= 2.6, `${d.name} is ${far.toFixed(1)} m away: stand within 2.6 m (moveTo x=${d.x.toFixed(1)} z=${d.z.toFixed(1)})`);
+        if (feed) { const r = D.feed(d, item ?? null); need(r.ok, r.why); out.fed = r.text; }
+        if (bandage) { need(d.downed, `${d.name} is not down`); const r = D.interact(d, 'bandage'); need(r.ok, r.why); out.bandaged = r.text; }
+        if (stay || heel) { need(d.owned, `${d.name} is not your dog`); D.order(d, stay ? 'stay' : 'heel'); out.ordered = stay ? 'stay' : 'heel'; }
+        return { ...out, dog: D.view(d) };
+      },
+    },
+    whistle: {
+      group: 'world', desc: 'Whistle for your dogs (the C key on foot: tap = heel, double = guard this spot, triple = seek the nearest buried cache or unsearched box within 45 m, hold = SIC the person nearest your aim or else the nearest threat, four sharp = SHIELD, only a soulbound dog answers). call=heel|guard|seek|sic|shield; target=<character id> for sic. Each dog acts after its own beat (its type\'s obey delay, shorter as the bond grows).',
+      args: { call: { type: 'string', required: true, enum: ['heel', 'guard', 'seek', 'sic', 'shield'] }, target: { type: 'string' } },
+      run: async ({ call, target }) => {
+        if (target) need(api.findChar(target), `no character ${target}`);
+        const r = g.dogs.command(call, target ? api.findChar(target).id : null);
+        return { ...r, dogs: g.dogs.mine().map((d) => g.dogs.view(d)) };
+      },
+    },
+    cache: {
+      group: 'world', desc: 'Buried caches: packed earth only a dog digs open (data/dogs.js CACHES; loot from LOOT buried_cache, cache_rare, armor_cache). No args: every cache. place=true x z table= buries a new one (testing). A dug cache is a box you search like any other (E or I standing at it).',
+      args: { place: { type: 'boolean' }, x: { type: 'number' }, z: { type: 'number' }, table: { type: 'string', default: 'buried_cache' } },
+      run: async ({ place, x, z, table }) => {
+        const D = g.dogs;
+        if (place) { need(Number.isFinite(x) && Number.isFinite(z), 'place needs x,z'); need(LOOT[table], `unknown loot table ${table}`); const c = D.addCache(x, z, table); return { placed: c }; }
+        return { caches: D.caches.map((c) => ({ ...c, box: g.inventory.boxes.has(`cache:${c.id}`) ? `cache:${c.id}` : null })) };
       },
     },
     trade: {
@@ -2852,6 +2920,177 @@ async function runSelfTest(api, only = null) {
     inv.boxes.delete(box.id); inv.boxes.delete(twin.id); inv.opened = null; inv.load(sv);
     return items.length > 0 && JSON.stringify(items) === JSON.stringify(again) && heavier ? true : JSON.stringify({ items, again, kg0, kg: g.skills.kg });
   });
+  // ---- dogs (docs/design/WEB_DOGS.md §8) and gear (WEB_INVENTORY.md §Gear) ------------------------------------------
+  // Test dogs are made on the stage and taken out again after; the island's own strays live far from it.
+  const DG = g.dogs;
+  const dogAt = (breed, dx, dz, own = false) => {
+    const p = g.player, d = DG.make(breed, p.x + dx, p.z + dz, { name: `Test ${breed}` });
+    d.leader = d; d.home = { x: d.x, z: d.z }; d.markT = 999; d.test = true;
+    if (own) { d.bond = 20; DG.adopt(d); }
+    return d;
+  };
+  const dropDogs = () => { DG.dogs = DG.dogs.filter((d) => !d.test); };
+  const stepUntil = async (secs, done) => { for (let t = 0; t < secs; t += 0.25) { await api._step(15); if (done()) return true; } return done(); };
+  const unwall = (b) => { const S = g.statics; S.boxes.splice(S.boxes.indexOf(b), 1); for (const cell of S.cells) { const i = cell.indexOf(b); if (i >= 0) cell.splice(i, 1); } };
+  await check('dogs: a stray smells a body 20 m off, trots to it and eats', async () => {
+    await stage();
+    const c = person('drifter', 0, 16); await C('kill', { id: c.id });
+    const d = dogAt('mutt', 14, -2);
+    await C('teleport', { x: STAGE.x - 45, z: STAGE.z }); // out of its way: a stray keeps its distance from you
+    let sniffed = false, reached = false;
+    const ok = await stepUntil(30, () => { const s = DG.view(d).state; if (s === 'sniff') sniffed = true; if (Math.hypot(d.x - c.x, d.z - c.z) < 1.8) reached = true; return reached && d.ate > 0; });
+    const r = { sniffed, reached, ate: d.ate, state: DG.view(d).state, dist: r1(Math.hypot(d.x - c.x, d.z - c.z)) };
+    dropDogs();
+    return ok && sniffed ? true : JSON.stringify(r);
+  });
+  await check('dogs: fed until it is yours, a dog heels within 4 m while you run', async () => {
+    await stage();
+    const d = dogAt('mutt', 3, 1);
+    await C('item', { give: 'jerky', n: 3 });
+    const fed = [];
+    for (let i = 0; i < 3; i++) fed.push((await C('dog', { id: d.id, feed: true, force: true })).dog?.owned);
+    await stepUntil(2, () => false);
+    await C('moveTo', { x: STAGE.x - 70, z: STAGE.z + 6, run: true, wait: false });
+    let worst = 0, samples = 0;
+    for (let t = 0; t < 8; t += 0.25) { await api._step(15); if (t > 1.5 && g.autopilot && g.player.speed > 5) { worst = Math.max(worst, Math.hypot(d.x - g.player.x, d.z - g.player.z)); samples++; } }
+    g.autopilot = null;
+    const r = { fed, owned: d.owned, bond: d.bond, worst: r1(worst), samples, state: DG.view(d).state };
+    dropDogs();
+    return d.owned && !fed[0] && fed[2] && samples > 10 && worst <= 4 ? true : JSON.stringify(r);
+  });
+  await check('dogs: SIC sends yours at a man - it pounces and bites', async () => {
+    await stage();
+    const d = dogAt('shepherd', 2, 0, true), t = person('raider', 0, 14, { hp: 400 });
+    await stepUntil(0.6, () => false);
+    const w = await C('whistle', { call: 'sic', target: t.id });
+    const ok = await stepUntil(8, () => d.pounces >= 1 && d.bites >= 1 && t.hp < 400);
+    const r = { target: w.target, cmd: d.cmd, pounces: d.pounces, bites: d.bites, hp: Math.round(t.hp), dist: r1(Math.hypot(d.x - t.x, d.z - t.z)) };
+    g.removeChar(t); dropDogs();
+    return ok && w.target === t.id ? true : JSON.stringify(r);
+  });
+  await check('dogs: yours clears a 1 m wall to get back to your side', async () => {
+    await stage();
+    const P0 = g.player, x = P0.x, z = P0.z;
+    const d = dogAt('mutt', 0, -1.5, true);
+    const wall = g.statics.add(x - 5, z + 2, x + 5, z + 2.4, 'wall', 1.0);
+    await C('teleport', { x, z: z + 9 });
+    const ok = await stepUntil(8, () => d.jumps >= 1 && d.z > z + 2.6 && !d.air);
+    const r = { jumps: d.jumps, z: r1(d.z - z), air: d.air, state: DG.view(d).state };
+    unwall(wall); dropDogs();
+    return ok ? true : JSON.stringify(r);
+  });
+  await check('dogs: whistled to seek, yours finds a buried cache and digs it up', async () => {
+    await stage();
+    const d = dogAt('bloodhound', 1.5, 1, true), c = DG.addCache(g.player.x + 9, g.player.z - 6, 'buried_cache');
+    await stepUntil(0.7, () => false);
+    const w = await C('whistle', { call: 'seek' });
+    const ok = await stepUntil(14, () => c.dug);
+    const box = g.inventory.boxes.get(`cache:${c.id}`);
+    if (box) g.inventory.open(box);
+    const r = { found: w.found, dug: c.dug, digs: d.digs, box: !!box, items: box?.slots.map((s) => s.id), state: DG.view(d).state };
+    g.inventory.opened = null; if (box) g.inventory.boxes.delete(box.id);
+    DG.caches.splice(DG.caches.indexOf(c), 1); dropDogs();
+    return ok && w.found?.id === c.id && box?.slots.length > 0 ? true : JSON.stringify(r);
+  });
+  await check('dogs: gunfire makes a stray cower and run; a bonded dog only flinches', async () => {
+    await stage();
+    const stray = dogAt('mutt', 9, 3), mine = dogAt('lab', -2, 1, true);
+    mine.bond = 50;
+    await stepUntil(0.5, () => false);
+    await C('fire', { x: g.player.x, z: g.player.z - 25, shots: 1 });
+    await api._step(6);
+    const cowered = DG.view(stray).state === 'cower', calm = DG.view(mine).state !== 'cower' && mine.cowerT <= 0;
+    const ran = await stepUntil(6, () => DG.view(stray).state === 'flee');
+    const r = { stray: DG.view(stray).state, cowerT: r1(stray.cowerT), mine: DG.view(mine).state };
+    dropDogs();
+    return cowered && calm && ran ? true : JSON.stringify(r);
+  });
+  await check('dogs: a stray keeps off a fire, and out of a lit car\'s beam at night', async () => {
+    await stage();
+    const d = dogAt('coyote_cross', 8, 0);
+    await C('teleport', { x: STAGE.x - 30, z: STAGE.z });
+    g.throwables.startFire(d.x + 1.2, d.z, 1.6, 6, null);
+    const f = g.throwables.fires[g.throwables.fires.length - 1];
+    const off = await stepUntil(3, () => Math.hypot(d.x - f.x, d.z - f.z) > f.r + 3);
+    g.throwables.fires.splice(g.throwables.fires.indexOf(f), 1);
+    await C('setTime', { hour: 23 });
+    const v = g.vehiclesSys.spawn('pickup', d.x, d.z - 9, 0, '#56603f'), drv = person('drifter', 0, 0);
+    drv.x = v.x; drv.z = v.z; g.seats.board(drv, v, 0);
+    const inBeam = () => { const ex = d.x - v.x, ez = d.z - v.z, e = Math.hypot(ex, ez) || 1; return e < 20 && (ex * Math.sin(v.h) + ez * Math.cos(v.h)) / e > 0.55; };
+    const was = inBeam();
+    const out = await stepUntil(4, () => !inBeam());
+    const r = { off, was, out, at: [r1(d.x - v.x), r1(d.z - v.z)] };
+    g.vehiclesSys.remove(v); g.removeChar(drv); dropDogs();
+    await C('setTime', { hour: 12 });
+    return off && was && out ? true : JSON.stringify(r);
+  });
+  await check('dogs: yours goes down, a bandage brings it back, and it remembers you across a save', async () => {
+    await stage();
+    const d = dogAt('collie', 2, 0, true);
+    d.bond = 33;
+    DG.hurt(d, 999, null, 0, 0, 'bullet');
+    const down = d.downed && !d.dead;
+    await C('item', { give: 'bandage' });
+    const b = await C('dog', { id: d.id, bandage: true, force: true });
+    const up = !d.downed && d.hp > 0 && d.mem.saves === 1;
+    const save = (await C('save')).save;
+    DG.dogs = DG.dogs.filter((x) => x !== d);
+    await C('load', { save });
+    const back = DG.dogs.find((x) => x.id === d.id);
+    const r = { down, bandaged: b.bandaged ?? b.error, up, back: back && { owned: back.owned, bond: back.bond, saves: back.mem.saves } };
+    for (const x of DG.dogs) if (x.id === d.id) x.test = true;
+    dropDogs();
+    return down && up && back?.owned && back.mem.saves === 1 && back.bond >= 33 ? true : JSON.stringify(r);
+  });
+  await check('gear: worn armor soaks a hit by its soak (a vest on the torso, 24%)', async () => {
+    await stage();
+    const P0 = g.player, sv = g.gear.save(), god = g.godMode;
+    g.godMode = false; P0.graceT = 0; g.gear.load(null);
+    const hit = () => { P0.hp = P0.maxHp; g.combat.damage(P0, 40, null, 0, 0, 'bullet', 'torso'); return P0.maxHp - P0.hp; };
+    const bare = hit();
+    g.gear.put('soft_vest');
+    const vest = hit();
+    const legs = (() => { P0.hp = P0.maxHp; g.combat.damage(P0, 40, null, 0, 0, 'bullet', 'legs'); return P0.maxHp - P0.hp; })(); // the vest does not cover the legs
+    P0.hp = P0.maxHp; P0.bleed = 0; g.godMode = god; g.gear.load(sv);
+    const want = bare * (1 - GEAR.soft_vest.soak);
+    return Math.abs(vest - want) < 0.01 && Math.abs(legs - bare) < 0.01 && bare > 0 ? true : JSON.stringify({ bare, vest, want, legs });
+  });
+  await check('gear: each slot\'s effect moves its one consumer (boots speed, belt carry, sash reload, coat sighting, charm loot)', async () => {
+    await stage();
+    const sv = g.gear.save();
+    g.gear.load(null);
+    const S = g.skills, b = { speed: S.speedMul, carry: S.carryKg, reload: S.reloadMul, seen: g.gear.seenMul() };
+    const twinA = g.inventory.place('selftest:lucky:a', 'buried_cache', 0, 0, 99, 'A', 4242);
+    g.inventory.open(twinA);
+    for (const id of ['trail_boots', 'rig_belt', 'double_bandolier', 'brush_poncho', 'scav_compass']) g.gear.put(id);
+    const a = { speed: S.speedMul, carry: S.carryKg, reload: S.reloadMul, seen: g.gear.seenMul() };
+    const twinB = g.inventory.place('selftest:lucky:b', 'buried_cache', 0, 0, 99, 'B', 4242);
+    g.inventory.open(twinB);
+    const nA = twinA.slots.reduce((n, s) => n + 1, 0), nB = twinB.slots.length;
+    const prefix = JSON.stringify(twinA.slots.map((s) => s.id)) === JSON.stringify(twinB.slots.slice(0, nA).map((s) => s.id)) || nB >= nA;
+    g.inventory.boxes.delete(twinA.id); g.inventory.boxes.delete(twinB.id); g.inventory.opened = null;
+    g.gear.load(sv);
+    const ok = Math.abs(a.speed / b.speed - 1.08) < 1e-6 && Math.abs(a.carry - b.carry - 10) < 1e-6 && Math.abs(a.reload / b.reload - 0.86) < 1e-6 && Math.abs(a.seen - 0.88) < 1e-6 && nB >= nA && prefix;
+    return ok ? true : JSON.stringify({ b, a, nA, nB });
+  });
+  await check('gear: what you wear saves and loads, and shows on the PACK screen', async () => {
+    await stage();
+    const sv = g.gear.save();
+    g.gear.load(null);
+    await C('gear', { give: 'combat_helmet' }); await C('gear', { wear: 'combat_helmet' });
+    for (const id of ['soft_vest', 'trail_boots']) g.gear.put(id);
+    const save = (await C('save')).save;
+    g.gear.load(null);
+    await C('load', { save });
+    const w = g.gear.worn, kept = w.head === 'combat_helmet' && w.chest === 'soft_vest' && w.feet === 'trail_boots';
+    await C('pack', { on: true });
+    const shown = document.querySelector('.inv-doll')?.textContent ?? '';
+    await C('pack', { on: false });
+    const onScreen = /Combat helmet/i.test(shown) && /Soft armor vest/i.test(shown) && /SOAK/i.test(shown);
+    const looks = g.player.colors.gearStyle === 'vest' && g.player.colors.hatStyle === 'helmet';
+    g.gear.load(sv);
+    return kept && onScreen && looks ? true : JSON.stringify({ worn: g.gear.save().worn, kept, onScreen, shown: shown.slice(0, 160), looks });
+  });
   await check('inventory: shop shelves are searchable and owned - take from Doc Reyes\'s shelf in front of her and she remembers it', async () => {
     await stage();
     const inv = g.inventory, sv = JSON.parse(JSON.stringify(inv.save()));
@@ -4256,6 +4495,8 @@ export function snapshot(g) {
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
+    gear: g.gear?.save(), // what you wear in the 19 slots (data/gear.js)
+    dogs: g.dogs?.save(), // every dog: yours with its bond and what it remembers, the strays, dug caches, graves, the fallen
   };
 }
 
@@ -4315,6 +4556,8 @@ export function restore(g, s) {
   if (s.interiors) g.interiors.load(s.interiors); // an older save leaves the doors and windows as they are
   if (s.bases) g.bases.load(s.bases); // soldiers back on their posts (by id), the alert as it was
   if (s.roles) g.roles.load(s.roles); else g.roles.reset(); // after the pack: an office's star is in it (a save from before roles: none)
+  g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
+  if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

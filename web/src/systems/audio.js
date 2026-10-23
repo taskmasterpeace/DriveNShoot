@@ -187,6 +187,23 @@ export class Audio {
   pickup() { this.tone(880, 0.08, 0.08, 'square'); this.tone(1320, 0.1, 0.06, 'square'); }
   reload() { this.tone(300, 0.05, 0.08, 'square'); setTimeout(() => this.tone(240, 0.06, 0.08, 'square'), 120); }
   empty() { this.tone(1200, 0.03, 0.06, 'square'); }
+  // Dogs (systems/dogs.js): a bark is a short voiced yelp over a noise chuff; a big dog barks lower. growl, yelp, whine.
+  dog(kind, scale = 1, dist = 0, pan = 0) {
+    this.count(`dog:${kind}`);
+    const f = Math.max(0, 1 - dist / 60), lo = 1 / Math.max(0.5, scale);
+    if (f <= 0.01) return;
+    if (kind === 'bark') { this.tone(420 * lo, 0.11, 0.12 * f, 'sawtooth', 0.55, pan); this.burst({ dur: 0.1, freq: 900 * lo, type: 'bandpass', q: 1.5, vol: 0.35 * f, decay: 0.09, pitchDrop: 0.6, pan }); }
+    else if (kind === 'growl') this.tone(95 * lo, 0.6, 0.1 * f, 'sawtooth', 0.85, pan);
+    else if (kind === 'yelp') this.tone(1150 * lo, 0.18, 0.1 * f, 'triangle', 0.5, pan);
+    else if (kind === 'whine') { this.tone(780 * lo, 0.9, 0.07 * f, 'sine', 0.7, pan); }
+  }
+  // Your whistle: one short, two, three (higher), a long one, four sharp.
+  whistle(call) {
+    this.count('whistle');
+    const n = { heel: 1, guard: 2, seek: 3, shield: 4 }[call] ?? 0, f = call === 'seek' ? 2300 : 2000;
+    if (call === 'sic') { this.tone(1900, 0.7, 0.06, 'sine', 1.25); return; }
+    for (let i = 0; i < n; i++) setTimeout(() => this.tone(f, 0.12, 0.06, 'sine', 1.08), i * 150);
+  }
 
   // free: 0..1, the driven wheels are off the ground under throttle (a jump) - nothing to push on, the revs flare.
   ambience(rain, dust, engine, free = 0) {
