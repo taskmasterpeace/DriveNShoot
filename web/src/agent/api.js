@@ -4070,6 +4070,26 @@ async function runSelfTest(api, only = null) {
       return fast && shared && humming && slow && silent ? true : JSON.stringify({ inAura: inAura.length, fast, shared, target: q.ztarget?.id ?? null, humming, slow, silent });
     } finally { g.godMode = false; for (const c of [q, ...herd]) if (c && g.chars.includes(c)) g.removeChar(c); S.night = -1; }
   }));
+  await check('infected: with the infected out (not hushed), the Choir aura shows as a ring on the ground and nothing throws', async () => {
+    await stage();
+    const Z = g.zombies, S = Z.sites[0], e0 = g.errors?.length ?? 0, on = Z.enabled;
+    Z.enabled = true; g.godMode = true;
+    S.night = -1;
+    let r = null;
+    try {
+      r = Z.wakeSite(S, true);
+      if (!r) return 'the site did not wake';
+      await C('teleport', { x: S.x + 26, z: S.z });
+      await C('step', { seconds: 2 });
+      const ring = Z.auraRing, vis = !!ring?.visible, at = ring ? Math.hypot(ring.position.x - S.x, ring.position.z - S.z) : null;
+      const errs = (g.errors ?? []).slice(e0).map((e) => e.msg);
+      return vis && at < 6 && !errs.length ? true : JSON.stringify({ vis, at, errs: errs.slice(0, 2) });
+    } finally {
+      g.godMode = false; Z.enabled = on;
+      for (const id of [r?.choir, ...(r?.herd ?? [])]) { const c = id && api.findChar(id); if (c) g.removeChar(c); }
+      S.night = -1;
+    }
+  });
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
