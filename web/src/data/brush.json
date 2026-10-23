@@ -1,6 +1,6 @@
 {
   "kind": "dsoa-brush",
-  "version": 9,
+  "version": 12,
   "note": "THE BRUSH (docs/design/WEB_FORGE.md 3.4): density painted over the land, read by the chunk generator (src/world/brush.js -> src/world/chunkgen.js). Paint it in the World Forge's BRUSH tab (web/forge.html) or with the brushPaint command. A stroke is a capsule along pts (usmap metres, the map's own frame) of radius r; v 0..1; op add | sub | set; soft 0..1 is how much of r fades out. Strokes apply in order.",
   "layers": {
     "forest": "tree stems: 0 none .. 1 a closed wood",
@@ -38,8 +38,8 @@
     "LOUISIANA": {"canopy":["cypress","oak"],"under":["fanpalm","deadtree"],"shrub":"#34442a"}
   },
   "strokes": [
-    {"id":"forest-1","layer":"forest","op":"add","v":1,"r":134.6,"soft":0.5,"pts":[[-49288.5,6480.8],[-49232.4,6490.4],[-49176.3,6500],[-49120.2,6509.6],[-49064.1,6519.2]],"note":"THE BANNING HILLS: the baked land is wooded here (NLCD forest), painted in the forge"},
     {"id":"forest-east","layer":"forest","op":"add","v":0.9,"r":100,"soft":0.5,"pts":[[-40730.8,8076.9],[-40653.8,8019.2],[-40576.9,7961.5]],"note":"a wood on the land the bake calls forest, 14 km east of Phoenix"},
-    {"id":"rad-glass-sink","layer":"rad","op":"add","v":1,"r":73.1,"soft":0.6,"pts":[[-45865.4,6990.4]],"note":"THE GLASS SINK: a hot pan south of FURNACE MILE 9"}
+    {"id":"rad-glass-sink","layer":"rad","op":"add","v":1,"r":73.1,"soft":0.6,"pts":[[-45865.4,6990.4]],"note":"THE GLASS SINK: a hot pan south of FURNACE MILE 9"},
+    {"id":"forest-3","layer":"forest","op":"add","v":1,"r":134.6,"soft":0.5,"pts":[[-49288.5,6480.8],[-49232.4,6490.4],[-49176.3,6500],[-49120.2,6509.6],[-49064.1,6519.2]],"note":"THE BANNING HILLS: the baked land is wooded here (NLCD forest), painted in the forge"}
   ]
 }
