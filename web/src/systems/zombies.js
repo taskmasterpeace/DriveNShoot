@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { outfit } from './characters.js';
 import { INFECTED, CHOIR_SITES } from '../data/infected.js';
+import { Wilds } from './wilds.js';
 
 // The infected (canon: docs/design/THE_INFECTED.md - shamblers, and the rare sprinter; never "zombies" on screen). They hunt by smell (no line of sight needed), swarm to
 // noise (gunfire, engines, horns), claw at cars until the glass gives, reach in for the
@@ -29,6 +30,8 @@ export class Zombies {
     this.sites = CHOIR_SITES.map((s) => ({ ...s, night: -1 }));
     this.counts = { bursts: 0, overheats: 0, echoStrikes: 0, hums: 0 };
     this.buildSites();
+    // The Greyborn, the Grapevine, their traps and the hot ground (systems/wilds.js, docs/design/WEB_GREYBORN_GRAPEVINE.md).
+    this.wilds = new Wilds(game);
     this.auraRing = null; // the ring on the ground (not this.aura: that is the method think() asks) round a living Choir-Touched (one mesh, shown only while one is near)
   }
 
@@ -224,7 +227,7 @@ export class Zombies {
       if (c.faction !== 'zombie' || !c.alive) continue;
       // A sprinter breaks at a noise inside its ear.
       if (c.zkind === 'sprinter' && Math.abs(c.x - x) < SP.ear && Math.abs(c.z - z) < SP.ear && Math.hypot(c.x - x, c.z - z) <= Math.min(r, SP.ear)) this.burst(c, 'noise');
-      if (c.ztarget || c.zkind === 'echo' || c.zkind === 'choir') continue;
+      if (c.ztarget || c.zkind === 'echo' || c.zkind === 'choir' || c.wild) continue;
       if (Math.abs(c.x - x) > r || Math.abs(c.z - z) > r) continue;
       if (c.res) c.res.roused = this.g.time + 20; // a nest's own (systems/residents.js): roused, it goes to look
       c.wx = x + (Math.random() - 0.5) * 6; c.wz = z + (Math.random() - 0.5) * 6; c.timer = 10;
@@ -273,6 +276,7 @@ export class Zombies {
     // to stand still); only a missing or broken one is repaired.
     if (!(c.zSpeed >= 0)) c.zSpeed = SH.speed[0] + 0.35;
     if (!Number.isFinite(c.timer)) c.timer = 0;
+    if (c.wild && this.wilds.think(c, dt)) return; // the Greyborn and the hot ground's creatures have their own minds
     if (c.zkind === 'echo') { this.echo(c, dt); return; }
     if (c.zkind === 'choir') { this.choir(c, dt); return; }
     if (c.runner && !c.zs) { c.zkind = 'sprinter'; c.zs = { state: 'dormant', t: 0 }; } // an old save's runner
@@ -330,6 +334,7 @@ export class Zombies {
 
   update(dt) {
     const g = this.g;
+    this.wilds.update(dt); // its own switch (wilds.enabled): hushing the herd leaves the Greyborn and the Grapevine alone
     if (!this.enabled) return;
     // Groans from the infected nearby.
     this.groanT -= dt;
@@ -354,7 +359,7 @@ export class Zombies {
     const alive = g.chars.reduce((n, c) => n + (c.faction === 'zombie' && c.alive ? 1 : 0), 0);
     if (night < 0.6) {
       // Daylight: the far-off infected crawl back into the ruins.
-      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && !c.res && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
+      for (const c of [...g.chars]) if (c.faction === 'zombie' && c.alive && !c.grabbing && !c.res && !c.wild && Math.hypot(c.x - g.player.x, c.z - g.player.z) > Math.max(140, (g.viewR ?? 0) + 20) && Math.random() < 0.3) g.removeChar(c);
       return;
     }
     if (alive >= CAP_NIGHT || g.freeSlots.length <= AMBIENT_RESERVE || g.time < HORDE_QUIET) return; // the director's events need room too; a new arrival gets a quiet start

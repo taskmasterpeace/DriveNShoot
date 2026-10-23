@@ -3,6 +3,8 @@
 **Status:** v1 BUILT (2026-10-22): `web/src/systems/zombies.js`, rows in `web/src/data/infected.js`. The canon is
 `docs/design/THE_INFECTED.md` (the Godot game's taxonomy, rulings 0.1-0.20, the counterplay matrix §3.4); this doc is
 how much of it the web engine carries and how. Never "zombies" on screen.
+**The kinds that kept something** (the Greyborn, the Grapevine), their traps and the hot ground's creatures:
+`docs/design/WEB_GREYBORN_GRAPEVINE.md` (2026-10-23).
 
 ## 1. Overview
 The web infected were shamblers that hunt by smell and "runners" that always ran. v1 brings them to the canon's
