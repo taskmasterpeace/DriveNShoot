@@ -376,7 +376,20 @@ Meridian has 5 of its 16 eligible.
 - **The render origin.** The roof hash uses the instance's world centre. If P2's moving render origin lands, roofs would
   change kind as the origin moves. The hash must then use the world position (origin + render position). Recorded for
   WEB_STREAMING P2.
-- **Weather**: rain still darkens ground and roads through `sky.js`. Roofs are not wetted.
+- **Weather**: rain still darkens ground and roads through `sky.js`. Roofs are not wetted. Meridian's puddles are there
+  in the dry too (they are the low corners of a yard, not the weather).
+- **A floor across a chunk seam** is the same pure function of the world position on both sides; its weights are per
+  8 m vertex, so a floor's edge is soft over 8 m, never a step.
+- **The noise wrap** (2,048 m) puts the floors' pattern on a period of 2 km. Nothing reads at that scale from any camera.
+- **A lot's dressing is laid out when a chunk first asks** (`fillOf`), not at boot: it needs the building's doors, and
+  computing every Meridian plan at boot would cost ~35 ms. It is still a pure function of the lot (its own stream), so
+  the order chunks ask in never changes it.
+- **A shed, a hulk or a back house that does not fit** (a door within `doorClear`, the building, another item, the lot's
+  edge) is skipped after a few tries, never squeezed in. A lean-to only keeps its posts clear of a back door: a back
+  door under a lean-to stays usable.
+- **A fallen log lying on a diagonal** has no collision box (an axis-aligned box round it would block the ground beside
+  it); one that lies within ~25° of an axis is solid.
+- **Vultures at the widest zoom** fly at most 55% of 130 m = 72 m; they are small there, as they should be.
 
 ## 6. Dependencies
 
@@ -391,6 +404,11 @@ Meridian has 5 of its 16 eligible.
 | floor plans (in progress) | rooms inside ring houses; next, Rust Haven's buildings |
 | `world/flora.js` | the tree and plant pools (§3.6); `city.js`, `chunkgen.js` and `streamer.js` share them |
 | `tools/blenderforge/gen_flora.py` | the models; re-run it after any change to a species, then look at the previews |
+| `world/surfaces.js` `groundSurface` | the ground's no-tiling and floors (§3.7); `world/streamer.js` patches its two ground materials with it |
+| `world/chunkgen.js`, `world/pools.js` | the ground layer's `aFloor` attribute: chunkgen writes it per vertex, the surface pool uploads it |
+| `world/brush.js` | the forest floor's weight (the `forest` layer) and what lies on it: ferns, logs, stumps |
+| `world/holdout.js`, `data/holdouts.js` `grit`, `data/ring.js` `holdout_burnt` | Meridian rebuilt from wreckage (§3.8) |
+| `systems/ambient.js` | the vultures (§3.9) |
 
 ## 7. Tuning knobs
 
@@ -411,6 +429,15 @@ Meridian has 5 of its 16 eligible.
 | `SPECIES[kind].cap` | flora.js | 300–3,000 | ≥ island + hot chunks' use | instances a species can hold at once (`world` reports pool fill) |
 | `TRI_MIN`, `TRI_MAX` | gen_flora.py | 150, 600 | — | the per-variant triangle budget the factory enforces |
 | `PAL` | gen_flora.py | per species | no hue 270–320 | the plants' colours; checked at start-up |
+| no-tiling weights | surfaces.js `GROUND_MAP` | k2 0.35–0.9, k3 0.25–0.7 | floor ≥ 0.25 | lower floors let the base tile show bare again (the egg-crate) |
+| `WRAP` | surfaces.js | 2,048 m | a power of two ≥ 1,024 | the floors' noise period; every lattice size must divide it |
+| `fernPerHa`, `logPerHa`, `fern`, `logColor`, `mossColor` | brush.json knobs (defaults in brush.js) | 150, 8 | 0–300, 0–20 | what lies on a forest floor |
+| `grit.burn` | holdouts.js | 0.22 | 0–0.5 | burnt shells among the back-row houses |
+| `grit.setback`, `grit.shift` | holdouts.js | −1.0..2.4 m, 0.22 | keep setback ≥ 1.8 m | how far off a ruled frontage the buildings sit |
+| `grit.back` | holdouts.js | shack 0.85 … scrap 0.45 | 0–1 each | how full a back yard is |
+| `grit.fence` | holdouts.js | 1.0–1.9 m, panels 1.4–3.2 m, gap 0.1 | — | junk fences |
+| `trees.squareH` | holdouts.js | 4.6–6.2 m | 4–7 | the market square's trees |
+| vulture ceiling | ambient.js | 0.55 × camera height, ≥ 9 m | 0.4–0.7 | how close a bird gets to the lens |
 
 ## 8. Acceptance criteria
 
@@ -452,3 +479,31 @@ Meridian has 5 of its 16 eligible.
   weaker GPU is vertex-bound, the fix is one pool per variant: three draws per species instead of one.
 - `selftest` is 135/135 twice on fresh pages. That includes the island golden hash (unchanged: no collision box moved),
   "a chunk is a pure function of the data", the pool leak lap, and the ring's draw-call checks.
+
+**Look pass 2 (§3.3 kind 3, §3.6 palms, §3.7–3.9).** Before/after from the game camera, same spot, same hour (10:30 clear,
+dusk 18:36), same zoom: `docs/renders/web/look2/<shot>_before.jpg` and `_after.jpg` (luma: mean of the image, 0–255, PIL).
+
+| shot | what to look at | luma before → after |
+|---|---|---|
+| `meridian_market_street` (zoom 22), `meridian_market_game` (33) | white plaza and one oak → the town's earth, striped canvas, stock, blankets of goods, benches, trough | 192 → 171, 182 → 167 |
+| `meridian_houses_wide`, `meridian_west_wide` (60) | lawns with a bed or two → packed earth, junk fences, back houses, sheds, beds, hulks, coops | 173 → 167, 170 → 156 |
+| `meridian_over` (150) | a model suburb under quilt roofs → a walled holdout: salvage roofs, burnt shells, yards full | 157 → 152 |
+| `forest_game` (33), `forest_wide` (90) | desert sand between the trees → litter, needles, loam and moss, ferns, logs | 85 → 72, 91 → 74 |
+| `palms_market` (33), `palms_close` (16) | flat bright paddles → drooping feather fronds, dead fronds, a feathered shadow | 173 → 171, 158 → 144 |
+| `swamp_vulture_dusk`, `_noon` (33; a bird put on the camera's ray) | the black slab → a vulture | 15 → 16, 101 → 104 |
+| `terrain_hills_over`, `terrain_climb_over` (260, tilt 0.55, `?terrain=real`) | the egg-crate → irregular desert | 192 → 191, 189 → 188 |
+
+- **Draw calls at the widest zoom (HIGH, `bench` 90 frames), before → after:** Meridian's centre 84 → 86 by day, 87 → 89
+  in a night storm; its market 87 → 88, 89 → 90; the painted wood east of Phoenix 74 → 74, 76 → 76; the Banning hills wood
+  76 → 76, 78 → 78. All under 150. No pool was added: every new thing is an instance in a pool that already draws.
+- **Stress** (`scenario name=stress`, fresh page each leg, the same harness, interleaved): base 8efbdb6f 8.11, 7.57, 7.25,
+  6.84 ms (median 7.41); look2 7.27, 7.29, 7.04, 7.36 (median 7.28); 88 draw calls both. No regression.
+- **Goldens:** the island `f0cfcd28` and the twelve pinned P1 chunk hashes are unchanged (nothing in P1's layout moved: the
+  floors are colour, the ground's no-tiling is a shader). Meridian's and the painted woods' chunk hashes changed on purpose
+  (their new instances and boxes); none of them is pinned.
+- `terrain-check.mjs` is unaffected: the heights are not touched.
+- **Selftest:** BATTERY_RESULTS. `node tools/ip-lint.mjs`: 0 deny.
+
+**Not done (look pass 2).** Meridian's street grid and its civic row are as they were (the programmes and the checks are
+built on them): the town is denser and rougher, but its blocks are still a grid. Burnt shells use the zone's smoke-dark
+stucco, not real char on their wall tops. Puddles are not wetted by rain.

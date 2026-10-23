@@ -104,9 +104,13 @@ burnt exits, to Jacksonville and Miami. Florida reads as flat, wet and green: bu
   KINDS and ZONES.holdout, `data/floorplans.js` clonebay, jail, nave and their PLANS); no ring zone picks them.
 - **Open lots** (Rust Haven's holdout fill, `data/holdout.js` rows): THE MARKET (stalls round a fire, a well, live oaks),
   THE GARDENS and THE FIELDS (raised beds, a rain tank, a shade tarp), THE PIT (a ring of fence and tyres, bleachers), THE
-  BONEYARD (wrecks stacked two high), the water tower. Every lot gets a back yard: gardens, rain tanks, washing lines,
-  shade, junk; picket fences round the houses; carts and cars at the kerb. Lamps (night pools of light), sabal palms down
-  Main Street.
+  BONEYARD (wrecks stacked two high), the water tower. Lamps (night pools of light), sabal palms down Main Street; carts
+  and cars at the kerb.
+- **Rebuilt from wreckage** (look pass 2, docs/design/WEB_LOOK.md §3.8; rows `HOLDOUTS.meridian.grit`): the ground is
+  packed earth with worn paths, litter and puddles (the market square too: no paving); buildings sit off a ruled frontage;
+  a fifth of the back-row houses are burnt shells (zone `holdout_burnt`); every lot has junk fences, a lean-to, back
+  houses, a shed and an outhouse, raised beds, a chicken run, a hulk, a tank, washing, firewood, compost and scrap, never
+  near a door; the market is in use (striped canvas, stock, blankets of goods, benches, fire barrels, a cook tarp).
 - **Outside:** the lagoon road out of the east gate to a pier (dry deck), a boathouse, an airboat and a waterbike.
 - **People** (`PEOPLE.meridian`, `systems/regions.js`): records promoted within 520 m, written back past 900 m. Nine named
   (Sheriff Marisol Duarte CU, Dr. Kwame Asante GH, mechanic Lucien Boudreaux HT, trader Nguyen Thi Hoa VN, gunsmith Abel
