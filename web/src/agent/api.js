@@ -25,6 +25,8 @@ import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/au
 import { LAB_SAMPLES } from '../data/authored.js';
 import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
+import { devtoolsCommands } from './devtools.js';
+import { devtoolsChecks } from './devtools-selftest.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1736,6 +1738,8 @@ function buildCommands(api) {
       args: { only: { type: 'string' }, skip: { type: 'string' } },
       run: async ({ only, skip } = {}) => runSelfTest(api, only, skip),
     },
+    // The observer, the recorder and the agent multipliers (src/agent/devtools.js, docs/design/WEB_OBSERVER.md).
+    ...devtoolsCommands(api, need),
   };
 }
 
@@ -4682,6 +4686,7 @@ async function runSelfTest(api, only = null, skip = null) {
     const r = await C('load', { save: sv });
     return r.ok && g.cash === cash && Math.abs(g.player.x - x) < 0.01 ? true : `cash=${g.cash}/${cash} x=${g.player.x}/${x}`;
   });
+  await devtoolsChecks(api, check, C); // the observer, recorder and agent multipliers (src/agent/devtools-selftest.js)
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));
   g.society.director.paused = directorWas;
