@@ -808,6 +808,7 @@ export class WorldIndex {
 
   // ---- per-chunk feature buckets: everything a chunk must clip against or own ----------------------------------------
   bucketFeatures() {
+    this.roadside?.attach(this); // the dam road's ribbon, fill and rails, back in after a rebuild (the forge's live push)
     const B = (this.chunkFeat = new Map());
     const add = (x0, z0, x1, z1, f) => {
       for (let cx = chunkOf(x0); cx <= chunkOf(x1); cx++) for (let cz = chunkOf(z0); cz <= chunkOf(z1); cz++) {

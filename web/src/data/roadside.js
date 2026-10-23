@@ -176,7 +176,7 @@ export const KEEPERS = {
 export function validateRoadside(W, rows = { lines: POWER_LINES, billboards: BILLBOARDS, sites: SITES }, built = null, pinned = []) {
   const errors = [], warnings = [], ids = new Set();
   const corOf = (id) => (W.corridors ?? [W.i10]).find((c) => c.id === id) ?? null;
-  const exitOf = (id) => W.exits.find((X) => X.id === id) ?? null;
+  const exitOf = (id) => W.exits.find((X) => X.id === id) ?? (W.corridors ?? []).flatMap((c) => c.exits).find((X) => X.id === id) ?? null;
   const ribOf = (id) => W.ribbons.find((r) => r.id === id) ?? null;
   const dupe = (id, what) => { if (!id) errors.push(`${what}: a row with no id`); else if (ids.has(id)) errors.push(`${what} ${id}: the id is used twice`); else ids.add(id); };
   const hexOk = (h) => typeof h !== 'string' || !/^#[0-9a-f]{6}$/i.test(h) || !isPurple(h);

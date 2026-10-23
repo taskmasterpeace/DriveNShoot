@@ -900,7 +900,9 @@ class Game {
     }
     // A dog at your feet (systems/dogs.js): E feeds it, bandages it, or tells yours to stay or follow. C whistles (taps and a
     // hold: heel, guard, seek, SIC, shield), unless a car in reach takes C for its passenger seat.
-    const dog = !best && !bestV ? this.dogs.nearFor(p) : null;
+    // A roadside work spot (a tank's caps, a hulk, a water tank, the dam's wheel: systems/roadside.js) is E's before your dog at heel.
+    const rsSpot = !best ? this.roadside.spotNear(p) : null;
+    const dog = !best && !bestV && !rsSpot ? this.dogs.nearFor(p) : null;
     this.dogs.whistleKey(!bestV && I.key('KeyC'), dt);
     const climb = bestV ? this.decks.canClimb(bestV, p) : null; // E climbs into a pickup's bed, steps in a van's door
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
@@ -909,7 +911,7 @@ class Game {
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
     // ... or the roadside's: a tank's caps (a car beside them is what you siphon into: E stays the caps'), a hulk, a water tank, the dam's wheel.
-    const spot = !best && !op && !dog && !dk ? (!bestV ? this.travel.spotNear(p) : null) ?? this.roadside.spotNear(p) : null;
+    const spot = !best && !op && !dog && !dk ? (!bestV ? this.travel.spotNear(p) : null) ?? rsSpot : null;
     const box = !best && !bestV && !op && !dog && !dk && !spot ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
     const bed = !best && !bestV && !op && !dk && !box && !spot ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;

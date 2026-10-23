@@ -164,7 +164,14 @@ export class Roadside {
     return d;
   }
   cor(id) { return (this.W.corridors ?? [this.W.i10]).find((c) => c.id === id) ?? null; }
-  exit(id) { return this.W.exits.find((X) => X.id === id) ?? null; }
+  exit(id) { return this.W.exits.find((X) => X.id === id) ?? (this.W.corridors ?? []).flatMap((c) => c.exits).find((X) => X.id === id) ?? null; }
+  // Put the roads this layer added back into WorldIndex's lists when a rebuild dropped them (forge/live.js reindex
+  // rebuilds exits, ribbons, pieces and rails from the rows; WorldIndex.bucketFeatures calls this first).
+  attach(W) {
+    for (const rb of this.addedRibbons) if (!W.ribbons.includes(rb)) W.ribbons.push(rb);
+    for (const p of this.addedPieces) if (!W.pieces.includes(p)) W.pieces.push(p);
+    for (const r of this.addedRails) if (!W.rails.includes(r)) W.rails.push(r);
+  }
   rib(id) { return this.ribById.get(id) ?? this.addedRibbons.find((r) => r.id === id) ?? null; }
 
   // An anchor -> a frame on a road: {x, z, tx, tz, rx, rz (the traveller's right), rib (the road it is on), cor}.
@@ -225,10 +232,11 @@ export class Roadside {
     const lot = { x0: Math.min(r.x0, r.x1) - 8, z0: Math.min(r.z0, r.z1) - 8, x1: Math.max(r.x0, r.x1) + 8, z1: Math.max(r.z0, r.z1) + 8 };
     // The apron: from the kiosk's front out toward the road (axis-aligned under the canopy and the islands).
     const fr = r.front, apron = { ...lot };
-    if (fr === 'N') { apron.z1 = r.z0; apron.z0 = r.z0 - (a.set ?? 26) + F.halfW + 4; }
-    else if (fr === 'S') { apron.z0 = r.z1; apron.z1 = r.z1 + (a.set ?? 26) - F.halfW - 4; }
-    else if (fr === 'W') { apron.x1 = r.x0; apron.x0 = r.x0 - (a.set ?? 26) + F.halfW + 4; }
-    else { apron.x0 = r.x1; apron.x1 = r.x1 + (a.set ?? 26) - F.halfW - 4; }
+    const reach = (a.set ?? 26) - F.halfW - 1.2; // to the road's edge (a driveway off it, not a pad in the sand)
+    if (fr === 'N') { apron.z1 = r.z0; apron.z0 = r.z0 - reach; }
+    else if (fr === 'S') { apron.z0 = r.z1; apron.z1 = r.z1 + reach; }
+    else if (fr === 'W') { apron.x1 = r.x0; apron.x0 = r.x0 - reach; }
+    else { apron.x0 = r.x1; apron.x1 = r.x1 + reach; }
     lot.x0 = Math.min(lot.x0, apron.x0); lot.z0 = Math.min(lot.z0, apron.z0); lot.x1 = Math.max(lot.x1, apron.x1); lot.z1 = Math.max(lot.z1, apron.z1);
     const L =this.lot(S, 'kiosk', 'gas', 'strip', r, lot, { programme: S.name, ruined: false });
     this.block(S, lot, [{ x0: apron.x0, z0: apron.z0, x1: apron.x1, z1: apron.z1, band: 'lot' }], [L]);
@@ -253,7 +261,7 @@ export class Roadside {
     this.pendingBills.push({ id: `${S.id}:price`, x: ppx, z: ppz, w: 4.6, h: 2.2, lift: 6.2, legs: false, face: { kind: 'price', lines: looted ? [S.brand ?? 'FUEL', 'NO GAS', ''] : [S.brand ?? 'FUEL', 'GAS · WATER · TRADE', 'NO GUNS DRAWN'], cond: looted ? 'shot' : 'repainted', brand: S.brand ?? 'FUEL' } });
     if (looted) {
       // A car left at the pumps, a door open; an oil drum on its side; glass and junk on the apron.
-      const c = rng.pick(WRECK), wx = cpx + ux * 0 + vx * -3.5, wz = cpz + uz * 0 + vz * -3.5, rot = along ? Math.PI / 2 : 0;
+      const c = rng.pick(WRECK), wx = cpx - ux * 8.5 - vx * 2.5, wz = cpz - uz * 8.5 - vz * 2.5, rot = along ? Math.PI / 2 : 0;
       this.P('props', wx, 0.55, wz, 1.9, 0.8, 4.2, c, rot + rng.range(-0.1, 0.1)); this.P('props', wx, 1.15, wz, 1.6, 0.6, 2.0, '#2a2622', rot);
       if (along) this.B(wx - 2.1, wz - 0.95, wx + 2.1, wz + 0.95, 1.4, 'wreck'); else this.B(wx - 0.95, wz - 2.1, wx + 0.95, wz + 2.1, 1.4, 'wreck');
       this.P('barrels', cpx - ux * 7, 0.45, cpz - uz * 7, 1, 0.82, 1, '#6a3a22', 0);
@@ -582,11 +590,11 @@ export class Roadside {
     for (const sd of [-1, 1]) {
       const rp = [];
       for (let i = 0; i < rib.n; i++) {
-        if (rib.y[i] < STREAM.ramp.rail) { if (rp.length > 1) { this.W.rails.push({ pts: rp.slice(), site: S.id }); this.addedRails.push(rp.slice()); } rp.length = 0; continue; }
+        if (rib.y[i] < STREAM.ramp.rail) { if (rp.length > 1) { const rr = { pts: rp.slice(), site: S.id }; this.W.rails.push(rr); this.addedRails.push(rr); } rp.length = 0; continue; }
         const i0 = Math.max(0, i - 1), i1 = Math.min(rib.n - 1, i + 1), tx = rib.x[i1] - rib.x[i0], tz = rib.z[i1] - rib.z[i0], l = Math.hypot(tx, tz) || 1;
         if (i % 2 === 0 || i === rib.n - 1) rp.push({ x: rib.x[i] - (tz / l) * sd * (hw + 0.4), z: rib.z[i] + (tx / l) * sd * (hw + 0.4), y: rib.y[i] - 0.034 });
       }
-      if (rp.length > 1) { this.W.rails.push({ pts: rp.slice(), site: S.id }); this.addedRails.push(rp.slice()); }
+      if (rp.length > 1) { const rr = { pts: rp.slice(), site: S.id }; this.W.rails.push(rr); this.addedRails.push(rr); }
     }
     S._road = rib;
   }
