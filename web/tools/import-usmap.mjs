@@ -48,6 +48,8 @@ const out = {
   legend: d.legend, grid: d.grid, state_legend: d.state_legend, states_grid: d.states_grid, relief: d.relief,
   interstates: d.roads.filter((r) => r.kind === 'interstate').map((r) => ({ id: r.id, nickname: r.nickname, family: r.family, lanes: r.lanes, divided: r.divided, danger: r.danger, surface: r.surface, pts: r.pts.map(pt) })),
   streets: d.roads.filter((r) => r.kind === 'street' && r.pts.some(inBox)).map((r) => ({ id: r.id, lanes: r.lanes, pts: r.pts.map(pt) })),
+  // The national county and dirt roads (the World Forge's MAP draws, checks and edits them; the engine reads them at P3).
+  roads: d.roads.filter((r) => r.kind === 'county' || r.kind === 'dirt').map((r) => ({ id: r.id, kind: r.kind, lanes: r.lanes, surface: r.surface, danger: r.danger, ...(r.leads_to ? { leads_to: r.leads_to } : {}), pts: r.pts.map(pt) })),
   towns: d.towns.map((t) => ({ id: t.id, name: t.name, kind: t.kind, pos: pt(t.pos), landmark: t.landmark ?? null, landmark_kind: t.landmark_kind ?? null })),
   exits: d.exits.map((e) => ({ id: e.id, highway_id: e.highway_id, exit_number: e.exit_number, name: e.name, archetype: e.archetype, community_tier: e.community_tier,
     service_tags: e.service_tags, risk_rating: e.risk_rating, has_return_ramp: e.has_return_ramp, pos: pt(e.pos), dest: e.dest ? pt(e.dest) : null, ramp_ids: e.ramp_ids ?? [], town_id: e.town_id ?? null })),
@@ -56,6 +58,24 @@ const out = {
   structures: S.structures.map((s) => ({ id: s.id, category: s.category, display_name: s.display_name, footprint_m: s.footprint_m, floors: s.floors ?? 1, enterable: !!s.enterable })),
   exit_archetypes: B.exit_archetypes.map((a) => ({ id: a.id, name: a.name, tier_default: a.tier_default, sign_style: a.sign_style, structures_hint: a.structures_hint, service_tags: a.service_tags })),
 };
+// Rows the World Forge authored (web/forge.html; meta.forge.edits in the current file) win over the import: an edited
+// row is carried over as it is, a removed one stays removed, a forge-only collection (rails) keeps its rows.
+let carried = 0;
+const prev = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : null;
+if (prev?.meta?.forge?.edits) {
+  out.meta.forge = prev.meta.forge;
+  for (const [key, when] of Object.entries(prev.meta.forge.edits)) {
+    const [coll, ...rest] = key.split('/'), id = rest.join('/');
+    out[coll] ??= [];
+    const i = out[coll].findIndex((r) => r.id === id);
+    if (String(when).startsWith('removed')) { if (i >= 0) { out[coll].splice(i, 1); carried++; } continue; }
+    const row = prev[coll]?.find((r) => r.id === id);
+    if (!row) continue;
+    if (i >= 0) out[coll][i] = row; else out[coll].push(row);
+    carried++;
+  }
+}
 writeFileSync(OUT, JSON.stringify(out));
+if (carried) console.log(`carried over ${carried} World Forge row edit(s) (meta.forge.edits)`);
 const kb = (JSON.stringify(out).length / 1024).toFixed(0);
 console.log(`wrote src/data/usmap.json (${kb} KB, dataHash ${dataHash}): ${out.interstates.length} interstates, ${out.streets.length} streets, ${out.towns.length} towns, ${out.exits.length} exits, ${out.placements.length} placements, ${out.structures.length} structures`);

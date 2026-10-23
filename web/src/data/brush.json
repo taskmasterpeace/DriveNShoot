@@ -1,0 +1,38 @@
+{
+  "kind": "dsoa-brush",
+  "version": 1,
+  "note": "THE BRUSH (docs/design/WEB_FORGE.md 3.4): density painted over the land, read by the chunk generator (src/world/brush.js -> src/world/chunkgen.js). Paint it in the World Forge's BRUSH tab (web/forge.html) or with the brushPaint command. A stroke is a capsule along pts (usmap metres, the map's own frame) of radius r; v 0..1; op add | sub | set; soft 0..1 is how much of r fades out. Strokes apply in order.",
+  "layers": {
+    "forest": "tree stems: 0 none .. 1 a closed wood",
+    "canopy": "crown size and the share of tall canopy trees (with forest)",
+    "brush": "undergrowth: shrubs, creosote, tumbleweed",
+    "ruin": "the share of the corridor's buildings left as ruined shells (default: the kit's share)",
+    "rad": "radiation: poisoned ground, dead trees, glowing seeps, leaking drums"
+  },
+  "knobs": {
+    "forestPerHa": 92,
+    "forestGamma": 1.15,
+    "canopyDefault": 0.7,
+    "crownMin": 0.85,
+    "crownMax": 1.55,
+    "underShrubPerHa": 70,
+    "brushPerHa": 150,
+    "radGlowPerHa": 1.6,
+    "radDrumPerHa": 0.7,
+    "radDead": 0.85,
+    "tintForest": [0.58,0.68,0.46],
+    "tintRad": [1,0.94,0.5],
+    "tintForestK": 0.62,
+    "tintRadK": 0.55
+  },
+  "palettes": {
+    "_": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#3f4a2c"},
+    "CALIFORNIA": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#3f4a2c"},
+    "ARIZONA": {"canopy":["pine","oak"],"under":["paloverde","mesquite"],"shrub":"#424a2e"},
+    "NEW MEXICO": {"canopy":["pine","oak"],"under":["mesquite","deadtree"],"shrub":"#454a30"},
+    "TEXAS": {"canopy":["oak","pine"],"under":["mesquite","deadtree"],"shrub":"#404a2c"},
+    "FLORIDA": {"canopy":["cypress","oak"],"under":["fanpalm","datepalm"],"shrub":"#34442a"},
+    "LOUISIANA": {"canopy":["cypress","oak"],"under":["fanpalm","deadtree"],"shrub":"#34442a"}
+  },
+  "strokes": []
+}
