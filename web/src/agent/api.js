@@ -4308,12 +4308,14 @@ async function runSelfTest(api, only = null) {
       const inAura = herd.filter((c) => c.alive && zdist(c, q) < 30);
       const fast = inAura.length > 0 && inAura.every((c) => c.auraMul === 1.25);
       const shared = q.ztarget === g.player && inAura.every((c) => c.ztarget === g.player);
+      // Polled, not a fixed wait: the hum and the infected's think ticks are on their own clocks, and a loaded machine
+      // lands them just past a fixed window (2 in 9 runs failed that way on 2026-10-23).
       const h0 = Z.counts.hums;
-      await C('step', { seconds: 3 });
+      for (let t = 0; t < 8 && Z.counts.hums === h0; t += 0.5) await C('step', { seconds: 0.5 });
       const humming = Z.counts.hums > h0;
       await C('kill', { id: q.id });
-      await C('step', { seconds: 0.2 });
-      const slow = herd.filter((c) => c.alive).every((c) => c.auraMul === 1);
+      let slow = false;
+      for (let t = 0; t < 2 && !slow; t += 0.2) { await C('step', { seconds: 0.2 }); slow = herd.filter((c) => c.alive).every((c) => c.auraMul === 1); }
       const h1 = Z.counts.hums;
       await C('step', { seconds: 3 });
       const silent = Z.counts.hums === h1;
