@@ -48,6 +48,16 @@ export async function faunaChecks(api, check, C) {
     return c;
   };
   const P = () => g.player;
+  // A buggy 6 m ahead of you (+z), and you at its wheel. Found by where it was put, not by id alone: a restored world
+  // can hold an older vehicle with the same id (the island's traffic), and enterVehicle id= would find that one.
+  const car = async () => {
+    const p = P(), at = { x: p.x, z: p.z + 6 };
+    const { id } = await C('spawnVehicle', { type: 'buggy', x: at.x, z: at.z, heading: 0 });
+    const v = g.vehicles.filter((o) => o.id === id).sort((a, b) => dist(a, at) - dist(b, at))[0];
+    v.test = true;
+    g.enterVehicle(v);
+    return v;
+  };
 
   // ---- 1. the formula ---------------------------------------------------------------------------------------------
   await check('fauna: the formula - a desert chunk holds more coyotes at night than by day, a town chunk next to none, gunfire thins it, and rolled records average the formula', async () => stage(async () => {
@@ -93,9 +103,7 @@ export async function faunaChecks(api, check, C) {
     const shot = since(seq, 'faunaFlee', (e) => e.species === 'mule_deer').length > 0;
     for (const a of herd) F.remove(a);
     // A car: a fresh herd 45 m ahead of a car you drive at it.
-    const { id } = await C('spawnVehicle', { type: 'buggy', x: p.x, z: p.z + 6, heading: 0 });
-    const v = api.findVeh(id); v.test = true;
-    await C('enterVehicle', { id, force: true });
+    const v = await car();
     const seq2 = g.eventSeq;
     const herd2 = F.spawn('mule_deer', v.x + 2, v.z + 55, 4, { test: true });
     await steps(1);
@@ -270,20 +278,25 @@ export async function faunaChecks(api, check, C) {
   }));
 
   // ---- 10. roadkill -----------------------------------------------------------------------------------------------------
-  await check('fauna: a deer standing in the road is hit by a car at speed: roadkill, and the car takes a dent', async () => stage(async () => {
-    const p = P();
-    const { id } = await C('spawnVehicle', { type: 'buggy', x: p.x, z: p.z + 6, heading: 0 });
-    const v = api.findVeh(id); v.test = true;
-    const ent = await C('enterVehicle', { id, force: true });
-    const [d] = F.spawn('mule_deer', v.x, v.z + 40, 1, { hold: true, test: true }); // 40 m of run-up: ~27 m/s at the deer
+  await check('fauna: a deer standing in the road is hit by a car at full speed: roadkill, and the car takes a dent', async () => stage(async () => {
+    const v = await car();
+    // 70 m of run-up with the throttle held: well past the speed that kills (55 hp / 2.4 = 23 m/s). The deer stands in
+    // the road ahead; a buggy wanders a little on its line, so until the last 10 m the deer is kept on that line (staged).
+    const [d] = F.spawn('mule_deer', v.x, v.z + 70, 1, { hold: true, test: true });
     const z0 = v.dmg ? { ...v.dmg.zones } : {}, seq = g.eventSeq;
-    let dr = null;
-    for (let i = 0; i < 12 && !d.dead; i++) dr = await C('drive', { throttle: 1, seconds: 0.25 });
-    const kill = since(seq, 'roadkill', (e) => e.id === d.id)[0], hit = since(seq, 'faunaCarHit', (e) => e.id === d.id)[0];
+    let hit = null, top = 0;
+    for (let i = 0; i < 24 && !hit; i++) {
+      const fx = Math.sin(v.h), fz = Math.cos(v.h), ahead = (d.x - v.x) * fx + (d.z - v.z) * fz;
+      if (ahead > 10) { d.x = v.x + fx * ahead; d.z = v.z + fz * ahead; d.rec.x = d.x; d.rec.z = d.z; }
+      await C('drive', { throttle: 1, seconds: 0.25 });
+      top = Math.max(top, Math.hypot(v.vx, v.vz));
+      hit = since(seq, 'faunaCarHit', (e) => e.id === d.id)[0];
+    }
+    const kill = since(seq, 'roadkill', (e) => e.id === d.id)[0];
     const dented = v.dmg ? Object.keys(v.dmg.zones).some((k) => v.dmg.zones[k] > (z0[k] ?? 0) + 0.02) : false;
     await C('exitVehicle', {});
-    const ok = !!hit && !!kill && d.dead && dented;
-    return ok ? true : JSON.stringify({ hit, kill: !!kill, dead: d.dead, hp: d.hp, dented, zones: v.dmg?.zones, car: [+v.x.toFixed(1), +v.z.toFixed(1)], deer: [+d.x.toFixed(1), +d.z.toFixed(1)], ent: ent.ok ? 'in' : ent.error, dr: dr?.ok ? 'ok' : dr?.error }).slice(0, 500);
+    const ok = !!hit && hit.speed >= 23 && !!kill && d.dead && dented;
+    return ok ? true : JSON.stringify({ hit, kill: !!kill, dead: d.dead, hp: d.hp, dented, top: +top.toFixed(1), zones: v.dmg?.zones, car: [+v.x.toFixed(1), +v.z.toFixed(1)], deer: [+d.x.toFixed(1), +d.z.toFixed(1)] }).slice(0, 500);
   }));
 
   // ---- 11. the hot ground's creatures -----------------------------------------------------------------------------------
