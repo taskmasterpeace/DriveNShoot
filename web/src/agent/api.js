@@ -501,6 +501,7 @@ function buildCommands(api) {
         need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
         S.ensureHot(x, z, 'teleport');
         const p = P(), v = p.inVehicle;
+        if (p.onDeck && !v) g.decks?.dismount(p, 'teleported', true); // a teleport takes you off a vehicle's deck (it stays where it is)
         const pos = { x, z };
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
         if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = g.streamer.W.terrain ? g.streamer.W.groundAt(pos.x, pos.z) : 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
@@ -2671,6 +2672,7 @@ async function runSelfTest(api, only = null, skip = null) {
     // How you carry (systems/arms.js) and who you hold (systems/gunpoint.js) are states now: a check that raised a gun or
     // held a man must not leave the next one walking slow behind a raised two-hand gun, or still in a standoff.
     g.gunpoint?.clear(); g.aimOverride = null;
+    if (g.player.onDeck) g.decks?.dismount(g.player, 'stage', true); // off any deck an earlier check left you on
     // An open conversation freezes you AND the world (main.js: simDt is 0 while dialogue.active): a check that talked must not
     // leave every later one standing still with its clock stopped.
     if (g.dialogue?.active) g.dialogue.close();
