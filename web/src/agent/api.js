@@ -21,6 +21,8 @@ import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
 import { KINDS as KINDS_RING } from '../data/ring.js';
 import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
+import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/authored.js';
+import { LAB_SAMPLES } from '../data/authored.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -326,6 +328,34 @@ function buildCommands(api) {
           containersRegistered: [...inv.boxes.values()].filter((q) => q.ring).length, containersKept: inv.ringKept?.size ?? 0,
           household: L && RG.household(L) ? (({ members, ...h }) => ({ ...h, people: members.map((m) => `${m.name}${m.dead ? ' (dead)' : ''}`) }))(g.residents.view(g.residents.rec(L))) : null,
         };
+      },
+    },
+    author: {
+      group: 'world', desc: 'Authored buildings (docs/design/WEB_BUILDING_LAB.md; the Building Lab at /lab.html exports them, rows in data/authored.js): stand a building row in the Phoenix ring now, in place of what the generator put there. row=<the exported JSON> (or sample=<a LAB_SAMPLES key>) with x,z (world metres: its footprint centred there, the lots of that ring block it covers cleared; front=N|E|S|W turns it, default its own) or lot=<R<k>.<j>.<n>> (that lot\'s building replaced, turned to face its street; it must fit). The chunks round it are laid out again. Returns its id, footprint, rooms, the street point in front of its front door and the reachability proof (every room, bed, doorway and stair foot reached by the ring\'s own nav rule, floor by floor). remove=<row id> takes one away; list=true lists them (and any that did not fit).',
+      args: { row: { type: 'string' }, sample: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' }, front: { type: 'string', enum: ['N', 'E', 'S', 'W'] }, lot: { type: 'string' }, remove: { type: 'string' }, list: { type: 'boolean', default: false } },
+      run: async ({ row, sample, x, z, front, lot, remove, list }) => {
+        const RG = g.streamer.W.ring, S = g.streamer;
+        const relay = (chunks) => { for (const key of chunks) if (!S.pinned.has(key)) S.evict(key); };
+        const find = (id) => { for (const b of RG.blockCache.values()) for (const L of b.lots) if (L.authored?.P.id === id) return L; return null; };
+        if (list) return { authored: RG.authored.map((q) => ({ id: q.id, kind: q.kind, name: q.name, site: q.site, floors: q.floors.length })), errors: (RG.authoredErrors ?? []).slice(-10) };
+        if (remove) { const r = removeAuthored(RG, remove); need(!r.error, r.error); relay(r.chunks); return { removed: remove, relaid: r.chunks.length }; }
+        let R = sample ? LAB_SAMPLES[sample] : row;
+        need(R, `row=<the Building Lab's exported JSON> or sample=<${Object.keys(LAB_SAMPLES).join('|')}>`);
+        if (typeof R === 'string') { try { R = JSON.parse(R); } catch (e) { need(false, `row is not JSON: ${e.message}`); } }
+        need(lot || (Number.isFinite(x) && Number.isFinite(z)), 'where: x= z= (world metres, a ring block) or lot=R<k>.<j>.<n>');
+        R = { ...R, site: lot ? { lot } : { x, z, ...(front ? { front } : {}) } };
+        const errs0 = (RG.authoredErrors ?? []).length;
+        const res = addAuthored(RG, R);
+        need(!res.error, `the row does not load: ${res.error}`);
+        relay(res.chunks);
+        const [k, j] = lot ? lot.slice(1).split('.').map(Number) : [Math.floor(x / 80), Math.floor(z / 80)];
+        RG.block(k, j);
+        const L = find(R.id);
+        if (!L) { removeAuthored(RG, R.id); need(false, (RG.authoredErrors ?? []).slice(errs0).join('; ') || `block ${k},${j} is not in the ring's city (the dead metro, about 470-1440 m out)`); }
+        S.ensureLayout(L.cx, L.cz, 'test');
+        const geo = RG.geo(L), proof = proveAuthored(RG, L, geo), d = geo.doors.find((q) => q.kind !== 'back') ?? geo.doors[0];
+        return { id: L.id, row: R.id, kind: L.kind, front: L.front, x0: r1(L.x0), z0: r1(L.z0), x1: r1(L.x1), z1: r1(L.z1), floors: R.floors.length, rooms: geo.rooms.map((q) => `${q.type} ${r1(q.x1 - q.x0)} x ${r1(q.z1 - q.z0)}`),
+          street: { x: r1(d.x + d.nx * 3), z: r1(d.z + d.nz * 3) }, proof: { ok: proof.ok, problems: proof.problems.map((p) => p.text), warnings: proof.warnings.map((p) => p.text) }, relaid: res.chunks.length };
       },
     },
     residents: {
@@ -3721,6 +3751,43 @@ async function runSelfTest(api, only = null) {
       if (a !== b || b !== c) diff.push(id);
     }
     return sample.length > 40 && !diff.length ? true : JSON.stringify({ sample: sample.length, differ: diff.slice(0, 8) });
+  });
+  // ---- authored buildings (docs/design/WEB_BUILDING_LAB.md; world/authored.js): the Building Lab's export, loaded -------
+  await check('building lab: a building exported by the lab (data/authored.js LAB_SAMPLES.office2: a two-storey office floor, hand-edited upstairs) loads at a world position in the ring (the author command): it stands in place of the lots it covers, a walk (moveTo) from its street through its front door gets inside, every room of its street floor is reached by A* from the street through its doorways, its stairs\' run is solid and their foot reached, the reachability proof passes on both floors, and taken away the block is the generator\'s again', async () => {
+    await streamHome();
+    // A ring block near the densest chunk that nobody lives in (its lots are cleared for the building).
+    const row = LAB_SAMPLES.office2, W = row.x1 - row.x0, D = row.z1 - row.z0;
+    let b = null;
+    for (let r = 0; r < 6 && !b; r++) for (let k = Math.floor(dense.cx * 3.2) - r; k <= Math.floor(dense.cx * 3.2) + r && !b; k++) for (let j = Math.floor(dense.cz * 3.2) - r; j <= Math.floor(dense.cz * 3.2) + r && !b; j++) {
+      const q = RG.block(k, j);
+      if (q.city && q.x1 - q.x0 > W + 4 && q.z1 - q.z0 > D + 4 && !q.lots.some((L) => !L.empty && RG.household(L))) b = q;
+    }
+    if (!b) return 'no empty-of-people ring block near the densest chunk';
+    const before = b.lots.map((L) => L.id).join(','), x = Math.round((b.x0 + b.x1) / 2), z = Math.round((b.z0 + b.z1) / 2);
+    const put = await C('author', { sample: 'office2', x, z });
+    if (!put.ok) return `author: ${put.error}`;
+    const L = RG.at(x, z), bb = RG.block(b.k, b.j), others = bb.lots.filter((q) => q !== L && !q.empty && q.x0 < L.x1 && q.x1 > L.x0 && q.z0 < L.z1 && q.z1 > L.z0);
+    if (!L?.authored || L.authored.P.id !== row.id) { await C('author', { remove: row.id }); return `no authored building at ${x},${z}: ${L?.id}`; }
+    const s = streetFront(L), geo = RG.geo(L);
+    await C('teleport', { x: s.x, z: s.z }); await C('step', { seconds: 0.3 });
+    const n = g.nav.foot, sealed = [];
+    for (const r of geo.rooms) {
+      let at = null;
+      for (let zz = Math.ceil(r.z0 - 0.5) + 0.5; zz < r.z1 && !at; zz += 1) for (let xx = Math.ceil(r.x0 - 0.5) + 0.5; xx < r.x1 && !at; xx += 1) if (n.ensureCovers(s.x, s.z, xx, zz) && n.free(xx, zz)) at = [xx, zz];
+      if (!at || !n.find(s.x, s.z, at[0], at[1])) sealed.push(`${r.type} ${at ?? 'no floor'}`);
+    }
+    const f = row.flights[0], fx = (f.x0 + f.x1) / 2 - (row.x0 + row.x1) / 2 + (L.x0 + L.x1) / 2, fz = (f.z0 + f.z1) / 2 - (row.z0 + row.z1) / 2 + (L.z0 + L.z1) / 2;
+    const runSolid = !n.free(fx, fz);
+    const lobby = geo.rooms.find((r) => r.type === 'officelobby');
+    const into = await C('moveTo', { x: (lobby.x0 + lobby.x1) / 2, z: (lobby.z0 + lobby.z1) / 2 }); await C('step', { seconds: 0.2 });
+    const inside = g.insideBuilding?.id === L.id;
+    const proof = put.proof;
+    // Taken away: the generator's own lots again, the same ids.
+    await streamHome();
+    const gone = await C('author', { remove: row.id });
+    const after = RG.block(b.k, b.j).lots.map((q) => q.id).join(',');
+    const ok = put.floors === 2 && !others.length && into.arrived && inside && !sealed.length && runSolid && proof.ok && gone.ok && after === before && !RG.authored.length;
+    return ok ? true : JSON.stringify({ block: `${b.k},${b.j}`, id: L.id, others: others.map((q) => q.id), arrived: into.arrived, why: into.interrupted, inside: g.insideBuilding?.id, sealed, runSolid, proof: proof.problems, removed: gone.ok, before, after });
   });
   // ---- the Phoenix ring, R2 (WEB_STREAMING §1.3 "R2 as built"): the people who live in it (systems/residents.js) ----
   // What these checks set off in the world's memory (a theft and a killing the family saw) is taken back after them, so

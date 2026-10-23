@@ -16,6 +16,8 @@ import { C, hash32, rngOf } from './geo.js';
 import { H_NAMES, V_NAMES } from './city.js';
 import { floorplan, NavProbe } from './floorplan.js';
 import { ROOMS, PLAN_RULES } from '../data/floorplans.js';
+import { AUTHORED } from '../data/authored.js';
+import { placeAuthored } from './authored.js';
 
 const G = RING.grid, T = RING.wall, TAU = Math.PI * 2;
 const AE = RING.arterialEvery;
@@ -48,6 +50,9 @@ export class Ring {
     this.reach = mx + RING.freewayTail.reach + 40;
     this.kMax = Math.ceil(this.reach / G) + 1;
     this.built = 0; this.geoBuilt = 0;
+    // Authored buildings (world/authored.js; rows in data/authored.js, more added live by the `author` command): each
+    // stands in its block in place of the generator's lot(s). None: the ring is exactly what it was.
+    this.authored = AUTHORED.slice();
     // I-10 inside the ring's reach, bucketed in 64 m cells: W.project walks a kilometre bucket per call, too slow for a
     // street sampled every 2 m.
     const c = W.cl, R = this.reach + 400;
@@ -141,6 +146,7 @@ export class Ring {
     b.zone = this.zoneOf(b, rng);
     b.Z = ZONES[b.zone];
     this.layLots(b, rng);
+    if (this.authored.length) placeAuthored(this, b);
     this.built++;
     return b;
   }
@@ -394,14 +400,16 @@ export class Ring {
     const K = KINDS[L.kind], Z = ZONES[L.zone], rng = rngOf(L.seed ^ 0x5bd1e995);
     const g = (L.geo = { walls: [], boxes: [], floor: null, roof: [], props: [], decor: [], boxesIn: [], beds: [], doors: [], rooms: [], canopy: [], trunks: [], crowns: [] });
     const { x0, z0, x1, z1 } = L, w = x1 - x0, d = z1 - z0;
-    const h = rng.range(K.h[0], K.h[1]);
+    // An authored building (world/authored.js): its own plan, doors and heights in place of the generator's.
+    const A = L.authored;
+    const h = A ? A.h : rng.range(K.h[0], K.h[1]);
     const wall = rng.pick(Z.walls), roof = rng.pick(Z.roofs), floor = rng.pick(Z.floors);
     L.h = h; L.color = wall;
     const ruined = !!L.ruined;
     const ns = L.front === 'N' || L.front === 'S';
     // The front wall runs along u (x for N/S fronts, z for W/E); doors are positions along it.
     const uA = ns ? x0 : z0, uB = ns ? x1 : z1;
-    const units = K.units ? rng.int(K.units[0], K.units[1]) : 1;
+    const units = A ? A.units : K.units ? rng.int(K.units[0], K.units[1]) : 1;
     const doors = { N: [], S: [], W: [], E: [] }; // positions along the side, with their clear width
     const inner = [];  // partition walls: { horizontal, fixed, a0, a1, gaps }
     const keep = [];   // points to keep furniture away from (doorways, inside and out)
@@ -409,8 +417,11 @@ export class Ring {
     const opp = { N: 'S', S: 'N', W: 'E', E: 'W' }[L.front];
     // The floor plan (world/floorplan.js, rows in data/floorplans.js): typed rooms, partitions with their doorways, the
     // front door in each unit's entry room, where a back door may go. Its own seed: the shell's stream is untouched by it.
-    const FP = K.plan ? floorplan({ x0, z0, x1, z1, front: L.front, kind: L.kind, units, seed: hash32(L.seed, 0x504c414e), T, door: dw, innerDoor: RING.innerDoor, backDoor: RING.backDoor }) : null;
-    if (FP) {
+    const FP = A ? A.fp : K.plan ? floorplan({ x0, z0, x1, z1, front: L.front, kind: L.kind, units, seed: hash32(L.seed, 0x504c414e), T, door: dw, innerDoor: RING.innerDoor, backDoor: RING.backDoor }) : null;
+    if (A) {
+      inner.push(...FP.inner.map((P) => ({ ...P, gaps: P.gaps.map((q) => ({ ...q })) })));
+      for (const q of A.doors) doors[q.side].push({ at: q.at, w: q.w, kind: q.kind, unit: q.unit });
+    } else if (FP) {
       for (let u = 0; u < units; u++) doors[L.front].push({ at: FP.front[u], w: dw, kind: K.bay ? 'bay' : 'front', unit: u });
       inner.push(...FP.inner);
       // A back door (per unit, sometimes) where the plan offers one: the kitchen's, a stock room's, the hall's end.
@@ -536,6 +547,7 @@ export class Ring {
     } else {
       for (let i = 0; i < 3; i++) g.decor.push([(x0 + x1) / 2 + rng.range(-w / 3, w / 3), 0.25, (z0 + z1) / 2 + rng.range(-d / 3, d / 3), rng.range(0.8, 2), rng.range(0.3, 0.6), rng.range(0.8, 2), wall, rng() * 3, 0.78]);
     }
+    if (A) A.before(this, g, L); // its stairs (the run solid, the foot's landing kept clear), the shell above, a walkway
     // ---- rooms and furniture: along the walls, never in a doorway's way, the middle of every room left open.
     const placed = [];
     let fctx = null;
@@ -626,6 +638,7 @@ export class Ring {
       else g.decor.push([x, 0.15, z, rng.range(1.4, 3), 0.3, rng.range(1.4, 3), '#4f4b46', rng() * 3, 0.9]);
     }
     if (hh) this.homeOf(L, g, hh, HR, rooms, resUnit, units, keep, placed, fctx);
+    if (A) A.after(this, g, L); // the roof on the wall top
     L.containers = g.boxesIn.length;
     return g;
   }
@@ -709,6 +722,7 @@ export class Ring {
       const hw = gp.w / 2 + 0.15, dep = T2 + PR.doorClear;
       zones.push(P.horizontal ? { x0: gp.at - hw, x1: gp.at + hw, z0: P.fixed - dep, z1: P.fixed + dep } : { x0: P.fixed - dep, x1: P.fixed + dep, z0: gp.at - hw, z1: gp.at + hw });
     }
+    for (const z of g.clear ?? []) zones.push(z); // an authored building's stair landings (world/authored.js)
     // The probe: this building's walls, partitions and boards as the foot nav grid sees them, flooded from its doors.
     const probe = (this.probe ??= new NavProbe());
     probe.reset(L.x0, L.z0, L.x1, L.z1, 0.6);
