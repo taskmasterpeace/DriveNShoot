@@ -235,8 +235,16 @@ Selftest checks (`web/src/agent/devtools-selftest.js`), all in the full battery:
 12. `watch` (stepped) returns the one kill that matches type and id two game seconds in, not the noise, and its cursor
     resumes cleanly.
 
-Measured (fill-in below is the run that shipped):
+Measured (2026-10-23, RTX 4090, headless Chrome, harness on :3200):
 
-- **Selftest:** see the commit message and the report (two full batteries on fresh pages).
-- **Frame cost** (`scenario name=recorder-cost`, one page, ABBA blocks): see §8 numbers in the report; the tick is
-  sub-microsecond per frame.
+- **Selftest:** 147/147 on fresh pages (135 engine checks + the 12 above), run twice on the shipped code.
+- **Frame cost** (`scenario name=recorder-cost`: one page, the recorder toggled in ABBA blocks of 3 s, 16 blocks,
+  frames run by `streamer.runFrames` with a GPU-synced render): frame 8.52 ms on vs 8.33 ms off, difference
+  +0.18 ms with a 95% interval of [-0.68, +1.04] ms (not distinguishable from zero; the scene itself drifts
+  7.2 -> 9.6 ms over the run); the sim alone 3.17 vs 3.11 ms, +0.06 [-0.37, +0.49]. The tick by itself: 19.5 ns on a
+  frame that does not sample, 0.78 us on one that does, 0.07 us per frame averaged at 4 Hz: 0.0004% of a 16.7 ms
+  frame. No measurable frame cost.
+- **Sessions:** an agent's bounty run (465 game s, 1,861 samples, 557 events, 2.8 km, 4 deaths, 7 kills) is a 157 KB
+  file.
+- **The feed while busy:** the map kept a frame under 250 ms old through a whole `scenario name=bounty-run` in the
+  watched tab (`docs/renders/web/observer/06-live-during-scenario.png`).

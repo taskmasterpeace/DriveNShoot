@@ -75,7 +75,7 @@ function setStale(on, why) {
 }
 
 function onFrame(f) {
-  if (f.boot !== S.boot) { S.boot = f.boot; S.since = 0; S.events = []; $('feed').innerHTML = ''; S.prev = null; S.primed = false; S.ripples = []; }
+  if (f.boot !== S.boot) { S.boot = f.boot; S.since = 0; S.events = []; if (S.mode === 'live') $('feed').innerHTML = ''; S.prev = null; S.primed = false; S.ripples = []; } // a reload: the replay's wire is not the live one
   S.factions = f.factions ?? S.factions;
   S.ageMs = f.ageMs;
   const stale = f.ageMs > 4000;
@@ -135,10 +135,12 @@ const CLASS = {
 const NOISY = new Set(['bark', 'residentBark', 'greet', 'streamStall', 'zoom', 'waypoint', 'hmrRestored', 'npcSleep', 'npcWoke', 'need', 'honk', 'observerProbe', 'toast', 'boarded', 'panelLost', 'seatChanged', 'vehicleDamage', 'vaulted', 'dived', 'water', 'pack', 'loaded', 'saved', 'autosaved', 'leftVehicle', 'slipped', 'lockHit', 'boardsHit', 'residentsPromoted', 'windowShot', 'windowCracked', 'tyrePopped', 'trainArrived', 'trainDeparted', 'skillUp']);
 const classOf = (t) => { for (const [k, set] of Object.entries(CLASS)) if (set.has(t)) return k; return 'world'; };
 const charRow = (id) => S.snap?.chars.find((c) => c[0] === id || c[13] === id);
+let whoCtx = null; // a replayed event: the names and flags the recorder kept beside its ids
 function who(id) {
   if (!id) return 'someone';
   if (S.snap && id === S.snap.player.id) return `<img class="flagimg" src="${flagURL(S.snap.player.flag || 'US')}" alt="">YOU`;
-  const r = charRow(id);
+  if (whoCtx) for (const k of ['by', 'victim', 'id', 'witness']) if (whoCtx[k] === id && whoCtx[`${k}N`]) return `${whoCtx[`${k}F`] ? `<img class="flagimg" src="${flagURL(whoCtx[`${k}F`])}" alt="">` : ''}${esc(whoCtx[`${k}N`])}`;
+  const r = whoCtx ? null : charRow(id);
   if (!r) return esc(id);
   return `${r[5] ? `<img class="flagimg" src="${flagURL(r[5])}" alt="${esc(r[5])}">` : ''}${esc(r[9] || r[0])}`;
 }
@@ -165,7 +167,8 @@ function describe(e) {
     case 'radio': case 'radioDigest': return esc(e.text ?? e.line ?? e.lines?.[0] ?? 'on air');
     case 'error': return esc(e.msg).slice(0, 160);
     default: {
-      return Object.entries(e).filter(([k, v]) => !['seq', 't', 'type'].includes(k) && v !== null && v !== '' && typeof v !== 'object').slice(0, 4)
+      const SKIP = ['seq', 't', 'type', 's', 'y', 'px', 'pz', 'at', 'you', 'byYou'];
+      return Object.entries(e).filter(([k, v]) => !SKIP.includes(k) && !/^(by|victim|id|witness)[NF]$/.test(k) && !(whoCtx && (k === 'x' || k === 'z')) && v !== null && v !== '' && typeof v !== 'object').slice(0, 4)
         .map(([k, v]) => (typeof v === 'string' && /^c\d+$/.test(v) ? `<i style="color:var(--dim);font-style:normal">${esc(k)}</i> ${who(v)}`
           : typeof v === 'string' && /^v\d+$/.test(v) && S.snap?.vehicles.some((q) => q[0] === v) ? `<i style="color:var(--dim);font-style:normal">${esc(k)}</i> ${esc(S.snap.vehicles.find((q) => q[0] === v)[11])}`
           : `<i style="color:var(--dim);font-style:normal">${esc(k)}</i> ${esc(v)}`)).join(' · ');
@@ -568,8 +571,12 @@ function replayFeed(all) {
   $('feedCount').textContent = `${near.length} of ${R.S.events.length} by ${fmtT(R.t - R.S.t0)}`;
 }
 function describeReplay(e) {
-  if (e.y === 'kill') return `${esc(e.victimName ?? e.victim)} ${e.you ? '(YOU)' : ''} killed${e.byYou ? ' by YOU' : e.by ? ` by ${esc(e.by)}` : ''} · ${esc(e.cause ?? '')}`;
-  return describe(e);
+  whoCtx = e;
+  try {
+    if (e.y === 'kill') return `${e.you ? 'YOU' : who(e.victim)} ${e.downed ? 'downed' : 'killed'}${e.byYou ? ' by YOU' : e.by ? ` by ${who(e.by)}` : ''} · ${esc(e.cause ?? '')}`;
+    if (e.y === 'hurt') return `YOU took ${e.amount} from ${e.by ? who(e.by) : esc(e.cause ?? 'something')}${e.hp !== undefined ? ` → ${e.hp} hp` : ''}`;
+    return describe(e);
+  } finally { whoCtx = null; }
 }
 function setMode(m) {
   S.mode = m;

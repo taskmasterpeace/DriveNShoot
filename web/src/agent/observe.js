@@ -71,7 +71,7 @@ export function personDetail(api, c) {
   if (!c) return null;
   if (c === p) return { id: p.id, player: true, ...playerCard(g) };
   const fk = factionKey(c), F = g.society.factions, row = F.row(fk);
-  const tgt = c.target ?? c.ztarget ?? null;
+  const tgt = c.alive ? c.target ?? c.ztarget ?? null : null; // the dead keep a stale target field
   const out = {
     id: c.id, name: c.npc?.name ?? c.name ?? c.id, named: !!c.npc, npcId: c.npc?.id ?? null, essential: !!c.npc?.essential, flag: c.flag ?? 'US',
     faction: fk, kind: c.faction, factionName: row?.name ?? fk, color: row?.color ?? FALLBACK[c.faction] ?? '#9a8a6a',

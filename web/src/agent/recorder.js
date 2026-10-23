@@ -27,7 +27,7 @@ export const KEYS = Object.fromEntries(KEY_LIST.map((k, i) => [k, 1 << i]));
 const KEYBIT = { ...KEYS, ShiftLeft: KEYS.Shift, ShiftRight: KEYS.Shift, ControlLeft: KEYS.Control, ControlRight: KEYS.Control, KeyI: KEYS.Tab };
 // Payload keys an event keeps in the recording (the rest are dropped to keep sessions small).
 const KEEP = ['victim', 'victimName', 'by', 'byFaction', 'faction', 'cause', 'verb', 'target', 'targetName', 'id', 'name', 'tpl', 'event', 'phase', 'outcome',
-  'role', 'from', 'to', 'item', 'n', 'side', 'trader', 'amount', 'witness', 'witnessName', 'kind', 'house', 'vehicle', 'vehicleType', 'msg', 'text', 'standing', 'delta', 'mag', 'weapon', 'level', 'state'];
+  'role', 'from', 'to', 'item', 'n', 'side', 'trader', 'amount', 'hp', 'cash', 'tier', 'unwitnessed', 'downed', 'witness', 'witnessName', 'kind', 'house', 'vehicle', 'vehicleType', 'msg', 'text', 'standing', 'delta', 'mag', 'weapon', 'level', 'state'];
 // Events placed at someone else's position when they carry no x,z of their own.
 const WHO = ['victim', 'id', 'witness', 'npc'];
 
@@ -116,6 +116,13 @@ export class Recorder {
     const g = this.g, p = g.player;
     const o = { s: e.seq, t: e.t, y: e.type };
     for (const k of KEEP) if (e[k] !== undefined && e[k] !== null && typeof e[k] !== 'object') o[k] = e[k];
+    if (Array.isArray(e.witnesses)) o.witnesses = e.witnesses.length;
+    // Who the ids were, for a replay long after they are gone: name and flag beside each id (byN/byF, victimN...).
+    for (const k of ['by', 'victim', 'id', 'witness']) {
+      const id = e[k]; if (typeof id !== 'string' || id === p.id) continue;
+      const c = g.chars.find((q) => q.id === id);
+      if (c) { o[`${k}N`] = c.npc?.name ?? c.name ?? id; if (c.flag) o[`${k}F`] = c.flag; }
+    }
     let x = e.x, z = e.z;
     if (Array.isArray(e.hub) && x === undefined) { x = e.hub[0]; z = e.hub[1]; }
     if (!Number.isFinite(x)) for (const k of WHO) {
