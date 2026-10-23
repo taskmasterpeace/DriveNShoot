@@ -1417,6 +1417,14 @@ export class Fauna {
 // gators, the Glassling's six legs and glass, the Lantern's stilts), one additive mesh for what glows (eyeshine in a beam,
 // the swarm, the Lantern's lamp). A flying bird's shadow is its own (the parts cast shadows). Empty meshes cost no draw call.
 const MAXP = 900, MAXG = 220, MAXW = 96;
+// Draw only what was posed this frame and upload only that much (an empty mesh, twice in a row, uploads nothing).
+export function finish(m, n) {
+  m.count = n; m.visible = n > 0;
+  if (n === 0 && m._n === 0) return;
+  m._n = n;
+  const A = m.instanceMatrix; A.clearUpdateRanges(); A.addUpdateRange(0, Math.max(1, n) * 16); A.needsUpdate = true;
+  const C = m.instanceColor; if (C) { C.clearUpdateRanges(); C.addUpdateRange(0, Math.max(1, n) * 3); C.needsUpdate = true; }
+}
 // A bird's wing from above: x out from the shoulder (0..1), z along the body; a broad root tapering to a narrower tip,
 // the same fore and aft (so the left wing is the right one turned round, never mirrored: its face stays up and lit).
 // x is scaled by the half-span, z by the chord.
@@ -1447,7 +1455,7 @@ class FaunaRenderer {
     this.quads = []; this.np = 0; this.ng = 0; this.nw = 0;
   }
 
-  done(m, n) { m.count = n; m.visible = n > 0; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+  done(m, n) { finish(m, n); }
 
   // One part: a rounded box at (x, y, z) in world space, sized (sx, sy, sz), yaw/pitch/roll.
   part(x, y, z, sx, sy, sz, yaw, pitch, roll, hex) {

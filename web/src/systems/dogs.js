@@ -1070,8 +1070,10 @@ export class DogRenderer {
   // An empty mesh costs no draw call.
   done(m, n) {
     m.count = n; m.visible = n > 0;
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (n === 0 && m._n === 0) return; // empty twice in a row: nothing to upload
+    m._n = n; // and only the instances posed this frame go up to the GPU
+    m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) { m.instanceColor.clearUpdateRanges(); m.instanceColor.addUpdateRange(0, Math.max(1, n) * 3); m.instanceColor.needsUpdate = true; }
   }
 
   pose(d, t) {
