@@ -97,6 +97,9 @@ export const MATERIAL_RULES = {
     tree: 'timber', cactus: 'timber',
     husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
+    // A streamed military base (world/milbase.js, docs/design/WEB_BASES.md): its wire, its works, the war's wreckage.
+    wire: 'chainlink', gantry: 'steel', missile: 'steel', crane: 'steel', hulk: 'steel', aircraft: 'carbody',
+    bunker: 'concrete', dome: 'concrete', pier: 'concrete', vent: 'concrete', berm: 'sandbags',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },

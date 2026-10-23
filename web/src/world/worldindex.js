@@ -13,6 +13,7 @@ import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md 
 import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
 import { Holdout } from './holdout.js';
 import { HOLDOUTS } from '../data/holdouts.js';
+import { placeMilBases } from './milbase.js';
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -248,6 +249,12 @@ export class WorldIndex {
     this.water.region = this.regionDepth;
     this.depthAt = (x, z, y, ignoreDeck) => this.water.depthAt(x, z, y, ignoreDeck);
     this.surfaceAt = (x, z) => this.water.surfaceAt(x, z);
+    // The fifty bases (world/milbase.js, data/milbases.js): every row placed; the built ones are towners too (a region's
+    // sloughs keep out of them: world/regions.js regionWater).
+    const tMb = performance.now();
+    this.milbases = placeMilBases(this);
+    this.milbasesMs = +(performance.now() - tMb).toFixed(1);
+    for (const B of this.milbases) if (B.built) { this.towners.push(B); this.regions[B.region]?.bases?.push(B); }
     this.buildMs = +(performance.now() - t0).toFixed(1);
   }
 

@@ -41,6 +41,7 @@ import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
 import { materialCommands, materialChecks } from './materials-api.js';
+import { baseCommands, baseChecks } from './bases-api.js'; // THE FIFTY BASES (docs/design/WEB_BASES.md)
 
 // ============================================================================
 // DSOA AGENT API
@@ -1947,6 +1948,7 @@ function buildCommands(api) {
     // row above, same answers there), rivers, bridges.
     ...waterCommands(api, need),
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
+    ...baseCommands(api), // bases: the fifty bases, list/near/alert/enter, the underground hooks (agent/bases-api.js; docs/design/WEB_BASES.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
     ...cloneCommands(api, need),
   };
@@ -5704,6 +5706,7 @@ async function runSelfTest(api, only = null, skip = null) {
   await forgeChecks(api, check, C); // THE WORLD FORGE: the page and its tabs, a MAP round trip, a BRUSH stroke (src/agent/forgetools-selftest.js)
   // Florida, the start region (docs/design/WEB_FLORIDA.md §8): agent/florida-checks.js.
   await floridaChecks({ api, g, check, C });
+  await baseChecks({ api, g, check, C, holdKey, keyFor }); // THE FIFTY BASES (agent/bases-api.js; docs/design/WEB_BASES.md §8)
   await cloneChecks(api, check, C); // cloning and the travel network (src/agent/clone-api.js); puts the battery's state back after
   await check('perf budget (< 150 draw calls)', async () => { g.render(0); const p = await C('perf'); return p.drawCalls < 150 ? true : `drawCalls=${p.drawCalls}`; });
   await check('no runtime errors during the battery', async () => (g.errors?.length ? g.errors.map((e) => e.msg).join(' || ').slice(0, 300) : true));

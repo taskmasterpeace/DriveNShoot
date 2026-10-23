@@ -47,6 +47,7 @@ import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
+import { MilBases } from './systems/milbases.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
 import { Travel } from './systems/travel.js'; // the trundle, the iron, the one airline: the way back to your husk
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
@@ -170,6 +171,7 @@ class Game {
     this.ambient = new Ambient(this);
     this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
     this.regions = new Regions(this); // Florida (WEB_FLORIDA.md): where a new game starts, Meridian's people, the gators, the region's infected
+    this.milbases = new MilBases(this); // the fifty bases' streamed garrisons, drones, lights, logs (docs/design/WEB_BASES.md; ticked by bases.update)
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);

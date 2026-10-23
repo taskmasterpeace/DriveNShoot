@@ -88,6 +88,15 @@ export const ZONES = {
     tint: [0.86, 0.9, 0.78], wrecks: 0, yard: 0, fence: 0,
     residents: [], occupancy: 0,
   },
+  // A military base's buildings (docs/design/WEB_BASES.md; world/milbase.js): olive drab, tan and grey block, tin and tar
+  // roofs, sealed concrete floors. Its people are the base's (systems/milbases.js), not ring households. No purple.
+  military: {
+    name: 'THE BASE', lots: 'houses', kinds: [['barracks', 1]], density: 1, ruin: 0, loot: [['military', 2], ['office', 1]],
+    walls: ['#7b745c', '#6f6b57', '#8a8268', '#646657', '#7a7a66', '#8c8470'],
+    roofs: ['#5d6450', '#4f5446', '#5a5f4c', '#6a6a5e'], floors: ['#5a5548', '#56524a', '#4f4e46', '#625e52'],
+    tint: [0.84, 0.84, 0.76], wrecks: 0, yard: 0, fence: 0,
+    residents: [], occupancy: 0,
+  },
 };
 
 // A Phoenix house lot from above (docs/design/WEB_LOOK.md §3.5): a gravel front yard with a desert tree, a concrete
@@ -146,6 +155,19 @@ export const KINDS = {
   mechanic: { w: [15, 17], d: [14, 16], h: [4.4, 5.0], plan: true, bay: 4.4, back: 0.7, label: 'GARAGE', loot: 'garage' },
   cantina: { w: [15, 17], d: [13, 15], h: [3.8, 4.2], plan: true, back: 0.8, label: 'CANTINA', loot: 'kitchen' },
   boarding: { w: [12, 12.5], d: [15.6, 17], h: [3.6, 4.0], plan: true, back: 0.6, label: 'BOARDING HOUSE', loot: 'bedroom' },
+  // ---- a military base's programmes (docs/design/WEB_BASES.md; world/milbase.js): open shells with an office corner and
+  // their furniture by list (the warehouse's shell), kinds no ring zone picks, so the ring never moves. w along the front.
+  barracks: { w: [24, 30], d: [10, 12], h: [3.2, 3.6], back: 0.6, label: 'BARRACKS', loot: 'military', furniture: [['cot', 8, 12], ['footlocker', 3, 5], ['cabinet', 0, 1]] },
+  hq: { w: [17, 20], d: [12, 14], h: [3.6, 4.0], back: 0.5, office: true, label: 'HEADQUARTERS', loot: 'office', furniture: [['desk', 2, 3], ['cabinet', 1, 2], ['records', 1, 1], ['console', 1, 1]] },
+  armory: { w: [11, 13], d: [9, 10], h: [3.2, 3.4], back: 0, label: 'ARMORY', loot: 'military', furniture: [['riflerack', 2, 3], ['ammocrate', 3, 4]] },
+  mess: { w: [18, 22], d: [12, 14], h: [3.6, 4.0], back: 0.7, label: 'MESS HALL', loot: 'kitchen', furniture: [['table', 3, 5], ['kcounter', 2, 3], ['fridge', 1, 1]] },
+  stores: { w: [24, 30], d: [14, 18], h: [5.6, 6.6], bay: 5.0, back: 0.5, office: true, label: 'STORES', loot: 'military', furniture: [['rack', 3, 5], ['ammocrate', 2, 3], ['crate', 1, 3]] },
+  motorpool: { w: [26, 32], d: [16, 18], h: [5.4, 6.2], bay: 6.0, back: 0.5, label: 'MOTOR POOL', loot: 'garage', furniture: [['workbench', 1, 2], ['tyres', 2, 4], ['partsbin', 1, 2]] },
+  hangar: { w: [44, 52], d: [30, 36], h: [9.0, 11.0], bay: 16.0, back: 0.5, office: true, label: 'HANGAR', loot: 'garage', furniture: [['workbench', 1, 2], ['partsbin', 1, 2], ['crate', 2, 3], ['tyres', 1, 2]] },
+  ctower: { w: [9, 10], d: [9, 10], h: [8.0, 9.0], back: 0, label: 'CONTROL TOWER', loot: 'office', furniture: [['console', 1, 1], ['desk', 1, 1], ['records', 1, 1]] },
+  lab: { w: [22, 26], d: [16, 18], h: [4.2, 4.6], back: 0.5, office: true, label: 'LABORATORY', loot: 'bathroom', furniture: [['extable', 2, 3], ['medcab', 1, 2], ['cabinet', 1, 2], ['records', 1, 1], ['console', 1, 1]] },
+  mockhouse: { w: [9, 11], d: [8, 9], h: [3.0, 3.4], back: 0.5, label: 'MOCK TOWN', loot: 'wreck', furniture: [['crate', 0, 1]] },
+  mockhall: { w: [14, 16], d: [10, 12], h: [4.0, 4.6], back: 0.5, label: 'MOCK TOWN', loot: 'wreck', furniture: [['table', 0, 2], ['crate', 0, 1]] },
 };
 
 // A strip mall's units: what each sold, so its shelves say so and hold it.
@@ -234,6 +256,14 @@ export const FURNITURE = {
   // The gunsmith's: rifles racked on the wall, a bench with a vise. The mechanic's: tyres stacked, a tool bench.
   gunrack: { size: [2.0, 0.42, 1.9], colors: ['#4a3626', '#5a4030'], box: { label: 'GUN RACK', cap: 30, loot: 'gunsmith' }, solid: true,
     parts: [[0, 1, 0, 0.3, 0, 1.9, 1], [0, 1, 0.3, 1, 0, 0.25, 0.85], [0.08, 0.13, 0.3, 0.75, 0.25, 1.7, '#2b2826'], [0.25, 0.3, 0.3, 0.75, 0.25, 1.75, '#2b2826'], [0.42, 0.47, 0.3, 0.75, 0.25, 1.65, '#3a3430'], [0.59, 0.64, 0.3, 0.75, 0.25, 1.72, '#2b2826'], [0.76, 0.81, 0.3, 0.75, 0.25, 1.6, '#3a3430'], [0.9, 0.95, 0.3, 0.75, 0.25, 1.7, '#2b2826']] },
+  // A military base's (docs/design/WEB_BASES.md): the armory's racks and ammo crates, a barracks' footlockers, a motor
+  // pool's parts bins. Their tables are the base's (world/milbase.js geo: an abandoned base's were picked over).
+  riflerack: { size: [2.2, 0.45, 1.8], colors: ['#3d4436', '#4a4c3e'], box: { label: 'RIFLE RACK', cap: 30, loot: 'military' }, solid: true,
+    parts: [[0, 1, 0, 0.3, 0, 1.8, 1], [0, 1, 0.3, 1, 0, 0.25, 0.85], [0.08, 0.13, 0.3, 0.75, 0.25, 1.6, '#1c1c1a'], [0.25, 0.3, 0.3, 0.75, 0.25, 1.6, '#1c1c1a'], [0.42, 0.47, 0.3, 0.75, 0.25, 1.6, '#1c1c1a'], [0.59, 0.64, 0.3, 0.75, 0.25, 1.6, '#1c1c1a'], [0.76, 0.81, 0.3, 0.75, 0.25, 1.6, '#1c1c1a']] },
+  ammocrate: { size: [1.2, 0.7, 0.62], colors: ['#565c3e', '#4f5538'], box: { label: 'AMMO CRATE', cap: 60, loot: 'military' }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.62, 1], [0, 1, 0, 1, 0.42, 0.5, 0.7], [0.25, 0.75, 0.3, 0.7, 0.62, 0.63, '#c9c0a2']] },
+  footlocker: { size: [0.85, 0.5, 0.5], colors: ['#4b5640', '#55603f'], box: { label: 'FOOTLOCKER', cap: 30, loot: 'military' }, solid: true },
+  partsbin: { size: [1.8, 0.6, 1.2], colors: ['#5a5c54', '#6a5a48'], box: { label: 'PARTS BIN', cap: 40, loot: 'garage' }, solid: true },
   workbench: { size: [2.2, 0.8, 0.95], colors: ['#6a5440', '#5a4a3a'], box: { label: 'WORKBENCH', cap: 30, loot: 'garage' }, solid: true,
     parts: [[0, 1, 0, 1, 0, 0.88, 1], [0, 1, 0, 1, 0.88, 0.95, 1.25], [0.06, 0.18, 0.55, 0.85, 0.95, 1.12, '#5a6466'], [0.3, 0.7, 0.05, 0.2, 0.95, 1.6, '#4a4440'], [0.35, 0.5, 0.3, 0.6, 0.95, 0.99, '#b8443a'], [0.6, 0.8, 0.35, 0.55, 0.95, 0.98, '#8a8e8a']] },
   tyres: { size: [0.85, 0.85, 1.05], colors: ['#2b2826', '#33302c'], solid: true,

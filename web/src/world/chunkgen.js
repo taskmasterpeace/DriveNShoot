@@ -139,6 +139,7 @@ export function mesasOf(W, cx, cz) {
     if (W.project(x, z, R + 120).d < R + 55) continue;
     if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
     if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
+    if (W.milbases?.some((B) => B.built && (B.inBase(x, z, R + 60) || B.onRoad(x, z, R + 30)))) continue; // a base was built on graded ground (world/milbase.js)
     out.push(m);
   }
   W.mesaCache.set(key, out);
@@ -424,8 +425,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
     if ((WT && (wetNear(x, z, r) || WT.nearFord(x, z, 40 + r))) || onFill(x, z, r)) return true; // the water, its banks, a ford's way across, the bridges and their fills
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
+    for (const T of MB) if (T.solid(x, z, r)) return true; // a base's core, runway, roads and wire (world/milbase.js)
     return false;
   };
+  const MB = (W.milbases ?? []).filter((B) => B.built && B.touches(cx, cz)); // empty everywhere but a base: nothing else moves
   yield;
 
   // Real terrain (flag): the eight neighbours' ground grids (the ground's normals at the seams read them), a slice each.
@@ -1096,7 +1099,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     if (RG.extras) {
       const ex = RG.extras(cx, cz);
       for (const it of ex.items) I(it.pool, it.e);
-      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+      for (const q of ex.boxes) { const b = addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h); if (b && q.holes) { b.holes = q.holes; b.holeX = q.holeX; b.sill = q.sill ?? RING.sill; } } // a base's wire: see-through (world/milbase.js)
       for (const [kind, x, z, h, v] of ex.flora) if (SPECIES[kind]) { const b = INST[poolName(kind)], i = b.push(x, 0, z, floraHash(z, x) * 6.283, h / SPECIES[kind].h, h / SPECIES[kind].h, h / SPECIES[kind].h, 1, 1, 1); if (i >= 0) b.e[i] = v; addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h); }
       pause(); yield; resume();
     }

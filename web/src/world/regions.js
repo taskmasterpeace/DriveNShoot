@@ -23,7 +23,7 @@ export class Region {
     this.seed = hash32(W.seed, ...[...id].map((c) => c.charCodeAt(0)));
     this.biomes = row.biomes;
     this.water = row.water ?? null;
-    this.corridors = []; this.exits = []; this.holdouts = [];
+    this.corridors = []; this.exits = []; this.holdouts = []; this.bases = []; // bases: world/milbase.js (built in this region)
     // The Atlantic shore (world x as a function of z), sampled once every 8 m along the region's z range: the per-point
     // query reads it (no noise per call on the hot path).
     const A = this.water?.atlantic;
@@ -176,6 +176,7 @@ export function regionWater(R, x, z, out = { d: 0, k: 0, s: 0 }, ctx = null) {
   if (s > -0.5) {
     // Clear of towns, holdouts and every other paved ribbon (exit roads, access roads, streets), shallowing toward them.
     for (const h of R.holdouts) s = Math.min(s, Math.max(Math.abs(x - h.cx) - h.hw - S.clearTown, Math.abs(z - h.cz) - h.hd - S.clearTown) * CLR);
+    for (const b of R.bases) s = Math.min(s, Math.max(Math.abs(x - b.cx) - b.hs - S.clearTown, Math.abs(z - b.cz) - b.hs - S.clearTown) * CLR); // a base's ground is drained
     for (const t of ctx?.towns ?? W.towns) if (t.built && t.region === R) s = Math.min(s, (Math.hypot(t.x - x, t.z - z) - 420 - S.clearTown) * CLR);
     if (s > -0.5) {
       const rbs = ctx?.ribbons ?? W.featuresOf(chunkOf(x), chunkOf(z))?.ribbons ?? [];

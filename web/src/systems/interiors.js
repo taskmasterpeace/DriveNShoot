@@ -858,10 +858,12 @@ export class Interiors {
         seen.add(b.id);
         const dx = Math.max(b.x0 - P.x, 0, P.x - b.x1), dz = Math.max(b.z0 - P.z, 0, P.z - b.z1);
         if (dx > near || dz > near || dx * dx + dz * dz > near * near || this.ringOpen.has(b.id)) continue;
-        const lot = RG.lotById(b.id);
+        // The ring's lots, and a towner's that hangs its doors (a military base: world/milbase.js `openings`).
+        let lot = RG.lotById(b.id), T = RG;
+        if (!lot) for (const q of S.W.towners ?? []) if (q !== RG && q.openings && (lot = q.lotById(b.id))) { T = q; break; }
         if (!lot) continue;
         if (!lot.geo) { if (builds <= 0) continue; builds--; }
-        this.attachRing(b.id, lot, RG.geo(lot));
+        this.attachRing(b.id, lot, T.geo(lot));
       }
     }
     for (const [id, rec] of this.ringOpen) {
@@ -886,7 +888,7 @@ export class Interiors {
     geo.doors.forEach((d, k) => {
       if (d.kind === 'bay' || d.barricade) return;
       rows.push({ id: `${id}:d${k}`, kind: d.kind, x: d.x, z: d.z, axis: d.nx ? 'z' : 'x', width: d.w - 0.1, nx: d.nx, nz: d.nz,
-        leaves: d.kind === 'front' && d.w >= 2.3 ? 2 : 1, inner: false });
+        leaves: d.leaves ?? (d.kind === 'front' && d.w >= 2.3 ? 2 : 1), inner: false, lock: !!d.locked, mat: d.material ?? null }); // a geo's own lock and material (a base's armory, its rail yard's gate)
     });
     (geo.innerDoors ?? []).forEach((d, k) => rows.push({ id: `${id}:i${k}`, kind: 'inner', x: d.x, z: d.z, axis: d.axis, width: d.w - 0.1,
       nx: d.axis === 'x' ? 0 : 1, nz: d.axis === 'x' ? 1 : 0, leaves: 1, inner: true }));
@@ -895,9 +897,10 @@ export class Interiors {
       if (ruined && h01(r.x, r.z, 1) < 0.4) continue; // a ruin lost some of its doors
       if (lived && r.inner) continue; // a family's own rooms open into each other: no leaf to wedge against on the way to bed
       r.hinge = h01(r.x, r.z, 2) < 0.5 ? -1 : 1;
-      r.material = h01(r.x, r.z, 3) < RO.metal && !r.inner ? 'metal' : 'wood';
+      r.material = r.mat ?? (h01(r.x, r.z, 3) < RO.metal && !r.inner ? 'metal' : 'wood');
       r.color = DOOR_MATERIALS[r.material].colors[Math.floor(h01(r.x, r.z, 4) * DOOR_MATERIALS[r.material].colors.length)];
-      r.locked = false; r.b = -1;
+      const was = this.ringState.get(r.id);
+      r.locked = !!r.lock && !(was?.u || was?.l === 0); r.b = -1; // u: somebody opened it (kicked in, picked, pried), kept while it is away and in a save
       const swing = (h01(r.x, r.z, 5) < 0.5 ? 1 : -1) * (1.1 + 0.6 * h01(r.x, r.z, 6));
       r.open = lived ? Math.sign(swing) * RO.wide : r.inner ? (h01(r.x, r.z, 7) < RO.innerOpen ? swing : 0) : (h01(r.x, r.z, 8) < (ruined ? 0.5 : RO.ajar) ? swing * 0.7 : 0);
       const door = this.makeDoor(r, reg, () => this.freeLeaf.pop());
@@ -933,8 +936,8 @@ export class Interiors {
     const st = this.g.statics;
     for (const b of rec.boxes) st.removeRingOp(b);
     for (const door of rec.doors) {
-      const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01);
-      if (moved) this.ringState.set(door.id, { a: door.leaves.map((L) => +L.th.toFixed(3)) }); else this.ringState.delete(door.id);
+      const moved = door.leaves.some((L) => Math.abs(L.th - L.th0) > 0.01), opened = !!door.row.lock && !door.locked;
+      if (moved || opened) this.ringState.set(door.id, { a: door.leaves.map((L) => +L.th.toFixed(3)), ...(opened ? { u: 1 } : {}) }); else this.ringState.delete(door.id);
       for (const L of door.leaves) {
         this.leafMesh.setMatrixAt(L.slot, ZERO); this.freeLeaf.push(L.slot);
         L.active = false; L.isDirty = false;

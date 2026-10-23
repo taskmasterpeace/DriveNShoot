@@ -650,6 +650,7 @@ export class Bases {
       this.updateLights(s, dt, night);
       this.watch(s, dt);
     }
+    this.ext?.update(dt); // the streamed bases (systems/milbases.js): their people, drones, lights, the same trespass rule
   }
 
   updateLights(s, dt, night) {
@@ -731,7 +732,7 @@ export class Bases {
       if (!s.seenBy) { if (!near) { s.cleared = false; s.shotWarned = false; } return; }
       if (enemy) { this.alarm(s, 'enemy', s.seenBy); return; }
       if (!inside) return;
-      if (friendly) { if (!s.cleared) { s.cleared = true; this.say(s, s.seenBy, BASE_LINES.cleared, 'baseCleared'); g.hud.toast(`${s.name}: CLEARED THROUGH`, 'job'); } return; }
+      if (friendly) { if (!s.cleared) { s.cleared = true; this.say(s, s.seenBy, (s.lines ?? BASE_LINES).cleared, 'baseCleared'); g.hud.toast(`${s.name}: CLEARED THROUGH`, 'job'); } return; }
       if (g.time - s.warnedAt < R.warnMemory) { this.alarm(s, 'returned', s.seenBy); return; }
       this.warn(s, s.seenBy);
     } else if (s.alert === 'warned') {
@@ -757,7 +758,7 @@ export class Bases {
 
   warn(s, c) {
     s.alert = 'warned'; s.warnT = 0; s.outT = 0; s.warnedAt = this.g.time; s.warnings++;
-    this.say(s, c, BASE_LINES.warn, 'baseWarning');
+    this.say(s, c, (s.lines ?? BASE_LINES).warn, 'baseWarning');
     this.g.audio.blip?.();
   }
 
@@ -775,8 +776,8 @@ export class Bases {
       if (Math.hypot(c.x - px, c.z - pz) < R.engage && g.los(c.x, c.z, px, pz)) { c.target = P; c.state = 'fight'; c.react = 0.25 + Math.random() * 0.5; engaged++; }
     }
     if (!first || quiet) return;
-    if (why !== 'enemy' && why !== 'returned') this.say(s, by, why === 'shots' ? BASE_LINES.alarm : why === 'stayed' ? BASE_LINES.alarm : BASE_LINES.alarm, 'baseShout');
-    else if (why === 'returned') this.say(s, by, BASE_LINES.returned, 'baseShout');
+    if (why !== 'enemy' && why !== 'returned') this.say(s, by, (s.lines ?? BASE_LINES).alarm, 'baseShout');
+    else if (why === 'returned') this.say(s, by, (s.lines ?? BASE_LINES).returned, 'baseShout');
     g.hud.toast(`${s.name}: ALARM`, 'hot');
     g.audio.siren?.(Math.hypot(px - (s.fence.x0 + s.fence.x1) / 2, pz - (s.fence.z0 + s.fence.z1) / 2));
     // The Remnant remember a trespasser (a deed their own people witness); an enemy they were already shooting at
@@ -801,13 +802,13 @@ export class Bases {
   onNoise(x, z, r, src) {
     const g = this.g, P = g.player;
     if (src !== P || !P.alive) return;
-    for (const s of this.sites) {
+    for (const s of this.ext ? [...this.sites, ...this.ext.liveSites()] : this.sites) { // the streamed bases' garrisons hear it too (systems/milbases.js)
       if (s.alert === 'hostile' || !this.inside(s, x, z, BASE_RULES.shotMargin)) continue;
       let heard = false; // somebody close enough to hear it
       for (const c of s.guards) if (c.alive && Math.hypot(c.x - x, c.z - z) < Math.max(r, 12)) { heard = true; break; }
       if (!heard) continue;
       const tier = this.tier(s);
-      if ((tier === 'friendly' || tier === 'allied') && !s.shotWarned) { s.shotWarned = true; this.say(s, this.nearestGuard(s, x, z), BASE_LINES.ceasefire, 'baseShout'); continue; }
+      if ((tier === 'friendly' || tier === 'allied') && !s.shotWarned) { s.shotWarned = true; this.say(s, this.nearestGuard(s, x, z), (s.lines ?? BASE_LINES).ceasefire, 'baseShout'); continue; }
       this.alarm(s, 'shots', this.nearestGuard(s, x, z));
     }
   }
@@ -905,6 +906,7 @@ export class Bases {
     const out = {};
     for (const s of this.sites) out[s.id] = { alert: s.alert, why: s.why, warnedAgo: s.warnedAt > -1e8 ? this.g.time - s.warnedAt : null, cleared: s.cleared, warnings: s.warnings, alarms: s.alarms,
       guards: s.guards.map((c) => ({ id: c.id, post: c.post?.id ?? null, patrol: c.patrol ?? null, ri: c.ri ?? 0 })) };
+    if (this.ext) out._streamed = this.ext.save(); // the streamed bases (systems/milbases.js)
     return out;
   }
 
@@ -934,6 +936,7 @@ export class Bases {
       if (d.alert === 'hostile') this.alarm(s, d.why ?? 'loaded', null, true);
       else if (d.alert === 'warned') { s.alert = 'warned'; s.warnT = 0; }
     }
+    this.ext?.load(data._streamed ?? null); // an older save: the streamed bases as they are
   }
 }
 
