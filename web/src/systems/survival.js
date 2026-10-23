@@ -128,7 +128,7 @@ export class Survival {
 
     // Wounds bleed, gather dirt, mend; a dirty one turns into an infection; food poisoning runs its hours.
     if (PR.injuries) this.tendWounds(hours, S);
-    if (N.sick && this.hours() >= N.sick.until) { N.sick = null; g.hud?.toast?.('YOUR STOMACH SETTLES', 'job'); g.emit('sick', { state: 'over' }); }
+    if (N.sick && this.hours() >= N.sick.until) { const over = SICKNESS[N.sick.kind]?.over ?? 'YOUR STOMACH SETTLES'; N.sick = null; g.hud?.toast?.(over, 'job'); g.emit('sick', { state: 'over' }); } // a row may say how it ends (brine sickness, systems/clone.js)
 
     // Mood: the pressures of the moment push the drives; the moods settle on their own.
     if (PR.mood) this.moodTick(dt, hours, S, kind);

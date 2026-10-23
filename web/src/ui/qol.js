@@ -235,6 +235,7 @@ export class QOL {
       c.fillStyle = '#f5c542'; c.beginPath(); c.arc(x, y, 6, 0, 7); c.fill();
       c.font = '700 14px Barlow Condensed'; c.strokeText(t.name, x + 9, y + 5); c.fillStyle = '#f5c542'; c.fillText(t.name, x + 9, y + 5);
     }
+    this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
     if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
     const p = g.player, [ax, ay] = T(px, pz);
     c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
@@ -298,6 +299,7 @@ export class QOL {
     c.drawImage(this.metroBg, 0, 0, S, S);
     for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 14px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
     this.drawRoute(c, T, 2);
+    this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
     if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
     const p = g.player, [ax, ay] = T(px, pz);
     c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
@@ -307,6 +309,8 @@ export class QOL {
     const here = locationName(px, pz);
     c.fillText(`${(/^phoenix/i.test(here) ? here : `Phoenix · ${here}`).toUpperCase()} · 3.8 KM ACROSS`, S - 10, S - 12); // the ring's names already start "Phoenix": never twice
   }
+  // Systems that mark the big map draw themselves with its world->canvas transform (the travel network, your husk).
+  drawLayers(c, T) { for (const L of [this.g.travel, this.g.clone]) L?.drawMap?.(c, T); }
   drawBigMap() {
     const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;
     this.region = null;
@@ -342,6 +346,7 @@ export class QOL {
     }
     for (const v of g.vehicles) if (!v.dead && !v.driver) { const [x, y] = T(v.x, v.z); c.fillStyle = '#e8e2d4'; c.fillRect(x - 2, y - 2, 4, 4); }
     this.drawRoute(c, T, 3);
+    this.drawLayers(c, T); // your husk and car, the poles and knots (systems/clone.js, systems/travel.js)
     if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
     const p = g.player;
     const [x, y] = T(px, pz);

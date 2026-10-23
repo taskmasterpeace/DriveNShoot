@@ -91,6 +91,7 @@ export function buildBody(s, type, paint) {
   else if (base === 'airboat' || base === 'jetski' || base === 'gunboat') boatBody(parts, s, base, paint);
   else if (base === 'patrol') patrolBody(parts, s, paint);
   else if (base === 'apc') apcBody(parts, s, paint);
+  else if (base === 'bus') busBody(parts, s, paint);
   else carBody(parts, s, GREENHOUSE[base] ? base : 'sedan', paint);
   lenses(parts, s, type);
   return mergeGeometries(parts);
@@ -241,6 +242,55 @@ function vanBody(parts, s, paint) {
   parts.push(slab(-0.8, 0.8, y + 0.03, y + 0.25, -2.3, -1.85, '#4b5338'));
   axle(parts, L / 2 - 0.9, 0.42, 0.32, hw - 0.1, true);
   axle(parts, -L / 2 + 0.9, 0.42, 0.32, hw - 0.1, false);
+}
+
+// ---- the trundle (the SUN LINE's coach, systems/travel.js) -------------------------------------------------------------
+// A long steel coach in two tones, its window band behind welded mesh and a few plated panes, a ram bar, the destination
+// board lit amber over the windshield, and a roof rack loaded with riders' bags: from the street camera, the roof is it.
+function busBody(parts, s, paint) {
+  const L = s.len, hw = s.wid / 2, BONE = '#d8cdb4', GLASS = '#22282a', PLATE = '#5a5550', RACK = '#1e1e1e';
+  const zF = L / 2, zR = -L / 2;
+  parts.push(slab(-hw + 0.25, hw - 0.25, 0.42, 0.62, zR + 0.4, zF - 0.4, '#222222', PART.frame));        // chassis
+  parts.push(slab(-hw, hw, 0.55, 1.3, zR + 0.05, zF - 0.12, paint));                                     // the lower body
+  parts.push(slab(-hw - 0.01, hw + 0.01, 1.08, 1.16, zR + 0.1, zF - 0.2, '#3a2a1e'));                    // a dark rub strip
+  // The window band: dark glass, paint pillars, steel mesh over the front panes, plates welded over two of them.
+  parts.push(slab(-hw + 0.03, hw - 0.03, 1.3, 2.32, zR + 0.15, zF - 0.6, GLASS));
+  for (let z = zR + 0.3; z < zF - 0.7; z += 1.4) for (const sd of [1, -1]) parts.push(slab(sd * (hw - 0.04), sd * hw, 1.3, 2.32, z, z + 0.16, paint));
+  for (const sd of [1, -1]) {
+    parts.push(slab(sd * (hw - 0.01), sd * (hw + 0.04), 1.32, 2.28, zR + 1.9, zR + 3.2, PLATE));
+    parts.push(slab(sd * (hw - 0.01), sd * (hw + 0.04), 1.32, 2.28, zR + 5.4, zR + 6.6, PLATE));
+    for (let y = 1.42; y < 2.3; y += 0.22) parts.push(slab(sd * hw, sd * (hw + 0.025), y, y + 0.03, zF - 3.6, zF - 0.75, '#4a4642'));
+  }
+  // The door on the kerb (right) side, up front.
+  parts.push(slab(-hw - 0.02, -hw + 0.02, 0.6, 2.3, zF - 2.0, zF - 1.0, '#3a3532', PART.doorR));
+  parts.push(slab(-hw - 0.01, hw + 0.01, 2.32, 2.92, zR + 0.05, zF - 0.15, BONE));                       // the upper body
+  parts.push(slab(-hw + 0.04, hw - 0.04, 2.92, 3.0, zR + 0.15, zF - 0.3, paint));                         // roof skin: the line's colour, read from above
+  // The nose: windshield, the amber destination board, grille, the ram bar, bumpers.
+  parts.push(slab(-hw + 0.12, hw - 0.12, 1.35, 2.3, zF - 0.62, zF - 0.5, GLASS));
+  parts.push(slab(-hw + 0.2, hw - 0.2, 2.42, 2.78, zF - 0.2, zF - 0.1, '#e0a030', PART.light));
+  parts.push(slab(-hw + 0.5, hw - 0.5, 0.65, 1.05, zF - 0.14, zF - 0.06, GRILLE));
+  parts.push(slab(-hw - 0.04, hw + 0.04, 0.5, 0.78, zF - 0.1, zF + 0.16, BUMPER, PART.bumperF));
+  for (const x of [-0.9, -0.3, 0.3, 0.9]) parts.push(slab(x - 0.05, x + 0.05, 0.55, 1.2, zF + 0.16, zF + 0.32, '#4a4642', PART.bumperF));
+  parts.push(slab(-hw + 0.1, hw - 0.1, 1.1, 1.18, zF + 0.16, zF + 0.32, '#4a4642', PART.bumperF));
+  // The tail: engine grille, ladder to the rack, bumper.
+  parts.push(slab(-hw + 0.3, hw - 0.3, 0.7, 1.9, zR - 0.02, zR + 0.06, GRILLE, PART.bumperR));
+  for (const x of [0.6, 1.0]) parts.push(slab(x - 0.03, x + 0.03, 1.2, 3.0, zR - 0.08, zR - 0.02, RACK, PART.bumperR));
+  parts.push(slab(-hw - 0.03, hw + 0.03, 0.5, 0.78, zR - 0.16, zR + 0.06, BUMPER, PART.bumperR));
+  // The roof: rack rails, cross bars, the riders' bags and crates, a spare, a hatch, a sand stripe down the middle.
+  const y = 3.05;
+  for (const x of [-hw + 0.2, hw - 0.2]) parts.push(beam([x, y + 0.12, zR + 0.6], [x, y + 0.12, zF - 1.2], 0.06, RACK));
+  for (let z = zR + 0.6; z <= zF - 1.1; z += 1.15) parts.push(beam([-hw + 0.2, y + 0.12, z], [hw - 0.2, y + 0.12, z], 0.05, RACK));
+  parts.push(slab(-0.22, 0.22, 3.0, 3.03, zR + 0.4, zF - 0.5, BONE));                                   // the line's stripe
+  parts.push(slab(-hw + 0.04, hw - 0.04, 3.0, 3.03, zF - 0.75, zF - 0.32, BONE));                         // a bone nose band
+  const bags = [[-0.7, -3.6, 0.9, 0.5, 0.45, '#5c4a32'], [0.45, -3.3, 0.7, 0.6, 0.4, '#6b5537'], [-0.4, -2.1, 0.8, 0.5, 0.35, '#4b5338'], [0.6, -1.4, 0.6, 0.7, 0.4, '#7a5a3a'],
+    [-0.6, 0.2, 0.7, 0.45, 0.5, '#3e4a46'], [0.5, 0.9, 0.8, 0.55, 0.42, '#5c4a32'], [-0.5, 1.9, 0.6, 0.6, 0.38, '#6a4a32']];
+  for (const [x, z, w, d, h, c] of bags) parts.push(slab(x - w / 2, x + w / 2, y, y + h, z - d / 2, z + d / 2, c));
+  parts.push(tag(new THREE.CylinderGeometry(0.5, 0.5, 0.26, 14).translate(0.35, y + 0.15, 2.9).toNonIndexed(), TYRE, PART.body));
+  parts.push(slab(-0.45, 0.45, 3.0, 3.12, zF - 2.6, zF - 1.8, '#4a4642'));
+  // Wheels: one steer axle, a doubled rear.
+  axle(parts, zF - 1.9, 0.55, 0.38, hw - 0.12, true);
+  axle(parts, zR + 2.0, 0.55, 0.38, hw - 0.12, false);
+  axle(parts, zR + 3.15, 0.55, 0.38, hw - 0.12, false);
 }
 
 // ---- the Whaler -------------------------------------------------------------------------------------
@@ -510,6 +560,7 @@ export function lampAnchors(s, type) {
   if (base === 'atv') return { head: pair(0.18, 0.68, L / 2 + 0.07), tail: [[0, 0.68, -L / 2 - 0.01]], beamW: 7, beamL: 15, halo: 0.85 };
   if (base === 'patrol') return { head: pair(W / 2 - 0.32, 1.02, L / 2 + 0.01), tail: pair(W / 2 - 0.22, 0.98, -L / 2 - 0.03), ...car };
   if (base === 'apc') return { head: pair(0.95, 1.08, L / 2 - 0.36), tail: pair(W / 2 - 0.3, 1.7, -L / 2 + 0.06), ...car };
+  if (base === 'bus') return { head: pair(W / 2 - 0.35, 0.95, L / 2 + 0.17), tail: pair(W / 2 - 0.3, 1.0, -L / 2 - 0.04), ...car };
   const y = base === 'pickup' ? 1.0 : base === 'van' ? 1.02 : 0.92;
   return { head: pair(W / 2 - 0.35, y, L / 2 + 0.02), tail: pair(W / 2 - 0.3, y, -L / 2 - 0.02), ...car };
 }
