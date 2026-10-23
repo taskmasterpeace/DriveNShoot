@@ -1833,11 +1833,16 @@ async function runSelfTest(api) {
     const car = api.findVeh((await C('spawnVehicle', { type: 'sedan', x: 385, z: 398 })).id);
     await C('step', { seconds: 6 });
     const sank = car.sunk;
+    // The lake's raider gunboat charges anyone afloat within 60 m (all of this lake), and where its patrol happens to be
+    // decided the airboat's speed (0 to 20 m/s after 2 s, by patrol angle): park it on the far side for the drive.
+    const gb = g.vehicles.find((v) => v.ai === 'boatPatrol' && !v.dead);
+    if (gb) { gb.ai = 'none'; gb.throttle = 0; gb.steer = 0; gb.x = 440; gb.z = 420; gb.vx = gb.vz = 0; }
     const boat = api.findVeh((await C('spawnVehicle', { type: 'airboat', x: 380, z: 392, heading: 0 })).id);
     await C('teleport', { x: 380, z: 389 });
     await C('enterVehicle', { id: boat.id, force: true });
     await C('drive', { throttle: 1, seconds: 2 });
     const moved = g.vehiclesSys.speed(boat) > 6;
+    if (gb) gb.ai = 'boatPatrol';
     const land = api.findVeh((await C('spawnVehicle', { type: 'jetski', x: 250, z: 250 })).id);
     land.driver = g.player; land.throttle = 1; // dry land: a waterbike can't go
     for (let i = 0; i < 60; i++) { g.vehiclesSys.drive(land, 1 / 60); }
