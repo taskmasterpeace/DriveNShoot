@@ -7,6 +7,12 @@ import { nearRail } from './rail.js';
 import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
 import { roofSurface, wallSurface } from './surfaces.js';
 import { HOLDOUT } from '../data/holdout.js';
+import { PROGRAMMES, SCATTER } from '../data/floorplans.js';
+import { FURNITURE } from '../data/ring.js';
+import { floorplan } from './floorplan.js';
+import { furnishRooms, placePiece } from './furnish.js';
+import { hash32, rngOf } from './geo.js';
+import { riseOf } from './storeys.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -226,19 +232,27 @@ export function buildWorld(scene, statics) {
       state, boardSide: orng.chance(0.75) ? -1 : 1, b: buildings.length, wallH: bld.h });
   };
 
-  // Build a building's queued wall spans, windows cut in: centred in equal sub-spans of >= 5 m (so
-  // >= 1.7 m of wall to each corner or door frame), at most 3 a span, never where the partition meets.
-  // Each span is ONE collision box (as before windows) carrying its window openings as holes.
-  const buildSpans = (bld, px) => {
+  // Build a building's queued wall spans, windows cut in. A planned building (all of them now: docs/design/
+  // WEB_FLOORPLANS.md "The island") gives each room's stretch of outside wall its own windows, between the partitions
+  // that meet that wall, so no partition ends at a window: centred in equal sub-stretches of >= 3 m (0.7 m of wall to
+  // each side), at most 3 a stretch; a stair hall's outside wall has none (its flight runs up it). Each span is ONE
+  // collision box (as before windows) carrying its window openings as holes.
+  const buildSpans = (bld, junctions, noWin) => {
     for (const sp of bld.pend) {
       const { side, horizontal, fixed, h, color } = sp;
-      const p0 = sp.s - WALL_T / 2, p1 = sp.e + WALL_T / 2, len = p1 - p0;
-      const n = Math.min(3, Math.floor(len / 5));
-      const holes = [];
+      const p0 = sp.s - WALL_T / 2, p1 = sp.e + WALL_T / 2;
+      const holes = [], at = [];
+      if (!noWin(side, sp)) {
+        const cuts = junctions.filter((j) => j.horizontal !== horizontal && Math.abs(j.wall - fixed) < 0.01 && j.at > sp.s + 0.05 && j.at < sp.e - 0.05).map((j) => j.at).sort((a, b) => a - b);
+        let a = sp.s;
+        for (const j of [...cuts, null]) {
+          const b2 = j === null ? sp.e : j - WALL_T / 2, sl = b2 - a, n = Math.min(3, Math.floor(sl / 3.0));
+          for (let k = 0; k < n; k++) at.push(a + (k + 0.5) * (sl / n));
+          if (j !== null) a = j + WALL_T / 2;
+        }
+      }
       let cur = p0;
-      for (let k = 0; k < n; k++) {
-        const c = p0 + (k + 0.5) * (len / n);
-        if (horizontal && px !== null && Math.abs(c - px) < WINDOW.width / 2 + 0.7) continue;
+      for (const c of at) {
         if (!orng.chance(0.75)) continue;
         wallPiece(horizontal, fixed, cur, c - WINDOW.width / 2, 0, h, color);
         addWindow(bld, side, horizontal, fixed, c, color);
@@ -263,53 +277,96 @@ export function buildWorld(scene, statics) {
     return row;
   };
 
-  const furnish = (b, rng2, district) => {
+  // The old shell's furniture rolls, drawn and thrown away: the main stream makes exactly the calls it always did (the
+  // count depends on where the old doors and the old partition's doorway were), so nothing placed after a building moves.
+  const replayFurnish = (b, oldDoors, oldInner, district) => {
     const { minX, maxX, minZ, maxZ } = b;
     const n = Math.floor(((maxX - minX) * (maxZ - minZ)) / 70);
     for (let i = 0; i < n; i++) {
-      const x = rng2.range(minX + 1.6, maxX - 1.6), z = rng2.range(minZ + 1.6, maxZ - 1.6);
-      // Keep doorways clear.
-      // Keep outer doors and interior doorways clear.
-      if (b.doors.some((d) => Math.hypot(d.x - x, d.z - z) < 4.8) || b.innerDoors.some((d) => Math.hypot(d.x - x, d.z - z) < 3.2)) continue;
-      const kind = rng2.int(0, 3);
-      if (kind === 0) { // crate stack
-        props.add(x, 0.5, z, 1, 1, 1, '#7a5a34'); statics.addCentered(x, z, 1, 1, 'crate', 1);
-      } else if (kind === 1) { // table
-        props.add(x, 0.45, z, 1.8, 0.12, 1.1, '#5a3e28');
-        statics.addCentered(x, z, 1.8, 1.1, 'table', 0.9);
-      } else if (kind === 2) { // bedroll / mattress
-        props.add(x, 0.12, z, 1, 0.22, 2, rng2.pick(['#6d6552', '#4f5a4f', '#7a6048']));
-        spawns.beds.push({ x, z, face: 0, bedY: 0.2 }); // somewhere to sleep (survival.js): the body lies along it
-      } else { // shelf against nothing in particular
-        props.add(x, 0.9, z, 2.2, 1.8, 0.5, '#4d3a29'); statics.addCentered(x, z, 2.2, 0.5, 'shelf', 1.8);
-      }
+      const x = rng.range(minX + 1.6, maxX - 1.6), z = rng.range(minZ + 1.6, maxZ - 1.6);
+      if (oldDoors.some((d) => Math.hypot(d.x - x, d.z - z) < 4.8) || oldInner.some((d) => Math.hypot(d.x - x, d.z - z) < 3.2)) continue;
+      if (rng.int(0, 3) === 2) rng();
     }
-    // Loot inside every enterable building.
-    const lootN = district === 'town' ? 1 : rng2.int(1, 2);
-    for (let i = 0; i < lootN; i++)
-      spawns.loot.push({ x: rng2.range(minX + 1.5, maxX - 1.5), z: rng2.range(minZ + 1.5, maxZ - 1.5) });
+    const lootN = district === 'town' ? 1 : rng.int(1, 2);
+    for (let i = 0; i < lootN; i++) { rng(); rng(); }
+    return lootN;
   };
 
-  const makeEnterable = (cx, cz, w, d, district, shopName) => {
+  // ---- the island's floor plans (data/floorplans.js, the island rows; world/floorplan.js; WEB_FLOORPLANS.md "The
+  // island"). The plan, its doors' places, the inner doors, the furniture and the keeper's post come from the building's
+  // own streams (rngOf, seeded by where it stands); the main stream draws exactly what it always drew.
+  const PR = PROGRAMMES;
+  const pickRow = (r, rows) => { let t = 0; for (const q of rows) t += q[1]; let p = r() * t; for (const q of rows) if ((p -= q[1]) < 0) return q[0]; return rows[rows.length - 1][0]; };
+  // The plan for a footprint: a stair hall when the building will rise (world/storeys.js riseOf), along a side wall (not the
+  // one a back door was rolled for), else across the back; a building that cannot take one does not rise.
+  const planFor = (b, kind, front, backSide, rises, seed, pr) => {
+    const ns = front === 'N' || front === 'S';
+    const opt = { x0: b.minX, z0: b.minZ, x1: b.maxX, z1: b.maxZ, front, kind, units: 1, seed, T: WALL_T, door: DOOR_GAP, innerDoor: SINGLE_GAP, backDoor: SINGLE_GAP };
+    const sideOf = { lo: ns ? 'W' : 'N', hi: ns ? 'E' : 'S', back: { N: 'S', S: 'N', W: 'E', E: 'W' }[front] };
+    if (rises) {
+      const order = pr() < 0.5 ? ['lo', 'hi', 'back'] : ['hi', 'lo', 'back'];
+      for (const st of order) {
+        if (sideOf[st] === backSide) continue;
+        const FP = floorplan({ ...opt, stair: st });
+        if (FP.plans[0] !== 'open') return { FP, stairSide: sideOf[st] };
+      }
+    }
+    return { FP: floorplan(opt), stairSide: null, noRise: rises };
+  };
+  // A back door's place on its wall (centre line `fixed`, from a to b): the plan's own (a kitchen's, a stock room's, the
+  // hall's end) first, else the middle of the longest stretch of that wall between partitions, clear of every corner by
+  // 1.65 m (the ruins' collapse rolls keep their count) and of the stair hall.
+  const backAt = (FP, side, a, b, stairRoom) => {
+    const ok = (at) => at > a + 1.65 && at < b - 1.65;
+    const c = FP.back.find((q) => q.side === side && ok(q.at));
+    if (c) return c.at;
+    const horiz = side === 'N' || side === 'S', fixed = { N: FP.box.z0, S: FP.box.z1, W: FP.box.x0, E: FP.box.x1 }[side];
+    const cuts = FP.inner.filter((P) => P.horizontal !== horiz && (Math.abs(P.a0 - fixed) < 0.01 || Math.abs(P.a1 - fixed) < 0.01)).map((P) => P.fixed).sort((p, q) => p - q);
+    let best = null, lo = a + WALL_T / 2;
+    for (const j of [...cuts, null]) {
+      const hi = j === null ? b - WALL_T / 2 : j - WALL_T / 2, s0 = Math.max(lo + 0.35 + SINGLE_GAP / 2, a + 1.7), s1 = Math.min(hi - 0.35 - SINGLE_GAP / 2, b - 1.7);
+      const mid = (lo + hi) / 2, inStair = stairRoom && (horiz ? mid > stairRoom.x0 && mid < stairRoom.x1 : mid > stairRoom.z0 && mid < stairRoom.z1);
+      if (s1 >= s0 && !inStair) { const at = Math.min(s1, Math.max(s0, snapHalf(mid))); if (!best || hi - lo > best.len) best = { at, len: hi - lo }; }
+      if (j !== null) lo = j + WALL_T / 2;
+    }
+    return best ? best.at : snapHalf((a + b) / 2);
+  };
+
+  const makeEnterable = (cx, cz, w, d, district, shopName, prog = null) => {
     const minX = cx - w / 2, maxX = cx + w / 2, minZ = cz - d / 2, maxZ = cz + d / 2;
     const ruined = district === 'ruins' && rng.chance(0.55);
     const h = district === 'town' ? rng.range(4.2, 5.2) : rng.range(4, 6);
     const color = district === 'town' ? rng.pick(TOWN_COLORS) : rng.pick(RUIN_COLORS);
     const b = { minX, maxX, minZ, maxZ, enterable: true, roofIdx: [], doors: [], innerDoors: [], ruined, district, h, shopName, inside: false, pend: [], color }; // color: world/storeys.js builds the floors above in it
-    // Doors: always face the nearest road on at least one side.
+    // Doors: always face the nearest road on at least one side. The rolls are the old ones (the main stream); where the
+    // doors end up along their walls is the plan's.
     const nearestRoad = (v) => roadLines.reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), roadLines[0]);
     const dxRoad = Math.abs(nearestRoad(cx) - cx) - w / 2, dzRoad = Math.abs(nearestRoad(cz) - cz) - d / 2;
-    const sides = { N: [], S: [], E: [], W: [] };
+    const old = { N: [], S: [], E: [], W: [] };
     const front = dxRoad < dzRoad ? (nearestRoad(cx) > cx ? 'E' : 'W') : (nearestRoad(cz) > cz ? 'S' : 'N');
-    if (dxRoad < dzRoad) sides[front].push(cz + rng.range(-d / 4, d / 4));
-    else sides[front].push(cx + rng.range(-w / 4, w / 4));
+    if (dxRoad < dzRoad) old[front].push(cz + rng.range(-d / 4, d / 4));
+    else old[front].push(cx + rng.range(-w / 4, w / 4));
+    let backSide = null;
     if (rng.chance(0.5)) { // back door
       const s = rng.pick(['N', 'S', 'E', 'W']);
-      if (!sides[s].length) sides[s].push((s === 'N' || s === 'S' ? cx : cz) + rng.range(-1.5, 1.5));
+      if (!old[s].length) { old[s].push((s === 'N' || s === 'S' ? cx : cz) + rng.range(-1.5, 1.5)); backSide = s; }
     }
+    // The plan: its own stream, from where the building stands.
+    const seed = hash32(0x15a1d, Math.round(cx * 100), Math.round(cz * 100));
+    const pr = rngOf(seed ^ 0x9e3779b9);
+    const kind = prog ?? pickRow(pr, PR.ruins);
+    const rise = !ruined ? riseOf({ minX, maxX, minZ, maxZ, district }) : null;
+    const { FP, stairSide, noRise } = planFor(b, kind, front, backSide, !!rise, seed, pr);
+    FP.box = { x0: minX, z0: minZ, x1: maxX, z1: maxZ };
+    const stairRoom = FP.rooms.find((r) => r.type === 'stair') ?? null;
+    if (noRise) b.noRise = true; // the rise roll said yes, but no stair hall fits this plan: it stays one storey
+    const sides = { N: [], S: [], E: [], W: [] };
+    sides[front].push(FP.front[0]);
+    if (backSide) { const horiz = backSide === 'N' || backSide === 'S'; sides[backSide].push(backAt(FP, backSide, horiz ? minX : minZ, horiz ? maxX : maxZ, stairRoom)); }
     // The shop front is a double door; a back door is a single one, its gap on a nav cell centre.
     const gaps = {};
     for (const s of ['N', 'S', 'W', 'E']) gaps[s] = sides[s].map((at) => (s === front ? { at, w: DOOR_GAP, kind: 'front', side: s } : { at: snapHalf(at), w: SINGLE_GAP, kind: 'back', side: s }));
+    const s0 = statics.boxes.length;
     sideWithGaps(b, 'N', true, minZ, minX, maxX, gaps.N, h, color, ruined);
     sideWithGaps(b, 'S', true, maxZ, minX, maxX, gaps.S, h, color, ruined);
     sideWithGaps(b, 'W', false, minX, minZ, maxZ, gaps.W, h, color, ruined);
@@ -318,50 +375,51 @@ export function buildWorld(scene, statics) {
     for (const x of sides.S) b.doors.push({ x, z: maxZ + 1.2 });
     for (const z of sides.W) b.doors.push({ x: minX - 1.2, z });
     for (const z of sides.E) b.doors.push({ x: maxX + 1.2, z });
-    // Interior partition with a doorway for bigger buildings.
-    let px = null, inner = null;
+    // The old partition's rolls (thrown away; the replayed furniture below needs where its doorway was).
+    const oldInner = [];
     if (w > 15) {
-      px = cx + rng.range(-w / 6, w / 6);
-      // Never run a partition into a doorway on the north/south walls.
-      for (const d of [...sides.N, ...sides.S]) if (Math.abs(d - px) < 2.8) px = d + (px >= d ? 2.8 : -2.8);
+      let px = cx + rng.range(-w / 6, w / 6);
+      for (const dd of [...old.N, ...old.S]) if (Math.abs(dd - px) < 2.8) px = dd + (px >= dd ? 2.8 : -2.8);
       px = Math.min(maxX - 2, Math.max(minX + 2, px));
-      const gap = cz + rng.range(-d / 4, d / 4);
-      b.innerDoors.push({ x: px, z: gap });
-      if (!(ruined && rng.chance(0.4))) {
-        const gs = snapHalf(gap); // a single door, its gap on a nav cell centre like a back door's
-        addWall(px, minZ, px, gs - SINGLE_GAP / 2, h * 0.92, color);
-        addWall(px, gs + SINGLE_GAP / 2, px, maxZ, h * 0.92, color);
-        inner = { at: gs };
-      }
+      oldInner.push({ x: px, z: cz + rng.range(-d / 4, d / 4) });
+      if (ruined) rng();
     }
-    buildSpans(b, inner ? px : null);
-    // A leaf in every doorway (but one whose wall has fallen: nothing left to hang it on), locks, and the
-    // rule that no room is ever locked off: every room keeps an unlocked way in from outside. Front
-    // doors never lock.
+    // The plan's partitions with their doorways (a ruin may have lost some: the doorway goes with its wall).
+    const inner = FP.inner.filter(() => !(ruined && pr() < PR.lose));
+    const PH = h * 0.92;
+    for (const P of inner) {
+      const gs = P.gaps.slice().sort((p, q) => p.at - q.at);
+      let cur = P.a0 + WALL_T / 2;
+      const seg = (e) => {
+        if (e - cur < 0.2) return;
+        const x0 = P.horizontal ? cur : P.fixed - WALL_T / 2, x1 = P.horizontal ? e : P.fixed + WALL_T / 2, z0 = P.horizontal ? P.fixed - WALL_T / 2 : cur, z1 = P.horizontal ? P.fixed + WALL_T / 2 : e;
+        walls.add((x0 + x1) / 2, PH / 2, (z0 + z1) / 2, x1 - x0, PH, z1 - z0, color);
+        statics.add(x0, z0, x1, z1, 'wall', PH);
+      };
+      for (const gp of gs) { seg(gp.at - gp.w / 2); cur = gp.at + gp.w / 2; b.innerDoors.push({ x: P.horizontal ? gp.at : P.fixed, z: P.horizontal ? P.fixed : gp.at, horizontal: P.horizontal, w: gp.w }); }
+      seg(P.a1 - WALL_T / 2);
+    }
+    const junctions = inner.flatMap((P) => [{ horizontal: P.horizontal, wall: P.a0, at: P.fixed }, { horizontal: P.horizontal, wall: P.a1, at: P.fixed }]);
+    buildSpans(b, junctions, (side) => stairSide === side);
+    const wallBoxes = statics.boxes.slice(s0).map((q) => ({ x0: q.minX, z0: q.minZ, x1: q.maxX, z1: q.maxZ, h: q.height, base: 0, tag: 'wall' }));
+    // A leaf in every doorway (but one whose wall has fallen: nothing left to hang it on), and locks: some back and inner
+    // doors (the rule that no room is ever locked off is kept below, once the furniture is in). Front doors never lock.
     const fixedOf = { N: minZ, S: maxZ, W: minX, E: maxX };
-    const roomOf = (x) => (inner && x > px ? 1 : 0);
-    const entrances = [], mine = [];
+    const mine = [], gdoors = [];
     for (const s of ['N', 'S', 'W', 'E']) for (const g of gaps[s]) {
       const horiz = s === 'N' || s === 'S';
       const x = horiz ? g.at : fixedOf[s], z = horiz ? fixedOf[s] : g.at;
+      gdoors.push({ x, z, nx: OUT[s][0], nz: OUT[s][1], w: g.w, kind: g.kind, barricade: false });
       const row = g.broken ? null : addDoor(b, g.kind, horiz ? 'x' : 'z', x, z, g.w, OUT[s][0], OUT[s][1]);
       if (row?.kind === 'back' && orng.chance(0.45)) row.locked = true;
       if (row) mine.push(row);
-      entrances.push({ room: roomOf(x), row });
     }
-    let innerRow = null;
-    if (inner) {
-      innerRow = addDoor(b, 'inner', 'z', px, inner.at, SINGLE_GAP, 1, 0);
-      if (orng.chance(0.35)) innerRow.locked = true;
-      mine.push(innerRow);
+    for (const dd of b.innerDoors) {
+      const row = addDoor(b, 'inner', dd.horizontal ? 'x' : 'z', dd.x, dd.z, SINGLE_GAP, dd.horizontal ? 0 : 1, dd.horizontal ? 1 : 0);
+      if (orng.chance(0.35)) row.locked = true;
+      mine.push(row);
     }
-    // A doorway whose leaf is gone, or an unlocked door, is a way in.
-    const open = (room) => entrances.some((e) => e.room === room && !e.row?.locked);
-    if (innerRow?.locked && !(open(0) && open(1))) innerRow.locked = false;
-    for (const row of mine) {
-      // Ruins hang doors ajar; Rust Haven keeps them shut.
-      if (!row.locked && (ruined ? orng.chance(0.5) : district !== 'town' && orng.chance(0.25))) row.open = (orng.chance(0.5) ? 1 : -1) * orng.range(0.5, 1.6);
-    }
+    const rooms = FP.rooms.map((r) => ({ type: r.type, name: r.name, x0: r.x0, z0: r.z0, x1: r.x1, z1: r.z1, ui: 0, unit: null, frontRoom: r.entry }));
     floors.add(cx, 0.07, cz, w, 0.1, d, district === 'town' ? rng.pick(['#8a6a4a', '#9a8670', '#7a6a58']) : '#6e665c');
     if (!ruined) {
       b.roofIdx.push(roofs.add(cx, h + 0.2, cz, w + 0.6, 0.4, d + 0.6, district === 'town' ? rng.pick(ROOF_TOWN) : rng.pick(RUIN_COLORS)));
@@ -373,7 +431,69 @@ export function buildWorld(scene, statics) {
       for (let i = 0; i < 4; i++)
         props.add(cx + rng.range(-w / 3, w / 3), 0.3, cz + rng.range(-d / 3, d / 3), rng.range(0.8, 2), rng.range(0.3, 0.7), rng.range(0.8, 2), color, rng() * 3);
     }
-    furnish(b, rng, district);
+    const oldDoors = [...old.N.map((x) => ({ x, z: minZ - 1.2 })), ...old.S.map((x) => ({ x, z: maxZ + 1.2 })), ...old.W.map((z) => ({ x: minX - 1.2, z })), ...old.E.map((z) => ({ x: maxX + 1.2, z }))];
+    const lootN = replayFurnish(b, oldDoors, oldInner, district);
+    // The furniture: the ring's rows and placement, every piece proved on the nav probe (world/furnish.js).
+    const row = PR.rows[kind];
+    const g = { doors: gdoors, inner, boxes: wallBoxes.slice(), props: [], beds: [], boxesIn: [] };
+    const frng = rngOf(seed ^ 0x46555231), K = { label: null, loot: row.loot }, Z = { loot: [[row.loot, 1]] };
+    const fctx = furnishRooms({ x0: minX, z0: minZ, x1: maxX, z1: maxZ }, g, rooms, K, Z, frng);
+    // The middle of a big public room (data/floorplans.js SCATTER): tables, benches, gondolas on a grid, each proved.
+    for (const room of rooms) {
+      const sc = SCATTER[room.type];
+      if (!sc || !fctx.on) continue;
+      const [t, every, inset, max] = sc, [fw, fd] = FURNITURE[t].size, longX = room.x1 - room.x0 >= room.z1 - room.z0;
+      const sx = longX ? fw : fd, sz = longX ? fd : fw, spots = [];
+      for (let x = room.x0 + inset + sx / 2; x <= room.x1 - inset - sx / 2 + 1e-6; x += every) for (let z = room.z0 + inset + sz / 2; z <= room.z1 - inset - sz / 2 + 1e-6; z += every) spots.push({ r: { x0: x - sx / 2, z0: z - sz / 2, x1: x + sx / 2, z1: z + sz / 2 } });
+      for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(frng() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+      let n = 0;
+      for (const c of spots) { if (n >= max) break; if (placePiece(t, room, g, K, Z, frng, fctx, { cands: [c], gap: 0.9 })) n++; }
+    }
+    for (const p of g.props) {
+      const c = new THREE.Color(p[6]), k = p[8] ?? 1; // a part's shade (ring.js parts: x its own colour)
+      if (k !== 1) c.setRGB(Math.min(1, c.r * k), Math.min(1, c.g * k), Math.min(1, c.b * k));
+      props.add(p[0], p[1], p[2], p[3], p[4], p[5], c, p[7]);
+    }
+    const furn = [];
+    for (const q of g.boxes.slice(wallBoxes.length)) {
+      const s = statics.add(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+      const x = (q.x0 + q.x1) / 2, z = (q.z0 + q.z1) / 2, box = g.boxesIn.find((c) => Math.abs(c.x - x) < 0.01 && Math.abs(c.z - z) < 0.01);
+      const room = rooms.find((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1);
+      if (box) { s.loot = box.table; s.label = box.label; s.room = room?.type ?? null; }
+      furn.push({ x0: q.x0, z0: q.z0, x1: q.x1, z1: q.z1, tag: q.tag, h: q.h, room: room?.type ?? null });
+    }
+    const beds = g.beds.map((q) => ({ x: q.x, z: q.z, face: q.face, bedY: q.bedY, ...(q.mattress ? { mattress: true } : {}) }));
+    for (const q of beds) spawns.beds.push(q);
+    // The lock rule, on the furnished building's probe (its walls and every piece in it): a locked door's gap is shut, and
+    // every open cell inside must still be reached from a door that is not locked (a front door never locks). A lock that
+    // breaks it comes off, the last first (inner doors, then back doors).
+    const P = fctx.probe;
+    const gapOf = (r) => ({ x0: r.x - (r.axis === 'x' ? r.width / 2 : WALL_T / 2), x1: r.x + (r.axis === 'x' ? r.width / 2 : WALL_T / 2), z0: r.z - (r.axis === 'z' ? r.width / 2 : WALL_T / 2), z1: r.z + (r.axis === 'z' ? r.width / 2 : WALL_T / 2), base: 0 });
+    const locked = mine.filter((r) => r.locked);
+    for (const r of locked) P.add(gapOf(r));
+    const ways = () => [...mine.filter((r) => !r.locked && r.kind !== 'inner').map((r) => [r.x, r.z]), ...gdoors.filter((d) => !mine.some((r) => r.x === d.x && r.z === d.z)).map((d) => [d.x, d.z])];
+    for (let i = locked.length - 1; i >= 0 && !P.ok(ways(), rooms, WALL_T / 2); i--) { locked[i].locked = false; P.add(gapOf(locked[i]), -1); }
+    for (const r of locked) if (r.locked) P.add(gapOf(r), -1);
+    P.flood(ways());
+    for (const r of mine) {
+      // Ruins hang doors ajar; Rust Haven keeps them shut.
+      if (!r.locked && (ruined ? orng.chance(0.5) : district !== 'town' && orng.chance(0.25))) r.open = (orng.chance(0.5) ? 1 : -1) * orng.range(0.5, 1.6);
+    }
+    // Reached floor (the probe's flood from the open doors), for the loot on the floor and the keeper's post.
+    const open = (r) => { const out = []; for (let z = Math.ceil(r.z0 + 0.45 - 0.5) + 0.5; z < r.z1 - 0.45; z += 1) for (let x = Math.ceil(r.x0 + 0.45 - 0.5) + 0.5; x < r.x1 - 0.45; x += 1) if (P.reached(x, z)) out.push({ x, z }); return out; };
+    const stay = rooms.filter((r) => r.type !== 'stair' && r.type !== 'corridor' && r.type !== 'hall');
+    for (let i = 0; i < lootN; i++) {
+      const cells = open(stay[Math.floor(pr() * stay.length)] ?? rooms[0]);
+      if (cells.length) spawns.loot.push(cells[Math.floor(pr() * cells.length)]);
+    }
+    // The keeper's post: the open cell of the front room nearest its middle, a step in from the counter.
+    const entry = rooms.find((r) => r.frontRoom) ?? rooms[0], ec = open(entry), mx = (entry.x0 + entry.x1) / 2, mz = (entry.z0 + entry.z1) / 2;
+    ec.sort((p, q) => Math.hypot(p.x - mx, p.z - mz) - Math.hypot(q.x - mx, q.z - mz));
+    b.post = ec[0] ?? { x: mx, z: mz };
+    b.programme = kind;
+    b.label = PR.names[spawns.shops.length] && district === 'town' ? PR.names[spawns.shops.length] : row.name;
+    b.plan = { id: FP.plans[0], kind, rooms, inner, doors: gdoors, furniture: furn, beds, probeOn: !!fctx.on };
+    if (stairRoom) b.stair = { side: stairSide, x0: stairRoom.x0, z0: stairRoom.z0, x1: stairRoom.x1, z1: stairRoom.z1 };
     buildings.push(b);
     return b;
   };
@@ -462,7 +582,7 @@ export function buildWorld(scene, statics) {
               continue;
             }
             const w = rng.range(16, 24), d = rng.range(14, 22);
-            const b = makeEnterable(cx + rng.range(-2, 2), cz + rng.range(-2, 2), w, d, 'town');
+            const b = makeEnterable(cx + rng.range(-2, 2), cz + rng.range(-2, 2), w, d, 'town', undefined, PROGRAMMES.shops[spawns.shops.length] ?? 'store');
             spawns.shops.push(b);
             townLots.push({ b, x: cx, z: cz, lot });
             for (const dr of b.doors) spawns.drifters.push({ x: dr.x, z: dr.z });
@@ -505,7 +625,7 @@ export function buildWorld(scene, statics) {
           cacti.push({ x, z, h: rng.range(1.4, 3.2) });
           statics.addCentered(x, z, 0.7, 0.7, 'cactus', 2);
         }
-        if (rng.chance(0.35)) makeEnterable(bcx + rng.range(-12, 12), bcz + rng.range(-12, 12), rng.range(9, 13), rng.range(8, 12), 'ruins');
+        if (rng.chance(0.35)) makeEnterable(bcx + rng.range(-12, 12), bcz + rng.range(-12, 12), rng.range(9, 13), rng.range(8, 12), 'ruins', undefined, 'shack');
         if (rng.chance(0.4)) wreck(rng.range(x0, x1), rng.range(z0, z1), rng() * Math.PI);
       }
     }
