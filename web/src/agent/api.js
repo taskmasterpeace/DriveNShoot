@@ -1,7 +1,7 @@
 import { WEAPONS } from '../systems/combat.js';
 import { VEHICLES, reverseOf, DRIVING } from '../systems/vehicles.js';
 import { DECK_RULES, CAMP } from '../data/decks.js';
-import { WEATHER } from '../systems/sky.js';
+import { WEATHER, NIGHT_I } from '../systems/sky.js';
 import { FLAGS, FLAG_KEYS } from '../ui/portrait.js';
 import { NPCS } from '../data/npcs.js';
 import { outfit } from '../systems/characters.js';
@@ -29,6 +29,8 @@ import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
 import { devtoolsCommands } from './devtools.js';
 import { devtoolsChecks } from './devtools-selftest.js';
+import { waterCommands } from './water-api.js';
+import { waterChecks } from './water-selftest.js';
 import { cloneCommands, cloneChecks } from './clone-api.js'; // pressings, husks, the trundle, the iron, the airline (WEB_CLONE_TRAVEL.md)
 import { controllerCommands, controllerChecks } from './controller-api.js'; // the controller, stance, gunpoint, melee (WEB_CONTROLLER.md)
 import { GARAGE_BAYS } from '../data/survival.js';
@@ -503,6 +505,7 @@ function buildCommands(api) {
         need(Number.isFinite(x) && Number.isFinite(z), 'give x,z, town= or mile=');
         S.ensureHot(x, z, 'teleport');
         const p = P(), v = p.inVehicle;
+        if (p.onDeck && !v) g.decks?.dismount(p, 'teleported', true); // a teleport takes you off a vehicle's deck (it stays where it is)
         const pos = { x, z };
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
         if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = g.streamer.W.terrain ? g.streamer.W.groundAt(pos.x, pos.z) : 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
@@ -1942,6 +1945,9 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    // L1 water and its L2 crossings (src/agent/water-api.js, docs/design/WEB_RIVERS.md): water (replaces the island-only
+    // row above, same answers there), rivers, bridges.
+    ...waterCommands(api, need),
     ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
     // Cloning and the travel network back to your husk (src/agent/clone-api.js, docs/design/WEB_CLONE_TRAVEL.md).
     ...cloneCommands(api, need),
@@ -2067,6 +2073,16 @@ async function runSelfTest(api, only = null, skip = null) {
   await check('teleport snaps out of walls', async () => { const r = await C('teleport', { x: 0, z: -40 }); return r.ok; });
   await check('weather cycles', async () => { for (const k of ['RAIN', 'DUST', 'STORM', 'CLEAR']) { const r = await C('setWeather', { key: k, instant: true }); if (!r.ok) return false; } return true; });
   await check('day/night', async () => { await C('setTime', { hour: 23 }); await C('step', { seconds: 0.2 }); const n = g.sky.night; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); return n > 0.8 && g.sky.night < 0.2 ? true : `night=${n} day=${g.sky.night}`; });
+  await check('night is dark: at 23:00 the default Night setting leaves the moon and sky fill at a fraction of the old night, the Bright setting brings that back, and your light carries further the darker it is', async () => {
+    const S = g.sky, nl0 = S.nightLight, fo = g.flashOverride, w0 = S.weatherKey ?? null;
+    try {
+      await C('setWeather', { key: 'CLEAR', instant: true }); await C('setTime', { hour: 23 });
+      const at = async (nl) => { S.nightLight = nl; g.flashOverride = true; await C('step', { seconds: 0.2 }); return { sun: +S.sun.intensity.toFixed(3), hemi: +S.hemi.intensity.toFixed(3), flash: +g.flashMat.opacity.toFixed(2), reach: +g.flashlight.scale.z.toFixed(2) }; };
+      const dflt = await at(NIGHT_I.dflt), bright = await at(1);
+      const ok = dflt.sun < bright.sun * 0.3 && dflt.hemi < bright.hemi * 0.3 && bright.sun > 1.2 && dflt.flash > bright.flash && dflt.reach > bright.reach;
+      return ok ? true : JSON.stringify({ dflt, bright });
+    } finally { S.nightLight = nl0; g.flashOverride = fo; await C('setTime', { hour: 12 }); await C('step', { seconds: 0.2 }); }
+  });
   await check('raider spawn + gunfight kill', async () => {
     const { ids } = await C('spawn', { kind: 'raider', x: g.player.x + 10, z: g.player.z, hp: 30 });
     await C('give', { pistol: 50 });
@@ -2679,6 +2695,7 @@ async function runSelfTest(api, only = null, skip = null) {
     // How you carry (systems/arms.js) and who you hold (systems/gunpoint.js) are states now: a check that raised a gun or
     // held a man must not leave the next one walking slow behind a raised two-hand gun, or still in a standoff.
     g.gunpoint?.clear(); g.aimOverride = null;
+    if (g.player.onDeck) g.decks?.dismount(g.player, 'stage', true); // off any deck an earlier check left you on
     // An open conversation freezes you AND the world (main.js: simDt is 0 while dialogue.active): a check that talked must not
     // leave every later one standing still with its clock stopped.
     if (g.dialogue?.active) g.dialogue.close();
@@ -4572,6 +4589,7 @@ async function runSelfTest(api, only = null, skip = null) {
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
   });
+  await waterChecks(api, check, C); // L1 water and its L2 crossings, out on the corridor (src/agent/water-selftest.js, docs/design/WEB_RIVERS.md)
   // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
   const RG = WI.ring;
   // The densest chunk of the ring (most buildings of its own), and one of its intact houses with a door to the street.

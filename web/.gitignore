@@ -9,3 +9,5 @@ server/data/
 server/.dev-accounts.json
 # the terrain bake's downloads (tools/terrain-bake.mjs): public data, re-fetched on demand, never committed
 .terrain-cache/
+# the water bake's downloads (tools/water-bake.mjs): public data, re-fetched on demand, never committed
+.water-cache/

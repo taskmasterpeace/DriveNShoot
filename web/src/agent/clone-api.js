@@ -41,7 +41,7 @@ export function cloneCommands(api, need) {
       },
     },
     travel: {
-      group: 'world', desc: 'The travel network back to your husk (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/travel.js): the SUN LINE trundle (bus) pole to pole on I-10, the IRON LINE (the freight from Dust Bowl Station through the yards), FIVE CITY AIR (Los Angeles and four cities past the dust). action: status (where you stand, its board, your punches, the trundle if one is real, the arrivals hall, the last trips) | lines | nodes | buy line= to= (a punch at the board you stand at; flight=<i> for an air row; from= force=true to stage) | wait (run the clock until the next trundle or iron is nearly due here, and make it real) | board (climb aboard the trundle standing at your pole, as a passenger; force=true skips the reach check) | ride seconds= (step the sim while you ride, until you step off) | skip (sleep through it: the wait and the whole trip go by on the clock, the road rolls once; punch= seed= force=) | leave (get off the trundle) | goto node= dir=east|west (stand at a node\'s pole or counter, for staging) | panel node= (open its board on screen; close closes it) | hall (the arrivals hall you are held in) | leaveHall (staging: out of the hall, where you stand).',
+      group: 'world', desc: 'The travel network back to your husk (docs/design/WEB_CLONE_TRAVEL.md, rows in src/data/travel.js): the SUN LINE trundle (bus) pole to pole on I-10 and the SALT LINE on Florida I-95 (the Meridian knot), the IRON LINE (the freight from Dust Bowl Station through the yards), FIVE CITY AIR (Los Angeles and four cities past the dust). action: status (where you stand, its board, your punches, the trundle if one is real, the arrivals hall, the last trips) | lines | nodes | buy line= to= (a punch at the board you stand at; flight=<i> for an air row; from= force=true to stage) | wait (run the clock until the next trundle or iron is nearly due here, and make it real) | board (climb aboard the trundle standing at your pole, as a passenger; force=true skips the reach check) | ride seconds= (step the sim while you ride, until you step off) | skip (sleep through it: the wait and the whole trip go by on the clock, the road rolls once; punch= seed= force=) | leave (get off the trundle) | goto node= dir=east|west (stand at a node\'s pole or counter, for staging) | panel node= (open its board on screen; close closes it) | hall (the arrivals hall you are held in) | leaveHall (staging: out of the hall, where you stand).',
       args: { action: { type: 'string', default: 'status', enum: ['status', 'lines', 'nodes', 'buy', 'wait', 'board', 'ride', 'skip', 'leave', 'goto', 'panel', 'close', 'hall', 'leaveHall'] }, line: { type: 'string' }, to: { type: 'string' }, from: { type: 'string' }, flight: { type: 'number' }, node: { type: 'string' }, dir: { type: 'string', enum: ['east', 'west'] }, punch: { type: 'string' }, seed: { type: 'number' }, seconds: { type: 'number', default: 120 }, force: { type: 'boolean', default: false } },
       run: async ({ action, line, to, from, flight, node, dir, punch, seed, seconds, force }) => {
         const T = g.travel, p = P();
@@ -230,6 +230,29 @@ export async function cloneChecks(api, check, C) {
       const ok = shardOk && p.alive && CL.lineage.length === lin0 + 1 && CL.lastWake?.flat && !CL.lastWake.shard && p.name !== name0 && zero && g.cash === 0 && CL.pressing?.free
         && g.events.some((e) => e.type === 'diedFlat');
       return ok ? true : JSON.stringify({ shardOk, alive: p.alive, lineage: CL.lineage, last: CL.lastWake, name: [name0, p.name], skills: g.skillsSys.lv, cash: g.cash, pressing: CL.pressingView() });
+    });
+    await check("clone: a Florida start is pressed at Meridian's clone bay and, dying in Florida, comes up in Meridian's vat; the SALT LINE runs the husk run from its knot", async () => {
+      const R = g.regions, was = { start: R.start, at: R.startedAt };
+      try {
+        R.start = 'florida';
+        const placed = R.placeAtStart('florida'); // a new Florida game: Meridian's clinic door
+        CL.pressing = null; CL.press(CL.startVat(), { free: true, force: true }); // what clone.start does for a new character
+        const vat = CL.pressing?.vat;
+        await C('step', { seconds: 0.5 }); quiet();
+        const d = await C('clone', { action: 'die' });
+        const pl = CL.vatPlace(CL.vat('meridian')), p = g.player;
+        const near = Math.hypot(p.x - pl.wake.x, p.z - pl.wake.z);
+        const inFlorida = g.streamer.W.regionOf(d.husk?.x ?? 0, d.husk?.z ?? 0)?.id === 'florida' && g.streamer.W.regionOf(p.x, p.z)?.id === 'florida';
+        const drawn = CL.vatMeshes.some((m) => Math.hypot(m.position.x - pl.x, m.position.z - pl.z) < 0.5);
+        // The husk run in Florida: Meridian's knot is a real pole on I-95, and a punch north sleeps you to Daytona.
+        await C('travel', { action: 'goto', node: 'meridian_knot', dir: 'east' });
+        g.cash = 200;
+        const b = await C('travel', { action: 'buy', line: 'salt', to: 'daytona' });
+        const r = await C('travel', { action: 'skip', seed: 1 });
+        const day = TR.node('daytona'), atDaytona = r.ok && r.trip?.to === 'daytona' && Math.hypot(p.x - day.poles[1].x, p.z - day.poles[1].z) < 4;
+        const ok = placed && vat === 'meridian' && d.alive && near < 2.5 && CL.lastWake?.vat === 'meridian' && inFlorida && drawn && b.ok && atDaytona;
+        return ok ? true : JSON.stringify({ placed, vat, alive: d.alive, near: r1(near), wake: CL.lastWake, inFlorida, drawn, buy: b.ok ?? b.error, trip: r.trip ?? r.error });
+      } finally { R.start = was.start; R.startedAt = was.at; }
     });
     await check('travel: a punch takes you pole to pole on the trundle in real time, on the game clock, the fare paid', async () => {
       if (g.player.inVehicle) g.exitVehicle(true);

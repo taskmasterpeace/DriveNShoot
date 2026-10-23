@@ -55,6 +55,21 @@ Three causes, each fixed:
 3. **The game starts at 18:36.** Night and the hour after sunset now sit around 36–51 / 255, so they stay readable
    instead of black.
 
+### 3.1b The night (dark and scary, 2026-10-23)
+
+Robert's briefing: nights are **truly dark and scary** (the Godot CarWorld's dark nights were the reference). His earlier
+"too dark, bro" was about the day, so §3.1 brightened the day and, with it, the night: the night measured as dusk.
+- The night end of the moon and the sky fill is now a range, `NIGHT_I` in `systems/sky.js`, set by the pause menu's
+  **Night** setting: Pitch dark (0), **Dark and scary (0.12, the default)**, Readable (0.5), Bright (1, the old night).
+  Only the night end moves; the day is untouched.
+- The flashlight (an additive cone, no light of its own) carries more the darker the night: opacity 0.55 to 0.9 and
+  up to 1.45x its 15 m reach (`dark = sky.night x (1 - nightLight)`).
+- Street lamps, fires, headlights and glows are what you see by. The fixed light count is unchanged.
+
+Measured (23:00, clear, mean screen luma of the play area, 0-255): the old night 90 (dusk); Dark and scary 22 in a town
+with lamps and 24 with the flashlight; Pitch dark 7. Renders: `docs/renders/web/night/` (town-default-flashlight,
+desert-dark, desert-old-night-bright). Check: "night is dark" in the selftest.
+
 ### 3.2 Colour
 
 - **Rust Haven is rebuilt and painted**: adobe, limewash, turquoise and sage trim, ochre, brick
