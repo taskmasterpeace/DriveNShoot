@@ -94,6 +94,9 @@ there, routes past one nav window, El Paso's at-grade crossings) is in WEB_STREA
    wanted?
 
 ## Next blocks
+- **Multi-storey buildings** (WEB_STOREYS, on the streaming branch's vertical model) - in progress.
+- **Then the Phoenix ring** (Robert, 2026-10-22: metros ~3 km, cities ~1.5 km, holdouts as they are; WEB_STREAMING
+  decision 5): the 920 m island stays downtown, a generated living ring out to ~1.5 km, then LA, El Paso, the cities.
 - **bounty-run no longer completes** (critic sweep, 2026-10-22): 3/6 kills, $0. The game outgrew the scenario - Ike
   asleep behind a locked door at night (it retried for game days), walking into a firefight, every camp empty on a full
   lap (the faction sim moves the Dustwolves), `walk` while still in a car. Make it play like a person (wake/kick, engage,
