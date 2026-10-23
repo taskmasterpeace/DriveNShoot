@@ -297,8 +297,10 @@ export class Residents {
     if (!c.alive) return false;
     return !!c.target || (c.ztarget && c.ztarget === g.player) || c.flee > 0 || (c.hitAt ?? -99) > g.time - RES_RULES.engaged || !!c.telling ||!!g.society?.deeds?.holdsRumor(c);
   }
-  // Back onto the record and out of the world.
-  writeBack(rec, m, c) {
+  // Onto the record. leaving: they are going out of the world now (a demote), so their body's box goes with them; a save
+  // (sync) only copies it - it used to take the box away too, so an autosave while you stood over a body emptied the world
+  // of it (the corpse stayed, the box was gone until the next demote and promote).
+  writeBack(rec, m, c, leaving = true) {
     const g = this.g, P = g.player;
     if (!c.alive && !m.dead) this.markDead(rec, m, c, c.lastAttacker);
     if (c.alive) {
@@ -307,7 +309,7 @@ export class Residents {
     }
     if (m.dead && m.bodyId) {
       const inv = g.inventory, box = inv.boxes.get(m.bodyId);
-      if (box) { m.body = box.slots.map((s) => ({ ...s })); inv.boxes.delete(m.bodyId); if (inv.opened === box) inv.opened = null; }
+      if (box) { m.body = box.slots.map((s) => ({ ...s })); rec.dirty = true; if (leaving) { inv.boxes.delete(m.bodyId); if (inv.opened === box) inv.opened = null; } }
     }
   }
   demoteMember(rec, m, silent = false) {
@@ -586,7 +588,7 @@ export class Residents {
   // ---- save / load / view --------------------------------------------------------------------------------------------
   // Everything changed, written back (the promoted ones stay where they are).
   sync() {
-    for (const rec of this.live) for (const m of rec.members) if (m.c) this.writeBack(rec, m, m.c);
+    for (const rec of this.live) for (const m of rec.members) if (m.c) this.writeBack(rec, m, m.c, false); // they stay where they are
   }
   pack(rec) {
     return { id: rec.id, wronged: rec.wronged, bar: rec.barricade?.hp, members: rec.members.map((m) => ({ n: m.n, hp: m.hp, dead: m.dead || undefined, x: m.dead ? m.x : undefined, z: m.dead ? m.z : undefined, face: m.dead ? m.face : undefined, by: m.by ?? undefined, when: m.when ?? undefined, grudge: m.grudge || undefined, carry: m.carry ?? undefined, body: m.body ?? undefined })) };

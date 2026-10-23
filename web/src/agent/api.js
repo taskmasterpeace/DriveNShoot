@@ -18,6 +18,7 @@ import { makeRng } from '../engine/rng.js';
 import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
+import { AMBIENT_RESERVE } from '../systems/zombies.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -3625,11 +3626,18 @@ async function runSelfTest(api, only = null) {
   const roles0 = g.roles.save(), hour0 = g.sky.time;
   const HH = (() => { const out = [], n = Math.ceil(RG.reach / 256) + 1; for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) for (const L of RS.households(cx, cz)) out.push(L); return out.sort((a, b) => (a.id < b.id ? -1 : 1)); })();
   // The battery's own leftovers out of the budget (bodies, strays): what the clean-up does in play, done now.
-  const freeUp = () => { for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.res && !c.alive) g.removeChar(c); };
+  // Room for a whole household too (staged): residents never take the last AMBIENT_RESERVE slots, and on a fresh page the
+  // island's own crowd can sit right at that line - then a family comes up two people short (the budget, not the beds).
+  // Some of the island's nameless crowd 400 m and more behind you goes (the open question in WEB_STREAMING §1.3 R2).
+  const freeUp = (at) => {
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && !c.res && !c.alive) g.removeChar(c);
+    const P = g.player, far = g.chars.filter((c) => c.alive && !c.npc && !c.res && c !== P && !c.inVehicle && !c.baseId && c.faction !== 'warden' && Math.hypot(c.x - at.x, c.z - at.z) > 400);
+    while (g.freeSlots.length < AMBIENT_RESERVE + 12 && far.length) g.removeChar(far.pop());
+  };
   // A family of three or more with a shelf of its own; the street 6 m out from its front door.
   const famL = HH.find((L) => { if (RG.household(L).kind !== 'family') return false; const r = RS.rec(L); return r.members.length >= 3 && r.boxIds.length > 0; });
   const front = (L) => { const d = RG.geo(L).doors.find((q) => q.kind === 'front' && !q.barricade) ?? RG.geo(L).doors[0]; return { x: d.x + d.nx * 6, z: d.z + d.nz * 6 }; };
-  const atFamily = async (hour) => { await streamHome(); freeUp(); await C('setTime', { hour }); await C('teleport', front(famL)); await C('step', { seconds: 2 }); return RS.rec(famL); };
+  const atFamily = async (hour) => { await streamHome(); freeUp(front(famL)); await C('setTime', { hour }); await C('teleport', front(famL)); await C('step', { seconds: 2 }); return RS.rec(famL); };
   let sv0 = null;
   await check('ring residents: a scavenger family is home at night, each asleep in their own bed (walked there on the game clock; a mattress each where the house runs short)', async () => {
     if (!famL) return 'no family of three with a shelf in the ring';
@@ -3710,6 +3718,9 @@ async function runSelfTest(api, only = null) {
     await C('chunk', { x: cx * 256 + 128, z: cz * 256 + 128, evict: true });
     const away = !SW.layouts.has(rec.owner) && !m.c && !inv.boxes.has(m.bodyId) && m.dead;
     await C('teleport', front(famL)); await C('step', { seconds: 2 });
+    // A save while the body lies there (an autosave fires every 3 minutes of calm play): it copies the body onto the
+    // record and leaves the box where it is (it once took the box away: this check's failure on a run the autosave hit).
+    await C('save');
     const c = m.c, back = inv.boxes.get(m.bodyId);
     const still = !!c && !c.alive && Math.hypot(c.x - at.x, c.z - at.z) < 0.05 && m.dead && m.by === 'player';
     const sameBody = !!back && back.slots.map((s) => `${s.id}x${s.n}`).join(',') === keep;
@@ -3779,7 +3790,7 @@ async function runSelfTest(api, only = null) {
     const L = HH.find((q) => RG.household(q).kind === 'nest');
     if (!L) return 'no nest';
     const rec = RS.rec(L), post = RS.echoPost(rec);
-    await streamHome(); freeUp(); await C('setTime', { hour: 12 });
+    await streamHome(); freeUp(RS.echoPost(rec)); await C('setTime', { hour: 12 });
     // Out of the Echo's reach of you, behind you: 22 m off, looking the other way.
     const dx = post.x - rec.cx, dz = post.z - rec.cz, dl = Math.hypot(dx, dz) || 1, sx = post.x + (dx / dl) * 22, sz = post.z + (dz / dl) * 22;
     await C('teleport', { x: sx, z: sz }); g.aimOverride = { x: sx + (dx / dl) * 10, z: sz + (dz / dl) * 10 };
