@@ -479,6 +479,7 @@ function buildCommands(api) {
           if (!p.alive) { reason = 'died'; break; }
           if (p.hp < minHp) { reason = 'low health'; break; }
           const t = api.findChar(id);
+          if (t && !t.alive) { reason = 'target down'; break; } // engage id=<someone>: it used to keep shooting the corpse
           if (!t || Math.hypot(t.x - p.x, t.z - p.z) > radius) { reason = 'no enemies in radius'; break; }
           const k = g.inv.current, w = WEAPONS[k];
           const usable = (o) => g.inventory.cond(o) > 0 && (g.inv.mag[o] > 0 || g.inv.ammo[WEAPONS[o].ammo] > 0);

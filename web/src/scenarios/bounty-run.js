@@ -98,10 +98,16 @@ export default async function (DL) { // public commands only: it never touches t
     const k0 = kills(await st());
     note(`Fighting on foot: ${why}.`);
     let out = 'time';
-    for (let i = 0; i < 8; i++) {
-      const e = await DL.engage({ seconds: 15, radius, minHp });
+    // Rounds are short: shoot the Dustwolves, and the infected only when they are on top of you (a sprinter at
+    // 40 m is not worth a magazine; one at 10 m is).
+    for (let i = 0; i < 10; i++) {
+      const me = (await st()).player;
+      const close = await hostilesNear(12);
+      const wolf = (await wolves()).filter((c) => d2(c, me) < radius).sort((a, b) => d2(a, me) - d2(b, me))[0];
+      if (!close.length && !wolf) { out = 'clear'; break; }
+      const e = await DL.engage({ id: close.length ? 'hostile' : wolf.id, seconds: 15, radius, minHp });
       if (!e.ok) { out = e.error; break; }
-      if (e.stopped === 'no enemies in radius') { out = 'clear'; break; }
+      if (e.stopped === 'no enemies in radius' || e.stopped === 'target down') continue;
       if (e.stopped === 'died') { out = 'died'; break; }
       if (e.stopped === 'low health') { await patchUp('low in a fight'); if ((await st()).player.hp < minHp + 5) { out = 'hurt'; break; } continue; }
       if (e.stopped === 'out of ammo' || e.stopped === 'gun broken') { out = e.stopped; break; }
@@ -322,7 +328,8 @@ export default async function (DL) { // public commands only: it never touches t
   // from the cab). On foot it is the other way round: a pistol against a camp of five is a funeral, so stragglers first.
   // Raiders inside the wall are the wardens' fight (a car is no use in those streets); the ruins' walls stop a harpoon
   // and a bumper, so in a car the open flats come first.
-  const pickTarget = (list, from, driving) => list.filter((c) => ring(c) >= 95).map((c) => ({ c, pack: list.filter((o) => d2(o, c) < 45).length }))
+  const avoid = [];
+  const pickTarget = (list, from, driving) => list.filter((c) => ring(c) >= 95 && !avoid.some((a) => d2(a, c) < 70)).map((c) => ({ c, pack: list.filter((o) => d2(o, c) < 45).length }))
     .map((t) => ({ ...t, score: driving ? d2(t.c, from) * (ring(t.c) < 250 ? 1.5 : 1) / (1 + 0.6 * (t.pack - 1)) : d2(t.c, from) * (1 + 0.8 * (t.pack - 1)) }))
     .sort((a, b) => a.score - b.score)[0];
 
@@ -374,7 +381,8 @@ export default async function (DL) { // public commands only: it never touches t
   for (let round = 0; round < 24 && kills(s = await alive()) < 6 && !late(); round++) {
     const list = await wolves();
     const driving = !!(s.vehicle && usable(s.vehicle)) || !!(await DL.query({ type: 'vehicle', radius: 450, limit: 120 })).items.find(free);
-    const tgt = pickTarget(list, s.vehicle ?? s.player, driving);
+    let tgt = pickTarget(list, s.vehicle ?? s.player, driving);
+    if (!tgt && avoid.length) { avoid.length = 0; tgt = pickTarget(list, s.vehicle ?? s.player, driving); }
     if (!tgt) { note(`No Dustwolf on foot outside the wall at ${clock}; waiting for them to ride out.`); await DL.step({ seconds: 20 }); continue; }
     if (s.player.hp < 55) await rest('before the next pack');
     s = await alive();
@@ -385,6 +393,7 @@ export default async function (DL) { // public commands only: it never touches t
     const atCamp = map.camps.some((k2) => d2(k2, tgt.c) < 70);
     const stand = atCamp ? 52 : 36;
     const far = d2(tgt.c, here), k = far > stand + 6 ? (far - stand) / far : 0;
+    const roundK0 = kills(s);
     await travel(here.x + (tgt.c.x - here.x) * k, here.z + (tgt.c.z - here.z) * k, placeName(tgt.c));
     // Fight here until the pack is down: the harpoon from the cab, the bumper while the engine holds, `engage` on
     // foot when they are dug in where a car cannot go.
@@ -429,6 +438,7 @@ export default async function (DL) { // public commands only: it never touches t
       else if (f !== 'clear' && f !== 'time') break;
     }
     s = await alive();
+    if (kills(s) === roundK0) { avoid.push({ x: tgt.c.x, z: tgt.c.z }); note(`Nothing to show for ${placeName(tgt.c)}; leaving it alone for now.`); }
     // Between fights: patch up, search the dead and pick up what they dropped (on foot, close by, once it is quiet).
     await rest('between fights');
     s = await st();
