@@ -25,6 +25,11 @@ export const CREATOR = {
   maxGood: 4,        // good traits
   minFlaws: 1, maxFlaws: 3, refundCap: 12, // everybody has a flaw; the refund is capped
   nameMin: 2, nameMax: 20,
+  // A character made on the shard (LOG IN, NEW CHARACTER: a name and a flag) opens THE CREATOR when it first enters
+  // the world (net/shard.js). Off by default: the shard's two-client proof (tools/shard-test.mjs) walks a fresh
+  // character straight into the world, and the shard lane turns this on with that proof updated. ?creator=1 on the
+  // page turns it on for one session.
+  shardNew: false,
 };
 
 // Where a new survivor wakes. place null: wherever the engine starts now (the Florida start is its own lane; that

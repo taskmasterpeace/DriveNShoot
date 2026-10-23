@@ -223,11 +223,11 @@ export async function creatorChecks({ api, g, C, check, snapshot, restore, stage
       const night = near(ne.spread / nb.spread, (0.85 * 1.1) / (1.3 * 0.92));
       await C('setTime', { hour: 12 }); await C('step', { seconds: 0.6 });
       // food drains slower on an iron gut: the same game time on the clock, from full
-      // (differences against no food trait: anything else that eats into food over the same seconds - a wound healing -
-      // is the same in every run and cancels)
-      const N = g.needs, eat = async (traits) => { read(traits); p0.hp = p0.maxHp; N.food = 1; N.water = 1; await C('step', { seconds: 6 }); return 1 - N.food; };
-      const p0 = g.player, fIron = await eat(['iron_gut', 'heavy_footed']), fNone = await eat(['heavy_footed']), fBig = await eat(['big_appetite']);
-      const drainOk = fNone > fIron && fBig > fNone && Math.abs((fBig - fNone) / (fNone - fIron) - 0.2 / 0.15) < 0.12;
+      // (one survival tick of 30 s each, standing still at the same hour: a step's frames let a settling player's speed
+      // count as sprinting, which drains on its own)
+      const N = g.needs, p0 = g.player, eat = (traits) => { read(traits); p0.speed = 0; N.food = 1; N.water = 1; g.survival.update(30); return 1 - N.food; };
+      const fIron = eat(['iron_gut', 'heavy_footed']), fNone = eat(['heavy_footed']), fBig = eat(['big_appetite']);
+      const drainOk = fNone > 0 && Math.abs(fIron / fNone - 0.85) < 1e-6 && Math.abs(fBig / fNone - 1.2) < 1e-6;
       // prices at a trader's counter (Ike's, or whoever keeps one standing): a silver tongue against a sour face
       let price = 'no counter';
       for (const id of ['ike', 'kenji', 'mags', 'reyes']) {
@@ -281,6 +281,29 @@ export async function creatorChecks({ api, g, C, check, snapshot, restore, stage
       const ok = !U.open_ && !!sh && sh.name.length >= 2 && sh.name === pick.name && sh.flag !== 'US' && sh.background === 'medic' && sh.attrs.strength === 3 && sh.attrs.endurance === 3
         && sh.traits.includes('iron_gut') && sh.traits.includes('night_blind') && sh.look.build !== 'average' && g.player.name === sh.name && g.inventory.carried.slots.some((s) => s.id === 'first_aid') && !g.paused && U.pressed > 0;
       return ok ? true : JSON.stringify({ open: U.open_, sheet: sh, draft: pick, steps, errs: validate(K.draft), ui: r.ui });
+    }));
+    await check('creator: the sheet rides the shard character record (additive), and a shard character opens the screen with its name and flag locked', async () => hush(async () => {
+      await stage();
+      if (!made) return 'no made character (the BEGIN check failed)';
+      await C('load', { save: JSON.parse(JSON.stringify(made)) });
+      const S = g.shard;
+      if (!S?.personal) return 'no shard client on this page';
+      const rec = JSON.parse(JSON.stringify(S.personal())); // what the shard stores, opaque, in characters.json data
+      const carried = rec.sheet?.name === 'Mara Quill' && rec.gear?.worn?.bracelet === 'mechanic_wraps' && !rec.sheetPending;
+      K.clear(); g.gear.load({ worn: {} });
+      S.applyPersonal(rec, 'selftest');
+      const back = g.sheet?.picks.name === 'Mara Quill' && g.player.flag === 'HT' && g.gear.worn.bracelet === 'mechanic_wraps' && g.player.maxHp === 114;
+      // a brand-new shard character: the screen, the shard's name and flag held
+      closeUI();
+      K.forShard({ name: 'Tess Ward', flag: 'IE' });
+      const opened = U.open_ && U.mode?.shard && K.pending && JSON.parse(JSON.stringify(S.personal())).sheetPending === true;
+      await C('creator', { set: { name: 'Somebody Else', flag: 'MX' } });
+      const held = K.draft.name === 'Tess Ward' && K.draft.flag === 'IE';
+      await C('creator', { press: 'b' }); const stays = U.open_; // nowhere to go back to
+      await C('creator', { trait: 'bad_back', on: true });
+      const r = await C('creator', { begin: true });
+      const done = r.ok && !U.open_ && !K.pending && !K.lock && g.player.name === 'Tess Ward' && g.player.flag === 'IE' && !g.paused;
+      return carried && back && opened && held && stays && done ? true : JSON.stringify({ carried, back, opened, held, stays, done, r: r.error });
     }));
     await check('creator: the keyboard alone drives it too (arrows change, Enter picks, Q/E steps, Escape backs out and closes)', async () => {
       closeUI(); K.reset();

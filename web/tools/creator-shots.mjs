@@ -33,7 +33,7 @@ try {
     C.set({ name: 'Mara Quill', flag: 'HT', state: 'FL', background: 'mechanic',
       look: { build: 'broad', skin: 4, hairStyle: 'mohawk', hair: 7, hat: 0, face: 'goggles', scar: 'cheek', scarStory: 2, shirt: 8, pants: 5, boots: 1, sleeves: 'short' } });
     C.setRank('strength', 4); C.setRank('endurance', 3); C.setRank('wits', 3);
-    C.setTrait('tinker', true); C.setTrait('night_eyes', true); C.setTrait('bad_back', true); C.setTrait('sour_face', true);
+    C.setTrait('tinker', true); C.setTrait('bad_back', true); C.setTrait('sour_face', true);
     U.refresh(); return true; })()`);
   const steps = ['origin', 'background', 'attributes', 'traits', 'look', 'kit'];
   const focus = { origin: 1, background: 4, attributes: 0, traits: 1, look: 6, kit: 0 };

@@ -193,8 +193,9 @@ export class Shard {
     p.colors = outfit('player', makeRng(m.char.look)); g.charR.paint(p);
     g.hud.paintFlag?.(m.char.flag);
     if (apply) this.applyPersonal(m.char.data ?? this.baseline, m.char.id);
-    // A brand-new character (the shard has a name and a flag, nothing else): THE CREATOR opens on it, and BEGIN saves it.
-    if (apply && (!m.char.data || m.char.data.sheetPending) && g.creator) g.creator.forShard(m.char, () => this.save().catch(() => {}));
+    // A brand-new character (the shard has a name and a flag, nothing else): THE CREATOR opens on it and BEGIN saves it,
+    // once data/creator.js CREATOR.shardNew is on (off until the shard's two-client proof walks through the creator too).
+    if (apply && (!m.char.data || m.char.data.sheetPending) && g.creator?.opensForShard()) g.creator.forShard(m.char, () => this.save().catch(() => {}));
     this.applyWorld(m.world);
     for (const pl of m.players) this.addRemote(pl);
     this.state = 'inworld';

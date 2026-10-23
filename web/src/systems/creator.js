@@ -187,6 +187,11 @@ export class Creator {
   save() { return this.sheet ? JSON.parse(JSON.stringify(this.sheet.picks)) : null; }
   load(s) { if (s) this.applyIdentity(cleanPicks(s)); else this.clear(); }
 
+  opensForShard() {
+    if (CREATOR.shardNew) return true;
+    try { return new URLSearchParams(location.search).get('creator') === '1'; } catch { return false; }
+  }
+
   // The shard made a character with a name and a flag and nothing else: the screen opens on it (net/shard.js).
   forShard(char, onDone) {
     this.lock = { name: char.name, flag: FLAGS[char.flag] ? char.flag : 'US' };

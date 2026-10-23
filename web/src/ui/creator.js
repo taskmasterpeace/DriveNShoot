@@ -63,6 +63,7 @@ class Preview {
     this.charR = new CharacterRenderer(this.scene, WEAPONS);
     this.ch = new Character(0, { x: 0, z: 0, face: 0.5, hp: 100, faction: 'player', weapon: 'pistol', colors: lookColors({}) });
     this.ch.timer = 0;
+    this.list = [this.ch]; // what sync() draws, made once (no allocation per frame)
     this.spin = 0.5; this.drag = null;
     this.size = [0, 0]; this.reserved = -1;
     this.reserve = () => 0.36; // the share of the card's height its papers cover at the bottom (the screen measures it)
@@ -95,7 +96,7 @@ class Preview {
     }
     if (this.drag === null) this.spin += dt * 0.55;
     this.ch.face = this.spin;
-    this.charR.sync([this.ch], dt);
+    this.charR.sync(this.list, dt);
     this.r.render(this.scene, this.cam);
   }
   dispose() {
@@ -136,6 +137,7 @@ export class CreatorUI {
     if (!/OFFLINE/.test(play.textContent)) play.innerHTML = `QUICK START: A DRIFTER ${pad('X', true)}`;
   }
   pollTitle() {
+    if (!document.querySelector('.title')) { clearInterval(this.titlePoll); this.titlePoll = 0; return; } // the title is gone for good
     if (this.open_ || !document.querySelector('.title .cr-make')) return;
     this.readPad();
     const v = this.pad.v, was = this.titleWas;
@@ -264,21 +266,20 @@ export class CreatorUI {
     this.readPad();
     const P = this.pad, v = P.v;
     if (!P.connected) { this.hold.dir = null; return; }
-    let acted = false;
-    const act = (fn) => { fn(); acted = true; this.pressed++; };
-    if (this.hit('a')) act(() => this.press());
-    else if (this.hit('b')) act(() => this.backStep());
-    else if (this.hit('lb')) act(() => this.goStep(this.step - 1));
-    else if (this.hit('rb')) act(() => this.goStep(this.step + 1));
-    else if (this.hit('y')) act(() => this.randomize());
-    else if (this.hit('x')) act(() => this.roll());
-    else if (this.hit('start')) act(() => this.nextOrBegin(true));
+    const before = this.pressed;
+    if (this.hit('a')) { this.pressed++; this.press(); }
+    else if (this.hit('b')) { this.pressed++; this.backStep(); }
+    else if (this.hit('lb')) { this.pressed++; this.goStep(this.step - 1); }
+    else if (this.hit('rb')) { this.pressed++; this.goStep(this.step + 1); }
+    else if (this.hit('y')) { this.pressed++; this.randomize(); }
+    else if (this.hit('x')) { this.pressed++; this.roll(); }
+    else if (this.hit('start')) { this.pressed++; this.nextOrBegin(true); }
     if (!this.open_) return;
     const lx = P.axes[0], ly = P.axes[1];
     const dir = v[BTN.up] > 0.5 || ly < -STICK ? 'up' : v[BTN.down] > 0.5 || ly > STICK ? 'down' : v[BTN.left] > 0.5 || lx < -STICK ? 'left' : v[BTN.right] > 0.5 || lx > STICK ? 'right' : null;
-    if (dir !== this.hold.dir) { this.hold.dir = dir; this.hold.t = REPEAT.first; if (dir) act(() => this.move(dir)); }
-    else if (dir && (this.hold.t -= dt) <= 0) { this.hold.t = REPEAT.next; act(() => this.move(dir)); }
-    if (acted && this.open_) this.refresh();
+    if (dir !== this.hold.dir) { this.hold.dir = dir; this.hold.t = REPEAT.first; if (dir) { this.pressed++; this.move(dir); } }
+    else if (dir && (this.hold.t -= dt) <= 0) { this.hold.t = REPEAT.next; this.pressed++; this.move(dir); }
+    if (this.pressed !== before && this.open_) this.refresh();
   }
 
   // ---- the keyboard (capture phase: the game's own keys never see it while the screen is up) ------------------------
