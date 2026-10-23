@@ -19,6 +19,7 @@ import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
 import { AMBIENT_RESERVE } from '../systems/zombies.js';
+import { emptyModel, knows as gvKnows } from '../systems/grapevine.js';
 import { KINDS as KINDS_RING } from '../data/ring.js';
 import { ROOMS as ROOMS_FP } from '../data/floorplans.js';
 import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/authored.js';
@@ -957,6 +958,47 @@ function buildCommands(api) {
           counts: { ...Z.counts },
         };
       },
+    },
+    traps: {
+      group: 'world', desc: 'Traps (systems/traps.js, docs/design/WEB_GREYBORN_GRAPEVINE.md §3.1): snares, deadfalls, stake pits, tripwires, bait. They catch anyone who steps in them (never their owner\'s people); you spot one by looking carefully (crouch, go slow, use a light) and take it apart by holding E at it. With no args: the traps within radius= m (all=true: every one), your trapcraft and the counters. place=<kind> at x,z (owner= optional); disarm=<id> holds E at it (you must be within 1.4 m and have spotted it); craft=<0-10> sets your trapcraft.',
+      args: { radius: { type: 'number', default: 80 }, all: { type: 'boolean' }, place: { type: 'string', enum: ['snare', 'deadfall', 'pit', 'tripwire', 'bait'] }, x: { type: 'number' }, z: { type: 'number' }, owner: { type: 'string' }, disarm: { type: 'string' }, craft: { type: 'number' } },
+      run: async ({ radius, all, place, x, z, owner, disarm, craft }) => {
+        const T = g.traps, p = P();
+        if (craft !== undefined) T.xp = 4 * Math.max(0, Math.min(10, craft)) ** 2;
+        if (place) { const t = T.place(place, x ?? p.x + 3, z ?? p.z, owner ?? null, 0); need(t, `no trap kind ${place}`); return T.view(t); }
+        if (disarm) {
+          const t = T.byId(disarm); need(t, `no trap ${disarm}`);
+          need(t.state === 'armed', `${disarm} is ${t.state}`);
+          need(t.spotted, `you have not spotted ${disarm}: look at it (aim at it from close, crouched and slow)`);
+          need(Math.hypot(t.x - p.x, t.z - p.z) < 1.4, `stand within 1.4 m of it (moveTo x=${r1(t.x)} z=${r1(t.z)})`);
+          g.input.down.add('KeyE');
+          try { for (let f = 0; f < 600 && t.state === 'armed'; f++) await api._step(1); } finally { g.input.down.delete('KeyE'); }
+          return { ...T.view(t), craft: T.craft };
+        }
+        const list = T.list.filter((t) => all || Math.hypot(t.x - p.x, t.z - p.z) < radius).map((t) => T.view(t));
+        return { craft: T.craft, xp: T.xp, traps: list, stats: { ...T.stats } };
+      },
+    },
+    greyborn: {
+      group: 'world', desc: 'The Greyborn (systems/greyborn.js): infected that kept a society. Each settlement is a record (promoted near you, written back when you leave): its members by role (the Elder, watchers, trappers, kin) with hp and deaths, its alarm, whether it remembers you (a watcher has to have seen you), and its ring of traps (id:kind:state, * = spotted).',
+      args: {},
+      run: async () => ({ settlements: g.greyborn.recs.map((r) => g.greyborn.view(r)), stats: { ...g.greyborn.stats } }),
+    },
+    grapevine: {
+      group: 'world', desc: 'The Grapevine (systems/grapevine.js): packs that watch you and learn. Each pack\'s state (roam, stalk, strike, retreat, feed, ambush) and why, its odds right now, and its MODEL of you - built only from what its members saw or heard (an empty model = it knows nothing). pin=<id> x= z= brings a pack out there now, whatever the hour (it stays until release=<id>); forget=<id> empties a model. The bodies they ate are in clues.',
+      args: { pin: { type: 'string' }, release: { type: 'string' }, forget: { type: 'string' }, x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ pin, release, forget, x, z }) => {
+        const G = g.grapevine;
+        if (pin) { const pk = G.byId(pin); need(pk, `no pack ${pin} (${G.packs.map((q) => q.id).join(', ')})`); if (pk.live) G.demote(pk); pk.pinned = true; G.promote(pk, { x: x ?? P().x + 40, z: z ?? P().z }); return G.view(pk); }
+        if (release) { const pk = G.byId(release); need(pk, `no pack ${release}`); pk.pinned = false; return G.view(pk); }
+        if (forget) { const pk = G.byId(forget); need(pk, `no pack ${forget}`); pk.model = emptyModel(); return G.view(pk); }
+        return { packs: G.packs.map((pk) => G.view(pk)), clues: G.clues.slice(-10), stats: { ...G.stats } };
+      },
+    },
+    hotground: {
+      group: 'world', desc: 'Hot ground (systems/hotground.js): radiation zones (data/hotground.js). Your dose, the rate where you stand, the band and the share of max hp it cuts, the DOSE need row, and each zone with its creatures (Glasslings buried in the sand, the Lantern).',
+      args: {},
+      run: async () => g.hotground.view(),
     },
     zombies: {
       group: 'world', desc: 'Turn night herd spawning on/off (the infected already out stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
@@ -4426,6 +4468,152 @@ async function runSelfTest(api, only = null) {
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
   }));
+  // ---- the Greyborn, the Grapevine, traps and hot ground (docs/design/WEB_GREYBORN_GRAPEVINE.md §8) ----
+  const freeNear = (x, z, r = 3) => { for (let dx = -r; dx <= r; dx += 1.5) for (let dz = -r; dz <= r; dz += 1.5) if (!g.nav.foot.free(x + dx, z + dz)) return false; return true; };
+  await check('traps: a Greyborn snare catches a person walking through it; a trap is only spotted by looking carefully, and a held E takes it apart without it going off', async () => hush(async () => {
+    await stage();
+    const T = g.traps, p = g.player, xp0 = T.xp, made = [];
+    const snare = T.place('snare', p.x + 8, p.z, 'ash_hollow', 0); made.push(snare);
+    const w = person('drifter', 8, -6, { hp: 400 });
+    try {
+      // Someone walking past: their own feet carry them over it (the idle walk, ai.js).
+      w.hold = false; w.timer = 99; w.wx = p.x + 8; w.wz = p.z + 6; w.home = { x: w.wx, z: w.wz };
+      let caught = false, held = 0;
+      for (let t = 0; t < 12 && !caught; t += 0.25) { await C('step', { seconds: 0.25 }); caught = snare.state === 'sprung'; }
+      for (let t = 0; t < 2; t += 0.25) { await C('step', { seconds: 0.25 }); held = Math.max(held, Math.hypot(w.x - snare.x, w.z - snare.z)); }
+      // Looking carefully: a pit 6 m off is missed standing up; a tripwire 1.2 m ahead is seen crouched, aimed at, still.
+      const pit = T.place('pit', p.x - 6, p.z + 3, null, 0), wire = T.place('tripwire', p.x, p.z - 1.2, null, 0); made.push(pit, wire);
+      g.aimOverride = { x: pit.x, z: pit.z }; await C('step', { seconds: 1.2 });
+      const missed = !pit.spotted;
+      await C('crouch', { on: true }); g.aimOverride = { x: wire.x, z: wire.z }; await C('step', { seconds: 1 });
+      const seen = wire.spotted;
+      T.xp = 400; // a master's hands never slip (trapcraft 10): the check is the disarm, not the dice
+      const sprung0 = T.stats.sprung;
+      await holdKey('KeyE', 4, () => wire.state !== 'armed');
+      const clean = wire.state === 'disarmed' && T.stats.sprung === sprung0;
+      return caught && snare.by === w.id && held < 0.5 && missed && seen && clean ? true : JSON.stringify({ caught, by: snare.by, w: w.id, held: +held.toFixed(2), missed, seen, wire: wire.state, sprung: T.stats.sprung - sprung0 });
+    } finally { g.aimOverride = null; await C('crouch', { on: false }); T.xp = xp0; for (const t of made) T.remove(t); if (g.chars.includes(w)) g.removeChar(w); }
+  }));
+  await check('greyborn: a settlement promotes near you and demotes when you leave, keeping a wound and a death on its record, and comes back the same', async () => hush(async () => {
+    await stage();
+    const GB = g.greyborn, rec = GB.recs[0], R = rec.row, gbIn = () => g.chars.filter((c) => c.gb?.town === rec.id);
+    GB.demote(rec, true);
+    try {
+      await C('teleport', { x: R.x, z: R.z - 115 }); await C('step', { seconds: 1.5 });
+      const up = rec.live && gbIn().filter((c) => c.alive).length === rec.members.filter((m) => !m.dead).length;
+      const kin = rec.members.filter((m) => m.role === 'kin'), A = kin[0], B = kin[1];
+      A.c.hp = 40; g.combat.damage(B.c, 999, null, 0, 0, 'bullet');
+      await C('teleport', { x: R.x, z: R.z - 320 }); await C('step', { seconds: 1.5 });
+      const down = !rec.live && gbIn().length === 0 && A.hp === 40 && B.dead;
+      await C('teleport', { x: R.x, z: R.z - 115 }); await C('step', { seconds: 1.5 });
+      const back = rec.live && A.c?.alive && Math.round(A.c.hp) === 40 && B.dead && !B.c?.alive && gbIn().filter((c) => c.alive).length === rec.members.length - 1;
+      return up && down && back ? true : JSON.stringify({ up, down, back, live: rec.live, n: gbIn().length, A: A.c ? A.c.hp : A.hp, B: B.dead });
+    } finally {
+      GB.demote(rec, true);
+      for (const m of rec.members) Object.assign(m, { hp: m.maxHp, dead: false, x: 0, z: 0, face: 0 });
+      rec.mem = {}; rec.broken = false; rec.extra = null;
+      await C('teleport', STAGE);
+    }
+  }));
+  const G = g.grapevine, pack = () => G.byId('mile_marker');
+  const unpin = (pk) => { G.demote(pk); pk.pinned = false; pk.model = emptyModel(); for (const m of pk.members) { m.dead = false; m.hp = m.maxHp; } };
+  await check('grapevine: a pack that never saw or heard you has an empty model, however much you shoot, reload and run out of its sight', async () => hush(async () => {
+    await stage();
+    const pk = pack(), p = g.player;
+    unpin(pk);
+    try {
+      await C('grapevine', { pin: pk.id, x: p.x - 160, z: p.z });
+      const empty0 = !gvKnows(pk.model);
+      await C('fire', { x: p.x + 20, z: p.z + 5, shots: 8 });
+      if (!(p.reloading > 0)) g.reload();
+      await C('step', { seconds: 2.5 });
+      g.input.down.add('ShiftLeft'); await holdKey('KeyD', 1.2); g.input.down.delete('ShiftLeft');
+      await C('step', { seconds: 1 });
+      const empty = !gvKnows(pk.model), calm = pk.state !== 'stalk' && pk.state !== 'strike';
+      return empty0 && empty && calm ? true : JSON.stringify({ empty0, empty, state: pk.state, model: G.view(pk).model });
+    } finally { g.input.down.delete('ShiftLeft'); unpin(pk); }
+  }));
+  await check('grapevine: after watching you reload twice it starts its rush within half a second of your third reload - and not on the first two', async () => hush(async () => {
+    await stage();
+    const pk = pack(), p = g.player, w = WEAPONS.pistol;
+    unpin(pk);
+    const away = { x: p.x - 25, z: p.z + 2 };
+    try {
+      await C('grapevine', { pin: pk.id, x: p.x + 26, z: p.z });
+      g.aimOverride = away;
+      await C('step', { seconds: 3 }); // they see you and settle in to watch
+      const s0 = G.stats.strikes, cycle = async () => {
+        g.inv.ammo.pistol = Math.max(g.inv.ammo.pistol, 40);
+        let start = null;
+        for (let i = 0; i < 12 && start === null; i++) {
+          if (g.inv.mag.pistol > 0) await C('fire', { x: away.x, z: away.z, shots: 1 });
+          if (!(p.reloading > 0) && g.inv.mag.pistol === 0) g.reload();
+          if (p.reloading > 0) start = g.time - (w.reload * g.skills.reloadMul - p.reloading);
+        }
+        for (let t = 0; t < 4 && p.reloading > 0; t += 0.1) await C('step', { seconds: 0.1 });
+        await C('step', { seconds: 0.6 });
+        return start;
+      };
+      await cycle(); await cycle();
+      const before = { strikes: G.stats.strikes - s0, reloadsSeen: pk.model.reloadsSeen, magEst: pk.model.magEst };
+      const start3 = await cycle();
+      const struck = G.stats.strikes - s0 > 0, at = pk.strikeAt - start3;
+      return before.strikes === 0 && before.reloadsSeen === 2 && struck && Math.abs(at) <= 0.5 ? true : JSON.stringify({ before, struck, at: +at.toFixed(2), state: pk.state, why: pk.why, odds: pk.lastOdds, model: G.view(pk).model });
+    } finally { g.aimOverride = null; unpin(pk); }
+  }));
+  await check('grapevine: hit while no window is open, the pack runs - out of reach and out of sight', async () => hush(async () => {
+    await stage();
+    const pk = pack(), p = g.player;
+    unpin(pk);
+    try {
+      await C('grapevine', { pin: pk.id, x: p.x + 24, z: p.z });
+      g.aimOverride = { x: p.x - 20, z: p.z };
+      await C('step', { seconds: 3 });
+      const live = G.alive(pk), mean = () => live.filter((c) => c.alive).reduce((s, c) => s + Math.hypot(c.x - p.x, c.z - p.z), 0) / Math.max(1, live.filter((c) => c.alive).length);
+      const stalking = pk.state === 'stalk', d0 = mean(), t0 = live[0];
+      g.aimOverride = { x: t0.x, z: t0.z };
+      for (let i = 0; i < 6 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
+      const hit = (t0.hitAt ?? -99) > g.time - 1;
+      g.aimOverride = { x: p.x - 20, z: p.z };
+      let ran = false;
+      for (let t = 0; t < 1.5 && !ran; t += 0.25) { await C('step', { seconds: 0.25 }); ran = pk.state === 'retreat'; }
+      const why = pk.why;
+      await C('step', { seconds: 4 });
+      const d1 = mean();
+      return stalking && hit && ran && d1 > d0 + 10 ? true : JSON.stringify({ stalking, hit, ran, why, state: pk.state, d0: +d0.toFixed(1), d1: +d1.toFixed(1) });
+    } finally { g.aimOverride = null; unpin(pk); }
+  }));
+  await check('grapevine: it eats a body when nobody living is near, and what is left is a clue', async () => hush(async () => {
+    await stage();
+    const pk = pack(), p = g.player;
+    unpin(pk);
+    let bx = p.x + 125, bz = p.z;
+    for (const [dx, dz] of [[125, 0], [-125, 0], [0, 125], [0, -125]]) if (freeNear(p.x + dx, p.z + dz)) { bx = p.x + dx; bz = p.z + dz; break; }
+    const w = g.addChar({ x: bx, z: bz, faction: 'drifter', colors: outfit('drifter'), name: 'drifter (selftest)', flag: 'US', hp: 50 });
+    try {
+      g.combat.damage(w, 999, null, 0, 0, 'bullet');
+      await C('grapevine', { pin: pk.id, x: bx + (bx > p.x ? 12 : -12), z: bz });
+      const since = g.eventSeq;
+      let ate = null;
+      for (let t = 0; t < 25 && !ate; t += 0.5) { await C('step', { seconds: 0.5 }); ate = g.events.find((e) => e.seq > since && e.type === 'bodyEaten' && e.body === w.id); }
+      const gone = !g.chars.includes(w), clue = G.clues.some((q) => Math.hypot(q.x - bx, q.z - bz) < 3);
+      return !!ate && gone && clue && !gvKnows(pk.model) ? true : JSON.stringify({ ate: !!ate, gone, clue, state: pk.state, why: pk.why, knows: gvKnows(pk.model) });
+    } finally { if (g.chars.includes(w)) g.removeChar(w); unpin(pk); }
+  }));
+  await check('hot ground: your dose climbs in the zone (at half in a car), and not outside it', async () => hush(async () => {
+    await stage();
+    const H = g.hotground, Z = H.zones[0].row, d0 = H.dose;
+    try {
+      await C('teleport', { x: Z.x + 4, z: Z.z - 6 });
+      await C('step', { seconds: 3 });
+      const inside = H.dose - d0, rate = H.rate, half = H.rateAt(Z.x + 4, Z.z - 6, true) / H.rateAt(Z.x + 4, Z.z - 6, false);
+      await C('teleport', { x: Z.x, z: Z.z + 140 });
+      await C('step', { seconds: 0.5 });
+      const d1 = H.dose; await C('step', { seconds: 3 });
+      const outside = H.dose - d1;
+      return inside > 5 && rate > 1.5 && Math.abs(half - 0.5) < 0.01 && outside <= 0 ? true : JSON.stringify({ inside: +inside.toFixed(2), rate, half, outside });
+    } finally { H.dose = 0; H.cut = 0; for (const z of H.zones) H.sleep(z); await C('teleport', STAGE); }
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -4449,7 +4637,7 @@ export function snapshot(g) {
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
     player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
     // The Phoenix ring's residents are not saved as characters: their households' records are (residents, below).
-    chars: g.chars.filter((c) => c !== p && !c.res).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
+    chars: g.chars.filter((c) => c !== p && !c.res && !c.wild).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
@@ -4461,6 +4649,7 @@ export function snapshot(g) {
     bases: g.bases.save(), // each base's alert, warnings, and which soldier holds which post
     roles: g.roles.save(), // what the world calls you: renown, tiers, jobs, offices (docs/design/WEB_ROLES.md)
     residents: g.residents.save(), // the Phoenix ring's households: who is hurt, dead, holding a grudge, carrying what (R2)
+    wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
   };
 }
 
@@ -4482,6 +4671,7 @@ export function restore(g, s) {
   }
   // The ring's residents first: their characters go, their records start again from the save (promoted again near you).
   g.residents.load(s.residents);
+  g.wilds.load(s.wilds); // theirs too: promoted again near you from the saved records (an old save: fresh records)
   // Characters: remove everyone not in the save, update or recreate the rest.
   const keep = new Set(s.chars.map((c) => c.id));
   for (const c of [...g.chars]) if (c !== g.player && !keep.has(c.id)) g.removeChar(c);
