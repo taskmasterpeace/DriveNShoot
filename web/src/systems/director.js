@@ -299,7 +299,7 @@ export class Director {
   }
 
   radio(line, delay) {
-    const say = () => { this.g.hud?.subtitle?.(`${EVENTS.radio_news.station} — ${line}`, 7); this.g.emit('radio', { line }); };
+    const say = () => { this.g.hud?.subtitle?.(`${EVENTS.radio_news.station} — ${line}`, 7); this.g.voice?.radio(line); this.g.emit('radio', { line }); };
     if (delay > 0) setTimeout(say, delay * 1000); else say();
   }
 

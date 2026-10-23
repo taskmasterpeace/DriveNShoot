@@ -108,10 +108,12 @@ export class Memory {
       const line = this.g.roles?.greet(c);
       if (!line) return false;
       this.g.hud?.subtitle?.(`${c.npc.name}: ${line}`, 4);
+      this.g.voice?.speak(c, line, { kind: 'bark' });
       this.g.emit('bark', { npc: c.npc.id, kind: 'role', line });
       return true;
     }
     this.g.hud?.subtitle?.(`${c.npc.name}: ${top.line}`, 4);
+    this.g.voice?.speak(c, top.line, { kind: 'bark' }); // its row: memory.<kind> (data/dialogue.js)
     this.g.emit('bark', { npc: c.npc.id, kind: top.kind, line: top.line });
     return true;
   }
