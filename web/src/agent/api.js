@@ -3217,7 +3217,11 @@ async function runSelfTest(api) {
   // loop runs (sliced streaming: a stall here is a real one), at a fixed 60 Hz step.
   const SW = g.streamer, WI = SW.W;
   // Home to Rust Haven, and the rig a check drove is taken away (nothing left parked in a lane the next check uses).
+  // These checks drive for minutes: by now the battery has kept you up for hours, and a microsleep takes the hands off the
+  // wheel (survival.js). Rested for the streaming checks; the battery's own state comes back after them.
+  const rest0 = g.needs?.rest;
   const streamHome = async () => {
+    if (g.needs) { g.needs.rest = Math.max(g.needs.rest, 0.9); g.needs.blackout = 0; }
     g.driveOverride = null;
     const v = g.player.inVehicle;
     if (v) { g.exitVehicle(true); g.vehiclesSys.remove(v); }
@@ -3389,6 +3393,7 @@ async function runSelfTest(api) {
   });
   await streamHome();
   g.convoy.next = convoyNext;
+  if (g.needs && rest0 !== undefined) { g.needs.rest = rest0; g.needs.blackout = 0; }
   // Witnesses who run home (systems/witnesses.js), last in the battery: they kill Rust Haven's own, and the chronicle keeps
   // that (four killings of the town on record bar the deputy's office in the role checks above). Staged out at STAGE with Rust Haven's hub moved 30-40 m away, so a
   // run takes seconds, not a minute through the hills; the townsfolk are Rust Haven's by an explicit fid.
