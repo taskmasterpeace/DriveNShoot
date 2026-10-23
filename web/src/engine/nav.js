@@ -10,6 +10,8 @@
 
 const C = 256; // chunk size (must match data/streaming.js)
 
+const RETRIES = 6; // nav.find: open cells tried round a wedged start (each a weighted A* of up to 150k cells)
+
 export class NavGrid {
   // statics: the island StaticWorld; tiles(cx, cz) -> this grid's Uint8Array tile for a streamed chunk, or null.
   constructor(statics, { cell = 2, radius = 0.5, island = 512, chunks = 4 } = {}) {
@@ -195,12 +197,15 @@ export class NavGrid {
     let p = this.findOnce(sx, sz, tx, tz, far ? this.n * this.n : maxNodes, far ? 2.5 : 1.05);
     if (p) return p;
     if (!far && dist > 40) { p = this.findOnce(sx, sz, tx, tz, this.n * this.n, 2.5); if (p) return p; }
-    // Start wedged in a tiny pocket (between crates/tents)? Retry from nearby open cells,
-    // with a hard 120ms cap so a hopeless query never hitches the frame.
+    // Start wedged in a tiny pocket (between crates/tents)? Retry from nearby open cells, at most RETRIES of them: a cap
+    // by work, not by the clock (a 120 ms clock cap gave a loaded machine no path where a quiet one found it, and the
+    // same query must answer the same on every machine and every shard).
+    let tries = 0;
     for (const r of [2, 3.5, 5]) for (let a = 0; a < 8; a++) {
-      if (performance.now() - t0 > 120) return null;
+      if (tries >= RETRIES) return null;
       const ox = sx + Math.cos((a / 8) * Math.PI * 2) * r, oz = sz + Math.sin((a / 8) * Math.PI * 2) * r;
       if (!this.free(ox, oz)) continue;
+      tries++;
       const q = this.findOnce(ox, oz, tx, tz, 150000, 2.5);
       if (q) return [{ x: ox, z: oz }, ...q];
     }
