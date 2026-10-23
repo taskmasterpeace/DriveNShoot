@@ -3017,8 +3017,12 @@ async function runSelfTest(api, only = null, skip = null) {
       // The gun up first (systems/arms.js: a click on a lowered gun raises it), then the rounds: this proves the bed, not the stance.
       // Up to 16 rounds: shooting from anything moving adds spread with speed (vehicles.js DRIVING.shootSpread) - measured 1-6
       // rounds to the first hit at 13 m/s, so 8 sometimes all missed.
+      g.sky.time = 12; g.sky.update?.(0, g.camLook, g.world.groundMat, g.world.roadMat, g.viewR); // noon: an earlier check's night makes the aim wilder
+      let fired = 0; const hs = g.combat.hitscan; g.combat.hitscan = function (s, ...a) { if (s === g.player) fired++; return hs.call(this, s, ...a); };
+      try {
       for (let i = 0; i < 16 && t.hp === hp0; i++) { g.aimOverride = { x: t.x, z: t.z }; g.arms?.setStance('raised'); await api._step(6); await click(1); await api._step(12); }
-      return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck });
+      } finally { g.combat.hitscan = hs; }
+      return climbed && sp > 3 && t.hp < hp0 && g.player.onDeck?.v === v ? true : JSON.stringify({ climbed, sp: +sp.toFixed(1), hp: [hp0, t.hp], onDeck: !!g.player.onDeck, fired, gun: g.inv.current, mag: g.inv.mag[g.inv.current], dist: +Math.hypot(t.x - g.player.x, t.z - g.player.z).toFixed(1), tAlive: t.alive, inChars: g.chars.includes(t), spread: +(g.skills.spreadMul ?? 1).toFixed(2), stance: g.arms?.stance });
     } finally { wvClean([v, d, t]); }
   }));
   await check('walk vehicles: a crash throws you out of the bed (standing), hurt and on your back', async () => hush(async () => {
