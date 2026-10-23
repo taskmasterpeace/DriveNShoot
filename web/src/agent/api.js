@@ -29,6 +29,9 @@ import { ROLE_TIERS } from '../data/roles.js';
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const TOO_FAR = 'farther apart than one nav window (1,024 m): a route that long needs the road graph (WEB_STREAMING P3); go by way of a nearer point';
+// Why a vehicle can't make power at all (vehicledamage.js: a dead engine or a dry tank gives zero power), or null.
+// drive and ram say so instead of flooring a dead car for their whole budget (ram used to call it "walls in the way").
+const deadCar = (v) => v.dead ? 'wrecked' : (v.dmg?.engine ?? 1) <= 0 ? 'engine dead — exitVehicle and find another ride' : v.fuel !== undefined && v.fuel <= 0 ? 'out of fuel — exitVehicle (a fuel can refills it)' : null;
 // A chronicle record in plain words for agents.
 const FLAG_NAMES = Object.entries(K);
 const readRec = (g, r) => ({
@@ -151,7 +154,7 @@ export class AgentAPI {
   dialogueState() {
     const d = this.g.dialogue;
     if (!d.active) return { open: false };
-    return { open: true, npc: d.npc.id, name: d.npc.npc?.name ?? d.npc.name, text: d.full, choices: d.choices.map((c, i) => ({ index: i, text: c.t, ends: !!c.end })) };
+    return { open: true, npc: d.npc.id, name: d.npc.npc?.name ?? d.npc.name, text: d.full, choices: d.choices.map((c, i) => ({ index: i, text: typeof c.t === 'function' ? c.t(this.g) : c.t, ends: !!c.end })) };
   }
 }
 
@@ -476,6 +479,7 @@ function buildCommands(api) {
           if (!p.alive) { reason = 'died'; break; }
           if (p.hp < minHp) { reason = 'low health'; break; }
           const t = api.findChar(id);
+          if (t && !t.alive) { reason = 'target down'; break; } // engage id=<someone>: it used to keep shooting the corpse
           if (!t || Math.hypot(t.x - p.x, t.z - p.z) > radius) { reason = 'no enemies in radius'; break; }
           const k = g.inv.current, w = WEAPONS[k];
           const usable = (o) => g.inventory.cond(o) > 0 && (g.inv.mag[o] > 0 || g.inv.ammo[WEAPONS[o].ammo] > 0);
@@ -758,7 +762,8 @@ function buildCommands(api) {
           // Follow an A* route on the vehicle nav grid (dilated for car width).
           g.streamer.ensureSpan(v.x, v.z, x, z);
           const path = g.nav.car.find(v.x, v.z, x, z) ?? [{ x, z }];
-          let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z;
+          let t = 0, i = 0, stuckT = 0, lastX = v.x, lastZ = v.z, bestGoal = Infinity, bestT = 0, pedT = 0;
+          const rest = path.map((_, k) => 0); for (let k = path.length - 2; k >= 0; k--) rest[k] = rest[k + 1] + Math.hypot(path[k + 1].x - path[k].x, path[k + 1].z - path[k].z);
           while (t < Math.max(seconds, 90) && i < path.length) {
             const wp = path[i], isLast = i === path.length - 1;
             const d = Math.hypot(wp.x - v.x, wp.z - v.z);
@@ -770,7 +775,15 @@ function buildCommands(api) {
             // Brake for non-hostile people in the lane ahead (don't run over townsfolk).
             const fx = Math.sin(v.h), fz = Math.cos(v.h);
             const ped = g.chars.some((c) => c.alive && !c.inVehicle && c !== P() && !g.ai.hostile(c, P()) && (() => { const ox = c.x - v.x, oz = c.z - v.z, al = ox * fx + oz * fz; return al > 0 && al < 7 + sp * 0.6 && Math.abs(ox * fz - oz * fx) < v.wid; })());
-            if (ped && !stuckT) { g.driveOverride = { throttle: sp > 2 ? -1 : 0, steer: 0 }; await api._step(6); t += 0.1; continue; }
+            if (ped && !stuckT) {
+              // Wait for them, honking every 2 s (people leap aside); someone who never moves (asleep in the road, downed)
+              // ends the drive after 10 s instead of holding it for its whole budget.
+              pedT += 0.1;
+              if (pedT > 10) { g.driveOverride = null; return { arrived: false, interrupted: 'stuck: someone in the road will not move (asleep or down?)', ...vehView(g, v) }; }
+              if (Math.abs(pedT % 2 - 1) < 0.05) { g.audio.horn(0); g.ambient.honk(v); }
+              g.driveOverride = { throttle: sp > 2 ? -1 : 0, steer: 0 }; await api._step(6); t += 0.1; bestT = t; continue;
+            }
+            pedT = 0;
             g.driveOverride = { throttle: stuckT > 1 ? -1 : corner ? -0.3 : isLast && d < 25 ? 0.5 : 1, steer: Math.max(-1, Math.min(1, (stuckT > 1 ? -diff : diff) * 2.2)), handbrake: Math.abs(diff) > 1.5 && sp > 8 };
             await api._step(6); t += 0.1;
             // Unstick: if barely moving for a while, reverse briefly.
@@ -780,6 +793,11 @@ function buildCommands(api) {
             if (v.dead || !P().inVehicle) break;
             if (v.onFire) { g.driveOverride = null; return { arrived: false, interrupted: 'vehicle on fire — exitVehicle now', ...vehView(g, v) }; }
             if (!P().alive) { g.driveOverride = null; return { arrived: false, interrupted: 'player died' }; }
+            if (deadCar(v)) { g.driveOverride = null; return { arrived: false, interrupted: deadCar(v), ...vehView(g, v) }; }
+            // Grinding against the same wall: every unstick goes back into it, and each tap costs the engine (a front hit
+            // is engine damage). No 3 m off the route left in 15 s: stop and say so rather than wreck the car on it.
+            const goal = i < path.length ? Math.hypot(path[i].x - v.x, path[i].z - v.z) + rest[i] : 0; // route left, not the crow's line
+            if (goal < bestGoal - 3) { bestGoal = goal; bestT = t; } else if (t - bestT > 15) { g.driveOverride = { throttle: -1, steer: 0 }; await api._step(20); g.driveOverride = null; return { arrived: false, interrupted: 'stuck: no headway for 15 s (a wall or a wreck in the way?)', ...vehView(g, v) }; }
           }
           g.driveOverride = { throttle: -1, steer: 0 }; await api._step(30); g.driveOverride = null;
           return { arrived: Math.hypot(x - v.x, z - v.z) < 10, waypoints: path.length, ...vehView(g, v) };
@@ -800,13 +818,14 @@ function buildCommands(api) {
         const v = P().inVehicle;
         need(v, 'not in a vehicle');
         const k0 = g.stats.kills;
-        let t = 0, reverseT = 0, last = { x: v.x, z: v.z }, interrupted;
+        let t = 0, reverseT = 0, goT = 0, last = { x: v.x, z: v.z }, interrupted;
         const tgt = api.findChar(id);
         need(tgt, `no target ${id}`);
         // Progress watchdog: if we can't close the gap for 2.5s, the target is behind
         // something a car can't pass (camp walls, buildings): say so instead of flailing.
         let bestD = Infinity, sinceBest = 0;
         while (t < seconds && tgt.alive) {
+          if (deadCar(v)) { interrupted = deadCar(v); break; }
           const dNow = Math.hypot(tgt.x - v.x, tgt.z - v.z);
           if (dNow < bestD - 1) { bestD = dNow; sinceBest = 0; } else if ((sinceBest += 0.1) > 2.5) { interrupted = 'unreachable by vehicle (walls in the way) — exitVehicle and engage on foot'; break; }
           if (v.onFire) { interrupted = 'vehicle on fire — exitVehicle now'; break; }
@@ -820,7 +839,10 @@ function buildCommands(api) {
             g.driveOverride = { throttle: 1, steer: Math.max(-1, Math.min(1, diff * 2.5)), handbrake: Math.abs(diff) > 1.6 && g.vehiclesSys.speed(v) > 10 };
           }
           await api._step(6); t += 0.1;
-          if (Math.hypot(v.x - last.x, v.z - last.z) < 0.15 && reverseT <= 0) reverseT = 0.7;
+          // Stuck = pushing forward for a while and still not moving. A heavy rig from a standing start covers less than
+          // 0.15 m in its first steps; judging it at once threw it into reverse forever and ram called the target unreachable.
+          goT = reverseT > 0 ? 0 : goT + 0.1;
+          if (Math.hypot(v.x - last.x, v.z - last.z) < 0.15 && reverseT <= 0 && goT > 0.6) reverseT = 0.7;
           last = { x: v.x, z: v.z };
         }
         g.driveOverride = null;
@@ -954,7 +976,7 @@ function buildCommands(api) {
 
     // ---------------------------------------------------------------- dialogue
     talk: {
-      group: 'dialogue', desc: 'Open a conversation with a character (id, npc id like "okonkwo", or name). You must be within 4m (moveTo them first); force=true snaps you next to them (testing only).',
+      group: 'dialogue', desc: 'Open a conversation with a character (id, npc id like "okonkwo", or name). You must be within 4m (moveTo them first); force=true snaps you next to them (testing only). A sleeper is shaken awake first, as E does (woke: true).',
       args: { id: { type: 'string', required: true }, force: { type: 'boolean', default: false } },
       run: async ({ id, force }) => {
         const c = api.findChar(id);
@@ -963,9 +985,11 @@ function buildCommands(api) {
         need(d <= 4 || force, `${c.npc?.name ?? c.name} is ${Math.round(d)}m away at (${r1(c.x)}, ${r1(c.z)}); moveTo them first`);
         need(!P().inVehicle, 'get out of the vehicle to talk');
         if (d > 3) { P().x = c.x + 1.2; P().z = c.z; }
+        const woke = !!c.sleeping;
+        if (woke) g.ai.wake(c, 'shaken awake'); // as the E key does: you shake a sleeper awake before you talk
         g.dialogue.open(c);
         g.dialogue.shown = g.dialogue.full.length;
-        return { ...api.dialogueState(), cash: g.cash, quests: g.quests };
+        return { ...api.dialogueState(), cash: g.cash, quests: g.quests, ...(woke ? { woke: true } : {}) };
       },
     },
     choose: {
