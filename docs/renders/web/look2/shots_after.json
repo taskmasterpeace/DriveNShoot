@@ -1,0 +1,82 @@
+[
+ {
+  "name": "meridian_market_street",
+  "luma": 158.6,
+  "drawCalls": 81
+ },
+ {
+  "name": "meridian_market_game",
+  "luma": 158.9,
+  "drawCalls": 82
+ },
+ {
+  "name": "meridian_houses_wide",
+  "luma": 161,
+  "drawCalls": 81
+ },
+ {
+  "name": "meridian_over",
+  "luma": 147.9,
+  "drawCalls": 85
+ },
+ {
+  "name": "meridian_west_wide",
+  "luma": 155.8,
+  "drawCalls": 83
+ },
+ {
+  "name": "forest_game",
+  "luma": 71.7,
+  "drawCalls": 72
+ },
+ {
+  "name": "forest_wide",
+  "luma": 73.5,
+  "drawCalls": 72
+ },
+ {
+  "name": "palms_market",
+  "luma": 170.9,
+  "drawCalls": 85
+ },
+ {
+  "name": "palms_close",
+  "luma": 143.8,
+  "drawCalls": 86
+ },
+ {
+  "name": "swamp_dusk",
+  "luma": 15.8,
+  "drawCalls": 75
+ },
+ {
+  "name": "swamp_noon",
+  "luma": 103.2,
+  "drawCalls": 74
+ },
+ {
+  "name": "swamp_vulture_dusk",
+  "luma": 15.8,
+  "drawCalls": 75
+ },
+ {
+  "name": "swamp_vulture_noon",
+  "luma": 103.5,
+  "drawCalls": 74
+ },
+ {
+  "name": "terrain_hills_over",
+  "luma": 191.3,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_hills_game",
+  "luma": 192.7,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_climb_over",
+  "luma": 188.6,
+  "drawCalls": 74
+ }
+]

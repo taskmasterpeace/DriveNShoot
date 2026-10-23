@@ -1,0 +1,27 @@
+[
+ {
+  "name": "meridian_market_street",
+  "luma": 170.9,
+  "drawCalls": 83
+ },
+ {
+  "name": "meridian_market_game",
+  "luma": 167.4,
+  "drawCalls": 83
+ },
+ {
+  "name": "meridian_houses_wide",
+  "luma": 167.3,
+  "drawCalls": 82
+ },
+ {
+  "name": "meridian_over",
+  "luma": 151.8,
+  "drawCalls": 86
+ },
+ {
+  "name": "meridian_west_wide",
+  "luma": 156.3,
+  "drawCalls": 84
+ }
+]

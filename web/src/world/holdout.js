@@ -88,9 +88,9 @@ export class Holdout {
       const blk = { id: `${this.id}.${c}.${r}`, name: B.name ?? null, city: true, zone: 'holdout', ...wr, lots: [], pads: [], open: B.open ?? null, front: B.front ?? null };
       this.blocks.push(blk);
       let used = null;
-      if (B.lots) used = this.packLots(blk, B, rng, () => `${this.id}.${k++}`);
+      if (B.lots) used = this.packLots(blk, B, rng, () => `${this.id}.${k++}`, c * 16 + r);
       // The back of the block faces the next street: a second row of lots, facing it (half the depth each).
-      if (B.back) this.packLots(blk, { lots: B.back, front: { N: 'S', S: 'N', W: 'E', E: 'W' }[B.front], open: 'half' }, rng, () => `${this.id}.${k++}`);
+      if (B.back) this.packLots(blk, { lots: B.back, front: { N: 'S', S: 'N', W: 'E', E: 'W' }[B.front], open: 'half' }, rng, () => `${this.id}.${k++}`, c * 16 + r + 256);
       if (B.open) this.openLot(blk, B.open, used, rng);
     }
     this.gatesAndWall(rng);
@@ -115,7 +115,7 @@ export class Holdout {
 
   // Lay a block's programmes along its front street: real widths from KINDS, evenly spaced, centred; each lot runs from
   // the walk to the block's back (or half of it, when the block's other half is open ground).
-  packLots(blk, B, rng, nextId) {
+  packLots(blk, B, rng, nextId, salt = 0) {
     const list = [];
     for (const it of B.lots) { if (Array.isArray(it)) for (let i = 0; i < it[1]; i++) list.push(it[0]); else list.push(it); }
     const F = B.front, ns = F === 'N' || F === 'S', u0 = ns ? blk.x0 : blk.z0, u1 = ns ? blk.x1 : blk.z1, depth = ns ? blk.z1 - blk.z0 : blk.x1 - blk.x0;
@@ -126,17 +126,32 @@ export class Holdout {
     const free = u1 - u0 - sizes.reduce((s, q) => s + q.w, 0), gap = free / (sizes.length + 1);
     let u = u0 + gap;
     const frontEdge = F === 'N' ? blk.z0 : F === 'S' ? blk.z1 : F === 'W' ? blk.x0 : blk.x1, sgn = F === 'N' || F === 'W' ? 1 : -1;
+    const G = this.row.grit;
     for (let i = 0; i < sizes.length; i++) {
-      const q = sizes[i], a0 = u, a1 = u + q.w, v0 = frontEdge + sgn * set, v1 = v0 + sgn * q.d;
-      const lotA0 = i === 0 ? u0 : u - gap / 2, lotA1 = i === sizes.length - 1 ? u1 : a1 + gap / 2, lv0 = frontEdge, lv1 = frontEdge + sgn * half;
+      // No ruled frontage (grit.setback, grit.shift): each building sits a little deeper or shallower and slides along its
+      // street, on a stream of its own per lot, so no lot's size, seed or programme moves for it.
+      const q = sizes[i], res = q.kind === 'house' || q.kind === 'bungalow' || q.kind === 'duplex' || q.kind === 'boarding';
+      let dv = 0, du = 0;
+      if (G) {
+        const jr = rngOf(hash32(this.seed, salt, i, 0x4a495454)), kk = res ? 1 : 0.33;
+        dv = (G.setback[0] + jr() * (G.setback[1] - G.setback[0])) * kk; du = (jr() * 2 - 1) * G.shift * gap * kk;
+        dv = Math.max(1.8 - set, Math.min(dv, half - set - q.d - 1.2));
+      }
+      const a0 = u + du, a1 = u + du + q.w, v0 = frontEdge + sgn * (set + dv), v1 = v0 + sgn * q.d;
+      const lotA0 = i === 0 ? u0 : u - gap / 2, lotA1 = i === sizes.length - 1 ? u1 : u + q.w + gap / 2, lv0 = frontEdge, lv1 = frontEdge + sgn * half;
       const r = ns ? { x0: a0, x1: a1, z0: Math.min(v0, v1), z1: Math.max(v0, v1) } : { z0: a0, z1: a1, x0: Math.min(v0, v1), x1: Math.max(v0, v1) };
       const lot = ns ? { x0: lotA0, x1: lotA1, z0: Math.min(lv0, lv1), z1: Math.max(lv0, lv1) } : { z0: lotA0, z1: lotA1, x0: Math.min(lv0, lv1), x1: Math.max(lv0, lv1) };
       // Doorways sit on whole-metre cells: round the shell to the metre grid (chunk origins are whole metres).
       for (const k of ['x0', 'x1', 'z0', 'z1']) r[k] = Math.round(r[k] * 2) / 2;
       const L = { id: nextId(), kind: q.kind, zone: 'holdout', front: F, ...r, lot, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, seed: rng.int(0, 2147483647), ruined: false, noYard: true,
         holdout: this.id, block: blk.id, programme: KINDS[q.kind].label ?? q.kind.toUpperCase(), blockKey: blk.id };
+      L.backRow = B.open === 'half'; L.salt = hash32(this.seed, salt, i, 0x4c4f54);
+      // Burnt shells (grit.burn): a back-row house that went up in the fall, left standing roofless (its own zone row).
+      if (G && L.backRow && (q.kind === 'house' || q.kind === 'bungalow') && rngOf(hash32(this.seed, salt, i, 0x4255524e))() < G.burn) {
+        L.ruined = true; L.burnt = true; L.zone = 'holdout_burnt'; L.programme = `BURNT ${L.programme}`;
+      }
       blk.lots.push(L); this.lots.push(L);
-      u = a1 + gap;
+      u = a1 - du + gap;
     }
     // What the lots leave of the block (the open half behind them, for a yard or a tower).
     if (!B.open || B.open === 'half' || !sizes.length) return null;
@@ -150,26 +165,82 @@ export class Holdout {
   openLot(blk, kind, area, rng) {
     const b = area ?? blk, M = HOLDOUT.market, Y = HOLDOUT.yard, cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, w = b.x1 - b.x0, d = b.z1 - b.z0;
     if (kind === 'market') {
-      // A paved square: stall rows round a fire, canvas awnings, rugs and goods (data/holdout.js market), a well.
-      blk.pads.push({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, band: 'walk' }); // a paved plaza
+      // The square: stall rows round a fire (data/holdout.js market), a well. No paving: it is the town's packed earth (the
+      // ground's town floor, world/surfaces.js), worn by feet. The awnings are striped canvas, not roofs, and the square is
+      // in use (docs/design/WEB_LOOK.md §3.8): stock stacked behind the counters, sacks, a handcart, fire barrels, washing
+      // strung between the rows, a cook tarp with benches, a trough at the well, tyres and scrap in the corners. The clutter
+      // runs on a stream of its own, so the stalls (the layout's own draws) stand where they did.
+      const r2 = rngOf(hash32(this.seed, 0x4d4b5432)), pk = (a) => a[Math.floor(r2() * a.length)];
+      const CR = ['#7a5a34', '#6b4e2e', '#8a6a44', '#5e4a32'], SACK = ['#a08a5a', '#b09a6a', '#8a7a52'];
       const rows = [cz - M.aisle - 6, cz + M.aisle + 6, cz - M.aisle - 17, cz + M.aisle + 17].filter((z) => z > b.z0 + 4 && z < b.z1 - 4); // four rows of stalls
       for (const rz of rows) for (let sx = b.x0 + 7; sx < b.x1 - 6; sx += 7.2) {
         if (rng() > M.fill) continue;
         const aw = rng.pick(M.awnings), across = Math.abs(rz - cz) < M.aisle + 10 ? (rz < cz ? 1 : -1) : (rz < cz ? -1 : 1);
-        this.P('roofs', sx, 2.6, rz, 4.6, 0.12, 3.6, aw, 0, 1);                           // the awning
+        // The awning: canvas with two stripes of the stall's colour, a little off true (pegged by hand).
+        const tw = (r2() - 0.5) * 0.08;
+        this.P('props', sx, 2.6, rz, 4.6, 0.08, 3.6, M.canvas, tw, 0.95 + r2() * 0.1);
+        for (const o of [-1.15, 1.15]) this.P('props', sx + o * Math.cos(tw), 2.65, rz - o * Math.sin(tw), 0.95, 0.06, 3.62, aw, tw, 0.9 + r2() * 0.15);
         for (const px of [-2.1, 2.1]) for (const pz of [-1.6, 1.6]) this.P('props', sx + px, 1.3, rz + pz, 0.12, 2.6, 0.12, '#5a4632');
         this.P('props', sx, 0.5, rz + across * 1.2, 3.8, 1.0, 0.8, rng.pick(M.counter));   // the counter
         for (let g = 0; g < 4; g++) this.P('props', sx - 1.4 + g * 0.95, 1.08, rz + across * 1.2, 0.5, 0.18, 0.4, rng.pick(M.goods));
         this.P('floors', sx, 0.03, rz - across * 0.4, 3.4, 0.04, 2.0, rng.pick(M.rugs));
         this.box(sx - 1.9, rz + across * 1.2 - 0.4, sx + 1.9, rz + across * 1.2 + 0.4, 1.0, 'stall');
+        // Stock behind the keeper (out of the aisle): crates stacked, sacks, a basket.
+        const bz = rz - across * 1.55;
+        for (let k = 0, n = 1 + Math.floor(r2() * 3); k < n; k++) { const x = sx - 1.6 + r2() * 0.9 + (k % 2) * 2.2; this.P('props', x, 0.3 + (k > 1 ? 0.6 : 0), bz, 0.75, 0.6, 0.6, pk(CR), r2() * 0.3); }
+        for (let k = 0, n = Math.floor(r2() * 3); k < n; k++) this.P('shrubs', sx + 0.4 + r2() * 1.2, 0.3, bz + (r2() - 0.5) * 0.4, 0.42, 0.34, 0.36, pk(SACK), r2() * 6);
+        if (r2() < 0.5) this.P('barrels', sx + 1.5, 0.35, rz - across * 0.2, 0.7, 0.55, 0.7, pk(M.goods));
       }
-      // The fire in the middle (a ring of stones, a barrel) and the well.
+      // The fire in the middle (a ring of stones, a barrel), benches round it, and the well.
       this.P('barrels', cx, 0.55, cz, 1.1, 1, 1.1, '#5a2e1a'); this.box(cx - 0.6, cz - 0.6, cx + 0.6, cz + 0.6, 1.1, 'barrel');
       this.items.push({ pool: 'glows', e: [cx, 0.12, cz, 16, 1, 16, '#ff8a3a', 0, 1], glow: true });
       for (let a = 0; a < 6.28; a += 0.8) this.P('boulders', cx + Math.cos(a) * 1.6, 0.2, cz + Math.sin(a) * 1.6, 0.4, 0.3, 0.4, '#7e7466', a);
+      for (const a of [0.5, 2.6, 4.4]) { const bxp = cx + Math.cos(a) * 3.4, bzp = cz + Math.sin(a) * 3.4; this.P('props', bxp, 0.4, bzp, 2.2, 0.12, 0.5, '#6a5440', -a + Math.PI / 2); for (const o of [-0.8, 0.8]) this.P('props', bxp - Math.sin(a) * o, 0.2, bzp + Math.cos(a) * o, 0.14, 0.4, 0.4, '#4a3a2a', -a + Math.PI / 2); }
       const wx = b.x1 - 9, wz = cz;
       this.P('barrels', wx, 0.45, wz, 3.2, 0.82, 3.2, '#8a8478'); this.P('props', wx, 2.0, wz, 3.6, 0.15, 0.3, '#4a3a2a'); this.box(wx - 1.6, wz - 1.6, wx + 1.6, wz + 1.6, 0.9, 'well');
       for (const px of [-1.6, 1.6]) this.P('props', wx + px, 1.0, wz, 0.15, 2.0, 0.15, '#4a3a2a');
+      // A trough by the well, buckets.
+      this.P('props', wx, 0.35, wz + 3.0, 3.0, 0.7, 0.8, '#6a5a44'); this.P('props', wx, 0.66, wz + 3.0, 2.7, 0.04, 0.55, '#4a6a72'); this.box(wx - 1.5, wz + 2.6, wx + 1.5, wz + 3.4, 0.7, 'trough');
+      for (const o of [-2.2, 2.4]) this.P('barrels', wx + o, 0.22, wz - 2.4, 0.5, 0.42, 0.5, '#7d827c');
+      // Fire barrels in the aisles (lit at night) and a handcart.
+      for (const [fx, fz] of [[b.x0 + 4, cz], [cx - 16, cz + (M.aisle + 11.5)], [cx + 14, cz - (M.aisle + 11.5)]]) {
+        if (fz < b.z0 + 3 || fz > b.z1 - 3) continue;
+        this.P('barrels', fx, 0.5, fz, 0.9, 1.0, 0.9, '#4a2e1e'); this.box(fx - 0.45, fz - 0.45, fx + 0.45, fz + 0.45, 1.0, 'barrel');
+        this.items.push({ pool: 'glows', e: [fx, 0.12, fz, 9, 1, 9, '#ff8a3a', 0, 1], glow: true });
+      }
+      { const hx = cx + 9, hz = cz + 4.5; this.P('props', hx, 0.7, hz, 2.6, 0.12, 1.4, '#7a5a34', 0.3); this.P('props', hx, 0.95, hz, 2.4, 0.4, 1.2, '#8a6a44', 0.3); for (const s of [-1, 1]) this.P('trunks', hx + s * 0.75 * Math.sin(0.3), 0.45, hz + s * 0.75 * Math.cos(0.3), 0.9, 0.12, 0.9, '#2b2826', 0.3); for (let k = 0; k < 3; k++) this.P('shrubs', hx - 0.6 + k * 0.6, 1.25, hz, 0.4, 0.3, 0.35, pk(SACK), r2() * 6); this.box(hx - 1.4, hz - 0.9, hx + 1.4, hz + 0.9, 1.1, 'cart'); }
+      // Washing strung across the row ends (high: people walk under it).
+      for (const rz of rows) for (const ex of [b.x0 + 2.2, b.x1 - 2.2]) {
+        if (r2() < 0.45) continue;
+        const z0 = rz - 1.6, z1 = rz + 1.6;
+        for (const z of [z0, z1]) this.P('props', ex, 1.3, z, 0.1, 2.6, 0.1, '#4a3a2a');
+        this.P('props', ex, 2.45, rz, 0.03, 0.03, 3.2, '#d9d2b8');
+        for (let k = 0; k < 3; k++) this.P('props', ex, 2.05, z0 + 0.6 + k * 1.0, 0.04, 0.75, 0.7, pk(HOLDOUT.yard.cloth));
+      }
+      // The cook tarp in a corner: a sagging tarp on four poles, a table and benches under it, a pot on a stove drum.
+      { const tx = b.x0 + 8, tz = b.z1 - 7, tw2 = 6.4, td = 5;
+        if (!this.boxes.some((q) => q.x1 > tx - 4 && q.x0 < tx + 4 && q.z1 > tz - 3 && q.z0 < tz + 3)) {
+          this.P('props', tx, 2.5, tz, tw2, 0.06, td, pk(HOLDOUT.yard.tarp), 0.04);
+          for (const [sx2, sz2] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) this.P('props', tx + sx2 * (tw2 / 2 - 0.2), 1.25, tz + sz2 * (td / 2 - 0.2), 0.12, 2.5, 0.12, '#4a3a2a');
+          this.P('props', tx, 0.75, tz, 3.0, 0.08, 1.0, '#6a5440'); this.box(tx - 1.5, tz - 0.5, tx + 1.5, tz + 0.5, 0.8, 'table');
+          for (const o of [-1, 1]) this.P('props', tx, 0.42, tz + o * 1.0, 3.0, 0.08, 0.35, '#5a4632');
+          this.P('barrels', tx + 2.4, 0.45, tz + 1.4, 0.8, 0.9, 0.8, '#3a3632'); this.P('barrels', tx + 2.4, 1.0, tz + 1.4, 0.5, 0.25, 0.5, '#5a5650');
+        } }
+      // Tyres and scrap in the far corner, chicken crates by the fire's aisle.
+      { const qx = b.x1 - 6, qz = b.z1 - 5;
+        for (let k = 0; k < 7; k++) this.P('barrels', qx + (k % 3) * 0.9 - 0.9, 0.12 + Math.floor(k / 3) * 0.24, qz + (r2() - 0.5) * 0.6, 0.85, 0.22, 0.85, '#232120');
+        for (let k = 0; k < 4; k++) this.P('props', qx - 3 + r2() * 2, 0.3, qz - 2 + r2() * 1.5, 0.6 + r2() * 1.0, 0.3 + r2() * 0.5, 0.5 + r2(), pk(['#5a5650', '#8a5a3a', '#6e6a62', '#7a4a2e']), r2() * 3);
+        this.box(qx - 4, qz - 2.6, qx + 1.4, qz + 0.6, 0.8, 'scrap'); }
+      // Ground traders in the open middle (blankets of goods, a basket or two), clear of the fire's ring and the aisles' ends.
+      for (let k = 0; k < 9; k++) {
+        const a = r2() * 6.283, rr = 6.5 + r2() * 4.5, gx = cx + Math.cos(a) * rr * 1.5, gz = cz + Math.sin(a) * rr * 0.62;
+        if (Math.abs(gx - wx) < 5 || this.boxes.some((q) => gx > q.x0 - 1.6 && gx < q.x1 + 1.6 && gz > q.z0 - 1.6 && gz < q.z1 + 1.6)) continue;
+        const rot = (r2() - 0.5) * 0.6;
+        this.P('floors', gx, 0.03, gz, 2.2, 0.04, 1.6, pk(M.rugs), rot);
+        for (let g = 0; g < 5; g++) this.P('props', gx + (r2() - 0.5) * 1.6, 0.12, gz + (r2() - 0.5) * 1.1, 0.35, 0.18, 0.3, pk(M.goods), r2() * 3);
+        if (r2() < 0.6) this.P('barrels', gx + 1.3, 0.25, gz + 0.6, 0.6, 0.45, 0.6, pk(['#9a7a4a', '#8a6a3a']));
+      }
+      for (let k = 0; k < 3; k++) { const x = cx - 7 + k * 0.8, z = cz - 4.2; this.P('props', x, 0.3 + (k === 1 ? 0.6 : 0), z, 0.75, 0.6, 0.6, '#9a8a62'); this.P('props', x, 0.3 + (k === 1 ? 0.6 : 0), z, 0.78, 0.04, 0.62, '#5a4a32'); }
       blk.spot = { x: cx, z: cz };
     } else if (kind === 'garden') {
       // Raised beds in rows (soil and crops), a rain tank, a scarecrow post, a shade tarp; a chicken run.
@@ -222,64 +293,196 @@ export class Holdout {
     }
   }
 
-  // ---- the holdout fill (data/holdout.js yard rows, as Rust Haven's): a town that has lived through the fall grows food,
-  // stores rain and dries its washing behind every building; picket fences round the houses; carts and cars at the kerb.
+  // ---- the kerb: carts and old cars in front of the shops (each lot's own yard is fillOf's, below) --------------------
   yards(rng) {
-    const Y = HOLDOUT.yard, M = HOLDOUT.market;
-    const kinds = Y.kinds.concat([['junk', 2]]);
     for (const L of this.lots) {
-      const F = L.front, ns = F === 'N' || F === 'S', sgn = F === 'N' || F === 'W' ? 1 : -1;
-      // The back yard: from the building's back wall to the lot's back line, the lot's width.
-      const bFace = F === 'N' ? L.z1 : F === 'S' ? L.z0 : F === 'W' ? L.x1 : L.x0, lBack = F === 'N' ? L.lot.z1 : F === 'S' ? L.lot.z0 : F === 'W' ? L.lot.x1 : L.lot.x0;
-      const depth = Math.abs(lBack - bFace) - Y.margin * 2, u0 = (ns ? L.lot.x0 : L.lot.z0) + Y.margin, u1 = (ns ? L.lot.x1 : L.lot.z1) - Y.margin;
-      const at = (u, v) => (ns ? { x: u, z: bFace + sgn * v } : { x: bFace + sgn * v, z: u }); // v metres back from the building
-      if (depth > 4.5) {
-        for (let u = u0 + 1; u < u1 - 4; u += rng.range(6.5, 10)) {
-          if (rng() < 0.22) continue;
-          const kind = pickW(rng, kinds), v = Y.margin + rng.range(1.5, Math.max(1.6, depth - 3.5)), p = at(u + 2, v);
-          if (kind === 'garden') {
-            const w = rng.range(3.5, 5.5), d = rng.range(2.2, 3.2);
-            this.P('floors', p.x, 0.1, p.z, ns ? w : d, 0.2, ns ? d : w, Y.soil);
-            for (let k = 0; k < 7; k++) this.P('shrubs', p.x + rng.range(-w / 2 + 0.4, w / 2 - 0.4) * (ns ? 1 : 0.4), 0.3, p.z + rng.range(-w / 2 + 0.4, w / 2 - 0.4) * (ns ? 0.4 : 1), 0.45, 0.4, 0.45, rng.pick(Y.crops), rng() * 6);
-          } else if (kind === 'tank') {
-            const r = rng.range(1.0, 1.4);
-            this.P('barrels', p.x, 1.0, p.z, r * 2.2, 1.9, r * 2.2, rng.pick(Y.tank)); this.box(p.x - r, p.z - r, p.x + r, p.z + r, 2.0, 'tank');
-          } else if (kind === 'washing') {
-            const len = rng.range(4, 6), a = ns;
-            for (const s of [-1, 1]) this.P('props', p.x + (a ? s * len / 2 : 0), 0.9, p.z + (a ? 0 : s * len / 2), 0.1, 1.8, 0.1, Y.post);
-            this.P('props', p.x, 1.75, p.z, a ? len : 0.03, 0.03, a ? 0.03 : len, '#d9d2b8');
-            for (let k = 0; k < 4; k++) { const o = -len / 2 + 0.7 + k * (len - 1.4) / 3; this.P('props', p.x + (a ? o : 0), 1.35, p.z + (a ? 0 : o), a ? 0.8 : 0.04, 0.75, a ? 0.04 : 0.8, rng.pick(Y.cloth)); }
-          } else if (kind === 'shade') {
-            const w = rng.range(3.2, 4.4);
-            this.P('roofs', p.x, 2.3, p.z, w, 0.08, w * 0.8, rng.pick(Y.tarp));
-            for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) this.P('props', p.x + sx * (w / 2 - 0.15), 1.15, p.z + sz * (w * 0.4 - 0.15), 0.1, 2.3, 0.1, Y.post);
-            this.P('props', p.x, 0.4, p.z, 1.2, 0.08, 0.8, '#6a5440'); // a table under it
-          } else {
-            for (let k = 0; k < 3; k++) this.P('props', p.x + rng.range(-1.5, 1.5), 0.35, p.z + rng.range(-1.5, 1.5), rng.range(0.7, 1.3), rng.range(0.5, 0.9), rng.range(0.7, 1.3), rng.pick(['#7a5a34', '#6b4e2e', '#5a5650', '#8a6a44']), rng() * 3);
-            this.P('barrels', p.x + 2, 0.55, p.z, 1, 1, 1, rng.pick(['#5a2e1a', '#3f5a62', '#6a6a5a']));
-          }
+      const F = L.front;
+      if (['house', 'bungalow', 'duplex'].includes(L.kind) || rng() >= 0.55) continue;
+      const kx = F === 'N' ? { x: L.cx + rng.range(-3, 3), z: L.lot.z0 - this.row.walk - 2.4 } : F === 'S' ? { x: L.cx + rng.range(-3, 3), z: L.lot.z1 + this.row.walk + 2.4 } : null;
+      if (!kx) continue;
+      const cart = rng() < 0.45, c = rng.pick(cart ? ['#7a5a34', '#6b4e2e'] : ['#56603f', '#6a2a1a', '#3f5a62', '#8a6a2a', '#e0d8c0', '#4a4a48']);
+      if (cart) { this.P('props', kx.x, 0.6, kx.z, 2.4, 0.5, 1.4, c); for (const s of [-1, 1]) this.P('trunks', kx.x, 0.45, kx.z + s * 0.8, 0.9, 0.12, 0.9, '#2b2826'); this.box(kx.x - 1.2, kx.z - 0.8, kx.x + 1.2, kx.z + 0.8, 1, 'cart'); }
+      else { this.P('props', kx.x, 0.55, kx.z, 4.2, 0.8, 1.9, c); this.P('props', kx.x, 1.15, kx.z, 2.0, 0.6, 1.6, '#2a2622'); this.box(kx.x - 2.1, kx.z - 0.95, kx.x + 2.1, kx.z + 0.95, 1.4, 'car'); }
+    }
+  }
+
+  // ---- REBUILT FROM WRECKAGE (the row's grit, docs/design/WEB_LOOK.md §3.8) ------------------------------------------
+  // One lot's dressing: junk fences (back and one side), a lean-to off the back wall, a shed and an outhouse in the back
+  // corners, raised beds, a chicken run, a hulk on blocks, a rain tank, a washing line, firewood, compost and scrap; a
+  // side gap with room parks a hulk or stacks crates; a burnt shell gets its charred floor, beams and rubble. On a stream
+  // of its own per lot, laid out the first time a chunk asks (its doors are known then, and nothing goes within doorClear
+  // of one, or within 0.6 m of its walls). A pure function of the rows, the seed and the lot.
+  fillOf(L) {
+    if (L.fill) return L.fill;
+    const G = this.row.grit, out = (L.fill = { items: [], boxes: [] });
+    if (!G) return out;
+    const Y = HOLDOUT.yard, rng = rngOf(hash32(this.seed, L.salt ?? 0, 0x46494c4c));
+    const P = (pool, x, y, z, w, h, d, col, rot = 0, shade = 1) => out.items.push({ pool, e: [x, y, z, w, h, d, col, rot, shade] });
+    const BX = (x0, z0, x1, z1, h, tag) => out.boxes.push({ x0: Math.min(x0, x1), z0: Math.min(z0, z1), x1: Math.max(x0, x1), z1: Math.max(z0, z1), h, tag });
+    const F = L.front, ns = F === 'N' || F === 'S', sgn = F === 'N' || F === 'W' ? 1 : -1, lt = L.lot;
+    // The lot's own frame: u along the street, v back from the street line (0 .. depth).
+    const U0 = ns ? lt.x0 : lt.z0, U1 = ns ? lt.x1 : lt.z1, street = F === 'N' ? lt.z0 : F === 'S' ? lt.z1 : F === 'W' ? lt.x0 : lt.x1, depth = ns ? lt.z1 - lt.z0 : lt.x1 - lt.x0;
+    const X = (u, v) => (ns ? u : street + sgn * v), Z = (u, v) => (ns ? street + sgn * v : u);
+    const bu0 = ns ? L.x0 : L.z0, bu1 = ns ? L.x1 : L.z1, bvA = Math.abs((ns ? L.z0 : L.x0) - street), bvB = Math.abs((ns ? L.z1 : L.x1) - street);
+    const bv0 = Math.min(bvA, bvB), bv1 = Math.max(bvA, bvB);
+    const doors = this.geo(L).doors ?? [];
+    const taken = [];
+    // A footprint (u0..u1, v0..v1) is free: inside the lot, clear of the building and a walk round it, of what is placed,
+    // and of every door by doorClear (dc).
+    const free = (u0, v0, u1, v1, dc = Y.doorClear) => {
+      if (u0 < U0 + 0.4 || u1 > U1 - 0.4 || v0 < 0.4 || v1 > depth - 0.4) return false;
+      if (u1 > bu0 - 0.6 && u0 < bu1 + 0.6 && v1 > bv0 - 0.6 && v0 < bv1 + 0.6) return false;
+      for (const t of taken) if (u1 > t[0] && u0 < t[2] && v1 > t[1] && v0 < t[3]) return false;
+      const x0 = Math.min(X(u0, v0), X(u1, v1)), x1 = Math.max(X(u0, v0), X(u1, v1)), z0 = Math.min(Z(u0, v0), Z(u1, v1)), z1 = Math.max(Z(u0, v0), Z(u1, v1));
+      for (const d of doors) if (Math.hypot(Math.max(0, x0 - d.x, d.x - x1), Math.max(0, z0 - d.z, d.z - z1)) < dc) return false;
+      return true;
+    };
+    const take = (u0, v0, u1, v1) => taken.push([u0 - 0.5, v0 - 0.5, u1 + 0.5, v1 + 0.5]);
+    // Somewhere in the back yard for a w (along u) by d (along v) footprint: a few tries, nearest the back first.
+    const backV0 = bv1 + 1.4, backV1 = depth - 0.6;
+    const spot = (w, d, tries = 7, dc) => {
+      for (let t = 0; t < tries; t++) {
+        const u = U0 + 0.8 + rng() * Math.max(0, U1 - U0 - 1.6 - w), v = backV1 - d - rng() * Math.max(0, backV1 - backV0 - d);
+        if (v < backV0) return null;
+        if (free(u, v, u + w, v + d, dc)) { take(u, v, u + w, v + d); return [u, v]; }
+      }
+      return null;
+    };
+    // An axis-aligned box in the lot frame: a w (u) by d (v) footprint at (u, v), h tall from y0.
+    const bx = (pool, u, v, w, d, y0, h, col, shade = 1) => P(pool, X(u + w / 2, v + d / 2), y0 + h / 2, Z(u + w / 2, v + d / 2), ns ? w : d, h, ns ? d : w, col, 0, shade);
+    const solid = (u, v, w, d, h, tag) => BX(X(u, v), Z(u, v), X(u + w, v + d), Z(u + w, v + d), h, tag);
+    const pickC = (a) => a[Math.floor(rng() * a.length)];
+    const burnt = !!L.burnt;
+
+    // Junk fences: the back line (a back-row lot leaves it to the lot behind) and the side toward lower u; the high side too
+    // when no lot of the same row meets it. Panels of whatever was found, posts at the joints; solid in runs.
+    const FN = G.fence, FK = FN.kinds.map((k) => [k, k[1]]);
+    const lastInRow = !this.lots.some((o) => o !== L && o.block === L.block && o.front === L.front && Math.abs((ns ? o.lot.x0 : o.lot.z0) - U1) < 0.1);
+    const runs = [];
+    if (!L.backRow) runs.push({ fixed: depth - 0.3, alongU: true, a0: U0 + 0.3, a1: U1 - 0.3 });
+    runs.push({ fixed: U0 + 0.3, alongU: false, a0: Math.max(0.8, bv0 - 1), a1: depth - 0.3 });
+    if (lastInRow) runs.push({ fixed: U1 - 0.3, alongU: false, a0: Math.max(0.8, bv0 - 1), a1: depth - 0.3 });
+    for (const R of runs) {
+      let a = R.a0, runA = null;
+      const flush = (end) => { if (runA !== null && end - runA > 0.3) { if (R.alongU) solid(runA, R.fixed - 0.1, end - runA, 0.2, 1.5, 'fence'); else solid(R.fixed - 0.1, runA, 0.2, end - runA, 1.5, 'fence'); } runA = null; };
+      while (a < R.a1 - 0.2) {
+        const len = Math.min(R.a1 - a, FN.panel[0] + rng() * (FN.panel[1] - FN.panel[0])), kind = pickW(rng, FK);
+        const mid = a + len / 2, u = R.alongU ? mid : R.fixed, v = R.alongU ? R.fixed : mid;
+        const nearDoor = doors.some((d) => Math.hypot(X(u, v) - d.x, Z(u, v) - d.z) < 1.8 + len / 2);
+        if (rng() < FN.gap * (burnt ? 4 : 1) || nearDoor) { flush(a); a += len; continue; }
+        const wire = kind[0] === 'wire', h = wire ? 1.6 : kind[0] === 'door' ? 1.15 : FN.h[0] + rng() * (FN.h[1] - FN.h[0]), t = wire ? 0.05 : 0.14 + rng() * 0.08;
+        const col = pickC(kind[2]), sh = 0.86 + rng() * 0.26;
+        if (R.alongU) bx('props', a, R.fixed - t / 2, len, t, 0, h, col, sh); else bx('props', R.fixed - t / 2, a, t, len, 0, h, col, sh);
+        if (rng() < 0.7) { const pu = R.alongU ? a : R.fixed - 0.08, pv = R.alongU ? R.fixed - 0.08 : a; bx('props', pu, pv, 0.16, 0.16, 0, Math.min(2.1, h + 0.25), '#4a3a2a'); }
+        if (runA === null) runA = a;
+        a += len;
+      }
+      flush(a);
+    }
+
+    // A burnt shell: its floor charred black, fallen beams across it, rubble heaped in the corners.
+    if (burnt) {
+      const B = G.burnt, w = L.x1 - L.x0, d = L.z1 - L.z0;
+      P('floors', L.cx, 0.13, L.cz, w - 0.9, 0.03, d - 0.9, B.floor);
+      for (let k = 0, n = 2 + Math.floor(rng() * 3); k < n; k++) P('props', L.cx + (rng() - 0.5) * w * 0.5, 0.25 + k * 0.12, L.cz + (rng() - 0.5) * d * 0.5, 0.26, 0.24, Math.min(w, d) * (0.6 + rng() * 0.4), pickC(B.char), rng() * 3.1416);
+      for (let k = 0; k < 4; k++) P('boulders', L.cx + (rng() - 0.5) * (w - 2.4), 0.25, L.cz + (rng() - 0.5) * (d - 2.4), 0.9 + rng() * 0.9, 0.35 + rng() * 0.3, 0.9 + rng() * 0.9, pickC(B.rubble), rng() * 6);
+    }
+
+    // The back yard: what a family that rebuilt from wreckage keeps behind the house.
+    const BK = G.back, tin = G.tin;
+    if (backV1 - backV0 > 2.6) {
+      // A lean-to off the back wall: two posts out from the wall, a sheet over them (the door under it stays clear: posts only).
+      if (!burnt && rng() < BK.leanto) {
+        const w = Math.min(bu1 - bu0 - 1, 3.4 + rng() * 2.2), dd = 2.2 + rng() * 0.8, u = bu0 + 0.5 + rng() * Math.max(0, bu1 - bu0 - 1 - w), v = bv1;
+        if (w > 2.4 && free(u, v + dd - 0.3, u + w, v + dd, 1.2)) {
+          taken.push([u, v - 0.5, u + w + 0.5, v + dd + 0.5]);
+          bx('props', u, v, w, dd, 2.25, 0.07, pickC(tin), 0.9 + rng() * 0.2);
+          for (const pu of [u + 0.1, u + w - 0.25]) bx('props', pu, v + dd - 0.25, 0.14, 0.14, 0, 2.25, '#4a3a2a');
+          if (rng() < 0.6) bx('props', u + 0.4, v + dd - 1.0, Math.min(w - 0.8, 2.2), 0.7, 0, 0.75, '#7a5a34'); // firewood or a bench under it
         }
       }
-      // A picket fence round a house's lot (looks only: its gate is the walk to the front door).
-      if (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex') {
-        const c = rng.pick(['#e6e0d2', '#d8cfb8', '#c9b89a', '#9cc0b8']), lt = L.lot, y = 0.5;
-        for (const [x0, z0, x1, z1] of [[lt.x0 + 0.3, lt.z0 + 0.3, lt.x1 - 0.3, lt.z0 + 0.3], [lt.x0 + 0.3, lt.z1 - 0.3, lt.x1 - 0.3, lt.z1 - 0.3], [lt.x0 + 0.3, lt.z0 + 0.3, lt.x0 + 0.3, lt.z1 - 0.3], [lt.x1 - 0.3, lt.z0 + 0.3, lt.x1 - 0.3, lt.z1 - 0.3]]) {
-          const horiz = z0 === z1, isFront = horiz ? (F === 'N' && Math.abs(z0 - lt.z0) < 1) || (F === 'S' && Math.abs(z0 - lt.z1) < 1) : (F === 'W' && Math.abs(x0 - lt.x0) < 1) || (F === 'E' && Math.abs(x0 - lt.x1) < 1);
-          if (isFront) continue; // the street side stays open
-          this.P('props', (x0 + x1) / 2, y, (z0 + z1) / 2, horiz ? x1 - x0 : 0.08, 1.0, horiz ? 0.08 : z1 - z0, c);
+      // A back house: a shack knocked up from salvage at the back of a deep lot (kin taken in, a workshop, a rented room).
+      // Solid, not walk-in; a real roof from above, so the block reads built-up, not lawns.
+      for (let q = 0; q < 2; q++) {
+        if (burnt || backV1 - backV0 <= 9 || rng() >= BK.shack * (q ? 0.5 : 1)) break;
+        const w = 3.6 + rng() * 2.2, d = 3.2 + rng() * 1.6, h = 2.4 + rng() * 0.5, at = spot(w, d, 6, 3.0);
+        if (at) { const [u, v] = at; bx('walls', u, v, w, d, 0, h, pickC(G.shack)); bx('roofs', u - 0.25, v - 0.25, w + 0.5, d + 0.5, h, 0.18, pickC(['#8e938c', '#7d827c', '#8a5a3a', '#6f7a74'])); solid(u, v, w, d, h, 'shack'); }
+      }
+      // A shed in a back corner (block walls, a tin roof): solid.
+      if (rng() < BK.shed * (burnt ? 0.5 : 1)) {
+        const w = 2.2 + rng() * 1.2, d = 1.8 + rng() * 0.8, at = spot(w, d);
+        if (at) { const [u, v] = at; bx('walls', u, v, w, d, 0, 2.1, pickC(['#8a8478', '#a09a8c', '#7a6a52', '#9c8462'])); bx('props', u - 0.15, v - 0.15, w + 0.3, d + 0.3, 2.1, 0.08, pickC(tin)); solid(u, v, w, d, 2.1, 'shed'); }
+      }
+      if (!burnt && rng() < BK.outhouse) {
+        const at = spot(1.3, 1.3);
+        if (at) { const [u, v] = at; bx('walls', u, v, 1.3, 1.3, 0, 2.2, pickC(['#7a5e3e', '#8a6a44', '#6b5236'])); bx('props', u - 0.1, v - 0.1, 1.5, 1.5, 2.2, 0.06, pickC(tin)); solid(u, v, 1.3, 1.3, 2.2, 'shed'); }
+      }
+      // Raised beds in rows: soil and crops.
+      if (!burnt && rng() < BK.garden) for (let k = 0, n = 3 + Math.floor(rng() * 3); k < n; k++) {
+        const w = 3.6 + rng() * 2.4, d = 1.1, at = spot(w, d, 5, 2.5);
+        if (!at) break;
+        const [u, v] = at; bx('floors', u, v, w, d, 0, 0.22, Y.soil);
+        for (let q = 0.5; q < w - 0.3; q += 0.75) { const cu = u + q, cv = v + 0.55; P('shrubs', X(cu, cv), 0.32, Z(cu, cv), 0.42, 0.36, 0.42, pickC(Y.crops), rng() * 6); }
+      }
+      // A chicken run: a coop and a wire run, birds in it.
+      if (!burnt && rng() < BK.coop) {
+        const at = spot(3.2, 2.2);
+        if (at) {
+          const [u, v] = at; bx('walls', u, v, 1.4, 1.2, 0, 1.2, '#7a5e3e'); bx('props', u - 0.1, v - 0.1, 1.6, 1.4, 1.2, 0.06, pickC(tin));
+          bx('props', u + 1.4, v, 1.8, 0.04, 0, 1.0, '#9a9a92'); bx('props', u + 1.4, v + 2.16, 1.8, 0.04, 0, 1.0, '#9a9a92'); bx('props', u + 3.16, v, 0.04, 2.2, 0, 1.0, '#9a9a92');
+          for (let q = 0; q < 4; q++) bx('props', u + 1.7 + rng() * 1.2, v + 0.3 + rng() * 1.5, 0.3, 0.3, 0, 0.3, rng() < 0.7 ? '#e8e2d2' : '#9a5a2a');
+          solid(u, v, 3.2, 2.2, 1.2, 'coop');
         }
       }
-      // Carts and old cars at the kerb in front of the shops.
-      if (!['house', 'bungalow', 'duplex'].includes(L.kind) && rng() < 0.55) {
-        const kx = F === 'N' ? { x: L.cx + rng.range(-3, 3), z: L.lot.z0 - this.row.walk - 2.4 } : F === 'S' ? { x: L.cx + rng.range(-3, 3), z: L.lot.z1 + this.row.walk + 2.4 } : null;
-        if (kx) {
-          const cart = rng() < 0.45, c = rng.pick(cart ? ['#7a5a34', '#6b4e2e'] : ['#56603f', '#6a2a1a', '#3f5a62', '#8a6a2a', '#e0d8c0', '#4a4a48']);
-          if (cart) { this.P('props', kx.x, 0.6, kx.z, 2.4, 0.5, 1.4, c); for (const s of [-1, 1]) this.P('trunks', kx.x, 0.45, kx.z + s * 0.8, 0.9, 0.12, 0.9, '#2b2826'); this.box(kx.x - 1.2, kx.z - 0.8, kx.x + 1.2, kx.z + 0.8, 1, 'cart'); }
-          else { this.P('props', kx.x, 0.55, kx.z, 4.2, 0.8, 1.9, c); this.P('props', kx.x, 1.15, kx.z, 2.0, 0.6, 1.6, '#2a2622'); this.box(kx.x - 2.1, kx.z - 0.95, kx.x + 2.1, kx.z + 0.95, 1.4, 'car'); }
+      // A hulk on blocks: the car that brought them, or the one they strip for parts.
+      if (rng() < BK.hulk * (burnt ? 1.6 : 1)) {
+        const along = rng() < 0.5, w = along ? 4.2 : 1.9, d = along ? 1.9 : 4.2, at = spot(w, d);
+        if (at) {
+          const [u, v] = at, c = pickC(G.hulk), cw = along ? 2.0 : 1.6, cd = along ? 1.6 : 2.0;
+          bx('props', u, v, w, d, 0.3, 0.75, c, 0.85 + rng() * 0.2); bx('props', u + (w - cw) / 2, v + (d - cd) / 2, cw, cd, 1.05, 0.5, burnt ? '#2a2622' : '#3a3632');
+          if (rng() < 0.5) bx('props', u + (along ? 0.3 : 0.2), v + (along ? 0.2 : 0.3), along ? 1.0 : 1.5, along ? 1.5 : 1.0, 1.06, 0.04, pickC(tin)); // a tarp over the engine bay
+          solid(u, v, w, d, 1.5, 'wreck');
+        }
+      }
+      if (!burnt && rng() < BK.tank) { const r = 1.0 + rng() * 0.3, at = spot(r * 2.2, r * 2.2); if (at) { const [u, v] = at; P('barrels', X(u + r * 1.1, v + r * 1.1), 1.0, Z(u + r * 1.1, v + r * 1.1), r * 2.2, 1.9, r * 2.2, pickC(Y.tank)); solid(u, v, r * 2.2, r * 2.2, 2.0, 'tank'); } }
+      if (!burnt && rng() < BK.washing) {
+        const len = 4 + rng() * 2, at = spot(len, 0.6, 5, 2.0);
+        if (at) {
+          const [u, v] = at, cv = v + 0.3;
+          for (const pu of [u, u + len]) P('props', X(pu, cv), 0.9, Z(pu, cv), 0.1, 1.8, 0.1, Y.post);
+          bx('props', u, cv - 0.015, len, 0.03, 1.74, 0.03, '#d9d2b8');
+          for (let k = 0; k < 5; k++) bx('props', u + 0.4 + k * (len - 1.2) / 4, cv - 0.02, 0.7 + rng() * 0.3, 0.04, 1.0, 0.75, pickC(Y.cloth));
+        }
+      }
+      if (rng() < BK.firewood) { const at = spot(1.8, 0.9, 5, 2.0); if (at) { const [u, v] = at; bx('props', u, v, 1.8, 0.9, 0, 0.7, '#6b4e2e'); bx('props', u + 0.05, v + 0.05, 1.7, 0.8, 0.7, 0.04, '#a08058'); } }
+      if (rng() < BK.compost) { const at = spot(1.6, 1.6, 5, 2.0); if (at) { const [u, v] = at; P('boulders', X(u + 0.8, v + 0.8), 0.2, Z(u + 0.8, v + 0.8), 1.5, 0.6, 1.5, burnt ? '#3a3632' : '#4a3a28', rng() * 6); } }
+      if (rng() < BK.scrap * (burnt ? 1.5 : 1)) {
+        const at = spot(2.6, 2.0, 5, 2.0);
+        if (at) {
+          const [u, v] = at;
+          for (let k = 0; k < 4; k++) bx('props', u + rng() * 1.6, v + rng() * 1.2, 0.5 + rng() * 0.9, 0.4 + rng() * 0.8, 0, 0.3 + rng() * 0.6, pickC(['#7a5a34', '#5a5650', '#8a5a3a', '#6e6a62', '#3f5a62']), 0.9 + rng() * 0.2);
+          P('barrels', X(u + 2.2, v + 1.5), 0.55, Z(u + 2.2, v + 1.5), 1, 1, 1, pickC(['#5a2e1a', '#3f5a62', '#6a6a5a', '#7a4a2e']));
+          solid(u, v, 2.6, 2.0, 1.0, 'scrap');
         }
       }
     }
-    void M;
+    // A side gap with room: a hulk parked along the house, or crates and drums against the fence.
+    for (const side of [-1, 1]) {
+      const g0 = side < 0 ? U0 + 0.5 : bu1 + 2.2, g1 = side < 0 ? bu0 - 2.2 : U1 - 0.5, room = g1 - g0;
+      if (room < 1.4 || rng() >= G.side) continue;
+      if (room >= 2.1 && bv1 - bv0 > 4.5 && rng() < 0.5) {
+        const u = side < 0 ? g1 - 1.9 : g0, v = bv0 + 0.4 + rng() * Math.max(0, bv1 - bv0 - 4.6);
+        if (free(u, v, u + 1.9, v + 4.2, 2.2)) { take(u, v, u + 1.9, v + 4.2); const c = pickC(G.hulk); bx('props', u, v, 1.9, 4.2, 0.3, 0.75, c); bx('props', u + 0.15, v + 1.1, 1.6, 2.0, 1.05, 0.5, '#3a3632'); solid(u, v, 1.9, 4.2, 1.5, 'wreck'); }
+      } else {
+        const u = side < 0 ? g0 : g1 - 1.4, v = bv0 + rng() * Math.max(0, bv1 - bv0 - 2);
+        if (free(u, v, u + 1.4, v + 2, 2.2)) {
+          take(u, v, u + 1.4, v + 2);
+          for (let k = 0; k < 3; k++) bx('props', u + rng() * 0.6, v + k * 0.65, 0.8, 0.6, 0, 0.5 + rng() * 0.4, pickC(['#7a5a34', '#6b4e2e', '#8a6a44']), 0.9 + rng() * 0.2);
+          solid(u, v, 1.4, 2, 1.0, 'crates');
+        }
+      }
+    }
+    return out;
   }
 
   // ---- the wall, the towers, the gates ------------------------------------------------------------------------------
@@ -383,7 +586,9 @@ export class Holdout {
       this.flora.push([rng.pick(T.street), x, z, rng.range(7.5, 10), rng.int(0, 2)]);
     }
     const mk = this.blocks.find((b) => b.open === 'market');
-    if (mk) for (const [fx, fz] of [[0.18, 0.2], [0.82, 0.2], [0.18, 0.8], [0.82, 0.8]]) this.flora.push([rng.pick(T.square), mk.x0 + (mk.x1 - mk.x0) * fx, mk.z0 + (mk.z1 - mk.z0) * fz, rng.range(7, 9), rng.int(0, 2)]);
+    // The square's shade trees, right-sized (a 9 m oak filled the frame at street level): the draws are kept (nothing after
+    // them moves), two of the four corners are planted.
+    if (mk) for (const [fx, fz] of [[0.18, 0.2], [0.82, 0.2], [0.18, 0.8], [0.82, 0.8]]) { const kind = rng.pick(T.square), h0 = rng.range(7, 9), v = rng.int(0, 2), H = T.squareH ?? [7, 9]; if (fx * fz < 0.1 || fx * fz > 0.3) continue; /* the two off-diagonal corners */ this.flora.push([kind, mk.x0 + (mk.x1 - mk.x0) * fx, mk.z0 + (mk.z1 - mk.z0) * fz, H[0] + (H[1] - H[0]) * ((h0 - 7) / 2), v]); }
   }
 
   // Street lamps (salvaged poles with a lamp: pools of light at night) along Main Street and the avenues.
@@ -443,11 +648,15 @@ export class Holdout {
   // Extras owned by chunk (cx, cz) (their centre in it), and every collision box that reaches into it.
   extras(cx, cz) {
     const ox = cx * C, oz = cz * C, X1 = ox + C, Z1 = oz + C, own = (x, z) => x >= ox && x < X1 && z >= oz && z < Z1;
-    return {
-      items: this.items.filter((it) => own(it.e[0], it.e[2])),
-      flora: this.flora.filter((f) => own(f[1], f[2])),
-      boxes: this.boxes.filter((b) => b.x1 > ox - 3 && b.x0 < X1 + 3 && b.z1 > oz - 3 && b.z0 < Z1 + 3),
-    };
+    const items = this.items.filter((it) => own(it.e[0], it.e[2])), boxes = this.boxes.filter((b) => b.x1 > ox - 3 && b.x0 < X1 + 3 && b.z1 > oz - 3 && b.z0 < Z1 + 3);
+    // Each lot's own dressing (fillOf), for the lots that reach in.
+    for (const L of this.lots) {
+      if (L.lot.x1 < ox - 3 || L.lot.x0 > X1 + 3 || L.lot.z1 < oz - 3 || L.lot.z0 > Z1 + 3) continue;
+      const f = this.fillOf(L);
+      for (const it of f.items) if (own(it.e[0], it.e[2])) items.push(it);
+      for (const q of f.boxes) if (q.x1 > ox - 3 && q.x0 < X1 + 3 && q.z1 > oz - 3 && q.z0 < Z1 + 3) boxes.push(q);
+    }
+    return { items, flora: this.flora.filter((f) => own(f[1], f[2])), boxes };
   }
   // The HUD street sign inside the wall.
   nameAt(x, z) {

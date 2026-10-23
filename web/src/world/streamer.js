@@ -6,7 +6,7 @@ import { layoutChunk, SURF_CAPS } from './chunkgen.js';
 import { Pool, SurfacePool } from './pools.js';
 import { SignAtlas } from './signs.js';
 import { roadAtlasTexture, radialGlow } from './textures.js';
-import { roofSurface, wallSurface } from './surfaces.js';
+import { roofSurface, wallSurface, groundSurface } from './surfaces.js';
 import { poolName } from './flora.js';
 import GOLDEN from '../data/golden.json';
 import { EXT as WATER_EXT } from './water.js';
@@ -145,12 +145,12 @@ export class Streamer {
     this.pools.glows.mesh.renderOrder = 2;
     for (const p of Object.values(this.pools)) scene.add(p.mesh);
     // Surfaces share the island's ground and road look (sky.js tints them every frame: synced in update()).
-    this.groundMat = w.groundMat.clone(); this.groundMat.vertexColors = true;
+    this.groundMat = groundSurface(w.groundMat.clone(), 'groundSurfaceP1'); this.groundMat.vertexColors = true; // world/surfaces.js: no tiling, floors
     this.roadMat = new THREE.MeshStandardMaterial({ map: roadAtlasTexture(), roughness: 0.9 });
     this.rockMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, flatShading: true, side: THREE.DoubleSide });
     // A region's ground (Florida): a neutral grass-and-earth texture its vertex colours paint (world/regions.js rows);
     // its water sheets share the island's water material (ripples, glints, world-space UVs).
-    this.groundMatFL = new THREE.MeshStandardMaterial({ map: marshTexture(), roughness: 0.94, metalness: 0, vertexColors: true });
+    this.groundMatFL = groundSurface(new THREE.MeshStandardMaterial({ map: marshTexture(), roughness: 0.94, metalness: 0, vertexColors: true }), 'groundSurfaceFL');
     // (Its own copy: rougher, softer ripples than the island's lake: still swamp water, a wide lagoon. The normal map is
     // the island's, so the ripples run at the same pace.)
     this.waterMat = g.water?.mat ? g.water.mat.clone() : new THREE.MeshStandardMaterial({ color: '#4f7f7a', roughness: 0.2, vertexColors: true });

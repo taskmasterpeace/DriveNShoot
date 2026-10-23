@@ -53,9 +53,25 @@ export const HOLDOUTS = {
     // wakes in a vat in `clinic.bay`'s room and walks out the clinic's front door. respawn: the fee, as Rust Haven's.
     clinic: { lot: 'clinic', bay: 'clonewing', fee: 0.15, doctor: 'mer_doc' },
     // Living trees along Main Street and in the market (world/flora.js species; fallbacks when a model is not in yet).
-    trees: { street: ['sabal', 'fanpalm'], every: 26, square: ['liveoak', 'sabal'] },
+    trees: { street: ['sabal', 'fanpalm'], every: 26, square: ['liveoak', 'sabal'], squareH: [4.6, 6.2] },
     // The holdout fill (data/holdout.js reads): market stalls, gardens, tanks, washing lines, shade.
     lamps: 32,
+    // REBUILT FROM WRECKAGE (docs/design/WEB_LOOK.md §3.8): what makes it read as a walled holdout and not a model suburb
+    // from the game camera. Every lot is dressed on a stream of its own (world/holdout.js fillOf), never near a door.
+    grit: {
+      burn: 0.22,              // share of the back-row houses left standing as burnt shells (walk-in, roofless, charred)
+      setback: [-1.0, 2.4],    // m added to a house's setback (shops and civic buildings a third of it): no ruled frontage
+      shift: 0.22,             // share of the gap a building may slide along its street
+      fence: { h: [1.0, 1.9], panel: [1.4, 3.2], gap: 0.1,  // junk fences: back and one side of every lot
+        kinds: [['tin', 4, ['#7d827c', '#8e938c', '#6e6a62']], ['rust', 4, ['#8a5a3a', '#7a4a2e', '#9a6a44']], ['plank', 3, ['#8a6a44', '#7a5e3e', '#6b5236']],
+          ['pallet', 2, ['#a08a62', '#94805a']], ['door', 1, ['#56603f', '#3f5a62', '#6a2a1a', '#8a6a2a', '#d8d0bc']], ['wire', 2, ['#9a9a92']]] },
+      back: { shack: 0.85, leanto: 0.55, shed: 0.6, outhouse: 0.3, coop: 0.25, hulk: 0.3, garden: 0.85, washing: 0.5, tank: 0.35, firewood: 0.5, compost: 0.4, scrap: 0.45 },
+      shack: ['#8a8478', '#9c8462', '#7a6a52', '#a8cdb8', '#d9b48c', '#8a5a3a', '#7d827c'], // back houses: block, timber, an old coat of paint
+      side: 0.45,              // a side gap with room gets a parked hulk, crates or drums
+      tin: ['#8e938c', '#7d827c', '#a8a49a', '#8a5a3a', '#7a4a2e', '#3f6fa8', '#5f7f3a'], // lean-to and shed sheets (some are tarps)
+      hulk: ['#6a3a22', '#5a3a24', '#4f5a52', '#3f5a62', '#7a5a3a', '#56603f', '#8a6a2a', '#5e5a54'],
+      burnt: { floor: '#2c2622', char: ['#2a2420', '#3a322a', '#1f1b18'], rubble: ['#4a443e', '#5a524a', '#3a3632'] },
+    },
   },
 };
 

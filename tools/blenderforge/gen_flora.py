@@ -63,9 +63,11 @@ def hexc(h):
 PAL = {
     "pv_bark": "#7f9a48", "pv_bark_dk": "#667f3a", "pv_leaf": ["#8ca23e", "#9ab04a", "#7f9638"], "pv_flower": "#e6c83a",
     "mq_bark": "#4a3828", "mq_bark_dk": "#3a2c20", "mq_leaf": ["#3e5826", "#48622c", "#364f22"],
-    "fan_trunk": "#8a7862", "fan_trunk_dk": "#6e5e4c", "fan_leaf": ["#5f8a3a", "#6e9944", "#557e33"],
+    "fan_trunk": "#8a7862", "fan_trunk_dk": "#6e5e4c", "fan_leaf": ["#4c6a30", "#58743a", "#43602c", "#62743a"],
+    "fan_burnt": "#a08a4a", "frond_dead": ["#8a6a40", "#7a5a34", "#9a7a4a"],  # sun-burnt tips; dead fronds hanging
     "skirt": "#a88c5c", "skirt_dk": "#8a704a",
-    "date_trunk": "#8a7050", "date_trunk_dk": "#6a5440", "date_leaf": ["#62874a", "#6f9454", "#557a42"], "dates": "#b8742a",
+    "date_trunk": "#8a7050", "date_trunk_dk": "#6a5440", "date_leaf": ["#435c36", "#4e663c", "#3c5430", "#56623e"], "dates": "#b8742a",
+    "date_burnt": "#9a8a54", "date_rib": "#7a7650",  # dusty grey-green leaflets, yellowing tips, the bare rachis
     "citrus_leaf": ["#2f5a24", "#3a6a2c", "#29501f"], "orange": "#f08a1c", "lemon": "#e8d23a", "citrus_bark": "#5a4632",
     "sag": ["#5c783c", "#4e6834", "#688646"], "sag_rib": "#7c9852", "sag_crown": "#e8dfc0",
     "josh_trunk": "#6a5a44", "josh_skirt": "#8c7c5c", "josh_leaf": ["#6e7c34", "#7e8c3e", "#606c2e"], "josh_core": "#4a5426",
@@ -354,9 +356,10 @@ def build_mesquite(g, rng):
 
 
 def build_fanpalm(g, rng):
-    """Washingtonia: a tall slender ringed trunk, a long shag skirt of dead fronds under the crown, and a dense round
-    crown of pleated fan leaves in three tiers (young ones standing up over the heart, old ones hanging) — from above
-    a full ragged green disc, not a wreath."""
+    """Washingtonia: a tall slender ringed trunk, a long shag skirt of dead fronds under the crown, and a crown of pleated
+    fans that DROOP (the young ones stand over the heart, the old ones hang from their stalks) with split tips, in a
+    sun-burnt olive with yellowed edges, and two or three dead brown fans hanging under it. From above a ragged, shaded
+    star-disc whose hanging rim is darker than its heart (the old wreath of flat bright plates read as a paddle star)."""
     H = 11.0
     tk = hexc(PAL["fan_trunk"]); tkd = hexc(PAL["fan_trunk_dk"])
     lean = Vector((rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), 0))
@@ -379,38 +382,53 @@ def build_fanpalm(g, rng):
         g.face((topr[k], topr[(k + 1) % m], bot[k]), sk if k % 2 else skd)
         g.face((topr[(k + 1) % m], bot[(k + 1) % m], bot[k]), skd if k % 2 else sk)
     leaf = [hexc(c) for c in PAL["fan_leaf"]]
-    nf = rng.randint(15, 17)
+    burnt = hexc(PAL["fan_burnt"]); dead = [hexc(c) for c in PAL["frond_dead"]]
+    nf = rng.randint(14, 15)
     base = crown + Vector((0, 0, 0.35))
-    for i, a in enumerate(ring_dirs(nf, rng, 0.35)):
-        tier = i % 3  # 0 young (up, short), 1 level, 2 old (hanging)
+    fans = [(a, False) for a in ring_dirs(nf, rng, 0.35)] + [(rng.random() * 6.283, True) for _ in range(rng.randint(2, 3))]
+    for i, (a, is_dead) in enumerate(fans):
+        tier = 2 if is_dead else i % 3  # 0 young (up, short), 1 level, 2 old (hanging)
         d = Vector((math.cos(a), math.sin(a), 0))
-        stalk = (0.35, 0.8, 1.0)[tier] * rng.uniform(0.85, 1.15)
-        pitch = (0.75, 0.15, -0.45)[tier] + rng.uniform(-0.12, 0.12)
+        stalk = ((0.35, 0.85, 1.1)[tier] if not is_dead else 0.7) * rng.uniform(0.85, 1.15)
+        pitch = ((0.7, 0.0, -0.6)[tier] if not is_dead else -1.25) + rng.uniform(-0.12, 0.12)
         f = (d * math.cos(pitch) + Vector((0, 0, math.sin(pitch)))).normalized()
         hub = base + f * stalk
         side = d.cross(Vector((0, 0, 1))).normalized()
         sw = side * 0.05
         g.face((g.vert(base - sw), g.vert(base + sw), g.vert(hub + sw), g.vert(hub - sw)), tkd)
-        R = (1.05, 1.35, 1.35)[tier] * rng.uniform(0.9, 1.1)
-        col = rng.choice(leaf) if tier < 2 else tone(rng.choice(leaf), 0.82)
-        K = 9
+        R = ((1.0, 1.35, 1.4)[tier] if not is_dead else 1.2) * rng.uniform(0.9, 1.1)
+        if is_dead:
+            col = rng.choice(dead)
+        else:
+            col = rng.choice(leaf)
+            col = tuple(c * k for c, k in zip(col, (1.0, 1.0, 1.0) if tier == 0 else (0.92, 0.9, 0.86) if tier == 1 else (0.8, 0.78, 0.74)))
+        K = 7
         c0 = g.vert(hub)
-        rim = []
+        inner, rim = [], []
         for k in range(K + 1):
-            th = math.radians(-100 + 200 * k / K)
+            th = math.radians(-105 + 210 * k / K)
             dirv = f * math.cos(th) + side * math.sin(th)
-            droop = (0.25 + 0.2 * math.cos(th)) * R * (0.5 if tier == 0 else 1.0)
-            pleat = 0.12 * R * (1 if k % 2 else -1)
-            rim.append(g.vert(hub + dirv * R + Vector((0, 0, -droop + pleat))))
+            # the fan arches over and hangs at its edges; split segments with pointed tips
+            arch = (0.3 + 0.3 * math.cos(th)) * R * (0.5 if tier == 0 else 1.0)
+            pleat = 0.11 * R * (1 if k % 2 else -1)
+            inner.append(g.vert(hub + dirv * R * 0.5 + Vector((0, 0, -arch * 0.25 + pleat))))
+            jag = 1.0 if k % 2 == 0 else 0.62
+            rim.append(g.vert(hub + dirv * R * jag + Vector((0, 0, -arch * jag - (0.35 * R if is_dead else 0)))))
         for k in range(K):
-            g.face((c0, rim[k], rim[k + 1]), tone(col, 1.08 if k % 2 else 0.88), 0.03)
+            shade = 1.08 if k % 2 else 0.9
+            g.face((c0, inner[k], inner[k + 1]), tone(col, shade * 0.92), 0.03)
+            # the outer half of an old fan has burnt yellow-brown at its tips
+            tip = col if (is_dead or tier == 0) else tuple(c + (b - c) * (0.35 if tier == 2 else 0.18) for c, b in zip(col, burnt))
+            g.face((inner[k], rim[k], rim[k + 1], inner[k + 1]), tone(tip, shade), 0.03)
     return H
 
 
 def build_datepalm(g, rng):
-    """Phoenix dactylifera: a thick trunk armoured in diamond leaf bases, a big crown of long arching feather fronds
-    (narrow folded strips with a saw-tooth edge of leaflets, grey-green) — from above a feathery starburst — and
-    orange date clusters under the crown."""
+    """Phoenix dactylifera: a thick trunk armoured in diamond leaf bases; a crown of long FEATHER fronds, each a bare
+    midrib with stiff leaflets in pairs (gaps between them: the sand shows through) that arch up and droop to the tip,
+    dusty grey-green, yellowing at the tips of the old ones; three or four dead brown fronds hanging under the crown; date
+    clusters. From above a feathery, shaded starburst whose drooping tips foreshorten (the old solid ribbons in bright
+    green read as flat paddles)."""
     H = 9.5
     tk = hexc(PAL["date_trunk"]); tkd = hexc(PAL["date_trunk_dk"])
     lean = Vector((rng.uniform(-0.8, 0.8), rng.uniform(-0.8, 0.8), 0))
@@ -421,21 +439,54 @@ def build_datepalm(g, rng):
     tube(g, pts, radii, 6, tk, cap=None, offset_rings=True, col_fn=lambda s, k, tr: tk if tr == 0 else tkd)
     crown = pts[-1]
     leaf = [hexc(c) for c in PAL["date_leaf"]]
-    nf = rng.randint(15, 16)
-    w = [0.05, 0.22, 0.4, 0.26, 0.42, 0.24, 0.32, 0.0]
-    for i, a in enumerate(ring_dirs(nf, rng, 0.35)):
-        tier = i % 3
+    burnt = hexc(PAL["date_burnt"]); dead = [hexc(c) for c in PAL["frond_dead"]]
+    rib = hexc(PAL["date_rib"])
+    nf = rng.randint(13, 14)
+    fronds = [(a, False) for a in ring_dirs(nf, rng, 0.35)] + [(rng.random() * 6.283, True) for _ in range(rng.randint(2, 3))]
+    for i, (a, is_dead) in enumerate(fronds):
+        tier = 2 if is_dead else i % 3
         d = Vector((math.cos(a), math.sin(a), 0))
         L = rng.uniform(3.8, 4.6) * (0.8 if tier == 0 else 1.0)
-        rise = (2.6, 1.6, 0.7)[tier] * rng.uniform(0.85, 1.15)
-        droop = (2.3, 2.7, 3.1)[tier] * rng.uniform(0.85, 1.15)
-        p = arc(crown + Vector((0, 0, 0.3)) + d * 0.3, d, L, len(w), droop, rise)
-        # a slight sideways sweep, so the starburst is not ruled lines
-        sw = d.cross(Vector((0, 0, 1))).normalized() * rng.uniform(-0.5, 0.5)
-        p = [q + sw * ((k / (len(p) - 1)) ** 2) for k, q in enumerate(p)]
-        c = rng.choice(leaf)
-        ribbon(g, p, [x * rng.uniform(0.9, 1.1) for x in w], 0.5, [c, tone(c, 0.88)])
-    octa(g, crown + Vector((0, 0, 0.7)), 0.5, tone(leaf[2], 0.75), squash=1.4)
+        if is_dead:
+            rise, droop = 0.0, rng.uniform(3.6, 4.4)
+        else:
+            rise = (2.4, 1.4, 0.5)[tier] * rng.uniform(0.85, 1.15)
+            droop = (2.6, 3.1, 3.6)[tier] * rng.uniform(0.85, 1.15)
+        N = 8
+        p = arc(crown + Vector((0, 0, 0.2)) + d * 0.3, d, L, N, droop, rise)
+        sw = d.cross(Vector((0, 0, 1))).normalized() * rng.uniform(-0.4, 0.4)
+        p = [q + sw * ((k / (N - 1)) ** 2) for k, q in enumerate(p)]
+        base_c = rng.choice(dead) if is_dead else rng.choice(leaf)
+        if not is_dead and tier == 2:
+            base_c = tone(base_c, 0.82)
+        # the rachis: a thin pale strip down the whole frond (the spine of the feather, seen from above)
+        rc = tone(rib, 1.0 if not is_dead else 0.8)
+        spine = [p[0], p[2], p[4], p[6], p[7]]
+        for k in range(len(spine) - 1):
+            t = (spine[k + 1] - spine[k]).normalized()
+            sv = t.cross(Vector((0, 0, 1)))
+            sv = (sv.normalized() if sv.length > 1e-6 else Vector((1, 0, 0))) * (0.07 - 0.012 * k)
+            g.face((g.vert(spine[k] - sv), g.vert(spine[k] + sv), g.vert(spine[k + 1] + sv * 0.8), g.vert(spine[k + 1] - sv * 0.8)), rc, 0.03)
+        # leaflet pairs along the frond: stiff, angled forward and down, shorter toward the tip, a gap between pairs
+        for k in range(1, N - 1):
+            t = (p[k + 1] - p[k - 1]).normalized()
+            side = t.cross(Vector((0, 0, 1)))
+            side = side.normalized() if side.length > 1e-6 else Vector((1, 0, 0))
+            u = k / (N - 1)
+            lf = (1.1 - 0.6 * u) * (0.85 if is_dead else 1.0)
+            seg = (p[k + 1] - p[k]).length
+            c = base_c
+            if not is_dead:
+                c = tuple(cc + (b - cc) * (u ** 2) * (0.5 if tier == 2 else 0.25) for cc, b in zip(base_c, burnt))
+            for s in (1, -1):
+                droopv = Vector((0, 0, -lf * (0.45 if not is_dead else 0.8)))
+                a0 = p[k]
+                a1 = p[k] + t * seg * 0.92
+                tipv = p[k] + side * s * lf + t * lf * 0.6 + droopv
+                g.face((g.vert(a0), g.vert(a1), g.vert(tipv)), tone(c, 1.06 if s > 0 else 0.9), 0.05)
+        # the frond's tip
+        g.face((g.vert(p[N - 2]), g.vert(p[N - 1]), g.vert(p[N - 2] + (p[N - 1] - p[N - 2]) * 0.5 + d.cross(Vector((0, 0, 1))).normalized() * 0.12)), tone(base_c, 0.95), 0.03)
+    octa(g, crown + Vector((0, 0, 0.7)), 0.5, tone(leaf[2], 0.7), squash=1.4)
     dt = hexc(PAL["dates"])
     for _ in range(rng.randint(2, 3)):
         a = rng.random() * 6.283

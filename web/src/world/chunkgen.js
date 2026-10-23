@@ -59,7 +59,8 @@ class InstBuf {
   take() { return { n: this.n, m: this.m.slice(0, this.n * 16), c: this.c.slice(0, this.n * 3), e: this.e ? this.e.slice(0, this.n * this.k) : null }; }
 }
 class MeshBuf {
-  constructor(maxV, maxI, uv, col) { this.pos = new Float32Array(maxV * 3); this.nrm = new Float32Array(maxV * 3); this.uv = uv ? new Float32Array(maxV * 2) : null; this.col = col ? new Float32Array(maxV * 3) : null; this.idx = new Uint32Array(maxI); this.maxV = maxV; this.maxI = maxI; this.nv = 0; this.ni = 0; this.over = false; }
+  // flr: a ground's FLOOR channel (world/surfaces.js groundSurface): per vertex [forest floor, town floor] weights 0..1.
+  constructor(maxV, maxI, uv, col, flr = false) { this.pos = new Float32Array(maxV * 3); this.nrm = new Float32Array(maxV * 3); this.uv = uv ? new Float32Array(maxV * 2) : null; this.col = col ? new Float32Array(maxV * 3) : null; this.flr = flr ? new Float32Array(maxV * 2) : null; this.idx = new Uint32Array(maxI); this.maxV = maxV; this.maxI = maxI; this.nv = 0; this.ni = 0; this.over = false; }
   reset() { this.nv = 0; this.ni = 0; this.over = false; }
   room(v, i) { if (this.nv + v > this.maxV || this.ni + i > this.maxI) { this.over = true; return false; } return true; }
   v(x, y, z, nx, ny, nz, u = 0, w = 0, r = 1, g = 1, b = 1) {
@@ -68,6 +69,7 @@ class MeshBuf {
     this.nrm[o] = nx; this.nrm[o + 1] = ny; this.nrm[o + 2] = nz;
     if (this.uv) { this.uv[i * 2] = u; this.uv[i * 2 + 1] = w; }
     if (this.col) { this.col[o] = r; this.col[o + 1] = g; this.col[o + 2] = b; }
+    if (this.flr) { this.flr[i * 2] = 0; this.flr[i * 2 + 1] = 0; }
     return i;
   }
   tri(a, b, c) { this.idx[this.ni++] = a; this.idx[this.ni++] = b; this.idx[this.ni++] = c; }
@@ -81,7 +83,7 @@ class MeshBuf {
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
     return {
       nv: this.nv, ni: this.ni, pos: this.pos.slice(0, this.nv * 3), nrm: this.nrm.slice(0, this.nv * 3), uv: this.uv ? this.uv.slice(0, this.nv * 2) : null,
-      col: this.col ? this.col.slice(0, this.nv * 3) : null, idx: this.idx.slice(0, this.ni),
+      col: this.col ? this.col.slice(0, this.nv * 3) : null, flr: this.flr ? this.flr.slice(0, this.nv * 2) : null, idx: this.idx.slice(0, this.ni),
       bounds: { cx, cy, cz, r: Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + 0.5, wx0: x0 + ox, wx1: x1 + ox, wz0: z0 + oz, wz1: z1 + oz },
     };
   }
@@ -96,7 +98,7 @@ export function makeScratch() {
       boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
       ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(SPECIES[k].chunk ?? 400, 1)])), // extra: the variant (world/flora.js); a forest species holds more
     },
-    SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
+    SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
   };
 }
 const SHARED = makeScratch();
@@ -529,6 +531,13 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const gr = di || dj ? T.gridOf(cx + di, cz + dj) : TG;
       return gr[(dj < 0 ? N_G - 2 : dj > 0 ? 1 : j) * N_G + (di < 0 ? N_G - 2 : di > 0 ? 1 : i)];
     } : null;
+    // The FLOOR channel (world/surfaces.js groundSurface): a painted wood's forest floor, a holdout's packed-earth yard.
+    // Colour only (the layout hash never reads it); zero everywhere else, so P1's ground draws exactly as before.
+    const FW = BR && BR.layers.has('forest'), HO = RGN?.holdouts?.length ? RGN.holdouts : null;
+    const floorAt = (v, x, z) => {
+      if (FW) G.flr[v * 2] = BR.sample('forest', x, z, 0);
+      if (HO) { let ck = 0; for (const T2 of HO) ck = Math.max(ck, T2.cityK(x, z)); G.flr[v * 2 + 1] = ck; }
+    };
     for (let j = 0; j < N_G; j++) for (let i = 0; i < N_G; i++) {
       const x = ox + i * 8, z = oz + j * 8;
       tintAt(x, z, tc);
@@ -540,9 +549,11 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
         const hs = 1 + HILLSHADE * Math.max(-1, Math.min(1, (0.7071 * (sx + sz)) / T.g));
         for (let c = 0; c < 3; c++) tc[c] = (tc[c] + (tc[c] * ROCK_TONE[c] - tc[c]) * rock) * hs;
         idx[j * N_G + i] = G.v(i * 8, TG[j * N_G + i], j * 8, -sx / l, 1 / l, -sz / l, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
+        if (FW || HO) floorAt(idx[j * N_G + i], x, z);
         continue;
       }
       idx[j * N_G + i] = G.v(i * 8, 0, j * 8, 0, 1, 0, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
+      if (FW || HO) floorAt(idx[j * N_G + i], x, z);
       if (RGN && i === N_G - 1 && (j & 7) === 7) { pause(); yield; resume(); } // a region's tint asks the water: slices
     }
     for (let j = 0; j < N_G - 1; j++) for (let i = 0; i < N_G - 1; i++) {

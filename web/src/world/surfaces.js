@@ -92,24 +92,34 @@ vec3 roofTop(vec3 tint) {
     vec3 clay = mix(vec3(0.72, 0.36, 0.20), vec3(0.82, 0.50, 0.30), t);
     c = clay * (0.72 + 0.34 * barrel) * (0.82 + 0.18 * smoothstep(0.0, 0.25, course));
   } else if (kind < 4.0) {
-    vec2 cell = floor(vec2(a / 1.25, b / 2.5));
-    float r = rh1(cell + seed * 31.0);
-    vec2 f = vec2(fract(a / 1.25), fract(b / 2.5));
-    // Mostly salvaged sheet and plywood; a tarp is the exception, sun-faded (a roof of loud tarps read as a quilt).
-    if (r < 0.10) c = vec3(0.26, 0.42, 0.56);            // blue tarp
-    else if (r < 0.15) c = vec3(0.36, 0.46, 0.32);       // green tarp
-    else if (r < 0.19) c = vec3(0.72, 0.50, 0.28);       // orange tarp
-    else if (r < 0.44) c = vec3(0.52, 0.34, 0.22);       // rust sheet
-    else if (r < 0.66) c = vec3(0.66, 0.54, 0.38);       // plywood
-    else if (r < 0.76) {                                  // a solar panel: cells in a frame, a glint
-      vec2 g = fract(vec2(a / 0.31, b / 0.31));
-      float line = step(0.9, max(g.x, g.y));
-      c = mix(vec3(0.07, 0.12, 0.20), vec3(0.62, 0.64, 0.66), line);
-    } else c = vec3(0.64, 0.62, 0.58);                   // bare sheet metal
-    // Tarps lie in folds; every sheet has a lapped edge.
-    if (r < 0.19) c *= 0.86 + 0.18 * sin(a * 9.0 + b * 3.0 + r * 40.0);
-    float edge = step(min(min(f.x, 1.0 - f.x) * 1.25, min(f.y, 1.0 - f.y) * 2.5), 0.06);
-    c *= 1.0 - 0.28 * edge;
+    // Rebuilt from salvage: corrugated sheets of every age laid in staggered courses (0.9 x 2.4 m, the size sheets come
+    // in), ribbed and lapped; a plywood patch here and there; one tarp lashed over a leak; on some, a bank of salvaged
+    // solar panels. One patched roof, not a quilt of coloured squares (the old cells read as a quilt from the camera).
+    float row = floor(b / 2.4);
+    float aa = a + step(0.5, fract(row * 0.5)) * 0.45;
+    vec2 cell = vec2(floor(aa / 0.9), row);
+    float r = rh1(cell + seed * 31.0), s2 = rh1(vec2(seed * 7.3, 4.4));
+    float rib = 0.5 + 0.5 * sin(a * 6.2832 / 0.22);
+    vec3 base = vec3(0.56, 0.55, 0.52);                                                       // weathered galvanised
+    if (r < 0.34) base = mix(vec3(0.48, 0.31, 0.20), vec3(0.60, 0.40, 0.26), rh1(cell + 3.1)); // rust, every shade of it
+    else if (r < 0.46) base = vec3(0.68, 0.70, 0.70);                                          // a fresher sheet
+    else if (r < 0.55) base = vec3(0.46, 0.44, 0.41);                                          // an older, darker one
+    else if (r < 0.61) { base = vec3(0.62, 0.52, 0.38); rib = 0.55; }                          // a plywood patch
+    c = base * (0.80 + 0.28 * rib);
+    float lap = max(smoothstep(0.05, 0.0, abs(fract(b / 2.4) - 0.5) - 0.45), smoothstep(0.04, 0.0, abs(fract(aa / 0.9) - 0.5) - 0.46));
+    c *= 1.0 - 0.22 * lap;
+    // One tarp lashed over a leak: a rough-edged patch, sun-faded, in folds.
+    vec2 tq = vec2(u, v) - S * vec2(0.25 + 0.5 * rh1(vec2(seed, 1.7)), 0.25 + 0.5 * rh1(vec2(seed, 5.3)));
+    float trad = min(S.x, S.y) * (0.16 + 0.12 * rh1(vec2(seed, 9.1)));
+    float tarp = step(max(abs(tq.x), abs(tq.y) * 1.3) + 0.5 * rn(vec2(u, v) * 1.1 + seed * 13.0), trad) * step(0.3, s2);
+    vec3 tcol = s2 > 0.8 ? vec3(0.28, 0.42, 0.54) : s2 > 0.55 ? vec3(0.38, 0.46, 0.33) : vec3(0.64, 0.48, 0.30);
+    c = mix(c, tcol * (0.86 + 0.16 * sin(u * 7.0 + v * 2.3)), tarp);
+    // A bank of salvaged solar panels (two rows of three) on some.
+    vec2 pq = vec2(u, v) - vec2(S.x * 0.62, S.y * 0.2);
+    if (s2 > 0.62 && pq.x > 0.0 && pq.x < 3.1 && pq.y > 0.0 && pq.y < 3.3) {
+      vec2 g = vec2(fract(pq.x / 1.03), fract(pq.y / 1.65)), gg = fract(pq / 0.32);
+      c = mix(vec3(0.08, 0.12, 0.19), vec3(0.58, 0.60, 0.62), max(step(0.92, max(g.x, g.y)), 0.35 * step(0.9, max(gg.x, gg.y))));
+    }
   } else {
     float grit = rh1(floor(vec2(u, v) * 9.0));
     vec3 tar = vec3(0.42, 0.40, 0.37) * (0.82 + 0.3 * grit);
@@ -142,7 +152,7 @@ export function roofSurface(mat) {
       .replace('#include <common>', `#include <common>\n${FRAG_HEAD}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${FRAG_BODY}`);
   };
-  mat.customProgramCacheKey = () => 'roofSurface6';
+  mat.customProgramCacheKey = () => 'roofSurface7';
   return mat;
 }
 
@@ -238,5 +248,148 @@ export function wallSurface(mat) {
       .replace('#include <color_fragment>', `#include <color_fragment>\n${WALL_FRAG_BODY}`);
   };
   mat.customProgramCacheKey = () => 'wallSurface1';
+  return mat;
+}
+
+// Ground surfaces (docs/design/WEB_LOOK.md §3.7): the streamed ground's material (world/streamer.js), patched so that
+//   - the sand stops tiling: the 28 m sand tile repeated as a regular egg-crate of dune blotches from any height. A second
+//     sample of the same texture on a rotated, larger lattice is blended in by a world-space noise, so no two 28 m cells
+//     match. It fades in past the island's edge (464 to 684 m out), where the island's own ground meets the chunks', so
+//     that seam is untouched;
+//   - a FLOOR channel (the ground layer's aFloor attribute, chunkgen.js: [forest, town] weights 0..1 per vertex) paints a
+//     procedural floor over the sand: under a painted wood, dark leaf litter, needles, bare loam and moss; inside a
+//     holdout's wall, packed sand and grey earth, trampled grass, worn foot paths, grit, litter and puddles (which also go
+//     glossy). World-space, so it runs on across chunk seams; detail finer than a pixel fades out (no shimmer at the
+//     widest zoom). No texture, no draw call, no data: the layout hash never reads it.
+// Noise lattices wrap every WRAP metres (the world runs past 230 km: float32 can't hash those coordinates finely), each
+// lattice size divides WRAP, so the wrap is seamless.
+const WRAP = 2048;
+const GROUND_VERT_HEAD = /* glsl */`
+attribute vec2 aFloor;
+varying vec2 vGW;
+varying vec2 vFloor;
+`;
+const GROUND_VERT_BODY = /* glsl */`
+  {
+    vec4 gw = vec4(transformed, 1.0);
+    #ifdef USE_INSTANCING
+      gw = instanceMatrix * gw;
+    #endif
+    vGW = (modelMatrix * gw).xz;
+    vFloor = aFloor;
+  }
+`;
+const GROUND_FRAG_HEAD = /* glsl */`
+varying vec2 vGW;
+varying vec2 vFloor;
+float gh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// Value noise on a lattice of cell s metres, periodic every ${WRAP} m (w: the wrapped world position).
+float gn(vec2 w, float s) {
+  vec2 p = w / s, i = floor(p), f = fract(p), P = vec2(${WRAP.toFixed(1)} / s);
+  f = f * f * (3.0 - 2.0 * f);
+  vec2 i1 = mod(i + 1.0, P); i = mod(i, P);
+  return mix(mix(gh(i), gh(vec2(i1.x, i.y)), f.x), mix(gh(vec2(i.x, i1.y)), gh(i1), f.x), f.y);
+}
+float gfbm(vec2 w, float s) { return gn(w, s) * 0.5 + gn(w + 17.0, s * 0.5) * 0.3 + gn(w + 41.0, s * 0.25) * 0.2; }
+// One feature per cell of s metres: a hash in [0,1), and the distance (in cells) from a random point in the cell.
+vec2 gcell(vec2 w, float s, float salt) {
+  vec2 p = w / s, i = mod(floor(p), vec2(${WRAP.toFixed(1)} / s)), f = fract(p);
+  float h = gh(i + salt);
+  vec2 c = vec2(0.25 + 0.5 * gh(i + salt + 7.1), 0.25 + 0.5 * gh(i + salt + 3.7));
+  return vec2(h, length(f - c));
+}
+float gPuddle = 0.0;
+vec3 forestFloor(vec2 w, float px) {
+  float det = 1.0 - smoothstep(0.06, 0.3, px);     // fine detail where a pixel is smaller than it
+  vec2 q = w + 5.0 * vec2(gn(w, 16.0), gn(w + 9.0, 16.0)); // a warp: no ruled patches
+  vec3 leaves = mix(vec3(0.23, 0.20, 0.14), vec3(0.29, 0.24, 0.16), gn(q, 2.0));
+  vec3 needles = vec3(0.20, 0.18, 0.12);
+  vec3 loam = vec3(0.13, 0.11, 0.08);
+  vec3 moss = vec3(0.20, 0.26, 0.12);
+  vec3 c = mix(leaves, needles, smoothstep(0.38, 0.62, gfbm(q, 16.0)));
+  c = mix(c, loam, smoothstep(0.52, 0.78, gfbm(q + 31.0, 8.0)) * 0.8);
+  c = mix(c, moss, smoothstep(0.46, 0.7, gfbm(q + 63.0, 8.0)) * 0.9);
+  // single leaves: a leaf-sized fleck per 0.25 m cell, a shade of its own
+  vec2 lf = gcell(w, 0.25, 3.0);
+  c *= mix(1.0, 0.78 + 0.42 * lf.x, det * smoothstep(0.42, 0.3, lf.y));
+  // fallen twigs: thin dark lines along a ridge of the noise
+  float tw = 1.0 - smoothstep(0.0, 0.035, abs(gn(q + 77.0, 2.0) - 0.5));
+  c *= 1.0 - 0.35 * tw * det * step(0.55, gn(w, 4.0));
+  // the broad shading of a wood's floor: deeper in the hollows
+  c *= 0.82 + 0.3 * gn(q, 32.0);
+  return c;
+}
+vec3 townFloor(vec2 w, float px) {
+  float det = 1.0 - smoothstep(0.06, 0.3, px);
+  vec2 q = w + 7.0 * vec2(gn(w, 32.0), gn(w + 5.0, 32.0));
+  vec3 sand = vec3(0.60, 0.53, 0.41), earth = vec3(0.44, 0.39, 0.31), grass = vec3(0.40, 0.45, 0.26), mud = vec3(0.32, 0.27, 0.21);
+  vec3 c = mix(sand, earth, 0.15 + 0.6 * smoothstep(0.3, 0.75, gfbm(q, 8.0)));
+  c = mix(c, grass, smoothstep(0.6, 0.82, gfbm(q + 23.0, 8.0)) * (0.55 + 0.45 * gn(w, 1.0)));
+  // foot paths: the ridges of a slow noise, packed darker and swept of grass
+  float ridge = abs(gfbm(q + 51.0, 64.0) - 0.5);
+  float path = 1.0 - smoothstep(0.012, 0.04, ridge);
+  c = mix(c, earth * 0.86, path * 0.75);
+  // tyre ruts and drag marks: short dark streaks
+  c *= 1.0 - 0.12 * smoothstep(0.7, 0.9, gn(vec2(q.x * 0.25, q.y), 2.0)) * det;
+  // grit and pebbles
+  vec2 gr = gcell(w, 0.2, 9.0);
+  c *= mix(1.0, 0.82 + 0.34 * gr.x, det * smoothstep(0.38, 0.22, gr.y));
+  // litter: a scrap of paper, a rusted can, green glass, a rag (rare, small, square-ish)
+  vec2 lp = w / 1.3, li = mod(floor(lp), vec2(${WRAP.toFixed(1)} / 1.3)), lf2 = fract(lp) - 0.5;
+  float lh = gh(li + 13.0), la = gh(li + 5.3) * 3.1416;
+  vec2 lr = mat2(cos(la), -sin(la), sin(la), cos(la)) * lf2;
+  float bit = det * step(max(abs(lr.x) * 1.6, abs(lr.y) * 2.4), 0.16);
+  float kind = fract(lh * 13.7);
+  if (lh > 0.955) c = mix(c, kind < 0.35 ? vec3(0.70, 0.67, 0.59) : kind < 0.6 ? vec3(0.50, 0.42, 0.30) : kind < 0.85 ? vec3(0.42, 0.27, 0.17) : vec3(0.27, 0.36, 0.28), bit);
+  // puddles in the low spots (and the damp ring round them)
+  // puddles: small (a metre or three), only in the low corners of the yard (a slow mask), a damp rim round each
+  float pm = smoothstep(0.7, 0.82, gn(w + 13.0, 48.0)), pn = gfbm(q + 91.0, 2.5);
+  float damp = smoothstep(0.54, 0.6, pn) * pm, pd = smoothstep(0.6, 0.62, pn) * pm;
+  c = mix(c, mud, damp * 0.4);
+  c = mix(c, vec3(0.29, 0.27, 0.23), pd * 0.8);
+  gPuddle = pd;
+  c *= 0.94 + 0.1 * gn(q, 24.0);
+  return c;
+}
+`;
+const GROUND_MAP = /* glsl */`
+#ifdef USE_MAP
+  vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+  {
+    vec2 gw = mod(vGW, ${WRAP.toFixed(1)});
+    float edge = smoothstep(464.0, 684.0, max(abs(vGW.x), abs(vGW.y)));
+    vec2 uv2 = mat2(0.8, -0.6, 0.6, 0.8) * vMapUv * 0.613 + vec2(0.37, 0.71);
+    vec2 uv3 = mat2(0.28, 0.96, -0.96, 0.28) * vMapUv * 1.37 + vec2(0.11, 0.53);
+    vec4 s2 = texture2D( map, uv2 ), s3 = texture2D( map, uv3 );
+    float k = smoothstep(0.3, 0.7, gfbm(gw + 3.0, 64.0)) * edge, k3 = smoothstep(0.35, 0.75, gfbm(gw + 211.0, 128.0)) * edge;
+    sampledDiffuseColor = mix(mix(sampledDiffuseColor, s2, k), s3, k3 * 0.6);
+    sampledDiffuseColor.rgb *= 1.0 + (gfbm(gw + 97.0, 256.0) - 0.5) * 0.22 * edge; // broad dune light and shade
+  }
+  diffuseColor *= sampledDiffuseColor;
+#endif
+`;
+const GROUND_COLOR = /* glsl */`
+  if (vFloor.x + vFloor.y > 0.002) {
+    vec2 gw = mod(vGW, ${WRAP.toFixed(1)});
+    float px = length(fwidth(vGW));
+    if (vFloor.x > 0.001) diffuseColor.rgb = mix(diffuseColor.rgb, pow(forestFloor(gw, px), vec3(2.2)), smoothstep(0.0, 0.7, vFloor.x));
+    if (vFloor.y > 0.001) { float tk = smoothstep(0.0, 0.9, vFloor.y); diffuseColor.rgb = mix(diffuseColor.rgb, pow(townFloor(gw, px), vec3(2.2)), tk); gPuddle *= tk; }
+  }
+`;
+const GROUND_ROUGH = /* glsl */`
+  roughnessFactor = mix(roughnessFactor, 0.16, gPuddle);
+`;
+export function groundSurface(mat, key = 'groundSurface1') {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>\n${GROUND_VERT_HEAD}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${GROUND_VERT_BODY}`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\n${GROUND_FRAG_HEAD}`)
+      .replace('#include <map_fragment>', GROUND_MAP)
+      .replace('#include <color_fragment>', `#include <color_fragment>\n${GROUND_COLOR}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>\n${GROUND_ROUGH}`);
+  };
+  mat.customProgramCacheKey = () => key;
   return mat;
 }
