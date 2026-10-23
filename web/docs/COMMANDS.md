@@ -111,7 +111,7 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 
 | command | args | what it does |
 |---|---|---|
-| `talk` | `id:string force?:boolean` | Open a conversation with a character (id, npc id like "okonkwo", or name). You must be within 4m (moveTo them first); force=true snaps you next to them (testing only). |
+| `talk` | `id:string force?:boolean` | Open a conversation with a character (id, npc id like "okonkwo", or name). You must be within 4m (moveTo them first); force=true snaps you next to them (testing only). A sleeper is shaken awake first, as E does (woke: true). |
 | `choose` | `index:number` | Pick a dialogue choice by index (0-based). Returns the next line + choices. |
 | `dialogue` | `(none)` | Current dialogue text + choices. |
 
