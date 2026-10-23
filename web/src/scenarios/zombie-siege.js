@@ -17,10 +17,17 @@ export default async function (DL, game) {
   await DL.enterVehicle({ id: car.id, force: true });
   const hp0 = game.player.hp;
 
-  // 1. The horde arrives and goes for the glass.
+  // 1. The horde arrives and goes for the glass. Wait until the first pane gives (as a player would), not a fixed
+  // time: once the glass is out, an arm reaches in through every open side (8 a bite, one arm a side every 1.2 s), and
+  // a driver who sits out 14 s of a 14-strong horde is dead - the old fixed wait crashed this scenario on a null car.
   await DL.horde({ x: 300, z: 26, count: 14, runners: 0.3, radius: 6 });
-  let v = (await DL.step({ seconds: 14 })).vehicle;
-  note(`after 14s: windows ${JSON.stringify(v.windows)}, ${v.grabbers.length} hanging on, player hp ${Math.round(game.player.hp)}`);
+  let v = null;
+  for (let t = 0; t < 14; t += 0.5) {
+    v = (await DL.step({ seconds: 0.5 })).vehicle;
+    if (!v || game.events.some((e) => e.seq > since && e.type === 'windowBroken' && !e.fromInside)) break;
+  }
+  if (!v) return { playerAlive: game.player.alive, diedInTheCar: true, log: [...log, 'the horde got in before a window broke'] };
+  note(`first pane gone: windows ${JSON.stringify(v.windows)}, ${v.grabbers.length} hanging on, player hp ${Math.round(game.player.hp)}`);
 
   // 2. Shoot out of the windows at whatever is closest (first shot knocks our own glass out).
   for (let i = 0; i < 8; i++) {
@@ -28,6 +35,7 @@ export default async function (DL, game) {
     if (r.fired === 0 && r.note) break;
   }
   v = (await DL.state()).vehicle;
+  if (!v) return { playerAlive: game.player.alive, diedInTheCar: true, kills: game.stats.kills, log: [...log, 'dragged down while shooting back'] };
   note(`after shooting out of the windows: windows ${JSON.stringify(v.windows)}, kills so far ${game.stats.kills}`);
 
   // 3. Floor it and swerve to fling off anyone still hanging on.

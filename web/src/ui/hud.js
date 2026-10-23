@@ -543,13 +543,23 @@ export class HUD {
     // A witness running home to tell it: a pulsing red ring, held at the rim when they're off the map (systems/witnesses.js).
     const run = this.g.witnesses?.runners;
     if (run?.length) {
-      const pulse = 4.5 + 2 * Math.sin(this.g.time * 9), m = R - 12;
-      c.strokeStyle = '#ff4a3a'; c.lineWidth = 2.2;
+      // Where they're running to, dashed (clipped to the glass): the line to cut across. Then the ring, dark-backed so it
+      // never reads as one of the camps' red crosses.
+      const pulse = 6 + 2.5 * Math.sin(this.g.time * 9), m = R - 12;
+      c.save(); c.beginPath(); c.arc(R, R, m, 0, 6.3); c.clip();
+      c.setLineDash(DASH); c.lineWidth = 1.6; c.strokeStyle = 'rgba(255,90,58,0.85)';
       for (const ch of run) {
         if (!ch.runner || !ch.alive) continue;
-        const bx = (ch.x - px) * scale, bz = (ch.z - pz) * scale, d = Math.hypot(bx, bz), k = d > m ? m / d : 1;
-        c.beginPath(); c.arc(R + bx * k, R + bz * k, pulse, 0, 6.3); c.stroke();
-        c.fillStyle = '#ff4a3a'; c.beginPath(); c.arc(R + bx * k, R + bz * k, 2.2, 0, 6.3); c.fill();
+        const hb = ch.runner.hub;
+        c.beginPath(); c.moveTo(R + (ch.x - px) * scale, R + (ch.z - pz) * scale); c.lineTo(R + (hb.x - px) * scale, R + (hb.z - pz) * scale); c.stroke();
+      }
+      c.setLineDash(SOLID); c.restore();
+      for (const ch of run) {
+        if (!ch.runner || !ch.alive) continue;
+        const bx = (ch.x - px) * scale, bz = (ch.z - pz) * scale, d = Math.hypot(bx, bz), k = d > m ? m / d : 1, x = R + bx * k, y = R + bz * k;
+        c.lineWidth = 4.5; c.strokeStyle = '#1b1410'; c.beginPath(); c.arc(x, y, pulse, 0, 6.3); c.stroke();
+        c.lineWidth = 2.4; c.strokeStyle = '#ff5a3a'; c.stroke();
+        c.fillStyle = '#f3e6cf'; c.beginPath(); c.arc(x, y, 2.6, 0, 6.3); c.fill();
       }
     }
     for (const v of this.g.vehicles) if (!v.dead && v !== this.g.player.inVehicle) this.blip(v.x - px, v.z - pz, scale, v.driver?.faction === 'raider' ? '#ff4a3a' : '#e8e2d4', 2.8);
