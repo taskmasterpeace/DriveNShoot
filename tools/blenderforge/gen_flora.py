@@ -874,10 +874,15 @@ def camera(kind, span, aspect=16 / 9):
     return co
 
 
-def render(path, res=(960, 540)):
+def render(path, res=(800, 450)):
     scn = bpy.context.scene
     scn.render.resolution_x, scn.render.resolution_y = res
     scn.render.resolution_percentage = 100
+    st = scn.render.image_settings
+    st.file_format = 'PNG'
+    st.color_mode = 'RGB'      # no alpha, 8-bit, max compression: previews stay small in the repo
+    st.color_depth = '8'
+    st.compression = 100
     scn.render.filepath = path
     bpy.ops.render.render(write_still=True)
     print("PREVIEW %s" % path)

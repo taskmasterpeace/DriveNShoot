@@ -19,6 +19,7 @@ This doc covers what was built for that and the study that decides the layouts t
 | Roofs | `world/surfaces.js`: five procedural roofs on every roof-sized instance | 97995d9b, b676e23d |
 | Rust Haven's blocks | `data/holdout.js` and `world/city.js`: sidewalks round dirt yards, a market square, yard fill | b676e23d |
 | Floor plans | real rooms in ring houses | separate branch, in progress |
+| Trees and desert plants | `tools/blenderforge/gen_flora.py` (Blender) → `web/public/models/flora/*.glb` → `world/flora.js` (§3.6) | feat/web-trees |
 
 ## 2. Player fantasy
 
@@ -130,6 +131,81 @@ city keeps its parts full size and has fewer of them: fewer blocks, never smalle
 - The city planner: zoned cells, edge sockets (a corner shop knows which sides face a street), size tiers by population,
   and a road survey relaxed to a maximum grade.
 
+### 3.6 Trees and desert plants
+
+Robert, on the trees: "We have some Blender skills maybe. Or whatever scripts. Or trees. You should use [them]." Before
+this, a palm was a star of flat boxes, palo verde, mesquite and citrus were clumps of icosahedra, a saguaro was seven
+boxes, a Joshua tree a stick under green lumps, and the dead trees were sticks with three box limbs.
+
+**The factory.** `tools/blenderforge/gen_flora.py` builds every plant from raw vertices in headless Blender 5.1. It
+uses no primitives and no booleans. Usage is in the script's header:
+
+```
+node tools/blenderforge/blender.mjs gen_flora.py -- --previews --sheet [species...]
+```
+
+`blender.mjs` finds Blender 5.x. On this machine that is `D:/Program Files/Blender Foundation/Blender 5.1`. `$BLENDER`
+points at 4.5 and is used only if nothing else is found.
+
+**Species.** Each species has three seeded variants. Every variant has 150–600 triangles, and the build fails outside
+that budget.
+
+| species | what reads from above | triangles (v0/v1/v2) |
+|---|---|---|
+| `paloverde` | green limbs through an airy, broken yellow-green crown of leaf puffs; yellow blossom flecks | 458 / 466 / 458 |
+| `mesquite` | a dark, low umbrella, wider than it is tall | 460 / 460 / 424 |
+| `fanpalm` | a full, ragged disc of pleated fans in three tiers, over a shag skirt and a ringed trunk | 292 / 281 / 303 |
+| `datepalm` | a feathery starburst of folded, saw-edged fronds; diamond leaf bases on the trunk; dates | 544 / 536 / 518 |
+| `citrus` | a round dark dome dotted with fruit (variant 2 has lemons) | 484 / 460 / 460 |
+| `saguaro` | a ribbed star with arms that leave level and turn up; a pale crown | 196 / 336 / 266 |
+| `joshua` | forked limbs, each ending in a spiky pom-pom over a dead-leaf collar | 256 / 248 / 248 |
+| `ocotillo` | a burst of thin canes with red flower tips | 317 / 398 / 317 |
+| `deadtree` | a bleached grey skeleton | 415 / 480 / 495 |
+| `tumbleweed` | a tan ball of crooked twigs | 416 / 416 / 416 |
+| `creosote` | a low mound of dark olive clumps, flecked yellow | 284 / 242 / 284 |
+| `pricklypear` | flat pads turned to the sky, red fruit on the rims | 400 / 368 / 384 |
+
+**Colour.** Colour is per-face vertex colour in one shared material, with no textures. Tops are shaded lighter than
+undersides so a crown reads under a high sun. At start-up every palette entry is checked against hue 270–320 (no
+purple).
+
+**Output.**
+- GLBs: `web/public/models/flora/<species>.glb`, with variant nodes `<species>_v0`–`_v2`.
+- Manifest: `web/public/models/flora/flora.json`, with height, crown reach and triangles.
+- Previews: `docs/renders/web/flora/<species>_{top,game,hero}.png`, plus the contact sheets `sheet_top.png` and
+  `sheet_game.png`. Every preview was looked at before wiring.
+
+**The loader.** `world/flora.js` turns each species into one InstancedMesh, held as a streamer `Pool`:
+- Each variant's parts are merged into one geometry with vertex colours.
+- The three variants are packed into one geometry. A per-vertex `fvar` says which variant a vertex belongs to. A
+  per-instance `aVar` picks the variant to show, and the vertex shader collapses the other two to a point. The shadow
+  depth material carries the same patch.
+- The result is one draw, plus one shadow draw, per species with anything planted, at the cost of running the vertex
+  shader on all three variants.
+- The API is `flora.add(kind, x, z, scale, rot, { variant, tint, y })`, then `flora.flush()`. `scale` is a multiple of
+  the model's height (`SPECIES[kind].h`); `crownScale()` converts the canopy rows' h, r and squash.
+- The GLBs load asynchronously. Until a species arrives, its mesh is a degenerate placeholder.
+
+**Wiring.** Positions, turns, collision boxes and every RNG draw are unchanged. Where old code drew from the RNG for box
+limbs or arms, those draws are still made and discarded, so nothing laid out after them moves.
+
+| where | before | now |
+|---|---|---|
+| island living trees (`city.js`) | trunk cylinders, icosahedron canopies, box-frond palm crowns | `plantIsland()`: palms become `fanpalm`, or `datepalm` one time in three; yard trees become their species |
+| island cacti and dead trees (`city.js`) | cylinders; trunk + 3 box limbs | `saguaro` at 2.3 m or taller, else `pricklypear` or `ocotillo`; `deadtree` |
+| ring yards (`ring.js` `yardOf` → `chunkgen.js`) | trunks pool + shrub-pool crowns | `g.flora` rows → `fl_<species>` pools; a ruin's yard trees are `deadtree` |
+| desert scatter (`chunkgen.js`) | saguaro of 1 + 2 boxes per arm; Joshua trunk + lumps; dead trunk + box limbs | `saguaro`, `joshua`; live `paloverde` (Arizona's 60%) or `deadtree` |
+
+Yucca, barrel and cholla cacti, and the creosote scatter are unchanged. `creosote` and `tumbleweed` are built but not
+placed: the streamed shrub scatter has hundreds of instances per chunk, which is too many for the packed-variant vertex
+cost.
+
+**Proof** (`docs/renders/web/flora/before_*.jpg` and `after_*.jpg`, at 10:30 in clear weather):
+- `market` / `market_close`: Rust Haven's market square with its palms.
+- `yard` / `yard_close`: a ring yard at (676, −184) with palo verde in front and citrus behind.
+- `saguaro_i10` / `saguaro_close`: saguaro desert beside I-10 at mile 15.
+- `joshua_i10` / `joshua_close`: Joshua trees off I-10 at mile 5, in California.
+
 ## 4. Formulas
 
 **Light.**
@@ -176,6 +252,8 @@ weighted by `yard.kinds`: garden 5, washing 3, tank 2, shade 2 (out of 12).
 | WEB_STREAMING | the island golden hash re-pin (§3.4); the render-origin note (§5) |
 | WEB_STOREYS | storeyed buildings' roofs go through the same material |
 | floor plans (in progress) | rooms inside ring houses; next, Rust Haven's buildings |
+| `world/flora.js` | the tree and plant pools (§3.6); `city.js`, `chunkgen.js` and `streamer.js` share them |
+| `tools/blenderforge/gen_flora.py` | the models; re-run it after any change to a species, then look at the previews |
 
 ## 7. Tuning knobs
 
@@ -191,6 +269,9 @@ weighted by `yard.kinds`: garden 5, washing 3, tank 2, shade 2 (out of 12).
 | `SIDEWALK` | city.js | 3.5 m | 2.5–5 | sidewalk width round a block |
 | `market.aisle`, `slots`, `fill` | holdout.js | 6.5 m, 6 slots, 0.85 | aisle 5–8 | market density |
 | `yard.margin`, `doorClear` | holdout.js | 3.0, 4.5 m | 2.5–4, 3.5–6 | how full the yards are; keep doors clear for walkers |
+| `SPECIES[kind].cap` | flora.js | 300–3,000 | ≥ island + hot chunks' use | instances a species can hold at once (`world` reports pool fill) |
+| `TRI_MIN`, `TRI_MAX` | gen_flora.py | 150, 600 | — | the per-variant triangle budget the factory enforces |
+| `PAL` | gen_flora.py | per species | no hue 270–320 | the plants' colours; checked at start-up |
 
 ## 8. Acceptance criteria
 
@@ -202,3 +283,33 @@ weighted by `yard.kinds`: garden 5, washing 3, tank 2, shade 2 (out of 12).
 - `selftest` is green twice on fresh pages, including the island golden-hash check (now `eb103eab`).
 - `scenario name=stress` does not regress by more than 0.2 ms (A/B against the commit before 97995d9b).
 - Proof screenshots are in `docs/renders/web/light-pass/`.
+
+**Trees (§3.6).**
+- Every species' preview was looked at before wiring. Every variant has 150–600 triangles, and `gen_flora.py` fails
+  the build otherwise.
+- Draw calls stay at or under 150. Measured before → after at the default zoom (34 m):
+
+  | place | draw calls |
+  |---|---|
+  | home | 75 → 79 |
+  | Rust Haven's market | 76 → 80 |
+  | a ring yard | 71 → 76 |
+  | saguaro desert at mile 15 | 61 → 70 |
+  | Joshua desert at mile 5 | 58 → 68 |
+
+  At the widest zoom, after: home 88, the densest ring chunk 82, the saguaro desert 72.
+- The added draws are at most 10. A planted species costs 1 draw plus 1 for its shadow, and the island's five old
+  meshes are gone. Flora pools are not frustum-culled (pool law), so in the desert the island's species still draw;
+  that is the +9/+10 there.
+- Frame time in one page with the flora pools in the scene and taken out (A/B/A/B, 180 frames each, RTX 4090):
+
+  | place | flora on | flora off |
+  |---|---|---|
+  | home | 7.7–7.8 ms | 7.0–8.1 ms |
+  | ring yard | 8.1–8.5 ms | 7.2–7.7 ms |
+  | saguaro desert | 7.9–8.0 ms | 7.5–7.7 ms |
+
+  The cost is under 1 ms. Triangles submitted roughly double, because the packed variants count three times. If a
+  weaker GPU is vertex-bound, the fix is one pool per variant: three draws per species instead of one.
+- `selftest` is 135/135 twice on fresh pages. That includes the island golden hash (unchanged: no collision box moved),
+  "a chunk is a pure function of the data", the pool leak lap, and the ring's draw-call checks.
