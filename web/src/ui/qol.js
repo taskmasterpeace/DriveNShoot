@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HALF } from '../world/city.js';
+import { HALF, locationName } from '../world/city.js';
 import { snapshot, restore } from '../agent/api.js';
 import { paintPaper, paintPin } from './hudart.js';
 import { NPCS } from '../data/npcs.js';
@@ -208,6 +208,9 @@ export class QOL {
     const [ox, oz] = T(0, 0);
     c.strokeStyle = 'rgba(200,150,90,0.8)'; c.lineWidth = 3; c.setLineDash([8, 6]); c.beginPath(); c.arc(ox, oz, 45000 * k, 0, 7); c.stroke(); c.setLineDash([]);
     // Phoenix.
+    // The metro round it (world/ring.js): its lobed edge, then the island.
+    const RG = W.ring;
+    if (RG) { c.fillStyle = 'rgba(78,64,50,0.9)'; c.beginPath(); for (let a = 0; a <= 64; a++) { const th = (a / 64) * Math.PI * 2, r = RG.edgeAt(Math.cos(th), Math.sin(th)); const [x, y] = T(Math.cos(th) * r, Math.sin(th) * r); if (a) c.lineTo(x, y); else c.moveTo(x, y); } c.fill(); }
     c.fillStyle = '#5e4a36'; c.fillRect(...T(-464, -464), 928 * k, 928 * k);
     // The interstate and the exits' roads.
     c.lineCap = 'round'; c.lineJoin = 'round';
@@ -241,10 +244,75 @@ export class QOL {
     c.fillText(`${W.regionAt(px, pz)} · 24 KM ACROSS`, S - 10, S - 12);
   }
 
+  // In the Phoenix ring the big map is the metro (world/ring.js): Rust Haven's island map in the middle and every street,
+  // block and building of the dead city round it, 3.8 km across. The city layer is painted once (the first time the map
+  // opens out here: ~0.1 s while the game is paused under it); the live marks go on top every time.
+  drawMetro(px, pz) {
+    const g = this.g, W = g.streamer.W, RG = W.ring, c = this.el.mapCanvas.getContext('2d'), S = 760, span = 3800, x0 = -span / 2, z0 = -span / 2, k = S / span;
+    const T = (x, z) => [(x - x0) * k, (z - z0) * k];
+    this.region = { x0, z0, span };
+    if (!this.metroBg) {
+      const bg = document.createElement('canvas'); bg.width = bg.height = S * 2;
+      const b2 = bg.getContext('2d'), K2 = k * 2, T2 = (x, z) => [(x - x0) * K2, (z - z0) * K2];
+      b2.fillStyle = '#3a2c1f'; b2.fillRect(0, 0, S * 2, S * 2);
+      // The city's footprint, then each block tinted by its zone.
+      const ZT = { residential: '#4a3a2a', industrial: '#3d3b38', strip: '#4e4232', ruins: '#352c24' };
+      const n = RG.kMax;
+      for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+        const b = RG.block(i, j);
+        if (!b.city) continue;
+        b2.fillStyle = ZT[b.zone] ?? '#4a3a2a'; const [a, c2] = T2(b.x0 - 3, b.z0 - 3); b2.fillRect(a, c2, (b.x1 - b.x0 + 6) * K2, (b.z1 - b.z0 + 6) * K2);
+      }
+      b2.fillStyle = '#16171a';
+      for (const s of RG.streets(-RG.reach, -RG.reach, RG.reach, RG.reach)) { const [a, c2] = T2(s.x0, s.z0); b2.fillRect(a, c2, Math.max(1, (s.x1 - s.x0) * K2), Math.max(1, (s.z1 - s.z0) * K2)); }
+      // The interstate.
+      b2.strokeStyle = '#2a2622'; b2.lineWidth = 26 * K2; b2.lineCap = 'round'; b2.beginPath();
+      const cl = W.cl; let on = false;
+      for (let i = 0; i < cl.n; i += 2) { const x = cl.x[i], z = cl.z[i]; if (Math.abs(x) > 2100 || Math.abs(z) > 2100) { on = false; continue; } const [a, c2] = T2(x, z); if (on) b2.lineTo(a, c2); else { b2.moveTo(a, c2); on = true; } }
+      b2.stroke();
+      // The Iron Line on through the yards.
+      b2.fillStyle = '#6a5a40'; { const [a, c2] = T2(-361.5, -RG.reach); b2.fillRect(a, c2, 3 * K2, RG.reach * 2 * K2); }
+      // Every building (a ruin paler, open to the sky).
+      const m = Math.ceil(RG.reach / 256) + 1;
+      for (let cx = -m; cx <= m; cx++) for (let cz = -m; cz <= m; cz++) for (const L of RG.owned(cx, cz)) {
+        b2.fillStyle = L.ruined ? '#6c6358' : L.zone === 'industrial' ? '#77706a' : L.zone === 'strip' ? '#9a7a52' : '#8e6a48';
+        const [a, c2] = T2(L.x0, L.z0); b2.fillRect(a, c2, (L.x1 - L.x0) * K2, (L.z1 - L.z0) * K2);
+      }
+      // Rust Haven's island in the middle, from its own map.
+      const isl = g.world.minimap, H = 450; { const [a, c2] = T2(-H, -H); b2.drawImage(isl, a, c2, H * 2 * K2, H * 2 * K2); }
+      // Names of the parts of the city.
+      b2.font = '700 26px Barlow Condensed'; b2.textAlign = 'center'; b2.lineWidth = 6; b2.strokeStyle = '#1b1410'; b2.fillStyle = '#e8d6b0';
+      const label = (t, x, z) => { const [a, c2] = T2(x, z); b2.strokeText(t, a, c2); b2.fillText(t, a, c2); };
+      // One name per zone per quarter of the city, at the middle of its blocks there.
+      const acc = new Map();
+      for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+        const b = RG.block(i, j);
+        if (!b.city) continue;
+        const key = `${b.zone}${b.cx > 0 ? 'E' : 'W'}${b.cz > 0 ? 'S' : 'N'}`, a = acc.get(key) ?? { n: 0, x: 0, z: 0, name: b.Z.name };
+        a.n++; a.x += b.cx; a.z += b.cz; acc.set(key, a);
+      }
+      for (const a of acc.values()) if (a.n >= 14) label(a.name, a.x / a.n, a.z / a.n);
+      this.metroBg = bg;
+    }
+    c.drawImage(this.metroBg, 0, 0, S, S);
+    for (const camp of g.world.spawns.camps) { const [x, y] = T(camp.x, camp.z); c.fillStyle = '#ff4a3a'; c.font = 'bold 14px Barlow Condensed'; c.textAlign = 'center'; c.fillText('✕', x, y + 5); }
+    this.drawRoute(c, T, 2);
+    if (this.waypoint) { const [x, y] = T(this.waypoint.x, this.waypoint.z); c.strokeStyle = '#f5b21a'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 9, 0, 7); c.stroke(); }
+    const p = g.player, [ax, ay] = T(px, pz);
+    c.save(); c.translate(ax, ay); c.rotate(-(p.inVehicle ? p.inVehicle.h : p.face) + Math.PI);
+    c.fillStyle = '#f5b21a'; c.strokeStyle = '#1b1410'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0, -11); c.lineTo(8, 9); c.lineTo(0, 4); c.lineTo(-8, 9); c.closePath(); c.fill(); c.stroke(); c.restore();
+    c.font = '700 13px Barlow Condensed'; c.fillStyle = '#f2e6d0'; c.textAlign = 'right';
+    c.fillText(`PHOENIX · ${locationName(px, pz)} · 3.8 KM ACROSS`, S - 10, S - 12);
+  }
   drawBigMap() {
     const g = this.g, pp = g.player, px = pp.inVehicle ? pp.inVehicle.x : pp.x, pz = pp.inVehicle ? pp.inVehicle.z : pp.z;
     this.region = null;
-    if (g.streamer && (Math.abs(px) > 464 || Math.abs(pz) > 464)) { this.drawRegion(px, pz); return; }
+    if (g.streamer && (Math.abs(px) > 464 || Math.abs(pz) > 464)) {
+      // In the Phoenix ring (and a little past its edge) the metro map; farther out, the regional one.
+      if (g.streamer.W.ring?.inCity(px, pz, 300)) this.drawMetro(px, pz); else this.drawRegion(px, pz);
+      return;
+    }
     const c = this.el.mapCanvas.getContext('2d'), S = 760, k = S / (HALF * 2);
     const T = (x, z) => [(x + HALF) * k, (z + HALF) * k];
     c.drawImage(g.world.minimap, 0, 0, S, S);

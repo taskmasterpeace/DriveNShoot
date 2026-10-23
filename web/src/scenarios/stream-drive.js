@@ -8,10 +8,12 @@
 //   perf     the spec's perf case: night, an acid storm, the widest zoom, two raider buggies chasing, 120 s held at
 //            V_ref = 46 m/s across an interchange (speed held like a steady foot: no rig reaches 46 flat out) after a
 //            15 s warm-up; max draw calls, frame ms, pump ms, stalls, heap growth.
+//   ring     the Phoenix ring (WEB_STREAMING §1.3): night, an acid storm, the widest zoom, 46 m/s on I-10 across the dead
+//            city, then 25 s up the arterial x = 640 through its blocks: draw calls, layout ms, pools, zero cross/promote.
 //   ceiling  60 s held at 60 m/s (the spec's speed-ceiling probe): zero stalls.
 // game.streamDrive = { phases: ['gate'] } (set with exec first) runs only some. Run: node tools/dl.mjs scenario name=stream-drive
 export default async function (DL, game) {
-  const S = game.streamer, W = S.W, phases = game.streamDrive?.phases ?? ['vref', 'gate', 'perf', 'ceiling'];
+  const S = game.streamer, W = S.W, phases = game.streamDrive?.phases ?? ['vref', 'gate', 'perf', 'ring', 'ceiling'];
   const out = {};
   await DL.start();
   await DL.god({ on: true });
@@ -92,6 +94,31 @@ export default async function (DL, game) {
     out.perf = { vehicle: v.name, heldAt: 46, metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), to: `mile ${(W.project(v.x, v.z, 600).s / 1609.344).toFixed(1)}`, maxDrawCalls: run.maxDrawCalls, maxTriangles: run.maxTriangles,
       frameMs: run.frameMs, pumpMs: pump, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, heapGrowthMB: +((heap1 - heap0) / 1048576).toFixed(1), heapMethod: gcNow ? 'gc' : 'floor',
       pass: run.maxDrawCalls < 150 && run.frameMs.p95 < 8 && run.frameMs.max < 25 && pump.p95 <= 2.5 && st.cross === st0.cross && st.promote === st0.promote && (heap1 - heap0) < 15 * 1048576 };
+    clear();
+  }
+
+  if (phases.includes('ring')) {
+    // The Phoenix ring (world/ring.js): night, an acid storm, the widest zoom, held at 46 m/s on I-10 out of the island
+    // east through the dead city to its edge (the strip and the houses either side), then 25 s up an arterial through the
+    // densest blocks (the line x = 640, north). Ring chunks are the dearest to lay out: zero cross/promote stalls here
+    // is the streamer keeping ahead of them.
+    await DL.setTime({ hour: 23 }); await DL.setWeather({ key: 'STORM', instant: true });
+    game.setZoom?.(4);
+    const s0 = W.sIslE + 20, v = await put('interceptor', s0, 1), st0 = stalls(), x0 = v.x, z0 = v.z;
+    S.pumpN = 0; S.pumpMax = 0;
+    const costs0 = S.buildCosts.length;
+    const a = await S.runFrames(32, () => { const q = S.autopilot(v, 1, 0); game.driveOverride = { throttle: 1, steer: q.steer }; v.vx = Math.sin(v.h) * 46; v.vz = Math.cos(v.h) * 46; });
+    clear();
+    // Up the arterial: straight north along x = 640 from the freeway's edge.
+    const r = await DL.spawnVehicle({ type: 'interceptor', x: 640, z: -60, heading: Math.PI, paint: '#6a2a1a' });
+    await DL.enterVehicle({ id: r.id, force: true }); await DL.teleport({ x: 640, z: -60 });
+    const u = game.player.inVehicle; spawned.push(u);
+    const b = await S.runFrames(25, () => { game.driveOverride = { throttle: 1, steer: 0 }; u.h = Math.PI; u.vx = 0; u.vz = -30; }); // held on the line (a probe, like the speed holds above)
+    const st = stalls(), pump = S.pumpStats(), costs = S.buildCosts.slice(costs0).sort((p, q) => p - q);
+    out.ring = { freeway: { metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), maxDrawCalls: a.maxDrawCalls, frameMs: a.frameMs }, arterial: { to: [Math.round(u.x), Math.round(u.z)], maxDrawCalls: b.maxDrawCalls, frameMs: b.frameMs },
+      pumpMs: pump, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, layouts: costs.length, layoutMs: costs.length ? { p50: costs[Math.floor(costs.length / 2)], p95: costs[Math.floor(costs.length * 0.95)], max: costs[costs.length - 1] } : null,
+      pools: Object.fromEntries(Object.entries(S.pools).map(([k, p]) => [k, { used: p.used, high: p.high, cap: p.cap, full: p.full }])),
+      pass: Math.max(a.maxDrawCalls, b.maxDrawCalls) < 150 && st.cross === st0.cross && st.promote === st0.promote && Object.values(S.pools).every((p) => !p.full) };
     clear();
   }
 

@@ -1,4 +1,4 @@
-// THE PHOENIX RING, R1 (docs/design/WEB_STREAMING.md §9): the dead metro around the island, as a pure function of the
+// THE PHOENIX RING, R1 (docs/design/WEB_STREAMING.md §1.3): the dead metro around the island, as a pure function of the
 // rows in data/ring.js, the world seed and the I-10 corridor. Chunks (world/chunkgen.js) ask it for what they hold:
 //   streets  - the island's own lattice carried outward (a line every 80 m; every 4th an arterial), from the first ring
 //              street that hugs the island out to a lobed edge near 1.5 km; local streets stop at I-10, arterials cross it

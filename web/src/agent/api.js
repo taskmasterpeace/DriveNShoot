@@ -270,10 +270,18 @@ function buildCommands(api) {
       },
     },
     chunk: {
-      group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one.',
-      args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] } },
-      run: async ({ x, z, build, fresh, mode }) => {
+      group: 'world', desc: 'One 256 m chunk at x,z (metres; default where you are): its key, tier (hot | layout | none), the layout hash, build cost, biome and state, collision boxes, buildings, instances per pool, surface vertices, and its four edge signatures (a neighbour\'s opposite edge must match). build=true lays it out if it is not (a `test` stall). fresh=true builds a throwaway copy in mode=sync or sliced (tiny slices spread over many frames) and reports whether its hash matches the resident one. In the Phoenix ring its `ring` says how many buildings it draws and how many reach into it, its containers and beds, streets, and the ms its ring stage took. evict=true drops the layout (tests; never a pinned chunk or the one you stand in).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, build: { type: 'boolean', default: false }, fresh: { type: 'boolean', default: false }, mode: { type: 'string', default: 'sync', enum: ['sync', 'sliced'] }, evict: { type: 'boolean', default: false } },
+      run: async ({ x, z, build, fresh, mode, evict }) => {
         const S = g.streamer, cx0 = x ?? P().x, cz0 = z ?? P().z;
+        if (evict) {
+          // Drop the chunk's layout outright (tests: a Phoenix ring chunk's containers go with it, what was taken is kept).
+          const key = `${Math.floor(cx0 / 256)},${Math.floor(cz0 / 256)}`;
+          need(!S.pinned.has(key), `chunk ${key} is pinned (Phoenix's own): never evicted`);
+          need(Math.floor(P().x / 256) !== Math.floor(cx0 / 256) || Math.floor(P().z / 256) !== Math.floor(cz0 / 256), 'you are standing in it: go somewhere else first');
+          const had = S.layouts.has(key); S.evict(key);
+          return { key, evicted: had, tier: S.chunkView(cx0, cz0).tier };
+        }
         if (build || fresh) S.ensureLayout(cx0, cz0, 'test');
         const out = S.chunkView(cx0, cz0);
         if (fresh) {
@@ -289,6 +297,28 @@ function buildCommands(api) {
           out.fresh = { mode, hash: r.value.hash, slices, ms: +(performance.now() - t0).toFixed(1), matches: r.value.hash === out.hash, edges: r.value.edges };
         }
         return out;
+      },
+    },
+    ring: {
+      group: 'world', desc: 'The Phoenix ring (docs/design/WEB_STREAMING.md §1.3; rows in data/ring.js): the dead metro round the island out to a lobed edge near 1.5 km, streamed in chunks. No args: the footprint, the whole ring counted (blocks, buildings by zone and kind, ruins, lots left empty, lots over a chunk\'s budget), the densest chunk. x,z (default where you are): what is there - inside the city or not, the street or district name, the block and its zone, the building at that spot (id, kind, zone, ruined, its doors, rooms, containers with their loot tables and whether they have been opened, beds) and its chunk (buildings it owns, containers, layout ms). Walk into one (moveTo) and its roof hides; its crates and shelves open on the PACK screen (pack on=true).',
+      args: { x: { type: 'number' }, z: { type: 'number' } },
+      run: async ({ x, z }) => {
+        const RG = g.streamer.W.ring, px = x ?? P().x, pz = z ?? P().z;
+        const sv = RG.survey(), n = Math.ceil(RG.reach / 256) + 1;
+        let dense = null;
+        for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) { const o = RG.owned(cx, cz); if (!dense || o.length > dense.buildings) dense = { key: `${cx},${cz}`, x: (cx + 0.5) * 256, z: (cz + 0.5) * 256, buildings: o.length }; }
+        const b = RG.block(Math.floor(px / 80), Math.floor(pz / 80)), L = RG.at(px, pz), inv = g.inventory;
+        const geo = L ? RG.geo(L) : null, ch = g.streamer.chunkView(px, pz);
+        return {
+          footprint: { radius: 1440, reach: r1(RG.reach), edgeHere: r1(RG.edgeAt(px, pz)), grid: 80, note: 'streets on the island\'s own 80 m lattice, every 4th an arterial; local streets stop at I-10, arterials cross it' },
+          survey: sv, densest: dense,
+          here: { x: r1(px), z: r1(pz), inCity: RG.inCity(px, pz), depth: r1(RG.depth(px, pz)), name: locationName(px, pz), block: b.city ? { k: b.k, j: b.j, zone: b.zone, district: b.Z.name, lots: b.lots.length } : null,
+            building: L ? { id: L.id, kind: L.kind, zone: L.zone, ruined: !!L.ruined, x0: r1(L.x0), z0: r1(L.z0), x1: r1(L.x1), z1: r1(L.z1), front: L.front, height: r1(L.h ?? 0), owner: L.owner,
+              doors: geo.doors.map((d) => ({ x: r1(d.x), z: r1(d.z), faces: d.nx ? (d.nx > 0 ? 'E' : 'W') : (d.nz > 0 ? 'S' : 'N'), width: d.w, kind: d.kind })),
+              rooms: geo.rooms.length, containers: geo.boxesIn.map((q) => ({ id: q.id, label: q.label, table: q.table, x: r1(q.x), z: r1(q.z), registered: inv.boxes.has(q.id), opened: !!inv.boxes.get(q.id)?.rolled || !!inv.ringKept?.has(q.id) })), beds: geo.beds.length } : null,
+            chunk: { key: ch.key, tier: ch.tier, ring: ch.ring ?? null, buildMs: ch.buildMs } },
+          containersRegistered: [...inv.boxes.values()].filter((q) => q.ring).length, containersKept: inv.ringKept?.size ?? 0,
+        };
       },
     },
     locate: {
@@ -3423,6 +3453,113 @@ async function runSelfTest(api) {
     const gone = !g.convoy.active && !q.items.some((v) => ids.includes(v.id));
     await streamHome();
     return kept && gone ? true : JSON.stringify({ kept, gone, active: !!g.convoy.active, left: q.items.filter((v) => ids.includes(v.id)).map((v) => v.id) });
+  });
+  // ---- the Phoenix ring, R1 (docs/design/WEB_STREAMING.md §1.3): the city itself, enterable and worth searching ----
+  const RG = WI.ring;
+  // The densest chunk of the ring (most buildings of its own), and one of its intact houses with a door to the street.
+  const dense = (() => { let best = null; const n = Math.ceil(RG.reach / 256) + 1; for (let cx = -n; cx <= n; cx++) for (let cz = -n; cz <= n; cz++) { const o = RG.owned(cx, cz); if (!best || o.length > best.n) best = { cx, cz, n: o.length }; } return best; })();
+  // The street point in front of a building's front door (on the street's centre line, 80 m grid).
+  const streetFront = (L) => {
+    const d = RG.geo(L).doors.find((q) => q.kind === 'front' || q.kind === 'bay');
+    const line = d.nz ? (d.nz < 0 ? Math.floor(d.z / 80) * 80 : Math.ceil(d.z / 80) * 80) : (d.nx < 0 ? Math.floor(d.x / 80) * 80 : Math.ceil(d.x / 80) * 80);
+    return { d, x: d.nz ? d.x : line, z: d.nz ? line : d.z };
+  };
+  await check('ring: a walk (moveTo, on the nav grid) from a ring street through a front door into a building: inside it the roof is gone, out on the street again it is back', async () => {
+    await streamHome();
+    const L = RG.owned(dense.cx, dense.cz).find((b) => !b.ruined && (b.kind === 'house' || b.kind === 'bungalow'));
+    if (!L) return `no intact house in ${dense.cx},${dense.cz}`;
+    const s = streetFront(L), cxm = (L.x0 + L.x1) / 2, czm = (L.z0 + L.z1) / 2;
+    await C('teleport', { x: s.x, z: s.z }); await C('step', { seconds: 0.3 });
+    const onStreet = !g.insideBuilding && !locationName(g.player.x, g.player.z).startsWith('PHOENIX'); // a street's name, not a district's
+    const into = await C('moveTo', { x: cxm, z: czm }); await C('step', { seconds: 0.2 });
+    const Lc = SW.layouts.get(L.owner), idx = Lc?.ring?.roofs[L.id], rg = Lc?.hot?.ranges?.roofs, arr = SW.pools.roofs.mesh.instanceMatrix.array;
+    const scale = () => (idx && rg ? Math.abs(arr[(rg[0] + idx[0]) * 16]) : -1);
+    const inside = g.insideBuilding?.id === L.id, hidden = scale() === 0;
+    await C('moveTo', { x: s.x, z: s.z }); await C('step', { seconds: 0.2 });
+    const shown = scale() > 0 && !g.insideBuilding;
+    return onStreet && into.arrived && inside && hidden && shown ? true : JSON.stringify({ L: L.id, onStreet, street: locationName(s.x, s.z), arrived: into.arrived, why: into.interrupted, inside: g.insideBuilding?.id, hidden, shown });
+  });
+  await check('ring: a crate or shelf in a ring building is a real container with loot (the PACK screen opens it); leave, the chunk evicted, come back: the same box, the same contents, what you took still gone; and the same through a save and a load', async () => {
+    await streamHome();
+    const inv = g.inventory, same = (a, b) => JSON.stringify(a.map((s) => [s.id, s.n])) === JSON.stringify(b.map((s) => [s.id, s.n]));
+    // The first container in the dense chunk that rolls something (a box can be empty: its table has a "none" weight).
+    let box = null, L = null, q = null;
+    for (const b of RG.owned(dense.cx, dense.cz)) {
+      for (const c of RG.geo(b).boxesIn) {
+        await C('teleport', { x: c.x, z: c.z }); await C('step', { seconds: 0.1 });
+        const p = await C('pack', { on: true });
+        await C('pack', { on: false });
+        if (p.other?.id === c.id && p.other.items.length) { box = inv.boxes.get(c.id); L = b; q = c; break; }
+      }
+      if (box) break;
+    }
+    if (!box) return 'no ring container with loot in the dense chunk';
+    await C('pack', { on: true });
+    const took = box.slots[0].id, n0 = box.count(took);
+    await C('item', { take: took, n: 1 });
+    await C('pack', { on: false });
+    const after = box.slots.map((s) => ({ ...s }));
+    // Away, and the chunk evicted outright (its containers go with it; what was taken is kept).
+    await C('teleport', { mile: 31 }); await C('step', { seconds: 0.3 });
+    const key = `${Math.floor(q.x / 256)},${Math.floor(q.z / 256)}`;
+    SW.evict(key);
+    const gone = !SW.layouts.has(key) && !inv.boxes.has(q.id) && inv.ringKept.has(q.id);
+    await C('teleport', { x: q.x, z: q.z }); await C('step', { seconds: 0.3 });
+    const back = inv.boxes.get(q.id), sameBox = !!back && back !== box && back.x === q.x && back.z === q.z;
+    const kept = back && same(back.slots, after) && back.count(took) === n0 - 1;
+    // Save, put it back the way it was, evict, load: the save is the truth.
+    const sv = await C('save');
+    await streamHome(); SW.evict(key);
+    await C('load', { save: sv.save });
+    await C('teleport', { x: q.x, z: q.z }); await C('step', { seconds: 0.3 });
+    const back2 = inv.boxes.get(q.id), viaSave = back2 && same(back2.slots, after);
+    // A box nobody has opened rolls the same loot from its id every time.
+    const fresh = RG.geo(L).boxesIn.find((c) => c.id !== q.id && !inv.boxes.get(c.id)?.rolled && !inv.ringKept.has(c.id));
+    let reroll = true;
+    if (fresh) { const a = inv.place('test:a', fresh.table, 0, 0, fresh.cap, 'A', inv.boxes.get(fresh.id).seed), b = inv.place('test:b', fresh.table, 0, 0, fresh.cap, 'B', inv.boxes.get(fresh.id).seed); inv.roll(a); inv.roll(b); reroll = same(a.slots, b.slots); inv.boxes.delete('test:a'); inv.boxes.delete('test:b'); }
+    return gone && sameBox && kept && viaSave && reroll ? true : JSON.stringify({ box: q.id, took, gone, sameBox, kept, viaSave, reroll, after: after.map((s) => s.id + 'x' + s.n), back: back?.slots.map((s) => s.id + 'x' + s.n), back2: back2?.slots.map((s) => s.id + 'x' + s.n) });
+  });
+  await check('ring: every building in the densest ring chunk is reachable on foot from the street in front of it (the nav grid: every free spot of every room)', async () => {
+    await streamHome();
+    await C('teleport', { x: (dense.cx + 0.5) * 256, z: (dense.cz + 0.5) * 256 }); await C('step', { seconds: 0.3 });
+    const n = g.nav.foot, bad = [];
+    let rooms = 0;
+    for (const L of RG.owned(dense.cx, dense.cz)) {
+      const s = streetFront(L);
+      for (const r of RG.geo(L).rooms) {
+        const pts = [[(r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2], [r.x0 + 0.9, r.z0 + 0.9], [r.x1 - 0.9, r.z1 - 0.9], [r.x0 + 0.9, r.z1 - 0.9], [r.x1 - 0.9, r.z0 + 0.9]];
+        for (const [x, z] of pts) {
+          if (!n.ensureCovers(s.x, s.z, x, z)) { bad.push(`${L.id}: no window`); continue; }
+          if (!n.free(x, z)) continue;
+          rooms++;
+          if (!n.find(s.x, s.z, x, z)) bad.push(`${L.id} ${L.kind} (${x.toFixed(1)},${z.toFixed(1)})`);
+        }
+      }
+    }
+    return dense.n > 20 && rooms > dense.n && !bad.length ? true : JSON.stringify({ chunk: [dense.cx, dense.cz], buildings: dense.n, spots: rooms, sealed: bad.slice(0, 8), more: bad.length });
+  });
+  await check('ring: over the densest ring chunk at the widest zoom, under 150 draw calls, every pool under its capacity and never full', async () => {
+    await streamHome();
+    const seq0 = g.eventSeq;
+    await C('teleport', { x: (dense.cx + 0.5) * 256, z: (dense.cz + 0.5) * 256 });
+    const lv0 = g.zoomLevel;
+    g.setZoom(ZOOM.levels.length - 1); await C('step', { seconds: 4 });
+    g.render(0); const p = await C('perf');
+    const pools = Object.entries(SW.pools).filter(([, q]) => q.used > q.cap || q.full > 0).map(([k, q]) => `${k} ${q.used}/${q.cap} full ${q.full}`);
+    g.setZoom(lv0); await C('step', { seconds: 4 });
+    const full = g.events.filter((e) => e.seq > seq0 && e.type === 'poolFull').length;
+    return p.drawCalls < 150 && !pools.length && !full ? true : JSON.stringify({ draws: p.drawCalls, pools, full });
+  });
+  await check('ring: the metro is ~3 km across with all four zones, its streets on the island\'s own 80 m lattice, an edge that is not a square, nothing of it inside the island; a ring chunk is a pure function of the data (sync and sliced)', async () => {
+    const sv = RG.survey(), zones = Object.keys(sv.byZone);
+    const e = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => RG.edgeAt(Math.cos((k * Math.PI) / 4), Math.sin((k * Math.PI) / 4)));
+    const lobed = Math.max(...e) - Math.min(...e) > 60 && Math.min(...e) > 1250 && Math.max(...e) < 1700;
+    const st = RG.streets(-1600, -1600, 1600, 1600), lattice = st.every((s) => (s.axis === 'z' ? (s.x0 + s.x1) / 2 : (s.z0 + s.z1) / 2) % 80 === 0);
+    const inIsl = st.filter((s) => s.x1 > -464 && s.x0 < 464 && s.z1 > -464 && s.z0 < 464).length;
+    const x = (dense.cx + 0.5) * 256, z = (dense.cz + 0.5) * 256;
+    const a = await C('chunk', { x, z, build: true }), fs = (await C('chunk', { x, z, fresh: true, mode: 'sync' })).fresh, fl = (await C('chunk', { x, z, fresh: true, mode: 'sliced' })).fresh;
+    const ok = sv.buildings > 2000 && zones.length === 4 && lobed && lattice && !inIsl && fs.matches && fl.matches && a.ring?.buildings > 20;
+    return ok ? true : JSON.stringify({ buildings: sv.buildings, zones, edge: e.map(Math.round), lattice, inIsl, sync: fs.matches, sliced: fl.matches, ring: a.ring });
   });
   await streamHome();
   g.convoy.next = convoyNext;

@@ -1,4 +1,4 @@
-// THE PHOENIX RING as rows (docs/design/WEB_STREAMING.md §9, R1 "the city itself"). Robert, 2026-10-22: metros are ~3 km
+// THE PHOENIX RING as rows (docs/design/WEB_STREAMING.md §1.3, R1 "the city itself"). Robert, 2026-10-22: metros are ~3 km
 // across; Phoenix keeps its authored 920 m island (Rust Haven and the flats around it) as the core and gains a generated
 // ring out to ~1.5 km, streamed in chunks like everything past the island. The island reads as a walled holdout in the
 // middle of a dead metro. The ring must be ALIVE, not scenery: R1 is the city you can walk into and search (this file);
@@ -9,7 +9,7 @@ export const RING = {
   // ---- the footprint: a lobed edge, never a square. edge(θ) = radius + Σ amp·sin(k·θ + phase), from Phoenix (0, 0).
   radius: 1440,
   wobble: [[2, 80, 0.6], [3, 46, 2.2], [7, 26, 4.1]],
-  edgeBelt: 280,            // the outer belt (zone rule `edge`) where the ruins thin out to the desert
+  edgeBelt: 200,            // the outer belt (zone rule `edge`) where the ruins thin out to the desert
   freewayTail: { reach: 240, half: 170 },  // the strip runs on along I-10 a little past the edge, both ways
   island: 464, islandPad: 6, // nothing of the ring inside the island (its golden hash), 6 m clear of its edge
 
@@ -46,7 +46,7 @@ export const ZONE_RULES = [
 export const ZONES = {
   residential: {
     name: 'THE DEAD HOUSES', lots: 'houses', kinds: [['house', 6], ['bungalow', 3], ['duplex', 2]],
-    density: 0.84, ruin: 0.3, loot: [['kitchen', 4], ['bedroom', 3], ['bathroom', 2]],
+    density: 0.84, ruin: 0.24, loot: [['kitchen', 4], ['bedroom', 3], ['bathroom', 2]],
     walls: ['#b39b78', '#a8876a', '#9c8462', '#c2a882', '#8f7a62', '#a0703f', '#7e8a7a', '#b08a64'],
     roofs: ['#7a4a32', '#5a3a26', '#6a5440', '#4a4440', '#80553a'], floors: ['#5c4a3a', '#6b5a48', '#4a4038', '#5e5446'],
     tint: [0.94, 0.9, 0.84], wrecks: 0.18, yard: 3, fence: 0.45,
