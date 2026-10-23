@@ -25,6 +25,7 @@ const HEMI_DAY = new THREE.Color('#e4dccb'), HEMI_NIGHT = new THREE.Color('#6a82
 // setting (Robert: nights "truly dark and scary"): NIGHT_I.sun/hemi [pitch, bright] at nightLight 0..1. The old night
 // (1.5 / 1.55) is nightLight 1; the default 0.2 needs your light to see past a few metres.
 const SUN_I = [1.5, 4.6], HEMI_I = [1.55, 2.0];
+export const NEW_GAME_HOUR = 8; // a person's first day starts here (agents keep 18.6)
 export const NIGHT_I = { sun: [0.1, 1.5], hemi: [0.16, 1.55], dflt: 0.12 };
 // Golden-hour fill: the camera looks straight down, so nearly everything on screen is flat ground, and a sun a few
 // degrees up lights flat ground at a fifth of noon. Without help the hour either side of sunset read nearly black
@@ -39,7 +40,11 @@ export class Sky {
   constructor(scene, audio) {
     this.scene = scene;
     this.audio = audio;
-    this.time = 18.6;          // hours; start at dusk so night arrives fast
+    // Hours. A person's new game opens on a morning (the first hours by daylight; the dark comes after you know the place,
+    // and nights are truly dark now: WEB_LOOK §3.1b). Agents and the selftest (?agent=1, ?autostart) keep the old dusk
+    // start their checks were written against. A loaded save brings its own clock.
+    const agentPage = typeof location !== 'undefined' && /[?&](agent|autostart)/.test(location.search);
+    this.time = agentPage ? 18.6 : NEW_GAME_HOUR;
     this.timeScale = 1 / 30;   // in-game hours per real second (= 2 game min / s)
     this.fast = false;
     this.weatherKey = 'CLEAR';

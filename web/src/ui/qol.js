@@ -130,6 +130,16 @@ export class QOL {
   objective() {
     const g = this.g, q = g.quests;
     if (this.customObjective) return this.customObjective;
+    // In Florida (systems/regions.js): Meridian's own chain - Sheriff Duarte's canal job (data/meridian-talk.js), not Rust
+    // Haven's. The sheriff is a person only while the town is promoted; otherwise the clinic door stands in for the town.
+    const P = g.player, R = g.streamer?.W?.regionOf?.(P.x, P.z, 3000);
+    if (R && g.regions) {
+      const duarte = g.chars.find((c) => c.npc?.id === 'mer_sheriff' && c.alive), door = g.regions.clinic('meridian')?.door ?? null, at = duarte ?? door;
+      const gators = (g.stats.gators ?? 0) - (q.canalStart ?? 0);
+      if (!q.canal) return { text: `Talk to Sheriff Duarte: the office on Meridian's Main Street`, target: at };
+      if (q.canal === 'active') return gators < 2 ? { text: `Clear the canal: gators in the reeds by the pumps, west of I-95 (${gators}/2)`, target: null } : { text: 'Back to Sheriff Duarte for your $120', target: at };
+      return { text: 'Meridian knows your name. The SALT LINE runs north from the knot; the clone bay presses you a spare.', target: null };
+    }
     const sheriff = g.chars.find((c) => c.npc?.id === 'okonkwo');
     const nearestCamp = () => g.world.spawns.camps.reduce((b, c) => (Math.hypot(c.x - g.player.x, c.z - g.player.z) < Math.hypot(b.x - g.player.x, b.z - g.player.z) ? c : b));
     if (!q.bounty) return { text: 'Talk to Sheriff Okonkwo at Rust Haven\'s north gate', target: sheriff };
