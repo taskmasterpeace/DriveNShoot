@@ -337,6 +337,9 @@ one K-sheet codex line that answers nothing.
 
 ## 6. Dependencies (bidirectional; the amendments ledger lands SAME COMMIT as this doc)
 
+**The web engine** carries the taxonomy (Shambler, Sprinter, Echo, Choir-Touched) as rows: docs/design/WEB_INFECTED.md
+(v1, 2026-10-22). This doc stays the canon it follows.
+
 **This arc provides:** `corpse.infection` · `choir_zone` · `infection_pressure` (the LWE §6
 contract, satisfied at I1) · the `infected` Body-tag population · quarantine law surface ·
 `herd_warning` / `report_advisory` / the Trials films · THE PIT LAW / THE PREY LAW.

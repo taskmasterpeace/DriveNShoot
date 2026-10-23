@@ -68,8 +68,14 @@ compresses). Still open: which vehicle defines "fastest" (1), the access-road ca
    roads inherit K: the community sits a median 2.71 km from the highway (3.74 km for T2 and T3), about a minute at top
    speed, where a real exit road scaled by 1:14 would be a few hundred metres. Keep the rows as they are, or cap the access
    road (knob `EXIT_ACCESS_MAX_M`)?
-5. **City size.** Cities are built like Phoenix, about 1 km across, and do not follow the 1:14 law. At true scale
-   Phoenix alone would be about 3 km, a 65-second drive across. Say if you want them larger.
+5. **City size. DECIDED (Robert, 2026-10-22): metros ~3 km across, cities ~1.5 km, holdouts and exit towns as they
+   are (300-600 m).** Metros are Phoenix, Los Angeles and El Paso. Phoenix keeps its authored 920 m island as the
+   downtown core and gains a generated ring out to ~1.5 km radius (residential, an industrial belt, strip malls on the
+   arterials, ruins thinning outward, I-10 through it as a city freeway), streamed like any chunk; the ring must be
+   alive (enterable buildings with loot, residents, traffic), not scenery. Then the same generator builds LA, El Paso
+   and the 1.5 km cities. Order: storeys first (WEB_STOREYS), then the Phoenix ring. Why 3 km: the 1:14 law's own
+   answer for Phoenix; 80 s flat out / ~3.5 min at town speed / ~11 min on foot across; 7% of the LA-Phoenix leg. Watch:
+   town chunks' prop budget (2,100 a chunk against the pool's 2,000) and layout cost (8-20 ms estimated).
 
 ### 1.2 P1 as built (2026-10-22)
 **What you can drive.** Route 66 leaves the island at both ends and becomes I-10: 87.8 km of interstate (54.5 game

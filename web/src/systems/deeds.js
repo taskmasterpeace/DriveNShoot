@@ -49,7 +49,8 @@ export class Deeds {
       if (d > sight) continue;
       if (c !== victim && d > NEAR && (Math.sin(c.face) * dx + Math.cos(c.face) * dz) / d < FACING_COS) continue; // looking away
       if (room && !(c.x > room.minX && c.x < room.maxX && c.z > room.minZ && c.z < room.maxZ)) continue;
-      if (d > 1 && !g.los(c.x, c.z, x, z)) continue; // walls and smoke
+      if (actor && !g.storeys.sameFloor(c, actor)) continue; // another floor of the building (world/storeys.js): heard, not seen
+      if (d > 1 && !g.losAt(c.x, c.z, x, z, actor && (c.storey || actor.storey) ? Math.min(c.gy ?? 0, actor.gy ?? 0) : 0)) continue; // walls and smoke
       if (d <= idRange && this.scratch.length < MAX_WITNESSES) this.scratch.push(c); else this.sawOnly++;
     }
     this.witnessMsMax = Math.max(this.witnessMsMax, performance.now() - t0);

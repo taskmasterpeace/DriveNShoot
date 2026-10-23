@@ -14,6 +14,7 @@ import { ZOOM } from '../data/camera.js';
 import { DOOR, WINDOW, DOOR_MATERIALS } from '../data/interiors.js';
 import { BASE_RULES } from '../data/bases.js';
 import { RAY_BULLET } from '../engine/collision.js';
+import { makeRng } from '../engine/rng.js';
 import { toWorld } from '../world/geo.js';
 import { STREAM } from '../data/streaming.js';
 import { ROLE_TIERS } from '../data/roles.js';
@@ -200,7 +201,7 @@ function buildCommands(api) {
         const p = P(), v = p.inVehicle;
         const near = g.chars.filter((c) => c !== p && c.alive && Math.hypot(c.x - p.x, c.z - p.z) < 40);
         return {
-          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
+          player: { id: p.id, x: r1(p.x), z: r1(p.z), facing: r1(p.face), hp: Math.round(p.hp), maxHp: p.maxHp, alive: p.alive, inBuilding: !!g.insideBuilding, gy: r1(p.gy ?? 0), floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0, stamina: r1(p.stamina ?? 1), crouch: !!p.crouch, water: g.water.stateAt(p.x, p.z), underwater: !!p.underwater, breath: r1(p.breath ?? 1), onTrain: !!p.onTrain, burning: (p.burning ?? 0) > 0, seat: p.inVehicle ? p.inVehicle.seats[p.seat]?.id : null,
             location: locationName(p.x, p.z), district: districtName(p.x, p.z) },
           vehicle: v ? vehView(g, v) : null,
           inventory: { weapons: g.inv.weapons, current: g.inv.current, mag: g.inv.mag, ammo: g.inv.ammo, cond: g.inv.cond, jam: g.inv.jam },
@@ -253,6 +254,15 @@ function buildCommands(api) {
           dustWall: { radius: 45000, note: 'a fog fade and a hard stop for vehicles, 45 km from Phoenix' },
         }; })(),
       }),
+    },
+    storeys: {
+      group: 'world', desc: 'Buildings with floors above the street (docs/design/WEB_STOREYS.md): each one (centre, district, storeys, the floor heights, every flight with its bottom and top landings, the axis and climb direction u), the colliders and visual pieces, a hash. id=<i> for one. Stand on a floor with teleport floor=; walk a flight with held keys (W/A/S/D along its axis).',
+      args: { id: { type: 'number' } },
+      run: async ({ id }) => {
+        const v = g.storeys.view(), p = P();
+        if (id !== undefined) { need(v.list[id], `no storeyed building ${id} (0..${v.list.length - 1})`); return v.list[id]; }
+        return { ...v, list: v.list.map((b) => ({ i: b.i, x: b.x, z: b.z, district: b.district, shop: b.shop, storeys: b.storeys })), you: { gy: r1(p.gy ?? 0), in: p.storey ? g.storeys.list.indexOf(p.storey) : null, floor: p.storey ? g.storeys.levelOf(p.storey, p.gy ?? 0) : 0 } };
+      },
     },
     world: {
       group: 'world', desc: 'The streamed world (docs/design/WEB_STREAMING.md): K, seed, dataHash, the render origin (0,0 in P1), the island golden hash and whether it still matches, layouts resident (and their build cost), hot chunks, every pool\'s fill, stream stalls by cause (cross and promote are the perf gates; teleport, screenshot, load, query and test are expected), the pump\'s ms per frame (p95, max), the nav windows, the dust wall, the corridor. chunks=true lists every resident chunk.',
@@ -337,9 +347,9 @@ function buildCommands(api) {
 
     // ---------------------------------------------------------------- player
     teleport: {
-      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
-      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] } },
-      run: async ({ x, z, town, mile, dir }) => {
+      group: 'player', desc: 'Move the player (and their vehicle) to x,z, or to a place: town=<town or exit name> (locate), or mile=<n> on I-10 (game miles from Los Angeles; dir=east|west puts you in that direction\'s right lane, facing along it). Snaps out of walls. floor=<k> stands you on floor k of a storeyed building there (storeys; 0 = the street floor, the default). Far away, the destination\'s chunks are built first (a `teleport` stream stall, never counted against the perf gates).',
+      args: { x: { type: 'number' }, z: { type: 'number' }, town: { type: 'string' }, mile: { type: 'number' }, dir: { type: 'string', default: 'east', enum: ['east', 'west'] }, floor: { type: 'number', default: 0 } },
+      run: async ({ x, z, town, mile, dir, floor }) => {
         const S = g.streamer;
         let h = null;
         if (town !== undefined) {
@@ -360,6 +370,8 @@ function buildCommands(api) {
         g.statics.resolveCircle(pos, v ? v.wid * 0.6 : 0.5);
         if (v) { v.x = pos.x; v.z = pos.z; v.vx = v.vz = 0; v.y = 0; v.vy = 0; v.air = false; if (h !== null) { v.h = h; v.av = 0; } }
         p.x = pos.x; p.z = pos.z;
+        // The street floor, or floor= of a storeyed building there (world/storeys.js; staging for checks and shots).
+        { const Sb = g.storeys.at(p.x, p.z); p.gy = !v && Sb && floor > 0 ? Sb.Y[Math.min(floor, Sb.n)] : 0; g.standOn(p); }
         if (h !== null && !v) p.face = h;
         g.camLook.x = pos.x; g.camLook.z = pos.z;
         return { x: r1(pos.x), z: r1(pos.z), location: locationName(pos.x, pos.z), region: districtName(pos.x, pos.z), ...(h !== null ? { heading: r1(h) } : {}) };
@@ -837,9 +849,28 @@ function buildCommands(api) {
       },
     },
     horde: {
-      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters.',
+      group: 'world', desc: 'Spawn a herd of the infected around x,z (default 30m from the player). runners = fraction that are sprinters (they look and walk like shamblers until something living runs near them or a shot goes off: see infected).',
       args: { x: { type: 'number' }, z: { type: 'number' }, count: { type: 'number', default: 10 }, runners: { type: 'number', default: 0.2 }, radius: { type: 'number', default: 8 } },
       run: async ({ x, z, count, runners, radius }) => ({ ids: g.zombies.horde(x ?? P().x + 30, z ?? P().z, Math.min(40, count), runners, radius) }),
+    },
+    infected: {
+      group: 'world', desc: "The infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md). With no args: every sprinter (dormant / burst / overheat), Echo (frozen while you watch it, what it is at) and Choir-Touched (its aura) alive, the choir sites, the counters. kind=sprinter|echo|choir|shambler spawns one at x,z (an Echo works at the boarded window or locked door nearest it); site=<id> wakes a choir site now; burst=<id> breaks a sprinter.",
+      args: { kind: { type: 'string', enum: ['shambler', 'sprinter', 'echo', 'choir'] }, x: { type: 'number' }, z: { type: 'number' }, site: { type: 'string' }, burst: { type: 'string' } },
+      run: async ({ kind, x, z, site, burst }) => {
+        const Z = g.zombies;
+        if (kind) { const c = Z.spawnKind(kind, x ?? P().x + 12, z ?? P().z); need(c, 'character budget full'); return { id: c.id, kind }; }
+        if (site) { const s = Z.sites.find((q) => q.id === site); need(s, `no choir site ${site} (${Z.sites.map((q) => q.id).join(', ')})`); const r = Z.wakeSite(s, true); need(r, 'that site already has its Choir-Touched'); return r; }
+        if (burst) { const c = api.findChar(burst); need(c?.zkind === 'sprinter', `${burst} is not a sprinter`); return { broke: Z.burst(c, 'agent'), state: c.zs.state }; }
+        const near = (c) => r1(Math.hypot(c.x - P().x, c.z - P().z));
+        const live = g.chars.filter((c) => c.alive && c.faction === 'zombie' && c.zkind);
+        return {
+          sprinters: live.filter((c) => c.zkind === 'sprinter').map((c) => ({ id: c.id, state: c.zs.state, t: r1(c.zs.t), pace: r1(c.zSpeed), dist: near(c) })),
+          echoes: live.filter((c) => c.zkind === 'echo').map((c) => ({ id: c.id, frozen: !!c.frozen, at: c.work ? (c.work.W ? `window ${c.work.W.id} (${Math.round(c.work.W.boardHp)} hp of boards)` : `door ${c.work.door.id}`) : null, dist: near(c) })),
+          choir: live.filter((c) => c.zkind === 'choir').map((c) => ({ id: c.id, site: c.site ?? null, target: c.ztarget?.id ?? null, inAura: g.chars.filter((o) => o.alive && o.faction === 'zombie' && o !== c && Math.hypot(o.x - c.x, o.z - c.z) < 30).length, dist: near(c) })),
+          sites: Z.sites.map((q) => ({ id: q.id, name: q.name, x: q.x, z: q.z, lastNight: q.night })),
+          counts: { ...Z.counts },
+        };
+      },
     },
     zombies: {
       group: 'world', desc: 'Turn night herd spawning on/off (the infected already out stay). Returns how many are alive.', args: { on: { type: 'boolean', default: true } },
@@ -1884,8 +1915,9 @@ async function runSelfTest(api) {
   });
   await check('the infected cannot swim: they stop at the waterline', async () => {
     if (g.player.inVehicle) g.exitVehicle(true);
-    await C('teleport', { x: 395, z: 398 });
+    await C('teleport', { x: 372, z: 398 }); // swimming, 6 m deep, 42 m off the shore: inside their 45 m smell, so they come
     const { ids } = await C('horde', { x: 330, z: 398, count: 4, runners: 1, radius: 2 });
+    for (const id of ids) { const c = api.findChar(id); if (c) { g.zombies.burst(c, 'check'); c.ztarget = g.player; } } // at full tilt (sprinters wait for a reason)
     await C('step', { seconds: 6 });
     const wet = ids.map((id) => api.findChar(id)).filter((c) => c && c.alive && !c.grabbing && g.water.depthAt(c.x, c.z) > 0.7); // hanging off a boat isn't swimming
     const why = wet.map((c) => ({ id: c.id, x: r1(c.x), z: r1(c.z), depth: r1(g.water.depthAt(c.x, c.z)), target: c.ztarget?.id ?? null }));
@@ -2761,6 +2793,7 @@ async function runSelfTest(api) {
     await C('teleport', { x: box.x + 1, z: box.z + 0.6 });
     const home = { x: reyes.x, z: reyes.z };
     reyes.x = g.player.x + 0.7; reyes.z = g.player.z + 0.3; reyes.hold = 1.5; // at your shoulder
+    reyes.gy = 0; g.standOn(reyes); // on your floor: her clinic has stairs now, and a stale height would keep her upstairs (world/storeys.js)
     inv.open(box); box.slots = []; inv.add(box, 'bandage', 2); box.stealT = -99;
     const seq0 = g.eventSeq;
     const took = (await C('item', { take: 'bandage', n: 2 })).moved;
@@ -3498,6 +3531,191 @@ async function runSelfTest(api) {
     g.removeChar(w);
     return ran && cowed && gaveUp && handsUp && !runner && threat && !gun.killLanded && ran2 && paid && cash === 500 - cost && !bribe.runner && !bribe.killLanded ? true : JSON.stringify({ gun, bribe, runners: g.witnesses.view() });
   }));
+  // ---- storeys (docs/design/WEB_STOREYS.md, world/storeys.js) ----
+  // A flight is walked on held keys (W/A/S/D along its axis); people are staged on a floor by position and gy (staging).
+  const stairKey = (f, up) => { const k = f.ax === 'z' ? (f.u < 0 ? 'KeyW' : 'KeyS') : (f.u < 0 ? 'KeyA' : 'KeyD'); return up ? k : { KeyW: 'KeyS', KeyS: 'KeyW', KeyA: 'KeyD', KeyD: 'KeyA' }[k]; };
+  const clearAround = (S, r = 45) => { const cx = (S.b.minX + S.b.maxX) / 2, cz = (S.b.minZ + S.b.maxZ) / 2; for (const c of [...g.chars]) if (c !== g.player && !c.npc && Math.hypot(c.x - cx, c.z - cz) < r) g.removeChar(c); };
+  const storeyed = (pred) => g.storeys.list.find(pred);
+  // A spot on floor k of S clear of the stairwell, its landings and the walls and furniture of both floors.
+  const floorSpot = (S, k, dx = 0) => {
+    const rng = makeRng(77 + k);
+    for (let i = 0; i < 200; i++) {
+      const x = S.ix0 + 1.5 + rng() * (S.ix1 - S.ix0 - 3), z = S.iz0 + 1.5 + rng() * (S.iz1 - S.iz0 - 3);
+      const ok = (px) => { const a = S.area; if (px > a.minX - 1.2 && px < a.maxX + 1.2 && z > a.minZ - 1.2 && z < a.maxZ + 1.2) return false; if (px < S.ix0 + 1 || px > S.ix1 - 1) return false;
+        const t = { x: px, z }; if (g.statics.resolveCircle(t, 0.5) > 0) return false; // the street floor
+        const u = { x: px, z }; return g.statics.resolveCircle(u, 0.5, null, S.Y[k] + 0.25, null, S.Y[k] + 2.4) === 0; }; // floor k
+      if (ok(x) && ok(x + dx)) return { x, z };
+    }
+    return null;
+  };
+  await check('storeys: walk up a flight on held keys - height climbs to the floor above exactly at the top, over the street floor\'s end-block - and back down', async () => {
+    await stage();
+    const S = storeyed((s) => s.n >= 1), f = S.flights[0], p = g.player;
+    clearAround(S);
+    await C('teleport', { x: f.bottomOut.x, z: f.bottomOut.z });
+    const g0 = p.gy;
+    let maxGy = 0;
+    await holdKey(stairKey(f, true), 4, () => { maxGy = Math.max(maxGy, p.gy); return Math.abs(p.gy - f.to) < 0.01 && Math.hypot(p.x - f.topOut.x, p.z - f.topOut.z) < 0.5; });
+    const up = { gy: +p.gy.toFixed(2), floor: g.storeys.levelOf(S, p.gy), atTop: Math.hypot(p.x - f.topOut.x, p.z - f.topOut.z) < 0.9, view: g.storeys.viewL };
+    await holdKey(stairKey(f, false), 4, () => p.gy < 0.01 && Math.hypot(p.x - f.bottomOut.x, p.z - f.bottomOut.z) < 0.5);
+    const down = { gy: +p.gy.toFixed(2), atFoot: Math.hypot(p.x - f.bottomOut.x, p.z - f.bottomOut.z) < 0.9 };
+    return g0 === 0 && up.floor === 1 && Math.abs(up.gy - f.to) < 0.02 && up.atTop && up.view === 1 && down.gy === 0 && down.atFoot ? true : JSON.stringify({ g0, up, down, maxGy, to: f.to });
+  });
+  await check('storeys: floors do not touch - a drifter upstairs and one right below share x,z but not a shove, a line of sight or a bullet', async () => {
+    const S = storeyed((s) => s.n >= 1);
+    clearAround(S);
+    const spot = floorSpot(S, 1, 3);
+    if (!spot) return 'no clear spot on both floors';
+    const up = person('drifter', 0, 0, { hp: 400 }), down = person('drifter', 0, 0, { hp: 400 });
+    up.x = spot.x; up.z = spot.z; up.gy = S.Y[1]; g.standOn(up);
+    down.x = spot.x; down.z = spot.z; down.gy = 0; g.standOn(down);
+    for (const c of [up, down]) { c.home = { x: c.x, z: c.z }; c.wx = c.x; c.wz = c.z; }
+    await C('step', { seconds: 1 });
+    const moved = +(Math.hypot(up.x - spot.x, up.z - spot.z) + Math.hypot(down.x - spot.x, down.z - spot.z)).toFixed(2);
+    const floors = [+up.gy.toFixed(2), +down.gy.toFixed(2)];
+    const sight = g.sees(up, down) || g.sees(down, up);
+    // Below, 3 m along: the one upstairs fires straight at it - the round stays on its own floor.
+    down.x = spot.x + 3; down.home = { x: down.x, z: down.z }; down.wx = down.x;
+    const hp0 = down.hp;
+    for (let i = 0; i < 4; i++) { g.combat.fire(up, 'pistol', Math.atan2(down.x - up.x, down.z - up.z)); await C('step', { seconds: 0.05 }); }
+    const hit = hp0 - down.hp;
+    g.removeChar(up); g.removeChar(down);
+    return moved < 0.15 && floors[0] === +S.Y[1].toFixed(2) && floors[1] === 0 && !sight && hit === 0 ? true : JSON.stringify({ moved, floors, sight, hit });
+  });
+  await check('storeys: a raider with a grudge on the street floor finds the stairs and reaches you upstairs within 20 s', async () => {
+    const S = storeyed((s) => s.n >= 1 && s.b.district === 'ruins') ?? storeyed(() => true), f = S.flights[0], p = g.player;
+    clearAround(S, 70);
+    g.godMode = true;
+    let r = null;
+    try {
+      await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+      const spot = floorSpot(S, 1) ?? f.bottomOut;
+      r = g.spawnRaider(spot.x, spot.z, Math.random, 'pistol');
+      r.gy = 0; g.standOn(r);
+      r.target = p; r.grudge = p; r.state = 'fight'; r.leash = 90;
+      let t = 0, onStair = false;
+      for (; t < 20; t += 0.5) {
+        await C('step', { seconds: 0.5 });
+        if (r.gy > 0.3 && r.gy < S.Y[1] - 0.3) onStair = true;
+        if (Math.abs(r.gy - S.Y[1]) < 0.05 && g.storeys.sameFloor(r, p)) break;
+      }
+      return t < 20 && onStair ? true : JSON.stringify({ t, onStair, r: [+r.x.toFixed(1), +r.z.toFixed(1), +r.gy.toFixed(2)], p: [+p.x.toFixed(1), +p.z.toFixed(1), +p.gy.toFixed(2)], alive: r.alive, target: !!r.target });
+    } finally { g.godMode = false; if (r && g.chars.includes(r)) g.removeChar(r); }
+  });
+  await check('storeys: inside, you see your floor and the ones below, not the ones above (nor who is up there); outside, every floor shows', async () => {
+    const S = storeyed((s) => s.n >= 2);
+    if (!S) return 'no building with two floors above the street';
+    const f = S.flights[0], A = g.storeys.mesh.instanceMatrix.array, shown = (i) => A[i * 16] !== 0;
+    clearAround(S);
+    await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+    await C('step', { seconds: 0.3 });
+    const above = S.idx.filter((i) => g.storeys.items[i].lv > 1), mine = S.idx.filter((i) => g.storeys.items[i].lv <= 1);
+    const inside = { hiddenAbove: above.every((i) => !shown(i)), shownBelow: mine.every((i) => shown(i)), above: above.length, mine: mine.length };
+    // Someone on floor 2 is not drawn while you stand on floor 1.
+    const spot2 = floorSpot(S, 2);
+    const up2 = spot2 ? person('drifter', 0, 0) : null;
+    if (up2) { up2.x = spot2.x; up2.z = spot2.z; up2.gy = S.Y[2]; g.standOn(up2); }
+    await C('step', { seconds: 0.2 });
+    const culled = up2 ? g.charR.cullAbove && up2.gy > g.charR.cullAbove.y : null;
+    if (up2) g.removeChar(up2);
+    await C('teleport', { x: S.b.maxX + 6, z: (S.b.minZ + S.b.maxZ) / 2 });
+    await C('step', { seconds: 0.3 });
+    const outside = S.idx.every((i) => shown(i));
+    return inside.hiddenAbove && inside.shownBelow && inside.above > 0 && culled !== false && outside ? true : JSON.stringify({ inside, culled, outside });
+  });
+  await check('storeys: an upstairs crate is a container reached from its own floor, not from the street floor under it', async () => {
+    const box = [...g.inventory.boxes.values()].find((b) => (b.y ?? 0) > 0.5 && /:L\d$/.test(b.id));
+    if (!box) return 'no upstairs container';
+    const fromFloor = g.inventory.nearest(box.x, box.z, 1.5, false, box.y) === box;
+    const fromStreet = g.inventory.nearest(box.x, box.z, 1.5, false, 0) === box;
+    return fromFloor && !fromStreet ? true : JSON.stringify({ id: box.id, y: box.y, fromFloor, fromStreet });
+  });
+  await check('storeys: a save taken upstairs loads you upstairs (and an old save without a height, on the street floor)', async () => {
+    const S = storeyed((s) => s.n >= 1), f = S.flights[0], p = g.player;
+    await C('teleport', { x: f.topOut.x, z: f.topOut.z, floor: 1 });
+    const save = (await C('save')).save;
+    await C('teleport', { x: f.bottomOut.x, z: f.bottomOut.z });
+    await C('load', { save });
+    const upstairs = +p.gy.toFixed(2);
+    const old = JSON.parse(JSON.stringify(save)); delete old.player.gy; old.player.x = f.bottomOut.x; old.player.z = f.bottomOut.z;
+    await C('load', { save: old });
+    const street = +p.gy.toFixed(2);
+    return upstairs === +S.Y[1].toFixed(2) && street === 0 ? true : JSON.stringify({ upstairs, street, want: S.Y[1] });
+  });
+  // ---- the infected's kinds (data/infected.js; canon docs/design/THE_INFECTED.md) ----
+  const zdist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  await check('infected: a sprinter walks like a shambler until you run near it - then 6 s at 9 m/s, 3 s bent double (the window), and a shambler again', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    const p = g.player, c = g.zombies.spawn(p.x + 14, p.z, true);
+    try {
+      await C('step', { seconds: 2 }); // you stand still: it comes at a shambler's walk
+      const walk = +c.speed.toFixed(2), dormant = c.zs.state === 'dormant' && c.name === 'Shambler';
+      g.input.down.add('ShiftLeft');
+      await holdKey('KeyA', 1.5, () => c.zs.state === 'burst'); // you run (away)
+      g.input.down.delete('ShiftLeft');
+      const broke = c.zs.state === 'burst';
+      let top = 0;
+      for (let t = 0; t < 1.5; t += 0.25) { await C('step', { seconds: 0.25 }); top = Math.max(top, c.speed); }
+      let over = false;
+      for (let t = 0; t < 7 && !over; t += 0.25) { await C('step', { seconds: 0.25 }); over = c.zs.state === 'overheat'; }
+      await C('step', { seconds: 0.5 });
+      const still = over && c.speed < 0.1 && c.crouch;
+      let back = false;
+      for (let t = 0; t < 5 && !back; t += 0.25) { await C('step', { seconds: 0.25 }); back = c.zs.state === 'dormant'; }
+      return dormant && walk < 3 && broke && top > 8 && still && back && c.zSpeed < 3 ? true : JSON.stringify({ dormant, walk, broke, top: +top.toFixed(2), over, still, back, pace: c.zSpeed });
+    } finally { g.input.down.delete('ShiftLeft'); g.godMode = false; if (g.chars.includes(c)) g.removeChar(c); }
+  }));
+  await check('infected: an Echo works at a boarded window only while you look away, freezes mid-motion while you watch, and never comes for you', async () => hush(async () => {
+    const I = g.interiors, n = g.nav.foot;
+    const W = I.windows.find((w) => w.state === 'boarded' && w.boardSide === 1 && n.free(w.x + w.nx * 1.2, w.z + w.nz * 1.2) && n.free(w.x + w.nx * 8, w.z + w.nz * 8) && g.los(w.x + w.nx * 1.2, w.z + w.nz * 1.2, w.x + w.nx * 8, w.z + w.nz * 8));
+    if (!W) return 'no window boarded from outside with clear ground in front';
+    const hp0 = W.boardHp, post = { x: W.x + W.nx * 0.85, z: W.z + W.nz * 0.85 };
+    await C('teleport', { x: W.x + W.nx * 8, z: W.z + W.nz * 8 });
+    for (const c of [...g.chars]) if (c !== g.player && !c.npc && zdist(c, W) < 30) g.removeChar(c);
+    const e = g.zombies.spawnKind('echo', post.x, post.z, post);
+    let drift = 0;
+    try {
+      g.aimOverride = { x: e.x, z: e.z }; // you watch it
+      for (let t = 0; t < 4; t += 0.25) { await C('step', { seconds: 0.25 }); drift = Math.max(drift, zdist(e, post)); }
+      const watched = { frozen: !!e.frozen, hp: W.boardHp };
+      const P = g.player;
+      g.aimOverride = { x: P.x - (e.x - P.x), z: P.z - (e.z - P.z) }; // you look away
+      for (let t = 0; t < 4; t += 0.25) { await C('step', { seconds: 0.25 }); drift = Math.max(drift, zdist(e, post)); }
+      const away = { frozen: !!e.frozen, hp: W.boardHp };
+      const near = zdist(e, g.player);
+      return watched.frozen && watched.hp === hp0 && !away.frozen && away.hp < hp0 && drift < 1.6 && near > 6 ? true : JSON.stringify({ hp0, watched, away, drift: +drift.toFixed(2), near: +near.toFixed(1), work: e.work ? (e.work.W?.id ?? e.work.door?.id) : null });
+    } finally {
+      g.aimOverride = null;
+      if (g.chars.includes(e)) g.removeChar(e);
+      if (W.state === 'boarded') { W.boardHp = hp0; I.syncBoards(W); } else I.board(W, 1);
+    }
+  }));
+  await check('infected: the Choir-Touched hums; the infected in its aura move x1.25 and share its target; kill it and the hum and the aura die together', async () => hush(async () => {
+    await stage();
+    g.godMode = true;
+    const Z = g.zombies, S = Z.sites[0];
+    const r = Z.wakeSite(S, true);
+    if (!r) return 'the site did not wake';
+    const q = api.findChar(r.choir), herd = r.herd.map((id) => api.findChar(id)).filter(Boolean);
+    try {
+      await C('teleport', { x: S.x + 22, z: S.z });
+      await C('step', { seconds: 2 });
+      const inAura = herd.filter((c) => c.alive && zdist(c, q) < 30);
+      const fast = inAura.length > 0 && inAura.every((c) => c.auraMul === 1.25);
+      const shared = q.ztarget === g.player && inAura.every((c) => c.ztarget === g.player);
+      const h0 = Z.counts.hums;
+      await C('step', { seconds: 3 });
+      const humming = Z.counts.hums > h0;
+      await C('kill', { id: q.id });
+      await C('step', { seconds: 0.2 });
+      const slow = herd.filter((c) => c.alive).every((c) => c.auraMul === 1);
+      const h1 = Z.counts.hums;
+      await C('step', { seconds: 3 });
+      const silent = Z.counts.hums === h1;
+      return fast && shared && humming && slow && silent ? true : JSON.stringify({ inAura: inAura.length, fast, shared, target: q.ztarget?.id ?? null, humming, slow, silent });
+    } finally { g.godMode = false; for (const c of [q, ...herd]) if (c && g.chars.includes(c)) g.removeChar(c); S.night = -1; }
+  }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;
     const cash = g.cash, x = g.player.x;
@@ -3519,8 +3737,8 @@ export function snapshot(g) {
   return {
     v: 1, time: g.sky.time, weather: g.sky.weatherKey, cash: g.cash, wanted: g.wanted,
     inv: JSON.parse(JSON.stringify(g.inv)), quests: JSON.parse(JSON.stringify(g.quests)), stats: { ...g.stats },
-    player: { x: p.x, z: p.z, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null },
-    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined })),
+    player: { x: p.x, z: p.z, gy: p.gy ?? 0, hp: p.hp, face: p.face, vehicle: p.inVehicle?.id ?? null }, // gy: the floor they stand on (world/storeys.js)
+    chars: g.chars.filter((c) => c !== p).map((c) => ({ id: c.id, x: c.x, z: c.z, hp: c.hp, alive: c.alive, face: c.face, faction: c.faction, weapon: c.weapon, name: c.name, flag: c.flag, npc: c.npc?.id ?? null, colors: c.colors, vehicle: c.inVehicle?.id ?? null, blood: c.blood, headless: c.headless, runner: c.runner || undefined, zSpeed: c.zSpeed, fid: c.fid ?? undefined, gy: c.gy > 0.5 ? c.gy : undefined })),
     vehicles: g.vehicles.map((v) => ({ id: v.id, type: v.type, x: v.x, z: v.z, h: v.h, hp: v.hp, dead: v.dead, paint: v.paint, ai: v.ai,
       plates: v.plates ? { ...v.plates } : undefined, mounts: v.mounts ? JSON.parse(JSON.stringify(v.mounts)) : undefined })),
     society: g.society.save(), // additive: a save without it loads with fresh standings
@@ -3567,11 +3785,13 @@ export function restore(g, s) {
     }
     Object.assign(c, { x: sc.x, z: sc.z, hp: sc.hp, alive: sc.alive, face: sc.face, target: null, grudge: null, flee: 0, inVehicle: null, deadTime: sc.alive ? 0 : 1, blood: sc.blood ?? 0, headless: !!sc.headless, knockT: 0, vault: null, vaultY: 0, sleeping: false, bedY: 0, bed: null, restless: 0 });
     if (sc.fid !== undefined) { c.fid = sc.fid; g.society.factions.assign(c); }
+    c.gy = sc.gy ?? 0; g.standOn(c); // back on the floor they were on
     g.charR.paint(c);
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
-  Object.assign(p, { x: s.player.x, z: s.player.z, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
+  Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
+  g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;
   if (s.player.vehicle) { const v = g.vehicles.find((x) => x.id === s.player.vehicle); if (v) g.enterVehicle(v); }
   // Id counter must stay ahead of restored ids.

@@ -342,11 +342,13 @@ export class CharacterRenderer {
     const M = this.meshes;
     let maxSlot = 0;
     for (const k of this.variant) this.packed[k] = 0;
+    const cu = this.cullAbove; // inside a storeyed building: who is on a floor above yours there is not drawn (main.js)
     for (const ch of chars) {
       const i = ch.slot;
       maxSlot = Math.max(maxSlot, i + 1);
       const sp = ch.inVehicle ? ch.seatPose : null; // exposed seat: bike saddle / truck bed / train roof
       if (ch.hidden || (ch.inVehicle && !sp)) { this.hideSlot(i); ch._rx = undefined; continue; }
+      if (cu && (ch.gy ?? 0) > cu.y && ch.x > cu.b.minX && ch.x < cu.b.maxX && ch.z > cu.b.minZ && ch.z < cu.b.maxZ) { this.hideSlot(i); ch._rx = undefined; continue; }
       this.pose(ch, sp, dt);
     }
     for (const key in M) {
