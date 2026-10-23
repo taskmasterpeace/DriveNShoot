@@ -4754,7 +4754,7 @@ export function restore(g, s) {
     if (sc.vehicle) { const v = g.vehicles.find((x) => x.id === sc.vehicle); if (v) g.seats.board(c, v, sc.seat ?? 0); }
   }
   const p = g.player;
-  if ('sheet' in s) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are
+  if ('sheet' in s && (s.sheet || g.sheet)) g.creator?.load(s.sheet); // who you were made as, before your hp (max hp is theirs); a save from before the creator keeps you as you are, and no sheet into no sheet touches nothing
   Object.assign(p, { x: s.player.x, z: s.player.z, gy: s.player.gy ?? 0, hp: s.player.hp, face: s.player.face, alive: s.player.hp > 0, inVehicle: null, knockT: 0, vault: null, vaultY: 0 });
   g.standOn(p); // an old save (no gy) loads you on the street floor
   p.weapon = g.inv.current;

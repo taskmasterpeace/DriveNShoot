@@ -173,6 +173,7 @@ export class Creator {
   }
 
   clear() {
+    if (!this.sheet) return; // nothing was made: the engine's own player stays exactly as it is
     const g = this.g, p = g.player, B = this.base;
     this.sheet = null; g.sheet = null;
     if (B) { p.name = B.name; p.flag = B.flag; p.colors = { ...B.colors }; p.maxHp = B.maxHp; if (p.hp > p.maxHp) p.hp = p.maxHp; }
