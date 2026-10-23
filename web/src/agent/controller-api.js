@@ -151,10 +151,12 @@ export async function controllerChecks(x) {
       const light = p.x - x1;
       pad([0, 0, 0, 1]); await secs(0.5); // aim south
       const south = { face: +Math.cos(p.face).toFixed(2), aimZ: +(g.aim.z - p.z).toFixed(1), device: CT.device };
-      pad([-1, 0, -1, 0]); await secs(0.5); // walk and aim west
+      pad([0, 0, -1, 0]); await secs(0.5); // aim west (the stick alone: walking west at the stage could run you into a window's vault, which holds your facing)
       const west = { sin: +Math.sin(p.face).toFixed(2), aimX: +(g.aim.x - p.x).toFixed(1) };
       pad(); await secs(0.2);
-      // the wheel: a car beside you, RT for the gas, LT for the brake, the stick steers
+      // the wheel: a car beside you, RT for the gas, LT for the brake, the stick steers (3 m west first: where the walk used to
+      // leave you, so the car stands on the open sand it always did)
+      await C('teleport', { x: p.x - 3, z: p.z }); await secs(0.1);
       const v = (await C('spawnVehicle', { type: 'pickup', x: p.x + 4, z: p.z, ai: 'none' })).id, car = api.findVeh(v);
       await C('enterVehicle', { id: v, force: true });
       const cx = car.x, cz = car.z;
@@ -308,9 +310,8 @@ export async function controllerChecks(x) {
       const h = g.gunpoint.entry(timid);
       const state = h?.state, up = !!timid.handsUp, threatened = deeds(timid, 'threaten');
       const cash0 = g.cash;
-      mouseAt(timid.x, timid.z);
-      await key('KeyE', 0.1); // tap E: hand it over
-      await frames(3);
+      // tap E: hand it over (up to three taps: E is shared with dogs, decks, traps and containers in reach)
+      for (let t = 0; t < 3 && !h?.robbed; t++) { mouseAt(timid.x, timid.z); await key('KeyE', 0.1); await frames(3); }
       const robbed = !!h?.robbed && g.cash > cash0 && deeds(timid, 'rob') === 1 && [...g.inventory.boxes.keys()].some((k) => k.startsWith(`drop:${timid.id}`));
       // the bold one: aim at him and he bolts
       const b0 = { x: bold.x, z: bold.z };

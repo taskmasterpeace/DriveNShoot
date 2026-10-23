@@ -568,6 +568,13 @@ export class HUD {
       const bx = (camp.x - px) * scale, bz = (camp.z - pz) * scale, d = Math.hypot(bx, bz), m = R - 12;
       c.fillText('✕', R + (d > m ? (bx / d) * m : bx), R + (d > m ? (bz / d) * m : bz) + 4);
     }
+    // Your husk (systems/clone.js): a bone-pale cross, pinned to the rim when it is off the dial.
+    c.fillStyle = '#ffb59a';
+    for (const h of this.g.clone?.husks ?? []) {
+      if (h.gone) continue;
+      const bx = (h.x - px) * scale, bz = (h.z - pz) * scale, d = Math.hypot(bx, bz), m = R - 12;
+      c.fillText('✕', R + (d > m ? (bx / d) * m : bx), R + (d > m ? (bz / d) * m : bz) + 4);
+    }
     // you
     c.save();
     c.translate(R, R);
