@@ -3657,13 +3657,13 @@ async function runSelfTest(api, only = null) {
     await C('setTime', { hour: p.leave + 0.02 });
     let t = 0;
     for (; t < 60 && RS.inside(rec, m.c); t++) await C('step', { seconds: 1 });
-    await C('step', { seconds: 8 });
+    for (let s = 0; s < 30 && Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz) < 14; s++) await C('step', { seconds: 1 }); // down the street
     const left = !RS.inside(rec, m.c), out = m.c.res.where, far = Math.hypot(m.c.x - rec.cx, m.c.z - rec.cz);
     await C('setTime', { hour: p.back + 0.02 });
     let u = 0;
     for (; u < 120 && !RS.inside(rec, m.c); u++) await C('step', { seconds: 1 });
     const back = RS.inside(rec, m.c);
-    return homeFirst && left && out === 'out' && far > 8 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: m.c.res.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length } });
+    return homeFirst && left && out === 'out' && far >= 14 && back ? true : JSON.stringify({ id: rec.id, member: m.name, homeFirst, left, out, far: +far.toFixed(1), back, secsOut: t, secsBack: u, where: m.c.res.where, plan: { leave: +p.leave.toFixed(2), back: +p.back.toFixed(2), stops: p.stops.length } });
   });
   let thief = null;
   await check('ring residents: taking from a lived-in house\'s shelf in front of one of them is a `steal` they witness: the box is theirs, the record names them, their people hear of it, and they hold it against you', async () => {
