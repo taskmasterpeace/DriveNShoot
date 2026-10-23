@@ -74,6 +74,16 @@ PAL = {
     "tumble": ["#bc9e66", "#a88a58", "#caae76"], "tumble_core": "#8a7048",
     "creo": ["#56623a", "#606e40", "#4c5734"], "creo_stem": "#4a4030", "creo_flower": "#d8c03e",
     "pear": ["#6c8c48", "#7a9852", "#5f7f40"], "pear_rim": "#86a25c", "pear_fruit": "#c23a2c",
+    # Florida
+    "sabal_trunk": "#857a6c", "sabal_boot": "#9c8a6c", "sabal_boot_dk": "#57493a",
+    "sabal_leaf": ["#3f6b2e", "#4b7834", "#5b7c30", "#476a2a"],
+    "pine_bark": "#7c4c34", "pine_bark_gr": "#6e625a", "pine_bark_dk": "#4c3424",
+    "pine_leaf": ["#2c4a36", "#34553c", "#27432f", "#3a5a3a"],
+    "cyp_bark": "#86705c", "cyp_bark_dk": "#6a5646", "cyp_leaf": ["#7a8c3e", "#8a9a4a", "#6c7e38"], "cyp_knee": "#7a6652",
+    "moss": ["#8a8a6c", "#76775c", "#9c9b7e"], "sabal_stalk": "#56682e",
+    "mang_root": "#6a5040", "mang_root_dk": "#54402f", "mang_bark": "#5e4a3a",
+    "mang_leaf": ["#2a4c26", "#33582c", "#264420"],
+    "oak_bark": "#54483c", "oak_bark_dk": "#433a30", "oak_leaf": ["#31502a", "#3a5c30", "#2b4724", "#40602f"],
 }
 
 
@@ -707,6 +717,300 @@ def build_pricklypear(g, rng):
     return H
 
 
+# ---------------------------------------------------------------- Florida
+def moss(g, top, length, w, cols):
+    """A strand of Spanish moss: two crossed tapering strips hanging straight down from top, swaying a little."""
+    top = Vector(top)
+    sway = Vector((g.rng.uniform(-0.15, 0.15), g.rng.uniform(-0.15, 0.15), 0))
+    yaw = g.rng.random() * 3.14
+    for a in (yaw, yaw + math.pi / 2):
+        s = Vector((math.cos(a), math.sin(a), 0)) * w
+        mid = top + sway + Vector((0, 0, -length * 0.5))
+        ids = [g.vert(top - s), g.vert(top + s), g.vert(mid + s * 0.8), g.vert(mid - s * 0.8)]
+        mc = g.vert(mid + Vector((0, 0, -length * 0.08)))
+        # a ragged beard, not an icicle: the lower half splits into two straggling tails of different length
+        t1 = g.vert(mid - s * 0.5 + sway + Vector((0, 0, -length * g.rng.uniform(0.35, 0.5))))
+        t2 = g.vert(mid + s * 0.5 + sway + Vector((0, 0, -length * g.rng.uniform(0.2, 0.35))))
+        col = g.rng.choice(cols)
+        g.face(tuple(ids), col)
+        g.face((ids[3], mc, t1), tone(col, 0.9))
+        g.face((mc, ids[2], t2), tone(col, 0.84))
+
+
+def lid(g, c, R, h, under, cols, sectors=16):
+    """A broad umbrella canopy: a lumpy low dome over c (rim at c's height, crown h above) with a scalloped edge,
+    closed underneath by a shallow dark cone. Lighter on the roof, darker on the drooping rim and underside."""
+    rng = g.rng
+    rim = [R * rng.uniform(0.86, 1.06) * (1.0 + 0.08 * math.sin(k * 2.6)) for k in range(sectors)]
+    prof = ((0.3, 0.97, 1.1), (0.58, 0.84, 1.0), (0.82, 0.58, 0.9), (1.0, 0.08, 0.76))  # radius frac, height frac, shade
+    top = g.vert(c + Vector((0, 0, h)))
+    rings = []
+    for i, (fr, zh, _) in enumerate(prof):
+        ring = []
+        for k in range(sectors):
+            # alternate rings turned half a sector, so the roof does not read as umbrella spokes from above
+            a = 2 * math.pi * (k + 0.5 * (i % 2)) / sectors
+            r = rim[k] * fr * rng.uniform(0.94, 1.06)
+            z = zh * h + rng.uniform(-0.1, 0.1) * h * (1.0 if fr < 1 else 0.6)
+            ring.append(g.vert(c + Vector((math.cos(a) * r, math.sin(a) * r, z))))
+        rings.append(ring)
+    und = [g.vert(c + Vector((math.cos(2 * math.pi * k / sectors) * rim[k] * 0.55,
+                              math.sin(2 * math.pi * k / sectors) * rim[k] * 0.55, -under))) for k in range(sectors)]
+    bot = g.vert(c + Vector((0, 0, -under * 0.5)))
+    for k in range(sectors):
+        k1 = (k + 1) % sectors
+        g.face((top, rings[0][k], rings[0][k1]), tone(rng.choice(cols), prof[0][2]))
+        for i in range(len(rings) - 1):
+            A, B = rings[i], rings[i + 1]
+            g.face((A[k], B[k], B[k1], A[k1]), tone(rng.choice(cols), prof[i + 1][2]))
+        B = rings[-1]
+        g.face((B[k], und[k], und[k1], B[k1]), tone(rng.choice(cols), 0.6))
+        g.face((bot, und[k1], und[k]), tone(rng.choice(cols), 0.5))
+
+
+def puffs(g, c, n, r, cols, spread, squash=0.4, lift=0.3):
+    """A loose cluster of flat leaf puffs round c: a broken, needle-tuft texture from above."""
+    rng = g.rng
+    for q in range(n):
+        a = rng.random() * 6.283
+        dd = rng.uniform(0.3, 1.0) * spread if q else 0.0
+        p = Vector(c) + Vector((math.cos(a) * dd, math.sin(a) * dd, rng.uniform(-0.15, 1.0) * lift))
+        octa(g, p, r * rng.uniform(0.8, 1.15), tone(rng.choice(cols), rng.uniform(0.86, 1.08)),
+             squash=squash, yaw=rng.random() * 3.14, stretch=rng.uniform(1.0, 1.4))
+
+
+def build_sabal(g, rng):
+    """Cabbage palm (Sabal palmetto), Florida's state tree: a straight grey-brown trunk armoured in criss-cross leaf
+    'boots' on its lower and middle reach, smooth grey at the foot, and a dense ROUND head of costapalmate fans —
+    each fan arched down along its midrib and split at the tips — deeper green than the desert fan palm, with no dead
+    skirt. From above: a full rounded green star-disc."""
+    H = 9.0
+    tk = hexc(PAL["sabal_trunk"]); bt = hexc(PAL["sabal_boot"]); btd = hexc(PAL["sabal_boot_dk"])
+    lean = Vector((rng.uniform(-0.6, 0.6), rng.uniform(-0.6, 0.6), 0))
+    top_z = rng.uniform(7.0, 7.6)
+    n = 8
+    pts = [lean * ((i / n) ** 1.8) + Vector((0, 0, top_z * i / n)) for i in range(n + 1)]
+    # boot rings stand proud of the trunk; the bottom two segments are the smooth weathered foot
+    radii = [0.36, 0.33] + [(0.42 if i % 2 else 0.36) - 0.03 * (i / n) for i in range(2, n + 1)]
+    boot = lambda s, k, tr: tk if s < 2 else (bt if (tr + s) % 2 == 0 else btd)
+    tube(g, pts, radii, 6, tk, cap=None, offset_rings=True, col_fn=boot)
+    crown = pts[-1]
+    leaf = [hexc(c) for c in PAL["sabal_leaf"]]
+    stalk_c = hexc(PAL["sabal_stalk"])
+    nf = rng.randint(17, 18)
+    base = crown + Vector((0, 0, 0.25))
+    for i, a in enumerate(ring_dirs(nf, rng, 0.35)):
+        # a BALL of fans, not stacked plates: pitches spread from standing up over the heart to hanging, golden-step
+        # so neighbours differ — and no dead skirt below
+        t = (i * 0.618 + rng.uniform(-0.05, 0.05)) % 1.0
+        pitch = -0.75 + 1.95 * t
+        d = Vector((math.cos(a), math.sin(a), 0))
+        stalk = (1.3 - 0.55 * t) * rng.uniform(0.85, 1.15)
+        f = (d * math.cos(pitch) + Vector((0, 0, math.sin(pitch)))).normalized()
+        side = d.cross(Vector((0, 0, 1))).normalized()
+        hub = base + f * stalk
+        sw = side * 0.06
+        g.face((g.vert(base - sw), g.vert(base + sw), g.vert(hub + sw), g.vert(hub - sw)), stalk_c)
+        R = (1.85 - 0.45 * t) * rng.uniform(0.9, 1.1)
+        col = rng.choice(leaf)
+        if pitch < -0.2:
+            col = tone(col, 0.85)
+        K = 7
+        c0 = g.vert(hub)
+        inner, rim = [], []
+        for k in range(K + 1):
+            th = math.radians(-115 + 230 * k / K)
+            dirv = f * math.cos(th) + side * math.sin(th)
+            # costapalmate: the fan arches down along its midrib, hardest at the centre line
+            arch = (0.25 + 0.35 * math.cos(th)) * R * (0.6 if pitch > 0.6 else 1.0)
+            pleat = 0.1 * R * (1 if k % 2 else -1)
+            inner.append(g.vert(hub + dirv * R * 0.45 + Vector((0, 0, -arch * 0.2 + pleat))))
+            jag = 1.0 if k % 2 == 0 else 0.6  # deeply split segments: pointed star tips
+            rim.append(g.vert(hub + dirv * R * jag + Vector((0, 0, -arch * jag))))
+        for k in range(K):
+            shade = 1.08 if k % 2 else 0.9
+            g.face((c0, inner[k], inner[k + 1]), tone(col, shade * 0.95), 0.03)
+            g.face((inner[k], rim[k], rim[k + 1], inner[k + 1]), tone(col, shade), 0.03)
+    return H
+
+
+def build_slashpine(g, rng):
+    """Slash pine of the flatwoods: a tall straight bare trunk of plated red-brown and grey bark, limbs only in the top
+    third, and an open, irregular, flat-topped crown of dark blue-green needle tufts on short limbs — not a cone. From
+    above: a ragged dark crown with gaps you see the limbs through."""
+    H = 16.0
+    bk = hexc(PAL["pine_bark"]); bg = hexc(PAL["pine_bark_gr"]); bd = hexc(PAL["pine_bark_dk"])
+    leaf = [hexc(c) for c in PAL["pine_leaf"]]
+    lean = Vector((rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5), 0))
+    top_z = rng.uniform(14.2, 15.0)
+    n = 6
+    pts = [lean * ((i / n) ** 1.5) + Vector((0, 0, top_z * i / n)) for i in range(n + 1)]
+    radii = [0.42 - 0.3 * (i / n) for i in range(n + 1)]
+    plates = lambda s, k, tr: (bk if (s + k) % 2 else bg) if rng.random() > 0.15 else bd
+    tube(g, pts, radii, 6, bk, cap="point", cap_len=2.0, col_fn=plates)
+
+    def trunk_at(z):
+        t = z / top_z
+        return lean * (t ** 1.5) + Vector((0, 0, z))
+
+    nl = rng.randint(6, 7)
+    for i, a in enumerate(ring_dirs(nl, rng, 0.35)):
+        z0 = top_z * rng.uniform(0.66, 0.9)
+        p0 = trunk_at(z0)
+        d = Vector((math.cos(a), math.sin(a), 0))
+        reach = rng.uniform(1.6, 3.3) * (0.6 if i % 3 == 2 else 1.0)
+        ez = max(z0 + 0.6, top_z * rng.uniform(0.84, 1.0))
+        end = p0 + d * reach
+        end.z = ez
+        mid = p0 + d * reach * 0.55 + Vector((0, 0, (ez - z0) * 0.45))
+        tube(g, [p0, mid, end], [0.13, 0.09, 0.06], 3, bd, cap=None)
+        # a needle tuft: a lumpy flattened clump plus a loose spray off its edge
+        r = rng.uniform(1.1, 1.45)
+        blob(g, end + Vector((0, 0, 0.2)), (r, r * 0.85, r * 0.45), leaf, 0, jitter=0.35, dark=0.62)
+        puffs(g, end + Vector((0, 0, 0.1)) + d * r * 0.8, 1, 0.65, leaf, spread=0.6, squash=0.5, lift=0.2)
+        if rng.random() < 0.6:
+            # a side fork off the limb with a second, smaller tuft: a ragged crown, not one ball per limb
+            d2 = Matrix.Rotation(rng.choice((-1, 1)) * rng.uniform(0.6, 1.0), 3, 'Z') @ d
+            f0 = p0 + (end - p0) * 0.5
+            f1 = f0 + d2 * rng.uniform(1.2, 1.8) + Vector((0, 0, rng.uniform(0.2, 0.6)))
+            tube(g, [f0, f1], [0.07, 0.05], 3, bd, cap=None)
+            r2 = rng.uniform(0.8, 1.0)
+            blob(g, f1 + Vector((0, 0, 0.15)), (r2, r2 * 0.85, r2 * 0.45), leaf, 0, jitter=0.35, dark=0.62)
+    r = 1.05
+    blob(g, pts[-1] + Vector((0, 0, 0.1)), (r, r, r * 0.5), leaf, 0, jitter=0.35, dark=0.62)
+    return H
+
+
+def build_cypress(g, rng):
+    """Bald cypress of the swamp: a broad buttressed foot flaring into ridges at the waterline, a straight tapering
+    trunk, a narrow flat-topped crown of soft feathery yellow-green on short limbs, knees standing round the base and a
+    few grey strands of moss hanging from the limbs."""
+    H = 13.0
+    bk = hexc(PAL["cyp_bark"]); bd = hexc(PAL["cyp_bark_dk"]); kn = hexc(PAL["cyp_knee"])
+    leaf = [hexc(c) for c in PAL["cyp_leaf"]]
+    ms = [hexc(c) for c in PAL["moss"]]
+    # the buttress: a ribbed flared cone
+    prof = lambda k: 1.0 if k % 2 == 0 else 0.6
+    tube(g, [(0, 0, 0), (0, 0, 0.55), (0, 0, 1.5)], [1.3, 0.72, 0.44], 10, bd, cap=None, profile=prof,
+         col_fn=lambda s, k, tr: bd if k % 2 else bk)
+    top_z = rng.uniform(11.4, 12.0)
+    lean = Vector((rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), 0))
+    zs = [1.4, 4.0, 7.0, 9.6, top_z]
+    pts = [lean * ((z / top_z) ** 1.5) + Vector((0, 0, z)) for z in zs]
+    tube(g, pts, [0.44, 0.36, 0.28, 0.2, 0.12], 6, bk, cap="point", cap_len=2.0,
+         col_fn=lambda s, k, tr: bk if (s + k) % 3 else bd)
+    # knees: little conical stumps standing out of the water round the foot
+    for a in ring_dirs(rng.randint(2, 4), rng, 0.4):
+        rr = rng.uniform(1.7, 2.5)
+        p = Vector((math.cos(a) * rr, math.sin(a) * rr, 0))
+        h = rng.uniform(0.35, 0.6)
+        tube(g, [p, p + Vector((rng.uniform(-0.05, 0.05), rng.uniform(-0.05, 0.05), h))], [0.17, 0.1], 4, kn,
+             cap="point", cap_len=1.6)
+
+    def trunk_at(z):
+        return lean * ((z / top_z) ** 1.5) + Vector((0, 0, z))
+
+    nl = 8
+    limb_pts = []
+    for i, a in enumerate(ring_dirs(nl, rng, 0.35)):
+        # limbs climb the upper half in a spiral, so the crown is a narrow column of foliage, not tiers of pads
+        z0 = top_z * (0.5 + 0.43 * ((i * 0.618) % 1.0) + rng.uniform(-0.03, 0.03))
+        p0 = trunk_at(z0)
+        d = Vector((math.cos(a), math.sin(a), 0))
+        # flat top: the high limbs reach out as far as the low ones, so the crown's roof is level
+        reach = rng.uniform(1.1, 1.7) + 0.5 * ((z0 / top_z) - 0.5) / 0.43
+        end = p0 + d * reach + Vector((0, 0, rng.uniform(0.2, 0.5)))
+        tube(g, [p0, end], [0.1, 0.06], 3, bd, cap=None)
+        limb_pts.append((p0 + (end - p0) * 0.55, end))
+        # feathery sprays: small, flat, elongated, lots of them, along the limb and at its end
+        for t, nn in ((0.5, 1), (1.0, 3)):
+            puffs(g, p0 + (end - p0) * t, nn, rng.uniform(0.6, 0.72), leaf, spread=0.95, squash=0.5, lift=0.9)
+    puffs(g, pts[-1] + Vector((0, 0, -0.3)), 4, 0.9, leaf, spread=0.9, squash=0.4, lift=0.3)
+    for mp, end in rng.sample(limb_pts, 4):
+        moss(g, mp + Vector((0, 0, -0.15)), rng.uniform(1.3, 2.0), 0.16, ms)
+    return H
+
+
+def build_mangrove(g, rng):
+    """Red mangrove: a short trunk held up off the mud on an arching tangle of prop roots that splay out in a ring,
+    under a dense dome of glossy dark green. From above: a dark dome with the root arches showing at its edge."""
+    H = 4.5
+    rt = hexc(PAL["mang_root"]); rtd = hexc(PAL["mang_root_dk"]); bk = hexc(PAL["mang_bark"])
+    leaf = [hexc(c) for c in PAL["mang_leaf"]]
+    tube(g, [(0, 0, 0.4), (0, 0, 1.4), (rng.uniform(-0.1, 0.1), rng.uniform(-0.1, 0.1), 2.4)], [0.17, 0.15, 0.12], 5,
+         bk, cap=None)
+    # prop roots: some from the trunk, some dropping from the low limbs under the canopy edge; each rises a little,
+    # arches out, then plunges steeply into the mud past the canopy's rim
+    # a TANGLE, not legs: many roots of mixed reach, each a rainbow arch (out level, then curving down to plunge
+    # vertically), drifting sideways as it goes so neighbours cross
+    nr = rng.randint(13, 14)
+    for i, a in enumerate(ring_dirs(nr, rng, 0.45)):
+        a1 = a + rng.uniform(-0.55, 0.55)
+        s = rng.uniform(0.1, 0.4) if i % 3 == 0 else rng.uniform(0.6, 1.3)
+        z0 = rng.uniform(1.0, 1.5) if i % 3 == 0 else rng.uniform(1.5, 2.1)
+        R = rng.uniform(1.4, 1.7) if i % 4 == 1 else rng.uniform(1.95, 2.3)
+        p = []
+        for th in (0.0, 0.42, 0.78, 1.0):
+            aa = a + (a1 - a) * th
+            ang = th * math.pi / 2
+            rr = s + (R - s) * math.sin(ang)
+            p.append(Vector((math.cos(aa) * rr, math.sin(aa) * rr, z0 * math.cos(ang) + 0.25 * math.sin(2 * ang) - 0.05)))
+        tube(g, p, [0.11, 0.1, 0.09, 0.085], 3, rt if i % 2 else rtd, cap=None)
+    # the dome stays inside the root ring, so from above the arches show as a brown fringe round the green
+    Rd = rng.uniform(1.45, 1.6)
+    cz = 2.85
+    blob(g, (0, 0, cz), (Rd, Rd * rng.uniform(0.88, 0.98), 1.15), leaf, 1, jitter=0.14, dark=0.6)
+    for a in ring_dirs(4, rng, 0.3):
+        p = Vector((math.cos(a) * Rd * 0.62, math.sin(a) * Rd * 0.62, cz - 0.55))
+        r = rng.uniform(0.7, 0.85)
+        blob(g, p, (r, r, r * 0.6), leaf, 0, jitter=0.2, dark=0.6)
+    return H
+
+
+def build_liveoak(g, rng):
+    """Southern live oak: a short massive trunk that splits low into long, near-horizontal limbs, under a very broad,
+    flattened dark-green canopy, far wider than it is tall, hung with grey-green Spanish moss."""
+    H = 9.0
+    bk = hexc(PAL["oak_bark"]); bd = hexc(PAL["oak_bark_dk"])
+    leaf = [hexc(c) for c in PAL["oak_leaf"]]
+    ms = [hexc(c) for c in PAL["moss"]]
+    fork = Vector((rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), rng.uniform(2.3, 2.7)))
+    tube(g, [(0, 0, 0), fork * 0.5, fork], [0.85, 0.66, 0.6], 6, bd, cap=None,
+         col_fn=lambda s, k, tr: bd if (s + k) % 2 else bk)
+    nl = rng.randint(4, 5)
+    ends = []
+    for i, a in enumerate(ring_dirs(nl, rng, 0.2)):
+        d = Vector((math.cos(a), math.sin(a), 0))
+        reach = rng.uniform(3.8, 4.4)
+        rise = rng.uniform(1.2, 1.7)
+        # long near-horizontal limbs: climb out of the fork, then run level and sag a little at the end
+        p = [fork, fork + d * reach * 0.3 + Vector((0, 0, rise * 0.85)), fork + d * reach * 0.65 + Vector((0, 0, rise)),
+             fork + d * reach + Vector((0, 0, rise * rng.uniform(0.55, 0.8)))]
+        tube(g, p, [0.42, 0.3, 0.21, 0.13], 4, bk, cap=None)
+        ends.append((p, d))
+    # the canopy: ONE broad, low, flattened umbrella with a scalloped, drooping rim — from above a single wide dark
+    # mass, not a cluster of balls (that is the mesquite) — with a few low lumps breaking its roof
+    c = Vector((fork.x, fork.y, fork.z + 2.3))
+    R = rng.uniform(4.45, 4.75)
+    hl = 2.3
+    lid(g, c, R, hl, 0.5, leaf)
+    for a in ring_dirs(4, rng, 0.3):
+        dd = rng.uniform(0.3, 0.6) * R
+        q = c + Vector((math.cos(a) * dd, math.sin(a) * dd, hl * 0.72))
+        r = rng.uniform(1.5, 1.9)
+        blob(g, q, (r, r * 0.85, r * 0.36), leaf, 0, jitter=0.22, dark=0.72)
+    # Spanish moss: beards hanging from the limbs under the canopy rim, long enough to show below it
+    strands = 0
+    for p, d in ends:
+        for t in (2, 3):
+            if strands >= 8:
+                break
+            q = p[t] - d * 0.3 + Vector((rng.uniform(-0.4, 0.4), rng.uniform(-0.4, 0.4), 0.1))
+            moss(g, q, rng.uniform(1.8, 2.6), 0.24, ms)
+            strands += 1
+    return H
+
+
 SPECIES = {
     # name: (builder, nominal height m) — heights mirror web/src/world/flora.js SPECIES
     "paloverde": (build_paloverde, 4.6),
@@ -721,6 +1025,12 @@ SPECIES = {
     "tumbleweed": (build_tumbleweed, 0.9),
     "creosote": (build_creosote, 1.5),
     "pricklypear": (build_pricklypear, 1.3),
+    # Florida
+    "sabal": (build_sabal, 9.0),
+    "slashpine": (build_slashpine, 16.0),
+    "cypress": (build_cypress, 13.0),
+    "mangrove": (build_mangrove, 4.5),
+    "liveoak": (build_liveoak, 9.0),
 }
 
 

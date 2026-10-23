@@ -37,6 +37,7 @@ import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
+import { Regions } from './systems/regions.js';
 // A new arrival gets a quiet start (no night hordes, no Dustwolf top-ups for ARRIVAL_QUIET game-seconds), and a player
 // patched up at the clinic gets RESPAWN_GRACE s before anything can hurt them.
 const ARRIVAL_QUIET = 180, RESPAWN_GRACE = 8;
@@ -149,6 +150,7 @@ class Game {
     this.convoy = new Convoy(this);
     this.ambient = new Ambient(this);
     this.residents = new Residents(this); // the Phoenix ring's people: records by building, promoted near you (WEB_STREAMING §1.3 R2)
+    this.regions = new Regions(this); // Florida (WEB_FLORIDA.md): where a new game starts, Meridian's people, the gators, the region's infected
     const ui = document.getElementById('ui');
     this.hud = new HUD(this, ui);
     this.dialogue = new Dialogue(this, ui);
@@ -189,6 +191,7 @@ class Game {
     this.buildPickups();
     this.buildFlashlight();
     this.streamer.warmup(); // the streamed world's shaders compile now (lights and fog are all in place), not mid-drive
+    this.regions.placeAtStart(); // ?start=florida (the players' default): a new game begins at Meridian's clinic door
     this.api = new AgentAPI(this);
     this.title(ui);
   }
@@ -529,7 +532,7 @@ class Game {
     // The dead carry what they carried: a body is a container you can go through (I, standing over it), the gun they
     // held and its spare rounds in it (a soldier's rifle is the prize).
     if (c !== this.player && c.faction !== 'zombie' && !c.npc) {
-      const body = this.inventory.place(`body:${c.id}`, c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`);
+      const body = this.inventory.place(`body:${c.id}`, c.fauna ? c.faunaKind : c.faction === 'raider' ? 'raider' : c.faction === 'soldier' ? 'soldier' : 'person', c.x, c.z, 20, `${(c.name ?? 'SOMEBODY').toUpperCase()} (DEAD)`); // an animal: its own LOOT row (data/items.js)
       if ((c.gy ?? 0) > 0.5 && c.storey) body.y = c.gy; // the dead lie on their own floor
       this.inventory.armBody(body, c);
     }
@@ -634,13 +637,15 @@ class Game {
       this.respawnT -= dt;
       if (this.respawnT <= 0) {
         const clinic = this.world.spawns.shops[0];
+        // Fallen in a region (Florida): its holdout's clinic (systems/regions.js); else Rust Haven's.
+        const rp = this.regions?.respawnPoint(p);
         p.alive = true; p.hp = p.maxHp; p.bleed = 0;
         this.needs.water = Math.max(this.needs.water, 0.5); this.needs.food = Math.max(this.needs.food, 0.5); // the clinic feeds you
         // Wake up on the clinic's doorstep (never inside a furniture pocket).
-        const door = clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
+        const door = rp ?? clinic.doors[0] ?? { x: (clinic.minX + clinic.maxX) / 2, z: clinic.maxZ + 2 };
         p.x = door.x; p.z = door.z; p.gy = 0; p.storey = null;
-        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1) });
-        const fee = Math.floor(this.cash * 0.15);
+        this.emit('respawn', { x: +p.x.toFixed(1), z: +p.z.toFixed(1), ...(rp ? { holdout: rp.holdout } : {}) });
+        const fee = Math.floor(this.cash * (rp?.fee ?? 0.15));
         this.cash -= fee;
         this.wanted = 0;
         // Whoever was after you lets it go (they saw you fall), and you get RESPAWN_GRACE s on your feet before anything can
@@ -650,7 +655,7 @@ class Game {
           if (c.ztarget === p) c.ztarget = null;
         }
         p.graceT = RESPAWN_GRACE;
-        this.hud.toast(`Doc Reyes patched you up. Fee: $${fee}`, 'warn');
+        this.hud.toast(`${rp ? rp.who : 'Doc Reyes'} patched you up. Fee: $${fee}`, 'warn');
       }
       return;
     }
@@ -1088,7 +1093,7 @@ class Game {
     t.innerHTML = `
       <div class="title-inner">
         <h1>DIVIDED <span>STATES</span></h1>
-        <div class="tag">OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.</div>
+        <div class="tag">${this.regions?.intro()?.tag ?? 'OF AMERICA · PHOENIX, ARIZONA · THE UNION IS GONE. THE ROADS REMAIN.'}</div>
         <button class="play">ENTER THE WASTE</button>
         <div class="keys">
           <div><b>WASD</b>move</div><div><b>MOUSE</b>aim</div><div><b>LMB</b>shoot</div>
@@ -1107,8 +1112,9 @@ class Game {
       t.remove();
       this.audio.start();
       this.paused = false;
-      this.hud.toast('You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
-      this.hud.subtitle('The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
+      const intro = this.regions?.intro(); // a Florida start (WEB_FLORIDA.md): Meridian's own first words
+      this.hud.toast(intro?.toast ?? 'You wake up in Rust Haven. Find Sheriff Okonkwo at the north gate.', 'job');
+      this.hud.subtitle(intro?.sub ?? 'The Whaler is parked on Central Ave. Kenji says don\'t scratch it.', 6);
     };
     this.render(0.016);
   }
@@ -1154,6 +1160,7 @@ class Game {
       this.zombies.update(simDt);
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
+      this.regions.update(simDt); // a holdout's people, the region's animals and infected
       this.nanGuard('late');
     }
     this.dialogue.update(dt, I);

@@ -244,6 +244,7 @@ export class AI {
       // Ordered to stand still (a staged scene, a test, a sentry post): no wander, no flight, same facing.
       // hold = true stays until cleared; a number counts down in seconds.
       if (c.hold) { if (c.hold !== true && (c.hold -= dt) <= 0) c.hold = 0; c.speed = 0; continue; }
+      if (c.fauna) { g.regions?.think(c, dt); continue; } // an animal (systems/regions.js: FAUNA rows)
       if (c.faction === 'zombie') { if (!(c.res && g.residents?.thinkInfected(c, dt))) g.zombies.think(c, dt); continue; } // a nest's own (systems/residents.js) first
       if (c.follower && c.inVehicle) { g.seats.followThink(c, dt); continue; }
       if (c.follower && !c.target && g.seats.followThink(c, dt)) continue;

@@ -11,9 +11,11 @@
 //   ring     the Phoenix ring (WEB_STREAMING §1.3): night, an acid storm, the widest zoom, 46 m/s on I-10 across the dead
 //            city, then 25 s up the arterial x = 640 through its blocks: draw calls, layout ms, pools, zero cross/promote.
 //   ceiling  60 s held at 60 m/s (the spec's speed-ceiling probe): zero stalls.
+//   florida  WEB_FLORIDA §8: 60 s flat out north on I-95 past Meridian; 90 s held at 46 m/s at night in a storm through
+//            Alligator Alley on I-75 (game.streamDrive = { phases: ['florida'] } runs just this: "corridor=florida").
 // game.streamDrive = { phases: ['gate'] } (set with exec first) runs only some. Run: node tools/dl.mjs scenario name=stream-drive
 export default async function (DL, game) {
-  const S = game.streamer, W = S.W, phases = game.streamDrive?.phases ?? ['vref', 'gate', 'perf', 'ring', 'ceiling'];
+  const S = game.streamer, W = S.W, phases = game.streamDrive?.phases ?? ['vref', 'gate', 'perf', 'ring', 'ceiling', 'florida'];
   const out = {};
   await DL.start();
   await DL.god({ on: true });
@@ -130,6 +132,47 @@ export default async function (DL, game) {
     const run = await S.runFrames(60, () => { const a = S.autopilot(v, 1, 0); game.driveOverride = { throttle: 1, steer: a.steer }; v.vx = Math.sin(v.h) * 60; v.vz = Math.cos(v.h) * 60; }, { renderEvery: 2 });
     const st = stalls();
     out.ceiling = { vehicle: 'probe (a LAWMAN row with maxSpeed 60, held at 60 m/s)', metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, maxDrawCalls: run.maxDrawCalls, pass: st.cross === st0.cross && st.promote === st0.promote };
+    clear();
+  }
+
+  if (phases.includes('florida')) {
+    // Florida (docs/design/WEB_FLORIDA.md §8): the start region on the same streamer. (a) 60 s flat out north on I-95 on
+    // the bike from mile 7, past Meridian's exit 9, by day. (b) The swamp at its worst for the streamer: night, a storm,
+    // the widest zoom, held at 46 m/s for 90 s along I-75 from mile 4 through ALLIGATOR ALLEY (sloughs, cypress, canal).
+    const cor = (id) => W.corridors.find((c) => c.id === id);
+    const onCor = async (type, c, s, dir) => {
+      if (game.player.inVehicle) game.exitVehicle(true);
+      const q = S.lanePoint(s, dir, 0, c), f = c.at(s);
+      await DL.teleport({ x: q.x, z: q.z });
+      const r = await DL.spawnVehicle({ type, x: q.x, z: q.z, heading: Math.atan2(f.tx * dir, f.tz * dir), paint: '#6a2a1a' });
+      await DL.enterVehicle({ id: r.id, force: true });
+      await DL.teleport({ x: q.x, z: q.z });
+      spawned.push(game.player.inVehicle);
+      return game.player.inVehicle;
+    };
+    const I95 = cor('I-95'), I75 = cor('I-75');
+    await DL.setTime({ hour: 10 }); await DL.setWeather({ key: 'CLEAR', instant: true });
+    game.setZoom?.(1);
+    let v = await onCor('bike', I95, 7 * 1609.344, 1);
+    let st0 = stalls(), x0 = v.x, z0 = v.z, samples = [];
+    const a = await S.runFrames(60, (i) => { const q = S.autopilot(v, 1, 0, Infinity, I95); game.driveOverride = { throttle: 1, steer: q.steer }; if (i % 60 === 0) samples.push(q.d <= I95.section(q.s).out + 2 ? 1 : 0); });
+    let st = stalls();
+    const gate = { metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), to: `I-95 mile ${(I95.project(v.x, v.z, 600).s / 1609.344).toFixed(1)}`, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, maxDrawCalls: a.maxDrawCalls, frameMs: a.frameMs, onRoad: +(samples.reduce((s, k) => s + k, 0) / samples.length).toFixed(2) };
+    gate.pass = gate.metres > 2400 && !gate.crossStalls && !gate.promoteStalls && gate.maxDrawCalls < 150 && gate.onRoad >= 0.9;
+    clear();
+    await DL.setTime({ hour: 23 }); await DL.setWeather({ key: 'STORM', instant: true });
+    game.setZoom?.(4);
+    v = await onCor('interceptor', I75, 4 * 1609.344, 1);
+    st0 = stalls(); x0 = v.x; z0 = v.z; S.pumpN = 0; S.pumpMax = 0;
+    const built0 = S.built;
+    const b = await S.runFrames(90, () => { const q = S.autopilot(v, 1, 0, Infinity, I75); game.driveOverride = { throttle: 1, steer: q.steer }; v.vx = Math.sin(v.h) * 46; v.vz = Math.cos(v.h) * 46; });
+    st = stalls();
+    const nb = Math.min(S.built - built0, S.buildCosts.length), costs = S.buildCosts.slice(S.buildCosts.length - nb).sort((p, q) => p - q), pump = S.pumpStats();
+    const swamp = { metres: Math.round(Math.hypot(v.x - x0, v.z - z0)), to: `I-75 mile ${(I75.project(v.x, v.z, 600).s / 1609.344).toFixed(1)}`, crossStalls: st.cross - st0.cross, promoteStalls: st.promote - st0.promote, maxDrawCalls: b.maxDrawCalls, maxTriangles: b.maxTriangles,
+      frameMs: b.frameMs, pumpMs: pump, layouts: costs.length, layoutMs: costs.length ? { p50: costs[Math.floor(costs.length / 2)], p95: costs[Math.floor(costs.length * 0.95)], max: costs[costs.length - 1] } : null,
+      pools: Object.fromEntries(Object.entries(S.pools).filter(([, p]) => p.used || p.full).map(([k, p]) => [k, { used: p.used, high: p.high, cap: p.cap, full: p.full }])) };
+    swamp.pass = !swamp.crossStalls && !swamp.promoteStalls && swamp.maxDrawCalls < 150 && Object.values(S.pools).every((p) => !p.full);
+    out.florida = { gate, swamp, pass: gate.pass && swamp.pass };
     clear();
   }
 

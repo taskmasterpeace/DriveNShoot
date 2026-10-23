@@ -635,7 +635,7 @@ export class Ring {
       else if (L.front === 'W') { fence(lot.x1 - b, lot.z0 + m, lot.x1 - b, lot.z1 - m); fence(x1 - 1, lot.z0 + m, lot.x1 - b, lot.z0 + m); fence(x1 - 1, lot.z1 - m, lot.x1 - b, lot.z1 - m); }
       else { fence(lot.x0 + b, lot.z0 + m, lot.x0 + b, lot.z1 - m); fence(lot.x0 + b, lot.z0 + m, x0 + 1, lot.z0 + m); fence(lot.x0 + b, lot.z1 - m, x0 + 1, lot.z1 - m); }
     }
-    if (L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex') this.yardOf(L, g);
+    if ((L.kind === 'house' || L.kind === 'bungalow' || L.kind === 'duplex') && !L.noYard) this.yardOf(L, g); // a holdout lays its own yards (world/holdout.js)
     for (let i = 0, n = rng.int(0, Z.yard); i < n; i++) {
       // Behind the building, in its own lot.
       const bx0 = lot.x0 + 1.5, bx1 = lot.x1 - 1.5, bz0 = lot.z0 + 1.5, bz1 = lot.z1 - 1.5;

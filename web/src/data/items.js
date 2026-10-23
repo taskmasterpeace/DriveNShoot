@@ -121,7 +121,15 @@ export const ITEMS = {
 
 // Where things are found. Each table: weighted rows [item, weight, countMin, countMax]; a container rolls `rolls`
 // times (min..max), and a roll can come up empty (the `none` weight).
+// Florida's game (docs/design/WEB_FLORIDA.md §3.6): what a dead alligator gives up. Rows, like everything here.
+Object.assign(ITEMS, {
+  gator_meat: { name: 'Gator tail meat', kind: 'food', kg: 0.9, bulk: 0.8, stack: 4, value: 9, spoils: 24, use: { need: 'food', amount: 0.35, hp: 2 },
+    desc: 'White, tough, tastes like the swamp it came out of. Cook it today: in this heat it turns by tomorrow.' },
+  gator_hide: { name: 'Gator hide', kind: 'valuable', kg: 2.2, bulk: 2.5, stack: 2, value: 35,
+    desc: 'A belly hide, scraped and salted. Traders in Meridian pay for these: boots, belts, holsters.' },
+});
 export const LOOT = {
+  gator: { rolls: [1, 2], none: 0, rows: [['gator_meat', 5, 1, 2], ['gator_hide', 3, 1, 1]] },
   kitchen: { rolls: [1, 3], none: 4, rows: [['beans_tin', 5, 1, 2], ['peaches_tin', 3, 1, 1], ['water_bottle', 4, 1, 2], ['honey', 1, 1, 1], ['can_opener', 2, 1, 1], ['knife', 1, 1, 1], ['silverware', 2, 1, 3], ['flatbread', 1, 1, 1]] },
   bathroom: { rolls: [1, 2], none: 3, rows: [['bandage', 4, 1, 2], ['rag', 3, 1, 3], ['painkillers', 2, 1, 1], ['antibiotics', 1, 1, 1], ['suture_kit', 1, 1, 1]] },
   bedroom: { rolls: [1, 2], none: 5, rows: [['wristwatch', 2, 1, 1], ['gold_ring', 1, 1, 1], ['photograph', 3, 1, 1], ['satchel', 1, 1, 1], ['backpack', 1, 1, 1], ['water_bottle', 2, 1, 1], ['road_atlas', 1, 1, 1], ['bedroll', 2, 1, 1]] },

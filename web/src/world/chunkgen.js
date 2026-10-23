@@ -4,7 +4,8 @@ import { C, ISLAND, inIsland, hash32, rngOf, vnoise, Hasher } from './geo.js';
 import { StaticWorld } from '../engine/collision.js';
 import { ROAD_BANDS } from './textures.js';
 import { RING } from '../data/ring.js';
-import { SPECIES, FLORA_KINDS, poolName, floraVariant, floraHash, crownScale } from './flora.js';
+import { SPECIES, FLORA_KINDS, P1_FLORA, poolName, floraVariant, floraHash, crownScale } from './flora.js';
+import { regionWater, WK } from './regions.js';
 
 // layoutChunk (docs/design/WEB_STREAMING.md §3.2): everything a chunk is, as plain arrays and records, built by a
 // generator that yields between stages so the pump can run it in 0.5 ms slices. A layout is a pure function of
@@ -21,7 +22,13 @@ const N_G = C / 8 + 1;          // ground vertices per side (33)
 const RAD_FOOT = 0.45, RAD_CAR = 1.9;
 const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
-const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName)]; // fl_<kind>: world/flora.js
+const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName), 'signsfl']; // fl_<kind>: world/flora.js; signsfl: a region's own sign atlas
+// The pools every P1 layout hashed (an empty one too). A pool added since counts in a chunk's hash only when the chunk
+// uses it, so every P1 chunk keeps the hash it had (docs/design/WEB_FLORIDA.md §5).
+const P1_POOLS = new Set(['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...P1_FLORA.map(poolName)]);
+const WG = 65; // a region chunk's water grid: 4 m samples, 65 x 65 (its edges shared with the neighbours')
+// Water colours by kind (world/regions.js WK), shallow -> deep: tea-dark swamp water, a canal, the lagoon, the sea.
+const WATER_COL = { 1: ['#4a4a2c', '#1d2518'], 2: ['#465236', '#1c2e26'], 3: ['#3d6f68', '#1c4648'], 4: ['#4f8e90', '#16445e'] };
 const URBAN = [0.9, 0.87, 0.82]; // the ring's ground: dust over old concrete and yards (data/ring.js zones tint their blocks)
 
 // ---- scratch writers (module-level: generation never allocates per instance) -------------------------------------------
@@ -76,23 +83,24 @@ class MeshBuf {
     };
   }
 }
-export const SURF_CAPS = { ground: [N_G * N_G, (N_G - 1) * (N_G - 1) * 6], road: [26000, 42000], rock: [44000, 90000] };
+export const SURF_CAPS = { ground: [N_G * N_G, (N_G - 1) * (N_G - 1) * 6], road: [26000, 42000], rock: [44000, 90000], water: [WG * WG * 2, (WG - 1) * (WG - 1) * 9] };
 // Scratch buffers for one generator at a time. The streamer runs one build at a time and owns the shared set; anything
 // that builds a layout beside it (the `chunk fresh=true` check) brings its own, so two builds never write the same arrays.
 export function makeScratch() {
   return {
     INST: {
       props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
-      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
+      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
       ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(400, 1)])), // extra: the variant (world/flora.js)
     },
-    SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true) },
+    SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
   };
 }
 const SHARED = makeScratch();
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 const rgb = (hex) => { _c.set(hex); return [_c.r, _c.g, _c.b]; };
+const smoothT = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const COL = {};
 const col = (hex) => (COL[hex] ??= rgb(hex));
 
@@ -106,7 +114,8 @@ export function mesasOf(W, cx, cz) {
   const rng = rngOf(hash32(W.seed, cx, cz, 4242));
   const out = [];
   const x0 = cx * C, z0 = cz * C;
-  const rel = W.reliefAt(x0 + C / 2, z0 + C / 2), b = BIOMES[W.biomeAt(x0 + C / 2, z0 + C / 2)] ?? BIOMES.d;
+  const RGN = W.regionOf?.(x0 + C / 2, z0 + C / 2, 3000);
+  const rel = W.reliefAt(x0 + C / 2, z0 + C / 2), b = (RGN ? RGN.biome(W.biomeAt(x0 + C / 2, z0 + C / 2)) : BIOMES[W.biomeAt(x0 + C / 2, z0 + C / 2)]) ?? BIOMES.d;
   const lambda = b.rock * (0.06 + rel * rel * 1.4); // expected features in this chunk
   let n = 0; for (let L = Math.exp(-lambda), p = rng(); p > L && n < 3; p *= rng()) n++;
   for (let k = 0; k < n; k++) {
@@ -174,8 +183,150 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   const biomeKey = W.biomeAt(centre.x, centre.z), state = W.stateAt(centre.x, centre.z) ?? '_';
   const flora = FLORA[state] ?? FLORA._;
   out.biome = BIOMES[biomeKey]?.name ?? biomeKey; out.state = state;
+  // A region past P1 (world/regions.js: Florida) lays out with its own rows: biome look, flora, water, life.
+  const RGN = W.regionOf?.(centre.x, centre.z, 3000) ?? null, RB = RGN ? RGN.biome(biomeKey) : null;
+  out.region = RGN?.id ?? null;
+  if (RB) out.biome = RB.name;
   // A plant from world/flora.js: scale x its model's height, the variant and a shade from where it stands (no draws on rng).
   const plant = (kind, x, z, scale, rot, shade = 1) => { const b = INST[poolName(kind)], i = b.push(x, 0, z, rot, scale, scale, scale, shade, shade, shade); if (i >= 0) b.e[i] = floraVariant(x, z); };
+
+  // A region's wild, as a sub-generator (its own draws on the chunk's stream: P1 chunks never run it).
+  const TREE_H = { sabal: [6.5, 10.5], slashpine: [12, 18], cypress: [9, 15], liveoak: [7, 10], deadtree: [4, 7], fanpalm: [8, 12], citrus: [2.6, 3.6], mangrove: [3, 5.2] };
+  function* regionScatter() {
+    const B = RB, ha = (C * C) / 10000, Rr = RGN.row;
+    let cityF = 0; for (const T of RGN.holdouts) cityF = Math.max(cityF, T.cityK(centre.x, centre.z));
+    const wild = 1 - 0.85 * cityF;
+    const pois = (lam) => { let n = 0; const L = Math.exp(-Math.min(lam, 60)); for (let p = rng(); p > L; p *= rng()) n++; return lam > 60 ? Math.round(lam + (rng() - 0.5) * Math.sqrt(lam) * 2) : n; };
+    const spot = (r, wet = 0) => { for (let t = 0; t < 5; t++) { const x = ox + rng.range(3, C - 3), z = oz + rng.range(3, C - 3); if (!blocked(x, z, r) && waterAt(x, z) <= wet) return [x, z]; } return null; };
+    const pick = (rows) => { let t = 0; for (const r of rows) t += r[1]; let p = rng() * t; for (const r of rows) if ((p -= r[1]) < 0) return r[0]; return rows[rows.length - 1][0]; };
+    const isle = RGN.shoreAt ? (x) => { const s2 = RGN.shoreAt(centre.z); return x > s2.x - s2.b - 10; } : () => false;
+    const tree = (kind, x, z) => {
+      if (!SPECIES[kind]) return;
+      // The barrier island keeps only palms, and few of them (sea oats and dunes are its cover).
+      if (kind !== 'mangrove' && isle(x)) { if (rng() < 0.8) return; kind = rng() < 0.7 ? 'sabal' : 'fanpalm'; }
+      const H = TREE_H[kind] ?? [4, 8], h = rng.range(H[0], H[1]);
+      plant(kind, x, z, h / SPECIES[kind].h, floraHash(z, x) * 6.283, 0.88 + 0.22 * floraHash(x, z));
+      const r = kind === 'liveoak' ? 0.6 : kind === 'mangrove' ? 0.8 : 0.35;
+      addBox(x - r, z - r, x + r, z + r, 'tree', Math.min(h, 6));
+    };
+    const PALM = col(Rr.shrubs.palmetto), SAW = col(Rr.shrubs.sawgrass);
+    // Palmetto (low fans in clumps) and sawgrass (tall tussocks that stand in the shallows).
+    for (let k = 0, n = pois(B.shrubs * ha * wild); k < n; k++) {
+      const palm = rng() < B.palmetto, p = spot(palm ? 0.9 : 0.6, palm ? 0 : 0.45);
+      if (!p) continue;
+      const s = rng.range(0.7, 1.25), v = rng.range(0.74, 1.1), c = palm ? PALM : SAW;
+      if (palm) {
+        // Saw palmetto: fans of stiff fronds from a low crown, a starburst from above (one to three crowns a clump).
+        for (let cr = 0, nc = rng() < 0.7 ? 1 : 2; cr < nc; cr++) {
+          const a0 = rng() * 6.28, d0 = cr ? s * rng.range(0.7, 1.2) : 0, x0 = p[0] + Math.cos(a0) * d0, z0 = p[1] + Math.sin(a0) * d0, nf = rng.int(5, 7), ss = s * (cr ? rng.range(0.7, 0.9) : 1);
+          for (let f = 0; f < nf; f++) {
+            const yaw = (f / nf) * 6.283 + rng.range(-0.25, 0.25), len = ss * rng.range(1.0, 1.4), pitch = rng.range(0.32, 0.62), tv = v * rng.range(0.86, 1.1);
+            _e.set(-pitch, yaw, 0, 'YXZ'); _q.setFromEuler(_e);
+            const cx2 = x0 + Math.sin(yaw) * Math.cos(pitch) * len * 0.5, cz2 = z0 + Math.cos(yaw) * Math.cos(pitch) * len * 0.5, cy = 0.12 + Math.sin(pitch) * len * 0.5;
+            _m.compose(_p.set(cx2, cy, cz2), _q, _s.set(ss * 0.42, 0.05, len));
+            INST.props.pushMatrix(_m, c[0] * tv, c[1] * tv, c[2] * tv * 0.92);
+          }
+        }
+      } else {
+        // Sawgrass: a tussock of tall flat blades, leaning out (it stands in the shallows too).
+        for (let b = 0, nb = rng.int(3, 5); b < nb; b++) {
+          const yaw = rng() * 6.283, lean = rng.range(0.15, 0.55), h = s * rng.range(0.9, 1.6), tv = v * rng.range(0.85, 1.1);
+          _e.set(lean, yaw, 0, 'YXZ'); _q.setFromEuler(_e);
+          _m.compose(_p.set(p[0] + Math.sin(yaw) * Math.sin(lean) * h * 0.5, h * 0.5, p[1] + Math.cos(yaw) * Math.sin(lean) * h * 0.5), _q, _s.set(0.16, h, 0.05));
+          INST.props.pushMatrix(_m, c[0] * tv, c[1] * tv, c[2] * tv);
+        }
+      }
+      if ((k & 63) === 63) { pause(); yield; resume(); }
+    }
+    pause(); yield; resume();
+    // Trees by the biome's rows (cypress may stand in a slough's shallows).
+    // In stands (hammocks), not sprinkled: a slow noise decides where the trees crowd and where the marsh stays open.
+    for (let k = 0, n = pois(B.trees * ha * wild * 1.9); k < n; k++) {
+      const kind = pick(B.flora), p = spot(1.4, kind === 'cypress' ? 0.9 : 0);
+      if (!p) continue;
+      const stand = vnoise(p[0], p[1], 150, seed + 5);
+      if (stand < 0.47 && rng() < 0.85) continue;
+      tree(kind, p[0], p[1]);
+    }
+    // Groves: an old citrus grove's rows, gone wild (farmland cells).
+    if (B.rows && rng() < 0.7) {
+      const ang = rng() < 0.5, x0 = ox + rng.range(10, 60), z0 = oz + rng.range(10, 60), wR = rng.range(90, 170), dR = rng.range(80, 160);
+      for (let a = 0; a < wR; a += 6.5) for (let b = 0; b < dR; b += 5.5) {
+        const x = ang ? x0 + a : x0 + b, z = ang ? z0 + b : z0 + a;
+        if (x > X1 - 3 || z > Z1 - 3 || rng() < 0.18 || blocked(x, z, 1.4) || waterAt(x, z) > 0) continue;
+        tree(rng() < 0.08 ? 'deadtree' : 'citrus', x + rng.range(-0.5, 0.5), z + rng.range(-0.5, 0.5));
+      }
+    }
+    pause(); yield; resume();
+    if (wat?.any) {
+      // Cypress domes: the sloughs ringed and studded with cypress standing in the water.
+      for (let k = 0, made = 0; k < 90 && made < 26; k++) {
+        const x = ox + rng.range(2, C - 2), z = oz + rng.range(2, C - 2), d = waterAt(x, z);
+        if (waterKind(x, z) !== WK.swamp || d < 0.03 || d > 0.95 || blocked(x, z, 1.2)) continue;
+        tree(rng() < 0.85 ? 'cypress' : 'deadtree', x, z); made++;
+      }
+      // Mangroves on the lagoon's and the inlets' shallow edges.
+      for (let k = 0, made = 0; k < 160 && made < 70; k++) {
+        const x = ox + rng.range(2, C - 2), z = oz + rng.range(2, C - 2), d = waterAt(x, z), wk = waterKind(x, z);
+        if ((wk !== WK.lagoon && wk !== WK.canal) || d < 0.02 || d > 0.75 || blocked(x, z, 1.6)) continue;
+        if (wk === WK.canal && rng() < 0.7) continue;
+        tree('mangrove', x, z); made++;
+      }
+      // Where the alligators lie up (systems/regions.js reads a hot chunk's lairs): water deep enough to sink in, a bank
+      // within a few metres.
+      out.life = [];
+      for (let k = 0; k < 90 && out.life.length < 2; k++) {
+        const x = ox + rng.range(8, C - 8), z = oz + rng.range(8, C - 8), d = waterAt(x, z), wk = waterKind(x, z);
+        if (d < 0.3 || d > 1.8 || wk === WK.ocean) continue;
+        if (Math.min(depthNear(x + 16, z), depthNear(x - 16, z), depthNear(x, z + 16), depthNear(x, z - 16)) > 0) continue;
+        out.life.push({ kind: 'gator', x: +x.toFixed(1), z: +z.toFixed(1), water: ['', 'slough', 'canal', 'lagoon', 'sea'][wk] });
+      }
+    }
+    // The barrier island and the beach: sea oats in the dunes, a few palms, driftwood.
+    const sh = RGN.shoreAt?.(centre.z);
+    if (sh && X1 > sh.x - sh.b - 40 && ox < sh.x + 10) {
+      const OATS = col('#c8bd8a');
+      for (let k = 0; k < 220; k++) {
+        const x = ox + rng.range(2, C - 2), z = oz + rng.range(2, C - 2), s2 = RGN.shoreAt(z);
+        if (x < s2.x - s2.b + 6 || x > s2.x - 14 || waterAt(x, z) > 0 || blocked(x, z, 0.5)) continue;
+        const s = rng.range(0.5, 1.0);
+        INST.shrubs.push(x, s * 0.4, z, rng() * 6, s * 0.8, s * 0.7, s * 0.8, OATS[0], OATS[1], OATS[2]);
+        if (rng() < 0.035) tree(rng() < 0.7 ? 'sabal' : 'fanpalm', x, z);
+        if (rng() < 0.03) INST.props.push(x, 0.12, z + 2, rng() * 3, rng.range(1.5, 3.2), 0.22, 0.3, 0.62, 0.56, 0.48); // driftwood
+      }
+    }
+    pause(); yield; resume();
+    // The dead suburbs: block houses on their old lots, roofs fallen in, the yards gone to palmetto (solid shells, looks
+    // only inside: the walk-in houses are the holdouts' and the ring's).
+    if (B.ruins) {
+      const WALL = ['#d9c7a6', '#c9b08a', '#b9c2b0', '#d8b48c', '#a8b8b0', '#cfc2a8', '#9c9484'], n = pois(B.ruins * ha * wild);
+      for (let k = 0; k < n; k++) {
+        const w = rng.range(10, 14), d = rng.range(8, 11), p = spot(Math.max(w, d) / 2 + 3, 0);
+        if (!p) continue;
+        const [x, z] = p, turn = rng() < 0.5, sx = turn ? d : w, sz = turn ? w : d, h = rng.range(2.6, 3.2), c = col(rng.pick(WALL)), burnt = rng() < 0.35, v = burnt ? 0.55 : 1;
+        INST.walls.push(x, h / 2, z, 0, sx, h, sz, c[0] * v, c[1] * v, c[2] * v);
+        if (!burnt && rng() < 0.6) INST.roofs.push(x + rng.range(-1, 1), h + 0.15, z + rng.range(-1, 1), rng.range(-0.06, 0.06), sx * rng.range(0.5, 0.85), 0.25, sz * rng.range(0.5, 0.9), 0.42, 0.38, 0.34);
+        for (let q = 0; q < 5; q++) INST.props.push(x + rng.range(-sx / 2 - 2, sx / 2 + 2), 0.25, z + rng.range(-sz / 2 - 2, sz / 2 + 2), rng() * 3, rng.range(0.8, 2.2), rng.range(0.25, 0.6), rng.range(0.8, 2.2), c[0] * 0.7, c[1] * 0.7, c[2] * 0.7);
+        addBox(x - sx / 2, z - sz / 2, x + sx / 2, z + sz / 2, 'ruin', h);
+        if (rng() < 0.3) wreck(x + sx / 2 + 3, z + rng.range(-2, 2), rng.pick([0, Math.PI / 2]), rng.pick(['#5a3a24', '#4a3020', '#6b4a2e', '#3d3a36', '#704020']));
+      }
+    }
+    // A fishing camp on stilts by the water (rare), a pale limestone rock or two.
+    if (wat?.any && rng() < 0.06 && cityF < 0.1) {
+      const p = spot(7, 0);
+      if (p) {
+        const [x, z] = p, w = rng.range(5, 7), d = rng.range(4, 6), c = col(rng.pick(['#7a6a52', '#6e6a62', '#8a7a5a', '#6a7a6e']));
+        for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) INST.props.push(x + px * (w / 2 - 0.3), 0.6, z + pz * (d / 2 - 0.3), 0, 0.25, 1.2, 0.25, 0.3, 0.26, 0.22);
+        INST.walls.push(x, 2.4, z, 0, w, 2.4, d, c[0], c[1], c[2]);
+        INST.roofs.push(x, 3.75, z, 0, w + 0.8, 0.25, d + 0.8, 0.5, 0.52, 0.5);
+        addBox(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 'shack', 3.6);
+      }
+    }
+    for (let k = 0, n = pois(B.boulders * ha * wild); k < n; k++) {
+      const r = rng.range(0.4, 1.1), p = spot(r); if (!p) continue;
+      INST.boulders.push(p[0], r * 0.3, p[1], rng() * 6.28, r * 1.2, r * 0.6, r * 1.1, 0.78, 0.76, 0.68);
+    }
+  }
 
   // Collision: clip a box to the chunk square (and to the nav margin for the halo list).
   const addBox = (x0, z0, x1, z1, tag, height, base = 0) => {
@@ -204,39 +355,140 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   resume();
 
   // ---- keep-out: what scatter must stay off (the road, interchanges, buildings, mesas) --------------------------------
-  const cl = W.cl, segs = [];
-  for (let i = 0; i < cl.n - 1; i++) {
-    const mx = (cl.x[i] + cl.x[i + 1]) / 2, mz = (cl.z[i] + cl.z[i + 1]) / 2;
-    if (mx > ox - 80 && mx < X1 + 80 && mz > oz - 80 && mz < Z1 + 80) segs.push(i);
+  // Every interstate near the chunk (I-10, and a region's: docs/design/WEB_FLORIDA.md §3.1), its segments in reach.
+  const segL = [];
+  for (const cor of W.corridors ?? [W.i10]) {
+    const cl = cor.cl, segs = [], m = cor === W.i10 ? 80 : 170;
+    if (cor !== W.i10 && (cor.bbox.x1 < ox - m || cor.bbox.x0 > X1 + m || cor.bbox.z1 < oz - m || cor.bbox.z0 > Z1 + m)) continue;
+    for (let i = 0; i < cl.n - 1; i++) {
+      const mx = (cl.x[i] + cl.x[i + 1]) / 2, mz = (cl.z[i] + cl.z[i + 1]) / 2;
+      if (mx > ox - m && mx < X1 + m && mz > oz - m && mz < Z1 + m) segs.push(i);
+    }
+    if (segs.length) segL.push({ cor, cl, segs, near: cor === W.i10 ? segs : segs.filter((i) => { const mx = (cl.x[i] + cl.x[i + 1]) / 2, mz = (cl.z[i] + cl.z[i + 1]) / 2; return mx > ox - 80 && mx < X1 + 80 && mz > oz - 80 && mz < Z1 + 80; }) });
   }
   const roadD = (x, z) => {
     let best = Infinity;
-    for (let k = 0; k < segs.length; k++) {
-      const i = segs[k], ax = cl.x[i], az = cl.z[i], dx = cl.x[i + 1] - ax, dz = cl.z[i + 1] - az, l2 = dx * dx + dz * dz;
-      let t = ((x - ax) * dx + (z - az) * dz) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
-      const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
-      if (d < best) best = d;
+    for (const q of segL) {
+      const cl = q.cl, segs = q.near;
+      for (let k = 0; k < segs.length; k++) {
+        const i = segs[k], ax = cl.x[i], az = cl.z[i], dx = cl.x[i + 1] - ax, dz = cl.z[i + 1] - az, l2 = dx * dx + dz * dz;
+        let t = ((x - ax) * dx + (z - az) * dz) / l2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+        if (d < best) best = d;
+      }
     }
     return best;
+  };
+  const anySegs = segL.some((q) => q.near.length);
+  // The same corridor's projection from its segments in reach (the water's canal rule), shaped like cor.project's.
+  const _pj = { s: 0, d: Infinity, side: 0 };
+  const projLocal = (cor, x, z) => {
+    const q = segL.find((o) => o.cor === cor);
+    _pj.d = Infinity; _pj.s = 0; _pj.side = 0;
+    if (!q) return _pj;
+    const cl = q.cl;
+    let bi = -1, bt = 0;
+    for (const i of q.segs) {
+      const ax = cl.x[i], az = cl.z[i], dx = cl.x[i + 1] - ax, dz = cl.z[i + 1] - az, l2 = dx * dx + dz * dz;
+      let t = l2 > 0 ? ((x - ax) * dx + (z - az) * dz) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const d = Math.hypot(x - ax - dx * t, z - az - dz * t);
+      if (d < _pj.d) { _pj.d = d; bi = i; bt = t; }
+    }
+    if (bi < 0 || _pj.d > 140) { _pj.d = Infinity; return _pj; }
+    const px = cl.x[bi] + (cl.x[bi + 1] - cl.x[bi]) * bt, pz = cl.z[bi] + (cl.z[bi + 1] - cl.z[bi]) * bt;
+    _pj.s = cl.s[bi] + (cl.s[bi + 1] - cl.s[bi]) * bt;
+    _pj.side = (x - px) * -cl.tz[bi] + (z - pz) * cl.tx[bi] >= 0 ? 1 : -1;
+    return _pj;
   };
   const mesas = [];
   for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) for (const m of mesasOf(W, cx + ix, cz + iz)) { const R = m.r * MESA_REACH; if (m.x + R > ox - 2 && m.x - R < X1 + 2 && m.z + R > oz - 2 && m.z - R < Z1 + 2) mesas.push(m); }
   const blocked = (x, z, r) => {
     if (inIsland(x, z, r + 3)) return true;
-    if (segs.length && roadD(x, z) < 22 + r) return true;
+    if (anySegs && roadD(x, z) < 22 + r) return true;
     for (const rb of F.ribbons) if (!rb.mainline && x > rb.x0 && x < rb.x1 && z > rb.z0 && z < rb.z1 && W.ribbonDist(rb, x, z) < Math.max(rb.wl[0], rb.wr[0]) + 4 + rb.ymax * 2 + r) return true;
     for (const b of F.buildings) if (x > b.x0 - 4 - r && x < b.x1 + 4 + r && z > b.z0 - 4 - r && z < b.z1 + 4 + r) return true;
     for (const s of F.structs) if (Math.hypot(s.x - x, s.z - z) < Math.max(s.sa, s.su) / 2 + 3 + r) return true;
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
+    if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
     return false;
   };
   yield;
 
+  // ---- water (a region's: the sea, the lagoon, the canals, the sloughs; world/regions.js is the authority) -------------
+  // A 4 m grid of depths and kinds, shared at the edges with the neighbours, cached by the region while the layout lives
+  // (world/water.js reads it), drawn as a sheet, and blocked in the nav tiles where it is too deep to wade or drive.
+  let wat = null;
+  if (RGN?.water) {
+    const d = new Float32Array(WG * WG), k = new Uint8Array(WG * WG), sg = new Float32Array(WG * WG), o = { d: 0, k: 0, s: 0 }, ctx = { proj: projLocal, ribbons: F.ribbons, towns: W.towns.filter((t) => t.built && t.region === RGN && Math.hypot(t.x - centre.x, t.z - centre.z) < 1000) };
+    let any = false;
+    for (let j = 0; j < WG; j++) {
+      for (let i = 0; i < WG; i++) {
+        const x = ox + i * 4, z = oz + j * 4;
+        ctx.ribbons = i === WG - 1 || j === WG - 1 ? (W.featuresOf(Math.floor(x / C), Math.floor(z / C))?.ribbons ?? []) : F.ribbons;
+        regionWater(RGN, x, z, o, ctx);
+        d[j * WG + i] = o.d; k[j * WG + i] = o.d > 0 ? o.k : 0; sg[j * WG + i] = o.d > 0 ? Math.max(o.s, 0.01) : Math.min(o.s, 0);
+        if (o.d > 0) any = true;
+      }
+      if ((j & 1) === 1) { pause(); yield; resume(); }
+    }
+    wat = { d, k, s: sg, any };
+  }
+  out.water = wat;
+  const waterAt = (x, z) => { // bilinear depth inside this chunk (0 outside it or with no water)
+    if (!wat?.any) return 0;
+    const fx = (x - ox) / 4, fz = (z - oz) / 4;
+    if (fx < 0 || fz < 0 || fx > WG - 1 || fz > WG - 1) return 0;
+    const i = Math.min(WG - 2, Math.floor(fx)), j = Math.min(WG - 2, Math.floor(fz)), tx = fx - i, tz = fz - j, D = wat.d;
+    return (D[j * WG + i] * (1 - tx) + D[j * WG + i + 1] * tx) * (1 - tz) + (D[(j + 1) * WG + i] * (1 - tx) + D[(j + 1) * WG + i + 1] * tx) * tz;
+  };
+  // Depth a little past the chunk too (the same pure answer the neighbour gets: seams agree).
+  const _dn = { d: 0, k: 0 }, _dctx = { proj: projLocal, ribbons: null, towns: RGN ? W.towns.filter((t) => t.built && t.region === RGN && Math.hypot(t.x - centre.x, t.z - centre.z) < 1000) : null };
+  const depthNear = (x, z) => {
+    if (x >= ox && x <= X1 && z >= oz && z <= Z1) return waterAt(x, z);
+    if (!RGN?.water) return 0;
+    _dctx.ribbons = W.featuresOf(Math.floor(x / C), Math.floor(z / C))?.ribbons ?? [];
+    return regionWater(RGN, x, z, _dn, _dctx).d;
+  };
+  const waterKind = (x, z) => { if (!wat?.any) return 0; const i = Math.max(0, Math.min(WG - 1, Math.round((x - ox) / 4))), j = Math.max(0, Math.min(WG - 1, Math.round((z - oz) / 4))); return wat.k[j * WG + i]; };
+
   // ---- ground: an 8 m grid tinted by biome, relief and noise, fading to the island's plain sand at its edge ------------
   {
     const G = SURF.ground, idx = new Int32Array(N_G * N_G);
-    const tintAt = (x, z, outc) => {
+    const tintRegion = (x, z, outc) => {
+      // A region's ground (Florida: green, wet, flat): its biome rows' tints between cell centres, noise, the town, the
+      // beach and the wet ground round the water. The texture under it is neutral (streamer: the region's ground material).
+      const u = (x / W.K + STREAM.PHX[0] - W.data.world_offset[0]) / W.data.cell_m - 0.5, v = (z / W.K + STREAM.PHX[1] - W.data.world_offset[1]) / W.data.cell_m - 0.5;
+      const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
+      let r = 0, g = 0, b = 0;
+      for (let k = 0; k < 4; k++) {
+        const ii = Math.max(0, Math.min(W.data.w - 1, i + (k & 1))), jj = Math.max(0, Math.min(W.data.h - 1, j + (k >> 1)));
+        const t = RGN.biome(W.data.grid[jj][ii]).tint, wgt = (k & 1 ? fu : 1 - fu) * (k >> 1 ? fv : 1 - fv);
+        r += t[0] * wgt; g += t[1] * wgt; b += t[2] * wgt;
+      }
+      const n1 = vnoise(x, z, 260, seed) - 0.5, n2 = vnoise(x, z, 46, seed + 1) - 0.5, n3 = vnoise(x, z, 1100, seed + 2) - 0.5, n4 = vnoise(x, z, 120, seed + 3) - 0.5;
+      const bright = 1 + n1 * 0.3 + n2 * 0.14 + n3 * 0.16;
+      r *= bright * (1 + n4 * 0.12); g *= bright; b *= bright * (1 - n4 * 0.1);
+      const R = RGN.row;
+      // The beach and the barrier island: sand, dunes greyed by sea oats toward the lagoon side.
+      const sh = RGN.shoreAt?.(z);
+      if (sh) {
+        const dx = x - sh.x;
+        let sk = 0;
+        if (dx > -sh.b - 4) sk = dx > -18 ? 1 : 0.55 + 0.45 * smoothT((dx + sh.b) / Math.max(30, sh.b * 0.5));
+        else { const ms = x - (sh.x - sh.b - sh.l); if (ms > -22 && ms < 6) sk = 0.45 * (1 - Math.abs(ms + 8) / 14); } // the mainland's shore
+        if (sk > 0) { const s = R.sand; r += (s[0] * bright - r) * sk; g += (s[1] * bright - g) * sk; b += (s[2] * bright - b) * sk; }
+      }
+      // Wet ground and mud round the water (the bank), from the 4 m grid where this vertex has it.
+      const wd = waterAt(x, z);
+      if (wd > 0) { const m = R.mud, k2 = Math.min(1, 0.55 + wd * 0.4); r += (m[0] - r) * k2; g += (m[1] - g) * k2; b += (m[2] - b) * k2; }
+      else if (depthNear(x + 8, z) + depthNear(x - 8, z) + depthNear(x, z + 8) + depthNear(x, z - 8) > 0) { const m = R.wet; r += (m[0] - r) * 0.35; g += (m[1] - g) * 0.35; b += (m[2] - b) * 0.35; }
+      // Inside a holdout's wall: packed sand and worn grass.
+      let ck = 0; for (const T of RGN.holdouts) ck = Math.max(ck, T.cityK(x, z));
+      if (ck > 0) { const worn = vnoise(x, z, 22, seed + 9), tk = worn > 0.55 ? [0.8, 0.74, 0.56] : [0.62, 0.68, 0.44], k2 = ck * (worn > 0.55 ? 0.8 : 0.5); r += (tk[0] * bright - r) * k2; g += (tk[1] * bright - g) * k2; b += (tk[2] * bright - b) * k2; } // kept grass, worn to dirt where people walk
+      outc[0] = r ** 2.2; outc[1] = g ** 2.2; outc[2] = b ** 2.2; // the rows are display colours: to linear
+    };
+    const tintAt = RGN ? tintRegion : (x, z, outc) => {
       // Bilinear biome tint between 500 m usmap cell centres (no hard squares where the biome changes).
       const u = (x / W.K + STREAM.PHX[0] - W.data.world_offset[0]) / W.data.cell_m - 0.5, v = (z / W.K + STREAM.PHX[1] - W.data.world_offset[1]) / W.data.cell_m - 0.5;
       const i = Math.floor(u), j = Math.floor(v), fu = u - i, fv = v - j;
@@ -262,6 +514,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       const x = ox + i * 8, z = oz + j * 8;
       tintAt(x, z, tc);
       idx[j * N_G + i] = G.v(i * 8, 0, j * 8, 0, 1, 0, (x + 650) / 1300, (650 - z) / 1300, tc[0], tc[1], tc[2]);
+      if (RGN && i === N_G - 1 && (j & 7) === 7) { pause(); yield; resume(); } // a region's tint asks the water: slices
     }
     for (let j = 0; j < N_G - 1; j++) for (let i = 0; i < N_G - 1; i++) {
       const x = ox + i * 8 + 4, z = oz + j * 8 + 4;
@@ -272,6 +525,43 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     // The edge signature: the ground along each edge (what the neighbour must agree with).
     const edgeHash = (pick) => { const h = new Hasher(); for (let k = 0; k < N_G; k++) { const v = pick(k); h.num(G.col[v * 3]).num(G.col[v * 3 + 1]).num(G.col[v * 3 + 2]); } return h; };
     out.edges = { n: edgeHash((k) => idx[k]), s: edgeHash((k) => idx[(N_G - 1) * N_G + k]), w: edgeHash((k) => idx[k * N_G]), e: edgeHash((k) => idx[k * N_G + N_G - 1]) };
+  }
+  pause(); yield; resume();
+
+  // ---- the water sheet: every 4 m cell with water at a corner, tinted by kind and depth, world-space UVs (world/water.js
+  // material: ripples and glints run on across chunk seams) --------------------------------------------------------------
+  if (wat?.any) {
+    const Wm = SURF.water, vid = new Int32Array(WG * WG).fill(-1), cs = {}, tmpc = new THREE.Color();
+    for (const [kk, [a, b]] of Object.entries(WATER_COL)) cs[kk] = [new THREE.Color(a), new THREE.Color(b)];
+    const D = wat.d, K = wat.k, SG = wat.s, Y = 0.015;
+    const tint = (d, kind) => { const c = cs[kind] ?? cs[1]; return tmpc.copy(c[0]).lerp(c[1], Math.min(1, d / (kind === WK.ocean ? 6 : 2.2))); };
+    const vert = (q, kind) => {
+      if (vid[q] >= 0) return vid[q];
+      const i = q % WG, j = (q - i) / WG, c = tint(D[q], K[q] || kind);
+      return (vid[q] = Wm.v(i * 4, Y, j * 4, 0, 1, 0, (ox + i * 4) / 7, (oz + j * 4) / 7, c.r, c.g, c.b));
+    };
+    const poly = [], CI = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    for (let j = 0; j < WG - 1; j++) for (let i = 0; i < WG - 1; i++) {
+      const q = [j * WG + i, j * WG + i + 1, (j + 1) * WG + i + 1, (j + 1) * WG + i];
+      const wet = q.map((v) => SG[v] > 0), n = wet.filter(Boolean).length;
+      if (!n) continue;
+      if (!Wm.room(8, 18)) break;
+      const kind = K[q[0]] || K[q[1]] || K[q[2]] || K[q[3]];
+      if (n === 4) { const [va, vb, vc, vd] = q.map((v) => vert(v, kind)); Wm.tri(va, vd, vc); Wm.tri(va, vc, vb); continue; } // wound to face up
+      // The shore crosses this cell: cut it on the zero line of the signed margin (marching squares), so the water's edge
+      // is a line, not a staircase of 4 m squares.
+      poly.length = 0;
+      for (let c = 0; c < 4; c++) {
+        const c2 = (c + 1) & 3;
+        if (wet[c]) poly.push(vert(q[c], kind));
+        if (wet[c] !== wet[c2]) {
+          const s0 = SG[q[c]], s1 = SG[q[c2]], t = Math.max(0, Math.min(1, s0 / (s0 - s1)));
+          const x = (i + CI[c][0] + (CI[c2][0] - CI[c][0]) * t) * 4, z = (j + CI[c][1] + (CI[c2][1] - CI[c][1]) * t) * 4, cc = tint(0, kind);
+          poly.push(Wm.v(x, Y, z, 0, 1, 0, (ox + x) / 7, (oz + z) / 7, cc.r, cc.g, cc.b));
+        }
+      }
+      for (let p = 1; p < poly.length - 1; p++) Wm.tri(poly[0], poly[p + 1], poly[p]);
+    }
   }
   pause(); yield; resume();
 
@@ -325,7 +615,8 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // ---- earthworks (the fills under ramps and the cross road) and the bridge -------------------------------------------
   const K = SURF.rock;
-  const fillCol = col('#8d6c4c'), slopeCol = col('#7a5c40'), toeCol = col('#9a7a58');
+  // (A region's fills are grassed over: Florida's embankments are green, not desert dirt.)
+  const fillCol = col(RGN ? '#8e8a74' : '#8d6c4c'), slopeCol = col(RGN ? '#5e7a3e' : '#7a5c40'), toeCol = col(RGN ? '#6a8a46' : '#9a7a58');
   for (const p of F.pieces) {
     const rb = p.rib;
     for (let i = 0; i < rb.n - 1; i++) {
@@ -494,7 +785,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // ---- signs (faces from the atlas), stop signs, mileposts, power poles ------------------------------------------------
   const SIGNPOST = col('#5b5a55');
-  const signAt = (x, z, rot, w, hgt, slot, lift = 1.7) => {
+  const signAt = (x, z, rot, w, hgt, slot, lift = 1.7, region = null) => {
     // Posts on the ground, the panel laid back toward the sky so the top-down camera reads it (text upright on screen).
     for (const s of [-1, 1]) {
       const px = x + Math.cos(rot) * s * w * 0.32, pz = z - Math.sin(rot) * s * w * 0.32;
@@ -503,26 +794,31 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
     _e.set(-1.22, 0, 0); _q.setFromEuler(_e); // tilt back ~70 degrees (the panel faces up and a little south, toward the camera)
     _m.compose(_p.set(x, lift + hgt * 0.32, z), _q, _s.set(w, hgt, 1));
-    const i = INST.signs.pushMatrix(_m, 1, 1, 1);
-    if (i >= 0) INST.signs.e.set(W.signAtlas?.rect(slot) ?? [0, 0, 1, 1], i * 4);
+    // A region's faces are in its own atlas (world/signs.js), drawn by its own pool.
+    const buf = region ? INST.signsfl : INST.signs, atlas = region ? W.signAtlasFL : W.signAtlas;
+    const i = buf.pushMatrix(_m, 1, 1, 1);
+    if (i >= 0) buf.e.set(atlas?.rect(slot) ?? [0, 0, 1, 1], i * 4);
   };
-  for (const s of F.signs) if (own(s.x, s.z)) signAt(s.x, s.z, s.h, s.w, s.hgt, s.id);
+  for (const s of F.signs) if (own(s.x, s.z)) signAt(s.x, s.z, s.h, s.w, s.hgt, s.id, s.lift ?? 1.7, s.region ?? null);
   for (const st of F.stops) {
     const sp = st.sign;
     if (!own(sp.x, sp.z)) continue;
-    signAt(sp.x, sp.z, st.h, 1.1, 1.1, 'STOP', st.y + 1.6);
+    signAt(sp.x, sp.z, st.h, 1.1, 1.1, 'STOP', st.y + 1.6, RGN ? RGN.id : null);
   }
   const MP = col('#2c5a3c');
   for (const m of F.posts) if (own(m.x, m.z)) { INST.props.push(m.x, 0.55, m.z, m.h, 0.08, 1.1, 0.08, 0.35, 0.34, 0.32); INST.props.push(m.x, 1.15, m.z, m.h, 0.36, 0.5, 0.06, MP[0], MP[1], MP[2]); }
-  // Power poles along the north/east side of the interstate, every 70 m, skipping interchanges and the island.
-  if (segs.length) {
+  // Power poles along the north/east side of the interstate, every 70 m, skipping interchanges and the island (a
+  // region's corridor: on the side away from its canal).
+  for (const q of segL) if (q.near.length) {
+    const cor = q.cor, cl = q.cl, segs = q.near, i10 = cor === W.i10, pside = i10 || !cor.canal ? 1 : -cor.canal.side;
     const POLE = col('#4a3a2a'), ARM = col('#3d3026');
     const sA = cl.s[segs[0]], sB = cl.s[segs[segs.length - 1] + 1];
     for (let s = Math.ceil(sA / 70) * 70; s < sB; s += 70) {
-      const f = W.at(s), u = W.section(s).out + 24, x = f.x + f.nx * u, z = f.z + f.nz * u;
-      if (!own(x, z) || inIsland(x, z, 30) || W.exits.some((X) => Math.abs(X.s - s) < 520) || W.ring?.inCity(x, z, 80)) continue;
+      const f = cor.at(s), u = pside * (cor.section(s).out + 24), x = f.x + f.nx * u, z = f.z + f.nz * u;
+      if (!own(x, z) || inIsland(x, z, 30) || cor.exits.some((X) => Math.abs(X.s - s) < 520) || W.ring?.inCity(x, z, 80)) continue;
       if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 700)) continue;
-      const lean = (hash32(seed, Math.round(s)) % 100) / 100 - 0.5, rot = Math.atan2(f.tx, f.tz);
+      if (!i10 && (s < cor.mainlineFrom || blocked(x, z, 0.5) || depthNear(x, z) > 0)) continue;
+      const lean = ((i10 ? hash32(seed, Math.round(s)) : hash32(seed, Math.round(s), cor.salt)) % 100) / 100 - 0.5, rot = Math.atan2(f.tx, f.tz);
       INST.trunks.push(x, 4.6, z, rot, 0.62, 9.2, 0.62, POLE[0], POLE[1], POLE[2]);
       INST.props.push(x, 8.6, z, rot + Math.PI / 2 + lean * 0.12, 2.6, 0.14, 0.14, ARM[0], ARM[1], ARM[2]);
       for (const k of [-1, 0, 1]) INST.props.push(x + f.tx * k * 1.1, 8.78, z + f.tz * k * 1.1, 0, 0.1, 0.2, 0.1, 0.55, 0.52, 0.48);
@@ -540,14 +836,15 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     INST.props.push(x, 1.15, z, rot, 1.6, 0.6, 2.0, 0.16, 0.15, 0.13);
     if (along) addBox(x - 2.1, z - 0.95, x + 2.1, z + 0.95, 'wreck', 1.4); else addBox(x - 0.95, z - 2.1, x + 0.95, z + 2.1, 'wreck', 1.4);
   };
-  for (const i of segs) {
+  for (const q of segL) for (const i of q.near) {
+    const cor = q.cor, cl = q.cl;
     const mx = (cl.x[i] + cl.x[i + 1]) / 2, mz = (cl.z[i] + cl.z[i + 1]) / 2;
     if (!own(mx, mz) || inIsland(mx, mz, 60)) continue;
-    const h = hash32(seed, i, 99);
+    const h = cor === W.i10 ? hash32(seed, i, 99) : hash32(seed, i, 99, cor.salt);
     if (h % 1000 > 11) continue; // about one every 700 m
-    const s = cl.s[i], sec = W.section(s);
-    if (W.exits.some((X) => Math.abs(X.s - s) < 600)) continue;
-    const f = W.at(s), roadRot = Math.atan2(f.tx, f.tz);
+    const s = cl.s[i], sec = cor.section(s);
+    if (cor.exits.some((X) => Math.abs(X.s - s) < 600) || (cor !== W.i10 && s < cor.mainlineFrom)) continue;
+    const f = cor.at(s), roadRot = Math.atan2(f.tx, f.tz);
     const rot = Math.round(roadRot / (Math.PI / 2)) * (Math.PI / 2) + ((h >> 10) % 100 - 50) / 400;
     const median = (h >> 4) % 3 === 0, side = (h >> 6) % 2 ? 1 : -1;
     const along = Math.abs(Math.sin(rot)) > 0.7, hx = along ? 2.1 : 0.95, hz = along ? 0.95 : 2.1;
@@ -577,11 +874,12 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   // A building is drawn by the chunk holding its centre (which also holds its containers, beds and roof slots); its
   // collision is clipped into every chunk it reaches. Roof instances are recorded per building so the streamer can hide
   // one when you walk in.
-  const RG = W.ring;
+  // A region's holdouts (world/holdout.js: Meridian) answer the same questions as the ring and go through the same stage.
   out.ring = null;
   let ringStreets = null;
-  if (RG && RG.touches(cx, cz)) {
-    const rs = (out.ring = { owned: 0, near: 0, boxes: [], beds: [], roofs: {}, bld: [], decor: 0, streets: 0, ms: 0 });
+  const ringRail = [];
+  for (const RG of W.towners ?? [W.ring]) if (RG && RG.touches(cx, cz)) {
+    const rs = (out.ring ??= { owned: 0, near: 0, boxes: [], beds: [], roofs: {}, bld: [], decor: 0, streets: 0, ms: 0 });
     pause(); const w0 = work; resume();
     // A flat quad of the road layer clipped to this chunk; u along `axis` in metres / per, v across the band from the
     // rect's own edge (so a strip clipped at a chunk seam carries on in the neighbour without a jump).
@@ -602,8 +900,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
         if (along === 'x') quad(p.x0, p.z0 + s0, p.x1, p.z0 + s1, y, band, 'x', per); else quad(p.x0 + s0, p.z0, p.x0 + s1, p.z1, y, band, 'z', per);
       }
     };
-    ringStreets = RG.streets(ox, oz, X1, Z1);
-    for (const s of ringStreets) {
+    const rgStreets = RG.streets(ox, oz, X1, Z1);
+    ringStreets = ringStreets ? ringStreets.concat(rgStreets) : rgStreets;
+    for (const s of rgStreets) {
       quad(s.x0, s.z0, s.x1, s.z1, s.axis === 'z' ? 0.036 : 0.032, 'street', s.axis, 21); rs.streets++;
       // Seams: a street that runs on over an edge (not one that starts there) is named on it.
       if (s.axis === 'z') { if (s.open0) crossings.n.push(`ring:z${s.line}`); if (s.open1) crossings.s.push(`ring:z${s.line}`); }
@@ -646,7 +945,17 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     }
     // Cars left at the kerb (whole inside this chunk), and the Iron Line running on through the yards.
     for (const w of RG.wrecks(cx, cz)) wreck(w.x, w.z, w.rot, w.color);
+    // A holdout's own pieces: its wall, gates and towers, the market, gardens, pit and boneyard, lamps, trees (its centre
+    // in this chunk draws it; every box that reaches in is solid here).
+    if (RG.extras) {
+      const ex = RG.extras(cx, cz);
+      for (const it of ex.items) I(it.pool, it.e);
+      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+      for (const [kind, x, z, h, v] of ex.flora) if (SPECIES[kind]) { const b = INST[poolName(kind)], i = b.push(x, 0, z, floraHash(z, x) * 6.283, h / SPECIES[kind].h, h / SPECIES[kind].h, h / SPECIES[kind].h, 1, 1, 1); if (i >= 0) b.e[i] = v; addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h); }
+      pause(); yield; resume();
+    }
     for (const [s0, s1] of RG.railIn(cx, cz) ?? []) {
+      ringRail.push([s0, s1]);
       const x = RING.rail.x, len = s1 - s0, zc = (s0 + s1) / 2;
       INST.props.push(x, 0.08, zc, 0, 3.6, 0.16, len, 0.36, 0.32, 0.28);                    // ballast
       for (const g2 of [-0.8, 0.8]) INST.props.push(x + g2, 0.24, zc, 0, 0.12, 0.14, len, 0.42, 0.38, 0.34); // rails, gone to rust
@@ -664,7 +973,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     pause(); rs.ms = +(work - w0).toFixed(2); yield; resume();
   }
 
+  // ---- a region's wild (Florida: palmetto and sawgrass, pines, cypress in the sloughs, mangroves on the lagoon) ----------
+  if (RGN) yield* regionScatter();
   // ---- desert scatter: shrubs, cacti, boulders, trees by biome and state; a rare shack or camp ---------------------------
+  else {
   const B = BIOMES[biomeKey] ?? BIOMES.d, ha = (C * C) / 10000;
   const rel = W.reliefAt(centre.x, centre.z);
   const shrubC = col(flora.shrub);
@@ -765,6 +1077,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       INST.glows.push(x, 0.12, z, 0, 18, 1, 18, 1, 0.54, 0.23);
     }
   }
+  } // (the desert)
   pause(); yield; resume();
 
   // ---- nav tiles: owned boxes plus the halo (features a little past the edge) -------------------------------------------
@@ -779,6 +1092,18 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
         if (b.base > 0) continue;
         const x0 = lo(b.minX - radius, ox), x1 = hi(b.maxX + radius, ox), z0 = lo(b.minZ - radius, oz), z1 = hi(b.maxZ + radius, oz);
         for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) { a[z * n + x] = 1; any = 1; }
+      }
+      // Water too deep to plan a walk (1.2 m) or a drive (0.6 m) through, as the island's store does (you can still swim
+      // it, or take a boat).
+      if (wat?.any) {
+        const lim = cell === 1 ? 1.2 : 0.6, D = wat.d, per = 4 / cell;
+        for (let j = 0; j < WG - 1; j++) for (let i = 0; i < WG - 1; i++) {
+          const q = j * WG + i, mx = Math.max(D[q], D[q + 1], D[q + WG], D[q + WG + 1]);
+          if (mx <= lim) continue; // a 4 m cell with nothing too deep: its nav cells stay as they are
+          const mn = Math.min(D[q], D[q + 1], D[q + WG], D[q + WG + 1]);
+          for (let z = j * per; z < (j + 1) * per; z++) for (let x = i * per; x < (i + 1) * per; x++)
+            if (mn > lim || waterAt(ox + (x + 0.5) * cell, oz + (z + 0.5) * cell) > lim) { a[z * n + x] = 1; any = 1; }
+        }
       }
       // Inside the island the pinned store answers: leave those cells to it.
       tile.any = !!any;
@@ -795,6 +1120,10 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     const lum = Math.min(1, ((tc[base] * 0.3 + tc[base + 1] * 0.59 + tc[base + 2] * 0.11) * 0.55 - 0.11) / 0.45);
     g.fillStyle = `rgb(${Math.round(22 + 70 * lum * 0.5)},${Math.round(32 + 88 * lum * 0.5)},${Math.round(14 + 34 * lum * 0.5)})`;
     g.fillRect(0, 0, mm.width, mm.height);
+    if (wat?.any) { // a region's water, in the island map's water colour
+      g.fillStyle = '#2f5a5c';
+      for (let j = 0; j < WG - 1; j++) for (let i = 0; i < WG - 1; i++) { const q = j * WG + i; if (wat.d[q] + wat.d[q + 1] + wat.d[q + WG] + wat.d[q + WG + 1] > 0.6) g.fillRect(i * 4 * k, j * 4 * k, 4 * k + 0.5, 4 * k + 0.5); }
+    }
     for (const m of mesas) { g.fillStyle = 'rgba(92,70,40,0.85)'; g.beginPath(); g.ellipse((m.x - ox) * k, (m.z - oz) * k, m.r * k * 0.85, (m.kind === 'ridge' ? m.r / 2.2 : m.r) * k * 0.85, -m.rot, 0, 6.29); g.fill(); }
     g.lineCap = 'round'; g.lineJoin = 'round';
     for (const rb of F.ribbons) {
@@ -816,7 +1145,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
       g.fillStyle = '#7d9150';
       for (const s of ringStreets) g.fillRect((s.x0 - ox) * k, (s.z0 - oz) * k, (s.x1 - s.x0) * k, (s.z1 - s.z0) * k);
       g.fillStyle = '#6a5a40';
-      for (const [s0, s1] of RG.railIn(cx, cz) ?? []) g.fillRect((RING.rail.x - 1.5 - ox) * k, (s0 - oz) * k, 3 * k, (s1 - s0) * k);
+      for (const [s0, s1] of ringRail) g.fillRect((RING.rail.x - 1.5 - ox) * k, (s0 - oz) * k, 3 * k, (s1 - s0) * k);
       for (const b of out.ring.bld) { g.fillStyle = b.ruined ? '#4f6234' : '#6a8a3e'; g.fillRect((b.x0 - ox) * k, (b.z0 - oz) * k, (b.x1 - b.x0) * k, (b.z1 - b.z0) * k); }
     }
     if (isl) g.clearRect(Math.max(0, (-ISLAND - ox) * k), Math.max(0, (-ISLAND - oz) * k), Math.max(0, (Math.min(X1, ISLAND) - Math.max(ox, -ISLAND)) * k), Math.max(0, (Math.min(Z1, ISLAND) - Math.max(oz, -ISLAND)) * k));
@@ -824,6 +1153,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
 
   // ---- take the results, hash them -----------------------------------------------------------------------------------
   out.surf = { ground: SURF.ground.take(ox, oz), road: SURF.road.take(ox, oz), rock: SURF.rock.take(ox, oz) };
+  if (wat?.any) out.surf.water = SURF.water.take(ox, oz); // a region's water sheet (P1 layouts have none: their hash keeps)
   out.inst = {};
   let n = 0;
   for (const k of POOL_NAMES) { if (INST[k].n) out.inst[k] = INST[k].take(); out.counts[k] = INST[k].n; n += INST[k].n; if (INST[k].n >= INST[k].cap) out.warnings.push(`instance cap ${k}`); }
@@ -839,7 +1169,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
   out.bounds = bx0 === Infinity ? null : { x0: bx0, z0: bz0, x1: bx1, z1: bz1 };
   const H = new Hasher().int(cx).int(cz).str(W.dataHash);
   for (const b of boxes) H.num(b.minX).num(b.minZ).num(b.maxX).num(b.maxZ).num(b.height).num(b.base).str(b.tag);
-  for (const k of POOL_NAMES) { const r = out.inst[k]; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
+  for (const k of POOL_NAMES) { const r = out.inst[k]; if (!r && !P1_POOLS.has(k)) continue; H.str(k).int(r?.n ?? 0); if (r) for (let i = 0; i < r.m.length; i += 7) H.num(r.m[i]); }
   for (const k of Object.keys(out.surf)) { const s = out.surf[k]; H.str(k).int(s?.nv ?? 0).int(s?.ni ?? 0); if (s) for (let i = 0; i < s.pos.length; i += 5) H.num(s.pos[i]); }
   out.hash = H.hex();
   out.edgeRoads = { n: crossings.n.length, s: crossings.s.length, w: crossings.w.length, e: crossings.e.length };
