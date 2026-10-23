@@ -34,6 +34,13 @@ export const NODES = {
   sand_trap:     { name: 'SAND TRAP POLE', short: 'THE SAND TRAP', at: { exit: 'THE SAND TRAP' } },
   las_palmas:    { name: 'LAS PALMAS POLE', short: 'LAS PALMAS', at: { exit: 'LAS PALMAS STRIP' } },
   paso_knot:     { name: 'EL PASO KNOT', short: 'EL PASO', at: { town: 'elpaso' }, town: 'elpaso', knot: true },
+  // THE SALT LINE (Florida's I-95, south to north: its arc length is miles from Miami). Knot: Meridian, the start.
+  little_river:  { name: 'LITTLE RIVER POLE', short: 'LITTLE RIVER', at: { exit: 'LITTLE RIVER', road: 'I-95' } },
+  meridian_knot: { name: 'MERIDIAN KNOT', short: 'MERIDIAN', at: { exit: 'MERIDIAN', road: 'I-95' }, town: 'meridian', knot: true },
+  sebastian:     { name: 'SEBASTIAN POLE', short: 'SEBASTIAN', at: { exit: 'SEBASTIAN', road: 'I-95' } },
+  daytona:       { name: 'DAYTONA POLE', short: 'DAYTONA', at: { exit: 'DAYTONA', road: 'I-95' } },
+  st_augustine:  { name: 'ST. AUGUSTINE POLE', short: 'ST. AUGUSTINE', at: { exit: 'ST. AUGUSTINE', road: 'I-95' } },
+  rosewood:      { name: 'ROSEWOOD KNOT', short: 'ROSEWOOD', at: { exit: 'ROSEWOOD', road: 'I-95' }, knot: true },
   // THE IRON LINE (rail x = -360, the freight runs south and loops back in from the north).
   north_halt:    { name: 'NORTH YARD HALT', short: 'NORTH YARD', at: { x: -355.5, z: -1000 }, rail: true },
   dustbowl:      { name: 'DUST BOWL STATION', short: 'DUST BOWL', at: { x: -366, z: 96 }, rail: true, knotOf: 'iron_crossing' },
@@ -60,6 +67,17 @@ export const LINES = [
     fare: { base: 6, perMile: 1.1 },    // scrip: base + per game mile
     risk: { perMile: 0.011, night: 1.6 }, // odds a mile of road turns something up; night multiplies
     vehicle: { type: 'bus', paint: '#b06a2a' },
+    crew: [{ seat: 0, role: 'driver', weapon: null }, { seat: 1, role: 'guard', weapon: 'shotgun' }],
+  },
+  {
+    // Florida's trundle: the same rules on I-95 (WEB_FLORIDA.md), Meridian's knot in the middle of it. dir +1 = north.
+    id: 'salt', kind: 'bus', name: 'SALT LINE', road: 'I-95', dirs: ['NORTH', 'SOUTH'], slang: 'the trundle',
+    stops: ['little_river', 'meridian_knot', 'sebastian', 'daytona', 'rosewood', 'st_augustine'], // in order up the road (Rosewood's exit is short of St. Augustine's)
+    first: 7, every: 8,
+    speed: 21, dwell: 14,
+    fare: { base: 5, perMile: 1.0 },
+    risk: { perMile: 0.012, night: 1.7 },
+    vehicle: { type: 'bus', paint: '#3e7a6a' },
     crew: [{ seat: 0, role: 'driver', weapon: null }, { seat: 1, role: 'guard', weapon: 'shotgun' }],
   },
   {
