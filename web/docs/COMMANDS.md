@@ -162,3 +162,21 @@ Arg notation: `name:type` required, `name?:type` optional, `a|b` enum.
 | `load` | `save:object` | Restore a state produced by save (positions, health, deaths, inventory, quests, time, weather, vehicles). |
 | `selftest` | `only?:string` | Run the engine self-test battery (spawn, shoot, gore, drive, harpoon, dialogue, weather, interiors). Restores nothing — run on a fresh page. only=<text> runs just the checks whose name contains it (a quick loop while you work on one system; the gate is always the whole battery). |
 
+## shard
+
+| command | args | what it does |
+|---|---|---|
+| `shard` | `(none)` | The shard connection (docs/design/WEB_SHARD.md): state (offline \| connecting \| open \| authed \| inworld \| reconnecting), the shard url and name, the account, the character you play, who else is online as this page draws them, other players' parked cars, your car, claims, the named dead, when you were last saved, message counts and the clock offset to the shard. |
+| `shardConnect` | `url?:string` | Connect to a shard (default ws://<this host>:3280/shard, or ?shard= in the page url). Returns its name and how many are in its world. |
+| `shardLogin` | `user:string pass:string create?:boolean url?:string` | Log in to the shard as user with pass (create=true makes the account first). Returns the account's characters. The password is never echoed back or kept by the page; only the session token is (localStorage, for CONTINUE). Tools: node tools/shard.mjs login reads the dev logins from web/server/.dev-accounts.json. |
+| `shardChars` | `(none)` | The logged-in account's characters (up to 3): id, name, flag, last seen, where they stand, their house. |
+| `shardNewChar` | `name:string flag?:string` | Make a character on the logged-in account: name (2-16 letters, unique on the shard) and flag (a country code the page can draw: US MX CA CU JM IE NG IT DE CO HT GH JP VN PH KR BR PR). |
+| `shardEnter` | `char:string` | Walk into the shard's world as a character (id or name): the shard's copy of them becomes your player (where they stood, the pack, needs, money, standing, roles, their car), the world's changes are applied (locks, windows, the named dead, the town cars taken), and everyone else online appears. A brand-new character starts as the game starts. |
+| `shardWho` | `(none)` | Everyone else on the shard as this page sees them: shown (where their body is drawn right now, facing, gun, alive, vehicle), interpolated (where they are ~120 ms behind their page), latest (the newest sample and its age). In the world: a name plate with their flag over each one, and the roster plate at the bottom. |
+| `shardSave` | `(none)` | Save your character to the shard now (it also saves every 10 s, on logout and when the page closes). Returns when the shard has it. |
+| `shardLogout` | `signout?:boolean` | Save and leave the world (back to the account; the game keeps running offline on this page). signout=true also ends the session (the token is forgotten on both sides). In the game: LOG OUT on the roster plate. |
+| `shardClaim` | `(none)` | Claim the building you stand in as your house (one per character; not a trader's place; not one somebody else claims). Everyone on the shard sees it: walking into it says whose place it is. |
+| `shardUnclaim` | `(none)` | Give up your house claim. |
+| `shardWorld` | `(none)` | The shared world as this page has it from the shard: claims, the named dead, the town cars taken, the last deeds on the shard's chronicle, and how many doors and windows this page holds as changed (interiors save). |
+| `shardLoginUi` | `step?:login\|chars close?:boolean` | Open the login modal as a person sees it (step=login \| chars), e.g. for a screenshot; close=true closes it. |
+

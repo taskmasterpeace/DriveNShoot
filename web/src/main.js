@@ -54,6 +54,7 @@ import { Feedback } from './ui/feedback.js';
 import { QOL } from './ui/qol.js';
 import { startBridge } from './agent/bridge.js';
 import { loadContentPacks } from './agent/content.js';
+import { attachShard } from './net/shard.js';
 
 const _ray = new THREE.Raycaster();
 const _plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1.2);
@@ -1205,6 +1206,7 @@ const game = new Game();
 window.game = game;   // raw engine access (debugging)
 window.DL = game.api; // the agent API — see AGENTS.md
 loadContentPacks(game.api).then(async () => {
+  attachShard(game); // the shard (docs/design/WEB_SHARD.md): LOG IN, other players, persistence; does nothing until you log in
   // Dev QOL: a full page reload (code edit) keeps your place in the world.
   const keep = sessionStorage.getItem('dl.hmr');
   if (keep) { sessionStorage.removeItem('dl.hmr'); try { restore(game, JSON.parse(keep)); game.emit('hmrRestored'); } catch (e) { console.warn('hmr restore failed', e); } }

@@ -1,3 +1,6 @@
 node_modules
 dist
 .dream-loop/
+# the shard's live data (accounts, characters, the world) and the dev accounts file: never committed
+server/data/
+server/.dev-accounts.json

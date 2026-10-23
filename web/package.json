@@ -10,10 +10,14 @@
     "preview": "vite preview --port 3141",
     "dl": "node tools/dl.mjs",
     "agent": "node tools/agent.mjs",
-    "docs:commands": "node tools/gen-commands.mjs"
+    "docs:commands": "node tools/gen-commands.mjs",
+    "shard": "node server/shard.mjs",
+    "shard:seed": "node server/seed-dev.mjs",
+    "shard:test": "node tools/shard-test.mjs"
   },
   "dependencies": {
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "ws": "8.18.0"
   },
   "devDependencies": {
     "vite": "^5.4.10"
