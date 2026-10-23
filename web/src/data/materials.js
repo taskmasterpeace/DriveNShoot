@@ -97,6 +97,7 @@ export const MATERIAL_RULES = {
     sandbags: 'sandbags',
     barrier: 'concrete', pool: 'concrete', storey: 'concrete', building: { finish: true }, // a solid block: by its finish
     tree: 'timber', cactus: 'timber',
+    husk: 'timber', drum: 'sheet_metal', hut: 'wood', // the hot ground's dead trunks and rusted drums, a Greyborn settlement's huts (they stand up at runtime)
     rock: 'rock', boulder: 'rock',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],

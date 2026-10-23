@@ -51,7 +51,8 @@ What each fan should recognise:
   or in the arrivals hall of an off-map city that has a vat. The scan takes an hour in the chair (the clock runs).
 - A pressing records: the vat, the game hour, `skills.save()` (every skill's level and xp), your name, flag and colours.
 - One pressing at a time. Pressing again replaces it (wherever it was); the old body is poured out.
-- **Starter pressing:** a new character starts pressed once at Rust Haven, free (Rust Haven presses newcomers: it needs bodies); it pays no brine money (the town covers it). Once it is used, every pressing after is bought and kept.
+- **Starter pressing:** a new character starts pressed once, free, at the START holdout's vat (`clone.startVat()`: Meridian's
+  clone bay on a Florida start, `?start=florida`, the players' default; Rust Haven on a Phoenix start, the agent harness's), (the town presses newcomers: it needs bodies); it pays no brine money (the town covers it). Once it is used, every pressing after is bought and kept.
 - **Brine money:** each new game day while you hold a pressing, the vat's upkeep comes out of the brine book. A day it cannot
   is owed; after `graceDays` owed days the vat drains your pressing (toast, `pressingLost` event). Putting scrip in settles
   what is owed first.
@@ -121,6 +122,16 @@ What each fan should recognise:
 - **Riding:** in real time (the clock runs as you ride; ambushes, breakdowns, tolls and herds can come at you on the road), or
   asleep: N aboard, or N at the board with a punch, sleeps through it. The clock runs the wait and the whole trip, your needs
   drain as if dozing in a seat (never below a floor), the husks' pickers get those hours, and the road rolls once.
+
+### 3.5b Florida (the start region, WEB_FLORIDA.md)
+- **Meridian's vat** is a vat row with `clinic: 'meridian'`: its place comes from `g.regions.clinic('meridian').bay` (the clinic's
+  clone-bay room): the tank in the room's free corner against its back wall, you come up in the middle of the room. It is drawn
+  like Rust Haven's.
+- **The SALT LINE** is the trundle on Florida's I-95 (`road: 'I-95'`, `dirs: NORTH/SOUTH`; a corridor's arc length runs north
+  from Miami): Little River, the MERIDIAN KNOT, Sebastian, Daytona, Rosewood (a knot), St. Augustine. Same rules, same coach
+  (green paint), $5 + $1/mile, leaves each end at 07, 15 and 23. Any line can name its road: nodes resolve on that corridor
+  (`W.corridors`), poles and stop points and the coach's autopilot follow it.
+- "On the map" is now P1's circle **or** a region's box (`W.inWorld(x, z, -1500)`), so Florida's vats and poles are real places.
 
 ### 3.6 What the road turns up (EN_ROUTE rows)
 ambush (Dustwolves: a share of your pocket scrip, a few hp), breakdown (hours lost), toll (a holdout checkpoint's toll; can't
@@ -252,11 +263,13 @@ Used by:
    punch is spent.
 10. Sleeping through Rust Haven to Los Angeles runs the clock exactly the wait plus the timetable's road time (plus the event's
    delay); a seed that rolls an event applies it (delay, scrip, hp); a quiet seed rolls nothing; you stand at the LA pole.
-11. Los Angeles to Chicago costs the row's $1,400; you land in Chicago's arrivals hall (open, the clock moved by the wait and
+11. A Florida start is pressed at Meridian's clone bay; dying in Florida you come up within 2.5 m of its vat (drawn there), the
+    husk in Florida; a SALT LINE punch from Meridian's knot north sleeps you to the Daytona pole.
+12. Los Angeles to Chicago costs the row's $1,400; you land in Chicago's arrivals hall (open, the clock moved by the wait and
    5 h); a flight back costs its row's fare and puts you at the LA field counter with the hall closed.
-12. A pressing, the brine book, a husk (its items, scrip and car), punches, brine sickness and the arrivals hall all come back
+13. A pressing, the brine book, a husk (its items, scrip and car), punches, brine sickness and the arrivals hall all come back
     from a save and a load.
-13. The trundle at its pole, the poles, the board and the vat in view stay under 150 draw calls.
+14. The trundle at its pole, the poles, the board and the vat in view stay under 150 draw calls.
 Plus: the whole battery green twice on fresh pages; `scenario name=stress` not regressed; `node tools/ip-lint.mjs` 0 deny.
 
 ## Our words (the slang glossary)

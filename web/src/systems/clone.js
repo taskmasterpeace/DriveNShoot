@@ -60,11 +60,20 @@ export class Clone {
   }
   vatPlaceNow(row) {
     if (row.at) return { x: row.at.x, z: row.at.z, wake: row.wake ?? { x: row.at.x, z: row.at.z + 2 }, onMap: true };
+    // A holdout's clinic with a clone bay (systems/regions.js clinic(id), Florida's Meridian): the tank against the bay's
+    // back wall, you come up in the middle of the room.
+    if (row.clinic) {
+      const cl = this.g.regions?.clinic?.(row.clinic), b = cl?.bay;
+      if (b) {
+        const cx = Math.min(b.x0, b.x1) + 1.35, back = Math.min(b.z0, b.z1) + 1.1, wz = Math.min(Math.max(b.z0, b.z1) - 0.8, back + 2.3); // the free corner: the bay's own pods stand along its far wall
+        return { x: cx, z: back, wake: { x: cx, z: wz }, onMap: true, holdout: cl.holdout, room: b };
+      }
+    }
     const T = this.g.travel, n = row.port ? T?.node(row.port) : null;
     if (n?.onMap) return { x: n.counter.x, z: n.counter.z, wake: { x: n.counter.x + 1.5, z: n.counter.z + 1.5 }, onMap: true, node: row.port };
     if (n) return { onMap: false, node: row.port };
     const L = this.W?.locate(row.town);
-    if (L && L.built && Math.hypot(L.x, L.z) < STREAM.dustWall - 1500) return { x: L.x, z: L.z, wake: { x: L.x + 2, z: L.z + 2 }, onMap: true };
+    if (L && L.built && (this.g.travel?.inWorld?.(L.x, L.z) ?? Math.hypot(L.x, L.z) < STREAM.dustWall - 1500)) return { x: L.x, z: L.z, wake: { x: L.x + 2, z: L.z + 2 }, onMap: true };
     return { onMap: false, node: null };
   }
   // The vat whose counter you stand at (on the map), or the one in the off-map city whose hall holds you.
@@ -74,6 +83,12 @@ export class Clone {
     const p = this.g.player;
     for (const row of VATS) { const pl = this.vatPlace(row); if (pl?.onMap && Math.hypot(pl.x - p.x, pl.z - p.z) < reach + 1.5) return row; }
     return null;
+  }
+  // A new character's vat: the START holdout's (Meridian's clone bay on a Florida start, Rust Haven's on a Phoenix one).
+  startVat() {
+    const R = this.g.regions, hid = R?.startedAt ?? (R?.start === 'florida' ? 'meridian' : null);
+    const row = hid ? VATS.find((v) => v.clinic === hid || v.town === hid) : null;
+    return row && this.vatPlace(row)?.onMap ? row.id : 'rust_haven';
   }
   price(row = this.vatHere()) { return Math.round(CLONE_RULES.price * (row?.priceMul ?? 1)); }
   upkeep(row = this.vat(this.pressing?.vat)) { return Math.round(CLONE_RULES.upkeepPerDay * (row?.upkeepMul ?? 1)); }
@@ -280,12 +295,16 @@ export class Clone {
     const F = g.society?.factions;
     if (F) for (const id of F.ids) { const row = F.row(id); if (row.memory !== 'none') F.set(id, row.start); }
     if (this.quests0) g.quests = JSON.parse(JSON.stringify(this.quests0));
-    // Rust Haven takes newcomers in at the clinic door, and presses them once (it needs bodies).
+    // The start holdout takes newcomers in at its clinic door, and presses them once (it needs bodies): Rust Haven, or
+    // Meridian on a Florida start.
+    const sv = this.startVat(), srow = this.vat(sv), scl = srow?.clinic ? g.regions?.clinic?.(srow.clinic) : null;
     const clinic = g.world?.spawns?.shops?.[0];
-    const door = clinic?.doors?.[0] ?? { x: -53.5, z: -66 };
-    p.x = door.x; p.z = door.z - 1.2; p.gy = 0; p.storey = null; g.standOn?.(p);
+    const door = scl?.door ?? (clinic?.doors?.[0] ? { x: clinic.doors[0].x, z: clinic.doors[0].z - 1.2 } : { x: -53.5, z: -67.2 });
+    g.streamer?.ensureHot(door.x, door.z, 'load');
+    const dp = { x: door.x, z: door.z }; g.statics.resolveCircle(dp, 0.5);
+    p.x = dp.x; p.z = dp.z; p.gy = 0; p.storey = null; g.standOn?.(p);
     g.camLook.x = p.x; g.camLook.z = p.z;
-    if (CLONE_RULES.starterPressing) this.press('rust_haven', { free: true, force: true });
+    if (CLONE_RULES.starterPressing) this.press(sv, { free: true, force: true });
     this.lastWake = { flat: true, shard: false, fresh, x: r1(p.x), z: r1(p.z) };
     g.emit('respawn', { x: r1(p.x), z: r1(p.z) });
     g.hud?.toast?.(`YOU DIED FLAT · ${was.name} IS OVER`, 'hot');
@@ -409,7 +428,7 @@ export class Clone {
     this.started = true;
     const g = this.g;
     this.quests0 = JSON.parse(JSON.stringify(g.quests ?? {}));
-    if (CLONE_RULES.starterPressing && !this.pressing && !this.husks.length && !this.lineage.length && !this.loaded) this.press('rust_haven', { free: true, force: true });
+    if (CLONE_RULES.starterPressing && !this.pressing && !this.husks.length && !this.lineage.length && !this.loaded) this.press(this.startVat(), { free: true, force: true });
     this.buildVats();
   }
   // The body on the ground: a real dead body near you, drawn by the character renderer; nothing far off.
@@ -485,9 +504,9 @@ export class Clone {
     if (!g.scene || this.vatMeshes.length) return;
     for (const row of VATS) {
       const pl = this.vatPlace(row);
-      if (!pl?.onMap || !row.at) continue; // the knots' vats stand inside their halls (no hall built yet): the clinic's is drawn
+      if (!pl?.onMap || !(row.at || row.clinic)) continue; // a clinic's tank is drawn (Rust Haven's room, a holdout's clone bay); the knots' halls are not built yet
       const grp = vatModel();
-      grp.position.set(pl.x, 0, pl.z);
+      grp.position.set(pl.x, g.stunts?.heightAt?.(pl.x, pl.z) ?? 0, pl.z);
       g.scene.add(grp);
       this.vatMeshes.push(grp);
     }
