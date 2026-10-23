@@ -452,7 +452,7 @@ export class Travel {
 
   card(kind, d = {}) {
     let title, lines;
-    if (kind === 'cloneWake') { title = 'YOU CAME UP IN THE BRINE'; lines = [d.where, d.husk ? `YOUR HUSK LIES ${d.husk}` : null, `THE PRESSING WAS ${d.stale} H COLD`]; }
+    if (kind === 'cloneWake') { title = 'YOU CAME UP IN THE BRINE'; lines = [d.where, d.husk ? `YOUR HUSK LIES ${d.husk}` : null, d.stale < 1 ? "THE PRESSING WAS FRESH" : `THE PRESSING WAS ${d.stale} H COLD`]; }
     else if (kind === 'flat') { title = 'YOU DIED FLAT'; lines = [`NO PRESSING IN THE BRINE: ${d.name} IS OVER`, d.fresh ? `A NEW DRIFTER WALKS IN FROM THE FLATS: ${d.fresh}` : 'THIS CHARACTER IS GONE FROM THE SHARD']; }
     else {
       title = `ARRIVED · ${d.name}`;

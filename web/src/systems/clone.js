@@ -199,13 +199,13 @@ export class Clone {
     }
     const h = this.husks[this.husks.length - 1];
     this.lastWake = { vat: row?.id, x: r1(p.x), z: r1(p.z), skills: P.skills.lv, husk: h?.id ?? null, at: +this.hours().toFixed(2), onMap: !!place?.onMap };
-    g.emit('cloneWake', { vat: row?.id, x: r1(p.x), z: r1(p.z), reruns: this.reruns, husk: h?.id ?? null, stale: r1(this.hours() - P.at) });
+    g.emit('cloneWake', { vat: row?.id, x: r1(p.x), z: r1(p.z), reruns: this.reruns, husk: h?.id ?? null, stale: Math.max(0, r1(this.hours() - P.at)) });
     g.emit('respawn', { x: r1(p.x), z: r1(p.z) });
     if (h && !h.gone) g.qol?.setWaypoint?.({ x: h.x, z: h.z });
     g.hud?.toast?.(`YOU CAME UP IN THE BRINE · ${where}`, 'hot');
     g.hud?.toast?.(`BRINE-SICK FOR A DAY · NO PRESSING IN THE VAT NOW`, 'warn');
     if (h) g.hud?.subtitle?.(`Your husk lies ${this.placeName(h.x, h.z)}${h.car ? `, your ${h.car.name} beside it` : ''}. The pickers are already walking. [M] map`, 7);
-    g.travel?.card?.('cloneWake', { where: row?.name ?? where, husk: h ? this.placeName(h.x, h.z) : null, stale: r1(this.hours() - P.at) });
+    g.travel?.card?.('cloneWake', { where: row?.name ?? where, husk: h ? this.placeName(h.x, h.z) : null, stale: Math.max(0, r1(this.hours() - P.at)) });
     return { ok: true, ...this.lastWake };
   }
 
@@ -496,7 +496,7 @@ export class Clone {
     const P = this.pressing;
     if (!P) return null;
     const row = this.vat(P.vat);
-    return { vat: P.vat, name: row?.name, at: P.at, day: P.day, staleHours: r1(this.hours() - P.at), skills: P.skills.lv, xp: P.skills.xp, look: P.look?.name ?? null, free: !!P.free };
+    return { vat: P.vat, name: row?.name, at: P.at, day: P.day, staleHours: Math.max(0, r1(this.hours() - P.at)), skills: P.skills.lv, xp: P.skills.xp, look: P.look?.name ?? null, free: !!P.free };
   }
   view() {
     const g = this.g, here = this.vatHere();

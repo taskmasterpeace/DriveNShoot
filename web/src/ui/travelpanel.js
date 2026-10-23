@@ -77,6 +77,7 @@ export class TravelPanel {
     this.g.input?.down?.clear?.(); // nothing stays held under the panel
     this.render();
     this.wrap.classList.remove('hidden');
+    this.cardEl?.classList.add('hidden'); // a panel over the screen: the slip has been read
   }
   refresh() { if (this.open && this.model?.build) this.model = { ...this.model, ...this.model.build() }; this.render(); }
   close() {
@@ -114,13 +115,11 @@ export class TravelPanel {
     this.cardEl.className = `tp-card${kind === 'flat' || kind === 'dead' ? ' black' : ''}`;
     this.cardEl.innerHTML = `<div class="h">${esc(title)}</div>${lines.filter(Boolean).map((l) => `<div class="l">${esc(l)}</div>`).join('')}`;
     this.cardT = secs;
+    // Real time, not the sim's: the slip fades even while a panel or the hall holds the world still.
+    clearTimeout(this.cardFade); clearTimeout(this.cardHide);
+    this.cardFade = setTimeout(() => this.cardEl.classList.add('fade'), secs * 1000);
+    this.cardHide = setTimeout(() => this.cardEl.classList.add('hidden'), secs * 1000 + 900);
   }
 
-  update(dt) {
-    if (this.cardT > 0 && this.cardEl) {
-      this.cardT -= dt;
-      if (this.cardT <= 0) this.cardEl.classList.add('fade');
-      if (this.cardT <= -1) this.cardEl.classList.add('hidden');
-    }
-  }
+  update(dt) { if (this.cardT > 0) this.cardT -= dt; }
 }
