@@ -73,8 +73,8 @@ export class Dialogue {
     // Somebody hurt in front of you, and something in your pack to patch them with: the first choice is yours to make.
     this.extra = this.g.inventory?.hurtEnough(c) && this.g.inventory.bestFor(c) >= 0 ? [this.treatChoice(c)] : null;
     const remark = c.npc && mem?.remark(c);
-    if (remark) this.g.hud.subtitle(`${c.npc.name}: ${remark}`, 4);
-    else if (c.npc) { const line = roles?.greet(c); if (line) this.g.hud.subtitle(`${c.npc.name}: ${line}`, 4); } // what you are known for
+    if (remark) { this.g.hud.subtitle(`${c.npc.name}: ${remark}`, 4); this.g.voice?.speak(c, remark, { kind: 'talk' }); }
+    else if (c.npc) { const line = roles?.greet(c); if (line) { this.g.hud.subtitle(`${c.npc.name}: ${line}`, 4); this.g.voice?.speak(c, line, { kind: 'talk' }); } } // what you are known for
     if (c.npc) this.show(c.npc.startFor?.(this.g) ?? c.npc.start);
     else {
       // A stranger: their own small talk, or (every other hour, if you are known for something) what they make of you.
@@ -99,6 +99,9 @@ export class Dialogue {
 
   say(text, choices) {
     this.full = text; this.shown = 0;
+    // Heard as well as read (systems/voice.js): their voice if the line was rendered, text only if not. A line waits
+    // for the one before it (a remark on the way in); a stage note in parentheses is never spoken.
+    if (this.npc && text && !text.startsWith('(')) this.g.voice?.speak(this.npc, text, { kind: 'talk', after: true });
     this.textEl.textContent = '';
     if (this.extra) { choices = [...this.extra, ...choices]; this.extra = null; } // only on the first screen
     this.choices = choices;
@@ -118,6 +121,7 @@ export class Dialogue {
     if (!ch) return;
     if (this.shown < this.full.length) { this.shown = this.full.length; return; }
     this.g.audio.blip();
+    if (this.npc) this.g.voice?.hush(this.npc); // you spoke: they stop mid-line to listen
     this.g.emit('dialogueChoice', { npc: this.npc?.id, choice: typeof ch.t === 'function' ? ch.t(this.g) : ch.t });
     if (ch.treat) {
       const c = this.npc, r = this.g.inventory.treat(c);
@@ -142,6 +146,7 @@ export class Dialogue {
   }
 
   update(dt, input) {
+    this.g.voice?.update(dt); // the voices follow their speakers every frame, talking or not (made in systems/talk.js)
     if (!this.active) return;
     if (this.shown < this.full.length) {
       this.shown = Math.min(this.full.length, this.shown + dt * 70);

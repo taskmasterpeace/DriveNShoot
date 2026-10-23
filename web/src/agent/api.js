@@ -25,6 +25,8 @@ import { addAuthored, removeAuthored, prove as proveAuthored } from '../world/au
 import { LAB_SAMPLES } from '../data/authored.js';
 import { GEAR, SLOTS } from '../data/gear.js';
 import { BREEDS, BOND } from '../data/dogs.js';
+import { LINES, SITUATIONS } from '../data/dialogue.js';
+import { castVoice, clipKey } from '../data/voices.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1091,6 +1093,25 @@ function buildCommands(api) {
       },
     },
     dialogue: { group: 'dialogue', desc: 'Current dialogue text + choices.', run: async () => api.dialogueState() },
+    voice: {
+      group: 'dialogue', desc: 'Voices (docs/design/WEB_VOICE.md). No args: what is being said now (who, gain, distance, pan), the counts (played, text-only, cut, busy) and the last lines. id= key= says a situation row as that person would, filled from the live world (vars= a JSON object for {who} {place} {dir}...): greet, refuse, under_fire, gunpoint.aimed|surrender|plead|handover|defiant|rob|rob_warn|rob_paid, standoff.open|hold|back_down|break, trade.hello|deal|broke, rumour, road.warning, death, thanks. id= text= speaks one exact line. radio=true speaks text= (or key=) on STATIC 1660 AM. dev=true lets the placeholder (flite) clips play. Audio when the forge rendered the line for their voice (tools/voiceforge), the subtitle always.',
+      args: { id: { type: 'string' }, key: { type: 'string' }, text: { type: 'string' }, vars: { type: 'string' }, radio: { type: 'boolean' }, dev: { type: 'boolean' } },
+      run: async ({ id, key, text, vars, radio, dev } = {}) => {
+        const V = g.voice;
+        need(V, 'no voice system');
+        await V.ready;
+        if (dev !== undefined) V.allowDev = !!dev;
+        if (!id && !radio) return V.view();
+        const c = radio ? 'radio' : api.findChar(id);
+        need(c, `no character ${id}`);
+        need(key || text, 'say what: key= (a situation) or text= (an exact line)');
+        let v = {};
+        if (vars) { try { v = JSON.parse(vars); } catch { need(false, 'vars must be a JSON object'); } }
+        const said = key ? V.say(c, key, v) : radio ? V.radio(text) : V.speak(c, text);
+        need(said, `nobody like ${c === 'radio' ? 'the radio' : c.npc?.name ?? c.name} has a row for ${key}`);
+        return { said, ...V.view() };
+      },
+    },
 
     // ---------------------------------------------------------------- world
     setTime: { group: 'world', desc: 'Set hour of day (0-24). fast=true runs time x40.', args: { hour: { type: 'number', required: true }, fast: { type: 'boolean' } },
@@ -4669,6 +4690,107 @@ async function runSelfTest(api, only = null) {
       const ok = topics.length === 4 && news?.includes(victim.name) && /^I was there/.test(news) && /dead/.test(road ?? '') && /north/.test(road ?? '') && !!you;
       return ok ? true : JSON.stringify({ topics, news, road, you });
     } finally { for (const id of [...herd, w.id]) { const c = api.findChar(id); if (c) g.removeChar(c); } }
+  }));
+  // ---- voices (docs/design/WEB_VOICE.md): dialogue rows, the variation deck, the live world's words, positional audio.
+  const voiceSetup = async () => {
+    const V = g.voice; await V.ready;
+    const ok = g.chars.find((c) => c.npc?.id === 'okonkwo');
+    if (ok && !ok.alive && ok.downedT > 0) await C('step', { seconds: ok.downedT + 0.5 });
+    const N = NPCS.find((n) => n.id === 'okonkwo').nodes;
+    if (!g.audio.ctx) g.audio.start();
+    return { V, ok, lore: N.lore.text, work: N.work.text };
+  };
+  await check('voice: every situation gives a drifter, a warden and a raider 3+ variations, no new row has more than 8, and no row carries an ip-lint DENY term', async () => {
+    const { denyHits } = await import(/* @vite-ignore */ `${location.origin}/tools/ip-terms.mjs`);
+    const thin = [], fat = LINES.filter((r) => !r.ported && r.lines.length > 8).map((r) => r.id), deny = [];
+    for (const key of Object.keys(SITUATIONS)) for (const faction of ['drifter', 'warden', 'raider']) {
+      if (faction === 'warden' && key.startsWith('gunpoint.rob')) continue; // the town's law does not hold people up
+      const n = g.voice.rows({ faction, x: 0, z: 0 }, key).reduce((s, r) => s + r.lines.length, 0);
+      if (n < 3) thin.push(`${key}/${faction}:${n}`);
+    }
+    for (const r of LINES) for (const t of r.lines) for (const h of denyHits(t)) deny.push(`${r.id}: "${h.term}"`);
+    return !thin.length && !fat.length && !deny.length && LINES.length > 150 ? true : JSON.stringify({ rows: LINES.length, thin, fat, deny });
+  });
+  await check('voice: the same key on the same speaker deals a different variation each time, every one before any comes round again', async () => hush(async () => {
+    await stage();
+    const a = person('drifter', 4, 0, { name: 'Deck Tester (selftest)' }), b = person('drifter', -4, 0, { name: 'Other Tester (selftest)' });
+    try {
+      const n = g.voice.rows(a, 'gunpoint.surrender').reduce((s, r) => s + r.lines.length, 0), seq = [];
+      for (let i = 0; i < n * 2 + 1; i++) seq.push(g.voice.say(a, 'gunpoint.surrender', {}, { subtitle: false }).text);
+      const fresh = new Set(seq.slice(0, n)).size === n && new Set(seq.slice(n, 2 * n)).size === n, noRepeat = seq.every((t, i) => !i || t !== seq[i - 1]);
+      const theirs = [0, 1, 2].map(() => g.voice.line(b, 'gunpoint.surrender').text).join('|'); // another person's deck is their own
+      return n >= 3 && fresh && noRepeat && theirs !== seq.slice(0, 3).join('|') ? true : JSON.stringify({ n, fresh, noRepeat, seq, theirs });
+    } finally { g.removeChar(a); g.removeChar(b); }
+  }));
+  await check('voice: {dir} {place} {you} fill from the live world - the raider to the north, the place they stand in', async () => hush(async () => {
+    await stage();
+    const w = person('drifter', 6, 0, { name: 'Var Tester (selftest)' }), r = person('raider', 6, -60);
+    try {
+      const road = [0, 1, 2, 3, 4, 5].map(() => g.voice.line(w, 'road.warning').text), dir = road.filter((t) => / of here/.test(t));
+      const plead = [0, 1, 2, 3, 4, 5].map(() => g.voice.line(w, 'gunpoint.plead').text), kid = plead.find((t) => /kid back in/.test(t));
+      const place = g.society.places[g.society.placeAt(w.x, w.z)]?.name;
+      const rob = [0, 1, 2, 3, 4, 5, 6].map(() => g.voice.line(r, 'gunpoint.rob').text).find((t) => /Toll road/.test(t));
+      const ok = dir.length >= 2 && dir.every((t) => /\bnorth of here/.test(t)) && !!place && kid?.includes(place) && /stranger/.test(rob ?? '') && ![...road, ...plead].some((t) => /[{}]/.test(t));
+      return ok ? true : JSON.stringify({ dir, kid, place, rob });
+    } finally { g.removeChar(w); g.removeChar(r); }
+  }));
+  await check('voice: a rendered line plays at the speaker, fades and dulls with distance, and pans to their side', async () => hush(async () => {
+    const { V, ok, lore } = await voiceSetup(), dev = V.allowDev;
+    if (!ok?.alive) return 'the sheriff is not standing';
+    V.allowDev = true; // the committed proof clips are placeholders until the cast renders (WEB_VOICE.md §6)
+    const e = V.clipFor(castVoice(ok), lore);
+    if (!e) { V.allowDev = dev; return 'no clip for her lore line in public/voice/manifest.json'; }
+    await V.buffer(e.file); // decoded before the clock starts
+    const played = g.audio.counts.voice ?? 0;
+    try {
+      V.hush(ok);
+      await C('teleport', { x: ok.x + 3, z: ok.z }); await C('step', { seconds: 0.1 });
+      const s = V.speak(ok, lore, { kind: 'talk' });
+      await C('step', { seconds: 0.2 });
+      const L = V.lines.find((l) => l.c === ok && !l.done);
+      if (!L?.started) return JSON.stringify({ s, view: V.view() });
+      const near = { gain: L.gain, dist: L.dist, pan: L.pan, hz: L.filter.frequency.value, at: Math.hypot(L.x - ok.x, L.z - ok.z) };
+      await C('teleport', { x: ok.x + 30, z: ok.z }); await C('step', { seconds: 0.3 });
+      const far = { gain: L.gain, dist: L.dist, pan: L.pan, hz: L.filter.frequency.value, at: Math.hypot(L.x - ok.x, L.z - ok.z), done: L.done };
+      const good = near.at < 0.01 && far.at < 0.01 && near.dist < 4.5 && near.gain > 0.8 && far.dist > 20 && far.gain > 0 && far.gain < near.gain * 0.6 && far.hz < near.hz && far.pan < near.pan && far.pan < -0.5 && !far.done && (g.audio.counts.voice ?? 0) > played;
+      return good ? true : JSON.stringify({ near, far, file: e.file });
+    } finally { V.hush(ok); V.allowDev = dev; }
+  }));
+  await check('voice: a missing clip file falls back to the subtitle, and a line nobody rendered is text only', async () => hush(async () => {
+    await stage();
+    const V = g.voice, c = person('drifter', 3, 0, { name: 'Fallback Tester (selftest)' }), text = 'This line points at a file that is not there.', file = 'clips/selftest/missing.mp3';
+    const k = clipKey(castVoice(c), text);
+    V.manifest.clips[k] = { file, provider: 'selftest' };
+    try {
+      const s = V.speak(c, text);
+      await V.buffers.get(file); await C('step', { seconds: 0.1 });
+      const rec = V.log.filter((r) => r.text === text).pop();
+      const said = V.say(c, 'rumour', {}, { subtitle: true }), sub = g.hud.el.subtitle.textContent;
+      const ok = rec?.why === 'load failed' && !rec.played && !V.lines.some((l) => l.c === c && !l.done) && said?.played === false && said.why === 'no clip' && sub.includes(said.text);
+      return ok ? true : JSON.stringify({ s, rec, said, sub });
+    } finally { delete V.manifest.clips[k]; V.buffers.delete(file); g.removeChar(c); }
+  }));
+  await check('voice: nobody talks over themselves (a second line is dropped or waits its turn), and gunfire near a speaker cuts a calm line', async () => hush(async () => {
+    const { V, ok, lore, work } = await voiceSetup(), dev = V.allowDev;
+    if (!ok?.alive) return 'the sheriff is not standing';
+    V.allowDev = true;
+    const e = V.clipFor(castVoice(ok), lore);
+    if (!e) { V.allowDev = dev; return 'no clip for her lore line'; }
+    await V.buffer(e.file); await V.buffer(V.clipFor(castVoice(ok), work)?.file ?? e.file);
+    try {
+      V.hush(ok);
+      await C('teleport', { x: ok.x + 4, z: ok.z }); await C('step', { seconds: 0.1 });
+      V.speak(ok, lore); await C('step', { seconds: 0.1 });
+      const busy = V.speak(ok, work), waits = V.speak(ok, work, { after: true });
+      const talking = V.lines.filter((l) => l.c === ok && !l.done).length;
+      const L = V.lines.find((l) => l.c === ok && !l.done && l.text === lore);
+      V.onShot(ok.x + 6, ok.z, g.player);
+      const cut = L?.done && L.rec.cut === 'gunfire';
+      await C('step', { seconds: 0.2 }); // her turn comes: the waiting line starts once the cut one is gone
+      const next = V.lines.find((l) => l.c === ok && !l.done);
+      const good = busy.why === 'busy' && waits.queued && talking === 1 && cut && next?.text === work;
+      return good ? true : JSON.stringify({ busy, waits, talking, cut, cutWhy: L?.rec.cut, next: next?.text ?? null });
+    } finally { V.hush(ok); V.allowDev = dev; }
   }));
   await check('save/load round-trip', async () => {
     const sv = (await C('save')).save;

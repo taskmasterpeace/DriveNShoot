@@ -1,5 +1,7 @@
 import { TOPICS, NEWS, ROAD, YOU } from '../data/talk.js';
 import { K } from './chronicle.js';
+import { Voice } from './voice.js';
+import { fillLine } from '../data/dialogue.js';
 
 // What a stranger talks about (data/talk.js): three topics drawn from the live world, not canned lines. ui/dialogue.js
 // offers them after a stranger's opening line; each reply is built when it is asked for.
@@ -10,7 +12,12 @@ import { K } from './chronicle.js';
 const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 
 export class Talk {
-  constructor(game) { this.g = game; }
+  // The voice system (systems/voice.js) is made here, with the talk it speaks: ui/dialogue.js ticks it every frame.
+  constructor(game) { this.g = game; game.voice ??= new Voice(game); }
+
+  // A line through its dialogue row (data/dialogue.js ports these tables as rows, words untouched); the table itself
+  // if the row is missing.
+  text(c, key, vars, raw) { return this.g.voice?.line(c, key, vars)?.text ?? fillLine(raw, vars); }
 
   topics(c) {
     return [
@@ -27,18 +34,18 @@ export class Talk {
 
   news(c) {
     const S = this.g.society, F = S.factions, fi = F.index[c.fid];
-    const fill = (t, r) => t.replaceAll('{who}', r.on || 'somebody').replaceAll('{place}', S.places[r.p]?.name ?? 'the flats');
+    const fill = (key, t, r) => this.text(c, key, { who: r.on || 'somebody', place: S.places[r.p]?.name ?? 'the flats' }, t);
     for (const r of S.chronicle.query({ limit: 80 })) {
       if (r.src === 'rumor') continue; // the word of a deed is not the deed
       if (r.a === 'player') {
-        if (r.w?.includes(c.id) && NEWS.saw[r.v]) return fill(NEWS.saw[r.v], r);
+        if (r.w?.includes(c.id) && NEWS.saw[r.v]) return fill(`talk.news.saw.${r.v}`, NEWS.saw[r.v], r);
         const heard = fi >= 0 && ((S.deeds.heard.get(r.seq) ?? 0) & (1 << fi));
-        if (heard && NEWS.heard[r.v]) return fill(NEWS.heard[r.v], r);
+        if (heard && NEWS.heard[r.v]) return fill(`talk.news.heard.${r.v}`, NEWS.heard[r.v], r);
       } else if (r.v === 'kill' && r.on && (r.k & K.named || r.of === c.fid)) {
-        return fill(r.k & K.downed ? NEWS.world.downed : NEWS.world.kill, r); // one of theirs, or someone with a name
+        return r.k & K.downed ? fill('talk.news.world.downed', NEWS.world.downed, r) : fill('talk.news.world.kill', NEWS.world.kill, r); // one of theirs, or someone with a name
       }
     }
-    return NEWS.none;
+    return this.text(c, 'talk.news.none', {}, NEWS.none);
   }
 
   road(c) {
@@ -48,22 +55,25 @@ export class Talk {
       if (o.faction !== 'zombie' || !o.alive || Math.abs(o.x - c.x) > N.herd || Math.abs(o.z - c.z) > N.herd || Math.hypot(o.x - c.x, o.z - c.z) > N.herd) continue;
       n++; sx += o.x; sz += o.z;
     }
-    if (n >= 2) return ROAD.herd.replace('{n}', String(n)).replace('{dir}', this.dir(c, sx / n, sz / n));
-    for (const s of g.zombies?.sites ?? []) if (Math.hypot(s.x - c.x, s.z - c.z) < N.choir) return ROAD.choir.replace('{dir}', this.dir(c, s.x, s.z));
+    if (n >= 2) return this.text(c, 'talk.road.herd', { n: String(n), dir: this.dir(c, sx / n, sz / n) }, ROAD.herd);
+    for (const s of g.zombies?.sites ?? []) if (Math.hypot(s.x - c.x, s.z - c.z) < N.choir) return this.text(c, 'talk.road.choir', { dir: this.dir(c, s.x, s.z) }, ROAD.choir);
     let camp = null, bd = N.camp;
     (g.world.spawns.camps ?? []).forEach((k, i) => { const d = Math.hypot(k.x - c.x, k.z - c.z); if (d < bd && g.society.places[`camp_${i}`]?.owner === 'dustwolves') { bd = d; camp = k; } });
-    if (camp) return ROAD.camp.replace('{dir}', this.dir(c, camp.x, camp.z));
+    if (camp) return this.text(c, 'talk.road.camp', { dir: this.dir(c, camp.x, camp.z) }, ROAD.camp);
     // Out in the Phoenix ring: the nest in the Burn, the chop shop in the yards (systems/residents.js households).
     for (const kind of ['nest', 'chopshop']) {
       const h = g.residents?.nearest(kind, c.x, c.z, kind === 'nest' ? N.nest : N.chop);
-      if (h && h.id !== c.house) return ROAD[kind === 'nest' ? 'nest' : 'chop'].replace('{dir}', this.dir(c, h.cx, h.cz));
+      const k = kind === 'nest' ? 'nest' : 'chop';
+      if (h && h.id !== c.house) return this.text(c, `talk.road.${k}`, { dir: this.dir(c, h.cx, h.cz) }, ROAD[k]);
     }
-    return ROAD.weather[g.sky.weatherKey] ?? ROAD.quiet;
+    const w = g.sky.weatherKey;
+    return ROAD.weather[w] ? this.text(c, `talk.road.weather.${w}`, {}, ROAD.weather[w]) : this.text(c, 'talk.road.quiet', {}, ROAD.quiet);
   }
 
   you(c) {
     const F = this.g.society.factions, i = F.index[c.fid];
-    const line = YOU[i >= 0 ? F.tiers[i] : 'neutral'] ?? YOU.neutral;
+    const tier = YOU[i >= 0 ? F.tiers[i] : 'neutral'] ? (i >= 0 ? F.tiers[i] : 'neutral') : 'neutral';
+    const line = this.text(c, `talk.you.${tier}`, {}, YOU[tier]);
     const known = this.g.roles?.lineFor(c);
     return known ? `${line} ${known.line}` : line;
   }
