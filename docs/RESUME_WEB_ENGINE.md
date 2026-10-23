@@ -5,7 +5,7 @@ The game is **DIVIDED STATES OF AMERICA** (three.js, `web/`). The plan is `docs/
 (`D:/git/carworld`): it has someone else's unfinished changes.
 
 ## Landed
-`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`a85b2092`** (streamed Arizona merged; 106/106 twice on fresh pages): everything below, landed by fast-forward
+`feat/web-engine` (origin `taskmasterpeace/DriveNShoot`) is at **`5226f237`** (storeys; 112/112 twice on fresh pages): everything below, landed by fast-forward
 from the session branch `claude/web-engine-handoff-2fceb5` (which equals it). Land later work the same way, inside
 `.worktrees/web-engine`: `git fetch`, `git merge-base --is-ancestor origin/feat/web-engine claude/web-engine-handoff-2fceb5`,
 `git merge --ff-only claude/web-engine-handoff-2fceb5`, push. A fast-forward lands the exact commit the selftest ran on;
@@ -44,7 +44,7 @@ Gotchas (all paid for):
 ## What the 2026-10-22 session built (newest first)
 | Area | What | Doc | Commit |
 |---|---|---|---|
-| Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | (pending) |
+| Storeys | 18 Phoenix buildings rise (30% of intact town houses one storey, 45% of the larger ruins 1-3): stairs you walk up, floors that are separate places (collision, sight, bullets, bites, reach, witnesses by floor), the floors above you hidden inside, saves keep your height; `storeys`, `teleport floor=` | WEB_STOREYS §0 | 5226f237 |
 | Streamed Arizona (subagent) | WEB_STREAMING P1: chunks, pools, chunked collision, a 1 km nav window, I-10 from Los Angeles to El Paso through Phoenix with real interchanges (deceleration lanes, gores, EXIT signs in miles), mesas, convoys on the interstate, radar + big map past the island; 9 checks; 60 s flat out on the bike = 2.6 km with 0 stalls, ~73 draw calls | WEB_STREAMING §1.2 | a85b2092 |
 | Long commands | the CLI and the MCP server wait out a scenario (node:http, not fetch's 300 s) | web/AGENTS.md | 61967fa6 |
 | Golden hour, siege, minimap ring | the hour around sunset stays readable from above (sky fill); zombie-siege waits for the first pane; a running witness reads on the minimap | — | da4d36e3 · 51f008e5 · 1ea6cd88 |
