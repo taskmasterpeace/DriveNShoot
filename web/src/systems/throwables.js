@@ -115,6 +115,7 @@ export class Throwables {
       g.combat.damage(c, dmg * f * f + 10 * f, by, (c.x - x) / (d || 1), (c.z - z) / (d || 1), f > 0.5 ? 'explosion' : 'bullet');
     }
     g.dogs?.blast(x, z, r, dmg, by); // and any dog in reach (systems/dogs.js)
+    g.fauna?.blast(x, z, r, dmg, by); // and the animals (systems/fauna.js)
     for (const v of g.vehicles) {
       const d = Math.hypot(v.x - x, v.z - z);
       if (d > r + v.len / 2 || v.dead) continue;

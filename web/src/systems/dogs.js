@@ -463,9 +463,10 @@ export class Dogs {
     if (!g.statics.lineOfSight(d.x, d.z, t.x, t.z, RAY_SOLID)) return false; // a wall between: no teeth (the melee law)
     d.biteCd = R.biteCd; d.bites++;
     const k = Math.hypot(t.x - d.x, t.z - d.z) || 1;
-    g.combat.damage(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite');
+    if (t.isFauna) g.fauna.hurt(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite', d); // game (systems/fauna.js)
+    else g.combat.damage(t, p.bite * (1 + 0.08 * this.tier(d)), d.owned ? g.player : null, (t.x - d.x) / k, (t.z - d.z) / k, 'bite');
     // Down they go (not the infected: nothing puts those on their back for long).
-    if (t.alive && t !== g.player && t.faction !== 'zombie' && Math.random() < p.biteKd * (pounce ? R.pounceKdMul : 1)) { t.knockT = 1.3; t.knockMax = 1.3; g.emit('dogKnockdown', { dog: d.id, target: t.id }); }
+    if (t.alive && !t.isFauna && t !== g.player && t.faction !== 'zombie' && Math.random() < p.biteKd * (pounce ? R.pounceKdMul : 1)) { t.knockT = 1.3; t.knockMax = 1.3; g.emit('dogKnockdown', { dog: d.id, target: t.id }); }
     g.emit('dogBite', { dog: d.id, target: t.id, pounce, hp: Math.round(t.hp) });
     return true;
   }
@@ -828,6 +829,8 @@ export class Dogs {
     let best = null, bd = 5;
     for (const c of g.chars) { if (c === P || !c.alive || c.inVehicle || c.hidden) continue; const k = Math.hypot(c.x - aim.x, c.z - aim.z); if (k < bd) { bd = k; best = c; } }
     if (best) return best;
+    const game = g.fauna?.nearAim(aim.x, aim.z, 5); // an animal under your aim (systems/fauna.js)
+    if (game) return game;
     bd = WHISTLE.sicR;
     for (const c of g.chars) { if (c === P || !c.alive || c.inVehicle || !(g.ai.hostile(c, P) || c.target === P || c.faction === 'zombie')) continue; const k = Math.hypot(c.x - P.x, c.z - P.z); if (k < bd) { bd = k; best = c; } }
     return best;
@@ -956,7 +959,7 @@ function bodyGeo() {
   return g;
 }
 
-function headGeo(ears) {
+function headParts(ears) {
   const parts = [
     tint(new RoundedBoxGeometry(0.2, 0.18, 0.2, 1, 0.05), '#ffffff'),                         // skull
     tint(new THREE.BoxGeometry(0.11, 0.09, 0.17).translate(0, -0.035, 0.16), '#d8d0c4'),     // muzzle
@@ -966,11 +969,44 @@ function headGeo(ears) {
   ];
   if (ears === 'up') for (const s of [1, -1]) parts.push(tint(new THREE.ConeGeometry(0.045, 0.12, 4).rotateY(Math.PI / 4).translate(0.065 * s, 0.14, -0.03), '#d0c8bc'));
   else for (const s of [1, -1]) parts.push(tint(new THREE.BoxGeometry(0.035, 0.13, 0.08).rotateZ(0.25 * s).translate(0.11 * s, -0.02, -0.01), '#a09890'));
+  return parts;
+}
+// The fauna layer's heads (systems/fauna.js) on the same body: a deer's long face and wide ears, a hog's snout, a cat's
+// round head, a hare's ears, and two dog skulls on one neck (the hot ground's twinback).
+function headGeo(kind) {
+  const B = (w, h, d) => new THREE.BoxGeometry(w, h, d), RB = (w, h, d, r) => new RoundedBoxGeometry(w, h, d, 1, r);
+  let parts;
+  if (kind === 'up' || kind === 'down') parts = headParts(kind);
+  else if (kind === 'deer') {
+    parts = [tint(RB(0.15, 0.15, 0.17, 0.05), '#ffffff'), tint(B(0.085, 0.08, 0.24).translate(0, -0.03, 0.17), '#e0d8cc'), tint(B(0.06, 0.05, 0.04).translate(0, -0.02, 0.295), '#141010'),
+      tint(B(0.03, 0.03, 0.02).translate(0.06, 0.03, 0.07), '#141010'), tint(B(0.03, 0.03, 0.02).translate(-0.06, 0.03, 0.07), '#141010')];
+    for (const s of [1, -1]) parts.push(tint(B(0.035, 0.12, 0.075).rotateZ(-0.85 * s).translate(0.11 * s, 0.085, -0.045), '#d8d0c0')); // the wide ears
+  } else if (kind === 'hog') {
+    parts = [tint(RB(0.2, 0.2, 0.2, 0.05), '#ffffff'), tint(B(0.15, 0.13, 0.2).translate(0, -0.035, 0.17), '#d8d0c8'), tint(B(0.13, 0.11, 0.03).translate(0, -0.04, 0.285), '#5a4a46'),
+      tint(B(0.03, 0.03, 0.02).translate(0.07, 0.04, 0.09), '#141010'), tint(B(0.03, 0.03, 0.02).translate(-0.07, 0.04, 0.09), '#141010')];
+    for (const s of [1, -1]) parts.push(tint(new THREE.ConeGeometry(0.045, 0.09, 4).rotateY(Math.PI / 4).rotateZ(-0.4 * s).translate(0.08 * s, 0.12, -0.04), '#c8c0b4'));
+  } else if (kind === 'cat') {
+    parts = [tint(RB(0.2, 0.16, 0.18, 0.07), '#ffffff'), tint(B(0.12, 0.07, 0.08).translate(0, -0.04, 0.11), '#e4dccc'), tint(B(0.05, 0.035, 0.03).translate(0, -0.02, 0.155), '#3a2a24'),
+      tint(B(0.04, 0.03, 0.02).translate(0.055, 0.025, 0.09), '#141010'), tint(B(0.04, 0.03, 0.02).translate(-0.055, 0.025, 0.09), '#141010')];
+    for (const s of [1, -1]) parts.push(tint(new THREE.ConeGeometry(0.035, 0.07, 5).translate(0.07 * s, 0.1, -0.03), '#d0c8bc'));
+  } else if (kind === 'hare') {
+    parts = [tint(RB(0.14, 0.13, 0.17, 0.05), '#ffffff'), tint(B(0.08, 0.07, 0.07).translate(0, -0.03, 0.1), '#e0d8cc'), tint(B(0.03, 0.03, 0.02).translate(0, -0.015, 0.14), '#3a2a24')];
+    for (const s of [1, -1]) parts.push(tint(B(0.045, 0.26, 0.06).rotateX(-0.35).rotateZ(-0.12 * s).translate(0.04 * s, 0.18, -0.07), '#d8ccb8'));
+  } else if (kind === 'twin') {
+    parts = [];
+    for (const s of [1, -1]) for (const p of headParts('up')) parts.push(p.rotateY(0.3 * s).translate(0.105 * s, 0, -0.02));
+  } else parts = headParts('up');
   return mergeGeometries(parts.map((x) => (x.index ? x.toNonIndexed() : x)));
 }
 
-class DogRenderer {
-  constructor(scene) {
+// Exported for the fauna layer (systems/fauna.js): one renderer class for every four-legged body. opts.max: bodies;
+// opts.heads: the head kinds it can draw; opts.limbs: limb instances a body may use; opts.props: the caches' and graves'
+// mesh (the dogs' own). A body's row (d.B) may carry proportions over the dog's: legK, lenK, wideK, deepK, neckK, neckUp,
+// neckR, head (a kind), rump (a pale patch), collar (the neck's colour); d.antlers draws a buck's rack, d.tailC a tail colour.
+export class DogRenderer {
+  constructor(scene, opts = {}) {
+    const max = opts.max ?? MAXD;
+    this.max = max;
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, vertexColors: true });
     const plain = new THREE.MeshStandardMaterial({ roughness: 0.92 });
     const make = (geo, material, count, shadow) => {
@@ -982,13 +1018,22 @@ class DogRenderer {
       scene.add(m);
       return m;
     };
-    this.body = make(bodyGeo(), mat, MAXD, true);
-    this.headUp = make(headGeo('up'), mat, MAXD, false);
-    this.headDown = make(headGeo('down'), mat, MAXD, false);
-    this.limb = make(new THREE.CylinderGeometry(1, 0.78, 1, 7, 1).translate(0, -0.5, 0), plain, MAXD * LIMBS, true);
+    this.body = make(bodyGeo(), mat, max, true);
+    this.heads = {}; this.nH = {};
+    for (const k of opts.heads ?? ['up', 'down']) { this.heads[k] = make(headGeo(k), mat, max, false); this.nH[k] = 0; }
+    this.headUp = this.heads.up; this.headDown = this.heads.down;
+    this.limbCap = max * (opts.limbs ?? LIMBS);
+    this.limb = make(new THREE.CylinderGeometry(1, 0.78, 1, 7, 1).translate(0, -0.5, 0), plain, this.limbCap, true);
     // Packed earth over a cache, and a grave's stone and mound: one box mesh, coloured per instance.
-    this.prop = make(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), plain, 96, true);
-    this.nb = 0; this.nh = 0; this.nd = 0; this.nl = 0; this.np = 0;
+    this.prop = opts.props === false ? null : make(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), plain, 96, true);
+    this.nb = 0; this.nl = 0; this.np = 0;
+  }
+
+  // The fauna layer's pass: pose every body in `list` (each with the dog fields pose() reads), then draw.
+  drawList(list, t) {
+    this.nb = this.nl = 0; for (const k in this.nH) this.nH[k] = 0;
+    for (const d of list) { if (this.nb >= this.max || this.nl > this.limbCap - 20) break; this.pose(d, t); }
+    this.done(this.body, this.nb); for (const k in this.heads) this.done(this.heads[k], this.nH[k]); this.done(this.limb, this.nl);
   }
 
   seg(F, from, dir, len, r, color) {
@@ -1005,10 +1050,10 @@ class DogRenderer {
   }
 
   sync(sys, cam, dt) {
-    this.nb = this.nh = this.nd = this.nl = this.np = 0;
+    this.nb = this.nl = this.np = 0; for (const k in this.nH) this.nH[k] = 0;
     const cx = cam.x, cz = cam.z, Rr = R.drawR, t = sys.t;
     for (const d of sys.dogs) {
-      if (d.ride || Math.abs(d.x - cx) > Rr || Math.abs(d.z - cz) > Rr || this.nb >= MAXD) continue;
+      if (d.ride || Math.abs(d.x - cx) > Rr || Math.abs(d.z - cz) > Rr || this.nb >= this.max) continue;
       if (d.dead && d.deadT > 300 && !d.owned) continue;
       this.pose(d, t);
     }
@@ -1019,19 +1064,21 @@ class DogRenderer {
       this.prop1(gr.x, 0, gr.z, 0.42, 0.75, 0.14, 0, '#6e6a62');
       this.prop1(gr.x, -0.04, gr.z + 0.62, 0.7, 0.16, 1.0, 0, '#4a3a28');
     }
-    this.done(this.body, this.nb); this.done(this.headUp, this.nh); this.done(this.headDown, this.nd); this.done(this.limb, this.nl); this.done(this.prop, this.np);
+    this.done(this.body, this.nb); for (const k in this.heads) this.done(this.heads[k], this.nH[k]); this.done(this.limb, this.nl); this.done(this.prop, this.np);
   }
 
   // An empty mesh costs no draw call.
   done(m, n) {
     m.count = n; m.visible = n > 0;
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    if (n === 0 && m._n === 0) return; // empty twice in a row: nothing to upload
+    m._n = n; // and only the instances posed this frame go up to the GPU
+    m.instanceMatrix.clearUpdateRanges(); m.instanceMatrix.addUpdateRange(0, Math.max(1, n) * 16); m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) { m.instanceColor.clearUpdateRanges(); m.instanceColor.addUpdateRange(0, Math.max(1, n) * 3); m.instanceColor.needsUpdate = true; }
   }
 
   pose(d, t) {
     const A = d.a, s = d.p.scale, B = d.B, build = B.build;
-    const wx = build === 'heavy' ? 1.25 : 1, wy = build === 'heavy' ? 1.12 : 1, L = build === 'long' ? 1.18 : 1, legK = build === 'long' ? 0.84 : build === 'heavy' ? 0.95 : 1;
+    const wx = (build === 'heavy' ? 1.25 : 1) * (B.wideK ?? 1), wy = (build === 'heavy' ? 1.12 : 1) * (B.deepK ?? 1), L = (build === 'long' ? 1.18 : 1) * (B.lenK ?? 1), legK = (build === 'long' ? 0.84 : build === 'heavy' ? 0.95 : 1) * (B.legK ?? 1);
     const up = 0.27 * s * legK, lo = 0.27 * s * legK; // leg segment lengths
     const gIdx = A.gait, G = gIdx < 1 ? GAIT.walk : gIdx < 2 ? GAIT.trot : GAIT.lope, G2 = gIdx < 1 ? GAIT.trot : GAIT.lope, gb = gIdx - Math.floor(gIdx);
     const moving = d.speed > 0.25 && !d.air;
@@ -1085,19 +1132,40 @@ class DogRenderer {
       _b.copy(_a).addScaledVector(_dir, 0.44 * s * L); _nd.copy(_dir).negate();
       this.seg(F, _b, _nd, 0.44 * s * L, 0.105 * s * wx, _cs.set(B.saddle));
     }
+    // A pale rump patch (a deer's), lying over the hindquarters.
+    if (B.rump) {
+      _a.set(0, 0.06 * s * wy, -0.34 * s * L); _dir.set(0, 0.25, 1).normalize();
+      _b.copy(_a).addScaledVector(_dir, 0.08 * s * L); _nd.copy(_dir).negate();
+      this.seg(F, _b, _nd, 0.08 * s * L, 0.075 * s * wx, _cs.set(B.rump));
+    }
     // Neck and head: the head dips to sniff, eat and dig, lifts to alert, snaps up to bark.
     const hp = A.head - lie * 0.2;
     _a.set(0, 0.07 * s * wy, 0.26 * s * L);
-    _dir.set(0, 0.55 + hp * 0.9, 0.85).normalize(); // forward and up (or down, nose to the ground)
-    const neckLen = 0.17 * s;
+    _dir.set(0, (B.neckUp ?? 0.55) + hp * 0.9, 0.85).normalize(); // forward and up (or down, nose to the ground)
+    const neckLen = 0.17 * s * (B.neckK ?? 1);
     // The neck segment hangs along -y in its geometry: draw it from the head end back down to the withers.
     _b.copy(_a).addScaledVector(_dir, neckLen);
     _nd.copy(_dir).negate();
-    this.seg(F, _b, _nd, neckLen, 0.085 * s * wx, coatC);
+    this.seg(F, _b, _nd, neckLen, 0.085 * s * wx * (B.neckR ?? 1), B.collar ? _cs.set(B.collar) : coatC);
     _e.set(-hp * 0.9 - 0.1, 0, 0, 'YXZ'); _q.setFromEuler(_e);
-    _M.compose(_b.addScaledVector(_dir, 0.06 * s), _q, _sc.set(s * (build === 'heavy' ? 1.15 : 1), s, s)).premultiply(F);
-    const head = B.ears === 'up' ? this.headUp : this.headDown, hi = B.ears === 'up' ? this.nh++ : this.nd++;
+    _b.addScaledVector(_dir, 0.06 * s);
+    _M.compose(_b, _q, _sc.set(s * (build === 'heavy' ? 1.15 : 1), s, s)).premultiply(F);
+    const hk = B.head ?? (B.ears === 'up' ? 'up' : 'down'), head = this.heads[hk] ?? this.heads.up ?? this.heads.down;
+    const hkey = this.heads[hk] ? hk : this.heads.up ? 'up' : 'down', hi = this.nH[hkey]++;
     head.setMatrixAt(hi, _M); head.setColorAt(hi, _c.set(B.mask));
+    // A buck's rack: two beams up and back off the crown, a tine forward off each.
+    if (d.antlers) {
+      const ac = _cs.set('#d8ccb0'), ah = s * (0.85 + 0.15 * d.antlers);
+      for (const sd of SIDES2) {
+        _a.copy(_b); _a.x += 0.05 * s * sd; _a.y += 0.08 * s; _a.z -= 0.02 * s;
+        _dir.set(0.55 * sd, 0.75 - hp * 0.5, -0.4).normalize();
+        this.seg(F, _a, _dir, 0.3 * ah, 0.016 * s, ac);
+        _nd.copy(_a).addScaledVector(_dir, 0.15 * ah); _dir.set(0.15 * sd, 0.85, 0.5).normalize();
+        this.seg(F, _nd, _dir, 0.16 * ah, 0.012 * s, ac);
+        _nd.copy(_a).addScaledVector(_dir.set(0.55 * sd, 0.75 - hp * 0.5, -0.4).normalize(), 0.3 * ah); _dir.set(0.3 * sd, 0.6, 0.6).normalize();
+        this.seg(F, _nd, _dir, 0.12 * ah, 0.01 * s, ac);
+      }
+    }
     // The tail: the readout. Up and wagging, level, or tucked between the legs.
     const tl = 0.34 * s * (B.tail ?? 1);
     if (tl > 0.02) {
@@ -1106,8 +1174,8 @@ class DogRenderer {
       _dir.set(Math.sin(wag) * Math.cos(elev), Math.sin(elev), -Math.cos(wag) * Math.cos(elev)).normalize();
       _b.copy(_a).addScaledVector(_dir, tl);
       _nd.copy(_dir).negate();
-      this.seg(F, _b, _nd, tl, 0.03 * s * (build === 'heavy' ? 1.3 : 1), coatC);
+      this.seg(F, _b, _nd, tl, 0.03 * s * (build === 'heavy' ? 1.3 : 1) * (B.tailR ?? 1), d.tailC ? _cs.set(d.tailC) : coatC);
     }
   }
 }
-const _cl = new THREE.Color(), _cc = new THREE.Color(), _cs = new THREE.Color(), _nd = new THREE.Vector3();
+const _cl = new THREE.Color(), _cc = new THREE.Color(), _cs = new THREE.Color(), _nd = new THREE.Vector3(), SIDES2 = [1, -1];

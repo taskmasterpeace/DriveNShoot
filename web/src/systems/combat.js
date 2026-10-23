@@ -93,6 +93,8 @@ export class Combat {
       // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
       const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, best) : null;
       if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
+      const fh = !up && g.fauna ? g.fauna.raycast(ox, oz, dx, dz, best) : null; // an animal (systems/fauna.js)
+      if (fh) { best = fh.t; target = fh.animal; kind = 'fauna'; }
       if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
         const th = g.train.raycast(ox, oz, dx, dz, best);
         if (th) { best = th.t; target = th.car; kind = 'train'; }
@@ -118,6 +120,9 @@ export class Combat {
         if (shooter === g.player) g.qol.hit(false);
       } else if (kind === 'dog') {
         g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
+      } else if (kind === 'fauna') {
+        g.fauna.hurt(target, dmg, shooter, dx, dz, 'bullet');
+        if (shooter === g.player) { g.qol.hit(!target.alive); g.skillsSys?.onHit(); }
       } else if (kind === 'train') {
         g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
         g.train.hitCar(target, dmg, shooter);

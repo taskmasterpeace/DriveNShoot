@@ -227,7 +227,8 @@ export class Regions {
     // Kills of the region's animals (for the jobs that count them).
     for (let i = g.events.length - 1; i >= 0 && g.events[i].seq > this.seq; i--) {
       const e = g.events[i];
-      if (e.type === 'kill' && e.faction === 'fauna') { this.stats.faunaKilled++; if (e.by === P.id) { g.stats.gators = (g.stats.gators ?? 0) + 1; if (g.quests.canal === 'active') { const k = g.stats.gators - (g.quests.canalStart ?? 0); g.hud.toast(k >= 2 ? 'CANAL CLEAR - back to Sheriff Duarte' : `Clear the Canal ${k}/2`, 'job'); } } }
+      // (the fauna layer's gators count too: systems/fauna.js faunaKilled)
+      if ((e.type === 'kill' && e.faction === 'fauna') || (e.type === 'faunaKilled' && e.species === 'gator')) { this.stats.faunaKilled++; if (e.by === P.id) { g.stats.gators = (g.stats.gators ?? 0) + 1; if (g.quests.canal === 'active') { const k = g.stats.gators - (g.quests.canalStart ?? 0); g.hud.toast(k >= 2 ? 'CANAL CLEAR - back to Sheriff Duarte' : `Clear the Canal ${k}/2`, 'job'); } } }
     }
     this.seq = g.eventSeq;
     const R = S.region;
@@ -246,6 +247,7 @@ export class Regions {
       if (!f.c && f.dead !== undefined && f.dead !== day) this.fauna.delete(key);
     }
     if (!R?.row.life) return;
+    if (g.fauna?.enabled) return; // the fauna layer (systems/fauna.js) spawns the region's animals from these same rows
     let live = 0; for (const f of this.fauna.values()) if (f.c?.alive) live++;
     const cap = R.row.life.fauna[0]?.max ?? 12;
     for (const L of S.hot.values()) {

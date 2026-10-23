@@ -45,6 +45,7 @@ import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
+import { Fauna } from './systems/fauna.js';
 import { Gear } from './systems/gear.js';
 import { Regions } from './systems/regions.js';
 import { Clone } from './systems/clone.js'; // death as Autoduel had it: pressings, husks, the brine (docs/design/WEB_CLONE_TRAVEL.md)
@@ -195,6 +196,7 @@ class Game {
     this.dogs = new Dogs(this); // strays in packs, and the one you feed until it is yours (data/dogs.js, WEB_DOGS.md)
     this.clone = new Clone(this);   // pressings, the husk where you fell, coming up in the brine (systems/clone.js)
     this.travel = new Travel(this); // poles, punches, the trundle on I-10, the iron, Five City Air (systems/travel.js)
+    this.fauna = new Fauna(this); // L5: regional animals by biome, hour and how much of man is about (data/fauna.js, WEB_FAUNA.md)
     this.insideBuilding = null;
     this.paused = true;
     this.time = 0;
@@ -432,7 +434,7 @@ class Game {
     return this.throwables.throw(this.player, k, this.aim.x, this.aim.z, THROWABLES[k].cook ? cooked : 0);
   }
 
-  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); }
+  noise(x, z, r, src) { this.ai.onNoise(x, z, r, src); this.zombies?.onNoise(x, z, r * 2); this.bases?.onNoise(x, z, r, src); this.survival?.heard(x, z, r); this.dogs?.onNoise(x, z, r, src); this.fauna?.onNoise(x, z, r, src); }
   // N: sleep in the seat of a parked car, in the bed you stand at, or on the bedroll you carry (survival.js).
   trySleep() {
     const p = this.player, S = this.survival;
@@ -904,12 +906,14 @@ class Game {
     const dk = !best && !bestV ? this.decks.spot(p) : null;      // aboard: the wheel (F), the stove and the tank (E)
     // Nobody to talk to and no car: E works the nearest door (kick) or window (smash, climb, board).
     const op = !best && !bestV && !dog && !dk && !p.onDeck && !(p.storey && (p.gy ?? 0) > LEVEL.same) ? this.interiors.playerInteract(p, I, dt) : null; // the street storey's doors and windows
+    // A carcass to butcher, or raw meat to cook at the fire you stand at (systems/fauna.js).
+    const game = !best && !bestV && !op && !dog && !dk ? this.fauna.nearFor(p) : null;
     // Nothing else in reach: a crate, a shelf, a body or a pile you could go through (E or I opens the pack on it).
     // A pole's board, a station's, a field's counter or a vat's (systems/travel.js): E reads it, buys a punch, gets you pressed.
-    const spot = !best && !bestV && !op && !dog && !dk ? this.travel.spotNear(p) : null;
-    const box = !best && !bestV && !op && !dog && !dk && !spot ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
+    const spot = !best && !bestV && !op && !dog && !dk && !game ? this.travel.spotNear(p) : null;
+    const box = !best && !bestV && !op && !dog && !dk && !spot && !game ? this.inventory.nearest(p.x, p.z, 2.6, false, p.gy ?? 0) : null;
     // Or a bed (a mattress in a house): E lies down on it.
-    const bed = !best && !bestV && !op && !dk && !box && !spot ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
+    const bed = !best && !bestV && !op && !dk && !box && !spot && !game ? this.bedNear(p.x, p.z, p.gy ?? 0) : null;
     if (box) { this.boxRing.x = box.x; this.boxRing.z = box.z; this.boxRing.len = 1.6; }
     else if (bed) { this.boxRing.x = bed.x; this.boxRing.z = bed.z; this.boxRing.len = 2.1; }
     this.qol.highlight(best ?? bestV ?? dog?.d ?? op ?? (box || bed ? this.boxRing : null));
@@ -919,6 +923,7 @@ class Game {
     else if (bestV) this.hud.prompt(`<kbd>F</kbd> ${bestV.driver && bestV.driver.faction !== 'ally' ? 'Carjack' : bestV.fallen ? 'Pick up' : 'Drive'} ${bestV.name} · <kbd>C</kbd> Ride${bestV.driver ? ' along' : ' as passenger'} · <kbd>G</kbd> Hang on${climb ? ` · <kbd>E</kbd> ${climb}` : ''}`);
     else if (dog) this.hud.prompt(dog.verb === 'none' ? dog.text : `<kbd>E</kbd> ${dog.text}`);
     else if (dk) this.hud.prompt(dk.text);
+    else if (game) this.hud.prompt(game.verb === 'none' || game.verb === 'busy' ? game.text : `<kbd>E</kbd> ${game.text}`);
     else if (spot) this.hud.prompt(spot.label);
     else if (box) this.hud.prompt(`<kbd>E</kbd> ${box.kind === 'ground' ? 'Pick through what\'s here' : box.husk ? 'Go through your husk' : box.id.startsWith('body:') ? 'Go through the body' : `Search the ${box.label.split(' · ')[0].toLowerCase()}`}${box.owner ? ` · <b class="warn">${box.ownerName}'s</b>` : ''}`);
     else if (bed) this.hud.prompt(`<kbd>E</kbd> Sleep · ${Math.round(this.needs.rest * 100)}% rested`);
@@ -926,6 +931,7 @@ class Game {
     if (runner && I.hit('KeyE')) { this.witnesses.bribe(runner); this.hud.prompt(null); }
     else if (best && I.hit('KeyE')) { if (best.sleeping) this.ai.wake(best, 'shaken awake'); this.dialogue.open(best); this.hud.prompt(null); }
     else if (dog && dog.verb !== 'none' && I.hit('KeyE')) { const r = this.dogs.interact(dog.d, dog.verb); this.hud.toast(r.ok ? r.text : r.why.toUpperCase(), r.ok ? 'job' : 'warn'); }
+    else if (game && game.verb !== 'none' && I.hit('KeyE')) { const r = this.fauna.interact(game); this.hud.toast(r.ok ? r.text : String(r.why).toUpperCase(), r.ok ? 'job' : 'warn'); }
     else if (spot && I.hit('KeyE')) { this.travel.interact(spot); this.hud.prompt(null); }
     else if (box && I.hit('KeyE')) { this.invUI.toggle(true); this.hud.prompt(null); }
     else if (bed && I.hit('KeyE')) { const r = this.survival.sleepAt('bed', bed); if (!r.ok) this.hud.toast(r.why.toUpperCase(), 'warn'); this.hud.prompt(null); }
@@ -1211,6 +1217,7 @@ class Game {
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);
       this.dogs.update(simDt);
+      this.fauna.update(simDt); // the animals (after the dogs: a SIC'd dog's teeth land first)
       this.updatePopulation(simDt);
       this.residents.update(simDt); // the ring's households: promoted near you, written back when you leave
       this.regions.update(simDt); // a holdout's people, the region's animals and infected
@@ -1238,6 +1245,7 @@ class Game {
     this.flashlight.rotation.y = p.face;
     this.charR.sync(this.chars, dt);
     this.dogs.draw(dt);
+    this.fauna.draw(dt);
     const pv = p.inVehicle;
     this.audio.ambience(this.sky.cur.rain, Math.max(this.sky.cur.dust, this.sky.cur.ash * 0.5), pv ? this.vehiclesSys.speed(pv) : null, pv?.air && pv.throttle > 0 ? pv.throttle : 0);
     this.hud.update(dt);
