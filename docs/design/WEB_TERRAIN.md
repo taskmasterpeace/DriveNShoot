@@ -310,8 +310,8 @@ shared RTX 4090, with other agents' browsers running.
    dense and at its edge, the island band and off-road) with base commit `1109205b`'s `web/src` and with this branch gives
    identical layout hashes, edge signatures, box counts and instance counts. **Measured: identical (90/90).**
 5. `world` reports `islandMatches: true`, hash `c3f0f6ca`. **Measured: true.**
-6. Full `selftest` on two fresh pages. **Measured: 135/135 and 135/135** (before the last three engine edits, all of them
-   flag-gated). The final re-runs are recorded in the commit message.
+6. Full `selftest` on two fresh pages. **Measured on the final code: 135/135 and 135/135** (283 s and 275 s). An earlier
+   pair, before the last flag-gated edits, was also 135/135 twice.
 7. `scenario name=stream-drive`, flag off (the baseline): 0 cross and 0 promote stalls in every phase; the gate at 2,579 m.
 
 **C. The flag on**
