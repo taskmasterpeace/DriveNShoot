@@ -20,17 +20,17 @@ export const DOG_TYPES = {
 
 // ---- breeds: multipliers over the type's numbers, a coat, a build -------------------------------------------------
 //   coat body colour, mask head colour, legs leg colour; tail length (0..1), ears up (prick) or down (drop);
-//   build: lean | heavy | long (stretches the body)
+//   build: lean | heavy | long (stretches the body); saddle: a darker back (a shepherd's black saddle), drawn over the coat
 export const BREEDS = {
-  shepherd: { name: 'Shepherd', type: 'security', mods: {}, coat: '#7a5a34', mask: '#2b2118', legs: '#8a6a40', tail: 1, ears: 'up', build: 'lean' },
+  shepherd: { name: 'Shepherd', type: 'security', mods: {}, coat: '#7a5a34', mask: '#2b2118', legs: '#8a6a40', tail: 1, ears: 'up', saddle: '#1e1914', build: 'lean' },
   rottweiler: { name: 'Rottweiler', type: 'security', mods: { threatR: 0.8, speed: 1.05 }, coat: '#221c18', mask: '#2a211a', legs: '#7a4a28', tail: 0.25, ears: 'down', build: 'heavy' },
   mastiff: { name: 'Mastiff', type: 'security', mods: { threatR: 1.15, speed: 0.82, scale: 1.12 }, coat: '#9a7a52', mask: '#2a2420', legs: '#9a7a52', tail: 0.8, ears: 'down', build: 'heavy' },
-  bloodhound: { name: 'Bloodhound', type: 'hunter', mods: { noseR: 1.4 }, coat: '#8a5430', mask: '#6a3a20', legs: '#8a5430', tail: 0.9, ears: 'down', build: 'long' },
-  pointer: { name: 'Pointer', type: 'hunter', mods: { speed: 1.1 }, coat: '#d8ccb4', mask: '#6a4428', legs: '#d8ccb4', tail: 0.8, ears: 'down', build: 'lean' },
-  coyote_cross: { name: 'Coyote-cross', type: 'hunter', mods: { noseR: 1.15, threatR: 1.1 }, coat: '#a08a64', mask: '#7a6448', legs: '#b8a07a', tail: 0.9, ears: 'up', build: 'lean' },
+  bloodhound: { name: 'Bloodhound', type: 'hunter', mods: { noseR: 1.4 }, coat: '#8a5430', mask: '#6a3a20', legs: '#8a5430', tail: 0.9, ears: 'down', saddle: '#3a2216', build: 'long' },
+  pointer: { name: 'Pointer', type: 'hunter', mods: { speed: 1.1 }, coat: '#d8ccb4', mask: '#6a4428', legs: '#d8ccb4', tail: 0.8, ears: 'down', saddle: '#7a4e2c', build: 'lean' },
+  coyote_cross: { name: 'Coyote-cross', type: 'hunter', mods: { noseR: 1.15, threatR: 1.1 }, coat: '#a08a64', mask: '#7a6448', legs: '#b8a07a', tail: 0.9, ears: 'up', saddle: '#6a5a40', build: 'lean' },
   lab: { name: 'Lab', type: 'companion', mods: { speed: 1.05 }, coat: '#c9a465', mask: '#c9a465', legs: '#c9a465', tail: 0.9, ears: 'down', build: 'heavy' },
   collie: { name: 'Border collie', type: 'companion', mods: { obey: 0 }, coat: '#1e1a18', mask: '#e8e0d0', legs: '#e8e0d0', tail: 1, ears: 'up', build: 'lean' },
-  mutt: { name: 'Mutt', type: 'companion', mods: {}, coat: '#8a6c48', mask: '#5a4430', legs: '#c8b490', tail: 0.8, ears: 'up', build: 'lean' },
+  mutt: { name: 'Mutt', type: 'companion', mods: {}, coat: '#8a6c48', mask: '#5a4430', legs: '#c8b490', tail: 0.8, ears: 'up', saddle: '#5a4430', build: 'lean' },
   pocket: { name: 'Pocket', type: 'cuddle', mods: { calm: 1.25, speed: 1.1 }, coat: '#d2b88a', mask: '#d2b88a', legs: '#d2b88a', tail: 0.6, ears: 'up', build: 'lean' },
   wheezer: { name: 'Wheezer', type: 'cuddle', mods: { calm: 1.1, speed: 0.8 }, coat: '#b8946a', mask: '#2a2420', legs: '#b8946a', tail: 0.2, ears: 'down', build: 'heavy' },
   ratter: { name: 'Ratter', type: 'cuddle', mods: { threatR: 1.2 }, coat: '#e2dccc', mask: '#7a5a3a', legs: '#e2dccc', tail: 0.4, ears: 'up', build: 'lean' },

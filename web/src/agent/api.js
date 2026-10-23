@@ -2997,11 +2997,14 @@ async function runSelfTest(api, only = null) {
     const stray = dogAt('mutt', 9, 3), mine = dogAt('lab', -2, 1, true);
     mine.bond = 50;
     await stepUntil(0.5, () => false);
-    await C('fire', { x: g.player.x, z: g.player.z - 25, shots: 1 });
+    const seq0 = g.eventSeq;
+    // One round from the gun in your hands, through combat.fire (the `fire` command can step the sim for seconds while it
+    // aims and reloads, long enough for the whole cower and run to be over before it returns).
+    const shot = { ok: g.combat.fire(g.player, g.inv.current, Math.PI) };
     await api._step(6);
     const cowered = DG.view(stray).state === 'cower', calm = DG.view(mine).state !== 'cower' && mine.cowerT <= 0;
     const ran = await stepUntil(6, () => DG.view(stray).state === 'flee');
-    const r = { stray: DG.view(stray).state, cowerT: r1(stray.cowerT), mine: DG.view(mine).state };
+    const r = { cowered, calm, ran, stray: DG.view(stray).state, cowerT: r1(stray.cowerT), mine: DG.view(mine).state, shot: shot.ok ? shot.fired ?? shot.shots ?? 'ok' : shot.error, dist: r1(Math.hypot(stray.x - g.player.x, stray.z - g.player.z)), events: g.events.filter((e) => e.seq > seq0).map((e) => e.type).slice(0, 12) };
     dropDogs();
     return cowered && calm && ran ? true : JSON.stringify(r);
   });

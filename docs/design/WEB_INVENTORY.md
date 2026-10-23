@@ -215,6 +215,124 @@ rounds you have the most of. Ike will make your gun right again for a price that
    trigger (a pull starts clearing, nothing fires) and after the clear time is unjammed with one round fewer; a kit
    adds 0.35; at 0 a pull does nothing and a kit refuses; Ike's fix makes it 1.0 for `round(80 × 0.6)` = $48.
 
+## Gear: the paperdoll, armor, and the original's guns and goods
+
+**Status:** SHIPPED 2026-10-23 on `feat/web-dogs-gear`. Code: `web/src/data/gear.js` (SLOTS, GEAR, HIT_ODDS, SOAK_CAP,
+MOD_CAP, GEAR_LOOT), `web/src/systems/gear.js` (the wearer), consumers in `systems/combat.js`, `systems/skills.js`,
+`systems/ai.js`, `systems/inventory.js`; the paperdoll on the PACK screen (`ui/inventory.js`, `ui/hud.css`); the
+scenario `pack-gear` stages it. Agent command `gear`; selftest "gear: …" (3). Ported from the original game's
+`game/proto3d/gear.gd`, `character.gd` and `data/equipment.json` (the 19-slot paperdoll, soak per body part, the mods
+on the clothing slots), its guns (`weapon.gd`: the pistol and the pump) and goods (`items.json`) and its loot tables
+(`loot_tables.json`: the buried cache, the rare cache, the armor cache, the gun safe, the police locker).
+
+### G1. Overview
+
+You wear things in **19 slots**: six armor slots (head, neck, chest, arms, hands, legs), seven clothing slots (coat,
+under, belt, feet, sash, face, back) and six accessory slots (two ears, two rings, a charm, a wrist). Every slot starts
+bare and holds one piece. A piece is a row in `GEAR` and also an item (`ITEMS`, kind `armor` or `gear`): found, carried,
+bought, stolen and dropped like any other thing, and worn from the PACK screen. **Armor soaks**: a hit on a body part
+is cut by the summed soak of everything worn over that part, at the one damage choke point (`combat.damage`). The
+other slots carry **mods**, each read by exactly one consumer: carry kg, speed on foot, reload time, how close a
+hostile has to be to spot you, how well your patches hold, and extra finds in a box you open first. The back slot is
+the pack you wear (satchel, backpack, frame ruck), so there is one thing on your back.
+
+The original's **guns** come over as rows: the **self-loader** (a twelve-round pistol on the SMG's small rounds) and
+the **pump shotgun** (five in the tube); and its **goods**: dried meat (what dogs come for), trail coffee (rest),
+rotgut, road flares (a minute of fire), a machete (a blade) and a fire axe (pries doors, loudly), and a dog collar
+(on a dead dog's remains, WEB_DOGS.md). New loot tables hold them; a few rows join existing tables (issue armor in the
+armory and on soldiers, junk armor on raiders, clothes in bedrooms). Shop tables are left alone.
+
+### G2. Player fantasy
+
+The soldier at the wire had a plate carrier, and you took it off him before the sand did. It weighs three kilos and
+you feel it on the run, but the round from the roof that should have opened you up knocks the wind out of you
+instead. A brush poncho means the Dustwolf with the rifle is fifteen metres closer before he picks you out of the
+scrub. You wear a dead man's rabbit's foot because the last three crates you opened had something in them.
+
+### G3. Detailed rules
+
+- **Wearing** (PACK screen: F, or E, on a gear row in your list; agent `gear wear=<id>`): the piece leaves your list
+  and goes in its slot; what was in the slot goes back in your list. **Taking off** (click a worn slot's chip; agent
+  `gear off=<slot>`): into your list, or the ground at your feet with no room. A piece on the other side has to be
+  taken first.
+- **Weight:** what you wear still weighs (`inventory.kg` adds it) but takes no room.
+- **Soak:** a hit (any cause except fire, drowning, a bad tin, a fall) lands on a part: the caller names it, or it is
+  rolled by cause (`HIT_ODDS`: a bullet hits the torso half the time, a bite goes for the legs and arms, a car takes
+  the legs); a blast spreads over every part and armor takes half its soak. The cut is the sum of every worn piece
+  that covers that part, capped at 75%.
+- **Mods** (summed over every slot, capped): `carry` (+kg on `skills.carryKg`), `speed` (× on `skills.speedMul`, the one
+  speed site), `reload` (× (1 − r) on `skills.reloadMul`, which the reload and the jam-clear both use), `stealth` (the AI's
+  spotting range × (1 − s) for you, `ai.scan`), `repair` (× (1 + r) on a duct tape or plug patch, `inventory.act`),
+  `luck` (extra rolls in a box the first time you open it, `inventory.roll`: drawn after the box's own, so they only
+  add). `unarmed` (the rings) has **no consumer**: this engine has no bare-hands fighting yet; the PACK screen says so.
+  The face and ear slots hold pieces with no effect yet (the original's own unwired four).
+- **What it looks like:** a chest piece puts a vest on your body, a helmet a helmet, a coat a poncho, a sash a
+  bandolier (`characters.js` styles), coloured by the piece.
+- **The PACK screen:** under the header, the paperdoll: three rows of slot chips (armor first, highlighted), each with
+  what is in it; the soak per body part; then your dogs (name, breed, tier, hp, the command it is on). A gear row's
+  detail says its slot (and what it would swap), its soak and covers, or its mod in words.
+- **Saving:** `gear` in the save holds the worn slots; a piece the catalog no longer has, or in the wrong slot, is
+  dropped. A save from before the paperdoll loads bare.
+- **The guns:** the self-loader (dmg 22, 12 rounds, SMG rounds, semi-auto, 1.2 s reload) and the pump (7 pellets of 15,
+  5 shells, 0.95 s between shots, 2.4 s reload) each have their own model in the hand, wear and jam rows, an item and
+  a weight; a point-blank hit from any scattergun pops a head, not only the sawn-off's.
+
+### G4. Formulas
+
+| Name | Formula | Example |
+|---|---|---|
+| Part soak | `min(0.75, Σ soak of worn pieces covering the part)` | soft vest + trauma insert on the torso: 0.36 |
+| Hit after armor | `dmg × (1 − soak)` (before the difficulty multiplier) | 40 on a soft-vested torso: 30.4 |
+| Blast soak | `mean(part soaks) × 0.5` | vest + helmet: (0.24+0.24)/4 × 0.5 = 0.06 |
+| Armor kg | chest `0.8 + 0.7t`, head `0.4 + 0.3t`, legs `0.6 + 0.5t`, other armor `0.3 + 0.2t`, the rest `0.4 + 0.1t` | soft vest (t3): 2.9 kg |
+| Value | `(soak ? 40 : 18) × tier` | combat helmet: $160 |
+| Carry | `24 + 3.5·STR + perk + Σ carry` (cap +24) | rig belt: +10 kg |
+| Speed | `load multiplier × (1 + Σ speed)` (cap ±0.15) | trail runners: ×1.08 |
+| Reload | `(1 − 0.03·DEX) × (1 − Σ reload)` (cap 0.3) | double bandolier: ×0.86 |
+| Spotted at | `AI range × (crouch 0.6) × (1 − Σ stealth)` (cap 0.45) | brush poncho: 30 m → 26.4 m |
+| Luck | `+round(Σ luck)` rolls (cap 3) | scavver's compass: +2 rolls |
+
+### G5. Edge cases
+
+- **The last gun stays on you;** the paperdoll never holds guns.
+- **Wearing a piece over a full list:** the old piece goes to the ground if the list has no room for it.
+- **Armor and god mode / respawn grace:** nothing is cut when nothing lands.
+- **Fire and drowning** go through armor; a blast is half-soaked.
+- **A gear piece in a shop** is bought like anything else; out of an owned box it is theft.
+- **Somebody else in armor:** `combat.damage` soaks for any character with `c.worn` (same shape as the player's); no
+  NPC wears any yet (their bodies carry found armor as loot).
+- **Luck and the same-seed rule:** a box rolls the same base loot from its seed; luck only appends rolls drawn after.
+
+### G6. Dependencies
+
+`combat.js` (damage, the `part` argument), `skills.js` (carry, speed, reload), `ai.js` (scan), `inventory.js` (kg,
+repair, roll; flares), `characters.js` (the vest, helmet, poncho and bandolier styles; the new gun models),
+`throwables.js` (`startFire` for the flare), `ui/inventory.js` + `hud.css` (the paperdoll), `agent/api.js` (`gear`, the
+save, the checks), `data/items.js` (gear registered as items, the guns and goods, loot merged), `data/skills.js`
+(the new guns' weights).
+
+### G7. Tuning knobs
+
+| Knob | Where | Value | Safe range | Affects |
+|---|---|---|---|---|
+| GEAR.*.soak | data/gear.js | 0.03–0.42 | 0–0.6 | how much a piece stops |
+| SOAK_CAP | data/gear.js | 0.75 | 0.5–0.85 | never bulletproof |
+| BLAST_SOAK | data/gear.js | 0.5 | 0.25–1 | armor against a blast |
+| HIT_ODDS | data/gear.js | per cause | — | which part a hit finds |
+| MOD_CAP | data/gear.js | carry 24, speed 0.15, reload 0.3, stealth 0.45, repair 0.35, luck 3 | — | stacking |
+| GEAR.*.carry/speed/reload/stealth/repair/luck | data/gear.js | per piece | — | each slot's worth |
+| GEAR_LOOT / GEAR_LOOT_ADD | data/gear.js | rows | — | where gear turns up |
+| WEAPONS.auto / pump | systems/combat.js | rows | — | the original's guns here |
+
+### G8. Acceptance criteria (selftest "gear: …")
+
+1. A 40-point bullet on the torso with the soft armor vest on does exactly `(1 − 0.24)` of the bare hit; on the legs
+   (the vest does not cover them) exactly the bare hit.
+2. Trail runners move `speedMul` ×1.08, a rig belt `carryKg` +10, a double bandolier `reloadMul` ×0.86, a brush poncho
+   `seenMul` to 0.88, and a scavver's compass makes a box of the same seed roll at least as much (the same items first).
+3. A helmet worn through the `gear` command and a vest and boots worn: saved, stripped, loaded: all three back in their
+   slots, the PACK screen's paperdoll names them with the soak line, and the body wears a vest and a helmet.
+
 ## Open (phase 2)
 
 A search time and its noise; locked boxes (a gun safe); trade (sell to traders at standing-adjusted prices; guns

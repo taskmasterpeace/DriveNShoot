@@ -102,6 +102,7 @@ export class Gear {
   }
   // Single-consumer reads (kept as methods so the consumer never re-derives them).
   carryKg() { return this.mods.carry; }
+  wornKg() { let k = 0; for (const s of SLOTS) { const id = this.worn[s]; if (id) k += ITEMS[id]?.kg ?? 0; } return k; } // what you wear still weighs (inventory.kg)
   speedMul() { return 1 + this.mods.speed; }
   reloadMul() { return 1 - this.mods.reload; }
   seenMul() { return 1 - this.mods.stealth; }     // how close a hostile must be to spot you

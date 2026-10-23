@@ -617,7 +617,7 @@ export class Inventory {
   }
 
   // ---- what it weighs, what the agent sees ---------------------------------------------------------------
-  kg() { return this.carried.kg() + (this.worn ? ITEMS[this.worn].kg : 0); }
+  kg() { return this.carried.kg() + (this.worn ? ITEMS[this.worn].kg : 0) + (this.g.gear?.wornKg() ?? 0); } // and what you wear (systems/gear.js)
   changed() { this.g.skillsSys?.recompute?.(); this.dirty = true; this.drawPiles(); }
 
   slotView(s) {

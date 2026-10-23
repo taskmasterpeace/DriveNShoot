@@ -116,7 +116,12 @@ export const GEAR = {
 };
 
 // What a piece weighs, takes and is worth when the row does not say: armor by its tier, the rest light.
-export function gearKg(r) { return r.kg ?? Math.round((ARMOR_SLOTS.includes(r.slot) || r.soak ? 0.8 + 0.7 * r.tier : 0.4 + 0.1 * r.tier) * 100) / 100; }
+// A chest plate is the heavy one; a helmet, leg plates and the small pieces less (the original's 0.8 + 0.7 x tier, for the
+// chest only).
+export function gearKg(r) {
+  const t = r.tier, kg = r.slot === 'chest' ? 0.8 + 0.7 * t : r.slot === 'head' ? 0.4 + 0.3 * t : r.slot === 'legs' ? 0.6 + 0.5 * t : r.soak ? 0.3 + 0.2 * t : 0.4 + 0.1 * t;
+  return r.kg ?? Math.round(kg * 100) / 100;
+}
 export function gearBulk(r) { return r.bulk ?? (r.slot === 'chest' ? 6 : r.slot === 'head' ? 4 : r.slot === 'legs' ? 3 : r.slot === 'coat' ? 3 : r.soak ? 1.2 : 0.5); }
 export function gearValue(r) { return r.value ?? (r.soak ? 40 : 18) * Math.max(1, r.tier); }
 

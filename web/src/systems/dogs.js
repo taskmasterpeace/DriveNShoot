@@ -21,6 +21,9 @@ const TAU = Math.PI * 2;
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const BANDAGES = ['bandage', 'rag', 'suture_kit', 'first_aid'];
 const HIT = { t: 0, dog: null };
+// Where a dog wants to be this frame, written into its own object (the brains run every frame for every dog).
+function W(d, x, z, v, face = undefined, path = false, base = 0) { const w = d.w; w.x = x; w.z = z; w.v = v; w.face = face; w.path = path; w.base = base; return w; }
+const TIMERS = ['jumpCd', 'pounceCd', 'biteCd', 'barkCd', 'alertT', 'cowerT', 'fleeT', 'pointT', 'infT'], SIDES = [-1, 1];
 
 export class Dogs {
   constructor(game) {
@@ -59,6 +62,7 @@ export class Dogs {
       ride: null, guard: null, sic: null, seek: null, digT: 0, pointT: 0, stuckT: 0, side: rng() < 0.5 ? -1 : 1, path: null, pathI: 0, pathT: 0,
       infT: 0, pouncing: false, still: 0,
       jumps: 0, pounces: 0, bites: 0, ate: 0, marks: 0, barks: 0, digs: 0,
+      w: { x: 0, z: 0, v: 0, face: undefined, path: false, base: 0 }, // what it wants this frame (W(): reused, no garbage)
       a: { phase: rng(), gait: 0, head: 0, wag: 0, tuck: 0, tail: 0.3, crouch: 0, sit: 0, dig: 0, eat: 0, mark: 0, flinch: 0, bark: 0, air: 0, lie: 0 },
     };
     this.dogs.push(d);
@@ -104,6 +108,8 @@ export class Dogs {
     // A new day: a dog of yours that has not eaten in BOND.hungryDays loses some of the bond (and says so when you're near).
     const day = this.day();
     if (day !== this.dayChecked) { if (this.dayChecked >= 0) for (const d of this.mine()) if (d.mem.lastFed >= 0 && day - d.mem.lastFed > BOND.hungryDays) d.bond = Math.max(BOND_AT[1], d.bond - BOND.hungryLoss); this.dayChecked = day; }
+    let rank = 0;
+    for (const d of this.dogs) if (d.owned && !d.dead) d.rank = rank++; // each of yours has its own place at heel
     for (const d of this.dogs) {
       if (d.dead) { d.deadT += dt; continue; }
       if (!d.owned && Math.abs(d.x - P.x) + Math.abs(d.z - P.z) > R.simR * 1.4) continue; // a stray far away holds still
@@ -115,7 +121,7 @@ export class Dogs {
 
   tick(d, dt) {
     const g = this.g, P = g.player, A = d.a;
-    for (const k of ['jumpCd', 'pounceCd', 'biteCd', 'barkCd', 'alertT', 'cowerT', 'fleeT', 'pointT', 'infT']) if (d[k] > 0) d[k] -= dt;
+    for (const k of TIMERS) if (d[k] > 0) d[k] -= dt;
     A.flinch = Math.max(0, A.flinch - dt * 5); A.bark = Math.max(0, A.bark - dt * 4);
     // Riding with you: in the car until you get out (hidden in the cab, out beside you after).
     if (d.ride) {
@@ -166,7 +172,7 @@ export class Dogs {
       if (v.dead || v.sunk || Math.abs(v.x - d.x) > 6 || Math.abs(v.z - d.z) > 6) continue;
       const sp = Math.hypot(v.vx ?? 0, v.vz ?? 0);
       if (sp < 3 || d.air) continue;
-      for (const s of [-1, 1]) {
+      for (const s of SIDES) {
         const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
         if (Math.hypot(cx - d.x, cz - d.z) < v.wid * 0.55 + R.radius) {
           const k = 1 / (sp || 1);
@@ -274,7 +280,7 @@ export class Dogs {
     // Gunfire: down low, shaking; then it runs.
     if (d.cowerT > 0) { d.state = 'cower'; A.crouch = Math.min(1, A.crouch + dt * 8); if (d.cowerT <= dt * 1.5) d.fleeT = R.fleeT; return null; }
     A.crouch = Math.max(0, A.crouch - dt * 3);
-    if (d.fleeT > 0) { d.state = 'flee'; const dx = d.x - d.fx, dz = d.z - d.fz, l = Math.hypot(dx, dz) || 1; return { x: d.x + (dx / l) * 8, z: d.z + (dz / l) * 8, v: d.p.speed * 1.05 }; }
+    if (d.fleeT > 0) { d.state = 'flee'; const dx = d.x - d.fx, dz = d.z - d.fz, l = Math.hypot(dx, dz) || 1; return W(d, d.x + (dx / l) * 8, d.z + (dz / l) * 8, d.p.speed * 1.05); }
     // A threat: bark at it before you'd ever see it; too close and armed, or one of the infected, and it runs.
     const t = d.threat;
     if (t?.alive) {
@@ -282,35 +288,35 @@ export class Dogs {
       if ((t.faction === 'zombie' && k < 7) || (t.weapon && k < 9)) { d.fleeT = R.fleeT; d.fx = t.x; d.fz = t.z; return null; }
       d.state = k < R.growlR ? 'growl' : 'bark';
       this.bark(d, k < R.growlR ? 'grrr' : 'WOOF');
-      return { x: d.x, z: d.z, v: 0, face: Math.atan2(t.x - d.x, t.z - d.z) };
+      return W(d, d.x, d.z, 0, Math.atan2(t.x - d.x, t.z - d.z));
     }
     // You: kept at a distance until you've fed it. Stand still with something it wants and it comes to you, slowly. Shot
     // by you, it gives you a wide berth and growls (it remembers).
     const pd = P.alive && !P.inVehicle ? Math.hypot(P.x - d.x, P.z - d.z) : Infinity;
     if (pd < R.begR && d.bond < 3 && d.mem.shot < 2 && P.speed < 0.8 && this.foodSlot() >= 0) {
       d.state = 'beg';
-      if (pd < 2.4) { A.sit = Math.min(1, A.sit + dt * 4); return { x: d.x, z: d.z, v: 0, face: Math.atan2(P.x - d.x, P.z - d.z) }; }
+      if (pd < 2.4) { A.sit = Math.min(1, A.sit + dt * 4); return W(d, d.x, d.z, 0, Math.atan2(P.x - d.x, P.z - d.z)); }
       A.sit = 0; A.head = Math.max(A.head - dt, -0.3);
-      return { x: P.x, z: P.z, v: 1.2 };
+      return W(d, P.x, P.z, 1.2);
     }
     if (pd < (d.mem.shot ? 14 : R.wary) && d.bond < 3) {
       d.state = 'wary';
       if (d.mem.shot && pd < 8) this.bark(d, 'grrr');
       const dx = d.x - P.x, dz = d.z - P.z, l = pd || 1;
-      return { x: d.x + (dx / l) * 5, z: d.z + (dz / l) * 5, v: P.speed > 4 ? d.p.speed * 0.8 : 2.4 };
+      return W(d, d.x + (dx / l) * 5, d.z + (dz / l) * 5, P.speed > 4 ? d.p.speed * 0.8 : 2.4);
     }
     // Warm to you (fed once): it hangs about at a distance, curious, and comes in close when you hold out food.
     if (d.bond >= 3 && pd < 30) {
       const food = this.foodSlot() >= 0;
-      if (food && P.speed < 0.8 && pd < R.begR) { d.state = 'beg'; A.sit = Math.min(1, A.sit + dt * 4); return pd > 2 ? { x: P.x, z: P.z, v: 1.6 } : { x: d.x, z: d.z, v: 0, face: Math.atan2(P.x - d.x, P.z - d.z) }; }
-      if (pd > 7) { d.state = 'tag'; return { x: P.x - Math.sin(P.face) * 5, z: P.z - Math.cos(P.face) * 5, v: pd > 14 ? d.p.speed * 0.7 : 2.6 }; }
+      if (food && P.speed < 0.8 && pd < R.begR) { d.state = 'beg'; A.sit = Math.min(1, A.sit + dt * 4); return pd > 2 ? W(d, P.x, P.z, 1.6) : W(d, d.x, d.z, 0, Math.atan2(P.x - d.x, P.z - d.z)); }
+      if (pd > 7) { d.state = 'tag'; return W(d, P.x - Math.sin(P.face) * 5, P.z - Math.cos(P.face) * 5, pd > 14 ? d.p.speed * 0.7 : 2.6); }
     }
     // A smell: nose down, trot to it; at a body it eats, at a pile it takes the food, a dropped tin it carries off.
     const s = d.smell;
     if (s) {
       const k = Math.hypot(s.x - d.x, s.z - d.z);
       if (d.stT > 40 || (s.kind === 'body' && s.ref.alive)) { d.smells.set(s.id, this.t); d.smell = null; d.state = 'wander'; return null; }
-      if (k > 1.25) { d.state = 'sniff'; A.head = Math.max(A.head - dt * 3, -0.55); return { x: s.x, z: s.z, v: k > 8 ? d.p.speed * 0.5 : 1.5 }; }
+      if (k > 1.25) { d.state = 'sniff'; A.head = Math.max(A.head - dt * 3, -0.55); return W(d, s.x, s.z, k > 8 ? d.p.speed * 0.5 : 1.5); }
       d.state = 'eat'; A.eat = Math.min(1, A.eat + dt * 6);
       if (d.eatT === undefined) d.eatT = R.scavenge[0] + Math.random() * (R.scavenge[1] - R.scavenge[0]);
       if ((d.eatT -= dt) <= 0) {
@@ -320,7 +326,7 @@ export class Dogs {
         g.emit('dogAte', { dog: d.id, kind: s.kind, x: +s.x.toFixed(1), z: +s.z.toFixed(1) });
         d.smells.set(s.id, this.t); d.smell = null; d.state = 'wander';
       }
-      return { x: d.x, z: d.z, v: 0, face: Math.atan2(s.x - d.x, s.z - d.z) };
+      return W(d, d.x, d.z, 0, Math.atan2(s.x - d.x, s.z - d.z));
     }
     // Marking its ground: stop, a hind leg up, then on.
     if ((d.markT -= dt) <= 0) {
@@ -333,7 +339,7 @@ export class Dogs {
     if (L) {
       const k = Math.hypot(L.x - d.x, L.z - d.z);
       d.state = 'pack';
-      if (k > R.packGap[1]) { const a = Math.atan2(d.x - L.x, d.z - L.z); return { x: L.x + Math.sin(a) * R.packGap[0], z: L.z + Math.cos(a) * R.packGap[0], v: k > 12 ? d.p.speed * 0.7 : 3.4 }; }
+      if (k > R.packGap[1]) { const a = Math.atan2(d.x - L.x, d.z - L.z); return W(d, L.x + Math.sin(a) * R.packGap[0], L.z + Math.cos(a) * R.packGap[0], k > 12 ? d.p.speed * 0.7 : 3.4); }
       if (L.speed < 0.5 && Math.random() < dt * 0.15) A.sit = 1;
       return null;
     }
@@ -342,11 +348,11 @@ export class Dogs {
     if (!d.goal || d.goalT <= 0 || Math.hypot(d.goal.x - d.x, d.goal.z - d.z) < 1.2) {
       if (!d.goal || d.goalT <= -3 || Math.random() < 0.4) {
         const a = Math.random() * TAU, rr = Math.random() * R.wanderR;
-        d.goal = { x: d.home.x + Math.cos(a) * rr, z: d.home.z + Math.sin(a) * rr, v: Math.random() < 0.7 ? 1.3 : 3.2 };
+        d.goal = { x: 0, z: 0, v: Math.random() < 0.7 ? 1.3 : 3.2 }; d.goal.x = d.home.x + Math.cos(a) * rr; d.goal.z = d.home.z + Math.sin(a) * rr; // a new spot now and then (not every frame)
         d.goalT = 8 + Math.random() * 10;
       } else { d.goalT = 2 + Math.random() * 3; return null; } // a pause: nose round where it stands
     }
-    return d.goal;
+    return W(d, d.goal.x, d.goal.z, d.goal.v);
   }
 
   // ---- yours -------------------------------------------------------------------------------------------------------------
@@ -374,34 +380,34 @@ export class Dogs {
       else return this.chase(d, t, dt);
     }
     if (cmd === 'guard' || cmd === 'shield') {
-      if (cmd === 'shield') d.guard = { x: P.x, z: P.z };
+      if (cmd === 'shield') { d.guard ??= { x: 0, z: 0 }; d.guard.x = P.x; d.guard.z = P.z; } // the post rides your hip
       const gp = d.guard ?? { x: d.x, z: d.z }, rr = p.threatR * (cmd === 'shield' ? 0.6 : 1);
       let t = null, bd = rr;
       for (const c of g.chars) { if (Math.abs(c.x - gp.x) > rr || Math.abs(c.z - gp.z) > rr || !this.hostileTo(d, c)) continue; const k = Math.hypot(c.x - gp.x, c.z - gp.z); if (k < bd) { bd = k; t = c; } }
       if (t) return this.chase(d, t, dt);
       d.state = cmd;
       const k = Math.hypot(gp.x - d.x, gp.z - d.z);
-      if (k > (cmd === 'shield' ? 1.6 : 1.4)) return { x: gp.x, z: gp.z, v: k > 6 ? p.speed : 2.4 };
+      if (k > (cmd === 'shield' ? 1.6 : 1.4)) return W(d, gp.x, gp.z, k > 6 ? p.speed : 2.4);
       A.sit = Math.min(1, A.sit + dt * 2);
-      return { x: d.x, z: d.z, v: 0, face: d.face };
+      return W(d, d.x, d.z, 0, d.face);
     }
     if (cmd === 'seek') {
       const s = d.seek;
       if (!s || (s.kind === 'cache' && s.ref.dug) || (s.kind === 'box' && s.ref.rolled)) { d.seek = null; d.cmd = 'heel'; }
       else {
         const k = Math.hypot(s.x - d.x, s.z - d.z);
-        if (k > 1.1) { d.state = 'seek'; A.head = Math.max(A.head - dt * 2, -0.45); d.digT = 0; return { x: s.x, z: s.z, v: k > 6 ? p.speed * 0.9 : 2.2, path: k > 6 }; }
+        if (k > 1.1) { d.state = 'seek'; A.head = Math.max(A.head - dt * 2, -0.45); d.digT = 0; return W(d, s.x, s.z, k > 6 ? p.speed * 0.9 : 2.2, undefined, k > 6); }
         if (s.kind === 'cache') {
           d.state = 'dig'; A.dig = Math.min(1, A.dig + dt * 7);
           if (Math.random() < dt * 8) g.fx?.dust(d.x + Math.sin(d.face) * 0.4, d.z + Math.cos(d.face) * 0.4, 1);
           if ((d.digT += dt) >= R.digTime) { this.unearth(d, s.ref); d.seek = null; d.cmd = 'heel'; A.dig = 0; }
-          return { x: d.x, z: d.z, v: 0, face: Math.atan2(s.x - d.x, s.z - d.z) };
+          return W(d, d.x, d.z, 0, Math.atan2(s.x - d.x, s.z - d.z));
         }
         // A box: it stands at it, nose pointed, barking once, until you come.
         d.state = 'point'; this.bark(d, 'WOOF');
         if (!s.told) { s.told = true; g.emit('dogFound', { dog: d.id, box: s.ref.id }); g.feedback?.floater?.(s.x, s.z, '?', 'loot'); }
         if (pd < 3 || (d.seekWait = (d.seekWait ?? 0) + dt) > 12) { d.seek = null; d.cmd = 'heel'; d.seekWait = 0; }
-        return { x: d.x, z: d.z, v: 0, face: Math.atan2(s.x - d.x, s.z - d.z) };
+        return W(d, d.x, d.z, 0, Math.atan2(s.x - d.x, s.z - d.z));
       }
     }
     A.dig = Math.max(0, A.dig - dt * 4);
@@ -409,10 +415,10 @@ export class Dogs {
     if (d.threat?.alive && d.alertT > 0) {
       d.state = 'alert';
       this.bark(d, Math.hypot(d.threat.x - d.x, d.threat.z - d.z) < R.growlR ? 'grrr' : 'WOOF');
-      if (cmd === 'stay' || (d.alertT > 0.7 && pd < 6)) return { x: d.x, z: d.z, v: 0, face: Math.atan2(d.threat.x - d.x, d.threat.z - d.z) }; // stops and points its nose at it
+      if (cmd === 'stay' || (d.alertT > 0.7 && pd < 6)) return W(d, d.x, d.z, 0, Math.atan2(d.threat.x - d.x, d.threat.z - d.z)); // stops and points its nose at it
     }
-    if (d.pointT > 0 && d.pointAt) { d.state = 'point'; return { x: d.x, z: d.z, v: 0, face: Math.atan2(d.pointAt.x - d.x, d.pointAt.z - d.z) }; }
-    if (cmd === 'stay') { d.state = 'stay'; A.sit = Math.min(1, A.sit + dt * 2); return { x: d.x, z: d.z, v: 0, face: d.face }; }
+    if (d.pointT > 0 && d.pointAt) { d.state = 'point'; return W(d, d.x, d.z, 0, Math.atan2(d.pointAt.x - d.x, d.pointAt.z - d.z)); }
+    if (cmd === 'stay') { d.state = 'stay'; A.sit = Math.min(1, A.sit + dt * 2); return W(d, d.x, d.z, 0, d.face); }
     // HEEL: a spot at your side and a little behind, on the side it likes; tighter as the bond grows.
     d.state = 'heel';
     const ps = P.inVehicle ?? P, mvx = (ps.x - (d.lpx ?? ps.x)) / Math.max(dt, 1e-3), mvz = (ps.z - (d.lpz ?? ps.z)) / Math.max(dt, 1e-3);
@@ -420,11 +426,12 @@ export class Dogs {
     const pv = Math.hypot(mvx, mvz);
     if (pv > 0.6) d.hd = Math.atan2(mvx, mvz); else d.hd ??= P.face ?? 0;
     const fd = p.followDist * (1 - BOND.followMul * this.tier(d)), h = d.hd;
-    const side = fd * 0.55 * d.side, back = fd * 0.85;
+    const idx = d.rank ?? 0, rank = idx >> 1; // two at your heels, the rest a pace further back each pair
+    const side = fd * 0.55 * (rank ? (idx % 2 ? 1 : -1) : d.side), back = fd * 0.5 + rank * 1.1;
     const hx = ps.x + Math.cos(h) * side - Math.sin(h) * back, hz = ps.z - Math.sin(h) * side - Math.cos(h) * back;
     const k = Math.hypot(hx - d.x, hz - d.z);
     if (pv < 0.4) d.still += dt; else d.still = 0;
-    if (k < 0.8 && pv < 0.4) { A.sit = Math.min(1, A.sit + (d.still > 2 ? dt * 2 : 0)); return { x: d.x, z: d.z, v: 0, face: angleLerp(d.face, P.face ?? d.face, Math.min(1, dt * 2)) }; }
+    if (k < 0.8 && pv < 0.4) { A.sit = Math.min(1, A.sit + (d.still > 2 ? dt * 2 : 0)); return W(d, d.x, d.z, 0, angleLerp(d.face, P.face ?? d.face, Math.min(1, dt * 2))); }
     A.sit = Math.max(0, A.sit - dt * 6);
     // Match your pace and close the gap: a sprint after you when it has fallen behind.
     const v = Math.min(p.speed * 1.35, Math.max(pv * (k > 1.5 ? 1.25 : 1), k > 12 ? p.speed * 1.35 : k > 5 ? p.speed : k > 1.2 ? Math.max(1.6, p.speed * 0.45) : 1.2));
@@ -438,7 +445,7 @@ export class Dogs {
     const dx = t.x - d.x, dz = t.z - d.z, k = Math.hypot(dx, dz) || 1;
     d.state = 'attack';
     // Never into fire after anybody.
-    for (const f of g.throwables?.fires ?? []) if (Math.hypot(f.x - t.x, f.z - t.z) < f.r + 1.2) { d.state = 'balk'; this.bark(d, 'WOOF'); return { x: d.x, z: d.z, v: 0, face: Math.atan2(dx, dz) }; }
+    for (const f of g.throwables?.fires ?? []) if (Math.hypot(f.x - t.x, f.z - t.z) < f.r + 1.2) { d.state = 'balk'; this.bark(d, 'WOOF'); return W(d, d.x, d.z, 0, Math.atan2(dx, dz)); }
     if (!d.air && d.pounceCd <= 0 && k > R.pounceR[0] && k < R.pounceR[1] && g.statics.lineOfSight(d.x, d.z, t.x, t.z, RAY_SOLID)) {
       const v = Math.max(p.speed * 1.1, 8);
       d.vx = (dx / k) * v; d.vz = (dz / k) * v; d.vy = R.pounceV; d.air = true; d.pouncing = t; d.pounceCd = R.pounceCd; d.pounces++;
@@ -447,7 +454,7 @@ export class Dogs {
     }
     if (k <= R.biteR) this.bite(d, t, false);
     if (p.bite <= 0) this.bark(d, 'WOOF'); // a lap dog makes a noise about it and nothing else
-    return { x: t.x, z: t.z, v: p.speed, face: Math.atan2(dx, dz), path: k > 6 };
+    return W(d, t.x, t.z, p.speed, Math.atan2(dx, dz), k > 6);
   }
 
   bite(d, t, pounce) {
@@ -916,7 +923,7 @@ const _p = { x: 0, z: 0 };
 // tail drawn from one tapered limb (two segments a leg: a real elbow, stifle and hock). Five InstancedMeshes for every dog
 // in the world; a variant nobody uses costs no draw call. Poses are solved per frame into joint positions in the dog's own
 // frame (+z forward), like the people's (characters.js).
-const MAXD = 32, LIMBS = 11; // 8 leg segments + neck + tail + spare
+const MAXD = 32, LIMBS = 11; // 8 leg segments + neck + tail + saddle
 const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 const _M = new THREE.Matrix4(), _T = new THREE.Matrix4(), _S = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _dir = new THREE.Vector3(), _sc = new THREE.Vector3(), _c = new THREE.Color();
@@ -1012,11 +1019,14 @@ class DogRenderer {
       this.prop1(gr.x, 0, gr.z, 0.42, 0.75, 0.14, 0, '#6e6a62');
       this.prop1(gr.x, -0.04, gr.z + 0.62, 0.7, 0.16, 1.0, 0, '#4a3a28');
     }
-    for (const [m, n] of [[this.body, this.nb], [this.headUp, this.nh], [this.headDown, this.nd], [this.limb, this.nl], [this.prop, this.np]]) {
-      m.count = n; m.visible = n > 0;
-      m.instanceMatrix.needsUpdate = true;
-      if (m.instanceColor) m.instanceColor.needsUpdate = true;
-    }
+    this.done(this.body, this.nb); this.done(this.headUp, this.nh); this.done(this.headDown, this.nd); this.done(this.limb, this.nl); this.done(this.prop, this.np);
+  }
+
+  // An empty mesh costs no draw call.
+  done(m, n) {
+    m.count = n; m.visible = n > 0;
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
   }
 
   pose(d, t) {
@@ -1069,6 +1079,12 @@ class DogRenderer {
       _dir.set(side * Math.sin(splay) * 0.6, -Math.cos(a2), Math.sin(a2)).normalize();
       this.seg(F, _b, _dir, lo, 0.043 * s * (build === 'heavy' ? 1.2 : 1), legC);
     }
+    // A saddle: a darker back over the coat (one more limb instance lying along the spine).
+    if (B.saddle) {
+      _a.set(0, 0.075 * s * wy, -0.25 * s * L); _dir.set(0, 0.06, 1).normalize();
+      _b.copy(_a).addScaledVector(_dir, 0.44 * s * L); _nd.copy(_dir).negate();
+      this.seg(F, _b, _nd, 0.44 * s * L, 0.105 * s * wx, _cs.set(B.saddle));
+    }
     // Neck and head: the head dips to sniff, eat and dig, lifts to alert, snaps up to bark.
     const hp = A.head - lie * 0.2;
     _a.set(0, 0.07 * s * wy, 0.26 * s * L);
@@ -1077,7 +1093,7 @@ class DogRenderer {
     // The neck segment hangs along -y in its geometry: draw it from the head end back down to the withers.
     _b.copy(_a).addScaledVector(_dir, neckLen);
     _nd.copy(_dir).negate();
-    this.seg(F, _b, _nd, neckLen, 0.07 * s * wx, coatC);
+    this.seg(F, _b, _nd, neckLen, 0.085 * s * wx, coatC);
     _e.set(-hp * 0.9 - 0.1, 0, 0, 'YXZ'); _q.setFromEuler(_e);
     _M.compose(_b.addScaledVector(_dir, 0.06 * s), _q, _sc.set(s * (build === 'heavy' ? 1.15 : 1), s, s)).premultiply(F);
     const head = B.ears === 'up' ? this.headUp : this.headDown, hi = B.ears === 'up' ? this.nh++ : this.nd++;
@@ -1094,4 +1110,4 @@ class DogRenderer {
     }
   }
 }
-const _cl = new THREE.Color(), _cc = new THREE.Color(), _nd = new THREE.Vector3();
+const _cl = new THREE.Color(), _cc = new THREE.Color(), _cs = new THREE.Color(), _nd = new THREE.Vector3();
