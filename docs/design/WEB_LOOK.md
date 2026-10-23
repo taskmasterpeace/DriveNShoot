@@ -20,6 +20,7 @@ This doc covers what was built for that and the study that decides the layouts t
 | Rust Haven's blocks | `data/holdout.js` and `world/city.js`: sidewalks round dirt yards, a market square, yard fill | b676e23d |
 | Floor plans | real rooms in ring houses | separate branch, in progress |
 | Trees and desert plants | `tools/blenderforge/gen_flora.py` (Blender) → `web/public/models/flora/*.glb` → `world/flora.js` (§3.6) | feat/web-trees |
+| Look pass 2 (the critic's list) | the ground stops tiling, forest floor, town floor (§3.7); Meridian rebuilt from wreckage (§3.8); palms that read from above (§3.6); the vulture slab (§3.9) | feat/web-look2 |
 
 ## 2. Player fantasy
 
@@ -80,7 +81,7 @@ every instance at least `SMALL` across draws one of five roofs, picked by a hash
 | 0 corrugated sheet | ribs and sheet seams; some sheets fresh galvanised, some rusted through |
 | 1 cool-coated flat | white elastomeric coat peeling in flakes over grey membrane |
 | 2 clay tile | barrel-tile courses in terracotta |
-| 3 rebuilt patchwork | blue, green and orange tarps, rust sheet, plywood, solar panels |
+| 3 rebuilt from salvage | corrugated sheets of every age in staggered courses (0.9 × 2.4 m, ribbed and lapped: rust, weathered and fresh galvanised, an old dark sheet, a plywood patch), one tarp lashed over a leak, a bank of six salvaged solar panels on some. Was a grid of coloured 1.25 × 2.5 m cells, which read as a quilt from above (look pass 2) |
 | 4 tar and gravel | speckled tar with darker patches |
 
 Every roof also gets:
@@ -213,8 +214,10 @@ that budget.
 |---|---|---|
 | `paloverde` | green limbs through an airy, broken yellow-green crown of leaf puffs; yellow blossom flecks | 458 / 466 / 458 |
 | `mesquite` | a dark, low umbrella, wider than it is tall | 460 / 460 / 424 |
-| `fanpalm` | a full, ragged disc of pleated fans in three tiers, over a shag skirt and a ringed trunk | 292 / 281 / 303 |
-| `datepalm` | a feathery starburst of folded, saw-edged fronds; diamond leaf bases on the trunk; dates | 544 / 536 / 518 |
+| `fanpalm` | a ragged, shaded star-disc: split-tipped fans that droop from their stalks (young ones up over the heart, old ones hanging, their tips burnt yellow-brown), two or three dead brown fans hanging under the crown, a shag skirt, a ringed trunk | 530 / 507 / 507 |
+| `datepalm` | a feathery starburst: each frond a pale rachis with stiff leaflet pairs and gaps between them, arching up and drooping to the tip, dusty grey-green going yellow at the old tips; two or three dead brown fronds hanging; diamond leaf bases; dates | 456 / 464 / 435 |
+
+**Look pass 2, the palms.** From the game camera both palms read as flat, bright-green paddle stars (`docs/renders/web/look2/palms_*_before.jpg`): solid ribbons and plates, one lit green, no droop. Now the greens are darker and sun-burnt (`fan_leaf`, `date_leaf`, `fan_burnt`, `date_burnt`, `frond_dead`), every crown has dead fronds hanging under it, the fans droop at the rim and split at the tips, and a date frond is a feather with the sand showing between its leaflets. The leaflet gaps put a feathered shadow on the ground beside the trunk, which sells the height. Triangles stay in the same 150–600 range. The previews (`datepalm_*`, `fanpalm_*`, `sheet_*`) were looked at before the GLBs went in.
 | `citrus` | a round dark dome dotted with fruit (variant 2 has lemons) | 484 / 460 / 460 |
 | `saguaro` | a ribbed star with arms that leave level and turn up; a pale crown | 196 / 336 / 266 |
 | `joshua` | forked limbs, each ending in a spiky pom-pom over a dead-leaf collar | 256 / 248 / 248 |
@@ -265,6 +268,67 @@ cost.
 - `saguaro_i10` / `saguaro_close`: saguaro desert beside I-10 at mile 15.
 - `joshua_i10` / `joshua_close`: Joshua trees off I-10 at mile 5, in California.
 
+### 3.7 The ground: no tiling, a forest floor, a town floor (look pass 2)
+
+`world/surfaces.js` `groundSurface(mat)` patches the streamed ground's two materials (`world/streamer.js`: the desert's
+sand, a region's marsh). Like the roofs it costs no texture and no draw call, and the layout hash never reads it.
+
+**The sand stops tiling.** The overview over the desert (`?terrain=real` or not: it is the same with the flag off) showed
+a regular egg-crate of dune blotches. That was the 28 m sand tile repeating, not the land. Now two more samples of the same
+texture, on rotated, larger lattices (×0.613 turned 37°, ×1.37 turned 74°), are always blended in, by weights that wander
+with a world-space noise, plus a broad 256 m light-and-shade. No 28 m cell ever shows bare. It fades in past the island's
+edge (464 to 684 m out), so the seam with the island's own ground is untouched. The heights are not touched at all: road
+grades, the survey and every pinned hash are exactly as before.
+
+**The floor channel.** The ground layer carries one more vertex attribute, `aFloor` = [forest, town] weights 0..1
+(`world/chunkgen.js` writes it per 8 m vertex; `world/pools.js` uploads it). Zero everywhere else, so P1's ground draws as
+it did.
+- **Forest floor** (the brush's `forest` layer): dark leaf litter and needles in drifting patches, bare loam, moss, a fleck
+  per 0.25 m for single leaves and thin dark twigs. Before, a painted wood's floor stayed desert sand between the trees:
+  the old ground tint multiplied the sand, and under the noon sun the sand's orange won (luma 85 → 72 at the game camera).
+- **Town floor** (inside a holdout's wall, its `cityK`): packed sand and grey earth, trampled grass, worn foot paths along
+  the ridges of a slow noise, tyre ruts, grit, litter (a scrap of paper, cardboard, a rusted can, green glass: rare,
+  small, turned), and the odd puddle in a low corner, which also goes glossy (roughness 0.16). Meridian's market square
+  lost its white paving: it is the town's earth now.
+- Detail finer than a pixel fades out (`fwidth`), so the widest zoom doesn't shimmer. Noise lattices wrap every 2,048 m
+  (Florida is 222 km out: float32 can't hash those coordinates finely); every lattice size divides it, so the wrap is
+  seamless.
+
+**What lies on a forest floor** (`world/brush.js`, after everything the stage laid before, on a stream of its own, so no
+tree moves): ferns in rosettes of five to seven fronds (props), fallen logs on their sides (the trunks pool's cylinder,
+solid when they lie near an axis), cut and broken stumps. Rocks and desert shrubs still take moss.
+
+### 3.8 Meridian, rebuilt from wreckage (look pass 2)
+
+The critic, from the game camera: the market square was a near-white empty plaza with one giant low-poly oak filling the
+frame; from above the town read as a neat model suburb, small houses on big green lots under quilt roofs. Its programmes,
+people and checks are unchanged; what changed (`world/holdout.js`, rows in `data/holdouts.js` `meridian.grit`):
+- **The ground** is the town floor (§3.7), not lawn.
+- **No ruled frontage.** Each building sits a little deeper or shallower (`grit.setback`, houses −1.0 to +2.4 m; shops and
+  civic buildings a third of that) and slides along its street (`grit.shift` of the gap). Its own stream per lot, so no
+  lot's size, seed or programme moves.
+- **Burnt shells.** 22% of the back-row houses went up in the fall and stand roofless and charred (`ring` zone row
+  `holdout_burnt`: smoke-dark stucco, no households), walk-in, with a black floor, fallen beams and rubble.
+- **Every lot is dressed** (`fillOf(L)`, the first time a chunk asks, when its doors are known; never within `doorClear`
+  of a door): junk fences of tin, rust, planks, pallets, car doors and wire on the back and one side (solid in runs); a
+  lean-to off the back wall; one or two back houses knocked up from salvage (solid, a real roof from above); a shed and an
+  outhouse in the back corners; raised beds; a chicken run; a hulk on blocks; a rain tank, a washing line, firewood,
+  compost and scrap; a side gap with room parks a hulk or stacks crates.
+- **The market is in use.** Striped canvas awnings (props, not roofs: the roof shader drew them as tin), stock stacked
+  behind the counters, sacks, blankets of goods on the ground, benches round the fire, fire barrels in the aisles (lit at
+  night), a handcart, washing strung across the row ends, a cook tarp with a table, a trough at the well, tyres and scrap.
+  The square's trees are right-sized (4.6–6.2 m, two corners, not four oaks at 7–9 m).
+- **Roofs** are salvaged sheet (§3.3, kind 3), not a quilt.
+
+### 3.9 The vulture slab (look pass 2)
+
+The stray black slab in the marsh at dusk (`docs/renders/web/florida/i95swamp_game_dusk.jpg`) was a **vulture**
+(`systems/ambient.js`): a 2.6 m board of near-black boxes, circling at 25–31 m, 2–8 m under a camera 33 m up, so when one
+crossed the lens it filled a fifth of the frame. Reproduced exactly (`look2/swamp_vulture_dusk_before.jpg`, one bird put on
+the camera's ray). Now a vulture is a 1.8 m silhouette seen from above (broad wings in a shallow V with fingered tips,
+paler flight feathers, a fan tail, a bare red head, double-sided) in dark brown, and never flies above 55% of the camera's
+height (at least 9 m).
+
 ## 4. Formulas
 
 **Light.**
@@ -286,6 +350,20 @@ brightness.
 
 **Yard pick.** A side gets an item when its margin is at least `yard.margin` and a roll passes 0.85. The kind is
 weighted by `yard.kinds`: garden 5, washing 3, tank 2, shade 2 (out of 12).
+
+**No tiling (§3.7).** With `n(s)` a value noise on an `s` m lattice and `e = smoothstep(464, 684, max(|x|, |z|))`:
+- `k2 = (0.35 + 0.55 · smoothstep(0.25, 0.75, n(64))) · e`, `k3 = (0.25 + 0.45 · smoothstep(0.3, 0.8, n(128))) · e`
+- `sand = mix(mix(T(uv), T(R37 · uv · 0.613 + o2), k2), T(R74 · uv · 1.37 + o3), k3) · (1 + 0.22 · (n(256) − 0.5) · e)`
+
+Example: far out in the desert, e = 1, so the base tile is never more than 0.65 × 0.75 ≈ 49% of a pixel, and at the
+island's edge (e = 0) it is 100%, exactly the island's sand.
+
+**Floors (§3.7).** `albedo = mix(sand · vColor, forestFloor, smoothstep(0, 0.7, f))`, then the same with the town floor
+and `smoothstep(0, 0.9, t)`. f is the brush's forest value, t the holdout's `cityK`. Example: a vertex at forest 0.9 is
+fully forest floor; at the stroke's soft edge (0.35) it is 50% floor over the sand.
+
+**Burnt shells (§3.8).** A back-row house or bungalow burns when `rng(hash(seed, block, slot, 'BURN')) < grit.burn`.
+Meridian has 5 of its 16 eligible.
 
 ## 5. Edge cases
 

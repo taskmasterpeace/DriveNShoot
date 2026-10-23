@@ -361,9 +361,11 @@ const GROUND_MAP = /* glsl */`
     vec2 uv2 = mat2(0.8, -0.6, 0.6, 0.8) * vMapUv * 0.613 + vec2(0.37, 0.71);
     vec2 uv3 = mat2(0.28, 0.96, -0.96, 0.28) * vMapUv * 1.37 + vec2(0.11, 0.53);
     vec4 s2 = texture2D( map, uv2 ), s3 = texture2D( map, uv3 );
-    float k = smoothstep(0.3, 0.7, gfbm(gw + 3.0, 64.0)) * edge, k3 = smoothstep(0.35, 0.75, gfbm(gw + 211.0, 128.0)) * edge;
-    sampledDiffuseColor = mix(mix(sampledDiffuseColor, s2, k), s3, k3 * 0.6);
-    sampledDiffuseColor.rgb *= 1.0 + (gfbm(gw + 97.0, 256.0) - 0.5) * 0.22 * edge; // broad dune light and shade
+    // One value noise per weight (the full screen of desert pays for these: keep them cheap).
+    // Never one lattice alone: the base tile is always at least a third under the others, so no 28 m cell shows bare.
+    float k = (0.35 + 0.55 * smoothstep(0.25, 0.75, gn(gw + 3.0, 64.0))) * edge, k3 = (0.25 + 0.45 * smoothstep(0.3, 0.8, gn(gw + 211.0, 128.0))) * edge;
+    sampledDiffuseColor = mix(mix(sampledDiffuseColor, s2, k), s3, k3);
+    sampledDiffuseColor.rgb *= 1.0 + (gn(gw + 97.0, 256.0) - 0.5) * 0.22 * edge; // broad dune light and shade
   }
   diffuseColor *= sampledDiffuseColor;
 #endif

@@ -1,0 +1,17 @@
+[
+ {
+  "name": "terrain_hills_over",
+  "luma": 190.5,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_hills_game",
+  "luma": 191.8,
+  "drawCalls": 67
+ },
+ {
+  "name": "terrain_climb_over",
+  "luma": 188.4,
+  "drawCalls": 74
+ }
+]
