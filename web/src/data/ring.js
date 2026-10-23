@@ -333,3 +333,36 @@ export const STREET_NAMES = {
     south: ['GILA RD', 'QUAIL ST', 'BASIN RD', 'CINDERBLOCK ST', 'PUMPJACK RD', 'SANDSTORM ST', 'WAGON RD', 'BITTERWATER ST', 'FENCELINE RD', 'STOCKYARD ST', 'CATTLE GUARD RD', 'HARDPAN ST', 'IRONWOOD RD', 'LONG WALK ST', 'LAST LIGHT RD'],
   },
 };
+
+// ==== BIG BUILDINGS (the Building Lab, docs/design/WEB_BUILDING_LAB.md) ================================================
+// The kinds the Building Lab adds (their plans: data/floorplans.js, BIG BUILDINGS). No ZONES row names them, so the ring
+// never generates one; they stand where an authored building puts them (world/authored.js, rows in data/authored.js).
+// Added after the rows above, never over one (an existing key is left alone).
+//   mezz    a depot's mezzanine floor height (its walls rise to h: the shed)
+//   unitW   a motel's room width: units = footprint width / unitW
+//   walkway a covered walkway this deep along the front (a motel's rooms open onto it)
+const BIG_KINDS = {
+  offices: { w: [24, 40], d: [12, 16], h: [3.4, 3.8], plan: true, back: 0.6, label: 'OFFICES', loot: 'office' },
+  school: { w: [18, 22], d: [24, 38], h: [3.6, 4.0], plan: true, back: 0.6, label: 'SCHOOL', loot: 'office' },
+  motel: { w: [32, 46], d: [8.2, 9.0], h: [3.0, 3.3], plan: true, units: [8, 11], unitW: 4.2, walkway: 2.4, back: 0.1, label: 'MOTEL', loot: 'bedroom' },
+  depot: { w: [24, 36], d: [18, 26], h: [6.0, 7.2], plan: true, bay: 5.0, back: 0.8, mezz: 3.4, label: 'WAREHOUSE', loot: 'garage' },
+  hospital: { w: [13, 17], d: [24, 36], h: [3.6, 4.0], plan: true, back: 0.6, label: 'HOSPITAL', loot: 'bathroom' },
+};
+// A classroom's desks in rows (4 across, 3 deep, a chair behind each): one piece in the middle of the room, walked
+// between (not solid). A motel's double bed is the house's double (dbed: a double wherever it stands).
+const DESK_ROWS = (() => {
+  const parts = [], W = 4.4, D = 3.4;
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 3; r++) {
+    const a = (c * 1.1 + 0.2) / W, d = (r * 1.13 + 0.1) / D;
+    parts.push([a, a + 0.7 / W, d, d + 0.5 / D, 0, 0.74, 1]);                              // the desk
+    parts.push([a + 0.14 / W, a + 0.56 / W, d + 0.58 / D, d + 0.94 / D, 0, 0.46, '#4a4440']); // its chair
+  }
+  return parts;
+})();
+const BIG_FURNITURE = {
+  deskrows: { size: [4.4, 3.4, 0.76], colors: ['#8a7656', '#7a6a50'], solid: false, centre: true, parts: DESK_ROWS },
+  dbed: FURNITURE.bed,
+};
+for (const [k, v] of Object.entries(BIG_KINDS)) { if (KINDS[k]) console.warn(`ring: kind ${k} already exists, the Building Lab's row is skipped`); else KINDS[k] = v; }
+for (const [k, v] of Object.entries(BIG_FURNITURE)) { if (FURNITURE[k]) console.warn(`ring: furniture ${k} already exists, the Building Lab's row is skipped`); else FURNITURE[k] = v; }
+// ==== end BIG BUILDINGS =================================================================================================
