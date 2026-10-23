@@ -8,6 +8,7 @@ import { BIOME_COL } from './mapview.js';
 import { worldOf } from './engine.js';
 import { getLand } from './land.js';
 import { TERRAIN, BIOME_CODES } from '../data/terrain.js';
+import { STREAM } from '../data/streaming.js';
 
 const KNOB_NOTES = {
   cell: 'world metres between baked samples', band: 'world metres each side of the road the strip map follows', bandOut: 'past the band, lateral offsets squashed by this',
@@ -26,25 +27,26 @@ export function terrainTab() {
   const legend = el('div', { class: 'maptools' }, el('div', { class: 'layers', html: Object.entries(BIOME_NAME).filter(([k]) => k !== '.').map(([k, n]) => `<span class="chip on" style="cursor:default"><i style="background:rgb(${BIOME_COL[k].join(',')})"></i>${n.toUpperCase()}</span>`).join('') }));
   land.append(legend, readout, scale);
   const prof = el('section', { class: 'plate profile' }), pc = el('canvas');
-  prof.append(el('header', { class: 'ph' }, el('h2', {}, 'THE I-10 PROFILE'), el('span', { class: 'sub', id: 'profSub' }, 'Los Angeles to El Paso · real road vs ours'), el('span', { class: 'grow' }),
+  prof.append(el('header', { class: 'ph' }, el('h2', {}, 'THE I-10 PROFILE'), el('span', { class: 'sub', id: 'profSub' }, 'Los Angeles to El Paso · real miles from Los Angeles'), el('span', { class: 'grow' }),
     el('span', { class: 'sub', html: '<span style="color:#e9dfc4">━ real I-10</span> &nbsp; <span style="color:#ecaa48">━ our road</span> &nbsp; <span style="color:#7f8f58">▆ our land under it</span>' })), pc);
   const sideP = el('aside', { class: 'side terrside' }), flag = el('section', { class: 'plate' }), info = el('section', { class: 'plate grow' });
   sideP.append(flag, info);
   pane.append(land, sideP, prof);
   const g = lc.getContext('2d'), gp = pc.getContext('2d');
   let W = 0, H = 0, dpr = 1;
-  new ResizeObserver(() => { const r = land.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height; lc.width = W * dpr; lc.height = H * dpr; if (S.view) fit(false); drawLand(); }).observe(land);
+  new ResizeObserver(() => { const r = land.getBoundingClientRect(); dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height; lc.width = W * dpr; lc.height = H * dpr; fit(false); drawLand(); }).observe(land);
   new ResizeObserver(() => drawProfile()).observe(prof);
 
   // ---- the baked land, painted once: biome colour x hypsometric light x hillshade ---------------------------------------------
   async function loadLand() {
     const L = await getLand();
     S.asset = L.asset; S.img = L.canvas; S.range = L.range; S.loadMs = L.ms;
+    readout.innerHTML = 'hover the land for its height and cover · wheel zooms · drag pans · <b>click</b> for the game\'s camera there';
     fit(true); drawLand(); renderInfo();
   }
   // world <-> canvas
   const x0 = () => S.asset.header.x0, z0 = () => S.asset.header.z0, wx = () => S.asset.header.nx * S.asset.header.cell, wz = () => S.asset.header.nz * S.asset.header.cell;
-  function fit(reset) { if (!S.asset) return; if (reset || !S.view) { const s = Math.min(W / wx(), H / wz()) * 0.98; S.view = { cx: x0() + wx() / 2, cz: z0() + wz() / 2, s }; } }
+  function fit(reset) { if (!S.asset || !W || !H) return; if (reset || !S.view || !(S.view.s > 0) || !Number.isFinite(S.view.s)) { const s = Math.min(W / wx(), H / wz()) * 0.98; S.view = { cx: x0() + wx() / 2, cz: z0() + wz() / 2, s }; } }
   const tx = (x) => (x - S.view.cx) * S.view.s + W / 2, tz = (z) => (z - S.view.cz) * S.view.s + H / 2;
   const ix = (px) => (px - W / 2) / S.view.s + S.view.cx, iz = (py) => (py - H / 2) / S.view.s + S.view.cz;
   function drawLand() {
@@ -102,20 +104,21 @@ export function terrainTab() {
     const w = r.width, h = r.height, P = S.prof;
     gp.fillStyle = 'rgba(0,0,0,0.18)'; gp.fillRect(0, 0, w, h);
     if (!P) { gp.fillStyle = '#8c8478'; gp.font = '600 13px "Barlow Condensed"'; gp.fillText('no profile data (run node tools/terrain-bake.mjs)', 16, 24); return; }
+    // The bake's columns (tools/terrain-bake.mjs §9): real [real mi, m]; ours [real mi, game mi, land m, road m, x, z].
     const L = 54, R = 14, T = 10, B = 24, maxX = Math.max(P.real[P.real.length - 1][0], P.ours[P.ours.length - 1][0]);
     let lo = Infinity, hi = -Infinity; for (const p of P.real) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); } for (const p of P.ours) { lo = Math.min(lo, p[2], p[3]); hi = Math.max(hi, p[2], p[3]); }
     lo = Math.floor((lo - 50) / 250) * 250; hi = Math.ceil((hi + 50) / 250) * 250;
     const X = (km) => L + (km / maxX) * (w - L - R), Y = (m) => T + (1 - (m - lo) / (hi - lo)) * (h - T - B);
     gp.font = '600 10.5px "Barlow Condensed", sans-serif'; gp.fillStyle = '#8c8478'; gp.strokeStyle = 'rgba(232,222,196,0.08)'; gp.lineWidth = 1; gp.textBaseline = 'middle';
     for (let m = lo; m <= hi; m += 250) { gp.beginPath(); gp.moveTo(L, Y(m)); gp.lineTo(w - R, Y(m)); gp.stroke(); gp.fillText(`${m} m`, 8, Y(m)); }
-    for (let km = 0; km <= maxX; km += 100) { gp.fillText(`${km} km`, X(km) - 14, h - 10); }
+    for (let mi = 0; mi <= maxX; mi += 100) { gp.fillText(`${mi} mi`, X(mi) - 14, h - 10); }
     // our land under the road
-    gp.fillStyle = 'rgba(127,143,88,0.35)'; gp.beginPath(); gp.moveTo(X(P.ours[0][0]), Y(lo)); for (const p of P.ours) gp.lineTo(X(p[0]), Y(p[3])); gp.lineTo(X(P.ours[P.ours.length - 1][0]), Y(lo)); gp.closePath(); gp.fill();
+    gp.fillStyle = 'rgba(127,143,88,0.35)'; gp.beginPath(); gp.moveTo(X(P.ours[0][0]), Y(lo)); for (const p of P.ours) gp.lineTo(X(p[0]), Y(p[2])); gp.lineTo(X(P.ours[P.ours.length - 1][0]), Y(lo)); gp.closePath(); gp.fill();
     gp.lineJoin = 'round';
     gp.strokeStyle = 'rgba(233,223,196,0.8)'; gp.lineWidth = 1.4; gp.beginPath(); P.real.forEach((p, i) => (i ? gp.lineTo(X(p[0]), Y(p[1])) : gp.moveTo(X(p[0]), Y(p[1])))); gp.stroke();
-    gp.strokeStyle = '#ecaa48'; gp.lineWidth = 2.4; gp.beginPath(); P.ours.forEach((p, i) => (i ? gp.lineTo(X(p[0]), Y(p[2])) : gp.moveTo(X(p[0]), Y(p[2])))); gp.stroke();
+    gp.strokeStyle = '#ecaa48'; gp.lineWidth = 2.4; gp.beginPath(); P.ours.forEach((p, i) => (i ? gp.lineTo(X(p[0]), Y(p[3])) : gp.moveTo(X(p[0]), Y(p[3])))); gp.stroke();
     // the pinned stretches (the pads the road is held flat through)
-    const sToKm = (sm) => { const o = P.ours; for (let i = 1; i < o.length; i++) if (o[i][1] * 1000 >= sm) { const a = o[i - 1], b = o[i], t = (sm - a[1] * 1000) / ((b[1] - a[1]) * 1000 || 1); return a[0] + (b[0] - a[0]) * t; } return o[o.length - 1][0]; };
+    const MI = STREAM.mile, sToKm = (sm) => { const o = P.ours; for (let i = 1; i < o.length; i++) if (o[i][1] * MI >= sm) { const a = o[i - 1], b = o[i], t = (sm - a[1] * MI) / ((b[1] - a[1]) * MI || 1); return a[0] + (b[0] - a[0]) * t; } return o[o.length - 1][0]; };
     gp.font = '700 11px "Barlow Condensed", sans-serif';
     for (const pn of P.pinned ?? []) { const a = X(sToKm(pn.s0)), b = X(sToKm(pn.s1)); gp.fillStyle = 'rgba(227,167,47,0.15)'; gp.fillRect(a, T, Math.max(2, b - a), h - T - B); gp.fillStyle = '#e3a72f'; gp.fillText(pn.id.toUpperCase(), a + 3, T + 9); }
     const sub = pane.querySelector('#profSub');

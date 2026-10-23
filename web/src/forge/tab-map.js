@@ -391,6 +391,8 @@ export function mapTab() {
     }
     if (S.layers.has('interstates') && s < 0.35) drawShields(g, mv, d);
     const lab = new Labeler();
+    // Town labels first: they claim the space, everything else fits round them.
+    if (S.layers.has('towns')) { const sorted = [...d.towns].sort((a, b) => (a.kind === 'city' ? 0 : 1) - (b.kind === 'city' ? 0 : 1)); for (const t of sorted) { const x = mv.sx(t.pos[0]), y = mv.sy(t.pos[1]); if (x < -80 || y < -20 || x > mv.w + 20 || y > mv.hgt + 20) continue; lab.text(g, t.name, x, y, { font: t.kind === 'city' ? `800 ${s > 0.05 ? 15 : 13}px "Barlow Condensed", sans-serif` : '700 12px "Barlow Condensed", sans-serif', fill: t.kind === 'city' ? '#f5e7c0' : '#f0b08a', dx: 9 }); } }
     // Selection glow.
     if (sel?.coll && LINE.has(sel.coll)) { const r = rowOf(sel.coll, sel.id); if (r) { g.strokeStyle = 'rgba(255,214,120,0.55)'; g.lineWidth = 10; g.lineCap = 'round'; polyline(g, mv, r.pts); g.stroke(); } }
     // Towns.
@@ -417,8 +419,6 @@ export function mapTab() {
     // Atlas sites and bases.
     if (S.layers.has('bases')) for (const b of ATLAS_BASES) { const u = atlasPos('bases', b.id); if (!u) continue; const x = mv.sx(u[0]), y = mv.sy(u[1]); if (x < -20 || y < -20 || x > mv.w + 20 || y > mv.hgt + 20) continue; if (s < 0.022 && sel?.id !== b.id) { g.fillStyle = BASE_COL[b.dsoa] ?? '#d6c9a8'; g.fillRect(x - 2.5, y - 2.5, 5, 5); continue; } baseMark(g, x, y, BASE_COL[b.dsoa] ?? '#d6c9a8', sel?.id === b.id); if (s > 0.05) lab.text(g, b.name.toUpperCase(), x, y, { font: '600 10.5px "Barlow Condensed", sans-serif', fill: '#cfe0b0', dx: 10 }); }
     if (S.layers.has('sites')) for (const r of ATLAS_SITES) { const u = atlasPos('sites', r.id); if (!u) continue; const x = mv.sx(u[0]), y = mv.sy(u[1]); if (x < -20 || y < -20 || x > mv.w + 20 || y > mv.hgt + 20) continue; if (s < 0.022 && sel?.id !== r.id) { g.fillStyle = KIND_COL[r.kind] ?? '#7fd1c4'; g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); continue; } siteMark(g, x, y, KIND_COL[r.kind] ?? '#7fd1c4', sel?.id === r.id); if (s > 0.035) lab.text(g, r.name, x, y, { font: '600 10.5px "Barlow Condensed", sans-serif', fill: '#bfe6df', dx: 9 }); }
-    // Town labels last (they win the space).
-    if (S.layers.has('towns')) { const sorted = [...d.towns].sort((a, b) => (a.kind === 'city' ? 0 : 1) - (b.kind === 'city' ? 0 : 1)); for (const t of sorted) { const x = mv.sx(t.pos[0]), y = mv.sy(t.pos[1]); if (x < -80 || y < -20 || x > mv.w + 20 || y > mv.hgt + 20) continue; lab.text(g, t.name, x, y, { font: t.kind === 'city' ? `800 ${s > 0.05 ? 15 : 13}px "Barlow Condensed", sans-serif` : '700 12px "Barlow Condensed", sans-serif', fill: t.kind === 'city' ? '#f5e7c0' : '#f0b08a', dx: 9 }); } }
     // Rivers' names at mid zoom.
     if (S.layers.has('rivers') && s > 0.01 && s < 0.2) for (const r of d.rivers) { const m = r.pts[Math.floor(r.pts.length / 2)]; lab.text(g, r.id, mv.sx(m[0]), mv.sy(m[1]), { font: 'italic 600 11px "Barlow Condensed", sans-serif', fill: '#a6d4e6', dx: 6 }); }
     // Handles of the selection.
@@ -454,7 +454,7 @@ export function mapTab() {
   setInterval(() => pollGame(false), 1000);
   function flyToGame() { if (!S.game) return toast('No game position yet (attach a game tab)', 'warn'); const u = toUsmap(S.game.player.x, S.game.player.z); mv.flyTo(u[0], u[1], 0.6); }
   mv.autoFit = () => fitUSA(true);
-  function fitUSA(keep) { const d = doc(); if (!keep) mv.moved = false; if (d) mv.fit(d.world_offset[0], d.world_offset[1], d.world_offset[0] + d.w * d.cell_m, d.world_offset[1] + d.h * d.cell_m, 20); }
+  function fitUSA() { const d = doc(); mv.moved = false; if (d) mv.fit(d.world_offset[0], d.world_offset[1], d.world_offset[0] + d.w * d.cell_m, d.world_offset[1] + d.h * d.cell_m, 20, true); }
 
   // ---- the palette ---------------------------------------------------------------------------------------------------
   addPalette((q) => {
@@ -503,7 +503,7 @@ export function mapTab() {
       await loadDoc('usmap');
       mv.setGrid(doc()); mv.showStates = true;
       setTool('select'); renderInspector(); runChecks(); paintScale();
-      requestAnimationFrame(() => fitUSA());
+      requestAnimationFrame(() => { if (!mv.moved) fitUSA(); });
       getLand().then((L) => { mv.land = L; mv.redraw(); }).catch((e) => console.warn('land', e));
     },
     onShow() { mv.resize(); mv.redraw(); pollGame(true); },

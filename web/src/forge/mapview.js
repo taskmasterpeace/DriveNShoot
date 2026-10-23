@@ -57,7 +57,7 @@ export class MapView {
     }, { passive: false });
     c.addEventListener('pointerdown', (e) => {
       const p = pt(e);
-      c.setPointerCapture(e.pointerId);
+      try { c.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer (an agent's test) */ }
       this.moved = true;
       const pan = e.button === 1 || e.button === 2 || e.shiftKey && e.button === 0 ? true : !this.h.down?.(e, p);
       drag = { pan, x: e.clientX, y: e.clientY, cx: this.view.cx, cy: this.view.cy, moved: 0, p };
@@ -90,7 +90,8 @@ export class MapView {
     this.view.cx = ux - (px - this.w / 2) / s; this.view.cy = uy - (py - this.hgt / 2) / s;
     this.redraw(); this.h.view?.();
   }
-  flyTo(ux, uy, s = this.view.s, ms = 420) {
+  flyTo(ux, uy, s = this.view.s, ms = 420, auto = false) {
+    if (!auto) this.moved = true; // a view someone chose: a resize keeps it
     const a = { ...this.view }, b = { cx: ux, cy: uy, s: clamp(s, this.minS, this.maxS) }, t0 = performance.now();
     const step = (t) => {
       const k = Math.min(1, (t - t0) / ms), e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
@@ -101,9 +102,9 @@ export class MapView {
     };
     requestAnimationFrame(step);
   }
-  fit(x0, y0, x1, y1, pad = 40) {
+  fit(x0, y0, x1, y1, pad = 40, auto = false) {
     const s = Math.min((this.w - pad * 2) / Math.max(1, x1 - x0), (this.hgt - pad * 2) / Math.max(1, y1 - y0));
-    this.flyTo((x0 + x1) / 2, (y0 + y1) / 2, s);
+    this.flyTo((x0 + x1) / 2, (y0 + y1) / 2, s, 420, auto);
   }
 
   // ---- the base wash, painted once per grid: biome colour, relief hillshade, grain; and the state lines ------------------

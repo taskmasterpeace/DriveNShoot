@@ -55,7 +55,7 @@ code { font: 12px ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var
 .brand-text b { font: 900 25px/0.9 var(--stencil); letter-spacing: 0.05em; color: var(--sand); text-shadow: 1px 2px 0 oklch(0 0 0 / 0.6); white-space: nowrap; }
 .brand-text span { font: 600 9.5px var(--display); letter-spacing: 0.22em; color: var(--dim); margin-top: 3px; white-space: nowrap; }
 .tabs { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--ink-2); border: 1px solid var(--edge); box-shadow: inset 0 1px 3px oklch(0 0 0 / 0.5); min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; font: 700 12.5px var(--display); letter-spacing: 0.13em; color: var(--muted); transition: background 0.2s, color 0.2s, box-shadow 0.2s; white-space: nowrap; }
+.tab { position: relative; display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; cursor: pointer; font: 700 12.5px var(--display); letter-spacing: 0.1em; color: var(--muted); transition: background 0.2s, color 0.2s, box-shadow 0.2s; white-space: nowrap; }
 .tab svg { width: 15px; height: 15px; }
 .tab:hover { color: var(--bone); background: oklch(0.24 0.014 64); }
 .tab.on { color: var(--ink); background: linear-gradient(var(--amber), var(--amber-d)); box-shadow: 0 0 14px oklch(0.79 0.155 72 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.3); }
@@ -306,3 +306,6 @@ table.knobs td:last-child { color: var(--muted); }
 .docview td, .docview th { border: 1px solid var(--edge); padding: 3px 6px; vertical-align: top; }
 .docview pre { background: oklch(0.12 0.01 60); padding: 8px; border-radius: 6px; overflow: auto; }
 .modal.wide { width: min(980px, 96vw); }
+/* narrower screens: the bar keeps every tab, the chips lose their small print */
+@media (max-width: 1800px) { .tabchip small, .btn#btnPalette kbd { display: none; } .bar { gap: 10px; } .hdot { padding: 0 5px; letter-spacing: 0.1em; } }
+@media (max-width: 1500px) { .tab span { display: none; } .tab.on span { display: inline; } .brand-text span { display: none; } }
