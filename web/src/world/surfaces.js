@@ -13,6 +13,7 @@
 // The instance colour still tints the result (ROOF_MIX of it), so a district's palette shows through.
 const SMALL = 3.2;
 const ROOF_MIX = 0.3;
+const BIG_ROOF = 520; // m²
 
 const VERT_HEAD = /* glsl */`
 varying vec3 vRoofW;
@@ -65,7 +66,8 @@ vec3 roofTop(vec3 tint) {
   // Ribs and courses run across the long side.
   bool alongU = S.x >= S.y;
   float a = alongU ? u : v, b = alongU ? v : u;
-  float kind = floor(seed * 5.0);
+  // A big roof (a tower, a warehouse) is flat membrane or tar; sheet, tile and patchwork are for houses and shops.
+  float kind = S.x * S.y > ${BIG_ROOF.toFixed(1)} ? (seed < 0.55 ? 1.0 : 4.0) : floor(seed * 5.0);
   if (kind < 1.0) {
     float rib = 0.5 + 0.5 * sin(a * 6.2832 / 0.22);
     vec2 sheet = floor(vec2(a / 0.9, b / 2.4));
@@ -139,6 +141,6 @@ export function roofSurface(mat) {
       .replace('#include <common>', `#include <common>\n${FRAG_HEAD}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${FRAG_BODY}`);
   };
-  mat.customProgramCacheKey = () => 'roofSurface4';
+  mat.customProgramCacheKey = () => 'roofSurface5';
   return mat;
 }

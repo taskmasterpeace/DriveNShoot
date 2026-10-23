@@ -6,6 +6,7 @@ import { nearWater } from './water.js';
 import { nearRail } from './rail.js';
 import { DOOR_MATERIALS, WINDOW, WINDOW_MIX } from '../data/interiors.js';
 import { roofSurface } from './surfaces.js';
+import { HOLDOUT } from '../data/holdout.js';
 
 // ---------------------------------------------------------------------------
 // World layout (units = metres, XZ ground plane, +Y up)
@@ -83,6 +84,10 @@ class BoxBatch {
 // Rust Haven is rebuilt and painted: adobe, limewash, turquoise and sage trim, the colours a desert town paints itself.
 // The ruins are bleached concrete and the last of the old paint. (Robert, 2026-10-23: "I want more colors". Lengths are
 // free to change: a pick is one draw from the stream whatever the list, so the island's layout does not move.)
+// Paving is UV-mapped from world position so its 8 m slabs line up across separate pieces (a block's sidewalk strips, a
+// plaza square).
+const SIDEWALK = 3.5;
+const flatUV = (g) => { const p = g.attributes.position, uv = g.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) / (SPACING - ROAD_W), -p.getZ(i) / (SPACING - ROAD_W)); };
 const TOWN_COLORS = ['#c98a5a', '#7fa39a', '#d8b98a', '#b8624a', '#e2cfa8', '#6f9fb0', '#d29a52', '#9fb07c'];
 const RUIN_COLORS = ['#a39b8d', '#b4a994', '#8e877c', '#c1b49b', '#9a8c78', '#857f76', '#a88e78'];
 const ROOF_TOWN = ['#8a5a3a', '#6a7470', '#9a8060', '#7a5236', '#857868'];
@@ -105,6 +110,7 @@ export function buildWorld(scene, statics) {
   const buildings = [];
   const spawns = { drifters: [], raiders: [], camps: [], wardens: [], loot: [], parking: [], shops: [], beds: [] };
   const sidewalkGeos = [];
+  const townPlazas = [], townLots = []; // the holdout's open ground (data/holdout.js), filled after everything else
 
   // ---- ground --------------------------------------------------------------
   const sand = sandTexture();
@@ -428,9 +434,14 @@ export function buildWorld(scene, statics) {
       const district = m < TOWN ? 'town' : m < GRID - 70 ? 'ruins' : 'desert';
 
       if (district !== 'desert') {
-        const g = new THREE.PlaneGeometry(SPACING - ROAD_W, SPACING - ROAD_W);
-        g.rotateX(-Math.PI / 2); g.translate(bcx, 0.02, bcz);
-        sidewalkGeos.push(g);
+        // A sidewalk round the block, not a slab over all of it: the yards and lots inside are the desert ground (a
+        // block that was one concrete slab read as a parking lot from the game camera).
+        const B = SPACING - ROAD_W, SW = SIDEWALK;
+        for (const [ox, oz, sw, sd] of [[0, -(B - SW) / 2, B, SW], [0, (B - SW) / 2, B, SW], [-(B - SW) / 2, 0, SW, B - 2 * SW], [(B - SW) / 2, 0, SW, B - 2 * SW]]) {
+          const g = new THREE.PlaneGeometry(sw, sd);
+          g.rotateX(-Math.PI / 2); g.translate(bcx + ox, 0.02, bcz + oz); flatUV(g);
+          sidewalkGeos.push(g);
+        }
       }
 
       if (district === 'town') {
@@ -447,11 +458,13 @@ export function buildWorld(scene, statics) {
               spawns.drifters.push({ x: cx, z: cz });
               barrel(cx, cz, true);
               spawns.parking.push({ x: cx + 6, z: cz + 6, rot: rng() * 6 });
+              townPlazas.push({ x: cx, z: cz });
               continue;
             }
             const w = rng.range(16, 24), d = rng.range(14, 22);
             const b = makeEnterable(cx + rng.range(-2, 2), cz + rng.range(-2, 2), w, d, 'town');
             spawns.shops.push(b);
+            townLots.push({ b, x: cx, z: cz, lot });
             for (const dr of b.doors) spawns.drifters.push({ x: dr.x, z: dr.z });
           }
         // Street lamps along the block edge (the only working lights left in Phoenix).
@@ -567,6 +580,81 @@ export function buildWorld(scene, statics) {
   wallLine(true, -TOWN); wallLine(true, TOWN); wallLine(false, -TOWN); wallLine(false, TOWN);
 
   // No world boundary any more: the map goes on past the island (world/streamer.js).
+
+
+  // ---- the holdout lives here (data/holdout.js) ------------------------------------------------------------------
+  // The market round the plaza fire and the yards round each building. Its own stream after everything else, so no
+  // building, spawn or prop placed above moves; what it adds that is solid (counters, tanks) joins the statics before
+  // the nav grids are built, so the island's golden hash moved once, deliberately, for this.
+  {
+    const H = HOLDOUT, hr = makeRng(H.seed), M = H.market, Y = H.yard;
+    const clearOf = (x, z, r) => !statics.pointBlocked(x, z, r)
+      && !spawns.parking.some((p) => Math.hypot(p.x - x, p.z - z) < M.keepParking)
+      && !glows.some((gl) => gl.lamp && Math.hypot(gl.x - x, gl.z - z) < 2.2);
+    // A box in a frame turned by th about (ox, oz): local x across, local z forward.
+    const put = (batch, ox, oz, th, lx, y, lz, sx, sy, sz, color) => {
+      const c = Math.cos(th), s = Math.sin(th);
+      return batch.add(ox + lx * c + lz * s, y, oz - lx * s + lz * c, sx, sy, sz, color, th);
+    };
+    for (const pz of townPlazas) {
+      // The plaza stays paved (a square, not a yard) and the market stands in two rows facing an aisle across it.
+      { const g = new THREE.PlaneGeometry(M.square, M.square); g.rotateX(-Math.PI / 2); g.translate(pz.x, 0.025, pz.z); flatUV(g); sidewalkGeos.push(g); }
+      const alongX = hr.chance(0.5);
+      for (const row of [-1, 1]) for (const at of M.slots) {
+        if (!hr.chance(M.fill)) continue;
+        const ax = alongX ? at : row * M.aisle, az = alongX ? row * M.aisle : at;
+        const sx = pz.x + ax, sz = pz.z + az;
+        if (!clearOf(sx, sz, 2.0)) continue;
+        // Facing the aisle: local +z points at it.
+        const th = alongX ? (row < 0 ? 0 : Math.PI) : (row < 0 ? Math.PI / 2 : -Math.PI / 2);
+        const awn = hr.pick(M.awnings), wood = hr.pick(M.counter);
+        put(props, sx, sz, th, 0, 0.45, 0.75, 2.8, 0.9, 0.7, wood);                          // the counter
+        for (let k = 0; k < 4; k++) put(props, sx, sz, th, -1.05 + k * 0.7, 1.0, 0.75, 0.55, 0.22, 0.5, hr.pick(M.goods));
+        put(props, sx, sz, th, hr.range(-0.9, 0.9), 0.4, -0.8, 0.8, 0.8, 0.8, '#7a5a34'); // stock behind
+        put(props, sx, sz, th, 0, 0.02, 0, 3.0, 0.03, 2.6, hr.pick(M.rugs));                 // a rug or tarp underfoot
+        for (const [px, pz2] of [[-1.45, 1.15], [1.45, 1.15], [-1.45, -1.15], [1.45, -1.15]]) put(props, sx, sz, th, px, 1.2, pz2, 0.1, 2.4, 0.1, Y.post);
+        for (let k = 0; k < 3; k++) put(props, sx, sz, th, -1.05 + k * 1.05, 2.45, 0.15, 1.05, 0.08, 2.8, k % 2 ? M.canvas : awn); // striped canvas
+        statics.addCentered(sx, sz, 2.2, 2.2, 'stall', 1.0);
+      }
+    }
+    for (const L of townLots) {
+      const b = L.b, half = L.lot / 2;
+      const room = { W: b.minX - (L.x - half), E: L.x + half - b.maxX, N: b.minZ - (L.z - half), S: L.z + half - b.maxZ };
+      for (const side of ['N', 'S', 'W', 'E']) {
+        const m = room[side];
+        if (m < Y.margin || !hr.chance(0.85)) continue;
+        const horiz = side === 'N' || side === 'S';
+        const lo = horiz ? b.minX : b.minZ, hi = horiz ? b.maxX : b.maxZ;
+        const along = hr.range(lo + 2.5, hi - 2.5);
+        const off = Math.min(m / 2, 2.2) + 0.6;
+        const fixed = side === 'N' ? b.minZ - off : side === 'S' ? b.maxZ + off : side === 'W' ? b.minX - off : b.maxX + off;
+        const x = horiz ? along : fixed, z = horiz ? fixed : along;
+        if (b.doors.some((d) => Math.hypot(d.x - x, d.z - z) < Y.doorClear) || !clearOf(x, z, 1.4)) continue;
+        const th = horiz ? 0 : Math.PI / 2; // local x runs along the wall
+        let t = 0; for (const r of Y.kinds) t += r[1];
+        let p = hr() * t, kind = Y.kinds[0][0]; for (const r of Y.kinds) if ((p -= r[1]) < 0) { kind = r[0]; break; }
+        if (kind === 'garden') {
+          const len = Math.min(hi - lo - 3, hr.range(4, 7));
+          put(props, x, z, th, 0, 0.15, 0, len, 0.3, 1.5, Y.soil);
+          for (let k = 0; k < 3; k++) for (let q = 0; q < Math.floor(len / 0.6); q++) put(props, x, z, th, -len / 2 + 0.3 + q * 0.6, 0.42, -0.45 + k * 0.45, 0.42, hr.range(0.2, 0.45), 0.34, hr.pick(Y.crops));
+        } else if (kind === 'tank') {
+          put(props, x, z, th, 0, 1.2, 0, 2.0, 2.4, 2.0, hr.pick(Y.tank));
+          put(props, x, z, th, 0, 2.45, 0, 1.6, 0.1, 1.6, '#c9c2b0');
+          statics.addCentered(x, z, 2.0, 2.0, 'tank', 2.4);
+        } else if (kind === 'washing') {
+          const len = Math.min(hi - lo - 3, hr.range(4, 6.5));
+          for (const e of [-len / 2, len / 2]) put(props, x, z, th, e, 1.0, 0, 0.08, 2.0, 0.08, Y.post);
+          put(props, x, z, th, 0, 1.95, 0, len, 0.03, 0.03, '#d9d2b8');
+          for (let q = 0.6; q < len - 0.4; q += hr.range(0.55, 0.9)) put(props, x, z, th, -len / 2 + q, 1.6, 0, hr.range(0.4, 0.7), hr.range(0.5, 0.75), 0.04, hr.pick(Y.cloth));
+        } else {
+          const len = Math.min(hi - lo - 3, hr.range(3.5, 5));
+          for (const [ex, ez] of [[-len / 2, -1], [len / 2, -1], [-len / 2, 1], [len / 2, 1]]) put(props, x, z, th, ex, 1.1, ez, 0.1, 2.2, 0.1, Y.post);
+          put(props, x, z, th, 0, 2.25, 0, len + 0.4, 0.06, 2.4, hr.pick(Y.tarp));
+          put(props, x, z, th, hr.range(-len / 3, len / 3), 0.25, 0, 1.2, 0.5, 0.6, '#5a4632'); // a bench in the shade
+        }
+      }
+    }
+  }
 
   // ---- build GPU batches ------------------------------------------------------------
   const box = new THREE.BoxGeometry(1, 1, 1);
