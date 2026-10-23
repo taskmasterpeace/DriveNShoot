@@ -23,7 +23,7 @@ const N_G = C / 8 + 1;          // ground vertices per side (33)
 const RAD_FOOT = 0.45, RAD_CAR = 1.9;
 const BAND = ROAD_BANDS;
 const UPER = { hwy: 24, county: 14, ramp: 18, aux: 18 };  // metres of road per texture repeat (lane dashes every 12 m)
-const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName), 'signsfl']; // fl_<kind>: world/flora.js; signsfl: a region's own sign atlas
+const POOL_NAMES = ['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...FLORA_KINDS.map(poolName), 'signsfl', 'bills']; // fl_<kind>: world/flora.js; signsfl: a region's own sign atlas; bills: the roadside's billboard faces (world/roadside.js)
 // The pools every P1 layout hashed (an empty one too). A pool added since counts in a chunk's hash only when the chunk
 // uses it, so every P1 chunk keeps the hash it had (docs/design/WEB_FLORIDA.md §5).
 const P1_POOLS = new Set(['props', 'walls', 'roofs', 'floors', 'cacti', 'trunks', 'boulders', 'shrubs', 'signs', 'rails', 'barrels', 'glows', ...P1_FLORA.map(poolName)]);
@@ -93,7 +93,7 @@ export function makeScratch() {
   return {
     INST: {
       props: new InstBuf(6000), walls: new InstBuf(4000), roofs: new InstBuf(1200), floors: new InstBuf(400), cacti: new InstBuf(1500), trunks: new InstBuf(800),
-      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
+      boulders: new InstBuf(900), shrubs: new InstBuf(2400), signs: new InstBuf(64, 4), signsfl: new InstBuf(64, 4), bills: new InstBuf(64, 4), rails: new InstBuf(2500), barrels: new InstBuf(150), glows: new InstBuf(200),
       ...Object.fromEntries(FLORA_KINDS.map((k) => [poolName(k), new InstBuf(SPECIES[k].chunk ?? 400, 1)])), // extra: the variant (world/flora.js); a forest species holds more
     },
     SURF: { ground: new MeshBuf(...SURF_CAPS.ground, true, true), road: new MeshBuf(...SURF_CAPS.road, true, false), rock: new MeshBuf(...SURF_CAPS.rock, false, true), water: new MeshBuf(...SURF_CAPS.water, true, true) },
@@ -134,6 +134,7 @@ export function mesasOf(W, cx, cz) {
     if (W.project(x, z, R + 120).d < R + 55) continue;
     if (W.exits.some((X) => Math.hypot(X.x - x, X.z - z) < 650 + R || Math.hypot(X.dest.x - x, X.dest.z - z) < 380 + R || (X.access && W.ribbonDist(X.access, x, z) < R + 30))) continue;
     if (W.towns.some((t) => t.built && Math.hypot(t.x - x, t.z - z) < 900 + R)) continue;
+    if (W.roadside?.nearSite(x, z, R + 60)) continue; // no mesa on a station, a junkyard, a farm belt or the dam (world/roadside.js)
     out.push(m);
   }
   W.mesaCache.set(key, out);
@@ -418,6 +419,7 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     for (const m of mesas) if (Math.hypot(m.x - x, m.z - z) < m.r * MESA_REACH + r && mesaNorm(m, x, z) < 0.95 + (r * (m.kind === 'ridge' ? 2.2 : 1)) / (m.r * 0.72)) return true;
     if (W.ring && W.ring.solid(x, z, r)) return true; // the ring's streets, walks, paved lots and buildings
     if (RGN) for (const T of RGN.holdouts) if (T.solid(x, z, r)) return true; // a holdout: inside its wall, its roads
+    if (W.roadside?.solid(x, z, r)) return true; // the roadside's sites, fields, towers and billboards (world/roadside.js)
     return false;
   };
   yield;
@@ -980,8 +982,9 @@ export function* layoutChunk(W, cx, cz, tiles, mm, scratch = SHARED) {
     // in this chunk draws it; every box that reaches in is solid here).
     if (RG.extras) {
       const ex = RG.extras(cx, cz);
-      for (const it of ex.items) I(it.pool, it.e);
-      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h);
+      // (A matrix item - pitched, rolled, a billboard face with its atlas rect - goes in whole: world/roadside.js.)
+      for (const it of ex.items) { if (it.m) { const c = col(it.c), b = INST[it.pool], i = b.pushMatrix(it.mo, c[0], c[1], c[2]); if (i >= 0 && it.rect) b.e.set(it.rect, i * 4); } else I(it.pool, it.e); }
+      for (const q of ex.boxes) addBox(q.x0, q.z0, q.x1, q.z1, q.tag, q.h, q.base ?? 0);
       for (const [kind, x, z, h, v] of ex.flora) if (SPECIES[kind]) { const b = INST[poolName(kind)], i = b.push(x, 0, z, floraHash(z, x) * 6.283, h / SPECIES[kind].h, h / SPECIES[kind].h, h / SPECIES[kind].h, 1, 1, 1); if (i >= 0) b.e[i] = v; addBox(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 'tree', h); }
       pause(); yield; resume();
     }

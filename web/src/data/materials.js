@@ -98,6 +98,9 @@ export const MATERIAL_RULES = {
     barrier: 'concrete', pool: 'concrete', storey: 'concrete', building: { finish: true }, // a solid block: by its finish
     tree: 'timber', cactus: 'timber',
     rock: 'rock', boulder: 'rock',
+    // THE ROADSIDE (world/roadside.js): a pylon's lattice, a hulk, a silo, a billboard's legs, a canal's lining, the dam,
+    // a substation's chain-link.
+    pylon: 'steel', hulk: 'carbody', silo: 'sheet_metal', billboard: 'wood', canal: 'concrete', dam: 'concrete', wirefence: 'chainlink',
   },
   finish: { town: ['adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'adobe', 'block', 'block', 'block', 'brick'],
             other: ['stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'stucco', 'block', 'block', 'block', 'brick'] },

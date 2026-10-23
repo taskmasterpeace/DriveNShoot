@@ -80,6 +80,9 @@ export const ITEMS = {
     desc: 'Half a roll. Holds a radiator, a tank, a cracked hose until it doesn\'t.' },
   fuel_can: { name: 'Fuel can', kind: 'part', kg: 8.4, kgEmpty: 1.2, bulk: 11, stack: 1, value: 40, uses: 1, refill: 'fuel', use: { act: 'refuel', litres: 10 },
     desc: 'Ten litres of gasoline that smells like it has been through a few cans. Pour it into anything that runs.' },
+  // The roadside (systems/roadside.js): E at a dead station's fill caps draws what is left in its underground tank.
+  siphon_hose: { name: 'Siphon hose', kind: 'tool', kg: 0.7, bulk: 0.8, stack: 1, value: 15, tags: ['hose'],
+    desc: 'Three metres of fuel line and a hand bulb. Down a station\'s fill pipe, the dregs come up into your car or your cans.' },
   spare_tyre: { name: 'Spare tyre', kind: 'part', kg: 9, bulk: 40, stack: 1, value: 35, use: { act: 'tyre' },
     desc: 'A spare on a rim, more patches than tread. Swaps for a flat.' },
   scrap: { name: 'Scrap steel', kind: 'part', kg: 1.5, bulk: 1, stack: 10, value: 3, tags: ['steel'],

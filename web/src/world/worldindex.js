@@ -12,6 +12,7 @@ import { brushField } from './brush.js'; // THE BRUSH (docs/design/WEB_FORGE.md 
 import { buildRegions, regionAt, regionWater, makeDepthAt } from './regions.js';
 import { Holdout } from './holdout.js';
 import { HOLDOUTS } from '../data/holdouts.js';
+import { Roadside } from './roadside.js'; // THE ROADSIDE: power lines, billboards, stations, junkyards, farms, the dam (docs/design/WEB_ROADSIDE.md)
 
 const TAU = Math.PI * 2;
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -231,11 +232,13 @@ export class WorldIndex {
     this.buildSigns();
     for (const R of Object.values(this.regions)) for (const cor of R.corridors) this.buildCorridorSigns(cor);
     for (const H of this.holdouts) this.signs.push(...H.signList); // the name boards over a holdout's gates
+    // THE ROADSIDE (world/roadside.js): laid out now, so the dam road's ribbon, fill and rails are bucketed with the rest.
+    this.roadside = new Roadside(this);
     this.bucketFeatures();
     // The Phoenix ring (world/ring.js, data/ring.js): the dead metro round the island, laid out lazily by the chunks.
     this.ring = new Ring(this);
     // The holdouts' own generators (world/holdout.js): Meridian. Ring-like: chunks ask each what they hold.
-    this.towners = [this.ring, ...this.holdouts];
+    this.towners = [this.ring, ...this.holdouts, this.roadside];
     this.depthAt = makeDepthAt(this);
     this.buildMs = +(performance.now() - t0).toFixed(1);
   }
