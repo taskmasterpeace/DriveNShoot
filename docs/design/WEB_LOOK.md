@@ -105,6 +105,26 @@ grille. Ribs and courses run across the long side.
 - The fill runs on its own random stream (`HOLDOUT.seed`) after everything else, so no building, spawn or earlier prop
   moved. Its solids changed the island's golden hash once, on purpose, to `eb103eab`.
 
+### 3.4b Ring house lots and walls (built, 053b7745, 1109205b)
+
+- **Ring house lots** (`data/ring.js` YARD, `world/ring.js` yardOf, on the lot's own stream so nothing placed before moves):
+  - a 1.8 m concrete-block wall round the back yard (80% of houses);
+  - each back wall stands `alley` (1.8 m) in from the lot line, so back-to-back lots leave a 3.6 m alley;
+  - a gravel front yard and a desert tree;
+  - a concrete driveway up the wider side, with a carport over it (55%);
+  - a patio;
+  - a pool in a third of the back yards with room (drained, gone green, or kept);
+  - a shed;
+  - a citrus or palo verde in a back corner. Palo verde and mesquite are clumps of three crowns, citrus is round, and a
+    ruin's trees are dead.
+- **Walls** (`world/surfaces.js` wallSurface) on the island's walls and the streamed walls pool. Side faces get one of:
+  - stucco, 6 in 10 (trowelled, with patched repairs);
+  - concrete block, 3 in 10 (0.2 m courses, 0.4 m joints, staggered);
+  - brick, 1 in 10.
+
+  Every wall also gets a dirt band at its foot and grime run down from its top. Measured with the GPU flushed every
+  frame: 0.60 ms per frame with it, 0.65 without, so no measurable cost.
+
 ### 3.5 How a real city is laid out (the study that drives the next layouts)
 
 | real Phoenix | from the air | what we build from it |
@@ -188,6 +208,8 @@ weighted by `yard.kinds`: garden 5, washing 3, tank 2, shade 2 (out of 12).
 | `ROOF_MIX` | surfaces.js | 0.3 | 0–0.6 | how much a district's palette tints its roofs |
 | `BIG_ROOF` | surfaces.js | 520 m² | 300–1,000 | which roofs are only membrane or tar |
 | `SMALL` | surfaces.js | 3.2 m | 2.5–4 | below this a box is a vent, not a roof |
+| `YARD.alley` | data/ring.js | 1.8 m | 0 (back walls on the line) to 3 | the alley between back-to-back yards; 0 gives one shared wall |
+| `YARD.pool.chance` | data/ring.js | 0.33 | 0–0.6 | pools per back yard with room |
 | `SIDEWALK` | city.js | 3.5 m | 2.5–5 | sidewalk width round a block |
 | `market.aisle`, `slots`, `fill` | holdout.js | 6.5 m, 6 slots, 0.85 | aisle 5–8 | market density |
 | `yard.margin`, `doorClear` | holdout.js | 3.0, 4.5 m | 2.5–4, 3.5–6 | how full the yards are; keep doors clear for walkers |
