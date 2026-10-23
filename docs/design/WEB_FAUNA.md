@@ -223,6 +223,7 @@ its sheriff's canal job counts this layer's gator kills too (`faunaKilled` with 
 | `heat.halfLife` | PRESENCE | 2.5 game h | 0.5 - 12 | how long a gunfight empties an area |
 | `chunkBudget` | FAUNA_RULES | 9 | 4 - 16 | animals a chunk at most |
 | `maxLive` and per-form caps | FAUNA_RULES | 44; quads 40, birds 40, snakes 12, gators 10 | renderers' pools | bodies at once |
+| `lodR` | FAUNA_RULES | 100 m | 60 - 200 | past it an animal thinks every fourth frame |
 | `liveR` / `dropR` | FAUNA_RULES | 300 / 420 m | liveR > the widest view; dropR > liveR + 100 | where records get bodies |
 | `alarm` | prey rows | 14 - 28 m | 8 - 40 | how close you get before they bolt |
 | `stalk`, `courage` | predator rows | 10 - 16 m; 1 - 2 | 6 - 25; 1 - 4 | how a pack hunts |

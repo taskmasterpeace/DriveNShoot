@@ -24,13 +24,14 @@ const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const KM2 = (R.chunk * R.chunk) / 1e6;
 const REGION_ALIAS = { arizona: 'west', phoenix: 'west', p1: 'west' };
 const SIDES = [-1, 1];
+const TIMERS = ['atkCd', 'alarmT', 'fleeT', 'frozenT', 'backT', 'strikeT', 'lungeT', 'hitCd', 'infT'];
 // One small seeded stream (mulberry32): a chunk's roll is a pure function of its key, the day and the phase.
 function rng32(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 function hash3(a, b, c) { let h = 0x9e3779b1 ^ Math.imul(a | 0, 0x85ebca6b); h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) ^ Math.imul(b | 0, 0x27d4eb2f); h = Math.imul(h ^ (h >>> 16), 0x165667b1) ^ Math.imul(c | 0, 0x9e3779b9); return (h ^ (h >>> 15)) >>> 0; }
 const phaseIndex = (hour) => { const h = ((hour % 24) + 24) % 24; for (let i = 0; i < PHASES.length; i++) { const P = PHASES[i]; if (P.from < P.to ? h >= P.from && h < P.to : h >= P.from || h < P.to) return i; } return 2; };
 // Where an animal wants to be this frame, in its own object (no garbage).
 function W(a, x, z, v, face = undefined) { const w = a.w; w.x = x; w.z = z; w.v = v; w.face = face; return w; }
-const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null };
+const _p = { x: 0, z: 0 }, HIT = { t: 0, animal: null }, _pick = { t: null, d: 0, k: null };
 
 export class Fauna {
   constructor(game) {
@@ -43,7 +44,7 @@ export class Fauna {
     this.heat = new Map();    // noise heat: cell key -> { v, h (game hour it was set) }
     this.bodies = new Map();  // vultures' interest: body key -> { x, z, since, due, called, ref }
     this.extra = [];          // habitat rows absorbed from a region layer (habitatsFromRegion)
-    this.seq = 0; this.t = 0; this.tickT = 0; this.lastSeq = 0;
+    this.seq = 0; this.t = 0; this.tickT = 0; this.lastSeq = 0; this.frame = 0;
     this.job = null;          // the butchering in progress
     this.stats = { spawned: 0, despawned: 0, killed: 0, butchered: 0, roadkill: 0, strikes: 0, rattles: 0, lunges: 0, rolls: 0, scatters: 0, cooked: 0, yips: 0, charges: 0, vultures: 0, trapped: 0 };
     this.r = game.scene ? new FaunaRenderer(game.scene) : null;
@@ -421,10 +422,19 @@ export class Fauna {
     this.pollEvents();
     if (!this.enabled) { if (this.live.length) this.clear(); this.job = null; return; }
     if ((this.tickT -= dt) <= 0) { this.tickT = R.tick; try { this.direct(); } catch (e) { g.reportError?.(e); } }
+    // Far off (past `lodR`, out of any view), an animal thinks every fourth frame on the time it saved up.
+    const Fo = this.focus(), lod = R.lodR;
+    this.frame = (this.frame + 1) | 0;
     for (let i = this.live.length - 1; i >= 0; i--) {
       const a = this.live[i];
       if (!a) continue;
-      try { this.tick(a, dt); } catch (e) { g.reportError?.(e); }
+      let step = dt;
+      if (!a.dead && (Math.abs(a.x - Fo.x) > lod || Math.abs(a.z - Fo.z) > lod)) {
+        a.lodDt = (a.lodDt ?? 0) + dt;
+        if (((this.frame + a.seed) & 3) !== 0) continue;
+        step = Math.min(0.1, a.lodDt); a.lodDt = 0;
+      } else a.lodDt = 0;
+      try { this.tick(a, step); } catch (e) { g.reportError?.(e); }
     }
     this.trapPass();
     if (this.job) this.butcherStep(dt);
@@ -440,7 +450,7 @@ export class Fauna {
       if (S.form === 'swarm' || (a.deadT > 30 && (a.butchered || S.butcher === null) && !this.inView(a.x, a.z))) this.remove(a);
       return;
     }
-    for (const k of ['atkCd', 'alarmT', 'fleeT', 'frozenT', 'backT', 'strikeT', 'lungeT', 'hitCd', 'infT']) if (a[k] > 0) a[k] -= dt;
+    for (const k of TIMERS) if (a[k] > 0) a[k] -= dt;
     a.stT += dt; a.a.flinch = Math.max(0, a.a.flinch - dt * 5);
     if (a.held) { this.heldStep(a, dt); this.animate(a, dt); return; }
     this.hazards(a, dt);
@@ -818,11 +828,11 @@ export class Fauna {
     if (a.state === 'lunge') { a.state = 'return'; a.target = null; }
     A.jaw = Math.max(0, A.jaw - dt * 2);
     // Something on the bank within its lunge: off the edge it comes.
-    let best = null, bd = AT.reach, bk = null;
-    const consider = (t, k) => { const d = Math.hypot(t.x - a.x, t.z - a.z); if (d < bd && this.depthAt(t.x, t.z) < 0.9) { bd = d; best = t; bk = k; } };
-    for (const c of g.chars) if (c.alive && !c.inVehicle && !c.hf && !c.fauna && Math.abs(c.x - a.x) < 6 && Math.abs(c.z - a.z) < 6) consider(c, c.faction === 'zombie' ? 'zombie' : 'person');
-    for (const d of g.dogs?.dogs ?? []) if (!d.dead && !d.ride && Math.abs(d.x - a.x) < 6 && Math.abs(d.z - a.z) < 6) consider(d, 'dog');
-    for (const o of this.live) if (o !== a && !o.dead && o.form !== 'gator' && o.form !== 'swarm' && !(o.form === 'bird' && o.air) && Math.abs(o.x - a.x) < 6 && Math.abs(o.z - a.z) < 6) consider(o, 'animal');
+    const P0 = _pick; P0.t = null; P0.d = AT.reach; P0.k = null; // (one scratch object: nothing allocated a frame)
+    for (const c of g.chars) if (c.alive && !c.inVehicle && !c.hf && !c.fauna && Math.abs(c.x - a.x) < 6 && Math.abs(c.z - a.z) < 6) this.pick(a, c, c.faction === 'zombie' ? 'zombie' : 'person');
+    for (const d of g.dogs?.dogs ?? []) if (!d.dead && !d.ride && Math.abs(d.x - a.x) < 6 && Math.abs(d.z - a.z) < 6) this.pick(a, d, 'dog');
+    for (const o of this.live) if (o !== a && !o.dead && o.form !== 'gator' && o.form !== 'swarm' && !(o.form === 'bird' && o.air) && Math.abs(o.x - a.x) < 6 && Math.abs(o.z - a.z) < 6) this.pick(a, o, 'animal');
+    const best = P0.t, bd = P0.d, bk = P0.k;
     if (best && a.atkCd <= 0 && Math.hypot(a.x - a.home.x, a.z - a.home.z) < S.leash) {
       a.state = 'lunge'; a.lungeT = 0.7; a.target = best; a.tkind = bk; a.atkCd = AT.every; this.stats.lunges++;
       this.voice(a, 'hiss');
@@ -846,6 +856,8 @@ export class Fauna {
     a.state = 'lurk';
     return k > 0.6 ? W(a, b.wx, b.wz, S.speed.walk * 0.7) : W(a, a.x, a.z, 0, Math.atan2(b.x - b.wx, b.z - b.wz));
   }
+  // The gator's pick: the nearest thing standing on the bank (not out in deep water) within its lunge.
+  pick(a, t, k) { const d = Math.hypot(t.x - a.x, t.z - a.z); if (d < _pick.d && this.depthAt(t.x, t.z) < 0.9) { _pick.d = d; _pick.t = t; _pick.k = k; } }
   // A gator's bite that holds: the death roll, then back into the water with what it can drag.
   bite(a, q, kind) {
     const g = this.g, S = a.S, AT = S.attack;
@@ -1044,7 +1056,7 @@ export class Fauna {
     for (const f of g.throwables?.fires ?? []) if (Math.hypot(f.x - a.x, f.z - a.z) < f.r) this.hurt(a, (S.form === 'swarm' ? 30 : 7) * dt, f.by ?? null, 0, 0, 'fire');
     if (!a.alive) return;
     // The infected bite what gets close (they do not hunt animals; an animal that fights them pays for it).
-    if (a.infT <= 0 && S.form !== 'swarm') for (const c of g.chars) {
+    if (a.infT <= 0 && S.form !== 'swarm' && (a.zT = (a.zT ?? 0) - dt) <= 0) for (const c of (a.zT = 0.2, g.chars)) { // looked for five times a second
       if (c.faction !== 'zombie' || !c.alive || c.hf || Math.abs(c.x - a.x) > 1.3 || Math.abs(c.z - a.z) > 1.3) continue;
       if (Math.hypot(c.x - a.x, c.z - a.z) < 1.15) { a.infT = R.infectedEvery; this.hurt(a, R.infectedBite, c, a.x - c.x, a.z - c.z, 'bite'); break; }
     }

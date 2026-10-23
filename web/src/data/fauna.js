@@ -216,6 +216,7 @@ export const FAUNA_RULES = {
   recordHours: 30,       // a chunk's roll is good for this many game hours away (then it is rolled again)
   carcassHours: 20,      // a carcass lies this long (game hours), then it is bones and gone
   tick: 0.5,             // the director's beat (s)
+  lodR: 100,             // past this (m, either axis) from you an animal thinks every fourth frame (off screen at every zoom but HIGH)
   senseEvery: 0.25,      // each animal looks round this often (staggered)
   viewPad: 12,           // never spawn within the camera's view plus this
   drawR: 140,            // drawn within this of the camera
