@@ -186,7 +186,10 @@ vec3 wallSide(vec3 c) {
   // Along the face (world x or z, whichever the face runs on) and up it from the instance's foot.
   float s = abs(vWallN.x) > abs(vWallN.z) ? vWallW.z : vWallW.x;
   float y = vWallW.y - (vWallC.y - vWallH * 0.5);
-  float kind = floor(wh1(floor(vWallC.xz * 0.25) + 7.1) * 10.0);
+  // The finish is an exact integer hash of the instance's 4 m cell, so wallFinish() below (systems/materials.js: what a
+  // wall is made of) reads the same finish the shader paints.
+  vec2 fq = floor(vWallC.xz * 0.25 + 0.0371);
+  float kind = mod(mod(fq.x * 37.0 + fq.y * 101.0 + fq.x * fq.y * 3.0, 9973.0) * 7.0, 10.0);
   float k = 1.0;
   if (kind < 6.0) {
     k = 0.93 + 0.1 * wn(vec2(s, y) * 2.2) + 0.05 * wn(vec2(s, y) * 9.0);       // trowelled stucco
@@ -215,6 +218,15 @@ vec3 wallSide(vec3 c) {
 const WALL_FRAG_BODY = /* glsl */`
   if (abs(vWallN.y) < 0.5) diffuseColor.rgb = wallSide(diffuseColor.rgb);
 `;
+
+// The finish wallSurface paints on a wall piece whose centre is (cx, cz): 0-5 stucco, 6-8 concrete block, 9 brick. The
+// shader's arithmetic, in float32, on small integers: exact on both sides.
+const f32 = Math.fround, FQ = f32(0.0371);
+const pmod = (a, m) => ((a % m) + m) % m;
+export function wallFinish(cx, cz) {
+  const qx = Math.floor(f32(f32(f32(cx) * 0.25) + FQ)), qz = Math.floor(f32(f32(f32(cz) * 0.25) + FQ));
+  return pmod(pmod(qx * 37 + qz * 101 + qx * qz * 3, 9973) * 7, 10);
+}
 
 export function wallSurface(mat) {
   mat.onBeforeCompile = (sh) => {

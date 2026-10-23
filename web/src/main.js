@@ -41,6 +41,7 @@ import { ZOOM } from './data/camera.js';
 import { Vehicles } from './systems/vehicles.js';
 import { CarCombat } from './systems/carcombat.js';
 import { Interiors } from './systems/interiors.js';
+import { Materials } from './systems/materials.js';
 import { Zombies, AMBIENT_RESERVE } from './systems/zombies.js';
 import { Residents } from './systems/residents.js';
 import { Dogs } from './systems/dogs.js';
@@ -160,6 +161,7 @@ class Game {
     this.carCombat = new CarCombat(this);
     this.garage = new Garage(this); // plate by facing, hood guns, tail droppers (data/parts.js)
     this.interiors = new Interiors(this); // doors, locks, windows (after the nav grids and the car glass it borrows)
+    this.materials = new Materials(this); // what everything is made of: rounds through it, blasts, fire, rams, breaking; blood on walls (this.blood)
     this.zombies = new Zombies(this);
     this.train = new Train(this);
     this.convoy = new Convoy(this);
@@ -1209,6 +1211,7 @@ class Game {
       this.carCombat.update(simDt);
       this.vehDamage.update(simDt);
       this.throwables.update(simDt);
+      this.materials.update(simDt); // things burning down, cars ramming through, blood drying
       this.water.update(simDt);
       if (this.fuelTrail.length > 400) this.fuelTrail.splice(0, this.fuelTrail.length - 400);
       this.zombies.update(simDt);

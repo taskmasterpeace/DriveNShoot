@@ -37,6 +37,7 @@ import { forgetoolsCommands } from './forgetools.js';
 import { forgeChecks } from './forgetools-selftest.js';
 import { floridaChecks } from './florida-checks.js';
 import { creatorCommands, creatorChecks } from './creator-api.js'; // THE CREATOR: point-buy survivors (WEB_CREATOR.md)
+import { materialCommands, materialChecks } from './materials-api.js';
 
 // ============================================================================
 // DSOA AGENT API
@@ -1938,6 +1939,7 @@ function buildCommands(api) {
     ...devtoolsCommands(api, need),
     // THE WORLD FORGE's rows (src/agent/forgetools.js, docs/design/WEB_FORGE.md).
     ...forgetoolsCommands(api, need),
+    ...materialCommands(api), // material, build, breakAt, blood (agent/materials-api.js; docs/design/WEB_MATERIALS.md)
   };
 }
 
@@ -2650,6 +2652,10 @@ async function runSelfTest(api, only = null, skip = null) {
     return shattered && detached && kept && d && widest > 0.6 && through ? true
       : JSON.stringify({ id, shattered, why, detached, kept, door: d?.id ?? null, widest: r1(widest), through, attached: I2.ringOpen.size });
   });
+
+  // ---- what things are made of: rounds through wood and not block, ricochets, a breached door, blood on a wall,
+  // a burnt shack, broken things in the save (agent/materials-api.js; docs/design/WEB_MATERIALS.md).
+  await materialChecks({ g, api, C, check, extra, clearAt, inRuins });
 
   // ---- world memory (docs/design/WEB_WORLD_MEMORY.md §8). Staged on open sand between roads in the Glass Flats,
   // everyone else cleared out of sight, standings and pending rumors reset, the clock at noon.
@@ -5712,6 +5718,7 @@ export function snapshot(g) {
     wilds: g.wilds.save(), // the Greyborn's settlements, the Grapevine's packs and what they know of you, traps, your dose
     decks: g.decks.save(), // who stands on which vehicle's deck, the deck boxes' contents, the water tanks (systems/decks.js)
     sheet: g.creator?.save() ?? null, // the picks you were made from (data/creator.js): name, flag, look, the numbers they move; null: the default drifter
+    materials: g.materials?.save(), // what is broken, breached, burnt; pieces stood with build; blood and marks on the walls
   };
 }
 
@@ -5777,6 +5784,7 @@ export function restore(g, s) {
   g.gear?.load(s.gear ?? null); // a save from before the paperdoll: nothing worn
   if (s.dogs) g.dogs?.load(s.dogs); // an older save leaves the dogs as they are
   g.decks.load(s.decks ?? null); // last of the people: everyone off every deck, then the saved riders back aboard (an old save: all off)
+  if (s.materials) g.materials?.load(s.materials); // after the doors (interiors): a broken door is off its hinges again
   g.camLook.x = p.x; g.camLook.z = p.z;
   g.streamer?.ensureHot(p.inVehicle?.x ?? p.x, p.inVehicle?.z ?? p.z, 'load'); // a save out on the corridor: its ground first
   return { restored: { chars: s.chars.length, vehicles: s.vehicles.length }, player: { x: +p.x.toFixed(1), z: +p.z.toFixed(1), hp: p.hp } };

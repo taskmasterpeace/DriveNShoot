@@ -56,71 +56,86 @@ export class Combat {
     g.voice?.onShot(ch.x, ch.z, ch); // a calm line nearby is cut short; somebody close may shout (systems/voice.js)
     for (let p = 0; p < w.pellets; p++) {
       const a = ang + (Math.random() - 0.5) * 2 * w.spread * (ch === g.player ? (g.skills?.spreadMul ?? 1) * (g.needs?.sway ?? 1) : 1); // dexterity steadies the player's hands; tiredness and fever shake them
-      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg);
+      this.hitscan(ch, hug ? ch.x : ox, hug ? ch.z : oz, Math.sin(a), Math.cos(a), w.range * (0.85 + Math.random() * 0.15), w.dmg, w.ammo);
     }
     return true;
   }
 
-  hitscan(shooter, ox, oz, dx, dz, range, dmg) {
-    const g = this.g;
+  // ammo: what the round is (data/materials.js PUNCH: how hard it carries through things). A round that meets a wall goes
+  // on through it, glances off it or stops in it by what the wall is made of (systems/materials.js); whatever it reaches
+  // after that it reaches with what is left. People, cars, dogs and the train stop it.
+  hitscan(shooter, ox, oz, dx, dz, range, dmg, ammo = null) {
+    const g = this.g, M = g.materials;
     // Bullets go through window openings; glass, boards and a closed door stop them (systems/interiors.js).
     const fy = shooter.storey ? shooter.gy ?? 0 : 0, up = fy > 0.5; // upstairs: the round stays on that floor
-    let best = g.statics.raycast(ox, oz, dx, dz, range, RAY_BULLET, up ? fy + 1.3 : -1);
-    const wallHit = g.statics.hit.box ? { nx: g.statics.hit.nx, nz: g.statics.hit.nz, op: g.statics.hit.box.op ?? null } : null;
-    let target = null, kind = null;
-    for (const c of g.chars) {
-      if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
-      if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
-      if (c.underwater) continue;                          // bullets don't reach under water
-      if (!g.storeys.sameFloor(shooter, c)) continue;      // through a floor: no (world/storeys.js)
-      const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
-      if (t >= 0 && t < best) { best = t; target = c; kind = 'char'; }
-    }
-    for (const v of g.vehicles) {
-      if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
-      if (target?.onDeck?.v === v && !g.decks.covered(v, target)) continue;   // a rider standing in its open bed: above its sides
-      for (const s of [-1, 1]) {
-        const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
-        const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);
-        if (t >= 0 && t < best) { best = t; target = v; kind = 'veh'; }
+    let left = range, energy = dmg * (M ? M.punch(ammo) : 1);
+    for (let seg = 0; seg < 4; seg++) {
+      let best = g.statics.raycast(ox, oz, dx, dz, left, RAY_BULLET, up ? fy + 1.3 : -1);
+      const box = g.statics.hit.box, wnx = g.statics.hit.nx, wnz = g.statics.hit.nz;
+      let target = null, kind = null;
+      for (const c of g.chars) {
+        if (c === shooter || !c.alive || c.inVehicle || c.hidden) continue;
+        if (c.dive > 0.25 && Math.random() < 0.6) continue; // mid-air dive: most rounds miss
+        if (c.underwater) continue;                          // bullets don't reach under water
+        if (!g.storeys.sameFloor(shooter, c)) continue;      // through a floor: no (world/storeys.js)
+        const t = rayCircle(ox, oz, dx, dz, c.x, c.z, c.radius + 0.1, best);
+        if (t >= 0 && t < best) { best = t; target = c; kind = 'char'; }
       }
-    }
-    // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
-    const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, best) : null;
-    if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
-    if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
-      const th = g.train.raycast(ox, oz, dx, dz, best);
-      if (th) { best = th.t; target = th.car; kind = 'train'; }
-    }
-    const hx = ox + dx * best, hz = oz + dz * best;
-    // Near miss on the player: whiz.
-    if (shooter !== g.player && target !== g.player && g.player.alive) {
-      const px = g.player.x - ox, pz = g.player.z - oz, along = px * dx + pz * dz;
-      if (along > 0 && along < best && Math.abs(px * dz - pz * dx) < 1.6) g.audio.whiz(g.pan(g.player.x + dx));
-    }
-    g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
-    if (kind === 'char') {
-      this.damage(target, dmg, shooter, dx, dz);
-      if (shooter === g.player) g.skillsSys?.onHit();
-    } else if (kind === 'veh') {
-      g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
-      if (!g.garage?.absorb(target, hx, hz, dmg)) { // a plated face takes the round; a bare one lets it through
-        g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
-        g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
-        g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
+      for (const v of g.vehicles) {
+        if (up || v === shooter.inVehicle || v === shooter.firingFrom) continue; // the street's cars are a floor below
+        if (target?.onDeck?.v === v && !g.decks.covered(v, target)) continue;   // a rider standing in its open bed: above its sides
+        for (const s of [-1, 1]) {
+          const cx = v.x + Math.sin(v.h) * v.len * 0.25 * s, cz = v.z + Math.cos(v.h) * v.len * 0.25 * s;
+          const t = rayCircle(ox, oz, dx, dz, cx, cz, v.wid * 0.62, best);
+          if (t >= 0 && t < best) { best = t; target = v; kind = 'veh'; }
+        }
       }
-      if (shooter === g.player) g.qol.hit(false);
-    } else if (kind === 'dog') {
-      g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
-    } else if (kind === 'train') {
-      g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
-      g.train.hitCar(target, dmg, shooter);
-    } else if (wallHit?.op) {
-      g.interiors.onBullet(wallHit.op, hx, hz, dx, dz, dmg, shooter); // cracks glass, splinters boards, shoots locks
-    } else if (wallHit) {
-      g.fx.sparks(hx, 1.4 + fy, hz, wallHit.nx, wallHit.nz, 4);
-      if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
-      if (!up && Math.random() < 0.3) g.fx.decal(hx + wallHit.nx * 0.2, hz + wallHit.nz * 0.2, 0.3, '#1a1714');
+      // A dog in the line of fire (systems/dogs.js) takes the round like anyone would.
+      const dh = !up && g.dogs ? g.dogs.raycast(ox, oz, dx, dz, best) : null;
+      if (dh) { best = dh.t; target = dh.dog; kind = 'dog'; }
+      if (g.train && !up && !shooter.onTrain && !target?.onTrain) {
+        const th = g.train.raycast(ox, oz, dx, dz, best);
+        if (th) { best = th.t; target = th.car; kind = 'train'; }
+      }
+      const hx = ox + dx * best, hz = oz + dz * best;
+      // Near miss on the player: whiz.
+      if (shooter !== g.player && target !== g.player && g.player.alive) {
+        const px = g.player.x - ox, pz = g.player.z - oz, along = px * dx + pz * dz;
+        if (along > 0 && along < best && Math.abs(px * dz - pz * dx) < 1.6) g.audio.whiz(g.pan(g.player.x + dx));
+      }
+      g.fx.tracer(ox, oz, hx, hz, 1.45 + fy);
+      let o = null;
+      if (kind === 'char') {
+        this.damage(target, dmg, shooter, dx, dz);
+        if (shooter === g.player) g.skillsSys?.onHit();
+      } else if (kind === 'veh') {
+        g.fx.sparks(hx, 1, hz, -dx, -dz, 5);
+        if (!g.garage?.absorb(target, hx, hz, dmg)) { // a plated face takes the round; a bare one lets it through
+          g.vehiclesSys.damage(target, dmg * (target.armor ?? 0.5), shooter);
+          g.carCombat.onBulletHit(target, shooter, dmg, dx, dz); // glass, then whoever's behind broken glass
+          g.vehDamage.hit(target, hx, hz, dmg, 'bullet');        // dents, tyres, engine, tank
+        }
+        if (shooter === g.player) g.qol.hit(false);
+      } else if (kind === 'dog') {
+        g.dogs.hurt(target, dmg, shooter, dx, dz, 'bullet');
+      } else if (kind === 'train') {
+        g.fx.sparks(hx, 1.6, hz, -dx, -dz, 4);
+        g.train.hitCar(target, dmg, shooter);
+      } else if (box?.op) {
+        g.interiors.onBullet(box.op, hx, hz, dx, dz, dmg, shooter); // cracks glass, splinters boards, shoots locks
+        // A door leaf is wood or steel: a round may go on through it (windows keep their own rules: they stop it).
+        if (box.op.kind === 'leaf' && M) o = M.throughLeaf(box.op, ox, oz, dx, dz, best, g.interiors.nx, g.interiors.nz, dmg, energy, shooter, 1.4 + fy);
+      } else if (box && M) {
+        o = M.bullet(box, ox, oz, dx, dz, best, wnx, wnz, dmg, energy, shooter, 1.4 + fy, up ? fy + 1.3 : -1); // through, off or into it
+      } else if (box) {
+        g.fx.sparks(hx, 1.4 + fy, hz, wnx, wnz, 4);
+        if (Math.random() < 0.3) g.audio.ricochet(g.pan(hx), Math.hypot(hx - g.player.x, hz - g.player.z));
+        if (!up && Math.random() < 0.3) g.fx.decal(hx + wnx * 0.2, hz + wnz * 0.2, 0.3, '#1a1714');
+      }
+      if (!o) return;
+      left -= Math.hypot(o.x - ox, o.z - oz);
+      if (left < 0.5) return;
+      ox = o.x; oz = o.z; dx = o.dx; dz = o.dz; dmg = o.dmg; energy = o.energy;
     }
   }
 
@@ -155,7 +170,10 @@ export class Combat {
       const ax = attacker ? attacker.x - c.x : -dx, az = attacker ? attacker.z - c.z : -dz, al = Math.hypot(ax, az) || 1;
       g.fx.bloodSpray(c.x + (ax / al) * 1.1, 1.3 + (c.gy ?? 0), c.z + (az / al) * 1.1, ax / al, az / al, 3, 0.5);
     } else if (cause === 'bash' || cause === 'glass') g.fx.bloodSpray(c.x, 1.4 + (c.gy ?? 0), c.z, dx, dz, 5, 0.6); // a bloody nose, glass cuts
-    else g.fx.bloodSpray(c.x, 1.3 + (c.gy ?? 0), c.z, dx, dz, cause === 'bullet' ? 10 : 18, cause === 'bullet' ? 1 : 1.4);
+    else {
+      g.fx.bloodSpray(c.x, 1.3 + (c.gy ?? 0), c.z, dx, dz, cause === 'bullet' ? 10 : 18, cause === 'bullet' ? 1 : 1.4);
+      if (cause === 'bullet') g.blood?.splash(c, dx, dz, dmg, c.hp <= 0); // onto the wall, door or car behind them (systems/blood.js)
+    }
     g.audio.hit();
     if (c === g.player) g.hud.hurt(dmg);
     g.ai.onDamaged(c, attacker);
