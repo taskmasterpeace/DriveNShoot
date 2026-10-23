@@ -29,6 +29,26 @@ export class Zombies {
     this.sites = CHOIR_SITES.map((s) => ({ ...s, night: -1 }));
     this.counts = { bursts: 0, overheats: 0, echoStrikes: 0, hums: 0 };
     this.buildSites();
+    this.auraRing = null; // the ring on the ground (not this.aura: that is the method think() asks) round a living Choir-Touched (one mesh, shown only while one is near)
+  }
+
+  // The aura made visible: a faint ring on the ground at its 30 m reach, breathing with the hum. Without it a player could
+  // not tell why the herd near the mast is faster (a review found the Choir-Touched read as 'a shambler with a pale head').
+  showAura(dt) {
+    const g = this.g, P = g.player;
+    let q = null, bd = 120;
+    for (const c of this.choirs) { if (!c.alive) continue; const d = Math.hypot(c.x - P.x, c.z - P.z); if (d < bd) { bd = d; q = c; } }
+    if (!q) { if (this.auraRing) this.auraRing.visible = false; return; }
+    if (!this.auraRing) {
+      const geo = new THREE.RingGeometry(CH.aura - 0.6, CH.aura, 96); geo.rotateX(-Math.PI / 2);
+      this.auraRing = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#b9c2a4', transparent: true, opacity: 0.18, depthWrite: false }));
+      this.auraRing.renderOrder = 2;
+      g.scene.add(this.auraRing);
+    }
+    this.auraRing.visible = true;
+    this.auraRing.position.set(q.x, 0.06 + (q.gy ?? 0), q.z);
+    const k = 0.12 + 0.1 * (0.5 + 0.5 * Math.sin(g.time * ((Math.PI * 2) / CH.humEvery)));
+    this.auraRing.material.opacity = k;
   }
 
   // Every choir site has its anchor where you can see it: a dead relay mast, a rusted lattice tower with its beacon out.
@@ -152,7 +172,7 @@ export class Zombies {
       const d = Math.hypot(c.x - P.x, c.z - P.z);
       if (d < EC.hear) { g.feedback?.floater(c.x, c.z, EC.line, 'bark'); g.audio.murmur?.(g.pan(c.x), d); }
     }
-    if (this.watched(c)) { c.speed = 0; c.frozen = true; return; } // hands still on the wire
+    if (this.watched(c)) { c.speed = 0; c.frozen = true; return; } // hands still on the wire (handsUp stays as it was: mid-motion)
     c.frozen = false;
     // What it is at: the nearest boarded window or locked door to its post.
     if (!c.work || (c.work.W && c.work.W.state !== 'boarded') || (c.work.door && !c.work.door.locked)) {
@@ -162,8 +182,9 @@ export class Zombies {
       for (const door of I?.doors ?? []) if (door.locked) { const d = Math.hypot(door.x - post.x, door.z - post.z); if (d < bd) { bd = d; c.work = { door, x: door.x + door.nx * 0.9, z: door.z + door.nz * 0.9 }; } }
     }
     const tx = c.work ? c.work.x : post.x, tz = c.work ? c.work.z : post.z, d = Math.hypot(tx - c.x, tz - c.z);
-    if (d > 0.4) { g.ai.move(c, tx - c.x, tz - c.z, 1.1, dt); return; }
+    if (d > 0.4) { c.handsUp = false; g.ai.move(c, tx - c.x, tz - c.z, 1.1, dt); return; }
     c.speed = 0;
+    c.handsUp = !!c.work; // at its window or door: hands on it
     if (!c.work) return;
     const at = c.work.W ?? c.work.door;
     c.face = Math.atan2(at.x - c.x, at.z - c.z);
@@ -226,7 +247,7 @@ export class Zombies {
       const d = Math.hypot(s.x - P.x, s.z - P.z);
       if (d > s.near || d < Math.max(60, (g.viewR ?? 0) + 10)) return null;
     }
-    if (this.choirs.some((q) => q.alive && q.site === s.id)) return null;
+    if (this.choirs.some((q) => q.alive && q.site === s.id && g.chars.includes(q))) return null; // a removed one (a clean-up) doesn't hold the site
     s.night = night;
     const q = this.spawnKind('choir', s.x + 2.6, s.z + 2.6, { x: s.x + 2.6, z: s.z + 2.6, ax: s.x, az: s.z }); // at the mast's foot, facing it
     if (!q) return null;
@@ -316,6 +337,7 @@ export class Zombies {
     // The Choir: the dead fall out of the list (their aura and hum die with them); a site wakes at night, out of sight.
     for (let i = this.choirs.length - 1; i >= 0; i--) if (!this.choirs[i].alive || !g.chars.includes(this.choirs[i])) { const q = this.choirs[i]; this.choirs.splice(i, 1); if (!q.alive) g.emit('choirSilenced', { id: q.id }); }
     this.sites.forEach((s) => this.wakeSite(s));
+    this.showAura(dt);
     // Engines and horns carry: driving fast drags the dead after you.
     const pv = g.player.inVehicle;
     if (pv && g.vehiclesSys.speed(pv) > 5 && Math.random() < dt) this.onNoise(pv.x, pv.z, 60);
