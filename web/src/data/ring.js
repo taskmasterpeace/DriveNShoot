@@ -81,19 +81,23 @@ export const ZONES = {
   },
 };
 
-// Building kinds. w, d: footprint ranges (metres; w runs along the street); h: wall height; partition: 'front' splits the
-// house front room / back room (with a doorway), 'units' splits it into side-by-side units with their own front doors;
-// units: how many; bay: the front door's width when it is a roll-up bay; office: a small room in a back corner;
-// back: chance of a back door; furniture: [kind, min, max]; label: what its shelves say they are; loot: its own table.
+// Building kinds. w, d: footprint ranges (metres; w runs along the street); h: wall height. plan: its rooms come from
+// data/floorplans.js PLANS[kind] (world/floorplan.js: typed rooms, partitions with doorways, furniture by room); units:
+// side-by-side units with their own front doors (a duplex, a strip mall), each planned on its own; bay: the front door's
+// width when it is a roll-up bay; back: chance of a back door (per unit) where the plan offers one (the kitchen's, a
+// stock room's, the end of the hall). Sizes (WEB_FLOORPLANS.md): a ranch house 11.8-12.9 x 8.8-10.5 m (104-135 m2) fits
+// a living room, kitchen, bath and two bedrooms down a hall at real sizes, three on the deep ones; a bungalow is the
+// bigger house (three bedrooms, often a dining room). The warehouse keeps the old shell: one floor and an office in a
+// back corner (office), furniture from its own list; label: what its shelves say they are; loot: its own table.
 export const KINDS = {
-  house: { w: [9, 12.5], d: [8, 10.5], h: [3.0, 3.5], partition: 'front', back: 0.45, furniture: [['shelf', 1, 2], ['dresser', 0, 1], ['crate', 0, 1], ['bed', 1, 2], ['table', 0, 1], ['couch', 0, 1]] },
-  bungalow: { w: [12, 15], d: [9, 12], h: [3.1, 3.6], partition: 'front', back: 0.55, furniture: [['shelf', 1, 2], ['dresser', 1, 1], ['crate', 0, 1], ['bed', 1, 2], ['table', 1, 1], ['couch', 0, 1]] },
-  duplex: { w: [16, 19], d: [9, 11], h: [3.1, 3.5], partition: 'units', units: [2, 2], back: 0.3, furniture: [['shelf', 1, 1], ['dresser', 0, 1], ['bed', 1, 1], ['table', 0, 1]] },
-  shop: { w: [15, 21], d: [12, 15], h: [4.2, 5.0], bay: 4.2, back: 0.6, office: true, label: 'WORKSHOP', loot: 'garage', furniture: [['rack', 2, 3], ['crate', 1, 3], ['bench', 0, 1]] },
+  house: { w: [11.8, 12.9], d: [8.8, 10.5], h: [3.0, 3.5], plan: true, back: 0.55 },
+  bungalow: { w: [13, 15.5], d: [9.6, 12], h: [3.1, 3.6], plan: true, back: 0.65 },
+  duplex: { w: [16.5, 19.5], d: [9.6, 11], h: [3.1, 3.5], plan: true, units: [2, 2], back: 0.4 },
+  shop: { w: [15, 21], d: [12, 15], h: [4.2, 5.0], plan: true, bay: 4.2, back: 0.6, label: 'WORKSHOP', loot: 'garage' },
   warehouse: { w: [26, 38], d: [18, 26], h: [6.0, 7.4], bay: 5.0, back: 0.8, office: true, label: 'WAREHOUSE', loot: 'garage', furniture: [['rack', 4, 7], ['crate', 2, 5]] },
-  mall: { w: [38, 52], d: [12, 14.5], h: [4.2, 4.8], partition: 'units', units: [3, 4], back: 0.5, furniture: [['shelf', 2, 3], ['counter', 1, 1]] },
-  gas: { w: [11, 13.5], d: [8, 9.5], h: [3.8, 4.2], canopy: true, back: 0.4, label: 'FUEL STOP', loot: 'pumps', furniture: [['shelf', 2, 3], ['counter', 1, 1]] },
-  diner: { w: [14, 18], d: [10, 12], h: [3.6, 4.2], back: 0.7, label: 'DINER', loot: 'kitchen', furniture: [['counter', 1, 2], ['table', 2, 3], ['shelf', 1, 1]] },
+  mall: { w: [38, 52], d: [12, 14.5], h: [4.2, 4.8], plan: true, units: [3, 4], back: 0.5 },
+  gas: { w: [11, 13.5], d: [8, 9.5], h: [3.8, 4.2], plan: true, canopy: true, back: 0.4, label: 'FUEL STOP', loot: 'pumps' },
+  diner: { w: [14, 18], d: [10, 12], h: [3.6, 4.2], plan: true, back: 0.7, label: 'DINER', loot: 'kitchen' },
 };
 
 // A strip mall's units: what each sold, so its shelves say so and hold it.
@@ -104,19 +108,70 @@ export const UNITS = [
 ];
 
 // Furniture: [w along the wall, d out from it, h], its colour(s), whether it is a container (its label, litres and the
-// table it rolls when it has none from its room), and whether it is solid.
+// table it rolls when it has none from its room), and whether it is solid. parts: what it looks like from above, as boxes
+// [a0, a1, d0, d1, y0, y1, colour] in its own frame (a: share of its width along the wall, d: share of its depth out from
+// the wall, 0 at the wall; y: metres): colour a number = its own colour times that, '#hex' as is, '@' one of alt (picked
+// per piece). No parts: one box. centre: it stands in the middle of the room (a rug, a dining table), not on a wall.
+// spots: sleeping places (a double bed sleeps two). near/far: placed close to / away from a piece already in the room
+// ('*' = any: a kitchen's units run on from each other); farDoor: away from the room's doorway (a bed's head wall).
 export const FURNITURE = {
-  shelf: { size: [2.0, 0.5, 1.8], colors: ['#4d3a29', '#5a4632'], box: { label: 'SHELF', cap: 40 }, solid: true },
-  crate: { size: [1.0, 1.0, 1.0], colors: ['#7a5a34', '#6b4e2e'], box: { label: 'CRATE', cap: 60 }, solid: true },
-  rack: { size: [2.6, 0.9, 2.4], colors: ['#5a5a56', '#6a5a48'], box: { label: 'RACK', cap: 60 }, solid: true },
-  counter: { size: [2.4, 0.8, 1.0], colors: ['#6a5440', '#5a5650'], box: { label: 'COUNTER', cap: 40 }, solid: true },
-  dresser: { size: [1.4, 0.55, 1.1], colors: ['#5a3e28', '#6b4a32'], box: { label: 'DRESSER', cap: 30, loot: 'bedroom' }, solid: true },
-  bed: { size: [2.0, 1.0, 0.45], colors: ['#6d6552', '#4f5a4f', '#7a6048'], bed: true, solid: false },
-  table: { size: [1.8, 1.1, 0.9], colors: ['#5a3e28', '#4d3a29'], solid: true },
-  couch: { size: [2.0, 0.9, 0.8], colors: ['#5a4a3a', '#4a5048', '#6a5038'], solid: true },
-  bench: { size: [2.4, 0.8, 0.95], colors: ['#4a4440', '#5e5a54'], solid: true },
+  shelf: { size: [2.0, 0.5, 1.8], colors: ['#4d3a29', '#5a4632'], box: { label: 'SHELF', cap: 40 }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 1.8, 1], [0.03, 0.97, 0.08, 0.98, 1.8, 1.82, 0.62], [0.06, 0.32, 0.2, 0.85, 1.82, 1.95, '#8a7a5a']] },
+  crate: { size: [1.0, 1.0, 1.0], colors: ['#7a5a34', '#6b4e2e'], box: { label: 'CRATE', cap: 60 }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 1.0, 1], [0.08, 0.92, 0.45, 0.55, 1.0, 1.02, 0.7]] },
+  rack: { size: [2.6, 0.9, 2.4], colors: ['#5a5a56', '#6a5a48'], box: { label: 'RACK', cap: 60 }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 2.4, 1], [0.04, 0.3, 0.1, 0.9, 2.4, 2.6, '#7a5a34'], [0.62, 0.95, 0.1, 0.9, 2.4, 2.55, '#5e6450']] },
+  counter: { size: [2.4, 0.8, 1.0], colors: ['#6a5440', '#5a5650'], box: { label: 'COUNTER', cap: 40 }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.96, 1], [0, 1, 0, 1, 0.96, 1.0, '#a89c84']] },
+  dresser: { size: [1.3, 0.5, 1.0], colors: ['#5a3e28', '#6b4a32'], box: { label: 'DRESSER', cap: 30, loot: 'bedroom' }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 1.0, 1], [0.12, 0.3, 0.3, 0.7, 1.0, 1.1, '#8a7a5a']] },
+  nightstand: { size: [0.5, 0.45, 0.6], colors: ['#5a3e28', '#6b4a32'], box: { label: 'NIGHTSTAND', cap: 10, loot: 'bedroom' }, solid: true, near: 'bed',
+    parts: [[0, 1, 0, 1, 0, 0.6, 1], [0.25, 0.75, 0.3, 0.8, 0.6, 0.7, '#c8b48a']] },
+  // A double bed, its head against the wall: frame, headboard, sheet, pillows at the wall end, a blanket over the foot.
+  bed: { size: [1.45, 2.05, 0.5], colors: ['#5a3e28', '#4d3a29', '#6a5038'], alt: ['#8a3a2e', '#3f5a6a', '#6a7a4a', '#a0844e', '#5a6e7a', '#7a5a3a'], bed: true, solid: false, spots: 2, farDoor: true,
+    parts: [[0, 1, 0, 0.07, 0, 0.9, 1.1], [0, 1, 0.07, 1, 0, 0.44, '#cfc6b2'], [0.08, 0.47, 0.1, 0.26, 0.44, 0.54, '#e6dfcd'], [0.53, 0.92, 0.1, 0.26, 0.44, 0.54, '#e6dfcd'], [0, 1, 0.36, 1, 0.44, 0.5, '@']] },
+  sbed: { size: [1.0, 2.0, 0.48], colors: ['#5a3e28', '#4d3a29', '#6a5038'], alt: ['#8a3a2e', '#3f5a6a', '#6a7a4a', '#a0844e', '#5a6e7a', '#7a5a3a'], bed: true, solid: false, farDoor: true,
+    parts: [[0, 1, 0, 0.07, 0, 0.8, 1.1], [0, 1, 0.07, 1, 0, 0.42, '#cfc6b2'], [0.15, 0.85, 0.1, 0.26, 0.42, 0.52, '#e6dfcd'], [0, 1, 0.38, 1, 0.42, 0.48, '@']] },
+  table: { size: [1.4, 0.9, 0.78], colors: ['#5a3e28', '#4d3a29'], solid: true,
+    parts: [[0, 1, 0, 0.8, 0, 0.78, 1], [0.15, 0.4, 0.82, 1, 0, 0.5, 0.8], [0.6, 0.85, 0.82, 1, 0, 0.5, 0.8]] },
+  couch: { size: [2.1, 0.9, 0.8], colors: ['#5a4a3a', '#4a5048', '#6a5038', '#7a4a32'], solid: true, farDoor: true,
+    parts: [[0, 1, 0.22, 1, 0, 0.45, 1], [0, 1, 0, 0.26, 0, 0.85, 0.82], [0, 0.09, 0.22, 1, 0, 0.62, 0.9], [0.91, 1, 0.22, 1, 0, 0.62, 0.9]] },
+  armchair: { size: [0.9, 0.85, 0.8], colors: ['#5a4a3a', '#4a5048', '#7a4a32'], solid: true, near: 'couch',
+    parts: [[0, 1, 0.22, 1, 0, 0.45, 1], [0, 1, 0, 0.26, 0, 0.85, 0.82]] },
+  tv: { size: [1.3, 0.45, 0.55], colors: ['#4d3a29', '#3d3a36'], solid: true, far: 'couch',
+    parts: [[0, 1, 0, 1, 0, 0.55, 1], [0.12, 0.88, 0.25, 0.6, 0.55, 1.05, '#1f2326']] },
+  rug: { size: [2.6, 1.8, 0.02], colors: ['#7a3a2a', '#6a5a2a', '#3f5446', '#2f4a5a', '#7a5a3a'], solid: false, centre: true,
+    parts: [[0, 1, 0, 1, 0.12, 0.14, 1], [0.1, 0.9, 0.16, 0.84, 0.14, 0.15, 1.3]] }, // (on the floor slab, whose top is 0.12)
+  // The kitchen: units along the walls, running on from each other.
+  kcounter: { size: [1.6, 0.62, 0.92], colors: ['#6a5440', '#5a5650', '#7a6a50'], box: { label: 'CUPBOARD', cap: 30, loot: 'kitchen' }, solid: true, near: '*',
+    parts: [[0, 1, 0, 1, 0, 0.88, 1], [0, 1, 0, 1, 0.88, 0.92, '#b8ac92']] },
+  stove: { size: [0.76, 0.64, 0.92], colors: ['#d2cbbb', '#c4bca8'], solid: true, near: '*',
+    parts: [[0, 1, 0, 1, 0, 0.9, 1], [0.05, 0.95, 0.08, 0.95, 0.9, 0.92, '#2b2826'], [0.14, 0.86, 0.22, 0.46, 0.92, 0.93, '#6a645e'], [0.14, 0.86, 0.6, 0.84, 0.92, 0.93, '#6a645e']] },
+  fridge: { size: [0.8, 0.72, 1.8], colors: ['#dcd5c6', '#cfc8b6', '#c2b9a2'], box: { label: 'FRIDGE', cap: 30, loot: 'kitchen' }, solid: true, near: '*',
+    parts: [[0, 1, 0, 1, 0, 1.8, 1]] },
+  sink: { size: [1.1, 0.62, 0.92], colors: ['#6a5440', '#5a5650', '#7a6a50'], box: { label: 'SINK', cap: 20, loot: 'kitchen' }, solid: true, near: '*',
+    parts: [[0, 1, 0, 1, 0, 0.88, 1], [0, 1, 0, 1, 0.88, 0.92, '#b8ac92'], [0.15, 0.85, 0.2, 0.85, 0.92, 0.93, '#7e868a']] },
+  dtable: { size: [1.7, 1.9, 0.78], colors: ['#5a3e28', '#4d3a29', '#6b4a32'], solid: true, centre: true,
+    parts: [[0.06, 0.94, 0.24, 0.76, 0, 0.78, 1], [0.1, 0.9, 0, 0.17, 0, 0.5, 0.78], [0.1, 0.9, 0.83, 1, 0, 0.5, 0.78]] },
+  // The bathroom: tub, toilet and a vanity (its cabinet holds the medicine).
+  tub: { size: [1.6, 0.76, 0.55], colors: ['#d8d2c4', '#cbc4b2'], solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.55, 1], [0.05, 0.95, 0.12, 0.88, 0.55, 0.56, '#9ea6a4']] },
+  toilet: { size: [0.46, 0.7, 0.42], colors: ['#e0dacd', '#d4cdbd'], solid: true,
+    parts: [[0, 1, 0, 0.3, 0, 0.8, 1], [0.08, 0.92, 0.3, 1, 0, 0.42, 1], [0.24, 0.76, 0.45, 0.9, 0.42, 0.43, '#8e9a9a']] },
+  vanity: { size: [0.8, 0.5, 0.86], colors: ['#6a5440', '#d4cdbd'], box: { label: 'MEDICINE CABINET', cap: 15, loot: 'bathroom' }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.82, 1], [0, 1, 0, 1, 0.82, 0.86, '#d8d2c4'], [0.22, 0.78, 0.25, 0.8, 0.86, 0.87, '#8e9a9a']] },
+  // Shops, diners, offices.
+  booth: { size: [1.3, 1.95, 0.75], colors: ['#8a3226', '#7a3a24', '#3f5a52'], solid: true,
+    parts: [[0, 1, 0, 0.24, 0, 1.05, 1], [0.08, 0.92, 0.28, 0.72, 0, 0.75, '#c8bca0'], [0, 1, 0.76, 1, 0, 1.05, 1]] },
+  desk: { size: [1.4, 0.7, 0.76], colors: ['#5a3e28', '#5a5650'], box: { label: 'DESK', cap: 20, loot: 'office' }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.76, 1], [0.1, 0.45, 0.15, 0.6, 0.76, 0.78, '#d8d0bc']] },
+  cabinet: { size: [0.5, 0.62, 1.32], colors: ['#6a6e6a', '#5e625e', '#7a7a72'], box: { label: 'FILING CABINET', cap: 20, loot: 'office' }, solid: true,
+    parts: [[0, 1, 0, 1, 0, 1.32, 1]] },
+  bench: { size: [2.4, 0.8, 0.95], colors: ['#4a4440', '#5e5a54'], solid: true,
+    parts: [[0, 1, 0, 1, 0, 0.95, 1], [0.1, 0.35, 0.2, 0.7, 0.95, 1.05, '#7a3a1c']] },
   // R2: a mattress on the floor, one for each resident the house's own beds do not cover (and a Dustwolf's cot).
-  mattress: { size: [2.0, 0.9, 0.22], colors: ['#7a6a52', '#6a604c', '#5e6450', '#7a5a44'], bed: true, solid: false },
+  mattress: { size: [2.0, 0.9, 0.22], colors: ['#7a6a52', '#6a604c', '#5e6450', '#7a5a44'], bed: true, solid: false,
+    parts: [[0, 1, 0, 1, 0, 0.22, 1], [0.03, 0.2, 0.12, 0.88, 0.22, 0.3, '#d8cfbc'], [0.32, 0.98, 0.04, 0.96, 0.22, 0.26, '@']], alt: ['#5a4a3a', '#6a5a42', '#4f5a52', '#7a5a3a'] },
 };
 
 // ---- R2, the residents (docs/design/WEB_STREAMING.md §1.3 "R2 as built") ---------------------------------------------

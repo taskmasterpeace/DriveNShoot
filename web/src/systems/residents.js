@@ -8,6 +8,7 @@ import { AMBIENT_RESERVE } from './zombies.js';
 // ask for more).
 const RESERVE = () => Math.max(RES_RULES.reserve, AMBIENT_RESERVE);
 import { hash32, rngOf } from '../world/geo.js';
+import { RAY_SOLID } from '../engine/collision.js';
 
 // THE PHOENIX RING, R2: the people who live in it (docs/design/WEB_STREAMING.md §1.3 "R2 as built"; rows in
 // data/ring.js RESIDENTS and RES_RULES). Thinly and memorably: a scavenger family in a dead house with a bed each, squatters
@@ -92,7 +93,7 @@ export class Residents {
       id: L.id, kind: hh.kind, R, fid: R.fid, owner: L.owner, L, cx: L.cx, cz: L.cz, x0: L.x0, z0: L.z0, x1: L.x1, z1: L.z1, front: L.front,
       name: zombie ? R.name : R.faction === 'raider' ? R.name : `${fam.toUpperCase()} ${hh.kind === 'family' ? 'FAMILY' : 'SQUAT'}`,
       ownerName: R.faction === 'raider' ? 'the Dustwolf pack' : hh.kind === 'family' ? `the ${fam} family` : `the ${fam} squat`,
-      rooms: geo.home.rooms, beds: geo.home.beds.map((i) => geo.beds[i]),
+      rooms: geo.home.rooms, stay: geo.home.stay?.length ? geo.home.stay : geo.home.rooms, beds: geo.home.beds.map((i) => geo.beds[i]),
       boxIds: zombie ? [] : geo.boxesIn.filter(inMine).map((q) => q.id),
       doors: geo.doors.filter((d) => !d.barricade).map((d) => ({ x: d.x, z: d.z, nx: d.nx, nz: d.nz, kind: d.kind })),
       barricade: geo.barricade ? { ...geo.barricade, hp: RES_RULES.barricade.hp } : null,
@@ -144,7 +145,7 @@ export class Residents {
       const d = rec.doors.find((q) => q.kind === 'bay') ?? rec.doors[0];
       return { x: d.x - d.nx * 2.2, z: d.z - d.nz * 2.2, face: Math.atan2(d.nx, d.nz) };
     }
-    const r = rec.rooms[m.n % rec.rooms.length], mr = rngOf(m.seed ^ 0x5eed);
+    const r = rec.stay[m.n % rec.stay.length], mr = rngOf(m.seed ^ 0x5eed);
     const w = Math.max(0, r.x1 - r.x0 - 2.4), d = Math.max(0, r.z1 - r.z0 - 2.4);
     return { x: (r.x0 + r.x1) / 2 + (mr() - 0.5) * w * 0.6, z: (r.z0 + r.z1) / 2 + (mr() - 0.5) * d * 0.6, face: mr() * 6.28 };
   }
@@ -186,7 +187,7 @@ export class Residents {
     if (rec.lairs) return rec.lairs;
     const RG = this.RG, [cx, cz] = rec.owner.split(',').map(Number);
     const cand = RG.owned(cx, cz).filter((L) => L.zone === 'ruins' && L.id !== rec.id).sort((a, b) => Math.hypot(a.cx - rec.cx, a.cz - rec.cz) - Math.hypot(b.cx - rec.cx, b.cz - rec.cz));
-    rec.lairs = [rec.L, ...cand.slice(0, Math.max(0, (rec.R.lairs ?? 1) - 1))].map((L) => ({ id: L.id, cx: L.cx, cz: L.cz, rooms: RG.geo(L).rooms }));
+    rec.lairs = [rec.L, ...cand.slice(0, Math.max(0, (rec.R.lairs ?? 1) - 1))].map((L) => ({ id: L.id, cx: L.cx, cz: L.cz, rooms: RG.geo(L).stay?.length ? RG.geo(L).stay : RG.geo(L).rooms }));
     return rec.lairs;
   }
   lair(rec, day) { const Ls = this.lairsOf(rec); return Ls[hash32(rec.L.seed, day + 3, 0x4c414952) % Ls.length]; }
@@ -478,16 +479,27 @@ export class Residents {
       // then a path to a free spot a step from it, and the last step straight.
       let route = g.footPath(c.x, c.z, tx, tz);
       for (let k = 0; !route && k < 4 && Math.hypot(tx - c.x, tz - c.z) < 30; k++) route = g.footPath(c.x, c.z, tx + NEAR8[k][0], tz + NEAR8[k][1]);
-      S.route = route ?? [{ x: tx, z: tz }]; S.ri = 0; S.repath = 3; S.gx = tx; S.gz = tz; S.lost = route ? 0 : (S.lost ?? 0) + 1;
+      S.route = route ?? [{ x: tx, z: tz }]; S.ri = 0; S.held = -1; S.repath = 3; S.gx = tx; S.gz = tz; S.lost = route ? 0 : (S.lost ?? 0) + 1;
     }
     if (!S.route) { c.speed = 0; return false; } // waiting for a plan this frame
     let wp = S.route[S.ri];
-    while (S.ri < S.route.length - 1 && Math.hypot(wp.x - c.x, wp.z - c.z) < 1.1) wp = S.route[++S.ri];
+    // On to the next point once this one is near, but only when the way to the next is clear for a body (three rays, a
+    // shoulder's width apart): cutting the corner of a doorway early walked a resident into its jamb, wedged short of
+    // their bed. A blocked skip is not tried again for that point: they walk right up to it first.
+    while (S.ri < S.route.length - 1) {
+      const dd = Math.hypot(wp.x - c.x, wp.z - c.z);
+      if (dd < 0.35 || (dd < 1.1 && S.held !== S.ri && (this.clearTo(c.x, c.z, S.route[S.ri + 1]) || ((S.held = S.ri), false)))) wp = S.route[++S.ri];
+      else break;
+    }
     // The route's last point is the nearest free cell to the goal (a bed against a wall is not one): the last step is
     // straight there.
     if (S.ri === S.route.length - 1 && Math.hypot(wp.x - c.x, wp.z - c.z) < 1.1) wp = { x: tx, z: tz };
     g.ai.move(c, wp.x - c.x, wp.z - c.z, speed, dt);
     return false;
+  }
+  clearTo(x, z, p) {
+    const st = this.g.statics, dx = p.x - x, dz = p.z - z, d = Math.hypot(dx, dz) || 1, ox = (-dz / d) * 0.3, oz = (dx / d) * 0.3;
+    return st.lineOfSight(x, z, p.x, p.z, RAY_SOLID) && st.lineOfSight(x + ox, z + oz, p.x + ox, p.z + oz, RAY_SOLID) && st.lineOfSight(x - ox, z - oz, p.x - ox, p.z - oz, RAY_SOLID);
   }
   inside(rec, c) { return c.x > rec.x0 && c.x < rec.x1 && c.z > rec.z0 && c.z < rec.z1; }
 
@@ -531,7 +543,7 @@ export class Residents {
     if (this.watchman(rec, m)) { c.speed = 0; c.face = home.face; }
     else {
       // Pottering about their own room (straight lines inside one room: no walls in the way).
-      const r = rec.rooms[m.n % rec.rooms.length];
+      const r = rec.stay[m.n % rec.stay.length];
       if ((S.wander -= dt) <= 0) { S.wander = 4 + Math.random() * 6; c.wx = r.x0 + 1.2 + Math.random() * Math.max(0, r.x1 - r.x0 - 2.4); c.wz = r.z0 + 1.2 + Math.random() * Math.max(0, r.z1 - r.z0 - 2.4); }
       if (Math.hypot(c.wx - c.x, c.wz - c.z) > 0.6 && c.x > r.x0 && c.x < r.x1 && c.z > r.z0 && c.z < r.z1) g.ai.move(c, c.wx - c.x, c.wz - c.z, 1.1, dt);
       else if (!(c.x > r.x0 && c.x < r.x1 && c.z > r.z0 && c.z < r.z1)) this.walk(c, home.x, home.z, 1.3, dt);

@@ -158,6 +158,13 @@ everything past the island. From the street the island reads as a walled holdout
 the whole arc is that **the ring must be alive, not scenery**. R1 (this section) is the city itself, which you can walk
 into and search. R2 (the residents) is built ("R2 as built", below); R3 (traffic) is designed below but not built.
 
+**Floor plans (2026-10-23, [WEB_FLOORPLANS.md](WEB_FLOORPLANS.md)).** The front-room/back-room shells described below
+are replaced for every kind but the warehouse: a house opens into its living room, with the kitchen beside it and two
+or three bedrooms and a bathroom down a short hall (`world/floorplan.js`, rows in `data/floorplans.js`); a duplex is two
+one-bedroom flats; a workshop, diner, fuel stop or mall unit has a stock room, kitchen, office and restroom behind its
+floor. Rooms are typed and furnished as what they are, every piece proved on a copy of the foot nav before it stays.
+Houses grew to 11.8-12.9 x 8.8-10.5 m to fit real rooms. The counts and costs below are R1's as first built.
+
 **What is there.** The ring has 901 blocks and 2,477 buildings (926 of them ruined shells open to
 the sky, 1,294 lots left empty). By kind: 1,093 houses, 541 bungalows, 243 duplexes, 152 workshops, 99 warehouses, 82 strip malls, 117 fuel stops and 150 diners. By zone: 288 THE BURN, 249 THE DEAD HOUSES, 190 THE STRIP and 174 THE YARDS blocks.
 - **Streets** follow the island's own lattice (`world/city.js`: a road every 80 m, 14 m wide), carried outward. Every
