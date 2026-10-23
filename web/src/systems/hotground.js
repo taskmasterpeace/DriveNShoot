@@ -20,14 +20,43 @@ export class HotGround {
   build() {
     const g = this.g, geos = [];
     const tint = (geo, hex) => { geo = geo.index ? geo.toNonIndexed() : geo; const n = geo.attributes.position.count, c = new THREE.Color(hex), a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; } geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); return geo; };
-    this.tintMat = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.55, roughness: 1, depthWrite: false });
-    const discs = [];
+    const stains = [];
     for (const Z of this.zones) {
       const R = Z.row, L = R.look, rng = rngOf(Z.seed);
-      // The sick ground: a ragged disc, darker and yellower in the middle.
-      for (let k = 0; k < 3; k++) { const d = new THREE.CircleGeometry(R.r * (1 - k * 0.28), 36); d.rotateX(-Math.PI / 2); d.translate(R.x + (rng() - 0.5) * 6, 0.05 + k * 0.01, R.z + (rng() - 0.5) * 6); discs.push(tint(d, k === 0 ? L.tint : k === 1 ? '#6e6a2e' : '#5d5a26')); }
-      // Fused glass: flat, pale, glinting plates.
-      for (let k = 0; k < R.glass; k++) { const a = rng() * 6.28, r = rng() * R.r * 0.85, b = new THREE.CylinderGeometry(0.6 + rng() * 1.6, 0.8 + rng() * 1.6, 0.06, 6); b.rotateY(rng() * 3); b.translate(R.x + Math.sin(a) * r, 0.08, R.z + Math.cos(a) * r); geos.push(tint(b, L.glass)); }
+      // The sick ground: a painted stain (blotches thicker toward the middle, cracks, a ragged edge that fades out),
+      // one textured plane per zone. Its canvas doubles as the night glow's mask, so the glow is patchy too.
+      const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+      const cx = cv.getContext('2d');
+      for (let k = 0; k < 260; k++) {
+        const a = rng() * 6.28, rr = Math.sqrt(rng()) * 210 * (k < 60 ? 0.5 : 1), x = 256 + Math.sin(a) * rr, y = 256 + Math.cos(a) * rr, s = 14 + rng() * 46;
+        const grd = cx.createRadialGradient(x, y, 0, x, y, s), col = new THREE.Color(L.stain[k % L.stain.length]);
+        const al = (0.16 + rng() * 0.22) * (1 - rr / 260);
+        grd.addColorStop(0, `rgba(${(col.r * 255) | 0},${(col.g * 255) | 0},${(col.b * 255) | 0},${al.toFixed(3)})`); grd.addColorStop(1, `rgba(${(col.r * 255) | 0},${(col.g * 255) | 0},${(col.b * 255) | 0},0)`);
+        cx.fillStyle = grd; cx.fillRect(x - s, y - s, s * 2, s * 2);
+      }
+      // Fine crazing in the fused crust (short, thin, faint: from above it reads as texture, not lines).
+      cx.strokeStyle = 'rgba(40,36,18,0.32)'; cx.lineWidth = 0.8;
+      for (let k = 0; k < 90; k++) { const a = rng() * 6.28, rr = Math.sqrt(rng()) * 150; let x = 256 + Math.sin(a) * rr, y = 256 + Math.cos(a) * rr; cx.beginPath(); cx.moveTo(x, y); for (let j = 0; j < 4; j++) { x += (rng() - 0.5) * 12; y += (rng() - 0.5) * 12; cx.lineTo(x, y); } cx.stroke(); }
+      const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+      // The glow's own mask: the same kind of blotches, stronger, gathered toward the middle.
+      const gv = document.createElement('canvas'); gv.width = gv.height = 256;
+      const gx = gv.getContext('2d');
+      for (let k = 0; k < 70; k++) {
+        const a = rng() * 6.28, rr = Math.sqrt(rng()) * 95, x = 128 + Math.sin(a) * rr, y = 128 + Math.cos(a) * rr, s = 10 + rng() * 26;
+        const grd = gx.createRadialGradient(x, y, 0, x, y, s), al = (0.25 + rng() * 0.35) * (1 - rr / 120);
+        grd.addColorStop(0, `rgba(255,255,255,${al.toFixed(3)})`); grd.addColorStop(1, 'rgba(255,255,255,0)');
+        gx.fillStyle = grd; gx.fillRect(x - s, y - s, s * 2, s * 2);
+      }
+      const gtex = new THREE.CanvasTexture(gv);
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(R.r * 2.4, R.r * 2.4).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 1 }));
+      plane.position.set(R.x, 0.06, R.z); plane.rotation.y = rng() * 6.28; plane.receiveShadow = true; plane.renderOrder = 1;
+      g.scene.add(plane); stains.push({ plane, tex: gtex });
+      // Fused glass: small irregular plates, pale green-yellow, scattered thickest in the middle.
+      for (let k = 0; k < R.glass; k++) {
+        const a = rng() * 6.28, r = Math.sqrt(rng()) * R.r * 0.8, b = new THREE.CircleGeometry(0.25 + rng() * 0.55, 5 + Math.floor(rng() * 3));
+        b.scale(1, 0.4 + rng() * 0.6, 1); b.rotateZ(rng() * 3); b.rotateX(-Math.PI / 2 + (rng() - 0.5) * 0.12); b.translate(R.x + Math.sin(a) * r, 0.09, R.z + Math.cos(a) * r);
+        geos.push(tint(b, rng() < 0.25 ? '#d4dc9c' : L.glass));
+      }
       // Dead husks: bare trunks with a few broken limbs.
       for (let k = 0; k < R.husks; k++) {
         const a = rng() * 6.28, r = 6 + rng() * R.r * 0.9, x = R.x + Math.sin(a) * r, z = R.z + Math.cos(a) * r, h = 3 + rng() * 3.5;
@@ -49,15 +78,13 @@ export class HotGround {
       const mark = new THREE.BoxGeometry(0.06, 0.35, 0.35); mark.translate(sx + 0.1, 2.0, sz); geos.push(tint(mark, '#1e1a14'));
     }
     if (geos.length) { this.mesh = new THREE.Mesh(mergeGeometries(geos), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.1 })); this.mesh.castShadow = true; this.mesh.receiveShadow = true; g.scene.add(this.mesh); }
-    if (discs.length) { this.ground = new THREE.Mesh(mergeGeometries(discs), this.tintMat); this.ground.receiveShadow = true; this.ground.renderOrder = 1; g.scene.add(this.ground); }
-    // The glow: an additive radial disc per zone, nearly nothing by day and a sick light at night.
-    const cv = document.createElement('canvas'); cv.width = cv.height = 128;
-    const cx = cv.getContext('2d'), grd = cx.createRadialGradient(64, 64, 4, 64, 64, 64);
-    grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.5, 'rgba(255,255,255,0.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
-    cx.fillStyle = grd; cx.fillRect(0, 0, 128, 128);
-    const glows = this.zones.map((Z) => { const p = new THREE.PlaneGeometry(Z.row.r * 2.4, Z.row.r * 2.4); p.rotateX(-Math.PI / 2); p.translate(Z.row.x, 0.2, Z.row.z); return p; });
-    this.glowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), color: this.zones[0]?.row.look.glow ?? '#b8c94a', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-    if (glows.length) { this.glow = new THREE.Mesh(mergeGeometries(glows), this.glowMat); this.glow.renderOrder = 3; g.scene.add(this.glow); }
+    // The glow: a patchy additive sheet over the stain, nearly nothing by day and a sick light at night.
+    this.glows = stains.map(({ plane, tex }, i) => {
+      const m = new THREE.MeshBasicMaterial({ map: tex, color: this.zones[i].row.look.glow, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+      const p = new THREE.Mesh(plane.geometry, m); p.position.copy(plane.position); p.position.y = 0.12; p.rotation.copy(plane.rotation); p.renderOrder = 3;
+      g.scene.add(p);
+      return m;
+    });
   }
 
   // Where you are in it: the zone, how deep (0 edge .. 1 centre).
@@ -152,7 +179,8 @@ export class HotGround {
     if (b.label !== this.band) { if (b.cut > (this.cut ?? 0)) g.hud?.toast(`RADIATION: ${b.label}`, 'warn'); this.band = b.label; g.emit('dose', { band: b.label, dose: Math.round(this.dose) }); }
     this.cut = b.cut;
     if (this.cut > 0 && P.alive && !g.godMode) { const cap = (P.maxHp || 100) * (1 - this.cut); if (P.hp > cap) P.hp = cap; }
-    if (this.glowMat) this.glowMat.opacity = 0.05 + 0.4 * (g.sky?.night ?? 0) * (0.9 + 0.1 * Math.sin(g.time * 1.3));
+    const glow = 0.03 + 0.62 * (g.sky?.night ?? 0) * (0.85 + 0.15 * Math.sin(g.time * 1.3));
+    for (const m of this.glows) m.opacity = glow;
   }
 
   view() {

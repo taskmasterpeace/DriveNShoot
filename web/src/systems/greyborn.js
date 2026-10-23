@@ -33,7 +33,12 @@ export class Greyborn {
     }
     // The ring of traps (traps.js), owned by the settlement.
     for (const [kind, deg, dist] of row.traps) {
-      const a = (deg * Math.PI) / 180, t = g.traps.place(kind, row.x + Math.sin(a) * dist, row.z + Math.cos(a) * dist, row.id, a + rng() * 0.6);
+      // On open ground in sight of the fire (a spot inside a ridge is pulled in toward the fire, or dropped).
+      const a = (deg * Math.PI) / 180;
+      let r = dist;
+      while (r > 24 && !(g.nav.foot.free(row.x + Math.sin(a) * r, row.z + Math.cos(a) * r) && g.los(row.x, row.z, row.x + Math.sin(a) * r, row.z + Math.cos(a) * r))) r -= 4;
+      if (r <= 24) continue;
+      const t = g.traps.place(kind, row.x + Math.sin(a) * r, row.z + Math.cos(a) * r, row.id, a + rng() * 0.6);
       if (t) rec.traps.push(t.id);
     }
     return rec;
@@ -43,7 +48,15 @@ export class Greyborn {
   spot(rec, m) {
     const row = rec.row, mr = rngOf(m.seed ^ 0x5eed), idx = rec.members.filter((q) => q.role === m.role).indexOf(m);
     if (m.role === 'elder') return { x: row.x + 1.9, z: row.z + 0.7, face: Math.atan2(-1.9, -0.7) };
-    if (m.role === 'watcher') { const a = (idx / Math.max(1, row.members.watcher)) * Math.PI * 2 + 3.6, r = row.territory * 0.45; return { x: row.x + Math.sin(a) * r, z: row.z + Math.cos(a) * r, face: a }; }
+    if (m.role === 'watcher') {
+      // A post with a view: on open ground, in sight of the fire, looking out over 25 m of open ground (not into a ridge).
+      const g = this.g, a0 = (idx / Math.max(1, row.members.watcher)) * Math.PI * 2 + 3.6, r = row.territory * 0.45;
+      for (let k = 0; k < 18; k++) {
+        const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.3, x = row.x + Math.sin(a) * r, z = row.z + Math.cos(a) * r;
+        if (g.nav.foot.free(x, z) && g.los(row.x, row.z, x, z) && g.los(x, z, x + Math.sin(a) * 25, z + Math.cos(a) * 25)) return { x, z, face: a };
+      }
+      return { x: row.x + Math.sin(a0) * r, z: row.z + Math.cos(a0) * r, face: a0 };
+    }
     if (m.role === 'trapper') { const a = idx * 2.4 + 1.1, r = 12.5; return { x: row.x + Math.sin(a) * r, z: row.z + Math.cos(a) * r, face: a + Math.PI }; }
     const a = mr() * Math.PI * 2, r = 3.6 + mr() * 3; return { x: row.x + Math.sin(a) * r, z: row.z + Math.cos(a) * r, face: a + Math.PI };
   }
@@ -57,9 +70,9 @@ export class Greyborn {
       let b = new THREE.BoxGeometry(sx, sy, sz); b = b.toNonIndexed();
       b.rotateZ(rz); b.rotateX(rx); b.rotateY(ry); b.translate(x, y, z); into.push(tint(b, col));
     };
+    const open = (x, z, r = 1.2) => g.nav.foot.free(x, z) && g.nav.foot.free(x + r, z) && g.nav.foot.free(x - r, z) && g.nav.foot.free(x, z + r) && g.nav.foot.free(x, z - r); // not inside a ridge
     for (const rec of this.recs) {
       const R = rec.row, rng = rngOf(rec.seed ^ 0xb1d), X = R.x, Z = R.z;
-      // Trampled earth and ash.
       // Trampled earth: ragged patches, thicker toward the fire (not one flat plate), and the ash bed.
       for (let k = 0; k < 22; k++) {
         const a = rng() * 6.28, r = k < 8 ? rng() * 5 : 4 + rng() * 14, p = new THREE.CircleGeometry(0.9 + rng() * 1.8, 9).toNonIndexed();
@@ -74,6 +87,7 @@ export class Greyborn {
       // Shelters round the fire: hide-wrapped pole cones (every other one), lean-tos with their open sides facing in.
       for (let h = 0; h < R.huts; h++) {
         const a = (h / R.huts) * Math.PI * 2 + 0.3, r = 10.5 + rng() * 2.5, hx = X + Math.sin(a) * r, hz = Z + Math.cos(a) * r, len = 3.6;
+        if (!open(hx, hz, 2.4)) continue;
         if (h % 2 === 0) {
           const cone = new THREE.ConeGeometry(1.9, 2.9, 7, 1, true).toNonIndexed(); cone.rotateY(rng() * 3); cone.translate(hx, 1.45, hz); geos.push(tint(cone, rng() < 0.5 ? '#8a6c4c' : '#7d6046'));
           for (let j = 0; j < 6; j++) { const pa = (j / 6) * Math.PI * 2, pole = new THREE.CylinderGeometry(0.035, 0.05, 3.6, 4).toNonIndexed(); pole.translate(0, 1.8, 0); pole.rotateZ(0.56); pole.rotateY(pa - Math.PI / 2); pole.translate(hx + Math.sin(pa) * 1.95, 0, hz + Math.cos(pa) * 1.95); geos.push(tint(pole, '#3a2a1c')); }
@@ -94,11 +108,13 @@ export class Greyborn {
       for (let k = 0; k < 64; k++) {
         const a = (k / 64) * Math.PI * 2; if (Math.abs(Math.sin(a / 2)) < 0.14) continue;
         const r = 21 + rng() * 0.6, sx = X + Math.sin(a) * r, sz = Z + Math.cos(a) * r, ht = 1.3 + rng() * 0.7;
+        if (!open(sx, sz, 1)) continue;
         box(sx, ht / 2, sz, 0.12, ht, 0.12, rng() < 0.3 ? '#4a3a2a' : '#5e4a34', 0, Math.cos(a) * 0.35, -Math.sin(a) * 0.35);
       }
       // Bone totems at the edge: a pole, a crossbar, pale things hanging off it.
       for (let k = 0; k < 6; k++) {
         const a = (k / 6) * Math.PI * 2 + 0.5, r = 24, tx = X + Math.sin(a) * r, tz = Z + Math.cos(a) * r;
+        if (!open(tx, tz, 1)) continue;
         box(tx, 1.4, tz, 0.16, 2.8, 0.16, '#3e3024');
         box(tx, 2.4, tz, 1.2, 0.1, 0.1, '#3e3024', a);
         box(tx, 2.85, tz, 0.34, 0.3, 0.36, '#d6cdb4', a); // a skull-pale knot
@@ -295,7 +311,13 @@ export class Greyborn {
       else if (rec.live && d > rec.row.demoteR) this.demote(rec);
       else if (rec.live && rec.members.some((m) => m.dead && !m.c && Math.hypot(m.x - fx, m.z - fz) < 65)) this.promote(rec); // a body you've come near
     }
-    if (this.emberMat) this.emberMat.opacity = 0.35 + 0.6 * (g.sky?.night ?? 0) * (0.85 + 0.15 * Math.sin(g.time * 7));
+    const night = g.sky?.night ?? 0;
+    if (this.emberMat) this.emberMat.opacity = 0.35 + 0.6 * night * (0.85 + 0.15 * Math.sin(g.time * 7));
+    // The fire lights the ring of shelters after dark (a flicker from the effects' light pool, only when you're near).
+    if (night > 0.3 && (this.fireT = (this.fireT ?? 0) - 0.5) <= 0) {
+      this.fireT = 0.25;
+      for (const rec of this.recs) if (!rec.broken && Math.hypot(fx - rec.row.x, fz - rec.row.z) < 110) g.fx.light(rec.row.x, 1.4, rec.row.z, '#ff8a3a', (16 + Math.random() * 8) * night, 0.8);
+    }
   }
 
   view(rec) {

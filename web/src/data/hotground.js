@@ -6,9 +6,9 @@
 // fauna: what lives there and how many.
 export const HOT_GROUND = [
   {
-    id: 'fused_flat', name: 'THE FUSED FLAT', x: -50, z: -425, r: 50, dose: 3,
-    look: { tint: '#7d7a3c', glow: '#b8c94a', glass: '#c8cfa0', husk: '#3b3328', drum: '#6a4a26' },
-    husks: 14, drums: 7, glass: 22,
+    id: 'fused_flat', name: 'THE FUSED FLAT', x: 45, z: -445, r: 44, dose: 3,
+    look: { tint: '#7d7a3c', stain: ['#6f6c2c', '#86823a', '#5a5a26', '#9a9442'], glow: '#b8c94a', glass: '#8f9c5e', husk: '#2e2820', drum: '#6a4a26' },
+    husks: 16, drums: 8, glass: 46,
     fauna: { glassling: 5, lantern: 1 }, wakeR: 120,
   },
 ];

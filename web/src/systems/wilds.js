@@ -19,7 +19,7 @@ export class Wilds {
     game.greyborn = this.greyborn = new Greyborn(game);
     game.grapevine = this.grapevine = new Grapevine(game);
     game.hotground = this.hotground = new HotGround(game);
-    this.glints = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false }), MAX_GLINTS);
+    this.glints = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false, fog: false }), MAX_GLINTS);
     this.glints.count = 0; this.glints.frustumCulled = false; this.glints.renderOrder = 4;
     game.scene.add(this.glints);
     this.nGlint = 0;
@@ -49,14 +49,15 @@ export class Wilds {
     this.glints.setMatrixAt(this.nGlint, _o.matrix); this.glints.setColorAt(this.nGlint, _c.set(color)); this.nGlint++;
   }
 
+  // Glints gather over a frame (the creatures' thinks in ai.update come before this) and are drawn, then cleared.
   update(dt) {
-    this.nGlint = 0;
     this.greyborn.update(dt);
     this.grapevine.update(dt);
     this.hotground.update(dt);
     this.traps.update(dt); // last: holds clamp whoever a trap has after everyone moved
     this.glints.count = this.nGlint;
     if (this.nGlint) { this.glints.instanceMatrix.needsUpdate = true; if (this.glints.instanceColor) this.glints.instanceColor.needsUpdate = true; }
+    this.nGlint = 0;
   }
 
   // zombies.think: the kinds that are ours.

@@ -311,7 +311,9 @@ export class Grapevine {
   // Where to stand while stalking: on a ring round you at `want`, spread by member, behind your facing if it can be.
   stalkSpot(c, pk, px, pz, want) {
     const g = this.g, P = g.player, behind = P.face + Math.PI;
-    const cur = Math.atan2(c.x - px, c.z - pz);
+    // Spread round you, each member its own place in the line (a pack fans out; it doesn't huddle).
+    const n = Math.max(1, this.alive(pk).length), idx = this.alive(pk).indexOf(c);
+    const cur = Math.atan2(pk.x - px, pk.z - pz) + (idx - (n - 1) / 2) * 0.42;
     let best = null, bs = -1e9;
     for (let k = -3; k <= 3; k++) {
       const a = cur + k * 0.35, x = px + Math.sin(a) * want, z = pz + Math.cos(a) * want;
@@ -383,9 +385,12 @@ export class Grapevine {
       const c = m.c; if (!c?.alive) continue;
       const d = Math.hypot(c.x - P.x, c.z - P.z);
       if (d > 34 || d < 3) continue;
-      const fx = Math.sin(c.face), fz = Math.cos(c.face), sx = Math.cos(c.face) * 0.085, sz = -Math.sin(c.face) * 0.085, y = (c.crouch ? 1.12 : 1.62) + (c.gy ?? 0);
-      g.wilds.glint(c.x + fx * 0.2 + sx, y, c.z + fz * 0.2 + sz, 0.05, '#e8d48a');
-      g.wilds.glint(c.x + fx * 0.2 - sx, y, c.z + fz * 0.2 - sz, 0.05, '#e8d48a');
+      // Brighter the more of your light falls their way (you facing them), never nothing: you see the eyes before the shape.
+      const toThem = Math.atan2(c.x - P.x, c.z - P.z), k = 0.55 + 0.45 * Math.max(0, Math.cos(toThem - P.face));
+      const fx = Math.sin(c.face), fz = Math.cos(c.face), sx = Math.cos(c.face) * 0.11, sz = -Math.sin(c.face) * 0.11, y = (c.crouch ? 1.12 : 1.62) + (c.gy ?? 0);
+      const col = k > 0.85 ? '#fff0a8' : '#e0c870';
+      g.wilds.glint(c.x + fx * 0.3 + sx, y, c.z + fz * 0.3 + sz, 0.08 * k + 0.025, col);
+      g.wilds.glint(c.x + fx * 0.3 - sx, y, c.z + fz * 0.3 - sz, 0.08 * k + 0.025, col);
     }
   }
 

@@ -4515,6 +4515,31 @@ async function runSelfTest(api, only = null) {
       await C('teleport', STAGE);
     }
   }));
+  await check('greyborn: a watcher who sees you calls the alarm; the settlement remembers you, and next visit a snare waits on the line you came in by', async () => hush(async () => {
+    await stage();
+    const GB = g.greyborn, rec = GB.recs[0], R = rec.row, T = g.traps, since = g.eventSeq;
+    GB.demote(rec, true); rec.mem = {};
+    try {
+      await C('teleport', { x: R.x, z: R.z - 140 }); await C('step', { seconds: 1 });
+      const w = rec.members.find((m) => m.role === 'watcher' && m.c?.alive), home = w.c.gb.home ?? GB.spot(rec, w);
+      await C('teleport', { x: home.x + Math.sin(home.face) * 18, z: home.z + Math.cos(home.face) * 18 }); await C('step', { seconds: 2 });
+      const called = g.events.some((e) => e.seq > since && e.type === 'greybornAlarm' && e.on === g.player.id);
+      await C('teleport', { x: R.x + (home.x - R.x) * 0.9, z: R.z + (home.z - R.z) * 0.9 }); await C('step', { seconds: 1 });
+      const known = !!rec.mem.player?.entry;
+      await C('teleport', { x: R.x, z: R.z - 330 }); await C('step', { seconds: 1.5 });
+      const left = !rec.live;
+      await C('teleport', { x: R.x, z: R.z - 140 }); await C('step', { seconds: 1.5 });
+      const t = rec.extra && T.byId(rec.extra), e = rec.mem.player?.entry;
+      const waiting = rec.alert && t?.state === 'armed' && t.kind === 'snare' && !!e && Math.hypot(t.x - e.x, t.z - e.z) < 0.5;
+      return called && known && left && waiting ? true : JSON.stringify({ called, known, left, alert: rec.alert, trap: t ? T.view(t) : null, entry: e ?? null });
+    } finally {
+      GB.demote(rec, true);
+      const t = rec.extra && T.byId(rec.extra); if (t) { T.remove(t); rec.traps = rec.traps.filter((id) => id !== t.id); }
+      for (const m of rec.members) Object.assign(m, { hp: m.maxHp, dead: false, x: 0, z: 0, face: 0 });
+      rec.mem = {}; rec.extra = null; rec.alert = false; rec.alarmT = 0;
+      await C('teleport', STAGE);
+    }
+  }));
   const G = g.grapevine, pack = () => G.byId('mile_marker');
   const unpin = (pk) => { G.demote(pk); pk.pinned = false; pk.model = emptyModel(); for (const m of pk.members) { m.dead = false; m.hp = m.maxHp; } };
   await check('grapevine: a pack that never saw or heard you has an empty model, however much you shoot, reload and run out of its sight', async () => hush(async () => {
@@ -4570,9 +4595,9 @@ async function runSelfTest(api, only = null) {
       g.aimOverride = { x: p.x - 20, z: p.z };
       await C('step', { seconds: 3 });
       const live = G.alive(pk), mean = () => live.filter((c) => c.alive).reduce((s, c) => s + Math.hypot(c.x - p.x, c.z - p.z), 0) / Math.max(1, live.filter((c) => c.alive).length);
-      const stalking = pk.state === 'stalk', d0 = mean(), t0 = live[0];
+      const stalking = pk.state === 'stalk', d0 = mean(), t0 = live.find((c) => g.los(p.x, p.z, c.x, c.z)) ?? live[0];
       g.aimOverride = { x: t0.x, z: t0.z };
-      for (let i = 0; i < 6 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
+      for (let i = 0; i < 8 && !((t0.hitAt ?? -99) > g.time - 1); i++) await C('fire', { id: t0.id, shots: 1 });
       const hit = (t0.hitAt ?? -99) > g.time - 1;
       g.aimOverride = { x: p.x - 20, z: p.z };
       let ran = false;

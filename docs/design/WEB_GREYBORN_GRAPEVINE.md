@@ -85,7 +85,7 @@ Traps are world objects with a position, an owner (a settlement, a pack or nobod
 - **Trapcraft** is a skill learned by doing: every trap spotted, disarmed or survived adds to it, and each level widens
   the spot range and shortens and steadies the disarm.
 - **Disarming.** Stand at a spotted, armed trap and hold **E** for the disarm time. On a slip roll (lower with trapcraft)
-  it goes off on you. A disarmed snare or tripwire gives you its wire; a deadfall gives you scrap.
+  it goes off on you. A disarmed snare, tripwire or deadfall gives you a piece of scrap (there is no wire item yet).
 - **Re-laying.** A sprung or disarmed trap belonging to a living settlement is re-laid by a trapper after `relay` s; it
   goes back to unspotted. This is the society you can watch.
 
@@ -254,6 +254,8 @@ Greyborn are. The model is saved with the record, so a pack that learned you las
      disarmed by holding E, and does not go off;
    - Greyborn: a settlement promotes near you and demotes when you leave, keeping a wound and a death on its record,
      and promotes them back the same;
+   - Greyborn: a watcher who sees you calls the alarm; the settlement remembers you, and next visit a snare waits on the
+     line you came in by;
    - Grapevine: a pack that has seen and heard nothing has an empty model, however much you shoot out of its sight;
    - Grapevine: after watching you reload twice it starts its rush within half a second of your third reload, and not
      on the first;
@@ -264,3 +266,23 @@ Greyborn are. The model is saved with the record, so a pack that learned you las
 3. Draw calls at or under 150 at each site.
 4. Screenshots in `docs/renders/web/infected2/`: a Greyborn settlement, a trap seen and then disarmed, a Grapevine pack
    at the edge of the light at night, a hot ground zone. Each looked at as a hard critic.
+
+## 9. As built (2026-10-23)
+
+- **Where they are on the Phoenix island:** ASH HOLLOW at (185, 425), in the open desert south of the ruins between
+  two ridges; the mile-marker pack's ground at (−410, 30) by I-10 and the dry-wash pack's at (−290, 425) (400 m apart,
+  so they tell each other at dawn); THE FUSED FLAT at (45, −445). All are more than 150 m from every place the selftest
+  battery stages, so nothing promotes into another system's check.
+- **Placement is validated against the ground:** trap spots, watcher posts, shelters, stakes and totems that would land
+  inside a ridge or behind it from the fire are pulled in or dropped.
+- **Draw calls** (`perf` after a render): settlement 89 by day / 90 at night, hot ground 95 / 97, the Grapevine's
+  ground at night 91 (Rust Haven at night 84 for comparison). New meshes: traps 2 (parts, rings), settlement 2 (merged
+  place, embers), hot ground 3 per zone (stain, glow, merged props), glints 1.
+- **Shared files touched:** `systems/zombies.js` (owns `Wilds`; routes `c.wild`; the dawn clean-up and `onNoise` skip
+  `c.wild`), `systems/ai.js` (two lines: the `grapevine` route and "anyone armed fights them"), `agent/api.js` (four
+  commands, eight checks, the `wilds` save block and the snapshot filter `!c.wild`), `web/docs/COMMANDS.md`
+  (regenerated). `main.js`, survival, terrain, `world/*` and vehicles are untouched.
+- **Selftest:** 150/150 twice on fresh pages (2026-10-23, 288 s and 284 s).
+- **Open, for Robert:** the engine's night (sky.js `SUN_I`/`HEMI_I`, raised on 2026-10-23 after "it's too dark, bro")
+  reads as dusk from above on a clear night; the Grapevine shot was taken in ashfall, which is darker. "Truly dark and
+  scary" is a sky-lane call (it would need the night fill lowered or a moonless-night weather row), not this arc's.

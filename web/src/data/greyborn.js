@@ -35,7 +35,7 @@ export const GREYBORN = {
 // members by role; traps: the ring of trap spots (kind, angle in degrees, distance from the fire).
 export const GREYBORN_TOWNS = [
   {
-    id: 'ash_hollow', name: 'ASH HOLLOW', x: 125, z: 415, territory: 70, leash: 110, promoteR: 150, demoteR: 210,
+    id: 'ash_hollow', name: 'ASH HOLLOW', x: 185, z: 425, territory: 70, leash: 110, promoteR: 150, demoteR: 210,
     members: { elder: 1, watcher: 2, trapper: 2, kin: 4 },
     huts: 6,
     traps: [

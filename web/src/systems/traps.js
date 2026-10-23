@@ -23,7 +23,7 @@ export class Traps {
     this.stats = { sprung: 0, caught: 0, spotted: 0, disarmed: 0, slips: 0 };
     this.parts = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.95 }), MAX_PARTS);
     this.parts.castShadow = true; this.parts.receiveShadow = true; this.parts.count = 0; this.parts.frustumCulled = false;
-    const rg = new THREE.RingGeometry(0.85, 1.0, 40); rg.rotateX(-Math.PI / 2);
+    const rg = new THREE.RingGeometry(0.93, 1.0, 48); rg.rotateX(-Math.PI / 2);
     this.rings = new THREE.InstancedMesh(rg, new THREE.MeshBasicMaterial({ color: '#f0a52a', transparent: true, opacity: 0.75, depthWrite: false }), MAX_RINGS);
     this.rings.count = 0; this.rings.renderOrder = 2; this.rings.frustumCulled = false;
     game.scene.add(this.parts, this.rings);
